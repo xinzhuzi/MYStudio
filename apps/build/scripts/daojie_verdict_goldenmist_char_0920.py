@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""用户终审落账 09-20:人物型画风槽 = 金雾仙侠 ×0.8(终审图 87_char_w08)。
+"""用户终审落账 09-20:金雾仙侠两条裁定幂等落库。
 
-用户裁定(09-20):~/Downloads/daojie_lora_ab_0919/87_char_w08.png「这个风格不错」。
-该跑构成(runs_audit.json 实证):[85]按型人物三件(细节×1+亚洲×0.4+鎏金×0.3)
-+ 功能双件(Turbo×1/服从度×0.01)+ [87]金雾×0.8,seed=42,1024²,4步cfg1。
-即用户认可的是金雾 0.8 叠加在现人物配方之上(非替换鎏金)。
-启停纪律核对:金雾=「1」,鎏金 0.3=「半件」→ 画风同开 ≤1+鎏金半件,合规。
+裁定1(人物型):87_char_w08「这个风格不错」→ 人物=三件+金雾×0.8(叠加非替换)。
+  构成实证(runs_audit):[85]人物三件(细节1/亚洲0.4/鎏金0.3)+功能双件+[87]金雾0.8。
+裁定2(场景型):87_scene_w06「这个不错」→ 场景=细节×1+金雾×0.6,**无墨洗**。
+  构成实证(runs_audit):[85]仅细节×1(A/B 防双叠热调)+[87]金雾0.6,seed42,1024²。
+  原 AI 初评主推「墨洗×0.8」未获用户成图认可 → 场景撤墨洗(降备选);
+  概念气氛图墨洗0.7候选保留待终审。
 
 改动面(全部幂等,重跑零变化):
-  1. my_nodes/nodes/daojie_loras.json      人物.loras += 金雾×0.8(热调文件,[85]即时生效)
-  2. my_nodes/nodes/daojie_lora_stack.json  goldenmist.presets[人物] = on×0.8([90]栈节点)
-  3. my_nodes/nodes/daojie_bases.json       人物.lora_recipe += {金雾, 0.8, slot=goldenmist}
-  4. docs/prompts/道劫_九型配方_0919.md      人物行主配方/画风槽列终审化
-  5. docs/prompts/道劫_水墨四件对拍定谳_0919.md 追加 §6 用户终审记录
+  1. my_nodes/nodes/daojie_loras.json      人物+=金雾0.8;场景=细节+金雾0.6([85]热调)
+  2. my_nodes/nodes/daojie_lora_stack.json  goldenmist:人物/设定板=on×0.8;sumiwash:场景=off
+  3. my_nodes/nodes/daojie_bases.json       人物 lora_recipe+=金雾0.8;场景撤墨洗
+  4. docs/prompts/道劫_九型配方_0919.md      人物行/场景行终审化
+  5. docs/prompts/道劫_水墨四件对拍定谳_0919.md §6 用户终审记录
 """
 import json
 import sys
@@ -61,10 +62,36 @@ def bases(data):
     ent = next(e for e in data if e["key"] == "人物")
     if not any(r["file"] == GM for r in ent.get("lora_recipe", [])):
         ent.setdefault("lora_recipe", []).append({"file": GM, "weight": 0.8, "slot": "goldenmist"})
+    sc = next(e for e in data if e["key"] == "场景")
+    sc["lora_recipe"] = [r for r in sc.get("lora_recipe", []) if r.get("slot") != "sumiwash"]
+    for r in sc["lora_recipe"]:
+        if r["file"] == GM:
+            r["note"] = f"0.6=终审剂量({MARK} 87_scene_w06,无墨洗构成)"
+
+
+def hot_scene(data):
+    ent = next(e for e in data if e["key"] == "场景")
+    ent["loras"] = [l for l in ent["loras"] if "SumiWash" not in l["file"]]
+    if not any(l["file"] == GM for l in ent["loras"]):
+        ent["loras"].append({"file": GM, "strength_model": 0.6})
+    tag = f"金雾×0.6 无墨洗={MARK}(87_scene_w06)"
+    if tag not in ent["note"]:
+        ent["note"] = ent["note"].rstrip("。") + f";{tag}。"
+
+
+def stack_scene(data):
+    sw = next(s for s in data if s["key"] == "sumiwash")
+    if sw["presets"]["场景"]["on"]:
+        sw["presets"]["场景"] = {"on": False, "weight": 0.8}
+    tag = f"场景出局={MARK}"
+    if tag not in sw["note"]:
+        sw["note"] = sw["note"].rstrip("。") + f";场景{tag}(87_scene_w06 无墨洗构成获认可,降备选;概念气氛0.7候选保留)。"
 
 
 patch(NODES / "daojie_loras.json", hot_loras)
+patch(NODES / "daojie_loras.json", hot_scene)
 patch(NODES / "daojie_lora_stack.json", stack)
+patch(NODES / "daojie_lora_stack.json", stack_scene)
 patch(NODES / "daojie_bases.json", bases)
 
 mx = ROOT / "docs/prompts/道劫_九型配方_0919.md"
@@ -76,6 +103,13 @@ if old_main in text:
     changed.append(mx.name)
 elif new_main not in text:
     print(f"[!] 矩阵人物行未匹配,需人工核对:{mx}", file=sys.stderr)
+old_scene = "| 场景 | 16:9·4.2(2800×1576) | 细节×1+**墨洗×0.8**+金雾×0.6 | 墨洗主推最佳档(§2.2);金雾 0.6=json 等价剂量(§2.4);免鎏金 | 去噪精修→`K2-去噪精修.json` | 备选画风=淡彩线描 0.5-0.6/湿画 0.6(互斥) |"
+new_scene = "| 场景 | 16:9·4.2(2800×1576) | 细节×1+金雾×0.6 | 金雾 0.6=09-20 用户终审(87_scene_w06,无墨洗构成);免鎏金 | 去噪精修→`K2-去噪精修.json` | 备选画风=墨洗 0.6-0.8(终审出局)/淡彩线描 0.5-0.6/湿画 0.6(互斥) |"
+if old_scene in text:
+    text = text.replace(old_scene, new_scene)
+    changed.append(mx.name + "(场景行)")
+elif new_scene not in text:
+    print(f"[!] 矩阵场景行未匹配,需人工核对:{mx}", file=sys.stderr)
 mx.write_text(text, encoding="utf-8")
 
 vd = ROOT / "docs/prompts/道劫_水墨四件对拍定谳_0919.md"
@@ -89,6 +123,10 @@ sec = """
 if "## 6. 用户终审记录" not in vt:
     vt += sec
     changed.append(vd.name)
+bullet2 = "- **金雾 ×0.6 · 场景型 = 用户认可**(`~/Downloads/daojie_lora_ab_0919/87_scene_w06.png`「这个不错」)。构成实证:[85] 仅细节×1(A/B 防双叠热调)+[87]金雾×0.6,seed=42,1024²——**无墨洗**。据此场景配方撤墨洗(AI 初评主推「墨洗×0.8」降备选),三面对齐为 细节×1+金雾×0.6;概念气氛图墨洗 0.7 候选保留待终审。\n"
+if "场景型 = 用户认可" not in vt:
+    vt = vt.rstrip("\n") + "\n" + bullet2
+    changed.append(vd.name + "(裁定2)")
 vd.write_text(vt, encoding="utf-8")
 
 print("改动文件:", ", ".join(changed) if changed else "无(已幂等)")

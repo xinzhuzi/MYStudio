@@ -53,10 +53,7 @@
     {
       "name": "场景",
       "ran": true,
-      "audit_reconstructed": true,
-      "prompt_id": null,
-      "wall_s": 355.8,
-      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-墨洗淡彩SumiWash_v1.safetensors×0.8 + 金雾仙侠GoldenMisty.safetensors×0.6",
+      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + 金雾仙侠GoldenMisty.safetensors×0.6",
       "native": "2800×1576",
       "key_inputs": {
         "seed": 42,
@@ -71,18 +68,22 @@
           4
         ]
       },
-      "expected_applied_90": "跟随底座型·场景(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-墨洗淡彩SumiWash_v1×0.8 + 金雾仙侠GoldenMisty×0.6",
+      "expected_applied_90": "跟随底座型·场景(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.6",
+      "prompt_id": "14bcecb2-ada9-4899-a3e3-2ad22c48eb42",
+      "wall_s": 357.0,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "evidence": "首轮日志「完成」行=四锚全过;见 first_pass_log.txt"
+        "applied_90_actual": "跟随底座型·场景(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.6"
       },
-      "bytes": 5298759,
-      "sha256": "0a143881d41eb7c9b108cde22086df071b713dfddfcb654c0088908de2b026d6",
-      "pixel_sha256": "7b8d4d36d0cbf280f08e3a9447b20fdfbbd23a63ac7bfa76dc97cab2b76da8da",
+      "bytes": 5265219,
+      "sha256": "b93dbc0fb3968c625763c30f4adff25dcac153e8ddc0175114db71ed1effe2e6",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/场景.png",
-      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/场景.png"
+      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/场景.png",
+      "engine_image": "K2道劫文生图__00137_.png",
+      "final_positive_len": 341,
+      "pixel_sha256": "a320385789b92a5266175c07ea6eddf7b1b80363d9f28fa71c0085443dfcea08"
     },
     {
       "name": "道具",
@@ -327,7 +328,7 @@
   ],
   "runs_total": 9,
   "ok_count": 9,
-  "total_wall_s": 727.4,
+  "total_wall_s": 1084.5,
   "first_pass_interruption": "首轮 7 跑完成后续跑中引擎连接中断(表情差分 ConnectionReset;日志末见 引擎侧栈,自动重启于 17001);--only 续跑补齐 2 型;7 跑条目由盘上 PNG+首轮日志补记(prompt_id 不可考置 null,余皆实算/日志实录)",
-  "resume_note": "--only 续跑 ['人物'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
+  "resume_note": "--only 续跑 ['场景'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
 }

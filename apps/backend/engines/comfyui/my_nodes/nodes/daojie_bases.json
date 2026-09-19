@@ -59,16 +59,6 @@
         "slot": "detail"
       },
       {
-        "file": "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
-        "weight": 0.8,
-        "slot": "sumiwash",
-        "range": [
-          0.6,
-          0.8
-        ],
-        "note": "四件中墨味增益最大,主推最佳档"
-      },
-      {
         "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
         "weight": 0.6,
         "slot": "goldenmist",
@@ -76,7 +66,7 @@
           0.6,
           0.8
         ],
-        "note": "0.6=与现 json 剂量等价;与鎏金场景互换非叠加"
+        "note": "0.6=终审剂量(09-20 用户终审 87_scene_w06,无墨洗构成)"
       }
     ],
     "steps_hint": {

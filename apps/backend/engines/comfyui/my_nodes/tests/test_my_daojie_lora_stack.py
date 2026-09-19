@@ -179,11 +179,12 @@ def test_follow_without_base_falls_back_to_default_type():
 
 
 def test_scene_preset_rulings():
-    """场景系(09-19 对拍定谳):免鎏金、空镜无面孔、墨洗点亮、金雾×0.6。"""
+    """场景系:免鎏金、空镜无面孔、金雾×0.6(09-20 用户终审 87_scene_w06,
+    墨洗出局降备选);概念气氛=场景系变体,墨洗 0.7 候选保留待终审。"""
     plan, _, _ = stack.resolve_plan(_slots(), "场景")
     got = dict((s["key"], w) for s, w in plan)
     assert got == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
-                   "sumiwash": 0.8, "goldenmist": 0.6}, got
+                   "goldenmist": 0.6}, got
     # 概念气氛=场景系变体:墨洗取候选首选中值 0.7
     plan2, _, _ = stack.resolve_plan(_slots(), "概念气氛图")
     got2 = dict((s["key"], w) for s, w in plan2)
