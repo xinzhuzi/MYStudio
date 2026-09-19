@@ -1,8 +1,8 @@
 {
   "id": "e519cd0c-1249-47ce-94cd-98626102bd0f",
   "revision": 0,
-  "last_node_id": 86,
-  "last_link_id": 66,
+  "last_node_id": 87,
+  "last_link_id": 67,
   "nodes": [
     {
       "id": 21,
@@ -1638,7 +1638,7 @@
           "type": "MODEL",
           "slot_index": 0,
           "links": [
-            64
+            67
           ]
         }
       ],
@@ -1749,6 +1749,52 @@
       "widgets_values": [
         "(待运行)"
       ]
+    },
+    {
+      "id": 87,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        7670,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 67
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            64
+          ]
+        }
+      ],
+      "title": "[87] 画风·金雾仙侠 ×1.0(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
     }
   ],
   "links": [
@@ -2010,7 +2056,7 @@
     ],
     [
       64,
-      84,
+      87,
       0,
       85,
       0,
@@ -2031,6 +2077,14 @@
       86,
       0,
       "STRING"
+    ],
+    [
+      67,
+      84,
+      0,
+      87,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
@@ -2048,11 +2102,11 @@
     },
     {
       "id": 2,
-      "title": "② LoRA 链(13 件,链序自左向右;淡彩三件 82/83/84 默认旁路;画风件一次一枚)",
+      "title": "② LoRA 链(14 件,链序自左向右;水墨四件 82/83/84/87 默认旁路;画风件一次一枚)",
       "bounding": [
         1220,
         40,
-        6470,
+        6960,
         190
       ],
       "color": "#8a5fb0",
