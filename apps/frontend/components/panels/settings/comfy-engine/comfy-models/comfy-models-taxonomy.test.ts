@@ -14,19 +14,16 @@ describe("comfy-models 域分类法(09-10 分域裁定)", () => {
   it("真实库存全件归属:各产线家族各归其域", () => {
     expect(classifyModelDomains("diffusion_models", "krea2_turbo_bf16.safetensors")).toEqual(["image"]);
     expect(classifyModelDomains("diffusion_models", "minimax_h3_fl2va_pruned_bf16.safetensors")).toEqual(["video"]);
-    expect(classifyModelDomains("diffusion_models", "minimax_music3_dit_fp16.safetensors")).toEqual(["audio"]);
     // 文件名带空格的 Krea 2 LoRA(子目录形态)
     expect(classifyModelDomains("loras", "Krea2-NSFW/Krea 2 pussy.safetensors")).toEqual(["image"]);
     expect(classifyModelDomains("loras", "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors")).toEqual(["video"]);
-    // 文本编码器分家:4B 破限归 K2(图片),32B Heretic-H3 归 H3(视频),Music3 归声音
+    // 文本编码器分家:4B 破限归 K2(图片),32B Heretic-H3 归 H3(视频)(Music3 TE 已随权重隔离退役,09-20 移除断言)
     expect(classifyModelDomains("text_encoders", "qwen3-vl-4b-heretic.safetensors")).toEqual(["image"]);
     expect(classifyModelDomains("text_encoders", "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf")).toEqual(["video"]);
-    expect(classifyModelDomains("text_encoders", "minimax_music3_text_encoder_pruned_bf16.safetensors")).toEqual(["audio"]);
-    // VAE 分家:qwen_image 归图片;H3 视频/音频 VAE 归视频;Music3 dav 归声音
+    // VAE 分家:qwen_image 归图片;H3 视频/音频 VAE 归视频(Music3 dav 已随权重隔离退役,09-20 移除断言)
     expect(classifyModelDomains("vae", "qwen_image_vae.safetensors")).toEqual(["image"]);
     expect(classifyModelDomains("vae", "minimax_h3_video_vae_fp16.safetensors")).toEqual(["video"]);
     expect(classifyModelDomains("vae", "minimax_h3_audio_vae_fp32.safetensors")).toEqual(["video"]);
-    expect(classifyModelDomains("vae", "minimax_music3_dav.safetensors")).toEqual(["audio"]);
     // 类别整域归属:TTS 家→声音;vlm→图片;videoqc/补帧→视频
     expect(classifyModelDomains("TTS", "models--Qwen--Qwen3-TTS-12Hz-1.7B-CustomVoice/refs/main")).toEqual(["audio"]);
     expect(classifyModelDomains("TTS", "models--mlx-community--whisper-large-v3-turbo/refs/main")).toEqual(["audio"]);

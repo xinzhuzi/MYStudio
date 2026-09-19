@@ -520,8 +520,8 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
 
           {/* 模型页:本地大模型展示与管理(09-09 用户裁定并入引擎卡)。放在
               status 条件块外——引擎状态未知(sidecar 未起)时模型行照常可看,
-              不复现 09-08 修过的「真空窗空卡」。本地音乐模型已随 music3 收敛
-              ComfyUI 云端节点退役(09-09-music3-to-comfyui C 段),本页现管
+              不复现 09-08 修过的「真空窗空卡」。本地作曲线已转 YuE2(画布
+              侧),Music3 权重已物理隔离退役(09-20 屏蔽),本页现管
               图片大模型;后续视频等模态在此加子区。 */}
           {activeTab === "models" ? modelsPageNode : null}
 

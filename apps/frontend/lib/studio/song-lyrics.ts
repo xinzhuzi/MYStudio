@@ -39,7 +39,7 @@ export function buildLyricMessages(input: LyricRequestInput): LyricMessages {
   const lines = targetLineCount(input.targetSeconds);
   const reference = (input.reference ?? "").trim().slice(0, 6000);
   const system = [
-    "你是一位专业中文歌词作者,为 AI 音乐引擎(MiniMax-Music3)创作歌词。",
+    "你是一位专业中文歌词作者,为 AI 音乐引擎创作歌词。",
     `作品风格气质:${input.styleLabel}。用词、意象、情绪须贴合该气质。`,
     "输出契约(必须严格遵守):",
     "1. 只输出歌词正文,不要标题、不要解说、不要 markdown 围栏;",

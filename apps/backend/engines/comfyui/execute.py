@@ -3,10 +3,12 @@
 契约(POST /comfy/execute,job 化):
     {"graph": {nodeId: {"class_type": str, "inputs": {...}}},
      "inputs": {"strings": {"nodeId.inputKey": "文本"},
-                "images": [{"key": "nodeId.inputKey", "name": "x.png", "b64": "..."}]}}
+                "images": [{"key": "nodeId.inputKey", "name": "x.png", "b64": "..."}]},
+     "timeoutS": 300.0}   # 可选;音频整曲类长任务可放宽,上限 MAX_EXECUTE_TIMEOUT_S
 
 流程:图校验 → 图片 b64 上传引擎(/upload/image)→ 字符串注入对应 widget →
-引擎 /prompt 提交 → /history 轮询(超时 300s)→ 输出图 /view 取回 b64 数组。
+引擎 /prompt 提交 → /history 轮询(超时默认 300s,payload.timeoutS 可放宽)→
+输出图/音频 /view 取回 b64 数组(images+audios;纯音频工作流不再报"没有输出图片")。
 job 进度:上传 → 排队 → 执行中 → 收图(照 engine_manager 的 job 范式)。
 
 License 边界(父任务裁定 3):与 ComfyUI 的全部交互面 = HTTP API 客户端,
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import time
 import uuid
 from typing import Any
@@ -27,6 +30,8 @@ from engines.comfyui.engine_manager import EngineOpError, jobs
 
 # 执行总超时(排队+执行+收图;本地大图工作流可达分钟级,照桥 600s 收紧到 300s)
 EXECUTE_TIMEOUT_S = 300.0
+# 音频整曲类长任务(YuE2 BGM 等)经 payload.timeoutS 放宽的上限
+MAX_EXECUTE_TIMEOUT_S = 1200.0
 HISTORY_POLL_INTERVAL_S = 1.0
 # object_info 单类详情的 COMBO 选项截断上限(模型清单等长列表防几 MB 载荷)
 OBJECT_INFO_MAX_OPTIONS = 500
@@ -103,22 +108,30 @@ def _fetch_view(filename: str, subfolder: str, file_type: str, timeout: float = 
         with request.urlopen(f"{_engine_url()}/view?{query}", timeout=timeout) as response:
             return base64.b64encode(response.read()).decode("ascii")
     except (error.URLError, error.HTTPError, TimeoutError) as exc:
-        raise EngineOpError("引擎输出图片读取失败") from exc
+        raise EngineOpError("引擎输出文件读取失败(图片/音频)") from exc
 
 
-def _history_collect(history: dict[str, Any], prompt_id: str) -> tuple[str, list[dict[str, Any]]]:
-    """history 状态判定:pending / success(带输出图清单)/ error(抛大白话)。"""
+def _history_collect(
+    history: dict[str, Any], prompt_id: str
+) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
+    """history 状态判定:pending / success(带输出图+音频清单)/ error(抛大白话)。
+
+    音频条目来自 SaveAudioAdvanced/SaveAudio 类节点的 ui["audio"](引擎核心
+    comfy_api/_ui.py SavedAudios.as_dict → {"audio": [{filename, subfolder, type}]},
+    与 images 同形状)。
+    """
     entry = history.get(prompt_id)
     if not isinstance(entry, dict):
-        return "pending", []
+        return "pending", [], []
     status = entry.get("status", {})
     state = status.get("status_str")
     if state == "error":
         detail = str(status.get("messages", "ComfyUI 执行失败"))[:500]
         raise EngineOpError(f"ComfyUI 执行失败: {detail}")
     if state != "success":
-        return "pending", []
+        return "pending", [], []
     images: list[dict[str, Any]] = []
+    audios: list[dict[str, Any]] = []
     for node_id, output in entry.get("outputs", {}).items():
         if not isinstance(output, dict):
             continue
@@ -130,7 +143,15 @@ def _history_collect(history: dict[str, Any], prompt_id: str) -> tuple[str, list
                     "subfolder": str(image.get("subfolder", "") or ""),
                     "type": str(image.get("type", "output") or "output"),
                 })
-    return "success", images
+        for audio in output.get("audio", []):
+            if isinstance(audio, dict) and isinstance(audio.get("filename"), str):
+                audios.append({
+                    "nodeId": str(node_id),
+                    "filename": audio["filename"],
+                    "subfolder": str(audio.get("subfolder", "") or ""),
+                    "type": str(audio.get("type", "output") or "output"),
+                })
+    return "success", images, audios
 
 
 # ── 纯函数(单测覆盖):请求体校验与注入 ─────────────────────────────
@@ -206,20 +227,45 @@ def apply_image_injections(
             on_progress(index + 1, len(images))
 
 
+def resolve_execute_timeout_s(payload: dict[str, Any]) -> float:
+    """payload.timeoutS → 生效超时秒数(纯函数,单测覆盖)。
+
+    缺省/非法/非正数 → EXECUTE_TIMEOUT_S;超过 MAX_EXECUTE_TIMEOUT_S 钳到上限
+    (防调用方笔误把轮询挂成半天)。
+    """
+    raw = payload.get("timeoutS")
+    if raw is None:
+        return EXECUTE_TIMEOUT_S
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return EXECUTE_TIMEOUT_S
+    if value <= 0:
+        return EXECUTE_TIMEOUT_S
+    return min(value, MAX_EXECUTE_TIMEOUT_S)
+
+
 # ── job 化执行入口 ─────────────────────────────────────────────────
 
 def execute_job(payload: dict[str, Any]) -> str:
     """提交执行 job(进度:上传/排队/执行中/收图);返回 jobId。"""
     graph, strings, images = validate_execute_request(payload)
+    timeout_s = resolve_execute_timeout_s(payload)
     # 按需启动(09-08 补口):工作流节点/子图运行前,引擎装了没跑→先拉起
     from engines.comfyui import engine_manager as _em
     _em.engine_manager().ensure_engine_ready()
     job_id = jobs.create("comfy-execute", "准备执行 ComfyUI 工作流")
-    jobs.start(job_id, lambda jid: _execute_target(jid, graph, strings, images))
+    jobs.start(job_id, lambda jid: _execute_target(jid, graph, strings, images, timeout_s))
     return job_id
 
 
-def _execute_target(job_id: str, graph: dict[str, Any], strings: dict[str, str], images: list[dict[str, Any]]) -> None:
+def _execute_target(
+    job_id: str,
+    graph: dict[str, Any],
+    strings: dict[str, str],
+    images: list[dict[str, Any]],
+    timeout_s: float = EXECUTE_TIMEOUT_S,
+) -> None:
     try:
         # 1. 上传(逐张推进度;无图直过)
         jobs.update(
@@ -250,15 +296,16 @@ def _execute_target(job_id: str, graph: dict[str, Any], strings: dict[str, str],
 
         # 4. 轮询 history(执行中;进度按耗时线性爬到 90)
         jobs.update(job_id, progress=35, step="running", message="引擎执行中…")
-        deadline = time.monotonic() + EXECUTE_TIMEOUT_S
+        deadline = time.monotonic() + timeout_s
         outputs: list[dict[str, Any]] = []
+        audio_outputs: list[dict[str, Any]] = []
         while time.monotonic() < deadline:
-            state, outputs = _history_collect(
+            state, outputs, audio_outputs = _history_collect(
                 _http_json("GET", f"{_engine_url()}/history/{prompt_id}", timeout=10), prompt_id
             )
             if state == "success":
                 break
-            elapsed_ratio = min(0.55, (time.monotonic() - (deadline - EXECUTE_TIMEOUT_S)) / EXECUTE_TIMEOUT_S)
+            elapsed_ratio = min(0.55, (time.monotonic() - (deadline - timeout_s)) / timeout_s)
             jobs.update(job_id, progress=int(35 + elapsed_ratio * 100), message="引擎执行中…")
             time.sleep(HISTORY_POLL_INTERVAL_S)
         else:
@@ -266,11 +313,13 @@ def _execute_target(job_id: str, graph: dict[str, Any], strings: dict[str, str],
                 _http_json("POST", f"{_engine_url()}/interrupt", {"client_id": client_id}, timeout=5)
             except Exception:
                 pass  # 中断是清理性的,超时契约对调用方才是权威
-            raise EngineOpError("ComfyUI 执行超时(300 秒),请检查引擎队列后重试")
+            raise EngineOpError(
+                f"ComfyUI 执行超时({math.ceil(timeout_s)} 秒),请检查引擎队列后重试"
+            )
 
-        # 5. 收图(/view 取 b64)
-        if not outputs:
-            raise EngineOpError("工作流已完成但没有输出图片(缺 SaveImage 类输出节点?)")
+        # 5. 收图/收音频(/view 取 b64)
+        if not outputs and not audio_outputs:
+            raise EngineOpError("工作流已完成但没有输出图片或音频(缺 SaveImage/SaveAudio 类输出节点?)")
         collected: list[dict[str, Any]] = []
         for index, item in enumerate(outputs):
             jobs.update(job_id, progress=int(90 + index / max(1, len(outputs)) * 8), step="collect", message=f"取回输出图 {index + 1}/{len(outputs)}…")
@@ -281,7 +330,17 @@ def _execute_target(job_id: str, graph: dict[str, Any], strings: dict[str, str],
                 "type": item["type"],
                 "b64": _fetch_view(item["filename"], item["subfolder"], item["type"]),
             })
-        jobs.update(job_id, result={"promptId": prompt_id, "images": collected})
+        audio_collected: list[dict[str, Any]] = []
+        for index, item in enumerate(audio_outputs):
+            jobs.update(job_id, progress=int(94 + index / max(1, len(audio_outputs)) * 4), step="collect", message=f"取回输出音频 {index + 1}/{len(audio_outputs)}…")
+            audio_collected.append({
+                "nodeId": item["nodeId"],
+                "filename": item["filename"],
+                "subfolder": item["subfolder"],
+                "type": item["type"],
+                "b64": _fetch_view(item["filename"], item["subfolder"], item["type"]),
+            })
+        jobs.update(job_id, result={"promptId": prompt_id, "images": collected, "audios": audio_collected})
     except (EngineOpError, ValueError) as exc:
         jobs.update(job_id, error=str(exc))
     except Exception as exc:  # noqa: BLE001 — 面向前端的大白话兜底

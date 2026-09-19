@@ -20,6 +20,7 @@ vi.mock("@/lib/media/image-storage", () => ({
 
 import {
   collectComfyUpstream,
+  persistComfyAudio,
   planComfyWorkflowExecution,
   runComfyExecute,
   runComfyWorkflowNode,
@@ -253,6 +254,96 @@ describe("runComfyExecute(job 提交+轮询)", () => {
       runComfyExecute({ graph: { a: { class_type: "X", inputs: {} } }, inputs: { strings: {}, images: [] } }),
     ).rejects.toThrow("本地生图服务未运行");
     expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("音频产物透传:result.audios 与 images 同链原样回传(SaveAudio 输出)", async () => {
+    const { fn } = mockFetchSequence([
+      { ok: true, status: 200, body: { jobId: "job-bgm" } },
+      { ok: true, status: 200, body: { status: "running", step: "running", message: "引擎执行中…" } },
+      { ok: true, status: 200, body: { status: "complete", result: { promptId: "p-bgm", images: [], audios: [{ nodeId: "22", filename: "yue2.flac", b64: "QUJD" }] } } },
+    ]);
+    globalThis.fetch = fn as unknown as typeof fetch;
+    const result = await runComfyExecute(
+      { graph: { "22": { class_type: "SaveAudio", inputs: {} } }, inputs: { strings: {}, images: [] }, timeoutS: 1200 },
+    );
+    expect(result.audios?.[0]).toEqual({ nodeId: "22", filename: "yue2.flac", b64: "QUJD" });
+  });
+
+  it("options.pollTimeoutMs 生效:超时上限与文案秒数按自定义值(BGM 整曲 1230s)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { fn } = mockFetchSequence([
+        { ok: true, status: 200, body: { jobId: "job-long" } },
+        { ok: true, status: 200, body: { status: "running", step: "running", message: "引擎执行中…" } },
+      ]);
+      globalThis.fetch = fn as unknown as typeof fetch;
+      const pending = runComfyExecute(
+        { graph: { a: { class_type: "X", inputs: {} } }, inputs: { strings: {}, images: [] }, timeoutS: 1200 },
+        undefined,
+        { pollTimeoutMs: 1_230_000 },
+      );
+      const rejection = expect(pending).rejects.toThrow("ComfyUI 执行超时(1230 秒)");
+      await vi.advanceTimersByTimeAsync(1_230_000);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("未传 pollTimeoutMs:按默认 330s 上限报超时(动态秒数文案)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { fn } = mockFetchSequence([
+        { ok: true, status: 200, body: { jobId: "job-def" } },
+        { ok: true, status: 200, body: { status: "running", step: "running", message: "引擎执行中…" } },
+      ]);
+      globalThis.fetch = fn as unknown as typeof fetch;
+      const pending = runComfyExecute({ graph: { a: { class_type: "X", inputs: {} } }, inputs: { strings: {}, images: [] } });
+      const rejection = expect(pending).rejects.toThrow("ComfyUI 执行超时(330 秒)");
+      await vi.advanceTimersByTimeAsync(330_000);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// ── 音频落盘(09-20 YuE2 BGM 接线) ───────────────────────────────────
+
+describe("persistComfyAudio(b64 音频写项目)", () => {
+  afterEach(() => {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = undefined;
+  });
+
+  it("无项目身份/无写桥:大白话错误,不落盘", async () => {
+    useProjectStore.setState({ activeProjectId: null } as never);
+    await expect(persistComfyAudio("QUJD", "yue2.flac")).rejects.toThrow("无法写入项目音频");
+  });
+
+  it("b64 → media/audio/<月>/ 受管文件:扩展名取引擎文件名,字节解码,回传绝对路径与 url", async () => {
+    useProjectStore.setState({ activeProjectId: "p-audio" } as never);
+    const writeBinary = vi.fn(async () => ({
+      success: true,
+      filePath: "/proj/media/audio/2026-09/bgm_yue2_1234.flac",
+      url: "project-file://p-audio/media/audio/2026-09/bgm_yue2_1234.flac",
+    }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { writeBinary };
+    const saved = await persistComfyAudio("QUJD", "yue2-out.flac");
+    expect(saved.filePath).toBe("/proj/media/audio/2026-09/bgm_yue2_1234.flac");
+    expect(saved.url).toBe("project-file://p-audio/media/audio/2026-09/bgm_yue2_1234.flac");
+    expect(writeBinary).toHaveBeenCalledTimes(1);
+    const arg = (writeBinary.mock.calls[0] as Array<{ projectId: string; relativePath: string; bytes: ArrayBuffer }>)[0];
+    expect(arg.projectId).toBe("p-audio");
+    expect(arg.relativePath).toMatch(/^media\/audio\/\d{4}-\d{2}\/bgm_yue2_\d+\.flac$/);
+    expect(Array.from(new Uint8Array(arg.bytes))).toEqual([65, 66, 67]);
+  });
+
+  it("写失败:桥错误透传大白话(引擎文件名兜底)", async () => {
+    useProjectStore.setState({ activeProjectId: "p-audio" } as never);
+    (window as unknown as { projectFiles?: unknown }).projectFiles = {
+      writeBinary: async () => ({ success: false, error: "磁盘已满" }),
+    };
+    await expect(persistComfyAudio("QUJD", "yue2.flac")).rejects.toThrow("生成的音频写入项目失败:磁盘已满");
   });
 });
 

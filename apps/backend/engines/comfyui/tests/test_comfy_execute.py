@@ -12,6 +12,7 @@ import threading
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -46,12 +47,17 @@ class FakeComfyEngine:
         self.server.shutdown()
         self.server.server_close()
 
-    def queue_success(self, images=("out-1.png",), prompt_id="p-1", delay_s=0.0):
+    def queue_success(self, images=("out-1.png",), audios=(), prompt_id="p-1", delay_s=0.0):
+        """编程一次成功执行:images 进 ui["images"],audios 进 ui["audio"]。"""
         self.prompt_replies.append({"prompt_id": prompt_id})
         outputs = {}
         if images:
             outputs["11"] = {"images": [
                 {"filename": name, "subfolder": "", "type": "output"} for name in images
+            ]}
+        if audios:
+            outputs["12"] = {"audio": [
+                {"filename": name, "subfolder": "", "type": "output"} for name in audios
             ]}
         self.histories[prompt_id] = {
             "status": {"status_str": "success" if not delay_s else "executing"},
@@ -111,7 +117,9 @@ class FakeComfyEngine:
                     self._json({prompt_id: entry} if entry is not None else outer.default_history)
                     return
                 if self.path.startswith("/view"):
-                    body = outer.view_bodies.get("default", b"view-image-bytes")
+                    # 按引擎文件名回体(测音频/图片分文件);未编排的回落默认体
+                    query_filename = parse_qs(urlparse(self.path).query).get("filename", [None])[-1]
+                    body = outer.view_bodies.get(query_filename) or outer.view_bodies.get("default", b"view-image-bytes")
                     self.send_response(HTTPStatus.OK)
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
@@ -286,6 +294,56 @@ class TestExecuteJob:
         assert job["status"] == "complete"
         # 终态进度=100,消息链含关键阶段字样(结果消息只保留最后一条)
         assert job["progress"] == 100
+
+    # ── 音频输出收集(09-20 YuE2 BGM 接线) ──────────────────────────
+
+    def test_audio_only_success_collects_audios(self, engine):
+        """无图有音:不再走『没有输出图片』报错,audios 带回 /view 的 b64。"""
+        engine.queue_success(images=(), audios=("YuE2-BGM_00001_.flac",))
+        engine.view_bodies["YuE2-BGM_00001_.flac"] = b"fake-flac-bytes"
+        job_id = comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        result = job["result"]
+        assert result["images"] == []
+        assert len(result["audios"]) == 1
+        assert result["audios"][0]["filename"] == "YuE2-BGM_00001_.flac"
+        assert result["audios"][0]["nodeId"] == "12"
+        assert base64.b64decode(result["audios"][0]["b64"]) == b"fake-flac-bytes"
+
+    def test_images_and_audios_mixed_collects_both(self, engine):
+        engine.queue_success(images=("out-1.png",), audios=("bgm.flac", "bgm-2.flac"))
+        engine.view_bodies["bgm.flac"] = b"fake-flac-bytes"
+        engine.view_bodies["bgm-2.flac"] = b"fake-flac-bytes-2"
+        job_id = comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        result = job["result"]
+        assert [item["filename"] for item in result["images"]] == ["out-1.png"]
+        assert [item["filename"] for item in result["audios"]] == ["bgm.flac", "bgm-2.flac"]
+        assert base64.b64decode(result["audios"][1]["b64"]) == b"fake-flac-bytes-2"
+
+    def test_timeout_s_payload_overrides_module_default(self, engine, monkeypatch):
+        """payload.timeoutS 生效:0.3s 压过模块默认 30s → 快速超时+interrupt;
+        纯函数口径:缺省回落默认、非法回落默认、超上限钳到 MAX_EXECUTE_TIMEOUT_S。"""
+        monkeypatch.setattr(comfy_execute, "EXECUTE_TIMEOUT_S", 30.0)
+        monkeypatch.setattr(comfy_execute, "HISTORY_POLL_INTERVAL_S", 0.02)
+        engine.prompt_replies.append({"prompt_id": "p-slow"})
+        engine.histories["p-slow"] = {"status": {"status_str": "executing"}, "outputs": {}}
+        job_id = comfy_execute.execute_job({
+            "graph": _graph_fixture(),
+            "inputs": {},
+            "timeoutS": 0.3,
+        })
+        job = _wait_job_terminal(job_id)  # 模块默认 30s 下若 timeoutS 不生效会超 10s 断言
+        assert job["status"] == "error"
+        assert "超时" in job["error"]
+        assert "1 秒" in job["error"]  # ceil(0.3) 的人话秒数
+        assert engine.interrupts  # 超时后向引擎发过 interrupt
+        assert comfy_execute.resolve_execute_timeout_s({}) == 30.0
+        assert comfy_execute.resolve_execute_timeout_s({"timeoutS": "oops"}) == 30.0
+        assert comfy_execute.resolve_execute_timeout_s({"timeoutS": 0}) == 30.0
+        assert comfy_execute.resolve_execute_timeout_s({"timeoutS": 999999}) == comfy_execute.MAX_EXECUTE_TIMEOUT_S
 
 
 class TestObjectInfoDetail:

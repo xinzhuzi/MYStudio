@@ -84,6 +84,44 @@ describe("WorkbenchTab split boundaries", () => {
     expect(tabSource).toContain("data-remotion-current-slot-ready={String(chapterReady)}");
   });
 
+  it("keeps the YuE2 local BGM panel wired with data hooks and the long-task poll budget", () => {
+    const tabSource = readFileSync(
+      "frontend/components/panels/studio/WorkbenchTab.tsx",
+      "utf8",
+    );
+    // BGM 面板探针钩子(测试/自动化面)
+    for (const hook of [
+      "data-bgm-local-generate",
+      "data-bgm-generate-panel",
+      "data-bgm-style-input",
+      "data-bgm-lyrics-input",
+      "data-bgm-generate-run",
+      "data-bgm-generate-progress",
+    ]) {
+      expect(tabSource).toContain(hook);
+    }
+    // 音频长任务接线:轮询上限放宽 + 音频产物落盘绑定链
+    expect(tabSource).toContain("pollTimeoutMs: 1_230_000");
+    expect(tabSource).toContain("persistComfyAudio(");
+    expect(tabSource).toContain("result.audios?.[0]");
+  });
+
+  it("guards chapter-manifest writes against the long-task stale-closure race (09-20)", () => {
+    const tabSource = readFileSync(
+      "frontend/components/panels/studio/WorkbenchTab.tsx",
+      "utf8",
+    );
+    // 根因修复:manifest 写一律取 ref 最新快照,旧闭包不得携带陈旧 revision 打乐观锁
+    expect(tabSource).toContain("chapterManifestRef");
+    expect(tabSource).toContain("const current = chapterManifestRef.current;");
+    expect(tabSource).not.toContain("const current = chapterManifest;");
+    expect(tabSource).toContain("!chapterManifestRef.current");
+    // 分钟级生成期间锁住同节点 manifest 写入口:busy 贯穿 generateLocalBgm 全程 + 绑定编辑器随 busy 禁用
+    expect(tabSource).toContain("setChapterAudioBusy(true)");
+    expect(tabSource).toContain("setChapterAudioBusy(false)");
+    expect(tabSource).toContain("disabled={chapterAudioBusy}");
+  });
+
   it("counts only exact-revision succeeded slots from the current chapter", () => {
     const current = storyboard("shot-current", "chapter-001", 2);
     const otherChapter = storyboard("shot-other", "chapter-002", 1);

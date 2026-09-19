@@ -26,7 +26,7 @@ export const DOMAIN_LABELS: Record<ComfyModelDomain, string> = {
 export const DOMAIN_INFO: Record<ComfyModelDomain, string> = {
   image: "生图画布相关——K2 产线主模型/LoRA/超分/分割/视觉理解",
   video: "H3 视频产线全家——主模型/编码器/VAE/补帧/超分/质检",
-  audio: "配音与作曲——TTS 引擎家/ Music3 作曲链",
+  audio: "配音与作曲——TTS 引擎家与音乐生成权重(Music3 已隔离退役)",
   other: "未命中分类规则的模型——建议补 comfy-models-taxonomy 规则",
 };
 
@@ -38,8 +38,8 @@ export const DOMAIN_INFO: Record<ComfyModelDomain, string> = {
 const DOMAIN_RULES: ReadonlyArray<{ match: RegExp; domains: readonly ComfyModelDomain[] }> = [
   // 视频线:H3 全家(主模型/TE/mmproj/VAE/潜放/预览VAE)+ 补帧 + 质检
   { match: /minimax_h3|heretic-h3|taeh3|latent_upscaler|^videoqc\/|^frame_interpolation\/|rife_|dover_mobile/i, domains: ["video"] },
-  // 声音线:Music3 作曲链 + TTS 家(Qwen3-TTS/SenseVoice/whisper/musicgen/嵌入与分词)
-  { match: /music3|musicgen|qwen3-tts|sensevoice|whisper|snac_|gte-multilingual|^tts\//i, domains: ["audio"] },
+  // 声音线:TTS 家(Qwen3-TTS/SenseVoice/whisper/musicgen/嵌入与分词);Music3 已隔离退役(09-20 出规则)
+  { match: /musicgen|qwen3-tts|sensevoice|whisper|snac_|gte-multilingual|^tts\//i, domains: ["audio"] },
   // 图片线:K2 产线(krea2/Krea 2)+ Qwen 图像 + 图像超分 + 服装分割 + 视觉理解
   { match: /krea\s*2|qwen_image|realesrgan|^segformer|^vlm\/|qwen3-vl-4b/i, domains: ["image"] },
   // 双栖:SEEDVR2 图像修复超分 + H3 视频超分(2K 链)——多重分类的活例
@@ -88,9 +88,6 @@ export const COMFY_MODEL_FILE_NOTES: ReadonlyArray<readonly [string, string]> = 
   ["krea2_turbo_bf16", "Krea2 生图主力——文生图/图生图/无衣物/NSFW 专业流"],
   ["qwen3-vl-4b-heretic", "生图提示词编码(破限版)——Krea2 流"],
   ["qwen_image_vae", "生图解码器——Krea2/Qwen 系"],
-  ["minimax_music3_dit", "本地作曲主模型——画布 Music3 作曲节点"],
-  ["minimax_music3_text_encoder", "作曲提示词/歌词理解"],
-  ["minimax_music3_dav", "作曲音频解码"],
   ["minimax_h3_fl2va", "H3 视频生成主模型"],
   ["minimax_h3_video_vae", "H3 视频解码"],
   ["minimax_h3_audio_vae", "H3 配音轨编码"],

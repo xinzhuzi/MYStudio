@@ -37,15 +37,15 @@ const storyboardVideo = { id: "分镜/3_单镜视频/MY-单镜视频 · chapter-
 const legacyMainline = { id: "漫影/1_图片/分镜/0_工作流主线/分镜工作流.json", name: "旧根主线" };
 const k2Workflow = { id: "repo:1_图片/K2图像/1_文生图/K2-文生图.json", name: "K2-文生图" };
 const h3Workflow = { id: "repo:2_视频/H3视频/2_固定线/MY-x.json", name: "x" };
-const musicWorkflow = { id: "repo:3_声音/minimaxM3/music3-完整档-即用版.json", name: "music3" };
+const yue2Workflow = { id: "repo:3_声音/Yue2/yue2-整曲-官方版.json", name: "yue2-整曲-官方版" };
 const referenceWorkflow = { id: "漫影/4_参考_提示词工程/prompts.json", name: "prompts(旧根防回流)" };
-const library = [storyboardMainline, storyboardOverview, storyboardShot, storyboardVideo, legacyMainline, k2Workflow, h3Workflow, musicWorkflow, referenceWorkflow];
+const library = [storyboardMainline, storyboardOverview, storyboardShot, storyboardVideo, legacyMainline, k2Workflow, h3Workflow, yue2Workflow, referenceWorkflow];
 
 describe("filterWorkflowsForScope(漫影侧栏库按模块过滤)", () => {
   it("models 域:分镜产线四类写入位(含单镜视频)全剔除;旧根防回流同剔;repo: 静态自研保留", async () => {
     const { filterWorkflowsForScope } = await loadPolicy();
     const visible = filterWorkflowsForScope(library, "models") as typeof library;
-    expect(visible).toEqual([k2Workflow, h3Workflow, musicWorkflow]);
+    expect(visible).toEqual([k2Workflow, h3Workflow, yue2Workflow]);
   });
 
   it("workflow 域与外部直访:原数组直通(同引用,零改动)", async () => {

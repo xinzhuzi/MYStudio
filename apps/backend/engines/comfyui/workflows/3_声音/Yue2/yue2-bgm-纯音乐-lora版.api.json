@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "name": "YuE2 BGM 纯音乐 LoRA 版(API 执行面)",
+  "note": "由 yue2-bgm-纯音乐-lora版.json(UI 格式)经 apps/build/scripts/yue2_bgm_api_export.py 导出;构图=09-20 实弹定稿纯音乐铁律(LoRA 挂 Checkpoint 后,strength 1.0/1.0 勿降)。执行注入点:strings {'22.style','23.style','22.lyrics','23.lyrics'}(UI 面 PrimitiveNode 一处改两节点同源;API 面为内联字面量,注入两键同值承接);长任务建议 payload.timeoutS ≥ 1200。产物=audios[0](flac b64)。",
+  "inputs": {
+    "style": {
+      "node": "22",
+      "field": "style",
+      "class_type": "YuE2GenerateMusic",
+      "sync": [
+        "23.style"
+      ]
+    },
+    "lyrics": {
+      "node": "22",
+      "field": "lyrics",
+      "class_type": "YuE2GenerateMusic",
+      "sync": [
+        "23.lyrics"
+      ]
+    }
+  },
+  "graph": {
+    "15": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "yue2_3b_bf16.safetensors"
+      }
+    },
+    "100": {
+      "class_type": "LoraLoader",
+      "inputs": {
+        "model": [
+          "15",
+          0
+        ],
+        "clip": [
+          "15",
+          1
+        ],
+        "lora_name": "ar_lora_inst_v3abc_comfyui.safetensors",
+        "strength_model": 1.0,
+        "strength_clip": 1.0
+      }
+    },
+    "23": {
+      "class_type": "YuE2GenerateABC",
+      "inputs": {
+        "clip": [
+          "100",
+          1
+        ],
+        "style": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "lyrics": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "seed": 42,
+        "mode": "full",
+        "max_abc_tokens": 8192,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 30,
+        "repetition_penalty": 1.005,
+        "penalty_window": 100
+      }
+    },
+    "14": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "23",
+          0
+        ]
+      }
+    },
+    "22": {
+      "class_type": "YuE2GenerateMusic",
+      "inputs": {
+        "clip": [
+          "100",
+          1
+        ],
+        "style": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "lyrics": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "abc": [
+          "14",
+          0
+        ],
+        "seed": 42,
+        "mode": "full",
+        "max_duration": 120,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 100,
+        "repetition_penalty": 1.2
+      }
+    },
+    "5": {
+      "class_type": "EmptyYuE2LatentAudio",
+      "inputs": {
+        "seconds": [
+          "22",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "100",
+          0
+        ],
+        "positive": [
+          "22",
+          0
+        ],
+        "negative": [
+          "22",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ],
+        "seed": 42,
+        "steps": 32,
+        "cfg": 1.0,
+        "sampler_name": "dpm_2",
+        "scheduler": "sgm_uniform",
+        "denoise": 1.0
+      }
+    },
+    "17": {
+      "class_type": "VAEDecodeAudioTiled",
+      "inputs": {
+        "samples": [
+          "8",
+          0
+        ],
+        "vae": [
+          "15",
+          2
+        ],
+        "tile_size": 1920,
+        "overlap": 128
+      }
+    },
+    "10": {
+      "class_type": "SaveAudioAdvanced",
+      "inputs": {
+        "audio": [
+          "17",
+          0
+        ],
+        "filename_prefix": "audio/YuE2-BGM",
+        "format": {
+          "format": "flac"
+        }
+      }
+    }
+  }
+}

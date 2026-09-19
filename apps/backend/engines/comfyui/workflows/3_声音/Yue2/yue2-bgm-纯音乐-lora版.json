@@ -1,0 +1,801 @@
+{
+  "id": "2d17caa9-186f-41c3-9d01-f3f9fb5fd3bc",
+  "revision": 0,
+  "last_node_id": 100,
+  "last_link_id": 18,
+  "nodes": [
+    {
+      "id": 12,
+      "type": "PrimitiveNode",
+      "pos": [
+        90,
+        -745
+      ],
+      "size": [
+        571,
+        291
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            4,
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience"
+      ],
+      "widgets_values_named": {
+        "value": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience"
+      },
+      "title": "style"
+    },
+    {
+      "id": 13,
+      "type": "PrimitiveNode",
+      "pos": [
+        92,
+        -360
+      ],
+      "size": [
+        500,
+        323
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            5,
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]"
+      ],
+      "widgets_values_named": {
+        "value": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]"
+      },
+      "title": "lyrics"
+    },
+    {
+      "id": 15,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -175,
+        75
+      ],
+      "size": [
+        372,
+        102
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "yue2_3b_bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "ckpt_name": "yue2_3b_bf16.safetensors"
+      }
+    },
+    {
+      "id": 100,
+      "type": "LoraLoader",
+      "pos": [
+        255,
+        55
+      ],
+      "size": [
+        350,
+        126
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            14
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3,
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "ar_lora_inst_v3abc_comfyui.safetensors",
+        1.0,
+        1.0
+      ],
+      "widgets_values_named": {
+        "lora_name": "ar_lora_inst_v3abc_comfyui.safetensors",
+        "strength_model": 1.0,
+        "strength_clip": 1.0
+      }
+    },
+    {
+      "id": 23,
+      "type": "YuE2GenerateABC",
+      "pos": [
+        700,
+        140
+      ],
+      "size": [
+        400,
+        250
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 7
+        },
+        {
+          "name": "style",
+          "type": "STRING",
+          "widget": {
+            "name": "style"
+          },
+          "link": 8
+        },
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "widget": {
+            "name": "lyrics"
+          },
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "abc",
+          "type": "STRING",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "YuE2GenerateABC"
+      },
+      "widgets_values": [
+        "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        42,
+        "fixed",
+        "full",
+        8192,
+        0.7,
+        0.9,
+        30,
+        1.005,
+        100
+      ],
+      "widgets_values_named": {
+        "style": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "lyrics": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "mode": "full",
+        "max_abc_tokens": 8192,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 30,
+        "repetition_penalty": 1.005,
+        "penalty_window": 100
+      },
+      "showAdvanced": false
+    },
+    {
+      "id": 14,
+      "type": "PreviewAny",
+      "pos": [
+        712,
+        470
+      ],
+      "size": [
+        444,
+        200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 22,
+      "type": "YuE2GenerateMusic",
+      "pos": [
+        980,
+        -140
+      ],
+      "size": [
+        400,
+        408
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        },
+        {
+          "name": "style",
+          "type": "STRING",
+          "widget": {
+            "name": "style"
+          },
+          "link": 4
+        },
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "widget": {
+            "name": "lyrics"
+          },
+          "link": 5
+        },
+        {
+          "name": "abc",
+          "type": "STRING",
+          "widget": {
+            "name": "abc"
+          },
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            11,
+            13
+          ]
+        },
+        {
+          "name": "seconds",
+          "type": "FLOAT",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "YuE2GenerateMusic"
+      },
+      "widgets_values": [
+        "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "",
+        42,
+        "fixed",
+        "full",
+        120,
+        1.0,
+        0.95,
+        100,
+        1.2
+      ],
+      "widgets_values_named": {
+        "style": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "lyrics": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "abc": "",
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "mode": "full",
+        "max_duration": 120,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 100,
+        "repetition_penalty": 1.2
+      },
+      "showAdvanced": false
+    },
+    {
+      "id": 5,
+      "type": "EmptyYuE2LatentAudio",
+      "pos": [
+        1290,
+        510
+      ],
+      "size": [
+        290,
+        100
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "seconds",
+          "type": "FLOAT",
+          "widget": {
+            "name": "seconds"
+          },
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyYuE2LatentAudio"
+      },
+      "widgets_values": [
+        120,
+        1
+      ],
+      "widgets_values_named": {
+        "seconds": 120,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 8,
+      "type": "KSampler",
+      "pos": [
+        1465,
+        30
+      ],
+      "size": [
+        330,
+        270
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 14
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 11
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        42,
+        "fixed",
+        32,
+        1.0,
+        "dpm_2",
+        "sgm_uniform",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "steps": 32,
+        "cfg": 1.0,
+        "sampler_name": "dpm_2",
+        "scheduler": "sgm_uniform",
+        "denoise": 1.0
+      }
+    },
+    {
+      "id": 17,
+      "type": "VAEDecodeAudioTiled",
+      "pos": [
+        1880,
+        -125
+      ],
+      "size": [
+        271,
+        110
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 16
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecodeAudioTiled"
+      },
+      "widgets_values": [
+        1920,
+        128
+      ],
+      "widgets_values_named": {
+        "tile_size": 1920,
+        "overlap": 128
+      }
+    },
+    {
+      "id": 10,
+      "type": "SaveAudioAdvanced",
+      "pos": [
+        2220,
+        -135
+      ],
+      "size": [
+        560,
+        166
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveAudioAdvanced"
+      },
+      "widgets_values": [
+        "audio/YuE2-BGM",
+        "flac"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "audio/YuE2-BGM",
+        "format": "flac"
+      }
+    },
+    {
+      "id": 26,
+      "type": "Note",
+      "pos": [
+        1880,
+        140
+      ],
+      "size": [
+        520,
+        220
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "纯音乐构图铁律(09-20 实弹定稿,3 提示词全过):\n① LoraLoader 必须挂在 Checkpoint 之后:MODEL→KSampler,CLIP→YuE2 两节点;strength 1.0/1.0 勿降。\n② 歌词槽=五标签逐行(intro/verse/chorus/bridge/outro)——LoRA 训练分布;加词、加时间分段或改单行 [instrumental] 会退回出人声。\n实弹证据(Demucs 人声占比 baseline→LoRA):P1 0.390→0.0013,P2 0.639→0.0015,P3 0.0006→0.0025。\n备选风格(同过纯音乐线):emotional solo piano, gentle narrative, warm reverb, 72 bpm, film score style / ambient electronic pads, soft arpeggio synth, chill downtempo beat, 90 bpm, atmospheric"
+      ],
+      "widgets_values_named": {
+        "text": "纯音乐构图铁律(09-20 实弹定稿,3 提示词全过):\n① LoraLoader 必须挂在 Checkpoint 之后:MODEL→KSampler,CLIP→YuE2 两节点;strength 1.0/1.0 勿降。\n② 歌词槽=五标签逐行(intro/verse/chorus/bridge/outro)——LoRA 训练分布;加词、加时间分段或改单行 [instrumental] 会退回出人声。\n实弹证据(Demucs 人声占比 baseline→LoRA):P1 0.390→0.0013,P2 0.639→0.0015,P3 0.0006→0.0025。\n备选风格(同过纯音乐线):emotional solo piano, gentle narrative, warm reverb, 72 bpm, film score style / ambient electronic pads, soft arpeggio synth, chill downtempo beat, 90 bpm, atmospheric"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 27,
+      "type": "Note",
+      "pos": [
+        55,
+        565
+      ],
+      "size": [
+        330,
+        200
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "style/lyrics 两个 PrimitiveNode 一处改、ABC/Music 两节点同源生效;\n改时长调 YuE2GenerateMusic 的 max_duration(实弹 120s);\nseed 全链固定 42=实弹复现位;产物 flac 落 audio/YuE2-BGM。"
+      ],
+      "widgets_values_named": {
+        "text": "style/lyrics 两个 PrimitiveNode 一处改、ABC/Music 两节点同源生效;\n改时长调 YuE2GenerateMusic 的 max_duration(实弹 120s);\nseed 全链固定 42=实弹复现位;产物 flac 落 audio/YuE2-BGM。"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      15,
+      0,
+      100,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      15,
+      1,
+      100,
+      1,
+      "CLIP"
+    ],
+    [
+      3,
+      100,
+      1,
+      22,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      12,
+      0,
+      22,
+      1,
+      "STRING"
+    ],
+    [
+      5,
+      13,
+      0,
+      22,
+      2,
+      "STRING"
+    ],
+    [
+      6,
+      14,
+      0,
+      22,
+      3,
+      "STRING"
+    ],
+    [
+      7,
+      100,
+      1,
+      23,
+      0,
+      "CLIP"
+    ],
+    [
+      8,
+      12,
+      0,
+      23,
+      1,
+      "STRING"
+    ],
+    [
+      9,
+      13,
+      0,
+      23,
+      2,
+      "STRING"
+    ],
+    [
+      10,
+      23,
+      0,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      11,
+      22,
+      0,
+      8,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      12,
+      22,
+      1,
+      5,
+      0,
+      "FLOAT"
+    ],
+    [
+      13,
+      22,
+      0,
+      8,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      100,
+      0,
+      8,
+      0,
+      "MODEL"
+    ],
+    [
+      15,
+      5,
+      0,
+      8,
+      3,
+      "LATENT"
+    ],
+    [
+      16,
+      8,
+      0,
+      17,
+      0,
+      "LATENT"
+    ],
+    [
+      17,
+      15,
+      2,
+      17,
+      1,
+      "VAE"
+    ],
+    [
+      18,
+      17,
+      0,
+      10,
+      0,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        -520,
+        990
+      ]
+    },
+    "frontendVersion": "1.51.10"
+  },
+  "version": 0.4
+}

@@ -110,6 +110,8 @@ export interface ComfyExecutePayload {
     strings: Record<string, string>;
     images: ComfyExecuteImageInput[];
   };
+  /** 执行超时秒数(后端默认 300;音频整曲类长任务放宽,上限 1200)。 */
+  timeoutS?: number;
 }
 
 /** 后端 job 轮询应答(engine_manager jobs 形状) */
@@ -123,6 +125,12 @@ export interface ComfyExecuteJobReply {
   result?: {
     promptId?: string;
     images?: Array<{
+      nodeId?: string;
+      filename?: string;
+      b64: string;
+    }>;
+    /** SaveAudio 类节点产物(09-20 YuE2 BGM 接线;与 images 同收集链) */
+    audios?: Array<{
       nodeId?: string;
       filename?: string;
       b64: string;
@@ -141,16 +149,20 @@ function stageOf(step: unknown): ComfyExecuteStage | "unknown" {
   return step === "upload" || step === "queue" || step === "running" || step === "collect" ? step : "unknown";
 }
 
-/** 提交执行 job → 轮询到终态;onProgress 逐阶段回报(上传/排队/执行中/收图)。 */
+/** 提交执行 job → 轮询到终态;onProgress 逐阶段回报(上传/排队/执行中/收图)。
+ * options.pollTimeoutMs:轮询总上限(默认 330s 收尾;音频整曲类长任务按
+ * payload.timeoutS 放宽时同步放宽,建议 pollTimeoutMs ≥ timeoutS*1000+30s)。 */
 export async function runComfyExecute(
   payload: ComfyExecutePayload,
   onProgress?: (progress: ComfyExecuteProgress) => void,
+  options: { pollTimeoutMs?: number } = {},
 ): Promise<NonNullable<ComfyExecuteJobReply["result"]>> {
   const { jobId } = await comfySidecarJson<{ jobId: string }>("POST", "/comfy/execute", {
     body: payload as unknown as Record<string, unknown>,
     timeoutMs: 20_000,
   });
-  const deadline = Date.now() + JOB_POLL_TIMEOUT_MS;
+  const pollTimeoutMs = options.pollTimeoutMs ?? JOB_POLL_TIMEOUT_MS;
+  const deadline = Date.now() + pollTimeoutMs;
   for (;;) {
     const job = await comfySidecarJson<ComfyExecuteJobReply>(
       "GET",
@@ -164,7 +176,7 @@ export async function runComfyExecute(
       return job.result;
     }
     if (Date.now() >= deadline) {
-      throw new Error("ComfyUI 执行超时(300 秒),请检查引擎队列后重试");
+      throw new Error(`ComfyUI 执行超时(${Math.round(pollTimeoutMs / 1000)} 秒),请检查引擎队列后重试`);
     }
     onProgress?.({
       stage: stageOf(job.step),
@@ -371,6 +383,38 @@ export async function persistComfyImage(
     }).catch(() => undefined);
   }
   return { url: stableUrl, mediaId, persisted: stableUrl !== null };
+}
+
+/**
+ * b64 音频 → 项目 media/audio/<月>/ 受管文件(09-20 YuE2 BGM 接线)。
+ * 返回绝对 filePath(供 remotionChapterManifest.importAudio 的 sourcePath)+
+ * project-file:// url;无项目/写失败给大白话错误。
+ */
+export async function persistComfyAudio(
+  b64: string,
+  engineFilename: string,
+): Promise<{ filePath: string; url: string | null }> {
+  const projectId = useProjectStore.getState().activeProjectId;
+  const projectFiles = getProjectFilesBridge();
+  if (!projectId || !projectFiles?.writeBinary) {
+    throw new Error("当前环境无法写入项目音频(需在桌面应用的项目内使用)");
+  }
+  const extension = (engineFilename.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const filename = `bgm_yue2_${Date.now()}.${extension || "flac"}`;
+  const binary = Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
+  const bytes = new ArrayBuffer(binary.byteLength);
+  new Uint8Array(bytes).set(binary);
+  const saved = await projectFiles.writeBinary({
+    projectId,
+    relativePath: `media/audio/${month}/${filename}`,
+    bytes,
+  });
+  if (!saved?.success || !saved.filePath) {
+    throw new Error(`生成的音频写入项目失败:${saved?.error || engineFilename}`);
+  }
+  return { filePath: saved.filePath, url: saved.url ?? null };
 }
 
 // ---------------------------------------------------------------------------

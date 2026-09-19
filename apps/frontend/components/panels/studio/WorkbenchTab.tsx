@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
 import { getCinematicPresetShortLabel, getStoryboardCinematic } from "@/lib/studio/cinematic-preset";
+import { runComfyExecute, persistComfyAudio } from "@/lib/assist/image-studio/comfy-execute";
+import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-import";
+import { getComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-workflow-library";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { ScriptPlan } from "@/types/studio";
@@ -21,6 +24,12 @@ import { VideoWorkflowReviewPanel } from "./VideoWorkflowReviewPanel";
 import { ShotProductionOverview } from "./ShotProductionOverview";
 import type { VideoUseDerivedInputPolicy, VideoUseStoryboardSourcePolicy } from "@rendering/contracts/video-workflow";
 import { countCurrentShotSlots, formatFirstShotStatus, isCurrentChapterReady, resolveWorkbenchRemotionShotSlots, selectCurrentShotJobForStoryboard, summarizeSubtitleAuthority } from "./workbench-status";
+
+/** 库内 YuE2 BGM API 工作流(repo 源只读 id;桥模板格式,画布侧栏不可见)。 */
+const YUE2_BGM_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版.api.json";
+/** 09-20 实弹定稿的纯音乐构图默认值(风格与歌词五标签铁律,照库工作流原值)。 */
+const YUE2_BGM_STYLE_DEFAULT = "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience";
+const YUE2_BGM_LYRICS_IRON = "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]";
 
 export function WorkbenchTab(props: {
   projectId?: string;
@@ -121,7 +130,14 @@ export function WorkbenchTab(props: {
       setFirstShotOutputPathError(error instanceof Error ? error.message : String(error));
     });
   }, [activeProjectId, firstShotSlot?.outputPath, props.projectId]);
-  const [chapterManifest, setChapterManifest] = useState<RemotionChapterManifestV2 | null>(null);
+  const [chapterManifest, setChapterManifestState] = useState<RemotionChapterManifestV2 | null>(null);
+  // 09-20 竞态修复:manifest 写入一律经 ref 取最新快照——分钟级 BGM 生成等长任务结束时,
+  // 旧闭包携带的 chapterManifest 可能已过时,用它打乐观锁必然 revision_conflict(生成音频成孤儿)。
+  const chapterManifestRef = useRef<RemotionChapterManifestV2 | null>(null);
+  const setChapterManifest = useCallback((next: RemotionChapterManifestV2 | null) => {
+    chapterManifestRef.current = next;
+    setChapterManifestState(next);
+  }, []);
   const [chapterAudioStatus, setChapterAudioStatus] = useState("未读取");
   const [chapterAudioBusy, setChapterAudioBusy] = useState(false);
   const [chapterAudioError, setChapterAudioError] = useState<string | null>(null);
@@ -151,7 +167,7 @@ export function WorkbenchTab(props: {
       setChapterAudioStatus("读取失败");
       setChapterAudioError(error instanceof Error ? error.message : String(error));
     }
-  }, [chapterId, props.projectId]);
+  }, [chapterId, props.projectId, setChapterManifest]);
   useEffect(() => {
     void refreshChapterManifest();
   }, [refreshChapterManifest]);
@@ -183,7 +199,8 @@ export function WorkbenchTab(props: {
     binding: RemotionChapterAudioBindingV2,
   ) => {
     const bridge = window.remotionChapterManifest;
-    const current = chapterManifest;
+    // 写时取 ref 最新快照:长任务旧闭包不得用陈旧 revision 打乐观锁
+    const current = chapterManifestRef.current;
     if (!bridge || !props.projectId || !current) throw new Error("当前章节缺少可写的 V2 manifest");
     setChapterAudioBusy(true);
     try {
@@ -210,16 +227,14 @@ export function WorkbenchTab(props: {
     } finally {
       setChapterAudioBusy(false);
     }
-  }, [chapterId, chapterManifest, props.projectId]);
-  const importSharedAudio = useCallback(async (role: "bgm" | "ambience") => {
+  }, [chapterId, props.projectId, setChapterManifest]);
+  // 把一个绝对路径的音频经 importAudio 绑定为章级共享音频(文件选择器与本地生成分镜共用)。
+  const bindSharedAudioFromPath = useCallback(async (role: "bgm" | "ambience", sourcePath: string) => {
     const bridge = window.remotionChapterManifest;
-    const picker = window.studioAssets?.selectAudioFile;
-    if (!bridge || !picker || !props.projectId) {
+    if (!bridge || !props.projectId || !chapterManifestRef.current) {
       setChapterAudioError("音频导入 bridge 不可用");
       return;
     }
-    const sourcePath = await picker();
-    if (!sourcePath || !chapterManifest) return;
     setChapterAudioBusy(true);
     try {
       const imported = await bridge.importAudio({ projectId: props.projectId, chapterId, role, sourcePath });
@@ -257,7 +272,75 @@ export function WorkbenchTab(props: {
     } finally {
       setChapterAudioBusy(false);
     }
-  }, [chapterId, chapterManifest, props.projectId, writeSharedAudio]);
+  }, [chapterId, props.projectId, writeSharedAudio]);
+  const importSharedAudio = useCallback(async (role: "bgm" | "ambience") => {
+    const picker = window.studioAssets?.selectAudioFile;
+    if (!picker) {
+      setChapterAudioError("音频导入 bridge 不可用");
+      return;
+    }
+    const sourcePath = await picker();
+    if (!sourcePath) return;
+    await bindSharedAudioFromPath(role, sourcePath);
+  }, [bindSharedAudioFromPath]);
+  // 本地生成 BGM(09-20 YuE2 接线):库取 API 工作流 → /comfy/execute(音频长任务)
+  // → writeBinary 落项目 → 复用 importAudio(role:"bgm")+writeSharedAudio 绑定链。
+  // 整段生成期间置 chapterAudioBusy=true:锁住同节点的导入/绑定/数值编辑等 manifest 写入口,
+  // 防止分钟级窗口内并发改版(绑定本身也改走 ref 最新快照,双保险)。
+  const [bgmPanelOpen, setBgmPanelOpen] = useState(false);
+  const [bgmStyle, setBgmStyle] = useState(YUE2_BGM_STYLE_DEFAULT);
+  const [bgmLyrics, setBgmLyrics] = useState(YUE2_BGM_LYRICS_IRON);
+  const [bgmGenerating, setBgmGenerating] = useState(false);
+  const [bgmProgress, setBgmProgress] = useState<string | null>(null);
+  const generateLocalBgm = useCallback(async () => {
+    if (!props.projectId) {
+      setChapterAudioError("缺少项目身份,无法生成 BGM");
+      return;
+    }
+    const style = bgmStyle.trim();
+    if (!style) {
+      setChapterAudioError("请先填写 BGM 风格描述");
+      return;
+    }
+    setBgmGenerating(true);
+    setChapterAudioBusy(true);
+    setBgmProgress("准备执行…");
+    try {
+      const transport = getComfyWorkflowLibraryTransport();
+      if (!transport) throw new Error("工作流库通道不可用(需在桌面应用内使用)");
+      const workflowText = await transport.content(YUE2_BGM_API_WORKFLOW_ID);
+      const parsed = unwrapComfyApiGraph(JSON.parse(workflowText));
+      if (!parsed.ok) throw new Error(parsed.error);
+      // UI 面 PrimitiveNode「一处改两节点同源」在 API 面的内联承接:两节点注入同值。
+      const lyrics = bgmLyrics.trim() || YUE2_BGM_LYRICS_IRON;
+      const result = await runComfyExecute(
+        {
+          graph: parsed.graph,
+          inputs: {
+            strings: { "22.style": style, "23.style": style, "22.lyrics": lyrics, "23.lyrics": lyrics },
+            images: [],
+          },
+          timeoutS: 1200,
+        },
+        (progress) => setBgmProgress(progress.message),
+        { pollTimeoutMs: 1_230_000 },
+      );
+      const audio = result.audios?.[0];
+      if (!audio) throw new Error("工作流已完成但没有输出音频(缺 SaveAudio 类输出节点?)");
+      setBgmProgress("写入项目并绑定本章 BGM…");
+      const saved = await persistComfyAudio(audio.b64, audio.filename ?? "bgm.flac");
+      await bindSharedAudioFromPath("bgm", saved.filePath);
+      setBgmPanelOpen(false);
+      setBgmProgress(null);
+      toast.success("本地 BGM 已生成并绑定到本章");
+    } catch (error) {
+      setChapterAudioError(error instanceof Error ? error.message : String(error));
+      setBgmProgress(null);
+    } finally {
+      setBgmGenerating(false);
+      setChapterAudioBusy(false);
+    }
+  }, [bgmLyrics, bgmStyle, bindSharedAudioFromPath, props.projectId]);
   const updateSharedAudio = useCallback(async (
     binding: RemotionChapterAudioBindingV2,
     patch: Partial<RemotionChapterAudioBindingV2>,
@@ -288,7 +371,7 @@ export function WorkbenchTab(props: {
   // 把一个绝对路径的 WAV 经 importAudio 绑定为分镜 sfx(本地生成与文件选择共用)。
   const bindShotSfxFromPath = useCallback(async (shotId: string, sourcePath: string) => {
     const bridge = window.remotionChapterManifest;
-    const current = chapterManifest;
+    const current = chapterManifestRef.current;
     const storyboard = props.storyboards.find((item) => item.id === shotId);
     if (!bridge || !props.projectId || !current || !storyboard) {
       setChapterAudioError("当前分镜缺少音频导入所需的 bridge、manifest 或身份");
@@ -344,7 +427,7 @@ export function WorkbenchTab(props: {
     } finally {
       setChapterAudioBusy(false);
     }
-  }, [chapterId, chapterManifest, props.projectId, props.storyboards]);
+  }, [chapterId, props.projectId, props.storyboards, setChapterManifest]);
 
   const importShotSfx = useCallback(async (shotId: string) => {
     const picker = window.studioAssets?.selectAudioFile;
@@ -539,7 +622,49 @@ export function WorkbenchTab(props: {
               导入{role === "bgm" ? "BGM" : "环境声"}
             </Button>
           ))}
+          <Button
+            size="sm"
+            variant="outline"
+            data-bgm-local-generate
+            disabled={!chapterManifest || chapterAudioBusy || bgmGenerating}
+            title="走本地 ComfyUI 引擎 YuE2 生成整曲纯音乐并自动绑定为本章 BGM"
+            onClick={() => setBgmPanelOpen((open) => !open)}
+          >
+            {bgmGenerating ? "BGM 生成中…" : "本地生成 BGM"}
+          </Button>
         </div>
+        {bgmPanelOpen ? (
+          <div className="mt-3 grid gap-2 rounded-md border border-border/70 bg-background/30 p-3" data-bgm-generate-panel>
+            <label className="grid gap-1 text-[11px] text-muted-foreground">
+              风格 style(英文逗号描述,如默认的古筝竹笛仙侠氛围)
+              <textarea
+                className="min-h-16 rounded border border-border bg-background px-2 py-1 text-foreground"
+                data-bgm-style-input
+                disabled={bgmGenerating}
+                value={bgmStyle}
+                onChange={(event) => setBgmStyle(event.currentTarget.value)}
+              />
+            </label>
+            <label className="grid gap-1 text-[11px] text-muted-foreground">
+              歌词槽(纯音乐铁律:五标签逐行;加词、加时间分段或改单行 [instrumental] 会退回出人声)
+              <textarea
+                className="min-h-16 rounded border border-border bg-background px-2 py-1 font-mono text-foreground"
+                data-bgm-lyrics-input
+                disabled={bgmGenerating}
+                value={bgmLyrics}
+                onChange={(event) => setBgmLyrics(event.currentTarget.value)}
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" data-bgm-generate-run disabled={bgmGenerating || chapterAudioBusy} onClick={() => { void generateLocalBgm(); }}>
+                {bgmGenerating ? "生成中(整曲分钟级,请勿重启应用)…" : "开始生成并绑定"}
+              </Button>
+              <Button size="sm" variant="ghost" disabled={bgmGenerating} onClick={() => setBgmPanelOpen(false)}>收起</Button>
+              {bgmProgress ? <span className="text-muted-foreground" data-bgm-generate-progress>{bgmProgress}</span> : null}
+            </div>
+            <p className="text-[10px] text-muted-foreground">走本地 ComfyUI 引擎 YuE2(LoRA 纯音乐构图·种子 42 固定·flac);引擎未运行会自动拉起,整曲生成约数分钟,完成后自动写入本章 BGM 轨。</p>
+          </div>
+        ) : null}
         {chapterManifest?.sharedAudioBindings.map((binding) => (
           <div key={binding.bindingId} className="mt-3 grid gap-2 rounded-md border border-border/70 bg-background/30 p-3">
             <div className="flex items-center justify-between gap-2">
@@ -555,7 +680,7 @@ export function WorkbenchTab(props: {
               ].map(([label, value, toPatch, step]) => (
                 <label key={String(label)} className="grid gap-1 text-[10px] text-muted-foreground">
                   {String(label)}
-                  <input className="h-7 rounded border border-border bg-background px-2 text-foreground" type="number" min="0" step={String(step)} defaultValue={Number(value).toFixed(3)} onBlur={(event) => { const parsed = Number(event.currentTarget.value); if (Number.isFinite(parsed)) void updateSharedAudio(binding, (toPatch as (value: number) => Partial<RemotionChapterAudioBindingV2>)(parsed)); }} />
+                  <input className="h-7 rounded border border-border bg-background px-2 text-foreground" type="number" min="0" step={String(step)} disabled={chapterAudioBusy} defaultValue={Number(value).toFixed(3)} onBlur={(event) => { const parsed = Number(event.currentTarget.value); if (Number.isFinite(parsed)) void updateSharedAudio(binding, (toPatch as (value: number) => Partial<RemotionChapterAudioBindingV2>)(parsed)); }} />
                 </label>
               ))}
               {[
@@ -565,12 +690,12 @@ export function WorkbenchTab(props: {
               ].map(([label, value, toPatch]) => (
                 <label key={String(label)} className="grid gap-1 text-[10px] text-muted-foreground">
                   {String(label)}
-                  <input className="h-7 rounded border border-border bg-background px-2 text-foreground" type="number" min="0" step="0.01" defaultValue={Number(value).toFixed(3)} onBlur={(event) => { const parsed = Number(event.currentTarget.value); if (Number.isFinite(parsed)) void updateSharedAudio(binding, (toPatch as (value: number) => Partial<RemotionChapterAudioBindingV2>)(parsed)); }} />
+                  <input className="h-7 rounded border border-border bg-background px-2 text-foreground" type="number" min="0" step="0.01" disabled={chapterAudioBusy} defaultValue={Number(value).toFixed(3)} onBlur={(event) => { const parsed = Number(event.currentTarget.value); if (Number.isFinite(parsed)) void updateSharedAudio(binding, (toPatch as (value: number) => Partial<RemotionChapterAudioBindingV2>)(parsed)); }} />
                 </label>
               ))}
             </div>
             <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
-              <input type="checkbox" checked={binding.ducking.enabled} onChange={(event) => { void updateSharedAudio(binding, { ducking: { ...binding.ducking, enabled: event.currentTarget.checked } }); }} />
+              <input type="checkbox" checked={binding.ducking.enabled} disabled={chapterAudioBusy} onChange={(event) => { void updateSharedAudio(binding, { ducking: { ...binding.ducking, enabled: event.currentTarget.checked } }); }} />
               对白 ducking
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -583,6 +708,7 @@ export function WorkbenchTab(props: {
                   min="-60"
                   max="0"
                   step="0.5"
+                  disabled={chapterAudioBusy}
                   defaultValue={binding.ducking.reductionDb}
                   onBlur={(event) => {
                     const parsed = Number(event.currentTarget.value);
@@ -598,6 +724,7 @@ export function WorkbenchTab(props: {
                   type="number"
                   min="0"
                   step="1"
+                  disabled={chapterAudioBusy}
                   defaultValue={binding.ducking.attackUs / 1000}
                   onBlur={(event) => {
                     const parsed = Number(event.currentTarget.value);
@@ -613,6 +740,7 @@ export function WorkbenchTab(props: {
                   type="number"
                   min="0"
                   step="1"
+                  disabled={chapterAudioBusy}
                   defaultValue={binding.ducking.releaseUs / 1000}
                   onBlur={(event) => {
                     const parsed = Number(event.currentTarget.value);
