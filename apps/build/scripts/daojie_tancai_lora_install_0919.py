@@ -150,18 +150,29 @@ def mutate_graph(d: dict) -> None:
                   if l[1] not in NEW_IDS and l[3] not in NEW_IDS]
     nodes = {n["id"]: n for n in d["nodes"]}
     src = 77
-    bridge = next(l for l in d["links"] if l[1] == src and l[3] == 12)
-    bridge[1] = NEW_IDS[-1]                        # 末件→[12],link id 不变
+    # 桥接 link:存量 77→12 存在则复用(保 link id,改 origin 为末件→[12]);
+    # 断点重装态下该桥已被摘除(其 origin 曾改到新节点),改为补建末件→[12]
+    # 新链并回写 [12] 的 model 输入引用,否则 next() 直接 StopIteration。
+    bridge = next((l for l in d["links"] if l[1] == src and l[3] == 12), None)
+    # 09-19 根修:新 link id 从现有最大 link id(含 last_link_id)之后分配。
+    # 旧版硬编码 60/61/62,而图内已有 link 60(19→69,last_link_id=60),
+    # 撞号即触发 validate「link id 重复」。
+    base = max([l[0] for l in d["links"]] + [int(d.get("last_link_id", 0))]) + 1
+    if bridge is not None:
+        bridge[1] = NEW_IDS[-1]                    # 末件→[12],link id 不变
+        tail_lid = bridge[0]
+    else:
+        tail_lid = base + len(NEW_LORAS)
     import copy
     for k, spec in enumerate(NEW_LORAS):
-        lid_in = 60 + k                            # 60/61/62
+        lid_in = base + k
         new = copy.deepcopy(nodes[77])
         new["id"] = spec["nid"]
         new["title"] = spec["title"]
         new["mode"] = 4
         new["widgets_values"] = [spec["rel"], 1]
         new["inputs"] = [{"name": "model", "type": "MODEL", "link": lid_in}]
-        out_link = 60 + k + 1 if k + 1 < len(NEW_IDS) else bridge[0]
+        out_link = base + k + 1 if k + 1 < len(NEW_IDS) else tail_lid
         d["links"].append([lid_in, src, 0, spec["nid"], 0, "MODEL"])
         new["outputs"] = [{"name": "MODEL", "type": "MODEL", "slot_index": 0,
                            "links": [out_link]}]
@@ -170,8 +181,13 @@ def mutate_graph(d: dict) -> None:
         nodes[spec["nid"]] = new
         nodes[src]["outputs"][0]["links"] = [lid_in]
         src = spec["nid"]
+    if bridge is None:                             # 补建末件→[12] 并回写输入引用
+        d["links"].append([tail_lid, NEW_IDS[-1], 0, 12, 0, "MODEL"])
+        for inp in nodes[12].get("inputs", []):
+            if inp.get("type") == "MODEL":
+                inp["link"] = tail_lid
     d["last_node_id"] = max(NEW_IDS)
-    d["last_link_id"] = 60 + len(NEW_LORAS) - 1
+    d["last_link_id"] = max(l[0] for l in d["links"])
 
 
 def beautify(d: dict) -> None:
@@ -185,8 +201,8 @@ def beautify(d: dict) -> None:
         n["order"] = 10 + i
     for g in d.get("groups", []):
         if g.get("title", "").startswith("②"):
-            g["title"] = ("② LoRA 链(14 件,链序自左向右;淡彩三件 82/83/84 默认旁路;"
-                          "画风件一次一枚)")
+            g["title"] = (f"② LoRA 链({len(lora_chain)} 件,链序自左向右;"
+                          "淡彩三件 82/83/84 默认旁路;画风件一次一枚)")
             g["bounding"] = [1220, 40, 490 * len(lora_chain) + 100, 190]
     print(f"BEAUTIFY 链序横排 {len(lora_chain)} 件,分组②已扩界")
 
@@ -195,7 +211,8 @@ def validate(d: dict) -> None:
     ids = {n["id"] for n in d["nodes"]}
     assert len(d["nodes"]) == len(ids), "节点 id 重复"
     link_ids = [l[0] for l in d["links"]]
-    assert len(link_ids) == len(set(link_ids)), "link id 重复"
+    dups = sorted({i for i in link_ids if link_ids.count(i) > 1})
+    assert not dups, f"link id 重复: {dups}"
     for l in d["links"]:
         assert l[1] in ids and l[3] in ids, f"悬空 link {l}"
     chain = model_chain(d)
@@ -204,12 +221,24 @@ def validate(d: dict) -> None:
 
 
 def main() -> int:
+    arg = sys.argv[1] if len(sys.argv) > 1 else ""
     ENGINE_LORA_DIR.mkdir(parents=True, exist_ok=True)
-    for spec in NEW_LORAS:                       # 下载/补装(幂等)
+    if arg.startswith("--only="):                 # 按件模式:只下载指定一件即退
+        nid = int(arg.split("=")[1])
+        todo = [s for s in NEW_LORAS if s["nid"] == nid]
+        assert todo, f"未知 --only 目标 {nid}"
+        for spec in todo:
+            dest = ENGINE_LORA_DIR / Path(spec["rel"]).name
+            if dest.exists() and dest.stat().st_size > MIN_BYTES:
+                print(f"SKIP {dest.name} 已存在 {dest.stat().st_size} bytes")
+            else:
+                download(spec["ver"], dest)
+        return 0
+    for spec in NEW_LORAS:                        # 默认/--graph:先验三件齐备
         dest = ENGINE_LORA_DIR / Path(spec["rel"]).name
-        if dest.exists() and dest.stat().st_size > MIN_BYTES:
-            print(f"SKIP {dest.name} 已存在 {dest.stat().st_size} bytes")
-        else:
+        if not (dest.exists() and dest.stat().st_size > MIN_BYTES):
+            if arg == "--graph":
+                raise RuntimeError(f"模型缺件: {dest.name}")
             download(spec["ver"], dest)
     raw = WF.read_text(encoding="utf-8")
     d = json.loads(raw)
@@ -217,11 +246,10 @@ def main() -> int:
     beautify(d)
     validate(d)
     out = json.dumps(d, ensure_ascii=False, indent=2)
-    assert out == raw or True
     WF.write_text(out, encoding="utf-8")
     check = json.loads(WF.read_text(encoding="utf-8"))
     validate(check)
-    print("OK 全部落位(引擎家模型 + 道劫图 [82]/[83] + 画布美化)")
+    print("OK 全部落位(引擎家模型 + 道劫图 [82]/[83]/[84] + 画布美化)")
     return 0
 
 
