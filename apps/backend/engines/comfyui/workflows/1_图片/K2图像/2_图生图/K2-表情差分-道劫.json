@@ -1,0 +1,1044 @@
+{
+  "nodes": [
+    {
+      "id": 7,
+      "type": "LoadImage",
+      "pos": [
+        -1180,
+        20
+      ],
+      "size": [
+        316,
+        434
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "image"
+          }
+        },
+        {
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "link": null,
+          "widget": {
+            "name": "upload"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            16
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "[7] 载入图像"
+    },
+    {
+      "id": 15,
+      "type": "CLIPLoader",
+      "pos": [
+        -1180,
+        520
+      ],
+      "size": [
+        316,
+        82
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_name",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "clip_name"
+          }
+        },
+        {
+          "name": "type",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "type"
+          }
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "device"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            4,
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3-vl-4b-heretic.safetensors",
+        "krea2",
+        "default"
+      ],
+      "title": "[15] TE加载(4B)"
+    },
+    {
+      "id": 10,
+      "type": "VAELoader",
+      "pos": [
+        -1180,
+        660
+      ],
+      "size": [
+        316,
+        58
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae_name",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "vae_name"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            13,
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_vae.safetensors"
+      ],
+      "title": "[10] VAE加载"
+    },
+    {
+      "id": 21,
+      "type": "UNETLoader",
+      "pos": [
+        -1180,
+        780
+      ],
+      "size": [
+        316,
+        82
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "unet_name",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "unet_name"
+          }
+        },
+        {
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "weight_dtype"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "krea2_turbo_bf16.safetensors",
+        "default"
+      ],
+      "title": "[21] DiT加载(turbo)"
+    },
+    {
+      "id": 50,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        -800,
+        20
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "同一位女修的平静面容：眉如远山含黛，眼尾微挑，瞳色深棕近黑，鼻梁挺秀，唇色淡朱；神情沉静垂目，视线低垂向画面左下；光源方向与原基准图保持一致。"
+      ],
+      "title": "[50] 主体句(同脸锚/情绪轴)"
+    },
+    {
+      "id": 80,
+      "type": "MyDaojieBase",
+      "pos": [
+        -360,
+        20
+      ],
+      "size": [
+        340,
+        260
+      ],
+      "flags": {},
+      "order": 80,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "link": 1,
+          "shape": 7,
+          "label": "主体句"
+        },
+        {
+          "name": "negative",
+          "type": "STRING",
+          "link": null,
+          "shape": 7,
+          "label": "负向补充"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "aspect",
+          "type": "COMBO",
+          "links": null
+        },
+        {
+          "name": "megapixels",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "base",
+          "type": "COMBO",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MyDaojieBase"
+      },
+      "widgets_values": [
+        "高清人脸"
+      ],
+      "title": "[80] 道劫底座(型驱动)",
+      "widgets_values_named": {
+        "base": "高清人脸"
+      }
+    },
+    {
+      "id": 51,
+      "type": "CLIPTextEncode",
+      "pos": [
+        40,
+        20
+      ],
+      "size": [
+        316,
+        110
+      ],
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 2,
+          "label": "正向文本"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "title": "[51] 正向编码"
+    },
+    {
+      "id": 65,
+      "type": "CLIPTextEncode",
+      "pos": [
+        40,
+        180
+      ],
+      "size": [
+        316,
+        110
+      ],
+      "flags": {},
+      "order": 65,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 3,
+          "label": "负向文本"
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "title": "[65] 负向编码"
+    },
+    {
+      "id": 90,
+      "type": "MyDaojieLoraStack",
+      "pos": [
+        40,
+        560
+      ],
+      "size": [
+        380,
+        660
+      ],
+      "flags": {},
+      "order": 90,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 6
+        },
+        {
+          "name": "base",
+          "type": "COMBO",
+          "link": 7,
+          "label": "底座型"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "applied",
+          "type": "STRING",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MyDaojieLoraStack"
+      },
+      "widgets_values": [
+        "跟随底座型",
+        true,
+        1.0,
+        true,
+        0.01,
+        true,
+        1.0,
+        true,
+        0.4,
+        true,
+        0.3,
+        true,
+        0.8,
+        true,
+        1.0,
+        true,
+        1.0,
+        true,
+        1.0,
+        true,
+        1.0,
+        true,
+        1.0,
+        true,
+        1.0,
+        true,
+        1.0,
+        true,
+        1.0
+      ],
+      "title": "[90] LoRA栈·九型驱动14槽(preset=跟随底座型)"
+    },
+    {
+      "id": 20,
+      "type": "Seed (rgthree)",
+      "pos": [
+        40,
+        340
+      ],
+      "size": [
+        200,
+        100
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "seed",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "seed"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SEED",
+          "type": "SEED",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Seed (rgthree)"
+      },
+      "widgets_values": [
+        42,
+        "",
+        "",
+        "okay"
+      ],
+      "title": "[20] 种子(固定复跑保脸)"
+    },
+    {
+      "id": 12,
+      "type": "KSampler",
+      "pos": [
+        440,
+        20
+      ],
+      "size": [
+        315,
+        560
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 9
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 10
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 19
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "link": 11,
+          "widget": {
+            "name": "seed"
+          }
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "steps"
+          }
+        },
+        {
+          "name": "cfg",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "cfg"
+          }
+        },
+        {
+          "name": "sampler_name",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "sampler_name"
+          }
+        },
+        {
+          "name": "scheduler",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "scheduler"
+          }
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "denoise"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        42,
+        "fixed",
+        12,
+        1,
+        "euler",
+        "simple",
+        0.25
+      ],
+      "title": "[12] KSampler(denoise 见卡)",
+      "widgets_values_named": {
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "steps": 12,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 0.25
+      }
+    },
+    {
+      "id": 11,
+      "type": "VAEDecode",
+      "pos": [
+        800,
+        20
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 12
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": null,
+      "title": "[11] 解码出图"
+    },
+    {
+      "id": 4,
+      "type": "SaveImage",
+      "pos": [
+        980,
+        20
+      ],
+      "size": [
+        330,
+        290
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "K2道劫表情差分_"
+      ],
+      "title": "[4] 保存图片"
+    },
+    {
+      "id": 86,
+      "type": "easy showAnything",
+      "pos": [
+        440,
+        660
+      ],
+      "size": [
+        300,
+        120
+      ],
+      "flags": {},
+      "order": 86,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        "(待运行)"
+      ],
+      "title": "[86] 按型LoRA生效清单"
+    },
+    {
+      "id": 66,
+      "type": "MarkdownNote",
+      "pos": [
+        -1180,
+        -520
+      ],
+      "size": [
+        620,
+        480
+      ],
+      "flags": {},
+      "order": 66,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "# 表情差分←人脸变体(九型配方·表情差分辅路)\n\n## 用法\n1. [7] 载入人脸基准图(高清人脸型产物或裁切脸图)→ [5] 缩 1.0MP;\n2. [80] 道劫底座=高清人脸(单脸内容基准;其按型 LoRA 组与表情差分型同组:细节×1+亚洲面孔×0.4+鎏金×0.3);\n3. [50] 主体句=情绪轴句(只换神态词:含笑不语/怒目剑眉/痛楚闭眼…),脸型五官锚句逐字不动=跨格同脸;\n4. [12] denoise=0.25 起步(低去噪保面容;A/B 档 0.35 变化更大);逐格换句+固定种子跑 → 后期拼 21:9 表情差分资产;\n5. 21:9 多格直出主路=K2-文生图-道劫 选「表情差分」(两路 A/B 定主辅)。"
+      ],
+      "title": "[66] 用法速查"
+    },
+    {
+      "id": 5,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        -800,
+        300
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 16
+        },
+        {
+          "name": "upscale_method",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "upscale_method"
+          }
+        },
+        {
+          "name": "megapixels",
+          "type": "FLOAT",
+          "link": null,
+          "widget": {
+            "name": "megapixels"
+          }
+        },
+        {
+          "name": "resolution_steps",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "resolution_steps"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleToTotalPixels"
+      },
+      "widgets_values": [
+        "lanczos",
+        1,
+        8
+      ],
+      "title": "[5] 缩到1.0MP"
+    },
+    {
+      "id": 8,
+      "type": "VAEEncode",
+      "pos": [
+        -800,
+        660
+      ],
+      "size": [
+        140,
+        46
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 17
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      },
+      "widgets_values": null,
+      "title": "[8] 图编码"
+    }
+  ],
+  "links": [
+    [
+      1,
+      50,
+      0,
+      80,
+      0,
+      "STRING"
+    ],
+    [
+      2,
+      80,
+      0,
+      51,
+      0,
+      "STRING"
+    ],
+    [
+      3,
+      80,
+      1,
+      65,
+      0,
+      "STRING"
+    ],
+    [
+      4,
+      15,
+      0,
+      51,
+      1,
+      "CLIP"
+    ],
+    [
+      5,
+      15,
+      0,
+      65,
+      1,
+      "CLIP"
+    ],
+    [
+      6,
+      21,
+      0,
+      90,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      80,
+      4,
+      90,
+      1,
+      "COMBO"
+    ],
+    [
+      8,
+      90,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      51,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      65,
+      0,
+      12,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      11,
+      20,
+      0,
+      12,
+      4,
+      "INT"
+    ],
+    [
+      12,
+      12,
+      0,
+      11,
+      0,
+      "LATENT"
+    ],
+    [
+      13,
+      10,
+      0,
+      11,
+      1,
+      "VAE"
+    ],
+    [
+      14,
+      11,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      90,
+      1,
+      86,
+      0,
+      "*"
+    ],
+    [
+      16,
+      7,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      5,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      10,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      19,
+      8,
+      0,
+      12,
+      3,
+      "LATENT"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

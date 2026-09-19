@@ -104,6 +104,28 @@ def _resolution_of(base: str, entry: dict) -> tuple[str, float]:
     return aspect, float(megapixels)
 
 
+def lora_recipe_of(base: str) -> list:
+    """按型 LoRA 配方(lora_recipe 字段,09-19 v3 九型配方 C2 单源)。
+
+    返回 [{file, weight, ...}] 深拷贝;缺字段/无该型=空表——空表语义=回退
+    全局链现行为(调用方按「不点亮任何按型槽」处理),与 aspect/mp 缺省
+    回退同纪律。深拷贝防调用方污染模块缓存(_load_bases 的 entries)。"""
+    entry = _entry(base)
+    recipe = entry.get("lora_recipe") if entry else None
+    if not isinstance(recipe, list):
+        return []
+    return [dict(item) for item in recipe if isinstance(item, dict)]
+
+
+def steps_hint_of(base: str) -> dict:
+    """按型步数档(steps_hint 字段);缺省回退 {fast:4, quality:12}(v3 任务书口径)。"""
+    entry = _entry(base)
+    hint = entry.get("steps_hint") if entry else None
+    if not isinstance(hint, dict) or not {"fast", "quality"} <= set(hint):
+        return {"fast": 4, "quality": 12}
+    return {"fast": int(hint["fast"]), "quality": int(hint["quality"])}
+
+
 class MyDaojieBase:
     """漫影道劫底座:base 下拉选九型,正向底座装配+按型负面 STRING 双出,
     另出该型分辨率 ASPECT(COMBO)+MEGAPIXELS(FLOAT)(JS 侧中文显示名:

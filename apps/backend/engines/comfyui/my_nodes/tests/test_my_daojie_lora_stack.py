@@ -160,12 +160,51 @@ def test_follow_without_base_falls_back_to_default_type():
 
 
 def test_scene_preset_rulings():
-    """场景系:免鎏金、空镜无面孔、金雾×0.6;概念气氛同场景组。"""
-    for t in ("场景", "概念气氛图"):
-        plan, _, _ = stack.resolve_plan(_slots(), t)
-        keys = [s["key"] for s, _w in plan]
-        assert keys == ["turbo", "projector", "detail", "goldenmist"], (t, keys)
-        assert dict((s["key"], w) for s, w in plan)["goldenmist"] == 0.6
+    """场景系(09-19 对拍定谳):免鎏金、空镜无面孔、墨洗点亮、金雾×0.6。"""
+    plan, _, _ = stack.resolve_plan(_slots(), "场景")
+    got = dict((s["key"], w) for s, w in plan)
+    assert got == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
+                   "sumiwash": 0.8, "goldenmist": 0.6}, got
+    # 概念气氛=场景系变体:墨洗取候选首选中值 0.7
+    plan2, _, _ = stack.resolve_plan(_slots(), "概念气氛图")
+    got2 = dict((s["key"], w) for s, w in plan2)
+    assert got2 == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
+                    "sumiwash": 0.7, "goldenmist": 0.6}, got2
+
+
+def test_storyboard_preset_ruling():
+    """分镜剧情图(09-19 对拍定谳):人物三件+淡彩线描 0.5(连环画候选)。"""
+    plan, _, _ = stack.resolve_plan(_slots(), "分镜剧情图")
+    got = dict((s["key"], w) for s, w in plan)
+    assert got == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
+                   "asianmix": 0.4, "liujin": 0.3, "tancai": 0.5}, got
+
+
+def test_ink_mutex_across_presets():
+    """三画风(淡彩线描/墨洗/湿画)逐型至多点亮一件(09-17 互斥纪律)。"""
+    ink = ("tancai", "sumiwash", "shihua")
+    slots = {s["key"]: s for s in _slots()}
+    for t in _bases_keys():
+        lit = [k for k in ink if slots[k]["presets"][t]["on"]]
+        assert len(lit) <= 1, (t, "三画风同开=崩源", lit)
+
+
+def test_presets_equal_bases_lora_recipe():
+    """C2/C3 数据一致:栈预设点亮 = daojie_bases.lora_recipe 一比一
+    (bases 侧同款钉子的对侧;全局件 turbo/projector 恒挂不入配方)。"""
+    bases = json.loads(my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
+    slots = _slots()
+    for e in bases:
+        zh, want = e["zh"], {i["file"]: i["weight"] for i in e["lora_recipe"]}
+        for s in slots:
+            if s["key"] in ("turbo", "projector"):
+                assert s["presets"][zh]["on"]
+                continue
+            on, w = s["presets"][zh]["on"], s["presets"][zh]["weight"]
+            if s["file"] in want:
+                assert on and abs(w - want[s["file"]]) < 1e-9, (zh, s["key"])
+            else:
+                assert not on, (zh, s["key"])
 
 
 def test_expert_mode_widgets_govern():

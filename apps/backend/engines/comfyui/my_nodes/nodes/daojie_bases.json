@@ -6,7 +6,37 @@
     "aspect_ratio": "3:4 (Portrait Standard)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的角色立绘资产：以现代角色设计立身份气质与年龄感，中国人物画式细稳墨线勾画骨相衣纹，淡墨晕染空气与远景，传统色受控铺陈，数字绘画完成度。眉眼发丝逐层分明，衣纹疏密有致，线宽连续有节奏、转折衔接干净；线条以解释形体为先，五官衣褶结构线随骨相走，细稳基调上转折处轻重提按，墨线带手绘笔性。单人立像，人物约占画面六成，宽幅布面仅两至四条长结构褶，视觉密度中高，留白承担视觉呼吸；色彩组织为大面积稳定基底、中等强度主体色、少量高识别点睛；均匀柔光平涂底，画面干净可读，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, extra characters, multiple people, cropped head, tattered clothing, bald scalp, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, extra characters, multiple people, cropped head, tattered clothing, bald scalp, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "weight": 0.4,
+        "slot": "asianmix"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [
+      {
+        "name": "高清头像·人物图裁切精修",
+        "entry": "K2-人脸精修-道劫.json",
+        "denoise": 0.35
+      }
+    ],
+    "postprocess": "头像另产:本型出图→K2-人脸精修-道劫(YuNet 裁脸+1.0MP 精修)"
   },
   {
     "key": "场景",
@@ -15,7 +45,46 @@
     "aspect_ratio": "16:9 (Widescreen)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的场景设定资产：以古典山水构图组织前中远景层次，淡墨晕染空气透视，传统色淡彩点染，视觉密度受控，数字绘画完成度。近景以淡墨晕染为主，仅枝干檐角等主体结构以墨线轻勾；中景承建筑道路，形体以色块晕染成形；远景淡墨退层，墨色近浓远淡、浓淡干湿分明，山石以皴法示意肌理而不逐笔刻画；轮廓密度分远近：线条只锚定前中景主体轮廓，大面积背景交由晕染与留白，远景线弱化淡出，细稳基调上随景深轻重提按，笔性疏朗。空镜构图，大面积天空、水面与远雾承担视觉呼吸，疏朗布景；大面积稳定基底淡彩，少量高识别点睛；均匀柔光平涂底，淡彩清透如新，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, people, human figure, washed-out colors, oversaturated colors, foxing stains, silk mounting border, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, people, human figure, washed-out colors, oversaturated colors, foxing stains, silk mounting border, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
+        "weight": 0.8,
+        "slot": "sumiwash",
+        "range": [
+          0.6,
+          0.8
+        ],
+        "note": "四件中墨味增益最大,主推最佳档"
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "weight": 0.6,
+        "slot": "goldenmist",
+        "range": [
+          0.6,
+          0.8
+        ],
+        "note": "0.6=与现 json 剂量等价;与鎏金场景互换非叠加"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [
+      {
+        "name": "去噪精修",
+        "entry": "K2-去噪精修.json"
+      }
+    ],
+    "postprocess": "K2-去噪精修 按需;备选画风件=[82]淡彩线描×0.5-0.6/[84]湿画×0.6(与墨洗互斥,同开≤1)"
   },
   {
     "key": "道具",
@@ -24,7 +93,26 @@
     "aspect_ratio": "1:1 (Square)",
     "megapixels": 1.0,
     "positive": "现代修仙游戏的道具设定板资产：器物形制可建模可还原，细稳墨线勾画轮廓结构，材质差异清晰而绘画语言统一，传统色小面积点睛，数字绘画完成度。一图四宫格，正面、侧面、背面与细节特写各居一格，器物居中占七成以上；线条精确、转折干净，表面工艺与灵纹可辨，纯静物独立陈列；线条以器物构造为先，形制边缘与灵纹转折结构可读，细稳基调上轻重提按分明，带手绘笔性而不板结。大面积稳定基底，少量高识别点睛提亮转折一线；四格底色一致，均匀柔光平涂底，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, hands, human figure, inconsistent object across panels, flaking pigment, cracked paint layers, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, hands, human figure, inconsistent object across panels, flaking pigment, cracked paint layers, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [],
+    "postprocess": "四宫格裁单格作物品图;细节特写放大走 K2-SeedVR2修复.json"
   },
   {
     "key": "美宣",
@@ -33,7 +121,31 @@
     "aspect_ratio": "21:9 (Ultrawide)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的主视觉资产：人物处在具体叙事事件中，神态基调鲜明立全局，细稳墨线勾画五官衣褶，传统色大基底加少量点睛，视觉密度受控，商业插画完成度。主体明确居于视觉焦点，次要元素围绕分布，背景降低细节以衬主体；眉眼发丝逐层分明，衣褶疏密有致，线宽连续有节奏；线条解释五官衣褶与主体结构，随叙事焦点轻重提按，带手绘笔性而有表现力。大面积稳定基底、中等强度人物色、少量高识别强调色；疏朗布景，留白承担视觉呼吸；均匀柔光平涂底，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, unbalanced composition, museum artifact photograph, faithful reproduction of ancient scroll, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, unbalanced composition, museum artifact photograph, faithful reproduction of ancient scroll, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "weight": 0.4,
+        "slot": "asianmix"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [],
+    "postprocess": "K2-SeedVR2修复.json 按需(超分精修)"
   },
   {
     "key": "三视图",
@@ -42,7 +154,31 @@
     "aspect_ratio": "21:9 (Ultrawide)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的角色设定板资产：同一角色多视图跨格一致，形制结构可读可生产，细稳墨线勾画全身与衣褶，素雅传统色打底，资产统一性。一幅横幅长图并排四格，左一人像特写，其余三格依次为正面、侧面、背面全身立像，每格头顶到脚底完整入画；自然站姿，双臂下垂，中性微表情；面容、体型、发型与基础服装跨格完全一致，全身线条结构明确；细稳基调上随形体轻重提按，发丝衣褶结构线可读，带手绘笔性、跨格笔意一致。四格底色一致，均匀柔光平涂底，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, cropped head, inconsistent face across panels, inconsistent hairstyle, inconsistent outfit, different characters, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, cropped head, inconsistent face across panels, inconsistent hairstyle, inconsistent outfit, different characters, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "weight": 0.4,
+        "slot": "asianmix"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [],
+    "postprocess": "裁格(人像特写格/正侧背全身格)"
   },
   {
     "key": "高清人脸",
@@ -51,7 +187,38 @@
     "aspect_ratio": "1:1 (Square)",
     "megapixels": 1.0,
     "positive": "现代修仙游戏的高清头像资产：面部立身份与年龄感，五官细稳墨线勾画、结构明确，神态克制，肤色匀净如瓷，传统色微染内蕴，生产级清晰度。头顶至锁骨、正面平视，面部约占画面六成；眉眼鼻唇结构明确，发丝逐层分明，神情贴合角色身份与年龄；细稳基调上随骨相轻重提按，发丝线轻重有别、不等权重，眉眼神采由手绘笔性带出。同一角色跨图同脸；纯色平涂底，均匀柔光，清晰视觉焦点。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra fingers, deformed hands, text, watermark, signature, logo, profile view, side view, half face, cropped forehead, cropped chin, face too small, hands near face, hair covering face, heavy makeup, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra fingers, deformed hands, text, watermark, signature, logo, profile view, side view, half face, cropped forehead, cropped chin, face too small, hands near face, hair covering face, heavy makeup, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "weight": 0.4,
+        "slot": "asianmix"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [
+      {
+        "name": "人物图裁切精修",
+        "entry": "K2-人脸精修-道劫.json",
+        "denoise": 0.35,
+        "note": "A/B 档 0.25 更保身份"
+      }
+    ],
+    "postprocess": "出图后按 UI 圆/方裁切即头像;同角色跨图同脸由主体句锚定"
   },
   {
     "key": "分镜剧情图",
@@ -60,7 +227,41 @@
     "aspect_ratio": "16:9 (Widescreen)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的叙事画面资产：人物处在具体事件中、动作方向明确，前景入框、远景淡墨退层，连环画式叙事气质，细稳墨线勾画脸手与关键物，数字绘画完成度。前景枝叶檐角轻入画框，前中后景三层退远，背景以具体物件说明地点；脸手轮廓清晰，动作重心真实；线条解释脸手衣褶与关键物件结构，动作重心处线重略提，带手绘笔性、连贯如连环画笔意。大面积稳定基底、中等强度人物色、少量点题焦点色；均匀柔光平涂底，视觉密度受控，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, duplicated main character, cloned figures, speech bubbles, comic panel borders, grid layout, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, duplicated main character, cloned figures, speech bubbles, comic panel borders, grid layout, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "weight": 0.4,
+        "slot": "asianmix"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      },
+      {
+        "file": "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
+        "weight": 0.5,
+        "slot": "tancai",
+        "range": [
+          0.5,
+          0.6
+        ],
+        "note": "连环画候选(场景证据外推,九型实弹专拍)"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [],
+    "postprocess": "可复用成片模板 03/07/21/26 骨架;主体句可追加连环画句"
   },
   {
     "key": "表情差分",
@@ -69,7 +270,38 @@
     "aspect_ratio": "21:9 (Ultrawide)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的表情差分资产：同一角色跨格面容发型服装一致，表情沿单一情绪轴细腻变化，五官细稳墨线勾画，微表情层次分明，资产统一性如表情库一页。一幅横幅长图并排多格，每格头顶至锁骨或半身人像；面容、发型与服装跨格完全一致，五官结构明确，微表情层次细腻连贯；五官发丝衣褶结构线跨格一致，线重随神情轻重提按，细稳基调上带手绘笔性。各格底色一致，均匀柔光平涂底，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, inconsistent face across panels, inconsistent hairstyle, inconsistent outfit, different characters, captions, speech bubbles, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, inconsistent face across panels, inconsistent hairstyle, inconsistent outfit, different characters, captions, speech bubbles, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "weight": 0.4,
+        "slot": "asianmix"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [
+      {
+        "name": "人脸变体",
+        "entry": "K2-表情差分-道劫.json",
+        "denoise": 0.25,
+        "note": "低去噪保面容;A/B 档 0.35 变化更大"
+      }
+    ],
+    "postprocess": "格名文字后期再加(生成期负向已压 text)"
   },
   {
     "key": "概念气氛图",
@@ -78,6 +310,40 @@
     "aspect_ratio": "16:9 (Widescreen)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的概念气氛资产：重情绪而轻细节，主体居三分线，留白承担情绪，淡墨低对比定调，少数焦点色点睛，气韵先行的立项定调画面。大面积天空、水面、雪地或雾气承担情绪，远景淡墨轻压，墨色浓淡干湿分明；细节少而轮廓准，清晰视觉焦点；轮廓线少而笔性从容，墨线以手绘笔意轻写，不与墨韵争主导。大面积稳定基底、少数高识别焦点色；均匀柔光平涂底，生产级清晰度。",
-    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, hyper-detailed clutter, busy composition, dense details everywhere, high saturation neon, aged patina, foxing stains, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
+    "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, hyper-detailed clutter, busy composition, dense details everywhere, high saturation neon, aged patina, foxing stains, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
+    "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
+    "lora_recipe": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "weight": 1.0,
+        "slot": "detail"
+      },
+      {
+        "file": "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
+        "weight": 0.7,
+        "slot": "sumiwash",
+        "range": [
+          0.6,
+          0.8
+        ],
+        "note": "洇墨+留白与该型最契合,候选首选(场景证据外推,九型实弹专拍)"
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "weight": 0.6,
+        "slot": "goldenmist",
+        "range": [
+          0.6,
+          0.8
+        ],
+        "note": "0.6 起步"
+      }
+    ],
+    "steps_hint": {
+      "fast": 4,
+      "quality": 12
+    },
+    "i2i_routes": [],
+    "postprocess": "备选画风件=[84]湿画×0.5-0.6(与墨洗二选一);恒不做跨图一致性要求"
   }
 ]

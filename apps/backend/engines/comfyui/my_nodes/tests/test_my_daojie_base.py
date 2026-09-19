@@ -9,7 +9,9 @@
 (复用 my_styles._merge_negative)/分辨率两出 aspect+mp 随型现读 json、
 缺字段回退 1:1 (Square)/4.2+控制台警告/mtime 失效热改/未知底座中文
 RuntimeError/人物型=v2.2 新口径锚(09-18 定性切换,§一 超集解除,锚从
-md 运行时切出防旧口径回潮,零硬编码)。
+md 运行时切出防旧口径回潮,零硬编码)/v3 九型配方(lora_recipe/
+steps_hint/i2i_routes/postprocess:九型全量形状+定谳值+栈预设一比一+
+装机家存在性+缺省回退,09-19 C2 单源)。
 """
 
 from __future__ import annotations
@@ -221,3 +223,130 @@ def test_all_negatives_are_english_comma_tokens():
             my_daojie_base._BASES_JSON.read_text(encoding="utf-8")):
         assert not cjk.search(entry["negative"]), \
             f"底座「{entry['zh']}」negative 残留中文"
+
+
+# ── v3 九型配方(09-19 C2 单源):lora_recipe/steps_hint/i2i_routes/postprocess ──
+def _v3_entries():
+    return json.loads(
+        my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
+
+
+def test_v3_fields_present_for_all_nine_with_shape():
+    """九型全量新字段在档且形状合法;老字段零丢失(v3 只增不改)。"""
+    for e in _v3_entries():
+        zh = e["zh"]
+        for field in ("lora_recipe", "steps_hint", "i2i_routes", "postprocess"):
+            assert field in e, (zh, field)
+        # 老字段仍在(v3 增量迁移的零改动面)
+        for field in ("key", "purpose", "aspect_ratio", "megapixels",
+                      "positive", "negative"):
+            assert field in e, (zh, field)
+        assert isinstance(e["lora_recipe"], list) and e["lora_recipe"], zh
+        for item in e["lora_recipe"]:
+            assert set(item) >= {"file", "weight"}, (zh, item)
+            assert item["file"].endswith(".safetensors"), (zh, item)
+            assert "/" in item["file"], (zh, "应带子目录路径", item)
+            assert isinstance(item["weight"], (int, float)) \
+                and not isinstance(item["weight"], bool), (zh, item)
+            assert 0 < item["weight"] <= 1.0, (zh, item)
+        assert set(e["steps_hint"]) == {"fast", "quality"}, zh
+        assert e["steps_hint"] == {"fast": 4, "quality": 12}, zh
+        assert isinstance(e["i2i_routes"], list), zh
+        for route in e["i2i_routes"]:
+            assert set(route) >= {"name", "entry"} and route["entry"].endswith(".json"), \
+                (zh, route)
+            if "denoise" in route:
+                assert 0 < route["denoise"] < 1, (zh, route)
+        assert isinstance(e["postprocess"], str) and e["postprocess"], zh
+
+
+def test_v3_recipe_mutex_and_rulings():
+    """画风互斥(82/83/84 同型 ≤1)+ 关键定谳值(09-19 对拍定谳 §3)。"""
+    ink_trio = {
+        "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
+        "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
+        "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors",
+    }
+    by = {e["zh"]: {i["file"]: i["weight"] for i in e["lora_recipe"]}
+          for e in _v3_entries()}
+    for zh, recipe in by.items():
+        assert len(ink_trio & set(recipe)) <= 1, (zh, "三画风同开>1 违互斥纪律")
+    # 人物系五型=现值三件(67×1+76×0.4+73×0.3),画风槽不点亮
+    trio = {"Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
+            "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.4,
+            "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
+    for zh in ("人物", "美宣", "三视图", "高清人脸", "表情差分"):
+        assert by[zh] == trio, (zh, by[zh])
+    # 场景=细节+墨洗0.8+金雾0.6(免鎏金);概念气氛=细节+墨洗0.7+金雾0.6
+    assert by["场景"] == {
+        "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
+        "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors": 0.8,
+        "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
+    assert by["概念气氛图"] == {
+        "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
+        "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors": 0.7,
+        "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
+    # 分镜=三件+淡彩线描0.5;道具=细节+鎏金0.3(无面孔件)
+    assert by["分镜剧情图"]["Krea2-画风/Krea2-淡彩线描插画_v1.safetensors"] == 0.5
+    assert by["道具"] == {
+        "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
+        "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
+
+
+def test_v3_recipe_matches_lora_stack_presets():
+    """三方一致之数据面:bases.lora_recipe ↔ daojie_lora_stack.json 预设一比一
+    (件↔开关↔权重;全局功能件 turbo/projector 恒挂不入配方,单列校验)。"""
+    stack_slots = json.loads(
+        (my_daojie_base._BASES_JSON.parent / "daojie_lora_stack.json")
+        .read_text(encoding="utf-8"))
+    for e in _v3_entries():
+        zh = e["zh"]
+        want = {i["file"]: i["weight"] for i in e["lora_recipe"]}
+        for slot in stack_slots:
+            on = slot["presets"][zh]["on"]
+            weight = slot["presets"][zh]["weight"]
+            if slot["key"] in ("turbo", "projector"):
+                assert on, (zh, slot["key"], "全局件恒挂")
+                continue
+            if slot["file"] in want:
+                assert on and abs(weight - want[slot["file"]]) < 1e-9, \
+                    (zh, slot["key"], on, weight, want[slot["file"]])
+            else:
+                assert not on, (zh, slot["key"], "配方未列却点亮")
+
+
+def test_v3_recipe_files_exist_in_engine_home_when_present():
+    """文件存在性对拍装机家(loras 实盘);无引擎家=跳过(repo 侧零引擎依赖)。"""
+    home = (Path.home() / "Library/Application Support/漫影工作室/comfyui"
+            / "models/loras")
+    if not home.is_dir():
+        return
+    for e in _v3_entries():
+        for item in e["lora_recipe"]:
+            assert (home / item["file"]).is_file(), \
+                f"「{e['zh']}」配方件不在引擎家: {item['file']}"
+
+
+def test_v3_recipe_reader_helpers_and_fallback(tmp_path, monkeypatch):
+    """lora_recipe_of/steps_hint_of:正常读出+深拷贝;缺字段回退空表/默认档
+    (=回退全局链现行为的契约面);未知道型回退空。"""
+    for name in EXPECTED_OPTIONS:
+        recipe = my_daojie_base.lora_recipe_of(name)
+        assert recipe and all("file" in i and "weight" in i for i in recipe), name
+        assert my_daojie_base.steps_hint_of(name) == {"fast": 4, "quality": 12}
+    # 深拷贝:改返回值不污染缓存
+    r = my_daojie_base.lora_recipe_of("场景")
+    r[0]["weight"] = 9.9
+    assert my_daojie_base.lora_recipe_of("场景")[0]["weight"] != 9.9
+    # 缺省回退:旧版 json(无 v3 字段)→ 空表+默认步数档,run 行为零变化
+    fake = tmp_path / "daojie_bases.json"
+    fake.write_text(json.dumps([
+        {"key": "旧型", "zh": "旧型", "purpose": "p", "positive": "旧底座。",
+         "negative": "test"}], ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(my_daojie_base, "_BASES_JSON", fake)
+    my_daojie_base._bases_cache.update(mtime=None, entries=None)
+    assert my_daojie_base.lora_recipe_of("旧型") == []
+    assert my_daojie_base.steps_hint_of("旧型") == {"fast": 4, "quality": 12}
+    assert my_daojie_base.lora_recipe_of("不存在的型") == []
+    pos, _neg, _a, _m, _b = MyDaojieBase().run("旧型")
+    assert pos == "旧底座。"  # v3 字段缺席不影响既有装配行为

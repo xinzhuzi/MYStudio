@@ -210,14 +210,16 @@ def test_real_tree_discovery_and_dev_layout_resolution(monkeypatch):
     monkeypatch.setenv("MYSTUDIO_ART_SKILLS", str(REPO_ART_SKILLS))
     assert my_styles._resolve_art_skills_root() == REPO_ART_SKILLS
 
-    # 风格发现:60 目录全含 prefix.md;排除 3 家 → 57 开放
-    assert sum(1 for d in REPO_ART_SKILLS.iterdir() if d.is_dir()) == 60
+    # 风格发现:61 目录全含 prefix.md;排除 3 家 → 58 开放
+    # (09-19 九型配方 R5:新增「道劫·新中式」预设 daojie_neo_chinese,canon 级)
+    assert sum(1 for d in REPO_ART_SKILLS.iterdir() if d.is_dir()) == 61
     catalog = my_styles._get_catalog(REPO_ART_SKILLS)
-    assert len(catalog) == 57
+    assert len(catalog) == 58
     assert not any(v["dir"] in my_styles._FIRST_PHASE_EXCLUDED for v in catalog.values())
     levels = [v["level"] for v in catalog.values()]
-    assert levels.count("canon") == 48
+    assert levels.count("canon") == 49
     assert levels.count("variant") == 9
+    assert catalog["道劫·新中式"] == {"dir": "daojie_neo_chinese", "level": "canon"}
 
     # 展示名提取:prefix H1 直取,与三工作流 widgets_values 现值逐字一致
     assert catalog["2D工笔风"] == {"dir": "2d_gongbi", "level": "canon"}
