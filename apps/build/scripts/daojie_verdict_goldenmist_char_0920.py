@@ -110,6 +110,13 @@ if old_scene in text:
     changed.append(mx.name + "(场景行)")
 elif new_scene not in text:
     print(f"[!] 矩阵场景行未匹配,需人工核对:{mx}", file=sys.stderr)
+old_concept = "| 概念气氛图 | 16:9·4.2(2800×1576) | 细节×1+**墨洗×0.7**+金雾×0.6 | 墨洗候选首选 0.6-0.8 取中值(§2.2,外推,**本轮实弹=专拍**);金雾 0.6 起步(§2.4) | — | 备选画风=湿画 0.5-0.6(与墨洗二选一) |"
+new_concept = "| 概念气氛图 | 16:9·4.2(2800×1576) | 细节×1+金雾×0.6 | 金雾 0.6=09-20 双变体终审落定(0.5-0.6 均过审,取对齐场景剂量);墨洗否票出局 | — | 备选=金雾 0.5(过审变体V2);主体句层遗留:下半部死白/前景松树脱节待改 |"
+if old_concept in text:
+    text = text.replace(old_concept, new_concept)
+    changed.append(mx.name + "(概念气氛行)")
+elif new_concept not in text:
+    print(f"[!] 矩阵概念气氛行未匹配,需人工核对:{mx}", file=sys.stderr)
 mx.write_text(text, encoding="utf-8")
 
 vd = ROOT / "docs/prompts/道劫_水墨四件对拍定谳_0919.md"
@@ -127,6 +134,10 @@ bullet2 = "- **金雾 ×0.6 · 场景型 = 用户认可**(`~/Downloads/daojie_lo
 if "场景型 = 用户认可" not in vt:
     vt = vt.rstrip("\n") + "\n" + bullet2
     changed.append(vd.name + "(裁定2)")
+bullet3 = "- **概念气氛图 = 否票后双变体均过审(「都可以」)**:原配方(细节+墨洗0.7+金雾0.6)被否,视觉诊断定谳墨洗=主犯(闷灰/水渍边/楼阁轮廓洗软,水彩湿画与界画相克)、金雾0.6=从犯(光斑粒子/滤镜感);V1(细节+金雾0.6)与 V2(细节+金雾0.5)双变体实弹均获认可 → **落定 V1(0.6,对齐场景已认可剂量),金雾 0.5-0.6 为该型可用区间**。墨洗自此九型预设全关,成为纯库存件(去留归台账勾选门)。非 LoRA 层遗留(下半部死白/前景松树脱节=主体句构图层)记录在案,本轮不动。\n"
+if "概念气氛图 = 否票后双变体均过审" not in vt:
+    vt = vt.rstrip("\n") + "\n" + bullet3
+    changed.append(vd.name + "(裁定3)")
 vd.write_text(vt, encoding="utf-8")
 
 print("改动文件:", ", ".join(changed) if changed else "无(已幂等)")

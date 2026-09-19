@@ -314,16 +314,6 @@
         "slot": "detail"
       },
       {
-        "file": "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
-        "weight": 0.7,
-        "slot": "sumiwash",
-        "range": [
-          0.6,
-          0.8
-        ],
-        "note": "洇墨+留白与该型最契合,候选首选(场景证据外推,九型实弹专拍)"
-      },
-      {
         "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
         "weight": 0.6,
         "slot": "goldenmist",

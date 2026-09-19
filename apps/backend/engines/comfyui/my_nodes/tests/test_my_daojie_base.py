@@ -279,13 +279,12 @@ def test_v3_recipe_mutex_and_rulings():
         assert by[zh] == trio, (zh, by[zh])
     assert by["人物"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
         by["人物"]
-    # 场景=细节+金雾0.6(09-20 用户终审 87_scene_w06,墨洗出局);概念气氛=细节+墨洗0.7+金雾0.6
+    # 场景=细节+金雾0.6(09-20 用户终审 87_scene_w06,墨洗出局);概念气氛同构过渡待终审
     assert by["场景"] == {
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
         "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
     assert by["概念气氛图"] == {
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
-        "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors": 0.7,
         "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
     # 分镜=三件+淡彩线描0.5;道具=细节+鎏金0.3(无面孔件)
     assert by["分镜剧情图"]["Krea2-画风/Krea2-淡彩线描插画_v1.safetensors"] == 0.5

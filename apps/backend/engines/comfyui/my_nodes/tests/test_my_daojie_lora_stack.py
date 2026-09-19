@@ -185,11 +185,11 @@ def test_scene_preset_rulings():
     got = dict((s["key"], w) for s, w in plan)
     assert got == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
                    "goldenmist": 0.6}, got
-    # 概念气氛=场景系变体:墨洗取候选首选中值 0.7
+    # 概念气氛=场景系变体:墨洗撤(09-20 否票+视觉诊断主犯),金雾0.6 过渡停泊待终审
     plan2, _, _ = stack.resolve_plan(_slots(), "概念气氛图")
     got2 = dict((s["key"], w) for s, w in plan2)
     assert got2 == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
-                    "sumiwash": 0.7, "goldenmist": 0.6}, got2
+                    "goldenmist": 0.6}, got2
 
 
 def test_storyboard_preset_ruling():
