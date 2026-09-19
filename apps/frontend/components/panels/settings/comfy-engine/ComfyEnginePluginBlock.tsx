@@ -406,6 +406,26 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
                           安装
                         </Button>
                       ) : null}
+                      {/* 半装残留修复(09-19 实弹:Impact-Pack 目录在/台账无,三个按钮
+                          全无成死端):走收编链补登记(不删不重拉),完成后恢复更新/卸载 */}
+                      {!row.installed && row.state === "installed" && row.source !== "pip" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 text-[11px]"
+                          disabled={jobActive}
+                          title="本地已有此插件但安装记录缺失;点击补全登记,恢复更新与卸载"
+                          onClick={() => {
+                            const src = row.source;
+                            if (src === "pip") return;
+                            void engine.installPlugin(src, row.ref);
+                          }}
+                          data-comfy-plugin-adopt={row.id}
+                        >
+                          <PackagePlus className="mr-1 h-3 w-3" aria-hidden />
+                          修复登记
+                        </Button>
+                      ) : null}
                       {row.installed && (row.state === "updatable" || row.source === "pip") ? (
                         <Button
                           size="sm"

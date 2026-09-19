@@ -106,3 +106,85 @@ def test_update_pull_uses_force_to_survive_tag_clobber(home, monkeypatch):
 
     pm._update_plugin_job("job-x", "some-pack")
     assert pulls == [["pull", "--ff-only", "--force"]]
+
+
+def test_update_backs_up_local_patches_before_pull(home, monkeypatch):
+    """09-19 第三层实弹:插件带本地补丁时 git merge 被拒
+    (Your local changes would be overwritten)。更新链须先备份改动文件到
+    快照区,再 checkout 还原,再拉新版;补丁零丢失可回贴。
+    """
+    _install_plugin(home, "patched-pack", source="git", with_git=True)
+    target = cm.custom_nodes_dir() / "patched-pack"
+    (target / "nodes").mkdir()
+    (target / "nodes" / "upscaler.py").write_text("# 本地补丁\n", encoding="utf-8")
+
+    argv_log: list[list[str]] = []
+
+    def fake_git(argv, cwd=None, timeout=600.0, on_line=None):
+        argv_log.append(list(argv))
+        if argv[0] == "status":
+            return " M nodes/upscaler.py\n"
+        if argv[0] == "diff":
+            return "--- a/nodes/upscaler.py\n+++ b/nodes/upscaler.py\n"
+        if argv[0] == "rev-parse":
+            return "b" * 40
+        return ""
+
+    monkeypatch.setattr(pm, "_git", fake_git)
+    monkeypatch.setattr(pm, "_plugin_requirements", lambda plan: ([], []))
+    fake_engine = type("E", (), {
+        "create_snapshot": staticmethod(lambda reason, full=False: "snap-1"),
+        "restart": staticmethod(lambda progress=None: None),
+        "_safe_node_names": staticmethod(lambda: set()),
+        "object_info_names": staticmethod(lambda: {"NodeA"}),
+        "venv_freeze": staticmethod(lambda: []),
+    })()
+    monkeypatch.setattr(pm, "engine_manager", lambda: fake_engine)
+    monkeypatch.setattr(pm.cm, "mutate_manifest", lambda fn: fn({"plugins": {"patched-pack": {}}}))
+
+    pm._update_plugin_job("job-y", "patched-pack")
+    # 顺序铁律:status(检测脏)→ diff(取补丁)→ checkout -- .(还原)
+    #          → pull --ff-only --force → apply(自动回贴)
+    assert argv_log[0][0] == "status"
+    assert argv_log[1][0] == "diff"
+    assert argv_log[2] == ["checkout", "--", "."]
+    assert argv_log[3] == ["pull", "--ff-only", "--force"]
+    assert argv_log[4][0] == "apply"
+    # 本地补丁已备份到快照区(带时间戳目录,内容逐字保留+diff 落盘)
+    backups = sorted((cm.snapshots_dir() / "plugin-patches" / "patched-pack").iterdir())
+    assert len(backups) == 1
+    assert (backups[0] / "nodes" / "upscaler.py").read_text(encoding="utf-8") == "# 本地补丁\n"
+    assert "upscaler.py" in (backups[0] / "local.patch").read_text(encoding="utf-8")
+
+
+def test_update_success_marks_repo_latest_in_cache(home, monkeypatch):
+    """09-19 实弹根修回归:更新成功后把 HEAD 写进最新版缓存——否则 24h TTL
+    内的旧 latestSha 让刚更新完的插件恒显「可更新」(Director 实锤)。"""
+    import json as _json
+
+    _install_plugin(home, "fresh-pack", source="git", with_git=True)
+    cm.mutate_manifest(lambda m: m["plugins"]["fresh-pack"].update(
+        {"repo": "https://github.com/x/fresh-pack"}))
+
+    def fake_git(argv, cwd=None, timeout=600.0, on_line=None):
+        if argv[0] == "rev-parse":
+            return "b" * 40
+        return ""
+
+    monkeypatch.setattr(pm, "_git", fake_git)
+    monkeypatch.setattr(pm, "_plugin_requirements", lambda plan: ([], []))
+    fake_engine = type("E", (), {
+        "create_snapshot": staticmethod(lambda reason, full=False: "snap-1"),
+        "restart": staticmethod(lambda progress=None: None),
+        "_safe_node_names": staticmethod(lambda: set()),
+        "object_info_names": staticmethod(lambda: {"NodeA"}),
+        "venv_freeze": staticmethod(lambda: []),
+    })()
+    monkeypatch.setattr(pm, "engine_manager", lambda: fake_engine)
+    monkeypatch.setattr(pm.cm, "mutate_manifest", lambda fn: fn({"plugins": {"fresh-pack": {}}}))
+
+    pm._update_plugin_job("job-z", "fresh-pack")
+    cache = _json.loads(pm._plugin_meta_cache_path().read_text(encoding="utf-8"))
+    entry = cache["byRepo"]["https://github.com/x/fresh-pack"]
+    assert entry["latestSha"] == "b" * 40
+    assert entry["fetchedAt"] > 0

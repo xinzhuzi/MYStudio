@@ -213,3 +213,20 @@ def test_install_rejects_ledger_plugin_before_job(monkeypatch, stub_nodes_dir):
 
     with pytest.raises(plugin_manager.EngineOpError, match="已装过"):
         plugin_manager.install_plugin_job("curated", "ComfyUI-ConditioningKrea2Rebalance")
+
+
+def test_parse_requirements_vcs_url_line():
+    """09-19 实弹(Impact-Pack 收编炸链):git+URL 依赖行不进版本区间预检,
+    原文保留给 pip;普通行解析不受影响。"""
+    from engines.comfyui.plugin_manager import check_dependency_conflicts, parse_requirements
+
+    reqs, warnings = parse_requirements(
+        "torch>=2.0\ngit+https://github.com/facebookresearch/sam2\n# 注释\n-r other.txt\n"
+    )
+    assert [r["name"] for r in reqs] == ["torch", "sam2"]
+    vcs = reqs[1]
+    assert vcs["spec"] == "" and "git+https" in vcs["raw"]
+    assert any("-r" in w for w in warnings)
+    # 冲突预检吃得下(VCS 行 spec 空自动跳过,不再 Invalid specifier)
+    conflicts = check_dependency_conflicts(reqs, {"torch": "2.1.0"}, {})
+    assert conflicts == []

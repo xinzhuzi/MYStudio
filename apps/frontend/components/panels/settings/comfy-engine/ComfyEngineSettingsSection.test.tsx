@@ -564,7 +564,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     expect(screen.queryByText("十二带提示词重平衡(策展)")).toBeNull();
   });
 
-  it("已装清单暂空 + 目录行后端已标已装:显示「已安装」且不给安装钮(过渡形态)", () => {
+  it("半装残留(目录在/台账无):显示「已安装」+「修复登记」钮,不给安装钮;点击走收编链(09-19 根修)", () => {
     scenario.plugins = [];
     scenario.catalog = [
       {
@@ -575,7 +575,7 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
         author: "ltdrdata",
         downloads: 1000000,
         category: null,
-        installedState: "installed", // 后端归一化比对后标已装
+        installedState: "installed", // 后端物理目录深查后标已装(半装残留形态)
         ref: "comfyui-manager",
         source: "registry",
       },
@@ -585,6 +585,12 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
 
     expect(screen.getByText("已安装")).toBeTruthy();
     expect(document.querySelector('[data-comfy-plugin-install="comfyui-manager"]')).toBeNull();
+    // 死端修复:展开行→「修复登记」钮在场,点击触发收编安装(installPlugin→后端 adopt 路径)
+    fireEvent.click(screen.getByText("ComfyUI-Manager"));
+    const adoptBtn = document.querySelector('[data-comfy-plugin-adopt="comfyui-manager"]') as HTMLButtonElement | null;
+    expect(adoptBtn).toBeTruthy();
+    fireEvent.click(adoptBtn as HTMLButtonElement);
+    expect(actions.installPlugin).toHaveBeenCalledWith("registry", "comfyui-manager");
   });
 
   it("详情展开:已装行显 GitHub 星标;星标/作者缺数据整行不显示(09-10 裁定)", () => {

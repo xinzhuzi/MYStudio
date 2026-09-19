@@ -230,17 +230,29 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
           settleJob(first);
           return;
         }
+        // 轮询熔断(09-19 根修):sidecar 失联时 getJob 会静默失败到永远——
+        // pollRef 永不释放,所有按钮持续禁用且只弹「已有任务在进行中」,
+        // 用户无从知道是连接断了。连续失败 15 次(约 12s)即熔断收摊。
+        let pollFailures = 0;
         pollRef.current = window.setInterval(() => {
           void client
             .getJob(jobId)
             .then((job) => {
+              pollFailures = 0;
               setActiveJob(job);
               if (job.state !== "running") {
                 stopPolling();
                 settleJob(job);
               }
             })
-            .catch(() => undefined);
+            .catch(() => {
+              pollFailures += 1;
+              if (pollFailures >= 15) {
+                stopPolling();
+                setActiveJob(null);
+                toast.error("与本地生图服务的连接中断,任务状态未知;请稍后重试");
+              }
+            });
         }, pollIntervalMs);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "任务启动失败");

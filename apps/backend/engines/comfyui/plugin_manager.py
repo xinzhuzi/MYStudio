@@ -63,6 +63,14 @@ def parse_requirements(text: str) -> tuple[list[dict], list[str]]:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
+        # VCS/URL 直接依赖(git+https://…,实弹=Impact-Pack 的 sam2 行):保留原文
+        # 交给 pip 安装;预检无版本区间可析(spec 置空跳过冲突判定)。此前按
+        # 普通行解析会把 URL 切成「包名 git + 区间 +https://…」,SpecifierSet
+        # 直接 Invalid specifier 炸掉整条安装链(09-19 根修)。
+        if re.match(r"^(git|hg|svn|bzr)\+|^https?://", line):
+            tail = re.sub(r"(?:\.git)?/?$", "", line.rstrip("/").split("/")[-1])
+            reqs.append({"name": normalize_pkg(tail or "vcs-dep"), "spec": "", "raw": raw_line})
+            continue
         if line.startswith("-r") or line.startswith("--"):
             warnings.append(f"requirements 里的 {line.split()[0]} 行由 pip 自行处理,预检未覆盖")
             continue
@@ -519,6 +527,8 @@ def _install_job(job_id: str, plan: dict) -> None:
         }
 
     cm.mutate_manifest(_record)
+    # 新装/收编即最新:同款缓存写入(安装时刻的 HEAD 即当时最新)
+    _mark_repo_latest(plan.get("repo"), commit)
     jobs.update(job_id, result={
         "plugin": plan["dirName"], "addedNodes": diff["addedCount"], "nodeTypes": diff["added"][:200],
         "adopted": adopted,
@@ -747,6 +757,53 @@ def update_plugin_job(plugin_id: str) -> str:
     return job_id
 
 
+def _backup_local_patches(target: Path, plugin_id: str, porcelain: str) -> Path | None:
+    """插件本地改动备份到快照区(带时间戳目录);返回备份目录,无文件命中返回 None。
+
+    实弹(09-19 第三层):Minimax H3 超分插件带用户本地补丁
+    (nodes/minimax_h3_latent_upscaler_3d.py),git 保护性拒绝 merge 覆盖
+    「Your local changes … would be overwritten by merge」——更新链死锁。
+    处置=备份后硬更新:补丁零丢失,事后可对照回贴;上游新版可能已含等效修复。
+    """
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    backup_dir = cm.snapshots_dir() / "plugin-patches" / plugin_id / stamp
+    copied = False
+    for line in porcelain.splitlines():
+        # porcelain 行=「XY 路径」;rename 形如「R  旧 -> 新」取两侧都试
+        for raw in line[3:].split("->"):
+            path = raw.strip().strip('"')
+            src = target / path
+            if path and not path.startswith("..") and src.is_file():
+                dest = backup_dir / path
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
+                copied = True
+    return backup_dir if copied else None
+
+
+def _mark_repo_latest(repo: str | None, commit: str | None) -> None:
+    """装/更成功后,把刚拉到的 HEAD 记为该仓库的最新版缓存。
+
+    09-19 实弹根修:GitHub 最新版缓存 24h TTL,更新成功后不作废——上游在
+    缓存期内推过新提交时,刚更新完的插件(next list_plugins)仍拿旧
+    latestSha 比对,胶囊恒显「可更新」、点了更新也「状态不变」。拉取时刻
+    的 HEAD 即当时的最新真值,写入缓存零额外 API 调用;上游再动交给 TTL。
+    """
+    key = _normalize_repo(repo or "")
+    if not key or not commit:
+        return
+    with _meta_file_lock:
+        cache = _load_plugin_meta_cache()
+        entry = (cache.setdefault("byRepo", {}).get(key)) or {}
+        cache["byRepo"][key] = {
+            "fetchedAt": int(time.time()),
+            "latestTag": entry.get("latestTag"),
+            "latestSha": commit,
+            "stars": entry.get("stars"),
+        }
+        _save_plugin_meta_cache(cache)
+
+
 def _update_plugin_job(job_id: str, plugin_id: str) -> None:
     engine = engine_manager()
     target = cm.custom_nodes_dir() / plugin_id
@@ -754,11 +811,40 @@ def _update_plugin_job(job_id: str, plugin_id: str) -> None:
         raise EngineOpError(f"插件目录不存在: {plugin_id}(可能已被手动删除,请跑一次依赖体检)")
     jobs.update(job_id, progress=10, step="snapshot", message="更新前快照…")
     engine.create_snapshot(reason=f"plugin-update:{plugin_id}", full=False)
+    # 本地补丁处置:先备份(文件+diff)后还原,拉新版后再尝试自动回贴
+    patch_backup = None
+    patch_text: str | None = None
+    dirty = _git(["status", "--porcelain"], cwd=target, timeout=30.0)
+    if dirty.strip():
+        jobs.update(job_id, progress=18, step="backup", message="插件有本地改动,先备份再更新…")
+        patch_backup = _backup_local_patches(target, plugin_id, dirty)
+        patch_text = _git(["diff"], cwd=target, timeout=60.0)
+        if patch_backup is not None:
+            (patch_backup / "local.patch").write_text(patch_text, encoding="utf-8")
+        _git(["checkout", "--", "."], cwd=target, timeout=60.0)
     jobs.update(job_id, progress=25, step="pull", message="拉取插件最新代码…")
     # --force 只作用于 fetch 侧的 ref/tag 对齐:第三方作者常重打 tag,本地旧 tag
     # 与远端冲突时 git 会 "! [rejected] …(would clobber existing tag)" 退出码 1
     # 卡死更新(09-19 实弹);分支合并仍是 --ff-only,本地改动零风险。
-    _git(["pull", "--ff-only", "--force"], cwd=target, timeout=600.0)
+    try:
+        _git(["pull", "--ff-only", "--force"], cwd=target, timeout=600.0)
+    except EngineOpError as exc:
+        if "fast-forward" in str(exc) or "diverged" in str(exc):
+            raise EngineOpError(
+                f"插件历史与上游分叉(作者重写了历史),无法快进更新;请卸载后重装 {plugin_id}"
+            ) from exc
+        raise
+    # 更新后自动回贴本地补丁:实弹(Minimax H3 超分的 mps 支持)本地补丁是
+    # 本机功能必需,上游新版无等效实现;git apply 不合身(上游重构)则保持
+    # 新版干净态,备份与 diff 都在快照区可手工对照。
+    patch_reapplied = False
+    if patch_backup is not None and patch_text:
+        try:
+            _git(["apply", "--whitespace=nowarn", str(patch_backup / "local.patch")],
+                 cwd=target, timeout=30.0)
+            patch_reapplied = True
+        except EngineOpError:
+            patch_reapplied = False
     commit = _git(["rev-parse", "HEAD"], cwd=target, timeout=30.0).strip()
     reqs, _ = _plugin_requirements({"dirName": plugin_id})
     if reqs:
@@ -778,9 +864,17 @@ def _update_plugin_job(job_id: str, plugin_id: str) -> None:
                      "nodes": sorted(set(item.get("nodes") or []) | set(diff["added"]))})
 
     cm.mutate_manifest(_record)
+    # 成功即最新:把刚拉到的 HEAD 写进最新版缓存,杜绝「更新完仍可更新」
+    _mark_repo_latest((cm.plugin_ledger().get(plugin_id) or {}).get("repo"), commit)
+    if patch_backup is None:
+        backup_note = ""
+    elif patch_reapplied:
+        backup_note = f";本地补丁已自动回贴(备份:{patch_backup})"
+    else:
+        backup_note = f";本地改动未能自动回贴(上游已重构),备份在 {patch_backup} 可手工对照"
     jobs.update(job_id, result={
         "plugin": plugin_id, "commit": commit[:8], "addedNodes": diff["addedCount"],
-        "message": f"已更新 {plugin_id} 到 {commit[:8]},新增 {diff['addedCount']} 个节点",
+        "message": f"已更新 {plugin_id} 到 {commit[:8]},新增 {diff['addedCount']} 个节点{backup_note}",
     })
 
 
@@ -1079,7 +1173,16 @@ def _kick_github_stars_refresh(pending: list[str]) -> None:
             if updates:
                 with _meta_file_lock:
                     cache = _load_plugin_meta_cache()
-                    cache.setdefault("byRepo", {}).update(updates)
+                    by_repo = cache.setdefault("byRepo", {})
+                    # 空结果(限流/临时失败)不得清掉已有的 latestSha/latestTag:
+                    # 否则会把刚更新的插件判定依据抹掉(09-19 根修,与
+                    # _mark_repo_latest 同源的缓存一致性防线)。
+                    for repo_key, update in updates.items():
+                        prior = by_repo.get(repo_key) or {}
+                        for keep in ("latestSha", "latestTag"):
+                            if update.get(keep) is None and prior.get(keep):
+                                update[keep] = prior[keep]
+                    by_repo.update(updates)
                     _save_plugin_meta_cache(cache)
         finally:
             _registry_refresh_lock.release()
