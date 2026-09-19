@@ -23,6 +23,11 @@
         "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
         "weight": 0.3,
         "slot": "liujin"
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "weight": 0.8,
+        "slot": "goldenmist"
       }
     ],
     "steps_hint": {

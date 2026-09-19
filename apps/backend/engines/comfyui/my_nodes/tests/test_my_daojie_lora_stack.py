@@ -161,12 +161,14 @@ def test_charsheet_preset_resolves_like_renwu():
 
 def test_default_group_equals_current_always_on_chain():
     """默认组(跟随底座型·人物)必须逐槽逐权重复现现常开链:
-    [47]×1.0 → [81]×0.01 → [85]按型(67×1 → 76×0.4 → 73×0.3)。"""
+    [47]×1.0 → [81]×0.01 → [85]按型(67×1 → 76×0.4 → 73×0.3 → 金雾×0.8;
+    金雾=09-20 用户终审 87_char_w08,叠加于三件之上)。"""
     plan, display, masked = stack.resolve_plan(
         _slots(), stack.FOLLOW_PRESET, "人物", enables={}, weights={})
     assert [(s["key"], w) for s, w in plan] == [
         ("turbo", 1.0), ("projector", 0.01),
-        ("detail", 1.0), ("asianmix", 0.4), ("liujin", 0.3)]
+        ("detail", 1.0), ("asianmix", 0.4), ("liujin", 0.3),
+        ("goldenmist", 0.8)]
     assert display == "跟随底座型·人物" and masked == []
 
 
@@ -242,7 +244,8 @@ def test_enable_false_masks_preset_and_reports():
     enables = dict.fromkeys(CHAIN_KEYS, True)
     enables["asianmix"] = False  # 急停:矩阵点亮被开关压下(真关)
     plan, _, masked = stack.resolve_plan(slots, "人物", None, enables=enables)
-    assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail", "liujin"]
+    assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail", "liujin",
+                                           "goldenmist"]
     assert masked == ["亚洲面孔·AsianMix"]
 
 
@@ -251,8 +254,8 @@ def test_missing_widgets_tolerated_for_hot_added_slots():
     slots = _slots()
     plan, _, _ = stack.resolve_plan(slots, "人物", None, enables={}, weights={})
     assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail",
-                                           "asianmix", "liujin"]
-    assert [w for _s, w in plan] == [1.0, 0.01, 1.0, 0.4, 0.3]
+                                           "asianmix", "liujin", "goldenmist"]
+    assert [w for _s, w in plan] == [1.0, 0.01, 1.0, 0.4, 0.3, 0.8]
 
 
 def test_unknown_type_and_preset_raise_plain_language():
@@ -271,13 +274,13 @@ def test_run_loads_plan_in_slot_order_and_reports_applied(fake_engine):
     model, applied = node.run("M0", preset=stack.FOLLOW_PRESET, base="人物",
                               **_widgets())
     assert [p for p, _w in fake_engine["apply"]] == \
-        [f"/loras/{f}" for f in CHAIN_FILES[:5]]  # 槽序=计划序=链序前五件
+        [f"/loras/{CHAIN_FILES[i]}" for i in (0, 1, 2, 3, 4, 13)]  # 计划序=人物组六件
     assert fake_engine["apply"][0] == ("/loras/" + CHAIN_FILES[0], 1.0)
     assert fake_engine["apply"][1][1] == 0.01 and fake_engine["apply"][3][1] == 0.4
-    assert applied.startswith("跟随底座型·人物(5/14):")
+    assert applied.startswith("跟随底座型·人物(6/14):")
     assert "Krea2-Turbo-4步蒸馏×1" in applied and "ProjectorScale×0.01" in applied
-    assert applied.endswith("Krea2-水墨武侠漆艺鎏金_v1×0.3")  # 末位=鎏金(序锚)
-    assert model == "model#5"
+    assert applied.endswith("金雾仙侠GoldenMisty×0.8")  # 末位=金雾(序锚,09-20 终审)
+    assert model == "model#6"
 
 
 def test_run_all_off_is_true_passthrough_no_loads(fake_engine):

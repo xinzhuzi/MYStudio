@@ -18,10 +18,7 @@
     {
       "name": "人物",
       "ran": true,
-      "audit_reconstructed": true,
-      "prompt_id": null,
-      "wall_s": 298.9,
-      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3",
+      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3 + 金雾仙侠GoldenMisty.safetensors×0.8",
       "native": "1816×2424",
       "key_inputs": {
         "seed": 42,
@@ -36,18 +33,22 @@
           4
         ]
       },
-      "expected_applied_90": "跟随底座型·人物(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
+      "expected_applied_90": "跟随底座型·人物(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8",
+      "prompt_id": "f1b388e1-36c2-4655-8b75-6a7c5aecc60d",
+      "wall_s": 266.1,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "evidence": "首轮日志「完成」行=四锚全过;见 first_pass_log.txt"
+        "applied_90_actual": "跟随底座型·人物(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8"
       },
-      "bytes": 6391522,
-      "sha256": "ad5ea9d1682b429f620ff96209627294fd6b54ad96927f776817f8444f829b11",
-      "pixel_sha256": "8b3f6081cbb52b7dfb99c408d104bdf453d53ef11ee38c76535213d203a19d09",
+      "bytes": 5748749,
+      "sha256": "22c4963f522d1de711993399838141ac4c4195c2743a43512949ef0d4c51cb85",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/人物.png",
-      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/人物.png"
+      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/人物.png",
+      "engine_image": "K2道劫文生图__00136_.png",
+      "final_positive_len": 341,
+      "pixel_sha256": "e5631883872b9deb6e813df4e81262b6b59840d3f55a9f779272c529dfed4c9a"
     },
     {
       "name": "场景",
@@ -326,6 +327,7 @@
   ],
   "runs_total": 9,
   "ok_count": 9,
-  "total_wall_s": 461.2,
-  "first_pass_interruption": "首轮 7 跑完成后续跑中引擎连接中断(表情差分 ConnectionReset;日志末见 引擎侧栈,自动重启于 17001);--only 续跑补齐 2 型;7 跑条目由盘上 PNG+首轮日志补记(prompt_id 不可考置 null,余皆实算/日志实录)"
+  "total_wall_s": 727.4,
+  "first_pass_interruption": "首轮 7 跑完成后续跑中引擎连接中断(表情差分 ConnectionReset;日志末见 引擎侧栈,自动重启于 17001);--only 续跑补齐 2 型;7 跑条目由盘上 PNG+首轮日志补记(prompt_id 不可考置 null,余皆实算/日志实录)",
+  "resume_note": "--only 续跑 ['人物'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
 }

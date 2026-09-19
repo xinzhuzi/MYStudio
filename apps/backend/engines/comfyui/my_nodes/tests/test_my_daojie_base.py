@@ -271,12 +271,14 @@ def test_v3_recipe_mutex_and_rulings():
           for e in _v3_entries()}
     for zh, recipe in by.items():
         assert len(ink_trio & set(recipe)) <= 1, (zh, "三画风同开>1 违互斥纪律")
-    # 人物系五型=现值三件(67×1+76×0.4+73×0.3),画风槽不点亮
+    # 人物系=现值三件(67×1+76×0.4+73×0.3);人物型画风槽=金雾×0.8(09-20 用户终审)
     trio = {"Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
             "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.4,
             "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
-    for zh in ("人物", "美宣", "三视图", "高清人脸", "表情差分"):
+    for zh in ("美宣", "三视图", "高清人脸", "表情差分"):
         assert by[zh] == trio, (zh, by[zh])
+    assert by["人物"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
+        by["人物"]
     # 场景=细节+墨洗0.8+金雾0.6(免鎏金);概念气氛=细节+墨洗0.7+金雾0.6
     assert by["场景"] == {
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
