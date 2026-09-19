@@ -14,7 +14,7 @@
     "purpose": "16:9 空镜 hero shot、人眼平视。主体句写地点、季节、时段；人物一律交给负向（person/human figure）。本型参照山水模板气质独立撰写，无第二持有者、无逐字锁。",
     "aspect_ratio": "16:9 (Widescreen)",
     "megapixels": 4.2,
-    "positive": "现代修仙游戏的场景设定资产：以古典山水构图组织前中远景层次，淡墨晕染空气透视，传统色淡彩点染，视觉密度受控，数字绘画完成度。近景墨线勾画枝叶檐石，中景承建筑道路，远景淡墨退层，墨色近浓远淡、浓淡干湿分明，山石皴擦纹理可辨；轮廓密度分远近：前中景线条明确可读，远景线弱化淡出，细稳基调上随景深轻重提按，笔性疏朗。空镜构图，大面积天空、水面与远雾承担视觉呼吸，疏朗布景；大面积稳定基底淡彩，少量高识别点睛；均匀柔光平涂底，淡彩清透如新，生产级清晰度。",
+    "positive": "现代修仙游戏的场景设定资产：以古典山水构图组织前中远景层次，淡墨晕染空气透视，传统色淡彩点染，视觉密度受控，数字绘画完成度。近景以淡墨晕染为主，仅枝干檐角等主体结构以墨线轻勾；中景承建筑道路，形体以色块晕染成形；远景淡墨退层，墨色近浓远淡、浓淡干湿分明，山石以皴法示意肌理而不逐笔刻画；轮廓密度分远近：线条只锚定前中景主体轮廓，大面积背景交由晕染与留白，远景线弱化淡出，细稳基调上随景深轻重提按，笔性疏朗。空镜构图，大面积天空、水面与远雾承担视觉呼吸，疏朗布景；大面积稳定基底淡彩，少量高识别点睛；均匀柔光平涂底，淡彩清透如新，生产级清晰度。",
     "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, people, human figure, washed-out colors, oversaturated colors, foxing stains, silk mounting border, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
   },
   {
@@ -22,7 +22,7 @@
     "zh": "道具",
     "purpose": "1:1 四宫格（正/侧/背/细节特写）。主体句写器物名、材质、灵纹，出图后可裁单格作物品图。",
     "aspect_ratio": "1:1 (Square)",
-    "megapixels": 4.2,
+    "megapixels": 1.0,
     "positive": "现代修仙游戏的道具设定板资产：器物形制可建模可还原，细稳墨线勾画轮廓结构，材质差异清晰而绘画语言统一，传统色小面积点睛，数字绘画完成度。一图四宫格，正面、侧面、背面与细节特写各居一格，器物居中占七成以上；线条精确、转折干净，表面工艺与灵纹可辨，纯静物独立陈列；线条以器物构造为先，形制边缘与灵纹转折结构可读，细稳基调上轻重提按分明，带手绘笔性而不板结。大面积稳定基底，少量高识别点睛提亮转折一线；四格底色一致，均匀柔光平涂底，生产级清晰度。",
     "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, hands, human figure, inconsistent object across panels, flaking pigment, cracked paint layers, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
   },
@@ -47,9 +47,9 @@
   {
     "key": "高清人脸",
     "zh": "高清人脸",
-    "purpose": "竖幅特写、面部占六成以上。主体句写角色气质与五官设定，出图后按 UI 圆/方裁切即得头像；同一角色跨图同脸由主体句锚定。",
-    "aspect_ratio": "3:4 (Portrait Standard)",
-    "megapixels": 4.2,
+    "purpose": "方形特写、面部占六成以上。主体句写角色气质与五官设定，出图后按 UI 圆/方裁切即得头像；同一角色跨图同脸由主体句锚定。",
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.0,
     "positive": "现代修仙游戏的高清头像资产：面部立身份与年龄感，五官细稳墨线勾画、结构明确，神态克制，肤色匀净如瓷，传统色微染内蕴，生产级清晰度。头顶至锁骨、正面平视，面部约占画面六成；眉眼鼻唇结构明确，发丝逐层分明，神情贴合角色身份与年龄；细稳基调上随骨相轻重提按，发丝线轻重有别、不等权重，眉眼神采由手绘笔性带出。同一角色跨图同脸；纯色平涂底，均匀柔光，清晰视觉焦点。",
     "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra fingers, deformed hands, text, watermark, signature, logo, profile view, side view, half face, cropped forehead, cropped chin, face too small, hands near face, hair covering face, heavy makeup, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour"
   },

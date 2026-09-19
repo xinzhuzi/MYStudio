@@ -149,3 +149,6 @@ docs/prompts/portrait_aesthetics/raw/*.png
 docs/prompts/portrait_aesthetics/.DS_Store
 !docs/prompts/
 !docs/prompts/**
+
+# 道劫九型实弹/消融证据:PNG 大件不入库(审计真源=runs_audit.json;图在 ~/Downloads 同名镜像)
+docs/prompts/道劫_九型实弹_0919/**/*.png

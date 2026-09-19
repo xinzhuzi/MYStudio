@@ -111,9 +111,10 @@ def test_run_all_options_produce_nonempty_outputs():
         assert pos and pos.startswith("现代修仙游戏")
         assert pos.endswith("。")
         assert neg and "text" in neg  # 九型负面均为英文 token 基线
-        # 09-18 分辨率两出:九型 aspect 一律官方枚举串、mp 一律 4.2
+        # 09-18 分辨率两出:九型 aspect 一律官方枚举串;mp 道具/高清人脸 1.0
+        # (09-19 裁定出 1024×1024,节点口径 1.0 MP 精确命中)、其余一律 4.2
         assert aspect.endswith(")") and ":" in aspect
-        assert mp == 4.2
+        assert mp == (1.0 if name in ("道具", "高清人脸") else 4.2)
 
 
 # ── 负向:token 去重合并(复用 my_styles._merge_negative)──

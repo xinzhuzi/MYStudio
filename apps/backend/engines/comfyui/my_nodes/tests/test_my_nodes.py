@@ -194,7 +194,9 @@ def test_daojie_base_options_and_assembly():
 def test_daojie_base_resolution_outputs_nine_types():
     """九型分辨率两出全枚举实测:aspect 逐字命中官方 ResolutionSelector
     AspectRatio 枚举(引擎 comfy_extras/nodes_resolution.py,8 项;sidecar
-    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 统一 4.2、
+    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 道具/高清人脸
+    1.0(09-19 用户裁定出 1024×1024,该节点口径 1.0 MP 精确=1024×1024)
+    其余 4.2、
     两值与 daojie_bases.json 字段一比一;正负 STRING 原语义逐字不变。"""
     node = NODE_CLASS_MAPPINGS["MyDaojieBase"]()
     import json as _json
@@ -210,7 +212,8 @@ def test_daojie_base_resolution_outputs_nine_types():
         pos, neg, aspect, megapixels = node.run(entry["zh"])
         assert aspect == entry["aspect_ratio"], entry["zh"]
         assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
-        assert megapixels == entry["megapixels"] == 4.2, entry["zh"]
+        expected_mp = 1.0 if entry["zh"] in ("道具", "高清人脸") else 4.2
+        assert megapixels == entry["megapixels"] == expected_mp, entry["zh"]
         # 原两路 STRING 语义不受新出影响:留空=恒等纯底座/纯负面基线
         assert pos == entry["positive"]
         assert neg == entry["negative"]
