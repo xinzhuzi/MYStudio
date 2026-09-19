@@ -23,6 +23,7 @@ from .nodes.my_stage import MyStage
 from .nodes.my_styles import MyStylesLibrary
 from .nodes.my_daojie_base import MyDaojieBase
 from .nodes.my_daojie_loras import MyDaojieLoras
+from .nodes.my_daojie_lora_stack import MyDaojieLoraStack
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
@@ -94,6 +95,7 @@ NODE_CLASS_MAPPINGS = {
     "MyStylesLibrary": MyStylesLibrary,
     "MyDaojieBase": MyDaojieBase,
     "MyDaojieLoras": MyDaojieLoras,
+    "MyDaojieLoraStack": MyDaojieLoraStack,
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
     "ManyingPrompt": MyPromptLegacy,
     "ManyingReference": MyReferenceLegacy,
@@ -116,6 +118,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyStylesLibrary": "漫影 风格库",
     "MyDaojieBase": "漫影 道劫底座",
     "MyDaojieLoras": "漫影 道劫按型LoRA",
+    "MyDaojieLoraStack": "漫影 道劫LoRA栈",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",

@@ -1,8 +1,8 @@
 {
   "id": "e519cd0c-1249-47ce-94cd-98626102bd0f",
   "revision": 0,
-  "last_node_id": 90,
-  "last_link_id": 66,
+  "last_node_id": 88,
+  "last_link_id": 67,
   "nodes": [
     {
       "id": 21,
@@ -62,6 +62,60 @@
       },
       "color": "#3f789e",
       "bgcolor": "#1e2b38"
+    },
+    {
+      "id": 19,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        4940,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 48
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            60
+          ]
+        }
+      ],
+      "title": "[19] identity LoRA ×1(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "lora_name": true,
+            "strength_model": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
+        "strength_model": 1
+      },
+      "color": "#8a5fb0",
+      "bgcolor": "#2c2438"
     },
     {
       "id": 11,
@@ -231,6 +285,261 @@
       },
       "color": "#3f789e",
       "bgcolor": "#1e2b38"
+    },
+    {
+      "id": 69,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        5430,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 60
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            59
+          ]
+        }
+      ],
+      "title": "[69] 画风·暗笔刷 ×1.0",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-暗笔刷darkbrush.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-暗笔刷darkbrush.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
+      "id": 78,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        4380,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 39
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            40
+          ]
+        }
+      ],
+      "title": "[78] 质感·电影感 ×1",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
+      "id": 77,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        5920,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 59
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            61
+          ]
+        }
+      ],
+      "title": "[77] 画风·美学Masterpiece ×1",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
+      "id": 67,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        2350,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            38
+          ]
+        }
+      ],
+      "title": "[67] 细节·细节滑杆 ×1",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "strength_model": 1
+      },
+      "color": "#4a89b8",
+      "bgcolor": "#1f2a33"
+    },
+    {
+      "id": 46,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        3890,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 38
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            39
+          ]
+        }
+      ],
+      "title": "[46] 光影·Afterlight ×0.8",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-光影/Afterlight_v1.safetensors",
+        0.8
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-光影/Afterlight_v1.safetensors",
+        "strength_model": 0.8
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26"
     },
     {
       "id": 63,
@@ -499,6 +808,108 @@
       "bgcolor": "#1f2f26"
     },
     {
+      "id": 73,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        2840,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 40
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            41
+          ]
+        }
+      ],
+      "title": "[73] 水墨武侠漆艺鎏金 ×0.3",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        0.3
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "strength_model": 0.3
+      },
+      "color": "#3a6ea5",
+      "bgcolor": "#1c2a3a"
+    },
+    {
+      "id": 76,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        3330,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 41
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            48
+          ]
+        }
+      ],
+      "title": "[76] 亚洲面孔·AsianMix ×0.4",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        0.4
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "strength_model": 0.4
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
       "id": 53,
       "type": "EmptySD3LatentImage",
       "pos": [
@@ -646,7 +1057,7 @@
         }
       },
       "widgets_values": [
-        "# 道劫文生图·用法速查(水墨国风·线描硬锁)\n\n## 正向=只写 [50] 主体句,底座自动携带\n最终正向=[80]道劫底座(下拉九选一)+[50]主体句,由节点装配;底座文案真源=daojie_bases.json,勿手改。[50] 留空=纯底座风格图;写主体句=人物图。\n\n## 七段公式([50] 主体句模板,段序勿倒)\n一位{性别}修士，{年龄段与境界}，气质{清冷出尘/剑意凌厉/温润如玉}，肤色温润透亮，五官{清隽/英朗/温润}；{发色,默认墨黑}长发{长度}垂落，发丝逐层分明；身着素色道袍{长裙/长衫}，{米白/淡青}纯色，{素布/云锦薄染}质感，衣纹线条流畅；{动作到动词精度:手持何物/拢袖/按剑,身体与视线朝向}，神色{沉静/锐利/含情}；{构图位置,如:立于画面右侧三分之一处,面朝左方}；背景{纯色浅净/淡墨远山}。\n\n### 填好示例(可直接粘贴进 [50])\n一位女修士，青年金丹期，气质清冷出尘，肤色温润透亮，五官清隽；墨黑长发垂至腰际，发丝逐层分明；身着素色道袍长裙，米白纯色，素布质感，衣纹线条流畅；立于画面右侧三分之一处，面朝左方，双手拢于袖中，目视前方，神色沉静；背景淡墨远山，大面积留白。\n\n## 山水/场景模板([50] 整段替换用)\n层叠远山以细墨线勾勒轮廓，淡墨晕染云雾，墨色浓淡干湿层次分明；山石以赭石与石绿低饱和点染，近景一株古松横斜，旧金点缀枝干转折；溪涧以留白作水面，云气大面积流转；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵的水墨国风画作。\n\n## 纪律六条(写提示词时过一遍)\n1. 人物图美感词前置(气质/五官/肤色在一切技法词之前)——词序即权重;\n2. 脏词禁用:宣纸、工笔画、工笔白描裸词、泼墨、英文描述;\n3. 文气=场景句(技法动词挂在主体身上,「勾勒眉眼发丝」而非「采用线描工艺」);\n4. 中文+全角标点(英文在本美学上更脏);\n5. 无权重语法;\n6. 均匀柔光无投影(侧逆光勾线/发丝留金等道劫工笔光词汇可叠加)。\n\n## 负向说明\n[64] 已预置道劫负向基线,勿重复写:3D渲染,照片写实,油画厚涂,卡通平涂,硬投影,浓重阴影,纸纹污渍,做旧泛黄,绢纹织物底,网格纹底,冷灰底,多余手指,畸形的手,文字,水印,签名,extra characters,multiple people,cropped head\n[12] cfg1 下负向不生效;cfg 拉到 5 负向才生效(固定种子负向空/满各跑一张可验)。\n\n## LoRA 栈([90] 单节点 14 槽·九型驱动;09-19 等价性双跑已锚:默认组=原常开链逐字节等价)\n- **preset=跟随底座型(默认,勿手改)**:[80] 选型→自动点亮对应组;换型只在 [80] 一处。人物=加速×1+服从度×0.01+细节×1+亚洲面孔×0.4+鎏金×0.3;场景/概念气氛=加速+服从度+细节×1+金雾×0.6(免鎏金);道具=加速+服从度+细节×1+鎏金×0.3\n- 每槽「××开」=急停开关:**关=真关**(跳过加载,比权重 0 快;压过矩阵点亮,applied 清单会披露);「××权重」=预设模式下只读参考,微调请切「专家·全自定义」\n- **专家·全自定义=14 槽全手拨**(默认全开!互斥纪律:画风件同开 ≤1(+鎏金半件),三画风同开=崩源)\n- 槽位/链序/按型预设真源=my_nodes/nodes/daojie_lora_stack.json(热改即时生效):**新增 LoRA 只改数据文件,工作流零改动**;链序=文件序(加速→服从度→细节→亚洲面孔→鎏金→光影→电影感→identity→暗笔刷→美学→淡彩线描→墨洗→湿画→金雾),链序敏感勿重排\n- 水墨四件(淡彩线描/墨洗/湿画/金雾)与备选件(identity/暗笔刷/美学)默认全关;手开须在 [50] 主体句补各自触发词(淡彩线描:watercolor ink illustration style;暗笔刷:monochrome ink wash style)\n- 质感件默认旁路,按需开:[46]光影 ×0.8/[78]电影感 ×1.0(槽内权重可调);[19] identity 编辑件恒关(跑 t2i 会支配整图)\n- 原画布链(14 件 LoraLoader+[85] 按型节点+[88] 分组旁路器)整段存同目录「K2-文生图-道劫-专家模式.json」,随时可切回\n\n## 参数速查\n- 日常档=默认:4步/cfg1+加速槽开([90] turbo;2K 约3.5分钟/张;cfg1 下负向不生效)\n- 定稿档=关加速槽([90] turbo 急停)+8步(细节更足,2K 约7.5分钟/张;要负向生效把 [12] cfg 拉到 5)\n- 分辨率=[80] 选型自动跟随(道具/高清人脸 1024×1024;其余型 4.2MP≈2K 级。MP 口径=[61] 节点按 1MP=1024×1024 计,4.2 实际≈440万像素);要快须先断开 [61] 左侧两条输入线,再把 MP 拖小\n\n## 九型画幅对照([80] 选型→[61] 自动画幅;道具/高清人脸 1024×1024,其余 4.2MP≈2K 级)\n[50] 主体句仍按型改写(场景/概念气氛**不留人物主体**——其负向已禁 person;人物/美宣按七段公式写主体)。\n| 型 | 自动画幅 |\n|---|---|\n| 人物 | 3:4 竖幅 |\n| 场景 | 16:9 |\n| 道具 | 1:1 四宫格 @1024×1024 |\n| 美宣 | 21:9 长卷(可手改 16:9/4:5 人物向) |\n| 三视图 | 21:9 横幅 |\n| 高清人脸 | 1:1 方形特写 @1024×1024 |\n| 分镜剧情图 | 16:9 |\n| 表情差分 | 21:9 多格 |\n| 概念气氛图 | 16:9(可手改 21:9) |\n手动改画幅/MP 须先断开 [61] 左侧两条输入线(断线后回落 [61] widget 旧值);[63] 12带重平衡全1.0=中性,同图可调淡彩浓度。"
+        "# 道劫文生图·用法速查(水墨国风·线描硬锁)\n\n## 正向=只写 [50] 主体句,底座自动携带\n最终正向=[80]道劫底座(下拉九选一)+[50]主体句,由节点装配;底座文案真源=daojie_bases.json,勿手改。[50] 留空=纯底座风格图;写主体句=人物图。\n\n## 七段公式([50] 主体句模板,段序勿倒)\n一位{性别}修士，{年龄段与境界}，气质{清冷出尘/剑意凌厉/温润如玉}，肤色温润透亮，五官{清隽/英朗/温润}；{发色,默认墨黑}长发{长度}垂落，发丝逐层分明；身着素色道袍{长裙/长衫}，{米白/淡青}纯色，{素布/云锦薄染}质感，衣纹线条流畅；{动作到动词精度:手持何物/拢袖/按剑,身体与视线朝向}，神色{沉静/锐利/含情}；{构图位置,如:立于画面右侧三分之一处,面朝左方}；背景{纯色浅净/淡墨远山}。\n\n### 填好示例(可直接粘贴进 [50])\n一位女修士，青年金丹期，气质清冷出尘，肤色温润透亮，五官清隽；墨黑长发垂至腰际，发丝逐层分明；身着素色道袍长裙，米白纯色，素布质感，衣纹线条流畅；立于画面右侧三分之一处，面朝左方，双手拢于袖中，目视前方，神色沉静；背景淡墨远山，大面积留白。\n\n## 山水/场景模板([50] 整段替换用)\n层叠远山以细墨线勾勒轮廓，淡墨晕染云雾，墨色浓淡干湿层次分明；山石以赭石与石绿低饱和点染，近景一株古松横斜，旧金点缀枝干转折；溪涧以留白作水面，云气大面积流转；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵的水墨国风画作。\n\n## 纪律六条(写提示词时过一遍)\n1. 人物图美感词前置(气质/五官/肤色在一切技法词之前)——词序即权重;\n2. 脏词禁用:宣纸、工笔画、工笔白描裸词、泼墨、英文描述;\n3. 文气=场景句(技法动词挂在主体身上,「勾勒眉眼发丝」而非「采用线描工艺」);\n4. 中文+全角标点(英文在本美学上更脏);\n5. 无权重语法;\n6. 均匀柔光无投影(侧逆光勾线/发丝留金等道劫工笔光词汇可叠加)。\n\n## 负向说明\n[64] 已预置道劫负向基线,勿重复写:3D渲染,照片写实,油画厚涂,卡通平涂,硬投影,浓重阴影,纸纹污渍,做旧泛黄,绢纹织物底,网格纹底,冷灰底,多余手指,畸形的手,文字,水印,签名,extra characters,multiple people,cropped head\n[12] cfg1 下负向不生效;cfg 拉到 5 负向才生效(固定种子负向空/满各跑一张可验)。\n\n## LoRA 按型速配(09-19 裁定;按型生效=[85] 自动装组(daojie_loras.json 单源),画布保存态=仅 [47][81] 常开、其余 12 件旁路待命)\n- 常开功能件(与型无关):[47]加速·4步蒸馏 ×1.0(定稿档旁路);[81]服从度·ProjectorScale ×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉)\n- 人物图三件:[67]细节·细节滑杆 ×1.0(发丝/织纹细节)+[76]亚洲面孔·AsianMix ×0.4(古风亚洲面孔)+[73]鎏金·水墨武侠漆艺 ×0.3(鎏金点缀质感)\n- 场景图:不需要鎏金,旁路 [73];[76] 面孔件对空镜(无人物)不生效,可一并旁路\n- 画风件一次一枚,默认旁路,启用须在 [50] 主体句补各自触发词,叠加会风格打架:[82]淡彩线描插画 ×1.0(09-19 入库,五锚对拍与道劫最同构;触发词:watercolor ink illustration style)/[83]墨洗淡彩SumiWash ×1.0(09-19 入库,无触发词;设定板用主体句锚静姿)/[84]水彩湿画wash ×1.0(09-19 入库,无触发词;写意向更松,备选)/[69]暗笔刷darkbrush(实为单色水墨;触发词:monochrome ink wash style)/[77]美学Masterpiece ×1.0\n- 质感件默认旁路,按需开:[46]光影·Afterlight ×0.8(摄影向暖金逆光)/[78]电影感·CinematicShot ×1.0\n- [19] identity 编辑件恒旁路(编辑系件跑 t2i 会支配整图,勿开)\n\n## 分组开关([88] rgthree·Fast Groups Bypasser;自动收集「LoRA·」前缀五组)\n- LoRA·功能件=[47]加速+[81]服从度|默认**开**(全局基建)|日常勿动;[47] 关=定稿档 8 步慢跑\n- LoRA·人物三件=[67]细节+[73]鎏金+[76]亚洲面孔|默认旁路|手工叠加人物件时整组点开(按型自动装组走 [85],通常无需手开)\n- LoRA·质感=[46]光影+[78]电影感|默认旁路|摄影/影视向质感再开\n- LoRA·画风其他=[19]identity+[69]暗笔刷+[77]美学|默认旁路|[19] 恒旁路(编辑系件);[69]/[77] 按需单开\n- LoRA·画风水墨=[82]淡彩线描+[83]墨洗+[84]湿画+[87]金雾|默认旁路|一次最多一枚,启用须在 [50] 补触发词\n- 机制:点 [88] 上组行=整组旁路/恢复(mode 4/0,真跳过加载);画布静态操作,切组重跑生效;不随 [80] 型联动(按型自动启停=[85] 职责,本开关=降级路径2/过渡态)\n\n## 参数速查\n- 日常档=默认:4步/cfg1+加速[47](2K 约3.5分钟/张;cfg1 下负向不生效)\n- 定稿档=旁路[47]+8步(细节更足,2K 约7.5分钟/张;要负向生效把 [12] cfg 拉到 5)\n- 分辨率=[80] 选型自动跟随(道具/高清人脸 1024×1024;其余型 4.2MP≈2K 级。MP 口径=[61] 节点按 1MP=1024×1024 计,4.2 实际≈440万像素);要快须先断开 [61] 左侧两条输入线,再把 MP 拖小\n\n## 九型画幅对照([80] 选型→[61] 自动画幅;道具/高清人脸 1024×1024,其余 4.2MP≈2K 级)\n[50] 主体句仍按型改写(场景/概念气氛**不留人物主体**——其负向已禁 person;人物/美宣按七段公式写主体)。\n| 型 | 自动画幅 |\n|---|---|\n| 人物 | 3:4 竖幅 |\n| 场景 | 16:9 |\n| 道具 | 1:1 四宫格 @1024×1024 |\n| 美宣 | 21:9 长卷(可手改 16:9/4:5 人物向) |\n| 三视图 | 21:9 横幅 |\n| 高清人脸 | 1:1 方形特写 @1024×1024 |\n| 分镜剧情图 | 16:9 |\n| 表情差分 | 21:9 多格 |\n| 概念气氛图 | 16:9(可手改 21:9) |\n手动改画幅/MP 须先断开 [61] 左侧两条输入线(断线后回落 [61] widget 旧值);[63] 12带重平衡全1.0=中性,同图可调淡彩浓度。"
       ],
       "widgets_values_named": {
         "text": "# 道劫文生图·用法速查(水墨国风·线描硬锁)\n\n## 正向=只写 [50] 主体句,底座自动携带\n最终正向=[80]道劫底座(下拉九选一)+[50]主体句,由节点装配;底座文案真源=daojie_bases.json,勿手改。[50] 留空=纯底座风格图;写主体句=人物图。\n\n## 七段公式([50] 主体句模板,段序勿倒)\n一位{性别}修士，{年龄段与境界}，气质{清冷出尘/剑意凌厉/温润如玉}，肤色温润透亮，五官{清隽/英朗/温润}；{发色,默认墨黑}长发{长度}垂落，发丝逐层分明；身着素色道袍{长裙/长衫}，{米白/淡青}纯色，{素布/云锦薄染}质感，衣纹线条流畅；{动作到动词精度:手持何物/拢袖/按剑,身体与视线朝向}，神色{沉静/锐利/含情}；{构图位置,如:立于画面右侧三分之一处,面朝左方}；背景{纯色浅净/淡墨远山}。\n\n### 填好示例(可直接粘贴进 [50])\n一位女修士，青年金丹期，气质清冷出尘，肤色温润透亮，五官清隽；墨黑长发垂至腰际，发丝逐层分明；身着素色道袍长裙，米白纯色，素布质感，衣纹线条流畅；立于画面右侧三分之一处，面朝左方，双手拢于袖中，目视前方，神色沉静；背景淡墨远山，大面积留白。\n\n## 山水/场景模板([50] 整段替换用)\n层叠远山以细墨线勾勒轮廓，淡墨晕染云雾，墨色浓淡干湿层次分明；山石以赭石与石绿低饱和点染，近景一株古松横斜，旧金点缀枝干转折；溪涧以留白作水面，云气大面积流转；温润米白的浅净平涂底，均匀柔光，无投影；仙道古韵的水墨国风画作。\n\n## 纪律六条(写提示词时过一遍)\n1. 人物图美感词前置(气质/五官/肤色在一切技法词之前)——词序即权重;\n2. 脏词禁用:宣纸、工笔画、工笔白描裸词、泼墨、英文描述;\n3. 文气=场景句(技法动词挂在主体身上,「勾勒眉眼发丝」而非「采用线描工艺」);\n4. 中文+全角标点(英文在本美学上更脏);\n5. 无权重语法;\n6. 均匀柔光无投影(侧逆光勾线/发丝留金等道劫工笔光词汇可叠加)。\n\n## 负向说明\n[64] 已预置道劫负向基线,勿重复写:3D渲染,照片写实,油画厚涂,卡通平涂,硬投影,浓重阴影,纸纹污渍,做旧泛黄,绢纹织物底,网格纹底,冷灰底,多余手指,畸形的手,文字,水印,签名,extra characters,multiple people,cropped head\n[12] cfg1 下负向不生效;cfg 拉到 5 负向才生效(固定种子负向空/满各跑一张可验)。\n\n## LoRA 按型速配(09-19 裁定;按型生效=[85] 自动装组(daojie_loras.json 单源),画布保存态=仅 [47][81] 常开、其余 12 件旁路待命)\n- 常开功能件(与型无关):[47]加速·4步蒸馏 ×1.0(定稿档旁路);[81]服从度·ProjectorScale ×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉)\n- 人物图三件:[67]细节·细节滑杆 ×1.0(发丝/织纹细节)+[76]亚洲面孔·AsianMix ×0.4(古风亚洲面孔)+[73]鎏金·水墨武侠漆艺 ×0.3(鎏金点缀质感)\n- 场景图:不需要鎏金,旁路 [73];[76] 面孔件对空镜(无人物)不生效,可一并旁路\n- 画风件一次一枚,默认旁路,启用须在 [50] 主体句补各自触发词,叠加会风格打架:[82]淡彩线描插画 ×1.0(09-19 入库,五锚对拍与道劫最同构;触发词:watercolor ink illustration style)/[83]墨洗淡彩SumiWash ×1.0(09-19 入库,无触发词;设定板用主体句锚静姿)/[84]水彩湿画wash ×1.0(09-19 入库,无触发词;写意向更松,备选)/[69]暗笔刷darkbrush(实为单色水墨;触发词:monochrome ink wash style)/[77]美学Masterpiece ×1.0\n- 质感件默认旁路,按需开:[46]光影·Afterlight ×0.8(摄影向暖金逆光)/[78]电影感·CinematicShot ×1.0\n- [19] identity 编辑件恒旁路(编辑系件跑 t2i 会支配整图,勿开)\n\n## 分组开关([88] rgthree·Fast Groups Bypasser;自动收集「LoRA·」前缀五组)\n- LoRA·功能件=[47]加速+[81]服从度|默认**开**(全局基建)|日常勿动;[47] 关=定稿档 8 步慢跑\n- LoRA·人物三件=[67]细节+[73]鎏金+[76]亚洲面孔|默认旁路|手工叠加人物件时整组点开(按型自动装组走 [85],通常无需手开)\n- LoRA·质感=[46]光影+[78]电影感|默认旁路|摄影/影视向质感再开\n- LoRA·画风其他=[19]identity+[69]暗笔刷+[77]美学|默认旁路|[19] 恒旁路(编辑系件);[69]/[77] 按需单开\n- LoRA·画风水墨=[82]淡彩线描+[83]墨洗+[84]湿画+[87]金雾|默认旁路|一次最多一枚,启用须在 [50] 补触发词\n- 机制:点 [88] 上组行=整组旁路/恢复(mode 4/0,真跳过加载);画布静态操作,切组重跑生效;不随 [80] 型联动(按型自动启停=[85] 职责,本开关=降级路径2/过渡态)\n\n## 参数速查\n- 日常档=默认:4步/cfg1+加速[47](2K 约3.5分钟/张;cfg1 下负向不生效)\n- 定稿档=旁路[47]+8步(细节更足,2K 约7.5分钟/张;要负向生效把 [12] cfg 拉到 5)\n- 分辨率=[80] 选型自动跟随(道具/高清人脸 1024×1024;其余型 4.2MP≈2K 级。MP 口径=[61] 节点按 1MP=1024×1024 计,4.2 实际≈440万像素);要快须先断开 [61] 左侧两条输入线,再把 MP 拖小\n\n## 九型画幅对照([80] 选型→[61] 自动画幅;道具/高清人脸 1024×1024,其余 4.2MP≈2K 级)\n[50] 主体句仍按型改写(场景/概念气氛**不留人物主体**——其负向已禁 person;人物/美宣按七段公式写主体)。\n| 型 | 自动画幅 |\n|---|---|\n| 人物 | 3:4 竖幅 |\n| 场景 | 16:9 |\n| 道具 | 1:1 四宫格 @1024×1024 |\n| 美宣 | 21:9 长卷(可手改 16:9/4:5 人物向) |\n| 三视图 | 21:9 横幅 |\n| 高清人脸 | 1:1 方形特写 @1024×1024 |\n| 分镜剧情图 | 16:9 |\n| 表情差分 | 21:9 多格 |\n| 概念气氛图 | 16:9(可手改 21:9) |\n手动改画幅/MP 须先断开 [61] 左侧两条输入线(断线后回落 [61] widget 旧值);[63] 12带重平衡全1.0=中性,同图可调淡彩浓度。"
@@ -1011,11 +1422,302 @@
       "bgcolor": "#1f2a33"
     },
     {
+      "id": 47,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1300,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            17
+          ]
+        }
+      ],
+      "title": "[47] 加速·4步蒸馏 ×1.0",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
+        "strength_model": 1
+      }
+    },
+    {
+      "id": 81,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1790,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            36
+          ]
+        }
+      ],
+      "title": "[81] 服从度·ProjectorScale ×0.01",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
+        0.01
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
+        "strength_model": 0.01
+      }
+    },
+    {
+      "id": 82,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        6480,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 61
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            62
+          ]
+        }
+      ],
+      "title": "[82] 画风·淡彩线描插画 ×1.0(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
+      "id": 83,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        6970,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 62
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            63
+          ]
+        }
+      ],
+      "title": "[83] 画风·墨洗淡彩SumiWash ×1.0(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
+      "id": 84,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        7460,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 63
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            67
+          ]
+        }
+      ],
+      "title": "[84] 画风·水彩湿画wash ×1.0(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
+      "id": 85,
+      "type": "MyDaojieLoras",
+      "pos": [
+        7950,
+        280
+      ],
+      "size": [
+        320,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 64
+        },
+        {
+          "name": "base",
+          "type": "COMBO",
+          "link": 65
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            54
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "applied",
+          "type": "STRING",
+          "links": [
+            66
+          ],
+          "slot_index": 1
+        }
+      ],
+      "title": "[85] 按型LoRA·九型驱动(勿手改)",
+      "properties": {
+        "Node name for S&R": "MyDaojieBase",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
       "id": 86,
       "type": "easy showAnything",
       "pos": [
-        6480,
-        1320
+        7950,
+        420
       ],
       "size": [
         480,
@@ -1049,84 +1751,85 @@
       ]
     },
     {
-      "id": 90,
-      "type": "MyDaojieLoraStack",
+      "id": 87,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        7950,
+        80
+      ],
+      "size": [
+        460,
+        130
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 67
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            64
+          ]
+        }
+      ],
+      "title": "[87] 画风·金雾仙侠 ×1.0(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b"
+    },
+    {
+      "id": 88,
+      "type": "Fast Groups Bypasser (rgthree)",
       "pos": [
         6480,
         280
       ],
       "size": [
-        400,
-        980
+        330,
+        160
       ],
-      "flags": {},
-      "order": 10,
+      "flags": {
+        "collapsed": false
+      },
+      "order": 24,
       "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 58
-        },
-        {
-          "name": "base",
-          "type": "COMBO",
-          "link": 65
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "name": "model",
-          "type": "MODEL",
-          "links": [
-            54
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "applied",
-          "type": "STRING",
-          "links": [
-            66
-          ],
-          "slot_index": 1
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null
         }
       ],
-      "title": "[90] LoRA栈·九型驱动14槽(preset=跟随底座型;开关=真关;原链另存-专家模式.json)",
+      "title": "[88] LoRA 分组开关(自动收集「LoRA·」前缀组;点行=整组旁路/恢复)",
       "properties": {
-        "Node name for S&R": "MyDaojieLoraStack"
-      },
-      "widgets_values": [
-        "跟随底座型",
-        true,
-        1.0,
-        true,
-        0.01,
-        true,
-        1.0,
-        true,
-        0.4,
-        true,
-        0.3,
-        true,
-        0.8,
-        true,
-        1.0,
-        true,
-        1.0,
-        true,
-        1.0,
-        true,
-        1.0,
-        true,
-        1.0,
-        true,
-        1.0,
-        true,
-        1.0,
-        true,
-        1.0
-      ]
+        "matchColors": "",
+        "matchTitle": "^LoRA·",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
     }
   ],
   "links": [
@@ -1179,6 +1882,14 @@
       "IMAGE"
     ],
     [
+      17,
+      47,
+      0,
+      81,
+      0,
+      "MODEL"
+    ],
+    [
       22,
       51,
       0,
@@ -1227,6 +1938,46 @@
       "CONDITIONING"
     ],
     [
+      36,
+      81,
+      0,
+      67,
+      0,
+      "MODEL"
+    ],
+    [
+      38,
+      67,
+      0,
+      46,
+      0,
+      "MODEL"
+    ],
+    [
+      39,
+      46,
+      0,
+      78,
+      0,
+      "MODEL"
+    ],
+    [
+      40,
+      78,
+      0,
+      73,
+      0,
+      "MODEL"
+    ],
+    [
+      41,
+      73,
+      0,
+      76,
+      0,
+      "MODEL"
+    ],
+    [
       55,
       50,
       0,
@@ -1259,8 +2010,16 @@
       "STRING"
     ],
     [
+      48,
+      76,
+      0,
+      19,
+      0,
+      "MODEL"
+    ],
+    [
       54,
-      90,
+      85,
       0,
       12,
       0,
@@ -1286,7 +2045,55 @@
       58,
       21,
       0,
-      90,
+      47,
+      0,
+      "MODEL"
+    ],
+    [
+      59,
+      69,
+      0,
+      77,
+      0,
+      "MODEL"
+    ],
+    [
+      60,
+      19,
+      0,
+      69,
+      0,
+      "MODEL"
+    ],
+    [
+      61,
+      77,
+      0,
+      82,
+      0,
+      "MODEL"
+    ],
+    [
+      62,
+      82,
+      0,
+      83,
+      0,
+      "MODEL"
+    ],
+    [
+      63,
+      83,
+      0,
+      84,
+      0,
+      "MODEL"
+    ],
+    [
+      64,
+      87,
+      0,
+      85,
       0,
       "MODEL"
     ],
@@ -1294,17 +2101,25 @@
       65,
       80,
       4,
-      90,
+      85,
       1,
       "COMBO"
     ],
     [
       66,
-      90,
+      85,
       1,
       86,
       0,
       "STRING"
+    ],
+    [
+      67,
+      84,
+      0,
+      87,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
@@ -1322,12 +2137,12 @@
     },
     {
       "id": 2,
-      "title": "② LoRA 栈([90] 单节点 14 槽;preset=跟随底座型随 [80] 换型;开关=真关;链序真源 daojie_lora_stack.json;原链整段另存-专家模式.json)",
+      "title": "② LoRA 链(14 件五组:功能件/人物三件/质感/画风其他/画风水墨;叠加链序以连线为准 47→81→67→46→78→73→76→19→69→77→82→83→84→87→85;水墨四件默认旁路;画风件一次一枚;整组启停=[88] 分组开关)",
       "bounding": [
-        6440,
-        240,
-        560,
-        1360
+        1220,
+        40,
+        7240,
+        190
       ],
       "color": "#8a5fb0",
       "flags": {}
@@ -1354,6 +2169,66 @@
         532.7270874488354
       ],
       "color": "#c27a3d",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "LoRA·功能件",
+      "bounding": [
+        1260,
+        40,
+        1030,
+        190
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "LoRA·人物三件",
+      "bounding": [
+        2310,
+        40,
+        1520,
+        190
+      ],
+      "color": "#8a5fb0",
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "LoRA·质感",
+      "bounding": [
+        3850,
+        40,
+        1030,
+        190
+      ],
+      "color": "#4d9e6a",
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "LoRA·画风其他",
+      "bounding": [
+        4900,
+        40,
+        1520,
+        190
+      ],
+      "color": "#c27a3d",
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "LoRA·画风水墨",
+      "bounding": [
+        6440,
+        40,
+        2010,
+        190
+      ],
+      "color": "#647c91",
       "flags": {}
     }
   ],

@@ -67,6 +67,417 @@
       "order": 0
     },
     {
+      "id": 19,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        640,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "[19] identity LoRA·编辑identity_edit ×1(默认旁路——道劫原口径;要更强身份保持可开)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "lora_name": true,
+            "strength_model": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
+        "strength_model": 1
+      },
+      "color": "#8a5fb0",
+      "bgcolor": "#2c2438",
+      "order": 1
+    },
+    {
+      "id": 46,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1040,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            3
+          ]
+        }
+      ],
+      "title": "[46] 光影LoRA·Afterlight ×0.8(默认旁路——工笔/画意防污染,要光影再开)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-光影/Afterlight_v1.safetensors",
+        0.8
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-光影/Afterlight_v1.safetensors",
+        "strength_model": 0.8
+      },
+      "color": "#4d9e6a",
+      "bgcolor": "#1f2f26",
+      "order": 2
+    },
+    {
+      "id": 67,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1440,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            42
+          ]
+        }
+      ],
+      "title": "[67] 细节LoRA·细节滑杆 ×1(发丝/织纹细节;速度/质量档常开,想关=旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "strength_model": 1
+      },
+      "color": "#4a89b8",
+      "bgcolor": "#1f2a33",
+      "order": 3
+    },
+    {
+      "id": 69,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        2240,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            43
+          ]
+        }
+      ],
+      "title": "[69] 画风LoRA·暗笔刷 ×1.0(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-暗笔刷darkbrush.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-暗笔刷darkbrush.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b",
+      "order": 5
+    },
+    {
+      "id": 173,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        3040,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 43
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "[173] 画风LoRA·水墨武侠漆艺鎏金 ×0.4(道劫国风主锚,激活)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        0.4
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "strength_model": 0.4
+      },
+      "color": "#3a6ea5",
+      "bgcolor": "#1c2a3a",
+      "order": 7
+    },
+    {
+      "id": 76,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        3440,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            9
+          ]
+        }
+      ],
+      "title": "[76] 画风·AsianMix v4 TQD ×1.0(古风亚洲面孔,激活)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b",
+      "order": 8
+    },
+    {
+      "id": 77,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        3840,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            10
+          ]
+        }
+      ],
+      "title": "[77] 画风·美学Masterpiece v51 ×1.0(默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b",
+      "order": 9
+    },
+    {
+      "id": 78,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        4240,
+        80
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            11
+          ]
+        }
+      ],
+      "title": "[78] 画风·电影感CinematicShot ×1.0(水墨慎用,默认旁路)",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
+        1
+      ],
+      "widgets_values_named": {
+        "lora_name": "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
+        "strength_model": 1
+      },
+      "color": "#b06a8f",
+      "bgcolor": "#33202b",
+      "order": 10
+    },
+    {
       "id": 164,
       "type": "LoraLoaderModelOnly",
       "pos": [
@@ -1285,7 +1696,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "输入=[72] 选角色参考图(自动缩放 1024²,一图六用:VAEEncode/补丁像素线/正负接地/VLM/对比图);前置=插件 comfyui-krea2edit+comfyui-kjnodes,权重(均引擎在位):底模 krea2_turbo_bf16/TE qwen3-vl-4b-heretic/VAE qwen_image_vae/CharacterSheet LoRA DynamicCharacterSheet_krea2_v1(09-18 装机于引擎 loras 根,上游 HF Alissonerdx/CharacterSheet)+道劫画风 LoRA 栈=[90] MyDaojieLoraStack(专家档:细节×1+鎏金×0.4,槽序真源 my_nodes/nodes/daojie_lora_stack.json,开流即道劫画风;原链副本 -专家模式.json)。"
+        "输入=[72] 选角色参考图(自动缩放 1024²,一图六用:VAEEncode/补丁像素线/正负接地/VLM/对比图);前置=插件 comfyui-krea2edit+comfyui-kjnodes,权重(均引擎在位):底模 krea2_turbo_bf16/TE qwen3-vl-4b-heretic/VAE qwen_image_vae/CharacterSheet LoRA DynamicCharacterSheet_krea2_v1(09-18 装机于引擎 loras 根,上游 HF Alissonerdx/CharacterSheet)+Krea2- 系列 10 枚道劫画风 LoRA(链序见 [19]→[78],开流即道劫画风)。"
       ],
       "title": "使用说明·输入与前置"
     },
@@ -1332,79 +1743,6 @@
         "[184/162/163] VLM 看图写提示词,默认旁路(需另载 Qwen3-VL 权重,不想装就别开);旁路时正向=[119] 内嵌官方结构化模板(IDENTITY LOCKS 段末已换三句道劫风格锚;换角色=改 ENTITY_ID 与 LOCKS 弹),负向唯一来源=[64] 道劫基线(经 [85] 同图接地)。"
       ],
       "title": "VLM 与提示词"
-    },
-    {
-      "id": 90,
-      "type": "MyDaojieLoraStack",
-      "pos": [
-        5100,
-        80
-      ],
-      "size": [
-        400,
-        980
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "links": [
-            11
-          ],
-          "slot_index": 0
-        },
-        {
-          "name": "applied",
-          "type": "STRING",
-          "links": null,
-          "slot_index": 1
-        }
-      ],
-      "title": "[90] LoRA栈·专家档(细节×1+鎏金×0.4=现激活组;76旁路=风格主权归工笔锚;原链另存-专家模式.json)",
-      "properties": {
-        "Node name for S&R": "MyDaojieLoraStack"
-      },
-      "widgets_values": [
-        "专家·全自定义",
-        false,
-        1.0,
-        false,
-        0.01,
-        true,
-        1.0,
-        false,
-        0.4,
-        true,
-        0.3,
-        false,
-        0.8,
-        false,
-        1.0,
-        false,
-        1.0,
-        false,
-        1.0,
-        false,
-        1.0,
-        false,
-        1.0,
-        false,
-        1.0,
-        false,
-        1.0,
-        false,
-        1.0
-      ]
     }
   ],
   "links": [
@@ -1412,13 +1750,53 @@
       1,
       55,
       0,
-      90,
+      19,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      19,
+      0,
+      46,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      46,
+      0,
+      67,
+      0,
+      "MODEL"
+    ],
+    [
+      8,
+      173,
+      0,
+      76,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      76,
+      0,
+      77,
+      0,
+      "MODEL"
+    ],
+    [
+      10,
+      77,
+      0,
+      78,
       0,
       "MODEL"
     ],
     [
       11,
-      90,
+      78,
       0,
       164,
       0,
@@ -1663,16 +2041,32 @@
       126,
       0,
       "IMAGE"
+    ],
+    [
+      42,
+      67,
+      0,
+      69,
+      0,
+      "MODEL"
+    ],
+    [
+      43,
+      69,
+      0,
+      173,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [
     {
-      "title": "① 模型与道劫 LoRA 栈([90] 专家档:细节×1+鎏金×0.4,风格主权归工笔锚[v3 实证];charsheet [164] 独立挂,官方挂法=栈出→[164]→ModelPatch;原 8 件链副本 -专家模式.json)",
+      "title": "① 模型与道劫 LoRA 链(11 跳横排;激活=67 细节+173 鎏金×0.4,76 AsianMix 旁路=风格主权归工笔锚[v3 实证];开流即道劫画风)",
       "bounding": [
-        40,
-        40,
-        5520,
-        1300
+        20,
+        20,
+        5150,
+        610
       ],
       "color": "#8a5fb0"
     },
@@ -1728,5 +2122,5 @@
     }
   ],
   "last_node_id": 303,
-  "last_link_id": 41
+  "last_link_id": 43
 }

@@ -1,0 +1,282 @@
+[
+  {
+    "key": "turbo",
+    "node_id": 47,
+    "file": "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
+    "label": "加速·4步蒸馏",
+    "group": "功能件",
+    "default_weight": 1.0,
+    "note": "全局功能件恒挂,不入矩阵(research/九型LoRA启停设计.md §三);栈位1=现链首件[47]",
+    "presets": {
+      "人物": {"on": true, "weight": 1.0},
+      "场景": {"on": true, "weight": 1.0},
+      "道具": {"on": true, "weight": 1.0},
+      "美宣": {"on": true, "weight": 1.0},
+      "三视图": {"on": true, "weight": 1.0},
+      "高清人脸": {"on": true, "weight": 1.0},
+      "分镜剧情图": {"on": true, "weight": 1.0},
+      "表情差分": {"on": true, "weight": 1.0},
+      "概念气氛图": {"on": true, "weight": 1.0}
+    }
+  },
+  {
+    "key": "projector",
+    "node_id": 81,
+    "file": "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
+    "label": "服从度·ProjectorScale",
+    "group": "功能件",
+    "default_weight": 0.01,
+    "note": "全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81]",
+    "presets": {
+      "人物": {"on": true, "weight": 0.01},
+      "场景": {"on": true, "weight": 0.01},
+      "道具": {"on": true, "weight": 0.01},
+      "美宣": {"on": true, "weight": 0.01},
+      "三视图": {"on": true, "weight": 0.01},
+      "高清人脸": {"on": true, "weight": 0.01},
+      "分镜剧情图": {"on": true, "weight": 0.01},
+      "表情差分": {"on": true, "weight": 0.01},
+      "概念气氛图": {"on": true, "weight": 0.01}
+    }
+  },
+  {
+    "key": "detail",
+    "node_id": 67,
+    "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+    "label": "细节·细节滑杆",
+    "group": "人物三件",
+    "default_weight": 1.0,
+    "note": "九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras daojie_loras.json 人物条目序),逐字节等价性前提",
+    "presets": {
+      "人物": {"on": true, "weight": 1.0},
+      "场景": {"on": true, "weight": 1.0},
+      "道具": {"on": true, "weight": 1.0},
+      "美宣": {"on": true, "weight": 1.0},
+      "三视图": {"on": true, "weight": 1.0},
+      "高清人脸": {"on": true, "weight": 1.0},
+      "分镜剧情图": {"on": true, "weight": 1.0},
+      "表情差分": {"on": true, "weight": 1.0},
+      "概念气氛图": {"on": true, "weight": 1.0}
+    }
+  },
+  {
+    "key": "asianmix",
+    "node_id": 76,
+    "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+    "label": "亚洲面孔·AsianMix",
+    "group": "人物三件",
+    "default_weight": 0.4,
+    "note": "人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值",
+    "presets": {
+      "人物": {"on": true, "weight": 0.4},
+      "场景": {"on": false, "weight": 0.4},
+      "道具": {"on": false, "weight": 0.4},
+      "美宣": {"on": true, "weight": 0.4},
+      "三视图": {"on": true, "weight": 0.4},
+      "高清人脸": {"on": true, "weight": 0.4},
+      "分镜剧情图": {"on": true, "weight": 0.4},
+      "表情差分": {"on": true, "weight": 0.4},
+      "概念气氛图": {"on": false, "weight": 0.4}
+    }
+  },
+  {
+    "key": "liujin",
+    "node_id": 73,
+    "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+    "label": "鎏金·水墨武侠漆艺",
+    "group": "人物三件",
+    "default_weight": 0.3,
+    "note": "人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type 先例",
+    "presets": {
+      "人物": {"on": true, "weight": 0.3},
+      "场景": {"on": false, "weight": 0.3},
+      "道具": {"on": true, "weight": 0.3},
+      "美宣": {"on": true, "weight": 0.3},
+      "三视图": {"on": true, "weight": 0.3},
+      "高清人脸": {"on": true, "weight": 0.3},
+      "分镜剧情图": {"on": true, "weight": 0.3},
+      "表情差分": {"on": true, "weight": 0.3},
+      "概念气氛图": {"on": false, "weight": 0.3}
+    }
+  },
+  {
+    "key": "afterlight",
+    "node_id": 46,
+    "file": "Krea2-光影/Afterlight_v1.safetensors",
+    "label": "光影·Afterlight",
+    "group": "质感",
+    "default_weight": 0.8,
+    "note": "矩阵九型全 ○(09-19 消融裁定旁路=电影化主因);按需手开走专家模式",
+    "presets": {
+      "人物": {"on": false, "weight": 0.8},
+      "场景": {"on": false, "weight": 0.8},
+      "道具": {"on": false, "weight": 0.8},
+      "美宣": {"on": false, "weight": 0.8},
+      "三视图": {"on": false, "weight": 0.8},
+      "高清人脸": {"on": false, "weight": 0.8},
+      "分镜剧情图": {"on": false, "weight": 0.8},
+      "表情差分": {"on": false, "weight": 0.8},
+      "概念气氛图": {"on": false, "weight": 0.8}
+    }
+  },
+  {
+    "key": "cinematic",
+    "node_id": 78,
+    "file": "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
+    "label": "质感·电影感",
+    "group": "质感",
+    "default_weight": 1.0,
+    "note": "矩阵仅美宣「?(叙事可开)」,草案一律关;画风件纪律=同开 ≤1(+鎏金半件)",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": false, "weight": 1.0},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": false, "weight": 1.0}
+    }
+  },
+  {
+    "key": "identity",
+    "node_id": 19,
+    "file": "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
+    "label": "identity·编辑身份",
+    "group": "画风其他",
+    "default_weight": 1.0,
+    "note": "编辑系专用备选槽,不入矩阵常设列(跑 t2i 曾致丑=仅编辑流用);九型恒关",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": false, "weight": 1.0},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": false, "weight": 1.0}
+    }
+  },
+  {
+    "key": "darkbrush",
+    "node_id": 69,
+    "file": "Krea2-画风/Krea2-暗笔刷darkbrush.safetensors",
+    "label": "画风·暗笔刷",
+    "group": "画风其他",
+    "default_weight": 1.0,
+    "note": "默认关备选槽,不入矩阵常设列;启用须在主体句补触发词 monochrome ink wash style",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": false, "weight": 1.0},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": false, "weight": 1.0}
+    }
+  },
+  {
+    "key": "masterpiece",
+    "node_id": 77,
+    "file": "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
+    "label": "画风·美学Masterpiece",
+    "group": "画风其他",
+    "default_weight": 1.0,
+    "note": "默认关备选槽,不入矩阵常设列",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": false, "weight": 1.0},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": false, "weight": 1.0}
+    }
+  },
+  {
+    "key": "tancai",
+    "node_id": 82,
+    "file": "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
+    "label": "画风·淡彩线描插画",
+    "group": "画风水墨",
+    "default_weight": 1.0,
+    "note": "矩阵人物/场景/道具/分镜「?」——按不替换原则3(默认旁路=出图零变化)一律关,实弹定谳后才进矩阵点亮;启用须补触发词 watercolor ink illustration style",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": false, "weight": 1.0},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": false, "weight": 1.0}
+    }
+  },
+  {
+    "key": "sumiwash",
+    "node_id": 83,
+    "file": "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
+    "label": "画风·墨洗SumiWash",
+    "group": "画风水墨",
+    "default_weight": 1.0,
+    "note": "矩阵场景/道具/概念「?」——草案一律关(原则3);无触发词",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": false, "weight": 1.0},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": false, "weight": 1.0}
+    }
+  },
+  {
+    "key": "shihua",
+    "node_id": 84,
+    "file": "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors",
+    "label": "画风·水彩湿画",
+    "group": "画风水墨",
+    "default_weight": 1.0,
+    "note": "矩阵场景/概念「?」——草案一律关(原则3);写意向更松,备选",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": false, "weight": 1.0},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": false, "weight": 1.0}
+    }
+  },
+  {
+    "key": "goldenmist",
+    "node_id": 87,
+    "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+    "label": "画风·金雾仙侠",
+    "group": "画风水墨",
+    "default_weight": 1.0,
+    "note": "场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●?」同 0.6;其余型关",
+    "presets": {
+      "人物": {"on": false, "weight": 1.0},
+      "场景": {"on": true, "weight": 0.6},
+      "道具": {"on": false, "weight": 1.0},
+      "美宣": {"on": false, "weight": 1.0},
+      "三视图": {"on": false, "weight": 1.0},
+      "高清人脸": {"on": false, "weight": 1.0},
+      "分镜剧情图": {"on": false, "weight": 1.0},
+      "表情差分": {"on": false, "weight": 1.0},
+      "概念气氛图": {"on": true, "weight": 0.6}
+    }
+  }
+]
