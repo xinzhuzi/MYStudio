@@ -1699,7 +1699,7 @@
       ],
       "flags": {},
       "order": 22,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "localized_name": "模型",
