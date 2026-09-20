@@ -34,7 +34,8 @@ STRIP = Path.home() / "Downloads/daojie_nineform_recipe_0919/三视图_C案_拼�
 
 
 def main() -> int:
-    base = nf.probe_base().rstrip("/")
+    import os
+    base = os.environ.get("DAOJIE_BASE_URL", nf.probe_base()).rstrip("/")
     print(f"engine={base}", flush=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     wf_src = json.loads(nf.WF_DAOJIE.read_text(encoding="utf-8"))
@@ -76,10 +77,10 @@ def main() -> int:
             assert applied == want, f"[{name}] LoRA 清单不符:{applied}"
             img = nf.first_image(entry)
             assert img, f"[{name}] 无图"
-            (OUT_DIR / f"raw_{i}_{name}.png").write_bytes(img)
+            import urllib.parse
             import urllib.request
             urllib.request.urlretrieve(
-                f"{base}/view?filename={img['filename']}&subfolder={img.get('subfolder','')}&type={img.get('type','output')}",
+                f"{base}/view?filename={urllib.parse.quote(img['filename'])}&subfolder={urllib.parse.quote(img.get('subfolder',''))}&type={img.get('type','output')}",
                 out_png)
             print(f"[{name}] 完成 wall={wall:.0f}s 校验全过", flush=True)
         panel = Image.open(out_png).convert("RGB").resize((CELL_W, CELL_H), Image.LANCZOS)
