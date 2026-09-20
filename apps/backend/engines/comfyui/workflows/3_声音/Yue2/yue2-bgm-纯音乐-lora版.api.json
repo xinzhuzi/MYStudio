@@ -154,7 +154,7 @@
         ],
         "filename_prefix": "audio/YuE2-BGM",
         "format": {
-          "format": "flac"
+          "format": "wav"
         }
       }
     }

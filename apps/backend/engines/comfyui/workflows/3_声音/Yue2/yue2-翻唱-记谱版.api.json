@@ -145,7 +145,7 @@
         ],
         "filename_prefix": "audio/YuE2-Cover",
         "format": {
-          "format": "flac"
+          "format": "wav"
         }
       }
     }

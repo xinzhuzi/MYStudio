@@ -562,11 +562,11 @@
       },
       "widgets_values": [
         "audio/YuE2-Cover",
-        "flac"
+        "wav"
       ],
       "widgets_values_named": {
         "filename_prefix": "audio/YuE2-Cover",
-        "format": "flac"
+        "format": "wav"
       }
     },
     {
