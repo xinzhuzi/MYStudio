@@ -27,6 +27,10 @@ describe("comfy-models 域分类法(09-10 分域裁定)", () => {
     // 类别整域归属:TTS 家→声音;vlm→图片;videoqc/补帧→视频
     expect(classifyModelDomains("TTS", "models--Qwen--Qwen3-TTS-12Hz-1.7B-CustomVoice/refs/main")).toEqual(["audio"]);
     expect(classifyModelDomains("TTS", "models--mlx-community--whisper-large-v3-turbo/refs/main")).toEqual(["audio"]);
+    // YuE2 作曲家(09-20 接入):三件全部归 audio 域
+    expect(classifyModelDomains("checkpoints", "yue2_3b_bf16.safetensors")).toEqual(["audio"]);
+    expect(classifyModelDomains("audio_encoders", "sheetsage2_bf16.safetensors")).toEqual(["audio"]);
+    expect(classifyModelDomains("loras", "ar_lora_inst_v3abc_comfyui.safetensors")).toEqual(["audio"]);
     expect(classifyModelDomains("vlm", "qwen3-vl-8b-instruct-mlx-8bit/model.safetensors")).toEqual(["image"]);
     expect(classifyModelDomains("videoqc", "baselines.json")).toEqual(["video"]);
     expect(classifyModelDomains("frame_interpolation", "rife_v4.26.safetensors")).toEqual(["video"]);

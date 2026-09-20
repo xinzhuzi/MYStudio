@@ -26,7 +26,7 @@ export const DOMAIN_LABELS: Record<ComfyModelDomain, string> = {
 export const DOMAIN_INFO: Record<ComfyModelDomain, string> = {
   image: "生图画布相关——K2 产线主模型/LoRA/超分/分割/视觉理解",
   video: "H3 视频产线全家——主模型/编码器/VAE/补帧/超分/质检",
-  audio: "配音与作曲——TTS 引擎家与音乐生成权重(Music3 已隔离退役)",
+  audio: "配音与作曲——TTS 引擎家与 YuE2 作曲链(整曲/纯音乐 BGM)",
   other: "未命中分类规则的模型——建议补 comfy-models-taxonomy 规则",
 };
 
@@ -38,8 +38,8 @@ export const DOMAIN_INFO: Record<ComfyModelDomain, string> = {
 const DOMAIN_RULES: ReadonlyArray<{ match: RegExp; domains: readonly ComfyModelDomain[] }> = [
   // 视频线:H3 全家(主模型/TE/mmproj/VAE/潜放/预览VAE)+ 补帧 + 质检
   { match: /minimax_h3|heretic-h3|taeh3|latent_upscaler|^videoqc\/|^frame_interpolation\/|rife_|dover_mobile/i, domains: ["video"] },
-  // 声音线:TTS 家(Qwen3-TTS/SenseVoice/whisper/musicgen/嵌入与分词);Music3 已隔离退役(09-20 出规则)
-  { match: /musicgen|qwen3-tts|sensevoice|whisper|snac_|gte-multilingual|^tts\//i, domains: ["audio"] },
+  // 声音线:YuE2 作曲家(整曲/纯音乐 BGM) + TTS 家(Qwen3-TTS/SenseVoice/whisper/musicgen/嵌入与分词)
+  { match: /yue2|sheetsage2|ar_lora_inst|musicgen|qwen3-tts|sensevoice|whisper|snac_|gte-multilingual|^tts\//i, domains: ["audio"] },
   // 图片线:K2 产线(krea2/Krea 2)+ Qwen 图像 + 图像超分 + 服装分割 + 视觉理解
   { match: /krea\s*2|qwen_image|realesrgan|^segformer|^vlm\/|qwen3-vl-4b/i, domains: ["image"] },
   // 双栖:SEEDVR2 图像修复超分 + H3 视频超分(2K 链)——多重分类的活例
@@ -93,6 +93,9 @@ export const COMFY_MODEL_FILE_NOTES: ReadonlyArray<readonly [string, string]> = 
   ["minimax_h3_audio_vae", "H3 配音轨编码"],
   ["minimax_h3_latent_upscaler", "H3 视频潜空间放大"],
   ["seedvr2_7b_sharp", "图像修复超分(强档);视频 2K 超分同引擎"],
+  ["yue2_3b_bf16", "YuE2 本地作曲主模型——整曲/纯音乐 BGM 两条库工作流共用"],
+  ["sheetsage2_bf16", "YuE2 乐谱规划音频编码器——纯音乐线乐谱前置"],
+  ["ar_lora_inst_v3abc_comfyui", "YuE2 纯音乐(去人声)LoRA——BGM 线专用"],
   ["ema_vae_fp16", "SEEDVR2 配套 VAE"],
   ["KREA 2 Mystic XXX v3", "NSFW 专业流破限补丁(主力)"],
   ["Krea 2 pussy", "NSFW 专业流补丁"],
