@@ -101,6 +101,21 @@ def ui_to_api(wf: dict, oi: dict, overrides: dict[str, object]) -> dict:
         if nid in SKIP_NODES or n["type"] in SKIP_TYPES or nid in bypassed:
             continue
         cls = n["type"]
+        if cls not in oi:
+            # 子图节点(type=uuid):展开为子图内部的执行节点(非注释/非IO)
+            sg = None
+            for s in wf.get("definitions", {}).get("subgraphs", []):
+                if s.get("id") == cls or s.get("name") == n.get("properties", {}).get("subgraph_name"):
+                    sg = s; break
+            if sg is None:
+                for s in wf.get("definitions", {}).get("subgraphs", []):
+                    if s.get("id") == cls:
+                        sg = s; break
+            if sg:
+                inner = [x for x in sg["nodes"] if x["type"] in oi]
+                if inner:
+                    cls = inner[0]["type"]
+                    print(f"[livefire] 子图展开: 节点{nid} {n['type'][:8]}…→{cls}", flush=True)
         order = (list(oi[cls]["input"].get("required", {}).keys())
                  + list(oi[cls]["input"].get("optional", {}).keys()))
         named = n.get("widgets_values_named") or {}
