@@ -173,22 +173,22 @@
           4
         ]
       },
-      "expected_applied_90": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
-      "prompt_id": "5e8827c1-0764-4ccf-a721-f0f7ce7954c4",
-      "wall_s": 156.2,
+      "expected_applied_90": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.1 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
+      "prompt_id": "245c4dd9-fe21-490e-a77b-7786ecbfb008",
+      "wall_s": 152.2,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "applied_90_actual": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
+        "applied_90_actual": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.1 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
-      "bytes": 4104637,
-      "sha256": "64c6067ff01cdba08c6d7ceb4f9505c7de8cfb08eb19e45b3d028e9141098b62",
+      "bytes": 3806234,
+      "sha256": "cfff3641ce6b68c35e1ea2d0c9f656dfeb436d513c5eaaf7a4c54a66234df0df",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/三视图.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/三视图.png",
-      "engine_image": "K2道劫文生图__00193_.png",
+      "engine_image": "K2道劫文生图__00206_.png",
       "final_positive_len": 489,
-      "pixel_sha256": "d0ff572fba1b05790d0e3d35428c1ec4d2b2e96ef67e60ec099b985821ee32f5"
+      "pixel_sha256": "93a16c6af27e3ff1ea336f3e4bee86a85998840b9cb987a8b4614b09dfc02c8b"
     },
     {
       "name": "高清人脸",
@@ -333,6 +333,6 @@
   ],
   "runs_total": 9,
   "ok_count": 9,
-  "total_wall_s": 5912.7,
+  "total_wall_s": 6064.9,
   "resume_note": "--only 续跑 ['三视图'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
 }
