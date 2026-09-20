@@ -193,11 +193,12 @@ def test_scene_preset_rulings():
 
 
 def test_storyboard_preset_ruling():
-    """分镜剧情图(09-19 对拍定谳):人物三件+淡彩线描 0.5(连环画候选)。"""
+    """分镜剧情图:三件+金雾×0.8(09-20 用户裁定与人物 LoRA 同源;淡彩0.5候选撤,
+    遵守画风同开≤1+鎏金半件纪律)。"""
     plan, _, _ = stack.resolve_plan(_slots(), "分镜剧情图")
     got = dict((s["key"], w) for s, w in plan)
     assert got == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
-                   "asianmix": 0.4, "liujin": 0.3, "tancai": 0.5}, got
+                   "asianmix": 0.4, "liujin": 0.3, "goldenmist": 0.8}, got
 
 
 def test_ink_mutex_across_presets():

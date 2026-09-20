@@ -17,11 +17,16 @@ daojie-prompt-contract.ts 双写有风险。
   negative 输出=用户负向在前+按型负面基线在后,顶层逗号 token 去重合并
   (复用 .my_styles._merge_negative,防两处实现漂移)。
 
-分辨率两出(09-18 数据面接线备):ASPECT(COMBO,槽类型对齐官方
-ResolutionSelector [61] aspect_ratio 输入槽——object_info 实测即
-COMBO)+MEGAPIXELS(FLOAT),值按所选型现读 daojie_bases.json 的
-aspect_ratio/megapixels 字段;缺字段回退 1:1 (Square)/4.2 并在控制台
-警告(回退 aspect 同为官方枚举逐字串,裸 "1:1" 该 combo 不收)。
+分辨率四出(09-18 两出;09-20 三视图 A 案后扩四出):ASPECT(COMBO)+
+MEGAPIXELS(FLOAT),值按所选型现读 daojie_bases.json 的 aspect_ratio/
+megapixels 字段;另出 WIDTH/HEIGHT(INT) 两出——型带 resolution_override
+([w,h] 整数对,如三视图 1536×512 先例直填)时直出该值,否则按 ASPECTS
+公式自算(公式与 [61] ResolutionSelector 逐字节一致:MP 按 1024² 计,
+边长取整到 8 的倍数)。缺字段回退 1:1 (Square)/4.2 并在控制台警告
+(回退 aspect 同为官方枚举逐字串,裸 "1:1" 该 combo 不收)。
+[53] 已改吃本节点 WIDTH/HEIGHT([61] 退位旁路保留作手动档)——COMBO 枚举
+无 3:1 档,特殊画幅(三视图 3:1)只能走 override 直出,09-20 三视图
+「多个重复」二连否的根修。
 
 真源关系(双真源链,见 docs/prompts/道劫_底座节点_0918.md):
   链A=0917 提示词包 §一 通用无型底座,唯一持有者=修手图 [12](逐字锁);
@@ -33,6 +38,7 @@ aspect_ratio/megapixels 字段;缺字段回退 1:1 (Square)/4.2 并在控制台
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 from .my_styles import _merge_negative
@@ -49,6 +55,42 @@ _JSON_MISSING_COMBO = ["(道劫底座库未找到,请重启漫影或检查安装
 # ResolutionSelector aspect_ratio 槽 options),否则 [61] combo 不收
 FALLBACK_ASPECT = "1:1 (Square)"
 FALLBACK_MEGAPIXELS = 4.2
+
+# 宽高比表(09-20):覆盖 object_info 实测的官方枚举全 8 档;公式与
+# [61] ResolutionSelector 逐字节一致(MP 按 1024² 计,边长取整到 8 倍数)。
+ASPECTS: dict[str, tuple[int, int]] = {
+    "1:1 (Square)": (1, 1),
+    "2:3 (Portrait Photo)": (2, 3),
+    "3:2 (Photo)": (3, 2),
+    "3:4 (Portrait Standard)": (3, 4),
+    "4:3 (Standard)": (4, 3),
+    "9:16 (Portrait Widescreen)": (9, 16),
+    "16:9 (Widescreen)": (16, 9),
+    "21:9 (Ultrawide)": (21, 9),
+}
+
+
+def native_px(aspect_label: str, megapixels: float, multiple: int = 8) -> tuple[int, int]:
+    """由宽高比标签+MP 求像素(复刻 [61] 口径;九型实测 21:9·4.2→3208×1376)。"""
+    wr, hr = ASPECTS.get(aspect_label, (1, 1))
+    total = megapixels * 1024 * 1024
+    scale = math.sqrt(total / (wr * hr))
+    return (round(wr * scale / multiple) * multiple,
+            round(hr * scale / multiple) * multiple)
+
+
+def _width_height_of(base: str, entry: dict, aspect: str, megapixels: float) -> tuple[int, int]:
+    """WIDTH/HEIGHT 两出:resolution_override([w,h]) 直出(先例直填,如三视图
+    1536×512);缺/非法回退公式自算。非法时控制台警告不炸画布。"""
+    override = entry.get("resolution_override")
+    if (isinstance(override, (list, tuple)) and len(override) == 2
+            and all(isinstance(v, int) and not isinstance(v, bool) and v > 0
+                    for v in override)):
+        return int(override[0]), int(override[1])
+    if override is not None:
+        print(f"[漫影 道劫底座] 「{base}」resolution_override 非法({override!r}),"
+              "回退公式自算(应为 [宽,高] 正整数对)")
+    return native_px(aspect, megapixels)
 
 # 模块级缓存(mtime 失效):INPUT_TYPES 与 run 共用,热改即时生效
 _bases_cache: dict = {"mtime": None, "entries": None}
@@ -154,8 +196,9 @@ class MyDaojieBase:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "COMBO", "FLOAT", "COMBO")
-    RETURN_NAMES = ("positive", "negative", "aspect", "megapixels", "base")
+    RETURN_TYPES = ("STRING", "STRING", "COMBO", "FLOAT", "COMBO", "INT", "INT")
+    RETURN_NAMES = ("positive", "negative", "aspect", "megapixels", "base",
+                    "width", "height")
     FUNCTION = "run"
 
     @classmethod
@@ -182,6 +225,7 @@ class MyDaojieBase:
         base_positive = entry["positive"]
         base_negative = entry["negative"]
         aspect, megapixels = _resolution_of(base, entry)
+        width, height = _width_height_of(base, entry, aspect, megapixels)
         user_positive = (positive or "").strip()
         user_negative = (negative or "").strip()
         # 底座在前+主体句零分隔符直拼:底座全文以全角句号自足收尾,主体句
@@ -190,4 +234,4 @@ class MyDaojieBase:
         out_positive = (
             f"{base_positive}{user_positive}" if user_positive else base_positive)
         return (out_positive, _merge_negative(user_negative, base_negative),
-                aspect, megapixels, base)
+                aspect, megapixels, base, width, height)

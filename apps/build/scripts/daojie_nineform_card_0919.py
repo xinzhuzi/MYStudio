@@ -77,7 +77,11 @@ def build_matrix(bases: list, slots: list) -> tuple[str, dict]:
         lora_cell = "+".join(f"{lbl}×{fmt_w(w)}" for lbl, _k, w in pairs) or "纯全局链"
         aspect = e["aspect_ratio"].split(" (")[0]
         mp = e["megapixels"]
-        mp_cell = f"{aspect}·{mp:g}MP" + ("(1024²)" if mp == 1.0 else "")
+        ov = e.get("resolution_override")
+        if isinstance(ov, list) and len(ov) == 2:
+            mp_cell = f"{ov[0]}×{ov[1]} 直填(先例,A案终审)"
+        else:
+            mp_cell = f"{aspect}·{mp:g}MP" + ("(1024²)" if mp == 1.0 else "")
         steps = e["steps_hint"]
         steps_cell = f"{steps['fast']}/{steps['quality']}"
         routes = e.get("i2i_routes") or []
@@ -90,7 +94,7 @@ def build_matrix(bases: list, slots: list) -> tuple[str, dict]:
     return "\n".join(rows), parsed
 
 
-MATRIX_HEAD = """## 九型×配方矩阵([80] 选型→[61] 自动画幅+[90] 自动点亮;单源=daojie_bases.json v3)
+MATRIX_HEAD = """## 九型×配方矩阵([80] 选型→WIDTH/HEIGHT 直出([61] 退位旁路,三视图 1536×512 直填)+[90] 自动点亮;单源=daojie_bases.json v3)
 [50] 主体句仍按型改写(场景/概念气氛**不留人物主体**——其负向已禁 person;人物/美宣按七段公式写主体)。
 配方数值=09-19 水墨四件对拍定谳 v0.2(**待用户终审刷新**;改值=热改 daojie_bases.json/daojie_lora_stack.json 即时生效,勿手改卡)。
 互斥纪律:淡彩线描/墨洗/湿画三画风同开 ≤1;金雾与鎏金=场景互换、人物禁同开;人物系备选=墨洗轻档 0.4-0.6(可选非首选)。"""
@@ -105,7 +109,7 @@ def build_card(bases: list, slots: list) -> tuple[str, dict]:
     new_card = "\n\n".join([head, STACK_HEAD, PARAMS_HEAD, MATRIX_HEAD, matrix]) + "\n"
     # 手动画幅口径尾注(单源解释,不属矩阵数据)
     new_card += """
-手动改画幅/MP 须先断开 [61] 左侧两条输入线(断线后回落 [61] widget 旧值);[63] 12带重平衡全1.0=中性,同图可调淡彩浓度。"""
+手动改画幅/MP 须先断开 [53] 左侧两条 [80] 输入线(断线后回落 [53] widget 旧值);[63] 12带重平衡全1.0=中性,同图可调淡彩浓度。"""
     return new_card, parsed
 
 

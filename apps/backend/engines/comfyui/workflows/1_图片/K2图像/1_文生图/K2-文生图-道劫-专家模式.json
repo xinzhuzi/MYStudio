@@ -930,7 +930,7 @@
           "widget": {
             "name": "width"
           },
-          "link": 25
+          "link": 68
         },
         {
           "name": "height",
@@ -938,7 +938,7 @@
           "widget": {
             "name": "height"
           },
-          "link": 26
+          "link": 69
         }
       ],
       "outputs": [
@@ -1230,6 +1230,22 @@
           "links": [
             65
           ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            68
+          ],
+          "slot_index": 5
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            69
+          ],
+          "slot_index": 6
         }
       ],
       "title": "[80] 道劫底座·九选一(勿手改)",
@@ -1357,7 +1373,7 @@
       ],
       "flags": {},
       "order": 13,
-      "mode": 0,
+      "mode": 4,
       "showAdvanced": false,
       "inputs": [
         {
@@ -1381,19 +1397,15 @@
         {
           "name": "width",
           "type": "INT",
-          "links": [
-            25
-          ]
+          "links": []
         },
         {
           "name": "height",
           "type": "INT",
-          "links": [
-            26
-          ]
+          "links": []
         }
       ],
-      "title": "[61] 分辨率",
+      "title": "[61] 分辨率(已退位——[80] 直出 WH;断线可作手动档)",
       "properties": {
         "Node name for S&R": "ResolutionSelector",
         "cnr_id": "comfy-core",
@@ -1906,22 +1918,6 @@
       "CONDITIONING"
     ],
     [
-      25,
-      61,
-      0,
-      53,
-      0,
-      "INT"
-    ],
-    [
-      26,
-      61,
-      1,
-      53,
-      1,
-      "INT"
-    ],
-    [
       28,
       15,
       0,
@@ -2120,6 +2116,22 @@
       87,
       0,
       "MODEL"
+    ],
+    [
+      68,
+      80,
+      5,
+      53,
+      0,
+      "INT"
+    ],
+    [
+      69,
+      80,
+      6,
+      53,
+      1,
+      "INT"
     ]
   ],
   "groups": [

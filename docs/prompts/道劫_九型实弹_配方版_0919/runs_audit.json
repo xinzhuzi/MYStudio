@@ -11,8 +11,8 @@
     "seed": 42,
     "steps_cfg": "工作流现值 4/1(速度档,对齐基线)",
     "subject_source": "docs/prompts/道劫_九型主体句示例_0919.md 九条逐字",
-    "bases_json_sha256": "14c779f65047749a8c420ee4aca1a019ff3a4c93c0315fa8336c4af9e469cf41",
-    "stack_json_sha256": "3dbbfc044cec12e8ed31faddd23cb08dc71eb0850eed0e609549105cbd0dc0c9"
+    "bases_json_sha256": "bb45d619ce66373f78f6a7d58b03a07670d1f3ef39e9649f41a9c58f6edcbf44",
+    "stack_json_sha256": "53d91eaf4d2337043e5e18a1ee4f4805e0150e9a7c78f4791a4ba050ef0eaa48"
   },
   "runs": [
     {
@@ -34,8 +34,8 @@
         ]
       },
       "expected_applied_90": "跟随底座型·人物(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8",
-      "prompt_id": "f1b388e1-36c2-4655-8b75-6a7c5aecc60d",
-      "wall_s": 266.1,
+      "prompt_id": "06db756e-482f-4d9d-b899-ac85e2578d4b",
+      "wall_s": 300.4,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
@@ -43,10 +43,10 @@
         "applied_90_actual": "跟随底座型·人物(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8"
       },
       "bytes": 5748749,
-      "sha256": "22c4963f522d1de711993399838141ac4c4195c2743a43512949ef0d4c51cb85",
+      "sha256": "2b4244a265734f01526b21d2d406d41ee17f854ee87f3126d08fd7abc5500301",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/人物.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/人物.png",
-      "engine_image": "K2道劫文生图__00136_.png",
+      "engine_image": "K2道劫文生图__00153_.png",
       "final_positive_len": 341,
       "pixel_sha256": "e5631883872b9deb6e813df4e81262b6b59840d3f55a9f779272c529dfed4c9a"
     },
@@ -69,8 +69,8 @@
         ]
       },
       "expected_applied_90": "跟随底座型·场景(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.6",
-      "prompt_id": "14bcecb2-ada9-4899-a3e3-2ad22c48eb42",
-      "wall_s": 357.0,
+      "prompt_id": "0765e24c-ed8f-4bc6-a56f-92e61926aaaa",
+      "wall_s": 285.2,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
@@ -78,19 +78,16 @@
         "applied_90_actual": "跟随底座型·场景(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.6"
       },
       "bytes": 5265219,
-      "sha256": "b93dbc0fb3968c625763c30f4adff25dcac153e8ddc0175114db71ed1effe2e6",
+      "sha256": "fb8b08a9eba335851993ad408c0ff2716da8ca3b286ab6073c3c3b5076154c24",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/场景.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/场景.png",
-      "engine_image": "K2道劫文生图__00137_.png",
+      "engine_image": "K2道劫文生图__00145_.png",
       "final_positive_len": 341,
       "pixel_sha256": "a320385789b92a5266175c07ea6eddf7b1b80363d9f28fa71c0085443dfcea08"
     },
     {
       "name": "道具",
       "ran": true,
-      "audit_reconstructed": true,
-      "prompt_id": null,
-      "wall_s": 124.6,
       "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3",
       "native": "1024×1024",
       "key_inputs": {
@@ -107,24 +104,25 @@
         ]
       },
       "expected_applied_90": "跟随底座型·道具(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
+      "prompt_id": "3c92d667-1f37-498b-ab0e-3164c10f914b",
+      "wall_s": 92.1,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "evidence": "首轮日志「完成」行=四锚全过;见 first_pass_log.txt"
+        "applied_90_actual": "跟随底座型·道具(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
       "bytes": 1426833,
-      "sha256": "0dbc6079cd6e3c9a9422cff412391f2e6f9f93278a2ea4092732fa00200f7b72",
-      "pixel_sha256": "16a63e1c319ba386ea65c2a0b854fea770739843ce91fa692551fb0a6712789f",
+      "sha256": "9dbf2c0a1f9baf3ed51bb687a032a35a19cc1186d6c6109ab02d16fbc6df82a6",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/道具.png",
-      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/道具.png"
+      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/道具.png",
+      "engine_image": "K2道劫文生图__00146_.png",
+      "final_positive_len": 305,
+      "pixel_sha256": "16a63e1c319ba386ea65c2a0b854fea770739843ce91fa692551fb0a6712789f"
     },
     {
       "name": "美宣",
       "ran": true,
-      "audit_reconstructed": true,
-      "prompt_id": null,
-      "wall_s": 282.1,
       "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3",
       "native": "3208×1376",
       "key_inputs": {
@@ -141,32 +139,33 @@
         ]
       },
       "expected_applied_90": "跟随底座型·美宣(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
+      "prompt_id": "a22d7f7a-e070-41f1-902a-330c42bd0b71",
+      "wall_s": 216.5,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "evidence": "首轮日志「完成」行=四锚全过;见 first_pass_log.txt"
+        "applied_90_actual": "跟随底座型·美宣(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
       "bytes": 6472751,
-      "sha256": "c84aa9544cd3a41389ace12ac2c5536659c2e7eb613b251c976972178e98fb6b",
-      "pixel_sha256": "ef0619ac4c917fc2994e09b921bb53830ca28379da1f8908f9bb8f632c90a670",
+      "sha256": "5a3ac698b63366b70151305dd6fc2cb0d4f486d23abc815a37d20cd061e81ee9",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/美宣.png",
-      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/美宣.png"
+      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/美宣.png",
+      "engine_image": "K2道劫文生图__00147_.png",
+      "final_positive_len": 305,
+      "pixel_sha256": "ef0619ac4c917fc2994e09b921bb53830ca28379da1f8908f9bb8f632c90a670"
     },
     {
       "name": "三视图",
       "ran": true,
-      "audit_reconstructed": true,
-      "prompt_id": null,
-      "wall_s": 354.7,
       "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3",
-      "native": "3208×1376",
+      "native": "1536×512",
       "key_inputs": {
         "seed": 42,
         "steps": 4,
         "cfg": 1,
-        "w": 3208,
-        "h": 1376,
+        "w": 1536,
+        "h": 512,
         "base": "三视图",
         "preset": "跟随底座型",
         "90.base_link": [
@@ -175,25 +174,26 @@
         ]
       },
       "expected_applied_90": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
+      "prompt_id": "095a469d-7a93-493a-9569-8881ba3ddd7f",
+      "wall_s": 36.0,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "evidence": "首轮日志「完成」行=四锚全过;见 first_pass_log.txt"
+        "applied_90_actual": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
-      "bytes": 6117553,
-      "sha256": "4fefa96cdcc5dbf47f23ddfc0970add81028cf1abef756057e842661640cbe0f",
-      "pixel_sha256": "6107e16fdd5228b8befa11cec28f00f899111023158863039560a8127cfa3278",
+      "bytes": 1136632,
+      "sha256": "8c053883ad97235936751518777ab37ae13b422a14c44b2bca640fa6e33cf186",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/三视图.png",
-      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/三视图.png"
+      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/三视图.png",
+      "engine_image": "K2道劫文生图__00155_.png",
+      "final_positive_len": 285,
+      "pixel_sha256": "107568d0a7a03576024b7f804c7244f99f911159f5a712276aaa8235fb9ebe8b"
     },
     {
       "name": "高清人脸",
       "ran": true,
-      "audit_reconstructed": true,
-      "prompt_id": null,
-      "wall_s": 152.4,
-      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3",
+      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3 + 金雾仙侠GoldenMisty.safetensors×0.8",
       "native": "1024×1024",
       "key_inputs": {
         "seed": 42,
@@ -208,23 +208,27 @@
           4
         ]
       },
-      "expected_applied_90": "跟随底座型·高清人脸(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
+      "expected_applied_90": "跟随底座型·高清人脸(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8",
+      "prompt_id": "30bdeb5f-0137-4a99-8f2f-fa1ff69e1d51",
+      "wall_s": 108.1,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "evidence": "首轮日志「完成」行=四锚全过;见 first_pass_log.txt"
+        "applied_90_actual": "跟随底座型·高清人脸(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8"
       },
-      "bytes": 1453546,
-      "sha256": "597a17fff0d5a52521a47bcfb9c24817894a09ba769107782acc0dc14e65e6fd",
-      "pixel_sha256": "23db5973e990e33d0f5271e73ef02489f2ee56a15ef3617b369d0f2cb8316729",
+      "bytes": 1411143,
+      "sha256": "307bb4f010381ea51c70d37a421cd0580810b7b703067cb654aa9b6429549632",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/高清人脸.png",
-      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/高清人脸.png"
+      "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/高清人脸.png",
+      "engine_image": "K2道劫文生图__00149_.png",
+      "final_positive_len": 259,
+      "pixel_sha256": "f11d6dd056a7c093d96abe5c7ff1858a05735866dcd3900869e9e2e39ad4d8c3"
     },
     {
       "name": "分镜剧情图",
       "ran": true,
-      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3 + Krea2-淡彩线描插画_v1.safetensors×0.5",
+      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3 + 金雾仙侠GoldenMisty.safetensors×0.8",
       "native": "2800×1576",
       "key_inputs": {
         "seed": 42,
@@ -239,22 +243,22 @@
           4
         ]
       },
-      "expected_applied_90": "跟随底座型·分镜剧情图(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + Krea2-淡彩线描插画_v1×0.5",
-      "prompt_id": "1773ce05-99a8-42f1-a0e2-fee71493b3ad",
-      "wall_s": 277.8,
+      "expected_applied_90": "跟随底座型·分镜剧情图(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8",
+      "prompt_id": "8fe38c48-327c-47c5-8a00-942ace22fdc4",
+      "wall_s": 232.3,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "applied_90_actual": "跟随底座型·分镜剧情图(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + Krea2-淡彩线描插画_v1×0.5"
+        "applied_90_actual": "跟随底座型·分镜剧情图(6/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3 + 金雾仙侠GoldenMisty×0.8"
       },
-      "bytes": 6226415,
-      "sha256": "48c48de6c85e204ceaa768c37b8cc618e3596e2bc59a5c8dcc344ba82ea692d1",
+      "bytes": 6193130,
+      "sha256": "8599478464e85d3d6811689c3caf17b863269733df7f2f856422c930a337951a",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/分镜剧情图.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/分镜剧情图.png",
-      "engine_image": "K2道劫文生图__00139_.png",
+      "engine_image": "K2道劫文生图__00150_.png",
       "final_positive_len": 281,
-      "pixel_sha256": "221511c2c9b4cb2acfeb7d249e505b0df9d78550ac2be42506407d7039f7188f"
+      "pixel_sha256": "39e70a11faa16ea01217e5b34ab08c4f783c5b3e817e39af172c19bb2493df93"
     },
     {
       "name": "表情差分",
@@ -275,8 +279,8 @@
         ]
       },
       "expected_applied_90": "跟随底座型·表情差分(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
-      "prompt_id": "87593ca2-5de3-4068-9183-024aad3fd212",
-      "wall_s": 224.6,
+      "prompt_id": "e42595c4-7f5b-4167-b90d-c12c6f3e9cb3",
+      "wall_s": 308.4,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
@@ -284,17 +288,17 @@
         "applied_90_actual": "跟随底座型·表情差分(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
       "bytes": 6903645,
-      "sha256": "a831d446195e0b8ed6ae233c1dc58a8582a7e3b4bc9feba766b572118c27dc87",
+      "sha256": "17c38486e1925c71d2accd6544ec487e2752675ae060afd992df98e226b965f4",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/表情差分.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/表情差分.png",
-      "engine_image": "K2道劫文生图__00133_.png",
+      "engine_image": "K2道劫文生图__00151_.png",
       "final_positive_len": 252,
       "pixel_sha256": "4dad45745756f94aba650d5972b6eec82f318039251f271fba13b6e2b4061c6a"
     },
     {
       "name": "概念气氛图",
       "ran": true,
-      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + 金雾仙侠GoldenMisty.safetensors×0.5",
+      "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + 金雾仙侠GoldenMisty.safetensors×0.6",
       "native": "2800×1576",
       "key_inputs": {
         "seed": 42,
@@ -309,27 +313,26 @@
           4
         ]
       },
-      "expected_applied_90": "跟随底座型·概念气氛图(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.5",
-      "prompt_id": "ac1a59eb-ae70-4630-b7ac-51f0af77d948",
-      "wall_s": 216.6,
+      "expected_applied_90": "跟随底座型·概念气氛图(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.6",
+      "prompt_id": "3c685252-eb9e-4ec2-a5d1-6669929fddc2",
+      "wall_s": 301.1,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
-        "applied_90_actual": "跟随底座型·概念气氛图(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.5"
+        "applied_90_actual": "跟随底座型·概念气氛图(4/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + 金雾仙侠GoldenMisty×0.6"
       },
-      "bytes": 4839765,
-      "sha256": "5942894478cc3e23736f679814fe11601956c47bcb3d2552dfb55c45d5c8b082",
+      "bytes": 4767707,
+      "sha256": "5c1f6c1fc767b378c5175e37108c336817000f96a75f2391e8fd057f20f78f3b",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/概念气氛图.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/概念气氛图.png",
-      "engine_image": "K2道劫文生图__00141_.png",
+      "engine_image": "K2道劫文生图__00152_.png",
       "final_positive_len": 249,
-      "pixel_sha256": "da48cc01d39ba86f57633206a26ea73477926fc0b33e8182c81bf1092de71392"
+      "pixel_sha256": "87f43a9ba881f26f5f6157fa7caee8773883d0314c4b01b5a43623c43cd8d3d1"
     }
   ],
   "runs_total": 9,
   "ok_count": 9,
-  "total_wall_s": 3197.2,
-  "first_pass_interruption": "首轮 7 跑完成后续跑中引擎连接中断(表情差分 ConnectionReset;日志末见 引擎侧栈,自动重启于 17001);--only 续跑补齐 2 型;7 跑条目由盘上 PNG+首轮日志补记(prompt_id 不可考置 null,余皆实算/日志实录)",
-  "resume_note": "--only 续跑 ['概念气氛图'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
+  "total_wall_s": 3342.8,
+  "resume_note": "--only 续跑 ['三视图'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
 }

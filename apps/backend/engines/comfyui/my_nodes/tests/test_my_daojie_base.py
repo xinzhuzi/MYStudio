@@ -77,8 +77,9 @@ def test_combo_nine_options_in_json_order_with_pinned_default():
         assert slot[0] == "STRING"
         assert set(slot[1]) == {"forceInput"}  # 多键(default/multiline)会生文本 widget
         assert slot[1]["forceInput"] is True
-    assert MyDaojieBase.RETURN_TYPES == ("STRING", "STRING", "COMBO", "FLOAT", "COMBO")
-    assert MyDaojieBase.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels", "base")
+    assert MyDaojieBase.RETURN_TYPES == ("STRING", "STRING", "COMBO", "FLOAT", "COMBO", "INT", "INT")
+    assert MyDaojieBase.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels", "base",
+                                         "width", "height")
     assert MyDaojieBase.FUNCTION == "run"
 
 
@@ -88,7 +89,7 @@ def test_run_assembles_base_first_then_subject_verbatim():
         e["positive"] for e in json.loads(
             my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
         if e["zh"] == "人物")
-    pos, _neg, _aspect, _mp, _base = MyDaojieBase().run("人物", positive="  一位女修士，青年金丹期。 ")
+    pos, _neg, _aspect, _mp, _base, _w, _h = MyDaojieBase().run("人物", positive="  一位女修士，青年金丹期。 ")
     # 底座在前、主体句 strip 后原样拼接、零分隔符(底座以全角句号自足收尾)
     assert pos == base_positive + "一位女修士，青年金丹期。"
 
@@ -98,18 +99,18 @@ def test_run_empty_subject_is_identity_pure_base():
         e["positive"] for e in json.loads(
             my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
         if e["zh"] == "场景")
-    pos, neg, aspect, mp, base_out = MyDaojieBase().run("场景")
+    pos, neg, aspect, mp, base_out, w_out, h_out = MyDaojieBase().run("场景")
     assert base_out == "场景"  # 09-19 第五出=型直通
     assert pos == base_positive
     assert pos.endswith("。")  # 底座全文句号自足收尾(直拼无分隔符的前提)
     assert aspect == "16:9 (Widescreen)" and mp == 4.2  # 分辨率两出随型
-    pos2, _n2, _a2, _m2, _b2 = MyDaojieBase().run("场景", positive=None, negative=None)
+    pos2, _n2, _a2, _m2, _b2, _w, _h = MyDaojieBase().run("场景", positive=None, negative=None)
     assert pos2 == base_positive
 
 
 def test_run_all_options_produce_nonempty_outputs():
     for name in EXPECTED_OPTIONS:
-        pos, neg, aspect, mp, base_out = MyDaojieBase().run(name)
+        pos, neg, aspect, mp, base_out, _w, _h = MyDaojieBase().run(name)
         assert base_out == name  # 09-19 第五出=型直通(驱动按型 LoRA)
         # 09-18 v2.2 定性切换:SD 质量标签串已废,九型一律以定性句开头+句号自足收尾
         assert pos and pos.startswith("现代修仙游戏")
@@ -129,12 +130,12 @@ def test_run_negative_merges_and_dedupes_tokens():
         if e["zh"] == "人物")
     first_token = base_negative.split(",")[0].strip()
     # 用户 token "text" 恰也在人物基线中——整 token 相等即去重
-    _, neg, _, _, _b = MyDaojieBase().run("人物", negative="text")
+    _, neg, _, _, _b, _w, _h = MyDaojieBase().run("人物", negative="text")
     assert neg.startswith("text, ")  # 用户段在前
     pieces = [t.strip() for t in neg.split(",")]
     assert pieces.count("text") == 1  # 基线内的重复 token 被去重
     # 用户给基线首 token:同样只保留一份,且顺序=用户在前
-    _, neg2, _, _, _b2 = MyDaojieBase().run("人物", negative=f"zzz, {first_token}")
+    _, neg2, _, _, _b2, _w, _h = MyDaojieBase().run("人物", negative=f"zzz, {first_token}")
     pieces2 = [t.strip() for t in neg2.split(",")]
     assert pieces2[:2] == ["zzz", first_token]
     assert pieces2.count(first_token) == 1
@@ -157,7 +158,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
         encoding="utf-8")
     monkeypatch.setattr(my_daojie_base, "_BASES_JSON", fake)
     assert my_daojie_base.bases_list() == ["测试型"]
-    pos, _, aspect, mp, _base = MyDaojieBase().run("测试型")
+    pos, _, aspect, mp, _base, _w, _h = MyDaojieBase().run("测试型")
     assert pos == "测试底座。"
     # 缺分辨率字段:回退 1:1 (Square)/4.2(枚举逐字串)+控制台中文警告
     assert aspect == "1:1 (Square)"
@@ -173,7 +174,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     time.sleep(0.01)
     import os
     os.utime(fake, (stat.st_atime + 5, stat.st_mtime + 5))
-    pos2, _, _, _, _b2 = MyDaojieBase().run("测试型")
+    pos2, _, _, _, _b2, _w, _h = MyDaojieBase().run("测试型")
     assert pos2 == "热改后的底座。"
 
 
@@ -275,10 +276,13 @@ def test_v3_recipe_mutex_and_rulings():
     trio = {"Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
             "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.4,
             "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
-    for zh in ("美宣", "三视图", "高清人脸", "表情差分"):
+    for zh in ("美宣", "三视图", "表情差分"):
         assert by[zh] == trio, (zh, by[zh])
     assert by["人物"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
         by["人物"]
+    # 高清人脸=与人物 LoRA 同源(09-20 用户裁定「人脸与人物应相同」):三件+金雾0.8
+    assert by["高清人脸"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
+        by["高清人脸"]
     # 场景=细节+金雾0.6(09-20 用户终审 87_scene_w06,墨洗出局);概念气氛同构过渡待终审
     assert by["场景"] == {
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
@@ -286,8 +290,8 @@ def test_v3_recipe_mutex_and_rulings():
     assert by["概念气氛图"] == {
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
         "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
-    # 分镜=三件+淡彩线描0.5;道具=细节+鎏金0.3(无面孔件)
-    assert by["分镜剧情图"]["Krea2-画风/Krea2-淡彩线描插画_v1.safetensors"] == 0.5
+    # 分镜=三件+金雾0.8(09-20 与人物同源裁定,淡彩撤);道具=细节+鎏金0.3(无面孔件)
+    assert by["分镜剧情图"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}
     assert by["道具"] == {
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
         "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
@@ -348,5 +352,14 @@ def test_v3_recipe_reader_helpers_and_fallback(tmp_path, monkeypatch):
     assert my_daojie_base.lora_recipe_of("旧型") == []
     assert my_daojie_base.steps_hint_of("旧型") == {"fast": 4, "quality": 12}
     assert my_daojie_base.lora_recipe_of("不存在的型") == []
-    pos, _neg, _a, _m, _b = MyDaojieBase().run("旧型")
+    pos, _neg, _a, _m, _b, _w, _h = MyDaojieBase().run("旧型")
     assert pos == "旧底座。"  # v3 字段缺席不影响既有装配行为
+
+
+def test_width_height_override_and_formula():
+    """WIDTH/HEIGHT 两出(09-20 三视图 A 案转正):override 直出先例 1536×512;
+    无 override 型走公式,与 [61] 逐字节一致(场景 16:9·4.2→2800×1576)。"""
+    _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("三视图")
+    assert (w, h) == (1536, 512), (w, h)
+    _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("场景")
+    assert (w, h) == (2800, 1576), (w, h)

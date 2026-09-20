@@ -145,7 +145,7 @@
   {
     "key": "三视图",
     "zh": "三视图",
-    "purpose": "21:9 横幅、画幅直填 1536×512（K2-三视图 先例）。主体句写角色身份与基础服化；多格同人合法——负向禁 clone/多人类 token，已升格为契约测试门禁。",
+    "purpose": "21:9 横幅、画幅直填 1536×512（K2-三视图 先例;09-20 A 案终审转正:21:9 大画幅致「多个重复」二连否,override 直出）。主体句写角色身份与基础服化；多格同人合法——负向禁 clone/多人类 token，已升格为契约测试门禁。",
     "aspect_ratio": "21:9 (Ultrawide)",
     "megapixels": 4.2,
     "positive": "现代修仙游戏的角色设定板资产：同一角色多视图跨格一致，形制结构可读可生产，细稳墨线勾画全身与衣褶，素雅传统色打底，资产统一性。一幅横幅长图并排四格，左一人像特写，其余三格依次为正面、侧面、背面全身立像，每格头顶到脚底完整入画；自然站姿，双臂下垂，中性微表情；面容、体型、发型与基础服装跨格完全一致，全身线条结构明确；细稳基调上随形体轻重提按，发丝衣褶结构线可读，带手绘笔性、跨格笔意一致。四格底色一致，均匀柔光平涂底，生产级清晰度。",
@@ -173,7 +173,11 @@
       "quality": 12
     },
     "i2i_routes": [],
-    "postprocess": "裁格(人像特写格/正侧背全身格)"
+    "postprocess": "裁格(人像特写格/正侧背全身格)",
+    "resolution_override": [
+      1536,
+      512
+    ]
   },
   {
     "key": "高清人脸",
@@ -199,6 +203,12 @@
         "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
         "weight": 0.3,
         "slot": "liujin"
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "weight": 0.8,
+        "slot": "goldenmist",
+        "note": "09-20 用户裁定:人脸与人物 LoRA 同源"
       }
     ],
     "steps_hint": {
@@ -241,14 +251,10 @@
         "slot": "liujin"
       },
       {
-        "file": "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
-        "weight": 0.5,
-        "slot": "tancai",
-        "range": [
-          0.5,
-          0.6
-        ],
-        "note": "连环画候选(场景证据外推,九型实弹专拍)"
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "weight": 0.8,
+        "slot": "goldenmist",
+        "note": "09-20 用户裁定:与人物 LoRA 同源"
       }
     ],
     "steps_hint": {

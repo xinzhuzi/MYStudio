@@ -93,7 +93,7 @@
   {
     "key": "高清人脸",
     "zh": "高清人脸",
-    "note": "人物系(面部特写;73 鎏金对面部是点缀质感,嫌重可热调降权或删)",
+    "note": "人物系(面部特写;73 鎏金对面部是点缀质感,嫌重可热调降权或删);金雾×0.8=09-20 与人物同源终审。",
     "loras": [
       {
         "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
@@ -106,13 +106,17 @@
       {
         "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
         "strength_model": 0.3
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "strength_model": 0.8
       }
     ]
   },
   {
     "key": "分镜剧情图",
     "zh": "分镜剧情图",
-    "note": "人物+场景混帧,默认同人物三件(帧内人物为主角)",
+    "note": "人物+场景混帧,默认同人物三件(帧内人物为主角);金雾×0.8=09-20 与人物同源终审。",
     "loras": [
       {
         "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
@@ -125,6 +129,10 @@
       {
         "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
         "strength_model": 0.3
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "strength_model": 0.8
       }
     ]
   },

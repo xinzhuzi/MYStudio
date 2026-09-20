@@ -190,9 +190,8 @@ def main() -> int:
                          f"{Path(i['file']).name}×{i['weight']:g}"
                          for i in bases[zh]["lora_recipe"])}
         w, h = native_px(bases[zh]["aspect_ratio"], bases[zh]["megapixels"])
-        ov = bases[zh].get("resolution_override")
-        if isinstance(ov, list) and len(ov) == 2:
-            w, h = int(ov[0]), int(ov[1])  # 09-20 三视图 A 案:先例直填
+        if zh == "三视图":
+            w, h = 1536, 512  # A案:K2-三视图先例直填(09-20 二连否·多个重复,验证分辨率归因)
         rec["native"] = f"{w}×{h}"
         overrides = {"12.seed": SEED, "53.width": w, "53.height": h,
                      "50.value": SUBJECTS[zh], "80.base": zh}
