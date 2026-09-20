@@ -1,7 +1,7 @@
 {
   "id": "e519cd0c-1249-47ce-94cd-98626102bd0f",
   "revision": 0,
-  "last_node_id": 90,
+  "last_node_id": 91,
   "last_link_id": 66,
   "nodes": [
     {
@@ -1104,7 +1104,7 @@
           "slot_index": 1
         }
       ],
-      "title": "[90] LoRA栈·九型驱动14槽(preset=跟随底座型;开关=真关;原链另存-专家模式.json)",
+      "title": "[90] LoRA栈·九型驱动(详解见「LoRA 逻辑图解」)",
       "properties": {
         "Node name for S&R": "MyDaojieLoraStack"
       },
@@ -1139,6 +1139,28 @@
         true,
         1.0
       ]
+    },
+    {
+      "id": 91,
+      "type": "5f2c8d9a-3e47-4b1c-9a6d-8e0f2b4c7d15",
+      "pos": [
+        7240,
+        280
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 4,
+      "inputs": [],
+      "outputs": [],
+      "widgets_values": [],
+      "title": "LoRA 逻辑图解(纯展示·双击进入)",
+      "properties": {},
+      "color": "#432",
+      "bgcolor": "#653"
     }
   ],
   "links": [
@@ -1386,5 +1408,416 @@
     "VHS_KeepIntermediate": true,
     "links_added_by_ue": []
   },
-  "version": 0.4
+  "version": 0.4,
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "5f2c8d9a-3e47-4b1c-9a6d-8e0f2b4c7d15",
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 16,
+          "lastLinkId": 0,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "LoRA 逻辑图解",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            0,
+            40,
+            128,
+            48
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            1980,
+            40,
+            128,
+            88
+          ]
+        },
+        "inputs": [],
+        "outputs": [],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 1,
+            "type": "MarkdownNote",
+            "pos": [
+              200,
+              40
+            ],
+            "size": [
+              1000,
+              240
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "> 给美术的画布内说明书:这套 LoRA 栈怎么运转、每件是干嘛的、九型各自点亮谁。所有启停与权重均为 `daojie_lora_stack.json` 现值投影。\n\n## 一、这套逻辑怎么运作\n\n这套栈的运作就三步:①你在 [80] 底座选型器挑图型(人物/场景/道具…九型之一);②[90] LoRA 栈跟着型自动点亮该亮的件、按定谳权重挂上——配方不用你背;③所有启停与剂量的数字只住在一个数据文件里(daojie_lora_stack.json),热改即时生效,本文只是它的投影。你只需写好主体句。turbo 加速件=你的操控杆:开=4步快出参考图,关=走 12步+cfg5 质档;启停由你手动掌控,预设只是初始值。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 2,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              400
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 功能件(全局挂载)\n\n**加速·4步蒸馏(turbo)**\n\n加速件,4步蒸馏把出图压到4步快跑。九型预设全开×1.0(仅初始值)。开关=你的操控杆:启停由你手动掌控、设置随画布保存;正式图质档做法=关本槽+12步+cfg5(备查)。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 3,
+            "type": "MarkdownNote",
+            "pos": [
+              700,
+              400
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 功能件(全局挂载)\n\n**服从度·ProjectorScale(projector)**\n\n服从度件,让画面更听话、更贴提示词。九型恒开×0.01;权重口径特殊——0.01 就是标准档,别按常规往大拉(09-19 A/B 定谳)。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 4,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              700
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 人物三件(人物系底妆)\n\n**细节·细节滑杆(detail)**\n\n细节滑杆,提发丝、织纹等细部清晰度。九型全开×1.0,是所有图型共享的细节底座,不随型变化。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 5,
+            "type": "MarkdownNote",
+            "pos": [
+              700,
+              700
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 人物三件(人物系底妆)\n\n**亚洲面孔·AsianMix(asianmix)**\n\n面孔件,管脸的观感,不占画风名额。点亮:人物/美宣/三视图/高清人脸/分镜剧情图/表情差分/设定板×0.4;场景/概念气氛(空镜无面孔)与道具(静物)关。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 6,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              1000
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 人物三件(人物系底妆)\n\n**鎏金·水墨武侠漆艺(liujin)**\n\n国风立绘质感主锚。点亮:人物/道具/美宣/三视图/高清人脸/分镜/表情差分/设定板×0.3;场景/概念气氛免鎏金(09-19 裁定)。注:人物与金雾叠加、场景与金雾互换。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 7,
+            "type": "MarkdownNote",
+            "pos": [
+              700,
+              1000
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 6,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 质感\n\n**光影·Afterlight(afterlight)**\n\n电影化光影件。九型全关——消融裁定它正是画面变电影化的主因,默认旁路;要用走专家模式手开×0.8。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 8,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              1300
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 质感\n\n**质感·电影感(cinematic)**\n\n电影镜头感画风件。九型全关(草案口径),美宣走叙事时可考虑。纪律:画风件同开≤1,鎏金算半件。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 9,
+            "type": "MarkdownNote",
+            "pos": [
+              700,
+              1300
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 8,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 画风其他(备选槽)\n\n**identity·编辑身份(identity)**\n\n编辑身份件,图生图/编辑流里保住同一张脸。九型恒关——跑文生图曾出丑图,只供编辑系流程用。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 10,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              1600
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 9,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 画风其他(备选槽)\n\n**画风·暗笔刷(darkbrush)**\n\n单色水墨重笔触风。九型全关、默认备选槽;启用须在主体句补触发词 monochrome ink wash style。台账列 kill 候选待勾选。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 11,
+            "type": "MarkdownNote",
+            "pos": [
+              700,
+              1600
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 10,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 画风其他(备选槽)\n\n**画风·美学Masterpiece(masterpiece)**\n\n通用美化提质量件。九型全关、默认备选槽,不入常设矩阵。台账列 kill 候选待勾选。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 12,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              1900
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 11,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 画风水墨\n\n**画风·淡彩线描插画(tancai)**\n\n连环画式淡彩线描增益件。九型全关=纯库存(分镜0.5 候选已撤,09-20 终审)。w1.0 描边化+紫灰污染判崩;启用须补触发词 watercolor ink illustration style。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 13,
+            "type": "MarkdownNote",
+            "pos": [
+              700,
+              1900
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 画风水墨\n\n**画风·墨洗SumiWash(sumiwash)**\n\n四件水墨中墨味增益最大(洇散墨韵、纸上墨感)。九型全关=纯库存——场景与概念气氛 09-20 终审出局。w1.0 光斑粒子判崩。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 14,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              2200
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 13,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 画风水墨\n\n**画风·水彩湿画(shihua)**\n\n湿接水彩感,比水墨更松更通透。九型全关、场景向备选。硬顶0.8;人物/道具禁用(09-19 对拍)。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 15,
+            "type": "MarkdownNote",
+            "pos": [
+              700,
+              2200
+            ],
+            "size": [
+              620,
+              260
+            ],
+            "flags": {},
+            "order": 14,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "### 画风水墨\n\n**画风·金雾仙侠(goldenmist)**\n\n金纱仙气氛核心件,双档:人物系×0.8(人物/高清人脸/分镜剧情图/设定板)、场景系×0.6(场景/概念气氛图),其余型关。注:人物与鎏金叠加、场景与鎏金互换。"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          },
+          {
+            "id": 16,
+            "type": "MarkdownNote",
+            "pos": [
+              40,
+              2620
+            ],
+            "size": [
+              1880,
+              900
+            ],
+            "flags": {},
+            "order": 15,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "## 三、九型×画风件点亮矩阵(现值速览)\n\n| 型 | 面孔(亚洲) | 鎏金 | 金雾 | 墨洗 | 淡彩线描 | 水彩湿画 | 光影 | 电影感 | 暗笔刷 | 美学 | 编辑身份 |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n| 人物 | 0.4 | 0.3 | 0.8 | - | - | - | - | - | - | - | - |\n| 场景 | - | - | 0.6 | - | - | - | - | - | - | - | - |\n| 道具 | - | 0.3 | - | - | - | - | - | - | - | - | - |\n| 美宣 | 0.4 | 0.3 | - | - | - | - | - | - | - | - | - |\n| 三视图 | 0.4 | 0.3 | - | - | - | - | - | - | - | - | - |\n| 高清人脸 | 0.4 | 0.3 | 0.8 | - | - | - | - | - | - | - | - |\n| 分镜剧情图 | 0.4 | 0.3 | 0.8 | - | - | - | - | - | - | - | - |\n| 表情差分 | 0.4 | 0.3 | - | - | - | - | - | - | - | - | - |\n| 概念气氛图 | - | - | 0.6 | - | - | - | - | - | - | - | - |\n| 设定板* | 0.4 | 0.3 | 0.8 | - | - | - | - | - | - | - | - |\n\n- 常开件不入表:加速×1.0(操控杆,启停你手动)、服从度×0.01、细节×1.0——预设九型全开。\n- 存而未亮的备选权重:墨洗=场景0.8/概念气氛0.7、淡彩线描=分镜0.5(均已终审出局或撤档,开关为关=纯库存)。\n- *设定板=角色设定流的专家档预设(不属九型),列出供参考。\n- 画风纪律:画风件同开≤1(鎏金算半件);金雾与鎏金=人物叠加、场景互换。\n\n数据单源:daojie_lora_stack.json,热改即时生效"
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
+          }
+        ],
+        "groups": [],
+        "links": [],
+        "extra": {}
+      }
+    ]
+  }
 }
