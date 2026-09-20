@@ -24,6 +24,7 @@ from .nodes.my_styles import MyStylesLibrary
 from .nodes.my_daojie_base import MyDaojieBase
 from .nodes.my_daojie_loras import MyDaojieLoras
 from .nodes.my_daojie_lora_stack import MyDaojieLoraStack
+from .nodes.my_charsheet_labels import MyCharsheetLabels
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
@@ -96,6 +97,7 @@ NODE_CLASS_MAPPINGS = {
     "MyDaojieBase": MyDaojieBase,
     "MyDaojieLoras": MyDaojieLoras,
     "MyDaojieLoraStack": MyDaojieLoraStack,
+    "MyCharsheetLabels": MyCharsheetLabels,
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
     "ManyingPrompt": MyPromptLegacy,
     "ManyingReference": MyReferenceLegacy,

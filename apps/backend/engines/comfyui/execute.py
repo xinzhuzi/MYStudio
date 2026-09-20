@@ -8,7 +8,8 @@
 
 流程:图校验 → 图片 b64 上传引擎(/upload/image)→ 字符串注入对应 widget →
 引擎 /prompt 提交 → /history 轮询(超时默认 300s,payload.timeoutS 可放宽)→
-输出图/音频 /view 取回 b64 数组(images+audios;纯音频工作流不再报"没有输出图片")。
+输出图/音频 /view 取回 b64 数组(images+audios;纯音频工作流不再报"没有输出图片"),
+PreviewAny 类 ui 文本原样内联回带(texts;纯记谱工作流同守卫放行)。
 job 进度:上传 → 排队 → 执行中 → 收图(照 engine_manager 的 job 范式)。
 
 License 边界(父任务裁定 3):与 ComfyUI 的全部交互面 = HTTP API 客户端,
@@ -113,25 +114,27 @@ def _fetch_view(filename: str, subfolder: str, file_type: str, timeout: float = 
 
 def _history_collect(
     history: dict[str, Any], prompt_id: str
-) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
-    """history 状态判定:pending / success(带输出图+音频清单)/ error(抛大白话)。
+) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """history 状态判定:pending / success(带输出图+音频+文本清单)/ error(抛大白话)。
 
     音频条目来自 SaveAudioAdvanced/SaveAudio 类节点的 ui["audio"](引擎核心
     comfy_api/_ui.py SavedAudios.as_dict → {"audio": [{filename, subfolder, type}]},
-    与 images 同形状)。
+    与 images 同形状)。文本条目来自 PreviewAny 类节点的 ui["text"](纯 JSON 内联,
+    history 原样带回,无需 /view;09-20 YuE2 出谱流接线)。
     """
     entry = history.get(prompt_id)
     if not isinstance(entry, dict):
-        return "pending", [], []
+        return "pending", [], [], []
     status = entry.get("status", {})
     state = status.get("status_str")
     if state == "error":
         detail = str(status.get("messages", "ComfyUI 执行失败"))[:500]
         raise EngineOpError(f"ComfyUI 执行失败: {detail}")
     if state != "success":
-        return "pending", [], []
+        return "pending", [], [], []
     images: list[dict[str, Any]] = []
     audios: list[dict[str, Any]] = []
+    texts: list[dict[str, Any]] = []
     for node_id, output in entry.get("outputs", {}).items():
         if not isinstance(output, dict):
             continue
@@ -151,7 +154,10 @@ def _history_collect(
                     "subfolder": str(audio.get("subfolder", "") or ""),
                     "type": str(audio.get("type", "output") or "output"),
                 })
-    return "success", images, audios
+        for text in output.get("text", []):
+            if isinstance(text, str):
+                texts.append({"nodeId": str(node_id), "text": text})
+    return "success", images, audios, texts
 
 
 # ── 纯函数(单测覆盖):请求体校验与注入 ─────────────────────────────
@@ -299,8 +305,9 @@ def _execute_target(
         deadline = time.monotonic() + timeout_s
         outputs: list[dict[str, Any]] = []
         audio_outputs: list[dict[str, Any]] = []
+        text_outputs: list[dict[str, Any]] = []
         while time.monotonic() < deadline:
-            state, outputs, audio_outputs = _history_collect(
+            state, outputs, audio_outputs, text_outputs = _history_collect(
                 _http_json("GET", f"{_engine_url()}/history/{prompt_id}", timeout=10), prompt_id
             )
             if state == "success":
@@ -317,8 +324,8 @@ def _execute_target(
                 f"ComfyUI 执行超时({math.ceil(timeout_s)} 秒),请检查引擎队列后重试"
             )
 
-        # 5. 收图/收音频(/view 取 b64)
-        if not outputs and not audio_outputs:
+        # 5. 收图/收音频(/view 取 b64)+ 收文本(纯 JSON 内联,PreviewAny 类产物)
+        if not outputs and not audio_outputs and not text_outputs:
             raise EngineOpError("工作流已完成但没有输出图片或音频(缺 SaveImage/SaveAudio 类输出节点?)")
         collected: list[dict[str, Any]] = []
         for index, item in enumerate(outputs):
@@ -340,7 +347,10 @@ def _execute_target(
                 "type": item["type"],
                 "b64": _fetch_view(item["filename"], item["subfolder"], item["type"]),
             })
-        jobs.update(job_id, result={"promptId": prompt_id, "images": collected, "audios": audio_collected})
+        jobs.update(
+            job_id,
+            result={"promptId": prompt_id, "images": collected, "audios": audio_collected, "texts": text_outputs},
+        )
     except (EngineOpError, ValueError) as exc:
         jobs.update(job_id, error=str(exc))
     except Exception as exc:  # noqa: BLE001 — 面向前端的大白话兜底

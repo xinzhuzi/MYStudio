@@ -47,8 +47,8 @@ class FakeComfyEngine:
         self.server.shutdown()
         self.server.server_close()
 
-    def queue_success(self, images=("out-1.png",), audios=(), prompt_id="p-1", delay_s=0.0):
-        """编程一次成功执行:images 进 ui["images"],audios 进 ui["audio"]。"""
+    def queue_success(self, images=("out-1.png",), audios=(), texts=(), prompt_id="p-1", delay_s=0.0):
+        """编程一次成功执行:images 进 ui["images"],audios 进 ui["audio"],texts 进 ui["text"]。"""
         self.prompt_replies.append({"prompt_id": prompt_id})
         outputs = {}
         if images:
@@ -59,6 +59,8 @@ class FakeComfyEngine:
             outputs["12"] = {"audio": [
                 {"filename": name, "subfolder": "", "type": "output"} for name in audios
             ]}
+        if texts:
+            outputs["14"] = {"text": list(texts)}
         self.histories[prompt_id] = {
             "status": {"status_str": "success" if not delay_s else "executing"},
             "outputs": outputs,
@@ -322,6 +324,41 @@ class TestExecuteJob:
         assert [item["filename"] for item in result["images"]] == ["out-1.png"]
         assert [item["filename"] for item in result["audios"]] == ["bgm.flac", "bgm-2.flac"]
         assert base64.b64decode(result["audios"][1]["b64"]) == b"fake-flac-bytes-2"
+
+    # ── 文本输出收集(09-20 YuE2 出谱流接线:PreviewAny 类 ui["text"]) ──
+
+    def test_text_only_success_collects_texts(self, engine):
+        """无图无音有文本:空输出守卫放行,texts 原样内联回带(不走 /view)。"""
+        abc_text = "X:1\nT:test\nK:G\n| c'2 |"
+        engine.queue_success(images=(), audios=(), texts=(abc_text,))
+        job_id = comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        result = job["result"]
+        assert result["images"] == []
+        assert result["audios"] == []
+        assert result["texts"] == [{"nodeId": "14", "text": abc_text}]
+
+    def test_texts_and_audios_mixed_collects_both(self, engine):
+        """出谱+渲染同链:文本与音频同时收,texts 逐条保序。"""
+        engine.queue_success(images=(), audios=("bgm.flac",), texts=("X:1\nfirst", "X:2\nsecond"))
+        engine.view_bodies["bgm.flac"] = b"fake-flac-bytes"
+        job_id = comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        result = job["result"]
+        assert [item["filename"] for item in result["audios"]] == ["bgm.flac"]
+        assert [item["text"] for item in result["texts"]] == ["X:1\nfirst", "X:2\nsecond"]
+        assert [item["nodeId"] for item in result["texts"]] == ["14", "14"]
+
+    def test_non_string_text_entries_skipped(self, engine):
+        """ui["text"] 里混非 str 条目只收 str(引擎异常形状不炸不脏结果)。"""
+        engine.queue_success(images=(), audios=(), texts=("X:1\nok",))
+        engine.histories["p-1"]["outputs"]["14"] = {"text": ["X:1\nok", None, 42, {"bad": "shape"}]}
+        job_id = comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        assert job["result"]["texts"] == [{"nodeId": "14", "text": "X:1\nok"}]
 
     def test_timeout_s_payload_overrides_module_default(self, engine, monkeypatch):
         """payload.timeoutS 生效:0.3s 压过模块默认 30s → 快速超时+interrupt;

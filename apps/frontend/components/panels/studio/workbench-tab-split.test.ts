@@ -97,6 +97,13 @@ describe("WorkbenchTab split boundaries", () => {
       "data-bgm-lyrics-input",
       "data-bgm-generate-run",
       "data-bgm-generate-progress",
+      // 批量抽卡(09-20):张数档位/串行进度/结果点选绑定
+      "data-bgm-batch-count-select",
+      "data-bgm-batch-run",
+      "data-bgm-batch-progress",
+      "data-bgm-batch-results",
+      "data-bgm-batch-candidate",
+      "data-bgm-batch-pick",
     ]) {
       expect(tabSource).toContain(hook);
     }
@@ -104,6 +111,13 @@ describe("WorkbenchTab split boundaries", () => {
     expect(tabSource).toContain("pollTimeoutMs: 1_230_000");
     expect(tabSource).toContain("persistComfyAudio(");
     expect(tabSource).toContain("result.audios?.[0]");
+    // 批量抽卡复用单发机制:同一编排器/绑定链/共用 busy(与单发互斥)
+    expect(tabSource).toContain("generateBgmBatch(");
+    expect(tabSource).toContain("execute: runComfyExecute");
+    expect(tabSource).toContain("persistAudio: persistComfyAudio");
+    expect(tabSource).toContain('bindSharedAudioFromPath("bgm", candidate.filePath)');
+    expect(tabSource).toMatch(/data-bgm-generate-run[^>]*disabled=\{bgmGenerating \|\| chapterAudioBusy\}/);
+    expect(tabSource).toMatch(/data-bgm-batch-run[^>]*disabled=\{bgmGenerating \|\| chapterAudioBusy\}/);
   });
 
   it("guards chapter-manifest writes against the long-task stale-closure race (09-20)", () => {

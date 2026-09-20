@@ -135,6 +135,11 @@ export interface ComfyExecuteJobReply {
       filename?: string;
       b64: string;
     }>;
+    /** PreviewAny 类节点 ui 文本(09-20 YuE2 出谱流接线;纯 JSON 内联,无 b64) */
+    texts?: Array<{
+      nodeId?: string;
+      text: string;
+    }>;
   } | null;
 }
 
