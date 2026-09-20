@@ -360,6 +360,6 @@ def test_width_height_override_and_formula():
     """WIDTH/HEIGHT 两出(09-20 三视图 A 案转正):override 直出先例 1536×512;
     无 override 型走公式,与 [61] 逐字节一致(场景 16:9·4.2→2800×1576)。"""
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("三视图")
-    assert (w, h) == (1536, 512), (w, h)
+    assert (w, h) == (3072, 1024), (w, h)  # 09-20 B案:行业标准高度1024
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("场景")
     assert (w, h) == (2800, 1576), (w, h)
