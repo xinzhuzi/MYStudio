@@ -6,7 +6,7 @@
 做法:卡头部(正向/七段公式/场景模板/纪律六条/负向说明)人工 curated 段
 逐字保留;自「## LoRA 栈」起整段重生成——
   · LoRA 栈节:机制说明(沿用)+按型点亮改为指向矩阵;
-  · 参数速查节:步数档改 v3 口径(速4=turbo 参考图档/质12=关turbo槽+cfg5,09-20 用户裁定:加速件效果不理想,正式图必走质档);
+  · 参数速查节:步数档(09-20 裁定:加速件启停=用户操控杆,预设仅初始值;效果不理想定谳在档;质档做法备查=关turbo槽+12步+cfg5);
   · 九型×配方矩阵节:脚本自 daojie_bases.json 单源生成
     (型/画幅·像素/LoRA 组 件×权重/步数档/主路/辅路·后处理)。
 
@@ -84,7 +84,7 @@ def build_matrix(bases: list, slots: list) -> tuple[str, dict]:
             mp_cell = f"{aspect}·{mp:g}MP" + ("(1024²)" if mp == 1.0 else "")
         steps = e["steps_hint"]
         # 09-20 裁定:速档=turbo 参考图档;质档=关 turbo 槽+12 步+cfg5(负向复活)
-        steps_cell = f"速{steps['fast']}(turbo·参考图)/质{steps['quality']}(关turbo+cfg5)"
+        steps_cell = f"{steps['fast']}步/{steps['quality']}步;[90]turbo开关=你操控(质档=关turbo+12步+cfg5)"
         routes = e.get("i2i_routes") or []
         route_cell = ";".join(
             f"{r['name']}→{r['entry']}" + (f"·dn{fmt_w(r['denoise'])}" if "denoise" in r else "")
