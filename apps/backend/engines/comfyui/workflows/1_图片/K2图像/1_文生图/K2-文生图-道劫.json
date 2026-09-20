@@ -1062,7 +1062,7 @@
     },
     {
       "id": 90,
-      "type": "02edb354-4a41-49b1-8da6-d1d866bac7b6",
+      "type": "1f571b5d-fde6-4496-8a7d-50e41caed6d7",
       "pos": [
         6480,
         280
@@ -1104,9 +1104,9 @@
           "slot_index": 1
         }
       ],
-      "title": "[90] LoRA栈·九型驱动(双击=九行实链·每件自带说明)",
+      "title": "[90] LoRA栈·九型驱动(双击=九行实链)",
       "properties": {
-        "subgraph": "02edb354-4a41-49b1-8da6-d1d866bac7b6"
+        "subgraph": "1f571b5d-fde6-4496-8a7d-50e41caed6d7"
       },
       "widgets_values": [
         "跟随底座型",
@@ -1819,8 +1819,8 @@
         "extra": {}
       },
       {
-        "id": "02edb354-4a41-49b1-8da6-d1d866bac7b6",
-        "name": "LoRA栈·九型驱动(九行实链·每件自带说明)",
+        "id": "1f571b5d-fde6-4496-8a7d-50e41caed6d7",
+        "name": "LoRA栈·九型驱动",
         "version": "0.35.0",
         "revision": 1,
         "config": {
@@ -1830,15 +1830,114 @@
         "extra": {},
         "groups": [
           {
-            "title": "九型×LoRA 实链(视觉参考·执行走[1]MyDaojieLoraStack)",
+            "title": "人物",
             "bounding": [
-              -100,
-              40,
-              2600,
-              2100
+              50,
+              25,
+              1840,
+              140
             ],
             "color": "#335533",
-            "font_size": 20
+            "font_size": 18
+          },
+          {
+            "title": "场景",
+            "bounding": [
+              50,
+              185,
+              1280,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "道具",
+            "bounding": [
+              50,
+              345,
+              1280,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "美宣",
+            "bounding": [
+              50,
+              505,
+              1560,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "三视图",
+            "bounding": [
+              50,
+              665,
+              1560,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "高清人脸",
+            "bounding": [
+              50,
+              825,
+              1840,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "分镜剧情图",
+            "bounding": [
+              50,
+              985,
+              1840,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "表情差分",
+            "bounding": [
+              50,
+              1145,
+              1560,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "概念气氛图",
+            "bounding": [
+              50,
+              1305,
+              1280,
+              140
+            ],
+            "color": "#335533",
+            "font_size": 18
+          },
+          {
+            "title": "九型×LoRA 实链(视觉参考·mode=4·手拧实验切mode=0)",
+            "bounding": [
+              40,
+              10,
+              1860,
+              1500
+            ],
+            "color": "#335533",
+            "font_size": 22
           }
         ],
         "inputNode": {
@@ -1853,7 +1952,7 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            2600,
+            1920,
             40,
             128,
             88
@@ -1936,12 +2035,12 @@
             "id": 1,
             "type": "MyDaojieLoraStack",
             "pos": [
-              40,
-              2100
+              770,
+              1560
             ],
             "size": [
-              320,
-              400
+              400,
+              500
             ],
             "flags": {},
             "order": 0,
@@ -1972,7 +2071,7 @@
                 "slot_index": 1
               }
             ],
-            "title": "[执行] MyDaojieLoraStack·自动跟随[80]选型",
+            "title": "▶ 执行·MyDaojieLoraStack(自动跟随[80]选型)",
             "properties": {
               "Node name for S&R": "MyDaojieLoraStack"
             },
@@ -2006,40 +2105,20 @@
               1.0,
               true,
               1.0
-            ]
+            ],
+            "color": "#432",
+            "bgcolor": "#653"
           },
           {
             "id": 101,
-            "type": "MarkdownNote",
-            "pos": [
-              -90,
-              60
-            ],
-            "size": [
-              120,
-              60
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "title": "",
-            "properties": {},
-            "widgets_values": [
-              "### 人物\n3:4 · 4.2MP"
-            ],
-            "color": "#335533",
-            "bgcolor": "#223322"
-          },
-          {
-            "id": 102,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              60
+              200,
+              40
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 1,
@@ -2062,23 +2141,25 @@
             "title": "加速·4步蒸馏 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
               1.0
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 103,
+            "id": 102,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              60
+              480,
+              40
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -2101,23 +2182,25 @@
             "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.01
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 104,
+            "id": 103,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              60
+              760,
+              40
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 3,
@@ -2140,23 +2223,25 @@
             "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
               "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
               1.0
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 105,
+            "id": 104,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              60
+              1040,
+              40
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 4,
@@ -2179,23 +2264,25 @@
             "title": "亚洲面孔·AsianMix ×0.4",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
+              "解说": "人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
             },
             "widgets_values": [
               "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
               0.4
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 106,
+            "id": 105,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              760,
-              60
+              1320,
+              40
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 5,
@@ -2218,23 +2305,25 @@
             "title": "鎏金·水墨武侠漆艺 ×0.3",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵"
+              "解说": "人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type "
             },
             "widgets_values": [
               "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
               0.3
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 107,
+            "id": 106,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              940,
-              60
+              1600,
+              40
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 6,
@@ -2257,23 +2346,25 @@
             "title": "画风·金雾仙侠 ×0.8",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●"
+              "解说": "画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●?」同 0.6;其余型关;人物=叠加非互"
             },
             "widgets_values": [
               "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
               0.8
-            ]
+            ],
+            "color": "#323",
+            "bgcolor": "#535"
           },
           {
-            "id": 108,
+            "id": 107,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              280
+              60,
+              40
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -2281,21 +2372,21 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 场景\n16:9 · 4.2MP"
+              "### 人物\n**3:4**\n4.2MP"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
           },
           {
-            "id": 109,
+            "id": 108,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              280
+              200,
+              200
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 1,
@@ -2318,23 +2409,25 @@
             "title": "加速·4步蒸馏 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
               1.0
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 110,
+            "id": 109,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              280
+              480,
+              200
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -2357,23 +2450,25 @@
             "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.01
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 111,
+            "id": 110,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              280
+              760,
+              200
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 3,
@@ -2396,23 +2491,25 @@
             "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
               "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
               1.0
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 112,
+            "id": 111,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              280
+              1040,
+              200
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 4,
@@ -2435,23 +2532,25 @@
             "title": "画风·金雾仙侠 ×0.6",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●"
+              "解说": "画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●?」同 0.6;其余型关;人物=叠加非互"
             },
             "widgets_values": [
               "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
               0.6
-            ]
+            ],
+            "color": "#323",
+            "bgcolor": "#535"
           },
           {
-            "id": 113,
+            "id": 112,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              500
+              60,
+              200
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -2459,21 +2558,21 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 道具\n1:1 · 1.0MP"
+              "### 场景\n**16:9**\n4.2MP"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
           },
           {
-            "id": 114,
+            "id": 113,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              500
+              200,
+              360
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 1,
@@ -2496,23 +2595,25 @@
             "title": "加速·4步蒸馏 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
               1.0
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 115,
+            "id": 114,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              500
+              480,
+              360
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -2535,23 +2636,25 @@
             "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.01
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 116,
+            "id": 115,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              500
+              760,
+              360
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 3,
@@ -2574,23 +2677,25 @@
             "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
               "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
               1.0
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 117,
+            "id": 116,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              500
+              1040,
+              360
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 4,
@@ -2613,23 +2718,25 @@
             "title": "鎏金·水墨武侠漆艺 ×0.3",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵"
+              "解说": "人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type "
             },
             "widgets_values": [
               "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
               0.3
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 118,
+            "id": 117,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              720
+              60,
+              360
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -2637,21 +2744,21 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 美宣\n21:9 · 4.2MP"
+              "### 道具\n**1:1**\n1.0MP"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
           },
           {
-            "id": 119,
+            "id": 118,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              720
+              200,
+              520
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 1,
@@ -2674,23 +2781,25 @@
             "title": "加速·4步蒸馏 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
               1.0
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 120,
+            "id": 119,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              720
+              480,
+              520
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -2713,23 +2822,25 @@
             "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.01
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 121,
+            "id": 120,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              720
+              760,
+              520
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 3,
@@ -2752,23 +2863,25 @@
             "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
               "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
               1.0
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 122,
+            "id": 121,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              720
+              1040,
+              520
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 4,
@@ -2791,23 +2904,25 @@
             "title": "亚洲面孔·AsianMix ×0.4",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
+              "解说": "人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
             },
             "widgets_values": [
               "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
               0.4
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 123,
+            "id": 122,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              760,
-              720
+              1320,
+              520
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 5,
@@ -2830,23 +2945,25 @@
             "title": "鎏金·水墨武侠漆艺 ×0.3",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵"
+              "解说": "人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type "
             },
             "widgets_values": [
               "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
               0.3
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 124,
+            "id": 123,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              940
+              60,
+              520
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -2854,21 +2971,21 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 三视图\n21:9 · 3072×1024"
+              "### 美宣\n**21:9**\n4.2MP"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
           },
           {
-            "id": 125,
+            "id": 124,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              940
+              200,
+              680
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 1,
@@ -2891,23 +3008,25 @@
             "title": "加速·4步蒸馏 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
               1.0
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 126,
+            "id": 125,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              940
+              480,
+              680
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -2930,26 +3049,69 @@
             "title": "服从度·ProjectorScale ×0.1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.1
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
+          },
+          {
+            "id": 126,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              760,
+              680
+            ],
+            "size": [
+              240,
+              110
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 4,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [],
+                "slot_index": 0
+              }
+            ],
+            "title": "细节·细节滑杆 ×1",
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
+            },
+            "widgets_values": [
+              "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+              1.0
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
             "id": 127,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              940
+              1040,
+              680
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
-            "order": 3,
+            "order": 4,
             "mode": 4,
             "inputs": [
               {
@@ -2966,65 +3128,28 @@
                 "slot_index": 0
               }
             ],
-            "title": "细节·细节滑杆 ×1",
+            "title": "亚洲面孔·AsianMix ×0.4",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
             },
             "widgets_values": [
-              "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
-              1.0
-            ]
+              "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+              0.4
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
             "id": 128,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              940
+              1320,
+              680
             ],
             "size": [
-              170,
-              80
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 4,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [],
-                "slot_index": 0
-              }
-            ],
-            "title": "亚洲面孔·AsianMix ×0.4",
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
-            },
-            "widgets_values": [
-              "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
-              0.4
-            ]
-          },
-          {
-            "id": 129,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              760,
-              940
-            ],
-            "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 5,
@@ -3047,23 +3172,25 @@
             "title": "鎏金·水墨武侠漆艺 ×0.3",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵"
+              "解说": "人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type "
             },
             "widgets_values": [
               "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
               0.3
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 130,
+            "id": 129,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              1160
+              60,
+              680
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -3071,24 +3198,65 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 高清人脸\n1:1 · 1.0MP"
+              "### 三视图\n**21:9**\n3072×1024"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
+          },
+          {
+            "id": 130,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              200,
+              840
+            ],
+            "size": [
+              240,
+              110
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 4,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [],
+                "slot_index": 0
+              }
+            ],
+            "title": "加速·4步蒸馏 ×1",
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
+            },
+            "widgets_values": [
+              "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
+              1.0
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
             "id": 131,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              1160
+              480,
+              840
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
-            "order": 1,
+            "order": 2,
             "mode": 4,
             "inputs": [
               {
@@ -3105,29 +3273,31 @@
                 "slot_index": 0
               }
             ],
-            "title": "加速·4步蒸馏 ×1",
+            "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
-              "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
-              1.0
-            ]
+              "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
+              0.01
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
             "id": 132,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              1160
+              760,
+              840
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
-            "order": 2,
+            "order": 3,
             "mode": 4,
             "inputs": [
               {
@@ -3144,29 +3314,31 @@
                 "slot_index": 0
               }
             ],
-            "title": "服从度·ProjectorScale ×0.01",
+            "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
-              "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
-              0.01
-            ]
+              "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+              1.0
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
             "id": 133,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              1160
+              1040,
+              840
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
-            "order": 3,
+            "order": 4,
             "mode": 4,
             "inputs": [
               {
@@ -3183,29 +3355,31 @@
                 "slot_index": 0
               }
             ],
-            "title": "细节·细节滑杆 ×1",
+            "title": "亚洲面孔·AsianMix ×0.4",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
             },
             "widgets_values": [
-              "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
-              1.0
-            ]
+              "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+              0.4
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
             "id": 134,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              1160
+              1320,
+              840
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
-            "order": 4,
+            "order": 5,
             "mode": 4,
             "inputs": [
               {
@@ -3222,65 +3396,28 @@
                 "slot_index": 0
               }
             ],
-            "title": "亚洲面孔·AsianMix ×0.4",
+            "title": "鎏金·水墨武侠漆艺 ×0.3",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
+              "解说": "人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type "
             },
             "widgets_values": [
-              "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
-              0.4
-            ]
+              "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+              0.3
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
             "id": 135,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              760,
-              1160
+              1600,
+              840
             ],
             "size": [
-              170,
-              80
-            ],
-            "flags": {},
-            "order": 5,
-            "mode": 4,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [],
-                "slot_index": 0
-              }
-            ],
-            "title": "鎏金·水墨武侠漆艺 ×0.3",
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵"
-            },
-            "widgets_values": [
-              "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
-              0.3
-            ]
-          },
-          {
-            "id": 136,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              940,
-              1160
-            ],
-            "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 6,
@@ -3303,23 +3440,25 @@
             "title": "画风·金雾仙侠 ×0.8",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●"
+              "解说": "画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●?」同 0.6;其余型关;人物=叠加非互"
             },
             "widgets_values": [
               "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
               0.8
-            ]
+            ],
+            "color": "#323",
+            "bgcolor": "#535"
           },
           {
-            "id": 137,
+            "id": 136,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              1380
+              60,
+              840
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -3327,60 +3466,62 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 分镜剧情图\n16:9 · 4.2MP"
+              "### 高清人脸\n**1:1**\n1.0MP"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
+          },
+          {
+            "id": 137,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              200,
+              1000
+            ],
+            "size": [
+              240,
+              110
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 4,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [],
+                "slot_index": 0
+              }
+            ],
+            "title": "加速·4步蒸馏 ×1",
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
+            },
+            "widgets_values": [
+              "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
+              1.0
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
             "id": 138,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              1380
+              480,
+              1000
             ],
             "size": [
-              170,
-              80
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 4,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [],
-                "slot_index": 0
-              }
-            ],
-            "title": "加速·4步蒸馏 ×1",
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
-            },
-            "widgets_values": [
-              "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
-              1.0
-            ]
-          },
-          {
-            "id": 139,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              220,
-              1380
-            ],
-            "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -3403,23 +3544,25 @@
             "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.01
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 140,
+            "id": 139,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              1380
+              760,
+              1000
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 3,
@@ -3442,23 +3585,25 @@
             "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
               "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
               1.0
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 141,
+            "id": 140,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              1380
+              1040,
+              1000
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 4,
@@ -3481,23 +3626,25 @@
             "title": "亚洲面孔·AsianMix ×0.4",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
+              "解说": "人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
             },
             "widgets_values": [
               "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
               0.4
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 142,
+            "id": 141,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              760,
-              1380
+              1320,
+              1000
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 5,
@@ -3520,23 +3667,25 @@
             "title": "鎏金·水墨武侠漆艺 ×0.3",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵"
+              "解说": "人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type "
             },
             "widgets_values": [
               "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
               0.3
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 143,
+            "id": 142,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              940,
-              1380
+              1600,
+              1000
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 6,
@@ -3559,23 +3708,25 @@
             "title": "画风·金雾仙侠 ×0.8",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●"
+              "解说": "画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●?」同 0.6;其余型关;人物=叠加非互"
             },
             "widgets_values": [
               "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
               0.8
-            ]
+            ],
+            "color": "#323",
+            "bgcolor": "#535"
           },
           {
-            "id": 144,
+            "id": 143,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              1600
+              60,
+              1000
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -3583,21 +3734,21 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 表情差分\n1:1 · 4.2MP"
+              "### 分镜剧情图\n**16:9**\n4.2MP"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
           },
           {
-            "id": 145,
+            "id": 144,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              1600
+              200,
+              1160
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 1,
@@ -3620,23 +3771,25 @@
             "title": "加速·4步蒸馏 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
               1.0
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 146,
+            "id": 145,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              1600
+              480,
+              1160
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -3659,23 +3812,25 @@
             "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.01
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 147,
+            "id": 146,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              1600
+              760,
+              1160
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 3,
@@ -3698,23 +3853,25 @@
             "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
               "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
               1.0
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 148,
+            "id": 147,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              1600
+              1040,
+              1160
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 4,
@@ -3737,23 +3894,25 @@
             "title": "亚洲面孔·AsianMix ×0.4",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
+              "解说": "人物三件 | 人物系×0.4(面孔·不占画风名额);场景/概念(空镜无面孔)与道具(静物)关——by-type 先例同值"
             },
             "widgets_values": [
               "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
               0.4
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 149,
+            "id": 148,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              760,
-              1600
+              1320,
+              1160
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 5,
@@ -3776,23 +3935,25 @@
             "title": "鎏金·水墨武侠漆艺 ×0.3",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵"
+              "解说": "人物三件 | 人物系×0.3;场景免鎏金(09-19 裁定)、概念同场景关;道具矩阵「?」暂 0.3(底座自带旧金点睛);高清人脸矩阵「?」暂 0.3 对齐 by-type "
             },
             "widgets_values": [
               "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
               0.3
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 150,
+            "id": 149,
             "type": "MarkdownNote",
             "pos": [
-              -90,
-              1820
+              60,
+              1160
             ],
             "size": [
-              120,
-              60
+              130,
+              110
             ],
             "flags": {},
             "order": 0,
@@ -3800,21 +3961,21 @@
             "title": "",
             "properties": {},
             "widgets_values": [
-              "### 概念气氛图\n16:9 · 4.2MP"
+              "### 表情差分\n**1:1**\n4.2MP"
             ],
-            "color": "#335533",
-            "bgcolor": "#223322"
+            "color": "#222",
+            "bgcolor": "#333"
           },
           {
-            "id": 151,
+            "id": 150,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              40,
-              1820
+              200,
+              1320
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 1,
@@ -3837,23 +3998,25 @@
             "title": "加速·4步蒸馏 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本"
+              "解说": "功能件 | 全局功能件;开关=用户操控杆(09-20 裁定:启用/关闭由用户手动掌控,预设仅初始值,不固化启停);质档做法备查:关本槽+12步+cfg5(负向复活)"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
               1.0
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 152,
+            "id": 151,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              220,
-              1820
+              480,
+              1320
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 2,
@@ -3876,23 +4039,25 @@
             "title": "服从度·ProjectorScale ×0.01",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件["
+              "解说": "功能件 | 全局功能件恒挂×0.01(权重口径特殊:0.01=+1×特殊,勿按常规拉;09-19 A/B 定谳);栈位2=现链次件[81];09-20 裁定17执行:剂量扫"
             },
             "widgets_values": [
               "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
               0.01
-            ]
+            ],
+            "color": "#223",
+            "bgcolor": "#335"
           },
           {
-            "id": 153,
+            "id": 152,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              1820
+              760,
+              1320
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 3,
@@ -3915,23 +4080,25 @@
             "title": "细节·细节滑杆 ×1",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现"
+              "解说": "人物三件 | 九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras "
             },
             "widgets_values": [
               "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
               1.0
-            ]
+            ],
+            "color": "#333",
+            "bgcolor": "#555"
           },
           {
-            "id": 154,
+            "id": 153,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              580,
-              1820
+              1040,
+              1320
             ],
             "size": [
-              170,
-              80
+              240,
+              110
             ],
             "flags": {},
             "order": 4,
@@ -3954,12 +4121,36 @@
             "title": "画风·金雾仙侠 ×0.6",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
-              "解说": "分组:画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●"
+              "解说": "画风水墨 | 场景系×0.6(矩阵「0.6-0.8?」取下沿,by-type 先例同值;与鎏金在场景型=互换关系非叠加);概念气氛「●?」同 0.6;其余型关;人物=叠加非互"
             },
             "widgets_values": [
               "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
               0.6
-            ]
+            ],
+            "color": "#323",
+            "bgcolor": "#535"
+          },
+          {
+            "id": 154,
+            "type": "MarkdownNote",
+            "pos": [
+              60,
+              1320
+            ],
+            "size": [
+              130,
+              110
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "title": "",
+            "properties": {},
+            "widgets_values": [
+              "### 概念气氛图\n**16:9**\n4.2MP"
+            ],
+            "color": "#222",
+            "bgcolor": "#333"
           }
         ]
       }
