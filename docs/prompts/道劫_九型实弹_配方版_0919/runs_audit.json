@@ -174,21 +174,21 @@
         ]
       },
       "expected_applied_90": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
-      "prompt_id": "cf853f2e-6b76-4cb7-9741-61021b54cad9",
-      "wall_s": 156.3,
+      "prompt_id": "657080d2-2ede-4a4e-9084-9ae447415605",
+      "wall_s": 240.3,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
         "applied_90_actual": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
-      "bytes": 4317751,
-      "sha256": "39570d19483ef9b64ff646bd551d77cedfe2157823a169fdd4d7f811c4ef653c",
+      "bytes": 4225912,
+      "sha256": "3a197741f953f66d680114dd53e675e9aa3b3afb2c9897d80bc44cf381ea8d66",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/三视图.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/三视图.png",
-      "engine_image": "K2道劫文生图__00165_.png",
-      "final_positive_len": 285,
-      "pixel_sha256": "819ccec10d0699f755c66488a976c97ff3e375c702750e35c9e6fcc5d43000bc"
+      "engine_image": "K2道劫文生图__00166_.png",
+      "final_positive_len": 334,
+      "pixel_sha256": "bebe5ebc3403bbad5d4046930ef9d052f27ce49ac0632f1eeb574c4934445c75"
     },
     {
       "name": "高清人脸",
@@ -264,13 +264,13 @@
       "name": "表情差分",
       "ran": true,
       "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3",
-      "native": "3208×1376",
+      "native": "2096×2096",
       "key_inputs": {
         "seed": 42,
         "steps": 4,
         "cfg": 1,
-        "w": 3208,
-        "h": 1376,
+        "w": 2096,
+        "h": 2096,
         "base": "表情差分",
         "preset": "跟随底座型",
         "90.base_link": [
@@ -279,21 +279,21 @@
         ]
       },
       "expected_applied_90": "跟随底座型·表情差分(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
-      "prompt_id": "c6bfda1f-796e-4c7d-983d-66d6a42379be",
-      "wall_s": 268.8,
+      "prompt_id": "dda19cb5-431b-4122-987a-e0722ee1bd7d",
+      "wall_s": 248.7,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
         "applied_90_actual": "跟随底座型·表情差分(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.01 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
-      "bytes": 6903645,
-      "sha256": "00fb545e13f9ad85affeca234887e132b7c31a77d1617d277237d4596659360f",
+      "bytes": 5867898,
+      "sha256": "18b113bd14991f77b872d3814f86ebdcb5099814a948aad667bdc704e3df4201",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/表情差分.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/表情差分.png",
-      "engine_image": "K2道劫文生图__00162_.png",
-      "final_positive_len": 252,
-      "pixel_sha256": "4dad45745756f94aba650d5972b6eec82f318039251f271fba13b6e2b4061c6a"
+      "engine_image": "K2道劫文生图__00167_.png",
+      "final_positive_len": 292,
+      "pixel_sha256": "ce488053f08888aae9da4a64d1c7403fe32a810ec07ef3d67c76a8cedc0e68ee"
     },
     {
       "name": "概念气氛图",
@@ -333,6 +333,6 @@
   ],
   "runs_total": 9,
   "ok_count": 9,
-  "total_wall_s": 3587.9,
-  "resume_note": "--only 续跑 ['三视图'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
+  "total_wall_s": 5756.5,
+  "resume_note": "--only 续跑 ['表情差分'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
 }
