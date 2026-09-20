@@ -1,6 +1,6 @@
 # MiniMax Music 3 — Agent Skills
 
-> ⚠️ **已退役存档(09-20)**:MiniMax Music 3 权重已物理隔离(隔离区可恢复);
+> ⚠️ **已退役存档(09-20)**:MiniMax Music 3 权重已彻底删除(09-20 用户裁定,SHA256 台账随删除核验在案);
 > 本目录技能为 Music3 格式口径(适配 YuE2 之前),仅供存档参考,不再用于现役产线。
 
 This directory contains agent skills that extend AI coding agents (Claude Code, Cursor, Codex, etc.) with MiniMax Music 3 capabilities. Skills are plain-text, self-contained instruction packs — no external APIs, no runtime dependencies, no model weights required.
