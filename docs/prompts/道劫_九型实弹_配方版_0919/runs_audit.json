@@ -161,7 +161,7 @@
       "recipe": "Krea2-细节滑杆DetailSlider_v1.safetensors×1 + Krea2-AsianMix_v4_TQD.safetensors×0.4 + Krea2-水墨武侠漆艺鎏金_v1.safetensors×0.3",
       "native": "3072×1024",
       "key_inputs": {
-        "seed": 42,
+        "seed": 43,
         "steps": 4,
         "cfg": 1,
         "w": 3072,
@@ -174,21 +174,21 @@
         ]
       },
       "expected_applied_90": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.1 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3",
-      "prompt_id": "245c4dd9-fe21-490e-a77b-7786ecbfb008",
-      "wall_s": 152.2,
+      "prompt_id": "0777e3e8-3868-4a47-b50d-d65e578d632b",
+      "wall_s": 172.4,
       "checks": {
         "final_head_ok": true,
         "subject_ok": true,
         "applied_90_ok": true,
         "applied_90_actual": "跟随底座型·三视图(5/14):Krea2-Turbo-4步蒸馏×1 + Krea2-服从度ProjectorScale×0.1 + Krea2-细节滑杆DetailSlider_v1×1 + Krea2-AsianMix_v4_TQD×0.4 + Krea2-水墨武侠漆艺鎏金_v1×0.3"
       },
-      "bytes": 3806234,
-      "sha256": "cfff3641ce6b68c35e1ea2d0c9f656dfeb436d513c5eaaf7a4c54a66234df0df",
+      "bytes": 3708490,
+      "sha256": "04924f419fb609c04dea69e58859b07546c5f52b7a9fc8eb7edc56c36b74d397",
       "output": "/Users/zhengbingjin/Downloads/daojie_nineform_recipe_0919/三视图.png",
       "ws_copy": "/Users/zhengbingjin/Project/Github/MYStudio/docs/prompts/道劫_九型实弹_配方版_0919/三视图.png",
-      "engine_image": "K2道劫文生图__00206_.png",
-      "final_positive_len": 489,
-      "pixel_sha256": "93a16c6af27e3ff1ea336f3e4bee86a85998840b9cb987a8b4614b09dfc02c8b"
+      "engine_image": "K2道劫文生图__00208_.png",
+      "final_positive_len": 495,
+      "pixel_sha256": "749407b683d439c5169cdd2795b6456a7ae67288522942ebf611452be4cd9172"
     },
     {
       "name": "高清人脸",
@@ -333,6 +333,6 @@
   ],
   "runs_total": 9,
   "ok_count": 9,
-  "total_wall_s": 6064.9,
+  "total_wall_s": 7959.3,
   "resume_note": "--only 续跑 ['三视图'](首轮引擎连接中断,重启后 17001 续跑,既往各跑记录原样保留)"
 }
