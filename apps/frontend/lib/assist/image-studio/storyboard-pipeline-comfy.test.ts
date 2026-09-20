@@ -117,6 +117,21 @@ describe("buildStageNodePayload(v2 全量内容,照老 flow 画布)", () => {
 
 // ── 09-14 通用化:零文件模板注入契约 ──────────────────────────────
 describe("buildStageInjections/applyStageInjections(通用模板注入)", () => {
+  it("captures the source project on every stage without mutating payloads", async () => {
+    const { buildStageInjections } = await import("./storyboard-pipeline-comfy");
+    const payload = { key: "script", lines: ["source"] };
+    const injections = buildStageInjections({
+      summaries: [{ key: "script", title: "Script" }, { key: "storyboardTable", title: "Shots" }],
+      payloads: [payload],
+      originProjectId: "project-a",
+      originEpisodeId: "chapter-a",
+    });
+    expect(injections.map((entry) => entry.properties.myOriginProjectId)).toEqual(["project-a", "project-a"]);
+    expect(injections[0].properties.myStage).toMatchObject({ originProjectId: "project-a" });
+    expect(injections.map((entry) => entry.properties.myOriginEpisodeId)).toEqual(["chapter-a", "chapter-a"]);
+    expect(injections[0].properties.myStage).toMatchObject({ originEpisodeId: "chapter-a" });
+    expect(payload).toEqual({ key: "script", lines: ["source"] });
+  });
   it("注入块按模板槽位 id 对齐;载荷进 properties.myStage,模板本体零改动", async () => {
     const { buildStageInjections, applyStageInjections, MAINLINE_TAB_NAME, STAGE_TEMPLATE_REPO_ID } =
       await import("./storyboard-pipeline-comfy");

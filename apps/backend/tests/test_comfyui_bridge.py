@@ -157,7 +157,8 @@ class BridgeContractTests(unittest.TestCase):
             with self.assertRaises(PipelineError) as ctx:
                 bridge.generate("x", "1:1", None, 8, None)
         self.assertEqual(ctx.exception.code, "bridge-timeout")
-        self.assertEqual(http_json.call_args_list[-1].args[:2], ("POST", "http://127.0.0.1:17598/interrupt"))
+        self.assertEqual(http_json.call_args_list[-1].args[:2], ("POST", "http://127.0.0.1:17598/api/jobs/p/cancel"))
+        self.assertFalse(any(call.args[1].endswith("/interrupt") for call in http_json.call_args_list))
 
     def test_find_cached_is_service_entry(self):
         with patch.object(bridge, "resolve_big_files", return_value={"cache_dir": "http://127.0.0.1:17598"}):

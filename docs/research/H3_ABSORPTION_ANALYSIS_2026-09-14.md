@@ -1,5 +1,7 @@
 # 漫影吸收分析:H3 漫剧生态 → 本项目(2026-09-14)
 
+> 历史研究/交接记录（2026-09-20 适用范围复核）：保留文件名和文内日期对应的判断、未决项与实验结果，未重新执行原实验。旧路径、外部项目能力和当时任务状态仅供追溯；现行操作查[工作流教程](../workflow/WORKFLOW_GUIDE.md)、[开发架构](../engineering/DEVELOPER_ARCHITECTURE.md)。
+
 > 前置阅读:[H3 漫剧产线生态调查](./H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md)(生态全貌与来源)。
 > 本文=把调查对照漫影**代码实况**后的吸收裁定建议;标【待拍板】的项需用户点头才动。
 > 实况核验(2026-09-14,rg 全库):分镜表行已含镜号/场景/描述/景别/运镜/时长+台词/声音/关联资产(`storyboard-pipeline-comfy.ts:326`);Remotion shot 已有 TTS/sfx 状态、音频绑定指纹、重复混音风险检测(`workflow-node-model-schema.ts:132`);视频生成路由为云端 provider(`lib/ai/video-generator-routing.ts`)。

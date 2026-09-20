@@ -4,7 +4,7 @@
 
 ## 视频工作流插件同步基线
 
-以下文档必须共同保持同一条链路：`StoryboardItem.ttsSpokenText -> 本地 TTS/WAV -> Remotion StoryboardShot -> MLX 原文强制对齐 -> video-use 完整 EDL/字幕时间/调色/preview/self-eval -> 用户确认 -> editable-edl（默认）或 clean flat-shot-mp4 -> HyperFrames overlay/no-op -> Remotion ChapterVideo -> final-output-qc`。每章 video-use 与 HyperFrames 默认启用，任何必需阶段失败进入 `blocked`。运行时复用 `<storageBasePath>/python`、应用级 Node 22 和一组共享 FFmpeg/ffprobe；禁止独立 video-use venv。主研究、工作流、部署、设置、Python/backend、架构、存储、打包、版本和索引任一发生变更，都要同步本清单列出的对应文档。
+以下文档必须共同保持同一条链路：`StoryboardItem.ttsSpokenText -> 本地 TTS/WAV -> Remotion StoryboardShot -> MLX 原文强制对齐 -> video-use 完整 EDL/字幕时间/调色/preview/self-eval -> 用户确认 -> editable-edl（默认）或 clean flat-shot-mp4 -> HyperFrames overlay/no-op -> Remotion ChapterVideo -> final-output-qc`。每章 video-use 与 HyperFrames 默认启用，任何必需阶段失败进入 `blocked`。运行时复用 `<storageBasePath>/python`、Electron 内置 Node（运行时要求 >=22） 和一组共享 FFmpeg/ffprobe；禁止独立 video-use venv。主研究、工作流、部署、设置、Python/backend、架构、存储、打包、版本和索引任一发生变更，都要同步本清单列出的对应文档。
 
 ## 路径与来源约定
 
@@ -31,8 +31,8 @@
 
 | 分类 | 目录/文件 | 维护目标 |
 |---|---|---|
-| 用户操作 | `panels/APP_SHELL_OPERATIONS.md`、`panels/NAVIGATION_GUIDE.md`、`panels/PROJECT_DASHBOARD_GUIDE.md`、`panels/PROJECT_DASHBOARD_OPERATIONS.md`、`workflow/OVERVIEW_PANEL_GUIDE.md`、`workflow/OVERVIEW_PANEL_OPERATIONS.md`、`workflow/WORKFLOW_GUIDE.md`、`workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md`、`workflow/WORKFLOW_STAGE_OPERATIONS.md`、`workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md`、`workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md`、`workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md`（已过时标注）、`workflow/SCRIPT_FORMAT_EXAMPLE.md`、`panels/SKILLS_EDITOR_GUIDE.md`、`panels/SKILLS_EDITOR_OPERATIONS.md`、`panels/LOCAL_MODELS_GUIDE.md`、`panels/ASSIST_WORKBENCH_GUIDE.md`、`panels/ASSIST_WORKBENCH_OPERATIONS.md`、`panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md`（三篇已过时标注，2026-09-13）、`panels/MEDIA_OUTPUTS_GUIDE.md`、`panels/MEDIA_OUTPUTS_OPERATIONS.md`、`panels/EXPORT_GUIDE.md`、`panels/EXPORT_OPERATIONS.md`、`assets/VISUAL_STYLE_MANAGEMENT.md`、`assets/VISUAL_MANUAL_EDITOR_OPERATIONS.md`、`director/LEGACY_SCRIPT_WORKSPACE_GUIDE.md`、`director/TRAILER_STORYBOARD_REUSE_REFERENCE.md`、`assets/CHARACTER_GENERATION_GUIDE.md`、`director/ADVANCED_DIRECTOR_TOOLS.md`、`director/DIRECTOR_SHOT_CARD_REFERENCE.md`、`director/DIRECTOR_VOICEOVER_REFERENCE.md`、`director/ANGLE_AND_QUAD_GRID_OPERATIONS.md`、`director/SCLASS_GROUP_VIDEO_OPERATIONS.md`、`assets/SCENE_MULTIVIEW_GUIDE.md`、`assets/ASSET_LIBRARY_GUIDE.md`、`assets/ASSET_IMPORT_AND_MANAGEMENT.md`、`assets/ASSET_DETAIL_OPERATIONS.md`、`assets/PROPS_LIBRARY_OPERATIONS.md`、`assets/ASSET_AUDIO_ASSIGNMENT.md`、`assets/ROLE_AUDIO_ASSIGNMENT_REFERENCE.md` | 用户能按界面完成任务 |
-| 设置与运行 | `settings/SETTINGS_PANEL_OPERATIONS.md`、`settings/COMFYUI_ENGINE_GUIDE.md`、`settings/PYTHON_TTS_SETUP.md`、`settings/TTS_CONFIG_GUIDE.md`、`panels/TTS_PANEL_OPERATIONS.md`、`settings/API_SETTINGS_GUIDE.md`、`settings/API_MANAGER_OPERATIONS.md`、`settings/API_PROVIDER_MODEL_TEST_REFERENCE.md`、`settings/ADVANCED_OPTIONS_GUIDE.md`、`settings/IMAGE_HOST_CONFIG.md`、`panels/APPEARANCE_THEMES.md`、`settings/APP_UPDATE_GUIDE.md`、`settings/DEVELOPMENT_MODE.md`、`settings/SUPPORT_GUIDE.md` | 设置项、按钮、路径和状态文案与当前界面一致 |
+| 用户操作 | `panels/APP_SHELL_OPERATIONS.md`、`panels/NAVIGATION_GUIDE.md`、`panels/PROJECT_DASHBOARD_GUIDE.md`、`panels/PROJECT_DASHBOARD_OPERATIONS.md`、`workflow/OVERVIEW_PANEL_GUIDE.md`、`workflow/OVERVIEW_PANEL_OPERATIONS.md`、`workflow/WORKFLOW_GUIDE.md`、`workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md`、`workflow/WORKFLOW_STAGE_OPERATIONS.md`、`workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md`、`workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md`、`workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md`（现行 15 列协议与视频工作台；旧两栏界面另标历史）、`workflow/SCRIPT_FORMAT_EXAMPLE.md`、`panels/SKILLS_EDITOR_GUIDE.md`、`panels/SKILLS_EDITOR_OPERATIONS.md`、`panels/SELF_MEDIA_GUIDE.md`、`panels/LOCAL_MODELS_GUIDE.md`、`panels/ASSIST_WORKBENCH_GUIDE.md`、`panels/ASSIST_WORKBENCH_OPERATIONS.md`、`panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md`（三篇已过时标注，2026-09-13）、`panels/MEDIA_OUTPUTS_GUIDE.md`、`panels/MEDIA_OUTPUTS_OPERATIONS.md`、`panels/EXPORT_GUIDE.md`、`panels/EXPORT_OPERATIONS.md`、`assets/VISUAL_STYLE_MANAGEMENT.md`、`assets/VISUAL_MANUAL_EDITOR_OPERATIONS.md`、`director/LEGACY_SCRIPT_WORKSPACE_GUIDE.md`、`director/TRAILER_STORYBOARD_REUSE_REFERENCE.md`、`assets/CHARACTER_GENERATION_GUIDE.md`、`director/ADVANCED_DIRECTOR_TOOLS.md`、`director/DIRECTOR_SHOT_CARD_REFERENCE.md`、`director/DIRECTOR_VOICEOVER_REFERENCE.md`、`director/ANGLE_AND_QUAD_GRID_OPERATIONS.md`、`director/SCLASS_GROUP_VIDEO_OPERATIONS.md`、`assets/SCENE_MULTIVIEW_GUIDE.md`、`assets/ASSET_LIBRARY_GUIDE.md`、`assets/ASSET_IMPORT_AND_MANAGEMENT.md`、`assets/ASSET_DETAIL_OPERATIONS.md`、`assets/PROPS_LIBRARY_OPERATIONS.md`、`assets/ASSET_AUDIO_ASSIGNMENT.md`、`assets/ROLE_AUDIO_ASSIGNMENT_REFERENCE.md` | 用户能按界面完成任务 |
+| 设置与运行 | `settings/SETTINGS_PANEL_OPERATIONS.md`、`settings/COMFYUI_ENGINE_GUIDE.md`、`settings/MCP_SERVICES_GUIDE.md`、`settings/IMAGE_SIZE_GUIDE.md`、`settings/PYTHON_TTS_SETUP.md`、`settings/TTS_CONFIG_GUIDE.md`、`panels/TTS_PANEL_OPERATIONS.md`、`settings/API_SETTINGS_GUIDE.md`、`settings/API_MANAGER_OPERATIONS.md`、`settings/API_PROVIDER_MODEL_TEST_REFERENCE.md`、`settings/ADVANCED_OPTIONS_GUIDE.md`、`settings/IMAGE_HOST_CONFIG.md`、`panels/APPEARANCE_THEMES.md`、`settings/APP_UPDATE_GUIDE.md`、`settings/DEVELOPMENT_MODE.md`、`settings/SUPPORT_GUIDE.md` | 设置项、按钮、路径和状态文案与当前界面一致 |
 | 工程与发布 | `engineering/DEVELOPER_ARCHITECTURE.md`、`engineering/PACKAGING_AND_SMOKE_TESTING.md`、`apps/backend/README.md`、`融合/部署打包与工程化手册.md` | 入口、脚本、打包产物、运行时目录和 smoke 流程可执行 |
 | ComfyUI 产线 | `comfyui-kb/参数速查.md`、`comfyui-kb/定制代码地图.md`、`.agents/skills/comfyui/machine.md`、`.claude/knowledge/node-graph-architecture.md` | 产线参数、定制代码生效路径与引擎档案跟引擎/节点现状一致 |
 | 存储与迁移 | `engineering/STORAGE_AND_DATA.md` | 维护当前数据契约；历史排查快照不在 `docs/` 中保留 |
@@ -59,8 +59,9 @@
 | 角色音色、资产音频、自动分配变化 | `assets/ASSET_LIBRARY_GUIDE.md`、`assets/ASSET_AUDIO_ASSIGNMENT.md`、`assets/ROLE_AUDIO_ASSIGNMENT_REFERENCE.md`、`panels/voicebox-voice-cloning-flow.md`、必要时更新历史排查说明 |
 | 资产添加、详情弹窗、多图、批量删除或道具目录变化 | `assets/ASSET_IMPORT_AND_MANAGEMENT.md`、`assets/ASSET_LIBRARY_GUIDE.md`、`assets/ASSET_DETAIL_OPERATIONS.md`、`assets/PROPS_LIBRARY_OPERATIONS.md`、`panels/MEDIA_OUTPUTS_GUIDE.md`、`engineering/TROUBLESHOOTING.md` |
 | 技能编辑或技能存储变化 | `panels/SKILLS_EDITOR_GUIDE.md`、`panels/SKILLS_EDITOR_OPERATIONS.md`、`engineering/STORAGE_AND_DATA.md`、`engineering/DEVELOPER_ARCHITECTURE.md`；同时回读 `apps/frontend/components/panels/skills/index.tsx`、`electron/preload/preload.ts`、`electron/ipc/assets/studio-content-ipc.ts`、`electron/storage/studio-skills-storage.ts` 与 `electron/storage/storage-manager.ts` 的相对路径、`studio-skill-*` 通道和 storage root 解析 |
-| 「本地模型」页（ComfyUI 画布/配音室/漫影生图）或 ComfyUI 引擎卡变化 | `panels/LOCAL_MODELS_GUIDE.md`、`settings/COMFYUI_ENGINE_GUIDE.md`、`engineering/DEVELOPER_ARCHITECTURE.md`（ComfyUI 引擎层节）、`engineering/TROUBLESHOOTING.md`（引擎排障节）、`comfyui-kb/参数速查.md`、`comfyui-kb/定制代码地图.md`、`settings/SETTINGS_PANEL_OPERATIONS.md`、`settings/TTS_CONFIG_GUIDE.md`；旧 `panels/ASSIST_WORKBENCH_*` 三篇已过时标注，不再随改 |
-| ComfyUI 引擎/manying_nodes/工作流模板/桥变化 | `comfyui-kb/定制代码地图.md`、`.claude/knowledge/node-graph-architecture.md`、`.agents/skills/comfyui/machine.md`、`engineering/DEVELOPER_ARCHITECTURE.md`、`engineering/PACKAGING_AND_SMOKE_TESTING.md`（引擎资源边界节） |
+| 「本地模型」页（ComfyUI 画布/配音室/漫影生图）或 ComfyUI 引擎卡变化 | `panels/SELF_MEDIA_GUIDE.md`、`panels/LOCAL_MODELS_GUIDE.md`、`settings/COMFYUI_ENGINE_GUIDE.md`、`engineering/DEVELOPER_ARCHITECTURE.md`（ComfyUI 引擎层节）、`engineering/TROUBLESHOOTING.md`（引擎排障节）、`comfyui-kb/参数速查.md`、`comfyui-kb/定制代码地图.md`、`settings/SETTINGS_PANEL_OPERATIONS.md`、`settings/TTS_CONFIG_GUIDE.md`；旧 `panels/ASSIST_WORKBENCH_*` 三篇已过时标注，不再随改 |
+| ComfyUI 引擎/my_nodes/工作流模板/桥变化 | `comfyui-kb/定制代码地图.md`、`.claude/knowledge/node-graph-architecture.md`、`.agents/skills/comfyui/machine.md`、`engineering/DEVELOPER_ARCHITECTURE.md`、`engineering/PACKAGING_AND_SMOKE_TESTING.md`（引擎资源边界节） |
+| 自媒体账号、发布能力或定时任务变化 | `panels/SELF_MEDIA_GUIDE.md`、`engineering/self-media-aitoearn-integration.md` |
 | 产物页上传、文件夹、预览、导出变化 | `panels/MEDIA_OUTPUTS_GUIDE.md`、`panels/MEDIA_OUTPUTS_OPERATIONS.md`、`engineering/STORAGE_AND_DATA.md`、`engineering/TROUBLESHOOTING.md` |
 | 导出页或成片导出变化 | `panels/EXPORT_GUIDE.md`、`panels/EXPORT_OPERATIONS.md`、`workflow/WORKFLOW_GUIDE.md`、`engineering/PACKAGING_AND_SMOKE_TESTING.md` |
 | 时间线 renderer、Remotion 版本/浏览器、媒体桥、bundle、播放器或 evidence 变化 | `settings/SETTINGS_PANEL_OPERATIONS.md`、`settings/API_SETTINGS_GUIDE.md`、`workflow/WORKFLOW_GUIDE.md`、`workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md`、`panels/EXPORT_GUIDE.md`、`engineering/DEVELOPER_ARCHITECTURE.md`、`engineering/PACKAGING_AND_SMOKE_TESTING.md`、`engineering/TROUBLESHOOTING.md`、`.trellis/spec/frontend/timeline-rendering.md`、`.trellis/tasks/archive/2026-07/07-25-mystudio-remotion-renderer-plugin/implement.md` |
@@ -88,7 +89,7 @@
 - `storage-manager.ts` 的 `getPythonRuntimeDir()`、storage IPC 的 `pythonRuntimeDir` 与 `tts-runtime.ts` 必须继续指向同一运行时；当前 macOS 盘面的展开路径为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`，这是 video-use 应复用的受管理 Python 来源，不得写成固定常量或改用 shell `python3`。
 - `tts-runtime.ts` 仍只从 `<storageBasePath>/python` 解析 Python；`apps/backend` 或打包后的 `Resources/backend` 只作为 sidecar 源码、工作目录和 `PYTHONPATH`。
 - `<storageBasePath>/comfyui/models/TTS`（09-10 模型统一家；旧版 `model/TTS`、`tts-models` 仅作迁移兼容）与 `<userData>/tts-runtime` 的职责、迁移和导入/导出范围已同步到 `engineering/STORAGE_AND_DATA.md`。
-- video-use 若接入，必须记录 `apps/backend/video_use`（源码）、`<storageBasePath>/python` 的独立共享 profile marker，以及项目 revision 输出三者边界；冲突时进入 `blocked` 并恢复已验证组合，不能创建第二环境、把依赖追加到 TTS requirements 或复用 TTS 的单一 marker。
+- video-use 已接入，维护时必须记录 `apps/backend/video_use`（源码）、`<storageBasePath>/python` 的独立共享 profile marker，以及项目 revision 输出三者边界；冲突时进入 `blocked` 并恢复已验证组合，不能创建第二环境、把依赖追加到 TTS requirements 或复用 TTS 的单一 marker。
 - Daojie 直跑是否仍只由显式 `MANYING_TTS_USE_HTTP=1` 触发、缺失 runtime 时是否指向设置页，以及默认视频链是否改变，均已按实际代码更新。
 - `apps/backend/python` 只能写为被忽略、被打包排除的遗留本地供应物；除非另有已批准的清理任务，不得写成正式 runtime、已删除或已移动。
 
@@ -99,44 +100,12 @@
 从仓库根目录执行：
 
 ```bash
-node <<'NODE'
-const fs = require('fs');
-const path = require('path');
-const root = process.cwd();
-const starts = ['README.md', 'README_EN.md', 'docs', 'apps/backend/README.md'];
-function walk(p, out = []) {
-  const full = path.join(root, p);
-  const st = fs.statSync(full);
-  if (st.isDirectory()) for (const name of fs.readdirSync(full)) walk(path.join(p, name), out);
-  else if (p.endsWith('.md')) out.push(p);
-  return out;
-}
-const files = starts.flatMap((p) => walk(p));
-const missing = [];
-const linkRe = /\[[^\]]*\]\(([^)]+)\)/g;
-for (const file of files) {
-  const text = fs.readFileSync(path.join(root, file), 'utf8');
-  let m;
-  while ((m = linkRe.exec(text))) {
-    let target = m[1].trim();
-    if (!target || target.startsWith('#')) continue;
-    if (/^[a-z]+:/i.test(target) || target.startsWith('mailto:')) continue;
-    target = target.split('#')[0];
-    if (!target) continue;
-    target = decodeURI(target.replace(/^<|>$/g, ''));
-    const resolved = path.resolve(path.dirname(path.join(root, file)), target);
-    if (!fs.existsSync(resolved)) missing.push(`${file} -> ${m[1]}`);
-  }
-}
-console.log(`checked ${files.length} markdown files`);
-if (missing.length) {
-  console.error('missing links:');
-  for (const item of missing) console.error(item);
-  process.exit(1);
-}
-console.log('no missing relative links');
-NODE
+python3 apps/build/scripts/docs_current_audit.py \
+  --output .trellis/tasks/09-20-docs-current-alignment/research/audit.json \
+  --check-links
 ```
+
+脚本使用仓库已安装的 markdown-it 解析 Markdown 与 HTML 本地链接，并输出逐篇清单、不可达文档、源码路径和 npm 命令待核项；不抓取外部链接，也不验证标题锚点。上例输出属于本轮任务，后续维护改为对应任务的 research 路径。历史路径、外部项目路径和示例命令须逐项裁定，不能一律视为坏链；旧正则会误认节点编号及含括号的图片路径，已不作为验收入口。
 
 过时关键词扫描：
 

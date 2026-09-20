@@ -1285,7 +1285,7 @@ def _safe_workflow_id(workflow_id: str) -> Path:
     if not candidate or ".." in candidate.split("/") or "\\" in candidate:
         raise EngineOpError("无效的工作流路径")
     path = (cm.workflows_dir() / candidate).resolve()
-    if not str(path).startswith(str(cm.workflows_dir().resolve())):
+    if not path.is_relative_to(cm.workflows_dir().resolve()):
         raise EngineOpError("无效的工作流路径")
     return path
 
@@ -1300,7 +1300,7 @@ def _safe_repo_workflow_id(workflow_id: str) -> Path:
         raise EngineOpError("无效的工作流路径")
     base = cm.repo_workflows_dir().resolve()
     path = (base / rel).resolve()
-    if not str(path).startswith(str(base)):
+    if not path.is_relative_to(base):
         raise EngineOpError("无效的工作流路径")
     return path
 
@@ -1444,10 +1444,10 @@ def rename_workflow(workflow_id: str, new_name: str) -> dict:
     path = _safe_workflow_id(workflow_id)
     if not path.is_file():
         raise EngineOpError(f"工作流不存在: {workflow_id}")
-    if not isinstance(new_name, str) or not new_name.strip() or "/" in new_name or ".." in new_name:
+    if not isinstance(new_name, str) or not new_name.strip() or "/" in new_name or "\\" in new_name or ".." in new_name:
         raise EngineOpError("新名称不能包含路径分隔符")
     new_path = path.with_name(f"{new_name.strip()}.json")
-    if new_path.exists():
+    if new_path.exists() or new_path.is_symlink():
         raise EngineOpError(f"已有同名工作流: {new_path.stem}")
     new_path.write_text(path.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
     path.unlink()

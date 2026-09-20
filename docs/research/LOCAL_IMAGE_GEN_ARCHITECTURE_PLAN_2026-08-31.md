@@ -1,5 +1,7 @@
 # 本地生图架构深读与路线计划（自研 sidecar vs ComfyUI）· 2026-08-31
 
+> 历史研究/交接记录（2026-09-20 适用范围复核）：保留文件名和文内日期对应的判断、未决项与实验结果，未重新执行原实验。旧路径、外部项目能力和当时任务状态仅供追溯；现行操作查[工作流教程](../workflow/WORKFLOW_GUIDE.md)、[开发架构](../engineering/DEVELOPER_ARCHITECTURE.md)。
+
 > 状态：**待用户审阅拍板**。本文只做深度探索与规划，未动任何代码。
 > 探索方法：后端核心逐文件精读（pipeline/model_cache/adapter/server/worker/inventory/engines）+ 前端集成面与本机 ComfyUI 实况各一路子代理实测 + 应用模型缓存实地核查。文中行号以 08-31 晚工作树为准。
 

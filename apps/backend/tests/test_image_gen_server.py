@@ -67,6 +67,70 @@ class ImageStatusRouteTests(unittest.TestCase):
 
 
 class ImageGenerateRouteTests(unittest.TestCase):
+    def test_bridge_actions_forward_explicit_origin(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        with patch("engines.comfyui.bridge_actions.submit", return_value={"id": 1}) as submit:
+            handler._comfy("POST", "/comfy/bridge/actions", {
+                "kind": "generate-images", "note": "test", "originProjectId": "project-a", "originEpisodeId": "episode-1",
+            }, {})
+        submit.assert_called_once_with("generate-images", "test", origin_project_id="project-a", origin_episode_id="episode-1")
+
+    def test_bridge_actions_missing_origin_is_rejected_by_real_submit(self) -> None:
+        from engines.comfyui import bridge_actions
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        bridge_actions.reset_for_tests()
+        handler._comfy("POST", "/comfy/bridge/actions", {"kind": "generate-images"}, {})
+        self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+        self.assertEqual(bridge_actions.list_since(0)["items"], [])
+
+    def test_bridge_actions_missing_episode_is_rejected_by_real_submit(self) -> None:
+        from engines.comfyui import bridge_actions
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        bridge_actions.reset_for_tests()
+        handler._comfy("POST", "/comfy/bridge/actions", {
+            "kind": "generate-images", "originProjectId": "project-a",
+        }, {})
+        self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+        self.assertEqual(bridge_actions.list_since(0)["items"], [])
+
+    def test_action_ack_route_preserves_restarted_and_foreign_actions(self) -> None:
+        from engines.comfyui import bridge_actions
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        bridge_actions.reset_for_tests()
+        bridge_actions.submit("generate-images", origin_project_id="project-a", origin_episode_id="episode-1")
+        old_queue = bridge_actions.list_since(0)["queueId"]
+        bridge_actions.reset_for_tests()
+        foreign = bridge_actions.submit("generate-images", origin_project_id="project-a", origin_episode_id="episode-1")
+        selected = bridge_actions.submit("generate-images", origin_project_id="project-b", origin_episode_id="episode-1")
+        queue = bridge_actions.list_since(0)["queueId"]
+        handler._comfy("POST", "/comfy/bridge/actions/ack", {"queueId": old_queue, "ids": [foreign["id"]]}, {})
+        self.assertEqual(handler.response[0], {"deleted": 0, "ackMode": "exact"})
+        handler._comfy("POST", "/comfy/bridge/actions/ack", {"queueId": queue, "ids": [selected["id"]]}, {})
+        self.assertEqual(handler.response[0], {"deleted": 1, "ackMode": "exact"})
+        self.assertEqual([item["id"] for item in bridge_actions.list_since(0)["items"]], [foreign["id"]])
+        bridge_actions.reset_for_tests()
+
+    def test_bridge_exact_ack_routes_forward_only_selected_ids(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        with patch("engines.comfyui.bridge_inbox.ack", return_value=1) as ack:
+            handler._comfy("POST", "/comfy/bridge/writebacks/ack", {"ids": [3], "upTo": 99}, {})
+        ack.assert_called_once_with(ids=[3])
+        self.assertEqual(handler.response, ({"deleted": 1, "ackMode": "exact"}, HTTPStatus.OK))
+        with patch("engines.comfyui.bridge_actions.ack", return_value=1) as ack:
+            handler._comfy("POST", "/comfy/bridge/actions/ack", {"queueId": "epoch", "ids": [3], "upTo": 99}, {})
+        ack.assert_called_once_with(queue_id="epoch", ids=[3])
+        self.assertEqual(handler.response, ({"deleted": 1, "ackMode": "exact"}, HTTPStatus.OK))
+
+    def test_bridge_ack_routes_reject_missing_or_invalid_ids_without_deletion(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        for queue in ("writebacks", "actions"):
+            module = "bridge_inbox" if queue == "writebacks" else "bridge_actions"
+            for payload in ({"upTo": 99}, {"ids": None}, {"ids": [True]}, {"ids": [1, "2"]}):
+                with self.subTest(queue=queue, payload=payload), patch(f"engines.comfyui.{module}.ack") as ack:
+                    handler._comfy("POST", f"/comfy/bridge/{queue}/ack", payload, {})
+                self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+                ack.assert_not_called()
+
     def test_bridge_accepts_video_writeback_shape(self) -> None:
         handler = _ComfyHandler.__new__(_ComfyHandler)
         payload = {

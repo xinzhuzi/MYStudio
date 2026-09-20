@@ -343,8 +343,8 @@ export interface ComfyEngineClient {
   }): Promise<ComfyEngineAckReply>;
   /** bridge 回写收件箱(09-09 swap 阶段1):my_generated 落 sidecar 的成图项。 */
   getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null>;
-  /** 消费确认:删除 ≤upTo 的收件项(落账成功后调用)。 */
-  ackBridgeWritebacks(upTo: number): Promise<number | null>;
+  /** 仅确认已落账的精确 ids；缺 ids 或旧 sidecar 不执行累积删除。 */
+  ackBridgeWritebacks(upTo: number, ids?: number[]): Promise<number | null>;
   /** 自研节点包手动同步(装/更新链自动;引擎运行中返回 restartRequired)。 */
   syncMyNodes(): Promise<ComfyMySyncReply | null>;
   /** 模型库清单(GET /comfy/engine/models;侧车缺席返回 null)。 */
@@ -360,11 +360,19 @@ export interface ComfyEngineClient {
     shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
     currentEpisodeId?: string,
     queue?: Array<{ index: number; status: string; progress: number }>,
+    originProjectId?: string,
   ): Promise<boolean>;
   /** 制作动作通道(09-11):宿主轮询引擎侧栏提交的批量动作,执行后 ack。
    *  09-12 B1 续:note=付费生成的补充要求(老画布 userInstruction 语义)。 */
-  getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string; note?: string }> } | null>;
-  ackBridgeActions(upTo: number): Promise<number | null>;
+  getBridgeActions(cursor: number): Promise<ComfyBridgeActionsReply | null>;
+  ackBridgeActions(upTo: number, queueId?: string, ids?: number[]): Promise<number | null>;
+}
+
+/** Optional wire fields let consumers reject legacy replies without guessing ownership. */
+export interface ComfyBridgeActionsReply {
+  cursor: number;
+  queueId?: string;
+  items: Array<{ id: number; kind: string; note?: string; originProjectId?: string; originEpisodeId?: string }>;
 }
 
 /** bridge 回写收件项(引擎 my_generated → sidecar;渲染层消费)。 */

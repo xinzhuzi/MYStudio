@@ -35,6 +35,15 @@ function nodeWidgets(ui: Record<string, unknown>, id: number): unknown[] {
 }
 
 describe("buildShotH3Workflow", () => {
+  it("captures origin in the queued anchor without changing widget positions", () => {
+    for (const build of [buildShotH3Workflow, (input: Parameters<typeof buildShotH3Workflow>[0]) => buildShotH3RefWorkflow({ ...input, refs: [] })]) {
+      const result = build({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "章", originProjectId: "project-a" });
+      const anchor = (result.ui.nodes as Array<{ id: number; properties: Record<string, unknown> }>).find((node) => node.id === 100);
+      expect(anchor?.properties.myOriginProjectId).toBe("project-a");
+      expect(anchor?.properties.myOriginEpisodeId).toBe("chapter-001");
+      expect(nodeWidgets(result.ui, 100)).toHaveLength(4);
+    }
+  });
   it("injects prompt, snapped seconds, image names, prefix, and anchor data", () => {
     const result = buildShotH3Workflow({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜" });
     const nodes = result.ui.nodes as Array<Record<string, unknown>>;

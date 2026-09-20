@@ -121,6 +121,50 @@ describe("isElectronRenderer", () => {
   });
 });
 
+describe("bridge origin snapshot", () => {
+  it("sends a project origin even when there are no storyboards", async () => {
+    router.on("POST", "/comfy/bridge/storyboards", { updatedAt: 1 });
+    await createHttpComfyEngineClient().pushBridgeStoryboards([], undefined, [], "project-a");
+    expect(router.calls[0]?.body).toMatchObject({ shots: [], originProjectId: "project-a" });
+  });
+});
+
+describe("exact bridge acknowledgement", () => {
+  it("forwards only exact IDs and queue epoch, never a cumulative upTo", async () => {
+    router.on("POST", "/comfy/bridge/actions/ack", { deleted: 1, ackMode: "exact" });
+    router.on("POST", "/comfy/bridge/writebacks/ack", { deleted: 1, ackMode: "exact" });
+    const client = createHttpComfyEngineClient();
+    expect(await client.ackBridgeActions(9, "queue-a", [9])).toBe(1);
+    expect(await client.ackBridgeWritebacks(9, [9])).toBe(1);
+    expect(router.calls.map((call) => call.body)).toEqual([{ queueId: "queue-a", ids: [9] }, { ids: [9] }]);
+  });
+
+  it("fails closed against an old sidecar without exact acknowledgement support", async () => {
+    router.on("POST", "/comfy/bridge/actions/ack", { deleted: 0 });
+    router.on("POST", "/comfy/bridge/writebacks/ack", { deleted: 0 });
+    const client = createHttpComfyEngineClient();
+    expect(await client.ackBridgeActions(9, "queue-a", [9])).toBeNull();
+    expect(await client.ackBridgeWritebacks(9, [9])).toBeNull();
+    expect(router.calls.every((call) => !Object.hasOwn(call.body ?? {}, "upTo"))).toBe(true);
+  });
+
+  it("does not send unsafe legacy or invalid acknowledgement arguments", async () => {
+    const client = createHttpComfyEngineClient();
+    expect(await client.ackBridgeActions(9)).toBeNull();
+    expect(await client.ackBridgeActions(9, "queue-a")).toBeNull();
+    expect(await client.ackBridgeActions(9, "queue-a", [10])).toBeNull();
+    expect(await client.ackBridgeWritebacks(9)).toBeNull();
+    expect(await client.ackBridgeWritebacks(9, [10])).toBeNull();
+    expect(router.calls).toEqual([]);
+  });
+
+  it("keeps the queue epoch and immutable project origin in action listings", async () => {
+    const reply = { cursor: 0, queueId: "queue-a", items: [{ id: 1, kind: "generate-images", originProjectId: "project-a", originEpisodeId: "episode-1" }] };
+    router.on("GET", "/comfy/bridge/actions?cursor=0", reply);
+    expect(await createHttpComfyEngineClient().getBridgeActions(0)).toEqual(reply);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 引擎状态映射
 // ---------------------------------------------------------------------------

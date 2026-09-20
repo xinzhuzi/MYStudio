@@ -1,5 +1,7 @@
 # B5: TrackKey Runtime Resolution Implementation Summary
 
+> Historical implementation record; the original completion date is not recorded here. On 2026-09-20, this document was retained for migration history only. Old track/video-candidate ownership, file locations, test counts and typecheck claims are not current acceptance evidence. Current production uses StoryboardShot and ChapterVideo; see [the current pipeline](../workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md).
+
 ## Overview
 Replaced hardcoded trackKey names with runtime resolution via `ProductionTrack.episodeId → VideoCandidate.trackId` traversal. Created helper function `findTrackOwnership()` and updated all fixture builders to generate dynamic trackKeys.
 

@@ -20,6 +20,7 @@ import {
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
 import { ensureLocalImageSidecarRunning } from "@/lib/ai/image-generation-engine";
+import { useProjectStore } from "@/stores/project/project-store";
 import {
   LOCAL_IMAGE_API_KEY,
   LOCAL_IMAGE_BASE_URL,
@@ -81,9 +82,19 @@ export function LocalModelStudio() {
       toast.error("没有可选的主模型(漫影生图用 diffusion_models 目录里的权重)");
       return;
     }
+    const projectId = useProjectStore.getState().activeProjectId;
+    let projectChanged = false;
+    const unsubscribe = useProjectStore.subscribe((state, previous) => {
+      if (state.activeProjectId !== previous.activeProjectId) projectChanged = true;
+    });
+    const isProjectCurrent = () => !projectChanged && useProjectStore.getState().activeProjectId === projectId;
+    const assertProjectCurrent = () => {
+      if (!isProjectCurrent()) throw new Error("活动项目已切换,图片回写已暂停");
+    };
     setIsGenerating(true);
     try {
       await ensureLocalImageSidecarRunning();
+      assertProjectCurrent();
       const seed = seedText.trim() ? Number(seedText.trim()) : null;
       if (seed != null && (!Number.isFinite(seed) || seed < 0)) {
         toast.error("固定种子请填非负数字,留空则每次随机");
@@ -108,25 +119,36 @@ export function LocalModelStudio() {
           ...(isFast ? {} : { checkpoint }),
         }),
       });
+      assertProjectCurrent();
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
+        assertProjectCurrent();
         throw new Error(detail.slice(0, 300) || `生图失败(HTTP ${response.status})`);
       }
       const payload = (await response.json()) as { data?: Array<{ b64_json?: string }> };
+      assertProjectCurrent();
       const b64 = payload.data?.[0]?.b64_json;
       if (!b64) throw new Error("本地生图服务没有返回图片");
       const title = prompt.trim().slice(0, 24);
       const saved = await persistComfyImage(b64, title, {
+        projectId,
+        isProjectCurrent,
         source: template,
         prompt: prompt.trim(),
         negativePrompt: negative.trim() || null,
       });
+      assertProjectCurrent();
       const url = saved.url || `data:image/png;base64,${b64}`;
       setGallery((items) => [{ id: `${Date.now()}`, url, title }, ...items]);
-      toast.success("图片已生成并存入媒体库");
+      if (saved.persisted) {
+        toast.success("图片已生成并存入媒体库");
+      } else {
+        toast.warning("图片已生成,但保存失败,当前仅有内存预览,尚未存盘");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "生图失败,请稍后再试");
     } finally {
+      unsubscribe();
       setIsGenerating(false);
     }
   };

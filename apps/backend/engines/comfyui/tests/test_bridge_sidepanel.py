@@ -47,6 +47,14 @@ def test_snapshot_defaults_empty():
     assert snap == {"updatedAt": 0, "staleAfterMs": 900_000, "shots": [], "currentEpisodeId": "", "queue": []}
 
 
+def test_origin_project_survives_empty_shot_snapshot_and_clears_on_legacy_push():
+    result = bridge_sidepanel.update([], {"originProjectId": "project-a"})
+    assert result["originProjectId"] == "project-a"
+    assert bridge_sidepanel.snapshot()["originProjectId"] == "project-a"
+    bridge_sidepanel.update([])
+    assert bridge_sidepanel.snapshot().get("originProjectId", "") == ""
+
+
 def test_queue_snapshot_roundtrip_and_clean():
     """09-12 B2 队列实时快照:合法条目清洗入库回读;非法状态/越界进度剔除。"""
     bridge_sidepanel.reset_for_tests()

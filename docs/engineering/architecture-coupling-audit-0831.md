@@ -1,5 +1,7 @@
 # 架构耦合体检报告(2026-08-31)
 
+> 历史体检与实施快照（2026-08-31）：下列文件行数、在途状态、测试结果及机器故障描述仅对应当日，2026-09-20 未重新进行架构全审。当前代码入口查 [开发者架构](./DEVELOPER_ARCHITECTURE.md)，后续改动需重新进行影响分析与验证。
+
 > 体检工具:`apps/build/scripts/architecture_coupling_audit.py`(可反复运行,只读扫描)
 > 明细数据:`apps/build/scripts/arch-coupling-report.json`
 > 定性验证:GitNexus 图谱本次因 WAL 毒化不可用(MCP 连接断/CLI 卡回放),跨域引用清单由扫描脚本全量枚举,精确到每一条 import 语句,对文件搬移类重构而言比图谱更完备。

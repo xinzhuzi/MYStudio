@@ -22,7 +22,9 @@ import {
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
+import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { useProjectStore } from "@/stores/project/project-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import type { ImageWorkflowComfyWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
 
 const COMFY_SIDECAR_BASE_URL = "http://127.0.0.1:17595";
@@ -347,47 +349,86 @@ export async function comfyImageUrlToB64(url: string): Promise<string> {
 export async function persistComfyImage(
   b64: string,
   title: string,
-  options: { source?: string; prompt?: string; negativePrompt?: string | null } = {},
+  options: {
+    source?: string;
+    prompt?: string;
+    negativePrompt?: string | null;
+    projectId?: string | null;
+    bridgeItemId?: number;
+    isProjectCurrent?: () => boolean;
+  } = {},
 ): Promise<{ url: string | null; mediaId?: string; persisted: boolean }> {
-  const projectId = useProjectStore.getState().activeProjectId;
-  const now = new Date();
-  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const seed = title.slice(0, 24).replace(/[^\w\u4e00-\u9fff]+/g, "_").slice(0, 24) || "comfy";
-  const filename = `comfy_${seed}_${Date.now()}.png`;
-  let stableUrl: string | null = null;
-  if (projectId) {
-    const projectFiles = getProjectFilesBridge();
-    if (projectFiles?.saveImage) {
-      const saved = await projectFiles
-        .saveImage({
-          projectId,
-          relativePath: `media/ai-image/${month}/${filename}`,
-          source: `data:image/png;base64,${b64}`,
-        })
-        .catch(() => undefined);
-      if (saved?.success && saved.url) stableUrl = saved.url;
+  const projectId = options.projectId === undefined ? useProjectStore.getState().activeProjectId : options.projectId;
+  let projectChanged = false;
+  const unsubscribe = useProjectStore.subscribe((state, previous) => {
+    if (state.activeProjectId !== previous.activeProjectId) projectChanged = true;
+  });
+  const assertProjectCurrent = () => {
+    if (projectChanged || useProjectStore.getState().activeProjectId !== projectId
+      || options.isProjectCurrent?.() === false) {
+      throw new Error("活动项目已切换,图片回写已暂停");
     }
+  };
+  try {
+    assertProjectCurrent();
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const seed = title.slice(0, 24).replace(/[^\w\u4e00-\u9fff]+/g, "_").slice(0, 24) || "comfy";
+    const bridgeFilename = options.source === "comfy-bridge" && Number.isSafeInteger(options.bridgeItemId)
+      && (options.bridgeItemId ?? 0) > 0 ? `comfy_bridge_${options.bridgeItemId}.png` : undefined;
+    const filename = bridgeFilename ?? `comfy_${seed}_${Date.now()}.png`;
+    if (projectId && bridgeFilename) {
+      const existing = useMediaStore.getState().mediaFiles.find((media) => {
+        if (media.projectId !== projectId || media.type !== "image" || media.source !== "ai-image" || !media.url) return false;
+        const file = parseProjectFileUrl(media.url);
+        return file?.projectId === projectId && file.relativePath.startsWith("media/ai-image/")
+          && file.relativePath.endsWith(`/${bridgeFilename}`);
+      });
+      if (existing?.url) return { url: existing.url, mediaId: existing.id, persisted: true };
+    }
+    let stableUrl: string | null = null;
+    if (projectId) {
+      const projectFiles = getProjectFilesBridge();
+      if (projectFiles?.saveImage) {
+        const saved = await projectFiles
+          .saveImage({
+            projectId,
+            relativePath: `media/ai-image/${month}/${filename}`,
+            source: `data:image/png;base64,${b64}`,
+          })
+          .catch(() => undefined);
+        if (saved?.success && saved.url && parseProjectFileUrl(saved.url)?.projectId === projectId) {
+          stableUrl = saved.url;
+        }
+      }
+    }
+    assertProjectCurrent();
+    // Bridge items remain in the durable inbox on failure; repeated retries must
+    // not create a new memory-only media entry each time.
+    if (!stableUrl && options.source === "comfy-bridge") return { url: null, persisted: false };
+    const finalUrl = stableUrl ?? `data:image/png;base64,${b64}`;
+    const mediaId = saveToMediaLibrary(finalUrl, title, "ai-image");
+    if (projectId && stableUrl) {
+      void appendProjectLedger({
+        projectId,
+        relativePath: `media/ai-image/${ledgerMonthFolderOf(stableUrl)}/ledger.json`,
+        entry: {
+          ts: Date.now(),
+          prompt: options.prompt ?? title,
+          model: "comfy",
+          file: `${ledgerMonthFolderOf(stableUrl)}/${ledgerFilenameOf(stableUrl)}`,
+          negativePrompt: options.negativePrompt ?? null,
+          aspectRatio: "",
+          resolution: null,
+          references: [],
+          source: options.source ?? "comfy-node",
+        },
+      }).catch(() => undefined);
+    }
+    return { url: stableUrl, mediaId, persisted: stableUrl !== null };
+  } finally {
+    unsubscribe();
   }
-  const finalUrl = stableUrl ?? `data:image/png;base64,${b64}`;
-  const mediaId = saveToMediaLibrary(finalUrl, title, "ai-image");
-  if (projectId && stableUrl) {
-    void appendProjectLedger({
-      projectId,
-      relativePath: `media/ai-image/${ledgerMonthFolderOf(stableUrl)}/ledger.json`,
-      entry: {
-        ts: Date.now(),
-        prompt: options.prompt ?? title,
-        model: "comfy",
-        file: `${ledgerMonthFolderOf(stableUrl)}/${ledgerFilenameOf(stableUrl)}`,
-        negativePrompt: options.negativePrompt ?? null,
-        aspectRatio: "",
-        resolution: null,
-        references: [],
-        source: options.source ?? "comfy-node",
-      },
-    }).catch(() => undefined);
-  }
-  return { url: stableUrl, mediaId, persisted: stableUrl !== null };
 }
 
 /**
@@ -458,28 +499,45 @@ export async function runComfyWorkflowNode(
       `有 ${upstream.missingImageCount} 张上游图还没准备好(空参考图或未生成):先上传/生成,或断开连线再运行`,
     );
   }
-  const workflowText = await options.fetchWorkflowText(node.workflowId);
-  const plan = planComfyWorkflowExecution(workflowText, node, upstream);
-  if (!plan.ok) throw new Error(plan.error);
-  const images: ComfyExecuteImageInput[] = [];
-  for (const slot of plan.imageSlots) {
-    images.push({ key: slot.key, name: slot.name, b64: await comfyImageUrlToB64(slot.sourceUrl) });
-  }
-  const result = await runComfyExecute(
-    { graph: plan.graph, inputs: { strings: plan.strings, images } },
-    options.onProgress,
-  );
-  const outputs = result.images ?? [];
-  if (outputs.length === 0) {
-    throw new Error("工作流已完成但没有输出图片(缺 SaveImage 类输出节点?)");
-  }
-  const title = node.title || "ComfyUI 工作流";
-  const persisted = await persistComfyImage(outputs[0].b64, title);
-  return {
-    imageUrl: persisted.url ?? `data:image/png;base64,${outputs[0].b64}`,
-    mediaId: persisted.mediaId,
-    persisted: persisted.persisted,
-    imageCount: outputs.length,
-    promptId: result.promptId,
+  const projectId = useProjectStore.getState().activeProjectId;
+  let projectChanged = false;
+  const unsubscribe = useProjectStore.subscribe((state, previous) => {
+    if (state.activeProjectId !== previous.activeProjectId) projectChanged = true;
+  });
+  const isProjectCurrent = () => !projectChanged && useProjectStore.getState().activeProjectId === projectId;
+  const assertProjectCurrent = () => {
+    if (!isProjectCurrent()) throw new Error("活动项目已切换,工作流结果回写已暂停");
   };
+  try {
+    const workflowText = await options.fetchWorkflowText(node.workflowId);
+    assertProjectCurrent();
+    const plan = planComfyWorkflowExecution(workflowText, node, upstream);
+    if (!plan.ok) throw new Error(plan.error);
+    const images: ComfyExecuteImageInput[] = [];
+    for (const slot of plan.imageSlots) {
+      images.push({ key: slot.key, name: slot.name, b64: await comfyImageUrlToB64(slot.sourceUrl) });
+      assertProjectCurrent();
+    }
+    const result = await runComfyExecute(
+      { graph: plan.graph, inputs: { strings: plan.strings, images } },
+      options.onProgress,
+    );
+    assertProjectCurrent();
+    const outputs = result.images ?? [];
+    if (outputs.length === 0) {
+      throw new Error("工作流已完成但没有输出图片(缺 SaveImage 类输出节点?)");
+    }
+    const title = node.title || "ComfyUI 工作流";
+    const persisted = await persistComfyImage(outputs[0].b64, title, { projectId, isProjectCurrent });
+    assertProjectCurrent();
+    return {
+      imageUrl: persisted.url ?? `data:image/png;base64,${outputs[0].b64}`,
+      mediaId: persisted.mediaId,
+      persisted: persisted.persisted,
+      imageCount: outputs.length,
+      promptId: result.promptId,
+    };
+  } finally {
+    unsubscribe();
+  }
 }

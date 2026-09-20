@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import type { ComfyBridgeWritebackItem } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
@@ -21,7 +22,7 @@ import type { StoryboardItem } from "@/types/studio";
 
 export interface ComfyBridgeWritebackConsumerClient {
   getBridgeWritebacks(cursor: number): Promise<{ cursor: number; items: ComfyBridgeWritebackItem[] } | null>;
-  ackBridgeWritebacks(upTo: number): Promise<number | null>;
+  ackBridgeWritebacks(upTo: number, ids?: number[]): Promise<number | null>;
 }
 
 export interface ConsumeComfyBridgeWritebacksDeps {
@@ -44,7 +45,13 @@ export interface ConsumeComfyBridgeWritebacksDeps {
     url?: string;
     error?: string;
   }>;
-  persist: (b64: string, title: string, options: { source: string; prompt: string }) => Promise<{ url: string | null }>;
+  persist: (b64: string, title: string, options: {
+    source: string;
+    prompt: string;
+    projectId: string;
+    bridgeItemId: number;
+    isProjectCurrent: () => boolean;
+  }) => Promise<{ url: string | null }>;
   notify: (kind: "storyboard" | "media" | "memory" | "error", detail: string) => void;
 }
 
@@ -91,7 +98,7 @@ function defaultApplyToStoryboard(storyboardId: string, url: string, item: Comfy
 function defaultApplyVideoToStoryboard(
   storyboardId: string,
   url: string,
-  _item: ComfyBridgeWritebackItem,
+  item: ComfyBridgeWritebackItem,
   policy: string,
   h3DurationUs?: number,
 ): void {
@@ -111,7 +118,7 @@ function defaultApplyVideoToStoryboard(
     trackId: storyboard.trackId,
     provider: "h3-comfyui",
     filePath: url,
-    meta: { policy },
+    meta: { policy, bridgeItemId: item.id, originProjectId: item.meta?.originProjectId, storyboardId },
     state: "ready",
     createdAt: Date.now(),
   });
@@ -142,14 +149,43 @@ function assertVideoSubfolder(item: ComfyBridgeWritebackItem, storyboard: Storyb
   if (item.meta?.subfolder !== expected) throw new Error("视频回写产物路径不在白名单");
 }
 
-let cursor = 0;
+let pendingAck: number[] = [];
+const warnedRetainedItems = new Set<number>();
+let consuming = false;
 
 export function resetComfyBridgeCursorForTests(): void {
-  cursor = 0;
+  pendingAck = [];
+  warnedRetainedItems.clear();
+  consuming = false;
 }
 
 export async function consumeComfyBridgeWritebacks(
   deps: Partial<ConsumeComfyBridgeWritebacksDeps> = {},
+): Promise<{ processed: number; landed: number }> {
+  if (consuming) return { processed: 0, landed: 0 };
+  consuming = true;
+  try {
+    return await consumeComfyBridgeWritebacksOnce(deps);
+  } finally {
+    consuming = false;
+  }
+}
+
+async function retryBridgeAck(resolved: ConsumeComfyBridgeWritebacksDeps): Promise<boolean> {
+  if (pendingAck.length === 0) return true;
+  try {
+    const deleted = await resolved.client.ackBridgeWritebacks(Math.max(...pendingAck), [...pendingAck]);
+    if (deleted === null) throw new Error("回写确认失败,下轮重试");
+    pendingAck = []; // 0 also succeeds: the previous response may have been lost.
+    return true;
+  } catch (error) {
+    resolved.notify("error", error instanceof Error ? error.message : String(error));
+    return false;
+  }
+}
+
+async function consumeComfyBridgeWritebacksOnce(
+  deps: Partial<ConsumeComfyBridgeWritebacksDeps>,
 ): Promise<{ processed: number; landed: number }> {
   const resolved: ConsumeComfyBridgeWritebacksDeps = {
     client: deps.client ?? { getBridgeWritebacks: async () => null, ackBridgeWritebacks: async () => 0 },
@@ -188,67 +224,128 @@ export async function consumeComfyBridgeWritebacks(
         else toast.error(`ComfyUI 画布回写消费失败:${detail}`);
       }),
   };
-  const reply = await resolved.client.getBridgeWritebacks(cursor).catch(() => null);
-  if (!reply || reply.items.length === 0) return { processed: 0, landed: 0 };
-  let landed = 0;
-  let lastGood = cursor;
-  for (const item of reply.items) {
-    if (item.id <= cursor) continue; // 防御:服务端应已滤,双保险防重复落账
-    try {
-      if (item.videoB64) {
-        const storyboardId = parseShotTarget(item.shotTarget, resolved.storyboards());
-        if (!storyboardId) throw new Error(`找不到视频回写目标:${item.shotTarget ?? ""}`);
-        const storyboard = resolved.storyboards().find((entry) => entry.id === storyboardId);
-        if (!storyboard) throw new Error(`分镜不存在:${storyboardId}`);
-        const projectId = resolved.projectId();
-        if (!projectId) throw new Error("当前没有活动项目,无法落盘视频");
-        assertVideoSubfolder(item, storyboard);
-        const policy = videoPolicy(item);
-        const version = useStudioStore.getState().videoCandidates.filter(
-          (candidate) => candidate.provider === "h3-comfyui" && candidate.trackId === storyboard.trackId,
-        ).length + 1;
-        const timestamp = item.ts ?? Date.now();
-        const relativePath = [
-          "remotion",
-          "outputs",
-          "shots",
-          safePathSegment(storyboard.episodeId),
-          safePathSegment(storyboard.id),
-          "h3",
-          `${policy}_v${version}_${timestamp}.mp4`,
-        ].join("/");
-        const written = await resolved.writeProjectBinary(projectId, relativePath, decodeBase64(item.videoB64));
-        if (!written.success || !written.url) throw new Error(written.error ?? "项目视频落盘失败");
-        const h3DurationUs = await resolved.probeVideoDuration(written.url).catch(() => null);
-        resolved.applyVideoToStoryboard(storyboardId, written.url, item, policy, h3DurationUs ?? undefined);
-        resolved.notify("storyboard", `${item.shotTarget ?? storyboardId} 单镜视频已回收入项目(${policy} 档)`);
-        landed += 1;
-      } else if (item.imageB64) {
-        const title = item.shotTarget ? `comfy-${item.shotTarget}` : "comfy-canvas";
-        const persisted = await resolved.persist(item.imageB64, title, {
-          source: "comfy-bridge",
-          prompt: item.prompt ?? "",
-        });
-        const storyboardId = parseShotTarget(item.shotTarget, resolved.storyboards());
-        if (storyboardId && persisted.url) {
-          resolved.applyToStoryboard(storyboardId, persisted.url, item);
-          resolved.notify("storyboard", item.shotTarget ?? storyboardId);
-          landed += 1;
-        } else if (persisted.url) {
-          resolved.notify("media", "");
-        } else {
-          resolved.notify("memory", "");
-        }
-      }
-      lastGood = item.id;
-    } catch (error) {
-      resolved.notify("error", error instanceof Error ? error.message : String(error));
-      break; // 落账失败即停:不 ack,下次轮询从该项重试(收件箱持久)
+  const projectId = resolved.projectId();
+  let projectChanged = false;
+  const unsubscribe = useProjectStore.subscribe((state, previous) => {
+    if (!deps.projectId && state.activeProjectId !== previous.activeProjectId) projectChanged = true;
+  });
+  const isProjectCurrent = () => !projectChanged && resolved.projectId() === projectId;
+  const assertProjectCurrent = () => {
+    if (!isProjectCurrent()) throw new Error("活动项目已切换,回写保留待原项目重试");
+  };
+  try {
+    if (!(await retryBridgeAck(resolved)) || !projectId || !isProjectCurrent()) {
+      return { processed: 0, landed: 0 };
     }
+    // Retained foreign/legacy items may have lower IDs than this project's last
+    // success. Re-read pending items, and acknowledge only completed exact IDs.
+    const reply = await resolved.client.getBridgeWritebacks(0).catch(() => null);
+    if (!reply || reply.items.length === 0) return { processed: 0, landed: 0 };
+    let landed = 0;
+    const completedIds: number[] = [];
+    for (const item of reply.items) {
+      try {
+        assertProjectCurrent();
+        const originProjectId = item.meta?.originProjectId;
+        if (typeof originProjectId !== "string" || !originProjectId.trim() || originProjectId !== projectId) {
+          if (!warnedRetainedItems.has(item.id)) {
+            warnedRetainedItems.add(item.id);
+            resolved.notify("error", typeof originProjectId !== "string" || !originProjectId.trim()
+              ? "回写缺少来源项目,已保留且未自动导入"
+              : "回写属于其他项目,已保留待原项目处理");
+          }
+          continue;
+        }
+        warnedRetainedItems.delete(item.id);
+        const targetId = parseShotTarget(item.shotTarget, resolved.storyboards());
+        const store = useStudioStore.getState();
+        const alreadyApplied = item.videoB64
+          ? store.videoCandidates.some((entry) => entry.provider === "h3-comfyui"
+            && entry.state === "ready" && entry.meta?.bridgeItemId === item.id
+            && entry.meta.originProjectId === projectId && entry.meta.storyboardId === targetId
+            && typeof entry.filePath === "string" && parseProjectFileUrl(entry.filePath)?.projectId === projectId)
+          : Boolean(item.imageB64 && targetId && store.mediaTasks.some((task) => task.kind === "storyboardImage"
+            && task.status === "success" && task.targetId === targetId && task.checkpointRef === `comfy-bridge:${item.id}`
+            && typeof task.outputRef === "string" && parseProjectFileUrl(task.outputRef)?.projectId === projectId));
+        if (alreadyApplied) {
+          completedIds.push(item.id);
+          continue;
+        }
+        if (item.videoB64) {
+          const storyboardId = parseShotTarget(item.shotTarget, resolved.storyboards());
+          if (!storyboardId) throw new Error(`找不到视频回写目标:${item.shotTarget ?? ""}`);
+          const storyboard = resolved.storyboards().find((entry) => entry.id === storyboardId);
+          if (!storyboard) throw new Error(`分镜不存在:${storyboardId}`);
+          assertVideoSubfolder(item, storyboard);
+          const policy = videoPolicy(item);
+          const version = useStudioStore.getState().videoCandidates.filter(
+            (candidate) => candidate.provider === "h3-comfyui" && candidate.trackId === storyboard.trackId,
+          ).length + 1;
+          const timestamp = item.ts ?? Date.now();
+          const relativePath = [
+            "remotion",
+            "outputs",
+            "shots",
+            safePathSegment(storyboard.episodeId),
+            safePathSegment(storyboard.id),
+            "h3",
+            `${policy}_v${version}_${timestamp}.mp4`,
+          ].join("/");
+          const written = await resolved.writeProjectBinary(projectId, relativePath, decodeBase64(item.videoB64));
+          assertProjectCurrent();
+          if (!written.success || !written.url || parseProjectFileUrl(written.url)?.projectId !== projectId) {
+            throw new Error(written.error ?? "项目视频落盘失败");
+          }
+          const h3DurationUs = await resolved.probeVideoDuration(written.url).catch(() => null);
+          assertProjectCurrent();
+          if (!resolved.storyboards().some((entry) => entry.id === storyboardId && entry.episodeId === storyboard.episodeId)) {
+            throw new Error(`分镜不存在或所属章节已变化:${storyboardId}`);
+          }
+          resolved.applyVideoToStoryboard(storyboardId, written.url, item, policy, h3DurationUs ?? undefined);
+          resolved.notify("storyboard", `${item.shotTarget ?? storyboardId} 单镜视频已回收入项目(${policy} 档)`);
+          landed += 1;
+        } else if (item.imageB64) {
+          const storyboardId = parseShotTarget(item.shotTarget, resolved.storyboards());
+          if (item.shotTarget?.trim() && !storyboardId) {
+            throw new Error(`找不到图片回写目标:${item.shotTarget}`);
+          }
+          const title = item.shotTarget ? `comfy-${item.shotTarget}` : "comfy-canvas";
+          const persisted = await resolved.persist(item.imageB64, title, {
+            source: "comfy-bridge",
+            prompt: item.prompt ?? "",
+            projectId,
+            bridgeItemId: item.id,
+            isProjectCurrent,
+          });
+          assertProjectCurrent();
+          if (!persisted.url || parseProjectFileUrl(persisted.url)?.projectId !== projectId) {
+            throw new Error("项目图片落盘失败,回写已保留待重试");
+          }
+          if (storyboardId) {
+            if (!resolved.storyboards().some((entry) => entry.id === storyboardId)) {
+              throw new Error(`分镜不存在:${storyboardId}`);
+            }
+            resolved.applyToStoryboard(storyboardId, persisted.url, item);
+            resolved.notify("storyboard", item.shotTarget ?? storyboardId);
+            landed += 1;
+          } else {
+            resolved.notify("media", "");
+          }
+        } else {
+          throw new Error("回写缺少图片或视频内容,保留待重试");
+        }
+        completedIds.push(item.id);
+      } catch (error) {
+        resolved.notify("error", error instanceof Error ? error.message : String(error));
+        break; // 落账失败即停:不 ack,下次轮询从该项重试(收件箱持久)
+      }
+    }
+    if (completedIds.length > 0) {
+      pendingAck = completedIds;
+      await retryBridgeAck(resolved);
+    }
+    return { processed: reply.items.length, landed };
+  } finally {
+    unsubscribe();
   }
-  if (lastGood > cursor) {
-    cursor = lastGood;
-    void resolved.client.ackBridgeWritebacks(cursor);
-  }
-  return { processed: reply.items.length, landed };
 }

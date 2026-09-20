@@ -9,7 +9,7 @@ import { app } from "/scripts/app.js";
  */
 
 import {
-  BRIDGE_URL, BRIDGE_TOKEN, fetchShots, applyShotToSelection, myScope,
+  BRIDGE_URL, BRIDGE_TOKEN, fetchShots, applyShotToSelection, bindSelectedProject, snapshotOrigin, myScope,
   fetchJson, postJson, THEME, icon, ICONS, sectionLabel, statusBadge,
   progressBar, collapseGroup, actionButton, paneStatus,
   myTooltipsEnabled, syncMySettingsFlags,
@@ -41,11 +41,15 @@ function renderShotsPane(pane) {
   const actionStatus = paneStatus("");
   const genBtn = actionButton({ label: "一键生图", iconPath: ICONS.zap, primary: true });
   const vidBtn = actionButton({ label: "一键生成视频", iconPath: ICONS.play, primary: false });
+  let displayedSnapshot = null;
   const submitAction = async (button, kind, label) => {
     actionStatus.textContent = `${label}:提交中…`;
     actionStatus.style.color = "";
     try {
-      const result = await postJson(`${BRIDGE_URL}/comfy/bridge/actions`, { kind });
+      const originProjectId = snapshotOrigin(displayedSnapshot);
+      const originEpisodeId = displayedSnapshot?.currentEpisodeId;
+      if (typeof originEpisodeId !== "string" || !originEpisodeId.trim()) throw new Error("章节快照缺失，请刷新分镜列表");
+      const result = await postJson(`${BRIDGE_URL}/comfy/bridge/actions`, { kind, originProjectId, originEpisodeId });
       actionStatus.textContent = result.duplicate
         ? `${label}:已提交过,等待宿主执行`
         : `${label}:已提交,宿主执行中`;
@@ -57,6 +61,14 @@ function renderShotsPane(pane) {
   genBtn.onclick = () => void submitAction(genBtn, "generate-images", "一键生图");
   vidBtn.onclick = () => void submitAction(vidBtn, "generate-videos", "一键视频");
   actionBar.append(genBtn, vidBtn);
+  const bindButton = actionButton({ label: "绑定当前项目", iconPath: ICONS.folderOpen, primary: false });
+  bindButton.onclick = async () => {
+    try {
+      const result = await bindSelectedProject();
+      actionStatus.textContent = result.message;
+    } catch (error) { actionStatus.textContent = error.message || String(error); }
+  };
+  actionBar.append(bindButton);
 
   // ── 视频进度(进度条)+镜列表(默认折叠分组) ──
   const progressLabel = sectionLabel("视频进度", ICONS.film);
@@ -96,11 +108,13 @@ function renderShotsPane(pane) {
   flowStatus.textContent = "主线随「分镜制作」阶段自动打开";
 
   const load = async () => {
+    displayedSnapshot = null;
     status.textContent = "加载分镜…";
     list.innerHTML = "";
     progressHost.innerHTML = "";
     try {
       const data = await fetchShots();
+      displayedSnapshot = data;
       const allShots = data.shots || [];
       currentEpisodeId = data.currentEpisodeId || currentEpisodeId;
       applyChapter();
@@ -141,9 +155,11 @@ function renderShotsPane(pane) {
             row.onpointerdown = () => { row.style.transform = "scale(0.98)"; };
             row.onpointerup = row.onpointerleave = () => { row.style.transform = ""; };
             row.onclick = () => {
-              const result = applyShotToSelection(shot.id, shot.label || shot.id);
-              status.textContent = result.message;
-              status.style.color = result.ok ? "" : "#e06c75";
+              try {
+                const result = applyShotToSelection(shot.id, shot.label || shot.id, snapshotOrigin(data));
+                status.textContent = result.message;
+                status.style.color = result.ok ? "" : "#e06c75";
+              } catch (error) { status.textContent = error.message || String(error); }
             };
             details.append(row);
           }

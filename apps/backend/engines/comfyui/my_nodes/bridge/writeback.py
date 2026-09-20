@@ -71,7 +71,7 @@ def deliver(images, shot_target: str, prompt: str, meta: str) -> dict:
     return _post(payload, "成图")
 
 
-def deliver_video(shot_target: str, video_b64: str, subfolder: str, policy: str) -> dict:
+def deliver_video(shot_target: str, video_b64: str, subfolder: str, policy: str, origin_project_id: str = "") -> dict:
     if not video_b64:
         raise RuntimeError("视频回写收到空视频,请检查上游连线")
     try:
@@ -88,4 +88,6 @@ def deliver_video(shot_target: str, video_b64: str, subfolder: str, policy: str)
         "videoB64": video_b64,
         "ts": int(time.time() * 1000),
     }
+    if isinstance(origin_project_id, str) and origin_project_id.strip():
+        payload["meta"]["originProjectId"] = origin_project_id
     return _post(payload, "视频")

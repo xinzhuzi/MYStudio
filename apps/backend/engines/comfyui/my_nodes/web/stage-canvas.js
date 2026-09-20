@@ -9,7 +9,8 @@ import { app } from "/scripts/app.js";
  * 缺席时兜底,实例级 onDrawBackground 覆写静音。
  */
 
-import { THEME, BRIDGE_URL, BRIDGE_TOKEN } from "./theme.js";
+import { THEME } from "./theme.js";
+import { postAction } from "./bridge-action.js";
 
 // ── 环节节点富内容自绘 v3(09-12 用户终裁×2:内容全量**+功能完备+精致**)──
 // v3 增量:①动作按钮行(老画布节点按钮回流:生成导演规划/生成分镜表=付费金,
@@ -470,11 +471,7 @@ const payload = this.properties?.myStage ?? this.properties?.manyingStage;
           && pos[1] >= rect.y && pos[1] <= rect.y + rect.h) {
           this.__myActionFlash = { kind: rect.kind, until: Date.now() + 1200 };
           if (app.canvas?.setDirty) app.canvas.setDirty(true, true);
-          fetch(`${BRIDGE_URL}/comfy/bridge/actions`, {
-            method: "POST",
-            headers: { "X-Manying-Image-Token": BRIDGE_TOKEN, "Content-Type": "application/json" },
-            body: JSON.stringify({ kind: rect.kind }),
-          }).catch(() => undefined);
+          postAction(rect.kind, "", null, this.properties?.myOriginProjectId, this.properties?.myOriginEpisodeId);
           return true;
         }
       }

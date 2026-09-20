@@ -2,9 +2,9 @@
 
 [简体中文 README](../README.md) · [English README](../README.en.md) · [English Gallery](./art-styles.en.md)
 
-漫影工作室内置 60 种美术风格，可在分镜生产时一键套用。下图为各风格的代表效果。
+本页展示内置美术风格的代表图，不是当前可用风格数量或模型出图效果的保证。完整可用列表以 `资产 -> 风格库` 为准；在 `MY 工作流 -> 风格与导演` 中选择项目使用的视觉手册。
 
-_MYStudio ships with 60 built-in art styles, applicable in one click during storyboard production. Below are representative samples of each style._
+_These are representative style references. The Assets style library is the source for the available manuals; select a manual in the workflow style-and-director stage._
 
 <table>
   <tr>

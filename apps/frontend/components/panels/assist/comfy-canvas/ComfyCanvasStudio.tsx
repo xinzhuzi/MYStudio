@@ -16,6 +16,7 @@ import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engin
 import { getComfyEngineClient, type ComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { resolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
 import { consumeComfyBridgeWritebacks, parseShotTarget } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
+import { consumeComfyBridgeActions } from "@/lib/assist/image-studio/comfy-bridge-action-consumer";
 import { createHttpComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { buildShotH3Workflow } from "@/lib/assist/image-studio/h3-shot-video-workflow";
 import { ensureStageAssetCoversUploaded, invalidateOverviewSyncForEngineStart, readStoryboardImageB64, syncStoryboardOverviewToLibrary } from "@/lib/assist/image-studio/storyboard-overview-sync";
@@ -199,33 +200,53 @@ async function openStageWorkflowIntoCanvas(
   stageFlowNodesRef: { current: ProductionFlowNodeModel[] | undefined },
   force = false,
 ): Promise<void> {
+  const originProjectId = useProjectStore.getState().activeProjectId;
+  if (!originProjectId) return;
   const state = useStudioStore.getState();
   if (state.storyboards.length === 0) return;
+  const originEpisodeId = resolveProductionEpisodeId(state);
   // v4 内容全量:优先老画布节点模型映射(技能/资产卡/队列进度/渲染器链);
   // 无模型(测试/异常)回落 store 快照构建
   const flowNodes = stageFlowNodesRef.current;
   const payloads = flowNodes && flowNodes.length > 0
     ? mapProductionFlowNodesToStagePayloads(flowNodes)
     : buildStageNodePayloadFromState(state);
-  await ensureStageAssetCoversUploaded(payloads);
-  // 09-14 通用化(零文件):仓库通用模板(repo: 只读)+当前章载荷注入;
-  // 画布签=MAINLINE_TAB_NAME(单实例锚),引擎 userdata 不落任何文件。
-  const injections = buildStageInjections({ summaries: buildStageSummaries(state), payloads });
-  const template = await createHttpComfyWorkflowLibraryTransport()
-    .content(STAGE_TEMPLATE_REPO_ID)
-    .catch(() => null);
-  if (template === null) return;
-  const graph = applyStageInjections(template, injections);
-  await node.executeJavaScript?.(
-    buildOverviewOpenScript(graph, MAINLINE_TAB_NAME, force ? { force: true } : undefined),
-  )?.catch(() => undefined);
+  let scopeChanged = false;
+  const unsubscribeProject = useProjectStore.subscribe((next) => {
+    if (next.activeProjectId !== originProjectId) scopeChanged = true;
+  });
+  const unsubscribeStudio = useStudioStore.subscribe((next) => {
+    if (resolveProductionEpisodeId(next) !== originEpisodeId) scopeChanged = true;
+  });
+  try {
+    await ensureStageAssetCoversUploaded(payloads);
+    if (scopeChanged || !node.isConnected) return;
+    // The template stays read-only; the captured chapter exists only in this clone.
+    const injections = buildStageInjections({ summaries: buildStageSummaries(state), payloads, originProjectId, originEpisodeId });
+    const template = await createHttpComfyWorkflowLibraryTransport()
+      .content(STAGE_TEMPLATE_REPO_ID)
+      .catch(() => null);
+    if (template === null || scopeChanged || !node.isConnected
+      || useProjectStore.getState().activeProjectId !== originProjectId
+      || resolveProductionEpisodeId(useStudioStore.getState()) !== originEpisodeId) return;
+    const graph = applyStageInjections(template, injections);
+    await node.executeJavaScript?.(
+      buildOverviewOpenScript(graph, MAINLINE_TAB_NAME, force ? { force: true } : undefined),
+    )?.catch(() => undefined);
+  } finally {
+    unsubscribeProject();
+    unsubscribeStudio();
+  }
 }
 
 async function openShotVideoWorkflowIntoCanvas(
   node: WebviewElement,
   client: ComfyEngineClient,
   note: string | undefined,
+  isActive: () => boolean,
 ): Promise<void> {
+  const originProjectId = useProjectStore.getState().activeProjectId;
+  if (!originProjectId) throw new Error("请先打开回写目标项目");
   const state = useStudioStore.getState();
   const storyboardId = parseShotTarget(note, state.storyboards);
   const shot = storyboardId ? state.storyboards.find((item) => item.id === storyboardId) : undefined;
@@ -242,9 +263,11 @@ async function openShotVideoWorkflowIntoCanvas(
   const safeId = shot.id.replace(/[^A-Za-z0-9._-]+/g, "_");
   const imageName = `my-shot-h3-${safeId}.jpg`;
   const imageB64 = await readStoryboardImageB64(shot.mediaRef.path);
+  if (!isActive()) throw new Error("项目已切换或画布已关闭，请重新打开单镜工作流");
   const uploaded = await client.uploadBridgeReference(imageName, imageB64);
   if (!uploaded?.accepted) throw new Error("关键帧上传失败");
-  const workflow = buildShotH3Workflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: "ambient", imageName });
+  if (!isActive() || useProjectStore.getState().activeProjectId !== originProjectId) throw new Error("项目已切换，请从当前项目重新打开单镜工作流");
+  const workflow = buildShotH3Workflow({ shot, chapterId: shot.episodeId, chapterLabel, policy: "ambient", imageName, originProjectId });
   // 09-14 通用化(零文件):单镜视频=组装器现装直开,不再写 分镜/3_单镜视频
   await node.executeJavaScript?.(buildOverviewOpenScript(workflow.ui, `${workflow.name}.json`, { force: true }));
   toast.success(`已打开 ${String(workflow.name.match(/S\d+$/)?.[0] || `S${String(shot.index).padStart(2, "0")}`)} 单镜视频工作流`);
@@ -289,7 +312,6 @@ export interface ComfyCanvasStudioProps {
 
 export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarActions, stageFlowNodes }: ComfyCanvasStudioProps = {}) {
   const webviewRef = useRef<WebviewElement | null>(null);
-  const openShotVideoInFlightRef = useRef(new Set<string>());
   // attach 闭包在首次挂载时固化(防重监听),prop 走 ref 保持读取新鲜值
   const autoOpenRef = useRef(autoOpenOverview);
   autoOpenRef.current = autoOpenOverview;
@@ -344,55 +366,39 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
     isStartingService,
     } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
 
-  // 制作动作消费游标(会话内即可;宿主重启=动作重投递一次,幂等由去重+用户意图兜底)
-  const actionCursorRef = useRef(0);
   const sidebarActionsRef = useRef(sidebarActions);
   sidebarActionsRef.current = sidebarActions;
-  const consumeSidebarActions = useCallback(async () => {
-    const listed = await client?.getBridgeActions(actionCursorRef.current);
-    if (!listed) return;
-    actionCursorRef.current = listed.cursor;
-    for (const item of listed.items) {
-      if (item.kind === "generate-images") {
-        toast.info("侧栏指令:开始批量生图(当前章未生成分镜)");
-        sidebarActionsRef.current?.onGenerateImages();
-      } else if (item.kind === "generate-videos") {
-        toast.info("侧栏指令:开始生成所有分镜视频");
-        sidebarActionsRef.current?.onGenerateVideos();
-      } else if (item.kind === "generate-director-plan") {
-        toast.info(item.note ? "环节指令:生成导演规划(付费·带补充要求)" : "环节指令:生成导演规划(付费云端)");
-        sidebarActionsRef.current?.onGenerateDirectorPlan?.(item.note || "");
-      } else if (item.kind === "generate-storyboard-table") {
-        toast.info(item.note ? "环节指令:生成分镜表(付费·带补充要求)" : "环节指令:生成分镜表(付费云端)");
-        sidebarActionsRef.current?.onGenerateStoryboardTable?.(item.note || "");
-      } else if (item.kind === "rebuild-workbench-tracks") {
-        toast.info("环节指令:重建视频轨道");
-        sidebarActionsRef.current?.onRebuildWorkbenchTracks?.();
-      } else if (item.kind === "view-doc") {
-        sidebarActionsRef.current?.onViewNodeDoc?.(item.note || "");
-      } else if (item.kind === "edit-doc") {
-        sidebarActionsRef.current?.onEditNodeDoc?.(item.note || "");
-      } else if (item.kind === "extract-assets") {
-        toast.info("环节指令:从当前剧本抽取资产");
-        sidebarActionsRef.current?.onExtractAssets?.();
-      } else if (item.kind === "open-shot-video") {
-        const target = item.note || "";
-        if (openShotVideoInFlightRef.current.has(target)) continue;
+  const consumeSidebarActions = useCallback(async (projectId: string | null, episodeId: string, isActive: () => boolean) => {
+    if (!client) return;
+    await consumeComfyBridgeActions({
+      client, projectId, episodeId, isActive,
+      onError: (error) => toast.error(error instanceof Error ? error.message : "制作动作执行失败"),
+      handlerFor: (item) => {
+        if (myScope === "models") return undefined;
+        const actions = sidebarActionsRef.current;
+        const handlers: Record<string, [((note: string) => void) | undefined, string?]> = {
+          "generate-images": [actions?.onGenerateImages, "侧栏指令:开始批量生图(当前章未生成分镜)"],
+          "generate-videos": [actions?.onGenerateVideos, "侧栏指令:开始生成所有分镜视频"],
+          "generate-director-plan": [actions?.onGenerateDirectorPlan, item.note ? "环节指令:生成导演规划(付费·带补充要求)" : "环节指令:生成导演规划(付费云端)"],
+          "generate-storyboard-table": [actions?.onGenerateStoryboardTable, item.note ? "环节指令:生成分镜表(付费·带补充要求)" : "环节指令:生成分镜表(付费云端)"],
+          "rebuild-workbench-tracks": [actions?.onRebuildWorkbenchTracks, "环节指令:重建视频轨道"],
+          "view-doc": [actions?.onViewNodeDoc],
+          "edit-doc": [actions?.onEditNodeDoc],
+          "extract-assets": [actions?.onExtractAssets, "环节指令:从当前剧本抽取资产"],
+        };
+        const [handler, message] = handlers[item.kind] ?? [];
+        if (handler) return () => {
+          if (message) toast.info(message);
+          return handler(item.note || "");
+        };
         const node = webviewRef.current;
-        if (!node || !client) {
-          toast.error("画布还没准备好，请稍后再试");
-          continue;
+        if (item.kind === "open-shot-video" && node?.executeJavaScript) {
+          return () => openShotVideoWorkflowIntoCanvas(node, client, item.note, isActive);
         }
-        openShotVideoInFlightRef.current.add(target);
-        void openShotVideoWorkflowIntoCanvas(node, client, target).catch((error) => {
-          toast.error(error instanceof Error ? error.message : "打开单镜视频工作流失败");
-        }).finally(() => openShotVideoInFlightRef.current.delete(target));
-      }
-    }
-    if (listed.items.length > 0) {
-      void client?.ackBridgeActions(listed.items[listed.items.length - 1].id).catch(() => undefined);
-    }
-  }, [client]);
+        return undefined;
+      },
+    });
+  }, [client, myScope]);
 
   // bridge 回写消费(阶段1):tab 在场即轮询收件箱——收件箱在 sidecar,
   // 引擎停着也可能有积压(上轮画布出图未消费);重叠轮询用 inFlight 压。
@@ -403,17 +409,29 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
     const tick = async () => {
       if (inFlight || stopped) return;
       inFlight = true;
+      const actionProjectId = useProjectStore.getState().activeProjectId;
+      const actionEpisodeId = resolveProductionEpisodeId(useStudioStore.getState());
+      let projectChanged = false;
+      const unsubscribe = useProjectStore.subscribe((state) => {
+        if (state.activeProjectId !== actionProjectId) projectChanged = true;
+      });
+      const unsubscribeStudio = useStudioStore.subscribe((state) => {
+        if (resolveProductionEpisodeId(state) !== actionEpisodeId) projectChanged = true;
+      });
       try {
         // 业务侧栏数据面(阶段2 批3):快照与收件箱同 tick 掻/拉。
         // 09-11 续:载荷带当前章节(侧栏按章过滤)+每镜视频/画面就绪标记
         // (分镜页签的视频分类展示)。
         const studioState = useStudioStore.getState();
+        const originProjectId = useProjectStore.getState().activeProjectId ?? undefined;
         const storyboards = studioState.storyboards;
         // 09-12 B2:同跳附带渲染队列实时快照(window.remotionQueue 投影→
         // 桥→画布 stage-node 轮询同端点活更徽章;不经保鲜链重写库文件)。
         const episodeId = resolveProductionEpisodeId(studioState);
-        void (async () => {
+        await (async () => {
           const queue = await readRenderQueueSnapshot(episodeId, storyboards);
+          if (stopped || projectChanged || (useProjectStore.getState().activeProjectId ?? undefined) !== originProjectId
+            || resolveProductionEpisodeId(useStudioStore.getState()) !== episodeId) return;
           await client?.pushBridgeStoryboards(
             storyboards.map((item) => ({
               id: item.id,
@@ -424,6 +442,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
             })),
             episodeId,
             queue,
+            originProjectId,
           );
         })().catch(() => undefined);
         // 主视图 ComfyUI 化(批8):总览图库内保鲜(指纹守卫,分镜未动不导入)
@@ -444,10 +463,14 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
           .catch(() => undefined);
         await consumeComfyBridgeWritebacks({ client });
         // 制作动作通道(09-11 旧画布功能迁移收口):消费侧栏提交的批量动作
-        await consumeSidebarActions();
+        await consumeSidebarActions(actionProjectId, actionEpisodeId, () => !stopped && !projectChanged
+          && useProjectStore.getState().activeProjectId === actionProjectId
+          && resolveProductionEpisodeId(useStudioStore.getState()) === actionEpisodeId);
       } catch {
         // 消费器内部已吞错并通知;此处兜底静默(轮询面不弹窗轰炸)
       } finally {
+        unsubscribe();
+        unsubscribeStudio();
         inFlight = false;
       }
     };

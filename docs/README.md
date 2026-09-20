@@ -9,6 +9,7 @@
 | 目录 | 收纳范围 |
 |---|---|
 | [workflow/](./workflow/) | 工作流核心链路：小说导入、剧本、分镜、概览 |
+| [prompts/](./prompts/README.md) | 提示词模板、风格参考、实验记录与素材索引 |
 | [assets/](./assets/) | 资产库、角色、场景、道具、视觉风格、音色 |
 | [director/](./director/) | 导演工作台、S级镜头、视角切换、四宫格、旧剧本 |
 | [panels/](./panels/) | 应用外壳、导航、项目、技能、本地模型（原辅助）、产物、导出、TTS 面板 |
@@ -29,7 +30,7 @@
 | [工作流阶段操作手册](./workflow/WORKFLOW_STAGE_OPERATIONS.md) | 七阶段按钮、状态、弹窗和数据关系 |
 | [小说导入与策划编剧操作参考](./workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | 风格/导演手册、小说章节导入、事件分析、三阶段剧本生成和审核修复 |
 | [剧本资产与 ProductionAgent 操作参考](./workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | 资产提取、资产库匹配、提示词润色、缺失资产生成和角色音色入口 |
-| [分镜面板与视频工作台操作参考](./workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | 【已过时 2026-09-13】分镜编辑已迁 ComfyUI 画布 + 分镜面板卡片网格；仅「视频工作台」章节仍大体有效 |
+| [分镜面板与视频工作台操作参考](./workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | 15 列分镜表协议、章节审核门禁与视频工作台；旧两栏界面独立标为历史章节 |
 | [剧本导入格式示例](./workflow/SCRIPT_FORMAT_EXAMPLE.md) | 标准剧本格式、场景头、人物、对白和舞台指示示例 |
 | [项目概览](./workflow/OVERVIEW_PANEL_GUIDE.md) | 编辑故事核心、世界观、制作设定和查看分集目录 |
 | [项目概览操作手册](./workflow/OVERVIEW_PANEL_OPERATIONS.md) | 项目入口、内联编辑、分集目录、新建集和右侧资料摘要 |
@@ -68,6 +69,7 @@
 | 文档 | 用途 |
 |---|---|
 | [应用外壳操作手册](./panels/APP_SHELL_OPERATIONS.md) | 项目外/项目内侧栏、隐藏侧栏、项目头部、返回按钮、分集面包屑和保存状态 |
+| [自媒体发布台](./panels/SELF_MEDIA_GUIDE.md) | 账号、内容发布、定时任务与发布历史；能力以平台和账号状态为准 |
 | [页面导航](./panels/NAVIGATION_GUIDE.md) | 项目内外主导航、工作流分区和设置分区说明 |
 | [项目首页与项目管理](./panels/PROJECT_DASHBOARD_GUIDE.md) | 创建、打开、复制、重命名和删除项目 |
 | [项目首页操作手册](./panels/PROJECT_DASHBOARD_OPERATIONS.md) | 侧栏按钮、管理选择、新建输入、更多菜单、重命名和批量删除弹窗 |
@@ -90,6 +92,8 @@
 | 文档 | 用途 |
 |---|---|
 | [设置页操作手册](./settings/SETTINGS_PANEL_OPERATIONS.md) | 设置标签页、外观、API、统一本地配置、存储、更新、开发和支持入口的按钮状态 |
+| [MCP 服务](./settings/MCP_SERVICES_GUIDE.md) | 服务登记、连接测试、JSON 导入导出与配置边界 |
+| [图片规格](./settings/IMAGE_SIZE_GUIDE.md) | 默认生图引擎、画幅、分辨率与兼容选项 |
 | [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md) | 引擎安装/更新、「模型」页签活清单、启动参数与存储目录迁移 |
 | [设置与云端AI配置](./settings/API_SETTINGS_GUIDE.md) | 模型服务、模型映射、Agent 配置、统一本地配置、渲染器选择、Headless Shell、图床和本地 TTS 服务说明 |
 | [云端AI操作手册](./settings/API_MANAGER_OPERATIONS.md) | 添加供应商、同步模型、测试模型、思考模式、模型映射和 Agent 绑定 |
@@ -128,22 +132,28 @@
 | [参考_提示词工程](./comfyui-kb/参考_提示词工程/) | K2/H3 提示词工程资料(K2 图生图模板、H3 官方系统提示词存档、Easy指南包;09-14 自引擎工作流库迁入,资料非工作流) |
 | [参考_拼接衔接锁与一致性锚点](./comfyui-kb/参考_拼接衔接锁与一致性锚点.md) | 多镜拼接五大衔接锁/分镜质控机检硬门/一致性锚点协议/宫格版式泄漏警示/流程治理三件+H3 DSL 同源核查结论（09-15 竞品方法论学习消化,漫影产线对照落点） |
 | [参考_TE-MAN可吸收排查](./comfyui-kb/参考_TE-MAN可吸收排查.md) | 竞品 TE MAN v3.7 全仓明文资产深度排查：可吸收性矩阵(A知识/B工程件/C范式/D不吸收)+四阶段执行序；吸收类工作先读它 |
-| [漫影工作流清单](./comfyui-kb/漫影工作流清单.md) | 工作流库全量盘点（仓库真源 37 个=K2图像18+分镜模板1+H3视频17+音乐1，一律 `MY-` 前缀；**分镜域零实体**——09-15 裁定,无写入位,模板注入直开），含快查表；「ComfyUI 里有哪些漫影工作流」先读它 |
+| [漫影工作流清单](./comfyui-kb/漫影工作流清单.md) | 工作流库分类、只读仓库模板与用户副本边界；09-18 已废弃 `MY-` 前缀。文件清单以当前仓库及引擎工作流列表为准，历史数量不作为恒定值 |
 | [分镜图生成与超分指引](./comfyui-kb/分镜图生成与超分指引.md) | 分镜×H3 配套：分镜图写法要点、一镜张数策略（默认首帧1张/尾帧条件档/九宫格抽卡）、超分结论（输入侧不做、权重替代分辨率）与质量杠杆四件事 |
-| [分镜×H3 视频产线](./comfyui-kb/分镜H3视频产线.md) | 单镜 5s 真动态视频产线：四层流水线定位（H3 生成→remotion 组装→hy 装饰→video-use 交付）、17k+5 帧数网格、分辨率/音频裁定、漫影自研单镜工作流、实弹账本（21m07s/5.167s/124 帧）与坑清单 |
+| [分镜×H3 视频产线](./comfyui-kb/分镜H3视频产线.md) | 单镜 5s 真动态视频产线：素材到成片链（H3→Remotion shots→video-use 审阅→用户确认/HyperFrames→章节渲染）、17k+5 帧数网格、分辨率/音频裁定、漫影自研单镜工作流、实弹账本（21m07s/5.167s/124 帧）与坑清单 |
 | [定制代码地图](./comfyui-kb/定制代码地图.md) | 四层定制代码位置、生效路径（要不要打包）与坑清单（改 ComfyUI 相关功能前先读） |
 | [Windows 部署指南](./comfyui-kb/README-Windows部署指南.md) | Windows 侧 ComfyUI 引擎部署 |
 | [K2 画稿上色产线四件套](./comfyui-kb/K2上色/prd_画稿上色工作流.md) | PRD / 设计 / 实现 / 错误应对 runbook |
 | [VL 指令验证计划](./comfyui-kb/VL指令验证计划.md) | 视觉语言模型指令链验证计划 |
 | [排查：快流未使用节点](./comfyui-kb/排查_快流未使用节点.md) | 快流工作流排障记录 |
 
-> 缺口（2026-09-13 记）：设置→本地配置 中 ComfyUI 引擎卡（引擎状态、「模型」页签、插件台账、存储四目录）尚无专门用户文档；引擎操作技能见仓库 `.agents/skills/comfyui/machine.md`。
+> 用户操作见 [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md)与[本地模型页](./panels/LOCAL_MODELS_GUIDE.md)；开发运维再查定制代码地图。
+
+## 提示词与实验素材（prompts/）
+
+[提示词资料索引](./prompts/README.md)按生产说明、实验记录、外部摘录和风格素材区分用途。实验日期、种子、模型与参数共同限定结论，不能作为所有工作流的通用默认值。
+
+[Krea2 本地生图指南](./krea2.md)用于查询当前工作流和入口；旧节点图说明保留历史适用标记。
 
 ## 高阶指南（guides/）
 
 | 文档 | 用途 |
 |---|---|
-| [电影级 3D 纵深视频制作手册](./guides/CINEMATIC_PLAYBOOK.md) | 3D 纵深、景深散焦与相机运动玩法（实验性路线，当前出片主线为 2D panZoom + 特效） |
+| [电影级 3D 纵深视频制作手册](./guides/CINEMATIC_PLAYBOOK.md) | 2026-08 实验性 3D 玩法记录；现行素材与渲染入口以完整视频链路为准 |
 | [本地模型降本指南](./guides/LOCAL_MODEL_COST_REDUCTION.md) | 零 API 费用的本地模型生成策略 |
 
 ## 技术调查（research/）
@@ -162,25 +172,25 @@
 
 | 文档 | 用途 |
 |---|---|
-| [MiniMax H3 本地运行执行计划](./local/minimax-h3-local-setup-plan.md) | 本地视频引擎定制安装计划（零成本草图/选镜定位，不进生产管线） |
+| [MiniMax H3 本地运行执行计划](./local/minimax-h3-local-setup-plan.md) | 2026-08-22 独立 Comfy Desktop 部署历史；现行 H3 已接入托管引擎，见产线知识库 |
 
 已定案调查存档于 [research/archive/](./research/archive/)：[静态图→3D 动态技术全景](./research/archive/CINEMATIC_3D_TECH_LANDSCAPE.md)（3D 路线 2026-08-14 已否决转 2D）、[img2threejs 探索报告](./research/archive/IMG2THREEJS_EXPLORATION.md)（2026-08-16 用户决策排除）。
 
 ## 融合规划（融合/）
 
-> 注：本目录为 2026-05 前后的历史规划/调查存档，其中涉及生成链路现状的描述已被 ComfyUI 架构取代（见 `engineering/` 与 `comfyui-kb/`）；仅作来龙去脉参考。
+> 注：本目录混合早期规划、后续裁定、外部调查与实现记录，应按各篇日期和状态阅读。当前操作优先查 `workflow/`、`settings/` 和 `engineering/`；ComfyUI 接管本地生成并不等于替代章节编辑与最终渲染的全部职责。
 
 | 文档 | 用途 |
 |---|---|
 | [融合规划文档索引](./融合/README.md) | 融合目录的阅读顺序和分类导航 |
-| [小说到成片统一工作流计划](./融合/小说到成片·统一工作流计划.md) | 从小说导入到成片生产的完整产品链路 |
-| [数据模型与接口规范](./融合/数据模型与接口规范.md) | 工作流、资产、分镜、导出等核心数据结构 |
-| [部署打包与工程化手册](./融合/部署打包与工程化手册.md) | Electron 打包、安装、测试和工程化约束 |
+| [小说到成片统一工作流计划](./融合/小说到成片·统一工作流计划.md) | 融合设计与历史阶段划分；当前操作查 workflow/ |
+| [数据模型与接口规范](./融合/数据模型与接口规范.md) | 2026-05 起草的目标数据模型；字段契约以当前 types 与 schema 为准 |
+| [部署打包与工程化手册](./融合/部署打包与工程化手册.md) | 2026-08 部署基线和后续规划；当前发布查 engineering/ |
 | [四个视频 Skill 与 MYStudio 融合研究](./融合/参考/四个视频Skill与MYStudio融合研究.md) | Remotion 主链、HyperFrames/video-use sidecar、Seedance Prompt Skill、两套 Python、共享 FFmpeg 与 UI-first 边界 |
 | [四个视频 Skill 版本更新与升级方案](./融合/参考/四个视频Skill与MYStudio版本更新与升级方案.md) | 四个组件的版本锁定、候选验证、UI/后台更新、证据、激活与回滚方案 |
 | [错误处理与测试策略](./融合/错误处理与测试策略.md) | 运行时错误、回归测试、打包 smoke 和故障处理 |
 | [工作流全链路追溯矩阵](./融合/MYStudio_Toonflow_工作流全链路追溯矩阵.md) | MYStudio / Toonflow 工作流节点、输入输出和验证证据追溯 |
-| [工作流缺口与分目标推进计划](./融合/MYStudio_Toonflow_工作流缺口与分目标推进计划.md) | 当前 Toonflow 对照缺口、未迁移能力和 Trellis 目标 |
+| [工作流缺口与分目标推进计划](./融合/MYStudio_Toonflow_工作流缺口与分目标推进计划.md) | 2026-07 Toonflow 对照缺口与六目标推进记录；不作当前开放任务列表 |
 | [Toonflow 分镜差异审计](./融合/Toonflow_MYStudio_分镜差异审计.md) | 分镜来源、资产顺序、图片生成、回写和视觉结果差异 |
 | [ToonFlow 剧情产物生成技术调查](./融合/ToonFlow_剧情产物生成_技术调查.md) | Toonflow 资产提示词、图片生成和 ProductionAgent 参考 |
 | [MoYin 资产生成技术调查](./融合/MoYin_资产生成_技术调查.md) | MoYin 资产生成、服务路由和批处理参考 |

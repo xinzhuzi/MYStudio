@@ -31,6 +31,7 @@ import type {
   ComfyPluginUsageReply,
   ComfySnapshotEntry,
   ComfyBridgeWritebacksReply,
+  ComfyBridgeActionsReply,
   ComfyMySyncReply,
 } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import type {
@@ -624,12 +625,15 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
         return null; // 轮询面:失败静默(sidecar 未起=无回写,不算错误)
       }
     },
-    async ackBridgeWritebacks(upTo: number): Promise<number | null> {
+    async ackBridgeWritebacks(upTo: number, ids?: number[]): Promise<number | null> {
+      if (!Array.isArray(ids) || ids.some((id) => !Number.isSafeInteger(id) || id <= 0 || id > upTo)) return null;
       try {
-        const raw = await comfySidecarRequest<{ deleted?: number }>("POST", "/comfy/bridge/writebacks/ack", {
-          body: { upTo },
+        const raw = await comfySidecarRequest<{ deleted?: number; ackMode?: string }>("POST", "/comfy/bridge/writebacks/ack", {
+          // Never send upTo: an old sidecar would interpret it cumulatively.
+          body: { ids },
         });
-        return raw.deleted ?? 0;
+        return raw.ackMode === "exact" && typeof raw.deleted === "number" && Number.isSafeInteger(raw.deleted) && raw.deleted >= 0
+          ? raw.deleted : null;
       } catch {
         return null; // ack 失败不致命:下次轮询重消费(落账幂等由 checkpointRef 保证)
       }
@@ -638,31 +642,34 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       shots: Array<{ id: string; label: string; episodeId?: string; videoReady?: boolean; imageReady?: boolean }>,
       currentEpisodeId?: string,
       queue?: Array<{ index: number; status: string; progress: number }>,
+      originProjectId?: string,
     ): Promise<boolean> {
       try {
         await comfySidecarRequest<{ updatedAt?: number }>("POST", "/comfy/bridge/storyboards", {
-          body: { shots, ...(currentEpisodeId ? { currentEpisodeId } : {}), ...(queue && queue.length > 0 ? { queue } : {}) },
+          body: { shots, ...(currentEpisodeId ? { currentEpisodeId } : {}), ...(queue && queue.length > 0 ? { queue } : {}), ...(originProjectId ? { originProjectId } : {}) },
         });
         return true;
       } catch {
         return false; // 推送面:失败静默(下一 tick 重推)
       }
     },
-    async getBridgeActions(cursor: number): Promise<{ cursor: number; items: Array<{ id: number; kind: string; note?: string }> } | null> {
+    async getBridgeActions(cursor: number): Promise<ComfyBridgeActionsReply | null> {
       try {
-        return await comfySidecarRequest<{ cursor: number; items: Array<{ id: number; kind: string; note?: string }> }>(
+        return await comfySidecarRequest<ComfyBridgeActionsReply>(
           "GET", `/comfy/bridge/actions?cursor=${cursor}`,
         );
       } catch {
         return null; // 通道缺席(旧 sidecar)=静默,动作按钮不可用
       }
     },
-    async ackBridgeActions(upTo: number): Promise<number | null> {
+    async ackBridgeActions(upTo: number, queueId?: string, ids?: number[]): Promise<number | null> {
+      if (!queueId || !Array.isArray(ids) || ids.some((id) => !Number.isSafeInteger(id) || id <= 0 || id > upTo)) return null;
       try {
-        const raw = await comfySidecarRequest<{ deleted?: number }>("POST", "/comfy/bridge/actions/ack", {
-          body: { upTo },
+        const raw = await comfySidecarRequest<{ deleted?: number; ackMode?: string }>("POST", "/comfy/bridge/actions/ack", {
+          body: { queueId, ids },
         });
-        return raw.deleted ?? 0;
+        return raw.ackMode === "exact" && typeof raw.deleted === "number" && Number.isSafeInteger(raw.deleted) && raw.deleted >= 0
+          ? raw.deleted : null;
       } catch {
         return null;
       }

@@ -59,6 +59,8 @@ def update(shots: list, payload: dict | None = None) -> dict:
     if len(clean) > 500:
         raise ValueError("shots 超过 500 条上限")
     queue = _clean_queue((payload or {}).get("queue"))
+    origin = (payload or {}).get("originProjectId")
+    origin = origin if isinstance(origin, str) and origin.strip() else ""
     now = int(time.time() * 1000)
     with _LOCK:
         # 锁内直接组装返回值:snapshot() 也取 _LOCK,非重入 Lock 嵌套=自死锁
@@ -66,12 +68,14 @@ def update(shots: list, payload: dict | None = None) -> dict:
         _STATE["updatedAt"] = now
         _STATE["currentEpisodeId"] = str((payload or {}).get("currentEpisodeId") or "")[:64]
         _STATE["queue"] = queue
+        _STATE["originProjectId"] = origin
         return {
             "updatedAt": now,
             "staleAfterMs": int(STALE_S * 1000),
             "shots": list(clean),
             "currentEpisodeId": _STATE["currentEpisodeId"],
             "queue": list(queue),
+            **({"originProjectId": origin} if origin else {}),
         }
 
 
@@ -83,6 +87,7 @@ def snapshot() -> dict:
             "shots": list(_STATE["shots"]),
             "currentEpisodeId": _STATE.get("currentEpisodeId", ""),
             "queue": list(_STATE.get("queue", [])),
+            **({"originProjectId": _STATE["originProjectId"]} if _STATE.get("originProjectId") else {}),
         }
 
 
@@ -92,3 +97,4 @@ def reset_for_tests() -> None:
         _STATE["updatedAt"] = 0
         _STATE["currentEpisodeId"] = ""
         _STATE["queue"] = []
+        _STATE["originProjectId"] = ""

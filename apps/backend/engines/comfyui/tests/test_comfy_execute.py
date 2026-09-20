@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import threading
 import time
@@ -33,6 +34,7 @@ class FakeComfyEngine:
         self.histories: dict[str, dict] = {}
         self.default_history: dict = {}
         self.interrupts = list[str]()
+        self.cancelled_prompts: list[str] = []
         self.view_bodies: dict[str, bytes] = {}
         handler = self._build_handler()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
@@ -89,6 +91,12 @@ class FakeComfyEngine:
                 self.wfile.write(body)
 
             def do_POST(self):  # noqa: N802
+                if self.path.startswith("/api/jobs/") and self.path.endswith("/cancel"):
+                    length = int(self.headers.get("Content-Length", "0") or 0)
+                    self.rfile.read(length)
+                    outer.cancelled_prompts.append(self.path.split("/")[3])
+                    self._json({"cancelled": True})
+                    return
                 if self.path == "/upload/image":
                     length = int(self.headers.get("Content-Length", "0") or 0)
                     raw = self.rfile.read(length)
@@ -284,7 +292,8 @@ class TestExecuteJob:
         job = _wait_job_terminal(job_id)
         assert job["status"] == "error"
         assert "超时" in job["error"]
-        assert engine.interrupts  # 超时后向引擎发过 interrupt
+        assert engine.cancelled_prompts == ["p-slow"]
+        assert engine.interrupts == []
 
     def test_job_progress_walks_stages(self, engine):
         engine.queue_success(images=("a.png", "b.png"))
@@ -376,7 +385,8 @@ class TestExecuteJob:
         assert job["status"] == "error"
         assert "超时" in job["error"]
         assert "1 秒" in job["error"]  # ceil(0.3) 的人话秒数
-        assert engine.interrupts  # 超时后向引擎发过 interrupt
+        assert engine.cancelled_prompts == ["p-slow"]
+        assert engine.interrupts == []
         assert comfy_execute.resolve_execute_timeout_s({}) == 30.0
         assert comfy_execute.resolve_execute_timeout_s({"timeoutS": "oops"}) == 30.0
         assert comfy_execute.resolve_execute_timeout_s({"timeoutS": 0}) == 30.0
@@ -400,3 +410,43 @@ class TestObjectInfoDetail:
         assert len(trimmed) <= comfy_execute.OBJECT_INFO_MAX_OPTIONS + 1
         short = ["a", "b"]
         assert comfy_execute._trim_options(short) == short
+
+    def test_nested_groups_bound_options_and_preserve_defaults_metadata(self):
+        options = [f"model-{i}" for i in range(1200)]
+        entry = {
+            "input": {
+                "required": {"model": [options, {"default": "model-1100", "tooltip": "model"}]},
+                "optional": {"model": [options, {"default": "model-900"}]},
+                "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
+            },
+            "input_order": {"required": ["model"]},
+            "output": ["MODEL"], "output_is_list": [False], "output_node": False,
+        }
+        original = copy.deepcopy(entry)
+        detail = comfy_execute.trim_object_info_entry(entry)
+        for group in ("required", "optional"):
+            spec = detail["input"][group]["model"]
+            assert len(spec[0]) <= comfy_execute.OBJECT_INFO_MAX_OPTIONS
+            assert spec[1]["default"] in spec[0]
+            assert spec[1] == entry["input"][group]["model"][1]
+        assert detail["input"]["hidden"] == entry["input"]["hidden"]
+        assert detail["input_order"] == entry["input_order"]
+        assert detail["output_is_list"] == [False]
+        assert detail["output_node"] is False
+        assert entry == original
+        detail["input"]["required"]["model"][0].append("changed")
+        detail["input"]["required"]["model"][1]["tooltip"] = "changed"
+        assert entry == original
+
+    def test_flat_combo_with_metadata_remains_supported(self):
+        entry = {"input": {"choice": [list(range(1200)), {"default": 1100}]}}
+        result = comfy_execute.trim_object_info_entry(entry)
+        spec = result["input"]["choice"]
+        assert len(spec[0]) <= comfy_execute.OBJECT_INFO_MAX_OPTIONS
+        assert 1100 in spec[0]
+        assert spec[1] == {"default": 1100}
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf"), "NaN", "Infinity", True, False])
+def test_invalid_timeout_falls_back_to_finite_default(value):
+    assert comfy_execute.resolve_execute_timeout_s({"timeoutS": value}) == comfy_execute.EXECUTE_TIMEOUT_S

@@ -12,7 +12,7 @@ if (typeof window !== "undefined" && !window.__myH3RowDelegated) {
   window.__myH3RowDelegated = true;
   document.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target.closest("[data-h3-shot]") : null;
-    if (target) postAction("open-shot-video", String(target.dataset.h3Shot || ""), target);
+    if (target && !target.disabled) postAction("open-shot-video", String(target.dataset.h3Shot || ""), target, target.dataset.originProjectId, target.dataset.originEpisodeId);
   });
 }
 
@@ -28,7 +28,7 @@ export default {
       ].filter(Boolean).join("");
       const ready = Boolean(shot.imageReady);
       const h3 = shot.id
-        ? '<button type="button" data-h3-shot="' + esc(String(shot.id)) + '" title="'
+        ? '<button type="button" data-h3-shot="' + esc(String(shot.id)) + '" data-origin-project-id="' + esc(String(payload.originProjectId || "")) + '" data-origin-episode-id="' + esc(String(payload.originEpisodeId || "")) + '" title="'
           + (myTooltipsEnabled ? (ready ? "打开该镜的漫影 H3 视频制作工作流" : "先生成画面") : "") + '"'
           + (ready ? "" : " disabled")
           + ' style="margin-left:6px;cursor:' + (ready ? "pointer" : "not-allowed")

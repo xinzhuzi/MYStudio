@@ -557,6 +557,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._send_json(bridge_actions.submit(
                         str(payload.get("kind") or ""),
                         str(payload.get("note") or ""),
+                        origin_project_id=payload.get("originProjectId"),
+                        origin_episode_id=payload.get("originEpisodeId"),
                     ))
                 except ValueError as exc:
                     self._send_error_json(400, str(exc), "bridge-actions-invalid")
@@ -568,10 +570,19 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if method == "POST" and path == "/comfy/bridge/actions/ack":
                 from engines.comfyui import bridge_actions
-                self._send_json({"deleted": bridge_actions.ack(int(payload.get("upTo") or 0))})
+                ids = payload.get("ids")
+                if not isinstance(ids, list) or any(type(item_id) is not int or item_id <= 0 for item_id in ids):
+                    raise ValueError("动作确认 ids 必须是正整数列表")
+                self._send_json({
+                    "deleted": bridge_actions.ack(queue_id=payload.get("queueId"), ids=ids),
+                    "ackMode": "exact",
+                })
                 return
             if method == "POST" and path == "/comfy/bridge/writebacks/ack":
-                self._send_json({"deleted": bridge_inbox.ack(int(payload.get("upTo") or 0))})
+                ids = payload.get("ids")
+                if not isinstance(ids, list) or any(type(item_id) is not int or item_id <= 0 for item_id in ids):
+                    raise ValueError("回写确认 ids 必须是正整数列表")
+                self._send_json({"deleted": bridge_inbox.ack(ids=ids), "ackMode": "exact"})
                 return
 
             if method == "GET" and path == "/comfy/engine/snapshots":

@@ -271,9 +271,9 @@ pgrep -fl "漫影工作室|python.*tts|comfyui" || true
 
 ## ComfyUI 引擎资源边界（2026-09 起）
 
-安装包**不携带** ComfyUI 引擎本体与本地模型：引擎按需安装进 `<userData>/comfyui/`（源码+独立 venv+models+工作流库），由引擎管理器在设置页触发下载/更新。仓库内的 `apps/backend/engines/comfyui/manying_nodes/`（自研节点包）随包分发，运行时由 `plugin_manager.sync_manying_nodes()` 同步进引擎家——改 manying_nodes 后重新打包才进安装版。改动生效路径详见 [定制代码地图](../comfyui-kb/定制代码地图.md)。
+安装包**不携带** ComfyUI 引擎本体与本地模型：引擎按需安装进 `<userData>/comfyui/`（源码+独立 venv+models+工作流库），由引擎管理器在设置页触发下载/更新。仓库内的 `apps/backend/engines/comfyui/my_nodes/`（自研节点包）随包分发，运行时由 `plugin_manager.sync_my_nodes()` 同步进引擎家——改 my_nodes 后重新打包才进安装版。改动生效路径详见 [定制代码地图](../comfyui-kb/定制代码地图.md)。
 
-开发态引擎家解析顺序（`manifest.py`）：`MYSTUDIO_COMFYUI_HOME` 环境变量 → 应用用户数据目录 `<userData>/comfyui/` → 纯开发兜底 `~/.manying-dev`。`sync_manying_nodes` 在引擎启动链自动执行（`engine_manager.py`），dev 改完**重启引擎即生效、无需打包**；重打包约束只针对安装版（引擎 spawn 用 Resources 覆写引擎家）。
+开发态引擎家解析顺序（`manifest.py`）：`MYSTUDIO_COMFYUI_HOME` 环境变量 → 应用用户数据目录 `<userData>/comfyui/` → 纯开发兜底 `~/.manying-dev/comfyui/`。`sync_my_nodes` 在引擎启动链自动执行（`engine_manager.py`），dev 改完**重启引擎即生效、无需打包**；重打包约束只针对安装版（引擎 spawn 用 Resources 覆写引擎家）。
 
 ## 常见失败
 

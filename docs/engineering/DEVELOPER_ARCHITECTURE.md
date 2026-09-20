@@ -38,13 +38,13 @@ npm run build:mac
 
 ## ComfyUI 引擎层（2026-09 起现行架构）
 
-本地生成产线（K2 图像、H3 视频、音乐、超分、视觉审核等）已从自研 sidecar 管线整体切换到 ComfyUI 托管引擎。要点：
+ComfyUI 托管 K2 图像、H3 视频及音乐/修复等节点工作流；本地 TTS、VLM 审核等仍有独立的受管 Python worker。不能将全部本地能力等同于 ComfyUI 节点执行。要点：
 
 - **引擎域**：`apps/backend/engines/` 按模态分 9 包——`comfyui`（托管引擎，主力）、`tts_engine`、`audio_engine`、`sfx_engine`、`image_engine`（本地生图 sidecar，固定端口 17595，含 `comfyui_bridge.py` 工作流模板）、`depth_engine`、`upscale_engine`、`video_qc_engine`、`vlm_engine`。engines 域定位（底层模型引擎层）见 `.claude/knowledge/backend-architecture.md`。
-- **ComfyUI 托管引擎**（`engines/comfyui/`）：`engine_manager.py` 负责安装/启动/健康探测，引擎「家」在 `<userData>/comfyui/`（ComfyUI 源码、独立 venv、`models/`、snapshots、`user/default/workflows` 工作流库、manifest.json、engine.lock）；引擎端口走 17xxx 动态分配（真源=引擎账本/状态，禁大众端口），`bridge_actions.py` 等提供结果回写桥。
-- **manying_nodes 自研节点包**：真源在仓库 `apps/backend/engines/comfyui/manying_nodes/`（Python 节点 + `web/` 前端扩展），运行时由 `plugin_manager.sync_manying_nodes()` 同步进引擎家。铁律：零改 ComfyUI 本体、全走官方扩展点、引擎家 git 恒 0 改动。四层定制代码位置与生效路径见 [定制代码地图](../comfyui-kb/定制代码地图.md)。
+- **ComfyUI 托管引擎**（`engines/comfyui/`）：`engine_manager.py` 负责安装/启动/健康探测，引擎「家」在 `<userData>/comfyui/`（ComfyUI 源码、独立 venv、`models/`、snapshots、默认 `<源码目录>/user/default/workflows` 用户库（可覆写 `workflowsDir`）、manifest.json、engine.lock）；引擎端口走 17xxx 动态分配（真源=引擎账本/状态，禁大众端口），`bridge_actions.py` 等提供结果回写桥。
+- **my_nodes 自研节点包**：真源在仓库 `apps/backend/engines/comfyui/my_nodes/`（Python 节点 + `web/` 前端扩展），运行时由 `plugin_manager.sync_my_nodes()` 同步进引擎家。铁律：零改 ComfyUI 本体、全走官方扩展点、引擎家 git 恒 0 改动。四层定制代码位置与生效路径见 [定制代码地图](../comfyui-kb/定制代码地图.md)。
 - **前端**：主导航「本地模型」（原「辅助」）= 全屏 ComfyUI 工作区（`components/panels/assist/ComfyWorkspace.tsx`，三态：ComfyUI 画布 `comfy-canvas/ComfyCanvasStudio.tsx` webview 嵌自管引擎完整前端 / TTS 配音室 / 漫影生图 `local-models/`）；「MY 工作流」的「分镜视频生成」「图像节点图」页签经 `ComfyCanvasSwap.tsx` 复用同一画布，业务载荷由 `lib/assist/image-studio/storyboard-pipeline-comfy.ts` 等桥接写入。
-- **模型统一家（09-10 裁定）**：全部本地模型住 `<storageBasePath>/comfyui/models/<family>/`（`electron/storage/model-dirs.ts` 为单一拼装源）；08-19 的 `<storageBasePath>/model/<family>/` 规范就此退役。设置→本地配置→ComfyUI 引擎卡「模型」页签 = `comfyui/models` 活清单。
+- **模型统一家（09-10 裁定）**：Node 侧模型路径通过 `electron/storage/model-dirs.ts` 组装为 `<storageBasePath>/comfyui/models/<family>/`；ComfyUI 引擎的实际 `modelsDir` 另允许 manifest 覆写，需核对设置页当前值；08-19 的 `<storageBasePath>/model/<family>/` 规范就此退役。设置→本地配置→ComfyUI 引擎卡「模型」页签 = `comfyui/models` 活清单。
 - 旧 React Flow 画布 2026-09-01 退役删除，画布化操作全走 ComfyUI（历史参照与存续对账见 `.claude/knowledge/node-graph-architecture.md`）。导演/S级/角色/场景等内部工作区仍走云端 AI 链路（`aiManager`），与本地 ComfyUI 产线并行。
 
 ## 当前物理模块地图与数据边界
@@ -65,22 +65,22 @@ npm run build:mac
 |---|---|---|
 | `<storageBasePath>/projects`、`media`、`assets`、`skills` | 用户项目、媒体、资产库和技能等项目存储 | 由 Electron storage bridge 和设置页管理，不由 renderer 直接写入 |
 | `<storageBasePath>/python` | 设置页下载并配置的 Python 3.12 runtime | 正式 Python runtime 根目录；当前 TTS 依赖从 `apps/backend/requirements.txt` 安装到这里，video-use 只把它作为解释器来源 |
-| `<storageBasePath>/comfyui/` | ComfyUI 引擎家：引擎源码、独立 venv、`models/`（本地模型统一家）、snapshots、`user/default/workflows` 工作流库、manifest.json、engine.lock | 引擎运行时数据，由引擎管理器安装/升级；不进安装包，不写入 `apps/` 源码区 |
+| `<userData>/comfyui/`（可由 `MYSTUDIO_COMFYUI_HOME` 覆写） | ComfyUI 引擎家：引擎源码、独立 venv、`models/`（本地模型统一家）、snapshots、默认 `<源码目录>/user/default/workflows` 用户库（可覆写 `workflowsDir`）、manifest.json、engine.lock | 引擎运行时数据，由引擎管理器安装/升级；不进安装包，不写入 `apps/` 源码区 |
 | `<storageBasePath>/comfyui/models/TTS` | 默认 TTS 模型缓存（09-10 模型统一家；旧版 `model/TTS`、`tts-models` 仅作迁移兼容，`model-dirs.ts` 为拼装单源） | 运行时数据，不是源码或应用资源 |
 | `<storageBasePath>/TTS/runtime` | sidecar 的状态、`tts.sqlite`、生成音频和 marker | 由 sidecar 启动参数和 Electron runtime 管理，不写入 `apps/backend/`；旧版 `<userData>/tts-runtime` 仅作迁移兼容 |
 | 安装包 `out/` 与 `Resources/backend` | 应用构建输出与打包后的 sidecar 源码 | electron-builder 把 `backend` 作为资源复制，但排除 tests、文档、`backend/python/**` 和 venv；Python runtime 不随安装包分发 |
 
-这里要明确区分两套 Python：开发/构建脚本使用开发者当前 shell 的 `python3`（或开发者自行激活的虚拟环境），安装后的 Electron 应用使用设置页下载到 `<storageBasePath>/python` 的受管理 Python 3.12。当前仓库没有提交一个可作为开发运行时的 `apps/.venv`/`apps/backend/.venv`；本机本轮探针的 `python3` 是 `/opt/homebrew/bin/python3`（Python 3.14.4），这只是开发机事实，不是产品打包依赖。
+这里要明确区分两套 Python：开发/构建脚本使用开发者当前 shell 的 `python3`（或开发者自行激活的虚拟环境），安装后的 Electron 应用使用设置页下载到 `<storageBasePath>/python` 的受管理 Python 3.12。当前仓库没有提交一个可作为开发运行时的 `apps/.venv`/`apps/backend/.venv`；开发者应以当前 shell 的 `python3 --version` 检查版本；历史开发机探针不能作为产品打包依赖。
 
 **开发态 TTS 是例外中的第二层**：即使 Electron 以 `npm run dev` 启动，TTS 按钮仍由 `tts-runtime.ts` 查找 `<storageBasePath>/python` 并用它启动 `tts.main`；开发 shell 的 `python3` 只负责直接运行 build/测试脚本，不能据此推断 TTS 会使用 shell Python。两者都不把 Python runtime 带入安装包：electron-builder 只复制 `Resources/backend` 源码与依赖声明，并排除 `backend/python/**`、`venv/**`。
 
 2026-08-03 的只读 `storage-config.json` 证据中，`basePath`、`projectPath` 和
-`mediaPath` 都为空，所以当前机器的 `<storageBasePath>` 与 `<userData>` 是同一物理根。
-这不会改变路径解析契约，只表示下列目录当前共同位于 Application Support：
+`mediaPath` 都为空，所以当时的 `<storageBasePath>` 与 `<userData>` 是同一物理根。
+这是历史快照；今天的真实目录须重新读取配置，不据此推断当前机器仍未迁移：
 
 源码中的路径解析是确定的：`storage-manager.ts` 在没有自定义 `basePath` 时返回
 Electron `userDataPath`，`getPythonRuntimeDir()` 再拼接 `python`；`main.ts` 将同一个
-`getStorageBasePath()` 传给 `tts-runtime`。因此当前 macOS 运行时实际使用的是
+`getStorageBasePath()` 传给 `tts-runtime`。该历史 macOS 配置对应的路径示例是
 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python/bin/python3`（文档中的
 `<storageBasePath>/python/bin/python3` 是可迁移写法）。设置页或 video-use worker 都必须从
 这个 resolver 得到路径，不能自行猜测、读取开发者 shell 的 `python3` 或写入
@@ -155,7 +155,7 @@ Shell，且只允许用户在设置页主动下载/更新。Headless Shell、Bun
 运行时版本或 bundle manifest 漂移会在导出前阻止任务。旧版本保存的 FFmpeg renderer
 配置只在迁移时归一化为 Remotion，不再成为可选生产路径。
 
-### HyperFrames 的应用运行时集成边界（后续 sidecar）
+### HyperFrames 的应用运行时集成边界
 
 HyperFrames 与 Remotion 都可以通过 npm 安装，但不能因此把它们加载进同一个 Electron
 renderer。当前锁文件中的 Electron `43.4.0` 内置 Node 为 `24.18.1`，满足
@@ -165,7 +165,7 @@ Chrome、临时组合和失败清理，不把 HyperFrames 依赖并入 renderer 
 ```text
 MYStudio UI 按钮/文本/确认
   -> typed preload IPC（projectId/chapterId/revisionId/effect plan）
-  -> Electron main 校验路径、Node 22、Chrome、共享 FFmpeg/ffprobe
+  -> Electron main 校验路径、Electron 内置 Node（要求 >=22）、Chrome、共享 FFmpeg/ffprobe
   -> Electron Node 模式承载的独立 HyperFrames worker/profile（不可见，无用户终端）
   -> lint/check/preview/render
   -> overlay manifest + MP4/WebM + ffprobe + SHA
@@ -177,7 +177,7 @@ MYStudio UI 按钮/文本/确认
 集成时必须同时满足以下边界：
 
 - `hyperframes` 可以精确锁定在 `apps/package.json` 供开发和 CI 使用，但生产运行不能由
-  Electron renderer 或 Electron main 直接 `import`；Node 22 worker/runtime 应作为经过筛选的
+  Electron renderer 或 Electron main 直接 `import`；Electron 内置 Node（要求 >=22） worker/runtime 应作为经过筛选的
   `extraResources` 独立资源（或等价的受控运行时）提供，不能仅放在 `app.asar` 中。
 - HyperFrames 的 HTML/CSS/JS 源码、Node 依赖、诊断和浏览器缓存与 Remotion bundle
   分开；不把全部 19 个 Agent Skill 复制进生产包，不把其 composition 注册为
@@ -217,7 +217,7 @@ video-use 与 HyperFrames 每章默认启用。章节 revision 状态为 `prepar
 
 `VideoUseChapterRunV1` 负责 `projectId/chapterId/revisionId`、`shots[]`、`ttsSpokenText`、`audioRef`、`videoRef`、输入 SHA、feature flags 和 runtime/tool manifest；`VideoUseChapterArtifactV1` 负责 word/character alignment、sentence cues、EDL、字幕、grade、overlay slots、preview、self-eval、mode、state 和输出 evidence。video-use 原始秒制保留在 evidence，adapter 校验后转换为 `TimelineTimeUs`。普通字幕由 Remotion track 合成，动效字幕由 HyperFrames 透明素材合成；`flat-shot-mp4` 必须保留独立字幕/overlay metadata，禁止二次烧录。无动效时也要提交 HyperFrames `no-op` artifact。
 
-`HyperFramesOverlayRequestV1` 只接受最终时间线的微秒窗口、effect/template 参数、宽高/fps、alpha/format 要求、源 revision 和 overlay SHA；`VideoWorkflowPluginStatusV1` 记录 app code version、上游 URL/commit/license、managed Python/profile、Node 22、浏览器、FFmpeg/ffprobe、model cache 和 compatibility result。两类字段都进入 revision/evidence，不直接写入最终 MP4。
+`HyperFramesOverlayRequestV1` 只接受最终时间线的微秒窗口、effect/template 参数、宽高/fps、alpha/format 要求、源 revision 和 overlay SHA；`VideoWorkflowPluginStatusV1` 记录 app code version、上游 URL/commit/license、managed Python/profile、Electron 内置 Node（要求 >=22）、浏览器、FFmpeg/ffprobe、model cache 和 compatibility result。两类字段都进入 revision/evidence，不直接写入最终 MP4。
 
 所有跨层调用都通过 typed IPC/worker adapter 传递 project/chapter/revision 与 SHA，不让 renderer 直接读取 video-use 原始 JSON。`apps/backend/requirements.txt` 继续只归 TTS/STT；video-use 复用 managed Python/site-packages，但使用独立 `requirements-video-use.lock`/profile marker，禁止 `video-use-runtime` venv。FFmpeg/ffprobe 只使用 MYStudio 统一预检出的同一组共享绝对路径。
 
@@ -230,9 +230,9 @@ video-use 与 HyperFrames 每章默认启用。章节 revision 状态为 `prepar
 | 代码落点 | 当前行为 | 明确限制 |
 |---|---|---|
 | `apps/frontend/electron/rendering/contracts/video-workflow.ts`、`video-workflow-ipc.ts` | 统一契约、运行时状态、EDL 秒制到 `TimelineTimeUs` 的边界和 IPC 校验 | 不接受 renderer 直接传 shell 命令或未验证 JSON |
-| `apps/frontend/electron/rendering/plugins/video-workflow/video-workflow-runtime.ts` | 解析 `<storageBasePath>/python`、独立 video-use profile、Node 22、共享 FFmpeg/ffprobe，并执行版本、profile、依赖和 HyperFrames `doctor --json`/`browser path` 探针 | 探针不会偷偷下载依赖或浏览器，也不会创建 `video-use-runtime` venv；缺少已验证浏览器路径保持 `blocked` |
+| `apps/frontend/electron/rendering/plugins/video-workflow/video-workflow-runtime.ts` | 解析 `<storageBasePath>/python`、独立 video-use profile、Electron 内置 Node（要求 >=22）、共享 FFmpeg/ffprobe，并执行版本、profile、依赖和 HyperFrames `doctor --json`/`browser path` 探针 | 探针不会偷偷下载依赖或浏览器，也不会创建 `video-use-runtime` venv；缺少已验证浏览器路径保持 `blocked` |
 | `apps/frontend/electron/rendering/plugins/video-use/video-use-adapter.ts`、`apps/backend/video_use/worker.py` | 使用 managed Python 运行固定 checkout、MLX 原文对齐、EDL/字幕/调色/preview/self-eval worker；运行时或 pinned upstream 缺失时返回 `blocked`，不伪造 artifact | 应用安装态的一章真实媒体验收仍需单独记录，代码路径不能替代真实证据 |
-| `apps/frontend/electron/rendering/plugins/hyperframes/hyperframes-adapter.ts`、`hyperframes-worker.ts` | 有 overlay 窗口时要求 Node 22、已验证浏览器和共享 FFmpeg，生成透明 HTML overlay 并做 alpha/codec probe；无窗口时写入可审计 `noop` | 缺少 `doctor.ok`、browser path 或透明层 probe 时明确 `blocked`；不调用隐式 `browser ensure` |
+| `apps/frontend/electron/rendering/plugins/hyperframes/hyperframes-adapter.ts`、`hyperframes-worker.ts` | 有 overlay 窗口时要求 Electron 内置 Node（要求 >=22）、已验证浏览器和共享 FFmpeg，生成透明 HTML overlay 并做 alpha/codec probe；无窗口时写入可审计 `noop` | 缺少 `doctor.ok`、browser path 或透明层 probe 时明确 `blocked`；不调用隐式 `browser ensure` |
 | `apps/frontend/electron/rendering/plugins/video-workflow/video-workflow-artifact-store.ts`、`video-workflow-chapter-service.ts` | 按 `project/chapter/revision` 读取并校验双 artifact，统一调用章节 gate | 缺失、损坏或 identity/hash 漂移不会回读旧 revision |
 | `apps/frontend/electron/main/main.ts` 与 `remotion-chapter-renderer.ts` | Remotion 原生 Studio 入队前、ChapterVideo worker 启动前各执行一次 gate；accepted HyperFrames 的透明输出经同一 MediaBridge capability URL 注入 ChapterVideo | gate 未通过时不创建正式章节 render job；overlay 文件/SHA/alpha 不可读时也阻塞；no-op 不注册媒体 |
 | `apps/frontend/components/panels/settings/PluginSettingsTab.tsx`、`PythonSettingsTab.tsx`、`comfy-engine/ComfyEngineSettingsSection.tsx`、`apps/frontend/components/panels/tts/LocalTtsPanel.tsx` | 统一「本地配置」页，当前区块顺序为 Python → ComfyUI 引擎（含「模型」页签） → 视觉审核(VLM) → TTS → 音效(SFX) → 视频插件(video-use/HyperFrames/Remotion)；顶部按优先级准备按钮复用现有 hook | 用户不使用 CLI；TTS 模型写入 `<storageBasePath>/comfyui/models/TTS`（09-10 统一家；旧版 `model/TTS`、`tts-models` 仅作迁移兼容）；未就绪或下载失败时显示阻塞原因，不创建独立 venv 或第二份 FFmpeg |
@@ -359,7 +359,7 @@ renderer component
 
 边界规则：
 
-- 上游快照只读。修复兼容问题时在 `providers/aitoearn-local/compatibility/` 加具名 shim + 回归测试，不改 `vendor/`；shim 通过 `frontend/config/electron-vite.config.ts` 的 `sharedAlias` 生效。
+- 上游快照只读。修复兼容问题时在 `providers/aitoearn-local/compatibility/` 加具名 shim + 回归测试，不改 `vendor/`；shim 通过 `apps/frontend/config/electron-vite.config.ts` 的 `sharedAlias` 生效。
 - 原生模块禁止进入 main bundle。上游 `sharp` 只用来读图片宽高，已由 `compatibility/sharp.ts` 用纯 JS 实现替换；否则打包版会在启动时报 `Could not load the "sharp" module` 并直接崩溃。
 - 凭据走 `safeStorage` 凭据保险库，不落 renderer 状态、项目文件和诊断上下文。
 - `aitoearn-local` 是唯一 provider；失败不做静默回退，也不伪造成功。

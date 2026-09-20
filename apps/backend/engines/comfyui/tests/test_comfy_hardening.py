@@ -353,25 +353,25 @@ class TestEnsureEngineReady:
 
     def test_healthy_short_circuits(self, monkeypatch):
         import engines.comfyui.engine_manager as em
-        mgr = em.EngineManager.__new__(em.EngineManager)
+        mgr = em.EngineManager()
         monkeypatch.setattr(em.cm, "engine_installed", lambda: True)
         mgr._proc = None  # 无进程 → 不满足快捷路径
         called = []
-        monkeypatch.setattr(mgr, "start_sync", lambda: called.append(1) or {"running": True})
+        monkeypatch.setattr(mgr, "start_sync", lambda **kw: called.append(kw["expected_generation"]) or {"running": True})
         assert mgr.ensure_engine_ready() is True
-        assert called == [1]
+        assert called == [0]
 
     def test_installed_stopped_starts_sync(self, monkeypatch):
         import engines.comfyui.engine_manager as em
-        mgr = em.EngineManager.__new__(em.EngineManager)
+        mgr = em.EngineManager()
         monkeypatch.setattr(em.cm, "engine_installed", lambda: True)
         import types
         mgr._proc = types.SimpleNamespace(poll=lambda: 1)  # 进程已退出
         monkeypatch.setattr(mgr, "is_healthy", lambda *a, **k: False)
         called = []
-        monkeypatch.setattr(mgr, "start_sync", lambda: called.append(1) or {"running": True})
+        monkeypatch.setattr(mgr, "start_sync", lambda **kw: called.append(kw["expected_generation"]) or {"running": True})
         assert mgr.ensure_engine_ready() is True
-        assert called == [1]
+        assert called == [0]
 
 
 class TestCleanOrphanPlugins:

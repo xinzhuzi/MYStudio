@@ -110,7 +110,7 @@ def build_card(bases: list, slots: list) -> tuple[str, dict]:
     new_card = "\n\n".join([head, STACK_HEAD, PARAMS_HEAD, MATRIX_HEAD, matrix]) + "\n"
     # 手动画幅口径尾注(单源解释,不属矩阵数据)
     new_card += """
-表情类硬规则(裁定13):情绪名必配五官物理描述(眉/眼/唇/肌肉≥3要素),纯情绪名=无效;生产路=每表情独立生成拼板(daojie_emotion_compose_0920)。
+表情类硬规则(裁定13加强):情绪名必配五官全覆盖描述(眉/眼/鼻颊/唇/头下颌逐项)+幅度放大,纯情绪名=无效;生产路=每表情独立生成拼板(daojie_emotion_compose_0920)。
 手动改画幅/MP 须先断开 [53] 左侧两条 [80] 输入线(断线后回落 [53] widget 旧值);[63] 12带重平衡全1.0=中性,同图可调淡彩浓度。"""
     return new_card, parsed
 

@@ -524,7 +524,7 @@
         ]
       },
       "widgets_values": [
-        "DynamicCharacterSheet_krea2_v1.safetensors",
+        "QuadView_krea2_v1.safetensors",
         1
       ],
       "title": "[164] CharacterSheet LoRA ×1.0(官方挂法:必先于 ModelPatch 打上;装机位=引擎 loras 根 DynamicCharacterSheet_krea2_v1.safetensors,上游=HF Alissonerdx/CharacterSheet)",
@@ -849,7 +849,7 @@
         538
       ],
       "flags": {},
-      "mode": 0,
+      "mode": 4,
       "inputs": [],
       "outputs": [
         {
@@ -887,7 +887,7 @@
         621
       ],
       "flags": {},
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "clip",
@@ -968,7 +968,7 @@
         300
       ],
       "flags": {},
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "source",
@@ -980,9 +980,7 @@
         {
           "name": "STRING",
           "type": "STRING",
-          "links": [
-            29
-          ]
+          "links": []
         }
       ],
       "title": "Prompt Result",
@@ -1074,7 +1072,7 @@
         }
       },
       "widgets_values": [
-        6.0,
+        1.0,
         1.0,
         "fit"
       ],
@@ -1144,7 +1142,7 @@
       },
       "widgets_values": [
         "[TASK: ENTITY_SHEET_GENERATION]\n[TEMPLATE: MULTI_ANGLE_ENTITY_SHEET_V1]\n[ENTITY_TYPE: HUMAN]\n[ENTITY_ID: human_lena_professional]\n\nConvert the subject in Image 1 into one standardized advanced Character Sheet. Image 1 is the sole identity and design reference for Lena. Preserve the exact same design, proportions, colors, materials, markings, surface wear, and every signature detail. Do not redesign, beautify, age-shift, or simplify it.\n\nFIXED LANDSCAPE SHEET FORMAT\nUse a clean 3:2 landscape canvas with a warm off-white paper background and generous white space. Organize one coherent sheet with these fixed zones:\n1. LEFT METADATA COLUMN: completely empty — clean background paper with generous white space; no text, no labels, no typography (metadata is applied in post-production).\n2. LARGE CENTER HERO VIEW: one dominant full-body or complete-object three-quarter view.\n3. TOP-RIGHT TURNAROUND ROW: neutral FRONT FULL BODY, SIDE FULL BODY, and BACK FULL BODY views at matching scale, with all extremities visible.\n4. MID-RIGHT ACTION POSES: three readable views including a low angle, an overhead or high angle, and one characteristic action or operating state.\n5. BOTTOM-LEFT SILHOUETTE STUDY: three solid black silhouettes that preserve the design shape.\n6. BOTTOM-CENTER EXPRESSION STUDY: one clear neutral face close-up plus three compact expression, state, or functional studies showing meaningful variation without changing identity or construction.\n7. BOTTOM-RIGHT DETAIL STUDY: six close-up crops of the most identity-critical features, materials, joints, face, markings, controls, or accessories.\n\nIDENTITY LOCKS\n- long wavy auburn hair reaching mid-thigh with center-parted blunt bangs\n- fair skin with subtle blush on cheeks and defined red lips\n- white button-down blouse with collar and cuffs, no tie or scarf\n- dark navy pleated skirt ending at mid-thigh, belt at waistline\n- black block-heeled pumps\n- Keep the subject from Image 1 recognizable in every view.\n- Keep handedness, asymmetry, markings, costume, hardware, and color placement consistent.\n- Use modern xiuxian-game character art direction throughout the sheet: 现代修仙游戏的角色立绘资产：以现代角色设计立身份气质与年龄感，中国人物画式细稳墨线勾画骨相衣纹，淡墨晕染空气与远景，传统色受控铺陈，数字绘画完成度。\n- 眉眼发丝逐层分明，衣纹疏密有致，线宽连续有节奏、转折衔接干净；线条以解释形体为先，五官衣褶结构线随骨相走，细稳基调上转折处轻重提按，墨线带手绘笔性。\n- 同一人物多视角立像排布，角色视图约占画面六成，衣纹仅两至四条长结构褶；视觉密度中高，留白承担视觉呼吸；色彩组织为大面积稳定基底、中等强度主体色、少量高识别点睛；均匀柔光平涂底，画面干净可读，生产级清晰度。\n\nVISIBLE TEXT\nDo not render any text, letters, numbers, labels, captions, or written characters anywhere on the sheet. Keep every zone free of typography — all labels are applied in post-production.\n\nNEGATIVE CONSTRAINTS\nNo extra character or object, identity drift, species drift, wardrobe drift, material drift, inconsistent markings, changed proportions, missing extremities, duplicated limbs, merged views, overlapping panels, logo, watermark, or unrelated decoration.",
-        1024,
+        0,
         ""
       ],
       "title": "[119] 正向·官方结构化模板+道劫锚(VLM 启用时被现写结果覆盖)",
@@ -1214,7 +1212,7 @@
       },
       "widgets_values": [
         "3D渲染,照片写实,油画厚涂,卡通平涂,硬投影,浓重阴影,纸纹污渍,做旧泛黄,绢纹织物底,网格纹底,冷灰底,多余手指,畸形的手,文字,水印,签名,extra characters,multiple people,cropped head",
-        1024,
+        0,
         ""
       ],
       "order": 23
@@ -1287,7 +1285,7 @@
           ]
         }
       ],
-      "title": "Latent",
+      "title": "Latent·直出原生档(1536;2K=UltraSharp 超分)",
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.26.0",
@@ -1302,8 +1300,8 @@
         }
       },
       "widgets_values": [
-        2568,
-        1712,
+        1536,
+        1024,
         1
       ],
       "order": 25
@@ -1363,11 +1361,11 @@
         }
       },
       "widgets_values": [
-        2027,
+        2030,
         "fixed",
         10,
         1,
-        "lcm",
+        "euler",
         "simple",
         1
       ],
@@ -1786,8 +1784,8 @@
         40,
         "墨黑",
         "道劫",
-        "左栏竖排",
-        "正面全身\n侧面全身\n背面全身\n面部特写"
+        "四格条带",
+        "半身像\n正面全身\n侧面全身\n背面全身"
       ],
       "order": 28
     },
@@ -1803,21 +1801,23 @@
         180
       ],
       "flags": {},
-      "mode": 4,
+      "mode": 0,
       "outputs": [
         {
           "name": "STRING",
           "type": "STRING",
-          "links": [],
+          "links": [
+            29
+          ],
           "slot_index": 0
         }
       ],
-      "title": "四视图·触发词",
+      "title": "四视图·QuadView 触发词",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "Convert the character in Figure 1 into a 4-view turnaround: from left to right, full-body front view, full-body side view, full-body back view, and a close-up facial shot. Pure white background."
+        "Convert the character in the image into a 4-view character turnaround sheet on a plain pure white background with no color tint, no gradient, no decoration, not a poster. Exactly four figures only, arranged in one row: (1) a half-body portrait facing the viewer straight on, front-facing, strictly cropped at the waist with nothing below the waist visible, like the upper half of a front view; (2) a full-body front view facing the viewer straight on; (3) a full-body side view in exact 90-degree profile; (4) a full-body back view seen directly from behind at 180 degrees. No three-quarter views, no side-back view, no extra figure, only these four. The same character in the same clothes in every view. Clothes hang straight down naturally, static standing pose, neutral expression, no props, no text, no watermark."
       ],
       "order": 18
     }
@@ -2017,7 +2017,7 @@
     ],
     [
       29,
-      163,
+      308,
       0,
       119,
       3,

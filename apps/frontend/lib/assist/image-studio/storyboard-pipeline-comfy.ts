@@ -386,6 +386,8 @@ export interface StageInjection {
 export function buildStageInjections(input: {
   summaries: Array<{ key: string; title: string; summary?: string; status?: string }>;
   payloads?: Array<{ key: string }>;
+  originProjectId?: string;
+  originEpisodeId?: string;
 }): StageInjection[] {
   const nodeId = new Map<string, number>();
   MAINLINE.forEach((key, index) => nodeId.set(key, index + 1));
@@ -399,7 +401,13 @@ export function buildStageInjections(input: {
       widgets_values: [item.key, item.title, item.summary ?? "", item.status ?? ""],
       properties: {
         "Node name for S&R": "MyStage",
-        ...(payload ? { myStage: payload } : {}),
+        ...(input.originProjectId ? { myOriginProjectId: input.originProjectId } : {}),
+        ...(input.originEpisodeId ? { myOriginEpisodeId: input.originEpisodeId } : {}),
+        ...(payload ? { myStage: {
+          ...payload,
+          ...(input.originProjectId ? { originProjectId: input.originProjectId } : {}),
+          ...(input.originEpisodeId ? { originEpisodeId: input.originEpisodeId } : {}),
+        } } : {}),
       },
     };
   });

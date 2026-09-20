@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import { app } from "/scripts/app.js";
+import { api } from "/scripts/api.js";
 
 /**
  * 漫影共享主题与工具(theme 模块,09-13 模块拆分)。
@@ -88,7 +89,50 @@ async function fetchShots() {
   return response.json();
 }
 
-function applyShotToSelection(shotId, label) {
+function writebackMeta(value) {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : { raw: value };
+  } catch {
+    return { raw: value };
+  }
+}
+
+function bindWritebackProject(node, originProjectId) {
+  const widget = node.widgets?.find((item) => item.name === "meta");
+  if (!widget || typeof originProjectId !== "string" || !originProjectId.trim()) {
+    return { ok: false, message: "请打开漫影项目后刷新，再绑定回写项目" };
+  }
+  widget.value = JSON.stringify({ ...writebackMeta(widget.value), originProjectId });
+  if (node.__myWritebackOriginButton) node.__myWritebackOriginButton.name = `回写项目：${originProjectId}`;
+  node.setDirtyCanvas?.(true, true);
+  app.graph?.change?.();
+  return { ok: true, message: `已绑定回写项目：${originProjectId}` };
+}
+
+function snapshotOrigin(data) {
+  const origin = data?.originProjectId;
+  if (typeof origin !== "string" || !origin.trim() || !Number.isFinite(data.updatedAt)
+      || Date.now() - data.updatedAt > Math.min(data.staleAfterMs || 15000, 15000)) {
+    throw new Error("项目快照已过期，请打开漫影画布刷新后再绑定");
+  }
+  return origin;
+}
+
+async function bindSelectedProject() {
+  const node = app.canvas?.selected_node;
+  if (!node || !["MyGenerated", "ManyingGenerated"].includes(node.comfyClass)) {
+    return { ok: false, message: "请先选中一个「漫影 成图回写」节点" };
+  }
+  const origin = snapshotOrigin(await fetchShots());
+  if (!window.confirm(`将成图回写绑定到项目：${origin}？\n切换项目不会自动改变此绑定。`)) {
+    return { ok: false, message: "已取消绑定" };
+  }
+  return bindWritebackProject(node, origin);
+}
+
+function applyShotToSelection(shotId, label, originProjectId) {
   const node = app.canvas?.selected_node;
   // 旧名 ManyingGenerated=存量画布节点兼容(09-14 manying→my 改名)
   if (!node || (node.comfyClass !== "MyGenerated" && node.comfyClass !== "ManyingGenerated")) {
@@ -96,11 +140,65 @@ function applyShotToSelection(shotId, label) {
   }
   const widget = (node.widgets || []).find((item) => item.name === "shot_target");
   if (!widget) return { ok: false, message: "节点缺少 shot_target 挂件" };
+  const bound = bindWritebackProject(node, originProjectId);
+  if (!bound.ok) return bound;
   widget.value = shotId;
   if (node.setDirtyCanvas) node.setDirtyCanvas(true, true);
   if (app.graph?.change) app.graph.change();
-  return { ok: true, message: `已回填回写目标:${label}` };
+  return { ok: true, message: `已回填回写目标:${label} · 项目:${originProjectId}` };
 }
+
+// Validate the serialized submission, never infer origin from the active project
+// after generation. Non-serialized buttons preserve existing widget positions.
+app.registerExtension({
+  name: "my.writeback.origin",
+  setup() {
+    if (api.__myWritebackOriginHooked) return;
+    api.__myWritebackOriginHooked = true;
+    const queuePrompt = api.queuePrompt.bind(api);
+    api.queuePrompt = async (number, data, ...rest) => {
+      const targets = rest[0]?.partialExecutionTargets;
+      for (const [id, node] of Object.entries(data?.output ?? {})) {
+        if (Array.isArray(targets) && targets.length > 0 && !targets.some((target) => String(target) === id)) continue;
+        let origin;
+        if (["MyGenerated", "ManyingGenerated"].includes(node.class_type)) {
+          origin = writebackMeta(node.inputs?.meta).originProjectId;
+        } else if (["MyShot", "ManyingShot"].includes(node.class_type) && node.inputs?.video) {
+          origin = data.workflow?.nodes?.find((item) => String(item.id) === id)?.properties?.myOriginProjectId;
+        } else continue;
+        if (typeof origin !== "string" || !origin.trim()) {
+          throw new Error(`节点 ${id} 未绑定回写项目：请点成图节点或漫影侧栏的「绑定当前项目」；视频请从漫影重新打开单镜工作流`);
+        }
+      }
+      return queuePrompt(number, data, ...rest);
+    };
+  },
+  beforeRegisterNodeDef(nodeType, nodeData) {
+    if (!["MyGenerated", "ManyingGenerated"].includes(nodeData?.name)) return;
+    const onCreated = nodeType.prototype.onNodeCreated;
+    nodeType.prototype.onNodeCreated = function (...args) {
+      const result = onCreated?.apply(this, args);
+      const button = this.addWidget("button", "绑定当前项目", null, async () => {
+        try {
+          const origin = snapshotOrigin(await fetchShots());
+          if (!window.confirm(`将成图回写绑定到项目：${origin}？\n切换项目不会自动改变此绑定。`)) return;
+          const bound = bindWritebackProject(this, origin);
+          if (!bound.ok) throw new Error(bound.message);
+          button.name = `回写项目：${origin}`;
+        } catch (error) { window.alert(error.message || String(error)); }
+      }, { serialize: false });
+      this.__myWritebackOriginButton = button;
+      const onConfigured = this.onConfigure;
+      this.onConfigure = function (...configArgs) {
+        const configured = onConfigured?.apply(this, configArgs);
+        const origin = writebackMeta(this.widgets?.find((item) => item.name === "meta")?.value).originProjectId;
+        button.name = origin ? `回写项目：${origin}` : "绑定当前项目";
+        return configured;
+      };
+      return result;
+    };
+  },
+});
 
 // ── 漫影侧栏 v2:两页签按模块分工(09-11 用户裁定:所有模块都展示漫影标签,
 // 内容随当前模块;模型页签撤——模型只在画布节点上呈现)────────────────
@@ -354,7 +452,7 @@ function paneStatus(text) {
 // 降级底线:扩展面缺席(旧前端)→带名临时打开(零 Unsaved 仍成立,仅失去文件绑定)。
 
 export {
-  BRIDGE_URL, BRIDGE_TOKEN, fetchShots, applyShotToSelection, myScope,
+  BRIDGE_URL, BRIDGE_TOKEN, fetchShots, applyShotToSelection, bindSelectedProject, snapshotOrigin, myScope,
   fetchJson, postJson, THEME, icon, ICONS, sectionLabel, statusBadge,
   progressBar, collapseGroup, actionButton, paneStatus,
 };

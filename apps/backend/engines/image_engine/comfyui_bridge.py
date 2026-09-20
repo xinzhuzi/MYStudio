@@ -402,7 +402,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             return base64.b64encode(_fetch_bytes(f"{bridge_url()}/view?{query}")).decode("ascii")
         time.sleep(1)
     try:
-        _http_json("POST", f"{bridge_url()}/interrupt", {"client_id": client_id}, timeout=5)
+        _http_json("POST", f"{bridge_url()}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)
     except Exception:
         # Interrupt is cleanup-only.  A ComfyUI instance may reject it after
         # the job has already left the queue; the timeout contract remains

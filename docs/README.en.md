@@ -40,7 +40,9 @@ The project emphasizes a local-first approach with creator control: assets, proj
 The core pipeline is:
 
 ```text
-Novel Import -> Script Planning -> Asset Extraction -> Production Generation -> Storyboard Table -> Remotion Shot Jobs -> Native Remotion Studio -> ChapterVideo MP4
+Novel / Script -> Assets / Storyboards -> Shot Materials / TTS -> Remotion Shot Jobs
+-> video-use Preview and Review -> User Confirmation -> HyperFrames / EditingProject
+-> Native Remotion Studio -> ChapterVideo MP4 -> Final QC
 ```
 
 The pipeline supports phased progress: you can stop at scripts and storyboards, or continue to bind assets, render independent shot MP4s, and produce one chapter video through native Remotion Studio. Each stage keeps a manual revision entry point, so creators retain control when AI output quality is unstable.
@@ -51,7 +53,7 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
 - Frontend workbench: built with React and TypeScript.
 - State management: Zustand manages project workflow, assets, storyboards, candidates, and configuration state.
 - File-based storage: aimed at personal creative projects, reducing database deployment and backend maintenance cost.
-- Asset library storage: production assets use a separate SQLite-backed library under `<storageBasePath>/assets`, while project JSON data stays under `<storageBasePath>/projects`.
+- Asset library storage: production assets use a separate SQLite-backed library under `<storageBasePath>/assets`, while project data lives at its registered project folder. Only legacy projects fall back to `<storageBasePath>/projects/_p/<id>`. The unified storage export does not include external project folders.
 - Rendering: the Electron host validates a Remotion timeline plan, serves capability URLs through the loopback media bridge, and invokes `renderMedia` in an isolated utility worker. The host performs only read-only probe/SHA evidence checks; no concat, loudnorm, or renderer fallback is used.
 
 ### Design Goals
@@ -64,7 +66,7 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
 
 ## Built-in Art Styles
 
-**60 built-in** art styles covering 2D animation, 3D rendering, stop-motion, and live-action imagery — applied with one click during storyboard production.
+Built-in art styles covering 2D animation, 3D rendering, stop-motion, and live-action imagery — applied with one click during storyboard production.
 
 <table>
   <tr>
@@ -75,19 +77,22 @@ The pipeline supports phased progress: you can stop at scripts and storyboards, 
   </tr>
 </table>
 
-👉 [Browse all 60 art styles →](assets/art-styles.en.md)
+👉 [Browse the art style gallery →](assets/art-styles.en.md)
 
 ## Entry Points
 
-After opening a project, open `Workflow` on the left:
+After opening a project, open `MY 工作流` (MY Workflow). The current eight tabs retain their Chinese UI labels below:
 
-1. `Novel Import`: import `.txt/.md` files or paste the source text.
-2. `Script Planning`: generate the story skeleton, adaptation strategy, script draft, and review report.
-3. `Script Asset Management`: extract characters, scenes, and props from scripts and match them with the asset library.
-4. `Production Generation`: run director planning and fill missing character, scene, and prop images.
-5. `Storyboard Table`: generate storyboard rows and maintain duration, dialogue, and visual assets.
-6. `Storyboard / Shot Jobs`: review each shot's AI material and render one Remotion `StoryboardShot` MP4 per shot.
-7. `Video Workbench`: open the native Remotion Studio for the current chapter and render one Remotion `ChapterVideo` MP4.
+1. `风格与导演`: select visual and directing guidance.
+2. `小说导入`: import chapters from text files or pasted text.
+3. `剧本生产阶段`: event analysis, story structure, adaptation, script generation and review.
+4. `剧本资产管理`: extract, match and maintain characters, scenes and props.
+5. `分镜视频生成`: ComfyUI chapter workflow canvas.
+6. `分镜面板`: shot cards, material/voice operations and chapter video preparation.
+7. `图像节点图`: ComfyUI image workflow canvas.
+8. `视频工作台`: review the chapter workflow and edit/render through native Remotion Studio.
+
+The chapter automation prepares shot jobs and video-use preview, then stops for user review; it does not automatically approve a revision or publish a final cut.
 
 ## Current Documentation Map
 
@@ -134,6 +139,9 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [Props Library Operations](assets/PROPS_LIBRARY_OPERATIONS.md) | Chinese guide for local prop folders, folder create/rename/delete, and prop move/rename/delete behavior |
 | [Voice Assignment](assets/ASSET_AUDIO_ASSIGNMENT.md) | Assign asset audio samples to roles for local voice cloning |
 | [Role Audio Assignment Reference](assets/ROLE_AUDIO_ASSIGNMENT_REFERENCE.md) | Chinese reference for role voice dialog fields, automatic matching rules, AI semantic matching, preview playback, and transcription failures |
+| [MCP Services](settings/MCP_SERVICES_GUIDE.md) | Register services, test connections, and import/export JSON configuration |
+| [Image Defaults](settings/IMAGE_SIZE_GUIDE.md) | Default engine, aspect ratio, resolution and compatibility options |
+| [Self-media Publishing](panels/SELF_MEDIA_GUIDE.md) | Accounts, drafts, scheduled tasks and publishing history |
 | [Settings Panel Operations](settings/SETTINGS_PANEL_OPERATIONS.md) | Chinese guide for settings tabs, desktop-only controls, storage/update/development/support actions |
 | [Python and Local TTS](settings/PYTHON_TTS_SETUP.md) | Manual Python 3.12 setup, dependency installation, and TTS backend startup |
 | [API Manager Operations](settings/API_MANAGER_OPERATIONS.md) | Chinese guide for providers, model sync/test, thinking mode, feature mapping, and Agent bindings |
@@ -169,8 +177,8 @@ Two usage tiers:
 |------|---------|---------|
 | Chip | **Apple Silicon M1** | M2 Pro / M3 / M4 or higher |
 | OS | macOS 13 Ventura | macOS 14 Sonoma+ |
-| Unified Memory | 16 GB | 32 GB+; local full-song generation (Music3 bf16) requires **48 GB+** (hard gate 44 GB) — otherwise use the lightweight MusicGen |
-| Disk | 20 GB free | 50 GB+ SSD, plus local models on demand (music weights ~28.5 GB, ComfyUI image-generation weights in the tens of GB; all downloaded explicitly) |
+| Unified Memory | 16 GB | 32 GB+ as a starting point; check each selected workflow and model. H3 and large music/image workflows can require substantially more memory |
+| Disk | 20 GB free | 50 GB+ SSD, plus the actual model inventory; large image/video workflows require additional space and explicit provisioning |
 
 > ⚠️ **Intel-based Macs are not supported** (no MLX GPU acceleration). MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only.
 
@@ -185,14 +193,14 @@ Two usage tiers:
 
 ### Common
 
-- Node.js >= 18 (latest LTS recommended)
+- End users do not need a separate Node installation; the app carries its runtime. Source development currently requires Node.js >=22.12.0 (installed Electron package constraint)
 - Python 3.12 (configured on demand from the desktop app before using local TTS)
 
 ## Development Setup
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >=22.12.0 (verify against the installed dependency engines when upgrading)
 - macOS (Apple Silicon) / Windows 10+ (NVIDIA GPU) / Linux x86_64
 
 ### One-Click Setup
@@ -216,7 +224,7 @@ powershell -ExecutionPolicy Bypass -File apps\build\packaging\setup-win.ps1
 The script automatically:
 1. Installs Node.js dependencies
 2. Keeps the Python runtime out of the installer and backend source directory
-3. Lets users manually configure Python later from `Settings -> Python Configuration`
+3. Lets users manually configure Python later from `Settings -> Local Configuration -> Python runtime`
 
 Python 3.12 and TTS dependencies are configured on demand from the desktop app. The app does not download Python or start the local TTS backend during startup. See [Python and local TTS setup](settings/PYTHON_TTS_SETUP.md) for the current Chinese guide.
 

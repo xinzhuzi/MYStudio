@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // ComfyUI 画布工作室 tab 测试(09-09 0b):三态渲染(未装/就绪未跑/运行中 webview)。
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComfyCanvasStudio, buildCanvasFitScript, buildOverviewOpenScript } from "./ComfyCanvasStudio";
 import { createMockComfyEngineClient } from "@/components/panels/settings/comfy-engine/mock-comfy-engine-client";
@@ -49,19 +49,33 @@ const storeState = vi.hoisted(() => ({
   // resolveProductionEpisodeId 读 agentWorkData(缺字段会抛错被 tick 吞掉)
   agentWorkData: [] as unknown[],
 }));
+const studioListeners = vi.hoisted(() => new Set<(state: typeof storeState) => void>());
 vi.mock("@/stores/studio/studio-store", () => ({
-  useStudioStore: { getState: () => storeState },
+  useStudioStore: { getState: () => storeState, subscribe: (listener: (state: typeof storeState) => void) => {
+    studioListeners.add(listener); return () => studioListeners.delete(listener);
+  } },
 }));
+const projectState = vi.hoisted(() => ({ activeProjectId: "project-a" }));
+const projectListeners = vi.hoisted(() => new Set<(state: { activeProjectId: string }) => void>());
+vi.mock("@/stores/project/project-store", () => ({ useProjectStore: {
+  getState: () => projectState,
+  subscribe: (listener: (state: { activeProjectId: string }) => void) => { projectListeners.add(listener); return () => projectListeners.delete(listener); },
+} }));
 
 afterEach(() => {
   cleanup();
   delete (window as { comfyEngine?: ComfyEngineClient }).comfyEngine;
+  delete window.remotionQueue;
   vi.clearAllMocks();
+  vi.restoreAllMocks();
   storeState.storyboards = [];
   storeState.novelChapters = [];
   storeState.scriptPlans = [];
   storeState.entityExtractions = [];
   storeState.productionTracks = [];
+  projectState.activeProjectId = "project-a";
+  projectListeners.clear();
+  studioListeners.clear();
 });
 
 function stubClient(status: Partial<ComfyEngineStatus>): ComfyEngineClient {
@@ -69,7 +83,29 @@ function stubClient(status: Partial<ComfyEngineStatus>): ComfyEngineClient {
   return base;
 }
 
+function captureActionPolls(): Array<() => void> {
+  const polls: Array<() => void> = [];
+  const setInterval = window.setInterval.bind(window);
+  vi.spyOn(window, "setInterval").mockImplementation((handler, timeout, ...args) => {
+    if (timeout === 5000 && typeof handler === "function") {
+      polls.push(() => handler(...args));
+      return 123456 as unknown as ReturnType<typeof window.setInterval>;
+    }
+    return setInterval(handler, timeout, ...args) as unknown as ReturnType<typeof window.setInterval>;
+  });
+  return polls;
+}
+
 describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
+  it("pushes origin for explicit project binding even with no storyboards", async () => {
+    const push = vi.fn(async () => true);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: false, port: 17001 }),
+      pushBridgeStoryboards: push,
+    };
+    render(<ComfyCanvasStudio />);
+    await waitFor(() => expect(push).toHaveBeenCalledWith([], "episode-1", [], "project-a"));
+  });
   it("状态查询不到=「确认中」,绝不误报未安装/渲染安装按钮(09-10 实弹根修)", async () => {
     const client = stubClient({ installed: true, state: "ready", serviceRunning: false, port: 17001 });
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
@@ -237,12 +273,12 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17007 }),
       getBridgeActions: vi.fn(async (cursor: number) =>
         cursor === 0
-          ? { cursor: 0, items: [
-              { id: 1, kind: "generate-images" },
-              { id: 2, kind: "generate-videos" },
-              { id: 3, kind: "generate-director-plan" },
-              { id: 4, kind: "generate-storyboard-table" },
-              { id: 5, kind: "rebuild-workbench-tracks" },
+          ? { cursor: 0, queueId: "dispatch", items: [
+              { id: 1, kind: "generate-images", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 2, kind: "generate-videos", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 3, kind: "generate-director-plan", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 4, kind: "generate-storyboard-table", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 5, kind: "rebuild-workbench-tracks", originProjectId: "project-a", originEpisodeId: "episode-1" },
             ] }
           : { cursor, items: [] }),
       ackBridgeActions: vi.fn(async (upTo: number) => {
@@ -275,15 +311,139 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(onGenerateVideos).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["null", "rejection"])("ack %s 重试不重复派发付费动作", async (failure) => {
+    const polls = captureActionPolls();
+    const action = { id: 11, kind: "generate-director-plan", originProjectId: "project-a", originEpisodeId: "episode-1" };
+    const ack = vi.fn(async () => {
+      if (failure === "rejection") throw new Error("connection lost");
+      return null;
+    });
+    const generate = vi.fn();
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17007 }),
+      getBridgeActions: vi.fn(async (cursor) => ({ cursor, queueId: `retry-${failure}`, items: [action] })),
+      ackBridgeActions: ack,
+    };
+    render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: vi.fn(), onGenerateVideos: vi.fn(), onGenerateDirectorPlan: generate }} />);
+    await waitFor(() => expect(ack).toHaveBeenCalledTimes(1));
+    await act(async () => { polls.forEach((poll) => poll()); });
+    await waitFor(() => expect(ack).toHaveBeenCalledTimes(2));
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("无处理器的 models 画布保留制作动作", async () => {
+    const list = vi.fn(async (cursor: number) => ({ cursor, queueId: "models", items: [{ id: 21, kind: "generate-images", originProjectId: "project-a", originEpisodeId: "episode-1" }] }));
+    const ack = vi.fn(async () => 1);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
+    render(<ComfyCanvasStudio myScope="models" />);
+    await waitFor(() => expect(list).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(ack).not.toHaveBeenCalled();
+    expect(toasts.info).not.toHaveBeenCalled();
+  });
+
+  it("缺少首项处理器时只执行并精确确认可处理的后项", async () => {
+    const list = vi.fn(async (cursor: number) => ({ cursor, queueId: "unsupported", items: [
+      { id: 31, kind: "generate-director-plan", originProjectId: "project-a", originEpisodeId: "episode-1" },
+      { id: 32, kind: "generate-images", originProjectId: "project-a", originEpisodeId: "episode-1" },
+    ] }));
+    const ack = vi.fn(async () => 2);
+    const generate = vi.fn();
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
+    render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
+    await waitFor(() => expect(list).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(ack).toHaveBeenCalledWith(32, "unsupported", [32]);
+  });
+
+  it("重叠挂载共用动作投递锁", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let items = [{ id: 41, kind: "generate-director-plan", originProjectId: "project-a", originEpisodeId: "episode-1" }];
+    const list = vi.fn(async (cursor: number) => { const snapshot = [...items]; await gate; return { cursor, queueId: "overlap", items: snapshot }; });
+    const ack = vi.fn(async () => { items = []; return 1; });
+    const generate = vi.fn();
+    const client = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = client;
+    const actions = { onGenerateImages: vi.fn(), onGenerateVideos: vi.fn(), onGenerateDirectorPlan: generate };
+    render(<><ComfyCanvasStudio sidebarActions={actions} /><ComfyCanvasStudio sidebarActions={actions} /></>);
+    await waitFor(() => expect(list).toHaveBeenCalled());
+    await act(async () => { release(); });
+    await waitFor(() => expect(ack).toHaveBeenCalled());
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("轮询在卸载后返回时不派发也不确认动作", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const list = vi.fn(async (cursor: number) => { await gate; return { cursor, queueId: "unmount", items: [{ id: 51, kind: "generate-images", originProjectId: "project-a", originEpisodeId: "episode-1" }] }; });
+    const ack = vi.fn(async () => 1);
+    const generate = vi.fn();
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
+    const mounted = render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
+    await waitFor(() => expect(list).toHaveBeenCalled());
+    mounted.unmount();
+    await act(async () => { release(); });
+    expect(generate).not.toHaveBeenCalled();
+    expect(ack).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("动作列表等待期间切项目后返回原项目=%s 不派发", async (returnToOriginal) => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const list = vi.fn(async (cursor: number) => {
+      await gate;
+      return { cursor, queueId: `switch-${returnToOriginal}`, items: [{ id: 1, kind: "generate-images", originProjectId: "project-a", originEpisodeId: "episode-1" }] };
+    });
+    const ack = vi.fn(async () => 1);
+    const generate = vi.fn();
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
+    render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
+    await waitFor(() => expect(list).toHaveBeenCalled());
+    projectState.activeProjectId = "project-b";
+    projectListeners.forEach((listener) => listener(projectState));
+    if (returnToOriginal) {
+      projectState.activeProjectId = "project-a";
+      projectListeners.forEach((listener) => listener(projectState));
+    }
+    await act(async () => { release(); });
+    expect(generate).not.toHaveBeenCalled();
+    expect(ack).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("动作列表等待期间切章节后返回原章节=%s 不派发", async (returnToOriginal) => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const list = vi.fn(async (cursor: number) => {
+      await gate;
+      return { cursor, queueId: `chapter-switch-${returnToOriginal}`, items: [{ id: 1, kind: "generate-images", originProjectId: "project-a", originEpisodeId: "episode-1" }] };
+    });
+    const ack = vi.fn(async () => 1);
+    const generate = vi.fn();
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), getBridgeActions: list, ackBridgeActions: ack };
+    render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
+    await waitFor(() => expect(list).toHaveBeenCalled());
+    storeState.novelChapters = [{ id: "chapter-b" }];
+    studioListeners.forEach((listener) => listener(storeState));
+    if (returnToOriginal) {
+      storeState.novelChapters = [];
+      studioListeners.forEach((listener) => listener(storeState));
+    }
+    await act(async () => { release(); });
+    expect(generate).not.toHaveBeenCalled();
+    expect(ack).not.toHaveBeenCalled();
+  });
+
   it("补充要求透传(09-12 B1):动作带 note → 付费回调收到 userInstruction 语义参数", async () => {
     const calls: string[] = [];
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
       ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17007 }),
       getBridgeActions: vi.fn(async (cursor: number) =>
         cursor === 0
-          ? { cursor: 0, items: [
-              { id: 1, kind: "generate-director-plan", note: "多加两个反派伏笔" },
-              { id: 2, kind: "generate-storyboard-table" },
+          ? { cursor: 0, queueId: "instructions", items: [
+              { id: 1, kind: "generate-director-plan", note: "多加两个反派伏笔", originProjectId: "project-a", originEpisodeId: "episode-1" },
+              { id: 2, kind: "generate-storyboard-table", originProjectId: "project-a", originEpisodeId: "episode-1" },
             ] }
           : { cursor, items: [] }),
       ackBridgeActions: vi.fn(async () => 2),
@@ -309,7 +469,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     ]));
   });
 
-  it("单镜视频入口(09-14):open-shot-video 动作→上传关键帧→直开注入(零写库)", async () => {
+  it.each([false, true, "roundtrip"])("单镜视频入口:上传中切项目=%s 时隔离原项目工作流", async (switchDuringUpload) => {
     storeState.storyboards = [
       {
         id: "sb-9", index: 1, episodeId: "chapter-001", videoDesc: "雨夜石桥",
@@ -329,11 +489,19 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       getBridgeActions: vi.fn(async (cursor: number) => {
         if (cursor !== 0) return { cursor, items: [] };
         await actionsGate;
-        return { cursor: 1, items: [{ id: 1, kind: "open-shot-video", note: "sb-9" }] };
+        return { cursor: 1, queueId: `open-${switchDuringUpload}`, items: [{ id: 1, kind: "open-shot-video", note: "sb-9", originProjectId: "project-a", originEpisodeId: "chapter-001" }] };
       }),
       ackBridgeActions: vi.fn(async () => 1),
       uploadBridgeReference: vi.fn(async (name: string) => {
         uploaded.push(name);
+        if (switchDuringUpload) {
+          projectState.activeProjectId = "project-b";
+          projectListeners.forEach((listener) => listener(projectState));
+          if (switchDuringUpload === "roundtrip") {
+            projectState.activeProjectId = "project-a";
+            projectListeners.forEach((listener) => listener(projectState));
+          }
+        }
         return { accepted: true, name };
       }),
     } as ComfyEngineClient;
@@ -350,6 +518,11 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       return Promise.resolve(undefined);
     };
     releaseActions?.();
+    if (switchDuringUpload) {
+      await waitFor(() => expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining("项目已切换")));
+      expect(scripts.some((script) => script.includes("单镜视频"))).toBe(false);
+      return;
+    }
     const payload = await waitFor(() => {
       const hit = scripts.find((code) => code.includes("单镜视频"));
       if (!hit) throw new Error("单镜视频打开脚本未注入");
@@ -361,7 +534,66 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(importFilesMock).not.toHaveBeenCalled(); // 零文件形态:单镜视频不落库
     expect(payload).toContain("MY-单镜视频"); // 注入签名=组装器现装(临时签)
     expect(payload).toContain("MyShot"); // 组装器模板含 MyShot 锚点(首帧/回写)
+    expect(payload).toContain("myOriginProjectId");
+    expect(payload).toContain("project-a");
     await waitFor(() => expect(toasts.success).toHaveBeenCalled());
+  });
+
+  it.each(["project", "chapter"])("主线模板等待期间 %s 来回切换不注入旧工作流", async (scope) => {
+    storeState.storyboards = [{ id: "sb-a", index: 1, episodeId: "chapter-a" }];
+    storeState.novelChapters = [{ id: "chapter-a" }];
+    let release!: (template: string) => void;
+    const gate = new Promise<string>((resolve) => { release = resolve; });
+    templateContentMock.mockImplementationOnce(() => gate);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17006 });
+    render(<ComfyCanvasStudio autoOpenOverview />);
+    const webview = await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as HTMLElement & { executeJavaScript?: (code: string) => Promise<void> };
+      if (!el) throw new Error("webview not mounted");
+      return el;
+    });
+    const scripts: string[] = [];
+    webview.executeJavaScript = async (code) => { scripts.push(code); };
+    webview.dispatchEvent(new Event("dom-ready"));
+    await waitFor(() => expect(templateContentMock).toHaveBeenCalled());
+    if (scope === "project") {
+      projectState.activeProjectId = "project-b";
+      projectListeners.forEach((listener) => listener(projectState));
+      projectState.activeProjectId = "project-a";
+      projectListeners.forEach((listener) => listener(projectState));
+    } else {
+      storeState.novelChapters = [{ id: "chapter-b" }];
+      studioListeners.forEach((listener) => listener(storeState));
+      storeState.novelChapters = [{ id: "chapter-a" }];
+      studioListeners.forEach((listener) => listener(storeState));
+    }
+    await act(async () => { release('{"nodes":[{"id":1,"type":"MyStage"}]}'); });
+    expect(scripts.some((script) => script.includes("myOriginProjectId"))).toBe(false);
+  });
+
+  it.each(["project", "chapter"])("队列快照等待期间 %s 来回切换不推送旧侧栏快照", async (scope) => {
+    storeState.novelChapters = [{ id: "chapter-a" }];
+    let release!: (value: { jobs: [] }) => void;
+    const gate = new Promise<{ jobs: [] }>((resolve) => { release = resolve; });
+    const get = vi.fn(() => gate);
+    window.remotionQueue = { get } as unknown as NonNullable<typeof window.remotionQueue>;
+    const push = vi.fn(async () => true);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...stubClient({ installed: true, state: "ready" }), pushBridgeStoryboards: push };
+    render(<ComfyCanvasStudio />);
+    await waitFor(() => expect(get).toHaveBeenCalled());
+    if (scope === "project") {
+      projectState.activeProjectId = "project-b";
+      projectListeners.forEach((listener) => listener(projectState));
+      projectState.activeProjectId = "project-a";
+      projectListeners.forEach((listener) => listener(projectState));
+    } else {
+      storeState.novelChapters = [{ id: "chapter-b" }];
+      studioListeners.forEach((listener) => listener(storeState));
+      storeState.novelChapters = [{ id: "chapter-a" }];
+      studioListeners.forEach((listener) => listener(storeState));
+    }
+    await act(async () => { release({ jobs: [] }); });
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("autoOpen+有分镜:注入分镜流程链工作流载荷(旧画布迁移 09-11)", async () => {

@@ -39,7 +39,7 @@ macOS 默认的 `<userData>` 通常解析为系统应用支持目录；文档统
 <userData>
 ```
 
-没有自定义 storage root 时，项目数据和设置文件位于：
+没有自定义 storage root 时，内部 legacy 项目数据根位于下方；项目注册表和应用配置由各自的 userData 解析器管理，不能一概当作此目录的子项：
 
 ```text
 <storageBasePath>/projects  # 默认等于 <userData>/projects
@@ -64,17 +64,16 @@ mystudio-project-store.json
 
 其中 `assets.db` 是 SQLite 索引，`assets/files/` 保存角色、场景、道具、视频片段和音频原文件，`assets/thumbs/` 保存图片类资产的缩略图缓存。
 
-## 当前 userData 目录地图与治理边界
+## userData 目录职责与历史盘面边界
 
 2026-08-03 的只读盘面证据显示，`storage-config.json` 中 `basePath`、`projectPath`
-和 `mediaPath` 都为空，因此当前 `<storageBasePath>` 就是 `<userData>`。下表描述的是
-当前物理形态和安全 disposition，不授权移动或删除任何条目：
+和 `mediaPath` 都为空，因此当时 `<storageBasePath>` 等于 `<userData>`。这是历史快照，不代表本机今天的设置；下表用于理解目录职责，迁移前需重新读取实际路径，不授权移动或删除任何条目：
 
 | 实际路径或类别 | 代码/运行时职责 | 当前 disposition |
 |---|---|---|
 | `projects/`、`media/`、`assets/`、`skills/` | 项目、媒体、canonical `assets/assets.db` 与资产文件、用户技能 | 产品数据，保留 |
 | `python/` | 受管理的 Python runtime；内部 executable/snapshot symlink 是完整性结构 | 运行时数据，保留 |
-| `comfyui/`（09-10 起现行） | **模型/引擎统一家 + ComfyUI 引擎家**：ComfyUI 引擎源码与独立 venv、`models/<family>/`（TTS/audio/sfx/图像/视频等全部本地模型，拼装单源 `electron/storage/model-dirs.ts`）、snapshots、`user/default/workflows/` 工作流库（`漫影/` 域分类）、manifest.json、engine.lock；input/output 媒体目录经官方参数注入 | 产品数据（大体积模型权重/引擎）+应用运行状态，保留 |
+| `comfyui/`（09-10 起现行） | **模型/引擎统一家 + ComfyUI 引擎家**：ComfyUI 引擎源码与独立 venv、`models/<family>/`（TTS/audio/sfx/图像/视频等全部本地模型，拼装单源 `electron/storage/model-dirs.ts`）、snapshots、默认 `<源码目录>/user/default/workflows/` 用户库（可由 manifest 的 `workflowsDir` 覆盖）与只读仓库模板合并、manifest.json、engine.lock；input/output 媒体目录经官方参数注入 | 产品数据（大体积模型权重/引擎）+应用运行状态，保留 |
 | `model/`（08-19 旧规范，已退役） | 旧模型家 `<userData>/model/<family>/`（music3 权重、mlx-serve 二进制等）。09-10「模型统一家」裁定后由 `apps/build/scripts/model_dir_unify.py` 一次性迁平至 `comfyui/models/`，仅作迁移兼容来源；imagegen seg 模型例外仍留 `model/imagegen/` | 迁移兼容/残留，保留不动 |
 | `TTS/runtime/` | sidecar SQLite、生成音频、`config.json` 与 `.deps-hash` 依赖标记（旧版 `<userData>/tts-runtime` 仅作迁移兼容） | 应用运行状态，保留 |
 | `remotion-runtime/`、`remotion-studio/` | Remotion 浏览器缓存、固定 runtime manifest 与 Studio 工作区 | 应用运行状态，保留 |
@@ -153,13 +152,19 @@ skills/
 - `<存储根目录>/comfyui/models/TTS` 是否需要重新下载或手动迁移（旧版 `model/TTS`、`tts-models` 仅作迁移兼容）。
 - `<storageBasePath>/TTS/runtime` 是否仍适合保留；它不等同于项目数据或 Python runtime，不能假定会随存储根目录移动。
 
+## 外部项目的备份边界
+
+主进程以 `<userData>/project-locations.json` 中的项目位置为权威；renderer 的 `mystudio-project-store.json` / `Project.location` 用于展示。已注册项目的 `_p/<projectId>/...` 虚拟键会重定向到对应外部目录。
+
+下面的统一移动、导出、导入只处理内部 `getProjectDataRoot()` 及 media/assets/skills，**不会遍历外部项目位置，也不会自动携带 userData 下的项目位置表**。外部项目应单独备份完整项目夹和位置登记信息；恢复后核对应用打开的真实目录。只有内部四目录的导出包不能视为全项目备份。
+
 ## 导出和导入
 
 ### 导出
 
 点击 `导出`，选择目标目录，将当前数据导出到该目录。
 
-当前统一导出会包含：
+当前统一导出会包含以下内部存储目录（外部项目边界见上节）：
 
 - `projects/`
 - `media/`
@@ -230,9 +235,9 @@ MYStudio 要区分“开发脚本 Python”和“安装后应用 Python”，并
 <storageBasePath>/TTS/runtime
 ```
 
-当前 macOS 开发机的默认 `<storageBasePath>` 与 Electron `userDataPath` 相同，设置页下载的
-Python 实际目录为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`。
-这是可迁移的当前盘面示例，不是写死给所有用户的路径；应用和 video-use 都必须通过
+2026-08-03 记录中的 macOS 开发机 `<storageBasePath>` 与 Electron `userDataPath` 相同，当时设置页下载的
+Python 目录示例为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`。
+这是可迁移的历史盘面示例，不是写死给所有用户的路径；应用和 video-use 都必须通过
 `getStorageBasePath()`/`pythonRuntimeDir` 解析，不能把这个示例复制成固定常量。
 
 - **开发/构建 Python**：`apps/build/**/*.py`、后端 unittest 和审计脚本由开发者 shell 的 `python3`（或其自行激活的开发虚拟环境）执行。当前仓库没有提交 `apps/.venv` 或 `apps/backend/.venv`；这份 Python 只用于开发/CI，不会被 electron-builder 复制进安装包，也不是 Electron TTS 的候选路径。
@@ -240,13 +245,13 @@ Python 实际目录为 `/Users/zhengbingjin/Library/Application Support/漫影�
 - `<storageBasePath>/python`：设置页下载的 Python 3.12 runtime；`apps/backend/requirements.txt` 的依赖安装到这里。
 - `<storageBasePath>/comfyui/models/TTS`：默认 TTS 模型缓存（09-10 模型统一家，拼装单源 `model-dirs.ts`）；旧版 `<storageBasePath>/model/TTS`、`tts-models` 仅作迁移兼容。
 - `<storageBasePath>/TTS/runtime`：Electron sidecar 的 SQLite、生成音频、依赖 hash marker 和 runtime config；旧版 `<userData>/tts-runtime` 仅作迁移兼容。
-- **video-use（实施目标）**：开发态可用开发者 Python 验证 helper；应用运行态必须从同一个 `pythonRuntimeDir` 使用 `<storageBasePath>/python`（当前 macOS 示例为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`）作为解释器来源。默认复用该 managed Python 3.12 的 site-packages，并使用独立 `requirements-video-use.lock`/profile marker、`pip check`、import/fixture smoke 和 TTS 全量回归；禁止创建 `video-use-runtime` venv。共享依赖发生硬冲突时，当前组合进入 `blocked` 并恢复最近一次已验证组合。video-use 依赖不得直接写入 `apps/backend/requirements.txt` 或 `<storageBasePath>/TTS/runtime`，其项目输出应写到当前 project/chapter revision 工作区，不属于 Python runtime 本体。
+- **video-use（已接入代码路径，真实生成需独立验收）**：开发态可用开发者 Python 验证 helper；应用运行态必须从同一个 `pythonRuntimeDir` 使用 `<storageBasePath>/python`（当前 macOS 示例为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`）作为解释器来源。默认复用该 managed Python 3.12 的 site-packages，并使用独立 `requirements-video-use.lock`/profile marker、`pip check`、import/fixture smoke 和 TTS 全量回归；禁止创建 `video-use-runtime` venv。共享依赖发生硬冲突时，当前组合进入 `blocked` 并恢复最近一次已验证组合。video-use 依赖不得直接写入 `apps/backend/requirements.txt` 或 `<storageBasePath>/TTS/runtime`，其项目输出应写到当前 project/chapter revision 工作区，不属于 Python runtime 本体。
 
 Electron 从 `apps/backend` 或打包后的 `Resources/backend` 取得 sidecar 源码与 `PYTHONPATH`，但只使用 `<storageBasePath>/python` 启动它。`apps/backend/python` 不是正式 runtime 位置：它被 `.gitignore` 忽略并由打包规则排除；本任务没有删除或移动该本地遗留目录。
 
 因此更改存储根目录后，Python runtime、模型缓存、TTS runtime 和 video-use profile marker 会改从新根目录寻址，但当前移动/导出/导入不会自动携带它们或旧版 `<userData>/tts-runtime`。相关配置见 [Python 与本地 TTS 配置](../settings/PYTHON_TTS_SETUP.md) 和 [四个视频 Skill 与 MYStudio 融合研究](../融合/参考/四个视频Skill与MYStudio融合研究.md)。
 
-视频章节 artifact 仍写入 `<projectRoot>/video-use/<chapterId>/<revisionId>/`，不写入 Python runtime。主链是 `StoryboardItem.ttsSpokenText -> managed Python TTS WAV binding -> Remotion StoryboardShot -> MLX 0.4.1 原文强制对齐 -> video-use 完整 EDL/字幕时间/调色/preview/self-eval -> 用户确认 -> editable-edl（默认）或 clean flat-shot-mp4（高级） -> HyperFrames overlay/no-op -> Remotion ChapterVideo -> final-output-qc`。每章 video-use/HyperFrames 默认启用；`preparing`、`aligning`、`editing`、`previewing`、`evaluating`、`awaiting-review`、`applying`、`ready`、`blocked` 是唯一章节状态。原始秒制 EDL 只在 evidence 保存，adapter 转换为 `TimelineTimeUs`；flat 模式必须保存独立字幕/overlay metadata，禁止二次烧录。
+视频章节 artifact 仍写入 `<projectRoot>/video-use/<chapterId>/r<revision>/`，不写入 Python runtime。主链是 `StoryboardItem.ttsSpokenText -> managed Python TTS WAV binding -> Remotion StoryboardShot -> MLX 0.4.1 原文强制对齐 -> video-use 完整 EDL/字幕时间/调色/preview/self-eval -> 用户确认 -> editable-edl（默认）或 clean flat-shot-mp4（高级） -> HyperFrames overlay/no-op -> Remotion ChapterVideo -> final-output-qc`。每章 video-use/HyperFrames 默认启用；`preparing`、`aligning`、`editing`、`previewing`、`evaluating`、`awaiting-review`、`applying`、`ready`、`blocked` 是唯一章节状态。原始秒制 EDL 只在 evidence 保存，adapter 转换为 `TimelineTimeUs`；flat 模式必须保存独立字幕/overlay metadata，禁止二次烧录。
 
 应用代码随 MYStudio 更新，Python/Node 22/浏览器/共享 FFmpeg 运行时由设置页一键准备并由用户手动应用；自动检查只产生提示。更新或迁移后的组合必须写 manifest，验证失败恢复最近一次 verified combination，相关章节继续保持 `blocked`，不能用旧 MP4 冒充当前 revision evidence。
 

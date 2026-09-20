@@ -131,7 +131,7 @@ def test_generated_is_output_node_and_delegates(tmp_path):
     assert result["ui"]["my"]["shotTarget"] == "S01-02"
 
 
-def test_shot_video_slot_is_optional_and_writes_latest_video(tmp_path, monkeypatch):
+def test_shot_video_slot_is_optional_and_writes_supplied_video(tmp_path, monkeypatch):
     node = NODE_CLASS_MAPPINGS["MyShot"]()
     assert node.INPUT_TYPES()["optional"]["video"] == ("VIDEO",)
     old_result = node.run("sb-1", "S01", "desc")
@@ -146,14 +146,55 @@ def test_shot_video_slot_is_optional_and_writes_latest_video(tmp_path, monkeypat
     folder_paths.get_output_directory = lambda: str(output_dir)
     monkeypatch.setitem(sys.modules, "folder_paths", folder_paths)
 
+    class Video:
+        def save_to(self, buffer, format="auto"):
+            assert format == "mp4"
+            buffer.write(b"supplied-mp4")
+
+    prompt = {
+        "100": {"inputs": {"video": ["4", 0]}},
+        "4": {"class_type": "SaveVideo", "inputs": {"filename_prefix": "video/漫影/chapter-001/sb-1/ambient"}},
+    }
     with patch.object(bridge.writeback, "deliver_video", return_value={"accepted": True, "id": 9}) as deliver:
-        result = node.run("sb-1", "S01", "desc", video=object())
+        result = node.run("sb-1", "S01", "desc", video=Video(), prompt=prompt, unique_id="100")
 
     deliver.assert_called_once()
     assert deliver.call_args.args[0] == "sb-1"
+    assert base64.b64decode(deliver.call_args.args[1]) == b"supplied-mp4"
     assert deliver.call_args.args[2] == "video/漫影/chapter-001/sb-1"
     assert deliver.call_args.args[3] == "ambient"
     assert result["ui"]["my_shot"]["videoWriteback"] == 9
+
+
+def test_shot_video_carries_origin_from_its_queued_node_only(tmp_path, monkeypatch):
+    node = NODE_CLASS_MAPPINGS["MyShot"]()
+    video_dir = tmp_path / "video" / "漫影" / "chapter-001" / "sb-1"
+    video_dir.mkdir(parents=True)
+    (video_dir / "ambient_00001_.mp4").write_bytes(b"mp4")
+    folder_paths = types.ModuleType("folder_paths")
+    folder_paths.get_output_directory = lambda: str(tmp_path)
+    monkeypatch.setitem(sys.modules, "folder_paths", folder_paths)
+    queued = {"workflow": {"nodes": [
+        {"id": 99, "properties": {"myOriginProjectId": "wrong-project"}},
+        {"id": 100, "properties": {"myOriginProjectId": "project-a"}},
+    ]}}
+    class Video:
+        def save_to(self, buffer, format="auto"):
+            buffer.write(b"mp4")
+
+    prompt = {
+        "100": {"inputs": {"video": ["4", 0]}},
+        "4": {"class_type": "SaveVideo", "inputs": {"filename_prefix": "video/漫影/chapter-001/sb-1/ambient"}},
+    }
+    with patch.object(bridge.writeback, "deliver_video", return_value={"id": 1}) as deliver:
+        node.run("sb-1", "S01", "desc", video=Video(), extra_pnginfo=queued, unique_id="100", prompt=prompt)
+    assert deliver.call_args.kwargs["origin_project_id"] == "project-a"
+
+
+def test_video_transport_preserves_origin_without_reading_active_project():
+    with patch.object(bridge.writeback, "_post", return_value={"id": 1}) as post:
+        bridge.writeback.deliver_video("sb-1", "bXA0", "video/漫影/chapter-001/sb-1", "ambient", origin_project_id="project-a")
+    assert post.call_args.args[0]["meta"]["originProjectId"] == "project-a"
 
 
 @pytest.mark.parametrize("shot_id", ["", "sb-chapter-001/escape", "../escape"])

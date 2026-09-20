@@ -2,7 +2,7 @@
 
 本文说明当前 `MY 工作流` 页面从小说原文到 Remotion 章节成片的基础流程。更细的按钮、状态、弹窗和数据关系见 [工作流阶段操作手册](./WORKFLOW_STAGE_OPERATIONS.md)。小说导入、事件分析和策划编剧细节见 [小说导入与策划编剧操作参考](./WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md)，剧本资产提取和剧本资产管理细节见 [剧本资产管理操作参考](./WORKFLOW_ASSET_GENERATION_OPERATIONS.md)，分镜面板与视频工作台细节见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)。安装、配置和排错入口见 [文档中心](../README.md)。
 
-> **页签结构更新（2026-09-13 口径）**：`工作流` 页现名 `MY 工作流`，共 8 个页签：`风格与导演 / 小说导入 / 剧本生产阶段 / 剧本资产管理 / 分镜视频生成 / 分镜面板 / 图像节点图 / 视频工作台`。与本文旧七阶段叙事的对应：旧「策划编剧」并入「剧本生产阶段」；旧「剧本资产提取」并入「剧本资产管理」页签内的提取动作；新增的「分镜视频生成」「图像节点图」是 ComfyUI 节点画布页签（旧 React Flow 画布 2026-09-01 退役），分镜图为 ComfyUI 工作流产线（K2 图像 / H3 视频）。文中个别按钮文案如与当前界面有出入，以界面为准。
+> **页签结构更新（2026-09-13 口径）**：`工作流` 页现名 `MY 工作流`，共 8 个页签：`风格与导演 / 小说导入 / 剧本生产阶段 / 剧本资产管理 / 分镜视频生成 / 分镜面板 / 图像节点图 / 视频工作台`。与本文旧七阶段叙事的对应：旧「策划编剧」并入「剧本生产阶段」；旧「剧本资产提取」并入「剧本资产管理」页签内的提取动作；新增的「分镜视频生成」「图像节点图」是 ComfyUI 节点画布页签（旧 React Flow 画布 2026-09-01 退役），分镜图为 ComfyUI 工作流产线（K2 图像 / H3 视频）。以下操作入口已按 `WORKFLOW_TABS` 和章节编排器核对（2026-09-20）。
 
 如果需要从“第一步”一直看到最终 MP4 的数据交接、节点职责、JSON 边界和 Remotion 原生渲染细节，请先读 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
 
@@ -42,13 +42,13 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 ## 1. 风格与导演
 
-进入 `工作流 -> 风格与导演`。
+进入 `MY 工作流 -> 风格与导演`。
 
 先选择视觉手册和导演手册。视觉手册决定画风、角色和场景资产的基础美术语言；导演手册决定镜头、构图、运镜和生产约束。后续策划编剧、导演计划、剧本资产管理、分镜面板和生图生视频都会读取这里的配置。
 
 ## 2. 小说导入
 
-进入 `工作流 -> 小说导入`。
+进入 `MY 工作流 -> 小说导入`。
 
 1. 点击 `导入原文`。
 2. 粘贴小说原文，或选择 `.txt/.md` 文件。
@@ -58,9 +58,9 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 导入后，流程推进会显示已导入的章节数量。
 
-## 3. 策划编剧
+## 3. 剧本生产阶段
 
-进入 `工作流 -> 策划编剧`。
+进入 `MY 工作流 -> 剧本生产阶段`。
 
 每章剧本通常按这个顺序生成：
 
@@ -77,7 +77,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 ## 4. 剧本资产提取
 
-进入 `工作流 -> 剧本资产提取`。
+进入 `MY 工作流 -> 剧本资产管理（提取资产）`。
 
 1. 选择剧本来源。
 2. 点击 `提取资产`。
@@ -89,7 +89,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 ## 5. 剧本资产管理
 
-进入 `工作流 -> 剧本资产管理`。
+进入 `MY 工作流 -> 剧本资产管理`。
 
 这一阶段用于把结构化剧本、角色、场景和道具转成可用于分镜与视频生成的制作资料。它对应 Toonflow 生产链路中的导演规划、衍生资产预划、衍生资产分析/生成、剧集圣经锁定，以及后续分镜表的前置准备。
 
@@ -103,7 +103,7 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 剧本资产管理之后不是直接出片，而是进入分镜面板：用导演计划和资产库构建分镜表，写入分镜面板，绑定角色/场景/道具，生成分镜图，并按需要处理角色音色和配音。
 
-如果提示没有可规划的剧本，先回到 `策划编剧` 生成剧本草稿。
+如果提示没有可规划的剧本，先回到 `剧本生产阶段` 生成剧本草稿。
 
 ## 6. 分镜面板
 
@@ -116,18 +116,18 @@ Python 和 TTS 依赖不会在应用启动时自动配置。详细说明见 [Pyt
 
 工作流状态会检查是否已经落地分镜，以及分镜是否绑定画面素材。
 
-素材导入、媒体引用、AI 分镜表协议（现为 16 列）和时长计算见 [分镜表与剪辑工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)（已过时，仅视频工作台章节仍有效；分镜编辑现状以 ComfyUI 画布为准）。
+AI 分镜表正式协议为 15 列，包含出镜语义 JSON；解析器保留旧 14/8/7 列兼容输入。协议与视频工作台边界见 [分镜面板与视频工作台操作参考](./WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md)；其中旧两栏素材编辑界面已单独标为历史记录。
 
-角色音色分配可在这里的角色列表或 `资产 -> 角色库` 角色详情中完成；本地 TTS 配置仍在设置页。
+角色音色分配可在这里的角色列表或 `资产 -> 角色` 详情中完成；本地 TTS 配置仍在设置页。
 
 ## 7. Remotion 视频生产
 
-分镜面板审核通过后，在 `分镜面板` 页签使用 `一键章视频` 提交当前章的逐镜 Remotion jobs（旧生产流程画布的 `Remotion 视频生产` 节点按钮已随 React Flow 画布退役）。系统只提交当前章节的 `StoryboardShot` jobs，不生成章节级 `ChapterVideo`，也不回退到旧迁移草稿片段或 FFmpeg。
+分镜面板审核通过后，在 `分镜面板` 页签使用 `一键章视频` 提交当前章的逐镜 Remotion jobs（旧生产流程画布的 `Remotion 视频生产` 节点按钮已随 React Flow 画布退役）。完整章节操作会补齐规划、分镜物料与配音，提交当前章 `StoryboardShot` jobs，等待 current slots 后自动运行 video-use，并停在视频工作台的用户审阅确认。它不会直接生成最终 `ChapterVideo`；单镜重试只提交指定镜头。
 
-1. 节点按当前章节动态 M 个分镜构建逐镜 plan，并检查图片/音频绑定、人工视觉审核、连续性和当前 revision。
+1. 章节编排器按当前章节动态 M 个分镜构建逐镜 plan，并检查图片/音频绑定、人工视觉审核、连续性和当前 revision。
 2. 队列显示 queued/running/succeeded/failed/blocked；每个成功镜头必须同时有 current MP4 和 evidence，输出保持项目级 `remotion/outputs/shots/<chapterId>/<shotId>/current.mp4`。
 3. 任一镜头缺素材、审核 receipt、runtime/bridge 或证据时保持 fail-closed，只允许修正分镜或重试对应 job。
-4. 全部 required shot current slots 成功后，节点才满足进入工作台的门禁。按钮的模型 `targetStage` 是 `workbench`，但一次提交不等于章节工作台或 ChapterVideo 已完成。
+4. 全部 required shot current slots 成功后，完整章节操作调用 video-use 生成预览。出现「请在视频工作台确认」时先审阅当前 revision；一次提交不等于最终 ChapterVideo 已完成。
 
 ## 8. video-use 章节审阅与交接
 
@@ -142,7 +142,7 @@ Remotion 分镜 current MP4/evidence 全部就绪后，章节先进入 video-use
 
 ## 9. 视频工作台（原生 Remotion Studio）
 
-进入 `工作流 -> 视频工作台`。
+进入 `MY 工作流 -> 视频工作台`。
 
 这里不是第二套自研时间线，而是当前章节的原生 Remotion Studio 宿主：
 
@@ -152,7 +152,7 @@ Remotion 分镜 current MP4/evidence 全部就绪后，章节先进入 video-use
 4. 在 Remotion 原生 Timeline、Inspector、Preview、Render 中编辑本章；MYStudio 只显示 job、blocked/error、revision 和 evidence。
 5. Studio 的 Render 通过 queue bridge 创建唯一 `ChapterVideo` job。Remotion `renderMedia` 直接生成章节 MP4，失败保持 `blocked/error`，不转 FFmpeg；总视频输出后只执行只读 `final-output-qc`，任何修正都必须创建新 revision，重新经过 video-use、HyperFrames 和 Remotion gate。
 
-每章 workspace 记录位于 `_p/<projectId>/remotion/`：chapter manifest、shot/chapter jobs、evidence、current outputs 和 queue state 分开保存。新版只有在 probe、SHA、revision、input fingerprint、video-use artifact、HyperFrames artifact 和 bundle identity 全部通过后才替换 current；失败/取消保留旧 current。完整字段和验收见 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
+每章 workspace 记录位于 `<projectRoot>/remotion/`（由主进程项目位置表解析；`_p/<projectId>` 仅为虚拟键）：chapter manifest、shot/chapter jobs、evidence、current outputs 和 queue state 分开保存。新版只有在 probe、SHA、revision、input fingerprint、video-use artifact、HyperFrames artifact 和 bundle identity 全部通过后才替换 current；失败/取消保留旧 current。完整字段和验收见 [从分镜到最终视频的完整链路](./WORKFLOW_FULL_VIDEO_PIPELINE.md)。
 
 ## 兼容与高级入口
 

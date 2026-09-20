@@ -1,8 +1,8 @@
 """已装插件详情富化:本地四件套(pyproject/requirements/LICENSE/git)+ Registry 缓存。
 
 09-10 实弹根修:装机行展开恒「作者/下载量 未知、license 未标明、依赖无额外依赖」。
-零网络零子进程:git 调用走真实 _git 但测试目录无 .git(None 路径),Registry
-刷新打桩为 no-op,缓存落在 tmp comfy home。
+零网络零子进程:git 元数据读取打桩为空,Registry 刷新打桩为 no-op,
+缓存落在 tmp comfy home。
 """
 from __future__ import annotations
 
@@ -84,6 +84,7 @@ def fake_env(tmp_path, monkeypatch):
     monkeypatch.setattr(plugin_manager.cm, "custom_nodes_dir", lambda: nodes)
     monkeypatch.setattr(plugin_manager.cm, "plugin_ledger", lambda manifest=None: ledger)
     monkeypatch.setattr(plugin_manager, "load_curated", lambda: [])
+    monkeypatch.setattr(plugin_manager, "_git", lambda *args, **kwargs: "")
     monkeypatch.setattr(plugin_manager, "_kick_github_stars_refresh", lambda pending: None)
     return home
 

@@ -21,11 +21,14 @@ vi.mock("@/lib/media/image-storage", () => ({
 import {
   collectComfyUpstream,
   persistComfyAudio,
+  persistComfyImage,
   planComfyWorkflowExecution,
   runComfyExecute,
   runComfyWorkflowNode,
 } from "./comfy-execute";
 import { useProjectStore } from "@/stores/project/project-store";
+import { saveToMediaLibrary } from "@/lib/ai/generation-media";
+import { useMediaStore } from "@/stores/media/media-store";
 
 // ── 夹具 ────────────────────────────────────────────────────────────
 
@@ -308,6 +311,93 @@ describe("runComfyExecute(job 提交+轮询)", () => {
   });
 });
 
+describe("persistComfyImage 项目隔离", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useProjectStore.setState({ activeProjectId: "p-image" });
+    useMediaStore.setState({ mediaFiles: [] });
+  });
+
+  afterEach(() => {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = undefined;
+  });
+
+  it.each([false, true])("写盘期间切换项目(切回=%s):不挂入媒体库", async (switchBack) => {
+    const saveImage = vi.fn(async () => {
+      useProjectStore.setState({ activeProjectId: "p-other" });
+      if (switchBack) useProjectStore.setState({ activeProjectId: "p-image" });
+      return { success: true, url: "project-file://p-image/media/ai-image/one.png" };
+    });
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { saveImage };
+    await expect(persistComfyImage("QUJD", "title")).rejects.toThrow("项目已切换");
+    expect(saveToMediaLibrary).not.toHaveBeenCalled();
+    expect(saveImage).toHaveBeenCalledWith(expect.objectContaining({ projectId: "p-image" }));
+  });
+
+  it("bridge 写盘失败不新增内存预览媒体,保留空地址供消费器重试", async () => {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = {
+      saveImage: async () => ({ success: false, error: "full" }),
+    };
+    const saved = await persistComfyImage("QUJD", "title", { source: "comfy-bridge" });
+    expect(saved).toMatchObject({ url: null, persisted: false });
+    expect(saveToMediaLibrary).not.toHaveBeenCalled();
+  });
+
+  it("既有节点调用保持落盘失败时的内存预览", async () => {
+    const saved = await persistComfyImage("QUJD", "title");
+    expect(saved).toMatchObject({ url: null, persisted: false, mediaId: "media-42" });
+    expect(saveToMediaLibrary).toHaveBeenCalledWith("data:image/png;base64,QUJD", "title", "ai-image");
+  });
+
+  it("显式项目快照失效:开始写盘前就阻断", async () => {
+    const saveImage = vi.fn(async () => ({ success: true, url: "project-file://p-image/media/one.png" }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { saveImage };
+    await expect(persistComfyImage("QUJD", "title", { projectId: "p-old" })).rejects.toThrow("项目已切换");
+    expect(saveImage).not.toHaveBeenCalled();
+  });
+
+  it.each(["data:image/png;base64,QUJD", "project-file://p-other/media/one.png"])(
+    "写桥返回非本项目持久地址:不入媒体库 (%s)", async (url) => {
+      (window as unknown as { projectFiles?: unknown }).projectFiles = {
+        saveImage: async () => ({ success: true, url }),
+      };
+      const saved = await persistComfyImage("QUJD", "title", { source: "comfy-bridge" });
+      expect(saved).toMatchObject({ url: null, persisted: false });
+      expect(saveToMediaLibrary).not.toHaveBeenCalled();
+    },
+  );
+
+  it("bridge 已登记媒体在模块重载后复用,不重复写文件或媒体条目", async () => {
+    const url = "project-file://p-image/media/ai-image/2026-08/comfy_bridge_71.png";
+    useMediaStore.setState({ mediaFiles: [{ id: "saved-media", name: "canvas", type: "image", source: "ai-image", projectId: "p-image", url }] });
+    const saveImage = vi.fn(async () => ({ success: true, url }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { saveImage };
+    const originalMediaStore = useMediaStore;
+    const originalProjectStore = useProjectStore;
+    vi.doMock("@/stores/media/media-store", () => ({ useMediaStore: originalMediaStore }));
+    vi.doMock("@/stores/project/project-store", () => ({ useProjectStore: originalProjectStore }));
+    vi.resetModules();
+    try {
+      const reloaded = await import("./comfy-execute");
+      const saved = await reloaded.persistComfyImage("QUJD", "title", { source: "comfy-bridge", bridgeItemId: 71 });
+      expect(saved).toEqual({ url, mediaId: "saved-media", persisted: true });
+      expect(saveImage).not.toHaveBeenCalled();
+      expect(saveToMediaLibrary).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock("@/stores/media/media-store");
+      vi.doUnmock("@/stores/project/project-store");
+      vi.resetModules();
+    }
+  });
+
+  it("bridge 未登记文件以收件 id 稳定命名,普通节点仍使用原命名", async () => {
+    const saveImage = vi.fn(async () => ({ success: true, url: "project-file://p-image/media/ai-image/2026-09/comfy_bridge_72.png" }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { saveImage };
+    await persistComfyImage("QUJD", "title", { source: "comfy-bridge", bridgeItemId: 72 });
+    expect(saveImage).toHaveBeenCalledWith(expect.objectContaining({ relativePath: expect.stringMatching(/\/comfy_bridge_72\.png$/) }));
+  });
+});
+
 // ── 音频落盘(09-20 YuE2 BGM 接线) ───────────────────────────────────
 
 describe("persistComfyAudio(b64 音频写项目)", () => {
@@ -407,5 +497,29 @@ describe("runComfyWorkflowNode(卡上运行编排)", () => {
     await expect(
       runComfyWorkflowNode(graph, "cw-1", { fetchWorkflowText: async () => WORKFLOW_TEXT }),
     ).rejects.toThrow("还没准备好");
+  });
+
+  it.each(["workflow", "execute", "roundtrip"])("%s 等待期间切项目:不将生成结果存入新项目", async (stage) => {
+    useProjectStore.setState({ activeProjectId: "p-start" });
+    const saveImage = vi.fn(async () => ({ success: true, url: "project-file://p-other/media/output.png" }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { saveImage };
+    const { fn } = mockFetchSequence([
+      { ok: true, status: 200, body: { jobId: "job-switch" } },
+      { ok: true, status: 200, body: { status: "complete", result: { images: [{ b64: "QUJD" }] } } },
+    ]);
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/comfy/jobs/") && stage !== "workflow") {
+        useProjectStore.setState({ activeProjectId: "p-other" });
+        if (stage === "roundtrip") useProjectStore.setState({ activeProjectId: "p-start" });
+      }
+      return fn(input, init);
+    });
+    await expect(runComfyWorkflowNode(makeGraph([comfyWorkflowNode()], []), "cw-1", {
+      fetchWorkflowText: async () => {
+        if (stage === "workflow") useProjectStore.setState({ activeProjectId: "p-other" });
+        return WORKFLOW_TEXT;
+      },
+    })).rejects.toThrow("项目已切换");
+    expect(saveImage).not.toHaveBeenCalled();
   });
 });

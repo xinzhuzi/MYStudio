@@ -6,10 +6,12 @@ env 覆写 > 自管实例 manifest 端口 > 17598 回落。
 from __future__ import annotations
 
 import json
+import pytest
 
 from engines.comfyui import manifest as cm
 from engines.image_engine import comfyui_bridge as bridge
 from engines.comfyui import plugin_manager as pm
+from engines.comfyui.engine_manager import EngineOpError
 
 
 def _use_tmp_home(tmp_path, monkeypatch):
@@ -114,6 +116,43 @@ class TestBridgeUrlOrder:
 # ── 工作流库文件操作(纯文件组) ────────────────────────────────────
 
 class TestWorkflowFileOps:
+    @pytest.mark.parametrize("repo_source", [False, True])
+    def test_read_rejects_symlink_into_similarly_prefixed_sibling(self, tmp_path, monkeypatch, repo_source):
+        _use_tmp_home(tmp_path, monkeypatch)
+        base = cm.repo_workflows_dir() if repo_source else cm.workflows_dir()
+        base.mkdir(parents=True, exist_ok=True)
+        sibling = base.with_name(base.name + "-private")
+        sibling.mkdir()
+        (sibling / "private.json").write_text('{"private":true}', encoding="utf-8")
+        (base / "outside").symlink_to(sibling, target_is_directory=True)
+        workflow_id = ("repo:" if repo_source else "") + "outside/private.json"
+        with pytest.raises(EngineOpError, match="路径"):
+            pm.read_workflow(workflow_id)
+
+    def test_import_rejects_symlink_escape_before_writing(self, tmp_path, monkeypatch):
+        _use_tmp_home(tmp_path, monkeypatch)
+        base = cm.workflows_dir()
+        base.mkdir(parents=True)
+        sibling = base.with_name(base.name + "-private")
+        sibling.mkdir()
+        (base / "outside").symlink_to(sibling, target_is_directory=True)
+        with pytest.raises(EngineOpError, match="路径"):
+            pm.import_workflows([{"name": "outside/new.json", "content": "{}"}])
+        assert not (sibling / "new.json").exists()
+
+    def test_rename_rejects_dangling_destination_symlink_and_preserves_source(self, tmp_path, monkeypatch):
+        _use_tmp_home(tmp_path, monkeypatch)
+        base = cm.workflows_dir()
+        base.mkdir(parents=True)
+        source = base / "source.json"
+        source.write_text('{"nodes":[]}', encoding="utf-8")
+        outside = tmp_path / "outside.json"
+        (base / "renamed.json").symlink_to(outside)
+        with pytest.raises(EngineOpError):
+            pm.rename_workflow("source.json", "renamed")
+        assert source.read_text(encoding="utf-8") == '{"nodes":[]}'
+        assert not outside.exists()
+
     def _import_two(self, tmp_path, monkeypatch):
         home = _use_tmp_home(tmp_path, monkeypatch)
         result = pm.import_workflows([

@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import threading
 import time
+import uuid
 
 _LOCK = threading.Lock()
-_STATE: dict = {"actions": [], "nextId": 1}
+_STATE: dict = {"actions": [], "nextId": 1, "queueId": uuid.uuid4().hex}
 
 # 09-12 功能完备(用户终裁:节点功能要像之前):环节节点动作全量收编——
 # 老画布 ProductionFlowNodeAction 的四个批量动作(导演规划/分镜表=付费 LLM,
@@ -40,41 +41,60 @@ DEDUPE_EXEMPT_KINDS = frozenset({"view-doc", "edit-doc", "open-shot-video"})
 NOTE_CAP = 2000  # 补充要求字符上限(付费生成的附加指令,09-12 功能差异补齐)
 
 
-def submit(kind: str, note: str = "") -> dict:
+def submit(
+    kind: str, note: str = "", *, origin_project_id: str | None = None,
+    origin_episode_id: str | None = None,
+) -> dict:
     kind = str(kind or "")
     if kind not in ALLOWED_KINDS:
         raise ValueError(f"未知动作类型:{kind}(允许:{'/'.join(ALLOWED_KINDS)})")
+    if not isinstance(origin_project_id, str) or not origin_project_id.strip():
+        raise ValueError("制作动作缺少有效来源项目")
+    if not isinstance(origin_episode_id, str) or not origin_episode_id.strip():
+        raise ValueError("制作动作缺少有效来源章节")
     note = str(note or "").strip()[:NOTE_CAP]
     now = int(time.time() * 1000)
     with _LOCK:
         # 同类未消费动作去重(付费生成类防连点双花钱;带新补充要求重提=
         # 更新在途 note,最新意图胜出,老画布同语义);文档开合类豁免
-        if kind not in DEDUPE_EXEMPT_KINDS and any(item["kind"] == kind for item in _STATE["actions"]):
-            existing = next(item for item in _STATE["actions"] if item["kind"] == kind)
+        existing = next((item for item in _STATE["actions"]
+                         if item["kind"] == kind and item["originProjectId"] == origin_project_id
+                         and item["originEpisodeId"] == origin_episode_id), None)
+        if kind not in DEDUPE_EXEMPT_KINDS and existing is not None:
             if note:
                 existing["note"] = note
             return {"id": existing["id"], "kind": kind, "duplicate": True}
+        if len(_STATE["actions"]) >= CAP:
+            raise ValueError(f"动作队列超过 {CAP} 条上限(宿主未消费)")
         item_id = _STATE["nextId"]
         _STATE["nextId"] += 1
-        item = {"id": item_id, "kind": kind, "submittedAt": now}
+        item = {
+            "id": item_id, "kind": kind, "submittedAt": now,
+            "originProjectId": origin_project_id, "originEpisodeId": origin_episode_id,
+        }
         if note:
             item["note"] = note
         _STATE["actions"].append(item)
-        if len(_STATE["actions"]) > CAP:
-            raise ValueError(f"动作队列超过 {CAP} 条上限(宿主未消费)")
         return {"id": item_id, "kind": kind, "duplicate": False}
 
 
 def list_since(cursor: int) -> dict:
     with _LOCK:
         items = [item for item in _STATE["actions"] if item["id"] > cursor]
-        return {"cursor": cursor, "items": [dict(item) for item in items]}
+        return {"cursor": cursor, "queueId": _STATE["queueId"], "items": [dict(item) for item in items]}
 
 
-def ack(up_to: int) -> int:
+def ack(up_to: int = 0, queue_id: str | None = None, *, ids: list[int] | None = None) -> int:
+    if ids is not None and (not isinstance(ids, list) or any(type(item_id) is not int or item_id <= 0 for item_id in ids)):
+        raise ValueError("动作确认 ids 必须是正整数列表")
     with _LOCK:
+        # The in-memory counter restarts with the sidecar. A late ack from an
+        # earlier instance must never delete an unrelated action with that ID.
+        if not queue_id or queue_id != _STATE["queueId"] or ids is None:
+            return 0
+        acknowledged = set(ids)
         before = len(_STATE["actions"])
-        _STATE["actions"] = [item for item in _STATE["actions"] if item["id"] > up_to]
+        _STATE["actions"] = [item for item in _STATE["actions"] if item["id"] not in acknowledged]
         return before - len(_STATE["actions"])
 
 
@@ -82,3 +102,4 @@ def reset_for_tests() -> None:
     with _LOCK:
         _STATE["actions"] = []
         _STATE["nextId"] = 1
+        _STATE["queueId"] = uuid.uuid4().hex

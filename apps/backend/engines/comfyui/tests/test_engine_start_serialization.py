@@ -178,6 +178,21 @@ def test_fast_path_probes_running_port_not_stale_manifest(home, monkeypatch):
     assert spawn_count["n"] == 1  # 没有重复 spawn
 
     # stop 清零运行口,回落账本口语义恢复(桩掉对 FakeProc 的真实 kill 路径)
-    monkeypatch.setattr(em, "_stop_engine_proc", lambda proc: None)
+    monkeypatch.setattr(em, "_stop_engine_proc", lambda proc: setattr(proc, "poll", lambda: 0))
     mgr.stop()
     assert getattr(mgr, "_running_port", None) is None
+
+
+def test_failed_spawn_closes_log_and_releases_ownership(home, monkeypatch):
+    mgr = em.EngineManager()
+    logs = []
+    def fail_spawn(*args, **kwargs):
+        logs.append(kwargs["stdout"])
+        raise OSError("spawn failed")
+    _stub_spawn_path(monkeypatch, mgr, fail_spawn)
+    with pytest.raises(OSError, match="spawn failed"):
+        mgr.start_sync()
+    assert mgr._proc is None
+    assert mgr._log_file is None
+    assert logs[0].closed
+    assert not em.engine_lock_path().exists()

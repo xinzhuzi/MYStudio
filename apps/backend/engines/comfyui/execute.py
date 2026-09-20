@@ -20,6 +20,7 @@ HTTP 细节风格照既有 comfyui_bridge(urllib + multipart 上传 + history �
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import math
 import time
@@ -240,13 +241,13 @@ def resolve_execute_timeout_s(payload: dict[str, Any]) -> float:
     (防调用方笔误把轮询挂成半天)。
     """
     raw = payload.get("timeoutS")
-    if raw is None:
+    if raw is None or isinstance(raw, bool):
         return EXECUTE_TIMEOUT_S
     try:
         value = float(raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return EXECUTE_TIMEOUT_S
-    if value <= 0:
+    if not math.isfinite(value) or value <= 0:
         return EXECUTE_TIMEOUT_S
     return min(value, MAX_EXECUTE_TIMEOUT_S)
 
@@ -317,7 +318,8 @@ def _execute_target(
             time.sleep(HISTORY_POLL_INTERVAL_S)
         else:
             try:
-                _http_json("POST", f"{_engine_url()}/interrupt", {"client_id": client_id}, timeout=5)
+                # 原生按 ID 取消同时覆盖等待/运行态,避免全局 interrupt 误伤其他任务。
+                _http_json("POST", f"{_engine_url()}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)
             except Exception:
                 pass  # 中断是清理性的,超时契约对调用方才是权威
             raise EngineOpError(
@@ -359,40 +361,39 @@ def _execute_target(
 
 # ── object_info 单类详情(三期B 通用节点直放的 schema 拉取) ──────────
 
-def _trim_options(spec: Any) -> Any:
+def _trim_options(spec: Any, default: Any = None) -> Any:
     """COMBO 选项截断(模型清单可达数千项;截断保载荷有界,缺省值永不截掉)。"""
-    if not isinstance(spec, list) or not spec or not all(isinstance(x, str) for x in spec):
+    if not isinstance(spec, list):
         return spec
     if len(spec) <= OBJECT_INFO_MAX_OPTIONS:
         return spec
-    default_marker = [x for x in spec[:1]]
     trimmed = spec[:OBJECT_INFO_MAX_OPTIONS]
-    for marker in default_marker:
-        if marker not in trimmed:
-            trimmed.append(marker)
+    if default in spec and default not in trimmed:
+        trimmed[-1] = default
     return trimmed
 
 
 def trim_object_info_entry(entry: dict[str, Any]) -> dict[str, Any]:
     """object_info 单类条目瘦身:保留 input/output/name/category/description,COMBO 截断。"""
     trimmed: dict[str, Any] = {}
-    for field in ("input", "output", "output_name", "name", "category", "description"):
+    for field in (
+        "input", "input_order", "output", "output_name", "output_is_list",
+        "output_node", "name", "display_name", "category", "description",
+    ):
         if field in entry:
-            trimmed[field] = entry[field]
-    raw_input = entry.get("input")
+            trimmed[field] = copy.deepcopy(entry[field])
+    raw_input = trimmed.get("input")
     if isinstance(raw_input, dict):
-        safe_input: dict[str, Any] = {}
-        for key, value in raw_input.items():
-            if isinstance(value, list) and value:
-                first = value[0]
-                if isinstance(first, list) and first and all(isinstance(x, str) for x in first) and len(value) == 1:
-                    # [[...]] 形状的 COMBO:选项列表本身截断
-                    safe_input[key] = [_trim_options(first)] + list(value[1:])
-                else:
-                    safe_input[key] = list(value)
-            else:
-                safe_input[key] = value
-        trimmed["input"] = safe_input
+        # 原生 schema 用 required/optional/hidden 分组;兼容既有扁平格式。
+        groups = [raw_input] + [
+            raw_input[group] for group in ("required", "optional", "hidden")
+            if isinstance(raw_input.get(group), dict)
+        ]
+        for group in groups:
+            for value in group.values():
+                if isinstance(value, list) and value and isinstance(value[0], list):
+                    metadata = value[1] if len(value) > 1 and isinstance(value[1], dict) else {}
+                    value[0] = _trim_options(value[0], metadata.get("default"))
     return trimmed
 
 

@@ -43,8 +43,8 @@ def test_input_types_shape_and_registry():
     assert "筑基后期" in spec["fields"][1]["default"]
     assert spec["name_size"][1]["default"] == 92
     assert spec["seal_text"][1]["default"] == "道劫"
-    assert tuple(spec["layout"][0]) == ("四格条带", "左栏竖排")  # 09-20 三轮:四视图版式默认
-    assert "正面全身" in spec["grid_labels"][1]["default"]
+    assert tuple(spec["layout"][0]) == ("纯拼版(无字)", "四格拼版", "四格条带", "左栏竖排")
+    assert "半身像" in spec["grid_labels"][1]["default"]
     assert node.RETURN_TYPES == ("IMAGE",)
     assert node.RETURN_NAMES == ("image",)
 
@@ -72,28 +72,40 @@ def test_run_overlays_ink_and_seal_on_2k_sheet():
 
 
 @pytest.mark.skipif(not _HAS_CJK_FONT, reason="本机无中文系统字体栈")
-def test_run_grid_bands_and_card_on_4view_sheet():
-    """四格条带版式(09-20 三轮默认):底部四条纸色标签带+左上角色小卡+小朱印。"""
+def test_run_grid_card_only_zero_contact():
+    """六轮=标签入卡(零接触):白底图上,四格模式只画左上信息卡(姓名+字段+
+    格序图例+朱印);底部/右部不得有任何程序墨迹(无条带)。"""
     node = NODE_CLASS_MAPPINGS["MyCharsheetLabels"]()
     (out,) = node.run(_white_sheet(), "青珣", "筑基后期 · 剑修\n青云门 · 内门弟子",
                       "苹方(简体)", 92, 40, "墨黑", "道劫", layout="四格条带",
-                      grid_labels="正面全身\n侧面全身\n背面全身\n面部特写")
+                      grid_labels="面部特写\n正面全身\n侧面全身\n背面全身")
     array = out.numpy()
     assert array.shape == (1, 1712, 2568, 3)
-    # ① 底部条带区(y 88%~97%):四段纸色带(≈(247,243,235)/255≈0.96)与墨字并存
-    bands = array[0, int(0.88 * 1712):int(0.97 * 1712), :, :]
-    flat = bands.reshape(-1, 3)
-    paper_mask = (flat[:, 0] > 0.90) & (flat[:, 1] > 0.88) & (abs(flat[:, 0] - flat[:, 2]) < 0.08)
-    ink_mask = flat.max(axis=1) < 0.5
-    assert paper_mask.sum() > 20000, "底部未见纸色条带"
-    assert ink_mask.sum() > 500, "条带内未见墨字"
-    # ② 左上小卡区(x 3%~25%,y 3%~30%):卡底+墨字+朱印
-    card = array[0, int(0.03 * 1712):int(0.30 * 1712),
-                 int(0.03 * 2568):int(0.25 * 2568), :]
+    # ① 左上信息卡:墨字+朱印+图例行(图例行较宽,窗口放宽至 0.38W)
+    card = array[0, int(0.03 * 1712):int(0.34 * 1712),
+                 int(0.03 * 2568):int(0.38 * 2568), :]
     cflat = card.reshape(-1, 3)
-    assert (cflat.max(axis=1) < 0.5).sum() > 300, "小卡未见墨字"
+    assert (cflat.max(axis=1) < 0.5).sum() > 300, "信息卡未见墨字"
     red = (cflat[:, 0] > 0.6) & (cflat[:, 1] < 0.43) & (cflat[:, 2] < 0.43)
-    assert red.sum() > 300, "小卡未见朱印"
+    assert red.sum() > 300, "信息卡未见朱印"
+    # ② 零接触:卡区之外(白底输入)不得出现程序墨迹——底部条带区墨迹≈0
+    bottom = array[0, int(0.80 * 1712):, int(0.35 * 2568):, :]
+    assert (bottom.max(axis=2) < 0.5).sum() < 100, "底部出现程序墨迹(条带未移除)"
+
+
+@pytest.mark.skipif(not _HAS_CJK_FONT, reason="本机无中文系统字体栈")
+def test_content_columns_detects_four_pillars():
+    """内容列检测(布局审计):四根不等分深色柱应检出 4 段(供重roll 提示)。"""
+    import numpy as np
+    from PIL import Image
+    canvas = Image.new("L", (1536, 1024), 255)
+    for c in (0.23, 0.56, 0.74, 0.92):
+        x = int(c * 1536)
+        for yy in range(100, 800):
+            for xx in range(x - 60, x + 60):
+                canvas.putpixel((xx, yy), 30)
+    segs = mcl.MyCharsheetLabels._content_columns(canvas.convert("RGBA"))
+    assert len(segs) == 4, segs
 
 
 @pytest.mark.skipif(not _HAS_CJK_FONT, reason="本机无中文系统字体栈")
@@ -102,7 +114,7 @@ def test_long_name_and_field_overflow_do_not_crash():
     long_name = "青云门掌门玄真子上人"  # 10 字>6,触发缩宽
     many_lines = "\n".join(f"第{i}行身份字段" for i in range(60))  # 溢出印区→截断
     (out,) = node.run(_white_sheet(512, 768), long_name, many_lines,
-                      "黑体", 64, 24, "朱砂", "漫影设定")
+                      "黑体", 64, 24, "朱砂", "漫影设定", layout="左栏竖排")
     assert out.numpy().shape == (1, 512, 768, 3)
 
 
@@ -115,3 +127,24 @@ def test_font_fallback_never_raises(monkeypatch):
                          "苹方(简体)": [(lambda: [], 11, 3)]})
     assert mcl._load_font("宋体", 40, bold=False) is not None
     assert mcl._load_font("苹方(简体)", 40, bold=True) is not None
+
+
+@pytest.mark.skipif(not _HAS_CJK_FONT, reason="本机无中文系统字体栈")
+def test_compose_four_views_fixed_order():
+    """十轮=四格拼版:4 张单视角图→2568×1712 画布,标签带画在留白区
+    (y≈86%),等分=拼版顺序定死;内容条(上 76% 区)零程序条带。"""
+    import torch
+    a = torch.ones((1, 768, 1024, 3)); a[0, :, :100] = 0.2     # 第1张左黑边=可辨序
+    b = torch.ones((1, 768, 1024, 3)); b[0, :, -100:] = 0.2
+    c = torch.ones((1, 768, 1024, 3)); c[0, :100, :] = 0.2
+    d = torch.ones((1, 768, 1024, 3))
+    node = NODE_CLASS_MAPPINGS["MyCharsheetLabels"]()
+    (out,) = node.run(a, "青珣", "剑修", "苹方(简体)", 92, 40, "墨黑", "道劫",
+                      layout="四格拼版",
+                      grid_labels="半身像\n正面全身\n侧面全身\n背面全身",
+                      image_b=b, image_c=c, image_d=d)
+    arr = out.numpy()
+    assert arr.shape == (1, 1712, 2568, 3)
+    # 内容条存在(上区有暗像素)
+    assert (arr[0, :int(0.7*1712), :, :].max(axis=2) < 0.5).sum() > 500
+    assert (arr[0].max(axis=2) < 0.5).sum() > 500  # 内容条存在

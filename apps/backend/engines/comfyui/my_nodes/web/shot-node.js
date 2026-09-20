@@ -196,7 +196,7 @@ app.registerExtension({
         };
         button.addEventListener("click", () => {
           const shotId = String(this.widgets?.[0]?.value || "").trim();
-          if (shotId && !button.disabled) postAction("open-shot-video", shotId, button);
+          if (shotId && !button.disabled) postAction("open-shot-video", shotId, button, this.properties?.myOriginProjectId, this.properties?.myOriginEpisodeId);
         });
         action.append(button);
         const widget = this.addDOMWidget("my-shot-actions", "my-shot-actions", action, {

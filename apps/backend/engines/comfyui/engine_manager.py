@@ -25,6 +25,7 @@ import tarfile
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from urllib import error, request
 
@@ -71,39 +72,76 @@ def engine_lock_path() -> Path:
     return cm.comfy_home() / "engine.lock"
 
 
+@contextmanager
+def _engine_lock_guard():
+    """Serialize metadata check/write/unlink across sidecar processes.
+
+    Keep the guard inode stable: unlinking it would allow two different inodes
+    to be locked simultaneously. The OS releases the lock when a process exits.
+    """
+    path = engine_lock_path().with_suffix(".lock.guard")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as handle:
+        if os.name == "nt":
+            import msvcrt
+            if handle.seek(0, os.SEEK_END) == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _read_engine_lock() -> dict:
+    try:
+        data = json.loads(engine_lock_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
 def acquire_engine_lock(note: str = "") -> bool:
     """取引擎管理权:锁文件记录持有 pid;活的他进程持有=False,死锁/自持=接管重写。
 
     pid 复用判定与 engine_lock_holder 同源(09-14 P2):活但非漫影管理进程
     (命令行无 image_gen.main)=死锁文件,可接管。
     """
-    path = engine_lock_path()
     try:
-        if path.exists():
-            data = json.loads(path.read_text(encoding="utf-8"))
+        with _engine_lock_guard():
+            path = engine_lock_path()
+            data = _read_engine_lock()
             pid = data.get("pid")
             if (isinstance(pid, int) and pid != os.getpid()
                     and _pid_alive(pid) and _pid_is_manager_process(pid)):
                 return False
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"pid": os.getpid(), "note": note, "at": cm.timestamp_ms()}), encoding="utf-8")
-        return True
-    except Exception:
-        # 锁机制自身故障不阻断引擎功能(降级旧单守卫行为),但留痕
-        print("[image-sidecar] comfy-engine: 引擎锁读写异常,降级为无锁模式", flush=True)
-        return True
+            temporary = path.with_suffix(".lock.tmp")
+            temporary.write_text(json.dumps({"pid": os.getpid(), "note": note, "at": cm.timestamp_ms()}), encoding="utf-8")
+            temporary.replace(path)
+            return True
+    except (OSError, ValueError):
+        print("[image-sidecar] comfy-engine: 引擎锁读写异常,拒绝无锁启动", flush=True)
+        return False
 
 
 def engine_lock_holder() -> dict | None:
     try:
-        path = engine_lock_path()
-        if not path.exists():
-            return None
-        data = json.loads(path.read_text(encoding="utf-8"))
-        pid = data.get("pid")
-        if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
-            if _pid_is_manager_process(pid):
-                return data
+        with _engine_lock_guard():
+            data = _read_engine_lock()
+            pid = data.get("pid")
+            if isinstance(pid, int) and pid != os.getpid() and _pid_alive(pid):
+                if _pid_is_manager_process(pid):
+                    return data
         return None
     except Exception:
         return None
@@ -111,9 +149,9 @@ def engine_lock_holder() -> dict | None:
 
 def release_engine_lock() -> None:
     try:
-        path = engine_lock_path()
-        if path.exists():
-            data = json.loads(path.read_text(encoding="utf-8"))
+        with _engine_lock_guard():
+            path = engine_lock_path()
+            data = _read_engine_lock()
             if data.get("pid") == os.getpid():
                 path.unlink(missing_ok=True)
     except Exception:
@@ -651,6 +689,9 @@ class EngineManager:
         # 并发穿窗会双拉引擎(双进程/端口决议两次/账本口被后写覆盖)。与 _lock
         # 分开:_lock 管共享态细粒度互斥,_start_lock 保证同一时刻至多一次启动。
         self._start_lock = threading.Lock()
+        # Reaping/closing/releasing belongs to one generation. New spawn commits
+        # wait for that teardown, but health probes remain cancellable by stop.
+        self._teardown_lock = threading.Lock()
         self._stopping = False
         # 停止代数(09-14 生命周期审计 P1):stop() 每次自增;start_sync 捕获后
         # 在 spawn 提交与健康等待两处核对,变了=停止请求插队,中止并回收刚拉的
@@ -843,12 +884,17 @@ class EngineManager:
 
     # -- 启动/停止/守卫 ----------------------------------------------------
     def start_job(self) -> str:
+        with self._lock:
+            generation = self._stop_generation
         job_id = jobs.create("engine-start", "正在启动 ComfyUI 引擎…")
-        jobs.start(job_id, self._start_job)
+        jobs.start(job_id, lambda queued_id: self._start_job(queued_id, generation))
         return job_id
 
-    def _start_job(self, job_id: str) -> None:
-        result = self.start_sync(progress=lambda pct, msg: jobs.update(job_id, progress=pct, message=msg))
+    def _start_job(self, job_id: str, generation: int) -> None:
+        result = self.start_sync(
+            progress=lambda pct, msg: jobs.update(job_id, progress=pct, message=msg),
+            expected_generation=generation,
+        )
         # 09-08 加固①配套:启动 job 必须落终态,否则渲染层 pollJobUntilTerminal
         # 会一直等到超时,把已经就绪的引擎报成「服务启动失败」。
         jobs.update(job_id, result={
@@ -869,7 +915,8 @@ class EngineManager:
             return False
         return isinstance(stats, dict) and ("system" in stats or "devices" in stats)
 
-    def start_sync(self, progress=None, from_guard: bool = False) -> dict:
+    def start_sync(self, progress=None, from_guard: bool = False, *, expected_generation: int | None = None,
+                   allow_adoption: bool = True) -> dict:
         """同步启动(启动 job 与插件链内部复用)。已健康=收编孤儿进程直接就绪。
 
         09-11 深审 P2 根修:启动全程持 _start_lock 串行——原实现「判活→Popen」
@@ -881,6 +928,9 @@ class EngineManager:
         岗,杜绝「守卫过检后用户 stop、守卫照拉」的停止后复活;健康等待期以
         停止代数核对插队的 stop 请求(见 _await_startup_health)。
         """
+        with self._lock:
+            start_gen = self._stop_generation if expected_generation is None else expected_generation
+            self._check_start_generation(start_gen, from_guard)
         if not cm.engine_installed():
             raise EngineOpError("ComfyUI 引擎尚未安装,请先安装")
         holder = engine_lock_holder()
@@ -889,31 +939,44 @@ class EngineManager:
                 f"引擎正被另一个漫影进程管理(pid {holder.get('pid')},{holder.get('note') or '未知来源'}),"
                 "已拒绝启动以防互踩;确认没有其他会话后,删除 engine.lock 可解除"
             )
-        with self._start_lock:
-            start_gen = self._stop_generation
-            with self._lock:
+        with self._start_lock, self._start_attempt(start_gen):
+            with self._teardown_lock, self._lock:
+                self._check_start_generation(start_gen, from_guard)
+                if not acquire_engine_lock("engine-manager"):
+                    raise EngineOpError("无法取得 ComfyUI 引擎管理权,已拒绝启动以防互踩")
                 already_running = self._proc is not None and self._proc.poll() is None
+                proc = self._proc
             if already_running:
-                acquire_engine_lock("engine-manager")
                 # 快路径探运行口优先:启动串钉口(--port)与账本口分叉时,账本口
                 # 是死口——原实现干等 120 秒后假报「健康检查超时」(09-11 实弹)
                 port = getattr(self, "_running_port", None) or cm.recorded_port()
                 self._await_startup_health(port, stop_generation=start_gen)
-                return {"running": True, "port": port}
+                with self._lock:
+                    self._check_start_generation(start_gen, from_guard)
+                    self._check_start_process(proc)
+                    self._stopping = False
+                    self._enable_guard()
+                    return {"running": True, "port": port}
             port = cm.recorded_port()
             if port and self._orphan_is_comfyui(port):
-                acquire_engine_lock("engine-manager")
-                self._running_port = port
-                # 收编=引擎重新处于受管运行态,清停止标志——否则守卫循环被
-                # 上一次 stop 留下的 _stopping 永久跳过,收编引擎崩溃无人拉起
-                self._stopping = False
-                self._enable_guard()
+                if not allow_adoption:
+                    raise EngineOpError("端口仍由外部 ComfyUI 占用,无法确认其已重启;请先停止外部实例")
+                with self._teardown_lock, self._lock:
+                    self._check_start_generation(start_gen, from_guard)
+                    self._running_port = port
+                    # Adoption restores managed state after an explicit restart.
+                    self._stopping = False
                 # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
                 # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
                 self._last_node_count = self.node_count()
+                with self._lock:
+                    self._check_start_generation(start_gen, from_guard)
+                    self._enable_guard()
                 if progress:
                     progress(100, "接管了正在运行的 ComfyUI 实例")
-                return {"running": True, "port": port, "adopted": True}
+                with self._lock:
+                    self._check_start_generation(start_gen, from_guard)
+                    return {"running": True, "port": port, "adopted": True}
             # 09-10 Desktop 式:端口决议(用户串 --port 优先,被占按策略;否则账本口顺延)
             port = resolve_launch_port(
                 cm.engine_launch_args(), port, cm.engine_port_conflict_policy())
@@ -933,7 +996,6 @@ class EngineManager:
             )]
             _write_extra_model_paths(cm.configured_models_dir())
             cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
-            self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
             # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
             # bridge 回写端点注入(swap 阶段1:my_generated → sidecar 17595)
             # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链
@@ -944,22 +1006,59 @@ class EngineManager:
             # spawn 提交进 _lock(09-14 P1):守卫拉起须核对守卫仍在岗(过检后
             # 用户 stop 的窗口),stop() 也持 _lock 摘引用——两序必居其一:先
             # 提交则 stop 摸到新引用照杀,后提交则此处直接拒拉。
-            with self._lock:
-                if from_guard and not self._guard_enabled:
-                    raise EngineOpError("引擎已被手动停止,取消本次自动拉起")
+            with self._teardown_lock, self._lock:
+                self._check_start_generation(start_gen, from_guard)
                 self._stopping = False
+                if self._log_file is not None:
+                    self._log_file.close()
+                self._log_file = open(cm.engine_log_path(), "a", encoding="utf-8", buffering=1)
                 self._proc = subprocess.Popen(argv, cwd=str(src), env=launch_env,
                                               stdout=self._log_file, stderr=subprocess.STDOUT,
                                               start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
                 self._running_port = port  # 运行口随 spawn 落值(快路径/状态探测的真源)
-            _spawn_engine_watchdog(self._proc, cm.engine_log_path())
+                proc = self._proc
+            _spawn_engine_watchdog(proc, cm.engine_log_path())
             self._await_startup_health(port, progress=progress, stop_generation=start_gen)
-            acquire_engine_lock("engine-manager")
-            self._enable_guard()
             self._last_node_count = self.node_count()
+            with self._lock:
+                self._check_start_generation(start_gen, from_guard)
+                self._check_start_process(proc)
+                self._enable_guard()
             if progress:
                 progress(100, "ComfyUI 引擎已就绪")
-            return {"running": True, "port": port}
+            with self._lock:
+                self._check_start_generation(start_gen, from_guard)
+                self._check_start_process(proc)
+                return {"running": True, "port": port}
+
+    def _check_start_process(self, proc) -> None:
+        """Caller holds _lock; a stale HTTP success cannot prove child liveness."""
+        if proc is None or self._proc is not proc or proc.poll() is not None:
+            raise EngineOpError("引擎进程已退出或被替换,请查看日志:" + str(cm.engine_log_path()))
+
+    def _check_start_generation(self, generation: int, from_guard: bool = False) -> None:
+        """Called with _lock before committing state or returning startup success."""
+        if self._stop_generation != generation:
+            raise EngineOpError("引擎启动被停止请求取消")
+        if from_guard and not self._guard_enabled:
+            raise EngineOpError("引擎已被手动停止,取消本次自动拉起")
+
+    @contextmanager
+    def _start_attempt(self, generation: int):
+        """Release failed startup resources only if this generation has no live child."""
+        try:
+            yield
+        except Exception:
+            with self._teardown_lock, self._lock:
+                if (self._stop_generation == generation
+                        and (self._proc is None or self._proc.poll() is not None)):
+                    self._proc = None
+                    self._running_port = None
+                    if self._log_file is not None:
+                        self._log_file.close()
+                        self._log_file = None
+                    release_engine_lock()
+            raise
 
     def _await_startup_health(self, port: int, progress=None, stop_generation: int | None = None) -> None:
         """等健康到 HEALTH_TIMEOUT_S;进程中途退出/超时/停止插队抛错(启动与快路径共用)。"""
@@ -967,19 +1066,22 @@ class EngineManager:
             progress(40, "等待引擎就绪(首次加载模型较慢)…")
         deadline = time.monotonic() + HEALTH_TIMEOUT_S
         while time.monotonic() < deadline:
-            if self._proc is not None and self._proc.poll() is not None:
-                raise EngineOpError("引擎进程启动后立刻退出了,请查看日志:" + str(cm.engine_log_path()))
             if stop_generation is not None and self._stop_generation != stop_generation:
                 # 停止请求插队(09-14 P1):回收刚 spawn 的引擎并如实报「被取消」,
                 # 不再等满 120 秒超时把已停止报成启动失败。
-                with self._lock:
-                    proc, self._proc = self._proc, None
-                    self._running_port = None
-                if proc is not None and proc.poll() is None:
-                    _stop_engine_proc(proc)
+                with self._teardown_lock:
+                    self._reap_current_process()
                 raise EngineOpError("引擎启动被停止请求取消")
+            with self._lock:
+                proc = self._proc
+            if proc is not None and proc.poll() is not None:
+                raise EngineOpError("引擎进程启动后立刻退出了,请查看日志:" + str(cm.engine_log_path()))
             if self.is_healthy(port, timeout=2.0):
-                return
+                with self._lock:
+                    if stop_generation is not None:
+                        self._check_start_generation(stop_generation)
+                    self._check_start_process(proc)
+                    return
             time.sleep(1.5)
         raise EngineOpError("引擎健康检查超时(120 秒),请查看日志:" + str(cm.engine_log_path()))
 
@@ -992,23 +1094,47 @@ class EngineManager:
         _await_startup_health 核对到代数变化后中止并回收;P2:收尾释放
         engine.lock(此前生产路径从不释放,退出后恒留死锁文件)。
         """
-        with self._lock:
-            self._guard_enabled = False
-            self._stopping = True
-            self._stop_generation += 1
-            proc, self._proc = self._proc, None
-            setattr(self, "_running_port", None)
-        if proc is not None and proc.poll() is None:
-            _stop_engine_proc(proc)  # 整组 SIGTERM→SIGKILL(09-10 孤儿根修配套)
-        if self._log_file:
-            try:
-                self._log_file.close()
-            except OSError:
-                pass
-            self._log_file = None
-        stopped = proc is None or proc.poll() is not None
-        release_engine_lock()  # 仅本 pid 持有时才真删,幂等
+        _, stopped = self._stop_managed_process()
         return {"running": self.is_healthy(), "stopped": stopped}
+
+    def _stop_managed_process(self) -> tuple[int, bool]:
+        """Return this stop's generation without a handoff race to another stop."""
+        with self._teardown_lock:
+            with self._lock:
+                self._guard_enabled = False
+                self._stopping = True
+                self._stop_generation += 1
+                generation = self._stop_generation
+            stopped = self._reap_current_process()
+        return generation, stopped
+
+    def _reap_current_process(self) -> bool:
+        """Caller holds _teardown_lock; cleanup does not create a new stop request."""
+        with self._lock:
+            proc, self._proc = self._proc, None
+            log_file, self._log_file = self._log_file, None
+            running_port = self._running_port
+            self._running_port = None
+        try:
+            if proc is not None and proc.poll() is None:
+                _stop_engine_proc(proc)
+        finally:
+            stopped = proc is None or proc.poll() is not None
+            if stopped:
+                if log_file:
+                    try:
+                        log_file.close()
+                    except OSError:
+                        pass
+                release_engine_lock()
+            else:
+                # Failed termination is still our process: keep enough state
+                # to retry and prevent a second manager from taking ownership.
+                with self._lock:
+                    self._proc = proc
+                    self._log_file = log_file
+                    self._running_port = running_port
+        return stopped
 
     def ensure_engine_ready(self) -> bool:
         """按需启动(一期PRD A节补口):自管引擎已装但没跑→同步拉起再放行。
@@ -1018,20 +1144,33 @@ class EngineManager:
         """
         if not cm.engine_installed():
             return False
-        if self._proc is not None and self._proc.poll() is None and self.is_healthy():
-            return True
-        self.start_sync()
+        with self._lock:
+            generation = self._stop_generation
+            proc = self._proc
+        if proc is not None and proc.poll() is None:
+            with self._lock:
+                if self._proc is not proc or self._stopping:
+                    raise EngineOpError("引擎启动被停止请求取消")
+            healthy = self.is_healthy()
+            with self._lock:
+                self._check_start_generation(generation)
+                if healthy and self._proc is proc and proc.poll() is None:
+                    return True
+        self.start_sync(expected_generation=generation)
         return True
 
     def restart(self, progress=None) -> dict:
         """重启(插件安装/更新链用;期望引擎回到健康态)。"""
-        self.stop()
+        generation, stopped = self._stop_managed_process()
+        if not stopped:
+            raise EngineOpError("引擎进程未能停止,取消本次重启")
         time.sleep(1.0)
-        return self.start_sync(progress=progress)
+        return self.start_sync(progress=progress, expected_generation=generation, allow_adoption=False)
 
     def _enable_guard(self) -> None:
+        if not self._guard_enabled:
+            self._restart_times = []
         self._guard_enabled = True
-        self._restart_times = []
         if self._guard_thread is None or not self._guard_thread.is_alive():
             self._guard_thread = threading.Thread(target=self._guard_loop, daemon=True, name="comfy-engine-guard")
             self._guard_thread.start()

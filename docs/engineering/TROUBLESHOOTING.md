@@ -9,12 +9,12 @@
 ```bash
 cd <repo-root>/apps
 MYSTUDIO_SMOKE_APP_BIN="/Applications/漫影工作室.app/Contents/MacOS/漫影工作室" \
-MYSTUDIO_SMOKE_USER_DATA_DIR="<userData>" \
+MYSTUDIO_SMOKE_USER_DATA_DIR="<isolatedSmokeUserData>" \
 MYSTUDIO_SMOKE_DEBUG_PORT=9361 \
 npm run smoke:desktop
 ```
 
-如果 smoke 输出 `whiteRatio=0.000` 且退出码为 0，说明安装版渲染基本正常。
+使用隔离的 smoke userData，避免把真实业务数据当测试目录。只有 smoke 退出码为 0 且报告中的路由检查通过，才说明本次安装版 UI/shell 验证通过；`whiteRatio` 只是其中一个指标，不证明真实生成链通过。
 
 需要看前端报错时，打开 [开发模式与控制台](../settings/DEVELOPMENT_MODE.md)。
 
@@ -61,7 +61,7 @@ pgrep -fl "漫影工作室|python.*tts" || true
 - **疑似孤儿进程占口**：现象=CPU 飙高/无限重启。配方：进程普查（`pgrep -fl`）→ 按 PPID 分组（PPID=1 即孤儿）→ `lsof -i :<port>` 找占口者，杀掉孤儿后再从引擎卡启动。历史事故：孤儿 sidecar 占 17595 导致绑定失败无限重启。
 - **无新日志 = spawn 没触发**：引擎日志看 `<userData>/logs/sidecars/`（`comfy-*` 等模块捕获）与引擎家内日志；完全没有新日志说明启动链没走到 spawn，先查引擎卡状态机与 `engine.lock`（双实例互斥锁）。
 - **插件 import 失败**：ComfyUI 启动日志的 `collect_import_failures` 会点名具体插件；生态插件升级走引擎卡更新页对应插件行「更新」，或 ComfyUI 内 Manager → Install Custom Nodes → 自身 Try update；不要用 pip 手装、不要点 Manager 的 RESTART Engine（走引擎卡）。
-- **改了 manying_nodes 前端没生效**：`manying_nodes` 真源在仓库 `apps/backend/engines/comfyui/manying_nodes/`，运行时同步进引擎家；引擎 spawn 用 Resources 覆写引擎家——改 `manying.js` 等文件后必须重新打包才进安装版（开发双家另见 `.agents/skills/comfyui/machine.md`）。
+- **改了 my_nodes 前端没生效**：`my_nodes` 真源在仓库 `apps/backend/engines/comfyui/my_nodes/`，运行时同步进引擎家；引擎 spawn 用 Resources 覆写引擎家——改 `manying.js` 等文件后必须重新打包才进安装版（开发双家另见 `.agents/skills/comfyui/machine.md`）。
 - **webview 白屏/黑屏**：先确认引擎健康（引擎卡状态=运行中）与 webview 端口一致；云端节点 Sign in 遮罩等界面问题见 [定制代码地图](../comfyui-kb/定制代码地图.md)。
 
 引擎布局/端口/启动方式档案见 `.agents/skills/comfyui/machine.md`；K2/H3 产线参数排障见 [参数速查](../comfyui-kb/参数速查.md) 与 [排障 runbook](../comfyui-kb/K2上色/runbook_画稿上色_错误应对.md)。
@@ -102,7 +102,7 @@ pgrep -fl "漫影工作室|python.*tts" || true
 
 - `设置 → 本地配置 → ComfyUI 引擎` 引擎是否运行中、端口是否就绪。
 - 「模型」页签里对应家族（checkpoints/LoRA 等）是否就位（`comfyui/models/` 活清单）。
-- 生成走的工作流模板是否在引擎家 `user/default/workflows/漫影/` 对应域（参数口径见 [参数速查](../comfyui-kb/参数速查.md)）。
+- 生成模板是否来自只读 `repo:` 工作流库，或当前配置的用户工作流目录（默认 `<源码目录>/user/default/workflows/`）（参数口径见 [参数速查](../comfyui-kb/参数速查.md)）。
 
 **云端 AI 链路**（资产/导演/S级等内部工作区）：
 
@@ -133,7 +133,7 @@ pgrep -fl "漫影工作室|python.*tts" || true
 检查：
 
 - 当前存储位置是否指向正确目录。
-- 目录下是否存在 `projects/` 和 `media/`。
+- 内部存储目录是否存在 `projects/` 和 `media/`；外部项目还要核对 `<userData>/project-locations.json` 登记的真实目录。
 - 是否误指向了空目录。
 - 是否需要使用 `指向已有数据目录` 恢复。
 
@@ -154,7 +154,7 @@ assets/files/audio/
 
 图片类资产缩略图在 `assets/thumbs/`，缩略图缺失时应用会尝试异步重新生成；原文件缺失时需要从旧存储目录恢复 `assets/files/`。
 
-如果刚刚更改过 `设置 -> 存储` 的存储位置，当前统一导出/导入/移动会覆盖 `projects/`、`media/`、`assets/` 和 `skills/`。`python/`、`comfyui/models/TTS/`（旧版 `model/TTS`、`tts-models/` 仅作迁移兼容）与 `tts-runtime/` 属于运行时下载和配置目录，不随该操作复制。
+如果刚刚更改过 `设置 -> 存储` 的存储位置，当前统一导出/导入/移动会覆盖 `projects/`、`media/`、`assets/` 和 `skills/`。`python/`、`comfyui/models/TTS/`（旧版 `model/TTS`、`tts-models/` 仅作迁移兼容）与 `TTS/runtime/`（旧版 `tts-runtime/` 仅兼容）属于运行时下载和配置目录，不随该操作复制。
 
 添加、批量删除、多图、重新出图和音频说话内容识别的操作说明见 [资产导入与管理](../assets/ASSET_IMPORT_AND_MANAGEMENT.md)。
 

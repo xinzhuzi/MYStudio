@@ -36,6 +36,8 @@ export interface ShotH3WorkflowInput {
   >;
   chapterId: string;
   chapterLabel: string;
+  /** Project captured by the host before any upload or generation await. */
+  originProjectId?: string;
   policy?: H3AudioPolicy;
   imageName?: string;
 }
@@ -144,7 +146,7 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
 
   const anchor = getNode(template, 100, "MyShot");
   anchor.widgets_values = [shot.id, label, description, "图✓"];
-  anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName };
+  anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName, myOriginProjectId: input.originProjectId ?? "", myOriginEpisodeId: input.chapterId };
 
   // 09-14 用户裁定(二次修订):漫影工作流文件名一律 `MY-` 前缀。
   const name = `MY-单镜视频 · ${input.chapterLabel} · ${label}`;
@@ -228,7 +230,7 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
 
   const anchor = getNode(template, 100, "MyShot");
   anchor.widgets_values = [shot.id, label, description, "图✓"];
-  anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName };
+  anchor.properties = { ...(anchor.properties ?? {}), myPreview: imageName, myOriginProjectId: input.originProjectId ?? "", myOriginEpisodeId: input.chapterId };
 
   const name = `MY-单镜视频Ref2VA · ${input.chapterLabel} · ${label}`;
   return {

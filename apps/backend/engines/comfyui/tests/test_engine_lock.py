@@ -112,3 +112,63 @@ def test_start_sync_without_engine_still_reaches_install_check(home):
     # 锁拦截发生在已装判定之后:未装时仍是「尚未安装」话术,不是锁话术
     with pytest.raises(em.EngineOpError, match="尚未安装"):
         em.engine_manager().start_sync()
+
+
+def test_lock_acquisition_is_serialized_before_metadata_publication(home, monkeypatch):
+    """Two callers observing an empty file must not both become the owner."""
+    import threading
+
+    first_writing = threading.Event()
+    release_first = threading.Event()
+    second_entered = threading.Event()
+    results = {}
+    monkeypatch.setattr(em.os, "getpid", threading.get_ident)
+    monkeypatch.setattr(em, "_pid_alive", lambda pid: True)
+    monkeypatch.setattr(em, "_pid_is_manager_process", lambda pid: True)
+
+    def timestamp():
+        if threading.current_thread().name == "first-owner":
+            first_writing.set()
+            assert release_first.wait(5)
+        return 1
+
+    monkeypatch.setattr(cm, "timestamp_ms", timestamp)
+
+    def acquire(name):
+        if name == "second":
+            second_entered.set()
+        results[name] = em.acquire_engine_lock(name)
+
+    first = threading.Thread(target=acquire, args=("first",), name="first-owner")
+    second = threading.Thread(target=acquire, args=("second",), name="second-owner")
+    first.start()
+    assert first_writing.wait(5)
+    second.start()
+    assert second_entered.wait(5)
+    second.join(timeout=0.1)
+    release_first.set()
+    first.join(timeout=5)
+    second.join(timeout=5)
+    assert not first.is_alive() and not second.is_alive()
+    assert results == {"first": True, "second": False}
+    assert json.loads(em.engine_lock_path().read_text())["note"] == "first"
+
+
+def test_lock_io_failure_refuses_ownership(home, monkeypatch):
+    def unavailable():
+        raise OSError("disk unavailable")
+    monkeypatch.setattr(em, "engine_lock_path", unavailable)
+    assert em.acquire_engine_lock("no-disk") is False
+
+
+def test_start_refuses_failed_acquisition_before_probing_or_spawning(home, monkeypatch):
+    _install_stub_manifest(home)
+    mgr = em.EngineManager()
+    probes = []
+    monkeypatch.setattr(em, "acquire_engine_lock", lambda note: False)
+    monkeypatch.setattr(mgr, "_orphan_is_comfyui", lambda port: probes.append(port) or True)
+    monkeypatch.setattr(mgr, "_enable_guard", lambda: None)
+    monkeypatch.setattr(mgr, "node_count", lambda: 0)
+    with pytest.raises(em.EngineOpError, match="管理权"):
+        mgr.start_sync()
+    assert probes == []
