@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "name": "YuE2 出谱 ABC 版(API 执行面)",
+  "note": "ABC-only 出谱流(09-20):只跑 CheckpointLoader→YuE2GenerateABC→PreviewAny,不出音频。产物=result.texts[0](PreviewAny ui.text 原样内联,纯 JSON 无需 /view)。执行注入点:strings {'23.style','23.lyrics','23.seed'(可选)}。mode=full 与 yue2-bgm-纯音乐-lora版 同口径;按谱渲染=复用该 BGM api 工作流并注入 '22.abc'(链接位改字面量)。LLM 出谱为秒~分钟级,timeoutS 建议 ≥ 600。",
+  "inputs": {
+    "style": {
+      "node": "23",
+      "field": "style",
+      "class_type": "YuE2GenerateABC"
+    },
+    "lyrics": {
+      "node": "23",
+      "field": "lyrics",
+      "class_type": "YuE2GenerateABC"
+    }
+  },
+  "graph": {
+    "15": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "yue2_3b_bf16.safetensors"
+      }
+    },
+    "23": {
+      "class_type": "YuE2GenerateABC",
+      "inputs": {
+        "clip": [
+          "15",
+          1
+        ],
+        "style": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "lyrics": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "seed": 42,
+        "mode": "full",
+        "max_abc_tokens": 8192,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 30,
+        "repetition_penalty": 1.005,
+        "penalty_window": 100
+      }
+    },
+    "14": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "23",
+          0
+        ]
+      }
+    }
+  }
+}

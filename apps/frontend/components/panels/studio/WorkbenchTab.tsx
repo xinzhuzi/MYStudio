@@ -546,7 +546,7 @@ export function WorkbenchTab(props: {
     setBgmCoverState(bgmCoverReducer(bgmCoverInitialState, { type: "load-assets" }));
     const lister = window.studioAssets?.list;
     if (!lister) {
-      setBgmCoverState(bgmCoverReducer(bgmCoverInitialState, { type: "fail", error: "资产库通道不可用(需在桌面应用内使用)" }));
+      setBgmCoverState((current) => bgmCoverReducer(current, { type: "fail", error: "资产库通道不可用(需在桌面应用内使用)" }));
       return;
     }
     try {
@@ -592,6 +592,9 @@ export function WorkbenchTab(props: {
           readAudioB64: comfyImageUrlToB64,
           execute: runComfyExecute,
           persistAudio: persistComfyAudio,
+          // 基线=组件现态的清单+选择:onStateChange 是整体回推,不带基线会把组件的
+          // 参考曲清单与选中项清空(生成期下拉失实、done 后按钮被锁死须手动重选)。
+          initialState: { ...bgmCoverInitialState, assets: bgmCover.assets, selectedAssetId: bgmCover.selectedAssetId },
           onProgress: (message) => setCoverProgress(message),
           onStateChange: (next) => setBgmCoverState(next),
         },

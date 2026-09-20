@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "name": "YuE2 翻唱·记谱版(API 执行面)",
+  "note": "由 yue2-翻唱-记谱版.json(UI 格式)同构图导出;链路=LoadAudio(参考曲)→SheetSage2AudioToABC(mode=melody 记谱保旋律)→PreviewAny 透传→YuE2GenerateMusic(mode=melody 直喂 abc 重渲新风格)→EmptyYuE2LatentAudio(seconds 由转谱回填)→KSampler→VAEDecodeAudioTiled→SaveAudioAdvanced。执行注入点:strings {'22.style','22.lyrics'} + images [{'30.audio', 参考曲文件名, b64}](引擎 /upload/image 对音频字节安全,回写 input/ 文件名给 LoadAudio);mode 配对铁律:SheetSage2AudioToABC 与 YuE2GenerateMusic 必须 matching mode,本流恒 melody;abc 空白串会把 YuE2GenerateMusic 静默强制 off,勿清空 14→22 连线。长任务建议 payload.timeoutS ≥ 1200。产物=audios[0](flac b64)。前置权重缺失时先跑 apps/build/scripts/yue2_weights_provision.py(checkpoints/yue2_3b_bf16.safetensors + models/audio_encoders/sheetsage2_bf16.safetensors)。",
+  "inputs": {
+    "style": {
+      "node": "22",
+      "field": "style",
+      "class_type": "YuE2GenerateMusic"
+    },
+    "lyrics": {
+      "node": "22",
+      "field": "lyrics",
+      "class_type": "YuE2GenerateMusic"
+    },
+    "referenceAudio": {
+      "node": "30",
+      "field": "audio",
+      "class_type": "LoadAudio",
+      "via": "images"
+    }
+  },
+  "graph": {
+    "15": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "yue2_3b_bf16.safetensors"
+      }
+    },
+    "30": {
+      "class_type": "LoadAudio",
+      "inputs": {
+        "audio": "cover-ref.mp3"
+      }
+    },
+    "31": {
+      "class_type": "AudioEncoderLoader",
+      "inputs": {
+        "audio_encoder_name": "sheetsage2_bf16.safetensors"
+      }
+    },
+    "32": {
+      "class_type": "SheetSage2AudioToABC",
+      "inputs": {
+        "audio_encoder": [
+          "31",
+          0
+        ],
+        "audio": [
+          "30",
+          0
+        ],
+        "mode": "melody"
+      }
+    },
+    "14": {
+      "class_type": "PreviewAny",
+      "inputs": {
+        "source": [
+          "32",
+          0
+        ]
+      }
+    },
+    "22": {
+      "class_type": "YuE2GenerateMusic",
+      "inputs": {
+        "clip": [
+          "15",
+          1
+        ],
+        "style": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "lyrics": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "abc": [
+          "14",
+          0
+        ],
+        "seed": 42,
+        "mode": "melody",
+        "max_duration": 360,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 100,
+        "repetition_penalty": 1.2
+      }
+    },
+    "5": {
+      "class_type": "EmptyYuE2LatentAudio",
+      "inputs": {
+        "seconds": [
+          "22",
+          1
+        ],
+        "batch_size": 1
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "15",
+          0
+        ],
+        "positive": [
+          "22",
+          0
+        ],
+        "negative": [
+          "22",
+          0
+        ],
+        "latent_image": [
+          "5",
+          0
+        ],
+        "seed": 42,
+        "steps": 32,
+        "cfg": 1.0,
+        "sampler_name": "dpm_2",
+        "scheduler": "sgm_uniform",
+        "denoise": 1.0
+      }
+    },
+    "17": {
+      "class_type": "VAEDecodeAudioTiled",
+      "inputs": {
+        "samples": [
+          "8",
+          0
+        ],
+        "vae": [
+          "15",
+          2
+        ],
+        "tile_size": 1920,
+        "overlap": 128
+      }
+    },
+    "10": {
+      "class_type": "SaveAudioAdvanced",
+      "inputs": {
+        "audio": [
+          "17",
+          0
+        ],
+        "filename_prefix": "audio/YuE2-Cover",
+        "format": {
+          "format": "flac"
+        }
+      }
+    }
+  }
+}

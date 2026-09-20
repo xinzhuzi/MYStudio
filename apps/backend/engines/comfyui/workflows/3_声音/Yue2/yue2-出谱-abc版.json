@@ -1,0 +1,306 @@
+{
+  "id": "3f8a2c61-9d47-4b52-8e6f-2a71c0d5ab97",
+  "revision": 0,
+  "last_node_id": 26,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 12,
+      "type": "PrimitiveNode",
+      "pos": [
+        90,
+        -745
+      ],
+      "size": [
+        571,
+        291
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience"
+      ],
+      "widgets_values_named": {
+        "value": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience"
+      },
+      "title": "style"
+    },
+    {
+      "id": 13,
+      "type": "PrimitiveNode",
+      "pos": [
+        92,
+        -360
+      ],
+      "size": [
+        500,
+        323
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Run widget replace on values": false
+      },
+      "widgets_values": [
+        "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]"
+      ],
+      "widgets_values_named": {
+        "value": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]"
+      },
+      "title": "lyrics"
+    },
+    {
+      "id": 15,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        90,
+        80
+      ],
+      "size": [
+        372,
+        102
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": []
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "yue2_3b_bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "ckpt_name": "yue2_3b_bf16.safetensors"
+      }
+    },
+    {
+      "id": 23,
+      "type": "YuE2GenerateABC",
+      "pos": [
+        700,
+        140
+      ],
+      "size": [
+        400,
+        250
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "showAdvanced": false,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1
+        },
+        {
+          "name": "style",
+          "type": "STRING",
+          "widget": {
+            "name": "style"
+          },
+          "link": 2
+        },
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "widget": {
+            "name": "lyrics"
+          },
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "abc",
+          "type": "STRING",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "YuE2GenerateABC"
+      },
+      "widgets_values": [
+        "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        42,
+        "fixed",
+        "full",
+        8192,
+        0.7,
+        0.9,
+        30,
+        1.005,
+        100
+      ],
+      "widgets_values_named": {
+        "style": "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience",
+        "lyrics": "[intro]\n[verse]\n[chorus]\n[bridge]\n[outro]",
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "mode": "full",
+        "max_abc_tokens": 8192,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 30,
+        "repetition_penalty": 1.005,
+        "penalty_window": 100
+      }
+    },
+    {
+      "id": 14,
+      "type": "PreviewAny",
+      "pos": [
+        712,
+        470
+      ],
+      "size": [
+        444,
+        200
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 26,
+      "type": "Note",
+      "pos": [
+        90,
+        470
+      ],
+      "size": [
+        520,
+        220
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "ABC-only 出谱流(09-20):只出乐谱不出音频——YuE2GenerateABC 出 ABC 谱,PreviewAny(display 'Preview as Text')把谱文本经 ui.text 透传,漫影 BGM 面板「先出谱→改谱→按谱渲染」取 result.texts[0]。\n参数口径与 yue2-bgm-纯音乐-lora版 的 23 号节点完全同源(mode=full/seed=42/采样参数),歌词槽维持纯音乐五标签铁律;按谱渲染时回 BGM 工作流注入 22.abc(本流不接 YuE2GenerateMusic,不占 KSampler 显存)。\nAPI 执行面同目录 yue2-出谱-abc版.api.json(注入点 23.style/23.lyrics/23.seed)。"
+      ],
+      "widgets_values_named": {
+        "text": "ABC-only 出谱流(09-20):只出乐谱不出音频——YuE2GenerateABC 出 ABC 谱,PreviewAny(display 'Preview as Text')把谱文本经 ui.text 透传,漫影 BGM 面板「先出谱→改谱→按谱渲染」取 result.texts[0]。\n参数口径与 yue2-bgm-纯音乐-lora版 的 23 号节点完全同源(mode=full/seed=42/采样参数),歌词槽维持纯音乐五标签铁律;按谱渲染时回 BGM 工作流注入 22.abc(本流不接 YuE2GenerateMusic,不占 KSampler 显存)。\nAPI 执行面同目录 yue2-出谱-abc版.api.json(注入点 23.style/23.lyrics/23.seed)。"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      15,
+      1,
+      23,
+      0,
+      "CLIP"
+    ],
+    [
+      2,
+      12,
+      0,
+      23,
+      1,
+      "STRING"
+    ],
+    [
+      3,
+      13,
+      0,
+      23,
+      2,
+      "STRING"
+    ],
+    [
+      4,
+      23,
+      0,
+      14,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        -120,
+        320
+      ]
+    },
+    "frontendVersion": "1.51.10"
+  },
+  "version": 0.4
+}

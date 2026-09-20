@@ -177,6 +177,10 @@ _MODEL_FOLDER_KEYS = (
     # text_encoders(现代 ComfyUI 主力目录);缺这两个键=UNETLoader/CLIPLoader
     # 看不见现有库的自托管权重,接管模式形同虚设。
     "diffusion_models", "text_encoders",
+    # 09-20 翻唱线补修:SheetSage2 记谱权重住 audio_encoders(AudioEncoderLoader 经
+    # folder_paths["audio_encoders"] 解析);缺该键=翻唱工作流 /prompt 校验即拒
+    # (权重文件在引擎家 models/audio_encoders 已就位也照拒)。
+    "audio_encoders",
 )
 
 

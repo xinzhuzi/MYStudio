@@ -7,12 +7,12 @@
  * - 出谱:库取 ABC-only API 工作流(yue2-出谱-abc版)→ /comfy/execute →
  *   result.texts[0] 即 ABC 谱文本(PreviewAny ui.text 内联,无需 /view)。
  * - 按谱渲染:复用 yue2-bgm API 工作流,注入 "22.abc"(链接位改字面量,
+ *   并剪掉孤岛节点 14/23——不剪则 PreviewAny 牵着 YuE2GenerateABC 整场重跑,
  *   与 09-20 实弹定稿的单发口径只差 abc 来源——谱来自上一步产物或用户改谱)。
  * - 状态机:idle → scoring → editing(谱文本可编辑+预览)→ rendering →
  *   回 editing;fail 保谱文本(改完可重渲染),reset 清空。
  * busy 态与单发/抽卡共用(组件里 bgmGenerating + chapterAudioBusy 同锁)。
  */
-import { buildBgmStringInputs } from "./bgm-batch";
 import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-import";
 import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/assist/image-studio/comfy-execute";
 
@@ -45,14 +45,28 @@ export function buildScoreInputs(
   return inputs;
 }
 
-/** 按谱渲染注入面(纯函数):BGM 单发口径(22/23 双节点 style/lyrics 同源)
- *  叠加 22.abc 直喂(链接位改字面量;abc 空白会被引擎静默关 melody 档,先拦)。 */
+/** 按谱渲染注入面(纯函数):只注 22 一节(style/lyrics/abc 直喂)。
+ *  22.abc 直喂后库图的 23(YuE2GenerateABC)成孤岛并被剪枝(见 pruneRenderByScoreGraph),
+ *  不再注 23.*(单发 buildBgmStringInputs 的双节点同源是整曲口径,按谱渲染不适用)。 */
 export function buildRenderByScoreInputs(
   style: string,
   lyrics: string,
   abc: string,
 ): Record<string, string> {
-  return { ...buildBgmStringInputs(style, lyrics), [YUE2_RENDER_ABC_INJECT_KEY]: abc };
+  return { "22.style": style, "22.lyrics": lyrics, [YUE2_RENDER_ABC_INJECT_KEY]: abc };
+}
+
+/** 按谱渲染要剪掉的字段/孤岛节点:14=PreviewAny(OUTPUT_NODE,展示谱)、
+ *  23=YuE2GenerateABC(整场 LLM 出谱)。22.abc 直喂后 23 除喂 14 外无人消费,但
+ *  PreviewAny 是输出节点——不剪则 23 仍整场重跑(600s 量级白付),产物全被丢弃。 */
+export const YUE2_RENDER_PRUNE_NODE_IDS: readonly string[] = ["14", "23"];
+
+/** 按谱渲染图剪枝(纯函数):深拷贝图后删孤岛节点(14/23),原图不动。
+ *  节点缺失时静默通过(库工作流改版不炸;注入面也不再引用这两个节点号)。 */
+export function pruneRenderByScoreGraph(graph: ComfyExecutePayload["graph"]): ComfyExecutePayload["graph"] {
+  const next = JSON.parse(JSON.stringify(graph)) as ComfyExecutePayload["graph"];
+  for (const nodeId of YUE2_RENDER_PRUNE_NODE_IDS) delete next[nodeId];
+  return next;
 }
 
 /** 出谱结果取谱文本(纯函数):texts[0].text;无文本产物给 null(调用方报大白话)。 */
@@ -119,8 +133,9 @@ export async function generateBgmScore(
 }
 
 /**
- * 按谱渲染编排:复用 BGM api 工作流 → 注入 22.abc(+style/lyrics 双节点)→
- * execute → 首音频产物返回(audios[0];持久化/绑定由调用方接 persistComfyAudio 链)。
+ * 按谱渲染编排:复用 BGM api 工作流 → 剪掉孤岛节点 14/23(abc 已直喂 22,不重跑
+ * 整场 LLM 出谱)→ 注入 22.style/22.lyrics/22.abc → execute → 首音频产物返回
+ * (audios[0];持久化/绑定由调用方接 persistComfyAudio 链)。
  */
 export async function renderBgmByScore(
   input: { workflowId: string; style: string; lyrics: string; abc: string },
@@ -129,7 +144,7 @@ export async function renderBgmByScore(
   if (!isRenderableAbc(input.abc)) throw new Error("谱文本为空,先出谱或粘贴一段 ABC 谱再渲染");
   const workflowText = await deps.fetchWorkflowText(input.workflowId);
   const parsed = JSON.parse(workflowText) as unknown;
-  const graph = unwrapGraphOrThrow(parsed);
+  const graph = pruneRenderByScoreGraph(unwrapGraphOrThrow(parsed));
   const result = await deps.execute(
     {
       graph,

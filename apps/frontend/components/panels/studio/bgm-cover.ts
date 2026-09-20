@@ -15,7 +15,7 @@
  * - 编排器 generateBgmCover:库取工作流/读参考曲/execute/持久化全走依赖注入——
  *   组件里接真引擎,测试里全 mock 不真跑。
  */
-import { unwrapComfyApiGraph, type ComfyApiWorkflow } from "@/lib/assist/image-studio/comfy-workflow-import";
+import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-import";
 import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/assist/image-studio/comfy-execute";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import { YUE2_BGM_LYRICS_IRON, flacDurationSecondsFromB64 } from "./bgm-batch";
@@ -105,8 +105,9 @@ export const bgmCoverInitialState: BgmCoverState = {
   result: null,
 };
 
-/** 状态机转移(纯函数):列举期不收陈旧回调;生成期只收 complete/fail;
- *  重新列举清空选择与结果(资产清单已变,旧选择不可信);done 不被后续 fail 覆写。 */
+/** 状态机转移(纯函数):assets-loaded 只在列举期收、select 只在 ready 期收、
+ *  complete 只在生成期收(防陈旧回调);fail 除 done 外不设门槛,done 不被迟到失败覆写;
+ *  重新列举清空选择与结果(资产清单已变,旧选择不可信)。 */
 export function bgmCoverReducer(state: BgmCoverState, action: BgmCoverAction): BgmCoverState {
   switch (action.type) {
     case "load-assets":
@@ -118,13 +119,18 @@ export function bgmCoverReducer(state: BgmCoverState, action: BgmCoverAction): B
       if (state.phase !== "ready") return state;
       return { ...state, selectedAssetId: action.assetId };
     case "start":
-      if (state.phase !== "ready") return state;
+      // 与 bgmBatchReducer 同口径:start 仅拒 generating(防重入),其余相位放行;
+      // ...state 保留参考曲清单与选择(生成期面板仍要展示所选资产)——编排器以
+      // 组件基线态(deps.initialState)起步,该保留在接线路径上才真正生效。
+      if (state.phase === "generating") return state;
       return { ...state, phase: "generating", error: null, result: null };
     case "complete":
       if (state.phase !== "generating") return state;
       return { ...state, phase: "done", result: action.result };
     case "fail":
-      if (state.phase !== "loading-assets" && state.phase !== "ready" && state.phase !== "generating") return state;
+      // 与 bgmBatchReducer 同口径:fail 不设相位门槛(列举/生成/校验失败都进 error),
+      // 唯一被保护的是 done——迟到的失败不得覆写已成功的产物展示。
+      if (state.phase === "done") return state;
       return { ...state, phase: "error", error: action.error };
     case "reset":
       return bgmCoverInitialState;
@@ -168,9 +174,12 @@ export interface BgmCoverGenerateDeps {
   readAudioB64: (url: string) => Promise<string>;
   execute: BgmCoverExecuteFn;
   persistAudio: (b64: string, engineFilename: string) => Promise<{ filePath: string; url: string | null }>;
+  /** 状态机起点基线:组件传现态(参考曲清单+选择随 start 保留,生成期面板仍展示
+   *  所选资产,done 后二次翻唱无需重选);缺省 bgmCoverInitialState(测试/无面板)。 */
+  initialState?: BgmCoverState;
   /** 引擎进度逐次回报(message 为引擎原文)。 */
   onProgress?: (message: string) => void;
-  /** 状态机快照逐次回报(组件直接 setState 展示)。 */
+  /** 状态机快照逐次回报(组件直接 setState 展示;整体回推,故基线必须先带清单)。 */
   onStateChange?: (state: BgmCoverState) => void;
 }
 
@@ -183,7 +192,9 @@ export async function generateBgmCover(
   input: BgmCoverGenerateInput,
   deps: BgmCoverGenerateDeps,
 ): Promise<BgmCoverState> {
-  let state = bgmCoverReducer(bgmCoverInitialState, { type: "start" });
+  // 从组件基线态起步派发 start:清单/选择随 ...state 保留,onStateChange 整体回推
+  // 不再清空组件的参考曲清单与选中项(生成期下拉照常展示,done 后二次翻唱免重选)。
+  let state = bgmCoverReducer(deps.initialState ?? bgmCoverInitialState, { type: "start" });
   deps.onStateChange?.(state);
   try {
     const style = input.style.trim();
@@ -195,7 +206,7 @@ export async function generateBgmCover(
     const audioB64 = await deps.readAudioB64(input.asset.url);
     const result = await deps.execute(
       {
-        graph: parsed.graph as ComfyApiWorkflow,
+        graph: parsed.graph,
         inputs: {
           strings: buildBgmCoverStringInputs(style, lyrics),
           images: [{ key: YUE2_COVER_AUDIO_INPUT_KEY, name: input.asset.filename, b64: audioB64 }],
