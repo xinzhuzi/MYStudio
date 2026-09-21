@@ -27,13 +27,13 @@
 |---|---|
 | [基本工作流教程](./workflow/WORKFLOW_GUIDE.md) | 从剧本导入到分镜、素材、视频生成的基础流程 |
 | [从分镜到最终视频的完整链路](./workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md) | 当前工作流每个阶段/节点的输入、输出、门禁，以及 TimelineRenderPlan、原生 Remotion Studio 和最终证据链 |
-| [工作流阶段操作手册](./workflow/WORKFLOW_STAGE_OPERATIONS.md) | 七阶段按钮、状态、弹窗和数据关系 |
+| [工作流阶段操作手册](./workflow/WORKFLOW_STAGE_OPERATIONS.md) | 八个页签、内部完成阶段、按钮状态、弹窗和数据关系 |
 | [小说导入与策划编剧操作参考](./workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | 风格/导演手册、小说章节导入、事件分析、三阶段剧本生成和审核修复 |
 | [剧本资产与 ProductionAgent 操作参考](./workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | 资产提取、资产库匹配、提示词润色、缺失资产生成和角色音色入口 |
 | [分镜面板与视频工作台操作参考](./workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | 15 列分镜表协议、章节审核门禁与视频工作台；旧两栏界面独立标为历史章节 |
 | [剧本导入格式示例](./workflow/SCRIPT_FORMAT_EXAMPLE.md) | 标准剧本格式、场景头、人物、对白和舞台指示示例 |
-| [项目概览](./workflow/OVERVIEW_PANEL_GUIDE.md) | 编辑故事核心、世界观、制作设定和查看分集目录 |
-| [项目概览操作手册](./workflow/OVERVIEW_PANEL_OPERATIONS.md) | 项目入口、内联编辑、分集目录、新建集和右侧资料摘要 |
+| [项目概览](./workflow/OVERVIEW_PANEL_GUIDE.md) | 工作流入口、故事核心、世界观、制作设定和集数汇总 |
+| [项目概览操作手册](./workflow/OVERVIEW_PANEL_OPERATIONS.md) | 工作流门户、项目资料内联编辑、集数汇总和竖向实体资料 |
 
 ## 资产与风格（assets/）
 
@@ -100,7 +100,7 @@
 | [API 供应商字段与模型测试参考](./settings/API_PROVIDER_MODEL_TEST_REFERENCE.md) | 添加/编辑供应商字段、同步模型规则、模型测试范围、协议和错误说明 |
 | [Python 与本地 TTS 配置](./settings/PYTHON_TTS_SETUP.md) | 区分开发 shell Python 与安装后设置页下载的 Python 3.12，说明本地 TTS 依赖、模型缓存和启动方式 |
 | [TTS 运行时与模型区块指南](./settings/TTS_CONFIG_GUIDE.md) | 说明本地配置页中启动本地 TTS 后端、管理模型缓存、下载模型和创建声线 profile |
-| [高级选项](./settings/ADVANCED_OPTIONS_GUIDE.md) | 视觉连续性、断点续传、内容审核容错和多模型自动切换 |
+| [高级选项](./settings/ADVANCED_OPTIONS_GUIDE.md) | 四个可保存的配置开关及预期用途；当前尚未接入生成链 |
 | [图床配置](./settings/IMAGE_HOST_CONFIG.md) | SCDN、ImgBB、Catbox、自定义图床和跨分镜图片上传配置 |
 | [应用更新](./settings/APP_UPDATE_GUIDE.md) | 手动检查更新、启动自动检查、忽略版本和版本清单字段 |
 | [开发模式与控制台](./settings/DEVELOPMENT_MODE.md) | 打开 DevTools、排查白屏和调试日志 |

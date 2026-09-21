@@ -108,14 +108,14 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [Skills Editor Operations](panels/SKILLS_EDITOR_OPERATIONS.md) | Chinese guide for skill editor buttons, file states, create/delete/restore behavior |
 | [Project Dashboard](panels/PROJECT_DASHBOARD_GUIDE.md) | Create, open, duplicate, rename, and delete projects |
 | [Project Dashboard Operations](panels/PROJECT_DASHBOARD_OPERATIONS.md) | Chinese guide for sidebar toggle, selection mode, inline create, card menu, dialogs, and batch delete |
-| [Project Overview](workflow/OVERVIEW_PANEL_GUIDE.md) | Story core, worldbuilding, production settings, and episode list |
-| [Project Overview Operations](workflow/OVERVIEW_PANEL_OPERATIONS.md) | Chinese guide for workflow cards, inline editing, episode catalog, and right-side metadata summaries |
+| [Project Overview](workflow/OVERVIEW_PANEL_GUIDE.md) | Workflow entry, story core, worldbuilding, production settings, and episode-count summary |
+| [Project Overview Operations](workflow/OVERVIEW_PANEL_OPERATIONS.md) | Chinese guide for workflow cards, inline metadata editing, episode counts, and vertically arranged entity information |
 | [Workflow Guide](workflow/WORKFLOW_GUIDE.md) | Novel import, script planning, asset generation, storyboard, and editing workflow |
 | [Full Storyboard-to-Video Pipeline](workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md) | Chinese end-to-end explanation of stage/node responsibilities, TimelineRenderPlan, Remotion/FFmpeg routing, and final evidence |
 | [Workflow Stage Operations](workflow/WORKFLOW_STAGE_OPERATIONS.md) | Detailed Chinese reference for workflow stage buttons, status, dialogs, and data flow |
 | [Novel Import and Script Planning Operations](workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
 | [Script Asset and Generation Operations](workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |
-| [Storyboard and Editing Operations](workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | ⚠️ Outdated (2026-09): storyboard editing moved to the ComfyUI canvas + card-grid panel; only the Remotion workbench chapter still applies |
+| [Storyboard and Editing Operations](workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | Current 15-column storyboard protocol, chapter review gates, and native Remotion workbench; the old two-column editor is labeled as historical |
 | [Assist Workbench Guide](panels/ASSIST_WORKBENCH_GUIDE.md) | ⚠️ Outdated (2026-09): the five assist studios were retired in the 2026-09-10 fullscreen-ComfyUI merge; the entry is now "Local Models" (ComfyUI canvas + TTS booth + quick image generation) |
 | [Assist Workbench Operations](panels/ASSIST_WORKBENCH_OPERATIONS.md) | ⚠️ Outdated — retired with the five assist studios |
 | [Assist Workbench Parameter Reference](panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | ⚠️ Outdated — superseded by the ComfyUI parameter cheat sheet |
