@@ -276,8 +276,11 @@ def test_v3_recipe_mutex_and_rulings():
     trio = {"Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
             "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.4,
             "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
-    for zh in ("美宣", "三视图", "表情差分"):
+    for zh in ("三视图", "表情差分"):
         assert by[zh] == trio, (zh, by[zh])
+    # 美宣=0922 用户终审 8 件(画布 01:00 终态): asianmix→0.2,+Afterlight0.2,+Masterpiece1.0,+金雾0.8
+    assert by["美宣"] == {**trio, "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.2, "Krea2-光影/Afterlight_v1.safetensors": 0.2, "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors": 1.0, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
+        by["美宣"]
     renwu = {**trio, "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.2,
             "Krea2-光影/Afterlight_v1.safetensors": 0.2}  # 09-21 用户人物行终审:+Afterlight0.2
     assert by["人物"] == {**renwu, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
@@ -297,9 +300,8 @@ def test_v3_recipe_mutex_and_rulings():
         "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
     # 分镜=三件+金雾0.8(09-20 与人物同源裁定,淡彩撤);道具=细节+鎏金0.3(无面孔件)
     assert by["分镜剧情图"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}
-    assert by["道具"] == {  # 09-21 用户道具行终审:+湿画0.6,鎏金0.3→0.2
+    assert by["道具"] == {  # 0922 用户终审:撤湿画(projector 全局件升 0.5,不入配方)
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
-        "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors": 0.6,
         "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.2}
 
 

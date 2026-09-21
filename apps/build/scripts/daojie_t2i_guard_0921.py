@@ -19,12 +19,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2] / "backend/engines/comfyui/workflows"
 MAIN = REPO / "1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
-BASELINE = Path.home() / "Downloads/mystudio-baselines/K2-文生图-道劫-基底-0921-v3-场景终态.json"
-BASELINE_SHA = "f581b8ecaceb2e9a82cdfb3931dd41e588f118609e09514e7951269b680c408b"
+BASELINE = Path.home() / "Downloads/mystudio-baselines/K2-文生图-道劫-基底-0922-v4-美宣八件.json"
+BASELINE_SHA = "0774532ba21c1f18153152bcc59e880e6cfd4e23ea7f45a02985e373b1617ac1"
 # 基线沿革:v1=0921-1937(用户手调0.2版,556cfffda3d776d9223accb96abfd642a2399b51997f2b4913cee488a3be9f55)
-#          v2=0921 晚(注入手动配置区 7 桩+组20,f8c36b45130f220faad9a1134c08d6c0072841f239c4ad225bf2594d4ad6a9af)
-#          v3=0921 深夜(用户画布终态:场景+美学/湿画/鎏金、人物+Afterlight0.2、道具+湿画/鎏金0.2、
-#              自建节点153-158、九行加速件全旁路;即上值)
+#          v2=0921 晚(手动配置区 7 桩+组20,f8c36b45130f220faad9a1134c08d6c0072841f239c4ad225bf2594d4ad6a9af)
+#          v3=0921 深夜(用户画布终态:场景+美学/湿画/鎏金、人物+Afterlight0.2、道具+湿画/鎏金0.2,f581b8ec…408b)
+#          v4=0922 01:00(用户美宣实测终态:美宣8件=asianmix0.2+Afterlight0.2+Masterpiece1+金雾0.8+
+#              子图新节点159-161;道具撤湿画/projector0.5;即上值)
 
 
 def layout_fingerprint(wf: dict) -> list[str]:
