@@ -65,6 +65,10 @@ KS2_NAMED = {
     "denoise": 0.35,
 }
 SAVE2_PREFIX = "K2道劫文生图二采_"
+# 0922 v2 吸收(黑鹤极清流同款,用户裁定不用超分、吸收 latent 放大):
+# 回炉后二采前 LatentUpscaleBy ×1.5(nearest-exact 保守档;1.0=退回 v1 原档)
+LU_WIDGETS = ["nearest-exact", 1.5]
+LU_NAMED = {"upscale_method": "nearest-exact", "scale_by": 1.5}
 
 
 def die(msg: str) -> None:
@@ -150,17 +154,17 @@ def build(master: dict) -> tuple[dict, dict]:
     by_id = {n["id"]: n for n in wf["nodes"]}
     probe = probe_ids(master)
 
-    # 新 id 段 = 探测 max+1 起(节点 5 连号/链 11 连号/组 max+1),先断言零冲突
-    nid_prev, nid_enc, nid_ks, nid_dec, nid_save = range(probe["max_node"] + 1,
-                                                          probe["max_node"] + 6)
-    new_link_ids = list(range(probe["max_link"] + 1, probe["max_link"] + 12))
+    # 新 id 段 = 探测 max+1 起(节点 6 连号/链 12 连号/组 max+1),先断言零冲突
+    nid_prev, nid_enc, nid_lu, nid_ks, nid_dec, nid_save = range(probe["max_node"] + 1,
+                                                                  probe["max_node"] + 7)
+    new_link_ids = list(range(probe["max_link"] + 1, probe["max_link"] + 13))
     nid_group = probe["max_group"] + 1
-    clash_n = [i for i in (nid_prev, nid_enc, nid_ks, nid_dec, nid_save)
+    clash_n = [i for i in (nid_prev, nid_enc, nid_lu, nid_ks, nid_dec, nid_save)
                if i in probe["used_nodes"]]
     clash_l = [i for i in new_link_ids if i in probe["used_links"]]
     if clash_n or clash_l or nid_group in probe["used_groups"]:
         die(f"新 id 段冲突: nodes={clash_n} links={clash_l} group={nid_group}")
-    (l_prev, l_enc_in, l_enc_vae, l_ks_latent, l_ks_model, l_ks_pos, l_ks_neg,
+    (l_prev, l_enc_in, l_enc_vae, l_lu_in, l_lu_out, l_ks_model, l_ks_pos, l_ks_neg,
      l_ks_seed, l_dec_latent, l_dec_vae, l_save_img) = new_link_ids
     print(f"[probe] max_node={probe['max_node']} max_link={probe['max_link']} "
           f"max_group={probe['max_group']} -> 新节点 {nid_prev}-{nid_save}、"
@@ -171,7 +175,7 @@ def build(master: dict) -> tuple[dict, dict]:
     col_x = round(n4["pos"][0] + n4["size"][0] + 360, 2)
     pitch = round(n12["size"][1] + 80, 2)
     y0 = round(n4["pos"][1], 2)
-    ys = [round(y0 + i * pitch, 2) for i in range(5)]
+    ys = [round(y0 + i * pitch, 2) for i in range(6)]
     next_order = max(n.get("order", 0) for n in wf["nodes"]) + 1
 
     def clone_of(src_id: int) -> dict:
@@ -205,19 +209,37 @@ def build(master: dict) -> tuple[dict, dict]:
         {"name": "pixels", "type": "IMAGE", "link": l_enc_in},
         {"name": "vae", "type": "VAE", "link": l_enc_vae},
     ]
-    enc["outputs"] = [{"name": "LATENT", "type": "LATENT", "links": [l_ks_latent]}]
+    enc["outputs"] = [{"name": "LATENT", "type": "LATENT", "links": [l_lu_in]}]
     enc["title"] = f"[{nid_enc}] 像素回炉(重铸latent)"
     enc["properties"] = copy.deepcopy(n11["properties"])
     enc["properties"]["Node name for S&R"] = "VAEEncode"
 
+    # [LU] LatentUpscaleBy ← 回炉后二采前 ×1.5(0922 v2 吸收黑鹤极清流;母版无同型,按
+    # /object_info schema 手形:widgets=[upscale_method, scale_by],仅 samples 输入)
+    lu = clone_of(11)  # 借 VAEDecode 的壳改字段(同 LATENT 域节点骨架)
+    lu["id"] = nid_lu
+    lu["type"] = "LatentUpscaleBy"
+    lu["pos"] = [col_x, ys[2]]
+    lu["order"] = next_order + 2
+    lu["mode"] = 0
+    lu["size"] = [340, 120]
+    lu["inputs"] = [{"name": "samples", "type": "LATENT", "link": l_lu_in}]
+    lu["outputs"] = [{"name": "LATENT", "type": "LATENT", "links": [l_lu_out],
+                      "slot_index": 0}]
+    lu["widgets_values"] = list(LU_WIDGETS)
+    lu["widgets_values_named"] = dict(LU_NAMED)
+    lu["title"] = f"[{nid_lu}] 回炉放大×1.5(极清档;1.0=原档)"
+    lu["properties"] = copy.deepcopy(n11["properties"])
+    lu["properties"]["Node name for S&R"] = "LatentUpscaleBy"
+
     # [KS2] KSampler ← 克隆 [12](同型;widgets 位置序=房样 7 槽)
     ks = clone_of(12)
     ks["id"] = nid_ks
-    ks["pos"] = [col_x, ys[2]]
-    ks["order"] = next_order + 2
+    ks["pos"] = [col_x, ys[3]]
+    ks["order"] = next_order + 3
     ks["mode"] = 0
     for slot, lid in ((0, l_ks_model), (1, l_ks_pos), (2, l_ks_neg),
-                      (3, l_ks_latent), (4, l_ks_seed)):
+                      (3, l_lu_out), (4, l_ks_seed)):
         ks["inputs"][slot]["link"] = lid
     ks["outputs"] = [{"name": "LATENT", "type": "LATENT", "links": [l_dec_latent]}]
     ks["widgets_values"] = list(KS2_WIDGETS)
@@ -227,8 +249,8 @@ def build(master: dict) -> tuple[dict, dict]:
     # [Dec2] VAEDecode ← 克隆 [11](同型)
     dec = clone_of(11)
     dec["id"] = nid_dec
-    dec["pos"] = [col_x, ys[3]]
-    dec["order"] = next_order + 3
+    dec["pos"] = [col_x, ys[4]]
+    dec["order"] = next_order + 4
     dec["mode"] = 0
     dec["inputs"] = [
         {"name": "samples", "type": "LATENT", "link": l_dec_latent},
@@ -240,8 +262,8 @@ def build(master: dict) -> tuple[dict, dict]:
     # [Save2] SaveImage ← 克隆 [4](同型;列尾节点,高度不挤下一件)
     save = clone_of(4)
     save["id"] = nid_save
-    save["pos"] = [col_x, ys[4]]
-    save["order"] = next_order + 4
+    save["pos"] = [col_x, ys[5]]
+    save["order"] = next_order + 5
     save["mode"] = 0
     save["inputs"] = [dict(n4["inputs"][0], link=l_save_img)]  # images: IMAGE
     save["outputs"] = [{"name": "images", "type": "IMAGE", "links": None}]
@@ -249,15 +271,16 @@ def build(master: dict) -> tuple[dict, dict]:
     save["widgets_values_named"] = {"filename_prefix": SAVE2_PREFIX}
     save["title"] = f"[{nid_save}] 二采保存"
 
-    new_nodes = [prev, enc, ks, dec, save]
+    new_nodes = [prev, enc, lu, ks, dec, save]
     wf["nodes"] += new_nodes
 
-    # 新链 11 根(design §2 表;type 串与母版同型链一致,种子线=INT)
+    # 新链 12 根(design §2 表+0922 v2 LU 两段;type 串与母版同型链一致,种子线=INT)
     new_links = [
         [l_prev, 11, 0, nid_prev, 0, "IMAGE"],        # 一采预览
         [l_enc_in, 11, 0, nid_enc, 0, "IMAGE"],       # 回炉编码输入
         [l_enc_vae, 10, 0, nid_enc, 1, "VAE"],        # VAE 复用(第三消费)
-        [l_ks_latent, nid_enc, 0, nid_ks, 3, "LATENT"],  # 二采 latent 源
+        [l_lu_in, nid_enc, 0, nid_lu, 0, "LATENT"],   # 回炉 latent → 放大
+        [l_lu_out, nid_lu, 0, nid_ks, 3, "LATENT"],   # 放大后 latent → 二采
         [l_ks_model, 90, 0, nid_ks, 0, "MODEL"],      # 路由模型第二线
         [l_ks_pos, 63, 0, nid_ks, 1, "CONDITIONING"],  # 正向复用
         [l_ks_neg, 65, 0, nid_ks, 2, "CONDITIONING"],  # 负向复用
@@ -303,8 +326,9 @@ def build(master: dict) -> tuple[dict, dict]:
                               f"{master['id']}|daojie-dual-sample|0921"))
 
     meta = {
-        "ids": {"prev": nid_prev, "enc": nid_enc, "ks": nid_ks, "dec": nid_dec,
-                "save": nid_save, "group": nid_group, "links": new_link_ids},
+        "ids": {"prev": nid_prev, "enc": nid_enc, "lu": nid_lu, "ks": nid_ks,
+                "dec": nid_dec, "save": nid_save, "group": nid_group,
+                "links": new_link_ids},
         "gain": gain, "col_x": col_x, "pitch": pitch, "ys": ys,
         "probe": probe,
     }
@@ -325,15 +349,15 @@ def disjoint(a: tuple, b: tuple) -> bool:
 
 def selfcheck(wf: dict, master: dict, meta: dict) -> None:
     ids = meta["ids"]
-    new_ids = [ids["prev"], ids["enc"], ids["ks"], ids["dec"], ids["save"]]
+    new_ids = [ids["prev"], ids["enc"], ids["lu"], ids["ks"], ids["dec"], ids["save"]]
     by_id = {n["id"]: n for n in wf["nodes"]}
     problems: list[str] = []
 
     # 计数
-    if len(wf["nodes"]) != len(master["nodes"]) + 5:
-        problems.append(f"节点数 {len(wf['nodes'])} != {len(master['nodes']) + 5}")
-    if len(wf["links"]) != len(master["links"]) + 11:
-        problems.append(f"链数 {len(wf['links'])} != {len(master['links']) + 11}")
+    if len(wf["nodes"]) != len(master["nodes"]) + 6:
+        problems.append(f"节点数 {len(wf['nodes'])} != {len(master['nodes']) + 6}")
+    if len(wf["links"]) != len(master["links"]) + 12:
+        problems.append(f"链数 {len(wf['links'])} != {len(master['links']) + 12}")
     if len(wf["groups"]) != len(master["groups"]) + 1:
         problems.append(f"组数 {len(wf['groups'])} != {len(master['groups']) + 1}")
 
@@ -376,17 +400,27 @@ def selfcheck(wf: dict, master: dict, meta: dict) -> None:
         if lid not in src_links:
             problems.append(f"链 {lid}: src[{src}].outputs[{_ss}].links 未登记")
 
-    # widgets 长度与母版同型一致(KS2 vs [12]=7;Save2 vs [4]=1;Enc/Dec/Preview 零 widget)
+    # widgets 长度与母版同型一致(KS2 vs [12]=7;Save2 vs [4]=1;LU=2;Enc/Dec/Preview 零 widget)
     if len(by_id[ids["ks"]]["widgets_values"]) != len(by_id[12]["widgets_values"]):
         problems.append("KS2 widgets 长度与母版 [12] 不一致")
     if by_id[ids["ks"]]["widgets_values"] != KS2_WIDGETS:
         problems.append("KS2 widgets 值 != design §3 规格")
+    if by_id[ids["lu"]]["widgets_values"] != LU_WIDGETS:
+        problems.append("LU widgets 值 != 0922 v2 规格(nearest-exact/1.5)")
     if len(by_id[ids["save"]]["widgets_values"]) != len(by_id[4]["widgets_values"]):
         problems.append("Save2 widgets 长度与母版 [4] 不一致")
     for nid, t in ((ids["enc"], "VAEEncode"), (ids["dec"], "VAEDecode"),
                    (ids["prev"], "PreviewImage")):
         if by_id[nid].get("widgets_values") is not None:
             problems.append(f"[{nid}] {t} 不应带 widgets_values")
+
+    # v2 链路断言:回炉→LU→二采 两段接线(0922 吸收放大)
+    if by_id[ids["enc"]]["outputs"][0]["links"] != [ids["links"][3]]:
+        problems.append("Enc 输出未指向 LU(回炉→放大断链)")
+    if by_id[ids["lu"]]["outputs"][0]["links"] != [ids["links"][4]]:
+        problems.append("LU 输出未指向 KS2(放大→二采断链)")
+    if by_id[ids["ks"]]["inputs"][3]["link"] != ids["links"][4]:
+        problems.append("KS2 latent 输入未接 LU 输出")
 
     # 母版零变化:19 节点逐件深比(仅允许 gain 表内 outputs[0].links 追加);
     # 前 22 链/前 4 组/子图/其余顶层键全等
@@ -458,7 +492,7 @@ def main() -> int:
         TARGET.write_bytes(data)
         # 写后复读验证
         reread = json.loads(TARGET.read_text(encoding="utf-8"))
-        assert len(reread["nodes"]) == 24 and len(reread["links"]) == 33
+        assert len(reread["nodes"]) == 25 and len(reread["links"]) == 34
         assert reread["last_node_id"] == ids["save"] and reread["last_link_id"] == ids["links"][-1]
 
     # 统一收口报告: 写盘与幂等 skip 两路同款输出(path/sha256/nodes/links/groups/
@@ -467,8 +501,8 @@ def main() -> int:
     print(f"path: {TARGET.relative_to(REPO)}")
     print(f"sha256: {hashlib.sha256(data).hexdigest()}")
     print(f"nodes: {len(master['nodes'])}->{len(wf['nodes'])} "
-          f"(新增 {ids['prev']} 一采预览/{ids['enc']} 回炉/{ids['ks']} KSampler②/"
-          f"{ids['dec']} 解码②/{ids['save']} 保存②)")
+          f"(新增 {ids['prev']} 一采预览/{ids['enc']} 回炉/{ids['lu']} 放大×1.5/"
+          f"{ids['ks']} KSampler②/{ids['dec']} 解码②/{ids['save']} 保存②)")
     print(f"links: {len(master['links'])}->{len(wf['links'])} "
           f"(新增 {ids['links'][0]}-{ids['links'][-1]})")
     print(f"groups: {len(master['groups'])}->{len(wf['groups'])} "
@@ -476,6 +510,7 @@ def main() -> int:
     print(f"探测基线: last_node_id={meta['probe']['max_node']} "
           f"last_link_id={meta['probe']['max_link']} groups_max={meta['probe']['max_group']}")
     print(f"KSampler② widgets: {KS2_WIDGETS}(dn0.35 起点,画布可调)")
+    print(f"LatentUpscaleBy widgets: {LU_WIDGETS}(×1.5=极清档;改1.0=退回原档)")
     return 0
 
 

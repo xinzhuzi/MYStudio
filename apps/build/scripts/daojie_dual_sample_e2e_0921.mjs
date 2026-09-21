@@ -57,8 +57,9 @@ const ENGINE_WAIT_MS = 180_000; // 冷拉起等 200 上限
 const FRONT_READY_MS = 60_000; // window.app 就绪上限
 // 0921 二采版: 双采 ≈1.7-2× 单采时长(单采人物档实测 416.9s → 双采约 700-840s,
 // 含回炉 encode/decode);进程级总窗 860s→1500s(外层调用须给 ≥1540s timeout)。
-const PROC_DEADLINE_MS = 1_500_000; // 进程级总限(必须 < 外层 timeoutMs)
-const POST_SUBMIT_BUDGET_MS = 1_470_000; // 提交后等待上限(原 t2i 驱动为 835s 写死)
+const PROC_DEADLINE_MS = 2_100_000; // 进程级总限(0922 v2 实弹实证:1.5×二采全链
+  // 提交后约 1344s 采样+~90s 大图解码,原 1500s 帽在解码段掐死,提至 2100s)
+const POST_SUBMIT_BUDGET_MS = 2_000_000; // 提交后等待上限(原 t2i 驱动为 835s 写死)
 const PRE_IDLE_MAX_MS = 60_000; // 提交前等 /queue 清空上限(到时无论空否都提交)
 const PRE_IDLE_POLL_MS = 5_000;
 const POLL_MS = 3_000; // /history 轮询间隔
@@ -130,6 +131,7 @@ function locateDualNodes(wfJson) {
   const ids = {
     ks2: String(other("KSampler", "12")[0]?.id ?? ""),
     enc: String(only("VAEEncode")[0]?.id ?? ""),
+    lu: String(only("LatentUpscaleBy")[0]?.id ?? ""),
     dec2: String(other("VAEDecode", "11")[0]?.id ?? ""),
     prev: String(only("PreviewImage")[0]?.id ?? ""),
     save2: String(other("SaveImage", "4")[0]?.id ?? ""),
@@ -137,7 +139,7 @@ function locateDualNodes(wfJson) {
   const missing = Object.entries(ids).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length)
     throw new Error(
-      `二采五节点在新档中定位失败: ${missing.join(",")} (ids=${JSON.stringify(ids)})`,
+      `二采六节点在新档中定位失败: ${missing.join(",")} (ids=${JSON.stringify(ids)})`,
     );
   return ids;
 }
@@ -411,6 +413,7 @@ const DRY_EVAL = async (ids) => {
   };
   const prev = find(ids.prev, "PreviewImage");
   const enc = find(ids.enc, "VAEEncode");
+  const lu = find(ids.lu, "LatentUpscaleBy");
   const ks2 = find(ids.ks2, "KSampler");
   const dec2 = find(ids.dec2, "VAEDecode");
   const save2 = find(ids.save2, "SaveImage");
@@ -434,10 +437,16 @@ const DRY_EVAL = async (ids) => {
   if (!ks1) throw new Error('常态 output 无母版 "12"(一采 KSampler,同栈共享对照锚缺失)');
   if (!deepEq(m, ks1.inputs?.model))
     throw new Error(`两采 model 引用不一致: 二采 ${JSON.stringify(m)} vs 一采[12] ${JSON.stringify(ks1.inputs?.model)}(R2 同栈共享)`);
-  if (!deepEq(ks.inputs.latent_image, [ids.enc, 0]))
-    throw new Error(`latent_image 引用 ${JSON.stringify(ks.inputs.latent_image)} != ["${ids.enc}",0]`);
-  // ② 整组旁路(二采组五节点 mode=4=数据穿行;[12] 不动)
-  const five = [prev, enc, ks2, dec2, save2];
+  // 0922 v2: latent 链=回炉→LU(×1.5)→二采;断言 LU 在图且 scale_by=1.5
+  const luOut = out1[ids.lu];
+  if (!luOut || luOut.class_type !== "LatentUpscaleBy")
+    throw new Error(`常态 output 无 LU "${ids.lu}"(回炉放大段缺失)`);
+  if (luOut.inputs?.scale_by !== 1.5)
+    throw new Error(`LU scale_by=${luOut.inputs?.scale_by} != 1.5(极清档)`);
+  if (!deepEq(ks.inputs.latent_image, [ids.lu, 0]))
+    throw new Error(`latent_image 引用 ${JSON.stringify(ks.inputs.latent_image)} != ["${ids.lu}",0](须经回炉放大)`);
+  // ② 整组旁路(二采组六节点 mode=4=数据穿行;[12] 不动)
+  const five = [prev, enc, lu, ks2, dec2, save2];
   const saved = five.map((n) => n.mode);
   for (const n of five) n.mode = 4;
   const out2 = await conv();
@@ -450,7 +459,8 @@ const DRY_EVAL = async (ids) => {
   const out3 = await conv();
   if (!(ids.ks2 in out3)) throw new Error("还原 mode 后二采 KSampler 未复活(还原失败)");
   return {
-    ks2: ids.ks2, enc: ids.enc, dec2: ids.dec2, prev: ids.prev, save2: ids.save2,
+    ks2: ids.ks2, enc: ids.enc, lu: ids.lu, dec2: ids.dec2, prev: ids.prev,
+    save2: ids.save2,
     nodesNormal: Object.keys(out1).length,
     nodesBypass: Object.keys(out2).length,
     nodesRestored: Object.keys(out3).length,
@@ -745,13 +755,27 @@ async function main() {
     }
     for (const o of outputs) log(`sips [${o.node}] ${o.filename}: ${o.width}x${o.height}${sipsFailed.includes(o.filename) ? " ERR=sips failed" : ""}`);
 
-    // 达标判定: 分辨率全量逐张(比例±6%/MP±12%/特殊列精确)+ 双产物判定
+    // 达标判定: [4] 一采图按型规格(比例±6%/MP±12%/特殊列精确);二采图经 LU×1.5,
+    // 按「一采图边长×1.5(±2%)」判定(0922 v2:二采在放大 latent 上精修,规格随档)
     const spec = SPECS[type];
+    const pass1 = outputs.find((o) => o.node === "4");
     const measured = outputs.map((o) => ({
       name: o.filename, width: o.width, height: o.height,
       err: sipsFailed.includes(o.filename) ? "sips failed" : undefined,
     }));
-    const verdicts = measured.map((m) => judge(m, spec));
+    const verdicts = measured.map((m, i) => {
+      const o = outputs[i];
+      if (o.node !== "4" && pass1 && pass1.width > 0 && !sipsFailed.includes(pass1.filename)) {
+        // 二采图: 边长应≈一采×1.5(nearest-exact ×1.5 后取整到 8 的倍数,容差 2%)
+        const issues = [];
+        for (const [got, want, axis] of [[m.width, pass1.width * 1.5, "宽"], [m.height, pass1.height * 1.5, "高"]]) {
+          if (Math.abs(got / want - 1) > 0.02)
+            issues.push(`${m.name} ${axis} ${got} != 一采×1.5≈${Math.round(want)}(±2%)`);
+        }
+        return { pass: issues.length === 0, issues };
+      }
+      return judge(m, spec);
+    });
     const dualMissing = ["4", DUAL_IDS.save2]
       .filter((n) => !outputs.some((o) => o.node === n));
     if (dualMissing.length)

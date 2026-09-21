@@ -1,8 +1,8 @@
 {
   "id": "ede4c336-28fb-5cb5-a35b-9269fa18357d",
   "revision": 0,
-  "last_node_id": 163,
-  "last_link_id": 127,
+  "last_node_id": 164,
+  "last_link_id": 128,
   "nodes": [
     {
       "id": 21,
@@ -140,7 +140,7 @@
           "links": [
             12,
             119,
-            126
+            127
           ]
         }
       ],
@@ -263,7 +263,7 @@
           "type": "CONDITIONING",
           "links": [
             23,
-            122
+            123
           ]
         }
       ],
@@ -437,7 +437,7 @@
           "slot_index": 0,
           "links": [
             30,
-            123
+            124
           ]
         }
       ],
@@ -595,7 +595,7 @@
           "type": "INT",
           "links": [
             10,
-            124
+            125
           ]
         }
       ],
@@ -1065,7 +1065,7 @@
           "slot_index": 0,
           "links": [
             54,
-            121
+            122
           ]
         },
         {
@@ -1233,14 +1233,14 @@
     },
     {
       "id": 161,
-      "type": "KSampler",
+      "type": "LatentUpscaleBy",
       "pos": [
         6585.72,
         1414.0
       ],
       "size": [
-        310.68640099140976,
-        282.7270874488354
+        340,
+        120
       ],
       "flags": {
         "collapsed": false
@@ -1249,32 +1249,9 @@
       "mode": 0,
       "inputs": [
         {
-          "name": "model",
-          "type": "MODEL",
-          "link": 121
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 122
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 123
-        },
-        {
-          "name": "latent_image",
+          "name": "samples",
           "type": "LATENT",
           "link": 120
-        },
-        {
-          "name": "seed",
-          "type": "INT",
-          "widget": {
-            "name": "seed"
-          },
-          "link": 124
         }
       ],
       "outputs": [
@@ -1282,11 +1259,89 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            125
+            121
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[161] 回炉放大×1.5(极清档;1.0=原档)",
+      "properties": {
+        "Node name for S&R": "LatentUpscaleBy",
+        "cnr_id": "comfy-core",
+        "ver": "0.26.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "color": "#c27a3d",
+      "bgcolor": "#332a1e",
+      "widgets_values": [
+        "nearest-exact",
+        1.5
+      ],
+      "widgets_values_named": {
+        "upscale_method": "nearest-exact",
+        "scale_by": 1.5
+      }
+    },
+    {
+      "id": 162,
+      "type": "KSampler",
+      "pos": [
+        6585.72,
+        1776.73
+      ],
+      "size": [
+        310.68640099140976,
+        282.7270874488354
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 122
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 123
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 124
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 121
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 125
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            126
           ]
         }
       ],
-      "title": "[161] 二采·精修(dn0.35;旁路组=退单采)",
+      "title": "[162] 二采·精修(dn0.35;旁路组=退单采)",
       "properties": {
         "Node name for S&R": "KSampler",
         "cnr_id": "comfy-core",
@@ -1326,11 +1381,11 @@
       "bgcolor": "#332a1e"
     },
     {
-      "id": 162,
+      "id": 163,
       "type": "VAEDecode",
       "pos": [
         6585.72,
-        1776.73
+        2139.46
       ],
       "size": [
         240,
@@ -1339,18 +1394,18 @@
       "flags": {
         "collapsed": false
       },
-      "order": 22,
+      "order": 23,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 125
+          "link": 126
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 126
+          "link": 127
         }
       ],
       "outputs": [
@@ -1358,11 +1413,11 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            127
+            128
           ]
         }
       ],
-      "title": "[162] 二采解码",
+      "title": "[163] 二采解码",
       "properties": {
         "Node name for S&R": "VAEDecode",
         "cnr_id": "comfy-core",
@@ -1377,11 +1432,11 @@
       "bgcolor": "#332a1e"
     },
     {
-      "id": 163,
+      "id": 164,
       "type": "SaveImage",
       "pos": [
         6585.72,
-        2139.46
+        2502.19
       ],
       "size": [
         586.2251180181356,
@@ -1390,13 +1445,13 @@
       "flags": {
         "collapsed": false
       },
-      "order": 23,
+      "order": 24,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 127
+          "link": 128
         }
       ],
       "outputs": [
@@ -1406,7 +1461,7 @@
           "links": null
         }
       ],
-      "title": "[163] 二采保存",
+      "title": "[164] 二采保存",
       "properties": {
         "Node name for S&R": "SaveImage",
         "cnr_id": "comfy-core",
@@ -1635,62 +1690,70 @@
       160,
       0,
       161,
-      3,
+      0,
       "LATENT"
     ],
     [
       121,
+      161,
+      0,
+      162,
+      3,
+      "LATENT"
+    ],
+    [
+      122,
       90,
       0,
-      161,
+      162,
       0,
       "MODEL"
     ],
     [
-      122,
+      123,
       63,
       0,
-      161,
+      162,
       1,
-      "CONDITIONING"
-    ],
-    [
-      123,
-      65,
-      0,
-      161,
-      2,
       "CONDITIONING"
     ],
     [
       124,
+      65,
+      0,
+      162,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      125,
       20,
       0,
-      161,
+      162,
       4,
       "INT"
     ],
     [
-      125,
-      161,
-      0,
+      126,
       162,
+      0,
+      163,
       0,
       "LATENT"
     ],
     [
-      126,
+      127,
       10,
       0,
-      162,
+      163,
       1,
       "VAE"
     ],
     [
-      127,
-      162,
-      0,
+      128,
       163,
+      0,
+      164,
       0,
       "IMAGE"
     ]
@@ -1751,7 +1814,7 @@
         6545.72,
         628.54,
         666.23,
-        2279.58
+        2642.31
       ],
       "color": "#3a5a4a",
       "flags": {}
