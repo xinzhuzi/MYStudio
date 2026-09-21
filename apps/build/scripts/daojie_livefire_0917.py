@@ -41,7 +41,7 @@ SEED = 20250915
 
 # 纯 UI 件(种子/分辨率选择器)由覆盖内联字面量接管;[62] 预览件保留——
 # 它是 output_node,history 里回读最终正向靠它
-SKIP_NODES = {20, 61}
+SKIP_NODES = {20, 61, 86}  # 86=生效披露显示件(v9 按型路由剪枝后无 applied 源,UI 跑由 Route 披露)
 SKIP_TYPES = {"MarkdownNote", "Note"}
 UI_ONLY_WIDGETS = {"control_after_generate"}
 
@@ -89,6 +89,162 @@ def _resolve_src(nodes, links, nid, slot, depth=0):
     return _resolve_src(nodes, links, up[1], up[2], depth + 1)
 
 
+def _expand_subgraph_chain(sg: dict, oi: dict, host_id, host_inputs, nodes, links):
+    """子图链式展开(v8,聚合节点退役后):子图内激活节点沿 model 链摊平进 API 图。
+
+    返回 (entries, tail_api_id):entries=子图内激活节点的 API 条目(id=f"{host_id}.{inner_id}");
+    tail_api_id=链尾(其 model 输出对位子图 model 输出槽)。
+    子图 links 兼容两种格式:0.37 对象 {origin_id,...} / 旧数组 [id,src,slot,dst,slot,type]。
+    """
+    sgn = {x["id"]: x for x in sg["nodes"]}
+    inner_edges = {}  # target_id -> (origin_id, origin_slot)
+    for l in sg.get("links", []):
+        if isinstance(l, dict):
+            oid_, oslot, tid, _tslot = l["origin_id"], l["origin_slot"], l["target_id"], l["target_slot"]
+        else:
+            _, oid_, oslot, tid, _tslot = l[:5]
+        inner_edges[tid] = (oid_, oslot)
+    active = [x for x in sg["nodes"]
+              if x.get("mode") != 4 and x["type"] in oi
+              and x["type"] not in ("MarkdownNote",)]
+    if not active:
+        raise RuntimeError(f"子图 {sg.get('name')} 无激活可执行节点")
+    # 拓扑排序:沿 model 入边(输入槽0)迭代
+    ordered, seen = [], set()
+
+    def visit(x):
+        if x["id"] in seen:
+            return
+        seen.add(x["id"])
+        edge = inner_edges.get(x["id"])
+        if edge and edge[0] in sgn:
+            visit(sgn[edge[0]])
+        ordered.append(x)
+
+    for x in active:
+        visit(x)
+    entries, api_of_inner = {}, {}
+    for x in ordered:
+        cls = x["type"]
+        order = (list(oi[cls]["input"].get("required", {}).keys())
+                 + list(oi[cls]["input"].get("optional", {}).keys()))
+        inputs, positional = {}, []
+        linked = {}
+        for slot_def in x.get("inputs") or []:
+            if slot_def.get("name") != "model":
+                continue
+            edge = inner_edges.get(x["id"])
+            if edge and edge[0] in api_of_inner:
+                linked["model"] = api_of_inner[edge[0]]
+            elif edge and edge[0] in sgn and sgn[edge[0]].get("mode") == 4:
+                # 上游是旁路件:穿透到子图边界→宿主 model 输入源
+                host_lid = next((s.get("link") for s in (host_inputs or []) if s.get("name") == "model"), None)
+                if host_lid is not None and host_lid in links:
+                    up = links[host_lid]
+                    src, out_slot = _resolve_src(nodes, links, up[1], up[2])
+                    linked["model"] = [str(src), out_slot]
+            elif not edge:
+                # 链头:无内边=接宿主 [90] 的 model 输入线
+                host_lid = next((s.get("link") for s in (host_inputs or []) if s.get("name") == "model"), None)
+                if host_lid is not None and host_lid in links:
+                    up = links[host_lid]
+                    src, out_slot = _resolve_src(nodes, links, up[1], up[2])
+                    linked["model"] = [str(src), out_slot]
+                else:
+                    raise RuntimeError(f"子图链头 {x['id']} 无宿主 model 输入线可接")
+        wv = x.get("widgets_values") or []
+        for name in order:
+            if name in linked:
+                inputs[name] = linked[name]
+            elif name in UI_ONLY_WIDGETS:
+                continue
+            elif any(s.get("name") == name for s in (x.get("inputs") or [])):
+                continue  # 连线型输入(未连=信任展开链语义)
+            else:
+                positional.append(name)
+        if positional:
+            if len(positional) == len(wv):
+                for name, val in zip(positional, wv):
+                    inputs[name] = val
+            else:
+                raise RuntimeError(f"子图节点{x['id']} {cls} 位置对不齐: {positional} vs {wv!r}")
+        api_id = f"{host_id}.{x['id']}"
+        api_of_inner[x["id"]] = [api_id, 0]
+        entries[api_id] = {"class_type": cls, "inputs": inputs}
+    # 链尾=输出未被「其他激活节点」消费者(边目标为旁路件不算消费)
+    active_ids = {x["id"] for x in active}
+    consumed = {oid_ for tid, (oid_, _os) in inner_edges.items()
+                if tid in active_ids and oid_ in active_ids}
+    tails = [x for x in active if x["id"] not in consumed]
+    if len(tails) != 1:
+        raise RuntimeError(f"子图链尾不唯一({len(tails)} 个): 拓扑异常")
+    return entries, f"{host_id}.{tails[0]['id']}"
+
+
+def _expand_routed_subgraph(sg: dict, oi: dict, host_id, host_inputs, nodes, links, main_base):
+    """v9 按型分流子图展开:只展开 base 型对应行(其余 8 行剪枝),Route 省略=行尾直通。
+
+    main_base=主图侧型值([80] widgets;优先),fallback=子图内 Route widgets[0]。
+    行→型映射=行尾连到 Route 的槽位(槽 i+1=NINE[i],v9 生成器保证)。
+    """
+    route = next(x for x in sg["nodes"] if x["type"] == "MyDaojieRoute")
+    base = main_base or (route.get("widgets_values") or ["人物"])[0]
+    sgn = {x["id"]: x for x in sg["nodes"]}
+    in_edge = {}   # tid -> (oid, oslot) 单入边(loader 链)
+    route_slots = {}  # slot -> origin_id(行尾)
+    for l in sg.get("links", []):
+        if isinstance(l, dict):
+            oid_, oslot, tid, tslot = l["origin_id"], l["origin_slot"], l["target_id"], l["target_slot"]
+        else:
+            _, oid_, oslot, tid, tslot = l[:5]
+        if tid == route["id"]:
+            route_slots[tslot] = oid_
+        else:
+            in_edge[tid] = (oid_, oslot)
+    NINE = ["人物", "场景", "道具", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
+    if base not in NINE:
+        raise RuntimeError(f"按型路由:未知型 {base!r}")
+    tail_inner = route_slots.get(NINE.index(base) + 1)
+    if tail_inner is None:
+        raise RuntimeError(f"型「{base}」线路未接 Route")
+    # 从行尾反向走到行首
+    chain = [tail_inner]
+    while True:
+        e = in_edge.get(chain[0])
+        if e is None or e[0] == -10:
+            break
+        chain.insert(0, e[0])
+    entries, api_of_inner = {}, {}
+    for iid in chain:
+        x = sgn[iid]
+        cls = x["type"]
+        order = (list(oi[cls]["input"].get("required", {}).keys())
+                 + list(oi[cls]["input"].get("optional", {}).keys()))
+        wv = x.get("widgets_values") or []
+        inputs = {}
+        for name in order:
+            if any(s.get("name") == name for s in (x.get("inputs") or [])):
+                if iid == chain[0]:  # 行首=宿主 model 源
+                    host_lid = next((s.get("link") for s in (host_inputs or []) if s.get("name") == "model"), None)
+                    if host_lid is None or host_lid not in links:
+                        raise RuntimeError("按型路由:宿主 model 输入线缺失")
+                    up = links[host_lid]
+                    src, out_slot = _resolve_src(nodes, links, up[1], up[2])
+                    inputs[name] = [str(src), out_slot]
+                else:
+                    prev = api_of_inner[in_edge[iid][0]]
+                    inputs[name] = prev
+            elif name not in UI_ONLY_WIDGETS:
+                idx = [n for n in order if not any(s.get("name") == n for s in (x.get("inputs") or []))
+                       and n not in UI_ONLY_WIDGETS].index(name)
+                if idx < len(wv):
+                    inputs[name] = wv[idx]
+        api_id = f"{host_id}.{iid}"
+        api_of_inner[iid] = [api_id, 0]
+        entries[api_id] = {"class_type": cls, "inputs": inputs}
+    return entries, f"{host_id}.{tail_inner}", base
+
+
 def ui_to_api(wf: dict, oi: dict, overrides: dict[str, object]) -> dict:
     """UI 格式 → API 格式(object_info+named widgets 对齐;[64] 类无 named 者位置回退)。"""
     nodes = {n["id"]: n for n in wf["nodes"]}
@@ -97,9 +253,38 @@ def ui_to_api(wf: dict, oi: dict, overrides: dict[str, object]) -> dict:
     if bypassed:
         print(f"[livefire] 旁路节点不入 API 图(mode=4): {sorted(bypassed)}", flush=True)
     prompt: dict[str, dict] = {}
+    # 第一遍:子图节点链式展开(v8 聚合退役后子图内为真实 loader 链)
+    sub_tail: dict[str, str] = {}
+    for nid, n in nodes.items():
+        if nid in SKIP_NODES or n["type"] in SKIP_TYPES or n.get("mode") == 4:
+            continue
+        if n["type"] not in oi:
+            sg = next((s for s in wf.get("definitions", {}).get("subgraphs", [])
+                       if s.get("id") == n["type"]), None)
+            if sg and any(x["type"] == "MyDaojieRoute" for x in sg["nodes"]):
+                # v9 按型分流:型值优先取主图 [80](经 [90].base 线)
+                main_base = None
+                blid = next((s.get("link") for s in (n.get("inputs") or []) if s.get("name") == "base"), None)
+                if blid is not None and blid in links:
+                    src80 = links[blid][1]
+                    n80 = nodes.get(src80)
+                    if n80 is not None:
+                        main_base = (n80.get("widgets_values_named") or {}).get("base") \
+                            or (n80.get("widgets_values") or [None])[0]
+                entries, tail, used_base = _expand_routed_subgraph(sg, oi, nid, n.get("inputs"), nodes, links, main_base)
+                prompt.update(entries)
+                sub_tail[str(nid)] = tail
+                print(f"[livefire] 按型路由展开: 节点{nid} 型={used_base} → {len(entries)} 件, 尾 {tail}", flush=True)
+            elif sg and not any(x["type"] == "MyDaojieLoraStack" for x in sg["nodes"]):
+                entries, tail = _expand_subgraph_chain(sg, oi, nid, n.get("inputs"), nodes, links)
+                prompt.update(entries)
+                sub_tail[str(nid)] = tail
+                print(f"[livefire] 子图链式展开: 节点{nid} → {len(entries)} 激活节点, 链尾 {tail}", flush=True)
     for nid, n in nodes.items():
         if nid in SKIP_NODES or n["type"] in SKIP_TYPES or nid in bypassed:
             continue
+        if str(nid) in sub_tail:
+            continue  # 子图宿主已链式展开(见第一遍)
         cls = n["type"]
         if cls not in oi:
             # 子图节点(type=uuid):展开为子图内部的执行节点(非注释/非IO)
@@ -129,6 +314,8 @@ def ui_to_api(wf: dict, oi: dict, overrides: dict[str, object]) -> dict:
             if src in SKIP_NODES:
                 continue  # 被跳过源的连线一律由覆盖内联
             src, out_slot = _resolve_src(nodes, links, src, links[lid][2])
+            if str(src) in sub_tail:
+                src, out_slot = sub_tail[str(src)], out_slot
             linked[slot_def["name"]] = [str(src), out_slot]
         inputs: dict[str, object] = {}
         positional: list[str] = []  # 未连线、非 UI-only、named 又缺席的 widget 序输入

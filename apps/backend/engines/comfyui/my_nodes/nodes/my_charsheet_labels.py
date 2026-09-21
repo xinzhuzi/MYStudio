@@ -139,7 +139,7 @@ class MyCharsheetLabels:
                 "field_size": ("INT", {"default": 40, "min": 12, "max": 96, "step": 2}),
                 "ink": (list(INKS),),
                 "seal_text": ("STRING", {"default": "道劫"}),
-                "layout": (["纯拼版(无字)", "四格拼版", "四格条带", "左栏竖排"],),
+                "layout": (["四格直出修正", "纯拼版(无字)", "四格拼版", "四格条带", "左栏竖排"],),
                 "grid_labels": ("STRING", {"multiline": True, "default": (
                     "半身像\n正面全身\n侧面全身\n背面全身")}),
             },
@@ -175,6 +175,15 @@ class MyCharsheetLabels:
         import torch
 
         frames = [image[i:i + 1] for i in range(image.shape[0])]
+        if layout == "四格直出修正":
+            # 十四轮:半身像格由程序从正面格裁出(模型对「腰上+正脸」构图持续
+            # 不服从)——正脸/截断/腰线对齐全由代码保证,零生成赌。
+            outs = []
+            for frame in frames:
+                im = _tensor_to_pil(frame).convert("RGB")
+                self._fix_bust_view(im)
+                outs.append(_pil_to_tensor(im)[0])
+            return (torch.stack(outs),)
         if layout in ("四格拼版", "纯拼版(无字)"):
             outs = []
             for idx, frame in enumerate(frames):
@@ -206,6 +215,50 @@ class MyCharsheetLabels:
                                   field_size, ink, seal_text)
             outs.append(_pil_to_tensor(Image.alpha_composite(im, overlay).convert("RGB"))[0])
         return (torch.stack(outs),)
+
+
+    _BUST_WAIST = 0.47   # 腰线≈人物竖向 bbox 此比例(十六轮:0.56 切到胯被用户否)
+
+    def _fix_bust_view(self, im):
+        """直出修正(十四轮):第一格半身像=程序从第二格(正面全身)裁 头顶→腰线,
+        底边与全身格腰线对齐(同一水平线);第一格原区域清白。检测不稳(段≠4)时
+        原图直通+日志提示重roll。"""
+        from PIL import Image as _Img
+        import numpy as np
+        w, h = im.size
+        a = np.array(im.convert("L"), dtype=float)
+        dark = a < 170
+        body = dark[: int(h * 0.96), :]
+        smooth = np.convolve(body.mean(axis=0), np.ones(31) / 31, mode="same")
+        segs, s = [], None
+        for i, v in enumerate(smooth > 0.05):
+            if v and s is None:
+                s = i
+            if not v and s is not None:
+                if i - s > 40:
+                    segs.append((s, i))
+                s = None
+        if s is not None:
+            segs.append((s, w))
+        if len(segs) != 4:
+            print(f"[漫影 设定表标注] 直出修正跳过:内容段 {len(segs)}≠4,建议重roll")
+            return
+        (x1a, x1b), (x2a, x2b) = segs[0], segs[1]
+        rows = np.where(dark[:, x2a:x2b].mean(axis=1) > 0.04)[0]
+        if not len(rows):
+            print("[漫影 设定表标注] 直出修正跳过:正面格未检得人物")
+            return
+        y_top, y_bot = int(rows.min()), int(rows.max())
+        waist = int(y_top + self._BUST_WAIST * (y_bot - y_top))
+        bust = im.crop((max(0, x2a - 12), max(0, y_top - 6),
+                        min(w, x2b + 12), waist))   # 原生像素(同源同画风)
+        im.paste(_Img.new("RGB", (x1b - x1a + 30, h), (255, 255, 255)),
+                 (max(0, x1a - 15), 0))
+        # 十七轮终形态:等比不放大(原生画质+与其他格同头身比)+居中第一视觉格
+        cell_cx = int(w / 8)
+        im.paste(bust, (cell_cx - bust.width // 2, (h - bust.height) // 2))
+        print(f"[漫影 设定表标注] 半身格同源修正:正面格 y[{y_top},{y_bot}] "
+              f"腰线 {waist} 半身原样 {bust.size} 等比居中格心")
 
     _CANVAS_W, _CANVAS_H = 2568, 1712  # 2K 3:2(用户定案)
 

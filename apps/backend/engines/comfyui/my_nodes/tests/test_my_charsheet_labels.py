@@ -43,7 +43,8 @@ def test_input_types_shape_and_registry():
     assert "筑基后期" in spec["fields"][1]["default"]
     assert spec["name_size"][1]["default"] == 92
     assert spec["seal_text"][1]["default"] == "道劫"
-    assert tuple(spec["layout"][0]) == ("纯拼版(无字)", "四格拼版", "四格条带", "左栏竖排")
+    assert tuple(spec["layout"][0]) == (
+        "四格直出修正", "纯拼版(无字)", "四格拼版", "四格条带", "左栏竖排")
     assert "半身像" in spec["grid_labels"][1]["default"]
     assert node.RETURN_TYPES == ("IMAGE",)
     assert node.RETURN_NAMES == ("image",)
@@ -148,3 +149,24 @@ def test_compose_four_views_fixed_order():
     # 内容条存在(上区有暗像素)
     assert (arr[0, :int(0.7*1712), :, :].max(axis=2) < 0.5).sum() > 500
     assert (arr[0].max(axis=2) < 0.5).sum() > 500  # 内容条存在
+
+
+@pytest.mark.skipif(not _HAS_CJK_FONT, reason="本机无中文系统字体栈")
+def test_fix_bust_view_replaces_first_cell():
+    """十四轮:第一格半身=程序从第二格(正面)裁头→腰;修正后第一格内
+    人物高度≈第二格的腰线以上,且第一格底边与腰线同高。"""
+    import torch
+    canvas = np.ones((1024, 1536, 3), dtype=np.float32)
+    # 四根"人物柱":第一根=全身(待替换),第二根=正面全身(裁切源)
+    for cx in (0.15, 0.42, 0.65, 0.87):
+        x = int(cx * 1536)
+        canvas[100:950, x - 50:x + 50] = 0.2
+    node = NODE_CLASS_MAPPINGS["MyCharsheetLabels"]()
+    (out,) = node.run(torch.from_numpy(canvas)[None,], "x", "y",
+                      "苹方(简体)", 40, 20, "墨黑", "道",
+                      layout="四格直出修正", grid_labels="a\nb\nc\nd")
+    arr = out.numpy()[0]
+    # 十六轮形态:半身裁出→居中放大填格——核心行为=第一格内容被替换
+    # (修正前第一格人物宽≈100px 竖柱;修正后=放大半身,格心区有大块内容)
+    center = arr[:, int(0.06 * 1536):int(0.20 * 1536)].max(axis=2) < 0.5
+    assert center.sum() > 5000, "第一格格心未见替换后的半身内容"

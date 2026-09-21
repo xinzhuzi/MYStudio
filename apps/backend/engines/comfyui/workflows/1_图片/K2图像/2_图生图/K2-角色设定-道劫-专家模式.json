@@ -1361,7 +1361,7 @@
         }
       },
       "widgets_values": [
-        2030,
+        2031,
         "fixed",
         10,
         1,
@@ -1404,7 +1404,8 @@
           "type": "IMAGE",
           "links": [
             37,
-            38
+            38,
+            45
           ]
         }
       ],
@@ -1438,7 +1439,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 44
+          "link": 45
         }
       ],
       "outputs": [
@@ -1754,7 +1755,7 @@
         430
       ],
       "flags": {},
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "image",
@@ -1766,9 +1767,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "links": [
-            44
-          ],
+          "links": [],
           "slot_index": 0
         }
       ],
@@ -1784,7 +1783,7 @@
         40,
         "墨黑",
         "道劫",
-        "四格条带",
+        "四格直出修正",
         "半身像\n正面全身\n侧面全身\n背面全身"
       ],
       "order": 28
@@ -1812,12 +1811,12 @@
           "slot_index": 0
         }
       ],
-      "title": "四视图·QuadView 触发词",
+      "title": "四视图·标准提示词(用户定案汇总)",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "Convert the character in the image into a 4-view character turnaround sheet on a plain pure white background with no color tint, no gradient, no decoration, not a poster. Exactly four figures only, arranged in one row: (1) a half-body portrait facing the viewer straight on, front-facing, strictly cropped at the waist with nothing below the waist visible, like the upper half of a front view; (2) a full-body front view facing the viewer straight on; (3) a full-body side view in exact 90-degree profile; (4) a full-body back view seen directly from behind at 180 degrees. No three-quarter views, no side-back view, no extra figure, only these four. The same character in the same clothes in every view. Clothes hang straight down naturally, static standing pose, neutral expression, no props, no text, no watermark."
+        "Convert the character in the image to a Character Sheet of four views in one row on a plain pure white background with no color tint, not a poster: (1) a frontal face close-up facing the camera straight on; (2) a front full body view, standing naturally upright, fully facing the camera, feet together side by side, arms relaxed down at the sides; (3) a side full body view in exact 90-degree profile, same natural standing pose with feet together; (4) a back full body view seen directly from behind at 180 degrees, same natural standing pose. The same character in the same clothes in every view, clothes hanging straight down naturally with no wind and no motion, no hand gestures, no props, no extra figure, no text, no watermark."
       ],
       "order": 18
     }
@@ -2136,8 +2135,8 @@
       "MODEL"
     ],
     [
-      44,
-      307,
+      45,
+      54,
       0,
       29,
       0,
