@@ -20,19 +20,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from engines.comfyui.my_nodes.nodes import my_daojie_lora_stack as stack  # noqa: E402
 from engines.comfyui.my_nodes.nodes import my_daojie_base  # noqa: E402
 
-# 现链 14 件(09-19 审计 §2/§8;链序=运行时序:[85] 按型装组 67→76→73)
-CHAIN_KEYS = ["turbo", "projector", "detail", "asianmix", "liujin",
+# 现链 14 件(09-19 审计 §2/§8;链序=台账文件序;09-21 liujin 移至 shihua 后=用户新行序)
+CHAIN_KEYS = ["turbo", "projector", "detail", "asianmix",
               "afterlight", "cinematic", "identity", "darkbrush", "masterpiece",
-              "tancai", "sumiwash", "shihua", "goldenmist"]
+              "tancai", "sumiwash", "shihua", "liujin", "goldenmist"]
 # 设定板档(09-19 角色设定表收编):十号预设,=人物组复制,[164] 独立恒挂不在栈
 SHEET_PRESET = "设定板"
-CHAIN_NODE_IDS = [47, 81, 67, 76, 73, 46, 78, 19, 69, 77, 82, 83, 84, 87]
+CHAIN_NODE_IDS = [47, 81, 67, 76, 46, 78, 19, 69, 77, 82, 83, 84, 73, 87]
 CHAIN_FILES = [
     "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors",
     "Krea2-功能/Krea2-服从度ProjectorScale.safetensors",
     "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
     "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
-    "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
     "Krea2-光影/Afterlight_v1.safetensors",
     "Krea2-画风/Krea2-电影感CinematicShot_K2.safetensors",
     "Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors",
@@ -41,6 +40,7 @@ CHAIN_FILES = [
     "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
     "Krea2-画风/Krea2-墨洗淡彩SumiWash_v1.safetensors",
     "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors",
+    "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
     "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
 ]
 
@@ -161,14 +161,14 @@ def test_charsheet_preset_resolves_like_renwu():
 
 def test_default_group_equals_current_always_on_chain():
     """默认组(跟随底座型·人物)必须逐槽逐权重复现现常开链:
-    [47]×1.0 → [81]×0.01 → [85]按型(67×1 → 76×0.4 → 73×0.3 → 金雾×0.8;
+    [47]×1.0 → [81]×0.2 → [85]按型(67×1 → 76×0.2 → 73×0.3 → 金雾×0.8;
     金雾=09-20 用户终审 87_char_w08,叠加于三件之上)。"""
     plan, display, masked = stack.resolve_plan(
         _slots(), stack.FOLLOW_PRESET, "人物", enables={}, weights={})
     assert [(s["key"], w) for s, w in plan] == [
-        ("turbo", 1.0), ("projector", 0.01),
-        ("detail", 1.0), ("asianmix", 0.4), ("liujin", 0.3),
-        ("goldenmist", 0.8)]
+        ("turbo", 1.0), ("projector", 0.2),
+        ("detail", 1.0), ("asianmix", 0.2), ("afterlight", 0.2),
+        ("liujin", 0.3), ("goldenmist", 0.8)]
     assert display == "跟随底座型·人物" and masked == []
 
 
@@ -184,6 +184,7 @@ def test_scene_preset_rulings():
     plan, _, _ = stack.resolve_plan(_slots(), "场景")
     got = dict((s["key"], w) for s, w in plan)
     assert got == {"turbo": 1.0, "projector": 0.01, "detail": 1.0,
+                   "masterpiece": 1.0, "shihua": 0.6, "liujin": 0.3,
                    "goldenmist": 0.6}, got
     # 概念气氛=场景系变体:墨洗撤(09-20 否票+视觉诊断主犯),金雾0.6 过渡停泊待终审
     plan2, _, _ = stack.resolve_plan(_slots(), "概念气氛图")
@@ -246,8 +247,8 @@ def test_enable_false_masks_preset_and_reports():
     enables = dict.fromkeys(CHAIN_KEYS, True)
     enables["asianmix"] = False  # 急停:矩阵点亮被开关压下(真关)
     plan, _, masked = stack.resolve_plan(slots, "人物", None, enables=enables)
-    assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail", "liujin",
-                                           "goldenmist"]
+    assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail",
+                                           "afterlight", "liujin", "goldenmist"]
     assert masked == ["亚洲面孔·AsianMix"]
 
 
@@ -256,8 +257,9 @@ def test_missing_widgets_tolerated_for_hot_added_slots():
     slots = _slots()
     plan, _, _ = stack.resolve_plan(slots, "人物", None, enables={}, weights={})
     assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail",
-                                           "asianmix", "liujin", "goldenmist"]
-    assert [w for _s, w in plan] == [1.0, 0.01, 1.0, 0.4, 0.3, 0.8]
+                                           "asianmix", "afterlight", "liujin",
+                                           "goldenmist"]
+    assert [w for _s, w in plan] == [1.0, 0.2, 1.0, 0.2, 0.2, 0.3, 0.8]
 
 
 def test_unknown_type_and_preset_raise_plain_language():
@@ -276,13 +278,13 @@ def test_run_loads_plan_in_slot_order_and_reports_applied(fake_engine):
     model, applied = node.run("M0", preset=stack.FOLLOW_PRESET, base="人物",
                               **_widgets())
     assert [p for p, _w in fake_engine["apply"]] == \
-        [f"/loras/{CHAIN_FILES[i]}" for i in (0, 1, 2, 3, 4, 13)]  # 计划序=人物组六件
+        [f"/loras/{CHAIN_FILES[i]}" for i in (0, 1, 2, 3, 4, 12, 13)]  # 计划序=人物组七件
     assert fake_engine["apply"][0] == ("/loras/" + CHAIN_FILES[0], 1.0)
-    assert fake_engine["apply"][1][1] == 0.01 and fake_engine["apply"][3][1] == 0.4
-    assert applied.startswith("跟随底座型·人物(6/14):")
-    assert "Krea2-Turbo-4步蒸馏×1" in applied and "ProjectorScale×0.01" in applied
+    assert fake_engine["apply"][1][1] == 0.2 and fake_engine["apply"][3][1] == 0.2
+    assert applied.startswith("跟随底座型·人物(7/14):")
+    assert "Krea2-Turbo-4步蒸馏×1" in applied and "ProjectorScale×0.2" in applied
     assert applied.endswith("金雾仙侠GoldenMisty×0.8")  # 末位=金雾(序锚,09-20 终审)
-    assert model == "model#6"
+    assert model == "model#7"
 
 
 def test_run_all_off_is_true_passthrough_no_loads(fake_engine):

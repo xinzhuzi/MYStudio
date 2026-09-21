@@ -272,29 +272,35 @@ def test_v3_recipe_mutex_and_rulings():
           for e in _v3_entries()}
     for zh, recipe in by.items():
         assert len(ink_trio & set(recipe)) <= 1, (zh, "三画风同开>1 违互斥纪律")
-    # 人物系=现值三件(67×1+76×0.4+73×0.3);人物型画风槽=金雾×0.8(09-20 用户终审)
+    # 系级三件基型(67×1+76×0.4+73×0.3);人物=09-21 0.2 手调基线(仅人物行,asianmix 0.4→0.2)
     trio = {"Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
             "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.4,
             "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
     for zh in ("美宣", "三视图", "表情差分"):
         assert by[zh] == trio, (zh, by[zh])
-    assert by["人物"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
+    renwu = {**trio, "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.2,
+            "Krea2-光影/Afterlight_v1.safetensors": 0.2}  # 09-21 用户人物行终审:+Afterlight0.2
+    assert by["人物"] == {**renwu, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
         by["人物"]
     # 高清人脸=与人物 LoRA 同源(09-20 用户裁定「人脸与人物应相同」):三件+金雾0.8
     assert by["高清人脸"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
         by["高清人脸"]
     # 场景=细节+金雾0.6(09-20 用户终审 87_scene_w06,墨洗出局);概念气氛同构过渡待终审
-    assert by["场景"] == {
+    assert by["场景"] == {  # 09-21 用户场景行终审:+Masterpiece1.0+湿画0.6+鎏金0.3
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
+        "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors": 1.0,
+        "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors": 0.6,
+        "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3,
         "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
     assert by["概念气氛图"] == {
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
         "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.6}
     # 分镜=三件+金雾0.8(09-20 与人物同源裁定,淡彩撤);道具=细节+鎏金0.3(无面孔件)
     assert by["分镜剧情图"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}
-    assert by["道具"] == {
+    assert by["道具"] == {  # 09-21 用户道具行终审:+湿画0.6,鎏金0.3→0.2
         "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
-        "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
+        "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors": 0.6,
+        "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.2}
 
 
 def test_v3_recipe_matches_lora_stack_presets():

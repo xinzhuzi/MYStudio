@@ -44,3 +44,35 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - Network: PyPI via Tsinghua mirror (large wheels break ≥20MB — use curl from Aliyun with resume);
     HuggingFace via hf-mirror.com (HF_ENDPOINT set; Clash needs no_proxy).
   - One model per production line (image=K2, video=H3) — do not introduce a second model into a line.
+  - (09-21) Engine upgraded past the pre-fill: v0.37.0 now (subgraphs + hash-based workflow restore).
+  - (09-21) **Subgraph groups MUST carry an `id` field each** (any increasing int): without id only
+    `groups[0]` loads, the rest are silently dropped. Cost a full debug round on the 道劫 [90] matrix.
+- (09-21) Repo workflows (`apps/backend/engines/comfyui/workflows/`) reach the engine through TWO
+  copies that must be synced: repo file (truth) → app
+  `/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/` (install seed).
+  The engine-home userdata (`<home>/ComfyUI/user/default/workflows/`) stays ZERO workflow files BY
+  CHARTER (`docs/comfyui-kb/工作流落位规范.md`, audit item 2 in
+  `apps/build/scripts/workflow_placement_audit.py`) — never rsync repo copies into it. The native
+  ComfyUI workflow browser reads ONLY that userdata area, so for the user the MY library opens via the
+  漫影 app sidebar (repo: read-only merge through the sidecar `/comfy/workflows`), not via the
+  engine's own browser. Pitfall (09-21 incident): after emptying userdata, a still-open ComfyUI
+  window keeps its client-persisted tree (persistedWorkflows) AND the engine v2 API kept serving
+  empty dir shells — both look like "workflows that can't be opened". Cure: page reload +
+  `find <userdata>/workflows -mindepth 1 -type d -empty -delete`.
+- (09-21) **Node-graph / node knowledge lives IN THIS SKILL DIR (flat layout, files are all here)** —
+  user verdict "节点图/node 认知完全没有" was a LOADING failure, not a missing-files failure. Any
+  node question: read `NODE_LIBRARY/_INDEX.md` first (per-category map: core/loaders/samplers/
+  conditioning-1/2/latent/image-1/2/advanced/video/audio/…, 183 curated entries), the 547-node master
+  catalog is `NODE_LIBRARY/_INVENTORY.md`, live I/O truth is ALWAYS `GET /object_info/<NodeType>`.
+  Connection mechanics + dual JSON formats + subgraph JSON anatomy: SKILL.md §"Compose a NEW
+  workflow" / §"Collapse a stage" — subgraph inner graph = `definitions.subgraphs[]`, exposed params =
+  `properties.proxyWidgets`. Writing/modifying a custom node pack: `BUILDING_NODES.md` (widget order ==
+  widgets_values order; combo validation rejects unknown values with HTTP 400; IS_CHANGED NaN trick).
+  Knowledge baseline of these files = 2026-06-30 / ComfyUI 0.25.1 — this engine is v0.37.0, so newer
+  nodes (FastH3, YuE2 900s, video concatenate, layered image compositing, Generic Loops, subgraph
+  blueprints) exist beyond the docs; authoritative reference = docs.comfy.org built-in-nodes index
+  (`https://docs.comfy.org/_llms/en/built-in-nodes/nodes.md`, 1059 pages, model/partner groups, has
+  `/_llms/zh/` Chinese twin) + the `/changelog` page. Official reusable subgraph bricks:
+  Comfy-Org/workflow_templates `blueprints/` (117 files); blueprint distribution mechanism = a
+  `subgraphs/` folder inside any custom-node pack, surfaced via `/global_subgraphs` (docs.comfy.org/
+  custom-nodes/subgraph_blueprints).

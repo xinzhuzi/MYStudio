@@ -16,8 +16,13 @@
       },
       {
         "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
-        "weight": 0.4,
+        "weight": 0.2,
         "slot": "asianmix"
+      },
+      {
+        "file": "Krea2-光影/Afterlight_v1.safetensors",
+        "weight": 0.2,
+        "slot": "afterlight"
       },
       {
         "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
@@ -59,6 +64,21 @@
         "slot": "detail"
       },
       {
+        "file": "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors",
+        "weight": 1.0,
+        "slot": "masterpiece"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors",
+        "weight": 0.6,
+        "slot": "shihua"
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "weight": 0.3,
+        "slot": "liujin"
+      },
+      {
         "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
         "weight": 0.6,
         "slot": "goldenmist",
@@ -87,7 +107,7 @@
     "purpose": "1:1 四宫格（正/侧/背/细节特写）。主体句写器物名、材质、灵纹，出图后可裁单格作物品图。",
     "aspect_ratio": "1:1 (Square)",
     "megapixels": 1.0,
-    "positive": "现代修仙游戏的道具设定板资产：器物形制可建模可还原，细稳墨线勾画轮廓结构，材质差异清晰而绘画语言统一，传统色小面积点睛，数字绘画完成度。一图四宫格，正面、侧面、背面与细节特写各居一格，器物居中占七成以上；线条精确、转折干净，表面工艺与灵纹可辨，纯静物独立陈列；线条以器物构造为先，形制边缘与灵纹转折结构可读，细稳基调上轻重提按分明，带手绘笔性而不板结。大面积稳定基底，少量高识别点睛提亮转折一线；四格底色一致，均匀柔光平涂底，生产级清晰度。",
+    "positive": "现代修仙游戏的道具设定板资产：器物形制可建模可还原，细稳墨线勾画轮廓结构，材质差异清晰而绘画语言统一，传统色小面积点睛，数字绘画完成度。一图四宫格，整器全景一格、形制两面各一格、细节特写一格，器物或成套器物居中占七成以上；线条精确、转折干净，表面工艺与灵纹可辨，纯静物独立陈列；线条以器物构造为先，形制边缘与灵纹转折结构可读，细稳基调上轻重提按分明，带手绘笔性而不板结。大面积稳定基底；四格底色一致，均匀柔光平涂浅暖底，生产级清晰度。",
     "negative": "3D render, photorealistic, CGI, cel shading, anime style, western oil painting, hard shadows, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, fiber streaks, full-frame paper texture, cold gray ground, AI muddy noise, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, extra fingers, deformed hands, text, watermark, signature, logo, person, hands, human figure, inconsistent object across panels, flaking pigment, cracked paint layers, museum piece scan, antique painting replica, aged silk texture, sepia vintage filter, monochrome grayscale, thick anime outline, bold black outline, uniform outline, vector outline, mechanical linework, cel-shading outline, western comic inking, sticker-like contour, plastic contour",
     "recipe_version": "v0.2(09-19 对拍初评定谳,待用户终审刷新)",
     "lora_recipe": [
@@ -97,8 +117,13 @@
         "slot": "detail"
       },
       {
+        "file": "Krea2-画风/Krea2-水彩湿画wash_v1.safetensors",
+        "weight": 0.6,
+        "slot": "shihua"
+      },
+      {
         "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
-        "weight": 0.3,
+        "weight": 0.2,
         "slot": "liujin"
       }
     ],
