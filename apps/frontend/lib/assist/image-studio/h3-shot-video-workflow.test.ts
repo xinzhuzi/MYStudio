@@ -34,6 +34,30 @@ function nodeWidgets(ui: Record<string, unknown>, id: number): unknown[] {
   return nodes.find((node) => node.id === id)?.widgets_values ?? [];
 }
 
+describe.each([
+  ["I2V", buildShotH3Workflow],
+  ["Ref2VA", (input: Parameters<typeof buildShotH3Workflow>[0]) => buildShotH3RefWorkflow({ ...input, refs: [] })],
+] as const)("%s serialized widget contract", (_name, build) => {
+  it("keeps resolution identical for positional and named consumers", () => {
+    const { ui } = build({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章" });
+    const nodes = ui.nodes as Array<{ type: string; widgets_values: unknown[]; widgets_values_named: Record<string, unknown> }>;
+    const selector = nodes.find((node) => node.type === "ResolutionSelector")!;
+    expect(selector.widgets_values_named).toMatchObject({
+      aspect_ratio: selector.widgets_values[0],
+      megapixels: selector.widgets_values[1],
+      multiple: selector.widgets_values[2],
+    });
+    expect(selector.widgets_values_named.megapixels).toBe(0.98);
+  });
+
+  it("keeps preview model selection identical for both consumers", () => {
+    const { ui } = build({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章" });
+    const nodes = ui.nodes as Array<{ type: string; widgets_values: unknown[]; widgets_values_named: Record<string, unknown> }>;
+    const preview = nodes.find((node) => node.type === "ModelPreviewOverrideKJ")!;
+    expect(preview.widgets_values_named.tiny_vae).toBe(preview.widgets_values[5]);
+  });
+});
+
 describe("buildShotH3Workflow", () => {
   it("captures origin in the queued anchor without changing widget positions", () => {
     for (const build of [buildShotH3Workflow, (input: Parameters<typeof buildShotH3Workflow>[0]) => buildShotH3RefWorkflow({ ...input, refs: [] })]) {

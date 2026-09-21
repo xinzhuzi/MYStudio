@@ -63,7 +63,7 @@ def test_exact_ack_retains_skipped_items_and_durable_sequence(home):
     assert bridge_inbox.append({}, "eg==") == third + 1
 
 
-@pytest.mark.parametrize("ids", [[True], [0], [-1], [1.5], ["1"], "1", [1, None]])
+@pytest.mark.parametrize("ids", [[True], [0], [-1], [1.5], ["1"], "1", [1, None], [2 ** 53]])
 def test_invalid_exact_ack_fails_before_deleting_any_item(home, ids):
     first = bridge_inbox.append({}, "eg==")
     with pytest.raises(ValueError, match="确认"):

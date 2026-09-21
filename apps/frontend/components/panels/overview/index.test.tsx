@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   updateEpisodeBundle: vi.fn(),
   enterEpisode: vi.fn(),
   setActiveTab: vi.fn(),
+  setWorkflowConfig: vi.fn(),
   meta: null as SeriesMeta | null,
   rawScript: "" as string,
 }));
@@ -37,6 +38,12 @@ vi.mock("@/lib/ai/ai-manager", () => ({
 
 vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: () => ({ activeProjectId: "project-1" }),
+}));
+
+vi.mock("@/stores/studio/studio-store", () => ({
+  useStudioStore: {
+    getState: () => ({ setWorkflowConfig: mocks.setWorkflowConfig }),
+  },
 }));
 
 vi.mock("@/stores/script/script-store", () => ({
@@ -143,6 +150,7 @@ describe("OverviewPanel", () => {
     const buttons = screen.getAllByRole("button", { name: /进入阶段/ });
     expect(buttons.length).toBeGreaterThan(0);
     fireEvent.click(buttons[0]);
+    expect(mocks.setWorkflowConfig).toHaveBeenCalledWith({ workflowStage: "manuals" });
     expect(mocks.setActiveTab).toHaveBeenCalledWith("studio");
   });
 

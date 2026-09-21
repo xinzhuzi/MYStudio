@@ -603,11 +603,13 @@ app.registerExtension({
     const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
     nodeType.prototype.getExtraMenuOptions = function (canvas, options) {
       const stageProps = this.properties || {};
+      const originProjectId = stageProps.myOriginProjectId;
+      const originEpisodeId = stageProps.myOriginEpisodeId;
       const payload = stageProps.myStage ?? stageProps.manyingStage;
       if (payload && typeof payload.key === "string") {
         const act = (content, kind, note) => options.push({
           content: `漫影 · ${content}`,
-          callback: () => { postAction(kind, note || payload.key, null, stageProps.myOriginProjectId, stageProps.myOriginEpisodeId); },
+          callback: () => { postAction(kind, note || payload.key, null, originProjectId, originEpisodeId); },
         });
         // 与 DOM 面板按钮同源(docButtons 单源):桥类动作走 postAction;
         // 本地动作(open-shot-grid=进分镜子图)在菜单内本地执行同款
@@ -628,7 +630,7 @@ app.registerExtension({
           const item = {
             content: `漫影 · ${action.label}`,
             disabled: Boolean(action.disabled),
-            callback: () => { if (!action.disabled) postAction(action.kind, action.note || null, null, stageProps.myOriginProjectId, stageProps.myOriginEpisodeId); },
+            callback: () => { if (!action.disabled) postAction(action.kind, action.note || null, null, originProjectId, originEpisodeId); },
           };
           options.push(item);
         }

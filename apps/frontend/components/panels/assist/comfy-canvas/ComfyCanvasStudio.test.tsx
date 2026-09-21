@@ -469,7 +469,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     ]));
   });
 
-  it.each([false, true, "roundtrip"])("单镜视频入口:上传中切项目=%s 时隔离原项目工作流", async (switchDuringUpload) => {
+  it.each([false, true, "roundtrip", "chapter", "chapter-roundtrip"])("单镜视频入口:上传中切换=%s 时隔离原项目工作流", async (switchDuringUpload) => {
     storeState.storyboards = [
       {
         id: "sb-9", index: 1, episodeId: "chapter-001", videoDesc: "雨夜石桥",
@@ -494,7 +494,14 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       ackBridgeActions: vi.fn(async () => 1),
       uploadBridgeReference: vi.fn(async (name: string) => {
         uploaded.push(name);
-        if (switchDuringUpload) {
+        if (switchDuringUpload === "chapter" || switchDuringUpload === "chapter-roundtrip") {
+          storeState.novelChapters = [{ id: "chapter-002" }];
+          studioListeners.forEach((listener) => listener(storeState));
+          if (switchDuringUpload === "chapter-roundtrip") {
+            storeState.novelChapters = [{ id: "chapter-001" }];
+            studioListeners.forEach((listener) => listener(storeState));
+          }
+        } else if (switchDuringUpload) {
           projectState.activeProjectId = "project-b";
           projectListeners.forEach((listener) => listener(projectState));
           if (switchDuringUpload === "roundtrip") {
@@ -537,6 +544,46 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(payload).toContain("myOriginProjectId");
     expect(payload).toContain("project-a");
     await waitFor(() => expect(toasts.success).toHaveBeenCalled());
+  });
+
+  it.each(["shot-b", "S01"])("单镜入口只在绑定章节解析目标 %s", async (target) => {
+    const localShot = {
+      id: "shot-a", index: 1, episodeId: "chapter-a", videoDesc: "雨夜石桥",
+      duration: 5, mediaRef: { kind: "image", path: "project-file://frame.png" },
+    };
+    storeState.storyboards = [localShot, { ...localShot, id: "shot-b", episodeId: "chapter-b" }];
+    storeState.novelChapters = [{ id: "chapter-a" }];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const upload = vi.fn(async (name: string) => ({ accepted: true, name }));
+    const ack = vi.fn(async () => 1);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = {
+      ...stubClient({ installed: true, state: "ready", serviceRunning: true, port: 17008 }),
+      getBridgeActions: async (cursor) => {
+        await gate;
+        return { cursor, queueId: `shot-scope-${target}`, items: [{ id: 1, kind: "open-shot-video", note: target, originProjectId: "project-a", originEpisodeId: "chapter-a" }] };
+      },
+      uploadBridgeReference: upload,
+      ackBridgeActions: ack,
+    };
+    render(<ComfyCanvasStudio />);
+    const webview = await waitFor(() => {
+      const element = document.querySelector("[data-comfy-canvas-webview]");
+      if (!element) throw new Error("webview 未挂");
+      return element as HTMLElement & { executeJavaScript: (code: string) => Promise<void> };
+    });
+    const execute = vi.fn(async (_code: string) => undefined);
+    webview.executeJavaScript = execute;
+    await act(async () => { release(); });
+    await waitFor(() => expect(ack).toHaveBeenCalled());
+    if (target === "shot-b") {
+      expect(upload).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+      expect(toasts.error).toHaveBeenCalled();
+    } else {
+      expect(upload).toHaveBeenCalledWith("my-shot-h3-shot-a.jpg", "ZnJhbWU=");
+      expect(execute).toHaveBeenCalledWith(expect.stringContaining("shot-a"));
+    }
   });
 
   it.each(["project", "chapter"])("主线模板等待期间 %s 来回切换不注入旧工作流", async (scope) => {

@@ -109,7 +109,7 @@ class FakeComfyEngine:
                     outer.prompts.append(json.loads(self.rfile.read(length).decode("utf-8")))
                     reply = outer.prompt_replies[-1] if outer.prompt_replies else {"prompt_id": "p-x"}
                     status = HTTPStatus.OK
-                    if reply.get("node_errors"):
+                    if reply.get("node_errors") and not reply.get("prompt_id"):
                         status = HTTPStatus.BAD_REQUEST
                     self._json(reply, status)
                     return
@@ -267,6 +267,50 @@ class TestExecuteJob:
         job = _wait_job_terminal(job_id)
         assert job["status"] == "error"
         assert "引擎拒绝工作流" in job["error"]
+
+    @pytest.mark.parametrize("outcome", ["success", "error", "timeout"])
+    def test_partial_acceptance_retains_prompt_and_warnings_through_terminal_state(self, engine, monkeypatch, outcome):
+        node_errors = {"bad-output": {"errors": [{"message": "Required input is missing"}]}}
+        engine.prompt_replies.append({"prompt_id": "p-partial", "node_errors": node_errors})
+        if outcome == "success":
+            engine.histories["p-partial"] = {"status": {"status_str": "success"}, "outputs": {
+                "11": {"images": [{"filename": "out.png"}]},
+            }}
+        elif outcome == "error":
+            engine.histories["p-partial"] = {"status": {"status_str": "error", "messages": "OOM"}}
+        monkeypatch.setattr(comfy_execute, "EXECUTE_TIMEOUT_S", 0.1)
+        monkeypatch.setattr(comfy_execute, "HISTORY_POLL_INTERVAL_S", 0.01)
+        job_id = comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == ("complete" if outcome == "success" else "error"), job
+        assert job["result"]["promptId"] == "p-partial"
+        assert job["result"]["nodeErrors"] == node_errors
+        assert job["result"]["warnings"]
+        assert any("p-partial" in line and "bad-output" in line for line in job["tail"])
+        if outcome == "success":
+            assert base64.b64decode(job["result"]["images"][0]["b64"]) == b"view-image-bytes"
+        elif outcome == "error":
+            assert "OOM" in job["error"]
+        else:
+            assert "超时" in job["error"]
+            assert engine.cancelled_prompts == ["p-partial"]
+
+    def test_accepted_prompt_metadata_is_visible_without_completing_running_job(self, monkeypatch):
+        node_errors = {"bad-output": {"errors": ["missing input"]}}
+        job_id = comfy_execute.jobs.create("comfy-execute")
+
+        def http_json(method, url, payload=None, timeout=10):
+            if method == "POST":
+                return {"prompt_id": "p-pending", "node_errors": node_errors}
+            pending = comfy_execute.jobs.get(job_id)
+            assert pending["status"] == "running"
+            assert pending["result"]["promptId"] == "p-pending"
+            assert pending["result"]["nodeErrors"] == node_errors
+            return {"p-pending": {"status": {"status_str": "error", "messages": "probe-end"}}}
+
+        monkeypatch.setattr(comfy_execute, "_http_json", http_json)
+        comfy_execute._execute_target(job_id, _graph_fixture(), {}, [])
+        assert "probe-end" in comfy_execute.jobs.get(job_id)["error"]
 
     def test_history_error_state_surfaces_message(self, engine):
         engine.prompt_replies.append({"prompt_id": "p-err"})

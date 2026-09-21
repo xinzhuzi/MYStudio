@@ -248,8 +248,10 @@ async function openShotVideoWorkflowIntoCanvas(
   const originProjectId = useProjectStore.getState().activeProjectId;
   if (!originProjectId) throw new Error("请先打开回写目标项目");
   const state = useStudioStore.getState();
-  const storyboardId = parseShotTarget(note, state.storyboards);
-  const shot = storyboardId ? state.storyboards.find((item) => item.id === storyboardId) : undefined;
+  const originEpisodeId = resolveProductionEpisodeId(state);
+  const chapterShots = state.storyboards.filter((item) => item.episodeId === originEpisodeId);
+  const storyboardId = parseShotTarget(note, chapterShots);
+  const shot = storyboardId ? chapterShots.find((item) => item.id === storyboardId) : undefined;
   if (!shot) {
     toast.error("找不到这面镜头");
     return;

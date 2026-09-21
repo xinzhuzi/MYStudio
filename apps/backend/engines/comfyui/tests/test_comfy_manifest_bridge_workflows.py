@@ -162,6 +162,22 @@ class TestWorkflowFileOps:
         assert result["imported"] == ["K2 流.json", "sub/编辑流.json"]
         return home
 
+    def test_move_rejects_dangling_destination_symlink_and_preserves_source(self, tmp_path, monkeypatch):
+        _use_tmp_home(tmp_path, monkeypatch)
+        base = cm.workflows_dir()
+        destination = base / "folder"
+        destination.mkdir(parents=True)
+        source = base / "source.json"
+        source.write_text('{"nodes":[]}', encoding="utf-8")
+        outside = tmp_path / "outside.json"
+        link = destination / "source.json"
+        link.symlink_to(outside)
+        with pytest.raises(EngineOpError, match="同名"):
+            pm.move_workflow("source.json", "folder")
+        assert source.read_text(encoding="utf-8") == '{"nodes":[]}'
+        assert link.is_symlink()
+        assert not outside.exists()
+
     def test_import_rejects_invalid_json_and_traversal(self, tmp_path, monkeypatch):
         _use_tmp_home(tmp_path, monkeypatch)
         try:

@@ -169,6 +169,8 @@ export interface BgmCoverGenerateInput {
 }
 
 export interface BgmCoverGenerateDeps {
+  /** Latched origin/operation guard, captured before fetching the workflow. */
+  isCurrent?: () => boolean;
   fetchWorkflowText: (workflowId: string) => Promise<string>;
   /** 参考曲读址(asset-file://)→ 纯 b64;组件侧接 projectFiles.readAsBase64 通道。 */
   readAudioB64: (url: string) => Promise<string>;
@@ -195,15 +197,19 @@ export async function generateBgmCover(
   // 从组件基线态起步派发 start:清单/选择随 ...state 保留,onStateChange 整体回推
   // 不再清空组件的参考曲清单与选中项(生成期下拉照常展示,done 后二次翻唱免重选)。
   let state = bgmCoverReducer(deps.initialState ?? bgmCoverInitialState, { type: "start" });
+  const isCurrent = () => deps.isCurrent?.() !== false;
+  if (!isCurrent()) return state;
   deps.onStateChange?.(state);
   try {
     const style = input.style.trim();
     if (!style) throw new Error("请先填写翻唱新风格描述");
     const lyrics = input.lyrics.trim() || YUE2_BGM_LYRICS_IRON;
     const workflowText = await deps.fetchWorkflowText(input.workflowId);
+    if (!isCurrent()) return state;
     const parsed = unwrapComfyApiGraph(JSON.parse(workflowText));
     if (!parsed.ok) throw new Error(parsed.error);
     const audioB64 = await deps.readAudioB64(input.asset.url);
+    if (!isCurrent()) return state;
     const result = await deps.execute(
       {
         graph: parsed.graph,
@@ -213,12 +219,13 @@ export async function generateBgmCover(
         },
         timeoutS: YUE2_COVER_EXECUTE_TIMEOUT_S,
       },
-      (progress) => deps.onProgress?.(progress.message),
+      (progress) => { if (isCurrent()) deps.onProgress?.(progress.message); },
       { pollTimeoutMs: YUE2_COVER_POLL_TIMEOUT_MS },
     );
     const audio = result.audios?.[0];
     if (!audio) throw new Error("工作流已完成但没有输出音频(缺 SaveAudio 类输出节点?)");
     const saved = await deps.persistAudio(audio.b64, audio.filename ?? "cover.flac");
+    if (!isCurrent()) return state;
     state = bgmCoverReducer(state, {
       type: "complete",
       result: {
@@ -231,6 +238,7 @@ export async function generateBgmCover(
     deps.onStateChange?.(state);
     return state;
   } catch (error) {
+    if (!isCurrent()) return state;
     const message = error instanceof Error ? error.message : String(error);
     state = bgmCoverReducer(state, { type: "fail", error: message });
     deps.onStateChange?.(state);

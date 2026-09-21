@@ -306,6 +306,7 @@ async function consumeComfyBridgeWritebacksOnce(
           landed += 1;
         } else if (item.imageB64) {
           const storyboardId = parseShotTarget(item.shotTarget, resolved.storyboards());
+          const episodeId = resolved.storyboards().find((entry) => entry.id === storyboardId)?.episodeId;
           if (item.shotTarget?.trim() && !storyboardId) {
             throw new Error(`找不到图片回写目标:${item.shotTarget}`);
           }
@@ -322,8 +323,8 @@ async function consumeComfyBridgeWritebacksOnce(
             throw new Error("项目图片落盘失败,回写已保留待重试");
           }
           if (storyboardId) {
-            if (!resolved.storyboards().some((entry) => entry.id === storyboardId)) {
-              throw new Error(`分镜不存在:${storyboardId}`);
+            if (!resolved.storyboards().some((entry) => entry.id === storyboardId && entry.episodeId === episodeId)) {
+              throw new Error(`分镜不存在或所属章节已变化:${storyboardId}`);
             }
             resolved.applyToStoryboard(storyboardId, persisted.url, item);
             resolved.notify("storyboard", item.shotTarget ?? storyboardId);

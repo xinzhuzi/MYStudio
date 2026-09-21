@@ -45,7 +45,7 @@ def test_submit_rejects_missing_or_invalid_origin(origin):
     assert bridge_actions.list_since(0)["items"] == []
 
 
-@pytest.mark.parametrize("ids", [[True], [0], [-1], [1.5], ["1"], "1", [1, None]])
+@pytest.mark.parametrize("ids", [[True], [0], [-1], [1.5], ["1"], "1", [1, None], [2 ** 53]])
 def test_invalid_action_ack_does_not_delete_any_item(ids):
     item = bridge_actions.submit("view-doc", origin_project_id="project-a", origin_episode_id="episode-1")
     listing = bridge_actions.list_since(0)

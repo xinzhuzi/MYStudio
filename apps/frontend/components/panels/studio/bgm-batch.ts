@@ -181,6 +181,8 @@ export interface BgmBatchGenerateInput {
 }
 
 export interface BgmBatchGenerateDeps {
+  /** Latched origin/operation guard, captured before fetching the workflow. */
+  isCurrent?: () => boolean;
   fetchWorkflowText: (workflowId: string) => Promise<string>;
   execute: BgmBatchExecuteFn;
   persistAudio: (b64: string, engineFilename: string) => Promise<{ filePath: string; url: string | null }>;
@@ -200,16 +202,20 @@ export async function generateBgmBatch(
   deps: BgmBatchGenerateDeps,
 ): Promise<BgmBatchState> {
   const seeds = deriveBgmBatchSeeds(input.count);
+  const isCurrent = () => deps.isCurrent?.() !== false;
   let state = bgmBatchReducer(bgmBatchInitialState, { type: "start", total: seeds.length });
+  if (!isCurrent()) return state;
   deps.onStateChange?.(state);
   try {
     const style = input.style.trim();
     if (!style) throw new Error("请先填写 BGM 风格描述");
     const lyrics = input.lyrics.trim() || YUE2_BGM_LYRICS_IRON;
     const workflowText = await deps.fetchWorkflowText(input.workflowId);
+    if (!isCurrent()) return state;
     const parsed = unwrapComfyApiGraph(JSON.parse(workflowText));
     if (!parsed.ok) throw new Error(parsed.error);
     for (let idx = 0; idx < seeds.length; idx += 1) {
+      if (!isCurrent()) return state;
       const seed = seeds[idx];
       const result = await deps.execute(
         {
@@ -217,12 +223,13 @@ export async function generateBgmBatch(
           inputs: { strings: buildBgmStringInputs(style, lyrics), images: [] },
           timeoutS: YUE2_BGM_EXECUTE_TIMEOUT_S,
         },
-        (progress) => deps.onProgress?.({ index: idx + 1, total: seeds.length, seed, message: progress.message }),
+        (progress) => { if (isCurrent()) deps.onProgress?.({ index: idx + 1, total: seeds.length, seed, message: progress.message }); },
         { pollTimeoutMs: YUE2_BGM_POLL_TIMEOUT_MS },
       );
       const audio = result.audios?.[0];
       if (!audio) throw new Error(`第 ${idx + 1}/${seeds.length} 首:工作流已完成但没有输出音频(缺 SaveAudio 类输出节点?)`);
       const saved = await deps.persistAudio(audio.b64, audio.filename ?? "bgm.flac");
+      if (!isCurrent()) return state;
       state = bgmBatchReducer(state, {
         type: "complete-one",
         candidate: {
@@ -235,10 +242,12 @@ export async function generateBgmBatch(
       });
       deps.onStateChange?.(state);
     }
+    if (!isCurrent()) return state;
     state = bgmBatchReducer(state, { type: "finish" });
     deps.onStateChange?.(state);
     return state;
   } catch (error) {
+    if (!isCurrent()) return state;
     const message = error instanceof Error ? error.message : String(error);
     state = bgmBatchReducer(state, { type: "fail", error: message });
     deps.onStateChange?.(state);

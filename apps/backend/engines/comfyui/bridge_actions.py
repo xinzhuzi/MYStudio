@@ -85,8 +85,8 @@ def list_since(cursor: int) -> dict:
 
 
 def ack(up_to: int = 0, queue_id: str | None = None, *, ids: list[int] | None = None) -> int:
-    if ids is not None and (not isinstance(ids, list) or any(type(item_id) is not int or item_id <= 0 for item_id in ids)):
-        raise ValueError("动作确认 ids 必须是正整数列表")
+    if ids is not None and (not isinstance(ids, list) or any(type(item_id) is not int or not 0 < item_id <= 2 ** 53 - 1 for item_id in ids)):
+        raise ValueError("动作确认 ids 必须是正安全整数列表")
     with _LOCK:
         # The in-memory counter restarts with the sidecar. A late ack from an
         # earlier instance must never delete an unrelated action with that ID.

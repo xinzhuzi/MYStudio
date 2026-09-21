@@ -114,8 +114,8 @@ describe("WorkbenchTab split boundaries", () => {
     // 批量抽卡复用单发机制:同一编排器/绑定链/共用 busy(与单发互斥)
     expect(tabSource).toContain("generateBgmBatch(");
     expect(tabSource).toContain("execute: runComfyExecute");
-    expect(tabSource).toContain("persistAudio: persistComfyAudio");
-    expect(tabSource).toContain('bindSharedAudioFromPath("bgm", candidate.filePath)');
+    expect(tabSource).toContain("persistComfyAudio(b64, filename, origin.projectId)");
+    expect(tabSource).toContain('bindSharedAudioFromPath("bgm", candidate.filePath, origin)');
     expect(tabSource).toMatch(/data-bgm-generate-run[^>]*disabled=\{bgmGenerating \|\| chapterAudioBusy\}/);
     expect(tabSource).toMatch(/data-bgm-batch-run[^>]*disabled=\{bgmGenerating \|\| chapterAudioBusy\}/);
   });

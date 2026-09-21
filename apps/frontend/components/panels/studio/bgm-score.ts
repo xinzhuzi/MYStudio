@@ -100,6 +100,8 @@ export interface ComfyExecuteAudioOutput {
 }
 
 export interface BgmScoreGenerateDeps {
+  /** Stop new submissions and stale progress after an origin/operation switch. */
+  isCurrent?: () => boolean;
   fetchWorkflowText: (workflowId: string) => Promise<string>;
   execute: ComfyExecuteFn;
   onProgress?: (message: string) => void;
@@ -113,7 +115,9 @@ export async function generateBgmScore(
   input: { workflowId: string; style: string; lyrics: string; seed?: number },
   deps: BgmScoreGenerateDeps,
 ): Promise<string> {
+  if (deps.isCurrent?.() === false) throw new Error("BGM 操作已失效");
   const workflowText = await deps.fetchWorkflowText(input.workflowId);
+  if (deps.isCurrent?.() === false) throw new Error("BGM 操作已失效");
   const parsed = JSON.parse(workflowText) as unknown;
   const graph = unwrapGraphOrThrow(parsed);
   const result = await deps.execute(
@@ -122,9 +126,10 @@ export async function generateBgmScore(
       inputs: { strings: buildScoreInputs(input.style, input.lyrics, input.seed), images: [] },
       timeoutS: YUE2_SCORE_EXECUTE_TIMEOUT_S,
     },
-    (progress) => deps.onProgress?.(progress.message),
+    (progress) => { if (deps.isCurrent?.() !== false) deps.onProgress?.(progress.message); },
     { pollTimeoutMs: YUE2_SCORE_POLL_TIMEOUT_MS },
   );
+  if (deps.isCurrent?.() === false) throw new Error("BGM 操作已失效");
   const abc = firstScoreText(result);
   if (abc === null) {
     throw new Error("出谱工作流已完成但没有谱文本(缺 PreviewAny 类输出节点?)");
@@ -141,8 +146,10 @@ export async function renderBgmByScore(
   input: { workflowId: string; style: string; lyrics: string; abc: string },
   deps: BgmScoreGenerateDeps,
 ): Promise<ComfyExecuteAudioOutput> {
+  if (deps.isCurrent?.() === false) throw new Error("BGM 操作已失效");
   if (!isRenderableAbc(input.abc)) throw new Error("谱文本为空,先出谱或粘贴一段 ABC 谱再渲染");
   const workflowText = await deps.fetchWorkflowText(input.workflowId);
+  if (deps.isCurrent?.() === false) throw new Error("BGM 操作已失效");
   const parsed = JSON.parse(workflowText) as unknown;
   const graph = pruneRenderByScoreGraph(unwrapGraphOrThrow(parsed));
   const result = await deps.execute(
@@ -151,7 +158,7 @@ export async function renderBgmByScore(
       inputs: { strings: buildRenderByScoreInputs(input.style, input.lyrics, input.abc), images: [] },
       timeoutS: YUE2_RENDER_EXECUTE_TIMEOUT_S,
     },
-    (progress) => deps.onProgress?.(progress.message),
+    (progress) => { if (deps.isCurrent?.() !== false) deps.onProgress?.(progress.message); },
     { pollTimeoutMs: YUE2_RENDER_POLL_TIMEOUT_MS },
   );
   const audio = result.audios?.[0];

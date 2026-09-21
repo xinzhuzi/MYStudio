@@ -28,12 +28,18 @@ def test_registry_exposes_first_batch_nodes():
         "MyPrompt", "MyReference", "MyGenerated", "MyShot", "MyCloudImage",
         "MyStage", "MyStylesLibrary", "MyDaojieBase", "MyDaojieLoras",
         "MyDaojieLoraStack",  # 09-19 LoRA快速启停 R2:14 槽九型驱动栈节点
+        "MyDaojieRoute",  # 09-21 [90] 子图按型线路路由(只选线不加载)
+        "MyModelBus",     # 09-21 模型分线排(1进9出,画布走线治理备件)
         "MyCharsheetLabels",  # 09-20 设定表汉字程序叠加(案一)
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
         "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot",
         "ManyingCloudImage", "ManyingStage"}
-    for node in NODE_CLASS_MAPPINGS.values():
-        assert node.CATEGORY == "my"
+    for name, node in NODE_CLASS_MAPPINGS.items():
+        # 道劫子图走线族(09-21)归「漫影/道劫」画布菜单组,其余恒 "my"
+        if name in ("MyDaojieRoute", "MyModelBus"):
+            assert node.CATEGORY == "漫影/道劫"
+        else:
+            assert node.CATEGORY == "my"
 
 
 def test_legacy_aliases_deprecated_and_behaviour_aligned():

@@ -407,7 +407,7 @@ describe("persistComfyAudio(b64 音频写项目)", () => {
 
   it("无项目身份/无写桥:大白话错误,不落盘", async () => {
     useProjectStore.setState({ activeProjectId: null } as never);
-    await expect(persistComfyAudio("QUJD", "yue2.flac")).rejects.toThrow("无法写入项目音频");
+    await expect(persistComfyAudio("QUJD", "yue2.flac", "")).rejects.toThrow("无法写入项目音频");
   });
 
   it("b64 → media/audio/<月>/ 受管文件:扩展名取引擎文件名,字节解码,回传绝对路径与 url", async () => {
@@ -418,7 +418,7 @@ describe("persistComfyAudio(b64 音频写项目)", () => {
       url: "project-file://p-audio/media/audio/2026-09/bgm_yue2_1234.flac",
     }));
     (window as unknown as { projectFiles?: unknown }).projectFiles = { writeBinary };
-    const saved = await persistComfyAudio("QUJD", "yue2-out.flac");
+    const saved = await persistComfyAudio("QUJD", "yue2-out.flac", "p-audio");
     expect(saved.filePath).toBe("/proj/media/audio/2026-09/bgm_yue2_1234.flac");
     expect(saved.url).toBe("project-file://p-audio/media/audio/2026-09/bgm_yue2_1234.flac");
     expect(writeBinary).toHaveBeenCalledTimes(1);
@@ -433,8 +433,30 @@ describe("persistComfyAudio(b64 音频写项目)", () => {
     (window as unknown as { projectFiles?: unknown }).projectFiles = {
       writeBinary: async () => ({ success: false, error: "磁盘已满" }),
     };
-    await expect(persistComfyAudio("QUJD", "yue2.flac")).rejects.toThrow("生成的音频写入项目失败:磁盘已满");
+    await expect(persistComfyAudio("QUJD", "yue2.flac", "p-audio")).rejects.toThrow("生成的音频写入项目失败:磁盘已满");
   });
+
+  it("保存目标始终使用发起项目,不跟随生成结束和保存中的活动项目", async () => {
+    useProjectStore.setState({ activeProjectId: "p-other" });
+    let finish!: (reply: { success: boolean; filePath: string; url: string }) => void;
+    const writeBinary = vi.fn(() => new Promise<{ success: boolean; filePath: string; url: string }>((resolve) => { finish = resolve; }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { writeBinary };
+    const pending = persistComfyAudio("QUJD", "yue2.flac", "p-audio");
+    expect(writeBinary).toHaveBeenCalledWith(expect.objectContaining({ projectId: "p-audio" }));
+    useProjectStore.setState({ activeProjectId: "p-third" });
+    finish({ success: true, filePath: "/p/audio.flac", url: "project-file://p-audio/media/audio/a.flac" });
+    await expect(pending).resolves.toEqual({ filePath: "/p/audio.flac", url: "project-file://p-audio/media/audio/a.flac" });
+  });
+
+  it.each([undefined, "", "data:audio/flac;base64,QUJD", "project-file://p-other/media/audio/a.flac", "project-file://p-audio/../a.flac"])(
+    "拒绝非发起项目受管 URL: %s", async (url) => {
+      useProjectStore.setState({ activeProjectId: "p-audio" });
+      (window as unknown as { projectFiles?: unknown }).projectFiles = {
+        writeBinary: async () => ({ success: true, filePath: "/p/audio.flac", url }),
+      };
+      await expect(persistComfyAudio("QUJD", "yue2.flac", "p-audio")).rejects.toThrow("受管音频");
+    },
+  );
 });
 
 // ── 工作流节点运行编排(端到端,mock HTTP+落盘桥) ────────────────────

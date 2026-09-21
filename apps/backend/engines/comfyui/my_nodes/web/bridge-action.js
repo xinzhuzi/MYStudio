@@ -17,5 +17,9 @@ export function postAction(kind, note, button, originProjectId, originEpisodeId)
     method: "POST",
     headers: { "X-Manying-Image-Token": BRIDGE_TOKEN, "Content-Type": "application/json" },
     body: JSON.stringify({ kind, ...(note ? { note } : {}), originProjectId, originEpisodeId }),
-  }).catch(() => undefined);
+  }).then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  }).catch((error) => {
+    window.alert?.(`制作动作提交失败(${error?.message || error})，请检查宿主状态；确认动作未在执行后再重试`);
+  });
 }

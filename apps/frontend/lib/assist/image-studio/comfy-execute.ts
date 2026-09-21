@@ -434,13 +434,14 @@ export async function persistComfyImage(
 /**
  * b64 音频 → 项目 media/audio/<月>/ 受管文件(09-20 YuE2 BGM 接线)。
  * 返回绝对 filePath(供 remotionChapterManifest.importAudio 的 sourcePath)+
- * project-file:// url;无项目/写失败给大白话错误。
+ * project-file:// url;projectId 必须在生成前捕获,活动项目切换不得改变保存目标。
+ * 无项目/写失败/非本项目受管地址均报错,绑定和界面更新由调用方身份守卫控制。
  */
 export async function persistComfyAudio(
   b64: string,
   engineFilename: string,
-): Promise<{ filePath: string; url: string | null }> {
-  const projectId = useProjectStore.getState().activeProjectId;
+  projectId: string,
+): Promise<{ filePath: string; url: string }> {
   const projectFiles = getProjectFilesBridge();
   if (!projectId || !projectFiles?.writeBinary) {
     throw new Error("当前环境无法写入项目音频(需在桌面应用的项目内使用)");
@@ -460,7 +461,10 @@ export async function persistComfyAudio(
   if (!saved?.success || !saved.filePath) {
     throw new Error(`生成的音频写入项目失败:${saved?.error || engineFilename}`);
   }
-  return { filePath: saved.filePath, url: saved.url ?? null };
+  if (!saved.url || parseProjectFileUrl(saved.url)?.projectId !== projectId) {
+    throw new Error("生成结果未返回发起项目的受管音频地址");
+  }
+  return { filePath: saved.filePath, url: saved.url };
 }
 
 // ---------------------------------------------------------------------------

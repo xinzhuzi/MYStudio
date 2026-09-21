@@ -823,7 +823,7 @@
     "suppress_default_preview": true,
     "preview_frames": 9,
     "preview_fps": 12,
-    "tiny_vae": "taeh3.safetensors",
+        "tiny_vae": "none",
     "preview": ""
    },
    "color": "#233",
@@ -1035,7 +1035,7 @@
    ],
    "widgets_values_named": {
     "aspect_ratio": "16:9 (Widescreen)",
-    "megapixels": 0.2,
+        "megapixels": 0.98,
     "multiple": 32
    },
    "color": "#322",

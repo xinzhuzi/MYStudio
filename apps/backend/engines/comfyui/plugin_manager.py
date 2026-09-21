@@ -1469,7 +1469,7 @@ def move_workflow(workflow_id: str, to_dir: str) -> dict:
         # 与 _safe_workflow_id 同源 resolve:防符号链接前缀错位
         target_dir = cm.workflows_dir().resolve()
     target = target_dir / path.name
-    if target.exists():
+    if target.exists() or target.is_symlink():
         raise EngineOpError(f"目标目录已有同名工作流: {path.name}")
     shutil.move(str(path), str(target))
     return {"id": target.relative_to(cm.workflows_dir().resolve()).as_posix()}

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import signal
 import unittest
+from io import BytesIO
+from email.message import Message
 from http import HTTPStatus
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from image_gen import server
 
@@ -32,6 +34,65 @@ class _GenerateHandler(server.Handler):
 class _ComfyHandler(_GenerateHandler):
     def _authorized(self) -> bool:
         return True
+
+
+class BridgeOriginBoundaryTests(unittest.TestCase):
+    def handler(self, origin: str | None) -> _GenerateHandler:
+        handler = _GenerateHandler.__new__(_GenerateHandler)
+        handler.headers = Message()
+        handler.headers["Authorization"] = f"Bearer {server.LOCAL_TOKEN}"
+        if origin is not None:
+            handler.headers["Origin"] = origin
+        handler.send_response = Mock()
+        handler.send_header = Mock()
+        handler.end_headers = Mock()
+        return handler
+
+    def test_native_file_renderer_and_local_http_origins_remain_supported(self) -> None:
+        for origin in (None, "null", "http://localhost:5173", "http://127.0.0.1:17001", "http://[::1]:5173"):
+            with self.subTest(origin=origin):
+                handler = self.handler(origin)
+                self.assertTrue(handler._authorized())
+                handler.do_OPTIONS()
+                handler.send_response.assert_called_once_with(HTTPStatus.NO_CONTENT)
+                if origin is not None:
+                    handler.send_header.assert_any_call("Access-Control-Allow-Origin", origin)
+                handler.headers.replace_header("Authorization", "Bearer invalid")
+                self.assertFalse(handler._authorized())
+
+    def test_remote_or_malformed_origin_cannot_reach_bridge_even_with_known_token(self) -> None:
+        origins = (
+            "https://attacker.invalid", "http://localhost.attacker.invalid:5173",
+            "http://127.0.0.1.attacker.invalid", "http://attacker.invalid@127.0.0.1:17001",
+            "http://127.0.0.1:17001/path", "http://127.0.0.1:0", "http://127.0.0.1:65536",
+            "http://127.0.0.1:abc", "http://127.0.0.1:17001?query", "null null", "",
+            "http://127.0.0.1:" + "9" * 5000,
+        )
+        for origin in origins:
+            with self.subTest(origin=origin):
+                handler = self.handler(origin)
+                self.assertFalse(handler._authorized())
+                self.assertIsNone(handler._cors_origin())
+                handler.path = "/comfy/bridge/actions"
+                handler._read_json = Mock(return_value={"kind": "generate-images"})
+                handler._comfy = Mock()
+                handler.do_POST()
+                self.assertEqual(handler.response[1], HTTPStatus.FORBIDDEN)
+                handler._read_json.assert_not_called()
+                handler._comfy.assert_not_called()
+                handler.do_OPTIONS()
+                self.assertEqual(handler.response[1], HTTPStatus.FORBIDDEN)
+                handler.send_header.assert_not_called()
+
+    def test_json_response_does_not_echo_rejected_origin(self) -> None:
+        for origin in ("https://attacker.invalid", "null", "http://127.0.0.1:17001", None):
+            with self.subTest(origin=origin):
+                handler = self.handler(origin)
+                handler.wfile = BytesIO()
+                server.Handler._send_json(handler, {"ok": True})
+                allowed = [call.args[1] for call in handler.send_header.call_args_list if call.args[0] == "Access-Control-Allow-Origin"]
+                self.assertEqual(allowed, [] if origin in (None, "https://attacker.invalid") else [origin])
+                handler.send_header.assert_any_call("Vary", "Origin")
 
 
 class ImageStatusRouteTests(unittest.TestCase):
@@ -125,11 +186,47 @@ class ImageGenerateRouteTests(unittest.TestCase):
         handler = _ComfyHandler.__new__(_ComfyHandler)
         for queue in ("writebacks", "actions"):
             module = "bridge_inbox" if queue == "writebacks" else "bridge_actions"
-            for payload in ({"upTo": 99}, {"ids": None}, {"ids": [True]}, {"ids": [1, "2"]}):
+            for payload in ({"upTo": 99}, {"ids": None}, {"ids": [True]}, {"ids": [1, "2"]}, {"ids": [2 ** 53]}):
                 with self.subTest(queue=queue, payload=payload), patch(f"engines.comfyui.{module}.ack") as ack:
                     handler._comfy("POST", f"/comfy/bridge/{queue}/ack", payload, {})
                 self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
                 ack.assert_not_called()
+
+    def test_bridge_rejects_poison_writebacks_before_publication(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        valid = {"imageB64": "aGk=", "meta": {"originProjectId": "project-a"}}
+        invalid_fields = [
+            {"shotTarget": ["S01"]}, {"prompt": {"text": "test"}},
+            {"client": ["my-nodes"]}, {"meta": "not-an-object"},
+            {"ts": "../../target"}, {"ts": True}, {"ts": -1}, {"ts": 2 ** 53},
+            {"imageB64": "not base64!"}, {"imageB64": "aGk"},
+        ]
+        for fields in invalid_fields:
+            with self.subTest(fields=fields), patch("engines.comfyui.bridge_inbox.append") as append:
+                handler._comfy("POST", "/comfy/bridge/writeback", {**valid, **fields}, {})
+                self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+                append.assert_not_called()
+
+    def test_bridge_rejects_unconsumable_video_metadata_before_publication(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        meta = {
+            "kind": "video", "originProjectId": "project-a", "policy": "ambient",
+            "subfolder": "video/漫影/chapter-001/sb-chapter-001-001",
+        }
+        for change in ({"policy": "坏档"}, {"subfolder": "video/漫影/chapter/shot?invalid"}):
+            with self.subTest(change=change), patch("engines.comfyui.bridge_inbox.append") as append:
+                handler._comfy("POST", "/comfy/bridge/writeback", {
+                    "videoB64": "bXA0", "shotTarget": "sb-chapter-001-001", "meta": {**meta, **change},
+                }, {})
+                self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
+                append.assert_not_called()
+
+    def test_bridge_image_legacy_optional_fields_stay_compatible(self) -> None:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        with patch("engines.comfyui.bridge_inbox.append", return_value=7) as append:
+            handler._comfy("POST", "/comfy/bridge/writeback", {"imageB64": "aGk="}, {})
+        self.assertEqual(handler.response, ({"accepted": True, "id": 7}, HTTPStatus.OK))
+        self.assertEqual(append.call_args.args[0]["meta"], {})
 
     def test_bridge_accepts_video_writeback_shape(self) -> None:
         handler = _ComfyHandler.__new__(_ComfyHandler)
@@ -222,6 +319,12 @@ class ImageGenerateRouteTests(unittest.TestCase):
                 handler._handle_generate({"model": "comfyui-bridge", "prompt": "编辑"})
             self.assertEqual(handler.response[1], expected)
             self.assertEqual(handler.response[0]["error"]["code"], code)
+
+    def test_explicit_bridge_cancellation_keeps_existing_http_200_contract(self) -> None:
+        handler = _GenerateHandler.__new__(_GenerateHandler)
+        with patch("image_gen.server.generate_image", side_effect=server.PipelineError("generation-cancelled", "已停止")):
+            handler._handle_generate({"model": "comfyui-bridge", "prompt": "生成中止"})
+        self.assertEqual(handler.response, ({"error": {"message": "已停止", "code": "generation-cancelled"}}, HTTPStatus.OK))
 
     def test_bridge_download_is_a_noop_when_service_and_templates_are_ready(self) -> None:
         handler = _GenerateHandler.__new__(_GenerateHandler)

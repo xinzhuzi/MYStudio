@@ -101,8 +101,8 @@ def list_since(cursor: int, *, include_image: bool = True) -> dict:
 
 
 def ack(up_to: int = 0, *, ids: list[int] | None = None) -> int:
-    if ids is not None and (not isinstance(ids, list) or any(type(item_id) is not int or item_id <= 0 for item_id in ids)):
-        raise ValueError("回写确认 ids 必须是正整数列表")
+    if ids is not None and (not isinstance(ids, list) or any(type(item_id) is not int or not 0 < item_id <= 2 ** 53 - 1 for item_id in ids)):
+        raise ValueError("回写确认 ids 必须是正安全整数列表")
     acknowledged = set(ids) if ids is not None else None
     deleted = 0
     with _LOCK:

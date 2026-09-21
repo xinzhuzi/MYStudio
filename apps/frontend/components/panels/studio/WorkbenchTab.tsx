@@ -11,7 +11,8 @@ import { createRemotionAudioBindingFingerprint, createRemotionChapterManifestFin
 import type { RemotionChapterAudioBindingV2, RemotionChapterManifestV2, RemotionCurrentSlotV1, RemotionRenderJobV1 } from "@/types/remotion-workspace";
 import { Film } from "lucide-react";
 import * as abcjs from "abcjs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useBgmOrigin, type BgmOrigin } from "./use-bgm-origin";
 import { NativeRemotionStudioHost } from "./NativeRemotionStudioHost";
 import { SfxGenerateDialog } from "./SfxGenerateDialog";
 import { VisualContinuityReviewPanel } from "./VisualContinuityReviewPanel";
@@ -81,6 +82,7 @@ export function WorkbenchTab(props: {
   const continuityAssetVersions = useStudioStore((state) => state.continuityAssetVersions);
   const reviewContinuityAssetVersionHuman = useStudioStore((state) => state.reviewContinuityAssetVersionHuman);
   const chapterId = props.episodeId ?? "episode-1";
+  const { capture: captureBgmOrigin, begin: beginBgmOperation, version: bgmScopeVersion } = useBgmOrigin(props.projectId, chapterId);
   const queueScope = useRemotionQueueScope(props.projectId ?? activeProjectId ?? undefined, chapterId);
   const [sceneSegmentDialogOpen, setSceneSegmentDialogOpen] = useState(false);
   const [sceneSegmentSelection, setSceneSegmentSelection] = useState<Set<number>>(new Set());
@@ -175,6 +177,7 @@ export function WorkbenchTab(props: {
   const [sfxGenerateTarget, setSfxGenerateTarget] = useState<{ shotId: string; label: string } | null>(null);
   const manifestRequestVersion = useRef(0);
   const refreshChapterManifest = useCallback(async () => {
+    const origin = captureBgmOrigin();
     const requestVersion = ++manifestRequestVersion.current;
     const bridge = window.remotionChapterManifest;
     const projectId = props.projectId;
@@ -185,8 +188,11 @@ export function WorkbenchTab(props: {
     }
     try {
       const reply = await bridge.read({ projectId, chapterId });
-      if (requestVersion !== manifestRequestVersion.current) return;
+      if (requestVersion !== manifestRequestVersion.current || !origin.isCurrent()) return;
       if (reply.status === "ready") {
+        if (reply.manifest.projectId !== projectId || reply.manifest.chapterId !== chapterId) {
+          throw new Error("章节音频配置身份不匹配");
+        }
         setChapterManifest(reply.manifest);
         setChapterAudioStatus("已加载");
       } else {
@@ -195,13 +201,14 @@ export function WorkbenchTab(props: {
       }
       setChapterAudioError(null);
     } catch (error) {
+      if (requestVersion !== manifestRequestVersion.current || !origin.isCurrent()) return;
       setChapterAudioStatus("读取失败");
       setChapterAudioError(error instanceof Error ? error.message : String(error));
     }
-  }, [chapterId, props.projectId, setChapterManifest]);
+  }, [captureBgmOrigin, chapterId, props.projectId, setChapterManifest]);
   useEffect(() => {
     void refreshChapterManifest();
-  }, [refreshChapterManifest]);
+  }, [bgmScopeVersion, refreshChapterManifest]);
 
   // 三段链路日志包导出: Remotion evidence + video-use + HyperFrames + 诊断日志.
   const [logBundleExporting, setLogBundleExporting] = useState(false);
@@ -228,11 +235,16 @@ export function WorkbenchTab(props: {
   }, [chapterId, props.projectId]);
   const writeSharedAudio = useCallback(async (
     binding: RemotionChapterAudioBindingV2,
+    origin: BgmOrigin = captureBgmOrigin(),
   ) => {
+    origin.assertCurrent();
     const bridge = window.remotionChapterManifest;
     // 写时取 ref 最新快照:长任务旧闭包不得用陈旧 revision 打乐观锁
     const current = chapterManifestRef.current;
-    if (!bridge || !props.projectId || !current) throw new Error("当前章节缺少可写的 V2 manifest");
+    if (!bridge || !origin.projectId || !current) throw new Error("当前章节缺少可写的 V2 manifest");
+    if (current.projectId !== origin.projectId || current.chapterId !== origin.chapterId
+      || binding.projectId !== origin.projectId || binding.chapterId !== origin.chapterId
+      || binding.source.projectId !== origin.projectId) throw new Error("章节音频配置身份不匹配");
     setChapterAudioBusy(true);
     try {
       const next: RemotionChapterManifestV2 = {
@@ -246,37 +258,44 @@ export function WorkbenchTab(props: {
         manifestFingerprint: "",
       };
       next.manifestFingerprint = await createRemotionChapterManifestFingerprint(next);
+      origin.assertCurrent();
       await bridge.write({
-        projectId: props.projectId,
-        chapterId,
+        projectId: origin.projectId,
+        chapterId: origin.chapterId,
         expectedRevision: current.revision,
         manifest: next,
       });
+      origin.assertCurrent();
       setChapterManifest(next);
       setChapterAudioStatus("已保存");
-      await window.remotionStudio?.closeSession(props.projectId);
+      await window.remotionStudio?.closeSession(origin.projectId);
     } finally {
-      setChapterAudioBusy(false);
+      if (origin.isCurrent()) setChapterAudioBusy(false);
     }
-  }, [chapterId, props.projectId, setChapterManifest]);
+  }, [captureBgmOrigin, setChapterManifest]);
   // 把一个绝对路径的音频经 importAudio 绑定为章级共享音频(文件选择器与本地生成分镜共用)。
   // 返回是否绑定成功(批量抽卡点选绑定据此决定是否清结果;其余调用方忽略返回值)。
-  const bindSharedAudioFromPath = useCallback(async (role: "bgm" | "ambience", sourcePath: string): Promise<boolean> => {
+  const bindSharedAudioFromPath = useCallback(async (role: "bgm" | "ambience", sourcePath: string, origin: BgmOrigin = captureBgmOrigin()): Promise<boolean> => {
+    if (!origin.isCurrent()) return false;
     const bridge = window.remotionChapterManifest;
-    if (!bridge || !props.projectId || !chapterManifestRef.current) {
+    if (!bridge || !origin.projectId || !chapterManifestRef.current) {
       setChapterAudioError("音频导入 bridge 不可用");
       return false;
     }
     setChapterAudioBusy(true);
     try {
-      const imported = await bridge.importAudio({ projectId: props.projectId, chapterId, role, sourcePath });
+      const current = chapterManifestRef.current;
+      if (current.projectId !== origin.projectId || current.chapterId !== origin.chapterId) throw new Error("章节音频配置身份不匹配");
+      const imported = await bridge.importAudio({ projectId: origin.projectId, chapterId: origin.chapterId, role, sourcePath });
+      origin.assertCurrent();
+      if (imported.source.projectId !== origin.projectId) throw new Error("导入音频不属于发起项目");
       const durationUs = imported.durationUs;
       const binding: RemotionChapterAudioBindingV2 = {
         schemaVersion: 2,
         bindingId: `${role}:${imported.source.contentSha256.slice(0, 16)}`,
         bindingFingerprint: "",
-        projectId: props.projectId,
-        chapterId,
+        projectId: origin.projectId,
+        chapterId: origin.chapterId,
         source: imported.source,
         sourceFingerprint: imported.source.contentSha256,
         sourceDurationUs: durationUs,
@@ -297,26 +316,30 @@ export function WorkbenchTab(props: {
         },
       };
       binding.bindingFingerprint = await createRemotionAudioBindingFingerprint(binding);
-      await writeSharedAudio(binding);
+      origin.assertCurrent();
+      await writeSharedAudio(binding, origin);
+      origin.assertCurrent();
       setChapterAudioError(null);
       return true;
     } catch (error) {
-      setChapterAudioError(error instanceof Error ? error.message : String(error));
+      if (origin.isCurrent()) setChapterAudioError(error instanceof Error ? error.message : String(error));
       return false;
     } finally {
-      setChapterAudioBusy(false);
+      if (origin.isCurrent()) setChapterAudioBusy(false);
     }
-  }, [chapterId, props.projectId, writeSharedAudio]);
+  }, [captureBgmOrigin, writeSharedAudio]);
   const importSharedAudio = useCallback(async (role: "bgm" | "ambience") => {
+    const origin = beginBgmOperation();
+    if (!origin.isCurrent()) return;
     const picker = window.studioAssets?.selectAudioFile;
     if (!picker) {
       setChapterAudioError("音频导入 bridge 不可用");
       return;
     }
     const sourcePath = await picker();
-    if (!sourcePath) return;
-    await bindSharedAudioFromPath(role, sourcePath);
-  }, [bindSharedAudioFromPath]);
+    if (!sourcePath || !origin.isCurrent()) return;
+    await bindSharedAudioFromPath(role, sourcePath, origin);
+  }, [beginBgmOperation, bindSharedAudioFromPath]);
   // 本地生成 BGM(09-20 YuE2 接线):库取 API 工作流 → /comfy/execute(音频长任务)
   // → writeBinary 落项目 → 复用 importAudio(role:"bgm")+writeSharedAudio 绑定链。
   // 整段生成期间置 chapterAudioBusy=true:锁住同节点的导入/绑定/数值编辑等 manifest 写入口,
@@ -331,6 +354,8 @@ export function WorkbenchTab(props: {
       setChapterAudioError("缺少项目身份,无法生成 BGM");
       return;
     }
+    const origin = beginBgmOperation();
+    if (!origin.isCurrent()) return;
     const style = bgmStyle.trim();
     if (!style) {
       setChapterAudioError("请先填写 BGM 风格描述");
@@ -343,6 +368,7 @@ export function WorkbenchTab(props: {
       const transport = getComfyWorkflowLibraryTransport();
       if (!transport) throw new Error("工作流库通道不可用(需在桌面应用内使用)");
       const workflowText = await transport.content(YUE2_BGM_API_WORKFLOW_ID);
+      origin.assertCurrent();
       const parsed = unwrapComfyApiGraph(JSON.parse(workflowText));
       if (!parsed.ok) throw new Error(parsed.error);
       // UI 面 PrimitiveNode「一处改两节点同源」在 API 面的内联承接:两节点注入同值。
@@ -356,36 +382,46 @@ export function WorkbenchTab(props: {
           },
           timeoutS: 1200,
         },
-        (progress) => setBgmProgress(progress.message),
+        (progress) => { if (origin.isCurrent()) setBgmProgress(progress.message); },
         { pollTimeoutMs: 1_230_000 },
       );
       const audio = result.audios?.[0];
       if (!audio) throw new Error("工作流已完成但没有输出音频(缺 SaveAudio 类输出节点?)");
-      setBgmProgress("写入项目并绑定本章 BGM…");
-      const saved = await persistComfyAudio(audio.b64, audio.filename ?? "bgm.flac");
-      await bindSharedAudioFromPath("bgm", saved.filePath);
+      if (origin.isCurrent()) setBgmProgress("写入项目并绑定本章 BGM…");
+      const saved = await persistComfyAudio(audio.b64, audio.filename ?? "bgm.flac", origin.projectId);
+      origin.assertCurrent();
+      const bound = await bindSharedAudioFromPath("bgm", saved.filePath, origin);
+      if (!bound || !origin.isCurrent()) return;
       setBgmPanelOpen(false);
       setBgmProgress(null);
       toast.success("本地 BGM 已生成并绑定到本章");
     } catch (error) {
+      if (!origin.isCurrent()) return;
       setChapterAudioError(error instanceof Error ? error.message : String(error));
       setBgmProgress(null);
     } finally {
-      setBgmGenerating(false);
-      setChapterAudioBusy(false);
+      if (origin.isCurrent()) {
+        setBgmGenerating(false);
+        setChapterAudioBusy(false);
+        setBgmProgress(null);
+      }
     }
-  }, [bgmLyrics, bgmStyle, bindSharedAudioFromPath, props.projectId]);
+  }, [beginBgmOperation, bgmLyrics, bgmStyle, bindSharedAudioFromPath, props.projectId]);
   // 批量抽卡(N 连抽,09-20):复用单发的库取工作流/execute/persistComfyAudio/绑定链全机制,
   // 差异只在「逐首串行提交 + 派生种子(42+序号)+ 结果落列表待点选」。
   // 与单发互斥:全程共用 bgmGenerating + chapterAudioBusy(单发按钮/抽卡按钮/manifest 写入口同锁);
   // 生成期不关面板(用户要看着「第 i/N 首」进度),完成后停留列表页等点选。
   const [bgmBatchCount, setBgmBatchCount] = useState<BgmBatchCount>(4);
   const [bgmBatch, setBgmBatchState] = useState<BgmBatchState>(bgmBatchInitialState);
+  const bgmBatchOrigin = useRef<BgmOrigin | null>(null);
   const generateLocalBgmBatch = useCallback(async () => {
     if (!props.projectId) {
       setChapterAudioError("缺少项目身份,无法生成 BGM");
       return;
     }
+    const origin = beginBgmOperation();
+    if (!origin.isCurrent()) return;
+    bgmBatchOrigin.current = captureBgmOrigin();
     const style = bgmStyle.trim();
     if (!style) {
       setChapterAudioError("请先填写 BGM 风格描述");
@@ -402,33 +438,41 @@ export function WorkbenchTab(props: {
         {
           fetchWorkflowText: (workflowId) => transport.content(workflowId),
           execute: runComfyExecute,
-          persistAudio: persistComfyAudio,
-          onProgress: (progress) => setBgmProgress(progress.message),
-          onStateChange: (next) => setBgmBatchState(next),
+          persistAudio: (b64, filename) => persistComfyAudio(b64, filename, origin.projectId),
+          isCurrent: origin.isCurrent,
+          onProgress: (progress) => { if (origin.isCurrent()) setBgmProgress(progress.message); },
+          onStateChange: (next) => { if (origin.isCurrent()) setBgmBatchState(next); },
         },
       );
+      if (!origin.isCurrent()) return;
       if (finalState.phase === "selecting") {
         toast.success(`批量抽卡完成:已产出 ${finalState.candidates.length} 首,点选一首绑定本章 BGM`);
       }
       if (finalState.error) setChapterAudioError(finalState.error);
       setBgmProgress(null);
     } catch (error) {
+      if (!origin.isCurrent()) return;
       // 编排器不抛错;这里只兜底传输层之外的意外,busy 释放统一走 finally。
       setChapterAudioError(error instanceof Error ? error.message : String(error));
       setBgmProgress(null);
     } finally {
-      setBgmGenerating(false);
-      setChapterAudioBusy(false);
+      if (origin.isCurrent()) {
+        setBgmGenerating(false);
+        setChapterAudioBusy(false);
+      }
     }
-  }, [bgmBatchCount, bgmLyrics, bgmStyle, props.projectId]);
+  }, [beginBgmOperation, captureBgmOrigin, bgmBatchCount, bgmLyrics, bgmStyle, props.projectId]);
   // 点选一首候选绑定为本章 BGM:绑定成功才清抽卡结果(失败保留列表供重选/重试)。
   const bindBgmBatchCandidate = useCallback(async (candidate: BgmBatchCandidate) => {
-    const bound = await bindSharedAudioFromPath("bgm", candidate.filePath);
-    if (bound) {
+    if (!bgmBatchOrigin.current?.isCurrent()) return;
+    const origin = beginBgmOperation();
+    if (!origin.isCurrent()) return;
+    const bound = await bindSharedAudioFromPath("bgm", candidate.filePath, origin);
+    if (bound && origin.isCurrent()) {
       setBgmBatchState(bgmBatchInitialState);
       toast.success(`抽卡曲目(种子 ${candidate.seed})已绑定到本章 BGM`);
     }
-  }, [bindSharedAudioFromPath]);
+  }, [beginBgmOperation, bindSharedAudioFromPath]);
   // 先出谱→改谱→按谱渲染(09-20):出谱走 ABC-only 工作流(texts[0] 内联回带),
   // 谱文本进可编辑 textarea + abcjs 谱面预览;按谱渲染复用 BGM api 工作流注入
   // 22.abc(链接位改字面量),渲染产物走 persistComfyAudio+绑定链(与单发同机制)。
@@ -440,6 +484,8 @@ export function WorkbenchTab(props: {
       setChapterAudioError("缺少项目身份,无法生成 BGM");
       return;
     }
+    const origin = beginBgmOperation();
+    if (!origin.isCurrent()) return;
     const style = bgmStyle.trim();
     if (!style) {
       setChapterAudioError("请先填写 BGM 风格描述");
@@ -457,27 +503,34 @@ export function WorkbenchTab(props: {
         {
           fetchWorkflowText: (workflowId) => transport.content(workflowId),
           execute: runComfyExecute,
-          onProgress: (message) => setBgmProgress(message),
+          isCurrent: origin.isCurrent,
+          onProgress: (message) => { if (origin.isCurrent()) setBgmProgress(message); },
         },
       );
+      origin.assertCurrent();
       setBgmScoreState((current) => bgmScoreReducer(current, { type: "score-done", abcText }));
       setBgmProgress(null);
       toast.success("乐谱已生成:可在下方编辑谱文本,再按谱渲染绑定");
     } catch (error) {
+      if (!origin.isCurrent()) return;
       const message = error instanceof Error ? error.message : String(error);
       setBgmScoreState((current) => bgmScoreReducer(current, { type: "fail", error: message }));
       setChapterAudioError(message);
       setBgmProgress(null);
     } finally {
-      setBgmGenerating(false);
-      setChapterAudioBusy(false);
+      if (origin.isCurrent()) {
+        setBgmGenerating(false);
+        setChapterAudioBusy(false);
+      }
     }
-  }, [bgmLyrics, bgmStyle, props.projectId]);
+  }, [beginBgmOperation, bgmLyrics, bgmStyle, props.projectId]);
   const runBgmRenderByScore = useCallback(async () => {
     if (!props.projectId) {
       setChapterAudioError("缺少项目身份,无法生成 BGM");
       return;
     }
+    const origin = beginBgmOperation();
+    if (!origin.isCurrent()) return;
     const style = bgmStyle.trim();
     const abc = bgmScore.abcText;
     if (!style) {
@@ -501,25 +554,32 @@ export function WorkbenchTab(props: {
         {
           fetchWorkflowText: (workflowId) => transport.content(workflowId),
           execute: runComfyExecute,
-          onProgress: (message) => setBgmProgress(message),
+          isCurrent: origin.isCurrent,
+          onProgress: (message) => { if (origin.isCurrent()) setBgmProgress(message); },
         },
       );
-      setBgmProgress("写入项目并绑定本章 BGM…");
-      const saved = await persistComfyAudio(audio.b64, audio.filename ?? "bgm.flac");
-      await bindSharedAudioFromPath("bgm", saved.filePath);
+      if (origin.isCurrent()) setBgmProgress("写入项目并绑定本章 BGM…");
+      const saved = await persistComfyAudio(audio.b64, audio.filename ?? "bgm.flac", origin.projectId);
+      origin.assertCurrent();
+      const bound = await bindSharedAudioFromPath("bgm", saved.filePath, origin);
+      if (!bound || !origin.isCurrent()) return;
       setBgmScoreState((current) => bgmScoreReducer(current, { type: "render-done" }));
       setBgmProgress(null);
       toast.success("按谱渲染完成,已绑定到本章 BGM");
     } catch (error) {
+      if (!origin.isCurrent()) return;
       const message = error instanceof Error ? error.message : String(error);
       setBgmScoreState((current) => bgmScoreReducer(current, { type: "fail", error: message }));
       setChapterAudioError(message);
       setBgmProgress(null);
     } finally {
-      setBgmGenerating(false);
-      setChapterAudioBusy(false);
+      if (origin.isCurrent()) {
+        setBgmGenerating(false);
+        setChapterAudioBusy(false);
+        setBgmProgress(null);
+      }
     }
-  }, [bgmLyrics, bgmScore.abcText, bgmStyle, bindSharedAudioFromPath, props.projectId]);
+  }, [beginBgmOperation, bgmLyrics, bgmScore.abcText, bgmStyle, bindSharedAudioFromPath, props.projectId]);
   // abcjs 谱面预览(editing/error 态且谱文本非空时渲染;解析失败清容器不阻断编辑)。
   const scoreAbcText = bgmScore.abcText;
   useEffect(() => {
@@ -542,7 +602,27 @@ export function WorkbenchTab(props: {
   const [coverLyrics, setCoverLyrics] = useState("");
   const [coverGenerating, setCoverGenerating] = useState(false);
   const [coverProgress, setCoverProgress] = useState<string | null>(null);
+  const coverAssetsRequest = useRef(0);
+  useLayoutEffect(() => {
+    manifestRequestVersion.current += 1;
+    coverAssetsRequest.current += 1;
+    bgmBatchOrigin.current = null;
+    setChapterManifest(null);
+    setChapterAudioStatus("未读取");
+    setChapterAudioError(null);
+    setChapterAudioBusy(false);
+    setBgmGenerating(false);
+    setBgmProgress(null);
+    setBgmBatchState(bgmBatchInitialState);
+    setBgmScoreState(bgmScoreInitialState);
+    setBgmCoverState(bgmCoverInitialState);
+    setCoverGenerating(false);
+    setCoverProgress(null);
+  }, [bgmScopeVersion, setChapterManifest]);
   const loadBgmCoverAssets = useCallback(async () => {
+    const origin = captureBgmOrigin();
+    if (!origin.isCurrent()) return;
+    const request = ++coverAssetsRequest.current;
     setBgmCoverState(bgmCoverReducer(bgmCoverInitialState, { type: "load-assets" }));
     const lister = window.studioAssets?.list;
     if (!lister) {
@@ -551,13 +631,15 @@ export function WorkbenchTab(props: {
     }
     try {
       const reply = await lister({ type: "audio", limit: 200 });
+      if (!origin.isCurrent() || request !== coverAssetsRequest.current) return;
       const assets = toBgmCoverAssetOptions(reply.items ?? []);
       setBgmCoverState((current) => bgmCoverReducer(current, { type: "assets-loaded", assets }));
     } catch (error) {
+      if (!origin.isCurrent() || request !== coverAssetsRequest.current) return;
       const message = error instanceof Error ? error.message : String(error);
       setBgmCoverState((current) => bgmCoverReducer(current, { type: "fail", error: message }));
     }
-  }, []);
+  }, [captureBgmOrigin]);
   // 面板展开且未列举过时自动拉一次参考曲清单(idle 态幂等守卫)。
   const coverPanelPhase = bgmCover.phase;
   useEffect(() => {
@@ -568,6 +650,8 @@ export function WorkbenchTab(props: {
       setChapterAudioError("缺少项目身份,无法生成翻唱");
       return;
     }
+    const origin = beginBgmOperation();
+    if (!origin.isCurrent()) return;
     const asset = bgmCover.assets.find((item) => item.id === bgmCover.selectedAssetId);
     if (!asset) {
       setChapterAudioError("请先选择翻唱参考曲(项目内音频资产)");
@@ -591,43 +675,52 @@ export function WorkbenchTab(props: {
           // comfyImageUrlToB64 名为 Image 实为通用读址通道:project-file:// / asset-file:// → 纯 b64。
           readAudioB64: comfyImageUrlToB64,
           execute: runComfyExecute,
-          persistAudio: persistComfyAudio,
+          persistAudio: (b64, filename) => persistComfyAudio(b64, filename, origin.projectId),
+          isCurrent: origin.isCurrent,
           // 基线=组件现态的清单+选择:onStateChange 是整体回推,不带基线会把组件的
           // 参考曲清单与选中项清空(生成期下拉失实、done 后按钮被锁死须手动重选)。
           initialState: { ...bgmCoverInitialState, assets: bgmCover.assets, selectedAssetId: bgmCover.selectedAssetId },
-          onProgress: (message) => setCoverProgress(message),
-          onStateChange: (next) => setBgmCoverState(next),
+          onProgress: (message) => { if (origin.isCurrent()) setCoverProgress(message); },
+          onStateChange: (next) => { if (origin.isCurrent()) setBgmCoverState(next); },
         },
       );
+      if (!origin.isCurrent()) return;
       if (finalState.phase === "done" && finalState.result) {
         setCoverProgress("写入项目并绑定本章 BGM…");
-        const bound = await bindSharedAudioFromPath("bgm", finalState.result.filePath);
+        const bound = await bindSharedAudioFromPath("bgm", finalState.result.filePath, origin);
+        if (!origin.isCurrent()) return;
         if (bound) toast.success("翻唱已生成并绑定到本章 BGM");
       }
       if (finalState.error) setChapterAudioError(finalState.error);
       setCoverProgress(null);
     } catch (error) {
+      if (!origin.isCurrent()) return;
       // 编排器不抛错;这里只兜底传输层之外的意外,busy 释放统一走 finally。
       setChapterAudioError(error instanceof Error ? error.message : String(error));
       setCoverProgress(null);
     } finally {
-      setCoverGenerating(false);
-      setChapterAudioBusy(false);
+      if (origin.isCurrent()) {
+        setCoverGenerating(false);
+        setChapterAudioBusy(false);
+      }
     }
-  }, [bgmCover.assets, bgmCover.selectedAssetId, bindSharedAudioFromPath, coverLyrics, coverStyle, props.projectId]);
+  }, [beginBgmOperation, bgmCover.assets, bgmCover.selectedAssetId, bindSharedAudioFromPath, coverLyrics, coverStyle, props.projectId]);
   const updateSharedAudio = useCallback(async (
     binding: RemotionChapterAudioBindingV2,
     patch: Partial<RemotionChapterAudioBindingV2>,
   ) => {
+    const origin = captureBgmOrigin();
     try {
       const next = { ...binding, ...patch, bindingFingerprint: "" };
       next.bindingFingerprint = await createRemotionAudioBindingFingerprint(next);
-      await writeSharedAudio(next);
+      origin.assertCurrent();
+      await writeSharedAudio(next, origin);
+      origin.assertCurrent();
       setChapterAudioError(null);
     } catch (error) {
-      setChapterAudioError(error instanceof Error ? error.message : String(error));
+      if (origin.isCurrent()) setChapterAudioError(error instanceof Error ? error.message : String(error));
     }
-  }, [writeSharedAudio]);
+  }, [captureBgmOrigin, writeSharedAudio]);
   const handleShotQueueAction = useCallback(async (job: RemotionRenderJobV1, action: "retry" | "cancel") => {
     const queue = window.remotionQueue;
     if (!queue) return;
@@ -983,7 +1076,10 @@ export function WorkbenchTab(props: {
                     disabled={isScoreBusy(bgmScore, bgmGenerating || chapterAudioBusy)}
                     spellCheck={false}
                     value={bgmScore.abcText}
-                    onChange={(event) => setBgmScoreState((current) => bgmScoreReducer(current, { type: "abc-edit", abcText: event.currentTarget.value }))}
+                    onChange={(event) => {
+                      const abcText = event.currentTarget.value;
+                      setBgmScoreState((current) => bgmScoreReducer(current, { type: "abc-edit", abcText }));
+                    }}
                   />
                 </label>
                 <div className="rounded border border-border/70 bg-background/40 p-2" data-bgm-score-preview>
@@ -1064,7 +1160,10 @@ export function WorkbenchTab(props: {
                     data-bgm-cover-asset-select
                     disabled={coverGenerating || chapterAudioBusy || bgmGenerating || bgmCover.assets.length === 0}
                     value={bgmCover.selectedAssetId ?? ""}
-                    onChange={(event) => setBgmCoverState((current) => bgmCoverReducer(current, { type: "select-asset", assetId: event.currentTarget.value || null }))}
+                    onChange={(event) => {
+                      const assetId = event.currentTarget.value || null;
+                      setBgmCoverState((current) => bgmCoverReducer(current, { type: "select-asset", assetId }));
+                    }}
                   >
                     <option value="">{bgmCover.assets.length === 0 ? (bgmCover.phase === "loading-assets" ? "列举中…" : "暂无可选音频资产") : "选择参考曲…"}</option>
                     {bgmCover.assets.map((asset) => (

@@ -455,6 +455,23 @@ describe("consumeComfyBridgeWritebacks", () => {
     expect(calls.acks).toEqual([]);
   });
 
+  it("图片写盘期间同 id 分镜换章:保留旧章输出且不覆盖新章", async () => {
+    let shots = [storyboard("sb-a", 1, "ep-1")];
+    const { client, calls } = makeClient([{ id: 1, imageB64: "aGk=", shotTarget: "sb-a" }]);
+    const { deps, applied } = makeDeps({
+      client,
+      storyboards: () => shots,
+      persist: async () => {
+        shots = [storyboard("sb-a", 1, "ep-2")];
+        return { url: "project-file://project-1/media/one.png" };
+      },
+    });
+    await consumeComfyBridgeWritebacks(deps);
+    expect(applied).toHaveLength(0);
+    expect(calls.acks).toEqual([]);
+    expect((await client.getBridgeWritebacks(0))?.items).toHaveLength(1);
+  });
+
   it.each(["blob:preview", "project-file://project-2/media/video.mp4"])(
     "视频写桥返回非本项目持久地址:不回写不 ack (%s)", async (url) => {
       const { client, calls } = makeClient([{

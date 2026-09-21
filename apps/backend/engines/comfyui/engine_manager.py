@@ -244,7 +244,7 @@ class JobRegistry:
 
     def update(self, job_id: str, *, progress: int | None = None, step: str | None = None,
                message: str | None = None, error: str | None = None, result=None,
-               tail_line: str | None = None) -> None:
+               tail_line: str | None = None, complete: bool = True) -> None:
         with self._lock:
             job = self._jobs.get(job_id)
             if not job:
@@ -260,8 +260,10 @@ class JobRegistry:
                 job["status"] = "error"
             if result is not None:
                 job["result"] = result
-                job["status"] = "complete"
-                job["progress"] = 100
+                # Accepted engine metadata is visible while history still runs.
+                if complete:
+                    job["status"] = "complete"
+                    job["progress"] = 100
             if tail_line is not None:
                 job["tail"] = (job["tail"] + [tail_line])[-30:]
             job["updatedAt"] = int(time.time() * 1000)

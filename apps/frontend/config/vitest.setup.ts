@@ -32,12 +32,14 @@ function hasStorageMethods(value: unknown): value is Storage {
   );
 }
 
-const currentStorage = globalThis.localStorage;
+// Vitest 1.x aliases window to global and may retain Node's native getter.
+// Get jsdom's own storage directly to preserve its origin and DOM semantics.
+const currentStorage = (globalThis as typeof globalThis & {
+  jsdom?: { window: { localStorage: Storage } };
+}).jsdom?.window.localStorage;
 
-if (!hasStorageMethods(currentStorage)) {
-  Object.defineProperty(globalThis, "localStorage", {
-    configurable: true,
-    writable: true,
-    value: createMemoryStorage(),
-  });
-}
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  writable: true,
+  value: hasStorageMethods(currentStorage) ? currentStorage : createMemoryStorage(),
+});

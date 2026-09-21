@@ -295,11 +295,18 @@ def _execute_target(
         client_id = uuid.uuid4().hex
         submitted = _http_json("POST", f"{_engine_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=30)
         node_errors = submitted.get("node_errors")
-        if node_errors:
-            raise EngineOpError(f"引擎拒绝工作流: {str(node_errors)[:500]}")
         prompt_id = submitted.get("prompt_id")
-        if not isinstance(prompt_id, str) or not prompt_id:
+        if not isinstance(prompt_id, str) or not prompt_id.strip():
+            if node_errors:
+                raise EngineOpError(f"引擎拒绝工作流: {str(node_errors)[:500]}")
             raise EngineOpError("引擎未返回任务编号")
+        warnings = []
+        if node_errors:
+            warning = f"任务 {prompt_id} 部分输出校验失败,继续跟踪已接受输出: {str(node_errors)[:500]}"
+            warnings.append(warning)
+            jobs.update(job_id, tail_line=warning)
+        accepted = {"promptId": prompt_id, "nodeErrors": node_errors or {}, "warnings": warnings}
+        jobs.update(job_id, result=accepted, complete=False)
 
         # 4. 轮询 history(执行中;进度按耗时线性爬到 90)
         jobs.update(job_id, progress=35, step="running", message="引擎执行中…")
@@ -351,7 +358,7 @@ def _execute_target(
             })
         jobs.update(
             job_id,
-            result={"promptId": prompt_id, "images": collected, "audios": audio_collected, "texts": text_outputs},
+            result={**accepted, "images": collected, "audios": audio_collected, "texts": text_outputs},
         )
     except (EngineOpError, ValueError) as exc:
         jobs.update(job_id, error=str(exc))

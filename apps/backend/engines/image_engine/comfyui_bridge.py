@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import copy
 import json
+import math
 import os
 import re
 import time
@@ -329,12 +330,26 @@ def _history_output(history: dict[str, Any], prompt_id: str) -> tuple[str, dict[
 
 
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
+    from image_gen.pipeline import is_generation_cancelled
+
+    def check_cancelled(prompt_id: str | None = None) -> None:
+        if not is_generation_cancelled():
+            return
+        if prompt_id:
+            try:
+                _http_json("POST", f"{bridge_url()}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)
+            except Exception:
+                pass  # Local cancellation remains authoritative if cleanup fails.
+        raise _pipeline_error("generation-cancelled", "已停止")
+
+    check_cancelled()
     # 按需启动(09-08 补口):自管引擎装了没跑→先拉起再生成;未装则回落 17598
     from engines.comfyui import engine_manager as _em
     try:
         _em.engine_manager().ensure_engine_ready()
     except _em.EngineOpError as exc:
         raise _pipeline_error("engine-start-failed", str(exc)) from exc
+    check_cancelled()
     stats = resolve_big_files()
     if not stats:
         raise _pipeline_error("bridge-unreachable", "ComfyUI 没在运行，请先打开它再试")
@@ -362,6 +377,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     _warn_if_version_below_min(stats, template)
     uploaded = []
     for image in references:
+        check_cancelled()
         response = _upload_image(
             f"{bridge_url()}/upload/image",
             image,
@@ -384,23 +400,45 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     )
     if message:
         raise _pipeline_error("bridge-missing-nodes", message)
+    check_cancelled()
     client_id = str(uuid.uuid4())
     submitted = _http_json("POST", f"{bridge_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=20)
-    if submitted.get("node_errors"):
-        raise _pipeline_error("bridge-execution-failed", f"ComfyUI 拒绝工作流: {str(submitted['node_errors'])[:500]}")
     prompt_id = submitted.get("prompt_id")
-    if not isinstance(prompt_id, str) or not prompt_id:
+    if not isinstance(prompt_id, str) or not prompt_id.strip():
+        if submitted.get("node_errors"):
+            raise _pipeline_error("bridge-execution-failed", f"ComfyUI 拒绝工作流: {str(submitted['node_errors'])[:500]}")
         raise _pipeline_error("bridge-execution-failed", "ComfyUI 未返回任务编号")
-    timeout_s = float(os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S", "600"))
+    if submitted.get("node_errors"):
+        print(f"[image-sidecar] comfyui-bridge: 任务 {prompt_id} 部分输出校验失败,继续跟踪已接受输出: {str(submitted['node_errors'])[:500]}", flush=True)
+    try:
+        timeout_s = float(os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S", "600"))
+    except (TypeError, ValueError, OverflowError):
+        timeout_s = 600.0
+    if not math.isfinite(timeout_s) or timeout_s <= 0:
+        timeout_s = 600.0
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        state, image = _history_output(_http_json("GET", f"{bridge_url()}/history/{prompt_id}", timeout=5), prompt_id)
+        check_cancelled(prompt_id)
+        try:
+            history = _http_json("GET", f"{bridge_url()}/history/{prompt_id}", timeout=5)
+        except Exception:
+            check_cancelled(prompt_id)
+            raise
+        check_cancelled(prompt_id)
+        state, image = _history_output(history, prompt_id)
         if state == "success":
             if not image:
                 raise _pipeline_error("bridge-no-output", "ComfyUI 已完成但没有输出图片")
             query = parse.urlencode({"filename": image["filename"], "subfolder": image.get("subfolder", ""), "type": image.get("type", "output")})
-            return base64.b64encode(_fetch_bytes(f"{bridge_url()}/view?{query}")).decode("ascii")
+            try:
+                content = _fetch_bytes(f"{bridge_url()}/view?{query}")
+            except Exception:
+                check_cancelled(prompt_id)
+                raise
+            check_cancelled(prompt_id)
+            return base64.b64encode(content).decode("ascii")
         time.sleep(1)
+    check_cancelled(prompt_id)
     try:
         _http_json("POST", f"{bridge_url()}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)
     except Exception:

@@ -142,7 +142,7 @@ class BridgeContractTests(unittest.TestCase):
             with self.assertRaises(PipelineError) as ctx:
                 bridge.generate("x", "1:1", None, 8, None)
         self.assertEqual(ctx.exception.code, "bridge-unreachable")
-        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(bridge, "_http_json", side_effect=[{"system": {}}, {"prompt_id": "p", "node_errors": [{"x": "bad"}]}]):
+        with patch.object(bridge, "_available_node_classes", return_value=_all_template_classes_available()), patch.object(bridge, "_http_json", side_effect=[{"system": {}}, {"node_errors": [{"x": "bad"}]}]):
             with self.assertRaises(PipelineError) as ctx:
                 bridge.generate("x", "1:1", None, 8, None)
         self.assertEqual(ctx.exception.code, "bridge-execution-failed")
@@ -165,9 +165,94 @@ class BridgeContractTests(unittest.TestCase):
             found = bridge.find_cached()
         self.assertEqual(found["repo_id"], "comfyui-service:127.0.0.1:17598")
 
+    def test_invalid_timeout_configuration_keeps_a_finite_default(self):
+        for value in ("oops", "NaN", "Infinity", "-Infinity", "0", "-1", "1e1000"):
+            with self.subTest(value=value), patch.dict(os.environ, {
+                "MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S": value,
+            }), patch.object(bridge, "resolve_big_files", return_value={"system": {}}), patch.object(
+                bridge, "_available_node_classes", return_value=_all_template_classes_available()
+            ), patch.object(bridge, "_http_json", side_effect=[
+                {"prompt_id": "p-config"}, {}, {},
+            ]) as http_json, patch.object(bridge.time, "monotonic", side_effect=[0.0, 1.0, 601.0]), patch.object(
+                bridge.time, "sleep"
+            ), patch("engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True):
+                with self.assertRaises(PipelineError) as caught:
+                    bridge.generate("x", "1:1", None, 8, None)
+                self.assertEqual(caught.exception.code, "bridge-timeout")
+                self.assertEqual(sum("/history/" in call.args[1] for call in http_json.call_args_list), 1)
+                self.assertTrue(http_json.call_args_list[-1].args[1].endswith("/api/jobs/p-config/cancel"))
+
+    def test_partial_acceptance_tracks_prompt_and_reports_warning(self):
+        node_errors = {"bad-output": {"errors": [{"message": "Required input is missing"}]}}
+        history = {"p-partial": {"status": {"status_str": "success"}, "outputs": {
+            "11": {"images": [{"filename": "out.png"}]},
+        }}}
+        with patch.object(bridge, "resolve_big_files", return_value={"system": {}}), patch.object(
+            bridge, "_available_node_classes", return_value=_all_template_classes_available()
+        ), patch.object(bridge, "_http_json", side_effect=[
+            {"prompt_id": "p-partial", "node_errors": node_errors}, history,
+        ]) as http_json, patch.object(bridge, "_fetch_bytes", return_value=b"partial-output"), patch(
+            "engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+        ), patch("builtins.print") as printed:
+            result = bridge.generate("x", "1:1", None, 8, None)
+        self.assertEqual(base64.b64decode(result), b"partial-output")
+        self.assertTrue(any("/history/p-partial" in call.args[1] for call in http_json.call_args_list))
+        self.assertTrue(any("p-partial" in str(call) and "bad-output" in str(call) for call in printed.call_args_list))
+
     def test_bridge_is_registered_as_service_model(self):
         self.assertIs(model_cache.IMAGE_MODELS[bridge.MODEL_NAME], bridge.SPEC)
         self.assertIs(model_cache._ENGINE_BY_LAYOUT[bridge.LAYOUT], bridge)
+
+    def test_user_cancel_stops_before_submit_and_cancels_only_accepted_prompt(self):
+        for stage in ("before", "submitted", "history", "fetch", "cancel-fails", "history-error", "fetch-error"):
+            with self.subTest(stage=stage):
+                cancelled = {"value": stage == "before"}
+                calls = []
+                history = {"p/cancel": {"status": {"status_str": "success"}, "outputs": {
+                    "11": {"images": [{"filename": "out.png"}]},
+                }}}
+
+                def http_json(method, url, payload=None, timeout=10):
+                    calls.append((method, url))
+                    if url.endswith("/prompt"):
+                        if stage in ("submitted", "cancel-fails"):
+                            cancelled["value"] = True
+                        return {"prompt_id": "p/cancel"}
+                    if "/history/" in url:
+                        if stage in ("history", "history-error"):
+                            cancelled["value"] = True
+                        if stage == "history-error":
+                            raise OSError("history connection closed")
+                        return history
+                    if "/cancel" in url:
+                        if stage == "cancel-fails":
+                            raise OSError("cleanup unavailable")
+                        return {}
+                    raise AssertionError(url)
+
+                def fetch_bytes(url):
+                    if stage in ("fetch", "fetch-error"):
+                        cancelled["value"] = True
+                    if stage == "fetch-error":
+                        raise OSError("view connection closed")
+                    return b"late-output"
+
+                with patch.object(bridge, "resolve_big_files", return_value={"system": {}}), patch.object(
+                    bridge, "_available_node_classes", return_value=_all_template_classes_available()
+                ), patch.object(bridge, "_http_json", side_effect=http_json), patch.object(
+                    bridge, "_fetch_bytes", side_effect=fetch_bytes
+                ), patch("engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True), patch(
+                    "image_gen.pipeline.is_generation_cancelled", side_effect=lambda: cancelled["value"]
+                ):
+                    with self.assertRaises(PipelineError) as caught:
+                        bridge.generate("x", "1:1", None, 8, None)
+                self.assertEqual(caught.exception.code, "generation-cancelled")
+                if stage == "before":
+                    self.assertEqual(calls, [])
+                else:
+                    self.assertTrue(calls[-1][1].endswith("/api/jobs/p%2Fcancel/cancel"))
+                    self.assertEqual(sum("/api/jobs/" in url for _, url in calls), 1)
+                self.assertFalse(any(url.endswith("/interrupt") for _, url in calls))
 
     def test_inventory_projects_service_probe_and_template_state(self):
         with patch.object(model_inventory, "IMAGE_MODELS", {bridge.MODEL_NAME: bridge.SPEC}), patch.object(

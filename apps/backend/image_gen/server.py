@@ -22,6 +22,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import shutil
 import signal
 import threading
@@ -87,17 +88,29 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # noqa: N802 — stdlib signature
         print(f"[image-sidecar] {fmt % args}", flush=True)
 
-    def _cors_origin(self) -> str:
-        # 回显请求 Origin：生产渲染器经 file:// 加载（Origin: null），
-        # 开发经 localhost —— 固定白名单会全拒，回显是本地回环服务的正确姿势。
-        return self.headers.get("Origin") or "*"
+    def _cors_origin(self) -> str | None:
+        # Native Python callers omit Origin; packaged file:// renderers use
+        # null, and dev/ComfyUI webviews use HTTP loopback with dynamic ports.
+        # null remains an opaque-origin compatibility exception, not identity.
+        origin = self.headers.get("Origin")
+        if origin == "null":
+            return origin
+        if not isinstance(origin, str):
+            return None
+        match = re.fullmatch(r"http://(?:localhost|127\.0\.0\.1|\[::1\])(?::([0-9]{1,5}))?", origin)
+        if match and (match[1] is None or 0 < int(match[1]) <= 65535):
+            return origin
+        return None
 
     def _send_json(self, payload, status: int = HTTPStatus.OK) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+        origin = self._cors_origin()
+        if origin is not None:
+            self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Headers", "content-type,authorization,x-manying-image-token")
         self.send_header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
         self.end_headers()
@@ -107,6 +120,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json({"error": {"message": message, "code": code}, "status": int(status)}, status)
 
     def _authorized(self) -> bool:
+        if self.headers.get("Origin") is not None and self._cors_origin() is None:
+            return False
         header = self.headers.get("Authorization", "")
         if header == f"Bearer {LOCAL_TOKEN}":
             return True
@@ -128,8 +143,14 @@ class Handler(BaseHTTPRequestHandler):
     # -- routing ----------------------------------------------------------
 
     def do_OPTIONS(self):  # noqa: N802
+        origin = self._cors_origin()
+        if self.headers.get("Origin") is not None and origin is None:
+            self._send_error_json(HTTPStatus.FORBIDDEN, "不允许的本地服务请求来源", "invalid_origin")
+            return
         self.send_response(HTTPStatus.NO_CONTENT)
-        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+        if origin is not None:
+            self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Headers", "content-type,authorization,x-manying-image-token")
         self.send_header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS")
         self.end_headers()
@@ -279,6 +300,8 @@ class Handler(BaseHTTPRequestHandler):
                 status = HTTPStatus.SERVICE_UNAVAILABLE
             elif exc.code == "generation-busy":
                 status = HTTPStatus.CONFLICT
+            elif exc.code == "generation-cancelled":
+                status = HTTPStatus.OK
             elif exc.code == "reference-unsupported":
                 status = HTTPStatus.BAD_REQUEST
             elif exc.code == "bridge-unreachable":
@@ -486,6 +509,21 @@ class Handler(BaseHTTPRequestHandler):
                 if has_image == has_video:
                     self._send_error_json(400, "回写必须二选一提供imageB64或videoB64", "bridge-writeback-invalid")
                     return
+                # Reject poison entries before durable publication: a malformed
+                # target or timestamp otherwise blocks every later writeback.
+                if any(key in payload and not isinstance(payload[key], str) for key in ("client", "shotTarget", "prompt")):
+                    raise ValueError("回写 client/shotTarget/prompt 必须是字符串")
+                if "meta" in payload and not isinstance(payload["meta"], dict):
+                    raise ValueError("回写 meta 必须是对象")
+                if "ts" in payload and (type(payload["ts"]) is not int or not 0 < payload["ts"] <= 2 ** 53 - 1):
+                    raise ValueError("回写 ts 必须是正安全整数")
+                try:
+                    decoded = base64.b64decode(video_b64 if has_video else image_b64, validate=True)
+                except ValueError as exc:
+                    raise ValueError("回写内容必须是有效 base64") from exc
+                if not decoded:
+                    raise ValueError("回写内容不能为空")
+                del decoded
                 meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
                 if has_video:
                     subfolder = meta.get("subfolder")
@@ -495,11 +533,9 @@ class Handler(BaseHTTPRequestHandler):
                         meta.get("kind") != "video"
                         or len(segments) != 4
                         or segments[:2] != ["video", "漫影"]
-                        or any(not segment or segment in {".", ".."} for segment in segments[2:])
+                        or any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", segment) for segment in segments[2:])
                         or not isinstance(policy, str)
-                        or not policy
-                        or "/" in policy
-                        or "\\" in policy
+                        or not re.fullmatch(r"[A-Za-z0-9._-]+", policy)
                     ):
                         self._send_error_json(400, "视频回写缺少meta.kind/subfolder/policy", "bridge-writeback-invalid")
                         return
@@ -571,8 +607,8 @@ class Handler(BaseHTTPRequestHandler):
             if method == "POST" and path == "/comfy/bridge/actions/ack":
                 from engines.comfyui import bridge_actions
                 ids = payload.get("ids")
-                if not isinstance(ids, list) or any(type(item_id) is not int or item_id <= 0 for item_id in ids):
-                    raise ValueError("动作确认 ids 必须是正整数列表")
+                if not isinstance(ids, list) or any(type(item_id) is not int or not 0 < item_id <= 2 ** 53 - 1 for item_id in ids):
+                    raise ValueError("动作确认 ids 必须是正安全整数列表")
                 self._send_json({
                     "deleted": bridge_actions.ack(queue_id=payload.get("queueId"), ids=ids),
                     "ackMode": "exact",
@@ -580,8 +616,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if method == "POST" and path == "/comfy/bridge/writebacks/ack":
                 ids = payload.get("ids")
-                if not isinstance(ids, list) or any(type(item_id) is not int or item_id <= 0 for item_id in ids):
-                    raise ValueError("回写确认 ids 必须是正整数列表")
+                if not isinstance(ids, list) or any(type(item_id) is not int or not 0 < item_id <= 2 ** 53 - 1 for item_id in ids):
+                    raise ValueError("回写确认 ids 必须是正安全整数列表")
                 self._send_json({"deleted": bridge_inbox.ack(ids=ids), "ackMode": "exact"})
                 return
 
