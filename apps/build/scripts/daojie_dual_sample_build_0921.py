@@ -49,7 +49,7 @@ WF_DIR = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文�
 MASTER = WF_DIR / "K2-文生图-道劫.json"
 MASTER_REL = "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 TARGET = WF_DIR / "K2-文生图-道劫-二采版.json"
-MASTER_SHA256 = "f581b8ecaceb2e9a82cdfb3931dd41e588f118609e09514e7951269b680c408b"
+MASTER_SHA256 = "0774532ba21c1f18153152bcc59e880e6cfd4e23ea7f45a02985e373b1617ac1"  # v4=0922 01:00 美宣八件终态(v3=f581b8ec… 已随 c6e06a2 落账前移)
 
 # design §3/§4 固定字段(与 id 无关)
 GROUP_COLOR = "#3a5a4a"
