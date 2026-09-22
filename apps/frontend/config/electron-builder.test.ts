@@ -61,7 +61,7 @@ describe("electron-builder TTS packaging", () => {
     expect(studioManualsResource).toContain('"!**/*.tsbuildinfo"');
   });
 
-  it("does not bundle Daojie-specific content manuals into the desktop app", () => {
+  it("ships the Daojie ink manual and keeps only Daojie story skills out of the app", () => {
     const source = readFileSync(new URL("./electron-builder.yml", import.meta.url), "utf8");
     const studioManualsStart = source.indexOf("  - from: frontend/assets/studio-manuals");
     // 只切 studio-manuals 自己的块(到下一个 resource 块为止)——07-07 起
@@ -69,7 +69,9 @@ describe("electron-builder TTS packaging", () => {
     const nextResourceStart = source.indexOf("  - from:", studioManualsStart + 1);
     const studioManualsResource = source.slice(studioManualsStart, nextResourceStart);
 
-    expect(studioManualsResource).toContain('"!art_skills/daojie_ink_guofeng/**"');
+    // 09-22 用户翻案 08-15「道劫=个人资产不入包」:art 侧 daojie_ink_guofeng
+    // 全量手册并入安装包(方案C 只保留这一个道劫美术风格)——排除行必须全文件不存在。
+    expect(source).not.toContain('"!art_skills/daojie_ink_guofeng/**"');
     expect(studioManualsResource).toContain('"!story_skills/Daojie_xianxia/**"');
     // 道劫排除不得再出现在任何其它资源块的 filter 里(防误贴复发)。
     const outsideSlice = source.slice(0, studioManualsStart) + source.slice(nextResourceStart);

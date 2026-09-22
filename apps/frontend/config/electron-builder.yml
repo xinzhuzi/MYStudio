@@ -78,10 +78,14 @@ extraResources:
     to: studio-manuals
     filter:
       - "**/*"
-      # 道劫=个人资产不入包(用户裁定 08-15);真源在项目侧 <项目根>/skills,
-      # 仓库种子仅作迁移源保留。story 侧 Daojie_xianxia 此前漏排(08-25 补)。
-      - "!art_skills/daojie_ink_guofeng/**"
+      # 道劫美术手册 daojie_ink_guofeng 并入安装包(用户 09-22 翻案 08-15
+      # 「道劫=个人资产不入包」裁定,方案C:道劫美术风格只保留这一个,
+      # 「道劫·新中式」轻量预设卡已整体删除)。
+      # story 侧 Daojie_xianxia 排除保留不动(个人资产不入包口径不变,08-25 补排)。
       - "!story_skills/Daojie_xianxia/**"
+      # 打包卫生(09-22 方案C 深度审计):macOS Finder 元数据与本机工作流草稿不入包。
+      - "!**/.DS_Store"
+      - "!**/.zcode/**"
   # 成片调色 LUT 资产（08-18-haldclut-grade；生成源 build/scripts/generate-luts.py）。
   - from: frontend/assets/luts
     to: luts
