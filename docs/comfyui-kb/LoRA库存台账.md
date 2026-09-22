@@ -1,6 +1,7 @@
 # LoRA 库存台账(09-19)
+最后核账:2026-09-22
 
-> **生成方式**:扫描脚本 `apps/build/scripts/daojie_lora_refscan_0919.py`(只读)对三面全量扫描后人工合并定谳——仓库工作流库 54 json(UI `nodes[].widgets_values[_named]` + API/桥 `graph` 递归)+ 引擎家用户区 3 json + my_nodes 数据面 2 json,共 59 个;对装机家 `~/Library/Application Support/漫影工作室/comfyui/models/loras/` 实际文件判存。
+> **生成方式**:扫描脚本 `apps/build/scripts/daojie_lora_refscan.py`(只读)对三面全量扫描后人工合并定谳——仓库工作流库 54 json(UI `nodes[].widgets_values[_named]` + API/桥 `graph` 递归)+ 引擎家用户区 3 json + my_nodes 数据面 2 json,共 59 个;对装机家 `~/Library/Application Support/漫影工作室/comfyui/models/loras/` 实际文件判存。
 > **首扫(修复前)**:2026-09-19 晚,`BROKEN=13`(引用了不存在文件的节点数;柔水彩×5 节点/复古漫×6 节点/charsheet 模板路径×1/H3 模板×2——审计 §1 只记了其中 4 处,超集/风格参照的 [70] 复古漫与 H3 模板两处为本轮扫描新发现)。
 > **复扫(修复后)**:`BROKEN=1`(仅 H3 官方 R2V 模板 [145],见断链节;道劫 t2i 实测零断链,a245ce9 已收口,本轮未触碰该文件)。
 > **判存口径**:LoRA 加载节点(类型名含 lora,如 LoraLoaderModelOnly)与 my_nodes 数据面为权威口径(引用即判存);非 LoRA 节点(checkpoint/VAE/TE/DiT/pack)中的同名扩展名字符串仅当命中库内实体才计为引用(pack 内嵌 lora 槽不漏账),未命中的 298 条列入「存疑模型串」不计断链(离线无法判其所属模型域,绝大多数为 VAE/TE/DiT/预览件)。
@@ -38,7 +39,7 @@
 
 ## 二、断链与修复(本轮收口)
 
-首扫 `BROKEN=13` 节点 → 修复后复扫 `BROKEN=1`。修复脚本 `apps/build/scripts/daojie_lora_refclose_0919.py`(幂等,复跑零变化;零文件删除,全部动作=「摘除指向已删/不存在文件的旁路节点」与「改路径对齐实名」两类的实例;每文件过 workflow_graph_lint 门禁=改前遗留问题零新增):
+首扫 `BROKEN=13` 节点 → 修复后复扫 `BROKEN=1`。修复脚本 `apps/build/scripts/daojie_lora_refclose.py`(幂等,复跑零变化;零文件删除,全部动作=「摘除指向已删/不存在文件的旁路节点」与「改路径对齐实名」两类的实例;每文件过 workflow_graph_lint 门禁=改前遗留问题零新增):
 
 | # | 断链(修复前) | 处置 | 落点 |
 |---|---|---|---|

@@ -118,7 +118,7 @@
 | [第三方声明](./engineering/THIRD_PARTY_NOTICES.md) | 第三方组件和许可证声明 |
 | [存储与数据迁移](./engineering/STORAGE_AND_DATA.md) | 项目存储位置、导入导出、指向已有数据目录和 legacy 迁移 |
 | [文档覆盖审计](./engineering/DOCS_COVERAGE_AUDIT.md) | 当前界面、源码入口和用户文档的覆盖关系与维护方向 |
-| [架构耦合体检报告 08-31](./engineering/architecture-coupling-audit-0831.md) | sclass→director 共享分镜域抽取后的全仓耦合体检与瘦身记录 |
+| [架构耦合体检报告 08-31](./engineering/architecture-coupling-audit.md) | sclass→director 共享分镜域抽取后的全仓耦合体检与瘦身记录 |
 | [B5 TrackKey 运行时解析总结](./engineering/B5-trackKey-runtime-resolution-summary.md) | trackKey 从硬编码改为 ProductionTrack→VideoCandidate 运行时解析的实现记录 |
 | [文档维护清单](./engineering/DOCS_MAINTENANCE.md) | 修改 UI、TTS、打包、存储或工作流后需要同步的文档和验证命令 |
 

@@ -7,7 +7,7 @@
 
 | 位置 | 内容 | 价值 |
 |---|---|---|
-| [X_角色设定图提示词精选_0918.md](X_角色设定图提示词精选_0918.md) | 总索引:X 中英圈提示词原文 + B站视频路线 + 本目录四大资产导览 | 先读这个,全貌入口 |
+| [X_角色设定图提示词精选.md](X_角色设定图提示词精选.md) | 总索引:X 中英圈提示词原文 + B站视频路线 + 本目录四大资产导览 | 先读这个,全貌入口 |
 | [1_Krea2设定表LoRA/](1_Krea2设定表LoRA/) | Alissonerdx/CharacterSheet 全家桶:核心模板(2.4万字符,IDENTITY LOCKS 纪律)+ 4 个工作流 JSON(仅参考) | Krea2 本地设定表第一优先路线 |
 | [2_krea2edit引擎件/](2_krea2edit引擎件/) | lbouaraba/comfyui-krea2edit(626★)的 README/CHANGELOG/样例工作流 | 身份保持编辑引擎件的参数手册(ref_boost 拨盘等) |
 | [3_通用写法母版/](3_通用写法母版/) | Niji 母版 + GPT-Image2 身份锚点法 | 跨模型通用的设定表写法纪律 |
@@ -25,7 +25,7 @@
 
 | 文件 | 来源 | 许可 |
 |---|---|---|
-| X_角色设定图提示词精选_0918.md | 本仓整理(X 帖子原文+导览) | 自有 |
+| X_角色设定图提示词精选.md | 本仓整理(X 帖子原文+导览) | 自有 |
 | 1_Krea2设定表LoRA/* | HF: Alissonerdx/CharacterSheet | 未标,仅参考 |
 | 2_krea2edit引擎件/* | GitHub: lbouaraba/comfyui-krea2edit | 有 LICENSE(见上游) |
 | 3_通用写法母版/niji-* 、anime-* | GitHub: SeOgi-Tsu/anime-character-sheet-prompter(1★) | 未标,仅参考 |
@@ -38,4 +38,4 @@
 
 - 工作流 JSON 一律**仅参考**:对应 LoRA 权重未装机,不得拷入引擎工作流库(工作流落位见 docs/comfyui-kb);引擎实际使用的 krea2edit 插件以引擎家 custom_nodes 内版本为准,本目录只作参数文档。
 - Nano Banana/GPT-Image 是云端模型,与本地 K2 文生图无关;本地 K2 无跨图身份保持,设定表路线须走 krea2edit 编辑形态(见 X 精选"ComfyUI 本地工作流路线"一节)。
-- Krea2 官方提示词口径见上级目录 [../prompting.md](../prompting.md) 与 [../风格提示词_官方采集_0918.md](../风格提示词_官方采集_0918.md);道劫落地现状见 [../../道劫_角色设定表出图逻辑_0919.md](../../道劫_角色设定表出图逻辑_0919.md)。
+- Krea2 官方提示词口径见上级目录 [../prompting.md](../prompting.md) 与 [../风格提示词_官方采集.md](../风格提示词_官方采集.md);道劫落地现状见 [../../道劫_角色设定表出图逻辑_0919.md](../../道劫_角色设定表出图逻辑_0919.md)。

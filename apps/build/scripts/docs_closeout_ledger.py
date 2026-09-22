@@ -31,7 +31,7 @@ for item in audit['source_paths_needing_review']:
         row.update(disposition='generated-output', reason='Build output/legacy cleanup target; it need not exist in a source checkout.', evidence='apps/frontend/config/electron-vite.config.ts; apps/build/packaging/build-mac.sh')
     elif path in ('frontend/assets/studio-manuals','backend/requirements.txt') and (ROOT / 'apps' / path).exists():
         row.update(disposition='apps-relative-path', reason='Packaging/backend context uses apps as working directory; resolved target exists.', evidence='apps/' + path)
-    elif f.startswith(('docs/research/','docs/guides/','docs/融合/')) or f.endswith(('B5-trackKey-runtime-resolution-summary.md','architecture-coupling-audit-0831.md')):
+    elif f.startswith(('docs/research/','docs/guides/','docs/融合/')) or f.endswith(('B5-trackKey-runtime-resolution-summary.md','architecture-coupling-audit.md')):
         row.update(disposition='dated-plan-or-history', reason='Explicit history/plan boundary scopes the original body; preserve original evidence and use the linked current guides.', evidence=f + ':1-12')
     else:
         row.update(status='open', disposition='unresolved', reason='Needs individual source verification.', evidence=f)
@@ -67,7 +67,7 @@ for item in audit['inventory']:
     path=item['path'];file=ROOT/path;text=file.read_text();lines=text.splitlines(); prior=baseline.get(path)
     if item['section']=='prompts': category='prompt-reference-or-dated-experiment'
     elif '/参考_提示词工程/' in path or '/参考/' in path and not path.endswith('README.md'):category='external-reference-or-historical-research'
-    elif item['section'] in ('research','融合','guides','local') or path.endswith(('B5-trackKey-runtime-resolution-summary.md','architecture-coupling-audit-0831.md')):category='dated-plan-or-history'
+    elif item['section'] in ('research','融合','guides','local') or path.endswith(('B5-trackKey-runtime-resolution-summary.md','architecture-coupling-audit.md')):category='dated-plan-or-history'
     elif item['section']=='comfyui-kb':category='pipeline-knowledge-with-dated-evidence'
     elif path.endswith(('LEGACY_SCRIPT_WORKSPACE_GUIDE.md','ASSIST_WORKBENCH_GUIDE.md','ASSIST_WORKBENCH_OPERATIONS.md','ASSIST_WORKBENCH_PARAMETER_REFERENCE.md','voicebox-voice-cloning-flow.md')):category='compatibility-or-retired-entry'
     elif 'art-styles' in path:category='style-gallery'
