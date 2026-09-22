@@ -1,0 +1,250 @@
+{
+  "id": "8f4c1a92-6d27-4b8e-9a15-2c7d58b0e002",
+  "version": 0.4,
+  "revision": 0,
+  "config": {},
+  "extra": {},
+  "groups": [
+    {
+      "id": 1,
+      "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
+      "bounding": [-1860, -460, 1120, 260],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "换装编辑主链(双参考图→编码→缓存→采样→解码→保存,横向)",
+      "bounding": [-620, -180, 3560, 740],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "title": "[1] UNET加载",
+      "pos": [-1800, -360],
+      "size": [340, 84],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {"name": "unet_name", "type": "COMBO", "widget": {"name": "unet_name"}, "link": null},
+        {"name": "weight_dtype", "type": "COMBO", "widget": {"name": "weight_dtype"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "MODEL", "type": "MODEL", "links": [5]}
+      ],
+      "properties": {"Node name for S&R": "UNETLoader"},
+      "widgets_values": ["qwen_image_2.1_bf16.safetensors", "default"]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "title": "[2] CLIP加载(qwen_image)",
+      "pos": [-1380, -360],
+      "size": [360, 130],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip_name", "type": "COMBO", "widget": {"name": "clip_name"}, "link": null},
+        {"name": "type", "type": "COMBO", "widget": {"name": "type"}, "link": null},
+        {"name": "device", "type": "COMBO", "shape": 7, "widget": {"name": "device"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "CLIP", "type": "CLIP", "links": [3]}
+      ],
+      "properties": {"Node name for S&R": "CLIPLoader"},
+      "widgets_values": ["qwen3vl_8b_bf16.safetensors", "qwen_image", "default"]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "title": "[3] VAE加载",
+      "pos": [-960, -360],
+      "size": [340, 60],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "vae_name", "type": "COMBO", "widget": {"name": "vae_name"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "VAE", "type": "VAE", "links": [4, 11]}
+      ],
+      "properties": {"Node name for S&R": "VAELoader"},
+      "widgets_values": ["qwen_image_2.1_vae_bf16.safetensors"]
+    },
+    {
+      "id": 4,
+      "type": "LoadImage",
+      "title": "[4] image_1 编辑画布(官方示例人像)",
+      "pos": [-560, 0],
+      "size": [340, 420],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "COMBO", "widget": {"name": "image"}, "link": null},
+        {"name": "upload", "type": "IMAGEUPLOAD", "widget": {"name": "upload"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [1]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["portrait_model_denim.png", "image"]
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "title": "[5] image_2 参考图(官方示例衬衫)",
+      "pos": [-140, 0],
+      "size": [340, 420],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "COMBO", "widget": {"name": "image"}, "link": null},
+        {"name": "upload", "type": "IMAGEUPLOAD", "widget": {"name": "upload"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [2]},
+        {"name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["clothing_light_blue_denim_shirt.png", "image"]
+    },
+    {
+      "id": 6,
+      "type": "TextEncodeQwenImage21",
+      "title": "[6] Qwen2.1 文本编码(双图·resolution=0)",
+      "pos": [280, 0],
+      "size": [760, 480],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 3},
+        {"name": "images.image_1", "type": "IMAGE", "shape": 7, "link": 1},
+        {"name": "vae", "type": "VAE", "shape": 7, "link": 4},
+        {"name": "images.image_2", "type": "IMAGE", "shape": 7, "link": 2}
+      ],
+      "outputs": [
+        {"name": "positive", "type": "CONDITIONING", "links": [7]},
+        {"name": "negative", "type": "CONDITIONING", "links": [8]},
+        {"name": "latent", "type": "LATENT", "links": [9]}
+      ],
+      "properties": {"Node name for S&R": "TextEncodeQwenImage21"},
+      "widgets_values": ["Keep the character and pose in <image1> unchanged, put this light blue denim shirt from <image2> on the character, preserve the original facial features, hair, body shape and pose, the denim shirt fits naturally on body, realistic denim fabric texture, natural clothing folds, keep the original background and original lighting, high fashion editorial photography, sharp details", "", 0]
+    },
+    {
+      "id": 7,
+      "type": "QwenImage21Cache",
+      "title": "[7] KV缓存(auto)",
+      "pos": [1140, 0],
+      "size": [340, 120],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {"name": "model", "type": "MODEL", "link": 5},
+        {"name": "device", "type": "COMBO", "widget": {"name": "device"}, "link": null},
+        {"name": "dtype", "type": "COMBO", "widget": {"name": "dtype"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "MODEL", "type": "MODEL", "links": [6]}
+      ],
+      "properties": {"Node name for S&R": "QwenImage21Cache"},
+      "widgets_values": ["auto", "default"]
+    },
+    {
+      "id": 8,
+      "type": "KSampler",
+      "title": "[8] KSampler(25步·cfg1)",
+      "pos": [1580, 0],
+      "size": [330, 260],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {"name": "model", "type": "MODEL", "link": 6},
+        {"name": "positive", "type": "CONDITIONING", "link": 7},
+        {"name": "negative", "type": "CONDITIONING", "link": 8},
+        {"name": "latent_image", "type": "LATENT", "link": 9}
+      ],
+      "outputs": [
+        {"name": "LATENT", "type": "LATENT", "links": [10]}
+      ],
+      "properties": {"Node name for S&R": "KSampler"},
+      "widgets_values": [0, "randomize", 25, 1, "euler", "simple", 1]
+    },
+    {
+      "id": 9,
+      "type": "VAEDecode",
+      "title": "[9] VAE解码",
+      "pos": [2000, 0],
+      "size": [240, 50],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {"name": "samples", "type": "LATENT", "link": 10},
+        {"name": "vae", "type": "VAE", "link": 11}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [12]}
+      ],
+      "properties": {"Node name for S&R": "VAEDecode"}
+    },
+    {
+      "id": 10,
+      "type": "SaveImage",
+      "title": "[10] 保存",
+      "pos": [2340, 0],
+      "size": [380, 330],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 12}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveImage"},
+      "widgets_values": ["MYStudio"]
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "title": "[11] 使用说明",
+      "pos": [-1860, 420],
+      "size": [940, 1060],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": ["## Qwen-Image-2.1 换装编辑 · 使用说明\n\n**官方换装示例(两张图须先放引擎 input 目录)**\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n\n权重三件套同 t2i 件:qwen_image_2.1_bf16 + qwen3vl_8b_bf16(CLIPLoader type=qwen_image)+ qwen_image_2.1_vae_bf16。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样;要用负向才抬 cfg。步数官方 40-50,本流 25 起手。\n- **resolution 是总像素预算非宽高**(保比例):官方默认 1024、上限 2048;本流取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1。\n- **参考图语法**:提示词里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n- **潜空来源**:本流 KSampler 潜空取 [6] TextEncode 的 latent 输出(跟随 image_1;官方模板另有 custom_size 开关可切 ResolutionSelector 宽高,需贴近重采样后的 image_1 尺寸否则编辑漂移,本流简化为默认路径)。\n- **QwenImage21Cache([7],auto/default)**:编辑流 KV 缓存设备/精度,内存吃紧可调(cpu/int8)。\n\n### RGBA 透明图句式(存 PNG 才保 alpha)\n\nThis is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。\n"]
+    }
+  ],
+  "links": [
+    [1, 4, 0, 6, 1, "IMAGE"],
+    [2, 5, 0, 6, 3, "IMAGE"],
+    [3, 2, 0, 6, 0, "CLIP"],
+    [4, 3, 0, 6, 2, "VAE"],
+    [5, 1, 0, 7, 0, "MODEL"],
+    [6, 7, 0, 8, 0, "MODEL"],
+    [7, 6, 0, 8, 1, "CONDITIONING"],
+    [8, 6, 1, 8, 2, "CONDITIONING"],
+    [9, 6, 2, 8, 3, "LATENT"],
+    [10, 8, 0, 9, 0, "LATENT"],
+    [11, 3, 0, 9, 1, "VAE"],
+    [12, 9, 0, 10, 0, "IMAGE"]
+  ],
+  "last_node_id": 11,
+  "last_link_id": 12
+}

@@ -43,7 +43,14 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - Uncensored TE swap is deliberate (image line). Prompting follows long natural-language flows, not tag stacks.
   - Network: PyPI via Tsinghua mirror (large wheels break ≥20MB — use curl from Aliyun with resume);
     HuggingFace via hf-mirror.com (HF_ENDPOINT set; Clash needs no_proxy).
-  - One model per production line (image=K2, video=H3) — do not introduce a second model into a line.
+  - Parallel image lines since 09-23 (user verdict): image = K2 **and** Qwen-Image-2.1 (Q2-1)
+    share this engine queue-serially — ComfyUI's smart memory management swaps weights between
+    runs, which does NOT violate the no-second-model-process rule; video = H3. Repo workflows:
+    `1_图片/K2图像/` + `1_图片/Q2-1图像/` (qwen21-t2i / qwen21-edit, engine-openable canvas format).
+  - (09-23) Q2-1 line weights (bf16, MPS path — int8_convrot is CUDA-only, never on this Mac):
+    `diffusion_models/qwen_image_2.1_bf16.safetensors` (14.23GB) + `text_encoders/qwen3vl_8b_bf16.safetensors`
+    (17.53GB, CLIPLoader type=qwen_image) + `vae/qwen_image_2.1_vae_bf16.safetensors` (0.68GB) —
+    zero file overlap with the K2 triple (Engineer-V1 ≠ qwen3vl_8b; HDR gen-1 VAE ≠ 2.1 RGBA VAE).
   - (09-21) Engine upgraded past the pre-fill: v0.37.0 now (subgraphs + hash-based workflow restore).
   - (09-21) **Subgraph groups MUST carry an `id` field each** (any increasing int): without id only
     `groups[0]` loads, the rest are silently dropped. Cost a full debug round on the 道劫 [90] matrix.
