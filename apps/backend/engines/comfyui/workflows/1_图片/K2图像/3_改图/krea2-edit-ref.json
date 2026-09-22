@@ -70,7 +70,7 @@
     "40": {
       "class_type": "CLIPLoader",
       "inputs": {
-        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "clip_name": "Krea2-Engineer-V1-bf16.safetensors",
         "type": "krea2",
         "device": "default"
       }
@@ -78,7 +78,7 @@
     "41": {
       "class_type": "VAELoader",
       "inputs": {
-        "vae_name": "qwen_image_vae.safetensors"
+        "vae_name": "qwen_image_HDR_vae_fp32_comfy.safetensors"
       }
     },
     "45": {

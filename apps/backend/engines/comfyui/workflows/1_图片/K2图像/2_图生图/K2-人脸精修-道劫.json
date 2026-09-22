@@ -109,7 +109,7 @@
         "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
-        "qwen3-vl-4b-heretic.safetensors",
+        "Krea2-Engineer-V1-bf16.safetensors",
         "krea2",
         "default"
       ],
@@ -153,7 +153,7 @@
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
-        "qwen_image_vae.safetensors"
+        "qwen_image_HDR_vae_fp32_comfy.safetensors"
       ],
       "title": "[10] VAE加载"
     },

@@ -263,7 +263,7 @@
     "# K2 宫格生图 · 使用说明\n\n**一次出九镜,再切割使用**(同题九镜省 4~9 倍耗时;09-15 对拍:宫格 1 次 ≈210s vs 单镜九连 ≈1813s)。\n\n**用法**:把正向提示词换成你的九镜版——保持「3x3 九格 + 白色分格线 + 各格独立成画 + 同角色同场景 + Panel 1~9 逐格(景别:动作)」结构,换掉角色/场景/九个动作即可。分辨率用 1:1 1024(对拍实证格线全清晰;1408² 下横分界线会变弱,不推荐)。\n\n**⚠️ 版式泄漏警示**:宫格图**只能作中间产物**——先切割成九张单图,再拿单图当参考/关键帧;宫格整图直接当参考,分格版式会被带进生成结果。\n\n**切割**:应用内裁切,或脚本 `apps/build/scripts/p2_grid_cut.py`(按 3x3 行列均分,产物单图可直接进关键帧/参考)。"
    ],
    "widgets_values_named": {
-    "text": "# K2 文生图 · 超集档\n\n**写提示词 → Queue**\n\n- 结构照「无衣物_稳定」全链:官方三件套(krea2_turbo_bf16 + qwen3-vl-4b-heretic + qwen_image_vae)+ LoRA 栈(**Mystic XXX v3 ×2.0 + pussy ×0.15,默认激活**)\n- 正向只写画面内容(人物/姿态/场景/光线);尺度放开由 LoRA 栈承担,可直写人体描述\n- 负向双形态:**默认** [52] 零化占位——当前 turbo 档(cfg=1 设计点)负向不参与采样,填词也不生效;**启用负词**→[64] 填负向提示词 → 右键 [52] 选 Bypass → CFG>1(**偏离 turbo 设计点,未实测慎用**;风格库负词同走此链;换非蒸馏模型(如 Raw)时此链即正常可用)\n- 10 步 / cfg 1 / euler+simple(Turbo 官方档);1024² 起步,要更大走 `6_修复超分`\n- 收着点:pussy 降 0.1 或 Mystic 降 1.0;更冲:Mystic 2.5(噪点风险↑)\n- 与「无衣物」流区别:那是**指令改图**(参考图保脸),这是**纯文生图超集档**\n- **Krea2EditModelPatch 已入链**(超集口径;T2I 无参考图=中性接法:source 接同一空潜+ref_boost 1.0=off;需要真参考图语义时走 3_改图/4_上色 域)\n- **漫影三件套**:风格库(48 风格,`manying_漫影风格`)选择经正词注入/分辨率选择直驱空潜宽高/风格预览\n- **12带重平衡**:默认全 1.0=中性;要专业流口味按 NSFW 旧版第9带 5.0 起手"
+    "text": "# K2 文生图 · 超集档\n\n**写提示词 → Queue**\n\n- 结构照「无衣物_稳定」全链:官方三件套(krea2_turbo_bf16 + Krea2-Engineer-V1-bf16 + qwen_image_HDR_vae_fp32_comfy)+ LoRA 栈(**Mystic XXX v3 ×2.0 + pussy ×0.15,默认激活**)\n- 正向只写画面内容(人物/姿态/场景/光线);尺度放开由 LoRA 栈承担,可直写人体描述\n- 负向双形态:**默认** [52] 零化占位——当前 turbo 档(cfg=1 设计点)负向不参与采样,填词也不生效;**启用负词**→[64] 填负向提示词 → 右键 [52] 选 Bypass → CFG>1(**偏离 turbo 设计点,未实测慎用**;风格库负词同走此链;换非蒸馏模型(如 Raw)时此链即正常可用)\n- 10 步 / cfg 1 / euler+simple(Turbo 官方档);1024² 起步,要更大走 `6_修复超分`\n- 收着点:pussy 降 0.1 或 Mystic 降 1.0;更冲:Mystic 2.5(噪点风险↑)\n- 与「无衣物」流区别:那是**指令改图**(参考图保脸),这是**纯文生图超集档**\n- **Krea2EditModelPatch 已入链**(超集口径;T2I 无参考图=中性接法:source 接同一空潜+ref_boost 1.0=off;需要真参考图语义时走 3_改图/4_上色 域)\n- **漫影三件套**:风格库(48 风格,`manying_漫影风格`)选择经正词注入/分辨率选择直驱空潜宽高/风格预览\n- **12带重平衡**:默认全 1.0=中性;要专业流口味按 NSFW 旧版第9带 5.0 起手"
    },
    "color": "#432",
    "bgcolor": "#653"
@@ -1067,8 +1067,8 @@
     "ver": "0.26.0",
     "models": [
      {
-      "name": "qwen_image_vae.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+      "name": "qwen_image_HDR_vae_fp32_comfy.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_HDR_vae_fp32_comfy.safetensors",
       "directory": "vae"
      }
     ],
@@ -1081,10 +1081,10 @@
     }
    },
    "widgets_values": [
-    "qwen_image_vae.safetensors"
+    "qwen_image_HDR_vae_fp32_comfy.safetensors"
    ],
    "widgets_values_named": {
-    "vae_name": "qwen_image_vae.safetensors"
+    "vae_name": "qwen_image_HDR_vae_fp32_comfy.safetensors"
    },
    "color": "#3f789e",
    "bgcolor": "#1e2b38"
@@ -1433,8 +1433,8 @@
     "ver": "0.26.0",
     "models": [
      {
-      "name": "qwen3-vl-4b-heretic.safetensors",
-      "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+      "name": "Krea2-Engineer-V1-bf16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/Krea2-Engineer-V1-bf16.safetensors",
       "directory": "text_encoders"
      }
     ],
@@ -1449,12 +1449,12 @@
     }
    },
    "widgets_values": [
-    "qwen3-vl-4b-heretic.safetensors",
+    "Krea2-Engineer-V1-bf16.safetensors",
     "krea2",
     "default"
    ],
    "widgets_values_named": {
-    "clip_name": "qwen3-vl-4b-heretic.safetensors",
+    "clip_name": "Krea2-Engineer-V1-bf16.safetensors",
     "type": "krea2",
     "device": "default"
    },

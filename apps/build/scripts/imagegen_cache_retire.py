@@ -24,10 +24,12 @@ COMFY_MODELS = Path.home() / "Library/Application Support/漫影工作室/comfyu
 LEDGER = Path(__file__).resolve().parents[2] / "output/automation/imagegen-retire-ledger.json"
 
 # ComfyUI 侧已齐备的 Krea2 三件(等价性锚点:存在即代表 ComfyUI 自足)
+# 09-23 更新:TE/VAE 锚点随 09-22 换装改 Engineer-V1 + HDR VAE(旧 4B heretic 已删、
+# 老 qwen_image_vae 不再被现役工作流引用);锚点名与 34 件现役工作流加载名一致。
 COMFY_KREA2_FILES = (
     "diffusion_models/krea2_turbo_bf16.safetensors",
-    "text_encoders/qwen3-vl-4b-heretic.safetensors",
-    "vae/qwen_image_vae.safetensors",
+    "text_encoders/Krea2-Engineer-V1-bf16.safetensors",
+    "vae/qwen_image_HDR_vae_fp32_comfy.safetensors",
 )
 
 

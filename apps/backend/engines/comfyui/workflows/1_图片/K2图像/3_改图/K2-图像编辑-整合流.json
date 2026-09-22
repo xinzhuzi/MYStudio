@@ -459,19 +459,19 @@
         "Node name for S&R": "CLIPLoader",
         "models": [
           {
-            "name": "qwen3-vl-4b-heretic.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+            "name": "Krea2-Engineer-V1-bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/Krea2-Engineer-V1-bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3-vl-4b-heretic.safetensors",
+        "Krea2-Engineer-V1-bf16.safetensors",
         "krea2",
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "clip_name": "Krea2-Engineer-V1-bf16.safetensors",
         "type": "krea2",
         "device": "default"
       },
@@ -522,17 +522,17 @@
         "Node name for S&R": "VAELoader",
         "models": [
           {
-            "name": "qwen_image_vae.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "name": "qwen_image_HDR_vae_fp32_comfy.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_HDR_vae_fp32_comfy.safetensors",
             "directory": "vae"
           }
         ]
       },
       "widgets_values": [
-        "qwen_image_vae.safetensors"
+        "qwen_image_HDR_vae_fp32_comfy.safetensors"
       ],
       "widgets_values_named": {
-        "vae_name": "qwen_image_vae.safetensors"
+        "vae_name": "qwen_image_HDR_vae_fp32_comfy.safetensors"
       },
       "color": "#323",
       "bgcolor": "#535"
@@ -1158,19 +1158,19 @@
         "Node name for S&R": "CLIPLoader",
         "models": [
           {
-            "name": "qwen3-vl-4b-heretic.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+            "name": "Krea2-Engineer-V1-bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/Krea2-Engineer-V1-bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3-vl-4b-heretic.safetensors",
+        "Krea2-Engineer-V1-bf16.safetensors",
         "krea2",
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "clip_name": "Krea2-Engineer-V1-bf16.safetensors",
         "type": "krea2",
         "device": "default"
       },
@@ -1220,17 +1220,17 @@
         "Node name for S&R": "VAELoader",
         "models": [
           {
-            "name": "qwen_image_vae.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "name": "qwen_image_HDR_vae_fp32_comfy.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_HDR_vae_fp32_comfy.safetensors",
             "directory": "vae"
           }
         ]
       },
       "widgets_values": [
-        "qwen_image_vae.safetensors"
+        "qwen_image_HDR_vae_fp32_comfy.safetensors"
       ],
       "widgets_values_named": {
-        "vae_name": "qwen_image_vae.safetensors"
+        "vae_name": "qwen_image_HDR_vae_fp32_comfy.safetensors"
       },
       "color": "#323",
       "bgcolor": "#535"
@@ -1954,17 +1954,17 @@
         "Node name for S&R": "VAELoader",
         "models": [
           {
-            "name": "qwen_image_vae.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "name": "qwen_image_HDR_vae_fp32_comfy.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_HDR_vae_fp32_comfy.safetensors",
             "directory": "vae"
           }
         ]
       },
       "widgets_values": [
-        "qwen_image_vae.safetensors"
+        "qwen_image_HDR_vae_fp32_comfy.safetensors"
       ],
       "widgets_values_named": {
-        "vae_name": "qwen_image_vae.safetensors"
+        "vae_name": "qwen_image_HDR_vae_fp32_comfy.safetensors"
       },
       "color": "#323",
       "bgcolor": "#535"
@@ -2126,19 +2126,19 @@
         "Node name for S&R": "CLIPLoader",
         "models": [
           {
-            "name": "qwen3-vl-4b-heretic.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+            "name": "Krea2-Engineer-V1-bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/Krea2-Engineer-V1-bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3-vl-4b-heretic.safetensors",
+        "Krea2-Engineer-V1-bf16.safetensors",
         "krea2",
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "clip_name": "Krea2-Engineer-V1-bf16.safetensors",
         "type": "krea2",
         "device": "default"
       },
@@ -3445,17 +3445,17 @@
         "Node name for S&R": "VAELoader",
         "models": [
           {
-            "name": "qwen_image_vae.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "name": "qwen_image_HDR_vae_fp32_comfy.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_HDR_vae_fp32_comfy.safetensors",
             "directory": "vae"
           }
         ]
       },
       "widgets_values": [
-        "qwen_image_vae.safetensors"
+        "qwen_image_HDR_vae_fp32_comfy.safetensors"
       ],
       "widgets_values_named": {
-        "vae_name": "qwen_image_vae.safetensors"
+        "vae_name": "qwen_image_HDR_vae_fp32_comfy.safetensors"
       },
       "color": "#323",
       "bgcolor": "#535"
@@ -3810,19 +3810,19 @@
         "Node name for S&R": "CLIPLoader",
         "models": [
           {
-            "name": "qwen3-vl-4b-heretic.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+            "name": "Krea2-Engineer-V1-bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/Krea2-Engineer-V1-bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3-vl-4b-heretic.safetensors",
+        "Krea2-Engineer-V1-bf16.safetensors",
         "krea2",
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3-vl-4b-heretic.safetensors",
+        "clip_name": "Krea2-Engineer-V1-bf16.safetensors",
         "type": "krea2",
         "device": "default"
       },

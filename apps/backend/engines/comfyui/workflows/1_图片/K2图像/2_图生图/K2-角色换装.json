@@ -86,14 +86,14 @@
         },
         "models": [
           {
-            "name": "qwen3-vl-4b-heretic.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3-vl-4b-heretic.safetensors",
+            "name": "Krea2-Engineer-V1-bf16.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/Krea2-Engineer-V1-bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3-vl-4b-heretic.safetensors",
+        "Krea2-Engineer-V1-bf16.safetensors",
         "krea2",
         "default"
       ]
@@ -605,7 +605,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "输入与用法:[101]=服装参考图,本流唯一图输入(官方建议干净的正/背面服装照,示例库=huggingface.co/datasets/AliveAi/outfits);官方 t2i 版角色图不设输入位,角色在 [84] 用文字描述(现含官方示例句,换成自己的角色即可),句末触发短语 transfer the outfit 不能删——换装指令全靠它;「角色图+服装参考图」两张图保脸换装走下方双 LoRA 升级路径。已知限制:LoRA 主要按女装训练(男装/中性装贴合度会降);偶发双人→[53] 种子改 randomize 重抽,或在正向里写 single person。保脸升级路径:要用已有角色图保脸时,在 [100] 后同挂 Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors ×0.5(社区配方面:两件 LoRA 各 ×0.5 + [79] ref_boost 首数拉 10,见 docs/comfyui-kb/K2服饰LoRA调研_0919.md §三)。前置:节点包 comfyui-krea2edit;权重均在引擎在位(底模 krea2_turbo_bf16/TE qwen3-vl-4b-heretic/VAE qwen_image_vae/换装 LoRA)。"
+        "输入与用法:[101]=服装参考图,本流唯一图输入(官方建议干净的正/背面服装照,示例库=huggingface.co/datasets/AliveAi/outfits);官方 t2i 版角色图不设输入位,角色在 [84] 用文字描述(现含官方示例句,换成自己的角色即可),句末触发短语 transfer the outfit 不能删——换装指令全靠它;「角色图+服装参考图」两张图保脸换装走下方双 LoRA 升级路径。已知限制:LoRA 主要按女装训练(男装/中性装贴合度会降);偶发双人→[53] 种子改 randomize 重抽,或在正向里写 single person。保脸升级路径:要用已有角色图保脸时,在 [100] 后同挂 Krea2-功能/Krea2-编辑identity_edit_v1_2.safetensors ×0.5(社区配方面:两件 LoRA 各 ×0.5 + [79] ref_boost 首数拉 10,见 docs/comfyui-kb/K2服饰LoRA调研_0919.md §三)。前置:节点包 comfyui-krea2edit;权重均在引擎在位(底模 krea2_turbo_bf16/TE Krea2-Engineer-V1-bf16/VAE qwen_image_HDR_vae_fp32_comfy/换装 LoRA)。"
       ],
       "title": "使用说明"
     },
@@ -694,14 +694,14 @@
         },
         "models": [
           {
-            "name": "qwen_image_vae.safetensors",
-            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors",
+            "name": "qwen_image_HDR_vae_fp32_comfy.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_HDR_vae_fp32_comfy.safetensors",
             "directory": "vae"
           }
         ]
       },
       "widgets_values": [
-        "qwen_image_vae.safetensors"
+        "qwen_image_HDR_vae_fp32_comfy.safetensors"
       ]
     }
   ],
@@ -853,7 +853,7 @@
   ],
   "groups": [
     {
-      "title": "① 模型加载(底模 krea2_turbo_bf16 · TE qwen3-vl-4b-heretic · VAE qwen_image_vae)",
+      "title": "① 模型加载(底模 krea2_turbo_bf16 · TE Krea2-Engineer-V1-bf16 · VAE qwen_image_HDR_vae_fp32_comfy)",
       "bounding": [
         20,
         20,
