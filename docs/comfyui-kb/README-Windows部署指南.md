@@ -15,7 +15,7 @@
 | `styles_for_EasyUse/styles` **整个替换** | `ComfyUI/custom_nodes/ComfyUI-Easy-Use/styles/` |
 | `custom_nodes/` 下 15 个插件文件夹 | `ComfyUI/custom_nodes/`(可直接用;也可删掉改用 git 重装最新版) |
 
-> ⚠️ **TE/VAE 退役警示(09-23)**:本包内的 `qwen3-vl-4b-heretic.safetensors`(TE)与 `qwen_image_vae.safetensors`(VAE)已在 09-22 换装退役——**仓库现行 34 件 K2 工作流加载的是 `Krea2-Engineer-V1-bf16.safetensors` + `qwen_image_HDR_vae_fp32_comfy.safetensors`**,本包未含。拿本包工作流配现行仓库工作流混跑会缺件报错;需另从 Comfy-Org/Krea-2 取新两件(见 `漫影工作流清单.md` 权重依赖台账)。旧 TE 件已删,勿再按本表找它。
+> ⚠️ **TE/VAE 退役警示(09-23)**:本包内的 `qwen3-vl-4b-heretic.safetensors`(TE)与 `qwen_image_vae.safetensors`(VAE)已在 09-22 换装退役(旧 VAE 件亦于 09-23 清理删除)——**仓库现行 34 件 K2 工作流加载的是 `Krea2-Engineer-V1-bf16.safetensors` + `qwen_image_HDR_vae_fp32_comfy.safetensors`**,本包未含。拿本包工作流配现行仓库工作流混跑会缺件报错;需另从 Comfy-Org/Krea-2 取新两件(见 `漫影工作流清单.md` 权重依赖台账)。旧两件勿再按本表找。
 
 ## 二、Python 依赖(Windows 命令行,ComfyUI 目录下)
 
