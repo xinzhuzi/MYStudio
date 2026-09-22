@@ -4,8 +4,9 @@
     engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-超集.json
 
 把收敛脚本 apps/build/scripts/manying_superset_negative_prompt.py 的 v3 结构门
-固化为 pytest 门禁:拓扑计数 / 七跳模型链 / 链接双向一致 / 67 细节滑杆定档 /
-68-70 画风件互斥旁路 / mode 矩阵 / 66 卡两档口径 / IP 词禁入 / AABB 零相交。
+固化为 pytest 门禁:拓扑计数 / 模型链 / 链接双向一致 / 67 细节滑杆定档 /
+69/73 画风件旁路口径 / mode 矩阵 / 66 卡两档口径 / IP 词禁入 / AABB 零相交。
+(3f637c2 柔水彩清除令摘 68/70 后锚点同步:29→27 节点,链 67→69→73 直连。)
 纯读文件断言,零网络零引擎依赖,可独立重跑。
 """
 from __future__ import annotations
@@ -28,18 +29,15 @@ _LINKS = {l[0]: l for l in _DOC["links"]}  # litegraph: [id, src, src_slot, dst,
 
 DETAIL_SLIDER_FILE = "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors"
 STYLE_TRIGGERS = {
-    68: "art deco watercolor style",
     69: "monochrome ink wash style",
-    70: "purple retro anime style",
+    # 73 鎏金无官方触发词;68/70 已被 3f637c2 清除令摘除
 }
-# v3 七跳模型链:link id → (src 节点, dst 节点)
-MODEL_CHAIN = [  # 09-18 摘47加速件:37 撤、38 改 46→67 直通
+# 模型链:link id → (src 节点, dst 节点)
+MODEL_CHAIN = [  # 09-18 摘47加速件:37 撤、38 改 46→67 直通;3f637c2 清除令摘 68/70,链 67→69→73 直连(link 52/53)
     (36, 45, 46),
     (38, 46, 67),
-    (39, 67, 68),
-    (40, 68, 69),
-    (41, 69, 70),
-    (43, 70, 73),
+    (52, 67, 69),
+    (53, 69, 73),
     (49, 73, 74),
     (50, 74, 75),
     (51, 75, 76),
@@ -61,16 +59,16 @@ def _card_text(nid: int) -> str:
 # ── 1. 拓扑计数 ────────────────────────────────────────────────────
 
 class TestTopology:
-    def test_node_count_is_29(self):
-        assert len(_DOC["nodes"]) == 29
-        assert len(_NODES) == 29  # id 无重复(09-17 摘14+入73-76;09-18 摘47)
+    def test_node_count_is_27(self):
+        assert len(_DOC["nodes"]) == 27
+        assert len(_NODES) == 27  # id 无重复(09-17 摘14+入73-76;09-18 摘47;3f637c2 摘 68/70)
 
     def test_last_ids_equal_max(self):
         assert _DOC["last_node_id"] == max(n["id"] for n in _DOC["nodes"])
         assert _DOC["last_link_id"] == max(l[0] for l in _DOC["links"])
 
 
-# ── 2. 模型链(45→46→67→68→69→70→12,14/47已摘) ────────────────────────
+# ── 2. 模型链(45→46→67→69→73→74→75→76→12,14/47/68/70已摘) ────────
 
 class TestModelChain:
     def test_links_36_to_42_form_chain(self):
@@ -82,9 +80,9 @@ class TestModelChain:
             )
             assert l[5] == "MODEL", f"链接 {link_id} 非 MODEL 线:{l[5]}"
 
-    def test_chain_is_contiguous_seven_hops(self):
+    def test_chain_is_contiguous(self):
         hops = [(_LINKS[link_id][1], _LINKS[link_id][3]) for link_id, _, _ in MODEL_CHAIN]
-        assert hops == [(45, 46), (46, 67), (67, 68), (68, 69), (69, 70), (70, 73), (73, 74), (74, 75), (75, 76), (76, 12)]
+        assert hops == [(45, 46), (46, 67), (67, 69), (69, 73), (73, 74), (74, 75), (75, 76), (76, 12)]
         # 逐跳首尾相接:45 →…→ 12 无断点
         for (_, src, dst), (_, nxt, _) in zip(MODEL_CHAIN, MODEL_CHAIN[1:]):
             assert dst == nxt, f"模型链在 {src}→{dst} 后断:下一跳起点是 {nxt}"
@@ -133,18 +131,17 @@ class TestDetailSliderNode67:
         assert "细节滑杆 ×1" in (n.get("title") or ""), "[67] title 缺「细节滑杆 ×1」口径"
 
 
-# ── 5. [68/69/70] 画风件互斥旁路 ──────────────────────────────────
+# ── 5. [69/73] 画风件旁路口径(68/70 已摘) ─────────────────────────
 
 class TestStyleLoraNodes:
     def test_style_nodes_bypassed_with_triggers(self):
         # 09-17 深夜用户画布快照:画风件 68/70/73 三开(用户调教裁量),69 旁路;
-        # 09-19 画布态更新:70 转旁路(并行会话/用户手调,b0b5eec 披露入账)
-        user_modes = {68: 0, 69: 4, 70: 4, 73: 0}
+        # 09-19 画布态更新:70 转旁路(并行会话/用户手调,b0b5eec 披露入账);
+        # 3f637c2 柔水彩清除令:68(art deco watercolor)/70(purple retro anime)全库摘除
+        user_modes = {69: 4, 73: 0}
         for nid, want in user_modes.items():
             assert _node(nid).get("mode") == want, f"[{nid}] 用户快照 mode 应为 {want}"
         for nid, trigger in STYLE_TRIGGERS.items():
-            if nid == 73:
-                continue  # 73 无官方触发词
             assert trigger in (_node(nid).get("title") or ""), f"[{nid}] title 缺官方触发词 {trigger}"
 
 
