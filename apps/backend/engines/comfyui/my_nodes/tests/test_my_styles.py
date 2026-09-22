@@ -4,7 +4,7 @@
 """MyStylesLibrary 契约测试(风格库节点:art_skills 现读,09-15 用户令)。
 
 迷你风格树(tmp_path+MYSTUDIO_ART_SKILLS 注入)锁形状/组装/合并/降级;
-真源树(dev 布局)锁发现口径(60 目录/57 开放/展示名/默认风格钉死/2d_gongbi
+真源树(dev 布局)锁发现口径(60 目录/58 开放/展示名/默认风格钉死/2d_gongbi
 锚词/90s VARIANT 首行规则)。引擎库零依赖,源码位 sidecar 直跑。
 """
 
@@ -73,8 +73,8 @@ def mini_tree(tmp_path):
         encoding="utf-8",
     )
 
-    # 排除名单目录(用真实排除名):内容合法也不得进 combo
-    _make_canon(root, "daojie_ink_guofeng", "排除目录")
+    # 排除名单目录(用真实排除名;09-22 方案C 后 ink_guofeng 已解禁,改用仍在名单的 3D_guofeng_cyber):内容合法也不得进 combo
+    _make_canon(root, "3D_guofeng_cyber", "排除目录")
     return root
 
 
@@ -210,16 +210,16 @@ def test_real_tree_discovery_and_dev_layout_resolution(monkeypatch):
     monkeypatch.setenv("MYSTUDIO_ART_SKILLS", str(REPO_ART_SKILLS))
     assert my_styles._resolve_art_skills_root() == REPO_ART_SKILLS
 
-    # 风格发现:61 目录全含 prefix.md;排除 3 家 → 58 开放
-    # (09-19 九型配方 R5:新增「道劫·新中式」预设 daojie_neo_chinese,canon 级)
-    assert sum(1 for d in REPO_ART_SKILLS.iterdir() if d.is_dir()) == 61
+    # 风格发现:60 目录全含 prefix.md;排除 2 家 → 58 开放
+    # (09-22 方案C:「道劫·新中式」预设卡删除并入 ink_guofeng;ink_guofeng 解除排除补锚定两行过 canon;目录 61→60,条目 58 与 canon49+variant9 不变)
+    assert sum(1 for d in REPO_ART_SKILLS.iterdir() if d.is_dir()) == 60
     catalog = my_styles._get_catalog(REPO_ART_SKILLS)
     assert len(catalog) == 58
     assert not any(v["dir"] in my_styles._FIRST_PHASE_EXCLUDED for v in catalog.values())
     levels = [v["level"] for v in catalog.values()]
     assert levels.count("canon") == 49
     assert levels.count("variant") == 9
-    assert catalog["道劫·新中式"] == {"dir": "daojie_neo_chinese", "level": "canon"}
+    assert catalog["道劫·水墨国风修仙"] == {"dir": "daojie_ink_guofeng", "level": "canon"}
 
     # 展示名提取:prefix H1 直取,与三工作流 widgets_values 现值逐字一致
     assert catalog["2D工笔风"] == {"dir": "2d_gongbi", "level": "canon"}

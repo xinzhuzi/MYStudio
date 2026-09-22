@@ -19,12 +19,12 @@ import os
 import re
 from pathlib import Path
 
-# 第一期不开放的目录(显式名单钉死:dev 60-3=57=装机 59-2,两环境 combo 恒同)。
-# daojie_ink_guofeng=装机被 electron-builder.yml 排除+与运行时编译器
-# daojie-prompt-contract.ts 双写风险;3D_guofeng_cyber / realpeople_modern_city
+# 第一期不开放的目录(显式名单钉死:dev 60-2=58=装机 60-2,两环境 combo 恒同)。
+# 09-22 方案C:daojie_ink_guofeng 解除排除(装机打包同步解禁,与运行时编译器
+# daojie-prompt-contract.ts 的双写风险用户已接受),风格库下拉唯一道劫条目=它
+# (原「道劫·新中式」轻量预设卡并入后删除);3D_guofeng_cyber / realpeople_modern_city
 # =手册异构,锚点语义未经人工定稿。
 _FIRST_PHASE_EXCLUDED = frozenset({
-    "daojie_ink_guofeng",
     "3D_guofeng_cyber",
     "realpeople_modern_city",
 })

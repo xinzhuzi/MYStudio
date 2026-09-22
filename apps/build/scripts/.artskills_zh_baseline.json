@@ -239,6 +239,11 @@
   "level": "canon",
   "h1": "毛绒定格动画"
  },
+ "道劫·水墨国风修仙": {
+  "dir": "daojie_ink_guofeng",
+  "level": "canon",
+  "h1": "道劫·水墨国风修仙"
+ },
  "真人古装": {
   "dir": "real_costume",
   "level": "canon",
@@ -283,10 +288,5 @@
   "dir": "clay_stop_motion",
   "level": "canon",
   "h1": "粘土定格动画"
- },
- "道劫·新中式": {
-  "dir": "daojie_neo_chinese",
-  "level": "canon",
-  "h1": "道劫·新中式"
  }
 }
