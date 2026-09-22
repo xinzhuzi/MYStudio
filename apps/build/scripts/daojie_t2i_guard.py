@@ -20,8 +20,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2] / "backend/engines/comfyui/workflows"
 MAIN = REPO / "1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
-BASELINE = Path.home() / "Downloads/mystudio-baselines/K2-文生图-道劫-基底-0922-v4-美宣八件.json"
-BASELINE_SHA = "0774532ba21c1f18153152bcc59e880e6cfd4e23ea7f45a02985e373b1617ac1"
+BASELINE = Path.home() / "Downloads/mystudio-baselines/K2-文生图-道劫-基底-0922-v5-换装正名.json"
+BASELINE_SHA = "e02e8e8d5dd16f7ac666b033261034708c7f1e58cf6d01ba0b5867654697d80f"
+#          v5=0922 换装落定([15]→Krea2-Engineer-V1/[10]→HDR-fp32)+两节点点名式正名,即上值
 # 基线沿革:v1=0921-1937(用户手调0.2版,556cfffda3d776d9223accb96abfd642a2399b51997f2b4913cee488a3be9f55)
 #          v2=0921 晚(手动配置区 7 桩+组20,f8c36b45130f220faad9a1134c08d6c0072841f239c4ad225bf2594d4ad6a9af)
 #          v3=0921 深夜(用户画布终态:场景+美学/湿画/鎏金、人物+Afterlight0.2、道具+湿画/鎏金0.2,f581b8ec…408b)
