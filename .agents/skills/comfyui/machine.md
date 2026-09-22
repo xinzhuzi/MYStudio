@@ -51,6 +51,10 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     `diffusion_models/qwen_image_2.1_bf16.safetensors` (14.23GB) + `text_encoders/qwen3vl_8b_bf16.safetensors`
     (17.53GB, CLIPLoader type=qwen_image) + `vae/qwen_image_2.1_vae_bf16.safetensors` (0.68GB) —
     zero file overlap with the K2 triple (Engineer-V1 ≠ qwen3vl_8b; HDR gen-1 VAE ≠ 2.1 RGBA VAE).
+  - (09-23) T2I PE (prompt-enhancer) weight = ONE bf16 file `text_encoders/
+    qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors` (~19GB, self-converted from the full bf16
+    original via `apps/build/scripts/qwen21_pe_bf16_convert_0923.py`): the Comfy-Org int8_convrot
+    PE loads fine but dies at the first matmul on MPS (`aten::_int_mm` has no MPS kernel).
   - (09-21) Engine upgraded past the pre-fill: v0.37.0 now (subgraphs + hash-based workflow restore).
   - (09-21) **Subgraph groups MUST carry an `id` field each** (any increasing int): without id only
     `groups[0]` loads, the rest are silently dropped. Cost a full debug round on the 道劫 [90] matrix.

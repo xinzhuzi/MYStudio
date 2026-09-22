@@ -23,7 +23,7 @@
 链路七步:
 
 1. **安装**:`git clone` 进 `custom_nodes/`,`NODE_CLASS_MAPPINGS` 注册两节点 `QwenImage21_T2IPromptRewrite` / `QwenImage21_EditPromptRewrite`(nodes.py:335-338;显示名映射 340-343),分类 `CATEGORY = "Qwen Image"`(nodes.py:157/255)。
-2. **装检查点**:PE 检查点(Comfy-Org 打包的 int8:`qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors` / `…_pe_i2i.int8_convrot.safetensors`,各 9.47 GB,pe_node_readme.md:9-12)放 `models/text_encoders/`,用 ComfyUI **原生 CLIPLoader**(type=`qwen_image`)当普通文本编码器加载——零新加载器,VRAM 走原生模型管理(pe_node_readme.md:135-136)。
+2. **装检查点**:插件 README 载明的 PE 检查点是 Comfy-Org 打包的 int8(`…_pe_t2i.int8_convrot.safetensors` / `…_pe_i2i.int8_convrot.safetensors`,各 9.47 GB,pe_node_readme.md:9-12)——但 int8 在 MPS 首次矩阵乘即死(`aten::_int_mm` 无 MPS 内核,09-23 实证 pe-mps-fail.txt),本机 T2I 已换自转 bf16 单件 `qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors`(约 19GB;按 int8 件 760 权重键清单从满血 bf16 原版取原值,转换脚本 `apps/build/scripts/qwen21_pe_bf16_convert_0923.py`,int8 旧件已清理)放 `models/text_encoders/`,用 ComfyUI **原生 CLIPLoader**(type=`qwen_image`)当普通文本编码器加载——零新加载器,VRAM 走原生模型管理(pe_node_readme.md:135-136)。
 3. **手拼 chat 模板**:节点内手工拼 Qwen 对话格式(nodes.py:24-31):
 
 ```python

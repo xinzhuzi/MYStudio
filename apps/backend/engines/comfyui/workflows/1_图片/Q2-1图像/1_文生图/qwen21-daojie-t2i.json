@@ -1,5 +1,5 @@
 {
-  "id": "8f4c1a92-6d27-4b8e-9a15-2c7d58b0e001",
+  "id": "8f4c1a92-6d27-4b8e-9a15-2c7d58b0e003",
   "version": 0.4,
   "revision": 0,
   "config": {},
@@ -7,21 +7,21 @@
   "groups": [
     {
       "id": 1,
-      "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
+      "title": "道劫·Qwen-Image-2.1 加载器(bf16 三件套)",
       "bounding": [-1860, -460, 1120, 260],
       "color": "#3f789e",
       "flags": {}
     },
     {
       "id": 2,
-      "title": "文生图主链(分辨率→潜空→编码→采样→解码→保存)",
+      "title": "道劫·文生图主链(水墨国风修仙,分辨率→潜空→编码→采样→解码→保存)",
       "bounding": [-640, -140, 2980, 900],
       "color": "#3f789e",
       "flags": {}
     },
     {
       "id": 3,
-      "title": "PE 提示词改写(默认旁路,开启即自动扩写)",
+      "title": "道劫·PE 提示词改写(默认旁路,开启即自动扩写)",
       "bounding": [-900, 1100, 1300, 800],
       "color": "#a1309b",
       "flags": {}
@@ -31,7 +31,7 @@
     {
       "id": 1,
       "type": "UNETLoader",
-      "title": "[1] UNET加载",
+      "title": "[1] 道劫·UNET加载",
       "pos": [-1800, -360],
       "size": [340, 84],
       "flags": {},
@@ -50,7 +50,7 @@
     {
       "id": 2,
       "type": "CLIPLoader",
-      "title": "[2] CLIP加载(qwen_image)",
+      "title": "[2] 道劫·CLIP加载(qwen_image)",
       "pos": [-1380, -360],
       "size": [360, 130],
       "flags": {},
@@ -70,7 +70,7 @@
     {
       "id": 3,
       "type": "VAELoader",
-      "title": "[3] VAE加载",
+      "title": "[3] 道劫·VAE加载",
       "pos": [-960, -360],
       "size": [340, 60],
       "flags": {},
@@ -88,7 +88,7 @@
     {
       "id": 4,
       "type": "ResolutionSelector",
-      "title": "[4] 分辨率选择",
+      "title": "[4] 道劫·分辨率选择",
       "pos": [-560, 0],
       "size": [320, 190],
       "flags": {},
@@ -105,7 +105,7 @@
     {
       "id": 5,
       "type": "EmptyLatentImage",
-      "title": "[5] 空潜空(宽高接 [4])",
+      "title": "[5] 道劫·空潜空(宽高接 [4])",
       "pos": [-140, 0],
       "size": [330, 110],
       "flags": {},
@@ -124,7 +124,7 @@
     {
       "id": 6,
       "type": "TextEncodeQwenImage21",
-      "title": "[6] Qwen2.1 文本编码(prompt 接 [14] 开关)",
+      "title": "[6] 道劫·文本编码(prompt 接 [14] 开关)",
       "pos": [280, 0],
       "size": [420, 320],
       "flags": {},
@@ -147,7 +147,7 @@
     {
       "id": 7,
       "type": "KSampler",
-      "title": "[7] KSampler(25步·cfg1)",
+      "title": "[7] 道劫·KSampler(25步·cfg1)",
       "pos": [1100, 0],
       "size": [330, 260],
       "flags": {},
@@ -168,7 +168,7 @@
     {
       "id": 8,
       "type": "VAEDecode",
-      "title": "[8] VAE解码",
+      "title": "[8] 道劫·VAE解码",
       "pos": [1520, 0],
       "size": [240, 50],
       "flags": {},
@@ -186,7 +186,7 @@
     {
       "id": 9,
       "type": "SaveImage",
-      "title": "[9] 保存",
+      "title": "[9] 道劫·保存",
       "pos": [1860, 0],
       "size": [380, 330],
       "flags": {},
@@ -202,7 +202,7 @@
     {
       "id": 10,
       "type": "MarkdownNote",
-      "title": "[10] 使用说明",
+      "title": "[10] 道劫·适配说明",
       "pos": [-1860, 420],
       "size": [900, 800],
       "flags": {},
@@ -211,12 +211,12 @@
       "inputs": [],
       "outputs": [],
       "properties": {},
-      "widgets_values": ["## Qwen-Image-2.1 文生图 · 使用说明\n\n**权重三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线,Mac 不用)**\n\n- diffusion_models/qwen_image_2.1_bf16.safetensors\n- text_encoders/qwen3vl_8b_bf16.safetensors(CLIPLoader type=qwen_image)\n- vae/qwen_image_2.1_vae_bf16.safetensors\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样(与 K2 turbo 同款数学);只有真要用负向才抬 cfg。\n- **步数**:官方管线 40-50 步 euler,本流 25 步起手;更强采样器可更少步。\n- **分辨率**:ResolutionSelector([4])直出宽高,默认 1MP(1024×1024);原生 2K=1:1 + 4MP(2048×2048);宽高宜 32 的倍数。\n- 提示词点名参考图的语法 `<image1>`..`<image10>` 属改图流;t2i 无参考图。\n\n### PE 提示词改写组(默认旁路)\n\n- 默认:[13] 直写提示词 → [14] 开关(switch=false)→ [6] 编码;PE 组不参与出图(开关懒执行,旁路时 PE 模型不加载)。\n- **开启步骤**:①装插件 ComfyUI-Qwen-Image-2.1-Prompt-Enhancer 到 custom_nodes/;②PE 权重落 text_encoders/qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors(约 19GB,[11] 加载,type=qwen_image);③在 [12] PE改写节点写短句想法(任意语言,输出恒英文长文);④把 [14] 开关 switch 勾上(true)→ PE 自动扩写喂 [6]。presence_penalty=1.5 是 T2I 硬口径勿改。\n\n### RGBA 透明开关(默认普通)\n\n- 默认 [16] RGBA开关=false 走 [6] 普通 conditioning;透明路 [15] 是独立编码节点。\n- **开启**:把 [16] switch 勾上(true),并在 [15] 编辑官方包裹句式的中间描述:This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n- **透明路出图必须存 PNG 才保 alpha**(JPEG 会丢透明通道)。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。"]
+      "widgets_values": ["## 道劫 · Qwen-Image-2.1 文生图(水墨国风修仙适配版)\n\n以 qwen21-t2i 为骨架的道劫风格适配首发版(09-23):同一加载器三件套/采样参数/PE 组/RGBA 开关,默认提示词换成按官方 PE 宪法五件套手写的道劫水墨英文长文([13] 直写节点)。\n\n### 道劫 DNA → 英文表述(默认直写提示词 [13])\n\n- 水墨 → ink wash / ink-wash;笔性 → expressive brushwork(fine lines that thicken and thin / dry-brush)\n- 留白 → expansive negative space;国风修仙 → Chinese cultivation-fantasy\n- 画法五要素对位:细墨线=expressive brushwork / 墨色浓淡分明=distinct ink values(pale washes receding)/ 素净底+一小块点题色=one small accent of vivid colour / 均匀柔光=even diffuse light / 平涂=flat washes\n- 全文零质量词(无 masterpiece/8K/highly detailed 一类),零比例词(分辨率走 ResolutionSelector),句首位置短语 10 个(宪法 8-14 区间)。\n\n### 与 krea2 道劫线的关系\n\n- krea2 道劫线(K2-文生图-道劫 等)= 九型底座 MyDaojieBase + 主体句装配,4 步 turbo 快产线;qwen21 道劫件 = 观察者长文直出,25 步,cfg 恒 1。\n- 两线各自独立出图;**风格终审=用户,此为适配首发版**,实拍对拍(krea2 道劫 vs qwen21 道劫)后再定产线分工(对拍计划见 docs/prompts/Qwen-Image-2.1/04-道劫风格适配.md)。\n\n### 参数圣经\n\n- **cfg 恒 1**;步数 25 起手(官方 40-50);分辨率 ResolutionSelector 默认 1MP,宽高宜 32 倍数。\n- PE 组/RGBA 开关用法同 qwen21-t2i(见其 Note);RGBA 句式原文:This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n- **透明路出图必须存 PNG 才保 alpha**;起草/改写提示词唤取技能 **qwen-image-2-1-prompter**。"]
     },
     {
       "id": 11,
       "type": "CLIPLoader",
-      "title": "[11] PE文本编码加载(qwen_image)",
+      "title": "[11] 道劫·PE文本编码加载(qwen_image)",
       "pos": [-880, 1120],
       "size": [400, 130],
       "flags": {},
@@ -236,7 +236,7 @@
     {
       "id": 12,
       "type": "QwenImage21_T2IPromptRewrite",
-      "title": "[12] PE提示词改写(短句→英文长文,默认旁路)",
+      "title": "[12] 道劫·PE改写(短句→英文长文,默认旁路)",
       "pos": [-420, 1120],
       "size": [440, 340],
       "flags": {},
@@ -260,12 +260,12 @@
         {"name": "parse_ok", "type": "BOOLEAN", "links": null}
       ],
       "properties": {"Node name for S&R": "QwenImage21_T2IPromptRewrite"},
-      "widgets_values": ["", 1.0, 0.95, 20, 1.5, 16256, 42]
+      "widgets_values": ["水墨国风修仙:一位修士立于云中山巅,渡劫前夜,大面积留白,一小块朱砂点题色", 1.0, 0.95, 20, 1.5, 16256, 42]
     },
     {
       "id": 13,
       "type": "StringConstant",
-      "title": "[13] 直写提示词(默认路)",
+      "title": "[13] 道劫·直写提示词(默认路,水墨五件套长文)",
       "pos": [-880, 1500],
       "size": [420, 380],
       "flags": {},
@@ -276,12 +276,12 @@
         {"name": "STRING", "type": "STRING", "links": [14]}
       ],
       "properties": {"Node name for S&R": "StringConstant"},
-      "widgets_values": [""]
+      "widgets_values": ["The image is a vertical ink-wash illustration of a solitary cultivator standing on a high stone terrace, the background dissolving into pale ink washes and empty paper. In the centre of the frame, the robed figure stands full-body with weight settled on one leg, head turned three-quarters toward the viewer, hands folded behind the back around a sheathed straight sword. Along the upper edge, a ragged strip of cloud drifts in from the left corner, set down in one pass of diluted grey ink. At the lower left, the terrace breaks into a few angular rocks, their contours drawn in expressive brushwork, fine ink lines that thicken and thin as they turn. Below the figure, a narrow band of blank paper carries the eye down toward the bottom margin, reading as a cliff face swallowed by fog. To the right of the figure, a single leafless pine leans into the frame from the right edge, its trunk described in dry-brush strokes, its needles in clustered dark dabs. Behind the pine, one distant peak floats halfway up the frame, its ridge suggested by three pale wash contours and nothing more. Near the top right corner, a small flock of birds crosses the open sky, each bird a single calligraphic stroke. The figure's robe is a deep ink blue-grey with layered folds, the sleeves widening as they fall, the hem lifting slightly as if in mountain wind. Around the waist, a sash of cinnabar red gives the composition its single small accent of vivid colour within a restrained traditional palette, while a round jade pendant at the chest offers the only cool highlight against the dark cloth. The face is calm and ageless, the hair bound in a simple topknot held by a plain wooden pin. Across the middle distance, successive washes of lighter ink push the terraces back, so that near forms keep firm outlines while far forms hold only their silhouettes. Along the left margin, a tall column of untouched paper balances the lean of the pine on the right. The lighting is even and diffuse, like daylight through deep cloud, casting no hard shadows and letting every ink value read clearly. Surfaces lie in flat, unhurried washes with the faint grain of the paper showing through. The overall composition balances the dark figure against expansive negative space, holds the palette to ink greys warmed by one cinnabar accent, and carries the quiet, austere mood of a Chinese cultivation-fantasy scene on the eve of a heavenly tribulation."]
     },
     {
       "id": 14,
       "type": "ComfySwitchNode",
-      "title": "[14] 提示词开关(false=直写 / true=PE扩写)",
+      "title": "[14] 道劫·提示词开关(false=直写 / true=PE扩写)",
       "pos": [120, 1120],
       "size": [260, 120],
       "flags": {},
@@ -301,7 +301,7 @@
     {
       "id": 15,
       "type": "TextEncodeQwenImage21",
-      "title": "[15] RGBA文本编码(透明路,默认旁路)",
+      "title": "[15] 道劫·RGBA编码(透明路,默认旁路)",
       "pos": [280, 420],
       "size": [420, 320],
       "flags": {},
@@ -318,12 +318,12 @@
         {"name": "latent", "type": "LATENT", "links": null}
       ],
       "properties": {"Node name for S&R": "TextEncodeQwenImage21"},
-      "widgets_values": ["This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.", "", 1024]
+      "widgets_values": ["This is an RGBA format image with transparency. an ink-wash illustration of a solitary cultivator standing on a cloud-wreathed stone terrace, expressive brushwork, expansive negative space, one small cinnabar accent. The image has an alpha channel and a transparent background.", "", 1024]
     },
     {
       "id": 16,
       "type": "ComfySwitchNode",
-      "title": "[16] RGBA开关(false=普通 / true=透明,透明图存PNG)",
+      "title": "[16] 道劫·RGBA开关(false=普通 / true=透明,透明图存PNG)",
       "pos": [760, 0],
       "size": [260, 120],
       "flags": {},
