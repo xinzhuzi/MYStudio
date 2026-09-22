@@ -27,7 +27,7 @@ K2-文生图-道劫-二采版.json。所有改动走本脚本(禁手改 JSON,重
 · 幂等:产物已存在且字节一致=skip(零写盘,exit 0,收口报告与写盘路径同款输出);
   不一致=报差异退出 1(--force 才覆盖)。
 
-用法:python3 apps/build/scripts/daojie_dual_sample_build_0921.py [--force]
+用法:python3 apps/build/scripts/daojie_dual_sample_build.py [--force]
 
 09-21 主控裁定(并行冲突处置):母版字节改从 `git show HEAD:<母版>` 取回——并行会话
 正在工作区改母版做道具白底/抠图实验(未提交、mtime 活动中),本任务既不回滚其现场,

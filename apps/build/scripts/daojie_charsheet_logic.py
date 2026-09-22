@@ -21,7 +21,7 @@ wf2api 三坑自查清单(09-18 在档,本脚本逐条落实):
 
 图双落 ~/Downloads/daojie_charsheet_0919/ 与仓库
 docs/prompts/道劫_设定表实弹_0919/;runs_audit.json 台账(分段合并)。
-用法:python3 apps/build/scripts/daojie_charsheet_logic_0919.py [--base-url …]
+用法:python3 apps/build/scripts/daojie_charsheet_logic.py [--base-url …]
       [--only charshot|pre-mod|post-mod]
 """
 from __future__ import annotations

@@ -8,8 +8,8 @@
 任何坐标/尺寸/组框漂移=FAIL 并逐项列出差异。
 
 用法:
-  python3 daojie_t2i_guard_0921.py            # 布局守卫(内容改动后跑这个)
-  python3 daojie_t2i_guard_0921.py --full     # 全量守卫:连内容都不许变(整哈希)
+  python3 daojie_t2i_guard.py            # 布局守卫(内容改动后跑这个)
+  python3 daojie_t2i_guard.py --full     # 全量守卫:连内容都不许变(整哈希)
 """
 from __future__ import annotations
 
