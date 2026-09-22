@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# 出处:2026-09-17 战役产物(人像美学库数据构建);2026-09-22 带日期文件名清整提升为常驻件,幂等可重跑。
 """KOOK 人像美学提示词库构建(09-17 用户令)。
 
 源:/Users/zhengbingjin/Downloads/KOOK人像美学图集提示词分享/(第一期/第二期,
@@ -182,7 +183,7 @@ def build_db(entries: list[dict]) -> None:
         "> **来源**:KOOK 社区「人像美学图集提示词分享」第一/二期(2026-09 收录,40 条)。",
         "> **用途**:人物美学提示词参考库——为 K2 出像线(文生图/工笔/写真)供词。",
         "> **图片**:原图合规但未入仓(163MB),仅 raw/ 存提示词原文;看图请回 Downloads 源目录。",
-        "> **维护**:重建脚本 `apps/build/scripts/portrait_prompt_db_build_0917.py`(幂等)。",
+        "> **维护**:重建脚本 `apps/build/scripts/portrait_prompt_db_build.py`(幂等)。",
         "",
         "## 使用指南(先读这段)",
         "",

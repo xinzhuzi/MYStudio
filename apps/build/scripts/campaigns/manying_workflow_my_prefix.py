@@ -1,3 +1,4 @@
+# DEPRECATED(2026-09-22 归档):已与 09-18 裁定反向(会把全库改回 MY- 前缀),勿再运行;详见 AGENTS.md 与 .claude/CLAUDE.md「文件命名铁律」。
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
