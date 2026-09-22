@@ -1,0 +1,1599 @@
+{
+  "id": "9c2d7f04-6b81-4a3e-b5d0-8e47f1a2c93b",
+  "version": 0.4,
+  "revision": 0,
+  "config": {},
+  "extra": {},
+  "groups": [
+    {
+      "id": 1,
+      "title": "道劫·Qwen-Image-2.1 加载器(bf16 三件套)",
+      "bounding": [
+        -1860,
+        -460,
+        1120,
+        260
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "道劫·文生图主链(水墨国风修仙,分辨率→潜空→编码→采样→解码→保存)",
+      "bounding": [
+        -640,
+        -140,
+        2980,
+        900
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "道劫·PE 提示词改写(默认旁路,开启即自动扩写)",
+      "bounding": [
+        -900,
+        1100,
+        1300,
+        800
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "道劫·底座区·四选一链([17]-[20]=库四类型首条;[21]→[22]→[23] 级联,全 false=人物首条默认)",
+      "bounding": [
+        -3600,
+        1920,
+        1880,
+        2000
+      ],
+      "color": "#4d9e6a",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "道劫·主体句区([24] 唯一手写位;[26] RegexReplace 换B槽;[25] false=纯底座/true=装配)",
+      "bounding": [
+        -2220,
+        1940,
+        1480,
+        940
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    }
+  ],
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "title": "[1] 道劫·UNET加载",
+      "pos": [
+        -1800,
+        -360
+      ],
+      "size": [
+        340,
+        84
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "title": "[2] 道劫·CLIP加载(qwen_image)",
+      "pos": [
+        -1380,
+        -360
+      ],
+      "size": [
+        360,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "shape": 7,
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3,
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_8b_bf16.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "title": "[3] 道劫·VAE加载",
+      "pos": [
+        -960,
+        -360
+      ],
+      "size": [
+        340,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            4,
+            10,
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "ResolutionSelector",
+      "title": "[4] 道劫·分辨率选择(跟底座类型切档:人物3:4/场景16:9/道具1:1/美宣21:9)",
+      "pos": [
+        -560,
+        0
+      ],
+      "size": [
+        320,
+        190
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ResolutionSelector"
+      },
+      "widgets_values": [
+        "3:4 (Portrait Standard)",
+        1,
+        8
+      ]
+    },
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "title": "[5] 道劫·空潜空(宽高接 [4])",
+      "pos": [
+        -140,
+        0
+      ],
+      "size": [
+        330,
+        110
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 1
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "type": "TextEncodeQwenImage21",
+      "title": "[6] 道劫·文本编码(prompt 接 [14] 开关)",
+      "pos": [
+        280,
+        0
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7,
+          "link": 4
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "",
+        "",
+        1024
+      ]
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "title": "[7] 道劫·KSampler(25步·cfg1)",
+      "pos": [
+        1100,
+        0
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 19
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        25,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "title": "[8] 道劫·VAE解码",
+      "pos": [
+        1520,
+        0
+      ],
+      "size": [
+        240,
+        50
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 9
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "title": "[9] 道劫·保存",
+      "pos": [
+        1860,
+        0
+      ],
+      "size": [
+        380,
+        330
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "MYStudio"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "MarkdownNote",
+      "title": "[10] 道劫·PRO 用法速查(底座四选一×主体句换槽)",
+      "pos": [
+        -1860,
+        420
+      ],
+      "size": [
+        900,
+        1120
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 道劫 · Qwen-Image-2.1 文生图 PRO(规范化装配版)\n\nK2 道劫『一处选型+分件装配』思想的 Q2-1 原生节点落地:底座区四选一链 + 主体句区换槽装配 + PE/RGBA 双开关承袭。提示词真源=docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md(16 条底座,画布即贴)。\n\n### 底座区怎么换(四选一)\n- [17]-[20] 四个 StringConstant=库四类型首条底座全文(人物-云台执剑立绘/场景-山门暮霭空镜/道具-法剑多视图设定板/美宣-渡劫一剑横幅),槽位 ⟨A/B/C⟩ 原样保留——不换也成立,槽内已预置可用默认主体。\n- 换型:[21]→[22]→[23] 三级开关级联。全 false=人物首条(默认);[21] true=场景;[22] true=道具;[23] true=美宣(懒执行,未选底座不进提示词)。\n- 其余 12 条底座:从库文档复制全文,整段贴进 [17]-[20] 任一节点即可(换贴不换结构)。\n- 警示(手贴 vs 重跑):手贴底座只活在画布件——生成脚本重跑会把 [17]-[20] 全量重置回库四类型首条(真源=库文档),手贴内容被静默覆盖;要长久保留,先把底座回写库文档再重跑,或重跑前另存画布件。\n- 换型后把 [4] 分辨率同步切档:人物 3:4 / 场景 16:9 / 道具 1:1 / 美宣 21:9(库文档对接点表同口径)。\n\n### 主体句怎么拼([24] 唯一手写位)\n- 拼法=库文档『同段换句』,不是 K2 的尾接直拼:Q2.1 宪法恒单段(Keep it to one paragraph),主体内容长在底座槽位里。\n- [25] 拼装开关 false(默认)=纯底座直用;true=把 [24] 全文经 [26] RegexReplace 换进当前底座的 ⟨B:…⟩ 主体槽(整段角括号连括号替换,与库文档换槽手工等价)。\n- [24] 默认=首条底座 B 槽预置句(对首条内容恒等——装配时 B 槽角括号随换句一并消解,与库文档『连括号一起换』同义);换型([21]-[23] 切底座)后 [24] 须同步换成本底座对应的 B 槽主体句(预置句见库文档各条;[26] 只认 B 槽,旧型主体句残留在新型底座=语义错乱——场景/道具空镜底座禁带人物主体句);写主体句只写主体与画面,不重复风格词(ink-wash 全篇只在锚定句点名一次)。\n- 换槽四不碰:不碰句首位置短语/光照句与总结句/不写比例分辨率像素/不加质量词与指令腔;A/C/D 槽进阶=直接改底座节点本文。\n- 跑图前过目 [27] 装配预览(easy showAnything,接 [25] 输出):显示将进 [6] 编码的最终文本——[25] true 换槽后先在此肉眼查(『进 [6] 的文本含 CJK 即违规』的画布判定点,画内引号文字除外),确认再跑。\n- 禁混一句:任何将进 [6] 编码节点的文本含 CJK 即违规(画内引号文字与 PE 种子句除外)——K2 中文围栏句、质量词、比例词禁入(库文档禁混条款)。\n\n### PE 与 RGBA 何时开\n- [14] 提示词开关:false=直写(默认,上面的装配链);true=PE 扩写([12] 短句种子→官方宪法英文长文,懒执行——旁路时 PE 模型不加载)。PE 路与直写/装配路二选一。\n- [16] RGBA 开关:false=普通(默认);true=透明底——官方包裹句式原文:This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background. 透明路出图必须存 PNG 才保 alpha。\n- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n### 参数圣经\n- cfg 恒 1(负向不生效,负向槽留空);步数 25 起手(官方 40-50);分辨率走 [4],宽高宜 32 倍数;seed fixed 可复现;风格终审=用户。\n- 生成脚本=apps/build/scripts/qwen21_daojie_pro_0923.py(幂等;底座全文从库文档现读,重跑即同步——重跑同时会把手贴底座与本 Note 手改重置回首版,见上方警示)。\n"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "CLIPLoader",
+      "title": "[11] 道劫·PE文本编码加载(qwen_image)",
+      "pos": [
+        -880,
+        1120
+      ],
+      "size": [
+        400,
+        130
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "shape": 7,
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "QwenImage21_T2IPromptRewrite",
+      "title": "[12] 道劫·PE改写(短句→英文长文,默认旁路)",
+      "pos": [
+        -420,
+        1120
+      ],
+      "size": [
+        440,
+        340
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 12
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "widget": {
+            "name": "temperature"
+          },
+          "link": null
+        },
+        {
+          "name": "top_p",
+          "type": "FLOAT",
+          "widget": {
+            "name": "top_p"
+          },
+          "link": null
+        },
+        {
+          "name": "top_k",
+          "type": "INT",
+          "widget": {
+            "name": "top_k"
+          },
+          "link": null
+        },
+        {
+          "name": "presence_penalty",
+          "type": "FLOAT",
+          "widget": {
+            "name": "presence_penalty"
+          },
+          "link": null
+        },
+        {
+          "name": "max_new_tokens",
+          "type": "INT",
+          "widget": {
+            "name": "max_new_tokens"
+          },
+          "link": null
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive_prompt",
+          "type": "STRING",
+          "links": [
+            13
+          ]
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "wh_ratio",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "thinking",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "parse_ok",
+          "type": "BOOLEAN",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "QwenImage21_T2IPromptRewrite"
+      },
+      "widgets_values": [
+        "水墨国风修仙:一位修士立于云中山巅,渡劫前夜,大面积留白,一小块朱砂点题色",
+        1.0,
+        0.95,
+        20,
+        1.5,
+        16256,
+        42
+      ]
+    },
+    {
+      "id": 14,
+      "type": "ComfySwitchNode",
+      "title": "[14] 道劫·提示词开关(false=直写 / true=PE扩写)",
+      "pos": [
+        120,
+        1120
+      ],
+      "size": [
+        260,
+        120
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "STRING",
+          "link": 30
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "STRING",
+          "link": 13
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 15,
+      "type": "TextEncodeQwenImage21",
+      "title": "[15] 道劫·RGBA编码(透明路,默认旁路)",
+      "pos": [
+        280,
+        420
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 16
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7,
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            18
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "This is an RGBA format image with transparency. an ink-wash illustration of a solitary cultivator standing on a cloud-wreathed stone terrace, expressive brushwork, expansive negative space, one small cinnabar accent. The image has an alpha channel and a transparent background.",
+        "",
+        1024
+      ]
+    },
+    {
+      "id": 16,
+      "type": "ComfySwitchNode",
+      "title": "[16] 道劫·RGBA开关(false=普通 / true=透明,透明图存PNG)",
+      "pos": [
+        760,
+        0
+      ],
+      "size": [
+        260,
+        120
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 18
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "CONDITIONING",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 17,
+      "type": "StringConstant",
+      "title": "[17] 道劫·底座①人物-云台执剑立绘(库首条·默认;画幅3:4)",
+      "pos": [
+        -3540,
+        2000
+      ],
+      "size": [
+        440,
+        400
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringConstant"
+      },
+      "widgets_values": [
+        "The image is a vertical ink-wash illustration of ⟨A:a solitary cultivator in layered robes⟩, the background dissolving into pale ink washes and empty paper. In the centre of the frame, ⟨B:the figure stands full-body with weight settled on one leg, head turned three-quarters toward the viewer, hands folded behind the back around a sheathed straight sword⟩. Along the upper edge, a ragged strip of cloud drifts in from the upper-left corner, set down in one pass of diluted grey ink. At the lower left, the terrace breaks into angular rocks, their contours drawn in expressive brushwork, fine ink lines that thicken and thin as they turn. Below the figure, a narrow band of blank paper carries the eye down toward the bottom margin, reading as a cliff face swallowed by fog. To the right of the figure, a single leafless pine leans in from the right edge, its trunk described in dry-brush strokes, its needles in clustered dark dabs. Behind the pine, one distant peak floats halfway up the frame, its ridge suggested by three pale wash contours and nothing more. Near the top right corner, a small flock of birds crosses the open sky, each bird a single calligraphic stroke. The robe is ⟨C:a deep ink blue-grey with layered folds, the sleeves widening as they fall, the hem lifting slightly as if in mountain wind⟩. Around the waist, a sash of cinnabar red gives the composition its single small accent of vivid colour within a restrained traditional palette, while a round jade pendant at the chest offers the only cool highlight against the dark cloth. The face is ⟨D:calm and ageless, the hair bound in a simple topknot held by a plain wooden pin⟩. Across the middle distance, successive washes of lighter ink push the terraces back, so that near forms keep firm outlines while far forms hold only their silhouettes. Along the left margin, a tall column of untouched paper balances the lean of the pine on the right. The lighting is even and diffuse, like daylight through deep cloud, casting no hard shadows and letting every ink value read clearly. Surfaces lie in flat, unhurried washes with the faint grain of the paper showing through. The overall composition balances the dark figure against expansive negative space, holds the palette to ink greys warmed by one cinnabar accent, and carries the quiet, austere mood of a Chinese cultivation-fantasy scene on the eve of a heavenly tribulation."
+      ]
+    },
+    {
+      "id": 18,
+      "type": "StringConstant",
+      "title": "[18] 道劫·底座②场景-山门暮霭空镜(画幅16:9)",
+      "pos": [
+        -3540,
+        2480
+      ],
+      "size": [
+        440,
+        400
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringConstant"
+      },
+      "widgets_values": [
+        "The image is a wide ink-wash scene of ⟨A:an abandoned mountain gate at dusk⟩, the far ground dissolving into pale ink washes and empty paper. Across the upper band, layered ridges recede in three successively lighter washes, the nearest drawn with firm contour, the farthest a stain of grey. At the centre of the frame, ⟨B:a timber gate of two posts and a heavy lintel stands at the head of a broken stair, its roof tiles chipped, one door leaning outward on a single hinge⟩. A wooden plaque hangs askew above the lintel, its inscription weathered past reading, the carving holding only shadow. To the left of the gate, a stone lantern has lost its cap, the fracture drawn in one decisive stroke of expressive brushwork. At the lower right, the stair descends out of frame in six worn steps, each edge softened by pooled wash. Along the left margin, a single old pine holds the corner, its trunk in dry-brush strokes, its needles in clustered dark dabs. Behind the gate, a courtyard wall subsides into mist after its second course of stones. Across the lower third, fog crosses the stair, leaving the nearest step crisp and the rest suggested. In the far distance, one pagoda tip floats above the ridges, no wider than a thumbprint of grey. Along the right margin, a thin waterfall threads the far ridge, drawn as three parallel pale lines. ⟨C:A last warmth of pale amber wash touches the plaque and the pine trunk⟩, the day's single departure from the cool ink palette, a small accent within a restrained traditional palette. The lighting is even and diffuse, like dusk under an overcast lid, casting no hard shadows and letting the greys go quiet in sequence. Surfaces lie in flat, unhurried washes with the faint grain of the paper showing through. The overall composition balances the gate's dark mass against expansive negative space, holds the palette to ink greys warmed by one amber accent, and carries the forsaken, after-the-pilgrims mood of a Chinese cultivation-fantasy mountain sanctuary."
+      ]
+    },
+    {
+      "id": 19,
+      "type": "StringConstant",
+      "title": "[19] 道劫·底座③道具-法剑多视图设定板(画幅1:1)",
+      "pos": [
+        -3540,
+        2960
+      ],
+      "size": [
+        440,
+        400
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringConstant"
+      },
+      "widgets_values": [
+        "The image is a square ink-wash sheet of ⟨A:a cultivator's straight sword shown in separate views on one page⟩, the ground of every cell left as pale paper. In the upper-left cell, the sword lies horizontal in full length, its blade one unbroken fine ink contour, its fuller a single pale line down the middle. In the upper-right cell, the same blade appears edge-on, no wider than a wire, the guard reduced to a small dark bead. In the lower-left cell, the hilt shows alone at an angle, its cord binding drawn as close cross-strokes of controlled contour weight, the pommel ending in a plain round loop. In the lower-right cell, ⟨B:a detail enlarges the guard's meeting with the blade, the fit of shoulder and notch exact, one old nick in the edge left visible⟩. Along the bottom edge, a narrow band of grey wash grounds the four views, reading as a shelf. Near the top edge, a slim title space is left blank, reserved and empty. Between the cells, margins of untouched paper keep the views apart, negative space standing in for distance. At the centre of the sheet, where the four cells meet, a small square seal is stamped in cinnabar red, the page's single accent of vivid colour within a restrained traditional palette. The blade's steel reads as pale grey wash with the paper grain showing through, not as shine. The scabbard, leaning behind the blade in the upper-left cell, is a deep ink black with one thin line of dry-brush texture. All contours are set down in expressive brushwork, fine ink lines that thicken and thin as they turn. The lighting is even and diffuse, like flat daylight on a studio sheet, casting no hard shadows and keeping every view equally legible. Surfaces lie in flat, unhurried washes with the faint grain of the paper showing through. The overall composition balances the drawn artefact against expansive negative space, holds the palette to ink greys sealed by one cinnabar square, and carries the patient, catalogue-like mood of a Chinese cultivation-fantasy arms record."
+      ]
+    },
+    {
+      "id": 20,
+      "type": "StringConstant",
+      "title": "[20] 道劫·底座④美宣-渡劫一剑横幅(画幅21:9)",
+      "pos": [
+        -3540,
+        3440
+      ],
+      "size": [
+        440,
+        400
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringConstant"
+      },
+      "widgets_values": [
+        "The image is a wide ink-wash poster of ⟨A:a lone sword cultivator facing a heavenly tribulation⟩, the storm dissolving into pale ink washes and empty paper. To the right of centre, ⟨B:the white-robed figure stands on a broken summit with both feet planted, the sword drawn and held low in one line toward the coming light, robes and blade-cord driven flat by the fall of wind⟩. Along the upper edge, tribulation cloud piles in a rolling mass of mixed ink, its lowest lobe dragging the darkest value in the picture. From that lobe, a single vein of cinnabar lightning descends toward the figure, the poster's one accent of vivid colour within a restrained traditional palette. At the far left, a chain of lesser peaks stands half-erased in pale wash, holding the horizon down. Below the figure, the summit shears away into cloud, the drop described in three decisive strokes of expressive brushwork. Behind the figure, the storm's body opens one vertical seam of blank paper, negative space given to the coming strike. Across the lower third, driven rain arrives as slanted dry dabs, denser at the left, thinning to nothing before the figure. Near the top left corner, one crane holds against the wind, wings pinned, reading as a witness. The figure's white robe keeps its paper tone against the storm greys, its edges firm where the wind presses and soft where the mist takes them. Around the planted feet, the stone cracks in a radial pattern, each fissure a controlled line of varying weight. Across the middle distance, ridges surface and drown in turn as the washes step back, the nearest drawn, the farthest only breathed on. The lighting is even and diffuse, like the grey inside a storm cell, casting no hard shadows and letting the cinnabar vein carry all the drama. Surfaces lie in flat, unhurried washes with the faint grain of the paper showing through. Every element holds its place in one instant, the whole poster reading as the breath before the strike. The overall composition balances the small white figure against the massed storm and expansive negative space, holds the palette to storm greys cut by one cinnabar vein, and carries the contracted, held-then-released mood of a Chinese cultivation-fantasy tribulation poster."
+      ]
+    },
+    {
+      "id": 21,
+      "type": "ComfySwitchNode",
+      "title": "[21] 道劫·底座选型①(false=①人物 / true=②场景)",
+      "pos": [
+        -3020,
+        2000
+      ],
+      "size": [
+        360,
+        120
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "STRING",
+          "link": 20
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "STRING",
+          "link": 21
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 22,
+      "type": "ComfySwitchNode",
+      "title": "[22] 道劫·底座选型②(false=选型① / true=③道具)",
+      "pos": [
+        -2600,
+        2000
+      ],
+      "size": [
+        360,
+        120
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "STRING",
+          "link": 22
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "STRING",
+          "link": 23
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 23,
+      "type": "ComfySwitchNode",
+      "title": "[23] 道劫·底座选型③·四选一汇总(false=选型② / true=④美宣)",
+      "pos": [
+        -2180,
+        2000
+      ],
+      "size": [
+        360,
+        120
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "STRING",
+          "link": 24
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "STRING",
+          "link": 25
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            26,
+            29
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 24,
+      "type": "StringConstant",
+      "title": "[24] 道劫·主体句区(唯一手写位;默认=首条B槽预置句,内容恒等)",
+      "pos": [
+        -2160,
+        2440
+      ],
+      "size": [
+        460,
+        300
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "StringConstant"
+      },
+      "widgets_values": [
+        "the figure stands full-body with weight settled on one leg, head turned three-quarters toward the viewer, hands folded behind the back around a sheathed straight sword"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "ComfySwitchNode",
+      "title": "[25] 道劫·拼装开关(false=纯底座 / true=[24]换进B槽)",
+      "pos": [
+        -1200,
+        2000
+      ],
+      "size": [
+        380,
+        140
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "STRING",
+          "link": 29
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "STRING",
+          "link": 28
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            30,
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 26,
+      "type": "RegexReplace",
+      "title": "[26] 道劫·底座×主体句装配(B槽换句;pattern=⟨B:[^⟩]*⟩)",
+      "pos": [
+        -1700,
+        2000
+      ],
+      "size": [
+        420,
+        170
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "string",
+          "type": "STRING",
+          "widget": {
+            "name": "string"
+          },
+          "link": 26
+        },
+        {
+          "name": "replace",
+          "type": "STRING",
+          "widget": {
+            "name": "replace"
+          },
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RegexReplace"
+      },
+      "widgets_values": [
+        "",
+        "⟨B:[^⟩]*⟩",
+        "",
+        true,
+        false,
+        false,
+        0
+      ]
+    },
+    {
+      "id": 27,
+      "type": "easy showAnything",
+      "title": "[27] 道劫·装配预览(接[25]输出;跑图前过目将进[6]的最终文本)",
+      "pos": [
+        -700,
+        2000
+      ],
+      "size": [
+        480,
+        230
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "输入任何",
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 31
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      4,
+      0,
+      5,
+      0,
+      "INT"
+    ],
+    [
+      2,
+      4,
+      1,
+      5,
+      1,
+      "INT"
+    ],
+    [
+      3,
+      2,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      3,
+      0,
+      6,
+      2,
+      "VAE"
+    ],
+    [
+      5,
+      5,
+      0,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      6,
+      6,
+      0,
+      16,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      6,
+      1,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      1,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      10,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      11,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      11,
+      0,
+      12,
+      0,
+      "CLIP"
+    ],
+    [
+      13,
+      12,
+      0,
+      14,
+      1,
+      "STRING"
+    ],
+    [
+      15,
+      14,
+      0,
+      6,
+      3,
+      "STRING"
+    ],
+    [
+      16,
+      2,
+      0,
+      15,
+      0,
+      "CLIP"
+    ],
+    [
+      17,
+      3,
+      0,
+      15,
+      2,
+      "VAE"
+    ],
+    [
+      18,
+      15,
+      0,
+      16,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      19,
+      16,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      20,
+      17,
+      0,
+      21,
+      0,
+      "STRING"
+    ],
+    [
+      21,
+      18,
+      0,
+      21,
+      1,
+      "STRING"
+    ],
+    [
+      22,
+      21,
+      0,
+      22,
+      0,
+      "STRING"
+    ],
+    [
+      23,
+      19,
+      0,
+      22,
+      1,
+      "STRING"
+    ],
+    [
+      24,
+      22,
+      0,
+      23,
+      0,
+      "STRING"
+    ],
+    [
+      25,
+      20,
+      0,
+      23,
+      1,
+      "STRING"
+    ],
+    [
+      26,
+      23,
+      0,
+      26,
+      0,
+      "STRING"
+    ],
+    [
+      27,
+      24,
+      0,
+      26,
+      1,
+      "STRING"
+    ],
+    [
+      28,
+      26,
+      0,
+      25,
+      1,
+      "STRING"
+    ],
+    [
+      29,
+      23,
+      0,
+      25,
+      0,
+      "STRING"
+    ],
+    [
+      30,
+      25,
+      0,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      31,
+      25,
+      0,
+      27,
+      0,
+      "STRING"
+    ]
+  ],
+  "last_node_id": 27,
+  "last_link_id": 31
+}
