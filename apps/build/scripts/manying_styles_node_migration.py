@@ -43,8 +43,8 @@ REPO = Path(__file__).resolve().parents[3]
 K2 = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像"
 ART_SKILLS = REPO / "apps/frontend/assets/studio-manuals/art_skills"
 
-# 与 my_nodes/nodes/my_styles.py 同口径:装机被 electron-builder.yml 排除/手册异构的 3 家
-EXCLUDED_DIRS = {"daojie_ink_guofeng", "3D_guofeng_cyber", "realpeople_modern_city"}
+# 与 my_nodes/nodes/my_styles.py 同口径(09-22 方案C:daojie_ink_guofeng 已入包入下拉,不再排除):手册异构 2 家
+EXCLUDED_DIRS = {"3D_guofeng_cyber", "realpeople_modern_city"}
 
 NEW_TYPE = "MyStylesLibrary"
 
