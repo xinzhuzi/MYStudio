@@ -11,6 +11,7 @@ import {
   ScanEye,
   ServerCog,
   Terminal,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -36,6 +37,15 @@ import {
   type ComfyEnginePillKind,
 } from "./comfy-engine/comfy-engine-contract";
 import { useComfyEngineSettings } from "./comfy-engine/useComfyEngineSettings";
+// Qwen-Image-2.1 加速模块(09-24 R23):独立区块组件+行胶囊纯函数;K2 三处展示
+// (引擎卡模型页/生态插件/漫影生图)零改动,代码分离不侵入。
+import {
+  Qwen21SpeedupSection,
+  deriveQwen21LoraStatus,
+  deriveQwen21SectionPill,
+  deriveQwen21TeSpeedState,
+  formatQwen21DownloadingLabel,
+} from "./comfy-engine/Qwen21SpeedupSection";
 import { VlmReviewSettingsSection } from "./VlmReviewSettingsSection";
 import { SfxGenSettingsSection } from "./SfxGenSettingsSection";
 import { RenderingSettingsTab } from "./RenderingSettingsTab";
@@ -50,6 +60,7 @@ const SECTION_STORAGE_KEY = "mystudio.settings.plugins.collapsedSections";
 const SECTION_IDS = [
   "python",
   "comfy-engine",
+  "qwen-image-21",
   "vlm-review",
   "audio-tts",
   "audio-sfx",
@@ -231,6 +242,9 @@ export function PluginSettingsTab() {
   const refreshRowStatuses = () => {
     void imageGen.probeRuntime();
     void comfyEngine.refreshStatus();
+    // Qwen-Image-2.1 行(09-24):加速 LoRA 在位判据吃模型清单(FS 真值),
+    // 挂载/切行时随行级重探一起拉一次(幂等,不轮询)。
+    void comfyEngine.loadModels();
     if (typeof window !== "undefined" && window.vlmReview?.probe) {
       window.vlmReview.probe().then(setVlmProbe).catch(() => undefined);
     }
@@ -399,6 +413,25 @@ export function PluginSettingsTab() {
         ? formatComfyEnginePillLabel(comfyPillKind, comfyEngine.activeJob)
         : undefined;
 
+  // Qwen-Image-2.1 行胶囊(资产在位聚合;启用态不入面板=看画布,Q3=A 定案):
+  // 检查中 > 下载中 x% > 已就绪(两件齐) > 未装齐(一件) > 未安装(全缺)。
+  const qwen21Lora = deriveQwen21LoraStatus(comfyEngine.models, comfyEngine.activeJob);
+  const qwen21Te = deriveQwen21TeSpeedState(comfyEngine.plugins);
+  const qwen21SectionPill = deriveQwen21SectionPill(qwen21Lora, qwen21Te);
+  const qwen21Pill: CapabilityPillKind =
+    qwen21SectionPill === "downloading"
+      ? "downloading"
+      : qwen21SectionPill === "ready"
+        ? "ready"
+        : qwen21SectionPill === "checking"
+          ? "checking"
+          : "not-installed";
+  const qwen21PillLabel =
+    qwen21SectionPill === "downloading"
+      ? formatQwen21DownloadingLabel(qwen21Lora.progress)
+      : qwen21SectionPill === "partial"
+        ? "未装齐"
+        : undefined;
 
 
   // imageGen 行已撤(09-09 模型页并入引擎卡),但 tab 级 hook 保留:挂载探测
@@ -502,6 +535,21 @@ export function PluginSettingsTab() {
             onToggle={toggleSectionCollapsed}
           >
             <ComfyEngineSettingsSection embedded initialActiveTab={revealTab ?? undefined} />
+          </CapabilityRow>
+          {/* Qwen-Image-2.1 加速模块(09-24 R23):与引擎卡并列的独立行,只管两件
+              加速资产的在位态;启用看画布(Q3=A),K2 区块零改动 */}
+          <CapabilityRow
+            sectionId="qwen-image-21"
+            headingId="plugin-qwen-image-21-heading"
+            icon={Zap}
+            title="Qwen-Image-2.1"
+            description="加速资产的安装状态:加速包(4 步出图)与采样提速插件;装好后到画布工作流里选用。"
+            pill={qwen21Pill}
+            pillLabel={qwen21PillLabel}
+            collapsed={collapsedSections.has("qwen-image-21")}
+            onToggle={toggleSectionCollapsed}
+          >
+            <Qwen21SpeedupSection engine={comfyEngine} />
           </CapabilityRow>
         </CapabilityGroup>
 

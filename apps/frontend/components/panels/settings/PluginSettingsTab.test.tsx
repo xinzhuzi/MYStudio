@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   imageGenProbe: vi.fn(async () => undefined),
   videoQcRefresh: vi.fn(async () => undefined),
   comfyEngineRefresh: vi.fn(async () => undefined),
+  comfyEngineLoadModels: vi.fn(async () => undefined),
 }));
 
 vi.mock("./usePythonRuntimeSettings", () => ({
@@ -124,6 +125,10 @@ vi.mock("./comfy-engine/useComfyEngineSettings", () => ({
       installDir: "/tmp/comfyui",
     },
     activeJob: null,
+    // Qwen-Image-2.1 行(09-24):行胶囊+区块吃控制器这三面
+    models: null,
+    plugins: [],
+    loadModels: mocks.comfyEngineLoadModels,
     refreshStatus: mocks.comfyEngineRefresh,
   }),
 }));
@@ -132,6 +137,16 @@ vi.mock("./comfy-engine/ComfyEngineSettingsSection", () => ({
     <div data-testid="comfy-engine-section">{String(embedded)}{initialActiveTab ? `:${initialActiveTab}` : ""}</div>
   ),
 }));
+// Qwen-Image-2.1 区块(09-24):UI 打桩,行胶囊用的纯函数走真源(importOriginal)
+vi.mock("./comfy-engine/Qwen21SpeedupSection", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./comfy-engine/Qwen21SpeedupSection")>();
+  return {
+    ...actual,
+    Qwen21SpeedupSection: ({ engine }: { engine: unknown }) => (
+      <div data-testid="qwen21-section">{engine ? "engine" : "no-engine"}</div>
+    ),
+  };
+});
 vi.mock("./SfxGenSettingsSection", () => ({
   SfxGenSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="sfx-gen-section">{String(embedded)}</div>,
 }));
@@ -164,6 +179,7 @@ const EXPECTED_ROW_HEADINGS = [
   "本地配置",
   "Python 运行环境",
   "ComfyUI 引擎",
+  "Qwen-Image-2.1",
   "视觉审核（VLM 一致性检查）",
   // 09-11:视频评分模型行撤(用户裁定:不需要此模型——从未下载,评分链未下载自动跳过)
   "TTS 运行时与模型",
