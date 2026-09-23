@@ -5,6 +5,10 @@ globs:
   - "**/*.json"
 ---
 
+> **LOCAL NOTE (this machine)**: this engine listens on `http://127.0.0.1:17000` — NOT the 8188/8000
+> defaults mentioned below (those are upstream generic ComfyUI knowledge). Engine home, launch recipe
+> and the live model list live in `../comfyui/machine.md` (the authority for this install).
+
 # ComfyUI Troubleshooting Guide
 
 > Render completes but looks WRONG (artifacts, wrong subject/pose/color, a

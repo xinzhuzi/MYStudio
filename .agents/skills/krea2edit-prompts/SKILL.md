@@ -3,6 +3,8 @@ name: krea2edit-prompts
 description: Use when writing a Krea2Edit one-sentence Chinese edit instruction from a photo (无衣物/褪衣/换装/garment edits), when analyzing what a person in an image wears to produce that instruction, or when the K2 改图 workflow's 编辑指令 node needs to be filled. Covers garment inventory, verb tiers, fabric-destination rule, taboos, worked examples, self-check, and the two-line output format.
 ---
 
+> **本机注记(2026-09-24)**:本地 K2 权重 2026-09-23 已退役(外置盘 SHA256 对账备份后删除,恢复路径见 `../comfyui/machine.md`)。本地 K2 改图链当前不可跑;本文指令写法知识对云端 Krea 编辑渠道、以及未来本地恢复权重后的链路仍然有效。
+
 # krea2edit 编辑指令生成器(看图 → 一句话指令)
 
 给一张人物照片,分析衣物形态,输出可直接贴进 `漫影/1_图片/K2图像/3_改图/Krea2_无衣物_稳定.json` 节点17 的一句话中文指令。

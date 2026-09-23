@@ -3,6 +3,11 @@ name: krea
 description: Use when a task names Krea or Krea 2, when choosing between Krea's hosted API and its open weights, when wiring the Krea 2 Image or Krea 2 Style Reference API nodes, when building with FLUX.1 Krea Dev, when someone asks about Krea Realtime or realtime or streaming video generation, or when a Krea 2 job needs ControlNet, instruction editing, identity preservation or per-layer conditioning control that core ComfyUI does not provide.
 ---
 
+> **LOCAL NOTE (2026-09-24, this machine)**: local K2 weights were RETIRED 2026-09-23 — deleted after a
+> SHA256-verified backup (restore = copy back from `/Volumes/郑冰津/AI/Krea2` per
+> `manifest-retired-0923.jsonl`; details in `../comfyui/machine.md`). The open-weights path below is
+> currently NOT runnable locally; the hosted-API path and all model/prompt knowledge below stay valid.
+
 # Krea
 
 Krea ships two completely separate things under one brand, and picking the wrong one wastes the job.

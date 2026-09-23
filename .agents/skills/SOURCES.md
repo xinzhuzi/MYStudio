@@ -17,12 +17,13 @@
 
 **本地自建**(非第三方,无上游):
 - `comfyui/tools/find_orphan_nodes.py` — UI 格式工作流孤儿节点检测(从输出节点反向可达性判定;兼容 cg-use-everywhere 广播、SetGet、rgthree 组旁路器/查看器、UUID 子图节点;`--prune` 生成 .cleaned.json 不动原文件)。2026-09-04 经合成样例 + K2图像/、H3视频/ 真实工作流验证。
+- `generated/` — GitNexus `analyze --skills` 自动生成的按域代码导航地图(**可再生的派生产物,勿手编**;`.gitignore`/`.zcodeignore` 刻意排除不进 git;目录两层深故不进 skill 发现路径,导航请直接用 GitNexus `query()`/`context()` 动态查询——静态地图会滞后,remotion 件内 08-21 刷新注记自证)。09-24 盘点 20 件在档。
 
-- **Agent-Kit commit**: `74f5b0bbd87b1c4ca0cd95dea169cdcae4b9af9d`(2026-08-20,main 分支),Apache-2.0(仓库根 LICENSE/NOTICE,未随目录拷贝;本地使用无附加义务,引用内容请保留上游署名)
+- **Agent-Kit commit**: `74f5b0bbd87b1c4ca0cd95dea169cdcae4b9af9d`(2026-08-20,**master 分支**——仓库默认分支是 master 非 main),Apache-2.0(仓库根 LICENSE/NOTICE,未随目录拷贝;本地使用无附加义务,引用内容请保留上游署名)
 - **MiniMax-H3 commit**: `d21241f`(2026-08-15,main 分支),**MiniMax H3 Community License**(免版税可使用/复制/修改;地域排除欧盟/英/韩/美;商用门槛=年收入 2000 万美元;本地个人使用无附加义务)。官方明确支持以 skills CLI 安装本目录
 - **安装方式**(2026-09-04):sparse/浅克隆后拷贝;`comfyui/machine.md` 已按本机改写(原模板被覆盖,上游更新不会自动合并)
 - **安装方式**(2026-09-12,frontend-ui-engineering / modern-javascript-patterns):`npx skills add <owner/repo@skill> -y` 直装;更新走 `npx skills check` / `npx skills update`
 - **安装方式**(2026-09-23,qwen-image-2-1-prompter / qwen-image-prompt-en):同上 `npx skills add` 直装(npx 自动落 `.agents/skills/` 真源,`.claude/skills/` 侧为同一份链接);挑拣依据=find-skills 三路搜索(skills.sh/GitHub code search/精选目录)后逐条与官方 PE 原文对账;云端 API 向的 qianwen-ai(96★)/qwencloud/alicloud 系**刻意未装**(与本地 ComfyUI 路线错位)
-- **comfy-mcp commit**: `6aa136a`(main 分支),MIT。**只装了知识型 skill,未装 MCP 服务器本体**(文档中引用的 `panel_run`/`get_history` 等工具需 MCP 层,装法:workspace `.zcode/config.json` 或 `.agents/mcp.json` 配 `mcpServers`,见 ZCode 配置指南)
+- **comfy-mcp commit**: `6aa136a`(2026-09-03,master 分支),MIT。**上游 2026-09-09 已归档**(final release——官方 Comfy Agent / Comfy MCP 出现后作者停维,此后不再有更新;未来若要 MCP 层可评估官方件)。**只装了知识型 skill,未装 MCP 服务器本体**(文档中引用的 `panel_run`/`get_history` 等工具需 MCP 层,装法:workspace `.zcode/config.json` 或 `.agents/mcp.json` 配 `mcpServers`,见 ZCode 配置指南)。troubleshooting / debug-render 两 skill 文档的最后上游改动(2026-08-25 unslop 文案修订)均已包含于本快照
 - **刻意未装**: Agent-Kit 的 `seedance` skill、其 `install.sh`(会装 comfyui-mcp 服务/in-graph Claude 节点等)、官方 workflow_templates 模板库(machine.md 中有说明)、MiniMax 官方 8 个风格模板 skill(一次性模板,个人已有固定提示词风格)、krea-ai/skills 官方库(纯 Krea.ai 托管 API/MCP 向,本地 K2 线用不上)、comfyui-node-registry/model-compatibility(写插件向/SD-Flux 系兼容矩阵,不对口)
-- **更新方式**: 重新浅克隆 → 对比同名目录 → 手动同步(保留本机 `comfyui/machine.md`)
+- **更新方式**: 重新浅克隆 → 对比同名目录 → 手动同步(保留本机 `comfyui/machine.md`)。**2026-09-24 全量核对**:8 个上游来源 skill 全部与上游最新一致(GitHub compare API 逐仓验),零同步需求;`npx skills check` 在本机卡网络不可用,核查走 API 直查
