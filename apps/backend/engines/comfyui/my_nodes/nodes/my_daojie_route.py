@@ -17,10 +17,13 @@ base 对应线路的模型原样路由出去,applied 披露所选线路。
 check_lazy_status 只拉起 base 对应一条线路,其余 8 行 40 件不加载
 (范式同 kjnodes LazySwitchKJ;验证器仍对九槽全量做类型检查,两道门不破)。
 
-applied 披露(09-21 晚用户令:展示该线用了哪些 LoRA):按 base 从同目录台账
-daojie_lora_stack.json 拼「路线=X线·N件 | 件名×强度 → …」(链序=文件序;
-台账与九行由 test_workflow_subgraph_contract 锁单源一比一)。台账缺席/坏
-=退回纯路线文案,永不阻断生图。限制:手动区悬空桩接线不在台账,不进披露。
+applied 披露(09-21 晚用户令:展示该线用了哪些 LoRA;09-22 修复:屏蔽件不得
+展示):hidden PROMPT+UNIQUE_ID 注入执行图,沿 base 槽回溯真实加载链——
+UI→API 转换已剔除旁路(mode=4)件,走链结果=实际加载的件与画布强度,与
+执行严格一致。件名从台账 daojie_lora_stack.json 取 label(未登记件退文件名
+stem),链序=头(底模侧)在前。PROMPT 不可用/结构不可识别=退回台账口径
+(列台账 on 件),台账缺席/坏=退回纯路线文案,永不阻断生图。限制:手动区
+悬空桩接线不在台账,不进披露(但走链口径能捕获台账外真实加载件)。
 """
 from __future__ import annotations
 
@@ -32,10 +35,67 @@ NINE = ["人物", "场景", "道具", "美宣", "三视图", "高清人脸", "�
 
 _LEDGER = Path(__file__).resolve().parent / "daojie_lora_stack.json"
 _PLAIN = "路线={base}线(9条真实线路按型分流)"
+_LOADER = "LoraLoaderModelOnly"
 
 
-def _line_disclosure(base: str) -> str:
+def _walk_applied(prompt: Any, unique_id: Any, base: str) -> list[tuple[str, float]] | None:
+    """沿执行图 base 槽回溯真实加载链(09-22 修复:披露与实际执行一致)。
+
+    旁路件在 UI→API 转换期已被剔除,故走链只含真正加载的件;强度取加载器
+    画布值。起点不是链接/节点缺失=结构不可识别返回 None(退台账口径);
+    首个上游就是非加载器=全线旁路,返回 [](0 件是真实态,不是失败)。
+    """
+    if not isinstance(prompt, dict):
+        return None
+    me = prompt.get(str(unique_id))
+    if me is None and unique_id is not None:
+        me = prompt.get(unique_id)
+    src = ((me or {}).get("inputs") or {}).get(base)
+    if not isinstance(src, list) or len(src) != 2:
+        return None
+    chain: list[tuple[str, float]] = []
+    seen: set[str] = set()
+    hops = 0
+    while isinstance(src, list) and len(src) == 2 and hops < 64:
+        nid = str(src[0])
+        node = prompt.get(nid) or {}
+        if nid in seen or node.get("class_type") != _LOADER:
+            break
+        win = node.get("inputs") or {}
+        # API 真名=lora_name/strength_model(前端画布显示名 lora/strength 不入 API;
+        # 09-22 真弹验证抓出此坑,双名兼容防旧形状)
+        name = win.get("lora_name") or win.get("lora")
+        strength = win.get("strength_model", win.get("strength", 1.0))
+        if not isinstance(name, str):
+            break
+        seen.add(nid)
+        chain.append((name, float(strength) if isinstance(strength, (int, float)) else 1.0))
+        src = win.get("model")
+        hops += 1
+    if not chain:
+        return []
+    chain.reverse()  # 头(底模侧)在前,与台账文件序对齐
+    return chain
+
+
+def _ledger_labels() -> dict[str, str]:
+    pieces = json.loads(_LEDGER.read_text(encoding="utf-8"))
+    return {p["file"]: p.get("label") or Path(p["file"]).stem for p in pieces}
+
+
+def _line_disclosure(base: str, applied: list[tuple[str, float]] | None = None) -> str:
     plain = _PLAIN.format(base=base)
+    if applied is not None:
+        # 执行图口径(09-22 用户令:屏蔽加载的件不得展示):只列真实加载的件
+        try:
+            labels = _ledger_labels()
+        except Exception:
+            labels = {}
+        if not applied:
+            return f"路线={base}线·0件(全旁路,直连底模)"
+        parts = [f"{labels.get(f, Path(f).stem)}×{s:g}" for f, s in applied]
+        return f"路线={base}线·{len(parts)}件 | {' → '.join(parts)}"
+    # 台账口径(兜底,PROMPT 不可用时):列台账 on 件
     try:
         pieces = json.loads(_LEDGER.read_text(encoding="utf-8"))
         parts = [
@@ -61,6 +121,9 @@ class MyDaojieRoute:
         return {
             "required": {"base": ("COMBO",)},
             "optional": {zh: ("MODEL", {"lazy": True}) for zh in NINE},
+            # 09-22:PROMPT=执行图全量(UNIQUE_ID=自身id),供披露走真实加载链
+            # (旁路件转换期已剔除);hidden 不进前端渲染与类型校验,旧工作流兼容。
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("MODEL", "STRING")
@@ -80,7 +143,8 @@ class MyDaojieRoute:
             wired = [k for k in NINE if kwargs.get(k) is not None]
             raise ValueError(
                 f"型「{base}」的线路未接线(已接:{wired or '无'})——请在 [90] 子图内把该型线路尾连到本节点对应槽")
-        return (picked, _line_disclosure(base))
+        walked = _walk_applied(kwargs.get("prompt"), kwargs.get("unique_id"), base)
+        return (picked, _line_disclosure(base, walked))
 
 
 NODE_CLASS_MAPPINGS = {"MyDaojieRoute": MyDaojieRoute}

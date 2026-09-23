@@ -285,7 +285,8 @@ export interface ComfyCanvasStudioProps {
    * 模块分野(09-11 用户裁定:按模块对待漫影插件的展示与功能)。
    * "workflow"=工作流模块:漫影分镜侧栏在场(分镜生产工具);
    * "models"=本地模型模块:纯浏览场景,漫影分镜侧栏不注册。
-   * 经 webview URL 参数 myScope 传给引擎前端扩展。
+   * 经 webview 双通道传给引擎前端扩展:URL 参数 myScope(首载)+ useragent
+   * 尾缀(09-22:端口漂移后唯一可靠通道,见 embedUserAgent)。
    * 09-12 模块分离(用户裁定):models 域三链齐隔离——引擎侧栏库过滤分镜
    * 产线、userdata 工作流树数据层过滤(my_module_policy.js 单源)、
    * 本组件 webview 独立 partition(会话/顶签不再串工作流模块)。
@@ -490,6 +491,16 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   const src = running && port
     ? `http://127.0.0.1:${port}/${myScope ? `?myScope=${myScope}` : ""}`
     : null;
+  // 09-22 端口无关 scope 通道:URL 参数只在首载一瞬可靠(ComfyUI SPA 打开
+  // 工作流即改写丢参),引擎侧 localStorage 兜底又按 origin(=引擎端口)隔离
+  // ——引擎端口漂移(实录 17000→17001→17002)后新 origin 的 my-scope 种子
+  // 落不上,本地模型模块侧栏被回落成「分镜阶段」。补第三通道:webview
+  // useragent 尾缀 token,每次挂载必设、先于页面任何脚本可读、SPA 改写与
+  // 引擎换口均不影响;引擎侧 theme.js myScope() 按 URL→UA→localStorage
+  // 顺序解析(外部浏览器直访无尾缀,行为不变)。
+  const embedUserAgent = myScope && typeof navigator !== "undefined"
+    ? `${navigator.userAgent} MYStudioEmbed/1 myScope=${myScope}`
+    : undefined;
 
   // 09-12 真跑根修:引擎就绪瞬(假→真)失效保鲜指纹并立即补跑一轮——冷启动
   // 窗口(视图先挂载、引擎后启动)跑过的保鲜把上传失败随指纹一起缓存,
@@ -611,6 +622,8 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
         // 工作流模块的分镜顶签/画布串进本地模型模块。独立 partition 后各模块
         // 各记各的会话;workflow 域(studio 两挂载点)不设=默认会话,存量零迁移。
         partition={myScope === "models" ? "persist:my-comfy-models" : undefined}
+        // 09-22 端口无关 scope 通道(UA 尾缀):见上方 embedUserAgent 注释
+        useragent={embedUserAgent}
         className="h-full w-full flex-1"
         // 独立进程渲染;禁弹窗(09-10 类型收紧:布尔字面量,React 会序列化为属性)
         allowpopups={false}

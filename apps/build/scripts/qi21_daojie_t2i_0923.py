@@ -776,6 +776,19 @@ def build_main(truth: dict, sg: dict) -> dict:
         [17, HOST_ID, 1, SAMPLER_ID, 2, "CONDITIONING"],
         [18, HOST_ID, 2, PREVIEW_ID, 0, "STRING"],
     ]
+    # id 计数器真值重算(09-23 round7 红根因修复):新前端 configure 用
+    # last_node_id/last_link_id 播种 id 分配器,陈旧计数器会让画布下一次接线
+    # mint 出与实存链接撞车的 id(linkStore 拒登,connect 返回 null)。
+    # 计数器只抬不降(高于 max 合法:删除只减 max 不减计数器);子图 id 与
+    # 根图共享分配器,一并计入 max。
+    g["last_node_id"] = max(
+        [g["last_node_id"]]
+        + [n["id"] for n in g["nodes"]]
+        + [n["id"] for sg_ in g["definitions"]["subgraphs"] for n in sg_["nodes"]])
+    g["last_link_id"] = max(
+        [g["last_link_id"]]
+        + [l[0] for l in g["links"]]
+        + [l["id"] for sg_ in g["definitions"]["subgraphs"] for l in sg_["links"]])
     return g
 
 

@@ -91,6 +91,18 @@
       "skillPath": "skills/creative/music/musical-dna/SKILL.md",
       "computedHash": "fa702448302e8a836366d8c48297cea3d92395c93adc24fa0c5695884d8158df"
     },
+    "qwen-image-2-1-prompter": {
+      "source": "iamyoki/qwen-image-2.1-skill",
+      "sourceType": "github",
+      "skillPath": "skills/qwen-image-2-1-prompter/SKILL.md",
+      "computedHash": "26c20408c6394a4a39a8e6b2c5a5958548ac49e80a1a795f24f691d0e4a41c9a"
+    },
+    "qwen-image-prompt-en": {
+      "source": "kjranyone/qwen-image-2.1-prompt-guide",
+      "sourceType": "github",
+      "skillPath": "skills/qwen-image-prompt-en/SKILL.md",
+      "computedHash": "fd3b46b8799dbe88b31b49f6e726cc06773bd7be08457be6c315c2d4ba584371"
+    },
     "react-vite-best-practices": {
       "source": "asyrafhussin/agent-skills",
       "sourceType": "github",

@@ -117,16 +117,19 @@ class TestDaojieBasesSources:
                 f"底座「{name}」positive 与 0918 md 围栏不逐字相等(唯一双写对,兜底即此)"
 
     def test_renwu_new_framing_after_v22_switch(self):
-        """09-18 v2.2 定性切换:人物型 §一 超集解除——§一 自带 SD 标签串与
-        旧「水墨国风」定性,与新口径互斥;人物以现代游戏资产定性句开头,旧
-        §一 主干/尾句零回潮,人物共性增量仍在场(防回退锚)。"""
+        """09-22 v5 纯画法口径:底座零物象词,人物型以主体立绘构图句开幅,
+        句首定性句「现代修仙游戏的××资产」禁回潮;旧 §一 主干/尾句零回潮,
+        v5 画法关键词在场且物象词零残留(防回退锚,与 my_nodes/tests 同口径)。"""
         renwu = BASES_BY_NAME["人物"]["positive"]
-        assert renwu.startswith("现代修仙游戏的角色立绘资产"), \
-            "人物型必须以 v2.2 定性句开头(现代游戏资产载体)"
+        assert renwu.startswith("主体的单人立绘"), \
+            "人物型必须以主体立绘构图句开幅(v5 纯画法口径)"
+        assert not renwu.startswith("现代修仙"), "人物型回潮 v2.2 句首定性句"
         assert not renwu.startswith(MD_HEAD), "人物型回潮旧 §一 主干开头"
         assert not renwu.endswith(MD_TAIL), "人物型回潮旧 §一 尾句收尾"
-        for kw in ("单人立像", "六成", "两至四条"):
-            assert kw in renwu, f"人物型增量段缺共性关键词 {kw}"
+        for kw in ("单人立绘", "全身入画", "细墨线勾勒", "线有粗细变化"):
+            assert kw in renwu, f"人物型缺 v5 画法关键词 {kw}"
+        for bad in ("骨相", "眉眼", "发丝", "衣褶"):
+            assert bad not in renwu, f"人物型残留物象词 {bad}(v5 底座禁具体画面)"
 
     def test_positives_carry_no_old_framing_anchors(self):
         """09-18 v2.2 已废锚九型全禁:SD 质量标签串、旧「水墨国风」基底定

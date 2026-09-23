@@ -144,10 +144,13 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 | GitHub 仓库代码/文档/issue | `zread`(MCP) | `get_repo_structure` / `read_file` / `search_doc`(免 clone);PR/issue 操作配 `gh` CLI |
 | B 站视频 / UP 主 | `bilibili-analyzer` skill | 垂直解析,优于通用搜索 |
 | JS 重交互 / 需登录站点 | browser-use / chrome-devtools | 搜索兜底,非首选 |
-| **Civitai 资产查源(09-19 增补)** | CivArchive 镜像 + comfy.icu | Civitai API 被本机代理拦(返回非 JSON)→ `civarchive.com/search?q=<词>` 拿元数据/SHA256/镜像文件;模型详情页 `civarchive.com/models/<id>`;`curl 页面 | grep href` 可钉 modelId/versionId;comfy.icu(`/files/<文件名>`)拿使用说明全文;**精确文件名当查询词**(如 `krea2_TFXChineseStyleHanfu`)远胜概念词 |
+| **Civitai 资产查源(09-22 更新:直连 API 实测可用)** | Civitai API 直连 → CivArchive 镜像(备) → comfy.icu | 首选 `civitai.com/api/v1/models?query=<词>&limit=10`(免 key,09-22 实测返回 JSON——09-19 记录的"被代理拦"已不复现);详情 `api/v1/models/<id>` 拿版本/文件/SHA256;备用 `civarchive.com/search?q=<词>` 与 `civarchive.com/models/<id>`;comfy.icu(`/files/<文件名>`)拿使用说明全文;**精确文件名当查询词**(如 `qwen_image_HDR_vae_fp32_comfy`)远胜概念词 |
 | **HF 系统性枚举(09-19 增补)** | HF API(走 7897 代理) | `huggingface.co/api/models?search=<词>&sort=downloads&direction=-1`(免 key 排产);`/api/models/<id>` 拿 siblings 文件清单(免 clone 先看底);大索引仓(如 k2styles 999 件)直接 `resolve/main/README.md` 拉全表本地 rg |
 | **ModelScope 国内源(09-19 增补)** | ModelScope API(免代理直连) | `modelscope.cn/api/v1/models/<owner>/<name>` 元数据;`resolve/master/<file>` 直链下载(实测 3.2MB/s);中文描述字段是中式资产检索富矿(英文站搜不到) |
+| **GitHub 代码/文件搜索(09-22 增补)** | `gh` CLI(**先 `gh auth status` 确认登录态**) | **精确文件名是最强查询**:`gh search code "<文件名含后缀>"` 一击定位文件所在仓库——哪怕仓库主题与目标完全无关(09-22 实证:`qwen_image_HDR_vae_fp32_comfy` 命中 krea2-studio 项目仓库里的 Kijai 重打包正主,此前仓库搜索与 HF 搜索全 0 命中);`gh search repos` 只适合话题级发现;**裸 curl `api.github.com/search/code` 必 401**(代码搜索需认证),本机 gh 常驻登录态,勿绕过 |
+| **ComfyUI 生态权重查源(09-22 增补)** | Kijai/* 与 Comfy-Org/*_repackaged 仓库**优先** | ComfyUI 格式的模型/VAE/LoRA/重打包件,先查 `Kijai/*`(社区标准重打包者,如 `Kijai/QwenImage_experimental`)与 `Comfy-Org/*_repackaged`,再泛搜;HF 按仓库名搜不到时,用 gh search code 搜**精确文件名**反查仓库 |
 | **下载前验证(09-19 增补)** | curl range + SHA256 | `curl -r 0-2097151` 测速再决定全量下;SHA256 从 CivArchive 详情页抄下,下完 `shasum -a 256` 对账 |
+| **AI 新模型发布情报速查(09-23 增补)** | 官方三件套直取:HF 模型卡(webReader)→ 官方 GitHub README(zread `read_file`)→ Comfy-Org 重打包仓库(README+官方模板 JSON raw 直下) | 新模型发布 ≤1 周时第三方文章多二手;一手路径:`huggingface.co/<org>/<model>` 卡片 + `gh repo` 内 README(zread 免 clone)+ `raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/<name>.json`;**qwen.ai 博客正路是查询参数路由 `/blog?id=<slug>`**(SPA 的 slug 路由直抓拿不到内容);HF API `?blobs=true` 直接返回各文件 size(排产免开 tree 页) |
 
 **坑清单(在档实证)**:
 - **`WebFetch` 直连 `github.com` 超时** → 一律改走 `zread` 或 `webReader`。
@@ -157,6 +160,10 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 - **webReader 是服务端抓取,可绕本机代理出口封锁**(comfy.icu/civarchive/HF README 实证);但**客户端渲染 SPA 拿不到内容**(civitai 搜索页只有骨架),且 URL 带编码空格(%20)会被拒——换 `+` 或去参数(09-19)。
 - **comfy.icu `/files/` 是落地页非直链**(200 text/html),别当下载源;下载走 Civitai API(带 key)或 CivArchive 镜像(09-19)。
 - **调研前先盘本地底座再上网**(解法矩阵:目标→路线→本地已有→真缺件);引擎节点/资产盘点以 `$ComfyUI/custom_nodes` 目录+实弹工作流为准,**rg 搜节点类名扑空≠不存在**(类名常运行时字符串拼装)(09-19)。
+- **负向结论("不存在/没插件/没成品")必须 ≥3 种形状的搜索后才可下**:仓库级搜索、代码级搜索(`gh search code` 精确文件名)、平台 API(Civitai/HF)——仓库搜索 0 命中 ≠ 不存在,目标常以"精确文件名"藏在无关主题的仓库里(09-22 实证:HDR VAE 的 ComfyUI 重打包藏在 krea2-studio 项目仓库,此前仓库搜索与 HF 搜索全 0 命中,gh code search 一击命中)。
+- **GitHub 搜索前先 `gh auth status`**:本机 gh 常驻登录态,代码搜索走 `gh search code`;裸 curl REST 必 401(09-22 实证:先 curl 401 后才想起 gh,浪费一轮)。
+- **RunningHub/LiblibAI/OpenArt 是 JS SPA 无公开搜索 API**,优先走 Civitai API/gh/HF 通道;确需站点内内容用 browser-use 兜底。
+- **官网博客/指南文定位:搜索引擎对官网 SPA 常只回域名根**(krea.ai 实证:site: 搜索全截断到 `https://www.krea.ai`)——正路=**webReader 抓 `/blog` 列表页,从列表标题+配图 CDN 路径读出 slug**;警惕**路由迁移死链**:krea.ai `/blog-posts/<slug>`→`/blog/<slug>`(博客迁 Astro),旧链接全 404 且 Wayback 无快照,列表页是唯一活索引(09-22 实证:官方 Character Sheets 指南即此法取回)。
 
 ---
 

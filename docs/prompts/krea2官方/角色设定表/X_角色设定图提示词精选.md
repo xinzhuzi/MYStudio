@@ -222,7 +222,7 @@ Keep identical face, hairstyle, outfit and colors across every panel. Semi-reali
 | `comfyui-krea2edit/`(整仓库) | [GitHub: lbouaraba/comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit)(626★) | **引擎件**:Krea2EditModelPatch + Krea2EditGroundedEncode 双条件注入(VAE latent + Qwen3-VL 语义 grounding),v1.2 含 fit 几何/ref_boost/双参考;自带 identity_edit 工作流;训练代码开源(krea2edit-trainer) |
 | 未下载备查 | ostris/ComfyUI-Krea2-Ostris-Edit(333★)· facok/comfyui-krea2-controlnet(223★) · nkxx188/Krea2-StyleTransfer(227★) · wildminder/ComfyUI-DyPE(627★,4K) · shootthesound/Fizgig(397★,LoRA训练) · OpenCharAI/OpenChar(303★,跨模型角色ID) · [bada-ya/Visual-Grid-Prompt-Web](https://github.com/bada-ya/Visual-Grid-Prompt-Web)(可视化网格提示词工作室,支持Krea2) | Krea2 生态周边 |
 
-> Krea2 权重文件未下(QuadView/Dynamic LoRA 各数百 MB,按需从 HF 仓库取,须走 7897 代理);krea.ai 官方 2026-05 有篇《Krea 2 Character Sheets: Turnarounds, Expressions & More》指南,URL 已漂移未取到,内容已被上述 HF 仓库工作流覆盖。
+> Krea2 权重文件未下(QuadView/Dynamic LoRA 各数百 MB,按需从 HF 仓库取,须走 7897 代理);krea.ai 官方 2026-05《Krea 2 Character Sheets: Turnarounds, Expressions & More》指南**已取到**(2026-09-22 实抓):https://www.krea.ai/blog/character-design-with-krea-2 ——旧路由 `/blog-posts/<slug>` 已死(博客迁 Astro),新路由 `/blog/<slug>`;四型写法标准全文摘录见 `3_通用写法母版/Krea官方_CharacterSheets四型写法标准.md`。
 
 ### Krea2 角色一致性专列(全部 2026-07 前后,资源全免费)
 

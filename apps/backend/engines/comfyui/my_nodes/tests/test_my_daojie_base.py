@@ -112,8 +112,9 @@ def test_run_all_options_produce_nonempty_outputs():
     for name in EXPECTED_OPTIONS:
         pos, neg, aspect, mp, base_out, _w, _h = MyDaojieBase().run(name)
         assert base_out == name  # 09-19 第五出=型直通(驱动按型 LoRA)
-        # 09-18 v2.2 定性切换:SD 质量标签串已废,九型一律以定性句开头+句号自足收尾
-        assert pos and pos.startswith("现代修仙游戏")
+        # 09-22 v4:九型同一套可见画法,句号自足收尾;不再以资产定性句开头
+        assert pos and "细墨线" in pos and "均匀柔光" in pos and "平涂" in pos
+        assert not pos.startswith("现代修仙游戏")
         assert pos.endswith("。")
         assert neg and "text" in neg  # 九型负面均为英文 token 基线
         # 09-18 分辨率两出:九型 aspect 一律官方枚举串;mp 道具/高清人脸 1.0
@@ -209,12 +210,15 @@ def test_renwu_new_framing_after_v22_switch():
         e["positive"] for e in json.loads(
             my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
         if e["zh"] == "人物")
-    assert renwu.startswith("现代修仙游戏的角色立绘资产"), \
-        "人物型必须以 v2.2 定性句开头(现代游戏资产载体)"
+    assert renwu.startswith("主体的单人立绘"), \
+        "人物型必须以主体立绘构图句开头(09-22 v5 纯画法)"
+    assert not renwu.startswith("现代修仙游戏"), "人物型回潮资产定性句"
     assert not renwu.startswith(head), "人物型回潮旧 §一 主干开头"
     assert not renwu.endswith(tail), "人物型回潮旧 §一 结尾句收尾"
-    for kw in ("单人立像", "六成", "两至四条"):
-        assert kw in renwu, f"人物型增量段缺共性关键词 {kw}"
+    for kw in ("单人立绘", "全身入画", "细墨线勾勒", "线有粗细变化"):
+        assert kw in renwu, f"人物型增量段缺 v5 画法关键词 {kw}"
+    for bad in ("骨相", "眉眼", "发丝", "衣褶", "衣色"):
+        assert bad not in renwu, f"人物型残留物象词 {bad}(v5 底座禁具体画面)"
 
 
 # ── 负向口径:全九型纯英文逗号 token(无中文残留)───────────

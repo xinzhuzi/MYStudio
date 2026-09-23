@@ -152,10 +152,16 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     );
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
       .toBe("http://127.0.0.1:17001/?myScope=models");
-    // 换回工作流模块标记:src 同步换值
+    // 09-22 端口无关 scope 通道:UA 尾缀随模块标记(URL 参数会被 SPA 改写
+    // 丢弃、localStorage 按引擎端口 origin 隔离,端口漂移后两者皆失效)
+    expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("useragent"))
+      .toContain("myScope=models");
+    // 换回工作流模块标记:src 与 UA 尾缀同步换值
     rerender(<ComfyCanvasStudio myScope="workflow" />);
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("src"))
       .toBe("http://127.0.0.1:17001/?myScope=workflow");
+    expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("useragent"))
+      .toContain("myScope=workflow");
   });
 
   it("模块分离会话隔离(09-12):models 域 webview 独立 partition,workflow 域不设", async () => {
@@ -175,6 +181,21 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(webview.getAttribute("partition")).toBe("persist:my-comfy-models");
     rerender(<ComfyCanvasStudio myScope="workflow" />);
     expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("partition")).toBeNull();
+  });
+
+  it("无 scope(默认会话)不设 UA 尾缀(09-22:外部直访语义不变)", async () => {
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    expect(document.querySelector("[data-comfy-canvas-webview]")!.getAttribute("useragent")).toBeNull();
   });
 
   it("引擎运行中:webview 指向 127.0.0.1 引擎端口", async () => {

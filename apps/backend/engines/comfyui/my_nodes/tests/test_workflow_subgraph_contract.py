@@ -213,3 +213,62 @@ def test_route_disclosure_fallback_when_ledger_missing(monkeypatch, tmp_path):
     (tmp_path / "bad.json").write_text("{bad json", encoding="utf-8")
     monkeypatch.setattr(mod, "_LEDGER", tmp_path / "bad.json")
     assert mod._line_disclosure("场景") == "路线=场景线(9条真实线路按型分流)"
+
+
+def test_route_disclosure_reflects_bypassed_loaders():
+    """09-22 用户令:屏蔽(旁路)件不得进披露——走执行图真链,台账仅作件名映射与兜底。"""
+    from engines.comfyui.my_nodes.nodes import my_daojie_route as mod
+
+    prompt = {  # 旁路件(如被屏蔽的服从度)已被转换剔除,不在图里
+        "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "k2.safetensors"}},
+        "2": {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "lora_name": "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors", "strength_model": 1, "model": ["1", 0]}},
+        "3": {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "lora_name": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", "strength_model": 0.55, "model": ["2", 0]}},
+        "9": {"class_type": "MyDaojieRoute", "inputs": {"base": "美宣", "美宣": ["3", 0]}},
+    }
+    walked = mod._walk_applied(prompt, "9", "美宣")
+    assert walked == [("Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors", 1.0),
+                      ("Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors", 0.55)]
+    s = mod._line_disclosure("美宣", walked)
+    ledger = json.loads(STACK_DATA.read_text())
+    turbo = next(d["label"] for d in ledger
+                 if d["file"] == "Krea2-功能/Krea2-Turbo-4步蒸馏.safetensors")
+    gild = next(d["label"] for d in ledger
+                if d["file"] == "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors")
+    assert s == f"路线=美宣线·2件 | {turbo}×1 → {gild}×0.55"
+
+
+def test_route_disclosure_unregistered_file_falls_back_to_stem():
+    """台账外真实加载件(手动区接线)按文件名 stem 披露,不丢件。"""
+    from engines.comfyui.my_nodes.nodes import my_daojie_route as mod
+
+    prompt = {
+        "1": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+        "2": {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "lora_name": "手动区/未登记件_v9.safetensors", "strength_model": 0.8, "model": ["1", 0]}},
+        "9": {"class_type": "MyDaojieRoute", "inputs": {"base": "道具", "道具": ["2", 0]}},
+    }
+    s = mod._line_disclosure("道具", mod._walk_applied(prompt, "9", "道具"))
+    assert s == "路线=道具线·1件 | 未登记件_v9×0.8"
+
+
+def test_route_disclosure_zero_when_whole_line_bypassed():
+    """全线旁路=0 件是真实态(直连底模),不是失败退回。"""
+    from engines.comfyui.my_nodes.nodes import my_daojie_route as mod
+
+    prompt = {
+        "1": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+        "9": {"class_type": "MyDaojieRoute", "inputs": {"base": "人物", "人物": ["1", 0]}},
+    }
+    assert mod._walk_applied(prompt, "9", "人物") == []
+    assert mod._line_disclosure("人物", []) == "路线=人物线·0件(全旁路,直连底模)"
+
+
+def test_route_without_prompt_keeps_ledger_disclosure():
+    """无 hidden 注入(旧路径/离线调用)=原台账口径,永不阻断。"""
+    from engines.comfyui.my_nodes.nodes import my_daojie_route as mod
+
+    assert mod._walk_applied(None, None, "人物") is None
+    model, applied = mod.MyDaojieRoute().route("人物", 人物="M")
+    assert model == "M" and applied.startswith("路线=人物线·")
