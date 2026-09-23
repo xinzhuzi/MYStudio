@@ -7,6 +7,7 @@
 // existing image-generation pipeline calls the sidecar's OpenAI-compatible
 // endpoint directly through the registered `manying-local-image` provider.
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
@@ -140,30 +141,54 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
 
   const configPath = () => path.join(getPaths().pythonRuntimeDir, "profiles", "image-gen", "config.json");
 
-  function readActiveModel(): ImageGenModelId {
+  function readProfileConfig(): { activeModel?: unknown; controlToken?: unknown } {
     try {
-      const raw = JSON.parse(fs.readFileSync(configPath(), "utf8")) as { activeModel?: unknown };
-      if (
-        raw.activeModel === "qwen-image-edit-2511" ||
-        raw.activeModel === "z-image-turbo" ||
-        raw.activeModel === "flux2-klein-9b" ||
-        raw.activeModel === "krea2-turbo" ||
-        raw.activeModel === "comfyui-bridge"
-      ) {
-        return raw.activeModel;
-      }
+      return JSON.parse(fs.readFileSync(configPath(), "utf8")) as { activeModel?: unknown; controlToken?: unknown };
     } catch {
-      // Missing or malformed config uses the default engine.
+      // Missing or malformed config falls back to defaults below.
+      return {};
+    }
+  }
+
+  function readActiveModel(): ImageGenModelId {
+    const raw = readProfileConfig();
+    if (
+      raw.activeModel === "qwen-image-edit-2511" ||
+      raw.activeModel === "z-image-turbo" ||
+      raw.activeModel === "flux2-klein-9b" ||
+      raw.activeModel === "krea2-turbo" ||
+      raw.activeModel === "comfyui-bridge"
+    ) {
+      return raw.activeModel;
     }
     return "krea2-turbo";
   }
 
-  function persistActiveModel(modelName: ImageGenModelId): void {
+  function persistProfileConfig(config: { activeModel?: unknown; controlToken?: unknown }): void {
     const target = configPath();
     fs.mkdirSync(path.dirname(target), { recursive: true });
     const temp = `${target}.${process.pid}.tmp`;
-    fs.writeFileSync(temp, `${JSON.stringify({ activeModel: modelName }, null, 2)}\n`, "utf8");
+    fs.writeFileSync(temp, `${JSON.stringify(config, null, 2)}\n`, "utf8");
     fs.renameSync(temp, target);
+  }
+
+  function persistActiveModel(modelName: ImageGenModelId): void {
+    // 读改写整存:config.json 同时持有 controlToken(见 getControlToken),
+    // 整文件覆写会把装机令牌抹掉,sidecar 下次 spawn 拿到新令牌=旧会话全拒。
+    persistProfileConfig({ ...readProfileConfig(), activeModel: modelName });
+  }
+
+  // 0924 令牌随机化(照 tts-runtime getControlToken 先例):装机首用生成 UUID,
+  // 持久化在本 config.json;sidecar spawn env 注入(MANYING_LOCAL_IMAGE_TOKEN),
+  // sidecar 缺令牌 fail-closed 全拒——公开仓库不再携带任何可用令牌字面量。
+  function getControlToken(): string {
+    const config = readProfileConfig();
+    if (typeof config.controlToken === "string" && config.controlToken) {
+      return config.controlToken;
+    }
+    const controlToken = crypto.randomUUID();
+    persistProfileConfig({ ...config, controlToken });
+    return controlToken;
   }
 
   const state: ImageGenRuntimeStatus = {
@@ -186,6 +211,8 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
       ...process.env,
       PYTHONPATH: deps.backendRoot,
       MYSTUDIO_IMAGE_MODEL_DIR: modelCacheDir,
+      // 装机随机令牌(0924):sidecar 唯一鉴权源,引擎 bridge 回写链同 env 续传
+      MANYING_LOCAL_IMAGE_TOKEN: getControlToken(),
     };
   }
 
@@ -583,6 +610,7 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
     downloadModel,
     setActiveModel,
     getModelCacheDir,
+    getControlToken,
     probeLifecycle,
     prepareLifecycle,
     rollbackLifecycle,

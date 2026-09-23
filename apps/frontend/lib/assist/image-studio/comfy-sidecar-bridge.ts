@@ -5,7 +5,8 @@
 // ComfyUI 生态迁移(09-08)集成适配器:渲染层直连本地生图 sidecar 的
 // /comfy/* 路由(流 A 后端),把 B 流 ComfyEngineClient 与 D 流
 // ComfyWorkflowLibraryTransport 的契约形状翻译过去——零 preload 改动,
-// fetch 全部走 127.0.0.1:17595 + 固定本地令牌(照 run-uncloth.ts 直连先例)。
+// fetch 全部走 127.0.0.1:17595 + 装机随机令牌(0924 起,取用见
+// local-image-token;照 run-uncloth.ts 直连先例)。
 //
 // 纯映射函数(mapEngineStatus/mapJob 等)全部导出,适配器测试直接覆盖
 // 字段对照;HTTP 行为(错误大白话/两步删除/keep-both 重试)用 fetch mock 测。
@@ -34,6 +35,7 @@ import type {
   ComfyBridgeActionsReply,
   ComfyMySyncReply,
 } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { getLocalImageToken } from "@/lib/assist/image-studio/local-image-token";
 import type {
   ComfyWorkflowDeleteScan,
   ComfyWorkflowImportConflictMode,
@@ -45,7 +47,6 @@ import type {
 } from "@/lib/assist/image-studio/comfy-workflow-library";
 
 const COMFY_SIDECAR_BASE_URL = "http://127.0.0.1:17595";
-const COMFY_SIDECAR_TOKEN = "manying-local-image";
 const DEFAULT_TIMEOUT_MS = 15_000;
 /** 引擎冷启动 job(torch 加载最长 2 分钟,HEALTH_TIMEOUT_S=120)的轮询上限。 */
 const START_JOB_TIMEOUT_MS = 150_000;
@@ -134,7 +135,7 @@ async function comfySidecarRequest<T>(
       method,
       headers: {
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-        Authorization: `Bearer ${COMFY_SIDECAR_TOKEN}`,
+        Authorization: `Bearer ${await getLocalImageToken()}`,
       },
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
       signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),

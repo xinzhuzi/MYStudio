@@ -417,6 +417,12 @@ def managed_comfy_api_base() -> str | None:
     return (os.environ.get(MANAGED_COMFY_API_BASE_ENV) or "").strip() or None
 
 
+# --listen 环回白名单(0924 安全收口 M4):引擎自身零鉴权,绑非环回=
+# 把 /prompt 工作流执行、/upload 上传直接暴露到局域网,故仅放行环回写法;
+# 0.0.0.0 等任何其它取值在此拒绝(改串重启也过不了这道闸)。
+LISTEN_LOOPBACK_WHITELIST = frozenset({"127.0.0.1", "localhost"})
+
+
 def build_launch_args(
     args_string: str,
     port: int,
@@ -426,7 +432,9 @@ def build_launch_args(
 ) -> list[str]:
     """启动参数串 → 实际 argv(Desktop 式:串=唯一真源)。
 
-    --listen 未写补托管默认 127.0.0.1;--port 一律用调用方传入的决议口
+    --listen 未写补托管默认 127.0.0.1;已写则须命中环回白名单
+    (LISTEN_LOOPBACK_WHITELIST),否则抛 EngineOpError——引擎无鉴权,
+    0.0.0.0 等值等于局域网裸奔;--port 一律用调用方传入的决议口
     (resolve_launch_port 已消费串口:空闲即串口,被占按策略顺延)。此处若再
     让串口压决议口,引擎实际口与账本/健康检查口分叉——09-11 实弹红条根因
     (账本记顺延口 17000、引擎实际绑串口 17598,健康检查两头不挨)。
@@ -438,8 +446,14 @@ def build_launch_args(
     结构化编辑器;用户串手写同款 flag 也以存储卡配置为准)。
     """
     parsed = parse_launch_args_string(args_string)
+    listen = parsed["listen"]
+    if listen is not None and listen not in LISTEN_LOOPBACK_WHITELIST:
+        raise EngineOpError(
+            f"--listen 取值被拒绝:{listen}(仅允许环回 127.0.0.1/localhost;"
+            "引擎无鉴权,绑非环回地址会把执行/上传接口暴露到局域网)"
+        )
     args = [script]
-    args += ["--listen", parsed["listen"] or "127.0.0.1"]
+    args += ["--listen", listen or "127.0.0.1"]
     args += ["--port", str(port)]
     args += parsed["flags"]
     if not any(token == COMFY_API_BASE_FLAG or token.startswith(COMFY_API_BASE_FLAG + "=")
@@ -547,7 +561,7 @@ def _get_json(url: str, timeout: float = 5.0):
 
 # ── 出站网络代理(09-19 根修;实现在 common/net_outbound.py,五条模型下载线共用)──
 # 实弹:GitHub 直连超时(git pull 卡 25% 十分钟后报错),本机常驻代理
-# (Clash 系,HTTP 端口 7897/7890 一族)1.5s 可达。侧车的 git/pip/市场 API
+# (Clash 系,常见 HTTP 本机代理端口一族)1.5s 可达。侧车的 git/pip/市场 API
 # 此前全部裸直连。策略=探测制:候选端口在监听 → 出站全走它;都不在 → 直连,
 # 零影响。MYSTUDIO_OUTBOUND_PROXY 显式覆盖(空串=强制直连);结果短缓存。
 from common.net_outbound import (  # noqa: E402(放此处贴近使用点;common 零依赖可安全早导入)

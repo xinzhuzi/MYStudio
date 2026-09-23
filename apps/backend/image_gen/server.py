@@ -3,17 +3,20 @@
 
 Routes:
   GET  /health                          (no auth)
-  POST /v1/images/generations           (auth: fixed local token)
-  POST /v1/images/uncloth               (auth: fixed local token; 双分割+两遍 masked SDEdit)
+  POST /v1/images/generations           (auth: per-install token)
+  POST /v1/images/uncloth               (auth: per-install token; 双分割+两遍 masked SDEdit)
   GET  /models/status                   (auth)
   POST /models/download                 (auth) — explicit user-triggered
   GET  /models/progress-json/{name}     (auth)
   /comfy/* 引擎托管+插件管理组           (auth;契约见 tasks/09-08-comfy-ecosystem-migration/design.md 十一节)
 
-Auth: the server binds 127.0.0.1 only and accepts either
-`Authorization: Bearer <MAN YING-LOCAL-IMAGE>` or the placeholder key the
-frontend provider carries — both are the fixed local token below. This is a
-local-only convenience (same trust model as the media bridge).
+Auth: the server binds 127.0.0.1 only and requires a per-install random
+token injected via the MANYING_LOCAL_IMAGE_TOKEN env var (electron main
+generates a UUID per install and passes it at spawn, tts-runtime control
+token precedent). `Authorization: Bearer <token>` or the
+`X-Manying-Image-Token: <token>` header are both accepted. Missing env =
+fail closed: every authed route rejects (no fixed fallback token lives in
+this public repo).
 """
 
 from __future__ import annotations
@@ -48,12 +51,17 @@ from engines.image_engine.model_cache import (
 )
 from .pipeline import PipelineError, generate_image
 
-LOCAL_TOKEN = "manying-local-image"
-# bridge 回写令牌单源核对(swap 阶段1):engines/comfyui/bridge_contract 与本文件
-# 固定令牌必须一致,漂移即启动失败(my_generated 回写会被全拒)
-from engines.comfyui import bridge_contract as _bridge_contract  # noqa: E402
+# 0924 安全收口 H5:固定公开令牌退役,改装机随机令牌(参照 TTS 控制令牌先例:
+# electron main 生成 UUID 存 userData、spawn 时经本 env 注入)。缺失=fail-closed,
+# 一切鉴权路由全拒——公开仓库里不再存在任何可用令牌字面量。
+LOCAL_TOKEN_ENV = "MANYING_LOCAL_IMAGE_TOKEN"
+# bridge 回写令牌单源(swap 阶段1 原为双侧固定串+启动 assert 防漂移):
+# engines/comfyui/bridge_contract.BRIDGE_TOKEN 现与本函数读同一 env 变量,
+# 单源即 env 名,双侧各改各的 env 名=回写全拒,天然自暴露。
 
-assert _bridge_contract.BRIDGE_TOKEN == LOCAL_TOKEN, "bridge 令牌漂移:bridge_contract 与 server.LOCAL_TOKEN 不一致"
+
+def local_token() -> str:
+    return os.environ.get(LOCAL_TOKEN_ENV, "")
 
 _progress_state: dict[str, dict] = {}
 _progress_lock = threading.Lock()
@@ -92,6 +100,10 @@ class Handler(BaseHTTPRequestHandler):
         # Native Python callers omit Origin; packaged file:// renderers use
         # null, and dev/ComfyUI webviews use HTTP loopback with dynamic ports.
         # null remains an opaque-origin compatibility exception, not identity.
+        # 0924 安全收口裁定(H5):null 回显保留——打包版渲染层(file:// 源)
+        # 直连本服务依赖它;攻击链的根(公开固定令牌)已由装机随机令牌+
+        # fail-closed 闭合,网页侧拿不到令牌即过不了鉴权。null 的彻底退役
+        # 需渲染层直连改走主进程代理的单独专项(09-20 深审既定口径)。
         origin = self.headers.get("Origin")
         if origin == "null":
             return origin
@@ -120,12 +132,16 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json({"error": {"message": message, "code": code}, "status": int(status)}, status)
 
     def _authorized(self) -> bool:
+        token = local_token()
+        if not token:
+            # 令牌未注入(如手工终端起服):fail-closed,一切鉴权路由全拒
+            return False
         if self.headers.get("Origin") is not None and self._cors_origin() is None:
             return False
         header = self.headers.get("Authorization", "")
-        if header == f"Bearer {LOCAL_TOKEN}":
+        if header == f"Bearer {token}":
             return True
-        return self.headers.get("X-Manying-Image-Token", "") == LOCAL_TOKEN
+        return self.headers.get("X-Manying-Image-Token", "") == token
 
     def _read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", "0") or 0)

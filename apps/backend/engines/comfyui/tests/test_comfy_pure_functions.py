@@ -6,6 +6,8 @@ release tag 解析、性能档翻译、节点差分、插件加载错误收集�
 """
 from __future__ import annotations
 
+import pytest
+
 from engines.comfyui.engine_manager import (
     allocate_port,
     build_launch_args,
@@ -187,8 +189,19 @@ class TestBuildLaunchArgs:
     def test_listen_from_string_port_from_caller_resolution(self):
         # 09-11 根修:--port 一律用调用方决议口(resolve 已消费串口:空闲即串口,
         # 被占顺延)——串口再压决议口会让引擎实际口与账本/健康检查口分叉
-        args = build_launch_args("--listen 0.0.0.0 --port 8188 --fast", 17600)
-        assert args == ["main.py", "--listen", "0.0.0.0", "--port", "17600", "--fast"]
+        args = build_launch_args("--listen localhost --port 8188 --fast", 17600)
+        assert args == ["main.py", "--listen", "localhost", "--port", "17600", "--fast"]
+
+    def test_non_loopback_listen_is_rejected(self):
+        # 0924 安全收口 M4:引擎零鉴权,--listen 仅放行环回白名单
+        # (127.0.0.1/localhost);0.0.0.0 等取值在此拒绝,改串重启也过不了这道闸。
+        from engines.comfyui.engine_manager import EngineOpError
+
+        for bad in ("0.0.0.0", "192.168.1.10", "::", "[::1]"):
+            with pytest.raises(EngineOpError):
+                build_launch_args(f"--listen {bad} --fast", 17600)
+        # 环回白名单内的写法原样透传(等值写法同罪/同放)
+        assert build_launch_args("--listen=127.0.0.1 --fast", 17600)[1:3] == ["--listen", "127.0.0.1"]
 
     def test_managed_comfy_api_base_env_appends_official_flag(self, monkeypatch):
         # 云端收编二轮:节点全保留,官方 --comfy-api-base 改指漫影网关(env 驱动)

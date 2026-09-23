@@ -25,16 +25,16 @@ import { saveToMediaLibrary } from "@/lib/ai/generation-media";
 import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
+import { getLocalImageToken } from "@/lib/assist/image-studio/local-image-token";
 import type { ImageWorkflowComfyWorkflowNode, ImageWorkflowGraph } from "@/types/studio";
 
 const COMFY_SIDECAR_BASE_URL = "http://127.0.0.1:17595";
-const COMFY_SIDECAR_TOKEN = "manying-local-image";
 const DEFAULT_TIMEOUT_MS = 15_000;
 /** 执行 job 轮询:间隔与总上限(后端执行超时 300s,前端放宽到 330s 收尾)。 */
 const JOB_POLL_INTERVAL_MS = 1_500;
 const JOB_POLL_TIMEOUT_MS = 330_000;
 
-/** 引擎无鉴权但 sidecar 有(固定本地令牌,与 comfy-sidecar-bridge 同源) */
+/** 引擎无鉴权但 sidecar 有(装机随机令牌,与 comfy-sidecar-bridge 同源) */
 export interface ComfySidecarJsonOptions {
   body?: unknown;
   query?: Record<string, string>;
@@ -72,7 +72,7 @@ export async function comfySidecarJson<T>(
       method,
       headers: {
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-        Authorization: `Bearer ${COMFY_SIDECAR_TOKEN}`,
+        Authorization: `Bearer ${await getLocalImageToken()}`,
       },
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
       signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),

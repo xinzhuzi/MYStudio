@@ -185,6 +185,16 @@ export function McpSettingsTab() {
     (state) => state.imageGenerationSettings.localImageLoraEnabled,
   );
 
+  // 0924 安全收口 H4:登记的 stdio 命令清单推送主进程持久注册表——
+  // mcp-server-test 的命令白名单真源(渲染层 localStorage 主进程读不到,
+  // 故由本页在条目增改/导入/删除后重推;非 Electron 环境为空操作)。
+  useEffect(() => {
+    const commands = servers
+      .filter((server) => server.transport === "stdio" && server.command?.trim())
+      .map((server) => server.command!.trim());
+    void window.mcpRuntime?.syncRegisteredCommands?.(commands);
+  }, [servers]);
+
   const toggleSectionCollapsed = (sectionId: SectionId) => {
     setCollapsedSections((prev) => {
       const next = new Set(prev);

@@ -6,7 +6,10 @@
  * 迁移器 live 实弹(env 门控,默认跳过保持套件密闭):
  *   MANYING_MIGRATOR_LIVE=1 且 sidecar(17595)+引擎在跑时执行——
  *   t2i 迁移产物真提交引擎 → K2 真生成 → bridge 收件箱落位。
- *   用法:npx vitest run --config frontend/config/vite.config.ts \
+ *   令牌(0924 起装机随机,sidecar 缺令牌 fail-closed):MANYING_LOCAL_IMAGE_TOKEN
+ *   注入(取自 <userData>/python/profiles/image-gen/config.json 的 controlToken)。
+ *   用法:MANYING_LOCAL_IMAGE_TOKEN=<token> npx vitest run --config \
+ *          frontend/config/vite.config.ts \
  *          frontend/lib/assist/image-studio/workflow-export-comfy.live.test.ts \
  *          --testTimeout 360000
  */
@@ -21,7 +24,8 @@ const d = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 (live ? it : it.skip)("迁移产物全链:引擎执行 K2 生成→bridge 回写→收件箱", async () => {
   const sidecar = "http://127.0.0.1:17595";
-  const token = "manying-local-image";
+  const token = process.env.MANYING_LOCAL_IMAGE_TOKEN ?? "";
+  expect(token, "缺 MANYING_LOCAL_IMAGE_TOKEN(装机随机令牌,取自 image-gen config.json 的 controlToken)").toBeTruthy();
   const auth = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
   const status = await (await fetch(`${sidecar}/comfy/engine/status`, { headers: auth })).json();

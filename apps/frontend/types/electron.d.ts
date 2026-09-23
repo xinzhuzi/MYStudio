@@ -648,6 +648,8 @@ declare global {
       scanModel: () => Promise<{ models: import("@/types/image-gen").ImageGenModelRow[] }>;
       downloadModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
       setActiveModel: (model: string) => Promise<{ accepted: boolean; message: string }>;
+      /** 装机随机令牌(0924):sidecar 17595 鉴权源,按需取用(不落 localStorage) */
+      localImageToken: () => Promise<string>;
     };
     /** 漫影云中继执行面(09-10 云端收编):main 中继把引擎「漫影 云端生图」
      * 请求转进渲染层,由 lib/ai 云链单源执行后应答。 */
@@ -677,6 +679,8 @@ declare global {
         | { ok: true; serverName?: string; tools: { name: string; description?: string }[] }
         | { ok: false; error: string }
       >;
+      /** 0924 安全收口 H4:设置页登记命令清单推送主进程(testServer 白名单真源) */
+      syncRegisteredCommands: (commands: string[]) => Promise<{ ok: boolean }>;
       disconnect: (serverId: string) => Promise<{ ok: boolean }>;
     };
     seedvr2Restore?: {

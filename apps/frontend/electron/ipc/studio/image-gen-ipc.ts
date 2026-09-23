@@ -190,6 +190,9 @@ export function registerImageGenIpcHandlers(options: RegisterImageGenIpcOptions)
       ? { accepted: true, message: "已切换本地生图模型" }
       : { accepted: false, message: `未知模型: ${payload}` };
   });
+  // 装机随机令牌(0924):渲染层调用 sidecar 17595 的鉴权源。真令牌只经此
+  // IPC 按需下发,不落渲染层 localStorage(provider.apiKey 恒为非机密占位)。
+  ipcMain.handle("image-gen-runtime-local-token", (): string => controller.getControlToken());
 
   return {
     dispose: () => {
@@ -202,6 +205,7 @@ export function registerImageGenIpcHandlers(options: RegisterImageGenIpcOptions)
       ipcMain.removeHandler("image-gen-runtime-scan-model");
       ipcMain.removeHandler("image-gen-runtime-download-model");
       ipcMain.removeHandler("image-gen-runtime-set-active-model");
+      ipcMain.removeHandler("image-gen-runtime-local-token");
     },
   };
 }

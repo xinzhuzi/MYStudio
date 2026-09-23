@@ -78,12 +78,13 @@ if (typeof document !== "undefined" && !document.getElementById("my-font-bridge"
   document.head.append(style);
 }
 
+import { bridgeToken } from "./bridge-action.js";
+
 const BRIDGE_URL = (window.MY_BRIDGE_URL || window.MANYING_BRIDGE_URL || "http://127.0.0.1:17595").replace(/\/$/, "");
-const BRIDGE_TOKEN = window.MY_BRIDGE_TOKEN || window.MANYING_BRIDGE_TOKEN || "manying-local-image";
 
 async function fetchShots() {
   const response = await fetch(`${BRIDGE_URL}/comfy/bridge/storyboards`, {
-    headers: { "X-Manying-Image-Token": BRIDGE_TOKEN },
+    headers: { "X-Manying-Image-Token": await bridgeToken() },
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
@@ -241,7 +242,7 @@ function myScope() {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url, { headers: { "X-Manying-Image-Token": BRIDGE_TOKEN } });
+  const response = await fetch(url, { headers: { "X-Manying-Image-Token": await bridgeToken() } });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
@@ -249,7 +250,7 @@ async function fetchJson(url) {
 async function postJson(url, body) {
   const response = await fetch(url, {
     method: "POST",
-    headers: { "X-Manying-Image-Token": BRIDGE_TOKEN, "Content-Type": "application/json" },
+    headers: { "X-Manying-Image-Token": await bridgeToken(), "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -467,7 +468,7 @@ function paneStatus(text) {
 // 降级底线:扩展面缺席(旧前端)→带名临时打开(零 Unsaved 仍成立,仅失去文件绑定)。
 
 export {
-  BRIDGE_URL, BRIDGE_TOKEN, fetchShots, applyShotToSelection, bindSelectedProject, snapshotOrigin, myScope,
+  BRIDGE_URL, fetchShots, applyShotToSelection, bindSelectedProject, snapshotOrigin, myScope,
   fetchJson, postJson, THEME, icon, ICONS, sectionLabel, statusBadge,
   progressBar, collapseGroup, actionButton, paneStatus,
 };

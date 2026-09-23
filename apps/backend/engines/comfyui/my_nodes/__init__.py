@@ -31,6 +31,7 @@ from .nodes.my_charsheet_labels import MyCharsheetLabels
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
+from . import bridge_settings_server as _bridge_settings_server
 
 
 class MyPromptLegacy(MyPrompt):
@@ -88,6 +89,10 @@ _prompt_log_server.install()
 # 风格画廊服务端(09-16 用户令:节点内瀑布流选风格):两条只读路由
 # /my_styles/list、/my_styles/thumb;install 同款自守卫纪律。
 _my_styles_server.install()
+
+# bridge 配置下发(0924 令牌随机化配套):漫影侧栏 web JS 经同源
+# /my_bridge/config 取装机随机令牌;install 同款自守卫纪律。
+_bridge_settings_server.install()
 
 NODE_CLASS_MAPPINGS = {
     "MyPrompt": MyPrompt,

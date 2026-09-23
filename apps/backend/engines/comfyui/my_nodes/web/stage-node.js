@@ -7,7 +7,7 @@
  * 保留实例级 onDrawBackground 覆写静音 canvas 自绘;删除本文件即回退 canvas 渲染。
  */
 import { app } from "/scripts/app.js";
-import { BRIDGE_TOKEN, BRIDGE_URL, postAction } from "./bridge-action.js";
+import { bridgeToken, BRIDGE_URL, postAction } from "./bridge-action.js";
 // 每型节点 UI 独立模块(09-13 用户裁定:不同代码分模块,适应 ComfyUI):
 // stage-ui/ 下七型各一文件+common 公共件+vendor(markdown-it MIT);
 // 本文件只做壳(头区/动作/组稿器/速查卡/轮询/高度)与按 payload.key 分发。
@@ -474,7 +474,8 @@ function installQueuePoller() {
   window.__myQueuePoller = true;
   setInterval(() => {
     if (!document.querySelector('.my-stage-body [data-live="queue"]')) return;
-    fetch(`${BRIDGE_URL}/comfy/bridge/storyboards`, { headers: { "X-Manying-Image-Token": BRIDGE_TOKEN } })
+    bridgeToken()
+      .then((token) => fetch(`${BRIDGE_URL}/comfy/bridge/storyboards`, { headers: { "X-Manying-Image-Token": token } }))
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (!data || !Array.isArray(data.queue)) return;

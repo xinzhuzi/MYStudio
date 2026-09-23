@@ -7,6 +7,7 @@ import { appendProjectLedger, ledgerFilenameOf, ledgerMonthFolderOf } from "./hi
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { readImageAsBase64 } from "@/lib/media/image-storage";
 import { useProjectStore } from "@/stores/project/project-store";
+import { getLocalImageToken } from "./local-image-token";
 import type { UnclothChainRequest } from "./uncloth-request";
 
 /**
@@ -16,7 +17,6 @@ import type { UnclothChainRequest } from "./uncloth-request";
  */
 
 const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
-const LOCAL_IMAGE_TOKEN = "manying-local-image";
 
 export interface RunUnclothResult {
   imageUrl: string;
@@ -43,7 +43,7 @@ export async function runUnclothChain(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${LOCAL_IMAGE_TOKEN}`,
+      Authorization: `Bearer ${await getLocalImageToken()}`,
     },
     body: JSON.stringify({
       prompt: request.prompt,

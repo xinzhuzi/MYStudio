@@ -8,7 +8,9 @@
  *   读 ~/Project/IP/MA 真实流文件 → 全量迁移导出 → object_info 校验
  *   缺类 → 抽检≥10 真提交引擎执行(占位参考图=dummy PNG,验迁移保真
  *   非画质)→ 收件箱回写命中。
- *   用法:MANYING_MIGRATE_LIVE=1 npx vitest run --config \
+ *   令牌(0924 起装机随机,sidecar 缺令牌 fail-closed):MANYING_LOCAL_IMAGE_TOKEN
+ *   注入(取自 <userData>/python/profiles/image-gen/config.json 的 controlToken)。
+ *   用法:MANYING_MIGRATE_LIVE=1 MANYING_LOCAL_IMAGE_TOKEN=<token> npx vitest run --config \
  *     frontend/config/vite.config.ts <本文件> --testTimeout 1800000
  */
 
@@ -22,7 +24,7 @@ import type { ImageWorkflowGraph } from "@/types/studio";
 const live = process.env.MANYING_MIGRATE_LIVE === "1";
 const STORE_DIR = join(process.env.HOME ?? "", "Project/IP/MA/store/studio-workflow");
 const SIDECAR = `http://127.0.0.1:${process.env.MANYING_MIGRATE_SIDECAR ?? "17595"}`;
-const TOKEN = "manying-local-image";
+const TOKEN = process.env.MANYING_LOCAL_IMAGE_TOKEN ?? "";
 const d = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function loadRealFlows(): ImageWorkflowGraph[] {
@@ -42,6 +44,7 @@ function loadRealFlows(): ImageWorkflowGraph[] {
 }
 
 (live ? it : it.skip)("存量全量迁移:校验全部+抽检≥10 真执行", async () => {
+  expect(TOKEN, "缺 MANYING_LOCAL_IMAGE_TOKEN(装机随机令牌,取自 image-gen config.json 的 controlToken)").toBeTruthy();
   const auth = { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
   const status = await (await fetch(`${SIDECAR}/comfy/engine/status`, { headers: auth })).json();
   expect(status.running).toBe(true);

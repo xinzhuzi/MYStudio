@@ -19,6 +19,7 @@ import {
   mapCatalogReply,
   mapWorkflowTree,
 } from "./comfy-sidecar-bridge";
+import { setLocalImageTokenForTests } from "./local-image-token";
 
 // ---------------------------------------------------------------------------
 // fetch 路由桩
@@ -103,12 +104,15 @@ beforeEach(() => {
   vi.stubGlobal("fetch", router.fetchMock);
   // 门禁默认放行:单测聚焦字段映射;探活语义由文末 describe 单独锁定
   setComfySidecarLivenessProbeForTests(async () => true);
+  // 装机随机令牌(0924):固定注入测试令牌,断言口径见 Bearer 断言处
+  setLocalImageTokenForTests(() => "test-local-image-token");
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   setComfySidecarLivenessProbeForTests(null);
+  setLocalImageTokenForTests(null);
 });
 
 // ---------------------------------------------------------------------------
@@ -515,7 +519,7 @@ describe("httpComfyEngineClient", () => {
     const status = await createHttpComfyEngineClient().getEngineStatus();
     expect(status.installed).toBe(true);
     expect(status.port).toBe(17600);
-    expect(router.calls[0]?.headers.authorization).toBe("Bearer manying-local-image");
+    expect(router.calls[0]?.headers.authorization).toBe("Bearer test-local-image-token");
   });
 
   it("HTTP 错误 → 大白话 message(error.message 直通)", async () => {

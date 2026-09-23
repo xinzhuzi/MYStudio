@@ -68,6 +68,7 @@ get-image-path
 hy-registry-deps-check
 hy-registry-deps-download
 image-gen-runtime-download-model
+image-gen-runtime-local-token
 image-gen-runtime-prepare
 image-gen-runtime-probe
 image-gen-runtime-rollback
@@ -78,6 +79,7 @@ image-gen-runtime-status
 image-gen-runtime-stop
 image-host-upload
 image-probe-size
+mcp-server-commands-sync
 mcp-server-disconnect
 mcp-server-test
 move-image

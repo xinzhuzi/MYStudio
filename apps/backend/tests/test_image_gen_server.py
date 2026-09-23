@@ -37,16 +37,35 @@ class _ComfyHandler(_GenerateHandler):
 
 
 class BridgeOriginBoundaryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # 0924 令牌随机化:令牌经 MANYING_LOCAL_IMAGE_TOKEN env 注入(装机
+        # 由 electron main 生成 UUID);fail-closed 语义见下方专项测试。
+        self._env = patch.dict("os.environ", {"MANYING_LOCAL_IMAGE_TOKEN": "token-1"})
+        self._env.start()
+        self.addCleanup(self._env.stop)
+
     def handler(self, origin: str | None) -> _GenerateHandler:
         handler = _GenerateHandler.__new__(_GenerateHandler)
         handler.headers = Message()
-        handler.headers["Authorization"] = f"Bearer {server.LOCAL_TOKEN}"
+        handler.headers["Authorization"] = f"Bearer {server.local_token()}"
         if origin is not None:
             handler.headers["Origin"] = origin
         handler.send_response = Mock()
         handler.send_header = Mock()
         handler.end_headers = Mock()
         return handler
+
+    def test_missing_token_env_fails_closed_for_every_authed_route(self) -> None:
+        # 令牌未注入(手工终端起服/异常环境):Bearer/自定义头一律拒,
+        # 公开仓库里不存在任何可用令牌字面量
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(server.local_token(), "")
+            handler = self.handler(None)
+            self.assertFalse(handler._authorized())
+            handler.headers["X-Manying-Image-Token"] = "manying-local-image"
+            self.assertFalse(handler._authorized())
+            handler.headers.replace_header("Authorization", "Bearer manying-local-image")
+            self.assertFalse(handler._authorized())
 
     def test_native_file_renderer_and_local_http_origins_remain_supported(self) -> None:
         for origin in (None, "null", "http://localhost:5173", "http://127.0.0.1:17001", "http://[::1]:5173"):

@@ -9,7 +9,7 @@ import { app } from "/scripts/app.js";
  */
 
 import {
-  BRIDGE_URL, BRIDGE_TOKEN, fetchShots, applyShotToSelection, bindSelectedProject, snapshotOrigin, myScope,
+  BRIDGE_URL, fetchShots, applyShotToSelection, bindSelectedProject, snapshotOrigin, myScope,
   fetchJson, postJson, THEME, icon, ICONS, sectionLabel, statusBadge,
   progressBar, collapseGroup, actionButton, paneStatus,
   myTooltipsEnabled, syncMySettingsFlags,

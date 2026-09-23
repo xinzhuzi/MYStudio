@@ -410,6 +410,8 @@ contextBridge.exposeInMainWorld('imageGenRuntime', {
     ipcRenderer.invoke('image-gen-runtime-download-model', model),
   setActiveModel: (model: string): Promise<{ accepted: boolean; message: string }> =>
     ipcRenderer.invoke('image-gen-runtime-set-active-model', model),
+  // 装机随机令牌(0924):sidecar 17595 鉴权源,按需取用(不落 localStorage)
+  localImageToken: (): Promise<string> => ipcRenderer.invoke('image-gen-runtime-local-token'),
 })
 
 // 漫影云中继执行面(09-10 云端收编):main 中继(ipc/ai/comfy-cloud-relay)把
@@ -441,6 +443,9 @@ contextBridge.exposeInMainWorld('mcpRuntime', {
     | { ok: true; serverName?: string; tools: { name: string; description?: string }[] }
     | { ok: false; error: string }
   > => ipcRenderer.invoke('mcp-server-test', config),
+  // 0924 安全收口 H4:设置页登记命令清单推送主进程(testServer 白名单真源)
+  syncRegisteredCommands: (commands: string[]): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('mcp-server-commands-sync', commands),
   disconnect: (serverId: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('mcp-server-disconnect', serverId),
 })

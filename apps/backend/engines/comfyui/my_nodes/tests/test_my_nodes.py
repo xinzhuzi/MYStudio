@@ -287,6 +287,22 @@ class _FakeResponse:
         return self._body
 
 
+def test_bridge_settings_config_payload_follows_env(monkeypatch):
+    # 0924 令牌随机化:web 侧栏经 /my_bridge/config 取装机随机令牌;
+    # payload 与 settings env 严格同源,env 缺失=空令牌(fail-closed)
+    from engines.comfyui.my_nodes import bridge_settings_server
+
+    monkeypatch.setenv("MYSTUDIO_BRIDGE_URL", "http://127.0.0.1:9123/")
+    monkeypatch.setenv("MYSTUDIO_BRIDGE_TOKEN", "tok-config")
+    assert bridge_settings_server.config_payload() == {
+        "bridgeUrl": "http://127.0.0.1:9123",
+        "bridgeToken": "tok-config",
+    }
+
+    monkeypatch.delenv("MYSTUDIO_BRIDGE_TOKEN", raising=False)
+    assert bridge_settings_server.config_payload()["bridgeToken"] == ""
+
+
 def test_writeback_posts_png_with_token(monkeypatch):
     monkeypatch.setenv("MYSTUDIO_BRIDGE_URL", "http://127.0.0.1:9123/")
     monkeypatch.setenv("MYSTUDIO_BRIDGE_TOKEN", "tok-1")

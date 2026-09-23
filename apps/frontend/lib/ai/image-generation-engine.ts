@@ -39,8 +39,9 @@ import {
   createDefaultLocalImageProvider,
   isLocalImageProvider,
 } from '@/stores/ai/api-config-provider-helpers';
+import { getLocalImageToken } from '@/lib/assist/image-studio/local-image-token';
 import { getAIConfigStore } from '@/lib/ai/config/store-adapter';
-import { getProviderKeyManager, parseApiKeys } from '@/lib/ai/core';
+import { getProviderKeyManager, parseApiKeys, ApiKeyManager } from '@/lib/ai/core';
 import { AI_FEATURES } from '@/lib/ai/feature-definitions';
 import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
 import {
@@ -104,8 +105,8 @@ function findModelOwnerConfig(requestedModel: string | undefined, isLocalModel: 
   }
   if (!isLocalModel) return undefined;
   // store 里的本地 provider 可能被云端模型同步等整表重写洗掉(09-01 实弹:
-  // 用户机器上 providers 列表已无本地条目);本地 sidecar 是固定端口+固定
-  // 令牌的内置能力,缺席时直接按常量合成,不依赖绑定/迁移体操
+  // 用户机器上 providers 列表已无本地条目);本地 sidecar 是固定端口+装机
+  // 随机令牌的内置能力,缺席时直接按常量合成,不依赖绑定/迁移体操
   const provider = getAIConfigStore().providers.find(isLocalImageProvider) ?? createDefaultLocalImageProvider();
   const keys = parseApiKeys(provider.apiKey);
   if (keys.length === 0) return undefined;
@@ -317,6 +318,22 @@ export async function generateImage(
   // 本地生成前自愈:sidecar 缺席/僵尸时自动拉起(用户期望「打开软件直接生图」)
   if (chainConfigs.some((cfg) => isLocalImageProvider(cfg.provider))) {
     await ensureLocalImageSidecarRunning(operationId);
+    // 装机随机令牌替换(0924):本地 provider 的 apiKey 只是非空占位(见
+    // api-config-provider-helpers),真实令牌每装机随机、经 imageGenRuntime
+    // 桥按需取、不落 localStorage。keyManager 换成单键真令牌管理器——
+    // 请求侧按 getCurrentKey()||apiKey 取值,不换管理器会被占位键盖掉;
+    // 单键即无换 key 轮转,与本地链 skipFreedomRetry 语义一致。取不到令牌
+    // (非 Electron/桥缺席)保留占位,由 sidecar fail-closed 兜底。
+    const localImageTokenValue = await getLocalImageToken();
+    if (localImageTokenValue) {
+      for (const cfg of chainConfigs) {
+        if (isLocalImageProvider(cfg.provider)) {
+          cfg.apiKey = localImageTokenValue;
+          cfg.allApiKeys = [localImageTokenValue];
+          cfg.keyManager = new ApiKeyManager(localImageTokenValue);
+        }
+      }
+    }
   }
 
   let lastError: Error | null = null;

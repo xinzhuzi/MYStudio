@@ -58,7 +58,11 @@ export function isLocalTtsProvider(provider: IProvider) {
 
 export const DEFAULT_LOCAL_IMAGE_PROVIDER_ID = "manying-local-image";
 export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
-/** Fixed local token — the sidecar accepts it as Bearer key (loopback only). */
+/**
+ * 本地 provider 的 apiKey 占位(非机密,仅让图片功能不因空 key 跳过该渠道)。
+ * 0924 起 sidecar 只认装机随机令牌(取用见 lib/assist/image-studio/
+ * local-image-token;占位串不再被服务端接受),真令牌不落本 store。
+ */
 export const LOCAL_IMAGE_API_KEY = "manying-local-image";
 export const LOCAL_IMAGE_MODELS = ["flux2-klein-9b", "krea2-turbo", "z-image-turbo", "qwen-image-edit-2511", "comfyui-bridge"] as const;
 export const DEFAULT_LOCAL_IMAGE_MODEL = "krea2-turbo";
@@ -69,8 +73,9 @@ export function createDefaultLocalImageProvider(): IProvider {
     platform: "manying-local-image",
     name: "本地图片生成",
     baseUrl: LOCAL_IMAGE_BASE_URL,
-    // Non-empty placeholder key: image features skip providers without keys,
-    // and the sidecar accepts this fixed loopback token.
+    // Non-empty placeholder key: image features skip providers without keys.
+    // The real per-install token is substituted at request time
+    // (image-generation-engine 本地链),never persisted here.
     apiKey: LOCAL_IMAGE_API_KEY,
     model: [...LOCAL_IMAGE_MODELS],
     capabilities: ["image_generation"],
