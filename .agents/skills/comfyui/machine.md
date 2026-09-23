@@ -24,6 +24,8 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - **Image line = Krea 2 (K2)**: turbo bf16 DiT (`diffusion_models/`) + uncensored (Heretic) 4B TE
     (`text_encoders/qwen3-vl-4b-heretic`) + LoRAs under `loras/Krea2-NSFW`, `loras/Krea2-功能`.
     K2's VAE file is `qwen_image_vae` — it belongs to K2, do not treat as leftover.
+    **09-24 退役,权重已删,恢复=/Volumes/郑冰津/AI/Krea2 按 manifest-retired-0923.jsonl
+    从 models/ 下拷回,工作流 JSON 保留存档。**
   - **Video line = MiniMax H3**: BF16 FL2VA DiT + Heretic 32B Q4_K_M GGUF TE + mmproj (same files as the
     retired install) + turbo LoRAs (4step v1.1 + 8step v1.0). Fixed routes: 480P direct (daily),
     960P direct (final), SeedVR2 for 2K upscale (slow — use selectively). Music3 line also present.
@@ -55,6 +57,9 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors` (~19GB, self-converted from the full bf16
     original via `apps/build/scripts/qwen21_pe_bf16_convert_0923.py`): the Comfy-Org int8_convrot
     PE loads fine but dies at the first matmul on MPS (`aten::_int_mm` has no MPS kernel).
+  - (09-23) PE-I2I weight = `text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors`
+    (18,819,722,392 B, 自转件 via `apps/build/scripts/qwen21_pe_i2i_bf16_convert_0923.py`),
+    Edit 流 PE 用 (qwen21-edit [12],看图改写;语言随输入——中文进中文出,edit 系统提示词决策A)。
   - (09-21) Engine upgraded past the pre-fill: v0.37.0 now (subgraphs + hash-based workflow restore).
   - (09-21) **Subgraph groups MUST carry an `id` field each** (any increasing int): without id only
     `groups[0]` loads, the rest are silently dropped. Cost a full debug round on the 道劫 [90] matrix.
