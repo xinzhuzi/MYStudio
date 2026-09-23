@@ -356,7 +356,10 @@ async function renderWorkflowsPane(pane) {
       status.textContent = "还没有漫影工作流(仓库真源为空)";
       return;
     }
-    const summaryText = `共 ${items.length} 条自研工作流 · 点击在画布打开`;
+    // 加载成功后不展示统计/操作提示(09-23 用户裁定:提示不进 UI,写清在注释):
+    // 本页签列出仓库真源全部自研工作流(repo: 只读合并);叶子行点击即在画布打开,
+    // 目录行点击开合折叠。状态行仅在加载中/出错时使用,_summaryText 留空即可。
+    const summaryText = "";
     status.textContent = summaryText;
     status._summaryText = summaryText;
     items.sort((a, b) => String(a.id).localeCompare(String(b.id), "zh"));
