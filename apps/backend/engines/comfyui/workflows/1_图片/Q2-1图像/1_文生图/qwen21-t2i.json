@@ -1,367 +1,1107 @@
 {
   "id": "8f4c1a92-6d27-4b8e-9a15-2c7d58b0e001",
-  "version": 0.4,
   "revision": 0,
-  "config": {},
-  "extra": {},
+  "last_node_id": 16,
+  "last_link_id": 19,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        -1800,
+        -360
+      ],
+      "size": [
+        340,
+        84
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "[1] UNET加载",
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "unet_name": true,
+            "weight_dtype": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "qwen_image_2.1_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        -1380,
+        -360
+      ],
+      "size": [
+        360,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3,
+            16
+          ]
+        }
+      ],
+      "title": "[2] CLIP加载(qwen_image)",
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "clip_name": true,
+            "type": true,
+            "device": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen3vl_8b_bf16.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_8b_bf16.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        -960,
+        -360
+      ],
+      "size": [
+        340,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            4,
+            10,
+            17
+          ]
+        }
+      ],
+      "title": "[3] VAE加载",
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "vae_name": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      }
+    },
+    {
+      "id": 4,
+      "type": "ResolutionSelector",
+      "pos": [
+        -560,
+        0
+      ],
+      "size": [
+        320,
+        190
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "[4] 分辨率选择",
+      "properties": {
+        "Node name for S&R": "ResolutionSelector",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "1:1 (Square)",
+        1,
+        8
+      ],
+      "widgets_values_named": {
+        "aspect_ratio": "1:1 (Square)",
+        "megapixels": 1,
+        "multiple": 8
+      }
+    },
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "pos": [
+        -140,
+        0
+      ],
+      "size": [
+        330,
+        110
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 1
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "title": "[5] 空潜空(宽高接 [4])",
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "width": true,
+            "height": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ],
+      "widgets_values_named": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      }
+    },
+    {
+      "id": 6,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        280,
+        0
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        },
+        {
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 4
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "title": "[6] Qwen2.1 文本编码(prompt 接 [14] 开关)",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "prompt": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "",
+        "",
+        1024
+      ],
+      "widgets_values_named": {
+        "prompt": "",
+        "negative_prompt": "",
+        "resolution": 1024
+      }
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        1162.1826562499982,
+        4.584765625000002
+      ],
+      "size": [
+        330,
+        262
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 19
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "title": "[7] KSampler(25步·cfg1)",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        25,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 25,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1520,
+        0
+      ],
+      "size": [
+        240,
+        50
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 9
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "title": "[8] VAE解码",
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        1860,
+        0
+      ],
+      "size": [
+        380,
+        330
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "title": "[9] 保存",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "MYStudio"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "MYStudio"
+      }
+    },
+    {
+      "id": 10,
+      "type": "MarkdownNote",
+      "pos": [
+        -3009.057384170436,
+        -230.42513338928185
+      ],
+      "size": [
+        900,
+        800
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "[10] 使用说明",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "## Qwen-Image-2.1 文生图 · 使用说明\n\n**权重三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线,Mac 不用)**\n\n- diffusion_models/qwen_image_2.1_bf16.safetensors\n- text_encoders/qwen3vl_8b_bf16.safetensors(CLIPLoader type=qwen_image)\n- vae/qwen_image_2.1_vae_bf16.safetensors\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样(与 K2 turbo 同款数学);只有真要用负向才抬 cfg。\n- **步数**:官方管线 40-50 步 euler,本流 25 步起手;更强采样器可更少步。\n- **分辨率**:ResolutionSelector([4])直出宽高,默认 1MP(1024×1024);原生 2K=1:1 + 4MP(2048×2048);宽高宜 32 的倍数。\n- 提示词点名参考图的语法 `<image1>`..`<image10>` 属改图流;t2i 无参考图。\n\n### PE 提示词改写组(默认旁路)\n\n- 默认:[13] 直写提示词 → [14] 开关(switch=false)→ [6] 编码;PE 组不参与出图(开关懒执行,旁路时 PE 模型不加载)。\n- **开启步骤**:①装插件 ComfyUI-Qwen-Image-2.1-Prompt-Enhancer 到 custom_nodes/;②PE 权重落 text_encoders/qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors(约 19GB,[11] 加载,type=qwen_image);③在 [12] PE改写节点写短句想法(任意语言,输出恒英文长文);④把 [14] 开关 switch 勾上(true)→ PE 自动扩写喂 [6]。presence_penalty=1.5 是 T2I 硬口径勿改。\n\n### RGBA 透明开关(默认普通)\n\n- 默认 [16] RGBA开关=false 走 [6] 普通 conditioning;透明路 [15] 是独立编码节点。\n- **开启**:把 [16] switch 勾上(true),并在 [15] 编辑官方包裹句式的中间描述:This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n- **透明路出图必须存 PNG 才保 alpha**(JPEG 会丢透明通道)。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。"
+      ],
+      "widgets_values_named": {
+        "text": "## Qwen-Image-2.1 文生图 · 使用说明\n\n**权重三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线,Mac 不用)**\n\n- diffusion_models/qwen_image_2.1_bf16.safetensors\n- text_encoders/qwen3vl_8b_bf16.safetensors(CLIPLoader type=qwen_image)\n- vae/qwen_image_2.1_vae_bf16.safetensors\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样(与 K2 turbo 同款数学);只有真要用负向才抬 cfg。\n- **步数**:官方管线 40-50 步 euler,本流 25 步起手;更强采样器可更少步。\n- **分辨率**:ResolutionSelector([4])直出宽高,默认 1MP(1024×1024);原生 2K=1:1 + 4MP(2048×2048);宽高宜 32 的倍数。\n- 提示词点名参考图的语法 `<image1>`..`<image10>` 属改图流;t2i 无参考图。\n\n### PE 提示词改写组(默认旁路)\n\n- 默认:[13] 直写提示词 → [14] 开关(switch=false)→ [6] 编码;PE 组不参与出图(开关懒执行,旁路时 PE 模型不加载)。\n- **开启步骤**:①装插件 ComfyUI-Qwen-Image-2.1-Prompt-Enhancer 到 custom_nodes/;②PE 权重落 text_encoders/qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors(约 19GB,[11] 加载,type=qwen_image);③在 [12] PE改写节点写短句想法(任意语言,输出恒英文长文);④把 [14] 开关 switch 勾上(true)→ PE 自动扩写喂 [6]。presence_penalty=1.5 是 T2I 硬口径勿改。\n\n### RGBA 透明开关(默认普通)\n\n- 默认 [16] RGBA开关=false 走 [6] 普通 conditioning;透明路 [15] 是独立编码节点。\n- **开启**:把 [16] switch 勾上(true),并在 [15] 编辑官方包裹句式的中间描述:This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n- **透明路出图必须存 PNG 才保 alpha**(JPEG 会丢透明通道)。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。"
+      },
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 11,
+      "type": "CLIPLoader",
+      "pos": [
+        -1968.9955280555298,
+        505.4434660007972
+      ],
+      "size": [
+        400,
+        130
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "title": "[11] PE文本编码加载(qwen_image)",
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "clip_name": true,
+            "type": true,
+            "device": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    {
+      "id": 12,
+      "type": "QwenImage21_T2IPromptRewrite",
+      "pos": [
+        -1477.5766491492807,
+        368.5584347507964
+      ],
+      "size": [
+        440,
+        340
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive_prompt",
+          "type": "STRING",
+          "links": [
+            13
+          ]
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "wh_ratio",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "thinking",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "parse_ok",
+          "type": "BOOLEAN",
+          "links": null
+        }
+      ],
+      "title": "[12] PE提示词改写(短句→英文长文,默认旁路)",
+      "properties": {
+        "Node name for S&R": "QwenImage21_T2IPromptRewrite",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "prompt": true,
+            "temperature": true,
+            "top_p": true,
+            "top_k": true,
+            "presence_penalty": true,
+            "max_new_tokens": true,
+            "seed": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "",
+        1,
+        0.95,
+        20,
+        1.5,
+        16256,
+        42,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "prompt": "",
+        "temperature": 1,
+        "top_p": 0.95,
+        "top_k": 20,
+        "presence_penalty": 1.5,
+        "max_new_tokens": 16256,
+        "seed": 42,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 13,
+      "type": "StringConstant",
+      "pos": [
+        -1975.6492819617804,
+        9.68095818829884
+      ],
+      "size": [
+        420,
+        380
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "title": "[13] 直写提示词(默认路)",
+      "properties": {
+        "Node name for S&R": "StringConstant",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "string": ""
+      }
+    },
+    {
+      "id": 14,
+      "type": "ComfySwitchNode",
+      "pos": [
+        -1022.9022311805319,
+        164.85764178204585
+      ],
+      "size": [
+        311.8609375,
+        120
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "STRING",
+          "link": 14
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "STRING",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "STRING",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "title": "[14] 提示词开关(false=直写 / true=PE扩写)",
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "switch": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        false
+      ],
+      "widgets_values_named": {
+        "switch": false
+      }
+    },
+    {
+      "id": 15,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        280,
+        420
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 16
+        },
+        {
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            18
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        }
+      ],
+      "title": "[15] RGBA文本编码(透明路,默认旁路)",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.",
+        "",
+        1024
+      ],
+      "widgets_values_named": {
+        "prompt": "This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.",
+        "negative_prompt": "",
+        "resolution": 1024
+      }
+    },
+    {
+      "id": 16,
+      "type": "ComfySwitchNode",
+      "pos": [
+        752.6360156249982,
+        20.721249999999994
+      ],
+      "size": [
+        380.384375,
+        120
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "CONDITIONING",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "title": "[16] RGBA开关(false=普通 / true=透明,透明图存PNG)",
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "switch": true
+          },
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        false
+      ],
+      "widgets_values_named": {
+        "switch": false
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      4,
+      0,
+      5,
+      0,
+      "INT"
+    ],
+    [
+      2,
+      4,
+      1,
+      5,
+      1,
+      "INT"
+    ],
+    [
+      3,
+      2,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      3,
+      0,
+      6,
+      2,
+      "VAE"
+    ],
+    [
+      5,
+      5,
+      0,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      6,
+      6,
+      0,
+      16,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      6,
+      1,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      1,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      10,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      11,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      11,
+      0,
+      12,
+      0,
+      "CLIP"
+    ],
+    [
+      13,
+      12,
+      0,
+      14,
+      1,
+      "STRING"
+    ],
+    [
+      14,
+      13,
+      0,
+      14,
+      0,
+      "STRING"
+    ],
+    [
+      15,
+      14,
+      0,
+      6,
+      3,
+      "STRING"
+    ],
+    [
+      16,
+      2,
+      0,
+      15,
+      0,
+      "CLIP"
+    ],
+    [
+      17,
+      3,
+      0,
+      15,
+      2,
+      "VAE"
+    ],
+    [
+      18,
+      15,
+      0,
+      16,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      19,
+      16,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ]
+  ],
   "groups": [
     {
       "id": 1,
       "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
-      "bounding": [-1860, -460, 1120, 260],
+      "bounding": [
+        -1860,
+        -460,
+        1120,
+        260
+      ],
       "color": "#3f789e",
       "flags": {}
     },
     {
       "id": 2,
       "title": "文生图主链(分辨率→潜空→编码→采样→解码→保存)",
-      "bounding": [-640, -140, 2980, 900],
+      "bounding": [
+        -640,
+        -140,
+        2980,
+        900
+      ],
       "color": "#3f789e",
       "flags": {}
     },
     {
       "id": 3,
       "title": "PE 提示词改写(默认旁路,开启即自动扩写)",
-      "bounding": [-900, 1100, 1300, 800],
+      "bounding": [
+        -2001.9311843055295,
+        -83.67341681170365,
+        1300,
+        800
+      ],
       "color": "#a1309b",
       "flags": {}
     }
   ],
-  "nodes": [
-    {
-      "id": 1,
-      "type": "UNETLoader",
-      "title": "[1] UNET加载",
-      "pos": [-1800, -360],
-      "size": [340, 84],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {"name": "unet_name", "type": "COMBO", "widget": {"name": "unet_name"}, "link": null},
-        {"name": "weight_dtype", "type": "COMBO", "widget": {"name": "weight_dtype"}, "link": null}
-      ],
-      "outputs": [
-        {"name": "MODEL", "type": "MODEL", "links": [8]}
-      ],
-      "properties": {"Node name for S&R": "UNETLoader"},
-      "widgets_values": ["qwen_image_2.1_bf16.safetensors", "default"]
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "ds": {
+      "scale": 0.5644739300537778,
+      "offset": [
+        3347.62801454535,
+        533.7932997652601
+      ]
     },
-    {
-      "id": 2,
-      "type": "CLIPLoader",
-      "title": "[2] CLIP加载(qwen_image)",
-      "pos": [-1380, -360],
-      "size": [360, 130],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [
-        {"name": "clip_name", "type": "COMBO", "widget": {"name": "clip_name"}, "link": null},
-        {"name": "type", "type": "COMBO", "widget": {"name": "type"}, "link": null},
-        {"name": "device", "type": "COMBO", "shape": 7, "widget": {"name": "device"}, "link": null}
-      ],
-      "outputs": [
-        {"name": "CLIP", "type": "CLIP", "links": [3, 16]}
-      ],
-      "properties": {"Node name for S&R": "CLIPLoader"},
-      "widgets_values": ["qwen3vl_8b_bf16.safetensors", "qwen_image", "default"]
-    },
-    {
-      "id": 3,
-      "type": "VAELoader",
-      "title": "[3] VAE加载",
-      "pos": [-960, -360],
-      "size": [340, 60],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {"name": "vae_name", "type": "COMBO", "widget": {"name": "vae_name"}, "link": null}
-      ],
-      "outputs": [
-        {"name": "VAE", "type": "VAE", "links": [4, 10, 17]}
-      ],
-      "properties": {"Node name for S&R": "VAELoader"},
-      "widgets_values": ["qwen_image_2.1_vae_bf16.safetensors"]
-    },
-    {
-      "id": 4,
-      "type": "ResolutionSelector",
-      "title": "[4] 分辨率选择",
-      "pos": [-560, 0],
-      "size": [320, 190],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {"name": "width", "type": "INT", "links": [1]},
-        {"name": "height", "type": "INT", "links": [2]}
-      ],
-      "properties": {"Node name for S&R": "ResolutionSelector"},
-      "widgets_values": ["1:1 (Square)", 1, 8]
-    },
-    {
-      "id": 5,
-      "type": "EmptyLatentImage",
-      "title": "[5] 空潜空(宽高接 [4])",
-      "pos": [-140, 0],
-      "size": [330, 110],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {"name": "width", "type": "INT", "widget": {"name": "width"}, "link": 1},
-        {"name": "height", "type": "INT", "widget": {"name": "height"}, "link": 2}
-      ],
-      "outputs": [
-        {"name": "LATENT", "type": "LATENT", "links": [5]}
-      ],
-      "properties": {"Node name for S&R": "EmptyLatentImage"},
-      "widgets_values": [1024, 1024, 1]
-    },
-    {
-      "id": 6,
-      "type": "TextEncodeQwenImage21",
-      "title": "[6] Qwen2.1 文本编码(prompt 接 [14] 开关)",
-      "pos": [280, 0],
-      "size": [420, 320],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {"name": "clip", "type": "CLIP", "link": 3},
-        {"name": "images.image_1", "type": "IMAGE", "shape": 7, "link": null},
-        {"name": "vae", "type": "VAE", "shape": 7, "link": 4},
-        {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": 15}
-      ],
-      "outputs": [
-        {"name": "positive", "type": "CONDITIONING", "links": [6]},
-        {"name": "negative", "type": "CONDITIONING", "links": [7]},
-        {"name": "latent", "type": "LATENT", "links": null}
-      ],
-      "properties": {"Node name for S&R": "TextEncodeQwenImage21"},
-      "widgets_values": ["", "", 1024]
-    },
-    {
-      "id": 7,
-      "type": "KSampler",
-      "title": "[7] KSampler(25步·cfg1)",
-      "pos": [1100, 0],
-      "size": [330, 260],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {"name": "model", "type": "MODEL", "link": 8},
-        {"name": "positive", "type": "CONDITIONING", "link": 19},
-        {"name": "negative", "type": "CONDITIONING", "link": 7},
-        {"name": "latent_image", "type": "LATENT", "link": 5}
-      ],
-      "outputs": [
-        {"name": "LATENT", "type": "LATENT", "links": [9]}
-      ],
-      "properties": {"Node name for S&R": "KSampler"},
-      "widgets_values": [0, "fixed", 25, 1, "euler", "simple", 1]
-    },
-    {
-      "id": 8,
-      "type": "VAEDecode",
-      "title": "[8] VAE解码",
-      "pos": [1520, 0],
-      "size": [240, 50],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {"name": "samples", "type": "LATENT", "link": 9},
-        {"name": "vae", "type": "VAE", "link": 10}
-      ],
-      "outputs": [
-        {"name": "IMAGE", "type": "IMAGE", "links": [11]}
-      ],
-      "properties": {"Node name for S&R": "VAEDecode"}
-    },
-    {
-      "id": 9,
-      "type": "SaveImage",
-      "title": "[9] 保存",
-      "pos": [1860, 0],
-      "size": [380, 330],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {"name": "images", "type": "IMAGE", "link": 11}
-      ],
-      "outputs": [],
-      "properties": {"Node name for S&R": "SaveImage"},
-      "widgets_values": ["MYStudio"]
-    },
-    {
-      "id": 10,
-      "type": "MarkdownNote",
-      "title": "[10] 使用说明",
-      "pos": [-1860, 420],
-      "size": [900, 800],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {},
-      "widgets_values": ["## Qwen-Image-2.1 文生图 · 使用说明\n\n**权重三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线,Mac 不用)**\n\n- diffusion_models/qwen_image_2.1_bf16.safetensors\n- text_encoders/qwen3vl_8b_bf16.safetensors(CLIPLoader type=qwen_image)\n- vae/qwen_image_2.1_vae_bf16.safetensors\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样(与 K2 turbo 同款数学);只有真要用负向才抬 cfg。\n- **步数**:官方管线 40-50 步 euler,本流 25 步起手;更强采样器可更少步。\n- **分辨率**:ResolutionSelector([4])直出宽高,默认 1MP(1024×1024);原生 2K=1:1 + 4MP(2048×2048);宽高宜 32 的倍数。\n- 提示词点名参考图的语法 `<image1>`..`<image10>` 属改图流;t2i 无参考图。\n\n### PE 提示词改写组(默认旁路)\n\n- 默认:[13] 直写提示词 → [14] 开关(switch=false)→ [6] 编码;PE 组不参与出图(开关懒执行,旁路时 PE 模型不加载)。\n- **开启步骤**:①装插件 ComfyUI-Qwen-Image-2.1-Prompt-Enhancer 到 custom_nodes/;②PE 权重落 text_encoders/qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors(约 19GB,[11] 加载,type=qwen_image);③在 [12] PE改写节点写短句想法(任意语言,输出恒英文长文);④把 [14] 开关 switch 勾上(true)→ PE 自动扩写喂 [6]。presence_penalty=1.5 是 T2I 硬口径勿改。\n\n### RGBA 透明开关(默认普通)\n\n- 默认 [16] RGBA开关=false 走 [6] 普通 conditioning;透明路 [15] 是独立编码节点。\n- **开启**:把 [16] switch 勾上(true),并在 [15] 编辑官方包裹句式的中间描述:This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n- **透明路出图必须存 PNG 才保 alpha**(JPEG 会丢透明通道)。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。"]
-    },
-    {
-      "id": 11,
-      "type": "CLIPLoader",
-      "title": "[11] PE文本编码加载(qwen_image)",
-      "pos": [-880, 1120],
-      "size": [400, 130],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {"name": "clip_name", "type": "COMBO", "widget": {"name": "clip_name"}, "link": null},
-        {"name": "type", "type": "COMBO", "widget": {"name": "type"}, "link": null},
-        {"name": "device", "type": "COMBO", "shape": 7, "widget": {"name": "device"}, "link": null}
-      ],
-      "outputs": [
-        {"name": "CLIP", "type": "CLIP", "links": [12]}
-      ],
-      "properties": {"Node name for S&R": "CLIPLoader"},
-      "widgets_values": ["qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors", "qwen_image", "default"]
-    },
-    {
-      "id": 12,
-      "type": "QwenImage21_T2IPromptRewrite",
-      "title": "[12] PE提示词改写(短句→英文长文,默认旁路)",
-      "pos": [-420, 1120],
-      "size": [440, 340],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [
-        {"name": "clip", "type": "CLIP", "link": 12},
-        {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": null},
-        {"name": "temperature", "type": "FLOAT", "widget": {"name": "temperature"}, "link": null},
-        {"name": "top_p", "type": "FLOAT", "widget": {"name": "top_p"}, "link": null},
-        {"name": "top_k", "type": "INT", "widget": {"name": "top_k"}, "link": null},
-        {"name": "presence_penalty", "type": "FLOAT", "widget": {"name": "presence_penalty"}, "link": null},
-        {"name": "max_new_tokens", "type": "INT", "widget": {"name": "max_new_tokens"}, "link": null},
-        {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": null}
-      ],
-      "outputs": [
-        {"name": "positive_prompt", "type": "STRING", "links": [13]},
-        {"name": "negative_prompt", "type": "STRING", "links": null},
-        {"name": "wh_ratio", "type": "STRING", "links": null},
-        {"name": "thinking", "type": "STRING", "links": null},
-        {"name": "parse_ok", "type": "BOOLEAN", "links": null}
-      ],
-      "properties": {"Node name for S&R": "QwenImage21_T2IPromptRewrite"},
-      "widgets_values": ["", 1.0, 0.95, 20, 1.5, 16256, 42]
-    },
-    {
-      "id": 13,
-      "type": "StringConstant",
-      "title": "[13] 直写提示词(默认路)",
-      "pos": [-880, 1500],
-      "size": [420, 380],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {"name": "STRING", "type": "STRING", "links": [14]}
-      ],
-      "properties": {"Node name for S&R": "StringConstant"},
-      "widgets_values": [""]
-    },
-    {
-      "id": 14,
-      "type": "ComfySwitchNode",
-      "title": "[14] 提示词开关(false=直写 / true=PE扩写)",
-      "pos": [120, 1120],
-      "size": [260, 120],
-      "flags": {},
-      "order": 13,
-      "mode": 0,
-      "inputs": [
-        {"name": "on_false", "shape": 7, "type": "STRING", "link": 14},
-        {"name": "on_true", "shape": 7, "type": "STRING", "link": 13},
-        {"name": "switch", "type": "BOOLEAN", "widget": {"name": "switch"}, "link": null}
-      ],
-      "outputs": [
-        {"name": "output", "type": "STRING", "links": [15]}
-      ],
-      "properties": {"Node name for S&R": "ComfySwitchNode"},
-      "widgets_values": [false]
-    },
-    {
-      "id": 15,
-      "type": "TextEncodeQwenImage21",
-      "title": "[15] RGBA文本编码(透明路,默认旁路)",
-      "pos": [280, 420],
-      "size": [420, 320],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {"name": "clip", "type": "CLIP", "link": 16},
-        {"name": "images.image_1", "type": "IMAGE", "shape": 7, "link": null},
-        {"name": "vae", "type": "VAE", "shape": 7, "link": 17}
-      ],
-      "outputs": [
-        {"name": "positive", "type": "CONDITIONING", "links": [18]},
-        {"name": "negative", "type": "CONDITIONING", "links": null},
-        {"name": "latent", "type": "LATENT", "links": null}
-      ],
-      "properties": {"Node name for S&R": "TextEncodeQwenImage21"},
-      "widgets_values": ["This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.", "", 1024]
-    },
-    {
-      "id": 16,
-      "type": "ComfySwitchNode",
-      "title": "[16] RGBA开关(false=普通 / true=透明,透明图存PNG)",
-      "pos": [760, 0],
-      "size": [260, 120],
-      "flags": {},
-      "order": 15,
-      "mode": 0,
-      "inputs": [
-        {"name": "on_false", "shape": 7, "type": "CONDITIONING", "link": 6},
-        {"name": "on_true", "shape": 7, "type": "CONDITIONING", "link": 18},
-        {"name": "switch", "type": "BOOLEAN", "widget": {"name": "switch"}, "link": null}
-      ],
-      "outputs": [
-        {"name": "output", "type": "CONDITIONING", "links": [19]}
-      ],
-      "properties": {"Node name for S&R": "ComfySwitchNode"},
-      "widgets_values": [false]
-    }
-  ],
-  "links": [
-    [1, 4, 0, 5, 0, "INT"],
-    [2, 4, 1, 5, 1, "INT"],
-    [3, 2, 0, 6, 0, "CLIP"],
-    [4, 3, 0, 6, 2, "VAE"],
-    [5, 5, 0, 7, 3, "LATENT"],
-    [6, 6, 0, 16, 0, "CONDITIONING"],
-    [7, 6, 1, 7, 2, "CONDITIONING"],
-    [8, 1, 0, 7, 0, "MODEL"],
-    [9, 7, 0, 8, 0, "LATENT"],
-    [10, 3, 0, 8, 1, "VAE"],
-    [11, 8, 0, 9, 0, "IMAGE"],
-    [12, 11, 0, 12, 0, "CLIP"],
-    [13, 12, 0, 14, 1, "STRING"],
-    [14, 13, 0, 14, 0, "STRING"],
-    [15, 14, 0, 6, 3, "STRING"],
-    [16, 2, 0, 15, 0, "CLIP"],
-    [17, 3, 0, 15, 2, "VAE"],
-    [18, 15, 0, 16, 1, "CONDITIONING"],
-    [19, 16, 0, 7, 1, "CONDITIONING"]
-  ],
-  "last_node_id": 16,
-  "last_link_id": 19
+    "frontendVersion": "1.53.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
 }

@@ -6,11 +6,12 @@
  * 相对 round1(qwen21_e2e_0923.mjs,10 节点旧版)的差异:
  * - [6].prompt 被 [14] 开关连线覆盖 → 普通路 prompt 必须写 [13] PrimitiveNode;
  * - 新增 phases:dry(双流干跑)/ normal / rgba(开关ON+PIL验真透明+复位) /
- *   pe(开关ON+中文短句+ShowText|pysssss 临时接线捕获改写文本) / daojie(seed 42+4242);
+ *   pe(开关ON+中文短句+ShowText|pysssss 临时接线捕获改写文本);
+ *   (daojie phase 随道劫直写旧件 09-23 午退役删除而移除)
  * - 控制台报错按 graphReady 前后分流(load-noise vs workflow-phase);
  * - PNG 魔数 + sips 尺寸在驱动内完成;rgba 额外用引擎 venv PIL 验 mode/alpha。
  *
- * 用法:node apps/build/scripts/qwen21_e2e_round2_0923.mjs <dry|normal|rgba|pe|daojie>
+ * 用法:node apps/build/scripts/qwen21_e2e_round2_0923.mjs <dry|normal|rgba|pe>
  * 退出码 0=该 phase 全绿;1=有失败项;2=环境错误。
  */
 import { createRequire } from "node:module";
@@ -30,7 +31,6 @@ const CDP_PORT = Number(process.env.CDP_PORT || 9333);
 const E2E_DIR = "/Users/zhengbingjin/Downloads/qwen21-e2e-0923/round2";
 const WF_DIR = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像";
 const WF_T2I = join(WF_DIR, "1_文生图/qwen21-t2i.json");
-const WF_DAOJIE = join(WF_DIR, "1_文生图/qwen21-daojie-t2i.json");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = `/tmp/qwen21-r2-${PHASE}-chrome-profile`;
 const ENGINE_PY = "/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/venv/bin/python";
@@ -356,7 +356,7 @@ async function runAndFetch(page, cfg) {
 
 async function main() {
   const report = { phase: PHASE, engine: ENGINE, startedAt: new Date().toISOString(), cases: {} };
-  for (const f of [WF_T2I, WF_DAOJIE]) {
+  for (const f of [WF_T2I]) {
     if (!existsSync(f)) { console.error("工作流缺失:", f); process.exit(2); }
   }
   try {
@@ -376,7 +376,7 @@ async function main() {
   await sleep(2000);
 
   if (PHASE === "dry") {
-    for (const [tag, wf] of [["t2i", WF_T2I], ["daojie", WF_DAOJIE]]) {
+    for (const [tag, wf] of [["t2i", WF_T2I]]) {
       if (!(await loadCanvas(page, tag, wf, 16))) continue;
       const r = await dryRunPrompt(page, ["UNETLoader", "CLIPLoader", "VAELoader", "ResolutionSelector", "EmptyLatentImage", "TextEncodeQwenImage21", "KSampler", "VAEDecode", "SaveImage", "ComfySwitchNode", "QwenImage21_T2IPromptRewrite", "StringConstant"], 15);
       let parsed = null;
@@ -475,27 +475,6 @@ async function main() {
           check("t2i-peON: 改写文本捕获(ShowText)", false, "history outputs 无 text 字段");
         }
         report.cases.pe.messages = r.hist.messages;
-      }
-    }
-  } else if (PHASE === "daojie") {
-    if (await loadCanvas(page, "daojie", WF_DAOJIE, 16)) {
-      for (const seed of [42, 4242]) {
-        const c = await runAndFetch(page, {
-          tag: `daojie-seed${seed}`,
-          steps: [
-            { type: "ResolutionSelector", widget: "aspect_ratio", value: "1:1 (Square)" },
-            { type: "ResolutionSelector", widget: "megapixels", value: 1.0 },
-            { type: "KSampler", widget: "seed", value: seed },
-          ],
-          digests: [
-            { classType: "KSampler", fields: ["seed", "steps", "cfg"] },
-            { classType: "ComfySwitchNode", fields: ["switch", "on_false"] },
-          ],
-          feature: (blob) => blob.includes("solitary cultivator standing on a high stone terrace") && new RegExp(`"seed":${seed}\\D`).test(blob),
-          timeoutMs: IMG_TIMEOUT, outPrefix: `daojie-seed${seed}`,
-        });
-        report.cases[`daojie_seed${seed}`] = c;
-        if (!c || c.error) break;
       }
     }
   } else {
