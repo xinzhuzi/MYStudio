@@ -1,9 +1,9 @@
-"""Qwen-Image-2.1(Q2-1图像)工作流契约测试(09-23 制作;同日深夜扩三件;同日 PRO 件四件)。
+"""Qwen-Image-2.1(Q2-1图像)工作流契约测试(09-23 制作;同日深夜扩三件;同日 PRO 件四件;同日装配子图轮改名)。
 
 被测对象 = 仓库真源四件:
     engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-t2i.json
     engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daojie-t2i.json
-    engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daojie-t2i-pro.json
+    engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
     engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json
 
 格式口径(09-23 取舍,引擎 v0.37 直开为最终裁判):三件为**引擎前端格式**
@@ -17,55 +17,49 @@ apps/build/scripts/qwen21_canvas_options_0923.py 驱动):
   A. t2i(+daojie)加「PE 提示词改写组」默认旁路——PE 专用 CLIPLoader
      (qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16,type=qwen_image)→ 插件节点
      QwenImage21_T2IPromptRewrite(类名逐字)→ 核心 ComfySwitchNode(STRING)
-     二选一 → TextEncodeQwenImage21.prompt(转换输入)。switch 选型依据:核心
-     nodes_logic.py 的 ComfySwitchNode 是 io.MatchType 泛型(官方 edit 模板在
-     LATENT 上用它,类型无关),且懒执行——旁路时 PE 子树不求值、PE 模型不加载。
-     converted-widget 序列化口径照抄在库 Yue2 件(widgets_values 保留占位槽 +
-     inputs 带 widget 标记)。
+     二选一 → TextEncodeQwenImage21.prompt(转换输入)。
   B. t2i(+daojie)加「RGBA 透明开关」默认普通——双 TextEncodeQwenImage21
      conditioning(普通 vs 官方 RGBA 包裹句式)→ ComfySwitchNode
-     (CONDITIONING)二选一 → KSampler.positive,与 A 共用同款 switch。
-  C. 新增 daojie 件——以改造后 t2i 为骨架,默认直写提示词=按官方 PE 宪法五件套
-     手写的道劫水墨国风修仙英文长文(DNA:ink wash/expressive brushwork/
-     expansive negative space/Chinese cultivation-fantasy;零质量词)。
+     (CONDITIONING)二选一 → KSampler.positive。
+  C. 新增 daojie 件——以改造后 t2i 为骨架,默认直写提示词=道劫水墨国风修仙
+     英文长文(DNA:ink wash/expressive brushwork/expansive negative space/
+     Chinese cultivation-fantasy;零质量词)。
 
-09-23 PRO 件(第四件 qwen21-daojie-t2i-pro.json,幂等脚本
-apps/build/scripts/qwen21_daojie_pro_0923.py 驱动,底座全文从库文档
-docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md 现读——json↔md 逐字互锁):
-  D. K2 道劫『一处选型+分件装配』思想的 Q2-1 原生落地——底座区四选一链
-     ([17]-[20] StringConstant 四类型首条 + [21][22][23] ComfySwitchNode 级联,
-     全 false=人物首条默认)+ 主体句区([24] 唯一手写位 → [26] 核心 RegexReplace
-     pattern=⟨B:[^⟩]*⟩ 换 B 槽(『同段换句』拼法的图内自动化)→ [25] 拼装开关
-     false=纯底座)。选型依据:核心无 N 路字符串切换(SwitchNode 二路,链式级联),
-     RegexReplace 为核心 text 类节点(comfy_extras/nodes_string.py)。
-     PE 组与 RGBA 开关自 daojie 件深拷贝原样承袭。
-
-09-23 九型分层装配轮(同日第二版,设计=.trellis design.md §11 + 库 05 甲案重写;
-幂等脚本同文件升级重写):pro 件四选一版退役,改九型分层装配——
-  E. 底座区九型选一链:[17]-[23][25][26] 九 StringConstant=库九型「②型底座+
-     ④配色行」(型底座逐字=daojie_bases.json 该型 positive;人物系六型另含
-     常量B·人物系增量四锁,随型走)+ [28]→[35] 八级 ComfySwitchNode 级联
-     (全 false=①人物默认)。
-  F. 装配区四层成链:[24] 主体句槽(①层,默认=库人物型例一)+ 底座级联输出 +
-     [36] 通用锁层常量A(③层·库首节全文·全九型恒挂)经 [37][38] 核心
-     StringConcatenate(delimiter="\n" 换行分层)接成一段 → [14] → [6] prompt;
-     [27] easy showAnything 装配预览。拼接节点选型=核心 StringConcatenate
-     (comfy_extras/nodes_string.py:39;仓库在库先例 K2-角色设定-道劫.json [305]);
-     RegexReplace 换 B 槽随旧结构退役(甲案装配=主体句领头换行分层,无槽可换)。
-     层次序如实注:画布行序=①②(增量锁)④③,库直写件行序=①②③④——层内容
-     零差异仅行序不同(锁层恒挂不可拆,增量锁随型走),画布 Note 载明。
-  G. 画幅档:九型 aspect/megapixels 联动表入 Note(档位=ResolutionSelector
-     真实 combo 值,核自引擎源码 comfy_extras/nodes_resolution.py:7-15)。
+09-23 装配子图轮(用户三件令:改名+子图化+底座美化;幂等脚本
+apps/build/scripts/qi21_daojie_t2i_0923.py 驱动;前代 qwen21-daojie-t2i-pro.json
+与其生成器 qwen21_daojie_pro_0923.py 随本轮退役删除):
+  H. 旧 pro 件(九型分层装配平铺版)改名 qi21-道劫-t2i.json 并**子图化**——
+     布局学 K2-文生图-道劫.json [90] 组织法:『底座九选一+主体句+通用锁层+
+     装配链+PE 组+RGBA 开关』整体收进一个 definitions.subgraphs 子图(宿主
+     [40]);外部只剩加载器/分辨率/采样/解码/保存/说明 Note 与外露件
+     ([24] 主体句、[27] 装配预览)。子图外露参数:型选择控制(八级选型开关=
+     宿主面板 BOOLEAN widget 输入)、主体句([24] PrimitiveStringMultiline,
+     仿 K2 [50])、PE 开关/RGBA 开关(宿主面板)、分辨率([4])、seed([7])。
+     子图契约(docs/comfyui-kb/子图工作流工程契约.md):groups 必带 int id、
+     子图 IO 必须写 inputs[].linkIds/outputs[].linkIds、内部 links 对象格式。
+  I. 九型底座常量=05 库②层「09-23 美化版」(《三国望神州》v2.2+手册词汇成文,
+     纯画法零物象骨/锁质要点逐项保留/禁自造质感词与质量词);canon-json
+     逐字锚废止,型名/顺序仍与 daojie_bases.json 对齐;通用锁层常量A 照旧
+     逐字=库首常量(写全条款不动)。真源链:05 库→工作流常量逐字=库→本测试
+     库↔工作流互锁(TestQi21SubgraphContract)。
 
 design.md §6 七条对应:TestFilesInPlace(1)/TestLoaderTriple(2)/
 TestSamplerContract(3)/TestTopology(4)/TestCanvasDiscipline(5)/
 TestEditContract(6)/TestCountAnchor(7);深夜新增 TestCanvasOptions(A+B)与
-TestDaojieContract(C);PRO 轮新增 TestDaojieProContract(D)。
+TestDaojieContract(C);装配子图轮新增 TestQi21SubgraphContract(H+I,取代旧
+TestDaojieProContract)。
 其中第 5 条的「新 schema 必需字段(schemaVersion/graph)在位」随格式取舍改为
 「前端格式必需字段(nodes/links/groups)在位」——schemaVersion/graph 是桥 API
 格式字段,与画布流格式互斥(混写会被侧栏当成画布件解析出错)。
 
-纯读文件断言,零网络零引擎依赖。
+09-23 布局重排轮(用户裁定:子图布局太奇葩、group 泛滥——改「从上到下=阶段
+行、行内从左到右」):TestQi21SubgraphContract 新增排版断言——子图恰 4 行=
+四阶段(底座常量/选型级联/装配路由/编码输出),行间 y 严格递增且净行距≥100,
+行内(数据流序)x 严格递增,主图+子图节点零重叠;group 预算 子图≤2/主图≤3;
+真源=生成器 qi21_daojie_t2i_0923.py 布局段(改布局禁手改 json)。
+
+纯读文件断言,零网络零引擎依赖(真前端 graphToPrompt 干跑与实弹由 e2e 层
+另行验证)。
 
 09-23 修复轮注记:脚本层 pytest 曾报「file or directory not found」——本地仓库根
 同命令 collect 正常,文件运行期零 cwd 依赖(真源定位走 __file__,json 读取与
@@ -85,12 +79,13 @@ _REPO = _TESTS_DIR.parents[4]  # tests → comfyui → engines → backend → a
 _IMG_DIR = _TESTS_DIR.parent / "workflows" / "1_图片"
 T2I = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-t2i.json"
 DAOJIE = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-daojie-t2i.json"
-DAOJIE_PRO = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-daojie-t2i-pro.json"
+QI21 = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qi21-道劫-t2i.json"
 EDIT = _IMG_DIR / "Q2-1图像" / "3_改图" / "qwen21-edit.json"
 K2_DIR = _IMG_DIR / "K2图像"
 PROMPT_LIB = _REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
+BASES_JSON = _TESTS_DIR.parent / "my_nodes/nodes/daojie_bases.json"
 
-WORKFLOWS = {"t2i": T2I, "edit": EDIT, "daojie": DAOJIE, "pro": DAOJIE_PRO}
+WORKFLOWS = {"t2i": T2I, "edit": EDIT, "daojie": DAOJIE, "qi21": QI21}
 GRAPHS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in WORKFLOWS.items()}
 
 # 加载器三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线不用)
@@ -104,6 +99,14 @@ PE_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors"
 # QwenImage21_T2IPromptRewrite widgets_values 序(插件 INPUT_TYPES 真实字段序):
 # [prompt, temperature, top_p, top_k, presence_penalty, max_new_tokens, seed]
 PE_PARAMS = [1.0, 0.95, 20, 1.5, 16256, 42]
+
+# PE-I2I(edit 件)契约:类名/权重/参数序(09-23;object_info 实读)
+PE_I2I_CLASS = "QwenImage21_EditPromptRewrite"
+PE_I2I_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors"
+# QwenImage21_EditPromptRewrite widgets_values 序(required+optional 实读):
+# [prompt, temperature, top_p, presence_penalty, max_length, seed]
+# 官方 Edit 硬口径:presence_penalty=0(T2I 是 1.5,Edit 必 0)、max_length=24000
+PE_I2I_PARAMS = [1.0, 0.95, 0.0, 24000, 42]
 
 # RGBA 官方包裹句式(模板原文,逐字)
 RGBA_HEAD = "This is an RGBA format image with transparency."
@@ -125,6 +128,36 @@ K_SAMPLER_WV = {"seed": 0, "steps": 2, "cfg": 3, "sampler": 4, "scheduler": 5, "
 # TextEncodeQwenImage21 widgets_values 序:[prompt, negative_prompt, resolution]
 TE_WV = {"prompt": 0, "negative": 1, "resolution": 2}
 
+# qi21 件结构锚(id 与生成器 qi21_daojie_t2i_0923.py 同表)
+QI21_HOST_ID = 40
+QI21_SUBJECT_ID, QI21_PREVIEW_ID = 24, 27
+QI21_SG_CONST_IDS = [101, 102, 103, 104, 105, 106, 107, 108, 109]   # 九型底座常量①-⑨
+QI21_SG_LOCK_ID = 110                                               # 通用锁层常量A
+QI21_SG_SWITCH_IDS = [120, 121, 122, 123, 124, 125, 126, 127]      # 选型①-⑧
+QI21_SG_CONCAT_IDS = [130, 131]
+QI21_SG_PE_RW, QI21_SG_PE_SW = 140, 141
+QI21_SG_TE, QI21_SG_TE_RGBA, QI21_SG_RGBA_SW = 142, 143, 144
+# 人物系六型(库 §二:常量B 加挂型)
+PRO_CHAR_TYPES = ("人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分")
+# ④配色行映射(库 §一映射表)
+PRO_COLOR_MAP = {
+    "人物": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
+    "场景": "场景青绿=宣纸白+淡墨+石绿+石青+赭石",
+    "道具": "道具旧金=宣纸白+浓墨+旧金+暗玉青",
+    "美宣": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
+    "三视图": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
+    "高清人脸": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
+    "分镜剧情图": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
+    "表情差分": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
+    "概念气氛图": "场景青绿=宣纸白+淡墨+石绿+石青+赭石",
+}
+# 宿主面板 widget 型子图输入(槽序;①主体句外连 [24],其余为面板 widget)
+QI21_HOST_WIDGET_INPUTS = [
+    "主体句", "选型②场景", "选型③道具", "选型④美宣", "选型⑤三视图",
+    "选型⑥高清人脸", "选型⑦分镜剧情图", "选型⑧表情差分", "选型⑨概念气氛图",
+    "PE改写开关", "RGBA透明开关",
+]
+
 
 def _nodes(graph: dict) -> dict:
     return {n["id"]: n for n in graph["nodes"]}
@@ -145,9 +178,7 @@ def _links(graph: dict) -> dict:
 def _resolve_default_string_origins(graph: dict) -> dict:
     """沿主编码 prompt 上游开关的 false 支路走到底 = 默认直写路的最终来源集合。
 
-    t2i/daojie:零跳,StringConstant 直接;pro:穿底座选型级联(全 false)与
-    StringConcatenate 拼接节点(全支路)收集全部 StringConstant 源。中途任一
-    开关非 false 即红——该谓词只描述「默认态」的来源。"""
+    t2i/daojie:零跳,StringConstant 直接。"""
     nodes, links = _nodes(graph), _links(graph)
     main_te = next(
         n for n in graph["nodes"]
@@ -175,7 +206,7 @@ def _resolve_default_string_origins(graph: dict) -> dict:
     return {nid: n for nid, n in origins.items() if n["type"] == "StringConstant"}
 
 
-# ── 1. 三文件在位、文件名合规(09-18 命名铁律:无 MY- 前缀、无下划线)──
+# ── 1. 四文件在位、文件名合规(09-18 命名铁律:无 MY- 前缀、无下划线)──
 
 class TestFilesInPlace:
     def test_all_files_exist(self):
@@ -202,7 +233,7 @@ class TestLoaderTriple:
     def test_clip_loader_exact_file_and_type(self):
         for name, graph in GRAPHS.items():
             loaders = _by_type(graph, "CLIPLoader")
-            expected = 2 if name in ("t2i", "daojie", "pro") else 1  # PE 组另带一个 PE 加载器
+            expected = 2 if name in ("t2i", "daojie", "qi21", "edit") else 1  # PE 组另带一个 PE 加载器
             assert len(loaders) == expected, f"{name}: CLIPLoader 应恰 {expected} 个"
             main = [n for n in loaders if _widget(n, 0) == CLIP_FILE]
             assert len(main) == 1, f"{name}: 主 CLIP(qwen3vl_8b_bf16)应恰 1 个"
@@ -210,10 +241,11 @@ class TestLoaderTriple:
                 f"{name}: 主 CLIPLoader type 必须为 qwen_image"
 
     def test_pe_clip_loader_exact_file_and_type(self):
-        for name in ("t2i", "daojie", "pro"):
+        pe_files = {"t2i": PE_CLIP_FILE, "daojie": PE_CLIP_FILE, "edit": PE_I2I_CLIP_FILE}
+        for name, expected_file in pe_files.items():
             graph = GRAPHS[name]
-            pe_clips = [n for n in _by_type(graph, "CLIPLoader") if _widget(n, 0) == PE_CLIP_FILE]
-            assert len(pe_clips) == 1, f"{name}: PE CLIPLoader 应恰 1 个(权重文件名逐字)"
+            pe_clips = [n for n in _by_type(graph, "CLIPLoader") if _widget(n, 0) == expected_file]
+            assert len(pe_clips) == 1, f"{name}: PE CLIPLoader 应恰 1 个(权重文件名逐字 {expected_file})"
             assert _widget(pe_clips[0], 1) == "qwen_image", \
                 f"{name}: PE CLIPLoader type 必须为 qwen_image(PE 走原生 CLIPLoader 路线)"
 
@@ -247,8 +279,8 @@ class TestSamplerContract:
             "edit 件 seed 应 randomize(官方 edit 模板口径)"
         assert _widget(_by_type(GRAPHS["daojie"], "KSampler")[0], 1) == "fixed", \
             "daojie 件 seed 应 fixed(风格迭代要可复现,随 t2i 骨架)"
-        assert _widget(_by_type(GRAPHS["pro"], "KSampler")[0], 1) == "fixed", \
-            "pro 件 seed 应 fixed(风格迭代要可复现,随 daojie 骨架)"
+        assert _widget(_by_type(GRAPHS["qi21"], "KSampler")[0], 1) == "fixed", \
+            "qi21 件 seed 应 fixed(风格迭代要可复现,随 daojie 骨架)"
 
 
 # ── 4. 链路完整性(link 双向一致、无孤儿节点、输出节点可达)─────────
@@ -286,7 +318,7 @@ class TestTopology:
                     origin_id = next(l[1] for l in graph["links"] if l[0] == lid)
                     stack.append(origin_id)
             # MarkdownNote=说明卡、easy showAnything=显示型端点(画布预览,无下游)——
-            # 两者都是合法画布端点,不计孤儿(pro 件 [27] 装配预览,骨承 K2 件 [62]/[86])
+            # 两者都是合法画布端点,不计孤儿(qi21 件 [27] 装配预览,骨承 K2 件 [62]/[86])
             display_endpoints = {"MarkdownNote", "easy showAnything"}
             orphans = sorted(
                 nodes[i]["type"] for i in nodes
@@ -295,7 +327,7 @@ class TestTopology:
             assert not orphans, f"{name}: 存在不可达 SaveImage 的孤儿节点: {orphans}"
 
     def test_t2i_resolution_selector_feeds_latent(self):
-        for name in ("t2i", "daojie", "pro"):
+        for name in ("t2i", "daojie", "qi21"):
             graph = GRAPHS[name]
             nodes = _nodes(graph)
             selectors = _by_type(graph, "ResolutionSelector")
@@ -326,9 +358,16 @@ class TestCanvasDiscipline:
             for group in graph["groups"]:
                 assert isinstance(group.get("id"), int), \
                     f"{name}: group {group.get('title')!r} 缺 id 字段(缺 id 只活第一个)"
+            if graph.get("definitions", {}).get("subgraphs"):
+                for sg in graph["definitions"]["subgraphs"]:
+                    assert sg["groups"], f"{name}: 子图应有分组"
+                    for group in sg["groups"]:
+                        assert isinstance(group.get("id"), int), \
+                            f"{name}: 子图 group {group.get('title')!r} 缺 id 字段"
 
     def test_horizontal_layout_no_vertical_tower(self):
-        """每条连线 target.x > origin.x:数据流恒向右=每链横向一行,纵塔不可过。"""
+        """每条连线 target.x > origin.x:数据流恒向右=每链横向一行,纵塔不可过。
+        子图内部同判(边界线以子图 IO 槽 pos 为端点)。"""
         for name, graph in GRAPHS.items():
             nodes = _nodes(graph)
             for link in graph["links"]:
@@ -337,6 +376,16 @@ class TestCanvasDiscipline:
                     f"{name} link{link[0]}: {origin['type']}→{target['type']} "
                     f"未向右({origin['pos']} → {target['pos']}),纵向塔违规"
                 )
+            for sg in graph.get("definitions", {}).get("subgraphs", []):
+                i_nodes = {n["id"]: n for n in sg["nodes"]}
+                for l in sg["links"]:
+                    ox = sg["inputs"][l["origin_slot"]]["pos"][0] \
+                        if l["origin_id"] == -10 else i_nodes[l["origin_id"]]["pos"][0]
+                    tx = sg["outputs"][l["target_slot"]]["pos"][0] \
+                        if l["target_id"] == -20 else i_nodes[l["target_id"]]["pos"][0]
+                    assert tx > ox, (
+                        f"{name} 子图 link{l['id']}: 未向右({ox} → {tx}),纵向塔违规"
+                    )
 
     def test_usage_note_with_parameter_bible(self):
         for name, graph in GRAPHS.items():
@@ -363,8 +412,13 @@ class TestEditContract:
         assert len(wired) >= 2, "TextEncodeQwenImage21 应接 ≥2 张图(image_1 画布 + image_2 参考)"
 
     def test_prompt_is_official_outfit_example(self):
-        encoder = _by_type(GRAPHS["edit"], "TextEncodeQwenImage21")[0]
-        prompt = _widget(encoder, TE_WV["prompt"])
+        graph = GRAPHS["edit"]
+        encoder = _by_type(graph, "TextEncodeQwenImage21")[0]
+        assert _widget(encoder, TE_WV["prompt"]) == "", \
+            "09-23 PE 组轮起直写指令收进 StringConstant,主编码 prompt widget 应清空"
+        origins = _resolve_default_string_origins(graph)
+        assert len(origins) == 1, f"直写路应恰 1 个源,得 {sorted(origins)}"
+        prompt = _widget(next(iter(origins.values())), 0)
         for token in ("<image1>", "<image2>"):
             assert token in prompt, f"默认 prompt 应含点名 {token}"
         assert "denim shirt" in prompt, "默认 prompt 应为官方换装例句(light blue denim shirt)"
@@ -391,11 +445,59 @@ class TestEditContract:
         assert _by_type(graph, "QwenImage21Cache"), "edit 件应带 QwenImage21Cache(auto)"
 
 
+# ── 6a. edit 件 PE-I2I 改写组契约(09-23:看图改写,Edit 硬口径)────────
+
+class TestEditPEContract:
+    def test_edit_pe_node_and_hard_params(self):
+        graph = GRAPHS["edit"]
+        pe_nodes = _by_type(graph, PE_I2I_CLASS)
+        assert len(pe_nodes) == 1, "edit 件应恰 1 个 QwenImage21_EditPromptRewrite"
+        assert pe_nodes[0]["widgets_values"][1:] == PE_I2I_PARAMS, \
+            f"PE-I2I 参数漂移(官方 Edit 硬口径 {PE_I2I_PARAMS}),得 {pe_nodes[0]['widgets_values'][1:]}"
+
+    def test_edit_pe_group_titled_with_ids(self):
+        graph = GRAPHS["edit"]
+        titles = [g.get("title", "") for g in graph["groups"]]
+        assert any("PE-I2I 改写组" in t and "默认旁路" in t for t in titles), \
+            "edit 件缺「PE-I2I 改写组(默认旁路…)」分组"
+        ids = [g.get("id") for g in graph["groups"]]
+        assert len(ids) == len(set(ids)) and all(isinstance(i, int) for i in ids), \
+            "groups 必须带互异 int id(子图契约:缺 id 只活第一个)"
+
+    def test_edit_pe_switch_wiring(self):
+        graph = GRAPHS["edit"]
+        nodes, links = _nodes(graph), _links(graph)
+        main_te = _by_type(graph, "TextEncodeQwenImage21")[0]
+        prompt_link = links[next(i["link"] for i in main_te["inputs"] if i["name"] == "prompt")]
+        switch = nodes[prompt_link[1]]
+        assert switch["type"] == "ComfySwitchNode", "TextEncode.prompt 上游应是核心 ComfySwitchNode"
+        assert switch["outputs"][0]["type"] == "STRING", "PE 开关应为 STRING 泛型(MatchType)"
+        assert switch["widgets_values"][0] is False, "PE 开关默认必须 false(直写,PE 旁路)"
+        true_origin = nodes[links[switch["inputs"][1]["link"]][1]]
+        assert true_origin["type"] == PE_I2I_CLASS, \
+            f"开关 on_true 上游应为 {PE_I2I_CLASS}(PE 看图改写)"
+        false_origins = _resolve_default_string_origins(graph)
+        assert len(false_origins) == 1 and all(
+            n["type"] == "StringConstant" for n in false_origins.values()), \
+            f"直写路应恰 1 个 StringConstant 源,得 {sorted(false_origins)}"
+
+    def test_edit_pe_sees_canvas_image(self):
+        """PE 是看图改写:image_1 必须真接编辑画布 LoadImage(非悬空)。"""
+        graph = GRAPHS["edit"]
+        nodes, links = _nodes(graph), _links(graph)
+        pe = _by_type(graph, PE_I2I_CLASS)[0]
+        img1 = next(i for i in pe["inputs"] if i["name"] == "image_1")
+        assert img1.get("link"), "PE image_1 应有连线(PE 看图改写的根)"
+        src = nodes[links[img1["link"]][1]]
+        assert src["type"] == "LoadImage", "PE image_1 上游应为 LoadImage(编辑画布)"
+
+
 # ── 6b. 画布选项契约(09-23 深夜 A+B:PE 组默认旁路 / RGBA 开关默认普通)──
+# qi21 件的 PE/RGBA 开关收进装配子图,其断言在 TestQi21SubgraphContract。
 
 class TestCanvasOptions:
     def test_pe_group_present_and_bypassed_by_default(self):
-        for name in ("t2i", "daojie", "pro"):
+        for name in ("t2i", "daojie"):
             graph = GRAPHS[name]
             titles = [g.get("title", "") for g in graph["groups"]]
             assert any("PE 提示词改写" in t and "默认旁路" in t for t in titles), \
@@ -406,9 +508,7 @@ class TestCanvasOptions:
             assert pe_nodes[0]["widgets_values"][1:] == PE_PARAMS, \
                 f"{name}: PE 参数漂移(官方 T2I 硬口径 {PE_PARAMS}),得 {pe_nodes[0]['widgets_values'][1:]}"
 
-            # PE 开关(输出喂 TextEncode.prompt 的 STRING 开关)默认 false=直写;
-            # on_false 来源沿 false 支路解析:t2i/daojie=StringConstant 直挂,
-            # pro=穿底座选型级联+拼接节点后={底座①人物[17]/主体句[24]/锁层A[36]}三源。
+            # PE 开关(输出喂 TextEncode.prompt 的 STRING 开关)默认 false=直写
             nodes, links = _nodes(graph), _links(graph)
             main_te = next(
                 n for n in graph["nodes"]
@@ -425,21 +525,15 @@ class TestCanvasOptions:
                 f"{name}: PE 开关默认必须 false(直写,PE 组旁路)"
             false_origins = _resolve_default_string_origins(graph)
             assert all(n["type"] == "StringConstant" for n in false_origins.values()), \
-                f"{name}: PE 开关 on_false 支路最终来源应为 StringConstant" \
-                f"(直写提示词;09-23 由 PrimitiveNode 改核心实节点——PrimitiveNode 队列时内联消解," \
-                f"round2 e2e 实证 StringConstant 形态)"
-            if name == "pro":
-                assert sorted(false_origins) == [17, 24, 36], \
-                    f"pro 默认装配三源应为 [17]底座/[24]主体句/[36]锁层, 得 {sorted(false_origins)}"
-            else:
-                assert len(false_origins) == 1, \
-                    f"{name}: 直写路应恰 1 个 StringConstant 源, 得 {sorted(false_origins)}"
+                f"{name}: PE 开关 on_false 支路最终来源应为 StringConstant"
+            assert len(false_origins) == 1, \
+                f"{name}: 直写路应恰 1 个 StringConstant 源, 得 {sorted(false_origins)}"
             true_origin = nodes[links[switch["inputs"][1]["link"]][1]]
             assert true_origin["type"] == PE_CLASS, \
                 f"{name}: PE 开关 on_true 上游应为 {PE_CLASS}(PE 扩写)"
 
     def test_rgba_switch_defaults_to_normal_path(self):
-        for name in ("t2i", "daojie", "pro"):
+        for name in ("t2i", "daojie"):
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
             sampler = _by_type(graph, "KSampler")[0]
@@ -515,46 +609,28 @@ class TestDaojieContract:
         assert "风格终审=用户" in note, "道劫说明应声明风格终审=用户(适配首发版)"
 
 
-# ── 6d. daojie pro 件专属契约(九型分层装配:底座区九选一×锁层恒挂×拼接成链)──
-# 结构(幂等脚本 apps/build/scripts/qwen21_daojie_pro_0923.py 驱动,选型依据见其
-# 文档串:九选一=八级 ComfySwitchNode 链;四层成链=核心 StringConcatenate,
-# 在库先例 K2-角色设定-道劫.json [305];RegexReplace 换 B 槽随旧四选一版退役):
-
-BASES_JSON = _TESTS_DIR.parent / "my_nodes/nodes/daojie_bases.json"
-# 人物系六型(库 §二:常量B 加挂型,与库各型装配全文实测交叉核验)
-PRO_CHAR_TYPES = ("人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分")
-# ④配色行映射(库 §一映射表)
-PRO_COLOR_MAP = {
-    "人物": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "场景": "场景青绿=宣纸白+淡墨+石绿+石青+赭石",
-    "道具": "道具旧金=宣纸白+浓墨+旧金+暗玉青",
-    "美宣": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "三视图": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "高清人脸": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "分镜剧情图": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "表情差分": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "概念气氛图": "场景青绿=宣纸白+淡墨+石绿+石青+赭石",
-}
-# 九型底座常量 id(库顺序①-⑨;[24]=主体句槽/[27]=装配预览预留,故⑧⑨用 25/26)
-PRO_CONST_IDS = [17, 18, 19, 20, 21, 22, 23, 25, 26]
-PRO_SWITCH_IDS = [28, 29, 30, 31, 32, 33, 34, 35]  # 选型①-⑧(⑧=九选一汇总)
+# ── 6e. qi21 件专属契约(装配子图:子图在场+外露参数+库↔工作流底座互锁)──
+# 结构(幂等脚本 apps/build/scripts/qi21_daojie_t2i_0923.py 驱动;子图契约=
+# docs/comfyui-kb/子图工作流工程契约.md:groups int id、IO linkIds 逐项登记、
+# 内部 links 对象格式、装载稳定序):
 
 
-def _pro_truth():
-    """库 05 ↔ daojie_bases.json 双源解析(独立于生成器实现,双记账互锁)。
+def _qi21_truth():
+    """库 05(②层=09-23 美化版)解析(独立于生成器实现,双记账互锁)。
 
-    返回 (types, const_a, b_first_line):types=[(zh, subject, base, constant_text)];
-    constant_text=画布型底座常量应有全文=②型底座(+常量B·人物系增量四锁)+④配色行。"""
+    返回 (types, const_a):types=[(zh, subject, base, constant_text)];
+    constant_text=子图底座常量应有全文=②美化版底座(+常量B·人物系增量四锁)+④配色行。
+    canon-json 逐字锚已废止(型名/顺序仍对齐 daojie_bases.json zh)。"""
     md = PROMPT_LIB.read_text(encoding="utf-8")
     bases = json.loads(BASES_JSON.read_text(encoding="utf-8"))
     zh_order = [b["zh"] for b in bases]
     fences = re.findall(r"```text\n(.*?)\n```", md.split("## 三、")[0], re.S)
     assert len(fences) >= 3, "库 §二 常量围栏不足(装配顺序块+常量A+常量B)"
     const_a, const_b = fences[1], fences[2]
-    a_lines, b_lines = const_a.split("\n"), const_b.split("\n")
+    b_lines = const_b.split("\n")
 
     types = []
-    for zh, canon in zip(zh_order, bases):
+    for zh in zh_order:
         m = re.search(rf"^### {zh}-基础\s*$", md, re.M)
         assert m, f"库缺条目 ### {zh}-基础"
         fence = re.search(r"```text\n(.*?)\n```", md[m.end():], re.S).group(1)
@@ -562,169 +638,372 @@ def _pro_truth():
         assert lines[0].startswith("⟨①:") and lines[0].endswith("⟩"), f"{zh} 首行非 ⟨①:…⟩ 槽"
         subject = lines[0][len("⟨①:"):-len("⟩")]
         base, color, mid = lines[1], lines[-1], lines[2:-1]
-        assert base == canon["positive"], f"{zh} ②型底座与 daojie_bases.json positive 不逐字一致"
         assert color == PRO_COLOR_MAP[zh], f"{zh} ④配色行与 §一映射表不一致"
-        want_mid = a_lines[:2] + b_lines + a_lines[2:] if zh in PRO_CHAR_TYPES else a_lines
-        assert mid == want_mid, f"{zh} ③锁层中间行与常量A/B 组合不一致(甲案互锁破)"
+        want_mid_len = 7 if zh in PRO_CHAR_TYPES else 3
+        assert len(mid) == want_mid_len, f"{zh} ③锁层行数 {len(mid)} ≠ {want_mid_len}"
+        if zh in PRO_CHAR_TYPES:
+            assert mid[2:6] == b_lines, f"{zh} ③锁层中段与常量B 不逐字一致"
         constant_text = "\n".join([base] + (b_lines if zh in PRO_CHAR_TYPES else []) + [color])
         types.append((zh, subject, base, constant_text))
-    return types, const_a, b_lines[0]
+    return types, const_a
 
 
-class TestDaojieProContract:
-    def test_base_and_assembly_region_groups_present(self):
-        graph = GRAPHS["pro"]
-        titles = [g.get("title", "") for g in graph["groups"]]
-        assert any("底座区" in t and "九型" in t for t in titles), \
-            f"pro 件缺「底座区·九型选型链」分组: {titles}"
-        assert any("装配区" in t for t in titles), f"pro 件缺装配区分组: {titles}"
+def _qi21_sg(graph: dict) -> dict:
+    sgs = graph.get("definitions", {}).get("subgraphs", [])
+    assert len(sgs) == 1, "qi21 件应恰含 1 个装配子图"
+    return sgs[0]
 
-    def test_titles_and_groups_carry_daojie_marker(self):
-        graph = GRAPHS["pro"]
-        for group in graph["groups"]:
-            assert "道劫" in group["title"], f"分组标题应带道劫字号: {group['title']!r}"
-        for node in graph["nodes"]:
-            title = node.get("title") or ""
-            assert "道劫" in title, f"节点标题应带道劫字号: node{node['id']} {title!r}"
 
-    def test_nine_type_constants_anchor_library(self):
-        """库九型锚:九型底座常量逐字=库「②型底座(+人物系增量锁)+④配色行」,
-        型底座另与 daojie_bases.json positive 逐字互锁;九底座两两唯一。"""
-        graph = GRAPHS["pro"]
-        nodes = _nodes(graph)
-        types, _, b_first = _pro_truth()
-        bases = [n for n in graph["nodes"] if n["type"] == "StringConstant"]
-        assert len(bases) == 11, \
-            f"pro 件应恰 11 个 StringConstant(九底座+主体句+锁层),得 {len(bases)}"
-        for (zh, _subject, base, want_text), cid in zip(types, PRO_CONST_IDS):
-            node = nodes[cid]
+def _qi21_sg_nodes(graph: dict) -> dict:
+    return {n["id"]: n for n in _qi21_sg(graph)["nodes"]}
+
+
+def _qi21_sg_links(graph: dict) -> dict:
+    return {l["id"]: l for l in _qi21_sg(graph)["links"]}
+
+
+class TestQi21SubgraphContract:
+    # ── 子图在场与宿主结构 ──────────────────────────────────────────
+
+    def test_subgraph_and_host_present(self):
+        graph = GRAPHS["qi21"]
+        sg = _qi21_sg(graph)
+        host = _nodes(graph)[QI21_HOST_ID]
+        assert host["type"] == sg["id"], "[40] 宿主 type 应=子图 uuid"
+        assert host["properties"]["subgraph"] == sg["id"], "[40] properties.subgraph 应=子图 uuid"
+        assert "道劫" in sg["name"] and "装配子图" in sg["name"], "子图 name 应带道劫·装配子图字号"
+        assert sg["inputNode"]["id"] == -10 and sg["outputNode"]["id"] == -20, \
+            "子图 inputNode/outputNode 锚应为 -10/-20"
+
+    def test_subgraph_io_link_ids_registered(self):
+        """子图契约铁律:IO 槽 linkIds 逐项登记且端点真实(缺登记=前端不渲染/转换断)。"""
+        graph = GRAPHS["qi21"]
+        sg = _qi21_sg(graph)
+        i_links = _qi21_sg_links(graph)
+        for slot, io in enumerate(sg["inputs"]):
+            assert io.get("linkIds"), f"inputs[{slot}]({io['name']}) linkIds 为空(契约铁律)"
+            for lid in io["linkIds"]:
+                l = i_links[lid]
+                assert l["origin_id"] == -10 and l["origin_slot"] == slot, \
+                    f"inputs[{slot}] linkIds[{lid}] 端点不实"
+        for slot, io in enumerate(sg["outputs"]):
+            assert io.get("linkIds"), f"outputs[{slot}]({io['name']}) linkIds 为空(契约铁律)"
+            for lid in io["linkIds"]:
+                l = i_links[lid]
+                assert l["target_id"] == -20 and l["target_slot"] == slot, \
+                    f"outputs[{slot}] linkIds[{lid}] 端点不实"
+
+    def test_subgraph_internal_links_object_format_and_bidirectional(self):
+        graph = GRAPHS["qi21"]
+        sg = _qi21_sg(graph)
+        i_nodes, i_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        for l in sg["links"]:
+            assert {"id", "origin_id", "origin_slot", "target_id", "target_slot", "type"} <= set(l), \
+                f"子图 link{l['id']} 应为对象格式(origin_id/target_id 字段)"
+            if l["origin_id"] != -10:
+                origin = i_nodes[l["origin_id"]]
+                assert l["id"] in (origin["outputs"][l["origin_slot"]].get("links") or []), \
+                    f"子图 link{l['id']}: origin.outputs 未登记"
+                assert l["type"] == origin["outputs"][l["origin_slot"]]["type"], \
+                    f"子图 link{l['id']}: origin 槽类型不匹配"
+            if l["target_id"] != -20:
+                target = i_nodes[l["target_id"]]
+                assert target["inputs"][l["target_slot"]].get("link") == l["id"], \
+                    f"子图 link{l['id']}: target.inputs 不匹配"
+
+    # ── 外露参数(型选择控制/主体句/PE/RGBA/分辨率/seed)────────────
+
+    def test_host_panel_exposes_type_pe_rgba_widgets(self):
+        """宿主面板=子图 widget 型输入:主体句(外连)+八级选型+PE+RGBA;
+        widgets_values 按槽序=[人物例一主体句, False×10](默认①人物/直写/普通)。"""
+        graph = GRAPHS["qi21"]
+        sg = _qi21_sg(graph)
+        host = _nodes(graph)[QI21_HOST_ID]
+        assert len(host["inputs"]) == len(sg["inputs"]) == 14, \
+            "宿主/子图 inputs 应恰 14 槽(clip/vae/pe_clip/主体句+8 选型+PE+RGBA)"
+        for i, (hi, si) in enumerate(zip(host["inputs"], sg["inputs"])):
+            assert hi["name"] == si["name"] and hi["type"] == si["type"], \
+                f"宿主 inputs[{i}]({hi['name']}) 与子图 inputs[{i}]({si['name']}) 不对齐(装载稳定序)"
+        widget_inputs = [i for i in host["inputs"] if "widget" in i]
+        assert [i["name"] for i in widget_inputs] == QI21_HOST_WIDGET_INPUTS, \
+            "宿主面板 widget 型输入应为 主体句+八级选型+PE+RGBA(槽序)"
+        types, _ = _qi21_truth()
+        assert host["widgets_values"] == [types[0][1], *[False] * 10], \
+            "宿主 widgets_values 应=[库人物型例一主体句, False×10](全默认关)"
+        named = host.get("widgets_values_named", {})
+        assert named.get("主体句") == types[0][1] and named.get("PE改写开关") is False \
+            and named.get("RGBA透明开关") is False, "宿主 widgets_values_named 键值漂移"
+        # 选型开关 widget 未外连(面板控制),主体句外连 [24]
+        by_name = {i["name"]: i for i in host["inputs"]}
+        assert by_name["主体句"]["link"] is not None, "主体句槽应外连 [24]"
+        for name in QI21_HOST_WIDGET_INPUTS[1:]:
+            assert by_name[name]["link"] is None, f"面板开关 {name} 应为宿主 widget(未外连)"
+
+    def test_external_wiring_only_loaders_sampler_save_note(self):
+        """外部接线:[2][3][11]→宿主 clip/vae/pe_clip;[24]→主体句;宿主
+        positive/negative→[7];prompt→[27]。主图应无 TextEncode/选型开关平铺
+        (装配核心已收进子图)。"""
+        graph = GRAPHS["qi21"]
+        nodes, links = _nodes(graph), _links(graph)
+        host = nodes[QI21_HOST_ID]
+        got = {(l[0], l[1], l[2], l[3], l[4], l[5]) for l in graph["links"]}
+        for want in [
+            (12, 2, 0, QI21_HOST_ID, 0, "CLIP"),
+            (13, 3, 0, QI21_HOST_ID, 1, "VAE"),
+            (14, 11, 0, QI21_HOST_ID, 2, "CLIP"),
+            (15, QI21_SUBJECT_ID, 0, QI21_HOST_ID, 3, "STRING"),
+            (16, QI21_HOST_ID, 0, 7, 1, "CONDITIONING"),
+            (17, QI21_HOST_ID, 1, 7, 2, "CONDITIONING"),
+            (18, QI21_HOST_ID, 2, QI21_PREVIEW_ID, 0, "STRING"),
+        ]:
+            assert want in got, f"外部接线缺: link{want[0]}"
+        assert not _by_type(graph, "TextEncodeQwenImage21"), \
+            "主图不应有平铺 TextEncode(主编码/RGBA 编码已收进子图)"
+        assert not _by_type(graph, "ComfySwitchNode"), \
+            "主图不应有平铺开关(选型/PE/RGBA 已收进子图)"
+        assert not _by_type(graph, PE_CLASS), "PE 改写件应收进子图"
+        subjects = [n for n in graph["nodes"] if n["type"] == "PrimitiveStringMultiline"]
+        assert len(subjects) == 1 and subjects[0]["id"] == QI21_SUBJECT_ID, \
+            "[24] 应为外露 PrimitiveStringMultiline 主体句(仿 K2 [50])"
+
+    def test_subject_slot_defaults_to_library_renwen_example(self):
+        types, _ = _qi21_truth()
+        subject = _nodes(GRAPHS["qi21"])[QI21_SUBJECT_ID]
+        assert subject["widgets_values"][0] == types[0][1], \
+            "[24] 默认主体句应=库人物型例一"
+        assert types[0][0] == "人物", "库首型应为人物(默认型锚)"
+
+    def test_resolution_and_seed_exposed(self):
+        """分辨率外露:[4] 默认=canon 人物档(3:4·4.2MP);seed 外露:[7] widget
+        (默认 fixed 可复现,不外连)。"""
+        graph = GRAPHS["qi21"]
+        bases = json.loads(BASES_JSON.read_text(encoding="utf-8"))
+        renwu = next(b for b in bases if b["zh"] == "人物")
+        sel = _by_type(graph, "ResolutionSelector")[0]
+        assert sel["widgets_values"][:2] == [renwu["aspect_ratio"], renwu["megapixels"]], \
+            "[4] 默认档应为 canon 人物 aspect/MP(九型画幅联动表见 Note)"
+        sampler = _by_type(graph, "KSampler")[0]
+        assert _widget(sampler, 1) == "fixed", "seed 控制应 fixed(可复现)"
+        assert not any(i["name"] == "seed" and i.get("link") for i in sampler["inputs"]), \
+            "seed 应保持 widget 外露(不外连)"
+
+    # ── 库↔工作流底座互锁(09-23 美化版)────────────────────────────
+
+    def test_nine_type_constants_anchor_library_beautified(self):
+        """库九型锚:子图九型底座常量逐字=库「②美化版底座(+人物系增量锁B)+④配色行」;
+        九底座两两唯一;canon 对齐=型名/顺序(逐字锚废止);美化版锚词在场。"""
+        graph = GRAPHS["qi21"]
+        sg_nodes = _qi21_sg_nodes(graph)
+        types, _ = _qi21_truth()
+        bases_json = json.loads(BASES_JSON.read_text(encoding="utf-8"))
+        zh_order = [b["zh"] for b in bases_json]
+        assert [t[0] for t in types] == zh_order, "库九型应与 daojie_bases.json zh 同序(canon 型名/顺序对齐)"
+        for (zh, _subject, base, want_text), cid in zip(types, QI21_SG_CONST_IDS):
+            node = sg_nodes[cid]
             assert node["type"] == "StringConstant", f"[{cid}] 应为 StringConstant(型底座常量)"
             text = _widget(node, 0)
-            assert text == want_text, \
-                f"[{cid}]{zh} 底座常量与库装配层不逐字一致"
-            assert text.split("\n")[0] == base, f"[{cid}]{zh} 首行应=②型底座"
+            assert text == want_text, f"[{cid}]{zh} 底座常量与库②层(美化版)装配不逐字一致"
+            assert text.split("\n")[0] == base, f"[{cid}]{zh} 首行应=②美化版底座"
             assert text.split("\n")[-1] == PRO_COLOR_MAP[zh], f"[{cid}]{zh} 末行应=④配色行"
-            assert (b_first in text) == (zh in PRO_CHAR_TYPES), \
-                f"[{cid}]{zh} 常量B增量锁挂载错型(人物系六型应含,场景系三型不应含)"
-        texts = [_widget(nodes[cid], 0) for cid in PRO_CONST_IDS]
+            assert (zh in PRO_CHAR_TYPES) == ("衣褶/裙摆：使用宽幅平静布面" in text), \
+                f"[{cid}]{zh} 常量B增量锁挂载错型(人物系六型应含)"
+            for kw in ("细墨线", "提按顿挫", "墨色浓淡分明"):
+                assert kw in text, f"[{cid}]{zh} 美化版底座缺锁质锚词 {kw}"
+            for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
+                assert bad not in base, f"[{cid}]{zh} ②层残留物象词 {bad}(纯画法零物象骨)"
+        texts = [_widget(sg_nodes[cid], 0) for cid in QI21_SG_CONST_IDS]
         assert len(set(texts)) == 9, "九型底座常量两两不唯一"
 
     def test_lock_constant_present_and_always_wired(self):
-        """锁层常量在场:[36]=库首节常量A 全文逐字,恒挂(直连拼接节点,不经开关)。"""
-        graph = GRAPHS["pro"]
-        nodes, links = _nodes(graph), _links(graph)
-        _, const_a, _ = _pro_truth()
-        lock = nodes[36]
-        assert lock["type"] == "StringConstant", "[36] 应为 StringConstant(通用锁层常量A)"
-        assert _widget(lock, 0) == const_a, "[36] 通用锁层常量A 与库首节常量不逐字一致"
-        lock_link = links[lock["outputs"][0]["links"][0]]
-        assert lock_link[3] == 38 and lock_link[5] == "STRING", \
-            "[36] 应直连 [38] StringConcatenate(恒挂,不随型走开关)"
+        """锁层常量在场:[110]=库首节常量A 全文逐字,恒挂(直连拼接节点,不经开关)。"""
+        graph = GRAPHS["qi21"]
+        sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        _, const_a = _qi21_truth()
+        lock = sg_nodes[QI21_SG_LOCK_ID]
+        assert lock["type"] == "StringConstant", "[110] 应为 StringConstant(通用锁层常量A)"
+        assert _widget(lock, 0) == const_a, "[110] 通用锁层常量A 与库首节常量不逐字一致"
+        lock_link = sg_links[lock["outputs"][0]["links"][0]]
+        assert lock_link["target_id"] == QI21_SG_CONCAT_IDS[1] and lock_link["type"] == "STRING", \
+            "[110] 应恒挂直连拼接②(不随型走开关)"
 
-    def test_nine_way_cascade_wiring(self):
-        """级联九路:八级 ComfySwitchNode 链,S1.on_false=①人物常量,
-        S_k.on_true=C{k+2}型常量,前级输出接后级 on_false,末梢喂拼接①。"""
-        graph = GRAPHS["pro"]
-        nodes, links = _nodes(graph), _links(graph)
-        for i, sid in enumerate(PRO_SWITCH_IDS):
-            sw = nodes[sid]
+    def test_nine_way_cascade_wiring_inside_subgraph(self):
+        """级联九路(子图内):八级开关 switch 槽接 -10(值=宿主面板选型 widget);
+        S1.on_false=①人物常量,S_k.on_true=C{k+2}型常量,前级输出接后级 on_false,
+        末梢喂拼接①.string_b。"""
+        graph = GRAPHS["qi21"]
+        sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        for i, sid in enumerate(QI21_SG_SWITCH_IDS):
+            sw = sg_nodes[sid]
             assert sw["type"] == "ComfySwitchNode", f"[{sid}] 应为 ComfySwitchNode"
             assert sw["widgets_values"][0] is False, f"[{sid}] 选型开关默认非 false"
-            false_src = nodes[links[sw["inputs"][0]["link"]][1]]
-            want_false = PRO_CONST_IDS[0] if i == 0 else PRO_SWITCH_IDS[i - 1]
-            assert false_src["id"] == want_false, \
-                f"[{sid}].on_false 上游应为 {'C①人物' if i == 0 else f'前级[{PRO_SWITCH_IDS[i-1]}]'}"
-            true_src = nodes[links[sw["inputs"][1]["link"]][1]]
-            assert true_src["id"] == PRO_CONST_IDS[i + 1], \
-                f"[{sid}].on_true 上游应为型常量[{PRO_CONST_IDS[i + 1]}]"
-        concat1 = nodes[37]
-        cascade_src = nodes[links[concat1["inputs"][1]["link"]][1]]
-        assert cascade_src["id"] == PRO_SWITCH_IDS[-1], \
+            sw_link = sg_links[sw["inputs"][2]["link"]]
+            assert sw_link["origin_id"] == -10 and sw_link["origin_slot"] == 4 + i, \
+                f"[{sid}] switch 槽未接 -10 槽{4 + i}(宿主面板选型值)"
+            false_src = sg_links[sw["inputs"][0]["link"]]
+            want_false = QI21_SG_CONST_IDS[0] if i == 0 else QI21_SG_SWITCH_IDS[i - 1]
+            assert false_src["origin_id"] == want_false, \
+                f"[{sid}].on_false 上游应为 {'C①人物' if i == 0 else f'前级[{QI21_SG_SWITCH_IDS[i-1]}]'}"
+            true_src = sg_links[sw["inputs"][1]["link"]]
+            assert true_src["origin_id"] == QI21_SG_CONST_IDS[i + 1], \
+                f"[{sid}].on_true 上游应为型常量[{QI21_SG_CONST_IDS[i + 1]}]"
+        concat1 = sg_nodes[QI21_SG_CONCAT_IDS[0]]
+        cascade_src = sg_links[concat1["inputs"][1]["link"]]
+        assert cascade_src["origin_id"] == QI21_SG_SWITCH_IDS[-1], \
             "拼接①.string_b 上游应为级联末梢(九选一汇总)"
 
-    def test_default_is_renwen_type(self):
-        """默认人物型:全开关 false 时装配三源=[17]①人物底座/[24]主体句/[36]锁层A,
-        且组合全文=库人物型四层内容逐字(①主体句+②底座+增量锁+④配色行+③锁层A)。"""
-        graph = GRAPHS["pro"]
+    def test_default_assembly_equals_library_composition(self):
+        """默认人物型:装配全文=[24]主体句+[101]底座(+增量锁+配色行)+[110]锁层A
+        逐字组合(画布行序①②(增量锁)④③,库直写行序①②③④——层内容零差异)。"""
+        graph = GRAPHS["qi21"]
         nodes = _nodes(graph)
-        types, const_a, _ = _pro_truth()
-        origins = _resolve_default_string_origins(graph)
-        assert sorted(origins) == [17, 24, 36], \
-            f"默认装配三源应=[17]底座/[24]主体句/[36]锁层,得 {sorted(origins)}"
+        sg_nodes = _qi21_sg_nodes(graph)
+        types, const_a = _qi21_truth()
         assembled = "\n".join([
-            _widget(nodes[24], 0), _widget(nodes[17], 0), _widget(nodes[36], 0)])
+            _widget(nodes[QI21_SUBJECT_ID], 0),
+            _widget(sg_nodes[QI21_SG_CONST_IDS[0]], 0),
+            _widget(sg_nodes[QI21_SG_LOCK_ID], 0)])
         want = "\n".join([types[0][1], types[0][3], const_a])
         assert assembled == want, "默认装配全文与库人物型四层组合不逐字一致"
-        assert types[0][0] == "人物", "库首型应为人物(默认型锚)"
 
-    def test_concat_chain_into_prompt(self):
-        """拼接成链:[37][38] StringConcatenate(delimiter=\n 换行分层)接
-        [24]主体句+底座级联+锁层A → [14] 提示词开关 → [6] prompt;
-        RegexReplace 随旧换槽结构退役;[24] 默认=库人物型例一。"""
-        graph = GRAPHS["pro"]
-        nodes, links = _nodes(graph), _links(graph)
-        types, _, _ = _pro_truth()
-        concats = _by_type(graph, "StringConcatenate")
-        assert len(concats) == 2, f"pro 件应恰 2 个 StringConcatenate,得 {len(concats)}"
-        for c in concats:
-            assert c["widgets_values"][2] == "\n", f"[{c['id']}] delimiter 应为 \n(换行分层)"
-            assert c.get("widgets_values_named", {}).get("delimiter") == "\n", \
-                f"[{c['id']}] named delimiter 应为 \n(序列化口径承 K2 在库先例 [305])"
-        assert not _by_type(graph, "RegexReplace"), \
-            "RegexReplace 应随旧四选一结构退役(甲案装配=主体句领头换行分层,无槽可换)"
-        c1, c2 = nodes[37], nodes[38]
-        assert nodes[links[c1["inputs"][0]["link"]][1]]["id"] == 24, "[37].string_a 上游应为主体句槽 [24]"
-        assert nodes[links[c1["inputs"][1]["link"]][1]]["id"] == 35, "[37].string_b 上游应为级联末梢 [35]"
-        assert nodes[links[c2["inputs"][0]["link"]][1]]["id"] == 37, "[38].string_a 上游应为拼接① [37]"
-        assert nodes[links[c2["inputs"][1]["link"]][1]]["id"] == 36, "[38].string_b 上游应为锁层A [36]"
-        pe_switch = nodes[14]
-        assert links[pe_switch["inputs"][0]["link"]][1] == 38, \
-            "[14].on_false 应接装配链末梢 [38](直写默认路)"
-        assert nodes[24]["type"] == "StringConstant", "[24] 应为独立 StringConstant(主体句槽)"
-        assert _widget(nodes[24], 0) == types[0][1], "[24] 默认应=库人物型例一主体句"
+    def test_pe_group_and_rgba_switch_inside_subgraph(self):
+        """PE/RGBA 承袭(收进子图,逻辑原样):PE 参数官方口径;RGBA 编码官方包裹句式;
+        两开关 switch 槽接宿主面板 widget,默认 false(直写/普通)。"""
+        graph = GRAPHS["qi21"]
+        sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        sg = _qi21_sg(graph)
+        pe = sg_nodes[QI21_SG_PE_RW]
+        assert pe["type"] == PE_CLASS, f"[{QI21_SG_PE_RW}] 应为 {PE_CLASS}(类名逐字)"
+        assert pe["widgets_values"][1:] == PE_PARAMS, \
+            f"PE 参数漂移(官方 T2I 硬口径 {PE_PARAMS}),得 {pe['widgets_values'][1:]}"
+        pe_sw = sg_nodes[QI21_SG_PE_SW]
+        assert pe_sw["outputs"][0]["type"] == "STRING", "提示词开关应为 STRING 泛型"
+        pe_sw_link = sg_links[pe_sw["inputs"][2]["link"]]
+        assert pe_sw_link["origin_id"] == -10 and pe_sw_link["origin_slot"] == 12, \
+            "PE 开关 switch 槽应接 -12 槽(宿主面板 PE改写开关)"
+        false_src = sg_links[pe_sw["inputs"][0]["link"]]
+        assert false_src["origin_id"] == QI21_SG_CONCAT_IDS[1], \
+            "PE 开关 on_false 应接装配链末梢(拼接②)"
+        true_src = sg_links[pe_sw["inputs"][1]["link"]]
+        assert true_src["origin_id"] == QI21_SG_PE_RW, "PE 开关 on_true 应接 PE 改写"
+        rgba_te = sg_nodes[QI21_SG_TE_RGBA]
+        prompt = _widget(rgba_te, TE_WV["prompt"])
+        assert prompt.startswith(RGBA_HEAD) and prompt.endswith(RGBA_TAIL), \
+            "RGBA 编码默认 prompt 应为官方包裹句式(首尾逐字)"
+        rgba_sw = sg_nodes[QI21_SG_RGBA_SW]
+        assert rgba_sw["outputs"][0]["type"] == "CONDITIONING", "RGBA 开关应为 CONDITIONING 泛型"
+        rgba_sw_link = sg_links[rgba_sw["inputs"][2]["link"]]
+        assert rgba_sw_link["origin_id"] == -10 and rgba_sw_link["origin_slot"] == 13, \
+            "RGBA 开关 switch 槽应接 -13 槽(宿主面板 RGBA透明开关)"
+        for sid, slot in ((QI21_SG_PE_SW, 0), (QI21_SG_RGBA_SW, 0)):
+            assert sg_nodes[sid]["widgets_values"][0] is False, f"[{sid}] 开关默认非 false"
+        # 宿主面板:PE/RGBA 默认关(懒执行——旁路支路不进默认装配)
+        host = _nodes(graph)[QI21_HOST_ID]
+        assert host["widgets_values"][9] is False and host["widgets_values"][10] is False, \
+            "宿主面板 PE/RGBA 开关默认必须 false"
 
-    def test_inherits_pe_group_and_rgba_switch(self):
-        graph = GRAPHS["pro"]
-        assert _by_type(graph, PE_CLASS), "pro 件应承袭 PE 改写组(与 daojie 同骨架)"
-        switches = _by_type(graph, "ComfySwitchNode")
-        assert len(switches) == 10, \
-            f"pro 件应恰 10 个开关(底座选型8+提示词1+RGBA1),得 {len(switches)}"
-        assert all(s["widgets_values"][0] is False for s in switches), \
-            "全部开关默认必须 false(①人物纯底座直写+普通路)"
-
-    def test_assembly_preview_node_present(self):
-        """[27] easy showAnything 装配预览:接 [38] 拼接②输出(与进 [14]/[6] 的
-        文本同源)——跑图前过目将进 [6] 的最终装配文本;显示型端点不计孤儿。"""
-        graph = GRAPHS["pro"]
-        nodes, links = _nodes(graph), _links(graph)
+    def test_subgraph_outputs_feed_sampler_and_preview(self):
+        graph = GRAPHS["qi21"]
+        sg = _qi21_sg(graph)
+        assert [o["name"] for o in sg["outputs"]] == ["positive", "negative", "prompt"], \
+            "子图输出应为 positive/negative/prompt(预览源,仿 K2 [90].applied)"
+        host = _nodes(graph)[QI21_HOST_ID]
+        assert [o["type"] for o in host["outputs"]] == ["CONDITIONING", "CONDITIONING", "STRING"]
         previews = _by_type(graph, "easy showAnything")
-        assert len(previews) == 1, \
-            f"pro 件应恰 1 个 easy showAnything 装配预览,得 {len(previews)}"
+        assert len(previews) == 1 and previews[0]["id"] == QI21_PREVIEW_ID, \
+            "应恰 1 个 easy showAnything 装配预览(接子图 prompt 输出)"
         pv = previews[0]
-        src = links[pv["inputs"][0]["link"]]
-        assert src[1] == 38, \
-            f"预览输入应接 [38] 拼接②输出,得 node{src[1]}"
-        assert src[5] == "STRING", "预览接线类型应随 [38] 输出为 STRING"
-        assert pv["pos"][0] > nodes[38]["pos"][0], "预览节点应在 [38] 右侧(横向排版)"
+        assert _links(graph)[pv["inputs"][0]["link"]][1] == QI21_HOST_ID, \
+            "预览输入应接 [40] 宿主 prompt 输出"
+        assert pv["pos"][0] > host["pos"][0], "预览节点应在宿主右侧(横向排版)"
         assert "道劫" in (pv.get("title") or ""), "预览节点标题应带道劫字号"
 
-    def test_usage_note_nine_type_warnings(self):
-        """九型版 Note 要点锁:九型选型说明/主体句纪律(空镜无人)/脚本重跑重置
-        警示/[27] 过目指引/锁层恒挂说明。Note 被脚本重跑回退即红。"""
-        note = _by_type(GRAPHS["pro"], "MarkdownNote")[0]["widgets_values"][0]
-        for token in ("九型", "空镜无人", "重置回库文档现读值", "[27]", "恒挂"):
-            assert token in note, f"Note 缺九型版要点: {token!r}"
+    # ── 09-23 布局重排契约(从上到下=阶段行,行内从左到右;group 收敛)──────
+
+    def test_subgraph_row_layout_top_to_bottom(self):
+        """子图排版=恰 4 阶段行(行1 底座常量区→行2 选型级联→行3 拼接装配+PE 路由→
+        行4 编码输出):行间 y 严格递增且净行距≥100;行内(数组序=数据流序)x 严格
+        递增。行成员按 id 锚定,防回退到旧「奇葩」布局。"""
+        graph = GRAPHS["qi21"]
+        sg_nodes = _qi21_sg_nodes(graph)
+        rows: dict[int, list[int]] = {}
+        for n in _qi21_sg(graph)["nodes"]:
+            rows.setdefault(n["pos"][1], []).append(n["id"])
+        row_ys = sorted(rows)
+        assert len(row_ys) == 4, f"子图应恰 4 行(阶段行),得 {len(row_ys)} 行"
+        want_rows = [
+            QI21_SG_CONST_IDS + [QI21_SG_LOCK_ID],                 # 行1 底座常量区
+            QI21_SG_SWITCH_IDS,                                     # 行2 选型级联
+            [*QI21_SG_CONCAT_IDS, QI21_SG_PE_RW, QI21_SG_PE_SW],    # 行3 装配+PE 路由
+            [QI21_SG_TE, QI21_SG_TE_RGBA, QI21_SG_RGBA_SW],         # 行4 编码输出
+        ]
+        for y, want in zip(row_ys, want_rows):
+            got = sorted(rows[y])
+            assert got == sorted(want), f"行 y={y} 成员漂移: 应 {sorted(want)} 得 {got}"
+            xs = [sg_nodes[nid]["pos"][0] for nid in rows[y]]  # 数组序=数据流序
+            assert all(b > a for a, b in zip(xs, xs[1:])), \
+                f"行 y={y} 行内 x 非严格递增(应从左到右): {xs}"
+        for y, next_y in zip(row_ys, row_ys[1:]):
+            bottom = y + max(sg_nodes[nid]["size"][1] for nid in rows[y])
+            assert next_y - bottom >= 100, \
+                f"行 y={y} 与下行净距不足(<100): 行底 {bottom} → 下行 y={next_y}"
+
+    def test_no_node_overlap_and_group_budget(self):
+        """零重叠(主图+子图节点矩形两两不相交);group 预算:子图≤2、主图≤3
+        (09-23 布局重排收敛口径——group 泛滥即红);子图 group 必须各含其阶段行
+        全部节点且互不相交(真机构框,不是装饰框)。"""
+        graph = GRAPHS["qi21"]
+        sg = _qi21_sg(graph)
+        assert len(sg["groups"]) <= 2, \
+            f"子图 group 应≤2(只框 选型级联 与 装配路由),得 {len(sg['groups'])}"
+        assert len(graph["groups"]) <= 3, \
+            f"主图 group 应≤3(加载器/主链/装配外露),得 {len(graph['groups'])}"
+        for scope, nodes in (("主图", graph["nodes"]), ("子图", sg["nodes"])):
+            for i in range(len(nodes)):
+                for j in range(i + 1, len(nodes)):
+                    a, b = nodes[i], nodes[j]
+                    ax, ay, aw, ah = a["pos"][0], a["pos"][1], a["size"][0], a["size"][1]
+                    bx, by, bw, bh = b["pos"][0], b["pos"][1], b["size"][0], b["size"][1]
+                    assert not (ax < bx + bw and bx < ax + aw
+                                and ay < by + bh and by < ay + ah), \
+                        f"{scope} node{a['id']} 与 node{b['id']} 矩形重叠"
+        # 子图 group 包含性:框住的行节点全在其 bounding 内;两框不相交
+        boxes = [(grp["bounding"][0], grp["bounding"][1],
+                  grp["bounding"][0] + grp["bounding"][2],
+                  grp["bounding"][1] + grp["bounding"][3]) for grp in sg["groups"]]
+        assert not (boxes[0][0] < boxes[1][2] and boxes[1][0] < boxes[0][2]
+                    and boxes[0][1] < boxes[1][3] and boxes[1][1] < boxes[0][3]), \
+            "子图两 group 框相交"
+        for grp in sg["groups"]:
+            gx0, gy0, gx1, gy1 = (grp["bounding"][k] for k in (0, 1, 0, 1))
+            gx1 += grp["bounding"][2]
+            gy1 += grp["bounding"][3]
+            inside = [n for n in sg["nodes"]
+                      if gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
+                      and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1]
+            assert inside, f"子图 group {grp['title']!r} 未框住任何节点(装饰框即病)"
+            same_row = len({n["pos"][1] for n in inside}) == 1
+            assert same_row, f"子图 group {grp['title']!r} 跨行框住节点(应只框单一阶段行)"
+
+    def test_usage_note_subgraph_warnings(self):
+        """子图版 Note 要点锁:装配子图用法/九型选型说明/主体句纪律(空镜无人)/
+        脚本重跑重置警示/[27] 过目指引/锁层恒挂/底座美化口径。Note 被重跑回退即红。"""
+        note = _by_type(GRAPHS["qi21"], "MarkdownNote")[0]["widgets_values"][0]
+        for token in ("装配子图", "九型", "空镜无人", "重置回库文档现读值", "[27]", "恒挂",
+                      "美化", "05-道劫规范提示词库.md"):
+            assert token in note, f"Note 缺子图版要点: {token!r}"
 
     def test_prompt_library_nine_types_anchor(self):
-        """库锚(canon 九型·甲案):### 恰九型且与 daojie_bases.json zh 同序;
-        每型装配全文围栏行数=10(人物系)/6(场景系),字符带 1400-2350;
-        首行 ⟨①:…⟩ 槽、末行配色行(库文末自查表同口径)。"""
+        """库锚(②层=09-23 美化版):### 恰九型且与 daojie_bases.json zh 同序;
+        每型装配全文围栏行数=10(人物系)/6(场景系),字符带 1400-2400;
+        首行 ⟨①:…⟩ 槽、末行配色行;②层与 canon positive 不再逐字互锁(锚废止的负证)。"""
         md = PROMPT_LIB.read_text(encoding="utf-8")
         bases = json.loads(BASES_JSON.read_text(encoding="utf-8"))
         zh_order = [b["zh"] for b in bases]
         headings = re.findall(r"^### (.+?)-基础\s*$", md, re.M)
         assert headings == zh_order, \
             f"库 ### 九型标题应与 daojie_bases.json zh 同序,得 {headings}"
+        canon_pos = {b["zh"]: b["positive"] for b in bases}
+        diff = 0
         for zh in zh_order:
             m = re.search(rf"^### {zh}-基础\s*$", md, re.M)
             fence = re.search(r"```text\n(.*?)\n```", md[m.end():], re.S).group(1)
@@ -732,11 +1011,14 @@ class TestDaojieProContract:
             want_lines = 10 if zh in PRO_CHAR_TYPES else 6
             assert len(lines) == want_lines, \
                 f"{zh}: 装配全文应 {want_lines} 行(②型底座+③锁层[+增量锁]+④配色行),得 {len(lines)}"
-            assert 1400 <= len(fence) <= 2350, \
-                f"{zh}: 装配全文字符数 {len(fence)} 出带 1400-2350(库自查 1475-2227+槽括号)"
+            assert 1400 <= len(fence) <= 2400, \
+                f"{zh}: 装配全文字符数 {len(fence)} 出带 1400-2400(库自查 1539-2267+槽括号)"
             assert lines[0].startswith("⟨①:") and lines[0].endswith("⟩"), f"{zh}: 首行应为 ⟨①:…⟩ 槽"
             assert lines[-1] == PRO_COLOR_MAP[zh], f"{zh}: 末行应为④配色行"
-
+            if lines[1] != canon_pos[zh]:
+                diff += 1
+        assert diff == 9, \
+            f"②层应为美化版成文(与 canon positive 逐字互锁已废止,九型均应有差异),diff={diff}"
 
 
 # ── 7. 计数锚(防漂移):K2图像 36 件不变 + Q2-1图像 4 件 ────────────
@@ -745,12 +1027,34 @@ class TestDaojieProContract:
 # 非同一账本;本测试锁目录实数——任何件数漂移(误删/误增)即红。
 
 class TestCountAnchor:
-    def test_qwen21_dir_exactly_four(self):
+    def test_qwen21_dir_exactly_seven(self):
         files = sorted(p.name for p in (_IMG_DIR / "Q2-1图像").rglob("*.json"))
         assert files == [
-            "qwen21-daojie-t2i-pro.json", "qwen21-daojie-t2i.json",
+            "image_qwen_image_2_1_background_removal.json",
+            "image_qwen_image_2_1_image_edit.json",
+            "image_qwen_image_2_1_t2i.json",
+            "qi21-道劫-t2i.json", "qwen21-daojie-t2i.json",
             "qwen21-edit.json", "qwen21-t2i.json",
-        ], f"Q2-1图像 应恰 4 件(09-23 PRO 件入位后定谳),得 {files}"
+        ], f"Q2-1图像 应恰 7 件(4 自研+3 官方模板 09-23 入库),得 {files}"
+
+    def test_official_templates_upstream_identical(self):
+        """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。
+        哈希=09-23 自上游 raw 拉取件烙印(t2i/edit 两件与研究档存档逐字节一致,
+        background_removal 为当日新收);上游更新时重拉重烙并记台账。"""
+        import hashlib
+        pinned = {
+            "image_qwen_image_2_1_t2i.json":
+                "d33a6b36d530756e26ef4e25beb17d950daaea09d295475cd65f97f5d0af3b41",
+            "image_qwen_image_2_1_image_edit.json":
+                "d6dd8695469c20ca5e77b4bddf981b898ee0e034f0cfc5840c86f15b812ca081",
+            "image_qwen_image_2_1_background_removal.json":
+                "642e700e358fd47911d35f61c545945821fd516c898b793e9f58f5a92439aa72",
+        }
+        for name, sha in pinned.items():
+            p = _IMG_DIR / "Q2-1图像" / "0_官方模板" / name
+            assert p.exists(), f"官方模板缺失:{name}"
+            actual = hashlib.sha256(p.read_bytes()).hexdigest()
+            assert actual == sha, f"官方件被改动或上游漂移:{name}({actual})"
 
     def test_k2_dir_unchanged_36(self):
         files = sorted(p.name for p in K2_DIR.rglob("*.json") if p.name != ".DS_Store")
