@@ -18,6 +18,13 @@
       "bounding": [-620, -180, 3560, 740],
       "color": "#3f789e",
       "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "PE-I2I 改写组(默认旁路·看图改写)",
+      "bounding": [-570, 570, 1200, 590],
+      "color": "#8864a8",
+      "flags": {}
     }
   ],
   "nodes": [
@@ -92,7 +99,7 @@
         {"name": "upload", "type": "IMAGEUPLOAD", "widget": {"name": "upload"}, "link": null}
       ],
       "outputs": [
-        {"name": "IMAGE", "type": "IMAGE", "links": [1]},
+        {"name": "IMAGE", "type": "IMAGE", "links": [1, 13]},
         {"name": "MASK", "type": "MASK", "links": null}
       ],
       "properties": {"Node name for S&R": "LoadImage"},
@@ -131,7 +138,8 @@
         {"name": "clip", "type": "CLIP", "link": 3},
         {"name": "images.image_1", "type": "IMAGE", "shape": 7, "link": 1},
         {"name": "vae", "type": "VAE", "shape": 7, "link": 4},
-        {"name": "images.image_2", "type": "IMAGE", "shape": 7, "link": 2}
+        {"name": "images.image_2", "type": "IMAGE", "shape": 7, "link": 2},
+        {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": 17}
       ],
       "outputs": [
         {"name": "positive", "type": "CONDITIONING", "links": [7]},
@@ -139,7 +147,7 @@
         {"name": "latent", "type": "LATENT", "links": [9]}
       ],
       "properties": {"Node name for S&R": "TextEncodeQwenImage21"},
-      "widgets_values": ["Keep the character and pose in <image1> unchanged, put this light blue denim shirt from <image2> on the character, preserve the original facial features, hair, body shape and pose, the denim shirt fits naturally on body, realistic denim fabric texture, natural clothing folds, keep the original background and original lighting, high fashion editorial photography, sharp details", "", 0]
+      "widgets_values": ["", "", 0]
     },
     {
       "id": 7,
@@ -228,7 +236,86 @@
       "inputs": [],
       "outputs": [],
       "properties": {},
-      "widgets_values": ["## Qwen-Image-2.1 换装编辑 · 使用说明\n\n**官方换装示例(两张图须先放引擎 input 目录)**\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n\n权重三件套同 t2i 件:qwen_image_2.1_bf16 + qwen3vl_8b_bf16(CLIPLoader type=qwen_image)+ qwen_image_2.1_vae_bf16。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样;要用负向才抬 cfg。步数官方 40-50,本流 25 起手。\n- **resolution 是总像素预算非宽高**(保比例):官方默认 1024、上限 2048;本流取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1。\n- **参考图语法**:提示词里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n- **潜空来源**:本流 KSampler 潜空取 [6] TextEncode 的 latent 输出(跟随 image_1;官方模板另有 custom_size 开关可切 ResolutionSelector 宽高,需贴近重采样后的 image_1 尺寸否则编辑漂移,本流简化为默认路径)。\n- **QwenImage21Cache([7],auto/default)**:编辑流 KV 缓存设备/精度,内存吃紧可调(cpu/int8)。\n\n### RGBA 透明图句式(存 PNG 才保 alpha)\n\nThis is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。\n"]
+      "widgets_values": ["## Qwen-Image-2.1 换装编辑 · 使用说明\n\n**官方换装示例(两张图须先放引擎 input 目录)**\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n\n权重三件套同 t2i 件:qwen_image_2.1_bf16 + qwen3vl_8b_bf16(CLIPLoader type=qwen_image)+ qwen_image_2.1_vae_bf16。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样;要用负向才抬 cfg。步数官方 40-50,本流 25 起手。\n- **resolution 是总像素预算非宽高**(保比例):官方默认 1024、上限 2048;本流取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1。\n- **参考图语法**:提示词里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n- **潜空来源**:本流 KSampler 潜空取 [6] TextEncode 的 latent 输出(跟随 image_1;官方模板另有 custom_size 开关可切 ResolutionSelector 宽高,需贴近重采样后的 image_1 尺寸否则编辑漂移,本流简化为默认路径)。\n- **QwenImage21Cache([7],auto/default)**:编辑流 KV 缓存设备/精度,内存吃紧可调(cpu/int8)。\n\n### RGBA 透明图句式(存 PNG 才保 alpha)\n\nThis is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。\n\n\n### PE-I2I 改写开关([15],默认关=直写)\n\n- 开启:①[13] 写短句改图想法(任意语言,可用 <image1>/<image2> 点名,输出恒英文精确指令);②[15] switch 勾 true。旁路时 PE 模型不加载(懒执行)。\n- [13] image_1 已接 [4] 编辑画布(PE 看图改写);需要看双图可再把 [5] 接到 image_2。\n- 硬口径勿改:presence_penalty=0(Edit 专属)、max_length=24000;temperature=1.0/top_p=0.95/seed=42 为官方默认。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 演进预研·道劫同脸精修迁 Q2.1(i2i 编辑句式,09-23 深检吸收立账)\n\n- **编辑句式骨(官方 21 例全用此套,research/12 答A备3)**:身份/保真段永远写在变化段之前;参考图引用三式任用——`<image1>` / 【图1】 / 「第1-10张图」;身份锁定=Strictly preserve 全清单(须保真的五官/发型/体态/服饰要素逐项点名);句尾守恒句「不作重新构图或整体重绘」恒带。道劫同脸精修(K2-人脸精修-道劫)迁 Q2.1 时整套移植。\n- **I2I PE 接线骨(research/10 §4.1/§5.3)**:Getimg×N → ImageBatchMulti(kjnodes)→ TextGenerate.image(官方原生)或本仓现行 benjiyaya QwenImage21_EditPromptRewrite(pe_i2i 系检查点,中文输出+身份锁句式实锤)——两路同检查点同宪法同 JSON 字段,视频侧官方走前者、本仓走后者(插件解析更健壮,懒执行不载 PE 模型)。\n"]
+    },
+    {
+      "id": 12,
+      "type": "CLIPLoader",
+      "pos": [-540, 620],
+      "size": [360, 130],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip_name", "type": "COMBO", "link": null},
+        {"name": "type", "type": "COMBO", "link": null},
+        {"name": "device", "type": "COMBO", "link": null}
+      ],
+      "outputs": [
+        {"name": "CLIP", "type": "CLIP", "links": [14]}
+      ],
+      "properties": {"Node name for S&R": "CLIPLoader"},
+      "widgets_values": ["qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors", "qwen_image", "default"],
+      "title": "[12] PE-I2I 文本编码加载(qwen_image)"
+    },
+    {
+      "id": 13,
+      "type": "QwenImage21_EditPromptRewrite",
+      "pos": [-160, 620],
+      "size": [400, 320],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {"name": "clip", "type": "CLIP", "link": 14},
+        {"name": "image_1", "type": "IMAGE", "link": 13}
+      ],
+      "outputs": [
+        {"name": "positive_prompt", "type": "STRING", "links": [15]},
+        {"name": "negative_prompt", "type": "STRING", "links": null},
+        {"name": "wh_ratio", "type": "STRING", "links": null},
+        {"name": "ratio_follow", "type": "STRING", "links": null},
+        {"name": "thinking", "type": "STRING", "links": null},
+        {"name": "parse_ok", "type": "BOOLEAN", "links": null}
+      ],
+      "properties": {"Node name for S&R": "QwenImage21_EditPromptRewrite"},
+      "widgets_values": ["Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged", 1.0, 0.95, 0.0, 24000, 42],
+      "title": "[13] PE改写(Edit·看图·presence_penalty=0)"
+    },
+    {
+      "id": 14,
+      "type": "StringConstant",
+      "pos": [-100, 980],
+      "size": [340, 130],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "STRING", "type": "STRING", "links": [16]}
+      ],
+      "properties": {"Node name for S&R": "StringConstant"},
+      "widgets_values": ["Keep the character and pose in <image1> unchanged, put this light blue denim shirt from <image2> on the character, preserve the original facial features, hair, body shape and pose, the denim shirt fits naturally on body, realistic denim fabric texture, natural clothing folds, keep the original background and original lighting, high fashion editorial photography, sharp details"],
+      "title": "[14] 直写改图指令(默认路)"
+    },
+    {
+      "id": 15,
+      "type": "ComfySwitchNode",
+      "pos": [260, 620],
+      "size": [340, 130],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {"name": "on_false", "type": "STRING", "link": 16},
+        {"name": "on_true", "type": "STRING", "link": 15}
+      ],
+      "outputs": [
+        {"name": "output", "type": "STRING", "links": [17]}
+      ],
+      "properties": {"Node name for S&R": "ComfySwitchNode"},
+      "widgets_values": [false],
+      "title": "[15] PE改写开关(false=直写)"
     }
   ],
   "links": [
@@ -243,7 +330,12 @@
     [9, 6, 2, 8, 3, "LATENT"],
     [10, 8, 0, 9, 0, "LATENT"],
     [11, 3, 0, 9, 1, "VAE"],
-    [12, 9, 0, 10, 0, "IMAGE"]
+    [12, 9, 0, 10, 0, "IMAGE"],
+    [13, 4, 0, 13, 1, "IMAGE"],
+    [14, 12, 0, 13, 0, "CLIP"],
+    [15, 13, 0, 15, 1, "STRING"],
+    [16, 14, 0, 15, 0, "STRING"],
+    [17, 15, 0, 6, 4, "STRING"]
   ],
   "last_node_id": 11,
   "last_link_id": 12

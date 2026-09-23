@@ -29,6 +29,7 @@ def test_registry_exposes_first_batch_nodes():
         "MyStage", "MyStylesLibrary", "MyDaojieBase", "MyDaojieLoras",
         "MyDaojieLoraStack",  # 09-19 LoRA快速启停 R2:14 槽九型驱动栈节点
         "MyDaojieRoute",  # 09-21 [90] 子图按型线路路由(只选线不加载)
+        "MyQi21DaojieBase",  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
         "MyModelBus",     # 09-21 模型分线排(1进9出,画布走线治理备件)
         "MyCharsheetLabels",  # 09-20 设定表汉字程序叠加(案一)
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
