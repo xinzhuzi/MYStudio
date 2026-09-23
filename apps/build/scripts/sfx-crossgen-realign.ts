@@ -13,7 +13,7 @@
  *
  * Usage:
  *   cd apps && MYSTUDIO_SFX_REALIGN=1 npx vite-node --config build/timeline/vite-node.config.ts \
- *     build/scripts/sfx-crossgen-realign.ts --project /Users/zhengbingjin/Project/IP/MA
+ *     build/scripts/sfx-crossgen-realign.ts --project ~/Project/IP/MA
  */
 import path from "node:path";
 import { RemotionChapterManifestService } from "@rendering/plugins/remotion/manifest/remotion-chapter-manifest-service";

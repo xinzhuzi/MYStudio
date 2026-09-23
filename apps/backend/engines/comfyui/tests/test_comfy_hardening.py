@@ -447,11 +447,11 @@ class TestOutboundProxy:
         import os
 
         import common.net_outbound as net
-        monkeypatch.setattr(net, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        monkeypatch.setattr(net, "outbound_proxy_url", lambda: "http://127.0.0.1:7890")
         monkeypatch.delenv("https_proxy", raising=False)
         monkeypatch.setenv("MYSTUDIO_TEST_MARKER", "keep")
         with net.outbound_proxy_env():
-            assert os.environ["https_proxy"] == "http://127.0.0.1:7897"
+            assert os.environ["https_proxy"] == "http://127.0.0.1:7890"
             assert os.environ["no_proxy"] == "127.0.0.1,localhost"
             assert os.environ["MYSTUDIO_TEST_MARKER"] == "keep"  # 不动无关键
         assert "https_proxy" not in os.environ  # 原先没有 → 退出后移除
@@ -464,7 +464,7 @@ class TestOutboundProxy:
     def test_loopback_bypasses_proxy(self, monkeypatch):
         """引擎本机健康检查(system_stats/object_info)绝不进代理。"""
         import engines.comfyui.engine_manager as em
-        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7890")
 
         def _no_opener(*args, **kwargs):
             raise AssertionError("回环请求不得构造代理 opener")
@@ -476,8 +476,10 @@ class TestOutboundProxy:
         assert em.urlopen_outbound(req, timeout=1.0) is sentinel
 
     def test_outbound_goes_through_proxy(self, monkeypatch):
-        import engines.comfyui.engine_manager as em
-        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        # em.urlopen_outbound 是 common.net_outbound 的再导出,内部 outbound_proxy_url()
+        # 读 net 命名空间——须打桩 net(而非 em),否则走真机探测、结论与机器代理耦合
+        import common.net_outbound as net
+        monkeypatch.setattr(net, "outbound_proxy_url", lambda: "http://127.0.0.1:7890")
         captured: dict = {}
         sentinel = object()
 
@@ -497,7 +499,7 @@ class TestOutboundProxy:
         req = em.request.Request("https://api.github.com/repos/x/y")
         assert em.urlopen_outbound(req, timeout=1.0) is sentinel
         handler = captured["handlers"][0]
-        assert handler.proxies == {"http": "http://127.0.0.1:7897", "https": "http://127.0.0.1:7897"}
+        assert handler.proxies == {"http": "http://127.0.0.1:7890", "https": "http://127.0.0.1:7890"}
 
     @staticmethod
     def _install_fake_popen(monkeypatch, captured):
@@ -524,15 +526,15 @@ class TestOutboundProxy:
 
     def test_run_injects_proxy_env_for_git_pip(self, monkeypatch):
         import engines.comfyui.engine_manager as em
-        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7890")
         captured: dict = {}
         self._install_fake_popen(monkeypatch, captured)
 
         assert em._run(["git", "ls-remote", "https://github.com/x/y"]) == "ok"
         env = captured["env"]
         assert env is not None
-        assert env["https_proxy"] == "http://127.0.0.1:7897"
-        assert env["HTTP_PROXY"] == "http://127.0.0.1:7897"
+        assert env["https_proxy"] == "http://127.0.0.1:7890"
+        assert env["HTTP_PROXY"] == "http://127.0.0.1:7890"
         assert env["no_proxy"] == "127.0.0.1,localhost"
 
     def test_run_without_proxy_inherits_env(self, monkeypatch):
@@ -547,7 +549,7 @@ class TestOutboundProxy:
     def test_domestic_hosts_route_direct_even_with_proxy(self, monkeypatch):
         """09-19 动态路由:国内域名(.cn/阿里云镜像族)代理在场也恒直连。"""
         import engines.comfyui.engine_manager as em
-        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7897")
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7890")
 
         def _no_opener(*args, **kwargs):
             raise AssertionError("国内域名不得构造代理 opener")

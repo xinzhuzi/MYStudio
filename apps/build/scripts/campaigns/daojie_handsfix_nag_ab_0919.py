@@ -37,7 +37,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 sys.path.insert(0, str(REPO / "apps/build/scripts"))
 import daojie_handsfix_run_0917 as hf  # noqa: E402
 

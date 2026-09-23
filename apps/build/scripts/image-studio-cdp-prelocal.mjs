@@ -8,7 +8,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const list = await (await fetch("http://127.0.0.1:9222/json")).json();
 const page = list.find((t) => t.type === "page");

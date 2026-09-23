@@ -9,7 +9,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const PROMPT_MARK = "白衣剑修";
 const GENERATION_TIMEOUT_MS = 420000;

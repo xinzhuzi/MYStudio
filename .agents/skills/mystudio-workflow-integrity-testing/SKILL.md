@@ -11,7 +11,7 @@ Use this skill to prove the workflow is complete with fresh evidence, not impres
 
 ## Path dictionary
 
-- `<repo-root>` means `/Users/zhengbingjin/Project/Github/MYStudio`; run npm commands from `<repo-root>/apps`. This `SKILL.md` and all `apps/...` paths below are repository source/instructions, read-only to the running product.
+- `<repo-root>` means `~/Project/Github/MYStudio`; run npm commands from `<repo-root>/apps`. This `SKILL.md` and all `apps/...` paths below are repository source/instructions, read-only to the running product.
 - Workflow UI and model sources are under `<repo-root>/apps/frontend/components/panels/studio/`; the smoke bridge is `<repo-root>/apps/frontend/lib/studio/workflow-smoke-bridge.ts`; packaged smoke is `<repo-root>/apps/build/smoke/smoke-desktop.mjs`. All three are source entry points, not runtime write targets.
 - `<userData>` is Electron's per-user application-data directory. `<storageBasePath>` is the runtime-writable storage root resolved from `<userData>/storage-config.json`; project workflow state is stored under `<storageBasePath>/projects/_p/<projectId>/`, while the independent asset library is `<storageBasePath>/assets/`.
 - Product-editable skills are `<storageBasePath>/skills/`. The bundled seed source `<repo-root>/apps/frontend/assets/studio-manuals/` is read-only; AI/development skills under `<repo-root>/.agents/skills/`, `~/.codex/skills/`, or `~/.agents/skills/` are not product data.
@@ -19,7 +19,7 @@ Use this skill to prove the workflow is complete with fresh evidence, not impres
 
 ## Ground Rules
 
-- Work from `/Users/zhengbingjin/Project/Github/MYStudio`.
+- Work from `~/Project/Github/MYStudio`.
 - Run npm commands from `apps/`.
 - Do not run git commands unless the user explicitly asks.
 - Treat old logs as stale. Rerun the relevant check before saying it passes.

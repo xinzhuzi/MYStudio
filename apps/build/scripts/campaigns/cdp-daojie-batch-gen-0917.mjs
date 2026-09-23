@@ -28,7 +28,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 const CDP_BASE = `http://127.0.0.1:${CDP_PORT}`;
@@ -36,7 +36,7 @@ const APP_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作�
 const APP_BUNDLE_ID = "com.manju2026.manying-studio";
 const CH = join(homedir(), "Library/Application Support/漫影工作室/comfyui");
 const ENGINE_OUTPUT = join(CH, "output");
-const REPO = "/Users/zhengbingjin/Project/Github/MYStudio";
+const REPO = `${process.env.HOME}/Project/Github/MYStudio`;
 const WF_REL = "1_图片/K2图像/1_文生图/K2-文生图-道劫.json";
 const WF_REPO = join(REPO, "apps/backend/engines/comfyui/workflows", WF_REL);
 const OUT_DIR = join(REPO, "output/daojie_batch_0917");

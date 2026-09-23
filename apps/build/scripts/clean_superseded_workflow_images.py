@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from urllib.parse import unquote
 
-PROJECT_ROOT = Path("/Users/zhengbingjin/Project/IP/MA")
+PROJECT_ROOT = Path.home() / "Project/IP/MA"
 STORE = PROJECT_ROOT / "store"
 WI_ROOT = PROJECT_ROOT / "workflow-images"
 MARKER = "workflow-images/"

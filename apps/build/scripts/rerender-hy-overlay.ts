@@ -27,9 +27,9 @@ import { createHyperFramesAdapter } from "@rendering/plugins/hyperframes/hyperfr
 const execFileAsync = promisify(execFileCallback);
 const FFMPEG = process.env.MYSTUDIO_FFMPEG_PATH ?? "/opt/homebrew/bin/ffmpeg";
 
-const MA = "/Users/zhengbingjin/Project/IP/MA";
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
-const REPO_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio";
+const MA = `${process.env.HOME}/Project/IP/MA`;
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
+const REPO_ROOT = `${process.env.HOME}/Project/Github/MYStudio`;
 const ELECTRON = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
 /** worker 优先取已装应用;应用被并行会话重建时降级 dmg 抽取的缓存副本。 */
 const WORKER = fs.existsSync("/Applications/漫影工作室.app/Contents/Resources/app.asar.unpacked/out/main/hyperframes-worker.cjs")

@@ -18,7 +18,7 @@ import { buildHyperFramesCompositionHtml, buildHyperFramesCliArgs } from "../../
 const USER_DATA = path.join(process.env.HOME ?? "", "Library", "Application Support", "漫影工作室");
 const CLI = path.join(USER_DATA, "hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs");
 const BROWSER = path.join(
-  "/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.remotion",
+  `${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.remotion`,
   "chrome-headless-shell/mac-arm64/chrome-headless-shell-mac-arm64/chrome-headless-shell",
 );
 const OUT_DIR = "/tmp/hy-registry-render-proof";

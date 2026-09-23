@@ -24,8 +24,8 @@ import time
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-STORE_ROOT = Path("/Users/zhengbingjin/Project/IP/MA/store")
-PROJECT_ROOT = Path("/Users/zhengbingjin/Project/IP/MA")
+STORE_ROOT = Path.home() / "Project/IP/MA/store"
+PROJECT_ROOT = Path.home() / "Project/IP/MA"
 STORAGE_BASE = Path.home() / "Library" / "Application Support" / "漫影工作室"
 ASSETS_FILES = STORAGE_BASE / "assets" / "files"
 ASSETS_THUMBS = STORAGE_BASE / "assets" / "thumbs"

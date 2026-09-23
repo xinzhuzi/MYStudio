@@ -16,7 +16,7 @@ import sys
 import time
 from pathlib import Path
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
 
 SOFTEN = {
     14: (

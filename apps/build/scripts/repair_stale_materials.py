@@ -38,7 +38,7 @@ def to_disk_path(local_path: str, root: str) -> str | None:
 
 
 def main() -> int:
-    root = sys.argv[1] if len(sys.argv) > 1 else "/Users/zhengbingjin/Project/IP/MA"
+    root = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Project/IP/MA")
     shards = [
         f for f in glob.glob(f"{root}/store/studio-workflow/materials-*.json")
         if ".bak" not in os.path.basename(f)

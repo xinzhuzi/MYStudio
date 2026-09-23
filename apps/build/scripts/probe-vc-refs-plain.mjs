@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const PROJ = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0";
+const PROJ = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0`;
 const TARGET_CANDIDATE = "video-chapter-001-scene-5";
 
 function walk(dir, acc=[]) {

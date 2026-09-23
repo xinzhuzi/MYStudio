@@ -19,14 +19,15 @@ from urllib.parse import unquote
 import torch
 from PIL import Image
 from transformers import pipeline
+import os
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
-DEPTH_MODEL = next((Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/model/depth/models--depth-anything--Depth-Anything-V2-Small-hf/snapshots")).iterdir())
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
+DEPTH_MODEL = next((Path.home() / "Library/Application Support/漫影工作室/model/depth/models--depth-anything--Depth-Anything-V2-Small-hf/snapshots").iterdir())
 
 def shot_image(sb):
     p = (sb.get("mediaRef") or {}).get("path", "")
     if "workflow-images/" not in p: return None
-    return Path("/Users/zhengbingjin/Project/IP/MA/workflow-images/" + unquote(p.split("workflow-images/")[-1]))
+    return Path(os.path.expanduser("~/Project/IP/MA/workflow-images/") + unquote(p.split("workflow-images/")[-1]))
 
 def l2_check(sb, depth_pipe) -> dict:
     img_path = shot_image(sb)

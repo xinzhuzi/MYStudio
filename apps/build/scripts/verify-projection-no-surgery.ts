@@ -18,7 +18,7 @@ import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/medi
 import type { EditingProjectV1 } from "@/types/editing";
 import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 
-const MA = "/Users/zhengbingjin/Project/IP/MA";
+const MA = `${process.env.HOME}/Project/IP/MA`;
 
 function maEditingJsonPath(): string {
   const migrated = path.join(MA, "store", "editing.json");

@@ -20,7 +20,7 @@ import sys
 import time
 from pathlib import Path
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
 
 MANUAL = Path(__file__).resolve().parents[2] / (
     "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng"

@@ -17,10 +17,10 @@ import { bundle } from "@remotion/bundler";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
 
-const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
+const APPS_ROOT = `${process.env.HOME}/Project/Github/MYStudio/apps`;
 const POC_DIR = path.join(APPS_ROOT, ".cache", "gl-poc");
 const RUNTIME_DIR = path.join(
-  "/Users/zhengbingjin/Library/Application Support/漫影工作室",
+  `${process.env.HOME}/Library/Application Support/漫影工作室`,
   "remotion-runtime",
 );
 const FPS = 25;

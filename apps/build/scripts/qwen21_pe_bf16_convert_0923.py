@@ -36,7 +36,7 @@ import os
 import struct
 
 HOME = os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui")
-SRC_DIR = "/Users/zhengbingjin/Downloads/qwen21-pe-bf16-t2i"
+SRC_DIR = os.path.expanduser("~/Downloads/qwen21-pe-bf16-t2i")
 INT8 = os.path.join(HOME, "models", "text_encoders",
                     "qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors")
 OUT = os.path.join(HOME, "models", "text_encoders",

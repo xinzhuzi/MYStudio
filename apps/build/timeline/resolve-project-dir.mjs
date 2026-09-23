@@ -1,6 +1,6 @@
 // 道劫项目根解析(timeline 一次性脚本共享):
 // MYSTUDIO_PROJECT_DIR > project-locations.json 注册表 > 旧内部 _p 路径回退。
-// 项目已外迁(/Users/zhengbingjin/Project/IP/MA),旧路径仅作未注册时的兜底。
+// 项目已外迁(~/Project/IP/MA),旧路径仅作未注册时的兜底。
 import fs from "node:fs";
 
 const DAOJIE_PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";

@@ -8,7 +8,7 @@ userData 侧该目录——该位置 08-30 已裁定退役,09-02 实证新图仍
 
 用法:
   python3 apps/build/scripts/migrate-userdata-ai-image-to-project.py \
-      --project /Users/zhengbingjin/Project/IP/MA [--dry-run]
+      --project ~/Project/IP/MA [--dry-run]
 """
 from __future__ import annotations
 

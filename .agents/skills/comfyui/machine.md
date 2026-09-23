@@ -6,8 +6,8 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
 (`GET /system_stats`, `GET /object_info`) and rewrite.
 
 - **ComfyUI**: MYStudio-managed engine (app 漫影工作室; no longer Comfy Desktop — that install at
-  `/Users/zhengbingjin/Project/ComfyUI` was retired 2026-09-10, kept on disk read-only as archive).
-  Home = **`/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui`** (isolated layout:
+  `~/Project/ComfyUI` was retired 2026-09-10, kept on disk read-only as archive).
+  Home = **`~/Library/Application Support/漫影工作室/comfyui`** (isolated layout:
   `ComfyUI/` engine source v0.35.0 torch 2.14, `venv/` private runtime, `models/`, `workflows/` legacy,
   `manifest.json` config). Engine source & custom_nodes live at `<home>/ComfyUI` — ComfyUI only loads
   custom_nodes from INSIDE the source dir in this layout (manifest.py 09-08 fix), do not drop plugins at
@@ -24,7 +24,7 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - **Image line = Krea 2 (K2)**: turbo bf16 DiT (`diffusion_models/`) + uncensored (Heretic) 4B TE
     (`text_encoders/qwen3-vl-4b-heretic`) + LoRAs under `loras/Krea2-NSFW`, `loras/Krea2-功能`.
     K2's VAE file is `qwen_image_vae` — it belongs to K2, do not treat as leftover.
-    **09-24 退役,权重已删,恢复=/Volumes/郑冰津/AI/Krea2 按 manifest-retired-0923.jsonl
+    **09-24 退役,权重已删,恢复=外置盘(卷名=真名不入仓,完整路径见本地档案 ~/.zcode/mystudio-local/external-drive-path.txt)/AI/Krea2 按 manifest-retired-0923.jsonl
     从 models/ 下拷回,工作流 JSON 保留存档。**
   - **Video line = MiniMax H3**: BF16 FL2VA DiT + Heretic 32B Q4_K_M GGUF TE + mmproj (same files as the
     retired install) + turbo LoRAs (4step v1.1 + 8step v1.0). Fixed routes: 480P direct (daily),
@@ -49,6 +49,13 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     share this engine queue-serially — ComfyUI's smart memory management swaps weights between
     runs, which does NOT violate the no-second-model-process rule; video = H3. Repo workflows:
     `1_图片/K2图像/` + `1_图片/Q2-1图像/` (qwen21-t2i / qwen21-edit, engine-openable canvas format).
+  - (09-24) Q2-1 daojie i2i workflow `1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json` (4th Q2-1
+    piece; generate-and-refine-are-one architecture — image input IS instruction editing, no
+    denoise repaint): edit skeleton + nine-type assembly subgraph [40] (directive occupies ①
+    layer) + LoRA speed slot bypassed by default (`models/loras/Qwen-Image-2.1-viggle-turbo-
+    4step-lora-r64.safetensors` 339.8MB installed; when enabled set KSampler steps to 4); TE-Speed
+    slot deliberately NOT in this piece (plugin absent = red node; R26.4 wiring round). Idempotent
+    generator `apps/build/scripts/qi21_daojie_i2i_0924.py`; contract = TestI2IContract.
   - (09-23) Q2-1 line weights (bf16, MPS path — int8_convrot is CUDA-only, never on this Mac):
     `diffusion_models/qwen_image_2.1_bf16.safetensors` (14.23GB) + `text_encoders/qwen3vl_8b_bf16.safetensors`
     (17.53GB, CLIPLoader type=qwen_image) + `vae/qwen_image_2.1_vae_bf16.safetensors` (0.68GB) —

@@ -38,7 +38,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 const CDP_BASE = `http://127.0.0.1:${CDP_PORT}`;
@@ -50,7 +50,7 @@ const ENGINE_INPUT = join(CH, "input");
 // 09-14 工作流存放架构裁定:静态自研 MY- 真源=仓库 apps/backend/engines/comfyui/workflows
 const WF_T2I_REL = "1_图片/K2图像/1_文生图/MY-K2-文生图.json";
 const WF_I2I_REL = "1_图片/K2图像/2_图生图/MY-K2-图生图.json";
-const WF_DIR = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows";
+const WF_DIR = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows`;
 const REF_IMAGE = "daojie_e2e_ref.png";
 const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS || 420_000);
 const SKIP_GEN = process.env.SKIP_GEN === "1";

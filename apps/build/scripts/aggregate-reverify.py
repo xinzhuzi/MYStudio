@@ -5,8 +5,10 @@ import sys
 from pathlib import Path
 from collections import defaultdict
 
-JOURNAL = Path("/Users/zhengbingjin/.claude/projects/-Users-zhengbingjin-Project-Github-MYStudio/a175aac5-5d3c-487e-b7ea-2bd990c17cbc/subagents/workflows/wf_ba8d51e8-358/journal.jsonl")
-OUT = Path("/Users/zhengbingjin/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management/research/plan-reverify-7.md")
+JOURNAL = (Path.home() / ".claude/projects"
+           / Path(__file__).resolve().parents[3].as_posix().replace("/", "-")
+           / "a175aac5-5d3c-487e-b7ea-2bd990c17cbc/subagents/workflows/wf_ba8d51e8-358/journal.jsonl")
+OUT = Path(__file__).resolve().parents[3] / ".trellis/tasks/08-04-artifact-output-management/research/plan-reverify-7.md"
 
 FINDINGS_META = {
     "DEP-2": ("high", "Slice 5/6 ordering: deterministic-plan gate depends on Slice 6 transforms?"),

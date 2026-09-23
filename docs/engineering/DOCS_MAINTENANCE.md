@@ -86,7 +86,7 @@
 
 - `设置 → 本地配置 -> Python 运行环境 -> 开始配置` 仍把 Python 3.12 与 `apps/backend/requirements.txt` 安装到 `<storageBasePath>/python`。
 - 开发/构建脚本使用开发者当前 `python3`，安装后 Electron 使用设置页下载的 CPython 3.12；开发 Python 不进入安装包，开发模式 TTS 仍按代码查找 `<storageBasePath>/python`。
-- `storage-manager.ts` 的 `getPythonRuntimeDir()`、storage IPC 的 `pythonRuntimeDir` 与 `tts-runtime.ts` 必须继续指向同一运行时；当前 macOS 盘面的展开路径为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`，这是 video-use 应复用的受管理 Python 来源，不得写成固定常量或改用 shell `python3`。
+- `storage-manager.ts` 的 `getPythonRuntimeDir()`、storage IPC 的 `pythonRuntimeDir` 与 `tts-runtime.ts` 必须继续指向同一运行时；当前 macOS 盘面的展开路径为 `~/Library/Application Support/漫影工作室/python`，这是 video-use 应复用的受管理 Python 来源，不得写成固定常量或改用 shell `python3`。
 - `tts-runtime.ts` 仍只从 `<storageBasePath>/python` 解析 Python；`apps/backend` 或打包后的 `Resources/backend` 只作为 sidecar 源码、工作目录和 `PYTHONPATH`。
 - `<storageBasePath>/comfyui/models/TTS`（09-10 模型统一家；旧版 `model/TTS`、`tts-models` 仅作迁移兼容）与 `<userData>/tts-runtime` 的职责、迁移和导入/导出范围已同步到 `engineering/STORAGE_AND_DATA.md`。
 - video-use 已接入，维护时必须记录 `apps/backend/video_use`（源码）、`<storageBasePath>/python` 的独立共享 profile marker，以及项目 revision 输出三者边界；冲突时进入 `blocked` 并恢复已验证组合，不能创建第二环境、把依赖追加到 TTS requirements 或复用 TTS 的单一 marker。

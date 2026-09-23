@@ -15,7 +15,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 
 NEW = [

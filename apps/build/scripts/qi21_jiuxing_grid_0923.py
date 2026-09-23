@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """道劫九型 3x3 总览拼图(09-23):
-把 /Users/zhengbingjin/Downloads/qi21-jiuxing/ 九张 1024² 单型图拼成一张 3x3 总览——
+把 ~/Downloads/qi21-jiuxing/ 九张 1024² 单型图拼成一张 3x3 总览——
 每格上方一条深墨标签栏写中文型名(canon 九型顺序),格间留白+细边,纸白底。
 输出两份:~/Downloads/qi21-道劫九型总览.png(给用户)与
 仓库 .trellis/tasks/09-23-qwen-image-21-research/research/qi21-道劫九型总览.png(工作区副本)。
@@ -11,10 +11,10 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-SRC_DIR = Path("/Users/zhengbingjin/Downloads/qi21-jiuxing")
+SRC_DIR = Path.home() / "Downloads/qi21-jiuxing"
 OUTS = [
-    Path("/Users/zhengbingjin/Downloads/qi21-道劫九型总览.png"),
-    Path("/Users/zhengbingjin/Project/Github/MYStudio/.trellis/tasks/09-23-qwen-image-21-research/research/qi21-道劫九型总览.png"),
+    Path.home() / "Downloads/qi21-道劫九型总览.png",
+    Path.home() / "Project/Github/MYStudio/.trellis/tasks/09-23-qwen-image-21-research/research/qi21-道劫九型总览.png",
 ]
 # canon 九型顺序(daojie_bases.json zh)
 NAMES = ["人物", "场景", "道具", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]

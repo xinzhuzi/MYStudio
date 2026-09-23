@@ -7,7 +7,7 @@
  *          (docs/prompts/道劫_九型主体句示例.md §1-§9 原文) + 排队出图。
  * 装配取证:每拍 history 里 [27] easy showAnything 服务端执行出的最终装配全文,
  * 与本地按工作流 JSON 重建的期望(主体句+型底座+锁层A,换行分层)逐字节比对。
- * 产物 /Users/zhengbingjin/Downloads/qi21-jiuxing/{1..9}-{型名}.png(按型名命名)。
+ * 产物 ~/Downloads/qi21-jiuxing/{1..9}-{型名}.png(按型名命名)。
  * 子图外露参数定位:装载后实测 [40] 节点 widgets 名集(以干跑实测为准,勿猜)。
  *
  * 用法:node apps/build/scripts/qi21_e2e_jiuxing_0923.mjs
@@ -21,13 +21,13 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const execFileP = promisify(execFile);
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const CDP_PORT = Number(process.env.CDP_PORT || 9357);
-const E2E_DIR = "/Users/zhengbingjin/Downloads/qi21-jiuxing";
-const WF = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
+const E2E_DIR = `${process.env.HOME}/Downloads/qi21-jiuxing`;
+const WF = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qi21-jiuxing-chrome-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 900_000); // 15 min/张(bf16 20B 首拍含载入)

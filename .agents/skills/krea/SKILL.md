@@ -4,7 +4,7 @@ description: Use when a task names Krea or Krea 2, when choosing between Krea's 
 ---
 
 > **LOCAL NOTE (2026-09-24, this machine)**: local K2 weights were RETIRED 2026-09-23 — deleted after a
-> SHA256-verified backup (restore = copy back from `/Volumes/郑冰津/AI/Krea2` per
+> SHA256-verified backup (restore = copy back from `<外置盘>/AI/Krea2` — 外置盘卷名=真名不入公开仓,完整路径见本地档案 `~/.zcode/mystudio-local/external-drive-path.txt` — per
 > `manifest-retired-0923.jsonl`; details in `../comfyui/machine.md`). The open-weights path below is
 > currently NOT runnable locally; the hosted-API path and all model/prompt knowledge below stay valid.
 

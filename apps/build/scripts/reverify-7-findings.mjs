@@ -4,7 +4,7 @@ export const meta = {
   phases: [{ title: 'Reverify', detail: '14 个 skeptic 分批验证 7 条 findings' }],
 }
 
-const TASK_DIR = '/Users/zhengbingjin/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management'
+const TASK_DIR = `${process.env.HOME}/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management`
 
 // 7 条未验证 finding 的精确上下文(problem + proposed-fix + plan 原文锚点)
 const FINDINGS = [

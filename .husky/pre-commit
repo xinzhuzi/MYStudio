@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 # Pre-commit hook: typecheck + eslint for TS/TSX files
-# 使用绝对路径避免 cd 问题
+# 从脚本自身路径推导仓库位置(不硬编码机器路径,兼容任意 checkout 位置)
 
-HUSKY_DIR="/Users/zhengbingjin/Project/Github/MYStudio/.husky"
-APPS_DIR="/Users/zhengbingjin/Project/Github/MYStudio/apps"
+HUSKY_DIR="$(cd "$(dirname "$0")" && pwd)"
+APPS_DIR="$(cd "$HUSKY_DIR/.." && pwd)/apps"
 
 cd "$APPS_DIR" || { echo "❌ Cannot access apps directory"; exit 1; }
 

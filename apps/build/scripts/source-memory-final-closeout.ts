@@ -4,7 +4,7 @@ import path from "node:path";
 import { createSourceMemoryService } from "../../frontend/electron/storage/source-memory-service";
 import { sha256Of } from "../../frontend/electron/storage/source-memory-index";
 
-const realProjectRoot = "/Users/zhengbingjin/Project/IP/MA";
+const realProjectRoot = `${process.env.HOME}/Project/IP/MA`;
 
 function sourceHashes(projectRoot: string) {
   const memory = fs.readFileSync(path.join(projectRoot, "novel/source-memory/MEMORY.md"), "utf8");

@@ -9,9 +9,9 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const NEW_TEXT = readFileSync("/tmp/scriptdraft-v9.txt", "utf8");
-const AWD_DIR = "/Users/zhengbingjin/Project/IP/MA/store/studio-workflow/chapters/chapter-001";
+const AWD_DIR = `${process.env.HOME}/Project/IP/MA/store/studio-workflow/chapters/chapter-001`;
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const vis = (x) => `(() => { try { return ${x}; } catch { return null; } })()`;

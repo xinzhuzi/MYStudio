@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/K2-道劫修手.json"
 BASE = "http://127.0.0.1:17001"
 OUT_COPY = REPO / "output/daojie_handsfix_0917.png"

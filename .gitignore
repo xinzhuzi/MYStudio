@@ -20,6 +20,8 @@ release/
 /output/
 .zcode/
 # Local workspace artifacts
+# Claude 会话工作脚本(含本机会话路径,不入公开仓;历史件已移 ~/.zcode/mystudio-local/claude-session-scripts/)
+.claude/projects/
 .changes/
 .codex-backups/
 .oz-backups/

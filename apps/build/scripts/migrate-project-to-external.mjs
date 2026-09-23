@@ -6,7 +6,7 @@
  *   node apps/build/scripts/migrate-project-to-external.mjs [--dry-run]
  *        [--app-data <dir>]        默认 ~/Library/Application Support/漫影工作室
  *        [--project-name <名>]     默认取项目索引中唯一工程
- *        [--target <dir>]          默认 /Users/zhengbingjin/Project/IP/MA
+ *        [--target <dir>]          默认 ~/Project/IP/MA
  *
  * 流程(任一步失败即回滚并退出非零):
  *   1. 前置:应用未运行;注册表可解析且按名找到项目;projects/_p/<pid> 存在;
@@ -36,7 +36,7 @@ function resolveDefaultProjectName() {
   } catch { return '' }
 }
 const DEFAULT_PROJECT_NAME = resolveDefaultProjectName()
-const DEFAULT_TARGET = '/Users/zhengbingjin/Project/IP/MA'
+const DEFAULT_TARGET = `${process.env.HOME}/Project/IP/MA`
 const APP_PROCESS_PATTERN = '/Applications/漫影工作室.app'
 
 function usage() {

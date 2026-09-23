@@ -22,17 +22,17 @@
 ## 三、模型与 LM Studio 加载(方案 A,零新增下载)
 
 ### 文件(已在盘上)
-- 主模型:`/Users/zhengbingjin/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf`
-- 视觉投影:`/Users/zhengbingjin/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-mmproj-f16.gguf`
+- 主模型:`~/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf`
+- 视觉投影:`~/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-mmproj-f16.gguf`
 - (mmproj 必须与主模型同目录,文件名带 `-mmproj-` 是 llama.cpp 的自动发现约定)
 
 ### 加载步骤
 1. LM Studio 只认 `~/.lmstudio/models/<publisher>/<repo>/` 结构 → **软链接**(勿复制,~20GB):
    ```bash
    mkdir -p ~/.lmstudio/models/ComfyUI-TE/Qwen3-VL-32B-Ultra-Heretic
-   ln -f /Users/zhengbingjin/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf \
+   ln -f ~/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf \
          ~/.lmstudio/models/ComfyUI-TE/Qwen3-VL-32B-Ultra-Heretic/
-   ln -f /Users/zhengbingjin/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-mmproj-f16.gguf \
+   ln -f ~/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-mmproj-f16.gguf \
          ~/.lmstudio/models/ComfyUI-TE/Qwen3-VL-32B-Ultra-Heretic/
    ```
 2. 启动(顺序执行,都幂等):
@@ -46,8 +46,8 @@
 3. **兜底**:若 LM Studio 对 mmproj 配对不生效(发图请求报错/答非所问),改用 LM Studio 自带的 llama-server 直接起:
    ```bash
    LS=$(find ~/.lmstudio -name "llama-server" -type f | head -1)
-   "$LS" -m /Users/zhengbingjin/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf \
-        --mmproj /Users/zhengbingjin/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-mmproj-f16.gguf \
+   "$LS" -m ~/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf \
+        --mmproj ~/Project/ComfyUI/models/text_encoders/Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-mmproj-f16.gguf \
         --port 1235 --ctx-size 8192 &
    # 节点 api_url 改 http://127.0.0.1:1235/v1/chat/completions
    ```
@@ -63,7 +63,7 @@
 
 ## 四、自定义节点(新插件,不动旧插件)
 
-新建 `/Users/zhengbingjin/Project/ComfyUI/custom_nodes/krea2-vl-instruction/__init__.py`(独立目录,不要加进 krea2edit-instruction-assembler):
+新建 `~/Project/ComfyUI/custom_nodes/krea2-vl-instruction/__init__.py`(独立目录,不要加进 krea2edit-instruction-assembler):
 
 - 类名 `Krea2VLInstruction`,显示名「Krea2 VL看图出指令(32B)」
 - REQUIRED:`image` IMAGE
@@ -97,7 +97,7 @@
 
 **绝不改动**这四个现有文件(只读参照):`K2图像/改图/` 下的 `Krea2_无衣物_快.json`、`Krea2_无衣物_精.json`、`Krea2_无衣物_测试.json`、`Krea2_无衣物_指令验证.json`。
 
-新建:`/Users/zhengbingjin/Project/ComfyUI/user/default/workflows/K2图像/改图/Krea2_无衣物_VL验证.json`,约 6 节点:
+新建:`~/Project/ComfyUI/user/default/workflows/K2图像/改图/Krea2_无衣物_VL验证.json`,约 6 节点:
 1. LoadImage「①载入图片」
 2. ImageScaleToTotalPixels(lanczos, 1, 8)「②等比缩放1MP」
 3. Krea2VLInstruction(image←②)「③VL看图出指令(32B)」

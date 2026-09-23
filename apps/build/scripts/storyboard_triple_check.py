@@ -18,8 +18,9 @@ from __future__ import annotations
 import json, re, sys, glob, time, urllib.request, urllib.error
 from pathlib import Path
 from urllib.parse import unquote
+import os
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
 KEYFILE = Path("/tmp/glm_key.txt")
 FANREN_CHAT = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
 VISION_MODEL = "glm-4v-flash"  # GLM 免费视觉模型(生图 key 无 terra,换 GLM 4V)
@@ -45,7 +46,7 @@ def load_state():
 def image_path(sb) -> Path | None:
     p = (sb.get("mediaRef") or {}).get("path", "")
     if "workflow-images/" not in p: return None
-    return Path("/Users/zhengbingjin/Project/IP/MA/workflow-images/" + unquote(p.split("workflow-images/")[-1]))
+    return Path(os.path.expanduser("~/Project/IP/MA/workflow-images/") + unquote(p.split("workflow-images/")[-1]))
 
 def l1_hard(sb) -> list[str]:
     """硬代码层:单镜精简版不变量(全量版在 storyboard_data_lint.py)。"""

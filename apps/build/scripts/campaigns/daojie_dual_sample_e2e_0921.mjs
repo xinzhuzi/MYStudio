@@ -26,12 +26,12 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 // ---------- 常量(全绝对路径) ----------
-const REPO = "/Users/zhengbingjin/Project/Github/MYStudio";
+const REPO = `${process.env.HOME}/Project/Github/MYStudio`;
 const ENGINE_HOME =
-  "/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui";
+  `${process.env.HOME}/Library/Application Support/漫影工作室/comfyui`;
 const ENGINE_URL = "http://127.0.0.1:17000";
 const ENGINE_LOG =
-  "/Users/zhengbingjin/Library/Application Support/漫影工作室/engine_e2e.log"; // <家>/../engine_e2e.log
+  `${process.env.HOME}/Library/Application Support/漫影工作室/engine_e2e.log`; // <家>/../engine_e2e.log
 const ENGINE_LOCK = "/tmp/daojie_e2e_engine.lock";
 const ENGINE_PY = join(ENGINE_HOME, "venv/bin/python");
 const ENGINE_MAIN = join(ENGINE_HOME, "ComfyUI/main.py");
@@ -48,7 +48,7 @@ const ENGINE_ARGS = [
 // 0921 二采版: 母版 v3 增量五节点(159 预览/160 回炉/161 KSampler②/162 解码②/
 // 163 保存②),生成器 daojie_dual_sample_build_0921.py 产物,id 由探测 max+1 分配。
 const WORKFLOW_JSON =
-  "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫-二采版.json";
+  `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫-二采版.json`;
 const OUTPUT_DIR = join(ENGINE_HOME, "output");
 const BASE_NODE_ID = "80"; // MyDaojieBase 九选一 widget: base
 const APPLIED_NODE_ID = "86"; // easy showAnything 按型线路生效披露

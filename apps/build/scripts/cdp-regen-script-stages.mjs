@@ -12,11 +12,11 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const CDP_BASE = "http://127.0.0.1:9222";
 const AWD_DIR =
-  "/Users/zhengbingjin/Project/IP/MA/store/studio-workflow/chapters/chapter-001";
+  `${process.env.HOME}/Project/IP/MA/store/studio-workflow/chapters/chapter-001`;
 // 增量写会换哈希文件名,动态取 mtime 最新的 agent-work-data-*.json
 function awdPath() {
   const cands = readdirSync(AWD_DIR)

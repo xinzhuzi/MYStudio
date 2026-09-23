@@ -16,9 +16,9 @@ from __future__ import annotations
 import json, re, sqlite3, sys, glob
 from pathlib import Path
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
-ASSETS = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/assets")
-DATA_ROOT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects")
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
+ASSETS = Path.home() / "Library/Application Support/漫影工作室/assets"
+DATA_ROOT = Path.home() / "Library/Application Support/漫影工作室/projects"
 PREFIXES = ("监工", "管事", "老", "年轻", "小", "断臂")
 
 def _project_location(pid: str) -> Path:
@@ -87,7 +87,7 @@ def main() -> None:
     man = json.loads((STORE / "manifest.json").read_text())
     con = sqlite3.connect(str(ASSETS / "assets.db"))
     roles = {n for (n,) in con.execute("SELECT name FROM assets WHERE type='role'")}
-    chars = json.loads(Path("/Users/zhengbingjin/Project/IP/MA/store/characters.json").read_text())
+    chars = json.loads(Path.home() / "Project/IP/MA/store/characters.json".read_text())
     for c in (chars.get("state", chars).get("characters") or []):
         if c.get("name"): roles.add(c["name"])
     sbs, wfs = {}, {}

@@ -15,7 +15,7 @@ from __future__ import annotations
 import json, re, sys, glob
 from pathlib import Path
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
 
 def main() -> None:
     as_json = "--json" in sys.argv

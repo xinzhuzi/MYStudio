@@ -10,10 +10,10 @@ import path from "node:path";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
 
-const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
+const APPS_ROOT = `${process.env.HOME}/Project/Github/MYStudio/apps`;
 const LAYERS_DIR = "/tmp/layer-sep";
 const OUT = path.join(LAYERS_DIR, "layer-parallax-proof.mp4");
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const FPS = 30;
 const DURATION = 150; // 5s
 

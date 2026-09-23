@@ -30,4 +30,4 @@ metaData: art_skills
 
 ## 下载配方
 
-Civitai API + 7897 代理 + 账号 token(记忆 `civitai-apikey-0917`);落地 `Krea2-画风/`;**单一套铁律**:下载前 find 防重复。
+Civitai API + 本机代理 + 账号 token(记忆 `civitai-apikey-0917`);落地 `Krea2-画风/`;**单一套铁律**:下载前 find 防重复。

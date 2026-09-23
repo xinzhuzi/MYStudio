@@ -17,7 +17,7 @@ import { readdir } from "node:fs/promises";
 import { join, basename } from "node:path";
 
 const PROJECT_ROOT =
-  "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0";
+  `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0`;
 
 // === 新备份识别正则(逐字从源码 artifact-inventory-service.ts:228 抄出) ===
 // 不 import 源码(那是 electron 运行时模块),直接复制字面量,避免任何运行时耦合。

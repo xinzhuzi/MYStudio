@@ -198,7 +198,7 @@ describe("ma-gongbi-v1 同步守护(ma_sync 锚点)", () => {
     expect(runtimeContract).toEqual(DAOJIE_RUNTIME_CONTRACT);
     for (const registered of anchors.maSources) {
       const compactSource = runtimeContract.maSources.find((source) => source.path.endsWith(
-        registered.path.replace("/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen/", ""),
+        registered.path.replace(`${process.env.HOME}/Project/Unity/MA/.claude/skills/ma-imagegen/`, ""),
       ));
       expect(compactSource?.sha256, `runtime contract 缺来源 ${registered.path}`).toBe(registered.sha256);
     }
@@ -215,7 +215,7 @@ describe("ma-gongbi-v1 同步守护(ma_sync 锚点)", () => {
 
   // maSources.path 自 f54fc32 起为 ma-imagegen 技能根内相对路径(种子去机器绝对路径),
   // 直连比对按 DAOJIE_MA_ROOT(默认本机 MA 技能根)解析,与 daojie-ma-sync-check.py --ma-root 同构
-  const MA_SKILL_ROOT = process.env.DAOJIE_MA_ROOT ?? "/Users/zhengbingjin/Project/Unity/MA/.claude/skills/ma-imagegen";
+  const MA_SKILL_ROOT = process.env.DAOJIE_MA_ROOT ?? `${process.env.HOME}/Project/Unity/MA/.claude/skills/ma-imagegen`;
   const resolveMaSource = (relPath: string) => (relPath.startsWith("/") ? relPath : join(MA_SKILL_ROOT, relPath));
   const maWorkspacePresent = existsSync(resolveMaSource(anchors.maSources[0].path));
   (maWorkspacePresent ? it : it.skip)("本机 MA 权威文件包含全部 maAnchor(防快照过期)", () => {

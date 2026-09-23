@@ -22,8 +22,8 @@ import sys
 import time
 from pathlib import Path
 
-APP_MEDIA = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/media/ai-image")
-PROJECT = Path("/Users/zhengbingjin/Project/IP/MA")
+APP_MEDIA = Path.home() / "Library/Application Support/漫影工作室/media/ai-image"
+PROJECT = Path.home() / "Project/IP/MA"
 MEDIA_JSON = PROJECT / "store" / "media.json"
 STAMP = "20260830"
 BACKUP = PROJECT / "backups" / f"media-ai-image-retired-{STAMP}"

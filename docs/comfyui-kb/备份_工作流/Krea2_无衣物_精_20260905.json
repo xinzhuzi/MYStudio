@@ -1945,7 +1945,7 @@
         "top",
         "cpu",
         "float32",
-        "/Users/zhengbingjin/ComfyUI-Shared/models/fashn-human-parser",
+        "~/ComfyUI-Shared/models/fashn-human-parser",
         "dress,skirt,pants,belt,arms,legs",
         0,
         false
@@ -1954,7 +1954,7 @@
         "label": "top",
         "device": "cpu",
         "dtype": "float32",
-        "model_id": "/Users/zhengbingjin/ComfyUI-Shared/models/fashn-human-parser",
+        "model_id": "~/ComfyUI-Shared/models/fashn-human-parser",
         "extra_labels": "dress,skirt,pants,belt,arms,legs",
         "blur_radius": 0,
         "invert": false

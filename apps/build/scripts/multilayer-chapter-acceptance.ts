@@ -14,10 +14,10 @@ import fs from "node:fs";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
 
-const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
+const APPS_ROOT = `${process.env.HOME}/Project/Github/MYStudio/apps`;
 const LAYERS = ["/tmp/layer-sep/multi/s001", "/tmp/layer-sep/multi/s007", "/tmp/layer-sep/multi/s019", "/tmp/layer-sep/multi/s026", "/tmp/layer-sep/multi/s031", "/tmp/layer-sep/multi/s043"];
 const OUT = path.join(APPS_ROOT, ".cache", "multilayer-poc", "multilayer-chapter-acceptance.mp4");
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const FPS = 30;
 const SHOT_FRAMES = 120; // 4s/镜 × 6 镜 = 24s
 const CN_LUT = "cn-daiqing";

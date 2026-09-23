@@ -21,7 +21,7 @@ import numpy as np
 from PIL import Image
 
 RESULTS_DIR = Path("/tmp/p2_duipai")
-ENGINE_OUT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/output")
+ENGINE_OUT = Path.home() / "Library/Application Support/漫影工作室/comfyui/output"
 
 
 def boundary_metrics(arr: np.ndarray, rows: int, cols: int) -> dict:

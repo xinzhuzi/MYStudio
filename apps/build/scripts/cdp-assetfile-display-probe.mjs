@@ -4,8 +4,8 @@
  * asset-file:// <img> 的加载成功率。只读探针,无写入。
  */
 import { createRequire } from "node:module";
-const require = createRequire("/Users/zhengbingjin/Project/Github/MYStudio/apps/");
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const require = createRequire(`${process.env.HOME}/Project/Github/MYStudio/apps/`);
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const list = await (await fetch("http://127.0.0.1:9222/json/list")).json();
 const page = list.find((t) => t.type === "page" && !t.url.startsWith("devtools"));

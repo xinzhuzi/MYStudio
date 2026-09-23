@@ -23,7 +23,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 P2 = REPO / "apps/build/scripts/p2_duipai_run.py"
 WF_SUPERSET = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json"
 WF_STYLE = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2-文生图_风格参照.json"

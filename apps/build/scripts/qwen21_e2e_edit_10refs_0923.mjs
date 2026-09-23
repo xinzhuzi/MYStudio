@@ -36,13 +36,13 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const execFileP = promisify(execFile);
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17000";
 const CDP_PORT = Number(process.env.CDP_PORT || 9355);
-const E2E_DIR = "/Users/zhengbingjin/Downloads/qwen21-e2e-0923/round7-edit-pe";
-const WF_EDIT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json";
+const E2E_DIR = `${process.env.HOME}/Downloads/qwen21-e2e-0923/round7-edit-pe`;
+const WF_EDIT = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qwen21-r7-10refs-chrome-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 1_800_000); // 30 min(十图 VAE 编码 + 25 步采样)

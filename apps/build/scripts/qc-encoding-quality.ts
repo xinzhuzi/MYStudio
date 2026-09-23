@@ -17,10 +17,10 @@ import { buildChapterVideoCompositionProps } from "@rendering/plugins/remotion/c
 import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
 import { readStudioWorkflowStoreState } from "../timeline/storage-paths";
 
-const MA = "/Users/zhengbingjin/Project/IP/MA";
-const QUEUE = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json";
-const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const MA = `${process.env.HOME}/Project/IP/MA`;
+const QUEUE = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json`;
+const APPS_ROOT = `${process.env.HOME}/Project/Github/MYStudio/apps`;
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const OUT_MP4 = path.join(MA, "remotion/outputs/chapters/chapter-001/current.mp4");
 const REPORT_PATH = path.join(MA, "remotion/outputs/chapters/chapter-001/qc-encoding-report.json");
 

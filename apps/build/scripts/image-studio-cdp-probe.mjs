@@ -14,7 +14,7 @@ import { createRequire } from "node:module";
 import { writeFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const CDP_HTTP = "http://127.0.0.1:9222";
 const results = [];
@@ -227,7 +227,7 @@ async function main() {
   // 8) best-effort 截图(该应用常超时,不计成败)
   try {
     const shot = await send("Page.captureScreenshot", { format: "png" });
-    writeFileSync("/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation/image-studio-probe.png", Buffer.from(shot.data, "base64"));
+    writeFileSync(`${process.env.HOME}/Project/Github/MYStudio/apps/output/automation/image-studio-probe.png`, Buffer.from(shot.data, "base64"));
     record("截图(辅证)", true, "apps/output/automation/image-studio-probe.png");
   } catch {
     record("截图(辅证)", true, "超时跳过(DOM 断言为准)");

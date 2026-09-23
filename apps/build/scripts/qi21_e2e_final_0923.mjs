@@ -8,7 +8,7 @@
  *   ③ 稳定样张:人物型 40 步完整态两图(seed 42/4242,主体句=库人物例一),记录每张耗时;
  *   ④ PE 开关往返:true 排队成功(排队图取证 ComfySwitchNode switch=true)即 /interrupt 断开复位,
  *      不浪费整轮生成;开关有效性以排队图为准。
- * 产物 /Users/zhengbingjin/Downloads/qi21-final/{型名/型名-seedN.png};PNG 魔数+sips 验证;
+ * 产物 ~/Downloads/qi21-final/{型名/型名-seedN.png};PNG 魔数+sips 验证;
  * console 执行期错误留档 console-final.json。
  * 驱动仿 apps/build/scripts/qi21_e2e_jiuxing_0923.mjs;引擎生命周期(自拉起/停)在驱动外管理。
  *
@@ -23,14 +23,14 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const execFileP = promisify(execFile);
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const CDP_PORT = Number(process.env.CDP_PORT || 9359);
-const E2E_DIR = "/Users/zhengbingjin/Downloads/qi21-final";
-const WF = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
-const BASES_JSON = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json";
+const E2E_DIR = `${process.env.HOME}/Downloads/qi21-final`;
+const WF = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`;
+const BASES_JSON = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qi21-final-chrome-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 1_500_000); // 25 min/张(4.2MP 40步 MPS)
@@ -39,7 +39,7 @@ const STEPS = 40; // ③ 口径:40 步完整态(=工作流默认)
 // 库人物例一(docs/prompts/道劫_九型主体句示例.md §1 原文;=工作流 [24] 默认值)
 const SUBJ_PERSON = "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，右手轻按剑柄未拔，视线越过阶下云海望向远处，晨光自左侧斜照，衣袂被山风微微掀起。";
 const SUBJ_SIG = "她立于山门石阶最上一级"; // 主体句唯一指纹(prompt[2] 内 PrimitiveStringMultiline value)
-const ENGINE_LOG = "/Users/zhengbingjin/Downloads/qi21-final/engine.log";
+const ENGINE_LOG = `${process.env.HOME}/Downloads/qi21-final/engine.log`;
 // 复用轮注记:首轮驱动(同工作流同参,型选择/seed/steps/三开关 false/主体句=库例一
 // 均有 PASS 取证)因 history 特征匹配笔误(spaced JSON+base_text 误标)未收成;
 // 引擎已产出/在跑的拍不浪费——本驱动按签名收成(harvest/inflight-wait),签名=

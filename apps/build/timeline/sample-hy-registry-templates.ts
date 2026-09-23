@@ -20,8 +20,8 @@ import { createHyperFramesAdapter } from "@rendering/plugins/hyperframes/hyperfr
 
 const execFileAsync = promisify(execFileCallback);
 
-const PROJECT_ROOT = "/Users/zhengbingjin/Project/IP/MA";
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const PROJECT_ROOT = `${process.env.HOME}/Project/IP/MA`;
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
 const ELECTRON = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";

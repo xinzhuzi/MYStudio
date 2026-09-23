@@ -13,7 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MANUAL_DIR = REPO_ROOT / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng"
 MA_SYNC_DIR = MANUAL_DIR / "ma_sync"
 PARITY_FIXTURE = MA_SYNC_DIR / "three-track-parity-fixture.json"
-DEFAULT_MA_ROOT = Path("/Users/zhengbingjin/Project/Unity/MA")
+DEFAULT_MA_ROOT = Path.home() / "Project/Unity/MA"
 REGISTERED_SOURCES = [
     "scripts/gongbi/daojie_gongbi_restyle.py",
     "scripts/prompting/finish_locks.py",

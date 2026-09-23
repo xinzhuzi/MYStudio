@@ -15,8 +15,8 @@ export const meta = {
   ],
 }
 
-const TASK = '/Users/zhengbingjin/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management'
-const REPO = '/Users/zhengbingjin/Project/Github/MYStudio'
+const TASK = `${process.env.HOME}/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management`
+const REPO = `${process.env.HOME}/Project/Github/MYStudio`
 
 // 每个 slice 的精确 worker brief(从 implement.md 提取，无占位符)
 const SLICES = [

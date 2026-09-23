@@ -14,8 +14,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { buildHyperFramesCompositionHtml } from "@rendering/plugins/hyperframes/hyperframes-worker";
 
-const HY = "/Users/zhengbingjin/Library/Application Support/漫影工作室/hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs";
-const SHOT = "/Users/zhengbingjin/Project/IP/MA/remotion/outputs/shots/chapter-001/sb-chapter-001-006/current.mp4";
+const HY = `${process.env.HOME}/Library/Application Support/漫影工作室/hyperframes-profile/node_modules/hyperframes/bin/hyperframes.mjs`;
+const SHOT = `${process.env.HOME}/Project/IP/MA/remotion/outputs/shots/chapter-001/sb-chapter-001-006/current.mp4`;
 const WORK = "/tmp/hy-mt2";
 const W = 1920, H = 1080, FPS = 30, DUR_US = 1_000_000;
 

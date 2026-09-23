@@ -8,9 +8,9 @@ import { validateVideoUseChapterArtifact } from "@rendering/contracts/video-work
 
 const execFileAsync = promisify(execFileCallback);
 const PROJECT_ROOT = process.env.MYSTUDIO_FORMAL_PROJECT_ROOT?.trim()
-  || "/Users/zhengbingjin/Project/IP/MA";
+  || `${process.env.HOME}/Project/IP/MA`;
 const USER_DATA = process.env.MYSTUDIO_FORMAL_USER_DATA?.trim()
-  || "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+  || `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const PROJECT_ID = "49dce4c1-64b1-42de-85c2-9f266698aec4";
 const CHAPTER_ID = "chapter-001";
 const REVISION = Number(process.env.MYSTUDIO_FORMAL_REVISION);

@@ -23,6 +23,7 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+import os
 
 HARD_TERMS = [
     "江湖", "武林", "大侠", "少侠", "女侠", "侠客", "侠士", "侠义",
@@ -97,7 +98,7 @@ def scan_file(path: Path, terms: list[str], chapter_scope: bool):
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", default="/Users/zhengbingjin/Project/IP/MA")
+    parser.add_argument("--root", default=os.path.expanduser("~/Project/IP/MA"))
     parser.add_argument(
         "--report",
         default=str(Path(__file__).with_name("xianxia-wuxia-scan-report.md")),

@@ -30,9 +30,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageFilter
 
-PROJECT = Path("/Users/zhengbingjin/Project/IP/MA")
+PROJECT = Path.home() / "Project/IP/MA"
 WI = PROJECT / "workflow-images"
-ASSETS = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/assets")
+ASSETS = Path.home() / "Library/Application Support/漫影工作室/assets"
 MAX_SIDE = 1024  # 统一降采样,指标跨图可比且快
 
 

@@ -1,7 +1,7 @@
 /** CDP 单镜重生成+console 捕获(失败镜根因诊断)。用法: node cdp-diagnose-shot.mjs 14 */
 import { createRequire } from "node:module";
-const require = createRequire("/Users/zhengbingjin/Project/Github/MYStudio/apps/");
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const require = createRequire(`${process.env.HOME}/Project/Github/MYStudio/apps/`);
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const N = Number(process.argv[2] || 14);
 
 const list = await (await fetch("http://127.0.0.1:9222/json/list")).json();

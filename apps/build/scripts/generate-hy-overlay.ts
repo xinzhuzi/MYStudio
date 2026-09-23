@@ -9,9 +9,9 @@ import path from "node:path";
 import { ensureBrowser } from "@remotion/renderer";
 import { createHyperFramesAdapter } from "@rendering/plugins/hyperframes/hyperframes-adapter";
 
-const MA = "/Users/zhengbingjin/Project/IP/MA";
-const QUEUE = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json";
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const MA = `${process.env.HOME}/Project/IP/MA`;
+const QUEUE = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json`;
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const CHAPTER_ID = "chapter-001";
 const REV = 49;
 const FPS = 30;

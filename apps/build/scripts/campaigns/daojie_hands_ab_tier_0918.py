@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from daojie_handsfix_run_0917 import BASE, CLIENT, http_json, ui_to_api  # noqa: E402
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 SEED = 20250915
 SUBJECT = ("一位青年女修士，金丹期，气质清冷出尘，肤色温润透亮，五官清隽；"

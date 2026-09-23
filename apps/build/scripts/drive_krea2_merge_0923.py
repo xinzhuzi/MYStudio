@@ -2,7 +2,8 @@
 """融合外置盘 Krea2/krea2-retired-0923 → Krea2/models 并去重(09-23)。
 
 背景:09-23 本地退役的 Krea2 系模型已备份到外置盘 krea2-retired-0923(带 sha256 manifest,
-exit.txt=ALL OK manifest=24);用户随后把整个文件夹挪进 /Volumes/郑冰津/AI/Krea2/ 下,要求融合不重复。
+exit.txt=ALL OK manifest=24);用户随后把整个文件夹挪进外置盘 Krea2/ 下(卷名=真名不入公开仓,
+完整路径见本地档案 ~/.zcode/mystudio-local/external-drive-path.txt),要求融合不重复。
 
 规则(先验证再动手):
 - 重复判定=目标同路径且字节数一致 → 对 models/ 现存件算 sha256 与退役 manifest 比对,
@@ -21,8 +22,14 @@ import json
 import os
 import shutil
 import sys
+from pathlib import Path
 
-ROOT = "/Volumes/郑冰津/AI/Krea2"
+# 外置盘真实卷名不入公开仓:优先环境变量,默认读本地档案首行(=盘根绝对路径)
+ROOT = os.environ.get(
+    "MYSTUDIO_EXTERNAL_DRIVE_ROOT",
+    (Path.home() / ".zcode/mystudio-local/external-drive-path.txt")
+    .read_text(encoding="utf-8").splitlines()[0].strip(),
+) + "/AI/Krea2"
 SRC = os.path.join(ROOT, "krea2-retired-0923")
 MODELS = os.path.join(ROOT, "models")
 MANIFEST = os.path.join(SRC, "manifest.jsonl")

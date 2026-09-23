@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-PROJECT_ROOT = Path("/Users/zhengbingjin/Project/IP/MA")
+PROJECT_ROOT = Path.home() / "Project/IP/MA"
 STORE_DIR = PROJECT_ROOT / "store" / "studio-workflow"
 
 

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { createRemotionRenderJobId } from "@/lib/studio/remotion/remotion-job-identity";
 import type { RemotionRenderJobIdentityV1 } from "@/types/remotion-workspace";
 
-const Q = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json";
+const Q = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json`;
 const q = JSON.parse(fs.readFileSync(Q, "utf8"));
 const jobs = q.jobs ?? q.state?.jobs;
 const ch = jobs.filter((it: { job: { target?: { kind?: string } } }) => it.job.target?.kind === "chapter").pop() as { job: Record<string, unknown> };

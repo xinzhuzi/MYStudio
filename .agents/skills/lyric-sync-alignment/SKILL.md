@@ -50,7 +50,7 @@ metadata:
 ## Reference implementation
 
 - 对齐脚本(参数化、可复跑):本技能 `assets/align_lyrics_whisper.py`。
-- 完整落地案例(2026-08,《劫火燃天》OP MV v3):`/Users/zhengbingjin/Project/temp/劫火燃天/` 下 `_research/steps/06_align_whisper.py`(原始版)+ `mv/src/`(渲染组件)。注意 temp 目录可能被清理,以本技能内脚本为准。
+- 完整落地案例(2026-08,《劫火燃天》OP MV v3):`~/Project/temp/劫火燃天/` 下 `_research/steps/06_align_whisper.py`(原始版)+ `mv/src/`(渲染组件)。注意 temp 目录可能被清理,以本技能内脚本为准。
 
 ## Anti-patterns
 

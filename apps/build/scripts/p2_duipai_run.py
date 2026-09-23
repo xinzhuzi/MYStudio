@@ -37,9 +37,9 @@ from pathlib import Path
 # ---------------------------------------------------------------- 常量(实验口径)
 
 BASE_URL_DEFAULT = "http://127.0.0.1:17000"  # 实测引擎监听端口(argv --port 17000)
-ENGINE_HOME = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui")
+ENGINE_HOME = Path.home() / "Library/Application Support/漫影工作室/comfyui"
 ENGINE_OUT = ENGINE_HOME / "output"
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 WF_T2I_SUPSET = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json"
 WF_EDIT_REF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/3_改图/MY-krea2_edit_ref.json"
 RESULTS_DIR_DEFAULT = Path("/tmp/p2_duipai")

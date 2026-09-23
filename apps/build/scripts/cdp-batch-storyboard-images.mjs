@@ -8,8 +8,8 @@
  * 用法:node cdp-batch-storyboard-images.mjs [--start 44] [--end 82] [--limit 1] [--dry]
  */
 import { createRequire } from "node:module";
-const require = createRequire("/Users/zhengbingjin/Project/Github/MYStudio/apps/");
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const require = createRequire(`${process.env.HOME}/Project/Github/MYStudio/apps/`);
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {

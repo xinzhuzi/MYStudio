@@ -26,8 +26,8 @@ import time
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
-ASSETS = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/assets")
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
+ASSETS = Path.home() / "Library/Application Support/漫影工作室/assets"
 DB = ASSETS / "assets.db"
 PID = "49dce4c1-64b1-42de-85c2-9f266698aec4"
 
@@ -443,7 +443,7 @@ def resolve_legacy(mp: str) -> Path:
     if mp.startswith("project-file://"):
         rest = mp[len("project-file://"):].split("?")[0]
         pid, _, tail = rest.partition("/")
-        root = Path("/Users/zhengbingjin/Project/IP/MA") if pid == PID else Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p") / pid
+        root = Path.home() / "Project/IP/MA" if pid == PID else Path.home() / "Library/Application Support/漫影工作室/projects/_p" / pid
         return root / "/".join(unquote(x) for x in tail.split("/"))
     return Path(unquote(mp))
 

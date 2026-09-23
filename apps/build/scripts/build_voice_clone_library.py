@@ -22,10 +22,10 @@ from typing import Any, Iterable, Sequence
 
 
 EXPECTED_SOURCE_SHA256 = "7b70d8251807c5181b6a1a0b64e32256ec1da5b73f1fc7c75db8cd784c81a760"
-DEFAULT_SOURCE = Path("/Users/zhengbingjin/Downloads/木成.mp3")
-DEFAULT_OUTPUT_ROOT = Path("/Users/zhengbingjin/Documents/音频/800+音色合集/克隆参考音色/木成")
+DEFAULT_SOURCE = Path.home() / "Downloads/木成.mp3"
+DEFAULT_OUTPUT_ROOT = Path.home() / "Documents/音频/800+音色合集/克隆参考音色/木成"
 DEFAULT_PYTHON_RUNTIME = Path(
-    "/Users/zhengbingjin/Library/Application Support/漫影工作室/python/bin/python3.12"
+    os.path.expanduser("~/Library/Application Support/漫影工作室/python/bin/python3.12")
 )
 DEFAULT_TEST_TEXT = "你终于来了。我等了很久，也有很多话想当面告诉你。现在，请听我把事情说完。"
 ACCEPTANCE_CRITICAL_TERMS = ("终于", "很久", "很多话", "当面", "现在", "请听", "事情", "说完")

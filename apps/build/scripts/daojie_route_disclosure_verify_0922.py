@@ -22,16 +22,16 @@ ENGDIR = os.path.join(HOME, "ComfyUI")
 VENV_PY = os.path.join(HOME, "venv/bin/python")
 PORT = 17002
 BASE = f"http://127.0.0.1:{PORT}"
-WF = ("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/"
-      "workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json")
-LEDGER = ("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/"
-          "my_nodes/nodes/daojie_lora_stack.json")
+WF = (os.path.expanduser("~/Project/Github/MYStudio/apps/backend/engines/comfyui/")
+      + "workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json")
+LEDGER = (os.path.expanduser("~/Project/Github/MYStudio/apps/backend/engines/comfyui/")
+          + "my_nodes/nodes/daojie_lora_stack.json")
 SG_ID = "91286f09-71a2-4da6-8e59-3c3cdce6eec2"
 LOG = os.path.expanduser("~/Downloads/daojie_disclosure_verify_engine.log")
 
 _spec = importlib.util.spec_from_file_location(
-    "nf", "/Users/zhengbingjin/Project/Github/MYStudio/apps/build/scripts/campaigns/"
-          "nineform_livefire_0922.py")
+    "nf", os.path.expanduser("~/Project/Github/MYStudio/apps/build/scripts/campaigns/")
+          + "nineform_livefire_0922.py")
 nf = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(nf)
 

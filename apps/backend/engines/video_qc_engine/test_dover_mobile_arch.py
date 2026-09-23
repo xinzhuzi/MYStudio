@@ -17,7 +17,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).parent))
 
 _TEST_VIDEO_CANDIDATES = (
-    Path("/Users/zhengbingjin/Project/IP/MA/backups/legacy-pipeline/exports/chapter-001/道劫_EP01_断剑夜访道口镇.mp4"),
+    Path.home() / "Project/IP/MA/backups/legacy-pipeline/exports/chapter-001/道劫_EP01_断剑夜访道口镇.mp4",
 )
 
 

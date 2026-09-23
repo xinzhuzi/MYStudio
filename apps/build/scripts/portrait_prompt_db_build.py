@@ -2,7 +2,7 @@
 # 出处:2026-09-17 战役产物(人像美学库数据构建);2026-09-22 带日期文件名清整提升为常驻件,幂等可重跑。
 """KOOK 人像美学提示词库构建(09-17 用户令)。
 
-源:/Users/zhengbingjin/Downloads/KOOK人像美学图集提示词分享/(第一期/第二期,
+源:~/Downloads/KOOK人像美学图集提示词分享/(第一期/第二期,
 各 20 对 图.jpg+提示词.txt;图片合规但 163MB 不入仓,只取文本+raw txt 存档)。
 落位:apps/frontend/assets/studio-manuals/portrait_aesthetics/
   README.md            总纲(来源/结构/用法)
@@ -16,7 +16,7 @@ import re
 import shutil
 from pathlib import Path
 
-SRC = Path("/Users/zhengbingjin/Downloads/KOOK人像美学图集提示词分享")
+SRC = Path.home() / "Downloads/KOOK人像美学图集提示词分享"
 REPO = Path(__file__).resolve().parents[3]
 DST = REPO / "docs/prompts/portrait_aesthetics"  # 09-17 用户迁移:不进包体
 

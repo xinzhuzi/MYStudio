@@ -22,12 +22,13 @@ import sqlite3
 import sys
 from pathlib import Path
 from urllib.parse import unquote
+import os
 
-STORE = Path("/Users/zhengbingjin/Project/IP/MA/store/studio-workflow")
-ASSETS = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/assets")
+STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
+ASSETS = Path.home() / "Library/Application Support/漫影工作室/assets"
 DB = ASSETS / "assets.db"
-DATA_ROOT = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/projects")
-REPO = "/Users/zhengbingjin/Project/Github/MYStudio"
+DATA_ROOT = Path.home() / "Library/Application Support/漫影工作室/projects"
+REPO = os.path.expanduser("~/Project/Github/MYStudio")
 FRAME_NEGATIVE_BUDGET = 686  # 手册分镜负面固定段,不计入正文长度门
 PROMPT_GATE = 800
 PREFIXES = ("监工", "管事", "老", "年轻", "小", "断臂")

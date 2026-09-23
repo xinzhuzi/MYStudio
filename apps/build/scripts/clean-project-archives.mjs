@@ -26,7 +26,7 @@ const flag = (name, fallback) => {
 };
 const APPLY = args.includes("--apply");
 const PROJECT = path.resolve(
-  flag("project", "/Users/zhengbingjin/Project/IP/MA"),
+  flag("project", `${process.env.HOME}/Project/IP/MA`),
 );
 const KEEP_REVISIONS = Number(flag("keep-revisions", "2"));
 const BAK_DAYS = Number(flag("bak-days", "3"));

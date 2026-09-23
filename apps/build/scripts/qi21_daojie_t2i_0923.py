@@ -42,13 +42,19 @@
              [162][163] RGBA 公式拼接(头+装配全文+尾)→[141] 提示词开关
   行3 y=1060 画幅联动:[151][152] 正则取宽高比→[153][154] 转数→[155][156]
              公式求宽高→[157][158] 双 INT 开关(默认走 [150] 九型 W/H)
-  行4 y=1560 编码输出:[142] 主编码→[143] RGBA编码→[144] RGBA开关
-  group 只框 装配路由(行2) 与 画幅联动(行3) 两处真机构(≤2)。
+  行4 y=1560 编码输出:[143] RGBA编码→[142] 主编码→[144] RGBA开关(09-24 整治
+             改序:与行2 尾段 [163]→[141] 同序,两条长降线平行不互交)
+  group 三阶段+画幅联动共 4 框,全 int id 互异,各框单一阶段行边到边罩满(≤4)。
+  09-24 布局整治:W/H·pe_clip·画幅联动开关长驱线走顶部 Reroute 通道(y=-200/
+  -160/-120/-80 分层互不相交);clip 自行4 槽位高度带上方平入,vae/RGBA开关 IO
+  落行4 下缘带自下而入;
+  主图 UNET/VAE 两长横穿走上顶缘通道;Reroute 序列化=K2-角色设定-道劫.json 样板。
 
 自查(写盘后必跑,任一失败退出码 1):json.loads 往返 / 主图+子图 link 双向一致 /
-主图+子图横向排版(每条连线 target.x>origin.x;边界线以 IO 槽 pos 为端点)/
-子图四行排版(按 y 分行恰 4 行=四阶段、行间净距≥100、行内 x 严格递增;group
-各框单一阶段行全部节点)/ 主图+子图节点零重叠 / group 预算(子图≤2、主图≤3)/
+主图+子图横向排版(每条连线 target.x>origin.x,含 Reroute 段;边界线以 IO 槽 pos 为
+端点)/ 子图四行排版(按 y 分行恰 4 行=四阶段、Reroute 拐点不占行、行间净距≥100、
+行内 x 严格递增;group 各框单一阶段行全部节点)/ 主图+子图节点零重叠 / group 预算
+(子图≤4、主图≤3)/
 主图+子图 group 全 int id / 子图 IO linkIds 逐项登记(契约铁律)/ 道劫字号 /
 MyQi21DaojieBase 在场+combo 默认人物+qi21_bases.json↔05 库逐字互锁 / 锁层A 恒挂
 且逐字=库 / 级联退役(子图开关恰 4 枚=提示词/RGBA/宽高双联)/ 干跑默认装配
@@ -130,9 +136,18 @@ RATIO_RW_ID, RATIO_RH_ID = 151, 152                        # 正则取宽/高比
 CONV_RW_ID, CONV_RH_ID = 153, 154                          # 字串→数
 MATH_W_ID, MATH_H_ID = 155, 156                            # 公式求宽/高
 SW_W_ID, SW_H_ID = 157, 158                               # 宽/高联动开关(INT)
+# 布局整治 Reroute 节点(09-24;序列化样板=K2-角色设定-道劫.json 顶层级)
+RR_PE_ID = 170                                             # pe_clip 顶通道(y=-160)
+RR_W_A_ID, RR_W_B_ID = 171, 172                            # WIDTH 通道(升/顶横 y=-80)
+RR_H_A_ID, RR_H_B_ID = 173, 174                            # HEIGHT 通道(升/顶横 y=-120)
+RR_SW10_ID = 175                                           # 画幅开关→[157](最顶 y=-200 通道,单拐点)
+RR_SW11_ID = 176                                           # 画幅开关→[158](最顶 y=-200 通道,单拐点)
 HOST_ID = 40                                               # 主图子图宿主
 SUBJECT_ID, PREVIEW_ID = 24, 27                            # 主图外露主体句/装配预览
 LATENT_ID, SAMPLER_ID = 5, 7                               # 主图空潜/KSampler
+# 主图通道 Reroute(09-24 整治:UNET→KSampler 与 VAE→VAEDecode 两长横穿上顶缘通道)
+RR_M8A_ID, RR_M8B_ID = 20, 21                              # link8 通道(y=-620)
+RR_M10A_ID, RR_M10B_ID = 22, 23                            # link10 通道(y=-560)
 
 # 宿主 widget 型子图输入(槽序=inputs 数组序;widgets_values 按此序)
 WIDGET_INPUTS = [
@@ -305,6 +320,29 @@ def _concatenate(nid: int, title: str, a_link: int, b_link: int, out_links: list
     }
 
 
+def _reroute(nid: int, pos: list, in_link: int, out_link: int, typ: str) -> dict:
+    """Reroute 通道拐点(序列化逐字段=K2-角色设定-道劫.json 顶层级实取样板)。"""
+    return {
+        "id": nid, "type": "Reroute", "pos": pos, "size": [75, 26],
+        "flags": {}, "order": 0, "mode": 0,
+        "inputs": [{"name": "", "type": "*", "link": in_link}],
+        "outputs": [{"name": "", "type": typ, "links": [out_link]}],
+        "properties": {"showOutputText": False, "horizontal": False},
+    }
+
+
+def _trace_origin(i_links: dict, i_nodes: dict, lid: int) -> int:
+    """沿 link 反向溯源,穿过 Reroute 通道拐点回到实源节点 id(-10 边界照实返回)。"""
+    seen = set()
+    while True:
+        l = i_links[lid]
+        oid = l["origin_id"]
+        if oid == -10 or i_nodes[oid]["type"] != "Reroute" or oid in seen:
+            return oid
+        seen.add(oid)
+        lid = i_nodes[oid]["inputs"][0]["link"]
+
+
 # ── 子图构建 ────────────────────────────────────────────────────────
 def _internal_link(lid: int, oid: int, oslot: int, tid: int, tslot: int, typ: str) -> dict:
     return {"id": lid, "origin_id": oid, "origin_slot": oslot,
@@ -313,27 +351,37 @@ def _internal_link(lid: int, oid: int, oslot: int, tid: int, tslot: int, typ: st
 
 def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     """返回 (subgraph 定义, 内部 link 对象表)。"""
-    # 布局(design §12:从上到下=阶段行、行内从左到右;group ≤2):
+    # 布局(design §12:从上到下=阶段行、行内从左到右;三阶段+画幅联动 4 框全 int id):
     #   行1 y=0    源行:[150] 底座九选一/[110] 锁层A/[160][161] RGBA 头尾/[140] PE 改写
     #   行2 y=560  装配路由:[130] 拼接①→[131] 拼接②→[162][163] RGBA 公式拼接→[141] 开关
     #   行3 y=1060 画幅联动:[151][152] 正则→[153][154] 转数→[155][156] 公式→[157][158] 双开关
-    #   行4 y=1560 编码输出:[142] 主编码→[143] RGBA 编码→[144] RGBA 开关
-    # 行距=上行最高节点底+≥100;行内节点零重叠;每条连线 target.x>origin.x(全局含跨行)。
+    #   行4 y=1560 编码输出:[143] RGBA 编码→[142] 主编码→[144] RGBA 开关(与行2 尾段同序)
+    # 行距=上行最高节点底+≥100;行内节点零重叠;每条连线 target.x>origin.x(全局含跨行
+    # 与 Reroute 通道段);长驱线通道分层 y=-200/-160/-120/-80 互不相交。
     ROW_Y = (0, 560, 1060, 1560)
 
+    # 布局整治(09-24):长驱线走 Reroute 通道(序列化=K2-角色设定-道劫.json 顶层级样板,
+    # size[75,26]/inputs type "*"//outputs 具型,可进子图,对象格式 link 以 reroute id 记账):
+    #   pe_clip IO→RR_pe(顶部 y=-160 通道)→[140].clip;
+    #   [150].W/H→RRa(升)→RRb(顶横 y=-80/-120,分层不互交)→[157]/[158].on_false;
+    #   画幅联动开关 IO→RR10/RR11(最顶 y=-200 通道)→[157]/[158].switch。
+    # 原 link id 留给边界侧/落点侧段(5/10/11 恒为 -10 出线,38/39 恒为入 [157]/[158] 段)。
     links: list[dict] = []
-    # -10 扇出(边界线 id 1-11)
+    # -10 扇出(边界线 id 1-11;5/10/11 的 -10 段直连各自通道首 Reroute)
     links.append(_internal_link(1, -10, 0, TE_ID, 0, "CLIP"))            # clip → 主编码
     links.append(_internal_link(2, -10, 0, TE_RGBA_ID, 0, "CLIP"))       # clip → RGBA 编码
     links.append(_internal_link(3, -10, 1, TE_ID, 2, "VAE"))             # vae → 主编码
     links.append(_internal_link(4, -10, 1, TE_RGBA_ID, 2, "VAE"))        # vae → RGBA 编码
-    links.append(_internal_link(5, -10, 2, PE_RW_ID, 0, "CLIP"))         # pe_clip → PE 改写
+    links.append(_internal_link(5, -10, 2, RR_PE_ID, 0, "CLIP"))         # pe_clip → RR_pe(顶通道)
+    links.append(_internal_link(45, RR_PE_ID, 0, PE_RW_ID, 0, "CLIP"))   # RR_pe → PE 改写
     links.append(_internal_link(6, -10, 3, CONCAT1_ID, 0, "STRING"))     # 主体句 → 拼接①.string_a
     links.append(_internal_link(7, -10, 4, BASE_ID, 0, "COMBO"))         # 型选择 → MyQi21DaojieBase.base
     links.append(_internal_link(8, -10, 5, PE_SW_ID, 2, "BOOLEAN"))      # PE改写开关 → [141].switch
     links.append(_internal_link(9, -10, 6, RGBA_SW_ID, 2, "BOOLEAN"))    # RGBA透明开关 → [144].switch
-    links.append(_internal_link(10, -10, 7, SW_W_ID, 2, "BOOLEAN"))      # 画幅联动开关 → [157].switch
-    links.append(_internal_link(11, -10, 7, SW_H_ID, 2, "BOOLEAN"))      # 画幅联动开关 → [158].switch
+    links.append(_internal_link(10, -10, 7, RR_SW10_ID, 0, "BOOLEAN"))  # 画幅联动开关 → RR10(顶通道)
+    links.append(_internal_link(50, RR_SW10_ID, 0, SW_W_ID, 2, "BOOLEAN"))    # → [157].switch
+    links.append(_internal_link(11, -10, 7, RR_SW11_ID, 0, "BOOLEAN"))  # 画幅联动开关 → RR11(顶通道)
+    links.append(_internal_link(51, RR_SW11_ID, 0, SW_H_ID, 2, "BOOLEAN"))    # → [158].switch
     # 装配链(12-17)
     links.append(_internal_link(12, BASE_ID, 0, CONCAT1_ID, 1, "STRING"))   # BASE → 拼接①.string_b
     links.append(_internal_link(13, LOCK_ID, 0, CONCAT2_ID, 1, "STRING"))   # 锁层A 恒挂 → 拼接②
@@ -364,11 +412,16 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     links.append(_internal_link(35, CONV_RH_ID, 1, MATH_H_ID, 1, "INT"))
     links.append(_internal_link(36, MATH_W_ID, 1, SW_W_ID, 1, "INT"))          # 公式宽 → on_true
     links.append(_internal_link(37, MATH_H_ID, 1, SW_H_ID, 1, "INT"))
-    links.append(_internal_link(38, BASE_ID, 1, SW_W_ID, 0, "INT"))            # 九型 WIDTH → on_false
-    links.append(_internal_link(39, BASE_ID, 2, SW_H_ID, 0, "INT"))            # 九型 HEIGHT → on_false
+    # 九型 WIDTH/HEIGHT → 顶部通道(每线两拐点:升→顶横→降,全程右向)→ on_false
+    links.append(_internal_link(46, BASE_ID, 1, RR_W_A_ID, 0, "INT"))
+    links.append(_internal_link(47, RR_W_A_ID, 0, RR_W_B_ID, 0, "INT"))
+    links.append(_internal_link(38, RR_W_B_ID, 0, SW_W_ID, 0, "INT"))
+    links.append(_internal_link(48, BASE_ID, 2, RR_H_A_ID, 0, "INT"))
+    links.append(_internal_link(49, RR_H_A_ID, 0, RR_H_B_ID, 0, "INT"))
+    links.append(_internal_link(39, RR_H_B_ID, 0, SW_H_ID, 0, "INT"))
     links.append(_internal_link(40, SW_W_ID, 0, -20, 3, "INT"))                # → 输出 width
     links.append(_internal_link(41, SW_H_ID, 0, -20, 4, "INT"))                # → 输出 height
-    assert [l["id"] for l in links] == list(range(1, 42))
+    assert sorted(l["id"] for l in links) == list(range(1, 42)) + list(range(45, 52))
 
     nodes: list[dict] = []
     # 行1 源行
@@ -381,8 +434,8 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         ],
         "outputs": [
             {"name": "BASE", "type": "STRING", "links": [12]},
-            {"name": "WIDTH", "type": "INT", "links": [38]},
-            {"name": "HEIGHT", "type": "INT", "links": [39]},
+            {"name": "WIDTH", "type": "INT", "links": [46]},
+            {"name": "HEIGHT", "type": "INT", "links": [48]},
             {"name": "型名", "type": "STRING", "links": None},
         ],
         "properties": {"Node name for S&R": "MyQi21DaojieBase"},
@@ -402,7 +455,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         "title": "道劫·PE改写(短句→英文长文,默认旁路;参数=插件官方 README 推荐值)",
         "pos": [1880, ROW_Y[0]], "size": [440, 340], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
-            {"name": "clip", "type": "CLIP", "link": 5},
+            {"name": "clip", "type": "CLIP", "link": 45},
             {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": None},
             {"name": "temperature", "type": "FLOAT", "widget": {"name": "temperature"}, "link": None},
             {"name": "top_p", "type": "FLOAT", "widget": {"name": "top_p"}, "link": None},
@@ -422,19 +475,20 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         "widgets_values": [PE_SEED_PROMPT, *PE_PARAMS],
     })
 
-    # 行2 装配路由
+    # 行2 装配路由(09-24 整治:与行1 源行一一对齐改序,[163]收拢到1880 使 [141] 紧随其后,
+    # PE改写开关水平线不再被 [163]→[143] 下降线截断)
     nodes.append(_concatenate(
         CONCAT1_ID, "装配拼接①(主体句+BASE;delimiter=\\n)", 6, 12, [14], [100, ROW_Y[1]]))
     nodes.append(_concatenate(
         CONCAT2_ID, "装配拼接②(+通用锁层恒挂;delimiter=\\n)", 14, 13, [15, 24], [560, ROW_Y[1]]))
     nodes.append(_concatenate(
         RGBA_CAT1_ID, "RGBA公式拼接①(官方头句+装配全文;delimiter=空格)", 23, 24, [25],
-        [1880, ROW_Y[1]], delimiter=" "))
+        [1440, ROW_Y[1]], delimiter=" "))
     nodes.append(_concatenate(
         RGBA_CAT2_ID, "RGBA公式拼接②(+官方尾句;delimiter=空格)", 25, 26, [27],
-        [2340, ROW_Y[1]], delimiter=" "))
+        [1880, ROW_Y[1]], delimiter=" "))
     nodes.append(_switch(
-        PE_SW_ID, "提示词开关(false=直写装配 / true=PE扩写)", 15, 16, 8, [17, 22], [2820, ROW_Y[1]]))
+        PE_SW_ID, "提示词开关(false=直写装配 / true=PE扩写)", 15, 16, 8, [17, 22], [2280, ROW_Y[1]]))
 
     # 行3 画幅联动(默认关;序列化口径=官方 blueprint RegexExtract/ComfyNumberConvert/
     # ComfyMathExpression 实证:正则 7 槽全 widget、转数单槽无 widget、公式 values.a/b+expression)
@@ -485,21 +539,22 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
             "widgets_values": [expr],
         }
 
+    # 行3 画幅联动(09-24 整治:整行右移到 [141]→[142] 长降线右侧,wh 两线恒在其上方平行不互交)
     nodes.append(_regex(RATIO_RW_ID, "PE建议画幅·取宽比(如 16:9→16)", RATIO_W_PATTERN, 28, 30,
-                        [1900, ROW_Y[2]]))
+                        [4000, ROW_Y[2]]))
     nodes.append(_regex(RATIO_RH_ID, "PE建议画幅·取高比(如 16:9→9)", RATIO_H_PATTERN, 29, 31,
-                        [2280, ROW_Y[2]]))
-    nodes.append(_convert(CONV_RW_ID, "宽比转数", 30, [32, 34], [2660, ROW_Y[2]]))
+                        [4380, ROW_Y[2]]))
+    nodes.append(_convert(CONV_RW_ID, "宽比转数", 30, [32, 34], [4760, ROW_Y[2]]))
     # [154] 高比转数:出两线(→[155].b 与 →[156].b)
-    nodes.append(_convert(CONV_RH_ID, "高比转数", 31, [33, 35], [2940, ROW_Y[2]]))
+    nodes.append(_convert(CONV_RH_ID, "高比转数", 31, [33, 35], [5040, ROW_Y[2]]))
     nodes.append(_math(MATH_W_ID, "PE建议宽(4.2MP·8倍数取整)", MATH_W_EXPR, 32, 33, 36,
-                       [3220, ROW_Y[2]]))
+                       [5320, ROW_Y[2]]))
     nodes.append(_math(MATH_H_ID, "PE建议高(4.2MP·8倍数取整)", MATH_H_EXPR, 34, 35, 37,
-                       [3600, ROW_Y[2]]))
-    nodes.append(_switch(SW_W_ID, "宽联动开关(false=九型WIDTH / true=PE建议宽)", 38, 36, 10, [40],
-                         [3980, ROW_Y[2]], typ="INT"))
-    nodes.append(_switch(SW_H_ID, "高联动开关(false=九型HEIGHT / true=PE建议高)", 39, 37, 11, [41],
-                         [4400, ROW_Y[2]], typ="INT"))
+                       [5730, ROW_Y[2]]))
+    nodes.append(_switch(SW_W_ID, "宽联动开关(false=九型WIDTH / true=PE建议宽)", 38, 36, 50, [40],
+                         [6080, ROW_Y[2]], typ="INT"))
+    nodes.append(_switch(SW_H_ID, "高联动开关(false=九型HEIGHT / true=PE建议高)", 39, 37, 51, [41],
+                         [6500, ROW_Y[2]], typ="INT"))
 
     # 行4 编码输出
     def _textencode(nid: int, title: str, pos: list, clip_l: int, vae_l: int,
@@ -523,25 +578,46 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
             "widgets_values": [prompt_text, "", 1024],
         }
 
-    nodes.append(_textencode(TE_ID, "主编码(prompt 接提示词开关)", [2840, ROW_Y[3]], 1, 3, 17, "", [18]))
+    # 行4 编码输出(09-24 整治:改序 [143]→[142]→[144],与行2 尾段([163]→[141])同序,
+    # 两条长下降线 [163]→[143]/[141]→[142] 平行不换位互交归零)
     nodes.append(_textencode(TE_RGBA_ID, "RGBA编码(官方公式拼接路,默认旁路)",
-                             [3320, ROW_Y[3]], 2, 4, 27, "", [19]))
+                             [3800, ROW_Y[3]], 2, 4, 27, "", [19]))
+    nodes.append(_textencode(TE_ID, "主编码(prompt 接提示词开关)", [4300, ROW_Y[3]], 1, 3, 17, "", [18]))
     nodes.append(_switch(
         RGBA_SW_ID, "RGBA开关(false=普通 / true=透明,透明图存PNG)", 18, 19, 9, [20],
-        [3800, ROW_Y[3]], typ="CONDITIONING"))
+        [4780, ROW_Y[3]], typ="CONDITIONING"))
+
+    # 通道 Reroute 拐点(09-24 整治:坐标全部代码算,通道分层 y=-200/-160/-120/-80 互不相交;
+    # 拐点 x 避让各通道水平段端点,降线不穿他通道)
+    nodes.append(_reroute(RR_PE_ID, [350, -160], 5, 45, "CLIP"))
+    nodes.append(_reroute(RR_W_A_ID, [1050, -80], 46, 47, "INT"))
+    nodes.append(_reroute(RR_W_B_ID, [3900, -80], 47, 38, "INT"))
+    nodes.append(_reroute(RR_H_A_ID, [800, -120], 48, 49, "INT"))
+    nodes.append(_reroute(RR_H_B_ID, [4550, -120], 49, 39, "INT"))
+    nodes.append(_reroute(RR_SW10_ID, [4450, -200], 10, 50, "BOOLEAN"))
+    nodes.append(_reroute(RR_SW11_ID, [5900, -200], 11, 51, "BOOLEAN"))
 
     for order, n in enumerate(nodes):
         n["order"] = order
 
-    # 内部分组(≤2:只框 装配路由(行2) 与 画幅联动(行3) 两处真机构;源行/编码行形态自明不框)
+    # 内部分组(09-24 整治:三阶段+画幅联动共 4 框,全 int id 互异,各框单一阶段行边到边罩满;
+    # 通道 Reroute 拐点留框间带,不入框)
     groups: list[dict] = [
         {
-            "id": 1, "title": "道劫·装配拼接与提示词路由(拼接①② delimiter=\\n 分层;RGBA 官方头尾公式拼接;PE 改写默认旁路)",
-            "bounding": [80, ROW_Y[1] - 70, 3180, 320], "color": "#a1309b", "flags": {},
+            "id": 1, "title": "道劫·底座装配(行1 源行:九选一底座+锁层A恒挂+RGBA官方头尾+PE改写默认旁路)",
+            "bounding": [0, -40, 2380, 500], "color": "#3f789e", "flags": {},
         },
         {
-            "id": 2, "title": "道劫·PE画幅联动(默认关=false 九型宽高直驱;开=wh_ratio 建议 4.2MP 接管,PE 组随之拉入执行)",
-            "bounding": [1880, ROW_Y[2] - 70, 2960, 320], "color": "#4d9e6a", "flags": {},
+            "id": 2, "title": "道劫·PE 路由(行2:拼接①② delimiter=\\n 分层;RGBA 公式拼接;提示词开关 false=直写)",
+            "bounding": [60, 520, 2660, 280], "color": "#a1309b", "flags": {},
+        },
+        {
+            "id": 3, "title": "道劫·画幅联动(行3:默认关=九型宽高直驱;开=wh_ratio 建议 4.2MP 接管,PE 组随之拉入执行)",
+            "bounding": [3960, 1020, 2980, 300], "color": "#4d9e6a", "flags": {},
+        },
+        {
+            "id": 4, "title": "道劫·编码输出(行4:主编码+RGBA编码(官方公式路,默认旁路)+RGBA开关)",
+            "bounding": [3760, 1520, 1450, 400], "color": "#886", "flags": {},
         },
     ]
 
@@ -561,34 +637,35 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         "b2f3a4c5-0004-4b04-8f04-3c5f81b56b04",  # out-3 width
         "b2f3a4c5-0005-4b05-8f05-3c5f81b56b05",  # out-4 height
     ]
-    # IO 槽 pos 随消费/供给行(左边界列 x=-196/右边界列 x=4940,「行向右」硬约束两端成立)
+    # IO 槽 pos(09-24 整治:pe_clip/画幅联动开关上顶通道口;clip 自行4 槽位高度带上方平入,
+    # vae/RGBA开关 落行4 下缘带自下而入;左边界列 x=-196/右边界列按各出线行深分布)
     inputs = [
-        {"id": _IO_IDS[0], "name": "clip", "type": "CLIP", "linkIds": [1, 2], "pos": [-196, 1580]},
-        {"id": _IO_IDS[1], "name": "vae", "type": "VAE", "linkIds": [3, 4], "pos": [-196, 1600]},
-        {"id": _IO_IDS[2], "name": "pe_clip", "type": "CLIP", "linkIds": [5], "pos": [-196, 60]},
-        {"id": _IO_IDS[3], "name": "主体句", "type": "STRING", "linkIds": [6], "pos": [-196, 620]},
+        {"id": _IO_IDS[0], "name": "clip", "type": "CLIP", "linkIds": [1, 2], "pos": [-196, 1560]},
+        {"id": _IO_IDS[1], "name": "vae", "type": "VAE", "linkIds": [3, 4], "pos": [-196, 1950]},
+        {"id": _IO_IDS[2], "name": "pe_clip", "type": "CLIP", "linkIds": [5], "pos": [-196, -160]},
+        {"id": _IO_IDS[3], "name": "主体句", "type": "STRING", "linkIds": [6], "pos": [-196, 600]},
         {"id": _IO_IDS[4], "name": "型选择", "type": "COMBO", "linkIds": [7], "pos": [-196, 20]},
-        {"id": _IO_IDS[5], "name": "PE改写开关", "type": "BOOLEAN", "linkIds": [8], "pos": [-196, 640]},
-        {"id": _IO_IDS[6], "name": "RGBA透明开关", "type": "BOOLEAN", "linkIds": [9], "pos": [-196, 1620]},
-        {"id": _IO_IDS[7], "name": "画幅联动开关", "type": "BOOLEAN", "linkIds": [10, 11], "pos": [-196, 1120]},
+        {"id": _IO_IDS[5], "name": "PE改写开关", "type": "BOOLEAN", "linkIds": [8], "pos": [-196, 660]},
+        {"id": _IO_IDS[6], "name": "RGBA透明开关", "type": "BOOLEAN", "linkIds": [9], "pos": [-196, 2000]},
+        {"id": _IO_IDS[7], "name": "画幅联动开关", "type": "BOOLEAN", "linkIds": [10, 11], "pos": [-196, -200]},
     ]
     outputs = [
-        {"id": _IO_IDS[8], "name": "positive", "type": "CONDITIONING", "linkIds": [20], "pos": [4940, 1580]},
-        {"id": _IO_IDS[9], "name": "negative", "type": "CONDITIONING", "linkIds": [21], "pos": [4940, 1600]},
-        {"id": _IO_IDS[10], "name": "prompt", "type": "STRING", "linkIds": [22], "pos": [4940, 1620]},
-        {"id": _IO_IDS[11], "name": "width", "type": "INT", "linkIds": [40], "pos": [4940, 1120]},
-        {"id": _IO_IDS[12], "name": "height", "type": "INT", "linkIds": [41], "pos": [4940, 1140]},
+        {"id": _IO_IDS[8], "name": "positive", "type": "CONDITIONING", "linkIds": [20], "pos": [6900, 1580]},
+        {"id": _IO_IDS[9], "name": "negative", "type": "CONDITIONING", "linkIds": [21], "pos": [6900, 1640]},
+        {"id": _IO_IDS[10], "name": "prompt", "type": "STRING", "linkIds": [22], "pos": [2800, 620]},
+        {"id": _IO_IDS[11], "name": "width", "type": "INT", "linkIds": [40], "pos": [6900, 1120]},
+        {"id": _IO_IDS[12], "name": "height", "type": "INT", "linkIds": [41], "pos": [6900, 1140]},
     ]
 
     sg = {
         "id": SG_UUID,
         "version": 1,
-        "state": {"lastGroupId": 2, "lastNodeId": 163, "lastLinkId": 41, "lastRerouteId": 0},
+        "state": {"lastGroupId": 4, "lastNodeId": 176, "lastLinkId": 51, "lastRerouteId": 7},
         "revision": 1,
         "config": {"defaultIOState": {}},
         "name": "[40] 道劫·装配子图(底座九选一+通用锁层+四层装配+PE/RGBA/画幅联动路由;双击进入)",
-        "inputNode": {"id": -10, "bounding": [-320, 0, 160, 1660]},
-        "outputNode": {"id": -20, "bounding": [4860, 1080, 160, 600]},
+        "inputNode": {"id": -10, "bounding": [-320, -260, 160, 2340]},
+        "outputNode": {"id": -20, "bounding": [2760, 560, 4200, 1200]},
         "inputs": inputs,
         "outputs": outputs,
         "widgets": [truth["types"][0]["subject"], DEFAULT_TYPE, False, False, False],
@@ -663,7 +740,7 @@ def build_main(truth: dict, sg: dict) -> dict:
             "title": "[7] 道劫·KSampler(40步·cfg1;seed 外露)",
             "pos": [300, -400], "size": [330, 260], "flags": {}, "order": 6, "mode": 0,
             "inputs": [
-                {"name": "model", "type": "MODEL", "link": 8},
+                {"name": "model", "type": "MODEL", "link": 20},
                 {"name": "positive", "type": "CONDITIONING", "link": 16},
                 {"name": "negative", "type": "CONDITIONING", "link": 17},
                 {"name": "latent_image", "type": "LATENT", "link": 5},
@@ -678,7 +755,7 @@ def build_main(truth: dict, sg: dict) -> dict:
             "pos": [700, -400], "size": [240, 50], "flags": {}, "order": 7, "mode": 0,
             "inputs": [
                 {"name": "samples", "type": "LATENT", "link": 9},
-                {"name": "vae", "type": "VAE", "link": 10},
+                {"name": "vae", "type": "VAE", "link": 22},
             ],
             "outputs": [{"name": "IMAGE", "type": "IMAGE", "links": [11]}],
             "properties": {"Node name for S&R": "VAEDecode"},
@@ -695,7 +772,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": 10, "type": "MarkdownNote",
             "title": "[10] 道劫·用法速查(装配子图版·MyQi21DaojieBase 总装轮)",
-            "pos": [-1980, 620], "size": [900, 1500], "flags": {}, "order": 9, "mode": 0,
+            "pos": [-1220, 620], "size": [900, 1500], "flags": {}, "order": 9, "mode": 0,
             "inputs": [], "outputs": [],
             "properties": {},
             "widgets_values": [NOTE_TEXT],
@@ -756,6 +833,13 @@ def build_main(truth: dict, sg: dict) -> dict:
                                  for i, (name, _t) in enumerate(WIDGET_INPUTS)},
     }
     nodes.append(host)
+    # 顶缘通道 Reroute(09-24 整治:两条长横穿改走 y=-640/-560/-540 顶通道分层,列表格式
+    # link 记账=K2-角色设定-道劫.json 顶层级样板;原 link id 8/10 留给加载器出线段;
+    # 拐点 x 錯开使降线不穿他通道水平段,拐点盒(est 250×88)互不重叠)
+    nodes.append(_reroute(RR_M8A_ID, [-1200, -540], 8, 19, "MODEL"))
+    nodes.append(_reroute(RR_M8B_ID, [-50, -540], 19, 20, "MODEL"))
+    nodes.append(_reroute(RR_M10A_ID, [-1130, -640], 10, 21, "VAE"))
+    nodes.append(_reroute(RR_M10B_ID, [420, -560], 21, 22, "VAE"))
     for order, n in enumerate(nodes):
         n["order"] = order
     g["nodes"] = nodes
@@ -764,9 +848,13 @@ def build_main(truth: dict, sg: dict) -> dict:
         [1, HOST_ID, 3, LATENT_ID, 0, "INT"],
         [2, HOST_ID, 4, LATENT_ID, 1, "INT"],
         [5, LATENT_ID, 0, SAMPLER_ID, 3, "LATENT"],
-        [8, 1, 0, SAMPLER_ID, 0, "MODEL"],
+        [8, 1, 0, RR_M8A_ID, 0, "MODEL"],
+        [19, RR_M8A_ID, 0, RR_M8B_ID, 0, "MODEL"],
+        [20, RR_M8B_ID, 0, SAMPLER_ID, 0, "MODEL"],
         [9, SAMPLER_ID, 0, 8, 0, "LATENT"],
-        [10, 3, 0, 8, 1, "VAE"],
+        [10, 3, 0, RR_M10A_ID, 0, "VAE"],
+        [21, RR_M10A_ID, 0, RR_M10B_ID, 0, "VAE"],
+        [22, RR_M10B_ID, 0, 8, 1, "VAE"],
         [11, 8, 0, 9, 0, "IMAGE"],
         [12, 2, 0, HOST_ID, 0, "CLIP"],
         [13, 3, 0, HOST_ID, 1, "VAE"],
@@ -860,18 +948,21 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if not tx > ox:
             errs.append(f"子图 link{l['id']}: 纵向塔违规")
 
-    # 3b. 行排版(design §12):子图按 y 分行恰 4 行=四阶段(源/装配路由/画幅联动/编码输出);
-    #     行间净距≥100;行内 x 严格递增(数组序=数据流序);主图+子图节点矩形零重叠;
-    #     group 预算 子图≤2/主图≤3(泛滥即病);group 各框单一阶段行全部节点
+    # 3b. 行排版(design §12):子图按 y 分行恰 4 行=四阶段(源/装配路由/画幅联动/编码输出;
+    #     通道 Reroute 拐点不占行);行间净距≥100;行内 x 严格递增(数组序=数据流序);
+    #     主图+子图节点矩形零重叠;group 预算 子图≤4(三阶段+画幅联动)/主图≤3(泛滥即病);
+    #     group 各框单一阶段行全部节点
     sg_rows: dict[int, list[int]] = {}
     for n in sg["nodes"]:
+        if n["type"] == "Reroute":
+            continue  # 通道拐点不占阶段行
         sg_rows.setdefault(n["pos"][1], []).append(n["id"])
     row_ys = sorted(sg_rows)
     want_rows = [
         [BASE_ID, LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID, PE_RW_ID],
         [CONCAT1_ID, CONCAT2_ID, RGBA_CAT1_ID, RGBA_CAT2_ID, PE_SW_ID],
         [RATIO_RW_ID, RATIO_RH_ID, CONV_RW_ID, CONV_RH_ID, MATH_W_ID, MATH_H_ID, SW_W_ID, SW_H_ID],
-        [TE_ID, TE_RGBA_ID, RGBA_SW_ID],
+        [TE_RGBA_ID, TE_ID, RGBA_SW_ID],
     ]
     if len(row_ys) != 4:
         errs.append(f"子图应恰 4 行(源/装配路由/画幅联动/编码),得 {len(row_ys)} 行")
@@ -892,14 +983,14 @@ def self_check(g: dict, truth: dict) -> list[str]:
                 if (a["pos"][0] < b["pos"][0] + b["size"][0] and b["pos"][0] < a["pos"][0] + a["size"][0]
                         and a["pos"][1] < b["pos"][1] + b["size"][1] and b["pos"][1] < a["pos"][1] + a["size"][1]):
                     errs.append(f"{scope} node{a['id']} 与 node{b['id']} 矩形重叠")
-    if len(sg["groups"]) > 2:
-        errs.append(f"子图 group 预算超限(≤2),得 {len(sg['groups'])}")
+    if len(sg["groups"]) > 4:
+        errs.append(f"子图 group 预算超限(≤4),得 {len(sg['groups'])}")
     if len(g["groups"]) > 3:
         errs.append(f"主图 group 预算超限(≤3),得 {len(g['groups'])}")
     for grp in sg["groups"]:
         gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
         gx1, gy1 = gx0 + grp["bounding"][2], gy0 + grp["bounding"][3]
-        inside = [n for n in sg["nodes"]
+        inside = [n for n in sg["nodes"] if n["type"] != "Reroute"
                   if gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
                   and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1]
         if not inside:
@@ -924,7 +1015,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if "道劫" not in sg["name"]:
         errs.append("子图 name 缺道劫字号")
     for n in g["nodes"]:
-        if n["type"] != "MarkdownNote" and "道劫" not in (n.get("title") or ""):
+        if n["type"] not in ("MarkdownNote", "Reroute") and "道劫" not in (n.get("title") or ""):
             errs.append(f"主图 node{n['id']} 标题缺道劫字号: {n.get('title')!r}")
 
     # 5. 宿主结构:type/properties.subgraph=uuid;输入槽序与子图 inputs 对齐;widget 值
@@ -940,12 +1031,15 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append("[40] 宿主 widgets_values 应=[人物例一主体句, 人物, False×3](型选择默认人物/三开关默认关)")
 
     # 6. 外部接线:加载器/主体句→宿主;宿主→空潜宽高/KSampler/预览;主图无平铺装配件
+    #    (09-24 整治:link8/10 走顶缘 Reroute 通道,锚定通道首尾段)
     ext_want = [
         (12, 2, 0, HOST_ID, 0, "CLIP"), (13, 3, 0, HOST_ID, 1, "VAE"),
         (14, 11, 0, HOST_ID, 2, "CLIP"), (15, SUBJECT_ID, 0, HOST_ID, 3, "STRING"),
         (1, HOST_ID, 3, LATENT_ID, 0, "INT"), (2, HOST_ID, 4, LATENT_ID, 1, "INT"),
         (16, HOST_ID, 0, SAMPLER_ID, 1, "CONDITIONING"), (17, HOST_ID, 1, SAMPLER_ID, 2, "CONDITIONING"),
         (18, HOST_ID, 2, PREVIEW_ID, 0, "STRING"),
+        (8, 1, 0, RR_M8A_ID, 0, "MODEL"), (20, RR_M8B_ID, 0, SAMPLER_ID, 0, "MODEL"),
+        (10, 3, 0, RR_M10A_ID, 0, "VAE"), (22, RR_M10B_ID, 0, 8, 1, "VAE"),
     ]
     got = {(l[0], l[1], l[2], l[3], l[4], l[5]) for l in g["links"]}
     for w in ext_want:
@@ -974,9 +1068,9 @@ def self_check(g: dict, truth: dict) -> list[str]:
             errs.append("[150] 四出应为 BASE/WIDTH/HEIGHT/型名")
         if i_links[i_nodes[CONCAT1_ID]["inputs"][1]["link"]]["origin_id"] != BASE_ID:
             errs.append("拼接①.string_b 上游应为 [150].BASE(级联已退役)")
-        if i_links[i_nodes[SW_W_ID]["inputs"][0]["link"]]["origin_id"] != BASE_ID or \
-           i_links[i_nodes[SW_H_ID]["inputs"][0]["link"]]["origin_id"] != BASE_ID:
-            errs.append("宽高开关 on_false 上游应为 [150].WIDTH/HEIGHT(九型直驱默认路)")
+        if _trace_origin(i_links, i_nodes, i_nodes[SW_W_ID]["inputs"][0]["link"]) != BASE_ID or \
+           _trace_origin(i_links, i_nodes, i_nodes[SW_H_ID]["inputs"][0]["link"]) != BASE_ID:
+            errs.append("宽高开关 on_false 上游应为 [150].WIDTH/HEIGHT(九型直驱默认路,可穿通道 Reroute)")
     # 真源链互锁:qi21_bases.json(节点运行时真源)↔05 库(load_truth 已逐型对拍;
     # 这里复核默认型 BASE 干跑取值)
     if _qi21_base_text(DEFAULT_TYPE) != truth["types"][0]["constant_text"]:
@@ -995,9 +1089,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
     for sw in switches:
         if sw["widgets_values"][0] is not False:
             errs.append(f"[{sw['id']}] 开关默认非 false")
-        sl = i_links[sw["inputs"][2]["link"]]
-        if sl["origin_id"] != -10:
-            errs.append(f"[{sw['id']}] switch 槽应接 -10(宿主面板)")
+        if _trace_origin(i_links, i_nodes, sw["inputs"][2]["link"]) != -10:
+            errs.append(f"[{sw['id']}] switch 槽应接 -10(宿主面板,可穿通道 Reroute)")
     sconsts = [n for n in sg["nodes"] if n["type"] == "StringConstant"]
     if sorted(n["id"] for n in sconsts) != sorted([LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID]):
         errs.append(f"级联退役:子图 StringConstant 应恰 3 枚(锁层A+RGBA头尾),得 {[n['id'] for n in sconsts]}")
@@ -1202,12 +1295,14 @@ def main() -> int:
     n_nodes = len(disk["nodes"])
     n_links = len(disk["links"])
     sg_nodes = len(disk["definitions"]["subgraphs"][0]["nodes"])
+    sg_links = len(disk["definitions"]["subgraphs"][0]["links"])
     zh_list = " ".join(t["zh"] for t in truth["types"])
-    print(f"PASS: 主图 {n_nodes} 节点/{n_links} 链 + 子图 {sg_nodes} 节点/41 链;九型={zh_list};"
+    print(f"PASS: 主图 {n_nodes} 节点/{n_links} 链 + 子图 {sg_nodes} 节点/{sg_links} 链;九型={zh_list};"
           f"默认=①人物(MyQi21DaojieBase combo 经宿主面板外露,级联退役,宽高直驱 [5],"
           f"steps=40 完整态,RGBA 官方头尾公式,画幅联动默认关);干跑默认装配全文逐字=库组合;"
-          f"双向/横向/四行排版(行内左→右,行间上→下)/零重叠/group 预算(子图2·主图3,"
-          "各框单一阶段行)/group int/子图 linkIds 逐项登记/锁层A 恒挂/懒执行旁路/零孤儿全绿")
+              f"双向/横向/四行排版(行内左→右,行间上→下,Reroute 通道拐点不占行)/零重叠/"
+              "group 预算(子图4·主图3,各框单一阶段行)/group int/子图 linkIds 逐项登记/"
+              "锁层A 恒挂/懒执行旁路/零孤儿全绿")
     return 0
 
 

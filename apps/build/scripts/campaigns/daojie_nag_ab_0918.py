@@ -45,7 +45,7 @@ from daojie_batch_engine_0918 import (  # noqa: E402
     curl_alive, http_get_retry, http_json_retry, wait_engine_back,
 )
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 OUT_A = REPO / "output/nag_ab_baseline.png"
 OUT_B = REPO / "output/nag_ab_nag.png"

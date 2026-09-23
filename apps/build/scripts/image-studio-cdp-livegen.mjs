@@ -8,7 +8,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const PROMPT = "水墨风格:一名白衣剑修立于山门石阶之上,晨雾缭绕,远山如黛,浅净平涂底";
 const MODEL_ID = "gpt-image-2";

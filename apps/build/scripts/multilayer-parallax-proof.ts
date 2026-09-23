@@ -14,11 +14,11 @@ import { bundle } from "@remotion/bundler";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
 
-const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
+const APPS_ROOT = `${process.env.HOME}/Project/Github/MYStudio/apps`;
 const LAYERS_DIR = "/tmp/layer-sep";
 const POC_DIR = path.join(APPS_ROOT, ".cache", "multilayer-poc");
 const OUT = path.join(POC_DIR, "multilayer-parallax-proof.mp4");
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const FPS = 30;
 const DURATION = 240; // 8s
 

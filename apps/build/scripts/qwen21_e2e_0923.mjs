@@ -23,12 +23,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const CDP_PORT = Number(process.env.CDP_PORT || 9333);
-const E2E_DIR = "/Users/zhengbingjin/Downloads/qwen21-e2e-0923";
-const WF_DIR = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像";
+const E2E_DIR = `${process.env.HOME}/Downloads/qwen21-e2e-0923`;
+const WF_DIR = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像`;
 const WF_T2I = join(WF_DIR, "1_文生图/qwen21-t2i.json");
 const WF_EDIT = join(WF_DIR, "3_改图/qwen21-edit.json");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";

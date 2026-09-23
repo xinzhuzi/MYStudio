@@ -19,7 +19,7 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import unquote
 
-IPMA = Path("/Users/zhengbingjin/Project/IP/MA")
+IPMA = Path.home() / "Project/IP/MA"
 ASSETS = Path.home() / "Library/Application Support/漫影工作室/assets"
 KEYFILE = Path("/tmp/glm_key.txt")
 OUT = Path("/tmp/ref_adherence.json")

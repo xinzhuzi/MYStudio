@@ -28,14 +28,14 @@ function sha256File(filePath: string): string {
 
 async function main(): Promise<void> {
   const projectRoot = process.env.MYSTUDIO_FORMAL_PROJECT_ROOT?.trim()
-    || "/Users/zhengbingjin/Project/IP/MA";
+    || `${process.env.HOME}/Project/IP/MA`;
   const revision = Number(process.env.MYSTUDIO_FORMAL_REVISION);
   if (!Number.isSafeInteger(revision) || revision < 1) {
     throw new Error("MYSTUDIO_FORMAL_REVISION 必须是正整数");
   }
   const sourceRunDir = process.env.MYSTUDIO_FORMAL_SOURCE_MATERIALIZE_DIR?.trim()
     || path.join(
-      "/Users/zhengbingjin/Project/Github/MYStudio/apps/output/automation",
+      `${process.env.HOME}/Project/Github/MYStudio/apps/output/automation`,
       `formal-source-r${revision}-${Date.now()}`,
     );
   const editingStatePath = path.join(projectRoot, "store", "editing.json");

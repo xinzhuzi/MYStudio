@@ -7,10 +7,10 @@
 """
 import json, os, re, sys, uuid
 
-REPO = "/Users/zhengbingjin/Project/Github/MYStudio"
+REPO = os.path.expanduser("~/Project/Github/MYStudio")
 SUPERSET = os.path.join(REPO, "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json")
 STYLE_WF = os.path.join(REPO, "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2-文生图_风格参照.json")
-LORAS = "/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/models/loras"
+LORAS = os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui/models/loras")
 DRY = "--dry" in sys.argv
 
 # 落地 4 件(超集侧) + style_reference(新工作流侧,默认开)

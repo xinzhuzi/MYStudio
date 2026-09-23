@@ -40,13 +40,13 @@ import subprocess
 import time
 from pathlib import Path
 
-REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
+REPO = Path.home() / "Project/Github/MYStudio"
 P2 = REPO / "apps/build/scripts/p2_duipai_run.py"
 WF_SUPERSET = (REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/"
                "MY-K2_文生图_超集.json")
-ENGINE_VENV_PY = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/venv/bin/python")
+ENGINE_VENV_PY = Path.home() / "Library/Application Support/漫影工作室/comfyui/venv/bin/python"
 # 当日出图日志(文件名无横线,任务口径)
-ENGINE_LOG = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/logs/image-prompts-20260916.log")
+ENGINE_LOG = Path.home() / "Library/Application Support/漫影工作室/comfyui/logs/image-prompts-20260916.log"
 OUT_DIR = Path("/tmp/superset_tier_matrix")
 
 SEED = 20

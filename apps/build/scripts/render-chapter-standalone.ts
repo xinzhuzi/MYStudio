@@ -17,11 +17,11 @@ import { applyWorkflowConfigToRenderSettings, type WorkflowConfigProjectionInput
 import { readStudioWorkflowStoreState } from "../timeline/storage-paths";
 import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 
-const MA = "/Users/zhengbingjin/Project/IP/MA";
-const QUEUE = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json";
+const MA = `${process.env.HOME}/Project/IP/MA`;
+const QUEUE = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json`;
 const CHAPTER_ID = "chapter-001";
-const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const APPS_ROOT = `${process.env.HOME}/Project/Github/MYStudio/apps`;
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 
 /** BGM 节拍近似（08-18-sfx-beat）：ffmpeg 逐帧 RMS 能量包络的局部峰（间距≥0.3s）。
  * manifest 无 bgm 绑定或分析失败时返回空数组（卡点空转，不阻塞渲染）。 */

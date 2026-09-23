@@ -9,8 +9,8 @@
  * 前置: 应用以 MYSTUDIO_REMOTE_DEBUG=1 启动(CDP 9222)。
  */
 import { createRequire } from "node:module";
-const require = createRequire("/Users/zhengbingjin/Project/Github/MYStudio/apps/");
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const require = createRequire(`${process.env.HOME}/Project/Github/MYStudio/apps/`);
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {

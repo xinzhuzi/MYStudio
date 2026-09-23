@@ -9,7 +9,7 @@ import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const CDP_HTTP = `http://127.0.0.1:${process.argv[2] ?? "9222"}`;
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);

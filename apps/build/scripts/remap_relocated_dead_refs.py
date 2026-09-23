@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-PROJECT_ROOT = Path("/Users/zhengbingjin/Project/IP/MA")
+PROJECT_ROOT = Path.home() / "Project/IP/MA"
 STORE = PROJECT_ROOT / "store"
 OLD_APP_ASSETS = Path.home() / "Library/Application Support/漫影工作室/assets/files"
 ABS = re.compile(r"^file:///Users/|^/Users/")

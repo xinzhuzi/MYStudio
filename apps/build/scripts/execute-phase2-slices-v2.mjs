@@ -15,8 +15,8 @@ export const meta = {
   ],
 }
 
-const TASK = '/Users/zhengbingjin/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management'
-const REPO = '/Users/zhengbingjin/Project/Github/MYStudio'
+const TASK = `${process.env.HOME}/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management`
+const REPO = `${process.env.HOME}/Project/Github/MYStudio`
 
 // RULES as string concatenation to avoid template literal issues
 const RULES = "Active task: " + TASK + "\n仓库根：" + REPO + "(所有 npm 命令从 apps/ 执行，无根 package.json)\n\n铁律 (全部适用，违反即终止):\n- 禁止任何 git 命令 (add/commit/push/branch/checkout/reset/stash/clean/log/diff 等)。commit 由主代理后续单独获用户同意。\n- 禁止 worktree，禁止在 .claude/worktrees 下写。\n- 禁止对 live 目标项目 (项目 ID 49dce4c1-64b1-42de-85c2-9f266698aec0,chapter-001) 做任何写入/删除。live 数据只读盘点;破坏性验证只用生成的临时 fixture。\n- 改已有源文件前，先 cp 到 .trellis/tasks/08-04-artifact-output-management/backups/source/,记录原 SHA-256 到 manifest。新文件无需备份。\n- Edit 的 new_string 不得为空 (除非用户明确要求删该内容)。禁止 rm -rf / 批量删 / 清空文件。\n- 遵守 implement.md「Execution Rules」与「Risky Files And Rollback Points」。\n- 铁律 0:动手前用 Read/Grep 核实接口、字段、符号、路径，绝不猜。改任何值前 grep -r 确认无其它引用。\n- 铁律 1:渐进分段，小步多次。\n- 严禁猜测：不确定的标识符 (键名/变量/路径/字段) 先读源码取精确表述，取不到就报告阻塞，不臆造。\n- 只做本 slice 范围内的改动，不顺手重构/越界。";

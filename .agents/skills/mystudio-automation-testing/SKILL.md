@@ -9,7 +9,7 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 
 ## Path dictionary
 
-- `<repo-root>` means `/Users/zhengbingjin/Project/Github/MYStudio`. This `SKILL.md` and all paths under it are repository source/instructions, read-only to the running product.
+- `<repo-root>` means `~/Project/Github/MYStudio`. This `SKILL.md` and all paths under it are repository source/instructions, read-only to the running product.
 - Run npm commands from `<repo-root>/apps`; the frontend, backend, build, and documentation roots are `<repo-root>/apps/frontend`, `<repo-root>/apps/backend`, `<repo-root>/apps/build`, and `<repo-root>/docs`. They are repository source, not application runtime write targets.
 - The packaged macOS app is emitted under `<repo-root>/apps/release/build/mac-arm64/mac-arm64/漫影工作室.app` (generated, writable build output); the default packaged smoke report is `<repo-root>/apps/output/automation/desktop-smoke-report.json` (generated, writable runtime/output evidence).
 - `<userData>` is Electron's per-user application-data directory. `<storageBasePath>` is the configured runtime-writable storage root resolved from `<userData>/storage-config.json`; product-editable skills live at `<storageBasePath>/skills/`.
@@ -17,7 +17,7 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 
 ## Ground Rules
 
-- Work from `/Users/zhengbingjin/Project/Github/MYStudio`.
+- Work from `~/Project/Github/MYStudio`.
 - Do not run git commands unless the user explicitly asks.
 - Use `apps/` as the command working directory for npm commands.
 - Do not create `/Applications/*.backup-*` app backups. Install by overwriting `/Applications/漫影工作室.app`.
@@ -42,7 +42,7 @@ For a complete repository verification, use the single aggregate entry from
 `<repo-root>/apps`; do not manually reassemble the stages:
 
 ```bash
-cd /Users/zhengbingjin/Project/Github/MYStudio/apps
+cd ~/Project/Github/MYStudio/apps
 npm run test:all
 ```
 
@@ -124,13 +124,13 @@ artifact; do not repeat them after a normal quality-gate run.
 Install the packaged app without making a backup:
 
 ```bash
-ditto "/Users/zhengbingjin/Project/Github/MYStudio/apps/release/build/mac-arm64/mac-arm64/漫影工作室.app" "/Applications/漫影工作室.app"
+ditto "~/Project/Github/MYStudio/apps/release/build/mac-arm64/mac-arm64/漫影工作室.app" "/Applications/漫影工作室.app"
 ```
 
 Verify the installed app matches the packaged app:
 
 ```bash
-shasum -a 256 "/Users/zhengbingjin/Project/Github/MYStudio/apps/release/build/mac-arm64/mac-arm64/漫影工作室.app/Contents/Resources/app.asar"
+shasum -a 256 "~/Project/Github/MYStudio/apps/release/build/mac-arm64/mac-arm64/漫影工作室.app/Contents/Resources/app.asar"
 shasum -a 256 "/Applications/漫影工作室.app/Contents/Resources/app.asar"
 ```
 

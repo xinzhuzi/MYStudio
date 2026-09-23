@@ -25,13 +25,13 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const execFileP = promisify(execFile);
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const CDP_PORT = Number(process.env.CDP_PORT || 9346);
-const E2E_DIR = "/Users/zhengbingjin/Downloads/qwen21-e2e-0923/round6";
-const WF_PRO = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daojie-t2i-pro.json";
+const E2E_DIR = `${process.env.HOME}/Downloads/qwen21-e2e-0923/round6`;
+const WF_PRO = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daojie-t2i-pro.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qwen21-r6-pro-chrome-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 900_000); // 15 min/张(bf16 20B 首拍含载入)

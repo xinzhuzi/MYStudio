@@ -16,11 +16,12 @@ import copy
 import json
 import sys
 from pathlib import Path
+import os
 
 REPO = Path(__file__).resolve().parents[3]
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json"
-USER = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/ComfyUI/user/default/"
-            "workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json")
+USER = Path(os.path.expanduser("~/Library/Application Support/漫影工作室/comfyui/ComfyUI/user/default/")
+            + "workflows/1_图片/K2图像/1_文生图/MY-K2_文生图_超集.json")
 
 failures: list[str] = []
 

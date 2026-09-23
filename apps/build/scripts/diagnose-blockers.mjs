@@ -3,7 +3,7 @@
 import { readdir, stat } from "node:fs/promises";
 import { join, basename } from "node:path";
 
-const PROJECT_ROOT = "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0";
+const PROJECT_ROOT = `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0`;
 const CHAPTER_RE = /((?:chapter|episode)[-_][A-Za-z0-9-]+)/i;
 
 const files = [];

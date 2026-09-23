@@ -8,11 +8,11 @@ import path from "node:path";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { MediaBridgeServer } from "@rendering/plugins/remotion/media-bridge/media-bridge-server";
 
-const APPS_ROOT = "/Users/zhengbingjin/Project/Github/MYStudio/apps";
-const MA = "/Users/zhengbingjin/Project/IP/MA";
+const APPS_ROOT = `${process.env.HOME}/Project/Github/MYStudio/apps`;
+const MA = `${process.env.HOME}/Project/IP/MA`;
 const WORK = "/tmp/layer-sep";
 const OUT = path.join(WORK, "second-batch-fx-proof.mp4");
-const USER_DATA = "/Users/zhengbingjin/Library/Application Support/漫影工作室";
+const USER_DATA = `${process.env.HOME}/Library/Application Support/漫影工作室`;
 const FPS = 30;
 const SHOT_FRAMES = 90; // 3s/镜
 const LUTS = path.join(APPS_ROOT, "frontend/assets/luts");

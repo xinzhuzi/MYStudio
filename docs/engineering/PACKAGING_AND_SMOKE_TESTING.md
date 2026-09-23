@@ -4,10 +4,10 @@
 
 ## 命令目录
 
-所有 npm 命令从 `/Users/zhengbingjin/Project/Github/MYStudio/apps` 目录执行：
+所有 npm 命令从 `~/Project/Github/MYStudio/apps` 目录执行：
 
 ```bash
-cd /Users/zhengbingjin/Project/Github/MYStudio/apps
+cd ~/Project/Github/MYStudio/apps
 ```
 
 不要从仓库根目录直接执行 npm 脚本。
@@ -21,7 +21,7 @@ Remotion bundler；这些命令会把临时结果写到错误位置，例如根 
 需要一次性跑完整验证时，执行统一入口：
 
 ```bash
-cd /Users/zhengbingjin/Project/Github/MYStudio/apps
+cd ~/Project/Github/MYStudio/apps
 npm run test:all
 ```
 
@@ -143,7 +143,7 @@ Python 及其 site-packages 不进入 `app.asar` 或 `Resources`；安装包只�
 Python runtime 已配置，也不能把开发机 `python3` 当作安装版 runtime 证据。
 
 安装版的 video-use 必须从设置页下载的 `<storageBasePath>/python`（当前 macOS
-示例为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`）获取解释器；
+示例为 `~/Library/Application Support/漫影工作室/python`）获取解释器；
 默认复用该 managed Python 3.12 的 site-packages，并使用独立
 `requirements-video-use.lock`/profile marker。禁止创建 `video-use-runtime` venv；兼容冲突时设置页恢复最近一次已验证组合并把章节置为 `blocked`。video-use 与 HyperFrames 每章默认启用，真实验收必须单独记录“开发 helper smoke”和“安装版 UI 配置后 worker smoke”，不能用一次 packaged smoke 代替两者。
 

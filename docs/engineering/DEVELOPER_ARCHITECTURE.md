@@ -81,7 +81,7 @@ ComfyUI 托管 K2 图像、H3 视频及音乐/修复等节点工作流；本地 
 源码中的路径解析是确定的：`storage-manager.ts` 在没有自定义 `basePath` 时返回
 Electron `userDataPath`，`getPythonRuntimeDir()` 再拼接 `python`；`main.ts` 将同一个
 `getStorageBasePath()` 传给 `tts-runtime`。该历史 macOS 配置对应的路径示例是
-`/Users/zhengbingjin/Library/Application Support/漫影工作室/python/bin/python3`（文档中的
+`~/Library/Application Support/漫影工作室/python/bin/python3`（文档中的
 `<storageBasePath>/python/bin/python3` 是可迁移写法）。设置页或 video-use worker 都必须从
 这个 resolver 得到路径，不能自行猜测、读取开发者 shell 的 `python3` 或写入
 `apps/backend/python`。
@@ -473,7 +473,7 @@ AI/开发工具，不是产品 `skills/`。
 - 正式 runtime 根目录只有 `<storageBasePath>/python`；Electron 以其中的平台 Python 启动 sidecar，并以 `<storageBasePath>/comfyui/models/TTS` 和 `<storageBasePath>/TTS/runtime` 管理模型与 sidecar 数据（旧版 `model/TTS`、`tts-models` 与 `<userData>/tts-runtime` 仅作迁移兼容）。
 - 如果工作区里存在 `apps/backend/python`，它是本地/历史 runtime 残留，不是本地开发需要的第二套正式 Python，不得被源码、构建脚本或新测试当作可选 runtime；打包配置继续排除它。
 - Daojie 的显式 HTTP-TTS 直跑按 `MYSTUDIO_STORAGE_BASE_PATH`、`<userData>/storage-config.json`、macOS development fallback 的顺序解析受管理的 `<storageBasePath>/python`；默认 `video:chapter001` 自动链不会注入 `MANYING_TTS_USE_HTTP=1`，因此不会把该兼容路径当作默认视频链的一部分。
-- video-use 的开发 worker 可以使用开发者当前 Python 做本地测试，但打包应用运行期间必须从同一个 `pythonRuntimeDir` 使用受管理的 `<storageBasePath>/python`（当前 macOS 为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`）作为解释器来源。当前实现目标是在准备时复用该 managed Python 的 site-packages，使用独立 `requirements-video-use.lock`、profile marker、`pip check`/import/fixture smoke、TTS 全量回归和整套 runtime 回滚；禁止创建 `video-use-runtime` venv。冲突时章节保持 `blocked` 并恢复最近一次已验证组合，不能把 video-use 依赖直接追加到 TTS requirements，也不能让现有 TTS 安装器误装 video-use。
+- video-use 的开发 worker 可以使用开发者当前 Python 做本地测试，但打包应用运行期间必须从同一个 `pythonRuntimeDir` 使用受管理的 `<storageBasePath>/python`（当前 macOS 为 `~/Library/Application Support/漫影工作室/python`）作为解释器来源。当前实现目标是在准备时复用该 managed Python 的 site-packages，使用独立 `requirements-video-use.lock`、profile marker、`pip check`/import/fixture smoke、TTS 全量回归和整套 runtime 回滚；禁止创建 `video-use-runtime` venv。冲突时章节保持 `blocked` 并恢复最近一次已验证组合，不能把 video-use 依赖直接追加到 TTS requirements，也不能让现有 TTS 安装器误装 video-use。
 
 相关文档：
 

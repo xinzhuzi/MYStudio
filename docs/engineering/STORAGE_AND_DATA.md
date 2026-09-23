@@ -236,7 +236,7 @@ MYStudio 要区分“开发脚本 Python”和“安装后应用 Python”，并
 ```
 
 2026-08-03 记录中的 macOS 开发机 `<storageBasePath>` 与 Electron `userDataPath` 相同，当时设置页下载的
-Python 目录示例为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`。
+Python 目录示例为 `~/Library/Application Support/漫影工作室/python`。
 这是可迁移的历史盘面示例，不是写死给所有用户的路径；应用和 video-use 都必须通过
 `getStorageBasePath()`/`pythonRuntimeDir` 解析，不能把这个示例复制成固定常量。
 
@@ -245,7 +245,7 @@ Python 目录示例为 `/Users/zhengbingjin/Library/Application Support/漫影�
 - `<storageBasePath>/python`：设置页下载的 Python 3.12 runtime；`apps/backend/requirements.txt` 的依赖安装到这里。
 - `<storageBasePath>/comfyui/models/TTS`：默认 TTS 模型缓存（09-10 模型统一家，拼装单源 `model-dirs.ts`）；旧版 `<storageBasePath>/model/TTS`、`tts-models` 仅作迁移兼容。
 - `<storageBasePath>/TTS/runtime`：Electron sidecar 的 SQLite、生成音频、依赖 hash marker 和 runtime config；旧版 `<userData>/tts-runtime` 仅作迁移兼容。
-- **video-use（已接入代码路径，真实生成需独立验收）**：开发态可用开发者 Python 验证 helper；应用运行态必须从同一个 `pythonRuntimeDir` 使用 `<storageBasePath>/python`（当前 macOS 示例为 `/Users/zhengbingjin/Library/Application Support/漫影工作室/python`）作为解释器来源。默认复用该 managed Python 3.12 的 site-packages，并使用独立 `requirements-video-use.lock`/profile marker、`pip check`、import/fixture smoke 和 TTS 全量回归；禁止创建 `video-use-runtime` venv。共享依赖发生硬冲突时，当前组合进入 `blocked` 并恢复最近一次已验证组合。video-use 依赖不得直接写入 `apps/backend/requirements.txt` 或 `<storageBasePath>/TTS/runtime`，其项目输出应写到当前 project/chapter revision 工作区，不属于 Python runtime 本体。
+- **video-use（已接入代码路径，真实生成需独立验收）**：开发态可用开发者 Python 验证 helper；应用运行态必须从同一个 `pythonRuntimeDir` 使用 `<storageBasePath>/python`（当前 macOS 示例为 `~/Library/Application Support/漫影工作室/python`）作为解释器来源。默认复用该 managed Python 3.12 的 site-packages，并使用独立 `requirements-video-use.lock`/profile marker、`pip check`、import/fixture smoke 和 TTS 全量回归；禁止创建 `video-use-runtime` venv。共享依赖发生硬冲突时，当前组合进入 `blocked` 并恢复最近一次已验证组合。video-use 依赖不得直接写入 `apps/backend/requirements.txt` 或 `<storageBasePath>/TTS/runtime`，其项目输出应写到当前 project/chapter revision 工作区，不属于 Python runtime 本体。
 
 Electron 从 `apps/backend` 或打包后的 `Resources/backend` 取得 sidecar 源码与 `PYTHONPATH`，但只使用 `<storageBasePath>/python` 启动它。`apps/backend/python` 不是正式 runtime 位置：它被 `.gitignore` 忽略并由打包规则排除；本任务没有删除或移动该本地遗留目录。
 

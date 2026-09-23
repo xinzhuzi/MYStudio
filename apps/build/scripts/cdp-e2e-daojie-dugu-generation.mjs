@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 
 const CDP_BASE = "http://127.0.0.1:9222";
 const TARGET_ASSET = process.env.TARGET_ASSET || "独孤剑尘";

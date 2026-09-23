@@ -16,7 +16,7 @@ import { existsSync, readdirSync, renameSync, readFileSync, writeFileSync, statS
 import { resolve } from "node:path";
 
 const PROJECT_ROOT =
-  "/Users/zhengbingjin/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0";
+  `${process.env.HOME}/Library/Application Support/漫影工作室/projects/_p/49dce4c1-64b1-42de-85c2-9f266698aec0`;
 const EXPORTS = resolve(PROJECT_ROOT, "exports", "chapter-001");
 
 const dryRun = process.argv.includes("--dry-run");

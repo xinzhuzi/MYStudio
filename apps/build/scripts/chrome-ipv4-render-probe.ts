@@ -28,7 +28,7 @@ const appsRoot = path.resolve(scriptsDir, "../..");
 const SYSTEM_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 function defaultProbeMedia(): string {
-  const shotRoot = "/Users/zhengbingjin/Project/IP/MA/remotion/outputs/shots/chapter-001";
+  const shotRoot = `${process.env.HOME}/Project/IP/MA/remotion/outputs/shots/chapter-001`;
   const entries = fs.existsSync(shotRoot)
     ? fs.readdirSync(shotRoot).filter((name) => name.startsWith("sb-")).sort()
     : [];

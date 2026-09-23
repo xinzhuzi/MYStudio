@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 from urllib.parse import unquote
 
-ROOT = Path("/Users/zhengbingjin/Project/IP/MA")
+ROOT = Path.home() / "Project/IP/MA"
 STORE = ROOT / "store/studio-workflow"
 PID = "49dce4c1-64b1-42de-85c2-9f266698aec4"
 ABS = re.compile(r"^file:///Users/|^/Users/")

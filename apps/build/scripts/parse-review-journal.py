@@ -3,11 +3,14 @@
 emit a consolidated markdown report. No AI in the loop."""
 import json, sys, os
 from collections import defaultdict
+from pathlib import Path
 
-JDIR = sys.argv[1] if len(sys.argv) > 1 else \
-  "/Users/zhengbingjin/.claude/projects/-Users-zhengbingjin-Project-Github-MYStudio/a175aac5-5d3c-487e-b7ea-2bd990c17cbc/subagents/workflows/wf_a3c9ef02-727"
+_REPO = Path(__file__).resolve().parents[3]
+JDIR = sys.argv[1] if len(sys.argv) > 1 else str(
+  Path.home() / ".claude/projects" / _REPO.as_posix().replace("/", "-")
+  / "a175aac5-5d3c-487e-b7ea-2bd990c17cbc/subagents/workflows/wf_a3c9ef02-727")
 OUT = sys.argv[2] if len(sys.argv) > 2 else \
-  "/Users/zhengbingjin/Project/Github/MYStudio/.trellis/tasks/08-04-artifact-output-management/research/plan-adversarial-review.md"
+  str(_REPO / ".trellis/tasks/08-04-artifact-output-management/research/plan-adversarial-review.md")
 
 jpath = os.path.join(JDIR, "journal.jsonl")
 rows = []

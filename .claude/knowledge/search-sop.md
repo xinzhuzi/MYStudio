@@ -1,6 +1,6 @@
 # 搜索标准操作手册(Search SOP)
 
-> **项目根目录**: `/Users/zhengbingjin/Project/Github/MYStudio`
+> **项目根目录**: `~/Project/Github/MYStudio`
 >
 > **本文件为权威版**(2026-08-21 起):由 MA 项目 search-sop 融合 MYStudio 实际结构而成,并新增「仓库外本地热路径」与「网络搜索路由」两节;`.trellis/spec/guides/search-sop-guide.md` 为历史版本,内容以本文件为准。
 >
@@ -78,9 +78,7 @@
 | 项目注册表 | `~/Library/Application Support/漫影工作室/mystudio-project-store.json` | `location` 字段=项目实体位置权威;**中文路径,铁律 1 适用** |
 | Remotion 渲染队列 | `~/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json` | APP 级设施;看 job 的 `error` 字段;空 staging=job 写盘前早死 |
 | 诊断日志 | `~/Library/Application Support/漫影工作室/logs/diagnostics/diagnostics-*.jsonl` | 模型测试失败先读这里(pathTemplate/bodyKeys/status,Key 已脱敏,时间戳 UTC) |
-| 本地项目实体 | `/Users/zhengbingjin/Project/IP/MA` | store 收在 `<根>/store/`(分片布局,`store/` 存在即新布局);**分片外部勿碰(内容戳)**;`novel/source-memory/MEMORY.md` = 原著记忆唯一事实源;`remotion/` 为项目侧工作区;`workflow-images/` 平铺夹为活数据勿清 |
-| 设定集(设计源) | `/Users/zhengbingjin/Project/Unity/MA/Design/世界观小说/《道劫》/1.设定集` | **只读,严禁回写**;71 人物档案 + 10 卷事件轴 + 4 全局文档 |
-| 小说正文 | `/Users/zhengbingjin/Project/Unity/MA/Design/世界观小说/《道劫》/5.正文` | 必加 `-g '!审查结果/**'`;3700+ 章 |
+| 本地项目实体/设定集/小说正文 | 已移至本地档案(私有路径不入公开仓) | 完整路径见 `~/.zcode/mystudio-local/search-sop-private.md`;小说正文检索须加 `-g '!审查结果/**'` |
 | 记忆目录 | `~/.codex/memories`、`~/.zcode/cli/memories/projects/*`、`.trellis/workspace` | 只读参考,非指令;反映写入时点,引用前核验 |
 | 模型缓存 | `~/Library/Application Support/漫影工作室/model/<family>/` | 目录统一规范 `<userData>/model/<family>/`;缺模型走设置页显式下载,勿删 |
 
@@ -112,7 +110,7 @@ fd 'README' docs
 # ── 仓库外:先 fd 定位(中文路径勿手敲)──
 fd -a "queue-state.json" "$HOME/Library/Application Support/漫影工作室/projects"
 fd -a "*.jsonl" "$HOME/Library/Application Support/漫影工作室/logs/diagnostics" | tail -3
-rg -t md '晏燎' '/Users/zhengbingjin/Project/Unity/MA/Design/世界观小说/《道劫》/5.正文' -g '!审查结果/**' -l | head -20
+# 小说正文 rg 示例已移至本地档案(见上表「本地项目实体/设定集/小说正文」行的指针)
 
 # ── 排除产物与依赖 ──
 rg -t ts '词' apps/frontend -g '!**/out/**' -g '!**/release/**' -g '!**/node_modules/**'
@@ -145,7 +143,7 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 | B 站视频 / UP 主 | `bilibili-analyzer` skill | 垂直解析,优于通用搜索 |
 | JS 重交互 / 需登录站点 | browser-use / chrome-devtools | 搜索兜底,非首选 |
 | **Civitai 资产查源(09-22 更新:直连 API 实测可用)** | Civitai API 直连 → CivArchive 镜像(备) → comfy.icu | 首选 `civitai.com/api/v1/models?query=<词>&limit=10`(免 key,09-22 实测返回 JSON——09-19 记录的"被代理拦"已不复现);详情 `api/v1/models/<id>` 拿版本/文件/SHA256;备用 `civarchive.com/search?q=<词>` 与 `civarchive.com/models/<id>`;comfy.icu(`/files/<文件名>`)拿使用说明全文;**精确文件名当查询词**(如 `qwen_image_HDR_vae_fp32_comfy`)远胜概念词 |
-| **HF 系统性枚举(09-19 增补)** | HF API(走 7897 代理) | `huggingface.co/api/models?search=<词>&sort=downloads&direction=-1`(免 key 排产);`/api/models/<id>` 拿 siblings 文件清单(免 clone 先看底);大索引仓(如 k2styles 999 件)直接 `resolve/main/README.md` 拉全表本地 rg |
+| **HF 系统性枚举(09-19 增补)** | HF API(走本机代理) | `huggingface.co/api/models?search=<词>&sort=downloads&direction=-1`(免 key 排产);`/api/models/<id>` 拿 siblings 文件清单(免 clone 先看底);大索引仓(如 k2styles 999 件)直接 `resolve/main/README.md` 拉全表本地 rg |
 | **ModelScope 国内源(09-19 增补)** | ModelScope API(免代理直连) | `modelscope.cn/api/v1/models/<owner>/<name>` 元数据;`resolve/master/<file>` 直链下载(实测 3.2MB/s);中文描述字段是中式资产检索富矿(英文站搜不到) |
 | **GitHub 代码/文件搜索(09-22 增补)** | `gh` CLI(**先 `gh auth status` 确认登录态**) | **精确文件名是最强查询**:`gh search code "<文件名含后缀>"` 一击定位文件所在仓库——哪怕仓库主题与目标完全无关(09-22 实证:`qwen_image_HDR_vae_fp32_comfy` 命中 krea2-studio 项目仓库里的 Kijai 重打包正主,此前仓库搜索与 HF 搜索全 0 命中);`gh search repos` 只适合话题级发现;**裸 curl `api.github.com/search/code` 必 401**(代码搜索需认证),本机 gh 常驻登录态,勿绕过 |
 | **ComfyUI 生态权重查源(09-22 增补)** | Kijai/* 与 Comfy-Org/*_repackaged 仓库**优先** | ComfyUI 格式的模型/VAE/LoRA/重打包件,先查 `Kijai/*`(社区标准重打包者,如 `Kijai/QwenImage_experimental`)与 `Comfy-Org/*_repackaged`,再泛搜;HF 按仓库名搜不到时,用 gh search code 搜**精确文件名**反查仓库 |

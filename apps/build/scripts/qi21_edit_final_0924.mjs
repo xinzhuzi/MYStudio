@@ -7,7 +7,7 @@
  *      → 排队出图,收图 PNG 魔数+sips 实测 1024×1024 对账;
  *   ③ PE 开关:[15] ComfySwitch true 排队成功(排队图取证 switch=true/TextGenerate 进执行图)即 /interrupt
  *      断开复位(不浪费整轮生成),复位后干跑取证 switch=false;
- *   ④ 产物 /Users/zhengbingjin/Downloads/qi21-edit-final/;console 执行期错误留档 console-edit-final.json。
+ *   ④ 产物 ~/Downloads/qi21-edit-final/;console 执行期错误留档 console-edit-final.json。
  * 驱动仿 apps/build/scripts/qi21_e2e_final_0923.mjs;引擎生命周期(自拉起 17002/停)在驱动外管理。
  *
  * 用法:node apps/build/scripts/qi21_edit_final_0924.mjs
@@ -21,13 +21,13 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require("/Users/zhengbingjin/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws");
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
 const execFileP = promisify(execFile);
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const CDP_PORT = Number(process.env.CDP_PORT || 9361);
-const E2E_DIR = "/Users/zhengbingjin/Downloads/qi21-edit-final";
-const WF = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json";
+const E2E_DIR = `${process.env.HOME}/Downloads/qi21-edit-final`;
+const WF = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qi21-edit-final-chrome-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 1_500_000); // 25 min(1024² 25步 MPS 余量)
