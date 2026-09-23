@@ -8,7 +8,7 @@ LoRA;实测 6 连接 Range 并行聚合 ~380-400KB/s(CDN 按 IP 聚合限速,代
 特性:
 - Range 分段并行 + 段级重试(段文件字节数精确校验后才拼接);
 - 复用既有 .part 前缀(串行尝试已拉到的字节不浪费);
-- 直连优先、失败段自动换 7897 代理重试;
+- 直连优先、失败段自动换本机代理重试;
 - 终检:safetensors 头(小端 u64 头长)+ 总字节数,过了才原子落位。
 """
 from __future__ import annotations
@@ -21,10 +21,15 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import secrets_loader  # noqa: E402  凭据出库装载器(09-24)
+
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36")
-PROXY = "http://127.0.0.1:7897"
-TOKEN = "811dd254c95caf136ab7d97a7497fb7f"
+# token/代理已出库(09-24):环境变量 CIVITAI_TOKEN/CIVITAI_PROXY 优先,否则读
+# 本地 ~/.zcode/mystudio-secrets/civitai_token.json(泄漏旧值须轮换后填入)
+TOKEN = secrets_loader.get_civitai_token()
+PROXY = secrets_loader.get_proxy()  # 未配置=空串,纯直连
 
 
 def total_size(ver: str) -> int:
@@ -42,10 +47,10 @@ def fetch_segment(ver: str, path: Path, s: int, e: int, tries: int = 6) -> None:
     url = f"https://civitai.com/api/download/models/{ver}?token={TOKEN}"
     want = e - s + 1
     for attempt in range(1, tries + 1):
-        via_proxy = attempt % 2 == 0          # 奇数轮直连,偶数轮走代理
+        via_proxy = attempt % 2 == 0          # 奇数轮直连,偶数轮走代理(未配代理则全程直连)
         cmd = ["curl", "-sL", "-m", "600", "-A", UA, "-r", f"{s}-{e}",
                "-o", str(path)]
-        if via_proxy:
+        if via_proxy and PROXY:
             cmd[1:1] = ["-x", PROXY]
         subprocess.run(cmd, capture_output=True)
         if path.exists() and path.stat().st_size == want:

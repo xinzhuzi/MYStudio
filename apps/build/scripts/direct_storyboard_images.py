@@ -23,15 +23,15 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-PROJECT_ROOT = Path("/Users/zhengbingjin/Project/IP/MA")
+import secrets_loader  # 同目录:凭据出库装载器(09-24)
+
+PROJECT_ROOT = Path.home() / "Project/IP/MA"
 STORYBOARD_DIR = PROJECT_ROOT / "store" / "studio-workflow" / "chapters" / "chapter-001"
 WORKFLOW_IMAGES = PROJECT_ROOT / "workflow-images"
 FANREN_BASE = "https://fanrenapi.com/v1"
-# 双 key 从 CDP 读取的值(2026-08-23 实测 key1 可用)
-FANREN_KEYS = [
-    "sk-8unvy6qQp16vHQcgZP7x0NqBHHkoFSh3qJOz0Dv9pCwXjF5l",
-    "sk-q44t8ZK1hZ9M7AHGrwVWngg9aiuXHVAmVflrth3ZZItg2InD",
-]
+# 双 key 已出库(09-24):经 secrets_loader 读环境变量 FANREN_KEYS_JSON 或
+# 本地 ~/.zcode/mystudio-secrets/fanren_keys.json(泄漏旧值须轮换后填入)
+FANREN_KEYS = secrets_loader.get_fanren_keys()
 MODEL = "gpt-image-2"
 
 

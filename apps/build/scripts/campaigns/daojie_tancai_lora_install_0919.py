@@ -9,7 +9,7 @@
 
 链路:插在 [77]→[12] 之间(77→82→83→12)。
 美化:LoRA 链 13 件按链序自左向右等距重排(y=80 统一行),分组②扩界+标题 11件→13件。
-下载:走本机 7897 代理 + 用户 09-17 交付的 civitai token(仅下载用);
+下载:走本机代理 + 用户 09-17 交付的 civitai token(仅下载用);
 幂等:目标文件已存在且>150MB 跳过下载;[82] 已存在跳过图改造。
 回写:ensure_ascii=False/indent=2/无尾换行,与文件现行格式字节级兼容。
 """
@@ -26,11 +26,16 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import secrets_loader  # noqa: E402  凭据出库装载器(09-24)
+
 REPO = Path(__file__).resolve().parents[3]
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 ENGINE_LORA_DIR = Path.home() / "Library/Application Support/漫影工作室/comfyui/models/loras/Krea2-画风"
-TOKEN = "811dd254c95caf136ab7d97a7497fb7f"  # 用户 09-17 交付,仅下载用(勿入 git 提交面)
-PROXY = "http://127.0.0.1:7897"
+# token/代理已出库(09-24):环境变量 CIVITAI_TOKEN/CIVITAI_PROXY 优先,否则读
+# 本地 ~/.zcode/mystudio-secrets/civitai_token.json(泄漏旧值须轮换后填入)
+TOKEN = secrets_loader.get_civitai_token()  # 仅下载用
+PROXY = secrets_loader.get_proxy()          # 未配置=空串,纯直连
 
 NEW_LORAS = [
     {"nid": 82, "rel": "Krea2-画风/Krea2-淡彩线描插画_v1.safetensors",
@@ -64,7 +69,7 @@ def _finalize(part: Path, dest: Path) -> None:
 
 def download(version_id: str, dest: Path) -> None:
     """civitai 下载(09-19 根修:首次装机在 copyfileobj 处 TimeoutError 即整笔报废
-    ——经 7897 代理读 civitai CDN 长流会中途失速,首块 1MB 后即卡死 120s。
+    ——经本机代理读 civitai CDN 长流会中途失速,首块 1MB 后即卡死 120s。
     实测该端点 307→R2 CDN 且 Range 续传返 206,故改为 .part 断点 + Range 续传 +
     指数退避重试;UA 修复保留,progress 每 64MB 报一次)。"""
     url = f"https://civitai.com/api/download/models/{version_id}?token={TOKEN}"
