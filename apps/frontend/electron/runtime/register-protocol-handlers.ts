@@ -1,7 +1,7 @@
 import type { Protocol } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { resolveAssetFilePath, resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
+import { assertInsideRoot, resolveAssetFilePath, resolveLocalMediaPath, resolveProjectFileUrl } from "../storage/storage-paths";
 import { resolveToonflowAssetPath } from "../storage/studio-runtime-assets";
 import { createImageThumbCache, type ImageThumbCache } from "./image-thumb-cache";
 
@@ -161,10 +161,13 @@ export function registerProtocolHandlers({
         .map((part) => decodeURIComponent(part))
         .join("/");
       const skillsRoot = path.resolve(getSkillsRoot());
-      const filePath = path.resolve(skillsRoot, relativePath);
-      if (filePath !== skillsRoot && !filePath.startsWith(skillsRoot + path.sep)) {
-        throw new Error("Studio skill file path escapes storage root");
-      }
+      // realpath 级根约束(storage-paths.assertInsideRoot):skills 树里的
+      // symlink 指向根外时,词法 startsWith 检查拦不住,须按解析后路径判定。
+      const filePath = assertInsideRoot(
+        skillsRoot,
+        path.resolve(skillsRoot, relativePath),
+        "Studio skill file path",
+      );
       return await respondWithFile(filePath);
     } catch (error) {
       console.error("Failed to load studio skill file:", error);

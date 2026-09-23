@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { registerPrivilegedSchemes, registerProtocolHandlers } from "./register-protocol-handlers";
 
@@ -135,6 +138,31 @@ describe("protocol registration", () => {
       readFile: vi.fn(),
     });
     const response = await handlers.get("studio-skill")!(new Request("studio-skill://..%2Foutside/file.md"));
+    expect(response.status).toBe(404);
+  });
+
+  it("rejects studio skill symlinks that resolve outside the configured root", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-skills-"));
+    const outside = path.join(tmp, "outside");
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(outside, "secret.md"), "x", "utf-8");
+    const skillsRoot = path.join(tmp, "skills");
+    fs.mkdirSync(skillsRoot);
+    // 词法上在 skills 根内,realpath 解析后指向根外——旧 startsWith 检查放行。
+    fs.symlinkSync(outside, path.join(skillsRoot, "leak"));
+
+    const handlers = new Map<string, (request: Request) => Promise<Response>>();
+    registerProtocolHandlers({
+      protocol: { handle: vi.fn((scheme, handler) => handlers.set(scheme, handler)) } as never,
+      getMediaRoot: () => "/media",
+      getDataDir: () => "/data",
+      getSkillsRoot: () => skillsRoot,
+      getAssetsRoot: () => "/assets",
+      readFile: vi.fn(),
+    });
+
+    const response = await handlers.get("studio-skill")!(new Request("studio-skill://leak/secret.md"));
     expect(response.status).toBe(404);
   });
   it("serves generated thumbnails for ?thumb=1 project-file requests", async () => {

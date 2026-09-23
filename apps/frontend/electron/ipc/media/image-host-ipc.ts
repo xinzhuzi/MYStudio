@@ -1,6 +1,7 @@
 import path from "node:path";
 import { ipcMain } from "electron";
 import type { DiagnosticsLogEntryInput } from "../../../types/diagnostics";
+import { assertSafeOutboundRequestUrl } from "../../security/request-url-guard";
 
 type ImageHostUploadProvider = {
   name: string;
@@ -114,8 +115,11 @@ async function uploadImageHostFromMain(
 ): Promise<ImageHostUploadResponse> {
   const { provider, apiKey, imageData, options } = request;
   try {
-    const uploadUrl = resolveImageHostUploadUrl(provider);
-    if (!uploadUrl) return { success: false, error: "图床上传地址未配置" };
+    const resolvedUploadUrl = resolveImageHostUploadUrl(provider);
+    if (!resolvedUploadUrl) return { success: false, error: "图床上传地址未配置" };
+    // 上传地址同样来自渲染进程,统一过外发地址守卫(禁 link-local 与云元数据,
+    // 与 ai/api-request-ipc 同款;见 request-url-guard)。
+    const uploadUrl = assertSafeOutboundRequestUrl(resolvedUploadUrl);
 
     const formData = new FormData();
     Object.entries(provider.staticFormFields || {}).forEach(([key, value]) => formData.append(key, value));

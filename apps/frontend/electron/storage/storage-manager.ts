@@ -39,6 +39,8 @@ type RootOptions = {
 
 type RegisterStorageIpcHandlersOptions = {
   getStudioManualsSourceRoot: () => string;
+  /** 原生目录选择器的结果同步登记到外部祝福注册表(如项目导入路径守卫)。 */
+  onDialogDirSelected?: (dirPath: string) => void;
 };
 
 export function createStorageManager({ userDataPath, sessionDataPath = userDataPath, fileOps }: CreateStorageManagerOptions) {
@@ -237,7 +239,7 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     `mystudio-data-${new Date().toISOString().replace(/[:.]/g, "-")}`,
   );
 
-  const registerIpcHandlers = ({ getStudioManualsSourceRoot }: RegisterStorageIpcHandlersOptions) => {
+  const registerIpcHandlers = ({ getStudioManualsSourceRoot, onDialogDirSelected }: RegisterStorageIpcHandlersOptions) => {
     // 存储高危操作(link/move/export/import)的目标路径必须来自本应用的原生
     // 目录选择器:select-directory 的结果在此短期「祝福」,未经对话框的路径
     // 一律拒绝——防止被攻破的渲染进程直改存储根/搬数据(与素材库同款守卫)。
@@ -323,6 +325,7 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
       const result = await dialog.showOpenDialog(options);
       if (result.canceled || !result.filePaths[0]) return null;
       blessDialogDir(result.filePaths[0]);
+      onDialogDirSelected?.(result.filePaths[0]);
       return result.filePaths[0];
     });
     ipcMain.handle("storage-validate-data-dir", async (_event, dirPath: string) => validateDataDir(dirPath));

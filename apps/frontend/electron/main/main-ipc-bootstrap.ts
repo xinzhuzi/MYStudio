@@ -21,7 +21,7 @@ import { sanitizeExternalUrl } from '../runtime/update-policy'
 import {
   getProtocolMimeType as getMimeType,
 } from '../runtime/register-protocol-handlers'
-import { getDataDir, getMediaRoot, getAssetsRoot, getSkillsRoot, getProjectDataRoot, projectLocationStore, storageManager, getStudioManualsSourceRoot, getStudioSkillSyncOptions, resolveStudioSourcePath } from './main-paths'
+import { getDataDir, getMediaRoot, getAssetsRoot, getSkillsRoot, getProjectDataRoot, projectLocationStore, storageManager, getStudioManualsSourceRoot, getStudioSkillSyncOptions, resolveStudioSourcePath, blessedDialogPaths } from './main-paths'
 import { readImageSource } from './main-paths'
 import { createDiagnosticsOperationId, diagnosticsLogService, writeDiagnosticsLog } from './main-diagnostics'
 import { resolveAvailableUpdate } from './main-window'
@@ -53,12 +53,17 @@ registerStudioContentIpcHandlers({
   getStudioSkillSyncOptions,
   makeStudioSkillFileUrl,
 })
-storageManager.registerIpcHandlers({ getStudioManualsSourceRoot })
+storageManager.registerIpcHandlers({
+  getStudioManualsSourceRoot,
+  // 目录选择器的结果同步祝福到共享注册表,供项目导入守卫消费。
+  onDialogDirSelected: (dirPath) => blessedDialogPaths.bless([dirPath]),
+})
 
 registerProjectFolderIpcHandlers({
   locationStore: projectLocationStore,
   getProjectsDataRoot: () => getProjectDataRoot({ ensure: false }),
   createMoveEngine: () => createDefaultProjectMoveEngine(),
+  isImportPathBlessed: blessedDialogPaths.has,
 })
 
 registerAppUpdaterIpcHandlers({

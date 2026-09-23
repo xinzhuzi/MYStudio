@@ -10,6 +10,7 @@ import type {
   StudioAssetSummary,
 } from "../../types/studio-assets";
 import { resolveSqliteCli } from "./assets-sqlite";
+import { assertInsideRoot } from "./storage-paths";
 
 const execFileAsync = promisify(execFile);
 
@@ -58,11 +59,13 @@ export function resolveToonflowAssetPath(requestUrl: string) {
     .map((part) => decodeURIComponent(part))
     .join("/");
   const ossRoot = path.resolve(getToonflowOssRoot());
-  const filePath = path.resolve(ossRoot, relativePath.replace(/^oss[\\/]/, ""));
-  if (filePath !== ossRoot && !filePath.startsWith(ossRoot + path.sep)) {
-    throw new Error("Toonflow asset path escapes storage root");
-  }
-  return filePath;
+  // realpath 级根约束(storage-paths.assertInsideRoot):oss 树里的 symlink
+  // 指向根外时,词法 startsWith 检查拦不住,须按解析后路径判定。
+  return assertInsideRoot(
+    ossRoot,
+    path.resolve(ossRoot, relativePath.replace(/^oss[\\/]/, "")),
+    "Toonflow asset path",
+  );
 }
 
 export async function listStudioRuntimeAssets(request: StudioAssetListRequest): Promise<StudioAssetListResponse> {

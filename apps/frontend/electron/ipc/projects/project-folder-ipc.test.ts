@@ -26,6 +26,8 @@ type Fixture = {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   sender: { send: ReturnType<typeof vi.fn> };
   store: ReturnType<typeof createProjectLocationStore>;
+  /** 模拟原生对话框祝福:登记后 import 才放行(对应 blessedDialogPaths)。 */
+  blessImport: (folderPath: string) => void;
 };
 
 const activeTmps: string[] = [];
@@ -38,10 +40,12 @@ function createFixture(createMoveEngine?: () => ProjectMoveEngine): Fixture {
   fs.mkdirSync(userData, { recursive: true });
   fs.mkdirSync(dataRoot, { recursive: true });
   const store = createProjectLocationStore({ userDataPath: userData, getProjectsDataRoot: () => dataRoot });
+  const blessedImports = new Set<string>();
   registerProjectFolderIpcHandlers({
     locationStore: store,
     getProjectsDataRoot: () => dataRoot,
     createMoveEngine,
+    isImportPathBlessed: (folderPath) => blessedImports.has(folderPath),
   });
   const sender = { send: vi.fn() };
   return {
@@ -50,6 +54,7 @@ function createFixture(createMoveEngine?: () => ProjectMoveEngine): Fixture {
     dataRoot,
     store,
     sender,
+    blessImport: (folderPath) => blessedImports.add(path.resolve(folderPath)),
     invoke: (channel, ...args) => Promise.resolve(handlers.get(channel)?.({ sender }, ...args)),
   };
 }
@@ -662,6 +667,7 @@ describe("project-folder-import IPC handler", () => {
     const folder = makeProjectFolder(path.join(fixture.tmp, "imports"), "捡回的项目", { script: scriptPayload });
     const before = fs.readFileSync(path.join(folder, "script.json"), "utf-8");
 
+    fixture.blessImport(folder);
     const result = await fixture.invoke("project-folder-import", folder);
 
     expect(result).toEqual({
@@ -700,6 +706,7 @@ describe("project-folder-import IPC handler", () => {
     const brokenBefore = fs.readFileSync(path.join(folder, "broken.json"), "utf-8");
     const unrelatedBefore = fs.readFileSync(path.join(folder, "unrelated.json"), "utf-8");
 
+    fixture.blessImport(folder);
     const result = await fixture.invoke("project-folder-import", folder);
 
     expect(result).toEqual({
@@ -739,6 +746,7 @@ describe("project-folder-import IPC handler", () => {
       script: { state: { projects: { "legacy-taken": { title: "副本" } } } },
     });
 
+    fixture.blessImport(folder);
     const result = await fixture.invoke("project-folder-import", folder);
 
     const importedPid = (result as { project: { id: string } }).project.id;
@@ -755,6 +763,7 @@ describe("project-folder-import IPC handler", () => {
     await fixture.invoke("project-folder-prepare", "pid-x", parent, "已注册");
     fs.writeFileSync(path.join(parent, "已注册", "script.json"), "{}", "utf-8");
 
+    fixture.blessImport(path.join(parent, "已注册"));
     expect(await fixture.invoke("project-folder-import", path.join(parent, "已注册")))
       .toEqual({
         ok: false,
@@ -770,6 +779,8 @@ describe("project-folder-import IPC handler", () => {
     const randomFiles = path.join(fixture.tmp, "random");
     fs.mkdirSync(randomFiles);
     fs.writeFileSync(path.join(randomFiles, "readme.md"), "hi", "utf-8");
+    fixture.blessImport(empty);
+    fixture.blessImport(randomFiles);
 
     expect(await fixture.invoke("project-folder-import", empty))
       .toEqual({ ok: false, code: "NOT_A_PROJECT", message: expect.any(String) });
@@ -787,6 +798,7 @@ describe("project-folder-import IPC handler", () => {
       "utf-8",
     );
 
+    fixture.blessImport(migrated);
     const result = await fixture.invoke("project-folder-import", migrated) as { ok: boolean };
     expect(result.ok).toBe(true);
   });
@@ -794,6 +806,8 @@ describe("project-folder-import IPC handler", () => {
   it("rejects invalid paths with INVALID_PATH", async () => {
     const fileAsPath = path.join(fixture.tmp, "a-file");
     fs.writeFileSync(fileAsPath, "x", "utf-8");
+    fixture.blessImport(path.join(fixture.tmp, "missing"));
+    fixture.blessImport(fileAsPath);
 
     expect(await fixture.invoke("project-folder-import", "relative/path"))
       .toEqual({ ok: false, code: "INVALID_PATH", message: expect.any(String) });
@@ -803,11 +817,27 @@ describe("project-folder-import IPC handler", () => {
       .toEqual({ ok: false, code: "INVALID_PATH", message: expect.any(String) });
   });
 
+  it("rejects absolute paths that were not blessed by the native dialog", async () => {
+    const folder = makeProjectFolder(path.join(fixture.tmp, "imports"), "未祝福项目", {
+      script: { state: { projects: { "unblessed-pid": { title: "x" } } } },
+    });
+
+    expect(await fixture.invoke("project-folder-import", folder))
+      .toEqual({ ok: false, code: "INVALID_PATH", message: expect.any(String) });
+    expect(fixture.store.get("unblessed-pid")).toBeUndefined();
+
+    // 祝福后同一文件夹正常导入。
+    fixture.blessImport(folder);
+    const result = await fixture.invoke("project-folder-import", folder) as { ok: boolean };
+    expect(result.ok).toBe(true);
+  });
+
   it("rejects nested folders with NESTED", async () => {
     // Inside the application data root.
     const insideRoot = makeProjectFolder(fixture.dataRoot, "根内项目", {
       script: { state: { projects: { "inside-pid": { title: "x" } } } },
     });
+    fixture.blessImport(insideRoot);
     expect(await fixture.invoke("project-folder-import", insideRoot))
       .toEqual({ ok: false, code: "NESTED", message: expect.any(String) });
 
@@ -818,10 +848,12 @@ describe("project-folder-import IPC handler", () => {
     const insideLocation = makeProjectFolder(path.join(parent, "甲"), "嵌套项目", {
       script: { state: { projects: { "nested-pid": { title: "x" } } } },
     });
+    fixture.blessImport(insideLocation);
     expect(await fixture.invoke("project-folder-import", insideLocation))
       .toEqual({ ok: false, code: "NESTED", message: expect.any(String) });
 
     fs.writeFileSync(path.join(parent, "director.json"), "{}", "utf-8");
+    fixture.blessImport(parent);
     expect(await fixture.invoke("project-folder-import", parent))
       .toEqual({ ok: false, code: "NESTED", message: expect.any(String) });
   });
@@ -831,6 +863,7 @@ describe("project-folder-import IPC handler", () => {
     const fromScreenplay = makeProjectFolder(path.join(fixture.tmp, "imports"), "剧本项目", {
       director: { state: { projects: { "story-pid": { screenplay: `${screenplay}\n第二行` } } } },
     });
+    fixture.blessImport(fromScreenplay);
     const result = await fixture.invoke("project-folder-import", fromScreenplay);
     expect((result as { project: { name: string } }).project.name)
       .toBe(`${screenplay.substring(0, 20)}...`);
@@ -838,6 +871,7 @@ describe("project-folder-import IPC handler", () => {
     const fromBasename = makeProjectFolder(path.join(fixture.tmp, "imports"), "光杆项目", {
       director: { state: { projects: { "bare-pid": {} } } },
     });
+    fixture.blessImport(fromBasename);
     const result2 = await fixture.invoke("project-folder-import", fromBasename);
     expect(result2).toEqual({
       ok: true,

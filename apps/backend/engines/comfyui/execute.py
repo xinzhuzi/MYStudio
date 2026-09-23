@@ -190,6 +190,11 @@ def validate_execute_request(payload: dict[str, Any]) -> tuple[dict[str, Any], d
         for item in raw_images
     ):
         raise ValueError("inputs.images 必须是 [{key, name, b64}] 数组")
+    for item in raw_images:
+        # 注入图名会直写引擎 input 目录的文件名,禁止路径段(与
+        # image_gen/server.py 的 /comfy/bridge/reference 同款拒绝)。
+        if "/" in item["name"] or "\\" in item["name"] or ".." in item["name"]:
+            raise ValueError("注入图片文件名不合法(禁止路径段)")
     return graph, strings, raw_images
 
 
@@ -229,6 +234,8 @@ def apply_image_injections(
         if field not in inputs:
             raise ValueError(f"注入点 {item['key']} 不在工作流里(节点 {node_id} 没有 {field} 字段)")
         safe_name = item["name"] or f"mystudio-input-{index}.png"
+        if "/" in safe_name or "\\" in safe_name or ".." in safe_name:
+            raise ValueError("注入图片文件名不合法(禁止路径段)")
         inputs[field] = uploader(item["b64"], safe_name)
         if on_progress:
             on_progress(index + 1, len(images))

@@ -91,6 +91,8 @@ type RegisterProjectFolderIpcHandlersContext = {
   getProjectsDataRoot: () => string;
   /** Test injection point for the move engine; defaults to the real filesystem engine. */
   createMoveEngine?: () => ProjectMoveEngine;
+  /** 导入路径守卫:绝对路径必须刚由主进程原生对话框选出(祝福路径,TTL 内有效)。 */
+  isImportPathBlessed: (folderPath: string) => boolean;
 };
 
 // Stripping control characters from user-provided folder names is intentional.
@@ -260,6 +262,7 @@ export function registerProjectFolderIpcHandlers({
   locationStore,
   getProjectsDataRoot,
   createMoveEngine = () => createDefaultProjectMoveEngine(),
+  isImportPathBlessed,
 }: RegisterProjectFolderIpcHandlersContext): void {
   // In-flight move abort registry (key = projectId); drives move-cancel.
   const activeMoveControllers = new Map<string, AbortController>();
@@ -610,6 +613,11 @@ export function registerProjectFolderIpcHandlers({
       return { ok: false, code: "INVALID_PATH", message: "路径无效：必须是绝对路径" };
     }
     const folder = path.resolve(folderPath.trim());
+    // 导入源必须来自主进程原生对话框选出的路径(祝福注册表,与素材库同款
+    // 守卫)——被攻破的 renderer 不能拿本通道当任意目录注册原语。
+    if (!isImportPathBlessed(folder)) {
+      return { ok: false, code: "INVALID_PATH", message: "导入路径必须通过应用内的目录选择器选择后才能导入" };
+    }
     let folderStat: fs.Stats;
     try {
       folderStat = fs.statSync(folder);

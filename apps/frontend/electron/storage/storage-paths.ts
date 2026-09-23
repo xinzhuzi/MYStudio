@@ -18,7 +18,8 @@ function canonicalPath(input: string) {
   }
 }
 
-function assertInsideRoot(root: string, target: string, label: string) {
+/** symlink-safe root containment assert: canonical(realpath) 级比较,逃逸即抛错。 */
+export function assertInsideRoot(root: string, target: string, label: string) {
   const normalizedRoot = path.resolve(root);
   const normalizedTarget = path.resolve(target);
   const canonicalRoot = canonicalPath(normalizedRoot);

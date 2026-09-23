@@ -200,6 +200,15 @@ class TestValidation:
         with pytest.raises(ValueError):
             comfy_execute.validate_execute_request({"graph": graph, "inputs": {"images": [{"key": "a"}]}})
 
+    def test_rejects_image_names_with_path_segments(self):
+        graph = _graph_fixture()
+        for bad_name in ("a/b.png", "a\\b.png", "..", "a..b/../../etc/passwd"):
+            with pytest.raises(ValueError, match="禁止路径段"):
+                comfy_execute.validate_execute_request({
+                    "graph": graph,
+                    "inputs": {"images": [{"key": "10.image", "name": bad_name, "b64": PNG_B64}]},
+                })
+
     def test_ok_payload_passes(self):
         graph, strings, images = comfy_execute.validate_execute_request({
             "graph": _graph_fixture(),
@@ -236,6 +245,14 @@ class TestInjections:
         comfy_execute.apply_image_injections(graph, [{"key": "10.image", "name": "in.png", "b64": PNG_B64}], uploader)
         assert graph["10"]["inputs"]["image"] == "uploaded-1.png"
         assert calls == [(PNG_B64, "in.png")]
+
+    def test_image_injection_rejects_path_segment_names(self):
+        graph = _graph_fixture()
+        with pytest.raises(ValueError, match="禁止路径段"):
+            comfy_execute.apply_image_injections(
+                graph, [{"key": "10.image", "name": "../evil.png", "b64": PNG_B64}], lambda *_: "never"
+            )
+        assert graph["10"]["inputs"]["image"] == "placeholder.png"
 
 
 class TestExecuteJob:
