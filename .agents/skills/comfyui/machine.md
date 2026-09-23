@@ -64,9 +64,16 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors` (~19GB, self-converted from the full bf16
     original via `apps/build/scripts/qwen21_pe_bf16_convert_0923.py`): the Comfy-Org int8_convrot
     PE loads fine but dies at the first matmul on MPS (`aten::_int_mm` has no MPS kernel).
-  - (09-23) PE-I2I weight = `text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors`
-    (18,819,722,392 B, 自转件 via `apps/build/scripts/qwen21_pe_i2i_bf16_convert_0923.py`),
-    Edit 流 PE 用 (qwen21-edit [12],看图改写;语言随输入——中文进中文出,edit 系统提示词决策A)。
+  - (09-24 **勘误:该件已不在本机**) PE-I2I weight `qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors`
+    (原 18,819,722,392 B, 自转件 via `apps/build/scripts/qwen21_pe_i2i_bf16_convert_0923.py`)
+    ——09-24 工作流终局轮实查 text_encoders 无此件(外置盘/Trash/mdfind 均无);在库
+    qwen21-edit.json 与 qi21-道劫-i2i.json 同引用该件,PE 开关默认旁路故直写主路不受影响,
+    但 PE 开路当前过不了排队验证;恢复=重下原版四分片+重跑转换脚本(三重自证)。
+  - (09-24) Q2-1 加速件实况:viggle-turbo r64 LoRA 在 loras/(339,832,808 B);pottokao
+    Heretic TE 在 text_encoders/(`qwen3vl_8b_bf16_heretic.safetensors` 17,534,334,584 B,
+    SHA256 b1f17ffe…74b1 外置盘已备份;CLIPLoader(qwen_image) 直载+真出图=活,与官方
+    qwen3vl_8b 同题同 seed 像素带均差仅 3.96/255);TE-Speed-QwenImage21 插件=Windows
+    专属(nodes.pyd PE32+ DLL,macOS import 即败零注册),已清退勿再装。
   - (09-21) Engine upgraded past the pre-fill: v0.37.0 now (subgraphs + hash-based workflow restore).
   - (09-21) **Subgraph groups MUST carry an `id` field each** (any increasing int): without id only
     `groups[0]` loads, the rest are silently dropped. Cost a full debug round on the 道劫 [90] matrix.
