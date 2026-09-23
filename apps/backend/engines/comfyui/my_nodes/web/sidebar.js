@@ -338,6 +338,37 @@ function syncOpenBadges(openBadges) {
   }
 }
 
+// ── 「自研件」标签(09-23):repo: 工作流含 My 前缀定制节点即标 ──────────────
+// 判据=工作流 JSON 的节点 type 列表里出现 My 开头类型(MyQi21DaojieBase/
+// MyDaojieBase/MyDaojieRoute/MyStage 等;顶层 nodes+子图 definitions.
+// subgraphs[].nodes 都查——qi21 子图件 My 节点在子图内,K2 件在顶层)。
+// 读源=与打开动作同一 content 端点异步 fetch(先于任何 loadGraphData,不待
+// 点击);结果按 id 缓存防重拉,失败静默不打标。标签行尾内联灰底小字,
+// label 恒 flex:1,追加元素天然靠右,不动既有布局。
+const myNodeTagCache = new Map();
+
+function makeSelfBuiltTag() {
+  const tag = document.createElement("span");
+  tag.style.cssText = `flex:none;font-size:var(--my-fs-10);line-height:1.5;padding:0 5px;border-radius:4px;background:rgba(127,127,127,0.18);color:${THEME.text2};border:1px solid ${THEME.line};`;
+  tag.textContent = "自研件";
+  return tag;
+}
+
+async function markSelfBuiltWorkflow(item, row) {
+  let hit = myNodeTagCache.get(item.id);
+  if (hit === undefined) {
+    try {
+      const data = await fetchJson(`${BRIDGE_URL}/comfy/workflows/${encodeURIComponent(item.id)}/content`);
+      const graph = JSON.parse(data.content);
+      const isMyType = (node) => String(node?.type || "").startsWith("My");
+      hit = (graph.nodes || []).some(isMyType)
+        || ((graph.definitions || {}).subgraphs || []).some((sg) => (sg.nodes || []).some(isMyType));
+    } catch (error) { hit = false; }
+    myNodeTagCache.set(item.id, hit);
+  }
+  if (hit && row.isConnected) row.append(makeSelfBuiltTag());
+}
+
 async function renderWorkflowsPane(pane) {
   pane.textContent = "";
   // 满宽无空隙容器(09-15 用户铁律:布局要拓展至满控件,不要留空隙)
@@ -523,6 +554,9 @@ async function renderWorkflowsPane(pane) {
         openBadges.set(item.id, openBadge);
 
         row.append(indent, spacer, zapIcon, labelEl, openBadge);
+        // 09-23:「自研件」标签异步探检(fetch 工作流 JSON 查 My 前缀节点,
+        // 命中才在行尾追加,不改既有布局)
+        void markSelfBuiltWorkflow(item, row);
 
         const openIt = async () => {
           if (activeRowEl) activeRowEl.classList.remove("my-tree-row--active");

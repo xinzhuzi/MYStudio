@@ -58,6 +58,27 @@ TestQi21SubgraphContract(H+I,取代旧 TestDaojieProContract)。
 行内(数据流序)x 严格递增,主图+子图节点零重叠;group 预算 子图≤2/主图≤3;
 真源=生成器 qi21_daojie_t2i_0923.py 布局段(改布局禁手改 json)。
 
+09-23 edit 核心化轮(R16,design §13;真源=幂等生成器
+apps/build/scripts/qwen21_edit_core_pe_0923.py,旧 benjiyaya 手术脚本
+qwen21_edit_pe_group_0923.py 随本轮退役删除——重跑会倒退回插件链):
+  ① PE 链换 comfy-core 五件套(去 benjiyaya):PE CLIPLoader → StringFormat
+     {a}{b}{c} 三段 chatml(a=官方 i2i 系统提示词逐字/b=原始用户词/c=
+     assistant+<think> 预填)→ TextGenerate(use_default_template=false,
+     temp0.7/topK20/topP0.95/minP0.05/repPen1.05/maxLength8192/seed42;
+     presence_penalty=1.5 暂保待 A/B)→ RegexExtract(官方正则,dotall)
+     → ComfySwitch(false=原始用户词/true=PE,默认 false)。TestEditPEContract
+     重写(旧 benjiyaya 断言类目随节点退役)。
+  ② QwenImage21Cache(auto)恒挂 UNETLoader→KSampler(既有,断言保留)。
+  ③ 多图双通道:BatchImagesNode 合批全部(预缩后)输入图喂
+     TextGenerate.image(PE 看全图);TextEncodeQwenImage21 只吃选定图。
+  ④ latent 双路:PrimitiveBoolean→ComfySwitch(false=TextEncode.latent 跟随
+     image_1/true=EmptyLatent 自定义,默认 false)——旧「禁 EmptyLatentImage」
+     断言废止,改锁双路结构(test_latent_dual_path_switch)。
+  ⑤ 输入图预缩吸收(research/14 §4-1+15 §4-4,P1 并入 R16):
+     ImageScaleToTotalPixels 画布 1.5MP/参考 1.0MP(lanczos·32)。
+  ⑥ 节点标题铁律(用户令):核心/第三方节点零自定义 title(本件无自研节点,
+     全图无 title;test_no_custom_titles_on_core_nodes)。
+
 纯读文件断言,零网络零引擎依赖(真前端 graphToPrompt 干跑与实弹由 e2e 层
 另行验证)。
 
@@ -99,13 +120,30 @@ PE_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors"
 # [prompt, temperature, top_p, top_k, presence_penalty, max_new_tokens, seed]
 PE_PARAMS = [1.0, 0.95, 20, 1.5, 16256, 42]
 
-# PE-I2I(edit 件)契约:类名/权重/参数序(09-23;object_info 实读)
-PE_I2I_CLASS = "QwenImage21_EditPromptRewrite"
+# PE-I2I(edit 件)契约:0923-r16 换核心(comfy-core TextGenerate+RegexExtract,
+# 去 benjiyaya 依赖;design §13/research/13 官方免插件链照抄;真源=幂等生成器
+# apps/build/scripts/qwen21_edit_core_pe_0923.py,旧 benjiyaya 手术脚本随本轮退役)
 PE_I2I_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors"
-# QwenImage21_EditPromptRewrite widgets_values 序(required+optional 实读):
-# [prompt, temperature, top_p, presence_penalty, max_length, seed]
-# 官方 Edit 硬口径:presence_penalty=0(T2I 是 1.5,Edit 必 0)、max_length=24000
-PE_I2I_PARAMS = [1.0, 0.95, 0.0, 24000, 42]
+# TextGenerate widgets_values 序(官方件实读 13 项):
+# [prompt, max_length, sampling_mode, temperature, top_k, top_p, min_p,
+#  repetition_penalty, seed, presence_penalty, thinking,
+#  use_default_template, mtp]
+# presence_penalty=1.5 暂保(benjiyaya 沿袭值;官方 v2 用 0,待 A/B 裁定后回写)
+TG_PARAMS = ["", 8192, "on", 0.7, 20, 0.95, 0.05, 1.05, 42, 1.5, False, False, "auto"]
+# RegexExtract 官方正则逐字(对 i2i 三字段 JSON 只抓 rewritten_prompt;dotall 免疫 think)
+PE_I2I_REGEX = '"rewritten_prompt"\\s*:\\s*"(.*?)"\\s*,\\s*"wh_ratio"\\s*:'
+# chatml 三段锚(a=官方 i2i 系统提示词包裹/b=原始用户词/c=assistant+<think> 预填)
+CHATML_A_HEAD = "<|im_start|>system\n"
+CHATML_A_TAIL = "\n<|im_end|>\n<|im_start|>user"
+CHATML_C = "\n<|im_end|>\n<|im_start|>assistant\n<think>"
+B_SEG = ("Put the light blue denim shirt from <image2> on the character "
+         "in <image1>, keep everything else unchanged")
+# edit 件节点 id 锚(与生成器 qwen21_edit_core_pe_0923.py 同表)
+EDIT_SCALE_IDS = (16, 17)        # 输入图预缩(画布 1.5MP/参考 1.0MP)
+EDIT_PSM_A_ID, EDIT_PSM_B_ID, EDIT_PSM_C_ID = 21, 22, 23   # chatml a/b/c 三段
+EDIT_FMT_ID = 24                 # StringFormat {a}{b}{c}
+EDIT_BATCH_ID, EDIT_TG_ID, EDIT_RX_ID, EDIT_PE_SW_ID = 25, 26, 27, 15
+EDIT_PBM_ID, EDIT_EL_ID, EDIT_LATENT_SW_ID = 19, 18, 20
 
 # RGBA 官方包裹句式(模板原文,逐字)——t2i/edit 旧件沿用(固定演示句版)
 RGBA_HEAD = "This is an RGBA format image with transparency."
@@ -178,7 +216,8 @@ def _links(graph: dict) -> dict:
 def _resolve_default_string_origins(graph: dict) -> dict:
     """沿主编码 prompt 上游开关的 false 支路走到底 = 默认直写路的最终来源集合。
 
-    t2i:零跳,StringConstant 直接。"""
+    t2i:零跳,StringConstant 直接。edit(0923-r16):PrimitiveStringMultiline
+    (原始用户词,兼喂 chatml b 段与开关 on_false)。"""
     nodes, links = _nodes(graph), _links(graph)
     main_te = next(
         n for n in graph["nodes"]
@@ -203,7 +242,8 @@ def _resolve_default_string_origins(graph: dict) -> dict:
             for inp in node["inputs"]:
                 if inp.get("link") is not None:
                     stack.append(nodes[links[inp["link"]][1]])
-    return {nid: n for nid, n in origins.items() if n["type"] == "StringConstant"}
+    return {nid: n for nid, n in origins.items()
+            if n["type"] in ("StringConstant", "PrimitiveStringMultiline")}
 
 
 # ── 1. 四文件在位、文件名合规(09-18 命名铁律:无 MY- 前缀、无下划线)──
@@ -372,6 +412,26 @@ class TestCanvasDiscipline:
             assert "schemaVersion" not in graph and "graph" not in graph, \
                 f"{name}: 画布流不得混入桥 API 格式字段(schemaVersion/graph)"
 
+    def test_id_counters_not_below_actual_max(self):
+        """id 分配器真值锚(09-23 round7 edit-pe E2E 红根因):last_node_id/
+        last_link_id 不得小于全图实存最大 id(根图+子图一并计入)。
+        新前端(v0.37+)configure 用这两个字段播种 id 分配器,配置期已注册的
+        链接不回抬计数器——陈旧即画布下一次接线 mint 出撞车 id,linkStore
+        拒登(console: Link N belongs to graph …cannot overwrite it),
+        connect 返回 null。计数器高于 max 合法(删除只减 max 不减计数器),
+        故断言为 ≥ 而非 ==。治愈/重算脚本:apps/build/scripts/
+        workflow_id_counters_heal_0923.py(幂等,跳过官方模板)。"""
+        for name, graph in GRAPHS.items():
+            node_ids = [n["id"] for n in graph["nodes"]]
+            link_ids = [l[0] for l in graph["links"]]
+            for sg in graph.get("definitions", {}).get("subgraphs", []):
+                node_ids += [n["id"] for n in sg["nodes"]]
+                link_ids += [l["id"] for l in sg["links"]]
+            assert graph.get("last_node_id", 0) >= max(node_ids), \
+                f"{name}: last_node_id={graph.get('last_node_id')} < 实存最大节点 id {max(node_ids)}(id 分配器将撞车)"
+            assert graph.get("last_link_id", 0) >= max(link_ids), \
+                f"{name}: last_link_id={graph.get('last_link_id')} < 实存最大链接 id {max(link_ids)}(画布接线将撞车)"
+
     def test_groups_all_carry_id(self):
         for name, graph in GRAPHS.items():
             assert graph["groups"], f"{name}: 应有分组(引擎 1.53 契约:缺 id 只活第一个)"
@@ -426,7 +486,7 @@ class TestCanvasDiscipline:
                 f"{name}: 说明以一级大标题开幅(画布禁大标题横幅)"
 
 
-# ── 6. edit 件专属契约(双图输入、官方换装例句、resolution=0)────────
+# ── 6. edit 件专属契约(双图预缩输入、官方换装例句、resolution=0、latent 双路)──
 
 class TestEditContract:
     def test_textencode_has_two_image_inputs_wired(self):
@@ -435,12 +495,35 @@ class TestEditContract:
         assert len(encoders) == 1, "edit 件应恰 1 个 TextEncodeQwenImage21"
         wired = [i for i in encoders[0]["inputs"] if i["name"].startswith("images.") and i.get("link")]
         assert len(wired) >= 2, "TextEncodeQwenImage21 应接 ≥2 张图(image_1 画布 + image_2 参考)"
+        nodes, links = _nodes(graph), _links(graph)
+        for i in wired:
+            src = nodes[links[i["link"]][1]]
+            assert src["type"] == "ImageScaleToTotalPixels", \
+                f"编码器图像上游应预缩件(吸收 research/15 §4),得 {src['type']}[{src['id']}]"
+
+    def test_input_images_prescaled_dual_tier(self):
+        """输入图预缩(0923-r16 吸收 research/14 §4-1 + research/15 §4-4,两档均标
+        P1 并入 R16):LoadImage 后接 ImageScaleToTotalPixels(lanczos·32 倍数),
+        画布 1.5MP/参考图 1.0MP——控显存+稳输入尺寸(速度与输入图强相关)。"""
+        graph = GRAPHS["edit"]
+        scales = {n["id"]: n for n in _by_type(graph, "ImageScaleToTotalPixels")}
+        assert sorted(scales) == list(EDIT_SCALE_IDS), \
+            f"预缩件 id 应 {list(EDIT_SCALE_IDS)},得 {sorted(scales)}"
+        nodes, links = _nodes(graph), _links(graph)
+        for sid in EDIT_SCALE_IDS:
+            s = scales[sid]
+            assert s["widgets_values"][0] == "lanczos" and s["widgets_values"][2] == 32, \
+                f"[{sid}] 预缩应 lanczos·resolution_steps=32"
+            assert nodes[links[s["inputs"][0]["link"]][1]]["type"] == "LoadImage", \
+                f"[{sid}] 预缩上游应为 LoadImage"
+        assert scales[EDIT_SCALE_IDS[0]]["widgets_values"][1] == 1.5, "画布预缩应 1.5MP"
+        assert scales[EDIT_SCALE_IDS[1]]["widgets_values"][1] == 1.0, "参考图预缩应 1.0MP"
 
     def test_prompt_is_official_outfit_example(self):
         graph = GRAPHS["edit"]
         encoder = _by_type(graph, "TextEncodeQwenImage21")[0]
         assert _widget(encoder, TE_WV["prompt"]) == "", \
-            "09-23 PE 组轮起直写指令收进 StringConstant,主编码 prompt widget 应清空"
+            "09-23 PE 组轮起直写指令收进常量件,主编码 prompt widget 应清空"
         origins = _resolve_default_string_origins(graph)
         assert len(origins) == 1, f"直写路应恰 1 个源,得 {sorted(origins)}"
         prompt = _widget(next(iter(origins.values())), 0)
@@ -457,28 +540,87 @@ class TestEditContract:
         assert images == ["clothing_light_blue_denim_shirt.png", "portrait_model_denim.png"], \
             f"edit 件应预填官方示例双图(人像+衬衫),得 {images}"
 
-    def test_latent_follows_textencode_output(self):
-        """潜空取 TextEncode.latent(custom_size off 官方默认语义,禁接 EmptyLatentImage)。"""
+    def test_latent_dual_path_switch(self):
+        """④latent 双路(0923-r16,design §13):PrimitiveBoolean→ComfySwitch,
+        false=TextEncode.latent 跟随 image_1(默认)/true=EmptyLatent 自定义宽高;
+        ②QwenImage21Cache(auto)恒挂 UNETLoader→KSampler 之间。"""
         graph = GRAPHS["edit"]
-        assert not _by_type(graph, "EmptyLatentImage"), \
-            "edit 件不应带 EmptyLatentImage(简化为默认路径:latent 跟随 image_1)"
+        nodes, links = _nodes(graph), _links(graph)
+        pb = _by_type(graph, "PrimitiveBoolean")
+        assert len(pb) == 1 and pb[0]["id"] == EDIT_PBM_ID, \
+            f"应恰 1 个 PrimitiveBoolean[{EDIT_PBM_ID}](画幅开关源)"
+        assert pb[0]["widgets_values"][0] is False, "画幅开关源默认必须 false(跟随输入图)"
+        sw = nodes[EDIT_LATENT_SW_ID]
+        assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "LATENT", \
+            "画幅开关应为 LATENT 泛型 ComfySwitchNode"
+        assert sw["widgets_values"][0] is False, "画幅开关默认必须 false"
+        assert nodes[links[sw["inputs"][0]["link"]][1]]["type"] == "TextEncodeQwenImage21", \
+            "on_false 上游应 TextEncodeQwenImage21.latent(跟随 image_1)"
+        el = nodes[links[sw["inputs"][1]["link"]][1]]
+        assert el["type"] == "EmptyLatentImage" and el["id"] == EDIT_EL_ID, \
+            "on_true 上游应 EmptyLatentImage(自定义画幅)"
+        assert nodes[links[sw["inputs"][2]["link"]][1]]["id"] == EDIT_PBM_ID, \
+            "画幅开关 switch 槽应接 PrimitiveBoolean"
         sampler = _by_type(graph, "KSampler")[0]
         latent_in = next(i for i in sampler["inputs"] if i["name"] == "latent_image")
-        origin_id = next(l[1] for l in graph["links"] if l[0] == latent_in["link"])
-        assert _nodes(graph)[origin_id]["type"] == "TextEncodeQwenImage21", \
-            "KSampler.latent_image 上游必须是 TextEncodeQwenImage21.latent"
-        assert _by_type(graph, "QwenImage21Cache"), "edit 件应带 QwenImage21Cache(auto)"
+        assert links[latent_in["link"]][1] == EDIT_LATENT_SW_ID, \
+            "KSampler.latent_image 上游必须是画幅开关(双路二选一)"
+        # ② Cache 恒挂 UNETLoader 与 KSampler 之间
+        cache = _by_type(graph, "QwenImage21Cache")
+        assert len(cache) == 1 and cache[0]["widgets_values"] == ["auto", "default"], \
+            "edit 件应恰 1 个 QwenImage21Cache(auto/default)"
+        up = links[cache[0]["inputs"][0]["link"]][1]
+        dn = links[cache[0]["outputs"][0]["links"][0]]
+        assert nodes[up]["type"] == "UNETLoader" and nodes[dn[3]]["type"] == "KSampler", \
+            "QwenImage21Cache 必须挂 UNETLoader→KSampler 之间"
+
+    def test_no_custom_titles_on_core_nodes(self):
+        """节点标题铁律(0923-r16 用户令):核心/第三方节点 title 一律保留原生
+        默认(空或英文名),不改不译;仅自研节点(My*/漫影*)可自定中文标题——
+        本件零自研节点,故全图不得携带任何 title。"""
+        graph = GRAPHS["edit"]
+        titled = [n["id"] for n in graph["nodes"] if "title" in n]
+        assert not titled, f"核心节点携带自定义 title(铁律:原生默认标题):{titled}"
 
 
-# ── 6a. edit 件 PE-I2I 改写组契约(09-23:看图改写,Edit 硬口径)────────
+# ── 6a. edit 件 PE-I2I 改写组契约(0923-r16:核心 TextGenerate+RegexExtract)──
 
 class TestEditPEContract:
-    def test_edit_pe_node_and_hard_params(self):
+    def test_edit_core_pe_chain_present_and_params(self):
+        """①PE 链换核心(去 benjiyaya):TextGenerate 恰 1 且 13 参逐字(官方采样值
+        +presence_penalty=1.5 暂保待 A/B);RegexExtract 官方正则(First Group+dotall);
+        chatml 三段=StringFormat {a}{b}{c}(a=官方 i2i 系统提示词/c=assistant+<think> 预填)。"""
         graph = GRAPHS["edit"]
-        pe_nodes = _by_type(graph, PE_I2I_CLASS)
-        assert len(pe_nodes) == 1, "edit 件应恰 1 个 QwenImage21_EditPromptRewrite"
-        assert pe_nodes[0]["widgets_values"][1:] == PE_I2I_PARAMS, \
-            f"PE-I2I 参数漂移(官方 Edit 硬口径 {PE_I2I_PARAMS}),得 {pe_nodes[0]['widgets_values'][1:]}"
+        tgs = _by_type(graph, "TextGenerate")
+        assert len(tgs) == 1 and tgs[0]["id"] == EDIT_TG_ID, \
+            f"应恰 1 个 TextGenerate[{EDIT_TG_ID}](comfy-core,去 benjiyaya)"
+        assert tgs[0]["widgets_values"] == TG_PARAMS, \
+            f"TextGenerate 参数漂移(期望 {TG_PARAMS}),得 {tgs[0]['widgets_values']}"
+        rx = _by_type(graph, "RegexExtract")
+        assert len(rx) == 1 and rx[0]["id"] == EDIT_RX_ID, \
+            f"应恰 1 个 RegexExtract[{EDIT_RX_ID}]"
+        wv = rx[0]["widgets_values"]
+        assert wv[1] == PE_I2I_REGEX, "RegexExtract 正则应官方逐字(抓 rewritten_prompt)"
+        assert wv[2] == "First Group" and wv[5] is True, \
+            "RegexExtract 应 First Group + dotall=True(免疫 think 长文)"
+        nodes, links = _nodes(graph), _links(graph)
+        assert nodes[links[rx[0]["inputs"][0]["link"]][1]]["id"] == EDIT_TG_ID, \
+            "RegexExtract 上游应 TextGenerate.generated_text"
+        fmt = _by_type(graph, "StringFormat")
+        assert len(fmt) == 1 and fmt[0]["widgets_values"] == ["{a}{b}{c}"], \
+            "chatml 拼装应为 StringFormat {a}{b}{c}"
+        assert links[fmt[0]["outputs"][0]["links"][0]][3] == EDIT_TG_ID, \
+            "StringFormat 输出应喂 TextGenerate.prompt"
+        psm = {n["id"]: _widget(n, 0) for n in _by_type(graph, "PrimitiveStringMultiline")}
+        a_ids = [nid for nid, v in psm.items()
+                 if v.startswith(CHATML_A_HEAD) and v.endswith(CHATML_A_TAIL)]
+        assert len(a_ids) == 1, f"a 段应恰 1 个(<|im_start|>system 包裹),得 {a_ids}"
+        assert "The user's edit instruction to rewrite is:" in psm[a_ids[0]], \
+            "a 段应含官方 i2i 系统提示词文末收束句(四源一致逐字)"
+        assert psm.get(EDIT_PSM_B_ID) == B_SEG, \
+            f"[{EDIT_PSM_B_ID}] b 段应为原始用户词(官方换装例句)"
+        assert psm.get(EDIT_PSM_C_ID) == CHATML_C, \
+            f"[{EDIT_PSM_C_ID}] c 段应 assistant+<think> 预填(官方刻意设计,勿改 thinking=True)"
 
     def test_edit_pe_group_titled_with_ids(self):
         graph = GRAPHS["edit"]
@@ -495,26 +637,39 @@ class TestEditPEContract:
         main_te = _by_type(graph, "TextEncodeQwenImage21")[0]
         prompt_link = links[next(i["link"] for i in main_te["inputs"] if i["name"] == "prompt")]
         switch = nodes[prompt_link[1]]
-        assert switch["type"] == "ComfySwitchNode", "TextEncode.prompt 上游应是核心 ComfySwitchNode"
+        assert switch["type"] == "ComfySwitchNode" and switch["id"] == EDIT_PE_SW_ID, \
+            f"TextEncode.prompt 上游应是核心 ComfySwitchNode[{EDIT_PE_SW_ID}]"
         assert switch["outputs"][0]["type"] == "STRING", "PE 开关应为 STRING 泛型(MatchType)"
         assert switch["widgets_values"][0] is False, "PE 开关默认必须 false(直写,PE 旁路)"
         true_origin = nodes[links[switch["inputs"][1]["link"]][1]]
-        assert true_origin["type"] == PE_I2I_CLASS, \
-            f"开关 on_true 上游应为 {PE_I2I_CLASS}(PE 看图改写)"
-        false_origins = _resolve_default_string_origins(graph)
-        assert len(false_origins) == 1 and all(
-            n["type"] == "StringConstant" for n in false_origins.values()), \
-            f"直写路应恰 1 个 StringConstant 源,得 {sorted(false_origins)}"
+        assert true_origin["type"] == "RegexExtract", \
+            f"开关 on_true 上游应为 RegexExtract(PE 改写结果),得 {true_origin['type']}"
+        false_origin = nodes[links[switch["inputs"][0]["link"]][1]]
+        assert false_origin["type"] == "PrimitiveStringMultiline", \
+            f"开关 on_false 上游应为原始用户词(PrimitiveStringMultiline),得 {false_origin['type']}"
 
-    def test_edit_pe_sees_canvas_image(self):
-        """PE 是看图改写:image_1 必须真接编辑画布 LoadImage(非悬空)。"""
+    def test_edit_pe_sees_all_input_images(self):
+        """③多图双通道(0923-r16):BatchImagesNode 合批全部(预缩后)输入图喂
+        TextGenerate.image——PE 看全图(改写需要全图上下文写 <imageN> 引用与判断
+        画布);TextEncodeQwenImage21 编码通道只吃选定图(见 TestEditContract)。"""
         graph = GRAPHS["edit"]
         nodes, links = _nodes(graph), _links(graph)
-        pe = _by_type(graph, PE_I2I_CLASS)[0]
-        img1 = next(i for i in pe["inputs"] if i["name"] == "image_1")
-        assert img1.get("link"), "PE image_1 应有连线(PE 看图改写的根)"
-        src = nodes[links[img1["link"]][1]]
-        assert src["type"] == "LoadImage", "PE image_1 上游应为 LoadImage(编辑画布)"
+        batch = _by_type(graph, "BatchImagesNode")
+        assert len(batch) == 1 and batch[0]["id"] == EDIT_BATCH_ID, \
+            f"应恰 1 个 BatchImagesNode[{EDIT_BATCH_ID}](PE 全图通道)"
+        wired = [i for i in batch[0]["inputs"] if i.get("link")]
+        assert len(wired) >= 2, "合批应接 ≥2 路输入图(PE 看全部)"
+        ups = {links[i["link"]][1] for i in wired}
+        assert ups == set(EDIT_SCALE_IDS), \
+            f"合批上游应为全部预缩件 {list(EDIT_SCALE_IDS)},得 {sorted(ups)}"
+        tg = nodes[EDIT_TG_ID]
+        img_in = next(i for i in tg["inputs"] if i["name"] == "image")
+        assert links[img_in["link"]][1] == EDIT_BATCH_ID, \
+            "TextGenerate.image 上游应 BatchImagesNode(PE 看全图)"
+        clip_in = next(i for i in tg["inputs"] if i["name"] == "clip")
+        pe_clip = nodes[links[clip_in["link"]][1]]
+        assert pe_clip["type"] == "CLIPLoader" and _widget(pe_clip, 0) == PE_I2I_CLIP_FILE, \
+            "TextGenerate.clip 上游应 PE 专属 CLIPLoader(pe_i2i bf16,qwen_image)"
 
 
 # ── 6b. 画布选项契约(09-23 深夜 A+B:PE 组默认旁路 / RGBA 开关默认普通)──

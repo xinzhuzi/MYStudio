@@ -99,6 +99,30 @@ function killSingletonLockHolder() {
   console.log(`Killed singleton-lock holder pid=${pid} (${target})`);
 }
 
+// 09-23 根修:detached ComfyUI 引擎进程不随 app 退出,覆盖安装后旧引擎带着旧自研
+// 节点注册表常驻,新装 app 下次打开复用旧进程→新自研节点永不上线。smoke 前逐个
+// 检查 pgrep -f ComfyUI/main.py 命中的进程 argv:只杀家在 漫影工作室 路径下的托管
+// 引擎;17002 测试实例(argv 含 --port 17002)跳过不碰。杀掉后下次 App 打开即
+// 自动拉起新引擎注册新自研节点(装机即解决,不加 UI 提示)。
+function killDetachedComfyEngines() {
+  const pgrep = spawnSync('pgrep', ['-f', 'ComfyUI/main.py'], { encoding: 'utf8' });
+  if (pgrep.status !== 0 || !pgrep.stdout.trim()) {
+    return; // 无引擎在跑(正常空闲)
+  }
+  for (const pidLine of pgrep.stdout.trim().split('\n')) {
+    const pid = pidLine.trim();
+    if (!pid) continue;
+    const argv =
+      spawnSync('ps', ['-o', 'command=', '-p', pid], { encoding: 'utf8' }).stdout ?? '';
+    if (!argv.includes('漫影工作室')) continue; // 非本 app 托管引擎(家路径),不碰
+    if (/--port[= ]17002\b/.test(argv)) continue; // 17002 测试实例,不碰
+    runOptional('kill', [pid]);
+    sleepSync(1);
+    runOptional('kill', ['-9', pid]);
+    console.log(`Killed detached ComfyUI engine pid=${pid}`);
+  }
+}
+
 function assertNoBackupApps() {
   const backups = readdirSync('/Applications')
     .filter((name) => /^漫影工作室\.app\.(?:backup-|backup$)/.test(name));
@@ -203,6 +227,8 @@ assertNoBackupApps();
 verifyInstalledIntegrity();
 
 inspectPackagedRemotionApp(installedApp);
+
+killDetachedComfyEngines();
 
 console.log(`Running installed smoke: ${smokeCommandLabel}`);
 run('npm', ['run', 'smoke:desktop'], {
