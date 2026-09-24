@@ -95,6 +95,20 @@ edit 骨架保留(PE-I2I 核心链[15]默认旁路/BatchImages 双通道/latent 
 旁路),TE-Speed 槽禁入本件(节点类型白名单锁,R26.4 统一接线轮补);计数锚
 6→7 联动;真源=幂等生成器 apps/build/scripts/qi21_daojie_i2i_0924.py。
 
+09-24 R26.4 统一接线轮(任务三 R26.4;research/16 §八 D1-D5 终审定案):
+t2i(qi21)与 edit 两件补 LoRA 加速槽,与 i2i 出生槽三件同构——
+LoraLoaderModelOnly[31](name 预填 viggle r64 逐字,strength 1.0)+MODEL 开关
+[32](false=MODEL 直连/true=LoRA)+开关源 PrimitiveBoolean[30],三件默认关;
+qi21 链=[1] UNET→顶通道 Reroute(扇出两臂)→开关→[7] KSampler(t2i 无 Cache),
+edit 链=[7] Cache→开关→[8] KSampler(槽插最靠近 KSampler 的 model 入口=
+Cache 之后);**硬性 AC=「关闭=正常生成」**(D1 用户令:关态 MODEL 直连,
+关态干跑执行图零 LoraLoader——_off_state_reach 断言);edit 件 VAE→VAEDecode
+长横穿随迁顶缘 Reroute 通道([28]/[29],样板=t2i/i2i 同款,交叉审计 11=整治前
+11 零新增);TE-Speed 槽三件一律不加(3c 试装已死归档,D4 终审永不装)。
+新增 TestQi21SubgraphContract/TestEditContract 的 test_lora_slot_present_
+and_bypassed(照 TestI2IContract 同款断言式);i2i 件零结构改动(Note 措辞
+对齐:关闭=正常生成/shift_terminal=0.02/TE-Speed 归档口径)。
+
 09-23 修复轮注记:脚本层 pytest 曾报「file or directory not found」——本地仓库根
 同命令 collect 正常,文件运行期零 cwd 依赖(真源定位走 __file__,json 读取与
 rglob 均绝对锚定);根因是执行侧以非仓库根 cwd 解析仓库相对路径,修复=调用侧
@@ -158,6 +172,10 @@ EDIT_PSM_A_ID, EDIT_PSM_B_ID, EDIT_PSM_C_ID = 21, 22, 23   # chatml a/b/c 三段
 EDIT_FMT_ID = 24                 # StringFormat {a}{b}{c}
 EDIT_BATCH_ID, EDIT_TG_ID, EDIT_RX_ID, EDIT_PE_SW_ID = 25, 26, 27, 15
 EDIT_PBM_ID, EDIT_EL_ID, EDIT_LATENT_SW_ID = 19, 18, 20
+# edit 件 LoRA 槽锚(09-24 R26.4 统一接线;id 同构 i2i=插在 Cache 之后最靠近
+# KSampler.model 入口处)+ VAE 顶通道(R26.4 随迁)
+EDIT_LORA_PB_ID, EDIT_LORA_ID, EDIT_LORA_SW_ID = 30, 31, 32
+EDIT_RR_V_A_ID, EDIT_RR_V_B_ID = 28, 29
 
 # RGBA 官方包裹句式(模板原文,逐字)——t2i/edit 旧件沿用(固定演示句版)
 RGBA_HEAD = "This is an RGBA format image with transparency."
@@ -190,6 +208,10 @@ QI21_SG_RATIO_IDS = [151, 152]                                     # wh_ratio �
 QI21_SG_CONV_IDS = [153, 154]                                      # 字串→数
 QI21_SG_MATH_IDS = [155, 156]                                      # 公式求宽/高
 QI21_SG_SW_WH_IDS = [157, 158]                                     # 宽/高联动开关(INT)
+# qi21 件 LoRA 槽锚(09-24 R26.4 补槽,id 同构 i2i;t2i 无 Cache——MODEL 上游
+# 穿顶通道 Reroute 溯至 UNETLoader[1])
+QI21_LORA_PB_ID, QI21_LORA_ID, QI21_LORA_SW_ID = 30, 31, 32
+QI21_RR_M8A_ID, QI21_RR_M8B_ID = 20, 21   # MODEL 顶通道(R26.4 起扇出直连/LoRA 两臂)
 
 # i2i 件结构锚(09-24 新增;id 与生成器 qi21_daojie_i2i_0924.py 同表——主图 id 承
 # edit 骨架同表,装配子图 id 承 t2i 装配段;[6] 编码收进子图=[142],[27] 在主图
@@ -208,9 +230,10 @@ I2I_SG_RGBA_HEAD_ID, I2I_SG_RGBA_TAIL_ID = 160, 161
 I2I_SG_CONCAT_IDS = [130, 131]
 I2I_SG_RGBA_CAT_IDS = [162, 163]
 I2I_SG_TE, I2I_SG_TE_RGBA, I2I_SG_RGBA_SW = 142, 143, 144
-# LoRA 加速槽(09-24 定案:出生只带 LoRA 槽;viggle 4-step 蒸馏件已装机,
-# 事实=R23 research/02)——name 预填逐字锚
-I2I_LORA_FILE = "Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors"
+# LoRA 加速槽(09-24 R26.4 三件统一接线:t2i/edit 补槽与 i2i 出生槽同构;
+# viggle 4-step 蒸馏件已装机,事实=R23 research/02)——name 预填逐字锚
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors"
+I2I_LORA_FILE = LORA_FILE
 # 指令①层默认=官方换装例句(edit 生成器口径逐字)
 I2I_B_SEG = ("Put the light blue denim shirt from <image2> on the character "
              "in <image1>, keep everything else unchanged")
@@ -260,6 +283,41 @@ def _widget(node: dict, index: int):
 
 def _links(graph: dict) -> dict:
     return {link[0]: link for link in graph["links"]}
+
+
+def _trace_main_reroute(nodes: dict, links: dict, lid: int) -> int:
+    """主图沿 link 反向溯源,穿过顶通道 Reroute 回到实源节点 id(R26.4 起两件
+    MODEL/VAE 长横穿走顶缘通道,锚定断言按实源判定——几何走通道,语义接线不变)。"""
+    seen = set()
+    while True:
+        l = links[lid]
+        oid = l[1]
+        if nodes[oid]["type"] != "Reroute" or oid in seen:
+            return oid
+        seen.add(oid)
+        lid = nodes[oid]["inputs"][0]["link"]
+
+
+def _off_state_reach(graph: dict, save_id: int) -> set[int]:
+    """关态主图执行集(SaveImage 回溯;ComfySwitchNode 懒执行=默认 false 只走
+    on_false 臂)。R26.4 硬性 AC(用户令):加速槽「关闭=正常生成」——关态执行图
+    零 LoraLoader。"""
+    nodes, links = _nodes(graph), _links(graph)
+    reach, stack = set(), [save_id]
+    while stack:
+        nid = stack.pop()
+        if nid in reach:
+            continue
+        reach.add(nid)
+        node = nodes[nid]
+        slots = ([0] if node["type"] == "ComfySwitchNode"
+                 and node["widgets_values"][0] is False
+                 else range(len(node.get("inputs", []))))
+        for si in slots:
+            lid = node["inputs"][si].get("link")
+            if lid is not None:
+                stack.append(links[lid][1])
+    return reach
 
 
 def _resolve_default_string_origins(graph: dict) -> dict:
@@ -593,13 +651,15 @@ class TestEditContract:
     def test_latent_dual_path_switch(self):
         """④latent 双路(0923-r16,design §13):PrimitiveBoolean→ComfySwitch,
         false=TextEncode.latent 跟随 image_1(默认)/true=EmptyLatent 自定义宽高;
-        ②QwenImage21Cache(auto)恒挂 UNETLoader→KSampler 之间。"""
+        ②QwenImage21Cache(auto)恒挂 UNETLoader→KSampler 之间(R26.4 起可穿
+        加速槽 MODEL 开关,PrimitiveBoolean 恰 2=画幅[19]+LoRA[30])。"""
         graph = GRAPHS["edit"]
         nodes, links = _nodes(graph), _links(graph)
         pb = _by_type(graph, "PrimitiveBoolean")
-        assert len(pb) == 1 and pb[0]["id"] == EDIT_PBM_ID, \
-            f"应恰 1 个 PrimitiveBoolean[{EDIT_PBM_ID}](画幅开关源)"
-        assert pb[0]["widgets_values"][0] is False, "画幅开关源默认必须 false(跟随输入图)"
+        assert sorted(n["id"] for n in pb) == sorted([EDIT_PBM_ID, EDIT_LORA_PB_ID]), \
+            f"应恰 2 个 PrimitiveBoolean([19] 画幅/[30] LoRA 开关源),得 {sorted(n['id'] for n in pb)}"
+        assert all(n["widgets_values"][0] is False for n in pb), \
+            "画幅/LoRA 开关源默认必须 false(跟随输入图/旁路)"
         sw = nodes[EDIT_LATENT_SW_ID]
         assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "LATENT", \
             "画幅开关应为 LATENT 泛型 ComfySwitchNode"
@@ -615,14 +675,57 @@ class TestEditContract:
         latent_in = next(i for i in sampler["inputs"] if i["name"] == "latent_image")
         assert links[latent_in["link"]][1] == EDIT_LATENT_SW_ID, \
             "KSampler.latent_image 上游必须是画幅开关(双路二选一)"
-        # ② Cache 恒挂 UNETLoader 与 KSampler 之间
+        # ② Cache 恒挂 UNETLoader→KSampler 之间(R26.4 起经加速槽开关)
         cache = _by_type(graph, "QwenImage21Cache")
         assert len(cache) == 1 and cache[0]["widgets_values"] == ["auto", "default"], \
             "edit 件应恰 1 个 QwenImage21Cache(auto/default)"
         up = links[cache[0]["inputs"][0]["link"]][1]
         dn = links[cache[0]["outputs"][0]["links"][0]]
-        assert nodes[up]["type"] == "UNETLoader" and nodes[dn[3]]["type"] == "KSampler", \
-            "QwenImage21Cache 必须挂 UNETLoader→KSampler 之间"
+        assert nodes[up]["type"] == "UNETLoader" and \
+            nodes[dn[3]]["type"] in ("KSampler", "ComfySwitchNode", "LoraLoaderModelOnly"), \
+            "QwenImage21Cache 必须挂 UNETLoader→KSampler 之间(可穿加速槽开关)"
+
+    def test_lora_slot_present_and_bypassed(self):
+        """R26.4 LoRA 加速槽(09-24 统一接线,照 TestI2IContract 同款断言式;
+        D1 硬性 AC=「关闭它也正常生成」):[7] Cache→⟨[32] MODEL 开关(false=直连/
+        true=[31] LoraLoaderModelOnly)⟩→[8] KSampler.model(槽插最靠近 KSampler
+        的 model 入口=Cache 之后);name 预填 viggle r64 逐字;默认关;关态干跑
+        执行图零 LoraLoader;TE-Speed 槽不加(3c 死,D4 归档)。"""
+        graph = GRAPHS["edit"]
+        nodes, links = _nodes(graph), _links(graph)
+        loras = _by_type(graph, "LoraLoaderModelOnly")
+        assert len(loras) == 1 and loras[0]["id"] == EDIT_LORA_ID, \
+            f"应恰 1 个 LoraLoaderModelOnly[{EDIT_LORA_ID}](加速槽)"
+        assert _widget(loras[0], 0) == LORA_FILE, \
+            f"LoRA 槽 name 应逐字预填 {LORA_FILE!r}"
+        assert _widget(loras[0], 1) == 1.0, "LoRA 槽 strength_model 默认应 1.0"
+        assert links[loras[0]["inputs"][0]["link"]][1] == 7, \
+            "LoRA 槽 model 上游应 QwenImage21Cache[7](Cache 之后)"
+        sw = nodes[EDIT_LORA_SW_ID]
+        assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "MODEL", \
+            f"[{EDIT_LORA_SW_ID}] 应为 MODEL 泛型开关"
+        assert sw["widgets_values"][0] is False, f"[{EDIT_LORA_SW_ID}] LoRA 开关默认应 false(旁路)"
+        assert links[sw["inputs"][0]["link"]][1] == 7, \
+            "[32].on_false 应 Cache[7] 直连臂(关态 MODEL 直连)"
+        assert links[sw["inputs"][1]["link"]][1] == EDIT_LORA_ID, \
+            "[32].on_true 应 LoraLoaderModelOnly"
+        assert links[sw["inputs"][2]["link"]][1] == EDIT_LORA_PB_ID, \
+            "[32].switch 应 PrimitiveBoolean[30]"
+        assert _widget(nodes[EDIT_LORA_PB_ID], 0) is False, "[30] LoRA 开关源默认应 false"
+        assert links[nodes[8]["inputs"][0]["link"]][1] == EDIT_LORA_SW_ID, \
+            "KSampler.model 上游应 [32] MODEL 开关(加速槽二选一)"
+        # 硬性 AC:关态干跑执行图零 LoraLoader(懒执行旁路=正常生成)
+        reach = _off_state_reach(graph, save_id=10)
+        assert EDIT_LORA_ID not in reach, \
+            f"关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成),reach={sorted(reach)}"
+        # VAE 顶通道(R26.4 随迁):VAE→[28]→[29]→VAEDecode,恒向右
+        va, vb = nodes[EDIT_RR_V_A_ID], nodes[EDIT_RR_V_B_ID]
+        assert va["type"] == "Reroute" and vb["type"] == "Reroute", \
+            "edit 应含 VAE 顶通道双拐点(R26.4 随迁)"
+        assert nodes[links[va["inputs"][0]["link"]][1]]["type"] == "VAELoader", \
+            "VAE 顶通道首拐点上游应 VAELoader"
+        assert links[vb["outputs"][0]["links"][0]][3] == 9, \
+            "VAE 顶通道末拐点应落 VAEDecode[9]"
 
     def test_no_custom_titles_on_core_nodes(self):
         """节点标题铁律(0923-r16 用户令):核心/第三方节点 title 一律保留原生
@@ -948,7 +1051,8 @@ class TestQi21SubgraphContract:
     def test_external_wiring_only_loaders_sampler_save_note(self):
         """外部接线:[2][3][11]→宿主 clip/vae/pe_clip;[24]→主体句;宿主
         positive/negative→[7];prompt→[27];width/height→[5]。主图应无
-        TextEncode/开关/PE/ResolutionSelector 平铺(装配核心已收进子图)。"""
+        TextEncode/PE/ResolutionSelector 平铺(装配核心已收进子图);开关唯一
+        =R26.4 LoRA MODEL 开关[32](PE/RGBA/画幅联动仍收在子图)。"""
         graph = GRAPHS["qi21"]
         got = {(l[0], l[1], l[2], l[3], l[4], l[5]) for l in graph["links"]}
         for want in [
@@ -961,18 +1065,72 @@ class TestQi21SubgraphContract:
             (16, QI21_HOST_ID, 0, QI21_SAMPLER_ID, 1, "CONDITIONING"),
             (17, QI21_HOST_ID, 1, QI21_SAMPLER_ID, 2, "CONDITIONING"),
             (18, QI21_HOST_ID, 2, QI21_PREVIEW_ID, 0, "STRING"),
+            # R26.4 LoRA 加速槽接线(照 i2i 断言式):顶通道扇出两臂→开关→KSampler
+            (20, QI21_RR_M8B_ID, 0, QI21_LORA_SW_ID, 0, "MODEL"),
+            (23, QI21_RR_M8B_ID, 0, QI21_LORA_ID, 0, "MODEL"),
+            (24, QI21_LORA_ID, 0, QI21_LORA_SW_ID, 1, "MODEL"),
+            (25, QI21_LORA_PB_ID, 0, QI21_LORA_SW_ID, 2, "BOOLEAN"),
+            (26, QI21_LORA_SW_ID, 0, QI21_SAMPLER_ID, 0, "MODEL"),
         ]:
             assert want in got, f"外部接线缺: link{want[0]}"
         assert not _by_type(graph, "TextEncodeQwenImage21"), \
             "主图不应有平铺 TextEncode(主编码/RGBA 编码已收进子图)"
-        assert not _by_type(graph, "ComfySwitchNode"), \
-            "主图不应有平铺开关(PE/RGBA/画幅联动已收进子图)"
+        switches = [n["id"] for n in _by_type(graph, "ComfySwitchNode")]
+        assert switches == [QI21_LORA_SW_ID], \
+            f"主图开关应恰 LoRA MODEL 开关[{QI21_LORA_SW_ID}](PE/RGBA/画幅联动已收进子图),得 {switches}"
         assert not _by_type(graph, PE_CLASS), "PE 改写件应收进子图"
         assert not _by_type(graph, "ResolutionSelector"), \
             "主图不应有 ResolutionSelector(写死档位表废止,宽高随型直驱)"
         subjects = [n for n in graph["nodes"] if n["type"] == "PrimitiveStringMultiline"]
         assert len(subjects) == 1 and subjects[0]["id"] == QI21_SUBJECT_ID, \
             "[24] 应为外露 PrimitiveStringMultiline 主体句(仿 K2 [50])"
+
+    def test_lora_slot_present_and_bypassed(self):
+        """R26.4 LoRA 加速槽(09-24 统一接线,照 TestI2IContract 同款断言式;
+        D1 硬性 AC=「关闭它也正常生成」):[1] UNET→顶通道 Reroute(扇出两臂)→
+        [32] MODEL 开关(false=直连/true=[31] LoraLoaderModelOnly)→[7] KSampler;
+        name 预填 viggle r64 逐字;默认关;关态干跑执行图零 LoraLoader;
+        TE-Speed 槽不加(3c 试装已死归档,D4 终审永不装)。"""
+        graph = GRAPHS["qi21"]
+        nodes, links = _nodes(graph), _links(graph)
+        loras = _by_type(graph, "LoraLoaderModelOnly")
+        assert len(loras) == 1 and loras[0]["id"] == QI21_LORA_ID, \
+            f"应恰 1 个 LoraLoaderModelOnly[{QI21_LORA_ID}](加速槽)"
+        assert _widget(loras[0], 0) == LORA_FILE, \
+            f"LoRA 槽 name 应逐字预填 {LORA_FILE!r}"
+        assert _widget(loras[0], 1) == 1.0, "LoRA 槽 strength_model 默认应 1.0"
+        assert _trace_main_reroute(nodes, links, loras[0]["inputs"][0]["link"]) == 1, \
+            "LoRA 槽 model 上游应 UNETLoader[1](t2i 无 Cache,可穿顶通道 Reroute)"
+        sw = nodes[QI21_LORA_SW_ID]
+        assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "MODEL", \
+            f"[{QI21_LORA_SW_ID}] 应为 MODEL 泛型开关"
+        assert sw["widgets_values"][0] is False, f"[{QI21_LORA_SW_ID}] LoRA 开关默认应 false(旁路)"
+        assert _trace_main_reroute(nodes, links, sw["inputs"][0]["link"]) == 1, \
+            "[32].on_false 应 UNETLoader 直连臂(可穿通道,关态 MODEL 直连)"
+        assert links[sw["inputs"][1]["link"]][1] == QI21_LORA_ID, \
+            "[32].on_true 应 LoraLoaderModelOnly"
+        assert links[sw["inputs"][2]["link"]][1] == QI21_LORA_PB_ID, \
+            "[32].switch 应 PrimitiveBoolean[30]"
+        assert _widget(nodes[QI21_LORA_PB_ID], 0) is False, "[30] LoRA 开关源默认应 false"
+        assert links[nodes[QI21_SAMPLER_ID]["inputs"][0]["link"]][1] == QI21_LORA_SW_ID, \
+            "KSampler.model 上游应 [32] MODEL 开关(加速槽二选一)"
+        # 硬性 AC:关态干跑执行图零 LoraLoader(懒执行旁路=正常生成)
+        reach = _off_state_reach(graph, save_id=9)
+        assert QI21_LORA_ID not in reach, \
+            f"关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成),reach={sorted(reach)}"
+        # TE-Speed 槽不加(3c 死):主图节点类型白名单(宿主节点 type=子图 uuid 豁免)
+        sg = _qi21_sg(graph)
+        whitelist = {
+            "UNETLoader", "CLIPLoader", "VAELoader", "EmptyLatentImage", "KSampler",
+            "VAEDecode", "SaveImage", "MarkdownNote", "easy showAnything",
+            "PrimitiveStringMultiline", "PrimitiveBoolean", "ComfySwitchNode",
+            "LoraLoaderModelOnly", "Reroute",
+        }
+        for n in graph["nodes"]:
+            if n["id"] == QI21_HOST_ID and n["type"] == sg["id"]:
+                continue
+            assert n["type"] in whitelist, \
+                f"qi21 主图未知节点类型 {n['type']!r}(TE-Speed 槽不加,3c 已死归档)"
 
     def test_subject_slot_defaults_to_library_renwen_example(self):
         types, _ = _qi21_truth()
@@ -1260,12 +1418,15 @@ class TestQi21SubgraphContract:
     def test_usage_note_subgraph_warnings(self):
         """子图版 Note 要点锁:装配子图用法/MyQi21DaojieBase 九选一/主体句纪律(空镜无人)/
         脚本重跑重置警示/[27] 过目指引/锁层恒挂/底座美化口径/steps 40 完整态/RGBA 官方
-        公式(中英)/画幅联动开关说明。Note 被重跑回退即红。"""
+        公式(中英)/画幅联动开关说明/R26.4 LoRA 加速槽(关闭=正常生成/开时 steps 手动调 4/
+        shift_terminal=0.02)。Note 被重跑回退即红。"""
         note = _by_type(GRAPHS["qi21"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("装配子图", "MyQi21DaojieBase", "九型", "空镜无人", "重置回库文档现读值",
                       "[27]", "恒挂", "美化", "05-道劫规范提示词库.md", "步数 40", "40-50",
                       RGBA_HEAD_OFFICIAL, RGBA_TAIL_OFFICIAL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
-                      "画幅联动", "ResolutionSelector 已退役"):
+                      "画幅联动", "ResolutionSelector 已退役",
+                      "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成", "4步加速",
+                      "steps 手动调 4", "shift_terminal=0.02", "TE-Speed"):
             assert token in note, f"Note 缺子图版要点: {token!r}"
 
     def test_prompt_library_nine_types_anchor(self):

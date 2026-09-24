@@ -24,8 +24,8 @@ Trellis 09-24-qi21-daojie-i2i(R24);PRD 09-24 架构纠正:Qwen-Image-2.1 生修�
     [1]UNETLoader→[41/42]顶通道→[7]Cache→⟨[32]MODEL 开关(false=[7]直连/
     true=[31]LoraLoaderModelOnly,name 预填 Qwen-Image-2.1-viggle-turbo-4step-
     lora-r64.safetensors,strength 1.0)⟩→[8]KSampler;[30]PrimitiveBoolean
-    默认 false=旁路。**TE-Speed 槽不出生带**(插件未装=画布红节点,R26.4 统一
-    接线轮三件同构补入)。
+    默认 false=旁路。**TE-Speed 槽永不带**(3c 试装已死归档:插件未装=画布
+    红节点,D4 终审永不装;t2i/edit 已于 R26.4 同构补入 LoRA 槽)。
   布局(照任务一 09-24 布局整治标准,从出生合规):
     恒向右(全连线 target.x>origin.x)/行式从上到下、行内从左到右/group int id
     互异/长横穿走顶部 Reroute 通道(MODEL y=-560/VAE y=-640,序列化=K2-角色
@@ -37,8 +37,9 @@ Trellis 09-24-qi21-daojie-i2i(R24);PRD 09-24 架构纠正:Qwen-Image-2.1 生修�
 现文件必须是本脚本产物形(含 MyQi21DaojieBase 子图+TextGenerate+LoraLoader
 ModelOnly),别的形状拒写(铁律0)。
 
-不动 K2 存档 9 件;qwen21-edit.json 本体零改动;引擎家 git 恒 0;userdata
-零写入;TE-Speed 槽禁入本件(R26.4 统一补)。
+不动 K2 存档 9 件;qwen21-edit.json 本体零改动(注:R26.4 起 edit 件由其
+生成器自行补 LoRA 槽);引擎家 git 恒 0;userdata
+零写入;TE-Speed 槽禁入本件(3c 死,永不装)。
 
 用法:
     python3 apps/build/scripts/qi21_daojie_i2i_0924.py            # 生成(写盘+自查)
@@ -164,12 +165,13 @@ NOTE_TEXT = """## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨�
 - 旁路时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载)。
 - PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。
 
-### LoRA 加速槽([30] 开关,默认关=旁路;09-24 定案:出生只带 LoRA 槽)
+### LoRA 加速槽([30] 开关,默认关=旁路;0924 R26.4 三件统一接线)
 
 - 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors**(viggle 4-step 蒸馏 LoRA,已装机),strength 1.0。
-- **开启后须把 [8] steps 调 4**(官方 4-step 档),cfg 保持 1;不调步数=白载 LoRA。
+- **关闭=正常生成**(默认):MODEL 直连进 [8],LoRA 不加载,40 步主线不动。
+- **LoRA 开关=4步加速,开启后须把 [8] steps 调 4**(官方 4-step 档),cfg 保持 1;不调步数=白载 LoRA;模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。
 - 分工:PE=提示词优化(已在链)/LoRA=少步数加速(须调 steps)。
-- **TE-Speed 槽不在本件**(提速件未装=画布红节点;R26.4 统一接线轮三件同构补入)。
+- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。
 
 ### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)
 
@@ -1348,6 +1350,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
                   RGBA_HEAD_EN, RGBA_TAIL_EN, RGBA_HEAD_ZH, "qwen-image-2-1-prompter",
                   "05-道劫规范提示词库.md", "MyQi21DaojieBase", "LoraLoaderModelOnly",
                   "Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors", "steps 调 4",
+                  "4步加速", "shift_terminal=0.02", "关闭=正常生成",
                   "TE-Speed 槽不在本件", "BatchImagesNode", "TextGenerate",
                   "ImageScaleToTotalPixels", "画幅随输入图", "qi21_daojie_i2i_0924.py"):
         if token not in note:
