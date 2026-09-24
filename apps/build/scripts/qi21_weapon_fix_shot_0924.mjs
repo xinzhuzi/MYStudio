@@ -254,7 +254,7 @@ async function main() {
     const magic = pngMagicBuf(buf);
     const size = await sipsSize(destPath);
     const dw = Math.abs((size.w ?? 0) - 1824), dh = Math.abs((size.h ?? 0) - 2432);
-    const ratioDrift = size.w && size.h ? Math.abs(size.w / size.h - 1) : 1;
+    const ratioDrift = size.w && size.h ? Math.abs(size.w / size.h - 1824 / 2432) : 1;
     check("出图落盘+cp 取证目录", existsSync(destPath) && magic && buf.length > 50_000,
       `${saveImg.filename} → ${destPath} (${(buf.length / 1024).toFixed(0)}KB, PNG 魔数=${magic}, pid=${String(hist.pid).slice(0, 8)})`);
     check("sips 尺寸对账(人物型 1824x2432;维差≤16px·比例≤1%)",
