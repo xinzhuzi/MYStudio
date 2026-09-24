@@ -4,9 +4,11 @@ import { FeatureBindingPanel } from "./api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { IProvider } from "@/stores/ai/api-config-store";
+import { useAPIConfigStore, type IProvider } from "@/stores/ai/api-config-store";
+import { API_CONFIG_STORAGE_KEY } from "@/stores/ai/api-config-persistence";
 import { AgentSettingsSection } from "./AgentSettingsSection";
 import { ApiServiceSettingsSection } from "./ApiServiceSettingsSection";
+import { SecureVaultBanner } from "./SecureVaultBanner";
 import { getProviderDisplayName } from "./settings-model-utils";
 
 export const API_MANAGER_SECTIONS = [
@@ -68,6 +70,13 @@ export function ApiSettingsTab({
   return (
     <ScrollArea className="h-full">
       <div className="p-8 w-full space-y-8">
+        {/* 0924 C1(§7):密钥保险箱状态横幅——解密失败/超时/不可用/明文降级四档大白话提示 */}
+        <SecureVaultBanner
+          storageKey={API_CONFIG_STORAGE_KEY}
+          subjectLabel="API 密钥"
+          onRetry={() => useAPIConfigStore.persist.rehydrate()}
+        />
+
         <div className="api-manager-notice-bar flex flex-col gap-4 rounded-xl border border-border bg-muted/45 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <Shield className="h-5 w-5 text-primary shrink-0" />

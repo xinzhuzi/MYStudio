@@ -35,9 +35,11 @@ import {
   useMcpServersStore,
   importMcpServersJson,
   exportMcpServersJson,
+  MCP_SERVERS_STORAGE_KEY,
   type McpServerConfig,
   type McpTransport,
 } from "@/stores/mcp/mcp-servers-store";
+import { SecureVaultBanner } from "./SecureVaultBanner";
 
 type TestState =
   | { status: "idle" }
@@ -304,6 +306,13 @@ export function McpSettingsTab() {
 
   return (
     <div className="p-8 w-full max-w-[1200px] mx-auto space-y-8">
+      {/* 0924 C1(§7):密钥保险箱状态横幅(env 含 token,与 API 密钥同批加密) */}
+      <SecureVaultBanner
+        storageKey={MCP_SERVERS_STORAGE_KEY}
+        subjectLabel="MCP 服务配置"
+        onRetry={() => useMcpServersStore.persist.rehydrate()}
+      />
+
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="flex items-center gap-2 text-lg font-bold text-foreground">

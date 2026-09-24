@@ -11,6 +11,7 @@ import {
   useAPIConfigStore,
   validateProviderAdapterCodeText,
 } from "./api-config-store";
+import { partializeAPIConfigState } from "./api-config-persistence";
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/constants";
 
 describe("useAPIConfigStore unified model configuration", () => {
@@ -418,5 +419,324 @@ describe("getAllConfigs API key masking", () => {
     const config = useAPIConfigStore.getState().getAllConfigs().find((item) => item.provider === "memefast");
 
     expect(config).toMatchObject({ configured: true, masked: "legacy-s...-key" });
+  });
+});
+
+// ── 0924 C1 专项(§6.4):safeStorage 加密落盘——CRUD 六操作锚 + 竞态锚 1/2/2b ──
+// 前置(计划 §6.4):fake 桥注入(vi.stubGlobal window.secureStorage,返回 Promise
+// 模拟 IPC 异步时序);断盘前 vi.waitFor flush;水合驱动用公开 API
+// persist.rehydrate();盘锚一律双断言(v2 标记 + 全文不含明文密钥子串 + 解密往返)。
+// 只 mock safeStorage 系统调用本身,被测的 store/persist/适配器链路零 mock。
+describe("useAPIConfigStore safeStorage persistence (C1)", () => {
+  const fakeEncode = (plaintext: string) => Buffer.from(`fake-cipher:${plaintext}`).toString("base64");
+  const fakeDecode = (cipher: string) => {
+    const text = Buffer.from(cipher, "base64").toString("utf8");
+    return text.startsWith("fake-cipher:") ? text.slice("fake-cipher:".length) : null;
+  };
+  const decryptDisk = (): { state: Record<string, unknown>; version: number } => {
+    const raw = localStorage.getItem("opencut-api-config");
+    if (!raw) throw new Error("盘上无值");
+    const parsed = JSON.parse(raw);
+    if (parsed.v === 2) return JSON.parse(fakeDecode(parsed.cipher) as string);
+    return parsed;
+  };
+  const readDiskRaw = () => localStorage.getItem("opencut-api-config");
+
+  interface BridgeControl {
+    encryptCalls: string[];
+    releaseAvailability: () => void;
+    releaseDecrypt: () => void;
+  }
+
+  function installFakeBridge(options?: { delayAvailability?: boolean; delayDecrypt?: boolean }): BridgeControl {
+    const control: BridgeControl = {
+      encryptCalls: [],
+      releaseAvailability: () => undefined,
+      releaseDecrypt: () => undefined,
+    };
+    let availabilityGate: () => void = () => undefined;
+    let decryptGate: () => void = () => undefined;
+    if (options?.delayAvailability) {
+      control.releaseAvailability = () => availabilityGate();
+    }
+    if (options?.delayDecrypt) {
+      control.releaseDecrypt = () => decryptGate();
+    }
+    vi.stubGlobal("window", {
+      secureStorage: {
+        isEncryptionAvailable: () =>
+          options?.delayAvailability
+            ? new Promise((resolve) => {
+                availabilityGate = () => resolve({ ok: true as const, available: true });
+              })
+            : Promise.resolve({ ok: true as const, available: true }),
+        encrypt: async (plaintext: string) => {
+          control.encryptCalls.push(plaintext);
+          return { ok: true as const, cipher: fakeEncode(plaintext) };
+        },
+        decrypt: (cipher: string) => {
+          const plaintext = fakeDecode(cipher);
+          const reply =
+            plaintext === null
+              ? { ok: false as const, reason: "error" }
+              : { ok: true as const, plaintext };
+          if (!options?.delayDecrypt) return Promise.resolve(reply);
+          return new Promise((resolve) => {
+            decryptGate = () => resolve(reply);
+          });
+        },
+      },
+    });
+    return control;
+  }
+
+  const flushTick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  beforeEach(async () => {
+    // 等一拍让既有 fire-and-forget setItem 全部落定,再清盘,防跨用例污染(§6.4 前置 3)
+    await flushTick();
+    localStorage.removeItem("opencut-api-config");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("增:setApiKey 落盘为 v2 密文且不含明文键值;解密往返与内存全量态深相等", async () => {
+    installFakeBridge();
+    useAPIConfigStore.getState().setApiKey("openai", "sk-c1-增键");
+    await vi.waitFor(() => {
+      expect(readDiskRaw()).toContain('"v":2');
+    });
+    const raw = readDiskRaw() as string;
+    expect(raw).not.toContain("sk-c1-增键");
+    await vi.waitFor(() => {
+      // 每拍新鲜解密(最终写落定前可能读到中间写)
+      const decrypted = decryptDisk();
+      expect(decrypted.state.apiKeys).toMatchObject({ openai: "sk-c1-增键" });
+      expect(decrypted.state).toEqual(partializeAPIConfigState(useAPIConfigStore.getState()));
+    });
+  });
+
+  it("删:clearApiKey 后盘上密文解密不含该键", async () => {
+    installFakeBridge();
+    useAPIConfigStore.getState().setApiKey("openai", "sk-c1-待删");
+    await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
+    useAPIConfigStore.getState().clearApiKey("openai");
+    await vi.waitFor(() => {
+      // 断「该键已从盘上消失」(共享 store 内存可能残留其他 describe 的 legacy 键)
+      expect(decryptDisk().state.apiKeys).not.toHaveProperty("openai");
+    });
+    expect(readDiskRaw()).not.toContain("sk-c1-待删");
+  });
+
+  it("改:updateProvider 换 key 后往返解密得新 key 且盘上无旧明文", async () => {
+    installFakeBridge();
+    const added = useAPIConfigStore.getState().addProvider({
+      platform: "custom",
+      name: "C1 改键供应商",
+      baseUrl: "https://relay.example.com/v1",
+      apiKey: "sk-c1-旧键",
+      model: ["m"],
+    });
+    await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
+    useAPIConfigStore.getState().updateProvider({ ...added, apiKey: "sk-c1-新键" });
+    await vi.waitFor(() => {
+      const state = decryptDisk().state as { providers: Array<{ id: string; apiKey: string }> };
+      expect(state.providers.find((provider) => provider.id === added.id)?.apiKey).toBe("sk-c1-新键");
+    });
+    const raw = readDiskRaw() as string;
+    expect(raw).not.toContain("sk-c1-旧键");
+    expect(raw).not.toContain("sk-c1-新键");
+  });
+
+  it("删:removeProvider 后解密结果无该 provider", async () => {
+    installFakeBridge();
+    const added = useAPIConfigStore.getState().addProvider({
+      platform: "custom",
+      name: "C1 删供应商",
+      baseUrl: "https://relay.example.com/v1",
+      apiKey: "sk-c1-随删",
+      model: ["m"],
+    });
+    await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
+    useAPIConfigStore.getState().removeProvider(added.id);
+    await vi.waitFor(() => {
+      const state = decryptDisk().state as { providers: Array<{ id: string }> };
+      expect(state.providers.some((provider) => provider.id === added.id)).toBe(false);
+    });
+    expect(readDiskRaw()).not.toContain("sk-c1-随删");
+  });
+
+  it("销毁:clearAllApiKeys 后解密盘值所有 apiKey 为空串", async () => {
+    installFakeBridge();
+    useAPIConfigStore.getState().setApiKey("openai", "sk-c1-清场");
+    const added = useAPIConfigStore.getState().addProvider({
+      platform: "custom",
+      name: "C1 清场供应商",
+      baseUrl: "https://relay.example.com/v1",
+      apiKey: "sk-c1-供应商键",
+      model: ["m"],
+    });
+    await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
+    useAPIConfigStore.getState().clearAllApiKeys();
+    await vi.waitFor(() => {
+      const state = decryptDisk().state as {
+        apiKeys: Record<string, string>;
+        providers: Array<{ apiKey: string }>;
+      };
+      expect(state.apiKeys).toEqual({});
+      expect(state.providers.map((provider) => provider.apiKey)).toEqual(
+        state.providers.map(() => ""),
+      );
+    });
+    expect(readDiskRaw()).not.toContain("sk-c1-清场");
+    expect(readDiskRaw()).not.toContain("sk-c1-供应商键");
+    expect(added.id).toBeTruthy();
+  });
+
+  // ── 竞态锚(rev3):fresh 模块 + 人为延迟 IPC,覆盖异步水合窗口 ──
+
+  async function importFreshStore() {
+    vi.resetModules();
+    return await import("./api-config-store");
+  }
+
+  it("竞态锚1·稳态 v2 盘:水合窗口内竞态 set 两次,水合 settle 后盘值逐字节不变(门禁丢弃,无任何补写)", async () => {
+    const control = installFakeBridge({ delayDecrypt: true });
+    const seedState = {
+      providers: [
+        {
+          id: "prov-stable",
+          platform: "custom",
+          name: "稳态供应商",
+          baseUrl: "https://relay.example.com/v1",
+          apiKey: "sk-c1-稳态键",
+          model: ["m"],
+        },
+      ],
+      apiKeys: { openai: "sk-c1-稳态legacy" },
+      concurrency: 3,
+    };
+    const seed = JSON.stringify({
+      v: 2,
+      cipher: fakeEncode(JSON.stringify({ state: seedState, version: 18 })),
+    });
+    localStorage.setItem("opencut-api-config", seed);
+
+    const { useAPIConfigStore: freshStore } = await importFreshStore(); // 水合启动,decrypt 挂起
+    // 窗内连续 set() 两次(近空态竞态写)
+    freshStore.setState({ concurrency: 40 });
+    freshStore.setState({ concurrency: 41 });
+    await flushTick();
+    expect(readDiskRaw()).toBe(seed); // 门禁期:盘值仍是水合源值
+    expect(control.encryptCalls).toEqual([]); // 丢弃发生在 IPC 之前
+
+    control.releaseDecrypt(); // 水合放行(version 匹配 → migrated=false → 无自动回写)
+    await vi.waitFor(() => expect(freshStore.persist.hasHydrated()).toBe(true));
+    await flushTick(); // 若有任何补写,这里会落盘
+
+    expect(readDiskRaw()).toBe(seed); // 逐字节不变:无 migrate 回写、无钩子补写、无门禁 flush
+    expect(control.encryptCalls).toEqual([]); // 全程零加密调用
+    expect(freshStore.getState().concurrency).toBe(3); // 水合整体替换赢了竞态写
+    expect(freshStore.getState().apiKeys).toEqual({ openai: "sk-c1-稳态legacy" });
+  });
+
+  it("竞态锚2·v1 明文盘(v17):窗内竞态 set 不产生中间近空态密文;最终盘值 v2 且解密=迁移后全量 state", async () => {
+    const control = installFakeBridge({ delayAvailability: true });
+    const seed = JSON.stringify({
+      state: {
+        providers: [
+          {
+            id: "prov-legacy",
+            platform: "custom",
+            name: "存量供应商",
+            baseUrl: "https://relay.example.com/v1",
+            apiKey: "sk-c1-存量键",
+            model: ["m"],
+          },
+        ],
+        apiKeys: { openai: "sk-c1-存量legacy" },
+        concurrency: 5,
+      },
+      version: 17,
+    });
+    localStorage.setItem("opencut-api-config", seed);
+
+    const { useAPIConfigStore: freshStore } = await importFreshStore(); // 水合启动,is-available 挂起
+    freshStore.setState({ concurrency: 50 }); // 窗内竞态写(近空态)
+    await flushTick();
+    expect(readDiskRaw()).toBe(seed); // 门禁丢弃:无中间态写盘
+    expect(control.encryptCalls).toEqual([]);
+
+    control.releaseAvailability(); // 水合放行
+    await vi.waitFor(() => expect(freshStore.persist.hasHydrated()).toBe(true));
+    await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
+
+    const raw = readDiskRaw() as string;
+    expect(raw).not.toContain("sk-c1-存量键");
+    expect(raw).not.toContain("sk-c1-存量legacy");
+    // 每一次加密调用的载荷都含存量数据(直接证明从未出现过近空态密文)
+    expect(control.encryptCalls.length).toBeGreaterThanOrEqual(1);
+    for (const plaintext of control.encryptCalls) {
+      expect(plaintext).toContain("sk-c1-存量键");
+    }
+    const decrypted = decryptDisk();
+    expect(decrypted.version).toBe(18);
+    expect(decrypted.state.apiKeys).toEqual({ openai: "sk-c1-存量legacy" });
+    await vi.waitFor(() => {
+      // 每拍新鲜解密:钩子第二写可能仍在途,轮询直到盘上密文=内存全量态
+      expect(decryptDisk().state).toEqual(partializeAPIConfigState(freshStore.getState()));
+    });
+  });
+
+  it("竞态锚2b·version-18 明文降级盘:断开钩子盘值保持明文不变;接通钩子盘值被覆写为 v2 密文(归因断言)", async () => {
+    // Leg A(断开钩子):同适配器+同 version 匹配形态的受控 persist store,无 onRehydrateStorage——
+    // version 匹配 → migrate 不触发、middleware 无自动回写 → 无任何写手,盘值保持明文
+    installFakeBridge();
+    const { create: createToy } = await import("zustand");
+    const { persist: persistToy } = await import("zustand/middleware");
+    const { createJSONStorage } = await import("zustand/middleware");
+    const { createSecureLocalStorage } = await import("@/lib/storage/secure-local-storage");
+    const toyKey = "c1-toy-version18-plain";
+    const toySeed = JSON.stringify({ state: { marker: 7 }, version: 18 });
+    localStorage.setItem(toyKey, toySeed);
+    const toyStore = createToy(
+      persistToy(
+        () => ({ marker: 1 }),
+        {
+          name: toyKey,
+          version: 18,
+          storage: createJSONStorage(() => createSecureLocalStorage(toyKey)),
+          skipHydration: true,
+        },
+      ),
+    );
+    await toyStore.persist.rehydrate();
+    await flushTick();
+    expect(localStorage.getItem(toyKey)).toBe(toySeed); // 明文原样(归因:无钩子=无写手)
+    localStorage.removeItem(toyKey);
+
+    // Leg B(接通钩子):真实 api-config store(钩子在 persist 配置里)——
+    // version 18 匹配无 migrate 回写,盘上 v2 只能来自 §4.3 钩子
+    const seed = JSON.stringify({
+      state: {
+        apiKeys: { openai: "sk-c1-降级盘键" },
+        concurrency: 6,
+      },
+      version: 18,
+    });
+    localStorage.setItem("opencut-api-config", seed);
+    const { useAPIConfigStore: freshStore } = await importFreshStore();
+    await vi.waitFor(() => expect(freshStore.persist.hasHydrated()).toBe(true));
+    await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
+    const raw = readDiskRaw() as string;
+    expect(raw).not.toContain("sk-c1-降级盘键");
+    await vi.waitFor(() => {
+      // 每拍新鲜解密:钩子写可能仍在途
+      const decrypted = decryptDisk();
+      expect(decrypted.state.apiKeys).toEqual({ openai: "sk-c1-降级盘键" });
+      expect(decrypted.state).toEqual(partializeAPIConfigState(freshStore.getState()));
+    });
   });
 });

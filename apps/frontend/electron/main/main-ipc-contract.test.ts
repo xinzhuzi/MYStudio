@@ -118,6 +118,9 @@ render-hw-get
 render-hw-set
 save-file-dialog
 save-image
+secure-storage-decrypt
+secure-storage-encrypt
+secure-storage-is-available
 seedvr2-restore-probe
 self-media:cancel-task
 self-media:configure-provider
@@ -237,6 +240,9 @@ const NAMED_IPC_CHANNELS = {
   "SELF_MEDIA_IPC.listProviders": "self-media:list-providers",
   "SELF_MEDIA_IPC.pollTask": "self-media:poll-task",
   "SELF_MEDIA_IPC.startLogin": "self-media:start-login",
+  "SECURE_STORAGE_IPC_CHANNELS.decrypt": "secure-storage-decrypt",
+  "SECURE_STORAGE_IPC_CHANNELS.encrypt": "secure-storage-encrypt",
+  "SECURE_STORAGE_IPC_CHANNELS.isAvailable": "secure-storage-is-available",
   SHOT_KEYFRAME_EXTRACT_CHANNEL: "shot-keyframe-extract",
   SHOT_VIDEO_PROBE_CHANNEL: "shot-video-probe",
 } as const;

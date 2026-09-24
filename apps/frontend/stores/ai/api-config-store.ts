@@ -9,6 +9,11 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import {
+  clearDeferredSecureWrites,
+  consumePendingPlaintextMigration,
+  getSecureVaultStatus,
+} from '@/lib/storage/secure-local-storage';
  
 import type { ProviderId } from '@/lib/ai/core';
 import { 
@@ -401,9 +406,25 @@ export const useAPIConfigStore = create<APIConfigStore>()(
       version: API_CONFIG_PERSIST_VERSION,
       migrate: migrateAPIConfigState,
       partialize: partializeAPIConfigState,
+      // 0924 C1(§4.3):首启明文→密文迁移钩子。水合读到过旧明文且未进
+      // encrypted-unreadable 时,以同值新引用触发一次 persist setItem →
+      // 适配器整包加密原位覆写同键,明文即被密文替换。幂等:标志一次性消费;
+      // 覆写若降级失败,下次启动 getItem 重读明文会重新置位,自愈重试。
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) return;
+        if (getSecureVaultStatus(API_CONFIG_STORAGE_KEY).mode === "encrypted-unreadable") return;
+        if (!consumePendingPlaintextMigration(API_CONFIG_STORAGE_KEY)) return;
+        useAPIConfigStore.setState({ apiKeys: { ...useAPIConfigStore.getState().apiKeys } });
+      },
     }
   )
 );
+
+// 0924 C1(§4.5 双保险):水合完成只清空门禁期丢弃记录,绝不把捕获值补写落盘
+// (补写陈旧近空态会在崩溃窗口内永久丢钥,见计划 §4.5 rev3 论证)。
+useAPIConfigStore.persist.onFinishHydration(() => {
+  clearDeferredSecureWrites(API_CONFIG_STORAGE_KEY);
+});
 
 // ==================== Selectors ====================
 

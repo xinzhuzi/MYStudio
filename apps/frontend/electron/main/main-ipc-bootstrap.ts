@@ -12,6 +12,7 @@ import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-i
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
+import { registerSecureStorageIpcHandlers } from '../ipc/app/secure-storage-ipc'
 import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-ipc'
 import { registerRenderHwIpcHandlers } from '../ipc/rendering/render-hw-ipc'
 import { registerApiRequestIpcHandlers } from '../ipc/ai/api-request-ipc'
@@ -74,6 +75,9 @@ registerAppUpdaterIpcHandlers({
 })
 
 registerAppShellIpcHandlers({ resolveSourcePath: resolveStudioSourcePath })
+
+// 0924 C1 专项:safeStorage 三通道(API 密钥落盘加密),无上下文依赖,随处可注册
+registerSecureStorageIpcHandlers()
 
 registerDiagnosticsIpcHandlers({
   service: diagnosticsLogService,

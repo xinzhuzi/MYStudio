@@ -58,6 +58,14 @@ contextBridge.exposeInMainWorld('fileStorage', {
   removeDir: (prefix: string) => ipcRenderer.invoke('file-storage-remove-dir', prefix),
 })
 
+// safeStorage 加解密桥(0924 C1 专项:API 密钥落盘加密)。主进程三通道一律
+// 返回显式结果对象不抛错,渲染层适配器据此区分「环境不可用」与「密文损坏」。
+contextBridge.exposeInMainWorld('secureStorage', {
+  isEncryptionAvailable: () => ipcRenderer.invoke('secure-storage-is-available'),
+  encrypt: (plaintext: string) => ipcRenderer.invoke('secure-storage-encrypt', plaintext),
+  decrypt: (cipher: string) => ipcRenderer.invoke('secure-storage-decrypt', cipher),
+})
+
 contextBridge.exposeInMainWorld('sourceMemory', {
   build: (projectId: string) => ipcRenderer.invoke('source-memory-build', projectId),
   search: (projectId: string, query: string, limit?: number) =>

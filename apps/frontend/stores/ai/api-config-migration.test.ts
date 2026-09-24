@@ -76,4 +76,28 @@ describe("migrateAPIConfigState", () => {
     expect(result.modelEndpointTypes?.["qwen-image-edit-2511"]).toEqual(["image-generation"]);
     expect(result.featureBindings?.script_analysis).toEqual(["openai:m"]);
   });
+
+  // 0924 C1 专项:盘上 version=18(v2 密文水合后的稳态)进来时,链上所有
+  // version<=N(N≤17)均不命中,final normalization 照跑,不抛——直接透传。
+  it("passes version-18 payloads through without schema migration while still running final normalization", () => {
+    const persisted = {
+      providers: [
+        { id: "p1", platform: "custom", name: "中转站", apiKey: "sk-live", baseUrl: "https://relay", model: ["m"] },
+      ],
+      apiKeys: { openai: "sk-legacy" },
+      featureBindings: {},
+      modelThinkingOverrides: { "custom:m": true },
+    };
+    const result = migrateAPIConfigState(persisted, 18);
+    // schema 零改:自定义供应商原样保留(normalization 只会追加默认本地供应商)
+    expect(result.providers?.find((provider) => provider.id === "p1")).toEqual(persisted.providers[0]);
+    expect(result.apiKeys).toEqual({ openai: "sk-legacy" }); // 明文键表不经 normalization
+    expect(result.modelThinkingOverrides).toEqual({ "custom:m": true });
+    // final normalization 恒跑:featureBindings 补齐默认键 + 默认本地供应商在位
+    expect(result.featureBindings?.tts).toEqual([
+      `${DEFAULT_LOCAL_TTS_PROVIDER_ID}:${DEFAULT_LOCAL_TTS_MODEL}`,
+    ]);
+    expect(result.providers?.some((provider) => provider.id === DEFAULT_LOCAL_TTS_PROVIDER_ID)).toBe(true);
+    expect(() => migrateAPIConfigState(null, 18)).not.toThrow();
+  });
 });

@@ -3,7 +3,13 @@
 // 工具消费(agent 流/桥迁移)由后续任务接线,v1 只管存好+测通。
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  clearDeferredSecureWrites,
+  consumePendingPlaintextMigration,
+  createSecureLocalStorage,
+  getSecureVaultStatus,
+} from "@/lib/storage/secure-local-storage";
 
 export type McpTransport = "stdio" | "http";
 
@@ -83,9 +89,27 @@ export const useMcpServersStore = create<McpServersState>()(
         set({ servers: get().servers.map((s) => (s.id === id ? { ...s, ...patch } : s)) }),
       removeServer: (id) => set({ servers: get().servers.filter((s) => s.id !== id) }),
     }),
-    { name: MCP_SERVERS_STORAGE_KEY, partialize: (state) => ({ servers: state.servers }) },
+    {
+      name: MCP_SERVERS_STORAGE_KEY,
+      partialize: (state) => ({ servers: state.servers }),
+      // 0924 C1(§4.2/§4.3):safeStorage 加密落盘(env 里的 token/key 随整包加密);
+      // 本 store 无 version(恒 0 匹配,无 migrate 自动回写),明文→密文迁移唯一
+      // 写手就是下面的 onRehydrateStorage 钩子。
+      storage: createJSONStorage(() => createSecureLocalStorage(MCP_SERVERS_STORAGE_KEY)),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) return;
+        if (getSecureVaultStatus(MCP_SERVERS_STORAGE_KEY).mode === "encrypted-unreadable") return;
+        if (!consumePendingPlaintextMigration(MCP_SERVERS_STORAGE_KEY)) return;
+        useMcpServersStore.setState({ servers: [...useMcpServersStore.getState().servers] });
+      },
+    },
   ),
 );
+
+// 0924 C1(§4.5 双保险):水合完成只清空门禁期丢弃记录,绝不补写
+useMcpServersStore.persist.onFinishHydration(() => {
+  clearDeferredSecureWrites(MCP_SERVERS_STORAGE_KEY);
+});
 
 /** 导入统一 JSON:同名更新、新名新增;任何条目非法即整体拒绝(fail-closed,不做半截导入)。 */
 export function importMcpServersJson(raw: string): McpImportResult {
