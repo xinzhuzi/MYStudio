@@ -64,11 +64,18 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors` (~19GB, self-converted from the full bf16
     original via `apps/build/scripts/qwen21_pe_bf16_convert_0923.py`): the Comfy-Org int8_convrot
     PE loads fine but dies at the first matmul on MPS (`aten::_int_mm` has no MPS kernel).
-  - (09-24 **勘误:该件已不在本机**) PE-I2I weight `qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors`
+  - (09-24 勘误:该件已不在本机→**同日恢复完成**) PE-I2I weight `qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors`
     (原 18,819,722,392 B, 自转件 via `apps/build/scripts/qwen21_pe_i2i_bf16_convert_0923.py`)
     ——09-24 工作流终局轮实查 text_encoders 无此件(外置盘/Trash/mdfind 均无);在库
     qwen21-edit.json 与 qi21-道劫-i2i.json 同引用该件,PE 开关默认旁路故直写主路不受影响,
     但 PE 开路当前过不了排队验证;恢复=重下原版四分片+重跑转换脚本(三重自证)。
+    **恢复实录(0924 pe-i2i-restore)**:重下 `Qwen/Qwen-Image-2.1-PE-I2I` 四分片
+    (model-00001..00004,字节+SHA256 双对账绿,证据 ~/Downloads/qwen21-pe-i2i-restore-0924/)
+    → 重跑转换三重自证全绿(760 键双射/字节守恒 18,819,722,392 B 精确/抽样逐位)→
+    qwen21-edit PE 开路([15] switch=true)真前端过排队完整执行出图 1024²(399s,pid
+    179b107a…,改写全文 1084 字符捕获,服务端排队图含恢复件+TextGenerate)→ 外置盘
+    `AI/Qwen21/` 备份登记(SHA256 18649cc7…7ea3,manifest-pe-i2i-restore-0924.jsonl);
+    PE 路恢复后两工作流(qwen21-edit/qi21-道劫-i2i)PE 开关均可用。
   - (09-24) Q2-1 加速件实况:viggle-turbo r64 LoRA 在 loras/(339,832,808 B);pottokao
     Heretic TE 在 text_encoders/(`qwen3vl_8b_bf16_heretic.safetensors` 17,534,334,584 B,
     SHA256 b1f17ffe…74b1 外置盘已备份;CLIPLoader(qwen_image) 直载+真出图=活,与官方
