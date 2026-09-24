@@ -76,7 +76,8 @@ steps 联动(INT 开关+常量40/6+同一布尔源扇出+[7].steps 转输入+关
 端点)/ 子图四行排版(按 y 分行恰 4 行=四阶段、Reroute 拐点不占行、行间净距≥100、
 行内 x 严格递增;group 各框单一阶段行全部节点)/ 主图+子图节点零重叠 / group 预算
 (子图≤4、主图≤3)/
-主图+子图 group 全 int id / 子图 IO linkIds 逐项登记(契约铁律)/ 道劫字号 /
+主图+子图 group 全 int id / 子图 IO linkIds 逐项登记(契约铁律)/ 道劫字号归位
+(组框/子图名/说明卡留道劫=工作流风格上下文,节点标题零道劫=0925 用户裁定) /
 MyQi21DaojieBase 在场+combo 默认人物+qi21_bases.json↔05 库逐字互锁 / 锁层A 恒挂
 且逐字=库 / 级联退役(子图开关恰 4 枚=提示词/RGBA/宽高双联)/ 干跑默认装配
 逐字=库人物型组合 / PE·RGBA 承袭参数与默认旁路 / RGBA 官方头尾逐字 / steps=40 /
@@ -317,7 +318,7 @@ def _qi21_base_text(zh: str) -> str:
 # ── 节点工厂(序列化口径承 qwen21 族在库件/K2 件/官方 blueprint)─────────
 def _string_constant(nid: int, title: str, text: str, pos: list, links: list[int], size: list) -> dict:
     return {
-        "id": nid, "type": "StringConstant", "title": f"道劫·{title}",
+        "id": nid, "type": "StringConstant", "title": title,
         "pos": pos, "size": size, "flags": {}, "order": 0, "mode": 0,
         "inputs": [],
         "outputs": [{"name": "STRING", "type": "STRING", "links": links}],
@@ -330,7 +331,7 @@ def _switch(nid: int, title: str, false_link: int, true_link: int, switch_link: 
             out_links: list[int], pos: list, typ: str = "STRING") -> dict:
     """子图内开关:switch 槽为 widget 转输入(接 -10 边界,值由宿主面板 widget 供)。"""
     return {
-        "id": nid, "type": "ComfySwitchNode", "title": f"道劫·{title}",
+        "id": nid, "type": "ComfySwitchNode", "title": title,
         "pos": pos, "size": [380, 120], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "on_false", "shape": 7, "type": typ, "link": false_link},
@@ -346,7 +347,7 @@ def _switch(nid: int, title: str, false_link: int, true_link: int, switch_link: 
 def _concatenate(nid: int, title: str, a_link: int, b_link: int, out_links: list[int], pos: list,
                  delimiter: str = "\n") -> dict:
     return {
-        "id": nid, "type": "StringConcatenate", "title": f"道劫·{title}",
+        "id": nid, "type": "StringConcatenate", "title": title,
         "pos": pos, "size": [380, 180], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "string_a", "type": "STRING", "widget": {"name": "string_a"}, "link": a_link},
@@ -376,7 +377,7 @@ def _primitive_int(nid: int, title: str, value: int, pos: list, out_link: int) -
     """PrimitiveInt 常量(steps 联动臂;序列化逐字段=官方本地 I2V-480P 模板实取样板:
     widgets_values=[value,"fixed"] 带 control_after_generate + named 双记账)。"""
     return {
-        "id": nid, "type": "PrimitiveInt", "title": f"道劫·{title}",
+        "id": nid, "type": "PrimitiveInt", "title": title,
         "pos": pos, "size": [270, 90], "flags": {}, "order": 0, "mode": 0,
         "inputs": [{"name": "value", "type": "INT", "widget": {"name": "value"}, "link": None}],
         "outputs": [{"name": "INT", "type": "INT", "links": [out_link]}],
@@ -482,7 +483,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     # 行1 源行
     nodes.append({
         "id": BASE_ID, "type": "MyQi21DaojieBase",
-        "title": "道劫·底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/宽高随型直出/磁盘热读)",
+        "title": "底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/宽高随型直出/磁盘热读)",
         "pos": [40, ROW_Y[0]], "size": [420, 200], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "base", "type": "COMBO", "widget": {"name": "base"}, "link": 7},
@@ -507,7 +508,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         [1460, ROW_Y[0]], [26], [380, 120]))
     nodes.append({
         "id": PE_RW_ID, "type": "QwenImage21_T2IPromptRewrite",
-        "title": "道劫·PE改写(短句→英文长文,默认旁路;参数=插件官方 README 推荐值)",
+        "title": "PE改写(短句→英文长文,默认旁路;参数=插件官方 README 推荐值)",
         "pos": [1880, ROW_Y[0]], "size": [440, 340], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "clip", "type": "CLIP", "link": 45},
@@ -549,7 +550,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     # ComfyMathExpression 实证:正则 7 槽全 widget、转数单槽无 widget、公式 values.a/b+expression)
     def _regex(nid: int, title: str, pattern: str, in_link: int, out_link: int, pos: list) -> dict:
         return {
-            "id": nid, "type": "RegexExtract", "title": f"道劫·{title}",
+            "id": nid, "type": "RegexExtract", "title": title,
             "pos": pos, "size": [340, 200], "flags": {}, "order": 0, "mode": 0,
             "inputs": [
                 {"name": "string", "type": "STRING", "widget": {"name": "string"}, "link": in_link},
@@ -567,7 +568,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
 
     def _convert(nid: int, title: str, in_link: int, out_links: list[int], pos: list) -> dict:
         return {
-            "id": nid, "type": "ComfyNumberConvert", "title": f"道劫·{title}",
+            "id": nid, "type": "ComfyNumberConvert", "title": title,
             "pos": pos, "size": [240, 80], "flags": {}, "order": 0, "mode": 0,
             "inputs": [{"name": "value", "type": "INT,FLOAT,STRING,BOOLEAN", "link": in_link}],
             "outputs": [
@@ -579,7 +580,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
 
     def _math(nid: int, title: str, expr: str, a_link: int, b_link: int, out_link: int, pos: list) -> dict:
         return {
-            "id": nid, "type": "ComfyMathExpression", "title": f"道劫·{title}",
+            "id": nid, "type": "ComfyMathExpression", "title": title,
             "pos": pos, "size": [340, 160], "flags": {}, "order": 0, "mode": 0,
             "inputs": [
                 {"label": "a", "name": "values.a", "type": "FLOAT,INT", "link": a_link},
@@ -615,7 +616,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     def _textencode(nid: int, title: str, pos: list, clip_l: int, vae_l: int,
                     prompt_link, prompt_text: str, pos_links) -> dict:
         return {
-            "id": nid, "type": "TextEncodeQwenImage21", "title": f"道劫·{title}",
+            "id": nid, "type": "TextEncodeQwenImage21", "title": title,
             "pos": pos, "size": [420, 320], "flags": {}, "order": 0, "mode": 0,
             "inputs": [
                 {"name": "clip", "type": "CLIP", "link": clip_l},
@@ -755,7 +756,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     def loader(nid: int, ntype: str, title: str, pos: list, size: list, wv: list,
                out_links: list[int], inputs: list[dict]) -> dict:
         return {
-            "id": nid, "type": ntype, "title": f"[{nid}] 道劫·{title}",
+            "id": nid, "type": ntype, "title": f"[{nid}] {title}",
             "pos": pos, "size": size, "flags": {}, "order": 0, "mode": 0,
             "inputs": inputs,
             "outputs": [{"name": {"UNETLoader": "MODEL", "CLIPLoader": "CLIP",
@@ -767,21 +768,21 @@ def build_main(truth: dict, sg: dict) -> dict:
         }
 
     nodes = [
-        loader(1, "UNETLoader", "UNET加载", [-1980, -400], [340, 84], ["qwen_image_2.1_bf16.safetensors", "default"], [8],
+        loader(1, "UNETLoader", "UNETLoader", [-1980, -400], [340, 84], ["qwen_image_2.1_bf16.safetensors", "default"], [8],
                [{"name": "unet_name", "type": "COMBO", "widget": {"name": "unet_name"}, "link": None},
                 {"name": "weight_dtype", "type": "COMBO", "widget": {"name": "weight_dtype"}, "link": None}]),
-        loader(2, "CLIPLoader", "CLIP加载(qwen_image)", [-1560, -400], [360, 130],
+        loader(2, "CLIPLoader", "CLIPLoader(主 TE)", [-1560, -400], [360, 130],
                # 0924 用户令 TE 换 Heretic 当主力(官方 qwen3vl_8b_bf16 件保留引擎家作备胎)
                ["qwen3vl_8b_bf16_heretic.safetensors", "qwen_image", "default"], [12],
                [{"name": "clip_name", "type": "COMBO", "widget": {"name": "clip_name"}, "link": None},
                 {"name": "type", "type": "COMBO", "widget": {"name": "type"}, "link": None},
                 {"name": "device", "type": "COMBO", "shape": 7, "widget": {"name": "device"}, "link": None}]),
-        loader(3, "VAELoader", "VAE加载", [-1140, -400], [340, 60],
+        loader(3, "VAELoader", "VAELoader", [-1140, -400], [340, 60],
                ["qwen_image_2.1_vae_bf16.safetensors"], [10, 13],
                [{"name": "vae_name", "type": "COMBO", "widget": {"name": "vae_name"}, "link": None}]),
         {
             "id": LATENT_ID, "type": "EmptyLatentImage",
-            "title": "[5] 道劫·空潜空(宽高接 [40] 子图直驱·随型)",
+            "title": "[5] EmptyLatentImage(宽高接 [40] 子图直驱·随型)",
             "pos": [-100, -400], "size": [330, 110], "flags": {}, "order": 4, "mode": 0,
             "inputs": [
                 {"name": "width", "type": "INT", "widget": {"name": "width"}, "link": 1},
@@ -793,7 +794,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         },
         {
             "id": SAMPLER_ID, "type": "KSampler",
-            "title": "[7] 道劫·KSampler(40步·cfg1;seed 外露;model 接 [32] 加速槽开关;steps 接 [177] 联动开关)",
+            "title": "[7] KSampler(40步·cfg1;seed 外露;model 接 [32] 加速槽开关;steps 接 [177] 联动开关)",
             "pos": [1670, -400], "size": [330, 260], "flags": {}, "order": 6, "mode": 0,
             "inputs": [
                 {"name": "model", "type": "MODEL", "link": 26},
@@ -810,7 +811,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         },
         {
             "id": 8, "type": "VAEDecode",
-            "title": "[8] 道劫·VAE解码",
+            "title": "[8] VAEDecode",
             "pos": [2310, -400], "size": [240, 50], "flags": {}, "order": 7, "mode": 0,
             "inputs": [
                 {"name": "samples", "type": "LATENT", "link": 9},
@@ -821,7 +822,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         },
         {
             "id": 9, "type": "SaveImage",
-            "title": "[9] 道劫·保存",
+            "title": "[9] SaveImage",
             "pos": [2630, -400], "size": [380, 330], "flags": {}, "order": 8, "mode": 0,
             "inputs": [{"name": "images", "type": "IMAGE", "link": 11}],
             "outputs": [],
@@ -836,14 +837,14 @@ def build_main(truth: dict, sg: dict) -> dict:
             "properties": {},
             "widgets_values": [NOTE_TEXT],
         },
-        loader(11, "CLIPLoader", "PE文本编码加载(qwen_image)", [-1140, -160], [400, 130],
+        loader(11, "CLIPLoader", "CLIPLoader(PE 专属 TE)", [-1140, -160], [400, 130],
                [PE_CLIP_FILE, "qwen_image", "default"], [14],
                [{"name": "clip_name", "type": "COMBO", "widget": {"name": "clip_name"}, "link": None},
                 {"name": "type", "type": "COMBO", "widget": {"name": "type"}, "link": None},
                 {"name": "device", "type": "COMBO", "shape": 7, "widget": {"name": "device"}, "link": None}]),
         {
             "id": SUBJECT_ID, "type": "PrimitiveStringMultiline",
-            "title": f"[{SUBJECT_ID}] 道劫·主体句(①层唯一手写位;默认=库人物型例一)",
+            "title": f"[{SUBJECT_ID}] 主体句(①层唯一手写位;默认=库人物型例一)",
             "pos": [-1980, -160], "size": [661, 200], "flags": {}, "order": 11, "mode": 0,
             "inputs": [],
             "outputs": [{"name": "STRING", "type": "STRING", "slot_index": 0, "links": [15]}],
@@ -852,7 +853,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         },
         {
             "id": PREVIEW_ID, "type": "easy showAnything",
-            "title": f"[{PREVIEW_ID}] 道劫·装配预览(接[40]prompt输出;跑图前过目将进编码的最终文本)",
+            "title": f"[{PREVIEW_ID}] 装配预览(接[40]prompt输出;跑图前过目将进编码的最终文本)",
             "pos": [880, 280], "size": [480, 230], "flags": {}, "order": 12, "mode": 0,
             "inputs": [{"label": "输入任何", "name": "anything", "shape": 7, "type": "*", "link": 18}],
             "outputs": [{"name": "output", "type": "*", "links": None}],
@@ -875,7 +876,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     ]
     host = {
         "id": HOST_ID, "type": SG_UUID,
-        "title": f"[{HOST_ID}] 道劫·装配子图(双击=底座九选一+锁层恒挂+四层装配+PE/RGBA/画幅联动;面板=型选择/三开关)",
+        "title": f"[{HOST_ID}] 装配子图(双击=底座九选一+锁层恒挂+四层装配+PE/RGBA/画幅联动;面板=型选择/三开关)",
         "pos": [-700, -240], "size": [560, 480], "flags": {}, "order": 13, "mode": 0,
         "inputs": host_inputs,
         "outputs": [
@@ -898,7 +899,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     # conditioning 长线下方带(steps 联动件住 [420]-[1370] 下带,恒在墙上方=零交叉)。
     nodes.append({
         "id": LORA_PB_ID, "type": "PrimitiveBoolean",
-        "title": f"[{LORA_PB_ID}] 道劫·LoRA加速开关源(默认关=正常生成;一拨全配:同驱 MODEL+steps 两开关)",
+        "title": f"[{LORA_PB_ID}] 加速开关(默认关=正常生成;一拨全配:同驱 MODEL+steps 两开关)",
         "pos": [140, -550], "size": [280, 90], "flags": {}, "order": 0, "mode": 0,
         "inputs": [{"name": "value", "type": "BOOLEAN", "widget": {"name": "value"}, "link": None}],
         "outputs": [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [25, 29]}],
@@ -907,7 +908,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     })
     nodes.append({
         "id": LORA_ID, "type": "LoraLoaderModelOnly",
-        "title": f"[{LORA_ID}] 道劫·LoRA加载(viggle v0.2 r256;开=[30]一拨自动6步,卡荐档)",
+        "title": f"[{LORA_ID}] LoraLoaderModelOnly(viggle v0.2 r256;开=[30]一拨自动6步,卡荐档)",
         "pos": [520, -600], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "model", "type": "MODEL", "link": 23},
@@ -920,7 +921,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     })
     nodes.append({
         "id": LORA_SW_ID, "type": "ComfySwitchNode",
-        "title": f"[{LORA_SW_ID}] 道劫·MODEL开关(false=直连正常生成 / true=LoRA加速)",
+        "title": f"[{LORA_SW_ID}] MODEL开关(false=直连正常生成 / true=LoRA加速)",
         "pos": [900, -600], "size": [300, 110], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "on_false", "shape": 7, "type": "MODEL", "link": 20},
@@ -939,7 +940,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         [1370, -440], typ="INT"))
     nodes[-1]["size"] = [300, 110]
     nodes[-1]["title"] = \
-        f"[{STEPS_SW_ID}] 道劫·steps联动开关(false=自动回40原路 / true=自动6步加速;同受[{LORA_PB_ID}]一拨驱动)"
+        f"[{STEPS_SW_ID}] steps联动开关(false=自动回40原路 / true=自动6步加速;同受[{LORA_PB_ID}]一拨驱动)"
     nodes.append(_primitive_int(
         STEPS_C40_ID, "steps常量40(关态=原路·官方完整档)", STEPS_OFF, [1090, -380], 27))
     nodes.append(_primitive_int(
@@ -1123,7 +1124,9 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if sorted(n["id"] for n in inside) != sorted(row_all):
             errs.append(f"子图 group {grp['title']!r} 应框住其阶段行全部节点")
 
-    # 4. group 全 int id(主图+子图)+ 标题带道劫(主图);子图名带道劫
+    # 4. group 全 int id(主图+子图)+ 标题带道劫(主图);子图名带道劫;节点标题零道劫
+    #    (0925 归位裁定:道劫只留 Group 框/子图名/MarkdownNote 说明卡;原生节点=type 名
+    #    +可选功能注释,自研/核心件=描述性功能名——节点标题一律零道劫前缀)
     for scope, groups in (("主图", g["groups"]), ("子图", sg["groups"])):
         if not groups:
             errs.append(f"{scope}分组为空")
@@ -1136,8 +1139,14 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if "道劫" not in sg["name"]:
         errs.append("子图 name 缺道劫字号")
     for n in g["nodes"]:
-        if n["type"] not in ("MarkdownNote", "Reroute") and "道劫" not in (n.get("title") or ""):
-            errs.append(f"主图 node{n['id']} 标题缺道劫字号: {n.get('title')!r}")
+        if n["type"] == "MarkdownNote":
+            if "道劫" not in (n.get("title") or ""):
+                errs.append(f"主图 node{n['id']} 说明卡标题缺道劫字号(工作流级说明件保留道劫)")
+        elif n["type"] != "Reroute" and "道劫" in (n.get("title") or ""):
+            errs.append(f"主图 node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): {n.get('title')!r}")
+    for n in sg["nodes"]:
+        if n["type"] != "MarkdownNote" and "道劫" in (n.get("title") or ""):
+            errs.append(f"子图 node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): {n.get('title')!r}")
 
     # 5. 宿主结构:type/properties.subgraph=uuid;输入槽序与子图 inputs 对齐;widget 值
     host = m_nodes[HOST_ID]

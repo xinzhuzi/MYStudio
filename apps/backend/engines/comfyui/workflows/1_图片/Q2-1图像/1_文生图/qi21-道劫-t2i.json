@@ -46,7 +46,7 @@
     {
       "id": 1,
       "type": "UNETLoader",
-      "title": "[1] 道劫·UNET加载",
+      "title": "[1] UNETLoader",
       "pos": [
         -1980,
         -400
@@ -96,7 +96,7 @@
     {
       "id": 2,
       "type": "CLIPLoader",
-      "title": "[2] 道劫·CLIP加载(qwen_image)",
+      "title": "[2] CLIPLoader(主 TE)",
       "pos": [
         -1560,
         -400
@@ -156,7 +156,7 @@
     {
       "id": 3,
       "type": "VAELoader",
-      "title": "[3] 道劫·VAE加载",
+      "title": "[3] VAELoader",
       "pos": [
         -1140,
         -400
@@ -198,7 +198,7 @@
     {
       "id": 5,
       "type": "EmptyLatentImage",
-      "title": "[5] 道劫·空潜空(宽高接 [40] 子图直驱·随型)",
+      "title": "[5] EmptyLatentImage(宽高接 [40] 子图直驱·随型)",
       "pos": [
         -100,
         -400
@@ -249,7 +249,7 @@
     {
       "id": 7,
       "type": "KSampler",
-      "title": "[7] 道劫·KSampler(40步·cfg1;seed 外露;model 接 [32] 加速槽开关;steps 接 [177] 联动开关)",
+      "title": "[7] KSampler(40步·cfg1;seed 外露;model 接 [32] 加速槽开关;steps 接 [177] 联动开关)",
       "pos": [
         1670,
         -400
@@ -316,7 +316,7 @@
     {
       "id": 8,
       "type": "VAEDecode",
-      "title": "[8] 道劫·VAE解码",
+      "title": "[8] VAEDecode",
       "pos": [
         2310,
         -400
@@ -356,7 +356,7 @@
     {
       "id": 9,
       "type": "SaveImage",
-      "title": "[9] 道劫·保存",
+      "title": "[9] SaveImage",
       "pos": [
         2630,
         -400
@@ -408,7 +408,7 @@
     {
       "id": 11,
       "type": "CLIPLoader",
-      "title": "[11] 道劫·PE文本编码加载(qwen_image)",
+      "title": "[11] CLIPLoader(PE 专属 TE)",
       "pos": [
         -1140,
         -160
@@ -468,7 +468,7 @@
     {
       "id": 24,
       "type": "PrimitiveStringMultiline",
-      "title": "[24] 道劫·主体句(①层唯一手写位;默认=库人物型例一)",
+      "title": "[24] 主体句(①层唯一手写位;默认=库人物型例一)",
       "pos": [
         -1980,
         -160
@@ -501,7 +501,7 @@
     {
       "id": 27,
       "type": "easy showAnything",
-      "title": "[27] 道劫·装配预览(接[40]prompt输出;跑图前过目将进编码的最终文本)",
+      "title": "[27] 装配预览(接[40]prompt输出;跑图前过目将进编码的最终文本)",
       "pos": [
         880,
         280
@@ -539,7 +539,7 @@
     {
       "id": 40,
       "type": "c3f81b56-0a47-4d29-9e61-8b7f2d5a6c04",
-      "title": "[40] 道劫·装配子图(双击=底座九选一+锁层恒挂+四层装配+PE/RGBA/画幅联动;面板=型选择/三开关)",
+      "title": "[40] 装配子图(双击=底座九选一+锁层恒挂+四层装配+PE/RGBA/画幅联动;面板=型选择/三开关)",
       "pos": [
         -700,
         -240
@@ -667,7 +667,7 @@
     {
       "id": 30,
       "type": "PrimitiveBoolean",
-      "title": "[30] 道劫·LoRA加速开关源(默认关=正常生成;一拨全配:同驱 MODEL+steps 两开关)",
+      "title": "[30] 加速开关(默认关=正常生成;一拨全配:同驱 MODEL+steps 两开关)",
       "pos": [
         140,
         -550
@@ -709,7 +709,7 @@
     {
       "id": 31,
       "type": "LoraLoaderModelOnly",
-      "title": "[31] 道劫·LoRA加载(viggle v0.2 r256;开=[30]一拨自动6步,卡荐档)",
+      "title": "[31] LoraLoaderModelOnly(viggle v0.2 r256;开=[30]一拨自动6步,卡荐档)",
       "pos": [
         520,
         -600
@@ -764,7 +764,7 @@
     {
       "id": 32,
       "type": "ComfySwitchNode",
-      "title": "[32] 道劫·MODEL开关(false=直连正常生成 / true=LoRA加速)",
+      "title": "[32] MODEL开关(false=直连正常生成 / true=LoRA加速)",
       "pos": [
         900,
         -600
@@ -817,7 +817,7 @@
     {
       "id": 177,
       "type": "ComfySwitchNode",
-      "title": "[177] 道劫·steps联动开关(false=自动回40原路 / true=自动6步加速;同受[30]一拨驱动)",
+      "title": "[177] steps联动开关(false=自动回40原路 / true=自动6步加速;同受[30]一拨驱动)",
       "pos": [
         1370,
         -440
@@ -870,7 +870,7 @@
     {
       "id": 178,
       "type": "PrimitiveInt",
-      "title": "道劫·steps常量40(关态=原路·官方完整档)",
+      "title": "steps常量40(关态=原路·官方完整档)",
       "pos": [
         1090,
         -380
@@ -917,7 +917,7 @@
     {
       "id": 179,
       "type": "PrimitiveInt",
-      "title": "道劫·steps常量6(开态=v0.2卡荐档)",
+      "title": "steps常量6(开态=v0.2卡荐档)",
       "pos": [
         420,
         -380
@@ -1521,7 +1521,7 @@
           {
             "id": 150,
             "type": "MyQi21DaojieBase",
-            "title": "道劫·底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/宽高随型直出/磁盘热读)",
+            "title": "底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/宽高随型直出/磁盘热读)",
             "pos": [
               40,
               0
@@ -1581,7 +1581,7 @@
           {
             "id": 110,
             "type": "StringConstant",
-            "title": "道劫·通用锁层常量A(③层·库首节全文·全九型恒挂)",
+            "title": "通用锁层常量A(③层·库首节全文·全九型恒挂)",
             "pos": [
               520,
               0
@@ -1613,7 +1613,7 @@
           {
             "id": 160,
             "type": "StringConstant",
-            "title": "道劫·RGBA官方头句(EN·逐字=官方模板)",
+            "title": "RGBA官方头句(EN·逐字=官方模板)",
             "pos": [
               1040,
               0
@@ -1645,7 +1645,7 @@
           {
             "id": 161,
             "type": "StringConstant",
-            "title": "道劫·RGBA官方尾句(EN·逐字=官方模板)",
+            "title": "RGBA官方尾句(EN·逐字=官方模板)",
             "pos": [
               1460,
               0
@@ -1677,7 +1677,7 @@
           {
             "id": 140,
             "type": "QwenImage21_T2IPromptRewrite",
-            "title": "道劫·PE改写(短句→英文长文,默认旁路;参数=插件官方 README 推荐值)",
+            "title": "PE改写(短句→英文长文,默认旁路;参数=插件官方 README 推荐值)",
             "pos": [
               1880,
               0
@@ -1800,7 +1800,7 @@
           {
             "id": 130,
             "type": "StringConcatenate",
-            "title": "道劫·装配拼接①(主体句+BASE;delimiter=\\n)",
+            "title": "装配拼接①(主体句+BASE;delimiter=\\n)",
             "pos": [
               100,
               560
@@ -1854,7 +1854,7 @@
           {
             "id": 131,
             "type": "StringConcatenate",
-            "title": "道劫·装配拼接②(+通用锁层恒挂;delimiter=\\n)",
+            "title": "装配拼接②(+通用锁层恒挂;delimiter=\\n)",
             "pos": [
               560,
               560
@@ -1909,7 +1909,7 @@
           {
             "id": 162,
             "type": "StringConcatenate",
-            "title": "道劫·RGBA公式拼接①(官方头句+装配全文;delimiter=空格)",
+            "title": "RGBA公式拼接①(官方头句+装配全文;delimiter=空格)",
             "pos": [
               1440,
               560
@@ -1963,7 +1963,7 @@
           {
             "id": 163,
             "type": "StringConcatenate",
-            "title": "道劫·RGBA公式拼接②(+官方尾句;delimiter=空格)",
+            "title": "RGBA公式拼接②(+官方尾句;delimiter=空格)",
             "pos": [
               1880,
               560
@@ -2017,7 +2017,7 @@
           {
             "id": 141,
             "type": "ComfySwitchNode",
-            "title": "道劫·提示词开关(false=直写装配 / true=PE扩写)",
+            "title": "提示词开关(false=直写装配 / true=PE扩写)",
             "pos": [
               2280,
               560
@@ -2071,7 +2071,7 @@
           {
             "id": 151,
             "type": "RegexExtract",
-            "title": "道劫·PE建议画幅·取宽比(如 16:9→16)",
+            "title": "PE建议画幅·取宽比(如 16:9→16)",
             "pos": [
               4000,
               1060
@@ -2166,7 +2166,7 @@
           {
             "id": 152,
             "type": "RegexExtract",
-            "title": "道劫·PE建议画幅·取高比(如 16:9→9)",
+            "title": "PE建议画幅·取高比(如 16:9→9)",
             "pos": [
               4380,
               1060
@@ -2261,7 +2261,7 @@
           {
             "id": 153,
             "type": "ComfyNumberConvert",
-            "title": "道劫·宽比转数",
+            "title": "宽比转数",
             "pos": [
               4760,
               1060
@@ -2302,7 +2302,7 @@
           {
             "id": 154,
             "type": "ComfyNumberConvert",
-            "title": "道劫·高比转数",
+            "title": "高比转数",
             "pos": [
               5040,
               1060
@@ -2343,7 +2343,7 @@
           {
             "id": 155,
             "type": "ComfyMathExpression",
-            "title": "道劫·PE建议宽(4.2MP·8倍数取整)",
+            "title": "PE建议宽(4.2MP·8倍数取整)",
             "pos": [
               5320,
               1060
@@ -2402,7 +2402,7 @@
           {
             "id": 156,
             "type": "ComfyMathExpression",
-            "title": "道劫·PE建议高(4.2MP·8倍数取整)",
+            "title": "PE建议高(4.2MP·8倍数取整)",
             "pos": [
               5730,
               1060
@@ -2461,7 +2461,7 @@
           {
             "id": 157,
             "type": "ComfySwitchNode",
-            "title": "道劫·宽联动开关(false=九型WIDTH / true=PE建议宽)",
+            "title": "宽联动开关(false=九型WIDTH / true=PE建议宽)",
             "pos": [
               6080,
               1060
@@ -2514,7 +2514,7 @@
           {
             "id": 158,
             "type": "ComfySwitchNode",
-            "title": "道劫·高联动开关(false=九型HEIGHT / true=PE建议高)",
+            "title": "高联动开关(false=九型HEIGHT / true=PE建议高)",
             "pos": [
               6500,
               1060
@@ -2567,7 +2567,7 @@
           {
             "id": 143,
             "type": "TextEncodeQwenImage21",
-            "title": "道劫·RGBA编码(官方公式拼接路,默认旁路)",
+            "title": "RGBA编码(官方公式拼接路,默认旁路)",
             "pos": [
               3800,
               1560
@@ -2637,7 +2637,7 @@
           {
             "id": 142,
             "type": "TextEncodeQwenImage21",
-            "title": "道劫·主编码(prompt 接提示词开关)",
+            "title": "主编码(prompt 接提示词开关)",
             "pos": [
               4300,
               1560
@@ -2709,7 +2709,7 @@
           {
             "id": 144,
             "type": "ComfySwitchNode",
-            "title": "道劫·RGBA开关(false=普通 / true=透明,透明图存PNG)",
+            "title": "RGBA开关(false=普通 / true=透明,透明图存PNG)",
             "pos": [
               4780,
               1560

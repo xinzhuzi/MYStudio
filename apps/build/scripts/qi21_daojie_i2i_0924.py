@@ -30,14 +30,15 @@ Trellis 09-24-qi21-daojie-i2i(R24);PRD 09-24 架构纠正:Qwen-Image-2.1 生修�
     恒向右(全连线 target.x>origin.x)/行式从上到下、行内从左到右/group int id
     互异/长横穿走顶部 Reroute 通道(MODEL y=-560/VAE y=-640,序列化=K2-角色
     设定-道劫.json 顶层级样板)/节点标题铁律=核心与第三方节点零自定义 title,
-    仅自研(My*)可命([150] 带道劫字号 title)。
+    仅自研(My*)可命([150] 描述性功能名 title;0925 归位:节点标题零道劫前缀,
+    道劫只留 Group 框/子图名/说明卡)。
 
 幂等:全量确定性再生成,重跑逐字节一致(真源=本脚本;主体句默认/锁层全文从
 05 库现读,BASE 真源=qi21_bases.json 磁盘热读,库更新重跑即同步)。前置守卫:
 现文件必须是本脚本产物形(含 MyQi21DaojieBase 子图+TextGenerate+LoraLoader
 ModelOnly),别的形状拒写(铁律0)。
 
-不动 K2 存档 9 件;qwen21-edit.json 本体零改动(注:R26.4 起 edit 件由其
+不动 K2 存档 9 件;qi21-edit.json 本体零改动(注:R26.4 起 edit 件由其
 生成器自行补 LoRA 槽);引擎家 git 恒 0;userdata
 零写入;TE-Speed 槽禁入本件(3c 死,永不装)。
 
@@ -416,7 +417,7 @@ def build_subgraph(truth: dict) -> dict:
     # 行1 源行
     nodes.append({
         "id": BASE_ID, "type": "MyQi21DaojieBase",
-        "title": "道劫·底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/磁盘热读;W/H 本件不用=画幅随输入图)",
+        "title": "底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/磁盘热读;W/H 本件不用=画幅随输入图)",
         "pos": [40, ROW_Y[0]], "size": [420, 200], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "base", "type": "COMBO", "widget": {"name": "base"}, "link": 10},
@@ -1092,11 +1093,14 @@ def self_check(g: dict, truth: dict) -> list[str]:
             if n["type"] not in NODE_TYPE_WHITELIST:
                 errs.append(f"{scope} node{n['id']} 类型 {n['type']!r} 不在白名单(TE-Speed 槽禁入)")
 
-    # 10 节点标题铁律(0924-r8):核心/第三方零自定义 title,仅自研(My*)可命
+    # 10 节点标题铁律(0924-r8+0925 归位):核心/第三方零自定义 title,仅自研(My*)
+    #    可命且零道劫前缀——道劫只留 Group 框/子图名/说明卡(0925 用户裁定)
     for scope, scope_nodes in (("主图", g["nodes"]), ("子图", sg["nodes"])):
         for n in scope_nodes:
             if "title" in n and not n["type"].startswith("My"):
                 errs.append(f"{scope} node{n['id']}({n['type']}) 核心节点带自定义 title")
+            if n["type"] != "MarkdownNote" and "道劫" in (n.get("title") or ""):
+                errs.append(f"{scope} node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): {n.get('title')!r}")
 
     # 11 孤儿可达(SaveImage 回溯;MarkdownNote/easy showAnything 豁免)
     seen, stack = set(), [10]

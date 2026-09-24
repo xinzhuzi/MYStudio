@@ -4,7 +4,7 @@
 09-24 增 i2i):
     engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-t2i.json
     engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
-    engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json
+    engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qi21-edit.json
     engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json
 
 格式口径(09-23 取舍,引擎 v0.37 直开为最终裁判):三件为**引擎前端格式**
@@ -127,7 +127,7 @@ _REPO = _TESTS_DIR.parents[4]  # tests → comfyui → engines → backend → a
 _IMG_DIR = _TESTS_DIR.parent / "workflows" / "1_图片"
 T2I = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-t2i.json"
 QI21 = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qi21-道劫-t2i.json"
-EDIT = _IMG_DIR / "Q2-1图像" / "3_改图" / "qwen21-edit.json"
+EDIT = _IMG_DIR / "Q2-1图像" / "3_改图" / "qi21-edit.json"
 I2I = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-i2i.json"
 K2_DIR = _IMG_DIR / "K2图像"
 PROMPT_LIB = _REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
@@ -1464,7 +1464,18 @@ class TestQi21SubgraphContract:
         assert _links(graph)[pv["inputs"][0]["link"]][1] == QI21_HOST_ID, \
             "预览输入应接 [40] 宿主 prompt 输出"
         assert pv["pos"][0] > host["pos"][0], "预览节点应在宿主右侧(横向排版)"
-        assert "道劫" in (pv.get("title") or ""), "预览节点标题应带道劫字号"
+        # 0925 归位裁定:节点标题零道劫前缀(原生=type 名+可选注释/自研核心件=描述性
+        # 功能名);道劫只留 Group 框/子图名/MarkdownNote 说明卡
+        assert "道劫" not in (pv.get("title") or ""), \
+            f"预览节点标题应零道劫前缀(0925 归位),得 {pv.get('title')!r}"
+        assert "装配预览" in (pv.get("title") or ""), \
+            f"预览节点标题应为装配预览功能名,得 {pv.get('title')!r}"
+        for scope, nodes in (("主图", graph["nodes"]), ("子图", sg["nodes"])):
+            for n in nodes:
+                if n["type"] != "MarkdownNote" and "道劫" in (n.get("title") or ""):
+                    raise AssertionError(
+                        f"{scope} node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): "
+                        f"{n.get('title')!r}")
 
     # ── 布局契约(从上到下=阶段行,行内从左到右;group 收敛)──────────────
 
@@ -1829,14 +1840,18 @@ class TestI2IContract:
             "[144].on_true 应 RGBA 编码 [143]"
 
     def test_no_custom_titles_except_selfbuilt(self):
-        """节点标题铁律(0924-r8):核心/第三方节点零自定义 title,仅自研(My*)可命
-        ——i2i 全图唯一带 title 的节点=MyQi21DaojieBase[150]。"""
+        """节点标题铁律(0924-r8+0925 归位):核心/第三方节点零自定义 title,仅自研
+        (My*)可命——i2i 全图唯一带 title 的节点=MyQi21DaojieBase[150];自研标题
+        零道劫前缀(道劫只留 Group 框/子图名/说明卡)。"""
         graph = GRAPHS["i2i"]
         sg = _qi21_sg(graph)
         titled = [(n["id"], n["type"]) for n in [*graph["nodes"], *sg["nodes"]]
                   if "title" in n]
         assert titled == [(I2I_SG_BASE_ID, "MyQi21DaojieBase")], \
             f"带 title 节点应恰 [150] 自研件,得 {titled}"
+        base_title = _qi21_sg_nodes(graph)[I2I_SG_BASE_ID].get("title") or ""
+        assert "道劫" not in base_title, \
+            f"[150] 自研件标题应零道劫前缀(0925 归位),得 {base_title!r}"
 
     def test_note_documents_mechanism_and_slots(self):
         """说明 Note 要点锁:生修合一机制纠正/指令×装配关系/LoRA 槽用法(满血接线轮
@@ -1864,9 +1879,10 @@ class TestCountAnchor:
             "image_qwen_image_2_1_background_removal.json",
             "image_qwen_image_2_1_image_edit.json",
             "image_qwen_image_2_1_t2i.json",
+            "qi21-edit.json",
             "qi21-道劫-i2i.json",
             "qi21-道劫-t2i.json",
-            "qwen21-edit.json", "qwen21-t2i.json",
+            "qwen21-t2i.json",
         ], f"Q2-1图像 应恰 7 件(4 自研+3 官方模板 09-23 入库;i2i 09-24 新增),得 {files}"
 
     def test_official_templates_upstream_identical(self):
