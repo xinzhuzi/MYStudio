@@ -56,18 +56,6 @@ def test_ruling_anchors_present():
     assert not any("AsianMix" in f for f in scene_files)  # 空镜无面孔
 
 
-def test_files_exist_in_engine_home_when_present():
-    """引擎家在场时逐文件存在性;无引擎家=跳过(repo 侧测试零引擎依赖)。"""
-    home = (Path.home() / "Library/Application Support/漫影工作室/comfyui"
-            / "models/loras")
-    if not home.is_dir():
-        return
-    for e in _entries():
-        for item in e["loras"]:
-            assert (home / item["file"]).is_file(), \
-                f"「{e['zh']}」引用的 LoRA 不在引擎家: {item['file']}"
-
-
 def test_node_class_surface():
     """节点类表面:类别/返回/懒加载纪律(run 不 import 引擎库直至被调)。"""
     cls = my_daojie_loras.MyDaojieLoras

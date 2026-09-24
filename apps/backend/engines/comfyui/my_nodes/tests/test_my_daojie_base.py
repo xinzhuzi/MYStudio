@@ -11,7 +11,7 @@
 RuntimeError/人物型=v2.2 新口径锚(09-18 定性切换,§一 超集解除,锚从
 md 运行时切出防旧口径回潮,零硬编码)/v3 九型配方(lora_recipe/
 steps_hint/i2i_routes/postprocess:九型全量形状+定谳值+栈预设一比一+
-装机家存在性+缺省回退,09-19 C2 单源)。
+缺省回退,09-19 C2 单源;装机家存在性对拍已随 K2 退役退休,09-24)。
 """
 
 from __future__ import annotations
@@ -329,18 +329,6 @@ def test_v3_recipe_matches_lora_stack_presets():
                     (zh, slot["key"], on, weight, want[slot["file"]])
             else:
                 assert not on, (zh, slot["key"], "配方未列却点亮")
-
-
-def test_v3_recipe_files_exist_in_engine_home_when_present():
-    """文件存在性对拍装机家(loras 实盘);无引擎家=跳过(repo 侧零引擎依赖)。"""
-    home = (Path.home() / "Library/Application Support/漫影工作室/comfyui"
-            / "models/loras")
-    if not home.is_dir():
-        return
-    for e in _v3_entries():
-        for item in e["lora_recipe"]:
-            assert (home / item["file"]).is_file(), \
-                f"「{e['zh']}」配方件不在引擎家: {item['file']}"
 
 
 def test_v3_recipe_reader_helpers_and_fallback(tmp_path, monkeypatch):

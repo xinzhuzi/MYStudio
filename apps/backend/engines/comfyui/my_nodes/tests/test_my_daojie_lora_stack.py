@@ -377,13 +377,3 @@ def test_is_changed_reflects_json_and_inputs():
     v1 = stack.MyDaojieLoraStack.IS_CHANGED(preset="人物", base="人物")
     v2 = stack.MyDaojieLoraStack.IS_CHANGED(preset="场景", base="人物")
     assert v1 != v2 and "人物" in v1 and "|" in v1
-
-
-def test_files_exist_in_engine_home_when_present():
-    """引擎家在场时逐槽位存在性;无引擎家=跳过(repo 侧测试零引擎依赖)。"""
-    home = (Path.home() / "Library/Application Support/漫影工作室/comfyui"
-            / "models/loras")
-    if not home.is_dir():
-        return
-    for s in _slots():
-        assert (home / s["file"]).is_file(), f"槽位「{s['label']}」不在引擎家: {s['file']}"
