@@ -52,7 +52,7 @@
 
   R26.4 LoRA 加速槽(09-24 统一接线,与 i2i 出生槽三件同构;D1 定案默认关=正常生成):
     [1] UNET→顶通道 Reroute→⟨[32] MODEL 开关(false=MODEL 直连/true=[31]
-    LoraLoaderModelOnly,name 预填 Qwen-Image-2.1-viggle-turbo-4step-lora-r64
+    LoraLoaderModelOnly,name 预填 Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256
     .safetensors,strength 1.0)⟩→[7] KSampler.model;[30] PrimitiveBoolean
     默认 false=旁路;三件住顶带 y=-500/-560(MODEL 通道下方、主链行上方,
     全链恒在 conditioning 长线上方=零新增交叉);关态懒执行=执行图零
@@ -159,7 +159,7 @@ RR_M8A_ID, RR_M8B_ID = 20, 21                              # link8 通道(y=-620
 RR_M10A_ID, RR_M10B_ID = 22, 23                            # link10 通道(y=-560)
 # R26.4 LoRA 加速槽三件(09-24 统一接线;id 同构 i2i 生成器 LORA_PB/LORA/LORA_SW)
 LORA_PB_ID, LORA_ID, LORA_SW_ID = 30, 31, 32
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors"
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors"
 
 # 宿主 widget 型子图输入(槽序=inputs 数组序;widgets_values 按此序)
 WIDGET_INPUTS = [
@@ -207,10 +207,10 @@ NOTE_TEXT = (
     "- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n"
     "### LoRA 加速槽([30] 开关,默认关=正常生成;0924 R26.4 三件统一接线)\n"
     "- 接线:[1] UNET → 顶通道 → [32] MODEL 开关(false=MODEL 直连/true=[31] LoraLoaderModelOnly)→ [7] KSampler;"
-    "[31] name 预填 **Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors**(viggle 4-step 蒸馏 LoRA,已装机),"
+    "[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors**(viggle 4-step 蒸馏 LoRA,已装机),"
     "strength 1.0。\n"
     "- **关闭=正常生成**(默认):MODEL 直连进 [7],LoRA 不加载,40 步主线不动。\n"
-    "- **LoRA 开关=4步加速,开时须把 steps 手动调 4**(官方 4-step 档,cfg 保持 1;不调步数=白载 LoRA);"
+    "- **LoRA 开关=6步加速,开时须把 steps 手动调 6**(v0.2 系卡荐档,cfg 保持 1;不调步数=白载 LoRA);"
     "模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n"
     "- TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n"
     "### 参数圣经\n"
@@ -868,7 +868,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     })
     nodes.append({
         "id": LORA_ID, "type": "LoraLoaderModelOnly",
-        "title": f"[{LORA_ID}] 道劫·LoRA加载(viggle 4-step r64;开时须把 steps 手动调 4)",
+        "title": f"[{LORA_ID}] 道劫·LoRA加载(viggle v0.2 r256;开时须把 steps 手动调 6,卡荐档)",
         "pos": [620, -560], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "model", "type": "MODEL", "link": 23},
@@ -1277,7 +1277,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
     for token in ("cfg 恒 1", "步数 40", "40-50", RGBA_HEAD_EN, RGBA_TAIL_EN, RGBA_HEAD_ZH,
                   "qwen-image-2-1-prompter", "05-道劫规范提示词库.md", "九型", "空镜无人",
                   "MyQi21DaojieBase", "画幅联动", "恒挂", "美化", "[27]", "ResolutionSelector 已退役",
-                  "LoraLoaderModelOnly", LORA_FILE, "4步加速", "steps 手动调 4",
+                  "LoraLoaderModelOnly", LORA_FILE, "6步加速", "steps 手动调 6",
                   "shift_terminal=0.02", "关闭=正常生成", "TE-Speed"):
         if token not in note:
             errs.append(f"说明 Note 缺要点: {token!r}")
@@ -1432,7 +1432,7 @@ def main() -> int:
     print(f"PASS: 主图 {n_nodes} 节点/{n_links} 链 + 子图 {sg_nodes} 节点/{sg_links} 链;九型={zh_list};"
           f"默认=①人物(MyQi21DaojieBase combo 经宿主面板外露,级联退役,宽高直驱 [5],"
           f"steps=40 完整态,RGBA 官方头尾公式,画幅联动默认关);"
-          f"LoRA 加速槽在位(R26.4:name 预填 viggle r64,默认关=MODEL 直连,关态执行图零 "
+          f"LoRA 加速槽在位(R26.4:name 预填 viggle v0.2 r256,默认关=MODEL 直连,关态执行图零 "
           f"LoraLoader);干跑默认装配全文逐字=库组合;"
               f"双向/横向/四行排版(行内左→右,行间上→下,Reroute 通道拐点不占行)/零重叠/"
               "group 预算(子图4·主图3,各框单一阶段行)/group int/子图 linkIds 逐项登记/"

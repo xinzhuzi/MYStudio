@@ -91,7 +91,7 @@ edit 骨架保留(PE-I2I 核心链[15]默认旁路/BatchImages 双通道/latent 
 预缩 1.5+1.0MP)+qi21 九型装配移植进 [40] 装配子图(MyQi21DaojieBase combo
 经宿主面板「型选择」外露默认人物/锁层A 恒挂/RGBA 官方公式;画幅联动行不移植=
 画幅随输入图);拼接次序=05 库四层口径(指令占①层位,指令即主体);LoRA 加速
-槽出生自带(LoraLoaderModelOnly name 预填 viggle r64 逐字,MODEL 链开关默认
+槽出生自带(LoraLoaderModelOnly name 预填 viggle v0.2 r256 逐字(0924 用户终审换装),MODEL 链开关默认
 旁路),TE-Speed 槽禁入本件(节点类型白名单锁,R26.4 统一接线轮补);计数锚
 6→7 联动;真源=幂等生成器 apps/build/scripts/qi21_daojie_i2i_0924.py。
 
@@ -231,8 +231,8 @@ I2I_SG_CONCAT_IDS = [130, 131]
 I2I_SG_RGBA_CAT_IDS = [162, 163]
 I2I_SG_TE, I2I_SG_TE_RGBA, I2I_SG_RGBA_SW = 142, 143, 144
 # LoRA 加速槽(09-24 R26.4 三件统一接线:t2i/edit 补槽与 i2i 出生槽同构;
-# viggle 4-step 蒸馏件已装机,事实=R23 research/02)——name 预填逐字锚
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors"
+# viggle 蒸馏件已装机(r64 事实=R23 research/02;v0.2 换装=0924 用户终审「最有感觉」)——name 预填逐字锚
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors"
 I2I_LORA_FILE = LORA_FILE
 # 指令①层默认=官方换装例句(edit 生成器口径逐字)
 I2I_B_SEG = ("Put the light blue denim shirt from <image2> on the character "
@@ -1418,15 +1418,15 @@ class TestQi21SubgraphContract:
     def test_usage_note_subgraph_warnings(self):
         """子图版 Note 要点锁:装配子图用法/MyQi21DaojieBase 九选一/主体句纪律(空镜无人)/
         脚本重跑重置警示/[27] 过目指引/锁层恒挂/底座美化口径/steps 40 完整态/RGBA 官方
-        公式(中英)/画幅联动开关说明/R26.4 LoRA 加速槽(关闭=正常生成/开时 steps 手动调 4/
+        公式(中英)/画幅联动开关说明/R26.4 LoRA 加速槽(关闭=正常生成/开时 steps 手动调 6(卡荐)/
         shift_terminal=0.02)。Note 被重跑回退即红。"""
         note = _by_type(GRAPHS["qi21"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("装配子图", "MyQi21DaojieBase", "九型", "空镜无人", "重置回库文档现读值",
                       "[27]", "恒挂", "美化", "05-道劫规范提示词库.md", "步数 40", "40-50",
                       RGBA_HEAD_OFFICIAL, RGBA_TAIL_OFFICIAL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
                       "画幅联动", "ResolutionSelector 已退役",
-                      "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成", "4步加速",
-                      "steps 手动调 4", "shift_terminal=0.02", "TE-Speed"):
+                      "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成", "6步加速",
+                      "steps 手动调 6", "shift_terminal=0.02", "TE-Speed"):
             assert token in note, f"Note 缺子图版要点: {token!r}"
 
     def test_prompt_library_nine_types_anchor(self):
@@ -1707,7 +1707,7 @@ class TestI2IContract:
         4)/TE-Speed 不在本件/画幅随输入图/维护警示(生成器幂等)。Note 被重跑回退即红。"""
         note = _by_type(GRAPHS["i2i"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("生修合一", "指令=改什么", "指令即主体", "无传统 img2img",
-                      "LoraLoaderModelOnly", I2I_LORA_FILE, "steps 调 4",
+                      "LoraLoaderModelOnly", I2I_LORA_FILE, "steps 调 6",
                       "TE-Speed 槽不在本件", "画幅随输入图", "qi21_daojie_i2i_0924.py",
                       "05-道劫规范提示词库.md", "MyQi21DaojieBase", "BatchImagesNode",
                       "ImageScaleToTotalPixels", RGBA_HEAD_ZH):

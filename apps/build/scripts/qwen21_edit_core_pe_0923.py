@@ -59,7 +59,7 @@ CLIP_FILE = "qwen3vl_8b_bf16.safetensors"
 VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
 PE_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors"
 # R26.4 LoRA 加速槽(09-24 统一接线;id 同构 i2i/t2i 生成器 LORA_PB/LORA/LORA_SW)
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors"
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors"
 LORA_PB_ID, LORA_ID, LORA_SW_ID = 30, 31, 32
 RR_V_A_ID, RR_V_B_ID = 28, 29   # VAE 顶通道(R26.4 随迁:长横穿上顶缘,样板=K2 件)
 
@@ -110,9 +110,9 @@ This is an RGBA format image with transparency. [your description]. The image ha
 
 ### LoRA 加速槽([30] 开关,默认关=正常生成;0924 R26.4 三件统一接线)
 
-- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=Cache 直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors**(viggle 4-step 蒸馏 LoRA,已装机),strength 1.0。
+- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=Cache 直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机;开时 steps 手动调 6,卡荐档),strength 1.0。
 - **关闭=正常生成**(默认):MODEL 直连进 [8],LoRA 不加载,主线 25 步不动。
-- **LoRA 开关=4步加速,开时须把 steps 手动调 4**(官方 4-step 档,cfg 保持 1;不调步数=白载 LoRA);模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。
+- **LoRA 开关=6步加速,开时须把 steps 手动调 6**(v0.2 系卡荐档,cfg 保持 1;不调步数=白载 LoRA);模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。
 - TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。
 
 ### 提示词起草
@@ -675,7 +675,7 @@ def verify(wf):
                   "This is an RGBA format image with transparency.",
                   "qwen-image-2-1-prompter", "presence_penalty=1.5",
                   "BatchImagesNode", "TextGenerate", "ImageScaleToTotalPixels",
-                  "LoraLoaderModelOnly", LORA_FILE, "4步加速", "steps 手动调 4",
+                  "LoraLoaderModelOnly", LORA_FILE, "6步加速", "steps 手动调 6",
                   "shift_terminal=0.02", "关闭=正常生成", "TE-Speed"):
         if token not in note:
             errs.append(f"Note 缺要点:{token}")
