@@ -102,6 +102,7 @@ export const COMFY_MODEL_FILE_NOTES: ReadonlyArray<readonly [string, string]> = 
   ["Krea 2 NSFW V4", "NSFW 备选补丁(默认关)"],
   ["identity_edit", "无衣物·指令编辑主件"],
   ["Krea2-Turbo-4步蒸馏", "漫影生图加速档(8→4 步)——本地模型模块「加速」用"],
+  ["viggle-turbo", "Qwen-Image-2.1 加速包——道劫工作流拨 LoRA 开关即用(步数自动 6)"],
   ["rife_v4.26", "视频补帧"],
 ];
 

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyModelDomains,
   groupModelsByDomain,
+  modelFileNote,
 } from "@/components/panels/settings/comfy-engine/comfy-models/comfy-models-taxonomy";
 import type { ComfyModelsReply } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 
@@ -77,4 +78,12 @@ describe("comfy-models 域分类法(09-10 分域裁定)", () => {
   it("空清单:零域组不炸", () => {
     expect(groupModelsByDomain({ modelsDir: "/tmp", groups: [], totalBytes: 0 })).toEqual([]);
   });
+});
+
+// 09-24 迁入:viggle 加速包件级注释(LoRA 态的唯一展示位=模型库行内注释)
+it("viggle 加速包件级注释:任意 viggle-turbo 件名命中,文案交代画布用法", () => {
+  const note = modelFileNote("Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors");
+  expect(note).toContain("加速包");
+  expect(note).toContain("LoRA 开关");
+  expect(modelFileNote("Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors")).toContain("加速包");
 });

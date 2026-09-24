@@ -39,6 +39,7 @@ import {
   type ComfyPluginInfo,
   type ComfyPluginState,
 } from "./comfy-engine-contract";
+import { Qwen21TeSpeedPluginRow } from "./Qwen21SpeedupSection";
 import type { ComfyEngineSettingsController } from "./useComfyEngineSettings";
 
 type ComfyEnginePluginBlockProps = {
@@ -459,6 +460,9 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
             </div>
           );
         })}
+        {/* Qwen-Image-2.1 采样提速插件在位态行(09-24 迁入:资产住进引擎卡,
+            照 09-09 模型页迁卡先例;非台账目录件,恒列尾) */}
+        <Qwen21TeSpeedPluginRow engine={engine} />
       </div>
 
       {/* 高级折叠:任意 git/本地路径安装(第三方代码警告) */}

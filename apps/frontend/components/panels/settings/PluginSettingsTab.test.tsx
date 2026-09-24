@@ -137,16 +137,6 @@ vi.mock("./comfy-engine/ComfyEngineSettingsSection", () => ({
     <div data-testid="comfy-engine-section">{String(embedded)}{initialActiveTab ? `:${initialActiveTab}` : ""}</div>
   ),
 }));
-// Qwen-Image-2.1 区块(09-24):UI 打桩,行胶囊用的纯函数走真源(importOriginal)
-vi.mock("./comfy-engine/Qwen21SpeedupSection", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./comfy-engine/Qwen21SpeedupSection")>();
-  return {
-    ...actual,
-    Qwen21SpeedupSection: ({ engine }: { engine: unknown }) => (
-      <div data-testid="qwen21-section">{engine ? "engine" : "no-engine"}</div>
-    ),
-  };
-});
 vi.mock("./SfxGenSettingsSection", () => ({
   SfxGenSettingsSection: ({ embedded }: { embedded?: boolean }) => <div data-testid="sfx-gen-section">{String(embedded)}</div>,
 }));
@@ -174,12 +164,13 @@ afterEach(() => {
 });
 
 /** 08-28 布局重做后:分组标签是普通文本。09-09 起:音乐行随 music3 收敛 ComfyUI 撤
- * (09-09-music3-to-comfyui),生图行随模型页并入引擎卡撤(09-09-comfy-model-tab)。 */
+ * (09-09-music3-to-comfyui),生图行随模型页并入引擎卡撤(09-09-comfy-model-tab)。
+ * 09-24:Qwen-Image-2.1 独立行迁入引擎卡(LoRA=模型页行内注释/TE-Speed=生态
+ * 插件区)撤——本页行清单随减。 */
 const EXPECTED_ROW_HEADINGS = [
   "本地配置",
   "Python 运行环境",
   "ComfyUI 引擎",
-  "Qwen-Image-2.1",
   "视觉审核（VLM 一致性检查）",
   // 09-11:视频评分模型行撤(用户裁定:不需要此模型——从未下载,评分链未下载自动跳过)
   "TTS 运行时与模型",
