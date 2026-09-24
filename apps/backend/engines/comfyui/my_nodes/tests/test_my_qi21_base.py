@@ -33,7 +33,7 @@ LIB_MD = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 CANON_BASES = (REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
                / "daojie_bases.json")
 
-# 人物系六型(base_text 含常量B 增量四锁;与 05 库生成器 daojie_canon_lib_0923.py 同表)
+# 人物系六型(base_text 含常量B 增量四锁;与 05 库生成器 daojie_canon_lib.py 同表)
 RENWU_XI = {"人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分"}
 
 

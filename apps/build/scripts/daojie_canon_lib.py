@@ -21,9 +21,9 @@
   仍与 canon 对齐;aspect/MP 画幅档仍取 canon)。
 
 用法:
-  python3 apps/build/scripts/daojie_canon_lib_0923.py           # 生成(幂等,逐字节稳定)
-  python3 apps/build/scripts/daojie_canon_lib_0923.py --check   # 对磁盘文件守恒校验
-  python3 apps/build/scripts/daojie_canon_lib_0923.py --overlap # 主体句×美化版底座重叠预检
+  python3 apps/build/scripts/daojie_canon_lib.py           # 生成(幂等,逐字节稳定)
+  python3 apps/build/scripts/daojie_canon_lib.py --check   # 对磁盘文件守恒校验
+  python3 apps/build/scripts/daojie_canon_lib.py --overlap # 主体句×美化版底座重叠预检
   (--verify-jia 随 canon-② 逐字锚废止退役:round5-jia 实拍为旧 canon 底座,历史留档于
    research/09-甲案装配全文.md,不再作活校验。)
 """
@@ -435,7 +435,7 @@ def build_doc() -> str:
     A("2. **场景/概念气氛不写人**(该两型人物交给负向纪律;Q2.1 cfg=1 负向不参与采样,由①层「不写人」约定承担,空镜句尾可明写「空镜无人」)。")
     A("3. **同画面朝代统一**(汉唐宋明历代均可);历史向服饰按朝代实名+身份+地位+成套点名。")
     A("4. **全角标点**。")
-    A("5. **发放前强制预检**:`python3 apps/build/scripts/daojie_canon_lib_0923.py --overlap`(判据=≥10 字公共子串,对照**美化版②层**;CLI `daojie_subject_overlap_0922.py --base 型名` 对照的是 K2 侧 canon positive,两账并行勿混)。")
+    A("5. **发放前强制预检**:`python3 apps/build/scripts/daojie_canon_lib.py --overlap`(判据=≥10 字公共子串,对照**美化版②层**;CLI `daojie_subject_overlap_0922.py --base 型名` 对照的是 K2 侧 canon positive,两账并行勿混)。")
     A("")
     A("**④配色行映射**(手册「精选方案示例」原文一行,非硬约束;冲突时以角色/场景设定事实为准):")
     A("")
@@ -466,7 +466,7 @@ def build_doc() -> str:
     A("\n".join([strip_meta(secs[k]) for k in ("4", "5", "6", "7")]))
     A("```")
     A("")
-    A("提取口径:仅去「（硬,…)」类元语言括注与 markdown 符号,正文一字不动(甲案规格§剔除项;round5-jia 实拍装配零蒸馏核验=仅删元语言括注 10 处,其余逐字)。配色行提取=按「；」分段取「型名=」起始段,段内「。」后尾注截去。守恒校验:`python3 apps/build/scripts/daojie_canon_lib_0923.py --check`(### 计数/型名对齐/围栏配对/②③④逐字对齐——②对齐目标=本脚本 BEAUTIFIED 美化版)。")
+    A("提取口径:仅去「（硬,…)」类元语言括注与 markdown 符号,正文一字不动(甲案规格§剔除项;round5-jia 实拍装配零蒸馏核验=仅删元语言括注 10 处,其余逐字)。配色行提取=按「；」分段取「型名=」起始段,段内「。」后尾注截去。守恒校验:`python3 apps/build/scripts/daojie_canon_lib.py --check`(### 计数/型名对齐/围栏配对/②③④逐字对齐——②对齐目标=本脚本 BEAUTIFIED 美化版)。")
     A("")
     A("## 三、九型装配(型录与顺序=daojie_bases.json;②层=09-23 美化版)")
     A("")
@@ -510,7 +510,7 @@ def build_doc() -> str:
     A("")
     A("## 五、覆盖矩阵自检(canon 18 骨干 + 八锁 × 九型;按 09-23 美化版底座重算)")
     A("")
-    A("口径:与甲案矩阵同法(research/09-甲案装配全文.md)——对每型 **②③④恒层装配全文**(①主体句槽是变量层,不入矩阵)做**字面在场核验**;✔=判据字面子串中;◐=变体句在场(该型②/③层的变体句式);✗=字面缺席(如有近义承担则注明);—=型内不适用。生成命令:`python3 apps/build/scripts/daojie_canon_lib_0923.py`(矩阵随文档同步再生成,改词即同步)。")
+    A("口径:与甲案矩阵同法(research/09-甲案装配全文.md)——对每型 **②③④恒层装配全文**(①主体句槽是变量层,不入矩阵)做**字面在场核验**;✔=判据字面子串中;◐=变体句在场(该型②/③层的变体句式);✗=字面缺席(如有近义承担则注明);—=型内不适用。生成命令:`python3 apps/build/scripts/daojie_canon_lib.py`(矩阵随文档同步再生成,改词即同步)。")
     A("")
     A("**矩阵一:canon 18 骨干 × 九型**")
     A("")

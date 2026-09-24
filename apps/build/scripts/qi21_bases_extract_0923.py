@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """qi21 道劫九选一节点数据提取器(qi21_bases.json 落盘)— 2026-09-23。
 
-从 05 库(docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md,daojie_canon_lib_0923.py
+从 05 库(docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md,daojie_canon_lib.py
 生成的真源)提取九型底座文本,与 canon 画幅档拼成
 apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json(节点 MyQi21DaojieBase
 热读数据,09-23 造件轮;工作流接线由下一轮做):
@@ -39,7 +39,7 @@ LIB_MD = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 CANON_BASES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/daojie_bases.json"
 OUT = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json"
 
-# 人物系六型(③层加挂常量B 四把全员锁;与 05 库生成器 daojie_canon_lib_0923.py 同表)
+# 人物系六型(③层加挂常量B 四把全员锁;与 05 库生成器 daojie_canon_lib.py 同表)
 RENWU_XI = {"人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分"}
 
 

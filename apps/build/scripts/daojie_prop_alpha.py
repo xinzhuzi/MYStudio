@@ -3,7 +3,7 @@
 
 用法(必须用引擎venv解释器,rembg装在那):
   "$HOME/Library/Application Support/漫影工作室/comfyui/venv/bin/python" \
-      apps/build/scripts/daojie_prop_alpha_0921.py 图片1 [图片2 ...] [--model u2netp]
+      apps/build/scripts/daojie_prop_alpha.py 图片1 [图片2 ...] [--model u2netp]
 
 输出:同目录 <名>_alpha.png;打印透明度统计供验收(全透明/全不透明占比)。
 模型缓存 ~/.u2net/(本机已有 u2netp 4.5MB;--model u2net 完整版需下载~170MB,建议配代理)。

@@ -177,7 +177,7 @@ CAMPAIGN_FILES = [
 
 # 4. 特殊处置:my_prefix(无日期)挪 campaigns/ + DEPRECATED 头;两个未跟踪活跃件不动。
 MY_PREFIX = "manying_workflow_my_prefix.py"
-UNTRACKED_KEEP = ["daojie_prop_alpha_0921.py", "qwen_hdr_vae_comfy_convert_0922.py"]
+UNTRACKED_KEEP = ["daojie_prop_alpha.py", "qwen_hdr_vae_comfy_convert_0922.py"]
 
 # 5. 文档处置(17):T1 正名 10(Phase A)+ T3 档案 3(Phase A)+ T2 冻结 1 + Phase B 3(禁碰)。
 T1_DOCS = [
@@ -263,7 +263,7 @@ REWRITES = [
 
 # 黑名单:触碰即 abort(implement.md 禁止事项 + 0922 执行中裁定)
 BLACKLIST_EXACT = {
-    "apps/build/scripts/daojie_prop_alpha_0921.py",
+    "apps/build/scripts/daojie_prop_alpha.py",
     "apps/build/scripts/qwen_hdr_vae_comfy_convert_0922.py",
     "docs/prompts/道劫_底座节点_0918.md",
 }
