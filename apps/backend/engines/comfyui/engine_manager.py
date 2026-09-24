@@ -962,6 +962,15 @@ class EngineManager:
                     raise EngineOpError("无法取得 ComfyUI 引擎管理权,已拒绝启动以防互踩")
                 already_running = self._proc is not None and self._proc.poll() is None
                 proc = self._proc
+            # 0924 装机链补丁:覆盖装机不触发安装/更新 job,my-nodes 种子漂移无人
+            # 投递(H5 轮实弹:引擎侧栏令牌链断=403 取不到工作流)。spawn/收编前
+            # 补同步;失败不拦启动(引擎可暂跑旧包,下次拉起再试)。
+            try:
+                from . import plugin_manager as _pm  # 懒加载防循环(同安装 job 先例)
+                if _pm.my_nodes_drifted():
+                    _pm.sync_my_nodes()
+            except Exception as exc:  # noqa: BLE001 — 补同步失败不拦启动
+                print(f"[image-sidecar] comfy-engine: my-nodes 补同步失败({exc}),启动继续", flush=True)
             if already_running:
                 # 快路径探运行口优先:启动串钉口(--port)与账本口分叉时,账本口
                 # 是死口——原实现干等 120 秒后假报「健康检查超时」(09-11 实弹)

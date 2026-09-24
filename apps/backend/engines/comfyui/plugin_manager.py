@@ -1545,3 +1545,32 @@ def my_sync_state() -> dict:
         "source": str(my_source_dir()),
         "target": str(target),
     }
+
+
+def my_nodes_drifted() -> bool:
+    """种子(源码位)与引擎运行位内容是否漂移(0924 装机链补丁)。
+
+    背景:sync_my_nodes 只在安装/更新 job 里跑,覆盖装机(app 换新而引擎版本
+    未变)不触发任何 job——H5 轮实弹:新种子带 bridge_settings_server 但引擎
+    家还是旧包,引擎侧栏令牌链断=「取不到工作流(HTTP 403)」。引擎 spawn 前
+    以此判断是否补同步。与 sync_my_nodes 同口径:tests/__pycache__/*.pyc 不计。
+    """
+    import hashlib
+
+    source = my_source_dir()
+    if not (source / "__init__.py").is_file():
+        return False  # 源码位缺失交给 sync_my_nodes 报错,这里不拦启动
+    target = cm.custom_nodes_dir() / MY_DIR
+    if not (target / "__init__.py").is_file():
+        return True
+
+    def _sig(root: Path) -> dict:
+        sig = {}
+        for p in sorted(root.rglob("*")):
+            rel = str(p.relative_to(root))
+            if (p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"
+                    and not rel.startswith("tests")):
+                sig[rel] = hashlib.md5(p.read_bytes()).hexdigest()
+        return sig
+
+    return _sig(source) != _sig(target)
