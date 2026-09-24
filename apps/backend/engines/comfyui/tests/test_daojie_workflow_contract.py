@@ -58,8 +58,14 @@ POSITIVE_DIRTY = ("做旧", "泛黄", "纸纹")  # 纸纹脏污族:正向禁;负
 
 # 多格同人型负向黑名单(09-18 评审问题1 处置:系统性防复犯)
 MULTI_PANEL_OPTIONS = ("三视图", "表情差分")
+# 09-24 债清算(全仓套件唯一容红清零):裸词 "duplicated" 退役——81ab725
+# 裁定21 六形态定界把「duplicated view, identical pose repeated」定为三视图
+# 负向有意文案(守护格子间视角/姿势差异化),与 09-18 立黑名单所防的「克隆
+# token 压制合法分格」语义反向;底座 v5.1 冻结一字不动(09-23 用户裁定),
+# 09-22 挂账「三视图 negative 克隆 token 待裁」就此在测试侧裁。其余五 token
+# 与冻结文案零冲突,防复犯门禁保留,故不整函数退休。
 CLONE_TOKENS = (
-    "cloned", "duplicated", "multiple people",
+    "cloned", "multiple people",
     "extra characters", "person", "human figure",
 )
 _CJK = re.compile(r"[\u4e00-\u9fff]")
@@ -142,7 +148,10 @@ class TestDaojieBasesSources:
 
     def test_multi_panel_negative_clone_blacklist(self):
         """多格同人型(三视图/表情差分)负向禁 clone/多人类 token——多格同
-        人合法,此类 token 会压制合法分格(09-18 评审问题1 门禁)。"""
+        人合法,此类 token 会压制合法分格(09-18 评审问题1 门禁)。
+        09-24 债清算注记:裸词 duplicated 已退役(裁定21 冻结文案含
+        duplicated view,语义反向误伤,详见 CLONE_TOKENS 注);守护对象仍
+        活,本门禁不退休。"""
         for name in MULTI_PANEL_OPTIONS:
             neg = BASES_BY_NAME[name]["negative"].lower()
             for tok in CLONE_TOKENS:
