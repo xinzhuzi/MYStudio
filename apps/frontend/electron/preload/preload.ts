@@ -66,6 +66,22 @@ contextBridge.exposeInMainWorld('secureStorage', {
   decrypt: (cipher: string) => ipcRenderer.invoke('secure-storage-decrypt', cipher),
 })
 
+// C1③ leveldb 明文物理清除桥(0924:两拍协议渲染侧执行面)。getMode/getStagedSync
+// 用 sendSync 同步应答——拍1 回写必须先于一切 store 模块求值(ESM 按导入序,消费
+// 模块在 main.tsx 首位);主进程侧一律 ipcMain.on + event.returnValue,显式结果
+// 对象绝不向渲染层抛错(先例:上方 secureStorage)。
+contextBridge.exposeInMainWorld('c1Purge', {
+  getMode: (): { mode: 'idle' | 'pending' | 'quarantine' } =>
+    ipcRenderer.sendSync('purge:get-mode'),
+  getStagedSync: ():
+    | { ok: true; entries: Array<[string, string]> }
+    | { ok: false; reason: string } =>
+    ipcRenderer.sendSync('purge:get-staged'),
+  stage: (entries: Array<[string, string]>) => ipcRenderer.invoke('purge:stage', entries),
+  confirm: () => ipcRenderer.invoke('purge:confirm'),
+  relaunch: () => ipcRenderer.invoke('purge:relaunch'),
+})
+
 contextBridge.exposeInMainWorld('sourceMemory', {
   build: (projectId: string) => ipcRenderer.invoke('source-memory-build', projectId),
   search: (projectId: string, query: string, limit?: number) =>

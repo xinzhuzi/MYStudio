@@ -102,6 +102,9 @@ project-folder-prepare
 project-folder-remove
 project-folder-rename
 project-folder-status
+purge:confirm
+purge:relaunch
+purge:stage
 read-image-base64
 remotion-chapter-audio-import
 remotion-chapter-audio-probe
@@ -217,6 +220,9 @@ vlm-review-runtime-setup
 `.trim().split("\n");
 
 const NAMED_IPC_CHANNELS = {
+  "C1_PURGE_IPC_CHANNELS.confirm": "purge:confirm",
+  "C1_PURGE_IPC_CHANNELS.relaunch": "purge:relaunch",
+  "C1_PURGE_IPC_CHANNELS.stage": "purge:stage",
   COMFY_CLOUD_RELAY_RESPONSE_CHANNEL: "comfy-cloud-relay-response",
   IMAGE_GEN_PREPARE_CHANNEL: "image-gen-runtime-prepare",
   IMAGE_GEN_PROBE_CHANNEL: "image-gen-runtime-probe",

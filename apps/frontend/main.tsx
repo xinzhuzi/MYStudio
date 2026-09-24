@@ -1,6 +1,9 @@
 // Copyright (c) 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
+// C1③ leveldb 明文物理清除:必须**首位** import——ESM 按导入序求值,本模块体
+// (拍1 同步回写)须先于下方 React/App 及其引带的一切 store 模块执行。
+import './lib/storage/local-storage-purge-restore.ts'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'

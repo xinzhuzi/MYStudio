@@ -9,6 +9,8 @@ import {bindWindowRuntime, createWindow, getWin, setDisposeRemotionRuntime, setS
 import { COMFY_CLOUD_RELAY_ENV, createComfyCloudRelay } from "../ipc/ai/comfy-cloud-relay";
 import { comfyApiTakeoverEnv } from "../ipc/ai/comfy-api-takeover";
 import {bindNativeBridgeRuntime, buildManagedVideoUseChapterRun, nativeStudioQueueBridge} from "./main-native-bridge";
+// C1③ leveldb 明文物理清除控制器(boot 签名扫描/两拍协议;必须在首个窗口创建前判定)
+import {runC1PurgeBoot} from "./c1-purge-controller";
 // IPC 注册群(存储/媒体/资产/更新/诊断/导出)整体外迁,副作用 import 即注册
 import "./main-ipc-bootstrap";
 
@@ -601,6 +603,13 @@ registerTtsIpcHandlers({
 registerPrivilegedSchemes(protocol)
 
 app.whenReady().then(async () => {
+  // C1③ 物理清除 boot 判定(两拍协议):必须在首个 BrowserWindow 创建前完成——
+  // 窗口一开 Chromium 即锁 Local Storage 库,拍1 的改名隔离就没机会了。扫描几 MB
+  // 级字节,同步开销可忽略;任何失败内部吞掉退化为 idle,绝不阻塞启动。
+  runC1PurgeBoot({
+    userDataPath: app.getPath("userData"),
+    sessionDataPath: app.getPath("sessionData"),
+  })
   if (isBackgroundSmoke && process.platform === 'darwin') {
     app.setActivationPolicy('accessory')
     app.dock?.hide()
