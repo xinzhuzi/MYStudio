@@ -19,12 +19,12 @@
     },
     {
       "id": 2,
-      "title": "道劫·编辑主链(双图预缩→[40]装配子图→LoRA加速槽→采样→解码→保存;下排=输出画幅双路)",
+      "title": "道劫·编辑主链(双图预缩→[40]装配子图→LoRA加速槽+steps联动开关→采样→解码→保存;下排=输出画幅双路)",
       "bounding": [
         -1900,
         -150,
-        5230,
-        1150
+        5700,
+        1500
       ],
       "color": "#3f789e",
       "flags": {}
@@ -713,7 +713,8 @@
           "name": "BOOLEAN",
           "type": "BOOLEAN",
           "links": [
-            28
+            28,
+            41
           ]
         }
       ],
@@ -774,7 +775,7 @@
         "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
-        "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors",
+        "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
         1.0
       ]
     },
@@ -834,7 +835,7 @@
       "id": 8,
       "type": "KSampler",
       "pos": [
-        2200,
+        2620,
         480
       ],
       "size": [
@@ -864,6 +865,14 @@
           "name": "latent_image",
           "type": "LATENT",
           "link": 33
+        },
+        {
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": 42
         }
       ],
       "outputs": [
@@ -892,7 +901,7 @@
       "id": 9,
       "type": "VAEDecode",
       "pos": [
-        2590,
+        3010,
         480
       ],
       "size": [
@@ -931,7 +940,7 @@
       "id": 10,
       "type": "SaveImage",
       "pos": [
-        2890,
+        3310,
         480
       ],
       "size": [
@@ -1666,7 +1675,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[22] 原始用户词=唯一手写位(默认=官方换装例句);经 [15] PE 开关(false=直写/true=PE-I2I 看图改写,默认 false)接进 [40] 装配子图「指令」槽——**指令即主体**。\n- **装配=道劫画风约束**(②③层恒挂):[40] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [28] 装配预览(接 [40] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/三视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样。**步数 40(道劫产线完整档;官方区间 40-50)**;euler/simple/denoise 1.0;seed fixed 可复现。\n- **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([15] 开关,默认关=直写)\n\n- 链路:[12] PE CLIPLoader(pe_i2i bf16·type=qwen_image)→ 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=[22] 原始用户词/c=[23] assistant+`<think>` 预填)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [15] 开关。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode 合批全部(预缩后)输入图喂 [26].image;[40] 子图编码器只吃选定图。\n- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 暂保待 A/B。\n- 旁路时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载)。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### LoRA 加速槽([30] 开关,默认关=旁路;0924 R26.4 三件统一接线)\n\n- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机;开时 steps 手动调 6,卡荐档),strength 1.0。\n- **关闭=正常生成**(默认):MODEL 直连进 [8],LoRA 不加载,40 步主线不动。\n- **LoRA 开关=6步加速,开启后须把 [8] steps 调 6**(v0.2 系卡荐档),cfg 保持 1;不调步数=白载 LoRA;模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(须调 steps)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)\n\nThis is an RGBA image with transparency. [装配全文,与 [28] 同源]. The image has alpha channel and the background is transparent.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文,子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [40] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[18] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
+        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[22] 原始用户词=唯一手写位(默认=官方换装例句);经 [15] PE 开关(false=直写/true=PE-I2I 看图改写,默认 false)接进 [40] 装配子图「指令」槽——**指令即主体**。\n- **装配=道劫画风约束**(②③层恒挂):[40] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [28] 装配预览(接 [40] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/三视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样。**步数 40(道劫产线完整档;官方区间 40-50;[30] 开=自动 6,由 [164] 联动开关供给,[8] 面板不再手调)**;euler/simple/denoise 1.0;seed fixed 可复现。\n- **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([15] 开关,默认关=直写)\n\n- 链路:[12] PE CLIPLoader(pe_i2i bf16·type=qwen_image)→ 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=[22] 原始用户词/c=[23] assistant+`<think>` 预填)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [15] 开关。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode 合批全部(预缩后)输入图喂 [26].image;[40] 子图编码器只吃选定图。\n- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 暂保待 A/B。\n- 旁路时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载)。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### LoRA 加速槽([30] 开关,默认关=旁路;0924 R26.4 三件统一接线+满血接线轮 steps 联动)\n\n- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机),strength 1.0。\n- **关闭=正常生成**(默认):MODEL 直连进 [8],LoRA 不加载,40 步主线不动。\n- **一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)**:[30] 同时驱动 MODEL 开关与 [164] steps 联动 INT 开关(false→[165] 常量 40/true→[166] 常量 6→[8].steps,widget 已转输入)——开 [30] 一拨,LoRA 挂链+步数自动 6(v0.2.1 系卡荐档,cfg 保持 1);关掉一拨,LoRA 卸链+步数自动回 40;[8] 面板 steps 不再手动调。\n模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(steps 联动自动)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)\n\nThis is an RGBA image with transparency. [装配全文,与 [28] 同源]. The image has alpha channel and the background is transparent.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文,子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [40] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[18] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
       ]
     },
     {
@@ -1807,6 +1816,150 @@
       "properties": {
         "showOutputText": false,
         "horizontal": false
+      }
+    },
+    {
+      "id": 164,
+      "type": "ComfySwitchNode",
+      "pos": [
+        2200,
+        1020
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "INT",
+          "link": 39
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "INT",
+          "link": 40
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 41
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "INT",
+          "links": [
+            42
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 165,
+      "type": "PrimitiveInt",
+      "pos": [
+        1800,
+        1150
+      ],
+      "size": [
+        270,
+        90
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "INT",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            39
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PrimitiveInt"
+      },
+      "widgets_values": [
+        40,
+        "fixed"
+      ],
+      "widgets_values_named": {
+        "value": 40,
+        "fixed": "fixed"
+      }
+    },
+    {
+      "id": 166,
+      "type": "PrimitiveInt",
+      "pos": [
+        1380,
+        1150
+      ],
+      "size": [
+        270,
+        90
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "INT",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            40
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PrimitiveInt"
+      },
+      "widgets_values": [
+        6,
+        "fixed"
+      ],
+      "widgets_values_named": {
+        "value": 6,
+        "fixed": "fixed"
       }
     }
   ],
@@ -2114,6 +2267,38 @@
       10,
       0,
       "IMAGE"
+    ],
+    [
+      39,
+      165,
+      0,
+      164,
+      0,
+      "INT"
+    ],
+    [
+      40,
+      166,
+      0,
+      164,
+      1,
+      "INT"
+    ],
+    [
+      41,
+      30,
+      0,
+      164,
+      2,
+      "BOOLEAN"
+    ],
+    [
+      42,
+      164,
+      0,
+      8,
+      4,
+      "INT"
     ]
   ],
   "definitions": {
@@ -3121,6 +3306,6 @@
       }
     ]
   },
-  "last_node_id": 163,
-  "last_link_id": 38
+  "last_node_id": 166,
+  "last_link_id": 42
 }

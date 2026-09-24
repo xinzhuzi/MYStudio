@@ -63,7 +63,7 @@ export const QWEN21_TE_SPEED_PLUGIN_ID = "TE-Speed-QwenImage21";
 export const QWEN21_LORA_FETCH_JOB_KINDS: ReadonlySet<ComfyEngineJobKind> = new Set<ComfyEngineJobKind>([]);
 
 /** viggle-turbo 加速 LoRA 的在位判据:loras 类别内文件名含「viggle」。
- * 官方件:v0.1 r64 与 v0.2 r256(0924 用户终审换默认,v0.1 保留并存);只认
+ * 官方件 v0.2.1 r256(0924「换最新+清旧」令后唯一在库;历史件外置盘备份);只认
  * viggle 不锁步数/秩,社区变体也如实识别为在位。 */
 function findQwen21LoraFile(models: ComfyModelsReply | null | undefined): ComfyModelsEntry | null {
   const group = models?.groups.find((item) => item.category === "loras");

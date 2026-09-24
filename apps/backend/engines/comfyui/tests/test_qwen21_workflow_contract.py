@@ -91,7 +91,7 @@ edit 骨架保留(PE-I2I 核心链[15]默认旁路/BatchImages 双通道/latent 
 预缩 1.5+1.0MP)+qi21 九型装配移植进 [40] 装配子图(MyQi21DaojieBase combo
 经宿主面板「型选择」外露默认人物/锁层A 恒挂/RGBA 官方公式;画幅联动行不移植=
 画幅随输入图);拼接次序=05 库四层口径(指令占①层位,指令即主体);LoRA 加速
-槽出生自带(LoraLoaderModelOnly name 预填 viggle v0.2 r256 逐字(0924 用户终审换装),MODEL 链开关默认
+槽出生自带(LoraLoaderModelOnly name 预填 viggle v0.2.1 r256 逐字(0924 换最新口径),MODEL 链开关默认
 旁路),TE-Speed 槽禁入本件(节点类型白名单锁,R26.4 统一接线轮补);计数锚
 6→7 联动;真源=幂等生成器 apps/build/scripts/qi21_daojie_i2i_0924.py。
 
@@ -231,8 +231,8 @@ I2I_SG_CONCAT_IDS = [130, 131]
 I2I_SG_RGBA_CAT_IDS = [162, 163]
 I2I_SG_TE, I2I_SG_TE_RGBA, I2I_SG_RGBA_SW = 142, 143, 144
 # LoRA 加速槽(09-24 R26.4 三件统一接线:t2i/edit 补槽与 i2i 出生槽同构;
-# viggle 蒸馏件已装机(r64 事实=R23 research/02;v0.2 换装=0924 用户终审「最有感觉」)——name 预填逐字锚
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors"
+# viggle 蒸馏件已装机(r64 事实=R23 research/02;v0.2→v0.2.1=0924 用户「有最新换最新+清旧」令)——name 预填逐字锚
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"
 I2I_LORA_FILE = LORA_FILE
 # 指令①层默认=官方换装例句(edit 生成器口径逐字)
 I2I_B_SEG = ("Put the light blue denim shirt from <image2> on the character "
@@ -241,7 +241,7 @@ I2I_B_SEG = ("Put the light blue denim shirt from <image2> on the character "
 I2I_NODE_TYPE_WHITELIST = {
     "UNETLoader", "CLIPLoader", "VAELoader", "LoadImage",
     "ImageScaleToTotalPixels", "QwenImage21Cache", "LoraLoaderModelOnly",
-    "PrimitiveBoolean", "ComfySwitchNode", "KSampler", "VAEDecode",
+    "PrimitiveBoolean", "PrimitiveInt", "ComfySwitchNode", "KSampler", "VAEDecode",
     "SaveImage", "PrimitiveStringMultiline", "StringFormat", "BatchImagesNode",
     "TextGenerate", "RegexExtract", "MarkdownNote", "easy showAnything",
     "Reroute", "EmptyLatentImage",
@@ -318,6 +318,105 @@ def _off_state_reach(graph: dict, save_id: int) -> set[int]:
             if lid is not None:
                 stack.append(links[lid][1])
     return reach
+
+
+# 满血接线轮(09-24):steps 联动 INT 开关三件锚(t2i [177-179]/i2i [164-166]/edit
+# [33-35];同受 [30] 布尔源驱动:false→40 常量(原路)/true→6 常量(v0.2 卡荐档)→
+# KSampler.steps widget 转输入——开 [30] 一拨=LoRA 挂链+steps 自动 6,关=自动回 40)
+QI21_STEPS_SW_ID, QI21_STEPS_C40_ID, QI21_STEPS_C6_ID = 177, 178, 179
+I2I_STEPS_SW_ID, I2I_STEPS_C40_ID, I2I_STEPS_C6_ID = 164, 165, 166
+EDIT_STEPS_SW_ID, EDIT_STEPS_C40_ID, EDIT_STEPS_C6_ID = 33, 34, 35
+STEPS_OFF, STEPS_ON = 40, 6
+STEPS_NOTE_TOKEN = "一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)"
+
+
+def _switch_bool(nodes: dict, links: dict, node: dict, pb_override: bool | None = None) -> bool:
+    """ComfySwitchNode 有效布尔:switch 槽有连线→解析到布尔源([30] 一源扇出驱
+    MODEL/steps 两开关,运行态翻转=改 [30] 一处);否则本件 widget。"""
+    lid = node["inputs"][2].get("link")
+    if lid is not None and links[lid][1] in nodes:
+        src = nodes[links[lid][1]]
+        if src["type"] == "PrimitiveBoolean":
+            if pb_override is not None:
+                return pb_override
+            return bool(src["widgets_values"][0])
+    return bool(node["widgets_values"][0])
+
+
+def _reach_state(graph: dict, save_id: int, pb_override: bool | None = None) -> set[int]:
+    """执行集(SaveImage 回溯;ComfySwitchNode 懒执行=只走选中臂,开关态经 switch 槽
+    连线解析到布尔源)。pb_override=True 模拟运行态把 [30] 拨开(满血接线轮开态)。"""
+    nodes, links = _nodes(graph), _links(graph)
+    reach, stack = set(), [save_id]
+    while stack:
+        nid = stack.pop()
+        if nid in reach:
+            continue
+        reach.add(nid)
+        node = nodes[nid]
+        slots = ([1 if _switch_bool(nodes, links, node, pb_override) else 0]
+                 if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", []))))
+        for si in slots:
+            lid = node["inputs"][si].get("link")
+            if lid is not None:
+                stack.append(links[lid][1])
+    return reach
+
+
+def _steps_resolved(graph: dict, sampler_id: int, pb_override: bool | None = None):
+    """KSampler.steps 溯源干跑:widget 转输入→steps 联动开关→布尔源定臂→常量值。"""
+    nodes, links = _nodes(graph), _links(graph)
+    inp = next((i for i in nodes[sampler_id]["inputs"] if i.get("name") == "steps"), None)
+    if not inp or inp.get("link") is None:
+        return None
+    sw = nodes[links[inp["link"]][1]]
+    if sw["type"] != "ComfySwitchNode":
+        return None
+    arm = 1 if _switch_bool(nodes, links, sw, pb_override) else 0
+    return nodes[links[sw["inputs"][arm]["link"]][1]]["widgets_values"][0]
+
+
+def _assert_fullpower_steps(graph: dict, name: str, sampler_id: int, sw_id: int,
+                            c40_id: int, c6_id: int, pb_id: int, lora_id: int,
+                            save_id: int, pb_fan_links: list[int]):
+    """满血接线轮三件同构契约:[30] 一拨全配=steps 联动 INT 开关同源驱动。
+    结构:sw=ComfySwitchNode(INT)/on_false→c40(40)/on_true→c6(6)/switch→pb(同一
+    布尔源,pb 扇出恰两线=MODEL 开关+steps 开关);KSampler.steps=widget 转输入接 sw;
+    干跑:关态 steps 解析 40+执行图零 LoraLoader;开态([30]=true)解析 6+LoRA 在链。"""
+    nodes, links = _nodes(graph), _links(graph)
+    sw = nodes[sw_id]
+    assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "INT", \
+        f"{name}: [{sw_id}] 应为 INT 泛型开关(steps 联动,样板=画幅联动 [157][158])"
+    assert sw["widgets_values"][0] is False, \
+        f"{name}: [{sw_id}] steps 联动开关默认应 false(关=原路 40)"
+    for cid, want in ((c40_id, STEPS_OFF), (c6_id, STEPS_ON)):
+        c = nodes[cid]
+        assert c["type"] == "PrimitiveInt" and _widget(c, 0) == want, \
+            f"{name}: [{cid}] PrimitiveInt 常量应={want}(关臂 40 原路/开臂 6 卡荐档)," \
+            f"得 {c.get('widgets_values')}"
+    assert links[sw["inputs"][0]["link"]][1] == c40_id, \
+        f"{name}: [{sw_id}].on_false 上游应常量40 [{c40_id}](关=自动回 40 原路)"
+    assert links[sw["inputs"][1]["link"]][1] == c6_id, \
+        f"{name}: [{sw_id}].on_true 上游应常量6 [{c6_id}](开=自动 6 步)"
+    assert links[sw["inputs"][2]["link"]][1] == pb_id, \
+        f"{name}: [{sw_id}].switch 上游应同一布尔源 [{pb_id}](一拨全配)"
+    assert sorted(nodes[pb_id]["outputs"][0]["links"] or []) == sorted(pb_fan_links), \
+        f"{name}: [{pb_id}] 开关源应扇出恰两线 {pb_fan_links}(MODEL 开关+steps 开关)"
+    ks_steps = next((i for i in nodes[sampler_id]["inputs"] if i.get("name") == "steps"), None)
+    assert ks_steps and ks_steps.get("link") is not None and "widget" in ks_steps, \
+        f"{name}: KSampler.steps 应为 widget 转输入(序列化照 [150].base 先例)"
+    assert links[ks_steps["link"]][1] == sw_id, \
+        f"{name}: KSampler.steps 应接 [{sw_id}] steps 联动开关"
+    # 干跑:关态 steps=40(原路)+执行图零 LoraLoader
+    assert _steps_resolved(graph, sampler_id) == STEPS_OFF, \
+        f"{name}: 关态干跑 steps 应解析={STEPS_OFF}(自动回原路)"
+    assert lora_id not in _reach_state(graph, save_id), \
+        f"{name}: 关态执行图零 LoraLoader(关闭=正常生成)"
+    # 干跑:开态(运行态 [30]=true)steps=6+LoRA 在链
+    assert _steps_resolved(graph, sampler_id, pb_override=True) == STEPS_ON, \
+        f"{name}: 开态干跑 steps 应解析={STEPS_ON}(一拨全配,v0.2 卡荐档)"
+    assert lora_id in _reach_state(graph, save_id, pb_override=True), \
+        f"{name}: 开态执行图应含 LoraLoaderModelOnly(LoRA 真入链)"
 
 
 def _resolve_default_string_origins(graph: dict) -> dict:
@@ -727,6 +826,17 @@ class TestEditContract:
         assert links[vb["outputs"][0]["links"][0]][3] == 9, \
             "VAE 顶通道末拐点应落 VAEDecode[9]"
 
+    def test_steps_linkage_fullpower(self):
+        """满血接线轮(09-24):[30] 一拨全配=steps 联动 INT 开关同源驱动——
+        [33] ComfySwitchNode(INT)false→[34]=40/true→[35]=6→[8].steps 转输入;
+        关态干跑 steps=40(关=原路,edit 关态 25→40 随任务令三件同构)+零 LoRA;
+        开态干跑 steps=6+LoRA 在链。"""
+        _assert_fullpower_steps(
+            GRAPHS["edit"], "edit", sampler_id=8, sw_id=EDIT_STEPS_SW_ID,
+            c40_id=EDIT_STEPS_C40_ID, c6_id=EDIT_STEPS_C6_ID,
+            pb_id=EDIT_LORA_PB_ID, lora_id=EDIT_LORA_ID, save_id=10,
+            pb_fan_links=[32, 38])
+
     def test_no_custom_titles_on_core_nodes(self):
         """节点标题铁律(0923-r16 用户令):核心/第三方节点 title 一律保留原生
         默认(空或英文名),不改不译;仅自研节点(My*/漫影*)可自定中文标题——
@@ -1071,13 +1181,19 @@ class TestQi21SubgraphContract:
             (24, QI21_LORA_ID, 0, QI21_LORA_SW_ID, 1, "MODEL"),
             (25, QI21_LORA_PB_ID, 0, QI21_LORA_SW_ID, 2, "BOOLEAN"),
             (26, QI21_LORA_SW_ID, 0, QI21_SAMPLER_ID, 0, "MODEL"),
+            # 满血接线轮:steps 联动(同一布尔源;KSampler.steps 转输入接开关)
+            (27, QI21_STEPS_C40_ID, 0, QI21_STEPS_SW_ID, 0, "INT"),
+            (28, QI21_STEPS_C6_ID, 0, QI21_STEPS_SW_ID, 1, "INT"),
+            (29, QI21_LORA_PB_ID, 0, QI21_STEPS_SW_ID, 2, "BOOLEAN"),
+            (30, QI21_STEPS_SW_ID, 0, QI21_SAMPLER_ID, 4, "INT"),
         ]:
             assert want in got, f"外部接线缺: link{want[0]}"
         assert not _by_type(graph, "TextEncodeQwenImage21"), \
             "主图不应有平铺 TextEncode(主编码/RGBA 编码已收进子图)"
         switches = [n["id"] for n in _by_type(graph, "ComfySwitchNode")]
-        assert switches == [QI21_LORA_SW_ID], \
-            f"主图开关应恰 LoRA MODEL 开关[{QI21_LORA_SW_ID}](PE/RGBA/画幅联动已收进子图),得 {switches}"
+        assert switches == [QI21_LORA_SW_ID, QI21_STEPS_SW_ID], \
+            f"主图开关应恰 MODEL 开关[{QI21_LORA_SW_ID}]+steps 联动开关" \
+            f"[{QI21_STEPS_SW_ID}](满血接线轮),得 {switches}"
         assert not _by_type(graph, PE_CLASS), "PE 改写件应收进子图"
         assert not _by_type(graph, "ResolutionSelector"), \
             "主图不应有 ResolutionSelector(写死档位表废止,宽高随型直驱)"
@@ -1123,14 +1239,24 @@ class TestQi21SubgraphContract:
         whitelist = {
             "UNETLoader", "CLIPLoader", "VAELoader", "EmptyLatentImage", "KSampler",
             "VAEDecode", "SaveImage", "MarkdownNote", "easy showAnything",
-            "PrimitiveStringMultiline", "PrimitiveBoolean", "ComfySwitchNode",
-            "LoraLoaderModelOnly", "Reroute",
+            "PrimitiveStringMultiline", "PrimitiveBoolean", "PrimitiveInt",
+            "ComfySwitchNode", "LoraLoaderModelOnly", "Reroute",
         }
         for n in graph["nodes"]:
             if n["id"] == QI21_HOST_ID and n["type"] == sg["id"]:
                 continue
             assert n["type"] in whitelist, \
                 f"qi21 主图未知节点类型 {n['type']!r}(TE-Speed 槽不加,3c 已死归档)"
+
+    def test_steps_linkage_fullpower(self):
+        """满血接线轮(09-24):[30] 一拨全配=steps 联动 INT 开关同源驱动——
+        [177] ComfySwitchNode(INT)false→[178]=40/true→[179]=6→[7].steps 转输入
+        (样板=子图画幅联动 [157][158]);关态干跑 steps=40+零 LoRA;开态 steps=6+LoRA 在链。"""
+        _assert_fullpower_steps(
+            GRAPHS["qi21"], "qi21", sampler_id=QI21_SAMPLER_ID, sw_id=QI21_STEPS_SW_ID,
+            c40_id=QI21_STEPS_C40_ID, c6_id=QI21_STEPS_C6_ID,
+            pb_id=QI21_LORA_PB_ID, lora_id=QI21_LORA_ID, save_id=9,
+            pb_fan_links=[25, 29])
 
     def test_subject_slot_defaults_to_library_renwen_example(self):
         types, _ = _qi21_truth()
@@ -1425,8 +1551,8 @@ class TestQi21SubgraphContract:
                       "[27]", "恒挂", "美化", "05-道劫规范提示词库.md", "步数 40", "40-50",
                       RGBA_HEAD_OFFICIAL, RGBA_TAIL_OFFICIAL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
                       "画幅联动", "ResolutionSelector 已退役",
-                      "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成", "6步加速",
-                      "steps 手动调 6", "shift_terminal=0.02", "TE-Speed"):
+                      "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成",
+                      STEPS_NOTE_TOKEN, "[177]", "shift_terminal=0.02", "TE-Speed"):
             assert token in note, f"Note 缺子图版要点: {token!r}"
 
     def test_prompt_library_nine_types_anchor(self):
@@ -1596,6 +1722,16 @@ class TestI2IContract:
             assert n["type"] in I2I_NODE_TYPE_WHITELIST, \
                 f"i2i 未知节点类型 {n['type']!r}(TE-Speed 槽禁入本件,R26.4 再补)"
 
+    def test_steps_linkage_fullpower(self):
+        """满血接线轮(09-24):[30] 一拨全配=steps 联动 INT 开关同源驱动——
+        [164] ComfySwitchNode(INT)false→[165]=40/true→[166]=6→[8].steps 转输入;
+        关态干跑 steps=40+零 LoRA;开态干跑 steps=6+LoRA 在链。"""
+        _assert_fullpower_steps(
+            GRAPHS["i2i"], "i2i", sampler_id=I2I_SAMPLER_ID, sw_id=I2I_STEPS_SW_ID,
+            c40_id=I2I_STEPS_C40_ID, c6_id=I2I_STEPS_C6_ID,
+            pb_id=I2I_LORA_PB_ID, lora_id=I2I_LORA_ID, save_id=10,
+            pb_fan_links=[28, 41])
+
     def test_all_switches_default_off(self):
         """四开关默认全关(懒执行旁路):[15] PE 直写 / [40] RGBA 普通 / [30] LoRA
         旁路 / [19] 画幅跟随输入图。"""
@@ -1703,11 +1839,11 @@ class TestI2IContract:
             f"带 title 节点应恰 [150] 自研件,得 {titled}"
 
     def test_note_documents_mechanism_and_slots(self):
-        """说明 Note 要点锁:生修合一机制纠正/指令×装配关系/LoRA 槽用法(须调 steps
-        4)/TE-Speed 不在本件/画幅随输入图/维护警示(生成器幂等)。Note 被重跑回退即红。"""
+        """说明 Note 要点锁:生修合一机制纠正/指令×装配关系/LoRA 槽用法(满血接线轮
+        一拨全配)/TE-Speed 不在本件/画幅随输入图/维护警示(生成器幂等)。Note 被重跑回退即红。"""
         note = _by_type(GRAPHS["i2i"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("生修合一", "指令=改什么", "指令即主体", "无传统 img2img",
-                      "LoraLoaderModelOnly", I2I_LORA_FILE, "steps 调 6",
+                      "LoraLoaderModelOnly", I2I_LORA_FILE, STEPS_NOTE_TOKEN, "[164]",
                       "TE-Speed 槽不在本件", "画幅随输入图", "qi21_daojie_i2i_0924.py",
                       "05-道劫规范提示词库.md", "MyQi21DaojieBase", "BatchImagesNode",
                       "ImageScaleToTotalPixels", RGBA_HEAD_ZH):

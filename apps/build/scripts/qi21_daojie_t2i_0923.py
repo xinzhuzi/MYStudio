@@ -54,12 +54,24 @@
     [1] UNET→顶通道 Reroute→⟨[32] MODEL 开关(false=MODEL 直连/true=[31]
     LoraLoaderModelOnly,name 预填 Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256
     .safetensors,strength 1.0)⟩→[7] KSampler.model;[30] PrimitiveBoolean
-    默认 false=旁路;三件住顶带 y=-500/-560(MODEL 通道下方、主链行上方,
-    全链恒在 conditioning 长线上方=零新增交叉);关态懒执行=执行图零
+    默认 false=旁路;关态懒执行=执行图零
     LoraLoader;TE-Speed 槽不加(3c 试装已死归档,D4 终审永不装)。
+
+  满血接线轮(09-24):[30] 一拨全配=LoRA 挂链+steps 自动 6,关=自动回 40 原路,
+    用户不再手动调 steps。样板=子图画幅联动 [157][158](ComfySwitchNode typ=INT):
+    新增 [177] steps 联动 INT 开关(false→[178] PrimitiveInt 常量 40/true→[179]
+    常量 6→[7].steps 输入转链接,序列化照 [150].base 先例 widget 标记保留);
+    [30] 一源扇出两线(MODEL 开关+steps 开关同一布尔源)。布局随之重排:三件左移
+    ([30][140,-580]/[31][520,-600]/[32][900,-600]),[40] 宿主下沉 160 让出
+    conditioning 长线下方带(steps 联动件 [179][420]/[178][1090]/[177][1370] 住
+    y=-440..-232 带,恒在 conditioning 长线上方=零新增交叉;[7]/[8]/[9] 右移
+    1670/2310/2630 让出 steps 落位,[177]→[7].steps 线与 conditioning 线共端点
+    [7] 豁免);[24] 移 [-1980,-160]/[27] 移 [880,280] 随 [40] 下沉让位。
 
 自查(写盘后必跑,任一失败退出码 1):json.loads 往返 / 主图+子图 link 双向一致 / 主图 LoRA 槽
 (恰1+name 预填+默认关+KSampler.model 上游=开关+关态干跑执行图零 LoraLoader)/
+steps 联动(INT 开关+常量40/6+同一布尔源扇出+[7].steps 转输入+关态干跑解析40+
+开态干跑([30]=true)解析6且 LoRA 在链)/
 主图+子图横向排版(每条连线 target.x>origin.x,含 Reroute 段;边界线以 IO 槽 pos 为
 端点)/ 子图四行排版(按 y 分行恰 4 行=四阶段、Reroute 拐点不占行、行间净距≥100、
 行内 x 严格递增;group 各框单一阶段行全部节点)/ 主图+子图节点零重叠 / group 预算
@@ -159,7 +171,11 @@ RR_M8A_ID, RR_M8B_ID = 20, 21                              # link8 通道(y=-620
 RR_M10A_ID, RR_M10B_ID = 22, 23                            # link10 通道(y=-560)
 # R26.4 LoRA 加速槽三件(09-24 统一接线;id 同构 i2i 生成器 LORA_PB/LORA/LORA_SW)
 LORA_PB_ID, LORA_ID, LORA_SW_ID = 30, 31, 32
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors"
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"
+# 满血接线轮(09-24):steps 联动 INT 开关三件(同受 [30] 布尔源驱动;样板=子图画幅
+# 联动 [157][158] ComfySwitchNode typ=INT);id 取子图 lastNodeId 176 之上(共享分配器)
+STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID = 177, 178, 179
+STEPS_OFF, STEPS_ON = 40, 6   # 关=40 官方完整档(原路)/开=6(v0.2.1 系卡荐档,一拨全配)
 
 # 宿主 widget 型子图输入(槽序=inputs 数组序;widgets_values 按此序)
 WIDGET_INPUTS = [
@@ -205,16 +221,19 @@ NOTE_TEXT = (
     "业务默认,故默认关;开联动会把 PE 组拉入执行(PE 改写开关同开才有意义),PE 未给建议画幅时该路报错——"
     "常规出图保持关闭。\n"
     "- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n"
-    "### LoRA 加速槽([30] 开关,默认关=正常生成;0924 R26.4 三件统一接线)\n"
+    "### LoRA 加速槽([30] 开关,默认关=正常生成;0924 R26.4 三件统一接线+满血接线轮 steps 联动)\n"
     "- 接线:[1] UNET → 顶通道 → [32] MODEL 开关(false=MODEL 直连/true=[31] LoraLoaderModelOnly)→ [7] KSampler;"
-    "[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors**(viggle 4-step 蒸馏 LoRA,已装机),"
+    "[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**(viggle 蒸馏 LoRA,已装机),"
     "strength 1.0。\n"
     "- **关闭=正常生成**(默认):MODEL 直连进 [7],LoRA 不加载,40 步主线不动。\n"
-    "- **LoRA 开关=6步加速,开时须把 steps 手动调 6**(v0.2 系卡荐档,cfg 保持 1;不调步数=白载 LoRA);"
+    "- **一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)**:[30] 同时驱动 MODEL 开关与 [177] steps 联动"
+    "INT 开关(false→[178] 常量 40/true→[179] 常量 6→[7].steps,widget 已转输入)——开 [30] 一拨,LoRA 挂链+步数自动 6"
+    "(v0.2.1 系卡荐档,cfg 保持 1);关掉一拨,LoRA 卸链+步数自动回 40(官方完整档);[7] 面板 steps 不再手动调。\n"
     "模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n"
     "- TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n"
     "### 参数圣经\n"
-    "- cfg 恒 1(负向不生效,负向槽留空);**步数 40(官方完整档;官方区间 40-50,起手即完整态)**;"
+    "- cfg 恒 1(负向不生效,负向槽留空);**步数 40(官方完整档;官方区间 40-50,起手即完整态;[30] 开=自动 6,"
+    "由 [177] 联动开关供给,[7] 面板不再手调)**;"
     "分辨率走 [40] 子图随型直驱(宽高恒 8 倍数);seed 在 [7] KSampler(默认 fixed=0 可复现);风格终审=用户。\n"
     "- 生成脚本=apps/build/scripts/qi21_daojie_t2i_0923.py(幂等;主体句默认/锁层全文从库文档现读,"
     "BASE 真源=qi21_bases.json,重跑即同步)。\n"
@@ -350,6 +369,20 @@ def _reroute(nid: int, pos: list, in_link: int, out_link, typ: str) -> dict:
         "outputs": [{"name": "", "type": typ,
                      "links": out_link if isinstance(out_link, list) else [out_link]}],
         "properties": {"showOutputText": False, "horizontal": False},
+    }
+
+
+def _primitive_int(nid: int, title: str, value: int, pos: list, out_link: int) -> dict:
+    """PrimitiveInt 常量(steps 联动臂;序列化逐字段=官方本地 I2V-480P 模板实取样板:
+    widgets_values=[value,"fixed"] 带 control_after_generate + named 双记账)。"""
+    return {
+        "id": nid, "type": "PrimitiveInt", "title": f"道劫·{title}",
+        "pos": pos, "size": [270, 90], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [{"name": "value", "type": "INT", "widget": {"name": "value"}, "link": None}],
+        "outputs": [{"name": "INT", "type": "INT", "links": [out_link]}],
+        "properties": {"cnr_id": "comfy-core", "Node name for S&R": "PrimitiveInt"},
+        "widgets_values": [value, "fixed"],
+        "widgets_values_named": {"value": value, "fixed": "fixed"},
     }
 
 
@@ -704,12 +737,12 @@ def build_main(truth: dict, sg: dict) -> dict:
     g = {
         "id": WF_UUID, "version": 0.4, "revision": 0, "config": {}, "extra": {},
         "groups": [
-            {"id": 1, "title": "道劫·加载器(bf16 三件套+PE 专属文本编码器)",
+            {"id": 1, "title": "道劫·加载器(bf16 三件套+PE 专属文本编码器;左下=[24] 主体句手写位)",
              "bounding": [-2040, -480, 1400, 560], "color": "#3f789e", "flags": {}},
-            {"id": 2, "title": "道劫·主链(子图宽高直驱空潜→[40]装配子图→顶带LoRA加速槽→采样→解码→保存;seed 外露在 [7])",
-             "bounding": [-760, -600, 3540, 720], "color": "#3f789e", "flags": {}},
+            {"id": 2, "title": "道劫·主链(子图宽高直驱空潜→[40]装配子图→顶带LoRA加速槽+steps联动开关→采样→解码→保存;seed 外露在 [7])",
+             "bounding": [-760, -660, 3960, 920], "color": "#3f789e", "flags": {}},
             {"id": 3, "title": "道劫·装配外露([24] 主体句=①层唯一手写位;型选择/PE/RGBA/画幅联动开关在 [40] 子图面板;[27] 装配预览)",
-             "bounding": [-1220, 160, 2600, 400], "color": "#a1309b", "flags": {}},
+             "bounding": [-2020, -200, 3420, 880], "color": "#a1309b", "flags": {}},
         ],
         "nodes": [],
         "links": [],
@@ -759,13 +792,16 @@ def build_main(truth: dict, sg: dict) -> dict:
         },
         {
             "id": SAMPLER_ID, "type": "KSampler",
-            "title": "[7] 道劫·KSampler(40步·cfg1;seed 外露;model 接 [32] 加速槽开关)",
-            "pos": [1360, -400], "size": [330, 260], "flags": {}, "order": 6, "mode": 0,
+            "title": "[7] 道劫·KSampler(40步·cfg1;seed 外露;model 接 [32] 加速槽开关;steps 接 [177] 联动开关)",
+            "pos": [1670, -400], "size": [330, 260], "flags": {}, "order": 6, "mode": 0,
             "inputs": [
                 {"name": "model", "type": "MODEL", "link": 26},
                 {"name": "positive", "type": "CONDITIONING", "link": 16},
                 {"name": "negative", "type": "CONDITIONING", "link": 17},
                 {"name": "latent_image", "type": "LATENT", "link": 5},
+                # 满血接线轮:steps widget 转输入(序列化照 [150].base 先例:widget 标记保留+
+                # widgets_values 仍带值,连线期 link 优先;断链即回显 widget)
+                {"name": "steps", "type": "INT", "widget": {"name": "steps"}, "link": 30},
             ],
             "outputs": [{"name": "LATENT", "type": "LATENT", "links": [9]}],
             "properties": {"Node name for S&R": "KSampler"},
@@ -774,7 +810,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": 8, "type": "VAEDecode",
             "title": "[8] 道劫·VAE解码",
-            "pos": [2000, -400], "size": [240, 50], "flags": {}, "order": 7, "mode": 0,
+            "pos": [2310, -400], "size": [240, 50], "flags": {}, "order": 7, "mode": 0,
             "inputs": [
                 {"name": "samples", "type": "LATENT", "link": 9},
                 {"name": "vae", "type": "VAE", "link": 22},
@@ -785,7 +821,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": 9, "type": "SaveImage",
             "title": "[9] 道劫·保存",
-            "pos": [2320, -400], "size": [380, 330], "flags": {}, "order": 8, "mode": 0,
+            "pos": [2630, -400], "size": [380, 330], "flags": {}, "order": 8, "mode": 0,
             "inputs": [{"name": "images", "type": "IMAGE", "link": 11}],
             "outputs": [],
             "properties": {"Node name for S&R": "SaveImage"},
@@ -807,7 +843,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": SUBJECT_ID, "type": "PrimitiveStringMultiline",
             "title": f"[{SUBJECT_ID}] 道劫·主体句(①层唯一手写位;默认=库人物型例一)",
-            "pos": [-1180, 200], "size": [661, 200], "flags": {}, "order": 11, "mode": 0,
+            "pos": [-1980, -160], "size": [661, 200], "flags": {}, "order": 11, "mode": 0,
             "inputs": [],
             "outputs": [{"name": "STRING", "type": "STRING", "slot_index": 0, "links": [15]}],
             "properties": {"Node name for S&R": "PrimitiveStringMultiline"},
@@ -816,7 +852,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": PREVIEW_ID, "type": "easy showAnything",
             "title": f"[{PREVIEW_ID}] 道劫·装配预览(接[40]prompt输出;跑图前过目将进编码的最终文本)",
-            "pos": [880, 200], "size": [480, 230], "flags": {}, "order": 12, "mode": 0,
+            "pos": [880, 280], "size": [480, 230], "flags": {}, "order": 12, "mode": 0,
             "inputs": [{"label": "输入任何", "name": "anything", "shape": 7, "type": "*", "link": 18}],
             "outputs": [{"name": "output", "type": "*", "links": None}],
             "properties": {"Node name for S&R": "easy showAnything"},
@@ -839,7 +875,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     host = {
         "id": HOST_ID, "type": SG_UUID,
         "title": f"[{HOST_ID}] 道劫·装配子图(双击=底座九选一+锁层恒挂+四层装配+PE/RGBA/画幅联动;面板=型选择/三开关)",
-        "pos": [-700, -400], "size": [560, 480], "flags": {}, "order": 13, "mode": 0,
+        "pos": [-700, -240], "size": [560, 480], "flags": {}, "order": 13, "mode": 0,
         "inputs": host_inputs,
         "outputs": [
             {"name": "positive", "type": "CONDITIONING", "links": [16]},
@@ -857,19 +893,21 @@ def build_main(truth: dict, sg: dict) -> dict:
     nodes.append(host)
     # ── R26.4 LoRA 加速槽三件(09-24 统一接线;住顶带=MODEL 通道下方/主链行上方,
     #    全链恒在 conditioning 长线上方,layout-audit 零新增交叉)─────────────
+    # 满血接线轮(09-24)布局注:三件左移至 [140]/[520]/[900],[40] 宿主下沉 160 让出
+    # conditioning 长线下方带(steps 联动件住 [420]-[1370] 下带,恒在墙上方=零交叉)。
     nodes.append({
         "id": LORA_PB_ID, "type": "PrimitiveBoolean",
-        "title": f"[{LORA_PB_ID}] 道劫·LoRA加速开关源(默认关=正常生成)",
-        "pos": [280, -500], "size": [280, 90], "flags": {}, "order": 0, "mode": 0,
+        "title": f"[{LORA_PB_ID}] 道劫·LoRA加速开关源(默认关=正常生成;一拨全配:同驱 MODEL+steps 两开关)",
+        "pos": [140, -550], "size": [280, 90], "flags": {}, "order": 0, "mode": 0,
         "inputs": [{"name": "value", "type": "BOOLEAN", "widget": {"name": "value"}, "link": None}],
-        "outputs": [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [25]}],
+        "outputs": [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [25, 29]}],
         "properties": {"Node name for S&R": "PrimitiveBoolean"},
         "widgets_values": [False],
     })
     nodes.append({
         "id": LORA_ID, "type": "LoraLoaderModelOnly",
-        "title": f"[{LORA_ID}] 道劫·LoRA加载(viggle v0.2 r256;开时须把 steps 手动调 6,卡荐档)",
-        "pos": [620, -560], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
+        "title": f"[{LORA_ID}] 道劫·LoRA加载(viggle v0.2 r256;开=[30]一拨自动6步,卡荐档)",
+        "pos": [520, -600], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "model", "type": "MODEL", "link": 23},
             {"name": "lora_name", "type": "COMBO", "widget": {"name": "lora_name"}, "link": None},
@@ -882,7 +920,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     nodes.append({
         "id": LORA_SW_ID, "type": "ComfySwitchNode",
         "title": f"[{LORA_SW_ID}] 道劫·MODEL开关(false=直连正常生成 / true=LoRA加速)",
-        "pos": [1000, -560], "size": [300, 110], "flags": {}, "order": 0, "mode": 0,
+        "pos": [900, -600], "size": [300, 110], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "on_false", "shape": 7, "type": "MODEL", "link": 20},
             {"name": "on_true", "shape": 7, "type": "MODEL", "link": 24},
@@ -892,6 +930,19 @@ def build_main(truth: dict, sg: dict) -> dict:
         "properties": {"Node name for S&R": "ComfySwitchNode"},
         "widgets_values": [False],
     })
+    # ── 满血接线轮(09-24):steps 联动 INT 开关三件(样板=子图画幅联动 [157][158];
+    #    同受 [30] 布尔源驱动:false→[178] 常量 40(原路)/true→[179] 常量 6(v0.2 卡荐档)
+    #    →[7].steps(widget 已转输入);输出线穿越 conditioning 长线=共端点 [7] 豁免)──
+    nodes.append(_switch(
+        STEPS_SW_ID, "steps联动开关(false=自动回40原路 / true=自动6步加速)", 27, 28, 29, [30],
+        [1370, -440], typ="INT"))
+    nodes[-1]["size"] = [300, 110]
+    nodes[-1]["title"] = \
+        f"[{STEPS_SW_ID}] 道劫·steps联动开关(false=自动回40原路 / true=自动6步加速;同受[{LORA_PB_ID}]一拨驱动)"
+    nodes.append(_primitive_int(
+        STEPS_C40_ID, "steps常量40(关态=原路·官方完整档)", STEPS_OFF, [1090, -380], 27))
+    nodes.append(_primitive_int(
+        STEPS_C6_ID, "steps常量6(开态=v0.2卡荐档)", STEPS_ON, [420, -380], 28))
     # 顶缘通道 Reroute(09-24 整治:两条长横穿改走 y=-640/-560/-540 顶通道分层,列表格式
     # link 记账=K2-角色设定-道劫.json 顶层级样板;原 link id 8/10 留给加载器出线段;
     # 拐点 x 錯开使降线不穿他通道水平段,拐点盒(est 250×88)互不重叠;
@@ -915,6 +966,10 @@ def build_main(truth: dict, sg: dict) -> dict:
         [24, LORA_ID, 0, LORA_SW_ID, 1, "MODEL"],      # LoraLoader → 开关.on_true
         [25, LORA_PB_ID, 0, LORA_SW_ID, 2, "BOOLEAN"], # LoRA 开关源 → 开关.switch
         [26, LORA_SW_ID, 0, SAMPLER_ID, 0, "MODEL"],   # 开关 → KSampler.model(二选一)
+        [27, STEPS_C40_ID, 0, STEPS_SW_ID, 0, "INT"],  # 常量40 → steps开关.on_false(关=原路)
+        [28, STEPS_C6_ID, 0, STEPS_SW_ID, 1, "INT"],   # 常量6 → steps开关.on_true(开=卡荐档)
+        [29, LORA_PB_ID, 0, STEPS_SW_ID, 2, "BOOLEAN"],# LoRA 开关源 → steps开关.switch(同一布尔源)
+        [30, STEPS_SW_ID, 0, SAMPLER_ID, 4, "INT"],    # steps开关 → KSampler.steps(一拨全配)
         [9, SAMPLER_ID, 0, 8, 0, "LATENT"],
         [10, 3, 0, RR_M10A_ID, 0, "VAE"],
         [21, RR_M10A_ID, 0, RR_M10B_ID, 0, "VAE"],
@@ -1107,6 +1162,9 @@ def self_check(g: dict, truth: dict) -> list[str]:
         (23, RR_M8B_ID, 0, LORA_ID, 0, "MODEL"), (24, LORA_ID, 0, LORA_SW_ID, 1, "MODEL"),
         (25, LORA_PB_ID, 0, LORA_SW_ID, 2, "BOOLEAN"), (26, LORA_SW_ID, 0, SAMPLER_ID, 0, "MODEL"),
         (10, 3, 0, RR_M10A_ID, 0, "VAE"), (22, RR_M10B_ID, 0, 8, 1, "VAE"),
+        # 满血接线轮:steps 联动(同一布尔源 [30];KSampler.steps 转输入接开关)
+        (27, STEPS_C40_ID, 0, STEPS_SW_ID, 0, "INT"), (28, STEPS_C6_ID, 0, STEPS_SW_ID, 1, "INT"),
+        (29, LORA_PB_ID, 0, STEPS_SW_ID, 2, "BOOLEAN"), (30, STEPS_SW_ID, 0, SAMPLER_ID, 4, "INT"),
     ]
     got = {(l[0], l[1], l[2], l[3], l[4], l[5]) for l in g["links"]}
     for w in ext_want:
@@ -1141,9 +1199,43 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append(f"[{LORA_PB_ID}] LoRA 开关源默认应 false")
     if m_links[m_nodes[SAMPLER_ID]["inputs"][0]["link"]][1] != LORA_SW_ID:
         errs.append("KSampler.model 上游应 MODEL 开关(加速槽二选一)")
-    lora_reach = _dry_run_main_off(g)
+    lora_reach = _dry_run_main(g)
     if LORA_ID in lora_reach:
         errs.append("干跑:关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成,懒执行旁路)")
+
+    # 6c. 满血接线轮·steps 联动(一拨全配):[177] INT 开关 false→[178]=40/true→[179]=6
+    #     →[7].steps(widget 转输入);switch 槽与 MODEL 开关同一布尔源 [30](扇出两线);
+    #     关态干跑 steps 解析=40+零 LoRA;开态干跑(运行态把 [30]=true)steps=6+LoRA 在链。
+    ssw = m_nodes[STEPS_SW_ID]
+    if ssw["type"] != "ComfySwitchNode" or ssw["outputs"][0]["type"] != "INT":
+        errs.append(f"[{STEPS_SW_ID}] 应为 INT 泛型开关(steps 联动,样板=[157][158] 画幅联动)")
+    if ssw["widgets_values"][0] is not False:
+        errs.append(f"[{STEPS_SW_ID}] steps 联动开关默认应 false(关=原路 40)")
+    for cid, want in ((STEPS_C40_ID, STEPS_OFF), (STEPS_C6_ID, STEPS_ON)):
+        c = m_nodes[cid]
+        if c["type"] != "PrimitiveInt" or c["widgets_values"][0] != want:
+            errs.append(f"[{cid}] PrimitiveInt 常量应={want}(关臂 40 原路/开臂 6 卡荐档),"
+                        f"得 {c.get('widgets_values')}")
+    if m_links[ssw["inputs"][0]["link"]][1] != STEPS_C40_ID:
+        errs.append(f"[{STEPS_SW_ID}].on_false 上游应常量40 [{STEPS_C40_ID}](关=自动回 40 原路)")
+    if m_links[ssw["inputs"][1]["link"]][1] != STEPS_C6_ID:
+        errs.append(f"[{STEPS_SW_ID}].on_true 上游应常量6 [{STEPS_C6_ID}](开=自动 6 步)")
+    if m_links[ssw["inputs"][2]["link"]][1] != LORA_PB_ID:
+        errs.append(f"[{STEPS_SW_ID}].switch 上游应同一布尔源 [{LORA_PB_ID}](一拨全配)")
+    if sorted(m_nodes[LORA_PB_ID]["outputs"][0]["links"] or []) != sorted([25, 29]):
+        errs.append(f"[{LORA_PB_ID}] 开关源应扇出恰两线(MODEL 开关+steps 开关,同一布尔源)")
+    ks_steps = next((i for i in m_nodes[SAMPLER_ID]["inputs"] if i.get("name") == "steps"), None)
+    if not ks_steps or ks_steps.get("link") != 30 or "widget" not in ks_steps:
+        errs.append("[7].steps 应为 widget 转输入接 [177] 联动开关(序列化照 [150].base 先例)")
+    off_steps = _steps_value_main(g)
+    if off_steps != STEPS_OFF:
+        errs.append(f"干跑:关态 steps 应解析={STEPS_OFF}(自动回原路),得 {off_steps}")
+    on_reach = _dry_run_main(g, pb_override=True)
+    if LORA_ID not in on_reach:
+        errs.append("干跑:开态(运行态 [30]=true)执行图应含 LoraLoaderModelOnly(LoRA 真入链)")
+    on_steps = _steps_value_main(g, pb_override=True)
+    if on_steps != STEPS_ON:
+        errs.append(f"干跑:开态(一拨全配)steps 应解析={STEPS_ON}(v0.2 卡荐档),得 {on_steps}")
 
     # 7. MyQi21DaojieBase 在场+combo 默认人物+三出接线;qi21_bases.json↔05 库互锁;
     #    锁层A 恒挂逐字=库
@@ -1277,7 +1369,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
     for token in ("cfg 恒 1", "步数 40", "40-50", RGBA_HEAD_EN, RGBA_TAIL_EN, RGBA_HEAD_ZH,
                   "qwen-image-2-1-prompter", "05-道劫规范提示词库.md", "九型", "空镜无人",
                   "MyQi21DaojieBase", "画幅联动", "恒挂", "美化", "[27]", "ResolutionSelector 已退役",
-                  "LoraLoaderModelOnly", LORA_FILE, "6步加速", "steps 手动调 6",
+                  "LoraLoaderModelOnly", LORA_FILE,
+                  "一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)", "[177]", "[178]", "[179]",
                   "shift_terminal=0.02", "关闭=正常生成", "TE-Speed"):
         if token not in note:
             errs.append(f"说明 Note 缺要点: {token!r}")
@@ -1298,11 +1391,26 @@ def _trace_reroute_main(m_links: dict, m_nodes: dict, lid: int) -> int:
         lid = m_nodes[oid]["inputs"][0]["link"]
 
 
-def _dry_run_main_off(g: dict) -> set[int]:
-    """主图关态执行集(SaveImage 回溯;ComfySwitchNode 懒执行=只走 on_false)。
+def _switch_bool_main(m_links: dict, m_nodes: dict, node: dict,
+                      pb_override: bool | None = None) -> bool:
+    """主图 ComfySwitchNode 有效布尔:switch 槽有连线→解析到布尔源(满血接线轮起
+    [30] 一源扇出驱 MODEL/steps 两开关,运行态翻转=改 [30] 一处);否则本件 widget。"""
+    lid = node["inputs"][2].get("link")
+    if lid is not None:
+        src = m_nodes[m_links[lid][1]]
+        if src["type"] == "PrimitiveBoolean":
+            if pb_override is not None:
+                return pb_override
+            return bool(src["widgets_values"][0])
+    return bool(node["widgets_values"][0])
+
+
+def _dry_run_main(g: dict, pb_override: bool | None = None) -> set[int]:
+    """主图执行集(SaveImage 回溯;ComfySwitchNode 懒执行=只走选中臂)。
 
     R26.4 硬性 AC(用户令):加速槽「关闭=正常生成」——关态 MODEL 直连,
-    执行图零 LoraLoader(LoRA 不加载)。"""
+    执行图零 LoraLoader(LoRA 不加载);满血接线轮增:pb_override=True 模拟
+    运行态把 [30] 拨开——LoRA 应入执行集。"""
     m_nodes = {n["id"]: n for n in g["nodes"]}
     m_links = {l[0]: l for l in g["links"]}
     reach: set[int] = set()
@@ -1313,13 +1421,30 @@ def _dry_run_main_off(g: dict) -> set[int]:
             continue
         reach.add(nid)
         node = m_nodes[nid]
-        slots = ([0] if node["type"] == "ComfySwitchNode"
-                 and node["widgets_values"][0] is False else range(len(node.get("inputs", []))))
+        slots = (([1 if _switch_bool_main(m_links, m_nodes, node, pb_override) else 0]
+                  if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", [])))))
         for si in slots:
             lid = node["inputs"][si].get("link")
             if lid is not None:
                 stack.append(m_links[lid][1])
     return reach
+
+
+def _steps_value_main(g: dict, pb_override: bool | None = None) -> int | None:
+    """KSampler.steps 溯源干跑:widget 转输入→[177] steps 联动开关→布尔源定臂→
+    PrimitiveInt 常量值(关=40/开=6;非链接形态返回 None=联动断链)。"""
+    m_nodes = {n["id"]: n for n in g["nodes"]}
+    m_links = {l[0]: l for l in g["links"]}
+    ks = m_nodes[SAMPLER_ID]
+    steps_inp = next((i for i in ks["inputs"] if i.get("name") == "steps"), None)
+    if steps_inp is None or steps_inp.get("link") is None:
+        return None
+    sw = m_nodes[m_links[steps_inp["link"]][1]]
+    if sw["type"] != "ComfySwitchNode":
+        return None
+    arm = 1 if _switch_bool_main(m_links, m_nodes, sw, pb_override) else 0
+    src = m_nodes[m_links[sw["inputs"][arm]["link"]][1]]
+    return src["widgets_values"][0]
 
 
 def _dry_run_default(g: dict, sg: dict) -> tuple[set[int], str]:
@@ -1432,8 +1557,9 @@ def main() -> int:
     print(f"PASS: 主图 {n_nodes} 节点/{n_links} 链 + 子图 {sg_nodes} 节点/{sg_links} 链;九型={zh_list};"
           f"默认=①人物(MyQi21DaojieBase combo 经宿主面板外露,级联退役,宽高直驱 [5],"
           f"steps=40 完整态,RGBA 官方头尾公式,画幅联动默认关);"
-          f"LoRA 加速槽在位(R26.4:name 预填 viggle v0.2 r256,默认关=MODEL 直连,关态执行图零 "
-          f"LoraLoader);干跑默认装配全文逐字=库组合;"
+          f"LoRA 加速槽在位(R26.4:name 预填 viggle v0.2.1 r256,默认关=MODEL 直连,关态执行图零 "
+          f"LoraLoader);满血接线(steps 联动 [177] 同受 [30] 驱动:关=自动回 40 原路/"
+          f"开=一拨自动 6+LoRA 挂链,[7].steps 已转输入);干跑默认装配全文逐字=库组合;"
               f"双向/横向/四行排版(行内左→右,行间上→下,Reroute 通道拐点不占行)/零重叠/"
               "group 预算(子图4·主图3,各框单一阶段行)/group int/子图 linkIds 逐项登记/"
               "锁层A 恒挂/懒执行旁路/零孤儿全绿")

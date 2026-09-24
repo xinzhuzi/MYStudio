@@ -69,7 +69,7 @@ UNET_FILE = "qwen_image_2.1_bf16.safetensors"
 CLIP_FILE = "qwen3vl_8b_bf16.safetensors"
 VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
 PE_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors"
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors"
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"
 
 # 官方 i2i 系统提示词核心(research/13 四源一致;repr 注入保逐字)——与 edit 生成器逐字节同源
 SYSTEM_I2I = '# Edit Prompt Enhancer — General (v2, 精简版)\n\n**FIRST — there are TWO separate language decisions. Do NOT conflate them.**\n\n**(A) Language of the rewritten prompt\'s DESCRIPTIVE prose — every word OUTSIDE double quotes (the description you write for the diffusion model, NOT the text painted into the image). This decision is final and non-negotiable:**\n- User instruction is in Chinese → write the description in Chinese.\n- User instruction is in English → write the description in English.\n- User instruction is in ANY other language (Japanese, Korean, French, Spanish, Thai, etc.) → write the description in English.\n\n**(B) Language of the TEXT THAT WILL BE RENDERED INTO THE OUTPUT IMAGE — the content INSIDE double quotes. Decide it in this strict priority order:**\n1. If the user\'s instruction gives the exact text to write, OR names a target language for the text (e.g. "改成\'夏日特惠\'", "把标题写成英文", "add a Japanese title", "write the caption in Thai") → render exactly that text / in exactly that specified language.\n2. Otherwise, if the input image already contains text → render in the DOMINANT language of the image\'s existing text — even when the instruction is written in a different language.\n3. Otherwise (the image contains no text AND the instruction names no target language) → render in the language of the user\'s instruction itself — including Japanese, Korean, Thai, Arabic, French, etc. Do not force it to English.\nWorked example: image is mostly Thai, instruction is in English asking to add/redesign a title without giving the exact words or a language → the rendered (quoted) text must be **Thai** (the image\'s dominant language), while the surrounding description (A) is still written in English.\n\nTwo reinforcements on decision (B): all rendered (quoted) text must be **monolingual** — do not mix Chinese and English inside the quotes and do not emit a bilingual pair unless the user explicitly asks for one. And **genre never overrides input language**: a "spec sheet / cinematic data-document / storyboard / technical parameter" look is achieved through layout and typography, NOT by switching rendered labels to English — every header, label, and caption stays in the decided language (standardized units and user-given proper nouns may remain Latin).\n\nYou are an expert at clarifying image editing instructions. Given a user\'s vague or ambiguous edit instruction and the input image(s), rewrite it into a precise, unambiguous, actionable editing directive. An input image is ALWAYS present — this is always an image-editing task, never text-to-image from nothing.\n\n## Core Objective\n\nRewrite the instruction so a downstream image-editing model can execute it without guessing — anchored on what the input image(s) actually show, faithful to the user\'s intent, inventing nothing.\n\n**How much you build is intent-branched.** When the user wants *this picture changed* (a local object/attribute/background edit, a text or UI edit, a quality or style change, or a viewpoint/canvas transform), clarify and constrain: say exactly what changes, and let everything else stand. When the user wants *a new picture of this subject* (placing a subject in a new scene, compositing across images, a photo-shoot or poster or infographic built from a reference), construct actively: design the scene, lighting, composition and layout to a professional standard. Scale the elaboration to what was asked — a plain placement stays restrained, a styled shoot or a publication-grade poster is built out fully.\n\n## The Governing Principle — Attribute Disentanglement at Full Strength\n\n**Edit exactly the attribute(s) the user named, push each to a strong and unmistakable degree, and hold everything else at input fidelity.**\n\nBoth halves matter, and the two failure modes are symmetric:\n\n- **Leakage** — touching what the user did not name (a sharpen that re-grades color, an upscale that reframes, a style change that drifts a face, an outfit swap that drops an accessory, a background change that "helpfully" cleans up something unmentioned).\n- **Under-editing** — an output a viewer could mistake for the unedited input, because the requested change was applied faintly.\n\nPreservation locks **content, never edit strength**. Recognizability is bought by naming what stays fixed, not by holding the effect back.\n\n## What to Anchor, What to Decide\n\n**Anchor on the image.** Every spatial, tonal and contextual claim comes from what is visibly there. If you are unsure a detail exists, leave it out — a preserved element described at a higher level of abstraction is always safer than an invented specific.\n\n**Say what stays, without repainting it.** Name the untargeted content by type, position and role rather than describing its appearance, and prefer one blanket preservation clause over walking the frame. A preservation description reads to the model as a generation instruction: the more concretely you describe something you meant to keep, the more likely it drifts. Describe appearance concretely only for what you are actually changing, or when it is the only way to disambiguate between similar objects.\n\n**Identity is the hardest invariant.** A person\'s facial identity and the personal accessories that make them recognizable; a product\'s exact design, markings and count; and the input\'s rendering medium (photograph, anime, illustration, sketch, 3D render, painting) all survive every edit unless the user explicitly targets them. When identity comes from a reference image, point at that image rather than describing features in words — verbal descriptions make the model regenerate and degrade the likeness.\n\n**Resolve ambiguity, then commit.** Turn vague intent, imprecise spatial reference and unparameterized style words into something concrete and observable. Translate abstract quality language into the visual properties it implies. Where the instruction offers alternatives or contradicts itself, pick the most reasonable reading and state it as a decision. Keep the user\'s own action verb, spatial relations and described state intact, and treat anything they asked to preserve as absolute. Preserve creative or physically impossible intent rather than correcting it.\n\n**Only what was asked.** Do not add operations the user did not request, and do not clean up unmentioned defects, overlays or clutter however prominent they look. When an edit removes, moves or reveals something, say enough about the newly exposed region that the result stays physically coherent.\n\n**Text in the image is literal.** Whenever readable text will appear in the output, commit to the exact characters — every element, quoted, nothing summarized or abbreviated away. Text you cannot commit to should not be added at all. Match the typography and language the input establishes unless the user asks otherwise. When the operation extends the canvas outward, name it as outpainting explicitly.\n\n**Write it as an instruction.** Lead with the operation, not a description of the finished picture, and write from the perspective of someone holding only the input image(s).\n\n## Thinking Process\n\nBefore emitting JSON, reason through: what the image(s) actually contain (including a complete reading of any text present); what the user is asking for and which attributes that names; what must therefore stay fixed; the output size; and finally the composed directive. Close with a check that every visible element is either the target of the edit or covered by what stays fixed, that the requested change is unmistakable, that nothing outside the target was touched, and that every quoted string obeys language decision (B).\n\n## Image Reference Rules\n\nFor Multi-Image Input (N >= 2), the rewritten instruction MUST use `<image1>`, `<image2>`, ... to refer to each input image. Do not use natural language references like "图1", "第一张图", "the first image", or "image A". This tagging format is mandatory and non-negotiable. For single-image input (N = 1), do NOT use tags — refer to the image naturally ("图像", "图片中", "the image").\n\nState each image\'s role explicitly — which one is the canvas whose composition and untargeted content survive, and which supply material to transfer — and say what is taken from each. For scene generation with no canvas (合影/合照 and the like), all images serve as identity sources. Describe every referenced image individually; never compress several into a range or a group to avoid describing them one by one.\n\n## Output Size Determination\n\nYou must determine two output fields: `wh_ratio` and `ratio_follow`. These two fields are mutually exclusive — when one has a value, the other must be empty string "".\n\n### Step 1: Check if the user explicitly specified a size or aspect ratio\n\nLook for any of the following in the user\'s edit instruction:\n- Exact pixel dimensions: "1920x1080", "800×600", "1080p"\n- Aspect ratios: "16:9", "4:3", "3:2", "9:16", "1:1"\n- Descriptive terms mapped to aspect ratios:\n  - "正方形" / "square" / "头像" / "avatar" / "profile picture" / "专辑封面" / "album cover" → "1:1"\n  - "横版" / "landscape" / "横屏" / "电脑壁纸" / "desktop wallpaper" / "宽屏" / "widescreen" / "视频封面" / "video thumbnail" / "PPT" / "幻灯片" / "slide" / "演示文稿" → "16:9"\n  - "竖版" / "portrait" / "竖屏" / "手机壁纸" / "phone wallpaper" / "手机屏幕" / "Instagram story" / "Stories" / "Reels" / "短视频封面" → "9:16"\n  - "手机全面屏" / "全面屏" / "iPhone屏幕" / "iPhone screen" → "18:39"\n  - "安卓全面屏" / "Android screen" → "9:20"\n  - "超宽" / "ultrawide" / "带鱼屏" → "7:3"\n  - "电影画面" / "cinematic" / "电影比例" / "宽银幕" / "cinemascope" → "21:9"\n  - "海报" / "poster" → "2:3"\n  - "证件照" / "ID photo" / "passport photo" / "小红书" / "Xiaohongshu" → "3:4"\n  - "iPad屏幕" / "tablet" / "平板屏幕" → "4:3"\n  - "全景图" / "panoramic" / "panorama" → "2:1"\n  - "名片" / "business card" → "9:5"\n  - "A4" → "5:7"(竖向)or "7:5"(横向)\n  - "1080p" / "720p" → "16:9"\n\n**High-resolution keywords ("2K", "4K", "8K") are quality descriptors, NOT aspect ratio indicators.** When the user mentions "2K", "4K", or "8K", these only express a desire for high image quality. They must NOT be used to infer or determine the aspect ratio. The aspect ratio should still be determined by other explicit cues or by the input image\'s ratio. For output resolution, always use 2K-level resolution regardless of whether the user says "2K", "4K", or "8K".\n\nIf you specified a size or ratio:\n→ `wh_ratio` = the corresponding ratio (e.g. "16:9", "1:1", "3:2")\n→ `ratio_follow` = ""\n\nIf you specified exact pixel dimensions (e.g. "1920x1080"), convert to the simplest integer ratio (1920:1080 = 16:9).\n\n### Step 2: If the user did NOT specify any size or ratio\n\n#### Single-image editing (1 input image):\nThe output should follow the input image\'s resolution.\n→ `wh_ratio` = ""\n→ `ratio_follow` = "<image1>"\n\n**Exception — Single-image scene generation**: If the task generates a new scene from scratch using the input image only as an identity reference (e.g., "拍一套写真", "cosplay成X", "穿越到古代"), do NOT follow the input image\'s ratio — the output is a new composition, not an edit of the existing image. Instead, choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Portrait / 写真 / half-body | "2:3" |\n| Full-body scene / outdoor activity | "3:4" |\n| Landscape-oriented scene | "3:2" |\n| No clear orientation hint | Follow the input image\'s ratio (set `ratio_follow` to `<image1>`, `wh_ratio` to "") |\n\n#### Multi-image editing (N ≥ 2 input images):\nYou must identify the **canvas image** (the image whose composition and framing the output should follow), then set `ratio_follow` to that image\'s tag.\n\n| Edit type | Canvas | ratio_follow |\n|---|---|---|\n| Compositing — transfer subject into a scene ("把A P到B中", "放到", "加入到") | The target scene image | "<imageX>" (scene image number) |\n| Face/head swap ("换脸", "换头") | The body image | "<imageX>" (body image number) |\n| Clothing swap ("换衣服", "换装") | The person image | "<imageX>" (person image number) |\n| Style transfer ("画成X的风格", "风格迁移") | The content image (not the style reference) | "<imageX>" (content image number) |\n| Background replacement | The foreground subject image | "<imageX>" (subject image number) |\n| Local object replacement | The original image being edited | "<imageX>" (original image number) |\n| Scene generation — no canvas ("合影", "合照", "一起变老", "让他们X") | No canvas — you must choose a ratio | See below |\n\nFor **scene generation tasks with no canvas** (合影, 合照, 一起吃饭, etc.), set `ratio_follow` = "" and choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Group photo / 合影 / 合照 | "3:2" |\n| Portrait / 写真 | "2:3" |\n| Poster / 海报 | "2:3" |\n| Desktop wallpaper | "16:9" |\n| Phone wallpaper | "9:16" |\n| No clear orientation hint | Follow the last input image\'s ratio (set `ratio_follow` to the last image, `wh_ratio` to "") |\n\n#### Outpainting (扩图 / 延伸画面):\n\nFor outpainting tasks where the user did NOT specify a target aspect ratio, do NOT simply follow the input image\'s ratio — outpainting changes the image\'s proportions by definition. Instead, infer the new ratio from the extension direction:\n\n- Extend **right only** or **left only**: widen the ratio. E.g., a 1:1 input → "3:2"; a 3:4 input → "1:1" or "4:3".\n- Extend **both left and right**: widen more aggressively. E.g., a 1:1 input → "16:9" or "2:1".\n- Extend **down only** or **up only**: make the ratio taller. E.g., a 1:1 input → "2:3"; a 16:9 input → "4:3" or "1:1".\n- Extend **both up and down**: make the ratio significantly taller. E.g., a 1:1 input → "9:16".\n- Extend **all sides**: keep the original ratio (the image grows uniformly).\n\nAs a general rule, estimate the extended area as roughly 30%–50% additional space in the specified direction(s), then compute the new W:H ratio accordingly. Set `ratio_follow` = "" and `wh_ratio` = the inferred ratio.\n\n#### Panoramic generation (全景 / panorama):\n\n| Panoramic type | wh_ratio |\n|---|---|\n| Standard panorama / 全景 | "2:1" |\n| Wide panorama / 超宽全景 | "3:1" |\n| 360° / VR panorama | "2:1" |\n| User specified a different ratio | Use the user\'s specified ratio |\n\nSet `ratio_follow` = "" and `wh_ratio` = the inferred ratio.\n\n#### Three-view drawings and multi-grid generation (三视图 / 多宫格):\n\nFor three-view or multi-panel grid generation where the user did NOT specify an aspect ratio, do NOT use a fixed default. Determine it adaptively from:\n\n1. **Subject shape proportion**: a tall standing person is vertically oriented, a car is horizontally oriented, a round object roughly square.\n2. **Panel layout arrangement**: how the panels are arranged (1×3 horizontal, 3×1 vertical, 2×2) and the shape of each panel.\n3. **Combined ratio**: (single panel W × columns) : (single panel H × rows), choosing the ratio that best fits the content without excessive empty space or cropping.\n\nExamples:\n- Three side-by-side views of a standing person (each panel ~1:3, portrait) → overall ratio = "1:1" — do NOT over-widen to "2:1" or "3:1", which would squash each portrait panel (use "3:1" only when each panel is itself landscape, e.g., a car)\n- Three side-by-side views of a car (each panel ~3:2) → overall ratio = "3:1" or "9:2"\n- 2×2 grid of a square object → overall ratio = "1:1"\n- 3×3 grid of square panels → overall ratio = "1:1"\n\nSet `ratio_follow` = "" and `wh_ratio` = the adaptively determined ratio.\n\n## Output Format\nOutput a valid JSON object with exactly three fields:\n```json\n{\n  "rewritten_prompt": "<the rewritten editing instruction>",\n  "wh_ratio": "<aspect ratio like \'16:9\', or empty string>",\n  "ratio_follow": "<\'<image1>\' / \'<image2>\' / ... / \'\'>"\n}\n```\n\n`rewritten_prompt` formatting rules:\n- The entire rewritten prompt must be a single continuous paragraph with NO line breaks or newline characters (`\\n`).\n- All text that should appear as visible, readable content in the output image must be enclosed in double quotes (""). Descriptive or structural language that does not appear as rendered text should NOT be quoted.\n- **Never include any resolution or aspect ratio information in `rewritten_prompt`** (e.g., "2:3", "16:9", "1920x1080", "2K", "4K"). Resolution and aspect ratio are conveyed exclusively through the `wh_ratio` and `ratio_follow` fields.\n- Write it out in full — no ellipsis, no truncation.\n- State requirements affirmatively ("保持背景与输入图完全一致") rather than as prohibitions ("禁止改变背景"). Standard preservation phrasing "保持/保留[X]不变" is fine.\n- Be precise and decisive: no hedging, no unresolved alternatives, no vague degree words left unresolved.\n- **Language-purge self-check (do this last)**: re-scan every double-quoted string — the text that will be RENDERED in the image — and enforce language decision (B). No quoted string may mix Chinese and English, form a bilingual pair, or carry a parenthetical translation gloss unless the user explicitly asked. Standardized units and user-given proper nouns may remain Latin.\n\nRules for each field:\n- `rewritten_prompt`: The rewritten editing instruction. The descriptive prose (outside double quotes) follows language decision (A); the text rendered inside the image (inside double quotes) follows language decision (B). Retain proper nouns and domain-specific terms in their original language, placed in English double quotes.\n- `wh_ratio`: The target aspect ratio as "W:H". Set to "" when the output resolution should follow an input image instead.\n- `ratio_follow`: Which input image\'s resolution the output follows ("<image1>", "<image2>", …). Set to "" when a specific aspect ratio is provided in `wh_ratio`.\n\nMutual exclusivity rule:\n- If `wh_ratio` has a value → `ratio_follow` must be ""\n- If `ratio_follow` is "<imageX>" → `wh_ratio` must be ""\n\nDo not include any text outside the JSON object — no greetings, no explanations, no markdown code fences.\n\nThe user\'s edit instruction to rewrite is:\n'
@@ -112,13 +112,17 @@ NOTE_ID = 11                  # MarkdownNote
 LORA_PB_ID, LORA_ID, LORA_SW_ID = 30, 31, 32   # LoRA 加速槽三件
 RR_M_A_ID, RR_M_B_ID = 41, 42                 # MODEL 顶通道(y=-560)
 RR_V_A_ID, RR_V_B_ID = 43, 44                 # VAE 顶通道(y=-640)
+# 满血接线轮(09-24):steps 联动 INT 开关三件(同受 [30] 布尔源驱动;样板=t2i 画幅联动
+# [157][158] ComfySwitchNode typ=INT);id 取子图 lastNodeId 163 之上(共享分配器)
+STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID = 164, 165, 166
+STEPS_OFF, STEPS_ON = 40, 6   # 关=40 完整档(原路)/开=6(v0.2 卡荐档,一拨全配)
 
 # 全图节点类型白名单(自查:TE-Speed 槽禁入本件——插件未装=红节点,任何未知类型即红)
 NODE_TYPE_WHITELIST = {
     # 主图
     "UNETLoader", "CLIPLoader", "VAELoader", "LoadImage",
     "ImageScaleToTotalPixels", "QwenImage21Cache", "LoraLoaderModelOnly",
-    "PrimitiveBoolean", "ComfySwitchNode", "KSampler", "VAEDecode",
+    "PrimitiveBoolean", "PrimitiveInt", "ComfySwitchNode", "KSampler", "VAEDecode",
     "SaveImage", "PrimitiveStringMultiline", "StringFormat", "BatchImagesNode",
     "TextGenerate", "RegexExtract", "MarkdownNote", "easy showAnything",
     "Reroute", "EmptyLatentImage",
@@ -152,7 +156,7 @@ NOTE_TEXT = """## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨�
 
 ### 参数圣经(官方模板 Note 要点)
 
-- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样。**步数 40(道劫产线完整档;官方区间 40-50)**;euler/simple/denoise 1.0;seed fixed 可复现。
+- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样。**步数 40(道劫产线完整档;官方区间 40-50;[30] 开=自动 6,由 [164] 联动开关供给,[8] 面板不再手调)**;euler/simple/denoise 1.0;seed fixed 可复现。
 - **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。
 - **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。
 - **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。
@@ -165,12 +169,13 @@ NOTE_TEXT = """## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨�
 - 旁路时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载)。
 - PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。
 
-### LoRA 加速槽([30] 开关,默认关=旁路;0924 R26.4 三件统一接线)
+### LoRA 加速槽([30] 开关,默认关=旁路;0924 R26.4 三件统一接线+满血接线轮 steps 联动)
 
-- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机;开时 steps 手动调 6,卡荐档),strength 1.0。
+- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机),strength 1.0。
 - **关闭=正常生成**(默认):MODEL 直连进 [8],LoRA 不加载,40 步主线不动。
-- **LoRA 开关=6步加速,开启后须把 [8] steps 调 6**(v0.2 系卡荐档),cfg 保持 1;不调步数=白载 LoRA;模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。
-- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(须调 steps)。
+- **一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)**:[30] 同时驱动 MODEL 开关与 [164] steps 联动 INT 开关(false→[165] 常量 40/true→[166] 常量 6→[8].steps,widget 已转输入)——开 [30] 一拨,LoRA 挂链+步数自动 6(v0.2.1 系卡荐档,cfg 保持 1);关掉一拨,LoRA 卸链+步数自动回 40;[8] 面板 steps 不再手动调。
+模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。
+- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(steps 联动自动)。
 - **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。
 
 ### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)
@@ -328,6 +333,20 @@ def _reroute(nid: int, pos: list, in_link: int, out_link: int, typ: str) -> dict
         "inputs": [{"name": "", "type": "*", "link": in_link}],
         "outputs": [{"name": "", "type": typ, "links": [out_link]}],
         "properties": {"showOutputText": False, "horizontal": False},
+    }
+
+
+def _primitive_int(nid: int, value: int, pos: list, out_link: int) -> dict:
+    """PrimitiveInt 常量(steps 联动臂;序列化=官方本地 I2V-480P 模板实取样板:
+    [value,"fixed"] 带 control_after_generate;核心节点零自定义 title 铁律)。"""
+    return {
+        "id": nid, "type": "PrimitiveInt",
+        "pos": pos, "size": [270, 90], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [{"name": "value", "type": "INT", "widget": {"name": "value"}, "link": None}],
+        "outputs": [{"name": "INT", "type": "INT", "links": [out_link]}],
+        "properties": {"cnr_id": "comfy-core", "Node name for S&R": "PrimitiveInt"},
+        "widgets_values": [value, "fixed"],
+        "widgets_values_named": {"value": value, "fixed": "fixed"},
     }
 
 
@@ -531,8 +550,8 @@ def build_main(truth: dict, sg: dict) -> dict:
         "groups": [
             {"id": 1, "title": "道劫·加载器(bf16 三件套+PE-I2I 专属文本编码器)",
              "bounding": [-1900, -510, 1780, 240], "color": "#3f789e", "flags": {}},
-            {"id": 2, "title": "道劫·编辑主链(双图预缩→[40]装配子图→LoRA加速槽→采样→解码→保存;下排=输出画幅双路)",
-             "bounding": [-1900, -150, 5230, 1150], "color": "#3f789e", "flags": {}},
+            {"id": 2, "title": "道劫·编辑主链(双图预缩→[40]装配子图→LoRA加速槽+steps联动开关→采样→解码→保存;下排=输出画幅双路)",
+             "bounding": [-1900, -150, 5700, 1500], "color": "#3f789e", "flags": {}},
             {"id": 3, "title": "道劫·PE-I2I 改写组(默认旁路·核心 TextGenerate·看全部输入图·edit 骨架原样)",
              "bounding": [-1900, 1150, 2980, 820], "color": "#8864a8", "flags": {}},
         ],
@@ -642,7 +661,7 @@ def build_main(truth: dict, sg: dict) -> dict:
               ["auto", "default"]),
         _core(LORA_PB_ID, "PrimitiveBoolean", [1000, 640], [280, 90],
               [{"name": "value", "type": "BOOLEAN", "widget": {"name": "value"}, "link": None}],
-              [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [28]}],
+              [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [28, 41]}],
               [False]),
         _core(LORA_ID, "LoraLoaderModelOnly", [1400, 480], [340, 130],
               [{"name": "model", "type": "MODEL", "link": 25},
@@ -651,18 +670,20 @@ def build_main(truth: dict, sg: dict) -> dict:
               [{"name": "MODEL", "type": "MODEL", "links": [27]}],
               [LORA_FILE, 1.0]),
         _switch(LORA_SW_ID, 26, 27, 28, [29], [1800, 480], typ="MODEL", size=[300, 110]),
-        _core(8, "KSampler", [2200, 480], [330, 260],
+        _core(8, "KSampler", [2620, 480], [330, 260],
               [{"name": "model", "type": "MODEL", "link": 29},
                {"name": "positive", "type": "CONDITIONING", "link": 19},
                {"name": "negative", "type": "CONDITIONING", "link": 20},
-               {"name": "latent_image", "type": "LATENT", "link": 33}],
+               {"name": "latent_image", "type": "LATENT", "link": 33},
+               # 满血接线轮:steps widget 转输入(照 [150].base 先例 widget 标记保留)
+               {"name": "steps", "type": "INT", "widget": {"name": "steps"}, "link": 42}],
               [{"name": "LATENT", "type": "LATENT", "links": [34]}],
               [0, "fixed", 40, 1, "euler", "simple", 1.0]),
-        _core(9, "VAEDecode", [2590, 480], [240, 50],
+        _core(9, "VAEDecode", [3010, 480], [240, 50],
               [{"name": "samples", "type": "LATENT", "link": 34},
                {"name": "vae", "type": "VAE", "link": 37}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [38]}]),
-        _core(10, "SaveImage", [2890, 480], [380, 330],
+        _core(10, "SaveImage", [3310, 480], [380, 330],
               [{"name": "images", "type": "IMAGE", "link": 38}], [],
               ["QI21道劫图生图_"]),
         # ── 行3c 输出画幅双路 ──────────────────────────────────────
@@ -754,6 +775,13 @@ def build_main(truth: dict, sg: dict) -> dict:
         _reroute(RR_M_B_ID, [950, -560], 23, 24, "MODEL"),
         _reroute(RR_V_A_ID, [-940, -640], 35, 36, "VAE"),
         _reroute(RR_V_B_ID, [2450, -640], 36, 37, "VAE"),
+        # ── 满血接线轮(09-24):steps 联动 INT 开关三件(样板=t2i 画幅联动 [157][158];
+        #    同受 [30] 布尔源驱动:false→[165] 常量 40/true→[166] 常量 6→[8].steps 转输入;
+        #    住 row3c 下方带 y≈1020-1300,[41] [30]→[164] 长降线穿 row3c 喂带走廊零新增交叉,
+        #    [42] [164]→[8].steps 与 [8] 入线共端点豁免)────────────────────────────
+        _switch(STEPS_SW_ID, 39, 40, 41, [42], [2200, 1020], typ="INT", size=[300, 110]),
+        _primitive_int(STEPS_C40_ID, STEPS_OFF, [1800, 1150], 39),
+        _primitive_int(STEPS_C6_ID, STEPS_ON, [1380, 1150], 40),
     ]
     for order, n in enumerate(nodes):
         n["order"] = order
@@ -798,6 +826,10 @@ def build_main(truth: dict, sg: dict) -> dict:
         [36, RR_V_A_ID, 0, RR_V_B_ID, 0, "VAE"],   # 顶横 y=-640
         [37, RR_V_B_ID, 0, 9, 1, "VAE"],      # → VAEDecode
         [38, 9, 0, 10, 0, "IMAGE"],
+        [39, STEPS_C40_ID, 0, STEPS_SW_ID, 0, "INT"],   # 常量40 → steps开关.on_false(关=原路)
+        [40, STEPS_C6_ID, 0, STEPS_SW_ID, 1, "INT"],    # 常量6 → steps开关.on_true(开=卡荐档)
+        [41, LORA_PB_ID, 0, STEPS_SW_ID, 2, "BOOLEAN"], # [30] 同源扇出 → steps开关.switch(一拨全配)
+        [42, STEPS_SW_ID, 0, 8, 4, "INT"],    # steps开关 → KSampler.steps(自动 40/6)
     ]
     # id 计数器真值重算(根图+子图共享分配器,一并计入 max;计数器只抬不降)
     g["last_node_id"] = max(
@@ -1140,6 +1172,42 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if m_links[m_nodes[8]["inputs"][0]["link"]][1] != LORA_SW_ID:
         errs.append("KSampler.model 上游应 MODEL 开关(加速槽二选一)")
 
+    # 14b 满血接线轮·steps 联动(一拨全配):[164] INT 开关 false→[165]=40/true→[166]=6
+    #     →[8].steps(widget 转输入);switch 槽与 MODEL 开关同一布尔源 [30](扇出两线);
+    #     关态干跑 steps 解析=40+零 LoRA;开态干跑([30]=true)steps=6+LoRA 在链。
+    ssw = m_nodes[STEPS_SW_ID]
+    if ssw["type"] != "ComfySwitchNode" or ssw["outputs"][0]["type"] != "INT":
+        errs.append(f"[{STEPS_SW_ID}] 应为 INT 泛型开关(steps 联动,样板=t2i [157][158])")
+    if ssw["widgets_values"][0] is not False:
+        errs.append(f"[{STEPS_SW_ID}] steps 联动开关默认应 false(关=原路 40)")
+    for cid, want in ((STEPS_C40_ID, STEPS_OFF), (STEPS_C6_ID, STEPS_ON)):
+        c = m_nodes[cid]
+        if c["type"] != "PrimitiveInt" or c["widgets_values"][0] != want:
+            errs.append(f"[{cid}] PrimitiveInt 常量应={want},得 {c.get('widgets_values')}")
+    if m_links[ssw["inputs"][0]["link"]][1] != STEPS_C40_ID:
+        errs.append(f"[{STEPS_SW_ID}].on_false 上游应常量40 [{STEPS_C40_ID}](关=自动回 40 原路)")
+    if m_links[ssw["inputs"][1]["link"]][1] != STEPS_C6_ID:
+        errs.append(f"[{STEPS_SW_ID}].on_true 上游应常量6 [{STEPS_C6_ID}](开=自动 6 步)")
+    if m_links[ssw["inputs"][2]["link"]][1] != LORA_PB_ID:
+        errs.append(f"[{STEPS_SW_ID}].switch 上游应同一布尔源 [{LORA_PB_ID}](一拨全配)")
+    if sorted(m_nodes[LORA_PB_ID]["outputs"][0]["links"] or []) != sorted([28, 41]):
+        errs.append(f"[{LORA_PB_ID}] 开关源应扇出恰两线(MODEL 开关+steps 开关,同一布尔源)")
+    ks_steps = next((i for i in m_nodes[8]["inputs"] if i.get("name") == "steps"), None)
+    if not ks_steps or ks_steps.get("link") != 42 or "widget" not in ks_steps:
+        errs.append("[8].steps 应为 widget 转输入接 [164] 联动开关(序列化照 [150].base 先例)")
+    off_reach = _dry_run_main(g)
+    if LORA_ID in off_reach:
+        errs.append("干跑:关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成,懒执行旁路)")
+    off_steps = _steps_value_main(g)
+    if off_steps != STEPS_OFF:
+        errs.append(f"干跑:关态 steps 应解析={STEPS_OFF}(自动回原路),得 {off_steps}")
+    on_reach = _dry_run_main(g, pb_override=True)
+    if LORA_ID not in on_reach:
+        errs.append("干跑:开态(运行态 [30]=true)执行图应含 LoraLoaderModelOnly(LoRA 真入链)")
+    on_steps = _steps_value_main(g, pb_override=True)
+    if on_steps != STEPS_ON:
+        errs.append(f"干跑:开态(一拨全配)steps 应解析={STEPS_ON}(v0.2 卡荐档),得 {on_steps}")
+
     # 15 PE-I2I 链(edit 骨架原样):TextGenerate 参数/chatml 三段/正则/开关接线
     tg = by_type(g["nodes"], "TextGenerate")
     if len(tg) != 1 or tg[0]["id"] != 26:
@@ -1349,8 +1417,9 @@ def self_check(g: dict, truth: dict) -> list[str]:
     for token in ("生修合一", "指令=改什么", "指令即主体", "cfg 恒 1", "步数 40",
                   RGBA_HEAD_EN, RGBA_TAIL_EN, RGBA_HEAD_ZH, "qwen-image-2-1-prompter",
                   "05-道劫规范提示词库.md", "MyQi21DaojieBase", "LoraLoaderModelOnly",
-                  "Qwen-Image-2.1-viggle-turbo-v0.2-5step-lora-r256.safetensors", "steps 调 6",
-                  "6步加速", "shift_terminal=0.02", "关闭=正常生成",
+                  "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
+                  "一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)", "[164]", "[165]", "[166]",
+                  "shift_terminal=0.02", "关闭=正常生成",
                   "TE-Speed 槽不在本件", "BatchImagesNode", "TextGenerate",
                   "ImageScaleToTotalPixels", "画幅随输入图", "qi21_daojie_i2i_0924.py"):
         if token not in note:
@@ -1371,6 +1440,60 @@ def _trace_reroute_main(m_links: dict, m_nodes: dict, lid: int) -> int:
             return oid
         seen.add(oid)
         lid = m_nodes[oid]["inputs"][0]["link"]
+
+
+def _switch_bool_main(m_links: dict, m_nodes: dict, node: dict,
+                      pb_override: bool | None = None) -> bool:
+    """主图 ComfySwitchNode 有效布尔:switch 槽有连线→解析到布尔源([30] 一源扇出驱
+    MODEL/steps 两开关,运行态翻转=改 [30] 一处);否则本件 widget。"""
+    lid = node["inputs"][2].get("link")
+    if lid is not None:
+        src = m_nodes[m_links[lid][1]]
+        if src["type"] == "PrimitiveBoolean":
+            if pb_override is not None:
+                return pb_override
+            return bool(src["widgets_values"][0])
+    return bool(node["widgets_values"][0])
+
+
+def _dry_run_main(g: dict, pb_override: bool | None = None) -> set[int]:
+    """主图执行集(SaveImage[10] 回溯;ComfySwitchNode 懒执行=只走选中臂)。
+
+    R26.4/D1 硬性 AC:关态执行图零 LoraLoader;满血接线轮增 pb_override=True 模拟
+    运行态把 [30] 拨开——LoRA 应入执行集、steps 应解析 6。"""
+    m_nodes = {n["id"]: n for n in g["nodes"]}
+    m_links = {l[0]: l for l in g["links"]}
+    reach: set[int] = set()
+    stack = [10]  # SaveImage
+    while stack:
+        nid = stack.pop()
+        if nid in reach:
+            continue
+        reach.add(nid)
+        node = m_nodes[nid]
+        slots = (([1 if _switch_bool_main(m_links, m_nodes, node, pb_override) else 0]
+                  if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", [])))))
+        for si in slots:
+            lid = node["inputs"][si].get("link")
+            if lid is not None:
+                stack.append(m_links[lid][1])
+    return reach
+
+
+def _steps_value_main(g: dict, pb_override: bool | None = None) -> int | None:
+    """KSampler[8].steps 溯源干跑:转输入→[164] 联动开关→布尔源定臂→常量值。"""
+    m_nodes = {n["id"]: n for n in g["nodes"]}
+    m_links = {l[0]: l for l in g["links"]}
+    ks = m_nodes[8]
+    steps_inp = next((i for i in ks["inputs"] if i.get("name") == "steps"), None)
+    if steps_inp is None or steps_inp.get("link") is None:
+        return None
+    sw = m_nodes[m_links[steps_inp["link"]][1]]
+    if sw["type"] != "ComfySwitchNode":
+        return None
+    arm = 1 if _switch_bool_main(m_links, m_nodes, sw, pb_override) else 0
+    src = m_nodes[m_links[sw["inputs"][arm]["link"]][1]]
+    return src["widgets_values"][0]
 
 
 def preflight(old: dict) -> str:

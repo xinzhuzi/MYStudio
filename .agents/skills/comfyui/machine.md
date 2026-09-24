@@ -6,7 +6,8 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
 (`GET /system_stats`, `GET /object_info`) and rewrite.
 
 - **ComfyUI**: MYStudio-managed engine (app 漫影工作室; no longer Comfy Desktop — that install at
-  `~/Project/ComfyUI` was retired 2026-09-10, kept on disk read-only as archive).
+  `~/Project/ComfyUI` was retired 2026-09-10 and has since been **deleted from disk entirely**
+  (09-24 verified: path no longer exists; the old "kept as read-only archive" state is history)).
   Home = **`~/Library/Application Support/漫影工作室/comfyui`** (isolated layout:
   `ComfyUI/` engine source v0.35.0 torch 2.14, `venv/` private runtime, `models/`, `workflows/` legacy,
   `manifest.json` config). Engine source & custom_nodes live at `<home>/ComfyUI` — ComfyUI only loads
@@ -53,7 +54,8 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     piece; generate-and-refine-are-one architecture — image input IS instruction editing, no
     denoise repaint): edit skeleton + nine-type assembly subgraph [40] (directive occupies ①
     layer) + LoRA speed slot bypassed by default (`models/loras/Qwen-Image-2.1-viggle-turbo-
-    4step-lora-r64.safetensors` 339.8MB installed; when enabled set KSampler steps to 4); TE-Speed
+    v0.2.1-6step-lora-r256.safetensors` — 0924 换最新+清旧后唯一在库件;满血联动=[30] 一拨全配,
+    开=LoRA 挂链+steps 自动 6,关=自动回 40); TE-Speed
     slot deliberately NOT in this piece (plugin absent = red node; R26.4 wiring round). Idempotent
     generator `apps/build/scripts/qi21_daojie_i2i_0924.py`; contract = TestI2IContract.
   - (09-23) Q2-1 line weights (bf16, MPS path — int8_convrot is CUDA-only, never on this Mac):
@@ -76,7 +78,10 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     179b107a…,改写全文 1084 字符捕获,服务端排队图含恢复件+TextGenerate)→ 外置盘
     `AI/Qwen21/` 备份登记(SHA256 18649cc7…7ea3,manifest-pe-i2i-restore-0924.jsonl);
     PE 路恢复后两工作流(qwen21-edit/qi21-道劫-i2i)PE 开关均可用。
-  - (09-24) Q2-1 加速件实况:viggle-turbo r64 LoRA 在 loras/(339,832,808 B);pottokao
+  - (09-24) Q2-1 加速件实况(换最新+清旧终态):loras/ 唯一 viggle 件=**v0.2.1-6step-lora-r256**
+    (1,359,147,904 B,SHA256 2a0148f5…28803,卡荐 6 步+卡头 use this one);三件工作流 LoRA 槽预填同件,
+    steps 联动一拨全配(开 6/关 40);旧件 v0.1 r64+v0.2 r256 已退役(外置盘 AI/Viggle/retired-0924/
+    +manifest-retired-0924.jsonl,回退=拷回);pottokao
     Heretic TE 在 text_encoders/(`qwen3vl_8b_bf16_heretic.safetensors` 17,534,334,584 B,
     SHA256 b1f17ffe…74b1 外置盘已备份;CLIPLoader(qwen_image) 直载+真出图=活,与官方
     qwen3vl_8b 同题同 seed 像素带均差仅 3.96/255);TE-Speed-QwenImage21 插件=Windows
