@@ -66,7 +66,7 @@ SG_UUID = "d47c9e21-8f36-4a5b-b0c9-2e8d4f6a8c1d"   # 装配子图 uuid,固定值
 
 # ── 常量(逐字锚;承 edit 生成器)───────────────────────────────────
 UNET_FILE = "qwen_image_2.1_bf16.safetensors"
-CLIP_FILE = "qwen3vl_8b_bf16.safetensors"
+CLIP_FILE = "qwen3vl_8b_bf16_heretic.safetensors"   # 0924 用户令 TE 换 Heretic 当主力(官方件保留引擎家作备胎)
 VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
 PE_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors"
 LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"

@@ -57,16 +57,34 @@ export function classifyModelDomains(category: string, name: string): ComfyModel
   return DOMAIN_ORDER.filter((domain) => hits.has(domain));
 }
 
+/**
+ * 展示类别改道(09-24 用户裁定「分类是 vl 类型下的」):qwen3vl_8b 两件
+ * (官方+heretic)物理住 text_encoders/(ComfyUI 节点按目录解析 TE,不能挪),
+ * 但本质是 Qwen3-VL 视觉语言模型——模型库展示归入 vlm 类别,与同族
+ * qwen3-vl-8b-instruct(mlx)同列。仅改展示分组键,磁盘/引擎家零动。
+ */
+const CATEGORY_REMAPS: ReadonlyArray<{ from: string; match: RegExp; to: string }> = [
+  { from: "text_encoders", match: /qwen3vl_8b/i, to: "vlm" },
+];
+
+/** 展示类别(仅分组用):命中改道表→目标类别,否则原类别。 */
+export function displayModelCategory(category: string, name: string): string {
+  for (const rule of CATEGORY_REMAPS) {
+    if (category === rule.from && rule.match.test(name)) return rule.to;
+  }
+  return category;
+}
+
 // ── 注释体系(自 ComfyEngineSettingsSection 迁入,单源) ────────────────
 
 /** 模型类别一句话注释:干什么用、属于哪条工作流(09-10 用户裁定:简明概要)。 */
 export const COMFY_MODEL_CATEGORY_INFO: Record<string, string> = {
   diffusion_models: "生图/作曲/视频的主模型(去噪网络)——画布各类生成流的核心",
-  text_encoders: "提示词理解(文本编码器)——生成流的输入侧",
+  text_encoders: "提示词理解(文本编码器)——生成流的输入侧(qwen3vl_8b 系为 VL 模型,展示归 vlm 类别)",
   vae: "潜空间↔成品解码器(图像像素/音频波形)",
   loras: "主模型的能力补丁(风格/破限/编辑)——生图画布按流挂载",
   TTS: "旁白配音引擎(声线权重+音色库)——配音室/分镜配音",
-  vlm: "视觉审核模型——分镜图与资产参考一致性检查",
+  vlm: "视觉语言模型(VL)——qwen3vl_8b 生图提示词编码 + 分镜图/资产视觉审核",
   upscale_models: "ComfyUI 超分模型目录——画布超分节点用",
   videoqc: "DOVER 视频评分——出片自评与基线告警",
   SEEDVR2: "图像修复+超分(强档)——生图修复链与视频 2K 超分(跨图片/视频两域)",
@@ -88,6 +106,9 @@ export const COMFY_MODEL_CATEGORY_INFO: Record<string, string> = {
 export const COMFY_MODEL_FILE_NOTES: ReadonlyArray<readonly [string, string]> = [
   ["krea2_turbo_bf16", "Krea2 生图主力——文生图/图生图/无衣物/NSFW 专业流"],
   ["qwen3-vl-4b-heretic", "生图提示词编码(破限版)——Krea2 流"],
+  // 09-24 VL 改道两件:先中先用,heretic 条目须在官方条目之前(官方针串是其文件名子串)
+  ["qwen3vl_8b_bf16_heretic", "Q2-1 文本编码器(视觉语言模型 VL·破限版)——提示词翻译给生图模型"],
+  ["qwen3vl_8b_bf16", "Q2-1 文本编码器(视觉语言模型 VL)——提示词翻译给生图模型"],
   ["qwen_image_vae", "生图解码器——Krea2/Qwen 系"],
   ["minimax_h3_fl2va", "H3 视频生成主模型"],
   ["minimax_h3_video_vae", "H3 视频解码"],
@@ -141,11 +162,13 @@ export function groupModelsByDomain(reply: ComfyModelsReply): ComfyModelDomainGr
   const buckets = new Map<ComfyModelDomain, Map<string, ComfyModelsEntry[]>>();
   for (const group of reply.groups) {
     for (const file of group.files) {
+      // 域归属按磁盘真类别判定;展示类别经 09-24 VL 改道(qwen3vl_8b→vlm)
       for (const domain of classifyModelDomains(group.category, file.name)) {
+        const category = displayModelCategory(group.category, file.name);
         const byCategory = buckets.get(domain) ?? new Map<string, ComfyModelsEntry[]>();
         buckets.set(domain, byCategory);
-        const files = byCategory.get(group.category) ?? [];
-        byCategory.set(group.category, files);
+        const files = byCategory.get(category) ?? [];
+        byCategory.set(category, files);
         files.push(file);
       }
     }

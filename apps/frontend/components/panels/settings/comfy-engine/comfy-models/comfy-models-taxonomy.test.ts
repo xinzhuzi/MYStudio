@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   classifyModelDomains,
+  displayModelCategory,
   groupModelsByDomain,
   modelFileNote,
 } from "@/components/panels/settings/comfy-engine/comfy-models/comfy-models-taxonomy";
@@ -46,6 +47,54 @@ describe("comfy-models 域分类法(09-10 分域裁定)", () => {
 
   it("零命中兜底:未归类→other(规则漏配的可见信号)", () => {
     expect(classifyModelDomains("checkpoints", "some_random_model.safetensors")).toEqual(["other"]);
+  });
+
+  // 09-24 用户裁定「分类是 vl 类型下的」:qwen3vl_8b 两件(官方+heretic)展示归 vlm 类别
+  it("VL 改道:text_encoders 下的 qwen3vl_8b 两件展示归 vlm 类别,其余 TE 与其它类别不动", () => {
+    expect(displayModelCategory("text_encoders", "qwen3vl_8b_bf16.safetensors")).toBe("vlm");
+    expect(displayModelCategory("text_encoders", "qwen3vl_8b_bf16_heretic.safetensors")).toBe("vlm");
+    // 同类别其它 TE 不改道(Q2-1 PE 件/32B H3 件留 text_encoders)
+    expect(displayModelCategory("text_encoders", "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors")).toBe("text_encoders");
+    expect(displayModelCategory("text_encoders", "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf")).toBe("text_encoders");
+    // 非目标类别不改道(viggle LoRA 照旧 loras)
+    expect(displayModelCategory("loras", "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors")).toBe("loras");
+  });
+
+  it("VL 改道分组:两件并入图片域 vlm 类别桶与同族 mlx 件同列,域归属仍按磁盘真类别判定", () => {
+    const reply: ComfyModelsReply = {
+      modelsDir: "/tmp/models",
+      totalBytes: 400,
+      groups: [
+        {
+          category: "text_encoders",
+          files: [
+            { name: "qwen3vl_8b_bf16.safetensors", sizeBytes: 100 },
+            { name: "qwen3vl_8b_bf16_heretic.safetensors", sizeBytes: 100 },
+            { name: "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors", sizeBytes: 100 },
+          ],
+        },
+        { category: "vlm", files: [{ name: "qwen3-vl-8b-instruct-mlx-8bit/model.safetensors", sizeBytes: 100 }] },
+      ],
+    };
+    const domains = groupModelsByDomain(reply);
+    expect(domains.map((group) => group.domain)).toEqual(["image"]);
+    const categories = domains[0].categories.map((item) => item.category).sort();
+    expect(categories).toEqual(["text_encoders", "vlm"]);
+    const vlm = domains[0].categories.find((item) => item.category === "vlm");
+    // 桶内为清单遍历插入序:text_encoders 组的两件先入,mlx 件随后
+    expect(vlm?.files.map((file) => file.name)).toEqual([
+      "qwen3vl_8b_bf16.safetensors",
+      "qwen3vl_8b_bf16_heretic.safetensors",
+      "qwen3-vl-8b-instruct-mlx-8bit/model.safetensors",
+    ]);
+    expect(vlm?.bytes).toBe(300);
+    const te = domains[0].categories.find((item) => item.category === "text_encoders");
+    expect(te?.files.map((file) => file.name)).toEqual(["qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors"]);
+  });
+
+  it("VL 件级注释:官方/heretic 两件各命中(heretic 带破限标记,先中先用不串)", () => {
+    expect(modelFileNote("qwen3vl_8b_bf16.safetensors")).toContain("Q2-1 文本编码器(视觉语言模型");
+    expect(modelFileNote("qwen3vl_8b_bf16_heretic.safetensors")).toContain("破限版");
   });
 
   it("分域分组:域序稳定/空域不出现/双栖件在两域各计一件/统计聚合正确", () => {

@@ -138,7 +138,7 @@ GRAPHS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in W
 
 # 加载器三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线不用)
 UNET_FILE = "qwen_image_2.1_bf16.safetensors"
-CLIP_FILE = "qwen3vl_8b_bf16.safetensors"
+CLIP_FILE = "qwen3vl_8b_bf16_heretic.safetensors"   # 0924 用户令 TE 换 Heretic 当主力(官方件保留引擎家作备胎)
 VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
 
 # PE 改写组契约(插件 ComfyUI-Qwen-Image-2.1-Prompt-Enhancer)
@@ -482,7 +482,7 @@ class TestLoaderTriple:
             expected = 2  # 三件全带 PE 组另加一个 PE 加载器
             assert len(loaders) == expected, f"{name}: CLIPLoader 应恰 {expected} 个"
             main = [n for n in loaders if _widget(n, 0) == CLIP_FILE]
-            assert len(main) == 1, f"{name}: 主 CLIP(qwen3vl_8b_bf16)应恰 1 个"
+            assert len(main) == 1, f"{name}: 主 CLIP(qwen3vl_8b_bf16_heretic)应恰 1 个"
             assert _widget(main[0], 1) == "qwen_image", \
                 f"{name}: 主 CLIPLoader type 必须为 qwen_image"
 

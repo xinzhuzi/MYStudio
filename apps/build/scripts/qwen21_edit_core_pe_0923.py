@@ -55,7 +55,7 @@ WF = os.path.normpath(WF)
 
 # ── 常量(逐字锚)───────────────────────────────────────────────────
 UNET_FILE = "qwen_image_2.1_bf16.safetensors"
-CLIP_FILE = "qwen3vl_8b_bf16.safetensors"
+CLIP_FILE = "qwen3vl_8b_bf16_heretic.safetensors"   # 0924 用户令 TE 换 Heretic 当主力(官方件保留引擎家作备胎)
 VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
 PE_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors"
 # R26.4 LoRA 加速槽(09-24 统一接线;id 同构 i2i/t2i 生成器 LORA_PB/LORA/LORA_SW)
@@ -93,7 +93,7 @@ NOTE = """## Qwen-Image-2.1 换装编辑 · 使用说明
 - image_1 = portrait_model_denim.png(编辑画布/人物)
 - image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)
 
-权重三件套同 t2i 件:qwen_image_2.1_bf16 + qwen3vl_8b_bf16(CLIPLoader type=qwen_image)+ qwen_image_2.1_vae_bf16。
+权重三件套同 t2i 件:qwen_image_2.1_bf16 + qwen3vl_8b_bf16_heretic(TE 破限件,0924 用户令换主力;CLIPLoader type=qwen_image)+ qwen_image_2.1_vae_bf16。
 
 ### 参数圣经(官方模板 Note 要点)
 

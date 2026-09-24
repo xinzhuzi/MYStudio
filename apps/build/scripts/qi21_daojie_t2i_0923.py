@@ -771,7 +771,8 @@ def build_main(truth: dict, sg: dict) -> dict:
                [{"name": "unet_name", "type": "COMBO", "widget": {"name": "unet_name"}, "link": None},
                 {"name": "weight_dtype", "type": "COMBO", "widget": {"name": "weight_dtype"}, "link": None}]),
         loader(2, "CLIPLoader", "CLIP加载(qwen_image)", [-1560, -400], [360, 130],
-               ["qwen3vl_8b_bf16.safetensors", "qwen_image", "default"], [12],
+               # 0924 用户令 TE 换 Heretic 当主力(官方 qwen3vl_8b_bf16 件保留引擎家作备胎)
+               ["qwen3vl_8b_bf16_heretic.safetensors", "qwen_image", "default"], [12],
                [{"name": "clip_name", "type": "COMBO", "widget": {"name": "clip_name"}, "link": None},
                 {"name": "type", "type": "COMBO", "widget": {"name": "type"}, "link": None},
                 {"name": "device", "type": "COMBO", "shape": 7, "widget": {"name": "device"}, "link": None}]),

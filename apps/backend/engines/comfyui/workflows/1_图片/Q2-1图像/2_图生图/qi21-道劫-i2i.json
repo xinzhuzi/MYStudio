@@ -146,7 +146,7 @@
         "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
-        "qwen3vl_8b_bf16.safetensors",
+        "qwen3vl_8b_bf16_heretic.safetensors",
         "qwen_image",
         "default"
       ]
