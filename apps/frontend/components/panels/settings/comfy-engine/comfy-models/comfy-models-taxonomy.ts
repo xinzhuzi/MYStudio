@@ -40,8 +40,9 @@ const DOMAIN_RULES: ReadonlyArray<{ match: RegExp; domains: readonly ComfyModelD
   { match: /minimax_h3|heretic-h3|taeh3|latent_upscaler|^videoqc\/|^frame_interpolation\/|rife_|dover_mobile/i, domains: ["video"] },
   // 声音线:YuE2 作曲家(整曲/纯音乐 BGM) + TTS 家(Qwen3-TTS/SenseVoice/whisper/musicgen/嵌入与分词)
   { match: /yue2|sheetsage2|ar_lora_inst|musicgen|qwen3-tts|sensevoice|whisper|snac_|gte-multilingual|^tts\//i, domains: ["audio"] },
-  // 图片线:K2 产线(krea2/Krea 2)+ Qwen 图像 + 图像超分 + 服装分割 + 视觉理解
-  { match: /krea\s*2|qwen_image|realesrgan|^segformer|^vlm\/|qwen3-vl-4b/i, domains: ["image"] },
+  // 图片线:K2 产线(krea2/Krea 2)+ Qwen 图像(含 Q2-1 LoRA= viggle / TE= qwen3vl_8b 含 heretic)+
+  // 图像超分 + 服装分割 + 视觉理解;qwen3vl_8b 只匹配 8B 件(32B H3 TE 走 video 线规则)
+  { match: /krea\s*2|qwen_image|qwen3vl_8b|viggle|realesrgan|^segformer|^vlm\/|qwen3-vl-4b/i, domains: ["image"] },
   // 双栖:SEEDVR2 图像修复超分 + H3 视频超分(2K 链)——多重分类的活例
   { match: /seedvr2/i, domains: ["image", "video"] },
 ];
