@@ -215,6 +215,38 @@ def test_install_rejects_ledger_plugin_before_job(monkeypatch, stub_nodes_dir):
         plugin_manager.install_plugin_job("curated", "ComfyUI-ConditioningKrea2Rebalance")
 
 
+def test_registry_row_yields_to_curated_duplicate(monkeypatch, stub_ledger):
+    """0925 防双显:策展已收的件,注册表搜索行让位——同一件不再两区各一行。
+
+    实弹起因:Q2-1 九件入策展后搜 qwen,BlockCache 等注册表件双行。
+    双路验证:仓库地址归一化命中 + registry id 小写命中;无关件不受影响。
+    """
+    monkeypatch.setattr(
+        plugin_manager, "load_curated",
+        lambda: [
+            {"id": "qwen-image-21-blockcache-t8", "name": "Q2-1 块缓存加速",
+             "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-BlockCache-T8"},
+            {"id": "TE-Speed-QwenImage21", "name": "Q2-1 采样提速"},
+        ],
+    )
+    dup_by_repo = _registry_node("blockcache-registry-id-differs")
+    dup_by_repo["repository"] = "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-BlockCache-T8"
+    dup_by_id = _registry_node("te-speed-qwenimage21")  # 与策展 id 仅大小写不同
+    dup_by_id["repository"] = "https://github.com/elsewhere/te-speed-mirror"
+    independent = _registry_node("some-independent-pack")
+    independent["repository"] = "https://github.com/other/Some-Independent-Pack"
+    monkeypatch.setattr(
+        plugin_manager, "_registry_get",
+        lambda path, params=None, timeout=1.0: {"nodes": [dup_by_repo, dup_by_id, independent]},
+    )
+
+    reply = catalog_search("")
+    ids = [r["id"] for r in reply["registry"]]
+    assert "blockcache-registry-id-differs" not in ids    # 仓库地址命中 → 让位
+    assert "te-speed-qwenimage21" not in ids              # id 归一化命中 → 让位
+    assert "some-independent-pack" in ids                 # 无关件照常出
+
+
 def test_parse_requirements_vcs_url_line():
     """09-19 实弹(Impact-Pack 收编炸链):git+URL 依赖行不进版本区间预检,
     原文保留给 pip;普通行解析不受影响。"""

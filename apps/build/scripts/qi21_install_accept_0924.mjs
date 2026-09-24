@@ -9,7 +9,7 @@
  *        loadGraphData 直载——同一 graphToPrompt/queuePrompt 数据链)→ 干跑排队图
  *        取证(MyQi21DaojieBase.base=人物)→ queuePrompt → 引擎 output 新 PNG
  *        落盘 → cp 到 ~/Downloads/q21-final-0924/ + PNG 魔数 + sips 尺寸对账;
- * 阶段C(加分项,PE-I2I 已恢复才做)qwen21-edit 件 [15] PE 开关 true → 干跑取证
+ * 阶段C(加分项,PE-I2I 已恢复才做)qi21-edit 件 [15] PE 开关 true → 干跑取证
  *        switch=true + 排队后 /queue 图含 CLIPLoader(pe_i2i 件)+TextGenerate →
  *        /interrupt 断开复位(照 qi21_e2e_final_0923.mjs ④ 省弹模式,排队通过即证)。
  *
@@ -37,7 +37,7 @@ const CH = join(homedir(), "Library/Application Support/漫影工作室/comfyui"
 const ENGINE_OUTPUT = join(CH, "output");
 const WF_DIR = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows`;
 const WF_T2I_REL = "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
-const WF_EDIT_REL = "1_图片/Q2-1图像/3_改图/qwen21-edit.json";
+const WF_EDIT_REL = "1_图片/Q2-1图像/2_图生图/qi21-edit.json";
 const E2E_DIR = `${process.env.HOME}/Downloads/q21-final-0924`;
 const OUT_PREFIX = "QI21道劫文生图_";
 const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS || 1_500_000); // 25min(4.2MP 40步 MPS 余量)
@@ -448,8 +448,8 @@ async function main() {
     report.cases.t2i = { imgName, srcPath, destPath, bytes, size, secs, queuedAt: new Date(t0).toISOString() };
   }
 
-  // ── 阶段C:PE-I2I 加分项(qwen21-edit [15] PE 开路排队取证) ──
-  log("⑨ PE-I2I 加分项:qwen21-edit 件 PE 开路(排队通过即证,照 ④ 省弹模式)");
+  // ── 阶段C:PE-I2I 加分项(qi21-edit [15] PE 开路排队取证) ──
+  log("⑨ PE-I2I 加分项:qi21-edit 件 PE 开路(排队通过即证,照 ④ 省弹模式)");
   if (!imgName) {
     check("PE-I2I 加分项:edit 件 PE 开路排队取证", false, "跳过:主出图未成(引擎中途死亡),PE 段无引擎可用");
     report.cases.peI2i = { skipped: "engine-died-before-pe" };
@@ -459,7 +459,7 @@ async function main() {
   // 侧栏换叶子(树不可用则回落 loadGraphData)
   let editLeaf = null;
   try {
-    await expandFolder("3_改图").catch(() => {});
+    await expandFolder("2_图生图").catch(() => {});
     editLeaf = await wv(mainPage, `(() => {
       const row = [...document.querySelectorAll('.my-tree-row')]
         .find(r => (r.title || '').endsWith(${JSON.stringify("repo:" + WF_EDIT_REL)}));
@@ -471,12 +471,12 @@ async function main() {
   if (editLeaf !== "ok") {
     const opened = await wv(mainPage, `(async () => {
       const app = window.app;
-      app.loadGraphData(${JSON.stringify(editGraph)}, true, true, 'qwen21-edit-装机验收PE');
+      app.loadGraphData(${JSON.stringify(editGraph)}, true, true, 'qi21-edit-装机验收PE');
       return 'opened';
     })()`);
     check("回落: loadGraphData 直载 edit", opened === "opened", String(opened));
   } else {
-    check("侧栏叶子打开 qwen21-edit(真实用户路径)", true, "ok");
+    check("侧栏叶子打开 qi21-edit(真实用户路径)", true, "ok");
   }
   await waitFor(() => wv(mainPage, `window.app.graph && window.app.graph._nodes.length === ${editNodeCount} ? ${editNodeCount} : null`),
     { timeout: 40_000, interval: 1000, label: `画布切换(${editNodeCount} 节点)` });

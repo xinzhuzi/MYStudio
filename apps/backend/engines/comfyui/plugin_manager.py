@@ -346,16 +346,27 @@ def catalog_search(query: str, limit: int = 40) -> dict:
                         "installed": _installed_in_ledger(
                             ledger, entry.get("id"), entry.get("repo"), entry.get("dir"),
                             physical_dirs=physical_dirs)})
+    # 0925 防双显:策展已收的件,注册表搜索行让位——同一件不再「精选」「注册表」
+    # 两区各一行(实弹:Q2-1 策展九件入库后搜 qwen,BlockCache 等五件双行)。
+    # 比对口径与已装判定同族:仓库地址归一化 + id 小写;空键不比对(防无仓库件误伤)。
+    shown_repo_keys = {
+        _normalize_repo(str(e.get("repo") or "")) for e in curated if e.get("repo")
+    } - {""}
+    shown_ids = {str(e.get("id") or "").lower() for e in curated if e.get("id")}
     registry: list[dict] = []
     registry_error: str | None = None
     try:
         payload = _registry_get("/nodes/search", {"search": query or "", "limit": min(100, max(1, limit))})
         for node in payload.get("nodes", [])[:limit]:
             entry = _registry_entry(node)
-            if entry:
-                entry["installed"] = _installed_in_ledger(
-                    ledger, entry.get("id"), entry.get("repo"), physical_dirs=physical_dirs)
-                registry.append(entry)
+            if not entry:
+                continue
+            if (_normalize_repo(str(entry.get("repo") or "")) in shown_repo_keys
+                    or str(entry.get("id") or "").lower() in shown_ids):
+                continue
+            entry["installed"] = _installed_in_ledger(
+                ledger, entry.get("id"), entry.get("repo"), physical_dirs=physical_dirs)
+            registry.append(entry)
     except EngineOpError as exc:
         registry_error = str(exc)
     return {"query": query, "curated": curated, "registry": registry, "registryError": registry_error}

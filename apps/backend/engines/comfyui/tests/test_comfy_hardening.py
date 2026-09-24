@@ -564,3 +564,139 @@ class TestOutboundProxy:
         ):
             req = em.request.Request(url)
             assert em.urlopen_outbound(req, timeout=1.0) is sentinel, url
+
+
+class TestPipRoute:
+    """09-24 根修:下载前测速择路——install 走实测最快镜像(-i 改写+env 摘净
+    代理),镜像实弹失败回退现行「官方源+代理」原路重试一次;uninstall 零网络不探。"""
+
+    MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+    def _mirror_route(self):
+        from common.net_speed import PipRoute
+
+        return PipRoute("清华镜像", self.MIRROR, 36.7 * 1024 * 1024,
+                        strip_proxy=True, is_fallback=False)
+
+    @staticmethod
+    def _install_fake_popen(monkeypatch, captured):
+        """同 TestOutboundProxy 模式,额外捕获 argv(择路断言要看 -i 注入)。"""
+        import io
+
+        import engines.comfyui.engine_manager as em
+
+        class _FakeProc:
+            def __init__(self):
+                self.stdout = io.StringIO("ok")
+                self.pid = 424242
+
+            def wait(self, timeout=None):
+                return 0
+
+            def kill(self):
+                pass
+
+        def _fake_popen(argv, **kwargs):
+            captured["argv"] = list(argv)
+            captured["env"] = kwargs.get("env")
+            return _FakeProc()
+
+        monkeypatch.setattr(em.subprocess, "Popen", _fake_popen)
+
+    def test_install_routes_via_mirror_with_stripped_env(self, monkeypatch):
+        """install 走镜像:argv 含 ['-i', 镜像],env 无任何代理键(继承的也摘净)。"""
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "pick_pip_route", lambda: self._mirror_route())
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: None)
+        # 模拟 Electron 父进程继承下来的 Clash 代理变量(镜像线也必须摘净)
+        monkeypatch.setenv("https_proxy", "http://127.0.0.1:7890")
+        monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:7890")
+        captured: dict = {}
+        self._install_fake_popen(monkeypatch, captured)
+
+        assert em._pip(["install", "torch"]) == "ok"
+        argv = captured["argv"]
+        assert "-i" in argv
+        assert argv[argv.index("-i") + 1] == self.MIRROR
+        assert "install" in argv and "torch" in argv
+        env = captured["env"]
+        assert env is not None  # strip 分支必产显式 env(而非继承)
+        for key in em._PROXY_ENV_STRIP_KEYS:
+            assert key not in env, key
+
+    def test_mirror_failure_falls_back_to_official_once(self, monkeypatch):
+        """镜像实弹失败 → 作废缓存 + 现行「官方源+代理」原路完整重试一次。"""
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "pick_pip_route", lambda: self._mirror_route())
+        invalidated: list[bool] = []
+        monkeypatch.setattr(em, "invalidate_pip_route", lambda: invalidated.append(True))
+        calls: list[tuple[list[str], object]] = []
+
+        def _fake_run(argv, **kwargs):
+            calls.append((list(argv), kwargs.get("strip_proxy_env")))
+            if len(calls) == 1:
+                raise EngineOpError("命令失败(pip,退出码 1): 镜像缺新版")
+            return "ok"
+
+        monkeypatch.setattr(em, "_run", _fake_run)
+        assert em._pip(["install", "-r", "/tmp/req.txt"]) == "ok"
+        assert len(calls) == 2  # 镜像一次+官方重试一次,无第三次
+        first_argv, first_strip = calls[0]
+        assert first_argv[first_argv.index("-i") + 1] == self.MIRROR
+        assert first_strip is True
+        second_argv, second_strip = calls[1]
+        assert "-i" not in second_argv  # 现行原路:无 -i、不摘代理(键缺省=默认 False)
+        assert not second_strip
+        assert invalidated == [True]
+
+    def test_uninstall_skips_route_picking(self, monkeypatch):
+        """uninstall 零网络不触发测速(哈希未变跳过段同理由此结构性覆盖)。"""
+        import engines.comfyui.engine_manager as em
+
+        def _no_route():
+            raise AssertionError("uninstall 不得触发测速择路")
+
+        monkeypatch.setattr(em, "pick_pip_route", _no_route)
+        monkeypatch.setattr(em, "_run", lambda argv, **kwargs: "")
+        assert em._pip(["uninstall", "-y", "some-pkg"]) == ""
+
+    def test_fallback_and_none_routes_keep_current_path(self, monkeypatch):
+        """route=None(全线探测失败)或现行线(is_fallback)→ 现行路径逐字不变。"""
+        from common.net_speed import PipRoute
+
+        import engines.comfyui.engine_manager as em
+        calls: list[list[str]] = []
+        monkeypatch.setattr(em, "_run", lambda argv, **kwargs: calls.append(list(argv)) or "ok")
+        monkeypatch.setattr(em, "pick_pip_route", lambda: None)
+        assert em._pip(["install", "torch"]) == "ok"
+        monkeypatch.setattr(em, "pick_pip_route", lambda: PipRoute(
+            "官方源", "https://pypi.org/simple", 80 * 1024, strip_proxy=False, is_fallback=True))
+        assert em._pip(["install", "torch"]) == "ok"
+        assert all("-i" not in argv for argv in calls) and len(calls) == 2
+
+    def test_pip_route_note_text(self, monkeypatch):
+        """消息注记:镜像线=『(清华镜像·实测35.2MB/s)』,现行线空串(消息原样)。"""
+        from common.net_speed import PipRoute
+
+        import engines.comfyui.engine_manager as em
+        mirror = PipRoute("清华镜像", self.MIRROR, 35.2 * 1024 * 1024,
+                          strip_proxy=True, is_fallback=False)
+        assert em.pip_route_note(mirror) == "(清华镜像·实测35.2MB/s)"
+        current = PipRoute("官方源", "https://pypi.org/simple", 80 * 1024,
+                           strip_proxy=False, is_fallback=True)
+        assert em.pip_route_note(current) == ""
+
+    def test_run_strip_proxy_env_removes_inherited_proxy_keys(self, monkeypatch):
+        """_run(strip_proxy_env=True) 全量摘净(含继承);默认路径继续注入(回归)。"""
+        import engines.comfyui.engine_manager as em
+        monkeypatch.setattr(em, "outbound_proxy_url", lambda: "http://127.0.0.1:7890")
+        monkeypatch.setenv("https_proxy", "http://inherited:1")
+        monkeypatch.setenv("ALL_PROXY", "http://inherited:1")
+        captured: dict = {}
+        self._install_fake_popen(monkeypatch, captured)
+
+        assert em._run(["pip", "install", "x"], strip_proxy_env=True) == "ok"
+        env = captured["env"]
+        assert env is not None
+        for key in em._PROXY_ENV_STRIP_KEYS:
+            assert key not in env, key

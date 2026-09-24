@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """qwen21-t2i.json 主 TE 换装 Heretic(0924 用户令:TE 换 Heretic 当主力)。
 
-背景:Q2-1 四件中三件(qi21-道劫-t2i/qi21-道劫-i2i/qwen21-edit)由幂等生成器驱动,
+背景:Q2-1 四件中三件(qi21-道劫-t2i/qi21-道劫-i2i/qi21-edit)由幂等生成器驱动,
 本 task 已在生成器侧换装;唯 qwen21-t2i.json 是 09-23 画布重存版(生成器
 qwen21_canvas_options_0923.py 已随 caed3ab 退役删除),无生成器可改——契约测试
 test_qwen21_workflow_contract.py 的 CLIP_FILE 对四件统一断言,故此件必须同步换装,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Q2-1 qwen21-edit.json(升级版:双图多图编辑+PE-I2I 换核心 TextGenerate)真前端实测 E2E(09-24):
+ * Q2-1 qi21-edit.json(升级版:双图多图编辑+PE-I2I 换核心 TextGenerate)真前端实测 E2E(09-24):
  *   ① 干跑:载入 edit 件 graphToPrompt 无异常;节点注册核 TextGenerate/QwenImage21Cache 须 200;
  *   ② 多图编辑:官方两示例图(portrait_model_denim+clothing_light_blue_denim_shirt,已在引擎 input)
  *      → LoadImage×2 → TextEncodeQwenImage21 images 双槽 → [19]=true 走 EmptyLatentImage 1024² 自定义画幅路
@@ -27,7 +27,7 @@ const execFileP = promisify(execFile);
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const CDP_PORT = Number(process.env.CDP_PORT || 9361);
 const E2E_DIR = `${process.env.HOME}/Downloads/qi21-edit-final`;
-const WF = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json`;
+const WF = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qi21-edit-final-chrome-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 1_500_000); // 25 min(1024² 25步 MPS 余量)
@@ -302,7 +302,7 @@ async function main() {
 
   const graphJson = JSON.parse(readFileSync(WF, "utf8"));
   const nodeCount = graphJson.nodes.length;
-  const opened = await loadWorkflow(page, "qwen21-edit-终验收", graphJson);
+  const opened = await loadWorkflow(page, "qi21-edit-终验收", graphJson);
   check("edit 件: 工作流载入(前端 loadGraphData)", opened === "opened", String(opened));
   await waitFor(() => page.ev(vis(`window.app.graph && window.app.graph._nodes.length === ${nodeCount} ? ${nodeCount} : null`)),
     { timeout: 40_000, interval: 1000, label: `画布切换(${nodeCount} 节点)` });

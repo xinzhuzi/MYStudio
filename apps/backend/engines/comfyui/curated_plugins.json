@@ -151,6 +151,78 @@
       "provides": [
         "MinimaxH3LatentUpscaler3D"
       ]
+    },
+    {
+      "id": "ComfyUI-Qwen-Image-2.1-Prompt-Enhancer",
+      "name": "Q2-1 提示词改写(PE)",
+      "desc_zh": "看图改写/扩写提示词两节点(文生图扩写+改图改写,Qwen3-VL 8B 微调)——漫影 Q2-1 工作流 PE 改写组的插件本体,画布开关默认旁路。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/benjiyaya/ComfyUI-Qwen-Image-2.1-Prompt-Enhancer",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-Qwen-Image-2.1-PromptEnhancer-MTP",
+      "name": "Q2-1 提示词改写 MTP 版",
+      "desc_zh": "PE 改写的 MTP 变体(多 token 预测),装机在册的备选改写器。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/mozophe/comfyui-qwen-image-2.1-promptenhancer-mtp",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "Comfyui-QwenEditUtils",
+      "name": "Q2-1 改图工具集",
+      "desc_zh": "Qwen-Image 改图周边工具节点合集(社区名件,855 星)。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/lrzjason/comfyui-qweneditutils",
+      "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "qwen-image-21-blockcache-t8",
+      "name": "Q2-1 块缓存加速(T8)",
+      "desc_zh": "Q2-1 出图加速:块缓存+频谱预测+注意力适配,不减步数只减每步用时;与已装的 H3 版同作者(T8),Mac 大概率可用,装后以引擎节点注册为准。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-BlockCache-T8",
+      "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "qwen-image-2-1-fun-controlnet-union-t8",
+      "name": "Q2-1 Fun ControlNet Union(T8)",
+      "desc_zh": "姿势/构图/深度等控制编辑的加载与条件节点;需另下 Fun ControlNet Union 权重(数 GB),做控制类改图再装。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/T8mars/ComfyUI-Qwen-Image-2.1-Fun-Controlnet-Union-T8",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "TE-Speed-QwenImage21",
+      "name": "Q2-1 采样提速(TE-Speed)",
+      "desc_zh": "MODEL 链采样提速(输出预测 30-40%,不减步数,不替代 QwenImage21Cache);上游只发 Windows 编译件,Mac 装不了(引擎卡尾行状态如实显示),Windows 用户可用。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/tl2012tl/TE-Speed-QwenImage21",
+      "verified_license": "未标明"
+    },
+    {
+      "id": "ciru-image-accelerator",
+      "name": "Q2-1 AMD 显卡加速(Ciru)",
+      "desc_zh": "Turbo Prediction + packed attention,文生图/改图两用——AMD 显卡(Windows)专属,Mac 与 N 卡不适用。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/ciru-ai/ComfyUI-CiruImageAccelerator",
+      "verified_license": "GPL-3.0"
+    },
+    {
+      "id": "nvfp4-universal-quantizer",
+      "name": "通用 FP8/NVFP4 量化器",
+      "desc_zh": "SDXL/Wan/Qwen Image/Z-Image/FLUX 的 FP8/NVFP4 混合量化省显存——NVIDIA 显卡专属,Mac 不适用。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/thepororo/ComfyUI-NVFP4-Quantizer",
+      "verified_license": "未标明"
+    },
+    {
+      "id": "ComfyUI_Qwen3_Translator_Node",
+      "name": "Qwen3 翻译器",
+      "desc_zh": "基于 Qwen3 的本地提示词翻译节点——漫影自家流程不用翻译层(提示词由 AI 直写),给需要翻译的用户备着。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/aduanyue/ComfyUI_Qwen3_Translator_Node",
+      "verified_license": "未标明"
     }
   ]
 }

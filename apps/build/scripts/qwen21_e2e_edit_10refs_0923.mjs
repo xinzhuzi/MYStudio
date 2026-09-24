@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Qwen-Image-2.1 编辑流 · 十参考图能力 实弹 E2E · round 7(09-23):
- * 在 qwen21-edit.json 默认直写路(开关 [15] 不动)上,画布运行态临时新增 8 个
+ * 在 qi21-edit.json 默认直写路(开关 [15] 不动)上,画布运行态临时新增 8 个
  * LoadImage 节点(LiteGraph.createNode,仅画布态不落盘 JSON),逐一接到
  * [6] TextEncodeQwenImage21 的 images.image_3..images.image_10 槽(按名寻 index,
  * 槽缺失则 addInput 补槽),[14] 直写 StringConstant 改为引用 <image1>..<image10>
@@ -42,7 +42,7 @@ const execFileP = promisify(execFile);
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17000";
 const CDP_PORT = Number(process.env.CDP_PORT || 9355);
 const E2E_DIR = `${process.env.HOME}/Downloads/qwen21-e2e-0923/round7-edit-pe`;
-const WF_EDIT = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json`;
+const WF_EDIT = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qwen21-r7-10refs-chrome-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 1_800_000); // 30 min(十图 VAE 编码 + 25 步采样)

@@ -4,7 +4,7 @@
 09-24 增 i2i):
     engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-t2i.json
     engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
-    engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qi21-edit.json
+    engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json
     engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json
 
 格式口径(09-23 取舍,引擎 v0.37 直开为最终裁判):三件为**引擎前端格式**
@@ -127,7 +127,7 @@ _REPO = _TESTS_DIR.parents[4]  # tests → comfyui → engines → backend → a
 _IMG_DIR = _TESTS_DIR.parent / "workflows" / "1_图片"
 T2I = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-t2i.json"
 QI21 = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qi21-道劫-t2i.json"
-EDIT = _IMG_DIR / "Q2-1图像" / "3_改图" / "qi21-edit.json"
+EDIT = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-edit.json"
 I2I = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-i2i.json"
 K2_DIR = _IMG_DIR / "K2图像"
 PROMPT_LIB = _REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"

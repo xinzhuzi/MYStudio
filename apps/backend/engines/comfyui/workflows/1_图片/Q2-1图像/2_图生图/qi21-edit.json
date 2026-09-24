@@ -47,7 +47,7 @@
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        -1860,
+        -2260,
         -460
       ],
       "size": [
@@ -96,7 +96,7 @@
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        -1440,
+        -1720,
         -460
       ],
       "size": [
@@ -155,7 +155,7 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        -1000,
+        -1140,
         -460
       ],
       "size": [
@@ -196,7 +196,7 @@
       "id": 4,
       "type": "LoadImage",
       "pos": [
-        -1860,
+        -2260,
         -100
       ],
       "size": [
@@ -250,7 +250,7 @@
       "id": 16,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        -1480,
+        -1560,
         -100
       ],
       "size": [
@@ -314,7 +314,7 @@
       "id": 5,
       "type": "LoadImage",
       "pos": [
-        -1100,
+        -1030,
         -100
       ],
       "size": [
@@ -368,7 +368,7 @@
       "id": 17,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        -720,
+        -480,
         -100
       ],
       "size": [
@@ -432,7 +432,7 @@
       "id": 6,
       "type": "TextEncodeQwenImage21",
       "pos": [
-        1000,
+        2000,
         -100
       ],
       "size": [
@@ -511,7 +511,7 @@
       "id": 7,
       "type": "QwenImage21Cache",
       "pos": [
-        1820,
+        2960,
         -100
       ],
       "size": [
@@ -566,7 +566,7 @@
       "id": 8,
       "type": "KSampler",
       "pos": [
-        3380,
+        4810,
         -100
       ],
       "size": [
@@ -632,7 +632,7 @@
       "id": 9,
       "type": "VAEDecode",
       "pos": [
-        3780,
+        5340,
         -100
       ],
       "size": [
@@ -671,7 +671,7 @@
       "id": 10,
       "type": "SaveImage",
       "pos": [
-        4100,
+        5790,
         -100
       ],
       "size": [
@@ -700,7 +700,7 @@
       "id": 30,
       "type": "PrimitiveBoolean",
       "pos": [
-        2340,
+        3660,
         -560
       ],
       "size": [
@@ -741,7 +741,7 @@
       "id": 31,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        2240,
+        3560,
         -260
       ],
       "size": [
@@ -795,7 +795,7 @@
       "id": 32,
       "type": "ComfySwitchNode",
       "pos": [
-        2660,
+        4110,
         -260
       ],
       "size": [
@@ -847,8 +847,8 @@
       "id": 19,
       "type": "PrimitiveBoolean",
       "pos": [
-        1000,
-        480
+        1960,
+        1020
       ],
       "size": [
         280,
@@ -887,8 +887,8 @@
       "id": 18,
       "type": "EmptyLatentImage",
       "pos": [
-        1340,
-        480
+        2460,
+        1020
       ],
       "size": [
         300,
@@ -945,8 +945,8 @@
       "id": 20,
       "type": "ComfySwitchNode",
       "pos": [
-        1700,
-        480
+        3900,
+        1020
       ],
       "size": [
         280,
@@ -997,8 +997,8 @@
       "id": 12,
       "type": "CLIPLoader",
       "pos": [
-        -1860,
-        860
+        -2260,
+        1700
       ],
       "size": [
         360,
@@ -1055,8 +1055,8 @@
       "id": 21,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        -1440,
-        860
+        -1160,
+        1340
       ],
       "size": [
         300,
@@ -1095,8 +1095,8 @@
       "id": 22,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        -1090,
-        860
+        -1720,
+        1340
       ],
       "size": [
         340,
@@ -1136,8 +1136,8 @@
       "id": 23,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        -700,
-        860
+        -660,
+        1340
       ],
       "size": [
         260,
@@ -1176,8 +1176,8 @@
       "id": 24,
       "type": "StringFormat",
       "pos": [
-        -400,
-        860
+        -160,
+        1340
       ],
       "size": [
         300,
@@ -1234,8 +1234,8 @@
       "id": 25,
       "type": "BatchImagesNode",
       "pos": [
-        -400,
-        1120
+        -110,
+        340
       ],
       "size": [
         260,
@@ -1274,8 +1274,8 @@
       "id": 26,
       "type": "TextGenerate",
       "pos": [
-        -110,
-        1120
+        370,
+        1700
       ],
       "size": [
         400,
@@ -1449,8 +1449,8 @@
       "id": 27,
       "type": "RegexExtract",
       "pos": [
-        340,
-        1120
+        970,
+        1700
       ],
       "size": [
         330,
@@ -1543,8 +1543,8 @@
       "id": 15,
       "type": "ComfySwitchNode",
       "pos": [
-        720,
-        1120
+        1500,
+        1700
       ],
       "size": [
         300,
@@ -1618,8 +1618,8 @@
       "id": 28,
       "type": "Reroute",
       "pos": [
-        -620,
-        -640
+        -1120,
+        -980
       ],
       "size": [
         75,
@@ -1653,8 +1653,8 @@
       "id": 29,
       "type": "Reroute",
       "pos": [
-        3400,
-        -640
+        4180,
+        -980
       ],
       "size": [
         75,
@@ -1688,8 +1688,8 @@
       "id": 33,
       "type": "ComfySwitchNode",
       "pos": [
-        3040,
-        -300
+        4610,
+        -360
       ],
       "size": [
         300,
@@ -1740,8 +1740,8 @@
       "id": 34,
       "type": "PrimitiveInt",
       "pos": [
-        2680,
-        -580
+        4160,
+        -800
       ],
       "size": [
         270,
@@ -1786,8 +1786,8 @@
       "id": 35,
       "type": "PrimitiveInt",
       "pos": [
-        2680,
-        -420
+        4160,
+        -560
       ],
       "size": [
         270,

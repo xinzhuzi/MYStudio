@@ -8,7 +8,7 @@
  * app.loadGraphData 载入 qi21-道劫-t2i → 型选择=道具(1024²) → graphToPrompt
  * 干跑取证 → app.queuePrompt()(真前端序列化+排队,禁 API 转换器)→ /history
  * 轮询 → /view 取图 → cp ~/Downloads/q21-final-0924/ + PNG 魔数 + sips 对账;
- * 再 qwen21-edit [15] PE 开关真开路:排队 → /queue 图取证(pe_i2i 权重+
+ * 再 qi21-edit [15] PE 开关真开路:排队 → /queue 图取证(pe_i2i 权重+
  * TextGenerate+switch=true)→ /interrupt 断开复位(省弹,排队通过即证)。
  * 引擎生命周期(自拉 17002/停)在驱动外管理。
  * 用法:node apps/build/scripts/qi21_install_accept_17002_0924.mjs
@@ -29,7 +29,7 @@ const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const CDP_PORT = Number(process.env.CDP_PORT || 9379);
 const E2E_DIR = `${process.env.HOME}/Downloads/q21-final-0924`;
 const WF_T2I = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`;
-const WF_EDIT = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json`;
+const WF_EDIT = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json`;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qi21-installaccept-17002-profile";
 const GEN_TIMEOUT = Number(process.env.GEN_TIMEOUT_MS || 1_200_000); // 20min(1024² 40步 MPS+装载余量)
@@ -263,7 +263,7 @@ async function main() {
   const edit = JSON.parse(readFileSync(WF_EDIT, "utf8"));
   const openedEdit = await page.ev(`(async () => {
     const app = window.app;
-    app.loadGraphData(${JSON.stringify(edit)}, true, true, 'qwen21-edit-装机验收PE17002');
+    app.loadGraphData(${JSON.stringify(edit)}, true, true, 'qi21-edit-装机验收PE17002');
     return 'opened';
   })()`);
   check("edit 载入(真前端 loadGraphData)", openedEdit === "opened", String(openedEdit));

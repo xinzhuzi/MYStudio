@@ -27,7 +27,7 @@
  *             (LoraLoaderModelOnly 入排队图+steps=4+开关源 value=true)→
  *             queuePrompt → 出图(~3min)→ 服务端执行记录含 [31](LoRA 真加载)
  *             +history 排队图取证 → cp r26-t2i-on-seed0-4step.png
- *   edit-off :载入 qwen21-edit(槽在场),开关默认关 → 干跑(开关源 value=false)
+ *   edit-off :载入 qi21-edit(槽在场),开关默认关 → 干跑(开关源 value=false)
  *             → queuePrompt → 全图(1024²,~7min)→ 服务端执行记录零 [31] → cp
  *             r26-edit-off-default.png
  *   i2i-dry  :载入 qi21-道劫-i2i,干跑取证(槽在场[31]viggle r64 预填+开关源
@@ -58,7 +58,7 @@ const OUT_DIR = `${process.env.HOME}/Downloads/q21-final-0924/r26`;          // 
 const REPORT_DIR = `${process.env.HOME}/Project/Github/MYStudio/apps/out/q21-final-0924`; // 相位报告
 const WF = {
   "t2i": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`,
-  "edit": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json`,
+  "edit": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json`,
   "i2i": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json`,
 };
 const DEST = {
@@ -456,7 +456,7 @@ async function main() {
 
   // ══════════ ③ edit 关态全图(开关默认关)══════════
   if (PHASE === "edit-off") {
-    await loadWorkflow(page, WF.edit, "qwen21-edit-R26关态");
+    await loadWorkflow(page, WF.edit, "qi21-edit-R26关态");
     const defaults = await page.ev(`(() => {
       const nodes = window.app.graph._nodes;
       const grab = (type) => nodes.filter(n => n.type === type).map(n => ({ id: n.id, w: (n.widgets || []).map(x => ({ name: String(x.name), value: x.value })) }));

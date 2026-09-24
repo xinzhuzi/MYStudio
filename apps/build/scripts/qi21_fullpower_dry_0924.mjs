@@ -37,7 +37,7 @@ const REPORT_DIR = `${process.env.HOME}/Project/Github/MYStudio/apps/out/q21-fin
 const WF = {
   "t2i": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`,
   "i2i": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json`,
-  "edit": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/3_改图/qwen21-edit.json`,
+  "edit": `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json`,
 };
 // 每件的节点 id 锚(与生成器/契约测试同表)
 const ANCHOR = {

@@ -501,8 +501,19 @@ def collect_import_failures(log_text: str) -> list[dict]:
 
 
 # ── subprocess 辅助(绝对路径 + 显式 cwd,防漂移坑) ────────────────
+# 镜像线路子进程 env 全量摘除的代理键(09-24):http(s)/all/ftp 四族大小写
+# + no_proxy——镜像路线下子进程唯一网络对端就是镜像域,代理变量毫无用处,
+# 且今晚事故模式恰是「代理 env 在场=全进 Clash(30-60KB/s)」,整体摘净
+# (连 Electron 父进程继承的 Clash 变量也一并剥掉)最无歧义。
+_PROXY_ENV_STRIP_KEYS = frozenset({
+    "http_proxy", "https_proxy", "all_proxy", "ftp_proxy",
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "FTP_PROXY",
+    "no_proxy", "NO_PROXY",
+})
+
+
 def _run(argv: list[str], cwd: Path | None = None, timeout: float = 600.0,
-         on_line=None) -> str:
+         on_line=None, *, strip_proxy_env: bool = False) -> str:
     """跑 git/pip(唯一交互面;绝不 shell=True),逐行回调输出。
 
     看门狗计时器兜底:pip 静默下载期间 readline 无输出,行内 deadline 检查
@@ -510,12 +521,19 @@ def _run(argv: list[str], cwd: Path | None = None, timeout: float = 600.0,
     出站网络(git/pip)探测到本机代理则注入代理环境变量(09-19 根修:
     GitHub/PyPI 直连不通时插件更新链整条报错;no_proxy 钉死本机回环,
     引擎 127.0.0.1 调用不受影响)。
+    strip_proxy_env=True(09-24 镜像线路专用):不注入代理,反而把继承
+    env 里的代理键全量摘净(_PROXY_ENV_STRIP_KEYS);默认 False=09-19
+    行为一字不动。
     """
     proxy_env = _proxy_subprocess_env()
+    if strip_proxy_env:
+        env = {k: v for k, v in os.environ.items() if k not in _PROXY_ENV_STRIP_KEYS}
+    else:
+        env = {**os.environ, **proxy_env} if proxy_env else None
     proc = subprocess.Popen(
         [str(a) for a in argv], cwd=str(cwd) if cwd else None,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
-        env={**os.environ, **proxy_env} if proxy_env else None,
+        env=env,
     )
     timed_out = {"hit": False}
 
@@ -550,6 +568,27 @@ def _git(argv: list[str], cwd: Path | None = None, timeout: float = 600.0, on_li
 
 
 def _pip(argv: list[str], timeout: float = 3600.0, on_line=None) -> str:
+    """pip 子进程唯一交互面(安装/更新/回退/复位/迁移/插件链 9 个调用点共用;签名恒稳)。
+
+    下载前测速择路(09-24 根修):argv[0]=='install' 才探——uninstall 零网络
+    不白探(未来引入其它需网络子命令如 download 须同步扩此门控)。选中
+    镜像线(或代理在场时的官方直连 strip 线)→ -i 改写 + 子进程 env 摘净
+    代理(_run strip_proxy_env=True);实弹失败(退出码非 0/超时,含镜像
+    滞后缺新版——09-24 实测阿里 simple 页落后官方一个版本)→ 作废缓存 +
+    按现行「官方源+代理」原路完整重试一次,再败 EngineOpError 原样冒泡
+    (现行大白话语义不变)。route 为 None/现行线(is_fallback)→ 现行
+    路径逐字不变。requirementsHash 未变时上游整段不调 _pip,结构上不可能
+    白测速。
+    """
+    if argv and argv[0] == "install":
+        route = pick_pip_route()
+        if route is not None and not route.is_fallback:
+            mirror_argv = [argv[0], "-i", route.index_url, *argv[1:]]
+            try:
+                return _run([*cm.venv_pip(), *mirror_argv], cwd=cm.comfy_home(),
+                            timeout=timeout, on_line=on_line, strip_proxy_env=True)
+            except EngineOpError:
+                invalidate_pip_route()  # 缓存作废:下一轮 _pip 重探自愈
     return _run([*cm.venv_pip(), *argv], cwd=cm.comfy_home(), timeout=timeout, on_line=on_line)
 
 
@@ -567,6 +606,11 @@ def _get_json(url: str, timeout: float = 5.0):
 from common.net_outbound import (  # noqa: E402(放此处贴近使用点;common 零依赖可安全早导入)
     outbound_proxy_url,
     urlopen_outbound,
+)
+from common.net_speed import (  # noqa: E402(同上;测试打 em 命名空间模块级名,守 house 规矩)
+    invalidate_pip_route,
+    pick_pip_route,
+    pip_route_note,
 )
 
 
@@ -1373,7 +1417,8 @@ class EngineManager:
             if req_hash is not None and req_hash == last_req_hash:
                 jobs.update(job_id, progress=50, step="pip", message="依赖无变化,跳过升级(直接进入重启)…")
             else:
-                jobs.update(job_id, progress=35, step="pip", message="依赖按需升级…")
+                # 消息拼装处即探测落缓存(pip 必跑不白探);镜像线才有注记,现行线原样
+                jobs.update(job_id, progress=35, step="pip", message=f"依赖按需升级{pip_route_note()}…")
                 _pip(["install", "torch", "torchvision", "torchaudio"])
                 _pip(["install", "-r", str(src / "requirements.txt")],
                      on_line=lambda line: jobs.update(job_id, tail_line=line))

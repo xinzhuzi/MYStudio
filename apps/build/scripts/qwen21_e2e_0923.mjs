@@ -30,7 +30,7 @@ const CDP_PORT = Number(process.env.CDP_PORT || 9333);
 const E2E_DIR = `${process.env.HOME}/Downloads/qwen21-e2e-0923`;
 const WF_DIR = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像`;
 const WF_T2I = join(WF_DIR, "1_文生图/qwen21-t2i.json");
-const WF_EDIT = join(WF_DIR, "3_改图/qwen21-edit.json");
+const WF_EDIT = join(WF_DIR, "2_图生图/qi21-edit.json");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/qwen21-e2e-0923-chrome-profile";
 const T2I_TIMEOUT = Number(process.env.T2I_TIMEOUT_MS || 1_800_000);
@@ -323,7 +323,7 @@ async function main() {
 
   log("④ edit 实弹(双 LoadImage 官方示例图,resolution=0 跟随 image_1)");
   const edit = await runCase(page, {
-    tag: "edit", wfPath: WF_EDIT, tabName: "qwen21-edit",
+    tag: "edit", wfPath: WF_EDIT, tabName: "qi21-edit",
     nodeCount: JSON.parse(readFileSync(WF_EDIT, "utf8")).nodes.length,
     steps: [
       { type: "LoadImage", titlePart: "image_1", widget: "image", value: "portrait_model_denim.png" },

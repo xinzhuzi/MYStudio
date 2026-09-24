@@ -5,7 +5,7 @@
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/brainstorming/SKILL.md",
-      "computedHash": "b58d55b64742ecd37923985ec7bdfbe678ffbcb9895562abd28c0a32dcacd7fb"
+      "computedHash": "b95dc657c5dd79caf7340ee6dead6faf2ce2d1cc613352a027fa8993966b41b7"
     },
     "dispatching-parallel-agents": {
       "source": "obra/superpowers",
@@ -23,7 +23,7 @@
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/executing-plans/SKILL.md",
-      "computedHash": "78a07800ee99a5861ae10be59d79fad085fdca10444e8aaeb2691597e357cff8"
+      "computedHash": "5d587b5a8ed12c3d6808bce1561d9a72eab37a9b44d51d9dff99232decaae78e"
     },
     "finishing-a-development-branch": {
       "source": "obra/superpowers",
@@ -35,7 +35,7 @@
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
-      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+      "computedHash": "89496d5dd00f4810205f351759594fc2742bf8eea85a2f2b2d1de59f4bd91576"
     },
     "frontend-ui-engineering": {
       "source": "addyosmani/agent-skills",
@@ -53,7 +53,7 @@
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/lsp-setup/SKILL.md",
-      "computedHash": "f5e42d0c6c1dca6f93f1adc7ffa44321bd1461ea36a2a9e48d269c277ff1e885"
+      "computedHash": "3e7d2ab00279e79810d42dbedf1acb2985dc3e1dbc38e52b4c67dd948a441c89"
     },
     "lyric-diagnostic": {
       "source": "jwynia/agent-skills",
@@ -185,7 +185,7 @@
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/requesting-code-review/SKILL.md",
-      "computedHash": "004f340ae65811095d6a9bb0a759c87d0a8085c5e705dbb019b011626293d2e9"
+      "computedHash": "2abaeac1de432c76abda0ca7ba618901d2e94f8817b3650f9c523acea2d224f5"
     },
     "security-review": {
       "source": "github/awesome-copilot",
@@ -203,7 +203,7 @@
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/systematic-debugging/SKILL.md",
-      "computedHash": "a2750dfbaed1690da73b120254892c4f926b4576cb82eb16fc877783941fe39b"
+      "computedHash": "3589907ee34dc8b1b7223a33fac98ab841a9e42f9960ab4433a832f0c6f00be0"
     },
     "tdd": {
       "source": "mattpocock/skills",
@@ -245,7 +245,7 @@
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/web-design-reviewer/SKILL.md",
-      "computedHash": "10c6fad8b4f01dbeae969009d81d6c306c8a96d56077cad9bfe2a73a38f5dcbe"
+      "computedHash": "4a05e32553a1dc916ee4f68f709d478c17de6b8ce184932f56f2b8646f3d4986"
     },
     "webapp-testing": {
       "source": "anthropics/skills",
@@ -257,13 +257,13 @@
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/writing-plans/SKILL.md",
-      "computedHash": "27c75044e444a4fc68798c3f799dc23eaff3a6bfabff32e6ad75bb20f881c094"
+      "computedHash": "cc8517a6bc569a0633b585649291688217b8a65d547c2ac5fa0923e56ecffa8c"
     },
     "writing-skills": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/writing-skills/SKILL.md",
-      "computedHash": "e5dfc1a942f56dc757421b0d87ae1f38ab693ebc71138e65268fd408bb5c93d3"
+      "computedHash": "f06bbb471439736c838e89a57a2a371bcc687931ba878901d97373194e212ea9"
     }
   }
 }
