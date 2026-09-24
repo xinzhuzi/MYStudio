@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""qwen21-edit.json R16 核心化升级(09-23,幂等全量再生成)。
+"""qi21-edit.json R16 核心化升级(09-23,幂等全量再生成)。
 
 Trellis 09-23-qwen-image-21-research design §13(R16);research/13 官方 PE 强化件
 解剖的「免插件 PE 链」照抄 + research/14/15 吸收项(输入图预缩):
@@ -49,8 +49,8 @@ import os
 import sys
 
 WF = os.path.join(os.path.dirname(__file__), "..", "..", "backend", "engines",
-                  "comfyui", "workflows", "1_图片", "Q2-1图像", "3_改图",
-                  "qwen21-edit.json")
+                  "comfyui", "workflows", "1_图片", "Q2-1图像", "2_图生图",
+                  "qi21-edit.json")
 WF = os.path.normpath(WF)
 
 # ── 常量(逐字锚)───────────────────────────────────────────────────
@@ -212,47 +212,47 @@ def sswitch(nid, pos, false_link, true_link, switch_link, out_link):
 def build_nodes():
     return [
         # ── 行1 加载器(上)────────────────────────────────────────
-        node(1, "UNETLoader", [-1860, -460], [340, 84],
+        node(1, "UNETLoader", [-2260, -460], [340, 84],
              [inp("unet_name", "COMBO", widget=True),
               inp("weight_dtype", "COMBO", widget=True)],
              [out("MODEL", "MODEL", [5])],
              [UNET_FILE, "default"], order=0),
-        node(2, "CLIPLoader", [-1440, -460], [360, 130],
+        node(2, "CLIPLoader", [-1720, -460], [360, 130],
              [inp("clip_name", "COMBO", widget=True),
               inp("type", "COMBO", widget=True),
               inp("device", "COMBO", shape=7, widget=True)],
              [out("CLIP", "CLIP", [3])],
              [CLIP_FILE, "qwen_image", "default"], order=1),
-        node(3, "VAELoader", [-1000, -460], [340, 60],
+        node(3, "VAELoader", [-1140, -460], [340, 60],
              [inp("vae_name", "COMBO", widget=True)],
              [out("VAE", "VAE", [4, 28])],
              [VAE_FILE], order=2),
         # ── 行2 主链:双图→预缩→编码→缓存→采样→解码→保存 ──────────
-        node(4, "LoadImage", [-1860, -100], [340, 420],
+        node(4, "LoadImage", [-2260, -100], [340, 420],
              [inp("image", "COMBO", widget=True),
               inp("upload", "IMAGEUPLOAD", widget=True)],
              [out("IMAGE", "IMAGE", [1]), out("MASK", "MASK", None)],
              [IMG1, "image"], order=3),
-        node(16, "ImageScaleToTotalPixels", [-1480, -100], [330, 130],
+        node(16, "ImageScaleToTotalPixels", [-1560, -100], [330, 130],
              [inp("image", "IMAGE", link=1),
               inp("upscale_method", "COMBO", widget=True),
               inp("megapixels", "FLOAT", widget=True),
               inp("resolution_steps", "INT", widget=True)],
              [out("IMAGE", "IMAGE", [9, 11])],
              ["lanczos", 1.5, 32], order=5),
-        node(5, "LoadImage", [-1100, -100], [340, 420],
+        node(5, "LoadImage", [-1030, -100], [340, 420],
              [inp("image", "COMBO", widget=True),
               inp("upload", "IMAGEUPLOAD", widget=True)],
              [out("IMAGE", "IMAGE", [2]), out("MASK", "MASK", None)],
              [IMG2, "image"], order=4),
-        node(17, "ImageScaleToTotalPixels", [-720, -100], [330, 130],
+        node(17, "ImageScaleToTotalPixels", [-480, -100], [330, 130],
              [inp("image", "IMAGE", link=2),
               inp("upscale_method", "COMBO", widget=True),
               inp("megapixels", "FLOAT", widget=True),
               inp("resolution_steps", "INT", widget=True)],
              [out("IMAGE", "IMAGE", [10, 12])],
              ["lanczos", 1.0, 32], order=6),
-        node(6, "TextEncodeQwenImage21", [1000, -100], [760, 480],
+        node(6, "TextEncodeQwenImage21", [2000, -100], [760, 480],
              [inp("clip", "CLIP", link=3),
               inp("images.image_1", "IMAGE", shape=7, link=9),
               inp("vae", "VAE", shape=7, link=4),
@@ -262,13 +262,13 @@ def build_nodes():
               out("negative", "CONDITIONING", [8]),
               out("latent", "LATENT", [23])],
              ["", "", 0], order=7),
-        node(7, "QwenImage21Cache", [1820, -100], [340, 120],
+        node(7, "QwenImage21Cache", [2960, -100], [340, 120],
              [inp("model", "MODEL", link=5),
               inp("device", "COMBO", widget=True),
               inp("dtype", "COMBO", widget=True)],
              [out("MODEL", "MODEL", [30, 6])],
              ["auto", "default"], order=20),
-        node(8, "KSampler", [3380, -100], [330, 260],
+        node(8, "KSampler", [4810, -100], [330, 260],
              [inp("model", "MODEL", link=33),
               inp("positive", "CONDITIONING", link=7),
               inp("negative", "CONDITIONING", link=8),
@@ -278,66 +278,66 @@ def build_nodes():
               inp("steps", "INT", widget=True, link=39)],
              [out("LATENT", "LATENT", [27])],
              [0, "randomize", 40, 1, "euler", "simple", 1], order=21),
-        node(9, "VAEDecode", [3780, -100], [240, 50],
+        node(9, "VAEDecode", [5340, -100], [240, 50],
              [inp("samples", "LATENT", link=27), inp("vae", "VAE", link=35)],
              [out("IMAGE", "IMAGE", [29])], order=22),
-        node(10, "SaveImage", [4100, -100], [380, 330],
+        node(10, "SaveImage", [5790, -100], [380, 330],
              [inp("images", "IMAGE", link=29)], [],
              ["MYStudio"], order=23),
         # ── R26.4 LoRA 加速槽三件(Cache 上带;09-24 统一接线,与 i2i/t2i 同构)──
-        node(LORA_PB_ID, "PrimitiveBoolean", [2340, -560], [280, 90],
+        node(LORA_PB_ID, "PrimitiveBoolean", [3660, -560], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
              [out("BOOLEAN", "BOOLEAN", [32, 38])],
              [False], order=25),
-        node(LORA_ID, "LoraLoaderModelOnly", [2240, -260], [340, 130],
+        node(LORA_ID, "LoraLoaderModelOnly", [3560, -260], [340, 130],
              [inp("model", "MODEL", link=30),
               inp("lora_name", "COMBO", widget=True),
               inp("strength_model", "FLOAT", widget=True)],
              [out("MODEL", "MODEL", [31])],
              [LORA_FILE, 1.0], order=26),
-        node(LORA_SW_ID, "ComfySwitchNode", [2660, -260], [300, 110],
+        node(LORA_SW_ID, "ComfySwitchNode", [4110, -260], [300, 110],
              [inp("on_false", "MODEL", shape=7, link=6),
               inp("on_true", "MODEL", shape=7, link=31),
               inp("switch", "BOOLEAN", widget=True, link=32)],
              [out("output", "MODEL", [33])],
              [False], order=27),
         # ── 行3 输出画幅双路 ──────────────────────────────────────
-        node(19, "PrimitiveBoolean", [1000, 480], [280, 90],
+        node(19, "PrimitiveBoolean", [1960, 1020], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
              [out("BOOLEAN", "BOOLEAN", [25])],
              [False], order=17),
-        node(18, "EmptyLatentImage", [1340, 480], [300, 120],
+        node(18, "EmptyLatentImage", [2460, 1020], [300, 120],
              [inp("width", "INT", widget=True),
               inp("height", "INT", widget=True),
               inp("batch_size", "INT", widget=True)],
              [out("LATENT", "LATENT", [24])],
              [1024, 1024, 1], order=18),
-        node(20, "ComfySwitchNode", [1700, 480], [280, 100],
+        node(20, "ComfySwitchNode", [3900, 1020], [280, 100],
              [inp("on_false", "LATENT", shape=7, link=23),
               inp("on_true", "LATENT", shape=7, link=24),
               inp("switch", "BOOLEAN", widget=True, link=25)],
              [out("output", "LATENT", [26])],
              [False], order=19),
         # ── 行4 PE 链前半:PE loader + chatml 三段 + 拼装 ───────────
-        node(12, "CLIPLoader", [-1860, 860], [360, 130],
+        node(12, "CLIPLoader", [-2260, 1700], [360, 130],
              [inp("clip_name", "COMBO", widget=True),
               inp("type", "COMBO", widget=True),
               inp("device", "COMBO", widget=True)],
              [out("CLIP", "CLIP", [13])],
              [PE_CLIP_FILE, "qwen_image", "default"], order=8),
-        node(21, "PrimitiveStringMultiline", [-1440, 860], [300, 180],
+        node(21, "PrimitiveStringMultiline", [-1160, 1340], [300, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [14])],
              [A_SEG], order=9),
-        node(22, "PrimitiveStringMultiline", [-1090, 860], [340, 180],
+        node(22, "PrimitiveStringMultiline", [-1720, 1340], [340, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [15, 21])],
              [B_SEG], order=10),
-        node(23, "PrimitiveStringMultiline", [-700, 860], [260, 180],
+        node(23, "PrimitiveStringMultiline", [-660, 1340], [260, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [16])],
              [C_SEG], order=11),
-        node(24, "StringFormat", [-400, 860], [300, 130],
+        node(24, "StringFormat", [-160, 1340], [300, 130],
              [inp("values.a", "*", shape=7, link=14),
               inp("values.b", "*", shape=7, link=15),
               inp("values.c", "*", shape=7, link=16),
@@ -345,11 +345,11 @@ def build_nodes():
              [out("STRING", "STRING", [17])],
              ["{a}{b}{c}"], order=12),
         # ── 行5 PE 链后半:合批→生成→正则→开关 ────────────────────
-        node(25, "BatchImagesNode", [-400, 1120], [260, 170],
+        node(25, "BatchImagesNode", [-110, 340], [260, 170],
              [inp("images.image0", "IMAGE", link=11),
               inp("images.image1", "IMAGE", shape=7, link=12)],
              [out("IMAGE", "IMAGE", [18])], order=13),
-        node(26, "TextGenerate", [-110, 1120], [400, 450],
+        node(26, "TextGenerate", [370, 1700], [400, 450],
              [inp("clip", "CLIP", link=13),
               inp("image", "IMAGE", shape=7, link=18),
               inp("video", "IMAGE", shape=7),
@@ -369,7 +369,7 @@ def build_nodes():
               inp("mtp", "COMBO", shape=7, widget=True)],
              [out("generated_text", "STRING", [19])],
              TG_WV, order=14),
-        node(27, "RegexExtract", [340, 1120], [330, 260],
+        node(27, "RegexExtract", [970, 1700], [330, 260],
              [inp("string", "STRING", widget=True, link=19),
               inp("regex_pattern", "STRING", widget=True),
               inp("mode", "COMBO", widget=True),
@@ -379,7 +379,7 @@ def build_nodes():
               inp("group_index", "INT", widget=True)],
              [out("STRING", "STRING", [20])],
              ["", REGEX, "First Group", False, False, True, 1], order=15),
-        node(15, "ComfySwitchNode", [720, 1120], [300, 110],
+        node(15, "ComfySwitchNode", [1500, 1700], [300, 110],
              [inp("on_false", "STRING", shape=7, link=21),
               inp("on_true", "STRING", shape=7, link=20),
               inp("switch", "BOOLEAN", widget=True)],
@@ -390,13 +390,13 @@ def build_nodes():
              [NOTE], order=24),
         # ── VAE 顶通道(R26.4 随迁:VAE→VAEDecode 长横穿上顶缘,零新增交叉;
         #    满血接线轮 RR_V_B 右移 3400 让 [33]→[8].steps 落位走廊)──
-        rr(RR_V_A_ID, [-620, -640], 28, 34),
-        rr(RR_V_B_ID, [3400, -640], 34, 35),
+        rr(RR_V_A_ID, [-1120, -980], 28, 34),
+        rr(RR_V_B_ID, [4180, -980], 34, 35),
         # ── 满血接线轮(09-24):steps 联动 INT 开关三件(样板=t2i 画幅联动 [157][158];
         #    同受 [30] 布尔源驱动:false→[34] 常量 40/true→[35] 常量 6→[8].steps 转输入)──
-        sswitch(STEPS_SW_ID, [3040, -300], 36, 37, 38, 39),
-        pint(STEPS_C40_ID, STEPS_OFF, [2680, -580], 36),
-        pint(STEPS_C6_ID, STEPS_ON, [2680, -420], 37),
+        sswitch(STEPS_SW_ID, [4610, -360], 36, 37, 38, 39),
+        pint(STEPS_C40_ID, STEPS_OFF, [4160, -800], 36),
+        pint(STEPS_C6_ID, STEPS_ON, [4160, -560], 37),
     ]
 
 
@@ -505,6 +505,33 @@ def verify(wf):
                     and a["pos"][1] < b["pos"][1] + b["size"][1]
                     and b["pos"][1] < a["pos"][1] + a["size"][1]):
                 errs.append(f"节点重叠 {a['id']}/{b['id']}")
+
+    # 4b 间距阈值(0925 布局美化轮:用户令「节点之间没有足够的距离」)——est 足迹口径
+    #    (同 workflow_layout.est_size):同行(y 带交叠)横净距≥200 / 同列(x 带交叠)纵净距≥80;
+    #    Reroute 通道件与 MarkdownNote 说明卡豁免;全图(含豁免件)est 盒零重叠(inspect 口径)。
+    def _est_box(n):
+        x, y = float(n["pos"][0]), float(n["pos"][1])
+        w = max(250.0, float(n["size"][0]))
+        rows = max(len(n.get("inputs", [])), len(n.get("outputs", [])))
+        h = max(36 + 24 * rows + 30 * len(n.get("widgets_values") or []) + 28, float(n["size"][1]))
+        return x, y, x + w, y + h
+
+    boxes = [(n["id"], _est_box(n)) for n in ns]
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            (ida, (ax0, ay0, ax1, ay1)), (idb, (bx0, by0, bx1, by1)) = boxes[i], boxes[j]
+            if ax0 < bx1 and bx0 < ax1 and ay0 < by1 and by0 < ay1:
+                errs.append(f"est 足迹重叠(inspect 口径) {ida}/{idb}")
+    real = [(n["id"], _est_box(n)) for n in ns if n["type"] not in ("Reroute", "MarkdownNote")]
+    for i in range(len(real)):
+        for j in range(i + 1, len(real)):
+            (ida, (ax0, ay0, ax1, ay1)), (idb, (bx0, by0, bx1, by1)) = real[i], real[j]
+            yov = min(ay1, by1) - max(ay0, by0)
+            xov = min(ax1, bx1) - max(ax0, bx0)
+            if yov > 0 and xov <= 0 and -(xov) < 200:
+                errs.append(f"node{ida} 与 node{idb} 同行横距 {-(xov):.0f} <200(0925 间距令)")
+            elif xov > 0 and yov <= 0 and -(yov) < 80:
+                errs.append(f"node{ida} 与 node{idb} 同列纵距 {-(yov):.0f} <80(0925 间距令)")
 
     # 5 计数器真值 ≥ 实存最大(0923 round7 红根因)
     if wf.get("last_node_id", 0) < max(nodes):

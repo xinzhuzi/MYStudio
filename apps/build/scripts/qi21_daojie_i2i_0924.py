@@ -26,6 +26,15 @@ Trellis 09-24-qi21-daojie-i2i(R24);PRD 09-24 架构纠正:Qwen-Image-2.1 生修�
     lora-r64.safetensors,strength 1.0)⟩→[8]KSampler;[30]PrimitiveBoolean
     默认 false=旁路。**TE-Speed 槽永不带**(3c 试装已死归档:插件未装=画布
     红节点,D4 终审永不装;t2i/edit 已于 R26.4 同构补入 LoRA 槽)。
+  布局(0925 布局美化轮·用户令「线非常杂乱,节点之间没有足够的距离…装配子图节点的
+  标题过长,并且子图里面的线,节点都非常杂乱」):子图行距 560→720、行内列距一律≥200
+  (est 足迹口径)、同列纵距≥80;IO 槽归位——clip/vae/image_1/image_2 落行3 左下带
+  自下而入(双目标馈线与 [131]→[142]/[163]→[143] 降线共端点豁免),prompt/latent/
+  positive/negative 输出 IO 落各自出线近旁;主图骨架随 edit 件重排([25] 合批上移
+  主链行、[12] PE loader 下移行5、宿主右移 2000 让 [15]→[40] 指令升线走净空柱、
+  Cache/LoRA 带/steps 三件上顶带、[19]/[18]/[20] 画幅双路随宿主右侧):主图交叉
+  16→3、子图 7→1;子图 name 缩短为「[40] 道劫·装配子图(双击进入)」(宿主无 title
+  展示名=子图 name,≤20 字;0924-r8 零自定义 title 铁律下功能性说明住 Note)。
   布局(照任务一 09-24 布局整治标准,从出生合规):
     恒向右(全连线 target.x>origin.x)/行式从上到下、行内从左到右/group int id
     互异/长横穿走顶部 Reroute 通道(MODEL y=-560/VAE y=-640,序列化=K2-角色
@@ -379,7 +388,7 @@ def build_subgraph(truth: dict) -> dict:
       行3 y=1060 编码输出:[143] RGBA 编码→[142] 主编码→[144] RGBA 开关
     (t2i 的画幅联动行 [151]-[158] 不移植——i2i 画幅随输入图,不随型。)
     """
-    ROW_Y = (0, 560, 1060)
+    ROW_Y = (0, 720, 1440)
     links: list[dict] = []
     # -10 扇出(边界线;widget 型输入 linkIds 同样逐项登记=契约铁律)
     links.append(_internal_link(1, -10, 0, TE_ID, 0, "CLIP"))            # clip → 主编码
@@ -432,17 +441,17 @@ def build_subgraph(truth: dict) -> dict:
         "widgets_values": [DEFAULT_TYPE],
     })
     nodes.append(_string_constant(
-        LOCK_ID, truth["const_a"], [520, ROW_Y[0]], [13], [440, 400]))
+        LOCK_ID, truth["const_a"], [660, ROW_Y[0]], [13], [440, 400]))
     nodes.append(_string_constant(
-        RGBA_HEAD_ID, RGBA_HEAD_EN, [1040, ROW_Y[0]], [17], [380, 120]))
+        RGBA_HEAD_ID, RGBA_HEAD_EN, [1300, ROW_Y[0]], [17], [380, 120]))
     nodes.append(_string_constant(
-        RGBA_TAIL_ID, RGBA_TAIL_EN, [1460, ROW_Y[0]], [19], [380, 120]))
+        RGBA_TAIL_ID, RGBA_TAIL_EN, [1880, ROW_Y[0]], [19], [380, 120]))
 
     # 行2 装配路由(09-24 布局整治坐标承 t2i;无内部 PE 故无尾部开关)
     nodes.append(_concatenate(CONCAT1_ID, 9, 12, [14], [100, ROW_Y[1]]))
-    nodes.append(_concatenate(CONCAT2_ID, 14, 13, [15, 16, 25], [560, ROW_Y[1]]))
-    nodes.append(_concatenate(RGBA_CAT1_ID, 17, 16, [18], [1440, ROW_Y[1]], delimiter=" "))
-    nodes.append(_concatenate(RGBA_CAT2_ID, 18, 19, [20], [1880, ROW_Y[1]], delimiter=" "))
+    nodes.append(_concatenate(CONCAT2_ID, 14, 13, [15, 16, 25], [680, ROW_Y[1]]))
+    nodes.append(_concatenate(RGBA_CAT1_ID, 17, 16, [18], [1560, ROW_Y[1]], delimiter=" "))
+    nodes.append(_concatenate(RGBA_CAT2_ID, 18, 19, [20], [2140, ROW_Y[1]], delimiter=" "))
 
     # 行3 编码输出(TextEncode 输入序=edit 件实读:clip/images.image_1/vae/images.image_2/prompt;
     # 双编码器都接双图——i2i 语义:RGBA 路同样要看图编辑)
@@ -469,10 +478,10 @@ def build_subgraph(truth: dict) -> dict:
             "widgets_values": ["", "", 0],  # prompt 清空(连线供词)/负向空/resolution=0 不重采样
         }
 
-    nodes.append(_textencode(TE_RGBA_ID, [2000, ROW_Y[2]], 2, 7, 4, 8, 20, [22]))
-    nodes.append(_textencode(TE_ID, [2500, ROW_Y[2]], 1, 5, 3, 6, 15, [21]))
+    nodes.append(_textencode(TE_RGBA_ID, [3000, ROW_Y[2]], 2, 7, 4, 8, 20, [22]))
+    nodes.append(_textencode(TE_ID, [3620, ROW_Y[2]], 1, 5, 3, 6, 15, [21]))
     nodes.append(_switch(
-        RGBA_SW_ID, 21, 22, 11, [23], [2980, ROW_Y[2]], typ="CONDITIONING"))
+        RGBA_SW_ID, 21, 22, 11, [23], [4240, ROW_Y[2]], typ="CONDITIONING"))
 
     for order, n in enumerate(nodes):
         n["order"] = order
@@ -480,15 +489,15 @@ def build_subgraph(truth: dict) -> dict:
     groups: list[dict] = [
         {
             "id": 1, "title": "道劫·底座装配(行1 源行:九选一底座+锁层A恒挂+RGBA官方头尾)",
-            "bounding": [0, -40, 1880, 480], "color": "#3f789e", "flags": {},
+            "bounding": [0, -40, 2320, 560], "color": "#3f789e", "flags": {},
         },
         {
             "id": 2, "title": "道劫·装配路由(行2:拼接①② delimiter=\\n 分层·指令占①层;RGBA 公式拼接)",
-            "bounding": [60, 520, 2200, 290], "color": "#a1309b", "flags": {},
+            "bounding": [60, 660, 2520, 300], "color": "#a1309b", "flags": {},
         },
         {
             "id": 3, "title": "道劫·编码输出(行3:主编码+RGBA编码(官方公式路,默认旁路)+RGBA开关)",
-            "bounding": [1960, 1020, 1450, 420], "color": "#886", "flags": {},
+            "bounding": [2960, 1380, 1740, 560], "color": "#886", "flags": {},
         },
     ]
 
@@ -509,19 +518,19 @@ def build_subgraph(truth: dict) -> dict:
     # IO 槽 pos(clip/image_1/image_2 自行3 槽位高度带上方平入;vae/RGBA开关 落行3 下缘带
     # 自下而入;指令在行2 带;型选择在行1 带——长线恒向右,拐点不带 Reroute 即直入)
     inputs = [
-        {"id": _IO_IDS[0], "name": "clip", "type": "CLIP", "linkIds": [1, 2], "pos": [-196, 1060]},
-        {"id": _IO_IDS[1], "name": "vae", "type": "VAE", "linkIds": [3, 4], "pos": [-196, 1440]},
-        {"id": _IO_IDS[2], "name": "image_1", "type": "IMAGE", "linkIds": [5, 7], "pos": [-196, 1100]},
-        {"id": _IO_IDS[3], "name": "image_2", "type": "IMAGE", "linkIds": [6, 8], "pos": [-196, 1150]},
-        {"id": _IO_IDS[4], "name": "指令", "type": "STRING", "linkIds": [9], "pos": [-196, 600]},
+        {"id": _IO_IDS[0], "name": "clip", "type": "CLIP", "linkIds": [1, 2], "pos": [2950, 1400]},
+        {"id": _IO_IDS[1], "name": "vae", "type": "VAE", "linkIds": [3, 4], "pos": [2620, 1840]},
+        {"id": _IO_IDS[2], "name": "image_1", "type": "IMAGE", "linkIds": [5, 7], "pos": [2540, 1880]},
+        {"id": _IO_IDS[3], "name": "image_2", "type": "IMAGE", "linkIds": [6, 8], "pos": [2460, 1920]},
+        {"id": _IO_IDS[4], "name": "指令", "type": "STRING", "linkIds": [9], "pos": [-196, 756]},
         {"id": _IO_IDS[5], "name": "型选择", "type": "COMBO", "linkIds": [10], "pos": [-196, 20]},
-        {"id": _IO_IDS[6], "name": "RGBA透明开关", "type": "BOOLEAN", "linkIds": [11], "pos": [-196, 1500]},
+        {"id": _IO_IDS[6], "name": "RGBA透明开关", "type": "BOOLEAN", "linkIds": [11], "pos": [4060, 1900]},
     ]
     outputs = [
-        {"id": _IO_IDS[7], "name": "positive", "type": "CONDITIONING", "linkIds": [23], "pos": [3600, 1120]},
-        {"id": _IO_IDS[8], "name": "negative", "type": "CONDITIONING", "linkIds": [24], "pos": [3600, 1180]},
-        {"id": _IO_IDS[9], "name": "prompt", "type": "STRING", "linkIds": [25], "pos": [3600, 620]},
-        {"id": _IO_IDS[10], "name": "latent", "type": "LATENT", "linkIds": [26], "pos": [3600, 1240]},
+        {"id": _IO_IDS[7], "name": "positive", "type": "CONDITIONING", "linkIds": [23], "pos": [4820, 1476]},
+        {"id": _IO_IDS[8], "name": "negative", "type": "CONDITIONING", "linkIds": [24], "pos": [3820, 2300]},
+        {"id": _IO_IDS[9], "name": "prompt", "type": "STRING", "linkIds": [25], "pos": [1260, 756]},
+        {"id": _IO_IDS[10], "name": "latent", "type": "LATENT", "linkIds": [26], "pos": [3840, 1900]},
     ]
 
     sg = {
@@ -530,7 +539,7 @@ def build_subgraph(truth: dict) -> dict:
         "state": {"lastGroupId": 3, "lastNodeId": 163, "lastLinkId": 26, "lastRerouteId": 0},
         "revision": 1,
         "config": {"defaultIOState": {}},
-        "name": "[40] 道劫·装配子图(i2i:指令占①层+九型底座+锁层A 四层装配+RGBA 公式+双路编码;双击进入)",
+        "name": "[40] 道劫·装配子图(双击进入)",
         "inputNode": {"id": -10, "bounding": [-320, -260, 160, 1860]},
         "outputNode": {"id": -20, "bounding": [2900, 560, 2000, 900]},
         "inputs": inputs,
@@ -581,30 +590,30 @@ def build_main(truth: dict, sg: dict) -> dict:
 
     nodes = [
         # ── 行1 加载器(上)────────────────────────────────────────
-        _core(1, "UNETLoader", [-1860, -460], [340, 84],
+        _core(1, "UNETLoader", [-2260, -460], [340, 84],
               [_combo("unet_name"), _combo("weight_dtype")],
               [{"name": "MODEL", "type": "MODEL", "links": [22]}],
               [UNET_FILE, "default"]),
-        _core(2, "CLIPLoader", [-1440, -460], [360, 130],
+        _core(2, "CLIPLoader", [-1720, -460], [360, 130],
               [_combo("clip_name"), _combo("type"), _combo("device", shape=7)],
               [{"name": "CLIP", "type": "CLIP", "links": [3]}],
               [CLIP_FILE, "qwen_image", "default"]),
-        _core(3, "VAELoader", [-1000, -460], [340, 60],
+        _core(3, "VAELoader", [-1140, -460], [340, 60],
               [_combo("vae_name")],
               [{"name": "VAE", "type": "VAE", "links": [4, 35]}],
               [VAE_FILE]),
-        _core(12, "CLIPLoader", [-560, -460], [400, 130],
+        _core(12, "CLIPLoader", [-2260, 1700], [400, 130],
               [_combo("clip_name"), _combo("type"), _combo("device", shape=7)],
               [{"name": "CLIP", "type": "CLIP", "links": [9]}],
               [PE_CLIP_FILE, "qwen_image", "default"]),
         # ── 行2 主链前半:双图→预缩→[40] 装配子图宿主→装配预览 ──────
-        _core(4, "LoadImage", [-1860, -100], [340, 420],
+        _core(4, "LoadImage", [-2260, -100], [340, 420],
               [_combo("image"), {"name": "upload", "type": "IMAGEUPLOAD",
                                  "widget": {"name": "upload"}, "link": None}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [1]},
                {"name": "MASK", "type": "MASK", "links": None}],
               [IMG1, "image"]),
-        _core(16, "ImageScaleToTotalPixels", [-1480, -100], [330, 130],
+        _core(16, "ImageScaleToTotalPixels", [-1560, -100], [330, 130],
               [{"name": "image", "type": "IMAGE", "link": 1},
                _combo("upscale_method"), {"name": "megapixels", "type": "FLOAT",
                                           "widget": {"name": "megapixels"}, "link": None},
@@ -612,13 +621,13 @@ def build_main(truth: dict, sg: dict) -> dict:
                 "widget": {"name": "resolution_steps"}, "link": None}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [5, 7]}],
               ["lanczos", 1.5, 32]),
-        _core(5, "LoadImage", [-1100, -100], [340, 420],
+        _core(5, "LoadImage", [-1030, -100], [340, 420],
               [_combo("image"), {"name": "upload", "type": "IMAGEUPLOAD",
                                  "widget": {"name": "upload"}, "link": None}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [2]},
                {"name": "MASK", "type": "MASK", "links": None}],
               [IMG2, "image"]),
-        _core(17, "ImageScaleToTotalPixels", [-720, -100], [330, 130],
+        _core(17, "ImageScaleToTotalPixels", [-480, -100], [330, 130],
               [{"name": "image", "type": "IMAGE", "link": 2},
                _combo("upscale_method"), {"name": "megapixels", "type": "FLOAT",
                                           "widget": {"name": "megapixels"}, "link": None},
@@ -629,7 +638,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         # [40] 装配子图宿主(widget 型输入=宿主面板;序列化口径=t2i [40] 实证)
         {
             "id": HOST_ID, "type": SG_UUID,
-            "pos": [1000, -100], "size": [560, 480], "flags": {}, "order": 0, "mode": 0,
+            "pos": [2000, -100], "size": [560, 480], "flags": {}, "order": 0, "mode": 0,
             "inputs": [
                 {"name": "clip", "type": "CLIP", "link": 3},
                 {"name": "vae", "type": "VAE", "link": 4},
@@ -650,28 +659,28 @@ def build_main(truth: dict, sg: dict) -> dict:
             "widgets_values_named": {"指令": B_SEG, "型选择": DEFAULT_TYPE,
                                      "RGBA透明开关": False},
         },
-        _core(PREVIEW_ID, "easy showAnything", [1620, -100], [480, 230],
+        _core(PREVIEW_ID, "easy showAnything", [2760, -100], [480, 230],
               [{"label": "输入任何", "name": "anything", "shape": 7, "type": "*", "link": 21}],
               [{"name": "output", "type": "*", "links": None}],
               [""]),
         # ── 行3 加速槽+采样→解码→保存 ─────────────────────────────
-        _core(7, "QwenImage21Cache", [1000, 480], [340, 120],
+        _core(7, "QwenImage21Cache", [3440, -100], [340, 120],
               [{"name": "model", "type": "MODEL", "link": 24},
                _combo("device"), _combo("dtype")],
               [{"name": "MODEL", "type": "MODEL", "links": [25, 26]}],
               ["auto", "default"]),
-        _core(LORA_PB_ID, "PrimitiveBoolean", [1000, 640], [280, 90],
+        _core(LORA_PB_ID, "PrimitiveBoolean", [4140, -560], [280, 90],
               [{"name": "value", "type": "BOOLEAN", "widget": {"name": "value"}, "link": None}],
               [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [28, 41]}],
               [False]),
-        _core(LORA_ID, "LoraLoaderModelOnly", [1400, 480], [340, 130],
+        _core(LORA_ID, "LoraLoaderModelOnly", [4040, -260], [340, 130],
               [{"name": "model", "type": "MODEL", "link": 25},
                _combo("lora_name"), {"name": "strength_model", "type": "FLOAT",
                                      "widget": {"name": "strength_model"}, "link": None}],
               [{"name": "MODEL", "type": "MODEL", "links": [27]}],
               [LORA_FILE, 1.0]),
-        _switch(LORA_SW_ID, 26, 27, 28, [29], [1800, 480], typ="MODEL", size=[300, 110]),
-        _core(8, "KSampler", [2620, 480], [330, 260],
+        _switch(LORA_SW_ID, 26, 27, 28, [29], [4590, -260], typ="MODEL", size=[300, 110]),
+        _core(8, "KSampler", [5140, -100], [330, 260],
               [{"name": "model", "type": "MODEL", "link": 29},
                {"name": "positive", "type": "CONDITIONING", "link": 19},
                {"name": "negative", "type": "CONDITIONING", "link": 20},
@@ -680,39 +689,39 @@ def build_main(truth: dict, sg: dict) -> dict:
                {"name": "steps", "type": "INT", "widget": {"name": "steps"}, "link": 42}],
               [{"name": "LATENT", "type": "LATENT", "links": [34]}],
               [0, "fixed", 40, 1, "euler", "simple", 1.0]),
-        _core(9, "VAEDecode", [3010, 480], [240, 50],
+        _core(9, "VAEDecode", [5670, -100], [240, 50],
               [{"name": "samples", "type": "LATENT", "link": 34},
                {"name": "vae", "type": "VAE", "link": 37}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [38]}]),
-        _core(10, "SaveImage", [3310, 480], [380, 330],
+        _core(10, "SaveImage", [6120, -100], [380, 330],
               [{"name": "images", "type": "IMAGE", "link": 38}], [],
               ["QI21道劫图生图_"]),
         # ── 行3c 输出画幅双路 ──────────────────────────────────────
-        _core(19, "PrimitiveBoolean", [1000, 860], [280, 90],
+        _core(19, "PrimitiveBoolean", [1960, 1020], [280, 90],
               [{"name": "value", "type": "BOOLEAN", "widget": {"name": "value"}, "link": None}],
               [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [32]}],
               [False]),
-        _core(18, "EmptyLatentImage", [1400, 860], [300, 120],
+        _core(18, "EmptyLatentImage", [2460, 1020], [300, 120],
               [{"name": "width", "type": "INT", "widget": {"name": "width"}, "link": None},
                {"name": "height", "type": "INT", "widget": {"name": "height"}, "link": None},
                {"name": "batch_size", "type": "INT", "widget": {"name": "batch_size"}, "link": None}],
               [{"name": "LATENT", "type": "LATENT", "links": [31]}],
               [1024, 1024, 1]),
-        _switch(20, 30, 31, 32, [33], [1780, 860], typ="LATENT", size=[280, 100]),
+        _switch(20, 30, 31, 32, [33], [3900, 1020], typ="LATENT", size=[280, 100]),
         # ── 行4 PE 链前半:chatml 三段 + 拼装 ───────────────────────
-        _core(21, "PrimitiveStringMultiline", [-1440, 1200], [300, 180],
+        _core(21, "PrimitiveStringMultiline", [-1160, 1340], [300, 180],
               [{"name": "value", "type": "STRING", "widget": {"name": "value"}, "link": None}],
               [{"name": "STRING", "type": "STRING", "links": [10]}],
               [A_SEG]),
-        _core(22, "PrimitiveStringMultiline", [-1090, 1200], [340, 180],
+        _core(22, "PrimitiveStringMultiline", [-1720, 1340], [340, 180],
               [{"name": "value", "type": "STRING", "widget": {"name": "value"}, "link": None}],
               [{"name": "STRING", "type": "STRING", "links": [11, 17]}],
               [B_SEG]),
-        _core(23, "PrimitiveStringMultiline", [-700, 1200], [260, 180],
+        _core(23, "PrimitiveStringMultiline", [-660, 1340], [260, 180],
               [{"name": "value", "type": "STRING", "widget": {"name": "value"}, "link": None}],
               [{"name": "STRING", "type": "STRING", "links": [12]}],
               [C_SEG]),
-        _core(24, "StringFormat", [-400, 1200], [300, 130],
+        _core(24, "StringFormat", [-160, 1340], [300, 130],
               [{"name": "values.a", "type": "*", "shape": 7, "link": 10},
                {"name": "values.b", "type": "*", "shape": 7, "link": 11},
                {"name": "values.c", "type": "*", "shape": 7, "link": 12},
@@ -720,11 +729,11 @@ def build_main(truth: dict, sg: dict) -> dict:
               [{"name": "STRING", "type": "STRING", "links": [13]}],
               ["{a}{b}{c}"]),
         # ── 行5 PE 链后半:合批→生成→正则→开关 ─────────────────────
-        _core(25, "BatchImagesNode", [-400, 1460], [260, 170],
+        _core(25, "BatchImagesNode", [-110, 340], [260, 170],
               [{"name": "images.image0", "type": "IMAGE", "link": 7},
                {"name": "images.image1", "type": "IMAGE", "shape": 7, "link": 8}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [14]}]),
-        _core(26, "TextGenerate", [-110, 1460], [400, 450],
+        _core(26, "TextGenerate", [370, 1700], [400, 450],
               [{"name": "clip", "type": "CLIP", "link": 9},
                {"name": "image", "type": "IMAGE", "shape": 7, "link": 14},
                {"name": "video", "type": "IMAGE", "shape": 7, "link": None},
@@ -754,7 +763,7 @@ def build_main(truth: dict, sg: dict) -> dict:
                {"name": "mtp", "type": "COMBO", "shape": 7, "widget": {"name": "mtp"}, "link": None}],
               [{"name": "generated_text", "type": "STRING", "links": [15]}],
               TG_WV),
-        _core(27, "RegexExtract", [340, 1460], [330, 260],
+        _core(27, "RegexExtract", [970, 1700], [330, 260],
               [{"name": "string", "type": "STRING", "widget": {"name": "string"}, "link": 15},
                {"name": "regex_pattern", "type": "STRING",
                 "widget": {"name": "regex_pattern"}, "link": None},
@@ -767,22 +776,22 @@ def build_main(truth: dict, sg: dict) -> dict:
                {"name": "group_index", "type": "INT", "widget": {"name": "group_index"}, "link": None}],
               [{"name": "STRING", "type": "STRING", "links": [16]}],
               ["", REGEX, "First Group", False, False, True, 1]),
-        _switch(15, 17, 16, None, [18], [720, 1460], typ="STRING", size=[300, 110]),
+        _switch(15, 17, 16, None, [18], [1500, 1700], typ="STRING", size=[300, 110]),
         # ── 说明卡(左缘独立,零重叠)──────────────────────────────
         _core(NOTE_ID, "MarkdownNote", [-3400, -100], [940, 1100], [], [],
               [NOTE_TEXT]),
         # ── 顶缘通道 Reroute(MODEL y=-560/VAE y=-640 两长横穿;样板=K2-角色设定-道劫.json)──
-        _reroute(RR_M_A_ID, [-1200, -560], 22, 23, "MODEL"),
-        _reroute(RR_M_B_ID, [950, -560], 23, 24, "MODEL"),
-        _reroute(RR_V_A_ID, [-940, -640], 35, 36, "VAE"),
-        _reroute(RR_V_B_ID, [2450, -640], 36, 37, "VAE"),
+        _reroute(RR_M_A_ID, [-1200, -880], 22, 23, "MODEL"),
+        _reroute(RR_M_B_ID, [-700, -880], 23, 24, "MODEL"),
+        _reroute(RR_V_A_ID, [-1120, -980], 35, 36, "VAE"),
+        _reroute(RR_V_B_ID, [5440, -980], 36, 37, "VAE"),
         # ── 满血接线轮(09-24):steps 联动 INT 开关三件(样板=t2i 画幅联动 [157][158];
         #    同受 [30] 布尔源驱动:false→[165] 常量 40/true→[166] 常量 6→[8].steps 转输入;
         #    住 row3c 下方带 y≈1020-1300,[41] [30]→[164] 长降线穿 row3c 喂带走廊零新增交叉,
         #    [42] [164]→[8].steps 与 [8] 入线共端点豁免)────────────────────────────
-        _switch(STEPS_SW_ID, 39, 40, 41, [42], [2200, 1020], typ="INT", size=[300, 110]),
-        _primitive_int(STEPS_C40_ID, STEPS_OFF, [1800, 1150], 39),
-        _primitive_int(STEPS_C6_ID, STEPS_ON, [1380, 1150], 40),
+        _switch(STEPS_SW_ID, 39, 40, 41, [42], [5090, -360], typ="INT", size=[300, 110]),
+        _primitive_int(STEPS_C40_ID, STEPS_OFF, [4640, -800], 39),
+        _primitive_int(STEPS_C6_ID, STEPS_ON, [4640, -560], 40),
     ]
     for order, n in enumerate(nodes):
         n["order"] = order
@@ -1011,6 +1020,35 @@ def self_check(g: dict, truth: dict) -> list[str]:
                         and a["pos"][1] < b["pos"][1] + b["size"][1]
                         and b["pos"][1] < a["pos"][1] + a["size"][1]):
                     errs.append(f"{scope} node{a['id']} 与 node{b['id']} 矩形重叠")
+
+    # 5b 间距阈值(0925 布局美化轮:用户令「节点之间没有足够的距离」)——est 足迹口径
+    #     (同 workflow_layout.est_size):同行(y 带交叠)横净距≥200 / 同列(x 带交叠)纵净距≥80;
+    #     Reroute 通道件与 MarkdownNote 说明卡豁免;全图(含豁免件)est 盒零重叠(inspect 口径)。
+    def _est_box(n: dict):
+        x, y = float(n["pos"][0]), float(n["pos"][1])
+        w = max(250.0, float(n["size"][0]))
+        rows = max(len(n.get("inputs", [])), len(n.get("outputs", [])))
+        h = max(36 + 24 * rows + 30 * len(n.get("widgets_values") or []) + 28, float(n["size"][1]))
+        return x, y, x + w, y + h
+
+    for scope, scope_nodes in (("主图", g["nodes"]), ("子图", sg["nodes"])):
+        boxes = [(n["id"], _est_box(n)) for n in scope_nodes]
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                (ida, (ax0, ay0, ax1, ay1)), (idb, (bx0, by0, bx1, by1)) = boxes[i], boxes[j]
+                if ax0 < bx1 and bx0 < ax1 and ay0 < by1 and by0 < ay1:
+                    errs.append(f"{scope} node{ida} 与 node{idb} est 足迹重叠(inspect 口径)")
+        real = [(n["id"], _est_box(n)) for n in scope_nodes
+                if n["type"] not in ("Reroute", "MarkdownNote")]
+        for i in range(len(real)):
+            for j in range(i + 1, len(real)):
+                (ida, (ax0, ay0, ax1, ay1)), (idb, (bx0, by0, bx1, by1)) = real[i], real[j]
+                yov = min(ay1, by1) - max(ay0, by0)
+                xov = min(ax1, bx1) - max(ax0, bx0)
+                if yov > 0 and xov <= 0 and -(xov) < 200:
+                    errs.append(f"{scope} node{ida} 与 node{idb} 同行横距 {-(xov):.0f} <200(0925 间距令)")
+                elif xov > 0 and yov <= 0 and -(yov) < 80:
+                    errs.append(f"{scope} node{ida} 与 node{idb} 同列纵距 {-(yov):.0f} <80(0925 间距令)")
 
     # 6 子图行排版:恰 3 行=三阶段(源/装配路由/编码输出);行间净距≥100;行内 x 严格递增
     sg_rows: dict[int, list[int]] = {}
