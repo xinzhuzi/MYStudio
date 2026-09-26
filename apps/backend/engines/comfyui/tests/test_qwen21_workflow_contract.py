@@ -97,7 +97,7 @@ edit 骨架保留(PE-I2I 核心链[15]默认旁路/BatchImages 双通道/latent 
 
 09-24 R26.4 统一接线轮(任务三 R26.4;research/16 §八 D1-D5 终审定案):
 t2i(qi21)与 edit 两件补 LoRA 加速槽,与 i2i 出生槽三件同构——
-LoraLoaderModelOnly[31](name 预填 viggle r64 逐字,strength 1.0)+MODEL 开关
+LoraLoaderModelOnly[31](name 预填 viggle r64 逐字,strength 0.8=0925 探针最优)+MODEL 开关
 [32](false=MODEL 直连/true=LoRA)+开关源 PrimitiveBoolean[30],三件默认关;
 qi21 链=[1] UNET→顶通道 Reroute(扇出两臂)→开关→[7] KSampler(t2i 无 Cache),
 edit 链=[7] Cache→开关→[8] KSampler(槽插最靠近 KSampler 的 model 入口=
@@ -108,6 +108,34 @@ Cache 之后);**硬性 AC=「关闭=正常生成」**(D1 用户令:关态 MODEL 
 新增 TestQi21SubgraphContract/TestEditContract 的 test_lora_slot_present_
 and_bypassed(照 TestI2IContract 同款断言式);i2i 件零结构改动(Note 措辞
 对齐:关闭=正常生成/shift_terminal=0.02/TE-Speed 归档口径)。
+
+0925 加速与展示全量外露收窄轮(Trellis 09-25-qi21-speed-subgraph;三件生成器
+qi21_daojie_t2i_0923/qi21_daojie_i2i_0924/qwen21_edit_core_pe_0923 全量改造):
+W1 加速区组框收纳(方案C,主图 group 预算 3→4)/W2 t2i PE 链迁出子图([140]
+QwenImage21_T2IPromptRewrite+[141] 提示词开关+画幅联动链 [151]-[158]+总闸
+[180] 全迁主画布,PE 位置三件同构=均主画布;**契约冻结项**:PE 开关在主画布+
+双路编码在子图(拍板③)⇒ [141]→[40]「提示词」槽回流线在几何上必有且恰 1 条
+左向线(link34),test_horizontal_layout_no_vertical_tower 对该线单点豁免并钉
+死端点——仿 ad22a9e 契约冻结先例)/W3 [40] 子图收窄=九型+锁层+拼接+RGBA 公式+
+双路编码(三行,宿主三 widget 同构 i2i)/W5 负面线=cfg=1 下数学不参与采样、
+官方同构占位;PE pp=1.5 定档;[7]/[8] steps 与 [5] 空潜面板值=摆设值注明/
+W6 零负区(主图+子图所有节点 pos≥40)+输出口最右(子图输出 IO 槽 x≥全子图
+最大 x-50,表示法=K2-文生图-道劫 [90] 实证)→ 新增 TestCanvasNormalization0925
+与三生成器自查同口径双记账;qwen21-t2i 静态官方件不适用本轮谓词(坐标原样)。
+
+0926 裁定1 PE 开路含画布本体(用户六裁定轮):qi21 [141]/i2i [15]/edit [15]
+PE 开关默认 false→**true**(画布工作流本体默认即 PE 优化,任何人打开 App 跑默认
+走 PE;关=直写按图选配)——契约断言同步反转(test_pe_group_and_rgba_switch_
+inside_subgraph / test_directive_occupies_subject_layer / test_edit_pe_switch_
+wiring / test_all_switches_default_off),组 title 锚「默认旁路」→「默认 PE
+开路」(edit/i2i),_resolve_default_string_origins 改=直写选配臂(on_false)
+来源核验(默认文本=PE 运行时输出,静态不可逐字);qwen21-t2i.json 静态官方件
+不在裁定范围,PE 组仍默认旁路不动。
+
+0926 发现项3 收紧(实测失败修复轮):零负区谓词 pos≥40→**≥80**(三件主画布
+本就 min=(80,80) 达标;t2i 子图 [150]=(40,240)/Reroute[171][172] y=40、i2i
+子图 [150]=(40,140) 经生成器子图整体归一平移抬到 80——相对布局零变,est
+间距/零重叠/行带语义不动;三生成器自查同步收紧,双记账互锁)。
 
 09-23 修复轮注记:脚本层 pytest 曾报「file or directory not found」——本地仓库根
 同命令 collect 正常,文件运行期零 cwd 依赖(真源定位走 __file__,json 读取与
@@ -252,20 +280,24 @@ I2I_NODE_TYPE_WHITELIST = {
 PRO_CHAR_TYPES = ("人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分")
 # ④配色行映射(库 §一映射表)
 PRO_COLOR_MAP = {
-    "人物": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "场景": "场景青绿=宣纸白+淡墨+石绿+石青+赭石",
-    "道具": "道具旧金=宣纸白+浓墨+旧金+暗玉青",
-    "美宣": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "三视图": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "高清人脸": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "分镜剧情图": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "表情差分": "人物淡雅=宣纸白+浓墨+石青+玉青+旧金",
-    "概念气氛图": "场景青绿=宣纸白+淡墨+石绿+石青+赭石",
+    "人物": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+    "场景": "场景多彩=淡墨+青灰+青绿+赭石+旧金(大面积稳定基底+多色相铺陈各安其位)",
+    "道具": "道具多彩=淡墨+旧金+玉青+赭石+朱红(大面积稳定基底+中等强度器物色+少量高识别强调色)",
+    "美宣": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+    "三视图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+    "高清人脸": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+    "分镜剧情图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+    "表情差分": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+    "概念气氛图": "场景多彩=淡墨+青灰+青绿+赭石+旧金(大面积稳定基底+多色相铺陈各安其位)",
 }
-# 宿主面板 widget 型子图输入(槽序;①主体句外连 [24],其余为面板 widget)
+# 宿主面板 widget 型子图输入(0925 W3 收窄后同构 i2i;①主体句外连 [24],
+# PE改写/画幅联动开关随 W2 迁主画布,「提示词」槽为 link 输入非面板 widget)
 QI21_HOST_WIDGET_INPUTS = [
-    "主体句", "型选择", "PE改写开关", "RGBA透明开关", "画幅联动开关",
+    "主体句", "型选择", "RGBA透明开关",
 ]
+# 0925 收窄轮新锚:PE 链主画布件(id 承袭)+ 冻结回流线
+QI21_RATIO_PB_ID = 180          # 画幅联动总闸(主画布 PrimitiveBoolean,默认关)
+QI21_FROZEN_BACK_LINK = 34      # 契约冻结回流线:[141]→[40].提示词(横向铁律单点豁免)
 QI21_BASES_JSON = _TESTS_DIR.parent / "my_nodes/nodes/qi21_bases.json"
 
 
@@ -420,8 +452,10 @@ def _assert_fullpower_steps(graph: dict, name: str, sampler_id: int, sw_id: int,
 
 
 def _resolve_default_string_origins(graph: dict) -> dict:
-    """沿主编码 prompt 上游开关的 false 支路走到底 = 默认直写路的最终来源集合。
+    """沿主编码 prompt 上游开关的 false 支路走到底 = 直写选配臂的最终来源集合。
 
+    (0926 裁定1 PE 开路含画布本体:qi21/edit/i2i 的 PE 开关默认 true,默认文本=
+    PE 改写器运行时输出、静态不可逐字;本走臂=on_false 直写选配档的来源核验。)
     t2i:零跳,StringConstant 直接。edit(0923-r16):PrimitiveStringMultiline
     (原始用户词,兼喂 chatml b 段与开关 on_false)。"""
     nodes, links = _nodes(graph), _links(graph)
@@ -441,8 +475,7 @@ def _resolve_default_string_origins(graph: dict) -> dict:
         hops += 1
         assert hops <= 60, "默认链解析超限(疑似环)"
         if node["type"] == "ComfySwitchNode":
-            assert node["widgets_values"][0] is False, \
-                f"默认链中途开关非 false: node{node['id']} {node.get('title')!r}"
+            # 0926 裁定1:PE 开关默认 true=PE 开路;本走臂固定 on_false(直写选配)
             stack.append(nodes[links[node["inputs"][0]["link"]][1]])
         elif node["type"] == "StringConcatenate":
             for inp in node["inputs"]:
@@ -592,19 +625,25 @@ class TestTopology:
                 f"{name}: EmptyLatentImage.width 上游必须是 ResolutionSelector"
 
     def test_qi21_latent_fed_by_subgraph_width_height(self):
-        """qi21 件 09-23 总装轮:ResolutionSelector 退役,[5] 空潜宽高=子图宿主
-        width/height 输出直驱(MyQi21DaojieBase 按型直出 W/H)。"""
+        """qi21 件 0925 W2:ResolutionSelector 退役,[5] 空潜宽高=主画布 [157]/[158]
+        联动开关输出(默认 on_false 臂=[40] 宿主 width/height=MyQi21DaojieBase
+        按型直出;开=PE 建议 4.2MP)——画幅联动链随 PE 链迁主画布。"""
         graph = GRAPHS["qi21"]
+        nodes, links = _nodes(graph), _links(graph)
         assert not _by_type(graph, "ResolutionSelector"), \
             "qi21 件不应再有 ResolutionSelector(写死档位表已废止,宽高随型直驱)"
         latent = _by_type(graph, "EmptyLatentImage")[0]
-        for slot, want_out in ((0, "width"), (1, "height")):
+        for slot, want_out, sw_id in ((0, "width", QI21_SG_SW_WH_IDS[0]),
+                                      (1, "height", QI21_SG_SW_WH_IDS[1])):
             inp = latent["inputs"][slot]
             assert inp["name"] == want_out and inp["link"] is not None, \
-                f"qi21: EmptyLatentImage.{want_out} 必须由 [40] 宿主 {want_out} 输出供给"
-            link = next(l for l in graph["links"] if l[0] == inp["link"])
-            assert link[1] == QI21_HOST_ID and link[2] == (3 if want_out == "width" else 4), \
-                f"qi21: EmptyLatentImage.{want_out} 上游应是 [40] 宿主 {want_out} 输出槽"
+                f"qi21: EmptyLatentImage.{want_out} 必须由联动开关供给"
+            link = links[inp["link"]]
+            assert link[1] == sw_id, \
+                f"qi21: EmptyLatentImage.{want_out} 上游应是 [{sw_id}] 联动开关(默认=九型直驱)"
+            f_l = links[nodes[sw_id]["inputs"][0]["link"]]
+            assert (f_l[1], f_l[2]) == (QI21_HOST_ID, 3 if want_out == "width" else 4), \
+                f"qi21: [{sw_id}].on_false 应接 [40] 宿主 {want_out} 输出(九型默认路)"
 
 
 # ── 5. 画布纪律(前端格式必需字段、groups 全带 id、横向排版、说明 Note)──
@@ -653,10 +692,19 @@ class TestCanvasDiscipline:
 
     def test_horizontal_layout_no_vertical_tower(self):
         """每条连线 target.x > origin.x:数据流恒向右=每链横向一行,纵塔不可过。
-        子图内部同判(边界线以子图 IO 槽 pos 为端点)。"""
+        子图内部同判(边界线以子图 IO 槽 pos 为端点)。
+        0925 W2 唯一豁免:qi21 冻结回流线 link34 [141]→[40].提示词——PE 开关在
+        主画布+双路编码在子图(拍板③)⇒ 文本出子图再回子图,几何上必有且恰 1 条
+        左向线(仿 ad22a9e 契约冻结先例;生成器自查另以「左向线恰 1 条且端点
+        =[141]→[40].提示词」谓词钉死豁免不可蔓延,本测试同步钉端点)。"""
         for name, graph in GRAPHS.items():
             nodes = _nodes(graph)
             for link in graph["links"]:
+                if name == "qi21" and link[0] == QI21_FROZEN_BACK_LINK:
+                    assert (link[1], link[3], link[4], link[5]) == \
+                        (QI21_SG_PE_SW, QI21_HOST_ID, 5, "STRING"), \
+                        "qi21 冻结回流线端点漂移(应 [141]→[40].提示词,契约冻结项)"
+                    continue
                 origin, target = nodes[link[1]], nodes[link[3]]
                 assert target["pos"][0] > origin["pos"][0], (
                     f"{name} link{link[0]}: {origin['type']}→{target['type']} "
@@ -797,7 +845,7 @@ class TestEditContract:
             f"应恰 1 个 LoraLoaderModelOnly[{EDIT_LORA_ID}](加速槽)"
         assert _widget(loras[0], 0) == LORA_FILE, \
             f"LoRA 槽 name 应逐字预填 {LORA_FILE!r}"
-        assert _widget(loras[0], 1) == 1.0, "LoRA 槽 strength_model 默认应 1.0"
+        assert _widget(loras[0], 1) == 0.8, "LoRA 槽 strength_model 应 0.8(0925 探针最优,三件同步)"
         assert links[loras[0]["inputs"][0]["link"]][1] == 7, \
             "LoRA 槽 model 上游应 QwenImage21Cache[7](Cache 之后)"
         sw = nodes[EDIT_LORA_SW_ID]
@@ -888,8 +936,8 @@ class TestEditPEContract:
     def test_edit_pe_group_titled_with_ids(self):
         graph = GRAPHS["edit"]
         titles = [g.get("title", "") for g in graph["groups"]]
-        assert any("PE-I2I 改写组" in t and "默认旁路" in t for t in titles), \
-            "edit 件缺「PE-I2I 改写组(默认旁路…)」分组"
+        assert any("PE-I2I 改写组" in t and "默认 PE 开路" in t for t in titles), \
+            "edit 件缺「PE-I2I 改写组(默认 PE 开路…)」分组(0926 裁定1)"
         ids = [g.get("id") for g in graph["groups"]]
         assert len(ids) == len(set(ids)) and all(isinstance(i, int) for i in ids), \
             "groups 必须带互异 int id(子图契约:缺 id 只活第一个)"
@@ -903,7 +951,8 @@ class TestEditPEContract:
         assert switch["type"] == "ComfySwitchNode" and switch["id"] == EDIT_PE_SW_ID, \
             f"TextEncode.prompt 上游应是核心 ComfySwitchNode[{EDIT_PE_SW_ID}]"
         assert switch["outputs"][0]["type"] == "STRING", "PE 开关应为 STRING 泛型(MatchType)"
-        assert switch["widgets_values"][0] is False, "PE 开关默认必须 false(直写,PE 旁路)"
+        assert switch["widgets_values"][0] is True, \
+            "PE 开关默认必须 true(默认 PE 改写,0926 裁定1;关=直写按图选配)"
         true_origin = nodes[links[switch["inputs"][1]["link"]][1]]
         assert true_origin["type"] == "RegexExtract", \
             f"开关 on_true 上游应为 RegexExtract(PE 改写结果),得 {true_origin['type']}"
@@ -1131,50 +1180,63 @@ class TestQi21SubgraphContract:
     # ── 外露参数(型选择 COMBO/主体句/PE/RGBA/画幅联动/seed)──────────
 
     def test_host_panel_exposes_type_pe_rgba_widgets(self):
-        """宿主面板=子图 widget 型输入:主体句(外连)+型选择(COMBO,九选一默认人物)
-        +PE+RGBA+画幅联动(BOOLEAN);widgets_values 按槽序=[人物例一主体句, 人物, False×3]。"""
+        """宿主面板=子图 widget 型输入(0925 W3 收窄,同构 i2i 三 widget):
+        主体句(外连 [24])+型选择(COMBO,九选一默认人物)+RGBA透明开关;
+        widgets_values 按槽序=[人物例一主体句, 人物, False];「提示词」槽=link
+        输入(主画布 [141] 开关回流,非面板 widget);PE改写/画幅联动开关随 W2 迁出。"""
         graph = GRAPHS["qi21"]
         sg = _qi21_sg(graph)
         host = _nodes(graph)[QI21_HOST_ID]
-        assert len(host["inputs"]) == len(sg["inputs"]) == 8, \
-            "宿主/子图 inputs 应恰 8 槽(clip/vae/pe_clip/主体句+型选择+PE+RGBA+画幅联动)"
+        assert len(host["inputs"]) == len(sg["inputs"]) == 6, \
+            "宿主/子图 inputs 应恰 6 槽(clip/vae/主体句+型选择+RGBA透明开关+提示词)"
         for i, (hi, si) in enumerate(zip(host["inputs"], sg["inputs"])):
             assert hi["name"] == si["name"] and hi["type"] == si["type"], \
                 f"宿主 inputs[{i}]({hi['name']}) 与子图 inputs[{i}]({si['name']}) 不对齐(装载稳定序)"
         widget_inputs = [i for i in host["inputs"] if "widget" in i]
         assert [i["name"] for i in widget_inputs] == QI21_HOST_WIDGET_INPUTS, \
-            "宿主面板 widget 型输入应为 主体句+型选择+PE+RGBA+画幅联动(槽序)"
+            "宿主面板 widget 型输入应为 主体句+型选择+RGBA透明开关(槽序,W3 收窄)"
         types, _ = _qi21_truth()
-        assert host["widgets_values"] == [types[0][1], "人物", False, False, False], \
-            "宿主 widgets_values 应=[库人物型例一主体句, 人物, False×3](默认①人物/三开关全关)"
+        assert host["widgets_values"] == [types[0][1], "人物", False], \
+            "宿主 widgets_values 应=[库人物型例一主体句, 人物, False](默认①人物/开关关)"
         named = host.get("widgets_values_named", {})
         assert named.get("主体句") == types[0][1] and named.get("型选择") == "人物", \
             "宿主 widgets_values_named 主体句/型选择漂移"
-        assert named.get("PE改写开关") is False and named.get("RGBA透明开关") is False \
-            and named.get("画幅联动开关") is False, "宿主 widgets_values_named 开关键漂移"
-        # 面板 widget 未外连(面板控制),主体句外连 [24]
+        assert named.get("RGBA透明开关") is False, "宿主 widgets_values_named RGBA 开关键漂移"
+        # 面板 widget 未外连(面板控制),主体句外连 [24];提示词=回流 link 槽
         by_name = {i["name"]: i for i in host["inputs"]}
         assert by_name["主体句"]["link"] is not None, "主体句槽应外连 [24]"
         for name in QI21_HOST_WIDGET_INPUTS[1:]:
             assert by_name[name]["link"] is None, f"面板 widget {name} 应为宿主 widget(未外连)"
+        assert by_name["提示词"]["link"] is not None and "widget" not in by_name["提示词"], \
+            "提示词槽应为主画布 [141] 回流 link 输入(非面板 widget,W2)"
 
     def test_external_wiring_only_loaders_sampler_save_note(self):
-        """外部接线:[2][3][11]→宿主 clip/vae/pe_clip;[24]→主体句;宿主
-        positive/negative→[7];prompt→[27];width/height→[5]。主图应无
-        TextEncode/PE/ResolutionSelector 平铺(装配核心已收进子图);开关唯一
-        =R26.4 LoRA MODEL 开关[32](PE/RGBA/画幅联动仍收在子图)。"""
+        """外部接线(0925 W2/W3 后):[2][3]→宿主 clip/vae;[24]→主体句;[141]
+        提示词开关输出→宿主「提示词」槽(冻结回流线);宿主 positive/negative→[7];
+        prompt→[141].on_false;width/height→[157]/[158].on_false;[157]/[158]→[5]。
+        主图应无 TextEncode/ResolutionSelector 平铺(装配核心收子图);PE 改写件
+        必须在主画布(W2:PE 链迁出子图,同构 i2i/edit)。"""
         graph = GRAPHS["qi21"]
         got = {(l[0], l[1], l[2], l[3], l[4], l[5]) for l in graph["links"]}
         for want in [
             (12, 2, 0, QI21_HOST_ID, 0, "CLIP"),
             (13, 3, 0, QI21_HOST_ID, 1, "VAE"),
-            (14, 11, 0, QI21_HOST_ID, 2, "CLIP"),
-            (15, QI21_SUBJECT_ID, 0, QI21_HOST_ID, 3, "STRING"),
-            (1, QI21_HOST_ID, 3, QI21_LATENT_ID, 0, "INT"),
-            (2, QI21_HOST_ID, 4, QI21_LATENT_ID, 1, "INT"),
+            (15, QI21_SUBJECT_ID, 0, QI21_HOST_ID, 2, "STRING"),
+            # W2 PE 链主画布:[11]→[140];[140]/[40].prompt→[141];[141]→[27]+[40].提示词
+            (31, 11, 0, QI21_SG_PE_RW, 0, "CLIP"),
+            (32, QI21_SG_PE_RW, 0, QI21_SG_PE_SW, 1, "STRING"),
+            (33, QI21_HOST_ID, 2, QI21_SG_PE_SW, 0, "STRING"),
+            (QI21_FROZEN_BACK_LINK, QI21_SG_PE_SW, 0, QI21_HOST_ID, 5, "STRING"),
+            (18, QI21_SG_PE_SW, 0, QI21_PREVIEW_ID, 0, "STRING"),
+            # W2 画幅联动链主画布:[40] W/H→开关 on_false;[180] 总闸→switch;开关→[5]
+            (45, QI21_HOST_ID, 3, QI21_SG_SW_WH_IDS[0], 0, "INT"),
+            (46, QI21_HOST_ID, 4, QI21_SG_SW_WH_IDS[1], 0, "INT"),
+            (47, QI21_RATIO_PB_ID, 0, QI21_SG_SW_WH_IDS[0], 2, "BOOLEAN"),
+            (48, QI21_RATIO_PB_ID, 0, QI21_SG_SW_WH_IDS[1], 2, "BOOLEAN"),
+            (1, QI21_SG_SW_WH_IDS[0], 0, QI21_LATENT_ID, 0, "INT"),
+            (2, QI21_SG_SW_WH_IDS[1], 0, QI21_LATENT_ID, 1, "INT"),
             (16, QI21_HOST_ID, 0, QI21_SAMPLER_ID, 1, "CONDITIONING"),
             (17, QI21_HOST_ID, 1, QI21_SAMPLER_ID, 2, "CONDITIONING"),
-            (18, QI21_HOST_ID, 2, QI21_PREVIEW_ID, 0, "STRING"),
             # R26.4 LoRA 加速槽接线(照 i2i 断言式):顶通道扇出两臂→开关→KSampler
             (20, QI21_RR_M8B_ID, 0, QI21_LORA_SW_ID, 0, "MODEL"),
             (23, QI21_RR_M8B_ID, 0, QI21_LORA_ID, 0, "MODEL"),
@@ -1191,10 +1253,12 @@ class TestQi21SubgraphContract:
         assert not _by_type(graph, "TextEncodeQwenImage21"), \
             "主图不应有平铺 TextEncode(主编码/RGBA 编码已收进子图)"
         switches = [n["id"] for n in _by_type(graph, "ComfySwitchNode")]
-        assert switches == [QI21_LORA_SW_ID, QI21_STEPS_SW_ID], \
-            f"主图开关应恰 MODEL 开关[{QI21_LORA_SW_ID}]+steps 联动开关" \
-            f"[{QI21_STEPS_SW_ID}](满血接线轮),得 {switches}"
-        assert not _by_type(graph, PE_CLASS), "PE 改写件应收进子图"
+        assert sorted(switches) == sorted(
+            [QI21_LORA_SW_ID, QI21_SG_PE_SW, *QI21_SG_SW_WH_IDS, QI21_STEPS_SW_ID]), \
+            f"主图开关应恰 MODEL[32]+PE[141]+宽高联动[157][158]+steps[177],得 {switches}"
+        pe_nodes = _by_type(graph, PE_CLASS)
+        assert len(pe_nodes) == 1 and pe_nodes[0]["id"] == QI21_SG_PE_RW, \
+            "W2:PE 改写件应在主画布恰 1 个 [140](PE 链迁出子图,同构 i2i/edit)"
         assert not _by_type(graph, "ResolutionSelector"), \
             "主图不应有 ResolutionSelector(写死档位表废止,宽高随型直驱)"
         subjects = [n for n in graph["nodes"] if n["type"] == "PrimitiveStringMultiline"]
@@ -1214,7 +1278,7 @@ class TestQi21SubgraphContract:
             f"应恰 1 个 LoraLoaderModelOnly[{QI21_LORA_ID}](加速槽)"
         assert _widget(loras[0], 0) == LORA_FILE, \
             f"LoRA 槽 name 应逐字预填 {LORA_FILE!r}"
-        assert _widget(loras[0], 1) == 1.0, "LoRA 槽 strength_model 默认应 1.0"
+        assert _widget(loras[0], 1) == 0.8, "LoRA 槽 strength_model 应 0.8(0925 探针最优,三件同步)"
         assert _trace_main_reroute(nodes, links, loras[0]["inputs"][0]["link"]) == 1, \
             "LoRA 槽 model 上游应 UNETLoader[1](t2i 无 Cache,可穿顶通道 Reroute)"
         sw = nodes[QI21_LORA_SW_ID]
@@ -1241,6 +1305,9 @@ class TestQi21SubgraphContract:
             "VAEDecode", "SaveImage", "MarkdownNote", "easy showAnything",
             "PrimitiveStringMultiline", "PrimitiveBoolean", "PrimitiveInt",
             "ComfySwitchNode", "LoraLoaderModelOnly", "Reroute",
+            # 0925 W2:PE 改写件+画幅联动链(正则/转数/公式)随 PE 链迁主画布
+            "QwenImage21_T2IPromptRewrite", "RegexExtract", "ComfyNumberConvert",
+            "ComfyMathExpression",
         }
         for n in graph["nodes"]:
             if n["id"] == QI21_HOST_ID and n["type"] == sg["id"]:
@@ -1274,11 +1341,13 @@ class TestQi21SubgraphContract:
     # ── MyQi21DaojieBase 在场+三真源互锁(05 库↔qi21_bases.json↔工作流)────
 
     def test_qi21_base_node_present_and_combo_default(self):
-        """[150] MyQi21DaojieBase 在子图内:combo base 槽=widget 转输入接 -10 槽4
-        (宿主面板「型选择」COMBO 九选一);widgets 默认=人物;四出 BASE/WIDTH/HEIGHT/型名;
-        BASE 喂拼接①,W/H 喂联动开关 on_false(默认直驱路)。"""
+        """[150] MyQi21DaojieBase 在子图内:combo base 槽=widget 转输入接 -10 槽3
+        (宿主面板「型选择」COMBO 九选一,W3 收窄后槽序);widgets 默认=人物;四出
+        BASE/WIDTH/HEIGHT/型名;BASE 喂拼接①;W/H 经子图通道 Reroute 出 width/
+        height 输出→主画布 [157]/[158].on_false(默认直驱路)。"""
         graph = GRAPHS["qi21"]
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        nodes, links = _nodes(graph), _links(graph)
         bases = [n for n in sg_nodes.values() if n["type"] == "MyQi21DaojieBase"]
         assert len(bases) == 1 and bases[0]["id"] == QI21_SG_BASE_ID, \
             f"子图应恰 1 个 MyQi21DaojieBase[{QI21_SG_BASE_ID}]"
@@ -1288,19 +1357,25 @@ class TestQi21SubgraphContract:
         assert base_inp["name"] == "base" and "widget" in base_inp, \
             "[150].base 应为 widget 转输入(combo 经宿主面板外露)"
         bl = sg_links[base_inp["link"]]
-        assert bl["origin_id"] == -10 and bl["origin_slot"] == 4 and bl["type"] == "COMBO", \
-            "[150].base 应接 -10 槽4(宿主面板「型选择」COMBO)"
+        assert bl["origin_id"] == -10 and bl["origin_slot"] == 3 and bl["type"] == "COMBO", \
+            "[150].base 应接 -10 槽3(宿主面板「型选择」COMBO,W3 收窄槽序)"
         assert [o["name"] for o in node["outputs"]] == ["BASE", "WIDTH", "HEIGHT", "型名"], \
             "[150] 四出应为 BASE/WIDTH/HEIGHT/型名"
         concat1 = sg_nodes[QI21_SG_CONCAT_IDS[0]]
         assert sg_links[concat1["inputs"][1]["link"]]["origin_id"] == QI21_SG_BASE_ID, \
             "拼接①.string_b 上游应为 [150].BASE(级联退役,一处选型)"
-        for sw_id, out_slot, out_name in ((QI21_SG_SW_WH_IDS[0], 1, "WIDTH"),
-                                          (QI21_SG_SW_WH_IDS[1], 2, "HEIGHT")):
-            sw = sg_nodes[sw_id]
-            oid, oslot = _qi21_trace_origin(sg_nodes, sg_links, sw["inputs"][0]["link"])
-            assert oid == QI21_SG_BASE_ID and oslot == out_slot, \
-                f"[{sw_id}].on_false 上游应为 [150].{out_name}(九型直驱默认路,可穿通道 Reroute)"
+        # W/H 经顶部通道 Reroute 出子图 width/height 输出(0925 W6:通道带正区)
+        for out_slot, out_name in ((3, "width"), (4, "height")):
+            io = _qi21_sg(graph)["outputs"][out_slot]
+            oid, _oslot = _qi21_trace_origin(sg_nodes, sg_links, io["linkIds"][0])
+            assert oid == QI21_SG_BASE_ID, \
+                f"子图 {out_name} 输出应溯至 [150].WIDTH/HEIGHT(可穿通道 Reroute),得 origin {oid}"
+        # 主画布:[157]/[158].on_false ← [40] width/height 输出(九型直驱默认路)
+        for sw_id, host_slot, out_name in ((QI21_SG_SW_WH_IDS[0], 3, "width"),
+                                           (QI21_SG_SW_WH_IDS[1], 4, "height")):
+            f_l = links[nodes[sw_id]["inputs"][0]["link"]]
+            assert (f_l[1], f_l[2]) == (QI21_HOST_ID, host_slot), \
+                f"[{sw_id}].on_false 上游应 [40].{out_name} 输出(九型直驱默认路,W2 主画布)"
 
     def test_qi21_bases_json_interlocks_library(self):
         """三真源互锁:qi21_bases.json(MyQi21DaojieBase 运行时读)base_text 逐字=
@@ -1340,46 +1415,51 @@ class TestQi21SubgraphContract:
             "[110] 应恒挂直连拼接②(不随型走开关)"
 
     def test_cascade_retired_and_linkage_switches_wired(self):
-        """级联退役(09-23 总装轮):子图 ComfySwitchNode 恰 4 枚=提示词开关(STRING)/
-        RGBA 开关(CONDITIONING)/宽高联动双开关(INT);九 StringConstant 不复活
-        (子图 StringConstant 恰 3=锁层A+RGBA 官方头尾);联动链 wh_ratio→正则→转数→
-        公式→开关 on_true,switch 槽全部接 -10 且默认 false。"""
+        """级联退役+W3 子图收窄(0925):子图 ComfySwitchNode 恰 1 枚=RGBA 开关
+        (提示词/画幅联动开关随 W2 迁主画布);九 StringConstant 不复活(子图恰
+        3=锁层A+RGBA 官方头尾);PE/联动链件零残留子图;联动链锚(主画布):
+        wh_ratio→正则→转数→公式→开关 on_true,switch←[180] 总闸,默认 false。"""
         graph = GRAPHS["qi21"]
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        nodes, links = _nodes(graph), _links(graph)
         switches = {n["id"]: n for n in sg_nodes.values() if n["type"] == "ComfySwitchNode"}
-        assert sorted(switches) == sorted(
-            [QI21_SG_PE_SW, QI21_SG_RGBA_SW, *QI21_SG_SW_WH_IDS]), \
-            f"级联退役:子图开关应恰 4 枚,得 {sorted(switches)}"
-        for sid, typ in ((QI21_SG_PE_SW, "STRING"), (QI21_SG_RGBA_SW, "CONDITIONING"),
-                         (QI21_SG_SW_WH_IDS[0], "INT"), (QI21_SG_SW_WH_IDS[1], "INT")):
-            sw = switches[sid]
-            assert sw["outputs"][0]["type"] == typ, f"[{sid}] 开关输出型应为 {typ}"
-            assert sw["widgets_values"][0] is False, f"[{sid}] 开关默认非 false"
-            oid, _os = _qi21_trace_origin(sg_nodes, sg_links, sw["inputs"][2]["link"])
-            assert oid == -10, f"[{sid}] switch 槽应接 -10(宿主面板,可穿通道 Reroute)"
+        assert sorted(switches) == [QI21_SG_RGBA_SW], \
+            f"W3 子图收窄:子图开关应恰 1 枚(RGBA),得 {sorted(switches)}"
+        assert switches[QI21_SG_RGBA_SW]["widgets_values"][0] is False, "[144] 开关默认非 false"
+        oid, oslot = _qi21_trace_origin(sg_nodes, sg_links,
+                                        switches[QI21_SG_RGBA_SW]["inputs"][2]["link"])
+        assert oid == -10 and oslot == 4, \
+            "[144] switch 槽应接 -10 槽4(宿主面板 RGBA透明开关,W3 收窄槽序)"
         sconsts = {n["id"] for n in sg_nodes.values() if n["type"] == "StringConstant"}
         assert sconsts == {QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID}, \
             f"级联退役:子图 StringConstant 应恰 3 枚(锁层A+RGBA头尾),得 {sorted(sconsts)}"
-        # 联动链锚:[140].wh_ratio 扇出两线喂正则;正则→转数→公式→开关 on_true
-        pe = sg_nodes[QI21_SG_PE_RW]
+        for banned in (PE_CLASS, "RegexExtract", "ComfyNumberConvert", "ComfyMathExpression"):
+            assert not [n for n in sg_nodes.values() if n["type"] == banned], \
+                f"W3 子图收窄:子图不应有 {banned}(PE 链/画幅联动已迁主画布)"
+        # 联动链锚(主画布):[140].wh_ratio 扇出两线;正则→转数→公式→开关 on_true
+        pe = nodes[QI21_SG_PE_RW]
         wh = pe["outputs"][2]
-        assert wh["name"] == "wh_ratio" and sorted(wh["links"] or []) == [28, 29], \
+        assert wh["name"] == "wh_ratio" and sorted(wh["links"] or []) == [35, 36], \
             "[140].wh_ratio 应扇出两线喂宽高正则(联动源)"
         for rid in QI21_SG_RATIO_IDS:
-            assert sg_nodes[rid]["type"] == "RegexExtract", f"[{rid}] 应为 RegexExtract"
-            assert sg_nodes[rid]["widgets_values"][2] == "First Group", f"[{rid}] 应 First Group"
+            assert nodes[rid]["type"] == "RegexExtract", f"[{rid}] 应为 RegexExtract"
+            assert nodes[rid]["widgets_values"][2] == "First Group", f"[{rid}] 应 First Group"
         for cid in QI21_SG_CONV_IDS:
-            assert sg_nodes[cid]["type"] == "ComfyNumberConvert", f"[{cid}] 应为 ComfyNumberConvert"
+            assert nodes[cid]["type"] == "ComfyNumberConvert", f"[{cid}] 应为 ComfyNumberConvert"
         for mid, sw_id in zip(QI21_SG_MATH_IDS, QI21_SG_SW_WH_IDS):
-            assert sg_nodes[mid]["type"] == "ComfyMathExpression", f"[{mid}] 应为 ComfyMathExpression"
-            tl = sg_nodes[sw_id]["inputs"][1]["link"]
-            assert tl is not None and sg_links[tl]["origin_id"] == mid, \
+            assert nodes[mid]["type"] == "ComfyMathExpression", f"[{mid}] 应为 ComfyMathExpression"
+            tl = nodes[sw_id]["inputs"][1]["link"]
+            assert tl is not None and links[tl][1] == mid, \
                 f"[{sw_id}].on_true 上游应为公式 [{mid}]"
-        # 联动开关 switch 槽同接 -10 槽7(画幅联动开关,一槽双线,穿顶部通道 Reroute)
+        # 联动开关 switch 槽接主画布 [180] 总闸(0925 W2:不再占宿主面板)
         for sw_id in QI21_SG_SW_WH_IDS:
-            oid, oslot = _qi21_trace_origin(sg_nodes, sg_links, switches[sw_id]["inputs"][2]["link"])
-            assert oid == -10 and oslot == 7, \
-                f"[{sw_id}] switch 槽应接 -10 槽7(画幅联动开关,可穿通道 Reroute)"
+            sl = links[nodes[sw_id]["inputs"][2]["link"]]
+            assert sl[1] == QI21_RATIO_PB_ID, \
+                f"[{sw_id}] switch 槽应接主画布总闸 [{QI21_RATIO_PB_ID}](W2 迁主画布)"
+        assert _widget(nodes[QI21_RATIO_PB_ID], 0) is False, \
+            f"[{QI21_RATIO_PB_ID}] 画幅联动总闸默认应 false(恒九型)"
+        assert sorted(nodes[QI21_RATIO_PB_ID]["outputs"][0]["links"] or []) == [47, 48], \
+            f"[{QI21_RATIO_PB_ID}] 总闸应扇出恰两线(宽/高联动开关)"
 
     def test_default_assembly_equals_library_composition(self):
         """默认人物型:装配全文=[24]主体句+[150]BASE(qi21_bases.json 人物,逐字=库)
@@ -1397,26 +1477,40 @@ class TestQi21SubgraphContract:
         assert assembled == want, "默认装配全文与库人物型四层组合不逐字一致"
 
     def test_pe_group_and_rgba_switch_inside_subgraph(self):
-        """PE/RGBA 承袭(收进子图,逻辑原样):PE 参数=插件官方 README 推荐值(A/B 后再定);
-        两开关 switch 槽接宿主面板 widget,默认 false(直写/普通);RGBA=官方公式
-        头尾常量逐字+拼接路(头句+装配全文+尾句),[143].prompt 接公式输出且 widget 清空。"""
+        """PE/RGBA 承袭(0925 W2:PE 链主画布,与 i2i/edit 的 PE 位置同构):
+        [140] 参数=插件官方 README 推荐值(pp=1.5 定档);[141] 提示词开关在主画布,
+        switch=本件 widget(照 i2i [15] 式),on_false←[40].prompt(装配全文)/
+        on_true←[140]/输出=最终文本(→[27] 预览+→[40].提示词回流);RGBA 留子图:
+        官方公式头尾常量逐字+拼接路(头句+装配全文+尾句),[143].prompt 接公式输出
+        且 widget 清空,[144] switch←宿主面板 RGBA透明开关(默认 false)。"""
         graph = GRAPHS["qi21"]
+        nodes, links = _nodes(graph), _links(graph)
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
-        pe = sg_nodes[QI21_SG_PE_RW]
-        assert pe["type"] == PE_CLASS, f"[{QI21_SG_PE_RW}] 应为 {PE_CLASS}(类名逐字)"
+        pe = nodes[QI21_SG_PE_RW]
+        assert pe["type"] == PE_CLASS, f"[{QI21_SG_PE_RW}] 应为 {PE_CLASS}(类名逐字,主画布)"
         assert pe["widgets_values"][1:] == PE_PARAMS, \
-            f"PE 参数漂移(插件官方 T2I 推荐值 {PE_PARAMS}),得 {pe['widgets_values'][1:]}"
-        pe_sw = sg_nodes[QI21_SG_PE_SW]
+            f"PE 参数漂移(官方 T2I 推荐值 {PE_PARAMS};pp=1.5 定档 0925),得 {pe['widgets_values'][1:]}"
+        # 0925 毒理定案 C1:PE 种子纪律——种子句自带表面洁净正向条款,禁裸前缀直发
+        seed = _widget(pe, 0)
+        assert seed.startswith("水墨国风修仙,画面干净平滑,墨与色落在浅净平涂色场上,而非纸面纹理:"), \
+            "[140] 种子句应在风格前缀后自带表面洁净正向条款(05 库 §一/§六「PE 种子纪律」;" \
+            "禁裸『水墨国风修仙:』前缀直发)"
+        assert links[pe["inputs"][0]["link"]][1] == 11, \
+            "[140].clip 上游应 PE 专属 CLIPLoader[11](主画布加载器组)"
+        pe_sw = nodes[QI21_SG_PE_SW]
         assert pe_sw["outputs"][0]["type"] == "STRING", "提示词开关应为 STRING 泛型"
-        pe_sw_link = sg_links[pe_sw["inputs"][2]["link"]]
-        assert pe_sw_link["origin_id"] == -10 and pe_sw_link["origin_slot"] == 5, \
-            "PE 开关 switch 槽应接 -10 槽5(宿主面板 PE改写开关)"
-        false_src = sg_links[pe_sw["inputs"][0]["link"]]
-        assert false_src["origin_id"] == QI21_SG_CONCAT_IDS[1], \
-            "PE 开关 on_false 应接装配链末梢(拼接②)"
-        true_src = sg_links[pe_sw["inputs"][1]["link"]]
-        assert true_src["origin_id"] == QI21_SG_PE_RW, "PE 开关 on_true 应接 PE 改写"
-        # RGBA 官方公式(09-23 深检吸收必改1)
+        assert pe_sw["widgets_values"][0] is True, \
+            "[141] 提示词开关默认应 true(默认 PE 改写,0926 裁定1 含画布本体;关=直写按图选配)"
+        assert pe_sw["inputs"][2].get("link") is None, \
+            "[141] switch 应为本件 widget(照 i2i [15] 式,不占宿主面板)"
+        f_src = links[pe_sw["inputs"][0]["link"]]
+        assert (f_src[1], f_src[2]) == (QI21_HOST_ID, 2), \
+            "[141].on_false 应接 [40].prompt 输出(装配全文)"
+        assert links[pe_sw["inputs"][1]["link"]][1] == QI21_SG_PE_RW, \
+            "[141].on_true 应接 [140] PE 改写"
+        assert sorted(pe_sw["outputs"][0]["links"] or []) == [18, QI21_FROZEN_BACK_LINK], \
+            "[141] 输出应扇出恰两线([27] 装配预览+[40].提示词回流=最终文本)"
+        # RGBA 官方公式(子图,09-23 深检吸收必改1)
         assert _widget(sg_nodes[QI21_SG_RGBA_HEAD_ID], 0) == RGBA_HEAD_OFFICIAL, \
             "RGBA 官方头句常量非官方原文逐字(This is an RGBA image with transparency.)"
         assert _widget(sg_nodes[QI21_SG_RGBA_TAIL_ID], 0) == RGBA_TAIL_OFFICIAL, \
@@ -1438,15 +1532,17 @@ class TestQi21SubgraphContract:
         rgba_sw = sg_nodes[QI21_SG_RGBA_SW]
         assert rgba_sw["outputs"][0]["type"] == "CONDITIONING", "RGBA 开关应为 CONDITIONING 泛型"
         rgba_sw_link = sg_links[rgba_sw["inputs"][2]["link"]]
-        assert rgba_sw_link["origin_id"] == -10 and rgba_sw_link["origin_slot"] == 6, \
-            "RGBA 开关 switch 槽应接 -10 槽6(宿主面板 RGBA透明开关)"
-        for sid in (QI21_SG_PE_SW, QI21_SG_RGBA_SW):
-            assert sg_nodes[sid]["widgets_values"][0] is False, f"[{sid}] 开关默认非 false"
-        # 宿主面板:PE/RGBA/画幅联动默认关(懒执行——旁路支路不进默认装配)
+        assert rgba_sw_link["origin_id"] == -10 and rgba_sw_link["origin_slot"] == 4, \
+            "RGBA 开关 switch 槽应接 -10 槽4(宿主面板 RGBA透明开关,W3 收窄槽序)"
+        assert rgba_sw["widgets_values"][0] is False, "[144] RGBA 开关默认非 false"
+        # 主编码 [142].prompt 接「提示词」槽(-10 槽5=[141] 回流最终文本)
+        main_te = sg_nodes[QI21_SG_TE]
+        tl = sg_links[main_te["inputs"][3]["link"]]
+        assert tl["origin_id"] == -10 and tl["origin_slot"] == 5, \
+            "[142].prompt 应接 -10 槽5「提示词」(主画布 [141] 开关回流)"
+        # 宿主面板:RGBA 开关默认关(懒执行——旁路支路不进默认装配)
         host = _nodes(graph)[QI21_HOST_ID]
-        assert host["widgets_values"][2] is False and host["widgets_values"][3] is False \
-            and host["widgets_values"][4] is False, \
-            "宿主面板 PE/RGBA/画幅联动开关默认必须 false"
+        assert host["widgets_values"][2] is False, "宿主面板 RGBA透明开关默认必须 false"
 
     def test_subgraph_outputs_feed_sampler_latent_and_preview(self):
         graph = GRAPHS["qi21"]
@@ -1459,11 +1555,13 @@ class TestQi21SubgraphContract:
             ["CONDITIONING", "CONDITIONING", "STRING", "INT", "INT"]
         previews = _by_type(graph, "easy showAnything")
         assert len(previews) == 1 and previews[0]["id"] == QI21_PREVIEW_ID, \
-            "应恰 1 个 easy showAnything 装配预览(接子图 prompt 输出)"
+            "应恰 1 个 easy showAnything 装配预览"
         pv = previews[0]
-        assert _links(graph)[pv["inputs"][0]["link"]][1] == QI21_HOST_ID, \
-            "预览输入应接 [40] 宿主 prompt 输出"
-        assert pv["pos"][0] > host["pos"][0], "预览节点应在宿主右侧(横向排版)"
+        # 0925 W2:预览改接主画布 [141] 提示词开关输出=将进编码的最终文本(铁则2)
+        assert _links(graph)[pv["inputs"][0]["link"]][1] == QI21_SG_PE_SW, \
+            "预览输入应接 [141] 提示词开关输出(最终文本,W2 迁主画布)"
+        pe_sw_pos = _nodes(graph)[QI21_SG_PE_SW]["pos"]
+        assert pv["pos"][0] > pe_sw_pos[0], "预览节点应在 [141] 开关右侧(横向排版)"
         # 0925 归位裁定:节点标题零道劫前缀(原生=type 名+可选注释/自研核心件=描述性
         # 功能名);道劫只留 Group 框/子图名/MarkdownNote 说明卡
         assert "道劫" not in (pv.get("title") or ""), \
@@ -1480,10 +1578,10 @@ class TestQi21SubgraphContract:
     # ── 布局契约(从上到下=阶段行,行内从左到右;group 收敛)──────────────
 
     def test_subgraph_row_layout_top_to_bottom(self):
-        """子图排版=恰 4 阶段行(行1 源行:底座九选一/锁层A/RGBA头尾/PE改写→
-        行2 装配路由→行3 画幅联动→行4 编码输出):行间 y 严格递增且净距≥100;
-        行内(数组序=数据流序)x 严格递增;Reroute 通道拐点不占行(09-24 布局整治)。
-        行成员按 id 锚定,防回退到旧布局。"""
+        """子图排版=恰 3 阶段行(0925 W3 收窄,同构 i2i:行1 源行=底座九选一/
+        锁层A/RGBA头尾→行2 装配路由→行3 编码输出;PE 改写与画幅联动行已迁主
+        画布):行间 y 严格递增且净距≥100;行内(数组序=数据流序)x 严格递增;
+        Reroute 通道拐点不占行。行成员按 id 锚定,防回退到旧布局。"""
         graph = GRAPHS["qi21"]
         sg_nodes = _qi21_sg_nodes(graph)
         rows: dict[int, list[int]] = {}
@@ -1492,12 +1590,10 @@ class TestQi21SubgraphContract:
                 continue  # 通道拐点留框间带,不占阶段行
             rows.setdefault(n["pos"][1], []).append(n["id"])
         row_ys = sorted(rows)
-        assert len(row_ys) == 4, f"子图应恰 4 行(阶段行),得 {len(row_ys)} 行"
+        assert len(row_ys) == 3, f"子图应恰 3 行(阶段行,W3 收窄),得 {len(row_ys)} 行"
         want_rows = [
-            [QI21_SG_BASE_ID, QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID,
-             QI21_SG_RGBA_TAIL_ID, QI21_SG_PE_RW],
-            [*QI21_SG_CONCAT_IDS, *QI21_SG_RGBA_CAT_IDS, QI21_SG_PE_SW],
-            [*QI21_SG_RATIO_IDS, *QI21_SG_CONV_IDS, *QI21_SG_MATH_IDS, *QI21_SG_SW_WH_IDS],
+            [QI21_SG_BASE_ID, QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID],
+            [*QI21_SG_CONCAT_IDS, *QI21_SG_RGBA_CAT_IDS],
             [QI21_SG_TE_RGBA, QI21_SG_TE, QI21_SG_RGBA_SW],
         ]
         for y, want in zip(row_ys, want_rows):
@@ -1512,15 +1608,16 @@ class TestQi21SubgraphContract:
                 f"行 y={y} 与下行净距不足(<100): 行底 {bottom} → 下行 y={next_y}"
 
     def test_no_node_overlap_and_group_budget(self):
-        """零重叠(主图+子图节点矩形两两不相交);group 预算:子图≤4(三阶段+画幅联动,
-        09-24 布局整治从 ≤2 放宽——八裸节点全部入组)、主图≤3(group 泛滥即红);
-        子图 group 必须各含其阶段行全部节点且互不相交(真机构框)。"""
+        """零重叠(主图+子图节点矩形两两不相交);group 预算:子图≤4(W3 收窄后
+        实为 3 框=三阶段行)、主图≤4(0925 W1 加速区组框,自 3 放宽:加载器/
+        装配外露+PE/主链/加速区);子图 group 必须各含其阶段行全部节点且互不相交
+        (真机构框)。"""
         graph = GRAPHS["qi21"]
         sg = _qi21_sg(graph)
         assert len(sg["groups"]) <= 4, \
             f"子图 group 应≤4(三阶段+画幅联动各一框),得 {len(sg['groups'])}"
-        assert len(graph["groups"]) <= 3, \
-            f"主图 group 应≤3(加载器/主链/装配外露),得 {len(graph['groups'])}"
+        assert len(graph["groups"]) <= 4, \
+            f"主图 group 应≤4(W1 加速区组框:加载器/装配外露+PE/主链/加速区),得 {len(graph['groups'])}"
         for scope, nodes in (("主图", graph["nodes"]), ("子图", sg["nodes"])):
             for i in range(len(nodes)):
                 for j in range(i + 1, len(nodes)):
@@ -1563,7 +1660,10 @@ class TestQi21SubgraphContract:
                       RGBA_HEAD_OFFICIAL, RGBA_TAIL_OFFICIAL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
                       "画幅联动", "ResolutionSelector 已退役",
                       "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成",
-                      STEPS_NOTE_TOKEN, "[177]", "shift_terminal=0.02", "TE-Speed"):
+                      STEPS_NOTE_TOKEN, "[177]", "shift_terminal=0.02", "TE-Speed",
+                      # 0925 收窄轮新要点(W1 组框+摆设值/W5 负面占位+pp 定档/W2 主画布)
+                      "数学上不参与采样", "官方同构", "占位", "已定档",
+                      "摆设值不生效", "加速区", "[140]", "[141]", "[180]"):
             assert token in note, f"Note 缺子图版要点: {token!r}"
 
     def test_prompt_library_nine_types_anchor(self):
@@ -1596,6 +1696,64 @@ class TestQi21SubgraphContract:
             f"②层应为美化版成文(与 canon positive 逐字互锁已废止,九型均应有差异),diff={diff}"
         assert "## 六、演进与待裁定" in md, "库应含 §六 演进与待裁定(09-23 深检吸收轮立账)"
         assert "②③层放行显式禁句" in md, "库 §四.4 应含 ②③层放行显式禁句条款(09-23 深检吸收)"
+
+# ── 6d2. 画布归一与加速区组框(0925 收窄轮 W1/W6;适用 qi21/i2i/edit 三件;
+# qwen21-t2i 静态官方件不适用——坐标原样保留)─────────────────────────────
+
+
+class TestCanvasNormalization0925:
+    """W6 零负区(主图+子图所有节点 pos≥80;0926 收紧 40→80=实测发现项3 计划
+    断言互锁,整图平移至左上留边距=打开即全貌)
+    +输出口最右(子图输出 IO 槽 x≥全子图最大 x-50;表示法=K2-文生图-道劫 [90]
+    实证:输出槽钉最右列纵向堆叠)+W1 加速区组框(方案C 原生收纳六件)。
+    与三生成器自查同口径谓词,此处双记账互锁。"""
+
+    GRAPHS_3 = ("qi21", "i2i", "edit")
+    ACCEL = {
+        "qi21": (30, 31, 32, 177, 178, 179),
+        "i2i": (30, 31, 32, 164, 165, 166),
+        "edit": (30, 31, 32, 33, 34, 35),
+    }
+
+    def test_no_negative_coordinates_all_nodes(self):
+        """W6①:零负区——主图+子图所有节点 pos≥80(0926 收紧 40→80=实测发现项3
+        计划断言互锁:三件子图内曾有 pos=40;子图 IO 槽非节点,负 x 表示
+        法=K2 [90] 同款,不在本谓词范围)。"""
+        for name in self.GRAPHS_3:
+            graph = GRAPHS[name]
+            all_nodes = list(graph["nodes"])
+            for sg in graph.get("definitions", {}).get("subgraphs", []):
+                all_nodes += sg["nodes"]
+            for n in all_nodes:
+                assert n["pos"][0] >= 80 and n["pos"][1] >= 80, \
+                    f"{name} node{n['id']} 负区坐标 {n['pos']}(W6① 零负区:pos≥80)"
+
+    def test_subgraph_outputs_pinned_rightmost(self):
+        """W6②:输出口最右——子图输出 IO 槽钉死最右列(edit 件无子图,不适用)。"""
+        for name in ("qi21", "i2i"):
+            sg = _qi21_sg(GRAPHS[name])
+            max_nx = max(n["pos"][0] for n in sg["nodes"])
+            for io in sg["outputs"]:
+                assert io["pos"][0] >= max_nx - 50, \
+                    f"{name} 子图输出 {io['name']} 未钉最右列" \
+                    f"(x={io['pos'][0]} < 全子图最大 x{max_nx}-50,W6②)"
+
+    def test_accel_group_boxes_six_nodes(self):
+        """W1:加速区组框(方案C 原生收纳)在位且罩住六件(总闸/MODEL开关/LoRA/
+        steps联动开关/常量40/6)。"""
+        for name in self.GRAPHS_3:
+            graph = GRAPHS[name]
+            nodes = _nodes(graph)
+            grp = next((g for g in graph["groups"] if "加速区·总闸" in g.get("title", "")), None)
+            assert grp is not None, f"{name}: W1 缺「加速区·总闸」组框(方案C)"
+            gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
+            gx1, gy1 = gx0 + grp["bounding"][2], gy0 + grp["bounding"][3]
+            for nid in self.ACCEL[name]:
+                n = nodes[nid]
+                assert (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
+                        and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1), \
+                    f"{name}: W1 加速区组框未罩住 [{nid}](方案C 组框收纳)"
+
 
 # ── 6f. i2i 件专属契约(09-24 新增:道劫风格图生图=edit 骨架+九型装配移植;
 # 机制=生修合一·图输入即指令编辑,零 denoise 重绘;真源=幂等生成器
@@ -1662,7 +1820,8 @@ class TestI2IContract:
         assert directive_link[1] == I2I_PE_SW_ID, \
             "指令槽上游应 [15] PE 开关(false=直写指令/true=PE-I2I 看图改写)"
         sw = nodes[I2I_PE_SW_ID]
-        assert sw["widgets_values"][0] is False, "[15] PE 开关默认应 false(直写)"
+        assert sw["widgets_values"][0] is True, \
+            "[15] PE 开关默认应 true(默认 PE 改写,0926 裁定1 含画布本体;关=直写按图选配)"
         assert links[sw["inputs"][0]["link"]][1] == I2I_PSM_B_ID, \
             "[15].on_false 应原始用户词 [22](指令唯一手写位)"
         assert links[sw["inputs"][1]["link"]][1] == I2I_RX_ID, \
@@ -1709,7 +1868,7 @@ class TestI2IContract:
             "应恰 1 个 LoraLoaderModelOnly[31](加速槽)"
         assert _widget(loras[0], 0) == I2I_LORA_FILE, \
             f"LoRA 槽 name 应逐字预填 {I2I_LORA_FILE!r}"
-        assert _widget(loras[0], 1) == 1.0, "LoRA 槽 strength_model 默认应 1.0"
+        assert _widget(loras[0], 1) == 0.8, "LoRA 槽 strength_model 应 0.8(0925 探针最优,三件同步)"
         assert links[loras[0]["inputs"][0]["link"]][1] == I2I_CACHE_ID, \
             "LoRA 槽 model 上游应 QwenImage21Cache[7]"
         sw = nodes[I2I_LORA_SW_ID]
@@ -1744,12 +1903,14 @@ class TestI2IContract:
             pb_fan_links=[28, 41])
 
     def test_all_switches_default_off(self):
-        """四开关默认全关(懒执行旁路):[15] PE 直写 / [40] RGBA 普通 / [30] LoRA
-        旁路 / [19] 画幅跟随输入图。"""
+        """开关默认态(0926 裁定1 后):[15] PE 开关默认 true=PE 开路(默认 PE 改写;
+        关=直写按图选配)/ 其余全关(懒执行旁路):[40] RGBA 普通 / [30] LoRA 旁路 /
+        [19] 画幅跟随输入图。"""
         graph = GRAPHS["i2i"]
         nodes = _nodes(graph)
         sg_nodes = _qi21_sg_nodes(graph)
-        assert nodes[I2I_PE_SW_ID]["widgets_values"][0] is False, "[15] PE 开关默认应 false"
+        assert nodes[I2I_PE_SW_ID]["widgets_values"][0] is True, \
+            "[15] PE 开关默认应 true(默认 PE 改写,0926 裁定1)"
         assert nodes[I2I_LORA_SW_ID]["widgets_values"][0] is False, "[32] LoRA 开关默认应 false"
         assert nodes[I2I_LORA_PB_ID]["widgets_values"][0] is False, "[30] LoRA 开关源默认应 false"
         assert nodes[I2I_LATENT_PB_ID]["widgets_values"][0] is False, "[19] 画幅开关源默认应 false"

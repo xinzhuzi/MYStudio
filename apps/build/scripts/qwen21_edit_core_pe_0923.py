@@ -10,10 +10,11 @@ Trellis 09-23-qwen-image-21-research design §13(R16);research/13 官方 PE 强�
          / c=assistant+<think> 预填段,三段各一 PrimitiveStringMultiline)
        → TextGenerate(use_default_template=false + thinking=false,<think> 预填为
          官方刻意设计勿改;temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/
-         maxLength 8192/seed 42;presence_penalty=1.5 暂保=benjiyaya 沿袭值,
-         官方 v2 用 0,待 R19 A/B 裁定)
+         maxLength 8192/seed 42;presence_penalty=1.5 已定档(0925 拍板:A/B 四维 57.5 vs
+         55.0 略优,保留 1.5)
        → RegexExtract(抓 rewritten_prompt,dotall=True,对 think 长文免疫)
-       → ComfySwitchNode(false=原始用户词/true=PE,默认 false 旁路懒执行)
+       → ComfySwitchNode(false=原始用户词/true=PE,0926 裁定1 默认 true=PE 开路;
+       关=直写选配旁路懒执行)
   ② QwenImage21Cache(auto)挂 UNETLoader 后(既有,本脚本保核对)
   ③ BatchImagesNode 前置双通道:全部(预缩后)输入图合批 → TextGenerate.image
      (PE 看全图);TextEncodeQwenImage21 只接选定图(编码器吃选图)
@@ -29,12 +30,21 @@ Trellis 09-23-qwen-image-21-research design §13(R16);research/13 官方 PE 强�
   R26.4 LoRA 加速槽(09-24 统一接线,与 i2i 出生槽/t2i 补槽三件同构;D1 定案
   默认关=正常生成):[7] Cache→⟨[32] MODEL 开关(false=Cache 直连/true=[31]
   LoraLoaderModelOnly,name 预填 Qwen-Image-2.1-viggle-turbo-4step-lora-r64
-  .safetensors,strength 1.0)⟩→[8] KSampler.model(槽插最靠近 KSampler 的
+  .safetensors,strength 0.8)⟩→[8] KSampler.model(槽插最靠近 KSampler 的
   model 入口=Cache 之后);[30] PrimitiveBoolean 默认 false=旁路,关态懒执行=
   执行图零 LoraLoader;TE-Speed 槽不加(3c 试装已死归档,D4 终审永不装)。
   布局随迁:三件住 Cache 上带(y=-560/-260);VAE→VAEDecode 长横穿改走顶缘
   Reroute 通道([28]/[29],y=-640,序列化样板=K2-角色设定-道劫.json——t2i/i2i
   同款),KSampler/解码/保存右移让位;交叉审计 11=整治前 11(零新增)。
+
+  0925 加速与展示全量外露收窄轮(Trellis 09-25-qi21-speed-subgraph,W1/W5/W6):
+    W1 加速区组框收纳(方案C 原生组框):[30][31][32][33][34][35] 六件入主画布
+    「加速区」组框(group 预算 3→4,G2 收窄让位两框不相交);W5 Note 两笔终审:
+    负面线=cfg=1 下数学上不参与采样、占位为官方同构;PE presence_penalty=1.5
+    定档(A/B 四维 57.5 vs 55.0 略优);[8] 面板 steps 显 40=摆设值注明;W6 画布
+    归一:主图整体平移零负区(全部节点 pos≥40,打开即全貌);自查新增谓词:
+    零负区(本件无子图,输出口最右谓词不适用——t2i/i2i 子图件适用)。
+    (t2i 件另有 W2 PE 链迁出子图/W3 子图收窄,PE 位置三件同构=均主画布。)
 
 幂等:全量确定性再生成——重跑输出逐字节一致(真源=本脚本,手改画布会被
 重跑重置,Note 有维护警示)。前置守卫:现文件必须是「旧 benjiyaya 形」或
@@ -97,7 +107,7 @@ NOTE = """## Qwen-Image-2.1 换装编辑 · 使用说明
 
 ### 参数圣经(官方模板 Note 要点)
 
-- **cfg 恒 1**(官方路径):cfg=1 时负向提示词不参与采样;要用负向才抬 cfg。步数官方 40-50,本流 40(满血接线轮:关态=[30] 自动回 40 官方完整档;开态=自动 6,见 LoRA 加速槽)。
+- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径。步数官方 40-50,本流 40(满血接线轮:关态=[30] 自动回 40 官方完整档;开态=自动 6,见 LoRA 加速槽;[8] 面板 steps 显 40=摆设值不生效)。
 - **resolution 是总像素预算非宽高**(保比例):官方默认 1024、上限 2048;本流取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。
 - **参考图语法**:提示词里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。
 - **输入图预缩(0923 吸收,夸克实践)**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸(速度与输入图尺寸/数量强相关)。
@@ -114,8 +124,9 @@ This is an RGBA format image with transparency. [your description]. The image ha
 
 ### LoRA 加速槽([30] 开关,默认关=正常生成;0924 R26.4 三件统一接线+满血接线轮 steps 联动)
 
-- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=Cache 直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机),strength 1.0。
+- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=Cache 直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机),strength 0.8(0925 探针最优:flatMAD 2.52→1.75)。
 - **关闭=正常生成**(默认):MODEL 直连进 [8],LoRA 不加载,40 步主线不动(满血接线轮起关态=40 官方完整档)。
+- 组框收纳(0925 W1 方案C):六件收进主画布「加速区」组框——[30]总闸/[32]MODEL开关/[31]LoRA/[33]steps联动开关/[34][35]常量 40/6;关=40步原味 / 开=viggle LoRA·6步一拨全配。
 - **一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)**:[30] 同时驱动 MODEL 开关与 [33] steps 联动 INT 开关(false→[34] 常量 40/true→[35] 常量 6→[8].steps,widget 已转输入)——开 [30] 一拨,LoRA 挂链+步数自动 6(v0.2.1 系卡荐档,cfg 保持 1);关掉一拨,LoRA 卸链+步数自动回 40;[8] 面板 steps 不再手动调。
 模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。
 - TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。
@@ -124,12 +135,12 @@ This is an RGBA format image with transparency. [your description]. The image ha
 
 已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它。
 
-### PE-I2I 改写组([15] 开关,默认关=直写;0923-r16 换核心免插件)
+### PE-I2I 改写组([15] 开关,默认 PE 改写(0926 裁定1);关=直写按图选配;0923-r16 换核心免插件)
 
 - 链路:PE CLIPLoader(pe_i2i bf16·type=qwen_image)→ 三段 chatml 拼装(StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词段/b=[22] 原始用户词/c=[23] assistant+`<think>` 预填段)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall 免疫 think 长文)→ [15] ComfySwitch(false=[22] 原始用户词/true=PE 结果)。
 - **PE 看全部输入图(双通道)**:[25] BatchImagesNode 合批全部(预缩后)输入图喂 [26].image;TextEncodeQwenImage21 只吃选定图(编码器通道)——改写需要全图上下文才能写 `<imageN>` 引用与判断画布。
-- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改 true);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;**presence_penalty=1.5 暂保(benjiyaya 沿袭值,官方 v2 用 0,待 A/B 裁定后回写)**。
-- 旁路时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载)。
+- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改 true);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;**presence_penalty=1.5 已定档(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)**。
+- 关 [15](直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。
 - PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。
 - 系统提示词=官方 v2 精简版逐字(research/13 四源一致);文末自带收束句,拼 chatml 勿重复添加。
 
@@ -212,47 +223,47 @@ def sswitch(nid, pos, false_link, true_link, switch_link, out_link):
 def build_nodes():
     return [
         # ── 行1 加载器(上)────────────────────────────────────────
-        node(1, "UNETLoader", [-2260, -460], [340, 84],
+        node(1, "UNETLoader", [1220, 600], [340, 84],
              [inp("unet_name", "COMBO", widget=True),
               inp("weight_dtype", "COMBO", widget=True)],
              [out("MODEL", "MODEL", [5])],
              [UNET_FILE, "default"], order=0),
-        node(2, "CLIPLoader", [-1720, -460], [360, 130],
+        node(2, "CLIPLoader", [1760, 600], [360, 130],
              [inp("clip_name", "COMBO", widget=True),
               inp("type", "COMBO", widget=True),
               inp("device", "COMBO", shape=7, widget=True)],
              [out("CLIP", "CLIP", [3])],
              [CLIP_FILE, "qwen_image", "default"], order=1),
-        node(3, "VAELoader", [-1140, -460], [340, 60],
+        node(3, "VAELoader", [2340, 600], [340, 60],
              [inp("vae_name", "COMBO", widget=True)],
              [out("VAE", "VAE", [4, 28])],
              [VAE_FILE], order=2),
         # ── 行2 主链:双图→预缩→编码→缓存→采样→解码→保存 ──────────
-        node(4, "LoadImage", [-2260, -100], [340, 420],
+        node(4, "LoadImage", [1220, 960], [340, 420],
              [inp("image", "COMBO", widget=True),
               inp("upload", "IMAGEUPLOAD", widget=True)],
              [out("IMAGE", "IMAGE", [1]), out("MASK", "MASK", None)],
              [IMG1, "image"], order=3),
-        node(16, "ImageScaleToTotalPixels", [-1560, -100], [330, 130],
+        node(16, "ImageScaleToTotalPixels", [1920, 960], [330, 130],
              [inp("image", "IMAGE", link=1),
               inp("upscale_method", "COMBO", widget=True),
               inp("megapixels", "FLOAT", widget=True),
               inp("resolution_steps", "INT", widget=True)],
              [out("IMAGE", "IMAGE", [9, 11])],
              ["lanczos", 1.5, 32], order=5),
-        node(5, "LoadImage", [-1030, -100], [340, 420],
+        node(5, "LoadImage", [2450, 960], [340, 420],
              [inp("image", "COMBO", widget=True),
               inp("upload", "IMAGEUPLOAD", widget=True)],
              [out("IMAGE", "IMAGE", [2]), out("MASK", "MASK", None)],
              [IMG2, "image"], order=4),
-        node(17, "ImageScaleToTotalPixels", [-480, -100], [330, 130],
+        node(17, "ImageScaleToTotalPixels", [3000, 960], [330, 130],
              [inp("image", "IMAGE", link=2),
               inp("upscale_method", "COMBO", widget=True),
               inp("megapixels", "FLOAT", widget=True),
               inp("resolution_steps", "INT", widget=True)],
              [out("IMAGE", "IMAGE", [10, 12])],
              ["lanczos", 1.0, 32], order=6),
-        node(6, "TextEncodeQwenImage21", [2000, -100], [760, 480],
+        node(6, "TextEncodeQwenImage21", [5480, 960], [760, 480],
              [inp("clip", "CLIP", link=3),
               inp("images.image_1", "IMAGE", shape=7, link=9),
               inp("vae", "VAE", shape=7, link=4),
@@ -262,13 +273,13 @@ def build_nodes():
               out("negative", "CONDITIONING", [8]),
               out("latent", "LATENT", [23])],
              ["", "", 0], order=7),
-        node(7, "QwenImage21Cache", [2960, -100], [340, 120],
+        node(7, "QwenImage21Cache", [6440, 960], [340, 120],
              [inp("model", "MODEL", link=5),
               inp("device", "COMBO", widget=True),
               inp("dtype", "COMBO", widget=True)],
              [out("MODEL", "MODEL", [30, 6])],
              ["auto", "default"], order=20),
-        node(8, "KSampler", [4810, -100], [330, 260],
+        node(8, "KSampler", [8290, 960], [330, 260],
              [inp("model", "MODEL", link=33),
               inp("positive", "CONDITIONING", link=7),
               inp("negative", "CONDITIONING", link=8),
@@ -278,66 +289,66 @@ def build_nodes():
               inp("steps", "INT", widget=True, link=39)],
              [out("LATENT", "LATENT", [27])],
              [0, "randomize", 40, 1, "euler", "simple", 1], order=21),
-        node(9, "VAEDecode", [5340, -100], [240, 50],
+        node(9, "VAEDecode", [8820, 960], [240, 50],
              [inp("samples", "LATENT", link=27), inp("vae", "VAE", link=35)],
              [out("IMAGE", "IMAGE", [29])], order=22),
-        node(10, "SaveImage", [5790, -100], [380, 330],
+        node(10, "SaveImage", [9270, 960], [380, 330],
              [inp("images", "IMAGE", link=29)], [],
              ["MYStudio"], order=23),
         # ── R26.4 LoRA 加速槽三件(Cache 上带;09-24 统一接线,与 i2i/t2i 同构)──
-        node(LORA_PB_ID, "PrimitiveBoolean", [3660, -560], [280, 90],
+        node(LORA_PB_ID, "PrimitiveBoolean", [7140, 500], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
              [out("BOOLEAN", "BOOLEAN", [32, 38])],
              [False], order=25),
-        node(LORA_ID, "LoraLoaderModelOnly", [3560, -260], [340, 130],
+        node(LORA_ID, "LoraLoaderModelOnly", [7040, 800], [340, 130],
              [inp("model", "MODEL", link=30),
               inp("lora_name", "COMBO", widget=True),
               inp("strength_model", "FLOAT", widget=True)],
              [out("MODEL", "MODEL", [31])],
-             [LORA_FILE, 1.0], order=26),
-        node(LORA_SW_ID, "ComfySwitchNode", [4110, -260], [300, 110],
+             [LORA_FILE, 0.8], order=26),
+        node(LORA_SW_ID, "ComfySwitchNode", [7590, 800], [300, 110],
              [inp("on_false", "MODEL", shape=7, link=6),
               inp("on_true", "MODEL", shape=7, link=31),
               inp("switch", "BOOLEAN", widget=True, link=32)],
              [out("output", "MODEL", [33])],
              [False], order=27),
         # ── 行3 输出画幅双路 ──────────────────────────────────────
-        node(19, "PrimitiveBoolean", [1960, 1020], [280, 90],
+        node(19, "PrimitiveBoolean", [5440, 2080], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
              [out("BOOLEAN", "BOOLEAN", [25])],
              [False], order=17),
-        node(18, "EmptyLatentImage", [2460, 1020], [300, 120],
+        node(18, "EmptyLatentImage", [5940, 2080], [300, 120],
              [inp("width", "INT", widget=True),
               inp("height", "INT", widget=True),
               inp("batch_size", "INT", widget=True)],
              [out("LATENT", "LATENT", [24])],
              [1024, 1024, 1], order=18),
-        node(20, "ComfySwitchNode", [3900, 1020], [280, 100],
+        node(20, "ComfySwitchNode", [7380, 2080], [280, 100],
              [inp("on_false", "LATENT", shape=7, link=23),
               inp("on_true", "LATENT", shape=7, link=24),
               inp("switch", "BOOLEAN", widget=True, link=25)],
              [out("output", "LATENT", [26])],
              [False], order=19),
         # ── 行4 PE 链前半:PE loader + chatml 三段 + 拼装 ───────────
-        node(12, "CLIPLoader", [-2260, 1700], [360, 130],
+        node(12, "CLIPLoader", [1220, 2760], [360, 130],
              [inp("clip_name", "COMBO", widget=True),
               inp("type", "COMBO", widget=True),
               inp("device", "COMBO", widget=True)],
              [out("CLIP", "CLIP", [13])],
              [PE_CLIP_FILE, "qwen_image", "default"], order=8),
-        node(21, "PrimitiveStringMultiline", [-1160, 1340], [300, 180],
+        node(21, "PrimitiveStringMultiline", [2320, 2400], [300, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [14])],
              [A_SEG], order=9),
-        node(22, "PrimitiveStringMultiline", [-1720, 1340], [340, 180],
+        node(22, "PrimitiveStringMultiline", [1760, 2400], [340, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [15, 21])],
              [B_SEG], order=10),
-        node(23, "PrimitiveStringMultiline", [-660, 1340], [260, 180],
+        node(23, "PrimitiveStringMultiline", [2820, 2400], [260, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [16])],
              [C_SEG], order=11),
-        node(24, "StringFormat", [-160, 1340], [300, 130],
+        node(24, "StringFormat", [3320, 2400], [300, 130],
              [inp("values.a", "*", shape=7, link=14),
               inp("values.b", "*", shape=7, link=15),
               inp("values.c", "*", shape=7, link=16),
@@ -345,11 +356,11 @@ def build_nodes():
              [out("STRING", "STRING", [17])],
              ["{a}{b}{c}"], order=12),
         # ── 行5 PE 链后半:合批→生成→正则→开关 ────────────────────
-        node(25, "BatchImagesNode", [-110, 340], [260, 170],
+        node(25, "BatchImagesNode", [3370, 1400], [260, 170],
              [inp("images.image0", "IMAGE", link=11),
               inp("images.image1", "IMAGE", shape=7, link=12)],
              [out("IMAGE", "IMAGE", [18])], order=13),
-        node(26, "TextGenerate", [370, 1700], [400, 450],
+        node(26, "TextGenerate", [3850, 2760], [400, 450],
              [inp("clip", "CLIP", link=13),
               inp("image", "IMAGE", shape=7, link=18),
               inp("video", "IMAGE", shape=7),
@@ -369,7 +380,7 @@ def build_nodes():
               inp("mtp", "COMBO", shape=7, widget=True)],
              [out("generated_text", "STRING", [19])],
              TG_WV, order=14),
-        node(27, "RegexExtract", [970, 1700], [330, 260],
+        node(27, "RegexExtract", [4450, 2760], [330, 260],
              [inp("string", "STRING", widget=True, link=19),
               inp("regex_pattern", "STRING", widget=True),
               inp("mode", "COMBO", widget=True),
@@ -379,24 +390,25 @@ def build_nodes():
               inp("group_index", "INT", widget=True)],
              [out("STRING", "STRING", [20])],
              ["", REGEX, "First Group", False, False, True, 1], order=15),
-        node(15, "ComfySwitchNode", [1500, 1700], [300, 110],
+        # [15] PE 开关(0926 裁定1 PE 开路含画布本体:默认 true=PE 改写,关=直写选配)
+        node(15, "ComfySwitchNode", [4980, 2760], [300, 110],
              [inp("on_false", "STRING", shape=7, link=21),
               inp("on_true", "STRING", shape=7, link=20),
               inp("switch", "BOOLEAN", widget=True)],
              [out("output", "STRING", [22])],
-             [False], order=16),
+             [True], order=16),
         # ── 说明卡(左缘独立,零重叠)──────────────────────────────
-        node(11, "MarkdownNote", [-3400, -100], [940, 1100], [], [],
+        node(11, "MarkdownNote", [80, 960], [940, 1100], [], [],
              [NOTE], order=24),
         # ── VAE 顶通道(R26.4 随迁:VAE→VAEDecode 长横穿上顶缘,零新增交叉;
         #    满血接线轮 RR_V_B 右移 3400 让 [33]→[8].steps 落位走廊)──
-        rr(RR_V_A_ID, [-1120, -980], 28, 34),
-        rr(RR_V_B_ID, [4180, -980], 34, 35),
+        rr(RR_V_A_ID, [2360, 80], 28, 34),
+        rr(RR_V_B_ID, [7660, 80], 34, 35),
         # ── 满血接线轮(09-24):steps 联动 INT 开关三件(样板=t2i 画幅联动 [157][158];
         #    同受 [30] 布尔源驱动:false→[34] 常量 40/true→[35] 常量 6→[8].steps 转输入)──
-        sswitch(STEPS_SW_ID, [4610, -360], 36, 37, 38, 39),
-        pint(STEPS_C40_ID, STEPS_OFF, [4160, -800], 36),
-        pint(STEPS_C6_ID, STEPS_ON, [4160, -560], 37),
+        sswitch(STEPS_SW_ID, [8090, 700], 36, 37, 38, 39),
+        pint(STEPS_C40_ID, STEPS_OFF, [7640, 260], 36),
+        pint(STEPS_C6_ID, STEPS_ON, [7640, 500], 37),
     ]
 
 
@@ -444,11 +456,14 @@ LINKS = [
 
 GROUPS = [
     {"id": 1, "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
-     "bounding": [-1900, -510, 1280, 300], "color": "#3f789e", "flags": {}},
+     "bounding": [1580, 550, 1280, 300], "color": "#3f789e", "flags": {}},
     {"id": 2, "title": "换装编辑主链(双参考图预缩→编码→缓存→LoRA加速槽+steps联动开关→采样→解码→保存;下排=输出画幅双路)",
-     "bounding": [-1900, -600, 6500, 1270], "color": "#3f789e", "flags": {}},
-    {"id": 3, "title": "PE-I2I 改写组(默认旁路·核心 TextGenerate·看全部输入图)",
-     "bounding": [-1900, 810, 2980, 820], "color": "#8864a8", "flags": {}},
+     "bounding": [1580, 460, 5400, 1270], "color": "#3f789e", "flags": {}},
+    {"id": 3, "title": "PE-I2I 改写组(默认 PE 开路·核心 TextGenerate·看全部输入图)",
+     "bounding": [1580, 1870, 2980, 820], "color": "#8864a8", "flags": {}},
+    # 0925 W1 加速区组框(方案C 原生收纳;六件=总闸/MODEL开关/LoRA/steps开关/常量40与6)
+    {"id": 4, "title": "加速区·总闸[30](关=40步原味 / 开=viggle LoRA·6步,一拨全配:MODEL+steps 两开关同驱)",
+     "bounding": [7000, 200, 1400, 740], "color": "#4d9e6a", "flags": {}},
 ]
 
 
@@ -533,6 +548,13 @@ def verify(wf):
             elif xov > 0 and yov <= 0 and -(yov) < 80:
                 errs.append(f"node{ida} 与 node{idb} 同列纵距 {-(yov):.0f} <80(0925 间距令)")
 
+    # 4c 零负区(0925 W6①;0926 收紧 pos≥40→≥80=实测发现项3 计划断言互锁):
+    #    主图所有节点 pos≥80,整图平移至左上留边距,打开即全貌
+    #    (本件无子图;t2i/i2i 子图件另有输出口最右谓词,此处不适用)
+    for n in ns:
+        if n["pos"][0] < 80 or n["pos"][1] < 80:
+            errs.append(f"node{n['id']} 负区坐标 {n['pos']}(零负区:pos≥80)")
+
     # 5 计数器真值 ≥ 实存最大(0923 round7 红根因)
     if wf.get("last_node_id", 0) < max(nodes):
         errs.append("last_node_id 陈旧")
@@ -543,11 +565,24 @@ def verify(wf):
     ids = [g.get("id") for g in wf["groups"]]
     if len(ids) != len(set(ids)) or not all(isinstance(i, int) for i in ids):
         errs.append("group id 非互异 int")
-    if len(wf["groups"]) > 3:
-        errs.append(f"group 超 3({len(wf['groups'])})")
-    if not any("PE-I2I 改写组" in g.get("title", "") and "默认旁路" in g.get("title", "")
+    if len(wf["groups"]) > 4:
+        errs.append(f"group 超 4(W1 加速区组框;{len(wf['groups'])})")
+    if not any("PE-I2I 改写组" in g.get("title", "") and "默认 PE 开路" in g.get("title", "")
                for g in wf["groups"]):
-        errs.append("缺 PE-I2I 改写组(默认旁路)分组")
+        errs.append("缺 PE-I2I 改写组(默认 PE 开路)分组")
+    # 0925 W1 加速区组框:标题带「加速区·总闸」且罩住六件([30][31][32][33][34][35])
+    accel_ids = [LORA_PB_ID, LORA_ID, LORA_SW_ID, STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID]
+    accel_grp = next((g for g in wf["groups"] if "加速区·总闸" in g.get("title", "")), None)
+    if accel_grp is None:
+        errs.append("W1 缺「加速区」组框(主画布原生组框收纳六件)")
+    else:
+        gx0, gy0 = accel_grp["bounding"][0], accel_grp["bounding"][1]
+        gx1, gy1 = gx0 + accel_grp["bounding"][2], gy0 + accel_grp["bounding"][3]
+        for nid in accel_ids:
+            n = nodes[nid]
+            if not (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
+                    and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1):
+                errs.append(f"W1 加速区组框未罩住 [{nid}](方案C 组框收纳)")
 
     # 7 节点标题铁律:核心/第三方零自定义 title(本件无自研节点)
     titled = [n["id"] for n in wf["nodes"] if "title" in n]
@@ -638,8 +673,8 @@ def verify(wf):
         if links[rx[0]["inputs"][0]["link"]][1] != 26:
             errs.append("RegexExtract 上游应 TextGenerate")
     sw = nodes[15]
-    if sw["type"] != "ComfySwitchNode" or sw["widgets_values"][0] is not False:
-        errs.append("[15] PE 开关默认应 false")
+    if sw["type"] != "ComfySwitchNode" or sw["widgets_values"][0] is not True:
+        errs.append("[15] PE 开关默认应 true(PE 开路,0926 裁定1 含画布本体;关=直写按图选配)")
     if links[sw["inputs"][0]["link"]][1] != 22:
         errs.append("PE 开关 on_false 应原始用户词 [22]")
     if links[sw["inputs"][1]["link"]][1] != 27:
@@ -705,7 +740,7 @@ def verify(wf):
     if len(loras) != 1 or loras[0]["id"] != LORA_ID:
         errs.append(f"LoraLoaderModelOnly[{LORA_ID}] 应恰 1 个(加速槽)")
     else:
-        if loras[0]["widgets_values"] != [LORA_FILE, 1.0]:
+        if loras[0]["widgets_values"] != [LORA_FILE, 0.8]:
             errs.append(f"LoRA 槽 name/strength 漂移: {loras[0]['widgets_values']}")
         if links[loras[0]["inputs"][0]["link"]][1] != 7:
             errs.append("LoRA 槽 model 上游应 QwenImage21Cache[7]")
@@ -804,7 +839,9 @@ def verify(wf):
                   "BatchImagesNode", "TextGenerate", "ImageScaleToTotalPixels",
                   "LoraLoaderModelOnly", LORA_FILE,
                   "一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)", "[33]", "[34]", "[35]",
-                  "shift_terminal=0.02", "关闭=正常生成", "TE-Speed"):
+                  "shift_terminal=0.02", "关闭=正常生成", "TE-Speed",
+                  # 0925 收窄轮新要点(W1 组框/W5 负面占位+pp 定档+摆设值)
+                  "数学上不参与采样", "官方同构占位", "已定档", "摆设值不生效", "加速区"):
         if token not in note:
             errs.append(f"Note 缺要点:{token}")
     if note.lstrip().startswith("# "):
@@ -842,7 +879,8 @@ def main():
         json.dump(wf, f, ensure_ascii=False, indent=2)
         f.write("\n")
     print(f"再生成完成:{WF}({shape};节点 {len(wf['nodes'])}/连线 {len(wf['links'])}/"
-          f"group 3;LoRA 加速槽在位默认关=正常生成;自查零红)")
+          f"group 4=W1 加速区组框;W5 负面 cfg=1 官方同构占位+pp=1.5 定档+steps 摆设值注明;"
+          f"W6 零负区(pos≥80,0926 收紧=发现项3 互锁);LoRA 加速槽在位默认关=正常生成;自查零红)")
 
 
 if __name__ == "__main__":
