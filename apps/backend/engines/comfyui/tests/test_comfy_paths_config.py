@@ -85,7 +85,7 @@ def test_paths_status_reports_input_output_dirs(home):
     assert status["customized"]["inputDir"] is True
 
 
-def test_set_io_dirs_moves_files_and_records(home):
+def test_set_io_dirs_moves_files_and_records(home, monkeypatch):
     # 已装引擎+引擎未跑:现有 input/output 内容逐项搬移,旧目录搬空除壳,键落账
     write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
     old_input = home / "ComfyUI" / "input"
@@ -96,6 +96,9 @@ def test_set_io_dirs_moves_files_and_records(home):
     (old_output / "ComfyUI_00001_.png").write_bytes(b"png")
 
     manager = EngineManager()
+    # 17001 是本机常驻口:manifest 写死 17001 且 set_io_dirs 真探活,引擎现驻 17001
+    # 时不 mock 就真连引擎=假失败(09-10 P1 同款;09-26 引擎迁驻 17001 后爆发,隔离之)
+    monkeypatch.setattr(manager, "is_healthy", lambda port: False)
     status = manager.set_io_dirs({"inputDir": str(home / "input"), "outputDir": str(home / "output")})
 
     assert (home / "input" / "my-ref-1-abc.png").read_bytes() == b"png"
@@ -113,10 +116,13 @@ def test_set_io_dirs_rejects_running_engine(home, monkeypatch):
         manager.set_io_dirs({"inputDir": str(home / "input")})
 
 
-def test_set_io_dirs_rejects_relative_path(home):
+def test_set_io_dirs_rejects_relative_path(home, monkeypatch):
     write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    manager = EngineManager()
+    # 同上:隔离真探活(引擎未跑态),让校验走到绝对路径分支而非被「引擎运行中」拦截
+    monkeypatch.setattr(manager, "is_healthy", lambda port: False)
     with pytest.raises(EngineOpError, match="绝对路径"):
-        EngineManager().set_io_dirs({"inputDir": "relative/input"})
+        manager.set_io_dirs({"inputDir": "relative/input"})
 
 
 def test_set_paths_rejects_installed(home):
