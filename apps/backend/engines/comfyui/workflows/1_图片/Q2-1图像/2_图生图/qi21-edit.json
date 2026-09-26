@@ -9,10 +9,10 @@
       "id": 1,
       "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
       "bounding": [
-        1580,
-        550,
-        1280,
-        300
+        1180,
+        400,
+        1820,
+        390
       ],
       "color": "#3f789e",
       "flags": {}
@@ -24,7 +24,7 @@
         1580,
         460,
         5400,
-        1270
+        1580
       ],
       "color": "#3f789e",
       "flags": {}
@@ -34,9 +34,9 @@
       "title": "PE-I2I 改写组(默认 PE 开路·核心 TextGenerate·看全部输入图)",
       "bounding": [
         1580,
-        1870,
-        2980,
-        820
+        2140,
+        3760,
+        1140
       ],
       "color": "#8864a8",
       "flags": {}
@@ -46,9 +46,9 @@
       "title": "加速区·总闸[30](关=40步原味 / 开=viggle LoRA·6步,一拨全配:MODEL+steps 两开关同驱)",
       "bounding": [
         7000,
-        200,
-        1400,
-        740
+        160,
+        1450,
+        860
       ],
       "color": "#4d9e6a",
       "flags": {}
@@ -60,7 +60,7 @@
       "type": "UNETLoader",
       "pos": [
         1220,
-        600
+        440
       ],
       "size": [
         340,
@@ -167,7 +167,7 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        2340,
+        2700,
         600
       ],
       "size": [
@@ -326,8 +326,8 @@
       "id": 5,
       "type": "LoadImage",
       "pos": [
-        2450,
-        960
+        1220,
+        1560
       ],
       "size": [
         340,
@@ -380,8 +380,8 @@
       "id": 17,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        3000,
-        960
+        1920,
+        1560
       ],
       "size": [
         330,
@@ -524,7 +524,7 @@
       "type": "QwenImage21Cache",
       "pos": [
         6440,
-        960
+        740
       ],
       "size": [
         340,
@@ -712,8 +712,8 @@
       "id": 30,
       "type": "PrimitiveBoolean",
       "pos": [
-        7140,
-        500
+        7040,
+        400
       ],
       "size": [
         280,
@@ -754,7 +754,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         7040,
-        800
+        640
       ],
       "size": [
         340,
@@ -808,7 +808,7 @@
       "type": "ComfySwitchNode",
       "pos": [
         7590,
-        800
+        860
       ],
       "size": [
         300,
@@ -900,7 +900,7 @@
       "type": "EmptyLatentImage",
       "pos": [
         5940,
-        2080
+        2260
       ],
       "size": [
         300,
@@ -1068,7 +1068,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         2320,
-        2400
+        2200
       ],
       "size": [
         300,
@@ -1149,7 +1149,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         2820,
-        2400
+        2900
       ],
       "size": [
         260,
@@ -1189,7 +1189,7 @@
       "type": "StringFormat",
       "pos": [
         3320,
-        2400
+        2540
       ],
       "size": [
         300,
@@ -1247,7 +1247,7 @@
       "type": "BatchImagesNode",
       "pos": [
         3370,
-        1400
+        1500
       ],
       "size": [
         260,
@@ -1556,7 +1556,7 @@
       "type": "ComfySwitchNode",
       "pos": [
         4980,
-        2760
+        2460
       ],
       "size": [
         300,
@@ -1630,7 +1630,7 @@
       "id": 28,
       "type": "Reroute",
       "pos": [
-        2360,
+        2960,
         80
       ],
       "size": [
@@ -1753,7 +1753,7 @@
       "type": "PrimitiveInt",
       "pos": [
         7640,
-        260
+        220
       ],
       "size": [
         270,
@@ -1799,7 +1799,7 @@
       "type": "PrimitiveInt",
       "pos": [
         7640,
-        500
+        460
       ],
       "size": [
         270,

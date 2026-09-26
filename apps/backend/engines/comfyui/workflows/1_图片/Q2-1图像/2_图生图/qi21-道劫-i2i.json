@@ -34,9 +34,9 @@
       "title": "道劫·PE-I2I 改写组(默认 PE 开路·核心 TextGenerate·看全部输入图·edit 骨架原样)",
       "bounding": [
         1580,
-        2210,
-        2980,
-        820
+        2360,
+        3200,
+        890
       ],
       "color": "#8864a8",
       "flags": {}
@@ -48,7 +48,7 @@
         7480,
         200,
         1390,
-        730
+        750
       ],
       "color": "#4d9e6a",
       "flags": {}
@@ -168,7 +168,7 @@
       "type": "VAELoader",
       "pos": [
         2340,
-        600
+        700
       ],
       "size": [
         340,
@@ -386,7 +386,7 @@
       "type": "LoadImage",
       "pos": [
         2450,
-        960
+        1300
       ],
       "size": [
         340,
@@ -440,7 +440,7 @@
       "type": "ImageScaleToTotalPixels",
       "pos": [
         3000,
-        960
+        1560
       ],
       "size": [
         330,
@@ -609,7 +609,7 @@
       "type": "easy showAnything",
       "pos": [
         6240,
-        960
+        530
       ],
       "size": [
         480,
@@ -645,8 +645,8 @@
       "id": 7,
       "type": "QwenImage21Cache",
       "pos": [
-        6920,
-        960
+        6940,
+        440
       ],
       "size": [
         340,
@@ -700,8 +700,8 @@
       "id": 30,
       "type": "PrimitiveBoolean",
       "pos": [
-        7620,
-        500
+        7520,
+        580
       ],
       "size": [
         280,
@@ -742,7 +742,7 @@
       "type": "LoraLoaderModelOnly",
       "pos": [
         7520,
-        800
+        810
       ],
       "size": [
         340,
@@ -796,7 +796,7 @@
       "type": "ComfySwitchNode",
       "pos": [
         8070,
-        800
+        240
       ],
       "size": [
         300,
@@ -1022,7 +1022,7 @@
       "type": "EmptyLatentImage",
       "pos": [
         5940,
-        2080
+        2280
       ],
       "size": [
         300,
@@ -1132,7 +1132,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         2320,
-        2400
+        2900
       ],
       "size": [
         300,
@@ -1213,7 +1213,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         2820,
-        2400
+        2900
       ],
       "size": [
         260,
@@ -1310,8 +1310,8 @@
       "id": 25,
       "type": "BatchImagesNode",
       "pos": [
-        3370,
-        1400
+        3700,
+        1600
       ],
       "size": [
         260,
@@ -1620,7 +1620,7 @@
       "type": "ComfySwitchNode",
       "pos": [
         4980,
-        2760
+        2240
       ],
       "size": [
         300,
@@ -1729,7 +1729,7 @@
       "id": 42,
       "type": "Reroute",
       "pos": [
-        2780,
+        6400,
         180
       ],
       "size": [
@@ -1886,8 +1886,8 @@
       "id": 165,
       "type": "PrimitiveInt",
       "pos": [
-        8120,
-        260
+        8070,
+        760
       ],
       "size": [
         270,
@@ -1932,7 +1932,7 @@
       "id": 166,
       "type": "PrimitiveInt",
       "pos": [
-        8120,
+        8070,
         500
       ],
       "size": [
@@ -2320,9 +2320,9 @@
         "version": 1,
         "state": {
           "lastGroupId": 3,
-          "lastNodeId": 163,
-          "lastLinkId": 26,
-          "lastRerouteId": 0
+          "lastNodeId": 170,
+          "lastLinkId": 27,
+          "lastRerouteId": 1
         },
         "revision": 1,
         "config": {
@@ -2357,7 +2357,7 @@
               2
             ],
             "pos": [
-              2990,
+              2380,
               1540
             ]
           },
@@ -2754,7 +2754,7 @@
             "id": 162,
             "type": "StringConcatenate",
             "pos": [
-              1600,
+              1800,
               860
             ],
             "size": [
@@ -2807,7 +2807,7 @@
             "id": 163,
             "type": "StringConcatenate",
             "pos": [
-              2180,
+              2400,
               860
             ],
             "size": [
@@ -2860,7 +2860,7 @@
             "id": 143,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              3040,
+              2700,
               1580
             ],
             "size": [
@@ -3035,7 +3035,7 @@
                 "name": "on_true",
                 "shape": 7,
                 "type": "CONDITIONING",
-                "link": 22
+                "link": 27
               },
               {
                 "name": "switch",
@@ -3061,6 +3061,41 @@
             "widgets_values": [
               false
             ]
+          },
+          {
+            "id": 170,
+            "type": "Reroute",
+            "pos": [
+              3700,
+              1200
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 11,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 22
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "CONDITIONING",
+                "links": [
+                  27
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
           }
         ],
         "groups": [
@@ -3082,7 +3117,7 @@
             "bounding": [
               100,
               800,
-              2520,
+              2780,
               300
             ],
             "color": "#a1309b",
@@ -3092,9 +3127,9 @@
             "id": 3,
             "title": "道劫·编码输出(行3:主编码+RGBA编码(官方公式路,默认旁路)+RGBA开关)",
             "bounding": [
-              3000,
+              2700,
               1520,
-              1740,
+              2040,
               560
             ],
             "color": "#886",
@@ -3274,8 +3309,8 @@
             "id": 22,
             "origin_id": 143,
             "origin_slot": 0,
-            "target_id": 144,
-            "target_slot": 1,
+            "target_id": 170,
+            "target_slot": 0,
             "type": "CONDITIONING"
           },
           {
@@ -3309,6 +3344,14 @@
             "target_id": -20,
             "target_slot": 3,
             "type": "LATENT"
+          },
+          {
+            "id": 27,
+            "origin_id": 170,
+            "origin_slot": 0,
+            "target_id": 144,
+            "target_slot": 1,
+            "type": "CONDITIONING"
           }
         ],
         "extra": {
@@ -3318,6 +3361,6 @@
       }
     ]
   },
-  "last_node_id": 166,
+  "last_node_id": 170,
   "last_link_id": 42
 }

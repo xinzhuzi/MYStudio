@@ -46,6 +46,27 @@ Trellis 09-23-qwen-image-21-research design §13(R16);research/13 官方 PE 强�
     零负区(本件无子图,输出口最右谓词不适用——t2i/i2i 子图件适用)。
     (t2i 件另有 W2 PE 链迁出子图/W3 子图收窄,PE 位置三件同构=均主画布。)
 
+  0926 线不遮节点轮(用户令「工作流的美化,你只管位置,不要线与节点彼此
+  遮盖!」;整治 11 条真遮挡,全部挪位解决、零新增 Reroute):自查新增谓词
+  「零线遮节点」=贝塞尔采样精判(节点盒 size 口径/Reroute 60×30,槽位
+  右/左缘 top+25+slot×20,三次贝塞尔 k=clamp(|dx|/2,40,200) 41 点采样,
+  非端点盒 ±2 容差即遮挡;bbox 走廊口径高估 5 倍弃用)。挪位九处:
+  ① [1] UNET 抬 y=440(长线 [1]→[7] 高走净空,不再扫 [2]/[6]);
+  ② [3] VAE 右移 2700([2]→[6] 长线从其盒底下方过),RR_V_A 随迁 2960
+     保恒向右;③ 双图链改双子行([5]/[17] 沉 y=1560,[25] 沉 y=1500)——
+  [16] 两条长线([16]→[6] 平飞/[16]→[25] 斜穿)与 [17]→[6] 上行线全部
+  走净空;④ [7] Cache 抬 y=740([6]→[8] 双 condition 线从其盒底下方过);
+  ⑤ 加速区六件错位重排([30](7040,400)/[31](7040,640)/[32](7590,860)/
+  [34](7640,220)/[35](7640,460),[33] 不动)——[7]→[32] 直连臂从 [31]
+  盒底下方过,[30]→[33]/[34]→[33] 竖落线走件间净空;⑥ [18] 沉 y=2260
+  ([19]→[20] 布尔横线从其盒顶上方过);⑦ chatml 三段纵瀑布([21] 抬
+  y=2200/[23] 沉 y=2900,[22] 双扇出主居中)+[24] 沉 y=2540——同横排时
+  槽 y 全落 2400-2580 带,任何排法必有一段横扫邻段,纵错位后三段送线
+  与 [12]→[26] 顶带横线(y=2785)全部走净空;⑧ [15] PE 开关抬 y=2460
+  ([22] 直写长线近平飞收口,不再扫 [27] 盒顶);⑨ 组框 G1/G2/G3/G4
+  边界随占位同步。既有谓词(横向排版/est 零重叠/横距≥200 纵距≥80/
+  零负区 pos≥80/命名/内容互锁)全保持绿;接线与参数零改动(纯位置手术)。
+
 幂等:全量确定性再生成——重跑输出逐字节一致(真源=本脚本,手改画布会被
 重跑重置,Note 有维护警示)。前置守卫:现文件必须是「旧 benjiyaya 形」或
 「本脚本产物形」,别的形状拒写(先验证再动手,铁律0)。
@@ -223,7 +244,9 @@ def sswitch(nid, pos, false_link, true_link, switch_link, out_link):
 def build_nodes():
     return [
         # ── 行1 加载器(上)────────────────────────────────────────
-        node(1, "UNETLoader", [1220, 600], [340, 84],
+        # 0926 线不遮节点轮:[1] 抬高走顶带(其 [1]→[7] 长线过 [2][3][6] 顶侧净空),
+        # [3] 右移让 [2]→[6] 长线从其盒底下方通过(lane y≈675+ > 盒底 662)。
+        node(1, "UNETLoader", [1220, 440], [340, 84],
              [inp("unet_name", "COMBO", widget=True),
               inp("weight_dtype", "COMBO", widget=True)],
              [out("MODEL", "MODEL", [5])],
@@ -234,7 +257,7 @@ def build_nodes():
               inp("device", "COMBO", shape=7, widget=True)],
              [out("CLIP", "CLIP", [3])],
              [CLIP_FILE, "qwen_image", "default"], order=1),
-        node(3, "VAELoader", [2340, 600], [340, 60],
+        node(3, "VAELoader", [2700, 600], [340, 60],
              [inp("vae_name", "COMBO", widget=True)],
              [out("VAE", "VAE", [4, 28])],
              [VAE_FILE], order=2),
@@ -251,12 +274,14 @@ def build_nodes():
               inp("resolution_steps", "INT", widget=True)],
              [out("IMAGE", "IMAGE", [9, 11])],
              ["lanczos", 1.5, 32], order=5),
-        node(5, "LoadImage", [2450, 960], [340, 420],
+        # 0926 线不遮节点轮:双图链改双子行——[5]→[17] 整链下沉 y=1560 行,
+        # 让 [16] 的两条长线([16]→[6] 平飞 / [16]→[25] 斜穿)走原行 B 净空。
+        node(5, "LoadImage", [1220, 1560], [340, 420],
              [inp("image", "COMBO", widget=True),
               inp("upload", "IMAGEUPLOAD", widget=True)],
              [out("IMAGE", "IMAGE", [2]), out("MASK", "MASK", None)],
              [IMG2, "image"], order=4),
-        node(17, "ImageScaleToTotalPixels", [3000, 960], [330, 130],
+        node(17, "ImageScaleToTotalPixels", [1920, 1560], [330, 130],
              [inp("image", "IMAGE", link=2),
               inp("upscale_method", "COMBO", widget=True),
               inp("megapixels", "FLOAT", widget=True),
@@ -273,7 +298,9 @@ def build_nodes():
               out("negative", "CONDITIONING", [8]),
               out("latent", "LATENT", [23])],
              ["", "", 0], order=7),
-        node(7, "QwenImage21Cache", [6440, 960], [340, 120],
+        # 0926 线不遮节点轮:[7] 上抬至 y=740 带——[6]→[8] 双 condition 线从其
+        # 盒底下方通过,[1]→[7] 长线全程高走不再扫 [6] 盒顶。
+        node(7, "QwenImage21Cache", [6440, 740], [340, 120],
              [inp("model", "MODEL", link=5),
               inp("device", "COMBO", widget=True),
               inp("dtype", "COMBO", widget=True)],
@@ -296,17 +323,20 @@ def build_nodes():
              [inp("images", "IMAGE", link=29)], [],
              ["MYStudio"], order=23),
         # ── R26.4 LoRA 加速槽三件(Cache 上带;09-24 统一接线,与 i2i/t2i 同构)──
-        node(LORA_PB_ID, "PrimitiveBoolean", [7140, 500], [280, 90],
+        # 0926 线不遮节点轮(加速区六件错位重排):[31] 上抬让 [7]→[32] 直连臂
+        # 从其盒底下方走;[30]/[34]/[35] 随之让位,保 est 间距(横≥200/纵≥80)
+        # 与 [30]→[33]、[34]→[33] 两条竖落线走件间净空。
+        node(LORA_PB_ID, "PrimitiveBoolean", [7040, 400], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
              [out("BOOLEAN", "BOOLEAN", [32, 38])],
              [False], order=25),
-        node(LORA_ID, "LoraLoaderModelOnly", [7040, 800], [340, 130],
+        node(LORA_ID, "LoraLoaderModelOnly", [7040, 640], [340, 130],
              [inp("model", "MODEL", link=30),
               inp("lora_name", "COMBO", widget=True),
               inp("strength_model", "FLOAT", widget=True)],
              [out("MODEL", "MODEL", [31])],
              [LORA_FILE, 0.8], order=26),
-        node(LORA_SW_ID, "ComfySwitchNode", [7590, 800], [300, 110],
+        node(LORA_SW_ID, "ComfySwitchNode", [7590, 860], [300, 110],
              [inp("on_false", "MODEL", shape=7, link=6),
               inp("on_true", "MODEL", shape=7, link=31),
               inp("switch", "BOOLEAN", widget=True, link=32)],
@@ -317,7 +347,8 @@ def build_nodes():
              [inp("value", "BOOLEAN", widget=True)],
              [out("BOOLEAN", "BOOLEAN", [25])],
              [False], order=17),
-        node(18, "EmptyLatentImage", [5940, 2080], [300, 120],
+        # 0926 线不遮节点轮:[18] 下沉让 [19]→[20] 布尔横线从其盒顶上方通过。
+        node(18, "EmptyLatentImage", [5940, 2260], [300, 120],
              [inp("width", "INT", widget=True),
               inp("height", "INT", widget=True),
               inp("batch_size", "INT", widget=True)],
@@ -330,13 +361,17 @@ def build_nodes():
              [out("output", "LATENT", [26])],
              [False], order=19),
         # ── 行4 PE 链前半:PE loader + chatml 三段 + 拼装 ───────────
+        # 0926 线不遮节点轮(chatml 三段纵错位):三段同横排时任何一段的
+        # 送线必横扫邻段盒(槽 y 全落在 2400-2580 带内,横排不可两全)——
+        # 改纵瀑布:[21]a 段上抬/[23]c 段下沉/[22]b 段(双扇出主)居中,
+        # [24] 拼装落位 y=2540,[12]→[26] 顶带横线(y=2785)从 [23] 盒顶上方过。
         node(12, "CLIPLoader", [1220, 2760], [360, 130],
              [inp("clip_name", "COMBO", widget=True),
               inp("type", "COMBO", widget=True),
               inp("device", "COMBO", widget=True)],
              [out("CLIP", "CLIP", [13])],
              [PE_CLIP_FILE, "qwen_image", "default"], order=8),
-        node(21, "PrimitiveStringMultiline", [2320, 2400], [300, 180],
+        node(21, "PrimitiveStringMultiline", [2320, 2200], [300, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [14])],
              [A_SEG], order=9),
@@ -344,11 +379,11 @@ def build_nodes():
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [15, 21])],
              [B_SEG], order=10),
-        node(23, "PrimitiveStringMultiline", [2820, 2400], [260, 180],
+        node(23, "PrimitiveStringMultiline", [2820, 2900], [260, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [16])],
              [C_SEG], order=11),
-        node(24, "StringFormat", [3320, 2400], [300, 130],
+        node(24, "StringFormat", [3320, 2540], [300, 130],
              [inp("values.a", "*", shape=7, link=14),
               inp("values.b", "*", shape=7, link=15),
               inp("values.c", "*", shape=7, link=16),
@@ -356,7 +391,7 @@ def build_nodes():
              [out("STRING", "STRING", [17])],
              ["{a}{b}{c}"], order=12),
         # ── 行5 PE 链后半:合批→生成→正则→开关 ────────────────────
-        node(25, "BatchImagesNode", [3370, 1400], [260, 170],
+        node(25, "BatchImagesNode", [3370, 1500], [260, 170],
              [inp("images.image0", "IMAGE", link=11),
               inp("images.image1", "IMAGE", shape=7, link=12)],
              [out("IMAGE", "IMAGE", [18])], order=13),
@@ -390,8 +425,9 @@ def build_nodes():
               inp("group_index", "INT", widget=True)],
              [out("STRING", "STRING", [20])],
              ["", REGEX, "First Group", False, False, True, 1], order=15),
-        # [15] PE 开关(0926 裁定1 PE 开路含画布本体:默认 true=PE 改写,关=直写选配)
-        node(15, "ComfySwitchNode", [4980, 2760], [300, 110],
+        # [15] PE 开关(0926 裁定1 PE 开路含画布本体:默认 true=PE 改写,关=直写选配;
+        # 0926 线不遮节点轮:上抬 y=2460——[22] 直写长线近平飞收口,不再扫 [27] 盒顶)
+        node(15, "ComfySwitchNode", [4980, 2460], [300, 110],
              [inp("on_false", "STRING", shape=7, link=21),
               inp("on_true", "STRING", shape=7, link=20),
               inp("switch", "BOOLEAN", widget=True)],
@@ -401,14 +437,15 @@ def build_nodes():
         node(11, "MarkdownNote", [80, 960], [940, 1100], [], [],
              [NOTE], order=24),
         # ── VAE 顶通道(R26.4 随迁:VAE→VAEDecode 长横穿上顶缘,零新增交叉;
-        #    满血接线轮 RR_V_B 右移 3400 让 [33]→[8].steps 落位走廊)──
-        rr(RR_V_A_ID, [2360, 80], 28, 34),
+        #    满血接线轮 RR_V_B 右移 3400 让 [33]→[8].steps 落位走廊;
+        #    0926 线不遮节点轮 RR_V_A 随 [3] 右移至 2960 保恒向右)──
+        rr(RR_V_A_ID, [2960, 80], 28, 34),
         rr(RR_V_B_ID, [7660, 80], 34, 35),
         # ── 满血接线轮(09-24):steps 联动 INT 开关三件(样板=t2i 画幅联动 [157][158];
         #    同受 [30] 布尔源驱动:false→[34] 常量 40/true→[35] 常量 6→[8].steps 转输入)──
         sswitch(STEPS_SW_ID, [8090, 700], 36, 37, 38, 39),
-        pint(STEPS_C40_ID, STEPS_OFF, [7640, 260], 36),
-        pint(STEPS_C6_ID, STEPS_ON, [7640, 500], 37),
+        pint(STEPS_C40_ID, STEPS_OFF, [7640, 220], 36),
+        pint(STEPS_C6_ID, STEPS_ON, [7640, 460], 37),
     ]
 
 
@@ -455,15 +492,17 @@ LINKS = [
 ]
 
 GROUPS = [
+    # 0926 线不遮节点轮:三组框边界随节点错位重排同步改(G1 罩三加载器新梯形
+    # 占位/G2 底缘下探罩双图子行/G3 罩 PE 纵瀑布与上抬的 [15]/G4 罩加速区六件新占位)
     {"id": 1, "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
-     "bounding": [1580, 550, 1280, 300], "color": "#3f789e", "flags": {}},
+     "bounding": [1180, 400, 1820, 390], "color": "#3f789e", "flags": {}},
     {"id": 2, "title": "换装编辑主链(双参考图预缩→编码→缓存→LoRA加速槽+steps联动开关→采样→解码→保存;下排=输出画幅双路)",
-     "bounding": [1580, 460, 5400, 1270], "color": "#3f789e", "flags": {}},
+     "bounding": [1580, 460, 5400, 1580], "color": "#3f789e", "flags": {}},
     {"id": 3, "title": "PE-I2I 改写组(默认 PE 开路·核心 TextGenerate·看全部输入图)",
-     "bounding": [1580, 1870, 2980, 820], "color": "#8864a8", "flags": {}},
+     "bounding": [1580, 2140, 3760, 1140], "color": "#8864a8", "flags": {}},
     # 0925 W1 加速区组框(方案C 原生收纳;六件=总闸/MODEL开关/LoRA/steps开关/常量40与6)
     {"id": 4, "title": "加速区·总闸[30](关=40步原味 / 开=viggle LoRA·6步,一拨全配:MODEL+steps 两开关同驱)",
-     "bounding": [7000, 200, 1400, 740], "color": "#4d9e6a", "flags": {}},
+     "bounding": [7000, 160, 1450, 860], "color": "#4d9e6a", "flags": {}},
 ]
 
 
@@ -554,6 +593,51 @@ def verify(wf):
     for n in ns:
         if n["pos"][0] < 80 or n["pos"][1] < 80:
             errs.append(f"node{n['id']} 负区坐标 {n['pos']}(零负区:pos≥80)")
+
+    # 4d 零线遮节点(0926 铁律:用户令「工作流的美化,你只管位置,不要线与节点
+    #    彼此遮盖!」)——贝塞尔采样精判(刻意不用 bbox 走廊口径:走廊高估约
+    #    5 倍,会产生大量假遮挡)。口径:节点盒=普通节点 size 字段(缺省
+    #    [220,120]),Reroute 按 60×30;槽位=输出槽(节点右缘,top+25+
+    #    origin_slot×20)/输入槽(左缘,top+25+target_slot×20);线=三次
+    #    贝塞尔 P0=输出槽/P3=输入槽,P1=(P0.x+k,P0.y)/P2=(P3.x−k,P3.y),
+    #    k=clamp(|dx|/2,40,200),41 点采样;任采样点落入非端点节点盒
+    #    (±2 容差)即遮挡,两端点豁免。本件无子图,主图口径。
+    def _occ_box(n):
+        if n["type"] == "Reroute":
+            w, h = 60.0, 30.0
+        else:
+            w, h = (n.get("size") or [220, 120])[:2]
+        x, y = float(n["pos"][0]), float(n["pos"][1])
+        return (x, y, x + w, y + h)
+
+    def _occ_slot(n, slot, side):
+        x0, y0, x1, _ = _occ_box(n)
+        sy = y0 + 25 + (slot or 0) * 20
+        return (x1, sy) if side == "out" else (x0, sy)
+
+    def _bez(p0, p1, p2, p3, t):
+        mt = 1 - t
+        return (mt ** 3 * p0[0] + 3 * mt * mt * t * p1[0]
+                + 3 * mt * t * t * p2[0] + t ** 3 * p3[0],
+                mt ** 3 * p0[1] + 3 * mt * mt * t * p1[1]
+                + 3 * mt * t * t * p2[1] + t ** 3 * p3[1])
+
+    occ_boxes = {nid: _occ_box(n) for nid, n in nodes.items()}
+    for l in wf["links"]:
+        lid, oid, oslot, tid, tslot, _ = l
+        p0 = _occ_slot(nodes[oid], oslot, "out")
+        p3 = _occ_slot(nodes[tid], tslot, "in")
+        k = max(40, min(200, abs(p3[0] - p0[0]) * 0.5))
+        p1, p2 = (p0[0] + k, p0[1]), (p3[0] - k, p3[1])
+        pts = [_bez(p0, p1, p2, p3, i / 40) for i in range(41)]
+        hit = sorted(nid for nid, bx in occ_boxes.items()
+                     if nid not in (oid, tid)
+                     and any(bx[0] - 2 <= px <= bx[2] + 2
+                             and bx[1] - 2 <= py <= bx[3] + 2
+                             for px, py in pts))
+        if hit:
+            errs.append(f"link{lid} [{oid}]->[{tid}] 线遮节点 {hit}"
+                        f"(0926 铁律:线不遮节点,挪位或垫 Reroute 让长线走净空)")
 
     # 5 计数器真值 ≥ 实存最大(0923 round7 红根因)
     if wf.get("last_node_id", 0) < max(nodes):
@@ -880,7 +964,8 @@ def main():
         f.write("\n")
     print(f"再生成完成:{WF}({shape};节点 {len(wf['nodes'])}/连线 {len(wf['links'])}/"
           f"group 4=W1 加速区组框;W5 负面 cfg=1 官方同构占位+pp=1.5 定档+steps 摆设值注明;"
-          f"W6 零负区(pos≥80,0926 收紧=发现项3 互锁);LoRA 加速槽在位默认关=正常生成;自查零红)")
+          f"W6 零负区(pos≥80,0926 收紧=发现项3 互锁);0926 铁律线不遮节点"
+          f"(11 条真遮挡全数挪位整治,贝塞尔采样精判零红);LoRA 加速槽在位默认关=正常生成;自查零红)")
 
 
 if __name__ == "__main__":

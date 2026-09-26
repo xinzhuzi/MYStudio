@@ -12,7 +12,7 @@
         40,
         280,
         2200,
-        220
+        300
       ],
       "color": "#3f789e",
       "flags": {}
@@ -22,9 +22,9 @@
       "title": "道劫·装配外露+PE 改写([24]主体句=①层唯一手写位;[140]PE改写+画幅联动链[151]-[158]主画布;[40]装配子图;[141]提示词开关;[27]装配预览=最终文本)",
       "bounding": [
         40,
-        900,
-        7060,
-        1180
+        920,
+        4620,
+        1040
       ],
       "color": "#a1309b",
       "flags": {}
@@ -33,10 +33,10 @@
       "id": 3,
       "title": "道劫·主链([5]空潜→[7]采样→[8]解码→[9]保存;steps 接[177]联动)",
       "bounding": [
-        6680,
-        2200,
-        2100,
-        500
+        5940,
+        1160,
+        1680,
+        840
       ],
       "color": "#3f789e",
       "flags": {}
@@ -46,9 +46,9 @@
       "title": "道劫·加速区·总闸[30](关=40步原味 / 开=viggle LoRA·6步,一拨全配:MODEL+steps 两开关同驱)",
       "bounding": [
         2360,
-        2160,
-        3250,
-        330
+        2560,
+        2900,
+        1180
       ],
       "color": "#4d9e6a",
       "flags": {}
@@ -305,8 +305,8 @@
       "type": "QwenImage21_T2IPromptRewrite",
       "title": "[140] PE改写(短句→英文长文,默认开路(0926裁定1);pp=1.5 已定档 0925)",
       "pos": [
-        1900,
-        960
+        2500,
+        1450
       ],
       "size": [
         440,
@@ -428,7 +428,7 @@
       "type": "easy showAnything",
       "title": "[27] 装配预览(接[141]开关输出=将进编码的最终文本;跑图前过目)",
       "pos": [
-        4700,
+        4100,
         960
       ],
       "size": [
@@ -466,8 +466,8 @@
       "type": "PrimitiveBoolean",
       "title": "[180] 画幅联动开关(默认关=恒九型;开=PE 建议画幅接管 [5])",
       "pos": [
-        5360,
-        1300
+        4800,
+        1810
       ],
       "size": [
         280,
@@ -508,8 +508,8 @@
       "type": "EmptyLatentImage",
       "title": "[5] EmptyLatentImage(宽高接 [157]/[158] 联动,默认=[40] 九型直驱;面板 1024=摆设值不生效)",
       "pos": [
-        6720,
-        2260
+        5980,
+        1200
       ],
       "size": [
         330,
@@ -559,8 +559,8 @@
       "type": "KSampler",
       "title": "[7] KSampler(40步·cfg1;seed 外露;model 接 [32] 加速槽开关;steps 接 [177] 联动开关,面板 steps=摆设值不生效)",
       "pos": [
-        7300,
-        2260
+        6150,
+        1560
       ],
       "size": [
         330,
@@ -626,8 +626,8 @@
       "type": "VAEDecode",
       "title": "[8] VAEDecode",
       "pos": [
-        7850,
-        2260
+        6700,
+        1560
       ],
       "size": [
         240,
@@ -666,8 +666,8 @@
       "type": "SaveImage",
       "title": "[9] SaveImage",
       "pos": [
-        8350,
-        2260
+        7150,
+        1560
       ],
       "size": [
         380,
@@ -718,7 +718,7 @@
       "type": "c3f81b56-0a47-4d29-9e61-8b7f2d5a6c04",
       "title": "[40] 装配子图(双击进入)",
       "pos": [
-        2600,
+        1700,
         960
       ],
       "size": [
@@ -826,7 +826,7 @@
       "type": "ComfySwitchNode",
       "title": "提示词开关(true=PE扩写·默认(0926裁定1) / false=直写装配=按图选配;输出=最终文本)",
       "pos": [
-        3900,
+        3300,
         980
       ],
       "size": [
@@ -880,7 +880,7 @@
       "type": "RegexExtract",
       "title": "PE建议画幅·取宽比(如 16:9→16)",
       "pos": [
-        2400,
+        3700,
         1560
       ],
       "size": [
@@ -975,8 +975,8 @@
       "type": "RegexExtract",
       "title": "PE建议画幅·取高比(如 16:9→9)",
       "pos": [
-        2940,
-        1560
+        3700,
+        2100
       ],
       "size": [
         340,
@@ -1070,7 +1070,7 @@
       "type": "ComfyNumberConvert",
       "title": "宽比转数",
       "pos": [
-        3520,
+        4240,
         1560
       ],
       "size": [
@@ -1111,8 +1111,8 @@
       "type": "ComfyNumberConvert",
       "title": "高比转数",
       "pos": [
-        4010,
-        1560
+        4240,
+        2100
       ],
       "size": [
         240,
@@ -1152,7 +1152,7 @@
       "type": "ComfyMathExpression",
       "title": "PE建议宽(4.2MP·8倍数取整)",
       "pos": [
-        4550,
+        4690,
         1560
       ],
       "size": [
@@ -1211,8 +1211,8 @@
       "type": "ComfyMathExpression",
       "title": "PE建议高(4.2MP·8倍数取整)",
       "pos": [
-        5140,
-        1560
+        4690,
+        2100
       ],
       "size": [
         340,
@@ -1270,7 +1270,7 @@
       "type": "ComfySwitchNode",
       "title": "宽联动开关(false=九型WIDTH / true=PE建议宽)",
       "pos": [
-        5680,
+        5230,
         1560
       ],
       "size": [
@@ -1285,7 +1285,7 @@
           "name": "on_false",
           "shape": 7,
           "type": "INT",
-          "link": 45
+          "link": 52
         },
         {
           "name": "on_true",
@@ -1323,8 +1323,8 @@
       "type": "ComfySwitchNode",
       "title": "高联动开关(false=九型HEIGHT / true=PE建议高)",
       "pos": [
-        6180,
-        1560
+        5900,
+        2100
       ],
       "size": [
         300,
@@ -1338,7 +1338,7 @@
           "name": "on_false",
           "shape": 7,
           "type": "INT",
-          "link": 46
+          "link": 53
         },
         {
           "name": "on_true",
@@ -1377,7 +1377,7 @@
       "title": "[30] 加速开关(默认关=正常生成;一拨全配:同驱 MODEL+steps 两开关)",
       "pos": [
         2400,
-        2220
+        2680
       ],
       "size": [
         280,
@@ -1418,8 +1418,8 @@
       "type": "LoraLoaderModelOnly",
       "title": "[31] LoraLoaderModelOnly(viggle v0.2 r256;开=[30]一拨自动6步·strength0.8)",
       "pos": [
-        2920,
-        2220
+        4400,
+        2900
       ],
       "size": [
         340,
@@ -1473,8 +1473,8 @@
       "type": "ComfySwitchNode",
       "title": "[32] MODEL开关(false=直连正常生成 / true=LoRA加速)",
       "pos": [
-        3500,
-        2220
+        4900,
+        2600
       ],
       "size": [
         300,
@@ -1488,7 +1488,7 @@
           "name": "on_false",
           "shape": 7,
           "type": "MODEL",
-          "link": 20
+          "link": 49
         },
         {
           "name": "on_true",
@@ -1526,8 +1526,8 @@
       "type": "ComfySwitchNode",
       "title": "[177] steps联动开关(false=自动回40原路 / true=自动6步加速;同受[30]一拨驱动)",
       "pos": [
-        5250,
-        2220
+        3800,
+        2900
       ],
       "size": [
         300,
@@ -1579,8 +1579,8 @@
       "type": "PrimitiveInt",
       "title": "steps常量40(关态=原路·官方完整档)",
       "pos": [
-        4750,
-        2220
+        2400,
+        2900
       ],
       "size": [
         270,
@@ -1626,8 +1626,8 @@
       "type": "PrimitiveInt",
       "title": "steps常量6(开态=v0.2卡荐档)",
       "pos": [
-        4270,
-        2220
+        2400,
+        3200
       ],
       "size": [
         270,
@@ -1729,8 +1729,43 @@
           "name": "",
           "type": "MODEL",
           "links": [
-            20,
-            23
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 190,
+      "type": "Reroute",
+      "pos": [
+        1100,
+        1560
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "MODEL",
+          "links": [
+            23,
+            49
           ]
         }
       ],
@@ -1751,7 +1786,7 @@
         26
       ],
       "flags": {},
-      "order": 31,
+      "order": 32,
       "mode": 0,
       "inputs": [
         {
@@ -1778,7 +1813,7 @@
       "id": 23,
       "type": "Reroute",
       "pos": [
-        7600,
+        6500,
         170
       ],
       "size": [
@@ -1786,7 +1821,7 @@
         26
       ],
       "flags": {},
-      "order": 32,
+      "order": 33,
       "mode": 0,
       "inputs": [
         {
@@ -1801,6 +1836,76 @@
           "type": "VAE",
           "links": [
             22
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 191,
+      "type": "Reroute",
+      "pos": [
+        4650,
+        1400
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 45
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "INT",
+          "links": [
+            52
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 192,
+      "type": "Reroute",
+      "pos": [
+        5830,
+        1460
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 46
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "INT",
+          "links": [
+            53
           ]
         }
       ],
@@ -1831,7 +1936,7 @@
       45,
       40,
       3,
-      157,
+      191,
       0,
       "INT"
     ],
@@ -1839,6 +1944,22 @@
       46,
       40,
       4,
+      192,
+      0,
+      "INT"
+    ],
+    [
+      52,
+      191,
+      0,
+      157,
+      0,
+      "INT"
+    ],
+    [
+      53,
+      192,
+      0,
       158,
       0,
       "INT"
@@ -2063,15 +2184,23 @@
       20,
       21,
       0,
-      32,
+      190,
       0,
       "MODEL"
     ],
     [
       23,
-      21,
+      190,
       0,
       31,
+      0,
+      "MODEL"
+    ],
+    [
+      49,
+      190,
+      0,
+      32,
       0,
       "MODEL"
     ],
@@ -2163,9 +2292,9 @@
         "version": 1,
         "state": {
           "lastGroupId": 3,
-          "lastNodeId": 174,
-          "lastLinkId": 27,
-          "lastRerouteId": 4
+          "lastNodeId": 175,
+          "lastLinkId": 28,
+          "lastRerouteId": 5
         },
         "revision": 1,
         "config": {
@@ -2875,7 +3004,7 @@
                 "name": "on_true",
                 "shape": 7,
                 "type": "CONDITIONING",
-                "link": 18
+                "link": 28
               },
               {
                 "name": "switch",
@@ -2976,8 +3105,8 @@
             "id": 173,
             "type": "Reroute",
             "pos": [
-              860,
-              180
+              740,
+              160
             ],
             "size": [
               75,
@@ -3034,6 +3163,41 @@
                 "type": "INT",
                 "links": [
                   27
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
+          },
+          {
+            "id": 175,
+            "type": "Reroute",
+            "pos": [
+              3900,
+              1700
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 15,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 18
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "CONDITIONING",
+                "links": [
+                  28
                 ]
               }
             ],
@@ -3222,6 +3386,14 @@
             "id": 18,
             "origin_id": 143,
             "origin_slot": 0,
+            "target_id": 175,
+            "target_slot": 0,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 28,
+            "origin_id": 175,
+            "origin_slot": 0,
             "target_id": 144,
             "target_slot": 1,
             "type": "CONDITIONING"
@@ -3306,6 +3478,6 @@
       }
     ]
   },
-  "last_node_id": 180,
-  "last_link_id": 48
+  "last_node_id": 192,
+  "last_link_id": 53
 }

@@ -3,7 +3,29 @@
 
 历史轮:改名→子图化(学 K2 [90])→底座美化→MyQi21DaojieBase 总装→RGBA 官方公式
 →画幅联动→R26.4 LoRA 槽→满血接线 steps 联动→0925 布局美化/节点标题归位→
-0926 子图 pos≥80 收口(实测发现项3:子图整体归一平移,自查零负区阈值 40→80 互锁)。
+0926 子图 pos≥80 收口(实测发现项3:子图整体归一平移,自查零负区阈值 40→80 互锁)→
+**0926 线不遮节点轮(用户令:「工作流的美化,你只管位置,不要线与节点彼此遮盖!」
+实测(贝塞尔 41 点采样精判)该件曾有 21 条真遮挡——重灾区=主画布 [151]-[158]
+画幅联动链菊花链互压([151]->[153] 遮 152、[153]->[156] 遮 154,155 等)与
+[140]->[152] 遮 [40]、加速区 [30]/[179] 扇出遮串、[32]/[177]->[7] 遮 [5] 等;
+本轮主画布全量重排+4 枚垫脚石 Reroute 归零,自查新增谓词「零线遮节点」互锁)**:
+  - 画幅联动链改蛇形两行(上=宽路 [151][153][155][157] y1560,下=高路
+    [152][154][156][158] y2100,列对齐 x3700/4240/4690/5230+高开关 [158] 让位
+    x5900):同路横连走行内空档,跨路 [153]<->[156]/[154]<->[155] 走列间对角,
+    wh_ratio 双降线走 [140] 右缘陡降走廊;
+  - 行2 收敛为装配横排 [24]→[40]→[141]→[27](左右相邻零穿越);[140] PE 改写
+    下沉 PE 带 y1450([11]→[140] 陡降,[140]→[141]/双正则斜上/陡下均零穿越);
+  - [40].width/.height→联动开关 on_false 垫脚石 [191]/[192](九型 W/H 长横线
+    先沿蛇形上带平走再陡降,避免直连斜穿列盒);[180] 总闸挪蛇形行间走廊右端;
+  - 主链上移与蛇形同带([5] y1200/[7][8][9] y1560):[40].positive/.negative
+    直连 [7] 零遮挡(不再需要通道件),[157]/[158]→[5] 陡升;
+  - 加速区两行化(上=[32]@4900 y2600,下=[30]@2400 y2680/[177]@3800 y2900/
+    [31]@4400 y2900/[178][179]@2400 y2900/3200):[30] 扇出走行间,
+    [178]/[179] 垂直堆叠避菊花,[21] 顶通道 MODEL 垂降垫脚石 [190]@1100
+    (x982-1218 装载器列缝)再平送 [31]/[32](直连斜穿 [3]/[140]/[151] 全避免);
+  - 子图两笔:[173] H 通道拐点左移避 [150].WIDTH 升线;[143]->[144] 行3
+    on_true 线几何上必过 [142](三行契约+成员序钉死),垫脚石 [175] 走行2-行3
+    框间带拐弯。
 本轮(Trellis 09-25-qi21-speed-subgraph,W1/W2/W3/W5/W6):
 
   W2 t2i PE 链迁出子图(0925 设计铁则 1/2:经常改动的量+需展示的结果=主画布):
@@ -38,15 +60,21 @@
     新增两谓词:零负区(主图+子图所有节点 pos≥40)+输出口最右(子图输出接口
     x≥全子图最大 x-50),与既有谓词(est 零重叠+横距≥200/纵距≥80)合成防线。
 
-主画布布局(0925 收窄轮,全部正区;从上到下=阶段带,行内从左到右):
-  顶通道 y=80/170:MODEL 通道 [20][21](扇出直连/LoRA 两臂)/VAE 通道 [22][23]
-  行1 y=320  加载器:[1] UNET/[2] 主TE/[3] VAE/[11] PE 专属 TE
-  行2 y=960  装配外露+PE:[24] 主体句→[140] PE改写→[40] 装配子图→[141] 提示词
-             开关(输出=[最终文本)→[27] 装配预览
-  行3 y=1300/1560 画幅联动:[180] 联动总闸(默认关)+[151]-[158] 联动链
-             (wh_ratio→正则→转数→公式→双开关,on_false=[40] 九型 W/H)→[5] 空潜
-  行4 y=2220 加速区(组框):[30][31][32]+[179][178][177]
-  行5 y=2260 采样链:[7] KSampler→[8] 解码→[9] 保存
+主画布布局(0926 线不遮节点轮全量重排,全部正区;从上到下=阶段带,行内从左到右):
+  顶通道 y=80/170:MODEL 通道 [20][21]+垂降垫脚石 [190]@1100(x982-1218 装载器
+             列缝,平送 [31]/[32] 两臂)/VAE 通道 [22]@[1420]→[23]@[6500]
+  行1 y=320  加载器:[1] UNET/[2] 主TE/[3] VAE/[11] PE 专属 TE(不动)
+  行2 y=960  装配横排:[24] 主体句→[40] 装配子图→[141] 提示词开关→[27] 装配预览
+  PE 带 y=1450:[140] PE改写([11] 陡降喂 clip;wh_ratio 双陡降喂联动链正则)
+  蛇形联动 y=1560/2100:上=宽路 [151]正则→[153]转数→[155]公式→[157]开关;
+             下=高路 [152]→[154]→[156]→[158](col x3700/4240/4690/5230,
+             [158] 让位 x5900 避 [32]→[7] 走廊);[40] W/H 经垫脚石 [191]/[192]
+             沿上带平送再陡降;[180] 总闸在行间走廊右端 @4800,1810
+  主链带 y=1200/1560:[5] 空潜@5980→[7] KSampler@6150→[8] 解码@6700→[9] 保存@7150
+             ([40] positive/negative 直连 [7] 零遮挡)
+  加速区 y=2600-3200(组框,两行):[30] 总闸@2400,2680/[177] steps开关@3800,2900/
+             [31] LoRA@4400,2900/[32] MODEL开关@4900,2600/[178] 常量40@2400,2900/
+             [179] 常量6@2400,3200(常量垂直堆叠避菊花,[30] 扇出走行间)
   Note [10] 左下独立;主图 group 恰 4=加载器/装配外露+PE/主链/加速区。
 
 子图结构(宿主 [40],双击进入;行式三行):
@@ -74,7 +102,9 @@ LoraLoader)/ steps 联动(INT 开关+常量40/6+同一布尔源扇出+[7].steps 
 est 间距(同行横距≥200/同列纵距≥80,Reroute/Note 豁免)+ est 足迹零重叠 /
 group 预算(子图≤4、主图≤4[W1 加速区组框])+ 框两两不相交 /
 **零负区(主图+子图所有节点 pos≥40)** / **输出口最右(子图输出接口 x≥全子图
-最大 x-50)** / 主图+子图 group 全 int id / 子图 IO linkIds 逐项登记(契约铁律) /
+最大 x-50)** / **零线遮节点(0926 铁律,主图+子图同口径:贝塞尔 41 点采样,
+任采样点落入非端点节点盒 ±2 即遮挡;-10/-20 边界线与验收器同口径跳过)** /
+主图+子图 group 全 int id / 子图 IO linkIds 逐项登记(契约铁律) /
 道劫字号归位(组框/子图名/说明卡留道劫,节点标题零道劫=0925 裁定) / W1 加速区
 组框在位且罩住六件 / MyQi21DaojieBase 在场+combo 默认人物+qi21_bases.json↔05 库
 逐字互锁 / 锁层A 恒挂且逐字=库 / 级联退役(子图开关恰 1=RGBA;PE/联动链在主画布)/
@@ -163,6 +193,8 @@ TE_ID, TE_RGBA_ID, RGBA_SW_ID = 142, 143, 144              # 主编码/RGBA 编�
 # 子图 W/H 顶部通道 Reroute(0925 W6 零负区:y=40/140 正区通道带)
 RR_W_A_ID, RR_W_B_ID = 171, 172                            # WIDTH 通道(升/顶横)
 RR_H_A_ID, RR_H_B_ID = 173, 174                            # HEIGHT 通道(升/顶横)
+RR_SWC_ID = 175        # 0926 线不遮节点:[143]->[144] 行3 on_true 垫脚石
+                       # (行3 成员序 [143][142][144] 钉死,直连几何上必过 [142])
 HOST_ID = 40                                               # 主图子图宿主
 SUBJECT_ID, PREVIEW_ID = 24, 27                            # 主图外露主体句/装配预览
 LATENT_ID, SAMPLER_ID = 5, 7                               # 主图空潜/KSampler
@@ -176,6 +208,11 @@ RATIO_PB_ID = 180                                          # 画幅联动总闸(
 # 主图通道 Reroute(MODEL y=80 / VAE y=170 顶缘通道,正区)
 RR_M8A_ID, RR_M8B_ID = 20, 21                              # MODEL 通道
 RR_M10A_ID, RR_M10B_ID = 22, 23                            # VAE 通道
+# 0926 线不遮节点轮垫脚石(通道拐点不占行,Reroute est 零重叠豁免间距不豁免重叠)
+RR_M8C_ID = 190        # MODEL 低位垂降拐点:[21] 顶通道在 x982-1218 装载器列缝
+                       # 垂降后平送 [31]/[32] 两臂(直连斜穿 [3]/[140]/[151] 全避免)
+RR_WH_W_ID, RR_WH_H_ID = 191, 192   # [40].width/.height→联动开关 on_false 中继:
+                                     # 九型 W/H 长横线沿蛇形上带平走再陡降,不斜穿列盒
 # R26.4 LoRA 加速槽三件 + 满血接线 steps 联动三件(W1 组框收纳)
 LORA_PB_ID, LORA_ID, LORA_SW_ID = 30, 31, 32
 LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"
@@ -466,9 +503,11 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     links.append(_internal_link(14, RGBA_CAT1_ID, 0, RGBA_CAT2_ID, 0, "STRING"))
     links.append(_internal_link(15, RGBA_TAIL_ID, 0, RGBA_CAT2_ID, 1, "STRING"))
     links.append(_internal_link(16, RGBA_CAT2_ID, 0, TE_RGBA_ID, 3, "STRING"))  # → RGBA 编码.prompt
-    # 编码与 RGBA 开关(17-21)
+    # 编码与 RGBA 开关(17-21;0926:[143]->[144] on_true 经垫脚石 [175] 拐弯——
+    # 行3 成员序 [143][142][144] 钉死,直连线几何上必横穿 [142] 盒)
     links.append(_internal_link(17, TE_ID, 0, RGBA_SW_ID, 0, "CONDITIONING"))
-    links.append(_internal_link(18, TE_RGBA_ID, 0, RGBA_SW_ID, 1, "CONDITIONING"))
+    links.append(_internal_link(18, TE_RGBA_ID, 0, RR_SWC_ID, 0, "CONDITIONING"))
+    links.append(_internal_link(28, RR_SWC_ID, 0, RGBA_SW_ID, 1, "CONDITIONING"))
     links.append(_internal_link(19, RGBA_SW_ID, 0, -20, 0, "CONDITIONING"))   # → 输出 positive
     links.append(_internal_link(20, TE_ID, 1, -20, 1, "CONDITIONING"))        # 主编码.negative → 输出
     links.append(_internal_link(21, CONCAT2_ID, 0, -20, 2, "STRING"))         # 装配文本 → 输出 prompt
@@ -479,7 +518,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     links.append(_internal_link(25, BASE_ID, 2, RR_H_A_ID, 0, "INT"))
     links.append(_internal_link(26, RR_H_A_ID, 0, RR_H_B_ID, 0, "INT"))
     links.append(_internal_link(27, RR_H_B_ID, 0, -20, 4, "INT"))             # → 输出 height
-    assert sorted(l["id"] for l in links) == list(range(1, 28))
+    assert sorted(l["id"] for l in links) == list(range(1, 29))
 
     nodes: list[dict] = []
     # 行1 源行(列距≥200 est 足迹口径)
@@ -548,15 +587,17 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     nodes.append(_textencode(TE_ID, "主编码(prompt 接「提示词」槽=主画布[141]开关回流)",
                              [3620, 1760], 1, 3, 8, "", [17]))
     nodes.append(_switch(
-        RGBA_SW_ID, "RGBA开关(false=普通 / true=透明,透明图存PNG)", 17, 18, 7, [19],
+        RGBA_SW_ID, "RGBA开关(false=普通 / true=透明,透明图存PNG)", 17, 28, 7, [19],
         [4240, 1760], typ="CONDITIONING"))
 
     # 通道 Reroute 拐点(0925 W6 零负区:y=40(W)/140(H) 正区通道带,est 盒互不重叠
-    # 亦不压行1;拐点 x 排布=升线在 [150] 右、顶横右行至输出槽近旁)
+    # 亦不压行1;拐点 x 排布=升线在 [150] 右、顶横右行至输出槽近旁;0926 线不遮节点:
+    # [173] 左移至 (700,120) 避 [150].WIDTH 升线,[175] 走行2-行3 框间带)
     nodes.append(_reroute(RR_W_A_ID, [1080, 40], 22, 23, "INT"))
     nodes.append(_reroute(RR_W_B_ID, [7040, 40], 23, 24, "INT"))
-    nodes.append(_reroute(RR_H_A_ID, [820, 140], 25, 26, "INT"))
+    nodes.append(_reroute(RR_H_A_ID, [700, 120], 25, 26, "INT"))
     nodes.append(_reroute(RR_H_B_ID, [7200, 140], 26, 27, "INT"))
+    nodes.append(_reroute(RR_SWC_ID, [3860, 1660], 18, 28, "CONDITIONING"))
 
     for order, n in enumerate(nodes):
         n["order"] = order
@@ -612,7 +653,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     sg = {
         "id": SG_UUID,
         "version": 1,
-        "state": {"lastGroupId": 3, "lastNodeId": 174, "lastLinkId": 27, "lastRerouteId": 4},
+        "state": {"lastGroupId": 3, "lastNodeId": 175, "lastLinkId": 28, "lastRerouteId": 5},
         "revision": 1,
         "config": {"defaultIOState": {}},
         "name": "[40] 道劫·装配子图(双击进入)",
@@ -653,14 +694,14 @@ def build_main(truth: dict, sg: dict) -> dict:
         "id": WF_UUID, "version": 0.4, "revision": 0, "config": {}, "extra": {},
         "groups": [
             {"id": 1, "title": "道劫·加载器(bf16 三件套+PE 专属文本编码器)",
-             "bounding": [40, 280, 2200, 220], "color": "#3f789e", "flags": {}},
+             "bounding": [40, 280, 2200, 300], "color": "#3f789e", "flags": {}},
             {"id": 2, "title": "道劫·装配外露+PE 改写([24]主体句=①层唯一手写位;[140]PE改写+画幅联动链[151]-[158]主画布;[40]装配子图;[141]提示词开关;[27]装配预览=最终文本)",
-             "bounding": [40, 900, 7060, 1180], "color": "#a1309b", "flags": {}},
+             "bounding": [40, 920, 4620, 1040], "color": "#a1309b", "flags": {}},
             {"id": 3, "title": "道劫·主链([5]空潜→[7]采样→[8]解码→[9]保存;steps 接[177]联动)",
-             "bounding": [6680, 2200, 2100, 500], "color": "#3f789e", "flags": {}},
+             "bounding": [5940, 1160, 1680, 840], "color": "#3f789e", "flags": {}},
             # W1 加速区组框(方案C 原生收纳;六件=总闸/MODEL开关/LoRA/steps开关/常量40与6)
             {"id": 4, "title": "道劫·加速区·总闸[30](关=40步原味 / 开=viggle LoRA·6步,一拨全配:MODEL+steps 两开关同驱)",
-             "bounding": [2360, 2160, 3250, 330], "color": "#4d9e6a", "flags": {}},
+             "bounding": [2360, 2560, 2900, 1180], "color": "#4d9e6a", "flags": {}},
         ],
         "nodes": [],
         "links": [],
@@ -717,7 +758,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": PE_RW_ID, "type": "QwenImage21_T2IPromptRewrite",
             "title": f"[{PE_RW_ID}] PE改写(短句→英文长文,默认开路(0926裁定1);pp=1.5 已定档 0925)",
-            "pos": [1900, 960], "size": [440, 340], "flags": {}, "order": 5, "mode": 0,
+            "pos": [2500, 1450], "size": [440, 340], "flags": {}, "order": 5, "mode": 0,
             "inputs": [
                 {"name": "clip", "type": "CLIP", "link": 31},
                 {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": None},
@@ -741,27 +782,28 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": PREVIEW_ID, "type": "easy showAnything",
             "title": f"[{PREVIEW_ID}] 装配预览(接[141]开关输出=将进编码的最终文本;跑图前过目)",
-            "pos": [4700, 960], "size": [480, 230], "flags": {}, "order": 6, "mode": 0,
+            "pos": [4100, 960], "size": [480, 230], "flags": {}, "order": 6, "mode": 0,
             "inputs": [{"label": "输入任何", "name": "anything", "shape": 7, "type": "*", "link": 18}],
             "outputs": [{"name": "output", "type": "*", "links": None}],
             "properties": {"Node name for S&R": "easy showAnything"},
             "widgets_values": [""],
         },
-        # 行3 画幅联动(0925 W2 迁主画布;[180] 总闸默认关=恒九型)
+        # 蛇形联动总闸(0926 线不遮节点轮:行间走廊右端,两开关 slot 走右缘陡线)
         {
             "id": RATIO_PB_ID, "type": "PrimitiveBoolean",
             "title": f"[{RATIO_PB_ID}] 画幅联动开关(默认关=恒九型;开=PE 建议画幅接管 [5])",
-            "pos": [5360, 1300], "size": [280, 90], "flags": {}, "order": 7, "mode": 0,
+            "pos": [4800, 1810], "size": [280, 90], "flags": {}, "order": 7, "mode": 0,
             "inputs": [{"name": "value", "type": "BOOLEAN", "widget": {"name": "value"}, "link": None}],
             "outputs": [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [47, 48]}],
             "properties": {"Node name for S&R": "PrimitiveBoolean"},
             "widgets_values": [False],
         },
-        # 行5 采样链(W6 零负区;宽高接联动开关,默认=[40] 九型直驱)
+        # 主链带(0926 上移与蛇形同带:[40] positive/negative 直连 [7] 零遮挡;
+        # 宽高接联动开关,默认=[40] 九型直驱)
         {
             "id": LATENT_ID, "type": "EmptyLatentImage",
             "title": f"[{LATENT_ID}] EmptyLatentImage(宽高接 [{SW_W_ID}]/[{SW_H_ID}] 联动,默认=[40] 九型直驱;面板 1024=摆设值不生效)",
-            "pos": [6720, 2260], "size": [330, 110], "flags": {}, "order": 8, "mode": 0,
+            "pos": [5980, 1200], "size": [330, 110], "flags": {}, "order": 8, "mode": 0,
             "inputs": [
                 {"name": "width", "type": "INT", "widget": {"name": "width"}, "link": 1},
                 {"name": "height", "type": "INT", "widget": {"name": "height"}, "link": 2},
@@ -774,7 +816,7 @@ def build_main(truth: dict, sg: dict) -> dict:
             "id": SAMPLER_ID, "type": "KSampler",
             "title": f"[{SAMPLER_ID}] KSampler(40步·cfg1;seed 外露;model 接 [{LORA_SW_ID}] 加速槽开关;"
                      f"steps 接 [{STEPS_SW_ID}] 联动开关,面板 steps=摆设值不生效)",
-            "pos": [7300, 2260], "size": [330, 260], "flags": {}, "order": 9, "mode": 0,
+            "pos": [6150, 1560], "size": [330, 260], "flags": {}, "order": 9, "mode": 0,
             "inputs": [
                 {"name": "model", "type": "MODEL", "link": 26},
                 {"name": "positive", "type": "CONDITIONING", "link": 16},
@@ -790,7 +832,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": 8, "type": "VAEDecode",
             "title": "[8] VAEDecode",
-            "pos": [7850, 2260], "size": [240, 50], "flags": {}, "order": 10, "mode": 0,
+            "pos": [6700, 1560], "size": [240, 50], "flags": {}, "order": 10, "mode": 0,
             "inputs": [
                 {"name": "samples", "type": "LATENT", "link": 9},
                 {"name": "vae", "type": "VAE", "link": 22},
@@ -801,7 +843,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": 9, "type": "SaveImage",
             "title": "[9] SaveImage",
-            "pos": [8350, 2260], "size": [380, 330], "flags": {}, "order": 11, "mode": 0,
+            "pos": [7150, 1560], "size": [380, 330], "flags": {}, "order": 11, "mode": 0,
             "inputs": [{"name": "images", "type": "IMAGE", "link": 11}],
             "outputs": [],
             "properties": {"Node name for S&R": "SaveImage"},
@@ -830,7 +872,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     host = {
         "id": HOST_ID, "type": SG_UUID,
         "title": f"[{HOST_ID}] 装配子图(双击进入)",
-        "pos": [2600, 960], "size": [560, 480], "flags": {}, "order": 13, "mode": 0,
+        "pos": [1700, 960], "size": [560, 480], "flags": {}, "order": 13, "mode": 0,
         "inputs": host_inputs,
         "outputs": [
             {"name": "positive", "type": "CONDITIONING", "links": [16]},
@@ -851,9 +893,10 @@ def build_main(truth: dict, sg: dict) -> dict:
     # PE 开路含画布本体:默认 true=PE 改写,关=直写按图选配)
     nodes.append(_switch(
         PE_SW_ID, "提示词开关(true=PE扩写·默认(0926裁定1) / false=直写装配=按图选配;输出=最终文本)",
-        33, 32, None, [18, 34], [3900, 980], default=True))
+        33, 32, None, [18, 34], [3300, 980], default=True))
 
-    # 行3 画幅联动链(W2 迁主画布;序列化口径=官方 blueprint 实证)
+    # 蛇形画幅联动链(0926 线不遮节点轮:菊花链单行改蛇形两行——上=宽路/下=高路,
+    # 列对齐,同路横连走行内空档,跨路对角走列间;[158] 让位右移避 [32]→[7] 走廊)
     def _regex(nid: int, title: str, pattern: str, in_link: int, out_link: int, pos: list) -> dict:
         return {
             "id": nid, "type": "RegexExtract", "title": title,
@@ -902,27 +945,28 @@ def build_main(truth: dict, sg: dict) -> dict:
         }
 
     nodes.append(_regex(RATIO_RW_ID, "PE建议画幅·取宽比(如 16:9→16)", RATIO_W_PATTERN, 35, 37,
-                        [2400, 1560]))
+                        [3700, 1560]))
     nodes.append(_regex(RATIO_RH_ID, "PE建议画幅·取高比(如 16:9→9)", RATIO_H_PATTERN, 36, 38,
-                        [2940, 1560]))
-    nodes.append(_convert(CONV_RW_ID, "宽比转数", 37, [39, 40], [3520, 1560]))
-    nodes.append(_convert(CONV_RH_ID, "高比转数", 38, [41, 42], [4010, 1560]))
+                        [3700, 2100]))
+    nodes.append(_convert(CONV_RW_ID, "宽比转数", 37, [39, 40], [4240, 1560]))
+    nodes.append(_convert(CONV_RH_ID, "高比转数", 38, [41, 42], [4240, 2100]))
     nodes.append(_math(MATH_W_ID, "PE建议宽(4.2MP·8倍数取整)", MATH_W_EXPR, 39, 41, 43,
-                       [4550, 1560]))
+                       [4690, 1560]))
     nodes.append(_math(MATH_H_ID, "PE建议高(4.2MP·8倍数取整)", MATH_H_EXPR, 40, 42, 44,
-                       [5140, 1560]))
-    nodes.append(_switch(SW_W_ID, "宽联动开关(false=九型WIDTH / true=PE建议宽)", 45, 43, 47, [1],
-                         [5680, 1560], typ="INT"))
+                       [4690, 2100]))
+    nodes.append(_switch(SW_W_ID, "宽联动开关(false=九型WIDTH / true=PE建议宽)", 52, 43, 47, [1],
+                         [5230, 1560], typ="INT"))
     nodes[-1]["size"] = [300, 110]
-    nodes.append(_switch(SW_H_ID, "高联动开关(false=九型HEIGHT / true=PE建议高)", 46, 44, 48, [2],
-                         [6180, 1560], typ="INT"))
+    nodes.append(_switch(SW_H_ID, "高联动开关(false=九型HEIGHT / true=PE建议高)", 53, 44, 48, [2],
+                         [5900, 2100], typ="INT"))
     nodes[-1]["size"] = [300, 110]
 
-    # 行4 加速区(W1 组框收纳;三件同构 i2i/edit,同受 [30] 一源扇出)
+    # 加速区(W1 组框收纳;0926 线不遮节点轮两行化:[32] 上行近主链,[30] 总闸
+    # 与 [177]/[31] 下行,常量 [178]/[179] 垂直堆叠避菊花,[30] 扇出走行间)
     nodes.append({
         "id": LORA_PB_ID, "type": "PrimitiveBoolean",
         "title": f"[{LORA_PB_ID}] 加速开关(默认关=正常生成;一拨全配:同驱 MODEL+steps 两开关)",
-        "pos": [2400, 2220], "size": [280, 90], "flags": {}, "order": 0, "mode": 0,
+        "pos": [2400, 2680], "size": [280, 90], "flags": {}, "order": 0, "mode": 0,
         "inputs": [{"name": "value", "type": "BOOLEAN", "widget": {"name": "value"}, "link": None}],
         "outputs": [{"name": "BOOLEAN", "type": "BOOLEAN", "links": [25, 29]}],
         "properties": {"Node name for S&R": "PrimitiveBoolean"},
@@ -931,7 +975,7 @@ def build_main(truth: dict, sg: dict) -> dict:
     nodes.append({
         "id": LORA_ID, "type": "LoraLoaderModelOnly",
         "title": f"[{LORA_ID}] LoraLoaderModelOnly(viggle v0.2 r256;开=[30]一拨自动6步·strength0.8)",
-        "pos": [2920, 2220], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
+        "pos": [4400, 2900], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "model", "type": "MODEL", "link": 23},
             {"name": "lora_name", "type": "COMBO", "widget": {"name": "lora_name"}, "link": None},
@@ -944,9 +988,9 @@ def build_main(truth: dict, sg: dict) -> dict:
     nodes.append({
         "id": LORA_SW_ID, "type": "ComfySwitchNode",
         "title": f"[{LORA_SW_ID}] MODEL开关(false=直连正常生成 / true=LoRA加速)",
-        "pos": [3500, 2220], "size": [300, 110], "flags": {}, "order": 0, "mode": 0,
+        "pos": [4900, 2600], "size": [300, 110], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
-            {"name": "on_false", "shape": 7, "type": "MODEL", "link": 20},
+            {"name": "on_false", "shape": 7, "type": "MODEL", "link": 49},
             {"name": "on_true", "shape": 7, "type": "MODEL", "link": 24},
             {"name": "switch", "type": "BOOLEAN", "widget": {"name": "switch"}, "link": 25},
         ],
@@ -955,29 +999,37 @@ def build_main(truth: dict, sg: dict) -> dict:
         "widgets_values": [False],
     })
     nodes.append(_switch(
-        STEPS_SW_ID, "steps联动开关", 27, 28, 29, [30], [5250, 2220], typ="INT"))
+        STEPS_SW_ID, "steps联动开关", 27, 28, 29, [30], [3800, 2900], typ="INT"))
     nodes[-1]["size"] = [300, 110]
     nodes[-1]["title"] = \
         f"[{STEPS_SW_ID}] steps联动开关(false=自动回40原路 / true=自动6步加速;同受[{LORA_PB_ID}]一拨驱动)"
     nodes.append(_primitive_int(
-        STEPS_C40_ID, "steps常量40(关态=原路·官方完整档)", STEPS_OFF, [4750, 2220], 27))
+        STEPS_C40_ID, "steps常量40(关态=原路·官方完整档)", STEPS_OFF, [2400, 2900], 27))
     nodes.append(_primitive_int(
-        STEPS_C6_ID, "steps常量6(开态=v0.2卡荐档)", STEPS_ON, [4270, 2220], 28))
-    # 顶缘通道 Reroute(MODEL y=80 / VAE y=170;零负区)
+        STEPS_C6_ID, "steps常量6(开态=v0.2卡荐档)", STEPS_ON, [2400, 3200], 28))
+    # 顶缘通道 Reroute(MODEL y=80 / VAE y=170;零负区;0926:VAE 尾拐随主链上移至
+    # [8] 近旁;MODEL 顶通道经垂降垫脚石 [190] 送加速区两臂,VAE 通道直落 [8])
     nodes.append(_reroute(RR_M8A_ID, [520, 80], 8, 19, "MODEL"))
-    nodes.append(_reroute(RR_M8B_ID, [1020, 80], 19, [20, 23], "MODEL"))
+    nodes.append(_reroute(RR_M8B_ID, [1020, 80], 19, 20, "MODEL"))
+    nodes.append(_reroute(RR_M8C_ID, [1100, 1560], 20, [23, 49], "MODEL"))
     nodes.append(_reroute(RR_M10A_ID, [1420, 170], 10, 21, "VAE"))
-    nodes.append(_reroute(RR_M10B_ID, [7600, 170], 21, 22, "VAE"))
+    nodes.append(_reroute(RR_M10B_ID, [6500, 170], 21, 22, "VAE"))
+    # 九型 W/H 垫脚石([40].width/.height 长横线沿蛇形上带平送再陡降)
+    nodes.append(_reroute(RR_WH_W_ID, [4650, 1400], 45, 52, "INT"))
+    nodes.append(_reroute(RR_WH_H_ID, [5830, 1460], 46, 53, "INT"))
     for order, n in enumerate(nodes):
         n["order"] = order
     g["nodes"] = nodes
 
     g["links"] = [
-        # 画幅联动输出(W2:默认=[40] 九型 W/H,开=PE 建议)
+        # 画幅联动输出(W2:默认=[40] 九型 W/H,开=PE 建议;0926 九型臂经垫脚石
+        # [191]/[192] 沿蛇形上带平送再陡降,长横线不斜穿联动列盒)
         [1, SW_W_ID, 0, LATENT_ID, 0, "INT"],       # 宽联动开关 → [5].width
         [2, SW_H_ID, 0, LATENT_ID, 1, "INT"],       # 高联动开关 → [5].height
-        [45, HOST_ID, 3, SW_W_ID, 0, "INT"],        # [40].width → 宽开关.on_false(九型默认路)
-        [46, HOST_ID, 4, SW_H_ID, 0, "INT"],        # [40].height → 高开关.on_false
+        [45, HOST_ID, 3, RR_WH_W_ID, 0, "INT"],     # [40].width → 垫脚石(九型默认路)
+        [46, HOST_ID, 4, RR_WH_H_ID, 0, "INT"],     # [40].height → 垫脚石
+        [52, RR_WH_W_ID, 0, SW_W_ID, 0, "INT"],     # 垫脚石 → 宽开关.on_false
+        [53, RR_WH_H_ID, 0, SW_H_ID, 0, "INT"],     # 垫脚石 → 高开关.on_false
         [47, RATIO_PB_ID, 0, SW_W_ID, 2, "BOOLEAN"],  # 联动总闸 → 宽开关.switch
         [48, RATIO_PB_ID, 0, SW_H_ID, 2, "BOOLEAN"],  # 联动总闸 → 高开关.switch
         [35, PE_RW_ID, 2, RATIO_RW_ID, 0, "STRING"],   # wh_ratio → 取宽比
@@ -1007,11 +1059,13 @@ def build_main(truth: dict, sg: dict) -> dict:
         [5, LATENT_ID, 0, SAMPLER_ID, 3, "LATENT"],
         [9, SAMPLER_ID, 0, 8, 0, "LATENT"],
         [11, 8, 0, 9, 0, "IMAGE"],
-        # MODEL 顶通道 + 加速槽(R26.4;[20][21] 通道件 id 与 link id 各自独立命名空间)
+        # MODEL 顶通道 + 加速槽(R26.4;0926 顶通道经垂降垫脚石 [190] 送两臂,
+        # 直连斜穿 [3]/[140]/[151] 全避免;通道件 id 与 link id 各自独立命名空间)
         [8, 1, 0, RR_M8A_ID, 0, "MODEL"],
         [19, RR_M8A_ID, 0, RR_M8B_ID, 0, "MODEL"],
-        [20, RR_M8B_ID, 0, LORA_SW_ID, 0, "MODEL"],    # 顶通道 → 加速槽开关.on_false(直连臂)
-        [23, RR_M8B_ID, 0, LORA_ID, 0, "MODEL"],       # 顶通道 → LoraLoader.model(加速臂)
+        [20, RR_M8B_ID, 0, RR_M8C_ID, 0, "MODEL"],     # 顶横 → 垂降拐点
+        [23, RR_M8C_ID, 0, LORA_ID, 0, "MODEL"],       # 垂降 → LoraLoader.model(加速臂)
+        [49, RR_M8C_ID, 0, LORA_SW_ID, 0, "MODEL"],    # 垂降 → 加速槽开关.on_false(直连臂)
         [24, LORA_ID, 0, LORA_SW_ID, 1, "MODEL"],      # LoraLoader → 开关.on_true
         [25, LORA_PB_ID, 0, LORA_SW_ID, 2, "BOOLEAN"], # LoRA 开关源 → 开关.switch
         [26, LORA_SW_ID, 0, SAMPLER_ID, 0, "MODEL"],   # 开关 → KSampler.model(二选一)
@@ -1188,6 +1242,52 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if io["pos"][0] < max_nx - 50:
             errs.append(f"子图输出 {io['name']} 未钉最右列(x={io['pos'][0]} < 全子图最大 x{max_nx}-50)")
 
+    # 3f. 零线遮节点(0926 铁律:工作流的美化只管位置,线与节点不得彼此遮盖):
+    #     判定=三次贝塞尔 41 点采样——P0=输出槽(节点右缘,top+25+origin_slot×20)、
+    #     P3=输入槽(左缘,top+25+target_slot×20),控制点 P1=(P0.x+k,P0.y)/
+    #     P2=(P3.x−k,P3.y),k=clamp(|dx|/2,40,200);节点盒=普通节点 size(缺省
+    #     [220,120])/Reroute 60×30;任采样点落入非端点节点盒(±2 容差)即遮挡,
+    #     端点豁免;-10/-20 边界线无节点盒端点,与验收器同口径跳过(主图+子图同判)。
+    def _occl_box(n: dict):
+        w, h = (60, 30) if n["type"] == "Reroute" else (n.get("size") or [220, 120])[:2]
+        x, y = n["pos"][0], n["pos"][1]
+        return x, y, x + w, y + h
+
+    def _occl_slot(n: dict, s: int, side: str):
+        x, y, x2, _ = _occl_box(n)
+        sy = y + 25 + (s or 0) * 20
+        return (x2, sy) if side == "out" else (x, sy)
+
+    def _bez(p0, p1, p2, p3, t):
+        mt = 1 - t
+        return (mt ** 3 * p0[0] + 3 * mt * mt * t * p1[0] + 3 * mt * t * t * p2[0] + t ** 3 * p3[0],
+                mt ** 3 * p0[1] + 3 * mt * mt * t * p1[1] + 3 * mt * t * t * p2[1] + t ** 3 * p3[1])
+
+    for scope, scope_nodes, scope_links in (
+            ("主图", g["nodes"], [[l[0], l[1], l[2], l[3], l[4]] for l in g["links"]]),
+            ("子图", sg["nodes"], [[l["id"], l["origin_id"], l["origin_slot"],
+                                    l["target_id"], l["target_slot"]] for l in sg["links"]])):
+        byid = {n["id"]: n for n in scope_nodes}
+        for lid, oid, oslot, tid, tslot in scope_links:
+            o, t = byid.get(oid), byid.get(tid)
+            if not o or not t:
+                continue   # -10/-20 边界线(无节点盒端点),与验收器同口径跳过
+            p0, p3 = _occl_slot(o, oslot, "out"), _occl_slot(t, tslot, "in")
+            k = max(40, min(200, abs(p3[0] - p0[0]) * 0.5))
+            p1, p2 = (p0[0] + k, p0[1]), (p3[0] - k, p3[1])
+            hit = set()
+            for i in range(41):
+                x, y = _bez(p0, p1, p2, p3, i / 40)
+                for nid, n in byid.items():
+                    if nid in (oid, tid):
+                        continue   # 端点豁免
+                    bx = _occl_box(n)
+                    if bx[0] - 2 <= x <= bx[2] + 2 and bx[1] - 2 <= y <= bx[3] + 2:
+                        hit.add(nid)
+            if hit:
+                errs.append(f"{scope} link{lid} [{oid}]->[{tid}] 线遮节点 {sorted(hit)}"
+                            f"(0926 铁律:线不遮节点;挪位或按通道约定垫 Reroute)")
+
     if len(sg["groups"]) > 4:
         errs.append(f"子图 group 预算超限(≤4),得 {len(sg['groups'])}")
     if len(g["groups"]) > 4:
@@ -1272,14 +1372,18 @@ def self_check(g: dict, truth: dict) -> list[str]:
         (18, PE_SW_ID, 0, PREVIEW_ID, 0, "STRING"),
         (31, 11, 0, PE_RW_ID, 0, "CLIP"),
         (32, PE_RW_ID, 0, PE_SW_ID, 1, "STRING"), (33, HOST_ID, 2, PE_SW_ID, 0, "STRING"),
-        (45, HOST_ID, 3, SW_W_ID, 0, "INT"), (46, HOST_ID, 4, SW_H_ID, 0, "INT"),
+        # 0926 线不遮节点:九型 W/H 默认路经垫脚石 [191]/[192](语义接线不变)
+        (45, HOST_ID, 3, RR_WH_W_ID, 0, "INT"), (46, HOST_ID, 4, RR_WH_H_ID, 0, "INT"),
+        (52, RR_WH_W_ID, 0, SW_W_ID, 0, "INT"), (53, RR_WH_H_ID, 0, SW_H_ID, 0, "INT"),
         (47, RATIO_PB_ID, 0, SW_W_ID, 2, "BOOLEAN"), (48, RATIO_PB_ID, 0, SW_H_ID, 2, "BOOLEAN"),
         (35, PE_RW_ID, 2, RATIO_RW_ID, 0, "STRING"), (36, PE_RW_ID, 2, RATIO_RH_ID, 0, "STRING"),
         (43, MATH_W_ID, 1, SW_W_ID, 1, "INT"), (44, MATH_H_ID, 1, SW_H_ID, 1, "INT"),
         (1, SW_W_ID, 0, LATENT_ID, 0, "INT"), (2, SW_H_ID, 0, LATENT_ID, 1, "INT"),
         (5, LATENT_ID, 0, SAMPLER_ID, 3, "LATENT"),
-        (8, 1, 0, RR_M8A_ID, 0, "MODEL"), (20, RR_M8B_ID, 0, LORA_SW_ID, 0, "MODEL"),
-        (23, RR_M8B_ID, 0, LORA_ID, 0, "MODEL"), (24, LORA_ID, 0, LORA_SW_ID, 1, "MODEL"),
+        # 0926 线不遮节点:MODEL 顶通道经垂降垫脚石 [190] 送加速区两臂
+        (8, 1, 0, RR_M8A_ID, 0, "MODEL"), (20, RR_M8B_ID, 0, RR_M8C_ID, 0, "MODEL"),
+        (23, RR_M8C_ID, 0, LORA_ID, 0, "MODEL"), (49, RR_M8C_ID, 0, LORA_SW_ID, 0, "MODEL"),
+        (24, LORA_ID, 0, LORA_SW_ID, 1, "MODEL"),
         (25, LORA_PB_ID, 0, LORA_SW_ID, 2, "BOOLEAN"), (26, LORA_SW_ID, 0, SAMPLER_ID, 0, "MODEL"),
         (10, 3, 0, RR_M10A_ID, 0, "VAE"), (22, RR_M10B_ID, 0, 8, 1, "VAE"),
         (27, STEPS_C40_ID, 0, STEPS_SW_ID, 0, "INT"), (28, STEPS_C6_ID, 0, STEPS_SW_ID, 1, "INT"),
@@ -1434,10 +1538,14 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append(f"[{RATIO_PB_ID}] 画幅联动开关默认应 false(恒九型)")
     if sorted(m_nodes[RATIO_PB_ID]["outputs"][0]["links"] or []) != sorted([47, 48]):
         errs.append(f"[{RATIO_PB_ID}] 联动总闸应扇出恰两线(宽/高联动开关)")
+    # 0926 线不遮节点:九型默认臂经垫脚石(可穿 Reroute),语义仍=[40] 宽/高输出
     for sw_id, host_slot in ((SW_W_ID, 3), (SW_H_ID, 4)):
-        fl_ = m_links[m_nodes[sw_id]["inputs"][0]["link"]]
-        if fl_[1] != HOST_ID or fl_[2] != host_slot:
-            errs.append(f"[{sw_id}].on_false 上游应 [40] 输出槽{host_slot}(九型 W/H 默认路)")
+        l_ = m_links[m_nodes[sw_id]["inputs"][0]["link"]]
+        while m_nodes[l_[1]]["type"] == "Reroute":
+            l_ = m_links[m_nodes[l_[1]]["inputs"][0]["link"]]
+        if l_[1] != HOST_ID or l_[2] != host_slot:
+            errs.append(f"[{sw_id}].on_false 上游应 [40] 输出槽{host_slot}"
+                        f"(九型 W/H 默认路,可穿垫脚石)")
     lat_w = m_links[m_nodes[LATENT_ID]["inputs"][0]["link"]]
     lat_h = m_links[m_nodes[LATENT_ID]["inputs"][1]["link"]]
     if (lat_w[1], lat_w[4]) != (SW_W_ID, 0) or (lat_h[1], lat_h[4]) != (SW_H_ID, 1):
@@ -1742,12 +1850,14 @@ def main() -> int:
           f"W3 子图收窄=九型+锁层+拼接+RGBA公式+双路编码(三行,宿主三 widget 同构 i2i);"
           f"W1 加速区组框收纳六件(主图 group 4);W5 负面 cfg=1 占位说明+pp=1.5 定档;"
           f"W6 零负区(全节点 pos≥80,0926 收紧=发现项3 互锁)+输出口最右(输出槽钉最右列);"
+          f"0926 铁律·线不遮节点全绿(蛇形联动两行+装配横排+PE 带+主链上移+加速区两行,"
+          f"垫脚石 {RR_M8C_ID}/{RR_WH_W_ID}/{RR_WH_H_ID}+子图 {RR_SWC_ID},零遮挡贝塞尔精判);"
           f"默认=①人物(combo 经宿主面板外露,宽高经联动开关直驱 [5],steps=40 完整态,"
           f"RGBA 官方头尾公式,PE 默认开路=0926 裁定1([141] true,关=直写按图选配)/联动默认关);LoRA 加速槽在位(name 预填 viggle v0.2.1 r256,"
           f"strength 0.8=0925 探针最优,"
           f"默认关=MODEL 直连,关态执行图零 LoraLoader);满血接线(steps 联动 [177] 同受 [30] 驱动:"
           f"关=自动回 40 原路/开=一拨自动 6+LoRA 挂链);干跑直写选配臂装配全文逐字=库组合;"
-          f"双向/横向(恰 1 冻结回流线)/三行排版/零重叠/est 间距(横≥200/纵≥80)/"
+          f"双向/横向(恰 1 冻结回流线)/三行排版/零重叠/est 间距(横≥200/纵≥80)/零线遮节点(0926)/"
           f"group 预算(子图3·主图4,子图各框单一阶段行且不相交)/group int/子图 linkIds 逐项登记/"
           "锁层A 恒挂/懒执行旁路/零孤儿全绿")
     return 0

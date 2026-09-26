@@ -137,6 +137,19 @@ wiring / test_all_switches_default_off),组 title 锚「默认旁路」→「默
 子图 [150]=(40,140) 经生成器子图整体归一平移抬到 80——相对布局零变,est
 间距/零重叠/行带语义不动;三生成器自查同步收紧,双记账互锁)。
 
+0926 线不遮节点轮(用户令「工作流的美化,你只管位置,不要线与节点彼此遮盖!」):
+i2i 件贝塞尔 41 点采样精判存量 13 条真遮挡全数清零(生成器 apps/build/scripts/
+qi21_daojie_i2i_0924.py 优先挪位置让跨行长线走净空走廊);唯一结构不可避=i2i
+子图 [143]→[144].on_true 横穿同行 [142] → 垫 Reroute[170] 拐点走行2/行3 框间
+净空带(拐点不占阶段行,样板=t2i 子图 W/H 通道同款)——test_preview_and_
+rgba_formula 的 [144].on_true 溯源断言同步改可穿拐点(直连 origin_id→穿
+Reroute 追溯实源);其余 i2i 契约断言零改动(位置自由度本就在生成器自查侧)。
+qi21-t2i 件同轮 21 条存量清零(生成器 qi21_daojie_t2i_0923.py 主画布全量重排:
+蛇形联动两行/装配横排/PE 带/主链上移/加速区两行+垫脚石 Reroute[190][191][192]
++子图 [175]);契约同步三笔:test_external_wiring 的 MODEL 顶通道两臂与九型
+W/H 默认臂元组改经垫脚石(语义接线不变),test_qi21_latent_fed 的 on_false
+溯源同改可穿拐点(实源判定,样板=_trace_main_reroute)。
+
 09-23 修复轮注记:脚本层 pytest 曾报「file or directory not found」——本地仓库根
 同命令 collect 正常,文件运行期零 cwd 依赖(真源定位走 __file__,json 读取与
 rglob 均绝对锚定);根因是执行侧以非仓库根 cwd 解析仓库相对路径,修复=调用侧
@@ -240,6 +253,9 @@ QI21_SG_SW_WH_IDS = [157, 158]                                     # 宽/高联�
 # 穿顶通道 Reroute 溯至 UNETLoader[1])
 QI21_LORA_PB_ID, QI21_LORA_ID, QI21_LORA_SW_ID = 30, 31, 32
 QI21_RR_M8A_ID, QI21_RR_M8B_ID = 20, 21   # MODEL 顶通道(R26.4 起扇出直连/LoRA 两臂)
+# 0926 线不遮节点轮垫脚石(生成器同表;语义接线不变,溯源按实源判定)
+QI21_RR_M8C_ID = 190                       # MODEL 顶通道垂降拐点→扇出直连/LoRA 两臂
+QI21_RR_WH_W_ID, QI21_RR_WH_H_ID = 191, 192   # [40].width/.height→联动开关默认臂中继
 
 # i2i 件结构锚(09-24 新增;id 与生成器 qi21_daojie_i2i_0924.py 同表——主图 id 承
 # edit 骨架同表,装配子图 id 承 t2i 装配段;[6] 编码收进子图=[142],[27] 在主图
@@ -641,9 +657,13 @@ class TestTopology:
             link = links[inp["link"]]
             assert link[1] == sw_id, \
                 f"qi21: EmptyLatentImage.{want_out} 上游应是 [{sw_id}] 联动开关(默认=九型直驱)"
+            # 0926 线不遮节点:on_false 溯源可穿垫脚石 Reroute(实源判定,样板=
+            # _trace_main_reroute);语义仍=[40] 宿主 width/height 输出
             f_l = links[nodes[sw_id]["inputs"][0]["link"]]
+            while nodes[f_l[1]]["type"] == "Reroute":
+                f_l = links[nodes[f_l[1]]["inputs"][0]["link"]]
             assert (f_l[1], f_l[2]) == (QI21_HOST_ID, 3 if want_out == "width" else 4), \
-                f"qi21: [{sw_id}].on_false 应接 [40] 宿主 {want_out} 输出(九型默认路)"
+                f"qi21: [{sw_id}].on_false 应接 [40] 宿主 {want_out} 输出(九型默认路,可穿拐点)"
 
 
 # ── 5. 画布纪律(前端格式必需字段、groups 全带 id、横向排版、说明 Note)──
@@ -1228,18 +1248,24 @@ class TestQi21SubgraphContract:
             (33, QI21_HOST_ID, 2, QI21_SG_PE_SW, 0, "STRING"),
             (QI21_FROZEN_BACK_LINK, QI21_SG_PE_SW, 0, QI21_HOST_ID, 5, "STRING"),
             (18, QI21_SG_PE_SW, 0, QI21_PREVIEW_ID, 0, "STRING"),
-            # W2 画幅联动链主画布:[40] W/H→开关 on_false;[180] 总闸→switch;开关→[5]
-            (45, QI21_HOST_ID, 3, QI21_SG_SW_WH_IDS[0], 0, "INT"),
-            (46, QI21_HOST_ID, 4, QI21_SG_SW_WH_IDS[1], 0, "INT"),
+            # W2 画幅联动链主画布:[40] W/H→垫脚石→开关 on_false(0926 线不遮节点:
+            # 九型默认臂经 [191]/[192] 沿蛇形上带平送,语义接线不变);
+            # [180] 总闸→switch;开关→[5]
+            (45, QI21_HOST_ID, 3, QI21_RR_WH_W_ID, 0, "INT"),
+            (46, QI21_HOST_ID, 4, QI21_RR_WH_H_ID, 0, "INT"),
+            (52, QI21_RR_WH_W_ID, 0, QI21_SG_SW_WH_IDS[0], 0, "INT"),
+            (53, QI21_RR_WH_H_ID, 0, QI21_SG_SW_WH_IDS[1], 0, "INT"),
             (47, QI21_RATIO_PB_ID, 0, QI21_SG_SW_WH_IDS[0], 2, "BOOLEAN"),
             (48, QI21_RATIO_PB_ID, 0, QI21_SG_SW_WH_IDS[1], 2, "BOOLEAN"),
             (1, QI21_SG_SW_WH_IDS[0], 0, QI21_LATENT_ID, 0, "INT"),
             (2, QI21_SG_SW_WH_IDS[1], 0, QI21_LATENT_ID, 1, "INT"),
             (16, QI21_HOST_ID, 0, QI21_SAMPLER_ID, 1, "CONDITIONING"),
             (17, QI21_HOST_ID, 1, QI21_SAMPLER_ID, 2, "CONDITIONING"),
-            # R26.4 LoRA 加速槽接线(照 i2i 断言式):顶通道扇出两臂→开关→KSampler
-            (20, QI21_RR_M8B_ID, 0, QI21_LORA_SW_ID, 0, "MODEL"),
-            (23, QI21_RR_M8B_ID, 0, QI21_LORA_ID, 0, "MODEL"),
+            # R26.4 LoRA 加速槽接线(照 i2i 断言式):顶通道(0926 经垂降拐点
+            # [190] 扇出两臂)→开关→KSampler
+            (20, QI21_RR_M8B_ID, 0, QI21_RR_M8C_ID, 0, "MODEL"),
+            (23, QI21_RR_M8C_ID, 0, QI21_LORA_ID, 0, "MODEL"),
+            (49, QI21_RR_M8C_ID, 0, QI21_LORA_SW_ID, 0, "MODEL"),
             (24, QI21_LORA_ID, 0, QI21_LORA_SW_ID, 1, "MODEL"),
             (25, QI21_LORA_PB_ID, 0, QI21_LORA_SW_ID, 2, "BOOLEAN"),
             (26, QI21_LORA_SW_ID, 0, QI21_SAMPLER_ID, 0, "MODEL"),
@@ -1370,12 +1396,15 @@ class TestQi21SubgraphContract:
             oid, _oslot = _qi21_trace_origin(sg_nodes, sg_links, io["linkIds"][0])
             assert oid == QI21_SG_BASE_ID, \
                 f"子图 {out_name} 输出应溯至 [150].WIDTH/HEIGHT(可穿通道 Reroute),得 origin {oid}"
-        # 主画布:[157]/[158].on_false ← [40] width/height 输出(九型直驱默认路)
+        # 主画布:[157]/[158].on_false ← [40] width/height 输出(九型直驱默认路;
+        # 0926 线不遮节点:可穿垫脚石 Reroute[191]/[192],实源判定)
         for sw_id, host_slot, out_name in ((QI21_SG_SW_WH_IDS[0], 3, "width"),
                                            (QI21_SG_SW_WH_IDS[1], 4, "height")):
             f_l = links[nodes[sw_id]["inputs"][0]["link"]]
+            while nodes[f_l[1]]["type"] == "Reroute":
+                f_l = links[nodes[f_l[1]]["inputs"][0]["link"]]
             assert (f_l[1], f_l[2]) == (QI21_HOST_ID, host_slot), \
-                f"[{sw_id}].on_false 上游应 [40].{out_name} 输出(九型直驱默认路,W2 主画布)"
+                f"[{sw_id}].on_false 上游应 [40].{out_name} 输出(九型直驱默认路,W2 主画布,可穿拐点)"
 
     def test_qi21_bases_json_interlocks_library(self):
         """三真源互锁:qi21_bases.json(MyQi21DaojieBase 运行时读)base_text 逐字=
@@ -1997,8 +2026,16 @@ class TestI2IContract:
             "[144].switch 应接 -10 槽6(宿主面板 RGBA透明开关)"
         assert sg_links[rsw["inputs"][0]["link"]]["origin_id"] == I2I_SG_TE, \
             "[144].on_false 应主编码 [142]"
-        assert sg_links[rsw["inputs"][1]["link"]]["origin_id"] == I2I_SG_TE_RGBA, \
-            "[144].on_true 应 RGBA 编码 [143]"
+        # 0926 线不遮节点轮:[143]→[144].on_true 横穿同行 [142] 不可避(行3 三件
+        # 同 y 带)→ 生成器垫 Reroute[170] 拐点走行2/行3 框间净空带;溯源可穿
+        # 拐点(同生成器 _trace_origin 口径)
+        _t_link = rsw["inputs"][1]["link"]
+        while _t_link is not None and sg_links[_t_link]["origin_id"] != -10 and \
+                sg_nodes[sg_links[_t_link]["origin_id"]]["type"] == "Reroute":
+            _t_link = sg_nodes[sg_links[_t_link]["origin_id"]]["inputs"][0].get("link")
+        assert _t_link is not None and \
+            sg_links[_t_link]["origin_id"] == I2I_SG_TE_RGBA, \
+            "[144].on_true 应 RGBA 编码 [143](可穿 Reroute 拐点垫脚石)"
 
     def test_no_custom_titles_except_selfbuilt(self):
         """节点标题铁律(0924-r8+0925 归位):核心/第三方节点零自定义 title,仅自研
