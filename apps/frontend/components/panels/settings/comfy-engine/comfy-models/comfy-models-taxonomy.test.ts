@@ -19,6 +19,8 @@ describe("comfy-models 域分类法(09-10 分域裁定)", () => {
     // 文件名带空格的 Krea 2 LoRA(子目录形态)
     expect(classifyModelDomains("loras", "Krea2-NSFW/Krea 2 pussy.safetensors")).toEqual(["image"]);
     expect(classifyModelDomains("loras", "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors")).toEqual(["video"]);
+    // T8 Fun-Acc 加速 LoRA:文件名连字符形态,既不含 qwen_image 也不含 viggle,靠 fun-?acc 段命中图片域
+    expect(classifyModelDomains("loras", "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors")).toEqual(["image"]);
     // 文本编码器分家:4B 破限归 K2(图片),32B Heretic-H3 归 H3(视频)(Music3 TE 已随权重隔离退役,09-20 移除断言)
     expect(classifyModelDomains("text_encoders", "qwen3-vl-4b-heretic.safetensors")).toEqual(["image"]);
     expect(classifyModelDomains("text_encoders", "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf")).toEqual(["video"]);
@@ -135,4 +137,11 @@ it("viggle 加速包件级注释:任意 viggle-turbo 件名命中,文案交代�
   expect(note).toContain("加速包");
   expect(note).toContain("LoRA 开关");
   expect(modelFileNote("Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors")).toContain("加速包");
+});
+
+// 09-26 登记:T8 Fun-Acc PDD 加速包件级注释(同 viggle 口径,LoRA 态唯一展示位=模型库行内注释)
+it("Fun-Acc 加速包件级注释:T8 PDD 件名命中,文案交代 4步采样要点", () => {
+  const note = modelFileNote("Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors");
+  expect(note).toContain("加速包");
+  expect(note).toContain("T8 专用采样节点");
 });

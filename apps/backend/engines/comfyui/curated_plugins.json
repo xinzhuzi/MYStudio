@@ -193,6 +193,14 @@
       "verified_license": "MIT"
     },
     {
+      "id": "qwen-image-2-1-fun-acc-loras-t8",
+      "name": "Q2-1 Fun-Acc PDD 加速(T8)",
+      "desc_zh": "阿里官方 Fun-Acc PDD 4步加速的 T8 配套节点(专用采样器):4步/cfg1/无负面词,TE 须 Qwen3-VL 8B 系;配套 LoRA 权重(Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors)另置引擎家 loras,不入安装包。仓库无 LICENSE 文件,介意版权请谨慎安装。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
+      "verified_license": "unknown"
+    },
+    {
       "id": "TE-Speed-QwenImage21",
       "name": "Q2-1 采样提速(TE-Speed)",
       "desc_zh": "MODEL 链采样提速(输出预测 30-40%,不减步数,不替代 QwenImage21Cache);上游只发 Windows 编译件,Mac 装不了(引擎卡尾行状态如实显示),Windows 用户可用。",

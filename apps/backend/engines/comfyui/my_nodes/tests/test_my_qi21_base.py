@@ -8,7 +8,7 @@ test_my_daojie_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 daojie_bases.json zh 顺序)+默认钉死「人物」/四出形状(BASE·WIDTH·HEIGHT·
 型名)/BASE 与 05 库对应型逐字一致(②美化版底座+人物系增量四锁B+④配色行,
 锚从库运行时切出、零硬编码;①槽与常量A 不在 BASE 内——工作流恒挂层承担)/
-W/H 与 K2 MyDaojieBase 同型同参输出一比一(含三视图 override 3072×1024 直出;
+W/H 与 K2 MyDaojieBase 同型同参输出一比一(K2 侧多视图 override 3072×1024 直出;Q2.1 侧 0927 起多视图分档 3:4 无 override;
 公式=MP 按 1024² 计、边长取整 8 倍数)/数据文件 schema(aspect/MP/override
 与 canon 逐字镜像)/未知型与库缺失中文 RuntimeError/mtime 失效热改。
 """
@@ -34,7 +34,7 @@ CANON_BASES = (REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
                / "daojie_bases.json")
 
 # 人物系六型(base_text 含常量B 增量四锁;与 05 库生成器 daojie_canon_lib.py 同表)
-RENWU_XI = {"人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分"}
+RENWU_XI = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
 
 
 @pytest.fixture(autouse=True)
@@ -128,6 +128,12 @@ def test_width_height_match_k2_same_type_and_params():
     for zh in _canon_order():
         _b, w, h, _n = MyQi21DaojieBase().run(zh)
         _p, _neg, aspect, mp, _bn, k_w, k_h = MyDaojieBase().run(zh)
+        if zh == "多视图":
+            # 0927 多视图轮:Q2.1侧画幅分档(3:4 Portrait 4.2MP 分张,退役 override;提取器
+            # Q21_ASPECT_FORK)——K2 侧 canon 合板口径(21:9+3072×1024)不动,两制分道;
+            # 型名对齐锁不受影响(此型外八型仍一比一)
+            assert (w, h) == native_px("3:4 (Portrait Standard)", 4.2) == (1816, 2424), zh
+            continue
         assert (w, h) == (k_w, k_h), zh  # 同型同参(aspect/MP/override 同 canon)
         entry = my_qi21_base._entry(zh)
         if entry.get("resolution_override") is None:
@@ -142,7 +148,7 @@ def test_width_height_reference_table():
     """九型对照表(型→宽×高;防 K2 侧公式漂移时静默跟漂的独立钉)。"""
     expect = {
         "人物": (1816, 2424), "场景": (2800, 1576), "道具": (1024, 1024),
-        "美宣": (3208, 1376), "三视图": (3072, 1024), "高清人脸": (1024, 1024),
+        "美宣": (3208, 1376), "多视图": (1816, 2424), "高清人脸": (1024, 1024),
         "分镜剧情图": (2800, 1576), "表情差分": (2096, 2096),
         "概念气氛图": (2800, 1576)}
     for zh, (w, h) in expect.items():
@@ -174,14 +180,18 @@ def test_data_file_schema():
 
 
 def test_aspect_megapixels_mirror_canon():
-    """画幅档与 canon(daojie_bases.json)逐字镜像(aspect/MP/override 三字段)。"""
+    """画幅档与 canon(daojie_bases.json)逐字镜像(aspect/MP/override 三字段;
+    多视图型例外=0927 多视图轮 Q2.1侧画幅分档,与提取器 Q21_ASPECT_FORK 单源)。"""
+    fork = {"多视图": ("3:4 (Portrait Standard)", 4.2, None)}
     canon = {e["zh"]: e for e in json.loads(CANON_BASES.read_text(encoding="utf-8"))}
     for e in json.loads(
             my_qi21_base._BASES_JSON.read_text(encoding="utf-8")):
         c = canon[e["zh"]]
-        assert e["aspect_ratio"] == c["aspect_ratio"], e["zh"]
-        assert e["megapixels"] == c["megapixels"], e["zh"]
-        assert e.get("resolution_override") == c.get("resolution_override"), e["zh"]
+        want_a, want_m, want_ov = fork.get(
+            e["zh"], (c["aspect_ratio"], c["megapixels"], c.get("resolution_override")))
+        assert e["aspect_ratio"] == want_a, e["zh"]
+        assert e["megapixels"] == want_m, e["zh"]
+        assert e.get("resolution_override") == want_ov, e["zh"]
 
 
 # ── 热改:mtime 失效(json 文案改=下次 run 即新文)───────────

@@ -131,10 +131,10 @@ IMG1, IMG2 = "portrait_model_denim.png", "clothing_light_blue_denim_shirt.png"
 TG_WV = ["", 8192, "on", 0.7, 20, 0.95, 0.05, 1.05, 42, 1.5, False, False, "auto"]
 
 # 道劫装配(承 t2i 生成器):九型真源互锁 + RGBA 官方公式头尾
-CHAR_TYPES = ("人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分")
+CHAR_TYPES = ("人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
 DEFAULT_TYPE = "人物"
-RGBA_HEAD_EN = "This is an RGBA image with transparency."
-RGBA_TAIL_EN = "The image has alpha channel and the background is transparent."
+RGBA_HEAD_EN = "This is an RGBA format image with transparency."  # 0927 勘案修账:官方逐字(官方模板 Note 双源)
+RGBA_TAIL_EN = "The image has an alpha channel and a transparent background."  # 0927 勘案修账:官方逐字
 RGBA_HEAD_ZH = "这是一张带有透明度的RGBA图像。"
 RGBA_TAIL_ZH = "该图像具有alpha通道,背景是透明的。"
 
@@ -190,7 +190,7 @@ NOTE_TEXT = """## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨�
 
 ### 怎么换型(一处切换)
 
-- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/三视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。
+- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。
 - **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。
 
 ### 官方示例双图(须先放引擎 input 目录)
@@ -226,8 +226,8 @@ NOTE_TEXT = """## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨�
 
 ### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)
 
-This is an RGBA image with transparency. [装配全文,与 [28] 同源]. The image has alpha channel and the background is transparent.
-中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文,子图 [160][161][162][163] 现拼)
+This is an RGBA format image with transparency. [装配全文,与 [28] 同源]. The image has an alpha channel and a transparent background.
+中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)
 
 ### 输出画幅双路([19] 开关,默认 false=跟随输入图)
 
@@ -275,7 +275,7 @@ def load_truth() -> dict:
         "场景": "场景多彩=淡墨+青灰+青绿+赭石+旧金(大面积稳定基底+多色相铺陈各安其位)",
         "道具": "道具多彩=淡墨+旧金+玉青+赭石+朱红(大面积稳定基底+中等强度器物色+少量高识别强调色)",
         "美宣": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-        "三视图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+        "多视图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
         "高清人脸": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
         "分镜剧情图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
         "表情差分": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",

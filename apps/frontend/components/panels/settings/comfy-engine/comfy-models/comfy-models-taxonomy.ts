@@ -40,9 +40,10 @@ const DOMAIN_RULES: ReadonlyArray<{ match: RegExp; domains: readonly ComfyModelD
   { match: /minimax_h3|heretic-h3|taeh3|latent_upscaler|^videoqc\/|^frame_interpolation\/|rife_|dover_mobile/i, domains: ["video"] },
   // 声音线:YuE2 作曲家(整曲/纯音乐 BGM) + TTS 家(Qwen3-TTS/SenseVoice/whisper/musicgen/嵌入与分词)
   { match: /yue2|sheetsage2|ar_lora_inst|musicgen|qwen3-tts|sensevoice|whisper|snac_|gte-multilingual|^tts\//i, domains: ["audio"] },
-  // 图片线:K2 产线(krea2/Krea 2)+ Qwen 图像(含 Q2-1 LoRA= viggle / TE= qwen3vl_8b 含 heretic)+
-  // 图像超分 + 服装分割 + 视觉理解;qwen3vl_8b 只匹配 8B 件(32B H3 TE 走 video 线规则)
-  { match: /krea\s*2|qwen_image|qwen3vl_8b|viggle|realesrgan|^segformer|^vlm\/|qwen3-vl-4b/i, domains: ["image"] },
+  // 图片线:K2 产线(krea2/Krea 2)+ Qwen 图像(含 Q2-1 LoRA= viggle / Fun-Acc / TE= qwen3vl_8b 含 heretic)+
+  // 图像超分 + 服装分割 + 视觉理解;qwen3vl_8b 只匹配 8B 件(32B H3 TE 走 video 线规则);
+  // fun-?acc=T8 Fun-Acc 加速 LoRA(文件名连字符 Fun-Acc,不含 qwen_image/viggle,不加点会掉 other 域)
+  { match: /krea\s*2|qwen_image|qwen3vl_8b|viggle|fun-?acc|realesrgan|^segformer|^vlm\/|qwen3-vl-4b/i, domains: ["image"] },
   // 双栖:SEEDVR2 图像修复超分 + H3 视频超分(2K 链)——多重分类的活例
   { match: /seedvr2/i, domains: ["image", "video"] },
 ];
@@ -125,6 +126,8 @@ export const COMFY_MODEL_FILE_NOTES: ReadonlyArray<readonly [string, string]> = 
   ["identity_edit", "无衣物·指令编辑主件"],
   ["Krea2-Turbo-4步蒸馏", "漫影生图加速档(8→4 步)——本地模型模块「加速」用"],
   ["viggle-turbo", "Qwen-Image-2.1 加速包——道劫工作流拨 LoRA 开关即用(步数自动 6)"],
+  // T8 Fun-Acc PDD 加速包(needle 大小写敏感,装机以引擎家 loras 实际文件名逐字核对)
+  ["Fun-Acc-4Step-PDD-T8", "Qwen-Image-2.1 加速包(PDD 4步)——需配 T8 专用采样节点(4步/cfg1/无负面词,TE 须 Qwen3-VL 8B 系)"],
   ["rife_v4.26", "视频补帧"],
 ];
 

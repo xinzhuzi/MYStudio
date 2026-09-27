@@ -57,7 +57,7 @@ DIRTY_WORDS = ("宣纸", "工笔线描", "工笔白描", "写意泼墨", "xuan")
 POSITIVE_DIRTY = ("做旧", "泛黄", "纸纹")  # 纸纹脏污族:正向禁;负向列它们=合法内容
 
 # 多格同人型负向黑名单(09-18 评审问题1 处置:系统性防复犯)
-MULTI_PANEL_OPTIONS = ("三视图", "表情差分")
+MULTI_PANEL_OPTIONS = ("多视图", "表情差分")  # 0927 改名轮:三视图→多视图
 # 09-24 债清算(全仓套件唯一容红清零):裸词 "duplicated" 退役——81ab725
 # 裁定21 六形态定界把「duplicated view, identical pose repeated」定为三视图
 # 负向有意文案(守护格子间视角/姿势差异化),与 09-18 立黑名单所防的「克隆
@@ -112,7 +112,7 @@ class TestBasesHygiene:
 class TestDaojieBasesSources:
     def test_options_are_nine_in_design_order(self):
         assert OPTIONS_ORDER == [
-            "人物", "场景", "道具", "美宣", "三视图",
+            "人物", "场景", "道具", "美宣", "多视图",
             "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"], \
             "九型顺序=设计定序(json 条目序),不得重排"
 
@@ -147,7 +147,7 @@ class TestDaojieBasesSources:
                 assert w not in low, f"底座「{e['zh']}」positive 残留旧锚 {w!r}"
 
     def test_multi_panel_negative_clone_blacklist(self):
-        """多格同人型(三视图/表情差分)负向禁 clone/多人类 token——多格同
+        """多格同人型(多视图/表情差分)负向禁 clone/多人类 token——多格同
         人合法,此类 token 会压制合法分格(09-18 评审问题1 门禁)。
         09-24 债清算注记:裸词 duplicated 已退役(裁定21 冻结文案含
         duplicated view,语义反向误伤,详见 CLONE_TOKENS 注);守护对象仍

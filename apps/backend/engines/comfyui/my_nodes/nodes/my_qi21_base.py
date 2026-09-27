@@ -12,7 +12,8 @@
     ④配色行的换行拼合,与 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md
     对应型逐字一致(契约测试从 05 库运行时切出对拍,零硬编码);①主体句槽与
     常量A·基础锁不在 BASE 内——由工作流恒挂层承担(05 库装配子图口径)。
-    aspect_ratio/megapixels(及三视图 resolution_override 3072×1024)照抄 canon。
+    aspect_ratio/megapixels(及 canon override 型)照抄 canon——多视图型 0927 起 Q2.1侧
+    分档 3:4 Portrait 4.2MP 并退役 override(提取器 Q21_ASPECT_FORK;K2 侧 canon 不动)。
 
   W/H 口径单源=K2 件:native_px/FALLBACK_* 直接 import(同 K2 复用
   my_styles._merge_negative 的防两处实现漂移纪律)——resolution_override 直出,
@@ -96,7 +97,7 @@ def _resolution_of(base: str, entry: dict) -> tuple[str, float]:
 
 def _width_height_of(base: str, entry: dict, aspect: str, megapixels: float) -> tuple[int, int]:
     """WIDTH/HEIGHT 两出(口径=K2 MyDaojieBase):resolution_override([w,h])
-    直出(canon 先例直填,如三视图 3072×1024);缺/非法回退公式自算
+    直出(canon 先例直填);缺/非法回退公式自算
     (native_px:MP 按 1024² 计,边长取整到 8 的倍数)。非法时控制台警告不炸画布。"""
     override = entry.get("resolution_override")
     if (isinstance(override, (list, tuple)) and len(override) == 2

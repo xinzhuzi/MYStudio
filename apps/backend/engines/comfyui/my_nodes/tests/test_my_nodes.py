@@ -219,7 +219,7 @@ def test_daojie_base_options_and_assembly():
     assert set(inputs["required"]) == {"base"}
     combo = inputs["required"]["base"]
     assert combo[0] == [
-        "人物", "场景", "道具", "美宣", "三视图",
+        "人物", "场景", "道具", "美宣", "多视图",
         "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
     assert combo[1]["default"] == "人物"
     # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/

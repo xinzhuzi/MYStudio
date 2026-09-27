@@ -3,7 +3,7 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫底座节点:九型底座下拉选型,装配收进节点一处(09-18 用户令)。
 
-真源=本目录 daojie_bases.json(九型:人物/场景/道具/美宣/三视图/高清人脸/
+真源=本目录 daojie_bases.json(九型:人物/场景/道具/美宣/多视图/高清人脸/
 分镜剧情图/表情差分/概念气氛图)磁盘现读:combo=json 条目顺序现读+文件
 mtime 失效重扫;positive/negative 每次 run 重读原文,单文件热改即时生效。
 数据源放包内而非 art_skills——daojie_ink_guofeng 被 electron-builder
@@ -20,12 +20,12 @@ daojie-prompt-contract.ts 双写有风险。
 分辨率四出(09-18 两出;09-20 三视图 A 案后扩四出):ASPECT(COMBO)+
 MEGAPIXELS(FLOAT),值按所选型现读 daojie_bases.json 的 aspect_ratio/
 megapixels 字段;另出 WIDTH/HEIGHT(INT) 两出——型带 resolution_override
-([w,h] 整数对,如三视图 1536×512 先例直填)时直出该值,否则按 ASPECTS
+([w,h] 整数对,如多视图 1536×512 先例直填)时直出该值,否则按 ASPECTS
 公式自算(公式与 [61] ResolutionSelector 逐字节一致:MP 按 1024² 计,
 边长取整到 8 的倍数)。缺字段回退 1:1 (Square)/4.2 并在控制台警告
 (回退 aspect 同为官方枚举逐字串,裸 "1:1" 该 combo 不收)。
 [53] 已改吃本节点 WIDTH/HEIGHT([61] 退位旁路保留作手动档)——COMBO 枚举
-无 3:1 档,特殊画幅(三视图 3:1)只能走 override 直出,09-20 三视图
+无 3:1 档,特殊画幅(多视图 3:1)只能走 override 直出,09-20 三视图
 「多个重复」二连否的根修。
 
 真源关系(双真源链,见 docs/prompts/道劫_底座节点_0918.md):
@@ -80,7 +80,7 @@ def native_px(aspect_label: str, megapixels: float, multiple: int = 8) -> tuple[
 
 
 def _width_height_of(base: str, entry: dict, aspect: str, megapixels: float) -> tuple[int, int]:
-    """WIDTH/HEIGHT 两出:resolution_override([w,h]) 直出(先例直填,如三视图
+    """WIDTH/HEIGHT 两出:resolution_override([w,h]) 直出(先例直填,如多视图
     1536×512);缺/非法回退公式自算。非法时控制台警告不炸画布。"""
     override = entry.get("resolution_override")
     if (isinstance(override, (list, tuple)) and len(override) == 2

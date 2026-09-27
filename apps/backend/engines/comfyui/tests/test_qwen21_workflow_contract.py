@@ -218,13 +218,13 @@ EDIT_PBM_ID, EDIT_EL_ID, EDIT_LATENT_SW_ID = 19, 18, 20
 EDIT_LORA_PB_ID, EDIT_LORA_ID, EDIT_LORA_SW_ID = 30, 31, 32
 EDIT_RR_V_A_ID, EDIT_RR_V_B_ID = 28, 29
 
-# RGBA 官方包裹句式(模板原文,逐字)——t2i/edit 旧件沿用(固定演示句版)
+# RGBA 官方包裹句式(官方模板 Note 双源逐字:0_官方模板/image_qwen_image_2_1_t2i.json
+# Note 与 qi21-edit.json Note;0927 勘案修账①:t2i/i2i 件 [160]/[161] 曾持缩写版
+# 「This is an RGBA image with transparency./The image has alpha channel…」与官方
+# 逐字不符而 title 谎报「逐字=官方模板」,本轮起三件统一官方逐字=下两行;旧
+# research/12 答A必改1 所记「短式=正字」系误记,如实注)
 RGBA_HEAD = "This is an RGBA format image with transparency."
 RGBA_TAIL = "The image has an alpha channel and a transparent background."
-# RGBA 官方公式头尾(qi21 件 09-23 深检吸收轮正字:research/12 答A必改1——旧版
-# 『an RGBA format image/a transparent background』两处微差就此对齐官方原文)
-RGBA_HEAD_OFFICIAL = "This is an RGBA image with transparency."
-RGBA_TAIL_OFFICIAL = "The image has alpha channel and the background is transparent."
 RGBA_HEAD_ZH = "这是一张带有透明度的RGBA图像。"
 RGBA_TAIL_ZH = "该图像具有alpha通道,背景是透明的。"
 
@@ -293,14 +293,14 @@ I2I_NODE_TYPE_WHITELIST = {
     "TextEncodeQwenImage21",
 }
 # 人物系六型(库 §二:常量B 加挂型)
-PRO_CHAR_TYPES = ("人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分")
+PRO_CHAR_TYPES = ("人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
 # ④配色行映射(库 §一映射表)
 PRO_COLOR_MAP = {
     "人物": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
     "场景": "场景多彩=淡墨+青灰+青绿+赭石+旧金(大面积稳定基底+多色相铺陈各安其位)",
     "道具": "道具多彩=淡墨+旧金+玉青+赭石+朱红(大面积稳定基底+中等强度器物色+少量高识别强调色)",
     "美宣": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-    "三视图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
+    "多视图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
     "高清人脸": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
     "分镜剧情图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
     "表情差分": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
@@ -742,11 +742,11 @@ class TestCanvasDiscipline:
                     )
 
     def test_usage_note_with_parameter_bible(self):
-        # qi21/i2i 件 RGBA 句式=官方正字(This is an RGBA image…);
-        # t2i/edit 旧件沿用旧句式(This is an RGBA format image…)
+        # 0927 勘案修账①:四件说明统一官方逐字(This is an RGBA format image…,
+        # 双源=官方模板 Note+qi21-edit Note;旧缩写版常量 RGBA_HEAD_OFFICIAL 退役)
         rgba_token = {
-            "qi21": RGBA_HEAD_OFFICIAL, "t2i": RGBA_HEAD, "edit": RGBA_HEAD,
-            "i2i": RGBA_HEAD_OFFICIAL,
+            "qi21": RGBA_HEAD, "t2i": RGBA_HEAD, "edit": RGBA_HEAD,
+            "i2i": RGBA_HEAD,
         }
         for name, graph in GRAPHS.items():
             notes = _by_type(graph, "MarkdownNote")
@@ -1420,6 +1420,12 @@ class TestQi21SubgraphContract:
             assert e["base_text"] == want_text, \
                 f"qi21_bases.json「{zh}」base_text 与 05 库②层(美化版)装配不逐字一致"
             c = canon_by_zh[zh]
+            if zh == "多视图":
+                # 0927 多视图轮:Q2.1侧画幅分档(3:4 Portrait 4.2MP,退役 override;提取器
+                # Q21_ASPECT_FORK 单源)——K2 侧 canon 合板口径(21:9+3072×1024)不动
+                assert (e["aspect_ratio"], e["megapixels"]) == ("3:4 (Portrait Standard)", 4.2) \
+                    and "resolution_override" not in e, f"qi21_bases.json「{zh}」画幅档应=Q2.1侧分档"
+                continue
             assert e["aspect_ratio"] == c["aspect_ratio"] and e["megapixels"] == c["megapixels"] \
                 and e.get("resolution_override") == c.get("resolution_override"), \
                 f"qi21_bases.json「{zh}」画幅档应镜像 canon"
@@ -1540,10 +1546,10 @@ class TestQi21SubgraphContract:
         assert sorted(pe_sw["outputs"][0]["links"] or []) == [18, QI21_FROZEN_BACK_LINK], \
             "[141] 输出应扇出恰两线([27] 装配预览+[40].提示词回流=最终文本)"
         # RGBA 官方公式(子图,09-23 深检吸收必改1)
-        assert _widget(sg_nodes[QI21_SG_RGBA_HEAD_ID], 0) == RGBA_HEAD_OFFICIAL, \
-            "RGBA 官方头句常量非官方原文逐字(This is an RGBA image with transparency.)"
-        assert _widget(sg_nodes[QI21_SG_RGBA_TAIL_ID], 0) == RGBA_TAIL_OFFICIAL, \
-            "RGBA 官方尾句常量非官方原文逐字(The image has alpha channel…transparent.)"
+        assert _widget(sg_nodes[QI21_SG_RGBA_HEAD_ID], 0) == RGBA_HEAD, \
+            "RGBA 官方头句常量非官方原文逐字(This is an RGBA format image with transparency.)"
+        assert _widget(sg_nodes[QI21_SG_RGBA_TAIL_ID], 0) == RGBA_TAIL, \
+            "RGBA 官方尾句常量非官方原文逐字(The image has an alpha channel and a transparent background.)"
         cat1, cat2 = (sg_nodes[i] for i in QI21_SG_RGBA_CAT_IDS)
         assert sg_links[cat1["inputs"][0]["link"]]["origin_id"] == QI21_SG_RGBA_HEAD_ID, \
             "RGBA 拼接①.string_a 上游应为官方头句常量"
@@ -1686,7 +1692,7 @@ class TestQi21SubgraphContract:
         note = _by_type(GRAPHS["qi21"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("装配子图", "MyQi21DaojieBase", "九型", "空镜无人", "重置回库文档现读值",
                       "[27]", "恒挂", "美化", "05-道劫规范提示词库.md", "步数 40", "40-50",
-                      RGBA_HEAD_OFFICIAL, RGBA_TAIL_OFFICIAL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
+                      RGBA_HEAD, RGBA_TAIL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
                       "画幅联动", "ResolutionSelector 已退役",
                       "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成",
                       STEPS_NOTE_TOKEN, "[177]", "shift_terminal=0.02", "TE-Speed",
@@ -2007,10 +2013,10 @@ class TestI2IContract:
             "应恰 1 个 easy showAnything 装配预览[28]"
         assert links[previews[0]["inputs"][0]["link"]][1] == I2I_HOST_ID, \
             "预览输入应接 [40] 宿主 prompt 输出"
-        assert _widget(sg_nodes[I2I_SG_RGBA_HEAD_ID], 0) == RGBA_HEAD_OFFICIAL, \
-            "RGBA 官方头句常量非官方原文逐字"
-        assert _widget(sg_nodes[I2I_SG_RGBA_TAIL_ID], 0) == RGBA_TAIL_OFFICIAL, \
-            "RGBA 官方尾句常量非官方原文逐字"
+        assert _widget(sg_nodes[I2I_SG_RGBA_HEAD_ID], 0) == RGBA_HEAD, \
+            "RGBA 官方头句常量非官方原文逐字(This is an RGBA format image with transparency.)"
+        assert _widget(sg_nodes[I2I_SG_RGBA_TAIL_ID], 0) == RGBA_TAIL, \
+            "RGBA 官方尾句常量非官方原文逐字(The image has an alpha channel and a transparent background.)"
         cat1, cat2 = (sg_nodes[i] for i in I2I_SG_RGBA_CAT_IDS)
         assert sg_links[cat1["inputs"][1]["link"]]["origin_id"] == I2I_SG_CONCAT_IDS[1], \
             "RGBA 拼接①.string_b 上游应为装配全文([28] 同源)"

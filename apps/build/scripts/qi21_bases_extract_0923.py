@@ -7,18 +7,23 @@ apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json(节点 MyQi21DaojieB
 热读数据,09-23 造件轮;工作流接线由下一轮做):
 
   每型条目字段:
-    zh              = canon zh(顺序=daojie_bases.json 条目顺序,不 sorted)
+    zh              = canon zh(顺序=daojie_bases.json 条目顺序,不 sorted;0927 改名轮起
+                      canon 五号型=「多视图」,军令①)
     base_text       = 库②层(型底座·美化版)+ 人物系增量四锁B(常量B·§四.4-.7)
                       + ④配色行,换行拼合;①主体句槽与常量A(基础锁)不在其内
                       ——由工作流恒挂层承担(05 库「三步用库」/装配子图口径)
-    aspect_ratio    = canon 同型字段逐字(官方枚举串)
-    megapixels      = canon 同型字段逐字
-    resolution_override = canon 同型字段照抄(仅三视图 3072×1024;W/H 口径=
-                      K2 MyDaojieBase:override 直出,否则 MP 按 1024² 计、边长
-                      取整 8 倍数——与 [61] ResolutionSelector 一致)
+    aspect_ratio    = canon 同型字段逐字(官方枚举串);**Q2.1侧画幅分档**——多视图型
+                      经 Q21_ASPECT_FORK(daojie_canon_lib 单源 import)取 3:4 Portrait
+                      Standard 4.2MP 并退役 resolution_override(0927 多视图轮:分张产线
+                      与人物型同档;K2 侧 canon aspect/override 合板口径不动=Q2.1侧 fork
+                      同摘噪轮先例)
+    megapixels      = canon 同型字段逐字(多视图型取 fork 值)
+    resolution_override = canon 同型字段照抄(fork 型除外;W/H 口径=K2 MyDaojieBase:
+                      override 直出,否则 MP 按 1024² 计、取整 8 倍数——与 [61]
+                      ResolutionSelector 一致)
 
 提取纪律:库②④逐字(装配全文围栏切片,零改写);③层结构自检——人物系六型
-(人物/美宣/三视图/高清人脸/分镜剧情图/表情差分)装配围栏中段=[§四.1,§四.2,
+(人物/美宣/多视图/高清人脸/分镜剧情图/表情差分)装配围栏中段=[§四.1,§四.2,
 *常量B,§四.8],非人物系三型=[§四.1,§四.2,§四.8],与库首常量 A/B 围栏逐行
 对账,错位即拒(防 05 库改版后静默提错文)。
 
@@ -39,8 +44,13 @@ LIB_MD = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 CANON_BASES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/daojie_bases.json"
 OUT = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json"
 
-# 人物系六型(③层加挂常量B 四把全员锁;与 05 库生成器 daojie_canon_lib.py 同表)
-RENWU_XI = {"人物", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分"}
+# 人物系六型(③层加挂常量B 四把全员锁;与 05 库生成器 daojie_canon_lib.py 同表;
+# 0927 改名轮:三视图→多视图)
+RENWU_XI = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
+
+# 0927 多视图轮·Q2.1侧画幅分档(单源=daojie_canon_lib.Q21_ASPECT_FORK,import 复用
+# 防两处漂移——多视图 3:4 Portrait Standard 4.2MP、退役 override;K2 侧 canon 不动)
+from daojie_canon_lib import Q21_ASPECT_FORK  # noqa: E402  (同目录单源 import)
 
 
 def _fail(msg: str):
@@ -99,7 +109,9 @@ def build_entries() -> list:
         base_text = "\n".join([base, *const_b, pal] if zh in RENWU_XI else [base, pal])
         item = {"zh": zh, "base_text": base_text,
                 "aspect_ratio": e["aspect_ratio"], "megapixels": e["megapixels"]}
-        if e.get("resolution_override") is not None:
+        if zh in Q21_ASPECT_FORK:  # 0927 多视图轮:Q2.1侧画幅分档+退役 override
+            item["aspect_ratio"], item["megapixels"] = Q21_ASPECT_FORK[zh]
+        elif e.get("resolution_override") is not None:
             item["resolution_override"] = e["resolution_override"]
         entries.append(item)
     return entries

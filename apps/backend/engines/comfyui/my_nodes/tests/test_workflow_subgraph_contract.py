@@ -25,7 +25,7 @@ WORKFLOWS = _ROOT / "apps" / "backend" / "engines" / "comfyui" / "workflows"
 DAOJIE_T2I = WORKFLOWS / "1_图片" / "K2图像" / "1_文生图" / "K2-文生图-道劫.json"
 STACK_DATA = (Path(__file__).resolve().parents[1] / "nodes" / "daojie_lora_stack.json")
 
-NINE = ["人物", "场景", "道具", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
+NINE = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 
 
 def _obj(l):

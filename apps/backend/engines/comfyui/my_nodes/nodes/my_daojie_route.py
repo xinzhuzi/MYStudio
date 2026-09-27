@@ -31,7 +31,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-NINE = ["人物", "场景", "道具", "美宣", "三视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
+NINE = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 
 _LEDGER = Path(__file__).resolve().parent / "daojie_lora_stack.json"
 _PLAIN = "路线={base}线(9条真实线路按型分流)"
