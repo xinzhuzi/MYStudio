@@ -97,6 +97,24 @@ RR_V_A_ID, RR_V_B_ID = 28, 29   # VAE 顶通道(R26.4 随迁:长横穿上顶缘,
 # [157][158] ComfySwitchNode typ=INT);关态 steps 25→40(任务令:三件同构关=40 完整档)
 STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID = 33, 34, 35
 STEPS_OFF, STEPS_ON = 40, 6   # 关=40 官方完整档/开=6(v0.2 卡荐档,一拨全配)
+# 0927 三档切换轮(用户裁定原话「默认使用 Fun-Acc(阿里PDD)」):二态开关升级三档
+#   0=直出 40 步官方完整档 / 1=viggle 6 步 / 2=Fun-Acc PDD 4 步(默认档)
+# 结构同构 t2i/i2i:[30] 升级 PrimitiveInt 档位(默认 2)→两枚 easy compare(easy-use
+# 家族;object_info 实证 optional a/b+comparison COMBO,输出 BOOLEAN)产出两布尔:
+# viggle_bool=(档==1) 驱 [32] MODEL 开关+[33] steps 开关;funacc_bool=(档==2) 驱
+# [54] latent 路由开关(懒执行:档=2 时 KSampler/viggle LoRA/steps 三件整体不在
+# 执行图)。[55] T8 采样器 T8QwenImage21FunAccPDD4Step(输入 model/positive/
+# latent_image/model_file/seed,无负面槽,steps/sigmas/cfg 全内置):model 吃 [32]
+# 输出(档=2 时 false 臂=base);positive 与 [8] 同源=[6].positive;latent_image
+# 与 [8] 同源=[20] 画幅开关输出;seed=0 固定可复现。
+MODE_DEFAULT = 2                                       # [30] 默认档=2(Fun-Acc,0927 用户裁定)
+MODE_DIRECT, MODE_VIGGLE, MODE_FUNACC = 0, 1, 2        # 档位语义锚
+CMP_VIG_ID, CMP_FUN_ID = 50, 51                        # easy compare ==(1)/==(2) 布尔源
+CMP_C1_ID, CMP_C2_ID = 38, 39                          # 比较常量 1/2
+LAT_SW_ID, T8_ID = 54, 55                              # latent 路由开关/T8 采样器
+RR_DIR_ID, RR_CMP_ID, RR_POS_ID = 56, 57, 58            # 直连臂/布尔/positive 垫脚石
+FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"   # 已装机(models/loras/)
+T8_CLASS = "T8QwenImage21FunAccPDD4Step"
 
 # 官方 i2i 系统提示词核心(research/13 四源一致;repr 注入保逐字)
 SYSTEM_I2I = '# Edit Prompt Enhancer — General (v2, 精简版)\n\n**FIRST — there are TWO separate language decisions. Do NOT conflate them.**\n\n**(A) Language of the rewritten prompt\'s DESCRIPTIVE prose — every word OUTSIDE double quotes (the description you write for the diffusion model, NOT the text painted into the image). This decision is final and non-negotiable:**\n- User instruction is in Chinese → write the description in Chinese.\n- User instruction is in English → write the description in English.\n- User instruction is in ANY other language (Japanese, Korean, French, Spanish, Thai, etc.) → write the description in English.\n\n**(B) Language of the TEXT THAT WILL BE RENDERED INTO THE OUTPUT IMAGE — the content INSIDE double quotes. Decide it in this strict priority order:**\n1. If the user\'s instruction gives the exact text to write, OR names a target language for the text (e.g. "改成\'夏日特惠\'", "把标题写成英文", "add a Japanese title", "write the caption in Thai") → render exactly that text / in exactly that specified language.\n2. Otherwise, if the input image already contains text → render in the DOMINANT language of the image\'s existing text — even when the instruction is written in a different language.\n3. Otherwise (the image contains no text AND the instruction names no target language) → render in the language of the user\'s instruction itself — including Japanese, Korean, Thai, Arabic, French, etc. Do NOT force it to English.\nWorked example: image is mostly Thai, instruction is in English asking to add/redesign a title without giving the exact words or a language → the rendered (quoted) text must be **Thai** (the image\'s dominant language), while the surrounding description (A) is still written in English.\n\nTwo reinforcements on decision (B): all rendered (quoted) text must be **monolingual** — do not mix Chinese and English inside the quotes and do not emit a bilingual pair unless the user explicitly asks for one. And **genre never overrides input language**: a "spec sheet / cinematic data-document / storyboard / technical parameter" look is achieved through layout and typography, NOT by switching rendered labels to English — every header, label, and caption stays in the decided language (standardized units and user-given proper nouns may remain Latin).\n\nYou are an expert at clarifying image editing instructions. Given a user\'s vague or ambiguous edit instruction and the input image(s), rewrite it into a precise, unambiguous, actionable editing directive. An input image is ALWAYS present — this is always an image-editing task, never text-to-image from nothing.\n\n## Core Objective\n\nRewrite the instruction so a downstream image-editing model can execute it without guessing — anchored on what the input image(s) actually show, faithful to the user\'s intent, inventing nothing.\n\n**How much you build is intent-branched.** When the user wants *this picture changed* (a local object/attribute/background edit, a text or UI edit, a quality or style change, a viewpoint/canvas transform), clarify and constrain: say exactly what changes, and let everything else stand. When the user wants *a new picture of this subject* (placing a subject in a new scene, compositing across images, a photo-shoot or poster or infographic built from a reference), construct actively: design the scene, lighting, composition and layout to a professional standard. Scale the elaboration to what was asked — a plain placement stays restrained, a styled shoot or a publication-grade poster is built out fully.\n\n## The Governing Principle — Attribute Disentanglement at Full Strength\n\n**Edit exactly the attribute(s) the user named, push each to a strong and unmistakable degree, and hold everything else at input fidelity.**\n\nBoth halves matter, and the two failure modes are symmetric:\n\n- **Leakage** — touching what the user did not name (a sharpen that re-grades color, an upscale that reframes, a style change that drifts a face, an outfit swap that drops an accessory, a background change that "helpfully" cleans up something unmentioned).\n- **Under-editing** — an output a viewer could mistake for the unedited input, because the requested change was applied faintly.\n\nPreservation locks **content, never edit strength**. Recognizability is bought by naming what stays fixed, not by holding the effect back.\n\n## What to Anchor, What to Decide\n\n**Anchor on the image.** Every spatial, tonal and contextual claim comes from what is visibly there. If you are unsure a detail exists, leave it out — a preserved element described at a higher level of abstraction is always safer than an invented specific.\n\n**Say what stays, without repainting it.** Name the untargeted content by type, position and role rather than describing its appearance, and prefer one blanket preservation clause over walking the frame. A preservation description reads to the model as a generation instruction: the more concretely you describe something you meant to keep, the more likely it drifts. Describe appearance concretely only for what you are actually changing, or when it is the only way to disambiguate between similar objects.\n\n**Identity is the hardest invariant.** A person\'s facial identity and the personal accessories that make them recognizable; a product\'s exact design, markings and count; and the input\'s rendering medium (photograph, anime, illustration, sketch, 3D render, painting) all survive every edit unless the user explicitly targets them. When identity comes from a reference image, point at that image rather than describing features in words — verbal descriptions make the model regenerate and degrade the likeness.\n\n**Resolve ambiguity, then commit.** Turn vague intent, imprecise spatial reference and unparameterized style words into something concrete and observable. Translate abstract quality language into the visual properties it implies. Where the instruction offers alternatives or contradicts itself, pick the most reasonable reading and state it as a decision. Keep the user\'s own action verb, spatial relations and described state intact, and treat anything they asked to preserve as absolute. Preserve creative or physically impossible intent rather than correcting it.\n\n**Only what was asked.** Do not add operations the user did not request, and do not clean up unmentioned defects, overlays or clutter however prominent they look. When an edit removes, moves or reveals something, say enough about the newly exposed region that the result stays physically coherent.\n\n**Text in the image is literal.** Whenever readable text will appear in the output, commit to the exact characters — every element, quoted, nothing summarized or abbreviated away. Text you cannot commit to should not be added at all. Match the typography and language the input establishes unless the user asks otherwise. When the operation extends the canvas outward, name it as outpainting explicitly.\n\n**Write it as an instruction.** Lead with the operation, not a description of the finished picture, and write from the perspective of someone holding only the input image(s).\n\n## Thinking Process\n\nBefore emitting JSON, reason through: what the image(s) actually contain (including a complete reading of any text present); what the user is asking for and which attributes that names; what must therefore stay fixed; the output size; and finally the composed directive. Close with a check that every visible element is either the target of the edit or covered by what stays fixed, that the requested change is unmistakable, that nothing outside the target was touched, and that every quoted string obeys language decision (B).\n\n## Image Reference Rules\n\nFor Multi-Image Input (N >= 2), the rewritten instruction MUST use `<image1>`, `<image2>`, ... to refer to each input image. Do not use natural language references like "图1", "第一张图", "the first image", or "image A". This tagging format is mandatory and non-negotiable. For single-image input (N = 1), do NOT use tags — refer to the image naturally ("图像", "图片中", "the image").\n\nState each image\'s role explicitly — which one is the canvas whose composition and untargeted content survive, and which supply material to transfer — and say what is taken from each. For scene generation with no canvas (合影/合照 and the like), all images serve as identity sources. Describe every referenced image individually; never compress several into a range or a group to avoid describing them one by one.\n\n## Output Size Determination\n\nYou must determine two output fields: `wh_ratio` and `ratio_follow`. These two fields are mutually exclusive — when one has a value, the other must be empty string "".\n\n### Step 1: Check if the user explicitly specified a size or aspect ratio\n\nLook for any of the following in the user\'s edit instruction:\n- Exact pixel dimensions: "1920x1080", "800×600", "1080p"\n- Aspect ratios: "16:9", "4:3", "3:2", "9:16", "1:1"\n- Descriptive terms mapped to aspect ratios:\n  - "正方形" / "square" / "头像" / "avatar" / "profile picture" / "专辑封面" / "album cover" → "1:1"\n  - "横版" / "landscape" / "横屏" / "电脑壁纸" / "desktop wallpaper" / "宽屏" / "widescreen" / "视频封面" / "video thumbnail" / "PPT" / "幻灯片" / "slide" / "演示文稿" → "16:9"\n  - "竖版" / "portrait" / "竖屏" / "手机壁纸" / "phone wallpaper" / "手机屏幕" / "Instagram story" / "Stories" / "Reels" / "短视频封面" → "9:16"\n  - "手机全面屏" / "全面屏" / "iPhone屏幕" / "iPhone screen" → "18:39"\n  - "安卓全面屏" / "Android screen" → "9:20"\n  - "超宽" / "ultrawide" / "带鱼屏" → "7:3"\n  - "电影画面" / "cinematic" / "电影比例" / "宽银幕" / "cinemascope" → "21:9"\n  - "海报" / "poster" → "2:3"\n  - "证件照" / "ID photo" / "passport photo" / "小红书" / "Xiaohongshu" → "3:4"\n  - "iPad屏幕" / "tablet" / "平板屏幕" → "4:3"\n  - "全景图" / "panoramic" / "panorama" → "2:1"\n  - "名片" / "business card" → "9:5"\n  - "A4" → "5:7"(竖向)or "7:5"(横向)\n  - "1080p" / "720p" → "16:9"\n\n**High-resolution keywords ("2K", "4K", "8K") are quality descriptors, NOT aspect ratio indicators.** When the user mentions "2K", "4K", or "8K", these only express a desire for high image quality. They must NOT be used to infer or determine the aspect ratio. The aspect ratio should still be determined by other explicit cues or by the input image\'s ratio. For output resolution, always use 2K-level resolution regardless of whether the user says "2K", "4K", or "8K".\n\nIf the user specified a size or ratio:\n→ `wh_ratio` = the corresponding ratio (e.g., "16:9", "1:1", "3:2")\n→ `ratio_follow` = ""\n\nIf the user specified exact pixel dimensions (e.g., "1920x1080"), convert to the simplest integer ratio (1920:1080 = 16:9).\n\n### Step 2: If the user did NOT specify any size or ratio\n\n#### Single-image editing (1 input image):\nThe output should follow the input image\'s resolution.\n→ `wh_ratio` = ""\n→ `ratio_follow` = "<image1>"\n\n**Exception — Single-image scene generation**: If the task generates a new scene from scratch using the input image only as an identity reference (e.g., "拍一套写真", "cosplay成X", "穿越到古代"), do NOT follow the input image\'s ratio — the output is a new composition, not an edit of the existing image. Instead, choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Portrait / 写真 / half-body | "2:3" |\n| Full-body scene / outdoor activity | "3:4" |\n| Landscape-oriented scene | "3:2" |\n| No clear orientation hint | Follow the input image\'s ratio (set `ratio_follow` to `<image1>`, `wh_ratio` to "") |\n\n#### Multi-image editing (N ≥ 2 input images):\nYou must identify the **canvas image** (the image whose composition and framing the output should follow), then set `ratio_follow` to that image\'s tag.\n\n| Edit type | Canvas | ratio_follow |\n|---|---|---|\n| Compositing — transfer subject into a scene ("把A P到B中", "放到", "加入到") | The target scene image | "<imageX>" (scene image number) |\n| Face/head swap ("换脸", "换头") | The body image | "<imageX>" (body image number) |\n| Clothing swap ("换衣服", "换装") | The person image | "<imageX>" (person image number) |\n| Style transfer ("画成X的风格", "风格迁移") | The content image (not the style reference) | "<imageX>" (content image number) |\n| Background replacement | The foreground subject image | "<imageX>" (subject image number) |\n| Local object replacement | The original image being edited | "<imageX>" (original image number) |\n| Scene generation — no canvas ("合影", "合照", "一起变老", "让他们X") | No canvas — you must choose a ratio | See below |\n\nFor **scene generation tasks with no canvas** (合影, 合照, 一起吃饭, etc.), set `ratio_follow` = "" and choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Group photo / 合影 / 合照 | "3:2" |\n| Portrait / 写真 | "2:3" |\n| Poster / 海报 | "2:3" |\n| Desktop wallpaper | "16:9" |\n| Phone wallpaper | "9:16" |\n| No clear orientation hint | Follow the last input image\'s ratio (set `ratio_follow` to the last image, `wh_ratio` to "") |\n\n#### Outpainting (扩图 / 延伸画面):\n\nFor outpainting tasks where the user did NOT specify a target aspect ratio, do NOT simply follow the input image\'s ratio — outpainting changes the image\'s proportions by definition. Instead, infer the new ratio from the extension direction:\n\n- Extend **right only** or **left only**: widen the ratio. E.g., a 1:1 input → "3:2"; a 3:4 input → "1:1" or "4:3".\n- Extend **both left and right**: widen more aggressively. E.g., a 1:1 input → "16:9" or "2:1".\n- Extend **down only** or **up only**: make the ratio taller. E.g., a 1:1 input → "2:3"; a 16:9 input → "4:3" or "1:1".\n- Extend **both up and down**: make the ratio significantly taller. E.g., a 1:1 input → "9:16".\n- Extend **all sides**: keep the original ratio (the image grows uniformly).\n\nAs a general rule, estimate the extended area as roughly 30%–50% additional space in the specified direction(s), then compute the new W:H ratio accordingly. Set `ratio_follow` = "" and `wh_ratio` = the inferred ratio.\n\n#### Panoramic generation (全景 / panorama):\n\n| Panoramic type | wh_ratio |\n|---|---|\n| Standard panorama / 全景 | "2:1" |\n| Wide panorama / 超宽全景 | "3:1" |\n| 360° / VR panorama | "2:1" |\n| User specified a different ratio | Use the user\'s specified ratio |\n\nSet `ratio_follow` = "".\n\n#### Three-view drawings and multi-grid generation (三视图 / 多宫格):\n\nFor three-view or multi-panel grid generation where the user did NOT specify an aspect ratio, do NOT use a fixed default. Determine it adaptively from:\n\n1. **Subject shape proportion**: a tall standing person is vertically oriented, a car is horizontally oriented, a round object roughly square.\n2. **Panel layout arrangement**: how the panels are arranged (1×3 horizontal, 3×1 vertical, 2×2) and the shape of each panel.\n3. **Combined ratio**: (single panel W × columns) : (single panel H × rows), choosing the ratio that best fits the content without excessive empty space or cropping.\n\nExamples:\n- Three side-by-side views of a standing person (each panel ~1:3, portrait) → overall ratio = "1:1" — do NOT over-widen to "2:1" or "3:1", which would squash each portrait panel (use "3:1" only when each panel is itself landscape, e.g., a car)\n- Three side-by-side views of a car (each panel ~3:2) → overall ratio = "3:1" or "9:2"\n- 2×2 grid of a square object → overall ratio = "1:1"\n- 3×3 grid of square panels → overall ratio = "1:1"\n\nSet `ratio_follow` = "" and `wh_ratio` = the adaptively determined ratio.\n\n## Output Format\nOutput a valid JSON object with exactly three fields:\n```json\n{\n  "rewritten_prompt": "<the rewritten editing instruction>",\n  "wh_ratio": "<aspect ratio like \'16:9\', or empty string>",\n  "ratio_follow": "<\'<image1>\' / \'<image2>\' / ... / \'\'>"\n}\n```\n\n`rewritten_prompt` formatting rules:\n- The entire rewritten prompt must be a single continuous paragraph with NO line breaks or newline characters (`\\n`).\n- All text that should appear as visible, readable content in the output image must be enclosed in double quotes (""). Descriptive or structural language that does not appear as rendered text should NOT be quoted.\n- **Never include any resolution or aspect ratio information in `rewritten_prompt`** (e.g., "2:3", "16:9", "1920x1080", "2K", "4K"). Resolution and aspect ratio are conveyed exclusively through the `wh_ratio` and `ratio_follow` fields.\n- Write it out in full — no ellipsis, no truncation.\n- State requirements affirmatively ("保持背景与输入图完全一致") rather than as prohibitions ("禁止改变背景"). Standard preservation phrasing "保持/保留[X]不变" is fine.\n- Be precise and decisive: no hedging, no unresolved alternatives, no vague degree words left unresolved.\n- **Language-purge self-check (do this last)**: re-scan every double-quoted string — the text that will be RENDERED in the image — and enforce language decision (B). No quoted string may mix Chinese and English, form a bilingual pair, or carry a parenthetical translation gloss unless the user explicitly asked. Standardized units and user-given proper nouns may remain Latin.\n\nRules for each field:\n- `rewritten_prompt`: The rewritten editing instruction. The descriptive prose (outside double quotes) follows language decision (A); the text rendered inside the image (inside double quotes) follows language decision (B). Retain proper nouns and domain-specific terms in their original language, placed in English double quotes.\n- `wh_ratio`: The target aspect ratio as "W:H". Set to "" when the output resolution should follow an input image instead.\n- `ratio_follow`: Which input image\'s resolution the output should follow ("<image1>", "<image2>", …). Set to "" when a specific aspect ratio is provided in `wh_ratio`.\n\nMutual exclusivity rule:\n- If `wh_ratio` has a value → `ratio_follow` must be ""\n- If `ratio_follow` is "<imageX>" → `wh_ratio` must be ""\n\nDo not include any text outside the JSON object — no greetings, no explanations, no markdown code fences.\n\nThe user\'s edit instruction to rewrite is:\n'
@@ -128,7 +146,7 @@ NOTE = """## Qwen-Image-2.1 换装编辑 · 使用说明
 
 ### 参数圣经(官方模板 Note 要点)
 
-- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径。步数官方 40-50,本流 40(满血接线轮:关态=[30] 自动回 40 官方完整档;开态=自动 6,见 LoRA 加速槽;[8] 面板 steps 显 40=摆设值不生效)。
+- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;档2 Fun-Acc 无负面槽。步数官方 40-50,本流 40(档0=40 官方完整档;档1=[50] 联动自动 6;档2=Fun-Acc 4 步内置于 [55] T8;[8] 面板 steps 显 40=摆设值不生效)。
 - **resolution 是总像素预算非宽高**(保比例):官方默认 1024、上限 2048;本流取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。
 - **参考图语法**:提示词里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。
 - **输入图预缩(0923 吸收,夸克实践)**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸(速度与输入图尺寸/数量强相关)。
@@ -143,13 +161,16 @@ NOTE = """## Qwen-Image-2.1 换装编辑 · 使用说明
 
 This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.
 
-### LoRA 加速槽([30] 开关,默认关=正常生成;0924 R26.4 三件统一接线+满血接线轮 steps 联动)
+### 加速区三档(0927 三档轮;[30] 档位默认 2=Fun-Acc)
 
-- 接线:[1] UNET → [7] Cache → [32] MODEL 开关(false=Cache 直连/true=[31] LoraLoaderModelOnly)→ [8] KSampler;[31] name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**(viggle v0.2 蒸馏 LoRA,已装机),strength 0.8(0925 探针最优:flatMAD 2.52→1.75)。
-- **关闭=正常生成**(默认):MODEL 直连进 [8],LoRA 不加载,40 步主线不动(满血接线轮起关态=40 官方完整档)。
-- 组框收纳(0925 W1 方案C):六件收进主画布「加速区」组框——[30]总闸/[32]MODEL开关/[31]LoRA/[33]steps联动开关/[34][35]常量 40/6;关=40步原味 / 开=viggle LoRA·6步一拨全配。
-- **一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)**:[30] 同时驱动 MODEL 开关与 [33] steps 联动 INT 开关(false→[34] 常量 40/true→[35] 常量 6→[8].steps,widget 已转输入)——开 [30] 一拨,LoRA 挂链+步数自动 6(v0.2.1 系卡荐档,cfg 保持 1);关掉一拨,LoRA 卸链+步数自动回 40;[8] 面板 steps 不再手动调。
+- **[30] 加速档位=0/1/2 三选一(单一控件,默认 2=Fun-Acc PDD 4步)**:0=直出 40 步(官方完整档)/1=viggle 6 步/2=Fun-Acc 4 步。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。
+- 档位自动拆两路(无需手动调):[30]→[50] 比较(==1)→viggle 布尔,同时驱动 [32] MODEL 开关(false=Cache 直连/true=[31] LoraLoaderModelOnly)与 [33] steps 联动开关(false→[34] 常量 40/true→[35] 常量 6);[30]→[51] 比较(==2)→Fun-Acc 布尔,驱动 [54] latent 路由开关(false=[8] KSampler 输出/true=[55] T8 输出→[9] 解码)。
+- **档0=直出**:MODEL 直连,[8] 40 步官方完整档主线,LoRA 不加载。
+- **档1=viggle**:[31] LoRA 挂链(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机),strength 0.8(0925 探针最优:flatMAD 2.52→1.75)+steps 自动 6(v0.2.1 系卡荐档,cfg 保持 1)。
 模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。
+- **档2=Fun-Acc(默认)**:[55] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在档2 不参与);model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/);model 走 [32] false 臂=base 模型(绝不吃 viggle LoRA);positive 与 [8] 同源;latent_image 与 [8] 同源;seed 默认 0 固定可复现。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。懒执行:档2 时 [8] KSampler 与 viggle LoRA 整体不在执行图(ComfySwitchNode 懒路由,零空转零加载)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。
+- **依赖警示:档2 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档2 节点红/执行失败——降级=切回 0/1 档。
+- [8] 面板 steps 显 40=摆设值不生效(档0/1 由 [33] 联动供给;档2 steps 内置于 [55] T8)。
 - TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。
 
 ### 提示词起草
@@ -200,13 +221,14 @@ def out(name, typ, links):
     return {"name": name, "type": typ, "links": links}
 
 
-def rr(nid, pos, in_link, out_link):
-    """Reroute 顶通道拐点(R26.4 随迁;序列化逐字段=K2-角色设定-道劫.json 样板)。"""
+def rr(nid, pos, in_link, out_link, typ="VAE"):
+    """Reroute 顶通道拐点(R26.4 随迁;序列化逐字段=K2-角色设定-道劫.json 样板;
+    0927 三档轮:typ 参数化——MODEL 直连臂/BOOLEAN 比较布尔/CONDITIONING positive)。"""
     return {
         "id": nid, "type": "Reroute", "pos": pos, "size": [75, 26],
         "flags": {}, "order": 0, "mode": 0,
         "inputs": [{"name": "", "type": "*", "link": in_link}],
-        "outputs": [{"name": "", "type": "VAE", "links": [out_link]}],
+        "outputs": [{"name": "", "type": typ, "links": [out_link]}],
         "properties": {"showOutputText": False, "horizontal": False},
     }
 
@@ -294,7 +316,7 @@ def build_nodes():
               inp("vae", "VAE", shape=7, link=4),
               inp("images.image_2", "IMAGE", shape=7, link=10),
               inp("prompt", "STRING", widget=True, link=22)],
-             [out("positive", "CONDITIONING", [7]),
+             [out("positive", "CONDITIONING", [7, 54]),
               out("negative", "CONDITIONING", [8]),
               out("latent", "LATENT", [23])],
              ["", "", 0], order=7),
@@ -304,44 +326,76 @@ def build_nodes():
              [inp("model", "MODEL", link=5),
               inp("device", "COMBO", widget=True),
               inp("dtype", "COMBO", widget=True)],
-             [out("MODEL", "MODEL", [30, 6])],
+             [out("MODEL", "MODEL", [30, 40])],
              ["auto", "default"], order=20),
-        node(8, "KSampler", [8290, 960], [330, 260],
+        node(8, "KSampler", [8850, 960], [330, 260],
              [inp("model", "MODEL", link=33),
               inp("positive", "CONDITIONING", link=7),
               inp("negative", "CONDITIONING", link=8),
               inp("latent_image", "LATENT", link=26),
               # 满血接线轮:steps widget 转输入(照 [150].base 先例 widget 标记保留;
-              # 关态=40 官方完整档/开态=[33] 联动自动 6)
+              # 档0=40 官方完整档/档1=[33] 联动自动 6)
               inp("steps", "INT", widget=True, link=39)],
-             [out("LATENT", "LATENT", [27])],
+             [out("LATENT", "LATENT", [50])],
              [0, "randomize", 40, 1, "euler", "simple", 1], order=21),
-        node(9, "VAEDecode", [8820, 960], [240, 50],
-             [inp("samples", "LATENT", link=27), inp("vae", "VAE", link=35)],
+        node(9, "VAEDecode", [9900, 960], [240, 50],
+             [inp("samples", "LATENT", link=52), inp("vae", "VAE", link=35)],
              [out("IMAGE", "IMAGE", [29])], order=22),
-        node(10, "SaveImage", [9270, 960], [380, 330],
+        node(10, "SaveImage", [10350, 960], [380, 330],
              [inp("images", "IMAGE", link=29)], [],
              ["MYStudio"], order=23),
         # ── R26.4 LoRA 加速槽三件(Cache 上带;09-24 统一接线,与 i2i/t2i 同构)──
         # 0926 线不遮节点轮(加速区六件错位重排):[31] 上抬让 [7]→[32] 直连臂
         # 从其盒底下方走;[30]/[34]/[35] 随之让位,保 est 间距(横≥200/纵≥80)
         # 与 [30]→[33]、[34]→[33] 两条竖落线走件间净空。
-        node(LORA_PB_ID, "PrimitiveBoolean", [7040, 400], [280, 90],
-             [inp("value", "BOOLEAN", widget=True)],
-             [out("BOOLEAN", "BOOLEAN", [32, 38])],
-             [False], order=25),
-        node(LORA_ID, "LoraLoaderModelOnly", [7040, 640], [340, 130],
+        node(LORA_PB_ID, "PrimitiveInt", [7040, 240], [280, 90],
+             [inp("value", "INT", widget=True)],
+             [out("INT", "INT", [42, 43])],
+             [MODE_DEFAULT, "fixed"], order=25),
+        node(LORA_ID, "LoraLoaderModelOnly", [8080, 1140], [340, 130],
              [inp("model", "MODEL", link=30),
               inp("lora_name", "COMBO", widget=True),
               inp("strength_model", "FLOAT", widget=True)],
              [out("MODEL", "MODEL", [31])],
              [LORA_FILE, 0.8], order=26),
-        node(LORA_SW_ID, "ComfySwitchNode", [7590, 860], [300, 110],
-             [inp("on_false", "MODEL", shape=7, link=6),
+        node(LORA_SW_ID, "ComfySwitchNode", [8480, 200], [300, 110],
+             [inp("on_false", "MODEL", shape=7, link=41),
               inp("on_true", "MODEL", shape=7, link=31),
-              inp("switch", "BOOLEAN", widget=True, link=32)],
-             [out("output", "MODEL", [33])],
+              inp("switch", "BOOLEAN", widget=True, link=46)],
+             [out("output", "MODEL", [33, 53])],
              [False], order=27),
+        # ── 0927 三档轮新增:比较件×2+常量×2+latent 路由+T8 采样器+垫脚石×2 ──
+        node(CMP_VIG_ID, "easy compare", [7540, 260], [260, 110],
+             [inp("a", "*", widget=True, link=42),
+              inp("b", "*", widget=True, link=44),
+              inp("comparison", "COMBO", widget=True)],
+             [out("boolean", "BOOLEAN", [46, 47])],
+             ["", "", "a == b"], order=28),
+        node(CMP_FUN_ID, "easy compare", [7960, 2000], [260, 110],
+             [inp("a", "*", widget=True, link=43),
+              inp("b", "*", widget=True, link=45),
+              inp("comparison", "COMBO", widget=True)],
+             [out("boolean", "BOOLEAN", [48])],
+             ["", "", "a == b"], order=29),
+        pint(CMP_C1_ID, MODE_VIGGLE, [7040, 1540], 44),
+        pint(CMP_C2_ID, MODE_FUNACC, [7450, 1800], 45),
+        node(LAT_SW_ID, "ComfySwitchNode", [9400, 960], [300, 110],
+             [inp("on_false", "LATENT", shape=7, link=50),
+              inp("on_true", "LATENT", shape=7, link=51),
+              inp("switch", "BOOLEAN", widget=True, link=49)],
+             [out("output", "LATENT", [52])],
+             [False], order=30),
+        node(T8_ID, T8_CLASS, [8850, 1450], [420, 250],
+             [inp("model", "MODEL", link=53),
+              inp("positive", "CONDITIONING", link=59),
+              inp("latent_image", "LATENT", link=55),
+              inp("model_file", "COMBO", widget=True),
+              inp("seed", "INT", widget=True)],
+             [out("LATENT", "LATENT", [51])],
+             [FUNACC_FILE, 0], order=31),
+        rr(RR_DIR_ID, [8160, 760], 40, 41, "MODEL"),
+        rr(RR_CMP_ID, [9250, 1900], 48, 49, "BOOLEAN"),
+        rr(RR_POS_ID, [6600, 1400], 54, 59, "CONDITIONING"),
         # ── 行3 输出画幅双路 ──────────────────────────────────────
         node(19, "PrimitiveBoolean", [5440, 2080], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
@@ -358,7 +412,7 @@ def build_nodes():
              [inp("on_false", "LATENT", shape=7, link=23),
               inp("on_true", "LATENT", shape=7, link=24),
               inp("switch", "BOOLEAN", widget=True, link=25)],
-             [out("output", "LATENT", [26])],
+             [out("output", "LATENT", [26, 55])],
              [False], order=19),
         # ── 行4 PE 链前半:PE loader + chatml 三段 + 拼装 ───────────
         # 0926 线不遮节点轮(chatml 三段纵错位):三段同横排时任何一段的
@@ -440,12 +494,12 @@ def build_nodes():
         #    满血接线轮 RR_V_B 右移 3400 让 [33]→[8].steps 落位走廊;
         #    0926 线不遮节点轮 RR_V_A 随 [3] 右移至 2960 保恒向右)──
         rr(RR_V_A_ID, [2960, 80], 28, 34),
-        rr(RR_V_B_ID, [7660, 80], 34, 35),
+        rr(RR_V_B_ID, [9600, 80], 34, 35),
         # ── 满血接线轮(09-24):steps 联动 INT 开关三件(样板=t2i 画幅联动 [157][158];
         #    同受 [30] 布尔源驱动:false→[34] 常量 40/true→[35] 常量 6→[8].steps 转输入)──
-        sswitch(STEPS_SW_ID, [8090, 700], 36, 37, 38, 39),
-        pint(STEPS_C40_ID, STEPS_OFF, [7640, 220], 36),
-        pint(STEPS_C6_ID, STEPS_ON, [7640, 460], 37),
+        sswitch(STEPS_SW_ID, [8500, 620], 36, 37, 47, 39),
+        pint(STEPS_C40_ID, STEPS_OFF, [7040, 660], 36),
+        pint(STEPS_C6_ID, STEPS_ON, [7040, 1290], 37),
     ]
 
 
@@ -455,11 +509,13 @@ LINKS = [
     [3, 2, 0, 6, 0, "CLIP"],        # 主 CLIP → 编码.clip
     [4, 3, 0, 6, 2, "VAE"],         # VAE → 编码.vae
     [5, 1, 0, 7, 0, "MODEL"],       # UNET → Cache(②)
-    [6, 7, 0, 32, 0, "MODEL"],      # Cache → 加速槽开关.on_false(直连臂,R26.4)
+    [40, 7, 0, RR_DIR_ID, 0, "MODEL"],   # Cache → 直连臂垫脚石(0927 三档轮)
+    [41, RR_DIR_ID, 0, 32, 0, "MODEL"],  # 垫脚石 → 加速槽开关.on_false(直连臂)
     [30, 7, 0, 31, 0, "MODEL"],     # Cache → LoraLoader.model(加速槽 on_true 臂)
     [31, 31, 0, 32, 1, "MODEL"],    # LoraLoader → 开关.on_true
-    [32, 30, 0, 32, 2, "BOOLEAN"],  # LoRA 开关源 → 开关.switch
+    [46, CMP_VIG_ID, 0, 32, 2, "BOOLEAN"],  # 比较==1 → 开关.switch(0927)
     [33, 32, 0, 8, 0, "MODEL"],     # 开关 → KSampler.model(二选一)
+    [53, 32, 0, T8_ID, 0, "MODEL"],      # [32] 输出(base 总线) → T8.model(0927)
     [7, 6, 0, 8, 1, "CONDITIONING"],
     [8, 6, 1, 8, 2, "CONDITIONING"],
     [9, 16, 0, 6, 1, "IMAGE"],      # 预缩A → 编码.image_1(选定图通道)
@@ -480,15 +536,27 @@ LINKS = [
     [24, 18, 0, 20, 1, "LATENT"],   # 空潜 → 画幅开关.on_true
     [25, 19, 0, 20, 2, "BOOLEAN"],  # 布尔 → 画幅开关.switch
     [26, 20, 0, 8, 3, "LATENT"],    # 画幅开关 → KSampler.latent_image
-    [27, 8, 0, 9, 0, "LATENT"],
+    [50, 8, 0, LAT_SW_ID, 0, "LATENT"],   # [8] 输出 → [54].on_false(档0/1 路,0927)
+    [51, T8_ID, 0, LAT_SW_ID, 1, "LATENT"],   # T8 输出 → [54].on_true(档2 路)
+    [52, LAT_SW_ID, 0, 9, 0, "LATENT"],   # [54] 路由输出 → [9].samples(汇流)
     [28, 3, 0, 28, 0, "VAE"],       # VAE → 顶通道(升,R26.4)
     [34, 28, 0, 29, 0, "VAE"],      # 顶横 y=-640
     [35, 29, 0, 9, 1, "VAE"],       # → VAEDecode
     [29, 9, 0, 10, 0, "IMAGE"],
-    [36, 34, 0, 33, 0, "INT"],      # 常量40 → steps开关.on_false(关=原路 40)
-    [37, 35, 0, 33, 1, "INT"],      # 常量6 → steps开关.on_true(开=卡荐档 6)
-    [38, 30, 0, 33, 2, "BOOLEAN"],  # [30] 同源扇出 → steps开关.switch(一拨全配)
+    [36, 34, 0, 33, 0, "INT"],      # 常量40 → steps开关.on_false(档0=原路 40)
+    [37, 35, 0, 33, 1, "INT"],      # 常量6 → steps开关.on_true(档1=卡荐档 6)
+    [47, CMP_VIG_ID, 0, 33, 2, "BOOLEAN"],  # 比较==1 → steps开关.switch(0927)
     [39, 33, 0, 8, 4, "INT"],       # steps开关 → KSampler.steps(自动 40/6)
+    # 0927 三档轮:档位 [30] 拆两布尔 + T8 同源供词/供潜
+    [42, LORA_PB_ID, 0, CMP_VIG_ID, 0, "INT"],   # 档位 → 比较(==1).a
+    [43, LORA_PB_ID, 0, CMP_FUN_ID, 0, "INT"],   # 档位 → 比较(==2).a
+    [44, CMP_C1_ID, 0, CMP_VIG_ID, 1, "INT"],    # 常量1 → 比较(==1).b
+    [45, CMP_C2_ID, 0, CMP_FUN_ID, 1, "INT"],    # 常量2 → 比较(==2).b
+    [48, CMP_FUN_ID, 0, RR_CMP_ID, 0, "BOOLEAN"],  # 比较==2 → 布尔垫脚石
+    [49, RR_CMP_ID, 0, LAT_SW_ID, 2, "BOOLEAN"],   # 垫脚石 → [54] latent 路由.switch
+    [54, 6, 0, RR_POS_ID, 0, "CONDITIONING"],   # [6].positive → 垫脚石(避 [31] 段,0927)
+    [59, RR_POS_ID, 0, T8_ID, 1, "CONDITIONING"],  # 垫脚石 → T8.positive(与[8]同源)
+    [55, 20, 0, T8_ID, 2, "LATENT"],       # [20] → T8.latent_image(与[8]同源)
 ]
 
 GROUPS = [
@@ -500,10 +568,23 @@ GROUPS = [
      "bounding": [1580, 460, 5400, 1580], "color": "#3f789e", "flags": {}},
     {"id": 3, "title": "PE-I2I 改写组(默认 PE 开路·核心 TextGenerate·看全部输入图)",
      "bounding": [1580, 2140, 3760, 1140], "color": "#8864a8", "flags": {}},
-    # 0925 W1 加速区组框(方案C 原生收纳;六件=总闸/MODEL开关/LoRA/steps开关/常量40与6)
-    {"id": 4, "title": "加速区·总闸[30](关=40步原味 / 开=viggle LoRA·6步,一拨全配:MODEL+steps 两开关同驱)",
-     "bounding": [7000, 160, 1450, 860], "color": "#4d9e6a", "flags": {}},
+    # 0925 W1 加速区组框(0927 三档轮十件=档位/比较×2/常量1·2·40·6/MODEL开关/
+    # LoRA/steps开关;[54]/[55] 留主链带=数据流所在)
+    {"id": 4, "title": "加速区·档位[30](0=直出40步 / 1=viggle·6步 / 2=Fun-Acc·4步,默认2;拆两路:==1驱MODEL+steps开关,==2驱[54]latent路由)",
+     "bounding": [7000, 160, 1950, 2100], "color": "#4d9e6a", "flags": {}},
 ]
+
+
+def _trace_reroute(links, nodes, lid):
+    """沿 link 反向溯源,穿过 Reroute 垫脚石回到实源节点 id。"""
+    seen = set()
+    while True:
+        l = links[lid]
+        oid = l[1]
+        if nodes[oid]["type"] != "Reroute" or oid in seen:
+            return oid
+        seen.add(oid)
+        lid = nodes[oid]["inputs"][0]["link"]
 
 
 def preflight(old):
@@ -654,9 +735,10 @@ def verify(wf):
     if not any("PE-I2I 改写组" in g.get("title", "") and "默认 PE 开路" in g.get("title", "")
                for g in wf["groups"]):
         errs.append("缺 PE-I2I 改写组(默认 PE 开路)分组")
-    # 0925 W1 加速区组框:标题带「加速区·总闸」且罩住六件([30][31][32][33][34][35])
-    accel_ids = [LORA_PB_ID, LORA_ID, LORA_SW_ID, STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID]
-    accel_grp = next((g for g in wf["groups"] if "加速区·总闸" in g.get("title", "")), None)
+    # 0925 W1 加速区组框(0927 三档轮十件):[30][50][51][38][39][31][32][33][34][35]
+    accel_ids = [LORA_PB_ID, CMP_VIG_ID, CMP_FUN_ID, CMP_C1_ID, CMP_C2_ID,
+                 LORA_ID, LORA_SW_ID, STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID]
+    accel_grp = next((g for g in wf["groups"] if "加速区·档位" in g.get("title", "")), None)
     if accel_grp is None:
         errs.append("W1 缺「加速区」组框(主画布原生组框收纳六件)")
     else:
@@ -799,11 +881,11 @@ def verify(wf):
         if mps != [1.0, 1.5]:
             errs.append(f"预缩 MP 档漂移:{mps}")
 
-    # 13 ④latent 双路(R26.4 起 PrimitiveBoolean 恰 2:画幅 [19]+LoRA [30])
+    # 13 ④latent 双路(0927 三档轮:[30] 升级 PrimitiveInt 档位,PrimitiveBoolean 恰 1=[19] 画幅)
     pb = by_type("PrimitiveBoolean")
-    if sorted(n["id"] for n in pb) != sorted([19, LORA_PB_ID]) or \
+    if sorted(n["id"] for n in pb) != [19] or \
             any(n["widgets_values"][0] is not False for n in pb):
-        errs.append(f"PrimitiveBoolean 应恰 2([19] 画幅/[{LORA_PB_ID}] LoRA)且默认 false")
+        errs.append(f"PrimitiveBoolean 应恰 1([19] 画幅;[30] 已升级 PrimitiveInt 档位)且默认 false")
     lsw = nodes[20]
     if lsw["type"] != "ComfySwitchNode" or lsw["widgets_values"][0] is not False:
         errs.append("画幅开关默认应 false(跟随 image_1)")
@@ -832,28 +914,80 @@ def verify(wf):
     if lsw["type"] != "ComfySwitchNode" or lsw["outputs"][0]["type"] != "MODEL":
         errs.append(f"[{LORA_SW_ID}] 应为 MODEL 泛型开关")
     if lsw["widgets_values"][0] is not False:
-        errs.append(f"[{LORA_SW_ID}] LoRA 开关默认应 false(旁路=正常生成)")
-    if links[lsw["inputs"][0]["link"]][1] != 7:
-        errs.append("MODEL 开关 on_false 上游应 Cache[7](直连臂)")
+        errs.append(f"[{LORA_SW_ID}] LoRA 开关默认应 false(档位由 [{CMP_VIG_ID}] 布尔源驱动)")
+    if _trace_reroute(links, nodes, lsw["inputs"][0]["link"]) != 7:
+        errs.append("MODEL 开关 on_false 上游应 Cache[7](直连臂,可穿垫脚石)")
     if links[lsw["inputs"][1]["link"]][1] != LORA_ID:
         errs.append("MODEL 开关 on_true 上游应 LoraLoaderModelOnly")
-    if links[lsw["inputs"][2]["link"]][1] != LORA_PB_ID:
-        errs.append("MODEL 开关 switch 上游应 PrimitiveBoolean[30]")
-    if nodes[LORA_PB_ID]["widgets_values"][0] is not False:
-        errs.append(f"[{LORA_PB_ID}] LoRA 开关源默认应 false")
-    # 关态干跑(懒执行:开关只走选中臂;switch 槽连线→解析到布尔源 [30])——
-    # 执行图零 LoraLoader;满血接线轮增:steps 解析 40;开态干跑 steps=6+LoRA 在链。
-    def _sw_bool(node_, pb_override=None):
+    if links[lsw["inputs"][2]["link"]][1] != CMP_VIG_ID:
+        errs.append("MODEL 开关 switch 上游应 easy compare(档位==1 布尔)")
+    # 三档源:[30] PrimitiveInt 默认 2(0927 用户裁定「默认使用 Fun-Acc(阿里PDD)」)
+    pb_node = nodes[LORA_PB_ID]
+    if pb_node["type"] != "PrimitiveInt" or pb_node["widgets_values"][0] != MODE_DEFAULT:
+        errs.append(f"[{LORA_PB_ID}] 应为 PrimitiveInt 档位且默认={MODE_DEFAULT}(Fun-Acc,0927 裁定),"
+                    f"得 {pb_node.get('widgets_values')}")
+    if sorted(pb_node["outputs"][0]["links"] or []) != sorted([42, 43]):
+        errs.append(f"[{LORA_PB_ID}] 档位源应扇出恰两线(→[{CMP_VIG_ID}]/[{CMP_FUN_ID}])")
+    for cid, want in ((CMP_VIG_ID, MODE_VIGGLE), (CMP_FUN_ID, MODE_FUNACC)):
+        c = nodes[cid]
+        if c["type"] != "easy compare" or c["widgets_values"][2] != "a == b":
+            errs.append(f"[{cid}] 应为 easy compare(a == b)产出档位布尔")
+        if _trace_reroute(links, nodes, c["inputs"][0]["link"]) != LORA_PB_ID:
+            errs.append(f"[{cid}].a 上游应档位源 [{LORA_PB_ID}]")
+        b_src = nodes[links[c["inputs"][1]["link"]][1]]
+        if b_src["type"] != "PrimitiveInt" or b_src["widgets_values"][0] != want:
+            errs.append(f"[{cid}].b 上游应常量 {want}(比较判据)")
+    # latent 路由 + T8 采样器(0927 三档轮档2 支路)
+    latsw = nodes[LAT_SW_ID]
+    if latsw["type"] != "ComfySwitchNode" or latsw["outputs"][0]["type"] != "LATENT":
+        errs.append(f"[{LAT_SW_ID}] 应为 LATENT 泛型开关(latent 路由)")
+    if latsw["widgets_values"][0] is not False:
+        errs.append(f"[{LAT_SW_ID}] latent 路由开关 widget 默认应 false(档位由 [{CMP_FUN_ID}] 驱动)")
+    if links[latsw["inputs"][0]["link"]][1] != 8:
+        errs.append(f"[{LAT_SW_ID}].on_false 上游应 [8] KSampler(档0/1 路)")
+    if links[latsw["inputs"][1]["link"]][1] != T8_ID:
+        errs.append(f"[{LAT_SW_ID}].on_true 上游应 [{T8_ID}] T8(档2 路)")
+    if _trace_reroute(links, nodes, latsw["inputs"][2]["link"]) != CMP_FUN_ID:
+        errs.append(f"[{LAT_SW_ID}].switch 上游应 easy compare[{CMP_FUN_ID}](可穿垫脚石)")
+    if links[nodes[9]["inputs"][0]["link"]][1] != LAT_SW_ID:
+        errs.append("[9].samples 上游应 [54] latent 路由(三档汇流)")
+    t8 = nodes[T8_ID]
+    if t8["type"] != T8_CLASS:
+        errs.append(f"[{T8_ID}] 应为 {T8_CLASS}(Fun-Acc PDD 采样器)")
+    if t8["widgets_values"] != [FUNACC_FILE, 0]:
+        errs.append(f"[{T8_ID}] model_file/seed 漂移(应 {FUNACC_FILE}/seed 0),得 {t8.get('widgets_values')}")
+    if len([i for i in t8["inputs"] if i.get("name") == "negative"]) != 0:
+        errs.append(f"[{T8_ID}] T8 无负面槽(输入仅 model/positive/latent_image/model_file/seed)")
+    if links[t8["inputs"][0]["link"]][1] != LORA_SW_ID:
+        errs.append(f"[{T8_ID}].model 上游应 [{LORA_SW_ID}] 输出(档2 时 false 臂=base 模型)")
+    if _trace_reroute(links, nodes, t8["inputs"][1]["link"]) != 6:
+        errs.append(f"[{T8_ID}].positive 上游应 [6].positive(与 [8] 同源)")
+    if _trace_reroute(links, nodes, t8["inputs"][2]["link"]) != 20:
+        errs.append(f"[{T8_ID}].latent_image 上游应 [20] 画幅开关(与 [8] 同源)")
+    if len(by_type(T8_CLASS)) != 1:
+        errs.append(f"{T8_CLASS} 应恰 1 个(档2 支路)")
+    # 三档干跑(懒执行:开关只走选中臂;0927 三档轮:档位经 easy compare 拆两布尔,
+    # mode_override 模拟运行态切档;[19] 画幅 PrimitiveBoolean 兼容直取)
+    def _sw_bool(node_, mode_override=None):
         lid = node_["inputs"][2].get("link")
         if lid is not None:
             src = nodes[links[lid][1]]
+            while src["type"] == "Reroute":   # 穿垫脚石([51]→[54] 经 [57])
+                src = nodes[links[src["inputs"][0]["link"]][1]]
             if src["type"] == "PrimitiveBoolean":
-                if pb_override is not None:
-                    return pb_override
                 return bool(src["widgets_values"][0])
+            if src["type"] == "easy compare":
+                a_src = nodes[links[src["inputs"][0]["link"]][1]]
+                while a_src["type"] == "Reroute":
+                    a_src = nodes[links[a_src["inputs"][0]["link"]][1]]
+                b_src = nodes[links[src["inputs"][1]["link"]][1]]
+                a_val = mode_override if (mode_override is not None
+                                          and a_src["type"] == "PrimitiveInt") \
+                    else a_src["widgets_values"][0]
+                return int(a_val) == int(b_src["widgets_values"][0])
         return bool(node_["widgets_values"][0])
 
-    def _reach(pb_override=None):
+    def _reach(mode_override=None):
         reach_, stack_ = set(), [10]  # SaveImage
         while stack_:
             nid = stack_.pop()
@@ -861,7 +995,7 @@ def verify(wf):
                 continue
             reach_.add(nid)
             node_ = nodes[nid]
-            slots_ = (([1 if _sw_bool(node_, pb_override) else 0]
+            slots_ = (([1 if _sw_bool(node_, mode_override) else 0]
                        if node_["type"] == "ComfySwitchNode"
                        else range(len(node_.get("inputs", [])))))
             for si in slots_:
@@ -870,24 +1004,39 @@ def verify(wf):
                     stack_.append(links[lid][1])
         return reach_
 
-    def _steps_value(pb_override=None):
+    def _steps_value(mode_override=None):
         steps_inp = next((i for i in nodes[8]["inputs"] if i.get("name") == "steps"), None)
         if not steps_inp or steps_inp.get("link") is None:
             return None
         sw_ = nodes[links[steps_inp["link"]][1]]
         if sw_["type"] != "ComfySwitchNode":
             return None
-        arm = 1 if _sw_bool(sw_, pb_override) else 0
+        arm = 1 if _sw_bool(sw_, mode_override) else 0
         return nodes[links[sw_["inputs"][arm]["link"]][1]]["widgets_values"][0]
 
-    if LORA_ID in _reach():
-        errs.append("干跑:关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成,懒执行旁路)")
-    if _steps_value() != STEPS_OFF:
-        errs.append(f"干跑:关态 steps 应解析={STEPS_OFF}(自动回原路),得 {_steps_value()}")
-    if LORA_ID not in _reach(pb_override=True):
-        errs.append("干跑:开态(运行态 [30]=true)执行图应含 LoraLoaderModelOnly(LoRA 真入链)")
-    if _steps_value(pb_override=True) != STEPS_ON:
-        errs.append(f"干跑:开态(一拨全配)steps 应解析={STEPS_ON}(v0.2 卡荐档),得 {_steps_value(pb_override=True)}")
+    d2 = _reach()   # 默认态=档2(Fun-Acc)
+    if T8_ID not in d2:
+        errs.append("干跑:默认态(档2 Fun-Acc)执行图应含 T8 采样器")
+    if 8 in d2:
+        errs.append("干跑:档2 KSampler 不应执行(latent 路由 on_true=懒旁路,零空转)")
+    if LORA_ID in d2:
+        errs.append("干跑:档2 viggle LoRA 不应加载(档2 必须 base 模型)")
+    if STEPS_SW_ID in d2 or STEPS_C40_ID in d2 or STEPS_C6_ID in d2:
+        errs.append("干跑:档2 steps 联动三件不应可达(KSampler 懒旁路)")
+    d1 = _reach(mode_override=MODE_VIGGLE)
+    if LORA_ID not in d1 or 8 not in d1:
+        errs.append("干跑:档1(viggle)执行图应含 LoRA+KSampler")
+    if T8_ID in d1:
+        errs.append("干跑:档1 T8 不应执行(latent 路由 on_false)")
+    if _steps_value(mode_override=MODE_VIGGLE) != STEPS_ON:
+        errs.append(f"干跑:档1 steps 应解析={STEPS_ON}(v0.2.1 卡荐档)")
+    d0 = _reach(mode_override=MODE_DIRECT)
+    if LORA_ID in d0 or T8_ID in d0:
+        errs.append("干跑:档0(直出)执行图应零 LoRA 零 T8(正常生成)")
+    if 8 not in d0:
+        errs.append("干跑:档0 KSampler 应在执行链(40 步主线)")
+    if _steps_value(mode_override=MODE_DIRECT) != STEPS_OFF:
+        errs.append(f"干跑:档0 steps 应解析={STEPS_OFF}(自动回原路)")
 
     # 13c 满血接线轮·steps 联动结构([33] INT 开关 false→[34]=40/true→[35]=6→[8].steps
     #     转输入;switch 槽与 MODEL 开关同一布尔源 [30] 扇出两线)
@@ -904,10 +1053,10 @@ def verify(wf):
         errs.append(f"[{STEPS_SW_ID}].on_false 上游应常量40 [{STEPS_C40_ID}]")
     if links[ssw["inputs"][1]["link"]][1] != STEPS_C6_ID:
         errs.append(f"[{STEPS_SW_ID}].on_true 上游应常量6 [{STEPS_C6_ID}]")
-    if links[ssw["inputs"][2]["link"]][1] != LORA_PB_ID:
-        errs.append(f"[{STEPS_SW_ID}].switch 上游应同一布尔源 [{LORA_PB_ID}](一拨全配)")
-    if sorted(nodes[LORA_PB_ID]["outputs"][0]["links"] or []) != sorted([32, 38]):
-        errs.append(f"[{LORA_PB_ID}] 开关源应扇出恰两线(MODEL 开关+steps 开关)")
+    if links[ssw["inputs"][2]["link"]][1] != CMP_VIG_ID:
+        errs.append(f"[{STEPS_SW_ID}].switch 上游应档位==1 布尔 [{CMP_VIG_ID}](与 MODEL 开关同源)")
+    if sorted(nodes[CMP_VIG_ID]["outputs"][0]["links"] or []) != sorted([46, 47]):
+        errs.append(f"[{CMP_VIG_ID}] viggle 布尔应扇出恰两线(MODEL 开关+steps 开关)")
     ks_steps = next((i for i in nodes[8]["inputs"] if i.get("name") == "steps"), None)
     if not ks_steps or ks_steps.get("link") != 39 or "widget" not in ks_steps:
         errs.append("[8].steps 应为 widget 转输入接 [33] 联动开关(序列化照 [150].base 先例)")
@@ -922,10 +1071,15 @@ def verify(wf):
                   "qwen-image-2-1-prompter", "presence_penalty=1.5",
                   "BatchImagesNode", "TextGenerate", "ImageScaleToTotalPixels",
                   "LoraLoaderModelOnly", LORA_FILE,
-                  "一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)", "[33]", "[34]", "[35]",
-                  "shift_terminal=0.02", "关闭=正常生成", "TE-Speed",
+                  "[50]", "[51]", "[54]", "[55]",
+                  "0=直出 40 步", "1=viggle 6 步", "2=Fun-Acc", "默认 2", "降级=",
+                  "shift_terminal=0.02", "TE-Speed",
                   # 0925 收窄轮新要点(W1 组框/W5 负面占位+pp 定档+摆设值)
-                  "数学上不参与采样", "官方同构占位", "已定档", "摆设值不生效", "加速区"):
+                  "数学上不参与采样", "官方同构占位", "已定档", "摆设值不生效", "加速区",
+                  # 0927 三档轮:依赖警示+档位语义+T8 事实
+                  "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
+                  "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽", "用户手动权威",
+                  "懒执行", "绝不吃 viggle LoRA"):
         if token not in note:
             errs.append(f"Note 缺要点:{token}")
     if note.lstrip().startswith("# "):
@@ -964,8 +1118,12 @@ def main():
         f.write("\n")
     print(f"再生成完成:{WF}({shape};节点 {len(wf['nodes'])}/连线 {len(wf['links'])}/"
           f"group 4=W1 加速区组框;W5 负面 cfg=1 官方同构占位+pp=1.5 定档+steps 摆设值注明;"
-          f"W6 零负区(pos≥80,0926 收紧=发现项3 互锁);0926 铁律线不遮节点"
-          f"(11 条真遮挡全数挪位整治,贝塞尔采样精判零红);LoRA 加速槽在位默认关=正常生成;自查零红)")
+          f"W6 零负区(pos≥80,0926 收紧=发现项3 互锁);0926 铁律线不遮节点(贝塞尔采样精判零红);"
+          f"0927 三档轮=加速档位 [30] PrimitiveInt 默认 {MODE_DEFAULT}(Fun-Acc PDD 4步,用户裁定;"
+          f"0=直出40/1=viggle 6/2=Fun-Acc 4),easy compare×2 拆布尔([{CMP_VIG_ID}]==1 驱 MODEL+steps "
+          f"开关,[{CMP_FUN_ID}]==2 驱 [{LAT_SW_ID}] latent 路由),[{T8_ID}] T8 采样器(model=base 总线/"
+          f"positive 与 [8] 同源/latent 与 [8] 同源/无负面槽/seed 0),懒执行=档2 时 KSampler+LoRA+"
+          f"steps 三件整体旁路;自查零红)")
 
 
 if __name__ == "__main__":

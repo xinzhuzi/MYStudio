@@ -237,6 +237,9 @@ CMP_VIG_ID, CMP_FUN_ID = 193, 194                      # easy compare ==(1)/==(2
 CMP_C1_ID, CMP_C2_ID = 195, 196                        # 比较常量 1/2
 LAT_SW_ID, T8_ID, RR_LAT_ID = 197, 198, 199            # latent 路由开关/T8 采样器/[5]→T8 垫脚石
 RR_CMP_ID = 200                                        # [194]→[197] 布尔垫脚石(避 [32]/[31] 段遮挡)
+RR_MODE_ID = 201                                       # [30]→[194] 档位第二臂垫脚石(避穿 [193])
+RR_POS_A_ID, RR_POS_B_ID = 202, 203                    # [40].positive→T8 顶带双拐(蛇形两道墙无直连走廊)
+RR_DIR_ID = 204                                        # MODEL 直连臂顶通道第三拐([32] 右移后直连扫 [152])
 FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"   # 已装机(models/loras/)
 T8_CLASS = "T8QwenImage21FunAccPDD4Step"
 
@@ -315,7 +318,8 @@ NOTE_TEXT = (
     "超荐档弃)+steps 自动 6(v0.2.1 系卡荐档,cfg 保持 1);模型卡注 shift_terminal=0.02 伤末步,"
     "画质异常先查调度。\n"
     "- **档2=Fun-Acc(默认)**:[198] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/"
-    "euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在档2 不参与);model 走 [32] false 臂="
+    "euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在档2 不参与);model_file=" + FUNACC_FILE +
+    "(已装机 models/loras/);model 走 [32] false 臂="
     "base 模型(绝不吃 viggle LoRA);positive 与 [7] 同源;seed 默认 0 固定可复现。实测速度"
     "(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。"
     "懒执行:档2 时 [7] KSampler 与 viggle LoRA 整体不在执行图(ComfySwitchNode 懒路由,"
@@ -733,10 +737,11 @@ def build_main(truth: dict, sg: dict) -> dict:
              "bounding": [40, 920, 4620, 1040], "color": "#a1309b", "flags": {}},
             {"id": 3, "title": "道劫·主链([5]空潜→[7]采样→[197]latent路由→[8]解码→[9]保存;档2支路=[198]T8 Fun-Acc 4步;[7].steps 接[177]联动)",
              "bounding": [5940, 1160, 2660, 1240], "color": "#3f789e", "flags": {}},
-            # W1 加速区组框(方案C 原生收纳;0927 三档轮十件=档位/比较×2/常量1·2/
-            # MODEL开关/LoRA/steps开关/常量40与6;[197]/[198] 留主链带=数据流所在)
+            # W1 加速区组框(方案C 原生收纳;0927 三档轮十件=档位/比较×2/常量1·2·
+            # steps常量40·6/MODEL开关/LoRA/steps开关;四常量垂直堆叠避菊花;
+            # [197]/[198] 留主链带=数据流所在)
             {"id": 4, "title": "道劫·加速区·档位[30](0=直出40步 / 1=viggle·6步 / 2=Fun-Acc·4步,默认2;拆两路:==1驱MODEL+steps开关,==2驱[197]latent路由)",
-             "bounding": [2360, 2560, 2900, 1180], "color": "#4d9e6a", "flags": {}},
+             "bounding": [2360, 2560, 3200, 1500], "color": "#4d9e6a", "flags": {}},
         ],
         "nodes": [],
         "links": [],
@@ -910,7 +915,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         "pos": [1700, 960], "size": [560, 480], "flags": {}, "order": 13, "mode": 0,
         "inputs": host_inputs,
         "outputs": [
-            {"name": "positive", "type": "CONDITIONING", "links": [16, 64]},
+            {"name": "positive", "type": "CONDITIONING", "links": [16, 70]},
             {"name": "negative", "type": "CONDITIONING", "links": [17]},
             {"name": "prompt", "type": "STRING", "links": [33]},
             {"name": "width", "type": "INT", "links": [45]},
@@ -1029,14 +1034,14 @@ def build_main(truth: dict, sg: dict) -> dict:
 
     nodes.append(_easy_compare(
         CMP_VIG_ID, f"[{CMP_VIG_ID}] 比较(档位==1→viggle 布尔;同驱 MODEL+steps 两开关)", 54, 56,
-        [58, 59], [3150, 2950]))
+        [58, 59], [2900, 2600]))
     nodes.append(_easy_compare(
-        CMP_FUN_ID, f"[{CMP_FUN_ID}] 比较(档位==2→Fun-Acc 布尔;驱 [{LAT_SW_ID}] latent 路由)", 55, 57,
-        [60], [4300, 2950]))
+        CMP_FUN_ID, f"[{CMP_FUN_ID}] 比较(档位==2→Fun-Acc 布尔;驱 [{LAT_SW_ID}] latent 路由)", 69, 57,
+        [60], [4200, 2950]))
     nodes.append({
         "id": LORA_ID, "type": "LoraLoaderModelOnly",
         "title": f"[{LORA_ID}] LoraLoaderModelOnly(viggle v0.2 r256;档1=自动6步·strength0.8)",
-        "pos": [4900, 2950], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
+        "pos": [4830, 2950], "size": [340, 130], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "model", "type": "MODEL", "link": 23},
             {"name": "lora_name", "type": "COMBO", "widget": {"name": "lora_name"}, "link": None},
@@ -1049,9 +1054,9 @@ def build_main(truth: dict, sg: dict) -> dict:
     nodes.append({
         "id": LORA_SW_ID, "type": "ComfySwitchNode",
         "title": f"[{LORA_SW_ID}] MODEL开关(false=直连base·档0/2 / true=LoRA加速·档1)",
-        "pos": [4900, 2600], "size": [300, 110], "flags": {}, "order": 0, "mode": 0,
+        "pos": [5200, 2600], "size": [300, 110], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
-            {"name": "on_false", "shape": 7, "type": "MODEL", "link": 49},
+            {"name": "on_false", "shape": 7, "type": "MODEL", "link": 74},
             {"name": "on_true", "shape": 7, "type": "MODEL", "link": 24},
             {"name": "switch", "type": "BOOLEAN", "widget": {"name": "switch"}, "link": 58},
         ],
@@ -1068,11 +1073,11 @@ def build_main(truth: dict, sg: dict) -> dict:
         STEPS_C40_ID, "steps常量40(档0=原路·官方完整档)", STEPS_OFF, [2400, 2950], 27))
     nodes.append(_primitive_int(
         STEPS_C6_ID, "steps常量6(档1=v0.2卡荐档)", STEPS_ON, [2400, 3260], 28))
-    # 比较常量(档位判据 1/2;PrimitiveInt core 件)
+    # 比较常量(档位判据 1/2;PrimitiveInt core 件;四常量垂直堆叠避菊花)
     nodes.append(_primitive_int(
-        CMP_C1_ID, "比较常量1(viggle 档判据)", MODE_VIGGLE, [2900, 3260], 56))
+        CMP_C1_ID, "比较常量1(viggle 档判据)", MODE_VIGGLE, [2400, 3570], 56))
     nodes.append(_primitive_int(
-        CMP_C2_ID, "比较常量2(Fun-Acc 档判据)", MODE_FUNACC, [3900, 3260], 57))
+        CMP_C2_ID, "比较常量2(Fun-Acc 档判据)", MODE_FUNACC, [2400, 3880], 57))
     # ── 0927 三档轮主链带扩展:latent 路由开关+T8 采样器+[5]→T8 垫脚石 ──
     nodes.append({
         "id": LAT_SW_ID, "type": "ComfySwitchNode",
@@ -1094,7 +1099,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         "pos": [6700, 2050], "size": [420, 250], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "model", "type": "MODEL", "link": 63},
-            {"name": "positive", "type": "CONDITIONING", "link": 64},
+            {"name": "positive", "type": "CONDITIONING", "link": 72},
             {"name": "latent_image", "type": "LATENT", "link": 66},
             {"name": "model_file", "type": "COMBO", "widget": {"name": "model_file"}, "link": None},
             {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": None},
@@ -1105,15 +1110,22 @@ def build_main(truth: dict, sg: dict) -> dict:
     })
     # 顶缘通道 Reroute(MODEL y=80 / VAE y=170;零负区;0926:VAE 尾拐随主链上移至
     # [8] 近旁;MODEL 顶通道经垂降垫脚石 [190] 送加速区两臂,VAE 通道直落 [8];
-    # 0927 三档轮:VAE 尾拐随 [8] 右移至 7700;新增 [199]=[5]→T8 latent 垫脚石/
-    # [200]=[194]→[197] 布尔垫脚石(避 [32]/[31] 段遮挡))
+    # 0927 三档轮:VAE 尾拐随 [8] 右移至 7700;新增通道——[199]=[5]→T8 latent
+    # 垫脚石/[200]=[194]→[197] 布尔垫脚石(避 [32]/[31] 段遮挡)/[201]=[30]→[194]
+    # 档位第二臂垫脚石(避穿 [193])/[202][203]=[40].positive→T8 顶带双拐(蛇形
+    # 联动两道墙 x3700-5530 之间无直连走廊)/[204]=MODEL 直连臂顶通道第三拐
+    # ([32] 右移后直连线扫 [152],走顶带垂降))
     nodes.append(_reroute(RR_M8A_ID, [520, 80], 8, 19, "MODEL"))
-    nodes.append(_reroute(RR_M8B_ID, [1020, 80], 19, 20, "MODEL"))
-    nodes.append(_reroute(RR_M8C_ID, [1100, 1560], 20, [23, 49], "MODEL"))
+    nodes.append(_reroute(RR_M8B_ID, [1020, 80], 19, [20, 73], "MODEL"))
+    nodes.append(_reroute(RR_M8C_ID, [1100, 1560], 20, 23, "MODEL"))
     nodes.append(_reroute(RR_M10A_ID, [1420, 170], 10, 21, "VAE"))
     nodes.append(_reroute(RR_M10B_ID, [7700, 170], 21, 22, "VAE"))
-    nodes.append(_reroute(RR_LAT_ID, [6550, 1350], 65, 66, "LATENT"))
+    nodes.append(_reroute(RR_LAT_ID, [6550, 1150], 65, 66, "LATENT"))
     nodes.append(_reroute(RR_CMP_ID, [5350, 2830], 60, 61, "BOOLEAN"))
+    nodes.append(_reroute(RR_MODE_ID, [3350, 2440], 55, 69, "INT"))
+    nodes.append(_reroute(RR_POS_A_ID, [2700, 740], 70, 71, "CONDITIONING"))
+    nodes.append(_reroute(RR_POS_B_ID, [6350, 740], 71, 72, "CONDITIONING"))
+    nodes.append(_reroute(RR_DIR_ID, [5100, 80], 73, 74, "MODEL"))
     # 九型 W/H 垫脚石([40].width/.height 长横线沿蛇形上带平送再陡降)
     nodes.append(_reroute(RR_WH_W_ID, [4650, 1400], 45, 52, "INT"))
     nodes.append(_reroute(RR_WH_H_ID, [5830, 1460], 46, 53, "INT"))
@@ -1156,23 +1168,24 @@ def build_main(truth: dict, sg: dict) -> dict:
         [16, HOST_ID, 0, SAMPLER_ID, 1, "CONDITIONING"],
         [17, HOST_ID, 1, SAMPLER_ID, 2, "CONDITIONING"],
         # 主链(0927 三档轮:[7] 输出经 [197] latent 路由汇流→[8];[40].positive/
-        # [5] 空潜对 [198] T8 扇出同源供词/供潜,经垫脚石 [199] 避 [7] 遮挡)
+        # [5] 空潜对 [198] T8 扇出同源供词/供潜,经垫脚石避让)
         [5, LATENT_ID, 0, SAMPLER_ID, 3, "LATENT"],
         [9, SAMPLER_ID, 0, LAT_SW_ID, 0, "LATENT"],    # [7] 输出 → [197].on_false(档0/1 路)
         [68, T8_ID, 0, LAT_SW_ID, 1, "LATENT"],        # T8 输出 → [197].on_true(档2 路)
         [62, LAT_SW_ID, 0, 8, 0, "LATENT"],            # [197] 路由输出 → [8].samples(汇流)
         [63, LORA_SW_ID, 0, T8_ID, 0, "MODEL"],        # [32] 输出(base 总线) → T8.model
-        [64, HOST_ID, 0, T8_ID, 1, "CONDITIONING"],    # [40].positive → T8.positive(与[7]同源)
         [65, LATENT_ID, 0, RR_LAT_ID, 0, "LATENT"],    # [5] → 垫脚石(避 [7] 遮挡)
         [66, RR_LAT_ID, 0, T8_ID, 2, "LATENT"],        # 垫脚石 → T8.latent_image(与[7]同源)
         [11, 8, 0, 9, 0, "IMAGE"],
-        # MODEL 顶通道 + 加速槽(R26.4;0926 顶通道经垂降垫脚石 [190] 送两臂,
-        # 直连斜穿 [3]/[140]/[151] 全避免;通道件 id 与 link id 各自独立命名空间)
+        # MODEL 顶通道 + 加速槽(R26.4;0926 顶通道经垂降垫脚石 [190] 送 LoRA 臂;
+        # 0927 三档轮:直连臂改走顶通道第三拐 [204]([32] 右移后直连扫 [152]);
+        # 通道件 id 与 link id 各自独立命名空间)
         [8, 1, 0, RR_M8A_ID, 0, "MODEL"],
         [19, RR_M8A_ID, 0, RR_M8B_ID, 0, "MODEL"],
         [20, RR_M8B_ID, 0, RR_M8C_ID, 0, "MODEL"],     # 顶横 → 垂降拐点
         [23, RR_M8C_ID, 0, LORA_ID, 0, "MODEL"],       # 垂降 → LoraLoader.model(加速臂)
-        [49, RR_M8C_ID, 0, LORA_SW_ID, 0, "MODEL"],    # 垂降 → 加速槽开关.on_false(直连臂)
+        [73, RR_M8B_ID, 0, RR_DIR_ID, 0, "MODEL"],     # 顶横 → 直连臂第三拐(档0/2 路)
+        [74, RR_DIR_ID, 0, LORA_SW_ID, 0, "MODEL"],    # 第三拐 → 加速槽开关.on_false
         [24, LORA_ID, 0, LORA_SW_ID, 1, "MODEL"],      # LoraLoader → 开关.on_true
         [26, LORA_SW_ID, 0, SAMPLER_ID, 0, "MODEL"],   # 开关 → KSampler.model(二选一)
         # VAE 顶通道(0927:[8] 右移随迁尾拐)
@@ -1184,14 +1197,19 @@ def build_main(truth: dict, sg: dict) -> dict:
         [28, STEPS_C6_ID, 0, STEPS_SW_ID, 1, "INT"],   # 常量6 → steps开关.on_true(档1=卡荐档)
         [59, CMP_VIG_ID, 0, STEPS_SW_ID, 2, "BOOLEAN"],# 比较==1 → steps开关.switch(档位联动)
         [30, STEPS_SW_ID, 0, SAMPLER_ID, 4, "INT"],    # steps开关 → KSampler.steps(自动40/6)
-        # 0927 三档轮:档位 [30] 拆两布尔(viggle==1 / funacc==2)
+        # 0927 三档轮:档位 [30] 拆两布尔(viggle==1 / funacc==2;第二臂经垫脚石)
         [54, LORA_PB_ID, 0, CMP_VIG_ID, 0, "INT"],     # 档位 → 比较(==1).a
-        [55, LORA_PB_ID, 0, CMP_FUN_ID, 0, "INT"],     # 档位 → 比较(==2).a
+        [55, LORA_PB_ID, 0, RR_MODE_ID, 0, "INT"],     # 档位 → 垫脚石(避穿 [193])
+        [69, RR_MODE_ID, 0, CMP_FUN_ID, 0, "INT"],     # 垫脚石 → 比较(==2).a
         [56, CMP_C1_ID, 0, CMP_VIG_ID, 1, "INT"],      # 常量1 → 比较(==1).b
         [57, CMP_C2_ID, 0, CMP_FUN_ID, 1, "INT"],      # 常量2 → 比较(==2).b
         [58, CMP_VIG_ID, 0, LORA_SW_ID, 2, "BOOLEAN"], # 比较==1 → [32] MODEL 开关.switch
         [60, CMP_FUN_ID, 0, RR_CMP_ID, 0, "BOOLEAN"],  # 比较==2 → 布尔垫脚石(避 [32]/[31] 段)
         [61, RR_CMP_ID, 0, LAT_SW_ID, 2, "BOOLEAN"],   # 垫脚石 → [197] latent 路由.switch
+        # 0927 三档轮:[40].positive→T8 顶带双拐(蛇形联动两道墙间无直连走廊)
+        [70, HOST_ID, 0, RR_POS_A_ID, 0, "CONDITIONING"],
+        [71, RR_POS_A_ID, 0, RR_POS_B_ID, 0, "CONDITIONING"],
+        [72, RR_POS_B_ID, 0, T8_ID, 1, "CONDITIONING"],
     ]
     # id 计数器真值重算(根图+子图共享分配器,一并计入 max;计数器只抬不降)
     g["last_node_id"] = max(
@@ -1450,11 +1468,13 @@ def self_check(g: dict, truth: dict) -> list[str]:
     for n in sg["nodes"]:
         if n["type"] != "MarkdownNote" and "道劫" in (n.get("title") or ""):
             errs.append(f"子图 node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): {n.get('title')!r}")
-    # W1 加速区组框:标题带「加速区·总闸」且罩住六件([30][31][32][177][178][179])
-    accel_ids = [LORA_PB_ID, LORA_ID, LORA_SW_ID, STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID]
-    accel_grp = next((grp for grp in g["groups"] if "加速区·总闸" in grp["title"]), None)
+    # W1 加速区组框(0927 三档轮十件):标题带「加速区·档位」且罩住
+    # [30][193][194][195][196][31][32][177][178][179]([197]/[198] 留主链带=数据流所在)
+    accel_ids = [LORA_PB_ID, CMP_VIG_ID, CMP_FUN_ID, CMP_C1_ID, CMP_C2_ID,
+                 LORA_ID, LORA_SW_ID, STEPS_SW_ID, STEPS_C40_ID, STEPS_C6_ID]
+    accel_grp = next((grp for grp in g["groups"] if "加速区·档位" in grp["title"]), None)
     if accel_grp is None:
-        errs.append("W1 缺「加速区」组框(主画布原生组框收纳六件)")
+        errs.append("W1 缺「加速区」组框(主画布原生组框收纳十件)")
     else:
         gx0, gy0 = accel_grp["bounding"][0], accel_grp["bounding"][1]
         gx1 = gx0 + accel_grp["bounding"][2]
@@ -1494,14 +1514,26 @@ def self_check(g: dict, truth: dict) -> list[str]:
         (43, MATH_W_ID, 1, SW_W_ID, 1, "INT"), (44, MATH_H_ID, 1, SW_H_ID, 1, "INT"),
         (1, SW_W_ID, 0, LATENT_ID, 0, "INT"), (2, SW_H_ID, 0, LATENT_ID, 1, "INT"),
         (5, LATENT_ID, 0, SAMPLER_ID, 3, "LATENT"),
-        # 0926 线不遮节点:MODEL 顶通道经垂降垫脚石 [190] 送加速区两臂
+        # 0927 三档轮:MODEL 顶通道(LoRA 臂经垂降拐点 [190];直连臂经第三拐 [204])
         (8, 1, 0, RR_M8A_ID, 0, "MODEL"), (20, RR_M8B_ID, 0, RR_M8C_ID, 0, "MODEL"),
-        (23, RR_M8C_ID, 0, LORA_ID, 0, "MODEL"), (49, RR_M8C_ID, 0, LORA_SW_ID, 0, "MODEL"),
+        (23, RR_M8C_ID, 0, LORA_ID, 0, "MODEL"),
+        (73, RR_M8B_ID, 0, RR_DIR_ID, 0, "MODEL"), (74, RR_DIR_ID, 0, LORA_SW_ID, 0, "MODEL"),
         (24, LORA_ID, 0, LORA_SW_ID, 1, "MODEL"),
-        (25, LORA_PB_ID, 0, LORA_SW_ID, 2, "BOOLEAN"), (26, LORA_SW_ID, 0, SAMPLER_ID, 0, "MODEL"),
+        (58, CMP_VIG_ID, 0, LORA_SW_ID, 2, "BOOLEAN"), (26, LORA_SW_ID, 0, SAMPLER_ID, 0, "MODEL"),
+        (63, LORA_SW_ID, 0, T8_ID, 0, "MODEL"),
         (10, 3, 0, RR_M10A_ID, 0, "VAE"), (22, RR_M10B_ID, 0, 8, 1, "VAE"),
         (27, STEPS_C40_ID, 0, STEPS_SW_ID, 0, "INT"), (28, STEPS_C6_ID, 0, STEPS_SW_ID, 1, "INT"),
-        (29, LORA_PB_ID, 0, STEPS_SW_ID, 2, "BOOLEAN"), (30, STEPS_SW_ID, 0, SAMPLER_ID, 4, "INT"),
+        (59, CMP_VIG_ID, 0, STEPS_SW_ID, 2, "BOOLEAN"), (30, STEPS_SW_ID, 0, SAMPLER_ID, 4, "INT"),
+        # 0927 三档轮:档位拆两布尔 + latent 路由 + T8 同源供词/供潜
+        (54, LORA_PB_ID, 0, CMP_VIG_ID, 0, "INT"), (55, LORA_PB_ID, 0, RR_MODE_ID, 0, "INT"),
+        (69, RR_MODE_ID, 0, CMP_FUN_ID, 0, "INT"),
+        (56, CMP_C1_ID, 0, CMP_VIG_ID, 1, "INT"), (57, CMP_C2_ID, 0, CMP_FUN_ID, 1, "INT"),
+        (60, CMP_FUN_ID, 0, RR_CMP_ID, 0, "BOOLEAN"), (61, RR_CMP_ID, 0, LAT_SW_ID, 2, "BOOLEAN"),
+        (9, SAMPLER_ID, 0, LAT_SW_ID, 0, "LATENT"), (68, T8_ID, 0, LAT_SW_ID, 1, "LATENT"),
+        (62, LAT_SW_ID, 0, 8, 0, "LATENT"),
+        (70, HOST_ID, 0, RR_POS_A_ID, 0, "CONDITIONING"), (71, RR_POS_A_ID, 0, RR_POS_B_ID, 0, "CONDITIONING"),
+        (72, RR_POS_B_ID, 0, T8_ID, 1, "CONDITIONING"),
+        (65, LATENT_ID, 0, RR_LAT_ID, 0, "LATENT"), (66, RR_LAT_ID, 0, T8_ID, 2, "LATENT"),
     ]
     got = {(l[0], l[1], l[2], l[3], l[4], l[5]) for l in g["links"]}
     for w in ext_want:
@@ -1517,7 +1549,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append(f"W2:主图应恰 1 个 QwenImage21_T2IPromptRewrite[{PE_RW_ID}](PE 链迁出子图),"
                     f"得 {[n['id'] for n in pe_mains]}")
 
-    # 6b. LoRA 加速槽(R26.4 统一接线;D1 硬性 AC=关闭也正常生成)
+    # 6b. LoRA 加速槽+三档结构(0927 三档轮;R26.4 统一接线承袭)
     loras = [n for n in g["nodes"] if n["type"] == "LoraLoaderModelOnly"]
     if len(loras) != 1 or loras[0]["id"] != LORA_ID:
         errs.append(f"LoraLoaderModelOnly[{LORA_ID}] 应恰 1 个(加速槽)")
@@ -1530,58 +1562,127 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if lsw["type"] != "ComfySwitchNode" or lsw["outputs"][0]["type"] != "MODEL":
         errs.append(f"[{LORA_SW_ID}] 应为 MODEL 泛型开关")
     if lsw["widgets_values"][0] is not False:
-        errs.append(f"[{LORA_SW_ID}] LoRA 开关默认应 false(旁路=正常生成)")
+        errs.append(f"[{LORA_SW_ID}] LoRA 开关默认应 false(档位由 [193] 布尔源驱动)")
     if _trace_reroute_main(m_links, m_nodes, lsw["inputs"][0]["link"]) != 1:
         errs.append("MODEL 开关 on_false 上游应 UNETLoader[1](直连臂,可穿通道)")
     if m_links[lsw["inputs"][1]["link"]][1] != LORA_ID:
         errs.append("MODEL 开关 on_true 上游应 LoraLoaderModelOnly")
-    if m_links[lsw["inputs"][2]["link"]][1] != LORA_PB_ID:
-        errs.append("MODEL 开关 switch 上游应 PrimitiveBoolean[30]")
-    if m_nodes[LORA_PB_ID]["widgets_values"][0] is not False:
-        errs.append(f"[{LORA_PB_ID}] LoRA 开关源默认应 false")
+    if m_links[lsw["inputs"][2]["link"]][1] != CMP_VIG_ID:
+        errs.append(f"MODEL 开关 switch 上游应 easy compare[{CMP_VIG_ID}](档位==1 布尔)")
     if m_links[m_nodes[SAMPLER_ID]["inputs"][0]["link"]][1] != LORA_SW_ID:
         errs.append("KSampler.model 上游应 MODEL 开关(加速槽二选一)")
-    lora_reach = _dry_run_main(g)
-    if LORA_ID in lora_reach:
-        errs.append("干跑:关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成,懒执行旁路)")
-    if PE_RW_ID not in lora_reach:
+    # 三档源:[30] PrimitiveInt 默认 2(0927 用户裁定「默认使用 Fun-Acc(阿里PDD)」)
+    pb = m_nodes[LORA_PB_ID]
+    if pb["type"] != "PrimitiveInt" or pb["widgets_values"][0] != MODE_DEFAULT:
+        errs.append(f"[{LORA_PB_ID}] 应为 PrimitiveInt 档位且默认={MODE_DEFAULT}(Fun-Acc,0927 裁定),"
+                    f"得 {pb.get('widgets_values')}")
+    if sorted(pb["outputs"][0]["links"] or []) != sorted([54, 55]):
+        errs.append(f"[{LORA_PB_ID}] 档位源应扇出恰两线(→[{CMP_VIG_ID}]/[{CMP_FUN_ID}] 比较)")
+    for cid, want in ((CMP_VIG_ID, MODE_VIGGLE), (CMP_FUN_ID, MODE_FUNACC)):
+        c = m_nodes[cid]
+        if c["type"] != "easy compare" or c["widgets_values"][2] != "a == b":
+            errs.append(f"[{cid}] 应为 easy compare(a == b)产出档位布尔")
+        if _trace_reroute_main(m_links, m_nodes, c["inputs"][0]["link"]) != LORA_PB_ID:
+            errs.append(f"[{cid}].a 上游应档位源 [{LORA_PB_ID}](可穿垫脚石)")
+        b_src = m_nodes[m_links[c["inputs"][1]["link"]][1]]
+        if b_src["type"] != "PrimitiveInt" or b_src["widgets_values"][0] != want:
+            errs.append(f"[{cid}].b 上游应常量 {want}(比较判据)")
+    # latent 路由 + T8 采样器(0927 三档轮档2 支路)
+    latsw = m_nodes[LAT_SW_ID]
+    if latsw["type"] != "ComfySwitchNode" or latsw["outputs"][0]["type"] != "LATENT":
+        errs.append(f"[{LAT_SW_ID}] 应为 LATENT 泛型开关(latent 路由)")
+    if latsw["widgets_values"][0] is not False:
+        errs.append(f"[{LAT_SW_ID}] latent 路由开关 widget 默认应 false(档位由 [{CMP_FUN_ID}] 驱动)")
+    if m_links[latsw["inputs"][0]["link"]][1] != SAMPLER_ID:
+        errs.append(f"[{LAT_SW_ID}].on_false 上游应 [{SAMPLER_ID}] KSampler(档0/1 路)")
+    if m_links[latsw["inputs"][1]["link"]][1] != T8_ID:
+        errs.append(f"[{LAT_SW_ID}].on_true 上游应 [{T8_ID}] T8(档2 路)")
+    if _trace_reroute_main(m_links, m_nodes, latsw["inputs"][2]["link"]) != CMP_FUN_ID:
+        errs.append(f"[{LAT_SW_ID}].switch 上游应 easy compare[{CMP_FUN_ID}](可穿垫脚石)")
+    if m_links[m_nodes[8]["inputs"][0]["link"]][1] != LAT_SW_ID:
+        errs.append("[8].samples 上游应 [197] latent 路由(三档汇流)")
+    t8 = m_nodes[T8_ID]
+    if t8["type"] != T8_CLASS:
+        errs.append(f"[{T8_ID}] 应为 {T8_CLASS}(Fun-Acc PDD 采样器)")
+    if t8["widgets_values"] != [FUNACC_FILE, 0]:
+        errs.append(f"[{T8_ID}] model_file/seed 漂移(应 {FUNACC_FILE}/seed 0),得 {t8.get('widgets_values')}")
+    if len([i for i in t8["inputs"] if i.get("name") == "negative"]) != 0:
+        errs.append(f"[{T8_ID}] T8 无负面槽(输入仅 model/positive/latent_image/model_file/seed)")
+    if m_links[t8["inputs"][0]["link"]][1] != LORA_SW_ID:
+        errs.append(f"[{T8_ID}].model 上游应 [{LORA_SW_ID}] 输出(档2 时 false 臂=base 模型)")
+    if _trace_reroute_main(m_links, m_nodes, t8["inputs"][1]["link"]) != HOST_ID:
+        errs.append(f"[{T8_ID}].positive 上游应 [{HOST_ID}].positive(与 [{SAMPLER_ID}] 同源,可穿垫脚石)")
+    if _trace_reroute_main(m_links, m_nodes, t8["inputs"][2]["link"]) != LATENT_ID:
+        errs.append(f"[{T8_ID}].latent_image 上游应 [{LATENT_ID}] 空潜(与 [{SAMPLER_ID}] 同源,可穿垫脚石)")
+    t8s = [n for n in g["nodes"] if n["type"] == T8_CLASS]
+    if len(t8s) != 1:
+        errs.append(f"{T8_CLASS} 应恰 1 个(档2 支路)")
+    # 主图节点类型白名单(easy compare/T8 入册;TE-Speed 槽禁入)
+    whitelist = {"UNETLoader", "CLIPLoader", "VAELoader", "EmptyLatentImage", "KSampler",
+                 "VAEDecode", "SaveImage", "MarkdownNote", "easy showAnything",
+                 "PrimitiveStringMultiline", "PrimitiveBoolean", "PrimitiveInt",
+                 "ComfySwitchNode", "LoraLoaderModelOnly", "Reroute",
+                 "QwenImage21_T2IPromptRewrite", "RegexExtract", "ComfyNumberConvert",
+                 "ComfyMathExpression", "easy compare", T8_CLASS}
+    for n in g["nodes"]:
+        if n["id"] == HOST_ID and n["type"] == sg["id"]:
+            continue
+        if n["type"] not in whitelist:
+            errs.append(f"主图未知节点类型 {n['type']!r}(TE-Speed 槽不加,3c 已死归档)")
+    # 三档干跑(懒执行语义:latent 路由开关只走选中臂)
+    d2 = _dry_run_main(g)   # 默认态=档2(Fun-Acc)
+    if T8_ID not in d2:
+        errs.append("干跑:默认态(档2 Fun-Acc)执行图应含 T8 采样器")
+    if SAMPLER_ID in d2:
+        errs.append("干跑:档2 KSampler 不应执行(latent 路由 on_true=懒旁路,零空转)")
+    if LORA_ID in d2:
+        errs.append("干跑:档2 viggle LoRA 不应加载(档2 必须 base 模型)")
+    if STEPS_SW_ID in d2 or STEPS_C40_ID in d2 or STEPS_C6_ID in d2:
+        errs.append("干跑:档2 steps 联动三件不应可达(KSampler 懒旁路)")
+    if PE_RW_ID not in d2:
         errs.append("干跑:默认态 PE 改写应在执行源内(0926 裁定1 默认 PE 开路,[141]=true)")
     for nid in (RATIO_RW_ID, RATIO_RH_ID, CONV_RW_ID, CONV_RH_ID, MATH_W_ID, MATH_H_ID):
-        if nid in lora_reach:
+        if nid in d2:
             errs.append(f"干跑:默认态 [{nid}] 不应可达(画幅联动默认关,懒执行旁路)")
+    d1 = _dry_run_main(g, mode_override=MODE_VIGGLE)
+    if LORA_ID not in d1 or SAMPLER_ID not in d1:
+        errs.append("干跑:档1(viggle)执行图应含 LoRA+KSampler")
+    if T8_ID in d1:
+        errs.append("干跑:档1 T8 不应执行(latent 路由 on_false)")
+    if _steps_value_main(g, mode_override=MODE_VIGGLE) != STEPS_ON:
+        errs.append("干跑:档1 steps 应解析=6(v0.2.1 卡荐档)")
+    d0 = _dry_run_main(g, mode_override=MODE_DIRECT)
+    if LORA_ID in d0 or T8_ID in d0:
+        errs.append("干跑:档0(直出)执行图应零 LoRA 零 T8(正常生成)")
+    if SAMPLER_ID not in d0:
+        errs.append("干跑:档0 KSampler 应在执行链(40 步主线)")
 
-    # 6c. 满血接线轮·steps 联动(一拨全配):[177] INT 开关 false→[178]=40/true→[179]=6
-    #     →[7].steps(widget 转输入);switch 槽与 MODEL 开关同一布尔源 [30](扇出两线)
+    # 6c. 满血接线轮·steps 联动(0927 三档轮:同受档位==1 布尔驱动):
+    #     [177] INT 开关 false→[178]=40/true→[179]=6 →[7].steps(widget 转输入)
     ssw = m_nodes[STEPS_SW_ID]
     if ssw["type"] != "ComfySwitchNode" or ssw["outputs"][0]["type"] != "INT":
         errs.append(f"[{STEPS_SW_ID}] 应为 INT 泛型开关(steps 联动)")
     if ssw["widgets_values"][0] is not False:
-        errs.append(f"[{STEPS_SW_ID}] steps 联动开关默认应 false(关=原路 40)")
+        errs.append(f"[{STEPS_SW_ID}] steps 联动开关默认应 false(档0=原路 40)")
     for cid, want in ((STEPS_C40_ID, STEPS_OFF), (STEPS_C6_ID, STEPS_ON)):
         c = m_nodes[cid]
         if c["type"] != "PrimitiveInt" or c["widgets_values"][0] != want:
-            errs.append(f"[{cid}] PrimitiveInt 常量应={want}(关臂 40 原路/开臂 6 卡荐档),"
+            errs.append(f"[{cid}] PrimitiveInt 常量应={want}(档0 臂 40 原路/档1 臂 6 卡荐档),"
                         f"得 {c.get('widgets_values')}")
     if m_links[ssw["inputs"][0]["link"]][1] != STEPS_C40_ID:
-        errs.append(f"[{STEPS_SW_ID}].on_false 上游应常量40 [{STEPS_C40_ID}](关=自动回 40 原路)")
+        errs.append(f"[{STEPS_SW_ID}].on_false 上游应常量40 [{STEPS_C40_ID}](档0=自动回 40 原路)")
     if m_links[ssw["inputs"][1]["link"]][1] != STEPS_C6_ID:
-        errs.append(f"[{STEPS_SW_ID}].on_true 上游应常量6 [{STEPS_C6_ID}](开=自动 6 步)")
-    if m_links[ssw["inputs"][2]["link"]][1] != LORA_PB_ID:
-        errs.append(f"[{STEPS_SW_ID}].switch 上游应同一布尔源 [{LORA_PB_ID}](一拨全配)")
-    if sorted(m_nodes[LORA_PB_ID]["outputs"][0]["links"] or []) != sorted([25, 29]):
-        errs.append(f"[{LORA_PB_ID}] 开关源应扇出恰两线(MODEL 开关+steps 开关,同一布尔源)")
+        errs.append(f"[{STEPS_SW_ID}].on_true 上游应常量6 [{STEPS_C6_ID}](档1=自动 6 步)")
+    if m_links[ssw["inputs"][2]["link"]][1] != CMP_VIG_ID:
+        errs.append(f"[{STEPS_SW_ID}].switch 上游应档位==1 布尔 [{CMP_VIG_ID}](与 MODEL 开关同源)")
+    if sorted(m_nodes[CMP_VIG_ID]["outputs"][0]["links"] or []) != sorted([58, 59]):
+        errs.append(f"[{CMP_VIG_ID}] viggle 布尔应扇出恰两线(MODEL 开关+steps 开关)")
     ks_steps = next((i for i in m_nodes[SAMPLER_ID]["inputs"] if i.get("name") == "steps"), None)
     if not ks_steps or ks_steps.get("link") != 30 or "widget" not in ks_steps:
         errs.append("[7].steps 应为 widget 转输入接 [177] 联动开关(序列化照 [150].base 先例)")
-    off_steps = _steps_value_main(g)
+    off_steps = _steps_value_main(g, mode_override=MODE_DIRECT)
     if off_steps != STEPS_OFF:
-        errs.append(f"干跑:关态 steps 应解析={STEPS_OFF}(自动回原路),得 {off_steps}")
-    on_reach = _dry_run_main(g, pb_override=True)
-    if LORA_ID not in on_reach:
-        errs.append("干跑:开态(运行态 [30]=true)执行图应含 LoraLoaderModelOnly(LoRA 真入链)")
-    on_steps = _steps_value_main(g, pb_override=True)
-    if on_steps != STEPS_ON:
-        errs.append(f"干跑:开态(一拨全配)steps 应解析={STEPS_ON}(v0.2 卡荐档),得 {on_steps}")
+        errs.append(f"干跑:档0 steps 应解析={STEPS_OFF}(自动回原路),得 {off_steps}")
 
     # 7. MyQi21DaojieBase 在场+combo 默认人物+三出接线;qi21_bases.json↔05 库互锁;
     #    锁层A 恒挂逐字=库;九型 W/H 经通道 Reroute 出子图
@@ -1745,21 +1846,26 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if orphans:
         errs.append(f"孤儿节点: {orphans}")
 
-    # 12. 说明 Note 必含要点(W5 两笔终审:负面占位/pp 定档;W1 摆设值/组框两态)
+    # 12. 说明 Note 必含要点(W5 两笔终审承袭;0927 三档轮:三档文案+依赖警示)
     note = next(n for n in g["nodes"] if n["type"] == "MarkdownNote")["widgets_values"][0]
     for token in ("cfg 恒 1", "步数 40", "40-50", RGBA_HEAD_EN, RGBA_TAIL_EN, RGBA_HEAD_ZH,
                   RGBA_TAIL_ZH, "qwen-image-2-1-prompter", "05-道劫规范提示词库.md", "九型", "空镜无人",
                   "MyQi21DaojieBase", "画幅联动", "恒挂", "美化", "[27]", "ResolutionSelector 已退役",
                   "LoraLoaderModelOnly", LORA_FILE,
-                  "一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)", "[177]", "[178]", "[179]",
-                  "shift_terminal=0.02", "关闭=正常生成", "TE-Speed",
+                  "[193]", "[194]", "[197]", "[198]",
+                  "0=直出 40 步", "1=viggle 6 步", "2=Fun-Acc", "默认 2", "降级=",
+                  "shift_terminal=0.02", "TE-Speed",
                   # 0925 收窄轮新要点
                   "数学上不参与采样", "官方同构", "占位", "presence_penalty=1.5 已定档",
                   "摆设值不生效", "加速区", "[140]", "[141]", "[180]",
                   # 0925 毒理定案 C1:PE 种子纪律(反噪)
                   "PE 种子纪律", "画面干净平滑", "而非纸面纹理",
                   # 0926 裁定1:默认 PE 开路含画布本体(Note 必含新口径)
-                  "默认 PE 改写", "按图选配"):
+                  "默认 PE 改写", "按图选配",
+                  # 0927 三档轮:依赖警示+档位语义+T8 事实
+                  "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
+                  "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽", "用户手动权威",
+                  "懒执行", "绝不吃 viggle LoRA"):
         if token not in note:
             errs.append(f"说明 Note 缺要点: {token!r}")
     if note.lstrip().startswith("# "):
@@ -1780,26 +1886,37 @@ def _trace_reroute_main(m_links: dict, m_nodes: dict, lid: int) -> int:
 
 
 def _switch_bool_main(m_links: dict, m_nodes: dict, node: dict,
-                      pb_override: bool | None = None) -> bool:
-    """主图 ComfySwitchNode 有效布尔:switch 槽有连线→解析到布尔源(满血接线轮起
-    [30] 一源扇出驱 MODEL/steps 两开关,运行态翻转=改 [30] 一处);否则本件 widget。"""
+                      mode_override: int | None = None) -> bool:
+    """主图 ComfySwitchNode 有效布尔(0927 三档轮):switch 槽有连线→解析布尔源——
+    PrimitiveBoolean([180] 画幅总闸等,兼容)直取 widget;easy compare([193]/[194]
+    档位拆布尔,可穿垫脚石 Reroute)→解析 a 源档位值([30] PrimitiveInt,
+    mode_override 模拟运行态切档)== b 源常量值;否则本件 widget。"""
     lid = node["inputs"][2].get("link")
     if lid is not None:
         src = m_nodes[m_links[lid][1]]
+        while src["type"] == "Reroute":   # 穿垫脚石([194]→[197] 经 [200])
+            src = m_nodes[m_links[src["inputs"][0]["link"]][1]]
         if src["type"] == "PrimitiveBoolean":
-            if pb_override is not None:
-                return pb_override
             return bool(src["widgets_values"][0])
+        if src["type"] == "easy compare":
+            a_src = m_nodes[m_links[src["inputs"][0]["link"]][1]]
+            while a_src["type"] == "Reroute":   # a 源穿垫脚石([194].a 经 [201])
+                a_src = m_nodes[m_links[a_src["inputs"][0]["link"]][1]]
+            b_src = m_nodes[m_links[src["inputs"][1]["link"]][1]]
+            a_val = mode_override if (mode_override is not None
+                                      and a_src["type"] == "PrimitiveInt") \
+                else a_src["widgets_values"][0]
+            return int(a_val) == int(b_src["widgets_values"][0])
     return bool(node["widgets_values"][0])
 
 
-def _dry_run_main(g: dict, pb_override: bool | None = None) -> set[int]:
+def _dry_run_main(g: dict, mode_override: int | None = None) -> set[int]:
     """主图执行集(SaveImage 回溯;ComfySwitchNode 懒执行=只走选中臂)。
 
-    R26.4 硬性 AC(用户令):加速槽「关闭=正常生成」——关态 MODEL 直连,
-    执行图零 LoraLoader(LoRA 不加载);pb_override=True 模拟运行态把 [30] 拨开;
-    W2 后另核(0926 裁定1 更新):默认态 PE 改写 [140] 在执行源内([141] 默认
-    true=PE 开路);画幅联动链 [151]-[156] 仍不在执行源(懒执行,总闸默认关)。"""
+    0927 三档轮:档位 [30] 经 easy compare 拆两布尔——默认态(档2 Fun-Acc)
+    latent 路由 [197] 走 on_true=[198] T8,KSampler/viggle LoRA/steps 三件整体
+    懒旁路(零空转零加载);mode_override 模拟运行态切档(0/1/2);W2 承袭:
+    默认态 PE 改写 [140] 在执行源内([141] 默认 true);画幅联动链不在执行源。"""
     m_nodes = {n["id"]: n for n in g["nodes"]}
     m_links = {l[0]: l for l in g["links"]}
     reach: set[int] = set()
@@ -1810,7 +1927,7 @@ def _dry_run_main(g: dict, pb_override: bool | None = None) -> set[int]:
             continue
         reach.add(nid)
         node = m_nodes[nid]
-        slots = (([1 if _switch_bool_main(m_links, m_nodes, node, pb_override) else 0]
+        slots = (([1 if _switch_bool_main(m_links, m_nodes, node, mode_override) else 0]
                   if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", [])))))
         for si in slots:
             lid = node["inputs"][si].get("link")
@@ -1819,9 +1936,9 @@ def _dry_run_main(g: dict, pb_override: bool | None = None) -> set[int]:
     return reach
 
 
-def _steps_value_main(g: dict, pb_override: bool | None = None) -> int | None:
-    """KSampler.steps 溯源干跑:widget 转输入→[177] steps 联动开关→布尔源定臂→
-    PrimitiveInt 常量值(关=40/开=6;非链接形态返回 None=联动断链)。"""
+def _steps_value_main(g: dict, mode_override: int | None = None) -> int | None:
+    """KSampler.steps 溯源干跑:widget 转输入→[177] steps 联动开关→档位==1 布尔定臂
+    →PrimitiveInt 常量值(档0=40/档1=6;非链接形态返回 None=联动断链)。"""
     m_nodes = {n["id"]: n for n in g["nodes"]}
     m_links = {l[0]: l for l in g["links"]}
     ks = m_nodes[SAMPLER_ID]
@@ -1831,7 +1948,7 @@ def _steps_value_main(g: dict, pb_override: bool | None = None) -> int | None:
     sw = m_nodes[m_links[steps_inp["link"]][1]]
     if sw["type"] != "ComfySwitchNode":
         return None
-    arm = 1 if _switch_bool_main(m_links, m_nodes, sw, pb_override) else 0
+    arm = 1 if _switch_bool_main(m_links, m_nodes, sw, mode_override) else 0
     src = m_nodes[m_links[sw["inputs"][arm]["link"]][1]]
     return src["widgets_values"][0]
 
@@ -1967,10 +2084,12 @@ def main() -> int:
           f"0926 铁律·线不遮节点全绿(蛇形联动两行+装配横排+PE 带+主链上移+加速区两行,"
           f"垫脚石 {RR_M8C_ID}/{RR_WH_W_ID}/{RR_WH_H_ID}+子图 {RR_SWC_ID},零遮挡贝塞尔精判);"
           f"默认=①人物(combo 经宿主面板外露,宽高经联动开关直驱 [5],steps=40 完整态,"
-          f"RGBA 官方头尾公式,PE 默认开路=0926 裁定1([141] true,关=直写按图选配)/联动默认关);LoRA 加速槽在位(name 预填 viggle v0.2.1 r256,"
-          f"strength 0.8=0925 探针最优,"
-          f"默认关=MODEL 直连,关态执行图零 LoraLoader);满血接线(steps 联动 [177] 同受 [30] 驱动:"
-          f"关=自动回 40 原路/开=一拨自动 6+LoRA 挂链);干跑直写选配臂装配全文逐字=库组合;"
+          f"RGBA 官方头尾公式,PE 默认开路=0926 裁定1([141] true,关=直写按图选配)/联动默认关);"
+          f"0927 三档轮=加速档位 [30] PrimitiveInt 默认 {MODE_DEFAULT}(Fun-Acc PDD 4步,用户裁定;"
+          f"0=直出40/1=viggle 6/2=Fun-Acc 4),easy compare×2 拆布尔([{CMP_VIG_ID}]==1 驱 MODEL+steps "
+          f"开关,[{CMP_FUN_ID}]==2 驱 [{LAT_SW_ID}] latent 路由),[{T8_ID}] T8 采样器(model=base 总线/"
+          f"positive 与 [7] 同源/latent 与 [7] 同源/无负面槽/seed 0),懒执行=档2 时 KSampler+LoRA+"
+          f"steps 三件整体旁路;干跑直写选配臂装配全文逐字=库组合;"
           f"双向/横向(恰 1 冻结回流线)/三行排版/零重叠/est 间距(横≥200/纵≥80)/零线遮节点(0926)/"
           f"group 预算(子图3·主图4,子图各框单一阶段行且不相交)/group int/子图 linkIds 逐项登记/"
           "锁层A 恒挂/懒执行旁路/零孤儿全绿")

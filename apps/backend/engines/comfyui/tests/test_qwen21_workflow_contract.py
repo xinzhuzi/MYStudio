@@ -291,6 +291,8 @@ I2I_NODE_TYPE_WHITELIST = {
     "Reroute", "EmptyLatentImage",
     "MyQi21DaojieBase", "StringConstant", "StringConcatenate",
     "TextEncodeQwenImage21",
+    # 0927 三档轮:easy compare(easy-use 家族)+T8 Fun-Acc 采样器
+    "easy compare", "T8QwenImage21FunAccPDD4Step",
 }
 # 人物系六型(库 §二:常量B 加挂型)
 PRO_CHAR_TYPES = ("人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
@@ -369,31 +371,57 @@ def _off_state_reach(graph: dict, save_id: int) -> set[int]:
 
 
 # 满血接线轮(09-24):steps 联动 INT 开关三件锚(t2i [177-179]/i2i [164-166]/edit
-# [33-35];同受 [30] 布尔源驱动:false→40 常量(原路)/true→6 常量(v0.2 卡荐档)→
-# KSampler.steps widget 转输入——开 [30] 一拨=LoRA 挂链+steps 自动 6,关=自动回 40)
+# [33-35];0927 三档轮起同受档位==1 布尔驱动:false→40 常量(档0 原路)/true→6 常量
+# (档1 卡荐档)→KSampler.steps widget 转输入)
 QI21_STEPS_SW_ID, QI21_STEPS_C40_ID, QI21_STEPS_C6_ID = 177, 178, 179
 I2I_STEPS_SW_ID, I2I_STEPS_C40_ID, I2I_STEPS_C6_ID = 164, 165, 166
 EDIT_STEPS_SW_ID, EDIT_STEPS_C40_ID, EDIT_STEPS_C6_ID = 33, 34, 35
 STEPS_OFF, STEPS_ON = 40, 6
-STEPS_NOTE_TOKEN = "一拨全配(开=自动 6 步加速,关=自动回 40,无需手动调)"
+# 0927 三档切换轮(用户裁定原话「默认使用 Fun-Acc(阿里PDD)」):[30] 升级 PrimitiveInt
+# 档位(默认 2)→easy compare×2 拆布尔(viggle==1 驱 MODEL+steps 开关/funacc==2 驱
+# latent 路由开关);T8 采样器接管档2(懒执行:KSampler/LoRA/steps 三件整体旁路)
+MODE_DEFAULT, MODE_DIRECT, MODE_VIGGLE, MODE_FUNACC = 2, 0, 1, 2
+QI21_CMP_VIG, QI21_CMP_FUN, QI21_C1, QI21_C2 = 193, 194, 195, 196
+QI21_LAT_SW, QI21_T8 = 197, 198
+I2I_CMP_VIG, I2I_CMP_FUN, I2I_C1, I2I_C2 = 171, 172, 173, 174
+I2I_LAT_SW, I2I_T8 = 175, 176
+EDIT_CMP_VIG, EDIT_CMP_FUN, EDIT_C1, EDIT_C2 = 50, 51, 38, 39
+EDIT_LAT_SW, EDIT_T8 = 54, 55
+FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"
+T8_CLASS = "T8QwenImage21FunAccPDD4Step"
+FUNACC_NOTE_TOKENS = ("0=直出 40 步", "1=viggle 6 步", "2=Fun-Acc", "默认 2",
+                      "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
+                      "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽",
+                      "用户手动权威", "懒执行", "绝不吃 viggle LoRA")
 
 
-def _switch_bool(nodes: dict, links: dict, node: dict, pb_override: bool | None = None) -> bool:
-    """ComfySwitchNode 有效布尔:switch 槽有连线→解析到布尔源([30] 一源扇出驱
-    MODEL/steps 两开关,运行态翻转=改 [30] 一处);否则本件 widget。"""
+def _switch_bool(nodes: dict, links: dict, node: dict, mode_override: int | None = None) -> bool:
+    """ComfySwitchNode 有效布尔(0927 三档轮):switch 槽有连线→解析布尔源——
+    PrimitiveBoolean(画幅 [19]/[180] 等,兼容)直取 widget;easy compare(档位拆
+    布尔,可穿垫脚石 Reroute)→a 源档位值([30] PrimitiveInt,mode_override 模拟
+    运行态切档 0/1/2)== b 源常量值;否则本件 widget。"""
     lid = node["inputs"][2].get("link")
     if lid is not None and links[lid][1] in nodes:
         src = nodes[links[lid][1]]
+        while src["type"] == "Reroute":
+            src = nodes[links[src["inputs"][0]["link"]][1]]
         if src["type"] == "PrimitiveBoolean":
-            if pb_override is not None:
-                return pb_override
             return bool(src["widgets_values"][0])
+        if src["type"] == "easy compare":
+            a_src = nodes[links[src["inputs"][0]["link"]][1]]
+            while a_src["type"] == "Reroute":
+                a_src = nodes[links[a_src["inputs"][0]["link"]][1]]
+            b_src = nodes[links[src["inputs"][1]["link"]][1]]
+            a_val = mode_override if (mode_override is not None
+                                      and a_src["type"] == "PrimitiveInt") \
+                else a_src["widgets_values"][0]
+            return int(a_val) == int(b_src["widgets_values"][0])
     return bool(node["widgets_values"][0])
 
 
-def _reach_state(graph: dict, save_id: int, pb_override: bool | None = None) -> set[int]:
+def _reach_state(graph: dict, save_id: int, mode_override: int | None = None) -> set[int]:
     """执行集(SaveImage 回溯;ComfySwitchNode 懒执行=只走选中臂,开关态经 switch 槽
-    连线解析到布尔源)。pb_override=True 模拟运行态把 [30] 拨开(满血接线轮开态)。"""
+    连线解析)。mode_override 模拟运行态切档(0/1/2;默认态=档2 Fun-Acc)。"""
     nodes, links = _nodes(graph), _links(graph)
     reach, stack = set(), [save_id]
     while stack:
@@ -402,7 +430,7 @@ def _reach_state(graph: dict, save_id: int, pb_override: bool | None = None) -> 
             continue
         reach.add(nid)
         node = nodes[nid]
-        slots = ([1 if _switch_bool(nodes, links, node, pb_override) else 0]
+        slots = ([1 if _switch_bool(nodes, links, node, mode_override) else 0]
                  if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", []))))
         for si in slots:
             lid = node["inputs"][si].get("link")
@@ -411,8 +439,8 @@ def _reach_state(graph: dict, save_id: int, pb_override: bool | None = None) -> 
     return reach
 
 
-def _steps_resolved(graph: dict, sampler_id: int, pb_override: bool | None = None):
-    """KSampler.steps 溯源干跑:widget 转输入→steps 联动开关→布尔源定臂→常量值。"""
+def _steps_resolved(graph: dict, sampler_id: int, mode_override: int | None = None):
+    """KSampler.steps 溯源干跑:widget 转输入→steps 联动开关→档位==1 布尔定臂→常量值。"""
     nodes, links = _nodes(graph), _links(graph)
     inp = next((i for i in nodes[sampler_id]["inputs"] if i.get("name") == "steps"), None)
     if not inp or inp.get("link") is None:
@@ -420,51 +448,133 @@ def _steps_resolved(graph: dict, sampler_id: int, pb_override: bool | None = Non
     sw = nodes[links[inp["link"]][1]]
     if sw["type"] != "ComfySwitchNode":
         return None
-    arm = 1 if _switch_bool(nodes, links, sw, pb_override) else 0
+    arm = 1 if _switch_bool(nodes, links, sw, mode_override) else 0
     return nodes[links[sw["inputs"][arm]["link"]][1]]["widgets_values"][0]
 
 
 def _assert_fullpower_steps(graph: dict, name: str, sampler_id: int, sw_id: int,
-                            c40_id: int, c6_id: int, pb_id: int, lora_id: int,
-                            save_id: int, pb_fan_links: list[int]):
-    """满血接线轮三件同构契约:[30] 一拨全配=steps 联动 INT 开关同源驱动。
-    结构:sw=ComfySwitchNode(INT)/on_false→c40(40)/on_true→c6(6)/switch→pb(同一
-    布尔源,pb 扇出恰两线=MODEL 开关+steps 开关);KSampler.steps=widget 转输入接 sw;
-    干跑:关态 steps 解析 40+执行图零 LoraLoader;开态([30]=true)解析 6+LoRA 在链。"""
+                            c40_id: int, c6_id: int, cmp_vig_id: int, lora_id: int,
+                            save_id: int, cmp_fan_links: list[int]):
+    """0927 三档轮三件同构契约:steps 联动 INT 开关受档位==1 布尔驱动。
+    结构:sw=ComfySwitchNode(INT)/on_false→c40(40)/on_true→c6(6)/switch→cmp_vig
+    (easy compare 档位==1,扇出恰两线=MODEL 开关+steps 开关);KSampler.steps=widget
+    转输入接 sw;干跑:档0 steps 解析 40+零 LoRA;档1 解析 6+LoRA 在链;档2(默认)
+    steps 联动三件整体懒旁路(KSampler 不可达)。"""
     nodes, links = _nodes(graph), _links(graph)
     sw = nodes[sw_id]
     assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "INT", \
         f"{name}: [{sw_id}] 应为 INT 泛型开关(steps 联动,样板=画幅联动 [157][158])"
     assert sw["widgets_values"][0] is False, \
-        f"{name}: [{sw_id}] steps 联动开关默认应 false(关=原路 40)"
+        f"{name}: [{sw_id}] steps 联动开关默认应 false(档0=原路 40)"
     for cid, want in ((c40_id, STEPS_OFF), (c6_id, STEPS_ON)):
         c = nodes[cid]
         assert c["type"] == "PrimitiveInt" and _widget(c, 0) == want, \
-            f"{name}: [{cid}] PrimitiveInt 常量应={want}(关臂 40 原路/开臂 6 卡荐档)," \
+            f"{name}: [{cid}] PrimitiveInt 常量应={want}(档0 臂 40 原路/档1 臂 6 卡荐档)," \
             f"得 {c.get('widgets_values')}"
     assert links[sw["inputs"][0]["link"]][1] == c40_id, \
-        f"{name}: [{sw_id}].on_false 上游应常量40 [{c40_id}](关=自动回 40 原路)"
+        f"{name}: [{sw_id}].on_false 上游应常量40 [{c40_id}](档0=自动回 40 原路)"
     assert links[sw["inputs"][1]["link"]][1] == c6_id, \
-        f"{name}: [{sw_id}].on_true 上游应常量6 [{c6_id}](开=自动 6 步)"
-    assert links[sw["inputs"][2]["link"]][1] == pb_id, \
-        f"{name}: [{sw_id}].switch 上游应同一布尔源 [{pb_id}](一拨全配)"
-    assert sorted(nodes[pb_id]["outputs"][0]["links"] or []) == sorted(pb_fan_links), \
-        f"{name}: [{pb_id}] 开关源应扇出恰两线 {pb_fan_links}(MODEL 开关+steps 开关)"
+        f"{name}: [{sw_id}].on_true 上游应常量6 [{c6_id}](档1=自动 6 步)"
+    assert links[sw["inputs"][2]["link"]][1] == cmp_vig_id, \
+        f"{name}: [{sw_id}].switch 上游应档位==1 布尔 [{cmp_vig_id}](与 MODEL 开关同源)"
+    assert sorted(nodes[cmp_vig_id]["outputs"][0]["links"] or []) == sorted(cmp_fan_links), \
+        f"{name}: [{cmp_vig_id}] viggle 布尔应扇出恰两线 {cmp_fan_links}(MODEL 开关+steps 开关)"
     ks_steps = next((i for i in nodes[sampler_id]["inputs"] if i.get("name") == "steps"), None)
     assert ks_steps and ks_steps.get("link") is not None and "widget" in ks_steps, \
         f"{name}: KSampler.steps 应为 widget 转输入(序列化照 [150].base 先例)"
     assert links[ks_steps["link"]][1] == sw_id, \
         f"{name}: KSampler.steps 应接 [{sw_id}] steps 联动开关"
-    # 干跑:关态 steps=40(原路)+执行图零 LoraLoader
-    assert _steps_resolved(graph, sampler_id) == STEPS_OFF, \
-        f"{name}: 关态干跑 steps 应解析={STEPS_OFF}(自动回原路)"
-    assert lora_id not in _reach_state(graph, save_id), \
-        f"{name}: 关态执行图零 LoraLoader(关闭=正常生成)"
-    # 干跑:开态(运行态 [30]=true)steps=6+LoRA 在链
-    assert _steps_resolved(graph, sampler_id, pb_override=True) == STEPS_ON, \
-        f"{name}: 开态干跑 steps 应解析={STEPS_ON}(一拨全配,v0.2 卡荐档)"
-    assert lora_id in _reach_state(graph, save_id, pb_override=True), \
-        f"{name}: 开态执行图应含 LoraLoaderModelOnly(LoRA 真入链)"
+    # 干跑:档0 steps=40(原路)+执行图零 LoRA
+    assert _steps_resolved(graph, sampler_id, mode_override=MODE_DIRECT) == STEPS_OFF, \
+        f"{name}: 档0 干跑 steps 应解析={STEPS_OFF}(自动回原路)"
+    assert lora_id not in _reach_state(graph, save_id, mode_override=MODE_DIRECT), \
+        f"{name}: 档0 执行图零 LoraLoader(直出=正常生成)"
+    # 干跑:档1 steps=6+LoRA 在链
+    assert _steps_resolved(graph, sampler_id, mode_override=MODE_VIGGLE) == STEPS_ON, \
+        f"{name}: 档1 干跑 steps 应解析={STEPS_ON}(viggle 卡荐档)"
+    assert lora_id in _reach_state(graph, save_id, mode_override=MODE_VIGGLE), \
+        f"{name}: 档1 执行图应含 LoraLoaderModelOnly(LoRA 真入链)"
+
+
+def _assert_three_mode_accel(graph: dict, name: str, lora_id: int, lora_sw_id: int,
+                             pb_id: int, cmp_vig: int, cmp_fun: int, c1: int, c2: int,
+                             lat_sw: int, t8: int, sampler_id: int, save_id: int,
+                             steps_ids: tuple, model_base_id: int, positive_src_id: int,
+                             latent_src_id: int):
+    """0927 三档轮三件同构契约:档位 [30]=PrimitiveInt 默认 2(Fun-Acc,用户裁定);
+    easy compare×2 拆布尔(==1 驱 MODEL+steps 开关/==2 驱 latent 路由);T8 采样器
+    (无负面槽/model=base 总线/positive+latent 与 KSampler 同源/seed 0);
+    干跑:默认态(档2)T8 在链+KSampler/LoRA/steps 三件懒旁路;档1 LoRA 在链;
+    档0 零 LoRA 零 T8。"""
+    nodes, links = _nodes(graph), _links(graph)
+    # 档位源
+    pb = nodes[pb_id]
+    assert pb["type"] == "PrimitiveInt" and _widget(pb, 0) == MODE_DEFAULT, \
+        f"{name}: [{pb_id}] 应为 PrimitiveInt 档位且默认={MODE_DEFAULT}(Fun-Acc,0927 裁定)," \
+        f"得 {pb.get('widgets_values')}"
+    assert len(pb["outputs"][0]["links"] or []) == 2, \
+        f"{name}: [{pb_id}] 档位源应扇出恰两线(→两枚 easy compare)"
+    for cid, want in ((cmp_vig, MODE_VIGGLE), (cmp_fun, MODE_FUNACC)):
+        c = nodes[cid]
+        assert c["type"] == "easy compare" and c["widgets_values"][2] == "a == b", \
+            f"{name}: [{cid}] 应为 easy compare(a == b)产出档位布尔"
+        assert _trace_main_reroute(nodes, links, c["inputs"][0]["link"]) == pb_id, \
+            f"{name}: [{cid}].a 上游应档位源 [{pb_id}](可穿垫脚石)"
+        b_src = nodes[links[c["inputs"][1]["link"]][1]]
+        assert b_src["type"] == "PrimitiveInt" and _widget(b_src, 0) == want, \
+            f"{name}: [{cid}].b 上游应常量 {want}(比较判据)"
+    assert nodes[c1]["type"] == "PrimitiveInt" and _widget(nodes[c1], 0) == MODE_VIGGLE, \
+        f"{name}: [{c1}] 比较常量1 应=1"
+    assert nodes[c2]["type"] == "PrimitiveInt" and _widget(nodes[c2], 0) == MODE_FUNACC, \
+        f"{name}: [{c2}] 比较常量2 应=2"
+    # MODEL 开关受 ==1 驱动
+    lsw = nodes[lora_sw_id]
+    assert links[lsw["inputs"][2]["link"]][1] == cmp_vig, \
+        f"{name}: [{lora_sw_id}].switch 上游应 easy compare[{cmp_vig}](档位==1 布尔)"
+    assert _widget(lsw, 0) is False, f"{name}: [{lora_sw_id}] widget 默认应 false(档位驱动)"
+    # latent 路由 + T8
+    latsw = nodes[lat_sw]
+    assert latsw["type"] == "ComfySwitchNode" and latsw["outputs"][0]["type"] == "LATENT", \
+        f"{name}: [{lat_sw}] 应为 LATENT 泛型开关(latent 路由)"
+    assert _widget(latsw, 0) is False, f"{name}: [{lat_sw}] widget 默认应 false(档位驱动)"
+    assert links[latsw["inputs"][0]["link"]][1] == sampler_id, \
+        f"{name}: [{lat_sw}].on_false 上游应 KSampler[{sampler_id}](档0/1 路)"
+    assert links[latsw["inputs"][1]["link"]][1] == t8, \
+        f"{name}: [{lat_sw}].on_true 上游应 T8[{t8}](档2 路)"
+    assert _trace_main_reroute(nodes, links, latsw["inputs"][2]["link"]) == cmp_fun, \
+        f"{name}: [{lat_sw}].switch 上游应 easy compare[{cmp_fun}](可穿垫脚石)"
+    t8s = _by_type(graph, T8_CLASS)
+    assert len(t8s) == 1 and t8s[0]["id"] == t8, \
+        f"{name}: {T8_CLASS} 应恰 1 个(档2 支路),得 {[n['id'] for n in t8s]}"
+    assert t8s[0]["widgets_values"] == [FUNACC_FILE, 0], \
+        f"{name}: [{t8}] model_file/seed 应逐字 {FUNACC_FILE}/0," \
+        f"得 {t8s[0].get('widgets_values')}"
+    assert not any(i.get("name") == "negative" for i in t8s[0]["inputs"]), \
+        f"{name}: [{t8}] T8 无负面槽(输入仅 model/positive/latent_image/model_file/seed)"
+    assert links[t8s[0]["inputs"][0]["link"]][1] == lora_sw_id, \
+        f"{name}: [{t8}].model 上游应 [{lora_sw_id}] 输出(档2 时 false 臂=base 模型)"
+    assert _trace_main_reroute(nodes, links, t8s[0]["inputs"][1]["link"]) == positive_src_id, \
+        f"{name}: [{t8}].positive 上游应 [{positive_src_id}](与 KSampler 同源,可穿垫脚石)"
+    assert _trace_main_reroute(nodes, links, t8s[0]["inputs"][2]["link"]) == latent_src_id, \
+        f"{name}: [{t8}].latent_image 上游应 [{latent_src_id}](与 KSampler 同源,可穿垫脚石)"
+    # 干跑三档
+    d2 = _reach_state(graph, save_id)   # 默认态=档2(Fun-Acc)
+    assert t8 in d2, f"{name}: 默认态(档2)执行图应含 T8 采样器"
+    assert sampler_id not in d2, \
+        f"{name}: 档2 KSampler 不应执行(latent 路由 on_true=懒旁路,零空转)"
+    assert lora_id not in d2, f"{name}: 档2 viggle LoRA 不应加载(档2 必须 base 模型)"
+    for sid in steps_ids:
+        assert sid not in d2, \
+            f"{name}: 档2 steps 联动件 [{sid}] 不应可达(KSampler 懒旁路)"
+    d1 = _reach_state(graph, save_id, mode_override=MODE_VIGGLE)
+    assert lora_id in d1 and sampler_id in d1, \
+        f"{name}: 档1 执行图应含 LoRA+KSampler"
+    assert t8 not in d1, f"{name}: 档1 T8 不应执行(latent 路由 on_false)"
+    d0 = _reach_state(graph, save_id, mode_override=MODE_DIRECT)
+    assert lora_id not in d0 and t8 not in d0, \
+        f"{name}: 档0(直出)执行图应零 LoRA 零 T8(正常生成)"
+    assert sampler_id in d0, f"{name}: 档0 KSampler 应在执行链(40 步主线)"
+    _ = model_base_id
 
 
 def _resolve_default_string_origins(graph: dict) -> dict:
@@ -823,10 +933,10 @@ class TestEditContract:
         graph = GRAPHS["edit"]
         nodes, links = _nodes(graph), _links(graph)
         pb = _by_type(graph, "PrimitiveBoolean")
-        assert sorted(n["id"] for n in pb) == sorted([EDIT_PBM_ID, EDIT_LORA_PB_ID]), \
-            f"应恰 2 个 PrimitiveBoolean([19] 画幅/[30] LoRA 开关源),得 {sorted(n['id'] for n in pb)}"
+        assert sorted(n["id"] for n in pb) == [EDIT_PBM_ID], \
+            f"应恰 1 个 PrimitiveBoolean([19] 画幅;[30] 已升级 PrimitiveInt 档位),得 {sorted(n['id'] for n in pb)}"
         assert all(n["widgets_values"][0] is False for n in pb), \
-            "画幅/LoRA 开关源默认必须 false(跟随输入图/旁路)"
+            "画幅开关源默认必须 false(跟随输入图)"
         sw = nodes[EDIT_LATENT_SW_ID]
         assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "LATENT", \
             "画幅开关应为 LATENT 泛型 ComfySwitchNode"
@@ -871,20 +981,23 @@ class TestEditContract:
         sw = nodes[EDIT_LORA_SW_ID]
         assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "MODEL", \
             f"[{EDIT_LORA_SW_ID}] 应为 MODEL 泛型开关"
-        assert sw["widgets_values"][0] is False, f"[{EDIT_LORA_SW_ID}] LoRA 开关默认应 false(旁路)"
-        assert links[sw["inputs"][0]["link"]][1] == 7, \
-            "[32].on_false 应 Cache[7] 直连臂(关态 MODEL 直连)"
+        assert sw["widgets_values"][0] is False, \
+            f"[{EDIT_LORA_SW_ID}] LoRA 开关默认应 false(档位由 [{EDIT_CMP_VIG}] 布尔源驱动)"
+        assert _trace_main_reroute(nodes, links, sw["inputs"][0]["link"]) == 7, \
+            "[32].on_false 应 Cache[7] 直连臂(可穿垫脚石,关态 MODEL 直连)"
         assert links[sw["inputs"][1]["link"]][1] == EDIT_LORA_ID, \
             "[32].on_true 应 LoraLoaderModelOnly"
-        assert links[sw["inputs"][2]["link"]][1] == EDIT_LORA_PB_ID, \
-            "[32].switch 应 PrimitiveBoolean[30]"
-        assert _widget(nodes[EDIT_LORA_PB_ID], 0) is False, "[30] LoRA 开关源默认应 false"
+        assert links[sw["inputs"][2]["link"]][1] == EDIT_CMP_VIG, \
+            f"[32].switch 应 easy compare[{EDIT_CMP_VIG}](档位==1 布尔)"
         assert links[nodes[8]["inputs"][0]["link"]][1] == EDIT_LORA_SW_ID, \
             "KSampler.model 上游应 [32] MODEL 开关(加速槽二选一)"
-        # 硬性 AC:关态干跑执行图零 LoraLoader(懒执行旁路=正常生成)
-        reach = _off_state_reach(graph, save_id=10)
-        assert EDIT_LORA_ID not in reach, \
-            f"关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成),reach={sorted(reach)}"
+        # 0927 三档轮:三档分支/默认档=2/T8 结构(共用断言器)
+        _assert_three_mode_accel(
+            graph, "edit", lora_id=EDIT_LORA_ID, lora_sw_id=EDIT_LORA_SW_ID,
+            pb_id=EDIT_LORA_PB_ID, cmp_vig=EDIT_CMP_VIG, cmp_fun=EDIT_CMP_FUN,
+            c1=EDIT_C1, c2=EDIT_C2, lat_sw=EDIT_LAT_SW, t8=EDIT_T8,
+            sampler_id=8, save_id=10, steps_ids=(EDIT_STEPS_SW_ID, EDIT_STEPS_C40_ID, EDIT_STEPS_C6_ID),
+            model_base_id=7, positive_src_id=6, latent_src_id=20)
         # VAE 顶通道(R26.4 随迁):VAE→[28]→[29]→VAEDecode,恒向右
         va, vb = nodes[EDIT_RR_V_A_ID], nodes[EDIT_RR_V_B_ID]
         assert va["type"] == "Reroute" and vb["type"] == "Reroute", \
@@ -902,8 +1015,16 @@ class TestEditContract:
         _assert_fullpower_steps(
             GRAPHS["edit"], "edit", sampler_id=8, sw_id=EDIT_STEPS_SW_ID,
             c40_id=EDIT_STEPS_C40_ID, c6_id=EDIT_STEPS_C6_ID,
-            pb_id=EDIT_LORA_PB_ID, lora_id=EDIT_LORA_ID, save_id=10,
-            pb_fan_links=[32, 38])
+            cmp_vig_id=EDIT_CMP_VIG, lora_id=EDIT_LORA_ID, save_id=10,
+            cmp_fan_links=[46, 47])
+
+    def test_note_three_mode_accel_and_dependency_warning(self):
+        """0927 三档轮 Note 锚:加速区三档文案(0=直出40/1=viggle 6/2=Fun-Acc
+        默认2)+Fun-Acc 插件依赖警示(未装选档2 节点红,降级=切回 0/1 档)+
+        T8 事实(无负面槽/model=base/懒执行)。Note 被重跑回退即红。"""
+        note = _by_type(GRAPHS["edit"], "MarkdownNote")[0]["widgets_values"][0]
+        for token in FUNACC_NOTE_TOKENS:
+            assert token in note, f"edit Note 缺三档要点: {token!r}"
 
     def test_no_custom_titles_on_core_nodes(self):
         """节点标题铁律(0923-r16 用户令):核心/第三方节点 title 一律保留原生
@@ -1261,27 +1382,43 @@ class TestQi21SubgraphContract:
             (2, QI21_SG_SW_WH_IDS[1], 0, QI21_LATENT_ID, 1, "INT"),
             (16, QI21_HOST_ID, 0, QI21_SAMPLER_ID, 1, "CONDITIONING"),
             (17, QI21_HOST_ID, 1, QI21_SAMPLER_ID, 2, "CONDITIONING"),
-            # R26.4 LoRA 加速槽接线(照 i2i 断言式):顶通道(0926 经垂降拐点
-            # [190] 扇出两臂)→开关→KSampler
+            # R26.4 LoRA 加速槽接线(0927 三档轮:直连臂走顶通道第三拐 [204];
+            # LoRA 臂经垂降拐点 [190];比较==1 驱 MODEL/steps 两开关)
             (20, QI21_RR_M8B_ID, 0, QI21_RR_M8C_ID, 0, "MODEL"),
             (23, QI21_RR_M8C_ID, 0, QI21_LORA_ID, 0, "MODEL"),
-            (49, QI21_RR_M8C_ID, 0, QI21_LORA_SW_ID, 0, "MODEL"),
             (24, QI21_LORA_ID, 0, QI21_LORA_SW_ID, 1, "MODEL"),
-            (25, QI21_LORA_PB_ID, 0, QI21_LORA_SW_ID, 2, "BOOLEAN"),
+            (58, QI21_CMP_VIG, 0, QI21_LORA_SW_ID, 2, "BOOLEAN"),
             (26, QI21_LORA_SW_ID, 0, QI21_SAMPLER_ID, 0, "MODEL"),
-            # 满血接线轮:steps 联动(同一布尔源;KSampler.steps 转输入接开关)
+            (63, QI21_LORA_SW_ID, 0, QI21_T8, 0, "MODEL"),
+            # 满血接线轮(0927:同受档位==1 布尔驱动;KSampler.steps 转输入接开关)
             (27, QI21_STEPS_C40_ID, 0, QI21_STEPS_SW_ID, 0, "INT"),
             (28, QI21_STEPS_C6_ID, 0, QI21_STEPS_SW_ID, 1, "INT"),
-            (29, QI21_LORA_PB_ID, 0, QI21_STEPS_SW_ID, 2, "BOOLEAN"),
+            (59, QI21_CMP_VIG, 0, QI21_STEPS_SW_ID, 2, "BOOLEAN"),
             (30, QI21_STEPS_SW_ID, 0, QI21_SAMPLER_ID, 4, "INT"),
+            # 0927 三档轮:档位拆两布尔+latent 路由+T8 同源供词/供潜
+            (54, QI21_LORA_PB_ID, 0, QI21_CMP_VIG, 0, "INT"),
+            (56, QI21_C1, 0, QI21_CMP_VIG, 1, "INT"),
+            (57, QI21_C2, 0, QI21_CMP_FUN, 1, "INT"),
+            (60, QI21_CMP_FUN, 0, 200, 0, "BOOLEAN"),
+            (61, 200, 0, QI21_LAT_SW, 2, "BOOLEAN"),
+            (9, QI21_SAMPLER_ID, 0, QI21_LAT_SW, 0, "LATENT"),
+            (68, QI21_T8, 0, QI21_LAT_SW, 1, "LATENT"),
+            (62, QI21_LAT_SW, 0, 8, 0, "LATENT"),
+            (70, QI21_HOST_ID, 0, 202, 0, "CONDITIONING"),
+            (71, 202, 0, 203, 0, "CONDITIONING"), (72, 203, 0, QI21_T8, 1, "CONDITIONING"),
+            (65, QI21_LATENT_ID, 0, 199, 0, "LATENT"),
+            (66, 199, 0, QI21_T8, 2, "LATENT"),
+            (73, QI21_RR_M8B_ID, 0, 204, 0, "MODEL"),
+            (74, 204, 0, QI21_LORA_SW_ID, 0, "MODEL"),
         ]:
             assert want in got, f"外部接线缺: link{want[0]}"
         assert not _by_type(graph, "TextEncodeQwenImage21"), \
             "主图不应有平铺 TextEncode(主编码/RGBA 编码已收进子图)"
         switches = [n["id"] for n in _by_type(graph, "ComfySwitchNode")]
         assert sorted(switches) == sorted(
-            [QI21_LORA_SW_ID, QI21_SG_PE_SW, *QI21_SG_SW_WH_IDS, QI21_STEPS_SW_ID]), \
-            f"主图开关应恰 MODEL[32]+PE[141]+宽高联动[157][158]+steps[177],得 {switches}"
+            [QI21_LORA_SW_ID, QI21_SG_PE_SW, *QI21_SG_SW_WH_IDS,
+             QI21_STEPS_SW_ID, QI21_LAT_SW]), \
+            f"主图开关应恰 MODEL[32]+PE[141]+宽高联动[157][158]+steps[177]+latent路由[197],得 {switches}"
         pe_nodes = _by_type(graph, PE_CLASS)
         assert len(pe_nodes) == 1 and pe_nodes[0]["id"] == QI21_SG_PE_RW, \
             "W2:PE 改写件应在主画布恰 1 个 [140](PE 链迁出子图,同构 i2i/edit)"
@@ -1315,12 +1452,11 @@ class TestQi21SubgraphContract:
             "[32].on_false 应 UNETLoader 直连臂(可穿通道,关态 MODEL 直连)"
         assert links[sw["inputs"][1]["link"]][1] == QI21_LORA_ID, \
             "[32].on_true 应 LoraLoaderModelOnly"
-        assert links[sw["inputs"][2]["link"]][1] == QI21_LORA_PB_ID, \
-            "[32].switch 应 PrimitiveBoolean[30]"
-        assert _widget(nodes[QI21_LORA_PB_ID], 0) is False, "[30] LoRA 开关源默认应 false"
+        assert links[sw["inputs"][2]["link"]][1] == QI21_CMP_VIG, \
+            f"[32].switch 应 easy compare[{QI21_CMP_VIG}](档位==1 布尔)"
         assert links[nodes[QI21_SAMPLER_ID]["inputs"][0]["link"]][1] == QI21_LORA_SW_ID, \
             "KSampler.model 上游应 [32] MODEL 开关(加速槽二选一)"
-        # 硬性 AC:关态干跑执行图零 LoraLoader(懒执行旁路=正常生成)
+        # 0927 三档轮:关态干跑语义改档0(共用断言器内已核三档)
         reach = _off_state_reach(graph, save_id=9)
         assert QI21_LORA_ID not in reach, \
             f"关态执行图含 LoraLoaderModelOnly(关闭必须=正常生成),reach={sorted(reach)}"
@@ -1334,6 +1470,8 @@ class TestQi21SubgraphContract:
             # 0925 W2:PE 改写件+画幅联动链(正则/转数/公式)随 PE 链迁主画布
             "QwenImage21_T2IPromptRewrite", "RegexExtract", "ComfyNumberConvert",
             "ComfyMathExpression",
+            # 0927 三档轮:easy compare(easy-use 家族)+T8 Fun-Acc 采样器
+            "easy compare", T8_CLASS,
         }
         for n in graph["nodes"]:
             if n["id"] == QI21_HOST_ID and n["type"] == sg["id"]:
@@ -1348,8 +1486,8 @@ class TestQi21SubgraphContract:
         _assert_fullpower_steps(
             GRAPHS["qi21"], "qi21", sampler_id=QI21_SAMPLER_ID, sw_id=QI21_STEPS_SW_ID,
             c40_id=QI21_STEPS_C40_ID, c6_id=QI21_STEPS_C6_ID,
-            pb_id=QI21_LORA_PB_ID, lora_id=QI21_LORA_ID, save_id=9,
-            pb_fan_links=[25, 29])
+            cmp_vig_id=QI21_CMP_VIG, lora_id=QI21_LORA_ID, save_id=9,
+            cmp_fan_links=[58, 59])
 
     def test_subject_slot_defaults_to_library_renwen_example(self):
         types, _ = _qi21_truth()
@@ -1694,8 +1832,11 @@ class TestQi21SubgraphContract:
                       "[27]", "恒挂", "美化", "05-道劫规范提示词库.md", "步数 40", "40-50",
                       RGBA_HEAD, RGBA_TAIL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
                       "画幅联动", "ResolutionSelector 已退役",
-                      "LoraLoaderModelOnly", LORA_FILE, "关闭=正常生成",
-                      STEPS_NOTE_TOKEN, "[177]", "shift_terminal=0.02", "TE-Speed",
+                      "LoraLoaderModelOnly", LORA_FILE,
+                      "[193]", "[194]", "[197]", "[198]",
+                      "shift_terminal=0.02", "TE-Speed",
+                      # 0927 三档轮:三档文案+依赖警示+T8 事实
+                      *FUNACC_NOTE_TOKENS,
                       # 0925 收窄轮新要点(W1 组框+摆设值/W5 负面占位+pp 定档/W2 主画布)
                       "数学上不参与采样", "官方同构", "占位", "已定档",
                       "摆设值不生效", "加速区", "[140]", "[141]", "[180]"):
@@ -1744,10 +1885,12 @@ class TestCanvasNormalization0925:
     与三生成器自查同口径谓词,此处双记账互锁。"""
 
     GRAPHS_3 = ("qi21", "i2i", "edit")
+    # 0927 三档轮十件:档位+比较×2+常量1·2·40·6+MODEL开关+LoRA+steps开关
+    # ([197]/[175]/[54] latent 路由与 [198]/[176]/[55] T8 留主链带=数据流所在)
     ACCEL = {
-        "qi21": (30, 31, 32, 177, 178, 179),
-        "i2i": (30, 31, 32, 164, 165, 166),
-        "edit": (30, 31, 32, 33, 34, 35),
+        "qi21": (30, 31, 32, 177, 178, 179, 193, 194, 195, 196),
+        "i2i": (30, 31, 32, 164, 165, 166, 171, 172, 173, 174),
+        "edit": (30, 31, 32, 33, 34, 35, 38, 39, 50, 51),
     }
 
     def test_no_negative_coordinates_all_nodes(self):
@@ -1779,8 +1922,8 @@ class TestCanvasNormalization0925:
         for name in self.GRAPHS_3:
             graph = GRAPHS[name]
             nodes = _nodes(graph)
-            grp = next((g for g in graph["groups"] if "加速区·总闸" in g.get("title", "")), None)
-            assert grp is not None, f"{name}: W1 缺「加速区·总闸」组框(方案C)"
+            grp = next((g for g in graph["groups"] if "加速区·档位" in g.get("title", "")), None)
+            assert grp is not None, f"{name}: W1 缺「加速区·档位」组框(0927 三档轮)"
             gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
             gx1, gy1 = gx0 + grp["bounding"][2], gy0 + grp["bounding"][3]
             for nid in self.ACCEL[name]:
@@ -1909,16 +2052,25 @@ class TestI2IContract:
         sw = nodes[I2I_LORA_SW_ID]
         assert sw["type"] == "ComfySwitchNode" and sw["outputs"][0]["type"] == "MODEL", \
             "[32] 应为 MODEL 泛型开关"
-        assert sw["widgets_values"][0] is False, "[32] LoRA 开关默认应 false(旁路)"
-        assert links[sw["inputs"][0]["link"]][1] == I2I_CACHE_ID, \
-            "[32].on_false 应 Cache 直连臂"
+        assert sw["widgets_values"][0] is False, \
+            f"[32] LoRA 开关默认应 false(档位由 [{I2I_CMP_VIG}] 布尔源驱动)"
+        assert _trace_main_reroute(nodes, links, sw["inputs"][0]["link"]) == I2I_CACHE_ID, \
+            "[32].on_false 应 Cache 直连臂(可穿顶通道第三拐)"
         assert links[sw["inputs"][1]["link"]][1] == I2I_LORA_ID, \
             "[32].on_true 应 LoraLoaderModelOnly"
-        assert links[sw["inputs"][2]["link"]][1] == I2I_LORA_PB_ID, \
-            "[32].switch 应 PrimitiveBoolean[30]"
-        assert _widget(nodes[I2I_LORA_PB_ID], 0) is False, "[30] LoRA 开关源默认应 false"
+        assert links[sw["inputs"][2]["link"]][1] == I2I_CMP_VIG, \
+            f"[32].switch 应 easy compare[{I2I_CMP_VIG}](档位==1 布尔)"
         assert links[nodes[I2I_SAMPLER_ID]["inputs"][0]["link"]][1] == I2I_LORA_SW_ID, \
             "KSampler.model 上游应 [32] MODEL 开关(加速槽二选一)"
+        # 0927 三档轮:三档分支/默认档=2/T8 结构(共用断言器;positive 同源=[40] 宿主,
+        # latent 同源=[20] 画幅开关)
+        _assert_three_mode_accel(
+            graph, "i2i", lora_id=I2I_LORA_ID, lora_sw_id=I2I_LORA_SW_ID,
+            pb_id=I2I_LORA_PB_ID, cmp_vig=I2I_CMP_VIG, cmp_fun=I2I_CMP_FUN,
+            c1=I2I_C1, c2=I2I_C2, lat_sw=I2I_LAT_SW, t8=I2I_T8,
+            sampler_id=I2I_SAMPLER_ID, save_id=10,
+            steps_ids=(I2I_STEPS_SW_ID, I2I_STEPS_C40_ID, I2I_STEPS_C6_ID),
+            model_base_id=I2I_CACHE_ID, positive_src_id=I2I_HOST_ID, latent_src_id=20)
         # TE-Speed 槽禁入:全图(主图+子图)节点类型白名单
         sg = _qi21_sg(graph)
         for n in [*graph["nodes"], *sg["nodes"]]:
@@ -1934,20 +2086,23 @@ class TestI2IContract:
         _assert_fullpower_steps(
             GRAPHS["i2i"], "i2i", sampler_id=I2I_SAMPLER_ID, sw_id=I2I_STEPS_SW_ID,
             c40_id=I2I_STEPS_C40_ID, c6_id=I2I_STEPS_C6_ID,
-            pb_id=I2I_LORA_PB_ID, lora_id=I2I_LORA_ID, save_id=10,
-            pb_fan_links=[28, 41])
+            cmp_vig_id=I2I_CMP_VIG, lora_id=I2I_LORA_ID, save_id=10,
+            cmp_fan_links=[58, 59])
 
     def test_all_switches_default_off(self):
-        """开关默认态(0926 裁定1 后):[15] PE 开关默认 true=PE 开路(默认 PE 改写;
-        关=直写按图选配)/ 其余全关(懒执行旁路):[40] RGBA 普通 / [30] LoRA 旁路 /
-        [19] 画幅跟随输入图。"""
+        """开关默认态(0927 三档轮后):[15] PE 开关默认 true=PE 开路(默认 PE 改写;
+        关=直写按图选配)/[30] 加速档位默认 2=Fun-Acc(0927 用户裁定「默认使用
+        Fun-Acc(阿里PDD)」)/其余 widget 全 false(档位驱动,懒执行旁路):[40] RGBA
+        普通/[19] 画幅跟随输入图。"""
         graph = GRAPHS["i2i"]
         nodes = _nodes(graph)
         sg_nodes = _qi21_sg_nodes(graph)
         assert nodes[I2I_PE_SW_ID]["widgets_values"][0] is True, \
             "[15] PE 开关默认应 true(默认 PE 改写,0926 裁定1)"
         assert nodes[I2I_LORA_SW_ID]["widgets_values"][0] is False, "[32] LoRA 开关默认应 false"
-        assert nodes[I2I_LORA_PB_ID]["widgets_values"][0] is False, "[30] LoRA 开关源默认应 false"
+        assert nodes[I2I_LORA_PB_ID]["type"] == "PrimitiveInt" and \
+            nodes[I2I_LORA_PB_ID]["widgets_values"][0] == MODE_DEFAULT, \
+            f"[30] 加速档位应 PrimitiveInt 默认={MODE_DEFAULT}(Fun-Acc,0927 用户裁定)"
         assert nodes[I2I_LATENT_PB_ID]["widgets_values"][0] is False, "[19] 画幅开关源默认应 false"
         assert sg_nodes[I2I_SG_RGBA_SW]["widgets_values"][0] is False, "[144] RGBA 开关默认应 false"
         host = nodes[I2I_HOST_ID]
@@ -2058,14 +2213,17 @@ class TestI2IContract:
             f"[150] 自研件标题应零道劫前缀(0925 归位),得 {base_title!r}"
 
     def test_note_documents_mechanism_and_slots(self):
-        """说明 Note 要点锁:生修合一机制纠正/指令×装配关系/LoRA 槽用法(满血接线轮
-        一拨全配)/TE-Speed 不在本件/画幅随输入图/维护警示(生成器幂等)。Note 被重跑回退即红。"""
+        """说明 Note 要点锁:生修合一机制纠正/指令×装配关系/加速区三档(0927 三档轮
+        +依赖警示)/TE-Speed 不在本件/画幅随输入图/维护警示(生成器幂等)。Note 被重跑回退即红。"""
         note = _by_type(GRAPHS["i2i"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("生修合一", "指令=改什么", "指令即主体", "无传统 img2img",
-                      "LoraLoaderModelOnly", I2I_LORA_FILE, STEPS_NOTE_TOKEN, "[164]",
+                      "LoraLoaderModelOnly", I2I_LORA_FILE,
+                      "[171]", "[172]", "[175]", "[176]",
                       "TE-Speed 槽不在本件", "画幅随输入图", "qi21_daojie_i2i_0924.py",
                       "05-道劫规范提示词库.md", "MyQi21DaojieBase", "BatchImagesNode",
-                      "ImageScaleToTotalPixels", RGBA_HEAD_ZH):
+                      "ImageScaleToTotalPixels", RGBA_HEAD_ZH,
+                      # 0927 三档轮:三档文案+依赖警示+T8 事实
+                      *FUNACC_NOTE_TOKENS):
             assert token in note, f"i2i Note 缺要点: {token!r}"
 
 
