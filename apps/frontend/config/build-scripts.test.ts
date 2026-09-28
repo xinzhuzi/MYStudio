@@ -360,6 +360,7 @@ describe("desktop build scripts", () => {
     const source = readBuildFile("build/scripts/run-quality-gate.mjs");
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"test:all": "node ./build/scripts/run-quality-gate.mjs"');
+    expect(packageJson).toContain('"test:py": "node ./build/scripts/run-python-tests.mjs"');
     expect(source).toContain("--plan");
     expect(source).toContain("--skip-release");
     expect(source).toContain("quality-gate-report.json");
@@ -370,11 +371,17 @@ describe("desktop build scripts", () => {
       "focused-tests",
       "typecheck",
       "lint",
+      "python-tests",
       "test",
       "smoke:aitoearn-upgrade",
       "build:mac",
       "smoke:desktop",
     ]);
+    const pythonStage = linuxPlan.find((stage: { name: string }) => stage.name === "python-tests");
+    expect(pythonStage).toMatchObject({
+      executable: "npm",
+      args: ["run", "test:py", "--", "--json"],
+    });
     expect(linuxPlan.slice(-2).every((stage: { enabled: boolean; skipReason: string }) =>
       stage.enabled === false && stage.skipReason.includes("linux"))).toBe(true);
     const focused = mod.discoverFocusedTests();

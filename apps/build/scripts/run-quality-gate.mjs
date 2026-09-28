@@ -59,6 +59,9 @@ export function buildPlan({ skipRelease = false, platform = process.platform } =
     },
     { name: "typecheck", executable: "npm", args: ["run", "typecheck"] },
     { name: "lint", executable: "npm", args: ["run", "lint"] },
+    // python-tests:组合 run-python-tests.mjs 六域入口,不复制实现(09-28 S3/R1.2);
+    // 平台过滤由该脚本内部 --platform 自动探测承担,故本 stage 无需 skip 门控。
+    { name: "python-tests", executable: "npm", args: ["run", "test:py", "--", "--json"] },
     { name: "test", executable: "npm", args: ["run", "test"] },
     {
       name: "smoke:aitoearn-upgrade",
