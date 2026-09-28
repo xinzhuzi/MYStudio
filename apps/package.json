@@ -175,7 +175,7 @@
     "lint:scripts": "python3 ./build/scripts/scripts_hygiene.py",
     "hygiene": "python3 ./build/scripts/hygiene_gate.py",
     "doctor:engine": "python3 ./build/scripts/engine_doctor.py",
-    "test:related": "vitest related --run --config frontend/config/vite.config.ts",
+    "test:related": "node ./build/scripts/related-tests.mjs",
     "smoke:workflow:open": "node ./build/smoke/open-workflow-smoke-app.mjs",
     "smoke:workflow:run": "node ./build/smoke/run-visible-workflow-smoke.mjs",
     "smoke:workflow:run:project": "node ./build/smoke/run-visible-workflow-smoke.mjs --real-project",

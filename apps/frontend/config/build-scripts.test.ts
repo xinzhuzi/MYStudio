@@ -450,16 +450,39 @@ describe("desktop build scripts", () => {
   });
   it("exposes a consultative related-tests alias without hook or gate wiring", () => {
     const packageJson = readBuildFile("package.json");
+    const wrapper = readBuildFile("build/scripts/related-tests.mjs");
     // 咨询性别名(design §13):快反馈腿,不改钩子、不进 quality-gate stages——
-    // 别名字面量钉死,防止入口漂移;用法 npm run test:related -- <改动文件>
+    // 别名经 related-tests.mjs 转发(2026-09-29 AC13 根修:①assetsInclude 兜住
+    // related 模块图分析的裸 .md 请求,PARSE_ERROR 恒崩清零;②裸跑守卫——
+    // vitest 1.6.1 无参 related 静默「No test files found」exit 0 假绿,须非零拦截)。
     expect(packageJson).toContain(
-      '"test:related": "vitest related --run --config frontend/config/vite.config.ts"',
+      '"test:related": "node ./build/scripts/related-tests.mjs"',
     );
+    // 裸跑守卫:无参必须非零退出(exit 2)+明确用法提示,绝不 exit 0 零测试假绿
+    expect(wrapper).toContain("缺少目标源文件");
+    expect(wrapper).toContain("process.exit(2)");
+    // 死路径守卫:source 按三锚点自适应(INIT_CWD/当前 cwd/仓库根),解析不到非零报错
+    expect(wrapper).toContain("INIT_CWD");
+    expect(wrapper).toContain("目标源文件不存在");
+    // 零测试守卫:--passWithNoTests=false 把「零相关测试」从 vitest 1.6.1 默认的
+    // exit 0 翻成 exit 1(脚本层门禁实测死路径曾 No test files found exit 0 假绿)
+    expect(wrapper).toContain('"--passWithNoTests=false"');
+    // 转发目标仍是 vitest related(咨询性快反馈腿本体,cwd 锚定 apps/)
+    expect(wrapper).toContain('"related"');
+    expect(wrapper).toContain('"--config"');
+    expect(wrapper).toContain('"frontend/config/vite.config.ts"');
     // 不得进 stage 表(咨询性=不拦门);pre-commit 也不得引用它
     const gateSource = readBuildFile("build/scripts/run-quality-gate.mjs");
     expect(gateSource).not.toContain("test:related");
     const preCommit = readFileSync(resolve(appsRoot, "../.husky/pre-commit"), "utf8");
     expect(preCommit).not.toContain("test:related");
+  });
+  it("keeps vitest .md asset handling wired so test:related cannot regress to PARSE_ERROR", () => {
+    const viteConfig = readBuildFile("frontend/config/vite.config.ts");
+    // vitest related 模块图分析会把 `.md?raw` 解析成裸 .md(query 剥失),vite-node
+    // 对其无条件 ssrTransform——无 assetsInclude 兜底时 markdown 原文被 rollup 当
+    // JS parse 恒崩(92fe0eb AC13 blockers → 2026-09-29 根修,机理详见 related-tests.mjs 头注)。
+    expect(viteConfig).toContain("assetsInclude: ['**/*.md']");
   });
   it("exposes the deterministic AiToEarn upgrade smoke command", () => {
     const packageJson = readBuildFile("package.json");
