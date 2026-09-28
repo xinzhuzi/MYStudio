@@ -428,6 +428,26 @@ describe("desktop build scripts", () => {
     expect(verifyScript).toContain("writeDurableJsonReport");
     expect(verifyScript).toContain("verify-installed-report.json");
   });
+  it("exposes a read-only engine doctor whose shutdown ritual is print-only", () => {
+    const packageJson = readBuildFile("package.json");
+    const doctorScript = readBuildFile("build/scripts/engine_doctor.py");
+    expect(packageJson).toContain(
+      '"doctor:engine": "python3 ./build/scripts/engine_doctor.py"',
+    );
+    // 四段只读诊断的接线锚点(design §11):盘点/探活/token 一致性/双引擎检测
+    expect(doctorScript).toContain("system_stats");
+    expect(doctorScript).toContain("my_bridge/config");
+    expect(doctorScript).toContain("controlToken");
+    expect(doctorScript).toContain("token 一致性");
+    expect(doctorScript).toContain("双引擎并存");
+    // 只读铁律的结构性保证:能 spawn 的命令白名单仅 pgrep/ps/lsof——
+    // pkill/kill/osascript 永不出现在白名单,「干完即停」清单只打印不执行。
+    expect(doctorScript).toContain('_RUN_ALLOWLIST = frozenset({"pgrep", "ps", "lsof"})');
+    expect(doctorScript).toContain("pkill -f");
+    expect(doctorScript).toContain("只打印,绝不执行");
+    // down=合法态退出 0:引擎不在场不得判红(不进门禁的语义基石)
+    expect(doctorScript).toContain("down=合法态");
+  });
   it("exposes the deterministic AiToEarn upgrade smoke command", () => {
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs"');
