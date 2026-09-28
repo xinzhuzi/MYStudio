@@ -1,8 +1,15 @@
 {
   "exempt": [
     "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/douyin/index.ts",
-    "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/xiaohongshu/index.ts",
-    "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/shipinhao/index.ts"
+    "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/xiaohongsh/index.ts",
+    "apps/frontend/electron/aitoearn/vendor/aitoearn-core/electron/plat/shipinhao/index.ts",
+    "apps/backend/engines/comfyui/engine_manager.py",
+    "apps/backend/engines/comfyui/plugin_manager.py",
+    "apps/frontend/components/panels/studio/WorkbenchTab.tsx",
+    "apps/backend/engines/image_engine/krea2.py",
+    "apps/frontend/lib/assist/image-studio/comfy-sidecar-bridge.ts",
+    "apps/frontend/components/panels/settings/comfy-engine/ComfyEngineSettingsSection.tsx",
+    "apps/backend/image_gen/server.py"
   ],
-  "notes": "aitoearn 三平台 vendor=第三方 AGPL 遗产整体引入,不拆;豁免须给理由。"
+  "notes": "aitoearn 三平台 vendor=第三方 AGPL 遗产整体引入,不拆;豁免须给理由。后 7 件=存量超 800 行 HARD 线登记豁免(2026-09-28 任务 09-28-process-formalization S4-4c 接线基线对齐:file_size_gate 首次挂门禁,存量 7 件按脚本自身口径「须拆分或登记豁免」登记,拆分留待各自域的专门任务;新超线件不再自动豁免):engine_manager.py 2127 行=引擎管理器核心(403 自愈役主战场 f035c19 刚动过,拆分须连带 19 用例 mock 口径)、plugin_manager.py 1587=插件链(13 bug 根修录台账在档)、WorkbenchTab.tsx 1473=工作台主面板、krea2.py 1119=K2 引擎、comfy-sidecar-bridge.ts 1014=桥、ComfyEngineSettingsSection.tsx 902=设置节、backend/image_gen/server.py 898=生图服务。"
 }

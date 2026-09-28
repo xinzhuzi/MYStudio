@@ -361,6 +361,8 @@ describe("desktop build scripts", () => {
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"test:all": "node ./build/scripts/run-quality-gate.mjs"');
     expect(packageJson).toContain('"test:py": "node ./build/scripts/run-python-tests.mjs"');
+    expect(packageJson).toContain('"lint:scripts": "python3 ./build/scripts/scripts_hygiene.py"');
+    expect(packageJson).toContain('"hygiene": "python3 ./build/scripts/hygiene_gate.py"');
     expect(source).toContain("--plan");
     expect(source).toContain("--skip-release");
     expect(source).toContain("quality-gate-report.json");
@@ -372,6 +374,7 @@ describe("desktop build scripts", () => {
       "typecheck",
       "lint",
       "python-tests",
+      "hygiene",
       "test",
       "smoke:aitoearn-upgrade",
       "build:mac",
@@ -381,6 +384,13 @@ describe("desktop build scripts", () => {
     expect(pythonStage).toMatchObject({
       executable: "npm",
       args: ["run", "test:py", "--", "--json"],
+    });
+    // hygiene 段=五件只读 lint 组合(scripts_hygiene/docs_freshness/file_size_gate/
+    // workflow_graph_lint/docs_current_audit);平台表在 hygiene_gate.py 内部承担。
+    const hygieneStage = linuxPlan.find((stage: { name: string }) => stage.name === "hygiene");
+    expect(hygieneStage).toMatchObject({
+      executable: "npm",
+      args: ["run", "hygiene"],
     });
     expect(linuxPlan.slice(-2).every((stage: { enabled: boolean; skipReason: string }) =>
       stage.enabled === false && stage.skipReason.includes("linux"))).toBe(true);

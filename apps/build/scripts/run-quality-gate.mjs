@@ -62,6 +62,11 @@ export function buildPlan({ skipRelease = false, platform = process.platform } =
     // python-tests:组合 run-python-tests.mjs 六域入口,不复制实现(09-28 S3/R1.2);
     // 平台过滤由该脚本内部 --platform 自动探测承担,故本 stage 无需 skip 门控。
     { name: "python-tests", executable: "npm", args: ["run", "test:py", "--", "--json"] },
+    // hygiene:五件只读 lint 组合段(scripts_hygiene/docs_freshness/file_size_gate/
+    // workflow_graph_lint/docs_current_audit,09-28 S4-4c/R5.1/R7.2/R7.3)。
+    // 平台表在 hygiene_gate.py 内部(docs_current_audit 仅 darwin,linux 段显式 SKIP),
+    // 双平台子件均安全,故 stage 层不设 skip 门控。
+    { name: "hygiene", executable: "npm", args: ["run", "hygiene"] },
     { name: "test", executable: "npm", args: ["run", "test"] },
     {
       name: "smoke:aitoearn-upgrade",
