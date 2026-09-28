@@ -167,6 +167,7 @@
 | [本地生图架构路线计划 08-31](./research/LOCAL_IMAGE_GEN_ARCHITECTURE_PLAN_2026-08-31.md) | 本地生图架构深读与路线选择（自研 sidecar vs ComfyUI） |
 | [H3 漫剧产线生态调查 09-14](./research/H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md) | AI 视频方式全景、H3 技能/提示词生态、GitHub 高星漫剧管线、B 站四学派产线落实分析与漫影落点（含 License 红线表） |
 | [H3 生态吸收分析 09-14](./research/H3_ABSORPTION_ANALYSIS_2026-09-14.md) | 生态调查对照漫影代码实况后的吸收裁定建议：P0 四件（提示词接线/素材调度/组装器/桥视频选型）对齐分镜×H3 三件待开工，P1/P2 分级与不吸收清单 |
+| [产线五法吸收分析 09-28](./research/PIPELINE_METHODS_ABSORPTION_ANALYSIS_2026-09-28.md) | 外部影视产线课程包方法对照漫影现状整理的五项提案（四级时长链/台词容量预算/静图可动性预检/成稿剧本接管/跨层版本纪律）——全部提案待拍板，未动生产代码 |
 
 ## 本地引擎专题（local/）
 

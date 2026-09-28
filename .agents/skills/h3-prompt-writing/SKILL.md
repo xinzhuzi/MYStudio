@@ -1,6 +1,6 @@
 ---
 name: h3-prompt-writing
-description: Write MiniMax H3 video generation prompts for T2VA, I2VA, FL2VA, L2VA, and Ref2VA. Use when rewriting multimodal requests into H3 prompt structures, composing integrated_multimodal_description, overall_soundscape, and non_diegetic_music, aligning keyframes, or defining reference labels for images, videos, and audio.
+description: Write MiniMax H3 video generation prompts for T2VA, I2VA, FL2VA, L2VA, and Ref2VA. Use when rewriting multimodal requests into H3 prompt structures, composing integrated_multimodal_description, overall_soundscape, and non_diegetic_music, aligning keyframes, or defining reference labels for images, videos, and audio. Also use when a hand-fed Chinese direct draft is needed for manual, non-API generation.
 compatibility: Portable to any agent that can read local files — no external API calls, MiniMax Hub tools, or proprietary runtime required. The agents/openai.yaml file only adds optional ChatGPT/Codex UI metadata; it does not restrict the skill to OpenAI agents.
 ---
 
@@ -12,6 +12,7 @@ compatibility: Portable to any agent that can read local files — no external A
 2. For base text/keyframe modes, read `references/base-en.txt` and follow its final prompt structure.
 3. For full-reference mode, read `references/ref-en.txt` and follow its six-section rewrite format.
 4. Preserve the exact field names, section order, labels, and timing notation from the selected guide.
+5. For a hand-fed Chinese direct draft (manual web/client generation or a non-API quick draft), read `references/direct-zh.md` and follow its five-element order and anaphora blacklist. The official English structure from steps 2-4 stays the default and remains the pipeline source of truth.
 
 ## Base Modes
 
@@ -33,8 +34,9 @@ Read `references/ref-en.txt` for label rules, retention analysis, and complete e
 - Write rewrite sections in English; preserve dialogue, lyrics, and visible scene text in their original language.
 - Describe each shot by composition, subjects, environment, actions, camera, sound, and the exact point where referenced content appears.
 - Avoid plot summaries, unresolved reference labels, and timing that does not match the requested duration.
+- Every final prompt must stand alone without its surrounding context: never rely on words like "the previous shot", "continues", "same as above", "still", or "as before"; expand every physical state into a complete, self-contained description.
 ## Tips for Better Results
-- Always match the total duration of the description to the requested video length (4–15 seconds).
+- Always match the total duration of the description to the requested video length (5–15 seconds; matches the trained range, see `docs/comfyui-kb/参数速查.md` H3 section and `references/direct-zh.md`).
 - Keep reference labels consistent (e.g. `<Picture 1>`, `<Video 1>`, `<Audio 1>`) across every section.
 - Prefer concrete visual and audio details over abstract words like "cinematic" or "beautiful".
 - When using keyframes (I2VA / FL2VA / L2VA), clearly state how the first and/or last frame connects to the timeline.
