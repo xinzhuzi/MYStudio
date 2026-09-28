@@ -4,6 +4,12 @@
   1. 无关暂存保护:跑前已有清单外 staged 件 → RED 且该件原样保留(未被 unstage)。
   2. 一致放行:staged 与 pathspec 完全一致 → green,提交成立且恰好含清单件。
 外加防御例:pathspec 死路径 → RED(排除 WIP 后 HEAD 死路径事故的机器化)。
+删除回归组(2026-09-29 坐实盲区:首版 P_SET 只看 git ls-files,清单内删除被误判
+「清单外之件」RED——一切含删除的提交被拦):
+  4. git rm 后 gate -- 目录 → green,删除入库。
+  5. 未暂存 rm + gate -- 文件 → green(git add 暂存删除)。
+  6. 混合(改件+git rm 删除件均列 pathspec)→ green,两件同笔入库。
+  7. 子目录 cwd 调用(锁口径统一回归:ls-files 相对 cwd vs diff 全路径错位)。
 
 全部在 mktemp 临时 git repo 内进行,绝不触碰本仓工作树与暂存区。
 """
@@ -101,6 +107,74 @@ class CommitGateTest(unittest.TestCase):
                              "RED 时绝不 commit")
             self.assertEqual(git(repo, "diff", "--cached", "--name-only").stdout.strip(), "",
                              "暂存区不得留痕")
+
+
+    def _seed_repo_with_sub(self, base: Path) -> Path:
+        """建含 sub/a.txt+sub/b.txt+root.txt 各一提交的 repo(删除组共用)。"""
+        repo = make_repo(base)
+        (repo / "sub").mkdir()
+        for rel in ("sub/a.txt", "sub/b.txt", "root.txt"):
+            target = repo / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f"{rel}\n", encoding="utf-8")
+            self.assertEqual(git(repo, "add", "--", rel).returncode, 0)
+        self.assertEqual(git(repo, "commit", "-qm", "seed").returncode, 0)
+        return repo
+
+    def test_git_rm_staged_delete_commits_green(self):
+        """删除例1:git rm 已暂存删除 + gate -- 目录 → green,删除入库(首版误判 RED)。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._seed_repo_with_sub(Path(tmp))
+            self.assertEqual(git(repo, "rm", "-q", "--", "sub/a.txt").returncode, 0)
+
+            proc = run_gate(repo, "-m", "删 sub/a.txt", "--", "sub")
+            self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+            committed = git(repo, "show", "--name-only", "--format=", "HEAD").stdout.split()
+            self.assertEqual(committed, ["sub/a.txt"], "提交必须恰好含删除件")
+            self.assertEqual(git(repo, "status", "--porcelain").stdout.strip(), "",
+                             "提交后工作树应干净")
+
+    def test_unstaged_delete_commits_green(self):
+        """删除例2:rm 未暂存 + gate -- 文件 → green(git add 暂存删除;首版误判 RED)。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._seed_repo_with_sub(Path(tmp))
+            (repo / "root.txt").unlink()
+
+            proc = run_gate(repo, "-m", "删 root.txt", "--", "root.txt")
+            self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+            committed = git(repo, "show", "--name-only", "--format=", "HEAD").stdout.split()
+            self.assertEqual(committed, ["root.txt"], "提交必须恰好含删除件")
+            self.assertEqual(git(repo, "status", "--porcelain").stdout.strip(), "",
+                             "提交后工作树应干净")
+
+    def test_mixed_modify_and_delete_commits_green(self):
+        """删除例3:改 sub/b.txt + git rm sub/a.txt 两件均列 pathspec → green 同笔入库。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._seed_repo_with_sub(Path(tmp))
+            self.assertEqual(git(repo, "rm", "-q", "--", "sub/a.txt").returncode, 0)
+            (repo / "sub" / "b.txt").write_text("modified\n", encoding="utf-8")
+
+            proc = run_gate(repo, "-m", "改 b 删 a", "--", "sub/a.txt", "sub/b.txt")
+            self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+            committed = git(repo, "show", "--name-only", "--format=", "HEAD").stdout.split()
+            self.assertEqual(sorted(committed), ["sub/a.txt", "sub/b.txt"],
+                             "混合提交必须恰好含删除件+修改件")
+            self.assertEqual(git(repo, "status", "--porcelain").stdout.strip(), "",
+                             "提交后工作树应干净")
+
+    def test_gate_from_subdirectory_cwd_green(self):
+        """删除例4(口径回归):cwd=子目录调 gate → green——ls-files 默认相对 cwd
+        输出与 diff --name-only 全路径输出错位时 comm 恒不匹配(09-29 实遇)。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = self._seed_repo_with_sub(Path(tmp))
+            (repo / "sub" / "b.txt").write_text("edited\n", encoding="utf-8")
+
+            proc = subprocess.run(
+                ["bash", str(GATE), "-m", "子目录改 b", "--", "b.txt"],
+                cwd=str(repo / "sub"), capture_output=True, text=True, timeout=180)
+            self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+            committed = git(repo, "show", "--name-only", "--format=", "HEAD").stdout.split()
+            self.assertEqual(committed, ["sub/b.txt"], "子目录 pathspec 提交必须恰含该件")
 
 
 if __name__ == "__main__":

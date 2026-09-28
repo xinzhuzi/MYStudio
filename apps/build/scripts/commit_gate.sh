@@ -6,9 +6,11 @@
 # 流程:
 #   ① 跑前 staged 集存证(git diff --cached --name-only;unborn 分支同样可用)
 #   ② git add -- <pathspec>(只加显式清单)
-#   ③ 双向对账:staged 集 ⊆ pathspec 解析集(git ls-files 解析;防吸走——staged
-#      出现清单外之件=既有无关暂存或并行会话窗口内塞入)且 pathspec 件全 staged
-#      (防漏加——清单件有改动却未入暂存;与 HEAD 无差异的清单件记 no-op 不拦门)
+#   ③ 双向对账(口径=仓库根相对路径):staged 集 ⊆ pathspec 解析集(解析=git
+#      ls-files --full-name ∪ git diff --cached --name-only——后者补已暂存的删除/
+#      新增件,ls-files 只看索引不含它们;防吸走——staged 出现清单外之件=既有无关
+#      暂存或并行会话窗口内塞入)且 pathspec 件全 staged(防漏加——清单件有改动却
+#      未入暂存;与 HEAD 无差异的清单件记 no-op 不拦门;清单内的已暂存删除=合法)
 #   ④ 对账失败=RED 输出差集,不 commit;既有暂存一律原样保留(绝不 unstage/reset)
 #   ⑤ 通过=git commit -m(husky pre-commit 照常);提交后再核一笔:实际入库文件集
 #      ==对账时 staged 集(commit 窗口内被并行塞入=RED 如实报,处置由人裁定)
@@ -61,13 +63,39 @@ else
 fi
 
 # ── ② 显式 add ──────────────────────────────────────────────────────────────
-if ! git add -- "${PATHSPECS[@]}"; then
-  die "git add 失败(pathspec 不匹配/被 .gitignore 挡等);既有暂存未动,人工核查后重试"
+# 逐 pathspec add:整体 add 在「混合 pathspec(有效件+仅含已暂存删除的件)」时会因
+# 单个无匹配 fatal(如 git rm 后工作树+索引均无该件),逐个处理让有效件照常入暂存;
+# 仍失败的 pathspec 若其改动已全在暂存(diff --cached 有匹配)则容许,否则维持 RED。
+ADD_SOFT_FAIL=""
+for p in "${PATHSPECS[@]}"; do
+  if ! git add -- "$p" 2>/dev/null; then
+    ADD_SOFT_FAIL="${ADD_SOFT_FAIL}${p}"$'\n'
+  fi
+done
+if [ -n "$ADD_SOFT_FAIL" ]; then
+  ROOT_DIR="$(git rev-parse --show-toplevel)"
+  staged_any=""
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if [ -n "$(git diff --cached --name-only -- "$p")" ]; then staged_any=1; break; fi
+  done <<<"$ADD_SOFT_FAIL"
+  if [ -z "$staged_any" ]; then
+    printf '%s' "$ADD_SOFT_FAIL" | sed 's/^/       /' >&2
+    die "git add 失败(pathspec 不匹配/被 .gitignore 挡等);既有暂存未动,人工核查后重试"
+  fi
+  info "git add 部分无新匹配但该 pathspec 改动已在暂存(如 git rm 已暂存的删除),继续对账"
 fi
 
 # ── ③ 双向对账 ──────────────────────────────────────────────────────────────
+# 口径统一=仓库根相对路径:diff --cached --name-only 天然全路径输出;ls-files 需
+# --full-name(默认输出相对 cwd,与 diff 口径错位——cwd≠仓库根时 comm 恒不匹配)。
+# P_SET 并入 diff --cached -- <pathspec> 解析集:git ls-files 只看索引,已暂存的
+# 删除件/新增件不在索引或已移出索引,不并入则清单内删除恒被判「清单外之件」RED
+# (一切含删除的提交被误拦,2026-09-29 坐实)。
 S1="$(git diff --cached --name-only)"
-P_SET="$(git ls-files -- "${PATHSPECS[@]}")"
+P_TRACKED="$(git ls-files --full-name -- "${PATHSPECS[@]}")"
+P_STAGED="$(git diff --cached --name-only -- "${PATHSPECS[@]}")"
+P_SET="$({ sorted_lines "$P_TRACKED"; sorted_lines "$P_STAGED"; } | LC_ALL=C sort -u)"
 
 UNEXPECTED="$(comm -23 <(sorted_lines "$S1") <(sorted_lines "$P_SET"))"
 MISSING="$(comm -13 <(sorted_lines "$S1") <(sorted_lines "$P_SET"))"
@@ -75,9 +103,11 @@ MISSING="$(comm -13 <(sorted_lines "$S1") <(sorted_lines "$P_SET"))"
 LEAK=""
 NOOP=""
 if [ -n "$MISSING" ]; then
+  ROOT_DIR="${ROOT_DIR:-$(git rev-parse --show-toplevel)}"
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    if [ -n "$(git status --porcelain -- "$f")" ]; then
+    # f=仓库根相对口径,status 须 -C 根解析(f 相对 cwd 解析会错位)
+    if [ -n "$(git -C "$ROOT_DIR" status --porcelain -- "$f")" ]; then
       LEAK="${LEAK}${f}"$'\n'
     else
       NOOP="${NOOP}${f}"$'\n'
