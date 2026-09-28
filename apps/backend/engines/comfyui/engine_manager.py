@@ -734,6 +734,81 @@ def _stop_engine_proc(proc) -> None:
         pass  # 连 SIGKILL 都收不回(不可中断睡眠):stopped 如实报 False
 
 
+# ── 0928 令牌链根修(环b 自愈配套):停掉不归本管理器管的孤儿引擎 ──────
+# 收编核验发现令牌失配的孤儿(keeper/终端无令牌拉起,env 存活期不可变),
+# 须「先停旧再启新」(单引擎纪律)。孤儿没有 Popen 句柄,按端口找监听者 pid。
+
+def _port_listener_pids(port: int) -> list[int]:
+    """端口监听者 pid 清表(best-effort):POSIX 走 lsof,Windows 走 netstat 解析。
+
+    异常/无工具=空表——调用方以「找不到监听者」如实放弃自愈,绝不盲启第二台
+    引擎。只认 LISTEN 态,排除 TIME_WAIT 等残留套接字。
+    """
+    try:
+        if os.name == "nt":
+            out = subprocess.run(["netstat", "-ano", "-p", "TCP"],
+                                 capture_output=True, text=True, timeout=5.0).stdout or ""
+            pids: set[int] = set()
+            for line in out.splitlines():
+                parts = line.split()
+                if (len(parts) >= 5 and parts[0] == "TCP" and parts[3] == "LISTENING"
+                        and parts[1].rsplit(":", 1)[-1] == str(port)):
+                    try:
+                        pids.add(int(parts[4]))
+                    except ValueError:
+                        continue
+            return sorted(pid for pid in pids if pid > 0)
+        out = subprocess.run(["lsof", "-nP", f"-tiTCP:{port}", "-sTCP:LISTEN"],
+                             capture_output=True, text=True, timeout=5.0).stdout or ""
+        return sorted({int(token) for token in out.split() if token.isdigit()})
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return []
+
+
+def _signal_pid_group(pid: int, sig: int) -> None:
+    """对裸 pid 发信号:组长(引擎恒独立会话 spawn=组长)整组打,回退单进程。
+
+    与 _stop_engine_proc 同款防波及纪律:pgid≠pid 时绝不 killpg(旧版存量
+    进程理论上可与无关进程同组)。
+    """
+    try:
+        pgid = os.getpgid(pid)
+    except OSError:
+        pgid = None
+    if pgid == pid:
+        try:
+            os.killpg(pgid, sig)
+            return
+        except OSError:
+            pass
+    try:
+        os.kill(pid, sig)
+    except OSError:
+        pass
+
+
+def _terminate_pids(pids: list[int]) -> bool:
+    """SIGTERM→等满→SIGKILL 升级(镜像 _stop_engine_proc 纪律);全死=True。"""
+    def _alive() -> list[int]:
+        return [pid for pid in pids if _pid_alive(pid)]
+
+    for pid in _alive():
+        _signal_pid_group(pid, signal.SIGTERM)
+    deadline = time.monotonic() + STOP_TERM_WAIT_S
+    while time.monotonic() < deadline:
+        if not _alive():
+            return True
+        time.sleep(0.5)
+    for pid in _alive():
+        _signal_pid_group(pid, signal.SIGKILL)
+    deadline = time.monotonic() + STOP_KILL_WAIT_S
+    while time.monotonic() < deadline:
+        if not _alive():
+            return True
+        time.sleep(0.5)
+    return not _alive()
+
+
 # ── 引擎管理器(单例) ─────────────────────────────────────────────
 class EngineManager:
     def __init__(self) -> None:
@@ -975,6 +1050,42 @@ class EngineManager:
             return False
         return isinstance(stats, dict) and ("system" in stats or "devices" in stats)
 
+    def _engine_bridge_token(self, port: int) -> str | None:
+        """引擎 /my_bridge/config 下发的 bridgeToken;None=端点不在(外部 ComfyUI)或瞬断。"""
+        try:
+            payload = _get_json(f"{self.engine_url(port)}/my_bridge/config", timeout=3.0)
+        except (OSError, error.URLError, json.JSONDecodeError, EngineOpError):
+            return None
+        token = payload.get("bridgeToken") if isinstance(payload, dict) else None
+        return token if isinstance(token, str) else None
+
+    def _adopt_token_mismatch(self, port: int) -> bool:
+        """收编令牌核验(0928 环b):引擎令牌≠本管理器此刻可注入的令牌才报真。
+
+        两类如实放行(保持旧收编语义,不自愈):①本管理器自身解析不出令牌
+        (env+config 双缺——重启也注入不了令牌,徒劳空转);②引擎无
+        /my_bridge/config(外部 ComfyUI 实例,不属本轮病灶,不越权杀外部进程)。
+        """
+        expected = bridge_contract.resolve_bridge_token()
+        if not expected:
+            return False
+        engine_token = self._engine_bridge_token(port)
+        if engine_token is None:
+            return False
+        return engine_token != expected
+
+    def _retire_orphan_engine(self, port: int) -> bool:
+        """令牌失配孤儿的停旧回收(自愈第一步;单引擎纪律=先停旧再启新)。
+
+        只杀端口监听者(引擎恒独立会话=组长,整组回收其子孙);找不到监听者
+        或终止不掉都返回 False——由调用方大白话报错收场,绝不带着旧引擎去
+        启第二台。
+        """
+        pids = [pid for pid in _port_listener_pids(port) if pid != os.getpid()]
+        if not pids:
+            return False
+        return _terminate_pids(pids)
+
     def start_sync(self, progress=None, from_guard: bool = False, *, expected_generation: int | None = None,
                    allow_adoption: bool = True) -> dict:
         """同步启动(启动 job 与插件链内部复用)。已健康=收编孤儿进程直接就绪。
@@ -987,6 +1098,8 @@ class EngineManager:
         09-14 P1:from_guard=崩溃守卫拉起;spawn 提交进 _lock 并核对守卫仍在
         岗,杜绝「守卫过检后用户 stop、守卫照拉」的停止后复活;健康等待期以
         停止代数核对插队的 stop 请求(见 _await_startup_health)。
+        0928 环b:收编前核验引擎桥令牌(_adopt_token_mismatch)——失配(keeper/
+        终端无令牌拉起)自愈:停旧再走正常 spawn 注入正确令牌,不再带病收编。
         """
         with self._lock:
             start_gen = self._stop_generation if expected_generation is None else expected_generation
@@ -1030,22 +1143,36 @@ class EngineManager:
             if port and self._orphan_is_comfyui(port):
                 if not allow_adoption:
                     raise EngineOpError("端口仍由外部 ComfyUI 占用,无法确认其已重启;请先停止外部实例")
-                with self._teardown_lock, self._lock:
-                    self._check_start_generation(start_gen, from_guard)
-                    self._running_port = port
-                    # Adoption restores managed state after an explicit restart.
-                    self._stopping = False
-                # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
-                # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
-                self._last_node_count = self.node_count()
-                with self._lock:
-                    self._check_start_generation(start_gen, from_guard)
-                    self._enable_guard()
-                if progress:
-                    progress(100, "接管了正在运行的 ComfyUI 实例")
-                with self._lock:
-                    self._check_start_generation(start_gen, from_guard)
-                    return {"running": True, "port": port, "adopted": True}
+                if self._adopt_token_mismatch(port):
+                    # 0928 环b 根修(侧栏 403 复发死锁):keeper/终端无令牌环境拉起的
+                    # 引擎 env 存活期不可变,直接收编=侧栏打桥恒 403 直到手动重启。
+                    # 自愈=停旧(杀不干净如实报错,绝不双引擎)后落入下方正常 spawn,
+                    # launch_env 此刻决议的令牌(环a)随新进程注入。
+                    print(f"[image-sidecar] comfy-engine: 收编核验:端口 {port} 引擎的桥令牌与侧车"
+                          "不一致(无令牌环境拉起,env 存活期不可变)——自愈:停止旧实例并以正确令牌重启", flush=True)
+                    if progress:
+                        progress(10, "接管引擎令牌失效,自动停止旧实例并以正确令牌重启(自愈)…")
+                    if not self._retire_orphan_engine(port):
+                        raise EngineOpError(
+                            f"端口 {port} 的引擎实例令牌失效且无法停止(找不到或终止不了监听进程);"
+                            "请手动关闭该 ComfyUI 进程后重试,以免出现双引擎")
+                else:
+                    with self._teardown_lock, self._lock:
+                        self._check_start_generation(start_gen, from_guard)
+                        self._running_port = port
+                        # Adoption restores managed state after an explicit restart.
+                        self._stopping = False
+                    # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
+                    # _last_node_count 缓存无关,不刷新=状态行展示旧节点数假象。
+                    self._last_node_count = self.node_count()
+                    with self._lock:
+                        self._check_start_generation(start_gen, from_guard)
+                        self._enable_guard()
+                    if progress:
+                        progress(100, "接管了正在运行的 ComfyUI 实例")
+                    with self._lock:
+                        self._check_start_generation(start_gen, from_guard)
+                        return {"running": True, "port": port, "adopted": True}
             # 09-10 Desktop 式:端口决议(用户串 --port 优先,被占按策略;否则账本口顺延)
             port = resolve_launch_port(
                 cm.engine_launch_args(), port, cm.engine_port_conflict_policy())
@@ -1067,11 +1194,14 @@ class EngineManager:
             cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
             # 显式 cwd=源码目录(相对资源解析),可执行文件与脚本全绝对路径(防漂移坑)
             # bridge 回写端点注入(swap 阶段1:my_generated → sidecar 17595)
-            # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链
+            # 09-10 Desktop 式环境变量表(spawn 注入);桥契约变量后置=用户表不可遮蔽回写链。
+            # 0928 环a 根修:令牌改 spawn 时刻决议(env→sidecar config.json controlToken),
+            # 不再吃 import 时求值的 BRIDGE_TOKEN——无令牌 env 的宿主(keeper/终端)
+            # 由此不再注入空令牌(侧栏打桥恒 403 的病根)。
             launch_env = {**os.environ,
                           **cm.engine_env_vars(),
                           "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
-                          "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.BRIDGE_TOKEN}
+                          "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.resolve_bridge_token()}
             # spawn 提交进 _lock(09-14 P1):守卫拉起须核对守卫仍在岗(过检后
             # 用户 stop 的窗口),stop() 也持 _lock 摘引用——两序必居其一:先
             # 提交则 stop 摸到新引用照杀,后提交则此处直接拒拉。
