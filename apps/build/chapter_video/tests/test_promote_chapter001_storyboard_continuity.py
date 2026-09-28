@@ -175,7 +175,9 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
             self.assertEqual(plan["shots"], 1)
             self.assertEqual(plan["updates"][0]["index"], 1)
             self.assertEqual(plan["updates"][0]["storyboardId"], "sb-chapter-001-001")
-            self.assertEqual(plan["backupRoot"], str(project / "visual-continuity-backups"))
+            self.assertEqual(
+                plan["backupRoot"], str(project / "backups" / "visual-continuity")
+            )
             self.assertEqual(plan["backupStoreFilename"], "studio-workflow-store.json")
             self.assertEqual(store_path.read_bytes(), before)
 
@@ -300,7 +302,7 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
             plan = promotion.build_promotion_plan(report_path, store_path, project)
             first = promotion.apply_promotion(plan, True)
             first_store = store_path.read_bytes()
-            first_backups = sorted((project / "visual-continuity-backups").glob("*"))
+            first_backups = sorted((project / "backups" / "visual-continuity").glob("*"))
 
             same_plan = promotion.apply_promotion(plan, True)
             rebuilt_plan = promotion.build_promotion_plan(report_path, store_path, project)
@@ -311,7 +313,7 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
             self.assertTrue(rebuilt["alreadyApplied"])
             self.assertEqual(store_path.read_bytes(), first_store)
             self.assertEqual(
-                sorted((project / "visual-continuity-backups").glob("*")),
+                sorted((project / "backups" / "visual-continuity").glob("*")),
                 first_backups,
             )
             self.assertEqual(first["resultStoreSha256"], same_plan["resultStoreSha256"])
@@ -340,7 +342,7 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
             self.assertEqual(list(project.glob(
                 "workflow-images/storyboards/chapter-001/approved-revisions/*.png"
             )), [])
-            backups_root = project / "visual-continuity-backups"
+            backups_root = project / "backups" / "visual-continuity"
             self.assertFalse(backups_root.exists())
 
     def test_store_drift_before_commit_leaves_no_partial_artifacts(self):
@@ -363,7 +365,7 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
             self.assertEqual(list(project.glob(
                 "workflow-images/storyboards/chapter-001/approved-revisions/*.png"
             )), [])
-            self.assertFalse((project / "visual-continuity-backups").exists())
+            self.assertFalse((project / "backups" / "visual-continuity").exists())
 
 
 if __name__ == "__main__":

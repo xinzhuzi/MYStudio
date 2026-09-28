@@ -170,6 +170,7 @@
     "smoke:desktop": "node ./build/smoke/smoke-desktop.mjs",
     "smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs",
     "test:all": "node ./build/scripts/run-quality-gate.mjs",
+    "test:py": "node ./build/scripts/run-python-tests.mjs",
     "smoke:workflow:open": "node ./build/smoke/open-workflow-smoke-app.mjs",
     "smoke:workflow:run": "node ./build/smoke/run-visible-workflow-smoke.mjs",
     "smoke:workflow:run:project": "node ./build/smoke/run-visible-workflow-smoke.mjs --real-project",
