@@ -190,7 +190,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_edit_ref:双参
       "type": "STRING",
     },
     {
-      "default": "qwen3-vl-4b-heretic.safetensors",
+      "default": "Krea2-Engineer-V1-bf16.safetensors",
       "id": "40.clip_name",
       "inputKey": "clip_name",
       "label": "文本编码器",
@@ -214,7 +214,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_edit_ref:双参
       "type": "COMBO",
     },
     {
-      "default": "qwen_image_vae.safetensors",
+      "default": "qwen_image_HDR_vae_fp32_comfy.safetensors",
       "id": "41.vae_name",
       "inputKey": "vae_name",
       "label": "VAE文件",
@@ -453,7 +453,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_nsfw_pro:classT
       "type": "COMBO",
     },
     {
-      "default": "qwen3-vl-4b-heretic.safetensors",
+      "default": "Krea2-Engineer-V1-bf16.safetensors",
       "id": "60.clip_name",
       "inputKey": "clip_name",
       "label": "文本编码器",
@@ -477,7 +477,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_nsfw_pro:classT
       "type": "COMBO",
     },
     {
-      "default": "qwen_image_vae.safetensors",
+      "default": "qwen_image_HDR_vae_fp32_comfy.safetensors",
       "id": "61.vae_name",
       "inputKey": "vae_name",
       "label": "VAE文件",
@@ -587,7 +587,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_t2i:文生图�
       "type": "COMBO",
     },
     {
-      "default": "qwen3-vl-4b-heretic.safetensors",
+      "default": "Krea2-Engineer-V1-bf16.safetensors",
       "id": "5.clip_name",
       "inputKey": "clip_name",
       "label": "文本编码器",
@@ -683,7 +683,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_t2i:文生图�
       "type": "INT",
     },
     {
-      "default": "qwen_image_vae.safetensors",
+      "default": "qwen_image_HDR_vae_fp32_comfy.safetensors",
       "id": "10.vae_name",
       "inputKey": "vae_name",
       "label": "VAE文件",
@@ -885,7 +885,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_uncloth_instruc
       "type": "STRING",
     },
     {
-      "default": "qwen3-vl-4b-heretic.safetensors",
+      "default": "Krea2-Engineer-V1-bf16.safetensors",
       "id": "40.clip_name",
       "inputKey": "clip_name",
       "label": "文本编码器",
@@ -909,7 +909,7 @@ exports[`analyzeComfyWorkflow 夹具快照(09-08 二期) > krea2_uncloth_instruc
       "type": "COMBO",
     },
     {
-      "default": "qwen_image_vae.safetensors",
+      "default": "qwen_image_HDR_vae_fp32_comfy.safetensors",
       "id": "41.vae_name",
       "inputKey": "vae_name",
       "label": "VAE文件",

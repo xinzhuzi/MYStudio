@@ -11,7 +11,11 @@ function loadExtension() {
   const api = { queuePrompt: queue };
   const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({ originProjectId: "project-a", updatedAt: Date.now(), staleAfterMs: 900000 }) }));
   const confirm = vi.fn(() => true);
-  const context = vm.createContext({ app, api, window: { confirm, alert: vi.fn() }, fetch: fetchMock, Date, URLSearchParams });
+  // 0924 令牌随机化:theme.js 增 import { bridgeToken }(装配剥离 import 行后须注入桩,否则 fetchShots 抛 TypeError)
+  const context = vm.createContext({
+    app, api, window: { confirm, alert: vi.fn() }, fetch: fetchMock, Date, URLSearchParams,
+    bridgeToken: async () => "bridge-token-test",
+  });
   const source = readFileSync(resolve("backend/engines/comfyui/my_nodes/web/theme.js"), "utf8")
     .replace(/^import .*;$/gm, "")
     .replace(/export\s*\{[^}]+\};/g, "")

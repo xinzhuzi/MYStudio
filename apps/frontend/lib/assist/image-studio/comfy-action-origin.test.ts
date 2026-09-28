@@ -4,13 +4,24 @@ import { resolve } from "node:path";
 import vm from "node:vm";
 import { describe, expect, it, vi } from "vitest";
 
-function loadActionBridge() {
-  const fetchMock = vi.fn(async (...args: unknown[]) => { void args; return { ok: true, status: 200 }; });
+function loadActionBridge(mainResponse?: () => unknown) {
+  // 0924 令牌随机化后 postAction 走双读:无 window 注入令牌时先 GET /my_bridge/config
+  // 取令牌再发主请求——mock 按 URL 分流,主请求响应可注入(失败态用例)
+  const fetchMock = vi.fn(async (input: unknown) => {
+    if (String(input).includes("/my_bridge/config")) {
+      return { ok: true, json: async () => ({ bridgeToken: "bridge-token-test" }) };
+    }
+    return mainResponse ? mainResponse() : { ok: true, status: 200 };
+  });
   const alert = vi.fn();
   const context = vm.createContext({ window: { alert }, fetch: fetchMock });
   const source = readFileSync(resolve("backend/engines/comfyui/my_nodes/web/bridge-action.js"), "utf8").replace(/\bexport /g, "");
   vm.runInContext(`${source}\nglobalThis.submit = postAction;`, context);
   return { fetchMock, alert, submit: context.submit as (kind: string, note: string, button: unknown, origin?: string, episode?: string) => void };
+}
+
+function actionCalls(fetchMock: { mock: { calls: unknown[][] } }) {
+  return fetchMock.mock.calls.filter(([url]) => String(url).includes("/comfy/bridge/actions"));
 }
 
 function loadNodeExtension(file: string) {
@@ -29,12 +40,14 @@ function loadNodeExtension(file: string) {
 }
 
 describe("Comfy action origin binding", () => {
-  it("submits the explicitly bound node project with the action", () => {
+  it("submits the explicitly bound node project with the action", async () => {
     const { fetchMock, submit } = loadActionBridge();
     submit("generate-images", "source note", null, "project-a", "chapter-a");
-    expect(fetchMock).toHaveBeenCalledOnce();
-    const request = fetchMock.mock.calls[0] as [string, { body: string }];
+    // 双读链路异步:主请求在 /my_bridge/config 之后发出
+    await vi.waitFor(() => expect(actionCalls(fetchMock)).toHaveLength(1));
+    const request = actionCalls(fetchMock)[0]! as [string, { body: string; headers: Record<string, string> }];
     expect(JSON.parse(request[1].body)).toEqual({ kind: "generate-images", note: "source note", originProjectId: "project-a", originEpisodeId: "chapter-a" });
+    expect(request[1].headers["X-Manying-Image-Token"]).toBe("bridge-token-test");
   });
 
   it("never fetches active project or submits an unbound legacy node", () => {
@@ -45,12 +58,13 @@ describe("Comfy action origin binding", () => {
   });
 
   it.each(["rejected", "disconnected"])("shows submission failure when the action is %s without auto-retry", async (failure) => {
-    const { fetchMock, submit, alert } = loadActionBridge();
-    if (failure === "rejected") fetchMock.mockResolvedValueOnce({ ok: false, status: 400 });
-    else fetchMock.mockRejectedValueOnce(new Error("offline"));
+    // 失败态注入在主请求响应上(config 取令牌请求恒成功)
+    const { fetchMock, submit, alert } = loadActionBridge(
+      failure === "rejected" ? () => ({ ok: false, status: 400 }) : () => Promise.reject(new Error("offline")),
+    );
     submit("generate-images", "", null, "project-a", "chapter-a");
     await vi.waitFor(() => expect(alert).toHaveBeenCalledWith(expect.stringContaining("制作动作提交失败")));
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(actionCalls(fetchMock)).toHaveLength(1);
   });
 
   it("stage DOM buttons use their node binding", () => {

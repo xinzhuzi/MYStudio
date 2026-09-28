@@ -691,6 +691,10 @@ describe("useStoryboardBatchGeneration(批量四协议)", () => {
 
   it("间隔节流:镜间等待可配;停止立即中断且零残留定时器(必测)", async () => {
     vi.useFakeTimers();
+    // jsdom@29 的 Storage setItem 内部用 setTimeout(0) 排队存储事件广播(zustand persist
+    // 每次落盘各挂一个)——环境实现噪音而非业务节流定时器,不隔离会击穿「零残留」断言;
+    // 桩掉写入不影响本用例(会话状态读内存态,持久化链路在其余用例真定时器下覆盖)。
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
     // 微任务泵:推进微任务链直至稳定(mock 全即时resolve,链上无真等待)
     const flushMicrotasks = async (ticks = 40) => {
       for (let i = 0; i < ticks; i += 1) await Promise.resolve();
@@ -723,6 +727,7 @@ describe("useStoryboardBatchGeneration(批量四协议)", () => {
       expect(vi.getTimerCount()).toBe(0);
       expect(useStoryboardBatchSessionStore.getState().session?.status).toBe("interrupted");
     } finally {
+      setItemSpy.mockRestore();
       vi.useRealTimers();
     }
   });
