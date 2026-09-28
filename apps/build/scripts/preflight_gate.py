@@ -72,14 +72,18 @@ def check_git(path: pathlib.Path) -> dict:
         return {"status": "not_applicable",
                 "reason": "路径不在 git 仓库内(如引擎家路径),无脏态可查"}
     root = pathlib.Path(root_proc.stdout.strip())
-    status = _sh(["git", "-C", str(root), "status", "--porcelain", "--", str(path)])
+    # pathspec 绝对化(2026-09-29 修复):`git -C <root>` 按进程 cwd=root 解析相对
+    # pathspec——调用 cwd≠仓库根时(design §38 记载用法 cwd=apps/)脏文件被静默
+    # 漏判=假 GREEN;传 `.` 反向放大为全仓范围。resolve() 锚定调用方 cwd 语义。
+    git_path = path.resolve()
+    status = _sh(["git", "-C", str(root), "status", "--porcelain", "--", str(git_path)])
     if status.returncode != 0:
         return {"status": "not_applicable",
                 "reason": f"git status 不可用:{(status.stderr or '').strip()[:120]}"}
     lines = [l for l in status.stdout.splitlines() if l.strip()]
     if not lines:
         return {"status": "passed"}
-    diff = _sh(["git", "-C", str(root), "diff", "HEAD", "--stat", "--", str(path)])
+    diff = _sh(["git", "-C", str(root), "diff", "HEAD", "--stat", "--", str(git_path)])
     summary = ("\n".join(diff.stdout.strip().splitlines()[-5:])
                if diff.returncode == 0 else "")
     return {"status": "failed",

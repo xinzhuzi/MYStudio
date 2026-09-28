@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import pathlib
 import subprocess
 import tempfile
 import unittest
@@ -136,6 +137,30 @@ class PreflightGateTest(unittest.TestCase):
             self.assertEqual(code, 0, "仓库外路径不应因 git 段判红")
             self.assertEqual(data["paths"][0]["checks"]["git"]["status"],
                              "not_applicable")
+
+    def test_relative_path_from_subdir_cwd_detects_dirty(self):
+        """回归(2026-09-29 修复):调用 cwd≠仓库根时相对 pathspec 须按调用方 cwd
+        解析——首版把原始相对路径交给 `git -C <root>`,git 按根解析致脏件静默漏判
+        (假 GREEN exit 0),传 `.` 反向放大为全仓范围。"""
+        import os
+        orig_cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, target = make_repo_with_file(Path(tmp), name="f.txt")
+            backdate(target, minutes=40)
+            target.write_text("parallel-session edit\n", encoding="utf-8")  # 脏
+            (repo / "sub").mkdir()
+            os.chdir(repo / "sub")  # 模拟调用 cwd=仓库子目录(保持空目录=干净)
+            try:
+                result = MOD.check_git(pathlib.Path("../f.txt"))
+                self.assertEqual(result["status"], "failed",
+                                 "子目录 cwd 的相对路径脏件必须判红(修复前假 GREEN)")
+                self.assertTrue(any("f.txt" in line for line in result["dirtyLines"]))
+                # 反向放大回归:`.` 须按调用方 cwd 收敛(=sub/),不放大为全仓
+                dot_result = MOD.check_git(pathlib.Path("."))
+                self.assertEqual(dot_result["status"], "passed",
+                                 "'.'=sub/(干净)不应放大为全仓把 repo/f.txt 判红")
+            finally:
+                os.chdir(orig_cwd)
 
     def test_repo_root_resolves_to_git_toplevel(self):
         """回归锁:REPO 必须是 git 仓库根(首版 parents[2]=apps/ 致报告落
