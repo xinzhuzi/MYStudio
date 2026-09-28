@@ -448,6 +448,19 @@ describe("desktop build scripts", () => {
     // down=合法态退出 0:引擎不在场不得判红(不进门禁的语义基石)
     expect(doctorScript).toContain("down=合法态");
   });
+  it("exposes a consultative related-tests alias without hook or gate wiring", () => {
+    const packageJson = readBuildFile("package.json");
+    // 咨询性别名(design §13):快反馈腿,不改钩子、不进 quality-gate stages——
+    // 别名字面量钉死,防止入口漂移;用法 npm run test:related -- <改动文件>
+    expect(packageJson).toContain(
+      '"test:related": "vitest related --run --config frontend/config/vite.config.ts"',
+    );
+    // 不得进 stage 表(咨询性=不拦门);pre-commit 也不得引用它
+    const gateSource = readBuildFile("build/scripts/run-quality-gate.mjs");
+    expect(gateSource).not.toContain("test:related");
+    const preCommit = readFileSync(resolve(appsRoot, "../.husky/pre-commit"), "utf8");
+    expect(preCommit).not.toContain("test:related");
+  });
   it("exposes the deterministic AiToEarn upgrade smoke command", () => {
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs"');
