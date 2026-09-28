@@ -74,9 +74,31 @@ if (basenameConflicts.size) {
   }
 }
 
+// === vendored 第三方 README 快照范围排除(2026-09-29,09-28 任务 AC7 存量红清偿) ===
+// docs/prompts/krea2官方/角色设定表/ 混居两类文件:自研文档(README.md/
+// X_角色设定图提示词精选.md/Krea官方_* 等,照常检查)与上游 repo 原样拷贝的快照
+// (文件名保留上游原名,共 9 件,逐文件白名单如下)。快照内链指向上游库内文件
+// (CHANGELOG.md/SKILL.md/README.ja.md/assets/*.webp/@GeminiApp mention),本仓无
+// 对应实体属快照本性——改写快照正文=破坏第三方快照保真,故重写器整体跳过这些
+// 文件:死链不报 + 链接不改写(否则如 [English](README.md) 会被 basename 冲突
+// 消歧误重写到仓库根 README.md)。basenameIndex 索引仍含它们,活文档指向快照的
+// 链接解析不受影响。
+const VENDORED_SNAPSHOT_FILES = new Set([
+  'docs/prompts/krea2官方/角色设定表/2_krea2edit引擎件/comfyui-krea2edit-README.md',
+  'docs/prompts/krea2官方/角色设定表/2_krea2edit引擎件/comfyui-krea2edit-CHANGELOG.md',
+  'docs/prompts/krea2官方/角色设定表/3_通用写法母版/anime-character-sheet-prompter-README.md',
+  'docs/prompts/krea2官方/角色设定表/3_通用写法母版/anime-character-sheet-prompter-SKILL.md',
+  'docs/prompts/krea2官方/角色设定表/3_通用写法母版/gpt-image-2-character-sheet-README.zh-CN.md',
+  'docs/prompts/krea2官方/角色设定表/3_通用写法母版/niji-character-sheet-patterns.md',
+  'docs/prompts/krea2官方/角色设定表/4_云端模型参考/Awesome-Nano-Banana-images_README.md',
+  'docs/prompts/krea2官方/角色设定表/4_云端模型参考/awesome-nanobanana-pro-README.md',
+  'docs/prompts/krea2官方/角色设定表/4_云端模型参考/nanobanana-prompt_README.md',
+]);
+const isVendoredSnapshot = (f) => VENDORED_SNAPSHOT_FILES.has(relative(root, f));
+
 // === 需要扫描和重写链接的文件 ===
 const targets = [
-  ...allDocsMd,
+  ...allDocsMd.filter(f => !isVendoredSnapshot(f)),
   join(root, 'README.md'),
   join(root, 'README_EN.md'),
   join(root, 'apps/backend/README.md'),
@@ -111,6 +133,19 @@ function rewriteFile(filePath) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(target)) { skipped++; continue; }
     if (target.startsWith('mailto:')) { skipped++; continue; }
     if (target.startsWith('#')) { skipped++; continue; }
+
+    // 跳过：非链接形态(2026-09-29,09-28 任务 AC7 存量红清偿;三判据只放行,
+    // 不参与重写/死链判定,亦非逐文件豁免——判据通用,防同类新增):
+    // 1) @ 开头 = GitHub mention(vendored 快照内 [@GeminiApp](@GeminiApp) 写法);
+    // 2) 含裸空格 = 行内注解句——本仓活文档的 `[编号](中文注解)` 标注习惯写法
+    //    (如 LoRA库存台账 `[100](换装流 09-19 验证过)`);CommonMark 规定 inline
+    //    link 的 destination 含空格必须用 <> 包裹或 %20 编码,裸空格即非合法链接,
+    //    此判定与 GitHub 渲染行为一致;
+    // 3) 无 `/` 分隔且 basename 无扩展名 = 行号/编号引用等非文件路径形态
+    //    (如 Qwen 实录 `[0,1](L141)`、漫影工作流清单 `[163](头句+装配全文+尾句,…)`)。
+    if (target.startsWith('@')) { skipped++; continue; }
+    if (/\s/.test(target)) { skipped++; continue; }
+    if (!target.includes('/') && !basename(target).includes('.')) { skipped++; continue; }
 
     totalLinks++;
 
