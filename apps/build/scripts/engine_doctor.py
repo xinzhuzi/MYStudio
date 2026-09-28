@@ -14,7 +14,9 @@
      engine.port)∪ 盘点 argv 的 --port ∪ lsof 17xxx 家族在听口(17000-17999,
      保留段 17595/17598=桥,engine_manager.PORT_RANGE 同源);逐口 GET /system_stats
      (超时 2s 容错;形状判据同 engine_manager._orphan_is_comfyui:dict 且含
-     system/devices=ComfyUI 引擎);不可达=引擎 down 合法态,不判红。
+     system/devices=ComfyUI 引擎);不可达=引擎 down 合法态,不判红。探活/取桥
+     配置恒直连(无代理 opener 禁 http_proxy 等 env 代理,2026-09-29 修复:
+     代理在场曾把回环探活路由进代理 → false GREEN+双 RED 致盲)。
   3. 桥 token 一致性:<userData>/python/profiles/image-gen/config.json 的
      controlToken(装机令牌落盘真源,bridge_contract.sidecar_control_token 同路径)
      vs 每个活引擎 /my_bridge/config 回显 bridgeToken——match/mismatch/不可达三态;
@@ -121,8 +123,16 @@ def listening_ports() -> list[dict] | None:
     return rows
 
 
+# 回环探活/取桥配置禁走代理(2026-09-29 修复):裸 urlopen 吃 http_proxy 等 env
+# 代理变量(Python darwin 的 proxy_bypass 在 env 代理在场时只查 env no_proxy)——
+# 代理在场时 127.0.0.1 探活被路由进代理 → 活引擎整体误判 unreachable → false
+# GREEN 退出 0,且 dual_engine/token_mismatch 两个 RED(均派生自 live_ports)被
+# 结构性致盲。无代理 opener(ProxyHandler({}))恒直连,与目标恒为回环地址匹配。
+_DIRECT_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def _get_json(url: str) -> dict | None:
-    with urllib.request.urlopen(url, timeout=PROBE_TIMEOUT_S) as resp:
+    with _DIRECT_OPENER.open(url, timeout=PROBE_TIMEOUT_S) as resp:
         body = json.loads(resp.read().decode("utf-8"))
     return body if isinstance(body, dict) else None
 
