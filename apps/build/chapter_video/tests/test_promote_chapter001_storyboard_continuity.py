@@ -9,6 +9,30 @@ from PIL import Image
 from apps.build.chapter_video.pipeline import promote_chapter001_storyboard_continuity as promotion
 
 
+class ReportCommitFailureOsShim:
+    """promotion 模块级 os 隔离 shim(2026-09-29 评审发现④)。
+
+    只对 os.replace 在目标=推广报告路径时注入失败,其余属性经 __getattr__ 透传真
+    os。替代旧写法 mock.patch.object(promotion.os, "replace", ...)——那打的是
+    stdlib os 单例=进程级全局 patch(测试窗口内一切 os.replace 调用方都被误伤);
+    本 shim 只替换 promotion 模块命名空间的 os 绑定,stdlib 不受扰动。被测路径
+    (atomic_write/stage_payload/apply_promotion 提交链)另用 os.fdopen/fsync/
+    exists/unlink,均由透传覆盖。
+    """
+
+    def __init__(self, real_os, fail_destination: Path):
+        self._real_os = real_os
+        self._fail_destination = fail_destination
+
+    def replace(self, source, destination):
+        if Path(destination) == self._fail_destination:
+            raise OSError("injected report commit failure")
+        return self._real_os.replace(source, destination)
+
+    def __getattr__(self, name):
+        return getattr(self._real_os, name)
+
+
 class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
     def build_fixture(self, root: Path):
         project = root / "project-1"
@@ -326,14 +350,11 @@ class PromoteChapter001StoryboardContinuityTest(unittest.TestCase):
             plan = promotion.build_promotion_plan(report_path, store_path, project)
             before_store = store_path.read_bytes()
             expected_report = promotion.promotion_report_path(plan)
-            real_replace = promotion.os.replace
 
-            def fail_on_report(source, destination):
-                if Path(destination) == expected_report:
-                    raise OSError("injected report commit failure")
-                return real_replace(source, destination)
-
-            with mock.patch.object(promotion.os, "replace", side_effect=fail_on_report):
+            # 模块级隔离(评审发现④):patch promotion 模块的 os 绑定为受控 shim,
+            # 不再打 stdlib os 单例;stdlib os.replace 在窗口内保持原样。
+            shim = ReportCommitFailureOsShim(promotion.os, expected_report)
+            with mock.patch.object(promotion, "os", shim):
                 with self.assertRaisesRegex(OSError, "injected report"):
                     promotion.apply_promotion(plan, True)
 

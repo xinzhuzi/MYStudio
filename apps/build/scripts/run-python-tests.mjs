@@ -3,7 +3,8 @@
 // 域表=唯一权威命令集(S0 2026-09-28 实测定谳,含 chapter_video 口径修正:
 //   cwd=仓库根 + PYTHONPATH=.;trellis 域显式 -o cache_dir 兜底,见 S1 已知边界)。
 // 行为:逐域串行 fail-fast;--domain <name> 单跑;--platform darwin|linux(默认
-//   process.platform 自动探测)按域平台表过滤;--json 报告落
+//   process.platform 自动探测)按域平台表过滤,平台不在任何选中域平台表时
+//   fail loudly 非零退出(评审发现③:拒绝全 skip 假绿);--json 报告落
 //   apps/output/automation/python-tests-report.json(durable-json-report 原语);
 //   逐域时长超 S0 基线 ×2 打 WARN 行不拦门(防测试腐化膨胀)。
 // build_scripts 域用显式文件清单,件缺失即 RED(S6 扩 test_commit_gate.py、
@@ -186,6 +187,16 @@ export function runPythonTests(options = {}) {
       );
     }
     selected = [found];
+  }
+  // 平台收紧(2026-09-29 评审发现③):平台不在任何选中域的平台表时 fail loudly,
+  // 杜绝「六域全 skip → ok=true → exit 0」假绿(如假想 win32 宿主全 skip 判绿)。
+  // darwin/linux 恒命中全部域平台表,行为零变化。
+  const supportedPlatforms = [...new Set(buildDomains().flatMap((item) => item.platforms))];
+  if (!selected.some((item) => item.platforms.includes(platform))) {
+    throw new Error(
+      `平台 ${platform} 不在选中域(${selected.map((item) => item.name).join("|")})任何平台表;` +
+        `支持的平台:${supportedPlatforms.join("|")}——拒绝以全 skip 判绿,请核对 --platform 或域平台表`,
+    );
   }
   const results = [];
   let failFastReason = null;
