@@ -45,6 +45,16 @@
  *   其余八型 PE 开路制不动);rembg 两段式代码退役为备选(REMBG_TWO_STAGE=1 才启用,注释保留);
  *   ②层背景意志句随主路退役(原生透明档:背景句整体缺席,由 RGBA 官方公式承担;canon_lib+05库+
  *   qi21_bases.json 已同步)。
+ * 0928 画风入直塞文+道具不透明定案轮(军令①②③):①画风句 MV_STYLE_EN 嵌进
+ *   MV_BODY_SHARED_EN(替换原迷你画风尾,官方头尾/视图短语/一段式主路不动,军令③透明仍
+ *   提示词声明式)——零背景词英文画风浓缩句(黑名单零纹理词零否定式+透明机制双约束),
+ *   dry 断言画风句在场+画风/身份句零背景词防呆(MV_BG_WORDS_BAN);②道具不透明定案
+ *   (定谳 probe-0928 负结论五形状:接线无罪/像素层全实底 PIL alpha0=0% min=247/
+ *   队列无 cutout/生效文为中文 PE 文——「道具透明」实为 PE 改写语域漂移的视觉透明感
+ *   +RGBA 模式易误读,尺寸标注三处存活):道具臂正路锁死(非 rgbaForm·[40:144]=false·
+ *   PE 按 C2-4 图纸底+尺寸标注口径),dry 防呆入册(道具臂禁 rgbaForm+主体句尺寸串在场
+ *   +②层图纸底座在场+非 rgbaForm 臂公式路恒关+143 保持拼接链);PE 语域漂移修法
+ *   (种子句补图纸版式英文锚/回直写臂)另案待裁,本轮不改句身。
  * 产物纪律:~/Downloads/q21-optimized-0925/ 只写 <臂名>.png + <臂名>.txt,禁其他文件;
  *          日志/中间件全在 /tmp/q21-optimized-0925/。
  */
@@ -186,10 +196,26 @@ const RGBA_HEAD_EN = "This is an RGBA format image with transparency.";
 const RGBA_TAIL_EN = "The image has an alpha channel and a transparent background.";
 // 共享英文身份句(C 臂同构(引擎 history 00698722 实读逐字结构):身份+马尾+玄色劲装+腰间短刀+
 // 站姿+画风,零背景词零地面词——背景描述密度铁律;跨张六同之③'=三臂共享此句逐字同)
+// 0928 军令①画风入直塞文:「多视图一段式直塞文丢了道劫画风底座(现偏动漫)——画风必须写进
+// 直塞文」——MV_STYLE_EN 融合嵌在身份句之后(替换原迷你画风尾「ink-wash illustration style,
+// clean thin outlines」,句式仍循 C 臂定谳结构「身份…站姿+画风」,官方头尾/视图短语结构不动,
+// 军令③透明仍提示词声明式一段式主路不变);画风句=零背景词零环境词零底色词的英文画风浓缩句
+// (画法/笔性/墨色层次/传统色板入——黑名单 Q2-1致噪词黑名单-0925 零纹理词零否定式合规
+// +透明机制双重约束:生效文背景描述密度定生死,纯英文短公式文 90.34% 唯一达标形态不破)
+const MV_STYLE_EN =
+  "Traditional Chinese ink painting illustration, fine steady ink lines drawn with rising and falling " +
+  "brush pressure, the line weight thickening and thinning along the form. Ink tones grade distinctly " +
+  "from dark to pale in stepped layers; a multi-hue traditional Chinese palette of pale ink, azurite " +
+  "blue, malachite green, ochre, antique gold and vermilion, each in its place at controlled medium " +
+  "saturation, softly and evenly lit";
 const MV_BODY_SHARED_EN =
   "A single young Chinese knife master standing full-body figure, hair in a high ponytail, " +
   "fitted black martial outfit, a short knife in a black sheath hanging at his waist, " +
-  "arms relaxed at his sides, ink-wash illustration style, clean thin outlines";
+  "arms relaxed at his sides. " + MV_STYLE_EN;
+// 0928 画风句零背景词防呆黑名单(只查画风句/身份句——官方头尾的 "transparent background" 是
+// 公式本体豁免位;背景/环境/底色词禁入=透明机制铁律,词形小写子串匹配)
+const MV_BG_WORDS_BAN = ["background", "backdrop", "scenery", "landscape", "mountain", "mist",
+  "cloud", "fog", "haze", "sky", "paper", "wall", "floor", "ground", "water", "vapor", "misty"];
 // 视图短语字典(逐张换、单变量)
 const MV_VIEWS_EN = {
   "正": "front view, body facing the viewer straight-on",
@@ -281,6 +307,13 @@ function dryCheck(arms, src) {
   // 承担;旧抠图档句只在 rembg 备选档留档)——base_text 不得再含抠图档句
   check(src.byName["多视图"] && !src.byName["多视图"].base_text.includes(BG_WILL_CUTOUT),
     "多视图②层仍含抠图档背景意志句——C1-4 应已对齐原生透明档(背景句缺席),先重跑 canon_lib+qi21_bases_extract");
+  // 0928 军令②道具不透明定案·②层防呆:道具底座必须仍是 C2-4 图纸尺寸标注式(图纸底+尺寸标注口径)
+  check(src.byName["道具"] && src.byName["道具"].base_text.includes("整页如一页器物图纸"),
+    "道具②层缺图纸底座(C2-4 图纸尺寸标注式)——道具不透明+图纸底定案破锁,先重跑 canon_lib+qi21_bases_extract");
+  // 0928 军令①画风句防呆:画风句嵌在场+画风/身份句零背景词(黑名单+透明机制双约束;官方头尾豁免位不查)
+  check(MV_BODY_SHARED_EN.includes(MV_STYLE_EN), "共享英文身份句缺画风句 MV_STYLE_EN(0928 军令①:画风必须写进直塞文)");
+  const bgHit = MV_BG_WORDS_BAN.filter((w) => `${MV_STYLE_EN} ${MV_BODY_SHARED_EN}`.toLowerCase().includes(w));
+  check(bgHit.length === 0, `直塞文画风/身份句含背景词(${bgHit.join(",")})——透明机制铁律:生效文背景描述密度定生死`);
   check(`${MV_IDENTITY}；${MV_VIEWS["正"]}。` === TYPES[4].subject,
     "多视图例一 ≠ 身份段+正视图句拼装(四处互锁:示例库§5/SUBJECTS/05库/TYPES)");
   for (const [vk, vs] of Object.entries(MV_VIEWS))
@@ -297,10 +330,23 @@ function dryCheck(arms, src) {
       // 0927d 一段式透明臂互锁:官方公式路开+143 直塞文逐字+头尾句真源逐字+PE 豁免
       check(a.graph["40:144"].inputs.switch === true, `${a.name}: [40:144] 应为 true(RGBA 官方公式路)`);
       check(a.graph["40:143"].inputs.prompt === a.rgbaForm, `${a.name}: [40:143] 直塞文不符`);
+      check(a.rgbaForm.includes(MV_STYLE_EN), `${a.name}: 直塞文缺画风句 MV_STYLE_EN(0928 军令①:画风必须写进直塞文)`);
       check(a.graph["40:160"].inputs.string === RGBA_HEAD_EN && a.graph["40:161"].inputs.string === RGBA_TAIL_EN,
         `${a.name}: [40:160]/[40:161] 应为仓库真源逐字`);
       check(a.graph["141"].inputs.switch === false, `${a.name}: 一段式透明主路 PE 应豁免([141]=false)`);
       console.log(`✓ ${a.name} | 一段式透明:直塞文 ${a.rgbaForm.length}字 md5=${md5(a.rgbaForm)}(PE 豁免·装配/常量A 不进采样·rembg 备选)`);
+    } else {
+      // 0928 军令②道具不透明定案·防呆(定谳 probe-0928 负结论五形状:接线无罪/像素层全实底
+      // PIL alpha0=0% min=247——「道具透明」实为 PE 改写语域漂移的视觉透明感+RGBA 模式易误读):
+      // 非 rgbaForm 臂官方公式路必须关+143 保持拼接链链接态,锁正路防回潮
+      check(a.graph["40:144"].inputs.switch === false, `${a.name}: [40:144] 应为 false(非一段式透明臂,RGBA 官方公式路须关)`);
+      check(Array.isArray(a.graph["40:143"].inputs.prompt), `${a.name}: [40:143] 应保持 [40:163] 拼接链链接态(直塞字面量仅一段式透明臂)`);
+    }
+    // 0928 军令②:道具臂=图纸底+尺寸标注不透明正路(PE 按 C2-4 设计口径),rgbaForm 禁入+尺寸标注串在场
+    if (a.name.startsWith("3-道具")) {
+      check(!a.rgbaForm && a.peOn, "3-道具 臂应为 PE 开路正路(非 rgbaForm)——0928 道具不透明定案");
+      check(a.subject.includes("全长110厘米") && a.subject.includes("刃长88厘米") && a.subject.includes("柄长22厘米"),
+        "3-道具 主体句尺寸标注串(全长110/刃长88/柄长22 厘米)不全——图纸底+尺寸标注口径破锁");
     }
     check(a.graph["7"].inputs.seed === SEED, `${a.name}: seed 应为 ${SEED}`);
     check(a.graph["31"].inputs.strength_model === 0.8, `${a.name}: [31] LoRA strength 应为 0.8(0925 探针新真源)`);
