@@ -385,6 +385,11 @@ QI21_CMP_VIG, QI21_CMP_FUN, QI21_C1, QI21_C2 = 193, 194, 195, 196
 QI21_LAT_SW, QI21_T8 = 197, 198
 I2I_CMP_VIG, I2I_CMP_FUN, I2I_C1, I2I_C2 = 171, 172, 173, 174
 I2I_LAT_SW, I2I_T8 = 175, 176
+# 0928 黑图修复轮:正源档位开关三件+单参考编码(edit 主图 [40]-[43];i2i 主图
+# [183]-[185]+子图行4 [171]-[173](子图 id 空间独立))
+I2I_CMP_C0, I2I_CMP_DIR, I2I_POS_SW = 183, 184, 185
+I2I_SG_TE1, I2I_SG_TE1R, I2I_SG_TE1SW = 171, 172, 173
+EDIT_C0, EDIT_CMP_DIR, EDIT_POS_SW, EDIT_TE1 = 40, 41, 42, 43
 EDIT_CMP_VIG, EDIT_CMP_FUN, EDIT_C1, EDIT_C2 = 50, 51, 38, 39
 EDIT_LAT_SW, EDIT_T8 = 54, 55
 FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"
@@ -500,7 +505,10 @@ def _assert_three_mode_accel(graph: dict, name: str, lora_id: int, lora_sw_id: i
                              pb_id: int, cmp_vig: int, cmp_fun: int, c1: int, c2: int,
                              lat_sw: int, t8: int, sampler_id: int, save_id: int,
                              steps_ids: tuple, model_base_id: int, positive_src_id: int,
-                             latent_src_id: int):
+                             latent_src_id: int, pb_fans: int = 2,
+                             pos_sw_id: int | None = None, cmp_dir_id: int | None = None,
+                             arm_true: tuple | None = None, arm_false: tuple | None = None,
+                             te1_id: int | None = None):
     """0927 三档轮三件同构契约:档位 [30]=PrimitiveInt 默认 2(Fun-Acc,用户裁定);
     easy compare×2 拆布尔(==1 驱 MODEL+steps 开关/==2 驱 latent 路由);T8 采样器
     (无负面槽/model=base 总线/positive+latent 与 KSampler 同源/seed 0);
@@ -512,9 +520,12 @@ def _assert_three_mode_accel(graph: dict, name: str, lora_id: int, lora_sw_id: i
     assert pb["type"] == "PrimitiveInt" and _widget(pb, 0) == MODE_DEFAULT, \
         f"{name}: [{pb_id}] 应为 PrimitiveInt 档位且默认={MODE_DEFAULT}(Fun-Acc,0927 裁定)," \
         f"得 {pb.get('widgets_values')}"
-    assert len(pb["outputs"][0]["links"] or []) == 2, \
-        f"{name}: [{pb_id}] 档位源应扇出恰两线(→两枚 easy compare)"
-    for cid, want in ((cmp_vig, MODE_VIGGLE), (cmp_fun, MODE_FUNACC)):
+    assert len(pb["outputs"][0]["links"] or []) == pb_fans, \
+        f"{name}: [{pb_id}] 档位源应扇出恰 {pb_fans} 线(0928 正源开关族入扇)"
+    cmp_pairs = ((cmp_vig, MODE_VIGGLE), (cmp_fun, MODE_FUNACC))
+    if cmp_dir_id is not None:
+        cmp_pairs = cmp_pairs + ((cmp_dir_id, MODE_DIRECT),)
+    for cid, want in cmp_pairs:
         c = nodes[cid]
         assert c["type"] == "easy compare" and c["widgets_values"][2] == "a == b", \
             f"{name}: [{cid}] 应为 easy compare(a == b)产出档位布尔"
@@ -557,6 +568,28 @@ def _assert_three_mode_accel(graph: dict, name: str, lora_id: int, lora_sw_id: i
         f"{name}: [{t8}].positive 上游应 [{positive_src_id}](与 KSampler 同源,可穿垫脚石)"
     assert _trace_main_reroute(nodes, links, t8s[0]["inputs"][2]["link"]) == latent_src_id, \
         f"{name}: [{t8}].latent_image 上游应 [{latent_src_id}](与 KSampler 同源,可穿垫脚石)"
+    # 0928 黑图修复:正源档位开关族(单参考正源=加速档;档0 双参考官方路)
+    if pos_sw_id is not None:
+        ps = nodes[pos_sw_id]
+        assert ps["type"] == "ComfySwitchNode" and ps["outputs"][0]["type"] == "CONDITIONING", \
+            f"{name}: [{pos_sw_id}] 应为 CONDITIONING 泛型开关(正源档位路由)"
+        assert _widget(ps, 0) is False, f"{name}: [{pos_sw_id}] widget 默认应 false(档位驱动)"
+        _arm = lambda slot: (lambda l: (  # 穿垫脚石溯源 (origin_id, origin_slot)
+            [(links[l][1], links[l][2])] if nodes[links[l][1]]["type"] != "Reroute"
+            else None))(ps["inputs"][slot]["link"])
+        def _trace_arm(slot):
+            l = ps["inputs"][slot]["link"]
+            while nodes[links[l][1]]["type"] == "Reroute":
+                l = nodes[links[l][1]]["inputs"][0]["link"]
+            return (links[l][1], links[l][2])
+        assert _trace_arm(1) == arm_true, \
+            f"{name}: [{pos_sw_id}].on_true 上游应 {arm_true}(档0 双参考,可穿垫脚石)"
+        assert _trace_arm(0) == arm_false, \
+            f"{name}: [{pos_sw_id}].on_false 上游应 {arm_false}(档1/2 单参考,可穿垫脚石)"
+        assert _trace_main_reroute(nodes, links, ps["inputs"][2]["link"]) == cmp_dir_id, \
+            f"{name}: [{pos_sw_id}].switch 上游应 easy compare[{cmp_dir_id}](档位==0,可穿垫脚石)"
+        assert links[nodes[sampler_id]["inputs"][1]["link"]][1] == pos_sw_id, \
+            f"{name}: KSampler.positive 上游应 [{pos_sw_id}](0928 改道)"
     # 干跑三档
     d2 = _reach_state(graph, save_id)   # 默认态=档2(Fun-Acc)
     assert t8 in d2, f"{name}: 默认态(档2)执行图应含 T8 采样器"
@@ -574,6 +607,12 @@ def _assert_three_mode_accel(graph: dict, name: str, lora_id: int, lora_sw_id: i
     assert lora_id not in d0 and t8 not in d0, \
         f"{name}: 档0(直出)执行图应零 LoRA 零 T8(正常生成)"
     assert sampler_id in d0, f"{name}: 档0 KSampler 应在执行链(40 步主线)"
+    # 0928 黑图修复干跑:edit 主图单参考编码档1/2 在链/档0 懒旁路
+    if te1_id is not None:
+        assert te1_id in d2 and te1_id in d1, \
+            f"{name}: 档1/2 正源应单参考编码 [{te1_id}](0928 修复:双参考崩少步蒸馏)"
+        assert te1_id not in d0, \
+            f"{name}: 档0 正源应回双参考(单参考编码 [{te1_id}] 懒旁路)"
     _ = model_base_id
 
 
@@ -876,15 +915,23 @@ class TestCanvasDiscipline:
 class TestEditContract:
     def test_textencode_has_two_image_inputs_wired(self):
         graph = GRAPHS["edit"]
-        encoders = _by_type(graph, "TextEncodeQwenImage21")
-        assert len(encoders) == 1, "edit 件应恰 1 个 TextEncodeQwenImage21"
-        wired = [i for i in encoders[0]["inputs"] if i["name"].startswith("images.") and i.get("link")]
-        assert len(wired) >= 2, "TextEncodeQwenImage21 应接 ≥2 张图(image_1 画布 + image_2 参考)"
+        encoders = {n["id"]: n for n in _by_type(graph, "TextEncodeQwenImage21")}
+        # 0928 黑图修复:+[43] 单参考编码(加速档正源,仅 image_1)
+        assert sorted(encoders) == [6, EDIT_TE1], \
+            f"edit 件应恰 2 个 TextEncodeQwenImage21([6] 双参考+[{EDIT_TE1}] 单参考),得 {sorted(encoders)}"
+        wired = [i for i in encoders[6]["inputs"] if i["name"].startswith("images.") and i.get("link")]
+        assert len(wired) >= 2, "主编码应接 ≥2 张图(image_1 画布 + image_2 参考)"
         nodes, links = _nodes(graph), _links(graph)
         for i in wired:
             src = nodes[links[i["link"]][1]]
             assert src["type"] == "ImageScaleToTotalPixels", \
                 f"编码器图像上游应预缩件(吸收 research/15 §4),得 {src['type']}[{src['id']}]"
+        te1 = encoders[EDIT_TE1]
+        assert not any(i["name"] == "images.image_2" for i in te1["inputs"]), \
+            f"[{EDIT_TE1}] 单参考编码不得带 image_2(双参考即黑图根因)"
+        assert links[next(i["link"] for i in te1["inputs"]
+                          if i["name"] == "images.image_1")][1] == 16, \
+            f"[{EDIT_TE1}].image_1 上游应预缩A[16](与 [6] 同图同缩)"
 
     def test_input_images_prescaled_dual_tier(self):
         """输入图预缩(0923-r16 吸收 research/14 §4-1 + research/15 §4-4,两档均标
@@ -997,7 +1044,9 @@ class TestEditContract:
             pb_id=EDIT_LORA_PB_ID, cmp_vig=EDIT_CMP_VIG, cmp_fun=EDIT_CMP_FUN,
             c1=EDIT_C1, c2=EDIT_C2, lat_sw=EDIT_LAT_SW, t8=EDIT_T8,
             sampler_id=8, save_id=10, steps_ids=(EDIT_STEPS_SW_ID, EDIT_STEPS_C40_ID, EDIT_STEPS_C6_ID),
-            model_base_id=7, positive_src_id=6, latent_src_id=20)
+            model_base_id=7, positive_src_id=EDIT_POS_SW, latent_src_id=20,
+            pb_fans=3, pos_sw_id=EDIT_POS_SW, cmp_dir_id=EDIT_CMP_DIR,
+            arm_true=(6, 0), arm_false=(EDIT_TE1, 0), te1_id=EDIT_TE1)
         # VAE 顶通道(R26.4 随迁):VAE→[28]→[29]→VAEDecode,恒向右
         va, vb = nodes[EDIT_RR_V_A_ID], nodes[EDIT_RR_V_B_ID]
         assert va["type"] == "Reroute" and vb["type"] == "Reroute", \
@@ -1025,6 +1074,10 @@ class TestEditContract:
         note = _by_type(GRAPHS["edit"], "MarkdownNote")[0]["widgets_values"][0]
         for token in FUNACC_NOTE_TOKENS:
             assert token in note, f"edit Note 缺三档要点: {token!r}"
+        # 0928 黑图修复:单参考正源要点
+        for token in ("单参考正源", "崩纯黑", "唯一色=1", "[41]", "[42]", "[43]",
+                      "默认保持 2", "零改动"):
+            assert token in note, f"edit Note 缺 0928 单参考正源要点: {token!r}"
 
     def test_no_custom_titles_on_core_nodes(self):
         """节点标题铁律(0923-r16 用户令):核心/第三方节点 title 一律保留原生
@@ -2082,7 +2135,9 @@ class TestI2IContract:
             c1=I2I_C1, c2=I2I_C2, lat_sw=I2I_LAT_SW, t8=I2I_T8,
             sampler_id=I2I_SAMPLER_ID, save_id=10,
             steps_ids=(I2I_STEPS_SW_ID, I2I_STEPS_C40_ID, I2I_STEPS_C6_ID),
-            model_base_id=I2I_CACHE_ID, positive_src_id=I2I_HOST_ID, latent_src_id=20)
+            model_base_id=I2I_CACHE_ID, positive_src_id=I2I_POS_SW, latent_src_id=20,
+            pb_fans=3, pos_sw_id=I2I_POS_SW, cmp_dir_id=I2I_CMP_DIR,
+            arm_true=(I2I_HOST_ID, 0), arm_false=(I2I_HOST_ID, 4))
         # TE-Speed 槽禁入:全图(主图+子图)节点类型白名单
         sg = _qi21_sg(graph)
         for n in [*graph["nodes"], *sg["nodes"]]:
@@ -2235,7 +2290,10 @@ class TestI2IContract:
                       "05-道劫规范提示词库.md", "MyQi21DaojieBase", "BatchImagesNode",
                       "ImageScaleToTotalPixels", RGBA_HEAD_ZH,
                       # 0927 三档轮:三档文案+依赖警示+T8 事实
-                      *FUNACC_NOTE_TOKENS):
+                      *FUNACC_NOTE_TOKENS,
+                      # 0928 黑图修复:单参考正源要点
+                      "单参考正源", "崩纯黑", "唯一色=1", "positive_single",
+                      "[184]", "[185]", "默认保持 2", "零改动"):
             assert token in note, f"i2i Note 缺要点: {token!r}"
 
 

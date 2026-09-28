@@ -564,8 +564,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            19,
-            64
+            71
           ]
         },
         {
@@ -587,6 +586,13 @@
           "type": "LATENT",
           "links": [
             30
+          ]
+        },
+        {
+          "name": "positive_single",
+          "type": "CONDITIONING",
+          "links": [
+            70
           ]
         }
       ],
@@ -727,7 +733,8 @@
           "type": "INT",
           "links": [
             54,
-            69
+            69,
+            72
           ]
         }
       ],
@@ -1450,6 +1457,268 @@
       ]
     },
     {
+      "id": 183,
+      "type": "PrimitiveInt",
+      "pos": [
+        7400,
+        2700
+      ],
+      "size": [
+        270,
+        90
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "INT",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            73
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "Node name for S&R": "PrimitiveInt"
+      },
+      "widgets_values": [
+        0,
+        "fixed"
+      ],
+      "widgets_values_named": {
+        "value": 0,
+        "fixed": "fixed"
+      }
+    },
+    {
+      "id": 184,
+      "type": "easy compare",
+      "pos": [
+        7940,
+        2620
+      ],
+      "size": [
+        260,
+        110
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "type": "*",
+          "widget": {
+            "name": "a"
+          },
+          "link": 72
+        },
+        {
+          "name": "b",
+          "type": "*",
+          "widget": {
+            "name": "b"
+          },
+          "link": 73
+        },
+        {
+          "name": "comparison",
+          "type": "COMBO",
+          "widget": {
+            "name": "comparison"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "boolean",
+          "type": "BOOLEAN",
+          "links": [
+            74
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy compare"
+      },
+      "widgets_values": [
+        "",
+        "",
+        "a == b"
+      ]
+    },
+    {
+      "id": 185,
+      "type": "ComfySwitchNode",
+      "pos": [
+        8540,
+        2400
+      ],
+      "size": [
+        380,
+        120
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "on_false",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 76
+        },
+        {
+          "name": "on_true",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 75
+        },
+        {
+          "name": "switch",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "switch"
+          },
+          "link": 77
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "CONDITIONING",
+          "links": [
+            19,
+            64
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ComfySwitchNode"
+      },
+      "widgets_values": [
+        false
+      ]
+    },
+    {
+      "id": 186,
+      "type": "Reroute",
+      "pos": [
+        7300,
+        2350
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 71
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "CONDITIONING",
+          "links": [
+            75
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 187,
+      "type": "Reroute",
+      "pos": [
+        6800,
+        2600
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 70
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "CONDITIONING",
+          "links": [
+            76
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 188,
+      "type": "Reroute",
+      "pos": [
+        8300,
+        2680
+      ],
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "BOOLEAN",
+          "links": [
+            77
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
       "id": 19,
       "type": "PrimitiveBoolean",
       "pos": [
@@ -1461,7 +1730,7 @@
         90
       ],
       "flags": {},
-      "order": 26,
+      "order": 32,
       "mode": 0,
       "inputs": [
         {
@@ -1501,7 +1770,7 @@
         120
       ],
       "flags": {},
-      "order": 27,
+      "order": 33,
       "mode": 0,
       "inputs": [
         {
@@ -1559,7 +1828,7 @@
         100
       ],
       "flags": {},
-      "order": 28,
+      "order": 34,
       "mode": 0,
       "inputs": [
         {
@@ -1612,7 +1881,7 @@
         180
       ],
       "flags": {},
-      "order": 29,
+      "order": 35,
       "mode": 0,
       "inputs": [
         {
@@ -1652,7 +1921,7 @@
         180
       ],
       "flags": {},
-      "order": 30,
+      "order": 36,
       "mode": 0,
       "inputs": [
         {
@@ -1693,7 +1962,7 @@
         180
       ],
       "flags": {},
-      "order": 31,
+      "order": 37,
       "mode": 0,
       "inputs": [
         {
@@ -1733,7 +2002,7 @@
         130
       ],
       "flags": {},
-      "order": 32,
+      "order": 38,
       "mode": 0,
       "inputs": [
         {
@@ -1791,7 +2060,7 @@
         170
       ],
       "flags": {},
-      "order": 33,
+      "order": 39,
       "mode": 0,
       "inputs": [
         {
@@ -1831,7 +2100,7 @@
         450
       ],
       "flags": {},
-      "order": 34,
+      "order": 40,
       "mode": 0,
       "inputs": [
         {
@@ -2006,7 +2275,7 @@
         260
       ],
       "flags": {},
-      "order": 35,
+      "order": 41,
       "mode": 0,
       "inputs": [
         {
@@ -2100,7 +2369,7 @@
         110
       ],
       "flags": {},
-      "order": 36,
+      "order": 42,
       "mode": 0,
       "inputs": [
         {
@@ -2152,7 +2421,7 @@
         1100
       ],
       "flags": {},
-      "order": 37,
+      "order": 43,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -2160,7 +2429,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[22] 原始用户词=唯一手写位(默认=官方换装例句);经 [15] PE 开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)接进 [40] 装配子图「指令」槽——**指令即主体**。\n- **装配=道劫画风约束**(②③层恒挂):[40] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [28] 装配预览(接 [40] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;档2 Fun-Acc 无负面槽。**步数 40(道劫产线完整档;官方区间 40-50;档1=自动 6,由 [164] 联动开关供给;档2=Fun-Acc 4 步内置于 [176] T8;[8] 面板不再手调;面板 steps 显 40=摆设值不生效)**;euler/simple/denoise 1.0;seed fixed 可复现(档2 seed 在 [176] 默认 0)。\n- **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([15] 开关,默认 PE 改写;关=直写按图选配;0926 裁定1)\n\n- 链路:[12] PE CLIPLoader(pe_i2i bf16·type=qwen_image)→ 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=[22] 原始用户词/c=[23] assistant+`<think>` 预填)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [15] 开关。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode 合批全部(预缩后)输入图喂 [26].image;[40] 子图编码器只吃选定图。\n- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关 [15](直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区三档(0927 三档轮;[30] 档位默认 2=Fun-Acc)\n\n- **[30] 加速档位=0/1/2 三选一(单一控件,默认 2=Fun-Acc PDD 4步)**:0=直出 40 步(官方完整档)/1=viggle 6 步/2=Fun-Acc 4 步。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- 档位自动拆两路(无需手动调):[30]→[171] 比较(==1)→viggle 布尔,同时驱动 [32] MODEL 开关(false=MODEL 直连/true=[31] LoraLoaderModelOnly)与 [164] steps 联动开关(false→[165] 常量 40/true→[166] 常量 6);[30]→[172] 比较(==2)→Fun-Acc 布尔,驱动 [175] latent 路由开关(false=[8] KSampler 输出/true=[176] T8 输出→[9] 解码)。\n- **档0=直出**:MODEL 直连,[8] 40 步官方完整档主线,LoRA 不加载。\n- **档1=viggle**:[31] LoRA 挂链(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机),strength 0.8(0925 探针最优:flatMAD 2.52→1.75)+steps 自动 6(v0.2.1 系卡荐档,cfg 保持 1)。\n模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **档2=Fun-Acc(默认)**:[176] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在档2 不参与);model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/);model 走 [32] false 臂=base 模型(绝不吃 viggle LoRA);positive 与 [8] 同源;latent_image 与 [8] 同源;seed 默认 0 固定可复现。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。懒执行:档2 时 [8] KSampler 与 viggle LoRA 整体不在执行图(ComfySwitchNode 懒路由,零空转零加载)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **依赖警示:档2 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档2 节点红/执行失败——降级=切回 0/1 档。\n- [8] 面板 steps 显 40=摆设值不生效(档0/1 由 [164] 联动供给;档2 steps 内置于 [176] T8)。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(steps 联动自动)/Fun-Acc=PDD 4步采样。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)\n\nThis is an RGBA format image with transparency. [装配全文,与 [28] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [40] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[18] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
+        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[22] 原始用户词=唯一手写位(默认=官方换装例句);经 [15] PE 开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)接进 [40] 装配子图「指令」槽——**指令即主体**。\n- **装配=道劫画风约束**(②③层恒挂):[40] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [28] 装配预览(接 [40] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;档2 Fun-Acc 无负面槽。**步数 40(道劫产线完整档;官方区间 40-50;档1=自动 6,由 [164] 联动开关供给;档2=Fun-Acc 4 步内置于 [176] T8;[8] 面板不再手调;面板 steps 显 40=摆设值不生效)**;euler/simple/denoise 1.0;seed fixed 可复现(档2 seed 在 [176] 默认 0)。\n- **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([15] 开关,默认 PE 改写;关=直写按图选配;0926 裁定1)\n\n- 链路:[12] PE CLIPLoader(pe_i2i bf16·type=qwen_image)→ 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=[22] 原始用户词/c=[23] assistant+`<think>` 预填)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [15] 开关。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode 合批全部(预缩后)输入图喂 [26].image;[40] 子图编码器只吃选定图。\n- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关 [15](直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区三档(0927 三档轮;[30] 档位默认 2=Fun-Acc)\n\n- **[30] 加速档位=0/1/2 三选一(单一控件,默认 2=Fun-Acc PDD 4步)**:0=直出 40 步(官方完整档)/1=viggle 6 步/2=Fun-Acc 4 步。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- 档位自动拆两路(无需手动调):[30]→[171] 比较(==1)→viggle 布尔,同时驱动 [32] MODEL 开关(false=MODEL 直连/true=[31] LoraLoaderModelOnly)与 [164] steps 联动开关(false→[165] 常量 40/true→[166] 常量 6);[30]→[172] 比较(==2)→Fun-Acc 布尔,驱动 [175] latent 路由开关(false=[8] KSampler 输出/true=[176] T8 输出→[9] 解码)。\n- **档0=直出**:MODEL 直连,[8] 40 步官方完整档主线,LoRA 不加载。\n- **档1=viggle**:[31] LoRA 挂链(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机),strength 0.8(0925 探针最优:flatMAD 2.52→1.75)+steps 自动 6(v0.2.1 系卡荐档,cfg 保持 1)。\n模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **档2=Fun-Acc(默认)**:[176] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在档2 不参与);model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/);model 走 [32] false 臂=base 模型(绝不吃 viggle LoRA);positive 与 [8] 同源;latent_image 与 [8] 同源;seed 默认 0 固定可复现。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。懒执行:档2 时 [8] KSampler 与 viggle LoRA 整体不在执行图(ComfySwitchNode 懒路由,零空转零加载)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **依赖警示:档2 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档2 节点红/执行失败——降级=切回 0/1 档。\n- [8] 面板 steps 显 40=摆设值不生效(档0/1 由 [164] 联动供给;档2 steps 内置于 [176] T8)。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(steps 联动自动)/Fun-Acc=PDD 4步采样。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档单参考正源(0928 黑图修复;档1/2 专用)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。\n- **修复接线**:子图新增行4 单参考编码族([171] 主编码/[172] RGBA 编码/[173] RGBA 镜像开关,均仅 image_1、词源与行3 同源、RGBA 开关同宿主面板槽6),新输出 positive_single;主图 [185] 正源档位开关([184] 比较==0 驱动:on_true=[40].positive 双参考=档0 官方路零改动/on_false=positive_single 单参考=档1/2),[8].positive 与 [176] T8.positive 均改经 [185] 供词。\n- [40] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);档1/2 时行4 编码亦入链(多一次视觉编码,约 +20s)。\n- 档2 修复后默认保持 2(0927 裁定不回退);档0 的双参考语义零改动。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)\n\nThis is an RGBA format image with transparency. [装配全文,与 [28] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [40] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[18] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
       ]
     },
     {
@@ -2175,7 +2444,7 @@
         26
       ],
       "flags": {},
-      "order": 38,
+      "order": 44,
       "mode": 0,
       "inputs": [
         {
@@ -2210,7 +2479,7 @@
         26
       ],
       "flags": {},
-      "order": 39,
+      "order": 45,
       "mode": 0,
       "inputs": [
         {
@@ -2245,7 +2514,7 @@
         26
       ],
       "flags": {},
-      "order": 40,
+      "order": 46,
       "mode": 0,
       "inputs": [
         {
@@ -2280,7 +2549,7 @@
         26
       ],
       "flags": {},
-      "order": 41,
+      "order": 47,
       "mode": 0,
       "inputs": [
         {
@@ -2315,7 +2584,7 @@
         26
       ],
       "flags": {},
-      "order": 42,
+      "order": 48,
       "mode": 0,
       "inputs": [
         {
@@ -2350,7 +2619,7 @@
         26
       ],
       "flags": {},
-      "order": 43,
+      "order": 49,
       "mode": 0,
       "inputs": [
         {
@@ -2521,7 +2790,7 @@
     ],
     [
       19,
-      40,
+      185,
       0,
       8,
       1,
@@ -2689,7 +2958,7 @@
     ],
     [
       64,
-      40,
+      185,
       0,
       176,
       1,
@@ -2806,6 +3075,70 @@
       175,
       2,
       "BOOLEAN"
+    ],
+    [
+      72,
+      30,
+      0,
+      184,
+      0,
+      "INT"
+    ],
+    [
+      73,
+      183,
+      0,
+      184,
+      1,
+      "INT"
+    ],
+    [
+      74,
+      184,
+      0,
+      188,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      77,
+      188,
+      0,
+      185,
+      2,
+      "BOOLEAN"
+    ],
+    [
+      70,
+      40,
+      4,
+      187,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      76,
+      187,
+      0,
+      185,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      71,
+      40,
+      0,
+      186,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      75,
+      186,
+      0,
+      185,
+      1,
+      "CONDITIONING"
     ]
   ],
   "definitions": {
@@ -2814,10 +3147,10 @@
         "id": "d47c9e21-8f36-4a5b-b0c9-2e8d4f6a8c1d",
         "version": 1,
         "state": {
-          "lastGroupId": 3,
-          "lastNodeId": 170,
-          "lastLinkId": 27,
-          "lastRerouteId": 1
+          "lastGroupId": 4,
+          "lastNodeId": 175,
+          "lastLinkId": 41,
+          "lastRerouteId": 3
         },
         "revision": 1,
         "config": {
@@ -2849,7 +3182,9 @@
             "type": "CLIP",
             "linkIds": [
               1,
-              2
+              2,
+              28,
+              36
             ],
             "pos": [
               2380,
@@ -2862,7 +3197,9 @@
             "type": "VAE",
             "linkIds": [
               3,
-              4
+              4,
+              29,
+              37
             ],
             "pos": [
               2660,
@@ -2875,7 +3212,9 @@
             "type": "IMAGE",
             "linkIds": [
               5,
-              7
+              7,
+              30,
+              38
             ],
             "pos": [
               2580,
@@ -2924,7 +3263,8 @@
             "name": "RGBA透明开关",
             "type": "BOOLEAN",
             "linkIds": [
-              11
+              11,
+              39
             ],
             "pos": [
               4100,
@@ -2979,6 +3319,18 @@
             "pos": [
               4740,
               1960
+            ]
+          },
+          {
+            "id": "e8f1a2b3-0005-4b05-8f05-d47c9e21b05",
+            "name": "positive_single",
+            "type": "CONDITIONING",
+            "linkIds": [
+              40
+            ],
+            "pos": [
+              4740,
+              2120
             ]
           }
         ],
@@ -3229,7 +3581,8 @@
                 "links": [
                   15,
                   16,
-                  25
+                  25,
+                  31
                 ]
               }
             ],
@@ -3335,7 +3688,8 @@
                 "name": "STRING",
                 "type": "STRING",
                 "links": [
-                  20
+                  20,
+                  35
                 ]
               }
             ],
@@ -3591,6 +3945,266 @@
               "showOutputText": false,
               "horizontal": false
             }
+          },
+          {
+            "id": 171,
+            "type": "TextEncodeQwenImage21",
+            "pos": [
+              2700,
+              2260
+            ],
+            "size": [
+              420,
+              320
+            ],
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "clip",
+                "type": "CLIP",
+                "link": 28
+              },
+              {
+                "name": "images.image_1",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 30
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "shape": 7,
+                "link": 29
+              },
+              {
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 31
+              }
+            ],
+            "outputs": [
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  32
+                ]
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "links": null
+              },
+              {
+                "name": "latent",
+                "type": "LATENT",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextEncodeQwenImage21"
+            },
+            "widgets_values": [
+              "",
+              "",
+              0
+            ]
+          },
+          {
+            "id": 172,
+            "type": "TextEncodeQwenImage21",
+            "pos": [
+              3660,
+              2260
+            ],
+            "size": [
+              420,
+              320
+            ],
+            "flags": {},
+            "order": 13,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "clip",
+                "type": "CLIP",
+                "link": 41
+              },
+              {
+                "name": "images.image_1",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 38
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "shape": 7,
+                "link": 37
+              },
+              {
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 35
+              }
+            ],
+            "outputs": [
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  34
+                ]
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "links": null
+              },
+              {
+                "name": "latent",
+                "type": "LATENT",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextEncodeQwenImage21"
+            },
+            "widgets_values": [
+              "",
+              "",
+              0
+            ]
+          },
+          {
+            "id": 173,
+            "type": "ComfySwitchNode",
+            "pos": [
+              4280,
+              2260
+            ],
+            "size": [
+              380,
+              120
+            ],
+            "flags": {},
+            "order": 14,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "on_false",
+                "shape": 7,
+                "type": "CONDITIONING",
+                "link": 33
+              },
+              {
+                "name": "on_true",
+                "shape": 7,
+                "type": "CONDITIONING",
+                "link": 34
+              },
+              {
+                "name": "switch",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "switch"
+                },
+                "link": 39
+              }
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "type": "CONDITIONING",
+                "links": [
+                  40
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "ComfySwitchNode"
+            },
+            "widgets_values": [
+              false
+            ]
+          },
+          {
+            "id": 174,
+            "type": "Reroute",
+            "pos": [
+              3380,
+              2100
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 15,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 32
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "CONDITIONING",
+                "links": [
+                  33
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
+          },
+          {
+            "id": 175,
+            "type": "Reroute",
+            "pos": [
+              2490,
+              2050
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 16,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 36
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "CLIP",
+                "links": [
+                  41
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
           }
         ],
         "groups": [
@@ -3628,6 +4242,18 @@
               560
             ],
             "color": "#886",
+            "flags": {}
+          },
+          {
+            "id": 4,
+            "title": "道劫·单参考编码(行4:档1/2 加速正源,仅 image_1,0928 黑图修复;RGBA 镜像开关同宿主面板)",
+            "bounding": [
+              2700,
+              2200,
+              2040,
+              560
+            ],
+            "color": "#4d9e6a",
             "flags": {}
           }
         ],
@@ -3847,6 +4473,118 @@
             "target_id": 144,
             "target_slot": 1,
             "type": "CONDITIONING"
+          },
+          {
+            "id": 28,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 171,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 29,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 171,
+            "target_slot": 2,
+            "type": "VAE"
+          },
+          {
+            "id": 30,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 171,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 31,
+            "origin_id": 131,
+            "origin_slot": 0,
+            "target_id": 171,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 32,
+            "origin_id": 171,
+            "origin_slot": 0,
+            "target_id": 174,
+            "target_slot": 0,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 33,
+            "origin_id": 174,
+            "origin_slot": 0,
+            "target_id": 173,
+            "target_slot": 0,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 34,
+            "origin_id": 172,
+            "origin_slot": 0,
+            "target_id": 173,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 35,
+            "origin_id": 163,
+            "origin_slot": 0,
+            "target_id": 172,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 36,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 175,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 41,
+            "origin_id": 175,
+            "origin_slot": 0,
+            "target_id": 172,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 37,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 172,
+            "target_slot": 2,
+            "type": "VAE"
+          },
+          {
+            "id": 38,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 172,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 39,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 173,
+            "target_slot": 2,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 40,
+            "origin_id": 173,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "CONDITIONING"
           }
         ],
         "extra": {
@@ -3856,6 +4594,6 @@
       }
     ]
   },
-  "last_node_id": 182,
-  "last_link_id": 69
+  "last_node_id": 188,
+  "last_link_id": 77
 }

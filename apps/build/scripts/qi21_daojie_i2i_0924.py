@@ -150,6 +150,12 @@ TE_ID, TE_RGBA_ID, RGBA_SW_ID = 142, 143, 144
 # (拐点不占阶段行,样板=t2i 子图 W/H 通道 [171]-[174];入线复用 link22)
 SG_RR_ID = 170                  # RGBA on_true 垫脚石拐点
 SG_RR_LINK = 27                 # RR→[144].on_true 段
+# 0928 黑图修复轮(实弹判别七拍闭环:双参考条件×少步蒸馏=viggle6/T8_4 全黑,
+# 单参考全真,档0 40步双参考真):子图新增行4 单参考编码族(仅 image_1,RGBA
+# 镜像开关同边界槽6),主图 [185] 正源档位开关(==0:true=[40].positive 双参考
+# =档0 官方路/false=[40].positive_single 单参考=档1/2)重定 [8]/[176] 供词。
+TE1_ID, TE1R_ID, TE1_SW_ID = 171, 172, 173        # 单参考主编码/RGBA 编码/镜像开关(行4)
+SG_RR2_ID, SG_RR3_ID = 174, 175                   # 行4 on_false 垫脚石/[172].clip 垫脚石
 # 主图锚(id 承 edit 骨架同表)
 HOST_ID = 40                  # 装配子图宿主
 PREVIEW_ID = 28               # easy showAnything 装配预览(新 id,edit 的 27=RegexExtract)
@@ -171,12 +177,15 @@ STEPS_OFF, STEPS_ON = 40, 6   # 关=40 完整档(原路)/开=6(v0.2 卡荐档,�
 # latent_image/model_file/seed,无负面槽,steps/sigmas/cfg 全内置):model 吃 [32]
 # 输出(档=2 时 false 臂=base);positive 与 [8] 同源=[40].positive;latent_image
 # 与 [8] 同源=[20] 画幅开关输出;seed=0 固定可复现。
-MODE_DEFAULT = 2                                       # [30] 默认档=2(Fun-Acc,0927 用户裁定)
+MODE_DEFAULT = 2                                       # [30] 默认档=2(Fun-Acc,0927 裁定;0928 修复后保持)
 MODE_DIRECT, MODE_VIGGLE, MODE_FUNACC = 0, 1, 2        # 档位语义锚
 CMP_VIG_ID, CMP_FUN_ID = 171, 172                      # easy compare ==(1)/==(2) 布尔源
 CMP_C1_ID, CMP_C2_ID = 173, 174                        # 比较常量 1/2
 LAT_SW_ID, T8_ID = 175, 176                            # latent 路由开关/T8 采样器
 RR_MODE_ID, RR_CMP_ID, RR_DIR_ID = 178, 179, 182       # 档位第二臂/布尔/直连臂垫脚石
+# 0928 黑图修复:主图正源档位开关三件(常量0/比较==0/开关)+双臂垫脚石
+CMP_C0_ID, CMP_DIR_ID, POS_SW_ID = 183, 184, 185       # 常量0/比较(==0)/正源开关
+RR_TRUE_ID, RR_FALSE_ID, RR_F_ID = 186, 187, 188         # 双臂+switch 臂垫脚石(潜行带)
 FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"   # 已装机(models/loras/)
 T8_CLASS = "T8QwenImage21FunAccPDD4Step"
 
@@ -246,6 +255,13 @@ NOTE_TEXT = """## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨�
 - [8] 面板 steps 显 40=摆设值不生效(档0/1 由 [164] 联动供给;档2 steps 内置于 [176] T8)。
 - 分工:PE=提示词优化(已在链)/LoRA=少步数加速(steps 联动自动)/Fun-Acc=PDD 4步采样。
 - **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。
+
+### 加速档单参考正源(0928 黑图修复;档1/2 专用)
+
+- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。
+- **修复接线**:子图新增行4 单参考编码族([171] 主编码/[172] RGBA 编码/[173] RGBA 镜像开关,均仅 image_1、词源与行3 同源、RGBA 开关同宿主面板槽6),新输出 positive_single;主图 [185] 正源档位开关([184] 比较==0 驱动:on_true=[40].positive 双参考=档0 官方路零改动/on_false=positive_single 单参考=档1/2),[8].positive 与 [176] T8.positive 均改经 [185] 供词。
+- [40] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);档1/2 时行4 编码亦入链(多一次视觉编码,约 +20s)。
+- 档2 修复后默认保持 2(0927 裁定不回退);档0 的双参考语义零改动。
 
 ### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)
 
@@ -501,7 +517,23 @@ def build_subgraph(truth: dict) -> dict:
     links.append(_internal_link(25, CONCAT2_ID, 0, -20, 2, "STRING"))         # 装配文本 → 输出 prompt
     links.append(_internal_link(26, TE_ID, 2, -20, 3, "LATENT"))              # 主编码.latent → 输出(画幅双路源)
     links.append(_internal_link(SG_RR_LINK, SG_RR_ID, 0, RGBA_SW_ID, 1, "CONDITIONING"))  # 拐点 → [144].on_true
-    assert sorted(l["id"] for l in links) == list(range(1, 28))
+    # 0928 黑图修复:行4 单参考编码族(仅 image_1;词源同 [142]/[143];RGBA 镜像
+    # 开关同边界槽6)→ 新输出 positive_single 供主图 [185] 正源档位开关
+    links.append(_internal_link(28, -10, 0, TE1_ID, 0, "CLIP"))          # clip → 单参考主编码
+    links.append(_internal_link(29, -10, 1, TE1_ID, 2, "VAE"))           # vae → 单参考主编码
+    links.append(_internal_link(30, -10, 2, TE1_ID, 1, "IMAGE"))         # image_1 → 单参考主编码
+    links.append(_internal_link(31, CONCAT2_ID, 0, TE1_ID, 3, "STRING")) # 装配全文 → 单参考主编码.prompt([28] 同源)
+    links.append(_internal_link(32, TE1_ID, 0, SG_RR2_ID, 0, "CONDITIONING"))   # → 行4 垫脚石(横穿 [172] 不可避)
+    links.append(_internal_link(33, SG_RR2_ID, 0, TE1_SW_ID, 0, "CONDITIONING"))  # 垫脚石 → 镜像开关.on_false
+    links.append(_internal_link(34, TE1R_ID, 0, TE1_SW_ID, 1, "CONDITIONING"))    # 单参考 RGBA → 镜像开关.on_true
+    links.append(_internal_link(35, RGBA_CAT2_ID, 0, TE1R_ID, 3, "STRING"))      # RGBA 公式全文 → 单参考 RGBA.prompt
+    links.append(_internal_link(36, -10, 0, SG_RR3_ID, 0, "CLIP"))       # clip → 垫脚石(避 [143] 右下角)
+    links.append(_internal_link(41, SG_RR3_ID, 0, TE1R_ID, 0, "CLIP"))   # 垫脚石 → 单参考 RGBA.clip
+    links.append(_internal_link(37, -10, 1, TE1R_ID, 2, "VAE"))          # vae → 单参考 RGBA
+    links.append(_internal_link(38, -10, 2, TE1R_ID, 1, "IMAGE"))        # image_1 → 单参考 RGBA
+    links.append(_internal_link(39, -10, 6, TE1_SW_ID, 2, "BOOLEAN"))    # RGBA透明开关 → 镜像开关.switch(同槽6)
+    links.append(_internal_link(40, TE1_SW_ID, 0, -20, 4, "CONDITIONING"))  # 镜像开关 → 输出 positive_single
+    assert sorted(l["id"] for l in links) == list(range(1, 42))
 
     nodes: list[dict] = []
     # 行1 源行
@@ -532,9 +564,9 @@ def build_subgraph(truth: dict) -> dict:
     # 0926 线不遮节点:[162]/[163] 右移 160/220 让 [131]→[142] 装配馈线
     # (1100,885)→(3660,1685) 的下降弧走 [162] 底下/[163] 底下的净空)
     nodes.append(_concatenate(CONCAT1_ID, 9, 12, [14], [100, ROW_Y[1]]))
-    nodes.append(_concatenate(CONCAT2_ID, 14, 13, [15, 16, 25], [680, ROW_Y[1]]))
+    nodes.append(_concatenate(CONCAT2_ID, 14, 13, [15, 16, 25, 31], [680, ROW_Y[1]]))
     nodes.append(_concatenate(RGBA_CAT1_ID, 17, 16, [18], [1760, ROW_Y[1]], delimiter=" "))
-    nodes.append(_concatenate(RGBA_CAT2_ID, 18, 19, [20], [2360, ROW_Y[1]], delimiter=" "))
+    nodes.append(_concatenate(RGBA_CAT2_ID, 18, 19, [20, 35], [2360, ROW_Y[1]], delimiter=" "))
 
     # 行3 编码输出(TextEncode 输入序=edit 件实读:clip/images.image_1/vae/images.image_2/prompt;
     # 双编码器都接双图——i2i 语义:RGBA 路同样要看图编辑)
@@ -565,11 +597,43 @@ def build_subgraph(truth: dict) -> dict:
     # 右缘(3120)上方 ≥40px 过弧(线 y≤1537 < [143] 顶 1578)
     nodes.append(_textencode(TE_RGBA_ID, [2660, ROW_Y[2]], 2, 7, 4, 8, 20, [22]))
     nodes.append(_textencode(TE_ID, [3620, ROW_Y[2]], 1, 5, 3, 6, 15, [21]))
+
+    # 0928 黑图修复:单参考编码工厂(无 image_2 槽=prompt 槽位前移;其余同构)
+    def _textencode1(nid: int, pos: list, clip_l: int, img1_l: int, vae_l: int,
+                     prompt_link: int, pos_links) -> dict:
+        return {
+            "id": nid, "type": "TextEncodeQwenImage21",
+            "pos": pos, "size": [420, 320], "flags": {}, "order": 0, "mode": 0,
+            "inputs": [
+                {"name": "clip", "type": "CLIP", "link": clip_l},
+                {"name": "images.image_1", "type": "IMAGE", "shape": 7, "link": img1_l},
+                {"name": "vae", "type": "VAE", "shape": 7, "link": vae_l},
+                {"name": "prompt", "type": "STRING", "widget": {"name": "prompt"}, "link": prompt_link},
+            ],
+            "outputs": [
+                {"name": "positive", "type": "CONDITIONING", "links": pos_links},
+                {"name": "negative", "type": "CONDITIONING", "links": None},
+                {"name": "latent", "type": "LATENT", "links": None},
+            ],
+            "properties": {"Node name for S&R": "TextEncodeQwenImage21"},
+            "widgets_values": ["", "", 0],  # prompt 清空(连线供词)/负向空/resolution=0 不重采样
+        }
     nodes.append(_switch(
         RGBA_SW_ID, 21, SG_RR_LINK, 11, [23], [4240, ROW_Y[2]], typ="CONDITIONING"))
     # 0926 线不遮节点:[143]→[144].on_true 垫脚石拐点(行2/行3 框间净空带
     # y=1200,拐点不占阶段行;升-降两段弧均从 [142] 顶 1578 上方过)
     nodes.append(_reroute(SG_RR_ID, [3660, 1200], 22, SG_RR_LINK, "CONDITIONING"))
+
+    # ── 0928 黑图修复:行4 单参考编码族(仅 image_1;双参考崩少步蒸馏→单参考
+    #     全真,判别实弹 ec5e3357/af8bdd30;布局镜像行3:[171]@2660/[172]@3620/
+    #     [173]@4240,[174] 垫脚石走行3/行4 框间带,[175] clip 垫脚石避 [143] 角)──
+    row4_y = 2260
+    nodes.append(_textencode1(TE1_ID, [2660, row4_y], 28, 30, 29, 31, [32]))
+    nodes.append(_textencode1(TE1R_ID, [3620, row4_y], 41, 38, 37, 35, [34]))
+    nodes.append(_switch(
+        TE1_SW_ID, 33, 34, 39, [40], [4240, row4_y], typ="CONDITIONING"))
+    nodes.append(_reroute(SG_RR2_ID, [3340, 2100], 32, 33, "CONDITIONING"))
+    nodes.append(_reroute(SG_RR3_ID, [2450, 2050], 36, 41, "CLIP"))
 
     for order, n in enumerate(nodes):
         n["order"] = order
@@ -588,6 +652,11 @@ def build_subgraph(truth: dict) -> dict:
             "id": 3, "title": "道劫·编码输出(行3:主编码+RGBA编码(官方公式路,默认旁路)+RGBA开关)",
             # 0926 线不遮节点:[143] 左移随框左扩 2960→2660、加宽罩行3 全部三件
             "bounding": [2660, 1520, 2040, 560], "color": "#886", "flags": {},
+        },
+        # 0928 黑图修复:行4 单参考编码族(加速档正源,仅 image_1)
+        {
+            "id": 4, "title": "道劫·单参考编码(行4:档1/2 加速正源,仅 image_1,0928 黑图修复;RGBA 镜像开关同宿主面板)",
+            "bounding": [2660, 2200, 2040, 560], "color": "#4d9e6a", "flags": {},
         },
     ]
 
@@ -609,26 +678,29 @@ def build_subgraph(truth: dict) -> dict:
     # 自下而入;指令在行2 带;型选择在行1 带——长线恒向右,拐点不带 Reroute 即直入;
     # 0926 线不遮节点:clip 槽 2950→2340 左移,保 clip→[143](2660) 恒向右)
     inputs = [
-        {"id": _IO_IDS[0], "name": "clip", "type": "CLIP", "linkIds": [1, 2], "pos": [2340, 1540]},
-        {"id": _IO_IDS[1], "name": "vae", "type": "VAE", "linkIds": [3, 4], "pos": [2620, 1980]},
-        {"id": _IO_IDS[2], "name": "image_1", "type": "IMAGE", "linkIds": [5, 7], "pos": [2540, 2020]},
+        {"id": _IO_IDS[0], "name": "clip", "type": "CLIP", "linkIds": [1, 2, 28, 36], "pos": [2340, 1540]},
+        {"id": _IO_IDS[1], "name": "vae", "type": "VAE", "linkIds": [3, 4, 29, 37], "pos": [2620, 1980]},
+        {"id": _IO_IDS[2], "name": "image_1", "type": "IMAGE", "linkIds": [5, 7, 30, 38], "pos": [2540, 2020]},
         {"id": _IO_IDS[3], "name": "image_2", "type": "IMAGE", "linkIds": [6, 8], "pos": [2460, 2060]},
         {"id": _IO_IDS[4], "name": "指令", "type": "STRING", "linkIds": [9], "pos": [-196, 896]},
         {"id": _IO_IDS[5], "name": "型选择", "type": "COMBO", "linkIds": [10], "pos": [-196, 160]},
-        {"id": _IO_IDS[6], "name": "RGBA透明开关", "type": "BOOLEAN", "linkIds": [11], "pos": [4060, 2040]},
+        {"id": _IO_IDS[6], "name": "RGBA透明开关", "type": "BOOLEAN", "linkIds": [11, 39], "pos": [4060, 2040]},
     ]
     outputs = [
         {"id": _IO_IDS[7], "name": "positive", "type": "CONDITIONING", "linkIds": [23], "pos": [4700, 1640]},
         {"id": _IO_IDS[8], "name": "negative", "type": "CONDITIONING", "linkIds": [24], "pos": [4700, 1800]},
         {"id": _IO_IDS[9], "name": "prompt", "type": "STRING", "linkIds": [25], "pos": [4700, 900]},
         {"id": _IO_IDS[10], "name": "latent", "type": "LATENT", "linkIds": [26], "pos": [4700, 1960]},
+        # 0928 黑图修复:单参考正源输出(行4 镜像开关;主图 [185] 档位开关 on_false 臂)
+        {"id": "e8f1a2b3-0005-4b05-8f05-d47c9e21b05", "name": "positive_single",
+         "type": "CONDITIONING", "linkIds": [40], "pos": [4700, 2120]},
     ]
 
     sg = {
         "id": SG_UUID,
         "version": 1,
-        "state": {"lastGroupId": 3, "lastNodeId": SG_RR_ID, "lastLinkId": SG_RR_LINK,
-                  "lastRerouteId": 1},
+        "state": {"lastGroupId": 4, "lastNodeId": SG_RR3_ID, "lastLinkId": 41,
+                  "lastRerouteId": 3},
         "revision": 1,
         "config": {"defaultIOState": {}},
         "name": "[40] 道劫·装配子图(双击进入)",
@@ -769,10 +841,13 @@ def build_main(truth: dict, sg: dict) -> dict:
                 {"name": "RGBA透明开关", "type": "BOOLEAN", "widget": {"name": "RGBA透明开关"}, "link": None},
             ],
             "outputs": [
-                {"name": "positive", "type": "CONDITIONING", "links": [19, 64]},
+                # 0928 黑图修复:positive 不再直喂采样器,单扇出入 [185] 正源档位
+                # 开关;新增 positive_single(行4 单参考族)同入 [185] on_false 臂
+                {"name": "positive", "type": "CONDITIONING", "links": [71]},
                 {"name": "negative", "type": "CONDITIONING", "links": [20]},
                 {"name": "prompt", "type": "STRING", "links": [21]},
                 {"name": "latent", "type": "LATENT", "links": [30]},
+                {"name": "positive_single", "type": "CONDITIONING", "links": [70]},
             ],
             "properties": {"subgraph": SG_UUID, "previewExposures": []},
             "widgets_values": [B_SEG, DEFAULT_TYPE, False],
@@ -795,7 +870,7 @@ def build_main(truth: dict, sg: dict) -> dict:
               ["auto", "default"]),
         _core(LORA_PB_ID, "PrimitiveInt", [7520, 240], [280, 90],
               [{"name": "value", "type": "INT", "widget": {"name": "value"}, "link": None}],
-              [{"name": "INT", "type": "INT", "links": [54, 69]}],
+              [{"name": "INT", "type": "INT", "links": [54, 69, 72]}],
               [MODE_DEFAULT, "fixed"]),
         _core(LORA_ID, "LoraLoaderModelOnly", [8560, 1100], [340, 130],
               [{"name": "model", "type": "MODEL", "link": 25},
@@ -837,6 +912,16 @@ def build_main(truth: dict, sg: dict) -> dict:
         _primitive_int(STEPS_C40_ID, STEPS_OFF, [7520, 720], 39),
         _primitive_int(STEPS_C6_ID, STEPS_ON, [7520, 1100], 40),
         _switch(STEPS_SW_ID, 39, 40, 59, [42], [9000, 620], typ="INT", size=[300, 110]),
+        # ── 0928 黑图修复新增:正源档位开关三件(常量0/比较==0/开关)——
+        #     [183] 加速塔空档/[184] [171] 下方/[185] [31] 右侧开区,线走净空 ──
+        _primitive_int(CMP_C0_ID, MODE_DIRECT, [7400, 2700], 73),
+        _easy_compare(CMP_DIR_ID, 72, 73, [74], [7940, 2620]),
+        _switch(POS_SW_ID, 76, 75, 77, [19, 64], [8540, 2400], typ="CONDITIONING"),
+        # 0928:垫脚石三枚([186]/[187] 双臂潜行绕 [20]/[183]/[184]/[172];
+        # [188] switch 臂绕 [172])——均落 [20] 底下开带
+        _reroute(RR_TRUE_ID, [7300, 2350], 71, 75, "CONDITIONING"),
+        _reroute(RR_FALSE_ID, [6800, 2600], 70, 76, "CONDITIONING"),
+        _reroute(RR_F_ID, [8300, 2680], 74, 77, "BOOLEAN"),
         # ── 行3c 输出画幅双路(0926 线不遮:[18] 降 y=2280 让 [19]→[20].switch
         #     横开关线走 [18] 顶上净空;[40].latent→[20] 降线走 [18] 顶上净空)──
         _core(19, "PrimitiveBoolean", [5440, 2080], [280, 90],
@@ -964,7 +1049,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         [16, 27, 0, 15, 1, "STRING"],     # rewritten_prompt → PE 开关.on_true
         [17, 22, 0, 15, 0, "STRING"],     # 原始用户词 → PE 开关.on_false
         [18, 15, 0, HOST_ID, 4, "STRING"],   # PE 开关 → 宿主.指令(①层占位)
-        [19, HOST_ID, 0, 8, 1, "CONDITIONING"],  # 宿主.positive → KSampler
+        [19, POS_SW_ID, 0, 8, 1, "CONDITIONING"],  # 正源开关 → KSampler.positive(0928 改道)
         [20, HOST_ID, 1, 8, 2, "CONDITIONING"],  # 宿主.negative → KSampler
         [21, HOST_ID, 2, PREVIEW_ID, 0, "STRING"],  # 宿主.prompt → 装配预览
         [22, 1, 0, RR_M_A_ID, 0, "MODEL"],    # UNET → 顶通道(升)
@@ -985,7 +1070,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         [34, 8, 0, LAT_SW_ID, 0, "LATENT"],   # [8] 输出 → [175].on_false(档0/1 路,0927)
         [68, T8_ID, 0, LAT_SW_ID, 1, "LATENT"],   # T8 输出 → [175].on_true(档2 路)
         [62, LAT_SW_ID, 0, 9, 0, "LATENT"],   # [175] 路由输出 → [9].samples(汇流)
-        [64, HOST_ID, 0, T8_ID, 1, "CONDITIONING"],  # 宿主.positive → T8.positive(同源)
+        [64, POS_SW_ID, 0, T8_ID, 1, "CONDITIONING"],  # 正源开关 → T8.positive(0928 改道,与[8]同源)
         [35, 3, 0, RR_V_A_ID, 0, "VAE"],      # VAE → 顶通道(升)
         [36, RR_V_A_ID, 0, RR_V_B_ID, 0, "VAE"],   # 顶横 y=-640
         [37, RR_V_B_ID, 0, 9, 1, "VAE"],      # → VAEDecode
@@ -1001,6 +1086,15 @@ def build_main(truth: dict, sg: dict) -> dict:
         [57, CMP_C2_ID, 0, CMP_FUN_ID, 1, "INT"],      # 常量2 → 比较(==2).b
         [60, CMP_FUN_ID, 0, RR_CMP_ID, 0, "BOOLEAN"],  # 比较==2 → 布尔垫脚石(避 [8] 段)
         [61, RR_CMP_ID, 0, LAT_SW_ID, 2, "BOOLEAN"],   # 垫脚石 → [175] latent 路由.switch
+        # 0928 黑图修复轮:正源档位开关三件套(档0=双参考宿主/档1·2=单参考宿主)
+        [72, LORA_PB_ID, 0, CMP_DIR_ID, 0, "INT"],     # 档位 → 比较(==0).a
+        [73, CMP_C0_ID, 0, CMP_DIR_ID, 1, "INT"],      # 常量0 → 比较(==0).b(档0 判据)
+        [74, CMP_DIR_ID, 0, RR_F_ID, 0, "BOOLEAN"],     # 比较==0 → 垫脚石(绕 [172])
+        [77, RR_F_ID, 0, POS_SW_ID, 2, "BOOLEAN"],      # 垫脚石 → 正源开关.switch
+        [70, HOST_ID, 4, RR_FALSE_ID, 0, "CONDITIONING"],  # 宿主.positive_single → 垫脚石(潜 [173]/[172] 下)
+        [76, RR_FALSE_ID, 0, POS_SW_ID, 0, "CONDITIONING"],  # 垫脚石 → 正源开关.on_false(档1/2)
+        [71, HOST_ID, 0, RR_TRUE_ID, 0, "CONDITIONING"],    # 宿主.positive → 垫脚石(潜 [173]/[172] 下)
+        [75, RR_TRUE_ID, 0, POS_SW_ID, 1, "CONDITIONING"],  # 垫脚石 → 正源开关.on_true(档0 双参考)
     ]
     # id 计数器真值重算(根图+子图共享分配器,一并计入 max;计数器只抬不降)
     g["last_node_id"] = max(
@@ -1089,6 +1183,8 @@ def _dry_run_default(g: dict, sg: dict) -> tuple[set[int], str]:
                 walk(l["origin_id"])
 
     walk(RGBA_SW_ID)  # positive 默认路终点开关(on_false=[142] 主编码臂)
+    # 0928 黑图修复:默认态(档2)正源=行4 单参考族,镜像开关 on_false=[171]
+    walk(TE1_SW_ID)
     return reach, "\n".join(texts)
 
 
@@ -1300,9 +1396,11 @@ def self_check(g: dict, truth: dict) -> list[str]:
         [BASE_ID, LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID],
         [CONCAT1_ID, CONCAT2_ID, RGBA_CAT1_ID, RGBA_CAT2_ID],
         [TE_RGBA_ID, TE_ID, RGBA_SW_ID],
+        # 0928 黑图修复:行4 单参考编码族(加速档正源)
+        [TE1_ID, TE1R_ID, TE1_SW_ID],
     ]
-    if len(row_ys) != 3:
-        errs.append(f"子图应恰 3 行(源/装配路由/编码),得 {len(row_ys)} 行")
+    if len(row_ys) != 4:
+        errs.append(f"子图应恰 4 行(源/装配路由/编码/单参考编码),得 {len(row_ys)} 行")
     for y, want in zip(row_ys, want_rows):
         if sorted(sg_rows[y]) != sorted(want):
             errs.append(f"子图行 y={y} 成员漂移: 应 {sorted(want)} 得 {sorted(sg_rows[y])}")
@@ -1473,9 +1571,11 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if pb_node["type"] != "PrimitiveInt" or pb_node["widgets_values"][0] != MODE_DEFAULT:
         errs.append(f"[{LORA_PB_ID}] 应为 PrimitiveInt 档位且默认={MODE_DEFAULT}(Fun-Acc,0927 裁定),"
                     f"得 {pb_node.get('widgets_values')}")
-    if sorted(pb_node["outputs"][0]["links"] or []) != sorted([54, 69]):
-        errs.append(f"[{LORA_PB_ID}] 档位源应扇出恰两线(→[{CMP_VIG_ID}]/[{CMP_FUN_ID}])")
-    for cid, want in ((CMP_VIG_ID, MODE_VIGGLE), (CMP_FUN_ID, MODE_FUNACC)):
+    if sorted(pb_fans := (pb_node["outputs"][0]["links"] or [])) != sorted([54, 69, 72]):
+        errs.append(f"[{LORA_PB_ID}] 档位源应扇出恰三线(→[{CMP_VIG_ID}]/[{CMP_FUN_ID}]/"
+                    f"[{CMP_DIR_ID}](0928 正源开关)),得 {pb_fans}")
+    for cid, want in ((CMP_VIG_ID, MODE_VIGGLE), (CMP_FUN_ID, MODE_FUNACC),
+                      (CMP_DIR_ID, MODE_DIRECT)):
         c = m_nodes[cid]
         if c["type"] != "easy compare" or c["widgets_values"][2] != "a == b":
             errs.append(f"[{cid}] 应为 easy compare(a == b)产出档位布尔")
@@ -1507,13 +1607,57 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append(f"[{T8_ID}] T8 无负面槽(输入仅 model/positive/latent_image/model_file/seed)")
     if m_links[t8["inputs"][0]["link"]][1] != LORA_SW_ID:
         errs.append(f"[{T8_ID}].model 上游应 [{LORA_SW_ID}] 输出(档2 时 false 臂=base 模型)")
-    if _trace_reroute_main(m_links, m_nodes, t8["inputs"][1]["link"]) != HOST_ID:
-        errs.append(f"[{T8_ID}].positive 上游应宿主 [{HOST_ID}].positive(与 [8] 同源)")
+    if _trace_reroute_main(m_links, m_nodes, t8["inputs"][1]["link"]) != POS_SW_ID:
+        errs.append(f"[{T8_ID}].positive 上游应 [{POS_SW_ID}] 正源档位开关"
+                    f"(0928:与 [8] 同源经开关,档0=双参考/档1·2=单参考)")
     if _trace_reroute_main(m_links, m_nodes, t8["inputs"][2]["link"]) != 20:
         errs.append(f"[{T8_ID}].latent_image 上游应 [20] 画幅开关(与 [8] 同源)")
     t8s = [n for n in g["nodes"] if n["type"] == T8_CLASS]
     if len(t8s) != 1:
         errs.append(f"{T8_CLASS} 应恰 1 个(档2 支路)")
+    # 0928 黑图修复轮:主图正源档位开关三件套契约
+    pos_sw = m_nodes[POS_SW_ID]
+    if pos_sw["type"] != "ComfySwitchNode" or pos_sw["outputs"][0]["type"] != "CONDITIONING":
+        errs.append(f"[{POS_SW_ID}] 应为 CONDITIONING 泛型开关(正源档位路由)")
+    if pos_sw["widgets_values"][0] is not False:
+        errs.append(f"[{POS_SW_ID}] widget 默认应 false(档位驱动,懒执行)")
+    def _trace_to_link(lid: int) -> tuple[int, int]:
+        while m_nodes[m_links[lid][1]]["type"] == "Reroute":
+            lid = m_nodes[m_links[lid][1]]["inputs"][0]["link"]
+        o = m_links[lid]
+        return o[1], o[2]
+    if _trace_to_link(pos_sw["inputs"][0]["link"]) != (HOST_ID, 4):
+        errs.append(f"[{POS_SW_ID}].on_false 上游应宿主槽4 positive_single(档1/2 单参考,可穿垫脚石)")
+    if _trace_to_link(pos_sw["inputs"][1]["link"]) != (HOST_ID, 0):
+        errs.append(f"[{POS_SW_ID}].on_true 上游应宿主槽0 positive(档0 双参考官方路,可穿垫脚石)")
+    if _trace_reroute_main(m_links, m_nodes, pos_sw["inputs"][2]["link"]) != CMP_DIR_ID:
+        errs.append(f"[{POS_SW_ID}].switch 上游应 easy compare[{CMP_DIR_ID}](档位==0 布尔,可穿垫脚石)")
+    if m_links[m_nodes[8]["inputs"][1]["link"]][1] != POS_SW_ID:
+        errs.append(f"[8].positive 上游应 [{POS_SW_ID}] 正源开关(0928 改道)")
+    # 子图行4 单参考族契约(无 image_2=根因规避;词源与行3 同源)
+    for nid, prompt_src in ((TE1_ID, CONCAT2_ID), (TE1R_ID, RGBA_CAT2_ID)):
+        te1n = i_nodes[nid]
+        if te1n["type"] != "TextEncodeQwenImage21":
+            errs.append(f"子图[{nid}] 应为 TextEncodeQwenImage21(单参考编码)")
+        if any(i["name"] == "images.image_2" for i in te1n["inputs"]):
+            errs.append(f"子图[{nid}] 单参考编码不得带 image_2(双参考即黑图根因)")
+        if i_links[te1n["inputs"][3]["link"]]["origin_id"] != prompt_src:
+            errs.append(f"子图[{nid}].prompt 词源应 [{prompt_src}](与行3 同源)")
+        _im = i_links[te1n["inputs"][1]["link"]]
+        if _im["origin_id"] != -10 or _im["origin_slot"] != 2:
+            errs.append(f"子图[{nid}].image_1 应边界槽2(仅 image_1)")
+    te1sw = i_nodes[TE1_SW_ID]
+    if te1sw["type"] != "ComfySwitchNode":
+        errs.append(f"子图[{TE1_SW_ID}] 应为 ComfySwitchNode(RGBA 镜像开关)")
+    if i_links[te1sw["inputs"][2]["link"]]["origin_id"] != -10 \
+            or i_links[te1sw["inputs"][2]["link"]]["origin_slot"] != 6:
+        errs.append(f"子图[{TE1_SW_ID}].switch 应边界槽6(同宿主 RGBA透明开关)")
+    if _trace_origin(i_links, i_nodes, te1sw["inputs"][0]["link"]) != TE1_ID:
+        errs.append(f"子图[{TE1_SW_ID}].on_false 应单参考主编码 [{TE1_ID}]")
+    if _trace_origin(i_links, i_nodes, te1sw["inputs"][1]["link"]) != TE1R_ID:
+        errs.append(f"子图[{TE1_SW_ID}].on_true 应单参考 RGBA 编码 [{TE1R_ID}]")
+    if len(sg["outputs"]) != 5 or sg["outputs"][4]["name"] != "positive_single":
+        errs.append("子图输出应 5 槽(含 positive_single,0928)")
     # 三档干跑(懒执行语义:latent 路由开关只走选中臂)
     d2 = _dry_run_main(g)   # 默认态=档2(Fun-Acc)
     if T8_ID not in d2:
@@ -1708,8 +1852,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
             errs.append("拼接①.string_b 上游应为 [150].BASE(②层)")
     # 子图开关恰 1(RGBA);StringConstant 恰 3(锁层A+RGBA头尾);画幅联动件零移植
     switches = [n for n in sg["nodes"] if n["type"] == "ComfySwitchNode"]
-    if sorted(n["id"] for n in switches) != [RGBA_SW_ID]:
-        errs.append(f"子图开关应恰 1 枚(RGBA;提示词开关在外=主图[15]),得 {[n['id'] for n in switches]}")
+    # 0928 黑图修复:+[173] 单参考 RGBA 镜像开关(行4)
+    if sorted(n["id"] for n in switches) != [RGBA_SW_ID, TE1_SW_ID]:
+        errs.append(f"子图开关应恰 2 枚(RGBA+单参考镜像;提示词开关在外=主图[15]),"
+                    f"得 {[n['id'] for n in switches]}")
     for banned in ("RegexExtract", "ComfyNumberConvert", "ComfyMathExpression"):
         if any(n["type"] == banned for n in sg["nodes"]):
             errs.append(f"子图不应有 {banned}(画幅联动行不移植)")
@@ -1763,8 +1909,9 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append("[144] on_true 应 RGBA 编码 [143](可穿 Reroute 拐点 [170] 垫脚石)")
 
     # 22 子图输出接线:positive/negative→KSampler;prompt→[28] 预览;latent→[20] 画幅开关
-    if [o["name"] for o in sg["outputs"]] != ["positive", "negative", "prompt", "latent"]:
-        errs.append("子图输出应为 positive/negative/prompt/latent")
+    if [o["name"] for o in sg["outputs"]] != ["positive", "negative", "prompt", "latent",
+                                              "positive_single"]:
+        errs.append("子图输出应为 positive/negative/prompt/latent/positive_single(0928)")
     pv = m_nodes[PREVIEW_ID]
     if pv["type"] != "easy showAnything" or m_links[pv["inputs"][0]["link"]][1] != HOST_ID:
         errs.append(f"[{PREVIEW_ID}] 应为 easy showAnything 且接 [40] prompt 输出")
@@ -1785,7 +1932,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
                   # 0927 三档轮:依赖警示+档位语义+T8 事实
                   "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
                   "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽", "用户手动权威",
-                  "懒执行", "绝不吃 viggle LoRA"):
+                  "懒执行", "绝不吃 viggle LoRA",
+                  # 0928 黑图修复轮:单参考正源要点
+                  "单参考正源", "崩纯黑", "唯一色=1", "positive_single",
+                  "[184]", "[185]", "默认保持 2", "零改动"):
         if token not in note:
             errs.append(f"Note 缺要点: {token!r}")
     if note.lstrip().startswith("# "):
