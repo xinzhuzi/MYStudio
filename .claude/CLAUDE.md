@@ -105,6 +105,8 @@
 | 4 | **Task 子代理** | 宽而重的探索、跨目录检索、独立核验;必须精简 prompt 并限制范围 |
 | 5 | **Trellis channel** | 多 worker 协作实施/检查(implement/check agent) |
 
+**GitNexus 索引保鲜(0928 立)**:索引落后 = AGENTS.md 强制的 impact/detect_changes 门禁对最新代码失明(绿灯假象)。收尾/打包前跑 `python3 apps/build/scripts/gitnexus_freshness_check.py --strict`,落后或报「中断的增量标记」时执行 `node .gitnexus/run.cjs analyze --embeddings` 刷新(增量,本地 onnx 免 key);多会话并行时 analyze 可能撞并发墙 exit 1,重跑直至标记清除。pre-commit 已挂警告位(不拦截)。
+
 ---
 
 ## Trellis

@@ -7,6 +7,9 @@ APPS_DIR="$(cd "$HUSKY_DIR/.." && pwd)/apps"
 
 cd "$APPS_DIR" || { echo "❌ Cannot access apps directory"; exit 1; }
 
+# GitNexus 索引新鲜度提醒(0928 立):只警告不拦截——落后/中断时给出刷新命令,门是否拦由人定
+python3 "$APPS_DIR/build/scripts/gitnexus_freshness_check.py" || true
+
 # 运行 typecheck
 node_modules/.bin/tsc --noEmit -p frontend/config/tsconfig.json
 if [ $? -ne 0 ]; then
