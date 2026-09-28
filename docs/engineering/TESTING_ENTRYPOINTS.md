@@ -8,7 +8,7 @@
 
 | 改动类型 | 必跑入口(npm 别名 / 工具) | 证据标准 | 真源指针 |
 |---|---|---|---|
-| 前端 TS/TSX(组件 / store / lib / electron) | 收官全量:`npm run test:all`;快反馈腿(咨询性,不拦门):`npm run test:related -- <改动文件>` | exit 0 + quality-gate-report.json | [`package.json`](../../apps/package.json) `test:all`/`test:related` · [`run-quality-gate.mjs`](../../apps/build/scripts/run-quality-gate.mjs) |
+| 前端 TS/TSX(组件 / store / lib / electron) | 收官全量:`npm run test:all`;快反馈腿(咨询性,不拦门):`npm run test:related -- <改动文件>` **⚠ 已知必崩警示(2026-09-29 记档):该入口在本仓对任何目标文件都结构性崩溃 exit 1**(vitest 1.6.1 把 `import.meta.glob` 引入的 .md 资产当 JS parse → rollup PARSE_ERROR,与目标文件无关;92fe0eb AC13 blockers 记档,修复另案)——**勿按此行取红绿信号**,快反馈请改用窄跑:`npx vitest run --config frontend/config/vite.config.ts <测试文件>`(cwd=apps/) | exit 0 + quality-gate-report.json | [`package.json`](../../apps/package.json) `test:all`/`test:related` · [`run-quality-gate.mjs`](../../apps/build/scripts/run-quality-gate.mjs) |
 | Python 六域(engines / my_nodes / chapter_video / build_scripts / backend unittest / trellis) | `npm run test:py`(单域排障:`--domain <name>`) | exit 0 + python-tests-report.json(六域齐全) | [`package.json`](../../apps/package.json) `test:py` · [`run-python-tests.mjs`](../../apps/build/scripts/run-python-tests.mjs) |
 | 工作流 JSON / 三生成器(道劫 t2i / i2i / qwen21-edit) | `npm run test:workflow`(四段:幂等重跑 / 契约 pytest / 布局棘轮 / 落位审计);**跑生成器前必须先过 preflight_gate(见下纪律)** | exit 0 + workflow-gate-report.json;生产 JSON 与生成器零改动 | [`package.json`](../../apps/package.json) `test:workflow` · [`workflow_gate.py`](../../apps/build/scripts/workflow_gate.py) |
 | 打包 / 覆盖安装 | 打包唯一入口 = `build-mac.sh`(AGENTS.md 铁律,不得绕过);装机独立复核:`npm run verify:installed` | exit 0 + verify-installed-report.json(两向 asar 哈希相等) | [`package.json`](../../apps/package.json) `verify:installed` · [`verify-installed.mjs`](../../apps/build/packaging/verify-installed.mjs) |
@@ -27,7 +27,7 @@
 
 ## 聚合门 test:all 内部构成(指认,不复制)
 
-`npm run test:all`(= run-quality-gate.mjs,fail-fast,报告 quality-gate-report.json)按序聚合:focused-tests → typecheck → lint → **python-tests**(`test:py`)→ **hygiene** → 全量 vitest(`test`)→ smoke:aitoearn-upgrade →(仅 darwin)build:mac → smoke:desktop。阶段顺序与 skip 惯例以 `run-quality-gate.mjs` 的 `--plan` 输出为准。独立细粒度入口(`test:workflow` / `verify:installed` / `doctor:engine` / `test:related` / `commit_gate.sh` / `preflight_gate.py`)不进门禁,原因与边界见各自脚本头部注释。
+`npm run test:all`(= run-quality-gate.mjs,fail-fast,报告 quality-gate-report.json)按序聚合:focused-tests → typecheck → lint → **python-tests**(`test:py`)→ **hygiene** → 全量 vitest(`test`)→ smoke:aitoearn-upgrade →(仅 darwin)build:mac → smoke:desktop。阶段顺序与 skip 惯例以 `run-quality-gate.mjs` 的 `--plan` 输出为准。独立细粒度入口(`test:workflow` / `verify:installed` / `doctor:engine` / `test:related`(当前结构性必崩,警示见指认表) / `commit_gate.sh` / `preflight_gate.py`)不进门禁,原因与边界见各自脚本头部注释。
 
 ## 对拍口径(本文档的维护纪律)
 
