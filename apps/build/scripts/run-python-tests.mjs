@@ -6,8 +6,8 @@
 //   process.platform 自动探测)按域平台表过滤;--json 报告落
 //   apps/output/automation/python-tests-report.json(durable-json-report 原语);
 //   逐域时长超 S0 基线 ×2 打 WARN 行不拦门(防测试腐化膨胀)。
-// build_scripts 域用显式文件清单,件缺失即 RED(S6 后扩 test_commit_gate.py,
-//   S6.5 后扩 test_preflight_gate.py——届时改 BUILD_SCRIPT_TEST_FILES 一处)。
+// build_scripts 域用显式文件清单,件缺失即 RED(S6 扩 test_commit_gate.py、
+//   S6.5 扩 test_preflight_gate.py,已落;后续扩清单只改 BUILD_SCRIPT_TEST_FILES 一处)。
 
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -20,20 +20,25 @@ const appsRoot = fileURLToPath(new URL("../..", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const REPORT_PATH = resolve(appsRoot, "output/automation/python-tests-report.json");
 
-// build_scripts 域显式清单(件缺失即 RED)。
+// build_scripts 域显式清单(件缺失即 RED)。test_commit_gate.py=S6 提交纪律门自测;
+// test_preflight_gate.py=S6.5 共享真源预检门自测(均 mktemp 临时 repo,双平台安全)。
 const BUILD_SCRIPT_TEST_FILES = [
   "build/scripts/test_build_voice_clone_library.py",
   "build/scripts/test_daojie_ma_sync_check.py",
   "build/scripts/test_mix_voice_audio.py",
+  "build/scripts/test_commit_gate.py",
+  "build/scripts/test_preflight_gate.py",
 ];
 
 // S0 基线(2026-09-28 darwin/arm64,Python 3.14.4 / pytest 9.0.3;implement.md 执行记录)。
 // 逐域时长超 ×2 出 WARN 行,不拦门。
+// build_scripts:S6.5 清单 3→5 件结构性扩容,基线随实测定更新(1.01s→2.25s,
+//   同日当轮实测;扩容属合法变化,非测试腐化,不更新会让 WARN 沦为噪音)。
 const BASELINE_SECONDS = {
   engines: 19.33,
   my_nodes: 1.52,
   chapter_video: 2.53,
-  build_scripts: 1.01,
+  build_scripts: 2.25,
   backend_unittest: 6.961,
   trellis: 0.77,
 };
