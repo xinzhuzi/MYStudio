@@ -361,6 +361,9 @@ describe("desktop build scripts", () => {
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"test:all": "node ./build/scripts/run-quality-gate.mjs"');
     expect(packageJson).toContain('"test:py": "node ./build/scripts/run-python-tests.mjs"');
+    expect(packageJson).toContain(
+      '"test:workflow": "python3 ./build/scripts/workflow_gate.py"',
+    );
     expect(packageJson).toContain('"lint:scripts": "python3 ./build/scripts/scripts_hygiene.py"');
     expect(packageJson).toContain('"hygiene": "python3 ./build/scripts/hygiene_gate.py"');
     expect(source).toContain("--plan");

@@ -171,6 +171,7 @@
     "smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs",
     "test:all": "node ./build/scripts/run-quality-gate.mjs",
     "test:py": "node ./build/scripts/run-python-tests.mjs",
+    "test:workflow": "python3 ./build/scripts/workflow_gate.py",
     "lint:scripts": "python3 ./build/scripts/scripts_hygiene.py",
     "hygiene": "python3 ./build/scripts/hygiene_gate.py",
     "smoke:workflow:open": "node ./build/smoke/open-workflow-smoke-app.mjs",

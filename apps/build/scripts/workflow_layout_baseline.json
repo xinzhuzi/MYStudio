@@ -1,0 +1,39 @@
+{
+  "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
+  "head": "2af9c05",
+  "rebuiltAt": "2026-09-28T23:28:35",
+  "files": {
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
+      "scopes": {
+        "main": {
+          "crossings": 60,
+          "occlusion": 0
+        },
+        "sub:[40] 道劫·装配子图(双击进入)": {
+          "crossings": 5,
+          "occlusion": 0
+        }
+      }
+    },
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
+      "scopes": {
+        "main": {
+          "crossings": 65,
+          "occlusion": 0
+        },
+        "sub:[40] 道劫·装配子图(双击进入)": {
+          "crossings": 10,
+          "occlusion": 0
+        }
+      }
+    },
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
+      "scopes": {
+        "main": {
+          "crossings": 69,
+          "occlusion": 0
+        }
+      }
+    }
+  }
+}
