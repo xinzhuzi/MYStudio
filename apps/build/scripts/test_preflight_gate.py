@@ -137,6 +137,22 @@ class PreflightGateTest(unittest.TestCase):
             self.assertEqual(data["paths"][0]["checks"]["git"]["status"],
                              "not_applicable")
 
+    def test_repo_root_resolves_to_git_toplevel(self):
+        """回归锁:REPO 必须是 git 仓库根(首版 parents[2]=apps/ 致报告落
+        apps/apps/…,relative_to 打印还掩盖了错位)。"""
+        script_dir = Path(__file__).resolve().parent
+        toplevel = subprocess.run(
+            ["git", "-C", str(script_dir), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=60).stdout.strip()
+        self.assertNotEqual(toplevel, "", "测试环境必须在本 git 仓库内")
+        self.assertEqual(MOD.REPO, Path(toplevel),
+                         "REPO 必须解析为仓库根,否则报告落错位")
+        self.assertEqual(
+            MOD.REPORT_JSON,
+            Path(toplevel) / "apps" / "output" / "automation"
+            / "preflight-report.json",
+            "报告必须落仓库 apps/output/automation/ 正位")
+
 
 if __name__ == "__main__":
     unittest.main()

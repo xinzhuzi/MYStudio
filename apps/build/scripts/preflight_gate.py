@@ -27,7 +27,10 @@ import subprocess
 import sys
 import time
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
+SCRIPTS = pathlib.Path(__file__).resolve().parent
+# 房子写法同 workflow_gate.py:SCRIPTS=…/apps/build/scripts,parents[2]=仓库根
+# (首版误用 __file__.parents[2]=apps/,报告曾落 apps/apps/…,已修+回归测试锁定)。
+REPO = SCRIPTS.parents[2]
 REPORT_JSON = REPO / "apps" / "output" / "automation" / "preflight-report.json"
 SILENCE_WINDOW_MIN = 30
 REGEN_HINT = "生成器会覆写此文件;若含画布手调,先备份对账(0928 覆盖事故)"
