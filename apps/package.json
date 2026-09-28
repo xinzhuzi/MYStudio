@@ -184,6 +184,7 @@
     "smoke:video-workflow:rollback": "vite-node --config build/timeline/vite-node.config.ts build/smoke/video-workflow-runtime-rollback-smoke.ts",
     "video:final-output-qc": "node ./build/remotion/final-output-qc.mjs",
     "smoke:installed": "node ./build/packaging/install-and-smoke.mjs",
+    "verify:installed": "node ./build/packaging/verify-installed.mjs",
     "video:chapter001": "node ./build/chapter_video/automate-chapter001-video.mjs",
     "video:chapter001:visual-preflight": "MYSTUDIO_CHAPTER_VIDEO_VISUAL_PREFLIGHT=1 ./node_modules/.bin/vite-node --config build/timeline/vite-node.config.ts build/chapter_video/audit-visual-continuity.ts",
     "video:chapter001:probe-providers": "node ./build/chapter_video/automate-chapter001-video.mjs --probe-providers",

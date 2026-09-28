@@ -411,6 +411,23 @@ describe("desktop build scripts", () => {
     expect(report).toMatchObject({ mode: "quality-gate", platform: "linux", releaseSkipped: true, ok: true });
     expect(report.stages[1]).toMatchObject({ status: "skipped", exitCode: null });
   });
+  it("exposes an installed-app independent re-verification aligned with install-and-smoke paths", () => {
+    const packageJson = readBuildFile("package.json");
+    const verifyScript = readBuildFile("build/packaging/verify-installed.mjs");
+    expect(packageJson).toContain(
+      '"verify:installed": "node ./build/packaging/verify-installed.mjs"',
+    );
+    // 路径常量从 install-and-smoke.mjs 解析对齐,不得复制魔数(两处漂移防线)
+    expect(verifyScript).toContain("install-and-smoke.mjs");
+    expect(verifyScript).toContain("parsePathConstants");
+    expect(verifyScript).not.toContain("'/Applications/");
+    expect(verifyScript).not.toContain("'release', 'build', 'mac-arm64'");
+    // 组合而非复制:冒烟仍走 smoke:installed 全链;只读腿有显式旗标
+    expect(verifyScript).toContain('"smoke:installed"');
+    expect(verifyScript).toContain("--shasum-only");
+    expect(verifyScript).toContain("writeDurableJsonReport");
+    expect(verifyScript).toContain("verify-installed-report.json");
+  });
   it("exposes the deterministic AiToEarn upgrade smoke command", () => {
     const packageJson = readBuildFile("package.json");
     expect(packageJson).toContain('"smoke:aitoearn-upgrade": "node ./build/scripts/aitoearn-upgrade-smoke.mjs"');
