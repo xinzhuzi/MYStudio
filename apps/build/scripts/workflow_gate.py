@@ -338,7 +338,19 @@ def stage_layout() -> dict:
                           "reason": "基线缺此文件(scope 集变化),核账后 --rebuild-baseline"})
             ok = False
             continue
-        cur = _layout_crossings(REPO / rel) or {}
+        cur = _layout_crossings(REPO / rel)
+        if cur is None:
+            # 测量失败禁吞(design §5;首版 `or {}` 把坏测量空转成 PASSED=门假绿):
+            # layout_check 未产出 LAYOUT_CHECK_JSON 契约行(文件不可读/非 JSON/
+            # 结构不被解析器识别,layout_check exit 2 只写 stderr)——显式 FAILED,
+            # 与 rebuild_baseline :294-296 的 None 处置对齐(段间对称)。
+            items.append({"file": rel, "status": "failed",
+                          "reason": "layout_check 未产出测量契约行(文件不可读/非 JSON/"
+                                    "结构不被解析器识别)——测量失败不空转,棘轮对该件显式 FAILED"})
+            ok = False
+            print(f"[workflow]   FAILED {pathlib.Path(rel).name} :: "
+                  f"layout_check 未产出测量契约行(测量失败,禁吞)")
+            continue
         deltas = []
         for name, counts in cur.items():
             if name not in base_scopes:
