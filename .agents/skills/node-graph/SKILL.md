@@ -12,7 +12,7 @@ metadata:
 ## 头部声明(两条,先读)
 
 1. **裁定同步钩子(R13)**:R13=本技能建档任务档的需求条款编号(全文见 `.trellis/tasks/09-28-node-graph-skill/prd.md` R13)。规矩:今后新布局裁定落账(立宪文档或生成器自查谓词变更)时,**同一战役批次内**同步本章布局策略——本技能不是写死的静态件。
-2. **工具口径边界声明**:`workflow_layout.inspect()` 是**快速近似读数**(重叠盒+直线中心线交叉+边界),**非 0928 立宪口径**(无贝塞尔模型、无线遮节点检查、无间距阈值、无输出口检查);立宪权威口径=生成器自查谓词(见 ⑥)。
+2. **工具口径边界声明**:`workflow_layout.inspect()` 是**快速近似读数**(重叠盒+直线中心线交叉+边界),**非 0928 立宪口径**(无贝塞尔模型、无线遮节点检查、无间距阈值、无输出口检查);立宪判据现可用本地 `tools/layout_check.py` 跑(立宪口径的可跑实现,见 ⑥),生产权威宿主仍是生成器自查谓词。
 
 ## 何时用
 
@@ -25,7 +25,7 @@ metadata:
 
 > 本章数字口径以 0928 立宪与生成器自查谓词实况为准;**易变棘轮基线现值不硬编码**,取现值走 `docs/comfyui-kb/画布布局规范-0928.md` §三。
 
-**生成器**(本章与 ④⑥⑦ 反复依赖的概念,先定义)= `apps/build/scripts/` 下三个幂等 Python 脚本,生产工作流的唯一合法产地:直接执行即「重建三件生产工作流 GUI JSON(真源落 `apps/backend/engines/comfyui/workflows/`)+跑自查谓词」一体完成——谓词写在各脚本 docstring 自查段,构建期+磁盘态双跑,EXIT=0 为绿。重跑命令:`python3 apps/build/scripts/<生成器脚本>.py`(三个脚本文件名带项目代号,名单与现值基线见 0928 立宪文档 §三,本文不誊写代号)。
+**生成器**(本章与 ④⑥⑦ 反复依赖的概念,先定义)= `apps/build/scripts/` 下三个幂等 Python 脚本,生产工作流的唯一合法产地:直接执行即「重建三件生产工作流 GUI JSON(真源落 `apps/backend/engines/comfyui/workflows/`)+跑自查谓词」一体完成——谓词写在各脚本 docstring 自查段,构建期+磁盘态双跑,EXIT=0 为绿。重跑命令:`python3 apps/build/scripts/<生成器脚本>.py`(<生成器脚本>=下述三件之一)。名单与现值基线的权威=0928 立宪文档 §三;速取(免誊代号)=`grep -l "交叉不增封顶" apps/build/scripts/*.py`,恰命中三件(三脚本文件名带项目代号,按零 IP 词纪律本文不誊写)。
 
 ### ① 排版总策略
 
@@ -41,7 +41,7 @@ metadata:
 - est 间距:同行横距 **≥200**、同列纵距 **≥80**(Reroute/Note 豁免间距阈值,但 est 盒重叠**不豁免**);
 - 子图行排版:按 y 分行(行数=阶段数),Reroute 拐点**不占行**,**行间净距≥100**,行内 x 严格递增;
 - **禁两节点同 pos**。
-- est 足迹估算(自查/估尺寸用):高=标题 36+槽位行数×24(行数=max(输入数,输出数))+控件数×30+垫高 28,预览类节点(SaveImage/LoadImage 等)再+260;宽=max(250,声明宽),高不低于声明高。公式出处=`.agents/skills/comfyui/workflow_layout.py` 的 `est_size()`。
+- est 足迹估算(自查/估尺寸用):高=标题 36+槽位行数×24(行数=max(输入数,输出数))+控件数×30+垫高 28,预览类节点(SaveImage/LoadImage 等)再+260;宽=max(250,声明宽),高不低于声明高(声明宽/高=节点 JSON 的 `size[0]`/`size[1]`;size 缺省时 est 宽自 250 起步、高按公式)。公式出处=本技能 `tools/workflow_layout.py`(归因副本;上游同步以 comfyui 技能原件为准)的 `est_size()`。备察:`est_size` 较生成器自查段内联 est 式为**超集**(预览类节点再 +260 高度并取整);est 类检查已对三件生产件实跑与生成器绿零分歧——差异系口径来源不同,非移植失真(立宪检查器 est 盒按 R14 明文复用 est_size;R14=同任务档 prd.md 的「通用代码入技能」条款——0928 三令「通用性的代码设计,是需要在这个技能中的」所落,与头部 R13 同档相邻条)。
 - 三个纵向数的适用面(勿混):**dy=720**=分层行的层间距(整条并行链换层时用);**同列纵距≥80**=est 制同列相邻节点最小净距(主图+子图通用);**行间净距≥100**=子图行排版中阶段行之间的净距。
 
 **非项目临时图/通用件**才可用 comfyui 技能的 y 游标+列宽起步法(列宽=最宽节点+80、列内纵距 60)或 `auto_layout`(H_GAP=120/V_GAP=70)——常量低于项目阈值,**不得用于本项目生产件**。
@@ -49,7 +49,7 @@ metadata:
 ### ③ 流向纪律
 
 - **恒向右**:每条连线 `target.x > origin.x`(含 Reroute 段;子图边界线以 IO 槽 pos 为端点)。
-- **左向线=冻结豁免,三防线钉死**:①生成器谓词锁「左向线恰 1 条且端点钉死」;②契约测试同步钉同一端点;③论证在档(替代方案均违已批裁定)。通用方法论:**豁免必须钉死(数量+端点双锁),不接受无名扩散豁免**。先例实据:某生产件子图内恰 1 条冻结回流线(link34,[141]→[40].提示词),端点由生成器谓词与契约测试 `test_horizontal_layout_no_vertical_tower` 双钉——查实例=到生成器 docstring 自查段搜「左向」。
+- **左向线=冻结豁免,三防线钉死**:①生成器谓词锁「左向线恰 1 条且端点钉死」;②契约测试同步钉同一端点;③论证在档(替代方案均违已批裁定)。通用方法论:**豁免必须钉死(数量+端点双锁),不接受无名扩散豁免**。先例实据:某生产件子图内恰 1 条冻结回流线(link34,[141]→[40].提示词),端点由生成器谓词与契约测试 `test_horizontal_layout_no_vertical_tower` 双钉——查实例=到生成器(名单速取见本章开头「生成器」条)docstring 自查段搜「左向」。
 - **子图 IO 三段位**:输入口最左→机器居中→输出口钉死最右:输出接口 **x≥全子图最大节点 x−50**(容差 50),右列纵向堆叠。先例实证(时点值):K2 图(K2=本仓 K2 图像产线,工作流住 `apps/backend/engines/comfyui/workflows/1_图片/`)输出槽 x=5231,比全子图最大节点 x 还靠右逾四百像素。
 - **通道 Reroute 手法**:共享总线(MODEL/VAE 等)走顶缘正区通道带;Reroute 拐点不占行,不破坏行排版判定。
 
@@ -65,10 +65,10 @@ metadata:
 
 判定口径(统一,勿各说各话):
 
-- 线=三次贝塞尔:P0=输出槽(节点右缘,`top+25+origin_slot×20`)、P3=输入槽(左缘,同式);P1=(P0.x+k, P0.y)、P2=(P3.x−k, P3.y),**k=clamp(|dx|/2, 40, 200)**。
+- 线=三次贝塞尔:P0=输出槽(节点右缘,`top+25+origin_slot×20`)、P3=输入槽(左缘,同式;top=节点 pos 的 y,slot=该节点槽序号、0 起算);P1=(P0.x+k, P0.y)、P2=(P3.x−k, P3.y),**k=clamp(|dx|/2, 40, 200)**。
 - **交叉**:两线各 **24 点**采样为折线,线段两两求交(叉积同侧法),每对线至多计 1 次。
-- **遮挡**:**41 点**采样,任采样点落入非端点节点盒(±2 容差)即遮挡;节点盒=普通节点 size、Reroute 60×30。
-- −10/−20 子图边界线:id 为 −10/−20 的连线,端点是子图 IO 边界槽而非真实节点(无节点盒),故交叉与遮挡两口径同跳过。
+- **遮挡**:**41 点**采样,任采样点落入非端点节点盒(±2 容差)即遮挡;节点盒=普通节点 size(缺省 [220,120])、Reroute 60×30。
+- −10/−20 子图边界线:id 为 −10/−20 的连线,端点是子图 IO 边界槽而非真实节点(无节点盒),故交叉与遮挡两口径同跳过。来历:这是 GUI JSON 子图 links 表专用的两个保留负 id(负数域不与真实节点正 id 相撞;−10=输入侧、−20=输出侧),只出现在 `definitions.subgraphs[].links`,顶层 `links` 端点恒为正 id;数值为前端子图表示法的既定约定(本仓按上游实证件抄型),非推导所得。
 
 治理手法与棘轮:
 
@@ -85,8 +85,9 @@ metadata:
 ### ⑥ 验证纪律
 
 - **判布局读坐标,禁截图**(截图烧 token,且各客户端同样读不了画布)。
-- `workflow_layout.inspect()`=**快速近似读数**(口径边界见头部声明):`overlaps` 必须为 0;`crossings` 仅作粗计参考,**当立宪判据不行**。
-- **立宪权威口径=生成器自查谓词**(贝塞尔交叉/遮挡/est 间距/零负区/输出口最右/封顶棘轮),写在生成器自查段,构建期+磁盘态双跑;契约测试面见 `apps/backend/engines/comfyui/tests/`。
+- `tools/layout_check.py`=**0928 立宪口径的可跑实现**:贝塞尔交叉/线遮节点/est 盒零重叠/est 间距/零负区/输出口最右/左向线七判据(与工具 `CHECK_KEYS` 七项一致)逐式移植自生成器自查段,对拍过三件生产件基线(交叉数逐值相等:t2i 件主图 78/子图 7、i2i 件主图 74/子图 10、edit 件主图 84——数字按 scope 分记「主图/子图」,edit 件无子图 scope 故只有一个数);任何 GUI 格式工作流(生产件/用户区/临时图)都可独立跑,不依赖生成器;棘轮基线不内置(生产棘轮仍驻生成器)。
+- `workflow_layout.inspect()`=**快速近似读数**(口径边界见头部声明;立宪判据现可用本地 layout_check 跑):`overlaps` 必须为 0;`crossings` 仅作粗计参考。
+- **生产权威与棘轮宿主=生成器自查谓词**(贝塞尔交叉/遮挡/est 间距/零负区/输出口最右/封顶棘轮),写在生成器自查段,构建期+磁盘态双跑;契约测试面见 `apps/backend/engines/comfyui/tests/`。
 - `auto_layout` 只用于非项目临时图(间距常量低于项目阈值,见 ②);生产件禁 `--apply`。
 - 负区治理=整图平移归一(见 ①)。
 
@@ -110,6 +111,7 @@ metadata:
 | 布局优先级序与交叉治理(立宪) | `docs/comfyui-kb/画布布局规范-0928.md` |
 | 工作流构建/连线/类型/Subgraph/参数化 | `.agents/skills/comfyui/SKILL.md` 的「Compose a NEW workflow from pieces」「Workflow JSON」「Subgraphs」章 |
 | 布局工具三函数 | `.agents/skills/comfyui/workflow_layout.py` |
+| 本地捆绑工具(排布+est 口径+立宪检查) | 本技能 `tools/workflow_layout.py`(归因副本)与 `tools/layout_check.py`(立宪口径检查器);配方见「工具调用配方」章 |
 | 孤儿节点/节点清单 | `.agents/skills/comfyui/tools/find_orphan_nodes.py` 与 `node_inventory.py` |
 | 契约测试锚(布局谓词的测试面) | `apps/backend/engines/comfyui/tests/`(如 test_qwen21_workflow_contract.py) |
 | 生产工作流生成器(自查谓词宿主;重跑=重建+自查一体) | `apps/build/scripts/`(三件,文件名带项目代号,名单见 0928 立宪文档 §三) |
@@ -131,29 +133,48 @@ metadata:
 - **类型必须匹配**(IMAGE/LATENT/MODEL/CLIP/VAE/CONDITIONING/MASK/CONTROL_NET…);缝上类型不同就插转换件:`VAEEncode`(IMAGE→LATENT)、`VAEDecode`(LATENT→IMAGE)、`CLIPTextEncode`(text→CONDITIONING)、`ImageScale`(尺寸)。绝不 IMAGE 直塞 LATENT 输入。
 - 节点真实输入输出以 `/object_info/<NodeType>` 实查(`input.required`/`output`),不猜。
 
+**子图(Subgraph)GUI JSON 速记**(仅骨架,够独立读懂与改对;构建侧契约真源仍=comfyui 技能 Subgraphs 章+契约测试):
+
+- 容器:`definitions.subgraphs[]`;每个子图含 `nodes`(普通节点表)、`links`(**对象形** `{id, origin_id, origin_slot, target_id, target_slot, type}`——与顶层数组形是两制)、`inputs`/`outputs`(IO 槽表,槽含 `name/type/pos/linkIds`)。
+- 宿主:主图以一个普通节点代表子图,其 `type` 与 `properties.subgraph` 均填子图 uuid;外部经宿主输入/输出槽接线。
+- 边界线:子图内 `origin_id=−10` 取自 `inputs[origin_slot]`、`target_id=−20` 送到 `outputs[target_slot]`(来历见 ④);IO 槽自带 `pos` 布局坐标(输出口最右判据以它为端点)。
+- 布局:layout_check 对顶层与每个子图分 scope 独立跑全套判据(scope 名 `sub:<子图名>`)。
+
 ## 构建流程骨架(思想借鉴 mckruz/comfyui-expert,MIT)
 
 1. **意图解析**:输出类型(图/视频/音频)、源材料(文/图/既有图)、质量档、特殊要求。
-2. **查本机清单**:`/object_info` 实查可用节点与模型(本机事实)。调法=引擎运行时 `GET http://<host>:port>/object_info/<NodeType>`(默认 `127.0.0.1:8188`;本机真实地址与启动法见 comfyui 技能 `machine.md`),或用 comfyui 技能的 MCP/客户端工具;模板库与节点参考亦指路 comfyui 技能,不建 inventory 新机制。
+2. **查本机清单**:`/object_info` 实查可用节点与模型(本机事实)。调法=引擎运行时 `GET http://<host>:port>/object_info/<NodeType>`(本仓引擎恒走 **17xxx 自家端口段,禁 8188 上游默认口**;本机现值与启动法见 comfyui 技能 `machine.md`),或用 comfyui 技能的 MCP/客户端工具;模板库与节点参考亦指路 comfyui 技能,不建 inventory 新机制。
 3. **选模式**:按任务族选管线模式。八模式全清单(借鉴 mckruz/comfyui-expert,MIT:github.com/mckruz/comfyui-expert):T2I 文生图/身份保持(InstantID·PuLID)/LoRA 角色/图生视频(Wan·AnimateDiff 两路)/说话头/放大(UltimateSDUpscale)/重绘(Inpaint)。选定后按 ①-⑤ 排布。
 4. **生成**:写 JSON(双格式);节点类型与输入先对 `/object_info` 验。
 5. **验证**:类型全匹配;每输入=字面值或有效引用;有承载意图的输入节点+输出保存节点;先小图低分辨率试线再全量;布局按 ⑥ 验。
 
-## 工具调用配方(工具留 comfyui 技能原地,本技能不捆绑副本)
+## 工具调用配方(本地 tools/ 两件;孤儿/清单两件仍驻 comfyui 技能)
 
-入参 `wf`=GUI 格式工作流 dict(顶层含 `nodes`/`links`,即 `json.load` 读文件的结果;不是文件路径):
+本技能 `tools/` 捆绑两件通用工具:`workflow_layout.py`(归因副本,上游 SlavaSexton/ComfyUI-Agent-Kit,Apache-2.0;上游更新时以 comfyui 技能原件为准重新拷贝)与 `layout_check.py`(本技能自有立宪检查器)。入参 `wf`=GUI 格式工作流 dict(顶层含 `nodes`/`links`,即 `json.load` 读文件的结果;不是文件路径):
 
 ```python
-import sys; sys.path.insert(0, "<repo>/.agents/skills/comfyui")
+import sys; sys.path.insert(0, "<repo>/.agents/skills/node-graph/tools")
 import workflow_layout as wl
 wl.inspect(wf)           # 报重叠/交叉/边界(近似读数,口径边界见头部声明)
 wl.auto_layout(wf)       # 依赖深度左→右排布(仅非项目临时图;生产件禁 --apply)
 wl.fit_group(wf, "组名")  # 加一个全罩组框(先排布后调用)
 ```
 
-- `inspect()` 返回 `summary`(nodes/edges/overlaps/crossings/bounds)与明细;`overlaps` 必须为 0,`crossings` 只作粗计参考(立宪口径走生成器自查)。
-- CLI 等价:`python3 .agents/skills/comfyui/workflow_layout.py 图.json` 只读检查(打印 BEFORE 摘要);`--apply` 是该 CLI 的就地重排旗标,仅限非项目临时图,生产件禁(上面代码注释里的 `--apply` 即指此 CLI)。
-- 孤儿节点:`.agents/skills/comfyui/tools/find_orphan_nodes.py`;节点清单:`tools/node_inventory.py`。
+- `inspect()` 返回 `summary`(nodes/edges/overlaps/crossings/bounds)与明细;`overlaps` 必须为 0,`crossings` 只作粗计参考(立宪判据用 layout_check)。
+- workflow_layout CLI 等价:`python3 .agents/skills/node-graph/tools/workflow_layout.py 图.json` 只读检查(打印 BEFORE 摘要);`--apply` 是就地重排旗标,仅限非项目临时图,生产件禁。
+
+`tools/layout_check.py`=0928 立宪口径的可跑实现(数学逐式移植自生成器自查段,对拍过三件生产件基线;判定口径见 ④,验证定位见 ⑥):
+
+```bash
+python3 .agents/skills/node-graph/tools/layout_check.py 图.json            # 按域分报检查
+python3 .agents/skills/node-graph/tools/layout_check.py 图.json --json     # 机读违规明细
+python3 .agents/skills/node-graph/tools/layout_check.py --selftest         # 内嵌合成用例自测
+```
+
+- 检查项=④ 判定口径全集(贝塞尔交叉/线遮节点/est 盒零重叠/est 间距/零负区/输出口最右/左向线——七项,与工具 `CHECK_KEYS` 一致);顶层=scope main,`definitions.subgraphs[]` 每个=独立 scope(`sub:<名>`);−10/−20 边界线在交叉与遮挡两口径同跳过。
+- **末行硬契约**:无论是否违规,最后一行恒打印 `LAYOUT_CHECK_JSON: {"scopes":[{"name":"main","crossings":N},...]}`——对拍脚本靠这行取数;`--json` 时各 scope 条目另含 `counts` 分项违规数明细。
+- 参数:`--max-crossings N`=每 scope 交叉封顶(默认 0=立宪治理目标;棘轮现值**不内置**,生产棘轮驻生成器自查段);`--allow-leftward id1,id2`=左向线豁免清单(冻结回流线用,豁免须钉死见 ③)。违规 exit 1 并逐项打印;输入/用法错误 exit 2(不与违规混淆)。
+- 孤儿节点与节点清单两件未捆绑,仍在 comfyui 技能原地调用:`python3 .agents/skills/comfyui/tools/find_orphan_nodes.py <工作流.json> [--prune]`(--prune 另出 .cleaned.json 不动原件;Note/广播/SetGet 类只报不剪)与 `python3 .agents/skills/comfyui/tools/node_inventory.py`(重生成节点目录 markdown,需引擎在线)。
 
 ## 纪律钩子
 
