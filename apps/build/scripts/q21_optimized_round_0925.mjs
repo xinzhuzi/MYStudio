@@ -55,6 +55,20 @@
  *   PE 按 C2-4 图纸底+尺寸标注口径),dry 防呆入册(道具臂禁 rgbaForm+主体句尺寸串在场
  *   +②层图纸底座在场+非 rgbaForm 臂公式路恒关+143 保持拼接链);PE 语域漂移修法
  *   (种子句补图纸版式英文锚/回直写臂)另案待裁,本轮不改句身。
+ * 0928b 道具透明落产+四型底座级透明轮(0928 终令+扩令):军令终令「道具图背景也透明;在提示词层面做
+ *   (零代码抠图);要经PE;做完打包覆盖安装」+扩令「道具/多视图/高清人脸/表情差分,提示词里必须
+ *   说明背景透明,作为底座提示词存在——透明声明上收到②层底座,不再只住驱动层组件」。①道具臂
+ *   正路切换=一段式透明挂臂(rgbaForm=臂①定文 3336字 md5=01224a3c 直塞:PE 出文→背景句剥离
+ *   (34句删13留21,MV_BG_WORDS_BAN 17词族+scene/pavilion+环境类19词,词边界匹配防 horizon⊂
+ *   horizontal 误伤,cloud-thunder 云雷纹豁免)→官方头尾+MV_STYLE_EN 包裹;探针 probe-0928b 臂①
+ *   透明 78.62% 达多视图基线量级(76.34-81.36%)+四专项过+PE 真参与源拍实跑 md5 复现;PE 参与在
+ *   出文构造层,采样拍 [141]=false 如实记);臂②(C臂直塞 1044字 md5=1f10f64c,90.73% 最高,
+ *   PE 豁免)=PROP_ARM2=1 备选;同日早轮「道具不透明定案」就此翻案(定案被终令取代,负结论五形状
+ *   证据仍档)。②四型②层底座透明化:道具/多视图/高清人脸/表情差分 base_text 增透明声明段「图为
+ *   带透明通道的 RGBA 透明底图，背景透明」(官方公式语义中文声明,零背景意志词),背景职责句全退役
+ *   (道具图纸底尾段/人脸纯色平涂底/表情各格底色相同等;多视图补声明=公式路对齐底座化——
+ *   canon_lib/05库/qi21_bases.json 已同步重生成);③dry 防呆翻案:道具臂=rgbaForm 正路+四型②层
+ *   透明声明在场+退役句零回潮+道具定文 md5 锁+扩展黑名单词边界零命中(官方头尾豁免位)。
  * 产物纪律:~/Downloads/q21-optimized-0925/ 只写 <臂名>.png + <臂名>.txt,禁其他文件;
  *          日志/中间件全在 /tmp/q21-optimized-0925/。
  */
@@ -142,7 +156,10 @@ const TYPES = [
     subject: "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。" },
   { idx: 2, name: "场景", kind: "scene", sig: "九根断裂的石柱围成半圆", pe: true,
     subject: "暮春时节的黄昏，废弃的上古祭坛深藏在群山环抱的谷底，九根断裂的石柱围成半圆，坛心一泓浅潭映出残阳；谷口白雾正缓缓漫入，远山三重叠影渐次淡去。" },
-  { idx: 3, name: "道具", kind: "scene", sig: "一柄传承千年的青铜剑", pe: true,
+  // 0928b 终令道具透明正路:propRgba=true 走一段式透明挂臂(rgbaForm=臂① PE出文剥离定文直塞,
+  // PROP_ARM2=1 切臂② C臂直塞备选;PE 参与在出文构造层,采样拍 [141]=false)——pe 字段留存
+  // 仅作 PE 开路制血统注记(道具臂现恒走透明路,不再走 peOn 普通分支)
+  { idx: 3, name: "道具", kind: "scene", sig: "一柄传承千年的青铜剑", pe: true, propRgba: true,
     subject: "一柄传承千年的青铜剑，剑身暗金底色上盘绕细密云雷纹，剑格铸成兽首衔环，剑柄缠深红丝绳，穗尾垂一枚带裂纹的灵玉；上引线旁以端正的墨色小字注“全长110厘米（三尺三寸）”，靠剑格一端的引线旁注“刃长88厘米（二尺六寸）”，柄端引线旁注“柄长22厘米（七寸）”，字迹清晰可辨。" },
   { idx: 4, name: "美宣", kind: "scene", sig: "雷劫降临的至暗时刻", pe: true,
     subject: "雷劫降临的至暗时刻，白衣剑修独立孤峰之巅，长发高束马尾，束发紧实，腰束石青丝绦、暗红剑穗，周身剑气化作金色光罩，九道紫雷自翻墨般的劫云中劈落，他在最后一瞬反身拔剑迎击，衣袍与剑穗在罡风中猎猎狂舞；远景群山在雷光明灭中沉浮。" },
@@ -226,13 +243,75 @@ const MV_VIEWS_EN = {
 const mvFormulaText = (vkey) =>
   `${RGBA_HEAD_EN} ${MV_BODY_SHARED_EN}, ${MV_VIEWS_EN[vkey]}. ${RGBA_TAIL_EN}`;
 
+// ── 0928b 道具透明主路(军令终令:道具图背景也透明·在提示词层面做·要经PE;探针定谳 probe-0928b)──
+// 臂①(主路)=PE 出文→背景句剥离→官方头尾包裹直塞:PE 源拍实跑现有 PE 链([141]=true·[140]=
+// PE_SEED_PREFIX+道具主体句)412s,PE 出文 4767字 md5=d85329fe 与上轮 3-道具_PE开路.txt 逐字节同
+// (PE 同句定死 md5 复现实证);剥离=34句删13留21(黑名单=MV_BG_WORDS_BAN 17词族+scene/pavilion
+// +环境类扩展 PROP_BG_BAN_EXT 22词;词边界匹配 \b词|词s\b 防 horizon⊂horizontal 误伤;
+// cloud-thunder=器物云雷纹固定搭配豁免)→官方头尾(逐字)+MV_STYLE_EN(逐字)包裹。臂① RGBA 真透明
+// 78.62% 达多视图基线量级(76.34-81.36%),四专项过(无棋盘格/器物完整 missing=[]/尺寸文字三条
+// 逐字读回『柄长22厘米(七寸)/刃长88厘米(二尺六寸)/全长110厘米(三尺三寸)』数值全对/画风 mixed
+// 非动漫)——军令三要素全保:PE 参与在出文构造层(源拍实跑+md5 复现),采样拍 [141]=false 如实记;
+// 剥离=提示词构造层操作非像素抠图。机制增量定谳:PE 长文杀 alpha 的病根=背景句而非 PE 文体本身,
+// 『生效文背景描述密度定生死』铁律在道具域成立且与 PE 语域兼容。
+// 再造纪律(道具主体句变→重走构造链):重跑 PE 源拍取 [27] 出文→按同黑名单重剥离→重包裹→回填
+// PROP_RGBA_FORM 并更新 PROP_RGBA_FORM_MD5(构造脚本先例=/tmp/q21-ablation-0925/probe-0928b-work/
+// arm_build.py 口径,黑名单逐词在档其 report;PE 同句定死=种子句不变则出文逐字节复现,定文冻结安全)。
+const PROP_BG_BAN_EXT = ["scene", "pavilion", "temple", "tree", "trees", "cliff", "cliffs", "rocks",
+  "seal", "stamp", "horizon", "valley", "river", "stream", "forest", "village", "bridge", "shore",
+  "lake", "birds", "environment", "setting"];
+const PROP_RGBA_FORM_MD5 = "01224a3c";
+const PROP_RGBA_FORM = `This is an RGBA format image with transparency. ` +
+  `The sword runs from the lower-left area toward the upper-right corner, occupying most of the height of the image and slightly more than half of the width. ` +
+  `Its long blade is angled upward, rendered in an aged dark gold base color with weathered bronze edges, scratches, hairline cracks, glossy highlights, and engraved cloud-thunder patterns coiling across the surface. ` +
+  `Fine dark linework defines the blade’s center ridge, etched contours, and layered ornamental grooves, giving it an antique metallic texture. ` +
+  `Near the blade tip and along the fuller-like channels, subtle reflections and shadowing create a semi-realistic three-dimensional effect while maintaining an ink-painting aesthetic. ` +
+  `The sword’s guard, positioned near the upper-right quadrant, is highly elaborate and sculptural. ` +
+  `It features a beast-head pommel element facing left, resembling a mythical guardian lion or dragon-lion motif, with protruding brows, an open mouth, carved whisker-like forms, and ornate ridges. ` +
+  `The metal appears aged gold-bronze with darker recessed shadows and worn highlights. ` +
+  `A circular ring passes through the beast-head guard, curving down and around the blade connection point; the ring is thick, rounded, and similarly antique-toned. ` +
+  `Dark rivets and small mechanical-looking fittings are visible along the guard, adding craftsmanship detail. ` +
+  `From the handle end, a deep red cord-wrapped grip extends toward the top-right corner, twisted in repeated diagonal bands. ` +
+  `The wrapping is dark crimson with shaded folds, giving it the look of braided textile or sinewy leather. ` +
+  `Attached beneath the guard is a tassel system: two narrow red-brown cords hang downward, ending in a cluster of fine tassels and a suspended spirit jade pendant. ` +
+  `The pendant is pale celadon green, oval and irregularly carved, with visible natural crack patterns, translucent shading, and a rough stone texture. ` +
+  `Small red beads sit above the pendant, connecting it to the cord. ` +
+  `On the right side of the image, three black annotation labels identify measurements of the sword. ` +
+  `The highest label sits beside the handle near the pommel, connected by a thin horizontal black leader line with a small filled black dot pointing back toward the handle end. ` +
+  `The label text reads "柄长22厘米（七寸）" in upright small black Chinese characters and numerals, functioning as a measurement note for the handle length. ` +
+  `Below it, a second thin horizontal leader line with a small black dot points toward the blade area near the guard. ` +
+  `Its label reads "刃长88厘米（二尺六寸）", also in black upright text, indicating blade length. ` +
+  `Lower on the left side of the sword, a third horizontal leader line begins with a black dot near the blade and extends leftward to a small black marker. ` +
+  `The associated label reads "全长110厘米（三尺三寸）", serving as the total-length annotation. ` +
+  `Traditional Chinese ink painting illustration, fine steady ink lines drawn with rising and falling brush pressure, the line weight thickening and thinning along the form. ` +
+  `Ink tones grade distinctly from dark to pale in stepped layers; a multi-hue traditional Chinese palette of pale ink, azurite blue, malachite green, ochre, antique gold and vermilion, each in its place at controlled medium saturation, softly and evenly lit. ` +
+  `The image has an alpha channel and a transparent background.`;
+// 臂②(备选,PROP_ARM2=1 启用)=C 臂式直塞·PE 豁免(多视图一段式同款结构平移):官方头+道具英文
+// 身份句(自写·零背景词:thunder-scroll 避 cloud 黑名单)+MV_STYLE_EN 逐字+构图尺寸短语(laid level
+// and centered 避 horizon⊂horizontal 误伤)+三条中文标注串(市制括注)+官方尾;透明 90.73% 超基线
+// 上沿(与 C 臂 90.34% 口径一致,四角全 0 角块 max=4),PE 豁免如实记(与「要经PE」军令冲突,居备选位);
+// GLM「刃长88」读作「刀长88」一字差在档。
+const PROP_ARM2_FORM_MD5 = "1f10f64c";
+const PROP_ARM2_FORM = `This is an RGBA format image with transparency. ` +
+  `An ancient Chinese bronze sword passed down for a thousand years, its long blade in aged dark-gold bronze with finely coiled thunder-scroll motifs across the surface, a cast beast-head guard holding a bronze ring, the grip tightly wrapped in deep red silk cord, a tassel ending in a small cracked pale-jade pendant. ` +
+  `Traditional Chinese ink painting illustration, fine steady ink lines drawn with rising and falling brush pressure, the line weight thickening and thinning along the form. ` +
+  `Ink tones grade distinctly from dark to pale in stepped layers; a multi-hue traditional Chinese palette of pale ink, azurite blue, malachite green, ochre, antique gold and vermilion, each in its place at controlled medium saturation, softly and evenly lit, shown flat in exact full side view, laid level and centered, with three neat black measurement labels on thin leader lines touching the sword, reading 全长110厘米（三尺三寸）, 刃长88厘米（二尺六寸）, 柄长22厘米（七寸）. ` +
+  `The image has an alpha channel and a transparent background.`;
+// 道具两臂定文黑名单自检(官方头尾豁免位之外零命中;词边界 \b词|词s\b,cloud-thunder 占位豁免)
+const propBanHit = (text) => {
+  const core = text.replace(RGBA_HEAD_EN, "").replace(RGBA_TAIL_EN, "")
+    .toLowerCase().split("cloud-thunder").join("\x00");
+  return [...MV_BG_WORDS_BAN, ...PROP_BG_BAN_EXT]
+    .filter((w) => new RegExp(`\\b(?:${w}|${w}s)\\b`).test(core));
+};
+
 // ── 臂构造 ──────────────────────────────────────────────────────
 function loadBase(kind) {
   const p = `/tmp/q21-ablation-0925/api-${kind === "person" ? "person" : "scene"}.json`;
   const d = JSON.parse(readFileSync(p, "utf8"));
   return d;
 }
-function makeArm(src, { name, kind, base, subject, fast = false, peOn = false, seedPrompt = null, cutout = false, rgbaForm = null }) {
+function makeArm(src, { name, kind, base, subject, fast = false, peOn = false, seedPrompt = null, cutout = false, rgbaForm = null, propArm = false }) {
   const d = loadBase(kind);
   d["40:110"].inputs.string = src.constA;    // 旧基图常量A(带禁令)→ 摘噪版真源注入
   d["7"].inputs.seed = SEED;                 // 首拍 seed=0(军令);0926 裁定4:不过关换 seed 重拍(SEED env,非 0 时入臂名)
@@ -255,7 +334,7 @@ function makeArm(src, { name, kind, base, subject, fast = false, peOn = false, s
   } else {
     d["141"].inputs.switch = false;          // 直写装配
   }
-  return { name, kind, base, subject, fast, peOn, seedPrompt, cutout, rgbaForm, graph: d };
+  return { name, kind, base, subject, fast, peOn, seedPrompt, cutout, rgbaForm, propArm, graph: d };
 }
 
 function buildArms(src) {
@@ -265,6 +344,18 @@ function buildArms(src) {
     // < 0.15 阈(0925 复拍单变量验证:5多视图/7分镜 mean_sat 0.0488/0.0807 vs 0924 参照
     // 0.1488/0.1607,文本逐字=新真源),PE 版色锚句 0.138-0.442,证直写路径回色必须 PE
     // 改写器色锚增益;直写档坏图两代留证 reject-0925b。直写=按图选配(该型 pe:false)。
+    if (t.propRgba) {
+      // 0928b 终令道具透明正路:一段式透明挂臂(接线照多视图 rgbaForm 先例=[40:144]=true+143 直塞
+      // +官方头尾真源逐字+采样拍 PE 不参与);主路=臂①(PE 出文剥离定文,PE 参与在出文构造层——
+      // 源拍实跑+md5 复现铁证在档);PROP_ARM2=1 切臂②(C臂直塞·PE 豁免,90.73% 最高,备选对照)
+      const arm2 = process.env.PROP_ARM2 === "1";
+      arms.push(makeArm(src, {
+        name: `${t.idx}-${t.name}_${arm2 ? "C臂直塞一段式透明_备选" : "PE剥离一段式透明"}${SEED ? `_seed${SEED}` : ""}`,
+        kind: t.kind, base: t.name, subject: t.subject, fast: false, peOn: false,
+        rgbaForm: arm2 ? PROP_ARM2_FORM : PROP_RGBA_FORM, propArm: true,
+      }));
+      continue;
+    }
     if (t.splitViews) {
       // 0927d 透明翻案·一段式原生 alpha:一视图一张=引擎直出 RGBA 透明 PNG([40:144]=true 官方
       // 公式路+[40:143] 直塞纯英文公式短文+PE 豁免;三层中文装配/常量A 不进采样,零代码抠图——
@@ -307,9 +398,31 @@ function dryCheck(arms, src) {
   // 承担;旧抠图档句只在 rembg 备选档留档)——base_text 不得再含抠图档句
   check(src.byName["多视图"] && !src.byName["多视图"].base_text.includes(BG_WILL_CUTOUT),
     "多视图②层仍含抠图档背景意志句——C1-4 应已对齐原生透明档(背景句缺席),先重跑 canon_lib+qi21_bases_extract");
-  // 0928 军令②道具不透明定案·②层防呆:道具底座必须仍是 C2-4 图纸尺寸标注式(图纸底+尺寸标注口径)
-  check(src.byName["道具"] && src.byName["道具"].base_text.includes("整页如一页器物图纸"),
-    "道具②层缺图纸底座(C2-4 图纸尺寸标注式)——道具不透明+图纸底定案破锁,先重跑 canon_lib+qi21_bases_extract");
+  // 0928 扩令·四型②层底座透明防呆:道具/多视图/高清人脸/表情差分 base_text 必含透明声明段
+  // (官方公式语义中文声明,零背景意志词),退役背景职责句零回潮(背景职责让渡透明声明)
+  const TRANSPARENT_DECL_ZH = "图为带透明通道的 RGBA 透明底图，背景透明";
+  const RETIRED_BG_PHRASES = ["底面浅净一色", "器影贴近器身", "整页如一页器物图纸",
+    "纯色平涂底", "各格底色相同", "纯浅净一色背景", "均匀柔光", "平涂的底", "画面疏朗安静"];
+  for (const zh of ["道具", "多视图", "高清人脸", "表情差分"]) {
+    check(src.byName[zh] && src.byName[zh].base_text.includes(TRANSPARENT_DECL_ZH),
+      `${zh}②层缺透明声明段「${TRANSPARENT_DECL_ZH}」——0928 扩令四型底座级透明破锁,先重跑 canon_lib+qi21_bases_extract`);
+    const resid = RETIRED_BG_PHRASES.filter((p) => (src.byName[zh]?.base_text || "").includes(p));
+    check(resid.length === 0, `${zh}②层残留退役背景职责句(${resid.join(",")})——背景职责让渡透明声明,零回潮`);
+  }
+  // 0928b 道具定文锁:两臂定文 md5 逐字节锁(定文被动=先重走 PE 剥离构造链再回填)+官方头尾/
+  // MV_STYLE_EN 逐字在场+尺寸串在场+黑名单零命中(官方头尾豁免位;词边界,cloud-thunder 豁免)
+  check(md5(PROP_RGBA_FORM) === PROP_RGBA_FORM_MD5,
+    `臂①定文 md5 漂移(应 ${PROP_RGBA_FORM_MD5},得 ${md5(PROP_RGBA_FORM)})——定文被动,重走 PE 源拍→剥离→包裹构造链`);
+  check(md5(PROP_ARM2_FORM) === PROP_ARM2_FORM_MD5,
+    `臂②定文 md5 漂移(应 ${PROP_ARM2_FORM_MD5},得 ${md5(PROP_ARM2_FORM)})——定文被动,按 arm_build.py 口径重构`);
+  for (const [tag, txt] of [["臂①", PROP_RGBA_FORM], ["臂②", PROP_ARM2_FORM]]) {
+    check(txt.startsWith(RGBA_HEAD_EN) && txt.endsWith(RGBA_TAIL_EN), `道具${tag}定文官方头尾非逐字`);
+    check(txt.includes(MV_STYLE_EN), `道具${tag}定文缺画风句 MV_STYLE_EN(0928 军令①:画风必须写进直塞文)`);
+    const dimMiss = ["全长110厘米", "刃长88厘米", "柄长22厘米"].filter((s) => !txt.includes(s));
+    check(dimMiss.length === 0, `道具${tag}定文缺尺寸串(${dimMiss.join(",")})——军令②尺寸标注不退役`);
+    const banHit = propBanHit(txt);
+    check(banHit.length === 0, `道具${tag}定文含背景词(${banHit.join(",")})——透明机制铁律:生效文背景描述密度定生死`);
+  }
   // 0928 军令①画风句防呆:画风句嵌在场+画风/身份句零背景词(黑名单+透明机制双约束;官方头尾豁免位不查)
   check(MV_BODY_SHARED_EN.includes(MV_STYLE_EN), "共享英文身份句缺画风句 MV_STYLE_EN(0928 军令①:画风必须写进直塞文)");
   const bgHit = MV_BG_WORDS_BAN.filter((w) => `${MV_STYLE_EN} ${MV_BODY_SHARED_EN}`.toLowerCase().includes(w));
@@ -334,19 +447,21 @@ function dryCheck(arms, src) {
       check(a.graph["40:160"].inputs.string === RGBA_HEAD_EN && a.graph["40:161"].inputs.string === RGBA_TAIL_EN,
         `${a.name}: [40:160]/[40:161] 应为仓库真源逐字`);
       check(a.graph["141"].inputs.switch === false, `${a.name}: 一段式透明主路 PE 应豁免([141]=false)`);
-      console.log(`✓ ${a.name} | 一段式透明:直塞文 ${a.rgbaForm.length}字 md5=${md5(a.rgbaForm)}(PE 豁免·装配/常量A 不进采样·rembg 备选)`);
+      console.log(`✓ ${a.name} | 一段式透明:直塞文 ${a.rgbaForm.length}字 md5=${md5(a.rgbaForm)}(${a.propArm ? (a.name.includes("_备选") ? "臂② C臂直塞·PE 豁免备选" : "臂① PE 参与在出文构造层·采样拍 [141]=false") : "PE 豁免"}·装配/常量A 不进采样·rembg 备选)`);
     } else {
-      // 0928 军令②道具不透明定案·防呆(定谳 probe-0928 负结论五形状:接线无罪/像素层全实底
-      // PIL alpha0=0% min=247——「道具透明」实为 PE 改写语域漂移的视觉透明感+RGBA 模式易误读):
-      // 非 rgbaForm 臂官方公式路必须关+143 保持拼接链链接态,锁正路防回潮
+      // 0928b 注:非 rgbaForm 臂(人物/场景/美宣/高清人脸/分镜/表情/概念+参考臂)官方公式路必须关
+      // +143 保持拼接链——一段式透明仅多视图三臂+道具臂(0928 终令)走 rgbaForm 挂臂;其余型走透明
+      // 路属后续用例役(②层透明声明已底座级在场,驱动层不切换)
       check(a.graph["40:144"].inputs.switch === false, `${a.name}: [40:144] 应为 false(非一段式透明臂,RGBA 官方公式路须关)`);
       check(Array.isArray(a.graph["40:143"].inputs.prompt), `${a.name}: [40:143] 应保持 [40:163] 拼接链链接态(直塞字面量仅一段式透明臂)`);
     }
-    // 0928 军令②:道具臂=图纸底+尺寸标注不透明正路(PE 按 C2-4 设计口径),rgbaForm 禁入+尺寸标注串在场
+    // 0928b 终令:道具臂=一段式透明正路(臂① PE出文剥离定文直塞,PE 参与在出文构造层)
     if (a.name.startsWith("3-道具")) {
-      check(!a.rgbaForm && a.peOn, "3-道具 臂应为 PE 开路正路(非 rgbaForm)——0928 道具不透明定案");
+      check(a.rgbaForm && a.propArm, "3-道具 臂应为一段式透明 rgbaForm 正路——0928 终令道具透明(同日早役「道具不透明定案」已翻案)");
+      check(a.rgbaForm === PROP_RGBA_FORM || a.rgbaForm === PROP_ARM2_FORM,
+        "3-道具 直塞定文不符(应=PROP_RGBA_FORM 臂①/PROP_ARM2_FORM 臂②备选)");
       check(a.subject.includes("全长110厘米") && a.subject.includes("刃长88厘米") && a.subject.includes("柄长22厘米"),
-        "3-道具 主体句尺寸标注串(全长110/刃长88/柄长22 厘米)不全——图纸底+尺寸标注口径破锁");
+        "3-道具 主体句尺寸标注串(全长110/刃长88/柄长22 厘米)不全——[24] 图内留档之①破锁");
     }
     check(a.graph["7"].inputs.seed === SEED, `${a.name}: seed 应为 ${SEED}`);
     check(a.graph["31"].inputs.strength_model === 0.8, `${a.name}: [31] LoRA strength 应为 0.8(0925 探针新真源)`);
@@ -406,7 +521,7 @@ const pngDim = (b) => ({ w: b.readUInt32BE(16), h: b.readUInt32BE(20) });
 
 async function runArm(arm, src, timeoutMs) {
   const steps = arm.fast ? 6 : 40;
-  log(`── 排队 ${arm.name} (${steps}步·${arm.fast ? "LoRA" : "MODEL直连"}·${arm.rgbaForm ? "一段式透明·PE豁免" : arm.peOn ? "PE开路" : "直写装配"}·base=${arm.base})`);
+  log(`── 排队 ${arm.name} (${steps}步·${arm.fast ? "LoRA" : "MODEL直连"}·${arm.rgbaForm ? (arm.propArm ? `一段式透明·${arm.name.includes("_备选") ? "C臂直塞备选" : "PE剥离定文"}` : "一段式透明·PE豁免") : arm.peOn ? "PE开路" : "直写装配"}·base=${arm.base})`);
   const t0 = Date.now();
   const pid = await postPrompt(arm);
   const res = await waitHistory(pid, timeoutMs);
@@ -427,9 +542,13 @@ async function runArm(arm, src, timeoutMs) {
   // 被旁路的装配文(非采样文),txt 改记 [40:143] 直塞文=真生效文
   let textVerdict;
   if (arm.rgbaForm) {
-    const outText = `0927d 一段式透明([40:144]=true·[40:143] 直塞纯英文公式短文·PE 豁免·三层中文装配/常量A 不进采样)\n生效文:\n${arm.rgbaForm}\n(参考:被旁路的 [27] 显示装配文 ${effText.length}字 md5=${md5(effText)})`;
+    // 0928b 道具臂文案臂感知:臂①=PE 构造层参与(采样拍 [141]=false 如实记);多视图一段式=PE 豁免
+    const rgbaHeader = arm.propArm
+      ? `0928b 道具一段式透明([40:144]=true·[40:143] 直塞定文·采样拍 PE 不参与(${arm.name.includes("_备选") ? "臂② C臂直塞·PE 豁免备选" : "臂① PE 参与在出文构造层:PE 源拍实跑+背景句剥离+官方头尾包裹,md5 复现铁证 probe-0928b"})·三层中文装配/常量A 不进采样)`
+      : "0927d 一段式透明([40:144]=true·[40:143] 直塞纯英文公式短文·PE 豁免·三层中文装配/常量A 不进采样)";
+    const outText = `${rgbaHeader}\n生效文:\n${arm.rgbaForm}\n(参考:被旁路的 [27] 显示装配文 ${effText.length}字 md5=${md5(effText)})`;
     writeFileSync(join(OUT_DIR, `${arm.name}.txt`), outText);
-    textVerdict = { kind: "rgba-direct", len: arm.rgbaForm.length, md5: md5(arm.rgbaForm), bypass27Md5: md5(effText) };
+    textVerdict = { kind: arm.propArm ? "prop-rgba-direct" : "rgba-direct", len: arm.rgbaForm.length, md5: md5(arm.rgbaForm), bypass27Md5: md5(effText) };
   } else {
     writeFileSync(join(OUT_DIR, `${arm.name}.txt`), effText);
     if (arm.peOn) {

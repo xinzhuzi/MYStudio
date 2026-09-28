@@ -1574,6 +1574,18 @@ class TestQi21SubgraphContract:
         for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
             assert bad not in renwu.split("\n")[0], f"人物②层残留物象词 {bad}(纯画法零物象骨)"
         assert renwu.split("\n")[-1] == PRO_COLOR_MAP["人物"], "人物 base_text 末行应=④配色行"
+        # 0928 扩令·四型底座级透明互锁:道具/多视图/高清人脸/表情差分 base_text 必含透明声明段
+        # (官方 RGBA 公式对 RGBA_HEAD/RGBA_TAIL 的中文语义声明,零背景意志词),退役背景职责句
+        # 零回潮(「纯浅净一色背景」类全退役,背景职责让渡透明声明;canon_lib/05库/bases 三处同源)
+        decl = "图为带透明通道的 RGBA 透明底图，背景透明"
+        retired = ("底面浅净一色", "器影贴近器身", "整页如一页器物图纸", "纯色平涂底",
+                   "各格底色相同", "纯浅净一色背景", "均匀柔光", "平涂的底", "画面疏朗安静")
+        for e in qi21:
+            if e["zh"] in ("道具", "多视图", "高清人脸", "表情差分"):
+                assert decl in e["base_text"], \
+                    f"qi21_bases.json「{e['zh']}」缺透明声明段(0928 扩令四型底座级透明)"
+                resid = [p for p in retired if p in e["base_text"]]
+                assert not resid, f"qi21_bases.json「{e['zh']}」残留退役背景职责句: {resid}"
 
     def test_lock_constant_present_and_always_wired(self):
         """锁层常量在场:[110]=库首节常量A 全文逐字,恒挂(直连拼接节点,不经开关)。"""
