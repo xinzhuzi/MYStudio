@@ -136,7 +136,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyDaojieLoraStack": "漫影 道劫LoRA栈",
     "MyDaojieRoute": "漫影 道劫按型线路路由",
     "MyQi21DaojieBase": "道劫·qi21底座九选一",
-    "MyQi21SpeedSelect": "Q2-1 加速档位(三选一·默认Fun-Acc)",
+    "MyQi21SpeedSelect": "Q2-1 加速档位(三选一·默认直出40步)",
     "MyModelBus": "漫影 道劫模型分线排",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",

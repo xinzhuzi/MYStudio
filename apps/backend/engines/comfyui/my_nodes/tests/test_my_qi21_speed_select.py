@@ -5,7 +5,7 @@
 test_my_qi21_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 
 锁:注册面(双表+类目+无旧名别名)/combo 闭集(三档精确串+首项=默认=
-Fun-Acc 0927 裁定+分隔符码位 U+00B7 防全角漂移)/三态选择各回各支路/
+直出40步 0929 拉齐重放裁定+分隔符码位 U+00B7 防全角漂移)/三态选择各回各支路/
 懒协议(三槽 lazy 声明+check_lazy_status 只请求「选中×已接线×未求值」槽,
 绝不请求未接线槽——引擎对未接线槽 make_input_strong_link 抛
 NodeInputError,graph.py:132-133)/未选档未接线容错(未选槽缺键或投
@@ -31,14 +31,14 @@ _DIRECT = {"branch": "direct"}
 def test_registry_exposes_speed_select():
     assert NODE_CLASS_MAPPINGS.get("MyQi21SpeedSelect") is MyQi21SpeedSelect
     assert NODE_DISPLAY_NAME_MAPPINGS["MyQi21SpeedSelect"] == \
-        "Q2-1 加速档位(三选一·默认Fun-Acc)"  # 0925 归位裁定:零道劫前缀
+        "Q2-1 加速档位(三选一·默认直出40步)"  # 0925 归位裁定:零道劫前缀(默认随 0929 拉齐重放)
     assert MyQi21SpeedSelect.CATEGORY == "my"  # 类目随包内现行目录(兄弟件同区)
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingQi21SpeedSelect" not in NODE_CLASS_MAPPINGS
 
 
-# ── combo 闭集:三档精确串+首项=默认=Fun-Acc ──────────────────
-def test_combo_closed_set_first_item_is_default_funacc():
+# ── combo 闭集:三档精确串+首项=默认=直出40步 ──────────────────
+def test_combo_closed_set_first_item_is_default_direct():
     spec = MyQi21SpeedSelect.INPUT_TYPES()
     assert set(spec) == {"required", "optional"}
     assert set(spec["required"]) == {"mode"}
@@ -46,15 +46,15 @@ def test_combo_closed_set_first_item_is_default_funacc():
                                      "latent_direct"}
     combo = spec["required"]["mode"]
     assert isinstance(combo[0], list)
-    assert combo[0] == ["2 · Fun-Acc 4步", "1 · viggle", "0 · 直出40步"]
-    assert combo[1]["default"] == "2 · Fun-Acc 4步"  # 首项=默认=Fun-Acc(0927 裁定)
-    assert DEFAULT_MODE == MODES[0] == "2 · Fun-Acc 4步"
+    assert combo[0] == ["0 · 直出40步", "2 · Fun-Acc 4步", "1 · viggle"]
+    assert combo[1]["default"] == "0 · 直出40步"  # 首项=默认=直出40步(0929 拉齐重放)
+    assert DEFAULT_MODE == MODES[0] == "0 · 直出40步"
     # 分隔符码位锁:U+00B7 中点(防誊写漂移成全角·/・——combo 列表即契约)
     for mode in MODES:
         assert " \u00b7 " in mode, mode
-    # 档位↔槽名单源映射全覆盖
-    assert [s for _m, s in SPEED_MODES] == ["latent_funacc", "latent_viggle",
-                                            "latent_direct"]
+    # 档位↔槽名单源映射全覆盖(combo 序=默认优先非档号序:0/2/1)
+    assert [s for _m, s in SPEED_MODES] == ["latent_direct", "latent_funacc",
+                                            "latent_viggle"]
     assert slot_for_mode("2 · Fun-Acc 4步") == "latent_funacc"
     assert slot_for_mode("1 · viggle") == "latent_viggle"
     assert slot_for_mode("0 · 直出40步") == "latent_direct"
@@ -85,10 +85,10 @@ def test_select_routes_each_mode_branch(mode, branch):
     assert result[0] is branch
 
 
-def test_select_default_mode_picks_funacc_branch():
-    """默认档(Fun-Acc)全接线直通:仅接 funacc 一槽即可走通(其余两档缺键容错)。"""
-    result = MyQi21SpeedSelect().select(DEFAULT_MODE, latent_funacc=_FUNACC)
-    assert result == (_FUNACC,)
+def test_select_default_mode_picks_direct_branch():
+    """默认档(直出40步)全接线直通:仅接 direct 一槽即可走通(其余两档缺键容错)。"""
+    result = MyQi21SpeedSelect().select(DEFAULT_MODE, latent_direct=_DIRECT)
+    assert result == (_DIRECT,)
 
 
 # ── 懒裁剪返回值:check_lazy_status 只请求「选中×已接线×未求值」槽 ──
@@ -155,7 +155,7 @@ def test_selected_but_unwired_error_lists_wired_modes():
     node = MyQi21SpeedSelect()
     with pytest.raises(ValueError, match="已接线的档位:1 · viggle"):
         node.select("2 · Fun-Acc 4步", latent_viggle=_VIGGLE)  # 接错档=指路切档
-    with pytest.raises(ValueError, match="已接线的档位:1 · viggle、0 · 直出40步"):
+    with pytest.raises(ValueError, match="已接线的档位:0 · 直出40步、1 · viggle"):
         node.select("2 · Fun-Acc 4步", latent_direct=None,
                     latent_viggle=_VIGGLE)  # 缺键=未接线,None=已接线未求值,都算在册(清单纯按 SPEED_MODES 档序)
 

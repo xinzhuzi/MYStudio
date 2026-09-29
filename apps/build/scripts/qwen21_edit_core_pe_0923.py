@@ -8,7 +8,8 @@
     支路0 直出   [7]Cache ────────────────→ [8]  KSampler(40步)
     支路1 viggle [7]Cache → [31]LoRA(0.8) → [56] KSampler(359步)
     支路2 FunAcc [7]Cache ────────────────→ [55] T8(4步内置,model 直连 base 绝不吃 LoRA)
-  三支路汇流 [58] MyQi21SpeedSelect(combo 首项=「2 · Fun-Acc 4步」=默认;latent_funacc/
+  三支路汇流 [58] MyQi21SpeedSelect(combo 首项=「0 · 直出40步」=默认(0929 拉齐重放,
+  Fun-Acc 仍为主加速居二);latent_funacc/
   latent_viggle/latent_direct 三槽全 lazy,check_lazy_status 只拉起选中支路)→ [9] 解码;
   seed 单源 [57] PrimitiveInt(0,fixed)扇出三采样器(T8 seed widget→输入);steps 回归
   各支路 KSampler widget(面板=生效值,消灭摆设值);正源双路保持 0928 黑图修复语义
@@ -140,12 +141,13 @@ SEED_ID = 57                           # seed 单源 PrimitiveInt(默认 0 fixed
 SEL_ID = 58                            # MyQi21SpeedSelect(三支路 LATENT 汇流单选择)
 T8_ID = 55                             # T8 采样器(Fun-Acc 支路)
 SEL_CLASS = "MyQi21SpeedSelect"        # 自研件(my_nodes/nodes/my_qi21_speed_select.py)
-# 档位 combo 闭集(=自研件 SPEED_MODES 逐字;首项=默认=Fun-Acc,0927 裁定 0929 恢复;
-# 分隔符=U+00B7 中点;列表即契约,与自研件单源互锁,漂移拒生成)
+# 档位 combo 闭集(=自研件 SPEED_MODES 逐字;首项=默认=直出40步,0929 拉齐重放裁定
+# (Fun-Acc 仍为主加速=次序第二);分隔符=U+00B7 中点;列表即契约,与自研件单源
+# 互锁,漂移拒生成)
+SPEED_MODE_DIRECT = "0 · 直出40步"
 SPEED_MODE_FUNACC = "2 · Fun-Acc 4步"
 SPEED_MODE_VIGGLE = "1 · viggle"
-SPEED_MODE_DIRECT = "0 · 直出40步"
-SPEED_MODES = (SPEED_MODE_FUNACC, SPEED_MODE_VIGGLE, SPEED_MODE_DIRECT)
+SPEED_MODES = (SPEED_MODE_DIRECT, SPEED_MODE_FUNACC, SPEED_MODE_VIGGLE)
 # 选择件槽序(inputs 声明序:mode=0 / latent_funacc=1 / latent_viggle=2 / latent_direct=3)
 _SEL_SLOT = {SPEED_MODE_FUNACC: 1, SPEED_MODE_VIGGLE: 2, SPEED_MODE_DIRECT: 3}
 # 0928 删踏脚石直连轮:RR_DIR[56]/RR_CMP[57]/RR_CLIP[58]/RR_A[46]/RR_TRUE[44]/
@@ -208,10 +210,10 @@ NOTE = """## Qwen-Image-2.1 换装编辑 · 使用说明
 
 This is an RGBA format image with transparency. [your description]. The image has an alpha channel and a transparent background.
 
-### 加速区·并行三支路+单选择件(0929 并行化轮;默认 Fun-Acc)
+### 加速区·并行三支路+单选择件(0929 并行化轮;默认=直出40步(0929 拉齐重放裁定))
 
 - **三条完整并行支路**(各支路自足 MODEL/steps,零注入零开关):0=直出 40 步(官方完整档)=[7]Cache→[8]KSampler;1=viggle 359 步=[7]Cache→[31] LoraLoaderModelOnly(0.8)→[56]KSampler;2=Fun-Acc·4步=[7]Cache→[55]T8。共享源单节点扇出(base MODEL/latent/负面/seed 一源三用,复用铁则:不重复出现节点)。
-- **单选择件 [58] MyQi21SpeedSelect**(选择点唯一,居三支路汇流处):combo 三选一,首项=「2 · Fun-Acc 4步」=默认 Fun-Acc(0927 裁定,0929 恢复);三支路 LATENT 汇流其三槽(latent_funacc/latent_viggle/latent_direct),输出接 [9] 解码。默认档仅初始值,随时可切任何档;加速启停语义=用户手动权威。
+- **单选择件 [58] MyQi21SpeedSelect**(选择点唯一,居三支路汇流处):combo 三选一,首项=「0 · 直出40步」=默认(0929 拉齐重放,12:05 主会话复核;Fun-Acc 仍为主加速=次序第二);三支路 LATENT 汇流其三槽(latent_funacc/latent_viggle/latent_direct),输出接 [9] 解码。默认档仅初始值,随时可切任何档;加速启停语义=用户手动权威。
 - **懒执行**:未选中支路整体不进执行图(check_lazy_status 只拉起选中支路,零空转零加载)。
 - **seed 单源**:[57] PrimitiveInt(默认 0,fixed)一处扇出 [8]/[56]/[55] 三采样器(T8 seed 已输入化),一处改三支路同步生效。
 - **步数=面板=生效值**:[8] steps=40/[56] steps=359 各支路 KSampler widget 真实生效(0929 并行化轮消灭摆设值);cfg 恒 1/euler/simple/denoise 1 照抄官方值。
@@ -226,7 +228,7 @@ This is an RGBA format image with transparency. [your description]. The image ha
 - **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响(步数够,可把双参考序列积出真图)。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图。
 - **修复接线(0929 并行化迁移:正源差异内聚进各支路,零开关)**:直出支路 [8].positive=[6] 双参考编码(官方路零改动);viggle/Fun-Acc 支路 [56]/[55].positive=[43] 单参考编码(仅 image_1,词源与 [6] 同源=[15] PE 开关)。
 - [6] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);viggle/Fun-Acc 档时 [43] 亦入链(多一次视觉编码,约 +20s);直出档 [43] 懒旁路。
-- 档0 的双参考语义零改动;选择件默认档=Fun-Acc(正源走单参考 [43])。
+- 档0 的双参考语义零改动;选择件默认档=直出40步(正源走双参考 [6])。
 
 ### 提示词起草
 
@@ -430,15 +432,15 @@ def build_nodes():
              [FUNACC_FILE, 0], order=31),
         # seed 单源(默认 0 fixed,扇出三采样器;edit 旧 randomize→fixed 归一 t2i/i2i)
         pint(SEED_ID, 0, [8400, 1960], [78, 79, 80]),
-        # 单选择件 MyQi21SpeedSelect(三支路 LATENT 汇流;combo 首项=Fun-Acc=默认;
-        # 三槽全 lazy=未选支路零执行零加载;输出→[9] 解码=单解码)
+        # 单选择件 MyQi21SpeedSelect(三支路 LATENT 汇流;combo 首项=直出40步=默认
+        # (0929 拉齐重放);三槽全 lazy=未选支路零执行零加载;输出→[9] 解码=单解码)
         node(SEL_ID, SEL_CLASS, [10900, 800], [340, 170],
              [inp("mode", "COMBO", widget=True),
               inp("latent_funacc", "LATENT", link=83),
               inp("latent_viggle", "LATENT", link=82),
               inp("latent_direct", "LATENT", link=81)],
              [out("latent", "LATENT", [52])],
-             [SPEED_MODE_FUNACC], order=36),
+             [SPEED_MODE_DIRECT], order=36),
         # ── 行3 输出画幅双路 ──────────────────────────────────────
         node(19, "PrimitiveBoolean", [6300, 3000], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
@@ -605,7 +607,7 @@ GROUPS = [
      "bounding": [1580, 2140, 3760, 1140], "color": "#8864a8", "flags": {}},
     # 0929 并行化轮:W1 加速区组框随拓扑重建——罩三支路([8]直出/[31]+[56]viggle/
     # [55]FunAcc)+seed 单源 [57]+单选择件 [58]([7]Cache=共享上游,留主链带)
-    {"id": 4, "title": "道劫·加速区(并行三支路:0=直出40步[8] / 1=viggle·359步[31]→[56] / 2=Fun-Acc·4步[55];单选择件[58] MyQi21SpeedSelect·combo首项=Fun-Acc默认;seed单源[57];加速档正源=单参考[43]/直出=双参考[6],0928黑图修复)",
+    {"id": 4, "title": "道劫·加速区(并行三支路:0=直出40步[8] / 1=viggle·359步[31]→[56] / 2=Fun-Acc·4步[55];单选择件[58] MyQi21SpeedSelect·combo首项=直出40步默认(0929拉齐重放);seed单源[57];加速档正源=单参考[43]/直出=双参考[6],0928黑图修复)",
      "bounding": [7870, 250, 3400, 1830], "color": "#4d9e6a", "flags": {}},
 ]
 
@@ -1053,15 +1055,15 @@ def verify(wf):
         sin = next((i for i in nodes[nid]["inputs"] if i.get("name") == "seed"), None)
         if not sin or sin.get("link") != lid_ or "widget" not in sin:
             errs.append(f"[{nid}] seed 应 widget 转输入接 [{SEED_ID}](link{lid_};T8 seed 输入化=三支路同源)")
-    # ⑥ 单选择件 MyQi21SpeedSelect(方案 B):恰 1;combo 默认=首项=Fun-Acc;三槽接线;输出→[9]
+    # ⑥ 单选择件 MyQi21SpeedSelect(方案 B):恰 1;combo 默认=首项=直出40步;三槽接线;输出→[9]
     sels = by_type(SEL_CLASS)
     if len(sels) != 1 or sels[0]["id"] != SEL_ID:
         errs.append(f"{SEL_CLASS}[{SEL_ID}] 应恰 1(单一选择点)")
     else:
         sel = sels[0]
-        if sel["widgets_values"] != [SPEED_MODE_FUNACC]:
-            errs.append(f"[{SEL_ID}] combo 默认应首项=Fun-Acc「{SPEED_MODE_FUNACC}」"
-                        f"(0927 裁定 0929 恢复),得 {sel.get('widgets_values')}")
+        if sel["widgets_values"] != [SPEED_MODE_DIRECT]:
+            errs.append(f"[{SEL_ID}] combo 默认应首项=直出40步「{SPEED_MODE_DIRECT}」"
+                        f"(0929 拉齐重放),得 {sel.get('widgets_values')}")
         slot_names = [i.get("name") for i in sel["inputs"]]
         if slot_names != ["mode", "latent_funacc", "latent_viggle", "latent_direct"]:
             errs.append(f"[{SEL_ID}] 输入槽序应 mode/latent_funacc/latent_viggle/latent_direct"
@@ -1122,16 +1124,18 @@ def verify(wf):
                     stack_.append(links[lid][1])
         return reach_
 
-    d_def = _reach()   # 默认态=combo 首项 Fun-Acc(0927 裁定,0929 恢复)
-    if T8_ID not in d_def:
-        errs.append("干跑:默认态(Fun-Acc)T8 应在执行链(选中支路)")
-    for nid, tag in ((8, "直出 KSampler"), (KS_VIG_ID, "viggle KSampler"),
+    d_def = _reach()   # 默认态=combo 首项 直出40步(0929 拉齐重放)
+    if 8 not in d_def:
+        errs.append("干跑:默认态(直出40步)直出 KSampler 应在执行链(选中支路)")
+    for nid, tag in ((T8_ID, "Fun-Acc T8"), (KS_VIG_ID, "viggle KSampler"),
                      (LORA_ID, "viggle LoRA")):
         if nid in d_def:
-            errs.append(f"干跑:默认态(Fun-Acc){tag} [{nid}] 不应执行(未选支路零执行零加载)")
-    for nid in (6, TE1_ID, 20, SEED_ID, 7):
+            errs.append(f"干跑:默认态(直出40步){tag} [{nid}] 不应执行(未选支路零执行零加载)")
+    for nid in (6, 20, SEED_ID, 7):
         if nid not in d_def:
-            errs.append(f"干跑:默认态(Fun-Acc)支撑件 [{nid}] 应在执行链")
+            errs.append(f"干跑:默认态(直出40步)支撑件 [{nid}] 应在执行链")
+    if TE1_ID in d_def:
+        errs.append(f"干跑:默认态(直出40步)正源应双参考 [6](单参考编码 [{TE1_ID}] 懒旁路)")
     d1 = _reach(SPEED_MODE_VIGGLE)
     if not ({LORA_ID, KS_VIG_ID} <= d1):
         errs.append(f"干跑:档1(viggle)执行图应含 LoRA[{LORA_ID}]+KSampler[{KS_VIG_ID}]")
@@ -1150,6 +1154,15 @@ def verify(wf):
         errs.append(f"干跑:档0 正源应回双参考 [6](单参考编码 [{TE1_ID}] 懒旁路)")
     if 6 not in d0 or 20 not in d0:
         errs.append("干跑:档0 [6]/[20] 应恒执行")
+    # 0929 拉齐重放后默认=直出,档2(Fun-Acc)改经 override 显式核(三档覆盖只增不减)
+    d2 = _reach(SPEED_MODE_FUNACC)
+    if T8_ID not in d2:
+        errs.append(f"干跑:档2(Fun-Acc)T8[{T8_ID}] 应在执行链(主加速支路)")
+    for nid in (8, KS_VIG_ID, LORA_ID):
+        if nid in d2:
+            errs.append(f"干跑:档2 [{nid}] 不应执行(懒选择只拉起 Fun-Acc 支路)")
+    if TE1_ID not in d2:
+        errs.append(f"干跑:档2 正源应单参考 [{TE1_ID}](0928 黑图修复)")
     # ⑨ 零真重复(0929 复用铁则:同 type+同 widgets+同上游集合不得两件;
     #    两 KSampler 非重复论证=steps 40≠359+model 上游不同,并行支路本体 design §5.3)
     dup_key = {}
@@ -1184,8 +1197,9 @@ def verify(wf):
                   "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
                   "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽", "用户手动权威",
                   "懒执行", "绝不吃 viggle LoRA",
-                  # 0929 并行化轮新要点(三支路+单选择+默认 Fun-Acc+seed 单源+面板生效值)
-                  "并行三支路", SEL_CLASS, SPEED_MODE_FUNACC, "默认 Fun-Acc",
+                  # 0929 并行化轮新要点(三支路+单选择+默认直出40步(拉齐重放)+seed 单源+面板生效值)
+                  "并行三支路", SEL_CLASS, SPEED_MODE_DIRECT, "默认=直出40步",
+                  "拉齐重放",
                   "seed 单源", "面板=生效值",
                   # 0928 黑图修复轮:单参考正源要点(0929 并行接线迁移)
                   "单参考正源", "崩纯黑", "唯一色=1", "[43]", "零改动"):
@@ -1264,7 +1278,7 @@ def main(argv=None):
           f"[42][50][51][54]),立三并行支路:直出=[7]→[8]KSampler({STEPS_OFF}步)/"
           f"viggle=[7]→[{LORA_ID}]LoRA(0.8)→[{KS_VIG_ID}]KSampler({STEPS_ON}步)/"
           f"Fun-Acc=[7]→[{T8_ID}]T8(4步内置,model 直连 base 绝不吃 LoRA);"
-          f"汇流 [{SEL_ID}] {SEL_CLASS}(combo 首项=「{SPEED_MODE_FUNACC}」=默认)→[9] 解码;"
+          f"汇流 [{SEL_ID}] {SEL_CLASS}(combo 首项=「{SPEED_MODE_DIRECT}」=默认(0929 拉齐重放))→[9] 解码;"
           f"seed 单源 [{SEED_ID}](0,fixed)扇出三采样器(T8 seed 输入化);steps 回归各支路"
           f"widget(面板=生效值);正源:直出=[6] 双参考/加速档=[{TE1_ID}] 单参考"
           f"(0928 黑图修复保持);组框「道劫·加速区」随拓扑重建;自查零红"

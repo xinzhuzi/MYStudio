@@ -28,9 +28,10 @@ parallel design §2/§4):直出40步 / viggle / Fun-Acc 三条完整自足支路
   - 选中档未接线=select 内中文报错(先例=my_daojie_route.route 未接线
     文案):带档名+槽名+已接线档位清单,不猜不代选。
 
-档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=Fun-Acc**(0927 用户
-裁定,0929 恢复);档位字符串前导数字=档号(2/1/0),与槽名一一对应
-(latent_funacc/latent_viggle/latent_direct)。combo 列表即契约:/prompt
+档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=直出40步**(0929 用户拉齐
+裁定,12:05 主会话复核;Fun-Acc 仍为主加速=次序第二);档位字符串前导数字=档号
+(0/2/1),与槽名一一对应(latent_direct/latent_funacc/latent_viggle)。combo
+列表即契约:/prompt
 闭集硬校验,不在列表即 HTTP 400(BUILDING_NODES 陷阱在档)——改档位文案
 必须与三生成器同笔;步数语义在支路采样器自身 widget,本节点不持步数。
 """
@@ -39,13 +40,15 @@ from __future__ import annotations
 
 from typing import Any
 
-# 档位表:combo 顺序即画布下拉顺序,首项=默认=Fun-Acc(0927 裁定)。
-# 元组=(档位字符串, 选中时路由的 latent 槽名);档号内嵌字符串前导位(2/1/0,
-# 与旧 [30] 档位号口径一致);分隔符=U+00B7 中点(契约测试锁码位防全角漂移)。
+# 档位表:combo 顺序即画布下拉顺序,首项=默认=直出40步(0929 拉齐重放裁定;
+# 次序理由:Fun-Acc 为主加速居二,viggle 居三)。
+# 元组=(档位字符串, 选中时路由的 latent 槽名);档号内嵌字符串前导位(0/2/1,
+# 与旧 [30] 档位号口径一致;combo 序=默认优先,非档号序);分隔符=U+00B7 中点
+# (契约测试锁码位防全角漂移)。
 SPEED_MODES: tuple[tuple[str, str], ...] = (
+    ("0 · 直出40步", "latent_direct"),
     ("2 · Fun-Acc 4步", "latent_funacc"),
     ("1 · viggle", "latent_viggle"),
-    ("0 · 直出40步", "latent_direct"),
 )
 
 MODES: list[str] = [mode for mode, _slot in SPEED_MODES]
@@ -59,7 +62,7 @@ def slot_for_mode(mode: str) -> str | None:
 
 
 class MyQi21SpeedSelect:
-    """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择(默认 Fun-Acc)。
+    """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择(默认直出40步)。
 
     mode=combo 三选一(首项默认);三个 latent 槽全 optional 全 lazy——
     未选档未接线不报错、不进执行图;选中档未接线给中文报错;输出=选中

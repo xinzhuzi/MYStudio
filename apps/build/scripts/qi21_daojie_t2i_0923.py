@@ -3,7 +3,8 @@
 
 本轮(0929 加速区并行化轮,Trellis 09-29-qi21-acczone-parallel·方案 B=MyQi21SpeedSelect;
 用户三令存真:「使用并行节点布局前面只有1个选择逻辑」「不要重复出现1个节点,要进行复用」
-「默认使用 Fun-Acc(阿里PDD)」(0927 裁定,0929 恢复)——架构手术非坐标轮):
+「默认使用 Fun-Acc(阿里PDD)」(0927 裁定,0929 恢复;同日拉齐重放裁定默认改
+直出40步等效,Fun-Acc 仍为主加速居二)——架构手术非坐标轮):
   - **注入式开关农场全拆**:t2i 加速区 10 选择类逻辑件([30] 档位/[32] MODEL 开关/
     [177] steps 联动开关/[178][179] steps 常量/[193][194] 比较/[195][196] 比较常量/
     [197] latent 路由)全数拆除(旧 id 留历史锚注释,件不在图);
@@ -14,12 +15,12 @@
   - **seed 单源扇出**:[207] PrimitiveInt(0 fixed)扇出 [7]/[206]/[198](三采样器 seed
     一律 widget→input 接线接管;T8 seed 输入化=research/03 §4.1 实证 JSON 层可行);
   - **单点选择**:三支路 LATENT 汇流→[208] MyQi21SpeedSelect(my_nodes 自研懒选择件,
-    combo 首项=默认=Fun-Acc;未选支路懒执行零加载)→[8] 解码→[9] 保存;
+    combo 首项=默认=直出40步(0929 拉齐重放);未选支路懒执行零加载)→[8] 解码→[9] 保存;
   - **复用铁则**:[40].positive 三扇出/[40].negative 二扇出(T8 无负面槽)/[5] 空潜三扇出/
     [1] base 三扇出——共享源全部单节点扇出;自查新增零真重复谓词(同 type+同上游集合+
     同 widgets 值不得两件,主图/子图分域);
   - **组框/Note 随拓扑重建**:加速区组框罩三支路+选择件;Note 只重写加速区段+参数圣经
-    (三档并行+单选择+默认 Fun-Acc+档2 插件依赖警示+seed 单源+面板值=生效值口径),
+    (三档并行+单选择+默认直出40步+档2 插件依赖警示+seed 单源+面板值=生效值口径),
     其余 tokens 原样保留;
   - 布局:三支路行 y=1740/2460/3180(行距 720,分层行铁律),选择件居三支路汇流带右侧,
     [1]/[5]/[207] 让位重排([1] 挪回加载器列上首/[5] 3900→3700);交叉基线按新拓扑实测重立。
@@ -205,11 +206,11 @@
 主图加速区并行结构(恰1 LoRA+[7]40步/[206]359步 两 KSampler steps 回归 widget=面板
 生效值+cfg/euler/simple/denoise 照抄现值+[198] T8 model=[1] 直连无负面槽+seed 输入化/
 [207] seed 单源三扇出(三采样器 seed 一律 widget→input)/[208] MyQi21SpeedSelect combo
-首项=Fun-Acc=默认+三 latent 槽接线+输出→[8]+主图零选择类逻辑件(ComfySwitchNode/
+首项=直出40步=默认+三 latent 槽接线+输出→[8]+主图零选择类逻辑件(ComfySwitchNode/
 easy compare/PrimitiveBoolean 恒0,旧注入式十件 id 全不在图)+零真重复节点(同 type+
 同上游集合+同 widgets,主图/子图分域)) /
-三档懒干跑(默认 Fun-Acc=T8 在链而 [7]/[206]/[31] 零执行;档1=viggle 链在;
-档0=[7] 在)/
+三档懒干跑(默认直出40步=[7] 在链而 [198]/[206]/[31] 零执行;档1=viggle 链在;
+档2=Fun-Acc T8 在)/
 主图+子图横向排版(每条连线 target.x>origin.x,含 Reroute 段;边界线以 IO 槽 pos
 为端点;**0928 PE 迁子图后冻结回流线已消灭=左向线恒 0,旧 W2 单点豁免退役**)/
 子图六行排版(按 y 分行恰 6 行=四行流水+联动蛇形两行、Reroute 拐点不占行、行间净距
@@ -333,7 +334,8 @@ RR_SWC_ID, RR_SWC2_ID = 175, 205  # [143]->[144] on_true 双垫脚石(直连必�
 RR_TXT_ID = 176                 # [141]->最终文本输出 走行4-行5 框间带的下探拐点
 # ── 0929 加速区并行化轮(Trellis 09-29-qi21-acczone-parallel,方案 B=MyQi21SpeedSelect)──
 # 用户三令存真:「使用并行节点布局前面只有1个选择逻辑」「不要重复出现1个节点,要进行复用」
-# 「默认使用 Fun-Acc(阿里PDD)」(0927 裁定,0929 恢复)。注入式开关农场十件全拆(旧 id 留
+# 「默认使用 Fun-Acc(阿里PDD)」(0927 裁定,0929 恢复;0929 拉齐重放:默认改直出40步
+# 等效,Fun-Acc 仍为主加速居二)。注入式开关农场十件全拆(旧 id 留
 # 历史锚,件不在图):[30] 档位/[32] MODEL 开关/[177] steps 联动开关/[178][179] steps 常量/
 # [193][194] 比较/[195][196] 比较常量/[197] latent 路由。立三条完整并行支路+seed 单源+
 # LATENT 汇流单选择(各支路自足,MODEL/steps 内聚;懒执行=未选支路零执行零加载):
@@ -349,7 +351,7 @@ SPEED_SEL_ID = 208         # MyQi21SpeedSelect(LATENT 汇流单点选择,懒执�
 STEPS_OFF, STEPS_ON = 40, 359  # 支路0/支路1 KSampler widget 生效步数(359=0929 用户改值,
 #   原 6=v0.2.1 系卡荐档;并行化后步数回归各支路面板=真实生效值,无联动开关无摆设值)
 MODE_DIRECT, MODE_VIGGLE, MODE_FUNACC = 0, 1, 2        # 档位语义锚(档号=选择件档位字符串
-#   前导数字;0927 三档语义不变,0929 恢复默认档=Fun-Acc)
+#   前导数字;0927 三档语义不变,0929 拉齐重放默认档=直出40步,档号语义不变)
 T8_ID = 198                                            # 支路2 Fun-Acc T8 采样器(承袭)
 FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"   # 已装机(models/loras/)
 T8_CLASS = "T8QwenImage21FunAccPDD4Step"
@@ -364,8 +366,8 @@ _spec = importlib.util.spec_from_file_location(
     _REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_speed_select.py")
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
-SPEED_MODES = _mod.SPEED_MODES               # ((档位字符串, 选中槽名)×3;首项=默认=Fun-Acc)
-SPEED_DEFAULT_MODE = _mod.DEFAULT_MODE       # combo 默认值(0927 裁定恢复)
+SPEED_MODES = _mod.SPEED_MODES               # ((档位字符串, 选中槽名)×3;首项=默认=直出40步)
+SPEED_DEFAULT_MODE = _mod.DEFAULT_MODE       # combo 默认值(0929 拉齐重放=直出40步)
 SPEED_SLOT_OF = dict(SPEED_MODES)            # 档位字符串 → latent 槽名
 SPEED_SLOT_OF_MODE = {int(m.split(" ·")[0]): s for m, s in SPEED_MODES}  # 档号 → 槽名
 del _spec, _mod
@@ -436,15 +438,16 @@ NOTE_TEXT = (
     "### 负面线说明(cfg=1 占位,W5 终审)\n"
     "- **cfg=1 下负面提示词数学上不参与采样**;[40] negative 输出→[7] 负向槽的接线保留,纯为"
     "与官方模板同构的**占位**(不生效)。要用负向须抬 cfg,非本产线口径。\n\n"
-    "### 加速区·并行三支路+单选择(0929 并行化轮;默认 Fun-Acc=0927 裁定恢复)\n"
+    "### 加速区·并行三支路+单选择(0929 并行化轮;默认=直出40步=0929 拉齐重放裁定)\n"
     "- **三档=三条完整并行支路,前面只有一个选择逻辑=[208] MyQi21SpeedSelect**(LATENT 汇流处"
-    "单点,combo 三选一**首项=默认=「2 · Fun-Acc 4步」**;0929 前注入式开关农场 10 逻辑件"
+    "单点,combo 三选一**首项=默认=「0 · 直出40步」**(0929 拉齐重放,12:05 主会话复核;"
+    "Fun-Acc 仍为主加速=次序第二);0929 前注入式开关农场 10 逻辑件"
     "([30]档位/[32]/[177] 开关/[178][179][195][196] 常量/[193][194] 比较)已全拆):"
     "支路0=直出 40 步([7] KSampler 官方完整档)/支路1=viggle 359 步([31] LoRA(0.8)→"
     "[206] KSampler)/支路2=Fun-Acc 4 步([198] T8QwenImage21FunAccPDD4Step,4步/sigmas 五值/"
     "euler/cfg1 全内置勿外接采样器)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n"
     "- **懒执行**:未选中支路整体不进执行图零加载(MyQi21SpeedSelect 懒选择,check_lazy_status "
-    "只拉起选中档支路;如默认 Fun-Acc 时 [7]/[206]/[31] 全不在执行图)。\n"
+    "只拉起选中档支路;如默认直出40步时 [198]/[206]/[31] 全不在执行图)。\n"
     "- **seed 单源共享**:[207] PrimitiveInt(默认 0 fixed 可复现)单源扇出三支路采样器"
     "([7]/[206]/[198] 的 seed 一律 widget→input 接线接管——各采样器面板 seed 值=摆设值不生效,"
     "改 seed 只动 [207] 一处,三支路同步)。\n"
@@ -1016,7 +1019,7 @@ def build_main(truth: dict, sg: dict) -> dict:
             # W1 加速区组框(0929 并行化轮随拓扑重建:罩三支路[7]/[31]+[206]/[198]+选择件[208];
             # seed[207]/空潜[5]=共享源留框外——与旧注入式十件框不同,主链框与加速区框在 [7]
             # 直出支路带交叠=主图框无两两不相交谓词,先例=0928 前主链/加速区框角交叠)
-            {"id": 4, "title": "道劫·加速区·并行三支路+单选择([7]直出40步 / [31]LoRA0.8+[206]viggle·359步 / [198]Fun-Acc·4步 → [208]MyQi21SpeedSelect 汇流;combo首项=默认Fun-Acc,未选支路懒执行零加载)",
+            {"id": 4, "title": "道劫·加速区·并行三支路+单选择([7]直出40步 / [31]LoRA0.8+[206]viggle·359步 / [198]Fun-Acc·4步 → [208]MyQi21SpeedSelect 汇流;combo首项=默认直出40步,未选支路懒执行零加载)",
              "bounding": [4220, 1690, 2490, 1790], "color": "#4d9e6a", "flags": {}},
         ],
         "nodes": [],
@@ -1246,12 +1249,12 @@ def build_main(truth: dict, sg: dict) -> dict:
         "widgets_values": [0, "fixed"],
         "widgets_values_named": {"value": 0, "fixed": "fixed"},
     })
-    # 单点选择件(方案 B=my_nodes 自研懒选择;combo 首项=默认=Fun-Acc;三 latent 槽全
+    # 单点选择件(方案 B=my_nodes 自研懒选择;combo 首项=默认=直出40步;三 latent 槽全
     # optional 全 lazy=未选支路零执行零加载;输出=选中支路 LATENT 原样直通→[8] 解码)
     nodes.append({
         "id": SPEED_SEL_ID, "type": "MyQi21SpeedSelect",
         "title": f"[{SPEED_SEL_ID}] 加速档位选择(MyQi21SpeedSelect:三支路 LATENT 汇流单点·"
-                 f"combo 首项=默认 Fun-Acc;未选支路懒执行零加载)",
+                 f"combo 首项=默认直出40步;未选支路懒执行零加载)",
         "pos": [6300, 2460], "size": [380, 150], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "latent_funacc", "type": "LATENT", "shape": 7, "link": 110},
@@ -1708,7 +1711,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
     # 6b. 加速区并行三支路+MyQi21SpeedSelect 单选择(0929 并行化轮,方案 B):
     #     拆净断言=主图零选择类逻辑件+旧注入式十件 id 全不在图;并行断言=三采样器步数
     #     回归 widget 生效值/T8 model=[1] 直连(绝不吃 LoRA)/seed 单源三扇出/选择件
-    #     combo 首项=Fun-Acc=默认+三 latent 槽接线+输出→[8]。
+    #     combo 首项=直出40步=默认+三 latent 槽接线+输出→[8]。
     for banned in ("ComfySwitchNode", "easy compare", "PrimitiveBoolean"):
         if any(n["type"] == banned for n in g["nodes"]):
             errs.append(f"0929 并行化:主图应零 {banned}(注入式开关农场已拆,选择点唯 MyQi21SpeedSelect)")
@@ -1787,16 +1790,16 @@ def self_check(g: dict, truth: dict) -> list[str]:
     t8s = [n for n in g["nodes"] if n["type"] == T8_CLASS]
     if len(t8s) != 1:
         errs.append(f"{T8_CLASS} 应恰 1 个(支路2),得 {[n['id'] for n in t8s]}")
-    # MyQi21SpeedSelect(单点选择;combo 首项=默认=Fun-Acc=0927 裁定恢复)
+    # MyQi21SpeedSelect(单点选择;combo 首项=默认=直出40步=0929 拉齐重放裁定)
     sel = m_nodes[SPEED_SEL_ID]
     if sel["type"] != "MyQi21SpeedSelect":
         errs.append(f"[{SPEED_SEL_ID}] 应为 MyQi21SpeedSelect(LATENT 汇流单点选择)")
     else:
         if sel["widgets_values"] != [SPEED_DEFAULT_MODE]:
-            errs.append(f"[{SPEED_SEL_ID}] combo 默认应=首项 {SPEED_DEFAULT_MODE!r}(Fun-Acc,0927 裁定恢复),"
+            errs.append(f"[{SPEED_SEL_ID}] combo 默认应=首项 {SPEED_DEFAULT_MODE!r}(直出40步,0929 拉齐重放),"
                         f"得 {sel['widgets_values']}")
-        if SPEED_MODES[0][1] != "latent_funacc" or "Fun-Acc" not in SPEED_MODES[0][0]:
-            errs.append("档位表真源漂移:首项应=Fun-Acc(my_nodes 节点件 import 互锁)")
+        if SPEED_MODES[0][1] != "latent_direct" or "直出40步" not in SPEED_MODES[0][0]:
+            errs.append("档位表真源漂移:首项应=直出40步(my_nodes 节点件 import 互锁)")
         slot_src = {inp["name"]: m_links[inp["link"]][1]
                     for inp in sel["inputs"] if inp.get("link") is not None}
         if slot_src != {"latent_funacc": T8_ID, "latent_viggle": SAMPLER_VIGGLE_ID,
@@ -1823,12 +1826,12 @@ def self_check(g: dict, truth: dict) -> list[str]:
                         f"0929 后 easy compare/注入式逻辑件亦不入主图白名单)")
     # 三档懒干跑(MyQi21SpeedSelect 懒选择=只回溯选中档槽,未选支路零执行零加载;
     # PE/联动链在子图内,主图干跑只核宿主可达——子图内部第 9/9b 节另核)
-    dfun = _dry_run_main(g)   # 默认态=combo 首项 Fun-Acc(0927 裁定恢复)
-    if T8_ID not in dfun:
-        errs.append("干跑:默认态(Fun-Acc)T8 应在执行链(选择件首项=默认档)")
-    for nid in (SAMPLER_ID, SAMPLER_VIGGLE_ID, LORA_ID):
+    dfun = _dry_run_main(g)   # 默认态=combo 首项 直出40步(0929 拉齐重放)
+    if SAMPLER_ID not in dfun:
+        errs.append("干跑:默认态(直出40步)KSampler 应在执行链(选择件首项=默认档)")
+    for nid in (T8_ID, SAMPLER_VIGGLE_ID, LORA_ID):
         if nid in dfun:
-            errs.append(f"干跑:默认态(Fun-Acc)未选支路 [{nid}] 不应执行(懒选择零加载)")
+            errs.append(f"干跑:默认态(直出40步)未选支路 [{nid}] 不应执行(懒选择零加载)")
     for nid in (HOST_ID, LATENT_ID, 1, SEED_ID):
         if nid not in dfun:
             errs.append(f"干跑:默认态共享源 [{nid}] 应在执行源内(单源扇出)")
@@ -1844,6 +1847,13 @@ def self_check(g: dict, truth: dict) -> list[str]:
     for nid in (LORA_ID, SAMPLER_VIGGLE_ID, T8_ID):
         if nid in ddir:
             errs.append(f"干跑:档0 [{nid}] 不应执行(懒选择零加载)")
+    # 0929 拉齐重放后默认=直出,档2(Fun-Acc)改经 override 显式核(三档覆盖只增不减)
+    dfa = _dry_run_main(g, mode_override=MODE_FUNACC)
+    if T8_ID not in dfa:
+        errs.append(f"干跑:档2(Fun-Acc)T8[{T8_ID}] 应在执行链(主加速支路)")
+    for nid in (SAMPLER_ID, SAMPLER_VIGGLE_ID, LORA_ID):
+        if nid in dfa:
+            errs.append(f"干跑:档2 [{nid}] 不应执行(懒选择只拉起 Fun-Acc 支路)")
 
     # 6c. (0927 满血接线轮 steps 联动断言随 [177]/[178]/[179] 拆除退役——步数语义回归
     #     各支路 KSampler widget,由 6b 节「steps=面板生效值」断言接管)
@@ -2079,7 +2089,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
                   # 0926 裁定1:默认 PE 开路含画布本体(Note 必含新口径)
                   "默认 PE 改写", "按图选配",
                   # 0929 并行化轮:三支路并行+单选择+seed 单源+面板生效值+依赖警示+T8 事实
-                  "MyQi21SpeedSelect", "并行三支路", "只有一个选择逻辑", "默认 Fun-Acc",
+                  "MyQi21SpeedSelect", "并行三支路", "只有一个选择逻辑", "默认=直出40步",
+                  "拉齐重放",
                   "懒执行", "seed 单源共享", "面板值=生效值",
                   "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
                   "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽", "用户手动权威",
@@ -2107,13 +2118,14 @@ def _dry_run_main(g: dict, mode_override: int | None = None) -> set[int]:
     """主图执行集(SaveImage 回溯;懒执行=只走选中支路)。
 
     0929 并行化轮:选择点=[208] MyQi21SpeedSelect(三 latent 槽全 lazy)——按档位
-    (combo widget;mode_override=档号 0/1/2 模拟运行态切档)只回溯选中档支路的槽,
+    (combo widget;mode_override=档号 0/1/2 模拟运行态切档;默认态=combo 首项=
+    直出40步)只回溯选中档支路的槽,
     未选支路整体不进执行图(零空转零加载);注入式开关农场已拆,主图零
     ComfySwitchNode;PE/画幅联动在 [40] 子图内部,主图干跑只核宿主可达(子图懒
     语义第 9/9b 节另核)。"""
     m_nodes = {n["id"]: n for n in g["nodes"]}
     m_links = {l[0]: l for l in g["links"]}
-    want_slot = SPEED_SLOT_OF_MODE[MODE_FUNACC if mode_override is None else mode_override]
+    want_slot = SPEED_SLOT_OF_MODE[MODE_DIRECT if mode_override is None else mode_override]
     reach: set[int] = set()
     stack = [9]  # SaveImage
     while stack:
@@ -2310,11 +2322,11 @@ def main() -> int:
             f"→[8] 解码;共享源全单节点扇出([1]/[5]/[40].positive 三扇出,[40].negative 二扇出(T8 无负面槽)),"
             f"自查新增零真重复谓词;steps 回归各支路 widget=面板生效值([7] steps 摆设值误导清除);"
             f"组框加速区随拓扑重建(罩三支路+选择件),Note 只重写加速区段+参数圣经(三档并行+单选择+"
-            f"默认 Fun-Acc+档2 插件依赖警示+seed 单源+面板值=生效值),其余 tokens 原样;"
+            f"默认直出40步+档2 插件依赖警示+seed 单源+面板值=生效值),其余 tokens 原样;"
             f"交叉基线按新拓扑实测重立(见 3g 注);"
             f"0929 用户手改回灌轮=宿主面板机制简化([40] 外露输入槽 8→4,四控件改回面板控件;"
             f"子图内部 IO 仍 8 入 5 出零动)+两新默认并入本轮口径(档位默认并入选择件 combo 首项="
-            f"Fun-Acc(0927 裁定恢复);viggle 步数 359 保留为 [{SAMPLER_VIGGLE_ID}] 面板生效值);"
+            f"直出40步(0929 拉齐重放裁定,12:05 主会话复核);viggle 步数 359 保留为 [{SAMPLER_VIGGLE_ID}] 面板生效值);"
             f"0928 残留清创轮=主图踏脚石直连([203] 亦随并行化退役)+干跑 9b 谓词;"
             f"0928 PE 链迁入装配子图([140]/[141]/[151]-[158] 全收 [40];主图左向线恒 0;"
             f"[5] 宽高直连 [40].width/.height;[27] 预览接 [40].最终文本);"
@@ -2323,7 +2335,7 @@ def main() -> int:
             f"0926 铁律·线不遮节点(主图+子图同口径);"
             f"默认=①人物(combo 经宿主面板外露,RGBA 官方头尾公式,"
             f"PE 默认开路([141] true)/联动默认关);"
-            f"三档懒干跑(默认 Fun-Acc=[198] 在链而 [7]/[206]/[31] 零执行;档1/档0 同口径核);"
+            f"三档懒干跑(默认直出40步=[7] 在链而 [198]/[206]/[31] 零执行;档1/档2 同口径核);"
             f"干跑直写选配臂装配全文逐字=库组合(全程子图内溯源);"
             f"双向/横向(左向线恒 0)/六行排版/零重叠/est 间距(横≥200/纵≥80)/零线遮节点(0926)/"
             f"group 预算(子图4·主图3,子图各框单一阶段行且不相交,联动蛇形两行不设框)/"

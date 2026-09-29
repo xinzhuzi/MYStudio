@@ -87,12 +87,12 @@ MyQi21SpeedSelect,三生成器同笔改造):道劫三件加速区=**三条完整
 MyQi21SpeedSelect(三 latent 槽全 lazy,check_lazy_status 只拉起选中支路——未选
 支路零执行零加载);注入式开关农场全拆(t2i 10 件/i2i·edit 各 13 件:档位/比较/
 开关/常量,连 [30] 档位语义一并并入选择件 combo)。断言迁移(design §8 迁移表):
-默认档=选择件 combo 首项=Fun-Acc(0927 裁定 0929 恢复;三件一致,与 my_nodes 节点件
-DEFAULT_MODE import 互锁);T8 无负面槽/model=base 直连(绝不吃 viggle LoRA)/
+默认档=选择件 combo 首项=直出40步(0929 拉齐重放裁定(用户 12:05);三件一致,与
+my_nodes 节点件 DEFAULT_MODE import 互锁);T8 无负面槽/model=base 直连(绝不吃 viggle LoRA)/
 positive+latent 同源——保持;新增零真重复节点(0929 复用铁则:同 type+同上游集合+
 同 widgets 不得两件)、seed 单源三用(PrimitiveInt 扇出三采样器,T8 seed 输入化=
 research/05 §3 实证无例外)、steps 面板=生效值(联动机构拆除,widget 值即执行值)、
-懒执行三档干跑(默认 Fun-Acc/档1/档0)。白名单:easy compare 三件零残留出册;
+懒执行三档干跑(默认直出/档1/档2)。白名单:easy compare 三件零残留出册;
 ComfySwitchNode 恒留册(子图 [141][144][157][158]/edit PE 开关 [15]/画幅双路
 [20] 在用,t2i 主图恒 0 由拆净断言锁);入册 MyQi21SpeedSelect;LoRA 名白名单
 ([31] viggle 文件名)不变;Note tokens 随加速区新文案迁移。_assert_fullpower_steps/
@@ -288,7 +288,8 @@ QI21_RR_POS_B_ID = 203                      # [40].positive→T8 顶带拐点(�
 #                                            随正源直连拆除,gone_ids 在册防回潮)
 # 0929 用户手改回灌(生成器同表):子图两枚 Reroute 删了重加成新 id(位置/接线同位);
 # 宿主外露输入槽 8→4(四控件回面板);[30] 默认档 2→11 与 [179] 常量 6→359 两口径
-# 已随 0929 并行化轮([30]/[179] 拆除)终结——档位语义并入选择件 combo 首项=Fun-Acc
+# 已随 0929 并行化轮([30]/[179] 拆除)终结——档位语义并入选择件 combo 首项
+# (0929 拉齐重放后首项=直出40步)
 QI21_SG_RR_H3 = 204      # HEIGHT 行6 下方横带拐点(原 [177],0929 用户删重加)
 QI21_SG_RR_SWC2 = 205    # [143]->[144] on_true 第二垫脚石(原 [178],0929 用户删重加)
 QI21_HOST_EXPOSED_INPUTS = ["clip", "vae", "主体句", "pe_clip"]  # 0929 外露槽 4(连线槽)
@@ -390,7 +391,7 @@ def _trace_main_reroute(nodes: dict, links: dict, lid: int) -> int:
 
 
 # (_off_state_reach 随 0929 并行化轮退役:加速槽「关态」语义并入三档干跑——
-#  默认档=Fun-Acc 即零 LoRA 态,断言移交 _assert_three_mode_accel)
+#  默认档=直出40步 即零 LoRA 态,断言移交 _assert_three_mode_accel)
 
 
 # ── 0929 加速区并行化轮(Trellis 09-29-qi21-acczone-parallel;方案 B=MyQi21SpeedSelect)──
@@ -412,7 +413,8 @@ FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"
 T8_CLASS = "T8QwenImage21FunAccPDD4Step"
 # 档位表真源=my_nodes 节点件 importlib 纯模块互锁(design §4:combo 列表即契约,
 # /prompt 闭集硬校验,不在列表=HTTP 400;节点件零引擎依赖只 import typing):
-# SPEED_MODES 首项=默认=Fun-Acc(0927 裁定,0929 恢复),三画布 widgets_values 必=DEFAULT_MODE。
+# SPEED_MODES 首项=默认=直出40步(0929 拉齐重放裁定,Fun-Acc 仍为主加速居二),
+# 三画布 widgets_values 必=DEFAULT_MODE。
 import importlib.util as _ilu
 
 _spec = _ilu.spec_from_file_location(
@@ -423,7 +425,7 @@ _spec.loader.exec_module(_speed_mod)
 SPEED_MODES = _speed_mod.SPEED_MODES
 DEFAULT_MODE = _speed_mod.DEFAULT_MODE
 SPEED_SLOT_OF = dict(SPEED_MODES)
-MODE_FUNACC, MODE_VIGGLE, MODE_DIRECT = (m for m, _s in SPEED_MODES)
+MODE_DIRECT, MODE_FUNACC, MODE_VIGGLE = (m for m, _s in SPEED_MODES)
 # 0929 并行化 Note 加速区段共用 tokens(三件 Note 均含;文案真源=三生成器 NOTE 段)
 PARALLEL_NOTE_CORE_TOKENS = (
     "check_lazy_status", "用户手动权威", "懒执行", "绝不吃 viggle LoRA",
@@ -433,19 +435,20 @@ PARALLEL_NOTE_CORE_TOKENS = (
 # qi21 件 Note 加速区段(0929 并行化文案;[198]/LORA_FILE 等承袭 token 见原位)
 QI21_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, "MyQi21SpeedSelect", "[208]", "[206]", "[207]",
-    "首项=默认", "seed 单源", "真实生效", "并行三支路",
+    "首项=默认", "默认=直出40步", "拉齐重放", "seed 单源", "真实生效", "并行三支路",
 )
 # i2i 件 Note 加速区段(0929 并行化+0928 单参考正源随迁;i2i 家风=选择件/seed
 # 以名示人不带 id 号,仅支路采样器 [189] 带 id)
 I2I_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, "MyQi21SpeedSelect", "[189]",
-    "首项=默认 Fun-Acc", "seed 单源", "零摆设值", "复用铁则", "分线直入",
+    "首项=默认=直出40步", "拉齐重放", "seed 单源", "零摆设值", "复用铁则", "分线直入",
     "单参考正源", "崩纯黑", "唯一色=1", "positive_single", "[173]", "零改动",
 )
 # edit 件 Note 加速区段(0929 并行化+0928 单参考正源随迁)
 EDIT_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, "MyQi21SpeedSelect", "[58]", "[56]", "[57]",
-    "首项", "seed 单源", "面板=生效值", "latent_funacc/latent_viggle/latent_direct",
+    "首项", "默认=直出40步", "拉齐重放", "seed 单源", "面板=生效值",
+    "latent_funacc/latent_viggle/latent_direct",
     "单参考正源", "崩纯黑", "唯一色=1", "[43]", "零改动",
 )
 
@@ -538,7 +541,7 @@ def _assert_three_mode_accel(graph: dict, name: dict | str, *,
     - 拆净:主图零 banned_types(注入式机构);旧件 gone_ids 全不在图;
     - 三并行支路+MyQi21SpeedSelect 三槽接线(选择点唯一,LATENT 汇流→单解码;
       funacc←T8/viggle←359步采样器/direct←40步采样器,按槽名断言);
-    - 默认档=选择件 combo 首项=Fun-Acc(widgets_values==[DEFAULT_MODE],
+    - 默认档=选择件 combo 首项=直出40步(widgets_values==[DEFAULT_MODE],
       与 my_nodes 节点件互锁 ⇒ 三件一致);mode 不被连线锁死(用户操控杆);
     - T8:无负面槽/model 溯源 base 直连(绝不吃 viggle LoRA)/positive=加速支路
       正源/latent 同源/seed 输入化(无例外,research/05 §3);
@@ -548,8 +551,8 @@ def _assert_three_mode_accel(graph: dict, name: dict | str, *,
     - LoRA:恰 1 个=支路1 专属(name 白名单逐字/strength 0.8/model 溯 base/
       输出扇出恰一线只喂 viggle 支路);
     - 零真重复节点(复用铁则,主图+子图分域);
-    - 懒执行三档干跑:默认 Fun-Acc(T8 在链,直出/viggle/LoRA 零执行零加载)/
-      档1 viggle(LoRA+359步在链)/档0 直出(40步在链,零 LoRA 零 T8)。"""
+    - 懒执行三档干跑:默认直出40步(40步采样器在链,T8/viggle/LoRA 零执行零加载)/
+      档1 viggle(LoRA+359步在链)/档2 Fun-Acc(T8 在链)。"""
     nodes, links = _nodes(graph), _links(graph)
     # 拆净断言(注入式开关农场)
     for banned in banned_types:
@@ -565,8 +568,8 @@ def _assert_three_mode_accel(graph: dict, name: dict | str, *,
         f"得 {[n['id'] for n in sels]}"
     sel = sels[0]
     assert sel["widgets_values"] == [DEFAULT_MODE], \
-        f"{name}: [{sel_id}] 选择件默认档应=combo 首项 {DEFAULT_MODE!r}(Fun-Acc,0927 裁定" \
-        f"0929 恢复;三件一致=节点件 DEFAULT_MODE 互锁),得 {sel.get('widgets_values')}"
+        f"{name}: [{sel_id}] 选择件默认档应=combo 首项 {DEFAULT_MODE!r}(直出40步,0929 拉齐" \
+        f"重放;三件一致=节点件 DEFAULT_MODE 互锁),得 {sel.get('widgets_values')}"
     mode_inp = next((i for i in sel["inputs"] if i.get("name") == "mode"), None)
     assert mode_inp is None or mode_inp.get("link") is None, \
         f"{name}: [{sel_id}] mode 不得被连线锁死(加速启停=用户操控杆,0920 铁律)"
@@ -648,11 +651,12 @@ def _assert_three_mode_accel(graph: dict, name: dict | str, *,
     # 零真重复(0929 复用铁则)
     _assert_no_true_duplicates(graph, name)
     # 懒执行三档干跑(check_lazy_status 语义=只回溯选中档槽)
-    dfun = _reach_state(graph, save_id)   # 默认态=combo 首项 Fun-Acc
-    assert t8_id in dfun, f"{name}: 默认态(Fun-Acc)T8 应在执行链(首项=默认档)"
-    for nid in (sampler_direct_id, sampler_viggle_id, lora_id):
+    dfun = _reach_state(graph, save_id)   # 默认态=combo 首项 直出40步(0929 拉齐重放)
+    assert sampler_direct_id in dfun, \
+        f"{name}: 默认态(直出)直出采样器应在执行链(首项=默认档)"
+    for nid in (t8_id, sampler_viggle_id, lora_id):
         assert nid not in dfun, \
-            f"{name}: 默认态(Fun-Acc)未选支路 [{nid}] 不应执行(懒选择零加载)"
+            f"{name}: 默认态(直出)未选支路 [{nid}] 不应执行(懒选择零加载)"
     for nid in (seed_id, latent_src_id, model_base_id):
         assert nid in dfun, f"{name}: 默认态共享源 [{nid}] 应在执行源内(单源扇出)"
     dvig = _reach_state(graph, save_id, mode_override=MODE_VIGGLE)
@@ -664,12 +668,17 @@ def _assert_three_mode_accel(graph: dict, name: dict | str, *,
     assert sampler_direct_id in ddir, f"{name}: 档0(直出)KSampler 应在执行链(40 步主线)"
     for nid in (lora_id, sampler_viggle_id, t8_id):
         assert nid not in ddir, f"{name}: 档0 [{nid}] 不应执行(懒选择零加载)"
-    # 0928 黑图修复干跑(edit 主图单参考编码):档1/2 在链/档0 懒旁路
+    # 0929 拉齐重放后默认=直出,档2(Fun-Acc)改经 override 显式核(三档覆盖只增不减)
+    dfa = _reach_state(graph, save_id, mode_override=MODE_FUNACC)
+    assert t8_id in dfa, f"{name}: 档2(Fun-Acc)T8 应在执行链(主加速支路)"
+    for nid in (sampler_direct_id, sampler_viggle_id, lora_id):
+        assert nid not in dfa, f"{name}: 档2 [{nid}] 不应执行(懒选择只拉起 Fun-Acc 支路)"
+    # 0928 黑图修复干跑(edit 主图单参考编码):档1/2 在链/档0(=默认)懒旁路
     if te1_id is not None:
-        assert te1_id in dfun and te1_id in dvig, \
+        assert te1_id in dvig and te1_id in dfa, \
             f"{name}: 档2/1 正源应单参考编码 [{te1_id}](0928 修复:双参考崩少步蒸馏)"
-        assert te1_id not in ddir, \
-            f"{name}: 档0 正源应回双参考(单参考编码 [{te1_id}] 懒旁路)"
+        assert te1_id not in ddir and te1_id not in dfun, \
+            f"{name}: 档0(=默认直出)正源应回双参考(单参考编码 [{te1_id}] 懒旁路)"
 
 
 def _input_name(node: dict, slot: int) -> str:
@@ -734,12 +743,13 @@ def _resolve_default_string_origins(graph: dict) -> dict:
 class TestSpeedSelectContract0929:
     def test_combo_closed_set_and_default_first(self):
         """档位表真源=my_nodes 节点件 SPEED_MODES:三档字符串逐字(分隔符=U+00B7
-        中点,锁码位防全角漂移);首项=默认=Fun-Acc(0927 裁定,0929 恢复);档位
+        中点,锁码位防全角漂移);首项=默认=直出40步(0929 拉齐重放裁定,Fun-Acc
+        仍为主加速=次序第二);档位
         字符串前导数字=档号,与槽名一一对应。行为面单测=my_nodes/tests/
         test_my_qi21_speed_select.py(三态/默认/懒裁剪/容错/报错文案),此处锁契约面。"""
-        assert [m for m, _s in SPEED_MODES] == ["2 · Fun-Acc 4步", "1 · viggle", "0 · 直出40步"]
+        assert [m for m, _s in SPEED_MODES] == ["0 · 直出40步", "2 · Fun-Acc 4步", "1 · viggle"]
         assert DEFAULT_MODE == SPEED_MODES[0][0]
-        assert [s for _m, s in SPEED_MODES] == ["latent_funacc", "latent_viggle", "latent_direct"]
+        assert [s for _m, s in SPEED_MODES] == ["latent_direct", "latent_funacc", "latent_viggle"]
 
     def test_lazy_protocol_shape(self):
         """懒执行语义位(结构面):三 latent 槽全 optional 全 lazy(执行器对 lazy 槽
@@ -755,7 +765,7 @@ class TestSpeedSelectContract0929:
 
     def test_three_files_default_mode_consistent(self):
         """三件一致(AC):道劫三件选择件 widgets_values 同=DEFAULT_MODE(combo 首项
-        =Fun-Acc)——0927 裁定恢复,重跑任一生成器漂移即红。"""
+        =直出40步)——0929 拉齐重放裁定,重跑任一生成器漂移即红。"""
         for name, sel_id in (("qi21", QI21_SPEED_SEL_ID), ("i2i", I2I_SPEED_SEL_ID),
                              ("edit", EDIT_SPEED_SEL_ID)):
             sel = _nodes(GRAPHS[name])[sel_id]
@@ -1142,7 +1152,7 @@ class TestEditContract:
 
     def test_lora_slot_present_and_bypassed(self):
         """0929 并行化:LoRA=支路1 专属件([7] Cache→[31]→[56] viggle 支路,扇出恰
-        一线);注入式 MODEL/steps/latent 开关农场全拆;默认档=Fun-Acc 干跑零 LoRA
+        一线);注入式 MODEL/steps/latent 开关农场全拆;默认档=直出40步 干跑零 LoRA
         (懒选择);T8 model=Cache 直连;0928 黑图修复正源分线:支路0=[6] 双参考/
         支路1·2=[43] 单参考;TE-Speed 槽不加(3c 死,D4 归档)。"""
         graph = GRAPHS["edit"]
@@ -1619,7 +1629,7 @@ class TestQi21SubgraphContract:
 
     def test_lora_slot_present_and_bypassed(self):
         """0929 并行化:LoRA=支路1 专属件([1] UNET→[31]→[206] viggle 支路,扇出恰
-        一线);默认档=Fun-Acc 干跑零 LoRA(懒选择);TE-Speed 槽不加(3c 试装已死
+        一线);默认档=直出40步 干跑零 LoRA(懒选择);TE-Speed 槽不加(3c 试装已死
         归档,D4 终审永不装);主图类型白名单(+MyQi21SpeedSelect;-easy compare
         三件零残留出册;ComfySwitchNode 留册=子图在用,主图恒 0 由拆净断言锁)。"""
         graph = GRAPHS["qi21"]
@@ -2048,7 +2058,8 @@ class TestQi21SubgraphContract:
         """子图版 Note 要点锁:装配子图用法/MyQi21DaojieBase 九选一/主体句纪律(空镜无人)/
         脚本重跑重置警示/[27] 过目指引/锁层恒挂/底座美化口径/steps 40 完整态/RGBA 官方
         公式(中英)/画幅联动开关说明/0929 并行化加速区文案(三支路+单选择件
-        MyQi21SpeedSelect/默认 Fun-Acc/懒执行/seed 单源/面板=生效值)。Note 被重跑回退即红。"""
+        MyQi21SpeedSelect/默认=直出40步(0929 拉齐重放)/懒执行/seed 单源/面板=
+        生效值)。Note 被重跑回退即红。"""
         note = _by_type(GRAPHS["qi21"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("装配子图", "MyQi21DaojieBase", "九型", "空镜无人", "重置回库文档现读值",
                       "[27]", "恒挂", "美化", "05-道劫规范提示词库.md", "[7]=40", "40-50",
@@ -2057,7 +2068,7 @@ class TestQi21SubgraphContract:
                       "LoraLoaderModelOnly", LORA_FILE,
                       "[198]", "[206]", "[207]", "[208]",
                       "shift_terminal=0.02", "TE-Speed",
-                      # 0929 并行化轮:三支路+单选择件+默认 Fun-Acc+懒执行+seed 单源
+                      # 0929 并行化轮:三支路+单选择件+默认=直出40步(拉齐重放)+懒执行+seed 单源
                       *QI21_PARALLEL_NOTE_TOKENS,
                       # 0925 收窄轮要点(W1 组框+摆设值/W5 负面占位+pp 定档/W2 主画布)
                       "数学上不参与采样", "官方同构", "占位", "已定档",
@@ -2283,7 +2294,7 @@ class TestI2IContract:
 
     def test_lora_slot_present_and_bypassed(self):
         """0929 并行化:LoRA=支路1 专属件([7] Cache→[31]→[189] viggle 支路,扇出恰
-        一线);注入式 MODEL/steps/latent/正源开关农场全拆(13 件);默认档=Fun-Acc
+        一线);注入式 MODEL/steps/latent/正源开关农场全拆(13 件);默认档=直出40步
         干跑零 LoRA(懒选择);T8 model=Cache 直连;0928 黑图修复正源分线:支路0=
         宿主 positive(双参考)/支路1·2=宿主 positive_single(单参考);TE-Speed 槽
         不在本件(白名单锁,任何未知类型即红)。"""
@@ -2342,7 +2353,7 @@ class TestI2IContract:
         """开关默认态(0929 并行化后):[15] PE 开关默认 true=PE 开路(默认 PE 改写;
         关=直写按图选配)/其余 widget 全 false(懒执行旁路):[19] 画幅跟随输入图/
         [20] 画幅双路 false/[144] RGBA 普通;旧 [30] 档位/[32] MODEL 开关已随注入式
-        机构拆除(档位语义=选择件 combo 首项=Fun-Acc)。"""
+        机构拆除(档位语义=选择件 combo 首项,0929 拉齐重放后=直出40步)。"""
         graph = GRAPHS["i2i"]
         nodes = _nodes(graph)
         sg_nodes = _qi21_sg_nodes(graph)
