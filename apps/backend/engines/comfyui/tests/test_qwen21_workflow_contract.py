@@ -2014,15 +2014,15 @@ class TestQi21SubgraphContract:
 
     def test_no_node_overlap_and_group_budget(self):
         """零重叠(主图+子图节点矩形两两不相交);group 预算:子图≤4(W3 收窄后
-        实为 3 框=三阶段行)、主图≤4(0925 W1 加速区组框,自 3 放宽:加载器/
-        装配外露+PE/主链/加速区);子图 group 必须各含其阶段行全部节点且互不相交
-        (真机构框)。"""
+        实为 3 框=三阶段行)、主图≤4(0929 四块口径组框:①加载器/②提示词·
+        装配/③加速区/④输出,恰 4 框贴线);子图 group 必须各含其阶段行全部节点
+        且互不相交(真机构框)。"""
         graph = GRAPHS["qi21"]
         sg = _qi21_sg(graph)
         assert len(sg["groups"]) <= 4, \
             f"子图 group 应≤4(三阶段+画幅联动各一框),得 {len(sg['groups'])}"
         assert len(graph["groups"]) <= 4, \
-            f"主图 group 应≤4(W1 加速区组框:加载器/装配外露+PE/主链/加速区),得 {len(graph['groups'])}"
+            f"主图 group 应≤4(四块口径:①加载器/②提示词·装配/③加速区/④输出),得 {len(graph['groups'])}"
         for scope, nodes in (("主图", graph["nodes"]), ("子图", sg["nodes"])):
             for i in range(len(nodes)):
                 for j in range(i + 1, len(nodes)):
@@ -2116,14 +2116,16 @@ class TestCanvasNormalization0925:
     """W6 零负区(主图+子图所有节点 pos≥80;0926 收紧 40→80=实测发现项3 计划
     断言互锁,整图平移至左上留边距=打开即全貌)
     +输出口最右(子图输出 IO 槽 x≥全子图最大 x-50;表示法=K2-文生图-道劫 [90]
-    实证:输出槽钉最右列纵向堆叠)+W1 加速区组框(方案C 原生收纳六件)。
+    实证:输出槽钉最右列纵向堆叠)+W1 加速区组框(0925 方案C 立,0929 并行化+
+    四块口径两轮扩员:t2i 七件=三支路采样器+LoRA+T8+选择件+空潜源+seed 单源)。
     与三生成器自查同口径谓词,此处双记账互锁。"""
 
     GRAPHS_3 = ("qi21", "i2i", "edit")
-    # 0929 并行化轮加速区成员:两支路采样器+LoRA+T8+选择件(+i2i·edit 的 seed 单源;
-    # t2i seed [207] 布局在组框外=x 3200 < 框左 4220,生成器自查同口径不含)
+    # 0929 并行化轮加速区成员:三支路采样器+LoRA+T8+选择件+seed 单源(i2i/edit);
+    # 0929 四块口径组框轮:t2i ③框收编空潜源[5]+seed 单源[207](W1 五件→七件,
+    # 与生成器自查同批;[207] 旧位组框外(x 3200<框左 4220)已成史,现 x 3950 入框)
     ACCEL = {
-        "qi21": (7, 31, 198, 206, 208),
+        "qi21": (5, 7, 31, 198, 206, 207, 208),
         "i2i": (8, 31, 176, 189, 190, 191),
         "edit": (8, 31, 55, 56, 57, 58),
     }
@@ -2153,7 +2155,8 @@ class TestCanvasNormalization0925:
 
     def test_accel_group_boxes_cover_parallel_branches(self):
         """W1:加速区组框在位且罩住并行三支路成员(0929 拓扑重建:组框标题随
-        「道劫·加速区」新口径,罩两支路采样器+LoRA+T8+选择件,布局真源=三生成器)。"""
+        「道劫·加速区」新口径,罩三支路采样器+LoRA+T8+选择件+t2i 空潜源/seed
+        单源(四块口径轮收编),布局真源=三生成器)。"""
         for name in self.GRAPHS_3:
             graph = GRAPHS[name]
             nodes = _nodes(graph)

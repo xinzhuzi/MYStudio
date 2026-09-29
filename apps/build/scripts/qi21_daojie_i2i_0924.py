@@ -899,20 +899,26 @@ def build_main(truth: dict, sg: dict) -> dict:
     g = {
         "id": WF_UUID, "version": 0.4, "revision": 0, "config": {}, "extra": {},
         "groups": [
-            {"id": 1, "title": "道劫·加载器(bf16 三件套+PE-I2I 专属文本编码器→[40].pe_clip)",
-             # 0928 PE 迁子图轮:[12] 升加载器行(PE 改写链已收进 [40] 子图)
+            # 0929 四块口径轮:块①加载器——bbox 原样(罩 [1][2][3][12]),标题对齐四块口径
+            {"id": 1, "title": "道劫·①加载器(bf16 三件套[1][2][3]+PE-I2I 专属TE[12]→[40].pe_clip)",
              "bounding": [320, 40, 2720, 660], "color": "#3f789e", "flags": {}},
-            {"id": 2, "title": "道劫·编辑主链(双图预缩→[40]装配子图(PE改写在内)→三支路并行采样+单选择件→解码→保存;下排=输出画幅双路)",
-             "bounding": [2400, 200, 8800, 2600], "color": "#3f789e", "flags": {}},
-            # 0928 PE 迁子图轮:原「PE-I2I 改写组」框随七件迁入 [40] 子图退役,
-            # 换「指令外露带」框([22] 唯一手写位;PE 链在子图,面板「PE开关」默认开)
-            {"id": 3, "title": "道劫·指令外露带([22]原始用户词=指令①层唯一手写位→[40].指令;PE-I2I 改写链已收进[40]装配子图,宿主面板「PE开关」默认开=0926 裁定1)",
+            # 块②图像·装配主链:右缘 11200→7120 吐出加速区+输出件(消主链×加速区重叠),
+            # 左缘 2400→3060 与①拉开(消加载器×主链重叠),顶 200→120 收顶缘 MODEL 总线拐 [42],
+            # 底 2800→2420;双图 [4][5] 收进输入列 x3060(脱离①下缘跨骑),预缩 [16][17] 随迁右移
+            {"id": 2, "title": "道劫·②图像·装配主链(双图[4][5]预缩[16][17]→[40]装配子图(PE改写在内)→[28]预览;"
+                              "[7]缓存;空潜[18]+画幅开关[19];采样=③加速区;出图=④输出)",
+             "bounding": [3060, 120, 4060, 2300], "color": "#3f789e", "flags": {}},
+            # 块②指令外露带(原位不动;[22] 唯一手写位;PE 链在 [40] 子图,面板「PE开关」默认开)
+            {"id": 3, "title": "道劫·②指令外露带([22]原始用户词=指令①层唯一手写位→[40].指令;PE-I2I 改写链已收进[40]装配子图,宿主面板「PE开关」默认开=0926 裁定1)",
              "bounding": [1240, 1880, 560, 340], "color": "#8864a8", "flags": {}},
-            # W1 加速区组框(0929 并行化轮随拓扑重建):罩三支路+seed 单源+单选择件
-            # 六件([8]直出/[31]+[189]viggle/[176]Fun-Acc/[191]seed/[190]选择件);
-            # 支路横向一行、三行纵叠,选择件居汇流点右侧
-            {"id": 4, "title": "道劫·加速区(三支路并行+单选择)",
-             "bounding": [7470, 950, 2320, 1810], "color": "#4d9e6a", "flags": {}},
+            # 块③加速区(bbox y 950→200 上扩收 [44] VAE 递送拐点;罩三支路+seed 单源+
+            # 单选择件六件+寄居 [20] 画幅开关/[44];标题 startswith「道劫·加速区」=
+            # 生成器 W1 自查锚与契约 TestCanvasNormalization0925 锚同批兼容,「③」只能缀后)
+            {"id": 4, "title": "道劫·加速区③(三支路并行+单选择;寄居:[20]空潜双路选择件·三支路latent汇入/[44]VAE递送reroute)",
+             "bounding": [7470, 200, 2320, 2560], "color": "#4d9e6a", "flags": {}},
+            # 块④输出(0929 四块口径新增:[9]解码→[10]保存 自主链框独立成块)
+            {"id": 5, "title": "道劫·④输出([9]解码→[10]保存)",
+             "bounding": [9940, 1440, 960, 440], "color": "#a88040", "flags": {}},
         ],
         "nodes": [],
         "links": [],
@@ -956,16 +962,16 @@ def build_main(truth: dict, sg: dict) -> dict:
               [{"name": "CLIP", "type": "CLIP", "links": [9]}],
               [PE_CLIP_FILE, "qwen_image", "default"]),
         # ── 行2 主链前半:双图→预缩→[40] 装配子图宿主→装配预览 ──────
-        # 0926 线不遮节点:行2 错位双带——[4]/[16] 上带 y=960、[5]/[17] 降
-        # y=1300/1560 带,[16] 的跨行长馈线(→[40].image_1)从 [5]/[17] 顶上方
-        # 净空走(0928 PE 迁子图轮:合批已随 PE 链入 [40] 子图吃边界图)
-        _core(4, "LoadImage", [1260, 640], [340, 420],
+        # 0929 四块口径轮:双图 [4]/[5] 收进②框输入列 x3060([4] 脱离①下缘跨骑、
+        # 旧位 (1260,640)/(2610,1880) 在①②框缝裸奔),预缩 [16]/[17] 随迁右移让位;
+        # [4]→[16] 近垂馈线,[5]→[17] 短馈线,[16]/[17]→[40] 长馈均走 [5]/[16] 顶上净空
+        _core(4, "LoadImage", [3060, 920], [340, 420],
               [_combo("image"), {"name": "upload", "type": "IMAGEUPLOAD",
                                  "widget": {"name": "upload"}, "link": None}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [1]},
                {"name": "MASK", "type": "MASK", "links": None}],
               [IMG1, "image"]),
-        _core(16, "ImageScaleToTotalPixels", [2480, 1520], [330, 130],
+        _core(16, "ImageScaleToTotalPixels", [3160, 1420], [330, 130],
               [{"name": "image", "type": "IMAGE", "link": 1},
                _combo("upscale_method"), {"name": "megapixels", "type": "FLOAT",
                                           "widget": {"name": "megapixels"}, "link": None},
@@ -973,13 +979,13 @@ def build_main(truth: dict, sg: dict) -> dict:
                 "widget": {"name": "resolution_steps"}, "link": None}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [5]}],
               ["lanczos", 1.5, 32]),
-        _core(5, "LoadImage", [2610, 1880], [340, 420],
+        _core(5, "LoadImage", [3060, 1880], [340, 420],
               [_combo("image"), {"name": "upload", "type": "IMAGEUPLOAD",
                                  "widget": {"name": "upload"}, "link": None}],
               [{"name": "IMAGE", "type": "IMAGE", "links": [2]},
                {"name": "MASK", "type": "MASK", "links": None}],
               [IMG2, "image"]),
-        _core(17, "ImageScaleToTotalPixels", [3540, 1140], [330, 130],
+        _core(17, "ImageScaleToTotalPixels", [3900, 1270], [330, 130],
               [{"name": "image", "type": "IMAGE", "link": 2},
                _combo("upscale_method"), {"name": "megapixels", "type": "FLOAT",
                                           "widget": {"name": "megapixels"}, "link": None},
@@ -1127,8 +1133,11 @@ def build_main(truth: dict, sg: dict) -> dict:
         #     总线/避遮挡正当拐点,删除则线遮或交叉回升;0929 并行化:[179]
         #     布尔垫脚石随比较器拆除)──────────────────────────────────
         _reroute(RR_M_B_ID, [5480, 140], 22, 24, "MODEL"),
-        _reroute(RR_V_A_ID, [2760, 1080], 35, 36, "VAE"),
-        _reroute(RR_V_B_ID, [9290, 160], 36, 37, "VAE"),
+        # 0929 四块口径轮:VAE 通道拐点随 [4]/[5]/[16]/[17] 右迁改道——[43] 升
+        # (3060,746) 让 [3]→[43] 短升弧从 [4] 顶上过;[44] 降 (9290,240) 入③框
+        # 上带(VAE 线 [43]→[44] 走顶空走廊,[44]→[9] 竖降线避 [190] 顶)
+        _reroute(RR_V_A_ID, [3060, 746], 35, 36, "VAE"),
+        _reroute(RR_V_B_ID, [9290, 240], 36, 37, "VAE"),
     ]
     for order, n in enumerate(nodes):
         n["order"] = order
@@ -1549,14 +1558,35 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if next_y - bottom < 100:
             errs.append(f"子图行距不足: 行 y={y} 底 {bottom} 与下行 y={next_y} 净距 <100")
 
-    # 7 group:主图≤3/子图≤4;全 int id 互异;主图标题带道劫+PE 组名锚;子图名带道劫;
-    #   子图各框单一阶段行全部节点且两两不相交
+    # 7 group:主图≤5(0929 四块口径)/子图≤4;全 int id 互异;主图标题带道劫+PE 组名锚;
+    #   子图名带道劫;子图各框单一阶段行全部节点且两两不相交
     for scope, groups in (("主图", g["groups"]), ("子图", sg["groups"])):
         ids = [grp.get("id") for grp in groups]
         if len(ids) != len(set(ids)) or not all(isinstance(i, int) for i in ids):
             errs.append(f"{scope} group id 非互异 int")
-    if len(g["groups"]) > 4:
-        errs.append(f"主图 group 预算超限(≤4,W1 加速区组框),得 {len(g['groups'])}")
+    if len(g["groups"]) > 5:
+        errs.append(f"主图 group 预算超限(≤5,四块口径:加载器/装配主链/指令带/加速区/输出),"
+                    f"得 {len(g['groups'])}")
+    # 7b 四块口径硬约束(0929 轮随组框重画入册,评审令机器化=验收可复现):
+    #   ①主图组框两两 bbox 交集为空;②非白名单节点零裸奔(白名单仅 MarkdownNote)
+    m_boxes = [(grp["bounding"][0], grp["bounding"][1],
+                grp["bounding"][0] + grp["bounding"][2],
+                grp["bounding"][1] + grp["bounding"][3]) for grp in g["groups"]]
+    for i in range(len(m_boxes)):
+        for j in range(i + 1, len(m_boxes)):
+            a, b = m_boxes[i], m_boxes[j]
+            if (a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]):
+                errs.append(f"主图组框 {g['groups'][i]['title'][:12]!r} 与 "
+                            f"{g['groups'][j]['title'][:12]!r} bbox 相交(四块口径硬约束)")
+    for n in g["nodes"]:
+        if n["type"] == "MarkdownNote":
+            continue  # 用法速查说明卡=裸奔白名单
+        nx1 = n["pos"][0] + n["size"][0]
+        ny1 = n["pos"][1] + n["size"][1]
+        if not any(b[0] <= n["pos"][0] and nx1 <= b[2] and b[1] <= n["pos"][1] and ny1 <= b[3]
+                   for b in m_boxes):
+            errs.append(f"主图 node{n['id']}({n['type']}) 裸奔无组框"
+                        f"(白名单仅 MarkdownNote;四块口径硬约束)")
     # W1 加速区组框(0929 并行化轮随拓扑重建):标题带「道劫·加速区」且罩住
     # 三支路+seed 单源+单选择件六件([8]直出/[31]+[189]viggle/[176]Fun-Acc/
     # [191]seed/[190]MyQi21SpeedSelect;支路横向一行+三行纵叠)
@@ -2268,8 +2298,8 @@ def main() -> int:
           f"T8.model=Cache 直连绝不吃 LoRA;零真重复谓词在册(两 KSampler=支路本体);"
           f"TE-Speed 槽不在场;步数回归支路 widget=面板值即生效值/cfg1/denoise1/fixed;"
           f"干跑直写选配臂装配逐字=指令+人物BASE+锁层A;"
-          f"双向/横向(恒向右+顶通道 Reroute)/子图六行排版/零重叠/group int+预算"
-          f"(主4·子3,W1 加速区组框;子图各框单一阶段行)/W1 加速区组框罩三支路+seed+选择件六件/"
+              f"双向/横向(恒向右+顶通道 Reroute)/子图六行排版/零重叠/group int+预算"
+              f"(主5·子3,四块口径组框;子图各框单一阶段行)/W1 加速区组框罩三支路+seed+选择件六件/"
           f"W5 负面 cfg=1 官方同构占位+pp=1.5 定档+steps 零摆设值/"
           f"W6 零负区(全节点 pos≥80,0926 收紧=发现项3 互锁)+输出口最右(输出槽钉最右列)/"
           f"零线遮节点(0926 铁律:只管位置,线不遮节点;主图+子图贝塞尔 41 点精判=0,"

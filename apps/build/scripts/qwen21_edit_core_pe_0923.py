@@ -1,6 +1,24 @@
 #!/usr/bin/env python3
 """qi21-edit.json R16 核心化升级(09-23,幂等全量再生成)。
 
+0929 四块重画轮(三件统一口径,edit 件;纯组框+摆位手术,nodes 除 pos 外与
+links 逐字节不变):
+  组框 4→5 框,四块口径=①加载器(罩 UNET/VAE/全部 CLIPLoader 含 PE 专属 TE:
+  [3] 自主链框划出入 TE 列、[12] 自 PE 瀑布左下上收入①,与 i2i① 同构)/②主链
+  (缩框改名「道劫·②图像·编码主链」,上缘 660 让①、下缘 2510 让 PE 组)/
+  ②PE 子框(「道劫·②PE-I2I 改写组」,按六件 [21][22][23][24][26][27] 实测
+  重立,修旧框零全含之脱位)/③加速区(标题原样保留过锚,仅上缘 250→190 收编
+  [29] Reroute+高度 1830→1860 罩 [57])/④输出([9][10] 独立成块)。
+  微移 8 件:[3] (2960,980)→(2960,460)/[12] (440,3700)→(850,490)/
+  [7] (7040,640)→(7040,660)/[16] (2220,540)→(2220,700)/[21] (1380,2060)→
+  (1380,2600)/[19] (6300,3000)→(6300,2340)/[57] (8400,1960)→(8630,1090)/
+  [28] (4080,780)→(4450,680);其余 25 件原位。提案原坐标([3]y320/
+  [12](2880,440)/[7]y700)经 est 间距/线遮口径手算预检证伪修正;[57]/[28]
+  两件为交叉棘轮补偿(61→56,框内网格搜索定值,--check 实跑收敛)。
+  自查随批:groups 预算 4→5;新增硬约束1(组框两两 bbox 交集空)/硬约束2
+  (非 MarkdownNote 零裸奔,口径 pos+size 全含)两谓词入 verify——评审员令
+  验收须可复现,不靠提案方一次性脚本。
+
 0929 加速区并行化轮(Trellis 09-29-qi21-acczone-parallel,design §2/§4/§5;本件无子图):
   拆除加速区全部 13 选择逻辑件([30]档位/[32]MODEL开关/[33]steps开关/[42]正源开关/
   [54]latent路由(开关4)+[50][51][41]比较(3)+[34][35][38][39][40]常量(6)),立三条完整
@@ -310,6 +328,8 @@ def build_nodes():
         # ── 行1 加载器(上)────────────────────────────────────────
         # 0926 线不遮节点轮:[1] 抬高走顶带(其 [1]→[7] 长线过 [2][3][6] 顶侧净空),
         # [3] 右移让 [2]→[6] 长线从其盒底下方通过(lane y≈675+ > 盒底 662)。
+        # 0929 四块重画轮:[3] 上收 (2960,980)→(2960,460) 入①TE 列(est 同列纵距
+        # 距 [2] est 底 366 恰 94≥80;[2]→[6]/[2]→[43] 两线从其新盒上方 y≈175 过)。
         node(1, "UNETLoader", [880, 140], [340, 84],
              [inp("unet_name", "COMBO", widget=True),
               inp("weight_dtype", "COMBO", widget=True)],
@@ -321,7 +341,7 @@ def build_nodes():
               inp("device", "COMBO", shape=7, widget=True)],
              [out("CLIP", "CLIP", [3, 63])],
              [CLIP_FILE, "qwen_image", "default"], order=1),
-        node(3, "VAELoader", [2960, 980], [340, 60],
+        node(3, "VAELoader", [2960, 460], [340, 60],
              [inp("vae_name", "COMBO", widget=True)],
              [out("VAE", "VAE", [4, 28, 66])],
              [VAE_FILE], order=2),
@@ -331,7 +351,10 @@ def build_nodes():
               inp("upload", "IMAGEUPLOAD", widget=True)],
              [out("IMAGE", "IMAGE", [1]), out("MASK", "MASK", None)],
              [IMG1, "image"], order=3),
-        node(16, "ImageScaleToTotalPixels", [2220, 540], [330, 130],
+        # 0929 四块重画轮:[16] 下移 (2220,540)→(2220,700) 脱①框入主链(est 同列
+        # 纵距距 [4] est 顶 110≥80/距 [12] est 底 174≥80;[12]→[26] 长对角线从其
+        # 盒顶上方 y≈665 过(余量 33px),[1]→[7] 顶带横线 y≈195-272 亦从上方过)。
+        node(16, "ImageScaleToTotalPixels", [2220, 700], [330, 130],
              [inp("image", "IMAGE", link=1),
               inp("upscale_method", "COMBO", widget=True),
               inp("megapixels", "FLOAT", widget=True),
@@ -378,9 +401,11 @@ def build_nodes():
               out("latent", "LATENT", None)],
              ["", "", 0], order=32),
         # 0929 并行化轮:[7] Cache=base MODEL 单源扇出三支路([40]→[8] 直连臂/
-        # [30]→[31] viggle 链/[73]→[55] T8 直连臂);y=640 让 [6]→[8] 双 condition
+        # [30]→[31] viggle 链/[73]→[55] T8 直连臂);y 让 [6]→[8] 双 condition
         # 线从盒顶上方过、顶通道 [28] 线与 [6].negative→[56] 长横线从盒顶/盒底两侧过。
-        node(7, "QwenImage21Cache", [7040, 640], [340, 120],
+        # 0929 四块重画轮:y=640→660 入主链新框(上缘 660);盒底 780 仍让
+        # [6].negative→[56] 长横线(该段 y≈818-822)38px 净空(700 会压线,弃)。
+        node(7, "QwenImage21Cache", [7040, 660], [340, 120],
              [inp("model", "MODEL", link=5),
               inp("device", "COMBO", widget=True),
               inp("dtype", "COMBO", widget=True)],
@@ -431,7 +456,10 @@ def build_nodes():
              [out("LATENT", "LATENT", [83])],
              [FUNACC_FILE, 0], order=31),
         # seed 单源(默认 0 fixed,扇出三采样器;edit 旧 randomize→fixed 归一 t2i/i2i)
-        pint(SEED_ID, 0, [8400, 1960], [78, 79, 80]),
+        # 0929 四块重画轮:[57] 上移三支路行间 (8400,1960)→(8630,1090)——
+        # 三条扇出线长度骤减,主图交叉 61→56(网格搜索定值,--check 实跑收敛;
+        # est 对 [31] 横距 390、对 [56]/[55] 全分离,W1 罩盖保持)
+        pint(SEED_ID, 0, [8630, 1090], [78, 79, 80]),
         # 单选择件 MyQi21SpeedSelect(三支路 LATENT 汇流;combo 首项=直出40步=默认
         # (0929 拉齐重放);三槽全 lazy=未选支路零执行零加载;输出→[9] 解码=单解码)
         node(SEL_ID, SEL_CLASS, [10900, 800], [340, 170],
@@ -442,7 +470,10 @@ def build_nodes():
              [out("latent", "LATENT", [52])],
              [SPEED_MODE_DIRECT], order=36),
         # ── 行3 输出画幅双路 ──────────────────────────────────────
-        node(19, "PrimitiveBoolean", [6300, 3000], [280, 90],
+        # 0929 四块重画轮:[19] 上移 (6300,3000)→(6300,2340) 入主链新框
+        # (est 同行横距距 [20] est 500≥200;link25 变近平飞,[18]→[20]/[6].latent
+        # →[20] 两线从其新盒上方 y≈2206/1491 过)。
+        node(19, "PrimitiveBoolean", [6300, 2340], [280, 90],
              [inp("value", "BOOLEAN", widget=True)],
              [out("BOOLEAN", "BOOLEAN", [25])],
              [False], order=17),
@@ -464,13 +495,18 @@ def build_nodes():
         # 送线必横扫邻段盒(槽 y 全落在 2400-2580 带内,横排不可两全)——
         # 改纵瀑布:[21]a 段上抬/[23]c 段下沉/[22]b 段(双扇出主)居中,
         # [24] 拼装落位 y=2540,[12]→[26] 顶带横线(y=2785)从 [23] 盒顶上方过。
-        node(12, "CLIPLoader", [440, 3700], [360, 130],
+        # 0929 四块重画轮:[12] 上收 (440,3700)→(850,490) 入①框左下角(est 对
+        # [1] 同列纵距 178/对 [11] 244,余皆分离);[12]→[26] 长对角线走
+        # [17]/[25] 双盒下方(y@x2698=2310>2172/y@x2948=2636>1832),沿途
+        # [4](x 带内 y 1552-1870 恒>盒底 1482)/[5](x 带内 y≤1870<盒顶 2018,
+        # 上方过)/[21][22][24] 全净空;[1]→[7] 顶带横线 x≥1220 不入其盒(x≤1212)。
+        node(12, "CLIPLoader", [850, 490], [360, 130],
              [inp("clip_name", "COMBO", widget=True),
               inp("type", "COMBO", widget=True),
               inp("device", "COMBO", widget=True)],
              [out("CLIP", "CLIP", [13])],
              [PE_CLIP_FILE, "qwen_image", "default"], order=8),
-        node(21, "PrimitiveStringMultiline", [1380, 2060], [300, 180],
+        node(21, "PrimitiveStringMultiline", [1380, 2600], [300, 180],
              [inp("value", "STRING", widget=True)],
              [out("STRING", "STRING", [14])],
              [A_SEG], order=9),
@@ -537,8 +573,10 @@ def build_nodes():
              [NOTE], order=24),
         # ── VAE 顶通道(R26.4 随迁:VAE→VAEDecode 长横穿上顶缘,零新增交叉;
         #    0928 删踏脚石直连轮实测保留:删后交叉/线遮至少一增;
-        #    0926 线不遮节点轮 RR_V_A 随 [3] 右移至 2960 保恒向右)──
-        rr(RR_V_A_ID, [4080, 780], 28, 34),
+        #    0926 线不遮节点轮 RR_V_A 随 [3] 右移至 2960 保恒向右;
+        #    0929 四块重画轮:RR_V_A (4080,780)→(4450,680)——[3] 上收①框后
+        #    [3]→[28]/[28]→[29] 走向重排,网格搜索定值,主图交叉 61→56)──
+        rr(RR_V_A_ID, [4450, 680], 28, 34),
         rr(RR_V_B_ID, [9800, 220], 34, 35),
     ]
 
@@ -597,18 +635,26 @@ LINKS = [
 ]
 
 GROUPS = [
-    # 0926 线不遮节点轮:三组框边界随节点错位重排同步改(G1 罩三加载器新梯形
-    # 占位/G2 底缘下探罩双图子行/G3 罩 PE 纵瀑布与上抬的 [15]/G4 罩加速区六件新占位)
-    {"id": 1, "title": "Qwen-Image-2.1 加载器(bf16 三件套)",
-     "bounding": [1180, 400, 1820, 390], "color": "#3f789e", "flags": {}},
-    {"id": 2, "title": "换装编辑主链(双参考图预缩→编码→缓存→加速区三支路采样→单选择→解码→保存;上排=单参考编码[43](加速档正源,0928);下排=输出画幅双路)",
-     "bounding": [1580, 340, 5400, 1700], "color": "#3f789e", "flags": {}},
-    {"id": 3, "title": "PE-I2I 改写组(默认 PE 开路·核心 TextGenerate·看全部输入图)",
-     "bounding": [1580, 2140, 3760, 1140], "color": "#8864a8", "flags": {}},
+    # 0929 四块重画轮(三件统一口径):①加载器上收全部 TE(含 PE 专属 [12],与
+    # i2i① 同构)——[3] 自主链框划出入 TE 列、[12] 自 PE 瀑布左下入①;②主链缩框
+    # (上缘让①/下缘让 PE 组)+改名;②PE 子框按六件实测重立(旧框零全含已修);
+    # ③仅上缘收编 [29] Reroute+底缘补 30 罩 [57];④输出([9][10])独立成块。
+    # 坐标经 est 间距/线遮口径手算预检([3] 320→460/[12] (2880,440)→(2000,300)/
+    # [7] 700→660 避 negative 长横线),--check 实跑收敛。
+    {"id": 1, "title": "Qwen-Image-2.1 ①加载器(bf16 三件套[1][2][3]+PE-I2I 专属TE[12])",
+     "bounding": [850, 90, 2480, 530], "color": "#3f789e", "flags": {}},
+    {"id": 2, "title": "道劫·②图像·编码主链(双参考[4][5]预缩[16][17]/合批[25]→编码[6][43](上排=单参考[43]加速档正源0928)→[15]参考源选择→[7]缓存;空潜[18]+画幅开关[19][20];改写=②PE组;采样=③;出图=④)",
+     "bounding": [1980, 660, 5460, 1850], "color": "#3f789e", "flags": {}},
+    {"id": 3, "title": "道劫·②PE-I2I 改写组(默认 PE 开路·核心 TextGenerate[26] 看全部输入图;[21]指令手写位)",
+     "bounding": [1310, 2550, 3000, 2480], "color": "#8864a8", "flags": {}},
     # 0929 并行化轮:W1 加速区组框随拓扑重建——罩三支路([8]直出/[31]+[56]viggle/
-    # [55]FunAcc)+seed 单源 [57]+单选择件 [58]([7]Cache=共享上游,留主链带)
+    # [55]FunAcc)+seed 单源 [57]+单选择件 [58]([7]Cache=共享上游,留主链带);
+    # 0929 四块重画轮:上缘 250→190 收编 VAE 顶通道 [29],高度 1830→1860 罩 [57]
     {"id": 4, "title": "道劫·加速区(并行三支路:0=直出40步[8] / 1=viggle·359步[31]→[56] / 2=Fun-Acc·4步[55];单选择件[58] MyQi21SpeedSelect·combo首项=直出40步默认(0929拉齐重放);seed单源[57];加速档正源=单参考[43]/直出=双参考[6],0928黑图修复)",
-     "bounding": [7870, 250, 3400, 1830], "color": "#4d9e6a", "flags": {}},
+     "bounding": [7870, 190, 3400, 1860], "color": "#4d9e6a", "flags": {}},
+    # 0929 四块重画轮:④输出独立成块([9][10] 自零接触裸奔收编;标题对齐「道劫·」)
+    {"id": 5, "title": "道劫·④输出([9]解码→[10]保存)",
+     "bounding": [11510, 450, 2270, 730], "color": "#3f789e", "flags": {}},
 ]
 
 
@@ -818,12 +864,32 @@ def verify(wf):
     if wf.get("last_link_id", 0) < max(links):
         errs.append("last_link_id 陈旧")
 
-    # 6 groups:int id 互异;≤3;PE 组名锚;组内节点全含
+    # 6 groups:int id 互异;≤5(0929 四块重画轮:4→5,新增④输出独立成块;
+    #   ①加载器+②主链+②PE 子框+③加速区+④输出);PE 组名锚;组内节点全含
     ids = [g.get("id") for g in wf["groups"]]
     if len(ids) != len(set(ids)) or not all(isinstance(i, int) for i in ids):
         errs.append("group id 非互异 int")
-    if len(wf["groups"]) > 4:
-        errs.append(f"group 超 4(W1 加速区组框;{len(wf['groups'])})")
+    if len(wf["groups"]) > 5:
+        errs.append(f"group 超 5(0929 四块重画:①②②③④;{len(wf['groups'])})")
+    # 0929 四块重画轮:硬约束1/2 入自查(评审员令:两两 bbox 交集空+非 Note 零
+    # 裸奔须可复现,不靠提案方一次性脚本)——口径=pos+size 全含(pos 左上角)
+    gs_ = wf["groups"]
+    for _i in range(len(gs_)):
+        for _j in range(_i + 1, len(gs_)):
+            _a, _b = gs_[_i]["bounding"], gs_[_j]["bounding"]
+            if (_a[0] < _b[0] + _b[2] and _b[0] < _a[0] + _a[2]
+                    and _a[1] < _b[1] + _b[3] and _b[1] < _a[1] + _a[3]):
+                errs.append(f"组框两两相交 {gs_[_i]['id']}/{gs_[_j]['id']}(硬约束1:主图组框 bbox 交集空)")
+    def _covered(n_):
+        return any(g["bounding"][0] <= n_["pos"][0]
+                   and n_["pos"][0] + n_["size"][0] <= g["bounding"][0] + g["bounding"][2]
+                   and g["bounding"][1] <= n_["pos"][1]
+                   and n_["pos"][1] + n_["size"][1] <= g["bounding"][1] + g["bounding"][3]
+                   for g in gs_)
+    strays = [n["id"] for n in wf["nodes"]
+              if n["type"] != "MarkdownNote" and not _covered(n)]
+    if strays:
+        errs.append(f"裸奔节点(非 Note 无组框全含,硬约束2;白名单=MarkdownNote):{strays}")
     if not any("PE-I2I 改写组" in g.get("title", "") and "默认 PE 开路" in g.get("title", "")
                for g in wf["groups"]):
         errs.append("缺 PE-I2I 改写组(默认 PE 开路)分组")
@@ -1273,7 +1339,7 @@ def main(argv=None):
         for e in errs2:
             print(f"  自查红(磁盘态):{e}", file=sys.stderr)
         sys.exit("写盘后磁盘态自查未过。")
-    print(f"再生成完成:{WF}({shape};节点 {len(wf['nodes'])}/连线 {len(wf['links'])}/group 4;"
+    print(f"再生成完成:{WF}({shape};节点 {len(wf['nodes'])}/连线 {len(wf['links'])}/group 5;"
           f"0929 并行化轮=拆除加速区 13 选择逻辑件([30][32][33][34][35][38][39][40][41]"
           f"[42][50][51][54]),立三并行支路:直出=[7]→[8]KSampler({STEPS_OFF}步)/"
           f"viggle=[7]→[{LORA_ID}]LoRA(0.8)→[{KS_VIG_ID}]KSampler({STEPS_ON}步)/"
