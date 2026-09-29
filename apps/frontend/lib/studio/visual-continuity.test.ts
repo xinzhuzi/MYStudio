@@ -543,3 +543,108 @@ describe("storyboard visual continuity", () => {
     });
   });
 });
+
+describe("storyboardAxisIssues 轴线三态机检(跨镜连续性规范 §四)", () => {
+  /** 在 storyboard 工厂基础上改写画面站位/动机/图证,并重烘三级指纹保持账目自洽。 */
+  function axisPair(
+    previousPosition: string,
+    currentPosition: string,
+    overrides: {
+      currentActionIn?: string;
+      currentCameraMove?: string;
+      previousMediaRefNone?: boolean;
+    } = {},
+  ): [StoryboardItem, StoryboardItem] {
+    const previous = storyboard(1);
+    const current = storyboard(2);
+    const rebake = (item: StoryboardItem) => {
+      item.continuityState!.sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(item.shotSemantics);
+      item.continuityState!.inputFingerprint = visualContinuityFingerprint(item);
+      item.visualReview!.inputFingerprint = visualReviewInputFingerprint(item);
+    };
+    for (const [item, position] of [[previous, previousPosition], [current, currentPosition]] as const) {
+      item.shotSemantics!.visibleCharacters[0]!.position = position;
+      item.continuityState!.characters[0]!.position = position;
+    }
+    if (overrides.currentActionIn) {
+      current.shotSemantics!.visibleCharacters[0]!.actionIn = overrides.currentActionIn;
+      current.continuityState!.characters[0]!.actionIn = overrides.currentActionIn;
+    }
+    if (overrides.currentCameraMove) current.shotSemantics!.cameraMove = overrides.currentCameraMove;
+    if (overrides.previousMediaRefNone) previous.mediaRef = undefined;
+    rebake(previous);
+    rebake(current);
+    return [previous, current];
+  }
+
+  function axisIssuesOf(storyboards: StoryboardItem[]) {
+    return auditVisualContinuity(storyboards, storyboardAssetVersions())
+      .issues.filter((issue) => issue.code === "axis.crossing" || issue.code === "axis.unconfirmed");
+  }
+
+  it("态①:左右互换但 actionIn 给出转身衔接动作 → 零 axis issue", () => {
+    const [previous, current] = axisPair("左前", "右前", { currentActionIn: "转身面向书案" });
+    expect(axisIssuesOf([previous, current])).toEqual([]);
+  });
+
+  it("态②:左右互换且无任何换轴动机证据 → 恰一条 axis.crossing", () => {
+    const [previous, current] = axisPair("左前", "右前");
+    const issues = axisIssuesOf([previous, current]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ storyboardId: "sb-2", code: "axis.crossing" });
+    expect(issues[0]!.message).toContain("越轴");
+  });
+
+  it("态③:互换但前镜缺图证(mediaRef 与 keyframes 均缺)→ axis.unconfirmed 且 message 点名缺证", () => {
+    const [previous, current] = axisPair("左前", "右前", { previousMediaRefNone: true });
+    const issues = axisIssuesOf([previous, current]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ storyboardId: "sb-2", code: "axis.unconfirmed" });
+    expect(issues[0]!.message).toContain("缺上一镜 sb-1 图证");
+  });
+
+  it("态③:互换但前镜 position 写「还在原处」不属 9 站位词表 → axis.unconfirmed", () => {
+    const [previous, current] = axisPair("还在原处", "右前");
+    const issues = axisIssuesOf([previous, current]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({ storyboardId: "sb-2", code: "axis.unconfirmed" });
+    expect(issues[0]!.message).toContain("站位");
+    expect(issues[0]!.message).toContain("词表");
+  });
+
+  it("P1 验收:画面左右互换由换机位运镜(环绕)justify → 不得误报", () => {
+    const [previous, current] = axisPair("左前", "右前", { currentCameraMove: "环绕" });
+    expect(axisIssuesOf([previous, current])).toEqual([]);
+  });
+
+  it("链断(previousStoryboardId 指向不存在镜)不查轴,由既有 continuity.previous 兜链", () => {
+    const current = storyboard(2);
+    current.continuityState!.previousStoryboardId = "sb-404";
+    const audit = auditVisualContinuity([current]);
+    expect(audit.issues.filter((issue) => issue.code === "continuity.previous")).toHaveLength(1);
+    expect(audit.issues.filter((issue) => issue.code.startsWith("axis."))).toEqual([]);
+  });
+
+  it("显式空镜(personFree)与无共享角色不构成互动轴 → 不发码", () => {
+    const [, current] = axisPair("左前", "右前");
+    const personFreeCurrent = { ...current };
+    personFreeCurrent.shotSemantics = { ...current.shotSemantics!, personFree: true };
+    expect(axisIssuesOf([axisPair("左前", "右前")[0], personFreeCurrent])).toEqual([]);
+
+    const [emptyPrevious, swappedCurrent] = axisPair("左前", "右前");
+    emptyPrevious.shotSemantics!.personFree = true;
+    emptyPrevious.shotSemantics!.visibleCharacters = [];
+    emptyPrevious.continuityState!.characters = [];
+    emptyPrevious.continuityState!.sourceSemanticsFingerprint = storyboardShotSemanticsFingerprint(emptyPrevious.shotSemantics);
+    emptyPrevious.continuityState!.inputFingerprint = visualContinuityFingerprint(emptyPrevious);
+    emptyPrevious.visualReview!.inputFingerprint = visualReviewInputFingerprint(emptyPrevious);
+    expect(axisIssuesOf([emptyPrevious, swappedCurrent])).toEqual([]);
+  });
+
+  it("回归护栏:既有标准 fixture(position 恒「中前」无互换)经 audit 零新增 axis issue", () => {
+    const items = [storyboard(1), storyboard(2), storyboard(3)];
+    const audit = auditVisualContinuity(items, storyboardAssetVersions());
+    expect(audit.issues.filter((issue) => issue.code.startsWith("axis."))).toEqual([]);
+    expect(audit).toMatchObject({ ok: true, approved: 3 });
+  });
+});

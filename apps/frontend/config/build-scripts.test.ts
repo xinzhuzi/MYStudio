@@ -495,9 +495,11 @@ describe("desktop build scripts", () => {
     const tests = readdirSync(testsRoot).filter((name) => /^test_.*\.py$/.test(name));
 
     expect(pipelineTests).toEqual([]);
-    expect(tests).toHaveLength(13);
+    // 14 = 13 存量 + 09-29 新登记 test_lint_chapter001_dialogue_capacity.py
+    expect(tests).toHaveLength(14);
     expect(tests).toContain("test_toonflow_portable_fixture.py");
     expect(tests).toContain("test_build_chapter001_visual_review_packet.py");
+    expect(tests).toContain("test_lint_chapter001_dialogue_capacity.py");
   });
 
   it("archives prior canonical JSON reports before writing the latest result", () => {

@@ -27,7 +27,9 @@ export interface VisualContinuityIssue {
     | "review.timestamp"
     | "review.evidence"
     | "review.checks"
-    | "review.stale";
+    | "review.stale"
+    | "axis.crossing"
+    | "axis.unconfirmed";
   message: string;
 }
 
@@ -321,6 +323,96 @@ export function storyboardPrimarySceneIssues(storyboard: StoryboardItem): Visual
     storyboardId: storyboard.id,
     code: "scene.primary",
     message: `分镜 ${storyboard.id} 主场景必须且只能有一个 scene-viewpoint，且匹配 ${continuity.sceneVersionId}/${continuity.sceneViewpointId}；其他场景只能标记为 secondary-scene`,
+  }];
+}
+
+/** §四轴线:画面位置 9 站位词表。真源=studio-manuals/production_skills/
+ * storyboard_table_techniques.md「空间关系参考表」(左/中/右 × 前/中/后,
+ * 2026-09-29 实测逐字一致)。 */
+const AXIS_POSITION_VOCABULARY = new Set([
+  "左前", "中前", "右前",
+  "左中", "中中", "右中",
+  "左后", "中后", "右后",
+]);
+
+/** §四态①换轴动机种子词表(封闭集,集中在此可扩;本判定是词表检索而非语义
+ * 理解,漏报新动词属已知边界)。命中任一词=镜内可见的换轴过渡证据。 */
+const AXIS_MOTIVATION_KEYWORDS = ["转身", "转头", "绕行", "绕至", "穿轴", "换轴"];
+
+function storyboardAxisHasImageEvidence(storyboard: StoryboardItem) {
+  return Boolean(storyboard.mediaRef) || (storyboard.keyframes?.length ?? 0) > 0;
+}
+
+function storyboardAxisHasMotivation(current: StoryboardItem) {
+  const cameraMove = current.shotSemantics?.cameraMove?.trim();
+  // 手册真源:运镜列无运动时填「静止」——静止不构成换轴动机,只有真实运镜才算。
+  if (cameraMove && cameraMove !== "静止") return true;
+  const continuity = current.continuityState;
+  if (!continuity) return false;
+  const actionTexts = [
+    continuity.actionIn,
+    ...continuity.characters.map((character) => character.actionIn),
+  ];
+  return actionTexts.some((text) => AXIS_MOTIVATION_KEYWORDS.some((keyword) => text.includes(keyword)));
+}
+
+/**
+ * §四「轴线三判据」机检(P1):在上一镜链有效的前提下,对 current 与 previous
+ * 做三态判定,自上而下首个成立即止,至多返回一条 issue——
+ *  ① 有动机换轴(运镜非静止,或 actionIn 命中动机词表)→ 放行,不发码;
+ *  ② 无过渡硬切越轴(共享角色画面位置 左↔右 互换且无任何动机证据)→
+ *     axis.crossing,处置=拦截该镜正式编译交人工裁决,不得静默改机位
+ *     (生效路径=assertVisualContinuityApproved→auditVisualContinuity);
+ *  ③ 证据不足(任一镜缺图证 mediaRef+keyframes 均缺,或站位不在 9 值词表)→
+ *     axis.unconfirmed,标「待确认」:不武断判越轴、不自动改机位,补证后重判。
+ * 显式空镜(personFree=中性定场,可重建新轴)与无共享角色(无互动轴)恒不发码;
+ * 组首镜与链断(byId 取不到前镜)不进本函数——链有效性由 continuity.previous 专管。
+ *
+ * 空间依据折衷(P2 前声明):§四③原文「缺世界位置记载」在现有数据模型无对应
+ * 字段(worldAnchor 属 §七P2 提案),本判定以 position 3×3 站位网格(画面位置)
+ * 作为世界位置记载缺位下的空间依据代理;画面左右变化本身不等于越轴,只有
+ * 左↔右互换且动机缺位才落②(§四判据优先级)。
+ */
+export function storyboardAxisIssues(
+  current: StoryboardItem,
+  previous: StoryboardItem,
+): VisualContinuityIssue[] {
+  if (current.shotSemantics?.personFree === true) return [];
+  const pairs = (current.continuityState?.characters ?? []).flatMap((character) => {
+    const previousCharacter = (previous.continuityState?.characters ?? [])
+      .find((candidate) => candidate.characterId === character.characterId);
+    return previousCharacter ? [{ current: character, previous: previousCharacter }] : [];
+  });
+  if (pairs.length === 0) return [];
+  const unconfirmed = (message: string): VisualContinuityIssue[] => [
+    { storyboardId: current.id, code: "axis.unconfirmed", message },
+  ];
+  if (!storyboardAxisHasImageEvidence(current)) {
+    return unconfirmed(`分镜 ${current.id} 轴线证据不足待确认：缺本镜图证（mediaRef 与 keyframes 均缺），补证后重判，不武断判越轴`);
+  }
+  if (!storyboardAxisHasImageEvidence(previous)) {
+    return unconfirmed(`分镜 ${current.id} 轴线证据不足待确认：缺上一镜 ${previous.id} 图证（mediaRef 与 keyframes 均缺），补证后重判，不武断判越轴`);
+  }
+  for (const { current: character, previous: previousCharacter } of pairs) {
+    if (!AXIS_POSITION_VOCABULARY.has(character.position.trim())) {
+      return unconfirmed(`分镜 ${current.id} 轴线证据不足待确认：角色 ${character.characterId} 本镜站位「${character.position}」不在 9 站位词表，缺空间依据，补证后重判`);
+    }
+    if (!AXIS_POSITION_VOCABULARY.has(previousCharacter.position.trim())) {
+      return unconfirmed(`分镜 ${current.id} 轴线证据不足待确认：角色 ${character.characterId} 上一镜 ${previous.id} 站位「${previousCharacter.position}」不在 9 站位词表，缺空间依据，补证后重判`);
+    }
+  }
+  const swapped = pairs.find(({ current: character, previous: previousCharacter }) => {
+    const currentSide = character.position.trim().charAt(0);
+    const previousSide = previousCharacter.position.trim().charAt(0);
+    return (currentSide === "左" && previousSide === "右")
+      || (currentSide === "右" && previousSide === "左");
+  });
+  if (!swapped) return [];
+  if (storyboardAxisHasMotivation(current)) return [];
+  return [{
+    storyboardId: current.id,
+    code: "axis.crossing",
+    message: `分镜 ${current.id} 疑似无过渡硬切越轴：角色 ${swapped.current.characterId} 画面位置 ${swapped.previous.position}→${swapped.current.position} 左右互换，且无换轴动机（运镜/转身类衔接均缺），拦截正式编译交人工裁决，不得静默改机位`,
   }];
 }
 
@@ -626,6 +718,10 @@ export function auditVisualContinuity(
         const previous = byId.get(continuity.previousStoryboardId);
         if (!previous || previous.continuityState?.groupId !== continuity.groupId || previous.index >= storyboard.index) {
           issues.push({ storyboardId: storyboard.id, code: "continuity.previous", message: `分镜 ${storyboard.id} 上一镜连续关系无效` });
+        } else {
+          // 轴线三态机检(§四):只比链有效的前后镜——链断/乱序已由上面的
+          // continuity.previous 专管,不在无效链上报待确认。
+          issues.push(...storyboardAxisIssues(storyboard, previous));
         }
       }
     }
