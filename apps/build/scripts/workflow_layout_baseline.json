@@ -1,16 +1,16 @@
 {
-  "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
-  "head": "2af9c05",
-  "rebuiltAt": "2026-09-28T23:28:35",
+  "generatedFrom": "工作树实测态(0929 加速区并行化拓扑重立,Trellis 09-29-qi21-acczone-parallel design §8:注入式开关农场拆并行三支路+单选择件=拓扑手术,按画布布局规范-0928 棘轮以合规态实测值重立;提交禁令下提交前重立,三生成器幂等字节稳定⇒与提交后 HEAD 提取态同字节;旧值 t2i 60/5·i2i 65/10·edit 69 见 git 历史;t2i 主图 60→67 结构成因=单源扇出([1]/[40]/[5]/[207])×三支路纵叠几何必然,生成器源位置对倒实验总数守恒,消交叉须违复用铁则/横向排版铁律,以实测值封顶防回归,主图方向后续只收紧)",
+  "head": "bd2cc3f",
+  "rebuiltAt": "2026-09-29T12:40:00",
   "files": {
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
       "scopes": {
         "main": {
-          "crossings": 60,
+          "crossings": 67,
           "occlusion": 0
         },
         "sub:[40] 道劫·装配子图(双击进入)": {
-          "crossings": 5,
+          "crossings": 8,
           "occlusion": 0
         }
       }
@@ -18,7 +18,7 @@
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
       "scopes": {
         "main": {
-          "crossings": 65,
+          "crossings": 52,
           "occlusion": 0
         },
         "sub:[40] 道劫·装配子图(双击进入)": {
@@ -30,7 +30,7 @@
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
       "scopes": {
         "main": {
-          "crossings": 69,
+          "crossings": 58,
           "occlusion": 0
         }
       }

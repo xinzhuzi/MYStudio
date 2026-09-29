@@ -26,6 +26,7 @@ from .nodes.my_daojie_loras import MyDaojieLoras
 from .nodes.my_daojie_lora_stack import MyDaojieLoraStack
 from .nodes.my_daojie_route import MyDaojieRoute
 from .nodes.my_qi21_base import MyQi21DaojieBase
+from .nodes.my_qi21_speed_select import MyQi21SpeedSelect
 from .nodes.my_model_bus import MyModelBus
 from .nodes.my_charsheet_labels import MyCharsheetLabels
 from . import cloud_takeover
@@ -107,6 +108,7 @@ NODE_CLASS_MAPPINGS = {
     "MyDaojieLoraStack": MyDaojieLoraStack,
     "MyDaojieRoute": MyDaojieRoute,
     "MyQi21DaojieBase": MyQi21DaojieBase,  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
+    "MyQi21SpeedSelect": MyQi21SpeedSelect,  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
     "MyModelBus": MyModelBus,
     "MyCharsheetLabels": MyCharsheetLabels,
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
@@ -134,6 +136,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyDaojieLoraStack": "漫影 道劫LoRA栈",
     "MyDaojieRoute": "漫影 道劫按型线路路由",
     "MyQi21DaojieBase": "道劫·qi21底座九选一",
+    "MyQi21SpeedSelect": "Q2-1 加速档位(三选一·默认Fun-Acc)",
     "MyModelBus": "漫影 道劫模型分线排",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
