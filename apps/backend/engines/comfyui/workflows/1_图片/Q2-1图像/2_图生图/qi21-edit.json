@@ -540,7 +540,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 64
+          "link": 63
         },
         {
           "name": "images.image_1",
@@ -896,7 +896,7 @@
           "name": "on_false",
           "type": "MODEL",
           "shape": 7,
-          "link": 41
+          "link": 40
         },
         {
           "name": "on_true",
@@ -1144,7 +1144,7 @@
       "type": "ComfySwitchNode",
       "pos": [
         10520,
-        1620
+        2300
       ],
       "size": [
         300,
@@ -1172,7 +1172,7 @@
           "widget": {
             "name": "switch"
           },
-          "link": 49
+          "link": 48
         }
       ],
       "outputs": [
@@ -1256,216 +1256,6 @@
       ]
     },
     {
-      "id": 56,
-      "type": "Reroute",
-      "pos": [
-        7680,
-        620
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 40
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "MODEL",
-          "links": [
-            41
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 57,
-      "type": "Reroute",
-      "pos": [
-        8910,
-        2560
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 48
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "BOOLEAN",
-          "links": [
-            49
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 58,
-      "type": "Reroute",
-      "pos": [
-        3440,
-        680
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 63
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "CLIP",
-          "links": [
-            64
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 46,
-      "type": "Reroute",
-      "pos": [
-        7750,
-        2880
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 72
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "INT",
-          "links": [
-            61
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 44,
-      "type": "Reroute",
-      "pos": [
-        6920,
-        880
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 68
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "CONDITIONING",
-          "links": [
-            70
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
-      "id": 45,
-      "type": "Reroute",
-      "pos": [
-        7500,
-        2700
-      ],
-      "size": [
-        75,
-        26
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "",
-          "type": "*",
-          "link": 69
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "CONDITIONING",
-          "links": [
-            71
-          ]
-        }
-      ],
-      "properties": {
-        "showOutputText": false,
-        "horizontal": false
-      }
-    },
-    {
       "id": 40,
       "type": "PrimitiveInt",
       "pos": [
@@ -1532,7 +1322,7 @@
           "widget": {
             "name": "a"
           },
-          "link": 61
+          "link": 72
         },
         {
           "name": "b",
@@ -1574,7 +1364,7 @@
       "type": "ComfySwitchNode",
       "pos": [
         9020,
-        2920
+        2300
       ],
       "size": [
         300,
@@ -1588,13 +1378,13 @@
           "name": "on_false",
           "type": "CONDITIONING",
           "shape": 7,
-          "link": 71
+          "link": 69
         },
         {
           "name": "on_true",
           "type": "CONDITIONING",
           "shape": 7,
-          "link": 70
+          "link": 68
         },
         {
           "name": "switch",
@@ -2567,7 +2357,7 @@
       "id": 35,
       "type": "PrimitiveInt",
       "pos": [
-        6000,
+        6600,
         970
       ],
       "size": [
@@ -2654,14 +2444,6 @@
     [
       40,
       7,
-      0,
-      56,
-      0,
-      "MODEL"
-    ],
-    [
-      41,
-      56,
       0,
       32,
       0,
@@ -2991,14 +2773,6 @@
       48,
       51,
       0,
-      57,
-      0,
-      "BOOLEAN"
-    ],
-    [
-      49,
-      57,
-      0,
       54,
       2,
       "BOOLEAN"
@@ -3031,14 +2805,6 @@
       72,
       30,
       0,
-      46,
-      0,
-      "INT"
-    ],
-    [
-      61,
-      46,
-      0,
       41,
       0,
       "INT"
@@ -3054,14 +2820,6 @@
     [
       63,
       2,
-      0,
-      58,
-      0,
-      "CLIP"
-    ],
-    [
-      64,
-      58,
       0,
       43,
       0,
@@ -3095,14 +2853,6 @@
       68,
       6,
       0,
-      44,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      70,
-      44,
-      0,
       42,
       1,
       "CONDITIONING"
@@ -3111,19 +2861,11 @@
       69,
       43,
       0,
-      45,
-      0,
-      "CONDITIONING"
-    ],
-    [
-      71,
-      45,
-      0,
       42,
       0,
       "CONDITIONING"
     ]
   ],
-  "last_node_id": 58,
+  "last_node_id": 55,
   "last_link_id": 72
 }

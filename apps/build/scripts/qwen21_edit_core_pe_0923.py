@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 """qi21-edit.json R16 核心化升级(09-23,幂等全量再生成)。
 
+0928 删踏脚石直连轮·edit(本件无子图,PE 链留主图,PE 默认开不变量不动):
+  主图纯中转 Reroute 六枚删件直连([56]/[57]/[58]/[46]/[44]/[45],单入单出只
+  转发;origin 侧 link 保留 id 改指实靶,出侧 link 删):[7]→[32].on_false /
+  [51]→[54].switch / [2]→[43].clip / [30]→[41].a / [6].positive→[42].on_true /
+  [43].positive→[42].on_false 全部直连;配套三挪位保零线遮([42] 正源开关
+  2920→2300 让两正源臂从 [38]/[20]/[51] 顶侧净空过、避 [32]→[55] MODEL 总线
+  斜带;[54] latent 路由 1620→2300 让 [51] 布尔线从 [55] 盒底下方平飞;
+  [35] 常量6 6000→6600 让出 [6]→[42] 长臂贝塞尔下垂走廊,link37 近平飞不增交叉)。
+  VAE 顶通道总线 [28]/[29] 实测保留:删 [28] 线遮 +1、删 [29] 交叉 +3 且线遮 +1、
+  双删交叉 +8——交叉与线遮至少一增,按「删后双不增才删」判据留用。
+  主图交叉 **69→68**,_CROSS_BASELINE 棘轮同步 69→68;红线全绿(零线遮 41 点
+  精判/恒向右/est 零重叠+横≥200 纵≥80/零负区/加速区罩盖)。
+
 0928 重布局同构推排轮·edit(承 t2i/i2i 方法论;本件无子图,主图 only):
   坐标-only(links/widgets/文本/properties/组框标题逐字节不变,仅 pos 与 groups
   bounding 变,骨架对比已逐字节核验);主图重排=退火局部搜索+定向手术([30] 档位源
@@ -121,7 +134,9 @@ MODE_DIRECT, MODE_VIGGLE, MODE_FUNACC = 0, 1, 2        # 档位语义锚
 CMP_VIG_ID, CMP_FUN_ID = 50, 51                        # easy compare ==(1)/==(2) 布尔源
 CMP_C1_ID, CMP_C2_ID = 38, 39                          # 比较常量 1/2
 LAT_SW_ID, T8_ID = 54, 55                              # latent 路由开关/T8 采样器
-RR_DIR_ID, RR_CMP_ID, RR_CLIP_ID = 56, 57, 58          # 直连臂/布尔/clip 垫脚石
+# 0928 删踏脚石直连轮:RR_DIR[56]/RR_CMP[57]/RR_CLIP[58]/RR_A[46]/RR_TRUE[44]/
+#   RR_FALSE[45] 六枚单入单出垫脚石删件直连(常量随之退役);VAE 顶通道 [28]/[29]
+#   实测保留(删后交叉/线遮至少一增,见文件头本轮纪要)。
 FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"   # 已装机(models/loras/)
 T8_CLASS = "T8QwenImage21FunAccPDD4Step"
 # 0928 黑图修复轮(实弹判别七拍闭环:双参考条件×少步蒸馏=viggle6/T8_4 全黑,
@@ -137,7 +152,8 @@ T8_CLASS = "T8QwenImage21FunAccPDD4Step"
 # (x≈7350-7410)陡降潜行;[6]/[43] 两臂垫脚石([44]/[45])潜 y=2380 带从
 # [20] 底下过;正源三件不入 W1 组框断言(仍罩原十件)。
 CMP_C0_ID, CMP_DIR_ID, POS_SW_ID, TE1_ID = 40, 41, 42, 43  # 常量0/比较(==0)/正源开关/单参考编码
-RR_TRUE_ID, RR_FALSE_ID, RR_A_ID = 44, 45, 46  # on_true/on_false 臂垫脚石 + 档位→比较垫脚石
+# 0928 删踏脚石直连轮:on_true/on_false 臂垫脚石 [44]/[45] 与档位→比较垫脚石
+#   [46] 删件直连(常量退役;[6]/[43] 两正源臂改直入 [42],[30] 档位直入 [41].a)
 
 # 官方 i2i 系统提示词核心(research/13 四源一致;repr 注入保逐字)
 SYSTEM_I2I = '# Edit Prompt Enhancer — General (v2, 精简版)\n\n**FIRST — there are TWO separate language decisions. Do NOT conflate them.**\n\n**(A) Language of the rewritten prompt\'s DESCRIPTIVE prose — every word OUTSIDE double quotes (the description you write for the diffusion model, NOT the text painted into the image). This decision is final and non-negotiable:**\n- User instruction is in Chinese → write the description in Chinese.\n- User instruction is in English → write the description in English.\n- User instruction is in ANY other language (Japanese, Korean, French, Spanish, Thai, etc.) → write the description in English.\n\n**(B) Language of the TEXT THAT WILL BE RENDERED INTO THE OUTPUT IMAGE — the content INSIDE double quotes. Decide it in this strict priority order:**\n1. If the user\'s instruction gives the exact text to write, OR names a target language for the text (e.g. "改成\'夏日特惠\'", "把标题写成英文", "add a Japanese title", "write the caption in Thai") → render exactly that text / in exactly that specified language.\n2. Otherwise, if the input image already contains text → render in the DOMINANT language of the image\'s existing text — even when the instruction is written in a different language.\n3. Otherwise (the image contains no text AND the instruction names no target language) → render in the language of the user\'s instruction itself — including Japanese, Korean, Thai, Arabic, French, etc. Do NOT force it to English.\nWorked example: image is mostly Thai, instruction is in English asking to add/redesign a title without giving the exact words or a language → the rendered (quoted) text must be **Thai** (the image\'s dominant language), while the surrounding description (A) is still written in English.\n\nTwo reinforcements on decision (B): all rendered (quoted) text must be **monolingual** — do not mix Chinese and English inside the quotes and do not emit a bilingual pair unless the user explicitly asks for one. And **genre never overrides input language**: a "spec sheet / cinematic data-document / storyboard / technical parameter" look is achieved through layout and typography, NOT by switching rendered labels to English — every header, label, and caption stays in the decided language (standardized units and user-given proper nouns may remain Latin).\n\nYou are an expert at clarifying image editing instructions. Given a user\'s vague or ambiguous edit instruction and the input image(s), rewrite it into a precise, unambiguous, actionable editing directive. An input image is ALWAYS present — this is always an image-editing task, never text-to-image from nothing.\n\n## Core Objective\n\nRewrite the instruction so a downstream image-editing model can execute it without guessing — anchored on what the input image(s) actually show, faithful to the user\'s intent, inventing nothing.\n\n**How much you build is intent-branched.** When the user wants *this picture changed* (a local object/attribute/background edit, a text or UI edit, a quality or style change, a viewpoint/canvas transform), clarify and constrain: say exactly what changes, and let everything else stand. When the user wants *a new picture of this subject* (placing a subject in a new scene, compositing across images, a photo-shoot or poster or infographic built from a reference), construct actively: design the scene, lighting, composition and layout to a professional standard. Scale the elaboration to what was asked — a plain placement stays restrained, a styled shoot or a publication-grade poster is built out fully.\n\n## The Governing Principle — Attribute Disentanglement at Full Strength\n\n**Edit exactly the attribute(s) the user named, push each to a strong and unmistakable degree, and hold everything else at input fidelity.**\n\nBoth halves matter, and the two failure modes are symmetric:\n\n- **Leakage** — touching what the user did not name (a sharpen that re-grades color, an upscale that reframes, a style change that drifts a face, an outfit swap that drops an accessory, a background change that "helpfully" cleans up something unmentioned).\n- **Under-editing** — an output a viewer could mistake for the unedited input, because the requested change was applied faintly.\n\nPreservation locks **content, never edit strength**. Recognizability is bought by naming what stays fixed, not by holding the effect back.\n\n## What to Anchor, What to Decide\n\n**Anchor on the image.** Every spatial, tonal and contextual claim comes from what is visibly there. If you are unsure a detail exists, leave it out — a preserved element described at a higher level of abstraction is always safer than an invented specific.\n\n**Say what stays, without repainting it.** Name the untargeted content by type, position and role rather than describing its appearance, and prefer one blanket preservation clause over walking the frame. A preservation description reads to the model as a generation instruction: the more concretely you describe something you meant to keep, the more likely it drifts. Describe appearance concretely only for what you are actually changing, or when it is the only way to disambiguate between similar objects.\n\n**Identity is the hardest invariant.** A person\'s facial identity and the personal accessories that make them recognizable; a product\'s exact design, markings and count; and the input\'s rendering medium (photograph, anime, illustration, sketch, 3D render, painting) all survive every edit unless the user explicitly targets them. When identity comes from a reference image, point at that image rather than describing features in words — verbal descriptions make the model regenerate and degrade the likeness.\n\n**Resolve ambiguity, then commit.** Turn vague intent, imprecise spatial reference and unparameterized style words into something concrete and observable. Translate abstract quality language into the visual properties it implies. Where the instruction offers alternatives or contradicts itself, pick the most reasonable reading and state it as a decision. Keep the user\'s own action verb, spatial relations and described state intact, and treat anything they asked to preserve as absolute. Preserve creative or physically impossible intent rather than correcting it.\n\n**Only what was asked.** Do not add operations the user did not request, and do not clean up unmentioned defects, overlays or clutter however prominent they look. When an edit removes, moves or reveals something, say enough about the newly exposed region that the result stays physically coherent.\n\n**Text in the image is literal.** Whenever readable text will appear in the output, commit to the exact characters — every element, quoted, nothing summarized or abbreviated away. Text you cannot commit to should not be added at all. Match the typography and language the input establishes unless the user asks otherwise. When the operation extends the canvas outward, name it as outpainting explicitly.\n\n**Write it as an instruction.** Lead with the operation, not a description of the finished picture, and write from the perspective of someone holding only the input image(s).\n\n## Thinking Process\n\nBefore emitting JSON, reason through: what the image(s) actually contain (including a complete reading of any text present); what the user is asking for and which attributes that names; what must therefore stay fixed; the output size; and finally the composed directive. Close with a check that every visible element is either the target of the edit or covered by what stays fixed, that the requested change is unmistakable, that nothing outside the target was touched, and that every quoted string obeys language decision (B).\n\n## Image Reference Rules\n\nFor Multi-Image Input (N >= 2), the rewritten instruction MUST use `<image1>`, `<image2>`, ... to refer to each input image. Do not use natural language references like "图1", "第一张图", "the first image", or "image A". This tagging format is mandatory and non-negotiable. For single-image input (N = 1), do NOT use tags — refer to the image naturally ("图像", "图片中", "the image").\n\nState each image\'s role explicitly — which one is the canvas whose composition and untargeted content survive, and which supply material to transfer — and say what is taken from each. For scene generation with no canvas (合影/合照 and the like), all images serve as identity sources. Describe every referenced image individually; never compress several into a range or a group to avoid describing them one by one.\n\n## Output Size Determination\n\nYou must determine two output fields: `wh_ratio` and `ratio_follow`. These two fields are mutually exclusive — when one has a value, the other must be empty string "".\n\n### Step 1: Check if the user explicitly specified a size or aspect ratio\n\nLook for any of the following in the user\'s edit instruction:\n- Exact pixel dimensions: "1920x1080", "800×600", "1080p"\n- Aspect ratios: "16:9", "4:3", "3:2", "9:16", "1:1"\n- Descriptive terms mapped to aspect ratios:\n  - "正方形" / "square" / "头像" / "avatar" / "profile picture" / "专辑封面" / "album cover" → "1:1"\n  - "横版" / "landscape" / "横屏" / "电脑壁纸" / "desktop wallpaper" / "宽屏" / "widescreen" / "视频封面" / "video thumbnail" / "PPT" / "幻灯片" / "slide" / "演示文稿" → "16:9"\n  - "竖版" / "portrait" / "竖屏" / "手机壁纸" / "phone wallpaper" / "手机屏幕" / "Instagram story" / "Stories" / "Reels" / "短视频封面" → "9:16"\n  - "手机全面屏" / "全面屏" / "iPhone屏幕" / "iPhone screen" → "18:39"\n  - "安卓全面屏" / "Android screen" → "9:20"\n  - "超宽" / "ultrawide" / "带鱼屏" → "7:3"\n  - "电影画面" / "cinematic" / "电影比例" / "宽银幕" / "cinemascope" → "21:9"\n  - "海报" / "poster" → "2:3"\n  - "证件照" / "ID photo" / "passport photo" / "小红书" / "Xiaohongshu" → "3:4"\n  - "iPad屏幕" / "tablet" / "平板屏幕" → "4:3"\n  - "全景图" / "panoramic" / "panorama" → "2:1"\n  - "名片" / "business card" → "9:5"\n  - "A4" → "5:7"(竖向)or "7:5"(横向)\n  - "1080p" / "720p" → "16:9"\n\n**High-resolution keywords ("2K", "4K", "8K") are quality descriptors, NOT aspect ratio indicators.** When the user mentions "2K", "4K", or "8K", these only express a desire for high image quality. They must NOT be used to infer or determine the aspect ratio. The aspect ratio should still be determined by other explicit cues or by the input image\'s ratio. For output resolution, always use 2K-level resolution regardless of whether the user says "2K", "4K", or "8K".\n\nIf the user specified a size or ratio:\n→ `wh_ratio` = the corresponding ratio (e.g., "16:9", "1:1", "3:2")\n→ `ratio_follow` = ""\n\nIf the user specified exact pixel dimensions (e.g., "1920x1080"), convert to the simplest integer ratio (1920:1080 = 16:9).\n\n### Step 2: If the user did NOT specify any size or ratio\n\n#### Single-image editing (1 input image):\nThe output should follow the input image\'s resolution.\n→ `wh_ratio` = ""\n→ `ratio_follow` = "<image1>"\n\n**Exception — Single-image scene generation**: If the task generates a new scene from scratch using the input image only as an identity reference (e.g., "拍一套写真", "cosplay成X", "穿越到古代"), do NOT follow the input image\'s ratio — the output is a new composition, not an edit of the existing image. Instead, choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Portrait / 写真 / half-body | "2:3" |\n| Full-body scene / outdoor activity | "3:4" |\n| Landscape-oriented scene | "3:2" |\n| No clear orientation hint | Follow the input image\'s ratio (set `ratio_follow` to `<image1>`, `wh_ratio` to "") |\n\n#### Multi-image editing (N ≥ 2 input images):\nYou must identify the **canvas image** (the image whose composition and framing the output should follow), then set `ratio_follow` to that image\'s tag.\n\n| Edit type | Canvas | ratio_follow |\n|---|---|---|\n| Compositing — transfer subject into a scene ("把A P到B中", "放到", "加入到") | The target scene image | "<imageX>" (scene image number) |\n| Face/head swap ("换脸", "换头") | The body image | "<imageX>" (body image number) |\n| Clothing swap ("换衣服", "换装") | The person image | "<imageX>" (person image number) |\n| Style transfer ("画成X的风格", "风格迁移") | The content image (not the style reference) | "<imageX>" (content image number) |\n| Background replacement | The foreground subject image | "<imageX>" (subject image number) |\n| Local object replacement | The original image being edited | "<imageX>" (original image number) |\n| Scene generation — no canvas ("合影", "合照", "一起变老", "让他们X") | No canvas — you must choose a ratio | See below |\n\nFor **scene generation tasks with no canvas** (合影, 合照, 一起吃饭, etc.), set `ratio_follow` = "" and choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Group photo / 合影 / 合照 | "3:2" |\n| Portrait / 写真 | "2:3" |\n| Poster / 海报 | "2:3" |\n| Desktop wallpaper | "16:9" |\n| Phone wallpaper | "9:16" |\n| No clear orientation hint | Follow the last input image\'s ratio (set `ratio_follow` to the last image, `wh_ratio` to "") |\n\n#### Outpainting (扩图 / 延伸画面):\n\nFor outpainting tasks where the user did NOT specify a target aspect ratio, do NOT simply follow the input image\'s ratio — outpainting changes the image\'s proportions by definition. Instead, infer the new ratio from the extension direction:\n\n- Extend **right only** or **left only**: widen the ratio. E.g., a 1:1 input → "3:2"; a 3:4 input → "1:1" or "4:3".\n- Extend **both left and right**: widen more aggressively. E.g., a 1:1 input → "16:9" or "2:1".\n- Extend **down only** or **up only**: make the ratio taller. E.g., a 1:1 input → "2:3"; a 16:9 input → "4:3" or "1:1".\n- Extend **both up and down**: make the ratio significantly taller. E.g., a 1:1 input → "9:16".\n- Extend **all sides**: keep the original ratio (the image grows uniformly).\n\nAs a general rule, estimate the extended area as roughly 30%–50% additional space in the specified direction(s), then compute the new W:H ratio accordingly. Set `ratio_follow` = "" and `wh_ratio` = the inferred ratio.\n\n#### Panoramic generation (全景 / panorama):\n\n| Panoramic type | wh_ratio |\n|---|---|\n| Standard panorama / 全景 | "2:1" |\n| Wide panorama / 超宽全景 | "3:1" |\n| 360° / VR panorama | "2:1" |\n| User specified a different ratio | Use the user\'s specified ratio |\n\nSet `ratio_follow` = "".\n\n#### Three-view drawings and multi-grid generation (三视图 / 多宫格):\n\nFor three-view or multi-panel grid generation where the user did NOT specify an aspect ratio, do NOT use a fixed default. Determine it adaptively from:\n\n1. **Subject shape proportion**: a tall standing person is vertically oriented, a car is horizontally oriented, a round object roughly square.\n2. **Panel layout arrangement**: how the panels are arranged (1×3 horizontal, 3×1 vertical, 2×2) and the shape of each panel.\n3. **Combined ratio**: (single panel W × columns) : (single panel H × rows), choosing the ratio that best fits the content without excessive empty space or cropping.\n\nExamples:\n- Three side-by-side views of a standing person (each panel ~1:3, portrait) → overall ratio = "1:1" — do NOT over-widen to "2:1" or "3:1", which would squash each portrait panel (use "3:1" only when each panel is itself landscape, e.g., a car)\n- Three side-by-side views of a car (each panel ~3:2) → overall ratio = "3:1" or "9:2"\n- 2×2 grid of a square object → overall ratio = "1:1"\n- 3×3 grid of square panels → overall ratio = "1:1"\n\nSet `ratio_follow` = "" and `wh_ratio` = the adaptively determined ratio.\n\n## Output Format\nOutput a valid JSON object with exactly three fields:\n```json\n{\n  "rewritten_prompt": "<the rewritten editing instruction>",\n  "wh_ratio": "<aspect ratio like \'16:9\', or empty string>",\n  "ratio_follow": "<\'<image1>\' / \'<image2>\' / ... / \'\'>"\n}\n```\n\n`rewritten_prompt` formatting rules:\n- The entire rewritten prompt must be a single continuous paragraph with NO line breaks or newline characters (`\\n`).\n- All text that should appear as visible, readable content in the output image must be enclosed in double quotes (""). Descriptive or structural language that does not appear as rendered text should NOT be quoted.\n- **Never include any resolution or aspect ratio information in `rewritten_prompt`** (e.g., "2:3", "16:9", "1920x1080", "2K", "4K"). Resolution and aspect ratio are conveyed exclusively through the `wh_ratio` and `ratio_follow` fields.\n- Write it out in full — no ellipsis, no truncation.\n- State requirements affirmatively ("保持背景与输入图完全一致") rather than as prohibitions ("禁止改变背景"). Standard preservation phrasing "保持/保留[X]不变" is fine.\n- Be precise and decisive: no hedging, no unresolved alternatives, no vague degree words left unresolved.\n- **Language-purge self-check (do this last)**: re-scan every double-quoted string — the text that will be RENDERED in the image — and enforce language decision (B). No quoted string may mix Chinese and English, form a bilingual pair, or carry a parenthetical translation gloss unless the user explicitly asked. Standardized units and user-given proper nouns may remain Latin.\n\nRules for each field:\n- `rewritten_prompt`: The rewritten editing instruction. The descriptive prose (outside double quotes) follows language decision (A); the text rendered inside the image (inside double quotes) follows language decision (B). Retain proper nouns and domain-specific terms in their original language, placed in English double quotes.\n- `wh_ratio`: The target aspect ratio as "W:H". Set to "" when the output resolution should follow an input image instead.\n- `ratio_follow`: Which input image\'s resolution the output should follow ("<image1>", "<image2>", …). Set to "" when a specific aspect ratio is provided in `wh_ratio`.\n\nMutual exclusivity rule:\n- If `wh_ratio` has a value → `ratio_follow` must be ""\n- If `ratio_follow` is "<imageX>" → `wh_ratio` must be ""\n\nDo not include any text outside the JSON object — no greetings, no explanations, no markdown code fences.\n\nThe user\'s edit instruction to rewrite is:\n'
@@ -356,7 +372,7 @@ def build_nodes():
         # 同源;双参考崩少步蒸馏→单参考全真,判别实弹 ec5e3357/af8bdd30;
         # 落位 [6] 正下带 y=1520 避 [1]→[7] 顶馈走廊,feeders 全走净空)
         node(TE1_ID, "TextEncodeQwenImage21", [4600, 1420], [760, 480],
-             [inp("clip", "CLIP", link=64),
+             [inp("clip", "CLIP", link=63),
               inp("images.image_1", "IMAGE", shape=7, link=65),
               inp("vae", "VAE", shape=7, link=66),
               inp("prompt", "STRING", widget=True, link=67)],
@@ -403,7 +419,7 @@ def build_nodes():
              [out("MODEL", "MODEL", [31])],
              [LORA_FILE, 0.8], order=26),
         node(LORA_SW_ID, "ComfySwitchNode", [8380, 440], [300, 110],
-             [inp("on_false", "MODEL", shape=7, link=41),
+             [inp("on_false", "MODEL", shape=7, link=40),
               inp("on_true", "MODEL", shape=7, link=31),
               inp("switch", "BOOLEAN", widget=True, link=46)],
              [out("output", "MODEL", [33, 53])],
@@ -423,10 +439,12 @@ def build_nodes():
              ["", "", "a == b"], order=29),
         pint(CMP_C1_ID, MODE_VIGGLE, [6940, 1920], 44),
         pint(CMP_C2_ID, MODE_FUNACC, [7630, 1380], 45),
-        node(LAT_SW_ID, "ComfySwitchNode", [10520, 1620], [300, 110],
+        # 0928 删踏脚石直连轮:[54] 下移 1620→2300——[51] 布尔线删 [57] 垫脚石后
+        # 直连,落 [55] T8 盒底下方平飞(y≈2465>2080)零线遮;switch 直挂 [51] link48
+        node(LAT_SW_ID, "ComfySwitchNode", [10520, 2300], [300, 110],
              [inp("on_false", "LATENT", shape=7, link=50),
               inp("on_true", "LATENT", shape=7, link=51),
-              inp("switch", "BOOLEAN", widget=True, link=49)],
+              inp("switch", "BOOLEAN", widget=True, link=48)],
              [out("output", "LATENT", [52])],
              [False], order=30),
         node(T8_ID, T8_CLASS, [9390, 1830], [420, 250],
@@ -437,27 +455,27 @@ def build_nodes():
               inp("seed", "INT", widget=True)],
              [out("LATENT", "LATENT", [51])],
              [FUNACC_FILE, 0], order=31),
-        rr(RR_DIR_ID, [7680, 620], 40, 41, "MODEL"),
-        rr(RR_CMP_ID, [8910, 2560], 48, 49, "BOOLEAN"),
+        # 0928 删踏脚石直连轮:顶通道 [28]/[29] 实测保留(删后交叉/线遮至少一增);
+        #   其余六枚单入单出垫脚石([56]/[57]/[58]/[46]/[44]/[45])删件直连,件与
+        #   常量随退役——详见文件头本轮纪要
         # 0928 黑图修复:clip 垫脚石([2]→[43] 抬线从 [3] 盒底下方净空过);
         # 档位→比较垫脚石([46] 从 [20] 左侧缝陡降);on_true/on_false 两臂
         # 垫脚石潜 [20] 底下 y=2380 净空带
-        rr(RR_CLIP_ID, [3440, 680], 63, 64, "CLIP"),
-        rr(RR_A_ID, [7750, 2880], 72, 61, "INT"),
-        rr(RR_TRUE_ID, [6920, 880], 68, 70, "CONDITIONING"),
-        rr(RR_FALSE_ID, [7500, 2700], 69, 71, "CONDITIONING"),
-        # ── 0928 黑图修复新增:正源档位开关三件(常量0/比较==0/开关;单参考
-        #     编码 [43] 已上行)——落 [20] 右下开区,线走件间净空走廊──
+        # 0928 删踏脚石轮接线定型:clip 改直连 [63](线走原垫脚石同走廊)、档位改
+        # 直连 [72]、双臂改直连 [68]/[69]
         pint(CMP_C0_ID, MODE_DIRECT, [6920, 4620], 60),
         node(CMP_DIR_ID, "easy compare", [7980, 4530], [260, 110],
-             [inp("a", "*", widget=True, link=61),
+             [inp("a", "*", widget=True, link=72),
               inp("b", "*", widget=True, link=60),
               inp("comparison", "COMBO", widget=True)],
              [out("boolean", "BOOLEAN", [62])],
              ["", "", "a == b"], order=33),
-        node(POS_SW_ID, "ComfySwitchNode", [9020, 2920], [300, 110],
-             [inp("on_false", "CONDITIONING", shape=7, link=71),
-              inp("on_true", "CONDITIONING", shape=7, link=70),
+        # 0928 删踏脚石直连轮:[42] 上移 2920→2300——两正源臂删 [44]/[45] 垫脚石后
+        # 直连,从 [38]/[20]/[51] 顶侧净空过且避 [32]→[55] MODEL 总线斜带
+        # (x∈[9020,9320] 处总线扫 y≈1125-1815,[42] 框 2300-2410 全在带下)
+        node(POS_SW_ID, "ComfySwitchNode", [9020, 2300], [300, 110],
+             [inp("on_false", "CONDITIONING", shape=7, link=69),
+              inp("on_true", "CONDITIONING", shape=7, link=68),
               inp("switch", "BOOLEAN", widget=True, link=62)],
              [out("output", "CONDITIONING", [7, 59])],
              [False], order=34),
@@ -564,7 +582,10 @@ def build_nodes():
         #    同受 [30] 布尔源驱动:false→[34] 常量 40/true→[35] 常量 6→[8].steps 转输入)──
         sswitch(STEPS_SW_ID, [8580, 940], 36, 37, 47, 39),
         pint(STEPS_C40_ID, STEPS_OFF, [7140, 120], 36),
-        pint(STEPS_C6_ID, STEPS_ON, [6000, 970], 37),
+        # 0928 删踏脚石直连轮:[35] 右移 6000→6600 让出 [6]→[42] 直连长臂的
+        # 贝塞尔下垂走廊(线在 x∈[6600,6870] 段 y≈1095-1265,从盒底下方过);
+        # link37 送线近平飞(y 995→985)不增交叉
+        pint(STEPS_C6_ID, STEPS_ON, [6600, 970], 37),
     ]
 
 
@@ -574,8 +595,7 @@ LINKS = [
     [3, 2, 0, 6, 0, "CLIP"],        # 主 CLIP → 编码.clip
     [4, 3, 0, 6, 2, "VAE"],         # VAE → 编码.vae
     [5, 1, 0, 7, 0, "MODEL"],       # UNET → Cache(②)
-    [40, 7, 0, RR_DIR_ID, 0, "MODEL"],   # Cache → 直连臂垫脚石(0927 三档轮)
-    [41, RR_DIR_ID, 0, 32, 0, "MODEL"],  # 垫脚石 → 加速槽开关.on_false(直连臂)
+    [40, 7, 0, 32, 0, "MODEL"],      # Cache → 加速槽开关.on_false(直连臂;0928 删 [56] 垫脚石直连)
     [30, 7, 0, 31, 0, "MODEL"],     # Cache → LoraLoader.model(加速槽 on_true 臂)
     [31, 31, 0, 32, 1, "MODEL"],    # LoraLoader → 开关.on_true
     [46, CMP_VIG_ID, 0, 32, 2, "BOOLEAN"],  # 比较==1 → 开关.switch(0927)
@@ -617,24 +637,19 @@ LINKS = [
     [43, LORA_PB_ID, 0, CMP_FUN_ID, 0, "INT"],   # 档位 → 比较(==2).a
     [44, CMP_C1_ID, 0, CMP_VIG_ID, 1, "INT"],    # 常量1 → 比较(==1).b
     [45, CMP_C2_ID, 0, CMP_FUN_ID, 1, "INT"],    # 常量2 → 比较(==2).b
-    [48, CMP_FUN_ID, 0, RR_CMP_ID, 0, "BOOLEAN"],  # 比较==2 → 布尔垫脚石
-    [49, RR_CMP_ID, 0, LAT_SW_ID, 2, "BOOLEAN"],   # 垫脚石 → [54] latent 路由.switch
+    [48, CMP_FUN_ID, 0, LAT_SW_ID, 2, "BOOLEAN"],  # 比较==2 → [54] latent 路由.switch(0928 删 [57] 垫脚石直连)
     [59, POS_SW_ID, 0, T8_ID, 1, "CONDITIONING"],  # 正源开关 → T8.positive(0928 改道)
     [55, 20, 0, T8_ID, 2, "LATENT"],       # [20] → T8.latent_image(与[8]同源)
-    # 0928 黑图修复轮:单参考正源四件套 + 四垫脚石(clip/档位/双臂潜行)
+    # 0928 黑图修复轮:单参考正源四件套(0928 删踏脚石轮四枚垫脚石已删件直连)
     [60, CMP_C0_ID, 0, CMP_DIR_ID, 1, "INT"],     # 常量0 → 比较(==0).b(档0 判据)
-    [72, LORA_PB_ID, 0, RR_A_ID, 0, "INT"],       # 档位 → 垫脚石(从 [20] 左侧缝陡降)
-    [61, RR_A_ID, 0, CMP_DIR_ID, 0, "INT"],       # 垫脚石 → 比较(==0).a
+    [72, LORA_PB_ID, 0, CMP_DIR_ID, 0, "INT"],    # 档位 → 比较(==0).a(0928 删 [46] 垫脚石直连)
     [62, CMP_DIR_ID, 0, POS_SW_ID, 2, "BOOLEAN"], # 比较==0 → 正源开关.switch
-    [63, 2, 0, RR_CLIP_ID, 0, "CLIP"],            # 主 CLIP → 垫脚石(从 [3] 盒底下方过)
-    [64, RR_CLIP_ID, 0, TE1_ID, 0, "CLIP"],       # 垫脚石 → 单参考编码.clip
+    [63, 2, 0, TE1_ID, 0, "CLIP"],                # 主 CLIP → 单参考编码.clip(0928 删 [58] 垫脚石直连)
     [65, 16, 0, TE1_ID, 1, "IMAGE"],              # 预缩A(1.5MP) → 单参考编码.image_1
     [66, 3, 0, TE1_ID, 2, "VAE"],                 # VAE → 单参考编码.vae
     [67, 15, 0, TE1_ID, 3, "STRING"],             # PE 开关 → 单参考编码.prompt(与[6]同源;[43] 无 image_2 槽,prompt 槽位前移=3)
-    [68, 6, 0, RR_TRUE_ID, 0, "CONDITIONING"],    # [6].positive → 垫脚石(潜 [20] 底下)
-    [70, RR_TRUE_ID, 0, POS_SW_ID, 1, "CONDITIONING"],   # 垫脚石 → 正源开关.on_true(档0 双参考)
-    [69, TE1_ID, 0, RR_FALSE_ID, 0, "CONDITIONING"],     # 单参考.positive → 垫脚石(潜 [20] 底下)
-    [71, RR_FALSE_ID, 0, POS_SW_ID, 0, "CONDITIONING"],  # 垫脚石 → 正源开关.on_false(档1/2)
+    [68, 6, 0, POS_SW_ID, 1, "CONDITIONING"],     # [6].positive → 正源开关.on_true(档0 双参考;0928 删 [44] 垫脚石直连)
+    [69, TE1_ID, 0, POS_SW_ID, 0, "CONDITIONING"],  # 单参考.positive → 正源开关.on_false(档1/2;0928 删 [45] 垫脚石直连)
 ]
 
 GROUPS = [
@@ -804,7 +819,8 @@ def verify(wf):
     #     24 点采样线段两两求交,每对线至多计 1 次;-10/-20 边界线跳过。
     #     **现值封顶起步防回归**(基线={'主图': 84}),治理轮逐步拧紧至 0;
     #     优先级:交叉 > 组框美观——消交叉可打破组框单行/罩盖约束(契约随行同步)。
-    _CROSS_BASELINE = {'主图': 69}
+    #     0928 删踏脚石直连轮:69→68(六枚垫脚石删件直连+三挪位,见文件头纪要)。
+    _CROSS_BASELINE = {'主图': 68}
     def _cross_seg_int(a, b, c, d):
         def _cr(o, x, y):
             return (y[0] - o[0]) * (x[1] - o[1]) - (y[1] - o[1]) * (x[0] - o[0])
@@ -1062,7 +1078,7 @@ def verify(wf):
                     f"得 {pb_node.get('widgets_values')}")
     if sorted(pb_fans := (pb_node["outputs"][0]["links"] or [])) != sorted([42, 43, 72]):
         errs.append(f"[{LORA_PB_ID}] 档位源应扇出恰三线(→[{CMP_VIG_ID}]/[{CMP_FUN_ID}]/"
-                    f"[{RR_A_ID}]→[{CMP_DIR_ID}](0928 正源开关)),得 {pb_fans}")
+                    f"[{CMP_DIR_ID}](0928 正源开关,删 [46] 垫脚石后直连)),得 {pb_fans}")
     for cid, want in ((CMP_VIG_ID, MODE_VIGGLE), (CMP_FUN_ID, MODE_FUNACC),
                       (CMP_DIR_ID, MODE_DIRECT)):
         c = nodes[cid]
@@ -1134,7 +1150,7 @@ def verify(wf):
         lid = node_["inputs"][2].get("link")
         if lid is not None:
             src = nodes[links[lid][1]]
-            while src["type"] == "Reroute":   # 穿垫脚石([51]→[54] 经 [57])
+            while src["type"] == "Reroute":   # 穿垫脚石(0928 删踏脚石轮后仅 VAE 顶通道 [28]/[29] 在图)
                 src = nodes[links[src["inputs"][0]["link"]][1]]
             if src["type"] == "PrimitiveBoolean":
                 return bool(src["widgets_values"][0])
@@ -1290,7 +1306,10 @@ def main():
         json.dump(wf, f, ensure_ascii=False, indent=2)
         f.write("\n")
     print(f"再生成完成:{WF}({shape};节点 {len(wf['nodes'])}/连线 {len(wf['links'])}/"
-          f"group 4=W1 加速区组框;W5 负面 cfg=1 官方同构占位+pp=1.5 定档+steps 摆设值注明;"
+          f"group 4=W1 加速区组框;0928 删踏脚石直连轮=主图六枚单入单出垫脚石"
+          f"([56]/[57]/[58]/[46]/[44]/[45])删件直连+三挪位([42]2920→2300/[54]1620→2300/"
+          f"[35]6000→6600)保零线遮,VAE 顶通道 [28]/[29] 实测保留(删后交叉/线遮至少一增),"
+          f"主图交叉 69→68 棘轮收紧;W5 负面 cfg=1 官方同构占位+pp=1.5 定档+steps 摆设值注明;"
           f"W6 零负区(pos≥80,0926 收紧=发现项3 互锁);0926 铁律线不遮节点(贝塞尔采样精判零红);"
           f"0927 三档轮=加速档位 [30] PrimitiveInt 默认 {MODE_DEFAULT}(Fun-Acc PDD 4步,用户裁定;"
           f"0=直出40/1=viggle 6/2=Fun-Acc 4),easy compare×2 拆布尔([{CMP_VIG_ID}]==1 驱 MODEL+steps "
