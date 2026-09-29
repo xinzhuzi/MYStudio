@@ -1,5 +1,24 @@
 #!/usr/bin/env python3
-"""Promote explicitly scoped, human-approved chapter-001 continuity frames."""
+"""Promote explicitly scoped, human-approved chapter-001 continuity frames.
+
+跨层版本纪律(提案五①,2026-09-29):推广提交=上游分镜新版本的人工确认动作。
+此时依赖旧版的下游产物(该镜旧 H3 片/TTS 音频/提示词引用)显式标
+``downstreamExpiry``=「已过期-禁止使用」——不删除、不自动重写旧产物,清除只能
+经下一次人工确认的推广(语义照分镜 stale 三件套「显式标记+人工确认」形态,
+源=docs/research/PIPELINE_METHODS_ABSORPTION_ANALYSIS_2026-09-28.md 提案五
+与 docs/comfyui-kb/跨镜连续性规范-0928.md §六)。下游产物清单真源
+=分镜上的既有引用字段(mediaRef kind=video/audioRef/ttsJob/prompt+videoDesc),
+未记录的产物绝不标(零误伤)。资产批准推广(promote_chapter001_continuity_approvals)
+不是分镜版本确认,不产生本标记。
+
+受影响区间重算(§六/§七P5,2026-09-29):``affected_continuity_interval``=
+repair/promote 共用纯函数——下界=被改镜,上界=首个入场状态不再依赖被改镜的镜头
+(依赖判据=continuityState.previousStoryboardId 同组链+keyframes origin
+legacy-shot 回接,两类既有数据)。关键帧过期语义:依赖旧首/尾帧的关键帧标
+``status``=「已过期-禁止使用」(与 A3 下游标记同词表同一语义,per-keyframe 显式
+标记);提升计划拦未标记的旧帧回接依赖(不得旧图配新镜清单),修复链负责区间内
+显式标记后放行。
+"""
 
 from __future__ import annotations
 
@@ -27,6 +46,258 @@ except ModuleNotFoundError:
     from path_resolver import resolve_project_dir
 
 EXPECTED_SHOTS = list(range(1, 44))
+
+EXPIRED_FORBIDDEN_USE = "已过期-禁止使用"
+DOWNSTREAM_EXPIRY_FIELD = "downstreamExpiry"
+
+
+def collect_downstream_artifacts(storyboard: dict[str, Any]) -> list[dict[str, Any]]:
+    """盘点分镜上已记录的下游产物(该镜旧 H3 片/TTS 音频/提示词引用)。
+
+    零误伤口径:只收分镜上**实际存在**的引用字段——未记录的产物不列、不标。
+    字段真源=真实生产 store 形态(audioRef/prompt/videoDesc 43/43,ttsJob 任务
+    记录,视频镜 mediaRef kind=video)+前端 StoryboardItem 可选字段
+    (apps/frontend/types/studio-storyboard-types.ts:147-164)。
+    """
+    artifacts: list[dict[str, Any]] = []
+    media_ref = storyboard.get("mediaRef")
+    if isinstance(media_ref, dict) and media_ref.get("kind") == "video":
+        # 该镜旧 H3 片:推广会把首帧引用换成新确认图,旧片引用完整留存于标记内
+        artifacts.append({"kind": "h3-clip", "mediaRef": copy.deepcopy(media_ref)})
+    audio_ref = storyboard.get("audioRef")
+    if isinstance(audio_ref, dict) and audio_ref.get("kind") == "audio":
+        artifacts.append({"kind": "tts-audio", "audioRef": copy.deepcopy(audio_ref)})
+    tts_job = storyboard.get("ttsJob")
+    if isinstance(tts_job, dict):
+        artifacts.append({
+            "kind": "tts-job",
+            "shotRevision": tts_job.get("shotRevision"),
+            "inputFingerprint": tts_job.get("inputFingerprint"),
+            "status": tts_job.get("status"),
+            "attempt": tts_job.get("attempt"),
+        })
+    prompt = storyboard.get("prompt")
+    video_desc = storyboard.get("videoDesc")
+    prompt_present = isinstance(prompt, str) and bool(prompt)
+    video_desc_present = isinstance(video_desc, str) and bool(video_desc)
+    if prompt_present or video_desc_present:
+        entry: dict[str, Any] = {"kind": "prompt"}
+        if prompt_present:
+            entry["promptSha256"] = sha256_bytes(prompt.encode("utf-8"))
+        if video_desc_present:
+            entry["videoDescSha256"] = sha256_bytes(video_desc.encode("utf-8"))
+        artifacts.append(entry)
+    return artifacts
+
+
+def mark_downstream_expiry(
+    storyboard: dict[str, Any],
+    update: dict[str, Any],
+    reviewed_at_ms: int,
+) -> dict[str, Any] | None:
+    """推广提交时把依赖旧版的下游产物显式标「已过期-禁止使用」。
+
+    只新增标记:不删除、不自动重写旧产物(引用字段与文件原样保留);只在
+    outputVersion 实际推进时标(幂等重放 targetVersion<=current 不标);清除只经
+    下一次人工确认的推广(clearPolicy)。
+    """
+    artifacts = update.get("downstreamArtifacts") or []
+    if not artifacts:
+        return None
+    current_version = int(update["currentOutputVersion"])
+    target_version = int(update["targetOutputVersion"])
+    if target_version <= current_version:
+        return None
+    storyboard_id = str(update["storyboardId"])
+    expiry = {
+        "status": EXPIRED_FORBIDDEN_USE,
+        "since": reviewed_at_ms,
+        "basedOnOutputVersion": current_version,
+        "supersededByOutputVersion": target_version,
+        "reason": (
+            f"分镜 {storyboard_id} 人工批准推广已确认新版本 outputVersion="
+            f"{target_version}(旧版={current_version});下列依赖旧版的下游产物标"
+            f"「{EXPIRED_FORBIDDEN_USE}」——不删除、不自动重写,重做须人工确认"
+            "(语义照分镜 stale 三件套「显式标记+人工确认」形态)"
+        ),
+        "artifacts": copy.deepcopy(artifacts),
+        "clearPolicy": "human-confirmed-repromotion-only",
+    }
+    storyboard[DOWNSTREAM_EXPIRY_FIELD] = expiry
+    return expiry
+
+
+def downstream_expiry_summary(plan: dict[str, Any]) -> list[dict[str, Any]]:
+    """推广报告里的机检过期清单:只列实际推进版本且确有下游产物的镜。"""
+    summary: list[dict[str, Any]] = []
+    for update in plan["updates"]:
+        artifacts = update.get("downstreamArtifacts") or []
+        if not artifacts:
+            continue
+        if int(update["targetOutputVersion"]) <= int(update["currentOutputVersion"]):
+            continue
+        summary.append({
+            "storyboardId": update["storyboardId"],
+            "index": int(update["index"]),
+            "basedOnOutputVersion": int(update["currentOutputVersion"]),
+            "supersededByOutputVersion": int(update["targetOutputVersion"]),
+            "artifactKinds": [item["kind"] for item in artifacts],
+        })
+    return summary
+
+
+def _legacy_keyframe_target_indexes(storyboard: dict[str, Any]) -> set[int]:
+    targets: set[int] = set()
+    for keyframe in storyboard.get("keyframes") or []:
+        if not isinstance(keyframe, dict):
+            continue
+        origin = keyframe.get("origin") or {}
+        if origin.get("kind") != "legacy-shot":
+            continue
+        try:
+            targets.add(int(origin.get("legacyIndex")))
+        except (TypeError, ValueError):
+            continue
+    return targets
+
+
+def legacy_dependent_keyframes(
+    storyboard: dict[str, Any],
+    changed_indexes: set[int],
+) -> list[dict[str, Any]]:
+    """回接旧镜的关键帧(origin.kind=legacy-shot 且 legacyIndex 命中被改镜集)。
+
+    既有数据形态(apps/frontend/types/studio.ts:159-172 StoryboardKeyframe),
+    不造新数据;「回接可沿旧审结论」仅在目标镜未改版时成立。
+    """
+    dependents: list[dict[str, Any]] = []
+    for keyframe in storyboard.get("keyframes") or []:
+        if not isinstance(keyframe, dict):
+            continue
+        origin = keyframe.get("origin") or {}
+        if origin.get("kind") != "legacy-shot":
+            continue
+        try:
+            target = int(origin.get("legacyIndex"))
+        except (TypeError, ValueError):
+            continue
+        if target in changed_indexes:
+            dependents.append(keyframe)
+    return dependents
+
+
+def old_frame_dependent_keyframes(
+    storyboard: dict[str, Any],
+    changed_indexes: set[int],
+) -> list[dict[str, Any]]:
+    """依赖旧首/尾帧的关键帧:回接被改镜的帧 + 首帧镜像(不变式 I1,path 同源)。"""
+    dependents = list(legacy_dependent_keyframes(storyboard, changed_indexes))
+    marked_identity = {id(keyframe) for keyframe in dependents}
+    old_path = str((storyboard.get("mediaRef") or {}).get("path") or "")
+    for keyframe in storyboard.get("keyframes") or []:
+        if not isinstance(keyframe, dict) or id(keyframe) in marked_identity:
+            continue
+        path = str((keyframe.get("mediaRef") or {}).get("path") or "")
+        if path and old_path and path == old_path:
+            dependents.append(keyframe)
+    return dependents
+
+
+def mark_keyframes_expired(
+    storyboard: dict[str, Any],
+    keyframes: list[dict[str, Any]],
+    *,
+    reason: str,
+    since_ms: int,
+) -> list[str]:
+    """把关键帧显式标「已过期-禁止使用」(与 A3 下游标记同词表同一语义)。
+
+    只新增标记字段,不删除关键帧引用、不改写帧文件;新帧须另存版本重接。
+    """
+    for keyframe in keyframes:
+        keyframe["status"] = EXPIRED_FORBIDDEN_USE
+        keyframe["expiredReason"] = reason
+        keyframe["expiredSince"] = since_ms
+    return [str(keyframe.get("frameId") or "") for keyframe in keyframes]
+
+
+def affected_continuity_interval(
+    storyboards: list[dict[str, Any]],
+    changed_storyboard_id: str,
+) -> dict[str, Any]:
+    """§六受影响区间(稳定上界):下界=被改镜;上界=首个入场状态不再依赖被改镜的镜头。
+
+    依赖判据(两类既有数据,repair/promote 共用):①continuityState.
+    previousStoryboardId 同组链;②keyframes origin legacy-shot 回接区间内旧镜。
+    上界镜头本身不入区间(其后不重算、不重审)。
+    """
+    ordered = sorted(
+        (item for item in storyboards if isinstance(item, dict)),
+        key=lambda item: int(item.get("index") or 0),
+    )
+    changed = next(
+        (item for item in ordered if str(item.get("id") or "") == str(changed_storyboard_id)),
+        None,
+    )
+    if changed is None:
+        raise RuntimeError(f"受影响区间下界分镜不存在: {changed_storyboard_id}")
+    changed_index = int(changed.get("index") or 0)
+    group = str((changed.get("continuityState") or {}).get("groupId") or "")
+    changed_id = str(changed.get("id") or "")
+    affected_ids = [changed_id]
+    affected_indexes = {changed_index}
+    evidence: list[dict[str, Any]] = [{"storyboardId": changed_id, "via": "changed-shot"}]
+    upper_id: str | None = None
+    for candidate in ordered:
+        if int(candidate.get("index") or 0) <= changed_index:
+            continue
+        candidate_id = str(candidate.get("id") or "")
+        continuity = candidate.get("continuityState") or {}
+        previous_id = str(continuity.get("previousStoryboardId") or "")
+        chained = bool(
+            group
+            and str(continuity.get("groupId") or "") == group
+            and previous_id
+            and previous_id in affected_ids
+        )
+        legacy_linked = bool(_legacy_keyframe_target_indexes(candidate) & affected_indexes)
+        if chained:
+            evidence.append({"storyboardId": candidate_id, "via": "previousStoryboardId"})
+        elif legacy_linked:
+            evidence.append({"storyboardId": candidate_id, "via": "legacy-keyframe"})
+        else:
+            upper_id = candidate_id
+            break
+        affected_ids.append(candidate_id)
+        affected_indexes.add(int(candidate.get("index") or 0))
+    return {
+        "changedStoryboardId": changed_id,
+        "lowerShotId": changed_id,
+        "affectedShotIds": affected_ids,
+        "upperShotId": upper_id,
+        "dependencyEvidence": evidence,
+    }
+
+
+def unexpired_legacy_dependency_conflicts(
+    storyboards_by_id: dict[str, dict[str, Any]],
+    changed_indexes: set[int],
+    exempt_ids: set[str],
+) -> list[str]:
+    """提升门禁(P5):未标「已过期-禁止使用」的旧帧回接依赖,机检列出(不得旧图配新镜清单)。"""
+    conflicts: list[str] = []
+    for storyboard_id, storyboard in storyboards_by_id.items():
+        if storyboard_id in exempt_ids:
+            continue
+        for keyframe in legacy_dependent_keyframes(storyboard, changed_indexes):
+            if keyframe.get("status") == EXPIRED_FORBIDDEN_USE:
+                continue
+            origin = keyframe.get("origin") or {}
+            conflicts.append(
+                f"{storyboard_id}#{keyframe.get('frameId')}"
+                f"(回接旧镜 {origin.get('legacyIndex')})"
+            )
+    return sorted(conflicts)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -281,6 +552,8 @@ def build_promotion_plan(
             "referenceManifest": copy.deepcopy(entry.get("referenceManifest") or []),
             "continuityState": copy.deepcopy(entry.get("continuityState") or {}),
             "currentOutputVersion": int(storyboard.get("outputVersion") or 0),
+            # dry-run 即预览将过期的下游产物清单(显式标记+人工确认:确认前可见)
+            "downstreamArtifacts": collect_downstream_artifacts(storyboard),
         })
     promoted_flags = [
         storyboard_matches_promotion(
@@ -299,6 +572,23 @@ def build_promotion_plan(
             if already_applied
             else update["currentOutputVersion"] + 1
         )
+    # P5 受影响区间(§六稳定上界):计划即给出区间证据;提升门禁拦旧帧回接依赖
+    changed_indexes = {int(update["index"]) for update in updates}
+    update_ids = {str(update["storyboardId"]) for update in updates}
+    conflicts = unexpired_legacy_dependency_conflicts(
+        storyboards_by_id, changed_indexes, update_ids
+    )
+    if conflicts:
+        raise RuntimeError(
+            f"依赖旧帧的关键帧未标「{EXPIRED_FORBIDDEN_USE}」,拒绝提升"
+            f"(不得旧图配新镜清单;请先经修复链显式标记后重试): {'; '.join(conflicts)}"
+        )
+    affected_intervals = [
+        affected_continuity_interval(
+            list(storyboards_by_id.values()), str(update["storyboardId"])
+        )
+        for update in updates
+    ]
     return {
         "ok": True,
         "dryRun": True,
@@ -313,6 +603,7 @@ def build_promotion_plan(
         "shots": len(updates),
         "generatedImages": report["generatedImages"],
         "reusedImages": report["reusedImages"],
+        "affectedIntervals": affected_intervals,
         "updates": updates,
     }
 
@@ -456,8 +747,13 @@ def apply_promotion(plan: dict[str, Any], human_confirmed: bool) -> dict[str, An
     if report_path.exists():
         raise RuntimeError(f"拒绝覆盖不匹配的推广报告: {report_path}")
 
+    expiry_marked_at_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    changed_indexes = {int(update["index"]) for update in plan["updates"]}
+    expired_keyframes: list[dict[str, Any]] = []
     for update, _destination, _source_payload, _existed in update_payloads:
         storyboard = storyboards_by_id[str(update["storyboardId"])]
+        # 先取旧帧依赖(首帧镜像以替换前 mediaRef 为准),再覆盖首帧字段
+        dependent_keyframes = old_frame_dependent_keyframes(storyboard, changed_indexes)
         media_ref, flow_id, generated_node_id = promoted_media_ref(update)
         storyboard["mediaRef"] = media_ref
         storyboard["imageWorkflowId"] = flow_id
@@ -469,6 +765,23 @@ def apply_promotion(plan: dict[str, Any], human_confirmed: bool) -> dict[str, An
         storyboard.pop("staleReason", None)
         storyboard.pop("staleSince", None)
         storyboard["visualReview"] = pending_visual_review(update, update["projectUrl"])
+        mark_downstream_expiry(storyboard, update, expiry_marked_at_ms)
+        if dependent_keyframes:
+            frame_ids = mark_keyframes_expired(
+                storyboard,
+                dependent_keyframes,
+                reason=(
+                    f"分镜 {update['storyboardId']} 已人工确认新版本 outputVersion="
+                    f"{int(update['targetOutputVersion'])}"
+                    f"(旧版={int(update['currentOutputVersion'])});本帧依赖旧首/尾帧,"
+                    f"标「{EXPIRED_FORBIDDEN_USE}」——新帧须另存版本重接,不得旧图配新镜清单"
+                ),
+                since_ms=expiry_marked_at_ms,
+            )
+            expired_keyframes.append({
+                "storyboardId": str(update["storyboardId"]),
+                "frameIds": frame_ids,
+            })
 
     result_store_payload = stable_json_bytes(store)
     result_store_sha256 = sha256_bytes(result_store_payload)
@@ -488,6 +801,8 @@ def apply_promotion(plan: dict[str, Any], human_confirmed: bool) -> dict[str, An
         "pendingStoryboards": len(plan["updates"]),
         "resultStoreSha256": result_store_sha256,
         "promotionReport": str(report_path),
+        "downstreamExpiry": downstream_expiry_summary(plan),
+        "expiredKeyframes": expired_keyframes,
     }
     created_directories: list[Path] = []
     staged_paths: list[Path] = []

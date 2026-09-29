@@ -25,6 +25,12 @@ try:
         resolve_storyboard_source,
     )
     from apps.build.chapter_video.path_resolver import resolve_project_dir
+    from apps.build.chapter_video.pipeline.promote_chapter001_storyboard_continuity import (
+        EXPIRED_FORBIDDEN_USE,
+        affected_continuity_interval,
+        legacy_dependent_keyframes,
+        mark_keyframes_expired,
+    )
 except ModuleNotFoundError as error:
     if error.name not in {"apps", "Library"}:
         raise
@@ -33,6 +39,12 @@ except ModuleNotFoundError as error:
         resolve_storyboard_source,
     )
     from path_resolver import resolve_project_dir
+    from pipeline.promote_chapter001_storyboard_continuity import (
+        EXPIRED_FORBIDDEN_USE,
+        affected_continuity_interval,
+        legacy_dependent_keyframes,
+        mark_keyframes_expired,
+    )
 
 
 EPISODE_ID = "chapter-001"
@@ -672,18 +684,79 @@ def sync_pending_asset_manifest(
         if group_id:
             first_changed_by_group[group_id] = min(first_changed_by_group.get(group_id, index), index)
 
+    # P5 受影响区间重算(§六稳定上界):下界=被改镜,上界=首个入场状态不再依赖
+    # 被改镜的镜头(previousStoryboardId 同组链 / legacy-shot 回接关键帧两类判据);
+    # 区间外各镜 stale/重审零变化(其后不重算、不重审),取代旧「同组下游全区间」
+    # 保守传播。
+    marked_now_ms = int(dt.datetime.now().timestamp() * 1000)
+    interval_reports: list[dict[str, Any]] = []
+    expired_keyframes: list[dict[str, Any]] = []
+    membership: dict[str, dict[str, Any]] = {}
+    for group_id, first_changed in sorted(
+        first_changed_by_group.items(), key=lambda item: item[1]
+    ):
+        changed_shot = next(
+            (
+                item for item in storyboards
+                if int(item.get("index") or 0) == first_changed
+            ),
+            None,
+        )
+        if changed_shot is None:
+            continue
+        interval = affected_continuity_interval(
+            storyboards, str(changed_shot.get("id") or "")
+        )
+        member_ids = set(interval["affectedShotIds"])
+        member_indexes = {
+            int(item.get("index") or 0)
+            for item in storyboards
+            if str(item.get("id") or "") in member_ids
+        }
+        entry = {
+            "groupId": group_id,
+            "changedStoryboardId": interval["changedStoryboardId"],
+            "affectedShotIds": interval["affectedShotIds"],
+            "upperShotId": interval["upperShotId"],
+        }
+        interval_reports.append(entry)
+        for storyboard_id in interval["affectedShotIds"]:
+            membership[storyboard_id] = entry
+        # §六关键帧过期:区间内回接旧镜帧(目标在区间成员内)的关键帧标
+        # 「已过期-禁止使用」(与 A3 下游标记同词表);新帧另存版本,不删除旧引用。
+        for storyboard in storyboards:
+            storyboard_id = str(storyboard.get("id") or "")
+            if storyboard_id not in member_ids:
+                continue
+            dependents = legacy_dependent_keyframes(storyboard, member_indexes)
+            if not dependents:
+                continue
+            mark_keyframes_expired(
+                storyboard,
+                dependents,
+                reason=(
+                    f"被改镜 {interval['changedStoryboardId']} 的连续性引用已更新,"
+                    f"受影响区间重算;本帧回接旧镜帧,标「{EXPIRED_FORBIDDEN_USE}」"
+                    "——新帧须另存版本重接,不得旧图配新镜清单"
+                ),
+                since_ms=marked_now_ms,
+            )
+            for keyframe in dependents:
+                expired_keyframes.append({
+                    "storyboardId": storyboard_id,
+                    "frameId": keyframe.get("frameId"),
+                    "targetsLegacyIndex": (keyframe.get("origin") or {}).get("legacyIndex"),
+                })
+
     propagated: list[str] = []
     direct_ids = set(directly_changed)
     for storyboard in storyboards:
-        continuity = storyboard.get("continuityState") or {}
-        group_id = str(continuity.get("groupId") or "")
-        first_changed = first_changed_by_group.get(group_id)
         storyboard_id = str(storyboard.get("id") or "")
-        if first_changed is None or int(storyboard.get("index") or 0) < first_changed or storyboard_id in direct_ids:
+        if storyboard_id in direct_ids or storyboard_id not in membership:
             continue
         storyboard["stale"] = True
         storyboard["staleReason"] = "上游连续镜头引用的资产 Bible 已更新"
-        storyboard["staleSince"] = int(dt.datetime.now().timestamp() * 1000)
+        storyboard["staleSince"] = marked_now_ms
         reset_storyboard_visual_review(storyboard, "上游连续镜头引用的资产 Bible 已更新")
         propagated.append(storyboard_id)
     return {
@@ -693,6 +766,8 @@ def sync_pending_asset_manifest(
         "approved": sum(version.get("approved") is True for version in versions),
         "directlyChangedStoryboards": directly_changed,
         "propagatedStoryboards": propagated,
+        "intervals": interval_reports,
+        "expiredKeyframes": expired_keyframes,
     }
 
 

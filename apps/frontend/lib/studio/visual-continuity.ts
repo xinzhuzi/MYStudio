@@ -9,6 +9,7 @@ import type {
   VisualReviewResult,
 } from "@/types/studio";
 import type { VlmReviewArtifactV1 } from "@/types/contracts/vlm-review-workflow";
+import { findPromptAnaphora } from "./prompt-anaphora";
 
 export interface VisualContinuityIssue {
   storyboardId: string;
@@ -29,7 +30,11 @@ export interface VisualContinuityIssue {
     | "review.checks"
     | "review.stale"
     | "axis.crossing"
-    | "axis.unconfirmed";
+    | "axis.unconfirmed"
+    | "continuity.anchor"
+    | "continuity.dialogue"
+    | "continuity.frame"
+    | "prompt.anaphora";
   message: string;
 }
 
@@ -426,7 +431,12 @@ export function buildContinuityPrompt(state: ShotContinuityState): string {
   ].join("，"));
   return [
     `【连续镜头组】${state.groupId}`,
-    state.previousStoryboardId ? `承接上一镜${state.previousStoryboardId}` : "本组首镜",
+    // §三/§七P3 禁指代词:模板不得自产「上一镜」类指代(该词命中 §三清单首词,
+    // 且经 graph-build 流入正式编译产物)——前序关系改为组号+前序镜编号的事实性
+    // 表述,新表述经 findPromptAnaphora 零命中(测试锁)。
+    state.previousStoryboardId
+      ? `【前序衔接】前序镜 ${state.previousStoryboardId}，本镜入场状态由本提示词完整重述，与该镜镜尾衔接`
+      : "【前序衔接】本镜为连续镜头组首镜，无前序镜",
     `【场景锁】${state.sceneVersionId}/${state.sceneViewpointId}，${state.lighting}，${state.palette}`,
     `【动作承接】${state.actionIn}；镜尾：${state.actionOut}`,
     characters.length ? `【人物状态】${characters.join("；")}` : "",
@@ -461,7 +471,22 @@ export function visualContinuityFingerprint(storyboard: Pick<
       contentFingerprint: reference.contentFingerprint,
     })),
     continuity: continuity
-      ? compactNullishFields({ ...continuity, inputFingerprint: undefined })
+      ? compactNullishFields({
+          ...continuity,
+          inputFingerprint: undefined,
+          // §七P2 指纹决策(2026-09-29,跨镜连续性规范-0928):worldAnchor/
+          // dialogueCueId/dialogueText/frameReferencePresence 四个新可选字段
+          // 显式剔除、不入内容指纹——入指纹即打回既有批准(指纹失效语义=
+          // storyboardContinuityStateIssues 落 continuity.stale),而这些字段是
+          // 守卫式消费的可选记载,合法值不应触发重审(§七P2 验收要点:是否入
+          // 指纹须评估重审面,本决策=不入,重审面为零)。剔除方式照 inputFingerprint
+          // 先例置 undefined 后由 compactNullishFields 滤除,旧数据与事后加字段的
+          // 指纹均逐字节不变。
+          worldAnchor: undefined,
+          dialogueCueId: undefined,
+          dialogueText: undefined,
+          frameReferencePresence: undefined,
+        })
       : undefined,
     styleContract: continuity?.styleContractVersion
       ? {
@@ -476,6 +501,108 @@ export function visualContinuityFingerprint(storyboard: Pick<
 
 export function storyboardShotSemanticsFingerprint(semantics: StoryboardItem["shotSemantics"]) {
   return semantics ? stableSerialize(semantics) : "";
+}
+
+/** §一⑧在场性三态闭集(§七P2):有图=present/待补=pending/缺失=missing。
+ *  值域真源=types/studio-storyboard-types.ts 的 frameReferencePresence 字段联合。 */
+const FRAME_REFERENCE_PRESENCE_VALUES = new Set(["present", "pending", "missing"]);
+
+/** §五台词分段编号格式:S{镜号}-D{台词序}{段序},段序=单个小写字母、可省
+ *  (例 S07-D1/S07-D2a)。本守卫只判格式合法性;编号与镜号/字幕 cue/TTS 绑定
+ *  三处取值一致的对账归 §七P4,不在此判。 */
+const DIALOGUE_CUE_ID_PATTERN = /^S\d+-D\d+[a-z]?$/;
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * §七P2 新字段守卫式机检(最小口径=枚举/格式合法性):字段存在且非法才发码,
+ * 缺省零影响——旧数据(无新字段)返回恒空,审计结果逐字节不变。三组各封一类:
+ *  - worldAnchor(§一①):存在即须为非空的逐人物「地标+相对关系」数组,逐条
+ *    characterId/landmark/relation 均非空(写「无」=没写,规范总则 1);
+ *  - dialogueCueId/dialogueText(§一⑦):分段编号须合 §五格式;本镜完整文字
+ *    存在即须非空;
+ *  - frameReferencePresence(§一⑧):须为含 first/last 的对象,两侧取值均在
+ *    三态闭集内。
+ * 运行时按 unknown 收窄判定——持久化/IPC 边界数据不受编译期类型约束
+ * (type-safety 规范:TS 断言不是运行时校验)。
+ */
+function continuityStateExtendedFieldIssues(
+  storyboardId: string,
+  continuity: ShotContinuityState,
+): VisualContinuityIssue[] {
+  const issues: VisualContinuityIssue[] = [];
+  const add = (code: VisualContinuityIssue["code"], message: string) => {
+    issues.push({ storyboardId, code, message });
+  };
+
+  if (continuity.worldAnchor !== undefined) {
+    const anchors: unknown = continuity.worldAnchor;
+    if (!Array.isArray(anchors) || anchors.length === 0) {
+      add(
+        "continuity.anchor",
+        `分镜 ${storyboardId} 世界位置锚 worldAnchor 非法：存在即须为非空的逐人物「地标+相对关系」数组（写「无」=没写，规范总则 1）`,
+      );
+    } else {
+      for (const [index, anchor] of anchors.entries()) {
+        const record = typeof anchor === "object" && anchor !== null
+          ? anchor as Record<string, unknown>
+          : undefined;
+        if (
+          !record
+          || !isNonEmptyString(record.characterId)
+          || !isNonEmptyString(record.landmark)
+          || !isNonEmptyString(record.relation)
+        ) {
+          add(
+            "continuity.anchor",
+            `分镜 ${storyboardId} 世界位置锚 worldAnchor 第 ${index + 1} 条格式非法：characterId/landmark/relation 均须为非空字符串（§二「地标+相对关系」双写）`,
+          );
+        }
+      }
+    }
+  }
+
+  if (continuity.dialogueCueId !== undefined) {
+    const cueId: unknown = continuity.dialogueCueId;
+    if (typeof cueId !== "string" || !DIALOGUE_CUE_ID_PATTERN.test(cueId.trim())) {
+      add(
+        "continuity.dialogue",
+        `分镜 ${storyboardId} 台词分段编号 dialogueCueId 非法：「${typeof cueId === "string" ? cueId : String(cueId)}」不符合 §五格式 S{镜号}-D{台词序}{段序}（如 S07-D2a）`,
+      );
+    }
+  }
+  if (continuity.dialogueText !== undefined && !isNonEmptyString(continuity.dialogueText)) {
+    add(
+      "continuity.dialogue",
+      `分镜 ${storyboardId} 本镜台词完整文字 dialogueText 非法：存在即须为非空字符串（§五：写这一镜嘴上将出现的每个字，非剧情梗概）`,
+    );
+  }
+
+  if (continuity.frameReferencePresence !== undefined) {
+    const presence: unknown = continuity.frameReferencePresence;
+    const record = typeof presence === "object" && presence !== null && !Array.isArray(presence)
+      ? presence as Record<string, unknown>
+      : undefined;
+    if (!record) {
+      add(
+        "continuity.frame",
+        `分镜 ${storyboardId} 首尾帧在场性 frameReferencePresence 非法：须为含 first/last 的对象`,
+      );
+    } else {
+      const invalidSides = (["first", "last"] as const)
+        .filter((side) => !FRAME_REFERENCE_PRESENCE_VALUES.has(String(record[side])));
+      if (invalidSides.length > 0) {
+        add(
+          "continuity.frame",
+          `分镜 ${storyboardId} 首尾帧在场性 frameReferencePresence.${invalidSides.join("/")} 不在三态闭集 present/pending/missing（§一⑧：有图/待补/缺失）`,
+        );
+      }
+    }
+  }
+
+  return issues;
 }
 
 export function storyboardContinuityStateIssues(storyboard: StoryboardItem): VisualContinuityIssue[] {
@@ -508,7 +635,9 @@ export function storyboardContinuityStateIssues(storyboard: StoryboardItem): Vis
       message: `分镜 ${storyboard.id} 连续性输入指纹已失效`,
     }];
   }
-  return [];
+  // §七P2 守卫式消费:三组新字段只在状态链三关全过(存在/语义未变/指纹有效)后
+  // 做枚举/格式合法性机检;字段缺省(旧数据)返回恒空——审计结果逐字节不变。
+  return continuityStateExtendedFieldIssues(storyboard.id, continuity);
 }
 
 export function visualReviewInputFingerprint(storyboard: Pick<
@@ -708,6 +837,17 @@ export function auditVisualContinuity(
         storyboardId: storyboard.id,
         code: String(error).includes("顺序") ? "references.order" : String(error).includes("版本") ? "references.version" : "references.missing",
         message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    // §三/§七P3 禁指代词机检:只检编译产物层 storyboard.prompt(分层豁免——计划层
+    // 文本如 actionIn/actionOut/分镜表内部缩写合法,§三双层规则);命中逐词发码,
+    // message 按裁定带修复三步指引(展开正向描述→App 内重烘指纹→重新视觉审核)。
+    const promptText = typeof storyboard.prompt === "string" ? storyboard.prompt : "";
+    for (const violation of findPromptAnaphora(promptText)) {
+      issues.push({
+        storyboardId: storyboard.id,
+        code: "prompt.anaphora",
+        message: `分镜 ${storyboard.id} 编译产物含禁指代词「${violation.term}」（摘录：…${violation.excerpt}…）。修复三步：①将该镜 prompt 中该指代表述展开为完整正向描述；②在 App 内重烘该镜连续性指纹；③重新进行视觉审核`,
       });
     }
     const continuity = storyboard.continuityState;

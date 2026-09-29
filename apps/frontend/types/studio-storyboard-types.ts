@@ -60,6 +60,20 @@ export interface StoryboardShotSemantics {
   cameraMove?: string;
 }
 
+/** §一①世界位置锚(0928 跨镜连续性规范 §七P2):逐人物「地标+相对关系」的
+ *  显式记载,补世界位置只随场景资产走、人物侧无记载的缺口(§二双写规则的世界侧写)。 */
+export interface ShotContinuityWorldAnchor {
+  characterId: string;
+  /** 场景地标名(视觉锚点,如 紫檀书案/西窗/门/楼梯)。 */
+  landmark: string;
+  /** 人物相对该地标的关系句(如 立于紫檀书案南侧,背朝西窗)。 */
+  relation: string;
+}
+
+/** §一⑧首尾帧参考在场性三态(§七P2):有图=present/待补=pending/缺失=missing,
+ *  让「待补」成为可查询状态而非散落人工记忆。 */
+export type ShotFrameReferencePresence = "present" | "pending" | "missing";
+
 export interface ShotContinuityState {
   groupId: string;
   previousStoryboardId?: string;
@@ -75,6 +89,22 @@ export interface ShotContinuityState {
   promptAuditVersion?: string;
   sourceSemanticsFingerprint?: string;
   inputFingerprint: string;
+  /** 以下三组为 0928 跨镜连续性规范 §七P2 加法式可选字段(向后兼容:旧数据
+   *  缺省,审计零影响)。合法值不入内容指纹、不打回既有批准——指纹剔除决策
+   *  见 lib/studio/visual-continuity.ts visualContinuityFingerprint 处注释;
+   *  非法值由 storyboardContinuityStateIssues 守卫式机检(枚举/格式合法性)。 */
+  /** §一①世界位置:逐人物「地标+相对关系」锚点;存在即须非空且逐条良构。 */
+  worldAnchor?: ShotContinuityWorldAnchor[];
+  /** §一⑦台词进度:分段编号,§五格式 S{镜号}-D{台词序}{段序}(如 S07-D2a;
+   *  与 A7a 台词容量链同源,编号三处对账归 §七P4)。 */
+  dialogueCueId?: string;
+  /** §一⑦台词进度:本镜完整台词文字——这一镜嘴上将出现的每个字,非剧情梗概(§五)。 */
+  dialogueText?: string;
+  /** §一⑧首尾帧参考在场性:首帧/尾帧各自是否有实际可用图片。 */
+  frameReferencePresence?: {
+    first: ShotFrameReferencePresence;
+    last: ShotFrameReferencePresence;
+  };
 }
 
 export interface VisualReviewResult {

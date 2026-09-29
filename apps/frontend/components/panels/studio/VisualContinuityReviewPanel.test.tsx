@@ -42,7 +42,7 @@ function storyboard(index: number): StoryboardItem {
         position: "背部中景",
         state: "背负完整",
       }],
-      actionIn: index > 1 ? "承接上一镜" : "建立场景",
+      actionIn: index > 1 ? "承接前序镜" : "建立场景",
       actionOut: "继续向右",
     },
     orderedReferenceManifest: versions.map((version, order) => ({
@@ -69,7 +69,7 @@ function storyboard(index: number): StoryboardItem {
       sceneViewpointId: "dock-main-axis",
       lighting: "冷青晨雾",
       palette: "墨青灰蓝",
-      actionIn: index > 1 ? "承接上一镜" : "建立场景",
+      actionIn: index > 1 ? "承接前序镜" : "建立场景",
       actionOut: "继续向右",
       characters: [{
         characterId: "dugu",

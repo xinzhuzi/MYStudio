@@ -291,6 +291,36 @@ class PromoteChapter001ContinuityApprovalsTest(unittest.TestCase):
         result = validate_review_evidence([accepted])
         self.assertEqual(result[0]["bytes"], MAX_EVIDENCE_BYTES - 1)
 
+    def test_asset_promotion_never_marks_storyboard_downstream_expiry(self) -> None:
+        """提案五边界(09-29):资产批准推广不是分镜版本确认——即使分镜携带下游产物
+        (TTS 音频/提示词引用),批准链也不得写入 downstreamExpiry 过期标记;两道守卫
+        (visualReview/stale 三件套)语义原样保持。下游级联作废只发生在分镜人工批准
+        推广(promote_chapter001_storyboard_continuity)提交时。"""
+        before_store = json.loads(self.store_path.read_text(encoding="utf-8"))
+        storyboard = before_store["state"]["storyboards"][0]
+        storyboard["audioRef"] = {"kind": "audio", "path": "/exports/shot-001.wav"}
+        storyboard["prompt"] = "旧提示词"
+        storyboard["videoDesc"] = "旧运镜"
+        self.store_path.write_text(
+            json.dumps(before_store, ensure_ascii=False), encoding="utf-8"
+        )
+
+        report = self.promote(apply=True, human_confirmed=True)
+
+        self.assertFalse(report["dryRun"])
+        after_store = json.loads(self.store_path.read_text(encoding="utf-8"))
+        after_storyboard = after_store["state"]["storyboards"][0]
+        self.assertNotIn("downstreamExpiry", after_storyboard)
+        self.assertEqual(
+            after_storyboard["audioRef"], {"kind": "audio", "path": "/exports/shot-001.wav"}
+        )
+        self.assertEqual(after_storyboard["prompt"], "旧提示词")
+        for field in ("visualReview", "stale", "staleReason", "staleSince"):
+            self.assertEqual(after_storyboard[field], storyboard[field])
+        # 批准链自身报告口径不变:零分镜审核改动、零 stale 清除
+        self.assertEqual(report["storyboardReviewsChanged"], 0)
+        self.assertEqual(report["staleFlagsCleared"], 0)
+
 
 class PromoteHumanApprovedCandidateTest(unittest.TestCase):
     def setUp(self) -> None:

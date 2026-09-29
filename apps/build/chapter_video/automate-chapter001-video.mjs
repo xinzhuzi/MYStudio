@@ -14,6 +14,7 @@ const continuityPilotScript = resolve(buildRoot, 'generate_chapter001_continuity
 const fullPipelineRunnerScript = 'build/timeline/run-full-pipeline.ts';
 const remotionShotRunnerScript = 'build/remotion/render-shot-slots.ts';
 const visualContinuityPreflightScript = 'build/chapter_video/audit-visual-continuity.ts';
+const keyframeMobilityPrecheckScript = resolve(buildRoot, 'precheck_chapter001_keyframe_mobility.py');
 const storyboardImageHelper = resolve(appsRoot, 'build', 'chapter_video', 'generate-storyboard-image.mjs');
 const continuityAssetCandidateValidator = resolve(buildRoot, 'pipeline', 'chapter001_continuity_asset_candidate.py');
 const paidImageRequestLedgerPath = resolve(appsRoot, 'output', 'automation', 'chapter001-paid-image-request-ledger.jsonl');
@@ -22,6 +23,7 @@ const reportPath = resolve(appsRoot, 'output', 'automation', 'chapter001-video-r
 const packagedAppBin = resolve(appsRoot, 'release', 'build', 'mac-arm64', 'mac-arm64', '漫影工作室.app', 'Contents', 'MacOS', '漫影工作室');
 const installedAppBin = '/Applications/漫影工作室.app/Contents/MacOS/漫影工作室';
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
+const keyframeMobilityPrecheckEnabled = process.env.MYSTUDIO_CHAPTER_VIDEO_MOBILITY_PRECHECK === '1';
 const probeProvidersOnly = process.argv.includes('--probe-providers');
 const probeGenerationOnly = process.argv.includes('--probe-generation');
 const continuityPilotOnly = process.argv.includes('--continuity-pilot');
@@ -167,6 +169,34 @@ function requireVisualContinuityPreflight() {
 
 function sha256File(filePath) {
   return createHash('sha256').update(readFileSync(filePath)).digest('hex');
+}
+
+function runKeyframeMobilityPrecheck() {
+  // 提案三「静图可动性预检」开关位(默认关,MYSTUDIO_CHAPTER_VIDEO_MOBILITY_PRECHECK=1 才运行)。
+  // advisory 非阻断:非零退出只登记不拦链(exit1=存在仅微动/不动待人工确认,exit2=输入错误),
+  // 预检报告落 apps/output/automation/precheck-chapter001-keyframe-mobility-report.json。
+  const result = spawnSync('python3', [keyframeMobilityPrecheckScript], {
+    cwd: repoRoot,
+    env: process.env,
+    encoding: 'utf8',
+    timeout: 120_000,
+  });
+  let summary = '';
+  try {
+    const report = parseGeneratorOutput(result.stdout);
+    const counts = report.verdictCounts ?? {};
+    summary = ` movable=${counts.movable ?? '?'} microMotionOnly=${counts.microMotionOnly ?? '?'}`
+      + ` static=${counts.static ?? '?'} report=${report.reportPath ?? '?'}`;
+  } catch {
+    summary = ' (report stdout unparsed)';
+  }
+  console.log(`[video] keyframe mobility precheck (advisory)${summary}`);
+  if (result.status !== 0) {
+    console.log(
+      `[video] keyframe mobility precheck exit=${result.status} (advisory, chain continues; 不拦不删): `
+      + `${(result.stderr || result.stdout || '').trim().split('\n').slice(-3).join(' | ')}`,
+    );
+  }
 }
 
 function directorPlanAuditFields(generated) {
@@ -1406,6 +1436,10 @@ console.log(
   + `/${visualContinuityPreflight.storyboards}`,
 );
 stopExistingMYStudioInstances();
+
+if (keyframeMobilityPrecheckEnabled) {
+  runKeyframeMobilityPrecheck();
+}
 
 failureStage = 'generator';
 try {

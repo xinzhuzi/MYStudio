@@ -495,11 +495,18 @@ describe("desktop build scripts", () => {
     const tests = readdirSync(testsRoot).filter((name) => /^test_.*\.py$/.test(name));
 
     expect(pipelineTests).toEqual([]);
-    // 14 = 13 存量 + 09-29 新登记 test_lint_chapter001_dialogue_capacity.py
-    expect(tests).toHaveLength(14);
+    // 19 = 14 存量 + 09-29 本轮五件新登记(test_review_chapter001_duration_chain /
+    // test_precheck_chapter001_keyframe_mobility / test_dialogue_cue_numbering /
+    // test_ledger_chapter001_cross_layer / test_takeover_chapter001_finished_script)
+    expect(tests).toHaveLength(19);
     expect(tests).toContain("test_toonflow_portable_fixture.py");
     expect(tests).toContain("test_build_chapter001_visual_review_packet.py");
     expect(tests).toContain("test_lint_chapter001_dialogue_capacity.py");
+    expect(tests).toContain("test_dialogue_cue_numbering.py");
+    expect(tests).toContain("test_ledger_chapter001_cross_layer.py");
+    expect(tests).toContain("test_precheck_chapter001_keyframe_mobility.py");
+    expect(tests).toContain("test_review_chapter001_duration_chain.py");
+    expect(tests).toContain("test_takeover_chapter001_finished_script.py");
   });
 
   it("archives prior canonical JSON reports before writing the latest result", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ContinuityAssetVersion, StoryboardItem } from "@/types/studio";
+import type { ContinuityAssetVersion, ShotContinuityState, StoryboardItem } from "@/types/studio";
 import {
   approvedVisualReview,
   approvedVisualReviewIssues,
@@ -20,6 +20,7 @@ import {
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
 } from "./visual-continuity";
+import { findPromptAnaphora } from "./prompt-anaphora";
 
 function continuityAssetVersion(
   assetKind: ContinuityAssetVersion["assetKind"],
@@ -361,7 +362,7 @@ describe("storyboard visual continuity", () => {
   it("uses ordered approved versions and continuity state as the final gate", () => {
     const items = [storyboard(1), storyboard(2)];
     expect(assertVisualContinuityApproved(items, storyboardAssetVersions())).toMatchObject({ ok: true, approved: 2 });
-    expect(buildContinuityPrompt(items[1]!.continuityState!)).toContain("承接上一镜sb-1");
+    expect(buildContinuityPrompt(items[1]!.continuityState!)).toContain("前序镜 sb-1");
     expect(buildContinuityPrompt(items[1]!.continuityState!)).toContain("【出镜人数锁】本镜出镜角色总数：1");
     expect(buildContinuityPrompt(items[1]!.continuityState!)).toContain("禁止重复、克隆或因多视图参考新增人物");
     expect(buildContinuityPrompt(items[1]!.continuityState!)).toContain("前景、中景、远景和背景合计只能出现上述 1 个角色实例");
@@ -645,6 +646,219 @@ describe("storyboardAxisIssues 轴线三态机检(跨镜连续性规范 §四)",
     const items = [storyboard(1), storyboard(2), storyboard(3)];
     const audit = auditVisualContinuity(items, storyboardAssetVersions());
     expect(audit.issues.filter((issue) => issue.code.startsWith("axis."))).toEqual([]);
+    expect(audit).toMatchObject({ ok: true, approved: 3 });
+  });
+});
+
+describe("ShotContinuityState §七P2 可选字段守卫式消费(worldAnchor/dialogueCueId+dialogueText/frameReferencePresence)", () => {
+  type ContinuityState = NonNullable<StoryboardItem["continuityState"]>;
+  /** 故障注入:绕过编译期类型模拟持久化脏数据,验证运行时守卫能拦。 */
+  const asWorldAnchor = (value: unknown) => value as ContinuityState["worldAnchor"];
+  const asPresence = (value: unknown) => value as ContinuityState["frameReferencePresence"];
+
+  /** 合法样例:§二双写表自拟示例(地标+相对关系)+§五拆段表 S07-D1a 行+§一⑧三态。 */
+  function withLegalExtendedFields(item: StoryboardItem): StoryboardItem {
+    item.continuityState!.worldAnchor = [{
+      characterId: "dugu",
+      landmark: "紫檀书案",
+      relation: "立于紫檀书案南侧，背朝西窗",
+    }];
+    item.continuityState!.dialogueCueId = "S07-D1a";
+    item.continuityState!.dialogueText = "你可知这十年，我把那封信读了几遍？";
+    item.continuityState!.frameReferencePresence = { first: "present", last: "pending" };
+    return item;
+  }
+
+  it("指纹决策:事后加入合法新字段,内容指纹与审核输入指纹逐字节不变→既有批准零扰动", () => {
+    const item = storyboard(1);
+    const fingerprintBefore = visualContinuityFingerprint(item);
+    const reviewFingerprintBefore = visualReviewInputFingerprint(item);
+    withLegalExtendedFields(item);
+    expect(visualContinuityFingerprint(item)).toBe(fingerprintBefore);
+    expect(visualReviewInputFingerprint(item)).toBe(reviewFingerprintBefore);
+    // 不需要 rebake:事后加字段不使工厂烘好的指纹失效。
+    expect(storyboardContinuityStateIssues(item)).toEqual([]);
+    expect(approvedVisualReviewIssues(item, item.visualReview!, storyboardAssetVersions())).toEqual([]);
+  });
+
+  it("合法值零新 issue:整组 audit 输出与无新字段时逐项一致", () => {
+    const plainAudit = auditVisualContinuity([storyboard(1), storyboard(2)], storyboardAssetVersions());
+    const extendedAudit = auditVisualContinuity(
+      [withLegalExtendedFields(storyboard(1)), withLegalExtendedFields(storyboard(2))],
+      storyboardAssetVersions(),
+    );
+    expect(extendedAudit).toEqual(plainAudit);
+    expect(extendedAudit).toMatchObject({ ok: true, approved: 2 });
+  });
+
+  it("dialogueCueId 合法变体(段序可省/多位镜号台词序)零 issue", () => {
+    for (const cueId of ["S07-D1", "S107-D10", "S07-D2a"]) {
+      const item = storyboard(1);
+      item.continuityState!.dialogueCueId = cueId;
+      expect(storyboardContinuityStateIssues(item)).toEqual([]);
+    }
+  });
+
+  it("worldAnchor 非数组/空数组/条目缺字段/条目非对象 → continuity.anchor 可检出", () => {
+    const notArray = storyboard(1);
+    notArray.continuityState!.worldAnchor = asWorldAnchor("紫檀书案");
+    expect(storyboardContinuityStateIssues(notArray)).toMatchObject([
+      { code: "continuity.anchor", message: expect.stringContaining("非空") },
+    ]);
+
+    const emptyArray = storyboard(1);
+    emptyArray.continuityState!.worldAnchor = [];
+    expect(storyboardContinuityStateIssues(emptyArray)).toMatchObject([
+      { code: "continuity.anchor" },
+    ]);
+
+    const missingRelation = storyboard(1);
+    missingRelation.continuityState!.worldAnchor = asWorldAnchor([
+      { characterId: "dugu", landmark: "紫檀书案", relation: "立于紫檀书案南侧，背朝西窗" },
+      { characterId: "dugu", landmark: "西窗" },
+    ]);
+    const entryIssues = storyboardContinuityStateIssues(missingRelation);
+    expect(entryIssues).toHaveLength(1);
+    expect(entryIssues[0]).toMatchObject({ code: "continuity.anchor" });
+    expect(entryIssues[0]!.message).toContain("第 2 条");
+
+    const nullEntry = storyboard(1);
+    nullEntry.continuityState!.worldAnchor = asWorldAnchor([null]);
+    expect(storyboardContinuityStateIssues(nullEntry)).toMatchObject([
+      { code: "continuity.anchor" },
+    ]);
+  });
+
+  it("dialogueCueId 非法格式/dialogueText 空白 → continuity.dialogue 可检出", () => {
+    const badCueId = storyboard(1);
+    badCueId.continuityState!.dialogueCueId = "第七镜第二段";
+    const cueIssues = storyboardContinuityStateIssues(badCueId);
+    expect(cueIssues).toHaveLength(1);
+    expect(cueIssues[0]).toMatchObject({ code: "continuity.dialogue" });
+    expect(cueIssues[0]!.message).toContain("S{镜号}-D{台词序}{段序}");
+
+    const missingSPrefix = storyboard(1);
+    missingSPrefix.continuityState!.dialogueCueId = "D2a";
+    expect(storyboardContinuityStateIssues(missingSPrefix)).toMatchObject([
+      { code: "continuity.dialogue" },
+    ]);
+
+    const blankText = storyboard(1);
+    blankText.continuityState!.dialogueText = "   ";
+    expect(storyboardContinuityStateIssues(blankText)).toMatchObject([
+      { code: "continuity.dialogue" },
+    ]);
+  });
+
+  it("frameReferencePresence 非对象/缺一侧/枚举外值 → continuity.frame 可检出", () => {
+    const notObject = storyboard(1);
+    notObject.continuityState!.frameReferencePresence = asPresence("有图");
+    expect(storyboardContinuityStateIssues(notObject)).toMatchObject([
+      { code: "continuity.frame" },
+    ]);
+
+    const missingLast = storyboard(1);
+    missingLast.continuityState!.frameReferencePresence = asPresence({ first: "present" });
+    const missingIssues = storyboardContinuityStateIssues(missingLast);
+    expect(missingIssues).toHaveLength(1);
+    expect(missingIssues[0]).toMatchObject({ code: "continuity.frame" });
+    expect(missingIssues[0]!.message).toContain("last");
+
+    const badEnum = storyboard(1);
+    badEnum.continuityState!.frameReferencePresence = asPresence({ first: "present", last: "有图" });
+    const enumIssues = storyboardContinuityStateIssues(badEnum);
+    expect(enumIssues).toHaveLength(1);
+    expect(enumIssues[0]).toMatchObject({ code: "continuity.frame" });
+    expect(enumIssues[0]!.message).toContain("present/pending/missing");
+  });
+
+  it("守卫接入审计链:非法新字段使 audit 不通过、既有批准退回 pending(逐条恰一码)", () => {
+    const item = withLegalExtendedFields(storyboard(1));
+    item.continuityState!.frameReferencePresence = asPresence({ first: "present", last: "有图" });
+    const audit = auditVisualContinuity([item], storyboardAssetVersions());
+    expect(audit.ok).toBe(false);
+    expect(audit.issues).toEqual([
+      expect.objectContaining({ storyboardId: "sb-1", code: "continuity.frame" }),
+    ]);
+    expect(audit).toMatchObject({ approved: 0, pending: 1 });
+  });
+});
+
+describe("buildContinuityPrompt 禁指代词(§三/§七P3:模板不得自产指代)", () => {
+  /** 干净状态值(动作/朝向文本不含 §三清单词)——锁模板本身的零命中,
+   *  与逐镜状态值(可能含「继续」等)无关。 */
+  function cleanContinuityState(previousStoryboardId?: string): ShotContinuityState {
+    return {
+      groupId: "dock-1",
+      previousStoryboardId,
+      sceneVersionId: "dock:morning",
+      sceneViewpointId: "dock:reverse",
+      lighting: "冷青晨雾",
+      palette: "墨青灰蓝",
+      actionIn: "河雾压低，人物立于栈道东端",
+      actionOut: "人物向右离画",
+      characters: [{
+        characterId: "dugu",
+        versionId: "dugu:base",
+        position: "中前",
+        orientation: "3/4朝右",
+        actionIn: "迈步",
+        actionOut: "停在画面右侧回望",
+      }],
+      inputFingerprint: "",
+    };
+  }
+
+  it("承接镜:模板产物经 findPromptAnaphora 零命中,且以组内前序镜编号的事实表述衔接", () => {
+    const prompt = buildContinuityPrompt(cleanContinuityState("sb-1"));
+    expect(findPromptAnaphora(prompt)).toEqual([]);
+    expect(prompt).toContain("sb-1");
+    expect(prompt).not.toContain("上一镜");
+  });
+
+  it("首镜:模板产物经 findPromptAnaphora 零命中", () => {
+    expect(findPromptAnaphora(buildContinuityPrompt(cleanContinuityState()))).toEqual([]);
+  });
+});
+
+describe("prompt.anaphora 审计接线(§三/§七P3:只检产物层 storyboard.prompt)", () => {
+  it("产物 prompt 含禁词 → audit 发 prompt.anaphora,message 带命中词摘录与修复三步", () => {
+    const item = storyboard(1);
+    item.prompt = "镜头1：门内晏燎继续吐纳，远岸铁链压沉。";
+    // 重烘两级指纹,使唯一红因=产物禁词(排除 stale 干扰)。
+    item.continuityState!.inputFingerprint = visualContinuityFingerprint(item);
+    item.visualReview!.inputFingerprint = visualReviewInputFingerprint(item);
+    const audit = auditVisualContinuity([item], storyboardAssetVersions());
+    expect(audit.issues).toEqual([
+      expect.objectContaining({ storyboardId: "sb-1", code: "prompt.anaphora" }),
+    ]);
+    expect(audit.issues[0]!.message).toContain("继续");
+    expect(audit.issues[0]!.message).toContain("吐纳");
+    expect(audit.issues[0]!.message).toContain("①");
+    expect(audit.issues[0]!.message).toContain("②");
+    expect(audit.issues[0]!.message).toContain("③");
+    expect(audit).toMatchObject({ ok: false, approved: 1 });
+  });
+
+  it("多禁词逐词发码(每词一条,各自可修)", () => {
+    const item = storyboard(1);
+    item.prompt = "镜头1：人物继续前行，姿态照旧。";
+    const hits = auditVisualContinuity([item], storyboardAssetVersions())
+      .issues.filter((issue) => issue.code === "prompt.anaphora");
+    expect(hits).toHaveLength(2);
+    expect(hits.map((hit) => hit.message)).toEqual([
+      expect.stringContaining("继续"),
+      expect.stringContaining("照旧"),
+    ]);
+  });
+
+  it("分层豁免:计划层文本(actionIn/actionOut 含「继续」)不进本检,只检 prompt 字段", () => {
+    const items = [storyboard(1), storyboard(2), storyboard(3)];
+    // 标准 fixture 即样本:characters.actionOut=「继续前行」属计划层合法缩写,
+    // 产物 prompt=「镜头 N」干净 → 零 prompt.anaphora(§三双层规则)。
+    expect(items.every((item) => item.prompt === `镜头 ${item.index}`)).toBe(true);
+    const audit = auditVisualContinuity(items, storyboardAssetVersions());
+    expect(audit.issues.filter((issue) => issue.code === "prompt.anaphora")).toEqual([]);
     expect(audit).toMatchObject({ ok: true, approved: 3 });
   });
 });

@@ -8,6 +8,7 @@ from pathlib import Path
 from apps.build.chapter_video.repair_chapter001_visual_continuity import (
     apply_available_versions_to_references,
     repair_storyboards,
+    sync_pending_asset_manifest,
     sync_script_shot_asset_ids,
 )
 
@@ -329,6 +330,171 @@ class RepairChapter001VisualContinuityTest(unittest.TestCase):
 
         second = sync_script_shot_asset_ids(script, storyboards)
         self.assertEqual(second["changedShots"], [])
+
+
+    def build_interval_state(
+        self,
+        *,
+        shot4_chained: bool,
+        shot4_legacy_keyframe: bool,
+    ) -> tuple[dict, Path]:
+        """§六受影响区间夹具:镜2 直接改(资产引用更新),1-4 同组,5 异组。
+
+        - 3 经 previousStoryboardId 链依赖 2;4 断链(无 prev)或携带回接关键帧;
+        - 4/5 预置 approved visualReview,用于断言「区间外 stale/重审零变化」。
+        """
+        lantern = self.project_dir / "lantern-v2.png"
+        lantern.write_bytes(b"lantern-v2")
+        manifest = {
+            "projectDir": str(self.project_dir),
+            "continuityAssetVersions": [{
+                "assetId": "prop-lantern",
+                "versionId": "prop-lantern:dock-lit:v2",
+                "assetKind": "prop",
+                "label": "dock-lit",
+                "referenceImagePaths": [str(lantern)],
+                "source": "test-bible",
+                "reviewStatus": "pending",
+                "approval": None,
+                "approved": False,
+            }],
+        }
+        manifest_path = self.project_dir / "asset-manifest.json"
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+
+        def shot(index: int, group: str, previous: str | None) -> dict:
+            item = {
+                "id": f"sb-chapter-001-{index:03d}",
+                "episodeId": "chapter-001",
+                "index": index,
+                "orderedReferenceManifest": [
+                    {
+                        "order": 1,
+                        "assetId": "prop-lantern" if index == 2 else "scene-dock",
+                        "assetName": "灯笼" if index == 2 else "金水河码头",
+                        "assetKind": "prop" if index == 2 else "scene",
+                        "versionId": "prop-lantern:dock-lit:v1" if index == 2 else "scene-dock:main:v1",
+                        "imagePath": "/old/lantern.png" if index == 2 else "/old/dock.png",
+                        "referenceRole": "prop-state" if index == 2 else "scene-viewpoint",
+                        "approved": True,
+                    }
+                ],
+                "continuityState": {"groupId": group},
+            }
+            if previous is not None:
+                item["continuityState"]["previousStoryboardId"] = previous
+            return item
+
+        storyboards = [
+            shot(1, "chapter-001:dock", None),
+            shot(2, "chapter-001:dock", "sb-chapter-001-001"),
+            shot(3, "chapter-001:dock", "sb-chapter-001-002"),
+        ]
+        shot4 = shot(4, "chapter-001:dock", "sb-chapter-001-003" if shot4_chained else None)
+        if shot4_legacy_keyframe:
+            shot4["keyframes"] = [{
+                "frameId": "sb-chapter-001-004-kf-1",
+                "mediaRef": {"kind": "image", "path": "/frames/002-tail.png"},
+                "inUs": 0,
+                "origin": {"kind": "legacy-shot", "legacyIndex": 2},
+            }]
+        shot4["visualReview"] = {"status": "approved", "reviewedAt": 123}
+        shot5 = shot(5, "chapter-001:inn", None)
+        shot5["visualReview"] = {"status": "approved", "reviewedAt": 456}
+        storyboards.extend([shot4, shot5])
+        # 镜3 的回接关键帧:依赖被改镜 2(legacyIndex=2)
+        storyboards[2]["keyframes"] = [{
+            "frameId": "sb-chapter-001-003-kf-1",
+            "mediaRef": {"kind": "image", "path": "/frames/002-tail.png"},
+            "inUs": 0,
+            "origin": {"kind": "legacy-shot", "legacyIndex": 2},
+        }]
+        state = {"storyboards": storyboards, "continuityAssetVersions": []}
+        return state, manifest_path
+
+    def test_asset_sync_stale_propagation_stops_at_stable_upper_bound(self) -> None:
+        """P5 验收:改中段一镜(镜2),区间=[2,3];断链镜4 与异组镜5 stale/重审零变化;
+        区间内镜3 的回接旧帧关键帧标「已过期-禁止使用」(与 A3 下游标记同词表)。"""
+        state, manifest_path = self.build_interval_state(
+            shot4_chained=False,
+            shot4_legacy_keyframe=False,
+        )
+        shot4_before = json.dumps(state["storyboards"][3], ensure_ascii=False, sort_keys=True)
+        shot5_before = json.dumps(state["storyboards"][4], ensure_ascii=False, sort_keys=True)
+
+        report = sync_pending_asset_manifest(state, manifest_path)
+
+        self.assertEqual(report["directlyChangedStoryboards"], ["sb-chapter-001-002"])
+        self.assertEqual(report["propagatedStoryboards"], ["sb-chapter-001-003"])
+        self.assertEqual(
+            report["intervals"],
+            [{
+                "groupId": "chapter-001:dock",
+                "changedStoryboardId": "sb-chapter-001-002",
+                "affectedShotIds": ["sb-chapter-001-002", "sb-chapter-001-003"],
+                "upperShotId": "sb-chapter-001-004",
+            }],
+        )
+        self.assertTrue(state["storyboards"][1]["stale"])
+        self.assertTrue(state["storyboards"][2]["stale"])
+        self.assertEqual(
+            state["storyboards"][2]["staleReason"], "上游连续镜头引用的资产 Bible 已更新"
+        )
+        # 区间外零变化(§七P5:SH08 起不重算、不重审——此处=断链镜4/异组镜5)
+        self.assertEqual(
+            json.dumps(state["storyboards"][3], ensure_ascii=False, sort_keys=True),
+            shot4_before,
+        )
+        self.assertEqual(
+            json.dumps(state["storyboards"][4], ensure_ascii=False, sort_keys=True),
+            shot5_before,
+        )
+        # 区间内回接旧帧关键帧被标已过期-禁止使用;区间外镜4 无关键帧不涉及
+        kf = state["storyboards"][2]["keyframes"][0]
+        self.assertEqual(kf["status"], "已过期-禁止使用")
+        self.assertIn("旧图配新镜清单", kf["expiredReason"])
+        self.assertGreater(kf["expiredSince"], 0)
+        self.assertEqual(
+            report["expiredKeyframes"],
+            [{
+                "storyboardId": "sb-chapter-001-003",
+                "frameId": "sb-chapter-001-003-kf-1",
+                "targetsLegacyIndex": 2,
+            }],
+        )
+
+    def test_asset_sync_legacy_keyframe_extends_interval(self) -> None:
+        """第二依赖判据:镜4 断链但关键帧回接被改镜(legacyIndex=2)→ 依赖成立,
+        区间延至镜4(其关键帧同样标过期);异组镜5 仍零变化。"""
+        state, manifest_path = self.build_interval_state(
+            shot4_chained=False,
+            shot4_legacy_keyframe=True,
+        )
+        shot5_before = json.dumps(state["storyboards"][4], ensure_ascii=False, sort_keys=True)
+
+        report = sync_pending_asset_manifest(state, manifest_path)
+
+        self.assertEqual(
+            report["propagatedStoryboards"],
+            ["sb-chapter-001-003", "sb-chapter-001-004"],
+        )
+        self.assertEqual(
+            report["intervals"][0]["affectedShotIds"],
+            ["sb-chapter-001-002", "sb-chapter-001-003", "sb-chapter-001-004"],
+        )
+        self.assertEqual(report["intervals"][0]["upperShotId"], "sb-chapter-001-005")
+        self.assertTrue(state["storyboards"][3]["stale"])
+        self.assertEqual(
+            state["storyboards"][3]["keyframes"][0]["status"], "已过期-禁止使用"
+        )
+        self.assertEqual(
+            json.dumps(state["storyboards"][4], ensure_ascii=False, sort_keys=True),
+            shot5_before,
+        )
+        self.assertEqual(
+            {item["storyboardId"] for item in report["expiredKeyframes"]},
+            {"sb-chapter-001-003", "sb-chapter-001-004"},
+        )
 
 
 if __name__ == "__main__":
