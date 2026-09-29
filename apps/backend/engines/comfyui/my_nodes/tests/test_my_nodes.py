@@ -31,6 +31,8 @@ def test_registry_exposes_first_batch_nodes():
         "MyDaojieRoute",  # 09-21 [90] 子图按型线路路由(只选线不加载)
         "MyQi21DaojieBase",  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
         "MyQi21SpeedSelect",  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
+        "MyImageGridSplit",  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
+        "MyVideoFrameGrab",  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
         "MyModelBus",     # 09-21 模型分线排(1进9出,画布走线治理备件)
         "MyCharsheetLabels",  # 09-20 设定表汉字程序叠加(案一)
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)

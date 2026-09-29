@@ -27,6 +27,8 @@ from .nodes.my_daojie_lora_stack import MyDaojieLoraStack
 from .nodes.my_daojie_route import MyDaojieRoute
 from .nodes.my_qi21_base import MyQi21DaojieBase
 from .nodes.my_qi21_speed_select import MyQi21SpeedSelect
+from .nodes.my_image_grid_split import MyImageGridSplit
+from .nodes.my_video_frame_grab import MyVideoFrameGrab
 from .nodes.my_model_bus import MyModelBus
 from .nodes.my_charsheet_labels import MyCharsheetLabels
 from . import cloud_takeover
@@ -109,6 +111,8 @@ NODE_CLASS_MAPPINGS = {
     "MyDaojieRoute": MyDaojieRoute,
     "MyQi21DaojieBase": MyQi21DaojieBase,  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
     "MyQi21SpeedSelect": MyQi21SpeedSelect,  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
+    "MyImageGridSplit": MyImageGridSplit,  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
+    "MyVideoFrameGrab": MyVideoFrameGrab,  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
     "MyModelBus": MyModelBus,
     "MyCharsheetLabels": MyCharsheetLabels,
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
@@ -137,6 +141,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyDaojieRoute": "漫影 道劫按型线路路由",
     "MyQi21DaojieBase": "道劫·qi21底座九选一",
     "MyQi21SpeedSelect": "Q2-1 加速档位(三选一·默认直出40步)",
+    "MyImageGridSplit": "漫影 宫格切割回灌",
+    "MyVideoFrameGrab": "漫影 视频截帧回灌",
     "MyModelBus": "漫影 道劫模型分线排",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
