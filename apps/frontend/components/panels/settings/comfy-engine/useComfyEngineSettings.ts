@@ -36,6 +36,45 @@ function isSidecarDownError(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith("本地生图服务未运行");
 }
 
+/** POST /comfy/engine/start(撞 sidecar 死窗时 prepare 自愈补试一次):
+ * 手动启动(startService)与静默确保(ensureServiceRunning)共用同一条链。 */
+async function requestEngineStart(
+  client: ComfyEngineClient,
+  healSidecar: () => Promise<void>,
+): Promise<ComfyEngineAckReply> {
+  try {
+    return await client.startEngine();
+  } catch (error) {
+    if (!isSidecarDownError(error)) throw error;
+    await healSidecar();
+    return await client.startEngine();
+  }
+}
+
+// --- 跨实例引擎自动启动共享态(09-29 用户令「打开 ComfyUI 视图即确保引擎就绪」)---
+// ComfyCanvasStudio 双实例并存坐实(studio storyboard TabsContent forceMount 恒挂
+// + imageWorkflow 激活挂 + 沉浸链 ComfyWorkspace)= 多个 hook 实例,ref 单飞只挡
+// 同实例重入挡不住跨实例并发 POST——单例 promise 与冷却时间戳住 module 级,同窗
+// 口全实例共享(后端 start 幂等,双 POST 无功能害,但会双 toast/冗余 job,闸在前端)。
+/** 用户显式停止后的自动启动冷却闩:不闩则「停不掉」——设置页 stopService 后切进
+ * 画布,挂载确保谓词(state=ready 且未跑)又把引擎拉起,显式停止被视图切换反复
+ * 推翻。窗口内自动确保一律让路;手动启动(startService)不受闩且成功即解闩。 */
+const MANUAL_STOP_COOLDOWN_MS = 5 * 60_000;
+/** 静默确保的重试冷却:每次发起(无论成败)后窗口内不再重发——①失败翻
+ * isStartingService 会再满足挂载 effect 谓词,冷却断循环重发;②成功但状态
+ * 快照仍示未跑(如 port 缺失)时同样循环轰炸。手动链(startService)不受影响。 */
+const ENSURE_RETRY_COOLDOWN_MS = 30_000;
+let engineEnsureInFlight: Promise<boolean> | null = null;
+let lastManualStopAt = 0;
+let lastEnsureAttemptAt = 0;
+
+/** 测试隔离:module 级共享态跨用例泄漏会让后续用例的 ensure 空跑,测试前置重置。 */
+export function resetComfyEngineAutoStartStateForTests() {
+  engineEnsureInFlight = null;
+  lastManualStopAt = 0;
+  lastEnsureAttemptAt = 0;
+}
+
 export interface UseComfyEngineSettingsOptions {
   /** 覆盖数据通道(注入 mock client);不传用 window.comfyEngine。 */
   client?: ComfyEngineClient;
@@ -485,17 +524,12 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     if (!client) return;
     setIsStartingService(true);
     try {
-      let reply: ComfyEngineAckReply;
-      try {
-        reply = await client.startEngine();
-      } catch (error) {
-        // 09-11 P3 补缝:点击瞬间 sidecar 恰好死着(探测通道的自愈要几秒)——
-        // 仅对「服务不在」类失败当场 prepare 拉起补试一次,连续两败如实报错
-        if (!isSidecarDownError(error)) throw error;
-        await healSidecar();
-        reply = await client.startEngine();
-      }
+      // 09-11 P3 补缝保留:点击瞬间 sidecar 恰好死着(探测通道的自愈要几秒)——
+      // 仅对「服务不在」类失败当场 prepare 拉起补试一次,连续两败如实报错
+      const reply = await requestEngineStart(client, healSidecar);
       if (reply.accepted) {
+        // 手动启动成功=用户意图已翻回「要跑」,解除显式停止冷却闩(09-29)
+        lastManualStopAt = 0;
         toast.success("ComfyUI 引擎服务已启动");
       } else {
         toast.error(reply.message || "服务启动失败");
@@ -521,6 +555,9 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
         reply = await client.stopEngine();
       }
       if (reply.accepted) {
+        // 显式停止落闩(09-29):窗口内的自动确保(ensureServiceRunning)让路,
+        // 防视图切换反复推翻用户停止意图
+        lastManualStopAt = Date.now();
         toast.success("ComfyUI 引擎服务已停止");
       } else {
         toast.error(reply.message || "服务停止失败");
@@ -528,6 +565,47 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
       await refreshStatus();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "服务停止失败");
+    }
+  }, [client, healSidecar, refreshStatus]);
+
+  // 静默确保引擎在跑(09-29 用户令「打开 ComfyUI 视图即确保引擎就绪」):
+  // startService 的无声孪生——同一 POST+sidecar 自愈链,零 toast 不打断用户,
+  // 画布 spinner→webview 即反馈;失败不弹窗(画布留既有「启动 ComfyUI」按钮走
+  // 手动链报错),只落诊断日志。幂等防抖三道:后端 already_running 快路径 +
+  // module 级单例 promise(跨 hook 实例/视图重挂载/StrictMode 双挂载只发一发)
+  // + 手动停止冷却闩与失败冷却(见 module 顶共享态注释)。
+  const ensureServiceRunning = useCallback(async () => {
+    if (!client) return;
+    if (Date.now() - lastManualStopAt < MANUAL_STOP_COOLDOWN_MS) return;
+    if (Date.now() - lastEnsureAttemptAt < ENSURE_RETRY_COOLDOWN_MS) return;
+    setIsStartingService(true);
+    try {
+      const run = engineEnsureInFlight ?? (engineEnsureInFlight = (async () => {
+        try {
+          await requestEngineStart(client, healSidecar);
+          return true;
+        } catch (error) {
+          void logEvent({
+            category: "runtime",
+            level: "error",
+            message: "comfy-engine auto ensure start failed",
+            context: { message: error instanceof Error ? error.message : String(error) },
+          });
+          return false;
+        } finally {
+          // 成败统一落冷却(见 ENSURE_RETRY_COOLDOWN_MS 注释:失败防 effect 循环
+          // 重发,成功防状态快照仍示未跑时的循环轰炸)
+          lastEnsureAttemptAt = Date.now();
+        }
+      })());
+      try {
+        await run;
+      } finally {
+        if (engineEnsureInFlight === run) engineEnsureInFlight = null;
+      }
+      await refreshStatus();
+    } finally {
+      setIsStartingService(false);
     }
   }, [client, healSidecar, refreshStatus]);
 
@@ -582,6 +660,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     setModelsDir,
     runDoctor,
     startService,
+    ensureServiceRunning,
     stopService,
     searchCatalog,
     installPlugin,

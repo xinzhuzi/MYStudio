@@ -4,7 +4,9 @@
 // webview 嵌自管引擎完整前端(ComfyUI 原生界面:节点库/工作流/插件管理)。
 // 引擎状态机复用设置页引擎卡链(useComfyEngineSettings):
 // - 未安装/需准备 → 一键安装(手动点击,绝不自动)
-// - 已就绪未跑 → 启动按钮(冷启动 job 轮询,torch 加载可达两分钟)
+// - 已就绪未跑 → 进视图即静默自动拉起引擎(09-29 用户令「打开 ComfyUI 视图
+//   即确保引擎就绪」:复用设置页 start 引擎链,零 toast 不打断,见挂载确保
+//   effect);手动启动按钮兜底(冷启动 job 轮询,torch 加载可达两分钟)
 // - 运行中(port 就绪) → webview 指向 http://127.0.0.1:<port>/
 // 该 tab 也是后续阶段(业务自定义节点/画布主体切换)的调试台。
 
@@ -366,6 +368,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
     activeJob,
     installEngine,
     startService,
+    ensureServiceRunning,
     isStartingService,
     } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
 
@@ -521,6 +524,30 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
     }
     prevRunningRef.current = running;
   }, [running]);
+
+  // 09-29 用户令「打开 ComfyUI 视图即确保引擎就绪」:进画布(两路挂载链任一:
+  // 本地模型沉浸视图 / 分镜制作画布)且引擎已装就绪未跑时,静默后台拉起引擎。
+  // running 口径 0929 S2 根修后含令牌核验(后端 status:健康空令牌孤儿按未跑
+  // 上报)——「仅开画布」即可触达收编/自愈机器,不再被纯 HTTP 健康探的假
+  // running 挡住;令牌一致的正常在跑引擎照旧零重发(幂等闸不变)。
+  // 防重复触发三道闸(hook 内实现,见 ensureServiceRunning):
+  // ①本谓词挡已跑(!running)/在启(!isStartingService)/任务在途
+  //   (activeJob running=install·update·reset 等)。后端 job 闸按类别去重
+  //   (engine-start 在跑则复用既有 job;install/update/reset 各自类别自闸),
+  //   跨类别并发并无「抢发必败」的全局单任务闸——双向时序由后端各自收敛,
+  //   此谓词只省前端一发冗余请求与冗余 toast;
+  // ②module 级单例 promise 挡跨实例并发(studio storyboard forceMount+imageWorkflow
+  //   双画布=多 hook 实例)与视图重挂载(切 tab 即卸载重挂)+ StrictMode 双挂载;
+  // ③手动停止冷却闩与失败冷却(hook module 顶共享态)。
+  // status 未就位(null)时不发——挂载探测/有界重试拉到状态后本 effect 重跑补发。
+  // 已知限制(暂不治,记档):仅护挂载时点,引擎中途死→画布 webview 不自愈
+  // (hook 无常驻状态轮询,刷新=重进视图重新探测)。
+  useEffect(() => {
+    if (!status?.installed || status.state !== "ready") return;
+    if (running || isStartingService) return;
+    if (activeJob?.state === "running") return;
+    void ensureServiceRunning();
+  }, [status, running, isStartingService, activeJob, ensureServiceRunning]);
 
   if (!hasBridge) {
     return (

@@ -5,6 +5,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComfyCanvasStudio, buildCanvasFitScript, buildOverviewOpenScript } from "./ComfyCanvasStudio";
 import { createMockComfyEngineClient } from "@/components/panels/settings/comfy-engine/mock-comfy-engine-client";
+import { resetComfyEngineAutoStartStateForTests } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import type { ComfyEngineClient, ComfyEngineStatus } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
@@ -64,6 +65,9 @@ vi.mock("@/stores/project/project-store", () => ({ useProjectStore: {
 
 afterEach(() => {
   cleanup();
+  // 09-29 自动启动共享态(module 级)跨用例隔离:上个用例的冷却/单例残留
+  // 会让下个用例的挂载确保空跑
+  resetComfyEngineAutoStartStateForTests();
   delete (window as { comfyEngine?: ComfyEngineClient }).comfyEngine;
   delete window.remotionQueue;
   vi.clearAllMocks();
@@ -127,15 +131,42 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     expect(installButton).toBeTruthy();
   });
 
-  it("引擎就绪未跑:启动按钮占位", async () => {
-    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+  it("引擎就绪未跑:进视图即静默自动启动(09-29 打开视图即确保就绪),零 toast 一发", async () => {
+    const base = stubClient({
       installed: true,
       state: "ready",
       serviceRunning: false,
       port: 17123,
     });
+    const startEngine = vi.fn(async () => base.startEngine());
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...base, startEngine };
     render(<ComfyCanvasStudio />);
-    expect(await screen.findByRole("button", { name: "启动 ComfyUI" })).toBeTruthy();
+    // 静默链:挂载探测到就绪未跑 → 自动 ensure → POST start 恰一发 → 状态翻
+    // running → webview 就位(全程无成功 toast,不打断用户)
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    expect(startEngine).toHaveBeenCalledTimes(1);
+    expect(toasts.success).not.toHaveBeenCalledWith("ComfyUI 引擎服务已启动");
+  });
+
+  it("引擎已在跑:进视图零 startEngine(幂等,已 running 秒回不重发)", async () => {
+    const base = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    const startEngine = vi.fn(async () => base.startEngine());
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = { ...base, startEngine };
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    await act(async () => undefined);
+    expect(startEngine).not.toHaveBeenCalled();
   });
 
   it("myScope=模块分野标记进 webview URL(09-11:侧栏按模块分工)", async () => {

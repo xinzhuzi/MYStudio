@@ -110,6 +110,9 @@ def test_start_sync_spawns_engine_in_own_session_with_watchdog(tmp_path, monkeyp
     manager = EngineManager()
     monkeypatch.setattr(manager, "_orphan_is_comfyui", lambda port: False)
     monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
+    # 0929 动态续接:进程枚举=空(本测试锚定 spawn 会话契约;_FakePopen 是
+    # spawn 度量器,真跑 ps 会经 subprocess.run 内部 Popen 污染 spawn_calls)
+    monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
 
     spawn_calls: list[dict] = []
     watchdog_calls: list[tuple] = []

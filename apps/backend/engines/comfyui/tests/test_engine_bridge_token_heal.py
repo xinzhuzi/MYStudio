@@ -1,7 +1,9 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""0928 令牌链根修回归:环a spawn 令牌决议 + 环b 收编令牌核验自愈。
+"""0928 令牌链根修回归:环a spawn 令牌决议 + 环b 收编令牌核验自愈 + 环c
+status 健康口径纳入令牌核验(0929 S2 根修:健康空令牌孤儿按未跑上报,
+「仅开画布」即可触达环b 自愈机器)。
 
 病灶(0926 侧栏收口役复发):keeper/终端拉起的 engine_manager 宿主 env 无
 MANYING_LOCAL_IMAGE_TOKEN → spawn 注入空令牌(bridge_contract.BRIDGE_TOKEN
@@ -52,6 +54,9 @@ class _FakePopen:
 def _stub_spawn_success(monkeypatch, manager: EngineManager) -> None:
     """spawn 成功路径桩:Popen 捕获/看门狗/守卫/健康/节点数/端口全替身。"""
     _FakePopen.calls.clear()
+    # 0929 动态续接:进程枚举=空(本文件测令牌链,不测枚举;_FakePopen 是
+    # spawn 次数度量器,真跑 ps 会经 subprocess.run 内部 Popen 污染计数)
+    monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
     monkeypatch.setattr(em.subprocess, "Popen", _FakePopen)
     monkeypatch.setattr(em, "_spawn_engine_watchdog", lambda proc, log_path: None)
     monkeypatch.setattr(manager, "_enable_guard", lambda: None)
@@ -224,6 +229,81 @@ class TestAdoptTokenHeal:
 
         assert "无法停止" in str(ctx.value)
         assert _FakePopen.calls == [], "自愈失败不得 spawn(双引擎红线)"
+
+
+# ── 环c:status 健康口径纳入令牌核验(0929 S2 根修)───────────────────
+
+class TestStatusRunningRequiresBridgeToken:
+    """「仅开画布」触发链的头段:健康空令牌孤儿 → status 按未跑上报。
+
+    0929 实弹 E2E S2 病灶:status.running=纯 HTTP 健康探不核令牌 → 健康空令牌
+    孤儿被上报 running=True → 前端挂载 ensure 被 running 闸门短路
+    (ComfyCanvasStudio running=serviceRunning&&port)→ sidecar 全程收不到
+    POST /comfy/engine/start → 环b 自愈机器不触发 → 侧栏 403。链路三段各有所锁:
+    status.running=否(本节)→ 前端闸门自然放行(serviceRunning=false→挂载
+    ensure 发 start,前端既有测试已锁)→ start_sync 环b 停旧+带令牌重拉(上节
+    已锁)。口径与收编门同源(_adopt_token_mismatch 真值表),两类如实放行=旧语义。
+    """
+
+    def _ready_manager(self, tmp_path, monkeypatch, *, healthy: bool = True) -> EngineManager:
+        _plant_installed_engine(tmp_path, monkeypatch)
+        manager = EngineManager()
+        monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: healthy)
+        return manager
+
+    def test_healthy_token_match_reports_running(self, tmp_path, monkeypatch):
+        manager = self._ready_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(em.bridge_contract, "resolve_bridge_token", lambda: "tok-sidecar")
+        monkeypatch.setattr(manager, "_engine_bridge_token", lambda port: "tok-sidecar")
+        status = manager.status()
+        assert status["running"] is True
+        assert status["state"] == "running"
+
+    def test_healthy_empty_token_orphan_reports_not_running(self, tmp_path, monkeypatch):
+        """S2 病灶签名(keeper/终端无令牌拉起):健康但空令牌 → 需自愈态。"""
+        manager = self._ready_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(em.bridge_contract, "resolve_bridge_token", lambda: "tok-sidecar")
+        monkeypatch.setattr(manager, "_engine_bridge_token", lambda port: "")
+        status = manager.status()
+        assert status["running"] is False
+        # state=stopped → 前端映射 ready + serviceRunning=false → 挂载 ensure 放行
+        assert status["state"] == "stopped"
+
+    def test_healthy_stale_token_orphan_reports_not_running(self, tmp_path, monkeypatch):
+        """重装/换令牌后的旧引擎残留:同按需自愈态上报。"""
+        manager = self._ready_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(em.bridge_contract, "resolve_bridge_token", lambda: "tok-sidecar")
+        monkeypatch.setattr(manager, "_engine_bridge_token", lambda port: "tok-stale")
+        status = manager.status()
+        assert status["running"] is False
+        assert status["state"] == "stopped"
+
+    def test_external_engine_without_bridge_endpoint_keeps_running(self, tmp_path, monkeypatch):
+        """外部 ComfyUI(无 /my_bridge/config):不属本病灶,旧语义保留。"""
+        manager = self._ready_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(em.bridge_contract, "resolve_bridge_token", lambda: "tok-sidecar")
+        monkeypatch.setattr(manager, "_engine_bridge_token", lambda port: None)
+        status = manager.status()
+        assert status["running"] is True
+        assert status["state"] == "running"
+
+    def test_unresolvable_expected_token_keeps_running(self, tmp_path, monkeypatch):
+        """本管理器解析不出令牌(env+config 双缺):自愈也无令牌可注入,如实放行。"""
+        manager = self._ready_manager(tmp_path, monkeypatch)
+        monkeypatch.setattr(em.bridge_contract, "resolve_bridge_token", lambda: "")
+        monkeypatch.setattr(manager, "_engine_bridge_token", lambda port: "")
+        status = manager.status()
+        assert status["running"] is True
+        assert status["state"] == "running"
+
+    def test_unhealthy_engine_skips_token_probe(self, tmp_path, monkeypatch):
+        """引擎不健康=短路在先:令牌探不发(死口上零额外 HTTP,热路径不加负)。"""
+        manager = self._ready_manager(tmp_path, monkeypatch, healthy=False)
+        probes: list[int] = []
+        monkeypatch.setattr(manager, "_engine_bridge_token", lambda port: probes.append(port) or "")
+        status = manager.status()
+        assert status["running"] is False
+        assert probes == [], "不健康时不得再发 /my_bridge/config 探"
 
 
 # ── 自愈停旧的底层件 ────────────────────────────────────────────────

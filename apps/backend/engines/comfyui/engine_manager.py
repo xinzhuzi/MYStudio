@@ -809,6 +809,137 @@ def _terminate_pids(pids: list[int]) -> bool:
     return not _alive()
 
 
+# ── 0929 动态续接:自家出身实例的进程枚举发现(单实例唯一性的目击者) ──
+# 病灶:外部会话(keeper/终端)拉起的引擎跑在非账本口时,旧 start_sync 只认
+# 账本口孤儿——既不收编也不察觉,下一轮 resolve_launch_port 只测口可绑,
+# 漂移实例占口即 auto-shift 换口 spawn=第二实例(唯一性破洞)。ps 枚举按
+# argv 判据发现自家实例,与 cm 家解析同源(装机家/开发家都认)。
+
+def _parse_ps_pid_args(stdout: str) -> list[tuple[int, str]]:
+    """ps -axo pid,args 输出解析:每行 →(pid, args);垃圾/表头行容错跳过。
+
+    纯函数(单测覆盖);ps 的 args 列空格分隔(引号信息已丢),不做 shlex。
+    """
+    entries: list[tuple[int, str]] = []
+    for line in (stdout or "").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        pid_text, _, args = stripped.partition(" ")
+        if not pid_text.isdigit():
+            continue  # 表头(PID) / 垃圾行
+        pid = int(pid_text)
+        if pid <= 0:
+            continue
+        entries.append((pid, args.strip()))
+    return entries
+
+
+def _extract_port_from_args(args: str) -> int | None:
+    """从 argv 串提真实运行口 --port N / --port=N(消费规则镜像
+    parse_launch_args_string:多个 --port 后写胜出;无效取值视为没写)。
+
+    纯函数(单测覆盖);ps 已丢引号,直接按空格切 token。
+    """
+    port: int | None = None
+    tokens = (args or "").split()
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--port":
+            if index + 1 < len(tokens) and re.fullmatch(r"[0-9]+", tokens[index + 1]):
+                value = int(tokens[index + 1])
+                if 1 <= value <= 65535:
+                    port = value
+        elif token.startswith("--port="):
+            value_text = token[len("--port="):]
+            if re.fullmatch(r"[0-9]+", value_text) and 1 <= int(value_text) <= 65535:
+                port = int(value_text)
+        index += 1
+    return port
+
+
+def _home_engine_markers() -> tuple[str, str]:
+    """自家出身判据(与 cm 家解析同源现算):venv python + 引擎源码 main.py。
+
+    判据来自当前账本 engineDir/venvDir(MYSTUDIO_COMFYUI_HOME/engineDir/
+    venvDir 可覆写)——从旧目录拉起的实例(迁移后旧树残留)/symlink 路径
+    变体不命中=已知限制(docs/comfyui-kb/定制代码地图.md 记档)。
+    """
+    return str(cm.venv_python()), str(cm.engine_source_dir() / "main.py")
+
+
+def _engine_home_processes() -> list[dict] | None:
+    """枚举「自家出身」的 ComfyUI 引擎进程(POSIX-only;不可用=None)。
+
+    双判据:argv 同时含 venv python 与源码 main.py 绝对路径——双条件排除
+    别家 ComfyUI/无关 python。三态口径(0929 深审 R1 根修):
+    · list(含空表,ps 正常跑完)= 枚举结果,空表=全机**确证**无自家实例;
+    · None(Windows 无 ps/工具缺失/超时/异常/ps 非零退出)= 枚举不可用——
+      「看不见」≠「没有」,降级成空表会让 start_sync 在漂移实例旁盲启第二台
+      (实弹红条:漂移实例占 17005、账本口空闲,旧降级路径照样 spawn)。
+      调用方对 None 一律拒绝 spawn(唯一性不可证),仅放行不 spawn 的纯收编。
+    """
+    if os.name == "nt":
+        print("[image-sidecar] comfy-engine: Windows 无 ps,引擎进程枚举不可用,"
+              "无法确认全机唯一性", flush=True)
+        return None
+    try:
+        proc = subprocess.run(["ps", "-axo", "pid,args"],
+                              capture_output=True, text=True, timeout=5.0)
+    except (OSError, ValueError, subprocess.SubprocessError, TypeError, AttributeError) as exc:
+        # OSError/ValueError/SubprocessError:ps 缺失/参数错/超时等真实失败。
+        # TypeError/AttributeError:测试桩替身(只 monkeypatch Popen、缺 with
+        # 协议方法)会让 subprocess.run 炸——实测 CPython 3.13/3.14 抛
+        # TypeError("does not support the context manager protocol"),老版
+        # (实测 3.9)抛 AttributeError(__enter__/__exit__ 查找失败);两个都
+        # 兜,任何失败都=枚举不可知,如实返回 None(绝不降级空表:空表会被
+        # 调用方当「确证无实例」消费)。
+        print(f"[image-sidecar] comfy-engine: 引擎进程枚举失败({exc}),"
+              "无法确认全机唯一性,本次启动将拒绝拉起新实例", flush=True)
+        return None
+    if proc.returncode != 0:
+        # 非零退出=清单没拿到(权限/资源受限),空 stdout 不是「确证无实例」。
+        print(f"[image-sidecar] comfy-engine: 引擎进程枚举异常退出(rc={proc.returncode}),"
+              "按枚举不可用处理", flush=True)
+        return None
+    venv_py, main_py = _home_engine_markers()
+    found: list[dict] = []
+    for pid, args in _parse_ps_pid_args(proc.stdout or ""):
+        if venv_py in args and main_py in args:
+            found.append({"pid": pid, "port": _extract_port_from_args(args), "args": args})
+    return found
+
+
+def _pid_is_home_engine(pid: int) -> bool:
+    """裸 pid 的杀前身份复核(防 pid 复用):现查命令行须仍命中自家判据。
+
+    本会话实测外部会话的引擎 pid 不稳定(侦察期 29436→61399,已被重启),
+    枚举→停旧之间 pid 可能被系统复用——查不到命令行=复核不过=不杀(保守)。
+    """
+    venv_py, main_py = _home_engine_markers()
+    command = _pid_command(pid)
+    if not command:
+        return False
+    return venv_py in command and main_py in command
+
+
+def _extra_home_instances(home_procs: list[dict] | None, own_pid: int | None) -> list[dict]:
+    """快路径收敛决策(纯函数,单测直测):自家实例清单排除自持 pid=多余名单。
+
+    · own_pid(本管理器 spawn 的引擎 pid)命中者=自持,保留;其余全数多余;
+    · own_pid 不可知(非正数/None)→ 返回空表:无法区分哪台是自持就一台都
+      不杀(纯守不杀——真快路径恒有 Popen.pid,此态仅测试桩可及);
+    · 枚举不可用(None)/空表 → 无多余(不可用态由调用方另行打日志记
+      「唯一性未证」,不在本函数职责内)。
+    """
+    if not home_procs:
+        return []
+    if not isinstance(own_pid, int) or own_pid <= 0:
+        return []
+    return [info for info in home_procs if info.get("pid") != own_pid]
+
+
 # ── 引擎管理器(单例) ─────────────────────────────────────────────
 class EngineManager:
     def __init__(self) -> None:
@@ -862,6 +993,18 @@ class EngineManager:
         # 探测口=运行口优先(启动串钉口与账本口分叉时不再探死口),回落账本口
         port = getattr(self, "_running_port", None) or cm.recorded_port(manifest)
         running = self.is_healthy(port) if port else False
+        # 0929 S2 根修(status 健康口径纳入令牌核验):健康探纯 HTTP 不核令牌时,
+        # 「健康的空令牌孤儿」被上报 running=True → 前端画布挂载 ensure 被 running
+        # 闸门短路(ComfyCanvasStudio running=serviceRunning&&port)→ sidecar 全程
+        # 收不到 POST /comfy/engine/start → 0928 环b 收编/自愈机器(停旧+带令牌
+        # 重拉)不被触发 → 漫影侧栏恒 403(0929 实弹 E2E S2 按原剧本复现)。修法:
+        # 引擎口 /my_bridge/config 令牌与本管理器期望令牌失配 = 对应用不可用,
+        # running 按未跑上报 → 前端闸门自然放行(挂载 ensure 发 start,自愈链
+        # start_sync 0928 环b 段照常接管)。口径与收编门同源(_adopt_token_mismatch):
+        # 外部 ComfyUI(无 /my_bridge/config)与本侧解析不出令牌两类如实放行
+        # (旧语义);引擎不健康时短路面零额外 HTTP。GET 零副作用(两次皆只读探)。
+        if running and self._adopt_token_mismatch(port):
+            running = False
         if not installed:
             state = "installing" if jobs.active_of("engine-install") else "not_installed"
         elif jobs.active_of("engine-install"):
@@ -1019,6 +1162,13 @@ class EngineManager:
 
     # -- 启动/停止/守卫 ----------------------------------------------------
     def start_job(self) -> str:
+        # 0929 防重入(跨视图并发 ensure 的后端兜底):已有在跑的 engine-start
+        # job 直接复用其 id——画布/工作流库双挂载各发一次 POST 时,第二次不再
+        # 新建冗余 job(功能本幂等,但双 toast+冗余 job 观感差;与 install_job
+        # 的 active_of 闸同款,复用而非报错=前端两处轮询同一 job 自然合流)。
+        existing = jobs.active_of("engine-start")
+        if existing is not None:
+            return existing["id"]
         with self._lock:
             generation = self._stop_generation
         job_id = jobs.create("engine-start", "正在启动 ComfyUI 引擎…")
@@ -1074,17 +1224,65 @@ class EngineManager:
             return False
         return engine_token != expected
 
-    def _retire_orphan_engine(self, port: int) -> bool:
+    def _retire_orphan_engine(self, port: int, *, extra_pids: list[int] | None = None) -> bool:
         """令牌失配孤儿的停旧回收(自愈第一步;单引擎纪律=先停旧再启新)。
 
         只杀端口监听者(引擎恒独立会话=组长,整组回收其子孙);找不到监听者
         或终止不掉都返回 False——由调用方大白话报错收场,绝不带着旧引擎去
         启第二台。
+        0929 动态续接:extra_pids=进程枚举发现的补充停旧名单(冷启动窗引擎
+        尚未绑口/跑在非账本口时 lsof 找不到监听者的兜底)——逐个经
+        _pid_is_home_engine 现查身份(防 pid 复用)后并入,滤自身,与监听者
+        名单去重;默认 None 时与旧签名行为逐字节一致(既有 0928 自愈路径
+        与其测试零变化)。
         """
-        pids = [pid for pid in _port_listener_pids(port) if pid != os.getpid()]
+        pids = {pid for pid in _port_listener_pids(port) if pid != os.getpid()}
+        for pid in extra_pids or []:
+            if pid <= 0 or pid == os.getpid() or pid in pids:
+                continue
+            if not _pid_is_home_engine(pid):
+                continue
+            pids.add(pid)
         if not pids:
             return False
-        return _terminate_pids(pids)
+        return _terminate_pids(sorted(pids))
+
+    def _converge_extra_home_instances(self, proc) -> None:
+        """快路径单实例收敛(0929 深审 R1 行为修复):枚举自家实例,多余的停旧。
+
+        病灶:自管引擎活着时旧快路径提前 return,永不到达 start_sync 下方的主
+        枚举——外部会话(keeper/终端)此时再拉一台自家实例即双活,而生图流量
+        无从察觉:生图 ensure 在自管引擎健康时于 ensure_engine_ready 直接
+        return、不进 start_sync(唯收编态 _proc=None 时才每次入 start_sync,
+        走的是冷路径主枚举、不缺检测);触达快路径的流量(自管进程仍活的
+        预热/不健康窗 ensure 等)又被提前放行,枚举永不发生。修法:快路径放行
+        前枚举一次(排除本管理器自持引擎 pid,收敛决策=纯函数
+        _extra_home_instances),发现额外自家出身实例→按既定 retire 纪律收敛
+        (_retire_orphan_engine=lsof 监听者
+        +枚举 pid 兜底+杀前身份复核+_terminate_pids,多余的停掉、自持的保留);
+        枚举不可用(None)→不阻塞不放行错乱(已有引擎在跑、快路径不启新的),
+        打日志如实记「唯一性未证」。热路径纪律(生图 ensure 在自管引擎不健
+        康/预热窗触达本路,收敛动作不得拖垮它):本方法
+        自身绝不抛错(调用方另有兜底),停旧失败也不抛——如实打日志由用户处置,
+        绝不为收敛拖垮生图。
+        """
+        home_procs = _engine_home_processes()
+        if home_procs is None:
+            print("[image-sidecar] comfy-engine: 快路径:引擎进程枚举不可用,"
+                  "本机唯一性未证(已有引擎在跑、不启新的;若外部另拉了实例请手动关闭)", flush=True)
+            return
+        extras = _extra_home_instances(home_procs, getattr(proc, "pid", None))
+        if not extras:
+            return
+        print(f"[image-sidecar] comfy-engine: 快路径:发现 {len(extras)} 台额外的漫影 ComfyUI 实例"
+              f"(pid/口 {[(info['pid'], info['port']) for info in extras]}),"
+              "按单实例纪律停止多余的实例(自持的保留)", flush=True)
+        for info in extras:
+            retire_port = info["port"] if isinstance(info["port"], int) else 0
+            if not self._retire_orphan_engine(retire_port, extra_pids=[info["pid"]]):
+                print(f"[image-sidecar] comfy-engine: 快路径:多余的漫影 ComfyUI 实例"
+                      f"(pid {info['pid']},端口 {retire_port or '(未绑口)'})停不下来"
+                      "(找不到或终止不了监听进程);请手动关闭该 ComfyUI 进程,以免双引擎占资源", flush=True)
 
     def start_sync(self, progress=None, from_guard: bool = False, *, expected_generation: int | None = None,
                    allow_adoption: bool = True) -> dict:
@@ -1100,6 +1298,20 @@ class EngineManager:
         停止代数核对插队的 stop 请求(见 _await_startup_health)。
         0928 环b:收编前核验引擎桥令牌(_adopt_token_mismatch)——失配(keeper/
         终端无令牌拉起)自愈:停旧再走正常 spawn 注入正确令牌,不再带病收编。
+        0929 动态续接:ps 枚举发现「自家出身」实例(venv+main.py 双判据,与
+        cm 家解析同源)优先于账本口孤儿处理——漂移口实例被收编(账本回写发现
+        口)/未过收编门(冷启动/令牌失配)一律先停旧再 spawn,堵死 auto-shift
+        换口拉出第二实例的唯一性破洞;多台自家实例全部停旧后 spawn 一台;
+        allow_adoption=False(restart 深二级流)对枚举发现同样拒绝收编与停旧。
+        0929 深审 R1:枚举不可用(Windows 无 ps/工具缺失/超时/异常)=None,
+        绝不降级当空表——「全机无自家实例」不可证时 spawn=盲启第二台(漂移
+        实例占非账本口、账本口空闲的实弹红条),故一律拒绝拉起新实例;不
+        spawn 的账本口纯收编(HTTP 核验)与令牌失配时的「不看清就动手=拒」
+        同口径,停旧自愈在枚举不可用时同样拒绝执行。
+        0929 深审 R1 快路径窗(already_running 分支):自管引擎活着时旧快路径
+        提前 return 永不枚举——外部会话再拉一台自家实例即双活。现放行前收敛
+        一次(多余停掉、自持保留;枚举 None 不阻塞只记「唯一性未证」),任何
+        异常不抛(热路径,见 _converge_extra_home_instances)。
         """
         with self._lock:
             start_gen = self._stop_generation if expected_generation is None else expected_generation
@@ -1129,6 +1341,14 @@ class EngineManager:
             except Exception as exc:  # noqa: BLE001 — 补同步失败不拦启动
                 print(f"[image-sidecar] comfy-engine: my-nodes 补同步失败({exc}),启动继续", flush=True)
             if already_running:
+                # 0929 深审 R1 快路径枚举窗:自管引擎活着≠全机唯一——旧快路径
+                # 提前 return 永不到达下方主枚举,外部会话此时再拉一台自家实例
+                # 即双活。放行前收敛一次(细节见 _converge_extra_home_instances);
+                # 热路径纪律:枚举/收敛任何异常都不得抛错拖垮生图 ensure。
+                try:
+                    self._converge_extra_home_instances(proc)
+                except Exception as exc:  # noqa: BLE001 — 热路径兜底:收敛绝不拖垮 ensure
+                    print(f"[image-sidecar] comfy-engine: 快路径实例收敛异常({exc}),本次照常放行", flush=True)
                 # 快路径探运行口优先:启动串钉口(--port)与账本口分叉时,账本口
                 # 是死口——原实现干等 120 秒后假报「健康检查超时」(09-11 实弹)
                 port = getattr(self, "_running_port", None) or cm.recorded_port()
@@ -1140,10 +1360,90 @@ class EngineManager:
                     self._enable_guard()
                     return {"running": True, "port": port}
             port = cm.recorded_port()
-            if port and self._orphan_is_comfyui(port):
+            # 0929 动态续接(单实例唯一性):候选=自家出身实例(ps 枚举)优先,
+            # 账本口孤儿(既有 0928 语义)兜底。自家实例无论跑在账本口还是漂移口,
+            # 枚举都按 argv 判据命中——优先序反转让自家实例先于账本口上的外部
+            # ComfyUI 被处理:旧逻辑收编外部实例=自家漂移孤儿继续裸奔双实例。
+            home_procs = _engine_home_processes()
+            # 0929 深审 R1:枚举不可用=None,绝不降级当空表消费——「看不见」
+            # ≠「没有」,唯一性不可证时 spawn=盲启第二台(实弹红条:漂移实例
+            # 占 17005、账本口 17600 空闲,降级路径曾照样 spawn 第二台)。None
+            # 只放行不 spawn 的账本口纯收编;一切停旧/重启动作一并拒绝。
+            enumeration_failed = home_procs is None
+            if home_procs:
+                # restart 背后是深二级 job 流(插件装/卸/更新/开关、引擎更新、
+                # 复位、回滚,全走 allow_adoption=False):绝不收编漂移实例——
+                # 收编=插件态旧实例假成功;retire=杀 restart 无所有权的进程
+                # (spec:收编的外部端点无持有 PID,restart 须拒绝再收编而非
+                # 谎报重启或杀未知进程)。
+                if not allow_adoption:
+                    drifted = sorted({info["port"] for info in home_procs
+                                      if isinstance(info["port"], int)})
+                    raise EngineOpError(
+                        f"漫影 ComfyUI 实例正运行在非账本端口 {drifted or ['未知端口']},"
+                        "无法确认其已重启;请先手动停止该实例后重试")
+                if len(home_procs) > 1:
+                    # 单实例纪律:发现多台自家出身实例→全部停旧后 spawn 一台
+                    # (先停旧再启新;杀不干净如实报错收场,绝不带病启第二台)。
+                    print(f"[image-sidecar] comfy-engine: 发现 {len(home_procs)} 台漫影 ComfyUI 实例"
+                          f"(pid/口 {[(info['pid'], info['port']) for info in home_procs]}),"
+                          "按单实例纪律全部停止后重启一台", flush=True)
+                    if progress:
+                        progress(10, "发现多台漫影 ComfyUI 实例,按单实例纪律全部停止后重启…")
+                else:
+                    info = home_procs[0]
+                    discovered = info["port"]
+                    if (isinstance(discovered, int) and self._orphan_is_comfyui(discovered)
+                            and not self._adopt_token_mismatch(discovered)):
+                        with self._teardown_lock, self._lock:
+                            self._check_start_generation(start_gen, from_guard)
+                            self._running_port = discovered
+                            # Adoption restores managed state after an explicit restart.
+                            self._stopping = False
+                        # 账本回写发现口(镜像下方 spawn 路径写法:桥/execute/
+                        # uploads/侧栏全按账本口寻址,不回写=引擎跑新口全 app
+                        # 打旧口——09-11 实弹红条,不许再犯)
+                        if discovered != cm.recorded_port():
+                            cm.mutate_manifest(lambda m: m["engine"].update({"port": discovered}))
+                        # 收编后强制刷新节点数(收编实例的插件态与本管理器缓存无关)
+                        self._last_node_count = self.node_count()
+                        with self._lock:
+                            self._check_start_generation(start_gen, from_guard)
+                            self._enable_guard()
+                        if progress:
+                            progress(100, f"接管了正在运行的 ComfyUI 实例(端口 {discovered})")
+                        with self._lock:
+                            self._check_start_generation(start_gen, from_guard)
+                            return {"running": True, "port": discovered, "adopted": True}
+                    # 收编门任一不通过(冷启动窗 HTTP 无应答/令牌失配)一律先停旧
+                    # 再 spawn:实例可能尚未绑口或口非账本口(此时 lsof 找不到
+                    # 监听者),_retire_orphan_engine 以枚举 pid 兜底——否则落入
+                    # resolve_launch_port 的 auto-shift=换口 spawn 第二台(本役
+                    # 要堵的洞原样复发)。
+                    print(f"[image-sidecar] comfy-engine: 动态续接:pid {home_procs[0]['pid']}"
+                          f"(端口 {home_procs[0]['port']})的漫影 ComfyUI 实例未过收编门"
+                          "(冷启动或令牌失配),先停止旧实例再重启", flush=True)
+                    if progress:
+                        progress(10, "接管校验未通过,自动停止旧实例并以正确配置重启…")
+                for info in home_procs:
+                    retire_port = info["port"] if isinstance(info["port"], int) else 0
+                    if not self._retire_orphan_engine(retire_port, extra_pids=[info["pid"]]):
+                        raise EngineOpError(
+                            f"端口 {retire_port or '(未绑口)'} 的漫影 ComfyUI 实例未过收编门且无法停止"
+                            "(找不到或终止不了监听进程);请手动关闭该 ComfyUI 进程后重试,以免出现双引擎")
+            elif port and self._orphan_is_comfyui(port):
                 if not allow_adoption:
                     raise EngineOpError("端口仍由外部 ComfyUI 占用,无法确认其已重启;请先停止外部实例")
                 if self._adopt_token_mismatch(port):
+                    if enumeration_failed:
+                        # 0929 深审 R1:枚举不可用时绝不执行停旧自愈——停旧后须
+                        # spawn 一台新引擎,而「全机无其它自家实例」此刻不可证
+                        # (看不清就动手=半程自愈+潜在双引擎);如实报错,引擎
+                        # 原样留着由用户处置。
+                        raise EngineOpError(
+                            f"端口 {port} 引擎的桥令牌失效,但本机进程枚举不可用"
+                            "(无 ps/超时/Windows),无法安全执行停旧自愈;"
+                            "请手动重启该 ComfyUI 实例,或恢复 ps 后重试")
                     # 0928 环b 根修(侧栏 403 复发死锁):keeper/终端无令牌环境拉起的
                     # 引擎 env 存活期不可变,直接收编=侧栏打桥恒 403 直到手动重启。
                     # 自愈=停旧(杀不干净如实报错,绝不双引擎)后落入下方正常 spawn,
@@ -1173,6 +1473,14 @@ class EngineManager:
                     with self._lock:
                         self._check_start_generation(start_gen, from_guard)
                         return {"running": True, "port": port, "adopted": True}
+            if enumeration_failed:
+                # 枚举不可用闸(0929 深审 R1):能走到这里=账本口无可收编实例,
+                # 而全机是否另有自家实例不可证——spawn=盲启第二台(本闸要堵的
+                # 洞),如实报错收场;账本口纯收编在上方分支已提前 return。
+                raise EngineOpError(
+                    "无法枚举本机 ComfyUI 进程(无 ps/超时/Windows),确认不了"
+                    "是否已有漫影 ComfyUI 实例在运行;已拒绝启动以防出现双引擎。"
+                    "请确认 ps 可用后重试,或手动关闭其它漫影 ComfyUI 实例")
             # 09-10 Desktop 式:端口决议(用户串 --port 优先,被占按策略;否则账本口顺延)
             port = resolve_launch_port(
                 cm.engine_launch_args(), port, cm.engine_port_conflict_policy())

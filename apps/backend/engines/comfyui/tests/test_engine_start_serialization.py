@@ -53,6 +53,9 @@ class DyingProc:
 def _stub_spawn_path(monkeypatch, mgr, popen, real_resolve=False):
     if not real_resolve:
         monkeypatch.setattr(em, "resolve_launch_port", lambda *a, **k: 17001)
+    # 0929 动态续接:进程枚举=空(本文件测串行化/端口决议,popen 计数器是
+    # spawn 次数度量器,真跑 ps 会经 subprocess.run 内部 Popen 污染计数)
+    monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
     monkeypatch.setattr(mgr, "_orphan_is_comfyui", lambda port: False)
     monkeypatch.setattr(em.subprocess, "Popen", popen)
     monkeypatch.setattr(em, "_spawn_engine_watchdog", lambda *a: None)
@@ -97,6 +100,9 @@ def test_fast_path_waits_for_real_health(home, monkeypatch):
     """proc 活着≠就绪:预热期快路径须等到健康探针通过才返回(防假阳性放行)。"""
     mgr = em.EngineManager()
     mgr._proc = FakeProc()  # 活着但前两轮探针不健康
+    # 0929 R1 快路径枚举窗:快路径现在也枚举自机实例——本测试锚定健康等待,
+    # 枚举打桩为空(hermetic:不真跑 ps)
+    monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
     probes = {"n": 0}
 
     def flaky_health(port=None, timeout=2.0):
@@ -144,6 +150,8 @@ def test_string_port_busy_falls_to_resolved_port_consistently(home, monkeypatch)
 def test_fast_path_proc_dies_while_waiting_raises(home, monkeypatch):
     mgr = em.EngineManager()
     mgr._proc = DyingProc()  # 判活时活着 → 快路径进入健康等待 → 中途退出
+    # 0929 R1 快路径枚举窗:同上,枚举打桩为空(hermetic)
+    monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
     monkeypatch.setattr(mgr, "is_healthy", lambda port=None, timeout=2.0: False)
 
     with pytest.raises(em.EngineOpError, match="引擎进程启动后立刻退出了"):

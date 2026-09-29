@@ -46,6 +46,9 @@ class FakeProc:
 
 def _stub_spawn_path(monkeypatch, mgr, popen):
     monkeypatch.setattr(em, "resolve_launch_port", lambda *a, **k: 17001)
+    # 0929 动态续接:进程枚举=空(本文件测停止代数/竞态,popen 计数器是
+    # spawn 次数度量器,真跑 ps 会经 subprocess.run 内部 Popen 污染计数)
+    monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
     monkeypatch.setattr(mgr, "_orphan_is_comfyui", lambda port: False)
     monkeypatch.setattr(em.subprocess, "Popen", popen)
     monkeypatch.setattr(em, "_spawn_engine_watchdog", lambda *a: None)

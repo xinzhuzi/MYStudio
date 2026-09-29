@@ -6,13 +6,15 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMockComfyEngineClient } from "./mock-comfy-engine-client";
-import { useComfyEngineSettings } from "./useComfyEngineSettings";
+import { resetComfyEngineAutoStartStateForTests, useComfyEngineSettings } from "./useComfyEngineSettings";
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toasts }));
 
 afterEach(() => {
   cleanup();
+  // 09-29 自动启动共享态(module 级)跨用例隔离:冷却/单例残留会让下个用例空跑
+  resetComfyEngineAutoStartStateForTests();
   vi.clearAllMocks();
 });
 
@@ -157,6 +159,111 @@ describe("useComfyEngineSettings", () => {
     expect(calls).toBe(1); // 没有第二次尝试(挂载效应的 prepare 与补试无关,不作为判据)
     expect(toasts.error).toHaveBeenCalledWith("引擎正被另一个漫影进程管理");
     delete (window as { imageGenRuntime?: unknown }).imageGenRuntime;
+  });
+
+  it("静默确保启动(09-29 打开视图即确保就绪):跨实例并发只 POST 一发,零 toast,状态翻 running", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+    });
+    let calls = 0;
+    const client = {
+      ...base,
+      startEngine: async () => {
+        calls += 1;
+        return base.startEngine();
+      },
+    };
+    // 双画布=双 hook 实例(ComfyCanvasStudio studio forceMount+imageWorkflow 并存),
+    // ref 单飞挡不住跨实例——module 级单例 promise 必须收敛成一发
+    const first = renderHook(() => useComfyEngineSettings({ client, pollIntervalMs: 5 }));
+    const second = renderHook(() => useComfyEngineSettings({ client, pollIntervalMs: 5 }));
+
+    await act(async () => {
+      await Promise.all([
+        first.result.current.ensureServiceRunning(),
+        second.result.current.ensureServiceRunning(),
+      ]);
+    });
+    expect(calls).toBe(1);
+    expect(toasts.success).not.toHaveBeenCalled(); // 静默:自动链绝不弹成功 toast
+    expect(toasts.error).not.toHaveBeenCalled();
+    await waitFor(() => expect(first.result.current.status?.serviceRunning).toBe(true));
+    await waitFor(() => expect(second.result.current.status?.serviceRunning).toBe(true));
+    expect(first.result.current.isStartingService).toBe(false);
+    expect(second.result.current.isStartingService).toBe(false);
+
+    // 重试冷却:完成后(挂载 effect 因状态刷新重跑再调)窗口内不重发——
+    // 状态快照仍示未跑(如 port 缺失 running 判 false)时也不循环轰炸
+    await act(async () => {
+      await first.result.current.ensureServiceRunning();
+    });
+    expect(calls).toBe(1);
+  });
+
+  it("手动停止后冷却闩内自动确保让路(B5 显式停止不被视图切换推翻);手动启动成功即解闩", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599, serviceRunning: true },
+    });
+    let starts = 0;
+    const client = {
+      ...base,
+      startEngine: async () => {
+        starts += 1;
+        return base.startEngine();
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client, pollIntervalMs: 5 }));
+
+    await act(async () => {
+      await result.current.stopService(); // 用户显式停止 → 落闩
+    });
+    expect(toasts.success).toHaveBeenCalledWith("ComfyUI 引擎服务已停止");
+
+    await act(async () => {
+      await result.current.ensureServiceRunning(); // 冷却窗内的自动确保:让路
+    });
+    expect(starts).toBe(0); // 绝不自动拉起
+    expect(result.current.status?.serviceRunning).toBe(false);
+
+    await act(async () => {
+      await result.current.startService(); // 手动启动:不受闩
+    });
+    expect(starts).toBe(1);
+
+    await act(async () => {
+      await result.current.stopService(); // 再停一次重新落闩
+    });
+    await act(async () => {
+      await result.current.ensureServiceRunning(); // 仍在冷却窗内:继续让路
+    });
+    expect(starts).toBe(1);
+  });
+
+  it("静默确保失败:零 toast 不打断,重试冷却内重入被拦(防挂载 effect 循环重发)", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+    });
+    let calls = 0;
+    const client = {
+      ...base,
+      startEngine: async () => {
+        calls += 1;
+        throw new Error("引擎正被另一个漫影进程管理");
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client, pollIntervalMs: 5 }));
+
+    await act(async () => {
+      await result.current.ensureServiceRunning();
+    });
+    expect(calls).toBe(1);
+    expect(toasts.error).not.toHaveBeenCalled(); // 静默链失败不弹窗(手动按钮链才报错)
+
+    await act(async () => {
+      await result.current.ensureServiceRunning(); // 冷却窗内重入:直接让路
+    });
+    expect(calls).toBe(1);
+    expect(result.current.isStartingService).toBe(false);
   });
 
   it("任务轮询在途时并发第二个任务被明拒(轮询槽不再被顶掉;09-11 P3)", async () => {
