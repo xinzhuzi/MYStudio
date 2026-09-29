@@ -28,6 +28,7 @@ import {
   normalizeStoryboardKeyframes,
   validateStoryboardKeyframes,
 } from "@/lib/studio/keyframes";
+import { normalizeH3DurationUs } from "@/lib/studio/h3-duration-us";
 
 /** Storyboard slice 契约。 */
 export interface StoryboardSlice {
@@ -61,7 +62,12 @@ export interface StoryboardSlice {
   ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
   writeStoryboardVlmReview: (id: string, artifact: VlmReviewArtifactV1, evidencePath?: string) => void;
-  bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
+  bindStoryboardMedia: (
+    id: string,
+    mediaRef: StoryboardMediaRef,
+    /** B1(09-29):video 落账的 ffprobe 实测时长(微秒);先 probe 后调,非法值经守卫拒收。 */
+    h3DurationUs?: number,
+  ) => void;
 }
 
 /** slice 能看到的 store 局部视图 + 跨域依赖。 */
@@ -250,8 +256,18 @@ export function createStoryboardSliceActions(set: SetFn, get: GetFn) {
       }));
     },
 
-    bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef): void => {
-      get().updateStoryboard(id, { mediaRef });
+    bindStoryboardMedia: (
+      id: string,
+      mediaRef: StoryboardMediaRef,
+      h3DurationUs?: number,
+    ): void => {
+      // B1(09-29):video 落账带真实时长(正整数微秒守卫,非法拒收);换片
+      // 时长未知则清空旧值——旧片实测时长不得冒充新片。image/audio 不触碰
+      // 该字段(仅 video 镜有意义,types 口径)。
+      get().updateStoryboard(id, {
+        mediaRef,
+        ...(mediaRef.kind === "video" ? { h3DurationUs: normalizeH3DurationUs(h3DurationUs) } : {}),
+      });
       // I1 镜像维护:绑新图(超分换轨等)时同步首帧,防 mediaRef 与 keyframes[0] 分叉
       const current = get().storyboards.find((item) => item.id === id);
       if (mediaRef.kind === "image" && current?.keyframes?.length) {

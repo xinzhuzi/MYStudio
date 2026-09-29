@@ -299,6 +299,22 @@ pgrep -fl "漫影工作室|python.*tts|comfyui" || true
 
 先确认 [Python 与本地 TTS 配置](../settings/PYTHON_TTS_SETUP.md) 已完成，再在 `设置 → 本地配置 -> TTS 运行时与模型` 检查 `17593` 端口和安装明细。
 
+### verify:installed 单次 exit=1（抖动定谳配方，单次红不定谳）
+
+装机独立复核命令全名（须在 `apps/` 下执行，见「命令目录」）：
+
+```bash
+cd ~/Project/Github/MYStudio/apps && npm run verify:installed
+```
+
+入口=`apps/package.json` 的 `scripts.verify:installed` → `apps/build/packaging/verify-installed.mjs`：双向 asar shasum 对拍 + exec `npm run smoke:installed`（ditto 覆盖安装+装机冒烟全链）；退出码 0=全绿、1=任一段红。注意全量重跑会再次覆盖安装并清理运行中的漫影实例（有状态副作用）；只想只读比对哈希时加 `--shasum-only`。判定步骤照做，无自由裁量：
+
+1. **触发条件**：上命令退出码=1。单次 exit=1 **不定谳**——既不定谳为真失败，也不顺手重打包。唯一例外：红因是「无产物可比对（asar 缺失）」或「路径常量解析失败（两件对齐漂移）」——这两类不是抖动，直接按真失败处置，重打包一律走 `build-mac.sh` 唯一入口。
+2. **重跑前置检查**：读并记录机器负载——`uptime` 的 1 分钟负载值，同时 `pgrep -fl 'build-desktop|install-and-smoke|electron-builder'` 查打包链是否在跑。负载读数只入档、不设数值门槛——先例=2026-09-29 09:39 主会话在 1 分钟负载 9.24 下重跑即 GREEN（读数出处=commit 2b420c5 记录）；若打包链正在跑，等其退出后再重跑，避免两条覆装链互踩。
+3. **重跑**：同一条命令原样再跑一次，不做任何「先修一下再试」。
+4. **定谳口径**：重跑 exit=0 → 定谳=瞬时抖动，本轮结论 GREEN；重跑仍 exit=1 → 定谳=真失败，按失败段处置——shasum MISMATCH → 重执行 `ditto` 覆盖安装（见上文「覆盖安装」）后重比哈希（见「安装一致性校验」）；smoke 红 → 看安装版 smoke 控制台输出定位（见「Smoke 白屏」）。
+5. **证据位**：durable 报告=`apps/output/automation/verify-installed-report.json`，每次运行（红/绿）都覆写并自动归档旧报告，`generatedAt` 为 UTC 时间戳（本地=UTC+8）。定谳**以最后一次运行的报告为准**（最终 GREEN 覆盖先前 RED）。先例：2026-09-29T01:39:43.929Z（本地 09:39）`ok=true`，packaged/installed asar sha256 双向 EQUAL（`b5199da8…`），smoke `exitCode=0`——即 09:37 一次 exit=1 之后重跑定谳 GREEN 的在档报告。
+
 ## 视频工作流运行验证清单
 
 以下清单是 packaged smoke 之外的安装版 UI/worker 验收，首版只在 macOS Apple Silicon 执行。每项都要保存 project/chapter/revision、输入 SHA、状态和输出 evidence；不得把 smoke 通过写成真实媒体链已完成。

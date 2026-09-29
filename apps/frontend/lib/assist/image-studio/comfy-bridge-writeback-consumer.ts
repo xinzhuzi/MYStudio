@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import type { ComfyBridgeWritebackItem } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 import { persistComfyImage } from "@/lib/assist/image-studio/comfy-execute";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
+import { normalizeH3DurationUs } from "@/lib/studio/h3-duration-us";
 import { parseProjectFileUrl } from "@/lib/upscale/project-file-url";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -111,7 +112,9 @@ function defaultApplyVideoToStoryboard(
   store.updateStoryboard(storyboardId, {
     mediaRef: { kind: "video", path: url },
     outputVersion: (storyboard.outputVersion ?? 0) + 1,
-    ...(typeof h3DurationUs === "number" && Number.isInteger(h3DurationUs) && h3DurationUs > 0 ? { h3DurationUs } : {}),
+    // B1(09-29):时长一律过共享守卫;换片后未知时长清空旧值——旧片的实测时长
+    // 不得冒充新片(残留会挡掉「探测失败静默降级名义时长」,排轨按假真源走)。
+    h3DurationUs: normalizeH3DurationUs(h3DurationUs),
   });
   store.addVideoCandidate({
     id: `h3-${storyboard.id}-${candidateNumber}`,

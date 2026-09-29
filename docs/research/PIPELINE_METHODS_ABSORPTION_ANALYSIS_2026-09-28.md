@@ -5,6 +5,8 @@
 > 合规声明:方法思路来源=外部影视产线课程包(**无开源许可证**)。本文仅吸收其方法思路,全文由我方自行重写,不含来源方任何专名与原文段落;数值口径凡引用我方既有文档处均实测行号在档。
 >
 > 前置阅读:[全链路工作流](../workflow/WORKFLOW_FULL_VIDEO_PIPELINE.md)、[分镜×H3 视频产线](../comfyui-kb/分镜H3视频产线.md)、[H3 吸收分析(09-14)](./H3_ABSORPTION_ANALYSIS_2026-09-14.md)。
+>
+> **状态回写(2026-09-29)**:五项提案已全部落地(cb9b3a9+2b420c5 两提交),逐项状态标见 §一~§五 各节首「状态」行(每标带提交号+落点文件锚点);§〇现状表/§六明确不吸收/§七实施顺序的正文裁定原文未动。
 
 ## 〇、现状对照表(方法点 × 漫影现状 × 缺口判定)
 
@@ -17,6 +19,8 @@
 | 版本纪律 | 分镜级 `stale/staleReason/staleSince`+人工批准推广才可清 stale(`promote_chapter001_storyboard_continuity.py:469-471`;守卫在 `promote_chapter001_continuity_approvals.py:505-539` 与 `:712`);逐层 evidence/revision/current-slot/SHA(`WORKFLOW_FULL_VIDEO_PIPELINE.md` 第13步,:286 起);单镜重试只提交指定镜头、不触发整章(同文 `:336`) | **半缺**:缺跨层级联作废与统一依赖账本 |
 
 ## 一、提案一:四级时长链
+
+> **【状态 2026-09-29】已落地(2b420c5)** —— 落点=`apps/build/chapter_video/review_chapter001_duration_chain.py`(新设 390 行,配 `tests/test_review_chapter001_duration_chain.py` 411 行):①场级预算=本工具入参 JSON 人工填报预算值+估算依据(工具不代算、不按场次数平均分配)→②成稿复核=逐场按实际台词字数×情绪语速正推与预算比对,容差=max(5 秒, 10%×预算值)双向判,超限场给三选一决定记录位、只登记不代决,严禁自动加快语速(模块无任何改写路径,advisory 只读 decision 恒 None)→③镜级折算核对=durationSec vs 正推折算值 ceil(台词字数/语速)+非说话开销;数值真源经 lint 模块复用 storyboard-table.ts 镜像,零第三处数值。第④级 h3DurationUs 真实回写链(前端域,原文即「已有链不动」)按本轮工单归泳道 B1 另行补全,不在 2b420c5 边界,落地情况以 B1 交付为准。
 
 ### 是什么
 
@@ -52,6 +56,8 @@
 
 ## 二、提案二:台词容量预算(治「40 字塞 10 秒」)
 
+> **【状态 2026-09-29】已落地(cb9b3a9)** —— 落点=`apps/build/chapter_video/lint_chapter001_dialogue_capacity.py`(新设 149 行,配 `tests/test_lint_chapter001_dialogue_capacity.py` 246 行/9 测试+CLI 端到端冒烟,自动入 Python 六域 runner):怒4/平3/悲2 语速镜像 storyboard-table.ts 词表真源;非说话开销缺省 1.0 秒取 computeDurationSec 余量、支持逐镜覆写;超容量镜亮红并列三条处置 remedies(按语义拆段/延长镜头/交人工裁定删改),机械翻倍与加快语速路径不可达。
+
 ### 是什么
 
 给每镜的台词立容量上限,计算顺序固定:
@@ -82,6 +88,8 @@
 给定镜时长与台词,容量字数机器可算;超容量镜在 lint 报告中显式列出且带处理决定;禁止路径(机械翻倍/加快语速)在任何自动逻辑中不可达。
 
 ## 三、提案三:静图可动性预检(先判再投图生视频)
+
+> **【状态 2026-09-29】已落地(2b420c5)** —— 落点=`apps/build/chapter_video/precheck_chapter001_keyframe_mobility.py`(新设 381 行,配 `tests/test_precheck_chapter001_keyframe_mobility.py` 333 行):五维检查(天然可动元素/景深层次/遮挡关系/动作空间/脆弱元素锁定)→三态裁定 可动/仅微动/不动,「不动」须书面理由而非默认值;接线=`apps/build/chapter_video/automate-chapter001-video.mjs:26,175` 开关位 `MYSTUDIO_CHAPTER_VIDEO_MOBILITY_PRECHECK`(默认关、advisory 非阻断,2b420c5 落地口径)。
 
 ### 是什么
 
@@ -115,6 +123,8 @@
 
 ## 四、提案四:成稿剧本接管入口
 
+> **【状态 2026-09-29】已落地(2b420c5)** —— 落点=`apps/build/chapter_video/takeover_chapter001_finished_script.py`(新设 462 行,配 `tests/test_takeover_chapter001_finished_script.py` 286 行):两轮制——Round1 只产「接管检查报告」零生产物(读取范围/场次与对白识别/完整性疑点/尚缺生产资料清单),Round2 `--confirm` sha256 锁定「剧本内容不变只补生产资料」后按最短路由逐场标注;剧本逐字节只读(chmod0444 行为证明),接管中剧本变更=拒绝 exit1,剧情改动只能走剧本修订另存版本。落地形态=chapter_video 域 CLI 入口(与小说导入入口并列)。
+
 ### 是什么
 
 用户自带成稿剧本(而非小说原文)时的入口模式,两轮走:
@@ -143,6 +153,8 @@
 接管全程剧本零改写(逐字节可比);缺项逐场列明且带最短路由建议;剧情改动只能出现在剧本修订版本里,接管产物中不可见。
 
 ## 五、提案五:版本纪律跨层级联
+
+> **【状态 2026-09-29】已落地(2b420c5)** —— 落点=①`apps/build/chapter_video/pipeline/promote_chapter001_storyboard_continuity.py`(推广提交级联作废 +317 行:下游清单真源=分镜引用字段零误伤,downstreamExpiry=「已过期-禁止使用」不删不重写;未改镜头从上一包继承、不整章重算)②`apps/build/chapter_video/ledger_chapter001_cross_layer.py`(新设 392 行,四字段账本 当前草稿/最新确认版本/直接依据版本/下游影响清单,CLI 三模式,道劫真分片冒烟 14 记录,配 384 行测试)③`apps/build/chapter_video/repair_chapter001_visual_continuity.py:28-33`(import pipeline 件 EXPIRED_FORBIDDEN_USE/affected_continuity_interval/legacy_dependent_keyframes/mark_keyframes_expired,同源)。**锚点注意**:本节及 §〇 表正文所引 `promote_chapter001_storyboard_continuity.py:469-471` 系仓库根目录旧存档件(23,084B,git log 止于 d29a634),本轮实改与现行真源均为 `pipeline/` 子目录同名件——状态锚点以上述 pipeline 件为准,勿混。
 
 ### 是什么
 

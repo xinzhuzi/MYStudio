@@ -113,7 +113,7 @@ export type { StudioWorkflowState };
 interface StudioWorkflowActions {
   addMaterial: (input: { name: string; localPath: string; size: number; importedAt?: number }) => string;
   deleteMaterial: (id: string) => void;
-  bindMaterialToStoryboard: (storyboardId: string, materialId: string) => void;
+  bindMaterialToStoryboard: (storyboardId: string, materialId: string, h3DurationUs?: number) => void;
   importNovelText: (sourceText: string) => void;
   switchChapter: (chapterId: string) => Promise<void>;
   slimNonActiveChapters: () => boolean;
@@ -182,7 +182,7 @@ interface StudioWorkflowActions {
   ) => void;
   reviewStoryboardHuman: (id: string, review: HumanVisualReviewInput) => void;
   writeStoryboardVlmReview: (id: string, artifact: VlmReviewArtifactV1, evidencePath?: string) => void;
-  bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef) => void;
+  bindStoryboardMedia: (id: string, mediaRef: StoryboardMediaRef, h3DurationUs?: number) => void;
   setStoryboardKeyframes: (
     id: string,
     frames: StoryboardKeyframe[],

@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
 import { writeDurableJsonReport } from '../shared/durable-json-report.mjs';
 import { latestLedgerEvents } from '../shared/paid-image-request-ledger.mjs';
+import { runDurationChainReview } from './duration-review-hook.mjs';
 
 const appsRoot = process.cwd();
 const repoRoot = resolve(appsRoot, '..');
@@ -15,6 +16,7 @@ const fullPipelineRunnerScript = 'build/timeline/run-full-pipeline.ts';
 const remotionShotRunnerScript = 'build/remotion/render-shot-slots.ts';
 const visualContinuityPreflightScript = 'build/chapter_video/audit-visual-continuity.ts';
 const keyframeMobilityPrecheckScript = resolve(buildRoot, 'precheck_chapter001_keyframe_mobility.py');
+const durationChainReviewScript = resolve(buildRoot, 'review_chapter001_duration_chain.py');
 const storyboardImageHelper = resolve(appsRoot, 'build', 'chapter_video', 'generate-storyboard-image.mjs');
 const continuityAssetCandidateValidator = resolve(buildRoot, 'pipeline', 'chapter001_continuity_asset_candidate.py');
 const paidImageRequestLedgerPath = resolve(appsRoot, 'output', 'automation', 'chapter001-paid-image-request-ledger.jsonl');
@@ -24,6 +26,7 @@ const packagedAppBin = resolve(appsRoot, 'release', 'build', 'mac-arm64', 'mac-a
 const installedAppBin = '/Applications/漫影工作室.app/Contents/MacOS/漫影工作室';
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
 const keyframeMobilityPrecheckEnabled = process.env.MYSTUDIO_CHAPTER_VIDEO_MOBILITY_PRECHECK === '1';
+const durationReviewEnabled = process.env.MYSTUDIO_CHAPTER_VIDEO_DURATION_REVIEW === '1';
 const probeProvidersOnly = process.argv.includes('--probe-providers');
 const probeGenerationOnly = process.argv.includes('--probe-generation');
 const continuityPilotOnly = process.argv.includes('--continuity-pilot');
@@ -1439,6 +1442,14 @@ stopExistingMYStudioInstances();
 
 if (keyframeMobilityPrecheckEnabled) {
   runKeyframeMobilityPrecheck();
+}
+
+if (durationReviewEnabled) {
+  // B4 时长链复核开关位(默认关,MYSTUDIO_CHAPTER_VIDEO_DURATION_REVIEW=1 才运行)。
+  // advisory 非阻断(工单约束①):review 的 exit1(发现超限/失配)/exit2(输入错误)只记日志,
+  // 链继续;预算位=MYSTUDIO_CHAPTER_VIDEO_DURATION_BUDGET 或 apps/output/automation/
+  // chapter001-duration-budget.json 惯例位,缺位=登记跳过(工单约束⑤)。
+  runDurationChainReview({ repoRoot, scriptPath: durationChainReviewScript });
 }
 
 failureStage = 'generator';

@@ -8,6 +8,7 @@
  */
 import type { StudioMaterial, StoryboardItem, StoryboardMediaRef } from "@/types/studio";
 import { buildMediaRefFromMaterial, createMaterialRecord } from "@/lib/studio/material";
+import { normalizeH3DurationUs } from "@/lib/studio/h3-duration-us";
 
 /** Material slice 暴露的 state + actions 契约。 */
 export interface MaterialSlice {
@@ -19,7 +20,12 @@ export interface MaterialSlice {
     importedAt?: number;
   }) => string;
   deleteMaterial: (id: string) => void;
-  bindMaterialToStoryboard: (storyboardId: string, materialId: string) => void;
+  bindMaterialToStoryboard: (
+    storyboardId: string,
+    materialId: string,
+    /** B1(09-29):视频素材绑定的 ffprobe 实测时长(微秒);先 probe 后调,非法值经守卫拒收。 */
+    h3DurationUs?: number,
+  ) => void;
 }
 
 /**
@@ -81,11 +87,16 @@ export function createMaterialSliceActions(set: SetFn, get: GetFn) {
     bindMaterialToStoryboard: (
       storyboardId: string,
       materialId: string,
+      h3DurationUs?: number,
     ): void => {
       const material = get().materials.find((item) => item.id === materialId);
       if (!material) return;
+      const mediaRef = buildMediaRefFromMaterial(material) as StoryboardMediaRef;
+      // B1(09-29):视频素材落账带真实时长(正整数微秒守卫,非法拒收;换片
+      // 时长未知则清空旧值,旧值不得冒充新片)。非视频素材不触碰该字段。
       get().updateStoryboard(storyboardId, {
-        mediaRef: buildMediaRefFromMaterial(material) as StoryboardMediaRef,
+        mediaRef,
+        ...(mediaRef.kind === "video" ? { h3DurationUs: normalizeH3DurationUs(h3DurationUs) } : {}),
       });
     },
   };

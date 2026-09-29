@@ -656,4 +656,55 @@ describe("consumeComfyBridgeWritebacks", () => {
     const result = await consumeComfyBridgeWritebacks(deps);
     expect(result).toEqual({ processed: 0, landed: 0 });
   });
+
+  it("默认落账路径(真实 store):probe 合法 → h3DurationUs 写入分镜", async () => {
+    const { client } = makeClient([{
+      id: 71,
+      videoB64: "aGk=",
+      shotTarget: "S01",
+      meta: { kind: "video", subfolder: "video/漫影/ep-1/sb-a", policy: "ambient" },
+    }]);
+    useStudioStore.setState({ storyboards: [...STORYBOARDS] });
+    const { deps } = makeDeps({
+      client,
+      applyVideoToStoryboard: undefined, // 走 defaultApplyVideoToStoryboard 真实落账
+      writeProjectBinary: async () => ({ success: true, url: "project-file://project-1/remotion/outputs/shots/ep-1/sb-a/h3/ambient_v1_71.mp4" }),
+      probeVideoDuration: async () => 5_166_666,
+    });
+
+    await consumeComfyBridgeWritebacks(deps);
+
+    const shot = useStudioStore.getState().storyboards.find((item) => item.id === "sb-a");
+    expect(shot?.mediaRef).toMatchObject({ kind: "video" });
+    expect(shot?.h3DurationUs).toBe(5_166_666);
+  });
+
+  it.each([0, -1, 5.5, Number.NaN])(
+    "默认落账路径(真实 store):假 probe 非法值 %p → 不写垃圾时长且旧值不得冒充新片",
+    async (probeResult) => {
+      const { client } = makeClient([{
+        id: 72,
+        videoB64: "aGk=",
+        shotTarget: "S01",
+        meta: { kind: "video", subfolder: "video/漫影/ep-1/sb-a", policy: "ambient" },
+      }]);
+      useStudioStore.setState({
+        storyboards: STORYBOARDS.map((item) =>
+          item.id === "sb-a" ? { ...item, h3DurationUs: 4_000_000 } : item,
+        ),
+      });
+      const { deps } = makeDeps({
+        client,
+        applyVideoToStoryboard: undefined,
+        writeProjectBinary: async () => ({ success: true, url: "project-file://project-1/remotion/outputs/shots/ep-1/sb-a/h3/ambient_v1_72.mp4" }),
+        probeVideoDuration: async () => probeResult,
+      });
+
+      await consumeComfyBridgeWritebacks(deps);
+
+      const shot = useStudioStore.getState().storyboards.find((item) => item.id === "sb-a");
+      expect(shot?.mediaRef).toMatchObject({ kind: "video" });
+      expect(shot?.h3DurationUs).toBeUndefined();
+    },
+  );
 });
