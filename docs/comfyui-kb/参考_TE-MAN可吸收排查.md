@@ -72,7 +72,7 @@
 3. **P2 需同题对拍**：B3 宫格+切割 → B4 三视图（对拍裁定按 09-15 功能优先裁定）
 4. **P3 协议吸收**：B5 批量治理四协议并入 App 侧批量链
 5. **远期观察**：B6-B10、3D 导演台、TeaCache(H3 验证)
-6. **0929 落地注记**：B1 截帧回灌→MyVideoFrameGrab、B3 宫格切割→MyImageGridSplit 已仿写落地 `my_nodes`（自研件，A5 铁约束随 B3 档；重路径实弹冒烟归引擎侧）；B2 对比器双件及其余仍待拍板
+6. **0929 落地注记**：B1 截帧回灌→MyVideoFrameGrab、B3 宫格切割→MyImageGridSplit、B2 对比器双件→MyImageABCompare/MyVideoABCompare 已仿写落地 `my_nodes`（自研件，A5 铁约束随 B3 档；重路径实弹冒烟归引擎侧）；B2=已落地（任务档 09-29-teman-b2-ab-compare：图 canvas 滑帘+2-7x 放大镜/视频双 video 滑帘+rAF 同步 syncToken 防竞态+帧对齐+A/B 声道，注册双表+契约单测+jsdom 取证，浏览器逐项实弹清单移交任务档）；其余 B4-B10 仍待拍板
 
 ## 四、排查方法备注
 

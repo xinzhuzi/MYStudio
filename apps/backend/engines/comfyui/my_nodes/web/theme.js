@@ -299,6 +299,52 @@ export const CINEMA_TOKENS = {
   fontMono: 'ui-monospace, "SF Mono", Menlo, "Cascadia Code", monospace',
 };
 
+/** A/B 对比审片双件代币(0929 TE-MAN B2):滑帘/放大镜/双视频同步的尺寸与
+ * 配色单源——消费方 my-image-ab-compare.js(canvas 路)/my-video-ab-compare.js
+ * (DOM 路),禁在消费文件复刻魔法数。accent 系色复用 THEME(同文件单源)。 */
+export const AB_COMPARE_TOKENS = {
+  stageMinW: 430,        // 节点宽下限(px;对比舞台再小没法审片)
+  titleH: 30,            // litegraph 节点标题栏高(px)
+  widgetRowH: 20,        // 原生 widget 单行高(px;label_a/label_b 文本框行)
+  labelStageGap: 6,      // 标签行底 → 舞台顶间距(px;舞台动态让位标签行)
+  stageH: 260,           // 对比舞台净高(px;图/视频两路同面)
+  pad: 10,               // 舞台外边距
+  hitSlop: 6,            // 命中矩形外扩(px;拖帘手柄容差)
+  buttonRowH: 26,        // 底部按钮/读数行高(px)
+  minStageH: 120,        // onResize 守的最小舞台净高(px;用户手缩不塌底)
+  minStageFace: 40,      // 舞台宽/高退化下限(px;防负几何)
+  barGap: 6,             // 视频件 DOM 舞台↔控制行间距(px)
+  barBtnH: 20,           // 视频件控制按钮高(px)
+  // 滑动帘
+  dividerW: 2,           // 帘线宽(px)
+  handleR: 11,           // 帘手柄半径(px)
+  // 放大镜(图对比件;倍率区间=设计真源 2-7x,steps 与 py 侧 ZOOM_STEPS 同源)
+  lensR: 62,             // 镜头半径(px)
+  lensBorderW: 2,        // 镜圈描边宽(px)
+  zoom: { min: 2, max: 7, steps: [2, 3, 4, 5, 7] },
+  // 双视频同步(视频对比件;漂移容限秒数与 py 侧 FRAME_DRIFT_TOLERANCE 同源)
+  driftTolerance: 0.5,
+  rateClamp: [0.25, 4],  // 帧率不同路的 playbackRate 夹取区间(浏览器安全带)
+  // 配色(canvas/DOM 两路共用;画布深底可读)
+  colors: {
+    stageBg: "rgba(0, 0, 0, 0.32)",
+    stageBorder: "rgba(255, 255, 255, 0.10)",
+    divider: "rgba(255, 255, 255, 0.92)",
+    dividerGlow: "rgba(110, 168, 254, 0.55)",
+    handleBg: THEME.accent,
+    handleIcon: "rgba(8, 14, 26, 0.92)",
+    badgeBg: "rgba(8, 14, 26, 0.72)",
+    badgeText: "rgba(240, 244, 250, 0.94)",
+    pillBg: "rgba(110, 168, 254, 0.14)",
+    pillBorder: "rgba(110, 168, 254, 0.42)",
+    pillText: THEME.accent,
+    pillOffBg: "rgba(255, 255, 255, 0.06)",
+    pillOffBorder: "rgba(255, 255, 255, 0.14)",
+    pillOffText: "rgba(178, 188, 204, 0.85)",
+    readout: "rgba(178, 188, 204, 0.85)",
+  },
+};
+
 /** lucide 风格 stroke 图标(自绘路径,零依赖;14px 视口) */
 function icon(pathD, size = 14) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
