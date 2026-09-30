@@ -299,6 +299,8 @@ In the GUI (tell the owner, or do it yourself when driving):
 
 When BUILDING the JSON yourself (not clicking): the inner graph lives in `definitions.subgraphs[]`; the outer SubgraphNode exposes params through `properties.proxyWidgets` and boundary I/O through the subgraph's input/output nodes (see the template-reading note above). Ship one clean brick per stage instead of 20 loose nodes. Sources: docs.comfy.org/interface/features/subgraph ; blog.comfy.org/p/subgraph-official-release.
 
+**Project hardening (read before emitting subgraph JSON in this repo)**: `docs/comfyui-kb/子图工作流工程契约.md` is the project contract for hand- or script-generated subgraph JSON — boundary wires MUST be registered in `inputs[].linkIds`/`outputs[].linkIds` (a `-10/-20` line in `sg.links` alone renders nothing and fails graphToPrompt), input slot order must be the loader-stable order (§五点五), and when folding a whole functional domain (parallel branches + selector + seed) into a subgraph, follow the §八 conventions (host node reuses the old selector node id; user knobs surface as widget-typed boundary slots mirrored into host `widgets_values`; lazy-execution semantics must be re-verified live). Precedent: the Q2-1 道劫 t2i/i2i/edit workflows each carry exactly two subgraphs (装配 + 加速, 0930 收装批).
+
 ## Creator-level depth: strengths, real limits, and advanced sequence work
 
 The full creator-level reference (strengths, the real gotchas with workarounds, advanced sequence techniques, and a verified tool table with licenses) is `ADVANCED.md` (next to this file in the installed skill, or `docs/ADVANCED.md` in the repo). Read it for hard tasks. The load-bearing gotchas to remember even without opening it:
