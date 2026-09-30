@@ -3,6 +3,7 @@
 > 对象：tl2012tl/TE_MAN v3.7（B 站 TETAE 同源）。排查范围=仓库全部明文资产：9 个 skills、17 个 web/js 交互件（已反混淆精读）、`te_bernini_backend` 后端 fork、根层明文 py、LICENSE、config.ini。
 > 探针克隆：`/tmp/te_man_probe`（易失）；本报告为沉淀真源。
 > **License 定性**：根 LICENSE=全权利保留（仅限学习阅读，严禁复制/修改/衍生/发布）→ **一切吸收只仿设计，禁拷任何代码/文案**。后端 fork 例外：kijai WanVideoWrapper 血统为 Apache-2.0（若确需可从上游合法取，但也用不上）。
+> 最后核账：2026-09-30（§三 执行序刷为现状口径收官；A 层闭行注记见 §三 0930 两行）。
 
 ## 一、资产全景定性
 
@@ -65,14 +66,16 @@
 | 连线搜索预填 / 快捷断连（默认关闭件）/ 音频 IO 节点 | 营销件/低价值/App 侧已有音频台账 |
 | 整合包+中转站分发形态 | 供应链不可控，与开源自研双许可相悖 |
 
-## 三、建议执行序（待拍板）
+## 三、建议执行序（现状口径，0930 刷新）
 
-1. **P0 知识沉淀**（零开发）：A1-A7 写进 `docs/comfyui-kb/` 参考区 + 技能对照升级 → 本报告即是第一步
-2. **P1 白捡工程件**：B1 截帧回灌 → B2 对比器双件
-3. **P2 需同题对拍**：B3 宫格+切割 → B4 三视图（对拍裁定按 09-15 功能优先裁定）
-4. **P3 协议吸收**：B5 批量治理四协议并入 App 侧批量链
-5. **远期观察**：B6-B10、3D 导演台、TeaCache(H3 验证)
+1. **P0 知识沉淀**（零开发）——**已收口（0930）**：A 层 A1-A8 全已有家——A1=技能本体 `.agents/skills/h3-prompt-writing/`（references 按需层即真源；0930 SKILL.md 常驻层补「受控标记与编号速查」索引行，闭真缺口）；A2-A6=`参考_拼接衔接锁与一致性锚点.md` §一-§五（A1 闭行结论=同档附节）；A7=`参考_文案逐字自检门.md`（0930 新开最小平档，设计注记形态，代码化后续立项待令）；A8=本档 §二备查行不动。逐行闭行口径见下方 0930 落地注记
+2. **P1 白捡工程件**——**已落地（0929）**：B1 截帧回灌→`MyVideoFrameGrab`；B2 对比器双件→`MyImageABCompare`/`MyVideoABCompare`（均入 `my_nodes`，详见 0929 注记）
+3. **P2 需同题对拍**——B3 宫格+切割**已落地（0929）**：`MyImageGridSplit`，A5 铁约束随档（宫格=中间产物，切割后才作参考）；**B4 三视图延期**：需引擎同题对拍，当前引擎被并行会话占用，空窗即启（对拍裁定按 09-15 功能优先裁定）
+4. **P3 协议吸收**——**已落地（0929）**：B5 治理四协议（断点续跑/间隔节流/随机序/精确停队）→ `docs/comfyui-kb/tools/batch_queue.py` 脚本形态；七条 low 检查发现另有会话在途修补
+5. **远期观察**——B6 并发运行高亮、B8 双击自动连最近兼容口**已落地（0930）**：`my_nodes/web/node-progress-highlight.js`、`my_nodes/web/dblclick-connect-nearest.js` 已入库，jsdom 探针三支随件入库（b6_progress/b8_dblclick/b8_subgraph_0930，0930 收官批复跑全绿 32/48/27 断言零败）；**引擎实弹验证延期至引擎空窗**；B7 超级存图模式（子集）**延期**：三子件全中难度，建议单独役；B9/B10、3D 导演台、TeaCache（H3 验证）维持观察
 6. **0929 落地注记**：B1 截帧回灌→MyVideoFrameGrab、B3 宫格切割→MyImageGridSplit、B2 对比器双件→MyImageABCompare/MyVideoABCompare 已仿写落地 `my_nodes`（自研件，A5 铁约束随 B3 档；重路径实弹冒烟归引擎侧）；B2=已落地（任务档 09-29-teman-b2-ab-compare：图 canvas 滑帘+2-7x 放大镜/视频双 video 滑帘+rAF 同步 syncToken 防竞态+帧对齐+A/B 声道，注册双表+契约单测+jsdom 取证，浏览器逐项实弹清单移交任务档）；B5 批量队列治理四协议→已落地（任务档 09-29-teman-b5-batch-queue：脚本形态 `docs/comfyui-kb/tools/batch_queue.py` 不进节点包——graphToPrompt 等价转换→deepClone→改拍变量→连线闭包裁剪→queuePrompt 循环；四协议=断点续跑(拍号→产物指纹 ndjson 台账，--start 原序口径)/间隔节流/随机序(未完成拍集合洗牌)/精确停队(自持 prompt_id 逐单 DELETE，clear 禁用)；引擎口从 manifest.json 现算，--self-test 45 断言纯逻辑自检；7 条 low 检查发现随档未修）；其余 B4、B6-B10 仍待拍板
+7. **0930 落地注记（A 层闭行，P0 知识沉淀至此收口）**：A1→收尾不新开档，技能本体 `.agents/skills/h3-prompt-writing/`（references）即真源，0930 复核=SKILL.md 常驻层补「受控标记与编号速查」索引行（此前 `<d>`/`<scenetrans>`/`<cutoff>`/Sx 编号/retention 枚举只住 references 按需层）；「字段口径可互补」仍无法就地核验——探针克隆已失且 license 红线=只仿设计禁拷文案，可先比本仓存档官方 system prompt（`docs/comfyui-kb/参考_提示词工程/` fl2va/ref2va 两件）核大半，待后续裁定；拼接档附节 09-15 闭行结论维持。A2-A6→已有家=`参考_拼接衔接锁与一致性锚点.md` §一-§五（09-15 落地，正文不再动；唯 A5 指针增注=宫格教训已随 B3 落地 `my_nodes/my_image_grid_split`，拼接档 §四已补）。A7→新开最小平档 `参考_文案逐字自检门.md`（设计注记形态，代码化=后续立项待令）。A8→维持本档备查行不动
+8. **0930 收官注记**：§三 执行序 1-5 刷为现状口径（本行生效）；A 层收官文档批随批入库=本档刷新＋`参考_文案逐字自检门.md`（A7 新档）＋`参考_拼接衔接锁与一致性锚点.md` §四 B3 落地增注＋h3 技能 SKILL.md 受控标记速查行；B2 战役两支 0929 变体探针证据保全入库=`apps/build/scripts/b2_drag_probe_b_0929.mjs`（帘拖动探针B：@comfyorg litegraph widget.mouse 派发验证＋坐标公式修正）与 `apps/build/scripts/b2_drag_probe_d_0929.mjs`（探针D：三节点连接图全套仪表，复现/定位「帘拖动不动」）——战役取证遗留件，非常驻测试
 
 ## 四、排查方法备注
 

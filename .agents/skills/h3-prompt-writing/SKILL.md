@@ -13,6 +13,7 @@ compatibility: Portable to any agent that can read local files — no external A
 3. For full-reference mode, read `references/ref-en.txt` and follow its six-section rewrite format.
 4. Preserve the exact field names, section order, labels, and timing notation from the selected guide.
 5. For a hand-fed Chinese direct draft (manual web/client generation or a non-API quick draft), read `references/direct-zh.md` and follow its five-element order and anaphora blacklist. The official English structure from steps 2-4 stays the default and remains the pipeline source of truth.
+6. Controlled marks and numbering — `<d>[Language] ...</d>` dialogue tags, `<scenetrans>`/`<cutoff>` cut-crossing marks, `(S1)`-style global speaker IDs, and retention enums (`fully_preserved`/`partially_preserved`/`attribute_transfer`/`weak_reference`; audio: `fully_copy`/`partially_copy`/`reference`/`weak_reference`) — are fixed vocabularies defined in `references/base-en.txt` (§4.4–4.5) and `references/ref-en.txt` (§4.1–4.2, §5.2); look them up there instead of improvising marks.
 
 ## Base Modes
 
