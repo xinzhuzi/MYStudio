@@ -345,6 +345,14 @@ export const AB_COMPARE_TOKENS = {
   },
 };
 
+/** 并发运行描边代币(0930 TE-MAN 排查 B6 仿写件):画布节点「正在执行」描边尺寸单源。
+ *  既有 token 无描边宽语义槽(AB_COMPARE_TOKENS.dividerW=对比件帘线宽,语义错位禁挪用);
+ *  档位对齐引擎内置 running 描边(同为 3px)保证视觉可辨。颜色禁在此复刻——
+ *  消费方一律引 THEME.pending(进行中语义色,同文件单源)。最小追加单槽。 */
+export const PROGRESS_HIGHLIGHT_TOKENS = {
+  lineWidth: 3,            // 正在执行节点描边宽(px;strokeShape 默认 1 过细)
+};
+
 /** lucide 风格 stroke 图标(自绘路径,零依赖;14px 视口) */
 function icon(pathD, size = 14) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
