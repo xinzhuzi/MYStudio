@@ -170,6 +170,10 @@ HEALTH_TIMEOUT_S = 120.0  # 首次冷启动 torch 导入慢,健康轮询窗口�
 GUARD_INTERVAL_S = 3.0
 GUARD_MAX_RESTARTS = 3
 GUARD_WINDOW_S = 900.0
+# 0930 场景B收官:守卫节拍收敛的日志限频窗(同类别消息窗口内不重复打)。
+# 3 秒节拍×「唯一性未证」/停旧失败=每分钟 20 条洪水;压到每 5 分钟一条同类,
+# 可观测仍在(Windows/ps 不可用环境下双活检测缺位须持续可见)不刷屏。
+GUARD_CONVERGE_LOG_INTERVAL_S = 300.0
 # 09-08 加固①:stop 彻底性——SIGTERM 后等满 10 秒仍活着(引擎卡在 C 扩展里
 # 收不到信号是实弹见过的)就升级 SIGKILL;stopped 回复以进程真实退出为准。
 STOP_TERM_WAIT_S = 10.0
@@ -967,6 +971,10 @@ class EngineManager:
         self._guard_enabled = False
         self._guard_thread: threading.Thread | None = None
         self._restart_times: list[float] = []
+        # 守卫节拍收敛的日志限频账(类别→上次放行 monotonic;0930 场景B收官)。
+        # 单写者=guard 线程(唯一调用方 _guard_beat_converge),dict 读写 GIL
+        # 原子,不加锁——引入 _lock 会与 start/stop 锁序交叉,违背收敛体零锁纪律。
+        self._guard_converge_log_at: dict[str, float] = {}
         self._last_check: dict = {}  # 最近一次 update-check 结果缓存(状态行用)
         self._last_node_count: int | None = None
 
@@ -1247,7 +1255,7 @@ class EngineManager:
             return False
         return _terminate_pids(sorted(pids))
 
-    def _converge_extra_home_instances(self, proc) -> None:
+    def _converge_extra_home_instances(self, proc, *, source: str = "快路径", log_gate=None) -> None:
         """快路径单实例收敛(0929 深审 R1 行为修复):枚举自家实例,多余的停旧。
 
         病灶:自管引擎活着时旧快路径提前 return,永不到达 start_sync 下方的主
@@ -1265,24 +1273,85 @@ class EngineManager:
         康/预热窗触达本路,收敛动作不得拖垮它):本方法
         自身绝不抛错(调用方另有兜底),停旧失败也不抛——如实打日志由用户处置,
         绝不为收敛拖垮生图。
+
+        0930 场景B收官:守卫节拍(_guard_beat_converge)复用本方法做同一份
+        收敛(防两处漂移)。source=日志前缀(节拍传「守卫节拍」;默认「快路径」
+        =既有输出逐字节不变);log_gate=日志限频门(类别→是否放行;None=每
+        触达一发,快路径现状语义)——节拍 3 秒一拍,不限频会把「唯一性未证」/
+        停旧失败刷成每分钟 20 条。
         """
+        def _log(category: str, message: str) -> None:
+            if log_gate is not None and not log_gate(category):
+                return
+            print(message, flush=True)
+
         home_procs = _engine_home_processes()
         if home_procs is None:
-            print("[image-sidecar] comfy-engine: 快路径:引擎进程枚举不可用,"
-                  "本机唯一性未证(已有引擎在跑、不启新的;若外部另拉了实例请手动关闭)", flush=True)
+            _log("enum-unavailable",
+                 "[image-sidecar] comfy-engine: " + source + ":引擎进程枚举不可用,"
+                 "本机唯一性未证(已有引擎在跑、不启新的;若外部另拉了实例请手动关闭)")
             return
         extras = _extra_home_instances(home_procs, getattr(proc, "pid", None))
         if not extras:
             return
-        print(f"[image-sidecar] comfy-engine: 快路径:发现 {len(extras)} 台额外的漫影 ComfyUI 实例"
-              f"(pid/口 {[(info['pid'], info['port']) for info in extras]}),"
-              "按单实例纪律停止多余的实例(自持的保留)", flush=True)
+        _log("extras-found",
+             f"[image-sidecar] comfy-engine: {source}:发现 {len(extras)} 台额外的漫影 ComfyUI 实例"
+             f"(pid/口 {[(info['pid'], info['port']) for info in extras]}),"
+             "按单实例纪律停止多余的实例(自持的保留)")
         for info in extras:
             retire_port = info["port"] if isinstance(info["port"], int) else 0
             if not self._retire_orphan_engine(retire_port, extra_pids=[info["pid"]]):
-                print(f"[image-sidecar] comfy-engine: 快路径:多余的漫影 ComfyUI 实例"
-                      f"(pid {info['pid']},端口 {retire_port or '(未绑口)'})停不下来"
-                      "(找不到或终止不了监听进程);请手动关闭该 ComfyUI 进程,以免双引擎占资源", flush=True)
+                _log("retire-failed",
+                     f"[image-sidecar] comfy-engine: {source}:多余的漫影 ComfyUI 实例"
+                     f"(pid {info['pid']},端口 {retire_port or '(未绑口)'})停不下来"
+                     "(找不到或终止不了监听进程);请手动关闭该 ComfyUI 进程,以免双引擎占资源)")
+
+    def _guard_converge_log_gate(self, category: str) -> bool:
+        """守卫节拍收敛的日志限频门:同类别窗口(GUARD_CONVERGE_LOG_INTERVAL_S)
+        内只放行一发。单写者=guard 线程(唯一调用方 _guard_beat_converge),
+        dict 读写 GIL 原子,不加锁——引入 _lock 会与 start/stop 锁序交叉,
+        违背收敛体零锁纪律。
+        """
+        now = time.monotonic()
+        if now - self._guard_converge_log_at.get(category, 0.0) < GUARD_CONVERGE_LOG_INTERVAL_S:
+            return False
+        self._guard_converge_log_at[category] = now
+        return True
+
+    def _guard_beat_converge(self, proc) -> None:
+        """守卫节拍收敛薄壳(0930 场景B收官):自管引擎活着也逐拍收敛多余自家实例。
+
+        病灶:R1 快路径收敛住在 start_sync 内——自管引擎健康且令牌正确时
+        (R2 语义 running=True 是正确上报、闸门不放行是对的),纯视图切换/
+        挂载 ensure 结构性到不了 start_sync,外部(如另一 AI 会话)再拉一台
+        自家出身实例即双活,该窗内无人收敛(0929 续接役唯一遗留)。修法:
+        守卫节拍(App 常驻心跳,零新进程零前端改动)在「proc 活着」分支逐拍
+        做同一份收敛(共用 _converge_extra_home_instances,决策纯函数/retire
+        纪律/枚举三态语义与快路径同源,防两处漂移)。
+
+        锁纪律:start_sync 全程持 _start_lock(冷启动健康等待最长 120s+)——
+        本薄壳只做非阻塞 try-acquire,拿不到=start_sync 在途(其快路径自带
+        一次收敛),跳过本拍;严禁阻塞 acquire(节拍主体=引擎死活检测,拖垮
+        即检测断)。收敛体保持零 _lock/_teardown_lock(与 start(start→
+        teardown→state)/stop(teardown→state)锁序无交叉,无死锁窗)。守卫
+        线程无全局兜底:任何异常在此吞掉只打日志(经限频门),绝不让 daemon
+        守卫静默死(镜像快路径热路径包裹纪律)。枚举不可用(None)语义不动:
+        纯守不杀,收敛体自带「唯一性未证」日志。与 stop 并发:stop 只 reap
+        自持 _proc,retire 中的额外实例不受影响;stop 置 _stopping 后节拍
+        顶闸让收敛自然停拍。每拍成本=一个 ps 子进程(毫秒级;枚举超时上限
+        5s);收敛动作最长的退休等待(SIGTERM 10s+SIGKILL 5s)会顺延当拍,
+        自身引擎崩溃检测窗相应拉长=已知代价(定制代码地图记档)。
+        """
+        if not self._start_lock.acquire(blocking=False):
+            return  # start_sync 在途:它自己的快路径会收敛一次,本拍让路
+        try:
+            self._converge_extra_home_instances(
+                proc, source="守卫节拍", log_gate=self._guard_converge_log_gate)
+        except Exception as exc:  # noqa: BLE001 — 守卫线程存活纪律:吞异常防 daemon 静默死
+            if self._guard_converge_log_gate("converge-error"):
+                print(f"[image-sidecar] comfy-engine: 守卫节拍实例收敛异常({exc}),本拍跳过", flush=True)
+        finally:
+            self._start_lock.release()
 
     def start_sync(self, progress=None, from_guard: bool = False, *, expected_generation: int | None = None,
                    allow_adoption: bool = True) -> dict:
@@ -1683,13 +1752,24 @@ class EngineManager:
             self._guard_thread.start()
 
     def _guard_loop(self) -> None:
-        """崩溃守卫(照 sidecar spawn 守卫模式):意外退出→自动拉起,限次熔断。"""
+        """崩溃守卫(照 sidecar spawn 守卫模式):意外退出→自动拉起,限次熔断。
+
+        0930 场景B收官:节拍兼自家实例收敛——自管进程活着时逐拍查多余自家
+        实例并 retire(见 _guard_beat_converge;守卫拉起期间节拍停摆=节拍与
+        拉起互斥同线程,既有语义)。
+        """
         while True:
             time.sleep(GUARD_INTERVAL_S)
             if not self._guard_enabled or self._stopping:
                 continue
             proc = self._proc
             if proc is not None and proc.poll() is None:
+                # 0930 场景B收官:自管引擎活着≠全机唯一——外部会话可再拉一台
+                # 自家出身实例,而纯视图切换/挂载 ensure 在 R2 语义下结构性到
+                # 不了 start_sync(R1 快路径收敛的入口),该窗无人收敛。守卫
+                # 节拍在此逐拍收敛(共用快路径那份 _converge_extra_home_
+                # instances;细节/锁纪律见 _guard_beat_converge)。
+                self._guard_beat_converge(proc)
                 continue
             if self.is_healthy():
                 continue  # 孤儿/收编态,无需重启
