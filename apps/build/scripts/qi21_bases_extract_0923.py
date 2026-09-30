@@ -21,6 +21,11 @@ apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json(节点 MyQi21DaojieB
     resolution_override = canon 同型字段照抄(fork 型除外;W/H 口径=K2 MyDaojieBase:
                       override 直出,否则 MP 按 1024² 计、取整 8 倍数——与 [61]
                       ResolutionSelector 一致)
+    rgba_default    = 0929 画布治理批 D6 RGBA 型联动布尔:四型透明声明型(道具/
+                      多视图/高清人脸/表情差分)=true 其余五型 false;**布尔真源=
+                      本脚本 RGBA_DEFAULT_TYPES 常量**(05 库只载声明文字不载布尔,
+                      防文档格式漂移带坏机器可读链);提取时与②层透明声明句互锁
+                      对账(错位即拒);节点 MyQi21DaojieBase rgba_default 槽热读
 
 提取纪律:库②④逐字(装配全文围栏切片,零改写);③层结构自检——人物系六型
 (人物/美宣/多视图/高清人脸/分镜剧情图/表情差分)装配围栏中段=[§四.1,§四.2,
@@ -47,6 +52,19 @@ OUT = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json"
 # 人物系六型(③层加挂常量B 四把全员锁;与 05 库生成器 daojie_canon_lib.py 同表;
 # 0927 改名轮:三视图→多视图)
 RENWU_XI = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
+
+# 0929 画布治理批·D6 RGBA 型联动(用户 0929 拍板四型):rgba_default 布尔真源=本
+# 常量(道具/多视图/高清人脸/表情差分=true,其余五型=false)——05 库只载声明文字
+# 不载布尔(防文档格式漂移带坏机器可读链);四型集合=0928 扩令透明声明四型
+# (canon_lib BEAUTIFIED 挂 TRANSPARENT_DECL 者),提取时与②层声明句互锁对账
+# (错位即拒,防名单与库文漂移;真源链=提取器常量→json 字段→节点 rgba_default
+# 槽→契约锁,design D6「真源链钉死」)。
+RGBA_DEFAULT_TYPES = {"道具", "多视图", "高清人脸", "表情差分"}
+
+# 透明声明句核锚=canon_lib TRANSPARENT_DECL 首段全串(表情差分变体尾「，光源
+# 方向九格一致」同前缀)——**全串锚防「透明头皮」光头禁令条款误判**(S0 研究
+# research/transparency-fusion.md 注记:人物系的「透明」字样非透明声明)。
+_RGBA_DECL_ANCHOR = "图为带透明通道的 RGBA 透明底图"
 
 # 0927 多视图轮·Q2.1侧画幅分档(单源=daojie_canon_lib.Q21_ASPECT_FORK,import 复用
 # 防两处漂移——多视图 3:4 Portrait Standard 4.2MP、退役 override;K2 侧 canon 不动)
@@ -113,6 +131,15 @@ def build_entries() -> list:
             item["aspect_ratio"], item["megapixels"] = Q21_ASPECT_FORK[zh]
         elif e.get("resolution_override") is not None:
             item["resolution_override"] = e["resolution_override"]
+        # 0929 画布治理批 D6:rgba_default 追加最末(既有键序不动)——与②层透明
+        # 声明句互锁对账,错位即拒(防 RGBA_DEFAULT_TYPES 名单与 05 库四型透明
+        # 声明漂移;全串锚防「透明头皮」光头禁令条款误判)
+        has_decl = _RGBA_DECL_ANCHOR in base_text
+        if has_decl != (zh in RGBA_DEFAULT_TYPES):
+            _fail(f"「{zh}」rgba_default 与②层透明声明不对账(名单内="
+                  f"{zh in RGBA_DEFAULT_TYPES},声明句在场={has_decl});"
+                  "RGBA_DEFAULT_TYPES 与 05 库②层透明声明须同笔同步(0928 扩令四型)")
+        item["rgba_default"] = zh in RGBA_DEFAULT_TYPES
         entries.append(item)
     return entries
 
@@ -135,8 +162,10 @@ def main() -> int:
             print(f"❌ 守恒校验未过: {OUT} 与 05 库/canon 提取不一致(重跑提取即同步)")
             return 1
         n_renwu = sum(1 for e in json.loads(want) if e["zh"] in RENWU_XI)
+        n_rgba = sum(1 for e in json.loads(want) if e["rgba_default"])
         print(f"✅ 守恒校验全绿:{OUT.name} 九型与 05 库②④层逐字一致、③层结构与常量 A/B "
-              f"对账通过、aspect/MP/override 与 canon 逐字一致(人物系 {n_renwu} 型含增量四锁B)。")
+              f"对账通过、aspect/MP/override 与 canon 逐字一致、rgba_default {n_rgba} 型 "
+              f"true 其余 false(与②层透明声明互锁;人物系 {n_renwu} 型含增量四锁B)。")
         return 0
 
     if OUT.is_file() and OUT.read_text(encoding="utf-8") == want:
@@ -144,7 +173,9 @@ def main() -> int:
         return 0
     OUT.write_text(want, encoding="utf-8")
     n_renwu = sum(1 for e in json.loads(want) if e["zh"] in RENWU_XI)
+    n_rgba = sum(1 for e in json.loads(want) if e["rgba_default"])
     print(f"生成 → {OUT}(九型 {len(want)} 字符;人物系 {n_renwu} 型 base_text 含增量四锁B;"
+          f"rgba_default {n_rgba} 型 true(四型透明声明型,与②层声明互锁对账已通过);"
           f"结构自检与常量 A/B 对账已通过)")
     return 0
 

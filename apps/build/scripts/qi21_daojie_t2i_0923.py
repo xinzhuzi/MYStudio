@@ -1,6 +1,62 @@
 #!/usr/bin/env python3
 """qi21-道劫-t2i.json 幂等生成器(09-23;0925 加速与展示全量外露收窄轮)。
 
+本轮(0930 S5 布局终排批,Trellis 09-29-qi21-canvas-batch D8/prd ②⑥;常数表=research/
+rhythm-constants.md;拓扑全定后一次性终排,**links 逐字节零变**仅 pos/组框变,对拍证明=
+research/s5-links-stable-qi21-daojie-t2i.md):
+  - **节奏常数化+3i 谓词**:PITCH_ASM/PITCH_BR/BRANCH_X 三常数入源码(标准档 760;紧凑档
+    560/600 未启用——t2i 现值即标准档全绿实证,零迁移成本,紧凑档重启须真前端观感定夺
+    禁拍脑袋回退,§2.5);自查新增 3i 节(容差 0=同值字面直写,漂移即红):支路列 x 全等/
+    同构行(联动宽高两行)x 元组逐位全等/支路行距等差/装配行带距等差/支路行序=选择件
+    三 latent 槽纵序;
+  - **主图 [5]↔[208] 换行**(仅两件挪位):[40] 五输出槽的消费端自此按槽序纵向叠放——
+    [208](槽0/1 positive/negative)@y1740 上、[5](槽2/3 width/height)@y2460 中、[27]
+    (槽4 最终文本)@y2760 底=prd 问题①-3「槽序与下游去向纵向序对齐」规则在主图落地;
+    实测主图交叉 13→4(9 对 [40] 扇出交叉全消),残 4 对(10,62)/(10,97)/(12,13)/(15,31)
+    为走廊固有([3]→[8].vae 长走廊×occlusion 铁律钉死 [208] 带;[2]/[3] 槽序对拍等价
+    换 1 对;[24] 槽2 vs [11] 槽3 换 2 对——网格搜索全档实测无一净减,如实记);
+  - **装配子图内部治理**(棘轮 23→16,纯挪位):通道拐点按零 link 变更重排车道
+    (挪位优先,垫脚石零新增=links 逐字节不变的充要前提)——[173] 左缘走廊让道
+    (消 (35,38)(38,58) 左缘扇形倒挂)/[176] 行5-6 隙车道归一 y=3790(消 (44,50))/
+    [211][212] rgba 横带缩短 900 单车道(消 (24,60)(61,62))/[163] 右移 2710→3610
+    (消 (15,54)(16,54),增 (14,54) 等价换)/[207] 微调(消 (44,52));残 16 对=
+    拼接槽序族((10,11)(14,15)(53,54))/蛇形交叉族((30,31)(34,41))/行5 槽序倒挂族
+    ((17,59)(19,59))/融合拓扑本体族([160][161] 官方头尾长下落线×装配线(14,52)
+    (14,54)、wh_ratio 双降线×横带(25/26,36/60)、[141]→[176] 下落×横带(44,60)、
+    行5 汇流(57,61)(57,62)),爬山两轮独立收敛 16=贴线,如实记不硬拗。
+
+本轮(0929 S3 收装批,Trellis 09-29-qi21-canvas-batch D3/D4/D5;用户令「从 [1] UNETLoader
+出来之后,进入一个自定义加速节点图里面,然后将上面三种情况,都写入自定义加速节点图」):
+  - **新建「道劫·加速子图」**(definitions.subgraphs 第 2 员,与 [40] 装配子图成对=每画布
+    恰两子图:②提示词管内容语义+③加速管采样策略,职责互斥):三支路([7]直出40步/
+    [31]viggle LoRA(0.8)→[206]359步/[198]Fun-Acc T8·4步)+seed 单源[207]+选择件[214]
+    (id 让位宿主新分)全迁入,机构自 0929 并行化轮主图原样搬移(语义零改动);内部件 id
+    沿用旧主图 id(7/31/198/206/207;唯选择件让位宿主新分 [214]——宿主 208 与其内部件
+    零撞号,规避无 A 级实证的 208:208 同号展开形,i2i 件 [192] 同规则先例);
+    支路行序=选择件三 latent 槽纵序(funacc槽0顶/viggle槽1中/direct槽2底)对齐→三汇流
+    线零交叉(实测 3g);
+  - **宿主=原选择件 [208] 原位改造**(id 沿用,D3):title「加速子图」;外露输入槽 4=
+    model([1] UNET 直连)/positive+negative([40] 输出,D4 t2i 列)/latent([5] 空潜),
+    全连线;输出 LATENT→[8] 解码;面板「速度档位」COMBO+「seed」INT 双控件
+    (D5 推荐案成立:research/subgraph-widget-promotion.md Probe A 实证 INT/COMBO 同宿主
+    双控件外露可用,回退案不启用;值双写=子图 widgets[]↔宿主 widgets_values[]);
+  - 主图退成四块骨架 ①加载器→②提示词·装配→③加速([5]+宿主[208])→④输出,
+    主图 17→12 节点/27→14 链;懒执行语义零改(MyQi21SpeedSelect 三 latent 槽全 lazy,
+    三档干跑改写为子图内回溯 _dry_run_accel,对拍口径=干跑执行集等价,真前端开门验证
+    留编排批);
+  - 自查基线合法重立:交叉棘轮主图 67→实测重立(拓扑手术=支路机构整体迁出主图,
+    0928/0929「拓扑变更重立基线」先例;装配子图 23 零动;加速子图=新域实测起步);
+    涉锚契约测试(TestSpeedSelectContract0929 等)下一阶段统一重写,本役不碰。
+
+本轮(0929 S1 命名批,Trellis 09-29-qi21-canvas-batch;用户令「[40] 标题太长做个
+稳定名字」+「[208] 名字不要太长表达不出干嘛的」;纯命名手术,零拓扑零连线零摆位):
+  - [40] 宿主 title:长工程笔记→稳定短名「[40] 装配子图」;子图 name 不变
+    (「[40] 道劫·装配子图(双击进入)」);被删说明逐条对账补进组框②标题
+    (+双击进入)与 [10] Note(RGBA 段补面板控件名)=信息零丢失;
+  - [208] 选择件 title:「[208] 加速档位选择(MyQi21SpeedSelect:…)」→「出图速度
+    选择」(用户语言短名,三件同构统一;被删机制细节住组框③标题+Note §加速节);
+  - 自查随批:5 节加宿主/选择件稳定短名正锁(名字漂移即拒生成)。
+
 本轮(0929 四块组框重画轮,三件统一口径·纯组框+摆位手术,零拓扑改动):
   - **主图组框 3→4 按四块口径重画**:①加载器([1][3][2][11],双TE 自旧「装配外露」
     框迁出归此)/②提示词·装配([24][40][27])/③加速区([5][7][31][206][198][208][207],
@@ -179,37 +235,34 @@
     新增两谓词:零负区(主图+子图所有节点 pos≥40)+输出口最右(子图输出接口
     x≥全子图最大 x-50),与既有谓词(est 零重叠+横距≥200/纵距≥80)合成防线。
 
-主画布布局(0929 加速区并行化轮;全部正区;从上到下=阶段带,行内从左到右):
-  加载器竖列 x≈1000-1460:[1] UNET@996,1180(base MODEL 单源三扇出 [31]/[7]/[198];
-             自旧加速区组框挪回加载器列上首——[1]→[7] 直连线需从 [40] 上方净空过)
-             →[3] VAE@1105,1500→[2] 主TE@1076,1704→[11] PE专属TE@1063,2015
-  装配外露带:[24] 主体句@1700,2900(0929 四块重画自 953,2325 挪——出①加载器框
-             x 区,②框 x0=1670 与①框 x1=1493.5 间隙 176.5)→[40] 装配子图@2393,2161
-             (外露槽4=clip/vae/主体句/pe_clip,面板五控件);[27] 装配预览@3050,1650 原位
-             (0929 并行化轮自 3173,2331 上袋让位线遮走廊,四块轮零动)
-  并行支路带(三行纵叠,行距 720):
-             行0 直出 y=1740:[5] 空潜@3900,1740(宽高直连 [40].width/.height,LATENT
-             三扇出 [7]/[206]/[198])→[7] KSampler(40步)@5011,1740
-             行1 viggle y=2460:[31] LoRA@4250,2460(窄卡 270 宽让行带走廊)→
-             [206] KSampler(359步)@5100,2460
-             行2 Fun-Acc y=3180:[198] T8@5011,3180(model=[1] 直连)
-             汇流:[207] seed 单源@3200,2900(行1-行2 间带左袋)→三采样器 seed;
-             [208] MyQi21SpeedSelect@6300,2460(居三支路汇流带右侧)→[8] 解码@6986,1722
-             →[9] 保存@7440,1748(卡片缩 933×904→700×460,主链框不吞支路带)
+主画布布局(0929 S3 收装轮;全部正区;四块骨架=①加载器→②提示词·装配→③加速→④输出):
+  加载器竖列 x≈1000-1460:[1] UNET@996,1180(base MODEL 单源一进线 [97]→加速宿主,
+             S3 收装:三支路扇出内聚子图内)→[3] VAE@1105,1500→[2] 主TE@1076,1704
+             →[11] PE专属TE@1063,2015
+  装配外露带:[24] 主体句@1700,2900→[40] 装配子图@2393,2161(外露槽4=clip/vae/
+             主体句/pe_clip,面板五控件);[27] 装配预览@3050,2760(0929 S4 槽位批:
+             最终文本移宿主最末槽(节点最底),[27] 自 1650 上袋迁 [40] 右下袋——
+             槽位下移使导线自最底槽直落,不再翻越 width/height 走线,实测交叉 16→13)
+  加速带(③块,[5] 空潜+宿主同框;0930 S5 [5]↔[208] 换行):[208] 加速宿主@4800,1740
+             (上;0930 S5 自 2460 上移=[40] 槽0/1 positive/negative 消费端按槽序居上,
+             与 [5]/[27] 成槽序纵叠)→[5] 空潜@3900,2460(中;槽2/3 width/height 消费端,
+             宽高直连 [40].width/.height,LATENT 一进线 [5]→宿主.latent 自下而上一进)
+             →LATENT→[8] 解码@6986,1722→[9] 保存@7440,1748;([27] 装配预览=槽4 最终文本
+             消费端@2760 居底——[40] 五槽三消费端纵序=槽序,prd ①-3 输出点排布规则落地)
   Note [10] 左下独立@[80,3500](白名单留组外);
-  主图 group 恰 4=四块口径(0929 四块重画轮,两两 bbox 零交集/非Note零裸奔/四块
-  成员恰好=自查 3h 谓词):①加载器([1][3][2][11],双TE自旧装配外露框迁入)/
-  ②提示词·装配([24][40][27])/③加速区([5][7][31][206][198][208][207],空潜+
-  三支路+选择+seed单源——旧「主链」框废框拆散,[5][7] 并入、[8][9] 独立成④;
-  旧主链×加速区在 [7] 直出行的交叠就此消灭)/④输出([8][9]);宅基律 pad=
-  L30/T50/R30/B50 实测沿用,阅读序①左上→②其下→③右侧中段→④最右=Z形。
+  主图 group 恰 4=四块口径(两两 bbox 零交集/非Note零裸奔/四块成员恰好=自查 3h):
+  ①加载器([1][3][2][11])/②提示词·装配([24][40][27])/③加速区(S3 收装后=[5]+[208]
+  两件,支路机构整体入子图,被收装机构信息住③框标题=信息零丢失)/④输出([8][9]);
+  宅基律 pad=L30/T50/R30/B50 沿用,阅读序①左上→②其下→③右侧中段→④最右=Z形。
 
-子图结构(宿主 [40],双击进入;行式六行=四行流水+联动蛇形两行;0929 宿主外露槽 8→4):
+子图结构A·装配(宿主 [40],双击进入;行式六行=四行流水+联动蛇形两行;0929 宿主外露槽 8→4):
   宿主 [40] 外露输入槽 4: clip/vae(外连 [2][3])+ 主体句(外连 [24])+ pe_clip
   (外连 [11]);型选择/RGBA透明开关/PE开关(默认 true)/画幅联动开关(默认 false)
   四控件=面板控件(不占输入槽,widgets_values 五值;子图内部 -10 IO 仍 8 槽零动)。
-  outputs(5): positive/negative(→[7] KSampler)、最终文本(→[27] 装配预览)、
-  width/height(INT→[5] 空潜直连,联动开关后终值)。
+  outputs(5): positive/negative(→加速子图)、width/height(INT→[5] 空潜直连,
+  联动开关后终值)、最终文本(→[27] 装配预览;0929 S4/D2:预览文本类槽=最末槽
+  =节点最底,槽序自 positive/negative/最终文本/width/height 迁正,子图右列 pos
+  随槽序重排)。
   行1 y=280   源行:[150] MyQi21DaojieBase+[110] 锁层A+[160][161] RGBA 官方头尾
   行2 y=1040  装配:[130] 拼接①(主体句+BASE)→[131] 拼接②(+锁层A)→
               [162][163] RGBA 公式拼接(头+装配全文+尾)
@@ -225,15 +278,33 @@
   group 四框各罩单一阶段行(联动蛇形两行不设框,预算≤4);子图输出 IO 槽 x=7300
   钉死最右列(全子图最大节点 x=4760,表示法=K2 [90] 实证)。
 
-自查(写盘后必跑,任一失败退出码 1):json.loads 往返 / 主图+子图 link 双向一致 /
-主图加速区并行结构(恰1 LoRA+[7]40步/[206]359步 两 KSampler steps 回归 widget=面板
-生效值+cfg/euler/simple/denoise 照抄现值+[198] T8 model=[1] 直连无负面槽+seed 输入化/
-[207] seed 单源三扇出(三采样器 seed 一律 widget→input)/[208] MyQi21SpeedSelect combo
-首项=直出40步=默认+三 latent 槽接线+输出→[8]+主图零选择类逻辑件(ComfySwitchNode/
-easy compare/PrimitiveBoolean 恒0,旧注入式十件 id 全不在图)+零真重复节点(同 type+
-同上游集合+同 widgets,主图/子图分域)) /
-三档懒干跑(默认直出40步=[7] 在链而 [198]/[206]/[31] 零执行;档1=viggle 链在;
-档2=Fun-Acc T8 在)/
+子图结构B·加速(0929 S3 新建;宿主 [208]=原选择件原位改造;内部件 id 沿用旧主图 id):
+  -10 边界 6 入:model([1] 直连;三支路同源扇出 [7]/[31]/[198])/positive([40].positive;
+  三支路同源)/negative([40].negative;[7]/[206] 占位,T8 无负面槽)/latent([5] 空潜;
+  三支路同源)/速度档位(COMBO 面板→[208].mode)/seed(INT 面板→[207].value,
+  D5 推荐案:research/subgraph-widget-promotion.md Probe A 实证,回退案不启用);
+  出 1:LATENT→主图 [8]。widgets[]=[速度档位值,seed值]↔宿主 widgets_values 双写。
+  行1 y=280   Fun-Acc:[198] T8(model=model 入口直连,绝不吃 LoRA;无负面槽)
+  行2 y=1040  viggle:[31] LoRA(0.8)→[206] KSampler(359步)+[214] 出图速度选择
+  行3 y=1450  seed 带:[207] PrimitiveInt(value=面板「seed」)单源扇出三采样器
+  行4 y=1800  直出:[7] KSampler(40步)
+  (行序=选择件三 latent 槽纵序 funacc顶/viggle中/direct底 对齐→三汇流线零交叉)
+  group 恰 1 框罩全 6 件(单一功能域,装配「单一阶段行」口径不适用);输出 IO 槽
+  x=3900 钉最右列(全子图最大节点 x=3400)。
+
+自查(写盘后必跑,任一失败退出码 1):json.loads 往返 / 主图+两子图 link 双向一致 /
+恰两子图+加速子图收装结构(0929 S3:加速子图节点恰 6 件=三支路+seed 单源+选择件,
+内部件 id 沿用旧主图 id;-10 边界槽序=model/positive/negative/latent/速度档位/seed,
+model/positive/latent 三支路同源扇出+negative 二扇出(T8 无负面槽)+速度档位→[208].mode
++seed→[207].value 两 widget 槽;恰1 LoRA+[7]40步/[206]359步 两 KSampler steps=面板
+生效值+cfg/euler/simple/denoise 照抄现值+[198] T8 model=-10 直连无负面槽+seed 输入化/
+[207] seed 单源三扇出(三采样器 seed 一律 widget→input)/子图内 [214] MyQi21SpeedSelect
+combo 首项=直出40步=默认+三 latent 槽接线+输出→-20;主图=骨架化([8].samples←宿主
+输出+宿主四入线上游=[1]/[40]/[5])+支路件不在主图+主图零加速域类型(KSampler/LoRA/
+T8/选择件/PrimitiveInt/ComfySwitchNode/easy compare/PrimitiveBoolean 恒0)+零真重复
+节点(同 type+同上游集合+同 widgets,各域分判)) /
+三档懒干跑(_dry_run_accel 子图内回溯:默认直出40步=[7] 在链而 [198]/[206]/[31]
+零执行;档1=viggle 链在;档2=Fun-Acc T8 在;主图骨架可达另核)/
 主图+子图横向排版(每条连线 target.x>origin.x,含 Reroute 段;边界线以 IO 槽 pos
 为端点;**0928 PE 迁子图后冻结回流线已消灭=左向线恒 0,旧 W2 单点豁免退役**)/
 子图六行排版(按 y 分行恰 6 行=四行流水+联动蛇形两行、Reroute 拐点不占行、行间净距
@@ -247,7 +318,7 @@ group 预算(子图≤4、主图≤4[四块重画:①加载器/②提示词装�
 任采样点落入非端点节点盒 ±2 即遮挡;-10/-20 边界线与验收器同口径跳过)** /
 主图+子图 group 全 int id / 子图 IO linkIds 逐项登记(契约铁律) /
 道劫字号归位(组框/子图名/说明卡留道劫,节点标题零道劫=0925 裁定) / W1 加速区
-组框在位且罩住空潜+三支路+选择件+seed单源七件(0929 四块重画=[5][207] 收编入框) / MyQi21DaojieBase 在场+combo 默认人物+qi21_bases.json↔05 库
+组框在位且罩住空潜+加速宿主两件(0929 S3 收装:支路机构入子图,主图③块=[5]+[208]) / MyQi21DaojieBase 在场+combo 默认人物+qi21_bases.json↔05 库
 逐字互锁 / 锁层A 恒挂且逐字=库 / 子图开关恰 4 枚且 switch 槽全部接 -10 宿主面板
 widget(PE开关[141]/RGBA[144]/宽高联动[157][158];0928 PE 迁子图轮)/
 PE 链子图内同构锚(0928 反转:[140] 参数/pp=1.5 定档、clip←pe_clip 槽、[141]
@@ -358,6 +429,8 @@ RR_SWC_ID, RR_SWC2_ID = 175, 205  # [143]->[144] on_true 双垫脚石(直连必�
                                    # 行4 下方绕行:先降 y2975 再右行再升槽,全程零遮挡零交叉)
 RR_TXT_ID = 176                 # [141]->最终文本输出 走行4-行5 框间带的下探拐点
 # ── 0929 加速区并行化轮(Trellis 09-29-qi21-acczone-parallel,方案 B=MyQi21SpeedSelect)──
+# (0929 S3 收装批注记:下列加速件 id 自 S3 起=加速子图内部件(主图不在图);段内
+# 「主图」字样按并行化轮当时口径读,机构语义原样迁入子图)
 # 用户三令存真:「使用并行节点布局前面只有1个选择逻辑」「不要重复出现1个节点,要进行复用」
 # 「默认使用 Fun-Acc(阿里PDD)」(0927 裁定,0929 恢复;0929 拉齐重放:默认改直出40步
 # 等效,Fun-Acc 仍为主加速居二)。注入式开关农场十件全拆(旧 id 留
@@ -397,20 +470,104 @@ SPEED_SLOT_OF = dict(SPEED_MODES)            # 档位字符串 → latent 槽名
 SPEED_SLOT_OF_MODE = {int(m.split(" ·")[0]): s for m, s in SPEED_MODES}  # 档号 → 槽名
 del _spec, _mod
 
+# ── 0929 S2 ⑤机制批(Trellis 09-29-qi21-canvas-batch D6/D7)─────────────────
+# D6 型联动 RGBA:旧「RGBA透明开关」BOOLEAN 控件退役(纯布尔表达不了「型默认+用户
+# 覆盖」双重要求),由 MyQi21RgbaSelect 三态 combo(跟随型/强制开/强制关,默认跟随型)
+# 经宿主面板外露;rgba_hint←[150].rgba_default(四型 true 其余 false,qi21_bases.json
+# 热读);rgba_on→[144].switch。D7 PE×透明融合(0929 用户翻案令「PE 要出透明提示词,
+# 要融合」):PE 出文→[206] 背景句剥离→[207][208] 官方头尾包裹(W1)与 [131] 装配全文
+# →[162][163] 包裹(W2 现链原样)两路汇于 [209] 文本开关 T(switch=宿主PE开关扇出,
+# 与 [141] 同布尔);T 输出→[143] RGBA编码.text。铁则(D7_SPEC 逐字):剥离只许作用
+# 「PE出文且RGBA活」路——RGBA关+PE开必须吃带背景完整文([141]→[142] 主编码照旧,
+# 不剥离不包裹);装配全文禁过剥离([131]→[162][163] 原样=③常量A 含 watercolor
+# naive 子串隐患,research/transparency-fusion.md §五,词族只许词边界口径)。
+STRIP_ID = 206                # D7 S 剥离件(RegexReplace,ComfyUI 核心 text 域件,零部署依赖)
+W1_CAT1_ID, W1_CAT2_ID = 207, 208   # D7 W1 官方头尾包裹(照 W2=[162][163] 同款,delimiter=空格)
+RGBA_TXT_SW_ID = 209          # D7 T 文本开关(on_true=W1剥离包裹 / on_false=W2=[163];switch=PE开关扇出)
+RGBA_SEL_ID = 210             # D6 MyQi21RgbaSelect 三态件(输出 rgba_on → [144].switch)
+RR_A_ID, RR_B_ID = 211, 212   # [150].rgba_default→[210] 两跳垫脚石(左缘竖走廊+行4 下方横带)
+RR_C_ID = 213                  # [141]最终文本→[142] 垫脚石(融合行上框间带;直连线必穿行4 [209] 盒=几何结构性,垫脚消线遮)
+# 词族零转录(真源=q21_optimized_round_0925.mjs,S0 档案口径「词族真源仍住 mjs」防第二
+# 真源漂移;重跑自动跟随 mjs——与 SPEED_MODES 节点件 import 互锁同纪律):
+_MJS_TRUTH = (_REPO / "apps/build/scripts/q21_optimized_round_0925.mjs").read_text(encoding="utf-8")
+
+def _js_str_array(name: str) -> list[str]:
+    m = re.search(rf"const {name} = \[(.*?)\];", _MJS_TRUTH, re.S)
+    if not m:
+        raise SystemExit(f"词族真源 mjs 缺常量 {name}(q21_optimized_round_0925.mjs)")
+    return re.findall(r'"([^"]+)"', m.group(1))
+
+_BG_BAN_WORDS = _js_str_array("MV_BG_WORDS_BAN") + _js_str_array("PROP_BG_BAN_EXT")
+# 句子级删除正则(0928b 剥离语义:命中词族的整句删,句界=中英标点+换行随句删;词边界
+# \b(?:w|ws)\b 防 horizon⊂horizontal;cloud-thunder 豁免=negative lookahead 单遍等价
+# 实现档案「先占位再匹配」;官方头尾豁免=链序天然成立——剥离在 W1 拼接之前,头尾后拼
+# 不受词族波及,与 mjs propBanHit 四件套口径一致)
+_BG_BAN_ALT = "|".join(
+    r"clouds?(?!-thunder)" if w == "cloud" else re.escape(w) + "s?"
+    for w in _BG_BAN_WORDS)
+RGBA_STRIP_PATTERN = (
+    r"[^\n。.；;！!？?]*\b(?:" + _BG_BAN_ALT + r")\b[^\n。.；;！!？?]*[。.；;！!？?\n]?"
+)
+del _MJS_TRUTH, _js_str_array, _BG_BAN_ALT
+# MyQi21RgbaSelect 三态表真源=my_nodes 节点件(combo 闭集即契约,/prompt 硬校验;
+# 改三态文案必须与节点件同笔——import 互锁,漂移即拒生成,与 SPEED_MODES 同纪律)
+_spec2 = importlib.util.spec_from_file_location(
+    "my_qi21_rgba_select_truth",
+    _REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_rgba_select.py")
+_mod2 = importlib.util.module_from_spec(_spec2)
+_spec2.loader.exec_module(_mod2)
+RGBA_MODES = _mod2.RGBA_MODES             # ("跟随型","强制开","强制关";首项=默认=D6 钦定)
+RGBA_DEFAULT_MODE = _mod2.DEFAULT_MODE    # combo 默认值(跟随型)
+del _spec2, _mod2
+
+# ── 0929 S3 收装批(Trellis 09-29-qi21-canvas-batch D3/D4/D5):加速子图新建 ──────
+# 用户令(0929):「从 [1] UNETLoader 节点出来之后,进入一个自定义加速节点图里面,然后
+# 将上面三种情况,都写入自定义加速节点图里面」——主图加速块从「三排摊开的支路机构」
+# 变「一个子图节点」,与 [40] 装配子图成对(每画布恰两子图=②提示词+③加速,职责互斥)。
+ACCEL_SG_UUID = "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e"   # 加速子图 uuid,固定值幂等
+# D4 t2i 边界:model=[1] UNET 直连/positive+negative=[40] 输出/latent=[5] 空潜/
+#   LATENT 输出→[8] 解码。D5 seed 去向=推荐案([207] PrimitiveInt 迁入+宿主面板 INT
+#   外露):research/subgraph-widget-promotion.md Probe A 级A 实证「INT/COMBO 同宿主
+#   双控件」可用——回退案(seed 留主图单节点经输入槽进子图)不启用。
+# 边界 widget 型输入(速度档位/seed)机构(照 [40] 型选择/主体句外露先例):内节点
+# inputs[] 带 widget 键+link 从 -10 对应槽出线,linkIds 逐项登记(契约铁律);值双写=
+# 子图 widgets[]↔宿主 widgets_values[](面板控件序=widget 型输入序,速度档位在前)。
+ACCEL_WIDGET_INPUTS = [("速度档位", "COMBO"), ("seed", "INT")]   # 宿主面板两控件(命名铁表)
+ACCEL_SEED_DEFAULT = 0    # 面板「seed」默认(=旧 [207] PrimitiveInt 默认 0 fixed 口径)
+# 加速子图内选择件 id=214 新分配(旧主图 [208] 让位宿主;214 在主图/装配子图/加速子图
+# 三域均未用→宿主 208 与其内部件零撞号,执行展开形=208:214 规避无实证的 208:208 同号形;
+# i2i 件同规则先例=[192] 让位宿主 [190])。seed [207] 等其余内部件 id 沿用旧主图 id。
+ACCEL_SEL_ID = 214
+
+# ── 0930 S5 布局终排批(Trellis 09-29-qi21-canvas-batch D8;常数表=research/
+#    rhythm-constants.md)──────────────────────────────────────────────────────
+# 统一节奏常数(标准档;**紧凑档 560/600 未启用**——t2i 现值即标准档全绿实证,零迁移
+# 成本;rhythm-constants §2.5 裁定:紧凑档重启须真前端观感定夺,禁拍脑袋回退,本批不启)。
+# 常数既是摆位真源(行带 y=280+k×PITCH 字面直写)也是 3i 谓词的锁定值(容差 0):
+PITCH_ASM = 760   # 装配子图行带距:七行带等差(源行/装配/PE改写/融合/编码/联动宽/联动高)
+PITCH_BR = 760    # 加速子图支路行距:funacc/viggle/direct 三行等差(seed 带 y=1450=寄生带豁免)
+BRANCH_X = 800    # 加速子图支路列:三支路链头([198]T8/[31]LoRA/[7]直出)x 全等
+
 # 宿主面板控件(面板值序=widgets_values 序;0929 用户手改回灌:宿主外露输入槽 8→4,
-# 型选择/RGBA透明开关/PE开关/画幅联动开关四控件从「输入槽外露」改回「面板控件」——
-# 本表=面板控件序(主体句/型选择/RGBA/PE开关(默认 true=0926 裁定1)/画幅联动(默认
-# false,原主画布 [180] 总闸退役);子图内部 -10 IO 槽序不变)
+# 型选择/RGBA/PE开关/画幅联动开关四控件从「输入槽外露」改回「面板控件」——本表=面板
+# 控件序(主体句/型选择/**RGBA透明**/PE开关(默认 true=0926 裁定1)/画幅联动(默认
+# false);0929 S2 ⑤机制批:第3控件「RGBA透明开关」BOOLEAN 退役→「RGBA透明」三态
+# COMBO(跟随型/强制开/强制关,默认跟随型=D6;rgba_hint←[150].rgba_default,
+# rgba_on→[144].switch);子图内部 -10 IO 槽序不变)
 WIDGET_INPUTS = [
-    ("主体句", "STRING"), ("型选择", "COMBO"), ("RGBA透明开关", "BOOLEAN"),
+    ("主体句", "STRING"), ("型选择", "COMBO"), ("RGBA透明", "COMBO"),
     ("PE开关", "BOOLEAN"), ("画幅联动开关", "BOOLEAN"),
 ]
 
 NOTE_TEXT = (
-    "## 道劫 · Qwen-Image-2.1 文生图(装配子图版·0929 宿主面板简化轮)\n\n"
+    "## 道劫 · Qwen-Image-2.1 文生图(双子图版·0929 S3 收装轮)\n\n"
     "K2 道劫『一处选型+分件装配+子图收装』思想的 Q2-1 原生落地(0928 用户裁定:所有提示词"
     "必须过 PE——**PE 改写链与画幅联动链已收进 [40] 装配子图**,消灭 [40]→主图 PE 链→[40] "
-    "来回绕线,主图零 PE 件零左向线;0925 外露轮的 W2 迁出就此回卷)。**[40] 装配子图**(双击"
+    "来回绕线,主图零 PE 件零左向线;0925 外露轮的 W2 迁出就此回卷)。**0929 S3 收装轮:加速区"
+    "整体收进 [208] 加速子图**(三支路+viggle LoRA+seed 单源+出图速度选择全在内,双击进入;"
+    "主图退成四块骨架=①加载器→②提示词·装配([24][40][27])→③加速([5] 空潜+[208] 加速子图)"
+    "→④输出([8][9]);每画布恰两子图=②提示词子图管内容语义+③加速子图管采样策略,职责互斥"
+    "不掺和)。**[40] 装配子图**(双击"
     "进入=底座九选一+锁层恒挂+换行拼接+RGBA 公式拼接+**PE 改写→提示词开关**+双路编码+画幅"
     "联动链;四行流水=源行→装配→PE改写→编码,提示词从装配到编码全程子图内);提示词真源="
     "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md(②层底座=09-23 美化版,canon-json "
@@ -461,24 +618,30 @@ NOTE_TEXT = (
     "义),PE 未给建议画幅时该路报错——常规出图保持关闭。\n"
     "- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n"
     "### 负面线说明(cfg=1 占位,W5 终审)\n"
-    "- **cfg=1 下负面提示词数学上不参与采样**;[40] negative 输出→[7] 负向槽的接线保留,纯为"
-    "与官方模板同构的**占位**(不生效)。要用负向须抬 cfg,非本产线口径。\n\n"
-    "### 加速区·并行三支路+单选择(0929 并行化轮;默认=直出40步=0929 拉齐重放裁定)\n"
-    "- **三档=三条完整并行支路,前面只有一个选择逻辑=[208] MyQi21SpeedSelect**(LATENT 汇流处"
-    "单点,combo 三选一**首项=默认=「0 · 直出40步」**(0929 拉齐重放,12:05 主会话复核;"
-    "Fun-Acc 仍为主加速=次序第二);0929 前注入式开关农场 10 逻辑件"
-    "([30]档位/[32]/[177] 开关/[178][179][195][196] 常量/[193][194] 比较)已全拆):"
+    "- **cfg=1 下负面提示词数学上不参与采样**;[40] negative 输出→加速子图内 [7]/[206] 负向槽"
+    "的接线保留,纯为与官方模板同构的**占位**(不生效;T8 无负面槽)。要用负向须抬 cfg,"
+    "非本产线口径。\n\n"
+    "### 加速区·加速子图([208] 双击进入;0929 S3 收装轮;默认=直出40步=0929 拉齐重放裁定)\n"
+    "- **主图只剩一个加速子图节点 [208]**(0929 S3 收装:原三排摊开的支路机构整体入子图;"
+    "双击进入=并行三支路+viggle LoRA+seed 单源+出图速度选择,**前面只有一个选择逻辑**="
+    "子图内 [214] MyQi21SpeedSelect(LATENT 汇流单点,combo 三选一**首项=默认=「0 · 直出40步」**"
+    "(0929 拉齐重放,12:05 主会话复核;Fun-Acc 仍为主加速=次序第二);0929 前注入式开关农场 "
+    "10 逻辑件([30]档位/[32]/[177] 开关/[178][179][195][196] 常量/[193][194] 比较)已全拆):"
     "支路0=直出 40 步([7] KSampler 官方完整档)/支路1=viggle 359 步([31] LoRA(0.8)→"
     "[206] KSampler)/支路2=Fun-Acc 4 步([198] T8QwenImage21FunAccPDD4Step,4步/sigmas 五值/"
     "euler/cfg1 全内置勿外接采样器)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n"
+    "- **宿主面板两控件=「速度档位」+「seed」**(照 [40] 型选择外露机制):速度档位=combo 三选一"
+    "(默认直出40步,随时可切任何档);seed=number(默认 0 fixed 可复现,seed 单源共享——子图内 "
+    "[207] PrimitiveInt 单源扇出三支路采样器 [7]/[206]/[198],各采样器面板 seed 值=摆设值不生效,"
+    "改 seed 只动宿主面板一处,三支路同步)。**面板值=生效值**。\n"
+    "- **边界**:model=主图 [1] UNET 直连进子图;positive/negative=主图 [40] 装配子图输出"
+    "(negative=cfg=1 占位,见负面线说明);latent=[5] 空潜;LATENT 出子图→[8] 解码→[9] 保存。\n"
     "- **懒执行**:未选中支路整体不进执行图零加载(MyQi21SpeedSelect 懒选择,check_lazy_status "
-    "只拉起选中档支路;如默认直出40步时 [198]/[206]/[31] 全不在执行图)。\n"
-    "- **seed 单源共享**:[207] PrimitiveInt(默认 0 fixed 可复现)单源扇出三支路采样器"
-    "([7]/[206]/[198] 的 seed 一律 widget→input 接线接管——各采样器面板 seed 值=摆设值不生效,"
-    "改 seed 只动 [207] 一处,三支路同步)。\n"
+    "只拉起选中档支路;如默认直出40步时 [198]/[206]/[31] 全不在执行图;子图环境同款生效,"
+    "S3 三档干跑对拍)。\n"
     "- **面板值=生效值**:steps 回归各支路 KSampler widget([7]=40/[206]=359 均真实生效,"
     "无联动开关无摆设值);cfg 恒 1/euler/simple/denoise 1 照官方;[40].negative 占位接线保留在"
-    "[7]/[206](cfg=1 下数学上不参与,见负面线说明节)。\n"
+    "子图内 [7]/[206](cfg=1 下数学上不参与,见负面线说明节)。\n"
     "- **档1=viggle**:[31] LoraLoaderModelOnly 挂链(name 预填 **" + LORA_FILE + "**,viggle 蒸馏件"
     "已装机,strength 0.8——0925 探针最优:flatMAD 2.52→1.75 细腻无结构缺陷;8步方案 2.60 无收益+"
     "超荐档弃)+[206] 359 步(0929 用户改值,原 6=v0.2.1 系卡荐档;cfg 保持 1);模型卡注 "
@@ -490,18 +653,28 @@ NOTE_TEXT = (
     "TE=qwen3vl_8b_bf16_heretic 已实测通过。\n"
     "- **依赖警示:档2 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区"
     " Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档2 节点红/执行失败——降级="
-    "经 [208] 选择件下拉切回 0/1 档。TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,"
+    "经宿主面板「速度档位」切回 0/1 档。TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,"
     "D4 终审永不装)。\n\n"
     "### 参数圣经\n"
     "- cfg 恒 1(负面=官方同构占位,见上节;档2 Fun-Acc 无负面槽);**步数=各支路面板真实生效值"
     "([7]=40 官方完整档,官方区间 40-50,起手即完整态;[206]=359=viggle 支路(0929 用户改值,"
     "原 6);档2=Fun-Acc 4 步内置于 [198] T8)**;分辨率走 [40] 子图随型直驱 width/height"
-    "(宽高恒 8 倍数);seed=[207] 三支路共享单源(默认 fixed=0 可复现);风格终审=用户。\n"
+    "(宽高恒 8 倍数);seed=加速子图宿主面板「seed」(子图内 [207] 单源三支路共享,"
+    "默认 fixed=0 可复现);风格终审=用户。\n"
     "- 生成脚本=apps/build/scripts/qi21_daojie_t2i_0923.py(幂等;主体句默认/锁层全文从库文档"
     "现读,BASE 真源=qi21_bases.json,重跑即同步)。\n"
-    "- RGBA 透明(默认关):官方公式 This is an RGBA format image with transparency. [装配全文,与 "
-    "[27] 同源]. The image has an alpha channel and a transparent background.(头尾逐字=官方"
-    "原文,子图 [160][161][162][163] 现拼;中文同款:这是一张带有透明度的RGBA图像。……该图像"
+    "- RGBA 透明(0929 S2 ⑤机制批;[40] 面板「RGBA透明」三态=[跟随型(默认)/强制开/"
+    "强制关]——面板五控件=型选择/RGBA透明/PE开关/画幅联动开关,旧「RGBA透明开关」布尔"
+    "控件退役):跟随型=按型默认(道具/多视图/高清人脸/表情差分四型开透明,其余五型关——"
+    "型信号=MyQi21DaojieBase.rgba_default 槽(qi21_bases.json 热读)喂 MyQi21RgbaSelect."
+    "rgba_hint,开关布尔=其输出);强制开/关=手动权威,不随型变。**PE×透明融合**(0929 "
+    "用户翻案令「PE 要出透明提示词,要融合」):PE 开路走透明时=[140] PE出文→[206] 背景"
+    "句剥离(词族黑名单,词边界匹配)→[207][208] 官方头尾包裹,与 [131] 装配全文→"
+    "[162][163] 包裹两路汇于 [209] 文本开关(布尔=PE开关扇出)→[143] RGBA编码;RGBA 关"
+    "+PE 开=[141] 直喂 [142] 主编码吃带背景完整文(禁剥离);装配全文禁过剥离(声明句"
+    "词族误伤=翻车)。官方公式 This is an RGBA format image with transparency. [剥离/装配"
+    "文]. The image has an alpha channel and a transparent background.(头尾逐字=官方"
+    "原文;中文同款:这是一张带有透明度的RGBA图像。……该图像"
     "具有alpha通道,背景是透明的。)透明路出图必须存 PNG 才保 alpha。\n"
 )
 
@@ -695,7 +868,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     links.append(_internal_link(4, -10, 1, TE_RGBA_ID, 2, "VAE"))        # vae → RGBA 编码
     links.append(_internal_link(5, -10, 2, CONCAT1_ID, 0, "STRING"))     # 主体句 → 拼接①.string_a
     links.append(_internal_link(6, -10, 3, BASE_ID, 0, "COMBO"))         # 型选择 → MyQi21DaojieBase.base
-    links.append(_internal_link(7, -10, 4, RGBA_SW_ID, 2, "BOOLEAN"))    # RGBA透明开关 → [144].switch
+    links.append(_internal_link(7, -10, 4, RGBA_SEL_ID, 0, "COMBO"))     # RGBA透明(三态COMBO,宿主面板) → [210].mode(0929 S2 D6:原 BOOLEAN 控件退役)
     links.append(_internal_link(8, -10, 5, PE_SW_ID, 2, "BOOLEAN"))      # PE开关(宿主面板) → [141].switch
     links.append(_internal_link(46, -10, 6, PE_RW_ID, 0, "CLIP"))        # pe_clip(主图[11]) → PE改写.clip
     links.append(_internal_link(47, -10, 7, SW_W_ID, 2, "BOOLEAN"))      # 画幅联动开关 → 宽开关.switch
@@ -705,11 +878,13 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     links.append(_internal_link(10, LOCK_ID, 0, CONCAT2_ID, 1, "STRING"))   # 锁层A 恒挂 → 拼接②
     links.append(_internal_link(11, CONCAT1_ID, 0, CONCAT2_ID, 0, "STRING"))
     links.append(_internal_link(12, CONCAT2_ID, 0, RGBA_CAT1_ID, 1, "STRING"))  # 装配全文 → RGBA 公式①
-    # RGBA 官方公式拼接(13-16;头句+装配全文+尾句)
+    # RGBA 官方公式拼接(13-16;头句+装配全文+尾句;0929 S2 D7:[163] 出线改汇 [209] T
+    # 开关 on_false——RGBA 编码的文改由 T 路由(PE开=W1剥离包裹/PE关=W2装配包裹),
+    # W2=[162][163] 拼接体原样零动=装配全文禁过剥离铁则)
     links.append(_internal_link(13, RGBA_HEAD_ID, 0, RGBA_CAT1_ID, 0, "STRING"))
     links.append(_internal_link(14, RGBA_CAT1_ID, 0, RGBA_CAT2_ID, 0, "STRING"))
     links.append(_internal_link(15, RGBA_TAIL_ID, 0, RGBA_CAT2_ID, 1, "STRING"))
-    links.append(_internal_link(16, RGBA_CAT2_ID, 0, TE_RGBA_ID, 3, "STRING"))  # → RGBA 编码.prompt
+    links.append(_internal_link(16, RGBA_CAT2_ID, 0, RGBA_TXT_SW_ID, 0, "STRING"))  # W2 装配包裹 → T.on_false
     # 编码与 RGBA 开关(17-19;[143]->[144] on_true 经双垫脚石 [175]/[178]——行4 成员序
     # [143][142][144] 钉死,直连线几何上必横穿 [142] 盒;且 on_true(slot1) 须自下方升入,
     # 免穿 [142]→[144] on_false 平线(槽序结构性交叉))
@@ -722,9 +897,13 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     # PE 链(22-24;0928 迁入:装配全文不出子图,最终文本直喂主编码)
     links.append(_internal_link(22, CONCAT2_ID, 0, PE_SW_ID, 0, "STRING"))     # 装配全文 → [141].on_false
     links.append(_internal_link(23, PE_RW_ID, 0, PE_SW_ID, 1, "STRING"))       # PE 改写 → [141].on_true
-    links.append(_internal_link(24, PE_SW_ID, 0, TE_ID, 3, "STRING"))          # 最终文本 → 主编码.prompt
+    # 0929 S2:[141]→[142] 直连线必穿行4 融合行 [209] 盒(几何结构性)——最终文本线
+    # 延 [176] 拐点垫 [213] 续接(单源扇出,零真重复):[141]-44->[176]-45->IO 最终文本,
+    # [176]-24->[213]-62->[142].prompt(语义不变:最终文本直喂主编码,仅多垫脚石)
+    links.append(_internal_link(24, RR_TXT_ID, 0, RR_C_ID, 0, "STRING"))         # [176] 扇出 → 垫脚石 [213]
+    links.append(_internal_link(62, RR_C_ID, 0, TE_ID, 3, "STRING"))            # [213] → 主编码.prompt
     links.append(_internal_link(44, PE_SW_ID, 0, RR_TXT_ID, 0, "STRING"))      # 最终文本 → 下探拐点
-    links.append(_internal_link(45, RR_TXT_ID, 0, -20, 2, "STRING"))           # → 输出 最终文本(主图[27])
+    links.append(_internal_link(45, RR_TXT_ID, 0, -20, 4, "STRING"))           # → 输出 最终文本(主图[27];0929 S4:迁最末槽4)
     # 画幅联动链(25-34;源=[140].wh_ratio,数据源与消费全在子图)
     links.append(_internal_link(25, PE_RW_ID, 2, RATIO_RW_ID, 0, "STRING"))    # wh_ratio → 取宽比
     links.append(_internal_link(26, PE_RW_ID, 2, RATIO_RH_ID, 0, "STRING"))    # wh_ratio → 取高比
@@ -744,10 +923,26 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     links.append(_internal_link(39, RR_H_ID, 0, RR_H2_ID, 0, "INT"))
     links.append(_internal_link(40, RR_H2_ID, 0, RR_H3_ID, 0, "INT"))
     links.append(_internal_link(41, RR_H3_ID, 0, SW_H_ID, 0, "INT"))           # 行6 下方横带→[158].on_false
-    # 联动终值出子图(42-43;主图 [5] EmptyLatentImage 直连消费)
-    links.append(_internal_link(42, SW_W_ID, 0, -20, 3, "INT"))                # → 输出 width
-    links.append(_internal_link(43, SW_H_ID, 0, -20, 4, "INT"))                # → 输出 height
-    assert sorted(l["id"] for l in links) == list(range(1, 50))
+    # 联动终值出子图(42-43;主图 [5] EmptyLatentImage 直连消费;0929 S4/D2 槽位
+    # 批:width/height 各上移一槽(3→2/4→3),让位最终文本迁最末)
+    links.append(_internal_link(42, SW_W_ID, 0, -20, 2, "INT"))                # → 输出 width
+    links.append(_internal_link(43, SW_H_ID, 0, -20, 3, "INT"))                # → 输出 height
+    # ── 0929 S2 D7 PE×透明融合链(50-57;S 剥离→W1 包裹→T 文本开关→[143])──
+    links.append(_internal_link(50, PE_RW_ID, 0, STRIP_ID, 0, "STRING"))       # [140] PE出文 → [206] 剥离.string(扇出②:主路 link23 直喂 [141] 不动)
+    links.append(_internal_link(51, STRIP_ID, 0, W1_CAT1_ID, 1, "STRING"))     # 剥离文 → W1 头拼.string_b
+    links.append(_internal_link(52, RGBA_HEAD_ID, 0, W1_CAT1_ID, 0, "STRING")) # 官方头(扇出②) → W1 头拼
+    links.append(_internal_link(53, W1_CAT1_ID, 0, W1_CAT2_ID, 0, "STRING"))   # W1 头拼 → W1 尾拼
+    links.append(_internal_link(54, RGBA_TAIL_ID, 0, W1_CAT2_ID, 1, "STRING")) # 官方尾(扇出②) → W1 尾拼
+    links.append(_internal_link(55, W1_CAT2_ID, 0, RGBA_TXT_SW_ID, 1, "STRING"))  # W1 剥离包裹 → T.on_true
+    links.append(_internal_link(56, -10, 5, RGBA_TXT_SW_ID, 2, "BOOLEAN"))     # PE开关扇出 → T.switch(与 [141] 同布尔=宿主PE开关)
+    links.append(_internal_link(57, RGBA_TXT_SW_ID, 0, TE_RGBA_ID, 3, "STRING"))   # T 输出 → [143] RGBA编码.prompt
+    # ── 0929 S2 D6 型联动三态(58-61;rgba_hint←[150].rgba_default 经双垫脚石;
+    #     [144].switch←[210] 输出,原 -10 槽4 BOOLEAN 边界线(link7 改义为 mode)──
+    links.append(_internal_link(58, BASE_ID, 4, RR_A_ID, 0, "BOOLEAN"))       # [150].rgba_default → 左缘竖走廊首拐
+    links.append(_internal_link(59, RGBA_SEL_ID, 0, RGBA_SW_ID, 2, "BOOLEAN"))  # [210].rgba_on → [144].switch
+    links.append(_internal_link(60, RR_A_ID, 0, RR_B_ID, 0, "BOOLEAN"))       # 首拐 → 行4 下方横带拐点
+    links.append(_internal_link(61, RR_B_ID, 0, RGBA_SEL_ID, 1, "BOOLEAN"))   # 横带拐点 → [210].rgba_hint
+    assert sorted(l["id"] for l in links) == list(range(1, 63))
 
     nodes: list[dict] = []
     # 行1 源行(列距≥200 est 足迹口径)
@@ -763,6 +958,9 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
             {"name": "WIDTH", "type": "INT", "links": [35]},
             {"name": "HEIGHT", "type": "INT", "links": [38]},
             {"name": "型名", "type": "STRING", "links": None},
+            # 0929 S2 D6:rgba_default 追加最末(四型 true 其余 false,qi21_bases.json
+            # 热读;不动既有槽序=存量接线零漂移)→ 经 [211][212] 垫脚石喂 [210].rgba_hint
+            {"name": "rgba_default", "type": "BOOLEAN", "links": [58]},
         ],
         "properties": {"Node name for S&R": "MyQi21DaojieBase"},
         "widgets_values": [DEFAULT_TYPE],
@@ -772,10 +970,10 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         truth["const_a"], [900, 280], [10], [440, 400]))
     nodes.append(_string_constant(
         RGBA_HEAD_ID, "RGBA官方头句(EN·逐字=官方模板)", RGBA_HEAD_EN,
-        [1550, 280], [13], [380, 120]))
+        [1550, 280], [13, 52], [380, 120]))
     nodes.append(_string_constant(
         RGBA_TAIL_ID, "RGBA官方尾句(EN·逐字=官方模板)", RGBA_TAIL_EN,
-        [2150, 280], [15], [380, 120]))
+        [2150, 280], [15, 54], [380, 120]))
 
     # 行2 装配
     nodes.append(_concatenate(
@@ -787,7 +985,8 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         [2000, 1040], delimiter=" "))
     nodes.append(_concatenate(
         RGBA_CAT2_ID, "RGBA公式拼接②(+官方尾句;delimiter=空格)", 14, 15, [16],
-        [2710, 1040], delimiter=" "))
+        [3610, 1040], delimiter=" "))   # 0930 S5:2710→3610 右移(组框2 随扩)——[163]→[209]
+    # 下落线避开 [161]→[208] W1 尾拼长对角(实测消 (16,54);row2 行带 x 序不变)
 
     # 行3 PE改写(0928 迁入;clip←pe_clip 槽,prompt=种子句 widget 自带反噪条款;
     # 0929 回灌:[140]/[141] 宽度随用户(502.56/640.40);[140] x 1740→1690 让 est 横距
@@ -809,7 +1008,9 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
             {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": None},
         ],
         "outputs": [
-            {"name": "positive_prompt", "type": "STRING", "links": [23]},
+            # 0929 S2 D7:positive_prompt 扇出②——主路 link23 直喂 [141](不剥离不包裹,
+            # RGBA关+PE开=带背景完整文铁则);融合路 link50 下行 [206] 剥离
+            {"name": "positive_prompt", "type": "STRING", "links": [23, 50]},
             {"name": "negative_prompt", "type": "STRING", "links": None},
             {"name": "wh_ratio", "type": "STRING", "links": [25, 26]},
             {"name": "thinking", "type": "STRING", "links": None},
@@ -822,10 +1023,63 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     # x=2400 保用户原值)
     nodes.append(_switch(
         PE_SW_ID, "提示词开关(true=PE扩写·默认(0926裁定1) / false=直写装配=按图选配;输出=最终文本→主编码)",
-        22, 23, 8, [24, 44], [2400, 1800], default=True))
+        22, 23, 8, [44], [2400, 1800], default=True))
     nodes[-1]["size"] = [640.39609375, 120]
 
-    # 行4 编码输出(TextEncode 输入序=官方:clip/images.image_1/vae/prompt)
+    # ── 行4 融合行(0929 S2 D6/D7;PE×透明融合链+型联动三态,五件横排)──────────
+    # [206] S 剥离件:RegexReplace(ComfyUI 核心 text 域件,comfy_extras/nodes_string.py;
+    # 生产在役先例=同子图 [151][152] RegexExtract 同族)——词族句子级删除正则
+    # (RGBA_STRIP_PATTERN,词族真源=mjs 零转录),replace=空,count=0 全替,
+    # case_insensitive 默认开(引擎 INPUT_TYPES 序=string/regex_pattern/replace/
+    # case_insensitive/multiline/dotall/count,widgets_values 序照此)
+    nodes.append({
+        "id": STRIP_ID, "type": "RegexReplace",
+        "title": "PE出文·背景句剥离(D7 S件:命中词族的整句删,词边界匹配;只作用 PE出文且RGBA活路)",
+        "pos": [2850, 2560], "size": [340, 300], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [
+            {"name": "string", "type": "STRING", "widget": {"name": "string"}, "link": 50},
+            {"name": "regex_pattern", "type": "STRING", "widget": {"name": "regex_pattern"}, "link": None},
+            {"name": "replace", "type": "STRING", "widget": {"name": "replace"}, "link": None},
+            {"name": "case_insensitive", "type": "BOOLEAN", "widget": {"name": "case_insensitive"}, "link": None},
+            {"name": "multiline", "type": "BOOLEAN", "widget": {"name": "multiline"}, "link": None},
+            {"name": "dotall", "type": "BOOLEAN", "widget": {"name": "dotall"}, "link": None},
+            {"name": "count", "type": "INT", "widget": {"name": "count"}, "link": None},
+        ],
+        "outputs": [{"name": "STRING", "type": "STRING", "links": [51]}],
+        "properties": {"Node name for S&R": "RegexReplace"},
+        "widgets_values": ["", RGBA_STRIP_PATTERN, "", True, False, False, 0],
+    })
+    # [207][208] W1 官方头尾包裹(照 W2=[162][163] 同款拼接,delimiter=空格)
+    nodes.append(_concatenate(
+        W1_CAT1_ID, "W1包裹①(官方头句+剥离文;delimiter=空格)", 52, 51, [53],
+        [3670, 2560], delimiter=" "))   # 0930 S5:3650→3670(车道微调,消 (44,52)
+    # [141]→[176] 下落线×[160]→W1 长对角;est 与 [208] 横净距恰 200=3c 下限)
+    nodes.append(_concatenate(
+        W1_CAT2_ID, "W1包裹②(+官方尾句;delimiter=空格)", 53, 54, [55],
+        [4250, 2560], delimiter=" "))
+    # [209] T 文本开关(on_true=W1剥离包裹 / on_false=W2装配包裹;switch=宿主PE开关
+    # 扇出=与 [141] 同布尔——PE 开=透明路吃 PE 文,PE 关=透明路吃装配文)
+    nodes.append(_switch(
+        RGBA_TXT_SW_ID,
+        "透明文本开关(true=PE出文剥离包裹 / false=装配全文包裹;switch=PE开关扇出)→[143]",
+        16, 55, 56, [57], [4870, 2560], default=True))
+    # [210] MyQi21RgbaSelect 三态件(D6:跟随型/强制开/强制关;mode 经宿主面板外露=
+    # -10 槽4「RGBA透明」COMBO;rgba_hint←[150].rgba_default(垫脚石入);输出→[144])
+    nodes.append({
+        "id": RGBA_SEL_ID, "type": "MyQi21RgbaSelect",
+        "title": "RGBA透明(跟随型=按型默认四开五关/强制开/强制关=手动权威;输出→[144].switch)",
+        "pos": [5550, 2560], "size": [380, 150], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [
+            {"name": "mode", "type": "COMBO", "widget": {"name": "mode"}, "link": 7},
+            {"name": "rgba_hint", "type": "BOOLEAN", "shape": 7, "link": 61},
+        ],
+        "outputs": [{"name": "rgba_on", "type": "BOOLEAN", "links": [59]}],
+        "properties": {"Node name for S&R": "MyQi21RgbaSelect"},
+        "widgets_values": [RGBA_DEFAULT_MODE],
+    })
+
+    # 行5 编码输出(TextEncode 输入序=官方:clip/images.image_1/vae/prompt;0929 S2
+    # 融合行插入后 y 2560→3320,x 随 [209]→[143] 纵向塔链右移)
     def _textencode(nid: int, title: str, pos: list, clip_l: int, vae_l: int,
                     prompt_link, prompt_text: str, pos_links) -> dict:
         return {
@@ -847,13 +1101,13 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
             "widgets_values": [prompt_text, "", 1024],
         }
 
-    nodes.append(_textencode(TE_RGBA_ID, "RGBA编码(官方公式拼接路,默认旁路)",
-                             [3060, 2560], 2, 4, 16, "", [18]))
+    nodes.append(_textencode(TE_RGBA_ID, "RGBA编码(透明文本开关路,默认旁路)",
+                             [5350, 3320], 2, 4, 57, "", [18]))
     nodes.append(_textencode(TE_ID, "主编码(prompt 直收子图内[141]开关输出=最终文本)",
-                             [3720, 2560], 1, 3, 24, "", [17]))
+                             [6200, 3320], 1, 3, 62, "", [17]))
     nodes.append(_switch(
-        RGBA_SW_ID, "RGBA开关(false=普通 / true=透明,透明图存PNG)", 17, 19, 7, [20],
-        [4380, 2560], typ="CONDITIONING"))
+        RGBA_SW_ID, "RGBA开关(false=普通 / true=透明,透明图存PNG;switch=三态件[210]输出)", 17, 19, 59, [20],
+        [6850, 3320], typ="CONDITIONING"))
 
     # 行5/行6 画幅联动蛇形(0928 随 PE 迁入;上=宽路/下=高路,列对齐)
     def _regex(nid: int, title: str, pattern: str, in_link: int, out_link: int, pos: list) -> dict:
@@ -904,35 +1158,47 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         }
 
     nodes.append(_regex(RATIO_RW_ID, "PE建议画幅·取宽比(如 16:9→16)", RATIO_W_PATTERN, 25, 27,
-                        [2500, 3320]))
-    nodes[-1]["size"] = [340, 262]   # 0929 回灌:用户拉高 200→262
-    nodes.append(_regex(RATIO_RH_ID, "PE建议画幅·取高比(如 16:9→9)", RATIO_H_PATTERN, 26, 28,
                         [2500, 4080]))
     nodes[-1]["size"] = [340, 262]   # 0929 回灌:用户拉高 200→262
-    nodes.append(_convert(CONV_RW_ID, "宽比转数", 27, [29, 30], [3100, 3320]))
-    nodes.append(_convert(CONV_RH_ID, "高比转数", 28, [31, 32], [3100, 4080]))
+    nodes.append(_regex(RATIO_RH_ID, "PE建议画幅·取高比(如 16:9→9)", RATIO_H_PATTERN, 26, 28,
+                        [2500, 4840]))
+    nodes[-1]["size"] = [340, 262]   # 0929 回灌:用户拉高 200→262
+    nodes.append(_convert(CONV_RW_ID, "宽比转数", 27, [29, 30], [3100, 4080]))
+    nodes.append(_convert(CONV_RH_ID, "高比转数", 28, [31, 32], [3100, 4840]))
     nodes.append(_math(MATH_W_ID, "PE建议宽(4.2MP·8倍数取整)", MATH_W_EXPR, 29, 31, 33,
-                       [3700, 3320]))
-    nodes.append(_math(MATH_H_ID, "PE建议高(4.2MP·8倍数取整)", MATH_H_EXPR, 30, 32, 34,
                        [3700, 4080]))
+    nodes.append(_math(MATH_H_ID, "PE建议高(4.2MP·8倍数取整)", MATH_H_EXPR, 30, 32, 34,
+                       [3700, 4840]))
     nodes.append(_switch(SW_W_ID, "宽联动开关(false=九型WIDTH / true=PE建议宽)", 37, 33, 47, [42],
-                         [4300, 3320], typ="INT"))
+                         [4300, 4080], typ="INT"))
     nodes[-1]["size"] = [343.6548828125, 110]   # 0929 回灌:用户拉宽 300→343.65
     nodes.append(_switch(SW_H_ID, "高联动开关(false=九型HEIGHT / true=PE建议高)", 41, 34, 48, [43],
-                         [4300, 4080], typ="INT"))
-    nodes[-1]["size"] = [349.4380859375, 110]   # 0929 回灌:用户拉宽 300→349.44
+                         [4300, 4840], typ="INT"))
+    nodes[-1]["size"] = [349.4384859375, 110]   # 0929 回灌:用户拉宽 300→349.44
 
-    # 通道 Reroute(0928 迁入轮:[171]/[172]=九型 W/H 左缘竖走廊——x500-620 净空竖带
-    # (边界线豁免口径),行5/行6 槽位平送联动开关 on_false;[175] 行3-行4 框间带垫脚石;
-    # [176] [141]→最终文本输出 走行4-行5 框间带下探再平送输出槽)
-    nodes.append(_reroute(RR_W_ID, [640, 3060], 35, 36, "INT"))
-    nodes.append(_reroute(RR_W2_ID, [4180, 3060], 36, 37, "INT"))
-    nodes.append(_reroute(RR_H_ID, [545, 2900], 38, 39, "INT"))
-    nodes.append(_reroute(RR_H2_ID, [610, 4520], 39, 40, "INT"))
-    nodes.append(_reroute(RR_H3_ID, [4180, 4540], 40, 41, "INT"))
-    nodes.append(_reroute(RR_SWC_ID, [3500, 2950], 18, 49, "CONDITIONING"))
-    nodes.append(_reroute(RR_SWC2_ID, [4100, 2950], 49, 19, "CONDITIONING"))
-    nodes.append(_reroute(RR_TXT_ID, [2900, 2900], 44, 45, "STRING"))
+    # 通道 Reroute(0928 迁入轮:W/H 左缘竖走廊——x500-620 净空竖带(边界线豁免
+    # 口径),行隙横带平送联动开关 on_false;0929 S2 融合行插入后拐点带随行带下移,
+    # [175]/[205]=行5 下方绕行带,[176]=[141]→最终文本输出下探拐点,[211]/[212]=
+    # [150].rgba_default→[210].rgba_hint 两跳垫脚石(0929 S2 D6 新增);
+    # 0930 S5 终排:寄生带通道拐点四只按零 link 变更重排车道——[173] 左缘走廊
+    # x545→600(HEIGHT 首拐下移让道,W/H 左缘竖走廊自上而下=[171]W@3820/[173]H@3660
+    # 层序随 [150] 输出槽序对齐,消 (35,38)(38,58) 左缘扇形倒挂);[176] 行5-6 隙
+    # 拐点 (2450,3700)→(2488,3790)(与 [175]/[205] 同 y=3790 通道车道,消 (44,50);
+    # x=2488=车道窄窗实测位,±10 即劣化——通道拐点不落节奏网格,3i 豁免即此);[211]/
+    # [212] rgba 走廊首拐/横带拐点 (590,3160)/(4900,3100)→(575,3100)/(4000,3100)
+    # (横带缩短 900,横带全程落行4-5 隙 y≈3100 单一车道,消 (24,60)(61,62));
+    # 治理手法=纯挪位零并线零垫脚石增量,links 逐字节零变=对拍前提)
+    nodes.append(_reroute(RR_W_ID, [640, 3820], 35, 36, "INT"))
+    nodes.append(_reroute(RR_W2_ID, [4240, 3990], 36, 37, "INT"))
+    nodes.append(_reroute(RR_H_ID, [600, 3660], 38, 39, "INT"))
+    nodes.append(_reroute(RR_H2_ID, [610, 5280], 39, 40, "INT"))
+    nodes.append(_reroute(RR_H3_ID, [4180, 5300], 40, 41, "INT"))
+    nodes.append(_reroute(RR_SWC_ID, [5450, 3790], 18, 49, "CONDITIONING"))
+    nodes.append(_reroute(RR_SWC2_ID, [6550, 3790], 49, 19, "CONDITIONING"))
+    nodes.append(_reroute(RR_TXT_ID, [2488, 3790], 44, [45, 24], "STRING"))
+    nodes.append(_reroute(RR_A_ID, [575, 3100], 58, 60, "BOOLEAN"))
+    nodes.append(_reroute(RR_B_ID, [4000, 3100], 60, 61, "BOOLEAN"))
+    nodes.append(_reroute(RR_C_ID, [5050, 2850], 24, 62, "STRING"))
 
     for order, n in enumerate(nodes):
         n["order"] = order
@@ -946,17 +1212,21 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         },
         {
             "id": 2, "title": "道劫·装配(行2:拼接①② delimiter=\\n 分层;RGBA 公式拼接;装配全文→[141])",
-            "bounding": [650, 990, 2450, 310], "color": "#a1309b", "flags": {},
+            # 0930 S5:宽 2450→3370 随 [163] 右移 2710→3610(消 (15,54)(16,54));与框3/4
+            # y 带互斥(990+310=1300<1750),x 扩零相交
+            "bounding": [650, 990, 3370, 310], "color": "#a1309b", "flags": {},
         },
         {
             "id": 3, "title": "道劫·PE改写(行3:[140]PE改写→[141]提示词开关;switch=宿主面板「PE开关」默认开)",
             "bounding": [1685, 1750, 1400, 470], "color": "#886", "flags": {},
         },
         {
-            "id": 4, "title": "道劫·编码输出(行4:主编码(prompt 直收[141]最终文本)+RGBA编码(默认旁路)+RGBA开关)",
-            "bounding": [3030, 2510, 1790, 400], "color": "#4d9e6a", "flags": {},
+            "id": 4, "title": "道劫·编码输出(行5:主编码(prompt 直收[141]最终文本)+RGBA编码(透明文本开关[209]路,默认旁路)+RGBA开关)",
+            "bounding": [5270, 3270, 2000, 400], "color": "#4d9e6a", "flags": {},
         },
     ]
+    # (0929 S2:行4 融合行([206]-[210])不设框——组框预算≤4 已满,照联动蛇形两行
+    # 不设框先例;S5 布局终排批统一重排组框)
 
     # 子图 IO(inputs 槽序=宿主 inputs 序;widget 型输入 linkIds 同样逐项登记=契约铁律)
     _IO_IDS = [
@@ -964,15 +1234,15 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         "a1e2c3d4-0002-4a02-9e02-7d4a9c31a002",  # in-1 vae
         "a1e2c3d4-0003-4a03-9e03-7d4a9c31a003",  # in-2 主体句
         "a1e2c3d4-0004-4a04-9e04-7d4a9c31a004",  # in-3 型选择(COMBO)
-        "a1e2c3d4-0005-4a05-9e05-7d4a9c31a005",  # in-4 RGBA透明开关
+        "a1e2c3d4-0005-4a05-9e05-7d4a9c31a005",  # in-4 RGBA透明(0929 S2 D6:三态COMBO,原 BOOLEAN 控件退役)
         "a1e2c3d4-0006-4a06-9e06-7d4a9c31a006",  # in-5 PE开关(BOOLEAN,默认 true)
         "a1e2c3d4-0007-4a07-9e07-7d4a9c31a007",  # in-6 pe_clip(主图 [11] PE 专属 TE)
         "a1e2c3d4-0008-4a08-9e08-7d4a9c31a008",  # in-7 画幅联动开关(BOOLEAN,默认 false)
         "b2f3a4c5-0001-4b01-8f01-3c5f81b56b01",  # out-0 positive
         "b2f3a4c5-0002-4b02-8f02-3c5f81b56b02",  # out-1 negative
-        "b2f3a4c5-0003-4b03-8f03-3c5f81b56b03",  # out-2 最终文本(→主图 [27])
-        "b2f3a4c5-0004-4b04-8f04-3c5f81b56b04",  # out-3 width
-        "b2f3a4c5-0005-4b05-8f05-3c5f81b56b05",  # out-4 height
+        "b2f3a4c5-0004-4b04-8f04-3c5f81b56b04",  # out-2 width(0929 S4/D2:自槽3 上移)
+        "b2f3a4c5-0005-4b05-8f05-3c5f81b56b05",  # out-3 height(自槽4 上移)
+        "b2f3a4c5-0003-4b03-8f03-3c5f81b56b03",  # out-4 最终文本(自槽2 迁最末=节点最底;→主图 [27])
     ]
     # IO 槽 pos(输入槽落各自目标近旁:clip/vae 落行3-行4 间带、开关类落目标行近旁、
     # 主体句/型选择落左缘行带;输出槽 x=7300 全部钉死最右列,纵向按出线源行分布)
@@ -981,31 +1251,33 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         {"id": _IO_IDS[1], "name": "vae", "type": "VAE", "linkIds": [3, 4], "pos": [2520, 2450]},
         {"id": _IO_IDS[2], "name": "主体句", "type": "STRING", "linkIds": [5], "pos": [-36, 1065]},
         {"id": _IO_IDS[3], "name": "型选择", "type": "COMBO", "linkIds": [6], "pos": [-36, 300]},
-        {"id": _IO_IDS[4], "name": "RGBA透明开关", "type": "BOOLEAN", "linkIds": [7], "pos": [4200, 2700]},
-        {"id": _IO_IDS[5], "name": "PE开关", "type": "BOOLEAN", "linkIds": [8], "pos": [2200, 1750]},
+        {"id": _IO_IDS[4], "name": "RGBA透明", "type": "COMBO", "linkIds": [7], "pos": [5500, 2470]},
+        {"id": _IO_IDS[5], "name": "PE开关", "type": "BOOLEAN", "linkIds": [8, 56], "pos": [2200, 1750]},
         {"id": _IO_IDS[6], "name": "pe_clip", "type": "CLIP", "linkIds": [46], "pos": [1540, 1700]},
         {"id": _IO_IDS[7], "name": "画幅联动开关", "type": "BOOLEAN", "linkIds": [47, 48], "pos": [4100, 3700]},
     ]
+    # 0929 S4/D2:预览文本类槽(最终文本)=最末槽;右列 pos 随槽序重排(纵向升序,
+    # y 值集合沿用旧值按槽序重派——width 取 3700/height 取 4165/最终文本 落最底 4925)
     outputs = [
-        {"id": _IO_IDS[8], "name": "positive", "type": "CONDITIONING", "linkIds": [20], "pos": [7300, 2585]},
-        {"id": _IO_IDS[9], "name": "negative", "type": "CONDITIONING", "linkIds": [21], "pos": [7300, 2685]},
-        {"id": _IO_IDS[10], "name": "最终文本", "type": "STRING", "linkIds": [45], "pos": [7300, 2950]},
-        {"id": _IO_IDS[11], "name": "width", "type": "INT", "linkIds": [42], "pos": [7300, 3345]},
-        {"id": _IO_IDS[12], "name": "height", "type": "INT", "linkIds": [43], "pos": [7300, 4105]},
+        {"id": _IO_IDS[8], "name": "positive", "type": "CONDITIONING", "linkIds": [20], "pos": [7300, 3345]},
+        {"id": _IO_IDS[9], "name": "negative", "type": "CONDITIONING", "linkIds": [21], "pos": [7300, 3445]},
+        {"id": _IO_IDS[10], "name": "width", "type": "INT", "linkIds": [42], "pos": [7300, 3700]},
+        {"id": _IO_IDS[11], "name": "height", "type": "INT", "linkIds": [43], "pos": [7300, 4165]},
+        {"id": _IO_IDS[12], "name": "最终文本", "type": "STRING", "linkIds": [45], "pos": [7300, 4925]},
     ]
 
     sg = {
         "id": SG_UUID,
         "version": 1,
-        "state": {"lastGroupId": 4, "lastNodeId": 205, "lastLinkId": 49, "lastRerouteId": 8},
+        "state": {"lastGroupId": 4, "lastNodeId": 213, "lastLinkId": 62, "lastRerouteId": 10},
         "revision": 1,
         "config": {"defaultIOState": {}},
         "name": "[40] 道劫·装配子图(双击进入)",
-        "inputNode": {"id": -10, "bounding": [-320, -260, 160, 4460]},
-        "outputNode": {"id": -20, "bounding": [7220, 2300, 320, 2200]},
+        "inputNode": {"id": -10, "bounding": [-320, -260, 160, 5210]},
+        "outputNode": {"id": -20, "bounding": [7220, 3050, 320, 2200]},
         "inputs": inputs,
         "outputs": outputs,
-        "widgets": [truth["types"][0]["subject"], DEFAULT_TYPE, False, True, False],
+        "widgets": [truth["types"][0]["subject"], DEFAULT_TYPE, RGBA_DEFAULT_MODE, True, False],
         "nodes": nodes,
         "groups": groups,
         "links": links,
@@ -1025,6 +1297,208 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         for _grp in sg["groups"]:
             _grp["bounding"][0] += _dx
             _grp["bounding"][1] += _dy
+    sg["inputNode"]["bounding"][0] += _dx
+    sg["inputNode"]["bounding"][1] += _dy
+    sg["outputNode"]["bounding"][0] += _dx
+    sg["outputNode"]["bounding"][1] += _dy
+    return sg, links
+
+
+# ── 加速子图构建(0929 S3 收装轮;内部件 id 沿用旧主图 id,子图独立 id 空间)──────
+def build_accel_subgraph() -> tuple[dict, list[dict]]:
+    """返回 (加速子图定义, 内部 link 对象表)。
+
+    D3/D4/D5(D4 t2i 列):边界=model([1] UNET 直连)/positive+negative([40] 输出)/
+    latent([5] 空潜)+速度档位/seed 两 widget 槽(宿主面板外露,D5 推荐案:research/
+    subgraph-widget-promotion.md Probe A 实证 INT/COMBO 同宿主双控件可用,回退案不启用);
+    输出 LATENT→主图 [8]。内部=三支路+viggle LoRA+seed 单源+选择件,机构自 0929
+    并行化轮主图原样迁入(语义零改动):
+      支路0 直出:   model ────────────────→ [7]  KSampler(40步,steps=widget 生效值)
+      支路1 viggle: model ─→ [31] LoRA(0.8) → [206]KSampler(359步)
+      支路2 Fun-Acc:model ────────────────→ [198]T8(4步内置;model 直连绝不吃 LoRA)
+      [207] PrimitiveInt(value=宿主面板「seed」)单源扇出三采样器 seed 槽;
+      三支路 LATENT 汇流→[214] MyQi21SpeedSelect(mode=宿主面板「速度档位」)→输出。
+    行式四行(行序=选择件三 latent 槽纵序对齐:funacc(槽0)顶/viggle(槽1)中/
+    direct(槽2)底——三汇流线零交叉,实测 3g 谓词):
+      行1 y=280   Fun-Acc [198]
+      行2 y=1040  viggle [31]→[206] + 选择件 [214](id 让位宿主新分)
+      行3 y=1450  seed 单源带 [207](支路行间左袋,扇出三支路)
+      行4 y=1800  直出 [7]
+    输出 IO 槽 x=3900 钉最右列(全子图最大节点 x=3400,表示法=K2 [90] 实证同款);
+    group 恰 1 框罩全 6 件(单一功能域,装配子图「单一阶段行」口径不适用)。"""
+    links: list[dict] = []
+    # -10 扇出(边界线;widget 型输入 linkIds 同样逐项登记=契约铁律;槽序=model/
+    # positive/negative/latent/速度档位/seed,widget 型两槽殿后)
+    links.append(_internal_link(1, -10, 0, SAMPLER_ID, 0, "MODEL"))          # model → [7].model(支路0 直连)
+    links.append(_internal_link(2, -10, 0, LORA_ID, 0, "MODEL"))             # model → [31].model(支路1 LoRA 臂)
+    links.append(_internal_link(3, -10, 0, T8_ID, 0, "MODEL"))               # model → [198].model(支路2 直连,绝不吃 LoRA)
+    links.append(_internal_link(4, -10, 1, SAMPLER_ID, 1, "CONDITIONING"))   # positive → [7](三支路同源)
+    links.append(_internal_link(5, -10, 1, SAMPLER_VIGGLE_ID, 1, "CONDITIONING"))
+    links.append(_internal_link(6, -10, 1, T8_ID, 1, "CONDITIONING"))
+    links.append(_internal_link(7, -10, 2, SAMPLER_ID, 2, "CONDITIONING"))   # negative → [7]/[206](cfg=1 占位;T8 无负面槽)
+    links.append(_internal_link(8, -10, 2, SAMPLER_VIGGLE_ID, 2, "CONDITIONING"))
+    links.append(_internal_link(9, -10, 3, SAMPLER_ID, 3, "LATENT"))         # latent → 三支路同源([5] 空潜)
+    links.append(_internal_link(10, -10, 3, SAMPLER_VIGGLE_ID, 3, "LATENT"))
+    links.append(_internal_link(11, -10, 3, T8_ID, 2, "LATENT"))
+    links.append(_internal_link(12, -10, 4, ACCEL_SEL_ID, 0, "COMBO"))       # 速度档位(宿主面板)→ [214].mode
+    links.append(_internal_link(13, -10, 5, SEED_ID, 0, "INT"))              # seed(宿主面板)→ [207].value(D5 推荐案)
+    links.append(_internal_link(14, LORA_ID, 0, SAMPLER_VIGGLE_ID, 0, "MODEL"))   # LoRA → [206].model(支路1 唯一消费者)
+    links.append(_internal_link(15, SEED_ID, 0, SAMPLER_ID, 4, "INT"))       # seed 单源扇出(三采样器 seed 一律 widget→input)
+    links.append(_internal_link(16, SEED_ID, 0, SAMPLER_VIGGLE_ID, 4, "INT"))
+    links.append(_internal_link(17, SEED_ID, 0, T8_ID, 4, "INT"))
+    # (选择件 mode=widget 转输入占 slot0,三 latent 槽序=funacc1/viggle2/direct3)
+    links.append(_internal_link(18, SAMPLER_ID, 0, ACCEL_SEL_ID, 3, "LATENT"))        # [7] → latent_direct(支路0)
+    links.append(_internal_link(19, SAMPLER_VIGGLE_ID, 0, ACCEL_SEL_ID, 2, "LATENT"))  # [206] → latent_viggle(支路1)
+    links.append(_internal_link(20, T8_ID, 0, ACCEL_SEL_ID, 1, "LATENT"))     # [198] → latent_funacc(支路2)
+    links.append(_internal_link(21, ACCEL_SEL_ID, 0, -20, 0, "LATENT"))       # 选择件 → 输出 LATENT(主图 [8])
+    assert sorted(l["id"] for l in links) == list(range(1, 22))
+
+    nodes: list[dict] = []
+    # 行1 Fun-Acc 支路(T8 model=-10 model 槽直连=绝不吃 viggle LoRA 铁则;无负面槽;
+    # seed widget→input 接 [207] 单源,research/03 §4.1 输入化先例)
+    nodes.append({
+        "id": T8_ID, "type": T8_CLASS,
+        "title": f"[{T8_ID}] FunAccPDD4StepSampler(Fun-Acc支路·4步内置;model=加速子图 model 入口"
+                 f"(=主图[1] base 直连,绝不吃 viggle LoRA);无负面槽;seed←[{SEED_ID}] 共享单源)",
+        "pos": [800, 280], "size": [818.51328125, 250], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [
+            {"name": "model", "type": "MODEL", "link": 3},
+            {"name": "positive", "type": "CONDITIONING", "link": 6},
+            {"name": "latent_image", "type": "LATENT", "link": 11},
+            {"name": "model_file", "type": "COMBO", "widget": {"name": "model_file"}, "link": None},
+            {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": 17},
+        ],
+        "outputs": [{"name": "LATENT", "type": "LATENT", "links": [20]}],
+        "properties": {"Node name for S&R": T8_CLASS},
+        "widgets_values": [FUNACC_FILE, 0],
+    })
+    # 行2 viggle 支路+选择件([31] 窄卡 270 宽;steps=面板生效值 359;选择件居汇流带右)
+    nodes.append({
+        "id": LORA_ID, "type": "LoraLoaderModelOnly",
+        "title": f"[{LORA_ID}] LoraLoaderModelOnly(viggle v0.2 r256;支路1 专属·strength0.8,"
+                 f"输出只喂 [{SAMPLER_VIGGLE_ID}])",
+        "pos": [800, 1040], "size": [270, 130], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [
+            {"name": "model", "type": "MODEL", "link": 2},
+            {"name": "lora_name", "type": "COMBO", "widget": {"name": "lora_name"}, "link": None},
+            {"name": "strength_model", "type": "FLOAT", "widget": {"name": "strength_model"}, "link": None},
+        ],
+        "outputs": [{"name": "MODEL", "type": "MODEL", "links": [14]}],
+        "properties": {"Node name for S&R": "LoraLoaderModelOnly"},
+        "widgets_values": [LORA_FILE, 0.8],
+    })
+
+    def _aks(nid: int, steps: int, pos: list) -> dict:
+        return {
+            "id": nid, "type": "KSampler",
+            "title": f"[{nid}] KSampler({'直出支路·40步·cfg1;model=model 入口(=主图[1] base 直连)' if nid == SAMPLER_ID else 'viggle支路·359步·cfg1;model=[31] LoRA'};"
+                     f"seed←[{SEED_ID}] 共享单源(widget 转输入);面板 steps=真实生效值)",
+            "pos": pos, "size": [754.7955078125, 262], "flags": {}, "order": 0, "mode": 0,
+            "inputs": [
+                {"name": "model", "type": "MODEL", "link": 1 if nid == SAMPLER_ID else 14},
+                {"name": "positive", "type": "CONDITIONING", "link": 4 if nid == SAMPLER_ID else 5},
+                {"name": "negative", "type": "CONDITIONING", "link": 7 if nid == SAMPLER_ID else 8},
+                {"name": "latent_image", "type": "LATENT", "link": 9 if nid == SAMPLER_ID else 10},
+                {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": 15 if nid == SAMPLER_ID else 16},
+            ],
+            "outputs": [{"name": "LATENT", "type": "LATENT", "links": [18 if nid == SAMPLER_ID else 19]}],
+            "properties": {"Node name for S&R": "KSampler"},
+            "widgets_values": [0, "fixed", steps, 1, "euler", "simple", 1],
+        }
+
+    nodes.append(_aks(SAMPLER_VIGGLE_ID, STEPS_ON, [1800, 1040]))
+    nodes.append({
+        "id": ACCEL_SEL_ID, "type": "MyQi21SpeedSelect",
+        "title": "出图速度选择",
+        "pos": [3400, 1040], "size": [380, 150], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [
+            {"name": "mode", "type": "COMBO", "widget": {"name": "mode"}, "link": 12},
+            {"name": "latent_funacc", "type": "LATENT", "shape": 7, "link": 20},
+            {"name": "latent_viggle", "type": "LATENT", "shape": 7, "link": 19},
+            {"name": "latent_direct", "type": "LATENT", "shape": 7, "link": 18},
+        ],
+        "outputs": [{"name": "latent", "type": "LATENT", "links": [21]}],
+        "properties": {"Node name for S&R": "MyQi21SpeedSelect"},
+        "widgets_values": [SPEED_DEFAULT_MODE],
+    })
+    # 行3 seed 单源带(value widget→input 接 -10「seed」槽=宿主面板 INT 外露,
+    # D5 推荐案;widgets 双记账 value+fixed 照 PrimitiveInt 序列化先例)
+    nodes.append({
+        "id": SEED_ID, "type": "PrimitiveInt",
+        "title": f"[{SEED_ID}] seed·三支路共享单源(默认0 fixed;value=宿主面板「seed」外露;"
+                 f"扇出 [{SAMPLER_ID}]/[{SAMPLER_VIGGLE_ID}]/[{T8_ID}];改 seed 只动宿主面板一处)",
+        "pos": [150, 1450], "size": [270, 90], "flags": {}, "order": 0, "mode": 0,
+        "inputs": [{"name": "value", "type": "INT", "widget": {"name": "value"}, "link": 13}],
+        "outputs": [{"name": "INT", "type": "INT", "links": [15, 16, 17]}],
+        "properties": {"cnr_id": "comfy-core", "Node name for S&R": "PrimitiveInt"},
+        "widgets_values": [ACCEL_SEED_DEFAULT, "fixed"],
+        "widgets_values_named": {"value": ACCEL_SEED_DEFAULT, "fixed": "fixed"},
+    })
+    # 行4 直出支路(行序=选择件 latent 槽纵序 direct 居底)
+    nodes.append(_aks(SAMPLER_ID, STEPS_OFF, [800, 1800]))
+    for order, n in enumerate(nodes):
+        n["order"] = order
+
+    # 内部分组(恰 1 框罩全 6 件=单一功能域边界标识;装配「单一阶段行」口径不适用)
+    groups: list[dict] = [
+        {
+            "id": 1,
+            "title": "道劫·加速区·并行三支路+单选择(档位/seed=宿主面板「速度档位」「seed」;未选支路懒执行零加载)",
+            "bounding": [120, 230, 3690, 1882], "color": "#4d9e6a", "flags": {},
+        },
+    ]
+
+    # 子图 IO(槽序=model/positive/negative/latent/速度档位/seed;输入槽左列-36 表示法
+    # =装配子图同款;输出槽 x=3900 钉最右列)
+    _AIO_IDS = [
+        "e8c1d2f3-0001-4d01-9a01-e7b9d4a2a001",  # in-0 model([1] UNET 直连)
+        "e8c1d2f3-0002-4d02-9a02-e7b9d4a2a002",  # in-1 positive([40].positive)
+        "e8c1d2f3-0003-4d03-9a03-e7b9d4a2a003",  # in-2 negative([40].negative,cfg=1 占位)
+        "e8c1d2f3-0004-4d04-9a04-e7b9d4a2a004",  # in-3 latent([5] 空潜)
+        "e8c1d2f3-0005-4d05-9a05-e7b9d4a2a005",  # in-4 速度档位(COMBO 面板)
+        "e8c1d2f3-0006-4d06-9a06-e7b9d4a2a006",  # in-5 seed(INT 面板,D5 推荐案)
+        "f4b5c6d7-0001-4e01-8b01-e7b9d4a2b01",   # out-0 LATENT(→主图 [8])
+    ]
+    inputs = [
+        {"id": _AIO_IDS[0], "name": "model", "type": "MODEL", "linkIds": [1, 2, 3], "pos": [-36, 500]},
+        {"id": _AIO_IDS[1], "name": "positive", "type": "CONDITIONING", "linkIds": [4, 5, 6], "pos": [-36, 900]},
+        {"id": _AIO_IDS[2], "name": "negative", "type": "CONDITIONING", "linkIds": [7, 8], "pos": [-36, 1000]},
+        {"id": _AIO_IDS[3], "name": "latent", "type": "LATENT", "linkIds": [9, 10, 11], "pos": [-36, 1400]},
+        {"id": _AIO_IDS[4], "name": "速度档位", "type": "COMBO", "linkIds": [12], "pos": [-36, 1100]},
+        {"id": _AIO_IDS[5], "name": "seed", "type": "INT", "linkIds": [13], "pos": [-36, 1500]},
+    ]
+    outputs = [
+        {"id": _AIO_IDS[6], "name": "LATENT", "type": "LATENT", "linkIds": [21], "pos": [3900, 1100]},
+    ]
+
+    sg = {
+        "id": ACCEL_SG_UUID,
+        "version": 1,
+        "state": {"lastGroupId": 1, "lastNodeId": 214, "lastLinkId": 21, "lastRerouteId": 0},
+        "revision": 1,
+        "config": {"defaultIOState": {}},
+        "name": "道劫·加速子图",
+        "inputNode": {"id": -10, "bounding": [-190, 230, 160, 1930]},
+        "outputNode": {"id": -20, "bounding": [3790, 990, 320, 260]},
+        "inputs": inputs,
+        "outputs": outputs,
+        "widgets": [SPEED_DEFAULT_MODE, ACCEL_SEED_DEFAULT],   # 值双写↔宿主 widgets_values
+        "nodes": nodes,
+        "groups": groups,
+        "links": links,
+        "extra": {"ue_links": [], "links_added_by_ue": []},
+    }
+    # 零负区归一(与装配子图同款:所有节点 pos≥80,布局已达标则零平移)
+    _dx = max(0, 80 - min(n["pos"][0] for n in sg["nodes"]))
+    _dy = max(0, 80 - min(n["pos"][1] for n in sg["nodes"]))
+    if _dx or _dy:
+        for _n in sg["nodes"]:
+            _n["pos"] = [_n["pos"][0] + _dx, _n["pos"][1] + _dy]
+        for _io in sg["inputs"] + sg["outputs"]:
+            _io["pos"] = [_io["pos"][0] + _dx, _io["pos"][1] + _dy]
+        for _grp in sg["groups"]:
+            _grp["bounding"][0] += _dx
+            _grp["bounding"][1] += _dy
         sg["inputNode"]["bounding"][0] += _dx
         sg["inputNode"]["bounding"][1] += _dy
         sg["outputNode"]["bounding"][0] += _dx
@@ -1032,8 +1506,8 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     return sg, links
 
 
-# ── 主图构建(0928 PE 迁子图轮:主图=加载+装配外露+采样链;全部节点 pos≥40)──
-def build_main(truth: dict, sg: dict) -> dict:
+# ── 主图构建(0929 S3 收装轮:主图=四块骨架 ①加载器→②提示词·装配→③加速→④输出)──
+def build_main(truth: dict, sg: dict, asg: dict) -> dict:
     g = {
         "id": WF_UUID, "version": 0.4, "revision": 0, "config": {}, "extra": {},
         # ── 四块组框(0929 四块重画轮:三件统一口径;宅基律 pad=L30/T50/R30/B50 实测沿用;
@@ -1045,14 +1519,15 @@ def build_main(truth: dict, sg: dict) -> dict:
             {"id": 2, "title": "道劫·①加载器(UNET[1]/VAE[3]/双TE:[2]主+[11]PE专属→[40])",
              "bounding": [966.6286340249105, 1130, 526.8653345251539, 1065], "color": "#3f789e", "flags": {}},
             # 块② 提示词·装配(主体句+装配子图+预览;[27] 预览留 y1650 上袋原位,框上缘 1600 起)
-            {"id": 3, "title": "道劫·②提示词·装配([24]主体句=①层唯一手写位;[40]装配子图(PE改写/画幅联动全在内,面板=型选择/RGBA/PE开关/画幅联动开关);[27]装配预览=最终文本)",
+            {"id": 3, "title": "道劫·②提示词·装配([24]主体句=①层唯一手写位;[40]装配子图(双击进入;PE改写/画幅联动全在内,面板=型选择/RGBA/PE开关/画幅联动开关);[27]装配预览=最终文本)",
              "bounding": [1670, 1600, 1910.300390625, 1550], "color": "#a1309b", "flags": {}},
-            # 块③ 加速区(W1;标题保持 startswith「道劫·加速区」+「加速区·并行」子串=契约
-            # TestCanvasNormalization0925 与自查 W1 锚双兼容,序号③入括号不断锚;罩空潜[5]
-            # +三支路[7]/[31]+[206]/[198]+选择件[208]+seed单源[207]——旧主链框 [5] 收编,
-            # 左缘 3870=[5]-30;[207] 自 (3200,2900) 挪 (3950,2950) 入框脱离②右尾)
-            {"id": 4, "title": "道劫·加速区·并行三支路+单选择(③空潜[5]三扇出→[7]直出40步/[31]+[206]viggle·359步/[198]Fun-Acc·4步→[208]MyQi21SpeedSelect;seed单源[207];combo首项=默认直出40步,未选支路懒执行零加载)",
-             "bounding": [3870, 1690, 2840, 1790], "color": "#4d9e6a", "flags": {}},
+            # 块③ 加速区(0929 S3 收装:支路机构整体迁入加速子图,主图只剩 [5] 空潜+宿主
+            # [208] 两件;被收装机构信息(双击进入/三支路/面板控件/懒执行)住③框标题=
+            # 信息零丢失(R6);宿主自原选择件位 (6300,2460) 内移 (4800,2460)——[1]/[40]/[5]
+            # 三源汇聚线零线遮实测位(3f 谓词)+③块紧凑 [5] 同框(R5);id 沿用=锚连续(D3);
+            # 左缘 3870=[5]-30 沿四块轮口径)
+            {"id": 4, "title": "道劫·加速区·③([5]空潜→[208]加速子图(双击进入:并行三支路+viggle LoRA+seed单源+出图速度选择全在内;面板=速度档位/seed;未选支路懒执行零加载)→LATENT)",
+             "bounding": [3870, 1690, 1530, 1140], "color": "#4d9e6a", "flags": {}},
             # 块④ 输出(旧主链框拆出;[8] 解码→[9] 保存)
             {"id": 5, "title": "道劫·④输出([8]VAEDecode→[9]SaveImage)",
              "bounding": [6956.474674780493, 1672.0313909766683, 1213.525325219507, 586.1961868742776],
@@ -1060,7 +1535,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         ],
         "nodes": [],
         "links": [],
-        "definitions": {"subgraphs": [sg]},
+        "definitions": {"subgraphs": [sg, asg]},
         "last_node_id": HOST_ID,
         "last_link_id": 18,
     }
@@ -1082,11 +1557,10 @@ def build_main(truth: dict, sg: dict) -> dict:
         }
 
     nodes = [
-        # 加载器竖列(0929 并行化轮:[1] UNET 自旧加速区组框(y2882)挪回加载器列上首——
-        # [1]→[7] 直连线需从 [40] 上方净空过(旧位出发必穿 [40] 盒);MODEL 单源三扇出
-        # [97]/[105]/[106]→[31]LoRA/[7]直出/[198]T8;base 三支路共享)
+        # 加载器竖列(0929 S3 收装:[1] UNET=base MODEL 单源一进线 [97]→加速宿主.model
+        # ——三支路扇出内聚子图内;位置沿 0929 并行化轮加载器列上首)
         loader(1, "UNETLoader", "UNETLoader", [996.6286340249105, 1180], [340, 84],
-               ["qwen_image_2.1_bf16.safetensors", "default"], [97, 105, 106],
+               ["qwen_image_2.1_bf16.safetensors", "default"], [97],
                [{"name": "unet_name", "type": "COMBO", "widget": {"name": "unet_name"}, "link": None},
                 {"name": "weight_dtype", "type": "COMBO", "widget": {"name": "weight_dtype"}, "link": None}]),
         loader(2, "CLIPLoader", "CLIPLoader(主 TE)", [1076.4913898424497, 1704.2324093444404], [360, 130],
@@ -1119,52 +1593,38 @@ def build_main(truth: dict, sg: dict) -> dict:
         {
             "id": PREVIEW_ID, "type": "easy showAnything",
             "title": f"[{PREVIEW_ID}] 装配预览(接[40]「最终文本」输出=将进编码的最终文本;跑图前过目)",
-            # 上袋净空走廊=VAE→[8] 长直线(下缘)与 [40] W/H→[5] 对角线(下缘)之间,
-            # 高度 230→160 恰容(上下净距各 ~35px);est/线遮数值复核=自查 3c/3f 谓词
-            "pos": [3050, 1650], "size": [500.300390625, 160], "flags": {}, "order": 6, "mode": 0,
+            # 0929 S4 槽位批:最终文本迁宿主最末槽(节点最底)后自上袋 (3050,1650) 迁
+            # [40] 右下袋 (3050,2760)——导线自最底槽(右缘 y≈2266)直落输入槽(y≈2785),
+            # 不再上行翻越 width/height 走线(实测 link18 交叉对 3→0,主图 16→13);
+            # 网格搜索定值:②框内/est 间距/零线遮全清(与 [40] est y 带相离=对角豁免)
+            "pos": [3050, 2760], "size": [500.300390625, 160], "flags": {}, "order": 6, "mode": 0,
             "inputs": [{"label": "输入任何", "name": "anything", "shape": 7, "type": "*", "link": 18}],
             "outputs": [{"name": "output", "type": "*", "links": None}],
             "properties": {"Node name for S&R": "easy showAnything"},
             "widgets_values": [""],
         },
-        # 主链带(0929 并行化轮:[5] 空潜=LATENT 单源三扇出 [5]/[104]/[65]→[7]/[206]/[198];
-        # 保持 3900 原位——W/H 直连线斜率决定 [27]@3100,1600 下缘 38px 净空,挪 3700 会反遮;
-        # 宽高仍直连 [40] width/height)
+        # 主链带(0930 S5 [5]↔[208] 换行:[5] 空潜=槽2/3 width/height 消费端,自 y1740
+        # 下移 y2460 与 [208] 换位——[40] 五输出槽消费端按槽序纵叠([208] 上/[5] 中/
+        # [27] 底),9 对扇出交叉全消(实测主图 13→4);宽高仍直连 [40] width/height
+        # (0929 S4 槽位批后 W/H 自宿主槽2/3 出线);LATENT 一进线 [5]→宿主.latent)
         {
             "id": LATENT_ID, "type": "EmptyLatentImage",
             "title": f"[{LATENT_ID}] EmptyLatentImage(宽高直连 [{HOST_ID}] width/height 输出=联动开关后终值;面板 1024=摆设值不生效)",
-            "pos": [3900, 1740], "size": [671.759375, 110], "flags": {}, "order": 8, "mode": 0,
+            "pos": [3900, 2460], "size": [671.759375, 110], "flags": {}, "order": 8, "mode": 0,
             "inputs": [
                 {"name": "width", "type": "INT", "widget": {"name": "width"}, "link": 1},
                 {"name": "height", "type": "INT", "widget": {"name": "height"}, "link": 2},
             ],
-            "outputs": [{"name": "LATENT", "type": "LATENT", "links": [5, 104, 65]}],
+            "outputs": [{"name": "LATENT", "type": "LATENT", "links": [5]}],
             "properties": {"Node name for S&R": "EmptyLatentImage"},
             "widgets_values": [1024, 1024, 1],
-        },
-        {
-            "id": SAMPLER_ID, "type": "KSampler",
-            "title": f"[{SAMPLER_ID}] KSampler(直出支路·40步·cfg1;model=[1] base 直连;"
-                     f"seed←[{SEED_ID}] 共享单源(widget 转输入);面板 steps=真实生效值)",
-            "pos": [5011.97707393495, 1740], "size": [754.7955078125, 262], "flags": {}, "order": 9, "mode": 0,
-            "inputs": [
-                {"name": "model", "type": "MODEL", "link": 105},
-                {"name": "positive", "type": "CONDITIONING", "link": 16},
-                {"name": "negative", "type": "CONDITIONING", "link": 17},
-                {"name": "latent_image", "type": "LATENT", "link": 5},
-                # seed 单源扇出(0929 并行化轮 widget 转输入;面板 seed 值=接线接管不生效)
-                {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": 107},
-            ],
-            "outputs": [{"name": "LATENT", "type": "LATENT", "links": [9]}],
-            "properties": {"Node name for S&R": "KSampler"},
-            "widgets_values": [0, "fixed", STEPS_OFF, 1, "euler", "simple", 1],
         },
         {
             "id": 8, "type": "VAEDecode",
             "title": "[8] VAEDecode",
             "pos": [6986.474674780493, 1722.0313909766683], "size": [240, 50], "flags": {}, "order": 10, "mode": 0,
             "inputs": [
-                {"name": "samples", "type": "LATENT", "link": 62},   # [208] 选择件输出(三支路汇流)
+                {"name": "samples", "type": "LATENT", "link": 62},   # 加速宿主 LATENT 输出(三支路汇流在子图内)
                 {"name": "vae", "type": "VAE", "link": 10},   # VAE 直连([22]/[23] 顶通道对已删,link10 改指实靶)
             ],
             "outputs": [{"name": "IMAGE", "type": "IMAGE", "links": [11]}],
@@ -1182,7 +1642,7 @@ def build_main(truth: dict, sg: dict) -> dict:
         },
         {
             "id": 10, "type": "MarkdownNote",
-            "title": "[10] 道劫·用法速查(装配子图版·0929 宿主面板简化轮)",
+            "title": "[10] 道劫·用法速查(双子图版·0929 S3 收装轮)",
             # 0929 回灌:用户拖至 x=-561 负区→归一 x=80;900 宽卡片在 x=80 下与 [24]/
             # [30] est+矩形双重叠,y 自 2271.75 下移至 3500(零负区+零重叠铁律内最近合规位)
             "pos": [80, 3500], "size": [900, 1500], "flags": {}, "order": 12, "mode": 0,
@@ -1202,18 +1662,23 @@ def build_main(truth: dict, sg: dict) -> dict:
         {"name": "主体句", "type": "STRING", "widget": {"name": "主体句"}, "link": 15},
         {"name": "pe_clip", "type": "CLIP", "link": 31},
     ]
-    _wv = [types[0]["subject"], DEFAULT_TYPE, False, True, False]
+    _wv = [types[0]["subject"], DEFAULT_TYPE, RGBA_DEFAULT_MODE, True, False]
     host = {
         "id": HOST_ID, "type": SG_UUID,
-        "title": f"[{HOST_ID}] 装配子图(双击进入;PE改写/画幅联动在内,面板=型选择/RGBA/PE开关/画幅联动)",
+        # 0929 S1 命名批:长标题→稳定短名(用户令「做个稳定的名字」);被删说明
+        # 逐条有归——双击进入=子图 name+组框②+Note;PE改写/画幅联动在内+面板四控件
+        # 枚举=组框②标题+Note(信息零丢失,R6 命名规范:标题=短名,机制住 Note/组框)
+        "title": f"[{HOST_ID}] 装配子图",
         "pos": [2393.784928591911, 2161.1515445773366], "size": [571.1001953125, 480], "flags": {}, "order": 13, "mode": 0,
         "inputs": host_inputs,
+        # 0929 S3 收装:positive/negative 各一进线→加速宿主(旧三/二扇出内聚子图内);
+        # 0929 S4/D2:最终文本自槽2 迁最末(节点最底),width/height 各上移一槽
         "outputs": [
-            {"name": "positive", "type": "CONDITIONING", "links": [16, 101, 102]},
-            {"name": "negative", "type": "CONDITIONING", "links": [17, 103]},
-            {"name": "最终文本", "type": "STRING", "links": [18]},
+            {"name": "positive", "type": "CONDITIONING", "links": [16]},
+            {"name": "negative", "type": "CONDITIONING", "links": [17]},
             {"name": "width", "type": "INT", "links": [1]},
             {"name": "height", "type": "INT", "links": [2]},
+            {"name": "最终文本", "type": "STRING", "links": [18]},
         ],
         "properties": {"subgraph": SG_UUID, "previewExposures": []},
         "widgets_values": list(_wv),
@@ -1221,134 +1686,54 @@ def build_main(truth: dict, sg: dict) -> dict:
     }
     nodes.append(host)
 
-
-    # ── 加速区·并行三支路(0929 并行化轮;注入式开关农场十件已拆,见常量段历史锚)──
-    # 三行纵叠(行距 720):行0 直出 [7]@y1740(在主链 nodes 段)/行1 viggle [31]+[206]@y2460/
-    # 行2 Fun-Acc [198]@y3180;[207] seed 单源@(3950,2950)=[5] 右下方③框内(0929 四块
-    # 重画自 3200,2900 挪——旧位咬合②框右尾,seed 归③口径);[208] 选择件@
-    # 三支路汇流带右侧。[31] 窄卡 270 宽:让左区下行线的行1 带走廊——实测窗位
-    # y2460-2590 带 x 走廊≈[3540,3862]([40].pos→[198])∪[3639,3862]([1]→[198])∪
-    # [4030,4120]([207]seed→[7])∪[4569,5100]([40].neg/.pos→[206]+[5]→[206]/[198]),
-    # [31] 落 [4250,4520] 净窗;数值复核=自查 3f/3g 谓词。
-    nodes.append({
-        "id": LORA_ID, "type": "LoraLoaderModelOnly",
-        "title": f"[{LORA_ID}] LoraLoaderModelOnly(viggle v0.2 r256;支路1 专属·strength0.8,"
-                 f"输出只喂 [{SAMPLER_VIGGLE_ID}])",
-        "pos": [4250, 2460], "size": [270, 130], "flags": {}, "order": 0, "mode": 0,
+    # 加速宿主 [208](0929 S3 收装轮:原选择件原位改造,id 沿用 D3;type=加速子图 uuid;
+    # 外露输入槽 4=model/positive/negative/latent(D4 t2i 边界,全连线);面板两控件=
+    # 速度档位/seed(widgets_values 与子图 widgets 双写同值,INT 外露=research/
+    # subgraph-widget-promotion.md Probe A 实证);输出 LATENT→[8];
+    # 0930 S5 [5]↔[208] 换行:自 y2460 上移 y1740(旧 [5] 行)=[40] 槽0/1 消费端按槽序
+    # 居上,[40] 五槽三消费端纵叠=槽序,9 对扇出交叉全消(主图 13→4))
+    a_wv = [SPEED_DEFAULT_MODE, ACCEL_SEED_DEFAULT]
+    accel_host = {
+        "id": SPEED_SEL_ID, "type": ACCEL_SG_UUID,
+        "title": "加速子图",
+        "pos": [4800, 1740], "size": [571.1001953125, 320], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "model", "type": "MODEL", "link": 97},
-            {"name": "lora_name", "type": "COMBO", "widget": {"name": "lora_name"}, "link": None},
-            {"name": "strength_model", "type": "FLOAT", "widget": {"name": "strength_model"}, "link": None},
+            {"name": "positive", "type": "CONDITIONING", "link": 16},
+            {"name": "negative", "type": "CONDITIONING", "link": 17},
+            {"name": "latent", "type": "LATENT", "link": 5},
         ],
-        "outputs": [{"name": "MODEL", "type": "MODEL", "links": [24]}],
-        "properties": {"Node name for S&R": "LoraLoaderModelOnly"},
-        "widgets_values": [LORA_FILE, 0.8],
-    })
-    nodes.append({
-        "id": SAMPLER_VIGGLE_ID, "type": "KSampler",
-        "title": f"[{SAMPLER_VIGGLE_ID}] KSampler(viggle支路·359步·cfg1;model=[{LORA_ID}] LoRA;"
-                 f"seed←[{SEED_ID}] 共享单源(widget 转输入);面板 steps=真实生效值)",
-        "pos": [5100, 2460], "size": [754.7955078125, 262], "flags": {}, "order": 0, "mode": 0,
-        "inputs": [
-            {"name": "model", "type": "MODEL", "link": 24},
-            {"name": "positive", "type": "CONDITIONING", "link": 101},
-            {"name": "negative", "type": "CONDITIONING", "link": 103},
-            {"name": "latent_image", "type": "LATENT", "link": 104},
-            {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": 108},
-        ],
-        "outputs": [{"name": "LATENT", "type": "LATENT", "links": [68]}],
-        "properties": {"Node name for S&R": "KSampler"},
-        "widgets_values": [0, "fixed", STEPS_ON, 1, "euler", "simple", 1],
-    })
-    nodes.append({
-        "id": T8_ID, "type": T8_CLASS,
-        "title": f"[{T8_ID}] FunAccPDD4StepSampler(Fun-Acc支路·4步内置;model=[1] base 直连"
-                 f"绝不吃 viggle LoRA;无负面槽;seed←[{SEED_ID}] 共享单源)",
-        "pos": [5011.36759057362, 3180], "size": [818.51328125, 250], "flags": {}, "order": 0, "mode": 0,
-        "inputs": [
-            {"name": "model", "type": "MODEL", "link": 106},          # [1] 直连(0929 并行化:不再经 MODEL 开关)
-            {"name": "positive", "type": "CONDITIONING", "link": 102},
-            {"name": "latent_image", "type": "LATENT", "link": 65},   # [5] 直连(与 [7]/[206] 同源)
-            {"name": "model_file", "type": "COMBO", "widget": {"name": "model_file"}, "link": None},
-            {"name": "seed", "type": "INT", "widget": {"name": "seed"}, "link": 109},  # T8 seed 输入化(research/03 §4.1)
-        ],
-        "outputs": [{"name": "LATENT", "type": "LATENT", "links": [110]}],
-        "properties": {"Node name for S&R": T8_CLASS},
-        "widgets_values": [FUNACC_FILE, 0],
-    })
-    nodes.append({
-        "id": SEED_ID, "type": "PrimitiveInt",
-        "title": f"[{SEED_ID}] seed·三支路共享单源(默认0 fixed;扇出 [{SAMPLER_ID}]/"
-                 f"[{SAMPLER_VIGGLE_ID}]/[{T8_ID}];改 seed 只动此一处)",
-        # 0929 四块重画轮:自 (3200,2900) 挪 (3950,2950)——旧位 rect x[3200,3470] 咬合
-        # ②框右尾(x 至 3580)=seed 归③口径违规;新位入③框([5] 右下方),三 seed 线
-        # 出 (4220,2975):坐标枚举实测(机器同款 est/线遮/交叉判定)——[207]→[7]
-        # 上行线须 x≥3950 才绕开 [31] 右下角(x=3900 时 link107 在 x4471-4522 带穿
-        # [31] 盒 y2458-2592);定稿位全 CLEAN 且交叉守恒 67=棘轮零动;数值复核=
-        # 自查 3f/3g 谓词
-        "pos": [3950, 2950], "size": [270, 90], "flags": {}, "order": 0, "mode": 0,
-        "inputs": [{"name": "value", "type": "INT", "widget": {"name": "value"}, "link": None}],
-        "outputs": [{"name": "INT", "type": "INT", "links": [107, 108, 109]}],
-        "properties": {"cnr_id": "comfy-core", "Node name for S&R": "PrimitiveInt"},
-        "widgets_values": [0, "fixed"],
-        "widgets_values_named": {"value": 0, "fixed": "fixed"},
-    })
-    # 单点选择件(方案 B=my_nodes 自研懒选择;combo 首项=默认=直出40步;三 latent 槽全
-    # optional 全 lazy=未选支路零执行零加载;输出=选中支路 LATENT 原样直通→[8] 解码)
-    nodes.append({
-        "id": SPEED_SEL_ID, "type": "MyQi21SpeedSelect",
-        "title": f"[{SPEED_SEL_ID}] 加速档位选择(MyQi21SpeedSelect:三支路 LATENT 汇流单点·"
-                 f"combo 首项=默认直出40步;未选支路懒执行零加载)",
-        "pos": [6300, 2460], "size": [380, 150], "flags": {}, "order": 0, "mode": 0,
-        "inputs": [
-            {"name": "latent_funacc", "type": "LATENT", "shape": 7, "link": 110},
-            {"name": "latent_viggle", "type": "LATENT", "shape": 7, "link": 68},
-            {"name": "latent_direct", "type": "LATENT", "shape": 7, "link": 9},
-        ],
-        "outputs": [{"name": "latent", "type": "LATENT", "links": [62]}],
-        "properties": {"Node name for S&R": "MyQi21SpeedSelect"},
-        "widgets_values": [SPEED_DEFAULT_MODE],
-    })
-    # 顶缘通道 Reroute:0929 并行化轮 [203]([40].positive→T8 顶带拐点)随注入式机构
-    # 拆除退役([40].positive 三扇出直连 [7]/[206]/[198],新布局下直连零线遮);[22]/[23]/
-    # [199]/[200]/[201]/[202]/[204] 为历史锚件不在图
+        "outputs": [{"name": "LATENT", "type": "LATENT", "links": [62]}],
+        "properties": {"subgraph": ACCEL_SG_UUID, "previewExposures": []},
+        "widgets_values": list(a_wv),
+        "widgets_values_named": {name: val for (name, _t), val in zip(ACCEL_WIDGET_INPUTS, a_wv)},
+    }
+    nodes.append(accel_host)
+
+
+    # ── 0929 S3 收装:支路件 [7]/[31]/[206]/[198]/[207]+选择件全迁入加速子图
+    #    (build_accel_subgraph;主图不再出现,自查 6b 拆净断言锁死)──
     for order, n in enumerate(nodes):
         n["order"] = order
     g["nodes"] = nodes
 
     g["links"] = [
-        # 宿主外链(0928 PE 迁子图轮:PE 改写/画幅联动全在 [40] 内,主图只剩一进一出)
+        # ②装配外链(0928 PE 迁子图轮:PE 改写/画幅联动全在 [40] 内,主图只剩一进一出)
         [12, 2, 0, HOST_ID, 0, "CLIP"],           # 主 TE → [40].clip
         [13, 3, 0, HOST_ID, 1, "VAE"],            # VAE → [40].vae
         [15, SUBJECT_ID, 0, HOST_ID, 2, "STRING"],  # [24] 主体句 → [40].主体句
         [31, 11, 0, HOST_ID, 3, "CLIP"],          # PE 专属 TE → [40].pe_clip(0929 外露槽序=第4槽)
-        [18, HOST_ID, 2, PREVIEW_ID, 0, "STRING"],   # [40].最终文本 → [27] 装配预览
-        [1, HOST_ID, 3, LATENT_ID, 0, "INT"],      # [40].width(联动后终值) → [5].width 直连
-        [2, HOST_ID, 4, LATENT_ID, 1, "INT"],      # [40].height → [5].height 直连
-        # [40].positive 单源三扇出 / .negative 单源二扇出(T8 无负面槽;cfg=1 占位口径保留)
-        [16, HOST_ID, 0, SAMPLER_ID, 1, "CONDITIONING"],         # → [7].positive(直出支路)
-        [17, HOST_ID, 1, SAMPLER_ID, 2, "CONDITIONING"],         # → [7].negative(占位)
-        [101, HOST_ID, 0, SAMPLER_VIGGLE_ID, 1, "CONDITIONING"], # → [206].positive(viggle 支路)
-        [103, HOST_ID, 1, SAMPLER_VIGGLE_ID, 2, "CONDITIONING"], # → [206].negative(占位)
-        [102, HOST_ID, 0, T8_ID, 1, "CONDITIONING"],             # → T8.positive(同源直连)
-        # [5] 空潜单源三扇出(三支路同源;[199] 垫脚石 0928 先例=直连)
-        [5, LATENT_ID, 0, SAMPLER_ID, 3, "LATENT"],
-        [104, LATENT_ID, 0, SAMPLER_VIGGLE_ID, 3, "LATENT"],
-        [65, LATENT_ID, 0, T8_ID, 2, "LATENT"],
-        # [1] base MODEL 单源三扇出(支路2 T8 直连=绝不吃 viggle LoRA)
-        [97, 1, 0, LORA_ID, 0, "MODEL"],              # [1] → [31] LoRA.model(支路1)
-        [105, 1, 0, SAMPLER_ID, 0, "MODEL"],          # [1] → [7].model(支路0 直连)
-        [106, 1, 0, T8_ID, 0, "MODEL"],               # [1] → T8.model(支路2 直连)
-        [24, LORA_ID, 0, SAMPLER_VIGGLE_ID, 0, "MODEL"],  # LoRA → [206].model(支路1 唯一消费者)
-        # [207] seed 单源三扇出(三采样器 seed 一律 widget→input 接线接管)
-        [107, SEED_ID, 0, SAMPLER_ID, 4, "INT"],
-        [108, SEED_ID, 0, SAMPLER_VIGGLE_ID, 4, "INT"],
-        [109, SEED_ID, 0, T8_ID, 4, "INT"],
-        # 三支路 LATENT 汇流 → 单点选择 → 解码(懒执行:未选支路不进执行图)
-        [9, SAMPLER_ID, 0, SPEED_SEL_ID, 2, "LATENT"],          # [7] → latent_direct(支路0)
-        [68, SAMPLER_VIGGLE_ID, 0, SPEED_SEL_ID, 1, "LATENT"],  # [206] → latent_viggle(支路1)
-        [110, T8_ID, 0, SPEED_SEL_ID, 0, "LATENT"],             # [198] → latent_funacc(支路2)
-        [62, SPEED_SEL_ID, 0, 8, 0, "LATENT"],                  # 选择件 → [8].samples(汇流)
+        [18, HOST_ID, 4, PREVIEW_ID, 0, "STRING"],   # [40].最终文本(最末槽,0929 S4/D2) → [27] 装配预览
+        [1, HOST_ID, 2, LATENT_ID, 0, "INT"],      # [40].width(联动后终值) → [5].width 直连
+        [2, HOST_ID, 3, LATENT_ID, 1, "INT"],      # [40].height → [5].height 直连
+        # ③加速:三源各一进线(D4 t2i 边界;link 号沿旧语义锚——16/17=旧 positive/negative
+        # 首扇出、5=旧 latent 首扇出、97=旧 [1]→[31] LoRA 臂、62=旧选择件→[8],改指宿主槽)
+        [97, 1, 0, SPEED_SEL_ID, 0, "MODEL"],               # [1] UNET → 加速宿主.model(三支路共享)
+        [16, HOST_ID, 0, SPEED_SEL_ID, 1, "CONDITIONING"],  # [40].positive → 加速宿主.positive(三支路同源)
+        [17, HOST_ID, 1, SPEED_SEL_ID, 2, "CONDITIONING"],  # [40].negative → 加速宿主.negative(占位,T8 无负面槽)
+        [5, LATENT_ID, 0, SPEED_SEL_ID, 3, "LATENT"],       # [5] 空潜 → 加速宿主.latent(三支路同源)
+        [62, SPEED_SEL_ID, 0, 8, 0, "LATENT"],              # 加速宿主.LATENT → [8].samples(子图内选择件汇流出图)
+        # ④输出
         [11, 8, 0, 9, 0, "IMAGE"],
         # VAE 直连(0928 残留清创轮:[22]/[23] 顶通道对删,实测双不增;link10 保号改指实靶)
         [10, 3, 0, 8, 1, "VAE"],
@@ -1368,11 +1753,18 @@ def build_main(truth: dict, sg: dict) -> dict:
 # ── 自查(与契约测试同口径谓词 + 子图契约铁律 + 干跑)───────────────
 def self_check(g: dict, truth: dict) -> list[str]:
     errs: list[str] = []
-    sg = g["definitions"]["subgraphs"][0]
+    subs = g["definitions"]["subgraphs"]
+    sg = subs[0]      # 子图A·装配([40] 宿主)
+    asg = subs[1]     # 子图B·加速([208] 宿主,0929 S3)
     m_nodes = {n["id"]: n for n in g["nodes"]}
     m_links = {l[0]: l for l in g["links"]}
     i_nodes = {n["id"]: n for n in sg["nodes"]}
     i_links = {l["id"]: l for l in sg["links"]}
+    a_nodes = {n["id"]: n for n in asg["nodes"]}
+    a_links = {l["id"]: l for l in asg["links"]}
+    # 0. 恰两子图(0929 S3 目标架构:②提示词子图+③加速子图,prd 问题④验收口径)
+    if len(subs) != 2:
+        errs.append(f"definitions.subgraphs 应恰 2 个(②装配+③加速,0929 S3 两子图架构),得 {len(subs)}")
 
     # 1. 主图 link 双向一致 + 类型匹配
     for l in g["links"]:
@@ -1385,60 +1777,67 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if target["inputs"][tslot].get("link") != lid:
             errs.append(f"主图 link{lid}: target.inputs 不匹配")
 
-    # 2. 子图 link 双向一致(对象格式;-10/-20 端点对照 IO 槽 linkIds)
-    for l in sg["links"]:
-        lid, oid, oslot, tid, tslot, typ = l["id"], l["origin_id"], l["origin_slot"], l["target_id"], l["target_slot"], l["type"]
-        if oid == -10:
-            io = sg["inputs"][oslot]
-            if lid not in io["linkIds"]:
-                errs.append(f"子图 link{lid}: -10 槽{oslot}({io['name']}) linkIds 未登记(契约铁律)")
-            if typ != io["type"]:
-                errs.append(f"子图 link{lid}: -10 槽{oslot} 类型不匹配")
-        else:
-            origin = i_nodes[oid]
-            if typ != origin["outputs"][oslot]["type"]:
-                errs.append(f"子图 link{lid}: origin 槽类型不匹配")
-            if lid not in (origin["outputs"][oslot].get("links") or []):
-                errs.append(f"子图 link{lid}: origin.outputs 未登记")
-        if tid == -20:
-            io = sg["outputs"][tslot]
-            if lid not in io["linkIds"]:
-                errs.append(f"子图 link{lid}: -20 槽{tslot}({io['name']}) linkIds 未登记(契约铁律)")
-        else:
-            target = i_nodes[tid]
-            if target["inputs"][tslot].get("link") != lid:
-                errs.append(f"子图 link{lid}: target.inputs 不匹配")
-    # linkIds 反向:IO 槽登记的每条线必须真实存在且端点正确
-    for slot, io in enumerate(sg["inputs"]):
-        for lid in io["linkIds"]:
-            l = i_links.get(lid)
-            if not l or l["origin_id"] != -10 or l["origin_slot"] != slot:
-                errs.append(f"子图 inputs[{slot}]({io['name']}) linkIds[{lid}] 端点不实")
-        if not io["linkIds"]:
-            errs.append(f"子图 inputs[{slot}]({io['name']}) linkIds 为空(契约铁律)")
-    for slot, io in enumerate(sg["outputs"]):
-        for lid in io["linkIds"]:
-            l = i_links.get(lid)
-            if not l or l["target_id"] != -20 or l["target_slot"] != slot:
-                errs.append(f"子图 outputs[{slot}]({io['name']}) linkIds[{lid}] 端点不实")
-        if not io["linkIds"]:
-            errs.append(f"子图 outputs[{slot}]({io['name']}) linkIds 为空(契约铁律)")
+    # 2. 子图 link 双向一致(对象格式;-10/-20 端点对照 IO 槽 linkIds;两子图同判,
+    #    契约铁律=边界连线必须写 inputs[].linkIds/outputs[].linkIds)
+    for _sg_label, _sg in (("装配子图", sg), ("加速子图", asg)):
+        _i_nodes = {n["id"]: n for n in _sg["nodes"]}
+        _i_links = {l["id"]: l for l in _sg["links"]}
+        for l in _sg["links"]:
+            lid, oid, oslot, tid, tslot, typ = l["id"], l["origin_id"], l["origin_slot"], l["target_id"], l["target_slot"], l["type"]
+            if oid == -10:
+                io = _sg["inputs"][oslot]
+                if lid not in io["linkIds"]:
+                    errs.append(f"{_sg_label} link{lid}: -10 槽{oslot}({io['name']}) linkIds 未登记(契约铁律)")
+                if typ != io["type"]:
+                    errs.append(f"{_sg_label} link{lid}: -10 槽{oslot} 类型不匹配")
+            else:
+                origin = _i_nodes[oid]
+                if typ != origin["outputs"][oslot]["type"]:
+                    errs.append(f"{_sg_label} link{lid}: origin 槽类型不匹配")
+                if lid not in (origin["outputs"][oslot].get("links") or []):
+                    errs.append(f"{_sg_label} link{lid}: origin.outputs 未登记")
+            if tid == -20:
+                io = _sg["outputs"][tslot]
+                if lid not in io["linkIds"]:
+                    errs.append(f"{_sg_label} link{lid}: -20 槽{tslot}({io['name']}) linkIds 未登记(契约铁律)")
+            else:
+                target = _i_nodes[tid]
+                if target["inputs"][tslot].get("link") != lid:
+                    errs.append(f"{_sg_label} link{lid}: target.inputs 不匹配")
+        # linkIds 反向:IO 槽登记的每条线必须真实存在且端点正确
+        for slot, io in enumerate(_sg["inputs"]):
+            for lid in io["linkIds"]:
+                l = _i_links.get(lid)
+                if not l or l["origin_id"] != -10 or l["origin_slot"] != slot:
+                    errs.append(f"{_sg_label} inputs[{slot}]({io['name']}) linkIds[{lid}] 端点不实")
+            if not io["linkIds"]:
+                errs.append(f"{_sg_label} inputs[{slot}]({io['name']}) linkIds 为空(契约铁律)")
+        for slot, io in enumerate(_sg["outputs"]):
+            for lid in io["linkIds"]:
+                l = _i_links.get(lid)
+                if not l or l["target_id"] != -20 or l["target_slot"] != slot:
+                    errs.append(f"{_sg_label} outputs[{slot}]({io['name']}) linkIds[{lid}] 端点不实")
+            if not io["linkIds"]:
+                errs.append(f"{_sg_label} outputs[{slot}]({io['name']}) linkIds 为空(契约铁律)")
 
     # 3. 横向排版:主图每条连线 target.x > origin.x(0928 PE 迁子图轮:冻结回流线
-    #    link34 随架构消灭,左向线恒 0——旧 W2 单点豁免退役,不再接受任何左向线)
+    #    link34 随架构消灭,左向线恒 0——旧 W2 单点豁免退役,不再接受任何左向线);
+    #    两子图同判(-10/-20 线以 IO 槽 pos 为端点)
     backward = [l[0] for l in g["links"]
                 if not m_nodes[l[3]]["pos"][0] > m_nodes[l[1]]["pos"][0]]
     if backward:
         errs.append(f"主图左向线应恒 0(0928 PE 迁子图后冻结回流线已消灭),得 {sorted(backward)}")
-    for l in sg["links"]:
-        ox = sg["inputs"][l["origin_slot"]]["pos"][0] if l["origin_id"] == -10 else i_nodes[l["origin_id"]]["pos"][0]
-        tx = sg["outputs"][l["target_slot"]]["pos"][0] if l["target_id"] == -20 else i_nodes[l["target_id"]]["pos"][0]
-        if not tx > ox:
-            errs.append(f"子图 link{l['id']}: 纵向塔违规")
+    for _sg_label, _sg in (("装配子图", sg), ("加速子图", asg)):
+        _i_nodes = {n["id"]: n for n in _sg["nodes"]}
+        for l in _sg["links"]:
+            ox = _sg["inputs"][l["origin_slot"]]["pos"][0] if l["origin_id"] == -10 else _i_nodes[l["origin_id"]]["pos"][0]
+            tx = _sg["outputs"][l["target_slot"]]["pos"][0] if l["target_id"] == -20 else _i_nodes[l["target_id"]]["pos"][0]
+            if not tx > ox:
+                errs.append(f"{_sg_label} link{l['id']}: 纵向塔违规")
 
-    # 3b. 行排版:子图按 y 分行恰 6 行=四行流水(源/装配/PE改写/编码输出)+画幅联动
-    #     蛇形两行(宽/高;0928 PE 迁子图轮);通道 Reroute 拐点不占行;行间净距≥100;
-    #     行内 x 严格递增(数组序=数据流序)
+    # 3b. 行排版:子图按 y 分行恰 7 行=五行流水(源/装配/PE改写/**融合(D7新增)**/
+    #     编码输出)+画幅联动蛇形两行(宽/高;0928 PE 迁子图轮+0929 S2 ⑤机制批);
+    #     通道 Reroute 拐点不占行;行间净距≥100;行内 x 严格递增(数组序=数据流序)
     sg_rows: dict[int, list[int]] = {}
     for n in sg["nodes"]:
         if n["type"] == "Reroute":
@@ -1449,12 +1848,13 @@ def self_check(g: dict, truth: dict) -> list[str]:
         [BASE_ID, LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID],
         [CONCAT1_ID, CONCAT2_ID, RGBA_CAT1_ID, RGBA_CAT2_ID],
         [PE_RW_ID, PE_SW_ID],
+        [STRIP_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID, RGBA_SEL_ID],
         [TE_RGBA_ID, TE_ID, RGBA_SW_ID],
         [RATIO_RW_ID, CONV_RW_ID, MATH_W_ID, SW_W_ID],
         [RATIO_RH_ID, CONV_RH_ID, MATH_H_ID, SW_H_ID],
     ]
-    if len(row_ys) != 6:
-        errs.append(f"子图应恰 6 行(四行流水+联动蛇形两行),得 {len(row_ys)} 行")
+    if len(row_ys) != 7:
+        errs.append(f"子图应恰 7 行(五行流水+联动蛇形两行;0929 S2 融合行),得 {len(row_ys)} 行")
     for y, want in zip(row_ys, want_rows):
         if sorted(sg_rows[y]) != sorted(want):
             errs.append(f"子图行 y={y} 成员漂移: 应 {sorted(want)} 得 {sorted(sg_rows[y])}")
@@ -1465,7 +1865,34 @@ def self_check(g: dict, truth: dict) -> list[str]:
         bottom = y + max(i_nodes[nid]["size"][1] for nid in sg_rows[y])
         if next_y - bottom < 100:
             errs.append(f"子图行距不足: 行 y={y} 底 {bottom} 与下行 y={next_y} 净距 <100")
-    for scope, scope_nodes in (("主图", g["nodes"]), ("子图", sg["nodes"])):
+    # 3b-a. 加速子图行排版(0929 S3):恰 4 行=支路三行(行序=选择件三 latent 槽纵序
+    #       对齐:funacc(槽0)顶/viggle(槽1)中/direct(槽2)底→三汇流线零交叉,3g 实测)
+    #       +seed 单源带;Reroute 拐点不占行;行间净距≥100;行内 x 严格递增(数据流序)
+    a_rows: dict[int, list[int]] = {}
+    for n in asg["nodes"]:
+        if n["type"] == "Reroute":
+            continue
+        a_rows.setdefault(n["pos"][1], []).append(n["id"])
+    a_row_ys = sorted(a_rows)
+    a_want_rows = [
+        [T8_ID],                                          # 行1 Fun-Acc
+        [LORA_ID, SAMPLER_VIGGLE_ID, ACCEL_SEL_ID],       # 行2 viggle 支路+选择件([214])
+        [SEED_ID],                                        # 行3 seed 单源带
+        [SAMPLER_ID],                                     # 行4 直出
+    ]
+    if len(a_row_ys) != 4:
+        errs.append(f"加速子图应恰 4 行(支路三行+seed 带;0929 S3),得 {len(a_row_ys)} 行")
+    for y, want in zip(a_row_ys, a_want_rows):
+        if sorted(a_rows[y]) != sorted(want):
+            errs.append(f"加速子图行 y={y} 成员漂移: 应 {sorted(want)} 得 {sorted(a_rows[y])}")
+        xs = [a_nodes[nid]["pos"][0] for nid in a_rows[y]]
+        if any(b <= a for a, b in zip(xs, xs[1:])):
+            errs.append(f"加速子图行 y={y} 行内 x 非严格递增(行内应从左到右)")
+    for y, next_y in zip(a_row_ys, a_row_ys[1:]):
+        bottom = y + max(a_nodes[nid]["size"][1] for nid in a_rows[y])
+        if next_y - bottom < 100:
+            errs.append(f"加速子图行距不足: 行 y={y} 底 {bottom} 与下行 y={next_y} 净距 <100")
+    for scope, scope_nodes in (("主图", g["nodes"]), ("装配子图", sg["nodes"]), ("加速子图", asg["nodes"])):
         for i in range(len(scope_nodes)):
             for j in range(i + 1, len(scope_nodes)):
                 a, b = scope_nodes[i], scope_nodes[j]
@@ -1481,7 +1908,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
         h = max(36 + 24 * rows + 30 * len(n.get("widgets_values") or []) + 28, float(n["size"][1]))
         return x, y, x + w, y + h
 
-    for scope, scope_nodes in (("主图", g["nodes"]), ("子图", sg["nodes"])):
+    for scope, scope_nodes in (("主图", g["nodes"]), ("装配子图", sg["nodes"]), ("加速子图", asg["nodes"])):
         boxes = [(n["id"], _est_box(n)) for n in scope_nodes]
         for i in range(len(boxes)):
             for j in range(i + 1, len(boxes)):
@@ -1501,19 +1928,20 @@ def self_check(g: dict, truth: dict) -> list[str]:
                     errs.append(f"{scope} node{ida} 与 node{idb} 同列纵距 {-(yov):.0f} <80(0925 间距令)")
 
     # 3d. 零负区(0925 W6①;0926 收紧 pos≥40→≥80=实测发现项3 计划断言互锁):
-    #     主图+子图所有节点 pos≥80,整图平移至左上留边距,打开即全貌
+    #     主图+两子图所有节点 pos≥80,整图平移至左上留边距,打开即全貌
     #     (子图 IO 槽非节点,负 x 表示法=K2 [90] 同款,豁免)
-    for scope, scope_nodes in (("主图", g["nodes"]), ("子图", sg["nodes"])):
+    for scope, scope_nodes in (("主图", g["nodes"]), ("装配子图", sg["nodes"]), ("加速子图", asg["nodes"])):
         for n in scope_nodes:
             if n["pos"][0] < 80 or n["pos"][1] < 80:
                 errs.append(f"{scope} node{n['id']} 负区坐标 {n['pos']}(零负区:pos≥80)")
 
-    # 3e. 输出口最右(0925 W6②):子图输出 IO 槽钉死最右列(表示法=K2 [90] 实证:
+    # 3e. 输出口最右(0925 W6②):两子图输出 IO 槽钉死最右列(表示法=K2 [90] 实证:
     #     输出槽 x 超过全子图最右节点,纵向堆叠)
-    max_nx = max(n["pos"][0] for n in sg["nodes"])
-    for io in sg["outputs"]:
-        if io["pos"][0] < max_nx - 50:
-            errs.append(f"子图输出 {io['name']} 未钉最右列(x={io['pos'][0]} < 全子图最大 x{max_nx}-50)")
+    for _sg_label, _sg in (("装配子图", sg), ("加速子图", asg)):
+        max_nx = max(n["pos"][0] for n in _sg["nodes"])
+        for io in _sg["outputs"]:
+            if io["pos"][0] < max_nx - 50:
+                errs.append(f"{_sg_label} 输出 {io['name']} 未钉最右列(x={io['pos'][0]} < 全子图最大 x{max_nx}-50)")
 
     # 3f. 零线遮节点(0926 铁律:工作流的美化只管位置,线与节点不得彼此遮盖):
     #     判定=三次贝塞尔 41 点采样——P0=输出槽(节点右缘,top+25+origin_slot×20)、
@@ -1538,8 +1966,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
 
     for scope, scope_nodes, scope_links in (
             ("主图", g["nodes"], [[l[0], l[1], l[2], l[3], l[4]] for l in g["links"]]),
-            ("子图", sg["nodes"], [[l["id"], l["origin_id"], l["origin_slot"],
-                                    l["target_id"], l["target_slot"]] for l in sg["links"]])):
+            ("装配子图", sg["nodes"], [[l["id"], l["origin_id"], l["origin_slot"],
+                                        l["target_id"], l["target_slot"]] for l in sg["links"]]),
+            ("加速子图", asg["nodes"], [[l["id"], l["origin_id"], l["origin_slot"],
+                                         l["target_id"], l["target_slot"]] for l in asg["links"]])):
         byid = {n["id"]: n for n in scope_nodes}
         for lid, oid, oslot, tid, tslot in scope_links:
             o, t = byid.get(oid), byid.get(tid)
@@ -1576,7 +2006,32 @@ def self_check(g: dict, truth: dict) -> list[str]:
     #     源位置对倒实验([40] 挪 row0 带等)总数守恒 ~67=交叉随扇出重分布非坐标可消,
     #     属并行拓扑本体;消交叉须打破单源扇出或支路纵叠=违复用铁则/横向排版铁律,
     #     不可。以实测值 67 重立封顶防回归,主图方向后续只收紧;子图零动基线不动。)
-    _CROSS_BASELINE = {'主图': 67, '子图': 8}
+    #     **0929 S2 ⑤机制批重立:子图 8→23**(Trellis 09-29-qi21-canvas-batch D6/D7:
+    #     +7 节点[206]-[210]/[211]-[213] +14 链——PE×透明融合链(S剥离/W1包裹/T开关)
+    #     +型联动三态 +[141]→[142] 垫链;热区=[160][161] 官方头尾长下落线×行2 装配线、
+    #     [163]→[209]/[150]→[210] 跨行长线,融合拓扑本体交叉,S5 布局终排批统一治理;
+    #     design §8「拓扑变更→按 0928 棘轮重立基线」先例,以实测值重立封顶防回归)。
+    #     **0929 S3 收装批重立:主图 67→16 + 加速子图=新域起步 0**(Trellis
+    #     09-29-qi21-canvas-batch D3/D4/D5:支路机构(三支路+LoRA+seed+选择件,5 节点
+    #     13 链)整体迁出主图入加速子图,主图 27→14 链=骨架化,交叉结构成因(4 源×3 行
+    #     长线扇)随迁出消失,实测 16 重立封顶——按「拓扑变更重立基线」0928/0929 先例
+    #     以新实测值重立防回归,主图方向后续只收紧;装配子图 23 零动(S3 不碰 [40] 内部);
+    #     加速子图行序=选择件三 latent 槽纵序对齐设计→起步实测 0(残留交叉=边界线豁免
+    #     口径外零),S5 终排只降不升)。
+    #     **0929 S4 槽位批:主图 16→13**(Trellis 09-29-qi21-canvas-batch D2/D10:最终
+    #     文本迁宿主最末槽(节点最底)+[27] 预览自上袋 (3050,1650) 迁 [40] 右下袋
+    #     (3050,2760)——link18 导线自最底槽直落,不再上行翻越 width/height 走线,
+    #     实测 link18 交叉对 3→0((18,16)(18,17)(18,97) 全消),主图棘轮只降不升;
+    #     装配子图 23 零动(-20 边界线交叉豁免口径外,槽序重排不涉内部线);加速 0 持平)。
+    #     **0930 S5 布局终排批:主图 13→4 + 装配子图 23→16**(Trellis 09-29-qi21-canvas-batch
+    #     D8/rhythm-constants:主图 [5]↔[208] 换行=[40] 五槽消费端按槽序纵叠,9 对扇出
+    #     交叉全消,残 4 对走廊固有([3]→[8].vae 长走廊×occlusion 铁律钉死 [208] 带/
+    #     [2][3] 槽序对拍等价换 1/[24] 槽2 vs [11] 槽3 换 2,网格搜索全档无一净减);
+    #     装配子图纯挪位治理零垫脚石增量——[173] 左缘走廊让道消 2 对/[176] 行5-6 隙
+    #     车道归一(y=3790)消 1 对/[211][212] rgba 横带缩 900 单车道消 2 对/[163] 右移
+    #     消 2 对(增 1)/[207] 车道微调消 1 对,残 16 对=拼接槽序族/蛇形交叉族/融合
+    #     拓扑本体族,实测贴线;棘轮只降不升,对拍证明=research/s5-links-stable-qi21-daojie-t2i.md)。
+    _CROSS_BASELINE = {'主图': 4, '装配子图': 16, '加速子图': 0}
     def _cross_seg_int(a, b, c, d):
         def _cr(o, x, y):
             return (y[0] - o[0]) * (x[1] - o[1]) - (y[1] - o[1]) * (x[0] - o[0])
@@ -1584,8 +2039,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
         return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
 
     for _scope, _nodes, _links in (("主图", g["nodes"], [[l[0], l[1], l[2], l[3], l[4]] for l in g["links"]]),
-            ("子图", sg["nodes"], [[l["id"], l["origin_id"], l["origin_slot"],
-                                    l["target_id"], l["target_slot"]] for l in sg["links"]])):
+            ("装配子图", sg["nodes"], [[l["id"], l["origin_id"], l["origin_slot"],
+                                        l["target_id"], l["target_slot"]] for l in sg["links"]]),
+            ("加速子图", asg["nodes"], [[l["id"], l["origin_id"], l["origin_slot"],
+                                         l["target_id"], l["target_slot"]] for l in asg["links"]])):
         _byid = {n["id"]: n for n in _nodes}
         _wires = []
         for _l in _links:
@@ -1614,8 +2071,9 @@ def self_check(g: dict, truth: dict) -> list[str]:
             errs.append(f"{_scope} 线-线交叉 {_cnt} 对超封顶 {_CROSS_BASELINE[_scope]}"
                         f"(0928 裁定:线不交叉>分组;挪线/并线/垫 Reroute 消交叉)")
 
-    if len(sg["groups"]) > 4:
-        errs.append(f"子图 group 预算超限(≤4),得 {len(sg['groups'])}")
+    for _sg_label, _sg in (("装配子图", sg), ("加速子图", asg)):
+        if len(_sg["groups"]) > 4:
+            errs.append(f"{_sg_label} group 预算超限(≤4),得 {len(_sg['groups'])}")
     if len(g["groups"]) > 4:
         errs.append(f"主图 group 预算超限(≤4,0929 四块重画=①加载器/②提示词装配/③加速区/④输出),"
                     f"得 {len(g['groups'])}")
@@ -1647,8 +2105,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
     _four_blocks = {
         "道劫·①加载器": [1, 3, 2, 11],
         "道劫·②提示词": [SUBJECT_ID, HOST_ID, PREVIEW_ID],
-        "道劫·加速区": [LATENT_ID, SAMPLER_ID, LORA_ID, SAMPLER_VIGGLE_ID,
-                        T8_ID, SPEED_SEL_ID, SEED_ID],
+        # 0929 S3 收装:③块=[5] 空潜+加速宿主 [208] 两件(支路机构入子图)
+        "道劫·加速区": [LATENT_ID, SPEED_SEL_ID],
         "道劫·④输出": [8, 9],
     }
     for _prefix, _want in _four_blocks.items():
@@ -1685,6 +2143,52 @@ def self_check(g: dict, truth: dict) -> list[str]:
         row_all = [n["id"] for n in sg["nodes"] if n["pos"][1] == row_y]
         if sorted(n["id"] for n in inside) != sorted(row_all):
             errs.append(f"子图 group {grp['title']!r} 应框住其阶段行全部节点")
+    # 加速子图组框(0929 S3):恰 1 框罩全部 6 件(单一功能域;装配「单一阶段行」
+    # 口径不适用——三支路+seed+选择件一体收装,框=域边界标识)+两两不相交(单框自明)
+    if len(asg["groups"]) != 1:
+        errs.append(f"加速子图 group 应恰 1 框(罩三支路+seed+选择件;0929 S3),得 {len(asg['groups'])}")
+    else:
+        agrp = asg["groups"][0]
+        gx0, gy0 = agrp["bounding"][0], agrp["bounding"][1]
+        gx1, gy1 = gx0 + agrp["bounding"][2], gy0 + agrp["bounding"][3]
+        for nid in (SAMPLER_ID, LORA_ID, SAMPLER_VIGGLE_ID, T8_ID, SEED_ID, ACCEL_SEL_ID):
+            n = a_nodes[nid]
+            if not (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
+                    and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1):
+                errs.append(f"加速子图组框未罩住 [{nid}](0929 S3:罩全部 6 件)")
+
+    # 3i. 节奏常数(0930 S5;research/rhythm-constants.md §3;prd ②「对称/竖排规整/紧凑/
+    #     不随意」的可判化。全部容差 0=本生成器同值字面直写,任何漂移即红):
+    #  (a) 同列 x 全等——加速子图支路列:三支路链头([198]T8/[31]LoRA/[7]直出)x 全等
+    #      =BRANCH_X;装配子图同构行(联动宽/高两行)成员 x 元组逐位全等;
+    #  (b) 同组行距方差 0——加速子图支路三行 y 等差=PITCH_BR;装配子图行带 y 等差
+    #      =PITCH_ASM(seed 带/Reroute 通道拐点=寄生带,豁免不计入序列);
+    #  (c) 支路行序=选择件三 latent 槽纵序(funacc 顶/viggle 中/direct 底);
+    #  (d) 紧凑档未启用(标准档 760;若启用紧凑档 560/600,PITCH 落 §2 紧凑值表,
+    #      3c est 间距下限判据仍生效,3i 不替代 3c)。
+    for _nid in (T8_ID, LORA_ID, SAMPLER_ID):
+        if a_nodes[_nid]["pos"][0] != BRANCH_X:
+            errs.append(f"加速子图支路列 x 漂移:[{_nid}] x={a_nodes[_nid]['pos'][0]}"
+                        f" != {BRANCH_X}(同列全等,容差0;0930 S5 3i-a)")
+    _rmw = [i_nodes[_i]["pos"][0] for _i in want_rows[5]]   # 联动宽路(数据流序)
+    _rmh = [i_nodes[_i]["pos"][0] for _i in want_rows[6]]   # 联动高路(同构行)
+    if _rmw != _rmh:
+        errs.append(f"装配子图同构行(联动宽/高两行)x 元组应逐位全等(对称,容差0;"
+                    f"0930 S5 3i-a):{_rmw} vs {_rmh}")
+    _br_ys = sorted({a_nodes[_i]["pos"][1] for _i in (T8_ID, SAMPLER_VIGGLE_ID, SAMPLER_ID)})
+    _br_ps = sorted(_b - _a for _a, _b in zip(_br_ys, _br_ys[1:]))
+    if len(_br_ys) != 3 or any(_p != PITCH_BR for _p in _br_ps):
+        errs.append(f"加速子图支路行距应三行等差 {PITCH_BR}(方差0,容差0;0930 S5 3i-b),"
+                    f"得 y={_br_ys} 差={_br_ps}")
+    if not (_br_ys[0] == a_nodes[T8_ID]["pos"][1]
+            and _br_ys[1] == a_nodes[SAMPLER_VIGGLE_ID]["pos"][1]
+            and _br_ys[2] == a_nodes[SAMPLER_ID]["pos"][1]):
+        errs.append("加速子图支路行序应=选择件三 latent 槽纵序(funacc顶/viggle中/direct底;"
+                    "0930 S5 3i-c)")
+    _asm_ps = sorted(_b - _a for _a, _b in zip(row_ys, row_ys[1:]))
+    if len(row_ys) != 7 or any(_p != PITCH_ASM for _p in _asm_ps):
+        errs.append(f"装配子图行带距应七带等差 {PITCH_ASM}(方差0,容差0;0930 S5 3i-b),"
+                    f"得 y={row_ys} 差={_asm_ps}")
 
     # 4. group 全 int id + 标题字号(节点标题零道劫=0925 归位裁定)+ W1 加速区组框在位
     for scope, groups in (("主图", g["groups"]), ("子图", sg["groups"])):
@@ -1696,25 +2200,28 @@ def self_check(g: dict, truth: dict) -> list[str]:
     for grp in g["groups"]:
         if "道劫" not in grp["title"]:
             errs.append(f"主图 group {grp['title']!r} 缺道劫字号")
-    if "道劫" not in sg["name"]:
-        errs.append("子图 name 缺道劫字号")
+    for _sg_label, _sg in (("装配子图", sg), ("加速子图", asg)):
+        if "道劫" not in _sg["name"]:
+            errs.append(f"{_sg_label} name 缺道劫字号")
+        for grp in _sg["groups"]:
+            if "道劫" not in grp["title"]:
+                errs.append(f"{_sg_label} group {grp['title']!r} 缺道劫字号")
+        for n in _sg["nodes"]:
+            if n["type"] != "MarkdownNote" and "道劫" in (n.get("title") or ""):
+                errs.append(f"{_sg_label} node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): {n.get('title')!r}")
     for n in g["nodes"]:
         if n["type"] == "MarkdownNote":
             if "道劫" not in (n.get("title") or ""):
                 errs.append(f"主图 node{n['id']} 说明卡标题缺道劫字号(工作流级说明件保留道劫)")
         elif n["type"] != "Reroute" and "道劫" in (n.get("title") or ""):
             errs.append(f"主图 node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): {n.get('title')!r}")
-    for n in sg["nodes"]:
-        if n["type"] != "MarkdownNote" and "道劫" in (n.get("title") or ""):
-            errs.append(f"子图 node{n['id']} 标题含道劫前缀(0925 归位:节点标题零道劫): {n.get('title')!r}")
-    # W1 加速区组框(0929 四块重画轮=块③):标题带「加速区·并行」(契约 6d2 startswith
-    # 「道劫·加速区」+三支路/并行子串双兼容,序号③入括号不断锚)且罩空潜[5]+三支路
-    # [7](直出)/[31]+[206](viggle)/[198](Fun-Acc)+选择件[208]+seed单源[207]——
-    # 旧口径「seed/空潜留框外」随四块重画退役(硬约束2 非Note零裸奔:共享源必须入框)
-    accel_ids = [LATENT_ID, SAMPLER_ID, LORA_ID, SAMPLER_VIGGLE_ID, T8_ID, SPEED_SEL_ID, SEED_ID]
-    accel_grp = next((grp for grp in g["groups"] if "加速区·并行" in grp["title"]), None)
+    # W1 加速区组框(0929 S3 收装=块③):标题 startswith「道劫·加速区」且罩空潜[5]+
+    # 加速宿主[208] 两件(支路机构全入子图;旧「加速区·并行」标题锚随收装退役——
+    # 涉锚契约测试 TestSpeedSelectContract0929 下一阶段统一重写,implement S3 口径)
+    accel_ids = [LATENT_ID, SPEED_SEL_ID]
+    accel_grp = next((grp for grp in g["groups"] if grp["title"].startswith("道劫·加速区")), None)
     if accel_grp is None:
-        errs.append("W1 缺「加速区·并行」组框(0929 四块重画=块③:罩空潜+三支路+选择件+seed)")
+        errs.append("W1 缺「道劫·加速区」组框(0929 S3 收装=块③:罩空潜+加速宿主)")
     else:
         gx0, gy0 = accel_grp["bounding"][0], accel_grp["bounding"][1]
         gx1 = gx0 + accel_grp["bounding"][2]
@@ -1723,7 +2230,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
             n = m_nodes[nid]
             if not (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
                     and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1):
-                errs.append(f"W1 加速区组框未罩住 [{nid}](0929 并行化:罩三支路+选择件)")
+                errs.append(f"W1 加速区组框未罩住 [{nid}](0929 S3:罩空潜+加速宿主)")
 
     # 5. 宿主结构:type/properties.subgraph=uuid;外露输入槽=连线槽子集(0929 用户手改
     #    回灌:8→4——型选择/RGBA透明开关/PE开关/画幅联动开关四控件改回「面板控件」,
@@ -1732,6 +2239,43 @@ def self_check(g: dict, truth: dict) -> list[str]:
     host = m_nodes[HOST_ID]
     if host["type"] != SG_UUID or host["properties"].get("subgraph") != SG_UUID:
         errs.append("[40] 宿主 type/properties.subgraph 与子图 uuid 不一致")
+    # 0929 S1 命名批:稳定短名正锁(被删说明住组框②/③标题+[10] Note;选择件短名
+    # 检查随 S3 迁址加速子图内部件,见 6b 节)
+    if host.get("title") != f"[{HOST_ID}] 装配子图":
+        errs.append(f"[{HOST_ID}] 宿主标题应为稳定短名「[{HOST_ID}] 装配子图」"
+                    f"(0929 S1),得 {host.get('title')!r}")
+
+    # 5b. 加速宿主结构(0929 S3 D3/D5):原选择件 [208] 原位改造(id 沿用)——
+    #     type/properties.subgraph=加速子图 uuid;title=「加速子图」(命名铁表);
+    #     外露输入槽=model/positive/negative/latent(D4 t2i 边界,全连线);面板两控件=
+    #     速度档位/seed(widgets_values 与子图 widgets 双写同值=research 序列化真源
+    #     「宿主为权威值源,双写同步不变量保持」)
+    ahost = m_nodes[SPEED_SEL_ID]
+    if ahost["type"] != ACCEL_SG_UUID or ahost["properties"].get("subgraph") != ACCEL_SG_UUID:
+        errs.append(f"[{SPEED_SEL_ID}] 加速宿主 type/properties.subgraph 与加速子图 uuid 不一致(0929 S3)")
+    if ahost.get("title") != "加速子图":
+        errs.append(f"[{SPEED_SEL_ID}] 加速宿主标题应为「加速子图」(命名铁表 0929 S3),"
+                    f"得 {ahost.get('title')!r}")
+    want_a_exposed = ["model", "positive", "negative", "latent"]
+    got_a_exposed = [i["name"] for i in ahost["inputs"]]
+    if got_a_exposed != want_a_exposed:
+        errs.append(f"[{SPEED_SEL_ID}] 加速宿主外露输入槽应为 {want_a_exposed}(D4 t2i 边界),"
+                    f"得 {got_a_exposed}")
+    asg_by_name = {s["name"]: s for s in asg["inputs"]}
+    for hi in ahost["inputs"]:
+        si = asg_by_name.get(hi["name"])
+        if si is None or hi["type"] != si["type"]:
+            errs.append(f"加速宿主外露槽 {hi['name']!r} 与子图同名槽不对齐(名+型)")
+        if hi.get("link") is None:
+            errs.append(f"加速宿主外露槽 {hi['name']!r} 应有连线(未连线控件留面板,不占槽)")
+    if ahost["widgets_values"] != [SPEED_DEFAULT_MODE, ACCEL_SEED_DEFAULT]:
+        errs.append(f"加速宿主 widgets_values 应=[{SPEED_DEFAULT_MODE!r}, {ACCEL_SEED_DEFAULT}]"
+                    f"(面板两控件:速度档位默认直出40步/seed 默认 0 fixed),得 {ahost['widgets_values']}")
+    if asg["widgets"] != ahost["widgets_values"]:
+        errs.append("加速子图 widgets[] 与宿主 widgets_values 应双写同值(序列化真源=宿主,"
+                    "research/subgraph-widget-promotion.md「双写同步不变量」)")
+    if asg["name"] != "道劫·加速子图":
+        errs.append(f"加速子图 name 应=「道劫·加速子图」(命名铁表 0929 S3),得 {asg['name']!r}")
     want_exposed = ["clip", "vae", "主体句", "pe_clip"]
     got_exposed = [i["name"] for i in host["inputs"]]
     if got_exposed != want_exposed:
@@ -1745,35 +2289,39 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if hi.get("link") is None:
             errs.append(f"[40] 宿主外露槽 {hi['name']!r} 应有连线(未连线控件应留面板,不占槽)")
     if len(sg["inputs"]) != 8 or len(sg["outputs"]) != 5:
-        errs.append("[40] 子图内部 IO 应仍 8 入 5 出(0929 只动宿主外露,子图 -10/-20 槽零动)")
-    if host["widgets_values"] != [truth["types"][0]["subject"], DEFAULT_TYPE, False, True, False]:
-        errs.append("[40] 宿主 widgets_values 应=[人物例一主体句, 人物, False, True, False]"
-                    "(面板五控件:型选择默认人物/RGBA 关/PE开关默认开=0926 裁定1/画幅联动默认关)")
+        errs.append("[40] 子图内部 IO 应仍 8 入 5 出(-10 入槽零动;-20 出槽 0929 S4 槽序重排)")
+    # 5b'. D2 槽序正锁(0929 S4 槽位批):预览文本类输出槽(最终文本)=最末槽=节点
+    #      最底;宿主 outputs 与子图 outputs 同序镜像;子图右列 pos 随槽序升序重排
+    _want_out_names = ["positive", "negative", "width", "height", "最终文本"]
+    if [o["name"] for o in sg["outputs"]] != _want_out_names:
+        errs.append(f"[40] 子图输出槽序应 {_want_out_names}(0929 S4/D2:预览文本槽最末),"
+                    f"得 {[o['name'] for o in sg['outputs']]}")
+    if [o["name"] for o in host["outputs"]] != _want_out_names:
+        errs.append(f"[40] 宿主输出槽序应与子图同序镜像 {_want_out_names}(0929 S4/D2),"
+                    f"得 {[o['name'] for o in host['outputs']]}")
+    _out_ys = [o["pos"][1] for o in sg["outputs"]]
+    if _out_ys != sorted(_out_ys):
+        errs.append(f"[40] 子图右列输出槽 pos 应随槽序升序(0929 S4/D2),得 {_out_ys}")
+    if host["widgets_values"] != [truth["types"][0]["subject"], DEFAULT_TYPE, RGBA_DEFAULT_MODE, True, False]:
+        errs.append("[40] 宿主 widgets_values 应=[人物例一主体句, 人物, 跟随型, True, False]"
+                    "(面板五控件:型选择默认人物/RGBA透明三态默认跟随型=0929 S2 D6/PE开关默认开"
+                    "=0926 裁定1/画幅联动默认关)")
 
-    # 6. 外部接线(0928 PE 迁子图轮+0929 并行化轮):加载器/主体句/PE 专属 TE→宿主;宿主五出
-    #    (positive 三扇出/negative 二扇出/最终文本/width/height);三支路单源扇出+汇流选择
+    # 6. 外部接线(0929 S3 收装:主图=四块骨架——②装配七线+③加速五线+④输出两线;
+    #    支路扇出全内聚子图内,主图每源恰一进线)
     ext_want = [
         (12, 2, 0, HOST_ID, 0, "CLIP"), (13, 3, 0, HOST_ID, 1, "VAE"),
         (15, SUBJECT_ID, 0, HOST_ID, 2, "STRING"),
         (31, 11, 0, HOST_ID, 3, "CLIP"),   # PE 专属 TE → [40].pe_clip(0929 外露槽序 4 槽制)
-        (16, HOST_ID, 0, SAMPLER_ID, 1, "CONDITIONING"), (17, HOST_ID, 1, SAMPLER_ID, 2, "CONDITIONING"),
-        (18, HOST_ID, 2, PREVIEW_ID, 0, "STRING"),   # [40].最终文本 → [27] 装配预览
-        (1, HOST_ID, 3, LATENT_ID, 0, "INT"), (2, HOST_ID, 4, LATENT_ID, 1, "INT"),  # W/H 直驱 [5]
-        # 0929 并行化:positive 三扇出/negative 二扇出(T8 无负面槽)/latent 三扇出/MODEL 三扇出
-        (101, HOST_ID, 0, SAMPLER_VIGGLE_ID, 1, "CONDITIONING"),
-        (103, HOST_ID, 1, SAMPLER_VIGGLE_ID, 2, "CONDITIONING"),
-        (102, HOST_ID, 0, T8_ID, 1, "CONDITIONING"),
-        (5, LATENT_ID, 0, SAMPLER_ID, 3, "LATENT"),
-        (104, LATENT_ID, 0, SAMPLER_VIGGLE_ID, 3, "LATENT"),
-        (65, LATENT_ID, 0, T8_ID, 2, "LATENT"),
-        (97, 1, 0, LORA_ID, 0, "MODEL"), (105, 1, 0, SAMPLER_ID, 0, "MODEL"),
-        (106, 1, 0, T8_ID, 0, "MODEL"), (24, LORA_ID, 0, SAMPLER_VIGGLE_ID, 0, "MODEL"),
-        (107, SEED_ID, 0, SAMPLER_ID, 4, "INT"), (108, SEED_ID, 0, SAMPLER_VIGGLE_ID, 4, "INT"),
-        (109, SEED_ID, 0, T8_ID, 4, "INT"),
-        (9, SAMPLER_ID, 0, SPEED_SEL_ID, 2, "LATENT"),
-        (68, SAMPLER_VIGGLE_ID, 0, SPEED_SEL_ID, 1, "LATENT"),
-        (110, T8_ID, 0, SPEED_SEL_ID, 0, "LATENT"),
-        (62, SPEED_SEL_ID, 0, 8, 0, "LATENT"),
+        (18, HOST_ID, 4, PREVIEW_ID, 0, "STRING"),   # [40].最终文本(最末槽,0929 S4/D2) → [27] 装配预览
+        (1, HOST_ID, 2, LATENT_ID, 0, "INT"), (2, HOST_ID, 3, LATENT_ID, 1, "INT"),  # W/H 直驱 [5](S4:槽3/4→2/3)
+        # ③加速边界(D4 t2i:model=[1] 直连/positive+negative=[40]/latent=[5];link 号沿旧语义锚)
+        (97, 1, 0, SPEED_SEL_ID, 0, "MODEL"),
+        (16, HOST_ID, 0, SPEED_SEL_ID, 1, "CONDITIONING"),
+        (17, HOST_ID, 1, SPEED_SEL_ID, 2, "CONDITIONING"),
+        (5, LATENT_ID, 0, SPEED_SEL_ID, 3, "LATENT"),
+        (62, SPEED_SEL_ID, 0, 8, 0, "LATENT"),   # 加速宿主.LATENT → [8].samples
+        (11, 8, 0, 9, 0, "IMAGE"),
         (10, 3, 0, 8, 1, "VAE"),   # VAE 直连(顶通道对 [22]/[23] 0928 残留清创轮已删)
     ]
     got = {(l[0], l[1], l[2], l[3], l[4], l[5]) for l in g["links"]}
@@ -1798,31 +2346,60 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if any(n["type"] == banned_link_type for n in g["nodes"]):
             errs.append(f"0928 PE 迁子图:主图应零 {banned_link_type}(画幅联动已收进 [40] 子图)")
 
-    # 6b. 加速区并行三支路+MyQi21SpeedSelect 单选择(0929 并行化轮,方案 B):
-    #     拆净断言=主图零选择类逻辑件+旧注入式十件 id 全不在图;并行断言=三采样器步数
-    #     回归 widget 生效值/T8 model=[1] 直连(绝不吃 LoRA)/seed 单源三扇出/选择件
-    #     combo 首项=直出40步=默认+三 latent 槽接线+输出→[8]。
-    for banned in ("ComfySwitchNode", "easy compare", "PrimitiveBoolean"):
-        if any(n["type"] == banned for n in g["nodes"]):
-            errs.append(f"0929 并行化:主图应零 {banned}(注入式开关农场已拆,选择点唯 MyQi21SpeedSelect)")
-    for gone in (30, 32, 177, 178, 179, 193, 194, 195, 196, 197):
+    # 6b. 加速子图收装断言(0929 S3 收装轮 D3/D4/D5):加速子图节点恰 6 件(三支路+
+    #     seed 单源+选择件,内部件 id 沿用旧主图 id);边界槽序=model/positive/
+    #     negative/latent/速度档位/seed;三支路 model/positive/latent 同源(-10 扇出)、
+    #     negative 二扇出(T8 无负面槽);seed 单源 widget→输入接 -10「seed」槽(D5
+    #     推荐案);档位 combo 接 -10「速度档位」槽;选择件三 latent 槽接线+输出→-20;
+    #     懒执行=三档干跑(_dry_run_accel);主图骨架化断言=支路件不在主图+零加速域类型。
+    if [s["name"] for s in subs] != ["[40] 道劫·装配子图(双击进入)", "道劫·加速子图"]:
+        errs.append(f"两子图 name 应=[40]装配+道劫·加速子图(命名铁表 0929 S3),得 {[s['name'] for s in subs]}")
+    if sorted(a_nodes) != sorted([SAMPLER_ID, LORA_ID, SAMPLER_VIGGLE_ID, T8_ID, SEED_ID, ACCEL_SEL_ID]):
+        errs.append(f"加速子图节点应恰 6 件([{SAMPLER_ID}]/{LORA_ID}/{T8_ID}/{SAMPLER_VIGGLE_ID}/"
+                    f"{SEED_ID}/{ACCEL_SEL_ID}),得 {sorted(a_nodes)}")
+    want_a_io = [("model", "MODEL"), ("positive", "CONDITIONING"), ("negative", "CONDITIONING"),
+                 ("latent", "LATENT"), ("速度档位", "COMBO"), ("seed", "INT")]
+    if [(i["name"], i["type"]) for i in asg["inputs"]] != want_a_io:
+        errs.append(f"加速子图 -10 槽序应 {want_a_io}(D4 t2i 边界+D5 面板两控件),"
+                    f"得 {[(i['name'], i['type']) for i in asg['inputs']]}")
+    if [(o["name"], o["type"]) for o in asg["outputs"]] != [("LATENT", "LATENT")]:
+        errs.append("加速子图输出应恰 LATENT 一槽(→主图 [8] 解码,D4 t2i)")
+    for _slot, _want_fan in ((0, [(SAMPLER_ID, 0), (LORA_ID, 0), (T8_ID, 0)]),
+                             (1, [(SAMPLER_ID, 1), (SAMPLER_VIGGLE_ID, 1), (T8_ID, 1)]),
+                             (2, [(SAMPLER_ID, 2), (SAMPLER_VIGGLE_ID, 2)]),
+                             (3, [(SAMPLER_ID, 3), (SAMPLER_VIGGLE_ID, 3), (T8_ID, 2)])):
+        _fan = sorted((l["target_id"], l["target_slot"]) for l in asg["links"]
+                      if l["origin_id"] == -10 and l["origin_slot"] == _slot)
+        if _fan != sorted(_want_fan):
+            errs.append(f"加速子图 -10 槽{_slot}({want_a_io[_slot][0]}) 扇出应 {sorted(_want_fan)},得 {_fan}")
+    # 拆净断言:支路件不在主图;主图零加速域节点类型(0929 S3 全收装)
+    for gone in (SAMPLER_ID, LORA_ID, T8_ID, SAMPLER_VIGGLE_ID, SEED_ID):
         if gone in m_nodes:
-            errs.append(f"0929 并行化:旧注入式件 [{gone}] 应已拆除(件不在图)")
-    loras = [n for n in g["nodes"] if n["type"] == "LoraLoaderModelOnly"]
+            errs.append(f"0929 S3 收装:支路件 [{gone}] 应已迁入加速子图(主图不在图)")
+    for banned_type in ("KSampler", "LoraLoaderModelOnly", T8_CLASS, "MyQi21SpeedSelect",
+                        "PrimitiveInt", "ComfySwitchNode", "easy compare", "PrimitiveBoolean"):
+        if any(n["type"] == banned_type for n in g["nodes"]):
+            errs.append(f"0929 S3:主图应零 {banned_type}(加速支路机构全收加速子图,注入式开关农场已拆)")
+    loras = [n for n in asg["nodes"] if n["type"] == "LoraLoaderModelOnly"]
     if len(loras) != 1 or loras[0]["id"] != LORA_ID:
-        errs.append(f"LoraLoaderModelOnly[{LORA_ID}] 应恰 1 个(支路1 viggle 专属)")
+        errs.append(f"加速子图 LoraLoaderModelOnly[{LORA_ID}] 应恰 1 个(支路1 viggle 专属)")
     else:
         if loras[0]["widgets_values"] != [LORA_FILE, 0.8]:
             errs.append(f"LoRA 槽 name/strength 漂移: {loras[0]['widgets_values']}")
-        if _trace_reroute_main(m_links, m_nodes, loras[0]["inputs"][0]["link"]) != 1:
-            errs.append("LoRA 槽 model 上游应 UNETLoader[1](可穿顶通道 Reroute)")
-        if sorted(loras[0]["outputs"][0]["links"] or []) != [24]:
+        _lmod = a_links[loras[0]["inputs"][0]["link"]]
+        if _lmod["origin_id"] != -10 or _lmod["origin_slot"] != 0:
+            errs.append("LoRA 槽 model 应接 -10 槽0 model(=主图 [1] base,支路1 臂)")
+        if sorted(loras[0]["outputs"][0]["links"] or []) != [14]:
             errs.append(f"[{LORA_ID}] LoRA 输出应扇出恰一线(只喂 [{SAMPLER_VIGGLE_ID}],单源不复用消歧)")
-    # 两 KSampler:steps=面板生效值(R6);seed=widget 转输入接单源;cfg/euler/simple/denoise 照抄
-    for sid, want_steps, model_want in ((SAMPLER_ID, STEPS_OFF, 1), (SAMPLER_VIGGLE_ID, STEPS_ON, LORA_ID)):
-        ks = m_nodes[sid]
+        elif (a_links[14]["target_id"], a_links[14]["target_slot"]) != (SAMPLER_VIGGLE_ID, 0):
+            errs.append(f"[{LORA_ID}] LoRA 输出目标应 [{SAMPLER_VIGGLE_ID}].model")
+    # 两 KSampler(子图内):steps=面板生效值(R6);seed=widget 转输入接 [207] 单源;
+    # cfg/euler/simple/denoise 照抄;model/positive/negative/latent 全接 -10 同源扇出
+    # (支路0 model=直连/支路1=LoRA 臂)
+    for sid, want_steps, model_from_lora in ((SAMPLER_ID, STEPS_OFF, False), (SAMPLER_VIGGLE_ID, STEPS_ON, True)):
+        ks = a_nodes[sid]
         if ks["type"] != "KSampler":
-            errs.append(f"[{sid}] 应为 KSampler(并行支路采样器)")
+            errs.append(f"[{sid}] 应为 KSampler(并行支路采样器,加速子图内)")
             continue
         wv = ks["widgets_values"]
         if wv[2] != want_steps:
@@ -1835,114 +2412,141 @@ def self_check(g: dict, truth: dict) -> list[str]:
         seed_inp = next((i for i in ks["inputs"] if i.get("name") == "seed"), None)
         if not seed_inp or "widget" not in seed_inp or seed_inp.get("link") is None:
             errs.append(f"[{sid}] seed 应为 widget 转输入接 [{SEED_ID}] 单源(序列化照 [5].width 先例)")
-        elif _trace_reroute_main(m_links, m_nodes, seed_inp["link"]) != SEED_ID:
+        elif _trace_origin(a_links, a_nodes, seed_inp["link"]) != SEED_ID:
             errs.append(f"[{sid}] seed 上游应 [{SEED_ID}] 共享单源(可穿 Reroute)")
-        if _trace_reroute_main(m_links, m_nodes, ks["inputs"][0]["link"]) != model_want:
-            errs.append(f"[{sid}] model 上游应 [{model_want}](支路0=[1] base 直连/支路1=LoRA 链,可穿 Reroute)")
-        if _trace_reroute_main(m_links, m_nodes, ks["inputs"][1]["link"]) != HOST_ID:
-            errs.append(f"[{sid}] positive 上游应 [{HOST_ID}].positive(三支路同源)")
-        if _trace_reroute_main(m_links, m_nodes, ks["inputs"][2]["link"]) != HOST_ID:
-            errs.append(f"[{sid}] negative 上游应 [{HOST_ID}].negative(cfg=1 占位口径)")
-        if _trace_reroute_main(m_links, m_nodes, ks["inputs"][3]["link"]) != LATENT_ID:
-            errs.append(f"[{sid}] latent_image 上游应 [{LATENT_ID}] 空潜(三支路同源)")
-    ks_count = [n for n in g["nodes"] if n["type"] == "KSampler"]
+        _ml = a_links[ks["inputs"][0]["link"]]
+        if model_from_lora:
+            if _ml["origin_id"] != LORA_ID:
+                errs.append(f"[{sid}] model 上游应 [{LORA_ID}] LoRA(支路1 唯一消费者)")
+        elif _ml["origin_id"] != -10 or _ml["origin_slot"] != 0:
+            errs.append(f"[{sid}] model 应接 -10 槽0 model(=主图 [1] base 直连,支路0)")
+        for _sidx, _sname, _ioslot in ((1, "positive", 1), (2, "negative", 2), (3, "latent_image", 3)):
+            _l = a_links[ks["inputs"][_sidx]["link"]]
+            if _l["origin_id"] != -10 or _l["origin_slot"] != _ioslot:
+                errs.append(f"[{sid}].{_sname} 应接 -10 槽{_ioslot}(三支路同源)")
+    ks_count = [n for n in asg["nodes"] if n["type"] == "KSampler"]
     if len(ks_count) != 2:
-        errs.append(f"主图 KSampler 应恰 2 个([{SAMPLER_ID}]直出40步/[{SAMPLER_VIGGLE_ID}]viggle359步),"
+        errs.append(f"加速子图 KSampler 应恰 2 个([{SAMPLER_ID}]直出40步/[{SAMPLER_VIGGLE_ID}]viggle359步),"
                     f"得 {[n['id'] for n in ks_count]}")
-    # seed 单源(主图 PrimitiveInt 恰 1 个=旧档位/steps/比较常量全拆;扇出恰三线到三采样器 seed 槽)
-    pb_ints = [n for n in g["nodes"] if n["type"] == "PrimitiveInt"]
+    # seed 单源(子图内 PrimitiveInt 恰 1 个):value=widget 转输入接 -10「seed」槽
+    # (宿主面板 INT 外露,D5 推荐案);扇出恰三线到三采样器 seed 槽
+    pb_ints = [n for n in asg["nodes"] if n["type"] == "PrimitiveInt"]
     if sorted(n["id"] for n in pb_ints) != [SEED_ID]:
-        errs.append(f"主图 PrimitiveInt 应恰 1 个=[{SEED_ID}] seed 单源(旧档位/steps/比较常量已拆),"
+        errs.append(f"加速子图 PrimitiveInt 应恰 1 个=[{SEED_ID}] seed 单源(旧档位/steps/比较常量已拆),"
                     f"得 {[n['id'] for n in pb_ints]}")
-    seed_node = m_nodes[SEED_ID]
-    if seed_node["widgets_values"][:2] != [0, "fixed"]:
-        errs.append(f"[{SEED_ID}] seed 单源应默认 0 fixed(三支路共享可复现),得 {seed_node['widgets_values']}")
-    seed_targets = sorted((m_links[l][3], m_links[l][4]) for l in seed_node["outputs"][0]["links"])
+    seed_node = a_nodes[SEED_ID]
+    if seed_node["widgets_values"][:2] != [ACCEL_SEED_DEFAULT, "fixed"]:
+        errs.append(f"[{SEED_ID}] seed 单源应默认 {ACCEL_SEED_DEFAULT} fixed(三支路共享可复现),"
+                    f"得 {seed_node['widgets_values']}")
+    _sv = seed_node["inputs"][0]
+    if _sv.get("name") != "value" or "widget" not in _sv:
+        errs.append(f"[{SEED_ID}] value 应为 widget 转输入(D5 面板「seed」INT 外露机构)")
+    else:
+        _svl = a_links[_sv["link"]]
+        if _svl["origin_id"] != -10 or _svl["origin_slot"] != 5:
+            errs.append(f"[{SEED_ID}] value 应接 -10 槽5「seed」(宿主面板,速度档位槽4 之后)")
+    seed_targets = sorted((a_links[l]["target_id"], a_links[l]["target_slot"])
+                          for l in seed_node["outputs"][0]["links"])
     if seed_targets != sorted([(SAMPLER_ID, 4), (SAMPLER_VIGGLE_ID, 4), (T8_ID, 4)]):
         errs.append(f"[{SEED_ID}] seed 应扇出恰三线到三采样器 seed 槽,得 {seed_targets}")
-    # T8(支路2):model=[1] 直连;无负面槽;seed 输入化;positive/latent 与 KSampler 同源
-    t8 = m_nodes[T8_ID]
+    # T8(支路2,子图内):model=-10 槽0 直连(绝不吃 LoRA);无负面槽;seed 输入化
+    t8 = a_nodes[T8_ID]
     if t8["type"] != T8_CLASS:
         errs.append(f"[{T8_ID}] 应为 {T8_CLASS}(Fun-Acc PDD 采样器)")
     if t8["widgets_values"] != [FUNACC_FILE, 0]:
         errs.append(f"[{T8_ID}] model_file/seed 漂移(应 {FUNACC_FILE}/seed 接线接管前值 0),得 {t8.get('widgets_values')}")
     if len([i for i in t8["inputs"] if i.get("name") == "negative"]) != 0:
         errs.append(f"[{T8_ID}] T8 无负面槽(输入仅 model/positive/latent_image/model_file/seed)")
-    if _trace_reroute_main(m_links, m_nodes, t8["inputs"][0]["link"]) != 1:
-        errs.append(f"[{T8_ID}] model 上游应 UNETLoader[1] base 直连(绝不吃 viggle LoRA;可穿 Reroute)")
-    if _trace_reroute_main(m_links, m_nodes, t8["inputs"][1]["link"]) != HOST_ID:
-        errs.append(f"[{T8_ID}] positive 上游应 [{HOST_ID}].positive(与 KSampler 同源,可穿垫脚石)")
-    if _trace_reroute_main(m_links, m_nodes, t8["inputs"][2]["link"]) != LATENT_ID:
-        errs.append(f"[{T8_ID}] latent_image 上游应 [{LATENT_ID}] 空潜(与 KSampler 同源,可穿垫脚石)")
+    t8m = a_links[t8["inputs"][0]["link"]]
+    if t8m["origin_id"] != -10 or t8m["origin_slot"] != 0:
+        errs.append(f"[{T8_ID}] model 应接 -10 槽0 model(=主图 [1] base 直连,绝不吃 viggle LoRA)")
     t8_seed = next((i for i in t8["inputs"] if i.get("name") == "seed"), None)
     if not t8_seed or "widget" not in t8_seed or t8_seed.get("link") is None:
         errs.append(f"[{T8_ID}] T8 seed 应 widget→input 接 [{SEED_ID}](research/03 §4.1 输入化实证)")
-    t8s = [n for n in g["nodes"] if n["type"] == T8_CLASS]
+    t8s = [n for n in asg["nodes"] if n["type"] == T8_CLASS]
     if len(t8s) != 1:
         errs.append(f"{T8_CLASS} 应恰 1 个(支路2),得 {[n['id'] for n in t8s]}")
-    # MyQi21SpeedSelect(单点选择;combo 首项=默认=直出40步=0929 拉齐重放裁定)
-    sel = m_nodes[SPEED_SEL_ID]
+    # 选择件(子图内,S1 短名正锁迁址):title=「出图速度选择」;mode 接 -10「速度档位」;
+    # combo 默认=首项;三 latent 槽接线;输出→-20 槽0
+    sel = a_nodes[ACCEL_SEL_ID]
     if sel["type"] != "MyQi21SpeedSelect":
-        errs.append(f"[{SPEED_SEL_ID}] 应为 MyQi21SpeedSelect(LATENT 汇流单点选择)")
+        errs.append(f"[{ACCEL_SEL_ID}] 应为 MyQi21SpeedSelect(加速子图内 LATENT 汇流单点选择)")
     else:
+        if sel.get("title") != "出图速度选择":
+            errs.append(f"加速子图内 [{ACCEL_SEL_ID}] 选择件标题应为「出图速度选择」(命名铁表 0929 S1/S3,"
+                        f"机制细节住子图组框+[10] Note),得 {sel.get('title')!r}")
         if sel["widgets_values"] != [SPEED_DEFAULT_MODE]:
-            errs.append(f"[{SPEED_SEL_ID}] combo 默认应=首项 {SPEED_DEFAULT_MODE!r}(直出40步,0929 拉齐重放),"
+            errs.append(f"[{ACCEL_SEL_ID}] combo 默认应=首项 {SPEED_DEFAULT_MODE!r}(直出40步,0929 拉齐重放),"
                         f"得 {sel['widgets_values']}")
         if SPEED_MODES[0][1] != "latent_direct" or "直出40步" not in SPEED_MODES[0][0]:
             errs.append("档位表真源漂移:首项应=直出40步(my_nodes 节点件 import 互锁)")
-        slot_src = {inp["name"]: m_links[inp["link"]][1]
-                    for inp in sel["inputs"] if inp.get("link") is not None}
+        _ml2 = a_links[sel["inputs"][0]["link"]]
+        if _ml2["origin_id"] != -10 or _ml2["origin_slot"] != 4:
+            errs.append("[214].mode 应接 -10 槽4「速度档位」(宿主面板 COMBO 外露)")
+        slot_src = {inp["name"]: a_links[inp["link"]]["origin_id"]
+                    for inp in sel["inputs"] if inp.get("name") != "mode" and inp.get("link") is not None}
         if slot_src != {"latent_funacc": T8_ID, "latent_viggle": SAMPLER_VIGGLE_ID,
                         "latent_direct": SAMPLER_ID}:
-            errs.append(f"[{SPEED_SEL_ID}] 三 latent 槽接线应 funacc←[{T8_ID}]/viggle←[{SAMPLER_VIGGLE_ID}]"
+            errs.append(f"[{ACCEL_SEL_ID}] 三 latent 槽接线应 funacc←[{T8_ID}]/viggle←[{SAMPLER_VIGGLE_ID}]"
                         f"/direct←[{SAMPLER_ID}],得 {slot_src}")
-    if m_links[m_nodes[8]["inputs"][0]["link"]][1] != SPEED_SEL_ID:
-        errs.append(f"[8].samples 上游应 [{SPEED_SEL_ID}] 选择件(三支路汇流,懒执行单点)")
-    sels = [n for n in g["nodes"] if n["type"] == "MyQi21SpeedSelect"]
+        _ol = a_links[sel["outputs"][0]["links"][0]]
+        if _ol["target_id"] != -20 or _ol["target_slot"] != 0:
+            errs.append("[214] 选择件输出应→子图输出槽0 LATENT(主图 [8] 解码)")
+    sels = [n for n in asg["nodes"] if n["type"] == "MyQi21SpeedSelect"]
     if len(sels) != 1:
         errs.append(f"MyQi21SpeedSelect 应恰 1 个(前面只有一个选择逻辑,0929 用户令),得 {[n['id'] for n in sels]}")
-    # 主图节点类型白名单(0929 并行化:+MyQi21SpeedSelect;-easy compare 零残留出册;
-    # ComfySwitchNode 留册但上方拆净断言已锁死主图恒 0)
-    whitelist = {"UNETLoader", "CLIPLoader", "VAELoader", "EmptyLatentImage", "KSampler",
+    # 主图侧骨架断言:[8].samples←宿主输出;宿主四入线上游=[1]/[40].positive/.negative/[5]
+    if m_links[m_nodes[8]["inputs"][0]["link"]][1] != SPEED_SEL_ID:
+        errs.append(f"[8].samples 上游应 [{SPEED_SEL_ID}] 加速宿主(懒执行单点在子图内)")
+    for _hslot, _wsrc, _wslot in ((0, 1, 0), (1, HOST_ID, 0), (2, HOST_ID, 1), (3, LATENT_ID, 0)):
+        _hl = m_links[ahost["inputs"][_hslot]["link"]]
+        if (_hl[1], _hl[2]) != (_wsrc, _wslot):
+            errs.append(f"加速宿主入槽{_hslot}({want_a_exposed[_hslot]}) 上游应 [{_wsrc}] 槽{_wslot},"
+                        f"得 ({_hl[1]},{_hl[2]})")
+    # 主图节点类型白名单(0929 S3:加速域类型全出册=全收子图;两宿主按 uuid 豁免)
+    whitelist = {"UNETLoader", "CLIPLoader", "VAELoader", "EmptyLatentImage",
                  "VAEDecode", "SaveImage", "MarkdownNote", "easy showAnything",
-                 "PrimitiveStringMultiline", "PrimitiveInt",
-                 "ComfySwitchNode", "LoraLoaderModelOnly", "Reroute",
-                 "MyQi21SpeedSelect", T8_CLASS}
+                 "PrimitiveStringMultiline", "Reroute"}
     for n in g["nodes"]:
-        if n["id"] == HOST_ID and n["type"] == sg["id"]:
-            continue
+        if n["type"] in (SG_UUID, ACCEL_SG_UUID):
+            continue   # 两子图宿主([40] 装配/[208] 加速)
         if n["type"] not in whitelist:
-            errs.append(f"主图未知节点类型 {n['type']!r}(TE-Speed 槽不加,3c 已死归档;"
-                        f"0929 后 easy compare/注入式逻辑件亦不入主图白名单)")
-    # 三档懒干跑(MyQi21SpeedSelect 懒选择=只回溯选中档槽,未选支路零执行零加载;
-    # PE/联动链在子图内,主图干跑只核宿主可达——子图内部第 9/9b 节另核)
-    dfun = _dry_run_main(g)   # 默认态=combo 首项 直出40步(0929 拉齐重放)
-    if SAMPLER_ID not in dfun:
+            errs.append(f"主图未知节点类型 {n['type']!r}(0929 S3:KSampler/LoRA/T8/选择件/"
+                        f"PrimitiveInt 等加速域类型全收加速子图,TE-Speed 槽不加 3c 已死归档)")
+    # 三档懒干跑(0929 S3:支路全在加速子图,_dry_run_accel 子图内回溯;主图骨架可达
+    # 另核;对拍口径=干跑执行集等价——默认档 [7] 在链/[198][206][31] 零执行与改前等价,
+    # 真前端 graphToPrompt 开门验证留编排批)
+    dfun = _dry_run_main(g)
+    for nid in (9, 8, SPEED_SEL_ID, HOST_ID, LATENT_ID, 1, 2, 3, 11, SUBJECT_ID):
+        if nid not in dfun:
+            errs.append(f"干跑:主图骨架 [{nid}] 应可达(0929 S3 四块骨架)")
+    adfun = _dry_run_accel(g, asg)   # 默认态=宿主面板「速度档位」首项 直出40步
+    if SAMPLER_ID not in adfun:
         errs.append("干跑:默认态(直出40步)KSampler 应在执行链(选择件首项=默认档)")
     for nid in (T8_ID, SAMPLER_VIGGLE_ID, LORA_ID):
-        if nid in dfun:
+        if nid in adfun:
             errs.append(f"干跑:默认态(直出40步)未选支路 [{nid}] 不应执行(懒选择零加载)")
-    for nid in (HOST_ID, LATENT_ID, 1, SEED_ID):
-        if nid not in dfun:
-            errs.append(f"干跑:默认态共享源 [{nid}] 应在执行源内(单源扇出)")
-    dvig = _dry_run_main(g, mode_override=MODE_VIGGLE)
-    if LORA_ID not in dvig or SAMPLER_VIGGLE_ID not in dvig:
+    for nid in (SEED_ID, ACCEL_SEL_ID):
+        if nid not in adfun:
+            errs.append(f"干跑:默认态 [{nid}] 应在执行链(seed 单源/选择件)")
+    advig = _dry_run_accel(g, asg, mode_override=MODE_VIGGLE)
+    if LORA_ID not in advig or SAMPLER_VIGGLE_ID not in advig:
         errs.append(f"干跑:档1(viggle)执行图应含 LoRA[{LORA_ID}]+KSampler[{SAMPLER_VIGGLE_ID}]")
     for nid in (SAMPLER_ID, T8_ID):
-        if nid in dvig:
+        if nid in advig:
             errs.append(f"干跑:档1 [{nid}] 不应执行(懒选择只拉起 viggle 支路)")
-    ddir = _dry_run_main(g, mode_override=MODE_DIRECT)
-    if SAMPLER_ID not in ddir:
+    addir = _dry_run_accel(g, asg, mode_override=MODE_DIRECT)
+    if SAMPLER_ID not in addir:
         errs.append(f"干跑:档0(直出)KSampler[{SAMPLER_ID}] 应在执行链(40 步主线)")
     for nid in (LORA_ID, SAMPLER_VIGGLE_ID, T8_ID):
-        if nid in ddir:
+        if nid in addir:
             errs.append(f"干跑:档0 [{nid}] 不应执行(懒选择零加载)")
-    # 0929 拉齐重放后默认=直出,档2(Fun-Acc)改经 override 显式核(三档覆盖只增不减)
-    dfa = _dry_run_main(g, mode_override=MODE_FUNACC)
-    if T8_ID not in dfa:
+    # 0929 拉齐重放后默认=直出,档2(Fun-Acc)经 override 显式核(三档覆盖只增不减)
+    adfa = _dry_run_accel(g, asg, mode_override=MODE_FUNACC)
+    if T8_ID not in adfa:
         errs.append(f"干跑:档2(Fun-Acc)T8[{T8_ID}] 应在执行链(主加速支路)")
     for nid in (SAMPLER_ID, SAMPLER_VIGGLE_ID, LORA_ID):
-        if nid in dfa:
+        if nid in adfa:
             errs.append(f"干跑:档2 [{nid}] 不应执行(懒选择只拉起 Fun-Acc 支路)")
 
     # 6c. (0927 满血接线轮 steps 联动断言随 [177]/[178]/[179] 拆除退役——步数语义回归
@@ -1953,7 +2557,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
     #     model 上游均不同=并行支路本体,design §5.3)
     for _scope, _scope_nodes, _scope_links in (
             ("主图", g["nodes"], {l[0]: l for l in g["links"]}),
-            ("子图", sg["nodes"], i_links)):
+            ("装配子图", sg["nodes"], i_links),
+            ("加速子图", asg["nodes"], a_links)):
         _seen: dict[tuple, int] = {}
         for n in _scope_nodes:
             _ups = []
@@ -1985,8 +2590,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
         bl = i_links.get(b_inp.get("link"))
         if not bl or bl["origin_id"] != -10 or bl["origin_slot"] != 3:
             errs.append("[150].base 应接 -10 槽3(宿主面板「型选择」COMBO)")
-        if [o["name"] for o in base_node["outputs"]] != ["BASE", "WIDTH", "HEIGHT", "型名"]:
-            errs.append("[150] 四出应为 BASE/WIDTH/HEIGHT/型名")
+        if [o["name"] for o in base_node["outputs"]] != ["BASE", "WIDTH", "HEIGHT", "型名", "rgba_default"]:
+            errs.append("[150] 五出应为 BASE/WIDTH/HEIGHT/型名/rgba_default(0929 S2 D6 追加最末)")
         if i_links[i_nodes[CONCAT1_ID]["inputs"][1]["link"]]["origin_id"] != BASE_ID:
             errs.append("拼接①.string_b 上游应为 [150].BASE(级联已退役)")
         if _trace_origin(i_links, i_nodes, i_nodes[RR_W_ID]["inputs"][0]["link"]) != BASE_ID or \
@@ -2000,21 +2605,26 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if lock_link["target_id"] != CONCAT2_ID:
         errs.append("[110] 应恒挂直连拼接②(不随型走开关)")
 
-    # 8. 子图开关纪律(0928 PE 迁子图轮):子图 ComfySwitchNode 恰 4 枚——[141] 提示词
-    #    开关/[144] RGBA/[157] 宽联动/[158] 高联动,且 switch 槽全部接 -10 宿主面板
-    #    widget(PE开关/RGBA透明开关/画幅联动开关;唯 [141] 默认 true=0926 裁定1,
-    #    其余默认 false);子图 StringConstant 仍恰 3 枚(锁层A+RGBA头尾)。
+    # 8. 子图开关纪律(0928 PE 迁子图轮+0929 S2 ⑤机制批):子图 ComfySwitchNode 恰
+    #    5 枚——[141] 提示词开关/[144] RGBA/[157] 宽联动/[158] 高联动/[209] 透明
+    #    文本开关(D7 新增 T,switch=PE开关扇出);[141]/[157]/[158]/[209] 的 switch
+    #    槽接 -10 宿主面板 widget(PE开关/画幅联动开关),唯 [141]/[209] 默认 true=
+    #    0926 裁定1 PE 开路;**[144].switch 例外=接 MyQi21RgbaSelect 输出(D6 型联动
+    #    三态,非 -10 面板)**;子图 StringConstant 仍恰 3 枚(锁层A+RGBA头尾)。
     #    联动链锚(子图内):正则/公式逐字、[157][158] 接线、wh_ratio 联动源、
     #    on_false 九型 W/H(可穿左缘走廊 Reroute)、输出→子图 width/height→主图 [5] 直连
     switches = [n for n in sg["nodes"] if n["type"] == "ComfySwitchNode"]
-    if sorted(n["id"] for n in switches) != sorted([PE_SW_ID, RGBA_SW_ID, SW_W_ID, SW_H_ID]):
-        errs.append(f"子图开关应恰 4 枚(提示词[141]/RGBA[144]/宽[157]/高[158]),"
+    if sorted(n["id"] for n in switches) != sorted([PE_SW_ID, RGBA_SW_ID, SW_W_ID, SW_H_ID, RGBA_TXT_SW_ID]):
+        errs.append(f"子图开关应恰 5 枚(提示词[141]/RGBA[144]/宽[157]/高[158]/透明文本[209]),"
                     f"得 {[n['id'] for n in switches]}")
     for sw in switches:
-        want_default = (sw["id"] == PE_SW_ID)   # 0926 裁定1:PE 开路含画布本体
+        want_default = (sw["id"] in (PE_SW_ID, RGBA_TXT_SW_ID))   # 0926 裁定1:PE 开路含画布本体
+        # (D7 T=[209] 与 [141] 同布尔=PE开关扇出,默认同为 true=PE 开路)
         if bool(sw["widgets_values"][0]) is not want_default:
             errs.append(f"[{sw['id']}] 开关默认应为 {want_default}"
-                        f"(唯 [141] 默认 true=PE 开路,0926 裁定1)")
+                        f"(唯 [141]/[209] 默认 true=PE 开路,0926 裁定1+0929 S2 D7)")
+        if sw["id"] == RGBA_SW_ID:
+            continue   # [144].switch=MyQi21RgbaSelect 输出(D6 三态,第 10 段专断言)
         if _trace_origin(i_links, i_nodes, sw["inputs"][2]["link"]) != -10:
             errs.append(f"[{sw['id']}] switch 槽应接 -10(宿主面板 widget)")
     sconsts = [n for n in sg["nodes"] if n["type"] == "StringConstant"]
@@ -2046,10 +2656,11 @@ def self_check(g: dict, truth: dict) -> list[str]:
                         f"(九型 W/H 默认路,可穿走廊 Reroute),得 {oid}")
     lat_w = m_links[m_nodes[LATENT_ID]["inputs"][0]["link"]]
     lat_h = m_links[m_nodes[LATENT_ID]["inputs"][1]["link"]]
-    if (lat_w[1], lat_w[2]) != (HOST_ID, 3) or (lat_h[1], lat_h[2]) != (HOST_ID, 4):
-        errs.append("[5] 宽高应接 [40] width/height 输出直连(0928 联动终值出子图)")
-    # 子图 width/height 输出溯至联动开关(终值语义)
-    for out_slot, sw_id in ((3, SW_W_ID), (4, SW_H_ID)):
+    if (lat_w[1], lat_w[2]) != (HOST_ID, 2) or (lat_h[1], lat_h[2]) != (HOST_ID, 3):
+        errs.append("[5] 宽高应接 [40] width/height 输出直连(0928 联动终值出子图;"
+                    "0929 S4/D2:width/height=宿主槽2/3)")
+    # 子图 width/height 输出溯至联动开关(终值语义;0929 S4:输出槽3/4→2/3)
+    for out_slot, sw_id in ((2, SW_W_ID), (3, SW_H_ID)):
         io = sg["outputs"][out_slot]
         l_ = i_links[io["linkIds"][0]]
         if l_["origin_id"] != sw_id:
@@ -2062,9 +2673,11 @@ def self_check(g: dict, truth: dict) -> list[str]:
     reach_int, assembled = _dry_run_default(g, sg)
     if BASE_ID not in reach_int or LOCK_ID not in reach_int:
         errs.append(f"干跑:直写选配臂应含 [{BASE_ID}]底座/[{LOCK_ID}]锁层,得 {sorted(reach_int)}")
-    for nid in (RGBA_HEAD_ID, RGBA_TAIL_ID, RGBA_CAT1_ID, RGBA_CAT2_ID, TE_RGBA_ID):
+    for nid in (RGBA_HEAD_ID, RGBA_TAIL_ID, RGBA_CAT1_ID, RGBA_CAT2_ID, TE_RGBA_ID,
+                STRIP_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID):
         if nid in reach_int:
-            errs.append(f"干跑:直写选配臂 [{nid}] 不应可达(RGBA 懒执行旁路)")
+            errs.append(f"干跑:直写选配臂 [{nid}] 不应可达(RGBA 懒执行旁路;0929 S2 "
+                        f"D7 融合链同属 RGBA 臂)")
     want = "\n".join([truth["types"][0]["subject"],
                       _qi21_base_text(DEFAULT_TYPE), truth["const_a"]])
     if assembled != want:
@@ -2086,6 +2699,15 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if TE_ID not in dpe or RGBA_SW_ID not in dpe:
         errs.append(f"干跑:默认态主编码 [{TE_ID}]/RGBA 开关 [{RGBA_SW_ID}] "
                     f"应在执行图内(positive 终点路)")
+    # 0929 S2 D6:三态件与型底座在执行图([144].switch 控制位必求值→[210]→[150]);
+    # D7 融合链([206]-[209])仍属 RGBA 臂懒旁路(默认 RGBA 跟随型+人物型=关)
+    if RGBA_SEL_ID not in dpe or BASE_ID not in dpe:
+        errs.append(f"干跑:默认态三态件 [{RGBA_SEL_ID}]/底座 [{BASE_ID}] 应在执行图"
+                    f"([144].switch 控制位必求值,型联动执行面)")
+    for nid in (STRIP_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID):
+        if nid in dpe:
+            errs.append(f"干跑:默认态融合链 [{nid}] 不应可达(RGBA 臂懒旁路;D7 剥离只在"
+                        f"「PE出文且RGBA活」路)")
 
     # 10. PE/RGBA 承袭(0928 PE 迁子图后链全在子图):[140] 参数/clip←pe_clip 槽;
     #     [141] 接线=最终文本路由(子图内闭环);[27] 预览改接 [40].最终文本输出;
@@ -2118,19 +2740,16 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append("[141].on_false 上游应 [131] 装配全文(子图内直收,不再出图)")
     if i_links[psw["inputs"][1]["link"]]["origin_id"] != PE_RW_ID:
         errs.append("[141].on_true 上游应 [140] PE 改写")
-    if sorted(psw["outputs"][0]["links"] or []) != sorted([24, 44]):
-        errs.append("[141] 输出应扇出恰两线([142].prompt 主编码 + [176]→最终文本输出)")
-    if i_links[i_nodes[TE_ID]["inputs"][3]["link"]]["origin_id"] != PE_SW_ID:
-        errs.append("[142].prompt 应直收 [141] 开关输出(最终文本,子图内闭环)")
+    if sorted(psw["outputs"][0]["links"] or []) != [44]:
+        errs.append("[141] 输出应扇出恰一线([176];0929 S2 垫链=[176]再扇出 IO 最终文本+[213]→[142].prompt)")
+    if _trace_origin(i_links, i_nodes, i_nodes[TE_ID]["inputs"][3]["link"]) != PE_SW_ID:
+        errs.append("[142].prompt 上游(可穿 [176][213] 垫脚石)应 [141] 开关输出(最终文本,子图内闭环)")
     pv = m_nodes[PREVIEW_ID]
-    if (m_links[pv["inputs"][0]["link"]][1], m_links[pv["inputs"][0]["link"]][2]) != (HOST_ID, 2):
-        errs.append("[27] 装配预览应接 [40].最终文本 输出(与进编码文本同源)")
+    if (m_links[pv["inputs"][0]["link"]][1], m_links[pv["inputs"][0]["link"]][2]) != (HOST_ID, 4):
+        errs.append("[27] 装配预览应接 [40].最终文本 输出(最末槽4,0929 S4/D2;与进编码文本同源)")
     if i_nodes[RGBA_HEAD_ID]["widgets_values"][0] != RGBA_HEAD_EN or \
        i_nodes[RGBA_TAIL_ID]["widgets_values"][0] != RGBA_TAIL_EN:
         errs.append("RGBA 官方头/尾常量非官方原文逐字")
-    rgba_prompt_link = i_links.get(i_nodes[TE_RGBA_ID]["inputs"][3]["link"])
-    if not rgba_prompt_link or rgba_prompt_link["origin_id"] != RGBA_CAT2_ID:
-        errs.append("[143].prompt 应接 [163] RGBA 公式拼接输出")
     if i_nodes[TE_RGBA_ID]["widgets_values"][0] != "":
         errs.append("[143] prompt widget 应清空(公式路现拼)")
     cat1, cat2 = i_nodes[RGBA_CAT1_ID], i_nodes[RGBA_CAT2_ID]
@@ -2138,8 +2757,65 @@ def self_check(g: dict, truth: dict) -> list[str]:
         errs.append("RGBA 公式拼接 delimiter 应为空格")
     if i_links[cat1["inputs"][1]["link"]]["origin_id"] != CONCAT2_ID:
         errs.append("RGBA 公式拼接①.string_b 上游应为装配全文")
-    if host["widgets_values"][2] is not False:
-        errs.append("[40] 面板 RGBA透明开关默认必须 false")
+    # ── 0929 S2 D6/D7 ⑤机制批断言 ─────────────────────────────────────────
+    # D7:[143].prompt 改接 T=[209] 输出(原直收 [163]);T.on_false←[163] W2 装配
+    # 包裹(原样)/T.on_true←[208] W1 剥离包裹/T.switch←-10 槽5 PE开关扇出(与
+    # [141] 同布尔);S 剥离件 [206]=[140] PE出文扇出→词族正则;W1=[207][208] 同款
+    # 拼接(官方头尾扇出 delimiter 空格)
+    rgba_prompt_link = i_links.get(i_nodes[TE_RGBA_ID]["inputs"][3]["link"])
+    if not rgba_prompt_link or rgba_prompt_link["origin_id"] != RGBA_TXT_SW_ID:
+        errs.append("[143].prompt 应接 [209] 透明文本开关输出(0929 S2 D7 融合路由)")
+    t_sw = i_nodes[RGBA_TXT_SW_ID]
+    if i_links[t_sw["inputs"][0]["link"]]["origin_id"] != RGBA_CAT2_ID:
+        errs.append("[209].on_false 应接 [163] W2 装配包裹(D7:装配全文禁过剥离,现链原样)")
+    if _trace_origin(i_links, i_nodes, t_sw["inputs"][1]["link"]) != W1_CAT2_ID:
+        errs.append("[209].on_true 应接 [208] W1 剥离包裹(可穿 Reroute)")
+    t_cl = i_links[t_sw["inputs"][2]["link"]]
+    if t_cl["origin_id"] != -10 or t_cl["origin_slot"] != 5:
+        errs.append("[209].switch 应接 -10 槽5(宿主PE开关扇出,与 [141] 同布尔)")
+    if t_sw["widgets_values"][0] is not True:
+        errs.append("[209] 透明文本开关默认应 true(=PE开关 默认开同向,0926 裁定1)")
+    strip = i_nodes.get(STRIP_ID)
+    if not strip or strip["type"] != "RegexReplace":
+        errs.append(f"[{STRIP_ID}] 应为 RegexReplace(D7 S 剥离件,ComfyUI 核心件零部署依赖)")
+    else:
+        if strip["widgets_values"][1] != RGBA_STRIP_PATTERN:
+            errs.append("[206] 剥离正则漂移(词族真源=mjs,重跑自动跟随)")
+        if strip["widgets_values"][2] != "":
+            errs.append("[206] replace 应为空串(句子级删除)")
+        if strip["widgets_values"][3] is not True:
+            errs.append("[206] case_insensitive 应 True(词族大小写不敏感)")
+        if strip["widgets_values"][6] != 0:
+            errs.append("[206] count 应 0(全替)")
+        if _trace_origin(i_links, i_nodes, strip["inputs"][0]["link"]) != PE_RW_ID:
+            errs.append("[206].string 上游应 [140] PE出文(剥离只许作用 PE出文路,D7 铁则)")
+    w1a, w1b = i_nodes[W1_CAT1_ID], i_nodes[W1_CAT2_ID]
+    if w1a["widgets_values"][2] != " " or w1b["widgets_values"][2] != " ":
+        errs.append("W1 包裹拼接 delimiter 应为空格(照 W2 同款)")
+    if _trace_origin(i_links, i_nodes, w1a["inputs"][0]["link"]) != RGBA_HEAD_ID or \
+       _trace_origin(i_links, i_nodes, w1b["inputs"][1]["link"]) != RGBA_TAIL_ID:
+        errs.append("W1 头/尾上游应 [160]/[161] 官方头尾(扇出②,逐字同源)")
+    if _trace_origin(i_links, i_nodes, w1a["inputs"][1]["link"]) != STRIP_ID:
+        errs.append("W1 头拼.string_b 上游应 [206] 剥离文")
+    # D6:[144].switch←[210].rgba_on;[210].rgba_hint←[150].rgba_default(双垫脚石可穿);
+    # [210].mode←-10 槽4「RGBA透明」三态 COMBO;面板默认跟随型
+    if _trace_origin(i_links, i_nodes, i_nodes[RGBA_SW_ID]["inputs"][2]["link"]) != RGBA_SEL_ID:
+        errs.append("[144].switch 应接 [210] MyQi21RgbaSelect 输出(0929 S2 D6 型联动)")
+    sel = i_nodes.get(RGBA_SEL_ID)
+    if not sel or sel["type"] != "MyQi21RgbaSelect":
+        errs.append(f"[{RGBA_SEL_ID}] 应为 MyQi21RgbaSelect(D6 三态件)")
+    else:
+        if sel["widgets_values"] != [RGBA_DEFAULT_MODE]:
+            errs.append(f"[{RGBA_SEL_ID}] mode 默认应 {RGBA_DEFAULT_MODE!r}(D6 钦定首项)")
+        m_cl = i_links[sel["inputs"][0]["link"]]
+        if m_cl["origin_id"] != -10 or m_cl["origin_slot"] != 4:
+            errs.append("[210].mode 应接 -10 槽4(宿主面板「RGBA透明」三态 COMBO)")
+        if _trace_origin(i_links, i_nodes, sel["inputs"][1]["link"]) != BASE_ID:
+            errs.append("[210].rgba_hint 上游应 [150].rgba_default(可穿垫脚石)")
+        if sg["inputs"][4]["name"] != "RGBA透明" or sg["inputs"][4]["type"] != "COMBO":
+            errs.append("子图 -10 槽4 应=「RGBA透明」COMBO(0929 S2 D6 三态,原 BOOLEAN 退役)")
+    if host["widgets_values"][2] != RGBA_DEFAULT_MODE:
+        errs.append(f"[40] 面板「RGBA透明」默认必须 {RGBA_DEFAULT_MODE!r}(0929 S2 D6)")
 
     # 10b. (采样完整态断言已并入 6b:两 KSampler steps=40/359 面板生效值+cfg/euler/
     #      simple/fixed 控制位不漂移,0929 并行化轮随双采样器改写)
@@ -2181,10 +2857,15 @@ def self_check(g: dict, truth: dict) -> list[str]:
                   # 0929 并行化轮:三支路并行+单选择+seed 单源+面板生效值+依赖警示+T8 事实
                   "MyQi21SpeedSelect", "并行三支路", "只有一个选择逻辑", "默认=直出40步",
                   "拉齐重放",
+                  # 0929 S2 ⑤机制批:D6 三态+D7 融合
+                  "MyQi21RgbaSelect", "跟随型", "强制开", "强制关", "rgba_default",
+                  "背景句剥离", "PE×透明融合",
                   "懒执行", "seed 单源共享", "面板值=生效值",
                   "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
                   "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽", "用户手动权威",
-                  "绝不吃 viggle LoRA"):
+                  "绝不吃 viggle LoRA",
+                  # 0929 S3 收装批:加速子图+宿主面板两控件
+                  "加速子图", "速度档位", "「seed」", "双击进入"):
         if token not in note:
             errs.append(f"说明 Note 缺要点: {token!r}")
     if note.lstrip().startswith("# "):
@@ -2192,30 +2873,14 @@ def self_check(g: dict, truth: dict) -> list[str]:
     return errs
 
 
-def _trace_reroute_main(m_links: dict, m_nodes: dict, lid: int) -> int:
-    """主图沿 link 反向溯源,穿过顶通道 Reroute 回到实源节点 id。"""
-    seen = set()
-    while True:
-        l = m_links[lid]
-        oid = l[1]
-        if m_nodes[oid]["type"] != "Reroute" or oid in seen:
-            return oid
-        seen.add(oid)
-        lid = m_nodes[oid]["inputs"][0]["link"]
+def _dry_run_main(g: dict) -> set[int]:
+    """主图执行集(SaveImage 回溯;0929 S3 收装后主图=四块骨架:加载器→[40]→[5]→
+    加速宿主 [208]→解码,零选择类件=纯可达集)。
 
-
-def _dry_run_main(g: dict, mode_override: int | None = None) -> set[int]:
-    """主图执行集(SaveImage 回溯;懒执行=只走选中支路)。
-
-    0929 并行化轮:选择点=[208] MyQi21SpeedSelect(三 latent 槽全 lazy)——按档位
-    (combo widget;mode_override=档号 0/1/2 模拟运行态切档;默认态=combo 首项=
-    直出40步)只回溯选中档支路的槽,
-    未选支路整体不进执行图(零空转零加载);注入式开关农场已拆,主图零
-    ComfySwitchNode;PE/画幅联动在 [40] 子图内部,主图干跑只核宿主可达(子图懒
-    语义第 9/9b 节另核)。"""
+    加速支路懒执行语义在加速子图内(_dry_run_accel 另核);宿主在主图执行集内
+    恒可达=子图输出被 [8] 消费。"""
     m_nodes = {n["id"]: n for n in g["nodes"]}
     m_links = {l[0]: l for l in g["links"]}
-    want_slot = SPEED_SLOT_OF_MODE[MODE_DIRECT if mode_override is None else mode_override]
     reach: set[int] = set()
     stack = [9]  # SaveImage
     while stack:
@@ -2223,7 +2888,36 @@ def _dry_run_main(g: dict, mode_override: int | None = None) -> set[int]:
         if nid in reach:
             continue
         reach.add(nid)
-        node = m_nodes[nid]
+        for inp in m_nodes[nid].get("inputs", []):
+            lid = inp.get("link")
+            if lid is not None:
+                stack.append(m_links[lid][1])
+    return reach
+
+
+def _dry_run_accel(g: dict, asg: dict, mode_override: int | None = None) -> set[int]:
+    """加速子图执行集(懒执行=MyQi21SpeedSelect 只回溯选中档支路;0929 S3)。
+
+    档位=宿主面板「速度档位」(host widgets_values 第1值,widgets 双写真源=宿主);
+    mode_override=档号 0/1/2 模拟运行态切档;默认态=面板首项=直出40步。从子图输出
+    槽(linkIds)回溯;边界 -10 即主图侧(model/positive/negative/latent=[1]/[40]/[5]),
+    不越界回溯;未选支路整体不进执行图(零空转零加载,对拍口径=干跑执行集等价)。"""
+    a_nodes = {n["id"]: n for n in asg["nodes"]}
+    a_links = {l["id"]: l for l in asg["links"]}
+    host = next(n for n in g["nodes"] if n["type"] == ACCEL_SG_UUID)
+    if mode_override is None:
+        mode_str = host["widgets_values"][0]
+    else:
+        mode_str = next(m for m in SPEED_MODES if int(m[0].split(" ·")[0]) == mode_override)[0]
+    want_slot = SPEED_SLOT_OF[mode_str]
+    reach: set[int] = set()
+    stack = [l["origin_id"] for l in asg["links"] if l["target_id"] == -20]
+    while stack:
+        nid = stack.pop()
+        if nid in reach:
+            continue
+        reach.add(nid)
+        node = a_nodes[nid]
         if node["type"] == "MyQi21SpeedSelect":
             slots = [i for i, inp in enumerate(node["inputs"]) if inp.get("name") == want_slot]
         else:
@@ -2231,7 +2925,9 @@ def _dry_run_main(g: dict, mode_override: int | None = None) -> set[int]:
         for si in slots:
             lid = node["inputs"][si].get("link")
             if lid is not None:
-                stack.append(m_links[lid][1])
+                l = a_links[lid]
+                if l["origin_id"] != -10:
+                    stack.append(l["origin_id"])
     return reach
 
 
@@ -2256,6 +2952,8 @@ def _dry_run_default(g: dict, sg: dict) -> tuple[set[int], str]:
 
     def resolve_node(src: dict) -> list[str]:
         """按节点类型解析其文本贡献(拼接=两输入递归;PE 开关=固定 on_false 懒执行)。"""
+        if src["type"] == "Reroute":
+            return resolve_internal(src["id"], 0)   # 垫脚石穿透(0929 S2:[142].prompt 经 [213][176] 溯 [141])
         if src["type"] == "StringConstant":
             return [src["widgets_values"][0]]
         if src["type"] == "MyQi21DaojieBase":
@@ -2264,6 +2962,8 @@ def _dry_run_default(g: dict, sg: dict) -> tuple[set[int], str]:
             if src["id"] == PE_SW_ID:
                 return resolve_internal(src["id"], 0)   # [141]=PE 开关(0926 裁定1 默认
                 # true=PE 开路);本视图固定走 on_false 直写选配臂核装配文本,不随 widget 定臂
+            if src["id"] == RGBA_TXT_SW_ID:
+                return []   # [209]=透明文本开关(默认 true 同 [141]),不在主编码装配溯源链
             if src["widgets_values"][0] is not False:
                 raise SystemExit(f"干跑:默认链开关非 false [{src['id']}]")
             return resolve_internal(src["id"], 0)  # on_false(懒执行)
@@ -2307,7 +3007,9 @@ def _dry_run_default(g: dict, sg: dict) -> tuple[set[int], str]:
             return
         reach.add(node_id)
         node = i_nodes[node_id]
-        slots = [0] if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", [])))
+        # ComfySwitchNode 只走选中臂+switch 控制位槽(0929 S2:控制位=引擎必求值输入
+        # ——[144].switch=[210] 三态件,静态干跑同口径补齐,不漏型联动执行面)
+        slots = ([0, 2] if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", []))))
         for si in slots:
             lid = node["inputs"][si].get("link")
             if lid is None:
@@ -2353,7 +3055,9 @@ def _dry_run_subgraph_default(g: dict, sg: dict) -> set[int]:
             continue
         reach.add(nid)
         node = i_nodes[nid]
-        slots = ([1 if _sw_bool(node) else 0] if node["type"] == "ComfySwitchNode"
+        # ComfySwitchNode 只走选中臂+switch 控制位槽(0929 S2:控制位引擎必求值——
+        # [144].switch=[210] 型联动三态,静态近似同口径补齐)
+        slots = (([1 if _sw_bool(node) else 0] + [2]) if node["type"] == "ComfySwitchNode"
                  else range(len(node.get("inputs", []))))
         for si in slots:
             lid = node["inputs"][si].get("link")
@@ -2369,7 +3073,8 @@ def main() -> int:
     check_only = "--check" in sys.argv
     truth = load_truth()
     sg, _ = build_subgraph(truth)
-    g = build_main(truth, sg)
+    asg, _ = build_accel_subgraph()
+    g = build_main(truth, sg, asg)
     errs = self_check(g, truth)
     if errs:
         for e in errs:
@@ -2401,8 +3106,45 @@ def main() -> int:
     n_links = len(disk["links"])
     sg_nodes = len(disk["definitions"]["subgraphs"][0]["nodes"])
     sg_links = len(disk["definitions"]["subgraphs"][0]["links"])
+    asg_nodes = len(disk["definitions"]["subgraphs"][1]["nodes"])
+    asg_links = len(disk["definitions"]["subgraphs"][1]["links"])
     zh_list = " ".join(t["zh"] for t in truth["types"])
-    print(f"PASS: 主图 {n_nodes} 节点/{n_links} 链 + 子图 {sg_nodes} 节点/{sg_links} 链;九型={zh_list};"
+    print(f"PASS: 主图 {n_nodes} 节点/{n_links} 链 + 装配子图 {sg_nodes} 节点/{sg_links} 链 + "
+          f"加速子图 {asg_nodes} 节点/{asg_links} 链(0929 S3 收装批:D3/D4/D5 加速区整体收进"
+          f"新建「道劫·加速子图」——三支路+viggle LoRA+seed 单源+选择件六件全迁入(内部件 id "
+          f"沿用旧主图 id,唯选择件让位宿主新分 [214]=宿主/内部件零撞号,规避无实证 208:208 "
+          f"展开形);宿主=[208] 原选择件原位改造(id 沿用),title"
+          f"「加速子图」,外露输入槽4=model([1] 直连)/positive+negative([40] 输出)/latent([5] 空潜)"
+          f"(D4 t2i 边界),输出 LATENT→[8];面板「速度档位」COMBO+「seed」INT 双控件外露"
+          f"(D5 推荐案成立=research/subgraph-widget-promotion.md Probe A 级A 实证,回退案不启用;"
+          f"值双写=子图 widgets[]↔宿主 widgets_values[]);支路行序=选择件三 latent 槽纵序对齐"
+          f"(funacc顶/viggle中/direct底)→三汇流线零交叉;懒执行语义零改(三档干跑 _dry_run_accel"
+          f" 子图内回溯:默认直出40步=[7] 在链而 [198]/[206]/[31] 零执行);主图退成四块骨架"
+          f"①加载器→②提示词·装配→③加速([5]+[208])→④输出,17→12 节点/27→14 链;自查基线"
+          f"合法重立(交叉棘轮实测重立:主图 67→16/加速子图新域起步 0/装配子图 23 零动,"
+          f"拓扑变更重立先例);涉锚契约测试(TestSpeedSelectContract0929 等)下一阶段统一重写; "
+          f"0929 S4 槽位批(D2/D10):[40] 输出槽序迁 positive/negative/width/height/最终文本"
+          f"(预览文本类槽=最末=节点最底;宿主/子图 outputs 同序镜像,子图右列 pos 随槽序升序重派,"
+          f"-20 边界线 42/43/45 target_slot=2/3/4,主图 link1/2/18 src_slot=2/3/4,契约锚同批翻);"
+          f"[27] 装配预览随槽位自上袋 (3050,1650) 迁 [40] 右下袋 (3050,2760)——最终文本导线自"
+            f"最底槽直落不再翻越 W/H 走线,主图交叉棘轮 16→13 只降不升;links 集合零变仅槽号字段变; "
+            f"0930 S5 布局终排批(D8/rhythm-constants):节奏常数 PITCH_ASM=PITCH_BR=760/BRANCH_X=800 "
+            f"标准档入源码(紧凑档 560/600 未启用,须真前端观感定夺)+自查 3i 节(支路列 x 全等/同构行 "
+            f"x 元组全等/支路行距等差/装配行带距等差/支路行序=三 latent 槽纵序,容差 0);主图 [5]↔[208] "
+            f"换行=[40] 五槽消费端按槽序纵叠([208]槽01 上/[5]槽23 中/[27]槽4 底),交叉 13→4(残 4 对 "
+            f"走廊固有);装配子图纯挪位治理 23→16(通道拐点四只重排车道+行2 [163] 右移+行4 [207] 微调,"
+            f"零并线零垫脚石增量);**links 逐字节零变**(对拍证明=research/s5-links-stable-qi21-daojie-t2i.md); "
+            f"0929 S2 ⑤机制批:"
+            f"D7 PE×透明融合链=[140]PE出文→[206]RegexReplace背景句剥离(词族真源=q21_optimized_round_0925.mjs "
+            f"零转录解析,39词句子级删除+词边界+cloud-thunder豁免)→[207][208]官方头尾包裹W1 与 [131]装配全文→"
+            f"[162][163]包裹W2(原样,装配文禁过剥离铁则)汇于[209]透明文本开关T(switch=宿主PE开关扇出,默认true同[141])"
+            f"→[143]RGBA编码;D6 型联动=[210]MyQi21RgbaSelect三态(跟随型/强制开/强制关,默认跟随型,combo真源="
+            f"my_nodes节点件import互锁)宿主面板外露(-10槽4「RGBA透明」COMBO,原BOOLEAN控件退役),rgba_hint←"
+            f"[150].rgba_default新槽(追加最末零漂移,经[211][212]垫脚石),rgba_on→[144].switch;"
+            f"[141]→[142]最终文本线垫[176]扇出[213]续接消线遮(零真重复);子图6行→7行(融合行),"
+            f"行5-7联动带随下移;真值表五例干跑钉死(RGBA关+PE开=带背景完整文/装配文禁剥离);"
+            f"交叉基线子图8→23重立(拓扑变更合法重立,S5终排治理);i2i结构性已融合(指令层PE不替换装配文),"
+            f"edit 无机构待S3子图化出生);九型={zh_list};"
             f"0929 加速区并行化轮=注入式开关农场十件全拆([30]/[32]/[177]/[178]/[179]/[193]/[194]/"
             f"[195]/[196]/[197]),立并行三支路(直出=[1]→[7]KSampler·{STEPS_OFF}步/viggle=[1]→"
             f"[{LORA_ID}]LoRA(0.8)→[{SAMPLER_VIGGLE_ID}]KSampler·{STEPS_ON}步/Fun-Acc=[1]→[{T8_ID}]T8·4步内置"
