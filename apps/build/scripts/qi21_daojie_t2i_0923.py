@@ -1,6 +1,22 @@
 #!/usr/bin/env python3
 """qi21-道劫-t2i.json 幂等生成器(09-23;0925 加速与展示全量外露收窄轮)。
 
+本轮(0930 宪法改写轮 S10·W1 收束句落盘,Trellis 09-29-qi21-canvas-batch;方案=research/
+plan-宪法改写轮.md §2.1;驱动注入版实弹已验=apps/output/s10-constitution-0930,句身与
+s10 在档指纹 md5 互锁):
+  - **W1 四段化**:+[215] StringConstant(W1收束句,句身=05库 §一 0930 W1 条款主候选句
+    零转录现读,提取式与 s10 驱动器同源,md5≠实弹指纹即 SystemExit 拒生成=禁静默换句)
+    +[216] StringConcatenate(W1收束拼=剥离文+收束句,delimiter=空格);链改道=link51
+    [206]剥离文→[216].string_a、+link63 [215]→[216].string_b、+link64 [216]→[207].string_b
+    ——官方头[160]+剥离文[206]+收束句[215]+官方尾[161],链序铁律=收束句在剥离之后拼接
+    (对词族结构性免疫,同官方头尾豁免机制);种子句 widget/词族三数组/W2/i2i/edit 零碰。
+  - 布局随拓扑合法重立(S5/D8 先例):[206] x 2850→2550 让位([216] 需 200 est 横净距
+    车道,207-210 全不动=保 0930 S5 已调 Tuning);[215] 入源行([2750,280],组框1 右扩
+    罩合);[216] 入融合行([3090,2560])。自查随笔:链 id 域 range(1,65)/直写臂+默认态
+    两干跑排除集 +215/216/[207].string_b 断言改锚 [216]+[216] 两入溯源断言+[215] 常量
+    逐字断言(仿官方头尾款)/want_rows 源行+215·融合行+216/StringConstant 恰 4 枚/
+    Note token+「W1收束句」。
+
 本轮(0930 S5 布局终排批,Trellis 09-29-qi21-canvas-batch D8/prd ②⑥;常数表=research/
 rhythm-constants.md;拓扑全定后一次性终排,**links 逐字节零变**仅 pos/组框变,对拍证明=
 research/s5-links-stable-qi21-daojie-t2i.md):
@@ -340,6 +356,7 @@ steps=40 / 无孤儿节点(MarkdownNote 与 easy showAnything 显示型端点豁
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import pathlib
@@ -487,6 +504,12 @@ RGBA_TXT_SW_ID = 209          # D7 T 文本开关(on_true=W1剥离包裹 / on_fa
 RGBA_SEL_ID = 210             # D6 MyQi21RgbaSelect 三态件(输出 rgba_on → [144].switch)
 RR_A_ID, RR_B_ID = 211, 212   # [150].rgba_default→[210] 两跳垫脚石(左缘竖走廊+行4 下方横带)
 RR_C_ID = 213                  # [141]最终文本→[142] 垫脚石(融合行上框间带;直连线必穿行4 [209] 盒=几何结构性,垫脚消线遮)
+# 0930 宪法改写轮 S10:W1 收束句两件(id=s10 驱动器实弹已验占用位,05 库 §一 0930 条款
+# 同款指认 [215]/[216];215=StringConstant 句身常量,216=StringConcatenate 收束拼)
+W1_SENT_ID, W1_SENT_CAT_ID = 215, 216
+# s10 实弹在档句指纹(apps/output/s10-constitution-0930/s10-constitution-report.json
+# constitution.sentenceMd5;05 库条款句身与它逐字互锁,漂移即拒生成=禁静默换句)
+W1_SENT_MD5_S10 = "14aa186d7ca6cc119dda5e00d0179753"
 # 词族零转录(真源=q21_optimized_round_0925.mjs,S0 档案口径「词族真源仍住 mjs」防第二
 # 真源漂移;重跑自动跟随 mjs——与 SPEED_MODES 节点件 import 互锁同纪律):
 _MJS_TRUTH = (_REPO / "apps/build/scripts/q21_optimized_round_0925.mjs").read_text(encoding="utf-8")
@@ -691,11 +714,13 @@ NOTE_TEXT = (
     "型信号=MyQi21DaojieBase.rgba_default 槽(qi21_bases.json 热读)喂 MyQi21RgbaSelect."
     "rgba_hint,开关布尔=其输出);强制开/关=手动权威,不随型变。**PE×透明融合**(0929 "
     "用户翻案令「PE 要出透明提示词,要融合」):PE 开路走透明时=[140] PE出文→装配子图[206] 背景"
-    "句剥离(词族黑名单,词边界匹配)→装配子图[207][208] 官方头尾包裹,与 [131] 装配全文→"
+    "句剥离(词族黑名单,词边界匹配)→[216] W1收束拼(+[215] W1收束句;0930 宪法改写轮S10·"
+    "型盲静态,句身=05库§一0930条款零转录现读,收束句在剥离之后拼接=对词族结构性免疫)"
+    "→装配子图[207][208] 官方头尾包裹,与 [131] 装配全文→"
     "[162][163] 包裹两路汇于 [209] 文本开关(布尔=PE开关扇出)→[143] RGBA编码;RGBA 关"
     "+PE 开=[141] 直喂 [142] 主编码吃带背景完整文(禁剥离);装配全文禁过剥离(声明句"
-    "词族误伤=翻车)。官方公式 This is an RGBA format image with transparency. [剥离/装配"
-    "文]. The image has an alpha channel and a transparent background.(头尾逐字=官方"
+    "词族误伤=翻车)。官方公式 This is an RGBA format image with transparency. [剥离文+"
+    "W1收束句/装配文]. The image has an alpha channel and a transparent background.(头尾逐字=官方"
     "原文;中文同款:这是一张带有透明度的RGBA图像。……该图像"
     "具有alpha通道,背景是透明的。)透明路出图必须存 PNG 才保 alpha。\n"
 )
@@ -715,6 +740,17 @@ def load_truth() -> dict:
     if [e.get("zh") for e in qi21_bases] != zh_order:
         raise SystemExit("qi21_bases.json 条目 zh 顺序与 daojie_bases.json 不一致(真源链断)")
     qi21_by_zh = {e["zh"]: e for e in qi21_bases}
+
+    # 0930 宪法改写轮 S10:W1 收束句从 §一 0930 条款程序提取(零转录,提取式与 s10 实弹
+    # 驱动器 qi21_s10_constitution_0930.mjs 同源),并与 s10 实弹在档句指纹 md5 互锁——
+    # 库条款句身漂移即拒生成(实弹已验句=唯一合法句,禁静默换句)。
+    m_sent = re.search(r"主候选句在案\((The subject[^)]*?)\)", md)
+    if not m_sent:
+        raise SystemExit("05 库 §一 0930 W1 收束句条款主候选句不在案(真源链断)")
+    w1_sentence = m_sent.group(1)
+    if hashlib.md5(w1_sentence.encode("utf-8")).hexdigest() != W1_SENT_MD5_S10:
+        raise SystemExit("W1 收束句与 s10 实弹已验句不逐字一致(05 库 §一 0930 条款句身漂移;"
+                         f"实弹指纹={W1_SENT_MD5_S10};禁静默换句,先重走实弹门再改库)")
 
     headings = re.findall(r"^### (.+?)-基础\s*$", md, re.M)
     if headings != zh_order:
@@ -763,7 +799,7 @@ def load_truth() -> dict:
         })
     if len({t["constant_text"] for t in types}) != 9 or len({t["base"] for t in types}) != 9:
         raise SystemExit("九型底座常量两两不唯一")
-    return {"types": types, "const_a": const_a}
+    return {"types": types, "const_a": const_a, "w1_sentence": w1_sentence}
 
 
 def _qi21_base_text(zh: str) -> str:
@@ -949,22 +985,27 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     # 批:width/height 各上移一槽(3→2/4→3),让位最终文本迁最末)
     links.append(_internal_link(42, SW_W_ID, 0, -20, 2, "INT"))                # → 输出 width
     links.append(_internal_link(43, SW_H_ID, 0, -20, 3, "INT"))                # → 输出 height
-    # ── 0929 S2 D7 PE×透明融合链(50-57;S 剥离→W1 包裹→T 文本开关→[143])──
+    # ── 0929 S2 D7 PE×透明融合链(50-57+63/64;S 剥离→W1 包裹→T 文本开关→[143])──
     links.append(_internal_link(50, PE_RW_ID, 0, STRIP_ID, 0, "STRING"))       # [140] PE出文 → [206] 剥离.string(扇出②:主路 link23 直喂 [141] 不动)
-    links.append(_internal_link(51, STRIP_ID, 0, W1_CAT1_ID, 1, "STRING"))     # 剥离文 → W1 头拼.string_b
+    links.append(_internal_link(51, STRIP_ID, 0, W1_SENT_CAT_ID, 0, "STRING")) # 剥离文 → [216] 收束拼.string_a(0930 S10:原直喂 [207].string_b 改道)
     links.append(_internal_link(52, RGBA_HEAD_ID, 0, W1_CAT1_ID, 0, "STRING")) # 官方头(扇出②) → W1 头拼
     links.append(_internal_link(53, W1_CAT1_ID, 0, W1_CAT2_ID, 0, "STRING"))   # W1 头拼 → W1 尾拼
     links.append(_internal_link(54, RGBA_TAIL_ID, 0, W1_CAT2_ID, 1, "STRING")) # 官方尾(扇出②) → W1 尾拼
     links.append(_internal_link(55, W1_CAT2_ID, 0, RGBA_TXT_SW_ID, 1, "STRING"))  # W1 剥离包裹 → T.on_true
     links.append(_internal_link(56, -10, 5, RGBA_TXT_SW_ID, 2, "BOOLEAN"))     # PE开关扇出 → T.switch(与 [141] 同布尔=宿主PE开关)
     links.append(_internal_link(57, RGBA_TXT_SW_ID, 0, TE_RGBA_ID, 3, "STRING"))   # T 输出 → [143] RGBA编码.prompt
+    # 0930 宪法改写轮 S10 W1 收束句:[215] 句身常量→[216].string_b;[216] 收束拼(剥离文+
+    # 收束句)→[207].string_b——W1 四段=官方头[160]+剥离文[206]+收束句[215]+官方尾[161],
+    # 链序铁律=收束句在剥离之后拼接(词族结构性免疫,同官方头尾豁免机制;t2i:519-521 自证)
+    links.append(_internal_link(63, W1_SENT_ID, 0, W1_SENT_CAT_ID, 1, "STRING"))   # 收束句 → 收束拼.string_b
+    links.append(_internal_link(64, W1_SENT_CAT_ID, 0, W1_CAT1_ID, 1, "STRING"))   # 收束拼 → W1 头拼.string_b
     # ── 0929 S2 D6 型联动三态(58-61;rgba_hint←[150].rgba_default 经双垫脚石;
     #     [144].switch←[210] 输出,原 -10 槽4 BOOLEAN 边界线(link7 改义为 mode)──
     links.append(_internal_link(58, BASE_ID, 4, RR_A_ID, 0, "BOOLEAN"))       # [150].rgba_default → 左缘竖走廊首拐
     links.append(_internal_link(59, RGBA_SEL_ID, 0, RGBA_SW_ID, 2, "BOOLEAN"))  # [210].rgba_on → [144].switch
     links.append(_internal_link(60, RR_A_ID, 0, RR_B_ID, 0, "BOOLEAN"))       # 首拐 → 行4 下方横带拐点
     links.append(_internal_link(61, RR_B_ID, 0, RGBA_SEL_ID, 1, "BOOLEAN"))   # 横带拐点 → [210].rgba_hint
-    assert sorted(l["id"] for l in links) == list(range(1, 63))
+    assert sorted(l["id"] for l in links) == list(range(1, 65))
 
     nodes: list[dict] = []
     # 行1 源行(列距≥200 est 足迹口径)
@@ -996,6 +1037,11 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     nodes.append(_string_constant(
         RGBA_TAIL_ID, "RGBA官方尾句(EN·逐字=官方模板)", RGBA_TAIL_EN,
         [2150, 280], [15, 54], [380, 120]))
+    # [215] W1收束句(0930 宪法改写轮 S10;源行第五件=与官方头尾同列的 W1 包裹常量,
+    # 句身=05库§一0930条款零转录现读+md5 指纹互锁;组框1 右扩罩合)
+    nodes.append(_string_constant(
+        W1_SENT_ID, "W1收束句(宪法改写轮S10·型盲静态;句身=05库§一0930条款)",
+        truth["w1_sentence"], [2750, 280], [63], [380, 120]))
 
     # 行2 装配
     nodes.append(_concatenate(
@@ -1057,7 +1103,7 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     nodes.append({
         "id": STRIP_ID, "type": "RegexReplace",
         "title": "PE出文·背景句剥离(D7 S件:命中词族的整句删,词边界匹配;只作用 PE出文且RGBA活路)",
-        "pos": [2850, 2560], "size": [340, 300], "flags": {}, "order": 0, "mode": 0,
+        "pos": [2550, 2560], "size": [340, 300], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "string", "type": "STRING", "widget": {"name": "string"}, "link": 50},
             {"name": "regex_pattern", "type": "STRING", "widget": {"name": "regex_pattern"}, "link": None},
@@ -1071,9 +1117,15 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         "properties": {"Node name for S&R": "RegexReplace"},
         "widgets_values": ["", RGBA_STRIP_PATTERN, "", True, False, False, 0],
     })
+    # 0930 S10:[206] x 2850→2550 让位([216] 需 200 est 横净距车道;207-210 全不动=
+    # 保 0930 S5 已调 Tuning(消 (44,52)/est 与 [208] 恰 200))
+    # [216] W1收束拼(剥离文+收束句;delimiter=空格)——W1 四段中段,数据流 206→216→207
+    nodes.append(_concatenate(
+        W1_SENT_CAT_ID, "W1收束拼(剥离文+收束句;delimiter=空格)", 51, 63, [64],
+        [3090, 2560], delimiter=" "))
     # [207][208] W1 官方头尾包裹(照 W2=[162][163] 同款拼接,delimiter=空格)
     nodes.append(_concatenate(
-        W1_CAT1_ID, "W1包裹①(官方头句+剥离文;delimiter=空格)", 52, 51, [53],
+        W1_CAT1_ID, "W1包裹①(官方头句+收束拼;delimiter=空格)", 52, 64, [53],
         [3670, 2560], delimiter=" "))   # 0930 S5:3650→3670(车道微调,消 (44,52)
     # [141]→[176] 下落线×[160]→W1 长对角;est 与 [208] 横净距恰 200=3c 下限)
     nodes.append(_concatenate(
@@ -1219,7 +1271,10 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     nodes.append(_reroute(RR_H3_ID, [4180, 5300], 40, 41, "INT"))
     nodes.append(_reroute(RR_SWC_ID, [5450, 3790], 18, 49, "CONDITIONING"))
     nodes.append(_reroute(RR_SWC2_ID, [6550, 3790], 49, 19, "CONDITIONING"))
-    nodes.append(_reroute(RR_TXT_ID, [2488, 3790], 44, [45, 24], "STRING"))
+    nodes.append(_reroute(RR_TXT_ID, [2900, 3790], 44, [45, 24], "STRING"))
+    # 0930 S10:[206] x 2850→2550 让位收束拼车道后,[141]→[176] 下落线在行4 y 带过
+    # x≈2750-2865 落入新 [206] 盒——[176] 沿行5-6 隙车道(y=3790 归一不动)右移
+    # 2488→2900,把下落线推出 [206] 右缘(2890+容差)
     nodes.append(_reroute(RR_A_ID, [575, 3100], 58, 60, "BOOLEAN"))
     nodes.append(_reroute(RR_B_ID, [4000, 3100], 60, 61, "BOOLEAN"))
     nodes.append(_reroute(RR_C_ID, [5050, 2850], 24, 62, "STRING"))
@@ -1231,8 +1286,9 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
     # 消交叉可打破组框层约束的宪法既定;通道拐点留框间带不入框)
     groups: list[dict] = [
         {
-            "id": 1, "title": "道劫·底座装配(行1 源行:九选一底座+锁层A恒挂+RGBA官方头尾)",
-            "bounding": [50, 230, 2510, 530], "color": "#3f789e", "flags": {},
+            "id": 1, "title": "道劫·底座装配(行1 源行:九选一底座+锁层A恒挂+RGBA官方头尾+W1收束句)",
+            # 0930 S10:右扩 2510→3110 罩 [215](源行第五件,边到边含 30 边距)
+            "bounding": [50, 230, 3110, 530], "color": "#3f789e", "flags": {},
         },
         {
             "id": 2, "title": "道劫·装配(行2:拼接①② delimiter=\\n 分层;RGBA 公式拼接;装配全文→[141])",
@@ -1869,10 +1925,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
         sg_rows.setdefault(n["pos"][1], []).append(n["id"])
     row_ys = sorted(sg_rows)
     want_rows = [
-        [BASE_ID, LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID],
+        [BASE_ID, LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID, W1_SENT_ID],
         [CONCAT1_ID, CONCAT2_ID, RGBA_CAT1_ID, RGBA_CAT2_ID],
         [PE_RW_ID, PE_SW_ID],
-        [STRIP_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID, RGBA_SEL_ID],
+        [STRIP_ID, W1_SENT_CAT_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID, RGBA_SEL_ID],
         [TE_RGBA_ID, TE_ID, RGBA_SW_ID],
         [RATIO_RW_ID, CONV_RW_ID, MATH_W_ID, SW_W_ID],
         [RATIO_RH_ID, CONV_RH_ID, MATH_H_ID, SW_H_ID],
@@ -2055,7 +2111,11 @@ def self_check(g: dict, truth: dict) -> list[str]:
     #     车道归一(y=3790)消 1 对/[211][212] rgba 横带缩 900 单车道消 2 对/[163] 右移
     #     消 2 对(增 1)/[207] 车道微调消 1 对,残 16 对=拼接槽序族/蛇形交叉族/融合
     #     拓扑本体族,实测贴线;棘轮只降不升,对拍证明=research/s5-links-stable-qi21-daojie-t2i.md)。
-    _CROSS_BASELINE = {'主图': 4, '装配子图': 16, '加速子图': 0}
+    #     **0930 S10 W1 收束句拓扑变更重立:装配子图 16→22**(+[215]/[216] 两件+link63
+    #     长下落线(源行→融合行,第三条官方头尾同款对角)×行2/行3 装配线+link51 改道
+    #     +[206]/[176] 让位;design §8「拓扑变更→按 0928 棘轮重立基线」先例,以实测值
+    #     重立封顶防回归,S5 式挪位/垫脚治理留后续批次,棘轮自此只降不升)。
+    _CROSS_BASELINE = {'主图': 4, '装配子图': 22, '加速子图': 0}
     def _cross_seg_int(a, b, c, d):
         def _cr(o, x, y):
             return (y[0] - o[0]) * (x[1] - o[1]) - (y[1] - o[1]) * (x[0] - o[0])
@@ -2652,8 +2712,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
         if _trace_origin(i_links, i_nodes, sw["inputs"][2]["link"]) != -10:
             errs.append(f"[{sw['id']}] switch 槽应接 -10(宿主面板 widget)")
     sconsts = [n for n in sg["nodes"] if n["type"] == "StringConstant"]
-    if sorted(n["id"] for n in sconsts) != sorted([LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID]):
-        errs.append(f"级联退役:子图 StringConstant 应恰 3 枚(锁层A+RGBA头尾),得 {[n['id'] for n in sconsts]}")
+    if sorted(n["id"] for n in sconsts) != sorted([LOCK_ID, RGBA_HEAD_ID, RGBA_TAIL_ID, W1_SENT_ID]):
+        errs.append(f"级联退役+宪法轮:子图 StringConstant 应恰 4 枚(锁层A+RGBA头尾+W1收束句),得 {[n['id'] for n in sconsts]}")
     # 联动链锚(子图内)
     if i_nodes[RATIO_RW_ID]["widgets_values"][1] != RATIO_W_PATTERN or \
        i_nodes[RATIO_RH_ID]["widgets_values"][1] != RATIO_H_PATTERN:
@@ -2698,10 +2758,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if BASE_ID not in reach_int or LOCK_ID not in reach_int:
         errs.append(f"干跑:直写选配臂应含 [{BASE_ID}]底座/[{LOCK_ID}]锁层,得 {sorted(reach_int)}")
     for nid in (RGBA_HEAD_ID, RGBA_TAIL_ID, RGBA_CAT1_ID, RGBA_CAT2_ID, TE_RGBA_ID,
-                STRIP_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID):
+                STRIP_ID, W1_SENT_ID, W1_SENT_CAT_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID):
         if nid in reach_int:
             errs.append(f"干跑:直写选配臂 [{nid}] 不应可达(RGBA 懒执行旁路;0929 S2 "
-                        f"D7 融合链同属 RGBA 臂)")
+                        f"D7 融合链同属 RGBA 臂;0930 S10 收束句两件同臂)")
     want = "\n".join([truth["types"][0]["subject"],
                       _qi21_base_text(DEFAULT_TYPE), truth["const_a"]])
     if assembled != want:
@@ -2728,10 +2788,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if RGBA_SEL_ID not in dpe or BASE_ID not in dpe:
         errs.append(f"干跑:默认态三态件 [{RGBA_SEL_ID}]/底座 [{BASE_ID}] 应在执行图"
                     f"([144].switch 控制位必求值,型联动执行面)")
-    for nid in (STRIP_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID):
+    for nid in (STRIP_ID, W1_SENT_ID, W1_SENT_CAT_ID, W1_CAT1_ID, W1_CAT2_ID, RGBA_TXT_SW_ID):
         if nid in dpe:
-            errs.append(f"干跑:默认态融合链 [{nid}] 不应可达(RGBA 臂懒旁路;D7 剥离只在"
-                        f"「PE出文且RGBA活」路)")
+            errs.append(f"干跑:默认态融合链 [{nid}] 不应可达(RGBA 臂懒旁路;D7 剥离+0930 "
+                        f"S10 收束句只在「PE出文且RGBA活」路)")
 
     # 10. PE/RGBA 承袭(0928 PE 迁子图后链全在子图):[140] 参数/clip←pe_clip 槽;
     #     [141] 接线=最终文本路由(子图内闭环);[27] 预览改接 [40].最终文本输出;
@@ -2774,6 +2834,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if i_nodes[RGBA_HEAD_ID]["widgets_values"][0] != RGBA_HEAD_EN or \
        i_nodes[RGBA_TAIL_ID]["widgets_values"][0] != RGBA_TAIL_EN:
         errs.append("RGBA 官方头/尾常量非官方原文逐字")
+    if i_nodes[W1_SENT_ID]["widgets_values"][0] != truth["w1_sentence"]:
+        errs.append("[215] W1 收束句常量非库条款句身逐字(05库§一0930 主候选句;s10 实弹同身)")
     if i_nodes[TE_RGBA_ID]["widgets_values"][0] != "":
         errs.append("[143] prompt widget 应清空(公式路现拼)")
     cat1, cat2 = i_nodes[RGBA_CAT1_ID], i_nodes[RGBA_CAT2_ID]
@@ -2784,8 +2846,8 @@ def self_check(g: dict, truth: dict) -> list[str]:
     # ── 0929 S2 D6/D7 ⑤机制批断言 ─────────────────────────────────────────
     # D7:[143].prompt 改接 T=[209] 输出(原直收 [163]);T.on_false←[163] W2 装配
     # 包裹(原样)/T.on_true←[208] W1 剥离包裹/T.switch←-10 槽5 PE开关扇出(与
-    # [141] 同布尔);S 剥离件 [206]=[140] PE出文扇出→词族正则;W1=[207][208] 同款
-    # 拼接(官方头尾扇出 delimiter 空格)
+    # [141] 同布尔);S 剥离件 [206]=[140] PE出文扇出→词族正则;W1=[207][216][208]
+    # 四段拼接(官方头+剥离文+0930 S10 收束句+官方尾,delimiter 空格)
     rgba_prompt_link = i_links.get(i_nodes[TE_RGBA_ID]["inputs"][3]["link"])
     if not rgba_prompt_link or rgba_prompt_link["origin_id"] != RGBA_TXT_SW_ID:
         errs.append("[143].prompt 应接 [209] 透明文本开关输出(0929 S2 D7 融合路由)")
@@ -2813,14 +2875,20 @@ def self_check(g: dict, truth: dict) -> list[str]:
             errs.append("[206] count 应 0(全替)")
         if _trace_origin(i_links, i_nodes, strip["inputs"][0]["link"]) != PE_RW_ID:
             errs.append("[206].string 上游应 [140] PE出文(剥离只许作用 PE出文路,D7 铁则)")
-    w1a, w1b = i_nodes[W1_CAT1_ID], i_nodes[W1_CAT2_ID]
-    if w1a["widgets_values"][2] != " " or w1b["widgets_values"][2] != " ":
+    w1a, w1b, w1s = i_nodes[W1_CAT1_ID], i_nodes[W1_CAT2_ID], i_nodes[W1_SENT_CAT_ID]
+    if w1a["widgets_values"][2] != " " or w1b["widgets_values"][2] != " " \
+       or w1s["widgets_values"][2] != " ":
         errs.append("W1 包裹拼接 delimiter 应为空格(照 W2 同款)")
     if _trace_origin(i_links, i_nodes, w1a["inputs"][0]["link"]) != RGBA_HEAD_ID or \
        _trace_origin(i_links, i_nodes, w1b["inputs"][1]["link"]) != RGBA_TAIL_ID:
         errs.append("W1 头/尾上游应 [160]/[161] 官方头尾(扇出②,逐字同源)")
-    if _trace_origin(i_links, i_nodes, w1a["inputs"][1]["link"]) != STRIP_ID:
-        errs.append("W1 头拼.string_b 上游应 [206] 剥离文")
+    # 0930 S10 W1 四段收束句断言群(头拼.string_b 改锚 [216];:2795/:2819-2821 旧断言拓扑不变零改)
+    if _trace_origin(i_links, i_nodes, w1a["inputs"][1]["link"]) != W1_SENT_CAT_ID:
+        errs.append("W1 头拼.string_b 上游应 [216] 收束拼(官方头+(剥离文+收束句))")
+    if _trace_origin(i_links, i_nodes, w1s["inputs"][0]["link"]) != STRIP_ID:
+        errs.append("[216] 收束拼.string_a 上游应 [206] 剥离文(链序铁律:收束句在剥离之后拼接)")
+    if _trace_origin(i_links, i_nodes, w1s["inputs"][1]["link"]) != W1_SENT_ID:
+        errs.append("[216] 收束拼.string_b 上游应 [215] 收束句常量")
     # D6:[144].switch←[210].rgba_on;[210].rgba_hint←[150].rgba_default(双垫脚石可穿);
     # [210].mode←-10 槽4「RGBA透明」三态 COMBO;面板默认跟随型
     if _trace_origin(i_links, i_nodes, i_nodes[RGBA_SW_ID]["inputs"][2]["link"]) != RGBA_SEL_ID:
@@ -2887,7 +2955,7 @@ def self_check(g: dict, truth: dict) -> list[str]:
                   "拉齐重放",
                   # 0929 S2 ⑤机制批:D6 三态+D7 融合
                   "MyQi21RgbaSelect", "跟随型", "强制开", "强制关", "rgba_default",
-                  "背景句剥离", "PE×透明融合",
+                  "背景句剥离", "W1收束句", "PE×透明融合",
                   "懒执行", "seed 单源共享", "面板值=生效值",
                   "依赖警示", "生态插件区", "Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
                   "T8QwenImage21FunAccPDD4Step", FUNACC_FILE, "无负面槽", "用户手动权威",
