@@ -2319,8 +2319,8 @@ class TestQi21SubgraphContract:
 
     def test_qi21_base_node_present_and_combo_default(self):
         """[150] MyQi21DaojieBase 在子图内:combo base 槽=widget 转输入接 -10 槽3
-        (宿主面板「型选择」COMBO 九选一);widgets 默认=人物;四出
-        BASE/WIDTH/HEIGHT/型名;BASE 喂拼接①;W/H 经子图内通道 Reroute 喂联动开关
+        (宿主面板「型选择」COMBO 九选一);widgets 默认=人物;五出
+        BASE/WIDTH/HEIGHT/型名/rgba_default;BASE 喂拼接①;W/H 经子图内通道 Reroute 喂联动开关
         [157]/[158].on_false(默认九型直驱路),联动终值经 width/height 输出直驱主图 [5]。"""
         graph = GRAPHS["qi21"]
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)

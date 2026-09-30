@@ -19,7 +19,11 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from engines.comfyui.my_nodes import NODE_CLASS_MAPPINGS, bridge
+from engines.comfyui.my_nodes import (
+    NODE_CLASS_MAPPINGS,
+    NODE_DISPLAY_NAME_MAPPINGS,
+    bridge,
+)
 
 
 # ── 注册面 ────────────────────────────────────────────────
@@ -41,6 +45,12 @@ def test_registry_exposes_first_batch_nodes():
         # 09-14 manying→my 改名前的旧键别名(存量工作流加载兼容)
         "ManyingPrompt", "ManyingReference", "ManyingGenerated", "ManyingShot",
         "ManyingCloudImage", "ManyingStage"}
+    # 双表全集等集(0930 F1):显示名表缺键=引擎画布菜单回退英文类名
+    # (MyCharsheetLabels 先例),与 CLASS 表键集互锁防再发。
+    assert set(NODE_DISPLAY_NAME_MAPPINGS) == set(NODE_CLASS_MAPPINGS), (
+        "NODE_DISPLAY_NAME_MAPPINGS 与 NODE_CLASS_MAPPINGS 键集漂移:"
+        f"仅显示名表有 {sorted(set(NODE_DISPLAY_NAME_MAPPINGS) - set(NODE_CLASS_MAPPINGS))},"
+        f"仅 CLASS 表有 {sorted(set(NODE_CLASS_MAPPINGS) - set(NODE_DISPLAY_NAME_MAPPINGS))}")
     for name, node in NODE_CLASS_MAPPINGS.items():
         # 道劫子图走线族(09-21)归「漫影/道劫」画布菜单组,其余恒 "my"
         if name in ("MyDaojieRoute", "MyModelBus"):

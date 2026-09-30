@@ -147,7 +147,7 @@ class MyQi21DaojieBase:
         return {"required": {"base": (names, {"default": default})}}
 
     # rgba_default 追加最末(0929 D6):不动既有槽序=存量工作流接线零漂移
-    # (t2i/i2i/edit 三件 [150] 现用槽 0/1/2,BASE/WIDTH/HEIGHT 索引不变)。
+    # (t2i/i2i 两件 [150] 现用槽 0/1/2,BASE/WIDTH/HEIGHT 索引不变)。
     RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN")
     RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "型名", "rgba_default")
     FUNCTION = "run"

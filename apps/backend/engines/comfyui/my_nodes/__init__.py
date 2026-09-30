@@ -153,6 +153,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyImageABCompare": "漫影 图对比审片",
     "MyVideoABCompare": "漫影 视频对比审片",
     "MyModelBus": "漫影 道劫模型分线排",
+    "MyCharsheetLabels": "漫影 设定表标注",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",
