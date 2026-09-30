@@ -8,7 +8,7 @@ import { app } from "/scripts/app.js";
  * 双 <video> 滑动帘 + rAF 同步(syncToken 防竞态:每轮同步持令牌,旧循环
  * 见令牌易主即自杀,换源/跳帧/播放态切换绝不留双环)+ 帧对齐(共享帧号
  * F,A/B 各按自身 frame_count/frame_rate 换算各自的秒,两路帧率可不同,
- * 播放中 B 侧 playbackRate=rateB/rateA 贴帧走,漂移超容限即校正 seek)
+ * 播放中 B 侧 playbackRate=rateA/rateB 贴帧走(同墙钟内 B 帧号推进=A 帧号推进),漂移超容限即校正 seek)
  * + A/B 声道切换(单边出声,<video>.muted 行为)。
  * 后端 MyVideoABCompare 执行时把双路落 temp mp4+帧元数据,onExecuted 接
  * ui.abCompare;交互状态存 node.properties.myAbVideo 随工作流保存/重开
@@ -201,8 +201,9 @@ app.registerExtension({
       ui.playBtn.classList.toggle("is-on", playing);
       if (!state.a || !state.b) return;
       if (playing) {
-        // 帧率不同路:B 以 rateB/rateA 倍速贴帧走(夹浏览器安全带)
-        ui.videoB.playbackRate = clampRate(state.b.frame_rate / state.a.frame_rate);
+        // 帧率不同路:B 以 rateA/rateB 倍速贴帧走(夹浏览器安全带;方向=A 主钟 1 秒
+        // 推 f_A 帧,B 须同秒推 f_A 帧即 0.5×@A12fps/B24fps,反置则漂移每秒 f_B-f_A 帧)
+        ui.videoB.playbackRate = clampRate(state.a.frame_rate / state.b.frame_rate);
         // play() 恒 Promise 化包一层(真浏览器 Promise/降级宿主 undefined 双兼容)
         Promise.resolve(ui.videoA.play()).catch(() => { setPlaying(node, false); });
         Promise.resolve(ui.videoB.play()).catch(() => { /* 单路失败不拦主路 */ });
