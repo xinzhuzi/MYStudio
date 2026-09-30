@@ -260,6 +260,30 @@ const mvFormulaText = (vkey) =>
 const PROP_BG_BAN_EXT = ["scene", "pavilion", "temple", "tree", "trees", "cliff", "cliffs", "rocks",
   "seal", "stamp", "horizon", "valley", "river", "stream", "forest", "village", "bridge", "shore",
   "lake", "birds", "environment", "setting"];
+// 0930 S6 活出文扩展第三数组(qi21 融合链词族轮;根因=s6-transparency-evidence §3.2:
+// 活 PE 出文用族外同义词重述场景,残余 peaks/stone/vegetation/ridge/lantern 被画成不透明
+// 底;词单=s6 四拍残余词族+同义扩展,仿真=/tmp/word_family_sim_0930.py 四拍清零+主体存活+
+// 四型 base_text/05库声明句零误伤)。**铁则:本数组禁入 propBanHit 消费面**——冻结臂①
+// 定文含 ridge×2(刀脊)/stone(玉坠)为器物自身描述,并入旧数组必击穿 dry 定文断言;
+// 消费面=t2i 融合链 [40:206] 剥离正则(qi21_daojie_t2i_0923.py 零转录热读本文件,新全集
+// 39+53=92 词);-es/不规则复数已显式逐条(grasses/branches/leaves/mosses),后续新词
+// 派生形须显式补条(tree/trees 显式对有先例)。
+// 0930 词族二轮(S7 六拍残余根因=证据档 §7.3:①光效语族外 f3 'warm glow…sunrise'
+// ②主体半透描述 f1 'semi-translucent in places' ③满幅构图 f2 非文本域如实记):
+// 句子级 +12(光效/时间天象/灯焰/族内补漏 plant/sun/sunlight/sunrise/sunset/dawn/dusk/
+// twilight/glow/lamp/torch/cliffside,53→65,句子级全集 39+65=104;仿真=
+// /tmp/word_family_sim_r2_0930.py 四拍 f1-f4 清零+主体存活+零误伤);**设计排除项勿加
+// (均有实证)**:light/lit(MV_STYLE_EN 尾词 softly and evenly lit 入族即伤画风句,
+// 且 light 作主色形容词如 light-blue robe 会误杀;四拍剥后存活文 \blights?\b 零出现已
+// 验证)、weapon/sword/staff/polearm/metallic(f4/r2 主体道具句在存,入族即灭道具主体)、
+// illumination(illuminated 主体形容风险)。glow/sunrise 类若未来入 propBanHit 消费面
+// 会伤冻结定文与画风句——维持只入剥离正则消费面纪律。
+const PE_LIVE_BG_BAN_EXT = ["peak","ridge","ridgeline","hill","summit","slope","ledge","terrace","outcrop","boulder","pinnacle","spire","pillar","terrain","stone","rock","rocky","craggy","vegetation","foliage","grass","grasses","leaf","leaves","moss","mosses","mossy","shrub","twig","branch","branches","pine","evergreen","forested","moon","moonlit","moonlight","star","waterfall","pagoda","tower","building","structure","architecture","architectural","shrine","eaves","roof","rooftop","railing","lantern","calligraphy","parchment","plant","sun","sunlight","sunrise","sunset","dawn","dusk","twilight","glow","lamp","torch","cliffside"];
+// 0930 词族二轮·词级微剥层(第二顶层备选:只删词不删句——f3 主体最富句 'translucent
+// sleeve folds' 句子级删会灭主体,f1 根因句删词后保留袍料细节同时去掉半透指令);
+// **铁则同上:禁入 propBanHit 消费面**(冻结臂①定文实测含 translucent shading 玉坠
+// 描述,入即击穿 mjs dry 冻结定文零命中断言);消费面=t2i [40:206] 剥离正则第二备选。
+const PE_LIVE_SUBJ_SOFT_STRIP = ["semi-translucent","translucent","semi-transparent"];
 const PROP_RGBA_FORM_MD5 = "01224a3c";
 const PROP_RGBA_FORM = `This is an RGBA format image with transparency. ` +
   `The sword runs from the lower-left area toward the upper-right corner, occupying most of the height of the image and slightly more than half of the width. ` +

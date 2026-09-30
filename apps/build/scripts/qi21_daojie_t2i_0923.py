@@ -497,18 +497,25 @@ def _js_str_array(name: str) -> list[str]:
         raise SystemExit(f"词族真源 mjs 缺常量 {name}(q21_optimized_round_0925.mjs)")
     return re.findall(r'"([^"]+)"', m.group(1))
 
-_BG_BAN_WORDS = _js_str_array("MV_BG_WORDS_BAN") + _js_str_array("PROP_BG_BAN_EXT")
+_BG_BAN_WORDS = _js_str_array("MV_BG_WORDS_BAN") + _js_str_array("PROP_BG_BAN_EXT") \
+    + _js_str_array("PE_LIVE_BG_BAN_EXT")
+_SUBJ_SOFT_STRIP = _js_str_array("PE_LIVE_SUBJ_SOFT_STRIP")
 # 句子级删除正则(0928b 剥离语义:命中词族的整句删,句界=中英标点+换行随句删;词边界
 # \b(?:w|ws)\b 防 horizon⊂horizontal;cloud-thunder 豁免=negative lookahead 单遍等价
 # 实现档案「先占位再匹配」;官方头尾豁免=链序天然成立——剥离在 W1 拼接之前,头尾后拼
 # 不受词族波及,与 mjs propBanHit 四件套口径一致)
+# 0930 词族轮:S6 活出文扩展(PE_LIVE_BG_BAN_EXT 53 词,新全集 92)——只入本剥离正则
+# 消费面,禁入 mjs propBanHit 冻结定文消费面(臂①定文 ridge/stone=器物自身描述)。
+# 0930 词族二轮:句子级 92→104(+12 光效/天象/灯焰)+词级微剥层(_SUBJ_SOFT_STRIP 3 词
+# 走第二顶层备选只删词不删句——f3 主体最富句 translucent sleeve folds 句子级删会灭
+# 主体;f1 半透根因句删词留袍料细节)。词级层同禁 propBanHit 消费面(臂①定文含
+# translucent shading 玉坠描述);微剥留双空格语法残渣(如 folded and  in places)对
+# 扩散提示词无害,如实记。仿真=/tmp/word_family_sim_r2_0930.py 四拍清零+主体存活。
 _BG_BAN_ALT = "|".join(
     r"clouds?(?!-thunder)" if w == "cloud" else re.escape(w) + "s?"
     for w in _BG_BAN_WORDS)
-RGBA_STRIP_PATTERN = (
-    r"[^\n。.；;！!？?]*\b(?:" + _BG_BAN_ALT + r")\b[^\n。.；;！!？?]*[。.；;！!？?\n]?"
-)
-del _MJS_TRUTH, _js_str_array, _BG_BAN_ALT
+RGBA_STRIP_PATTERN = (r"[^\n。.；;！!？?]*\b(?:" + _BG_BAN_ALT + r")\b[^\n。.；;！!？?]*[。.；;！!？?\n]?" + r"|\b(?:" + "|".join(re.escape(w) + "s?" for w in _SUBJ_SOFT_STRIP) + r")\b")
+del _MJS_TRUTH, _js_str_array, _BG_BAN_ALT, _SUBJ_SOFT_STRIP
 # MyQi21RgbaSelect 三态表真源=my_nodes 节点件(combo 闭集即契约,/prompt 硬校验;
 # 改三态文案必须与节点件同笔——import 互锁,漂移即拒生成,与 SPEED_MODES 同纪律)
 _spec2 = importlib.util.spec_from_file_location(
@@ -628,7 +635,7 @@ NOTE_TEXT = (
     "(0929 拉齐重放,12:05 主会话复核;Fun-Acc 仍为主加速=次序第二);0929 前注入式开关农场 "
     "10 逻辑件([30]档位/[32]/[177] 开关/[178][179][195][196] 常量/[193][194] 比较)已全拆):"
     "支路0=直出 40 步([7] KSampler 官方完整档)/支路1=viggle 359 步([31] LoRA(0.8)→"
-    "[206] KSampler)/支路2=Fun-Acc 4 步([198] T8QwenImage21FunAccPDD4Step,4步/sigmas 五值/"
+    "加速子图[206] KSampler)/支路2=Fun-Acc 4 步([198] T8QwenImage21FunAccPDD4Step,4步/sigmas 五值/"
     "euler/cfg1 全内置勿外接采样器)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n"
     "- **宿主面板两控件=「速度档位」+「seed」**(照 [40] 型选择外露机制):速度档位=combo 三选一"
     "(默认直出40步,随时可切任何档);seed=number(默认 0 fixed 可复现,seed 单源共享——子图内 "
@@ -637,17 +644,17 @@ NOTE_TEXT = (
     "- **边界**:model=主图 [1] UNET 直连进子图;positive/negative=主图 [40] 装配子图输出"
     "(negative=cfg=1 占位,见负面线说明);latent=[5] 空潜;LATENT 出子图→[8] 解码→[9] 保存。\n"
     "- **懒执行**:未选中支路整体不进执行图零加载(MyQi21SpeedSelect 懒选择,check_lazy_status "
-    "只拉起选中档支路;如默认直出40步时 [198]/[206]/[31] 全不在执行图;子图环境同款生效,"
+    "只拉起选中档支路;如默认直出40步时加速子图 [198]/[206]/[31] 全不在执行图;子图环境同款生效,"
     "S3 三档干跑对拍)。\n"
-    "- **面板值=生效值**:steps 回归各支路 KSampler widget([7]=40/[206]=359 均真实生效,"
+    "- **面板值=生效值**:steps 回归加速子图各支路 KSampler widget([7]=40/[206]=359 均真实生效,"
     "无联动开关无摆设值);cfg 恒 1/euler/simple/denoise 1 照官方;[40].negative 占位接线保留在"
     "子图内 [7]/[206](cfg=1 下数学上不参与,见负面线说明节)。\n"
     "- **档1=viggle**:[31] LoraLoaderModelOnly 挂链(name 预填 **" + LORA_FILE + "**,viggle 蒸馏件"
     "已装机,strength 0.8——0925 探针最优:flatMAD 2.52→1.75 细腻无结构缺陷;8步方案 2.60 无收益+"
-    "超荐档弃)+[206] 359 步(0929 用户改值,原 6=v0.2.1 系卡荐档;cfg 保持 1);模型卡注 "
+    "超荐档弃)+加速子图[206] 359 步(0929 用户改值,原 6=v0.2.1 系卡荐档;cfg 保持 1);模型卡注 "
     "shift_terminal=0.02 伤末步,画质异常先查调度。\n"
-    "- **档2=Fun-Acc**:[198] model=[1] base **直连(绝不吃 viggle LoRA)**;positive 与 [7]/[206] "
-    "同源=[40].positive;latent 与 [7]/[206] 同源=[5] 空潜;无负面槽(负面词在档2 不参与);"
+    "- **档2=Fun-Acc**:[198] model=[1] base **直连(绝不吃 viggle LoRA)**;positive 与加速子图 "
+    "[7]/[206] 同源=[40].positive;latent 与加速子图 [7]/[206] 同源=[5] 空潜;无负面槽(负面词在档2 不参与);"
     "model_file=" + FUNACC_FILE + "(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² "
     "28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 "
     "TE=qwen3vl_8b_bf16_heretic 已实测通过。\n"
@@ -657,19 +664,19 @@ NOTE_TEXT = (
     "D4 终审永不装)。\n\n"
     "### 参数圣经\n"
     "- cfg 恒 1(负面=官方同构占位,见上节;档2 Fun-Acc 无负面槽);**步数=各支路面板真实生效值"
-    "([7]=40 官方完整档,官方区间 40-50,起手即完整态;[206]=359=viggle 支路(0929 用户改值,"
+    "([7]=40 官方完整档,官方区间 40-50,起手即完整态;加速子图[206]=359=viggle 支路(0929 用户改值,"
     "原 6);档2=Fun-Acc 4 步内置于 [198] T8)**;分辨率走 [40] 子图随型直驱 width/height"
     "(宽高恒 8 倍数);seed=加速子图宿主面板「seed」(子图内 [207] 单源三支路共享,"
     "默认 fixed=0 可复现);风格终审=用户。\n"
     "- 生成脚本=apps/build/scripts/qi21_daojie_t2i_0923.py(幂等;主体句默认/锁层全文从库文档"
     "现读,BASE 真源=qi21_bases.json,重跑即同步)。\n"
     "- RGBA 透明(0929 S2 ⑤机制批;[40] 面板「RGBA透明」三态=[跟随型(默认)/强制开/"
-    "强制关]——面板五控件=型选择/RGBA透明/PE开关/画幅联动开关,旧「RGBA透明开关」布尔"
+    "强制关]——面板五控件=主体句/型选择/RGBA透明/PE开关/画幅联动开关,旧「RGBA透明开关」布尔"
     "控件退役):跟随型=按型默认(道具/多视图/高清人脸/表情差分四型开透明,其余五型关——"
     "型信号=MyQi21DaojieBase.rgba_default 槽(qi21_bases.json 热读)喂 MyQi21RgbaSelect."
     "rgba_hint,开关布尔=其输出);强制开/关=手动权威,不随型变。**PE×透明融合**(0929 "
-    "用户翻案令「PE 要出透明提示词,要融合」):PE 开路走透明时=[140] PE出文→[206] 背景"
-    "句剥离(词族黑名单,词边界匹配)→[207][208] 官方头尾包裹,与 [131] 装配全文→"
+    "用户翻案令「PE 要出透明提示词,要融合」):PE 开路走透明时=[140] PE出文→装配子图[206] 背景"
+    "句剥离(词族黑名单,词边界匹配)→装配子图[207][208] 官方头尾包裹,与 [131] 装配全文→"
     "[162][163] 包裹两路汇于 [209] 文本开关(布尔=PE开关扇出)→[143] RGBA编码;RGBA 关"
     "+PE 开=[141] 直喂 [142] 主编码吃带背景完整文(禁剥离);装配全文禁过剥离(声明句"
     "词族误伤=翻车)。官方公式 This is an RGBA format image with transparency. [剥离/装配"
@@ -1065,9 +1072,11 @@ def build_subgraph(truth: dict) -> tuple[dict, list[dict]]:
         16, 55, 56, [57], [4870, 2560], default=True))
     # [210] MyQi21RgbaSelect 三态件(D6:跟随型/强制开/强制关;mode 经宿主面板外露=
     # -10 槽4「RGBA透明」COMBO;rgba_hint←[150].rgba_default(垫脚石入);输出→[144])
+    # 0930 title=用户语言短名「RGBA透明选择」(机制细节住节点件 DESCRIPTION/tooltip+
+    # [10] Note,照「出图速度选择」S1 纪律;自查谓词钉死)
     nodes.append({
         "id": RGBA_SEL_ID, "type": "MyQi21RgbaSelect",
-        "title": "RGBA透明(跟随型=按型默认四开五关/强制开/强制关=手动权威;输出→[144].switch)",
+        "title": "RGBA透明选择",
         "pos": [5550, 2560], "size": [380, 150], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "mode", "type": "COMBO", "widget": {"name": "mode"}, "link": 7},
@@ -2805,6 +2814,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if not sel or sel["type"] != "MyQi21RgbaSelect":
         errs.append(f"[{RGBA_SEL_ID}] 应为 MyQi21RgbaSelect(D6 三态件)")
     else:
+        if sel.get("title") != "RGBA透明选择":
+            errs.append(f"装配子图内 [{RGBA_SEL_ID}] 三态件标题应为「RGBA透明选择」(用户语言短名,"
+                        f"机制细节住 DESCRIPTION/tooltip/Note,照「出图速度选择」S1 纪律),"
+                        f"得 {sel.get('title')!r}")
         if sel["widgets_values"] != [RGBA_DEFAULT_MODE]:
             errs.append(f"[{RGBA_SEL_ID}] mode 默认应 {RGBA_DEFAULT_MODE!r}(D6 钦定首项)")
         m_cl = i_links[sel["inputs"][0]["link"]]
@@ -3136,7 +3149,7 @@ def main() -> int:
             f"零并线零垫脚石增量);**links 逐字节零变**(对拍证明=research/s5-links-stable-qi21-daojie-t2i.md); "
             f"0929 S2 ⑤机制批:"
             f"D7 PE×透明融合链=[140]PE出文→[206]RegexReplace背景句剥离(词族真源=q21_optimized_round_0925.mjs "
-            f"零转录解析,39词句子级删除+词边界+cloud-thunder豁免)→[207][208]官方头尾包裹W1 与 [131]装配全文→"
+            f"零转录解析,句子级词族删除+词边界+cloud-thunder豁免+词级微剥层;词族现值=104+3,0930 词族轮两扩 39→92→104+3)→[207][208]官方头尾包裹W1 与 [131]装配全文→"
             f"[162][163]包裹W2(原样,装配文禁过剥离铁则)汇于[209]透明文本开关T(switch=宿主PE开关扇出,默认true同[141])"
             f"→[143]RGBA编码;D6 型联动=[210]MyQi21RgbaSelect三态(跟随型/强制开/强制关,默认跟随型,combo真源="
             f"my_nodes节点件import互锁)宿主面板外露(-10槽4「RGBA透明」COMBO,原BOOLEAN控件退役),rgba_hint←"

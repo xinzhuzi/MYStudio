@@ -807,9 +807,11 @@ def build_subgraph(truth: dict) -> dict:
             "widgets_values": ["", "", 0],  # prompt 清空(连线供词)/负向空/resolution=0 不重采样
         }
     # 0929 S2 D6:三态件插行3 [142]/[144] 间(输出右向达 [144]/[173] 双镜像开关)
+    # 0930 title=用户语言短名「RGBA透明选择」(机制细节住节点件 DESCRIPTION/tooltip+
+    # 说明 Note,照「出图速度选择」S1 纪律;自查谓词钉死;与 t2i 件同款统一)
     nodes.append({
         "id": RGBA_SEL_ID, "type": "MyQi21RgbaSelect",
-        "title": "RGBA透明(跟随型=按型默认四开五关/强制开/强制关=手动权威;rgba_hint←[150],输出→[144]/[173])",
+        "title": "RGBA透明选择",
         "pos": [6450, ROW_Y[2]], "size": [380, 150], "flags": {}, "order": 0, "mode": 0,
         "inputs": [
             {"name": "mode", "type": "COMBO", "widget": {"name": "mode"}, "link": 11},
@@ -2606,6 +2608,10 @@ def self_check(g: dict, truth: dict) -> list[str]:
     if not sel or sel["type"] != "MyQi21RgbaSelect":
         errs.append(f"[{RGBA_SEL_ID}] 应为 MyQi21RgbaSelect(D6 三态件)")
     else:
+        if sel.get("title") != "RGBA透明选择":
+            errs.append(f"装配子图内 [{RGBA_SEL_ID}] 三态件标题应为「RGBA透明选择」(用户语言短名,"
+                        f"机制细节住 DESCRIPTION/tooltip/Note,照「出图速度选择」S1 纪律),"
+                        f"得 {sel.get('title')!r}")
         if sel["widgets_values"] != [RGBA_DEFAULT_MODE]:
             errs.append(f"[{RGBA_SEL_ID}] mode 默认应 {RGBA_DEFAULT_MODE!r}(D6 钦定首项)")
         m_cl = i_links[sel["inputs"][0]["link"]]
