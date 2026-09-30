@@ -492,10 +492,25 @@ RR_C_ID = 213                  # [141]最终文本→[142] 垫脚石(融合行�
 _MJS_TRUTH = (_REPO / "apps/build/scripts/q21_optimized_round_0925.mjs").read_text(encoding="utf-8")
 
 def _js_str_array(name: str) -> list[str]:
-    m = re.search(rf"const {name} = \[(.*?)\];", _MJS_TRUTH, re.S)
-    if not m:
+    # 0930 修复官 B-1 双防呆(终审证实「形在内容坏」两形态静默灾难):
+    # ①旧数组注释留档+新数组同名定义在下方时,re.search 纯文本最左匹配会命中注释内
+    #   旧数组→静默回退旧词族(任务铁则「mjs 被改时禁静默回退旧词族」点名违例路径)
+    #   ——改取**最后一个** const 定义,并校验其起点所在行非 // 行注释(注释留档常整段
+    #   注释旧数组,最后一个匹配落入注释=显式报错而非静默);
+    # ②数组被清空/元素改单引号时 findall 返回空列表,剥离正则将退化为 \b(?:)\b(每词
+    #   边界命中)把 PE 出文整段删光——空词族即 SystemExit 拒生成。数组体内逐行剥 //
+    #   尾注防注释串混入 findall(词族数组元素=纯 ASCII 词,体内无 // 合法位)。
+    matches = list(re.finditer(rf"const {name} = \[(.*?)\];", _MJS_TRUTH, re.S))
+    if not matches:
         raise SystemExit(f"词族真源 mjs 缺常量 {name}(q21_optimized_round_0925.mjs)")
-    return re.findall(r'"([^"]+)"', m.group(1))
+    m = matches[-1]
+    line_head = _MJS_TRUTH.rfind("\n", 0, m.start()) + 1
+    if _MJS_TRUTH[line_head:m.start()].lstrip().startswith("//"):
+        raise SystemExit(f"词族真源 {name} 最新定义位于 // 行注释内(疑似旧数组注释留档,禁静默回退旧词族)")
+    words = re.findall(r'"([^"]+)"', re.sub(r"//[^\n]*", "", m.group(1)))
+    if not words:
+        raise SystemExit(f"词族真源 {name} 数组为空或元素非双引号形(形在内容坏,禁静默退化)")
+    return words
 
 _BG_BAN_WORDS = _js_str_array("MV_BG_WORDS_BAN") + _js_str_array("PROP_BG_BAN_EXT") \
     + _js_str_array("PE_LIVE_BG_BAN_EXT")
