@@ -35,7 +35,8 @@
   - queue_ahead>1 未配 --prefix-node:同前缀并发覆盖警示(不拦)。
   - 提交回执即时落账(中断兜底补记):关死「回执↔台账」窗口,stop 不缺单。
   - 单拍超时仍在 pending=queue_ahead>1 排队等待计入超时(误判),重置时钟
-    续等;真挂尸(running 无进度)判决照走。
+    续等(重置次数封顶 MAX_PENDING_RESETS:永压 pending——如他方挂尸堵队——
+    不无限续等,超顶落僵尸判决);真挂尸(running 无进度)判决照走。
 
 引擎口现算(禁抄旧端口常量):MYSTUDIO_COMFYUI_BRIDGE_URL 覆写 →
   <引擎家>/manifest.json 的 engine.port;引擎家=MYSTUDIO_COMFYUI_HOME 覆写 →
@@ -363,6 +364,24 @@ def own_running(own_ids, snapshot: dict) -> list[str]:
     return sorted(own_ids & running)
 
 
+# 预检⑥重置封顶(0930 收尾 F3):超时×pending 的续等豁免次数上限——永压
+# pending(如他方挂尸堵队,自家单永远排不上)不再无限续等;总等待约
+# (1+上限)×shot_timeout 后落僵尸判决,remedy=stop 精确删自家 pending。
+MAX_PENDING_RESETS = 3
+
+
+def pending_timeout_action(in_pending: bool, resets_done: int = 0) -> str:
+    """预检⑥决策核心(超时已触发后的去向;纯逻辑零 IO,--self-test 直测)。
+
+    "reset"=仍在引擎 pending(queue_ahead>1 排队等待计入超时=误判豁免)→
+    重置时钟续等,豁免次数封顶 MAX_PENDING_RESETS;"zombie"=非 pending,
+    或豁免耗尽(永压 pending)→走僵尸单判决。
+    """
+    if in_pending and resets_done < MAX_PENDING_RESETS:
+        return "reset"
+    return "zombie"
+
+
 def unique_prefix(base: str, shot: int) -> str:
     """每拍独立前缀防并发覆盖:异前缀下 SaveImage 计数器竞态天然错开。"""
     safe = re.sub(r"[^0-9A-Za-z_-]+", "_", (base or "").strip()) or "batch"
@@ -605,6 +624,7 @@ def cmd_run(args) -> int:
 
     inflight: dict[str, int] = {}
     submitted_at: dict[str, float] = {}
+    pending_resets: dict[str, int] = {}
     failures = 0
     it = iter(plan)
     try:
@@ -645,13 +665,19 @@ def cmd_run(args) -> int:
                 entry = engine.history(pid).get(pid)
                 if entry is None:
                     if time.time() - submitted_at[pid] > args.shot_timeout:
-                        # 预检⑥:超时但仍在引擎 pending=queue_ahead>1 排队等待计入了
-                        # 超时(误判)——在队未启算≠挂尸,重置时钟续等;真挂尸
-                        # (报 running 而引擎日志无进度)判决照走
-                        if pid in queue_ids(engine.queue(), "queue_pending"):
+                        # 预检⑥(决策核心=pending_timeout_action,--self-test 直测):超时
+                        # 但仍在引擎 pending=queue_ahead>1 排队等待计入了超时(误判)——
+                        # 在队未启算≠挂尸,重置时钟续等(次数封顶,永压 pending 不无限
+                        # 续等);真挂尸(报 running 而引擎日志无进度)判决照走
+                        if pending_timeout_action(
+                            pid in queue_ids(engine.queue(), "queue_pending"),
+                            pending_resets.get(pid, 0),
+                        ) == "reset":
+                            pending_resets[pid] = pending_resets.get(pid, 0) + 1
                             print(
                                 f"[shot {shot}] 超时 {args.shot_timeout:.0f}s 但仍在引擎 pending"
                                 f"(排队等待计入超时,非僵尸),重置时钟续等"
+                                f"(豁免 {pending_resets[pid]}/{MAX_PENDING_RESETS})"
                             )
                             submitted_at[pid] = time.time()
                             continue
@@ -984,6 +1010,12 @@ def self_test() -> int:
     d_real = dangling_links_in_closure(closure_prune(p_missing_src, ["9"]))
     check("悬空连线=闭包产物实况(硬伤闭包过滤漏报的补扫)",
           len(d_real) == 1 and "node=2" in d_real[0] and "latent_image" in d_real[0])
+
+    # 17) 预检⑥决策核心:超时×pending 判决(重置封顶=永压 pending 不无限续等)
+    check("预检⑥=超时×pending→重置时钟续等", pending_timeout_action(True, 0) == "reset")
+    check("预检⑥=超时×非pending→判僵", pending_timeout_action(False, 0) == "zombie")
+    check("预检⑥=封顶前最后一次豁免仍续等", pending_timeout_action(True, MAX_PENDING_RESETS - 1) == "reset")
+    check("预检⑥=豁免耗尽(永压 pending)→判僵", pending_timeout_action(True, MAX_PENDING_RESETS) == "zombie")
 
     print(f"\nself-test: {len(failures)} failed" if failures else "\nself-test: ALL PASS")
     return 1 if failures else 0

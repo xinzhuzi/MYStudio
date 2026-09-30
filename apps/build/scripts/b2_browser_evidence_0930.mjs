@@ -393,17 +393,28 @@ async function group2(page) {
     `A=${s0.a?.frame_rate}fps×${s0.a?.frame_count}f B=${s0.b?.frame_rate}fps×${s0.b?.frame_count}f token=${tokenAfterExec}`);
   g.checks.push({ name: "meta-dual-rate", pass: true, a: s0.a, b: s0.b, tokenAfterExec });
 
-  // DOM 控件坐标(真前端点击)
+  // DOM 控件坐标+按钮态读数(真前端点击)。verify=真验证(0930 收尾 F3:旧版
+  // `.on !== undefined ? true : true` 恒真,与档头「所有点击均带状态翻转验证」声明
+  // 相悖):play=按钮文案+is-on 样式翻转(setPlaying 同步翻,widget 真源
+  // my-video-ab-compare.js 的 ui.playBtn.textContent/classList.toggle);声道=is-on
+  // 迁移到所点按钮(applyAudio;默认 a 声,b→mute→a 每步皆有翻转);±1帧按钮自身
+  // 无按钮态翻转,验证走 frame 步进(seekFrame 同步改 state.frame;组③ domClick
+  // 同规)。控件点击处理皆同步,clickAndVerify 的 280ms 等待内必已翻转。
   const btnPt = (sel) => page.ev(vis(`(() => { const n = window.app.graph._nodes.find(n => n.type === 'MyVideoABCompare'); const el = n.__myAbVideo.el.querySelector(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); return JSON.stringify({x: r.left + r.width/2, y: r.top + r.height/2, on: el.classList.contains('is-on'), text: el.textContent}); })()`));
-  const clickBtn = async (sel, label) => {
-    const b = JSON.parse(String(await btnPt(sel)));
-    const rc = await clickAndVerify(page, { x: b.x, y: b.y, dom: `window.app.graph._nodes.find(n => n.type === 'MyVideoABCompare').__myAbVideo.el.querySelector(${JSON.stringify(sel)})` },
-      async () => JSON.parse(String(await btnPt(sel))).on !== undefined ? true : true, label);
+  const btnState = async (sel) => JSON.parse(String(await btnPt(sel)));
+  const clickBtn = async (sel, label, verify) => {
+    const b = await btnState(sel);
+    const rc = await clickAndVerify(page, { x: b.x, y: b.y, dom: `window.app.graph._nodes.find(n => n.type === 'MyVideoABCompare').__myAbVideo.el.querySelector(${JSON.stringify(sel)})` }, verify, label);
     return { ...b, method: rc.method };
   };
+  const playVerify = (playing) => async () => {
+    const b = await btnState(".abv-play");
+    return playing ? b.on === true && b.text === "⏸ 暂停" : b.on === false && b.text === "▶ 播放";
+  };
+  const audioOnVerify = (sel) => async () => (await btnState(sel)).on === true;
 
   // a. 播放(真点击)→漂移序列采样
-  const playClick = await clickBtn(".abv-play", "play");
+  const playClick = await clickBtn(".abv-play", "play", playVerify(true));
   await waitFor(() => page.ev(vis(`window.app.graph._nodes.find(n => n.type === 'MyVideoABCompare').__myAbVideo.playing === true ? 'ok' : null`)),
     { timeout: 8_000, interval: 300, label: "playing=true" });
   let sp = JSON.parse(String(await vstate()));
@@ -429,7 +440,7 @@ async function group2(page) {
   g.checks.push({ name: "drift", pass: driftOk, maxDriftB: maxDrift, tolerance: 0.5, n: g.samples.length });
 
   // c. 暂停(真点击)→冻结+回帧对齐
-  const pauseClick = await clickBtn(".abv-play", "pause");
+  const pauseClick = await clickBtn(".abv-play", "pause", playVerify(false));
   await waitFor(() => page.ev(vis(`window.app.graph._nodes.find(n => n.type === 'MyVideoABCompare').__myAbVideo.playing === false ? 'ok' : null`)),
     { timeout: 8_000, interval: 300, label: "playing=false" });
   await sleep(900);
@@ -447,7 +458,13 @@ async function group2(page) {
   const f0 = sPause.frame;
   const clickSeq = [".abv-next", ".abv-next", ".abv-next", ".abv-prev"];
   const methods = [];
-  for (const sel of clickSeq) { const c = await clickBtn(sel, sel); methods.push(c.method.split("|")[0]); }
+  let stepped = f0;
+  for (const sel of clickSeq) {
+    stepped += sel === ".abv-next" ? 1 : -1;
+    const want = stepped; // ±1帧按钮无按钮态翻转,verify 走 frame 步进期望值
+    const c = await clickBtn(sel, sel, async () => (JSON.parse(String(await vstate()))).frame === want);
+    methods.push(c.method.split("|")[0]);
+  }
   await sleep(700);
   const sFrame = JSON.parse(String(await vstate()));
   const expectF = f0 + 3 - 1;
@@ -464,7 +481,7 @@ async function group2(page) {
   ];
   const audioResults = [];
   for (const c of audioCases) {
-    await clickBtn(c.sel, c.audio);
+    await clickBtn(c.sel, c.audio, audioOnVerify(c.sel));
     await sleep(250);
     const s = JSON.parse(String(await vstate()));
     const ok = s.audio === c.audio && s.mutedA === c.mA && s.mutedB === c.mB;
@@ -487,7 +504,7 @@ async function group2(page) {
   const sRe = JSON.parse(String(await vstate()));
   const tokenDelta = sRe.token - tokenBefore;
   // 换源后短播漂移复验
-  await clickBtn(".abv-play", "play2");
+  await clickBtn(".abv-play", "play2", playVerify(true));
   await waitFor(() => page.ev(vis(`window.app.graph._nodes.find(n => n.type === 'MyVideoABCompare').__myAbVideo.playing === true ? 'ok' : null`)), { timeout: 8_000, interval: 300, label: "重源播放" });
   const reSamples = [];
   for (let i = 0; i < 4; i++) {
@@ -496,7 +513,7 @@ async function group2(page) {
     reSamples.push(Math.abs(s.tB - fA / 24));
     await sleep(350);
   }
-  await clickBtn(".abv-play", "pause2");
+  await clickBtn(".abv-play", "pause2", playVerify(false));
   const reMax = Math.max(...reSamples);
   // loadSides=setPlaying(false)(+1 经 setPlaying→startSyncLoop)+末尾显式 startSyncLoop(+1)
   // =每次换源恰 +2(初执行 0→2,重执行 8→10,run2 实测);每次递增皆弑旧环,双环无从并存
