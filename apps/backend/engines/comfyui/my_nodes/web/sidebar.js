@@ -283,9 +283,15 @@ async function openMyWorkflow(id, status) {
         // loadGraphData(第4参=签实例)装载,路径注册天然单实例零叠签
         const svc = window.app.extensionManager?.workflow;
         const want = id.slice("repo:".length);
+        // 0930 打开失败(null 'reset')防御:上游 activateLoadedWorkflow 对
+        // changeTracker 裸调 reset,而 ComfyWorkflow.changeTracker 可空
+        // (unload 后=null)——复用空壳标签或按路径同名查找都会炸。只复用
+        // 已装载(changeTracker 非空)的标签;直载再炸则降级无名临时页
+        // (新建临时工作流必经 load 装配 tracker),保点开必有图;
+        // 临时页也炸则如实抛原错供诊断。
         if (svc && typeof svc.openWorkflow === "function" && Array.isArray(svc.openWorkflows)) {
           const hit = findRepoTab(svc, want, id);
-          if (hit) {
+          if (hit && hit.changeTracker) {
             try {
               await svc.openWorkflow(hit);
               await window.app.loadGraphData(cloneGraph(graph), true, true, hit);
@@ -294,7 +300,16 @@ async function openMyWorkflow(id, status) {
             } catch (error) { /* 回退直载 */ }
           }
         }
-        await window.app.loadGraphData(cloneGraph(graph), true, true, want);
+        try {
+          await window.app.loadGraphData(cloneGraph(graph), true, true, want);
+        } catch (error) {
+          try {
+            await window.app.loadGraphData(cloneGraph(graph), true, true);
+          } catch (fallbackError) { throw error; }
+          status.textContent = "已打开(临时页:原标签状态异常,内容可经顶栏另存恢复命名)";
+          status.style.color = "#e5c07b";
+          return;
+        }
       } else {
         await openWorkflowSingleInstance({ name: id, graph });
       }
