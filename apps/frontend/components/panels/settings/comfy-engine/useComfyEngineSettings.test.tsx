@@ -200,7 +200,7 @@ describe("useComfyEngineSettings", () => {
     expect(calls).toBe(1);
   });
 
-  it("手动停止后冷却闩内自动确保让路(B5 显式停止不被视图切换推翻);手动启动成功即解闩", async () => {
+  it("手动停止后闩内自动确保让路(B5 显式停止不被视图切换推翻;0930 起闩不过期);手动启动成功即解闩", async () => {
     const base = createMockComfyEngineClient({
       initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599, serviceRunning: true },
     });
@@ -220,7 +220,7 @@ describe("useComfyEngineSettings", () => {
     expect(toasts.success).toHaveBeenCalledWith("ComfyUI 引擎服务已停止");
 
     await act(async () => {
-      await result.current.ensureServiceRunning(); // 冷却窗内的自动确保:让路
+      await result.current.ensureServiceRunning(); // 闩内的自动确保:让路
     });
     expect(starts).toBe(0); // 绝不自动拉起
     expect(result.current.status?.serviceRunning).toBe(false);
@@ -234,7 +234,7 @@ describe("useComfyEngineSettings", () => {
       await result.current.stopService(); // 再停一次重新落闩
     });
     await act(async () => {
-      await result.current.ensureServiceRunning(); // 仍在冷却窗内:继续让路
+      await result.current.ensureServiceRunning(); // 闩不过期(0930):继续让路
     });
     expect(starts).toBe(1);
   });
@@ -395,5 +395,161 @@ describe("useComfyEngineSettings", () => {
     expect(
       result.current.plugins.find((plugin) => plugin.id === "rgthree")?.state,
     ).toBe("installable");
+  });
+});
+
+describe("画布周期状态轮询(0930 statusPollIntervalMs)", () => {
+  it("不传 statusPollIntervalMs=零常驻轮询(设置页「严禁常驻轮询」语义不变)", async () => {
+    const base = createMockComfyEngineClient();
+    let calls = 0;
+    const client = {
+      ...base,
+      getEngineStatus: async () => {
+        calls += 1;
+        return base.getEngineStatus();
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client }));
+
+    await waitFor(() => expect(result.current.status?.state).toBe("not-installed"));
+    const settled = calls; // 挂载探测完成后
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(calls).toBe(settled); // 不传选项:绝不周期刷新
+  });
+
+  it("开启后挂载期周期刷新:引擎中途死(serviceRunning 翻假)被自动拾起,无需重进视图", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599, serviceRunning: true },
+    });
+    let alive = true;
+    const client = {
+      ...base,
+      getEngineStatus: async () => {
+        const snapshot = await base.getEngineStatus();
+        return { ...snapshot, serviceRunning: alive, port: alive ? snapshot.port : null };
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client, statusPollIntervalMs: 5 }));
+
+    await waitFor(() => expect(result.current.status?.serviceRunning).toBe(true));
+    alive = false; // 引擎中途死(非用户停止:stopEngine 未被调,闩未落)
+    await waitFor(() => expect(result.current.status?.serviceRunning).toBe(false), { timeout: 3000 });
+  });
+
+  it("自愈窗(sidecar 失联)内轮询继续:失败不停拍,恢复后自动拾起", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599 },
+    });
+    let down = true;
+    let calls = 0;
+    const client = {
+      ...base,
+      getEngineStatus: async () => {
+        calls += 1;
+        if (down) throw new Error("本地生图服务未运行");
+        return base.getEngineStatus();
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client, statusPollIntervalMs: 5 }));
+
+    // 失败窗:status 停 null(保旧快照语义),但轮询仍在打(挂载探测+若干拍)
+    await waitFor(() => expect(calls).toBeGreaterThanOrEqual(3), { timeout: 3000 });
+    expect(result.current.status).toBeNull();
+    down = false; // 自愈窗收尾:sidecar 回来
+    await waitFor(() => expect(result.current.status?.state).toBe("ready"), { timeout: 3000 });
+  });
+
+  it("手动停止闩(0930 升格为不过期):轮询在场 ensure 也让路;手动启动成功解闩后恢复", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599, serviceRunning: true },
+    });
+    let starts = 0;
+    let alive = true;
+    const client = {
+      ...base,
+      startEngine: async () => {
+        starts += 1;
+        return base.startEngine();
+      },
+      getEngineStatus: async () => {
+        const snapshot = await base.getEngineStatus();
+        return { ...snapshot, serviceRunning: alive && snapshot.serviceRunning };
+      },
+    };
+    const { result } = renderHook(() => useComfyEngineSettings({ client, statusPollIntervalMs: 5 }));
+
+    await waitFor(() => expect(result.current.status?.serviceRunning).toBe(true));
+
+    // 置位路径:用户显式停止 → 落闩
+    await act(async () => {
+      await result.current.stopService();
+    });
+    expect(toasts.success).toHaveBeenCalledWith("ComfyUI 引擎服务已停止");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20)); // 数拍轮询穿过闩窗
+    });
+    await act(async () => {
+      await result.current.ensureServiceRunning(); // 闩内:让路
+    });
+    expect(starts).toBe(0);
+    expect(result.current.status?.serviceRunning).toBe(false);
+
+    // 清零路径:手动启动成功 → 解闩(引擎回跑)
+    await act(async () => {
+      await result.current.startService();
+    });
+    expect(starts).toBe(1);
+
+    // 引擎再次中途死(外部死亡,非用户停止):轮询拾起 + 解闩后 ensure 恢复拉起
+    alive = false;
+    await waitFor(() => expect(result.current.status?.serviceRunning).toBe(false), { timeout: 3000 });
+    await act(async () => {
+      await result.current.ensureServiceRunning();
+    });
+    expect(starts).toBe(2);
+  });
+
+  it("卸载即停:unmount 后不再发 getEngineStatus(不留驻留定时器)", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599, serviceRunning: true },
+    });
+    let calls = 0;
+    const client = {
+      ...base,
+      getEngineStatus: async () => {
+        calls += 1;
+        return base.getEngineStatus();
+      },
+    };
+    const { unmount } = renderHook(() => useComfyEngineSettings({ client, statusPollIntervalMs: 5 }));
+
+    await waitFor(() => expect(calls).toBeGreaterThanOrEqual(2)); // 挂载探测+至少一拍
+    unmount();
+    await new Promise((resolve) => setTimeout(resolve, 30)); // 在途拍结算
+    const settled = calls;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(calls).toBe(settled); // 卸载后零增长
+  });
+
+  it("多实例共享单 interval(引用计数):双实例一次 setInterval,最后一个卸载才清", async () => {
+    const base = createMockComfyEngineClient({
+      initialStatus: { installed: true, state: "ready", version: "0.34.0", port: 17599, serviceRunning: true },
+    });
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+
+    const first = renderHook(() => useComfyEngineSettings({ client: base, statusPollIntervalMs: 5 }));
+    const second = renderHook(() => useComfyEngineSettings({ client: base, statusPollIntervalMs: 5 }));
+    await waitFor(() => expect(first.result.current.status?.serviceRunning).toBe(true));
+
+    const watchdogIds = setIntervalSpy.mock.calls
+      .map((call, index) => ({ intervalMs: call[1], id: setIntervalSpy.mock.results[index]?.value }))
+      .filter((entry) => entry.intervalMs === 5);
+    expect(watchdogIds).toHaveLength(1); // 双画布实例只挂一个定时器
+
+    first.unmount();
+    expect(clearIntervalSpy).not.toHaveBeenCalledWith(watchdogIds[0]!.id); // 还有消费者:不清
+    second.unmount();
+    expect(clearIntervalSpy).toHaveBeenCalledWith(watchdogIds[0]!.id); // 最后一个卸载:清
   });
 });

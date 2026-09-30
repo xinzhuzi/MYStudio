@@ -12,9 +12,12 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   `ComfyUI/` engine source v0.35.0 torch 2.14, `venv/` private runtime, `models/`, `workflows/` legacy,
   `manifest.json` config). Engine source & custom_nodes live at `<home>/ComfyUI` — ComfyUI only loads
   custom_nodes from INSIDE the source dir in this layout (manifest.py 09-08 fix), do not drop plugins at
-  `<home>/custom_nodes`. API at **`http://127.0.0.1:17000`** (port from manifest.json; engine is spawned
-  on demand by `apps/backend/engines/comfyui/engine_manager.py` and does NOT listen while idle — verify
-  with `lsof -nP -iTCP:17000 -sTCP:LISTEN`). Launch args from manifest: gpu-only + reserve-vram 16 +
+  `<home>/custom_nodes`. API at **`http://127.0.0.1:<port>`** — 端口以装机家 manifest.json 的
+  engine.port 现查为准(0929-0930 实弹:17001↔17000 随端口决议顺延漂移,禁抄常量;现查=
+  `grep '"port"' <home>/manifest.json`;engine_manager allocate_port 扫 17000-17999 取首个空闲
+  口写回账本). Engine is spawned on demand by
+  `apps/backend/engines/comfyui/engine_manager.py` and does NOT listen while idle — verify with
+  `lsof -nP -iTCP:<port> -sTCP:LISTEN`. Launch args from manifest: gpu-only + reserve-vram 16 +
   pytorch-cross-attention (same discipline as the retired Desktop line). Check: `GET /system_stats` -> 200.
 - **GPUs**: 1x Apple M4 Max, unified memory 128GB, device `mps`. No CUDA — CUDA-only speedups
   (SageAttention etc.) do not apply.
@@ -36,7 +39,8 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   empty home for in-house workflows, 2_固定线 … 6_社区模板), `3_声音/` (音乐), `4_参考_提示词工程/`.
   New app-generated workflows always land under `漫影/` in the matching domain.
 - **Launch command**: managed by MYStudio — start/restart via the app (engine_manager spawns
-  `<home>/venv/bin/python <home>/ComfyUI/main.py --listen 127.0.0.1 --port 17000 ...`). A verified
+  `<home>/venv/bin/python <home>/ComfyUI/main.py --listen 127.0.0.1 --port <manifest engine.port> ...`;
+  端口现查 manifest 禁抄常量,见上). A verified
   headless manual relaunch recipe does NOT exist for this engine yet — do not reuse the retired
   Desktop command line. If the engine dies, prefer asking the owner to restart it from the app.
 - **Restart discipline**: batch custom-node changes, restart ONCE; engine restarts go through MYStudio.

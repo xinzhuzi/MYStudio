@@ -1,6 +1,10 @@
 // ComfyUI 引擎设置 hook——照 useImageGenRuntimeSettings/usePythonRuntimeSettings 模式:
 // 挂载期一次性探测(严禁常驻轮询;初次失败时有界重试至 sidecar 就绪),只有任务
 // (install/update/reset/插件装卸)进行中才按间隔拉 job 进度,任务终结即停。
+// 0930 画布周期轮询役唯一例外口:statusPollIntervalMs 选项(默认不传=不轮询,上述
+// 纪律对设置页/模型页等既有消费者零变化)——仅画布(ComfyCanvasStudio)传入,
+// 挂载期周期刷新引擎状态,支撑「引擎中途死→自动复活/自愈窗→自动重连」(见该
+// 选项注释与 module 级 statusWatchdog 共享态)。
 // client 可注入(测试/后端未就绪时用 mock),默认走 window.comfyEngine 桥(集成接线点)。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -56,10 +60,14 @@ async function requestEngineStart(
 // + imageWorkflow 激活挂 + 沉浸链 ComfyWorkspace)= 多个 hook 实例,ref 单飞只挡
 // 同实例重入挡不住跨实例并发 POST——单例 promise 与冷却时间戳住 module 级,同窗
 // 口全实例共享(后端 start 幂等,双 POST 无功能害,但会双 toast/冗余 job,闸在前端)。
-/** 用户显式停止后的自动启动冷却闩:不闩则「停不掉」——设置页 stopService 后切进
+/** 用户显式停止后的自动启动闩:不闩则「停不掉」——设置页 stopService 后切进
  * 画布,挂载确保谓词(state=ready 且未跑)又把引擎拉起,显式停止被视图切换反复
- * 推翻。窗口内自动确保一律让路;手动启动(startService)不受闩且成功即解闩。 */
-const MANUAL_STOP_COOLDOWN_MS = 5 * 60_000;
+ * 推翻。闩内自动确保一律让路;解闩仅两条路:手动启动成功(startService,唯一
+ * 写点)或重启 App(module 态不持久化,重启即失)。
+ * 0930 画布周期轮询役升格为不过期:此前 5min 冷却窗依赖「过期后须用户重进
+ * 视图才可能复活」这道摩擦(重进=新意图);周期轮询上线后画布挂载期每拍都
+ * 重评确保谓词,时间窗一过引擎就会在用户眼皮下自启=误复活。任务红线:手动
+ * 停止不得误复活,画布轮询只观测不拉起,直到用户显式启动或重开 App。 */
 /** 静默确保的重试冷却:每次发起(无论成败)后窗口内不再重发——①失败翻
  * isStartingService 会再满足挂载 effect 谓词,冷却断循环重发;②成功但状态
  * 快照仍示未跑(如 port 缺失)时同样循环轰炸。手动链(startService)不受影响。 */
@@ -68,11 +76,42 @@ let engineEnsureInFlight: Promise<boolean> | null = null;
 let lastManualStopAt = 0;
 let lastEnsureAttemptAt = 0;
 
+// --- 画布状态轮询共享态(0930 画布周期轮询役)---
+// module 级单 interval+引用计数:多画布实例(studio storyboard forceMount+
+// imageWorkflow+沉浸链)只挂一个定时器(首个挂载者的间隔生效,生产画布恒
+// 5000),最后一个卸载才 clearInterval——切 tab 重挂载与 StrictMode 双挂载不
+// 泄漏。每实例的 tick 各自 refreshStatus(status 是实例级 state 不跨实例共享;
+// GET /status 零副作用幂等,与画布既有 5s 桥轮询同拍同量级)。
+let statusWatchdogTimer: number | null = null;
+const statusWatchdogTicks = new Set<() => void>();
+
+function acquireStatusWatchdogTick(tick: () => void, intervalMs: number): void {
+  statusWatchdogTicks.add(tick);
+  if (statusWatchdogTimer === null) {
+    statusWatchdogTimer = window.setInterval(() => {
+      for (const run of statusWatchdogTicks) run();
+    }, intervalMs);
+  }
+}
+
+function releaseStatusWatchdogTick(tick: () => void): void {
+  statusWatchdogTicks.delete(tick);
+  if (statusWatchdogTicks.size === 0 && statusWatchdogTimer !== null) {
+    window.clearInterval(statusWatchdogTimer);
+    statusWatchdogTimer = null;
+  }
+}
+
 /** 测试隔离:module 级共享态跨用例泄漏会让后续用例的 ensure 空跑,测试前置重置。 */
 export function resetComfyEngineAutoStartStateForTests() {
   engineEnsureInFlight = null;
   lastManualStopAt = 0;
   lastEnsureAttemptAt = 0;
+  if (statusWatchdogTimer !== null) {
+    window.clearInterval(statusWatchdogTimer);
+    statusWatchdogTimer = null;
+  }
+  statusWatchdogTicks.clear();
 }
 
 export interface UseComfyEngineSettingsOptions {
@@ -84,6 +123,12 @@ export interface UseComfyEngineSettingsOptions {
   statusRetryIntervalMs?: number;
   /** sidecar 自愈补试前的等待(测试调小);默认 3000ms。 */
   sidecarHealWaitMs?: number;
+  /** 画布状态轮询间隔(0930 画布周期轮询役;测试调小);默认不传=不轮询——
+   *  设置页/模型页等既有消费者保持「严禁常驻轮询」纪律零变化,仅画布
+   *  (ComfyCanvasStudio)传入开启:挂载期周期 refreshStatus,引擎中途死→
+   *  serviceRunning 翻假→画布挂载确保 effect 重评→静默 ensure 复活;令牌
+   *  自愈窗(停旧→新引擎就绪)内轮询继续,引擎回来 running 翻真自动重连。 */
+  statusPollIntervalMs?: number;
 }
 
 export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = {}) {
@@ -95,6 +140,8 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
   const pollIntervalMs = options.pollIntervalMs ?? JOB_POLL_INTERVAL_MS;
   const statusRetryIntervalMs = options.statusRetryIntervalMs ?? STATUS_RETRY_INTERVAL_MS;
   const sidecarHealWaitMs = options.sidecarHealWaitMs ?? SIDECAR_HEAL_WAIT_MS;
+  // undefined=不轮询(默认;见 options 注释)——不可 ?? 兜底, falsy 判定保语义。
+  const statusPollIntervalMs = options.statusPollIntervalMs;
   const hasBridge = Boolean(client);
 
   const [status, setStatus] = useState<ComfyEngineStatus | null>(null);
@@ -210,6 +257,28 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
     }, statusRetryIntervalMs);
     return () => window.clearInterval(retry);
   }, [client, status, pluginsLoaded, refreshStatus, refreshPlugins, statusRetryIntervalMs]);
+
+  // 画布周期状态轮询(0930 画布周期轮询役):statusPollIntervalMs 不传=本效应
+  // 直接跳过(设置页「严禁常驻轮询」纪律不破);仅画布(ComfyCanvasStudio)开启。
+  // 挂载期周期 refreshStatus——①引擎中途死:serviceRunning 翻假 → 画布挂载确保
+  // effect 谓词重评 → 静默 ensure 自动复活(复用 start job 路由);②令牌自愈窗
+  // (停旧→新引擎就绪,数十秒):探测失败保旧快照但轮询不停,引擎回来 running
+  // 翻真,画布 webview 自动重连,不再需要用户重进视图。多实例共享 module 级单
+  // interval(引用计数),卸载即释放(最后一个才清定时器);单实例在途防抖照
+  // 画布 5s 桥轮询 inFlight 模式(上一发未返回本拍跳过,防慢 sidecar 叠请求)。
+  useEffect(() => {
+    if (!client || !statusPollIntervalMs) return;
+    let inFlight = false;
+    const tick = () => {
+      if (inFlight) return;
+      inFlight = true;
+      void refreshStatus().finally(() => {
+        inFlight = false;
+      });
+    };
+    acquireStatusWatchdogTick(tick, statusPollIntervalMs);
+    return () => releaseStatusWatchdogTick(tick);
+  }, [client, statusPollIntervalMs, refreshStatus]);
 
   /** 任务收尾:按类型刷新 + 报告/错误分流 + 诊断日志(保留终态 job 供 UI 展示错误)。 */
   const settleJob = useCallback(
@@ -528,7 +597,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
       // 仅对「服务不在」类失败当场 prepare 拉起补试一次,连续两败如实报错
       const reply = await requestEngineStart(client, healSidecar);
       if (reply.accepted) {
-        // 手动启动成功=用户意图已翻回「要跑」,解除显式停止冷却闩(09-29)
+        // 手动启动成功=用户意图已翻回「要跑」,解除显式停止闩(09-29;0930 起不过期)
         lastManualStopAt = 0;
         toast.success("ComfyUI 引擎服务已启动");
       } else {
@@ -555,8 +624,9 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
         reply = await client.stopEngine();
       }
       if (reply.accepted) {
-        // 显式停止落闩(09-29):窗口内的自动确保(ensureServiceRunning)让路,
-        // 防视图切换反复推翻用户停止意图
+        // 显式停止落闩(09-29;0930 升格为不过期):自动确保(ensureServiceRunning)
+        // 一律让路,防视图切换/画布周期轮询反复推翻用户停止意图;解闩仅手动启动
+        // 成功或重启 App(见 module 顶闩注释)
         lastManualStopAt = Date.now();
         toast.success("ComfyUI 引擎服务已停止");
       } else {
@@ -573,10 +643,13 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
   // 画布 spinner→webview 即反馈;失败不弹窗(画布留既有「启动 ComfyUI」按钮走
   // 手动链报错),只落诊断日志。幂等防抖三道:后端 already_running 快路径 +
   // module 级单例 promise(跨 hook 实例/视图重挂载/StrictMode 双挂载只发一发)
-  // + 手动停止冷却闩与失败冷却(见 module 顶共享态注释)。
+  // + 手动停止闩与失败冷却(见 module 顶共享态注释)。0930 周期轮询后本函数
+  // 同时是「死引擎复活」入口:轮询翻假→画布 effect 每拍重评→闩/单例/冷却
+  // 三闸照旧收敛(手停闩内让路=只观测不拉起;冷却封顶 1 发/30s 防轰炸)。
   const ensureServiceRunning = useCallback(async () => {
     if (!client) return;
-    if (Date.now() - lastManualStopAt < MANUAL_STOP_COOLDOWN_MS) return;
+    // 手动停止闩(不过期,见 module 顶注释):显式解闩前自动确保一律让路。
+    if (lastManualStopAt !== 0) return;
     if (Date.now() - lastEnsureAttemptAt < ENSURE_RETRY_COOLDOWN_MS) return;
     setIsStartingService(true);
     try {

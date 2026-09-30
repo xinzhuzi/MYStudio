@@ -370,7 +370,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
     startService,
     ensureServiceRunning,
     isStartingService,
-    } = useComfyEngineSettings({ client, pollIntervalMs: 1200 });
+    } = useComfyEngineSettings({ client, pollIntervalMs: 1200, statusPollIntervalMs: 5000 });
 
   const sidebarActionsRef = useRef(sidebarActions);
   sidebarActionsRef.current = sidebarActions;
@@ -538,10 +538,19 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
   //   此谓词只省前端一发冗余请求与冗余 toast;
   // ②module 级单例 promise 挡跨实例并发(studio storyboard forceMount+imageWorkflow
   //   双画布=多 hook 实例)与视图重挂载(切 tab 即卸载重挂)+ StrictMode 双挂载;
-  // ③手动停止冷却闩与失败冷却(hook module 顶共享态)。
+  // ③手动停止闩(不过期,显式启动成功/重启 App 才解)与失败冷却(hook module
+  //   顶共享态)。
   // status 未就位(null)时不发——挂载探测/有界重试拉到状态后本 effect 重跑补发。
-  // 已知限制(暂不治,记档):仅护挂载时点,引擎中途死→画布 webview 不自愈
-  // (hook 无常驻状态轮询,刷新=重进视图重新探测)。
+  // 0930 画布周期轮询役:本 effect 不再只护挂载时点——上方 hook 调用以
+  // statusPollIntervalMs:5000 开启挂载期常驻状态轮询(module 级单 interval,
+  // 仅画布开,设置页零变化):
+  // ①引擎中途死:轮询把 serviceRunning 翻假 → 本 effect 谓词重评 → 静默
+  //   ensure 自动复活(复用 start job 路由,幂等防抖三闸不变);
+  // ②令牌自愈窗(停旧→新引擎就绪,数十秒):轮询继续,引擎回来 running 翻真,
+  //   src 重建 webview 自动重连,用户无需重进视图(假→真过渡的保鲜补跑 effect
+  //   同步触发,资产封面不再卡旧指纹);
+  // ③用户显式停止(设置页 stopService 落 module 闩):轮询只观测不拉起——
+  //   画布落到「已就绪」面板并保留手动启动按钮,直到用户显式启动或重启 App。
   useEffect(() => {
     if (!status?.installed || status.state !== "ready") return;
     if (running || isStartingService) return;

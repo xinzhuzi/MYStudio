@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 // ComfyUI 画布工作室 tab 测试(09-09 0b):三态渲染(未装/就绪未跑/运行中 webview)。
 
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComfyCanvasStudio, buildCanvasFitScript, buildOverviewOpenScript } from "./ComfyCanvasStudio";
 import { createMockComfyEngineClient } from "@/components/panels/settings/comfy-engine/mock-comfy-engine-client";
-import { resetComfyEngineAutoStartStateForTests } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
+import { resetComfyEngineAutoStartStateForTests, useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import type { ComfyEngineClient, ComfyEngineStatus } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
@@ -167,6 +167,195 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     );
     await act(async () => undefined);
     expect(startEngine).not.toHaveBeenCalled();
+  });
+
+  it("画布周期轮询(0930):引擎中途死→轮询翻假→静默 ensure 自动复活→webview 重连", async () => {
+    const polls = captureActionPolls();
+    const base = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    let alive = true;
+    let starts = 0;
+    const startEngine = vi.fn(async () => {
+      starts += 1;
+      alive = true; // 复活动作把引擎拉回
+      return base.startEngine();
+    });
+    const client = {
+      ...base,
+      startEngine,
+      getEngineStatus: async () => {
+        const snapshot = await base.getEngineStatus();
+        return {
+          ...snapshot,
+          serviceRunning: alive && snapshot.serviceRunning,
+          port: alive && snapshot.serviceRunning ? snapshot.port : null,
+        };
+      },
+    };
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = client;
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    // 引擎中途死(非用户停止:stopEngine 未被调,手动停止闩未落)
+    alive = false;
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    // 轮询翻假 → 挂载确保 effect 谓词重评 → 静默 ensure 复活(恰一发,零 toast)
+    await waitFor(() => expect(starts).toBe(1), { timeout: 3000 });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    expect(toasts.success).not.toHaveBeenCalledWith("ComfyUI 引擎服务已启动");
+    // 后续拍不再重发(30s 失败/成功冷却 + running 谓词)
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    expect(starts).toBe(1);
+  });
+
+  it("画布周期轮询(0930):设置页显式停止(共享 module 闩)后画布只观测不拉起", async () => {
+    const polls = captureActionPolls();
+    const base = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    const startEngine = vi.fn(async () => base.startEngine());
+    const client = { ...base, startEngine };
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = client;
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    // 设置页实例(同渲染进程,hook module 态共享)执行用户显式停止 → 落闩
+    const settings = renderHook(() => useComfyEngineSettings({ client }));
+    await act(async () => {
+      await settings.result.current.stopService();
+    });
+    // 画布轮询照刷(只观测):翻假落「已就绪」面板,手动启动按钮在场
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    expect(await screen.findByText("ComfyUI 已就绪")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "启动 ComfyUI" })).toBeTruthy();
+    // 多拍轮询穿过:绝不自动拉起(闩不过期,ensure 让路)
+    for (let i = 0; i < 5; i += 1) {
+      await act(async () => {
+        polls.forEach((poll) => poll());
+      });
+    }
+    expect(startEngine).not.toHaveBeenCalled();
+  });
+
+  it("画布周期轮询(0930):手动启动成功解闩后,引擎再死→自动复活恢复", async () => {
+    const polls = captureActionPolls();
+    const base = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    let alive = true;
+    let starts = 0;
+    const startEngine = vi.fn(async () => {
+      starts += 1;
+      alive = true;
+      return base.startEngine();
+    });
+    const client = {
+      ...base,
+      startEngine,
+      getEngineStatus: async () => {
+        const snapshot = await base.getEngineStatus();
+        return {
+          ...snapshot,
+          serviceRunning: alive && snapshot.serviceRunning,
+          port: alive && snapshot.serviceRunning ? snapshot.port : null,
+        };
+      },
+    };
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = client;
+    render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    // 用户显式停止 → 落闩 → 画布翻假只观测
+    const settings = renderHook(() => useComfyEngineSettings({ client }));
+    await act(async () => {
+      await settings.result.current.stopService();
+    });
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    await waitFor(() => expect(screen.getByText("ComfyUI 已就绪")).toBeTruthy());
+    expect(starts).toBe(0);
+    // 手动启动成功 → 解闩 + 引擎回跑 → 画布回 webview
+    await act(async () => {
+      await settings.result.current.startService();
+    });
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    expect(starts).toBe(1); // 只有手动那一发
+    // 引擎再次中途死:闩已解,自动 ensure 恢复
+    alive = false;
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    await waitFor(() => expect(starts).toBe(2), { timeout: 3000 });
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+  });
+
+  it("画布卸载即清状态轮询定时器(0930:不留驻留)", async () => {
+    const polls = captureActionPolls();
+    const base = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17001,
+    });
+    let statusCalls = 0;
+    const client = {
+      ...base,
+      getEngineStatus: async () => {
+        statusCalls += 1;
+        return base.getEngineStatus();
+      },
+    };
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = client;
+    const mounted = render(<ComfyCanvasStudio />);
+    await waitFor(
+      () => expect(document.querySelector("[data-comfy-canvas-webview]")).toBeTruthy(),
+      { timeout: 3000 },
+    );
+    mounted.unmount();
+    const settled = statusCalls;
+    // 驱动卸载前抓到的同一定时器回调:画布 tick 已注销 → 零新状态请求
+    await act(async () => {
+      polls.forEach((poll) => poll());
+    });
+    expect(statusCalls).toBe(settled);
   });
 
   it("myScope=模块分野标记进 webview URL(09-11:侧栏按模块分工)", async () => {
