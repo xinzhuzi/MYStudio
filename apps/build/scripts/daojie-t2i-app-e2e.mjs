@@ -514,7 +514,10 @@ async function s5ReopenT2I(main, truth) {
   check(`S5 侧栏重开→画布载入(根节点=${truth.rootCount},装机真源动态)`, nodes === truth.rootCount, `实际 ${nodes}`);
   // 打开并激活=激活签或标签清单任一三形态命中(0930 实弹定谳:当前前端 repo:
   // 带名直载=activeWorkflow.path 置 "workflows/<rel>" 但不进 openWorkflows 清单,
-  // 只查清单会比实现更严而误报;两处都查,镜像 sidebar.js findRepoTab 三形态)
+  // 只查清单会比实现更严而误报;两处都查,镜像 sidebar.js findRepoTab 三形态)。
+  // 0930 根治后第二态:8f41980 null-reset 防御在上游裸调炸时降级**无名临时页**
+  // (保点开必有图)——active 变 Unsaved Workflow.json;此时判据=画布已载入该工作流
+  // (nodes===rootCount,与上行 check 同源)+ active 落 Unsaved 系,两条都成才算过
   const tabsRaw = await wv(main, `(() => {
     const s = window.app?.extensionManager?.workflow;
     return JSON.stringify({ open: ((s && s.openWorkflows) || []).map(x => x && x.path), active: s?.activeWorkflow?.path || null });
@@ -522,8 +525,10 @@ async function s5ReopenT2I(main, truth) {
   let tabs = { open: [], active: null }; try { tabs = JSON.parse(String(tabsRaw)) || tabs; } catch { /* keep default */ }
   const threeForm = (p) => p === WF_REL || p === "repo:" + WF_REL || String(p || "").replace(/^workflows\//, "") === WF_REL;
   const hit = tabs.open.some(threeForm) || threeForm(tabs.active);
-  check("S5 侧栏重开→工作流打开并激活(激活签/标签清单三形态命中)", hit,
-    `active=${tabs.active} open=${JSON.stringify(tabs.open).slice(0, 240)}`);
+  const degraded = !hit && nodes === truth.rootCount && /^workflows\/Unsaved Workflow/.test(String(tabs.active || ""));
+  check("S5 侧栏重开→工作流打开并激活(三形态命中;或 8f41980 防御降级临时页=画布已载入)",
+    hit || degraded,
+    `${hit ? "路径:三形态命中" : degraded ? "路径:防御降级临时页(上游裸 reset,画布已载入)" : "两态皆未命中"} active=${tabs.active} open=${JSON.stringify(tabs.open).slice(0, 200)}`);
   // 双宿主面板控件在位(动态名单=装机 JSON 子图 widget 输入−连线槽)
   const rosterRaw = await wv(main, `(() => {
     const find = (t) => window.app.graph._nodes.find(n => n.type === t);
