@@ -228,7 +228,7 @@ REPO = Path(__file__).resolve().parents[3]
 BASES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/daojie_bases.json"
 PREFIX = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/prefix.md"
 OUT = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
-OVERLAP_SCRIPT = REPO / "apps/build/scripts/daojie_subject_overlap_0922.py"
+OVERLAP_SCRIPT = REPO / "apps/build/scripts/daojie_subject_overlap.py"
 
 # ── ②型底座·美化版(09-23 美化口径唯一真源;型名=canon zh)──────────────────
 # 写作纪律:纯画法零物象(物象归①主体句);canon 锁质要点逐项保留(细墨线勾勒/线粗细变化/
@@ -926,7 +926,7 @@ def build_doc() -> str:
     A("2. **场景/概念气氛不写人**(该两型人物交给负向纪律;Q2.1 cfg=1 负向不参与采样,由①层「不写人」约定承担,空镜句尾可明写「空镜无人」)。")
     A("3. **同画面朝代统一**(汉唐宋明历代均可);历史向服饰按朝代实名+身份+地位+成套点名。")
     A("4. **全角标点**。")
-    A("5. **发放前强制预检**:`python3 apps/build/scripts/daojie_canon_lib.py --overlap`(判据=≥10 字公共子串,对照**美化版②层**;CLI `daojie_subject_overlap_0922.py --base 型名` 对照的是 K2 侧 canon positive,两账并行勿混)。")
+    A("5. **发放前强制预检**:`python3 apps/build/scripts/daojie_canon_lib.py --overlap`(判据=≥10 字公共子串,对照**美化版②层**;CLI `daojie_subject_overlap.py --base 型名` 对照的是 K2 侧 canon positive,两账并行勿混)。")
     A("")
     A("**0925 四令(使用规矩)**:风格默认=**多彩制**(三国望神州基准:borderSAT≥0.15/可辨彩≥25%/色相桶≥3);**大面积留白/素净暖白底/稀彩点题制=按图选配**(单图可选,①层点名)——大面积素净暖白底色不适合做美术风格默认,单张图可以(0925 用户四令;量化线与裁定待办见 §六)。")
     A("")
@@ -1189,7 +1189,7 @@ def check() -> int:
 
 
 def overlap_check() -> int:
-    """18 条示例 × 各自型**美化版**底座 重叠预检(判据同 daojie_subject_overlap_0922.py:≥10 字公共子串)。"""
+    """18 条示例 × 各自型**美化版**底座 重叠预检(判据同 daojie_subject_overlap.py:≥10 字公共子串)。"""
     rc = 0
     print("主体句重叠预检(对照=美化版②层;判据=≥10 字公共子串即重复块):")
     for zh, (s1, s2, _) in SUBJECTS.items():

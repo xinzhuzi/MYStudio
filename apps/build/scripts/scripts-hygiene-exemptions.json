@@ -1,8 +1,6 @@
 {
   "exempt": {
-    "daojie_subject_overlap_0922.py": "09-22 战役件滞留顶层;归档 campaigns 超本任务边界(R6 不重构),清整另案",
-    "drive_krea2_merge_0923.py": "09-23 战役件滞留顶层;归档 campaigns 超本任务边界(R6),清整另案",
-    "note_encoder_align_0923.py": "09-23 战役件滞留顶层;归档 campaigns 超本任务边界(R6),清整另案",
+    "drive_krea2_merge_0923.py": "09-23 战役件滞留顶层;归档 campaigns 超本任务边界(R6 不重构),清整另案",
     "q21_ablation_round1_0925.mjs": "09-23~09-25 Q2-1 战役驱动/实弹/消融件滞留顶层;归档 campaigns 超本任务边界(09-28 任务 R6 不重构归档),清整另案",
     "q21_optimized_round_0925.mjs": "09-23~09-25 Q2-1 战役驱动/实弹/消融件滞留顶层;归档 campaigns 超本任务边界(09-28 任务 R6 不重构归档),清整另案",
     "q21_te_heretic_live_0924.mjs": "09-23~09-25 Q2-1 战役驱动/实弹/消融件滞留顶层;归档 campaigns 超本任务边界(09-28 任务 R6 不重构归档),清整另案",
@@ -40,9 +38,7 @@
     "qwen21_edit_core_pe_0923.py": "三生成器之一(Q2-1 edit 生产 JSON 唯一合法产地);同上,改名留待专门战役",
     "qwen21_pe_bf16_convert_0923.py": "09-23~09-25 Q2-1 战役驱动/实弹/消融件滞留顶层;归档 campaigns 超本任务边界(09-28 任务 R6 不重构归档),清整另案",
     "qwen21_pe_i2i_bf16_convert_0923.py": "09-23~09-25 Q2-1 战役驱动/实弹/消融件滞留顶层;归档 campaigns 超本任务边界(09-28 任务 R6 不重构归档),清整另案",
-    "qwen_hdr_vae_comfy_convert_0922.py": "09-22 模型转换战役件;归档超本任务边界(R6),清整另案",
-    "te_reference_audit_0922.py": "常驻守卫件仍在活跃使用(漫影工作流清单 L87 指认「删任何权重前跑」);改名须同步文档引用,留待改名战役",
-    "workflow_id_counters_heal_0923.py": "09-23 数据修复件滞留顶层(heal 族);归档超本任务边界(R6),清整另案"
+    "te_reference_audit_0922.py": "常驻守卫件仍在活跃使用(漫影工作流清单 L87 指认「删任何权重前跑」);改名须同步文档引用,留待改名战役"
   },
-  "notes": "铁律5 顶层日期名机器化豁免清单(2026-09-28 任务 09-28-process-formalization S4-4a)。全部 43 件=2026-09-22 清整战役(repo_dated_artifacts_reorg)之后新滞留的战役件+3 生成器+1 活跃守卫;逐件登记理由,新滞留件不再自动豁免。campaigns/ 归档区整体不入口径;gitignored 件不入口径。"
+  "notes": "铁律5 顶层日期名机器化豁免清单(2026-09-28 任务 09-28-process-formalization S4-4a)。全部 39 件=2026-09-22 清整战役(repo_dated_artifacts_reorg)之后新滞留的战役件+3 生成器+1 活跃守卫;逐件登记理由,新滞留件不再自动豁免。campaigns/ 归档区整体不入口径;gitignored 件不入口径。0930 F5 去日期改名出账 4 件(daojie_subject_overlap/note_encoder_align/qwen_hdr_vae_comfy_convert/workflow_id_counters_heal,改名后无日期名不触发口径,无需豁免)。"
 }

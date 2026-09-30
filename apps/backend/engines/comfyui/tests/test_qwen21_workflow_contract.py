@@ -1440,7 +1440,7 @@ class TestCanvasDiscipline:
         拒登(console: Link N belongs to graph …cannot overwrite it),
         connect 返回 null。计数器高于 max 合法(删除只减 max 不减计数器),
         故断言为 ≥ 而非 ==。治愈/重算脚本:apps/build/scripts/
-        workflow_id_counters_heal_0923.py(幂等,跳过官方模板)。"""
+        workflow_id_counters_heal.py(幂等,跳过官方模板)。"""
         for name, graph in GRAPHS.items():
             node_ids = [n["id"] for n in graph["nodes"]]
             link_ids = [l[0] for l in graph["links"]]

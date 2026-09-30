@@ -15,7 +15,7 @@ ComfyUI 格式并覆盖 qwen_image_HDR_vae_fp32_comfy.safetensors。
 
 用法(引擎 venv):
   "$HOME/Library/Application Support/漫影工作室/comfyui/venv/bin/python" \
-      apps/build/scripts/qwen_hdr_vae_comfy_convert_0922.py
+      apps/build/scripts/qwen_hdr_vae_comfy_convert.py
 """
 import collections
 import hashlib

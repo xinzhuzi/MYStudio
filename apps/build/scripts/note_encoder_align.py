@@ -13,8 +13,8 @@
   仍走 Heretic 无审查 TE  → TE=官方 Krea2-Engineer-V1
 
 用法:
-  python3 note_encoder_align_0923.py           # 执行对齐
-  python3 note_encoder_align_0923.py --check   # 只验不写(0=全部已对齐)
+  python3 note_encoder_align.py           # 执行对齐
+  python3 note_encoder_align.py --check   # 只验不写(0=全部已对齐)
 """
 from __future__ import annotations
 
