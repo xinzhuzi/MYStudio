@@ -145,6 +145,16 @@ npm run smoke:desktop
 
 Use a different `MYSTUDIO_SMOKE_DEBUG_PORT` if the port is busy.
 
+## 道劫产线装机验收腿(2026-09-30 起)
+
+覆盖安装(ditto/build-mac)后,道劫 t2i 产线验收=跑常驻 App 级 E2E:
+
+```bash
+cd <repo-root> && node apps/build/scripts/daojie-t2i-app-e2e.mjs
+```
+
+全链双拍(默认出图+PE 喂法)≈50-65min,退出码 0=验收过;报告/取证图在 `apps/output/daojie-t2i-app-e2e/`。赶时间先 `SKIP_GEN=1` 跑链路段(≈3min,免生图)。前置:无并行 smoke/应用实例(脚本 prekill 会杀全家);诊断表与锚点字典在 `.trellis` 任务档(`archive/2026-09/09-30-daojie-t2i-app-e2e/research/anchors.md`)。不进 `test:all`/打包链(按需人工腿)。
+
 ## Smoke Coverage
 
 `apps/build/smoke/smoke-desktop.mjs` is the packaged desktop smoke runner. It checks:

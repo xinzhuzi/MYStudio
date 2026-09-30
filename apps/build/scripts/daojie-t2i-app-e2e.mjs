@@ -6,7 +6,9 @@
  * 关闭所有的界面 → 重新打开 qi21-道劫-t2i → 测试出图。
  * 步骤段:S0 预检/prekill/选口 → S1 启动装机应用 → S2 道劫项目 →
  *   S3 本地模型画布(引擎幂等 ensure)→ S4 关闭全部工作流标签 →
- *   S5 漫影侧栏重开 qi21-道劫-t2i → S6 真前端 queuePrompt 出图 → S7 收摊+报告。
+ *   S5 漫影侧栏重开 qi21-道劫-t2i → S6 真前端 queuePrompt 出图(纯默认)→
+ *   S6b PE 种子喂法硬闸(程序化入装配子图改写器种子=前缀+主体句,真出图)→
+ *   S7 收摊+报告。全链双拍(S6+S6b)≈50-65min(次拍模型已热,采样各 ≈23-30min)。
  *
  * 骨架=cdp-daojie-krea2-ink-e2e.mjs(0915 役;踩坑注释原样继承:webview 不进
  * /json/list 须走主 target executeJavaScript、注入每段≤10 行防 IPC 竞态、
@@ -16,19 +18,22 @@
  *
  * [扩展协议] 后续测试点=段内加 check("点名",断言) 或插新段(段=async 函数,
  * main() 按序 await);拨控件/入子图参考 qi21_s3_gate_0930.mjs 已证形态
- * (宿主面板语义寻址/真实双击入图改内件值);画质判据(borderSAT/GLM)归战役
- * 域不进本链;详见 .trellis/tasks/09-30-daojie-t2i-app-e2e/implement.md。
+ * (宿主面板语义寻址/真实双击入图改内件值;S6b 已内置程序化 setGraph 入图形态);
+ * 画质判据(borderSAT/GLM)归战役域不进本链;第二批(S6b+加固四条+装机面漂移
+ * 软提醒)规格=.trellis/tasks/09-30-daojie-t2i-e2e-pt2/design.md,锚点字典=
+ * .trellis/tasks/archive/2026-09/09-30-daojie-t2i-app-e2e/research/anchors.md。
  *
  * 环境变量:CDP_PORT(默认自选 9222-9239 空闲口;9222 常被并行探针 Chrome
  *   占用,禁杀别人)/GEN_TIMEOUT_MS(默认 3_600_000=60min,0930 实测 40步+PE≈30-35min 口径)/
- *   SKIP_GEN=1 免生图段(链路调试)/KEEP_APP=1 收摊保留应用。
+ *   SKIP_GEN=1 免生图段(连 S6+S6b 两拍一起跳,链路调试)/SKIP_PE=1 只跳 S6b/KEEP_APP=1 收摊保留应用。
  * 退出码:0=全过;1=有失败项;2=环境错误。
- * 产物:apps/output/daojie-t2i-app-e2e/(report.json+t2i-result.png);
+ * 产物:apps/output/daojie-t2i-app-e2e/(report.json+t2i-result.png+t2i-result-pe.png);
  *   截图/中间件 /tmp/daojie-t2i-e2e/。
  */
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -43,6 +48,8 @@ const ENGINE_OUTPUT = join(ENGINE_HOME, "output");
 // 装机 App 的 repo: 工作流真源(引擎 manifest.repo_workflows_dir=装机 backend 树;
 // 与仓库 dirty 树可能分叉,断言恒以装机面为准——本测=装机产品回归)
 const INST_T2I = "/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
+// D4 装机面漂移软提醒的对端:仓库树同名 t2i(仓库并行在改≠测试错,恒不设门)
+const REPO_T2I = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`;
 const WF_REL = "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
 const OUT_DIR = join(process.env.HOME, "Project/Github/MYStudio/apps/output/daojie-t2i-app-e2e");
 const TMP = "/tmp/daojie-t2i-e2e";
@@ -51,6 +58,7 @@ const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS || 3_600_000);
 // ≈30-35min(模型加载~8min+PE 改写 token 生成+采样 34s/it×40≈23min);与
 // q21 战役驱动器同口径(其 GEN_TIMEOUT 亦 3_600_000)。SKIP_GEN 可免此段。
 const SKIP_GEN = process.env.SKIP_GEN === "1";
+const SKIP_PE = process.env.SKIP_PE === "1"; // 只跳 S6b(SKIP_GEN=1 时两拍连跳,S6b 无独立成活路径)
 const KEEP_APP = process.env.KEEP_APP === "1";
 const CDP_PORT_ENV = Number(process.env.CDP_PORT || 0);
 
@@ -76,8 +84,9 @@ function parseTruth() {
   const ksDirect = accSg.nodes.find((n) => n.type === "KSampler" && n.widgets_values?.[2] === 40);
   const peNode = asmSg.nodes.find((n) => n.type === "QwenImage21_T2IPromptRewrite");
   const save = g.nodes.find((n) => n.type === "SaveImage");
-  if (!host40 || !host208 || !ksDirect || !peNode || !save) {
-    throw new Error(`装机 t2i 关键件缺失: host40=${!!host40} host208=${!!host208} ks40=${!!ksDirect} pe=${!!peNode} save=${!!save}`);
+  const subjNode = g.nodes.find((n) => String(n.id) === "24"); // [24] 主体句(PrimitiveStringMultiline,装机默认=喂料主体句来源)
+  if (!host40 || !host208 || !ksDirect || !peNode || !save || !subjNode) {
+    throw new Error(`装机 t2i 关键件缺失: host40=${!!host40} host208=${!!host208} ks40=${!!ksDirect} pe=${!!peNode} save=${!!save} subj24=${!!subjNode}`);
   }
   // 宿主面板期望控件=子图 widget 型输入−已连线槽(S3-gate 0930 口径)
   const hostPanel = (sg, host) => {
@@ -85,14 +94,24 @@ function parseTruth() {
     return (sg.inputs || []).filter((i) => ["COMBO", "BOOLEAN", "INT", "STRING", "FLOAT"].includes(i.type))
       .map((i) => i.name).filter((nm) => !linked.has(nm));
   };
+  // D1 PE 喂法真值:前缀=种子文截到首个「:」含冒号(战役 q21_68 已证口径——陈旧
+  // 占位种子整段直喂会顶替主体句进采样→废片,须换「前缀+[24] 主体句」);零硬编码
+  const peSeed = peNode.widgets_values?.[0] || "";
+  const pePrefix = peSeed.slice(0, peSeed.indexOf(":") + 1);
+  const subj24 = String(subjNode.widgets_values?.[0] || "");
+  // D4 装机/仓库双哈希头(12 位;仓库缺失=并行在改或未打包,软提醒不设门)
+  const sha12 = (p) => { try { return createHash("sha256").update(readFileSync(p)).digest("hex").slice(0, 12); } catch { return null; } };
   return {
     rootCount: g.nodes.length,
     asmId: asmSg.id, accId: accSg.id,
     panel40: hostPanel(asmSg, host40), panel208: hostPanel(accSg, host208),
     speedMode: host208.widgets_values?.[0], seedDefault: host208.widgets_values?.[1],
     ksSteps: ksDirect.widgets_values?.[2],
-    peSeed: peNode.widgets_values?.[0] || "",
-    savePrefix: save.widgets_values?.[0] || "",
+    peSeed, savePrefix: save.widgets_values?.[0] || "",
+    subj24, pePrefix, fedSeed: pePrefix + subj24,
+    // 排队图子图内键按「宿主域前缀+class_type」动态寻址(anchors §F;域前缀自真源派生)
+    asmDomain: `${host40.id}:`, accDomain: `${host208.id}:`,
+    instSha: sha12(INST_T2I), repoSha: sha12(REPO_T2I),
   };
 }
 
@@ -231,6 +250,63 @@ function countOutput(prefix) {
   return readdirSync(ENGINE_OUTPUT).filter((f) => f.startsWith(prefix) && f.endsWith(".png")).length;
 }
 
+const pngMagic = (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+
+/**
+ * D3.2 /queue 内容过滤抓取:在 running 里找「装配域 PE 改写器在场 且 SaveImage
+ * 前缀=本产线」的拍,首匹即取——防应用侧异拍(前役 08:47:26 挂账:同 t2i 工作流
+ * 第二拍非本脚本所发)抢位误断言。peNeedle(可空)=再加一层 PE prompt 含指定片段
+ * (S6b 传主体句头 18 字——喂入文的判别段:装机原文不含主体句,前缀头两拍同源无法判别)。
+ */
+async function captureOurShot(engineBase, knownPids, truth, peNeedle, deadlineMs = 20_000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < deadlineMs) {
+    try {
+      const q = await (await fetch(`${engineBase}/queue`, { signal: AbortSignal.timeout(8000) })).json();
+      for (const running of q.queue_running || []) {
+        if (knownPids.has(running[1])) continue;
+        const p = running[2] || {};
+        const keys = Object.keys(p);
+        const peKeys = keys.filter((k) => k.startsWith(truth.asmDomain) && p[k]?.class_type === "QwenImage21_T2IPromptRewrite");
+        const hasSave = keys.some((k) => p[k]?.class_type === "SaveImage" && p[k]?.inputs?.filename_prefix === truth.savePrefix);
+        if (peKeys.length > 0 && hasSave && (!peNeedle || peKeys.some((k) => String(p[k]?.inputs?.prompt || "").includes(peNeedle)))) {
+          return { pid: running[1], prompt: p };
+        }
+      }
+    } catch { /* 引擎忙 */ }
+    await sleep(2000);
+  }
+  return { pid: null, prompt: null };
+}
+
+/** /history 等新终态拍(S6 同款口径:60s 心跳防黑盒等待+GEN_TIMEOUT 预算;S6b 复用)。 */
+async function waitTerminal(engineBase, knownPids, tag, expectPid) {
+  const hs = Date.now();
+  let lastErr = null;
+  let lastBeat = 0;
+  while (Date.now() - hs < GEN_TIMEOUT_MS) {
+    try {
+      const h = await (await fetch(`${engineBase}/history`, { signal: AbortSignal.timeout(8000) })).json();
+      for (const [pid, e] of Object.entries(h)) {
+        if (knownPids.has(pid)) continue;
+        if (expectPid && pid !== expectPid) continue; // 只认抓拍锁定的拍(审读发现:防应用侧异拍先出终态被误采)
+        const st = e.status?.status_str || "";
+        if (st === "error") return { pid, error: `引擎执行 error: ${JSON.stringify(e.status?.messages || []).slice(0, 4000)}` };
+        if (st === "success" || e.status?.completed) return { pid, entry: e };
+      }
+    } catch (e) { lastErr = String(e); }
+    if (Date.now() - lastBeat > 60_000) {
+      lastBeat = Date.now();
+      let running = "?";
+      try { running = ((await (await fetch(`${engineBase}/queue`, { signal: AbortSignal.timeout(5000) })).json()).queue_running || []).length; }
+      catch { /* 心跳尽力 */ }
+      log(`${tag} 执行中 T+${Math.round((Date.now() - hs) / 1000)}s(队列 running=${running},history 未出终态)`);
+    }
+    await sleep(3000);
+  }
+  return { error: `history 超时 ${GEN_TIMEOUT_MS / 1000}s(lastErr=${lastErr})` };
+}
+
 // ═══════════ S0 环境预检+prekill+选口 ═══════════
 async function s0Precheck(truth) {
   step("S0", "环境预检+prekill+选口");
@@ -238,6 +314,13 @@ async function s0Precheck(truth) {
   check("S0 装机 t2i 真源解析(双子图/宿主40,208/直出KS40/PE改写器/SaveImage 齐)",
     truth.rootCount > 0 && truth.panel40.length > 0 && truth.panel208.length > 0,
     `根节点=${truth.rootCount} 装配面板=[${truth.panel40.join("/")}] 加速面板=[${truth.panel208.join("/")}] 前缀=${truth.savePrefix}`);
+  // D4 装机面漂移软提醒:sha256 比对装机 t2i 与仓库树同名件;恒 pass 不设门——
+  // 不一致=仓库并行在改(打包滞后),测试恒以装机面为准,勿改测试凑绿(anchors §I)
+  {
+    const same = truth.instSha && truth.repoSha && truth.instSha === truth.repoSha;
+    check("S0 装机/仓库 t2i 哈希比对(漂移软提醒,不设门)", true,
+      same ? `一致(sha256 头 ${truth.instSha})` : `不一致——测的是装机面,仓库并行在改(装机 ${truth.instSha ?? "读失败"}/仓库 ${truth.repoSha ?? "缺失"})`);
+  }
   if (CDP_PORT_ENV) {
     CDP_PORT = CDP_PORT_ENV;
     if (!(await isPortFree(CDP_PORT))) { console.error(`指定 CDP_PORT=${CDP_PORT} 被占`); process.exit(2); }
@@ -275,6 +358,24 @@ async function s2EnterProject(main) {
       { timeout: 30_000, label: "项目内导航出现" });
   } else {
     check("S2 道劫项目卡点击", true, "非 Dashboard 起步(上次会话态),已在项目内");
+    // D3.1 加固:非 Dashboard 起步不再静默 pass——宿主页 fileStorage 通道(visible-workflow-smoke
+    // 已证)读项目 store(zustand persist:{state:{projects:[{id,name}],activeProjectId},version}),
+    // 验真激活项目=道劫;错项目/store 不可读=FAIL(detail 载实际项目名/原因)
+    const storeRaw = await main.ev(`(async () => {
+      try { const v = await window.fileStorage?.getItem?.('mystudio-project-store'); return v == null ? null : String(v); }
+      catch (e) { return 'ERR:' + (e && e.message); }
+    })()`);
+    let projName = null;
+    let why = `store 不可读(fileStorage 通道): ${String(storeRaw).slice(0, 100)}`;
+    try {
+      const st = JSON.parse(String(storeRaw))?.state;
+      const pid = st?.activeProjectId;
+      const proj = (st?.projects || []).find((p) => p && p.id === pid);
+      if (proj?.name != null) projName = proj.name;
+      else why = `store 在场但 activeProjectId=${JSON.stringify(pid)} 无对应 project(projects=${(st?.projects || []).length} 项)`;
+    } catch { /* 落 why 默认(store 不可读) */ }
+    check("S2 非 Dashboard 起步验真(激活项目含「道劫」)", projName !== null && projName.includes("道劫"),
+      projName !== null ? `activeProject=${projName}` : why);
   }
   await main.screenshot("1-project-entered");
 }
@@ -439,10 +540,12 @@ async function s5ReopenT2I(main, truth) {
 }
 
 // ═══════════ S6 真前端 queuePrompt 出图(纯默认零手术) ═══════════
+// 返回 true=全链走通(queue→引擎终态→产物在场,S6b 前置);false=链路断(S6b 不执行)
 async function s6Generate(main, engineBase, truth) {
   step("S6", `真前端 queuePrompt 出图(纯默认:${truth.speedMode}/seed=${truth.seedDefault}/PE改写器在场)`);
   // 排队图摘要:引擎 /queue 现算(引擎口无鉴权,is_healthy 同款裸 GET);
-  // 子图内键装载可重编号(0930 S3 实证)→按「宿主域前缀+class_type」动态寻址
+  // 子图内键装载可重编号(0930 S3 实证)→按「宿主域前缀+class_type」动态寻址;
+  // 抓取走 D3.2 内容过滤(装配域PE+本产线前缀)防应用侧异拍抢位
   const knownPids = new Set(Object.keys(await (await fetch(`${engineBase}/history`, { signal: AbortSignal.timeout(8000) })).json()));
   const outBefore = countOutput(truth.savePrefix);
   const t0 = Date.now();
@@ -451,20 +554,11 @@ async function s6Generate(main, engineBase, truth) {
     try { await app.queuePrompt(); return 'queued'; } catch (e) { return 'err:' + (e && (e.message || e)); }
   })()`);
   check("S6 queuePrompt 发出(真前端)", queued === "queued", String(queued));
-  if (queued !== "queued") return;
+  if (queued !== "queued") return false;
   let prompt = null, qpid = null;
   {
-    const qs = Date.now();
-    while (Date.now() - qs < 20_000) {
-      try {
-        const q = await (await fetch(`${engineBase}/queue`, { signal: AbortSignal.timeout(8000) })).json();
-        for (const running of q.queue_running || []) {
-          if (!knownPids.has(running[1])) { qpid = running[1]; prompt = running[2]; break; }
-        }
-      } catch { /* 引擎忙 */ }
-      if (prompt) break;
-      await sleep(2000);
-    }
+    const cap = await captureOurShot(engineBase, knownPids, truth, null, 20_000);
+    prompt = cap.prompt; qpid = cap.pid;
   }
   if (!prompt) {
     check("S6 排队图抓取(引擎 /queue)", false, "执行期未捕到(可能秒完/过快)");
@@ -495,6 +589,7 @@ async function s6Generate(main, engineBase, truth) {
         const h = await (await fetch(`${engineBase}/history`, { signal: AbortSignal.timeout(8000) })).json();
         for (const [pid, e] of Object.entries(h)) {
           if (knownPids.has(pid)) continue;
+          if (qpid && pid !== qpid) continue; // 只认抓拍锁定的拍(审读发现:防应用侧异拍先出终态被误采)
           const st = e.status?.status_str || "";
           if (st === "error") { hist = { pid, error: `引擎执行 error: ${JSON.stringify(e.status?.messages || []).slice(0, 4000)}` }; break; }
           if (st === "success" || e.status?.completed) { hist = { pid, entry: e }; break; }
@@ -513,21 +608,20 @@ async function s6Generate(main, engineBase, truth) {
     if (!hist) hist = { error: `history 超时 ${GEN_TIMEOUT_MS / 1000}s(lastErr=${lastErr})` };
   }
   const wallSecs = Math.round((Date.now() - t0) / 1000);
-  if (hist.error) { check("S6 引擎执行完成(/history success)", false, String(hist.error).slice(0, 2000)); return; }
+  if (hist.error) { check("S6 引擎执行完成(/history success)", false, String(hist.error).slice(0, 2000)); return false; }
   writeFileSync(join(TMP, "history-entry.json"), JSON.stringify(hist.entry, null, 1));
   check("S6 引擎执行完成(/history success)", true, `pid=${String(hist.pid).slice(0, 8)} ${wallSecs}s`);
   const imgs = [];
   for (const o of Object.values(hist.entry.outputs || {})) if (o.images) imgs.push(...o.images.filter((i) => (i.type || "output") === "output"));
-  if (!imgs.length) { check("S6 引擎出图(history outputs)", false, "无 output 图"); return; }
+  if (!imgs.length) { check("S6 引擎出图(history outputs)", false, "无 output 图"); return false; }
   const img = imgs.find((i) => /\.png$/i.test(i.filename)) || imgs[0];
   // 双证:引擎 output 目录新文件 + /view 取证落 apps/output
   const outNow = countOutput(truth.savePrefix);
   check("S6 引擎出图(引擎 output 目录新增)", outNow > outBefore, `前缀=${truth.savePrefix} ${outBefore}→${outNow} 文件=${img.filename}`);
-  const pngMagic = (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
   let buf = null;
   try {
     const q = new URLSearchParams({ filename: img.filename, subfolder: img.subfolder || "", type: img.type || "output" });
-    const r = await fetch(`${engineBase}/view?${q}`);
+    const r = await fetch(`${engineBase}/view?${q}`, { signal: AbortSignal.timeout(15_000) }); // D3.4 /view 超时(与其余引擎 fetch 对齐;文件系统兜底已有)
     if (r.ok) buf = Buffer.from(await r.arrayBuffer());
   } catch { /* 落入文件系统兜底 */ }
   if (!buf && existsSync(join(ENGINE_OUTPUT, img.filename))) {
@@ -539,6 +633,112 @@ async function s6Generate(main, engineBase, truth) {
     Boolean(buf) && pngMagic(buf) && buf.length > 50_000,
     buf ? `${img.filename} ${(buf.length / 1024).toFixed(0)}KB → ${evPath} (${wallSecs}s)` : "取证失败(/view+文件系统双兜底皆空)");
   await main.screenshot("7-t2i-result");
+  return true;
+}
+
+// ═══════════ S6b PE 种子喂法硬闸(生产配方:前缀+主体句,0930-pt2 D2) ═══════════
+// 经真实前端路径把 PE 改写器种子([40] 装配子图内 QwenImage21_T2IPromptRewrite)改写为
+// 「前缀+[24] 主体句」,排队图服务器端硬闸+真出图。入图走程序化 setGraph(S3-gate 已证
+// 形态;双击手势=另一候选测试点不在本役);内件按 TYPE 寻址(子图内 id 装载可重编号)。
+async function s6bPeFedShot(main, engineBase, truth) {
+  step("S6b", `PE 种子喂法硬闸(fedSeed=前缀(${truth.pePrefix.length}字)+主体句(${truth.subj24.length}字)→改写器逐字接收)`);
+  const subjHead = truth.subj24.slice(0, 18); // 战役 0929 硬闸口径:主体句头 18 字
+  // ① 入装配子图(程序化;≤10 行注入纪律:存根图→按 TYPE 找宿主→setGraph 入图)
+  const enteredRaw = await wv(main, `(() => {
+    const c = window.app.canvas;
+    window.__e2eS6bRoot = c.graph;
+    window.__e2eS6bRootCount = c.graph._nodes.length;
+    const host = window.app.graph._nodes.find(n => n.type === ${JSON.stringify(truth.asmId)});
+    if (!host || !host.subgraph) return JSON.stringify({ err: 'host-missing' });
+    c.setGraph(host.subgraph);
+    return 'entered';
+  })()`);
+  if (enteredRaw !== "entered") { check("S6b 进入装配子图(程序化 setGraph,图切换见证)", false, String(enteredRaw)); return; }
+  await sleep(800);
+  const innerRaw = await wv(main, `(() => {
+    const g = window.app.canvas.graph;
+    return JSON.stringify({ inner: g && g._nodes ? g._nodes.length : null, root: window.__e2eS6bRootCount });
+  })()`);
+  let inner = null; try { inner = JSON.parse(String(innerRaw)); } catch { /* keep null */ }
+  const enteredOk = !!inner && inner.inner > 0 && inner.inner !== inner.root;
+  check("S6b 进入装配子图(程序化 setGraph,图切换见证)", enteredOk,
+    enteredOk ? `根${inner.root}节点→子图${inner.inner}节点(内件数>0 且≠rootCount 即已切换)` : String(innerRaw).slice(0, 160));
+  if (!enteredOk) return;
+  // ② 改种子:内件按 TYPE 寻址(装配子图内唯一);widget 按名 prompt(契约:test_qwen21_workflow_contract
+  // L261-263 插件字段序 [prompt,…];兜底=首个长字符串值 widget);真实回调 w.callback(w.value)
+  const setRaw = await wv(main, `(() => {
+    const g = window.app.canvas.graph;
+    const n = g && g._nodes ? g._nodes.find(x => x.type === 'QwenImage21_T2IPromptRewrite') : null;
+    if (!n || !n.widgets || !n.widgets.length) return JSON.stringify({ err: 'pe-inner-missing' });
+    const w = n.widgets.find(x => String(x.name) === 'prompt') || n.widgets.find(x => typeof x.value === 'string' && x.value.length > 20);
+    if (!w) return JSON.stringify({ err: 'widget-missing', names: n.widgets.map(x => x.name).join(',') });
+    w.value = ${JSON.stringify(truth.fedSeed)};
+    try { w.callback && w.callback(w.value); } catch (e) {}
+    return JSON.stringify({ widget: w.name, back: w.value });
+  })()`);
+  let fed = null; try { fed = JSON.parse(String(setRaw)); } catch { /* keep null */ }
+  const fedOk = !!fed && !fed.err && fed.back === truth.fedSeed;
+  check("S6b PE 种子改写(读回=前缀+主体句,逐字)", fedOk,
+    fedOk ? `widget=${fed.widget} 读回 ${String(fed.back).length} 字(=pePrefix ${truth.pePrefix.length}+subj24 ${truth.subj24.length})` : String(setRaw).slice(0, 200));
+  if (!fedOk) { await wv(main, `(() => { try { window.app.canvas.setGraph(window.__e2eS6bRoot); } catch (e) {} 'exited' })()`); return; }
+  // ③ 退子图复位(改完即出,queuePrompt 在根图视角做——与真实用户路径一致)
+  const exitRaw = await wv(main, `(() => {
+    try { window.app.canvas.setGraph(window.__e2eS6bRoot); } catch (e) { return 'EXC:' + e.message; }
+    const g = window.app.canvas.graph;
+    return g && g._nodes ? g._nodes.length : null;
+  })()`);
+  check("S6b 退出子图复位(根节点数回位)", String(exitRaw) === String(truth.rootCount),
+    `退出后 ${exitRaw} 节点(期望=${truth.rootCount})`);
+  // ④ queuePrompt(真前端,与 S6 同通道);排队图抓取走 D3.2 内容过滤(叠加喂入文判别段=主体句头)
+  const knownPids = new Set(Object.keys(await (await fetch(`${engineBase}/history`, { signal: AbortSignal.timeout(8000) })).json()));
+  const outBefore = countOutput(truth.savePrefix);
+  const t0 = Date.now();
+  const queued = await wv(main, `(async () => {
+    const app = window.app; if (!app || typeof app.queuePrompt !== 'function') return null;
+    try { await app.queuePrompt(); return 'queued'; } catch (e) { return 'err:' + (e && (e.message || e)); }
+  })()`);
+  check("S6b queuePrompt 发出(真前端)", queued === "queued", String(queued));
+  if (queued !== "queued") return;
+  const cap = await captureOurShot(engineBase, knownPids, truth, subjHead, 20_000);
+  const prompt = cap.prompt;
+  if (!prompt) {
+    check("S6b 排队图抓取(引擎 /queue,内容过滤=装配域PE+本产线前缀+喂入文头)", false, "执行期未捕到(可能秒完/过快)");
+  } else {
+    writeFileSync(join(TMP, "queued-prompt-pe.json"), JSON.stringify(prompt, null, 1));
+    check("S6b 排队图抓取(引擎 /queue,内容过滤=装配域PE+本产线前缀+喂入文头)", true, `pid=${String(cap.pid).slice(0, 8)} 节点=${Object.keys(prompt).length}`);
+    const keys = Object.keys(prompt);
+    const pe = keys.filter((k) => k.startsWith(truth.asmDomain) && prompt[k]?.class_type === "QwenImage21_T2IPromptRewrite");
+    const pePrompt = pe.length ? String(prompt[pe[0]]?.inputs?.prompt ?? "") : "";
+    const peOk = pe.length > 0 && pePrompt === truth.fedSeed && pePrompt.includes(subjHead);
+    const ksDir = keys.filter((k) => k.startsWith(truth.accDomain) && prompt[k]?.class_type === "KSampler" && String(prompt[k]?.inputs?.steps) === String(truth.ksSteps));
+    check("S6b 排队图硬闸(喂入文真进采样链)", peOk && ksDir.length > 0,
+      `改写器 prompt=${peOk ? "喂入文逐字✓" : `实况头「${pePrompt.slice(0, 40)}…」`} 含主体句头18字=${pePrompt.includes(subjHead)};直出KS steps=${truth.ksSteps} key=${ksDir.join(",") || "无"}`);
+  }
+  // ⑤ 等终态+取证(与 S6 同款:history success/前缀计数+1/新 PNG>50KB//view→t2i-result-pe.png)
+  const hist = await waitTerminal(engineBase, knownPids, "S6b", cap && cap.pid);
+  const wallSecs = Math.round((Date.now() - t0) / 1000);
+  if (hist.error) { check("S6b 引擎执行完成(/history success)", false, String(hist.error).slice(0, 2000)); return; }
+  writeFileSync(join(TMP, "history-entry-pe.json"), JSON.stringify(hist.entry, null, 1));
+  check("S6b 引擎执行完成(/history success)", true, `pid=${String(hist.pid).slice(0, 8)} ${wallSecs}s`);
+  const imgs = [];
+  for (const o of Object.values(hist.entry.outputs || {})) if (o.images) imgs.push(...o.images.filter((i) => (i.type || "output") === "output"));
+  if (!imgs.length) { check("S6b 引擎出图(history outputs)", false, "无 output 图"); return; }
+  const img = imgs.find((i) => /\.png$/i.test(i.filename)) || imgs[0];
+  const outNow = countOutput(truth.savePrefix);
+  check("S6b 引擎出图(引擎 output 目录新增)", outNow > outBefore, `前缀=${truth.savePrefix} ${outBefore}→${outNow} 文件=${img.filename}`);
+  let buf = null;
+  try {
+    const q = new URLSearchParams({ filename: img.filename, subfolder: img.subfolder || "", type: img.type || "output" });
+    const r = await fetch(`${engineBase}/view?${q}`, { signal: AbortSignal.timeout(15_000) }); // D3.4 /view 超时
+    if (r.ok) buf = Buffer.from(await r.arrayBuffer());
+  } catch { /* 落入文件系统兜底 */ }
+  if (!buf && existsSync(join(ENGINE_OUTPUT, img.filename))) buf = readFileSync(join(ENGINE_OUTPUT, img.filename));
+  const evPath = join(OUT_DIR, "t2i-result-pe.png");
+  if (buf) writeFileSync(evPath, buf);
+  check("S6b /view 取证落盘(PNG 魔数+>50KB→apps/output 证据 t2i-result-pe.png)",
+    Boolean(buf) && pngMagic(buf) && buf.length > 50_000,
+    buf ? `${img.filename} ${(buf.length / 1024).toFixed(0)}KB → ${evPath} (${wallSecs}s)` : "取证失败(/view+文件系统双兜底皆空)");
+  await main.screenshot("8-t2i-result-pe");
 }
 
 // ═══════════ S7 收摊+报告 ═══════════
@@ -574,10 +774,13 @@ async function main() {
 
   await s0Precheck(truth);
   const mainClientPromise = getMainClient();
-  const main = await s1Launch(mainClientPromise);
+  // D3.3 加固:S1 attach 挪进 try+main 外提——早失败(target 未出现/水合超时)也走
+  // finally 收摊+落 report.json(fatal 字段载因),不再裸退出无报告
+  let main = null;
   let engineBase = null;
   let fatal = null;
   try {
+    main = await s1Launch(mainClientPromise);
     await s2EnterProject(main);
     engineBase = await s3OpenCanvas(main);
     await s4CloseAllTabs(main);
@@ -585,8 +788,16 @@ async function main() {
     if (SKIP_GEN) {
       log("S6 跳过实弹生图(SKIP_GEN=1,链路段 S0-S5 已覆盖)");
       results.push({ name: "S6 真前端出图(实弹)", pass: true, detail: "SKIP_GEN=1 跳过" });
+      results.push({ name: "S6b PE 种子喂法硬闸(实弹)", pass: true, detail: "SKIP_GEN=1 跳过(连 S6 一起)" });
     } else {
-      await s6Generate(main, engineBase, truth);
+      const s6ok = await s6Generate(main, engineBase, truth);
+      if (SKIP_PE) {
+        results.push({ name: "S6b PE 种子喂法硬闸(实弹)", pass: true, detail: "SKIP_PE=1 跳过" });
+      } else if (!s6ok) {
+        check("S6b PE 种子喂法硬闸(实弹)", false, "S6 未走通(queue/引擎/产物断链),S6b 前置不满足不执行");
+      } else {
+        await s6bPeFedShot(main, engineBase, truth);
+      }
     }
   } catch (e) {
     fatal = String(e?.message || e);
@@ -597,10 +808,12 @@ async function main() {
     const allPass = results.every((r) => r.pass);
     const report = {
       generatedAt: new Date().toISOString(),
-      command: `node apps/build/scripts/daojie-t2i-app-e2e.mjs${SKIP_GEN ? " (SKIP_GEN=1)" : ""}`,
-      task: "09-30-daojie-t2i-app-e2e",
+      command: `node apps/build/scripts/daojie-t2i-app-e2e.mjs${SKIP_GEN ? " (SKIP_GEN=1)" : SKIP_PE ? " (SKIP_PE=1)" : ""}`,
+      task: "09-30-daojie-t2i-e2e-pt2",
       cdpPort: CDP_PORT, engineBase,
-      truth: { rootCount: truth.rootCount, panel40: truth.panel40, panel208: truth.panel208, speedMode: truth.speedMode, seedDefault: truth.seedDefault, ksSteps: truth.ksSteps, savePrefix: truth.savePrefix, peSeedHead: truth.peSeed.slice(0, 60) },
+      truth: { rootCount: truth.rootCount, panel40: truth.panel40, panel208: truth.panel208, speedMode: truth.speedMode, seedDefault: truth.seedDefault, ksSteps: truth.ksSteps, savePrefix: truth.savePrefix,
+        peSeedHead: truth.peSeed.slice(0, 60), subj24Head: truth.subj24.slice(0, 60), pePrefix: truth.pePrefix, fedSeedHead: truth.fedSeed.slice(0, 60),
+        instT2iSha: truth.instSha, repoT2iSha: truth.repoSha },
       evidenceDir: OUT_DIR, tmpDir: TMP,
       consoleErrorCount: consoleErrors.length,
       consoleErrors: consoleErrors.slice(0, 30),
@@ -613,7 +826,7 @@ async function main() {
     for (const r of results) log(`${r.pass ? "✅" : "❌"} ${r.name}${r.detail ? ` — ${String(r.detail).slice(0, 200)}` : ""}`);
     log(`报告: ${join(OUT_DIR, "report.json")}(console 错误 ${consoleErrors.length} 条随档)`);
     log(allPass ? "✅ E2E 全部通过" : "❌ E2E 存在失败项");
-    try { main.close(); } catch { /* 已关 */ }
+    try { if (main) main.close(); } catch { /* 已关 */ }
     process.exit(allPass ? 0 : 1);
   }
 }
