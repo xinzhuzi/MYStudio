@@ -5,11 +5,14 @@
 test_my_daojie_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 
 锁:注册面(含 test_my_nodes.py 注册面全集钉)/COMBO 九项有序(=canon
-daojie_bases.json zh 顺序)+默认钉死「人物」/四出形状(BASE·WIDTH·HEIGHT·
-型名)/BASE 与 05 库对应型逐字一致(②美化版底座+人物系增量四锁B+④配色行,
+daojie_bases.json zh 顺序)+默认钉死「人物」/五出形状(BASE·WIDTH·HEIGHT·
+型名·rgba_default——0929 画布治理批 D6 追加最末,既有槽序不动)/BASE 与
+05 库对应型逐字一致(②美化版底座+人物系增量四锁B+④配色行,
 锚从库运行时切出、零硬编码;①槽与常量A 不在 BASE 内——工作流恒挂层承担)/
 W/H 与 K2 MyDaojieBase 同型同参输出一比一(K2 侧多视图 override 3072×1024 直出;Q2.1 侧 0927 起多视图分档 3:4 无 override;
-公式=MP 按 1024² 计、边长取整 8 倍数)/数据文件 schema(aspect/MP/override
+公式=MP 按 1024² 计、边长取整 8 倍数)/rgba_default 四型(道具/多视图/高清
+人脸/表情差分)=true 其余五型 false(锚=②层透明声明句全串运行时判定+四型
+集合独立钉;缺字段回退 False)/数据文件 schema(aspect/MP/override
 与 canon 逐字镜像)/未知型与库缺失中文 RuntimeError/mtime 失效热改。
 """
 
@@ -35,6 +38,14 @@ CANON_BASES = (REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
 
 # 人物系六型(base_text 含常量B 增量四锁;与 05 库生成器 daojie_canon_lib.py 同表)
 RENWU_XI = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
+
+# 0929 D6 rgba_default 四型(用户拍板:道具/多视图/高清人脸/表情差分默认开 RGBA,
+# 其余五型默认关)——独立钉(防提取器 RGBA_DEFAULT_TYPES 常量被静默改)
+RGBA_DEFAULT_TYPES = {"道具", "多视图", "高清人脸", "表情差分"}
+
+# 透明声明句核锚=全串(防「透明头皮」光头禁令条款误判,S0 research/transparency-
+# fusion.md 注记;canon_lib TRANSPARENT_DECL 首段,表情差分变体尾同前缀)
+RGBA_DECL_ANCHOR = "图为带透明通道的 RGBA 透明底图"
 
 
 @pytest.fixture(autouse=True)
@@ -94,8 +105,9 @@ def test_combo_nine_options_in_canon_order_with_pinned_default():
     assert isinstance(combo[0], list)
     assert combo[0] == _canon_order()  # canon zh 顺序(json 条目顺序,不 sorted)
     assert combo[1]["default"] == "人物"  # DEFAULT_BASE 钉死
-    assert MyQi21DaojieBase.RETURN_TYPES == ("STRING", "INT", "INT", "STRING")
-    assert MyQi21DaojieBase.RETURN_NAMES == ("BASE", "WIDTH", "HEIGHT", "型名")
+    # 0929 D6:rgba_default(BOOLEAN)追加最末——既有槽序不动=存量工作流接线零漂移
+    assert MyQi21DaojieBase.RETURN_TYPES == ("STRING", "INT", "INT", "STRING", "BOOLEAN")
+    assert MyQi21DaojieBase.RETURN_NAMES == ("BASE", "WIDTH", "HEIGHT", "型名", "rgba_default")
     assert MyQi21DaojieBase.FUNCTION == "run"
 
 
@@ -103,7 +115,7 @@ def test_combo_nine_options_in_canon_order_with_pinned_default():
 def test_base_text_verbatim_from_lib_for_all_nine():
     doc = _lib_doc()
     for zh in _canon_order():
-        base_text, _w, _h, name_out = MyQi21DaojieBase().run(zh)
+        base_text, _w, _h, name_out, _rgba = MyQi21DaojieBase().run(zh)
         assert name_out == zh  # 型名直通
         assert base_text == _lib_base_text(doc, zh), zh
         lines = base_text.split("\n")
@@ -118,7 +130,7 @@ def test_base_text_verbatim_from_lib_for_all_nine():
 
 def test_run_all_options_produce_nonempty_outputs():
     for zh in _canon_order():
-        base_text, w, h, name_out = MyQi21DaojieBase().run(zh)
+        base_text, w, h, name_out, _rgba = MyQi21DaojieBase().run(zh)
         assert base_text and ("细墨线" in base_text or "运笔" in base_text)
         assert isinstance(w, int) and isinstance(h, int) and w > 0 and h > 0
 
@@ -126,7 +138,7 @@ def test_run_all_options_produce_nonempty_outputs():
 # ── W/H:与 K2 MyDaojieBase 同型同参输出一致(公式口径单源)─────
 def test_width_height_match_k2_same_type_and_params():
     for zh in _canon_order():
-        _b, w, h, _n = MyQi21DaojieBase().run(zh)
+        _b, w, h, _n, _rgba = MyQi21DaojieBase().run(zh)
         _p, _neg, aspect, mp, _bn, k_w, k_h = MyDaojieBase().run(zh)
         if zh == "多视图":
             # 0927 多视图轮:Q2.1侧画幅分档(3:4 Portrait 4.2MP 分张,退役 override;提取器
@@ -152,8 +164,23 @@ def test_width_height_reference_table():
         "分镜剧情图": (2800, 1576), "表情差分": (2096, 2096),
         "概念气氛图": (2800, 1576)}
     for zh, (w, h) in expect.items():
-        _b, w_out, h_out, _n = MyQi21DaojieBase().run(zh)
+        _b, w_out, h_out, _n, _rgba = MyQi21DaojieBase().run(zh)
         assert (w_out, h_out) == (w, h), (zh, w_out, h_out)
+
+
+# ── rgba_default:四型透明声明型 true 其余 false(0929 D6)─────────
+def test_rgba_default_four_types_true_rest_false():
+    """rgba_default(0929 画布治理批 D6,用户拍板四型):①锚=②层透明声明句全串
+    运行判定(零硬编码;全串防「透明头皮」光头禁令条款误判);②四型集合独立钉
+    (防提取器 RGBA_DEFAULT_TYPES 被静默改);③节点输出与 json 字段一致。"""
+    for zh in _canon_order():
+        base_text, _w, _h, _n, rgba = MyQi21DaojieBase().run(zh)
+        assert isinstance(rgba, bool), zh
+        assert rgba == (RGBA_DECL_ANCHOR in base_text), zh  # 布尔随声明句走
+        entry = my_qi21_base._entry(zh)
+        assert rgba == entry["rgba_default"], zh  # 节点输出=json 字段
+    got = {zh for zh in _canon_order() if MyQi21DaojieBase().run(zh)[4]}
+    assert got == RGBA_DEFAULT_TYPES, got
 
 
 # ── 数据文件 schema:字段形状+与 canon 逐字镜像 ─────────────────
@@ -172,6 +199,9 @@ def test_data_file_schema():
         mp = e["megapixels"]
         assert (isinstance(mp, (int, float)) and not isinstance(mp, bool)
                 and mp > 0), (zh, mp)
+        # 0929 D6:rgba_default 九型全带布尔(提取器 RGBA_DEFAULT_TYPES 真源)
+        assert isinstance(e["rgba_default"], bool), (zh, e.get("rgba_default"))
+        assert e["rgba_default"] == (zh in RGBA_DEFAULT_TYPES), zh
         if "resolution_override" in e:
             ov = e["resolution_override"]
             assert (isinstance(ov, list) and len(ov) == 2
@@ -202,12 +232,15 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
         encoding="utf-8")
     monkeypatch.setattr(my_qi21_base, "_BASES_JSON", fake)
     assert my_qi21_base.bases_list() == ["测试型"]
-    bt, w, h, name = MyQi21DaojieBase().run("测试型")
+    bt, w, h, name, rgba = MyQi21DaojieBase().run("测试型")
     assert bt == "测试底座" and name == "测试型"
+    # 缺 rgba_default 字段:回退 False(0929 D6;默认关=安全侧,与五型默认同态)
+    assert rgba is False
     # 缺分辨率字段:回退 1:1 (Square)/4.2(与 K2 单源)+控制台中文警告
     assert (w, h) == native_px("1:1 (Square)", 4.2) == (2096, 2096)
     out = capsys.readouterr().out
     assert "缺 aspect_ratio 字段" in out and "缺 megapixels 字段" in out
+    assert "缺 rgba_default 字段" in out
     assert "回退" in out
     # 热改:同路径改内容+推 mtime(免文件系统时间粒度),现读即生效
     entries = json.loads(fake.read_text(encoding="utf-8"))
@@ -217,7 +250,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     time.sleep(0.01)
     import os
     os.utime(fake, (stat.st_atime + 5, stat.st_mtime + 5))
-    bt2, _w2, _h2, _n2 = MyQi21DaojieBase().run("测试型")
+    bt2, _w2, _h2, _n2, _rgba2 = MyQi21DaojieBase().run("测试型")
     assert bt2 == "热改后的底座"
 
 

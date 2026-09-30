@@ -14,6 +14,12 @@
     常量A·基础锁不在 BASE 内——由工作流恒挂层承担(05 库装配子图口径)。
     aspect_ratio/megapixels(及 canon override 型)照抄 canon——多视图型 0927 起 Q2.1侧
     分档 3:4 Portrait 4.2MP 并退役 override(提取器 Q21_ASPECT_FORK;K2 侧 canon 不动)。
+    rgba_default(0929 画布治理批 D6 RGBA 型联动)=四型透明声明型(道具/多视图/高清
+    人脸/表情差分)true 其余五型 false——**布尔真源=提取器 RGBA_DEFAULT_TYPES 常量**
+    (05 库只载声明文字不载布尔,防文档格式漂移带坏机器可读链;提取时与②层透明
+    声明句互锁对账);rgba_default 槽(BOOLEAN,追加最末不动既有槽序=存量工作流
+    接线零漂移)供装配子图 RGBA 型联动(设计 D6:MyQi21RgbaSelect.rgba_hint←本槽);
+    缺/非布尔回退 False+控制台警告(回退=默认关,与五型默认同态=安全侧)。
 
   W/H 口径单源=K2 件:native_px/FALLBACK_* 直接 import(同 K2 复用
   my_styles._merge_negative 的防两处实现漂移纪律)——resolution_override 直出,
@@ -110,9 +116,22 @@ def _width_height_of(base: str, entry: dict, aspect: str, megapixels: float) -> 
     return native_px(aspect, megapixels)
 
 
+def _rgba_default_of(base: str, entry: dict) -> bool:
+    """rgba_default(0929 画布治理批 D6:四型透明声明型默认开 RGBA,其余五型
+    默认关);缺/非布尔回退 False+控制台警告(热改 json、旧装机副本未同步走此路
+    ——回退=默认关,与五型默认同态=安全侧,同 _resolution_of 缺字段纪律)。"""
+    v = entry.get("rgba_default")
+    if not isinstance(v, bool):
+        print(f"[漫影 qi21底座] 「{base}」缺 rgba_default 字段,"
+              "回退 False(请重新同步自研节点或检查 qi21_bases.json)")
+        return False
+    return v
+
+
 class MyQi21DaojieBase:
     """漫影道劫 qi21 底座:选型下拉九选一,BASE(该型②+B+④拼合底座全文)+
-    WIDTH/HEIGHT(型档分辨率直出)+型名(直通,驱动按型路由)四出。"""
+    WIDTH/HEIGHT(型档分辨率直出)+型名(直通,驱动按型路由)+rgba_default(0929
+    D6 RGBA 型联动:四型透明声明型 true 其余 false,供装配子图型联动开关)五出。"""
 
     CATEGORY = "my"
 
@@ -127,8 +146,10 @@ class MyQi21DaojieBase:
             default = ""
         return {"required": {"base": (names, {"default": default})}}
 
-    RETURN_TYPES = ("STRING", "INT", "INT", "STRING")
-    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "型名")
+    # rgba_default 追加最末(0929 D6):不动既有槽序=存量工作流接线零漂移
+    # (t2i/i2i/edit 三件 [150] 现用槽 0/1/2,BASE/WIDTH/HEIGHT 索引不变)。
+    RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN")
+    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "型名", "rgba_default")
     FUNCTION = "run"
 
     @classmethod
@@ -154,4 +175,5 @@ class MyQi21DaojieBase:
                 "是否被改动")
         aspect, megapixels = _resolution_of(base, entry)
         width, height = _width_height_of(base, entry, aspect, megapixels)
-        return (entry["base_text"], width, height, base)
+        rgba_default = _rgba_default_of(base, entry)
+        return (entry["base_text"], width, height, base, rgba_default)
