@@ -121,8 +121,9 @@ app.registerExtension({
       const loop = () => {
         if (!node.__myAbVideo || ui.syncToken !== token) return; // 竞态自杀
         tickSync(node);
-        // 暂停态一拍即歇环(读数由 seek/交互直更;静置节点零 rAF 常驻)
-        if (!ui.playing) return;
+        // 暂停态一拍即歇环(读数由 seek/交互直更;静置节点零 rAF 常驻);
+        // DOM 脱离(isConnected 假)同歇——真歇环在此,宿主漏调 onRemoved 也不空转
+        if (!ui.playing || !ui.el.isConnected) return;
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
@@ -131,7 +132,8 @@ app.registerExtension({
     // 每帧:A 为主钟推共享帧号;B 漂移超容限即校正;读数/播完收尾
     const tickSync = (node) => {
       const ui = node.__myAbVideo;
-      // 生命周期守卫:节点已删(DOM 脱离)即歇环,不写 detached 节点
+      // 生命周期守卫:DOM 已脱离时本拍直接返回,不写 detached 节点
+      // (真歇环在 loop 续命条件——isConnected 假即不再排下一拍;此处只兜脱离后最后一拍)
       if (!ui || !ui.el.isConnected) return;
       const state = ensureState(node);
       const { videoA, videoB } = ui;
@@ -432,7 +434,8 @@ app.registerExtension({
     };
 
     // ── 生命周期收口:onRemoved(播放中删节点=同步环立死+双 video 停播停声)──
-    // rAF 环另有 tickSync 侧 isConnected 守卫双保险(宿主不调 onRemoved 也不空转)
+    // rAF 环的兜底=loop 续命条件的 isConnected 判(DOM 脱离即真歇环,宿主漏调
+    // onRemoved 也不空转);tickSync 侧守卫只护脱离后最后一拍不写 detached 节点
     const onRemoved = nodeType.prototype.onRemoved;
     nodeType.prototype.onRemoved = function () {
       const result = onRemoved?.apply(this, arguments);
