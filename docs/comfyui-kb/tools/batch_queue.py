@@ -26,6 +26,17 @@
     竞态在异前缀下天然错开);--prefix-node/--prefix-field 显式指到 SaveImage
     才生效(指了才改,不猜节点)。
 
+防误配置预检(七条 low 修补,09-30 收尾批,误配即报不静默):
+  - 写入目标预检(--var-*/--prefix-* 通用):节点在闭包内+槽存在+非连线槽,
+    指错即打印报错退 2(不再 KeyError 裸栈/覆写连线引擎逐拍 400)。
+  - 闭包内悬空连线预检:源节点转换失败未进 API 图时,其硬伤主语不在闭包被
+    过滤(漏报)——按闭包图直扫补上,引擎 400 前拦下。
+  - 续跑预检:引擎仍压自家 pending(上次中断残留)即拦,提示先 stop(防双跑)。
+  - queue_ahead>1 未配 --prefix-node:同前缀并发覆盖警示(不拦)。
+  - 提交回执即时落账(中断兜底补记):关死「回执↔台账」窗口,stop 不缺单。
+  - 单拍超时仍在 pending=queue_ahead>1 排队等待计入超时(误判),重置时钟
+    续等;真挂尸(running 无进度)判决照走。
+
 引擎口现算(禁抄旧端口常量):MYSTUDIO_COMFYUI_BRIDGE_URL 覆写 →
   <引擎家>/manifest.json 的 engine.port;引擎家=MYSTUDIO_COMFYUI_HOME 覆写 →
   ~/Library/Application Support/漫影工作室/comfyui。引擎无鉴权。
@@ -218,6 +229,21 @@ def hard_errors_in_closure(report: list[str], closure_ids: set[str]) -> list[str
     return out
 
 
+def dangling_links_in_closure(prompt: dict) -> list[str]:
+    """闭包内悬空连线预检:值是连线但源节点不在闭包图内(引擎 400 拒单)。
+
+    成因=源节点在 graph_to_prompt 转换失败(类不在 object_info 等)未进 API 图,
+    闭包收集沿连线走不到它;其 `!!` 硬伤主语(源节点)又不在闭包内被
+    hard_errors_in_closure 过滤——两头漏报,此处按闭包图直扫补上。
+    """
+    out = []
+    for nid, entry in prompt.items():
+        for field, value in entry.get("inputs", {}).items():
+            if is_link(value) and value[0] not in prompt:
+                out.append(f"node={nid} slot={field} 连线源 node={value[0]} 不在闭包图内(引擎将 400)")
+    return out
+
+
 def set_shot_variable(prompt: dict, node_id, field: str, value) -> None:
     """改 index:把拍变量写进拍图(deepClone 之后)。槽不存在=硬错防静默空拍。"""
     entry = prompt.get(str(node_id))
@@ -227,6 +253,27 @@ def set_shot_variable(prompt: dict, node_id, field: str, value) -> None:
             f"若节点被闭包裁掉,检查 --output-nodes)"
         )
     entry["inputs"][field] = value
+
+
+def field_target_error(prompt: dict, node_id, field: str, option: str) -> str | None:
+    """写入目标预检(--var-*/--prefix-* 通用):节点在闭包内+槽存在+非连线槽。
+
+    三型误配置各给一行报错(调用方照预检风格打印后 return 2,不裸栈):
+    节点被闭包裁掉/槽不存在(原=提交期 KeyError 裸栈)/槽是连线(写入会覆盖
+    连线,引擎逐拍 400)。返回 None=可写。
+    """
+    entry = prompt.get(str(node_id))
+    if entry is None:
+        return f"--{option}-node {node_id} 不在闭包内(被裁掉?),核对 --output-nodes"
+    if field not in entry.get("inputs", {}):
+        return f"节点 #{node_id} 无输入槽 {field}(核对 --{option}-field)"
+    value = entry["inputs"][field]
+    if is_link(value):
+        return (
+            f"节点 #{node_id} 槽 {field} 是连线槽(接自 node {value[0]}),"
+            f"写入会覆盖连线,引擎将逐拍 400;--{option}-field 请指 widget 槽"
+        )
+    return None
 
 
 def coerce_like(existing, raw: str):
@@ -498,13 +545,26 @@ def cmd_run(args) -> int:
             print(f"    {line}")
         return 2
 
-    if str(args.var_node) not in line_prompt:
-        print(f"[batch-queue] --var-node {args.var_node} 不在闭包内(被裁掉?),核对 --output-nodes")
+    # 防误配置预检④:闭包内悬空连线(源节点转换失败未进 API 图,硬伤闭包过滤
+    # 漏报;引擎 400 拒单前在此拦下)
+    dangling = dangling_links_in_closure(line_prompt)
+    if dangling:
+        print(f"[batch-queue] 闭包内有 {len(dangling)} 条悬空连线(引擎将 400 拒单),先处理后跑:")
+        for line in dangling:
+            print(f"    {line}")
         return 2
-    existing = line_prompt[str(args.var_node)]["inputs"].get(args.var_field)
-    if existing is None:
-        print(f"[batch-queue] 节点 #{args.var_node} 无输入槽 {args.var_field}(核对 --var-field)")
+
+    # 防误配置预检①:写入目标(节点在闭包内+槽存在+非连线槽),var 与 prefix 同规
+    var_err = field_target_error(line_prompt, args.var_node, args.var_field, "var")
+    if var_err:
+        print(f"[batch-queue] {var_err}")
         return 2
+    existing = line_prompt[str(args.var_node)]["inputs"][args.var_field]
+    if args.prefix_node is not None:
+        prefix_err = field_target_error(line_prompt, args.prefix_node, args.prefix_field, "prefix")
+        if prefix_err:
+            print(f"[batch-queue] {prefix_err}")
+            return 2
 
     values = args.var_values
     total = len(values)
@@ -513,6 +573,24 @@ def cmd_run(args) -> int:
     for line in bad:
         print(f"  台账坏行(忽略): {line}")
     completed = completed_shots(latest)
+
+    # 防误配置预检③:续跑先查引擎残留自家 pending(上次中断的残留单)——
+    # 不查则同拍双跑(前缀防覆盖只保文件名,不保算力);remedy=先精确停队
+    stale_pending = own_pending(own_ids, engine.queue())
+    if stale_pending:
+        shown = ", ".join(stale_pending[:4]) + ("…" if len(stale_pending) > 4 else "")
+        print(f"[batch-queue] 引擎仍压着自家 pending {len(stale_pending)} 单({shown});")
+        print(f"  直接续跑会双跑,先精确停队: python3 {sys.argv[0]} stop --ledger {ledger}")
+        return 2
+
+    # 防误配置预检⑤:并发在飞无逐拍前缀=同前缀 SaveImage 计数器竞态可覆盖(警示不拦)
+    if args.queue_ahead > 1 and args.prefix_node is None:
+        print(
+            f"[batch-queue] 警示:--queue-ahead {args.queue_ahead}>1 且未配 --prefix-node,"
+            f"多拍同前缀并发出图,SaveImage 计数器竞态可致同名覆盖;"
+            f"建议 --prefix-node <SaveImage id> --prefix-base <基名> 每拍独立前缀"
+        )
+
     rng = random.Random(args.seed) if args.random else None
     plan = plan_batch(total, args.start, completed, rng)
     print(
@@ -524,10 +602,6 @@ def cmd_run(args) -> int:
         ledger, "plan", total=total, start=args.start, random=bool(args.random),
         seed=args.seed, interval=args.interval, queue_ahead=args.queue_ahead, shots=plan,
     )
-
-    if args.prefix_node is not None and str(args.prefix_node) not in line_prompt:
-        print(f"[batch-queue] --prefix-node {args.prefix_node} 不在闭包内,防覆盖前缀不会生效")
-        return 2
 
     inflight: dict[str, int] = {}
     submitted_at: dict[str, float] = {}
@@ -553,9 +627,15 @@ def cmd_run(args) -> int:
                     ledger_append(ledger, "error", shot=shot, stage="submit_rejected", detail=str(node_errors)[:400])
                     failures += 1
                     continue
+                # 预检②:回执一到立即落账(中断兜底补记后重抛,交外层 130 收尾)——
+                # 关死「提交回执↔台账落笔」窗口,stop 的身份底册(prompt_id)永不缺单
+                try:
+                    ledger_append(ledger, "submit", shot=shot, prompt_id=pid, value=value, prefix=prefix)
+                except KeyboardInterrupt:
+                    ledger_append(ledger, "submit", shot=shot, prompt_id=pid, value=value, prefix=prefix)
+                    raise
                 inflight[pid] = shot
                 submitted_at[pid] = time.time()
-                ledger_append(ledger, "submit", shot=shot, prompt_id=pid, value=value, prefix=prefix)
                 print(f"[shot {shot}/{total}] 提交 {pid} var={value!r} prefix={prefix}")
                 if args.interval > 0:
                     time.sleep(args.interval)
@@ -565,6 +645,16 @@ def cmd_run(args) -> int:
                 entry = engine.history(pid).get(pid)
                 if entry is None:
                     if time.time() - submitted_at[pid] > args.shot_timeout:
+                        # 预检⑥:超时但仍在引擎 pending=queue_ahead>1 排队等待计入了
+                        # 超时(误判)——在队未启算≠挂尸,重置时钟续等;真挂尸
+                        # (报 running 而引擎日志无进度)判决照走
+                        if pid in queue_ids(engine.queue(), "queue_pending"):
+                            print(
+                                f"[shot {shot}] 超时 {args.shot_timeout:.0f}s 但仍在引擎 pending"
+                                f"(排队等待计入超时,非僵尸),重置时钟续等"
+                            )
+                            submitted_at[pid] = time.time()
+                            continue
                         _print_zombie_verdict(engine, shot, pid, args.shot_timeout)
                         ledger_append(ledger, "zombie", shot=shot, prompt_id=pid)
                         if args.auto_interrupt:
@@ -872,6 +962,28 @@ def self_test() -> int:
     # 15) 进度行真相源正则
     check("进度行匹配", bool(PROGRESS_LINE_RE.search("Prompt executed in 12.34 seconds")))
     check("非进度行不匹配", not PROGRESS_LINE_RE.search("got prompt") and not PROGRESS_LINE_RE.search("Prompt executed"))
+
+    # 16) 防误配置预检纯逻辑(写入目标三型误配置+闭包内悬空连线)
+    check("目标预检=合法 var 目标放行", field_target_error(prompt, "2", "seed", "var") is None)
+    check("目标预检=合法 prefix 目标放行", field_target_error(prompt, "9", "filename_prefix", "prefix") is None)
+    miss = field_target_error(prompt, "2", "无此槽", "var")
+    check("目标预检=槽不存在报错", miss is not None and "无输入槽" in miss and "--var-field" in miss)
+    cut = field_target_error(prompt, "77", "seed", "var")
+    check("目标预检=节点不在闭包报错", cut is not None and "不在闭包内" in cut and "--var-node" in cut)
+    link_hit = field_target_error(prompt, "9", "images", "prefix")
+    check("目标预检=连线槽报错(防覆盖连线)",
+          link_hit is not None and "连线槽" in link_hit and "node 2" in link_hit)
+    check("悬空连线=干净图零报",
+          dangling_links_in_closure(prompt) == [] and dangling_links_in_closure(closure_prune(g, ["4"])) == [])
+    g_dangling = {"2": {"class_type": "B", "inputs": {"a": ["1", 0]}},
+                  "4": {"class_type": "C", "inputs": {"b": ["2", 0]}}}
+    d_line = dangling_links_in_closure(g_dangling)
+    check("悬空连线=源不在闭包图内如实报",
+          len(d_line) == 1 and "node=2" in d_line[0] and "slot=a" in d_line[0] and "node=1" in d_line[0])
+    p_missing_src = {k: v for k, v in prompt.items() if k != "6"}  # 模拟源节点转换失败未进 API 图
+    d_real = dangling_links_in_closure(closure_prune(p_missing_src, ["9"]))
+    check("悬空连线=闭包产物实况(硬伤闭包过滤漏报的补扫)",
+          len(d_real) == 1 and "node=2" in d_real[0] and "latent_image" in d_real[0])
 
     print(f"\nself-test: {len(failures)} failed" if failures else "\nself-test: ALL PASS")
     return 1 if failures else 0
