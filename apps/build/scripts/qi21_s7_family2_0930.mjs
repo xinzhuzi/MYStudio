@@ -289,15 +289,20 @@ async function main() {
   const seedArr = await parseDigest("PrimitiveInt", ["value"]);
   const perwArr = await parseDigest("QwenImage21_T2IPromptRewrite", ["clip"]);
   const rgbaArr = await parseDigest("MyQi21RgbaSelect", ["mode"]);
+  // 0930 修复官 D-9:剥离件靶语义化(class_type+值特征寻址,弃 JSON 内层 id 拼接——
+  // stripNode.id 锚仓库 JSON 静态 id,装载可重编号即断;值特征=regex_pattern 与装载前
+  // 真源常量 stripPattern 逐字相等,同款纪律=干跑排队图实况勿锚 JSON id)
+  const stripArr = await parseDigest("RegexReplace", ["regex_pattern"]);
   const NID = {
     SEL: selArr?.find((o) => String(o.node).startsWith("208:"))?.node,
     KS_DIR: ksArr?.find((o) => String(o.node).startsWith("208:") && o.steps === 40)?.node,
     SEED: seedArr?.find((o) => String(o.node).startsWith("208:") && typeof o.value === "number")?.node,
     PERW: perwArr?.find((o) => String(o.node).startsWith("40:"))?.node,
     RGBASEL: rgbaArr?.find((o) => String(o.node).startsWith("40:"))?.node,
+    STRIP: stripArr?.find((o) => o.regex_pattern === stripPattern)?.node,
   };
   const rtOk = Object.values(NID).every((v) => !!v);
-  check("B0 运行态取证靶发现(干跑排队图实况:选择/直出KS/seed/PE改写/三态件)", rtOk, JSON.stringify(NID));
+  check("B0 运行态取证靶发现(干跑排队图实况:选择/直出KS/seed/PE改写/三态件/剥离件·语义寻址)", rtOk, JSON.stringify(NID));
   report.targets = NID;
   if (!rtOk) throw new EnvError(`B0 运行态取证靶发现失败: ${JSON.stringify(NID)}`);
 
@@ -415,7 +420,9 @@ async function main() {
         const peRan = executedNodes.includes(NID.PERW);
         check(`[${shot.key}] PE 支路执行集成员资格: QwenImage21_T2IPromptRewrite=须在(实测${peRan ? "在" : "不在"})`,
           peRan === true, `PERW=${NID.PERW}`);
-        const stripRan = executedNodes.includes(`${String(NID.RGBASEL).split(":")[0]}:${stripNode.id}`);
+        // 0930 修复官 D-9:剥离件在执行集=按 NID.STRIP 语义靶(class_type+regex_pattern
+        // 值特征寻址于干跑排队图实况),勿锚 JSON 内层 id
+        const stripRan = executedNodes.includes(NID.STRIP);
         pr.stripInExec = stripRan;
       }
       await page.screenshot(`${shot.key}-done`);

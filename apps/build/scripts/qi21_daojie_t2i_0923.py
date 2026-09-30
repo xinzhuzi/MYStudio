@@ -538,6 +538,9 @@ def _js_str_array(name: str) -> list[str]:
 _BG_BAN_WORDS = _js_str_array("MV_BG_WORDS_BAN") + _js_str_array("PROP_BG_BAN_EXT") \
     + _js_str_array("PE_LIVE_BG_BAN_EXT")
 _SUBJ_SOFT_STRIP = _js_str_array("PE_LIVE_SUBJ_SOFT_STRIP")
+# 0930 修复官 B-3:词族计数现算值(供 PASS 串引用,防 mjs 词族再扩时串内计数漂移;
+# 历史轨迹 39→92 为既往轮次实录数字,非现值,保留字面)
+_N_BG_SENT, _N_SUBJ_SOFT = len(_BG_BAN_WORDS), len(_SUBJ_SOFT_STRIP)
 # 句子级删除正则(0928b 剥离语义:命中词族的整句删,句界=中英标点+换行随句删;词边界
 # \b(?:w|ws)\b 防 horizon⊂horizontal;cloud-thunder 豁免=negative lookahead 单遍等价
 # 实现档案「先占位再匹配」;官方头尾豁免=链序天然成立——剥离在 W1 拼接之前,头尾后拼
@@ -3232,7 +3235,7 @@ def main() -> int:
             f"零并线零垫脚石增量);**links 逐字节零变**(对拍证明=research/s5-links-stable-qi21-daojie-t2i.md); "
             f"0929 S2 ⑤机制批:"
             f"D7 PE×透明融合链=[140]PE出文→[206]RegexReplace背景句剥离(词族真源=q21_optimized_round_0925.mjs "
-            f"零转录解析,句子级词族删除+词边界+cloud-thunder豁免+词级微剥层;词族现值=104+3,0930 词族轮两扩 39→92→104+3)→[207][208]官方头尾包裹W1 与 [131]装配全文→"
+            f"零转录解析,句子级词族删除+词边界+cloud-thunder豁免+词级微剥层;词族现值={_N_BG_SENT}+{_N_SUBJ_SOFT}(现算自词族数组),0930 词族轮两扩 39→92→{_N_BG_SENT}+{_N_SUBJ_SOFT})→[207][208]官方头尾包裹W1 与 [131]装配全文→"
             f"[162][163]包裹W2(原样,装配文禁过剥离铁则)汇于[209]透明文本开关T(switch=宿主PE开关扇出,默认true同[141])"
             f"→[143]RGBA编码;D6 型联动=[210]MyQi21RgbaSelect三态(跟随型/强制开/强制关,默认跟随型,combo真源="
             f"my_nodes节点件import互锁)宿主面板外露(-10槽4「RGBA透明」COMBO,原BOOLEAN控件退役),rgba_hint←"
