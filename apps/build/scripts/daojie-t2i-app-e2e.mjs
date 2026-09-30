@@ -1,0 +1,625 @@
+#!/usr/bin/env node
+/**
+ * 道劫 t2i App级出图回归E2E —— 常驻测试工作流(2026-09-30 立,Trellis 09-30-daojie-t2i-app-e2e)。
+ *
+ * 用户令固化的链路(原话):打开项目 → 进入道劫子项目 → 打开 ComfyUI 界面 →
+ * 关闭所有的界面 → 重新打开 qi21-道劫-t2i → 测试出图。
+ * 步骤段:S0 预检/prekill/选口 → S1 启动装机应用 → S2 道劫项目 →
+ *   S3 本地模型画布(引擎幂等 ensure)→ S4 关闭全部工作流标签 →
+ *   S5 漫影侧栏重开 qi21-道劫-t2i → S6 真前端 queuePrompt 出图 → S7 收摊+报告。
+ *
+ * 骨架=cdp-daojie-krea2-ink-e2e.mjs(0915 役;踩坑注释原样继承:webview 不进
+ * /json/list 须走主 target executeJavaScript、注入每段≤10 行防 IPC 竞态、
+ * persist 缓存旧 sidebar.js 须 reloadIgnoringCache、装机 smoke 残留抢 9222、
+ * CDP 截图偶发空数据原生兜底);断言层=装机 App 的 qi21-道劫-t2i 真源
+ * (装机 Resources backend 树,S0 动态解析,零硬编码节点数/控件值)。
+ *
+ * [扩展协议] 后续测试点=段内加 check("点名",断言) 或插新段(段=async 函数,
+ * main() 按序 await);拨控件/入子图参考 qi21_s3_gate_0930.mjs 已证形态
+ * (宿主面板语义寻址/真实双击入图改内件值);画质判据(borderSAT/GLM)归战役
+ * 域不进本链;详见 .trellis/tasks/09-30-daojie-t2i-app-e2e/implement.md。
+ *
+ * 环境变量:CDP_PORT(默认自选 9222-9239 空闲口;9222 常被并行探针 Chrome
+ *   占用,禁杀别人)/GEN_TIMEOUT_MS(默认 3_600_000=60min,0930 实测 40步+PE≈30-35min 口径)/
+ *   SKIP_GEN=1 免生图段(链路调试)/KEEP_APP=1 收摊保留应用。
+ * 退出码:0=全过;1=有失败项;2=环境错误。
+ * 产物:apps/output/daojie-t2i-app-e2e/(report.json+t2i-result.png);
+ *   截图/中间件 /tmp/daojie-t2i-e2e/。
+ */
+import { createRequire } from "node:module";
+import { spawn } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+
+const require = createRequire(import.meta.url);
+const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+
+const APP_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
+const APP_BUNDLE_ID = "com.manju2026.manying-studio";
+const ENGINE_HOME = join(homedir(), "Library/Application Support/漫影工作室/comfyui");
+const ENGINE_OUTPUT = join(ENGINE_HOME, "output");
+// 装机 App 的 repo: 工作流真源(引擎 manifest.repo_workflows_dir=装机 backend 树;
+// 与仓库 dirty 树可能分叉,断言恒以装机面为准——本测=装机产品回归)
+const INST_T2I = "/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
+const WF_REL = "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
+const OUT_DIR = join(process.env.HOME, "Project/Github/MYStudio/apps/output/daojie-t2i-app-e2e");
+const TMP = "/tmp/daojie-t2i-e2e";
+const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS || 3_600_000);
+// 60min 口径=0930 首跑实测:PE 开直出 40 步@双 TE 驻留(MPS 内存压力)全链
+// ≈30-35min(模型加载~8min+PE 改写 token 生成+采样 34s/it×40≈23min);与
+// q21 战役驱动器同口径(其 GEN_TIMEOUT 亦 3_600_000)。SKIP_GEN 可免此段。
+const SKIP_GEN = process.env.SKIP_GEN === "1";
+const KEEP_APP = process.env.KEEP_APP === "1";
+const CDP_PORT_ENV = Number(process.env.CDP_PORT || 0);
+
+const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const step = (id, title) => log(`──── ${id} ${title} ────`);
+const vis = (x) => `(() => { try { return ${x}; } catch { return null; } })()`;
+const results = [];
+const consoleErrors = [];
+const check = (name, pass, detail = "") => {
+  results.push({ name, pass, detail });
+  log(`${pass ? "PASS" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
+};
+
+// ── S0:装机 t2i 真源解析(全部断言值从此来,零硬编码) ──
+function parseTruth() {
+  const g = JSON.parse(readFileSync(INST_T2I, "utf8"));
+  const sgs = g.definitions?.subgraphs || [];
+  const asmSg = sgs.find((s) => String(s.name).includes("装配"));
+  const accSg = sgs.find((s) => String(s.name).includes("加速"));
+  if (!asmSg || !accSg) throw new Error(`装机 t2i 子图不全: ${sgs.map((s) => s.name).join(" | ")}`);
+  const host40 = g.nodes.find((n) => String(n.id) === "40");
+  const host208 = g.nodes.find((n) => String(n.id) === "208");
+  const ksDirect = accSg.nodes.find((n) => n.type === "KSampler" && n.widgets_values?.[2] === 40);
+  const peNode = asmSg.nodes.find((n) => n.type === "QwenImage21_T2IPromptRewrite");
+  const save = g.nodes.find((n) => n.type === "SaveImage");
+  if (!host40 || !host208 || !ksDirect || !peNode || !save) {
+    throw new Error(`装机 t2i 关键件缺失: host40=${!!host40} host208=${!!host208} ks40=${!!ksDirect} pe=${!!peNode} save=${!!save}`);
+  }
+  // 宿主面板期望控件=子图 widget 型输入−已连线槽(S3-gate 0930 口径)
+  const hostPanel = (sg, host) => {
+    const linked = new Set((host.inputs || []).filter((i) => i.link !== null && i.link !== undefined).map((i) => i.name));
+    return (sg.inputs || []).filter((i) => ["COMBO", "BOOLEAN", "INT", "STRING", "FLOAT"].includes(i.type))
+      .map((i) => i.name).filter((nm) => !linked.has(nm));
+  };
+  return {
+    rootCount: g.nodes.length,
+    asmId: asmSg.id, accId: accSg.id,
+    panel40: hostPanel(asmSg, host40), panel208: hostPanel(accSg, host208),
+    speedMode: host208.widgets_values?.[0], seedDefault: host208.widgets_values?.[1],
+    ksSteps: ksDirect.widgets_values?.[2],
+    peSeed: peNode.widgets_values?.[0] || "",
+    savePrefix: save.widgets_values?.[0] || "",
+  };
+}
+
+function prekillApp() {
+  const cp = require("node:child_process");
+  // 照 smoke-desktop.mjs stopExistingMYStudioInstances 官方惯例(0915 模板原样)
+  const steps = [
+    ["osascript", ["-e", `tell application id "${APP_BUNDLE_ID}" to quit`]],
+    ...["漫影工作室", "漫影工作室 Helper", "manying-studio"].map((n) => ["pkill", ["-x", n]]),
+    ["pkill", ["-f", "漫影工作室.app/Contents"]],
+    ["pkill", ["-9", "-f", "mystudio-installed-smoke"]],
+    // 引擎是应用托管子进程;孤儿引擎占口毒化下一轮(09-10 教训)
+    ["pkill", ["-f", "漫影工作室/comfyui/ComfyUI/main.py"]],
+  ];
+  for (const [cmd, args] of steps) {
+    try { cp.execFileSync(cmd, args, { stdio: "ignore" }); } catch { /* 可选步骤 */ }
+  }
+}
+
+async function isPortFree(port) {
+  try {
+    await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(600) });
+    return false; // 有服务应答=被占
+  } catch (e) {
+    return String(e?.cause?.code || e?.message || e).includes("ECONNREFUSED");
+  }
+}
+
+let appProc = null;
+let CDP_PORT = 0;
+function launchApp() {
+  appProc = spawn(APP_BIN, [`--remote-debugging-port=${CDP_PORT}`], {
+    env: { ...process.env }, // 不设 MYSTUDIO_REMOTE_DEBUG:main.ts 会 appendSwitch 固定 9222,与自选口双开关竞态
+    detached: true, stdio: "ignore",
+  });
+  appProc.unref();
+  log("app spawned pid", appProc.pid);
+}
+
+async function getMainClient() {
+  let page = null;
+  const start = Date.now();
+  while (Date.now() - start < 120_000) {
+    try {
+      const list = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
+      page = list.find((t) => t.type === "page" && !/127\.0\.0\.1/.test(t.url || ""));
+      if (page) break;
+    } catch { /* 端口未就绪 */ }
+    await sleep(1500);
+  }
+  if (!page) throw new Error("主窗口 target 未出现(120s)");
+  const ws = new WebSocket(page.webSocketDebuggerUrl, { perMessageDeflate: false, maxPayload: 256 * 1024 * 1024 });
+  await new Promise((res, rej) => { ws.once("open", res); ws.once("error", rej); });
+  let id = 0;
+  const pending = new Map();
+  ws.on("message", (raw) => {
+    const m = JSON.parse(raw.toString());
+    if (m.id && pending.has(m.id)) {
+      const { res, rej } = pending.get(m.id);
+      pending.delete(m.id);
+      m.error ? rej(new Error(m.error.message)) : res(m.result);
+      return;
+    }
+    if (m.method === "Runtime.consoleAPICalled" && ["error", "assert"].includes(m.params.type)) {
+      consoleErrors.push({ src: "console", text: (m.params.args || []).map((a) => a.value ?? a.description ?? a.type).join(" ").slice(0, 500) });
+    } else if (m.method === "Log.entryAdded" && m.params.entry?.level === "error") {
+      consoleErrors.push({ src: "log", text: String(m.params.entry.text).slice(0, 500) });
+    } else if (m.method === "Runtime.exceptionThrown") {
+      consoleErrors.push({ src: "exception", text: String(m.params.exceptionDetails?.text).slice(0, 500) });
+    }
+  });
+  const send = (method, params = {}) =>
+    new Promise((res, rej) => {
+      const mid = ++id;
+      pending.set(mid, { res, rej });
+      ws.send(JSON.stringify({ id: mid, method, params }));
+    });
+  await send("Runtime.enable");
+  await send("Log.enable");
+  await send("Page.enable");
+  return {
+    send, url: page.url,
+    close: () => ws.close(),
+    async ev(expression) {
+      const r = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+      if (r.exceptionDetails) return null;
+      return r.result.value;
+    },
+    async domClick(selector, pred = "e=>true") {
+      return this.ev(`(() => {
+        const els = [...document.querySelectorAll(${JSON.stringify(selector)})];
+        const el = els.find(${pred});
+        if (!el) return null;
+        const t = el.closest('button,[role="button"]') || el;
+        t.click();
+        return (t.textContent || '').trim().slice(0, 40);
+      })()`);
+    },
+    async screenshot(name) {
+      const path = join(TMP, `${name}.png`);
+      // 踩坑(0915 交接):CDP 截图偶发返回空数据,macOS 原生 screencapture 兜底
+      try {
+        const r = await send("Page.captureScreenshot", { format: "png" });
+        if (r && r.data) { writeFileSync(path, Buffer.from(r.data, "base64")); log(`📸 ${path}`); return; }
+      } catch { /* 落入原生截屏兜底 */ }
+      try {
+        require("node:child_process").execFileSync("screencapture", ["-x", "-C", path]);
+        log(`📸(native) ${path}`);
+      } catch { log(`📸 失败 ${path}`); }
+    },
+  };
+}
+
+/** webview 内执行(<webview> 不进 /json/list,经主 target executeJavaScript;注入每段≤10 行防 IPC 竞态)。 */
+async function wv(main, code) {
+  return main.ev(`(async () => {
+    const wv = document.querySelector('webview');
+    if (!wv) return null;
+    try { return await wv.executeJavaScript(${JSON.stringify(code)}, false); }
+    catch (e) { return null; }
+  })()`);
+}
+
+async function waitFor(fn, { timeout = 60_000, interval = 1500, label = "" } = {}) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const v = await fn();
+    if (v) return v;
+    await sleep(interval);
+  }
+  throw new Error(`waitFor 超时: ${label}`);
+}
+
+function countOutput(prefix) {
+  if (!existsSync(ENGINE_OUTPUT)) return 0;
+  return readdirSync(ENGINE_OUTPUT).filter((f) => f.startsWith(prefix) && f.endsWith(".png")).length;
+}
+
+// ═══════════ S0 环境预检+prekill+选口 ═══════════
+async function s0Precheck(truth) {
+  step("S0", "环境预检+prekill+选口");
+  check("S0 装机应用在(/Applications/漫影工作室.app)", existsSync(APP_BIN));
+  check("S0 装机 t2i 真源解析(双子图/宿主40,208/直出KS40/PE改写器/SaveImage 齐)",
+    truth.rootCount > 0 && truth.panel40.length > 0 && truth.panel208.length > 0,
+    `根节点=${truth.rootCount} 装配面板=[${truth.panel40.join("/")}] 加速面板=[${truth.panel208.join("/")}] 前缀=${truth.savePrefix}`);
+  if (CDP_PORT_ENV) {
+    CDP_PORT = CDP_PORT_ENV;
+    if (!(await isPortFree(CDP_PORT))) { console.error(`指定 CDP_PORT=${CDP_PORT} 被占`); process.exit(2); }
+  } else {
+    for (const p of [9222, 9223, 9224, 9225, 9226, 9227, 9228, 9229, 9230, 9231, 9232, 9233, 9234, 9235, 9236, 9237, 9238, 9239]) {
+      if (await isPortFree(p)) { CDP_PORT = p; break; }
+    }
+    if (!CDP_PORT) { console.error("9222-9239 无空闲调试口"); process.exit(2); }
+  }
+  check(`S0 调试口自选 ${CDP_PORT}(空闲;9222 常被并行探针占,不杀别人)`, true);
+  prekillApp();
+  await sleep(2500); // SIGTERM 送达+单实例锁释放窗口,防新实例抢锁失败静默退出
+  log("prekill 完成(应用/残留 smoke/孤儿引擎)");
+}
+
+// ═══════════ S1 启动装机应用+attach ═══════════
+async function s1Launch(mainPromise) {
+  step("S1", "启动装机应用(真实 userData)+attach 主窗口");
+  launchApp();
+  const main = await mainPromise;
+  log("主窗口:", String(main.url || "").slice(0, 60));
+  await waitFor(() => main.ev(vis(`document.querySelectorAll('button').length > 5`)), { label: "应用水合" });
+  check("S1 主窗口 attach+水合", true, String(main.url || "").slice(0, 60));
+  return main;
+}
+
+// ═══════════ S2 Dashboard 进道劫子项目 ═══════════
+async function s2EnterProject(main) {
+  step("S2", "Dashboard 进道劫子项目");
+  const onDashboard = await main.ev(vis(`document.querySelectorAll('div.dashboard-project-card').length > 0`));
+  if (onDashboard) {
+    const clicked = await main.domClick("div.dashboard-project-card", `e => ((e.textContent||'').includes('道劫'))`);
+    check("S2 道劫项目卡点击", Boolean(clicked), String(clicked));
+    await waitFor(() => main.ev(vis(`[...document.querySelectorAll('button')].some(b => ((b.textContent||'').trim() === '本地模型'))`)),
+      { timeout: 30_000, label: "项目内导航出现" });
+  } else {
+    check("S2 道劫项目卡点击", true, "非 Dashboard 起步(上次会话态),已在项目内");
+  }
+  await main.screenshot("1-project-entered");
+}
+
+// ═══════════ S3 本地模型进 ComfyUI 画布 ═══════════
+async function s3OpenCanvas(main) {
+  step("S3", "侧栏「本地模型」进 ComfyUI 画布(引擎幂等 ensure)");
+  const navClicked = await main.domClick("button", `e => ((e.textContent||'').trim() === '本地模型')`);
+  check("S3 侧栏「本地模型」入口可点", Boolean(navClicked), String(navClicked));
+  await sleep(1200);
+  // 09-14 加固:freedom persist 可能记住非画布模式(漫影生图表单态),须借悬浮球切回画布,否则 webview 永不挂载
+  const inForm = await main.ev(vis(`!!document.querySelector('[data-local-model-studio]')`));
+  if (inForm) {
+    log("检测到生图表单态,切回 ComfyUI 画布(悬浮球模式直达)");
+    await main.ev(vis(`document.querySelector('[data-workflow-orb]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))`));
+    await waitFor(() => main.ev(vis(`(() => {
+      const sec = document.querySelector('[data-orb-section="local-models"]');
+      if (sec && sec.getAttribute('data-state') === 'closed') sec.querySelector('button')?.click();
+      return !!document.querySelector('[data-orb-nav-mode="comfy"]');
+    })()`)), { timeout: 15_000, interval: 800, label: "本地模型分区展开" });
+    await main.ev(vis(`document.querySelector('[data-orb-nav-mode="comfy"]')?.click()`));
+    await sleep(1500);
+  }
+  await main.screenshot("2-nav-clicked");
+  // 引擎 ensure 状态机(0929 幂等静默 ensure:冷态自动拉起,need-start 钮可不再出现;出现则点,幂等)
+  {
+    const t0 = Date.now();
+    let lastShot = 0;
+    while (Date.now() - t0 < 600_000) {
+      const state = await main.ev(vis(`(() => {
+        if (document.querySelector('webview')) return 'webview';
+        const startBtn = document.querySelector('[data-comfy-canvas-start]');
+        if (startBtn) return 'need-start';
+        if (document.querySelector('[data-comfy-canvas-starting]')) return 'starting';
+        return 'waiting';
+      })()`));
+      if (state === "need-start") {
+        const clicked = await main.domClick("[data-comfy-canvas-start]", "e=>true");
+        log("点击「启动 ComfyUI」:", clicked);
+      }
+      if (state === "webview") break;
+      if (Date.now() - lastShot > 45_000) { lastShot = Date.now(); log("引擎状态:", state); await main.screenshot(`3-engine-${state}`); }
+      await sleep(3000);
+    }
+    if (!(await main.ev(vis(`!!document.querySelector('webview')`)))) throw new Error("waitFor 超时: webview 元素挂载(600s)");
+  }
+  check("S3 webview 挂载(引擎 ensure 状态机走通)", true);
+  await waitFor(
+    () => wv(main, `window.app && window.app.isGraphReady === true && typeof window.app.loadGraphData === 'function' ? 'ready' : null`),
+    { timeout: 420_000, interval: 3000, label: "ComfyUI graph 就绪" });
+  check("S3 ComfyUI 画布就绪(webview.app.isGraphReady)", true);
+  // persist 缓存旧 sidebar.js 坑(0915 踩坑③):无条件忽略缓存重载一次再进侧栏段;
+  // 重载是异步的——先落标记,「标记消失+graph 就绪」才是新页真身
+  await wv(main, `window.__e2ePreReload = 1; 'marked'`);
+  await main.ev(`(() => { document.querySelector('webview')?.reloadIgnoringCache?.(); return true; })()`);
+  await waitFor(() => wv(main, `(!window.__e2ePreReload && window.app && window.app.isGraphReady === true) ? 'y' : null`),
+    { timeout: 120_000, interval: 2000, label: "新页真身(标记消失+graph 就绪)" });
+  check("S3 webview 忽略缓存重载(侧栏代码保鲜)", true);
+  await main.screenshot("4-canvas-ready");
+  const engineBase = await wv(main, `location.origin`);
+  log("引擎口(webview location.origin):", engineBase);
+  check("S3 引擎口动态取得(禁抄旧端口常量)", Boolean(engineBase && /^http:\/\/127\.0\.0\.1:\d+$/.test(engineBase)), String(engineBase));
+  return engineBase;
+}
+
+// ═══════════ S4 关闭所有已开工作流标签 ═══════════
+async function s4CloseAllTabs(main) {
+  step("S4", "关闭所有已开工作流标签(svc.closeWorkflow=侧栏右键「关闭标签」同款 API)");
+  // 装一次 close-all 助手(≤10 行注入纪律),关完原样回报 before/closed/after
+  const installed = await wv(main, `(() => {
+    window.__e2eCloseAll = async () => {
+      const s = window.app?.extensionManager?.workflow;
+      if (!s || !Array.isArray(s.openWorkflows)) return JSON.stringify({ error: 'no-svc' });
+      let closed = 0; const t = [...s.openWorkflows];
+      for (const wf of t) { try { await Promise.race([s.closeWorkflow(wf), new Promise(r => setTimeout(r, 4000))]); closed++; } catch (e) {} }
+      return JSON.stringify({ before: t.length, closed, after: (s.openWorkflows || []).map(x => x && x.path) });
+    };
+    return 'installed';
+  })()`);
+  if (installed !== "installed") throw new Error("close-all 助手装订失败(webview 通道)");
+  const before = await wv(main, `(() => {
+    const s = window.app?.extensionManager?.workflow;
+    return JSON.stringify(((s && s.openWorkflows) || []).map(x => x && x.path));
+  })()`);
+  log("关闭前标签清单:", String(before));
+  const raw = await wv(main, `window.__e2eCloseAll()`);
+  let r = null; try { r = JSON.parse(String(raw)); } catch { /* keep null */ }
+  if (!r) { check("S4 关闭全部工作流标签(命名标签清零)", false, String(raw).slice(0, 300)); return; }
+  if (r.error) { check("S4 关闭全部工作流标签(命名标签清零)", false, `svc 缺席: ${r.error}`); return; }
+  // 「命名标签」=非空 .json 路径且非 Unsaved 系(原生服务关最后一张自建空签,path=null/Unsaved 不算)
+  const namedLeft = (r.after || []).filter((p) => typeof p === "string" && p.endsWith(".json") && !/^Unsaved Workflow/.test(p));
+  check("S4 关闭全部工作流标签(命名标签清零)", namedLeft.length === 0,
+    `before=${r.before} closed=${r.closed} 剩余=${JSON.stringify(r.after)}`);
+  await main.screenshot("5-tabs-closed");
+}
+
+// ═══════════ S5 漫影侧栏重新打开 qi21-道劫-t2i ═══════════
+async function s5ReopenT2I(main, truth) {
+  step("S5", "漫影侧栏重新打开 qi21-道劫-t2i(真实路径:目录展开+叶子行点击→openMyWorkflow v3)");
+  // 收敛式开侧栏:树在场才退出;不在则点 dock 钮(点完不退出,下一轮见树才算数)
+  await waitFor(() => wv(main, `(() => {
+    if (document.body.innerText.includes('1_图片')) return 'tree';
+    const btn = document.querySelector('[data-testid="my.shots-tab-button"]')
+      || [...document.querySelectorAll('.side-tool-bar-container button, [class*="side-tool-bar"] button')]
+        .find(b => ((b.title || '') + (b.getAttribute('aria-label') || '')).includes('漫影'));
+    if (!btn) return null; btn.click(); return 'clicked';
+  })()`), { timeout: 30_000, interval: 1500, label: "漫影侧栏打开(树在场)" });
+  check("S5 漫影侧栏打开(repo: 工作流树在场)", true);
+  // 目录智能展开:aria-expanded 只在折叠态点一次(点开着的=收起)
+  const ensureFolder = async (name, childProbe) => {
+    await waitFor(() => wv(main, `(() => {
+      const li = [...document.querySelectorAll('li.my-tree-item')]
+        .find(li => li.querySelector('.my-tree-label')?.textContent === ${JSON.stringify(name)});
+      if (!li) return null;
+      if (li.getAttribute('aria-expanded') === 'true') return 'open';
+      li.querySelector('.my-tree-row')?.click();
+      return 'clicked';
+    })()`), { timeout: 20_000, interval: 1200, label: `目录 ${name}` });
+    await waitFor(() => wv(main, childProbe), { timeout: 15_000, interval: 800, label: `${name} 子级出现` });
+  };
+  const leafProbe = () => wv(main, `(() => [...document.querySelectorAll('.my-tree-row')]
+    .some(r => (r.title || '').endsWith(${JSON.stringify("repo:" + WF_REL)})) ? 'y' : null)()`);
+  const leafClick = () => wv(main, `(() => {
+    const row = [...document.querySelectorAll('.my-tree-row')]
+      .find(r => (r.title || '').endsWith(${JSON.stringify("repo:" + WF_REL)}));
+    if (!row) return null; row.click(); return 'ok';
+  })()`);
+  await ensureFolder("Q2-1图像", `document.body.innerText.includes('1_文生图') ? 'y' : null`);
+  await ensureFolder("1_文生图", `(() => [...document.querySelectorAll('.my-tree-row')]
+    .some(r => (r.title || '').endsWith(${JSON.stringify("repo:" + WF_REL)})) ? 'y' : null)()`);
+  const leafThere = await leafProbe();
+  check("S5 侧栏树含 qi21-道劫-t2i 叶子行(repo: 合并)", leafThere === "y");
+  await leafClick();
+  const nodes = await waitFor(() => wv(main, `window.app.graph && window.app.graph._nodes.length === ${truth.rootCount} ? ${truth.rootCount} : null`),
+    { timeout: 60_000, interval: 1000, label: `画布切 t2i(${truth.rootCount} 节点)` }).catch(() => 0);
+  check(`S5 侧栏重开→画布载入(根节点=${truth.rootCount},装机真源动态)`, nodes === truth.rootCount, `实际 ${nodes}`);
+  // 打开并激活=激活签或标签清单任一三形态命中(0930 实弹定谳:当前前端 repo:
+  // 带名直载=activeWorkflow.path 置 "workflows/<rel>" 但不进 openWorkflows 清单,
+  // 只查清单会比实现更严而误报;两处都查,镜像 sidebar.js findRepoTab 三形态)
+  const tabsRaw = await wv(main, `(() => {
+    const s = window.app?.extensionManager?.workflow;
+    return JSON.stringify({ open: ((s && s.openWorkflows) || []).map(x => x && x.path), active: s?.activeWorkflow?.path || null });
+  })()`);
+  let tabs = { open: [], active: null }; try { tabs = JSON.parse(String(tabsRaw)) || tabs; } catch { /* keep default */ }
+  const threeForm = (p) => p === WF_REL || p === "repo:" + WF_REL || String(p || "").replace(/^workflows\//, "") === WF_REL;
+  const hit = tabs.open.some(threeForm) || threeForm(tabs.active);
+  check("S5 侧栏重开→工作流打开并激活(激活签/标签清单三形态命中)", hit,
+    `active=${tabs.active} open=${JSON.stringify(tabs.open).slice(0, 240)}`);
+  // 双宿主面板控件在位(动态名单=装机 JSON 子图 widget 输入−连线槽)
+  const rosterRaw = await wv(main, `(() => {
+    const find = (t) => window.app.graph._nodes.find(n => n.type === t);
+    const a = find(${JSON.stringify(truth.asmId)}), c = find(${JSON.stringify(truth.accId)});
+    if (!a || !c) return null;
+    return JSON.stringify({ asm: (a.widgets || []).map(w => w.name), acc: (c.widgets || []).map(w => w.name) });
+  })()`);
+  let roster = null; try { roster = JSON.parse(String(rosterRaw)); } catch { /* keep null */ }
+  const panel40Ok = !!roster && truth.panel40.every((nm) => roster.asm.includes(nm));
+  const panel208Ok = !!roster && truth.panel208.every((nm) => roster.acc.includes(nm));
+  check(`S5 装配宿主面板控件在位([${truth.panel40.join("/")}]`, panel40Ok, String(rosterRaw).slice(0, 240));
+  check(`S5 加速宿主面板控件在位([${truth.panel208.join("/")}]`, panel208Ok, String(rosterRaw).slice(0, 240));
+  await main.screenshot("6-t2i-reopened");
+}
+
+// ═══════════ S6 真前端 queuePrompt 出图(纯默认零手术) ═══════════
+async function s6Generate(main, engineBase, truth) {
+  step("S6", `真前端 queuePrompt 出图(纯默认:${truth.speedMode}/seed=${truth.seedDefault}/PE改写器在场)`);
+  // 排队图摘要:引擎 /queue 现算(引擎口无鉴权,is_healthy 同款裸 GET);
+  // 子图内键装载可重编号(0930 S3 实证)→按「宿主域前缀+class_type」动态寻址
+  const knownPids = new Set(Object.keys(await (await fetch(`${engineBase}/history`, { signal: AbortSignal.timeout(8000) })).json()));
+  const outBefore = countOutput(truth.savePrefix);
+  const t0 = Date.now();
+  const queued = await wv(main, `(async () => {
+    const app = window.app; if (!app || typeof app.queuePrompt !== 'function') return null;
+    try { await app.queuePrompt(); return 'queued'; } catch (e) { return 'err:' + (e && (e.message || e)); }
+  })()`);
+  check("S6 queuePrompt 发出(真前端)", queued === "queued", String(queued));
+  if (queued !== "queued") return;
+  let prompt = null, qpid = null;
+  {
+    const qs = Date.now();
+    while (Date.now() - qs < 20_000) {
+      try {
+        const q = await (await fetch(`${engineBase}/queue`, { signal: AbortSignal.timeout(8000) })).json();
+        for (const running of q.queue_running || []) {
+          if (!knownPids.has(running[1])) { qpid = running[1]; prompt = running[2]; break; }
+        }
+      } catch { /* 引擎忙 */ }
+      if (prompt) break;
+      await sleep(2000);
+    }
+  }
+  if (!prompt) {
+    check("S6 排队图抓取(引擎 /queue)", false, "执行期未捕到(可能秒完/过快)");
+  } else {
+    writeFileSync(join(TMP, "queued-prompt.json"), JSON.stringify(prompt, null, 1));
+    const keys = Object.keys(prompt);
+    const ksDir = keys.filter((k) => k.startsWith("208:") && prompt[k]?.class_type === "KSampler" && String(prompt[k]?.inputs?.steps) === String(truth.ksSteps));
+    check(`S6 排队图:直出 KSampler steps=${truth.ksSteps}(加速域)`, ksDir.length > 0, `key=${ksDir.join(",") || "无"}`);
+    const seeds = keys.filter((k) => k.startsWith("208:") && prompt[k]?.class_type === "PrimitiveInt");
+    const seedOk = seeds.some((k) => String(prompt[k].inputs.value) === String(truth.seedDefault));
+    check(`S6 排队图:seed=${truth.seedDefault}(加速域 PrimitiveInt)`, seedOk, `keys=${seeds.join(",") || "无"}`);
+    const sel = keys.filter((k) => k.startsWith("208:") && prompt[k]?.class_type === "MyQi21SpeedSelect");
+    check(`S6 排队图:速度档=${truth.speedMode}`, sel.length > 0 && prompt[sel[0]]?.inputs?.mode === truth.speedMode,
+      `mode=${sel.length ? prompt[sel[0]].inputs.mode : "无"}`);
+    const pe = keys.filter((k) => k.startsWith("40:") && prompt[k]?.class_type === "QwenImage21_T2IPromptRewrite");
+    const peOk = pe.length > 0 && prompt[pe[0]]?.inputs?.prompt === truth.peSeed;
+    check("S6 排队图:PE 改写器在链(装配域,种子文=装机原文)", peOk,
+      pe.length ? `key=${pe.join(",")} 种子头=${String(prompt[pe[0]].inputs.prompt).slice(0, 40)}…` : "无");
+  }
+  // /history 等完(引擎家=装机生产家,产物直接落盘);60s 心跳防黑盒等待
+  let hist = null;
+  {
+    const hs = Date.now();
+    let lastErr = null;
+    let lastBeat = 0;
+    while (Date.now() - hs < GEN_TIMEOUT_MS) {
+      try {
+        const h = await (await fetch(`${engineBase}/history`, { signal: AbortSignal.timeout(8000) })).json();
+        for (const [pid, e] of Object.entries(h)) {
+          if (knownPids.has(pid)) continue;
+          const st = e.status?.status_str || "";
+          if (st === "error") { hist = { pid, error: `引擎执行 error: ${JSON.stringify(e.status?.messages || []).slice(0, 4000)}` }; break; }
+          if (st === "success" || e.status?.completed) { hist = { pid, entry: e }; break; }
+        }
+      } catch (e) { lastErr = String(e); }
+      if (hist) break;
+      if (Date.now() - lastBeat > 60_000) {
+        lastBeat = Date.now();
+        let running = "?";
+        try { running = ((await (await fetch(`${engineBase}/queue`, { signal: AbortSignal.timeout(5000) })).json()).queue_running || []).length; }
+        catch { /* 心跳尽力 */ }
+        log(`S6 执行中 T+${Math.round((Date.now() - hs) / 1000)}s(队列 running=${running},history 未出终态)`);
+      }
+      await sleep(3000);
+    }
+    if (!hist) hist = { error: `history 超时 ${GEN_TIMEOUT_MS / 1000}s(lastErr=${lastErr})` };
+  }
+  const wallSecs = Math.round((Date.now() - t0) / 1000);
+  if (hist.error) { check("S6 引擎执行完成(/history success)", false, String(hist.error).slice(0, 2000)); return; }
+  writeFileSync(join(TMP, "history-entry.json"), JSON.stringify(hist.entry, null, 1));
+  check("S6 引擎执行完成(/history success)", true, `pid=${String(hist.pid).slice(0, 8)} ${wallSecs}s`);
+  const imgs = [];
+  for (const o of Object.values(hist.entry.outputs || {})) if (o.images) imgs.push(...o.images.filter((i) => (i.type || "output") === "output"));
+  if (!imgs.length) { check("S6 引擎出图(history outputs)", false, "无 output 图"); return; }
+  const img = imgs.find((i) => /\.png$/i.test(i.filename)) || imgs[0];
+  // 双证:引擎 output 目录新文件 + /view 取证落 apps/output
+  const outNow = countOutput(truth.savePrefix);
+  check("S6 引擎出图(引擎 output 目录新增)", outNow > outBefore, `前缀=${truth.savePrefix} ${outBefore}→${outNow} 文件=${img.filename}`);
+  const pngMagic = (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+  let buf = null;
+  try {
+    const q = new URLSearchParams({ filename: img.filename, subfolder: img.subfolder || "", type: img.type || "output" });
+    const r = await fetch(`${engineBase}/view?${q}`);
+    if (r.ok) buf = Buffer.from(await r.arrayBuffer());
+  } catch { /* 落入文件系统兜底 */ }
+  if (!buf && existsSync(join(ENGINE_OUTPUT, img.filename))) {
+    buf = readFileSync(join(ENGINE_OUTPUT, img.filename)); // /view 失败时引擎家文件直读兜底
+  }
+  const evPath = join(OUT_DIR, "t2i-result.png");
+  if (buf) writeFileSync(evPath, buf);
+  check("S6 /view 取证落盘(PNG 魔数+>50KB→apps/output 证据)",
+    Boolean(buf) && pngMagic(buf) && buf.length > 50_000,
+    buf ? `${img.filename} ${(buf.length / 1024).toFixed(0)}KB → ${evPath} (${wallSecs}s)` : "取证失败(/view+文件系统双兜底皆空)");
+  await main.screenshot("7-t2i-result");
+}
+
+// ═══════════ S7 收摊+报告 ═══════════
+async function s7Cleanup(engineBase) {
+  step("S7", "收摊(干完即停:prekill 自拉全家+双口验 down)+报告");
+  if (KEEP_APP) {
+    check("S7 收摊(KEEP_APP=1 保留应用)", true, "跳过 prekill 与口验");
+    return;
+  }
+  prekillApp();
+  await sleep(3000);
+  // 慢退出容忍:口验最多再等 10s(进程 teardown 有先后)
+  const probeFree = async (port) => {
+    for (let i = 0; i < 5; i++) { if (await isPortFree(port)) return true; await sleep(2000); }
+    return false;
+  };
+  const cdpDown = await probeFree(CDP_PORT);
+  check(`S7 双口验 down:CDP 口 ${CDP_PORT}`, cdpDown, cdpDown ? "已关" : "仍在监听!");
+  if (engineBase) {
+    const engPort = Number(String(engineBase).split(":").pop());
+    const engDown = engPort ? await probeFree(engPort) : false;
+    check(`S7 双口验 down:引擎口 ${engineBase}`, engDown, engDown ? "已关" : "仍在监听!");
+  }
+}
+
+async function main() {
+  if (!existsSync(APP_BIN)) { console.error("装机应用不存在:", APP_BIN); process.exit(2); }
+  if (!existsSync(INST_T2I)) { console.error("装机 t2i 真源缺失:", INST_T2I); process.exit(2); }
+  let truth;
+  try { truth = parseTruth(); } catch (e) { console.error("装机 t2i 真源解析失败:", e.message); process.exit(2); }
+  mkdirSync(OUT_DIR, { recursive: true });
+  mkdirSync(TMP, { recursive: true });
+
+  await s0Precheck(truth);
+  const mainClientPromise = getMainClient();
+  const main = await s1Launch(mainClientPromise);
+  let engineBase = null;
+  let fatal = null;
+  try {
+    await s2EnterProject(main);
+    engineBase = await s3OpenCanvas(main);
+    await s4CloseAllTabs(main);
+    await s5ReopenT2I(main, truth);
+    if (SKIP_GEN) {
+      log("S6 跳过实弹生图(SKIP_GEN=1,链路段 S0-S5 已覆盖)");
+      results.push({ name: "S6 真前端出图(实弹)", pass: true, detail: "SKIP_GEN=1 跳过" });
+    } else {
+      await s6Generate(main, engineBase, truth);
+    }
+  } catch (e) {
+    fatal = String(e?.message || e);
+    log("致命中断:", fatal);
+    results.push({ name: "致命中断(段链断裂)", pass: false, detail: fatal });
+  } finally {
+    try { await s7Cleanup(engineBase); } catch (e) { log("S7 收摊异常:", String(e?.message || e)); }
+    const allPass = results.every((r) => r.pass);
+    const report = {
+      generatedAt: new Date().toISOString(),
+      command: `node apps/build/scripts/daojie-t2i-app-e2e.mjs${SKIP_GEN ? " (SKIP_GEN=1)" : ""}`,
+      task: "09-30-daojie-t2i-app-e2e",
+      cdpPort: CDP_PORT, engineBase,
+      truth: { rootCount: truth.rootCount, panel40: truth.panel40, panel208: truth.panel208, speedMode: truth.speedMode, seedDefault: truth.seedDefault, ksSteps: truth.ksSteps, savePrefix: truth.savePrefix, peSeedHead: truth.peSeed.slice(0, 60) },
+      evidenceDir: OUT_DIR, tmpDir: TMP,
+      consoleErrorCount: consoleErrors.length,
+      consoleErrors: consoleErrors.slice(0, 30),
+      fatal,
+      checks: results,
+      allPass,
+    };
+    writeFileSync(join(OUT_DIR, "report.json"), JSON.stringify(report, null, 2));
+    log("════ 汇总 ════");
+    for (const r of results) log(`${r.pass ? "✅" : "❌"} ${r.name}${r.detail ? ` — ${String(r.detail).slice(0, 200)}` : ""}`);
+    log(`报告: ${join(OUT_DIR, "report.json")}(console 错误 ${consoleErrors.length} 条随档)`);
+    log(allPass ? "✅ E2E 全部通过" : "❌ E2E 存在失败项");
+    try { main.close(); } catch { /* 已关 */ }
+    process.exit(allPass ? 0 : 1);
+  }
+}
+
+main().catch((e) => {
+  console.error("E2E 失败:", e.message);
+  if (!KEEP_APP) prekillApp();
+  process.exit(1);
+});
