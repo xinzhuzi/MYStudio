@@ -14,7 +14,19 @@
  * 失败降级链=pointerType 参数→JS PointerEvent 派发,所用路径逐控件如实记 report。
  * 用法:node apps/build/scripts/b2_browser_evidence_0930.mjs
  * 环境变量:ENGINE_URL(默认 http://127.0.0.1:17599)/CDP_PORT(默认 9374)。
- * 退出码 0=全绿;1=有失败;2=环境错误。引擎生命周期在驱动外(引擎操作员)。
+ * 退出码 0=全绿;1=有失败项或驱动异常(已取得证据随 finally 落盘);2=环境错误
+ * (开场探活+A0 环境段);130=SIGINT(同钩落盘+清理)。引擎生命周期在驱动外(引擎操作员)。
+ *
+ * 0930 组①修复后复验模式(本版默认):只跑组①(像素截图+『舞台与 label 行
+ * 不叠字』几何+像素双证),判据=①行距实测值(last_y 差)与让位公式假设
+ * (widget.computedHeight,stageTopFor 消费)一致+②标签行底 ≤ 舞台顶(叠字
+ * 消除,overlapPx≤0.5)。产物 fix- 前缀+独立报告 fix-b2-g1-report.json
+ * (原三组账 b2-evidence-report.json 不动)。修复=并行会话 0930 改
+ * stageTopFor 读运行时实值(my-image-ab-compare.js)+token widgetRowH 20→24
+ * (theme.js,仅首排布前回落);本驱动 0929/0930 三组全跑模式经 GROUPS=1,2,3
+ * 环境变量可复现(GROUPS 逗号分隔组号;默认仅 1)。产物路由闸(D-3):全组模式=
+ * 前缀空+原合并账;组①复验(默认)=fix- 前缀+独立账;其余部分组=partial- 前缀+
+ * b2-evidence-g{Σ}-report.json 独立账——部分组重跑永不覆写三组存档。
  */
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
@@ -29,6 +41,19 @@ const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17599";
 const CDP_PORT = Number(process.env.CDP_PORT || 9374);
 const REPO = `${process.env.HOME}/Project/Github/MYStudio`;
 const OUT_DIR = `${REPO}/apps/output/b2-browser-evidence-0930`;
+const GROUPS = new Set((process.env.GROUPS || "1").split(",").map((s) => s.trim()).filter(Boolean));
+const FULL_MODE = GROUPS.size === 3 && ["1", "2", "3"].every((g) => GROUPS.has(g)); // 三组全跑=原存档复现模式
+const G1FIX_MODE = GROUPS.size === 1 && GROUPS.has("1");                            // 组①修复复验模式(默认)
+// 产物路由闸(0930 修复官 D-3):报告名与截图/工件前缀同按模式路由——全组模式=原三组账
+// 语义(前缀空+b2-evidence-report.json,有意复现式重跑);组①复验=fix- 前缀+独立账;
+// 其余任意部分组=partial- 前缀+b2-evidence-g{Σ}-report.json 独立账——部分组重跑永不
+// 覆写三组存档与 fix-* 存档(显式 SHOT_PREFIX env 仍可覆盖)。
+const DEFAULT_SHOT_PREFIX = G1FIX_MODE ? "fix-" : FULL_MODE ? "" : "partial-";
+const SHOT_PREFIX = process.env.SHOT_PREFIX ?? DEFAULT_SHOT_PREFIX;
+// 0930 修复官 D-2:环境段(A0/B0)失败专用标记→退出码 2;page 提升模块级供 finally/SIGINT
+// 收尾(writeReport+cleanup 恒走 finally,异常崩溃不丢已取得证据、不泄漏 detached Chrome)。
+class EnvError extends Error {}
+let page = null;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CHROME_PROFILE = "/tmp/b2-chrome-profile";
 
@@ -93,7 +118,7 @@ async function getPageClient() {
     },
     async hover(x, y) { await this.mouse("mouseMoved", x, y); await sleep(60); },
     async screenshot(name) {
-      const path = join(OUT_DIR, `${name}.png`);
+      const path = join(OUT_DIR, `${SHOT_PREFIX}${name}.png`);
       try {
         const r = await send("Page.captureScreenshot", { format: "png" });
         if (r && r.data) { writeFileSync(path, Buffer.from(r.data, "base64")); log(`📸 ${path}`); return path; }
@@ -249,16 +274,24 @@ async function group1(page) {
   // 几何断言:舞台顶 ≥ 标签行底(不叠字修复=stageTopFor 动态让位)。
   // 行高真值=两 label 行 last_y 差(本版前端实测行距≠token 假设的 20,按实测算);
   // 叠字量=标签行底−舞台顶,>0 即叠(像素级再探:重叠带内 label 文本框与舞台边框同在)
-  const geo2 = JSON.parse(String(await page.ev(vis(`(() => { const n = window.app.graph._nodes.find(n => n.type === 'MyImageABCompare'); const st = n.__myAbHits?.stage; const labels = (n.widgets||[]).filter(w => w.name==='label_a'||w.name==='label_b').map(w => ({name:w.name, last_y:w.last_y ?? null})); return JSON.stringify({stage: st, labels, size: n.size, titleH:30, tokenRowH:20}); })()`))));
+  const geo2 = JSON.parse(String(await page.ev(vis(`(() => { const n = window.app.graph._nodes.find(n => n.type === 'MyImageABCompare'); const st = n.__myAbHits?.stage; const labels = (n.widgets||[]).filter(w => w.name==='label_a'||w.name==='label_b').map(w => ({name:w.name, last_y:w.last_y ?? null, y:w.y ?? null, computedHeight:w.computedHeight ?? null})); return JSON.stringify({stage: st, labels, size: n.size, titleH:30, tokenRowH:20}); })()`))));
   const ys = geo2.labels.map((w) => w.last_y).filter((v) => v != null);
   const rowPitch = ys.length >= 2 ? Math.abs(ys[1] - ys[0]) : geo2.tokenRowH;
   const labelBottom = ys.length ? Math.max(...ys) + rowPitch : null;
+  // 修复判据①:让位公式消费的行高假设(widget.computedHeight,stageTopFor 真源)
+  // 须与实测行距(last_y 差)一致——常量猜不准即 0929 叠字根因,0930 修后须吻合
+  const assumedRowHs = geo2.labels.map((w) => w.computedHeight).filter((v) => v != null);
+  const assumedRowH = assumedRowHs.length ? Math.max(...assumedRowHs) : null;
+  const pitchMatch = assumedRowH != null && rowPitch === assumedRowH;
+  check("① 行距实测值与让位公式假设一致(last_y 差 == stageTopFor 消费的 computedHeight)", pitchMatch,
+    `实测行距=${rowPitch} 公式假设(computedHeight)=${assumedRowH} labels=${JSON.stringify(geo2.labels)}`);
   const stageTopLocal = geo2.stage.y;
   const overlapPx = labelBottom == null ? null : +(labelBottom - stageTopLocal).toFixed(1);
   const noOverlap = overlapPx == null ? false : overlapPx <= 0.5;
   check("① 舞台与 label 行不叠字(几何:标签行底≤舞台顶;行距按实测 last_y 差)", noOverlap,
     `stage.y=${stageTopLocal} label last_y=${JSON.stringify(ys)} 实测行距=${rowPitch} 标签行底=${labelBottom} 叠字量=${overlapPx}px(size=${JSON.stringify(geo2.size)})`);
-  g.geo = { stage: geo2.stage, labels: geo2.labels, rowPitch, labelBottom, overlapPx, size: geo2.size };
+  g.geo = { stage: geo2.stage, labels: geo2.labels, rowPitch, labelBottom, overlapPx, assumedRowH, size: geo2.size };
+  g.checks.push({ name: "rowpitch-matches-assumption", pass: pitchMatch, rowPitch, assumedRowH });
   g.checks.push({ name: "stage-label-no-overlap", pass: noOverlap, overlapPx, rowPitch });
 
   // 初始截图
@@ -570,7 +603,7 @@ async function group3(page) {
 
   // serialize → 存盘 → loadGraphData 重开(同页往返=保存/重开机制;userdata 恒零工作流=章约,不落盘引擎家)
   const saved = await page.ev(vis(`JSON.stringify(window.app.graph.serialize())`));
-  writeFileSync(join(OUT_DIR, "g3-serialized-workflow.json"), String(saved));
+  writeFileSync(join(OUT_DIR, `${SHOT_PREFIX}g3-serialized-workflow.json`), String(saved));
   const savedObj = JSON.parse(String(saved));
   const savedImgNode = savedObj.nodes.find((n) => n.type === "MyImageABCompare");
   const savedVidNode = savedObj.nodes.find((n) => n.type === "MyVideoABCompare");
@@ -602,44 +635,77 @@ async function group3(page) {
 
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
-  for (const cls of ["MyImageABCompare", "MyVideoABCompare", "LoadVideo", "LoadImage"]) {
-    const r = await fetch(`${ENGINE}/object_info/${encodeURIComponent(cls)}`);
-    check(`A0 节点注册: ${cls}`, r.status === 200, `HTTP ${r.status}`);
-  }
-  const lv = await (await fetch(`${ENGINE}/object_info/LoadVideo`)).json();
-  const files = lv.LoadVideo.input.required.file[1].options || [];
-  check("A0 测试资产在 LoadVideo combo", files.includes("b2_va_12fps.mp4") && files.includes("b2_vb_24fps.mp4"), files.filter((f) => f.startsWith("b2_")).join(","));
-  const li = await (await fetch(`${ENGINE}/object_info/LoadImage`)).json();
-  const imgs = li.LoadImage.input.required.image[0] || [];
-  check("A0 测试资产在 LoadImage combo", imgs.includes("b2_img_a.png") && imgs.includes("b2_img_b.png"), imgs.filter((f) => f.startsWith("b2_")).join(","));
+  // A0 环境段(D-2:失败=退出码 2 语义,与开场 /system_stats 探活同域;waitFor 超时/
+  // getPageClient 异常不再以未捕获崩出丢证据)
+  try {
+    for (const cls of ["MyImageABCompare", "MyVideoABCompare", "LoadVideo", "LoadImage"]) {
+      const r = await fetch(`${ENGINE}/object_info/${encodeURIComponent(cls)}`);
+      check(`A0 节点注册: ${cls}`, r.status === 200, `HTTP ${r.status}`);
+    }
+    const lv = await (await fetch(`${ENGINE}/object_info/LoadVideo`)).json();
+    const files = lv.LoadVideo.input.required.file[1].options || [];
+    check("A0 测试资产在 LoadVideo combo", files.includes("b2_va_12fps.mp4") && files.includes("b2_vb_24fps.mp4"), files.filter((f) => f.startsWith("b2_")).join(","));
+    const li = await (await fetch(`${ENGINE}/object_info/LoadImage`)).json();
+    const imgs = li.LoadImage.input.required.image[0] || [];
+    check("A0 测试资产在 LoadImage combo", imgs.includes("b2_img_a.png") && imgs.includes("b2_img_b.png"), imgs.filter((f) => f.startsWith("b2_")).join(","));
 
-  launchChrome();
-  const page = await getPageClient();
-  await waitFor(() => page.ev(vis(`window.app && window.app.isGraphReady === true && typeof window.app.loadGraphData === 'function' ? 'ready' : null`)),
-    { timeout: 120_000, interval: 2000, label: "ComfyUI 前端就绪" });
+    launchChrome();
+    page = await getPageClient();
+    await waitFor(() => page.ev(vis(`window.app && window.app.isGraphReady === true && typeof window.app.loadGraphData === 'function' ? 'ready' : null`)),
+      { timeout: 120_000, interval: 2000, label: "ComfyUI 前端就绪" });
+  } catch (e) {
+    throw new EnvError(`A0 环境段失败: ${e && e.message}`);
+  }
   check("A0 引擎前端就绪", true);
   await sleep(2000);
 
-  await group1(page);
-  await group2(page);
-  await group3(page);
-
-  writeReport();
-  try { page.close(); } catch { /* gone */ }
-  killChrome();
-  log("════ B2 三组汇总 ════");
-  for (const r of results) log(`${r.pass ? "✅" : "❌"} ${r.name}`);
-  process.exit(results.every((r) => r.pass) ? 0 : 1);
+  if (GROUPS.has("1")) await group1(page);
+  if (GROUPS.has("2")) await group2(page);
+  if (GROUPS.has("3")) await group3(page);
 }
 
 function writeReport() {
   report.results = results;
+  report.groupsMode = [...GROUPS].join(",");
   report.finishedAt = new Date().toISOString();
-  writeFileSync(join(OUT_DIR, "b2-evidence-report.json"), JSON.stringify(report, null, 2));
+  // 报告名按模式路由(D-3):组①复验=独立账 fix-b2-g1;全组=原三组合并账(有意复现式
+  // 重跑);部分组=独立账 b2-evidence-g{Σ}——部分组重跑永不覆写三组存档账。
+  const name = G1FIX_MODE ? "fix-b2-g1-report.json"
+    : FULL_MODE ? "b2-evidence-report.json"
+    : `b2-evidence-g${[...GROUPS].sort().join("")}-report.json`;
+  writeFileSync(join(OUT_DIR, name), JSON.stringify(report, null, 2));
 }
+
+function cleanup() {
+  try { page?.close(); } catch { /* gone */ }
+  killChrome();
+}
+
+// 退出码语义收口(0930 修复官 D-2):0=全绿;1=有失败项或驱动异常(已取得的证据仍随
+// finally 落盘);2=环境错误(开场 /system_stats 探活+A0 环境段)。SIGINT 同钩清理。
+process.on("SIGINT", () => {
+  log("SIGINT:落盘已取得证据并清理后退出");
+  try { writeReport(); } catch { /* 尽力 */ }
+  cleanup();
+  process.exit(130);
+});
 
 try {
   const alive = await (await fetch(`${ENGINE}/system_stats`, { signal: AbortSignal.timeout(8000) })).json();
   log("引擎就绪:", alive.system?.comfyui_version);
 } catch (e) { console.error("引擎探活失败:", e.message); process.exit(2); }
-await main();
+
+let exitCode = 0;
+try {
+  await main();
+  if (!results.every((r) => r.pass)) exitCode = 1;
+} catch (e) {
+  exitCode = e instanceof EnvError ? 2 : 1;
+  console.error(e instanceof EnvError ? "环境错误(退出码 2):" : "驱动异常(退出码 1,已取得证据随 finally 落盘):", e && e.message);
+} finally {
+  try { writeReport(); } catch (e) { console.error("报告落盘失败:", e && e.message); }
+  cleanup();
+}
+log(`════ B2 汇总(组模式=${[...GROUPS].join(",")})════`);
+for (const r of results) log(`${r.pass ? "✅" : "❌"} ${r.name}`);
+process.exit(exitCode);

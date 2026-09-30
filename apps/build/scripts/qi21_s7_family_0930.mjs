@@ -18,7 +18,8 @@
  * 用法:node apps/build/scripts/qi21_s7_family_0930.mjs
  * 环境变量:ENGINE_URL(默认 http://127.0.0.1:17001,装机 App 托管引擎=manifest 现查口,
  *   复用不杀)/CDP_PORT(默认 9373)。
- * 退出码 0=六拍全绿;1=有失败项;2=环境错误。
+ * 退出码 0=六拍全绿;1=有失败项或驱动异常(已取得证据随 finally 落盘);2=环境错误
+ * (开场探活+A0/B0 环境段);130=SIGINT(同钩落盘+清理)。
  * 引擎生命周期:本驱动零自拉(复用 App 引擎,队列串行错峰;勿杀非自家全家)。
  */
 import { createRequire } from "node:module";
@@ -250,36 +251,47 @@ const SHOTS = [
 
 const report = { mode: "s7-family", engine: ENGINE, engineNote: "复用装机 App 托管引擎(manifest 现查口 17001),队列串行错峰,勿杀", wf: WF, startedAt: new Date().toISOString(), consts: { rgbaHead, rgbaTail, stripPattern, stripPatternLen: stripPattern.length }, shots: {} };
 
+// 0930 修复官 D-2:环境段(A0/B0)失败专用标记→退出码 2;page 提升模块级供 finally/SIGINT
+// 收尾(writeReport+cleanup 恒走 finally,异常崩溃不丢已取得证据、不泄漏 detached Chrome)。
+class EnvError extends Error {}
+let page = null;
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
-  // 环境:节点注册核(S2/S3/S6 载荷件)
-  for (const cls of ["MyQi21DaojieBase", "MyQi21RgbaSelect", "MyQi21SpeedSelect", "QwenImage21_T2IPromptRewrite", "T8QwenImage21FunAccPDD4Step", "RegexReplace", "easy showAnything"]) {
-    const r = await fetch(`${ENGINE}/object_info/${encodeURIComponent(cls)}`);
-    check(`A0 节点注册核: ${cls}`, r.status === 200, `HTTP ${r.status}`);
+  // A0/B0 环境段(D-2:失败=退出码 2 语义,与开场 /system_stats 探活同域;waitFor 超时/
+  // getPageClient 异常不再以未捕获崩出丢证据)
+  try {
+    // 环境:节点注册核(S2/S3/S6 载荷件)
+    for (const cls of ["MyQi21DaojieBase", "MyQi21RgbaSelect", "MyQi21SpeedSelect", "QwenImage21_T2IPromptRewrite", "T8QwenImage21FunAccPDD4Step", "RegexReplace", "easy showAnything"]) {
+      const r = await fetch(`${ENGINE}/object_info/${encodeURIComponent(cls)}`);
+      check(`A0 节点注册核: ${cls}`, r.status === 200, `HTTP ${r.status}`);
+    }
+    const peObj = await (await fetch(`${ENGINE}/object_info/CLIPLoader`)).json();
+    const peOk = (peObj.CLIPLoader?.input?.required?.clip_name?.[0] || []).includes("qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors");
+    check("A0 环境: PE-T2I 权重在盘(CLIPLoader 可选集)", peOk, "");
+
+    launchChrome();
+    page = await getPageClient();
+    await waitFor(() => page.ev(vis(`window.app && window.app.isGraphReady === true && typeof window.app.loadGraphData === 'function' ? 'ready' : null`)),
+      { timeout: 120_000, interval: 2000, label: "ComfyUI 前端就绪" });
+    check("A0 引擎前端就绪(app.isGraphReady)", true);
+    await sleep(2000);
+    await installTee(page);
+
+    const nodeCount = wfJson.nodes.length;
+    const opened = await page.ev(`(async () => {
+      const app = window.app;
+      if (!app || app.isGraphReady !== true) return 'app-not-ready';
+      app.loadGraphData(${JSON.stringify(wfJson)}, true, true, 's7-family');
+      return 'opened';
+    })()`);
+    check("B0 t2i 工作流载入(loadGraphData,仓库真源·新词族)", opened === "opened", String(opened));
+    await waitFor(() => page.ev(vis(`window.app.graph && window.app.graph._nodes.length === ${nodeCount} ? 'ready' : null`)),
+      { timeout: 40_000, interval: 1000, label: "画布切换" });
+    await sleep(1500);
+  } catch (e) {
+    throw new EnvError(`A0/B0 环境段失败: ${e && e.message}`);
   }
-  const peObj = await (await fetch(`${ENGINE}/object_info/CLIPLoader`)).json();
-  const peOk = (peObj.CLIPLoader?.input?.required?.clip_name?.[0] || []).includes("qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors");
-  check("A0 环境: PE-T2I 权重在盘(CLIPLoader 可选集)", peOk, "");
-
-  launchChrome();
-  const page = await getPageClient();
-  await waitFor(() => page.ev(vis(`window.app && window.app.isGraphReady === true && typeof window.app.loadGraphData === 'function' ? 'ready' : null`)),
-    { timeout: 120_000, interval: 2000, label: "ComfyUI 前端就绪" });
-  check("A0 引擎前端就绪(app.isGraphReady)", true);
-  await sleep(2000);
-  await installTee(page);
-
-  const nodeCount = wfJson.nodes.length;
-  const opened = await page.ev(`(async () => {
-    const app = window.app;
-    if (!app || app.isGraphReady !== true) return 'app-not-ready';
-    app.loadGraphData(${JSON.stringify(wfJson)}, true, true, 's7-family');
-    return 'opened';
-  })()`);
-  check("B0 t2i 工作流载入(loadGraphData,仓库真源·新词族)", opened === "opened", String(opened));
-  await waitFor(() => page.ev(vis(`window.app.graph && window.app.graph._nodes.length === ${nodeCount} ? 'ready' : null`)),
-    { timeout: 40_000, interval: 1000, label: "画布切换" });
-  await sleep(1500);
 
   // 运行态靶发现(干跑排队图实况;子图内节点装载可重编号,勿锚 JSON id)
   const parseDigest = async (cls, fields) => { try { return JSON.parse(String(await promptDigest(page, cls, fields))); } catch { return null; } };
@@ -298,7 +310,7 @@ async function main() {
   const rtOk = Object.values(NID).every((v) => !!v);
   check("B0 运行态取证靶发现(干跑排队图实况:选择/直出KS/seed/PE改写/三态件)", rtOk, JSON.stringify(NID));
   report.targets = NID;
-  if (!rtOk) { writeReport(); cleanup(page); process.exit(1); }
+  if (!rtOk) throw new EnvError(`B0 运行态取证靶发现失败: ${JSON.stringify(NID)}`);
 
   const SKIP = new Set((process.env.SKIP || "").split(",").map((s) => s.trim()).filter(Boolean));
   for (const shot of SHOTS) {
@@ -431,12 +443,6 @@ async function main() {
     pr.finishedAt = new Date().toISOString();
     writeReport();
   }
-
-  writeReport();
-  cleanup(page);
-  log("════ S7 词族轮六拍汇总 ════");
-  for (const r of results) log(`${r.pass ? "✅" : "❌"} ${r.name}`);
-  process.exit(results.every((r) => r.pass) ? 0 : 1);
 }
 
 function writeReport() {
@@ -444,13 +450,36 @@ function writeReport() {
   report.finishedAt = new Date().toISOString();
   writeFileSync(join(OUT_DIR, "s7-family-report.json"), JSON.stringify(report, null, 2));
 }
-function cleanup(page) {
-  try { page.close(); } catch { /* gone */ }
+function cleanup() {
+  try { page?.close(); } catch { /* gone */ }
   killChrome();
 }
+
+// 退出码语义收口(0930 修复官 D-2):0=六拍全绿;1=有失败项或驱动异常(已取得的证据仍随
+// finally 落盘);2=环境错误(开场 /system_stats 探活+A0/B0 环境段);130=SIGINT(同钩清理)。
+process.on("SIGINT", () => {
+  log("SIGINT:落盘已取得证据并清理后退出");
+  try { writeReport(); } catch { /* 尽力 */ }
+  cleanup();
+  process.exit(130);
+});
 
 try {
   const alive = await (await fetch(`${ENGINE}/system_stats`, { signal: AbortSignal.timeout(8000) })).json();
   log("引擎就绪:", alive.system?.comfyui_version);
 } catch (e) { console.error("引擎探活失败:", e.message); process.exit(2); }
-await main();
+
+let exitCode = 0;
+try {
+  await main();
+  if (!results.every((r) => r.pass)) exitCode = 1;
+} catch (e) {
+  exitCode = e instanceof EnvError ? 2 : 1;
+  console.error(e instanceof EnvError ? "环境错误(退出码 2):" : "驱动异常(退出码 1,已取得证据随 finally 落盘):", e && e.message);
+} finally {
+  try { writeReport(); } catch (e) { console.error("报告落盘失败:", e && e.message); }
+  cleanup();
+}
+log("════ S7 词族轮六拍汇总 ════");
+for (const r of results) log(`${r.pass ? "✅" : "❌"} ${r.name}`);
+process.exit(exitCode);
