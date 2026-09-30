@@ -320,7 +320,9 @@ QI21_SG_PE_RW, QI21_SG_PE_SW = 140, 141
 QI21_SG_TE, QI21_SG_TE_RGBA, QI21_SG_RGBA_SW = 142, 143, 144
 # 0929 S2 ⑤机制批(D6/D7;Trellis 09-29-qi21-canvas-batch;生成器同表)
 QI21_SG_STRIP_ID = 206                    # D7 S 剥离件(RegexReplace 核心件,词族句子级删除)
-QI21_SG_W1_CAT_IDS = [207, 208]           # D7 W1 官方头尾包裹(照 W2=[162][163] 同款)
+QI21_SG_W1_CAT_IDS = [207, 216, 208]      # D7 W1 四段包裹(头拼/收束拼/尾拼;0930 S10 [216] 收束拼入列——
+                                          # 成员须皆 StringConcatenate(下方循环断言),句身常量 [215] 不入列)
+QI21_SG_W1_SENT = 215                     # 0930 宪法改写轮 S10:W1 收束句 StringConstant(句身=05库§一0930条款;常量锚单列)
 QI21_SG_TXT_SW = 209                      # D7 T 文本开关(switch=PE开关扇出)
 QI21_SG_RGBA_SEL = 210                    # D6 MyQi21RgbaSelect 三态件
 QI21_SG_RR_A, QI21_SG_RR_B = 211, 212     # rgba_hint 双垫脚石(左缘竖走廊+横带)
@@ -2448,8 +2450,9 @@ class TestQi21SubgraphContract:
         assert _oid144 == QI21_SG_RGBA_SEL, \
             f"[144] switch 槽应接 [{QI21_SG_RGBA_SEL}] MyQi21RgbaSelect(0929 S2 D6),得 {_oid144}"
         sconsts = {n["id"] for n in sg_nodes.values() if n["type"] == "StringConstant"}
-        assert sconsts == {QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID}, \
-            f"级联退役:子图 StringConstant 应恰 3 枚(锁层A+RGBA头尾),得 {sorted(sconsts)}"
+        assert sconsts == {QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID,
+                           QI21_SG_W1_SENT}, \
+            f"级联退役+宪法轮:子图 StringConstant 应恰 4 枚(锁层A+RGBA头尾+W1收束句),得 {sorted(sconsts)}"
         # 0929 回灌:子图 Reroute id 锚([177]/[178] 用户删重加为 [204]/[205],接线同位)
         rr_ids = sorted(nid for nid, n in sg_nodes.items() if n["type"] == "Reroute")
         assert rr_ids == sorted([171, 172, 173, 174, 175, QI21_SG_RR_TXT,
@@ -2576,8 +2579,9 @@ class TestQi21SubgraphContract:
         assert _of == QI21_SG_RGBA_CAT_IDS[1], \
             "[209].on_false 应接 [163] W2 装配包裹(D7:装配全文禁过剥离,现链原样)"
         _ot, _ = _qi21_trace_origin(sg_nodes, sg_links, t_sw["inputs"][1]["link"])
-        assert _ot == QI21_SG_W1_CAT_IDS[1], \
-            "[209].on_true 应接 [208] W1 剥离包裹(可穿垫脚石)"
+        assert _ot == QI21_SG_W1_CAT_IDS[-1], \
+            "[209].on_true 应接 [208] W1 剥离包裹(可穿垫脚石;显式终点锚=列表末元素——" \
+            "0930 S10 列表三员化后 [1]=216 会破旧锚)"
         t_cl = sg_links[t_sw["inputs"][2]["link"]]
         assert t_cl["origin_id"] == -10 and t_cl["origin_slot"] == 5, \
             "[209].switch 应接 -10 槽5(宿主PE开关扇出,与 [141] 同布尔)"
@@ -2597,7 +2601,7 @@ class TestQi21SubgraphContract:
         _wa, _ = _qi21_trace_origin(sg_nodes, sg_links,
                                     sg_nodes[QI21_SG_W1_CAT_IDS[0]]["inputs"][0]["link"])
         _wb, _ = _qi21_trace_origin(sg_nodes, sg_links,
-                                    sg_nodes[QI21_SG_W1_CAT_IDS[1]]["inputs"][1]["link"])
+                                    sg_nodes[QI21_SG_W1_CAT_IDS[-1]]["inputs"][1]["link"])
         assert _wa == QI21_SG_RGBA_HEAD_ID and _wb == QI21_SG_RGBA_TAIL_ID, \
             "W1 头/尾上游应 [160]/[161] 官方头尾(扇出②,逐字同源)"
         # ── 0929 S2 D6 型联动三态 ──
@@ -2664,7 +2668,8 @@ class TestQi21SubgraphContract:
 
     def test_subgraph_row_layout_top_to_bottom(self):
         """子图排版=恰 7 行(0928 PE 迁子图轮四行流水+0929 S2 ⑤机制批融合行=源行/
-        装配/PE改写/融合([206]-[210])/编码输出+画幅联动蛇形两行=宽/高):行间 y
+        装配/PE改写/融合([206]-[210]+0930 S10 收束拼[216])/编码输出+画幅联动蛇形两行
+        =宽/高;源行含 0930 S10 W1收束句[215]):行间 y
         严格递增且净距≥100;行内(数组序=数据流序)x 严格递增;Reroute 通道拐点
         不占行。行成员按 id 锚定,防回退到旧布局。"""
         graph = GRAPHS["qi21"]
@@ -2677,7 +2682,8 @@ class TestQi21SubgraphContract:
         row_ys = sorted(rows)
         assert len(row_ys) == 7, f"子图应恰 7 行(五行流水+联动蛇形两行;0929 S2 融合行),得 {len(row_ys)} 行"
         want_rows = [
-            [QI21_SG_BASE_ID, QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID],
+            [QI21_SG_BASE_ID, QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID,
+             QI21_SG_W1_SENT],
             [*QI21_SG_CONCAT_IDS, *QI21_SG_RGBA_CAT_IDS],
             [QI21_SG_PE_RW, QI21_SG_PE_SW],
             [QI21_SG_STRIP_ID, *QI21_SG_W1_CAT_IDS, QI21_SG_TXT_SW, QI21_SG_RGBA_SEL],
