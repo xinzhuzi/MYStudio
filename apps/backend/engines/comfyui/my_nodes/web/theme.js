@@ -305,7 +305,7 @@ export const CINEMA_TOKENS = {
 export const AB_COMPARE_TOKENS = {
   stageMinW: 430,        // 节点宽下限(px;对比舞台再小没法审片)
   titleH: 30,            // litegraph 节点标题栏高(px)
-  widgetRowH: 20,        // 原生 widget 单行高(px;label_a/label_b 文本框行)
+  widgetRowH: 24,        // 原生 widget 单行高(px)=litegraph NODE_WIDGET_HEIGHT+4(0930 B2 实测校准 20→24;仅作首排布前回落值,主路=消费方 stageTopFor 读运行时实距)
   labelStageGap: 6,      // 标签行底 → 舞台顶间距(px;舞台动态让位标签行)
   stageH: 260,           // 对比舞台净高(px;图/视频两路同面)
   pad: 10,               // 舞台外边距

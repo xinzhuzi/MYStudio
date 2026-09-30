@@ -80,12 +80,27 @@ const fitRect = (img, x, y, w, h) => {
   return { dx: x + (w - dw) / 2, dy: y + (h - dh) / 2, dw, dh, scale };
 };
 
-/** 舞台顶=动态让位:标题栏+label_a/label_b 文本行实数下移
- * (标签行坐舞台上方,舞台/角标不与文本框叠字;标签行数按 widgets 实数) */
+/** 舞台顶=动态让位:读 litegraph 运行时实测的 label 行位/行高(0930 B2 修)
+ * (标签行坐舞台上方,舞台/角标不与文本框叠字;标签行数按 widgets 实数)
+ * 实测真源=前端 _arrangeWidgets 每轮排布写在 widget 上的 y(与绘期 last_y
+ * 同源)与 computedHeight(默认行高=NODE_WIDGET_HEIGHT+4=24)。旧常量式
+ * titleH+行数×widgetRowH+gap 在引擎现役前端实测留 18px 叠字:首行 y=46
+ * 由输入槽底动态推得(非 titleH),行距 24(非 20)——常量猜不准,改读实值。
+ * 回落=首排布前 y 未赋值(litegraph widget 类字段初值 0)时走常量式
+ * (widgetRowH 已实测校准 24)兜首帧;排布落定后每帧绘制自动用实值。 */
 const stageTopFor = (node) => {
-  const labelRows = (node.widgets || [])
-    .filter((w) => w?.name === "label_a" || w?.name === "label_b").length;
-  return TOKENS.titleH + labelRows * TOKENS.widgetRowH + TOKENS.labelStageGap;
+  const labels = (node.widgets || [])
+    .filter((w) => w?.name === "label_a" || w?.name === "label_b");
+  let bottom = 0;
+  for (const w of labels) {
+    const y = Number.isFinite(w.y) && w.y > 0 ? w.y
+      : Number.isFinite(w.last_y) && w.last_y > 0 ? w.last_y : null;
+    const h = Number.isFinite(w.computedHeight) && w.computedHeight > 0
+      ? w.computedHeight : TOKENS.widgetRowH;
+    if (y != null) bottom = Math.max(bottom, y + h);
+  }
+  if (bottom > 0) return bottom + TOKENS.labelStageGap;
+  return TOKENS.titleH + labels.length * TOKENS.widgetRowH + TOKENS.labelStageGap;
 };
 
 /** 舞台几何(节点本地坐标):命中检测与绘制共用同一真源 */

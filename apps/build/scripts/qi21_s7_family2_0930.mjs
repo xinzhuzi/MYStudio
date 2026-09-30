@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * qi21 S7 词族轮第二轮补拍(09-30,Trellis 09-29-qi21-canvas-batch):
- *   只补拍一轮未过门的三型(道具/多视图/高清人脸,条件同前:PE开+RGBA跟随型+
- *   速度档=0·直出40步,画幅随型原生档,seed 9201-9203 顺延)+回归两拍重验
- *   (9204/9205);已过型(表情差分,一轮 61.80% 过门)不重拍,一轮结果仍有效。
- *   判据同 S6:透明过=四角 alpha 全 0 且全透占比≥50%;76-90 带记录不阻断;
- *   回归=人物跟随不透明(零真透明区)/道具强制关+PE开带背景完整文(D7 主路)。
+ * qi21 S7 词族轮多视图换 seed 补拍(09-30,Trellis 09-29-qi21-canvas-batch):
+ *   二轮 f2r-multiview 49.66% 差 0.34pt 过门(tr=1≠0 且 <50%)——换 seed 9301
+ *   再拍一发:多视图型,PE开+RGBA跟随型+速度档=0·直出40步,画幅随型原生
+ *   (1824×2432)。判据同 S6/S7:过门=四角 alpha 全 0 且全透占比≥50%
+ *   (76-90 带记录不阻断);PIL 程序验证(qi21_s6_alpha_check_0930.py 未改)
+ *   +事后独立复跑判定件双路一致。
  *   产物追加落 apps/output/s7-family-0930/(PNG/finaltext seed 键控不覆写;
- *   本轮报告独立文件 s7-family2-report.json,一轮合并账 s7-family-report.json 不动,
- *   事后由操作员并账)。
+ *   本轮报告独立文件 s7-family2-mv9301-report.json,二轮账 s7-family2-report.json
+ *   与一轮合并账 s7-family-report.json 均不动,事后由操作员并账)。
  *
  * 用法:node apps/build/scripts/qi21_s7_family2_0930.mjs
  * 环境变量:ENGINE_URL(默认 http://127.0.0.1:17599 自拉口)/CDP_PORT(默认 9373)。
- * 退出码 0=五拍全绿;1=有失败项;2=环境错误。
+ * 退出码 0=单拍全绿;1=有失败项;2=环境错误。
  * 引擎生命周期在驱动外(编排=引擎操作员;自拉口勿杀非自家)。
  */
 import { createRequire } from "node:module";
@@ -234,14 +234,10 @@ const stripPattern = stripNode.widgets_values[1];
 log(`真源常量: 官方头=${rgbaHead.slice(0, 40)}… / 剥离 pattern 长=${stripPattern.length}(新词族,RegexReplace id=${stripNode.id})`);
 
 const SHOTS = [
-  { key: "f1r-prop",        type: "道具",    rgba: "跟随型", pe: true, speed: SPEED_DIRECT, seed: 9201, expect: "transparent", timeout: 2_400_000 },
-  { key: "f2r-multiview",   type: "多视图",  rgba: "跟随型", pe: true, speed: SPEED_DIRECT, seed: 9202, expect: "transparent", timeout: 5_400_000 },
-  { key: "f3r-face",        type: "高清人脸", rgba: "跟随型", pe: true, speed: SPEED_DIRECT, seed: 9203, expect: "transparent", timeout: 2_400_000 },
-  { key: "r1r-follow-off",  type: "人物",    rgba: "跟随型", pe: true, speed: SPEED_DIRECT, seed: 9204, expect: "opaque", timeout: 5_400_000 },
-  { key: "r2r-force-off-bg", type: "道具",   rgba: "强制关", pe: true, speed: SPEED_DIRECT, seed: 9205, expect: "opaque", checkBg: true, timeout: 2_400_000 },
+  { key: "f2r2-multiview",  type: "多视图",  rgba: "跟随型", pe: true, speed: SPEED_DIRECT, seed: 9301, expect: "transparent", timeout: 5_400_000 },
 ];
 
-const report = { mode: "s7-family-round2", engine: ENGINE, engineNote: "第二轮补拍:一轮未过三型+回归两拍重验;表情差分不重拍(一轮 61.80% 过门仍有效)", wf: WF, startedAt: new Date().toISOString(), consts: { rgbaHead, rgbaTail, stripPattern, stripPatternLen: stripPattern.length }, shots: {} };
+const report = { mode: "s7-family-mv9301", engine: ENGINE, engineNote: "多视图换seed补拍:二轮 49.66% 差 0.34pt,seed 9301 再拍一发;其余条件同二轮(PE开+跟随型+直出40步+画幅1824×2432)", wf: WF, startedAt: new Date().toISOString(), consts: { rgbaHead, rgbaTail, stripPattern, stripPatternLen: stripPattern.length }, shots: {} };
 
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
@@ -427,7 +423,7 @@ async function main() {
 
   writeReport();
   cleanup(page);
-  log("════ S7 词族轮第二轮五拍汇总 ════");
+  log("════ S7 多视图换seed补拍(9301)汇总 ════");
   for (const r of results) log(`${r.pass ? "✅" : "❌"} ${r.name}`);
   process.exit(results.every((r) => r.pass) ? 0 : 1);
 }
@@ -435,7 +431,7 @@ async function main() {
 function writeReport() {
   report.results = results;
   report.finishedAt = new Date().toISOString();
-  writeFileSync(join(OUT_DIR, "s7-family2-report.json"), JSON.stringify(report, null, 2));
+  writeFileSync(join(OUT_DIR, "s7-family2-mv9301-report.json"), JSON.stringify(report, null, 2));
 }
 function cleanup(page) {
   try { page.close(); } catch { /* gone */ }
