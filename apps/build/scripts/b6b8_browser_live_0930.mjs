@@ -223,12 +223,17 @@ const report = { mode: "b6b8-browser-live", engine: ENGINE, startedAt: new Date(
 /** B6 图:b2 组①同款零模型链(LoadImage×2→MyImageABCompare)——0930 b2 实证
  *  queuePrompt→success 全通;B6 事件面(executing/progress/executed/status)在
  *  此链上完整走一遍,且 MyImageABCompare 自身 onExecuted 与 B6 executed 清扫互不干扰。 */
-function buildB6Wf() {
+function buildB6Wf(run = 1) {
+  // 0930 修复②:逐单破输出缓存——AB 标签逐单变(run1 旧版/新版→run2 旧版·r2…)+
+  // run2 双图换序(LoadImage 输入变=重执行);否则 run2/3 全缓存命中(引擎实测
+  // 0.00s)零在跑窗口,描边在场断言成假红。
+  const labels = run === 1 ? ["旧版", "新版"] : [`旧版·r${run}`, `新版·r${run}`];
+  const imgs = run === 2 ? ["b2_img_b.png", "b2_img_a.png"] : ["b2_img_a.png", "b2_img_b.png"];
   return {
     nodes: [
-      { id: 1, type: "LoadImage", pos: [-620, 80], size: [270, 314], flags: {}, order: 0, mode: 0, inputs: [], outputs: [{ name: "IMAGE", type: "IMAGE", links: [1], slot_index: 0 }], properties: { "Node name for S&R": "LoadImage" }, widgets_values: ["b2_img_a.png", "image"] },
-      { id: 2, type: "LoadImage", pos: [-620, 440], size: [270, 314], flags: {}, order: 1, mode: 0, inputs: [], outputs: [{ name: "IMAGE", type: "IMAGE", links: [2], slot_index: 0 }], properties: { "Node name for S&R": "LoadImage" }, widgets_values: ["b2_img_b.png", "image"] },
-      { id: 3, type: "MyImageABCompare", pos: [-300, 80], size: [430, 372], flags: {}, order: 2, mode: 0, inputs: [{ name: "image_a", type: "IMAGE", link: 1 }, { name: "image_b", type: "IMAGE", link: 2 }], outputs: [{ name: "image_a", type: "IMAGE", links: null }, { name: "image_b", type: "IMAGE", links: null }], properties: {}, widgets_values: ["旧版", "新版"] },
+      { id: 1, type: "LoadImage", pos: [-620, 80], size: [270, 314], flags: {}, order: 0, mode: 0, inputs: [], outputs: [{ name: "IMAGE", type: "IMAGE", links: [1], slot_index: 0 }], properties: { "Node name for S&R": "LoadImage" }, widgets_values: [imgs[0], "image"] },
+      { id: 2, type: "LoadImage", pos: [-620, 440], size: [270, 314], flags: {}, order: 1, mode: 0, inputs: [], outputs: [{ name: "IMAGE", type: "IMAGE", links: [2], slot_index: 0 }], properties: { "Node name for S&R": "LoadImage" }, widgets_values: [imgs[1], "image"] },
+      { id: 3, type: "MyImageABCompare", pos: [-300, 80], size: [430, 372], flags: {}, order: 2, mode: 0, inputs: [{ name: "image_a", type: "IMAGE", link: 1 }, { name: "image_b", type: "IMAGE", link: 2 }], outputs: [{ name: "image_a", type: "IMAGE", links: null }, { name: "image_b", type: "IMAGE", links: null }], properties: {}, widgets_values: labels },
     ],
     links: [[1, 1, 0, 3, 0, "IMAGE"], [2, 2, 0, 3, 1, "IMAGE"]],
     groups: [], config: {}, extra: {}, version: 0.4,
@@ -243,8 +248,8 @@ function buildB8Wf() {
   return {
     nodes: [
       { id: 1, type: "LoadImage", pos: [-700, 300], size: [270, 314], flags: {}, order: 0, mode: 0, inputs: [], outputs: [{ name: "IMAGE", type: "IMAGE", links: null, slot_index: 0 }], properties: { "Node name for S&R": "LoadImage" }, widgets_values: ["b2_img_a.png", "image"] },
-      { id: 2, type: "VAEDecode", pos: [-150, 40], size: [220, 60], flags: {}, order: 1, mode: 0, inputs: [{ name: "samples", type: "LATENT", link: null }, { name: "vae", type: "VAE", link: null }], outputs: [{ name: "IMAGE", type: "IMAGE", links: null, slot_index: 0 }], properties: { "Node name for S&R": "VAEDecode" }, widgets_values: [] },
-      { id: 3, type: "MyImageABCompare", pos: [-150, 420], size: [430, 372], flags: {}, order: 2, mode: 0, inputs: [{ name: "image_a", type: "IMAGE", link: null }, { name: "image_b", type: "IMAGE", link: null }], outputs: [{ name: "image_a", type: "IMAGE", links: null }, { name: "image_b", type: "IMAGE", links: null }], properties: {}, widgets_values: ["旧版", "新版"] },
+      { id: 2, type: "VAEDecode", pos: [-150, 280], size: [220, 60], flags: {}, order: 1, mode: 0, inputs: [{ name: "samples", type: "LATENT", link: null }, { name: "vae", type: "VAE", link: null }], outputs: [{ name: "IMAGE", type: "IMAGE", links: null, slot_index: 0 }], properties: { "Node name for S&R": "VAEDecode" }, widgets_values: [] },
+      { id: 3, type: "MyImageABCompare", pos: [-150, 470], size: [430, 372], flags: {}, order: 2, mode: 0, inputs: [{ name: "image_a", type: "IMAGE", link: null }, { name: "image_b", type: "IMAGE", link: null }], outputs: [{ name: "image_a", type: "IMAGE", links: null }, { name: "image_b", type: "IMAGE", links: null }], properties: {}, widgets_values: ["旧版", "新版"] },
     ],
     links: [],
     groups: [], config: {}, extra: {}, version: 0.4,
@@ -254,47 +259,70 @@ function buildB8Wf() {
 // ══════════════════ 组 b6:并发运行高亮(node-progress-highlight.js) ══════════════════
 async function groupB6(page) {
   const g = { checks: [], shots: [], runs: [] };
-  await loadWf(page, buildB6Wf(), "b6b8-progress", 3);
 
-  // 装帧配景:全图节点入视口(B6 描边渲染=渲染循环逐键 call strokeStyles,
-  // 视口外节点不重绘则哨兵无采样——配景保证帧级采样覆盖)
-  await frameCanvas(page, [-350, 300], 0.62);
-
-  // 装帧后 wrap 哨兵:对全图节点 strokeStyles.myProgress 包状态翻转记录器。
-  // 前置=引擎真节点确有该函数式槽(件经 nodeCreated/setup 挂;若引擎前端
-  // litegraph 无此机制或件未装载,前置即红,如实报)
-  const hookRc = await page.ev(`(() => {
-    window.__b6Log = [];
-    window.__b6Lit = () => window.app.graph._nodes.map((n) => ({ id: String(n.id), lit: (typeof n.strokeStyles?.myProgress === 'function') ? (r => r ? { color: r.color, lineWidth: r.lineWidth } : null)(n.strokeStyles.myProgress.call(n)) : 'no-fn' }));
-    let wrapped = 0;
-    for (const n of window.app.graph._nodes) {
-      const f = n?.strokeStyles?.myProgress;
-      if (typeof f !== 'function' || f.__b6wrapped) continue;
-      let last = undefined;
-      const w = function (...a) {
-        const r = f.apply(this, a);
-        const key = r ? (r.color + ':' + r.lineWidth) : null;
-        if (key !== last) { last = key; window.__b6Log.push({ t: Date.now(), node: String(this && this.id), lit: r ? { color: r.color, lineWidth: r.lineWidth } : null }); }
-        return r;
-      };
-      w.__b6wrapped = true;
-      n.strokeStyles.myProgress = w;
-      wrapped++;
-    }
-    return JSON.stringify({ wrapped, nodes: window.app.graph._nodes.length, logLen: window.__b6Log.length });
-  })()`);
-  const hook = JSON.parse(String(hookRc));
-  check("b6 前置:全图节点 strokeStyles.myProgress 函数式槽在场(件已装载)", hook.wrapped === 3 && hook.nodes === 3,
-    `wrapped=${hook.wrapped}/nodes=${hook.nodes}(myProgress 缺席=件未装载或引擎 litegraph 无描边槽机制)`);
-  g.checks.push({ name: "myprogress-slot-present", pass: hook.wrapped === 3, ...hook });
-
+  const installWrap = async () => {
+    // 装帧后 wrap 哨兵:对全图节点 strokeStyles.myProgress 包状态翻转记录器。
+    // 前置=引擎真节点确有该函数式槽(件经 nodeCreated/setup 挂;若引擎前端
+    // litegraph 无此机制或件未装载,前置即红,如实报)。
+    // 0930 修复②配套:逐单换图(破缓存)会重建节点→哨兵须逐单重装。
+    const rc = await page.ev(`(() => {
+      window.__b6Log = [];
+      window.__b6Lit = () => window.app.graph._nodes.map((n) => ({ id: String(n.id), lit: (typeof n.strokeStyles?.myProgress === 'function') ? (r => r ? { color: r.color, lineWidth: r.lineWidth } : null)(n.strokeStyles.myProgress.call(n)) : 'no-fn' }));
+      let wrapped = 0;
+      for (const n of window.app.graph._nodes) {
+        const f = n?.strokeStyles?.myProgress;
+        if (typeof f !== 'function' || f.__b6wrapped) continue;
+        let last = undefined;
+        const w = function (...a) {
+          const r = f.apply(this, a);
+          const key = r ? (r.color + ':' + r.lineWidth) : null;
+          if (key !== last) { last = key; window.__b6Log.push({ t: Date.now(), node: String(this && this.id), lit: r ? { color: r.color, lineWidth: r.lineWidth } : null }); }
+          return r;
+        };
+        w.__b6wrapped = true;
+        n.strokeStyles.myProgress = w;
+        wrapped++;
+      }
+      return JSON.stringify({ wrapped, nodes: window.app.graph._nodes.length, logLen: window.__b6Log.length });
+    })()`);
+    return JSON.parse(String(rc));
+  };
   const readLog = async () => JSON.parse(String(await page.ev(`JSON.stringify(window.__b6Log)`)));
   const clearLog = () => page.ev(`(() => { window.__b6Log = []; return 'cleared'; })()`);
 
-  // 连排 3 单:每单 queuePrompt→在跑窗口哨兵记录描边在场→history success→褪去。
-  // 单节点执行可能亚秒级——帧级 wrap 哨兵零竞态(事件→setDirty→下一帧 call 链路
-  // 由件自身触发,不依赖驱动器轮询命中);驱动器轮询仅用于抢拍截图(软证据)。
+  // 0930 修复③:同步采样哨兵——headless 下渲染帧受节流,亚帧执行(引擎实测
+  // 缓存命中 0.00s/真执行数十 ms)可能整段落在一帧间隙内,帧级哨兵漏采(假红)。
+  // 补 socket 消息级同步重绘:executing/executed/status 消息到达(被测件自身
+  // handler 先行注册先执行,状态已翻转)后立即 setDirty+draw 同步渲染一次,
+  // wrap 哨兵当场采到翻转态——事件序驱动,零帧竞态,不碰被测件。
+  const syncDrawRc = await page.ev(`(() => {
+    try {
+      const sock = window.app.api.socket;
+      if (!sock || typeof sock.addEventListener !== 'function') return 'no-socket';
+      window.__b6SyncDraw = (ev) => {
+        let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (m && (m.type === 'executing' || m.type === 'executed' || m.type === 'status')) {
+          try { const c = window.app.canvas; c.setDirty && c.setDirty(true, true); c.draw && c.draw(); } catch (e) { /* 尽力 */ }
+        }
+      };
+      sock.addEventListener('message', window.__b6SyncDraw);
+      return 'sync-draw-installed';
+    } catch (e) { return 'EXC:' + e.message; }
+  })()`);
+  check("b6 前置:同步采样哨兵装订(socket 消息级 setDirty+draw)", syncDrawRc === "sync-draw-installed", String(syncDrawRc));
+
+  // 连排 3 单:每单换图破缓存重载→重装哨兵→queuePrompt→在跑窗口哨兵记录描边在场
+  // →history success→褪去。单节点执行可能亚秒级——帧级 wrap 哨兵+消息级同步重绘
+  // 双保险;驱动器轮询仅用于抢拍截图(软证据)。
   for (let run = 1; run <= 3; run++) {
+    await loadWf(page, buildB6Wf(run), `b6b8-progress-r${run}`, 3);
+    // 装帧配景:全图节点入视口(B6 描边渲染=渲染循环逐键 call strokeStyles,
+    // 视口外节点不重绘则哨兵无采样——配景保证帧级采样覆盖)
+    await frameCanvas(page, [-350, 300], 0.62);
+    const hook = await installWrap();
+    check(`b6-${run} 前置:全图节点 strokeStyles.myProgress 函数式槽在场(件已装载)`, hook.wrapped === 3 && hook.nodes === 3,
+      `wrapped=${hook.wrapped}/nodes=${hook.nodes}(myProgress 缺席=件未装载或引擎 litegraph 无描边槽机制)`);
+    g.checks.push({ name: `run-${run}-myprogress-slot-present`, pass: hook.wrapped === 3, ...hook });
     await clearLog();
     const known = await historyPids();
     await sleep(400);
@@ -345,6 +373,7 @@ async function groupB6(page) {
   check("b6 三单毕终态全图无残留(队列清零后 live 直读)", residual.length === 0, JSON.stringify(finalLit));
   g.checks.push({ name: "final-no-residual", pass: residual.length === 0, finalLit });
   g.shots.push(await page.screenshot("g-b6-final"));
+  await page.ev(`(() => { try { window.app.api.socket.removeEventListener('message', window.__b6SyncDraw); return 'removed'; } catch (e) { return 'noop'; } })()`);
   report.groups.b6 = g;
   return g;
 }
@@ -354,15 +383,25 @@ async function groupB8(page) {
   const g = { checks: [], shots: [] };
   await loadWf(page, buildB8Wf(), "b6b8-dblclick", 3);
   await frameCanvas(page, [-250, 350], 0.55);
+  // 0930 修复①:活前端(1.53 系)载图后把节点 id 规范化为字符串——全部 id 比较
+  // 走 String() 归一(旧代码 n.id === 1 数值严格等值→find 未命中→getOutputPos
+  // 抛 EXC→驱动 JSON.parse 崩,run1/run2 同崩点复现);eval 返回体一律防崩护栏
+  // (EXC=判负不崩驱动,如实入 detail)。
+  const safeJson = (name, raw) => {
+    try { return JSON.parse(String(raw)); } catch (e) {
+      check(name, false, `eval 返回非 JSON(页内异常?): ${String(raw).slice(0, 400)}`);
+      return null;
+    }
+  };
 
   // 槽位几何真值:输出/输入 pos 皆 litegraph getOutputPos/getInputPos(件同源);
   // 前置断言①件的 dblclick 监听在 canvas 元素(装载体证据)②几何前提=更近的
   // VAEDecode.samples 距 LoadImage.IMAGE 输出 < AB.image_a 距离(类型过滤真受测)
   const geoRc = await page.ev(`(() => {
     const nodes = window.app.graph._nodes;
-    const src = nodes.find((n) => n.id === 1);
-    const vae = nodes.find((n) => n.id === 2);
-    const ab = nodes.find((n) => n.id === 3);
+    const src = nodes.find((n) => String(n.id) === '1');
+    const vae = nodes.find((n) => String(n.id) === '2');
+    const ab = nodes.find((n) => String(n.id) === '3');
     const out = src.getOutputPos(0);
     const dist = (p) => Math.hypot(p[0] - out[0], p[1] - out[1]);
     return JSON.stringify({
@@ -370,11 +409,12 @@ async function groupB8(page) {
       dVae: dist(vae.getInputPos(0)),
       dAba: dist(ab.getInputPos(0)),
       dAbb: dist(ab.getInputPos(1)),
-      links0: (window.app.graph.links || []).length,
+      links0: Object.keys(window.app.graph.links || {}).length,
       getEvents: typeof window.app.canvas.canvas.dispatchEvent === 'function' ? 'dom-ok' : 'no-dom',
     });
   })()`);
-  const geo = JSON.parse(String(geoRc));
+  const geo = safeJson("b8 前置:几何 eval 可解析(id 字符串归一后)", geoRc);
+  if (!geo) { report.groups.b8 = g; return g; }
   check("b8 前置:几何受测性(更近的 VAEDecode.samples[LATENT] 比 AB.image_a[IMAGE] 近)", geo.dVae < geo.dAba,
     `out=(${geo.out.map((v) => v.toFixed(0)).join(",")}) d(VAEDecode.samples)=${geo.dVae.toFixed(0)} < d(AB.image_a)=${geo.dAba.toFixed(0)}(若反向则类型过滤未被真测,布局失效)`);
   check("b8 前置:初始零连线", geo.links0 === 0, `links=${geo.links0}`);
@@ -385,14 +425,15 @@ async function groupB8(page) {
   const srcOutVp = await vp(page, geo.out);
   await page.hover(srcOutVp.x, srcOutVp.y);
   await page.dblclick(srcOutVp.x, srcOutVp.y);
-  const st1 = JSON.parse(String(await page.ev(`(() => {
+  const st1 = safeJson("b8-① 状态读回 eval 可解析", await page.ev(`(() => {
     const nodes = window.app.graph._nodes;
-    const links = window.app.graph.links || [];
-    const ab = nodes.find((n) => n.id === 3); const vae = nodes.find((n) => n.id === 2);
+    const links = Object.values(window.app.graph.links || {});
+    const ab = nodes.find((n) => String(n.id) === '3'); const vae = nodes.find((n) => String(n.id) === '2');
     return JSON.stringify({ links: links.map((l) => ({ id: l.id, type: l.type, origin_id: l.origin_id, origin_slot: l.origin_slot, target_id: l.target_id, target_slot: l.target_slot })), abIn: ab.inputs.map((i) => i.link), vaeIn: vae.inputs.map((i) => i.link) });
-  })()`)));
+  })()`));
+  if (!st1) { report.groups.b8 = g; return g; }
   const link1 = st1.links.at(-1);
-  const connect1 = st1.abIn[0] != null && link1 && link1.origin_id === 1 && link1.origin_slot === 0 && link1.target_id === 3 && link1.target_slot === 0;
+  const connect1 = st1.abIn[0] != null && link1 && String(link1.origin_id) === "1" && link1.origin_slot === 0 && String(link1.target_id) === "3" && link1.target_slot === 0;
   check("b8-① 双击输出点(CDP 真双击)→连最近兼容输入 AB.image_a", connect1,
     `links=${JSON.stringify(st1.links)} AB.inputs.link=${JSON.stringify(st1.abIn)}`);
   check("b8-① 类型过滤:更近的 VAEDecode(LATENT/VAE 输入)零占用", st1.vaeIn.every((l) => l == null), JSON.stringify(st1.vaeIn));
@@ -402,15 +443,16 @@ async function groupB8(page) {
   // ② 再双击同输出口 → image_a 已占被跳,连次近空闲 AB.image_b(空闲过滤)
   await page.hover(srcOutVp.x, srcOutVp.y);
   await page.dblclick(srcOutVp.x, srcOutVp.y);
-  const st2 = JSON.parse(String(await page.ev(`(() => {
+  const st2 = safeJson("b8-② 状态读回 eval 可解析", await page.ev(`(() => {
     const nodes = window.app.graph._nodes;
-    const links = window.app.graph.links || [];
-    const ab = nodes.find((n) => n.id === 3); const vae = nodes.find((n) => n.id === 2);
+    const links = Object.values(window.app.graph.links || {});
+    const ab = nodes.find((n) => String(n.id) === '3'); const vae = nodes.find((n) => String(n.id) === '2');
     return JSON.stringify({ links: links.map((l) => ({ id: l.id, origin_id: l.origin_id, origin_slot: l.origin_slot, target_id: l.target_id, target_slot: l.target_slot })), abIn: ab.inputs.map((i) => i.link), vaeIn: vae.inputs.map((i) => i.link) });
-  })()`)));
+  })()`));
+  if (!st2) { report.groups.b8 = g; return g; }
   const link2 = st2.links.at(-1);
   const connect2 = st2.links.length === 2 && st2.abIn[0] != null && st2.abIn[1] != null
-    && link2 && link2.origin_id === 1 && link2.target_id === 3 && link2.target_slot === 1;
+    && link2 && String(link2.origin_id) === "1" && String(link2.target_id) === "3" && link2.target_slot === 1;
   check("b8-② 再双击同输出口→已占槽被跳,连次近空闲 AB.image_b(空闲过滤:input.link≠null 槽永不被动)", connect2,
     `links=${JSON.stringify(st2.links)} AB.inputs.link=${JSON.stringify(st2.abIn)}`);
   check("b8-② 已占槽零替换(第一条 link 原样保留)", st2.links.length >= 1 && st2.links[0].target_slot === 0 && st2.abIn[0] === st1.abIn[0], JSON.stringify(st2.links.map((l) => l.target_slot)));
@@ -419,7 +461,9 @@ async function groupB8(page) {
   // ③ 双击空白 → links 计数不变(零扰原生:不劫持不截停)
   const blankVp = await vp(page, [-1000, 1200]);
   await page.dblclick(blankVp.x, blankVp.y);
-  const linksAfterBlank = JSON.parse(String(await page.ev(`JSON.stringify((window.app.graph.links || []).length)`)));
+  const linksRaw = await page.ev(`JSON.stringify(Object.keys(window.app.graph.links || {}).length)`);
+  const linksParsed = safeJson("b8-③ links 计数 eval 可解析", linksRaw);
+  const linksAfterBlank = linksParsed;
   check("b8-③ 双击空白零动作(links 计数不变)", linksAfterBlank === st2.links.length, `links=${linksAfterBlank}(双击前=${st2.links.length})`);
   g.checks.push({ name: "blank-zero-action", pass: linksAfterBlank === st2.links.length });
   g.shots.push(await page.screenshot("g-b8-final"));
