@@ -7,11 +7,11 @@
   "groups": [
     {
       "id": 1,
-      "title": "道劫·①加载器(bf16 三件套[1][2][3]+PE-I2I 专属TE[12]→[40].pe_clip)",
+      "title": "道劫·①加载器(bf16 三件套[1][2][3]+PE-I2I 专属TE[12]→[40].pe_clip;[42]MODEL总线拐+[7]QwenImage21Cache→[190]加速子图.model)",
       "bounding": [
         320,
         40,
-        2720,
+        6800,
         660
       ],
       "color": "#3f789e",
@@ -19,12 +19,12 @@
     },
     {
       "id": 2,
-      "title": "道劫·②图像·装配主链(双图[4][5]预缩[16][17]→[40]装配子图(PE改写在内)→[28]预览;[7]缓存;空潜[18]+画幅开关[19];采样=③加速区;出图=④输出)",
+      "title": "道劫·②图像·装配主链(双图[4][5]预缩[16][17]→[40]装配子图(双击进入;PE改写/面板四控件=指令/型选择/RGBA/PE开关全在内)→[28]预览;空潜[18]+画幅开关[19][20]→③.latent;采样=③加速子图;出图=④输出)",
       "bounding": [
         3060,
-        120,
+        740,
         4060,
-        2300
+        1680
       ],
       "color": "#3f789e",
       "flags": {}
@@ -34,7 +34,7 @@
       "title": "道劫·②指令外露带([22]原始用户词=指令①层唯一手写位→[40].指令;PE-I2I 改写链已收进[40]装配子图,宿主面板「PE开关」默认开=0926 裁定1)",
       "bounding": [
         1240,
-        1880,
+        3360,
         560,
         340
       ],
@@ -43,11 +43,11 @@
     },
     {
       "id": 4,
-      "title": "道劫·加速区③(三支路并行+单选择;寄居:[20]空潜双路选择件·三支路latent汇入/[44]VAE递送reroute)",
+      "title": "道劫·加速区③([190]加速子图双击进入:三支路+出图速度选择+seed 全在内;宿主面板=速度档位+seed;寄居:[20]空潜双路选择件·latent汇入/[44]VAE递送reroute)",
       "bounding": [
-        7470,
+        7420,
         200,
-        2320,
+        2520,
         2560
       ],
       "color": "#4d9e6a",
@@ -220,7 +220,7 @@
       "id": 12,
       "type": "CLIPLoader",
       "pos": [
-        1300,
+        1150,
         160
       ],
       "size": [
@@ -334,7 +334,7 @@
       "type": "ImageScaleToTotalPixels",
       "pos": [
         3160,
-        1420
+        1440
       ],
       "size": [
         330,
@@ -450,8 +450,8 @@
       "id": 17,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        3900,
-        1270
+        3800,
+        1560
       ],
       "size": [
         330,
@@ -512,6 +512,7 @@
     {
       "id": 40,
       "type": "d47c9e21-8f36-4a5b-b0c9-2e8d4f6a8c1d",
+      "title": "[40] 装配子图",
       "pos": [
         4820,
         1320
@@ -561,10 +562,10 @@
           "link": null
         },
         {
-          "name": "RGBA透明开关",
-          "type": "BOOLEAN",
+          "name": "RGBA透明",
+          "type": "COMBO",
           "widget": {
-            "name": "RGBA透明开关"
+            "name": "RGBA透明"
           },
           "link": null
         },
@@ -594,15 +595,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            20,
-            78
-          ]
-        },
-        {
-          "name": "prompt",
-          "type": "STRING",
-          "links": [
-            21
+            20
           ]
         },
         {
@@ -616,8 +609,14 @@
           "name": "positive_single",
           "type": "CONDITIONING",
           "links": [
-            70,
-            76
+            70
+          ]
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "links": [
+            21
           ]
         }
       ],
@@ -628,13 +627,13 @@
       "widgets_values": [
         "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
         "人物",
-        false,
+        "跟随型",
         true
       ],
       "widgets_values_named": {
         "指令": "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
         "型选择": "人物",
-        "RGBA透明开关": false,
+        "RGBA透明": "跟随型",
         "PE开关": true
       }
     },
@@ -642,8 +641,8 @@
       "id": 28,
       "type": "easy showAnything",
       "pos": [
-        5880,
-        850
+        5700,
+        1800
       ],
       "size": [
         480,
@@ -717,9 +716,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            25,
-            66,
-            29
+            25
           ]
         }
       ],
@@ -732,15 +729,16 @@
       ]
     },
     {
-      "id": 8,
-      "type": "KSampler",
+      "id": 190,
+      "type": "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b",
+      "title": "加速子图",
       "pos": [
-        8600,
-        1000
+        9360,
+        1500
       ],
       "size": [
-        330,
-        260
+        420,
+        360
       ],
       "flags": {},
       "order": 11,
@@ -749,7 +747,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 66
+          "link": 25
         },
         {
           "name": "positive",
@@ -762,196 +760,20 @@
           "link": 20
         },
         {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 33
-        },
-        {
-          "name": "seed",
-          "type": "INT",
-          "widget": {
-            "name": "seed"
-          },
-          "link": 79
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            82
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "KSampler"
-      },
-      "widgets_values": [
-        0,
-        "fixed",
-        40,
-        1,
-        "euler",
-        "simple",
-        1.0
-      ]
-    },
-    {
-      "id": 31,
-      "type": "LoraLoaderModelOnly",
-      "pos": [
-        7500,
-        1660
-      ],
-      "size": [
-        340,
-        130
-      ],
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 25
-        },
-        {
-          "name": "lora_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "lora_name"
-          },
-          "link": null
-        },
-        {
-          "name": "strength_model",
-          "type": "FLOAT",
-          "widget": {
-            "name": "strength_model"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            27
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
-        0.8
-      ]
-    },
-    {
-      "id": 189,
-      "type": "KSampler",
-      "pos": [
-        8660,
-        1600
-      ],
-      "size": [
-        330,
-        260
-      ],
-      "flags": {},
-      "order": 13,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 27
-        },
-        {
-          "name": "positive",
+          "name": "positive_single",
           "type": "CONDITIONING",
           "link": 70
         },
         {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 78
-        },
-        {
-          "name": "latent_image",
+          "name": "latent",
           "type": "LATENT",
-          "link": 77
+          "link": 33
         },
         {
-          "name": "seed",
-          "type": "INT",
-          "widget": {
-            "name": "seed"
-          },
-          "link": 80
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            83
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "KSampler"
-      },
-      "widgets_values": [
-        0,
-        "fixed",
-        359,
-        1,
-        "euler",
-        "simple",
-        1.0
-      ]
-    },
-    {
-      "id": 176,
-      "type": "T8QwenImage21FunAccPDD4Step",
-      "pos": [
-        8600,
-        2200
-      ],
-      "size": [
-        420,
-        250
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 29
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 76
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 65
-        },
-        {
-          "name": "model_file",
+          "name": "速度档位",
           "type": "COMBO",
           "widget": {
-            "name": "model_file"
+            "name": "速度档位"
           },
           "link": null
         },
@@ -961,110 +783,7 @@
           "widget": {
             "name": "seed"
           },
-          "link": 81
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            84
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "T8QwenImage21FunAccPDD4Step"
-      },
-      "widgets_values": [
-        "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
-        0
-      ]
-    },
-    {
-      "id": 191,
-      "type": "PrimitiveInt",
-      "pos": [
-        8100,
-        2640
-      ],
-      "size": [
-        270,
-        90
-      ],
-      "flags": {},
-      "order": 15,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "value",
-          "type": "INT",
-          "widget": {
-            "name": "value"
-          },
           "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "INT",
-          "type": "INT",
-          "links": [
-            79,
-            80,
-            81
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PrimitiveInt"
-      },
-      "widgets_values": [
-        0,
-        "fixed"
-      ]
-    },
-    {
-      "id": 190,
-      "type": "MyQi21SpeedSelect",
-      "title": "加速档位三选一(MyQi21SpeedSelect:默认直出40步·懒执行)",
-      "pos": [
-        9400,
-        1500
-      ],
-      "size": [
-        360,
-        200
-      ],
-      "flags": {},
-      "order": 16,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "mode",
-          "type": "COMBO",
-          "widget": {
-            "name": "mode"
-          },
-          "link": null
-        },
-        {
-          "name": "latent_funacc",
-          "type": "LATENT",
-          "shape": 7,
-          "link": 84
-        },
-        {
-          "name": "latent_viggle",
-          "type": "LATENT",
-          "shape": 7,
-          "link": 83
-        },
-        {
-          "name": "latent_direct",
-          "type": "LATENT",
-          "shape": 7,
-          "link": 82
         }
       ],
       "outputs": [
@@ -1077,11 +796,17 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "MyQi21SpeedSelect"
+        "subgraph": "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b",
+        "previewExposures": []
       },
       "widgets_values": [
-        "0 · 直出40步"
-      ]
+        "0 · 直出40步",
+        0
+      ],
+      "widgets_values_named": {
+        "速度档位": "0 · 直出40步",
+        "seed": 0
+      }
     },
     {
       "id": 9,
@@ -1095,7 +820,7 @@
         50
       ],
       "flags": {},
-      "order": 17,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
@@ -1134,7 +859,7 @@
         330
       ],
       "flags": {},
-      "order": 18,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
@@ -1163,7 +888,7 @@
         90
       ],
       "flags": {},
-      "order": 19,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
@@ -1203,7 +928,7 @@
         120
       ],
       "flags": {},
-      "order": 20,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
@@ -1261,7 +986,7 @@
         100
       ],
       "flags": {},
-      "order": 21,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -1290,9 +1015,7 @@
           "name": "output",
           "type": "LATENT",
           "links": [
-            33,
-            77,
-            65
+            33
           ]
         }
       ],
@@ -1308,14 +1031,14 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         1320,
-        1960
+        3400
       ],
       "size": [
         340,
         180
       ],
       "flags": {},
-      "order": 22,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -1355,7 +1078,7 @@
         1100
       ],
       "flags": {},
-      "order": 23,
+      "order": 18,
       "mode": 0,
       "inputs": [],
       "outputs": [],
@@ -1363,7 +1086,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[22] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [40] 装配子图「指令」槽;子图内 [15] 指令开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)——开关经宿主面板「PE开关」暴露(默认开),改写输出直占 [130] 拼接①①层——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[40] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [28] 装配预览(接 [40] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Fun-Acc 支路无负面槽。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 359=0929 拉齐值,原 6=v0.2.1 系卡荐档;Fun-Acc 4 步内置于 [176] T8;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,seed 单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([40] 子图内;宿主面板「PE开关」默认 PE 改写;关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [40] 子图内):[12] PE CLIPLoader(pe_i2i bf16·type=qwen_image,主图加载器行)经宿主 pe_clip 槽一进线 → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [15] 指令开关(经宿主面板「PE开关」驱动)→ [130] 拼接①占①层。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1/image_2 边界,预缩后)喂 [26].image;子图编码器只吃选定图。\n- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE开关」(直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·三支路并行(0929 并行化轮;单选择件 MyQi21SpeedSelect·combo 首项=默认=直出40步(0929 拉齐重放裁定))\n\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Fun-Acc 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 三选一处汇流(选择件居汇流点右侧)后单点解码 [9];懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **支路0 直出(上行,默认档)**:[8] KSampler 40 步官方完整档,MODEL=[7] Cache(base)直连,positive=[40].positive 双参考官方路(0928 黑图修复铁则:支路0 双参考/加速两支路单参考,见下节)。\n- **支路1 viggle(中行)**:[31] LoraLoaderModelOnly(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 0.8=0925 探针最优:flatMAD 2.52→1.75)→[189] KSampler 359 步(0929 拉齐值,原 6;cfg 保持 1)。模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **支路2 Fun-Acc(下行,主加速档=次序第二)**:[176] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在该档不参与);model=[7] Cache(base)直连**绝不吃 viggle LoRA**;positive=positive_single(单参考);latent_image 与 [8] 同源;model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt 默认 0 fixed 单节点扇出 [8]/[189]/[176] 三采样器(T8 seed 已输入化;一处改,三支路同步)——消灭旧 [8] widget 与 [176] seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([7] Cache MODEL 一源三用/[40] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Fun-Acc 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选 Fun-Acc 档节点红/执行失败——降级=切「1 · viggle」或「0 · 直出40步」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(支路1 自足)/Fun-Acc=PDD 4步采样(支路2 自足)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档单参考正源(0928 黑图修复;支路1/2 专用)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码族([171] 主编码/[172] RGBA 编码/[173] RGBA 镜像开关,均仅 image_1、词源与行3 同源、RGBA 开关同宿主面板槽6)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:支路0 [8].positive=宿主 positive(双参考=档0 官方路零改动)/支路1·2 [189]/[176].positive=宿主 positive_single(单参考)——正源差异内聚进各支路。\n- [40] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);支路1/2 选中时行4 编码亦入链(多一次视觉编码,约 +20s)。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→**0929 拉齐重放(用户 12:05 裁定)默认=直出40步等效**(选择件 combo 首项,Fun-Acc 仍为主加速居二);档0 的双参考语义零改动。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;[40] 面板「RGBA透明开关」默认关)\n\nThis is an RGBA format image with transparency. [装配全文,与 [28] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [40] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[18] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
+        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[22] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [40] 装配子图「指令」槽;子图内 [15] 指令开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)——开关经宿主面板「PE开关」暴露(默认开),改写输出直占 [130] 拼接①①层——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[40] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [28] 装配预览(接 [40] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [40] 装配子图(双击进入;0929 S1 命名批:宿主补稳定短名,面板四控件=指令/型选择/RGBA透明/PE开关(RGBA透明=0929 S2 D6 三态 combo,原布尔开关退役)),面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Fun-Acc 支路无负面槽。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 359=0929 拉齐值,原 6=v0.2.1 系卡荐档;Fun-Acc 4 步内置于 [176] T8;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,经加速子图宿主面板「seed」单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([40] 子图内;宿主面板「PE开关」默认 PE 改写;关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [40] 子图内):[12] PE CLIPLoader(pe_i2i bf16·type=qwen_image,主图加载器行)经宿主 pe_clip 槽一进线 → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [15] 指令开关(经宿主面板「PE开关」驱动)→ [130] 拼接①占①层。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1/image_2 边界,预缩后)喂 [26].image;子图编码器只吃选定图。\n- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE开关」(直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·加速子图(0929 S3 收装批:三支路+出图速度选择+seed 全收进「道劫·加速子图」;宿主 [190] 双击进入,面板=「速度档位」combo+「seed」)\n\n- **主图四块骨架**:①加载器([1][2][3][12]+[7]QwenImage21Cache+[42]MODEL 总线拐)→②装配主链([40] 装配子图+空潜[18]+画幅开关[19][20])→③加速子图([190]:MODEL=[7]Cache 出线进子图/条件=[40] 双正源分线/latent=[20] 画幅开关后)→④输出([9]解码→[10]保存);LATENT 出来回 [9] 单点解码。\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Fun-Acc 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 三选一处汇流(选择件居汇流点右侧)后单点解码;懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图;子图内懒执行=0929 S0 探针 A 级实证)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板双控件(面板值=生效值)**:「速度档位」combo(首项=默认=直出40步=0929 拉齐重放裁定;Fun-Acc 仍为主加速=次序第二)+「seed」number(默认 0;子图内 [191] 单源扇出三支路,T8 seed 已输入化,一处改三支路同步)。\n- **支路0 直出([8],子图行3)**:KSampler 40 步官方完整档,MODEL=[7]Cache(base)直连,positive=[40].positive 双参考官方路(0928 黑图修复铁则:支路0 双参考/加速两支路单参考,见下节)。\n- **支路1 viggle([31]→[189],子图行2)**:[31] LoraLoaderModelOnly(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 0.8=0925 探针最优:flatMAD 2.52→1.75)→[189] KSampler 359 步(0929 拉齐值,原 6;cfg 保持 1)。模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **支路2 Fun-Acc([176],子图行1,主加速档=次序第二)**:[176] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在该档不参与);model=[7]Cache(base)直连**绝不吃 viggle LoRA**;positive=positive_single(单参考);latent_image 与 [8] 同源;model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt(子图行4)默认 0 fixed 单节点扇出 [8]/[189]/[176] 三采样器——经宿主面板「seed」外露,面板值=生效值;消灭旧 [8] widget 与 [176] seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([7] Cache MODEL 一源三用/[40] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Fun-Acc 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选 Fun-Acc 档节点红/执行失败——降级=切「1 · viggle」或「0 · 直出40步」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(支路1 自足)/Fun-Acc=PDD 4步采样(支路2 自足)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档单参考正源(0928 黑图修复;支路1/2 专用)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码族([171] 主编码/[172] RGBA 编码/[173] RGBA 镜像开关,均仅 image_1、词源与行3 同源、RGBA 开关同宿主面板槽6)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:支路0 [8].positive=宿主 positive(双参考=档0 官方路零改动)/支路1·2 [189]/[176].positive=宿主 positive_single(单参考)——正源差异内聚进各支路(0929 S3 起双正源经加速子图边界槽 positive/positive_single 分线直入,语义零改动)。\n- [40] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);支路1/2 选中时行4 编码亦入链(多一次视觉编码,约 +20s)。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→**0929 拉齐重放(用户 12:05 裁定)默认=直出40步等效**(选择件 combo 首项,Fun-Acc 仍为主加速居二);档0 的双参考语义零改动。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;0929 S2 D6:[40] 面板「RGBA透明」三态=跟随型(默认,按型:道具/多视图/高清人脸/表情差分四型开,其余关)/强制开/强制关——旧「RGBA透明开关」布尔控件退役;型信号=MyQi21DaojieBase.rgba_default 槽喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出双扇出 [144]/[173];PE×透明结构性已融合=PE-I2I 改写指令①层不替换装配文,四型②层声明恒在)\n\nThis is an RGBA format image with transparency. [装配全文,与 [28] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [40] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[18] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
       ]
     },
     {
@@ -1378,7 +1101,7 @@
         26
       ],
       "flags": {},
-      "order": 24,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
@@ -1413,7 +1136,7 @@
         26
       ],
       "flags": {},
-      "order": 25,
+      "order": 20,
       "mode": 0,
       "inputs": [
         {
@@ -1448,7 +1171,7 @@
         26
       ],
       "flags": {},
-      "order": 26,
+      "order": 21,
       "mode": 0,
       "inputs": [
         {
@@ -1540,7 +1263,7 @@
     [
       21,
       40,
-      2,
+      4,
       28,
       0,
       "STRING"
@@ -1565,62 +1288,14 @@
       25,
       7,
       0,
-      31,
+      190,
       0,
       "MODEL"
-    ],
-    [
-      66,
-      7,
-      0,
-      8,
-      0,
-      "MODEL"
-    ],
-    [
-      29,
-      7,
-      0,
-      176,
-      0,
-      "MODEL"
-    ],
-    [
-      27,
-      31,
-      0,
-      189,
-      0,
-      "MODEL"
-    ],
-    [
-      79,
-      191,
-      0,
-      8,
-      4,
-      "INT"
-    ],
-    [
-      80,
-      191,
-      0,
-      189,
-      4,
-      "INT"
-    ],
-    [
-      81,
-      191,
-      0,
-      176,
-      4,
-      "INT"
     ],
     [
       30,
       40,
-      3,
+      2,
       20,
       0,
       "LATENT"
@@ -1645,47 +1320,15 @@
       33,
       20,
       0,
-      8,
-      3,
-      "LATENT"
-    ],
-    [
-      77,
-      20,
-      0,
-      189,
-      3,
-      "LATENT"
-    ],
-    [
-      65,
-      20,
-      0,
-      176,
-      2,
+      190,
+      4,
       "LATENT"
     ],
     [
       71,
       40,
       0,
-      8,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      70,
-      40,
-      4,
-      189,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      76,
-      40,
-      4,
-      176,
+      190,
       1,
       "CONDITIONING"
     ],
@@ -1693,41 +1336,17 @@
       20,
       40,
       1,
-      8,
+      190,
       2,
       "CONDITIONING"
     ],
     [
-      78,
+      70,
       40,
-      1,
-      189,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      82,
-      8,
-      0,
+      3,
       190,
       3,
-      "LATENT"
-    ],
-    [
-      83,
-      189,
-      0,
-      190,
-      2,
-      "LATENT"
-    ],
-    [
-      84,
-      176,
-      0,
-      190,
-      1,
-      "LATENT"
+      "CONDITIONING"
     ],
     [
       85,
@@ -1777,8 +1396,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 4,
-          "lastNodeId": 174,
-          "lastLinkId": 54,
+          "lastNodeId": 184,
+          "lastLinkId": 59,
           "lastRerouteId": 2
         },
         "revision": 1,
@@ -1798,7 +1417,7 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            6720,
+            7220,
             900,
             320,
             1800
@@ -1892,15 +1511,14 @@
           },
           {
             "id": "c4d5e6f7-0007-4a07-9e07-d47c9e21a007",
-            "name": "RGBA透明开关",
-            "type": "BOOLEAN",
+            "name": "RGBA透明",
+            "type": "COMBO",
             "linkIds": [
-              11,
-              39
+              11
             ],
             "pos": [
-              6280,
-              2380
+              6300,
+              1520
             ]
           },
           {
@@ -1937,7 +1555,7 @@
               23
             ],
             "pos": [
-              6800,
+              7300,
               1700
             ]
           },
@@ -1949,20 +1567,8 @@
               24
             ],
             "pos": [
-              6800,
+              7300,
               1860
-            ]
-          },
-          {
-            "id": "e8f1a2b3-0003-4b03-8f03-d47c9e21b03",
-            "name": "prompt",
-            "type": "STRING",
-            "linkIds": [
-              25
-            ],
-            "pos": [
-              6800,
-              1000
             ]
           },
           {
@@ -1973,7 +1579,7 @@
               26
             ],
             "pos": [
-              6800,
+              7300,
               2020
             ]
           },
@@ -1985,15 +1591,27 @@
               40
             ],
             "pos": [
-              6800,
+              7300,
               2560
+            ]
+          },
+          {
+            "id": "e8f1a2b3-0003-4b03-8f03-d47c9e21b03",
+            "name": "prompt",
+            "type": "STRING",
+            "linkIds": [
+              25
+            ],
+            "pos": [
+              7300,
+              2660
             ]
           }
         ],
         "widgets": [
           "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
           "人物",
-          false,
+          "跟随型",
           true
         ],
         "nodes": [
@@ -2044,6 +1662,13 @@
                 "name": "型名",
                 "type": "STRING",
                 "links": null
+              },
+              {
+                "name": "rgba_default",
+                "type": "BOOLEAN",
+                "links": [
+                  55
+                ]
               }
             ],
             "properties": {
@@ -2057,7 +1682,7 @@
             "id": 110,
             "type": "StringConstant",
             "pos": [
-              3080,
+              3300,
               140
             ],
             "size": [
@@ -2151,7 +1776,7 @@
             "type": "StringConcatenate",
             "pos": [
               2870,
-              860
+              900
             ],
             "size": [
               380,
@@ -2204,7 +1829,7 @@
             "type": "StringConcatenate",
             "pos": [
               3450,
-              860
+              900
             ],
             "size": [
               380,
@@ -2260,7 +1885,7 @@
             "type": "StringConcatenate",
             "pos": [
               4240,
-              860
+              900
             ],
             "size": [
               380,
@@ -2313,7 +1938,7 @@
             "type": "StringConcatenate",
             "pos": [
               4820,
-              860
+              900
             ],
             "size": [
               380,
@@ -2363,11 +1988,11 @@
             }
           },
           {
-            "id": 143,
+            "id": 142,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              4920,
-              1620
+              4900,
+              1660
             ],
             "size": [
               420,
@@ -2375,81 +2000,6 @@
             ],
             "flags": {},
             "order": 8,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "clip",
-                "type": "CLIP",
-                "link": 2
-              },
-              {
-                "name": "images.image_1",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 7
-              },
-              {
-                "name": "vae",
-                "type": "VAE",
-                "shape": 7,
-                "link": 4
-              },
-              {
-                "name": "images.image_2",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 8
-              },
-              {
-                "name": "prompt",
-                "type": "STRING",
-                "widget": {
-                  "name": "prompt"
-                },
-                "link": 20
-              }
-            ],
-            "outputs": [
-              {
-                "name": "positive",
-                "type": "CONDITIONING",
-                "links": [
-                  22
-                ]
-              },
-              {
-                "name": "negative",
-                "type": "CONDITIONING",
-                "links": null
-              },
-              {
-                "name": "latent",
-                "type": "LATENT",
-                "links": null
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "TextEncodeQwenImage21"
-            },
-            "widgets_values": [
-              "",
-              "",
-              0
-            ]
-          },
-          {
-            "id": 142,
-            "type": "TextEncodeQwenImage21",
-            "pos": [
-              5720,
-              1620
-            ],
-            "size": [
-              420,
-              320
-            ],
-            "flags": {},
-            "order": 9,
             "mode": 0,
             "inputs": [
               {
@@ -2517,25 +2067,148 @@
             ]
           },
           {
-            "id": 144,
-            "type": "ComfySwitchNode",
+            "id": 143,
+            "type": "TextEncodeQwenImage21",
             "pos": [
-              6340,
-              1620
+              5820,
+              1660
+            ],
+            "size": [
+              420,
+              320
+            ],
+            "flags": {},
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "clip",
+                "type": "CLIP",
+                "link": 2
+              },
+              {
+                "name": "images.image_1",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 7
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "shape": 7,
+                "link": 4
+              },
+              {
+                "name": "images.image_2",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 8
+              },
+              {
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 20
+              }
+            ],
+            "outputs": [
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  22
+                ]
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "links": null
+              },
+              {
+                "name": "latent",
+                "type": "LATENT",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextEncodeQwenImage21"
+            },
+            "widgets_values": [
+              "",
+              "",
+              0
+            ]
+          },
+          {
+            "id": 180,
+            "type": "MyQi21RgbaSelect",
+            "title": "RGBA透明(跟随型=按型默认四开五关/强制开/强制关=手动权威;rgba_hint←[150],输出→[144]/[173])",
+            "pos": [
+              6450,
+              1660
             ],
             "size": [
               380,
-              120
+              150
             ],
             "flags": {},
             "order": 10,
             "mode": 0,
             "inputs": [
               {
+                "name": "mode",
+                "type": "COMBO",
+                "widget": {
+                  "name": "mode"
+                },
+                "link": 11
+              },
+              {
+                "name": "rgba_hint",
+                "type": "BOOLEAN",
+                "shape": 7,
+                "link": 56
+              }
+            ],
+            "outputs": [
+              {
+                "name": "rgba_on",
+                "type": "BOOLEAN",
+                "links": [
+                  9,
+                  39
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21RgbaSelect"
+            },
+            "widgets_values": [
+              "跟随型"
+            ]
+          },
+          {
+            "id": 144,
+            "type": "ComfySwitchNode",
+            "pos": [
+              7050,
+              1660
+            ],
+            "size": [
+              380,
+              120
+            ],
+            "flags": {},
+            "order": 11,
+            "mode": 0,
+            "inputs": [
+              {
                 "name": "on_false",
                 "shape": 7,
                 "type": "CONDITIONING",
-                "link": 21
+                "link": 57
               },
               {
                 "name": "on_true",
@@ -2549,7 +2222,7 @@
                 "widget": {
                   "name": "switch"
                 },
-                "link": 11
+                "link": 58
               }
             ],
             "outputs": [
@@ -2572,15 +2245,15 @@
             "id": 170,
             "type": "Reroute",
             "pos": [
-              5900,
-              1400
+              6450,
+              2050
             ],
             "size": [
               75,
               26
             ],
             "flags": {},
-            "order": 11,
+            "order": 12,
             "mode": 0,
             "inputs": [
               {
@@ -2607,15 +2280,15 @@
             "id": 171,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              4920,
-              2400
+              4900,
+              2420
             ],
             "size": [
               420,
               320
             ],
             "flags": {},
-            "order": 12,
+            "order": 13,
             "mode": 0,
             "inputs": [
               {
@@ -2676,15 +2349,15 @@
             "id": 172,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              5720,
-              2400
+              5820,
+              2420
             ],
             "size": [
               420,
               320
             ],
             "flags": {},
-            "order": 13,
+            "order": 14,
             "mode": 0,
             "inputs": [
               {
@@ -2745,15 +2418,15 @@
             "id": 173,
             "type": "ComfySwitchNode",
             "pos": [
-              6340,
-              2400
+              7050,
+              2420
             ],
             "size": [
               380,
               120
             ],
             "flags": {},
-            "order": 14,
+            "order": 15,
             "mode": 0,
             "inputs": [
               {
@@ -2797,15 +2470,15 @@
             "id": 174,
             "type": "Reroute",
             "pos": [
-              5900,
-              2180
+              5400,
+              2200
             ],
             "size": [
               75,
               26
             ],
             "flags": {},
-            "order": 15,
+            "order": 16,
             "mode": 0,
             "inputs": [
               {
@@ -2829,18 +2502,158 @@
             }
           },
           {
+            "id": 181,
+            "type": "Reroute",
+            "pos": [
+              2880,
+              82
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 17,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 55
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "BOOLEAN",
+                "links": [
+                  59
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
+          },
+          {
+            "id": 184,
+            "type": "Reroute",
+            "pos": [
+              5700,
+              110
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 18,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 59
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "BOOLEAN",
+                "links": [
+                  56
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
+          },
+          {
+            "id": 182,
+            "type": "Reroute",
+            "pos": [
+              7040,
+              2250
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 19,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 9
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "BOOLEAN",
+                "links": [
+                  58
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
+          },
+          {
+            "id": 183,
+            "type": "Reroute",
+            "pos": [
+              5250,
+              1200
+            ],
+            "size": [
+              75,
+              26
+            ],
+            "flags": {},
+            "order": 20,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "",
+                "type": "*",
+                "link": 21
+              }
+            ],
+            "outputs": [
+              {
+                "name": "",
+                "type": "CONDITIONING",
+                "links": [
+                  57
+                ]
+              }
+            ],
+            "properties": {
+              "showOutputText": false,
+              "horizontal": false
+            }
+          },
+          {
             "id": 23,
             "type": "PrimitiveStringMultiline",
             "pos": [
               80,
-              3200
+              3180
             ],
             "size": [
               260,
               180
             ],
             "flags": {},
-            "order": 16,
+            "order": 21,
             "mode": 0,
             "inputs": [
               {
@@ -2873,14 +2686,14 @@
             "type": "PrimitiveStringMultiline",
             "pos": [
               580,
-              3200
+              3180
             ],
             "size": [
               300,
               180
             ],
             "flags": {},
-            "order": 17,
+            "order": 22,
             "mode": 0,
             "inputs": [
               {
@@ -2913,14 +2726,14 @@
             "type": "BatchImagesNode",
             "pos": [
               1140,
-              3200
+              3180
             ],
             "size": [
               260,
               170
             ],
             "flags": {},
-            "order": 18,
+            "order": 23,
             "mode": 0,
             "inputs": [
               {
@@ -2953,14 +2766,14 @@
             "type": "StringFormat",
             "pos": [
               840,
-              3960
+              3940
             ],
             "size": [
               300,
               130
             ],
             "flags": {},
-            "order": 19,
+            "order": 24,
             "mode": 0,
             "inputs": [
               {
@@ -3011,14 +2824,14 @@
             "type": "TextGenerate",
             "pos": [
               1600,
-              3960
+              3940
             ],
             "size": [
               400,
               450
             ],
             "flags": {},
-            "order": 20,
+            "order": 25,
             "mode": 0,
             "inputs": [
               {
@@ -3186,14 +2999,14 @@
             "type": "RegexExtract",
             "pos": [
               2200,
-              3960
+              3940
             ],
             "size": [
               330,
               260
             ],
             "flags": {},
-            "order": 21,
+            "order": 26,
             "mode": 0,
             "inputs": [
               {
@@ -3280,14 +3093,14 @@
             "type": "ComfySwitchNode",
             "pos": [
               2730,
-              3960
+              3940
             ],
             "size": [
               300,
               110
             ],
             "flags": {},
-            "order": 22,
+            "order": 27,
             "mode": 0,
             "inputs": [
               {
@@ -3334,9 +3147,9 @@
             "title": "道劫·底座装配(行1 源行:九选一底座+锁层A恒挂+RGBA官方头尾)",
             "bounding": [
               2410,
-              90,
-              2850,
-              500
+              100,
+              3010,
+              470
             ],
             "color": "#3f789e",
             "flags": {}
@@ -3346,7 +3159,7 @@
             "title": "道劫·装配路由(行2:拼接①② delimiter=\\n 分层·指令占①层;RGBA 公式拼接)",
             "bounding": [
               2840,
-              810,
+              850,
               2500,
               300
             ],
@@ -3358,8 +3171,8 @@
             "title": "道劫·编码输出(行3:主编码+RGBA编码(官方公式路,默认旁路)+RGBA开关)",
             "bounding": [
               4890,
-              1570,
-              1870,
+              1610,
+              2600,
               430
             ],
             "color": "#886",
@@ -3370,8 +3183,8 @@
             "title": "道劫·单参考编码(行4:档1/2 加速正源,仅 image_1,0928 黑图修复;RGBA 镜像开关同宿主面板)",
             "bounding": [
               4890,
-              2350,
-              1870,
+              2370,
+              2600,
               430
             ],
             "color": "#4d9e6a",
@@ -3455,9 +3268,9 @@
             "id": 11,
             "origin_id": -10,
             "origin_slot": 6,
-            "target_id": 144,
-            "target_slot": 2,
-            "type": "BOOLEAN"
+            "target_id": 180,
+            "target_slot": 0,
+            "type": "COMBO"
           },
           {
             "id": 12,
@@ -3535,6 +3348,14 @@
             "id": 21,
             "origin_id": 142,
             "origin_slot": 0,
+            "target_id": 183,
+            "target_slot": 0,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 57,
+            "origin_id": 183,
+            "origin_slot": 0,
             "target_id": 144,
             "target_slot": 0,
             "type": "CONDITIONING"
@@ -3568,7 +3389,7 @@
             "origin_id": 131,
             "origin_slot": 0,
             "target_id": -20,
-            "target_slot": 2,
+            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -3576,7 +3397,7 @@
             "origin_id": 142,
             "origin_slot": 2,
             "target_id": -20,
-            "target_slot": 3,
+            "target_slot": 2,
             "type": "LATENT"
           },
           {
@@ -3677,8 +3498,8 @@
           },
           {
             "id": 39,
-            "origin_id": -10,
-            "origin_slot": 6,
+            "origin_id": 180,
+            "origin_slot": 0,
             "target_id": 173,
             "target_slot": 2,
             "type": "BOOLEAN"
@@ -3688,7 +3509,7 @@
             "origin_id": 173,
             "origin_slot": 0,
             "target_id": -20,
-            "target_slot": 4,
+            "target_slot": 3,
             "type": "CONDITIONING"
           },
           {
@@ -3794,6 +3615,767 @@
             "target_id": 130,
             "target_slot": 0,
             "type": "STRING"
+          },
+          {
+            "id": 9,
+            "origin_id": 180,
+            "origin_slot": 0,
+            "target_id": 182,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 58,
+            "origin_id": 182,
+            "origin_slot": 0,
+            "target_id": 144,
+            "target_slot": 2,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 55,
+            "origin_id": 150,
+            "origin_slot": 4,
+            "target_id": 181,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 59,
+            "origin_id": 181,
+            "origin_slot": 0,
+            "target_id": 184,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 56,
+            "origin_id": 184,
+            "origin_slot": 0,
+            "target_id": 180,
+            "target_slot": 1,
+            "type": "BOOLEAN"
+          }
+        ],
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        }
+      },
+      {
+        "id": "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b",
+        "version": 1,
+        "state": {
+          "lastGroupId": 4,
+          "lastNodeId": 192,
+          "lastLinkId": 21,
+          "lastRerouteId": 0
+        },
+        "revision": 1,
+        "config": {
+          "defaultIOState": {}
+        },
+        "name": "道劫·加速子图",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            -160,
+            -100,
+            160,
+            1900
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            2820,
+            880,
+            320,
+            260
+          ]
+        },
+        "inputs": [
+          {
+            "id": "a1b2c3d4-0001-4d01-8d01-b3f5a1c2a001",
+            "name": "model",
+            "type": "MODEL",
+            "linkIds": [
+              1,
+              2,
+              3
+            ],
+            "pos": [
+              620,
+              480
+            ]
+          },
+          {
+            "id": "a1b2c3d4-0002-4d02-8d02-b3f5a1c2a002",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "linkIds": [
+              4
+            ],
+            "pos": [
+              1160,
+              1960
+            ]
+          },
+          {
+            "id": "a1b2c3d4-0003-4d03-8d03-b3f5a1c2a003",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "linkIds": [
+              5,
+              6
+            ],
+            "pos": [
+              1160,
+              740
+            ]
+          },
+          {
+            "id": "a1b2c3d4-0004-4d04-8d04-b3f5a1c2a004",
+            "name": "positive_single",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7,
+              8
+            ],
+            "pos": [
+              1160,
+              600
+            ]
+          },
+          {
+            "id": "a1b2c3d4-0005-4d05-8d05-b3f5a1c2a005",
+            "name": "latent",
+            "type": "LATENT",
+            "linkIds": [
+              9,
+              10,
+              11
+            ],
+            "pos": [
+              1160,
+              1300
+            ]
+          },
+          {
+            "id": "a1b2c3d4-0006-4d06-8d06-b3f5a1c2a006",
+            "name": "速度档位",
+            "type": "COMBO",
+            "linkIds": [
+              20
+            ],
+            "pos": [
+              2020,
+              860
+            ]
+          },
+          {
+            "id": "a1b2c3d4-0007-4d07-8d07-b3f5a1c2a007",
+            "name": "seed",
+            "type": "INT",
+            "linkIds": [
+              12
+            ],
+            "pos": [
+              -36,
+              1330
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "e5f6a7b8-0001-4e01-9f01-b3f5a1c2b001",
+            "name": "latent",
+            "type": "LATENT",
+            "linkIds": [
+              21
+            ],
+            "pos": [
+              2900,
+              980
+            ]
+          }
+        ],
+        "widgets": [
+          "0 · 直出40步",
+          0
+        ],
+        "nodes": [
+          {
+            "id": 176,
+            "type": "T8QwenImage21FunAccPDD4Step",
+            "pos": [
+              1400,
+              140
+            ],
+            "size": [
+              420,
+              250
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 1
+              },
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 8
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 9
+              },
+              {
+                "name": "model_file",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_file"
+                },
+                "link": null
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 14
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  17
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "T8QwenImage21FunAccPDD4Step"
+            },
+            "widgets_values": [
+              "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
+              0
+            ]
+          },
+          {
+            "id": 31,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              800,
+              900
+            ],
+            "size": [
+              340,
+              130
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 2
+              },
+              {
+                "name": "lora_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "lora_name"
+                },
+                "link": null
+              },
+              {
+                "name": "strength_model",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "strength_model"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  13
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly"
+            },
+            "widgets_values": [
+              "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
+              0.8
+            ]
+          },
+          {
+            "id": 189,
+            "type": "KSampler",
+            "pos": [
+              1400,
+              900
+            ],
+            "size": [
+              330,
+              260
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 13
+              },
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 7
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 6
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 10
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 15
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  18
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "KSampler"
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              359,
+              1,
+              "euler",
+              "simple",
+              1.0
+            ]
+          },
+          {
+            "id": 8,
+            "type": "KSampler",
+            "pos": [
+              1400,
+              1660
+            ],
+            "size": [
+              330,
+              260
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 3
+              },
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 4
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 5
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 11
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 16
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  19
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "KSampler"
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              40,
+              1,
+              "euler",
+              "simple",
+              1.0
+            ]
+          },
+          {
+            "id": 191,
+            "type": "PrimitiveInt",
+            "pos": [
+              80,
+              1300
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "INT",
+                "widget": {
+                  "name": "value"
+                },
+                "link": 12
+              }
+            ],
+            "outputs": [
+              {
+                "name": "INT",
+                "type": "INT",
+                "links": [
+                  14,
+                  15,
+                  16
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "PrimitiveInt"
+            },
+            "widgets_values": [
+              0,
+              "fixed"
+            ]
+          },
+          {
+            "id": 192,
+            "type": "MyQi21SpeedSelect",
+            "title": "出图速度选择",
+            "pos": [
+              2100,
+              900
+            ],
+            "size": [
+              360,
+              200
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "mode",
+                "type": "COMBO",
+                "widget": {
+                  "name": "mode"
+                },
+                "link": 20
+              },
+              {
+                "name": "latent_funacc",
+                "type": "LATENT",
+                "shape": 7,
+                "link": 17
+              },
+              {
+                "name": "latent_viggle",
+                "type": "LATENT",
+                "shape": 7,
+                "link": 18
+              },
+              {
+                "name": "latent_direct",
+                "type": "LATENT",
+                "shape": 7,
+                "link": 19
+              }
+            ],
+            "outputs": [
+              {
+                "name": "latent",
+                "type": "LATENT",
+                "links": [
+                  21
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21SpeedSelect"
+            },
+            "widgets_values": [
+              "0 · 直出40步"
+            ]
+          }
+        ],
+        "groups": [
+          {
+            "id": 1,
+            "title": "道劫·Fun-Acc 支路(行1:T8 4步 PDD 采样;model=Cache 直连绝不叠 viggle LoRA)",
+            "bounding": [
+              1370,
+              90,
+              500,
+              360
+            ],
+            "color": "#4d9e6a",
+            "flags": {}
+          },
+          {
+            "id": 2,
+            "title": "道劫·viggle 支路+汇流(行2:LoRA0.8→KSampler359步·单参考正源;右端出图速度选择=三支路汇流单点)",
+            "bounding": [
+              770,
+              850,
+              1730,
+              360
+            ],
+            "color": "#a1309b",
+            "flags": {}
+          },
+          {
+            "id": 3,
+            "title": "道劫·直出支路(行3:KSampler 40步官方完整档;双参考正源)",
+            "bounding": [
+              1370,
+              1610,
+              500,
+              360
+            ],
+            "color": "#3f789e",
+            "flags": {}
+          },
+          {
+            "id": 4,
+            "title": "道劫·seed 单源(寄生带:左列净空 x=80,一源三扇出;宿主面板「seed」外露)",
+            "bounding": [
+              50,
+              1250,
+              350,
+              240
+            ],
+            "color": "#886",
+            "flags": {}
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 176,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 2,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 31,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 3,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 8,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 4,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 8,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 5,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 8,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 6,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 189,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 189,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 8,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 176,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 9,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 176,
+            "target_slot": 2,
+            "type": "LATENT"
+          },
+          {
+            "id": 10,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 189,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 11,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 8,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 12,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 191,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 13,
+            "origin_id": 31,
+            "origin_slot": 0,
+            "target_id": 189,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 14,
+            "origin_id": 191,
+            "origin_slot": 0,
+            "target_id": 176,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 15,
+            "origin_id": 191,
+            "origin_slot": 0,
+            "target_id": 189,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 16,
+            "origin_id": 191,
+            "origin_slot": 0,
+            "target_id": 8,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 17,
+            "origin_id": 176,
+            "origin_slot": 0,
+            "target_id": 192,
+            "target_slot": 1,
+            "type": "LATENT"
+          },
+          {
+            "id": 18,
+            "origin_id": 189,
+            "origin_slot": 0,
+            "target_id": 192,
+            "target_slot": 2,
+            "type": "LATENT"
+          },
+          {
+            "id": 19,
+            "origin_id": 8,
+            "origin_slot": 0,
+            "target_id": 192,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 20,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 192,
+            "target_slot": 0,
+            "type": "COMBO"
+          },
+          {
+            "id": 21,
+            "origin_id": 192,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "LATENT"
           }
         ],
         "extra": {
@@ -3803,6 +4385,6 @@
       }
     ]
   },
-  "last_node_id": 191,
+  "last_node_id": 192,
   "last_link_id": 85
 }
