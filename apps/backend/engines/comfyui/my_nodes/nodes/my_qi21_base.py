@@ -1,7 +1,7 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""道劫 qi21 底座节点:九型底座下拉选一,四出 BASE/WIDTH/HEIGHT/型名(09-23 造件)。
+"""道劫 qi21 底座节点:九型底座下拉选一,五出 BASE/WIDTH/HEIGHT/型名/rgba_default(09-23 造件)。
 
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):
