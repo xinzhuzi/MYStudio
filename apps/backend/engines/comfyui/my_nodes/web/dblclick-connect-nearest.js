@@ -35,7 +35,11 @@ import { app } from "/scripts/app.js";
  * - 「空闲」=input.link == null(槽上已连线者永不被动,本件不做替换);
  * - 源节点自身输入不参选(connect 对「目标=源」恒拒,引擎语义);
  * - 无兼容空闲口=静默不动(不弹窗不 toast);
- * - 扫描面=当前 app.graph._nodes(打开子图时即子图画面内节点);
+ * - 扫描面=当前显示图 app.canvas.graph._nodes(引擎 getCurrentGraph 同源:
+ *   openSubgraph→setGraph 只切 canvas.graph,app.graph 的 getter 恒返根图
+ *   rootGraphInternal 不可作扫描面——否则与 convertEventToCanvasOffset 的
+ *   当前视口(子图)域坐标跨域错配:子图内双击恒不中、根图坐标数值重合时
+ *   还会在根图连出子图画面完全看不见的线);
  * - window.LiteGraph 意外缺席时兜底=保守等值判型(结构性不可达的防御
  *   位),connect 仍是最终权威。
  * 引擎实弹延期(本轮零引擎约束:未 sync_my_nodes 未装机未打包)。
@@ -90,7 +94,13 @@ function findNearestFreeInput(nodes, sourceNode, outputType, fromPos) {
 
 function onCanvasDblClick(event) {
   try {
-    const nodes = app.graph?._nodes;
+    // 扫描面=当前显示图:引擎开子图走 openSubgraph→setGraph,只切
+    // canvas.graph 不切 app.graph(其 getter 恒返根图 rootGraphInternal);
+    // 而 convertEventToCanvasOffset 出的是当前视口(子图)域坐标——扫描面
+    // 必须同取 canvas.graph 才与坐标同域,旧取 app.graph 属跨域比较(子图
+    // 内恒不中+根图数值重合时误连)。canvas 意外缺 graph 位时保守回根图。
+    const graph = app.canvas?.graph ?? app.graph;
+    const nodes = graph?._nodes;
     if (!nodes?.length || typeof app.canvas?.convertEventToCanvasOffset !== "function") return;
     const point = app.canvas.convertEventToCanvasOffset(event);
     const hit = findOutputSlotAt(nodes, point[0], point[1]);
