@@ -2958,6 +2958,10 @@ class TestI2IContract:
         bl = _qi21_sg_links(graph)[bases[0]["inputs"][0]["link"]]
         assert bl["origin_id"] == -10 and bl["origin_slot"] == 5 and bl["type"] == "COMBO", \
             "[150].base 应接 -10 槽5(宿主面板「型选择」COMBO,一处切换)"
+        assert [o["name"] for o in bases[0]["outputs"]] == ["BASE", "WIDTH", "HEIGHT", "型名", "rgba_default"], \
+            "[150] 五出应为 BASE/WIDTH/HEIGHT/型名/rgba_default(与 qi21 件同名册;下方索引引用依赖此序)"
+        assert bases[0]["outputs"][4]["type"] == "BOOLEAN", \
+            "[150].rgba_default 槽型应 BOOLEAN(同 qi21 件,0929 S2 D6)"
         assert bases[0]["outputs"][1]["links"] is None \
             and bases[0]["outputs"][2]["links"] is None, \
             "[150] WIDTH/HEIGHT 本件不接(画幅随输入图,画幅联动行不移植)"
