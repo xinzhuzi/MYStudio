@@ -7,7 +7,7 @@
  * 步骤段:S0 预检/prekill/选口 → S1 启动装机应用 → S2 道劫项目 →
  *   S3 本地模型画布(引擎幂等 ensure)→ S4 关闭全部工作流标签 →
  *   S5 漫影侧栏重开 qi21-道劫-t2i → S6 真前端 queuePrompt 出图(纯默认)→
- *   S6b PE 种子喂法硬闸(程序化入装配子图改写器种子=前缀+主体句,真出图)→
+ *   S6b 装配全文进 PE 硬闸(Q1=B+:装配器参数对拍+排队图 40:140.prompt=装配全文,真出图)→
  *   S7 收摊+报告。全链双拍(S6+S6b)≈50-65min(次拍模型已热,采样各 ≈23-30min)。
  *
  * 骨架=cdp-daojie-krea2-ink-e2e.mjs(0915 役;踩坑注释原样继承:webview 不进
@@ -29,6 +29,14 @@
  * 退出码:0=全过;1=有失败项;2=环境错误。
  * 产物:apps/output/daojie-t2i-app-e2e/(report.json+t2i-result.png+t2i-result-pe.png);
  *   截图/中间件 /tmp/daojie-t2i-e2e/。
+ *
+ * [1001 S8 适配(Trellis 10-01-qi21-assembly-blueprint S8 L2-2 步骤10)]
+ *   子图名锚 includes("装配")→includes("提示词类型优化")(Part-A S1 改名);S6/S6b
+ *   随 Q1=B+ 换语义:[140].prompt=装配器 MyQi21PromptAssembly「装配全文」输出直喂
+ *   (主体句+BASE+锁层A),种子文 widget 清空退役(摆设)——旧「程序化改种子=前缀+
+ *   主体句」硬闸机制失效,新硬闸=装配器参数面锁层A逐字对拍+排队图 40:140.prompt
+ *   装配全文双特征(主体句头18字+锁层A首段头)在场;panel40 期望集零变(§10.7
+ *   子图 inputs 仍 8 口)。
  */
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
@@ -57,8 +65,10 @@ const GEN_TIMEOUT_MS = Number(process.env.GEN_TIMEOUT_MS || 3_600_000);
 // 60min 口径=0930 首跑实测:PE 开直出 40 步@双 TE 驻留(MPS 内存压力)全链
 // ≈30-35min(模型加载~8min+PE 改写 token 生成+采样 34s/it×40≈23min);与
 // q21 战役驱动器同口径(其 GEN_TIMEOUT 亦 3_600_000)。SKIP_GEN 可免此段。
-const SKIP_GEN = process.env.SKIP_GEN === "1";
-const SKIP_PE = process.env.SKIP_PE === "1"; // 只跳 S6b(SKIP_GEN=1 时两拍连跳,S6b 无独立成活路径)
+// 1001 S8 适配:implement S8 L2-2 步骤10 验收命令=「--skip-gen 干跑绿」(CLI flag),
+// 原脚本只认 env(SKIP_GEN=1)——flag 与 env 同义化,免验收命令原样跑被忽略变全链实弹
+const SKIP_GEN = process.env.SKIP_GEN === "1" || process.argv.includes("--skip-gen");
+const SKIP_PE = process.env.SKIP_PE === "1" || process.argv.includes("--skip-pe"); // 只跳 S6b(SKIP_GEN=1 时两拍连跳,S6b 无独立成活路径)
 const KEEP_APP = process.env.KEEP_APP === "1";
 const CDP_PORT_ENV = Number(process.env.CDP_PORT || 0);
 
@@ -76,17 +86,18 @@ const check = (name, pass, detail = "") => {
 function parseTruth() {
   const g = JSON.parse(readFileSync(INST_T2I, "utf8"));
   const sgs = g.definitions?.subgraphs || [];
-  const asmSg = sgs.find((s) => String(s.name).includes("装配"));
+  const asmSg = sgs.find((s) => String(s.name).includes("提示词类型优化")); // 1001 S8:Part-A S1 改名后的新名锚
   const accSg = sgs.find((s) => String(s.name).includes("加速"));
   if (!asmSg || !accSg) throw new Error(`装机 t2i 子图不全: ${sgs.map((s) => s.name).join(" | ")}`);
   const host40 = g.nodes.find((n) => String(n.id) === "40");
   const host208 = g.nodes.find((n) => String(n.id) === "208");
   const ksDirect = accSg.nodes.find((n) => n.type === "KSampler" && n.widgets_values?.[2] === 40);
   const peNode = asmSg.nodes.find((n) => n.type === "QwenImage21_T2IPromptRewrite");
+  const asmNode = asmSg.nodes.find((n) => n.type === "MyQi21PromptAssembly"); // 1001 S8 装配全文件(锁层A 参数面真源)
   const save = g.nodes.find((n) => n.type === "SaveImage");
   const subjNode = g.nodes.find((n) => String(n.id) === "24"); // [24] 主体句(PrimitiveStringMultiline,装机默认=喂料主体句来源)
-  if (!host40 || !host208 || !ksDirect || !peNode || !save || !subjNode) {
-    throw new Error(`装机 t2i 关键件缺失: host40=${!!host40} host208=${!!host208} ks40=${!!ksDirect} pe=${!!peNode} save=${!!save} subj24=${!!subjNode}`);
+  if (!host40 || !host208 || !ksDirect || !peNode || !asmNode || !save || !subjNode) {
+    throw new Error(`装机 t2i 关键件缺失: host40=${!!host40} host208=${!!host208} ks40=${!!ksDirect} pe=${!!peNode} asm141=${!!asmNode} save=${!!save} subj24=${!!subjNode}`);
   }
   // 宿主面板期望控件=子图 widget 型输入−已连线槽(S3-gate 0930 口径)
   const hostPanel = (sg, host) => {
@@ -94,11 +105,14 @@ function parseTruth() {
     return (sg.inputs || []).filter((i) => ["COMBO", "BOOLEAN", "INT", "STRING", "FLOAT"].includes(i.type))
       .map((i) => i.name).filter((nm) => !linked.has(nm));
   };
-  // D1 PE 喂法真值:前缀=种子文截到首个「:」含冒号(战役 q21_68 已证口径——陈旧
-  // 占位种子整段直喂会顶替主体句进采样→废片,须换「前缀+[24] 主体句」);零硬编码
+  // D1 PE 喂法真值(1001 S8 Q1=B+):[140].prompt=装配器「装配全文」输出(主体句+BASE+
+  // 锁层A)直喂连线,种子文 widget 清空退役(摆设)——硬闸判据=装配全文双特征在场:
+  // 主体句头 18 字(战役 0929 口径)+锁层A 首段头(防裸主体句回退);零硬编码
   const peSeed = peNode.widgets_values?.[0] || "";
-  const pePrefix = peSeed.slice(0, peSeed.indexOf(":") + 1);
   const subj24 = String(subjNode.widgets_values?.[0] || "");
+  const lockA = String((asmNode.widgets_values || []).find((v) => typeof v === "string" && v.length > 500) || "");
+  const subjHead = subj24.slice(0, 18); // 主体句头 18 字
+  const lockAHead = lockA.slice(0, 18); // 锁层A 首段头 18 字
   // D4 装机/仓库双哈希头(12 位;仓库缺失=并行在改或未打包,软提醒不设门)
   const sha12 = (p) => { try { return createHash("sha256").update(readFileSync(p)).digest("hex").slice(0, 12); } catch { return null; } };
   return {
@@ -108,7 +122,7 @@ function parseTruth() {
     speedMode: host208.widgets_values?.[0], seedDefault: host208.widgets_values?.[1],
     ksSteps: ksDirect.widgets_values?.[2],
     peSeed, savePrefix: save.widgets_values?.[0] || "",
-    subj24, pePrefix, fedSeed: pePrefix + subj24,
+    subj24, lockA, subjHead, lockAHead,
     // 排队图子图内键按「宿主域前缀+class_type」动态寻址(anchors §F;域前缀自真源派生)
     asmDomain: `${host40.id}:`, accDomain: `${host208.id}:`,
     instSha: sha12(INST_T2I), repoSha: sha12(REPO_T2I),
@@ -579,9 +593,10 @@ async function s6Generate(main, engineBase, truth) {
     check(`S6 排队图:速度档=${truth.speedMode}`, sel.length > 0 && prompt[sel[0]]?.inputs?.mode === truth.speedMode,
       `mode=${sel.length ? prompt[sel[0]].inputs.mode : "无"}`);
     const pe = keys.filter((k) => k.startsWith("40:") && prompt[k]?.class_type === "QwenImage21_T2IPromptRewrite");
-    const peOk = pe.length > 0 && prompt[pe[0]]?.inputs?.prompt === truth.peSeed;
-    check("S6 排队图:PE 改写器在链(装配域,种子文=装机原文)", peOk,
-      pe.length ? `key=${pe.join(",")} 种子头=${String(prompt[pe[0]].inputs.prompt).slice(0, 40)}…` : "无");
+    const pePrompt = pe.length ? String(prompt[pe[0]]?.inputs?.prompt ?? "") : "";
+    const peOk = pe.length > 0 && pePrompt.includes(truth.subjHead) && pePrompt.includes(truth.lockAHead) && pePrompt.length > 1000;
+    check("S6 排队图:PE 改写器在链(装配域,prompt=装配全文:主体句头+锁层A 段在场)", peOk,
+      pe.length ? `key=${pe.join(",")} 装配全文 ${pePrompt.length} 字(头「${pePrompt.slice(0, 24)}…」含主体句头=${pePrompt.includes(truth.subjHead)}/含锁层A段头=${pePrompt.includes(truth.lockAHead)})` : "无");
   }
   // /history 等完(引擎家=装机生产家,产物直接落盘);60s 心跳防黑盒等待
   let hist = null;
@@ -641,13 +656,15 @@ async function s6Generate(main, engineBase, truth) {
   return true;
 }
 
-// ═══════════ S6b PE 种子喂法硬闸(生产配方:前缀+主体句,0930-pt2 D2) ═══════════
-// 经真实前端路径把 PE 改写器种子([40] 装配子图内 QwenImage21_T2IPromptRewrite)改写为
-// 「前缀+[24] 主体句」,排队图服务器端硬闸+真出图。入图走程序化 setGraph(S3-gate 已证
-// 形态;双击手势=另一候选测试点不在本役);内件按 TYPE 寻址(子图内 id 装载可重编号)。
+// ═══════════ S6b 装配全文进 PE 硬闸(1001 S8 Q1=B+;0930-pt2 D2 沿革) ═══════════
+// Q1=B+ 后 [140].prompt=装配器 MyQi21PromptAssembly「装配全文」输出直喂(主体句+BASE+
+// 锁层A),种子文 widget 清空退役(摆设)——旧「改种子=前缀+主体句」机制失效。新硬闸:
+// ①程序化入装配子图,装配器参数面锁层A全文=装机真源逐字对拍+PE 种子 widget 空核(退役
+// 在位);②真出图,排队图服务器端硬闸 40:140.prompt=装配全文(主体句头+锁层A 段双特征)。
+// 入图走程序化 setGraph(S3-gate 已证形态);内件按 TYPE 寻址(子图内 id 装载可重编号)。
 async function s6bPeFedShot(main, engineBase, truth) {
-  step("S6b", `PE 种子喂法硬闸(fedSeed=前缀(${truth.pePrefix.length}字)+主体句(${truth.subj24.length}字)→改写器逐字接收)`);
-  const subjHead = truth.subj24.slice(0, 18); // 战役 0929 硬闸口径:主体句头 18 字
+  step("S6b", `装配全文进 PE 硬闸(Q1=B+;装配器锁层A ${truth.lockA.length}字对拍+排队图 PE prompt 双特征)`);
+  const { subjHead, lockAHead } = truth;
   // ① 入装配子图(程序化;≤10 行注入纪律:存根图→按 TYPE 找宿主→setGraph 入图)
   const enteredRaw = await wv(main, `(() => {
     const c = window.app.canvas;
@@ -669,23 +686,33 @@ async function s6bPeFedShot(main, engineBase, truth) {
   check("S6b 进入装配子图(程序化 setGraph,图切换见证)", enteredOk,
     enteredOk ? `根${inner.root}节点→子图${inner.inner}节点(内件数>0 且≠rootCount 即已切换)` : String(innerRaw).slice(0, 160));
   if (!enteredOk) return;
-  // ② 改种子:内件按 TYPE 寻址(装配子图内唯一);widget 按名 prompt(契约:test_qwen21_workflow_contract
-  // L261-263 插件字段序 [prompt,…];兜底=首个长字符串值 widget);真实回调 w.callback(w.value)
-  const setRaw = await wv(main, `(() => {
+  // ② 装配器参数断言(implement S8 L2-2 步骤10「panel 值现读路径改装配器参数槽」):
+  // 内件按 TYPE 寻址(子图内唯一);widget 按名「锁层A全文」(兜底=首个>500字串值)
+  const asmRaw = await wv(main, `(() => {
     const g = window.app.canvas.graph;
-    const n = g && g._nodes ? g._nodes.find(x => x.type === 'QwenImage21_T2IPromptRewrite') : null;
-    if (!n || !n.widgets || !n.widgets.length) return JSON.stringify({ err: 'pe-inner-missing' });
-    const w = n.widgets.find(x => String(x.name) === 'prompt') || n.widgets.find(x => typeof x.value === 'string' && x.value.length > 20);
-    if (!w) return JSON.stringify({ err: 'widget-missing', names: n.widgets.map(x => x.name).join(',') });
-    w.value = ${JSON.stringify(truth.fedSeed)};
-    try { w.callback && w.callback(w.value); } catch (e) {}
+    const nodes = g && g._nodes ? g._nodes : [];
+    const asm = nodes.find(x => x.type === 'MyQi21PromptAssembly');
+    if (!asm || !asm.widgets || !asm.widgets.length) return JSON.stringify({ err: 'asm-inner-missing', types: nodes.map(x => x.type).join(',') });
+    const w = asm.widgets.find(x => String(x.name) === '锁层A全文') || asm.widgets.find(x => typeof x.value === 'string' && x.value.length > 500);
+    if (!w) return JSON.stringify({ err: 'widget-missing', names: asm.widgets.map(x => x.name).join(',') });
     return JSON.stringify({ widget: w.name, back: w.value });
   })()`);
-  let fed = null; try { fed = JSON.parse(String(setRaw)); } catch { /* keep null */ }
-  const fedOk = !!fed && !fed.err && fed.back === truth.fedSeed;
-  check("S6b PE 种子改写(读回=前缀+主体句,逐字)", fedOk,
-    fedOk ? `widget=${fed.widget} 读回 ${String(fed.back).length} 字(=pePrefix ${truth.pePrefix.length}+subj24 ${truth.subj24.length})` : String(setRaw).slice(0, 200));
-  if (!fedOk) { await wv(main, `(() => { try { window.app.canvas.setGraph(window.__e2eS6bRoot); } catch (e) {} 'exited' })()`); return; }
+  let asmFed = null; try { asmFed = JSON.parse(String(asmRaw)); } catch { /* keep null */ }
+  const asmOk = !!asmFed && !asmFed.err && asmFed.back === truth.lockA;
+  check("S6b 装配器参数面:锁层A全文=装机真源逐字(Q1=B+ 装配全文第三段)", asmOk,
+    asmOk ? `widget=${asmFed.widget} 读回 ${String(asmFed.back).length} 字逐字✓` : String(asmRaw).slice(0, 200));
+  // PE 种子文 widget 退役在位核([140].prompt 已接装配器输出口0,widget=清空摆设)
+  const peWRaw = await wv(main, `(() => {
+    const g = window.app.canvas.graph;
+    const pe = g && g._nodes ? g._nodes.find(x => x.type === 'QwenImage21_T2IPromptRewrite') : null;
+    if (!pe) return JSON.stringify({ err: 'pe-inner-missing' });
+    const w = pe.widgets.find(x => String(x.name) === 'prompt');
+    return JSON.stringify({ back: w ? w.value : null });
+  })()`);
+  let peW = null; try { peW = JSON.parse(String(peWRaw)); } catch { /* keep null */ }
+  check("S6b PE 种子文 widget 退役在位(清空=摆设,输入=装配器·装配全文)", !!peW && !peW.err && peW.back === "",
+    peW && !peW.err ? `prompt widget=${JSON.stringify(peW.back).slice(0, 40)}` : String(peWRaw).slice(0, 200));
+  if (!asmOk) { await wv(main, `(() => { try { window.app.canvas.setGraph(window.__e2eS6bRoot); } catch (e) {} 'exited' })()`); return; }
   // ③ 退子图复位(改完即出,queuePrompt 在根图视角做——与真实用户路径一致)
   const exitRaw = await wv(main, `(() => {
     try { window.app.canvas.setGraph(window.__e2eS6bRoot); } catch (e) { return 'EXC:' + e.message; }
@@ -714,10 +741,10 @@ async function s6bPeFedShot(main, engineBase, truth) {
     const keys = Object.keys(prompt);
     const pe = keys.filter((k) => k.startsWith(truth.asmDomain) && prompt[k]?.class_type === "QwenImage21_T2IPromptRewrite");
     const pePrompt = pe.length ? String(prompt[pe[0]]?.inputs?.prompt ?? "") : "";
-    const peOk = pe.length > 0 && pePrompt === truth.fedSeed && pePrompt.includes(subjHead);
+    const peOk = pe.length > 0 && pePrompt.includes(subjHead) && pePrompt.includes(lockAHead) && pePrompt.length > 1000;
     const ksDir = keys.filter((k) => k.startsWith(truth.accDomain) && prompt[k]?.class_type === "KSampler" && String(prompt[k]?.inputs?.steps) === String(truth.ksSteps));
-    check("S6b 排队图硬闸(喂入文真进采样链)", peOk && ksDir.length > 0,
-      `改写器 prompt=${peOk ? "喂入文逐字✓" : `实况头「${pePrompt.slice(0, 40)}…」`} 含主体句头18字=${pePrompt.includes(subjHead)};直出KS steps=${truth.ksSteps} key=${ksDir.join(",") || "无"}`);
+    check("S6b 排队图硬闸(装配全文真进 PE 改写器=采样链文本源)", peOk && ksDir.length > 0,
+      `改写器 prompt=${peOk ? "装配全文双特征✓" : `实况头「${pePrompt.slice(0, 40)}…」len=${pePrompt.length}`} 含主体句头18字=${pePrompt.includes(subjHead)}/含锁层A段头=${pePrompt.includes(lockAHead)};直出KS steps=${truth.ksSteps} key=${ksDir.join(",") || "无"}`);
   }
   // ⑤ 等终态+取证(与 S6 同款:history success/前缀计数+1/新 PNG>50KB//view→t2i-result-pe.png)
   const hist = await waitTerminal(engineBase, knownPids, "S6b", cap && cap.pid);
@@ -793,13 +820,13 @@ async function main() {
     if (SKIP_GEN) {
       log("S6 跳过实弹生图(SKIP_GEN=1,链路段 S0-S5 已覆盖)");
       results.push({ name: "S6 真前端出图(实弹)", pass: true, detail: "SKIP_GEN=1 跳过" });
-      results.push({ name: "S6b PE 种子喂法硬闸(实弹)", pass: true, detail: "SKIP_GEN=1 跳过(连 S6 一起)" });
+      results.push({ name: "S6b 装配全文进 PE 硬闸(实弹)", pass: true, detail: "SKIP_GEN=1 跳过(连 S6 一起)" });
     } else {
       const s6ok = await s6Generate(main, engineBase, truth);
       if (SKIP_PE) {
-        results.push({ name: "S6b PE 种子喂法硬闸(实弹)", pass: true, detail: "SKIP_PE=1 跳过" });
+        results.push({ name: "S6b 装配全文进 PE 硬闸(实弹)", pass: true, detail: "SKIP_PE=1 跳过" });
       } else if (!s6ok) {
-        check("S6b PE 种子喂法硬闸(实弹)", false, "S6 未走通(queue/引擎/产物断链),S6b 前置不满足不执行");
+        check("S6b 装配全文进 PE 硬闸(实弹)", false, "S6 未走通(queue/引擎/产物断链),S6b 前置不满足不执行");
       } else {
         await s6bPeFedShot(main, engineBase, truth);
       }
@@ -817,7 +844,7 @@ async function main() {
       task: "09-30-daojie-t2i-e2e-pt2",
       cdpPort: CDP_PORT, engineBase,
       truth: { rootCount: truth.rootCount, panel40: truth.panel40, panel208: truth.panel208, speedMode: truth.speedMode, seedDefault: truth.seedDefault, ksSteps: truth.ksSteps, savePrefix: truth.savePrefix,
-        peSeedHead: truth.peSeed.slice(0, 60), subj24Head: truth.subj24.slice(0, 60), pePrefix: truth.pePrefix, fedSeedHead: truth.fedSeed.slice(0, 60),
+        peSeedWidget: truth.peSeed, subj24Head: truth.subj24.slice(0, 60), lockALen: truth.lockA.length, subjHead: truth.subjHead, lockAHead: truth.lockAHead,
         instT2iSha: truth.instSha, repoT2iSha: truth.repoSha },
       evidenceDir: OUT_DIR, tmpDir: TMP,
       consoleErrorCount: consoleErrors.length,

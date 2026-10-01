@@ -111,6 +111,40 @@ H3 recipe in `MODELS.md`; this is the pointer so they are findable from the pack
 
 ---
 
+## my-nodes · 漫影 in-house pack (our own nodes; category `my`)
+
+Our own pack (`apps/backend/engines/comfyui/my_nodes/`, deployed to the engine home as
+`custom_nodes/my-nodes/`). Full registry (23 canonical `My*` classes + `Manying*` legacy aliases) and the
+deployment/sync chain live in `docs/comfyui-kb/定制代码地图.md`; this section holds the per-node entries for the
+three text-assembly nodes added by the 1001 S8 integration round (task 10-01-qi21-assembly-blueprint S8). I/O
+below is **confirmed from the node source files on 2026-10-01** (not a live get_node_info pull; the engine was
+not queried). They form the two-piece chain that replaced 22 embedded-expression nodes inside the qi21 道劫-t2i
+assembly subgraph: `MyQi21PromptAssembly (141) → QwenImage21_T2IPromptRewrite (140) → MyQi21PromptSelect (152)`,
+plus `MyQi21WhSuggest (151)` for aspect-linked width/height.
+
+### MyQi21PromptAssembly  (display: "道劫·qi21装配全文件")
+- **category:** `my` | **purpose:** the single-source assembly text: 装配全文 = 主体句 + "\n" + BASE + "\n" + 锁层A全文. Replaced concat pair [130][131] + lock constant [110].
+- **inputs:** required `主体句` (STRING multiline, default = the workflow's [24] example), `锁层A全文` (STRING multiline, default = the former [110] constant verbatim); optional `BASE` (STRING ← MyQi21DaojieBase.BASE).
+- **outputs:** `装配全文` (STRING, the ONLY output) — dual-fed to `[140].prompt` (the PE rewriter's input; killed the dead seed-text bypass) and to MyQi21PromptSelect.装配全文.
+- **gotchas:** BASE unconnected (None) = silent degrade to 主体句+锁层A two-segment text + a Chinese console warning — the queue does NOT fail, so check logs if the base layer looks missing. Changing the defaults must go through the 05-library "refresh-from-library" pass (sha256 anchors in source).
+- **placement:** upstream of the PE rewriter in the qi21 assembly subgraph; harmless standalone (example-text default).
+
+### MyQi21PromptSelect  (display: "道劫·qi21最终文本合成器")
+- **category:** `my` | **purpose:** final-text selection + transparent-text wrapping. Replaced switch [141], transparency switch [209], strip [206], W1 wrap [207][208][216], RGBA head/tail consts [160][161][215].
+- **inputs:** required `pe开关` (BOOLEAN default true), `透明模式` (BOOLEAN default false ← MyQi21RgbaSelect.rgba_on; mechanically double-produces, NOT used in text math — the [144] conditioning switch downstream decides RGBA usage), `RGBA官方头句` / `RGBA官方尾句` / `W1收束句` (STRING multiline, the three fixed sentences, user-editable per the 1001 ruling); optional `装配全文` (STRING ← MyQi21PromptAssembly), `PE出文` (STRING, **lazy** ← [140].positive_prompt).
+- **outputs:** `最终文本` (→ [142].prompt + subgraph IO preview slot), `透明文本` (→ [143].prompt).
+- **gotchas:** lazy hook is `check_lazy_status` (this engine build has no `check_lazy_inputs` — the old name silently no-ops); the request list MUST be plain strings (["PE出文"]) — tuple entries are silently dropped by execution.py. pe ON with PE出文 unwired = Chinese error, no guessing; 装配全文 unwired on the pe-OFF path = empty-string degrade + warning. The strip word-family regex lives in `nodes/qi21_strip_lexicon.json` (single source, process-cached, mtime-independent — changing it is a code change, needs an engine restart, unlike qi21_bases.json hot-reload).
+- **placement:** downstream of the PE rewriter; the two-piece split exists because the one-piece three-output form made a data cycle with [140] that the engine's validation-layer cycle check rejects with NO lazy exemption (see 子图工作流工程契约.md §九.6).
+
+### MyQi21WhSuggest  (display: "道劫·qi21画幅联动建议器")
+- **category:** `my` | **purpose:** aspect-linked canvas-size suggestion, 8 nodes → 1 (regex pair [151][152] + int converts [153][154] + 4.2MP formulas [155][156] + INT switches [157][158]). Formula migrated verbatim: `round(a*sqrt(4.2*1024*1024/(a*b))/8)*8` (and the b-form).
+- **inputs:** required `wh_ratio` (STRING ← [140].wh_ratio), `联动开关` (BOOLEAN default false ← subgraph input -10 slot 7 「画幅联动」); optional `九型WIDTH` / `九型HEIGHT` (INT ← [150].WIDTH/HEIGHT; not lazy — light values).
+- **outputs:** `width`, `height` (INT → subgraph IO slots 2/3). Sanity anchors: 16:9→(2800,1576), 1:1→(2096,2096), 9:16→(1576,2800).
+- **gotchas:** Q6 fault-tolerance — unparseable wh_ratio (not "宽:高" digits, or 0 ratio) with the switch ON = Chinese warning + fall back to 九型 values, queue never dies; both unparseable AND 九型 unwired = Chinese error (no value available, never guesses). Note the implement.md expectation list's (2560,1440) was a transcription slip — the formula and [155] both say 4.2MP.
+- **placement:** inside the qi21 assembly subgraph; switch OFF = 九型 passthrough (the old on_false arm).
+
+---
+
 ## Missing custom node (used in a template, not installed)
 - **`SimpleMath+`** - from `ComfyUI_essentials` (github.com/cubiq/ComfyUI_essentials). A string/number math
   expression node. Used by one template. To document its real I/O, read the pack's source (the `essentials`

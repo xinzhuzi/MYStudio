@@ -52,6 +52,7 @@ Regenerate with `shared/tools/node_inventory.py`.
 | Pack | Nodes |
 |------|-------|
 | ComfyUI-LTXVideo (Lightricks) | HDRDecodePostprocess / AddVideoICLoRAGuide / ICLoRALoaderModelOnly / GemmaAPITextEncode |
+| my-nodes · 漫影 in-house (ours; category `my`) | MyQi21PromptAssembly / MyQi21PromptSelect / MyQi21WhSuggest (1001 S8 text-assembly chain; I/O from source 2026-10-01; registry + deployment = `docs/comfyui-kb/定制代码地图.md`) |
 | missing: SimpleMath+ (ComfyUI_essentials) | used in 1 template, not installed - read source to document |
 
 ## Category reference (full per-node coverage, 183 entries, I/O confirmed via get_node_info 2026-06-30)

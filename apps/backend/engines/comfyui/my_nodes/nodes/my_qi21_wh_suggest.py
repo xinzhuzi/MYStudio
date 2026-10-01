@@ -21,13 +21,30 @@ round=Python 内建(银行家舍入),与原 ComfyMathExpression 插件同语义
 Q6 容错(design §10.6,产线不炸队列):
   - wh_ratio 解析失败(非「宽:高」数字形,含 0 值比例/非字符串)且联动开
     → print 一条中文警告,回退 (九型WIDTH, 九型HEIGHT) 继续;
+  - 联动开而 wh_ratio 未接线(缺键,wh_ratio lazy 化后新增的可达态)
+    → 中文报错(想要建议值但没有源,不猜不代选;修前该槽为必填,未接线
+    由引擎验证层直接拒,语义同为拒绝、报错面从验证层挪进节点);
   - 九型槽未接线(缺键/None)且无建议值可用(解析失败,或联动关)
     → 中文报错(无值可用,不猜)。原工作流九型恒接线([150] 直连
     [157][158].on_false),联动关+未接线在画布上不可达,报错属节点级
     对称防御,非行为变更。
 
-九型 W/H 槽不 lazy(轻值);wh_ratio 非 lazy([140] 若进执行图其
-wh_ratio 附带产出,无额外代价)——两槽声明照蓝本,零 lazy 参数。
+懒执行协议(1001 深审修复轮,SpeedSelect 实名协议同款;修前实弹证违在档
+apps/output/s8-integration-1001/s8-integration-report.json lazyVerdict=VIOLATED,
+根因=wh_ratio 曾为非懒必填槽,link25←[140].wh_ratio 强链恒拉 [140] 进执行图
+→pe 关仍整跑 PE 改写+装载 9B PE TE):
+  - wh_ratio 槽 lazy+optional:联动开关=关(默认)时 check_lazy_status 返回
+    空名单→不请求 wh_ratio→[140] 无强消费者(另一消费者 [152].PE出文 同
+    lazy,pe 关亦不请求)→**[140] 零执行零 PE TE 装载**(prd R7.1 懒执行
+    硬约束就此成立,成立条件=pe开关关×联动开关关);
+  - **边界如实注**:联动开关=开时仍请求 wh_ratio→[140] 进执行图(建议值
+    语义需要其 wh_ratio 输出;此时即便 pe 关,PE 改写随件整体执行+装载
+    PE TE——建议路依赖 PE 件产出的既有语义,非回归);
+  - 联动开而 wh_ratio 未接线(缺键)→绝不请求(引擎对未接线槽
+    make_input_strong_link 抛 NodeInputError,graph.py:132-133),由
+    suggest 给中文报错(想用建议值但没接源,不猜不代选)。
+
+九型 W/H 槽不 lazy(轻值,[150] 常驻执行图)。
 
 期望值锚(手验命令=implement.md S8 步骤 3,本会话实跑):
   16:9→(2800,1576) 1:1→(2096,2096) 9:16→(1576,2800)(≈4.2MP,
@@ -85,12 +102,15 @@ class MyQi21WhSuggest:
         return {
             # 接线蓝图(design §10.6):wh_ratio←[140].wh_ratio;
             # 联动开关←子图输入口 -10 槽7(宿主面板「画幅联动」,默认关)
+            # wh_ratio lazy+optional(1001 深审修复轮):联动关时不请求
+            # →[140] 零执行零 PE TE 装载(见模块 docstring 懒执行协议)
             "required": {
-                "wh_ratio": ("STRING",),
                 "联动开关": ("BOOLEAN", {"default": False}),
             },
-            # 九型宽高←[150] MyQi21DaojieBase.WIDTH/HEIGHT(轻值不 lazy)
+            # 九型宽高←[150] MyQi21DaojieBase.WIDTH/HEIGHT(轻值不 lazy);
+            # wh_ratio lazy:pe关×联动关=[140] 不进执行图(修前恒进=证违根因)
             "optional": {
+                "wh_ratio": ("STRING", {"lazy": True}),
                 "九型WIDTH": ("INT",),
                 "九型HEIGHT": ("INT",),
             },
@@ -100,9 +120,33 @@ class MyQi21WhSuggest:
     RETURN_NAMES = ("width", "height")
     FUNCTION = "suggest"
 
-    def suggest(self, wh_ratio: Any, 联动开关: bool = False,
+    def check_lazy_status(self, 联动开关: bool | None = None,
+                          **kwargs: Any) -> list[str] | None:
+        """只请求「联动开×wh_ratio 已接线×尚未求值」的槽,其余一律不请求。
+
+        执行器以 kwargs 投递当前输入(经典节点,execution.py:511):缺键=该槽
+        未接线(optional 不投递)→绝不请求(请求未接线槽引擎抛
+        NodeInputError);None=已接线未求值→请求;有值=已求值→放行。联动关时
+        即便 wh_ratio 已接线未求值也不请求([140] 无人消费→不进执行图)。
+        """
+        if not 联动开关:
+            return []
+        if "wh_ratio" in kwargs and kwargs["wh_ratio"] is None:
+            return ["wh_ratio"]
+        return []
+
+    def suggest(self, 联动开关: bool = False, wh_ratio: Any = None,
                 九型WIDTH: int | None = None,
                 九型HEIGHT: int | None = None) -> tuple[int, int]:
+        if 联动开关 and wh_ratio is None:
+            # 联动开但 wh_ratio 未接线(区别于解析失败):想要建议值却没有
+            # 源,中文报错不猜不代选(check_lazy_status 对未接线槽不请求,
+            # 引擎不会替我们拉值,本分支=用户手动删线场景的对称防御)
+            raise ValueError(
+                "[MyQi21WhSuggest] 联动开关已开但 wh_ratio 输入未接线:建议路"
+                "需要 [140] PE改写的 wh_ratio 输出(如 16:9)——请把 [140] 的"
+                " wh_ratio 连到本节点 wh_ratio 输入,或把联动开关关掉走九型"
+                "宽高;不猜不代选")
         ratio = _parse_ratio(wh_ratio)
         if not 联动开关 or ratio is None:
             if 联动开关:
