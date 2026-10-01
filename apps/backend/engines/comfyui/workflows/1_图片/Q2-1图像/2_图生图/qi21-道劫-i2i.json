@@ -512,7 +512,7 @@
     {
       "id": 40,
       "type": "d47c9e21-8f36-4a5b-b0c9-2e8d4f6a8c1d",
-      "title": "[40] 装配子图",
+      "title": "[40] 提示词类型优化子图",
       "pos": [
         4820,
         1320
@@ -1397,14 +1397,14 @@
         "state": {
           "lastGroupId": 4,
           "lastNodeId": 184,
-          "lastLinkId": 59,
+          "lastLinkId": 67,
           "lastRerouteId": 2
         },
         "revision": 1,
         "config": {
           "defaultIOState": {}
         },
-        "name": "[40] 道劫·装配子图(双击进入)",
+        "name": "[40] 提示词类型优化子图(双击进入)",
         "inputNode": {
           "id": -10,
           "bounding": [
@@ -1435,8 +1435,8 @@
               36
             ],
             "pos": [
-              4820,
-              1560
+              5360,
+              1380
             ]
           },
           {
@@ -1450,8 +1450,8 @@
               37
             ],
             "pos": [
-              4760,
-              2340
+              5350,
+              1460
             ]
           },
           {
@@ -1466,8 +1466,8 @@
               46
             ],
             "pos": [
-              1060,
-              3140
+              1050,
+              80
             ]
           },
           {
@@ -1480,8 +1480,8 @@
               47
             ],
             "pos": [
-              1100,
-              3170
+              1080,
+              240
             ]
           },
           {
@@ -1490,11 +1490,11 @@
             "type": "STRING",
             "linkIds": [
               42,
-              43
+              62
             ],
             "pos": [
-              -196,
-              3920
+              820,
+              420
             ]
           },
           {
@@ -1505,8 +1505,8 @@
               10
             ],
             "pos": [
-              -196,
-              180
+              2550,
+              1520
             ]
           },
           {
@@ -1517,8 +1517,8 @@
               11
             ],
             "pos": [
-              6300,
-              1520
+              2700,
+              880
             ]
           },
           {
@@ -1526,11 +1526,11 @@
             "name": "PE开关",
             "type": "BOOLEAN",
             "linkIds": [
-              44
+              61
             ],
             "pos": [
-              2660,
-              3900
+              2850,
+              650
             ]
           },
           {
@@ -1541,8 +1541,8 @@
               45
             ],
             "pos": [
-              1520,
-              3920
+              1550,
+              510
             ]
           }
         ],
@@ -1555,8 +1555,8 @@
               23
             ],
             "pos": [
-              7300,
-              1700
+              9500,
+              1500
             ]
           },
           {
@@ -1567,8 +1567,8 @@
               24
             ],
             "pos": [
-              7300,
-              1860
+              9500,
+              1600
             ]
           },
           {
@@ -1579,8 +1579,8 @@
               26
             ],
             "pos": [
-              7300,
-              2020
+              9500,
+              1700
             ]
           },
           {
@@ -1591,8 +1591,8 @@
               40
             ],
             "pos": [
-              7300,
-              2560
+              9500,
+              2300
             ]
           },
           {
@@ -1603,8 +1603,8 @@
               25
             ],
             "pos": [
-              7300,
-              2660
+              9500,
+              1200
             ]
           }
         ],
@@ -1620,15 +1620,15 @@
             "type": "MyQi21DaojieBase",
             "title": "底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/磁盘热读;W/H 本件不用=画幅随输入图)",
             "pos": [
-              2440,
-              140
+              2600,
+              1600
             ],
             "size": [
               420,
               200
             ],
             "flags": {},
-            "order": 0,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
@@ -1645,23 +1645,23 @@
                 "name": "BASE",
                 "type": "STRING",
                 "links": [
-                  12
+                  65
                 ]
               },
               {
                 "name": "WIDTH",
                 "type": "INT",
-                "links": null
+                "links": []
               },
               {
                 "name": "HEIGHT",
                 "type": "INT",
-                "links": null
+                "links": []
               },
               {
                 "name": "型名",
                 "type": "STRING",
-                "links": null
+                "links": []
               },
               {
                 "name": "rgba_default",
@@ -1679,327 +1679,18 @@
             ]
           },
           {
-            "id": 110,
-            "type": "StringConstant",
-            "pos": [
-              3300,
-              140
-            ],
-            "size": [
-              440,
-              400
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  13
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConstant"
-            },
-            "widgets_values": [
-              "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。"
-            ]
-          },
-          {
-            "id": 160,
-            "type": "StringConstant",
-            "pos": [
-              4120,
-              140
-            ],
-            "size": [
-              380,
-              120
-            ],
-            "flags": {},
-            "order": 2,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  17
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConstant"
-            },
-            "widgets_values": [
-              "This is an RGBA format image with transparency."
-            ]
-          },
-          {
-            "id": 161,
-            "type": "StringConstant",
-            "pos": [
-              4700,
-              140
-            ],
-            "size": [
-              380,
-              120
-            ],
-            "flags": {},
-            "order": 3,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  19
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConstant"
-            },
-            "widgets_values": [
-              "The image has an alpha channel and a transparent background."
-            ]
-          },
-          {
-            "id": 130,
-            "type": "StringConcatenate",
-            "pos": [
-              2870,
-              900
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 54
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 12
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  14
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              "\n"
-            ],
-            "widgets_values_named": {
-              "delimiter": "\n"
-            }
-          },
-          {
-            "id": 131,
-            "type": "StringConcatenate",
-            "pos": [
-              3450,
-              900
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 5,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 14
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 13
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  15,
-                  16,
-                  25,
-                  31
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              "\n"
-            ],
-            "widgets_values_named": {
-              "delimiter": "\n"
-            }
-          },
-          {
-            "id": 162,
-            "type": "StringConcatenate",
-            "pos": [
-              4240,
-              900
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 6,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 17
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 16
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  18
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              " "
-            ],
-            "widgets_values_named": {
-              "delimiter": " "
-            }
-          },
-          {
-            "id": 163,
-            "type": "StringConcatenate",
-            "pos": [
-              4820,
-              900
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 7,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 18
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 19
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  20,
-                  35
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              " "
-            ],
-            "widgets_values_named": {
-              "delimiter": " "
-            }
-          },
-          {
             "id": 142,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              4900,
-              1660
+              5400,
+              1550
             ],
             "size": [
               420,
               320
             ],
             "flags": {},
-            "order": 8,
+            "order": 11,
             "mode": 0,
             "inputs": [
               {
@@ -2039,7 +1730,7 @@
                 "name": "positive",
                 "type": "CONDITIONING",
                 "links": [
-                  21
+                  57
                 ]
               },
               {
@@ -2070,15 +1761,15 @@
             "id": 143,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              5820,
-              1660
+              6500,
+              1550
             ],
             "size": [
               420,
               320
             ],
             "flags": {},
-            "order": 9,
+            "order": 13,
             "mode": 0,
             "inputs": [
               {
@@ -2118,18 +1809,18 @@
                 "name": "positive",
                 "type": "CONDITIONING",
                 "links": [
-                  22
+                  27
                 ]
               },
               {
                 "name": "negative",
                 "type": "CONDITIONING",
-                "links": null
+                "links": []
               },
               {
                 "name": "latent",
                 "type": "LATENT",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -2146,15 +1837,15 @@
             "type": "MyQi21RgbaSelect",
             "title": "RGBA透明选择",
             "pos": [
-              6450,
-              1660
+              2750,
+              950
             ],
             "size": [
               380,
               150
             ],
             "flags": {},
-            "order": 10,
+            "order": 7,
             "mode": 0,
             "inputs": [
               {
@@ -2169,7 +1860,7 @@
                 "name": "rgba_hint",
                 "type": "BOOLEAN",
                 "shape": 7,
-                "link": 56
+                "link": 55
               }
             ],
             "outputs": [
@@ -2177,8 +1868,10 @@
                 "name": "rgba_on",
                 "type": "BOOLEAN",
                 "links": [
-                  9,
-                  39
+                  39,
+                  58,
+                  64,
+                  67
                 ]
               }
             ],
@@ -2193,15 +1886,15 @@
             "id": 144,
             "type": "ComfySwitchNode",
             "pos": [
-              7050,
-              1660
+              7400,
+              1550
             ],
             "size": [
               380,
               120
             ],
             "flags": {},
-            "order": 11,
+            "order": 15,
             "mode": 0,
             "inputs": [
               {
@@ -2242,53 +1935,18 @@
             ]
           },
           {
-            "id": 170,
-            "type": "Reroute",
-            "pos": [
-              6450,
-              2050
-            ],
-            "size": [
-              75,
-              26
-            ],
-            "flags": {},
-            "order": 12,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "",
-                "type": "*",
-                "link": 22
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "CONDITIONING",
-                "links": [
-                  27
-                ]
-              }
-            ],
-            "properties": {
-              "showOutputText": false,
-              "horizontal": false
-            }
-          },
-          {
             "id": 171,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              4900,
-              2420
+              5400,
+              2200
             ],
             "size": [
               420,
               320
             ],
             "flags": {},
-            "order": 13,
+            "order": 12,
             "mode": 0,
             "inputs": [
               {
@@ -2322,18 +1980,18 @@
                 "name": "positive",
                 "type": "CONDITIONING",
                 "links": [
-                  32
+                  33
                 ]
               },
               {
                 "name": "negative",
                 "type": "CONDITIONING",
-                "links": null
+                "links": []
               },
               {
                 "name": "latent",
                 "type": "LATENT",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -2349,8 +2007,8 @@
             "id": 172,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              5820,
-              2420
+              6500,
+              2200
             ],
             "size": [
               420,
@@ -2397,12 +2055,12 @@
               {
                 "name": "negative",
                 "type": "CONDITIONING",
-                "links": null
+                "links": []
               },
               {
                 "name": "latent",
                 "type": "LATENT",
-                "links": null
+                "links": []
               }
             ],
             "properties": {
@@ -2418,15 +2076,15 @@
             "id": 173,
             "type": "ComfySwitchNode",
             "pos": [
-              7050,
-              2420
+              7400,
+              2200
             ],
             "size": [
               380,
               120
             ],
             "flags": {},
-            "order": 15,
+            "order": 16,
             "mode": 0,
             "inputs": [
               {
@@ -2467,193 +2125,18 @@
             ]
           },
           {
-            "id": 174,
-            "type": "Reroute",
-            "pos": [
-              5400,
-              2200
-            ],
-            "size": [
-              75,
-              26
-            ],
-            "flags": {},
-            "order": 16,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "",
-                "type": "*",
-                "link": 32
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "CONDITIONING",
-                "links": [
-                  33
-                ]
-              }
-            ],
-            "properties": {
-              "showOutputText": false,
-              "horizontal": false
-            }
-          },
-          {
-            "id": 181,
-            "type": "Reroute",
-            "pos": [
-              2880,
-              82
-            ],
-            "size": [
-              75,
-              26
-            ],
-            "flags": {},
-            "order": 17,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "",
-                "type": "*",
-                "link": 55
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "BOOLEAN",
-                "links": [
-                  59
-                ]
-              }
-            ],
-            "properties": {
-              "showOutputText": false,
-              "horizontal": false
-            }
-          },
-          {
-            "id": 184,
-            "type": "Reroute",
-            "pos": [
-              5700,
-              110
-            ],
-            "size": [
-              75,
-              26
-            ],
-            "flags": {},
-            "order": 18,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "",
-                "type": "*",
-                "link": 59
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "BOOLEAN",
-                "links": [
-                  56
-                ]
-              }
-            ],
-            "properties": {
-              "showOutputText": false,
-              "horizontal": false
-            }
-          },
-          {
-            "id": 182,
-            "type": "Reroute",
-            "pos": [
-              7040,
-              2250
-            ],
-            "size": [
-              75,
-              26
-            ],
-            "flags": {},
-            "order": 19,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "",
-                "type": "*",
-                "link": 9
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "BOOLEAN",
-                "links": [
-                  58
-                ]
-              }
-            ],
-            "properties": {
-              "showOutputText": false,
-              "horizontal": false
-            }
-          },
-          {
-            "id": 183,
-            "type": "Reroute",
-            "pos": [
-              5250,
-              1200
-            ],
-            "size": [
-              75,
-              26
-            ],
-            "flags": {},
-            "order": 20,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "",
-                "type": "*",
-                "link": 21
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "CONDITIONING",
-                "links": [
-                  57
-                ]
-              }
-            ],
-            "properties": {
-              "showOutputText": false,
-              "horizontal": false
-            }
-          },
-          {
             "id": 23,
             "type": "PrimitiveStringMultiline",
             "pos": [
               80,
-              3180
+              140
             ],
             "size": [
               260,
               180
             ],
             "flags": {},
-            "order": 21,
+            "order": 0,
             "mode": 0,
             "inputs": [
               {
@@ -2686,14 +2169,14 @@
             "type": "PrimitiveStringMultiline",
             "pos": [
               580,
-              3180
+              140
             ],
             "size": [
               300,
               180
             ],
             "flags": {},
-            "order": 22,
+            "order": 1,
             "mode": 0,
             "inputs": [
               {
@@ -2726,14 +2209,14 @@
             "type": "BatchImagesNode",
             "pos": [
               1140,
-              3180
+              140
             ],
             "size": [
               260,
               170
             ],
             "flags": {},
-            "order": 23,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
@@ -2766,14 +2249,14 @@
             "type": "StringFormat",
             "pos": [
               840,
-              3940
+              580
             ],
             "size": [
               300,
               130
             ],
             "flags": {},
-            "order": 24,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
@@ -2824,14 +2307,14 @@
             "type": "TextGenerate",
             "pos": [
               1600,
-              3940
+              580
             ],
             "size": [
               400,
               450
             ],
             "flags": {},
-            "order": 25,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -2998,15 +2481,15 @@
             "id": 27,
             "type": "RegexExtract",
             "pos": [
-              2200,
-              3940
+              2250,
+              580
             ],
             "size": [
               330,
               260
             ],
             "flags": {},
-            "order": 26,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
@@ -3071,7 +2554,7 @@
                 "name": "STRING",
                 "type": "STRING",
                 "links": [
-                  53
+                  63
                 ]
               }
             ],
@@ -3089,90 +2572,286 @@
             ]
           },
           {
-            "id": 15,
-            "type": "ComfySwitchNode",
+            "id": 152,
+            "type": "MyQi21PromptSelect",
+            "title": "择文合成器①(i2i:pe开=[27]PE抽取文/pe关=裸指令;替原[15];出文喂[141]主体句位)",
             "pos": [
-              2730,
-              3940
+              2900,
+              580
             ],
             "size": [
-              300,
-              110
+              380,
+              260
             ],
             "flags": {},
-            "order": 27,
+            "order": 8,
             "mode": 0,
             "inputs": [
               {
-                "name": "on_false",
-                "shape": 7,
-                "type": "STRING",
-                "link": 43
-              },
-              {
-                "name": "on_true",
-                "shape": 7,
-                "type": "STRING",
-                "link": 53
-              },
-              {
-                "name": "switch",
+                "name": "pe开关",
                 "type": "BOOLEAN",
                 "widget": {
-                  "name": "switch"
+                  "name": "pe开关"
                 },
-                "link": 44
+                "link": 61
+              },
+              {
+                "name": "透明模式",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "透明模式"
+                },
+                "link": 64
+              },
+              {
+                "name": "RGBA官方头句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方头句"
+                },
+                "link": null
+              },
+              {
+                "name": "RGBA官方尾句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方尾句"
+                },
+                "link": null
+              },
+              {
+                "name": "W1收束句",
+                "type": "STRING",
+                "widget": {
+                  "name": "W1收束句"
+                },
+                "link": null
+              },
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 62
+              },
+              {
+                "name": "PE出文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 63
               }
             ],
             "outputs": [
               {
-                "name": "output",
+                "name": "最终文本",
                 "type": "STRING",
                 "links": [
-                  54
+                  60
+                ]
+              },
+              {
+                "name": "透明文本",
+                "type": "STRING",
+                "links": []
+              }
+            ],
+            "widgets_values": [
+              true,
+              false,
+              "This is an RGBA format image with transparency.",
+              "The image has an alpha channel and a transparent background.",
+              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21PromptSelect"
+            }
+          },
+          {
+            "id": 141,
+            "type": "MyQi21PromptAssembly",
+            "title": "装配全文件(择文+BASE+锁层A→装配全文;i2i 版唯一真源,不喂PE链)",
+            "pos": [
+              3650,
+              1150
+            ],
+            "size": [
+              520,
+              420
+            ],
+            "flags": {},
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "主体句",
+                "type": "STRING",
+                "widget": {
+                  "name": "主体句"
+                },
+                "link": 60
+              },
+              {
+                "name": "锁层A全文",
+                "type": "STRING",
+                "widget": {
+                  "name": "锁层A全文"
+                },
+                "link": null
+              },
+              {
+                "name": "BASE",
+                "type": "STRING",
+                "shape": 7,
+                "link": 65
+              }
+            ],
+            "outputs": [
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "links": [
+                  15,
+                  25,
+                  31,
+                  66
                 ]
               }
             ],
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode"
-            },
             "widgets_values": [
-              true
-            ]
+              "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
+              "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。"
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21PromptAssembly"
+            }
+          },
+          {
+            "id": 153,
+            "type": "MyQi21PromptSelect",
+            "title": "透明包裹器②(恒pe关=头句+装配全文+尾句;替原[162][163][160][161];i2i透明路无剥离无W1)",
+            "pos": [
+              4550,
+              1150
+            ],
+            "size": [
+              380,
+              260
+            ],
+            "flags": {},
+            "order": 10,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "pe开关",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "pe开关"
+                },
+                "link": null
+              },
+              {
+                "name": "透明模式",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "透明模式"
+                },
+                "link": 67
+              },
+              {
+                "name": "RGBA官方头句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方头句"
+                },
+                "link": null
+              },
+              {
+                "name": "RGBA官方尾句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方尾句"
+                },
+                "link": null
+              },
+              {
+                "name": "W1收束句",
+                "type": "STRING",
+                "widget": {
+                  "name": "W1收束句"
+                },
+                "link": null
+              },
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 66
+              },
+              {
+                "name": "PE出文",
+                "type": "STRING",
+                "shape": 7,
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "最终文本",
+                "type": "STRING",
+                "links": []
+              },
+              {
+                "name": "透明文本",
+                "type": "STRING",
+                "links": [
+                  20,
+                  35
+                ]
+              }
+            ],
+            "widgets_values": [
+              false,
+              false,
+              "This is an RGBA format image with transparency.",
+              "The image has an alpha channel and a transparent background.",
+              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21PromptSelect"
+            }
           }
         ],
         "groups": [
           {
             "id": 1,
-            "title": "道劫·底座装配(行1 源行:九选一底座+锁层A恒挂+RGBA官方头尾)",
+            "title": "PE看图改写链(带0/1):[23]后缀+[21]system→[24]拼装→[26]TextGenerate(吃-10槽4裸指令,装配全文禁入=防环红线)→[27]抽取→[152]择文合成器①",
             "bounding": [
-              2410,
-              100,
-              3010,
-              470
+              50,
+              60,
+              3260,
+              1010
             ],
-            "color": "#3f789e",
+            "color": "#4a7a3f",
             "flags": {}
           },
           {
             "id": 2,
-            "title": "道劫·装配路由(行2:拼接①② delimiter=\\n 分层·指令占①层;RGBA 公式拼接)",
+            "title": "装配主链(带2):[150]底座+[180]三态→[141]装配全文件(择文+BASE+锁层A)→[153]透明包裹器②(恒pe关=头句+装配全文+尾句)",
             "bounding": [
-              2840,
-              850,
-              2500,
-              300
+              2550,
+              880,
+              2430,
+              950
             ],
             "color": "#a1309b",
             "flags": {}
           },
           {
             "id": 3,
-            "title": "道劫·编码输出(行3:主编码+RGBA编码(官方公式路,默认旁路)+RGBA开关)",
+            "title": "双图编码线(带3上):[142]主编码/[143]透明编码(image_1+image_2)→[144]RGBA开关→positive",
             "bounding": [
-              4890,
-              1610,
-              2600,
+              5350,
+              1480,
+              2480,
               430
             ],
             "color": "#886",
@@ -3180,14 +2859,14 @@
           },
           {
             "id": 4,
-            "title": "道劫·单参考编码(行4:档1/2 加速正源,仅 image_1,0928 黑图修复;RGBA 镜像开关同宿主面板)",
+            "title": "单图编码线(带3下·黑图修复正源铁则):[171]/[172](仅image_1)→[173]→positive_single",
             "bounding": [
-              4890,
-              2370,
-              2600,
+              5350,
+              2130,
+              2480,
               430
             ],
-            "color": "#4d9e6a",
+            "color": "#3f789e",
             "flags": {}
           }
         ],
@@ -3273,98 +2952,26 @@
             "type": "COMBO"
           },
           {
-            "id": 12,
-            "origin_id": 150,
-            "origin_slot": 0,
-            "target_id": 130,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 13,
-            "origin_id": 110,
-            "origin_slot": 0,
-            "target_id": 131,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 14,
-            "origin_id": 130,
-            "origin_slot": 0,
-            "target_id": 131,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
             "id": 15,
-            "origin_id": 131,
+            "origin_id": 141,
             "origin_slot": 0,
             "target_id": 142,
             "target_slot": 4,
             "type": "STRING"
           },
           {
-            "id": 16,
-            "origin_id": 131,
-            "origin_slot": 0,
-            "target_id": 162,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 17,
-            "origin_id": 160,
-            "origin_slot": 0,
-            "target_id": 162,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 18,
-            "origin_id": 162,
-            "origin_slot": 0,
-            "target_id": 163,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 19,
-            "origin_id": 161,
-            "origin_slot": 0,
-            "target_id": 163,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
             "id": 20,
-            "origin_id": 163,
-            "origin_slot": 0,
+            "origin_id": 153,
+            "origin_slot": 1,
             "target_id": 143,
             "target_slot": 4,
             "type": "STRING"
           },
           {
-            "id": 21,
+            "id": 57,
             "origin_id": 142,
             "origin_slot": 0,
-            "target_id": 183,
-            "target_slot": 0,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 57,
-            "origin_id": 183,
-            "origin_slot": 0,
             "target_id": 144,
-            "target_slot": 0,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 22,
-            "origin_id": 143,
-            "origin_slot": 0,
-            "target_id": 170,
             "target_slot": 0,
             "type": "CONDITIONING"
           },
@@ -3386,7 +2993,7 @@
           },
           {
             "id": 25,
-            "origin_id": 131,
+            "origin_id": 141,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 4,
@@ -3402,7 +3009,7 @@
           },
           {
             "id": 27,
-            "origin_id": 170,
+            "origin_id": 143,
             "origin_slot": 0,
             "target_id": 144,
             "target_slot": 1,
@@ -3434,23 +3041,15 @@
           },
           {
             "id": 31,
-            "origin_id": 131,
+            "origin_id": 141,
             "origin_slot": 0,
             "target_id": 171,
             "target_slot": 3,
             "type": "STRING"
           },
           {
-            "id": 32,
-            "origin_id": 171,
-            "origin_slot": 0,
-            "target_id": 174,
-            "target_slot": 0,
-            "type": "CONDITIONING"
-          },
-          {
             "id": 33,
-            "origin_id": 174,
+            "origin_id": 171,
             "origin_slot": 0,
             "target_id": 173,
             "target_slot": 0,
@@ -3466,8 +3065,8 @@
           },
           {
             "id": 35,
-            "origin_id": 163,
-            "origin_slot": 0,
+            "origin_id": 153,
+            "origin_slot": 1,
             "target_id": 172,
             "target_slot": 3,
             "type": "STRING"
@@ -3519,22 +3118,6 @@
             "target_id": 24,
             "target_slot": 1,
             "type": "STRING"
-          },
-          {
-            "id": 43,
-            "origin_id": -10,
-            "origin_slot": 4,
-            "target_id": 15,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 44,
-            "origin_id": -10,
-            "origin_slot": 7,
-            "target_id": 15,
-            "target_slot": 2,
-            "type": "BOOLEAN"
           },
           {
             "id": 45,
@@ -3601,32 +3184,8 @@
             "type": "STRING"
           },
           {
-            "id": 53,
-            "origin_id": 27,
-            "origin_slot": 0,
-            "target_id": 15,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 54,
-            "origin_id": 15,
-            "origin_slot": 0,
-            "target_id": 130,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 9,
-            "origin_id": 180,
-            "origin_slot": 0,
-            "target_id": 182,
-            "target_slot": 0,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 58,
-            "origin_id": 182,
+            "origin_id": 180,
             "origin_slot": 0,
             "target_id": 144,
             "target_slot": 2,
@@ -3636,23 +3195,71 @@
             "id": 55,
             "origin_id": 150,
             "origin_slot": 4,
-            "target_id": 181,
-            "target_slot": 0,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 59,
-            "origin_id": 181,
-            "origin_slot": 0,
-            "target_id": 184,
-            "target_slot": 0,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 56,
-            "origin_id": 184,
-            "origin_slot": 0,
             "target_id": 180,
+            "target_slot": 1,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 60,
+            "origin_id": 152,
+            "origin_slot": 0,
+            "target_id": 141,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 61,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 152,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 62,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 152,
+            "target_slot": 5,
+            "type": "STRING"
+          },
+          {
+            "id": 63,
+            "origin_id": 27,
+            "origin_slot": 0,
+            "target_id": 152,
+            "target_slot": 6,
+            "type": "STRING"
+          },
+          {
+            "id": 64,
+            "origin_id": 180,
+            "origin_slot": 0,
+            "target_id": 152,
+            "target_slot": 1,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 65,
+            "origin_id": 150,
+            "origin_slot": 0,
+            "target_id": 141,
+            "target_slot": 2,
+            "type": "STRING"
+          },
+          {
+            "id": 66,
+            "origin_id": 141,
+            "origin_slot": 0,
+            "target_id": 153,
+            "target_slot": 5,
+            "type": "STRING"
+          },
+          {
+            "id": 67,
+            "origin_id": 180,
+            "origin_slot": 0,
+            "target_id": 153,
             "target_slot": 1,
             "type": "BOOLEAN"
           }
@@ -3660,7 +3267,8 @@
         "extra": {
           "ue_links": [],
           "links_added_by_ue": []
-        }
+        },
+        "category": "漫影"
       },
       {
         "id": "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b",

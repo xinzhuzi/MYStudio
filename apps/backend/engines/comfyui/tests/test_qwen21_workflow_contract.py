@@ -206,6 +206,20 @@ titles_on_core_nodes(edit)豁免自研 My* 件+正锁 [58] 短名(旧「本件�
 铁表逐字锁(宿主短名/子图 name/三件选择件同名)。生成器自查同步(三件短名
 正锁;i2i #10 豁免宿主)。
 
+2026-10-01 i2i/edit 同构集成轮(Trellis 10-01-qi21-i2i-edit-isomorphic;手术脚本
+apps/build/scripts/qi21_integration_surgery_i2i_1001.py+qi21_integration_surgery_edit_
+1001.py,PRD R2 契约锚重立=本文件单点串行):①R2 同名统一三件齐——i2i/edit 宿主
+title+子图 name 迁「[40] 提示词类型优化子图(双击进入)」口径(ASSEMBLY_SG_NAME
+分叉终结,三件同锚);②i2i=双 Select 链(28→17 节点):[152] Select①「择文合成器」
+替原 [15](PE 链吃 -10槽4 裸指令,绝不吃装配全文=防环红线,map §六)→[141]
+Assembly(锁层A迁参数面)→[153] Select②「透明包裹器」恒 pe关 替原 [162][163]
+[160][161](头尾句迁参数面);Reroute 6 件消化直连;③edit=[15] ComfySwitchNode→
+[152] MyQi21PromptSelect(9→9 节点件型升级,透明文本口悬空=无 RGBA 编码件);
+④三自研件参数逐字锚(锁层A/头/尾/W1 收束句=库真源,照 t2i M-3 同款);⑤懒声明
++PE 链消费者 lazy 谓词+pe关 干跑(PE 链六件+主图 PE TE 零入集,照 t2i M-4 同款);
+⑥_reach_state/_resolve_default_string_origins 增 MyQi21PromptSelect 走臂理解
+(直写选配臂=装配全文槽)。
+
 0929 S3 收装轮契约重写(Trellis 09-29-qi21-canvas-batch;用户令「三种情况都
 写入自定义加速节点图」+确认「每画布恰两子图=提示词子图+加速子图」;design
 D3/D4/D5/D9/D10;research/s3-qi21-daojie-t2i.md/s3-qi21-daojie-i2i.md/
@@ -308,6 +322,10 @@ EDIT_PSM_A_ID, EDIT_PSM_B_ID, EDIT_PSM_C_ID = 21, 22, 23   # chatml a/b/c 三段
 EDIT_FMT_ID = 24                 # StringFormat {a}{b}{c}
 EDIT_BATCH_ID, EDIT_TG_ID, EDIT_RX_ID, EDIT_PE_SW_ID = 25, 26, 27, 15
 EDIT_PBM_ID, EDIT_EL_ID, EDIT_LATENT_SW_ID = 19, 18, 20
+# 1001 同构集成轮:EDIT_PE_SW_ID=15 随 [15] ComfySwitchNode 退役(指令开关语义
+# 并入 [152] MyQi21PromptSelect,常量存照防误用);新锚:
+EDIT_SEL_ID = 152   # MyQi21PromptSelect 最终文本合成器(1001 edit 同构收编替 [15])
+EDIT_PE_CHAIN_IDS = (21, 23, 24, 25, 26, 27)   # PE-I2I 看图改写链六件(恒保留)
 # edit 件 LoRA 槽锚(09-24 R26.4 统一接线;id 同构 i2i=插在 Cache 之后最靠近
 # KSampler.model 入口处)+ VAE 顶通道(R26.4 随迁)
 EDIT_LORA_PB_ID, EDIT_LORA_ID, EDIT_LORA_SW_ID = 30, 31, 32
@@ -394,12 +412,21 @@ I2I_BATCH_ID, I2I_TG_ID, I2I_RX_ID = 25, 26, 27
 I2I_SCALE_IDS = (16, 17)          # 输入图预缩(画布 1.5MP/参考 1.0MP)
 I2I_LATENT_PB_ID, I2I_EL_ID, I2I_LATENT_SW_ID = 19, 18, 20
 I2I_LORA_PB_ID, I2I_LORA_ID, I2I_LORA_SW_ID = 30, 31, 32   # LoRA 加速槽三件
-I2I_SG_BASE_ID, I2I_SG_LOCK_ID = 150, 110
-I2I_SG_RGBA_HEAD_ID, I2I_SG_RGBA_TAIL_ID = 160, 161
-I2I_SG_CONCAT_IDS = [130, 131]
-I2I_SG_RGBA_CAT_IDS = [162, 163]
+# 1001 同构集成轮锚(手术脚本 qi21_integration_surgery_i2i_1001.py map §5.1 同表;
+# 旧件锚退役:[15]指令开关/[110]锁层A/[130][131]装配拼接/[160][161]RGBA头尾/
+# [162][163]RGBA拼②/Reroute[170][174][181]-[184]——全数收编三自研件+直连):
+I2I_SG_ASM_ID = 141     # MyQi21PromptAssembly 装配全文件(锁层A迁参数面 wv[1])
+I2I_SG_SEL1_ID = 152    # MyQi21PromptSelect 择文合成器①(替 [15];择文上位喂装配)
+I2I_SG_SEL2_ID = 153    # MyQi21PromptSelect 透明包裹器②(替 [162][163]等四件;恒pe关)
+I2I_SG_ASM_CLASS = "MyQi21PromptAssembly"
+I2I_SG_SEL_CLASS = "MyQi21PromptSelect"
+I2I_SG_ASM_WV = {"主体句": 0, "锁层A全文": 1}   # [141] 参数位序(同 t2i 件)
+I2I_SG_GONE_IDS = [15, 110, 130, 131, 160, 161, 162, 163,   # 收编 8 件
+                   170, 174, 181, 182, 183, 184]            # Reroute 消化 6 件
+I2I_PE_CHAIN_IDS = (21, 23, 24, 25, 26, 27)   # PE-I2I 看图改写链六件(恒保留,吃裸指令)
+I2I_SG_BASE_ID = 150
 I2I_SG_TE, I2I_SG_TE_RGBA, I2I_SG_RGBA_SW = 142, 143, 144
-I2I_SG_RGBA_SEL = 180                    # 0929 S2 D6:MyQi21RgbaSelect 三态件(行3)
+I2I_SG_RGBA_SEL = 180                    # 0929 S2 D6:MyQi21RgbaSelect 三态件
 # LoRA 加速槽(09-24 R26.4 三件统一接线:t2i/edit 补槽与 i2i 出生槽同构;
 # viggle 蒸馏件已装机(r64 事实=R23 research/02;v0.2→v0.2.1=0924 用户「有最新换最新+清旧」令)——name 预填逐字锚
 LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"
@@ -408,6 +435,8 @@ I2I_LORA_FILE = LORA_FILE
 I2I_B_SEG = ("Put the light blue denim shirt from <image2> on the character "
              "in <image1>, keep everything else unchanged")
 # i2i 件全图节点类型白名单(TE-Speed 槽禁入=R26.4 统一接线轮再补;任何未知类型即红)
+# 1001 同构集成轮:StringConstant/StringConcatenate 出册(收编三自研件后全图零件,
+# 回潮即红);MyQi21PromptAssembly/MyQi21PromptSelect 入册(手术新立三件)
 I2I_NODE_TYPE_WHITELIST = {
     "UNETLoader", "CLIPLoader", "VAELoader", "LoadImage",
     "ImageScaleToTotalPixels", "QwenImage21Cache", "LoraLoaderModelOnly",
@@ -415,8 +444,8 @@ I2I_NODE_TYPE_WHITELIST = {
     "SaveImage", "PrimitiveStringMultiline", "StringFormat", "BatchImagesNode",
     "TextGenerate", "RegexExtract", "MarkdownNote", "easy showAnything",
     "Reroute", "EmptyLatentImage",
-    "MyQi21DaojieBase", "StringConstant", "StringConcatenate",
-    "TextEncodeQwenImage21",
+    "MyQi21DaojieBase", "TextEncodeQwenImage21",
+    "MyQi21PromptAssembly", "MyQi21PromptSelect",
     # 0927 三档轮:T8 Fun-Acc 采样器(easy compare 随 0929 并行化零残留出册);
     # 0929 并行化轮:自研选择件入册;0929 S2 ⑤机制批:自研三态件入册
     "T8QwenImage21FunAccPDD4Step", "MyQi21SpeedSelect", "MyQi21RgbaSelect",
@@ -491,8 +520,10 @@ QI21_T8, I2I_T8, EDIT_T8 = 198, 176, 55
 QI21_XHOST_ID, QI21_XSEL_ID = 208, 214    # 宿主=原选择件 id 沿用 / 子图内选择件(新分配)
 I2I_XHOST_ID, I2I_XSEL_ID = 190, 192
 EDIT_XHOST_ID, EDIT_XSEL_ID = 58, 59
-ASSEMBLY_SG_NAME = "[40] 道劫·装配子图(双击进入)"
-ASSEMBLY_SG_NAME_T2I = "[40] 提示词类型优化子图(双击进入)"  # 1001 S1 更名(t2i 专属;i2i/edit 沿旧名)
+# 1001 R2 同名统一:i2i/edit 手术随批更名,三件齐「[40] 提示词类型优化子图(双击
+# 进入)」——ASSEMBLY_SG_NAME 分叉终结,两常量同值存照(旧名常量防别处引用断)
+ASSEMBLY_SG_NAME = "[40] 提示词类型优化子图(双击进入)"
+ASSEMBLY_SG_NAME_T2I = "[40] 提示词类型优化子图(双击进入)"
 ACCEL_SG_NAME = "道劫·加速子图"
 QI21_XSG_UUID = "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e"
 I2I_XSG_UUID = "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b"
@@ -577,8 +608,8 @@ def _sg_by_name(graph: dict, needle: str) -> dict:
 
 def _asg(graph: dict) -> dict:
     """[40] 装配子图(0929 S3 D9:三件齐——edit 装配段收装出生即子图)。
-    1001 t2i 更名「提示词类型优化子图」(Trellis 10-01-qi21-assembly-blueprint
-    S1);i2i/edit 分叉拷贝未动沿旧名——按图内实存名自适应锚定。"""
+    1001 R2 同名统一:三件齐「提示词类型优化子图」(t2i S1 先行,i2i/edit
+    同构手术随批);按图内实存名自适应锚定(needle 兜底旧名=容旧档读入)。"""
     names = [sg["name"] for sg in _sgs(graph)]
     needle = ("提示词类型优化子图"
               if any("提示词类型优化子图" in n for n in names) else "装配子图")
@@ -639,6 +670,41 @@ def _switch_bool(graph: dict, sg: dict | None, nodes: dict, links: dict, node: d
     return bool(node["widgets_values"][0])
 
 
+def _select_pe_on(graph: dict, sg: dict | None, nodes: dict, links: dict,
+                  node: dict) -> bool:
+    """MyQi21PromptSelect pe开关 有效布尔(1001 同构集成轮;家法同 _switch_bool):
+    pe开关槽(inputs[0],名寻址)连线→-10 边界面板控件(按名冒泡宿主 widgets_values)
+    或同域 PrimitiveBoolean 源(可穿 Reroute);否则本件 widget(wv[0],如 i2i [153]
+    恒 pe关=纯包裹器)。"""
+    inp = next(i for i in node["inputs"] if i.get("name") == "pe开关")
+    lid = inp.get("link")
+    if lid is not None and lid in links:
+        l = links[lid]
+        if sg is not None and l["origin_id"] == -10:
+            return bool(_panel_value(graph, sg, sg["inputs"][l["origin_slot"]]["name"]))
+        oid = l[1] if isinstance(l, list) else l["origin_id"]
+        if oid in nodes:
+            src = nodes[oid]
+            while src["type"] == "Reroute":
+                rl = links[src["inputs"][0]["link"]]
+                src = nodes[rl[1] if isinstance(rl, list) else rl["origin_id"]]
+            if src["type"] == "PrimitiveBoolean":
+                return bool(src["widgets_values"][0])
+    return bool(node["widgets_values"][0])
+
+
+def _lazy_arm_slots(graph: dict, sg: dict | None, nodes: dict, links: dict,
+                    node: dict) -> list[int] | None:
+    """择臂槽位(1001 同构集成轮):MyQi21PromptSelect 按 pe开关 只拉选中臂——
+    pe开=PE出文(lazy)/pe关=装配全文槽(直写选配臂);pe关时 PE 链零入执行图。
+    返回 None=非本件(调用方走 ComfySwitch/全槽口径)。"""
+    if node["type"] != QI21_SG_SEL_CLASS:
+        return None
+    want = "PE出文" if _select_pe_on(graph, sg, nodes, links, node) else "装配全文"
+    return [i for i, inp in enumerate(node.get("inputs", []))
+            if inp.get("name") == want]
+
+
 def _reach_state(graph: dict, save_id: int,
                  mode_override: str | None = None) -> set[tuple]:
     """执行集(SaveImage 回溯;0929 S3 作用域版,返回 (作用域, id) 双元组集合:
@@ -646,6 +712,8 @@ def _reach_state(graph: dict, save_id: int,
     - MyQi21SpeedSelect:只回溯选中档 latent 槽(check_lazy_status 子图环境同款
       生效,S0 探针 A 级实证);mode_override=运行态切档模拟(档位字符串取自
       节点件 SPEED_MODES 真源);
+    - MyQi21PromptSelect(1001 同构集成):按 pe开关 只回溯选中臂——pe开=PE出文
+      (lazy)/pe关=装配全文槽;pe关干跑=PE 链零入执行图(i2i/edit 懒执行静态锚);
     - ComfySwitchNode:只回溯选中臂(_switch_bool 作用域解析);
     - 宿主节点:按被消费输出槽下钻子图(宿主 outputs 与子图 outputs 同序对齐),
       子图内回溯到的被消费 -10 边界槽按名冒泡回宿主同名输入槽再回主图上游;
@@ -685,7 +753,9 @@ def _reach_state(graph: dict, save_id: int,
                 if inp is not None and inp.get("link") is not None:
                     push_main_origin(m_links[inp["link"]][1], m_links[inp["link"]][2], stack)
                 continue
-            slots = ([1 if _switch_bool(graph, None, m_nodes, m_links, node) else 0]
+            arm = _lazy_arm_slots(graph, None, m_nodes, m_links, node)
+            slots = (arm if arm is not None else
+                     [1 if _switch_bool(graph, None, m_nodes, m_links, node) else 0]
                      if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", []))))
             for si in slots:
                 lid = node["inputs"][si].get("link")
@@ -705,7 +775,9 @@ def _reach_state(graph: dict, save_id: int,
                 if inp is not None and inp.get("link") is not None:
                     stack.append((scope, i_links[inp["link"]]["origin_id"], None))
                 continue
-            slots = ([1 if _switch_bool(graph, sg, i_nodes, i_links, node) else 0]
+            arm = _lazy_arm_slots(graph, sg, i_nodes, i_links, node)
+            slots = (arm if arm is not None else
+                     [1 if _switch_bool(graph, sg, i_nodes, i_links, node) else 0]
                      if node["type"] == "ComfySwitchNode" else range(len(node.get("inputs", []))))
             for si in slots:
                 lid = node["inputs"][si].get("link")
@@ -1035,6 +1107,21 @@ def _resolve_default_string_origins(graph: dict) -> dict:
             else:
                 oid = sl[1] if isinstance(sl, list) else sl["origin_id"]
                 stack.append((sc, (sg_nodes if sc is not None else m_nodes)[oid]))
+        elif node["type"] == QI21_SG_SEL_CLASS:
+            # 1001 edit 同构收编:直写选配臂=「装配全文」槽(名寻址;pe开=PE出文
+            # 运行时文本静态不可逐字,同 ComfySwitchNode 固定走 on_false 口径)
+            sl = (sg_links if sc is not None else m_links)[
+                next(i["link"] for i in node["inputs"] if i["name"] == "装配全文")]
+            if sc is not None and sl["origin_id"] == -10:
+                sg = subs[sc]
+                host = _host_of(graph, sg)
+                hi = next(i for i in host["inputs"]
+                          if i["name"] == sg["inputs"][sl["origin_slot"]]["name"])
+                if hi.get("link") is not None:
+                    stack.append((None, m_nodes[m_links[hi["link"]][1]]))
+            else:
+                oid = sl[1] if isinstance(sl, list) else sl["origin_id"]
+                stack.append((sc, (sg_nodes if sc is not None else m_nodes)[oid]))
         elif node["type"] == "StringConcatenate":
             for inp in node["inputs"]:
                 if inp.get("link") is None:
@@ -1103,9 +1190,8 @@ class TestSpeedSelectContract0929:
             assert len(sgs) == 2, \
                 f"{name}: 应恰 2 子图(②装配+③加速,0929 S3 两子图架构),得 {len(sgs)}"
             names = sorted(sg["name"] for sg in sgs)
-            want_a = ASSEMBLY_SG_NAME_T2I if name == "qi21" else ASSEMBLY_SG_NAME
-            assert names == sorted([want_a, ACCEL_SG_NAME]), \
-                f"{name}: 子图 name 应=装配+加速对,得 {names}"
+            assert names == sorted([ASSEMBLY_SG_NAME_T2I, ACCEL_SG_NAME]), \
+                f"{name}: 子图 name 应=装配+加速对(1001 R2 三件统一「提示词类型优化子图」),得 {names}"
             hosts = [n for n in graph["nodes"]
                      if n.get("properties", {}).get("subgraph") in {sg["id"] for sg in sgs}]
             assert len(hosts) == 2, \
@@ -1143,13 +1229,10 @@ class TestSpeedSelectContract0929:
             ahost = _host_of(graph, _asg(graph))
             assert ahost["id"] == 40, \
                 f"{name}: 装配宿主 id 应=[40](三件同 id,edit 承 t2i 装配段惯例 D9),得 [{ahost['id']}]"
-            want_title = ("[40] 提示词类型优化子图" if name == "qi21"
-                          else "[40] 装配子图")
-            want_a = (ASSEMBLY_SG_NAME_T2I if name == "qi21" else ASSEMBLY_SG_NAME)
-            assert ahost.get("title") == want_title, \
-                f"{name}: 装配宿主 title 应=「{want_title}」(0929 S1;1001 t2i 更名),得 {ahost.get('title')!r}"
-            assert _asg(graph)["name"] == want_a, \
-                f"{name}: 装配子图 name 应={want_a!r},得 {_asg(graph)['name']!r}"
+            assert ahost.get("title") == "[40] 提示词类型优化子图", \
+                f"{name}: 装配宿主 title 应=「[40] 提示词类型优化子图」(1001 R2 三件统一),得 {ahost.get('title')!r}"
+            assert _asg(graph)["name"] == ASSEMBLY_SG_NAME_T2I, \
+                f"{name}: 装配子图 name 应={ASSEMBLY_SG_NAME_T2I!r},得 {_asg(graph)['name']!r}"
 
     def test_accel_panel_controls_present_0929(self):
         """宿主面板双控件在位(D5 推荐案落地,回退案未启用):「速度档位」COMBO
@@ -1250,12 +1333,10 @@ class TestSpeedSelectContract0929:
         for name in ("qi21", "i2i", "edit"):
             graph = GRAPHS[name]
             host = _host_of(graph, _asg(graph))
-            want_t = ("[40] 提示词类型优化子图" if name == "qi21" else "[40] 装配子图")
-            want_n = (ASSEMBLY_SG_NAME_T2I if name == "qi21" else ASSEMBLY_SG_NAME)
-            assert host.get("title") == want_t, \
-                f"{name}: [40] 宿主 title 应=「{want_t}」(0929 S1;1001 t2i 更名),得 {host.get('title')!r}"
-            assert _asg(graph)["name"] == want_n, \
-                f"{name}: 子图 name 应={want_n!r},得 {_asg(graph)['name']!r}"
+            assert host.get("title") == "[40] 提示词类型优化子图", \
+                f"{name}: [40] 宿主 title 应=「[40] 提示词类型优化子图」(1001 R2 三件统一),得 {host.get('title')!r}"
+            assert _asg(graph)["name"] == ASSEMBLY_SG_NAME_T2I, \
+                f"{name}: 子图 name 应={ASSEMBLY_SG_NAME_T2I!r},得 {_asg(graph)['name']!r}"
             sel = _sg_nodes(_xsg(graph))[self.XSELS[name]]
             assert sel.get("title") == "出图速度选择", \
                 f"{name}: [{self.XSELS[name]}] 选择件 title 应=「出图速度选择」(三件同名)," \
@@ -1845,26 +1926,123 @@ class TestEditPEContract:
             "主图 groups 必须带互异 int id(子图契约:缺 id 只活第一个)"
 
     def test_edit_pe_switch_wiring(self):
+        """[6].prompt 上游=MyQi21PromptSelect[152](1001 edit 同构收编:原 [15]
+        ComfySwitchNode 指令开关退役,件型升级非减数;pe开=PE出文/pe关=装配全文槽=
+        指令直写真源);pe开关←-10槽5 宿主面板(默认 true=0926 裁定1 不变量保持);
+        最终文本双扇出 [6].prompt+[43].prompt(双/单参考编码同源);透明文本口悬空
+        (edit 无 RGBA 编码件,机械双产出无消费者无副作用)。"""
         graph = GRAPHS["edit"]
         asg = _asg(graph)
         sg_nodes, sg_links = _sg_nodes(asg), _sg_links(asg)
         main_te = sg_nodes[6]
         prompt_l = sg_links[next(i["link"] for i in main_te["inputs"] if i["name"] == "prompt")]
-        assert prompt_l["origin_id"] == EDIT_PE_SW_ID, \
-            f"[6].prompt 上游应是核心 ComfySwitchNode[{EDIT_PE_SW_ID}](装配子图内)"
-        switch = sg_nodes[EDIT_PE_SW_ID]
-        assert switch["outputs"][0]["type"] == "STRING", "PE 开关应为 STRING 泛型(MatchType)"
-        assert switch["widgets_values"][0] is True, \
-            "PE 开关默认必须 true(默认 PE 改写,0926 裁定1;关=直写按图选配)"
-        true_l = sg_links[switch["inputs"][1]["link"]]
-        assert true_l["origin_id"] == EDIT_RX_ID, \
-            f"开关 on_true 上游应为 RegexExtract[{EDIT_RX_ID}](PE 改写结果)"
-        false_l = sg_links[switch["inputs"][0]["link"]]
-        assert (false_l["origin_id"], false_l["origin_slot"]) == (-10, 4), \
-            "开关 on_false 应接 -10 指令槽(直写臂←主图 [22])"
-        sw_l = sg_links[switch["inputs"][2]["link"]]
-        assert (sw_l["origin_id"], sw_l["origin_slot"]) == (-10, 5), \
-            "开关 switch 应接 -10 PE开关槽(宿主面板,默认 true=0926 裁定1)"
+        assert prompt_l["origin_id"] == EDIT_SEL_ID, \
+            f"[6].prompt 上游应是 {QI21_SG_SEL_CLASS}[{EDIT_SEL_ID}](1001 同构收编替 [15])"
+        sel = sg_nodes[EDIT_SEL_ID]
+        assert sel["type"] == QI21_SG_SEL_CLASS and \
+            [o["name"] for o in sel["outputs"]] == ["最终文本", "透明文本"], \
+            f"[{EDIT_SEL_ID}] 应双出=最终文本/透明文本"
+        assert sel["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
+            "pe开关默认必须 true(默认 PE 改写,0926 裁定1;关=直写按图选配)"
+        assert sel["widgets_values"][QI21_SG_SEL_WV["透明模式"]] is False
+        # pe开关=宿主面板唯一真源(-10槽5;widget 位保留=断线回落)
+        pe_l = sg_links[next(i["link"] for i in sel["inputs"] if i["name"] == "pe开关")]
+        assert (pe_l["origin_id"], pe_l["origin_slot"]) == (-10, 5), \
+            "pe开关 应接 -10 PE开关槽(宿主面板,默认 true=0926 裁定1)"
+        assert _panel_value(graph, asg, "PE开关") is True
+        # PE出文←[27] 正则出文(lazy 槽;[27] 唯一消费者=本线)
+        pe_out_l = sg_links[next(i["link"] for i in sel["inputs"] if i["name"] == "PE出文")]
+        assert pe_out_l["origin_id"] == EDIT_RX_ID, \
+            f"PE出文 上游应 RegexExtract[{EDIT_RX_ID}](PE 改写结果,lazy)"
+        # 装配全文槽=-10槽4 指令(pe关=直写臂真源,←主图 [22])
+        asm_l = sg_links[next(i["link"] for i in sel["inputs"] if i["name"] == "装配全文")]
+        assert (asm_l["origin_id"], asm_l["origin_slot"]) == (-10, 4), \
+            "装配全文槽 应接 -10 指令槽(pe关=直写臂←主图 [22])"
+        # 最终文本双扇出:[6].prompt(槽4)+[43].prompt(槽3)=双/单参考同源
+        te1 = sg_nodes[EDIT_TE1]
+        assert sg_links[next(i["link"] for i in te1["inputs"] if i["name"] == "prompt")] \
+            ["origin_id"] == EDIT_SEL_ID, \
+            f"[{EDIT_TE1}].prompt 上游也应 [{EDIT_SEL_ID}](单参考编码同源)"
+        fan = sorted(sg_links[l]["target_id"]
+                     for l in sel["outputs"][0]["links"] or [])
+        assert fan == sorted([6, EDIT_TE1]), \
+            f"[{EDIT_SEL_ID}].最终文本 应双扇出 [6]+[{EDIT_TE1}],得 {fan}"
+        # 透明文本口悬空(edit 无 RGBA 编码件,机械双产出无消费者)
+        assert not (sel["outputs"][1].get("links") or []), \
+            "透明文本口应悬空(edit 无 RGBA 编码件)"
+
+    def test_edit_select_fixed_sentences_verbatim(self):
+        """edit [152] 三固定句参数逐字(1001 同构收编;照 t2i M-3 同款锚):
+        RGBA官方头/尾句=官方原文逐字,W1收束句=05 库 §一 0930 主候选句逐字
+        (手术脚本自 t2i [152] 工作流值程序提取+my_nodes default 双源对拍,禁手敲;
+        edit 无透明路消费者=值恒挂零副作用,锚防漂移)。"""
+        graph = GRAPHS["edit"]
+        sel = _sg_nodes(_asg(graph))[EDIT_SEL_ID]
+        assert _widget(sel, QI21_SG_SEL_WV["RGBA官方头句"]) == RGBA_HEAD, \
+            "[152] RGBA官方头句参数 非官方原文逐字"
+        assert _widget(sel, QI21_SG_SEL_WV["RGBA官方尾句"]) == RGBA_TAIL, \
+            "[152] RGBA官方尾句参数 非官方原文逐字"
+        assert _widget(sel, QI21_SG_SEL_WV["W1收束句"]) == _qi21_w1_truth(), \
+            "[152] W1收束句参数 与库 §一 0930 主候选句不逐字一致"
+
+    def test_edit_pe_chain_consumers_lazy(self):
+        """PE 链出线消费者 lazy 谓词(照 t2i M-4 test_pe_rewrite_output_consumers_
+        all_lazy 同款,域=edit PE 链终件 [27] RegexExtract):pe关 ⇒ PE 链六件
+        零执行零 PE TE 装载的静态守卫——[27] 每条出线的消费者必须为自研件且被喂
+        槽在其 INPUT_TYPES 声明 lazy(True)+实名懒钩子 check_lazy_status;未来给
+        [27] 增设非懒消费者(含核心/插件件=静态不可证 lazy)必红。"""
+        graph = GRAPHS["edit"]
+        sg_nodes, sg_links = _sg_nodes(_asg(graph)), _sg_links(_asg(graph))
+        rx = sg_nodes[EDIT_RX_ID]
+        assert rx["type"] == "RegexExtract", f"[{EDIT_RX_ID}] 应为 RegexExtract(谓词域锚)"
+        for out in rx["outputs"]:
+            for lid in (out.get("links") or []):
+                assert lid in sg_links, \
+                    f"[{EDIT_RX_ID}].{out['name']} 出线 link{lid} 不在子图链接册(双写漂移)"
+                l = sg_links[lid]
+                tgt = sg_nodes[l["target_id"]]
+                slot = tgt["inputs"][l["target_slot"]]["name"]
+                cls = _load_my_node_class(tgt["type"])
+                assert cls is not None, (
+                    f"[{EDIT_RX_ID}].{out['name']} 消费者 [{l['target_id']}]{tgt['type']}.{slot}"
+                    f" 非自研件(静态不可证 lazy)——pe关零装载铁律要求 [27] 出线消费者"
+                    f"全为 lazy 自研件")
+                it = cls.INPUT_TYPES()
+                decl = next((it[sec][slot] for sec in ("required", "optional")
+                             if slot in it.get(sec, {})), None)
+                assert decl is not None, \
+                    f"{tgt['type']}.{slot} 不在 INPUT_TYPES 声明面(接口漂移)"
+                meta = decl[1] if len(decl) > 1 and isinstance(decl[1], dict) else {}
+                assert meta.get("lazy") is True, (
+                    f"[{EDIT_RX_ID}].{out['name']} 消费槽 {tgt['type']}.{slot} 未声明"
+                    f" lazy(True)——pe关时强依赖仍拉 PE 链整跑+装载 PE TE")
+                assert hasattr(cls, "check_lazy_status"), \
+                    f"{tgt['type']} 缺实名懒钩子 check_lazy_status(lazy 槽永不请求=拿不到值)"
+
+    def test_edit_pe_off_lazy_dry_run(self):
+        """pe关懒执行干跑(1001 同构收编;手术脚本头「懒执行红利」段静态锚):
+        pe关 ⇒ PE 链六件([21][23][24][25][26][27])零入执行集+主图 [12] PE
+        CLIPLoader 零装载(仅经 40.pe_clip→[26] 消费;edit 无 WhSuggest 无联动
+        开关,成立条件比 t2i 更宽=pe关即成立)。"""
+        graph = GRAPHS["edit"]
+        asg = _asg(graph)
+        sg_nodes = _sg_nodes(asg)
+        # 运行态模拟:宿主面板 PE开关 置 false(权威值源),Select 择直写臂
+        _host_of(graph, asg)["widgets_values"][
+            ASSEMBLY_PANEL_CONTROLS["edit"].index("PE开关")] = False
+        try:
+            reach = _reach_state(graph, 10)
+            for nid in EDIT_PE_CHAIN_IDS:
+                assert not _reach_has(reach, asg["id"], nid), \
+                    f"pe关 PE 链件 [{nid}] 不应入执行集(Select 择直写臂,懒执行零装载)"
+            assert not _reach_has(reach, None, 12), \
+                "pe关 主图 [12] PE CLIPLoader 不应入执行集(零 PE TE 装载)"
+            # pe关路真源=装配全文槽←-10槽4←主图 [22](指令直写)
+            assert _reach_has(reach, None, 22), \
+                "pe关 主图 [22] 原始用户词应在执行集(直写选配臂真源)"
+        finally:
+            _host_of(graph, asg)["widgets_values"][
+                ASSEMBLY_PANEL_CONTROLS["edit"].index("PE开关")] = True
 
     def test_edit_pe_sees_all_input_images(self):
         """③多图双通道(0923-r16;0929 S3 边界版):BatchImagesNode(装配子图内)
@@ -1898,14 +2076,16 @@ class TestEditPEContract:
 
 
 class TestEditSubgraphContract0929:
-    """edit 件两子图结构契约(0929 S3 出生即子图化):装配子图 9 件=PE-I2I 改写链
-    ([21][23]chatml 段/[24] 拼装/[25] 合批/[26] 核心/[27] 正则)+[15] 指令开关+
-    双编码([6] 双参考/[43] 单参考),局部线 25(-10 入线 13/-20 出线 4);加速子图
-    6 件 21 线(共用断言器 _assert_accel_subgraph 另锁);主图退 20 件骨架。"""
+    """edit 件两子图结构契约(0929 S3 出生即子图化;1001 同构集成轮 [15]→[152]
+    件型升级):装配子图 9 件=PE-I2I 改写链([21][23]chatml 段/[24] 拼装/[25] 合批/
+    [26] 核心/[27] 正则)+[152] MyQi21PromptSelect 最终文本合成器(替原 [15] 指令
+    开关;pe开=PE出文/pe关=装配全文槽=指令直写,透明文本口悬空)+双编码([6] 双参考/
+    [43] 单参考),局部线 25(-10 入线 13/-20 出线 4);加速子图 6 件 21 线(共用断言器
+    _assert_accel_subgraph 另锁);主图退 20 件骨架。"""
 
     # 主图骨架 census(research/s3-qi21-edit §0/§4;id 漂移即红)
     MAIN_IDS = {1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 16, 17, 18, 19, 20, 22, 28, 29, 40, 58}
-    ASG_IDS = {6, 15, 21, 23, 24, 25, 26, 27, 43}
+    ASG_IDS = {6, 21, 23, 24, 25, 26, 27, 43, EDIT_SEL_ID}
     ASG_INPUTS = [("clip", "CLIP"), ("vae", "VAE"), ("image_1", "IMAGE"),
                   ("image_2", "IMAGE"), ("指令", "STRING"), ("PE开关", "BOOLEAN"),
                   ("pe_clip", "CLIP")]
@@ -3059,15 +3239,18 @@ class TestI2IContract:
             "i2i seed 单源应 0/fixed(可复现,加速子图内)"
 
     def test_subgraph_assembly_present_and_host_panel(self):
-        """装配子图在场:MyQi21DaojieBase 九选一(combo 经宿主面板「型选择」COMBO
-        外露,默认人物)+锁层A 恒挂+RGBA 头尾常量;宿主面板 widget=指令+型选择+
-        RGBA透明开关;画幅联动件(RegexExtract/ComfyNumberConvert/ComfyMathExpression
-        在子图)不移植——i2i 画幅随输入图。"""
+        """装配子图在场(1001 同构集成轮双 Select 链形态,28→17 节点):
+        MyQi21DaojieBase 九选一(combo 经宿主面板「型选择」COMBO 外露,默认人物;
+        W/H 零消费=画幅随输入图)+[141] 装配全文件(锁层A迁参数面)+[152] 择文
+        合成器①(替原 [15])+[153] 透明包裹器②(替原 [162][163][160][161]);
+        宿主面板 widget=指令+型选择+RGBA透明+PE开关(四控零变化);画幅联动件
+        不移植(RegexExtract 画幅链/ComfyNumberConvert/ComfyMathExpression 禁入);
+        StringConstant 恰 0(锁层A/头尾句全迁参数面)。"""
         graph = GRAPHS["i2i"]
         sg = _qi21_sg(graph)
         sg_nodes = _qi21_sg_nodes(graph)
-        assert "道劫" in sg["name"] and "装配子图" in sg["name"], \
-            "i2i 子图 name 应带道劫·装配子图字号"
+        assert "提示词类型优化子图" in sg["name"], \
+            "i2i 子图 name 应带提示词类型优化子图字号(1001 R2 同名统一)"
         host = _nodes(graph)[I2I_HOST_ID]
         assert host["type"] == sg["id"] and host["properties"]["subgraph"] == sg["id"], \
             "[40] 宿主 type/properties.subgraph 应=子图 uuid"
@@ -3076,22 +3259,22 @@ class TestI2IContract:
                 f"i2i 宿主 inputs[{i}]({hi['name']}) 与子图 inputs[{i}]({si['name']}) 不对齐"
         widget_inputs = [i["name"] for i in host["inputs"] if "widget" in i]
         assert widget_inputs == ["指令", "型选择", "RGBA透明", "PE开关"], \
-            f"宿主面板 widget 型输入应为 指令+型选择+RGBA透明+PE开关(0929 S2 D6 三态化),得 {widget_inputs}"
+            f"宿主面板 widget 型输入应为 指令+型选择+RGBA透明+PE开关(边界 IO 零变化),得 {widget_inputs}"
         assert host["widgets_values"] == [I2I_B_SEG, "人物", "跟随型", True], \
             "宿主 widgets_values 应=[官方换装例句, 人物, 跟随型, True](0929 S2 D6 三态默认/PE开关默认开=0926 裁定1)"
-        # 0929 S2 D6:i2i 型联动三态件([180] 行3;rgba_hint←[150].rgba_default;
-        # rgba_on 双扇出 [144]/[173] 两镜像开关;PE×透明=结构性已融合,无 S/W1/T)
+        # 0929 S2 D6:i2i 型联动三态件([180];rgba_hint←[150].rgba_default;
+        # rgba_on 四扇出 [144]/[173] 双镜像开关+[152]/[153] 透明模式占位)
         sel = sg_nodes[I2I_SG_RGBA_SEL]
         assert sel["type"] == "MyQi21RgbaSelect" and sel["widgets_values"] == ["跟随型"], \
             f"[{I2I_SG_RGBA_SEL}] 应为 MyQi21RgbaSelect 且 mode 默认=跟随型(D6 钦定首项)"
         m_cl = _qi21_sg_links(graph)[sel["inputs"][0]["link"]]
         assert m_cl["origin_id"] == -10 and m_cl["origin_slot"] == 6 and m_cl["type"] == "COMBO", \
-            "[180].mode 应接 -10 槽6(宿主面板「RGBA透明」三态 COMBO,原 BOOLEAN 退役)"
-        _oh, _ = _qi21_trace_origin(sg_nodes, _qi21_sg_links(graph), sel["inputs"][1]["link"])
-        assert _oh == I2I_SG_BASE_ID, \
-            f"[180].rgba_hint 上游(可穿 [181][184] 垫脚石)应 [150].rgba_default,得 {_oh}"
-        assert sorted(sel["outputs"][0]["links"] or []) == [9, 39], \
-            "[180].rgba_on 应扇出恰两线([144]+[173] 双镜像开关,D6 同源)"
+            "[180].mode 应接 -10 槽6(宿主面板「RGBA透明」三态 COMBO)"
+        assert _qi21_sg_links(graph)[sel["inputs"][1]["link"]]["origin_id"] \
+            == I2I_SG_BASE_ID, \
+            "[180].rgba_hint 上游应 [150].rgba_default(Reroute 双中继已消化直连)"
+        assert sorted(sel["outputs"][0]["links"] or []) == [39, 58, 64, 67], \
+            "[180].rgba_on 应扇出恰四线([144]/[173] 双镜像开关+[152]/[153] 透明模式占位)"
         _io6 = sg["inputs"][6]
         assert _io6["name"] == "RGBA透明" and _io6["type"] == "COMBO", \
             "i2i 子图 -10 槽6 应=「RGBA透明」COMBO(0929 S2 D6 三态化)"
@@ -3106,24 +3289,34 @@ class TestI2IContract:
             "[150] 五出应为 BASE/WIDTH/HEIGHT/型名/rgba_default(与 qi21 件同名册;下方索引引用依赖此序)"
         assert bases[0]["outputs"][4]["type"] == "BOOLEAN", \
             "[150].rgba_default 槽型应 BOOLEAN(同 qi21 件,0929 S2 D6)"
-        assert bases[0]["outputs"][1]["links"] is None \
-            and bases[0]["outputs"][2]["links"] is None, \
+        assert not (bases[0]["outputs"][1].get("links") or []) \
+            and not (bases[0]["outputs"][2].get("links") or []), \
             "[150] WIDTH/HEIGHT 本件不接(画幅随输入图,画幅联动行不移植)"
         # 0928 PE 迁子图轮:RegexExtract 随 PE 链入子图(抓 rewritten_prompt)——
         # 禁入清单只剩画幅联动三件(i2i 画幅随输入图,联动行不移植)
         for banned in ("ComfyNumberConvert", "ComfyMathExpression"):
             assert not [n for n in sg_nodes.values() if n["type"] == banned], \
                 f"i2i 子图不应有 {banned}(画幅联动行不移植)"
-        sconsts = {n["id"] for n in sg_nodes.values() if n["type"] == "StringConstant"}
-        assert sconsts == {I2I_SG_LOCK_ID, I2I_SG_RGBA_HEAD_ID, I2I_SG_RGBA_TAIL_ID}, \
-            f"i2i 子图 StringConstant 应恰 3(锁层A+RGBA头尾),得 {sorted(sconsts)}"
+        # 1001 同构集成:固定句常量件恰 0(锁层A迁 [141].wv[1]/头尾迁 [153].wv[2]/[3])
+        sconsts = [n["id"] for n in sg_nodes.values() if n["type"] == "StringConstant"]
+        assert sconsts == [], \
+            f"i2i 子图 StringConstant 应恰 0(1001 收编三自研件,固定句全迁参数面),得 {sconsts}"
+        # 退役件防回潮(收编 8 件+Reroute 消化 6 件;141/152/153 由新件占用不在册)
+        resid = [nid for nid in I2I_SG_GONE_IDS if nid in sg_nodes]
+        assert resid == [], f"i2i 同构集成退役件残留(防回潮):{resid}"
+        # 子图 Reroute 恰 0(6 件全消化直连,t2i 终态同构)
+        rr = sorted(nid for nid, n in sg_nodes.items() if n["type"] == "Reroute")
+        assert rr == [], f"i2i 子图 Reroute 应恰 0(消化直连),得 {rr}"
 
     def test_directive_occupies_subject_layer(self):
-        """指令×装配关系(0928 PE 迁子图轮:指令路径全程子图内):[22] 原始用户词
-        (主图,唯一手写位)→宿主「指令」槽;子图内 [15] 指令开关(false=直写指令/
-        true=PE-I2I 看图改写,switch=宿主面板「PE开关」默认 true)输出直喂 [130]
-        拼接①.string_a(①层占位,指令即主体);BASE=②层/锁层A=③层换行分层追加;
-        主图零 PE 件(W2 反转)。"""
+        """指令×装配关系(1001 同构集成轮双 Select 链;指令路径全程子图内):
+        [22] 原始用户词(主图,唯一手写位)→宿主「指令」槽;**PE 链吃 -10槽4 裸指令,
+        绝不吃装配全文**(Edit Prompt Enhancer 语义=改写用户编辑指令,喂装配全文=
+        语义破坏+造环,§10.9 依赖环裁定在档)——t2i 的「装配全文喂 PE」(Q1=B+)
+        在 i2i 不可搬运,择文器挪装配上游恰与原 [15] 开关位一致;[152] Select①
+        择文(pe开=[27] PE抽取文/pe关=裸指令)→[141].主体句;[141] 装配全文=
+        择文+BASE([150])+锁层A(参数面),四路扇出 [142].prompt/[171].prompt/
+        -20槽4 prompt/[153].装配全文;主图零 PE 件。"""
         graph = GRAPHS["i2i"]
         nodes, links = _nodes(graph), _links(graph)
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
@@ -3131,29 +3324,43 @@ class TestI2IContract:
         assert host["inputs"][4]["name"] == "指令", "宿主 inputs[4] 应为指令槽"
         directive_link = links[host["inputs"][4]["link"]]
         assert directive_link[1] == I2I_PSM_B_ID, \
-            "指令槽上游应 [22] 原始用户词(0928 PE 迁子图后直喂,唯一手写位)"
-        sw = sg_nodes[I2I_PE_SW_ID]
-        assert sw["type"] == "ComfySwitchNode" and sw["widgets_values"][0] is True, \
-            "[15] 指令开关默认应 true(默认 PE 改写,0926 裁定1 含画布本体;关=直写按图选配)"
-        of = sg_links[sw["inputs"][0]["link"]]
-        assert of["origin_id"] == -10 and of["origin_slot"] == 4, \
-            "[15].on_false 应 -10 槽4 指令(直写臂)"
-        assert sg_links[sw["inputs"][1]["link"]]["origin_id"] == I2I_RX_ID, \
-            "[15].on_true 应 RegexExtract [27](PE-I2I 改写)"
-        sl = sg_links[sw["inputs"][2]["link"]]
-        assert sl["origin_id"] == -10 and sl["origin_slot"] == I2I_SG_SLOT_PE_SW, \
-            "[15].switch 应接 -10 槽7(宿主面板「PE开关」,0928 迁子图轮)"
-        concat1 = sg_nodes[I2I_SG_CONCAT_IDS[0]]
-        dl = sg_links[concat1["inputs"][0]["link"]]
-        assert concat1["inputs"][0]["name"] == "string_a" and dl["origin_id"] == I2I_PE_SW_ID, \
-            "拼接①.string_a 应接 [15] 指令开关输出(指令占①层位,全程子图内)"
-        assert sg_links[concat1["inputs"][1]["link"]]["origin_id"] == I2I_SG_BASE_ID, \
-            "拼接①.string_b 上游应 [150].BASE(②层)"
-        assert sg_links[sg_nodes[I2I_SG_CONCAT_IDS[1]]["inputs"][1]["link"]]["origin_id"] \
-            == I2I_SG_LOCK_ID, "拼接②.string_b 上游应 [110] 锁层A(③层恒挂)"
-        for cid in I2I_SG_CONCAT_IDS:
-            assert sg_nodes[cid]["widgets_values"][2] == "\n", \
-                f"[{cid}] 装配拼接 delimiter 应 \\n(换行分层,05 库口径)"
+            "指令槽上游应 [22] 原始用户词(唯一手写位)"
+        # ── [152] Select① 择文合成器(替原 [15])──
+        sel1 = sg_nodes[I2I_SG_SEL1_ID]
+        assert sel1["type"] == I2I_SG_SEL_CLASS, \
+            f"[{I2I_SG_SEL1_ID}] 应为 {I2I_SG_SEL_CLASS} 择文合成器①(替原 [15])"
+        pe_l = sg_links[next(i["link"] for i in sel1["inputs"] if i["name"] == "pe开关")]
+        assert (pe_l["origin_id"], pe_l["origin_slot"]) == (-10, 7), \
+            "[152].pe开关 应接 -10 槽7(宿主面板「PE开关」)"
+        asm_l = sg_links[next(i["link"] for i in sel1["inputs"] if i["name"] == "装配全文")]
+        assert (asm_l["origin_id"], asm_l["origin_slot"]) == (-10, 4), \
+            "[152].装配全文槽 应接 -10 槽4 裸指令(pe关=直写臂真源;PE 链吃裸指令铁则)"
+        pe_out_l = sg_links[next(i["link"] for i in sel1["inputs"] if i["name"] == "PE出文")]
+        assert pe_out_l["origin_id"] == I2I_RX_ID, \
+            f"[152].PE出文 应接 [{I2I_RX_ID}] RegexExtract(lazy;pe开=PE 看图改写)"
+        assert sorted(sel1["outputs"][0]["links"] or []) == [60], \
+            "[152].最终文本 应单线喂 [141].主体句(择文上位)"
+        assert sg_links[60]["target_id"] == I2I_SG_ASM_ID, \
+            "link60 落点应 [141] 装配全文件"
+        # ── [141] 装配全文件(锁层A迁参数面)──
+        asm = sg_nodes[I2I_SG_ASM_ID]
+        assert asm["type"] == I2I_SG_ASM_CLASS, \
+            f"[{I2I_SG_ASM_ID}] 应为 {I2I_SG_ASM_CLASS}(i2i 版唯一真源,不喂 PE 链)"
+        assert [i["name"] for i in asm["inputs"]] == ["主体句", "锁层A全文", "BASE"], \
+            "[141] 槽序应=主体句/锁层A全文(参数面)/BASE(optional)"
+        subj_l = sg_links[asm["inputs"][0]["link"]]
+        assert (subj_l["origin_id"], subj_l["origin_slot"]) == (I2I_SG_SEL1_ID, 0), \
+            "[141].主体句 应接 [152].最终文本(择文上位;①层位=指令即主体)"
+        base_l = sg_links[asm["inputs"][2]["link"]]
+        assert (base_l["origin_id"], base_l["origin_slot"]) == (I2I_SG_BASE_ID, 0), \
+            "[141].BASE 应接 [150].BASE(②层,一处选型)"
+        assert asm["inputs"][I2I_SG_ASM_WV["锁层A全文"]].get("link") is None, \
+            "锁层A全文应为参数面(不接线;恒挂=Q4 可编辑大框)"
+        fan = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
+                     for l in asm["outputs"][0]["links"] or [])
+        assert fan == sorted([(I2I_SG_TE, 4), (I2I_SG_TE1, 3), (-20, 4),
+                              (I2I_SG_SEL2_ID, 5)]), \
+            f"[141].装配全文 应四路扇出([142].prompt/[171].prompt/IO槽4/[153].装配全文),得 {fan}"
         # W2 反转(0928 PE 迁子图轮):主图零 PE 链件;[12] PE 专属TE经 pe_clip 一进线
         for banned in ("TextGenerate", "StringFormat", "RegexExtract", "BatchImagesNode"):
             hit = [n["id"] for n in graph["nodes"] if n["type"] == banned]
@@ -3163,22 +3370,126 @@ class TestI2IContract:
             and pe_clip_link[1] == I2I_PE_CLIP_ID, \
             "宿主 pe_clip 槽上游应 PE CLIPLoader[12](主图加载器行一进线)"
 
+    def test_i2i_pe_chain_never_eats_assembly(self):
+        """防环红线(map §六;§10.9 依赖环裁定=t2i 实战教训):i2i PE 链六件
+        ([21][23][24][25][26][27])的每条连线输入,来源只许 -10 边界(裸指令/图/
+        pe_clip)或链内件——装配全文([141]/[153] 出文)禁入 PE 链任何输入,否则
+        数据环(141→PE→141)在引擎验证层无 lazy 豁免直接拒整 prompt。"""
+        graph = GRAPHS["i2i"]
+        sg = _qi21_sg(graph)
+        sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        for nid in I2I_PE_CHAIN_IDS:
+            node = sg_nodes[nid]
+            for inp in node.get("inputs", []):
+                lid = inp.get("link")
+                if lid is None:
+                    continue
+                l = sg_links[lid]
+                assert l["origin_id"] == -10 or l["origin_id"] in I2I_PE_CHAIN_IDS, \
+                    f"i2i 防环红线违例:[{nid}].{inp.get('name')} 上游 {l['origin_id']}" \
+                    f"(PE 链输入只许 -10 裸指令/图/pe_clip 或链内件,装配全文禁入)"
+
+    def test_i2i_select_fixed_sentences_verbatim(self):
+        """i2i 三自研件固定句参数逐字(1001 同构集成;照 t2i M-3 同款锚):
+        [141] 锁层A全文=库首节常量A 逐字;[152]/[153] 头/尾/W1 句=官方原文+库
+        §一 0930 主候选句逐字(手术脚本三源对拍:术前 delimiter 实读+t2i 工作流值
+        程序提取+my_nodes default,禁手敲)。[153] 恒 pe关=wv[0] False(纯包裹器)。"""
+        graph = GRAPHS["i2i"]
+        sg_nodes = _qi21_sg_nodes(graph)
+        types, const_a = _qi21_truth()
+        asm = sg_nodes[I2I_SG_ASM_ID]
+        assert _widget(asm, I2I_SG_ASM_WV["锁层A全文"]) == const_a, \
+            "i2i [141] 锁层A全文参数 与库首节常量不逐字一致(恒挂=装配公式第三段)"
+        for sid in (I2I_SG_SEL1_ID, I2I_SG_SEL2_ID):
+            sel = sg_nodes[sid]
+            assert _widget(sel, QI21_SG_SEL_WV["RGBA官方头句"]) == RGBA_HEAD, \
+                f"i2i [{sid}] RGBA官方头句参数 非官方原文逐字"
+            assert _widget(sel, QI21_SG_SEL_WV["RGBA官方尾句"]) == RGBA_TAIL, \
+                f"i2i [{sid}] RGBA官方尾句参数 非官方原文逐字"
+            assert _widget(sel, QI21_SG_SEL_WV["W1收束句"]) == _qi21_w1_truth(), \
+                f"i2i [{sid}] W1收束句参数 与库 §一 0930 主候选句不逐字一致"
+        assert sg_nodes[I2I_SG_SEL2_ID]["widgets_values"][QI21_SG_SEL_WV["pe开关"]] \
+            is False, "[153] pe开关应恒 false(透明包裹器②=头句+装配全文+尾句,无择文)"
+        pe_sw2 = next((i for i in sg_nodes[I2I_SG_SEL2_ID]["inputs"]
+                       if i["name"] == "pe开关"), None)
+        assert pe_sw2 is not None and pe_sw2.get("link") is None, \
+            "[153].pe开关 应 widget 恒关不接线(纯包裹器)"
+
+    def test_i2i_pe_chain_consumers_lazy(self):
+        """PE 链出线消费者 lazy 谓词(照 t2i M-4 同款,域=i2i PE 链终件 [27]):
+        pe关 ⇒ PE 链六件零执行零 PE TE 装载的静态守卫——[27] 每条出线消费者必须
+        为自研件且被喂槽声明 lazy(True)+实名懒钩子 check_lazy_status。"""
+        graph = GRAPHS["i2i"]
+        sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        rx = sg_nodes[I2I_RX_ID]
+        assert rx["type"] == "RegexExtract", f"[{I2I_RX_ID}] 应为 RegexExtract(谓词域锚)"
+        for out in rx["outputs"]:
+            for lid in (out.get("links") or []):
+                assert lid in sg_links, \
+                    f"[{I2I_RX_ID}].{out['name']} 出线 link{lid} 不在子图链接册(双写漂移)"
+                l = sg_links[lid]
+                tgt = sg_nodes[l["target_id"]]
+                slot = tgt["inputs"][l["target_slot"]]["name"]
+                cls = _load_my_node_class(tgt["type"])
+                assert cls is not None, (
+                    f"[{I2I_RX_ID}].{out['name']} 消费者 [{l['target_id']}]{tgt['type']}.{slot}"
+                    f" 非自研件(静态不可证 lazy)——pe关零装载铁律要求 [27] 出线消费者"
+                    f"全为 lazy 自研件")
+                it = cls.INPUT_TYPES()
+                decl = next((it[sec][slot] for sec in ("required", "optional")
+                             if slot in it.get(sec, {})), None)
+                assert decl is not None, \
+                    f"{tgt['type']}.{slot} 不在 INPUT_TYPES 声明面(接口漂移)"
+                meta = decl[1] if len(decl) > 1 and isinstance(decl[1], dict) else {}
+                assert meta.get("lazy") is True, (
+                    f"[{I2I_RX_ID}].{out['name']} 消费槽 {tgt['type']}.{slot} 未声明"
+                    f" lazy(True)——pe关时强依赖仍拉 PE 链整跑+装载 PE TE")
+                assert hasattr(cls, "check_lazy_status"), \
+                    f"{tgt['type']} 缺实名懒钩子 check_lazy_status(lazy 槽永不请求=拿不到值)"
+
+    def test_i2i_pe_off_lazy_dry_run(self):
+        """pe关懒执行干跑(1001 同构集成静态锚):pe关 ⇒ PE 链六件零入执行集+
+        主图 [12] PE CLIPLoader 零装载(仅经 40.pe_clip→[26] 消费);pe关路真源=
+        裸指令(-10槽4←主图 [22])经 [152] 择文直写臂进 [141] 装配。"""
+        graph = GRAPHS["i2i"]
+        asg = _asg(graph)
+        host = _host_of(graph, asg)
+        idx = ASSEMBLY_PANEL_CONTROLS["i2i"].index("PE开关")
+        host["widgets_values"][idx] = False
+        try:
+            reach = _reach_state(graph, 10)
+            for nid in I2I_PE_CHAIN_IDS:
+                assert not _reach_has(reach, asg["id"], nid), \
+                    f"pe关 PE 链件 [{nid}] 不应入执行集(Select① 择直写臂,懒执行零装载)"
+            assert not _reach_has(reach, None, 12), \
+                "pe关 主图 [12] PE CLIPLoader 不应入执行集(零 PE TE 装载)"
+            assert _reach_has(reach, None, 22), \
+                "pe关 主图 [22] 原始用户词应在执行集(直写选配臂真源=裸指令)"
+            assert _reach_has(reach, asg["id"], I2I_SG_ASM_ID), \
+                "pe关 [141] 装配全文件应在执行集(直写路=指令+BASE+锁层A)"
+        finally:
+            host["widgets_values"][idx] = True
+
     def test_default_assembly_interlocks_library(self):
-        """装配↔05 库逐字互锁:默认态装配全文=[22]指令(官方换装例句)+MyQi21DaojieBase
-        人物 base_text(逐字=05 库②层组合)+[110] 锁层A(逐字=库首节常量A)。"""
+        """装配↔05 库逐字互锁(1001 同构集成:锁层A自 [110] 常量件迁 [141] 参数面):
+        pe关直写路装配全文=[22]指令(官方换装例句)+MyQi21DaojieBase 人物
+        base_text(逐字=05 库②层组合)+[141].锁层A全文参数(逐字=库首节常量A);
+        pe开路=PE 抽取文替①层(运行时文本,静态不可逐字——同 0926 裁定1 口径,
+        本断言走 pe关选配臂核验真源)。"""
         graph = GRAPHS["i2i"]
         sg_nodes = _qi21_sg_nodes(graph)
         types, const_a = _qi21_truth()
         qi21 = {e["zh"]: e for e in json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))}
         assert qi21["人物"]["base_text"] == types[0][3], "qi21_bases.json 人物与 05 库不互锁"
-        assert _widget(sg_nodes[I2I_SG_LOCK_ID], 0) == const_a, \
-            "i2i [110] 锁层常量A 与库首节常量不逐字一致"
+        assert _widget(sg_nodes[I2I_SG_ASM_ID], I2I_SG_ASM_WV["锁层A全文"]) == const_a, \
+            "i2i [141] 锁层A全文参数 与库首节常量不逐字一致"
         assembled = "\n".join([
             _widget(_nodes(graph)[I2I_PSM_B_ID], 0),
             qi21["人物"]["base_text"],
-            _widget(sg_nodes[I2I_SG_LOCK_ID], 0)])
+            _widget(sg_nodes[I2I_SG_ASM_ID], I2I_SG_ASM_WV["锁层A全文"])])
         want = "\n".join([I2I_B_SEG, types[0][3], const_a])
-        assert assembled == want, "默认装配全文与「指令+人物型②层+锁层A」组合不逐字一致"
+        assert assembled == want, \
+            "pe关直写路装配全文与「指令+人物型②层+锁层A」组合不逐字一致"
 
     def test_lora_slot_present_and_bypassed(self):
         """0929 S3 收装:LoRA/支路/选择件/seed 全居加速子图([190] 宿主,id 沿用
@@ -3246,15 +3557,21 @@ class TestI2IContract:
                 f"i2i: 旧注入式件 [{gone}] 应已拆除(0929 并行化)"
 
     def test_all_switches_default_off(self):
-        """开关默认态(0929 并行化后):[15] PE 开关默认 true=PE 开路(默认 PE 改写;
-        关=直写按图选配)/其余 widget 全 false(懒执行旁路):[19] 画幅跟随输入图/
-        [20] 画幅双路 false/[144] RGBA 普通;旧 [30] 档位/[32] MODEL 开关已随注入式
-        机构拆除(档位语义=选择件 combo 首项,0929 拉齐重放后=直出40步)。"""
+        """开关默认态(1001 同构集成后):[152] Select① pe开关=宿主面板「PE开关」
+        默认 true=PE 开路(默认 PE 改写;关=直写按图选配,0926 裁定1)/[153]
+        Select② pe开关 widget 恒 false(纯包裹器)/其余 widget 全 false(懒执行
+        旁路):[19] 画幅跟随输入图/[20] 画幅双路 false/[144][173] RGBA 普通;
+        旧 [15]/[30]/[32] 开关件已随同构集成/0929 并行化拆除。"""
         graph = GRAPHS["i2i"]
         nodes = _nodes(graph)
         sg_nodes = _qi21_sg_nodes(graph)
-        assert sg_nodes[I2I_PE_SW_ID]["widgets_values"][0] is True, \
-            "[15] 指令开关默认应 true(默认 PE 改写,0926 裁定1;0928 迁子图)"
+        sel1 = sg_nodes[I2I_SG_SEL1_ID]
+        assert sel1["type"] == I2I_SG_SEL_CLASS and \
+            sel1["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
+            "[152] 择文合成器 pe开关默认应 true(默认 PE 改写,0926 裁定1)"
+        sel2 = sg_nodes[I2I_SG_SEL2_ID]
+        assert sel2["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is False, \
+            "[153] 透明包裹器 pe开关应恒 false(纯包裹=头句+装配全文+尾句)"
         assert nodes[I2I_LATENT_PB_ID]["widgets_values"][0] is False, "[19] 画幅开关源默认应 false"
         assert nodes[I2I_LATENT_SW_ID]["widgets_values"][0] is False, "[20] 画幅双路默认应 false"
         assert sg_nodes[I2I_SG_RGBA_SW]["widgets_values"][0] is False, "[144] RGBA 开关默认应 false"
@@ -3321,8 +3638,10 @@ class TestI2IContract:
             "应恰 1 个 QwenImage21Cache(auto/default)恒挂 MODEL 链"
 
     def test_preview_and_rgba_formula(self):
-        """[28] 装配预览(easy showAnything)接宿主 prompt 输出(跑图前过目最终文本);
-        RGBA=官方公式(头+装配全文+尾,空格 delimiter),[143].prompt 接 [163] 输出。"""
+        """[28] 装配预览(easy showAnything)接宿主 prompt 输出(跑图前过目最终
+        装配文本);RGBA=官方公式(头+装配全文+尾,空格 delimiter)——1001 同构
+        集成:[153] Select②「透明包裹器」恒 pe关=纯包裹,头尾句迁参数面逐字,
+        透明文本口(口1)替原 [162]+[163] 两拼直喂 [143].prompt+[172].prompt。"""
         graph = GRAPHS["i2i"]
         nodes, links = _nodes(graph), _links(graph)
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
@@ -3331,48 +3650,46 @@ class TestI2IContract:
             "应恰 1 个 easy showAnything 装配预览[28]"
         assert links[previews[0]["inputs"][0]["link"]][1] == I2I_HOST_ID, \
             "预览输入应接 [40] 宿主 prompt 输出"
-        assert _widget(sg_nodes[I2I_SG_RGBA_HEAD_ID], 0) == RGBA_HEAD, \
-            "RGBA 官方头句常量非官方原文逐字(This is an RGBA format image with transparency.)"
-        assert _widget(sg_nodes[I2I_SG_RGBA_TAIL_ID], 0) == RGBA_TAIL, \
-            "RGBA 官方尾句常量非官方原文逐字(The image has an alpha channel and a transparent background.)"
-        cat1, cat2 = (sg_nodes[i] for i in I2I_SG_RGBA_CAT_IDS)
-        assert sg_links[cat1["inputs"][1]["link"]]["origin_id"] == I2I_SG_CONCAT_IDS[1], \
-            "RGBA 拼接①.string_b 上游应为装配全文([28] 同源)"
-        assert cat1["widgets_values"][2] == " " and cat2["widgets_values"][2] == " ", \
-            "RGBA 公式拼接 delimiter 应为空格"
-        assert sg_links[sg_nodes[I2I_SG_TE_RGBA]["inputs"][4]["link"]]["origin_id"] \
-            == I2I_SG_RGBA_CAT_IDS[1], "RGBA 编码 prompt 应接 [163] 公式拼接输出"
+        # [153] 透明包裹器:头尾句参数逐字+装配全文←[141]+透明文本双扇出
+        sel2 = sg_nodes[I2I_SG_SEL2_ID]
+        assert sel2["type"] == I2I_SG_SEL_CLASS, \
+            f"[{I2I_SG_SEL2_ID}] 应为 {I2I_SG_SEL_CLASS} 透明包裹器②"
+        assert _widget(sel2, QI21_SG_SEL_WV["RGBA官方头句"]) == RGBA_HEAD, \
+            "[153] RGBA官方头句参数 非官方原文逐字(This is an RGBA format image with transparency.)"
+        assert _widget(sel2, QI21_SG_SEL_WV["RGBA官方尾句"]) == RGBA_TAIL, \
+            "[153] RGBA官方尾句参数 非官方原文逐字(The image has an alpha channel and a transparent background.)"
+        asm_l = sg_links[next(i["link"] for i in sel2["inputs"] if i["name"] == "装配全文")]
+        assert (asm_l["origin_id"], asm_l["origin_slot"]) == (I2I_SG_ASM_ID, 0), \
+            "[153].装配全文 应接 [141].装配全文(透明包裹真源,≡原[162].string_b)"
+        fan2 = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
+                      for l in sel2["outputs"][1]["links"] or [])
+        assert fan2 == sorted([(I2I_SG_TE_RGBA, 4), (I2I_SG_TE1R, 3)]), \
+            f"[153].透明文本 应双扇出 [143].prompt(槽4)+[172].prompt(槽3),得 {fan2}"
+        assert not (sel2["outputs"][0].get("links") or []), \
+            "[153].最终文本口应悬空(透明包裹器唯透明文本产出)"
         assert _widget(sg_nodes[I2I_SG_TE_RGBA], TE_WV["prompt"]) == "", \
             "RGBA 编码 prompt widget 应清空(公式路现拼)"
+        # RGBA 开关组(直连形态,Reroute 已消化):on_false=[142]/on_true=[143]/
+        # switch=[180];单图线镜像 [173].switch 同源 [180]
         rsw = sg_nodes[I2I_SG_RGBA_SW]
-        _os, _ = _qi21_trace_origin(sg_nodes, sg_links, rsw["inputs"][2]["link"])
-        assert _os == I2I_SG_RGBA_SEL, \
-            f"[144].switch 应接 [{I2I_SG_RGBA_SEL}] MyQi21RgbaSelect(0929 S2 D6 型联动),得 {_os}"
-        _of, _ = _qi21_trace_origin(sg_nodes, sg_links, rsw["inputs"][0]["link"])
-        assert _of == I2I_SG_TE, \
-            "[144].on_false 上游(可穿 [183] 垫脚石)应主编码 [142](0929 S2 垫链)"
-        _os1, _ = _qi21_trace_origin(sg_nodes, sg_links,
-                                     sg_nodes[I2I_SG_TE1SW]["inputs"][2]["link"])
-        assert _os1 == I2I_SG_RGBA_SEL, \
-            f"[173] 镜像开关 switch 应接 [{I2I_SG_RGBA_SEL}](D6 同源扇出),得 {_os1}"
-        # 0926 线不遮节点轮:[143]→[144].on_true 横穿同行 [142] 不可避(行3 三件
-        # 同 y 带)→ 生成器垫 Reroute[170] 拐点走行2/行3 框间净空带;溯源可穿
-        # 拐点(同生成器 _trace_origin 口径)
-        _t_link = rsw["inputs"][1]["link"]
-        while _t_link is not None and sg_links[_t_link]["origin_id"] != -10 and \
-                sg_nodes[sg_links[_t_link]["origin_id"]]["type"] == "Reroute":
-            _t_link = sg_nodes[sg_links[_t_link]["origin_id"]]["inputs"][0].get("link")
-        assert _t_link is not None and \
-            sg_links[_t_link]["origin_id"] == I2I_SG_TE_RGBA, \
-            "[144].on_true 应 RGBA 编码 [143](可穿 Reroute 拐点垫脚石)"
+        assert sg_links[rsw["inputs"][0]["link"]]["origin_id"] == I2I_SG_TE, \
+            "[144].on_false 上游应主编码 [142](Reroute 中继已消化直连)"
+        assert sg_links[rsw["inputs"][1]["link"]]["origin_id"] == I2I_SG_TE_RGBA, \
+            "[144].on_true 应 RGBA 编码 [143](直连)"
+        assert sg_links[rsw["inputs"][2]["link"]]["origin_id"] == I2I_SG_RGBA_SEL, \
+            "[144].switch 应接 [180] MyQi21RgbaSelect(0929 S2 D6 型联动,直连)"
+        _os1 = sg_links[sg_nodes[I2I_SG_TE1SW]["inputs"][2]["link"]]
+        assert _os1["origin_id"] == I2I_SG_RGBA_SEL, \
+            f"[173] 镜像开关 switch 应接 [{I2I_SG_RGBA_SEL}](D6 同源扇出),得 {_os1['origin_id']}"
 
     def test_no_custom_titles_except_selfbuilt(self):
-        """节点标题铁律(0924-r8+0925 归位;0929 S3 三域版):核心/第三方节点零
-        自定义 title,仅自研(My*)可命+两子图宿主(type=子图 uuid 非核心/第三方件,
-        t2i 宿主先例)——i2i 带 title 的节点=装配子图 MyQi21DaojieBase[150]+
-        MyQi21RgbaSelect[180](0929 S2 ⑤机制批)+加速子图 MyQi21SpeedSelect[192]
-        (0929 S3 收装,id 让位宿主新分)+主图 [40]「[40] 装配子图」/[190]「加速
-        子图」两宿主;自研标题零道劫前缀(道劫只留 Group 框/子图名/说明卡)。"""
+        """节点标题铁律(0924-r8+0925 归位;1001 同构集成后三域版):核心/第三方
+        节点零自定义 title,仅自研(My*)可命+两子图宿主(type=子图 uuid 非核心/
+        第三方件,t2i 宿主先例)——i2i 带 title 的节点=装配子图 MyQi21DaojieBase[150]
+        +MyQi21RgbaSelect[180]+MyQi21PromptAssembly[141]+MyQi21PromptSelect[152]
+        [153](1001 同构集成新立三件)+加速子图 MyQi21SpeedSelect[192]+主图 [40]
+        「[40] 提示词类型优化子图」/[190]「加速子图」两宿主;自研标题零道劫前缀
+        (道劫只留 Group 框/子图名/说明卡)。"""
         graph = GRAPHS["i2i"]
         sg = _qi21_sg(graph)
         xsg = _xsg(graph)
@@ -3381,13 +3698,17 @@ class TestI2IContract:
                   if "title" in n]
         assert sorted(titled) == sorted([(I2I_SG_BASE_ID, "MyQi21DaojieBase"),
                                          (I2I_SG_RGBA_SEL, "MyQi21RgbaSelect"),
+                                         (I2I_SG_ASM_ID, "MyQi21PromptAssembly"),
+                                         (I2I_SG_SEL1_ID, "MyQi21PromptSelect"),
+                                         (I2I_SG_SEL2_ID, "MyQi21PromptSelect"),
                                          (I2I_XSEL_ID, SPEED_SELECT_CLASS),
                                          (I2I_HOST_ID, sg["id"]),
                                          (I2I_XHOST_ID, xsg["id"])]), \
-            f"带 title 节点应恰 [150]/[180]/[192]/[40]宿主/[190]宿主 五件,得 {titled}"
-        base_title = _qi21_sg_nodes(graph)[I2I_SG_BASE_ID].get("title") or ""
-        assert "道劫" not in base_title, \
-            f"[150] 自研件标题应零道劫前缀(0925 归位),得 {base_title!r}"
+            f"带 title 节点应恰 [150]/[180]/[141]/[152]/[153]/[192]/[40]宿主/[190]宿主 八件,得 {titled}"
+        for nid in (I2I_SG_BASE_ID, I2I_SG_ASM_ID, I2I_SG_SEL1_ID, I2I_SG_SEL2_ID):
+            t = _qi21_sg_nodes(graph)[nid].get("title") or ""
+            assert "道劫" not in t, \
+                f"[{nid}] 自研件标题应零道劫前缀(0925 归位),得 {t!r}"
         sel_title = _sg_nodes(xsg)[I2I_XSEL_ID].get("title") or ""
         assert sel_title == "出图速度选择", \
             f"[{I2I_XSEL_ID}] 选择件标题应=「出图速度选择」(0929 S1),得 {sel_title!r}"

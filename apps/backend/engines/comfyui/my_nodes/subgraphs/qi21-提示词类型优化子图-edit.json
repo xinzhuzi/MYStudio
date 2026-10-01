@@ -1,0 +1,1217 @@
+{
+  "revision": 1,
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "6a0e2f81-1a4b-4c2d-9e30-5b7c8d9e0f01",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        560,
+        480
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 4
+        },
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 9
+        },
+        {
+          "name": "image_2",
+          "type": "IMAGE",
+          "link": 10
+        },
+        {
+          "name": "指令",
+          "type": "STRING",
+          "widget": {
+            "name": "指令"
+          },
+          "link": 15
+        },
+        {
+          "name": "PE开关",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "PE开关"
+          },
+          "link": null
+        },
+        {
+          "name": "pe_clip",
+          "type": "CLIP",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            68
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "positive_single",
+          "type": "CONDITIONING",
+          "links": [
+            69
+          ]
+        }
+      ],
+      "properties": {
+        "subgraph": "6a0e2f81-1a4b-4c2d-9e30-5b7c8d9e0f01",
+        "previewExposures": []
+      },
+      "widgets_values": [
+        "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
+        true
+      ],
+      "title": "[40] 提示词类型优化子图"
+    }
+  ],
+  "links": [],
+  "version": 0.4,
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "6a0e2f81-1a4b-4c2d-9e30-5b7c8d9e0f01",
+        "name": "[40] 提示词类型优化子图(双击进入)",
+        "version": 1,
+        "revision": 0,
+        "state": {
+          "lastGroupId": 2,
+          "lastNodeId": 152,
+          "lastLinkId": 25,
+          "lastRerouteId": 0
+        },
+        "config": {
+          "defaultIOState": {}
+        },
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        },
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            -360,
+            -140,
+            160,
+            1240
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            4620,
+            3100,
+            320,
+            850
+          ]
+        },
+        "inputs": [
+          {
+            "id": "a40d0001-0000-4000-8000-0000000000a1",
+            "name": "clip",
+            "type": "CLIP",
+            "linkIds": [
+              1,
+              2
+            ],
+            "pos": [
+              -36,
+              3140
+            ]
+          },
+          {
+            "id": "a40d0002-0000-4000-8000-0000000000a2",
+            "name": "vae",
+            "type": "VAE",
+            "linkIds": [
+              3,
+              4
+            ],
+            "pos": [
+              -36,
+              3180
+            ]
+          },
+          {
+            "id": "a40d0003-0000-4000-8000-0000000000a3",
+            "name": "image_1",
+            "type": "IMAGE",
+            "linkIds": [
+              5,
+              6,
+              7
+            ],
+            "pos": [
+              -36,
+              100
+            ]
+          },
+          {
+            "id": "a40d0004-0000-4000-8000-0000000000a4",
+            "name": "image_2",
+            "type": "IMAGE",
+            "linkIds": [
+              8,
+              9
+            ],
+            "pos": [
+              -36,
+              140
+            ]
+          },
+          {
+            "id": "a40d0005-0000-4000-8000-0000000000a5",
+            "name": "指令",
+            "type": "STRING",
+            "linkIds": [
+              10,
+              11
+            ],
+            "pos": [
+              -36,
+              1640
+            ]
+          },
+          {
+            "id": "a40d0006-0000-4000-8000-0000000000a6",
+            "name": "PE开关",
+            "type": "BOOLEAN",
+            "linkIds": [
+              12
+            ],
+            "pos": [
+              3200,
+              2420
+            ]
+          },
+          {
+            "id": "a40d0007-0000-4000-8000-0000000000a7",
+            "name": "pe_clip",
+            "type": "CLIP",
+            "linkIds": [
+              13
+            ],
+            "pos": [
+              1900,
+              830
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "b40d0001-0000-4000-8000-0000000000b1",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "linkIds": [
+              22
+            ],
+            "pos": [
+              4600,
+              3140
+            ]
+          },
+          {
+            "id": "b40d0002-0000-4000-8000-0000000000b2",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "linkIds": [
+              23
+            ],
+            "pos": [
+              4600,
+              3340
+            ]
+          },
+          {
+            "id": "b40d0003-0000-4000-8000-0000000000b3",
+            "name": "latent",
+            "type": "LATENT",
+            "linkIds": [
+              24
+            ],
+            "pos": [
+              4600,
+              3540
+            ]
+          },
+          {
+            "id": "b40d0004-0000-4000-8000-0000000000b4",
+            "name": "positive_single",
+            "type": "CONDITIONING",
+            "linkIds": [
+              25
+            ],
+            "pos": [
+              4600,
+              3900
+            ]
+          }
+        ],
+        "widgets": [
+          "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
+          true
+        ],
+        "nodes": [
+          {
+            "id": 21,
+            "type": "PrimitiveStringMultiline",
+            "pos": [
+              1000,
+              80
+            ],
+            "size": [
+              300,
+              180
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "STRING",
+                "widget": {
+                  "name": "value"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "STRING",
+                "type": "STRING",
+                "links": [
+                  14
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "PrimitiveStringMultiline"
+            },
+            "widgets_values": [
+              "<|im_start|>system\n# Edit Prompt Enhancer — General (v2, 精简版)\n\n**FIRST — there are TWO separate language decisions. Do NOT conflate them.**\n\n**(A) Language of the rewritten prompt's DESCRIPTIVE prose — every word OUTSIDE double quotes (the description you write for the diffusion model, NOT the text painted into the image). This decision is final and non-negotiable:**\n- User instruction is in Chinese → write the description in Chinese.\n- User instruction is in English → write the description in English.\n- User instruction is in ANY other language (Japanese, Korean, French, Spanish, Thai, etc.) → write the description in English.\n\n**(B) Language of the TEXT THAT WILL BE RENDERED INTO THE OUTPUT IMAGE — the content INSIDE double quotes. Decide it in this strict priority order:**\n1. If the user's instruction gives the exact text to write, OR names a target language for the text (e.g. \"改成'夏日特惠'\", \"把标题写成英文\", \"add a Japanese title\", \"write the caption in Thai\") → render exactly that text / in exactly that specified language.\n2. Otherwise, if the input image already contains text → render in the DOMINANT language of the image's existing text — even when the instruction is written in a different language.\n3. Otherwise (the image contains no text AND the instruction names no target language) → render in the language of the user's instruction itself — including Japanese, Korean, Thai, Arabic, French, etc. Do NOT force it to English.\nWorked example: image is mostly Thai, instruction is in English asking to add/redesign a title without giving the exact words or a language → the rendered (quoted) text must be **Thai** (the image's dominant language), while the surrounding description (A) is still written in English.\n\nTwo reinforcements on decision (B): all rendered (quoted) text must be **monolingual** — do not mix Chinese and English inside the quotes and do not emit a bilingual pair unless the user explicitly asks for one. And **genre never overrides input language**: a \"spec sheet / cinematic data-document / storyboard / technical parameter\" look is achieved through layout and typography, NOT by switching rendered labels to English — every header, label, and caption stays in the decided language (standardized units and user-given proper nouns may remain Latin).\n\nYou are an expert at clarifying image editing instructions. Given a user's vague or ambiguous edit instruction and the input image(s), rewrite it into a precise, unambiguous, actionable editing directive. An input image is ALWAYS present — this is always an image-editing task, never text-to-image from nothing.\n\n## Core Objective\n\nRewrite the instruction so a downstream image-editing model can execute it without guessing — anchored on what the input image(s) actually show, faithful to the user's intent, inventing nothing.\n\n**How much you build is intent-branched.** When the user wants *this picture changed* (a local object/attribute/background edit, a text or UI edit, a quality or style change, a viewpoint/canvas transform), clarify and constrain: say exactly what changes, and let everything else stand. When the user wants *a new picture of this subject* (placing a subject in a new scene, compositing across images, a photo-shoot or poster or infographic built from a reference), construct actively: design the scene, lighting, composition and layout to a professional standard. Scale the elaboration to what was asked — a plain placement stays restrained, a styled shoot or a publication-grade poster is built out fully.\n\n## The Governing Principle — Attribute Disentanglement at Full Strength\n\n**Edit exactly the attribute(s) the user named, push each to a strong and unmistakable degree, and hold everything else at input fidelity.**\n\nBoth halves matter, and the two failure modes are symmetric:\n\n- **Leakage** — touching what the user did not name (a sharpen that re-grades color, an upscale that reframes, a style change that drifts a face, an outfit swap that drops an accessory, a background change that \"helpfully\" cleans up something unmentioned).\n- **Under-editing** — an output a viewer could mistake for the unedited input, because the requested change was applied faintly.\n\nPreservation locks **content, never edit strength**. Recognizability is bought by naming what stays fixed, not by holding the effect back.\n\n## What to Anchor, What to Decide\n\n**Anchor on the image.** Every spatial, tonal and contextual claim comes from what is visibly there. If you are unsure a detail exists, leave it out — a preserved element described at a higher level of abstraction is always safer than an invented specific.\n\n**Say what stays, without repainting it.** Name the untargeted content by type, position and role rather than describing its appearance, and prefer one blanket preservation clause over walking the frame. A preservation description reads to the model as a generation instruction: the more concretely you describe something you meant to keep, the more likely it drifts. Describe appearance concretely only for what you are actually changing, or when it is the only way to disambiguate between similar objects.\n\n**Identity is the hardest invariant.** A person's facial identity and the personal accessories that make them recognizable; a product's exact design, markings and count; and the input's rendering medium (photograph, anime, illustration, sketch, 3D render, painting) all survive every edit unless the user explicitly targets them. When identity comes from a reference image, point at that image rather than describing features in words — verbal descriptions make the model regenerate and degrade the likeness.\n\n**Resolve ambiguity, then commit.** Turn vague intent, imprecise spatial reference and unparameterized style words into something concrete and observable. Translate abstract quality language into the visual properties it implies. Where the instruction offers alternatives or contradicts itself, pick the most reasonable reading and state it as a decision. Keep the user's own action verb, spatial relations and described state intact, and treat anything they asked to preserve as absolute. Preserve creative or physically impossible intent rather than correcting it.\n\n**Only what was asked.** Do not add operations the user did not request, and do not clean up unmentioned defects, overlays or clutter however prominent they look. When an edit removes, moves or reveals something, say enough about the newly exposed region that the result stays physically coherent.\n\n**Text in the image is literal.** Whenever readable text will appear in the output, commit to the exact characters — every element, quoted, nothing summarized or abbreviated away. Text you cannot commit to should not be added at all. Match the typography and language the input establishes unless the user asks otherwise. When the operation extends the canvas outward, name it as outpainting explicitly.\n\n**Write it as an instruction.** Lead with the operation, not a description of the finished picture, and write from the perspective of someone holding only the input image(s).\n\n## Thinking Process\n\nBefore emitting JSON, reason through: what the image(s) actually contain (including a complete reading of any text present); what the user is asking for and which attributes that names; what must therefore stay fixed; the output size; and finally the composed directive. Close with a check that every visible element is either the target of the edit or covered by what stays fixed, that the requested change is unmistakable, that nothing outside the target was touched, and that every quoted string obeys language decision (B).\n\n## Image Reference Rules\n\nFor Multi-Image Input (N >= 2), the rewritten instruction MUST use `<image1>`, `<image2>`, ... to refer to each input image. Do not use natural language references like \"图1\", \"第一张图\", \"the first image\", or \"image A\". This tagging format is mandatory and non-negotiable. For single-image input (N = 1), do NOT use tags — refer to the image naturally (\"图像\", \"图片中\", \"the image\").\n\nState each image's role explicitly — which one is the canvas whose composition and untargeted content survive, and which supply material to transfer — and say what is taken from each. For scene generation with no canvas (合影/合照 and the like), all images serve as identity sources. Describe every referenced image individually; never compress several into a range or a group to avoid describing them one by one.\n\n## Output Size Determination\n\nYou must determine two output fields: `wh_ratio` and `ratio_follow`. These two fields are mutually exclusive — when one has a value, the other must be empty string \"\".\n\n### Step 1: Check if the user explicitly specified a size or aspect ratio\n\nLook for any of the following in the user's edit instruction:\n- Exact pixel dimensions: \"1920x1080\", \"800×600\", \"1080p\"\n- Aspect ratios: \"16:9\", \"4:3\", \"3:2\", \"9:16\", \"1:1\"\n- Descriptive terms mapped to aspect ratios:\n  - \"正方形\" / \"square\" / \"头像\" / \"avatar\" / \"profile picture\" / \"专辑封面\" / \"album cover\" → \"1:1\"\n  - \"横版\" / \"landscape\" / \"横屏\" / \"电脑壁纸\" / \"desktop wallpaper\" / \"宽屏\" / \"widescreen\" / \"视频封面\" / \"video thumbnail\" / \"PPT\" / \"幻灯片\" / \"slide\" / \"演示文稿\" → \"16:9\"\n  - \"竖版\" / \"portrait\" / \"竖屏\" / \"手机壁纸\" / \"phone wallpaper\" / \"手机屏幕\" / \"Instagram story\" / \"Stories\" / \"Reels\" / \"短视频封面\" → \"9:16\"\n  - \"手机全面屏\" / \"全面屏\" / \"iPhone屏幕\" / \"iPhone screen\" → \"18:39\"\n  - \"安卓全面屏\" / \"Android screen\" → \"9:20\"\n  - \"超宽\" / \"ultrawide\" / \"带鱼屏\" → \"7:3\"\n  - \"电影画面\" / \"cinematic\" / \"电影比例\" / \"宽银幕\" / \"cinemascope\" → \"21:9\"\n  - \"海报\" / \"poster\" → \"2:3\"\n  - \"证件照\" / \"ID photo\" / \"passport photo\" / \"小红书\" / \"Xiaohongshu\" → \"3:4\"\n  - \"iPad屏幕\" / \"tablet\" / \"平板屏幕\" → \"4:3\"\n  - \"全景图\" / \"panoramic\" / \"panorama\" → \"2:1\"\n  - \"名片\" / \"business card\" → \"9:5\"\n  - \"A4\" → \"5:7\"(竖向)or \"7:5\"(横向)\n  - \"1080p\" / \"720p\" → \"16:9\"\n\n**High-resolution keywords (\"2K\", \"4K\", \"8K\") are quality descriptors, NOT aspect ratio indicators.** When the user mentions \"2K\", \"4K\", or \"8K\", these only express a desire for high image quality. They must NOT be used to infer or determine the aspect ratio. The aspect ratio should still be determined by other explicit cues or by the input image's ratio. For output resolution, always use 2K-level resolution regardless of whether the user says \"2K\", \"4K\", or \"8K\".\n\nIf the user specified a size or ratio:\n→ `wh_ratio` = the corresponding ratio (e.g., \"16:9\", \"1:1\", \"3:2\")\n→ `ratio_follow` = \"\"\n\nIf the user specified exact pixel dimensions (e.g., \"1920x1080\"), convert to the simplest integer ratio (1920:1080 = 16:9).\n\n### Step 2: If the user did NOT specify any size or ratio\n\n#### Single-image editing (1 input image):\nThe output should follow the input image's resolution.\n→ `wh_ratio` = \"\"\n→ `ratio_follow` = \"<image1>\"\n\n**Exception — Single-image scene generation**: If the task generates a new scene from scratch using the input image only as an identity reference (e.g., \"拍一套写真\", \"cosplay成X\", \"穿越到古代\"), do NOT follow the input image's ratio — the output is a new composition, not an edit of the existing image. Instead, choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Portrait / 写真 / half-body | \"2:3\" |\n| Full-body scene / outdoor activity | \"3:4\" |\n| Landscape-oriented scene | \"3:2\" |\n| No clear orientation hint | Follow the input image's ratio (set `ratio_follow` to `<image1>`, `wh_ratio` to \"\") |\n\n#### Multi-image editing (N ≥ 2 input images):\nYou must identify the **canvas image** (the image whose composition and framing the output should follow), then set `ratio_follow` to that image's tag.\n\n| Edit type | Canvas | ratio_follow |\n|---|---|---|\n| Compositing — transfer subject into a scene (\"把A P到B中\", \"放到\", \"加入到\") | The target scene image | \"<imageX>\" (scene image number) |\n| Face/head swap (\"换脸\", \"换头\") | The body image | \"<imageX>\" (body image number) |\n| Clothing swap (\"换衣服\", \"换装\") | The person image | \"<imageX>\" (person image number) |\n| Style transfer (\"画成X的风格\", \"风格迁移\") | The content image (not the style reference) | \"<imageX>\" (content image number) |\n| Background replacement | The foreground subject image | \"<imageX>\" (subject image number) |\n| Local object replacement | The original image being edited | \"<imageX>\" (original image number) |\n| Scene generation — no canvas (\"合影\", \"合照\", \"一起变老\", \"让他们X\") | No canvas — you must choose a ratio | See below |\n\nFor **scene generation tasks with no canvas** (合影, 合照, 一起吃饭, etc.), set `ratio_follow` = \"\" and choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Group photo / 合影 / 合照 | \"3:2\" |\n| Portrait / 写真 | \"2:3\" |\n| Poster / 海报 | \"2:3\" |\n| Desktop wallpaper | \"16:9\" |\n| Phone wallpaper | \"9:16\" |\n| No clear orientation hint | Follow the last input image's ratio (set `ratio_follow` to the last image, `wh_ratio` to \"\") |\n\n#### Outpainting (扩图 / 延伸画面):\n\nFor outpainting tasks where the user did NOT specify a target aspect ratio, do NOT simply follow the input image's ratio — outpainting changes the image's proportions by definition. Instead, infer the new ratio from the extension direction:\n\n- Extend **right only** or **left only**: widen the ratio. E.g., a 1:1 input → \"3:2\"; a 3:4 input → \"1:1\" or \"4:3\".\n- Extend **both left and right**: widen more aggressively. E.g., a 1:1 input → \"16:9\" or \"2:1\".\n- Extend **down only** or **up only**: make the ratio taller. E.g., a 1:1 input → \"2:3\"; a 16:9 input → \"4:3\" or \"1:1\".\n- Extend **both up and down**: make the ratio significantly taller. E.g., a 1:1 input → \"9:16\".\n- Extend **all sides**: keep the original ratio (the image grows uniformly).\n\nAs a general rule, estimate the extended area as roughly 30%–50% additional space in the specified direction(s), then compute the new W:H ratio accordingly. Set `ratio_follow` = \"\" and `wh_ratio` = the inferred ratio.\n\n#### Panoramic generation (全景 / panorama):\n\n| Panoramic type | wh_ratio |\n|---|---|\n| Standard panorama / 全景 | \"2:1\" |\n| Wide panorama / 超宽全景 | \"3:1\" |\n| 360° / VR panorama | \"2:1\" |\n| User specified a different ratio | Use the user's specified ratio |\n\nSet `ratio_follow` = \"\".\n\n#### Three-view drawings and multi-grid generation (三视图 / 多宫格):\n\nFor three-view or multi-panel grid generation where the user did NOT specify an aspect ratio, do NOT use a fixed default. Determine it adaptively from:\n\n1. **Subject shape proportion**: a tall standing person is vertically oriented, a car is horizontally oriented, a round object roughly square.\n2. **Panel layout arrangement**: how the panels are arranged (1×3 horizontal, 3×1 vertical, 2×2) and the shape of each panel.\n3. **Combined ratio**: (single panel W × columns) : (single panel H × rows), choosing the ratio that best fits the content without excessive empty space or cropping.\n\nExamples:\n- Three side-by-side views of a standing person (each panel ~1:3, portrait) → overall ratio = \"1:1\" — do NOT over-widen to \"2:1\" or \"3:1\", which would squash each portrait panel (use \"3:1\" only when each panel is itself landscape, e.g., a car)\n- Three side-by-side views of a car (each panel ~3:2) → overall ratio = \"3:1\" or \"9:2\"\n- 2×2 grid of a square object → overall ratio = \"1:1\"\n- 3×3 grid of square panels → overall ratio = \"1:1\"\n\nSet `ratio_follow` = \"\" and `wh_ratio` = the adaptively determined ratio.\n\n## Output Format\nOutput a valid JSON object with exactly three fields:\n```json\n{\n  \"rewritten_prompt\": \"<the rewritten editing instruction>\",\n  \"wh_ratio\": \"<aspect ratio like '16:9', or empty string>\",\n  \"ratio_follow\": \"<'<image1>' / '<image2>' / ... / ''>\"\n}\n```\n\n`rewritten_prompt` formatting rules:\n- The entire rewritten prompt must be a single continuous paragraph with NO line breaks or newline characters (`\\n`).\n- All text that should appear as visible, readable content in the output image must be enclosed in double quotes (\"\"). Descriptive or structural language that does not appear as rendered text should NOT be quoted.\n- **Never include any resolution or aspect ratio information in `rewritten_prompt`** (e.g., \"2:3\", \"16:9\", \"1920x1080\", \"2K\", \"4K\"). Resolution and aspect ratio are conveyed exclusively through the `wh_ratio` and `ratio_follow` fields.\n- Write it out in full — no ellipsis, no truncation.\n- State requirements affirmatively (\"保持背景与输入图完全一致\") rather than as prohibitions (\"禁止改变背景\"). Standard preservation phrasing \"保持/保留[X]不变\" is fine.\n- Be precise and decisive: no hedging, no unresolved alternatives, no vague degree words left unresolved.\n- **Language-purge self-check (do this last)**: re-scan every double-quoted string — the text that will be RENDERED in the image — and enforce language decision (B). No quoted string may mix Chinese and English, form a bilingual pair, or carry a parenthetical translation gloss unless the user explicitly asked. Standardized units and user-given proper nouns may remain Latin.\n\nRules for each field:\n- `rewritten_prompt`: The rewritten editing instruction. The descriptive prose (outside double quotes) follows language decision (A); the text rendered inside the image (inside double quotes) follows language decision (B). Retain proper nouns and domain-specific terms in their original language, placed in English double quotes.\n- `wh_ratio`: The target aspect ratio as \"W:H\". Set to \"\" when the output resolution should follow an input image instead.\n- `ratio_follow`: Which input image's resolution the output should follow (\"<image1>\", \"<image2>\", …). Set to \"\" when a specific aspect ratio is provided in `wh_ratio`.\n\nMutual exclusivity rule:\n- If `wh_ratio` has a value → `ratio_follow` must be \"\"\n- If `ratio_follow` is \"<imageX>\" → `wh_ratio` must be \"\"\n\nDo not include any text outside the JSON object — no greetings, no explanations, no markdown code fences.\n\nThe user's edit instruction to rewrite is:\n\n<|im_end|>\n<|im_start|>user"
+            ]
+          },
+          {
+            "id": 23,
+            "type": "PrimitiveStringMultiline",
+            "pos": [
+              1000,
+              840
+            ],
+            "size": [
+              260,
+              180
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "STRING",
+                "widget": {
+                  "name": "value"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "STRING",
+                "type": "STRING",
+                "links": [
+                  15
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "PrimitiveStringMultiline"
+            },
+            "widgets_values": [
+              "\n<|im_end|>\n<|im_start|>assistant\n<think>"
+            ]
+          },
+          {
+            "id": 24,
+            "type": "StringFormat",
+            "pos": [
+              1400,
+              1600
+            ],
+            "size": [
+              300,
+              130
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "values.a",
+                "type": "*",
+                "shape": 7,
+                "link": 14
+              },
+              {
+                "name": "values.b",
+                "type": "*",
+                "shape": 7,
+                "link": 10
+              },
+              {
+                "name": "values.c",
+                "type": "*",
+                "shape": 7,
+                "link": 15
+              },
+              {
+                "name": "f_string",
+                "type": "STRING",
+                "widget": {
+                  "name": "f_string"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "STRING",
+                "type": "STRING",
+                "links": [
+                  16
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "StringFormat"
+            },
+            "widgets_values": [
+              "{a}{b}{c}"
+            ]
+          },
+          {
+            "id": 25,
+            "type": "BatchImagesNode",
+            "pos": [
+              1560,
+              80
+            ],
+            "size": [
+              260,
+              170
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "images.image0",
+                "type": "IMAGE",
+                "link": 7
+              },
+              {
+                "name": "images.image1",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 9
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  17
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "BatchImagesNode"
+            }
+          },
+          {
+            "id": 26,
+            "type": "TextGenerate",
+            "pos": [
+              2000,
+              840
+            ],
+            "size": [
+              400,
+              450
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "clip",
+                "type": "CLIP",
+                "link": 13
+              },
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 17
+              },
+              {
+                "name": "video",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": null
+              },
+              {
+                "name": "audio",
+                "type": "AUDIO",
+                "shape": 7,
+                "link": null
+              },
+              {
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 16
+              },
+              {
+                "name": "max_length",
+                "type": "INT",
+                "widget": {
+                  "name": "max_length"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode",
+                "type": "COMFY_DYNAMICCOMBO_V3",
+                "widget": {
+                  "name": "sampling_mode"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode.temperature",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sampling_mode.temperature"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode.top_k",
+                "type": "INT",
+                "widget": {
+                  "name": "sampling_mode.top_k"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode.top_p",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sampling_mode.top_p"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode.min_p",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sampling_mode.min_p"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode.repetition_penalty",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sampling_mode.repetition_penalty"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode.seed",
+                "type": "INT",
+                "widget": {
+                  "name": "sampling_mode.seed"
+                },
+                "link": null
+              },
+              {
+                "name": "sampling_mode.presence_penalty",
+                "type": "FLOAT",
+                "shape": 7,
+                "widget": {
+                  "name": "sampling_mode.presence_penalty"
+                },
+                "link": null
+              },
+              {
+                "name": "thinking",
+                "type": "BOOLEAN",
+                "shape": 7,
+                "widget": {
+                  "name": "thinking"
+                },
+                "link": null
+              },
+              {
+                "name": "use_default_template",
+                "type": "BOOLEAN",
+                "shape": 7,
+                "widget": {
+                  "name": "use_default_template"
+                },
+                "link": null
+              },
+              {
+                "name": "mtp",
+                "type": "COMBO",
+                "shape": 7,
+                "widget": {
+                  "name": "mtp"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "generated_text",
+                "type": "STRING",
+                "links": [
+                  18
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextGenerate"
+            },
+            "widgets_values": [
+              "",
+              8192,
+              "on",
+              0.7,
+              20,
+              0.95,
+              0.05,
+              1.05,
+              42,
+              1.5,
+              false,
+              false,
+              "auto"
+            ]
+          },
+          {
+            "id": 27,
+            "type": "RegexExtract",
+            "pos": [
+              2700,
+              2360
+            ],
+            "size": [
+              330,
+              260
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "string",
+                "type": "STRING",
+                "widget": {
+                  "name": "string"
+                },
+                "link": 18
+              },
+              {
+                "name": "regex_pattern",
+                "type": "STRING",
+                "widget": {
+                  "name": "regex_pattern"
+                },
+                "link": null
+              },
+              {
+                "name": "mode",
+                "type": "COMBO",
+                "widget": {
+                  "name": "mode"
+                },
+                "link": null
+              },
+              {
+                "name": "case_insensitive",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "case_insensitive"
+                },
+                "link": null
+              },
+              {
+                "name": "multiline",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "multiline"
+                },
+                "link": null
+              },
+              {
+                "name": "dotall",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "dotall"
+                },
+                "link": null
+              },
+              {
+                "name": "group_index",
+                "type": "INT",
+                "widget": {
+                  "name": "group_index"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "STRING",
+                "type": "STRING",
+                "links": [
+                  19
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "RegexExtract"
+            },
+            "widgets_values": [
+              "",
+              "\"rewritten_prompt\"\\s*:\\s*\"(.*?)\"\\s*,\\s*\"wh_ratio\"\\s*:",
+              "First Group",
+              false,
+              false,
+              true,
+              1
+            ]
+          },
+          {
+            "id": 6,
+            "type": "TextEncodeQwenImage21",
+            "pos": [
+              3760,
+              3120
+            ],
+            "size": [
+              760,
+              480
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "clip",
+                "type": "CLIP",
+                "link": 1
+              },
+              {
+                "name": "images.image_1",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 5
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "shape": 7,
+                "link": 3
+              },
+              {
+                "name": "images.image_2",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 8
+              },
+              {
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 20
+              }
+            ],
+            "outputs": [
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  22
+                ]
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "links": [
+                  23
+                ]
+              },
+              {
+                "name": "latent",
+                "type": "LATENT",
+                "links": [
+                  24
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextEncodeQwenImage21"
+            },
+            "widgets_values": [
+              "",
+              "",
+              0
+            ]
+          },
+          {
+            "id": 43,
+            "type": "TextEncodeQwenImage21",
+            "pos": [
+              3760,
+              3880
+            ],
+            "size": [
+              760,
+              480
+            ],
+            "flags": {},
+            "order": 8,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "clip",
+                "type": "CLIP",
+                "link": 2
+              },
+              {
+                "name": "images.image_1",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 6
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "shape": 7,
+                "link": 4
+              },
+              {
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 21
+              }
+            ],
+            "outputs": [
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  25
+                ]
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "links": []
+              },
+              {
+                "name": "latent",
+                "type": "LATENT",
+                "links": []
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextEncodeQwenImage21"
+            },
+            "widgets_values": [
+              "",
+              "",
+              0
+            ]
+          },
+          {
+            "id": 152,
+            "type": "MyQi21PromptSelect",
+            "title": "最终文本合成器(pe开=PE出文/pe关=指令直写;edit 同构收编,透明文本悬空=无 RGBA 编码件)",
+            "pos": [
+              3360,
+              2360
+            ],
+            "size": [
+              380,
+              260
+            ],
+            "flags": {},
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "pe开关",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "pe开关"
+                },
+                "link": 12
+              },
+              {
+                "name": "透明模式",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "透明模式"
+                },
+                "link": null
+              },
+              {
+                "name": "RGBA官方头句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方头句"
+                },
+                "link": null
+              },
+              {
+                "name": "RGBA官方尾句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方尾句"
+                },
+                "link": null
+              },
+              {
+                "name": "W1收束句",
+                "type": "STRING",
+                "widget": {
+                  "name": "W1收束句"
+                },
+                "link": null
+              },
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 11
+              },
+              {
+                "name": "PE出文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 19
+              }
+            ],
+            "outputs": [
+              {
+                "name": "最终文本",
+                "type": "STRING",
+                "links": [
+                  20,
+                  21
+                ]
+              },
+              {
+                "name": "透明文本",
+                "type": "STRING",
+                "links": []
+              }
+            ],
+            "widgets_values": [
+              true,
+              false,
+              "This is an RGBA format image with transparency.",
+              "The image has an alpha channel and a transparent background.",
+              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21PromptSelect"
+            }
+          }
+        ],
+        "groups": [
+          {
+            "id": 1,
+            "title": "道劫·PE-I2I 改写组(chatml 三段[21][23]→[24]拼装/[25]合批→[26]核心改写看全图→[27]正则→[152]最终文本合成器;PE开关=宿主面板外露,默认开=0926 裁定1)",
+            "bounding": [
+              40,
+              40,
+              3660,
+              2620
+            ],
+            "color": "#8864a8",
+            "flags": {}
+          },
+          {
+            "id": 2,
+            "title": "道劫·编码输出(双参考[6]=直出支路正源(官方路)/单参考[43]=加速档正源(0928 黑图修复,无 image_2 槽);词源同 [152])",
+            "bounding": [
+              3720,
+              3060,
+              860,
+              1360
+            ],
+            "color": "#4d9e6a",
+            "flags": {}
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 6,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 2,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 43,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 3,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 6,
+            "target_slot": 2,
+            "type": "VAE"
+          },
+          {
+            "id": 4,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 43,
+            "target_slot": 2,
+            "type": "VAE"
+          },
+          {
+            "id": 5,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 6,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 6,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 43,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 25,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 8,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 6,
+            "target_slot": 3,
+            "type": "IMAGE"
+          },
+          {
+            "id": 9,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 25,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 10,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 24,
+            "target_slot": 1,
+            "type": "STRING"
+          },
+          {
+            "id": 11,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 152,
+            "target_slot": 5,
+            "type": "STRING"
+          },
+          {
+            "id": 12,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 152,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 13,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 26,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 14,
+            "origin_id": 21,
+            "origin_slot": 0,
+            "target_id": 24,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 15,
+            "origin_id": 23,
+            "origin_slot": 0,
+            "target_id": 24,
+            "target_slot": 2,
+            "type": "STRING"
+          },
+          {
+            "id": 16,
+            "origin_id": 24,
+            "origin_slot": 0,
+            "target_id": 26,
+            "target_slot": 4,
+            "type": "STRING"
+          },
+          {
+            "id": 17,
+            "origin_id": 25,
+            "origin_slot": 0,
+            "target_id": 26,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 18,
+            "origin_id": 26,
+            "origin_slot": 0,
+            "target_id": 27,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 19,
+            "origin_id": 27,
+            "origin_slot": 0,
+            "target_id": 152,
+            "target_slot": 6,
+            "type": "STRING"
+          },
+          {
+            "id": 20,
+            "origin_id": 152,
+            "origin_slot": 0,
+            "target_id": 6,
+            "target_slot": 4,
+            "type": "STRING"
+          },
+          {
+            "id": 21,
+            "origin_id": 152,
+            "origin_slot": 0,
+            "target_id": 43,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 22,
+            "origin_id": 6,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 23,
+            "origin_id": 6,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 24,
+            "origin_id": 6,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "LATENT"
+          },
+          {
+            "id": 25,
+            "origin_id": 43,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 3,
+            "type": "CONDITIONING"
+          }
+        ]
+      }
+    ]
+  },
+  "info": {
+    "category": "漫影",
+    "name": "[40] 提示词类型优化子图(edit)"
+  }
+}
