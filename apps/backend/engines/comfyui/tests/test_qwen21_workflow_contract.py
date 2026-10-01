@@ -105,6 +105,16 @@ _steps_resolved/_off_state_reach 随 steps 联动与 MODEL 开关机构拆除退
 另行验证;0929 起 my_nodes 节点件以 importlib 纯模块加载做档位表互锁,仍零
 引擎进程依赖——节点件本身只 import typing)。
 
+2026-10-01 B4 吸收件轮(Trellis 0930 B4 对拍门B absorbIf 成立:通用线三发
+J1/J2/J5 全绿+G1 三格同人/G2 左正中侧右背认定):新增第五件
+qwen21-sanlian-t2i.json(TE-MAN「一键三视图」形态吸收,只仿设计零拷码)=
+b4 对拍直写路九件最小图(b4_duipai_run_0930.py build_graph)的画布化+说明卡
+——8 执行节点恰对拍同构(加载器三件套/空潜 1536×512 直给/编码预填三联模板/
+KSampler 25步cfg1/解码/保存),外加 [10] MarkdownNote 载 A5 切割警示与
+p2_grid_cut.py 切割口;无 ResolutionSelector/PE 组/RGBA 开关(预设件职责
+单一,ResolutionSelector 档位零涉=plan §二发1 口径)。TestSanlianContract
+最小锚+TestCountAnchor 目录锚 7→8。
+
 09-24 i2i 轮(Trellis 09-24-qi21-daojie-i2i;PRD 架构纠正:Q2-1 生修合一,
 图输入即指令编辑,零 denoise 重绘):新增第四件 qi21-道劫-i2i.json(2_图生图/
 新功能子夹,对标 K2 线 krea2-daojie-i2i.json 同域同式)与 TestI2IContract——
@@ -249,6 +259,9 @@ BASES_JSON = _TESTS_DIR.parent / "my_nodes/nodes/daojie_bases.json"
 
 WORKFLOWS = {"t2i": T2I, "edit": EDIT, "qi21": QI21, "i2i": I2I}
 GRAPHS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in WORKFLOWS.items()}
+
+# 2026-10-01 B4 吸收件(独立于 WORKFLOWS 四键:遍历类不动,专件专锚)
+SANLIAN = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-sanlian-t2i.json"
 
 # 加载器三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线不用)
 UNET_FILE = "qwen_image_2.1_bf16.safetensors"
@@ -467,6 +480,7 @@ QI21_XHOST_ID, QI21_XSEL_ID = 208, 214    # 宿主=原选择件 id 沿用 / 子�
 I2I_XHOST_ID, I2I_XSEL_ID = 190, 192
 EDIT_XHOST_ID, EDIT_XSEL_ID = 58, 59
 ASSEMBLY_SG_NAME = "[40] 道劫·装配子图(双击进入)"
+ASSEMBLY_SG_NAME_T2I = "[40] 提示词类型优化子图(双击进入)"  # 1001 S1 更名(t2i 专属;i2i/edit 沿旧名)
 ACCEL_SG_NAME = "道劫·加速子图"
 QI21_XSG_UUID = "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e"
 I2I_XSG_UUID = "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b"
@@ -550,8 +564,13 @@ def _sg_by_name(graph: dict, needle: str) -> dict:
 
 
 def _asg(graph: dict) -> dict:
-    """[40] 装配子图(0929 S3 D9:三件齐——edit 装配段收装出生即子图)。"""
-    return _sg_by_name(graph, "装配子图")
+    """[40] 装配子图(0929 S3 D9:三件齐——edit 装配段收装出生即子图)。
+    1001 t2i 更名「提示词类型优化子图」(Trellis 10-01-qi21-assembly-blueprint
+    S1);i2i/edit 分叉拷贝未动沿旧名——按图内实存名自适应锚定。"""
+    names = [sg["name"] for sg in _sgs(graph)]
+    needle = ("提示词类型优化子图"
+              if any("提示词类型优化子图" in n for n in names) else "装配子图")
+    return _sg_by_name(graph, needle)
 
 
 def _xsg(graph: dict) -> dict:
@@ -1072,7 +1091,8 @@ class TestSpeedSelectContract0929:
             assert len(sgs) == 2, \
                 f"{name}: 应恰 2 子图(②装配+③加速,0929 S3 两子图架构),得 {len(sgs)}"
             names = sorted(sg["name"] for sg in sgs)
-            assert names == sorted([ASSEMBLY_SG_NAME, ACCEL_SG_NAME]), \
+            want_a = ASSEMBLY_SG_NAME_T2I if name == "qi21" else ASSEMBLY_SG_NAME
+            assert names == sorted([want_a, ACCEL_SG_NAME]), \
                 f"{name}: 子图 name 应=装配+加速对,得 {names}"
             hosts = [n for n in graph["nodes"]
                      if n.get("properties", {}).get("subgraph") in {sg["id"] for sg in sgs}]
@@ -1111,10 +1131,13 @@ class TestSpeedSelectContract0929:
             ahost = _host_of(graph, _asg(graph))
             assert ahost["id"] == 40, \
                 f"{name}: 装配宿主 id 应=[40](三件同 id,edit 承 t2i 装配段惯例 D9),得 [{ahost['id']}]"
-            assert ahost.get("title") == "[40] 装配子图", \
-                f"{name}: 装配宿主 title 应=「[40] 装配子图」(0929 S1),得 {ahost.get('title')!r}"
-            assert _asg(graph)["name"] == ASSEMBLY_SG_NAME, \
-                f"{name}: 装配子图 name 应={ASSEMBLY_SG_NAME!r},得 {_asg(graph)['name']!r}"
+            want_title = ("[40] 提示词类型优化子图" if name == "qi21"
+                          else "[40] 装配子图")
+            want_a = (ASSEMBLY_SG_NAME_T2I if name == "qi21" else ASSEMBLY_SG_NAME)
+            assert ahost.get("title") == want_title, \
+                f"{name}: 装配宿主 title 应=「{want_title}」(0929 S1;1001 t2i 更名),得 {ahost.get('title')!r}"
+            assert _asg(graph)["name"] == want_a, \
+                f"{name}: 装配子图 name 应={want_a!r},得 {_asg(graph)['name']!r}"
 
     def test_accel_panel_controls_present_0929(self):
         """宿主面板双控件在位(D5 推荐案落地,回退案未启用):「速度档位」COMBO
@@ -1215,10 +1238,12 @@ class TestSpeedSelectContract0929:
         for name in ("qi21", "i2i", "edit"):
             graph = GRAPHS[name]
             host = _host_of(graph, _asg(graph))
-            assert host.get("title") == "[40] 装配子图", \
-                f"{name}: [40] 宿主 title 应=稳定短名「[40] 装配子图」,得 {host.get('title')!r}"
-            assert _asg(graph)["name"] == ASSEMBLY_SG_NAME, \
-                f"{name}: 子图 name 应={ASSEMBLY_SG_NAME!r},得 {_asg(graph)['name']!r}"
+            want_t = ("[40] 提示词类型优化子图" if name == "qi21" else "[40] 装配子图")
+            want_n = (ASSEMBLY_SG_NAME_T2I if name == "qi21" else ASSEMBLY_SG_NAME)
+            assert host.get("title") == want_t, \
+                f"{name}: [40] 宿主 title 应=「{want_t}」(0929 S1;1001 t2i 更名),得 {host.get('title')!r}"
+            assert _asg(graph)["name"] == want_n, \
+                f"{name}: 子图 name 应={want_n!r},得 {_asg(graph)['name']!r}"
             sel = _sg_nodes(_xsg(graph))[self.XSELS[name]]
             assert sel.get("title") == "出图速度选择", \
                 f"{name}: [{self.XSELS[name]}] 选择件 title 应=「出图速度选择」(三件同名)," \
@@ -2095,7 +2120,8 @@ class TestQi21SubgraphContract:
         host = _nodes(graph)[QI21_HOST_ID]
         assert host["type"] == sg["id"], "[40] 宿主 type 应=子图 uuid"
         assert host["properties"]["subgraph"] == sg["id"], "[40] properties.subgraph 应=子图 uuid"
-        assert "道劫" in sg["name"] and "装配子图" in sg["name"], "子图 name 应带道劫·装配子图字号"
+        assert "提示词类型优化子图" in sg["name"], \
+            f"子图 name 应带提示词类型优化子图字号(1001 S1 更名),得 {sg['name']!r}"
         for sg in _sgs(graph):     # 0929 S3:两子图同判(装配+加速)
             assert sg["inputNode"]["id"] == -10 and sg["outputNode"]["id"] == -20, \
                 f"子图[{sg['name']}] inputNode/outputNode 锚应为 -10/-20"
@@ -2408,7 +2434,8 @@ class TestQi21SubgraphContract:
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
         _, const_a = _qi21_truth()
         lock = sg_nodes[QI21_SG_LOCK_ID]
-        assert lock["type"] == "StringConstant", "[110] 应为 StringConstant(通用锁层常量A)"
+        assert lock["type"] == "PrimitiveStringMultiline", \
+            "[110] 应为 PrimitiveStringMultiline(1001 S2 用户令:固定句全换大多行输入框,单行 StringConstant 退役)"
         assert _widget(lock, 0) == const_a, "[110] 通用锁层常量A 与库首节常量不逐字一致"
         lock_link = sg_links[lock["outputs"][0]["links"][0]]
         assert lock_link["target_id"] == QI21_SG_CONCAT_IDS[1] and lock_link["type"] == "STRING", \
@@ -2449,16 +2476,14 @@ class TestQi21SubgraphContract:
                                         switches[QI21_SG_RGBA_SW]["inputs"][2]["link"])
         assert _oid144 == QI21_SG_RGBA_SEL, \
             f"[144] switch 槽应接 [{QI21_SG_RGBA_SEL}] MyQi21RgbaSelect(0929 S2 D6),得 {_oid144}"
-        sconsts = {n["id"] for n in sg_nodes.values() if n["type"] == "StringConstant"}
+        sconsts = {n["id"] for n in sg_nodes.values() if n["type"] == "PrimitiveStringMultiline"}
         assert sconsts == {QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID,
                            QI21_SG_W1_SENT}, \
-            f"级联退役+宪法轮:子图 StringConstant 应恰 4 枚(锁层A+RGBA头尾+W1收束句),得 {sorted(sconsts)}"
-        # 0929 回灌:子图 Reroute id 锚([177]/[178] 用户删重加为 [204]/[205],接线同位)
+            f"级联退役+宪法轮:子图固定句应恰 4 枚 PrimitiveStringMultiline(锁层A+RGBA头尾+W1收束句,1001 S2 换型),得 {sorted(sconsts)}"
+        # 1001 S3B:11 枚纯中继 Reroute 全删(横向重排后就近直连,端到端逻辑等价对拍在役)
         rr_ids = sorted(nid for nid, n in sg_nodes.items() if n["type"] == "Reroute")
-        assert rr_ids == sorted([171, 172, 173, 174, 175, QI21_SG_RR_TXT,
-                                 QI21_SG_RR_H3, QI21_SG_RR_SWC2,
-                                 QI21_SG_RR_A, QI21_SG_RR_B, QI21_SG_RR_C]), \
-            f"子图 Reroute 应恰 11 枚(0929 S2:+[211][212] rgba_hint 垫+[213] 最终文本垫),得 {rr_ids}"
+        assert rr_ids == [], \
+            f"子图 Reroute 应恰 0 枚(1001 S3B 全删),得 {rr_ids}"
         # 联动链锚(子图内):[140].wh_ratio 扇出两线;正则→转数→公式→开关 on_true
         pe = sg_nodes[QI21_SG_PE_RW]
         wh = pe["outputs"][2]
@@ -2536,8 +2561,8 @@ class TestQi21SubgraphContract:
             "[141].on_false 应接 [131] 装配全文(子图内直收,不再出图)"
         assert sg_links[pe_sw["inputs"][1]["link"]]["origin_id"] == QI21_SG_PE_RW, \
             "[141].on_true 应接 [140] PE 改写"
-        assert sorted(pe_sw["outputs"][0]["links"] or []) == [44], \
-            "[141] 输出应扇出恰一线([176];0929 S2 垫链=[176] 再扇出 IO 最终文本+[213]→[142].prompt)"
+        assert sorted(pe_sw["outputs"][0]["links"] or []) == [45, 62], \
+            "[141] 输出应直扇两线(1001 S3B 删垫链[176][213]:62→[142].prompt + 45→IO 最终文本)"
         _o142, _ = _qi21_trace_origin(sg_nodes, sg_links,
                                       sg_nodes[QI21_SG_TE]["inputs"][3]["link"])
         assert _o142 == QI21_SG_PE_SW, \
@@ -2546,8 +2571,8 @@ class TestQi21SubgraphContract:
         txt_l = _qi21_sg(graph)["outputs"][4]
         assert txt_l["name"] == "最终文本" and txt_l["linkIds"] == [45], \
             "子图输出槽4 应=最终文本([141]→[176]→输出;0929 S4 最末槽)"
-        assert sg_links[45]["origin_id"] == QI21_SG_RR_TXT, \
-            "最终文本输出应经 [176] 下探拐点(行4-行5 框间带)"
+        assert sg_links[45]["origin_id"] == QI21_SG_PE_SW, \
+            "最终文本输出应直源 [141](1001 S3B 删垫链[176]:直扇 IO 槽4)"
         # RGBA 官方公式(子图,09-23 深检吸收必改1)
         assert _widget(sg_nodes[QI21_SG_RGBA_HEAD_ID], 0) == RGBA_HEAD, \
             "RGBA 官方头句常量非官方原文逐字(This is an RGBA format image with transparency.)"
@@ -2653,8 +2678,8 @@ class TestQi21SubgraphContract:
         # 功能名);道劫只留 Group 框/子图名/MarkdownNote 说明卡
         assert "道劫" not in (pv.get("title") or ""), \
             f"预览节点标题应零道劫前缀(0925 归位),得 {pv.get('title')!r}"
-        assert "装配预览" in (pv.get("title") or ""), \
-            f"预览节点标题应为装配预览功能名,得 {pv.get('title')!r}"
+        assert "提示词预览" in (pv.get("title") or ""), \
+            f"预览节点标题应为提示词预览功能名(1001 S1 更名「最终提示词预览」),得 {pv.get('title')!r}"
         for scope, nodes_ in (("主图", graph["nodes"]),
                               *[(f"子图[{s['name'][:6]}]", s["nodes"]) for s in _sgs(graph)]):
             for n in nodes_:
@@ -2667,40 +2692,63 @@ class TestQi21SubgraphContract:
     # ── 布局契约(从上到下=阶段行,行内从左到右;group 收敛)──────────────
 
     def test_subgraph_row_layout_top_to_bottom(self):
-        """子图排版=恰 7 行(0928 PE 迁子图轮四行流水+0929 S2 ⑤机制批融合行=源行/
-        装配/PE改写/融合([206]-[210]+0930 S10 收束拼[216])/编码输出+画幅联动蛇形两行
-        =宽/高;源行含 0930 S10 W1收束句[215]):行间 y
-        严格递增且净距≥100;行内(数组序=数据流序)x 严格递增;Reroute 通道拐点
-        不占行。行成员按 id 锚定,防回退到旧布局。"""
+        """子图排版=横向四带(1001 S3A 横向布局重排,Trellis 10-01-qi21-assembly-
+        blueprint:主流程左→右,固定句常量上带/RGBA·W1支路次上带/主链中轴/PE+画幅
+        联动下带;替代 0928-0929 七行蛇形):带间 y 严格分层;带内(数组序=数据流序)
+        x 严格递增=零左向线;Reroute 已全删(S3B)。带成员按 id 锚定,防回退。"""
         graph = GRAPHS["qi21"]
         sg_nodes = _qi21_sg_nodes(graph)
-        rows: dict[int, list[int]] = {}
+        def band_of(y: float) -> int:
+            return 0 if y < 500 else (1 if y < 1000 else (2 if y < 1500 else 3))
+        bands: dict[int, list[int]] = {}
         for n in _qi21_sg(graph)["nodes"]:
-            if n["type"] == "Reroute":
-                continue  # 通道拐点留框间带,不占阶段行
-            rows.setdefault(n["pos"][1], []).append(n["id"])
-        row_ys = sorted(rows)
-        assert len(row_ys) == 7, f"子图应恰 7 行(五行流水+联动蛇形两行;0929 S2 融合行),得 {len(row_ys)} 行"
-        want_rows = [
-            [QI21_SG_BASE_ID, QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID,
-             QI21_SG_W1_SENT],
-            [*QI21_SG_CONCAT_IDS, *QI21_SG_RGBA_CAT_IDS],
-            [QI21_SG_PE_RW, QI21_SG_PE_SW],
-            [QI21_SG_STRIP_ID, *QI21_SG_W1_CAT_IDS, QI21_SG_TXT_SW, QI21_SG_RGBA_SEL],
-            [QI21_SG_TE_RGBA, QI21_SG_TE, QI21_SG_RGBA_SW],
-            [QI21_SG_RATIO_IDS[0], QI21_SG_CONV_IDS[0], QI21_SG_MATH_IDS[0], QI21_SG_SW_WH_IDS[0]],
-            [QI21_SG_RATIO_IDS[1], QI21_SG_CONV_IDS[1], QI21_SG_MATH_IDS[1], QI21_SG_SW_WH_IDS[1]],
-        ]
-        for y, want in zip(row_ys, want_rows):
-            got = sorted(rows[y])
-            assert got == sorted(want), f"行 y={y} 成员漂移: 应 {sorted(want)} 得 {got}"
-            xs = [sg_nodes[nid]["pos"][0] for nid in rows[y]]  # 数组序=数据流序
-            assert all(b > a for a, b in zip(xs, xs[1:])), \
-                f"行 y={y} 行内 x 非严格递增(应从左到右): {xs}"
-        for y, next_y in zip(row_ys, row_ys[1:]):
-            bottom = y + max(sg_nodes[nid]["size"][1] for nid in rows[y])
-            assert next_y - bottom >= 100, \
-                f"行 y={y} 与下行净距不足(<100): 行底 {bottom} → 下行 y={next_y}"
+            bands.setdefault(band_of(n["pos"][1]), []).append(n["id"])
+        assert sorted(bands) == [0, 1, 2, 3], f"子图应恰 4 带(横向布局),得 {sorted(bands)}"
+        want_bands = {
+            0: [QI21_SG_LOCK_ID, QI21_SG_RGBA_HEAD_ID, QI21_SG_RGBA_TAIL_ID,
+                QI21_SG_W1_SENT],
+            1: [*QI21_SG_RGBA_CAT_IDS, QI21_SG_STRIP_ID, *QI21_SG_W1_CAT_IDS,
+                QI21_SG_TXT_SW, QI21_SG_TE_RGBA],
+            2: [QI21_SG_BASE_ID, *QI21_SG_CONCAT_IDS, QI21_SG_PE_SW, QI21_SG_TE,
+                QI21_SG_RGBA_SW],
+            3: [QI21_SG_PE_RW, *QI21_SG_RATIO_IDS, *QI21_SG_CONV_IDS, *QI21_SG_MATH_IDS,
+                *QI21_SG_SW_WH_IDS, QI21_SG_RGBA_SEL],
+        }
+        for b, want in want_bands.items():
+            got = sorted(bands.get(b, []))
+            assert got == sorted(want), f"带{b} 成员漂移: 应 {sorted(want)} 得 {got}"
+        # 带0/1/2 单链流:数组序=数据流序,x 严格递增
+        for b in (0, 1, 2):
+            xs = [sg_nodes[nid]["pos"][0] for nid in bands[b]]
+            assert all(x2 > x1 for x1, x2 in zip(xs, xs[1:])), \
+                f"带{b} 带内 x 非严格递增(应从左到右): {xs}"
+        # 带3 宽/高双链并行:两链各自 x 严格递增;[140] 最左,[210] 链后
+        wide = [QI21_SG_RATIO_IDS[0], QI21_SG_CONV_IDS[0], QI21_SG_MATH_IDS[0],
+                QI21_SG_SW_WH_IDS[0]]
+        high = [QI21_SG_RATIO_IDS[1], QI21_SG_CONV_IDS[1], QI21_SG_MATH_IDS[1],
+                QI21_SG_SW_WH_IDS[1]]
+        for tag, chain in (("宽链", wide), ("高链", high)):
+            xs = [sg_nodes[nid]["pos"][0] for nid in chain]
+            assert all(x2 > x1 for x1, x2 in zip(xs, xs[1:])), \
+                f"带3 {tag} x 非严格递增: {xs}"
+        assert sg_nodes[QI21_SG_PE_RW]["pos"][0] < sg_nodes[wide[0]]["pos"][0], \
+            "带3 [140] PE改写应在宽/高链最左(数据流起点)"
+        assert sg_nodes[QI21_SG_RGBA_SEL]["pos"][0] > sg_nodes[wide[-1]]["pos"][0], \
+            "带3 [210] 三态应在宽/高链之后"
+        # 带间净距:上带底 与 下带顶 ≥100
+        band_tops = {b: min(sg_nodes[nid]["pos"][1] for nid in ids) for b, ids in bands.items()}
+        band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]
+                               for nid in ids) for b, ids in bands.items()}
+        for b in (0, 1, 2):
+            assert band_tops[b + 1] - band_bottoms[b] >= 100, \
+                f"带{b} 与带{b+1} 净距不足(<100): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
+        # 零左向线(1001 S3A 验收目标:所有连线起点 x < 终点 x)
+        for l in _qi21_sg_links(graph).values():
+            if l["origin_id"] == -10 or l["target_id"] == -20:
+                continue  # 边界口线不计(输入口在最左/输出口在最右,天然单向)
+            o, t = sg_nodes[l["origin_id"]], sg_nodes[l["target_id"]]
+            assert o["pos"][0] < t["pos"][0] + t["size"][0], \
+                f"左向线残留: link{l['id']} [{o['id']}]→[{t['id']}] x {o['pos'][0]}≥{t['pos'][0]}"
 
 
     def test_no_node_overlap_and_group_budget(self):
@@ -2751,11 +2799,15 @@ class TestQi21SubgraphContract:
                       if gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
                       and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1]
             assert inside, f"子图 group {grp['title']!r} 未框住任何节点(装饰框即病)"
-            same_row = len({n["pos"][1] for n in inside}) == 1
-            assert same_row, f"子图 group {grp['title']!r} 跨行框住节点(应只框单一阶段行)"
-            row_all = [n["id"] for n in sg["nodes"] if n["pos"][1] == inside[0]["pos"][1]]
-            assert sorted(n["id"] for n in inside) == sorted(row_all), \
-                f"子图 group {grp['title']!r} 应框住其阶段行全部节点"
+            # 1001 S3A 横向布局:组框=功能带框(带内允许小行差,跨带框住=病)
+            def _band(y):
+                return 0 if y < 500 else (1 if y < 1000 else (2 if y < 1500 else 3))
+            same_band = len({_band(n["pos"][1]) for n in inside}) == 1
+            assert same_band, f"子图 group {grp['title']!r} 跨带框住节点(应只框单一功能带)"
+            band_all = [n["id"] for n in sg["nodes"]
+                        if _band(n["pos"][1]) == _band(inside[0]["pos"][1])]
+            assert sorted(n["id"] for n in inside) == sorted(band_all), \
+                f"子图 group {grp['title']!r} 应框住其功能带全部节点"
 
     def test_usage_note_subgraph_warnings(self):
         """子图版 Note 要点锁:装配子图用法/MyQi21DaojieBase 九选一/主体句纪律(空镜无人)/
@@ -3280,7 +3332,7 @@ class TestI2IContract:
 # 09-24:i2i 新件 qi21-道劫-i2i 入库(2_图生图 新功能子夹),6→7(自研 3→4)。
 
 class TestCountAnchor:
-    def test_qwen21_dir_exactly_seven(self):
+    def test_qwen21_dir_exactly_eight(self):
         files = sorted(p.name for p in (_IMG_DIR / "Q2-1图像").rglob("*.json"))
         assert files == [
             "image_qwen_image_2_1_background_removal.json",
@@ -3289,8 +3341,9 @@ class TestCountAnchor:
             "qi21-edit.json",
             "qi21-道劫-i2i.json",
             "qi21-道劫-t2i.json",
+            "qwen21-sanlian-t2i.json",
             "qwen21-t2i.json",
-        ], f"Q2-1图像 应恰 7 件(4 自研+3 官方模板 09-23 入库;i2i 09-24 新增),得 {files}"
+        ], f"Q2-1图像 应恰 8 件(5 自研+3 官方模板;2026-10-01 B4 吸收件 qwen21-sanlian-t2i 新增),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。
@@ -3315,3 +3368,97 @@ class TestCountAnchor:
         files = sorted(p.name for p in K2_DIR.rglob("*.json") if p.name != ".DS_Store")
         assert len(files) == 36, \
             f"K2图像 目录 json 应 36 件不变(09-23 现状锚),得 {len(files)}: {files}"
+
+
+# ── 2026-10-01 B4 吸收件:qwen21-sanlian-t2i 最小锚 ─────────────────────────
+# absorbIf 依据=0930 B4 对拍(apps/output/b4-duipai-0930/b4-duipai-report.json
+# gates.B_Q3吸收裁定;配方 apps/build/scripts/b4_duipai_plan_0930.md §四门B):
+# G1 三格同人 + G2 左正/中侧/右背 认定 → 以 qwen21-t2i 派生三联预设工作流,
+# 1536×512 三联模板说明卡+A5 切割警示随档+复用 p2_grid_cut.py 切割口,
+# 只仿 TE-MAN 一键三视图设计零拷码。
+
+SANLIAN_GRAPH = json.loads(SANLIAN.read_text(encoding="utf-8"))
+
+# 三联结构模板锚(=K2-多视图.json [50] 结构句;结构 token 非全文逐字——全文
+# 逐字锁在 K2 侧,此处锁三联骨架要素+Character 段在场)
+SANLIAN_TEMPLATE_TOKENS = (
+    "three equal vertical panels",
+    "Left panel: full-body front view",
+    "Middle panel: full-body side view facing left",
+    "Right panel: full-body back view",
+    "nothing crossing the divider lines",
+    "Character:",
+)
+SANLIAN_NOTE_TOKENS = (
+    "宫格=中间产物,切割后才作参考",   # A5 警示(ask 钦定措辞)
+    "p2_grid_cut.py",                 # 切割口引用随档
+    "--rows 1 --cols 3",              # 三联切割参数(1 行 3 列)
+    "只仿设计,零拷码",               # license 红线随档
+)
+
+
+class TestSanlianContract:
+    def test_front_end_format_in_place(self):
+        """引擎前端格式必需字段在位(nodes/links/groups;非桥 API 格式——同
+        09-23 格式取舍,画布直开为最终裁判)。"""
+        for key in ("nodes", "links", "groups"):
+            assert key in SANLIAN_GRAPH, f"前端格式必需字段 {key} 缺失"
+
+    def test_skeleton_matches_b4_duipai_graph(self):
+        """8 执行节点恰对拍直构图同构(b4_duipai_run_0930.py build_graph 九件
+        API 图一一对应):加载器 bf16 三件套逐字 + 空潜 1536×512 直给 +
+        KSampler 25步 cfg1 euler simple denoise1(seed fixed)。"""
+        nodes = {n["id"]: n for n in SANLIAN_GRAPH["nodes"]}
+        want = {1: "UNETLoader", 2: "CLIPLoader", 3: "VAELoader",
+                5: "EmptyLatentImage", 6: "TextEncodeQwenImage21",
+                7: "KSampler", 8: "VAEDecode", 9: "SaveImage",
+                10: "MarkdownNote"}
+        got = {n["id"]: n["type"] for n in SANLIAN_GRAPH["nodes"]}
+        assert got == want, f"节点 census 应={want}(对拍九件+说明卡),得 {got}"
+        assert nodes[1]["widgets_values"] == [UNET_FILE, "default"]
+        assert nodes[2]["widgets_values"] == [CLIP_FILE, "qwen_image", "default"]
+        assert nodes[3]["widgets_values"] == [VAE_FILE]
+        assert nodes[5]["widgets_values"][:3] == [1536, 512, 1], \
+            "空潜应 1536×512(3:1 三联,三格各 512×512)直给"
+        wv = nodes[7]["widgets_values"]
+        assert (wv[1], wv[2], wv[3], wv[4], wv[5], wv[6]) == \
+            ("fixed", 25, 1, "euler", "simple", 1), \
+            f"KSampler 应 fixed/25步/cfg1/euler/simple/denoise1(官方路径),得 {wv}"
+
+    def test_links_topology(self):
+        """9 链拓扑逐字:MODEL←[1];CLIP←[2];VAE←[3] 双扇出([6] 编码与 [8]
+        解码);LATENT←[5];positive/negative←[6](cfg=1 负向官方同构占位);
+        [7]→[8]→[9]。"""
+        got = {(l[1], l[2], l[3], l[4]) for l in SANLIAN_GRAPH["links"]}
+        want = {(1, 0, 7, 0), (2, 0, 6, 0), (3, 0, 6, 2), (3, 0, 8, 1),
+                (5, 0, 7, 3), (6, 0, 7, 1), (6, 1, 7, 2), (7, 0, 8, 0),
+                (8, 0, 9, 0)}
+        assert got == want, f"9 链拓扑应={want},得 {got}"
+
+    def test_triptych_template_prefilled(self):
+        """[6] prompt 预填三联模板(结构 token 全在场+Character 段)——一键
+        三视图:打开即用,换 Character 句即可。"""
+        prompt = next(n for n in SANLIAN_GRAPH["nodes"]
+                      if n["id"] == 6)["widgets_values"][0]
+        for tok in SANLIAN_TEMPLATE_TOKENS:
+            assert tok in prompt, f"三联模板缺结构锚 {tok!r}"
+
+    def test_note_carries_a5_warning_and_cut_ref(self):
+        """[10] 说明卡:A5 切割警示钦定措辞 + p2_grid_cut.py 切割口(1 行
+        3 列)+ license 红线注记,全部随档。"""
+        note = next(n for n in SANLIAN_GRAPH["nodes"]
+                    if n["id"] == 10)["widgets_values"][0]
+        for tok in SANLIAN_NOTE_TOKENS:
+            assert tok in note, f"说明卡缺锚 {tok!r}"
+
+    def test_preset_single_purpose_no_extras(self):
+        """预设件职责单一:无 ResolutionSelector(宽高直给,对拍发1 口径
+        「档位零涉」)/无 PE 改写组/无 RGBA 开关/无子图——通用能力住
+        qwen21-t2i.json 母件,本件只做三联。"""
+        types = {n["type"] for n in SANLIAN_GRAPH["nodes"]}
+        for banned in ("ResolutionSelector", "QwenImage21_T2IPromptRewrite",
+                       "ComfySwitchNode", "StringConstant"):
+            assert banned not in types, f"三联预设件应零 {banned}(职责单一),得 {types}"
+        assert "definitions" not in SANLIAN_GRAPH or \
+            not SANLIAN_GRAPH["definitions"].get("subgraphs"), "本件无子图(扁平预设)"
+

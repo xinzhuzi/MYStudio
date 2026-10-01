@@ -354,6 +354,20 @@ steps=40 / 无孤儿节点(MarkdownNote 与 easy showAnything 显示型端点豁
     python3 apps/build/scripts/qi21_daojie_t2i_0923.py            # 生成(写盘+自查)
     python3 apps/build/scripts/qi21_daojie_t2i_0923.py --check    # 只查不写
 """
+
+# ============================================================================
+# ⛔ 1001 退役警示(Trellis 10-01-qi21-assembly-blueprint)——勿再运行本脚本!
+# 2026-10-01 起 qi21-道劫-t2i.json 的权威真源=本文件之外的直接手术链:
+#   · 布局/件型/命名:apps/build/scripts/qi21_assembly_surgery_1001.py(横向四带
+#     重排+固定句4件 PrimitiveStringMultiline+改名三件+Reroute全删)
+#   · 蓝图同步:apps/build/scripts/qi21_blueprint_sync_1001.py
+#   · 交叉基线:workflow_layout_baseline.json(1001 audit 口径重立)
+# 本生成器重跑会把工作流重置回 0930 七行蛇形旧布局并复活 11 枚中继 Reroute,
+# 抹掉 1001 手术(含子图更名)——除非有意整体回滚,禁止执行。
+# 内容真源链变化:固定句4件已是面板可改输入框(用户随时可改值),不再由生成器
+# 从 05 库现读重置("手贴会被重置"的旧约定就此废止)。
+# ============================================================================
+
 from __future__ import annotations
 
 import hashlib
