@@ -168,8 +168,11 @@ def main():
     assert host_node["properties"]["subgraph"] == d["definitions"]["subgraphs"][idx]["id"], "宿主引用与定义id不符"
 
     old_sg = d["definitions"]["subgraphs"][idx]
-    if canonical(old_sg) == canonical(bp_sg):
-        print(f"[sync] 一致,零写入(幂等)。蓝图sha={sha(canonical(bp_sg).encode())}")
+    # 1001 S5 术后宿主定义id=实例uuid(96937bbe…),蓝图定义id恒为c3f81b56…
+    # ——幂等比较须除id归一(S5换uuid前两者同id,旧比较恰巧成立;S5后不归一则永判差异)
+    _norm = lambda s: {k: v for k, v in s.items() if k != "id"}
+    if canonical(_norm(old_sg)) == canonical(_norm(bp_sg)):
+        print(f"[sync] 一致(除id归一),零写入(幂等)。蓝图sha={sha(canonical(_norm(bp_sg)).encode())}")
     else:
         diff_nodes = (len(old_sg.get('nodes', [])), len(bp_sg.get('nodes', [])))
         diff_links = (len(old_sg.get('links', [])), len(bp_sg.get('links', [])))
