@@ -36,6 +36,9 @@ def test_registry_exposes_first_batch_nodes():
         "MyQi21DaojieBase",  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
         "MyQi21SpeedSelect",  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
         "MyQi21RgbaSelect",  # 0929 画布治理 D6:RGBA 三态选择(跟随型/强制开/强制关)
+        "MyQi21PromptAssembly",  # 1001 S8 R7 集成(裁定A上游):装配全文=主体句+BASE+锁层A 单口真源
+        "MyQi21PromptSelect",  # 1001 S8 R7 集成(裁定A下游):最终文本=pe开关选路+透明文本包裹(lazy 破环)
+        "MyQi21WhSuggest",  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
         "MyImageGridSplit",  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
         "MyVideoFrameGrab",  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
         "MyImageABCompare",  # 0929 TE-MAN 排查 B2:图对比审片(canvas 滑帘+2-7x 放大镜)

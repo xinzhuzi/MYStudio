@@ -1,0 +1,96 @@
+# Copyright (c) 2025 hotflow2024
+# Licensed under AGPL-3.0-or-later. See LICENSE for details.
+# Commercial licensing available. COMMERCIAL_LICENSE.md available.
+"""漫影 qi21 装配全文件(MyQi21PromptAssembly,1001 S8 R7 集成轮;1001 裁定 A 拆件
+形态=装配链上游件,implement.md S8 / design §10.4 / 主对话裁定 A)。
+
+道劫 t2i [40] 装配子图文本段集成的上游件(吞原 [130][131] 装配拼接①②+[110] 锁层
+常量A):装配全文=主体句+底座 BASE+锁层A 三段换行拼合,唯一真源文本。
+
+裁定 A 拆件缘起(在档):一件式三口形态下「装配全文→[140].prompt」与
+「[140].positive_prompt→装配器.PE出文」构成数据环,引擎验证层实测拒绝
+(execution.validate_inputs 对全部连线输入递归环检,lazy 边无豁免;最小同构环
+venv 实测=「Dependency cycle detected」valid=False;graph.py:169-170 执行图
+虽豁免 lazy 边,验证不过=queuePrompt 直接拒)。拆件成链后:本件(141)→
+[140] PE改写→MyQi21PromptSelect(152),环变链,Q1=B+ 语义零损。
+
+输入口(经典写法,同包 MyQi21SpeedSelect 先例):
+  required
+    主体句    多行大框,接子图输入口「主体句」(-10槽2←顶层 [24]);
+              default=1001 t2i 工作流 [24] 例文逐字
+    锁层A全文 多行大框参数(原 [110] 通用锁层常量A 迁入;default=工作流值逐字,
+              sha256 前16位锚=eac9a808aa8f7232)
+  optional
+    BASE      ← [150] MyQi21DaojieBase.BASE;**缺键(None)语义=降级两段拼不炸**
+              (裁定 A 规格②:主体句+\\n+锁层A;产线缺底座层属静默降质,发中文
+              print 警告给指路文案,不 raise——与下游合成器的「缺真源」空串语义
+              同款自洽,实弹日志可查)
+
+输出口(单口):
+  装配全文(口0)→ 双喂:[140].prompt(Q1=B+ 根治「写死的种子文被旁路」:[140]
+           种子文 widget 退役清空+Note[250] 注明)+ MyQi21PromptSelect.装配全文
+           (下游合成器直写路与透明直写路的真源)
+
+注册(import+NODE_CLASS_MAPPINGS+DISPLAY「道劫·qi21装配全文件」)在
+my_nodes/__init__.py;词族剥离逻辑随选择器件(my_qi21_prompt_select.py,词族
+真源=同目录 qi21_strip_lexicon.json)。
+"""
+
+from __future__ import annotations
+
+# ── 主体句例文+锁层A default(1001 t2i 工作流值逐字迁入,脚本注入禁手敲;──
+# ── sha256 前16位对拍锚=[24]主体句 afd9e6f562e3e606 / [110]锁层A ──
+# ── eac9a808aa8f7232;改值须走 05 库「从库刷参数」同批过账并更新锚)──────────
+_SUBJECT_EXAMPLE = '一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。'  # 顶层 [24] 主体句例文(多行大框 default)
+_LOCK_A = '风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。'  # 原 [110] 通用锁层常量A(③层·库首节全文·全九型恒挂)
+
+
+class MyQi21PromptAssembly:
+    """漫影道劫 qi21 装配全文件:主体句+BASE+锁层A 三段换行拼合,单口真源输出。
+
+    装配全文(口0)=唯一真源文本:双喂 [140].prompt(PE 改写输入,Q1=B+)
+    与 MyQi21PromptSelect.装配全文(直写路/透明直写路);BASE 未接线=降级
+    两段拼(主体句+锁层A)+中文警告,不炸产线。
+    """
+
+    CATEGORY = "my"
+    DESCRIPTION = ("道劫装配全文件:装配全文=主体句+底座BASE+锁层A 三段换行"
+                   "拼合(单口真源,专喂 PE 改写与最终文本合成器)")
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, dict]:
+        return {
+            "required": {
+                "主体句": ("STRING", {"multiline": True, "default": _SUBJECT_EXAMPLE,
+                                       "tooltip": "用户主体描述句(生产接线=子图输入口"
+                                                  "「主体句」;本参数为裸件兜底例文)"}),
+                "锁层A全文": ("STRING", {"multiline": True, "default": _LOCK_A,
+                                          "tooltip": "通用锁层常量A(③层·库首节全文·"
+                                                     "全九型恒挂;原 [110] 迁入)"}),
+            },
+            "optional": {
+                # BASE:轻件直拉([150] 常驻执行图,非 lazy);未接线=降级两段拼+警告
+                "BASE": ("STRING", {"tooltip": "型底座全文(接 [150] MyQi21DaojieBase."
+                                               "BASE;缺键=主体句+锁层A 两段降级拼,"
+                                               "中文警告可查,不炸队列"}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("装配全文",)
+    FUNCTION = "assemble"
+
+    def assemble(self, 主体句: str, 锁层A全文: str = _LOCK_A,
+                 BASE: str | None = None) -> tuple[str]:
+        """单口装配:装配全文=主体句+\\n+BASE+\\n+锁层A(返回元组序=RETURN_NAMES 序)。
+
+        BASE None(未接线)=两段降级拼(主体句+\\n+锁层A)+中文 print 警告
+        (裁定 A 规格② optional 缺键语义;实弹日志可查,与选择器件空串语义同款)。
+        """
+        if BASE is None:
+            print("[MyQi21PromptAssembly] BASE 输入未接线:装配全文降级为"
+                  "「主体句+锁层A」两段拼(缺整个型底座层)——请把 [150] "
+                  "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,或检查"
+                  "该连线是否被改动")
+            return (f"{主体句}\n{锁层A全文}",)
+        return (f"{主体句}\n{BASE}\n{锁层A全文}",)
