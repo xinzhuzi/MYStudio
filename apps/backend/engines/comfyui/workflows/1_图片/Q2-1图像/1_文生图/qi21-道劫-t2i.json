@@ -483,7 +483,7 @@
     },
     {
       "id": 40,
-      "type": "c3f81b56-0a47-4d29-9e61-8b7f2d5a6c04",
+      "type": "96937bbe-99d1-4f16-a06c-d86b57815d91",
       "title": "[40] 提示词类型优化子图",
       "pos": [
         2393.784928591911,
@@ -559,7 +559,7 @@
         }
       ],
       "properties": {
-        "subgraph": "c3f81b56-0a47-4d29-9e61-8b7f2d5a6c04",
+        "subgraph": "96937bbe-99d1-4f16-a06c-d86b57815d91",
         "previewExposures": []
       },
       "widgets_values": [
@@ -754,7 +754,7 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "c3f81b56-0a47-4d29-9e61-8b7f2d5a6c04",
+        "id": "96937bbe-99d1-4f16-a06c-d86b57815d91",
         "version": 1,
         "state": {
           "lastGroupId": 3,
@@ -1908,7 +1908,8 @@
         "extra": {
           "ue_links": [],
           "links_added_by_ue": []
-        }
+        },
+        "category": "漫影"
       },
       {
         "id": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
