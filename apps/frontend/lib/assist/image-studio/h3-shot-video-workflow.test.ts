@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { assertH3TemplateIntegrity, buildShotH3RefWorkflow, buildShotH3Workflow } from "./h3-shot-video-workflow";
 
@@ -177,6 +177,41 @@ describe("buildShotH3RefWorkflow (09-14-h3-ref2va-line)", () => {
     expect(inputLink(26, "latent_image")).not.toBeNull();
     for (const name of ["clip", "vae", "prompt", "width", "height", "length", "ref_images.ref_image_0"]) {
       expect(inputLink(16, name)).not.toBeNull();
+    }
+  });
+});
+
+describe("文案逐字自检门接线 (参考_文案逐字自检门.md §一,10-01-a7)", () => {
+  const linedShot = () => makeShot({ lines: "甲：先走。\n旁白：雨声盖过脚步。", index: 3 });
+
+  it("full 档天然逐字:I2V 与 Ref2VA 组装均过门不误拦", () => {
+    expect(() => buildShotH3Workflow({ shot: linedShot(), chapterId: "chapter-001", chapterLabel: "第一章", policy: "full" })).not.toThrow();
+    expect(() => buildShotH3RefWorkflow({ shot: linedShot(), chapterId: "chapter-001", chapterLabel: "第一章", policy: "full", refs: [] })).not.toThrow();
+  });
+
+  it("ambient/bare 档台词走 TTS 线不进 prompt,清单为空不拦", () => {
+    expect(() => buildShotH3Workflow({ shot: linedShot(), chapterId: "chapter-001", chapterLabel: "第一章", policy: "ambient" })).not.toThrow();
+    expect(() => buildShotH3Workflow({ shot: linedShot(), chapterId: "chapter-001", chapterLabel: "第一章", policy: "bare" })).not.toThrow();
+  });
+
+  it("缺席即阻断派发:抛大白话中文错误指名缺哪几条(模拟改写环节吞词)", async () => {
+    // 模拟未来 LLM 改写链把台词吞掉:builder 返回的 prompt 缺计划台词
+    vi.resetModules();
+    vi.doMock("./h3-shot-prompt", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("./h3-shot-prompt")>();
+      return {
+        ...actual,
+        buildShotH3Prompt: () => ({ prompt: "integrated_multimodal_description: 场景描述(台词被改写环节吞掉)", seconds: 5, lengthFrames: 124 }),
+        buildShotH3RefPrompt: () => ({ prompt: "detailed_description: [Shot 1] 场景描述(台词被改写环节吞掉)", seconds: 5, lengthFrames: 124 }),
+      };
+    });
+    try {
+      const { buildShotH3Workflow: buildMocked, buildShotH3RefWorkflow: buildRefMocked } = await import("./h3-shot-video-workflow");
+      const input = { shot: linedShot(), chapterId: "chapter-001", chapterLabel: "第一章", policy: "full" as const };
+      expect(() => buildMocked(input)).toThrow(/文案逐字自检未通过.*S03.*「先走。」「雨声盖过脚步。」/);
+      expect(() => buildRefMocked({ ...input, refs: [] })).toThrow(/文案逐字自检未通过/);
+    } finally {
+      vi.doUnmock("./h3-shot-prompt");
     }
   });
 });

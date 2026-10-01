@@ -3,7 +3,7 @@
 import templateJson from "./MY-h3-shot-template.json";
 import templateRefJson from "./MY-h3-shot-template_ref2va.json";
 import type { StoryboardItem } from "@/types/studio";
-import { buildShotH3Prompt, buildShotH3RefPrompt, type H3AudioPolicy } from "./h3-shot-prompt";
+import { buildShotH3Prompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, verifyPlannedTextVerbatim, type H3AudioPolicy } from "./h3-shot-prompt";
 
 interface WorkflowNode {
   id: number;
@@ -83,6 +83,21 @@ function shotLabel(index: number): string {
   return `S${String(index).padStart(2, "0")}`;
 }
 
+/** 文案逐字自检门(docs/comfyui-kb/参考_文案逐字自检门.md §一,10-01-a7 代码化):
+ * 产出 prompt 之后、注入工作流(=入队派发)之前逐条验「计划文案一字不差在场」,
+ * 任一缺席即抛大白话中文错误阻断派发(冒泡至桥消费 onError→toast,不静默不放行)。
+ * 清单口径:仅 full 档台词进 prompt 才入清单(与 renderDialogue 同一解析源);
+ * ambient/bare 档台词走 TTS 线不进 prompt(「No dialogue」),清单为空不拦。 */
+function assertPlannedTextVerbatimGate(shot: ShotH3WorkflowInput["shot"], policy: H3AudioPolicy, prompt: string): void {
+  const plannedTexts = policy === "full" ? extractPlannedDialogueTexts(shot.lines) : [];
+  const { ok, missing } = verifyPlannedTextVerbatim(prompt, plannedTexts);
+  if (ok) return;
+  const items = missing.map((text) => `「${text}」`).join("");
+  throw new Error(
+    `文案逐字自检未通过,${shotLabel(shot.index)} 这镜已禁止派发:有 ${missing.length} 条计划台词没有一字不差地进入最终提示词——${items}。请回上一环节把文案修正到一字不差(含标点)后再派发。`,
+  );
+}
+
 function setFirstWidget(node: WorkflowNode, value: unknown): void {
   if (!Array.isArray(node.widgets_values)) throw new Error(`h3-shot-template drift: node ${node.id} widgets_values missing`);
   node.widgets_values[0] = value;
@@ -125,6 +140,7 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
     sound: shot.sound,
     durationSec,
   }, policy);
+  assertPlannedTextVerbatimGate(shot, policy, prompt.prompt);
   const label = shotLabel(shot.index);
   const imageName = input.imageName ?? `my-shot-h3-${safeImageId(shot.id)}.jpg`;
 
@@ -202,6 +218,7 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
     characters,
     scene,
   }, policy);
+  assertPlannedTextVerbatimGate(shot, policy, prompt.prompt);
   const label = shotLabel(shot.index);
   const imageName = input.imageName ?? `my-shot-h3-${safeImageId(shot.id)}.jpg`;
 

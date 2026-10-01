@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildShotH3Prompt, buildShotH3RefPrompt, mapH3CameraMove } from "./h3-shot-prompt";
+import { buildShotH3Prompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, mapH3CameraMove, verifyPlannedTextVerbatim } from "./h3-shot-prompt";
 
 describe("buildShotH3Prompt", () => {
   it.each([
@@ -101,5 +101,58 @@ describe("buildShotH3RefPrompt (09-14-h3-ref2va-line)", () => {
     expect(bare.prompt).toContain("subject_definitions: <Subject 1> is the main character");
     const ambient = buildShotH3RefPrompt({ ...base }, "ambient");
     expect(ambient.prompt).toContain("overall_soundscape: 远处的雨声");
+  });
+});
+
+describe("verifyPlannedTextVerbatim (文案逐字自检门,参考_文案逐字自检门.md §一)", () => {
+  const prompt = "甲 (S1) says: <d>[Chinese] 先走。</d> The narrator (S2) says in an off-screen voiceover: <d>[Chinese] 雨声盖过脚步。</d> 招牌写着「风雨客栈」。";
+
+  it("命中:全部计划文案一字不差在场即 ok", () => {
+    const result = verifyPlannedTextVerbatim(prompt, ["先走。", "雨声盖过脚步。", "风雨客栈"]);
+    expect(result).toEqual({ ok: true, missing: [] });
+  });
+
+  it("缺席:被改写/吞词的条目逐一指名,不止一条一并报", () => {
+    const result = verifyPlannedTextVerbatim(prompt, ["先走吧。", "雨声盖过脚步。", "你先走。"]);
+    expect(result.ok).toBe(false);
+    expect(result.missing).toEqual(["先走吧。", "你先走。"]);
+  });
+
+  it("空清单与空白清单=ok(无文案镜不拦;空白条目不比对)", () => {
+    expect(verifyPlannedTextVerbatim(prompt, [])).toEqual({ ok: true, missing: [] });
+    expect(verifyPlannedTextVerbatim(prompt, ["", "   ", "\t"])).toEqual({ ok: true, missing: [] });
+  });
+
+  it("标点差异=缺席:差一个标点、差一个字都不算在场,不做宽松匹配", () => {
+    // prompt 丢了句号:计划「先走。」不算在场
+    const droppedPeriod = "甲 (S1) says: <d>[Chinese] 先走</d>";
+    expect(verifyPlannedTextVerbatim(droppedPeriod, ["先走。"]).missing).toEqual(["先走。"]);
+    // 换标点(。→!)
+    expect(verifyPlannedTextVerbatim(prompt, ["先走!"]).missing).toEqual(["先走!"]);
+    // 差一个字
+    expect(verifyPlannedTextVerbatim(prompt, ["雨声盖过脚。"]).missing).toEqual(["雨声盖过脚。"]);
+    // 计划为 prompt 内文案的逐字前缀(先走 ⊂ 先走。)仍算在场——查询集=计划清单,验「计划在场」不验「prompt 无多余」
+    expect(verifyPlannedTextVerbatim(prompt, ["先走"]).ok).toBe(true);
+    // 条目首尾空白按 trim 后比对(与注入侧 trim 口径一致)
+    expect(verifyPlannedTextVerbatim(prompt, ["  先走。  "]).ok).toBe(true);
+  });
+});
+
+describe("extractPlannedDialogueTexts (计划清单与注入同源)", () => {
+  it("取每条台词正文(角色前缀剥离),与 renderDialogue 注入口径一致", () => {
+    expect(extractPlannedDialogueTexts("甲：先走。\n旁白：雨声盖过脚步。\n乙: 我知道。"))
+      .toEqual(["先走。", "雨声盖过脚步。", "我知道。"]);
+    expect(extractPlannedDialogueTexts("无冒号整条即正文")).toEqual(["无冒号整条即正文"]);
+    expect(extractPlannedDialogueTexts("")).toEqual([]);
+    expect(extractPlannedDialogueTexts(undefined)).toEqual([]);
+  });
+
+  it("full 档端到端:builder 注入的台词逐条过门(单镜直注路径天然逐字回归锁)", () => {
+    const lines = "甲：先走。\n旁白：雨声盖过脚步。";
+    const { prompt: i2v } = buildShotH3Prompt({ videoDesc: "石桥", lines, durationSec: 5 }, "full");
+    const { prompt: ref } = buildShotH3RefPrompt({ videoDesc: "石桥", lines, durationSec: 5 }, "full");
+    for (const p of [i2v, ref]) {
+      expect(verifyPlannedTextVerbatim(p, extractPlannedDialogueTexts(lines))).toEqual({ ok: true, missing: [] });
+    }
   });
 });

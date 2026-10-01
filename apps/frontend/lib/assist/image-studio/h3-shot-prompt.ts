@@ -16,6 +16,32 @@ export interface H3PromptResult {
   lengthFrames: number;
 }
 
+/** 文案逐字自检门(docs/comfyui-kb/参考_文案逐字自检门.md §一)结果:
+ * ok=全部在场;missing=缺席的计划文案(trim 后原文,供大白话错误指名)。 */
+export interface PlannedTextVerbatimResult {
+  ok: boolean;
+  missing: string[];
+}
+
+/** 文案逐字自检门:派发前把「计划文案清单」逐条与最终 prompt 比对——
+ * 每条必须作为**连续子串一字不差**(含标点)在场;查询集=计划清单,
+ * 不以 prompt 反推;空清单/空白清单=ok(无文案镜不拦);不做宽松匹配。
+ * 纯函数,不抛错,阻断决策由派发点按 missing 做。 */
+export function verifyPlannedTextVerbatim(prompt: string, plannedTexts: string[]): PlannedTextVerbatimResult {
+  const missing = (plannedTexts ?? [])
+    .map((text) => (text ?? "").trim())
+    .filter(Boolean)
+    .filter((text) => !prompt.includes(text));
+  return { ok: missing.length === 0, missing };
+}
+
+/** 计划文案清单来源(台词列):与 renderDialogue 同一解析(单一解析源,
+ * 防清单与注入的传导断点)——取每条台词的正文(「角色：正文」的正文,
+ * 无冒号整条即正文);屏幕可见文字字段将来入模型时同权追加进清单。 */
+export function extractPlannedDialogueTexts(lines?: string): string[] {
+  return parseDialogueLines(lines).map((line) => line.text);
+}
+
 const FIXED_I2V_LINE = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.";
 
 export function snapH3LengthFrames(durationSec: number): number {
