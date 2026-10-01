@@ -37,6 +37,7 @@ from .nodes.my_image_ab_compare import MyImageABCompare
 from .nodes.my_video_ab_compare import MyVideoABCompare
 from .nodes.my_model_bus import MyModelBus
 from .nodes.my_charsheet_labels import MyCharsheetLabels
+from .nodes.my_image_save import MyImageSave
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
@@ -127,6 +128,7 @@ NODE_CLASS_MAPPINGS = {
     "MyVideoABCompare": MyVideoABCompare,  # 0929 TE-MAN 排查 B2:视频对比审片(双 video 同步+帧对齐)
     "MyModelBus": MyModelBus,
     "MyCharsheetLabels": MyCharsheetLabels,
+    "MyImageSave": MyImageSave,  # 1001 TE-MAN B7①:存图可追溯(核心存图子类+底部 prompt 面板,ui.myPrompt 回传)
     # 旧名别名(09-14 改名前存量工作流的节点 type 键)
     "ManyingPrompt": MyPromptLegacy,
     "ManyingReference": MyReferenceLegacy,
@@ -163,6 +165,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyVideoABCompare": "漫影 视频对比审片",
     "MyModelBus": "漫影 道劫模型分线排",
     "MyCharsheetLabels": "漫影 设定表标注",
+    "MyImageSave": "漫影 存图(可追溯)",
     # 旧键同名显示(画布上旧工作流节点标题照旧渲染「漫影 …」)
     "ManyingPrompt": "漫影 提示词",
     "ManyingReference": "漫影 参考图",
