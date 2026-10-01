@@ -1,0 +1,523 @@
+{
+  "id": "10330e5c-379d-4e5e-a263-0dcd6d9cdac9",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 11,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        1200,
+        100
+      ],
+      "size": [
+        340,
+        84
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "title": "[1] UNET加载",
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        1200,
+        400
+      ],
+      "size": [
+        360,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "title": "[2] CLIP加载(qwen_image)",
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_8b_bf16_heretic.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        1200,
+        700
+      ],
+      "size": [
+        340,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            4,
+            9
+          ]
+        }
+      ],
+      "title": "[3] VAE加载",
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "QwenImage21Cache",
+      "pos": [
+        1700,
+        100
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "name": "dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "[4] Qwen2.1缓存(auto/default)",
+      "properties": {
+        "Node name for S&R": "QwenImage21Cache"
+      },
+      "widgets_values": [
+        "auto",
+        "default"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        1200,
+        1100
+      ],
+      "size": [
+        680,
+        230
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            5
+          ]
+        }
+      ],
+      "title": "[5] 主体句(唯一手写位;默认=示例章标题卡)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "一张武侠连环画的章封面标题卡,方形画幅,画面疏朗,大片留白。画面右侧两列竖排书法大字作主标题,自右向左读:右列\"第柒章\",左列\"剑冢\";厚重楷书,运笔有提按顿挫,墨色饱满,字高约占画面高度一半。主标题左侧一行竖排小字副题\"万剑归冢,故人西去\",字号不足主标题五分之一,墨色稍淡。四周边框以水墨笔意勾成,粗细不匀、断续有致,淡墨皴擦不抢字;边框之内是安静的宣纸白留白。背景极简:一抹淡墨远山,几点青灰近石,疏朗青绿草木,赭石旧金各安其位,一块朱红点题色收束视线;传统色中等强度,受控饱和而非一律低饱和;均匀柔光,平涂的底,墨色浓淡分明。整卡只有上述中文文字,不出现任何其他文字、字母、数字或水印。"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        2200,
+        300
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7,
+          "link": 4
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "[6] Qwen2.1 文本编码(prompt接[5];resolution=2048原生2K)",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "",
+        "",
+        2048
+      ]
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        2800,
+        200
+      ],
+      "size": [
+        330,
+        262
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "title": "[7] KSampler(40步·cfg1·seed固定424242)",
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        424242,
+        "fixed",
+        40,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        3300,
+        620
+      ],
+      "size": [
+        240,
+        50
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "title": "[8] VAE解码",
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        3700,
+        620
+      ],
+      "size": [
+        380,
+        330
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "title": "[9] 保存",
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "MYStudio"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "MarkdownNote",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        940,
+        980
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "[10] 说明卡·用途/文字写法/seed口径(2026-10-02)",
+      "properties": {},
+      "widgets_values": [
+        "## Qwen-Image-2.1 标题卡/封面排版 · 使用说明(2026-10-02 入库)\n\n**用途**:连环画章封面、分镜标题卡——吃 Qwen-Image-2.1 中文文字排版强项,一张直出带中文标题的成卡(默认示例:竖排主标题\"第柒章\"+\"剑冢\"+小字副题+水墨边框留白)。\n\n**链路(纯 t2i·40 步完整档,排版质量优先,不设加速支路)**\n\n- 权重三件套:UNET `qwen_image_2.1_bf16.safetensors` → [4] QwenImage21Cache(auto/default)→ 采样;TE `qwen3vl_8b_bf16_heretic.safetensors`([2] type=qwen_image);VAE `qwen_image_2.1_vae_bf16.safetensors`。\n- **出图尺寸 = [6] 编码器 resolution 槽(默认 2048=原生 2K 方图)**:[6] 的 latent 输出(槽2)直进 KSampler latent_image;无参考图输入时该 latent 尺寸=resolution×resolution(comfy_extras/nodes_qwen.py TextEncodeQwenImage21 现行为)。官方原生 2K 说明见 `0_官方模板/image_qwen_image_2_1_t2i.json` 的 Note: Usage;数值宜 32 的倍数。\n- 采样 40 步·cfg1·euler·simple·denoise1(cfg=1 时负向提示词不参与采样;[6] negative→KSampler negative 为官方同构占位)。\n\n**主体句(唯一手写位)**:[5] PrimitiveStringMultiline 外露。默认=示例章标题卡;道劫题材风格词借自 `my_nodes/nodes/qi21_bases.json` 人物型(运笔提按顿挫/墨色浓淡分明/传统色受控饱和/宣纸白留白/一块点题色),借得适度,整段可改。**改标题只改引号内的字**,结构句(竖排方位/字号/边框/留白)保持不动,版式最稳。\n\n**文字写法(官方口径,必守)**:画面里要出现的字,必须用**直双引号**包住、**单语**写——如 右列\"第柒章\",左列\"剑冢\";引号内保持原文原字形(中文就是中文,不转写不翻译),同一对引号内不得中英混排(混语=乱字高发)。要分行就拆成两个引号句分别说位置,不在引号内塞换行符;不打算被读清的字(远景招牌/密集小字)直接写\"模糊不可辨\",不要替它编字形。\n\n**seed 建议:换字不换版式**:seed 恒 424242·fixed。同 seed 只改引号内的字重跑,水墨边框/留白/构图基本不动而字已换——整卷章节封面版式一致靠这个。要大变版式才换 seed;小调优先只动主体句。\n\n**产出**:[9] 存图(前缀 MYStudio,落引擎 output 目录)。"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      4,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      2,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      3,
+      0,
+      6,
+      2,
+      "VAE"
+    ],
+    [
+      5,
+      5,
+      0,
+      6,
+      3,
+      "STRING"
+    ],
+    [
+      6,
+      6,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      6,
+      1,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      6,
+      2,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      9,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      10,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      11,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

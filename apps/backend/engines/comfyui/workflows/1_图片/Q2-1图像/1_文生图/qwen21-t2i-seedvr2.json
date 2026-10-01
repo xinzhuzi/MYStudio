@@ -1,0 +1,1173 @@
+{
+  "id": "5840c9c9-3a16-4db4-a69d-86f4c0780313",
+  "revision": 0,
+  "last_node_id": 13,
+  "last_link_id": 14,
+  "nodes": [
+    {
+      "id": 10,
+      "type": "MarkdownNote",
+      "pos": [
+        80,
+        100
+      ],
+      "size": [
+        800,
+        900
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "[10] 使用说明",
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "## Qwen-Image-2.1 文生图 + SeedVR2 放大 · 一条龙(2026-10-02 入库)\n\n**定位**:替代「生成 → 另开放大件」两步走——t2i 直出 1024² 后串 SeedVR2 放大尾档,一次运行直接得 2K 成品。\n\n**权重(两套,均已家级装机)**\n\n- 生成段 bf16 三件套:`qwen_image_2.1_bf16.safetensors`(UNET)→ `QwenImage21Cache`(auto/default)加速 → 采样;`qwen3vl_8b_bf16_heretic.safetensors`(CLIPLoader type=qwen_image);`qwen_image_2.1_vae_bf16.safetensors`\n- 放大段(照 K2-SeedVR2修复 件实配):`seedvr2_7b_sharp_fp8_e4m3fn.safetensors` + `ema_vae_fp16.safetensors`,mps / sdpa / lab 校色。⚠️ 本机 MPS 实弹(10-02):svae 不分块编码会确定性崩引擎(两复现),已按「社区-视频文件直接超分-SeedVR2」实战值改 tiled 512/160(encode/decode 同参),tiled 后一条龙 104s 全绿\n\n**用法要点**\n\n1. 在 [5] 编码器写提示词(英文长句最佳);负向留空——cfg=1 时负向不参与采样。\n2. 生成段恒 **1024²·40步·cfg1·euler/simple**:分辨率走 [5] 编码器 resolution=1024,潜空由 [5] 的 latent 槽(槽2)直排 [6] KSampler(Qwen2.1 原生路径,vae 必接)。\n3. 放大段 [12] `resolution=2048`(短边目标)→ 1024² 输入即放大到 **2048×2048(2K 档)**,长宽比自动保持;调大直出分辨率时,放大结果按短边等比跟随。\n\n**放大段可整组旁路**:选中最右组框(标题已注明「可整组旁路」)按 `Ctrl+B`,全组旁路后只出 [8] 的 1024² 直出图;要 2K 成品时再 `Ctrl+B` 切回。\n\n**⚠️ 时间成本提示**:两段都是大模型推理——生成段 1024²·40 步本机(MPS)本就以分钟计;放大段再叠一段 SeedVR2 7B 级修复推理,总耗时更长。急出图先旁路放大段拿直出图,确认构图满意后再放行放大段。\n"
+      ]
+    },
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        1200,
+        100
+      ],
+      "size": [
+        340,
+        84
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[1] UNET加载",
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "qwen_image_2.1_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        1200,
+        380
+      ],
+      "size": [
+        360,
+        130
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[2] CLIP加载(qwen_image)",
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen3vl_8b_bf16_heretic.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        1200,
+        660
+      ],
+      "size": [
+        340,
+        60
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            4,
+            9
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[3] VAE加载",
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      }
+    },
+    {
+      "id": 4,
+      "type": "QwenImage21Cache",
+      "pos": [
+        1700,
+        100
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[4] 缓存加速(auto/default)",
+      "properties": {
+        "Node name for S&R": "QwenImage21Cache",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "auto",
+        "default"
+      ],
+      "widgets_values_named": {
+        "device": "auto",
+        "dtype": "default"
+      }
+    },
+    {
+      "id": 5,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        2250,
+        150
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        },
+        {
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "title": "[5] Qwen2.1 文本编码(prompt 写这;latent 槽2直排 [6])",
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "A serene watercolor painting of a small wooden cabin beside a mirror-calm mountain lake at early dawn, soft mist drifting over the water, warm golden light touching the ridge line, delicate visible brush texture, muted earthy palette, tranquil and airy atmosphere.",
+        "",
+        1024
+      ],
+      "widgets_values_named": {
+        "prompt": "A serene watercolor painting of a small wooden cabin beside a mirror-calm mountain lake at early dawn, soft mist drifting over the water, warm golden light touching the ridge line, delicate visible brush texture, muted earthy palette, tranquil and airy atmosphere.",
+        "negative_prompt": "",
+        "resolution": 1024
+      }
+    },
+    {
+      "id": 6,
+      "type": "KSampler",
+      "pos": [
+        2830,
+        150
+      ],
+      "size": [
+        330,
+        262
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 5
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[6] KSampler(40步·cfg1)",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        40,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 40,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        3280,
+        200
+      ],
+      "size": [
+        240,
+        50
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 8
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10,
+            13
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "[7] VAE解码",
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "SaveImage",
+      "pos": [
+        3650,
+        150
+      ],
+      "size": [
+        380,
+        330
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "title": "[8] 直出保存(1024²)",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "MYStudio"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "MYStudio"
+      }
+    },
+    {
+      "id": 9,
+      "type": "SeedVR2LoadDiTModel",
+      "pos": [
+        4400,
+        100
+      ],
+      "size": [
+        300,
+        254
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "torch_compile_args",
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blocks_to_swap",
+          "name": "blocks_to_swap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "blocks_to_swap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "swap_io_components",
+          "name": "swap_io_components",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "swap_io_components"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cache_model",
+          "name": "cache_model",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "cache_model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "attention_mode",
+          "name": "attention_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "attention_mode"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SEEDVR2_DIT",
+          "name": "SEEDVR2_DIT",
+          "type": "SEEDVR2_DIT",
+          "slot_index": 0,
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2LoadDiTModel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "mps",
+        0,
+        false,
+        "none",
+        false,
+        "sdpa"
+      ],
+      "widgets_values_named": {
+        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "device": "mps",
+        "blocks_to_swap": 0,
+        "swap_io_components": false,
+        "offload_device": "none",
+        "cache_model": false,
+        "attention_mode": "sdpa"
+      },
+      "title": "[9] SeedVR2 DiT 加载(sharp 7B fp8)"
+    },
+    {
+      "id": 11,
+      "type": "SeedVR2LoadVAEModel",
+      "pos": [
+        4400,
+        480
+      ],
+      "size": [
+        300,
+        366
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "torch_compile_args",
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tiled",
+          "name": "encode_tiled",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "encode_tiled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tile_size",
+          "name": "encode_tile_size",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "encode_tile_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tile_overlap",
+          "name": "encode_tile_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "encode_tile_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tiled",
+          "name": "decode_tiled",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "decode_tiled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tile_size",
+          "name": "decode_tile_size",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "decode_tile_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tile_overlap",
+          "name": "decode_tile_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "decode_tile_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tile_debug",
+          "name": "tile_debug",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "tile_debug"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cache_model",
+          "name": "cache_model",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "cache_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SEEDVR2_VAE",
+          "name": "SEEDVR2_VAE",
+          "type": "SEEDVR2_VAE",
+          "slot_index": 0,
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2LoadVAEModel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "ema_vae_fp16.safetensors",
+        "mps",
+        true,
+        512,
+        160,
+        true,
+        512,
+        160,
+        "false",
+        "none",
+        false
+      ],
+      "widgets_values_named": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "mps",
+        "encode_tiled": false,
+        "encode_tile_size": 1024,
+        "encode_tile_overlap": 128,
+        "decode_tiled": false,
+        "decode_tile_size": 1024,
+        "decode_tile_overlap": 128,
+        "tile_debug": "false",
+        "offload_device": "none",
+        "cache_model": false
+      },
+      "title": "[11] SeedVR2 VAE 加载"
+    },
+    {
+      "id": 12,
+      "type": "SeedVR2VideoUpscaler",
+      "pos": [
+        4850,
+        100
+      ],
+      "size": [
+        360,
+        458
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 13
+        },
+        {
+          "localized_name": "dit",
+          "name": "dit",
+          "type": "SEEDVR2_DIT",
+          "link": 11
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "SEEDVR2_VAE",
+          "link": 12
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_resolution",
+          "name": "max_resolution",
+          "type": "INT",
+          "widget": {
+            "name": "max_resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "uniform_batch_size",
+          "name": "uniform_batch_size",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "uniform_batch_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "color_correction",
+          "name": "color_correction",
+          "type": "COMBO",
+          "widget": {
+            "name": "color_correction"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "temporal_overlap",
+          "name": "temporal_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "temporal_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prepend_frames",
+          "name": "prepend_frames",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "prepend_frames"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "input_noise_scale",
+          "name": "input_noise_scale",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "input_noise_scale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "latent_noise_scale",
+          "name": "latent_noise_scale",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "latent_noise_scale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enable_debug",
+          "name": "enable_debug",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enable_debug"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2VideoUpscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        42,
+        "fixed",
+        2048,
+        4096,
+        1,
+        false,
+        "lab",
+        0,
+        0,
+        0,
+        0,
+        "none",
+        false
+      ],
+      "widgets_values_named": {
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "resolution": 2048,
+        "max_resolution": 4096,
+        "batch_size": 1,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 0,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "none",
+        "enable_debug": false
+      },
+      "title": "[12] SeedVR2 放大(短边 2048=2K 档)"
+    },
+    {
+      "id": 13,
+      "type": "SaveImage",
+      "pos": [
+        5350,
+        100
+      ],
+      "size": [
+        380,
+        330
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "title": "[13] 放大保存(2K·2048²)",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "MYStudio-2K"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "MYStudio-2K"
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      4,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      2,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      3,
+      0,
+      5,
+      2,
+      "VAE"
+    ],
+    [
+      5,
+      5,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      5,
+      1,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      5,
+      2,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      8,
+      6,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      9,
+      3,
+      0,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      10,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      9,
+      0,
+      12,
+      1,
+      "SEEDVR2_DIT"
+    ],
+    [
+      12,
+      11,
+      0,
+      12,
+      2,
+      "SEEDVR2_VAE"
+    ],
+    [
+      13,
+      7,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      14,
+      12,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Qwen-Image-2.1 加载器(bf16 三件套+缓存加速)",
+      "bounding": [
+        1130,
+        30,
+        1020,
+        750
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "文生图主链(1024²·40步·cfg1;编码 latent 槽2直排采样→解码→直出保存)",
+      "bounding": [
+        2170,
+        80,
+        1950,
+        480
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "SeedVR2 放大尾档·短边2048=2K 档(可整组旁路:框选本组 Ctrl+B → 只出 [8] 直出图)",
+      "bounding": [
+        4330,
+        30,
+        1490,
+        880
+      ],
+      "color": "#88A",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "ds": {
+      "scale": 0.45,
+      "offset": [
+        60,
+        200
+      ]
+    },
+    "frontendVersion": "1.53.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

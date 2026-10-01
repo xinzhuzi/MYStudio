@@ -239,6 +239,17 @@
       "category": "Qwen-Image-2.1 图像",
       "repo": "https://github.com/Fannovel16/comfyui_controlnet_aux",
       "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "comfyui-minimax-h3-prompt-enhancer-T8",
+      "name": "H3 T8 提示词增强器(云/本地)",
+      "desc_zh": "T8 提示词增强与创作套件,共 29 节点:主力 MiniMaxH3PromptEnhancerT8(显示名 MiniMax H3 Prompt Enhancer (Cloud / Local GGUF),类目 T8/MiniMax H3,云/本地 GGUF 双路),同族增强器 Seedance20PromptEnhancerT8/MiniMaxMusic3PromptEnhancerT8/YuE2MusicPromptEnhancerT8/QwenImage21PromptEnhancerT8,创作套件 T8/Creative Suite 13 件(T8CreativeDirector/T8CreativeContextAssembler/T8DirectedRevision/T8LongFormPlanner/T8ReferenceRoleMapper/T8CreativeCandidateLab/T8CreativeCandidateSelector/T8StoryboardPack/T8CreativeDNAMixer/T8PersonalCreativePreset/T8MusicCreativeLab/T8CreativeVersionStack/T8MusicVideoBeatSheet),影视三件(T8FilmProjectRouter/T8CharacterPerformanceBible/T8CharacterPerformanceBibleStack),工具件(T8LLMProviderConfig/T8PromptInspector/T8PromptText/T8ShowText/T8PerformanceDirectorConfig/T8CombatCameraConfig/T8LyricWriter/T8ArrangementPlanner)。引擎家 git 新装(装前核 custom_nodes 下该目录不存在,非 pull),HEAD 3c3bbae『Release 1.28.2: fix live Qwen edit fallback and transparency validation』;注册机制=新版 comfy_api 扩展点(__init__.py 定义 ComfyExtension 子类+comfy_entrypoint+get_node_list 返回节点类表),无传统 NODE_CLASS_MAPPINGS 字典(grep 全仓仅测试 mock 出现),引擎 v0.37.0 核心支持该机制(ComfyUI/nodes.py:2323 消费 get_node_list 并按 GET_SCHEMA().node_id 注册);29 节点已用引擎 venv python 按引擎同款 importlib 路径真实导入并逐类调 GET_SCHEMA() 实枚举(非纸面推断);校验=venv python -m py_compile 全量 121 个 py 文件全过(超出抽查要求做了全量)。占盘 949M(.git 历史 849M+工作树约 100M,web 资产 85M 含官方预览图),WEB_DIRECTORY=./web/js。生效状态:装机时引擎在跑(17599 探活 HTTP 200,object_info 共 2944 节点),新插件 29 节点均未出现——需引擎重启后 object_info 复核方可定案注册。仓库文件零改动(登记册由台账员写)。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/T8mars/comfyui-minimax-h3-prompt-enhancer-T8",
+      "verified_license": "专有(非标准开源):LICENSE.txt(9 行)『Copyright (c) 2026 T8mars. All rights reserved.』——明确不授予复制/修改/再分发/转许可/出售权限,非任何标准开源许可(无 MIT/Apache/GPL 等 SPDX 名);捆绑的 MiniMax 官方 Skills 资源版权归 MiniMax-AI,按 THIRD_PARTY_NOTICES.md 钉上游 commit 溯源、不随 T8 许可再授权",
+      "provides": [
+        "MiniMaxH3PromptEnhancerT8"
+      ]
     }
   ]
 }
