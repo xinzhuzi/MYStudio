@@ -25,8 +25,11 @@ MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
   optional
     装配全文   ← [141] MyQi21PromptAssembly.装配全文(直写路/透明直写路真源);
                缺键(None)语义=pe关路降级空串+中文警告(裁定 A 自洽语义)
-    PE出文     ← [140] PE改写.positive_prompt(lazy=True:pe关时 [140] 无人消费
-               其输出→不进执行图→零 PE TE 装载,实弹四源帧取证)
+    PE出文     ← [140] PE改写.positive_prompt(lazy=True:pe关×联动关时 [140]
+               无人消费其输出→不进执行图→零 PE TE 装载;1001 深审修复轮
+               起成立——修前 [151].wh_ratio 非懒必填槽强拉 [140],实弹证违
+               在档 s8-integration-report.json lazyVerdict=VIOLATED,已随
+               wh_ratio lazy 化根治,引擎实码最小同构图三拍复验)
 
 逻辑(与原一件式三行公式逐字不变):
   最终文本 = PE出文 if pe开关 else (装配全文 or "")
@@ -42,7 +45,9 @@ MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
 懒执行协议(SpeedSelect 实名协议,自一件式装配器随裁定 A 挪本件;引擎实码
 对拍 execution.py:507-520 + graph.py:169-170):
   - PE出文 声明 lazy=True=执行图对该槽默认不建强依赖,pe 关时 [140] 无人消费
-    其输出→不进执行图→零 PE TE 装载;
+    其输出→不进执行图→零 PE TE 装载。**成立条件=pe开关关×联动开关关**
+    ([151] MyQi21WhSuggest.wh_ratio 亦已 lazy 化,1001 深审修复轮;联动开
+    时 wh_ratio 请求仍拉 [140]=建议路既有语义,详见该件 docstring);
   - 钩子实名 check_lazy_status(本版引擎只认此名):pe关→[];pe开且 PE出文
     已接线未求值(执行器投 None)→请求名单;未接线槽(kwargs 缺键)绝不请求
     ——引擎对未接线槽 make_input_strong_link 抛 NodeInputError
