@@ -274,6 +274,41 @@ class TestRetireExtraPids:
         assert terminated == [[61399]]
 
 
+# ── 1001 低风险池:自持存活 pid 杀前豁免(引导窗撞口误杀防线) ──────────
+
+class TestRetireOwnInstanceExemption:
+    """引导窗内额外实例 argv 自称口可与自持引擎的实际监听口撞车(额外实例
+    绑口失败/尚未绑口时,该口的监听者恰是自持引擎)——旧实现按口照杀=误杀
+    自持健康引擎。修法:停旧名单里命中的自持存活 pid 一律豁免并打日志,
+    真孤儿照旧停(替身 _LiveProc 见下方快路径组,运行时取名)。"""
+
+    def test_own_listener_exempt_extra_pid_still_killed(self, monkeypatch, capsys):
+        """主战场:自持 4321 活着且正是 17600 的监听者,额外实例 61399 自称
+        17600(绑口失败)→自持的豁免(监听者+补充名单双处都滤),额外照停。"""
+        terminated: list[list[int]] = []
+        monkeypatch.setattr(em, "_port_listener_pids", lambda port: [4321])
+        monkeypatch.setattr(em, "_pid_is_home_engine", lambda pid: True)
+        monkeypatch.setattr(em, "_terminate_pids", lambda pids: terminated.append(pids) or True)
+        manager = EngineManager()
+        manager._proc = _LiveProc()  # 自持引擎替身:pid 4321、恒存活
+        assert manager._retire_orphan_engine(17600, extra_pids=[61399, 4321]) is True
+        assert terminated == [[61399]], "只停额外实例:监听者自持豁免+补充名单滤自持 pid"
+        out = capsys.readouterr().out
+        assert "停旧豁免" in out and "4321" in out, "豁免须打日志说明跳过原因"
+
+    def test_foreign_orphan_listener_still_killed_with_exemption_armed(self, monkeypatch, capsys):
+        """对照支:豁免机制在位(自持 4321 活着)但监听者是 86156=不在册的
+        真孤儿→照旧停,零豁免日志(正常收敛额外实例的行为保持)。"""
+        terminated: list[list[int]] = []
+        monkeypatch.setattr(em, "_port_listener_pids", lambda port: [86156])
+        monkeypatch.setattr(em, "_terminate_pids", lambda pids: terminated.append(pids) or True)
+        manager = EngineManager()
+        manager._proc = _LiveProc()
+        assert manager._retire_orphan_engine(17005) is True
+        assert terminated == [[86156]], "真孤儿(不在册监听者)仍被停"
+        assert "停旧豁免" not in capsys.readouterr().out
+
+
 # ── start_sync 动态续接主战场 ────────────────────────────────────────
 
 class TestDynamicContinuationStartSync:

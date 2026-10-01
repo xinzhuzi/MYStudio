@@ -1,7 +1,10 @@
-# Copyright (c) 2025 hotflow2024
-# Licensed under AGPL-3.0-or-later. See LICENSE for details.
-# Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""批量队列治理四协议工具(TE-MAN B5 设计吸收·自研实现,任务 09-29-teman-b5-batch-queue)。
+"""批量队列治理四协议工具(TE-MAN B5 设计吸收·自研仿写,任务 09-29-teman-b5-batch-queue)。
+
+头注裁定(10-01,遗留 low 池):本件系 TE-MAN B5 批量队列治理协议的仿写自研——
+仿的是四协议与连线闭包裁剪之设计(出处 docs/comfyui-kb/参考_TE-MAN可吸收排查.md
+B5 行),代码全部本仓独立撰写,与 TE-MAN 上游无文本衍生;原 my_nodes 家族式
+3 行 AGPL 版权头系模板误植(本件不进节点包,tools/ 兄弟件 wf2api.py/
+monitor_h3.py 均无头),已移除,对齐目录惯例。
 
 四协议(编排层行为,住脚本=不改引擎面、不进节点包、免打包):
   1. 断点续跑 —— 拍号→产物指纹台账(ndjson,逐事件追加);重跑跳过台账已完成拍;
@@ -1016,6 +1019,15 @@ def self_test() -> int:
     check("预检⑥=超时×非pending→判僵", pending_timeout_action(False, 0) == "zombie")
     check("预检⑥=封顶前最后一次豁免仍续等", pending_timeout_action(True, MAX_PENDING_RESETS - 1) == "reset")
     check("预检⑥=豁免耗尽(永压 pending)→判僵", pending_timeout_action(True, MAX_PENDING_RESETS) == "zombie")
+
+    # 18) 头注裁定锚(10-01 第八件):自研仿写出处入 docstring、版权授予字样零残留
+    # (查内存 __doc__,零 IO 不破分层纪律;注释形态的头不进 docstring,防回植靠本断言
+    # +评审——若有人把版权头改进 docstring 或改丢出处注记,此处翻红)
+    _doc = __doc__ or ""
+    check("头注=docstring 无版权授予字样",
+          all(w not in _doc for w in ("Copyright (c)", "Licensed under", "Commercial licensing", "AGPL-3.0")))
+    check("头注=自研仿写出处注记在档",
+          "仿写" in _doc and "TE-MAN B5" in _doc and "参考_TE-MAN可吸收排查.md" in _doc)
 
     print(f"\nself-test: {len(failures)} failed" if failures else "\nself-test: ALL PASS")
     return 1 if failures else 0

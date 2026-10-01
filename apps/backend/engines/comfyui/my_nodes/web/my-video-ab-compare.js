@@ -6,7 +6,8 @@ import { app } from "/scripts/app.js";
 /**
  * 视频对比审片器 DOM 件(0929 TE-MAN 排查 B2 仿写件)。
  * 双 <video> 滑动帘 + rAF 同步(syncToken 防竞态:每轮同步持令牌,旧循环
- * 见令牌易主即自杀,换源/跳帧/播放态切换绝不留双环)+ 帧对齐(共享帧号
+ * 见令牌易主即自杀,换源/跳帧/播放态切换绝不留双环;环终止三路=暂停一拍歇/
+ * onRemoved 令牌+cancelAnimationFrame/连续 N 帧脱离文档兜底歇环)+ 帧对齐(共享帧号
  * F,A/B 各按自身 frame_count/frame_rate 换算各自的秒,两路帧率可不同,
  * 播放中 B 侧 playbackRate=rateA/rateB 贴帧走(同墙钟内 B 帧号推进=A 帧号推进),漂移超容限即校正 seek)
  * + A/B 声道切换(单边出声,<video>.muted 行为)。
@@ -31,6 +32,12 @@ const alignedTime = (frame, rate, count) => Math.min(
 
 // 声道枚举(与 py 侧 AUDIO_CHANNELS 同源;a/b/mute 三态)
 const AUDIO_KEYS = ["a", "b", "mute"];
+
+// rAF 环脱离兜底(1001 遗留池①):连续 N 帧关键 DOM 不在文档即歇环——单帧
+// 瞬态脱离(宿主重排/DOM widget 挂载切换常态)不误杀在播同步,宿主漏调
+// onRemoved 的脱离节点至多空转 N 帧(≈0.5s@60Hz)即止,绝不刷新率常转。
+// 行为常量非尺寸/配色,不入 AB_COMPARE_TOKENS(theme.js 本役禁改)。
+const DETACH_GRACE_FRAMES = 30;
 
 const DEFAULT_STATE = () => ({
   curtain: 0.5,   // 帘位(0=全 B,1=全 A;0.5=正中)
@@ -113,27 +120,51 @@ app.registerExtension({
     if (nodeData?.name !== "MyVideoABCompare") return;
 
     // ── rAF 同步引擎:syncToken 防竞态(旧环见令牌易主即自杀)──────────
+    // 环终止三路(1001 遗留池①):①暂停(!playing 一拍即歇,读数由 seek/交互
+    // 直更,静置节点零 rAF 常驻)②宿主调 onRemoved(令牌易主+cancelAnimationFrame
+    // 即时撤销已排未拍帧,见尾钩)③脱离兜底:连续 DETACH_GRACE_FRAMES 帧
+    // ui.el 不在文档(!isConnected)即 cancelAnimationFrame 止环+打一次 console
+    // 注记——宿主漏调 onRemoved 也不刷新率常转;宽限窗内瞬态脱离不提前停,
+    // 回档即续同步(在环内正常工作时不许早停)
     const startSyncLoop = (node) => {
       const ui = node.__myAbVideo;
       if (!ui) return;
       ui.syncToken += 1;
       const token = ui.syncToken;
+      let detachStreak = 0;  // 连续脱离帧数(在档即清零;新环新闭包自清)
       const loop = () => {
+        ui.rafId = 0;  // 本拍已消费;rafId 只在排下一拍时非零(onRemoved 撤的是已排未拍帧)
         if (!node.__myAbVideo || ui.syncToken !== token) return; // 竞态自杀
         tickSync(node);
-        // 暂停态一拍即歇环(读数由 seek/交互直更;静置节点零 rAF 常驻);
-        // DOM 脱离(isConnected 假)同歇——真歇环在此,宿主漏调 onRemoved 也不空转
-        if (!ui.playing || !ui.el.isConnected) return;
-        requestAnimationFrame(loop);
+        // 暂停态一拍即歇环
+        if (!ui.playing) return;
+        if (ui.el.isConnected) {
+          detachStreak = 0;  // 在档清零:瞬态脱离回档即续同步
+          ui.rafId = requestAnimationFrame(loop);
+          return;
+        }
+        // DOM 脱离:tickSync 内守卫已保证各拍不写 detached 节点,此处只数连击
+        detachStreak += 1;
+        if (detachStreak < DETACH_GRACE_FRAMES) {
+          ui.rafId = requestAnimationFrame(loop);  // 宽限窗内等回档
+          return;
+        }
+        // 连击满 N=真脱离(宿主漏调 onRemoved):cancelAnimationFrame 止环
+        // (此刻 rafId=0 无在途帧,恒 no-op,双保险置法)+ 一次性注记;
+        // 链不再排帧即死,零外溢清理(播放态/视频交由宿主可见面决定)
+        globalThis.cancelAnimationFrame?.(ui.rafId);
+        console.warn(`[my.abcompare.video] rAF 同步环止:DOM 连续 ${detachStreak} 帧不在文档`
+          + "(节点已删而宿主未调 onRemoved?)——自动歇环防刷新率空转");
       };
-      requestAnimationFrame(loop);
+      ui.rafId = requestAnimationFrame(loop);
     };
 
     // 每帧:A 为主钟推共享帧号;B 漂移超容限即校正;读数/播完收尾
     const tickSync = (node) => {
       const ui = node.__myAbVideo;
       // 生命周期守卫:DOM 已脱离时本拍直接返回,不写 detached 节点
-      // (真歇环在 loop 续命条件——isConnected 假即不再排下一拍;此处只兜脱离后最后一拍)
+      // (真歇环在 loop 的连击兜底——连续 DETACH_GRACE_FRAMES 帧不在文档即
+      // 止环;此处只护脱离期间各拍与脱离后最后一拍不写 detached 节点)
       if (!ui || !ui.el.isConnected) return;
       const state = ensureState(node);
       const { videoA, videoB } = ui;
@@ -297,6 +328,7 @@ app.registerExtension({
           mute: el.querySelector('[data-audio="mute"]'),
         },
         syncToken: 0,
+        rafId: 0,      // 在途已排未拍帧句柄(onRemoved 即时撤销用;环内每排即写)
         playing: false,
       };
       const ui = node.__myAbVideo;
@@ -435,8 +467,10 @@ app.registerExtension({
     };
 
     // ── 生命周期收口:onRemoved(播放中删节点=同步环立死+双 video 停播停声)──
-    // rAF 环的兜底=loop 续命条件的 isConnected 判(DOM 脱离即真歇环,宿主漏调
-    // onRemoved 也不空转);tickSync 侧守卫只护脱离后最后一拍不写 detached 节点
+    // 立死双保险:令牌易主(在途环见之自杀)+ cancelAnimationFrame 即时撤销
+    // 已排未拍帧(一拍不等);宿主漏调本钩时 rAF 环另有兜底=loop 连击判
+    // (连续 DETACH_GRACE_FRAMES 帧 DOM 不在文档即歇环+一次性注记,见
+    // startSyncLoop);tickSync 侧守卫只护脱离期间各拍不写 detached 节点
     const onRemoved = nodeType.prototype.onRemoved;
     nodeType.prototype.onRemoved = function () {
       const result = onRemoved?.apply(this, arguments);
@@ -445,6 +479,7 @@ app.registerExtension({
         if (ui) {
           ui.playing = false;
           ui.syncToken += 1;  // 在途 rAF 环见令牌易主即自杀
+          if (ui.rafId) globalThis.cancelAnimationFrame?.(ui.rafId);  // 即撤已排帧
           ui.videoA?.pause();
           ui.videoB?.pause();
         }

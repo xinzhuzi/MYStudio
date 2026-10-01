@@ -1243,10 +1243,23 @@ class EngineManager:
         _pid_is_home_engine 现查身份(防 pid 复用)后并入,滤自身,与监听者
         名单去重;默认 None 时与旧签名行为逐字节一致(既有 0928 自愈路径
         与其测试零变化)。
+        1001 低风险池:停旧口取自额外实例 argv 自称——引导窗内可能与自持
+        引擎的实际监听口撞车(额外实例绑口失败/尚未绑口时,监听者恰是自持
+        引擎),旧实现照杀=误杀自持健康引擎。杀前对自持存活 pid(_proc 在册
+        且 poll() 存活;裸读快照镜像守卫循环零锁纪律)一律豁免并打日志,
+        真孤儿(不在册监听者)照旧停。
         """
-        pids = {pid for pid in _port_listener_pids(port) if pid != os.getpid()}
+        own_proc = self._proc
+        own_pid = own_proc.pid if (own_proc is not None and own_proc.poll() is None) else None
+        listeners = [pid for pid in _port_listener_pids(port) if pid != os.getpid()]
+        if own_pid is not None and own_pid in listeners:
+            listeners = [pid for pid in listeners if pid != own_pid]
+            print(f"[image-sidecar] comfy-engine: 端口 {port} 的监听者(pid {own_pid})"
+                  "是本管理器自持的引擎实例,停旧豁免(额外实例自称端口与自持引擎撞车,"
+                  "只停额外实例)", flush=True)
+        pids = set(listeners)
         for pid in extra_pids or []:
-            if pid <= 0 or pid == os.getpid() or pid in pids:
+            if pid <= 0 or pid == os.getpid() or pid == own_pid or pid in pids:
                 continue
             if not _pid_is_home_engine(pid):
                 continue
@@ -1267,7 +1280,8 @@ class EngineManager:
         前枚举一次(排除本管理器自持引擎 pid,收敛决策=纯函数
         _extra_home_instances),发现额外自家出身实例→按既定 retire 纪律收敛
         (_retire_orphan_engine=lsof 监听者
-        +枚举 pid 兜底+杀前身份复核+_terminate_pids,多余的停掉、自持的保留);
+        +枚举 pid 兜底+杀前身份复核+自持豁免+_terminate_pids,多余的停掉、
+        自持的保留);
         枚举不可用(None)→不阻塞不放行错乱(已有引擎在跑、快路径不启新的),
         打日志如实记「唯一性未证」。热路径纪律(生图 ensure 在自管引擎不健
         康/预热窗触达本路,收敛动作不得拖垮它):本方法
