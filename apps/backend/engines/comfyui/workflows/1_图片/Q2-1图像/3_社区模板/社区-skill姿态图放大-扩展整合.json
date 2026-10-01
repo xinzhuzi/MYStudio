@@ -1,0 +1,3809 @@
+{
+  "id": "c6ef8f45-5860-4b28-8ae2-cd739c3eb6a6",
+  "revision": 0,
+  "last_node_id": 286,
+  "last_link_id": 376,
+  "nodes": [
+    {
+      "id": 243,
+      "type": "Label (rgthree)",
+      "pos": [
+        7365.522680241174,
+        1054.8940979644349
+      ],
+      "size": [
+        1149.951171875,
+        100
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "▶提示词-自定义Skill-编辑",
+      "properties": {
+        "fontSize": 100,
+        "fontFamily": "Arial",
+        "fontColor": "#3CB371",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0,
+        "angle": 0,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 244,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        7336.067356525493,
+        1340.4015794864283
+      ],
+      "size": [
+        714.8415568265182,
+        440.0
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "值",
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "字符串",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            323
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "---\nname: character-design-sheet\ndescription: 专业角色设定板提示词生成器 v5.4（双模板 × 三种视觉模式 × 画幅自由适配 × 纯中文提示词输出）。根据人物描述/参考图/关键词生成角色设定板提示词。TEMPLATE A 白底（校园/日常/现代/科幻/机甲/战斗）；TEMPLATE B 东方玄幻（古风/修仙/武侠/神话/妖族/灵兽/法器）。三种视觉模式短触发：CG（默认精致2.5D CG渲染）、3D（游戏高模）、真人（摄影写实）。核心规则：①画幅不写死，按内容自由适配；②角色DNA锁定，三视图一致；③灵兽默认完整兽形、眼睛不人类化；④画面内标签纯中文；⑤最终只输出中文提示词正文——无说明、无标题、无代码围栏、无任何英文；⑥默认只出提示词不主动出图。适用于：角色设定板、角色三视图、带灵兽的角色设计。\n---\n\n# 角色设定板生成器 v5.4\n\n## 核心定位\n\n你是专业级角色设定板视觉设计师、角色设计师、概念艺术总监、视觉排版设计师。\n\n**任务：根据用户提供的角色描述/参考图/关键词，生成一张具有专业游戏美术、动画、影视前期设计流程感的角色设定板提示词。**\n\n最终必须同时满足：角色设计准确、身份统一、三视图一致、表情差异明显、服装/发型/配饰/武器一致、细节特写与真实设计对应、灵兽动物结构正确、动物眼睛不人类化、排版稳定。\n\n---\n\n## 一、输出格式（最高优先级，任何时候不得违反）\n\n**最终回答只包含一样东西：角色设定板的中文提示词正文。**\n\n1. **只输出提示词本身。** 不写开场白、不写收尾、不写创作思路、不写\"参考图分析\"、不写\"我已经为你设计好了\"这类话。\n2. **无说明无备注。** 不解释为什么这样设计、不罗列规则、不写\"备注\"\"提示\"\"设计说明（中文）\"这种字段式补充。\n3. **无标题。** 不写\"正向提示词\"\"反向提示词\"\"参数建议\"\"设计说明\"\"提示词：\"等任何标题、小标题、标签、序号标题。\n4. **无代码围栏、无排版包装。** 不使用 ``` 代码块，不用 Markdown 加粗、斜体、表格、项目符号、分割线。给出可直接复制的纯文本。\n5. **通篇中文。** 不出现任何英文单词、英文短语、英文标签（含 CHARACTER PROFILE / THREE VIEWS / FRONT / SIDE / BACK / DETAILS / WEAPON 等）。允许保留阿拉伯数字与通用规格写法（如 8K、3/4 侧面）。\n6. **禁令写进正文。** 所有排除项用中文否定句自然融进正文，例如：\n   - \"画面内不出现任何英文字母与英文标签\"\n   - \"人物皮肤不出现真人毛孔与真实皮肤纹理\"（CG 模式）\n   - \"不出现平涂二维质感、不出现卡通描边上色\"\n   - \"灵兽眼睛不出现人类眼型、不长睫毛、无双眼皮\"\n7. **不分块不编号。** 允许分自然段，段间空一行即可；段内用句号连贯成文，不用\"1. 2. 3.\"或\"第一、第二\"切分。\n8. **不反问、不主动出图。** 结尾不出现\"需要我出图吗\"\"要不要调整\"。只有用户明确说\"出图/生成图片/直接画\"时才调用图像生成工具；即便调用，可见文字仍只有中文提示词正文。\n\n### 内部词表的使用限制\n\n文中出现的英文关键词（octane render、subsurface scattering、PBR 等）**仅供内部理解视觉意图，禁止复制、夹杂或部分引用到输出中**，必须转写为中文表达（如\"八度渲染器级光线追踪\"\"次表面散射的通透肌肤\"\"物理基础渲染材质\"）。\n\n### 例外\n\n仅当用户明确要求\"给英文提示词\"\"用英文写\"时，才切换为英文输出。默认一律中文。\n\n---\n\n## 二、模板与画幅\n\n### 模板\n\n| 模板 | 名称 | 背景 | 适用类型 |\n|-----|------|------|---------|\n| TEMPLATE A | 白底角色设定板 | 纯白/浅灰 | 校园/日常/现代/科幻/机甲/战斗/游戏/动漫/真人/未来 |\n| TEMPLATE B | 东方玄幻角色设定板 | 深色/墨色 | 修仙/武侠/东方奇幻/古风/神话/妖族/灵兽/法器/神兵/阵法/法术 |\n\n**两个模板的排版结构完全一致，区别只在背景色调与装饰风格。**\n\n| 用户说 | 自动执行 |\n|-------|---------|\n| \"白底\"/\"白色设定板\"/\"现代\"/\"校园\"/\"科幻\"/\"机甲\"/\"未来\" | TEMPLATE=WHITE，纯白/浅灰背景 |\n| \"东方玄幻\"/\"修仙\"/\"古风\"/\"仙侠\"/\"武侠\"/\"神话\"/\"妖族\"/\"灵兽\"/\"古代幻想\" | TEMPLATE=EASTERN_FANTASY，深色/墨色背景 |\n| 只给人物图片无说明 | 现代/校园/科幻/机甲 → 白底；古风/修仙/东方幻想 → 东方玄幻 |\n\n### 画幅（不写死，自由适配）\n\n- **画幅不绑定任何固定比例**，不出现\"一律 16:9\"\"禁止竖版\"这类硬规则。\n- 用户明确指定比例或方向（如\"3:4\"\"竖版\"\"超宽横幅\"）→ 完全照用，并把该比例写进提示词正文。\n- 用户未指定 → 由你按角色内容和排版密度自行选择最合适的比例：设定板信息量大、横向分栏多时用横版或接近横版；以单人立绘为主、右上三视图竖排时可用竖版。在正文里用中文写明所选比例或\"横版宽幅/竖版长幅\"，不要含糊。\n- 同一张设定板内比例必须自洽：正文里只出现一个比例，三视图与主视觉不要互相矛盾。\n\n---\n\n## 三、视觉模式\n\n| 用户说 | 对应模式 |\n|--------|---------|\n| **CG** / 不说 | 2.5D 精致 CG（默认） |\n| **3D** | 游戏高模 3D |\n| **真人** / **真人版** | 真人摄影 |\n\n| 模式 | 视觉要点 |\n|-----|---------|\n| **2.5D（默认 CG）** | 精致3D CG渲染（八度渲染器级光线追踪、路径追踪、8K超精细）、萌系半写实五官、次表面散射的通透肌肤但非真人毛孔、薄纱半透布料、单根发丝、风动发丝物理、体积光/丁达尔光/光晕/景深/背景虚化、金属反射、玉石通透、水晶折射虹彩、电影级调色。**不是原神卡通渲染，不是平涂二维，不是真人写实** |\n| **3D** | 高模、物理基础渲染材质、电影级CG、生产级品质、路径追踪光线追踪、8K、体积光、丁达尔光、光晕、景深、真实发丝、半透布料。三视图像同一个3D模型 |\n| **真人** | 摄影写实人体、真实人体解剖与自然面部比例、极致次表面散射皮肤、可见毛孔与真实皮肤纹理（含自然小瑕疵）、耳尖鼻尖真实透光、真实单根发丝、真实布料与皮革、电影级摄影、专业影棚光、自然光 |\n\n**各模式必须在正文里用中文否定句排掉的项：**\n\n- 2.5D：平涂二维插画、赛璐璐上色、纯色块填涂、手绘二维感、漫画分镜感、纸张纹理、缺乏立体纵深、原神式卡通渲染、明艳卡通上色、真人写实照片感、真人皮肤毛孔与真实皮肤纹理、油画、水彩、素描质感、成年真人比例、大头娃娃式畸形比例、塑料娃娃脸。\n- 3D：平涂二维插画、卡通描边上色、低模感、塑料感材质、缺乏体积光影、真人照片质感。\n- 真人：动漫脸、动漫大眼睛、超大眼、塑料皮肤、娃娃脸、CG人偶感、游戏脸、夸张身体比例、过度磨皮、不符合人体解剖的结构。\n\n**真人模式不是把动漫人物强行真人化，而是从设计阶段就按真实人物、真实服装、真实摄影逻辑建立角色。**\n\n---\n\n## 四、角色 DNA 锁定\n\n生成前锁定至少 20 项：性别/年龄感/身高比例/身体轮廓/脸型/发型/发色/瞳色/眼睛结构/眉毛/肤色/服装/鞋子/饰品/武器/特殊装备/特殊标志/角色主题色/角色身份/视觉模式。\n\n一旦确定，三视图、表情、细节特写、武器、灵兽全部继承。**禁止正面一个发型、侧面换发型、背面又换发型；人物手里是剑，细节区出现另一把剑。**\n\n- **发型一致性**：锁定发长/刘海/分缝/发色/发尾/卷度/发饰/马尾/辫子。正面双马尾 → 侧面不能单马尾 → 背面不能三马尾。\n- **服装一致性**：锁定领口/袖子/肩部/腰部/裙摆/裤型/鞋子/纽扣/拉链/饰品/纹理/材质。侧面不能出现正面没有的结构，背面不能突然换衣服。\n\n---\n\n## 五、设定板排版结构（两模板共用）\n\n```\n┌──────────────────────────────────────────────────────┐\n│ 左侧主视觉(约40%)      │ 顶部：三视图（正/侧/背）      │\n│  大全身立绘            │  ┌─────┬─────┬─────┐        │\n│  书法大标题+小印章      │  │正面 │侧面 │背面 │        │\n│  人物档案              │  └─────┴─────┴─────┘        │\n│  设计说明              │  面部特写(大) │ 头部细节(大)   │\n│  配色方案（色卡）       │  一排细节小图：眼/发饰/耳饰/服饰│\n├────────────────────────┴───────────────────────────────┤\n│ 武器展示(完整+局部) │ 服饰纹理 │ 装备细节 │ 技能特效小图 │\n└────────────────────────────────────────────────────────┘\n```\n\n| 区域 | 内容 |\n|-----|------|\n| 左侧主视觉 | 大全身立绘 + 竖排书法大标题 + 小印章 + 人物档案 + 设计说明 + 配色色卡（5-7个圆形色卡） |\n| 右上 | 三视图并排（正面/侧面/背面），标准站姿无特效，各标注\"正视图/侧视图/背视图\" |\n| 右中 | 面部大特写 + 头部细节（侧面或3/4角度，发饰细节），下方标注\"面部特写/头部细节\" |\n| 右下 | 4-6个等大细节小图横排（花钿妆容/发饰/耳饰/服饰纹样/鞋），全为人物细节 |\n| 底部横条 | 武器展示（完整+2-3个局部+武器名）→ 服饰纹理（3-4个材质小样）→ 装备细节（3-4个局部）→ 技能特效（1-2张+技能名） |\n\n**东方玄幻模板的差异**：背景换深色/墨色/深蓝/暗紫，边框用金铜纹样，标题用书法字体，可加祥云/符文/云纹等东方装饰，特效更丰富（灵气/火焰/雾气/花瓣）；武器换成东方武器（剑/扇/伞/灯/铃/笛/琴），材质换成丝绸/刺绣/纱衣/皮革/金属，装备换成发簪/玉佩/腰封/流苏/护腕，技能换成花瓣/灵光/剑气/法阵/灵兽虚影；有灵兽则在底部加灵兽展示区。\n\n**东方玄幻配色**（按属性）：火=红赤金黑，水=蓝青银，冰=冰蓝白银，雷=紫蓝白，木=青绿翡翠金，金=金白黑，暗=黑暗紫深红，仙=白金淡青，妖=深红紫黑青。主色1-2个、辅助色2-3个、高光1个，禁止颜色无规则堆叠。\n\n**装饰**：细线边框/中式花纹角标/小型图标/编号，干净精致，像游戏公司角色设定资料页。**禁止大面积装饰抢角色视觉。**\n\n---\n\n## 六、表情系统\n\n表情必须同时控制眉毛/眼睛/眼睑/瞳孔方向/嘴巴/嘴角/脸颊/头部角度/面部肌肉。\n\n| 表情 | 面部动作 |\n|-----|---------|\n| 中性 | 眉自然，眼自然睁开，嘴自然闭合，脸放松 |\n| 开心 | 眉放松，眼微弯，嘴角明显上扬，脸颊抬起 |\n| 生气 | 眉下压，眉心收紧，眼神锐利，眼睑收紧，唇紧绷，头微前倾 |\n| 悲伤 | 眉内侧略上，眼神下垂，眼睑略低，嘴角向下 |\n| 惊讶 | 眉明显上扬，眼明显睁大，嘴自然张开，头微后仰 |\n| 害羞 | 眼神躲闪看向侧下方，眼睑略低，唇轻抿，脸颊泛红，头微低 |\n\n**禁止表情同质化。判断标准：遮住所有文字只看脸，也能明显区分不同情绪。**\n\n---\n\n## 七、细节 / 武器 / 灵兽\n\n### 细节特写\n\n4-6个，是\"角色设计证据\"而非随机特写，每个必须来自角色实际存在的设计。科幻角色取机械关节/能源核心/装甲接口/武器结构/电子装置；东方玄幻取发簪/玉佩/刺绣/护腕/腰封/法器纹样/符文/灵石。**禁止角色身上没有的东西出现在细节区。**\n\n**人兽分区**：细节区只放人的细节（脸/头发/服装/饰品/鞋/护甲）；灵兽的细节特写（兽眼/兽耳/兽爪/兽毛/鳞片/羽毛）全部放在灵兽展示区，不混进人的细节里。\n\n### 武器\n\n人物手中武器 = 武器展示 = 武器细节，三者完全一致。锁定形状/长度/比例/刃型/护手/握柄/装饰/材质/颜色/纹理/特殊结构。**禁止普通剑变机械剑、伞变枪、短剑在三视图中突然变长、人物没武器却凭空出现武器。**\n\n### 灵兽（默认完整兽形）\n\n先确定物种（兔/狐/狼/鹿/猫/虎/豹/蛇/鸟/鹰/龙/麒麟/凤凰），再加东方幻想元素（灵气/符文/发光纹路/云纹/角/鳞片/尾焰/翅膀/晶体）。**原则：先真实动物结构，再加幻想元素。**\n\n**人兽拼接禁令**：除非用户明确指定\"人形灵兽/兽人/兽娘/化形/妖族人形\"，否则绝对禁止人类身体配动物头、人类手臂配动物身体、人类腿配动物身体、动物头配人类躯干四肢。\n\n**动物眼睛系统**（灵兽区展示兽眼时，先锁物种再按物种设计）：兔=横向椭圆形眼、动物眼睑、红或深棕虹膜、眼珠偏两侧、无长睫毛无双眼皮；狐=斜挑杏眼、动物眼睑、金或琥珀虹膜；狼=犬科狭长眼型、黄或琥珀虹膜；鸟=圆形大眼、鸟类眼睑、黄或橙虹膜；龙=竖瞳爬行动物眼、金或红；猫=竖瞳椭圆眼、金或绿。\n\n**禁止自动套用人类眼睛、动漫少女眼、人类眼睑、人类眉毛、长睫毛、人类眼眶比例。动物的眼睛必须首先看起来像那个动物的眼睛。**\n\n**灵兽眼睛特写的强制写法**（防止被画成人眼），正文中必须包含：参照真实动物眼睛照片的写实眼型；明确的动物眼球与眼睑解剖结构，不是人类眼睛不是动漫眼睛；不长睫毛、没有双眼皮褶皱、不是闪亮大眼；明确写出该物种眼型与虹膜颜色；灵兽区标注为\"灵兽眼\"；并写明禁令\"灵兽身上不出现人类眼睛、不出现动漫大眼睛、不出现长睫毛、不出现少女眼型、不出现玩偶眼\"。\n\n**动物细节继承物种身份**：兔→兔耳/兔鼻/兔爪/兔尾；狐→狐耳/狐鼻/狐爪/狐尾；鸟→鸟喙/鸟眼/鸟翼/鸟爪/羽毛；龙→龙角/龙鳞/龙爪/龙翼/龙尾。禁止物种身份被幻想装饰覆盖。\n\n**灵兽展示区**：灵兽全身完整图（3/4视角或侧面站立）+ 灵兽名称 + 2-3个灵兽专属细节特写。\n\n---\n\n## 八、机甲 / 科幻角色\n\n适用于白底 + 任意视觉模式。重点展示装甲/机械关节/能源结构/武器/动力组件/接口/材质；三视图必须展示正面装甲/侧面结构/背部结构；细节取头部机械结构/胸甲/肩甲/机械手臂/膝部/能源核心/武器。**禁止不同视图出现不同型号机械结构。**\n\n---\n\n## 九、特效（自动加，不用用户指定）\n\n**默认行为：主视觉自动搭配 2～4 种贴合角色气质的特效氛围，用户不说也加。**\n\n- 通用氛围层（所有角色可用）：漂浮粒子（萤火/光点/灰尘/花瓣/雪花/火星）、轮廓光/背光/体积光/丁达尔/光斑/光晕、薄烟/雾气/蒸汽/烟尘、脚下光环/符文阵/阴影/光纹。\n- 属性特效：火=火焰缠绕/火星/灰烬/热浪扭曲/赤红烟雾；水=水流/水幕/水花/涟漪/雨丝/水滴悬浮；冰=冰晶/霜花/冰棱/雪粒/寒气；雷=闪电/电弧/雷纹/紫色电光；风=气流/风刃/落叶/羽毛/衣袂翻飞；土=岩石/碎石悬浮/沙暴/尘雾；光=圣光/光羽/光环/金色神光；暗=黑雾/暗影/幽光/冥火/鬼火。\n- 东方玄幻：灵气/真气环流、剑气流与剑痕、地面符文阵、飘浮符咒、祥云仙雾、花瓣飞舞、满月月光、竹叶墨韵。\n- 暗黑魔族：幽蓝冷火/绿色鬼火、黑雾暗紫烟雾、皮肤浮现咒纹、骷髅虚影、血雾血纹、迷香桃花瘴、半透明鬼影。\n- 神圣治愈：金色圣光光柱、天使光环、白羽飘落、花瓣花雨、温暖光斑、七色琉璃仙光、星辰银河。\n- 自然季节：春樱桃花瓣、夏荷叶水滴、秋红枫金桂落叶、冬雪花冰晶、月夜银光星点、雨丝倒影水痕。\n- 科幻赛博：蓝紫霓虹光带、全息投影、数据流/代码雨/电路光纹/扫描线、能源核心光与能量电弧、推进器光焰与金属火花、光尘粒子。\n- 神兽虚影（霸气战斗型）：角色身后巨大神兽半透明发光虚影、身体与武器缠绕流动能量、武器刃上光纹流光、大量粒子风暴、云海战场、服饰纹样发光，底部单独一张\"神兽之力\"特效大图。\n\n**使用规则**：①三种模式都自动加；②真人模式要克制，只用轮廓光/烟雾/粒子/氛围光/薄烟，不加火龙法阵这类夸张法术；③不遮挡脸部、武器关键结构、服装设计重点；④三视图不加特效，保持干净；⑤特效配色与角色主色统一；⑥密度适中不堆砌；⑦按气质匹配（温柔治愈→花瓣柔光；冷峻刺客→黑雾雪粒；热血战斗→火焰雷电；邪魅魔女→紫烟鬼火；仙气飘飘→灵气祥云；赛博机甲→霓虹能量；神兽角色→神兽虚影+对应元素）。\n\n---\n\n## 十、文字系统\n\n文字是辅助设计，可以有内容，但不能成为主体。\n\n**允许的内容**：①角色档案字段（中文短字段列表，6-10个：姓名/年龄/种族/身高/身份/境界或职业/武器/属性/能力，这是专业设定集的标配信息栏，应保留）；②模块标题（纯中文：人物档案、三视图（正面/侧面/背面）、细节展示、武器展示、灵兽、表情参考、配色方案、材质、设计说明）；③物品名称（武器名/灵兽名/技能名，全中文）；④设计说明（2-4行短中文，讲角色主题/设计来源/属性/武器，不是小说）；⑤底部中文短标识（如\"角色概念设定\"）。\n\n**禁止的内容**：任何英文标题/标签/字母；大段无意义外文（Lorem Ipsum、Character Background 之类）；大段中文小说式介绍；AI随机乱码；文字覆盖人物脸部或武器关键结构；文字面积超过画面15%。\n\n**比例**：视觉内容85%～90%，文字（含档案字段）10%～15%。正文中必须写明：\"画面内不出现任何英文字母、不出现英文标题与英文标签、不出现乱码文字、不出现无意义外文段落。\"\n\n**视觉层级**（文字永远不能压过角色）：主视觉 > 三视图 > 表情/面部 > 细节 > 武器/装备/技能 > 文字/编号/装饰。\n\n---\n\n## 十一、参考图处理\n\n用户提供参考图时先分析：人物身份/脸型/发型/发色/眼睛/服装/饰品/武器/配色/视觉风格/构图/模板/画幅。\n\n| 参考图类型 | 处理方式 |\n|-----------|---------|\n| 角色参考图 | 优先保持角色身份（角色 DNA） |\n| 排版参考图 | 优先学习布局/比例/信息层级/模块位置/视觉密度 |\n| 两者都有 | 角色图负责角色 DNA，排版图负责排版结构，不混淆 |\n\n---\n\n## 十二、生成前自检与错误优先级\n\n生成前逐条过一遍：画幅自洽（正文只出现一个比例）；模板正确；主视觉清晰；三视图齐全一致；发型/服装/鞋子/饰品/武器一致；细节来自角色真实设计；武器前后一致；灵兽为完整动物结构无人兽拼接；动物眼睛未人类化；表情互不重复；真人模式未动漫化；CG模式未变纯二维或卡通渲染；3D未变平面插画；东方玄幻未堆砌特效；角色仍是视觉主体；**最终回答只含中文提示词正文，没有说明、标题、代码围栏、表格、英文单词、反问。**\n\n多个问题同时出现时按此顺序修复：①角色身份错误 ②三视图不一致 ③武器不一致 ④灵兽人兽拼接 ⑤动物眼睛人类化 ⑥画幅不自洽 ⑦模板错误 ⑧表情重复 ⑨细节错误 ⑩视觉模式错误 ⑪文字问题 ⑫装饰问题。**角色一致性永远高于装饰。**\n\n---\n\n## 十三、快速调用与最终原则\n\n| 用户说 | 执行 |\n|-------|------|\n| \"白底 CG 少女设定板\" | WHITE + 2.5D |\n| \"白底 3D 机甲少女\" | WHITE + 3D |\n| \"白底 真人角色\" | WHITE + 真人 |\n| \"东方玄幻 CG 女角色 + 灵狐\" | EASTERN_FANTASY + 2.5D + 灵兽 |\n| \"东方玄幻 真人版 剑客\" | EASTERN_FANTASY + 真人 |\n\n最终原则：模板决定排版，画幅按内容自由适配；角色 DNA 决定人物一致性；三视图决定结构一致性；细节必须来自真实设计；武器必须一致；灵兽先遵守动物结构；动物眼睛必须符合物种；表情必须真正产生视觉差异；三种视觉模式只改变视觉表现，不改变排版结构；角色永远是主体，排版永远服务角色；**最终回答只有中文提示词正文——无说明、无标题、无代码围栏、无英文、无反问。** 目标是像游戏/动画/影视角色设计部门制作的专业设定板提示词，而不是\"人物插画+随便拼几个小图\"的描述。\n"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 245,
+      "type": "LoadImage",
+      "pos": [
+        6026.079373557002,
+        1367.5850230344329
+      ],
+      "size": [
+        277.1702577762253,
+        495.34634945115386
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            347
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "00148-2487627671-1girl,solo,portrait of beautiful princessmononoke in jungle with a giant grey wolves,serious,details,realistic,photography,blurr.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "00148-2487627671-1girl,solo,portrait of beautiful princessmononoke in jungle with a giant grey wolves,serious,details,realistic,photography,blurr.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 246,
+      "type": "easy showAnything",
+      "pos": [
+        8087.901251061223,
+        1325.8260587227342
+      ],
+      "size": [
+        458.6890709957079,
+        585.0216586531124
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 322,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.6"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": "画面内不出现任何英文字母与英文标签，不出现平涂二维质感、不出现卡通描边上色，不出现真人皮肤毛孔与真实皮肤纹理，不出现动漫大眼睛、超大眼、塑料皮肤、娃娃脸、CG人偶感、游戏脸、夸张身体比例、过度磨皮、不符合人体解剖的结构。角色为黑发齐肩短发少女，发色为黑色，刘海为中分带侧边碎发，头顶佩戴白色蕾丝发箍，身穿黑白配色女仆装，上身为黑色泡泡袖连衣裙配白色立领与黑色蝴蝶结，下身为白色围裙配黑色短裙，脚穿白色过膝长袜与黑色绑带高跟鞋，坐姿优雅，左手自然垂放，右手轻搭在围裙上，头部微侧，面部表情为中性，眉毛自然，眼睛自然睁开，瞳孔为深棕色，嘴唇自然闭合，脸颊放松，背景为室内咖啡馆环境，透过玻璃窗拍摄，画面左侧有深色窗框，背景可见木质吧台、咖啡机、白色瓷砖墙面、木质桌椅，光线为自然光与室内灯光混合，色调柔和，画面比例设为3:4竖版长幅，画面内不出现任何英文字母、不出现英文标题与英文标签、不出现乱码文字、不出现无意义外文段落，视觉内容占画面85%～90%，文字占10%～15%，画面内不出现任何英文字母、不出现英文标题与英文标签、不出现乱码文字、不出现无意义外文段落，文字模块包含姓名、年龄、职业、种族、身高、身份、武器、属性、能力九项中文短字段，文字模块标题为“人物档案”，模块标题为“人物档案”、“三视图（正面/侧面/背面）”、“细节展示”、“武器展示”、“灵兽”、“表情参考”、“配色方案”、“材质”、“设计说明”，武器展示区为空，无武器，细节展示区展示花钨妆容、发饰、耳饰、服饰纹样、鞋袜四个小图，表情参考区展示中性、开心、生气、悲伤、惊讶、害羞六种表情，配色方案展示黑白灰三色，设计说明为“现代咖啡馆女仆装设计，强调黑白对比与蕾丝细节，适合日常休闲场景”，底部中文短标识为“角色概念设定”，三视图为正面、侧面、背面标准站姿，发型、服装、鞋子、饰品、配饰、配饰完全一致，细节特写为花钨妆容、发饰、耳饰、服饰纹样、鞋袜，表情为中性、开心、生气、悲伤、惊讶、害羞，背景为室内咖啡馆环境，光线为自然光与室内灯光混合，色调柔和，画面比例设为3:4竖版长幅，画面内不出现任何英文字母、不出现英文标题与英文标签、不出现乱码文字、不出现无意义外文段落，视觉内容占画面85%～90%，文字占10%～15%，画面内不出现任何英文字母、不出现英文标题与英文标签、不出现乱码文字、不出现无意义外文段落。"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 247,
+      "type": "61675b6d-4074-467d-8bf3-66b7ca6b3c16",
+      "pos": [
+        7334.485538709603,
+        1566.5327024516832
+      ],
+      "size": [
+        721.9020672615807,
+        342.1757981311014
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "skill加载器",
+          "name": "skill加载器",
+          "shape": 7,
+          "type": "STRING",
+          "link": 323
+        },
+        {
+          "name": "模型系列",
+          "type": "COMBO",
+          "widget": {
+            "name": "模型系列"
+          },
+          "link": null
+        },
+        {
+          "name": "主模型",
+          "type": "COMBO",
+          "widget": {
+            "name": "主模型"
+          },
+          "link": null
+        },
+        {
+          "name": "视觉投影mmproj",
+          "type": "COMBO",
+          "widget": {
+            "name": "视觉投影mmproj"
+          },
+          "link": null
+        },
+        {
+          "name": "上下文长度",
+          "type": "INT",
+          "widget": {
+            "name": "上下文长度"
+          },
+          "link": null
+        },
+        {
+          "name": "输入模式",
+          "type": "COMBO",
+          "widget": {
+            "name": "输入模式"
+          },
+          "link": null
+        },
+        {
+          "name": "生成后自动卸载模型",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "生成后自动卸载模型"
+          },
+          "link": null
+        },
+        {
+          "name": "提示词",
+          "type": "STRING",
+          "widget": {
+            "name": "提示词"
+          },
+          "link": null
+        },
+        {
+          "name": "图片",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 344
+        },
+        {
+          "name": "图片2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 345
+        },
+        {
+          "name": "图片3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 346
+        },
+        {
+          "name": "图片4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 347
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文本",
+          "name": "文本",
+          "type": "IMAGE",
+          "links": [
+            322
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "previewExposures": []
+      },
+      "widgets_values": [
+        "Qwen3.5-VL",
+        "Q35-4B-U-HauhauCS\\Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
+        "Q35-4B-U-HauhauCS\\mmproj-Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
+        16384,
+        "图片",
+        true,
+        "生成角色设计图"
+      ],
+      "widgets_values_named": {
+        "模型系列": "Qwen3.5-VL",
+        "主模型": "Q35-4B-U-HauhauCS\\Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
+        "视觉投影mmproj": "Q35-4B-U-HauhauCS\\mmproj-Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
+        "上下文长度": 16384,
+        "输入模式": "图片",
+        "生成后自动卸载模型": true,
+        "提示词": "生成角色设计图"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 256,
+      "type": "LoadImage",
+      "pos": [
+        6332.27119915545,
+        1369.0171536204682
+      ],
+      "size": [
+        277.1702577762253,
+        495.34634945115386
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            346
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "00148-2487627671-1girl,solo,portrait of beautiful princessmononoke in jungle with a giant grey wolves,serious,details,realistic,photography,blurr.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "00148-2487627671-1girl,solo,portrait of beautiful princessmononoke in jungle with a giant grey wolves,serious,details,realistic,photography,blurr.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 257,
+      "type": "LoadImage",
+      "pos": [
+        6945.31065001056,
+        1370.6388208016285
+      ],
+      "size": [
+        277.1702577762253,
+        495.34634945115386
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            344
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "测试图 (17).png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "测试图 (17).png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 258,
+      "type": "LoadImage",
+      "pos": [
+        6639.118824412117,
+        1369.2066902155932
+      ],
+      "size": [
+        277.1702577762253,
+        495.34634945115386
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            345
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "00148-2487627671-1girl,solo,portrait of beautiful princessmononoke in jungle with a giant grey wolves,serious,details,realistic,photography,blurr.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "00148-2487627671-1girl,solo,portrait of beautiful princessmononoke in jungle with a giant grey wolves,serious,details,realistic,photography,blurr.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 261,
+      "type": "easy showAnything",
+      "pos": [
+        9839.019577618436,
+        1333.5707033989552
+      ],
+      "size": [
+        448.5137273223536,
+        579.5948418168539
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 362,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "1.3.6"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": "这张照片是一张垂直逼真的肖像照片，照片中一位年轻的亚洲女性在黄昏时分站在花园里，色调为深紫色、暖金色日落琥珀色和浅景深的软炭灰色。背景是一个郁郁葱葱的花园，在她身后渐渐变成一片模糊的黑暗：左边是一排修剪整齐的深绿色树篱，她身后是一条蜿蜒的石路，右边是一个高大细长的白色紫藤架，前景下方是一片长满青苔的地面。在左上角，一条白色石凳的顶部被阴影部分遮挡，其表面捕捉到最后一缕褪色的光线。在画面的中上部，天空从地平线附近的淡紫色过渡到上方的深靛蓝色，柔和的橙色和粉色条纹表明云层在顶部边缘附近破裂。这个女人占据了画面的中心右侧，她的身体略微向左倾斜，目光向前和向下指向相机，她的脸被温暖的环境光照亮，而她的脸的左侧仍然处于凉爽的阴影中。她的头发是深棕色的波波头，刘海衬托着她的脸，她的肤色看起来白皙光滑，有着微妙的光泽。她穿着一件长袖连衣裙，采用柔和的海军蓝面料，明显有粗糙的亚麻布纹理，裙摆直垂到脚踝。当她的手臂放在身边时，她左手腕上的一个小银手镯捕捉到了明亮的镜面亮点。在左下角的前景中，一簇红玫瑰放在一个深色的陶瓷花盆里，花瓣上有可见的水滴，反射着夕阳的光线。在她身后的右边，一扇锻铁门微微半开着，它的垂直栅栏在地上投下了尖锐的线性阴影。在左边远处的背景中，在黑暗的天空中，一座房子的屋顶轮廓几乎看不见，窗户看起来像是温暖的黄色光点。灯光是s的混合体\n柔和温暖的夕阳从右边射来，而坚硬凉爽的阴影从左边射来，营造出高对比度的明暗对比效果，突出了她的衣服和树叶的质感。整体构图以强烈的垂直轴平衡，情绪温暖忧郁，风格自然主义纪录片，情绪安静大气。"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 262,
+      "type": "92d37400-be3c-4151-8582-40cac10af9d1",
+      "pos": [
+        9084.21388593844,
+        1563.6208276320315
+      ],
+      "size": [
+        721.9020672615807,
+        342.1757981311014
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "skill加载器",
+          "name": "skill加载器",
+          "shape": 7,
+          "type": "STRING",
+          "link": 363
+        },
+        {
+          "name": "模型系列",
+          "type": "COMBO",
+          "widget": {
+            "name": "模型系列"
+          },
+          "link": null
+        },
+        {
+          "name": "主模型",
+          "type": "COMBO",
+          "widget": {
+            "name": "主模型"
+          },
+          "link": null
+        },
+        {
+          "name": "视觉投影mmproj",
+          "type": "COMBO",
+          "widget": {
+            "name": "视觉投影mmproj"
+          },
+          "link": null
+        },
+        {
+          "name": "上下文长度",
+          "type": "INT",
+          "widget": {
+            "name": "上下文长度"
+          },
+          "link": null
+        },
+        {
+          "name": "输入模式",
+          "type": "COMBO",
+          "widget": {
+            "name": "输入模式"
+          },
+          "link": null
+        },
+        {
+          "name": "生成后自动卸载模型",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "生成后自动卸载模型"
+          },
+          "link": null
+        },
+        {
+          "name": "提示词",
+          "type": "STRING",
+          "widget": {
+            "name": "提示词"
+          },
+          "link": null
+        },
+        {
+          "name": "图片",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "图片2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "图片3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "图片4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "文本",
+          "name": "文本",
+          "type": "IMAGE",
+          "links": [
+            362
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "previewExposures": []
+      },
+      "widgets_values": [
+        "Qwen3.5-VL",
+        "Q35-4B-U-HauhauCS\\Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
+        "Q35-4B-U-HauhauCS\\mmproj-Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
+        16384,
+        "文本",
+        true,
+        "一位年轻的亚洲女孩，在花园里，傍晚"
+      ],
+      "widgets_values_named": {
+        "模型系列": "Qwen3.5-VL",
+        "主模型": "Q35-4B-U-HauhauCS\\Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
+        "视觉投影mmproj": "Q35-4B-U-HauhauCS\\mmproj-Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
+        "上下文长度": 16384,
+        "输入模式": "文本",
+        "生成后自动卸载模型": true,
+        "提示词": "一位年轻的亚洲女孩，在花园里，傍晚"
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 266,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        9087.185683082704,
+        1348.1462241626493
+      ],
+      "size": [
+        714.8415568265182,
+        440.0
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "值",
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "字符串",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            363
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "# Qwen-Image-2.1 文生图提示词 · 生成规范\n\n> 可直接作为其他语言模型的系统提示词或参考资料使用。\n\n## 0. 角色与边界\n\n**你是**：把用户的图像需求，改写成 **Qwen-Image-2.1 官方格式提示词**的转换器。\n\n**适用**：**没有任何输入图**、从零生成。一旦用户给了图（要修改它、或拿它当参考）→ 属于图像编辑任务，本文件不适用。\n\n**你不是在跟用户聊天，也不是在给渲染器下指令**——你是**一个旁观者在报告画面里有什么**。\n\n---\n\n## 1. 输出契约\n\n**只输出提示词本身**——一段连续文字，前后不加任何说明、标题、代码围栏。\n\n| 要求 | 说明 |\n|---|---|\n| 篇幅 | 约 20 句 / 400–500 词（约 25 词/句） |\n| 结构 | 一个自然段，**不含任何换行符** |\n| 语言 | **英文**；回复用户的说明用中文 |\n| 画幅 | **不写进提示词**，另行设定（见第 8 节） |\n\n---\n\n## 2. 三条铁律\n\n| # | 铁律 | 违反后果 |\n|---|---|---|\n| **1** | **长度不随输入缩水** —— 恒定约 20 句 / 400–500 词（约 25 词/句） | 输入只写\"一只猫\"就跟着写短 → 画面空洞 |\n| **2** | **比例与分辨率永不进正文** —— 由调用方另行设定 | 正文出现 `16:9` → 模型真把字渲染进画面 |\n| **3** | **观察，不指挥** —— 现在时、第三人称、陈述句 | 出现 `make sure` / `8K` / `masterpiece` → 风格崩坏 |\n\n**第三类输入（极易错）**：用户给的可能是**关于任务的指令**——\"用双引号\"\"不要硬边色块\"\"4K，不要噪点\"\"文字要清晰\"。这不是画面内容：**静默遵守它该生效的地方，绝不写进描述**。描述只陈述画面里有什么，从不陈述\"必须做什么\"。\n\n---\n\n## 3. 生成流程（八步，顺序执行，后步不得推翻前步）\n\n### 第 1 步 · 拆 brief\n\n- **钉死的**（原样活到最终描述）：要显示的文字（**逐字符照抄，保留原文字系统与标点空格**）、具名物体、数量、已声明的颜色、已声明的位置、用户给的比例。\n- **没说的**：其余一切由你决定，且要决定得具体、专业。\n- 三字输入与三百字输入**产出同样长度**——短 brief 意味着你要发明大部分画面，不是少写。\n\n### 第 2 步 · 定画幅\n\n先定朝向，再按第 8 节选比例。**比例不进描述正文**——正文里出现数字比例，模型会真把它渲染成字。\n\n### 第 3 步 · 开篇句（一句，约 20 词）\n\n```\nThe image is a ⟨vertical / wide / square / tall⟩ ⟨style⟩ ⟨photograph · poster · illustration · scene · portrait · infographic · close-up · graphic · page · card · sheet · logo⟩ of ⟨subject⟩, ⟨the background and its palette⟩.\n```\n\n- `This is a …` / `A vertical realistic photograph of …` 同样合法。\n- **媒介名词是唯一不可省略的成分。**\n- 风格词（realistic / photorealistic / minimalist / flat-vector / cinematic / watercolour / isometric / editorial / hand-drawn / 3D-rendered / retro）**只点一次**，结尾句可呼应一次。\n\n### 第 4 步 · 动笔前列两张清单\n\n- **清单 A**：每个元素 + 它在画框里的方位。需要 **8–14 个方位短语（一般 10 个）**，必须**触达四角、四边和中心**，不能全挤中间。\n- **清单 B**：画面里所有可读文字，按阅读顺序。\n\n### 第 5 步 · 走画框\n\n**分区块的图**（海报、页面、界面、版式、多元素宽景）：\n① 背景与承载表面（**紧接开篇句，不放结尾**）→ ② 顶部带 → ③ 左区 → 中区 → 右区（每区 1–2 句）→ ④ 底部带\n\n**单主体占满画框的图**（人像、特写、单物件）：\n背景及虚化程度 → 姿态与在画框中的位置 → 头部与面部 → 身体及每件衣物/表面 → 手持或接触物 → 边缘残余（主体内部也要持续用方位短语）\n\n- 约 **1/3 的句子以方位短语开头**：`On the right side of the frame, …` / `In the upper-left corner, …` / `Across the lower third, …`\n- **整段保持一个自然段。** 只有画面真是层叠区块（多面板、卡片、分区、幻灯片）才换段，**一段一区块，每段以自己的位置起头**。\n\n### 第 6 步 · 交代每处文字\n\n**无语义文字就跳过**（约三分之一的图如此），**不要凭空编招牌**。否则按清单 B、按阅读顺序，逐条给**位置 + 外观 + 内容**：`a bold black headline across the top reads \"…\"`。细节见第 6 节。\n\n### 第 7 步 · 光照单独成句\n\n每张图都有光，**必须显式交代**来源、方向、质感、留下的阴影与高光：\n\n```\nThe lighting is soft diffused daylight from a window on the left, …\nThe lighting is hard overhead studio light, …\nThe lighting is flat even ambient light with no directional source, …（图表/版式类）\n```\n\n内容排完后单独一句；若光正是某表面呈现样貌的原因，可折进那句表面描述——**但必须显式，不能默认**。\n\n### 第 8 步 · 收尾一句总览\n\n`The overall composition ⟨is / uses / feels⟩ …`\n（`The composition is …` / `The overall design …` / `The overall mood …` / `The overall palette …` / `The image has …` 是同一个动作。）\n\n这一句覆盖**平衡与对称、色调、风格、情绪**。**然后收笔——不要再来第二句总结。**\n\n---\n\n## 4. 描述模板（可直接套）\n\n```\nThe image is a [方向] [风格] [媒介] of [主体], [背景与色调].\n\n[背景与承载面]。[顶部带]。[左区]。[中区]。[右区]。[底部带]。\n\n[A bold black headline across the top reads \"…\".]\n\nThe lighting is [光源 + 方向 + 质感]，[阴影与高光]。\n\nThe overall composition is [平衡/对称]，[色调]，[风格]，[情绪].\n```\n\n> 模板里的分段只是给写作者看的结构提示：**最终输出必须并成一个自然段，不带换行**。\n\n---\n\n## 5. 语感规则（贯穿全篇）\n\n| 规则 | ✅ 要这样 | ❌ 不要这样 |\n|---|---|---|\n| **不确定就模糊** | `appears to be` / `likely` / `suggesting`；含糊时给一对备选 `a notebook or a tablet` | 对没把握的东西斩钉截铁（只有用户钉死的才斩钉截铁） |\n| **部分被遮挡要写明** | 说出被遮住，并描述可见的部分 | 当它完整存在来描述 |\n| **颜色带修饰词** | deep navy、muted olive、pale cream、warm terracotta、soft dusty rose、blue-grey、off-white、charcoal | 裸色名 `blue` / `white`（**只有用户给了才写 Hex**） |\n| **给材质不只给名词** | brushed metal、matte plastic、glossy ceramic、coarse linen、weathered wood、frosted glass、grain、scuffs、condensation、visible brush strokes、paper fibre | 只写 `a bottle` / `a table` |\n| **枚举绝不概括** | 逐个说清；小数用英文单词 three / five / twelve | `several items`、`various decorations` |\n| **人物写可观察表面** | 体格、姿态、视线方向、表情、发型、肤色、每件衣物的颜色与材质 | 写具体岁数；脸转过去或被裁掉还在描述五官（应直说） |\n| **年龄是人生阶段** | a child / a teenager / a young adult / middle-aged / elderly / in her thirties | 写具体岁数 |\n| **物件按类别不按品牌** | a silver laptop、a mirrorless camera、a compact hatchback | 写品牌（除非用户点名） |\n| **物理自洽** | 阴影背光而落、反射与前方物体一致、相邻比例一致、表面因承托物形变 | 光照与阴影矛盾 |\n| **摄影/设计术语** | 欢迎：shallow depth of field、bokeh、backlit、close-up、negative space、grid、drop shadow | — |\n\n> 用户要求**物理上不可能**的东西：**按画面呈现去描述**，让场景其余部分保持自洽，不要拒绝或纠正。\n\n**语言**：描述正文**永远英文**，无论请求用什么语言进来。**唯一例外**是画面内要显示的文字，保留其本身文字系统。\n\n---\n\n## 6. 画面内文字渲染规则\n\n| 要求 | 做法 |\n|---|---|\n| **引号** | **直双引号**包裹 |\n| **保留原文字系统** | 中文留中文、日文留日文、阿拉伯文留阿拉伯文 |\n| **属性交代** | 字重、颜色、大小写、相对字号 |\n| **换行** | 写成 `second line`，**不要真在字符串里塞换行符** |\n| **该糊的要糊** | 远处招牌、玻璃后标签、密集正文 → `blurred` / `indistinct` / `too small to read`，**绝不编造字母** |\n| **图表即文字** | 坐标轴名称、刻度标签、图例项、系列名、单元格数值**全部写出** |\n| **单语原则** | 引号内不中英混排、不中英对照、不加括号翻译（除非用户明确要求双语） |\n| **专有名词** | 领域术语保留原语言，放在英文双引号内 |\n| **题材不覆盖语言** | \"参数表/技术图纸/分镜\"的观感靠**版式和字体**实现，不是靠把标签换成英文 |\n\n---\n\n## 7. 透明底 RGBA\n\n**固定句式，首尾各声明一次，两头都不能省：**\n\n```\nThis is an RGBA image with transparency. [完整描述] The image has alpha channel and the background is transparent.\n```\n\n- 描述部分照常写全。**不要**堆\"不要白底不要灰底\"这类禁令，改写成对边缘与背景的**肯定陈述**。\n- 中文也可写（首尾两句译中文），但**推荐保留英文骨架**只在中间填内容，稳定率最高。\n\n---\n\n## 8. 画幅（不写进提示词，供自行设定输出尺寸）\n\n| 情况 | 取值 |\n|---|---|\n| 横构图，未指定 | **`3:2`** |\n| 竖构图，未指定 | **`2:3`** |\n| 方形徽章 / 图标 / 专辑封面 / 单个居中徽记 | `1:1` |\n| 宽银幕 / 演示稿 | `16:9` |\n| 手机屏 / 竖幅条 | `1:2` 或 `9:16` |\n| `3:4` `2:1` `21:9` `4:3` `9:21` `4:5` `3:1` `5:4` `1:3` | 只有主体或用户真的需要时才用 |\n\n**全景**：标准 `2:1`；超宽 `3:1`；360°/VR `2:1`。描述里交代**水平视场连续性**（地平线处理、左右边界如何收口）。\n\n**三视图 / 多宫格：不要用固定默认值**，按三步自适应：\n\n1. 主体形状比例（站立的人偏竖、汽车偏横、圆形物体近方）\n2. 面板排布（1×3 横排 / 3×1 竖排 / 2×2）\n3. 合并比例 =（单格宽 × 列数）:（单格高 × 行数）\n\n| 场景 | 总比例 |\n|---|---|\n| 站立人物三视图（每格 ~1:3 竖，1×3 横排） | **`1:1`** |\n| 汽车三视图（每格 ~3:2 横） | `3:1` 或 `9:2` |\n| 方形物体 2×2 / 3×3 方格 | `1:1` |\n\n> ⚠️ **最常见的错**：站立人物三视图拉成 `2:1` 或 `3:1`，会把每个竖版人物面板压扁。**只有每格本身横构图才用 `3:1`。**\n> ⚠️ **`2K` / `4K` / `8K` 是画质词，不是比例线索**，绝不可用来推断画幅。\n\n---\n\n## 9. 反例对照（最容易犯的错）\n\n| ❌ 错误写法 | ✅ 正确写法 | 原因 |\n|---|---|---|\n| `a cat, cute, studio light, 8K, masterpiece, 16:9` | `The image is a square photorealistic close-up of a ginger tabby cat …` | 标签堆砌 + 画质套话 + 比例进正文 |\n| `Create a beautiful image of a woman. Make sure she looks elegant.` | `A young adult woman stands in the lower-left third …` | 祈使句 + `make sure` |\n| `The background is white.` 放在结尾 | 背景句**紧接开篇句** | 走画框顺序错 |\n| `There are several items on the table.` | `Three brass candlesticks, a folded linen napkin and a shallow ceramic bowl sit …` | 概括而非枚举 |\n| `She is 35 years old.` | `in her thirties` | 年龄不写岁数 |\n| `a blue bottle` | `a deep navy frosted-glass bottle` | 裸色名 + 缺材质 |\n| `画面里写着\"限时优惠 50% OFF\"` | `a red banner across the lower third reads \"限时优惠\"` | 引号内单语，不混排 |\n| 画面里出现 `2:3` 这种字 | 从正文删掉，另行设定输出尺寸 | 比例进正文 |\n| 桌子被花瓶挡住仍写完整桌面 | `the tabletop, partly hidden behind the vase, shows …` | 遮挡未交代 |\n| 描述里夹一句\"4K，不要噪点\" | 删掉——它只是作业要求 | 指令不是画面内容 |\n\n---\n\n## 10. Few-shot 示例\n\n### 示例 1（短输入 → 必须写长）\n\n**用户输入**：`一只在窗边的猫`\n\n> 输入只有 7 个字，输出必须写满——本规范最关键的一条。下面这条实测 **约 430 词 / 16 处方位短语**，输出形态就是**一整段文字**。\n\n```\nThe image is a square photorealistic close-up photograph of a ginger tabby cat asleep on a wooden windowsill, in a warm cream and muted olive palette with a soft off-white interior beyond. The background is a domestic interior that falls off quickly into blur behind the sill: a pale plaster wall on the left, the edge of a bookshelf on the far right, and a low ceramic lamp base that appears to be partly cropped by the frame. In the upper-left corner, a sheer linen curtain catches the daylight and glows, its woven texture visible where the light passes through. Across the top of the frame, the upper sash of the window runs horizontally, painted off-white with a few small chips along its lower lip. The windowsill occupies the lower third of the frame: worn pine boards with visible grain, a scattering of fine scuffs, and a shallow chip near the left corner where the varnish has lifted. The cat lies in the centre of the frame, curled on its side with its head turned slightly toward the camera, ears relaxed and eyes half closed, one pale front paw tucked under its chin. Its coat is short and dense, ginger with faint darker tabby striping along the flank and across the top of the head, while a thin rim of light traces the spine and the upper edge of the shoulder. Its muzzle is pale, almost cream, with a small pink nose and fine white whiskers that catch the light along their length. Behind the cat, a narrow strip of window glass shows a blurred garden — likely a hedge and a pale sky — rendered too soft to read in detail. In the lower-right corner, a small terracotta pot holds a leggy plant with three or four narrow leaves, its soil dark and slightly damp-looking. Along the lower edge, a folded linen napkin in pale oatmeal lies flat, its hem reading as a single darker line. On the far left of the frame, just inside the edge, the corner of a closed book sits half in shadow. In the upper-right, a small brass hook is fixed into the frame, empty, catching a short specular highlight. The lighting is soft diffused daylight entering from the left, wrapping the fur in a gentle glow, leaving a soft pooled shadow beneath the cat's body and a cooler falloff along the right side of the sill. The overall composition is centred with generous negative space across the top, warm and low-contrast in palette, naturalistic documentary in style, and quiet and domestic in mood.\n```\n\n（画幅另设：`1:1`）\n\n### 示例 2（含画面文字）\n\n**用户输入**：`一张咖啡节的海报，竖版，标题写\"夏末咖啡节\"`\n\n> 演示三件事：① 用户给的中文标题**逐字符照抄**并留在中文 ② 读不清的文字标 `too small to read`，**不编字母** ③ 版式类按区块走画框。下面这条实测 **约 430 词**。\n\n```\nThe image is a vertical graphic poster for a late-summer coffee festival, in a warm brown and cream palette on a light off-white paper field. The background is a pale cream paper surface with a faint visible fibre texture and a very subtle deckled edge along the top, and the whole layout is held on a strict four-column grid. Across the top band, a thin brown rule runs the full width, with a small left-aligned kicker sitting above it in a light weight. In the upper-left corner, a small circular emblem — likely a simplified bean or cup mark — sits at roughly a third of the headline's height. The centre of the frame is given to a flat-vector illustration of a pouring vessel tilted over a cup, with three soft curved lines of steam rising into the upper third. Behind the vessel, a pale ochre circle provides a flat colour field, its edge stopping just short of the frame's left margin. Across the middle of the frame, the ochre circle and the vessel together form a single rounded mass that breaks the vertical rhythm of the type column. A bold condensed brown headline across the middle-upper area reads \"夏末咖啡节\", set at roughly three times the size of the subhead. Beneath it, a smaller warm-grey subhead on a second line reads \"9.20—9.22\", set in a lighter weight and aligned to the same left margin. Between the headline and the illustration, a narrow band of empty cream separates the type from the artwork. In the lower third, three evenly spaced rows carry the practical details: a venue line, an hours line and a short credit line, all left-aligned to the same margin as the headline. In the lower-left, the venue row is set one size larger than the two rows beneath it, suggesting a deliberate hierarchy. Along the bottom edge, a small brown footer line reads \"城市中央公园 · 10:00—20:00\". In the lower-right corner, a second small circular emblem — probably a roaster's mark — sits opposite the upper-left one and balances the layout. On the right side of the frame, a narrow vertical band of cream stays empty, holding the margin open. In the upper-right, a short line of fine print sits too small to read, its presence indicated only by a grey tone. The lighting is flat even ambient light with no directional source, holding every text element at consistent contrast and full legibility. The overall composition is vertically stacked on a strict grid, brown against cream with generous whitespace, minimal graphic in style, and warm and inviting in mood.\n```\n\n（画幅另设：`2:3`）\n\n---\n\n## 11. 出稿前自检\n\n- [ ] **输出只有提示词本身**：无说明、无标题、无代码围栏、无换行\n- [ ] 正文里**没有**比例、分辨率、像素数、`8K` / `masterpiece` / `highly detailed`\n- [ ] 正文**全程英文**（画面内文字除外）\n- [ ] 开篇句是 `The image is a …`，**媒介名词在**\n- [ ] 够长：约 **20 句 / 400–500 词**；没有因为输入短就写薄\n- [ ] **方位短语 8–14 个**，触达四角、四边、中心\n- [ ] **背景紧接开篇句**，不在结尾\n- [ ] **约 1/3 句子以方位短语开头**\n- [ ] **光照有单独一句**（或明确折进表面描述）\n- [ ] **只有一句**收尾总览，后面没补第二句总结\n- [ ] 元素**逐个枚举**，无 `several` / `various`；被遮挡的已写明\n- [ ] 颜色**带修饰词**；**材质**写出来了\n- [ ] 人物年龄写**人生阶段**；脸转过去就直说\n- [ ] 画面文字在**直双引号**里、**单语**、有位置与外观\n- [ ] 图表类的轴名、刻度、图例、数值**都写了**\n- [ ] **第三类指令**（作业要求）已静默遵守且**没写进描述**\n- [ ] 用户钉死的文字、数量、颜色、位置**一个都没丢**\n- [ ] 透明底任务首尾**各声明了一次透明**\n- [ ] 画幅已按第 8 节定好（**写在提示词之外**）\n"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 268,
+      "type": "Label (rgthree)",
+      "pos": [
+        9114.741843949136,
+        1057.4873078288913
+      ],
+      "size": [
+        1149.951171875,
+        100
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "▶提示词-自定义Skill-生图",
+      "properties": {
+        "fontSize": 100,
+        "fontFamily": "Arial",
+        "fontColor": "#3CB371",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0,
+        "angle": 0,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 269,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "pos": [
+        7306.641325639453,
+        2038.1747414924832
+      ],
+      "size": [
+        1266.2004745569793,
+        58
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "可选连接",
+          "localized_name": "可选连接",
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": null
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "提示词-自定义Skill-图像编辑",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 270,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "pos": [
+        9066.195929282812,
+        2049.5719918409714
+      ],
+      "size": [
+        1257.261551182577,
+        58
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "可选连接",
+          "localized_name": "可选连接",
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": []
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "提示词-自定义Skill-生图",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 271,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "pos": [
+        12217.801345411652,
+        2122.0986797485266
+      ],
+      "size": [
+        1715.4267238491814,
+        58
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "可选连接",
+          "localized_name": "可选连接",
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": []
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "VOSR2-图像放大",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 272,
+      "type": "SaveImage",
+      "pos": [
+        13485.30077018388,
+        1238.330959371235
+      ],
+      "size": [
+        418.08051576306457,
+        767.2550677643878
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图片",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 368
+        },
+        {
+          "localized_name": "文件名前缀",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "VOSR2--%date:yyyyMMddhhmmss%"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "VOSR2--%date:yyyyMMddhhmmss%"
+      }
+    },
+    {
+      "id": 273,
+      "type": "Image Comparer (rgthree)",
+      "pos": [
+        13061.788190666157,
+        1236.433274518645
+      ],
+      "size": [
+        403.331529793742,
+        772.6368278905525
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "dir": 3,
+          "label": "图像_A",
+          "localized_name": "图像_A",
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 369
+        },
+        {
+          "dir": 3,
+          "label": "图像_B",
+          "localized_name": "图像_B",
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 370
+        }
+      ],
+      "outputs": [
+        {
+          "dir": 4,
+          "name": "images",
+          "shape": 3,
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "aux_id": "rgthree/rgthree-comfy",
+        "ver": "2c5342a8cb0eaecaabf61435a5f37dd594c510ba",
+        "comparer_mode": "Slide"
+      },
+      "widgets_values": [
+        []
+      ],
+      "widgets_values_named": {
+        "rgthree_comparer": {
+          "images": []
+        }
+      }
+    },
+    {
+      "id": 274,
+      "type": "SeedVR2LoadVAEModel",
+      "pos": [
+        12765.457165402062,
+        1646.2839516185343
+      ],
+      "size": [
+        300,
+        366
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "torch_compile_args",
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tiled",
+          "name": "encode_tiled",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "encode_tiled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tile_size",
+          "name": "encode_tile_size",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "encode_tile_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tile_overlap",
+          "name": "encode_tile_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "encode_tile_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tiled",
+          "name": "decode_tiled",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "decode_tiled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tile_size",
+          "name": "decode_tile_size",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "decode_tile_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tile_overlap",
+          "name": "decode_tile_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "decode_tile_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tile_debug",
+          "name": "tile_debug",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "tile_debug"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cache_model",
+          "name": "cache_model",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "cache_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SEEDVR2_VAE",
+          "name": "SEEDVR2_VAE",
+          "type": "SEEDVR2_VAE",
+          "slot_index": 0,
+          "links": [
+            373
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2LoadVAEModel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "ema_vae_fp16.safetensors",
+        "mps",
+        false,
+        1024,
+        128,
+        false,
+        1024,
+        128,
+        "false",
+        "none",
+        false
+      ],
+      "widgets_values_named": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "mps",
+        "encode_tiled": false,
+        "encode_tile_size": 1024,
+        "encode_tile_overlap": 128,
+        "decode_tiled": false,
+        "decode_tile_size": 1024,
+        "decode_tile_overlap": 128,
+        "tile_debug": "false",
+        "offload_device": "none",
+        "cache_model": false
+      }
+    },
+    {
+      "id": 275,
+      "type": "SeedVR2VideoUpscaler",
+      "pos": [
+        12765.610975633106,
+        1440.0366531271513
+      ],
+      "size": [
+        360,
+        458
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 372
+        },
+        {
+          "localized_name": "dit",
+          "name": "dit",
+          "type": "SEEDVR2_DIT",
+          "link": 371
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "SEEDVR2_VAE",
+          "link": 373
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": 374
+        },
+        {
+          "localized_name": "max_resolution",
+          "name": "max_resolution",
+          "type": "INT",
+          "widget": {
+            "name": "max_resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "uniform_batch_size",
+          "name": "uniform_batch_size",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "uniform_batch_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "color_correction",
+          "name": "color_correction",
+          "type": "COMBO",
+          "widget": {
+            "name": "color_correction"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "temporal_overlap",
+          "name": "temporal_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "temporal_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prepend_frames",
+          "name": "prepend_frames",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "prepend_frames"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "input_noise_scale",
+          "name": "input_noise_scale",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "input_noise_scale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "latent_noise_scale",
+          "name": "latent_noise_scale",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "latent_noise_scale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enable_debug",
+          "name": "enable_debug",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enable_debug"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            368,
+            370
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2VideoUpscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        666,
+        "fixed",
+        2048,
+        4096,
+        1,
+        false,
+        "lab",
+        0,
+        0,
+        0,
+        0,
+        "none",
+        false
+      ],
+      "widgets_values_named": {
+        "seed": 666,
+        "control_after_generate": "fixed",
+        "resolution": 2048,
+        "max_resolution": 4096,
+        "batch_size": 1,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 0,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "none",
+        "enable_debug": false
+      }
+    },
+    {
+      "id": 276,
+      "type": "SeedVR2LoadDiTModel",
+      "pos": [
+        12765.631319299016,
+        1230.3812431145982
+      ],
+      "size": [
+        300,
+        254
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "torch_compile_args",
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blocks_to_swap",
+          "name": "blocks_to_swap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "blocks_to_swap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "swap_io_components",
+          "name": "swap_io_components",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "swap_io_components"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cache_model",
+          "name": "cache_model",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "cache_model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "attention_mode",
+          "name": "attention_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "attention_mode"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SEEDVR2_DIT",
+          "name": "SEEDVR2_DIT",
+          "type": "SEEDVR2_DIT",
+          "slot_index": 0,
+          "links": [
+            371
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2LoadDiTModel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "mps",
+        0,
+        false,
+        "none",
+        false,
+        "sdpa"
+      ],
+      "widgets_values_named": {
+        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "device": "mps",
+        "blocks_to_swap": 0,
+        "swap_io_components": false,
+        "offload_device": "none",
+        "cache_model": false,
+        "attention_mode": "sdpa"
+      }
+    },
+    {
+      "id": 277,
+      "type": "LoadImage",
+      "pos": [
+        12279.913788901884,
+        1226.8661015135442
+      ],
+      "size": [
+        413.29369665731133,
+        659.0273494353906
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            369,
+            372
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "pasted/image (23).png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "pasted/image (23).png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 278,
+      "type": "easy int",
+      "pos": [
+        12483.13895236522,
+        1951.4212824351268
+      ],
+      "size": [
+        210,
+        58
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "值",
+          "localized_name": "值",
+          "name": "value",
+          "type": "INT",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "整数",
+          "localized_name": "整数",
+          "name": "整数",
+          "type": "INT",
+          "links": [
+            374
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "yolain/ComfyUI-Easy-Use",
+        "ver": "8730ffd14044ee9392db3b192646266576bc67df",
+        "Node name for S&R": "easy int"
+      },
+      "widgets_values": [
+        2048
+      ],
+      "widgets_values_named": {
+        "value": 2048
+      },
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 279,
+      "type": "Label (rgthree)",
+      "pos": [
+        12284.249167172356,
+        1952.8708087592543
+      ],
+      "size": [
+        190,
+        38
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "放大倍数▶",
+      "properties": {
+        "fontSize": 38,
+        "fontFamily": "Arial",
+        "fontColor": "#FF6347",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0,
+        "angle": 0,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 280,
+      "type": "Label (rgthree)",
+      "pos": [
+        12610.148485728265,
+        967.2709651774874
+      ],
+      "size": [
+        872.314453125,
+        100
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "▶VOSR2-图像放大",
+      "properties": {
+        "fontSize": 100,
+        "fontFamily": "Arial",
+        "fontColor": "#3CB371",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0,
+        "angle": 0,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 281,
+      "type": "PreviewImage",
+      "pos": [
+        11415.117802173943,
+        1362.8835553832735
+      ],
+      "size": [
+        291.33149714338583,
+        481.7930311116138
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 375
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.76",
+        "Node name for S&R": "PreviewImage",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        }
+      }
+    },
+    {
+      "id": 282,
+      "type": "AIO_Preprocessor",
+      "pos": [
+        11139.609447831011,
+        1361.6613304032046
+      ],
+      "size": [
+        242.17410445321184,
+        82
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 4,
+      "inputs": [
+        {
+          "label": "图像",
+          "localized_name": "图像",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 376
+        },
+        {
+          "label": "预处理器",
+          "localized_name": "预处理器",
+          "name": "preprocessor",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "preprocessor"
+          },
+          "link": null
+        },
+        {
+          "label": "分辨率",
+          "localized_name": "分辨率",
+          "name": "resolution",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "图像",
+          "localized_name": "图像",
+          "name": "图像",
+          "type": "IMAGE",
+          "links": [
+            375
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_controlnet_aux",
+        "ver": "136f125c89aed92ced1b6fbb491e13719b72fcc0",
+        "Node name for S&R": "AIO_Preprocessor",
+        "ue_properties": {
+          "version": "7.5.2",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "DWPreprocessor",
+        512
+      ],
+      "widgets_values_named": {
+        "preprocessor": "DWPreprocessor",
+        "resolution": 512
+      }
+    },
+    {
+      "id": 283,
+      "type": "LoadImage",
+      "pos": [
+        10841.887857862344,
+        1355.6137144641082
+      ],
+      "size": [
+        263.47056483946153,
+        491.5971498897329
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 4,
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "选择文件上传",
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            376
+          ]
+        },
+        {
+          "localized_name": "遮罩",
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.37.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "11 (89).png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "11 (89).png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 284,
+      "type": "Fast Groups Bypasser (rgthree)",
+      "pos": [
+        10811.384486527417,
+        1956.4783174586712
+      ],
+      "size": [
+        941.7380423136221,
+        58
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "label": "可选连接",
+          "localized_name": "可选连接",
+          "name": "OPT_CONNECTION",
+          "type": "*",
+          "links": []
+        }
+      ],
+      "properties": {
+        "matchColors": "",
+        "matchTitle": "姿态图生成",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default"
+      }
+    },
+    {
+      "id": 285,
+      "type": "Label (rgthree)",
+      "pos": [
+        10944.66604537892,
+        1097.9650880858
+      ],
+      "size": [
+        600,
+        100
+      ],
+      "flags": {
+        "allow_interaction": true
+      },
+      "order": 50,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "▶姿态图生成",
+      "properties": {
+        "fontSize": 100,
+        "fontFamily": "Arial",
+        "fontColor": "#3CB371",
+        "textAlign": "left",
+        "backgroundColor": "transparent",
+        "padding": 0,
+        "borderRadius": 0,
+        "angle": 0,
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "color": "#fff0",
+      "bgcolor": "#fff0"
+    },
+    {
+      "id": 286,
+      "type": "MarkdownNote",
+      "pos": [
+        5990,
+        770
+      ],
+      "size": [
+        580,
+        400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 社区件·本地化改造说明(2026-10-01)\n\n- **来源**:黑鹤001 BV1Kwht6eEGd《▶千问2.1扩展整合(自定义skill+姿态图+放大)》\n- **改造清单**:\n  1. **skill装载→文本手贴**:QwenTE 系 SkillLoader×2 → PrimitiveStringMultiline,skill 全文随流内嵌可直接编辑(角色设定卡Skill-5.4 / Qwen-Image-2.1-文生图);\n  2. **VOSR2→SeedVR2**:TE-Speed VOSR2 系 Loader/Settings/Image → SeedVR2LoadDiTModel/SeedVR2LoadVAEModel/SeedVR2VideoUpscaler;放大倍率语义迁移:scale×2 → 目标分辨率 2048(2K 档,由 easy int 供值,值 3→2048),seed 666/fixed 保留;\n  3. **TE云端推理子图→本地qwen21链**:两个子图内部改为 UNETLoader/CLIPLoader/VAELoader(权重三件套 qwen_image_2.1_bf16 / qwen3vl_8b_bf16_heretic / qwen_image_2.1_vae_bf16)+ QwenImage21Cache/EmptyLatentImage/TextEncodeQwenImage21/KSampler/VAEDecode;子图槽位与外部接线保持,「skill加载器」槽型随源改 STRING、「文本」输出槽随肚子改 IMAGE(下游 TE_text_display 插件未装,原样保留为红线节点,装后需把显示端子改接预览);\n- **依赖**:姿态图链路(LoadImage→AIO_Preprocessor DWPreprocessor→Preview)需 comfyui_controlnet_aux(本轮已装机);easy int/rgthree/Easy-Use 为已装件,LoadImage/SaveImage/PreviewImage 为核心节点。\n- 原流分组多数处于旁路态(Bypasser 控制),保持原样。\n补刀(同批):顶层 TE_text_display×2 → easy showAnything(与整合流件同配方)。"
+      ]
+    }
+  ],
+  "links": [
+    [
+      322,
+      247,
+      0,
+      246,
+      0,
+      "IMAGE"
+    ],
+    [
+      323,
+      244,
+      0,
+      247,
+      0,
+      "STRING"
+    ],
+    [
+      344,
+      257,
+      0,
+      247,
+      8,
+      "IMAGE"
+    ],
+    [
+      345,
+      258,
+      0,
+      247,
+      9,
+      "IMAGE"
+    ],
+    [
+      346,
+      256,
+      0,
+      247,
+      10,
+      "IMAGE"
+    ],
+    [
+      347,
+      245,
+      0,
+      247,
+      11,
+      "IMAGE"
+    ],
+    [
+      362,
+      262,
+      0,
+      261,
+      0,
+      "IMAGE"
+    ],
+    [
+      363,
+      266,
+      0,
+      262,
+      0,
+      "STRING"
+    ],
+    [
+      368,
+      275,
+      0,
+      272,
+      0,
+      "IMAGE"
+    ],
+    [
+      369,
+      277,
+      0,
+      273,
+      0,
+      "IMAGE"
+    ],
+    [
+      370,
+      275,
+      0,
+      273,
+      1,
+      "IMAGE"
+    ],
+    [
+      371,
+      276,
+      0,
+      275,
+      1,
+      "SEEDVR2_DIT"
+    ],
+    [
+      372,
+      277,
+      0,
+      275,
+      0,
+      "IMAGE"
+    ],
+    [
+      373,
+      274,
+      0,
+      275,
+      2,
+      "SEEDVR2_VAE"
+    ],
+    [
+      374,
+      278,
+      0,
+      275,
+      4,
+      "INT"
+    ],
+    [
+      375,
+      282,
+      0,
+      281,
+      0,
+      "IMAGE"
+    ],
+    [
+      376,
+      283,
+      0,
+      282,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 6,
+      "title": "提示词-自定义Skill-图像编辑",
+      "bounding": [
+        7305.271009829428,
+        1205.7744236088758,
+        1262.5049758312907,
+        764.9638346158708
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "图片加载",
+      "bounding": [
+        6003.99734435117,
+        1211.9010810342895,
+        1241.872918474187,
+        751.988451250927
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "提示词-自定义Skill-生图",
+      "bounding": [
+        9056.38933638664,
+        1213.5190682850969,
+        1262.5049758312907,
+        764.9638346158708
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 11,
+      "title": "VOSR2-图像放大",
+      "bounding": [
+        12220.054084415071,
+        1104.3937464532196,
+        1713.702993717399,
+        944.5544212141972
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 12,
+      "title": "姿态图生成",
+      "bounding": [
+        10807.103409810592,
+        1246.1426216471498,
+        938.7201292419641,
+        642.0221673622364
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "61675b6d-4074-467d-8bf3-66b7ca6b3c16",
+        "version": 1,
+        "state": {
+          "lastGroupId": 12,
+          "lastNodeId": 507,
+          "lastLinkId": 811,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "New Subgraph",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            6625.498976762891,
+            1361.09962163276,
+            156,
+            288
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            7769.307069541139,
+            1361.09962163276,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "afd406d8-30d0-409a-93ec-967e53959b8e",
+            "name": "skill加载器",
+            "type": "STRING",
+            "linkIds": [],
+            "localized_name": "skill加载器",
+            "shape": 7,
+            "pos": [
+              6757.498976762891,
+              1385.09962163276
+            ]
+          },
+          {
+            "id": "94a9bdb5-e1aa-4426-ad10-4c6f8d664f3a",
+            "name": "模型系列",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1405.09962163276
+            ]
+          },
+          {
+            "id": "68cf02c5-0279-44f0-b0f9-efdd56cd5083",
+            "name": "主模型",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1425.09962163276
+            ]
+          },
+          {
+            "id": "c8e0c1cf-f08d-4873-9b04-14b44ac338a7",
+            "name": "视觉投影mmproj",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1445.09962163276
+            ]
+          },
+          {
+            "id": "486469d6-60ee-452d-8417-0f1087c0cc52",
+            "name": "上下文长度",
+            "type": "INT",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1465.09962163276
+            ]
+          },
+          {
+            "id": "898f0df9-387b-46b9-b0e1-bd8a55da9ca5",
+            "name": "输入模式",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1485.09962163276
+            ]
+          },
+          {
+            "id": "d02e72c3-e86f-4b55-b67a-a8e76daefe54",
+            "name": "生成后自动卸载模型",
+            "type": "BOOLEAN",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1505.09962163276
+            ]
+          },
+          {
+            "id": "e12f267e-3c70-461e-aeab-67e6e68ba328",
+            "name": "提示词",
+            "type": "STRING",
+            "linkIds": [
+              810
+            ],
+            "pos": [
+              6757.498976762891,
+              1525.09962163276
+            ]
+          },
+          {
+            "id": "cc592d92-e467-4266-929f-ec24c59443ad",
+            "name": "图片",
+            "type": "IMAGE",
+            "linkIds": [
+              811
+            ],
+            "pos": [
+              6757.498976762891,
+              1545.09962163276
+            ]
+          },
+          {
+            "id": "a1adbee2-c38e-467e-9fed-df3bac9fd2bf",
+            "name": "图片2",
+            "type": "IMAGE",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1565.09962163276
+            ]
+          },
+          {
+            "id": "a8bf0174-4eae-45e5-8414-f88734d1dcba",
+            "name": "图片3",
+            "type": "IMAGE",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1585.09962163276
+            ]
+          },
+          {
+            "id": "ea2889ab-a918-4aa7-b8e1-b09276361fcf",
+            "name": "图片4",
+            "type": "IMAGE",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1605.09962163276
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "8edb48b0-f674-4f36-80c5-913e135d2855",
+            "name": "文本",
+            "type": "IMAGE",
+            "linkIds": [
+              809
+            ],
+            "localized_name": "文本",
+            "pos": [
+              7793.307069541139,
+              1385.09962163276
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 500,
+            "type": "UNETLoader",
+            "pos": [
+              6620,
+              1750
+            ],
+            "size": [
+              510,
+              90
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "unet_name",
+                "name": "unet_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "unet_name"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  800
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "UNETLoader",
+              "models": [
+                {
+                  "name": "qwen_image_2.1_int8_convrot.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+                  "directory": "diffusion_models"
+                }
+              ]
+            },
+            "widgets_values": [
+              "qwen_image_2.1_bf16.safetensors",
+              "default"
+            ],
+            "widgets_values_named": {
+              "unet_name": "qwen_image_2.1_bf16.safetensors",
+              "weight_dtype": "default"
+            }
+          },
+          {
+            "id": 501,
+            "type": "CLIPLoader",
+            "pos": [
+              6620,
+              1870
+            ],
+            "size": [
+              510,
+              120
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "clip_name",
+                "name": "clip_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "clip_name"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "CLIP",
+                "name": "CLIP",
+                "type": "CLIP",
+                "links": [
+                  802
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CLIPLoader",
+              "models": [
+                {
+                  "name": "qwen3vl_8b_int8_convrot.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+                  "directory": "text_encoders"
+                }
+              ]
+            },
+            "widgets_values": [
+              "qwen3vl_8b_bf16_heretic.safetensors",
+              "qwen_image",
+              "default"
+            ],
+            "widgets_values_named": {
+              "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+              "type": "qwen_image",
+              "device": "default"
+            }
+          },
+          {
+            "id": 502,
+            "type": "VAELoader",
+            "pos": [
+              6620,
+              1990
+            ],
+            "size": [
+              510,
+              70
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "vae_name",
+                "name": "vae_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "vae_name"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "VAE",
+                "name": "VAE",
+                "type": "VAE",
+                "links": [
+                  803,
+                  804
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "VAELoader",
+              "models": [
+                {
+                  "name": "qwen_image_2.1_vae_bf16.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+                  "directory": "vae"
+                }
+              ]
+            },
+            "widgets_values": [
+              "qwen_image_2.1_vae_bf16.safetensors"
+            ],
+            "widgets_values_named": {
+              "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+            }
+          },
+          {
+            "id": 503,
+            "type": "QwenImage21Cache",
+            "pos": [
+              7160,
+              1750
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 800
+              },
+              {
+                "localized_name": "device",
+                "name": "device",
+                "type": "COMBO",
+                "widget": {
+                  "name": "device"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "dtype",
+                "name": "dtype",
+                "type": "COMBO",
+                "widget": {
+                  "name": "dtype"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  801
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "QwenImage21Cache"
+            },
+            "widgets_values": [
+              "auto",
+              "default"
+            ],
+            "widgets_values_named": {
+              "device": "auto",
+              "dtype": "default"
+            }
+          },
+          {
+            "id": 504,
+            "type": "TextEncodeQwenImage21",
+            "pos": [
+              7160,
+              1900
+            ],
+            "size": [
+              530,
+              680
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
+                "link": 802
+              },
+              {
+                "localized_name": "image_1",
+                "name": "images.image_1",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 811
+              },
+              {
+                "localized_name": "vae",
+                "name": "vae",
+                "shape": 7,
+                "type": "VAE",
+                "link": 803
+              },
+              {
+                "localized_name": "prompt",
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 810
+              },
+              {
+                "localized_name": "negative_prompt",
+                "name": "negative_prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "negative_prompt"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "positive",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  806
+                ]
+              },
+              {
+                "localized_name": "negative",
+                "name": "negative",
+                "type": "CONDITIONING",
+                "links": [
+                  807
+                ]
+              },
+              {
+                "localized_name": "latent",
+                "name": "latent",
+                "type": "LATENT",
+                "links": []
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextEncodeQwenImage21"
+            },
+            "widgets_values": [
+              "",
+              "",
+              1024
+            ],
+            "widgets_values_named": {
+              "prompt": "",
+              "negative_prompt": "",
+              "resolution": 1024
+            }
+          },
+          {
+            "id": 505,
+            "type": "EmptyLatentImage",
+            "pos": [
+              7160,
+              2470
+            ],
+            "size": [
+              300,
+              120
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "width",
+                "name": "width",
+                "type": "INT",
+                "widget": {
+                  "name": "width"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "height",
+                "name": "height",
+                "type": "INT",
+                "widget": {
+                  "name": "height"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LATENT",
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  805
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "EmptyLatentImage"
+            },
+            "widgets_values": [
+              1024,
+              1024,
+              1
+            ],
+            "widgets_values_named": {
+              "width": 1024,
+              "height": 1024,
+              "batch_size": 1
+            }
+          },
+          {
+            "id": 506,
+            "type": "KSampler",
+            "pos": [
+              7750,
+              1900
+            ],
+            "size": [
+              270,
+              270
+            ],
+            "flags": {},
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 801
+              },
+              {
+                "localized_name": "positive",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 806
+              },
+              {
+                "localized_name": "negative",
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 807
+              },
+              {
+                "localized_name": "latent_image",
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 805
+              },
+              {
+                "localized_name": "seed",
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "steps",
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "cfg",
+                "name": "cfg",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampler_name",
+                "name": "sampler_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scheduler",
+                "name": "scheduler",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LATENT",
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  808
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "KSampler"
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              25,
+              1,
+              "euler",
+              "simple",
+              1
+            ],
+            "widgets_values_named": {
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "steps": 25,
+              "cfg": 1,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "denoise": 1
+            }
+          },
+          {
+            "id": 507,
+            "type": "VAEDecode",
+            "pos": [
+              8070,
+              1900
+            ],
+            "size": [
+              230,
+              60
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "samples",
+                "name": "samples",
+                "type": "LATENT",
+                "link": 808
+              },
+              {
+                "localized_name": "vae",
+                "name": "vae",
+                "type": "VAE",
+                "link": 804
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  809
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "VAEDecode"
+            }
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 800,
+            "origin_id": 500,
+            "origin_slot": 0,
+            "target_id": 503,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 801,
+            "origin_id": 503,
+            "origin_slot": 0,
+            "target_id": 506,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 802,
+            "origin_id": 501,
+            "origin_slot": 0,
+            "target_id": 504,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 803,
+            "origin_id": 502,
+            "origin_slot": 0,
+            "target_id": 504,
+            "target_slot": 2,
+            "type": "VAE"
+          },
+          {
+            "id": 804,
+            "origin_id": 502,
+            "origin_slot": 0,
+            "target_id": 507,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 805,
+            "origin_id": 505,
+            "origin_slot": 0,
+            "target_id": 506,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 806,
+            "origin_id": 504,
+            "origin_slot": 0,
+            "target_id": 506,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 807,
+            "origin_id": 504,
+            "origin_slot": 1,
+            "target_id": 506,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 808,
+            "origin_id": 506,
+            "origin_slot": 0,
+            "target_id": 507,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 809,
+            "origin_id": 507,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 810,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 504,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 811,
+            "origin_id": -10,
+            "origin_slot": 8,
+            "target_id": 504,
+            "target_slot": 1,
+            "type": "IMAGE"
+          }
+        ],
+        "extra": {}
+      },
+      {
+        "id": "92d37400-be3c-4151-8582-40cac10af9d1",
+        "version": 1,
+        "state": {
+          "lastGroupId": 12,
+          "lastNodeId": 517,
+          "lastLinkId": 831,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "New Subgraph",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            6625.498976762891,
+            1361.09962163276,
+            156,
+            288
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            7769.307069541139,
+            1361.09962163276,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "afd406d8-30d0-409a-93ec-967e53959b8e",
+            "name": "skill加载器",
+            "type": "STRING",
+            "linkIds": [],
+            "localized_name": "skill加载器",
+            "shape": 7,
+            "pos": [
+              6757.498976762891,
+              1385.09962163276
+            ]
+          },
+          {
+            "id": "94a9bdb5-e1aa-4426-ad10-4c6f8d664f3a",
+            "name": "模型系列",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1405.09962163276
+            ]
+          },
+          {
+            "id": "68cf02c5-0279-44f0-b0f9-efdd56cd5083",
+            "name": "主模型",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1425.09962163276
+            ]
+          },
+          {
+            "id": "c8e0c1cf-f08d-4873-9b04-14b44ac338a7",
+            "name": "视觉投影mmproj",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1445.09962163276
+            ]
+          },
+          {
+            "id": "486469d6-60ee-452d-8417-0f1087c0cc52",
+            "name": "上下文长度",
+            "type": "INT",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1465.09962163276
+            ]
+          },
+          {
+            "id": "898f0df9-387b-46b9-b0e1-bd8a55da9ca5",
+            "name": "输入模式",
+            "type": "COMBO",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1485.09962163276
+            ]
+          },
+          {
+            "id": "d02e72c3-e86f-4b55-b67a-a8e76daefe54",
+            "name": "生成后自动卸载模型",
+            "type": "BOOLEAN",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1505.09962163276
+            ]
+          },
+          {
+            "id": "e12f267e-3c70-461e-aeab-67e6e68ba328",
+            "name": "提示词",
+            "type": "STRING",
+            "linkIds": [
+              830
+            ],
+            "pos": [
+              6757.498976762891,
+              1525.09962163276
+            ]
+          },
+          {
+            "id": "cc592d92-e467-4266-929f-ec24c59443ad",
+            "name": "图片",
+            "type": "IMAGE",
+            "linkIds": [
+              831
+            ],
+            "pos": [
+              6757.498976762891,
+              1545.09962163276
+            ]
+          },
+          {
+            "id": "a1adbee2-c38e-467e-9fed-df3bac9fd2bf",
+            "name": "图片2",
+            "type": "IMAGE",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1565.09962163276
+            ]
+          },
+          {
+            "id": "a8bf0174-4eae-45e5-8414-f88734d1dcba",
+            "name": "图片3",
+            "type": "IMAGE",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1585.09962163276
+            ]
+          },
+          {
+            "id": "ea2889ab-a918-4aa7-b8e1-b09276361fcf",
+            "name": "图片4",
+            "type": "IMAGE",
+            "linkIds": [],
+            "pos": [
+              6757.498976762891,
+              1605.09962163276
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "8edb48b0-f674-4f36-80c5-913e135d2855",
+            "name": "文本",
+            "type": "IMAGE",
+            "linkIds": [
+              829
+            ],
+            "localized_name": "文本",
+            "pos": [
+              7793.307069541139,
+              1385.09962163276
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 510,
+            "type": "UNETLoader",
+            "pos": [
+              6620,
+              1750
+            ],
+            "size": [
+              510,
+              90
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "unet_name",
+                "name": "unet_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "unet_name"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  820
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "UNETLoader",
+              "models": [
+                {
+                  "name": "qwen_image_2.1_int8_convrot.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors",
+                  "directory": "diffusion_models"
+                }
+              ]
+            },
+            "widgets_values": [
+              "qwen_image_2.1_bf16.safetensors",
+              "default"
+            ],
+            "widgets_values_named": {
+              "unet_name": "qwen_image_2.1_bf16.safetensors",
+              "weight_dtype": "default"
+            }
+          },
+          {
+            "id": 511,
+            "type": "CLIPLoader",
+            "pos": [
+              6620,
+              1870
+            ],
+            "size": [
+              510,
+              120
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "clip_name",
+                "name": "clip_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "clip_name"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "CLIP",
+                "name": "CLIP",
+                "type": "CLIP",
+                "links": [
+                  822
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CLIPLoader",
+              "models": [
+                {
+                  "name": "qwen3vl_8b_int8_convrot.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors",
+                  "directory": "text_encoders"
+                }
+              ]
+            },
+            "widgets_values": [
+              "qwen3vl_8b_bf16_heretic.safetensors",
+              "qwen_image",
+              "default"
+            ],
+            "widgets_values_named": {
+              "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+              "type": "qwen_image",
+              "device": "default"
+            }
+          },
+          {
+            "id": 512,
+            "type": "VAELoader",
+            "pos": [
+              6620,
+              1990
+            ],
+            "size": [
+              510,
+              70
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "vae_name",
+                "name": "vae_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "vae_name"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "VAE",
+                "name": "VAE",
+                "type": "VAE",
+                "links": [
+                  823,
+                  824
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "VAELoader",
+              "models": [
+                {
+                  "name": "qwen_image_2.1_vae_bf16.safetensors",
+                  "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors",
+                  "directory": "vae"
+                }
+              ]
+            },
+            "widgets_values": [
+              "qwen_image_2.1_vae_bf16.safetensors"
+            ],
+            "widgets_values_named": {
+              "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+            }
+          },
+          {
+            "id": 513,
+            "type": "QwenImage21Cache",
+            "pos": [
+              7160,
+              1750
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 820
+              },
+              {
+                "localized_name": "device",
+                "name": "device",
+                "type": "COMBO",
+                "widget": {
+                  "name": "device"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "dtype",
+                "name": "dtype",
+                "type": "COMBO",
+                "widget": {
+                  "name": "dtype"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  821
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "QwenImage21Cache"
+            },
+            "widgets_values": [
+              "auto",
+              "default"
+            ],
+            "widgets_values_named": {
+              "device": "auto",
+              "dtype": "default"
+            }
+          },
+          {
+            "id": 514,
+            "type": "TextEncodeQwenImage21",
+            "pos": [
+              7160,
+              1900
+            ],
+            "size": [
+              530,
+              680
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "clip",
+                "name": "clip",
+                "type": "CLIP",
+                "link": 822
+              },
+              {
+                "localized_name": "image_1",
+                "name": "images.image_1",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 831
+              },
+              {
+                "localized_name": "vae",
+                "name": "vae",
+                "shape": 7,
+                "type": "VAE",
+                "link": 823
+              },
+              {
+                "localized_name": "prompt",
+                "name": "prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt"
+                },
+                "link": 830
+              },
+              {
+                "localized_name": "negative_prompt",
+                "name": "negative_prompt",
+                "type": "STRING",
+                "widget": {
+                  "name": "negative_prompt"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "positive",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "links": [
+                  826
+                ]
+              },
+              {
+                "localized_name": "negative",
+                "name": "negative",
+                "type": "CONDITIONING",
+                "links": [
+                  827
+                ]
+              },
+              {
+                "localized_name": "latent",
+                "name": "latent",
+                "type": "LATENT",
+                "links": []
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TextEncodeQwenImage21"
+            },
+            "widgets_values": [
+              "",
+              "",
+              1024
+            ],
+            "widgets_values_named": {
+              "prompt": "",
+              "negative_prompt": "",
+              "resolution": 1024
+            }
+          },
+          {
+            "id": 515,
+            "type": "EmptyLatentImage",
+            "pos": [
+              7160,
+              2470
+            ],
+            "size": [
+              300,
+              120
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "width",
+                "name": "width",
+                "type": "INT",
+                "widget": {
+                  "name": "width"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "height",
+                "name": "height",
+                "type": "INT",
+                "widget": {
+                  "name": "height"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LATENT",
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  825
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "EmptyLatentImage"
+            },
+            "widgets_values": [
+              1024,
+              1024,
+              1
+            ],
+            "widgets_values_named": {
+              "width": 1024,
+              "height": 1024,
+              "batch_size": 1
+            }
+          },
+          {
+            "id": 516,
+            "type": "KSampler",
+            "pos": [
+              7750,
+              1900
+            ],
+            "size": [
+              270,
+              270
+            ],
+            "flags": {},
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 821
+              },
+              {
+                "localized_name": "positive",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 826
+              },
+              {
+                "localized_name": "negative",
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 827
+              },
+              {
+                "localized_name": "latent_image",
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 825
+              },
+              {
+                "localized_name": "seed",
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "steps",
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "cfg",
+                "name": "cfg",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampler_name",
+                "name": "sampler_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scheduler",
+                "name": "scheduler",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LATENT",
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  828
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "KSampler"
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              25,
+              1,
+              "euler",
+              "simple",
+              1
+            ],
+            "widgets_values_named": {
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "steps": 25,
+              "cfg": 1,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "denoise": 1
+            }
+          },
+          {
+            "id": 517,
+            "type": "VAEDecode",
+            "pos": [
+              8070,
+              1900
+            ],
+            "size": [
+              230,
+              60
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "samples",
+                "name": "samples",
+                "type": "LATENT",
+                "link": 828
+              },
+              {
+                "localized_name": "vae",
+                "name": "vae",
+                "type": "VAE",
+                "link": 824
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  829
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "VAEDecode"
+            }
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 820,
+            "origin_id": 510,
+            "origin_slot": 0,
+            "target_id": 513,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 821,
+            "origin_id": 513,
+            "origin_slot": 0,
+            "target_id": 516,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 822,
+            "origin_id": 511,
+            "origin_slot": 0,
+            "target_id": 514,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 823,
+            "origin_id": 512,
+            "origin_slot": 0,
+            "target_id": 514,
+            "target_slot": 2,
+            "type": "VAE"
+          },
+          {
+            "id": 824,
+            "origin_id": 512,
+            "origin_slot": 0,
+            "target_id": 517,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 825,
+            "origin_id": 515,
+            "origin_slot": 0,
+            "target_id": 516,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 826,
+            "origin_id": 514,
+            "origin_slot": 0,
+            "target_id": 516,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 827,
+            "origin_id": 514,
+            "origin_slot": 1,
+            "target_id": 516,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 828,
+            "origin_id": 516,
+            "origin_slot": 0,
+            "target_id": 517,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 829,
+            "origin_id": 517,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 830,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 514,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 831,
+            "origin_id": -10,
+            "origin_slot": 8,
+            "target_id": 514,
+            "target_slot": 1,
+            "type": "IMAGE"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  },
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.26734863064140435,
+      "offset": [
+        -3830.7572138848273,
+        1342.6433467318004
+      ]
+    }
+  },
+  "version": 0.4
+}

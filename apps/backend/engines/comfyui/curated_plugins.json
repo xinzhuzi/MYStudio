@@ -231,6 +231,14 @@
       "category": "Qwen-Image-2.1 图像",
       "repo": "https://github.com/aduanyue/ComfyUI_Qwen3_Translator_Node",
       "verified_license": "未标明"
+    },
+    {
+      "id": "comfyui_controlnet_aux",
+      "name": "ControlNet 辅助预处理器",
+      "desc_zh": "姿态/深度/边缘等预处理器全家桶(AIO_Preprocessor 一节点全揽,为姿态图工作流提供 OpenPose/DWPose 节点)。引擎家已装机(2026-10-01 离线 zip unzip 落位 custom_nodes,装机口径 1009 文件,venv py_compile 语法抽查通过);离线包含 14 个权重文件(装机实测口径;调研档记 64 与实测不符),含姿态检测 body_pose_model.pth(200MB)。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/Fannovel16/comfyui_controlnet_aux",
+      "verified_license": "Apache-2.0"
     }
   ]
 }

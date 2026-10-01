@@ -3737,9 +3737,12 @@ class TestI2IContract:
 # 非同一账本;本测试锁目录实数——任何件数漂移(误删/误增)即红。
 # 09-23 午:道劫直写旧件 qwen21-daojie-t2i 退役删除,7→6(自研 4→3)。
 # 09-24:i2i 新件 qi21-道劫-i2i 入库(2_图生图 新功能子夹),6→7(自研 3→4)。
+# 10-01 深夜:社区模板批入库(Trellis 10-01-community-workflow-import),
+# 3_社区模板/ 四件(宏雷两件原样+黑鹤两件本地化改造,台账=漫影工作流清单
+# .md 同批;全树 69→75),8→12(自研/官方不动,+4 社区件)。
 
 class TestCountAnchor:
-    def test_qwen21_dir_exactly_eight(self):
+    def test_qwen21_dir_exactly_twelve(self):
         files = sorted(p.name for p in (_IMG_DIR / "Q2-1图像").rglob("*.json"))
         assert files == [
             "image_qwen_image_2_1_background_removal.json",
@@ -3750,7 +3753,11 @@ class TestCountAnchor:
             "qi21-道劫-t2i.json",
             "qwen21-sanlian-t2i.json",
             "qwen21-t2i.json",
-        ], f"Q2-1图像 应恰 8 件(5 自研+3 官方模板;2026-10-01 B4 吸收件 qwen21-sanlian-t2i 新增),得 {files}"
+            "社区-skill姿态图放大-扩展整合.json",
+            "社区-全能图片编辑-官方PE.json",
+            "社区-全能文生图-官方PE.json",
+            "社区-编辑生图整合-TE.json",
+        ], f"Q2-1图像 应恰 12 件(5 自研+3 官方模板+4 社区模板;10-01 社区模板批入库 8→12,前账:2026-10-01 B4 吸收件 qwen21-sanlian-t2i 新增),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。
