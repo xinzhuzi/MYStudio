@@ -57,37 +57,43 @@ def canonical(o):
     return json.dumps(o, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+def fail_closed(msg):
+    """fail-closed 统一口:中文报错打屏后 exit 2(docstring 承诺的退出码口径)。"""
+    print(msg)
+    sys.exit(2)
+
+
 def extract_fixed_sentences():
     """05 库现读 4 固定句(fail-closed:未命中/多重命中即退出拒刷)。"""
     text = LIB05.read_text(encoding="utf-8")
 
-    def one(pattern, name, flags=0):
-        hits = re.findall(pattern, text, flags)
+    def one(pattern, name, flags=0, src=text):
+        hits = re.findall(pattern, src, flags)
         if len(hits) != 1:
-            raise SystemExit(f"[refresh] 05 库「{name}」提取命中 {len(hits)} 处(预期 1),"
-                             f"fail-closed 拒刷——请核对 {LIB05.name} 对应节书写形态")
+            fail_closed(f"[refresh] 05 库「{name}」提取命中 {len(hits)} 处(预期 1),"
+                        f"fail-closed 拒刷——请核对 {LIB05.name} 对应节书写形态")
         return hits[0]
 
     lock_a = one(r"\*\*常量 A·基础[^*]*\*\*:\s*\n\n```text\n(.*?)\n```",
                  "锁层A全文(§二 常量 A·基础 text 块)", re.S)
     i = text.find("三生成器 RGBA 头尾句改官方逐字")
     if i < 0:
-        raise SystemExit("[refresh] 05 库未找到「三生成器 RGBA 头尾句改官方逐字」节(§六 0927 条⑥),拒刷")
+        fail_closed("[refresh] 05 库未找到「三生成器 RGBA 头尾句改官方逐字」节(§六 0927 条⑥),拒刷")
     seg = text[i:i + 260]
-    m_head = re.search(r"[『「](This is an RGBA format image[^』」]*?)[』」]", seg)
-    m_tail = re.search(r"[『「](The image has an alpha channel[^』」]*?)[』」]", seg)
-    if not m_head or not m_tail:
-        raise SystemExit("[refresh] 05 库 RGBA 头/尾句引号对提取失败(§六 0927 条⑥ 窗口),fail-closed 拒刷")
+    head = one(r"[『「](This is an RGBA format image[^』」]*?)[』」]",
+               "RGBA官方头句(§六 0927 条⑥ 引号对)", src=seg)
+    tail = one(r"[『「](The image has an alpha channel[^』」]*?)[』」]",
+               "RGBA官方尾句(§六 0927 条⑥ 引号对)", src=seg)
     w1 = one(r"主候选句在案\((The subject reads[^()]*)\)",
              "W1收束句(§一 0930 条主候选句)")
-    return {"锁层A全文": lock_a, "RGBA官方头句": m_head.group(1),
-            "RGBA官方尾句": m_tail.group(1), "W1收束句": w1}
+    return {"锁层A全文": lock_a, "RGBA官方头句": head,
+            "RGBA官方尾句": tail, "W1收束句": w1}
 
 
 def _find_node(sg, node_type):
     hits = [n for n in sg["nodes"] if n.get("type") == node_type]
     if len(hits) != 1:
-        raise SystemExit(f"[refresh] 子图内 {node_type} 命中 {len(hits)} 件(预期 1),fail-closed 拒刷")
+        fail_closed(f"[refresh] 子图内 {node_type} 命中 {len(hits)} 件(预期 1),fail-closed 拒刷")
     return hits[0]
 
 
@@ -100,7 +106,7 @@ def refresh_from_library(check_only):
         sgs = data["definitions"]["subgraphs"]
         hits = [i for i, s in enumerate(sgs) if s.get("name", "").startswith(SG_NAME_PREFIX)]
         if len(hits) != 1:
-            raise SystemExit(f"[refresh] {tag}侧同名子图定义命中 {len(hits)} 份(预期 1),fail-closed 拒刷")
+            fail_closed(f"[refresh] {tag}侧同名子图定义命中 {len(hits)} 份(预期 1),fail-closed 拒刷")
         sg = sgs[hits[0]]
         targets.append((tag, _find_node(sg, "MyQi21PromptAssembly"),
                         _find_node(sg, "MyQi21PromptSelect")))

@@ -16,11 +16,17 @@ prd.md R7.2「4.2MP/8倍取整算式 Python 化,公式逐字迁移」)。
   [151]  ^\\s*(\\d+)          (前段宽比)
   [152]  :\\s*(\\d+)\\s*$      (冒号后尾段高比,锚串尾)
 round=Python 内建(银行家舍入),与原 ComfyMathExpression 插件同语义
-(其内部即 Python eval),数值行为逐字等价。
+(其内部为 simpleeval 求值器,round/sqrt 直通 Python 内建,本式数值
+逐字等价;非 Python eval——勿按 eval 语义类推他式,如 ** 大指数在
+simpleeval 有 safe_power/MAX_EXPONENT=4000 封顶差异)。
 
 Q6 容错(design §10.6,产线不炸队列):
   - wh_ratio 解析失败(非「宽:高」数字形,含 0 值比例/非字符串)且联动开
     → print 一条中文警告,回退 (九型WIDTH, 九型HEIGHT) 继续;
+  - 极端比例(宽高比 > 约 275251:1)建议值 8 倍取整后 w/h 含 0 且联动开
+    → 同款中文警告后回退九型原样(S8 深审 L-5 计算侧防御,实测首现
+    275252:1→(1101008,0);原链 [155][156] 同式直出 0,此处纯收紧,
+    下游空潜在不炸);
   - 联动开而 wh_ratio 未接线(缺键,wh_ratio lazy 化后新增的可达态)
     → 中文报错(想要建议值但没有源,不猜不代选;修前该槽为必填,未接线
     由引擎验证层直接拒,语义同为拒绝、报错面从验证层挪进节点);
@@ -90,9 +96,10 @@ class MyQi21WhSuggest:
     """漫影 qi21 画幅联动:按 PE 宽高比给 4.2MP 档 8 倍数取整建议宽高。
 
     联动开关(宿主面板,默认关=恒九型)开且 wh_ratio 可解析 → 建议值
-    (原 [155][156] 公式逐字);否则回九型 WIDTH/HEIGHT 原样(原
-    [157][158] ComfySwitchNode on_false 臂)。解析失败回退时发一条中文
-    警告;九型无值可用时中文报错,不猜不代选。
+    (原 [155][156] 公式逐字);否则(联动关/解析失败/极端比例建议值
+    含 0)回九型 WIDTH/HEIGHT 原样(原 [157][158] ComfySwitchNode
+    on_false 臂)。联动开的回退(解析失败/建议值含 0)发一条中文警
+    告;九型无值可用时中文报错,不猜不代选。
     """
 
     CATEGORY = "my"
@@ -169,4 +176,21 @@ class MyQi21WhSuggest:
         a, b = ratio
         w = round(a * math.sqrt(4.2 * 1024 * 1024 / (a * b)) / 8) * 8
         h = round(b * math.sqrt(4.2 * 1024 * 1024 / (a * b)) / 8) * 8
+        if w <= 0 or h <= 0:
+            # Q6 计算侧同款(S8 深审 L-5):极端比例(宽高比 > 约
+            # 275251:1)8 倍取整后建议出 0,下游空潜在执行期炸 → 中文
+            # 警告后回退九型原样(原链 [155][156] 同式直出 0,本防御
+            # 纯收紧,三档锚值行为不变)
+            print(
+                f"[MyQi21WhSuggest] 画幅比例 wh_ratio={wh_ratio!r} 过于极端"
+                f"(4.2MP 建议值 {w}×{h} 含 0),已回退九型宽高"
+                f"({九型WIDTH}×{九型HEIGHT})继续")
+            if 九型WIDTH is None or 九型HEIGHT is None:
+                raise ValueError(
+                    f"[MyQi21WhSuggest] 画幅无值可用:wh_ratio={wh_ratio!r} "
+                    "建议值含 0(比例过于极端)且九型 WIDTH/HEIGHT 槽未接线"
+                    "(至少其一无值)——请修正 wh_ratio 为常规比例(如 "
+                    "16:9),或把底座节点的 WIDTH/HEIGHT 连到本节点对应"
+                    "槽;不猜不代选")
+            return (九型WIDTH, 九型HEIGHT)
         return (w, h)

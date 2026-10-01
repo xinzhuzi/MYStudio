@@ -23,6 +23,11 @@
 apps/output/s8-integration-1001/s8-integration-report.json lazyVerdict):
 ⑥ 懒协议形状(wh_ratio optional+lazy=True+check_lazy_status 实名)
 ⑦ check_lazy_status 行为四态+联动开×wh_ratio 未接线中文报错。
+
+1001 S8 深审修复轮二增锁(⑧,L-5 计算侧防御):极端比例(宽高比 >
+约 275251:1)建议值取整后含 0 → Q6 同款回退九型+中文警告+九型缺时
+中文报错(实测 300000:1→(1149440,0)/1:1000000→(0,2098576);
+原链 [155][156] 同式直出 0,本防御纯收紧)。
 """
 
 from __future__ import annotations
@@ -135,3 +140,27 @@ def test_linkage_on_without_wired_ratio_raises():
     msg = str(ei.value)
     assert "联动开关" in msg and "wh_ratio" in msg and "未接线" in msg
     assert "不猜不代选" in msg
+
+
+# ── ⑧ 极端比例零建议回退(S8 深审 L-5:计算侧防御,Q6 同款) ──────────
+def test_extreme_ratio_zero_suggest_falls_back_with_warning(capsys):
+    """宽高比 > 约 275251:1(=4.2*1024*1024/16)时 8 倍取整后建议出 0
+    (本会话实算:300000:1→(1149440,0)/1:1000000→(0,2098576)/边界
+    275251:1→(1101008,8) 不触发),下游空潜在执行期炸——归 Q6 回退
+    九型原样+中文警告,产线不炸队列(原链 [155][156] 同式直出 0,
+    本防御纯收紧,三档锚值行为不变)。"""
+    node = MyQi21WhSuggest()
+    # 横向极端(任务指定例):h 取整为 0 → 不抛,回退九型,中文警告一条
+    assert node.suggest(联动开关=True, wh_ratio="300000:1",
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
+    out = capsys.readouterr().out
+    assert "过于极端" in out and "回退" in out and "九型" in out
+    # 纵向极端对称:w 取整为 0 → 同款回退
+    assert node.suggest(联动开关=True, wh_ratio="1:1000000",
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
+    assert "过于极端" in capsys.readouterr().out
+    # 对称防御:零建议且九型槽也未接线 → 中文报错(无值可用,不猜)
+    with pytest.raises(ValueError) as ei:
+        node.suggest(联动开关=True, wh_ratio="300000:1")
+    msg = str(ei.value)
+    assert "无值可用" in msg and "九型" in msg and "不猜不代选" in msg

@@ -3,7 +3,7 @@
 # Commercial licensing available. COMMERCIAL_LICENSE.md available.
 """MyQi21PromptAssembly(装配全文件)契约测试(1001 S8 R7 集成轮;**裁定 A 拆件
 形态**:本件=装配链上游,单口真源;原一件式七例中②-⑦随 PE 路/透明路逻辑
-迁 test_my_qi21_prompt_select.py,本件=裁定规格三例)。
+迁 test_my_qi21_prompt_select.py,本件=裁定规格三例+1001 S8 L-1 空串守卫两例)。
 
 裁定 A 缘起在档:一件式三口形态「装配全文→[140].prompt」+「[140].positive_prompt
 →PE出文」构成数据环,引擎验证层实测拒(lazy 边无豁免);拆件成链=本件(141)
@@ -14,10 +14,13 @@
 
 锁:①装配全文=主体句+换行+BASE+换行+锁层A 逐字拼接且输出口即此值(喂
 [140].prompt 的唯一真源,Q1=B+)+主体句/锁层A default 迁移锚(sha256 前16位
-=1001 t2i 工作流值,改值须与 05 库「从库刷参数」同批过账)②BASE 未接线
+=1001 t2i 工作流值;锁层A改值走 05 库 Q3「从库刷参数」同批过账,主体句例文
+不在 Q3 四固定句、须手改三处——口径同节点文件注释,1001 S8 L-2 纠偏)②BASE 未接线
 (None)=主体句+换行+锁层A 两段降级拼**不炸**(裁定 A 规格② optional 缺键
 语义;产线日志可查)③单口接口面锁:RETURN_TYPES/RETURN_NAMES/INPUT_TYPES
-(required 主体句+锁层A全文 multiline;optional BASE)。
+(required 主体句+锁层A全文 multiline;optional BASE)④BASE 已接线但空串/
+纯空白=与 None 同款两段降级拼+中文警告(1001 S8 L-1 修补:BASE 空即无底座
+层;判空家法=my_daojie_base (x or "").strip())。
 """
 
 from __future__ import annotations
@@ -83,3 +86,26 @@ def test_3_interface_shape_upstream_single_output():
         f"optional 应恰 BASE,得 {set(inputs['optional'])}"
     assert inputs["optional"]["BASE"][0] == "STRING"
     assert node.FUNCTION == "assemble"
+
+
+# ── ④ BASE 已接线但空串/纯空白=与 None 同款两段降级拼+中文警告 ────────
+# (1001 S8 L-1 修补:BASE 空即无底座层;此前空串走三段拼+零警告)
+def test_4_base_empty_string_degrades_to_two_segments(capsys):
+    node = MyQi21PromptAssembly()
+    result = node.assemble(主体句="主体句例", BASE="", 锁层A全文="锁层A例")
+    assert result == ("主体句例\n锁层A例",), \
+        f"BASE=''(接线但空串)应与 None 同款降级=主体句+换行+锁层A 两段拼" \
+        f"(BASE 空即无底座层),得 {result!r}"
+    out = capsys.readouterr().out
+    assert "[MyQi21PromptAssembly]" in out and "两段拼" in out, \
+        f"BASE 空串路应发与 None 同款中文 print 警告(不再零警告),得 {out!r}"
+
+
+def test_5_base_whitespace_string_degrades_to_two_segments(capsys):
+    node = MyQi21PromptAssembly()
+    result = node.assemble(主体句="主体句例", BASE="  ", 锁层A全文="锁层A例")
+    assert result == ("主体句例\n锁层A例",), \
+        f"BASE='  '(纯空白)应与 None 同款降级=两段拼,得 {result!r}"
+    out = capsys.readouterr().out
+    assert "[MyQi21PromptAssembly]" in out and "两段拼" in out, \
+        f"BASE 纯空白路应发同款中文 print 警告,得 {out!r}"

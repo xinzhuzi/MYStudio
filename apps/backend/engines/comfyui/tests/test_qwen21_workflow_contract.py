@@ -115,6 +115,15 @@ p2_grid_cut.py 切割口;无 ResolutionSelector/PE 组/RGBA 开关(预设件职�
 单一,ResolutionSelector 档位零涉=plan §二发1 口径)。TestSanlianContract
 最小锚+TestCountAnchor 目录锚 7→8。
 
+1001 S8 深审修复轮三锚(apps/output/s8-code-review-1001/report.md 立案
+M-3/M-4/L-8,TestQi21SubgraphContract):M-3 W1收束句工作流侧值锚(键
+QI21_SG_SEL_WV["W1收束句"] 曾定义零使用,句身真源=05 库 §一 0930 条主候选句,
+_qi21_w1_truth 现读解析,与 RGBA 头/尾句同款断言);M-4 [140] PE 改写器出线
+消费者 lazy 谓词(静态可重复:消费者槽在其自研件 INPUT_TYPES 须声明
+lazy(True)+实名懒钩子,未来给 [140] 增设非懒消费者必红);L-8 蓝图↔宿主
+子图定义一致性锚(definitions.subgraphs[0] 除 id 外 canonical 全等,口径与
+qi21_blueprint_sync_1001.py 幂等比较/f929798 同款,漂移即红)。
+
 09-24 i2i 轮(Trellis 09-24-qi21-daojie-i2i;PRD 架构纠正:Q2-1 生修合一,
 图输入即指令编辑,零 denoise 重绘):新增第四件 qi21-道劫-i2i.json(2_图生图/
 新功能子夹,对标 K2 线 krea2-daojie-i2i.json 同域同式)与 TestI2IContract——
@@ -434,6 +443,10 @@ QI21_HOST_WIDGET_INPUTS = [
 # 0928 PE 迁子图轮:画幅联动总闸[180] 退役为宿主面板 widget;冻结回流线 link34
 # 随架构消灭(主图左向线恒 0,豁免不再存在);PE/联动件全数迁入 [40] 子图(id 承袭)
 QI21_BASES_JSON = _TESTS_DIR.parent / "my_nodes/nodes/qi21_bases.json"
+# 蓝图真源(1001 S8 深审 L-8 落锚用):S5 术后宿主定义id=实例uuid 与蓝图恒定id
+# 分轨;同步钦定通道=apps/build/scripts/qi21_blueprint_sync_1001.py,幂等口径=
+# 除 id 外 canonical 全等(见 test_blueprint_definition_matches_host_subgraph)
+QI21_BLUEPRINT = _TESTS_DIR.parent / "my_nodes/subgraphs/qi21-提示词类型优化子图.json"
 
 
 def _nodes(graph: dict) -> dict:
@@ -2086,6 +2099,34 @@ def _qi21_truth():
     return types, const_a
 
 
+def _qi21_w1_truth() -> str:
+    """库 05 §一 0930 W1 收束句句身解析(1001 S8 深审 M-3 落锚;独立于 sync
+    脚本双记账,提取形态与 qi21_blueprint_sync_1001.py extract_fixed_sentences
+    同款=「主候选句在案(…)」括号内整句;fail-closed:命中非 1 即红拒猜)。"""
+    md = PROMPT_LIB.read_text(encoding="utf-8")
+    hits = re.findall(r"主候选句在案\((The subject reads[^()]*)\)", md)
+    assert len(hits) == 1, \
+        f"库 §一 0930「主候选句在案(…)」应恰 1 处,得 {len(hits)}(fail-closed 拒猜)"
+    return hits[0]
+
+
+def _load_my_node_class(class_name: str):
+    """按类名从 my_nodes/nodes/ 现读自研节点类(importlib 纯模块加载,家法同
+    _speed_mod 档位互锁;零引擎进程依赖)。未命中返回 None(调用方判非自研件)。
+
+    (1001 S8 深审 M-4 落锚用:lazy 消费者谓词按工作流实际消费者动态取件,
+    未来新消费者件无需改本测试即可入判。)"""
+    nodes_dir = _TESTS_DIR.parent / "my_nodes" / "nodes"
+    for py in sorted(nodes_dir.glob("my_*.py")):
+        if re.search(rf"^class {re.escape(class_name)}\b",
+                     py.read_text(encoding="utf-8"), re.M):
+            spec = _ilu.spec_from_file_location(f"qi21_contract_{class_name}", py)
+            mod = _ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return getattr(mod, class_name, None)
+    return None
+
+
 def _qi21_sg(graph: dict) -> dict:
     """qi21 装配子图选择器(0929 S3 起两子图形态,按名取装配;旧「恰 1 子图」
     口径随 S3 收装退役,恰两子图断言在 TestSpeedSelectContract0929)。"""
@@ -2605,6 +2646,10 @@ class TestQi21SubgraphContract:
             "[152] RGBA官方头句参数 非官方原文逐字(This is an RGBA format image with transparency.)"
         assert _widget(sel, QI21_SG_SEL_WV["RGBA官方尾句"]) == RGBA_TAIL, \
             "[152] RGBA官方尾句参数 非官方原文逐字(The image has an alpha channel and a transparent background.)"
+        # W1 收束句值锚(1001 S8 深审 M-3:键曾定义零使用,四固定句中唯一无工作流
+        # 侧断言者;句身真源=05 库 §一 0930 条主候选句,与头/尾句同款逐字)
+        assert _widget(sel, QI21_SG_SEL_WV["W1收束句"]) == _qi21_w1_truth(), \
+            "[152] W1收束句参数 与库 §一 0930 主候选句不逐字一致(透明路=剥离文后拼接)"
         lexicon = json.loads((QI21_BASES_JSON.parent / "qi21_strip_lexicon.json")
                              .read_text(encoding="utf-8"))
         assert lexicon["case_insensitive"] is True and lexicon["pattern"], \
@@ -2633,6 +2678,46 @@ class TestQi21SubgraphContract:
         host = _nodes(graph)[QI21_HOST_ID]
         assert host["widgets_values"][2] == "跟随型", "宿主面板 RGBA透明 默认必须 跟随型(0929 S2 D6)"
 
+    def test_pe_rewrite_output_consumers_all_lazy(self):
+        """[140] PE 改写器出线消费者 lazy 谓词(1001 S8 深审 M-4 落锚,静态可
+        重复):pe关×联动关 ⇒ [140] 零执行零 PE TE 装载(prd R7.1 硬约束)的
+        静态守卫——[140] 每条出线(按 outputs[].links 圈定,[140].clip/prompt
+        等入线不在谓词域)的消费者必须为自研件,且被喂槽在其 INPUT_TYPES 声明
+        lazy(True)+实名懒钩子 check_lazy_status;未来给 [140] 增设非懒消费者
+        (含核心/插件件=静态不可证 lazy)必红。现消费者=[152]MyQi21PromptSelect.
+        PE出文/[151]MyQi21WhSuggest.wh_ratio(两件 lazy 化=1001 深审修复轮;
+        修前 wh_ratio 非懒必填槽强拉 [140] 的实弹证违在档
+        apps/output/s8-integration-1001/s8-integration-report.json)。"""
+        graph = GRAPHS["qi21"]
+        sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
+        pe = sg_nodes[QI21_SG_PE_RW]
+        assert pe["type"] == PE_CLASS, \
+            f"[{QI21_SG_PE_RW}] 应为 {PE_CLASS}(谓词域锚)"
+        for out in pe["outputs"]:
+            for lid in (out.get("links") or []):
+                assert lid in sg_links, \
+                    f"[140].{out['name']} 出线 link{lid} 不在子图链接册(双写漂移)"
+                l = sg_links[lid]
+                tgt = sg_nodes[l["target_id"]]
+                slot = tgt["inputs"][l["target_slot"]]["name"]
+                cls = _load_my_node_class(tgt["type"])
+                assert cls is not None, (
+                    f"[140].{out['name']} 消费者 [{l['target_id']}]{tgt['type']}.{slot}"
+                    f" 非自研件(静态不可证 lazy)——零装载铁律要求 [140] 出线消费者"
+                    f"全为 lazy 自研件")
+                it = cls.INPUT_TYPES()
+                decl = next((it[sec][slot] for sec in ("required", "optional")
+                             if slot in it.get(sec, {})), None)
+                assert decl is not None, \
+                    f"{tgt['type']}.{slot} 不在 INPUT_TYPES 声明面(接口漂移)"
+                meta = decl[1] if len(decl) > 1 and isinstance(decl[1], dict) else {}
+                assert meta.get("lazy") is True, (
+                    f"[140].{out['name']} 消费槽 {tgt['type']}.{slot} 未声明"
+                    f" lazy(True)——pe关×联动关时强依赖仍拉 [140] 整跑+装载 PE TE"
+                    f"(prd R7.1 违约)")
+                assert hasattr(cls, "check_lazy_status"), (
+                    f"{tgt['type']} 缺实名懒钩子 check_lazy_status(本版引擎只认"
+                    f"此名;lazy 槽永不请求=pe开路也拿不到值)")
 
     def test_subgraph_outputs_feed_sampler_latent_and_preview(self):
         graph = GRAPHS["qi21"]
@@ -2841,6 +2926,28 @@ class TestQi21SubgraphContract:
             f"②层应为美化版成文(与 canon positive 逐字互锁已废止,九型均应有差异),diff={diff}"
         assert "## 六、演进与待裁定" in md, "库应含 §六 演进与待裁定(09-23 深检吸收轮立账)"
         assert "②③层放行显式禁句" in md, "库 §四.4 应含 ②③层放行显式禁句条款(09-23 深检吸收)"
+
+    def test_blueprint_definition_matches_host_subgraph(self):
+        """蓝图↔宿主一致性锚(1001 S8 深审 L-8 落锚):蓝图 definitions.subgraphs[0]
+        与工作流 [40] 子图定义做 canonical 对比**除 id 外**全等(json.dumps
+        sort_keys;口径与 f929798 幂等修正的 id 归一一致——S5 术后宿主定义
+        id=实例 uuid 96937bbe… 与蓝图恒定 id c3f81b56… 分轨为常态,id 外任何
+        漂移即红)。此前蓝图↔宿主一致性零自动锚,漂移只能手动跑
+        qi21_blueprint_sync_1001.py --check 发现(契约 §九.3 钦定同步通道)。"""
+        bp_sg = json.loads(QI21_BLUEPRINT.read_text(encoding="utf-8")) \
+            ["definitions"]["subgraphs"][0]
+        wf_sg = _qi21_sg(GRAPHS["qi21"])
+        assert bp_sg["name"] == wf_sg["name"], \
+            f"蓝图/宿主子图 name 漂移: {bp_sg['name']!r} vs {wf_sg['name']!r}"
+
+        def _canon_no_id(sg: dict) -> str:
+            return json.dumps({k: v for k, v in sg.items() if k != "id"},
+                              ensure_ascii=False, sort_keys=True,
+                              separators=(",", ":"))
+
+        assert _canon_no_id(wf_sg) == _canon_no_id(bp_sg), \
+            "蓝图 ↔ 宿主工作流子图定义漂移(除 id 外应 canonical 全等)——请跑 " \
+            "apps/build/scripts/qi21_blueprint_sync_1001.py 同步(钦定通道,勿手改)"
 
 # ── 6d2. 画布归一与加速区组框(0925 收窄轮 W1/W6;适用 qi21/i2i/edit 三件;
 # qwen21-t2i 静态官方件不适用——坐标原样保留)─────────────────────────────

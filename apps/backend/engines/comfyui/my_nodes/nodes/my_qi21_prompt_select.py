@@ -88,16 +88,31 @@ _lexicon_cache: dict[str, Any] | None = None
 
 
 def _load_lexicon() -> tuple[str, bool]:
-    """词族真源现读:pattern+case_insensitive;首读后进程内缓存。"""
+    """词族真源现读:pattern+case_insensitive;首读后进程内缓存。
+
+    结构校验(S8 深审 L-3):json 合法≠结构合法——pattern 须非空 str、
+    case_insensitive 须 bool;不合法视同损坏,同款 RuntimeError 中文兜底
+    且**不写缓存**(坏 dict 钉死缓存=修文件不自愈须重启,就此根除:
+    校验不过缓存恒 None,修好文件下次调用即现读自愈)。
+    """
     global _lexicon_cache
     if _lexicon_cache is None:
         try:
-            _lexicon_cache = json.loads(_LEXICON_PATH.read_text(encoding="utf-8"))
+            data = json.loads(_LEXICON_PATH.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise RuntimeError(
                 "qi21 词族库缺失或损坏:my_nodes/nodes/qi21_strip_lexicon.json "
                 f"读取失败({exc})——请在漫影设置里重新同步自研节点,或重启"
                 "漫影工作室") from exc
+        if (not isinstance(data, dict)
+                or not isinstance(data.get("pattern"), str)
+                or not data.get("pattern")
+                or not isinstance(data.get("case_insensitive"), bool)):
+            raise RuntimeError(
+                "qi21 词族库缺失或损坏:my_nodes/nodes/qi21_strip_lexicon.json "
+                "结构不合法(须含 pattern=非空字符串与 case_insensitive=布尔)"
+                "——请在漫影设置里重新同步自研节点,或重启漫影工作室")
+        _lexicon_cache = data
     return _lexicon_cache["pattern"], bool(_lexicon_cache["case_insensitive"])
 
 
@@ -122,7 +137,7 @@ class MyQi21PromptSelect:
                    "透明文本=RGBA 包裹+词族整句剥离(PE路)")
 
     @classmethod
-    def INPUT_TYPES(cls) -> dict[str, dict]:
+    def INPUT_TYPES(cls) -> dict[str, Any]:
         return {
             "required": {
                 "pe开关": ("BOOLEAN", {"default": True,

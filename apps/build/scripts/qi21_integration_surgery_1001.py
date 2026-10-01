@@ -47,6 +47,8 @@ assertions-v2.txt}(v1 三件套 before/after/assertions.* 同目录存史)
 用法:python3 apps/build/scripts/qi21_integration_surgery_1001.py --step all|verify
   输入态识别:28件53线=原始态(拒,提示 v1 已役)/9件28线一件式=v2 可手术/
   10件29线两件式=已手术(verify)。
+历史役档案注记:S5 宿主换装(2de824c)后工作流子图 uuid=实例 uuid(96937bbe…),
+  SG_UUID 硬锚(c3f81b56…,main() 首断言)失效——--step verify 须先更新锚或跳过。
 """
 import argparse
 import copy
@@ -64,8 +66,8 @@ SNAP_DIR = ROOT / "apps/output/qi21-integration-surgery-1001"
 
 ASM_ID, SEL_ID, WH_ID, NOTE_ID = 141, 152, 151, 250
 # v1 已删 22 件(id 141/151 由新件沿用;152 本轮复用为合成器)
-GONE_IDS = [110, 130, 131, 140 + 0, 160, 161, 162, 163, 206, 207, 208, 209, 215, 216,
-            151, 152, 153, 154, 155, 156, 157, 158, 141]  # 140 保留(此表仅历史档案)
+GONE_IDS = [110, 130, 131, 160, 161, 162, 163, 206, 207, 208, 209, 215, 216,
+            151, 152, 153, 154, 155, 156, 157, 158, 141]  # 名册=19 删+141/151/152 复用=22(历史档案;140 保留不在册,与契约 QI21_SG_GONE_IDS 19 项+复用 3 对账)
 
 # v1 已役映射账(28件53线→9件28线;档=assertions.txt):RETAIN 13/REDIRECT 13/
 # ABSORBED 3/CONST_TO_PARAM 6/INTERNALIZED 18 + 白名单 65/66。v2 在其上续做。
