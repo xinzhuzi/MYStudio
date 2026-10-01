@@ -223,6 +223,10 @@ _MODEL_FOLDER_KEYS = (
     # folder_paths["audio_encoders"] 解析);缺该键=翻唱工作流 /prompt 校验即拒
     # (权重文件在引擎家 models/audio_encoders 已就位也照拒)。
     "audio_encoders",
+    # 10-02 一条龙实弹补修:SeedVR2 放大权重住 seedvr2(SeedVR2LoadDiTModel/
+    # SeedVR2LoadVAEModel 经该 folder_paths 键解析);缺该键=/prompt 校验即拒
+    # (实弹实证:家级已就位的 seedvr2_7b_sharp_fp8_e4m3fn.safetensors 被 value_not_in_list 拒)。
+    "seedvr2",
 )
 
 

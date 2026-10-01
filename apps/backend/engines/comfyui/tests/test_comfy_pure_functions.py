@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import pytest
 
+from engines.comfyui import manifest as cm
 from engines.comfyui.engine_manager import (
+    _MODEL_FOLDER_KEYS,
+    _write_extra_model_paths,
     allocate_port,
     build_launch_args,
     collect_import_failures,
@@ -375,3 +378,37 @@ class TestMissingNodesPrecheck:
         assert mapping.get("Krea2EditModelPatch") == "Krea2 指令编辑节点"
         assert mapping.get("ConditioningKrea2Rebalance") == "Krea2 提示重平衡"
         assert mapping.get("GetImageSize+") == "Essentials 基础增强"
+
+
+# ── extra_model_paths.yaml 键表 ────────────────────────────────────
+
+class TestExtraModelPathsKeys:
+    """10-02 一条龙实弹第三例锚:键表漏 seedvr2=家级权重对 SeedVR2LoadDiTModel/
+    SeedVR2LoadVAEModel 不可见,/prompt 校验 value_not_in_list 拒(前两例=09-08
+    diffusion_models/text_encoders、09-20 audio_encoders)。期望集硬编码独立于
+    _MODEL_FOLDER_KEYS 本体——拿实现对拍自己是恒真,锚不住回退。"""
+
+    @pytest.fixture()
+    def home(self, tmp_path, monkeypatch):
+        home = tmp_path / "comfyui"
+        monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(home))
+        (home / "ComfyUI").mkdir(parents=True, exist_ok=True)  # yaml 落点父目录
+        cm._read_cache.clear()
+        return home
+
+    def test_yaml_writes_expected_folder_keys(self, home, tmp_path):
+        expected = {
+            "checkpoints", "configs", "loras", "vae", "clip", "unet", "clip_vision",
+            "style_models", "embeddings", "controlnet", "gligen", "upscale_models",
+            "hypernetworks", "photomaker", "ipadapter",
+            "diffusion_models", "text_encoders",  # 09-08 补
+            "audio_encoders",  # 09-20 补
+            "seedvr2",  # 10-02 补
+        }
+        assert expected <= set(_MODEL_FOLDER_KEYS)  # 键表至少含期望集(漏=红)
+
+        models_dir = tmp_path / "models"
+        _write_extra_model_paths(models_dir)
+        yaml_text = (home / "ComfyUI" / "extra_model_paths.yaml").read_text(encoding="utf-8")
+        for key in expected:
+            assert f"    {key}: {models_dir / key}/" in yaml_text
