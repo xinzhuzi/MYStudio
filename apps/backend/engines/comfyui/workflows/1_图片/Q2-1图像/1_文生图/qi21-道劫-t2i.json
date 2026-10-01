@@ -478,7 +478,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## 道劫 · Qwen-Image-2.1 文生图(双子图版·0929 S3 收装轮)\n\nK2 道劫『一处选型+分件装配+子图收装』思想的 Q2-1 原生落地(0928 用户裁定:所有提示词必须过 PE——**PE 改写链与画幅联动链已收进 [40] 装配子图**,消灭 [40]→主图 PE 链→[40] 来回绕线,主图零 PE 件零左向线;0925 外露轮的 W2 迁出就此回卷)。**0929 S3 收装轮:加速区整体收进 [208] 加速子图**(三支路+viggle LoRA+seed 单源+出图速度选择全在内,双击进入;主图退成四块骨架=①加载器→②提示词·装配([24][40][27])→③加速([5] 空潜+[208] 加速子图)→④输出([8][9]);每画布恰两子图=②提示词子图管内容语义+③加速子图管采样策略,职责互斥不掺和)。**[40] 装配子图**(双击进入=底座九选一+锁层恒挂+换行拼接+RGBA 公式拼接+**PE 改写→提示词开关**+双路编码+画幅联动链;四行流水=源行→装配→PE改写→编码,提示词从装配到编码全程子图内);提示词真源=docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md(②层底座=09-23 美化版,canon-json 逐字锚废止,型名/顺序仍对齐 daojie_bases.json)。\n\n### 怎么换型(一处切换)\n- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 节点按选型出 BASE(该型②层底座+人物系增量四锁B+④配色行,真源=qi21_bases.json 磁盘热读,逐字=05 库)与 WIDTH/HEIGHT(型档分辨率直出)。\n- **分辨率随型自动**:[40] 子图 width/height 输出(联动开关后终值)直驱 [5] 空潜宽高(ResolutionSelector 已退役;九型档=qi21_bases.json 的 aspect/MP/override;多视图=Q2.1侧分档 3:4 Portrait 4.2MP 分张产线(0927 多视图轮,override 已退役))——换型不再手动切档;[5] 面板 1024×1024=**摆设值不生效**(实际由 [40] width/height 供给)。\n- 换型后 [24] 主体句须同步换成本型主体句(各型例句见库文档;场景/概念气氛图不写人——空镜句尾可明写「空镜无人」);主体句只写主体与画面,不重复风格词,全角标点,质量词/比例词/否定式禁入(库文档主体句纪律五则)。\n- 警示(手贴 vs 重跑):手贴内容只活在画布件——生成脚本重跑会把主体句默认/锁层全文重置回库文档现读值(底座 BASE 不经画布常量、直读 qi21_bases.json,库更新重跑提取脚本即同步),要长久保留先回写库文档再重跑,或重跑前另存画布件。\n\n### 装配怎么拼([24] 唯一手写位;最终文本=子图 [141] 开关输出,经 [40]「最终文本」出口过目 [27])\n- 拼法=库文档四层装配『主体句领头+换行分层』:子图内拼接把 [24] 主体句 + [150] 当前型 BASE + [110] 通用锁层常量A(③层,库首节全文,全九型恒挂不随型)逐层接成一段,进子图内 **[141] 提示词开关**(true=PE 扩写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路,任何人打开默认走 PE;false=直写装配=按图选配,单图手动关)——开关输出=将进编码的最终文本,子图内直喂主编码 [142].prompt,并经 [40]「最终文本」输出到主画布 [27] 装配预览过目。**[141] 开关在 [40] 面板=「PE开关」控件**(默认开,照「型选择」combo 同款暴露)。\n- 层次序注:画布装配行序=①主体句→②型底座→(人物系增量锁)→④配色行→③通用锁层;库文档直写件行序=①②③(内嵌增量锁)④——层内容零差异,仅行序不同(锁层常量恒挂不可拆,增量锁随型走在 BASE 内)。\n- 甲案围栏:本链为甲案全中文直书(中文合法);与 PE/乙案英文长文禁混——[141] PE 开关开=走 PE 改写路(中文种子句进、英文长文出,整体替换装配全文),与本链二选一(库文档禁混条款一)。\n\n### PE 与画幅联动(0928 全收进 [40] 子图;宿主面板「PE开关」默认开/「画幅联动开关」默认关=恒九型)\n- [140] PE 改写(子图行3;随 PE开关 开路即入链载 PE 模型——clip 由主图 [11] PE 专属 TE 经 [40].pe_clip 槽一进线供给;关 PE开关=直写选配时旁路懒执行不载):PE 参数=插件官方 README 推荐值(temp1.0/topP0.95/topK20/**presence_penalty=1.5 已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)/max16256/seed42)。\n- [140] **PE 种子纪律**(0925 毒理定案 C1,反噪):PE 路旁路③层锁文,种子句是唯一能携带反噪意志进 PE 路的通道——种子句在风格前缀后自带表面洁净正向条款「画面干净平滑,墨与色落在浅净平涂色场上,而非纸面纹理」(措辞=05 库常量A 禁纸纹条款的正向转写原文,零自造词),**禁止裸「水墨国风修仙:」前缀直发**(九拍 PE 文的纹理语全部溯源到裸前缀,无第二风格源);[140] 种子句默认值已按此落盘,驱动脚本与人工发拍同守此纪律(宪法=05 库 §一/§六「PE 种子纪律」)。\n- [40] 面板「画幅联动开关」(默认关):开=[140] PE 建议画幅 wh_ratio 经子图联动链[151]-[158](正则/转数/公式)接管 [5] 宽高(4.2MP 档,终值仍从 [40] width/height 输出直驱 [5]);恒九型仍是业务默认,故默认关;开联动会把 PE 组拉入执行(PE开关 同开才有意义),PE 未给建议画幅时该路报错——常规出图保持关闭。\n- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n### 负面线说明(cfg=1 占位,W5 终审)\n- **cfg=1 下负面提示词数学上不参与采样**;[40] negative 输出→加速子图内 [7]/[206] 负向槽的接线保留,纯为与官方模板同构的**占位**(不生效;T8 无负面槽)。要用负向须抬 cfg,非本产线口径。\n\n### 加速区·加速子图([208] 双击进入;0929 S3 收装轮;默认=直出40步=0929 拉齐重放裁定)\n- **主图只剩一个加速子图节点 [208]**(0929 S3 收装:原三排摊开的支路机构整体入子图;双击进入=并行三支路+viggle LoRA+seed 单源+出图速度选择,**前面只有一个选择逻辑**=子图内 [214] MyQi21SpeedSelect(LATENT 汇流单点,combo 三选一**首项=默认=「0 · 直出40步」**(0929 拉齐重放,12:05 主会话复核;Fun-Acc 仍为主加速=次序第二);0929 前注入式开关农场 10 逻辑件([30]档位/[32]/[177] 开关/[178][179][195][196] 常量/[193][194] 比较)已全拆):支路0=直出 40 步([7] KSampler 官方完整档)/支路1=viggle 359 步([31] LoRA(0.8)→加速子图[206] KSampler)/支路2=Fun-Acc 4 步([198] T8QwenImage21FunAccPDD4Step,4步/sigmas 五值/euler/cfg1 全内置勿外接采样器)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板两控件=「速度档位」+「seed」**(照 [40] 型选择外露机制):速度档位=combo 三选一(默认直出40步,随时可切任何档);seed=number(默认 0 fixed 可复现,seed 单源共享——子图内 [207] PrimitiveInt 单源扇出三支路采样器 [7]/[206]/[198],各采样器面板 seed 值=摆设值不生效,改 seed 只动宿主面板一处,三支路同步)。**面板值=生效值**。\n- **边界**:model=主图 [1] UNET 直连进子图;positive/negative=主图 [40] 装配子图输出(negative=cfg=1 占位,见负面线说明);latent=[5] 空潜;LATENT 出子图→[8] 解码→[9] 保存。\n- **懒执行**:未选中支路整体不进执行图零加载(MyQi21SpeedSelect 懒选择,check_lazy_status 只拉起选中档支路;如默认直出40步时加速子图 [198]/[206]/[31] 全不在执行图;子图环境同款生效,S3 三档干跑对拍)。\n- **面板值=生效值**:steps 回归加速子图各支路 KSampler widget([7]=40/[206]=359 均真实生效,无联动开关无摆设值);cfg 恒 1/euler/simple/denoise 1 照官方;[40].negative 占位接线保留在子图内 [7]/[206](cfg=1 下数学上不参与,见负面线说明节)。\n- **档1=viggle**:[31] LoraLoaderModelOnly 挂链(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 0.8——0925 探针最优:flatMAD 2.52→1.75 细腻无结构缺陷;8步方案 2.60 无收益+超荐档弃)+加速子图[206] 359 步(0929 用户改值,原 6=v0.2.1 系卡荐档;cfg 保持 1);模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **档2=Fun-Acc**:[198] model=[1] base **直连(绝不吃 viggle LoRA)**;positive 与加速子图 [7]/[206] 同源=[40].positive;latent 与加速子图 [7]/[206] 同源=[5] 空潜;无负面槽(负面词在档2 不参与);model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **依赖警示:档2 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档2 节点红/执行失败——降级=经宿主面板「速度档位」切回 0/1 档。TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 参数圣经\n- cfg 恒 1(负面=官方同构占位,见上节;档2 Fun-Acc 无负面槽);**步数=各支路面板真实生效值([7]=40 官方完整档,官方区间 40-50,起手即完整态;加速子图[206]=359=viggle 支路(0929 用户改值,原 6);档2=Fun-Acc 4 步内置于 [198] T8)**;分辨率走 [40] 子图随型直驱 width/height(宽高恒 8 倍数);seed=加速子图宿主面板「seed」(子图内 [207] 单源三支路共享,默认 fixed=0 可复现);风格终审=用户。\n- 生成脚本=apps/build/scripts/qi21_daojie_t2i_0923.py(幂等;主体句默认/锁层全文从库文档现读,BASE 真源=qi21_bases.json,重跑即同步)。\n- RGBA 透明(0929 S2 ⑤机制批;[40] 面板「RGBA透明」三态=[跟随型(默认)/强制开/强制关]——面板五控件=主体句/型选择/RGBA透明/PE开关/画幅联动开关,旧「RGBA透明开关」布尔控件退役):跟随型=按型默认(道具/多视图/高清人脸/表情差分四型开透明,其余五型关——型信号=MyQi21DaojieBase.rgba_default 槽(qi21_bases.json 热读)喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出);强制开/关=手动权威,不随型变。**PE×透明融合**(0929 用户翻案令「PE 要出透明提示词,要融合」):PE 开路走透明时=[140] PE出文→装配子图[206] 背景句剥离(词族黑名单,词边界匹配)→[216] W1收束拼(+[215] W1收束句;0930 宪法改写轮S10·型盲静态,句身=05库§一0930条款零转录现读,收束句在剥离之后拼接=对词族结构性免疫)→装配子图[207][208] 官方头尾包裹,与 [131] 装配全文→[162][163] 包裹两路汇于 [209] 文本开关(布尔=PE开关扇出)→[143] RGBA编码;RGBA 关+PE 开=[141] 直喂 [142] 主编码吃带背景完整文(禁剥离);装配全文禁过剥离(声明句词族误伤=翻车)。官方公式 This is an RGBA format image with transparency. [剥离文+W1收束句/装配文]. The image has an alpha channel and a transparent background.(头尾逐字=官方原文;中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。)透明路出图必须存 PNG 才保 alpha。\n- [5] 自动化宽高:宽高直连 [40] width/height 输出=画幅联动开关后终值;本节点面板 1024 为摆设值不生效。\n- [27] 最终提示词预览:接 [40]「最终文本」输出=将进编码的最终文本;跑图前过目。\n"
+        "## 道劫 · Qwen-Image-2.1 文生图(双子图版·0929 S3 收装轮)\n\nK2 道劫『一处选型+分件装配+子图收装』思想的 Q2-1 原生落地(0928 用户裁定:所有提示词必须过 PE——**PE 改写链与画幅联动链已收进 [40] 装配子图**,消灭 [40]→主图 PE 链→[40] 来回绕线,主图零 PE 件零左向线;0925 外露轮的 W2 迁出就此回卷)。**0929 S3 收装轮:加速区整体收进 [208] 加速子图**(三支路+viggle LoRA+seed 单源+出图速度选择全在内,双击进入;主图退成四块骨架=①加载器→②提示词·装配([24][40][27])→③加速([5] 空潜+[208] 加速子图)→④输出([8][9]);每画布恰两子图=②提示词子图管内容语义+③加速子图管采样策略,职责互斥不掺和)。**[40] 装配子图**(双击进入=底座九选一+**[141] 装配全文件+[[152]] 最终文本合成器** 两件链(MyQi21PromptAssembly+MyQi21PromptSelect,裁定A拆件破数据环:装配全文→喂 [140] PE改写→PE路选择+透明包裹)+双路编码+**[151] 画幅联动建议器**(MyQi21WhSuggest,8合1);提示词从装配到编码全程子图内;1001 S8 集成轮:28→10 节点(裁定A);提示词真源=docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md(②层底座=09-23 美化版,canon-json 逐字锚废止,型名/顺序仍对齐 daojie_bases.json)。\n\n### 怎么换型(一处切换)\n- 主画布点选 [40] 装配子图,面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 节点按选型出 BASE(该型②层底座+人物系增量四锁B+④配色行,真源=qi21_bases.json 磁盘热读,逐字=05 库)与 WIDTH/HEIGHT(型档分辨率直出)。\n- **分辨率随型自动**:[40] 子图 width/height 输出(联动开关后终值)直驱 [5] 空潜宽高(ResolutionSelector 已退役;九型档=qi21_bases.json 的 aspect/MP/override;多视图=Q2.1侧分档 3:4 Portrait 4.2MP 分张产线(0927 多视图轮,override 已退役))——换型不再手动切档;[5] 面板 1024×1024=**摆设值不生效**(实际由 [40] width/height 供给)。\n- 换型后 [24] 主体句须同步换成本型主体句(各型例句见库文档;场景/概念气氛图不写人——空镜句尾可明写「空镜无人」);主体句只写主体与画面,不重复风格词,全角标点,质量词/比例词/否定式禁入(库文档主体句纪律五则)。\n- 警示(手贴 vs 库真源):手贴内容只活在画布件——历史生成脚本已退役(重跑必红);主体句默认/锁层全文真源链仍在(底座 BASE 不经画布常量、直读 qi21_bases.json),装配器参数面(锁层A/头尾句/W1)改后要长久保留先回写库文档再经「从库刷参数」通道过账,或改前另存画布件。\n\n### 装配怎么拼([24] 唯一手写位;最终文本=子图 [141] 装配器输出,经 [40]「最终文本」出口过目 [27])\n- 拼法=库文档四层装配『主体句领头+换行分层』:子图内 **[141] 装配全文件**(MyQi21PromptAssembly)把 [24] 主体句 + [150] 当前型 BASE + 锁层A全文(③层,库首节全文,全九型恒挂不随型;参数面大框可编辑)逐层接成**装配全文**→直喂 [140].prompt(Q1=B+);**[152] 最终文本合成器**(MyQi21PromptSelect)做路选择:pe开关=开(**默认 PE 改写**,0926 裁定1)时 PE出文为最终文本,关=直写=装配全文按图选配——最终文本子图内直喂主编码 [142].prompt,并经 [40]「最终文本」输出到主画布 [27] 装配预览过目。**pe开关在 [40] 面板=「PE开关」控件**(默认开,照「型选择」combo 同款暴露;两件两口=[141]装配全文(专喂 [140])+[152]最终文本/透明文本)。\n- 层次序注:画布装配行序=①主体句→②型底座→(人物系增量锁)→④配色行→③通用锁层;库文档直写件行序=①②③(内嵌增量锁)④——层内容零差异,仅行序不同(锁层常量恒挂不可拆,增量锁随型走在 BASE 内)。\n- 甲案围栏:本链为甲案全中文直书(中文合法);与 PE/乙案英文长文禁混——pe开关 开=走 PE 改写路(装配全文进、英文长文出,整体替换),与本链二选一(库文档禁混条款一)。\n\n### PE 与画幅联动(0928 全收进 [40] 子图;宿主面板「PE开关」默认开/「画幅联动开关」默认关=恒九型)\n- [140] PE 改写(子图行3;随 PE开关 开路即入链载 PE 模型——clip 由主图 [11] PE 专属 TE 经 [40].pe_clip 槽一进线供给;关 PE开关=直写选配时旁路懒执行不载):PE 参数=插件官方 README 推荐值(temp1.0/topP0.95/topK20/**presence_penalty=1.5 已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)/max16256/seed42)。\n- [140] **PE 种子纪律**(0925 毒理定案 C1,反噪):PE 路旁路③层锁文,种子句是唯一能携带反噪意志进 PE 路的通道——种子句在风格前缀后自带表面洁净正向条款「画面干净平滑,墨与色落在浅净平涂色场上,而非纸面纹理」(措辞=05 库常量A 禁纸纹条款的正向转写原文,零自造词),**禁止裸「水墨国风修仙:」前缀直发**(九拍 PE 文的纹理语全部溯源到裸前缀,无第二风格源);**1001 Q1=B+ 裁定:[140] 输入=装配全文件·装配全文**(prompt 槽接 [141] MyQi21PromptAssembly 输出口0,种子文 widget 退役清空——写死的种子文被旁路问题就此根治,PE=装配全文的优化器);驱动脚本与人工发拍同守此纪律(宪法=05 库 §一/§六「PE 种子纪律」)。\n- [40] 面板「画幅联动开关」(默认关):开=[140] PE 建议画幅 wh_ratio 经 [151] 画幅联动建议器(MyQi21WhSuggest,8合1:正则取比+4.2MP 公式+8 倍数取整)接管 [5] 宽高(终值仍从 [40] width/height 输出直驱 [5]);恒九型仍是业务默认,故默认关;开联动会把 PE 组拉入执行(PE开关 同开才有意义),PE 未给建议画幅时该路报错——常规出图保持关闭。\n- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n### 负面线说明(cfg=1 占位,W5 终审)\n- **cfg=1 下负面提示词数学上不参与采样**;[40] negative 输出→加速子图内 [7]/[206] 负向槽的接线保留,纯为与官方模板同构的**占位**(不生效;T8 无负面槽)。要用负向须抬 cfg,非本产线口径。\n\n### 加速区·加速子图([208] 双击进入;0929 S3 收装轮;默认=直出40步=0929 拉齐重放裁定)\n- **主图只剩一个加速子图节点 [208]**(0929 S3 收装:原三排摊开的支路机构整体入子图;双击进入=并行三支路+viggle LoRA+seed 单源+出图速度选择,**前面只有一个选择逻辑**=子图内 [214] MyQi21SpeedSelect(LATENT 汇流单点,combo 三选一**首项=默认=「0 · 直出40步」**(0929 拉齐重放,12:05 主会话复核;Fun-Acc 仍为主加速=次序第二);0929 前注入式开关农场 10 逻辑件([30]档位/[32]/[177] 开关/[178][179][195][196] 常量/[193][194] 比较)已全拆):支路0=直出 40 步([7] KSampler 官方完整档)/支路1=viggle 359 步([31] LoRA(0.8)→加速子图[206] KSampler)/支路2=Fun-Acc 4 步([198] T8QwenImage21FunAccPDD4Step,4步/sigmas 五值/euler/cfg1 全内置勿外接采样器)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板两控件=「速度档位」+「seed」**(照 [40] 型选择外露机制):速度档位=combo 三选一(默认直出40步,随时可切任何档);seed=number(默认 0 fixed 可复现,seed 单源共享——子图内 [207] PrimitiveInt 单源扇出三支路采样器 [7]/[206]/[198],各采样器面板 seed 值=摆设值不生效,改 seed 只动宿主面板一处,三支路同步)。**面板值=生效值**。\n- **边界**:model=主图 [1] UNET 直连进子图;positive/negative=主图 [40] 装配子图输出(negative=cfg=1 占位,见负面线说明);latent=[5] 空潜;LATENT 出子图→[8] 解码→[9] 保存。\n- **懒执行**:未选中支路整体不进执行图零加载(MyQi21SpeedSelect 懒选择,check_lazy_status 只拉起选中档支路;如默认直出40步时加速子图 [198]/[206]/[31] 全不在执行图;子图环境同款生效,S3 三档干跑对拍)。\n- **面板值=生效值**:steps 回归加速子图各支路 KSampler widget([7]=40/[206]=359 均真实生效,无联动开关无摆设值);cfg 恒 1/euler/simple/denoise 1 照官方;[40].negative 占位接线保留在子图内 [7]/[206](cfg=1 下数学上不参与,见负面线说明节)。\n- **档1=viggle**:[31] LoraLoaderModelOnly 挂链(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 0.8——0925 探针最优:flatMAD 2.52→1.75 细腻无结构缺陷;8步方案 2.60 无收益+超荐档弃)+加速子图[206] 359 步(0929 用户改值,原 6=v0.2.1 系卡荐档;cfg 保持 1);模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **档2=Fun-Acc**:[198] model=[1] base **直连(绝不吃 viggle LoRA)**;positive 与加速子图 [7]/[206] 同源=[40].positive;latent 与加速子图 [7]/[206] 同源=[5] 空潜;无负面槽(负面词在档2 不参与);model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **依赖警示:档2 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档2 节点红/执行失败——降级=经宿主面板「速度档位」切回 0/1 档。TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 参数圣经\n- cfg 恒 1(负面=官方同构占位,见上节;档2 Fun-Acc 无负面槽);**步数=各支路面板真实生效值([7]=40 官方完整档,官方区间 40-50,起手即完整态;加速子图[206]=359=viggle 支路(0929 用户改值,原 6);档2=Fun-Acc 4 步内置于 [198] T8)**;分辨率走 [40] 子图随型直驱 width/height(宽高恒 8 倍数);seed=加速子图宿主面板「seed」(子图内 [207] 单源三支路共享,默认 fixed=0 可复现);风格终审=用户。\n- 生成脚本=apps/build/scripts/qi21_daojie_t2i_0923.py(幂等;主体句默认/锁层全文从库文档现读,BASE 真源=qi21_bases.json,重跑即同步)。\n- RGBA 透明(0929 S2 ⑤机制批;[40] 面板「RGBA透明」三态=[跟随型(默认)/强制开/强制关]——面板五控件=主体句/型选择/RGBA透明/PE开关/画幅联动开关,旧「RGBA透明开关」布尔控件退役):跟随型=按型默认(道具/多视图/高清人脸/表情差分四型开透明,其余五型关——型信号=MyQi21DaojieBase.rgba_default 槽(qi21_bases.json 热读)喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出);强制开/关=手动权威,不随型变。**PE×透明融合**(0929 用户翻案令「PE 要出透明提示词,要融合」):PE 开路走透明时=[152] 合成器内置一段:PE出文→背景句剥离(词族黑名单,词边界匹配,真源=my-nodes/nodes/qi21_strip_lexicon.json 单源现读)→+W1收束句(0930 宪法改写轮S10·型盲静态,句身=05库§一0930条款,收束句在剥离之后拼接=对词族结构性免疫)→官方头尾包裹=透明文本(合成器口1)→[143] RGBA编码;RGBA 关+PE 开=合成器口0 最终文本直喂 [142] 主编码吃带背景完整文(禁剥离);装配全文禁过剥离(声明句词族误伤=翻车)。官方公式 This is an RGBA format image with transparency. [剥离文+W1收束句/装配文]. The image has an alpha channel and a transparent background.(头尾逐字=官方原文;中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。)透明路出图必须存 PNG 才保 alpha。\n- [5] 自动化宽高:宽高直连 [40] width/height 输出=画幅联动开关后终值;本节点面板 1024 为摆设值不生效。\n- [27] 最终提示词预览:接 [40]「最终文本」输出=将进编码的最终文本;跑图前过目。\n"
       ]
     },
     {
@@ -757,9 +757,9 @@
         "id": "c3f81b56-0a47-4d29-9e61-8b7f2d5a6c04",
         "version": 1,
         "state": {
-          "lastGroupId": 4,
-          "lastNodeId": 213,
-          "lastLinkId": 62,
+          "lastGroupId": 3,
+          "lastNodeId": 250,
+          "lastLinkId": 67,
           "lastRerouteId": 10
         },
         "revision": 1,
@@ -844,8 +844,8 @@
               7
             ],
             "pos": [
-              3800,
-              2100
+              1150,
+              2330
             ]
           },
           {
@@ -853,12 +853,11 @@
             "name": "PE开关",
             "type": "BOOLEAN",
             "linkIds": [
-              8,
-              56
+              8
             ],
             "pos": [
-              1700,
-              1210
+              1900,
+              1860
             ]
           },
           {
@@ -878,11 +877,10 @@
             "name": "画幅联动开关",
             "type": "BOOLEAN",
             "linkIds": [
-              47,
-              48
+              47
             ],
             "pos": [
-              3210,
+              2500,
               2090
             ]
           }
@@ -1025,353 +1023,6 @@
             ]
           },
           {
-            "id": 110,
-            "type": "PrimitiveStringMultiline",
-            "title": "通用锁层常量A(③层·库首节全文·全九型恒挂)",
-            "pos": [
-              1050,
-              150
-            ],
-            "size": [
-              460,
-              380
-            ],
-            "flags": {},
-            "order": 1,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  10
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConstant"
-            },
-            "widgets_values": [
-              "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。"
-            ]
-          },
-          {
-            "id": 160,
-            "type": "PrimitiveStringMultiline",
-            "title": "RGBA官方头句(EN·逐字=官方模板)",
-            "pos": [
-              1550,
-              200
-            ],
-            "size": [
-              420,
-              220
-            ],
-            "flags": {},
-            "order": 2,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  13,
-                  52
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConstant"
-            },
-            "widgets_values": [
-              "This is an RGBA format image with transparency."
-            ]
-          },
-          {
-            "id": 161,
-            "type": "PrimitiveStringMultiline",
-            "title": "RGBA官方尾句(EN·逐字=官方模板)",
-            "pos": [
-              2020,
-              200
-            ],
-            "size": [
-              420,
-              220
-            ],
-            "flags": {},
-            "order": 3,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  15,
-                  54
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConstant"
-            },
-            "widgets_values": [
-              "The image has an alpha channel and a transparent background."
-            ]
-          },
-          {
-            "id": 215,
-            "type": "PrimitiveStringMultiline",
-            "title": "W1收束句(宪法改写轮S10·型盲静态;句身=05库§一0930条款)",
-            "pos": [
-              2740,
-              200
-            ],
-            "size": [
-              420,
-              220
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  63
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConstant"
-            },
-            "widgets_values": [
-              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
-            ]
-          },
-          {
-            "id": 130,
-            "type": "StringConcatenate",
-            "title": "装配拼接①(主体句+BASE;delimiter=\\n)",
-            "pos": [
-              770,
-              1170
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 5,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 5
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 9
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  11
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              "\n"
-            ],
-            "widgets_values_named": {
-              "delimiter": "\n"
-            }
-          },
-          {
-            "id": 131,
-            "type": "StringConcatenate",
-            "title": "装配拼接②(+通用锁层恒挂;delimiter=\\n)",
-            "pos": [
-              1250,
-              1170
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 6,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 11
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 10
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  12,
-                  22
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              "\n"
-            ],
-            "widgets_values_named": {
-              "delimiter": "\n"
-            }
-          },
-          {
-            "id": 162,
-            "type": "StringConcatenate",
-            "title": "RGBA公式拼接①(官方头句+装配全文;delimiter=空格)",
-            "pos": [
-              1600,
-              700
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 7,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 13
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 12
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  14
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              " "
-            ],
-            "widgets_values_named": {
-              "delimiter": " "
-            }
-          },
-          {
-            "id": 163,
-            "type": "StringConcatenate",
-            "title": "RGBA公式拼接②(+官方尾句;delimiter=空格)",
-            "pos": [
-              2080,
-              700
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 8,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 14
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 15
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  16
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              " "
-            ],
-            "widgets_values_named": {
-              "delimiter": " "
-            }
-          },
-          {
             "id": 140,
             "type": "QwenImage21_T2IPromptRewrite",
             "title": "[140] PE改写(短句→英文长文,默认开路(0926裁定1);pp=1.5 已定档 0925)",
@@ -1398,7 +1049,7 @@
                 "widget": {
                   "name": "prompt"
                 },
-                "link": null
+                "link": 65
               },
               {
                 "name": "temperature",
@@ -1454,8 +1105,7 @@
                 "name": "positive_prompt",
                 "type": "STRING",
                 "links": [
-                  23,
-                  50
+                  23
                 ]
               },
               {
@@ -1467,8 +1117,7 @@
                 "name": "wh_ratio",
                 "type": "STRING",
                 "links": [
-                  25,
-                  26
+                  25
                 ]
               },
               {
@@ -1486,7 +1135,7 @@
               "Node name for S&R": "QwenImage21_T2IPromptRewrite"
             },
             "widgets_values": [
-              "水墨国风修仙,画面干净平滑,墨与色落在浅净平涂色场上,而非纸面纹理:一位修士立于云中山巅,渡劫前夜,背景青灰远山与青绿草木多色相铺陈,朱红灯塔一点强调色",
+              "",
               1.0,
               0.95,
               20,
@@ -1496,376 +1145,12 @@
             ]
           },
           {
-            "id": 141,
-            "type": "ComfySwitchNode",
-            "title": "提示词开关(true=PE扩写·默认(0926裁定1) / false=直写装配=按图选配;输出=最终文本→主编码)",
-            "pos": [
-              2000,
-              1200
-            ],
-            "size": [
-              640.39609375,
-              120
-            ],
-            "flags": {},
-            "order": 10,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "on_false",
-                "shape": 7,
-                "type": "STRING",
-                "link": 22
-              },
-              {
-                "name": "on_true",
-                "shape": 7,
-                "type": "STRING",
-                "link": 23
-              },
-              {
-                "name": "switch",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "switch"
-                },
-                "link": 8
-              }
-            ],
-            "outputs": [
-              {
-                "name": "output",
-                "type": "STRING",
-                "links": [
-                  62,
-                  45
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode"
-            },
-            "widgets_values": [
-              true
-            ]
-          },
-          {
-            "id": 206,
-            "type": "RegexReplace",
-            "title": "PE出文·背景句剥离(D7 S件:命中词族的整句删,词边界匹配;只作用 PE出文且RGBA活路)",
-            "pos": [
-              2560,
-              680
-            ],
-            "size": [
-              340,
-              300
-            ],
-            "flags": {},
-            "order": 11,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string",
-                "type": "STRING",
-                "widget": {
-                  "name": "string"
-                },
-                "link": 50
-              },
-              {
-                "name": "regex_pattern",
-                "type": "STRING",
-                "widget": {
-                  "name": "regex_pattern"
-                },
-                "link": null
-              },
-              {
-                "name": "replace",
-                "type": "STRING",
-                "widget": {
-                  "name": "replace"
-                },
-                "link": null
-              },
-              {
-                "name": "case_insensitive",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "case_insensitive"
-                },
-                "link": null
-              },
-              {
-                "name": "multiline",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "multiline"
-                },
-                "link": null
-              },
-              {
-                "name": "dotall",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "dotall"
-                },
-                "link": null
-              },
-              {
-                "name": "count",
-                "type": "INT",
-                "widget": {
-                  "name": "count"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  51
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "RegexReplace"
-            },
-            "widgets_values": [
-              "",
-              "[^\\n。.；;！!？?]*\\b(?:backgrounds?|backdrops?|scenerys?|landscapes?|mountains?|mists?|clouds?(?!-thunder)|fogs?|hazes?|skys?|papers?|walls?|floors?|grounds?|waters?|vapors?|mistys?|scenes?|pavilions?|temples?|trees?|treess?|cliffs?|cliffss?|rockss?|seals?|stamps?|horizons?|valleys?|rivers?|streams?|forests?|villages?|bridges?|shores?|lakes?|birdss?|environments?|settings?|peaks?|ridges?|ridgelines?|hills?|summits?|slopes?|ledges?|terraces?|outcrops?|boulders?|pinnacles?|spires?|pillars?|terrains?|stones?|rocks?|rockys?|craggys?|vegetations?|foliages?|grasss?|grassess?|leafs?|leavess?|mosss?|mossess?|mossys?|shrubs?|twigs?|branchs?|branchess?|pines?|evergreens?|foresteds?|moons?|moonlits?|moonlights?|stars?|waterfalls?|pagodas?|towers?|buildings?|structures?|architectures?|architecturals?|shrines?|eavess?|roofs?|rooftops?|railings?|lanterns?|calligraphys?|parchments?|plants?|suns?|sunlights?|sunrises?|sunsets?|dawns?|dusks?|twilights?|glows?|lamps?|torchs?|cliffsides?)\\b[^\\n。.；;！!？?]*[。.；;！!？?\\n]?|\\b(?:semi\\-translucents?|translucents?|semi\\-transparents?)\\b",
-              "",
-              true,
-              false,
-              false,
-              0
-            ]
-          },
-          {
-            "id": 216,
-            "type": "StringConcatenate",
-            "title": "W1收束拼(剥离文+收束句;delimiter=空格)",
-            "pos": [
-              2980,
-              700
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 12,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 51
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 63
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  64
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              " "
-            ],
-            "widgets_values_named": {
-              "delimiter": " "
-            }
-          },
-          {
-            "id": 207,
-            "type": "StringConcatenate",
-            "title": "W1包裹①(官方头句+收束拼;delimiter=空格)",
-            "pos": [
-              3440,
-              700
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 13,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 52
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 64
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  53
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              " "
-            ],
-            "widgets_values_named": {
-              "delimiter": " "
-            }
-          },
-          {
-            "id": 208,
-            "type": "StringConcatenate",
-            "title": "W1包裹②(+官方尾句;delimiter=空格)",
-            "pos": [
-              3900,
-              700
-            ],
-            "size": [
-              380,
-              180
-            ],
-            "flags": {},
-            "order": 14,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string_a",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_a"
-                },
-                "link": 53
-              },
-              {
-                "name": "string_b",
-                "type": "STRING",
-                "widget": {
-                  "name": "string_b"
-                },
-                "link": 54
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  55
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "StringConcatenate"
-            },
-            "widgets_values": [
-              "",
-              "",
-              " "
-            ],
-            "widgets_values_named": {
-              "delimiter": " "
-            }
-          },
-          {
-            "id": 209,
-            "type": "ComfySwitchNode",
-            "title": "透明文本开关(true=PE出文剥离包裹 / false=装配全文包裹;switch=PE开关扇出)→[143]",
-            "pos": [
-              4380,
-              720
-            ],
-            "size": [
-              380,
-              120
-            ],
-            "flags": {},
-            "order": 15,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "on_false",
-                "shape": 7,
-                "type": "STRING",
-                "link": 16
-              },
-              {
-                "name": "on_true",
-                "shape": 7,
-                "type": "STRING",
-                "link": 55
-              },
-              {
-                "name": "switch",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "switch"
-                },
-                "link": 56
-              }
-            ],
-            "outputs": [
-              {
-                "name": "output",
-                "type": "STRING",
-                "links": [
-                  57
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode"
-            },
-            "widgets_values": [
-              true
-            ]
-          },
-          {
             "id": 210,
             "type": "MyQi21RgbaSelect",
             "title": "RGBA透明选择",
             "pos": [
-              3980,
-              2050
+              1250,
+              2250
             ],
             "size": [
               380,
@@ -1895,7 +1180,8 @@
                 "name": "rgba_on",
                 "type": "BOOLEAN",
                 "links": [
-                  59
+                  59,
+                  66
                 ]
               }
             ],
@@ -1912,7 +1198,7 @@
             "title": "RGBA编码(透明文本开关路,默认旁路)",
             "pos": [
               4850,
-              660
+              560
             ],
             "size": [
               420,
@@ -2102,547 +1388,284 @@
             ]
           },
           {
-            "id": 151,
-            "type": "RegexExtract",
-            "title": "PE建议画幅·取宽比(如 16:9→16)",
+            "id": 141,
+            "type": "MyQi21PromptAssembly",
+            "title": "装配全文件(主体句+BASE+锁层A→装配全文;Q1=B+ 唯一真源)",
             "pos": [
-              2150,
-              1830
+              900,
+              1060
             ],
             "size": [
-              340,
-              262
+              520,
+              420
+            ],
+            "flags": {},
+            "order": 10,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "主体句",
+                "type": "STRING",
+                "widget": {
+                  "name": "主体句"
+                },
+                "link": 5
+              },
+              {
+                "name": "锁层A全文",
+                "type": "STRING",
+                "widget": {
+                  "name": "锁层A全文"
+                },
+                "link": null
+              },
+              {
+                "name": "BASE",
+                "type": "STRING",
+                "shape": 7,
+                "link": 9
+              }
+            ],
+            "outputs": [
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "links": [
+                  65,
+                  67
+                ]
+              }
+            ],
+            "widgets_values": [
+              "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+              "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。"
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21PromptAssembly"
+            }
+          },
+          {
+            "id": 151,
+            "type": "MyQi21WhSuggest",
+            "title": "画幅联动建议器(wh_ratio→4.2MP·8倍数取整;联动关=九型W/H原样)",
+            "pos": [
+              2600,
+              1900
+            ],
+            "size": [
+              380,
+              260
             ],
             "flags": {},
             "order": 20,
             "mode": 0,
             "inputs": [
               {
-                "name": "string",
+                "name": "wh_ratio",
                 "type": "STRING",
                 "widget": {
-                  "name": "string"
+                  "name": "wh_ratio"
                 },
                 "link": 25
               },
               {
-                "name": "regex_pattern",
-                "type": "STRING",
-                "widget": {
-                  "name": "regex_pattern"
-                },
-                "link": null
-              },
-              {
-                "name": "mode",
-                "type": "COMBO",
-                "widget": {
-                  "name": "mode"
-                },
-                "link": null
-              },
-              {
-                "name": "case_insensitive",
+                "name": "联动开关",
                 "type": "BOOLEAN",
                 "widget": {
-                  "name": "case_insensitive"
+                  "name": "联动开关"
                 },
-                "link": null
+                "link": 47
               },
               {
-                "name": "multiline",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "multiline"
-                },
-                "link": null
-              },
-              {
-                "name": "dotall",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "dotall"
-                },
-                "link": null
-              },
-              {
-                "name": "group_index",
+                "name": "九型WIDTH",
                 "type": "INT",
-                "widget": {
-                  "name": "group_index"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  27
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "RegexExtract"
-            },
-            "widgets_values": [
-              "",
-              "^\\s*(\\d+)",
-              "First Group",
-              false,
-              false,
-              false,
-              1
-            ]
-          },
-          {
-            "id": 152,
-            "type": "RegexExtract",
-            "title": "PE建议画幅·取高比(如 16:9→9)",
-            "pos": [
-              2150,
-              2260
-            ],
-            "size": [
-              340,
-              262
-            ],
-            "flags": {},
-            "order": 21,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "string",
-                "type": "STRING",
-                "widget": {
-                  "name": "string"
-                },
-                "link": 26
-              },
-              {
-                "name": "regex_pattern",
-                "type": "STRING",
-                "widget": {
-                  "name": "regex_pattern"
-                },
-                "link": null
-              },
-              {
-                "name": "mode",
-                "type": "COMBO",
-                "widget": {
-                  "name": "mode"
-                },
-                "link": null
-              },
-              {
-                "name": "case_insensitive",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "case_insensitive"
-                },
-                "link": null
-              },
-              {
-                "name": "multiline",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "multiline"
-                },
-                "link": null
-              },
-              {
-                "name": "dotall",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "dotall"
-                },
-                "link": null
-              },
-              {
-                "name": "group_index",
-                "type": "INT",
-                "widget": {
-                  "name": "group_index"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "STRING",
-                "type": "STRING",
-                "links": [
-                  28
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "RegexExtract"
-            },
-            "widgets_values": [
-              "",
-              ":\\s*(\\d+)\\s*$",
-              "First Group",
-              false,
-              false,
-              false,
-              1
-            ]
-          },
-          {
-            "id": 153,
-            "type": "ComfyNumberConvert",
-            "title": "宽比转数",
-            "pos": [
-              2600,
-              1900
-            ],
-            "size": [
-              240,
-              80
-            ],
-            "flags": {},
-            "order": 22,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "value",
-                "type": "INT,FLOAT,STRING,BOOLEAN",
-                "link": 27
-              }
-            ],
-            "outputs": [
-              {
-                "name": "FLOAT",
-                "type": "FLOAT",
-                "links": []
-              },
-              {
-                "name": "INT",
-                "type": "INT",
-                "links": [
-                  29,
-                  30
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfyNumberConvert"
-            }
-          },
-          {
-            "id": 154,
-            "type": "ComfyNumberConvert",
-            "title": "高比转数",
-            "pos": [
-              2600,
-              2330
-            ],
-            "size": [
-              240,
-              80
-            ],
-            "flags": {},
-            "order": 23,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "value",
-                "type": "INT,FLOAT,STRING,BOOLEAN",
-                "link": 28
-              }
-            ],
-            "outputs": [
-              {
-                "name": "FLOAT",
-                "type": "FLOAT",
-                "links": []
-              },
-              {
-                "name": "INT",
-                "type": "INT",
-                "links": [
-                  31,
-                  32
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfyNumberConvert"
-            }
-          },
-          {
-            "id": 155,
-            "type": "ComfyMathExpression",
-            "title": "PE建议宽(4.2MP·8倍数取整)",
-            "pos": [
-              2950,
-              1830
-            ],
-            "size": [
-              340,
-              160
-            ],
-            "flags": {},
-            "order": 24,
-            "mode": 0,
-            "inputs": [
-              {
-                "label": "a",
-                "name": "values.a",
-                "type": "FLOAT,INT",
-                "link": 29
-              },
-              {
-                "label": "b",
-                "name": "values.b",
                 "shape": 7,
-                "type": "FLOAT,INT",
-                "link": 31
-              },
-              {
-                "name": "expression",
-                "type": "STRING",
-                "widget": {
-                  "name": "expression"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "FLOAT",
-                "type": "FLOAT",
-                "links": []
-              },
-              {
-                "name": "INT",
-                "type": "INT",
-                "links": [
-                  33
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfyMathExpression"
-            },
-            "widgets_values": [
-              "round(a*sqrt(4.2*1024*1024/(a*b))/8)*8"
-            ]
-          },
-          {
-            "id": 156,
-            "type": "ComfyMathExpression",
-            "title": "PE建议高(4.2MP·8倍数取整)",
-            "pos": [
-              2950,
-              2290
-            ],
-            "size": [
-              340,
-              160
-            ],
-            "flags": {},
-            "order": 25,
-            "mode": 0,
-            "inputs": [
-              {
-                "label": "a",
-                "name": "values.a",
-                "type": "FLOAT,INT",
-                "link": 30
-              },
-              {
-                "label": "b",
-                "name": "values.b",
-                "shape": 7,
-                "type": "FLOAT,INT",
-                "link": 32
-              },
-              {
-                "name": "expression",
-                "type": "STRING",
-                "widget": {
-                  "name": "expression"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [
-              {
-                "name": "FLOAT",
-                "type": "FLOAT",
-                "links": []
-              },
-              {
-                "name": "INT",
-                "type": "INT",
-                "links": [
-                  34
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfyMathExpression"
-            },
-            "widgets_values": [
-              "round(b*sqrt(4.2*1024*1024/(a*b))/8)*8"
-            ]
-          },
-          {
-            "id": 157,
-            "type": "ComfySwitchNode",
-            "title": "宽联动开关(false=九型WIDTH / true=PE建议宽)",
-            "pos": [
-              3400,
-              1880
-            ],
-            "size": [
-              343.6548828125,
-              110
-            ],
-            "flags": {},
-            "order": 26,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "on_false",
-                "shape": 7,
-                "type": "INT",
                 "link": 37
               },
               {
-                "name": "on_true",
-                "shape": 7,
+                "name": "九型HEIGHT",
                 "type": "INT",
-                "link": 33
-              },
-              {
-                "name": "switch",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "switch"
-                },
-                "link": 47
+                "shape": 7,
+                "link": 41
               }
             ],
             "outputs": [
               {
-                "name": "output",
+                "name": "width",
                 "type": "INT",
                 "links": [
                   42
                 ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode"
-            },
-            "widgets_values": [
-              false
-            ]
-          },
-          {
-            "id": 158,
-            "type": "ComfySwitchNode",
-            "title": "高联动开关(false=九型HEIGHT / true=PE建议高)",
-            "pos": [
-              3400,
-              2300
-            ],
-            "size": [
-              349.4384859375,
-              110
-            ],
-            "flags": {},
-            "order": 27,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "on_false",
-                "shape": 7,
-                "type": "INT",
-                "link": 41
               },
               {
-                "name": "on_true",
-                "shape": 7,
-                "type": "INT",
-                "link": 34
-              },
-              {
-                "name": "switch",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "switch"
-                },
-                "link": 48
-              }
-            ],
-            "outputs": [
-              {
-                "name": "output",
+                "name": "height",
                 "type": "INT",
                 "links": [
                   43
                 ]
               }
             ],
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode"
-            },
             "widgets_values": [
+              "",
               false
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21WhSuggest"
+            }
+          },
+          {
+            "id": 250,
+            "type": "MarkdownNote",
+            "title": "[250] [140] 输入=装配全文件·装配全文",
+            "pos": [
+              2450,
+              2260
+            ],
+            "size": [
+              420,
+              110
+            ],
+            "flags": {},
+            "order": 30,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "[140] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [141] MyQi21PromptAssembly 输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [152] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
             ]
+          },
+          {
+            "id": 152,
+            "type": "MyQi21PromptSelect",
+            "title": "最终文本合成器(pe开=PE出文/pe关=装配全文;透明文本=RGBA包裹+词族剥离)",
+            "pos": [
+              2000,
+              1850
+            ],
+            "size": [
+              380,
+              260
+            ],
+            "flags": {},
+            "order": 25,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "pe开关",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "pe开关"
+                },
+                "link": 8
+              },
+              {
+                "name": "透明模式",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "透明模式"
+                },
+                "link": 66
+              },
+              {
+                "name": "RGBA官方头句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方头句"
+                },
+                "link": null
+              },
+              {
+                "name": "RGBA官方尾句",
+                "type": "STRING",
+                "widget": {
+                  "name": "RGBA官方尾句"
+                },
+                "link": null
+              },
+              {
+                "name": "W1收束句",
+                "type": "STRING",
+                "widget": {
+                  "name": "W1收束句"
+                },
+                "link": null
+              },
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 67
+              },
+              {
+                "name": "PE出文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 23
+              }
+            ],
+            "outputs": [
+              {
+                "name": "最终文本",
+                "type": "STRING",
+                "links": [
+                  62,
+                  45
+                ]
+              },
+              {
+                "name": "透明文本",
+                "type": "STRING",
+                "links": [
+                  57
+                ]
+              }
+            ],
+            "widgets_values": [
+              true,
+              false,
+              "This is an RGBA format image with transparency.",
+              "The image has an alpha channel and a transparent background.",
+              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21PromptSelect"
+            }
           }
         ],
         "groups": [
           {
             "id": 1,
-            "title": "固定句常量行(可编辑大框·上带;锁层A/RGBA头尾/W1收束)",
+            "title": "RGBA 透明编码支路(上带):[152].透明文本→[143] RGBA编码",
             "bounding": [
-              1020,
-              90,
-              2200,
-              450
+              4820,
+              520,
+              480,
+              400
             ],
-            "color": "#3f789e",
+            "color": "#886",
             "flags": {}
           },
           {
             "id": 2,
-            "title": "主链(中轴):底座九选一→装配拼接→PE开关→编码→RGBA开关→输出",
+            "title": "主链(中轴):[150]底座九选一→[141]装配全文件→[142]主编码→[144]RGBA开关",
             "bounding": [
-              60,
-              1060,
-              5740,
-              480
+              70,
+              1000,
+              5920,
+              760
             ],
             "color": "#a1309b",
             "flags": {}
           },
           {
             "id": 3,
-            "title": "RGBA透明文本支路(上带):RGBA公式/W1包裹→透明文本开关→RGBA编码",
+            "title": "PE改写+合成+画幅联动(下带):[140]PE改写→[152]合成器;[151]画幅建议;[210]三态",
             "bounding": [
-              1560,
-              610,
-              3780,
-              430
-            ],
-            "color": "#886",
-            "flags": {}
-          },
-          {
-            "id": 4,
-            "title": "PE改写+画幅联动(下带):种子文→PE改写→画幅比→4.2MP建议宽高→联动开关",
-            "bounding": [
-              1410,
-              1780,
-              3020,
-              750
+              1220,
+              1810,
+              2270,
+              640
             ],
             "color": "#4a7a3f",
             "flags": {}
@@ -2682,14 +1705,6 @@
             "type": "VAE"
           },
           {
-            "id": 5,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 130,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
             "id": 6,
             "origin_id": -10,
             "origin_slot": 3,
@@ -2704,102 +1719,6 @@
             "target_id": 210,
             "target_slot": 0,
             "type": "COMBO"
-          },
-          {
-            "id": 8,
-            "origin_id": -10,
-            "origin_slot": 5,
-            "target_id": 141,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 46,
-            "origin_id": -10,
-            "origin_slot": 6,
-            "target_id": 140,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 47,
-            "origin_id": -10,
-            "origin_slot": 7,
-            "target_id": 157,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 48,
-            "origin_id": -10,
-            "origin_slot": 7,
-            "target_id": 158,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 9,
-            "origin_id": 150,
-            "origin_slot": 0,
-            "target_id": 130,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 10,
-            "origin_id": 110,
-            "origin_slot": 0,
-            "target_id": 131,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 11,
-            "origin_id": 130,
-            "origin_slot": 0,
-            "target_id": 131,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 12,
-            "origin_id": 131,
-            "origin_slot": 0,
-            "target_id": 162,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 13,
-            "origin_id": 160,
-            "origin_slot": 0,
-            "target_id": 162,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 14,
-            "origin_id": 162,
-            "origin_slot": 0,
-            "target_id": 163,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 15,
-            "origin_id": 161,
-            "origin_slot": 0,
-            "target_id": 163,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 16,
-            "origin_id": 163,
-            "origin_slot": 0,
-            "target_id": 209,
-            "target_slot": 0,
-            "type": "STRING"
           },
           {
             "id": 17,
@@ -2834,228 +1753,12 @@
             "type": "CONDITIONING"
           },
           {
-            "id": 22,
-            "origin_id": 131,
-            "origin_slot": 0,
-            "target_id": 141,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 23,
-            "origin_id": 140,
-            "origin_slot": 0,
-            "target_id": 141,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 62,
-            "origin_id": 141,
-            "origin_slot": 0,
-            "target_id": 142,
-            "target_slot": 3,
-            "type": "STRING"
-          },
-          {
-            "id": 45,
-            "origin_id": 141,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 4,
-            "type": "STRING"
-          },
-          {
-            "id": 25,
-            "origin_id": 140,
-            "origin_slot": 2,
-            "target_id": 151,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 26,
-            "origin_id": 140,
-            "origin_slot": 2,
-            "target_id": 152,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 27,
-            "origin_id": 151,
-            "origin_slot": 0,
-            "target_id": 153,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 28,
-            "origin_id": 152,
-            "origin_slot": 0,
-            "target_id": 154,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 29,
-            "origin_id": 153,
-            "origin_slot": 1,
-            "target_id": 155,
-            "target_slot": 0,
-            "type": "INT"
-          },
-          {
-            "id": 30,
-            "origin_id": 153,
-            "origin_slot": 1,
-            "target_id": 156,
-            "target_slot": 0,
-            "type": "INT"
-          },
-          {
-            "id": 31,
-            "origin_id": 154,
-            "origin_slot": 1,
-            "target_id": 155,
-            "target_slot": 1,
-            "type": "INT"
-          },
-          {
-            "id": 32,
-            "origin_id": 154,
-            "origin_slot": 1,
-            "target_id": 156,
-            "target_slot": 1,
-            "type": "INT"
-          },
-          {
-            "id": 33,
-            "origin_id": 155,
-            "origin_slot": 1,
-            "target_id": 157,
-            "target_slot": 1,
-            "type": "INT"
-          },
-          {
-            "id": 34,
-            "origin_id": 156,
-            "origin_slot": 1,
-            "target_id": 158,
-            "target_slot": 1,
-            "type": "INT"
-          },
-          {
-            "id": 37,
-            "origin_id": 150,
-            "origin_slot": 1,
-            "target_id": 157,
-            "target_slot": 0,
-            "type": "INT"
-          },
-          {
-            "id": 41,
-            "origin_id": 150,
-            "origin_slot": 2,
-            "target_id": 158,
-            "target_slot": 0,
-            "type": "INT"
-          },
-          {
-            "id": 42,
-            "origin_id": 157,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 2,
-            "type": "INT"
-          },
-          {
-            "id": 43,
-            "origin_id": 158,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 3,
-            "type": "INT"
-          },
-          {
-            "id": 50,
-            "origin_id": 140,
-            "origin_slot": 0,
-            "target_id": 206,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 51,
-            "origin_id": 206,
-            "origin_slot": 0,
-            "target_id": 216,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 52,
-            "origin_id": 160,
-            "origin_slot": 0,
-            "target_id": 207,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 53,
-            "origin_id": 207,
-            "origin_slot": 0,
-            "target_id": 208,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 54,
-            "origin_id": 161,
-            "origin_slot": 0,
-            "target_id": 208,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 55,
-            "origin_id": 208,
-            "origin_slot": 0,
-            "target_id": 209,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 56,
+            "id": 46,
             "origin_id": -10,
-            "origin_slot": 5,
-            "target_id": 209,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 57,
-            "origin_id": 209,
-            "origin_slot": 0,
-            "target_id": 143,
-            "target_slot": 3,
-            "type": "STRING"
-          },
-          {
-            "id": 63,
-            "origin_id": 215,
-            "origin_slot": 0,
-            "target_id": 216,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 64,
-            "origin_id": 216,
-            "origin_slot": 0,
-            "target_id": 207,
-            "target_slot": 1,
-            "type": "STRING"
+            "origin_slot": 6,
+            "target_id": 140,
+            "target_slot": 0,
+            "type": "CLIP"
           },
           {
             "id": 61,
@@ -3072,6 +1775,134 @@
             "target_id": 144,
             "target_slot": 2,
             "type": "BOOLEAN"
+          },
+          {
+            "id": 5,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 141,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 8,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 152,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 9,
+            "origin_id": 150,
+            "origin_slot": 0,
+            "target_id": 141,
+            "target_slot": 2,
+            "type": "STRING"
+          },
+          {
+            "id": 23,
+            "origin_id": 140,
+            "origin_slot": 0,
+            "target_id": 152,
+            "target_slot": 6,
+            "type": "STRING"
+          },
+          {
+            "id": 62,
+            "origin_id": 152,
+            "origin_slot": 0,
+            "target_id": 142,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 45,
+            "origin_id": 152,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "STRING"
+          },
+          {
+            "id": 57,
+            "origin_id": 152,
+            "origin_slot": 1,
+            "target_id": 143,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 25,
+            "origin_id": 140,
+            "origin_slot": 2,
+            "target_id": 151,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 47,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 151,
+            "target_slot": 1,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 37,
+            "origin_id": 150,
+            "origin_slot": 1,
+            "target_id": 151,
+            "target_slot": 2,
+            "type": "INT"
+          },
+          {
+            "id": 41,
+            "origin_id": 150,
+            "origin_slot": 2,
+            "target_id": 151,
+            "target_slot": 3,
+            "type": "INT"
+          },
+          {
+            "id": 42,
+            "origin_id": 151,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "INT"
+          },
+          {
+            "id": 43,
+            "origin_id": 151,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 3,
+            "type": "INT"
+          },
+          {
+            "id": 65,
+            "origin_id": 141,
+            "origin_slot": 0,
+            "target_id": 140,
+            "target_slot": 1,
+            "type": "STRING"
+          },
+          {
+            "id": 66,
+            "origin_id": 210,
+            "origin_slot": 0,
+            "target_id": 152,
+            "target_slot": 1,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 67,
+            "origin_id": 141,
+            "origin_slot": 0,
+            "target_id": 152,
+            "target_slot": 5,
+            "type": "STRING"
           }
         ],
         "extra": {
@@ -3765,6 +2596,6 @@
       }
     ]
   },
-  "last_node_id": 216,
+  "last_node_id": 250,
   "last_link_id": 97
 }
