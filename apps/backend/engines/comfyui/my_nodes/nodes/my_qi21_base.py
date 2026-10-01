@@ -1,7 +1,8 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
-"""道劫 qi21 底座节点:九型底座下拉选一,五出 BASE/WIDTH/HEIGHT/型名/rgba_default(09-23 造件)。
+"""道劫 qi21 底座节点:型底座下拉选(09-23 造件九型;1001 P1 起十档=九型+自由),
+六出 BASE/WIDTH/HEIGHT/型名/rgba_default/透明值。
 
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):
@@ -26,10 +27,22 @@
   否则 MP 按 1024² 计、边长取整到 8 的倍数(公式与 [61] ResolutionSelector
   逐字节一致);契约测试钉死九型 W/H 与 K2 MyDaojieBase 同型输出一比一。
 
-磁盘现读同 K2:combo=json 条目顺序现读+文件 mtime 失效重扫,base_text 每次
-run 重读原文,单文件热改即时生效;IS_CHANGED 返回 mtime 签名穿透引擎输出
-缓存(my_styles 09-16 战役同根修)。缺分辨率字段回退 1:1 (Square)/4.2 并在
-控制台警告(回退值=FALLBACK 常量,与 K2 单源)。
+  透明执行口(1001 用户测试批 P1,design §2.4 d 方案/1001 深夜 grill 修正):
+  optional 尾部「透明覆盖」(BOOLEAN, default False)+第六出「透明值」——
+  透明值 = 型≠自由 ? 该型 rgba_default : 透明覆盖(九型=型默认优先,
+  覆盖被忽略;自由型=面板布尔直通)。存量五出槽序零漂移(0929
+  rgba_default 追加同款纪律),旧工作流不接新槽/不消费第六出=零波及;
+  装配子图透明模式改接本出后=纯 BOOLEAN 跨子图边界(问题⑦),子图内
+  [210] 三态合成层退役(问题⑥),「跟随型」解析住在底座件(数据同源);
+  面板布尔恒存不被改写(消灭 web 扩展同步值方案的切型丢手设缺陷:
+  自由型手设透明=true,切九型再切回,true 还在——扩展从此只管显隐
+  不管值)。「自由」档=qi21_bases.json 十档末位(base_text="" 无型底座
+  层,W/H 兜底 1:1/1.0MP=1024×1024,rgba_default=false 用户指定)。
+
+  磁盘现读同 K2:combo=json 条目顺序现读+文件 mtime 失效重扫,base_text 每次
+  run 重读原文,单文件热改即时生效;IS_CHANGED 返回 mtime 签名穿透引擎输出
+  缓存(my_styles 09-16 战役同根修)。缺分辨率字段回退 1:1 (Square)/4.2 并在
+  控制台警告(回退值=FALLBACK 常量,与 K2 单源)。
 """
 
 from __future__ import annotations
@@ -42,6 +55,12 @@ from .my_daojie_base import FALLBACK_ASPECT, FALLBACK_MEGAPIXELS, native_px
 # 默认选型显式钉死+存在性校验(不在列表回落 json 首项;combo 保 json 条目顺序
 # 不 sorted——设计九型定序即用户使用序,同 K2 DEFAULT_BASE 纪律)
 DEFAULT_BASE = "人物"
+
+# 自由型名(1001 用户测试批 P1,design §2.4):十档末位,无型底座层(BASE 空串)
+# +透明值走面板「透明覆盖」直通(九型=rgba_default 型默认优先)。型名与
+# qi21_bases.json 条目 zh 同源;若热改 json 改名,本判定随之失效=透明值退
+# 回 rgba_default(安全侧),combo 无自由档时用户无从选到,非静默错路。
+FREE_BASE = "自由"
 
 _BASES_JSON = Path(__file__).resolve().parent / "qi21_bases.json"
 
@@ -129,9 +148,11 @@ def _rgba_default_of(base: str, entry: dict) -> bool:
 
 
 class MyQi21DaojieBase:
-    """漫影道劫 qi21 底座:选型下拉九选一,BASE(该型②+B+④拼合底座全文)+
-    WIDTH/HEIGHT(型档分辨率直出)+型名(直通,驱动按型路由)+rgba_default(0929
-    D6 RGBA 型联动:四型透明声明型 true 其余 false,供装配子图型联动开关)五出。"""
+    """漫影道劫 qi21 底座:选型下拉十选一(九型+自由,1001 P1),BASE(该型②+B+④
+    拼合底座全文;自由型空串)+WIDTH/HEIGHT(型档分辨率直出;自由型 1:1/1.0MP
+    兜底 1024×1024)+型名(直通,驱动按型路由)+rgba_default(0929 D6 RGBA 型
+    联动:四型透明声明型 true 其余 false)+透明值(1001 P1 透明执行口:型≠自由
+    ?rgba_default:透明覆盖——纯 BOOLEAN 跨子图边界)六出。"""
 
     CATEGORY = "my"
 
@@ -144,25 +165,35 @@ class MyQi21DaojieBase:
             default = names[0]
         else:
             default = ""
-        return {"required": {"base": (names, {"default": default})}}
+        return {
+            "required": {"base": (names, {"default": default})},
+            # 透明覆盖(1001 用户测试批 P1,design §2.4 d 方案):尾部追加,
+            # 存量槽序零漂移;缺省 False=九型不受影响(i2i/edit 不接=零波及)
+            "optional": {"透明覆盖": ("BOOLEAN", {"default": False})},
+        }
 
     # rgba_default 追加最末(0929 D6):不动既有槽序=存量工作流接线零漂移
-    # (t2i/i2i 两件 [150] 现用槽 0/1/2,BASE/WIDTH/HEIGHT 索引不变)。
-    RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN")
-    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "型名", "rgba_default")
+    # (t2i/i2i 两件 [150] 现用槽 0/1/2,BASE/WIDTH/HEIGHT 索引不变);
+    # 透明值追加第六出(1001 P1 同款纪律):型≠自由?rgba_default:透明覆盖
+    RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN", "BOOLEAN")
+    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "型名", "rgba_default", "透明值")
     FUNCTION = "run"
 
     @classmethod
-    def IS_CHANGED(cls, base):
+    def IS_CHANGED(cls, base, 透明覆盖: bool | None = None):
         """底座文本热改须穿透引擎输出缓存(同 K2 件根修:节点读外部文件不进
         输入哈希,同输入重跑像素全同,文本改动被缓存吞)。返回 json mtime 签名:
-        文案动=签名变=重执行;未动=同签名=正常吃缓存。"""
+        文案动=签名变=重执行;未动=同签名=正常吃缓存。
+        透明覆盖具名收参(1001 P4 实弹发现的签名欠账:引擎把 optional 槽一并
+        投给 IS_CHANGED,签名缺该参→「unexpected keyword argument」WARNING+
+        签名失效;K2 件 positive/negative 同款具名惯例)。签名值不参与返回
+        (透明覆盖只影响第六出布尔,轻件输出无缓存穿透需求)。"""
         try:
             return f"{base}:{_BASES_JSON.stat().st_mtime_ns}"
         except OSError:
             return float("nan")
 
-    def run(self, base):
+    def run(self, base, 透明覆盖: bool | None = None):
         if not _BASES_JSON.is_file():
             raise RuntimeError(
                 "qi21 底座库缺失:my_nodes/nodes/qi21_bases.json 未找到,"
@@ -176,4 +207,11 @@ class MyQi21DaojieBase:
         aspect, megapixels = _resolution_of(base, entry)
         width, height = _width_height_of(base, entry, aspect, megapixels)
         rgba_default = _rgba_default_of(base, entry)
-        return (entry["base_text"], width, height, base, rgba_default)
+        # 透明值(1001 P1 d 方案):型≠自由=型默认优先(覆盖被忽略);
+        # 自由型=面板布尔直通(缺省 None 按 False,与 default 同态)。
+        # 解析住底座件(数据同源),跨子图边界=纯 BOOLEAN(问题⑦)。
+        if base == FREE_BASE:
+            透明值 = bool(透明覆盖) if 透明覆盖 is not None else False
+        else:
+            透明值 = rgba_default
+        return (entry["base_text"], width, height, base, rgba_default, 透明值)

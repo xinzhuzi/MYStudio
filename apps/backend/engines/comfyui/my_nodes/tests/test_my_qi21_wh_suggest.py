@@ -28,6 +28,12 @@ apps/output/s8-integration-1001/s8-integration-report.json lazyVerdict):
 约 275251:1)建议值取整后含 0 → Q6 同款回退九型+中文警告+九型缺时
 中文报错(实测 300000:1→(1149440,0)/1:1000000→(0,2098576);
 原链 [155][156] 同式直出 0,本防御纯收紧)。
+
+1001 用户测试批 P1 增锁(⑨⑩⑪,design §2.3 手动宽高槽三例):optional
+手动宽/手动高(INT default 0/step 8/max 8192)——⑨回退序=非建议路手填
+非 0 成对优先→九型(联动关与建议失败回退两路都走)⑩半填(恰一非 0)
+中文报错不猜不代选(惰性:建议路正常时不判,PE 开隐藏控件残留半填不炸)
+⑪缺省(0,0)/缺键=旧行为逐字节不变(i2i/edit 不接新槽=零波及)。
 """
 
 from __future__ import annotations
@@ -164,3 +170,69 @@ def test_extreme_ratio_zero_suggest_falls_back_with_warning(capsys):
         node.suggest(联动开关=True, wh_ratio="300000:1")
     msg = str(ei.value)
     assert "无值可用" in msg and "九型" in msg and "不猜不代选" in msg
+
+
+# ── ⑨⑩⑪ 手动宽高槽(1001 用户测试批 P1,design §2.3 三例) ────────────
+def test_manual_pair_takes_priority_over_nine_type():
+    """⑨ 回退序=非建议路(联动关/建议失败)手填非 0 成对优先→九型:
+    联动关+手填成对 → 手填直出(不串九型);联动开+解析失败回退路同款走
+    手填(警告仍发,值不落九型)。"""
+    node = MyQi21WhSuggest()
+    # 联动关(pe 关=手动路,implement.md 步骤6 口径):手填成对优先于九型
+    assert node.suggest(联动开关=False, 手动宽=2048, 手动高=1152,
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (2048, 1152)
+    # 建议失败回退路(Q6 解析失败)同款:手填成对优先,九型不串
+    assert node.suggest(联动开关=True, wh_ratio="abc", 手动宽=2048, 手动高=1152,
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (2048, 1152)
+    # 极端比例零建议回退路同走手填(⑧ 的回退链升级后行为)
+    assert node.suggest(联动开关=True, wh_ratio="300000:1",
+                        手动宽=1536, 手动高=1536,
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (1536, 1536)
+
+
+def test_manual_half_filled_raises_chinese_error():
+    """⑩ 半填(恰一非 0)=中文报错不猜不代选(不会替补 0/不拿九型补);
+    惰性检测:建议路正常时半填残留不炸(PE 开时控件被 web 扩展隐藏,
+    看不见的残留值不得炸产线)。"""
+    node = MyQi21WhSuggest()
+    # 只填宽
+    with pytest.raises(ValueError) as ei:
+        node.suggest(联动开关=False, 手动宽=2048, 手动高=0,
+                     九型WIDTH=_W, 九型HEIGHT=_H)
+    msg = str(ei.value)
+    assert "只填了一个" in msg and "手动宽=2048" in msg and "手动高=0" in msg
+    assert "不猜不代选" in msg
+    # 只填高(对称)
+    with pytest.raises(ValueError, match="只填了一个"):
+        node.suggest(联动开关=False, 手动宽=0, 手动高=1152,
+                     九型WIDTH=_W, 九型HEIGHT=_H)
+    # 半填先于九型缺判(手填路需要时即报,不静默落九型)
+    with pytest.raises(ValueError, match="只填了一个"):
+        node.suggest(联动开关=False, 手动宽=2048, 手动高=0)
+    # 惰性:建议路正常(联动开+wh_ratio 合法)→ 半填残留零影响,建议值直出
+    assert node.suggest(联动开关=True, wh_ratio="16:9", 手动宽=2048, 手动高=0,
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (2800, 1576)
+
+
+def test_manual_slots_shape_and_zero_default_keeps_legacy():
+    """⑪ 槽形状+缺省零行为:optional 手动宽/手动高 INT(default 0/min 0/
+    max 8192/step 8);缺省(0,0)或缺键(None)→ 联动关恒九型原样=旧行为
+    逐字节不变(i2i/edit 不接新槽零波及;向后兼容铁律)。"""
+    it = MyQi21WhSuggest.INPUT_TYPES()
+    assert set(it["optional"]) == {"wh_ratio", "九型WIDTH", "九型HEIGHT",
+                                   "手动宽", "手动高"}
+    for slot in ("手动宽", "手动高"):
+        kind, opts = it["optional"][slot]
+        assert kind == "INT", (slot, kind)
+        assert opts["default"] == 0 and opts["min"] == 0
+        assert opts["max"] == 8192 and opts["step"] == 8, (slot, opts)
+    node = MyQi21WhSuggest()
+    # 显式 0(=跟型哨兵):九型原样
+    assert node.suggest(联动开关=False, 手动宽=0, 手动高=0,
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
+    # 缺键(引擎对未接线 optional 不投递):旧行为不变
+    assert node.suggest(联动开关=False,
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
+    # 联动开+解析失败+手填 0+九型接线:回退九型(Q6 旧行为,含警告)
+    assert node.suggest(联动开关=True, wh_ratio="abc", 手动宽=0, 手动高=0,
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)

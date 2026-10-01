@@ -11,7 +11,7 @@
         0
       ],
       "size": [
-        571.1,
+        571.1001953125,
         480
       ],
       "flags": {},
@@ -86,9 +86,10 @@
       "widgets_values": [
         "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
         "人物",
-        "跟随型",
         true,
-        false
+        false,
+        0,
+        0
       ],
       "title": "[40] 提示词类型优化子图"
     }
@@ -103,7 +104,7 @@
         "state": {
           "lastGroupId": 3,
           "lastNodeId": 250,
-          "lastLinkId": 67,
+          "lastLinkId": 70,
           "lastRerouteId": 10
         },
         "revision": 1,
@@ -181,27 +182,52 @@
             ]
           },
           {
-            "id": "a1e2c3d4-0005-4a05-9e05-7d4a9c31a005",
-            "name": "RGBA透明",
-            "type": "COMBO",
-            "linkIds": [
-              7
-            ],
-            "pos": [
-              1150,
-              2330
-            ]
-          },
-          {
             "id": "a1e2c3d4-0006-4a06-9e06-7d4a9c31a006",
             "name": "PE开关",
             "type": "BOOLEAN",
             "linkIds": [
-              8
+              8,
+              68
             ],
             "pos": [
               1900,
               1860
+            ]
+          },
+          {
+            "id": "a1e2c3d4-0005-4a05-9e05-7d4a9c31a005",
+            "name": "透明",
+            "type": "BOOLEAN",
+            "linkIds": [
+              7
+            ],
+            "pos": [
+              -36,
+              1320
+            ]
+          },
+          {
+            "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
+            "name": "手动宽",
+            "type": "INT",
+            "linkIds": [
+              69
+            ],
+            "pos": [
+              2500,
+              1950
+            ]
+          },
+          {
+            "id": "a1e2c3d4-0010-4a10-9e10-7d4a9c31a010",
+            "name": "手动高",
+            "type": "INT",
+            "linkIds": [
+              70
+            ],
+            "pos": [
+              2500,
+              2010
             ]
           },
           {
@@ -214,18 +240,6 @@
             "pos": [
               1290,
               1900
-            ]
-          },
-          {
-            "id": "a1e2c3d4-0008-4a08-9e08-7d4a9c31a008",
-            "name": "画幅联动开关",
-            "type": "BOOLEAN",
-            "linkIds": [
-              47
-            ],
-            "pos": [
-              2500,
-              2090
             ]
           }
         ],
@@ -294,15 +308,16 @@
         "widgets": [
           "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
           "人物",
-          "跟随型",
           true,
-          false
+          false,
+          0,
+          0
         ],
         "nodes": [
           {
             "id": 150,
             "type": "MyQi21DaojieBase",
-            "title": "底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/宽高随型直出/磁盘热读)",
+            "title": "底座九选一",
             "pos": [
               100,
               1160
@@ -322,6 +337,14 @@
                   "name": "base"
                 },
                 "link": 6
+              },
+              {
+                "name": "透明覆盖",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "透明覆盖"
+                },
+                "link": 7
               }
             ],
             "outputs": [
@@ -354,8 +377,14 @@
               {
                 "name": "rgba_default",
                 "type": "BOOLEAN",
+                "links": []
+              },
+              {
+                "name": "透明值",
+                "type": "BOOLEAN",
                 "links": [
-                  61
+                  59,
+                  66
                 ]
               }
             ],
@@ -369,7 +398,7 @@
           {
             "id": 140,
             "type": "QwenImage21_T2IPromptRewrite",
-            "title": "[140] PE改写(短句→英文长文,默认开路(0926裁定1);pp=1.5 已定档 0925)",
+            "title": "[140] PE改写",
             "pos": [
               1450,
               1850
@@ -489,57 +518,9 @@
             ]
           },
           {
-            "id": 210,
-            "type": "MyQi21RgbaSelect",
-            "title": "RGBA透明选择",
-            "pos": [
-              1250,
-              2250
-            ],
-            "size": [
-              380,
-              150
-            ],
-            "flags": {},
-            "order": 16,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "mode",
-                "type": "COMBO",
-                "widget": {
-                  "name": "mode"
-                },
-                "link": 7
-              },
-              {
-                "name": "rgba_hint",
-                "type": "BOOLEAN",
-                "shape": 7,
-                "link": 61
-              }
-            ],
-            "outputs": [
-              {
-                "name": "rgba_on",
-                "type": "BOOLEAN",
-                "links": [
-                  59,
-                  66
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "MyQi21RgbaSelect"
-            },
-            "widgets_values": [
-              "跟随型"
-            ]
-          },
-          {
             "id": 143,
             "type": "TextEncodeQwenImage21",
-            "title": "RGBA编码(透明文本开关路,默认旁路)",
+            "title": "RGBA编码",
             "pos": [
               4850,
               560
@@ -609,7 +590,7 @@
           {
             "id": 142,
             "type": "TextEncodeQwenImage21",
-            "title": "主编码(prompt 直收子图内[141]开关输出=最终文本)",
+            "title": "主编码",
             "pos": [
               4900,
               1100
@@ -681,7 +662,7 @@
           {
             "id": 144,
             "type": "ComfySwitchNode",
-            "title": "RGBA开关(false=普通 / true=透明,透明图存PNG;switch=三态件[210]输出)",
+            "title": "输出选择",
             "pos": [
               5380,
               1200
@@ -734,7 +715,7 @@
           {
             "id": 141,
             "type": "MyQi21PromptAssembly",
-            "title": "装配全文件(主体句+BASE+锁层A→装配全文;Q1=B+ 唯一真源)",
+            "title": "装配全文件",
             "pos": [
               900,
               1060
@@ -791,7 +772,7 @@
           {
             "id": 151,
             "type": "MyQi21WhSuggest",
-            "title": "画幅联动建议器(wh_ratio→4.2MP·8倍数取整;联动关=九型W/H原样)",
+            "title": "画幅建议器",
             "pos": [
               2600,
               1900
@@ -818,7 +799,7 @@
                 "widget": {
                   "name": "联动开关"
                 },
-                "link": 47
+                "link": 68
               },
               {
                 "name": "九型WIDTH",
@@ -831,6 +812,22 @@
                 "type": "INT",
                 "shape": 7,
                 "link": 41
+              },
+              {
+                "name": "手动宽",
+                "type": "INT",
+                "widget": {
+                  "name": "手动宽"
+                },
+                "link": 69
+              },
+              {
+                "name": "手动高",
+                "type": "INT",
+                "widget": {
+                  "name": "手动高"
+                },
+                "link": 70
               }
             ],
             "outputs": [
@@ -851,7 +848,9 @@
             ],
             "widgets_values": [
               "",
-              false
+              false,
+              0,
+              0
             ],
             "properties": {
               "Node name for S&R": "MyQi21WhSuggest"
@@ -882,7 +881,7 @@
           {
             "id": 152,
             "type": "MyQi21PromptSelect",
-            "title": "最终文本合成器(pe开=PE出文/pe关=装配全文;透明文本=RGBA包裹+词族剥离)",
+            "title": "最终文本合成器",
             "pos": [
               2000,
               1850
@@ -977,44 +976,7 @@
             }
           }
         ],
-        "groups": [
-          {
-            "id": 1,
-            "title": "RGBA 透明编码支路(上带):[152].透明文本→[143] RGBA编码",
-            "bounding": [
-              4820,
-              520,
-              480,
-              400
-            ],
-            "color": "#886",
-            "flags": {}
-          },
-          {
-            "id": 2,
-            "title": "主链(中轴):[150]底座九选一→[141]装配全文件→[142]主编码→[144]RGBA开关",
-            "bounding": [
-              70,
-              1000,
-              5920,
-              760
-            ],
-            "color": "#a1309b",
-            "flags": {}
-          },
-          {
-            "id": 3,
-            "title": "PE改写+合成+画幅联动(下带):[140]PE改写→[152]合成器;[151]画幅建议;[210]三态",
-            "bounding": [
-              1220,
-              1810,
-              2270,
-              640
-            ],
-            "color": "#4a7a3f",
-            "flags": {}
-          }
-        ],
+        "groups": [],
         "links": [
           {
             "id": 1,
@@ -1059,10 +1021,10 @@
           {
             "id": 7,
             "origin_id": -10,
-            "origin_slot": 4,
-            "target_id": 210,
-            "target_slot": 0,
-            "type": "COMBO"
+            "origin_slot": 5,
+            "target_id": 150,
+            "target_slot": 1,
+            "type": "BOOLEAN"
           },
           {
             "id": 17,
@@ -1099,23 +1061,15 @@
           {
             "id": 46,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 8,
             "target_id": 140,
             "target_slot": 0,
             "type": "CLIP"
           },
           {
-            "id": 61,
-            "origin_id": 150,
-            "origin_slot": 4,
-            "target_id": 210,
-            "target_slot": 1,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 59,
-            "origin_id": 210,
-            "origin_slot": 0,
+            "origin_id": 150,
+            "origin_slot": 5,
             "target_id": 144,
             "target_slot": 2,
             "type": "BOOLEAN"
@@ -1131,7 +1085,7 @@
           {
             "id": 8,
             "origin_id": -10,
-            "origin_slot": 5,
+            "origin_slot": 4,
             "target_id": 152,
             "target_slot": 0,
             "type": "BOOLEAN"
@@ -1185,14 +1139,6 @@
             "type": "STRING"
           },
           {
-            "id": 47,
-            "origin_id": -10,
-            "origin_slot": 7,
-            "target_id": 151,
-            "target_slot": 1,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 37,
             "origin_id": 150,
             "origin_slot": 1,
@@ -1234,8 +1180,8 @@
           },
           {
             "id": 66,
-            "origin_id": 210,
-            "origin_slot": 0,
+            "origin_id": 150,
+            "origin_slot": 5,
             "target_id": 152,
             "target_slot": 1,
             "type": "BOOLEAN"
@@ -1247,6 +1193,30 @@
             "target_id": 152,
             "target_slot": 5,
             "type": "STRING"
+          },
+          {
+            "id": 68,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 151,
+            "target_slot": 1,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 69,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 151,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 70,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 151,
+            "target_slot": 5,
+            "type": "INT"
           }
         ],
         "extra": {

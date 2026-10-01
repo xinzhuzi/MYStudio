@@ -61,5 +61,12 @@
     "aspect_ratio": "16:9 (Widescreen)",
     "megapixels": 4.2,
     "rgba_default": false
+  },
+  {
+    "zh": "自由",
+    "base_text": "",
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.0,
+    "rgba_default": false
   }
 ]

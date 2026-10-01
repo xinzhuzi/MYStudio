@@ -95,11 +95,19 @@ class MyQi21PromptAssembly:
         (主体句+\\n+锁层A)+中文 print 警告(裁定 A 规格② optional 缺键语义
         +1001 S8 L-1 空串补;判空家法=my_daojie_base (x or "").strip();
         实弹日志可查,与选择器件空串语义同款)。
+
+        1001 用户测试批 P1 警告中性化(design §2.2):自由型 BASE 恒空串
+        (qi21_bases.json 十档末位,base_text="")→空 BASE=自由型正常态,
+        警告改双关文案「自由型正常态;非自由型请检查连线」——逻辑零改,
+        仅文案去「意外断线」口吻(旧行为/旧两段拼语义不变,i2i/edit 零波及)。
         """
         if not (BASE or "").strip():
+            # 1001 用户测试批 P1 中性化:自由型(BASE 空串)此为正常态;非自由型
+            # BASE 空=缺整个型底座层,请检查连线——双关文案,逻辑零改(design §2.2)
             print("[MyQi21PromptAssembly] BASE 输入未接线或为空串/纯空白:"
-                  "装配全文降级为「主体句+锁层A」两段拼(缺整个型底座层)——请把 "
-                  "[150] MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入;"
+                  "装配全文降级为「主体句+锁层A」两段拼——自由型此为正常态"
+                  "(自由型无型底座层);非自由型请检查连线:把 [150] "
+                  "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
             return (f"{主体句}\n{锁层A全文}",)
         return (f"{主体句}\n{BASE}\n{锁层A全文}",)

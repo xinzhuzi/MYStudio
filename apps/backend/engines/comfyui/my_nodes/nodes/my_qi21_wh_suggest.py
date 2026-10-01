@@ -52,6 +52,18 @@ apps/output/s8-integration-1001/s8-integration-report.json lazyVerdict=VIOLATED,
 
 九型 W/H 槽不 lazy(轻值,[150] 常驻执行图)。
 
+手动宽高槽(1001 用户测试批 P1,design §2.3;问题②画幅规则重构的件侧
+扩展——「画幅联动开关」语义由工作流侧改接 PE 开关扇出,件零改名):
+  - optional 手动宽/手动高(INT,default 0=跟型,step 8,max 8192)——
+    i2i/edit 不接新槽(缺键)→ 手填恒 0 → 永走九型=旧行为逐字节不变
+    (向后兼容铁律);
+  - 回退序(非建议路=联动关/解析失败/极端回退):手填非 0 **成对**优先
+    → 九型;只填一个(一非 0 一 0)→ 中文报错(不猜不代选——半幅画幅
+    无唯一合理解,替用户补 0 或取九型补另一边都是猜);
+  - 半填检测惰性(仅回退到手动路时判):PE 开时手填控件被 web 扩展隐藏,
+    残留半填值不该炸看不见的产线;手动路被需要时才判才报;
+  - 手动槽不 lazy(轻值 INT,同九型槽口径;不参与 check_lazy_status)。
+
 期望值锚(手验命令=implement.md S8 步骤 3,本会话实跑):
   16:9→(2800,1576) 1:1→(2096,2096) 9:16→(1576,2800)(≈4.2MP,
   8 倍数取整)。implement.md:67 期望清单①③的 (2560,1440)/(1440,2560)
@@ -115,11 +127,17 @@ class MyQi21WhSuggest:
                 "联动开关": ("BOOLEAN", {"default": False}),
             },
             # 九型宽高←[150] MyQi21DaojieBase.WIDTH/HEIGHT(轻值不 lazy);
-            # wh_ratio lazy:pe关×联动关=[140] 不进执行图(修前恒进=证违根因)
+            # wh_ratio lazy:pe关×联动关=[140] 不进执行图(修前恒进=证违根因);
+            # 手动宽/手动高(1001 用户测试批 P1,design §2.3):default 0=跟型,
+            # 非 0 成对=手填优先(i2i/edit 不接=恒 0=旧行为;不 lazy,轻值同九型槽)
             "optional": {
                 "wh_ratio": ("STRING", {"lazy": True}),
                 "九型WIDTH": ("INT",),
                 "九型HEIGHT": ("INT",),
+                "手动宽": ("INT", {"default": 0, "min": 0, "max": 8192,
+                                   "step": 8}),
+                "手动高": ("INT", {"default": 0, "min": 0, "max": 8192,
+                                   "step": 8}),
             },
         }
 
@@ -144,7 +162,9 @@ class MyQi21WhSuggest:
 
     def suggest(self, 联动开关: bool = False, wh_ratio: Any = None,
                 九型WIDTH: int | None = None,
-                九型HEIGHT: int | None = None) -> tuple[int, int]:
+                九型HEIGHT: int | None = None,
+                手动宽: int | None = None,
+                手动高: int | None = None) -> tuple[int, int]:
         if 联动开关 and wh_ratio is None:
             # 联动开但 wh_ratio 未接线(区别于解析失败):想要建议值却没有
             # 源,中文报错不猜不代选(check_lazy_status 对未接线槽不请求,
@@ -160,15 +180,10 @@ class MyQi21WhSuggest:
                 # Q6:想用建议值但解析失败 → 中文警告后回退(不炸队列)
                 print(
                     f"[MyQi21WhSuggest] 画幅比例 wh_ratio={wh_ratio!r} 解析失败"
-                    "(应为「宽:高」数字形,如 16:9),已回退九型宽高"
+                    "(应为「宽:高」数字形,如 16:9),已回退手动宽高/九型宽高"
                     f"({九型WIDTH}×{九型HEIGHT})继续")
-            if 九型WIDTH is None or 九型HEIGHT is None:
-                raise ValueError(
-                    f"[MyQi21WhSuggest] 画幅无值可用:wh_ratio={wh_ratio!r} "
-                    "解析失败且九型 WIDTH/HEIGHT 槽未接线(至少其一无值)"
-                    "——请把底座节点的 WIDTH/HEIGHT 连到本节点对应槽,"
-                    "或修正 wh_ratio 为「宽:高」数字形;不猜不代选")
-            return (九型WIDTH, 九型HEIGHT)
+            return self._manual_or_nine(wh_ratio, 九型WIDTH, 九型HEIGHT,
+                                        手动宽, 手动高)
 
         # 4.2MP 联立 + 8 倍数取整:原 [155][156] widgets_values[0] 逐字
         #   [155] round(a*sqrt(4.2*1024*1024/(a*b))/8)*8
@@ -179,18 +194,39 @@ class MyQi21WhSuggest:
         if w <= 0 or h <= 0:
             # Q6 计算侧同款(S8 深审 L-5):极端比例(宽高比 > 约
             # 275251:1)8 倍取整后建议出 0,下游空潜在执行期炸 → 中文
-            # 警告后回退九型原样(原链 [155][156] 同式直出 0,本防御
-            # 纯收紧,三档锚值行为不变)
+            # 警告后回退手动宽高/九型原样(原链 [155][156] 同式直出 0,
+            # 本防御纯收紧,三档锚值行为不变)
             print(
                 f"[MyQi21WhSuggest] 画幅比例 wh_ratio={wh_ratio!r} 过于极端"
-                f"(4.2MP 建议值 {w}×{h} 含 0),已回退九型宽高"
+                f"(4.2MP 建议值 {w}×{h} 含 0),已回退手动宽高/九型宽高"
                 f"({九型WIDTH}×{九型HEIGHT})继续")
-            if 九型WIDTH is None or 九型HEIGHT is None:
-                raise ValueError(
-                    f"[MyQi21WhSuggest] 画幅无值可用:wh_ratio={wh_ratio!r} "
-                    "建议值含 0(比例过于极端)且九型 WIDTH/HEIGHT 槽未接线"
-                    "(至少其一无值)——请修正 wh_ratio 为常规比例(如 "
-                    "16:9),或把底座节点的 WIDTH/HEIGHT 连到本节点对应"
-                    "槽;不猜不代选")
-            return (九型WIDTH, 九型HEIGHT)
+            return self._manual_or_nine(wh_ratio, 九型WIDTH, 九型HEIGHT,
+                                        手动宽, 手动高)
         return (w, h)
+
+    def _manual_or_nine(self, wh_ratio: Any, 九型WIDTH: int | None,
+                        九型HEIGHT: int | None, 手动宽: int | None,
+                        手动高: int | None) -> tuple[int, int]:
+        """非建议路统一回退(1001 用户测试批 P1,design §2.3):
+        手填非 0 成对优先 → 九型;只填一个=中文报错(不猜);两者皆无=报错。
+
+        i2i/edit 不接手动槽(缺键 None)→ 按 0 处理 → 恒走九型=旧行为
+        逐字节不变;半填检测惰性(仅手动路被需要时判,PE 开时控件隐藏的
+        残留半填不炸看不见的产线)。
+        """
+        mw, mh = 手动宽 or 0, 手动高 or 0
+        if (mw > 0) != (mh > 0):
+            raise ValueError(
+                f"[MyQi21WhSuggest] 手动宽高只填了一个(手动宽={mw} 手动高={mh}):"
+                "画幅须宽高成对——要么两个都填(非 0),要么都留 0(=跟所选型"
+                "默认画幅);不猜不代选(不会替你补 0 或拿九型补另一边)")
+        if mw > 0 and mh > 0:
+            return (mw, mh)
+        if 九型WIDTH is None or 九型HEIGHT is None:
+            raise ValueError(
+                f"[MyQi21WhSuggest] 画幅无值可用:wh_ratio={wh_ratio!r} "
+                "建议路未成,手动宽高未填(0,0)且九型 WIDTH/HEIGHT 槽未接线"
+                "(至少其一无值)——请填手动宽高成对值,或把底座节点的 "
+                "WIDTH/HEIGHT 连到本节点对应槽,或修正 wh_ratio 为"
+                "「宽:高」数字形;不猜不代选")
+        return (九型WIDTH, 九型HEIGHT)

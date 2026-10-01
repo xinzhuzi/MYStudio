@@ -20,7 +20,9 @@
 语义;产线日志可查)③单口接口面锁:RETURN_TYPES/RETURN_NAMES/INPUT_TYPES
 (required 主体句+锁层A全文 multiline;optional BASE)④BASE 已接线但空串/
 纯空白=与 None 同款两段降级拼+中文警告(1001 S8 L-1 修补:BASE 空即无底座
-层;判空家法=my_daojie_base (x or "").strip())。
+层;判空家法=my_daojie_base (x or "").strip())⑤自由型空 BASE=正常态两段拼
++中性化双关警告(1001 用户测试批 P1,design §2.1/§2.2;「两段拼」断言=
+首行主体句+无空行,锁层A 真值内含换行≠两行,import 用包路径)。
 """
 
 from __future__ import annotations
@@ -28,6 +30,11 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 from pathlib import Path
+
+# 1001 用户测试批 P1 新例(import 用包路径——本文件存量例 importlib 直载为
+# 历史纪律,新例统一包路径,同目录 test_my_qi21_base/wh_suggest 惯例)
+from engines.comfyui.my_nodes.nodes.my_qi21_prompt_assembly import (
+    MyQi21PromptAssembly as MyQi21PromptAssemblyPkg)
 
 # 被测模块直载(禁 import my_nodes 包;__file__ 生效→路径解析同产线)
 _NODE_FILE = (Path(__file__).resolve().parents[1] / "nodes"
@@ -109,3 +116,32 @@ def test_5_base_whitespace_string_degrades_to_two_segments(capsys):
     out = capsys.readouterr().out
     assert "[MyQi21PromptAssembly]" in out and "两段拼" in out, \
         f"BASE 纯空白路应发同款中文 print 警告,得 {out!r}"
+
+
+# ── ⑤ 自由型空 BASE=正常态两段拼+中性化双关警告(1001 用户测试批 P1, ──
+# ── design §2.1/§2.2;import 用包路径,与存量直载并存测同一行为) ──────
+def test_6_free_type_empty_base_two_segments_neutral_warning(capsys):
+    """自由型 BASE 恒空串(qi21_bases.json 十档末位 base_text="")→装配器
+    判空走两段降级拼=**正常态**;断言口径(implement.md 步骤5):首行主体句
+    +全文无空行——锁层A 真值内含换行,「两段拼」≠「只有两行」,禁按行数断言
+    (防锁层A 内换行坑:误把锁层A 换行当段界,或实现误用空行分隔)。"""
+    node = MyQi21PromptAssemblyPkg()
+    # 真锁层A default(内含换行,三段长文)从 INPUT_TYPES 运行时取,零硬编码
+    lock_a = node.INPUT_TYPES()["required"]["锁层A全文"][1]["default"]
+    assert "\n" in lock_a, "前置:真锁层A 应内含换行(断言口径成立的前提"
+    result = node.assemble(主体句="主体句例", BASE="", 锁层A全文=lock_a)
+    out = result[0]
+    assert result == (f"主体句例\n{lock_a}",), \
+        f"自由型空 BASE 应两段拼=主体句+换行+锁层A(逐字),得 {out[:50]!r}…"
+    lines = out.split("\n")
+    assert lines[0] == "主体句例"          # 首行=主体句
+    assert len(lines) > 2, \
+        "两段拼≠两行:锁层A 内换行应原样保留(行数断言=锁层A 内换行坑)"
+    assert "" not in lines, \
+        "全文无空行(实现误用 \\n\\n 拼段即红)"
+    assert out.endswith(lock_a)            # 尾段=锁层A 逐字
+    # 中性化双关警告(design §2.2):自由型正常态+非自由型请检查连线
+    warn = capsys.readouterr().out
+    assert "[MyQi21PromptAssembly]" in warn and "两段拼" in warn
+    assert "自由型" in warn and "正常态" in warn
+    assert "非自由型" in warn and "检查连线" in warn
