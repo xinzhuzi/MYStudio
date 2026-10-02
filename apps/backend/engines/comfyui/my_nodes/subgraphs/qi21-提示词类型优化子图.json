@@ -179,12 +179,11 @@
             "name": "clip",
             "type": "CLIP",
             "linkIds": [
-              98,
-              99
+              98
             ],
             "pos": [
-              -216,
-              104
+              3860,
+              540
             ]
           },
           {
@@ -192,12 +191,11 @@
             "name": "vae",
             "type": "VAE",
             "linkIds": [
-              3,
-              4
+              3
             ],
             "pos": [
-              -216,
-              124
+              3860,
+              560
             ]
           },
           {
@@ -208,8 +206,8 @@
               101
             ],
             "pos": [
-              -216,
-              144
+              820,
+              540
             ]
           },
           {
@@ -220,8 +218,8 @@
               6
             ],
             "pos": [
-              -216,
-              164
+              80,
+              1960
             ]
           },
           {
@@ -232,8 +230,8 @@
               200
             ],
             "pos": [
-              -216,
-              184
+              1820,
+              1620
             ]
           },
           {
@@ -244,8 +242,8 @@
               7
             ],
             "pos": [
-              -216,
-              204
+              80,
+              1980
             ]
           },
           {
@@ -256,8 +254,8 @@
               69
             ],
             "pos": [
-              -216,
-              224
+              2750,
+              2140
             ]
           },
           {
@@ -268,8 +266,8 @@
               70
             ],
             "pos": [
-              -216,
-              244
+              2770,
+              2160
             ]
           }
         ],
@@ -282,8 +280,8 @@
               20
             ],
             "pos": [
-              7224,
-              974
+              5100,
+              540
             ]
           },
           {
@@ -294,8 +292,8 @@
               21
             ],
             "pos": [
-              7224,
-              994
+              5100,
+              560
             ]
           },
           {
@@ -306,8 +304,8 @@
               42
             ],
             "pos": [
-              7224,
-              1014
+              4460,
+              1860
             ]
           },
           {
@@ -318,8 +316,8 @@
               43
             ],
             "pos": [
-              7224,
-              1034
+              4460,
+              1880
             ]
           },
           {
@@ -330,8 +328,8 @@
               45
             ],
             "pos": [
-              7224,
-              1054
+              5060,
+              520
             ]
           }
         ],
@@ -348,8 +346,8 @@
             "id": 4010,
             "type": "MyQi21DaojieBase",
             "pos": [
-              1000,
-              1700
+              160,
+              2000
             ],
             "size": [
               570.5259765625,
@@ -412,7 +410,6 @@
                 "name": "透明值",
                 "type": "BOOLEAN",
                 "links": [
-                  59,
                   66
                 ],
                 "slot_index": 3
@@ -440,8 +437,8 @@
             "id": 4013,
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
-              1861.8840080943557,
-              1191.1013243250768
+              1600,
+              1150
             ],
             "size": [
               502.5630859375,
@@ -536,98 +533,11 @@
             }
           },
           {
-            "id": 4016,
-            "type": "TextEncodeQwenImage21",
-            "pos": [
-              3947.4065607244343,
-              385.9507057883529
-            ],
-            "size": [
-              420,
-              320
-            ],
-            "flags": {},
-            "order": 4,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "clip",
-                "name": "clip",
-                "type": "CLIP",
-                "link": 99
-              },
-              {
-                "localized_name": "image_1",
-                "name": "images.image_1",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": null
-              },
-              {
-                "localized_name": "vae",
-                "name": "vae",
-                "shape": 7,
-                "type": "VAE",
-                "link": 4
-              },
-              {
-                "localized_name": "prompt",
-                "name": "prompt",
-                "type": "STRING",
-                "widget": {
-                  "name": "prompt"
-                },
-                "link": 57
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "positive",
-                "name": "positive",
-                "type": "CONDITIONING",
-                "links": [
-                  19
-                ]
-              },
-              {
-                "localized_name": "negative",
-                "name": "negative",
-                "type": "CONDITIONING",
-                "links": []
-              },
-              {
-                "localized_name": "latent",
-                "name": "latent",
-                "type": "LATENT",
-                "links": []
-              }
-            ],
-            "title": "[4016] RGBA编码·TextEncode",
-            "properties": {
-              "Node name for S&R": "TextEncodeQwenImage21",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "",
-              "",
-              1024
-            ],
-            "widgets_values_named": {
-              "prompt": "",
-              "negative_prompt": "",
-              "resolution": 1024
-            }
-          },
-          {
             "id": 4015,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              4605.120516690345,
-              573.341841264206
+              4000,
+              600
             ],
             "size": [
               420,
@@ -673,7 +583,7 @@
                 "name": "positive",
                 "type": "CONDITIONING",
                 "links": [
-                  100
+                  20
                 ]
               },
               {
@@ -712,76 +622,11 @@
             }
           },
           {
-            "id": 4017,
-            "type": "ComfySwitchNode",
-            "pos": [
-              5618.49564985798,
-              927.4027876420472
-            ],
-            "size": [
-              380,
-              120
-            ],
-            "flags": {},
-            "order": 5,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "为假时",
-                "name": "on_false",
-                "shape": 7,
-                "type": "CONDITIONING",
-                "link": 100
-              },
-              {
-                "localized_name": "为真时",
-                "name": "on_true",
-                "shape": 7,
-                "type": "CONDITIONING",
-                "link": 19
-              },
-              {
-                "localized_name": "切换",
-                "name": "switch",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "switch"
-                },
-                "link": 59
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "输出",
-                "name": "output",
-                "type": "CONDITIONING",
-                "links": [
-                  20
-                ]
-              }
-            ],
-            "title": "[4017] 输出选择·SwitchNode",
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              false
-            ],
-            "widgets_values_named": {
-              "switch": false
-            }
-          },
-          {
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              1127.4387314183198,
-              510.5158996654783
+              900,
+              600
             ],
             "size": [
               520,
@@ -827,7 +672,7 @@
                 ]
               }
             ],
-            "title": "[4011] 装配全文件·自研",
+            "title": "[4011] 底料拼合·自研",
             "properties": {
               "Node name for S&R": "MyQi21PromptAssembly",
               "ue_properties": {
@@ -849,8 +694,8 @@
             "id": 4018,
             "type": "MyQi21WhSuggest",
             "pos": [
-              4411.710207329278,
-              1177.757461411137
+              2900,
+              1900
             ],
             "size": [
               380,
@@ -962,7 +807,7 @@
             "id": 4100,
             "type": "MarkdownNote",
             "pos": [
-              1755.4676684729147,
+              1400,
               120
             ],
             "size": [
@@ -983,7 +828,7 @@
               }
             },
             "widgets_values": [
-              "[4100] 装配子图段说明卡(1002 大轮终态编号:4010 底座/4011 装配/4012 PE启用?/4013 PE改写/4014 合成器/4015 主编码/4016 RGBA编码/4017 输出选择/4018 画幅建议器/4019 PE专属TE/4020 PE思考预览;机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly 输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [4014] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
+              "[4100] 装配子图段说明卡(1002 大轮终态编号:4010 底座/4011 底料拼合/4012 PE启用?/4013 PE改写/4014 合成器·单口/4015 主编码·独挑/4018 画幅建议器/4019 PE专属TE/4020 PE思考预览(10-02 单口化:双编码+输出选择塌缩,[4014] 单口「进编码文本」直喂 [4015],透明/非透明选择边界迁入合成器);机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [4014] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
             ],
             "widgets_values_named": {
               "text": "[140] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [141] MyQi21PromptAssembly 输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [152] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
@@ -995,8 +840,8 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              2830.143324770755,
-              602.9851899228581
+              2600,
+              600
             ],
             "size": [
               380,
@@ -1063,19 +908,12 @@
             "outputs": [
               {
                 "localized_name": "最终文本",
-                "name": "最终文本",
+                "name": "进编码文本",
                 "type": "STRING",
+                "slot_index": 0,
                 "links": [
-                  45,
-                  102
-                ]
-              },
-              {
-                "localized_name": "透明文本",
-                "name": "透明文本",
-                "type": "STRING",
-                "links": [
-                  57
+                  102,
+                  45
                 ]
               }
             ],
@@ -1111,8 +949,8 @@
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              1831.8840080943557,
-              711.1013243250768
+              300,
+              1150
             ],
             "size": [
               400,
@@ -1159,8 +997,8 @@
             "id": 4012,
             "type": "PrimitiveBoolean",
             "pos": [
-              1861.8840080943557,
-              851.1013243250768
+              1900,
+              1660
             ],
             "size": [
               280,
@@ -1202,8 +1040,8 @@
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              2402,
-              1900
+              2200,
+              120
             ],
             "size": [
               500,
@@ -1225,7 +1063,7 @@
               {
                 "name": "output",
                 "type": "*",
-                "links": null,
+                "links": [],
                 "slot_index": 0
               }
             ],
@@ -1249,26 +1087,10 @@
             "type": "CLIP"
           },
           {
-            "id": 99,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 4016,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
             "id": 3,
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 4015,
-            "target_slot": 2,
-            "type": "VAE"
-          },
-          {
-            "id": 4,
-            "origin_id": -10,
-            "origin_slot": 1,
-            "target_id": 4016,
             "target_slot": 2,
             "type": "VAE"
           },
@@ -1289,24 +1111,8 @@
             "type": "BOOLEAN"
           },
           {
-            "id": 100,
-            "origin_id": 4015,
-            "origin_slot": 0,
-            "target_id": 4017,
-            "target_slot": 0,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 19,
-            "origin_id": 4016,
-            "origin_slot": 0,
-            "target_id": 4017,
-            "target_slot": 1,
-            "type": "CONDITIONING"
-          },
-          {
             "id": 20,
-            "origin_id": 4017,
+            "origin_id": 4015,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
@@ -1327,14 +1133,6 @@
             "target_id": 4013,
             "target_slot": 0,
             "type": "CLIP"
-          },
-          {
-            "id": 59,
-            "origin_id": 4010,
-            "origin_slot": 3,
-            "target_id": 4017,
-            "target_slot": 2,
-            "type": "BOOLEAN"
           },
           {
             "id": 101,
@@ -1382,14 +1180,6 @@
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 4,
-            "type": "STRING"
-          },
-          {
-            "id": 57,
-            "origin_id": 4014,
-            "origin_slot": 1,
-            "target_id": 4016,
-            "target_slot": 3,
             "type": "STRING"
           },
           {

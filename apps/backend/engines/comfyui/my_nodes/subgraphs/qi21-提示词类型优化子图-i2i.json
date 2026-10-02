@@ -164,13 +164,11 @@
             "type": "CLIP",
             "linkIds": [
               1,
-              2,
-              28,
-              36
+              28
             ],
             "pos": [
-              5360,
-              1380
+              6100,
+              580
             ]
           },
           {
@@ -179,13 +177,11 @@
             "type": "VAE",
             "linkIds": [
               3,
-              4,
-              29,
-              37
+              29
             ],
             "pos": [
-              5350,
-              1460
+              6100,
+              600
             ]
           },
           {
@@ -194,14 +190,12 @@
             "type": "IMAGE",
             "linkIds": [
               5,
-              7,
               30,
-              38,
               46
             ],
             "pos": [
               1050,
-              80
+              90
             ]
           },
           {
@@ -210,12 +204,11 @@
             "type": "IMAGE",
             "linkIds": [
               6,
-              8,
               47
             ],
             "pos": [
-              1080,
-              240
+              1070,
+              110
             ]
           },
           {
@@ -227,8 +220,8 @@
               62
             ],
             "pos": [
-              820,
-              420
+              1050,
+              40
             ]
           },
           {
@@ -239,8 +232,8 @@
               10
             ],
             "pos": [
-              2550,
-              1520
+              3300,
+              1860
             ]
           },
           {
@@ -251,8 +244,8 @@
               200
             ],
             "pos": [
-              -216,
-              224
+              220,
+              1160
             ]
           },
           {
@@ -263,8 +256,8 @@
               11
             ],
             "pos": [
-              2700,
-              880
+              4000,
+              1860
             ]
           }
         ],
@@ -277,8 +270,8 @@
               23
             ],
             "pos": [
-              9500,
-              1500
+              7000,
+              580
             ]
           },
           {
@@ -289,8 +282,8 @@
               24
             ],
             "pos": [
-              9500,
-              1600
+              7000,
+              600
             ]
           },
           {
@@ -301,8 +294,8 @@
               26
             ],
             "pos": [
-              9500,
-              1700
+              7000,
+              640
             ]
           },
           {
@@ -313,8 +306,8 @@
               40
             ],
             "pos": [
-              9500,
-              2300
+              7000,
+              1380
             ]
           },
           {
@@ -325,8 +318,8 @@
               25
             ],
             "pos": [
-              9500,
-              1200
+              6180,
+              1190
             ]
           }
         ],
@@ -342,8 +335,8 @@
             "type": "MyQi21DaojieBase",
             "title": "[4010] 底座九选一·自研",
             "pos": [
-              2600,
-              1600
+              3400,
+              1900
             ],
             "size": [
               420,
@@ -409,8 +402,8 @@
             "id": 4015,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              5400,
-              1550
+              6200,
+              640
             ],
             "size": [
               420,
@@ -449,7 +442,7 @@
                 "widget": {
                   "name": "prompt"
                 },
-                "link": 15
+                "link": 20
               }
             ],
             "outputs": [
@@ -457,7 +450,7 @@
                 "name": "positive",
                 "type": "CONDITIONING",
                 "links": [
-                  57
+                  23
                 ]
               },
               {
@@ -486,88 +479,12 @@
             "title": "[4015] 主编码·TextEncode"
           },
           {
-            "id": 4016,
-            "type": "TextEncodeQwenImage21",
-            "pos": [
-              6500,
-              1550
-            ],
-            "size": [
-              420,
-              320
-            ],
-            "flags": {},
-            "order": 13,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "clip",
-                "type": "CLIP",
-                "link": 2
-              },
-              {
-                "name": "images.image_1",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 7
-              },
-              {
-                "name": "vae",
-                "type": "VAE",
-                "shape": 7,
-                "link": 4
-              },
-              {
-                "name": "images.image_2",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 8
-              },
-              {
-                "name": "prompt",
-                "type": "STRING",
-                "widget": {
-                  "name": "prompt"
-                },
-                "link": 20
-              }
-            ],
-            "outputs": [
-              {
-                "name": "positive",
-                "type": "CONDITIONING",
-                "links": [
-                  27
-                ]
-              },
-              {
-                "name": "negative",
-                "type": "CONDITIONING",
-                "links": []
-              },
-              {
-                "name": "latent",
-                "type": "LATENT",
-                "links": []
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "TextEncodeQwenImage21"
-            },
-            "widgets_values": [
-              "",
-              "",
-              0
-            ],
-            "title": "[4016] RGBA编码·TextEncode"
-          },
-          {
             "id": 180,
             "type": "MyQi21RgbaSelect",
             "title": "[180] RGBA透明选择·自研",
             "pos": [
-              2750,
-              950
+              4100,
+              1900
             ],
             "size": [
               380,
@@ -597,9 +514,6 @@
                 "name": "rgba_on",
                 "type": "BOOLEAN",
                 "links": [
-                  39,
-                  58,
-                  64,
                   67
                 ]
               }
@@ -612,64 +526,11 @@
             ]
           },
           {
-            "id": 4017,
-            "type": "ComfySwitchNode",
-            "pos": [
-              7400,
-              1550
-            ],
-            "size": [
-              380,
-              120
-            ],
-            "flags": {},
-            "order": 15,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "on_false",
-                "shape": 7,
-                "type": "CONDITIONING",
-                "link": 57
-              },
-              {
-                "name": "on_true",
-                "shape": 7,
-                "type": "CONDITIONING",
-                "link": 27
-              },
-              {
-                "name": "switch",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "switch"
-                },
-                "link": 58
-              }
-            ],
-            "outputs": [
-              {
-                "name": "output",
-                "type": "CONDITIONING",
-                "links": [
-                  23
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode"
-            },
-            "widgets_values": [
-              false
-            ],
-            "title": "[4017] 输出选择·SwitchNode"
-          },
-          {
             "id": 171,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              5400,
-              2200
+              6200,
+              1340
             ],
             "size": [
               420,
@@ -702,7 +563,7 @@
                 "widget": {
                   "name": "prompt"
                 },
-                "link": 31
+                "link": 35
               }
             ],
             "outputs": [
@@ -710,7 +571,7 @@
                 "name": "positive",
                 "type": "CONDITIONING",
                 "links": [
-                  33
+                  40
                 ]
               },
               {
@@ -735,134 +596,11 @@
             "title": "[171] 单图编码·TextEncode"
           },
           {
-            "id": 172,
-            "type": "TextEncodeQwenImage21",
-            "pos": [
-              6500,
-              2200
-            ],
-            "size": [
-              420,
-              320
-            ],
-            "flags": {},
-            "order": 14,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "clip",
-                "type": "CLIP",
-                "link": 36
-              },
-              {
-                "name": "images.image_1",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 38
-              },
-              {
-                "name": "vae",
-                "type": "VAE",
-                "shape": 7,
-                "link": 37
-              },
-              {
-                "name": "prompt",
-                "type": "STRING",
-                "widget": {
-                  "name": "prompt"
-                },
-                "link": 35
-              }
-            ],
-            "outputs": [
-              {
-                "name": "positive",
-                "type": "CONDITIONING",
-                "links": [
-                  34
-                ]
-              },
-              {
-                "name": "negative",
-                "type": "CONDITIONING",
-                "links": []
-              },
-              {
-                "name": "latent",
-                "type": "LATENT",
-                "links": []
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "TextEncodeQwenImage21"
-            },
-            "widgets_values": [
-              "",
-              "",
-              0
-            ],
-            "title": "[172] 透明单图编码·TextEncode"
-          },
-          {
-            "id": 173,
-            "type": "ComfySwitchNode",
-            "pos": [
-              7400,
-              2200
-            ],
-            "size": [
-              380,
-              120
-            ],
-            "flags": {},
-            "order": 16,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "on_false",
-                "shape": 7,
-                "type": "CONDITIONING",
-                "link": 33
-              },
-              {
-                "name": "on_true",
-                "shape": 7,
-                "type": "CONDITIONING",
-                "link": 34
-              },
-              {
-                "name": "switch",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "switch"
-                },
-                "link": 39
-              }
-            ],
-            "outputs": [
-              {
-                "name": "output",
-                "type": "CONDITIONING",
-                "links": [
-                  40
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "ComfySwitchNode"
-            },
-            "widgets_values": [
-              false
-            ],
-            "title": "[173] 单图输出选择·SwitchNode"
-          },
-          {
             "id": 23,
             "type": "PrimitiveStringMultiline",
             "pos": [
-              80,
-              140
+              600,
+              300
             ],
             "size": [
               260,
@@ -902,8 +640,8 @@
             "id": 21,
             "type": "PrimitiveStringMultiline",
             "pos": [
-              580,
-              140
+              200,
+              100
             ],
             "size": [
               300,
@@ -943,8 +681,8 @@
             "id": 25,
             "type": "BatchImagesNode",
             "pos": [
-              1140,
-              140
+              1150,
+              420
             ],
             "size": [
               260,
@@ -984,8 +722,8 @@
             "id": 24,
             "type": "StringFormat",
             "pos": [
-              840,
-              580
+              1150,
+              100
             ],
             "size": [
               300,
@@ -1043,8 +781,8 @@
             "id": 4013,
             "type": "TextGenerate",
             "pos": [
-              1600,
-              580
+              1900,
+              1200
             ],
             "size": [
               400,
@@ -1219,8 +957,8 @@
             "id": 27,
             "type": "RegexExtract",
             "pos": [
-              2250,
-              580
+              2500,
+              1200
             ],
             "size": [
               330,
@@ -1316,7 +1054,7 @@
             "title": "[4014] 择文合成器①·自研",
             "pos": [
               2900,
-              580
+              640
             ],
             "size": [
               380,
@@ -1352,7 +1090,7 @@
                 "widget": {
                   "name": "透明模式"
                 },
-                "link": 64
+                "link": null
               },
               {
                 "name": "RGBA官方头句",
@@ -1381,16 +1119,12 @@
             ],
             "outputs": [
               {
-                "name": "最终文本",
+                "name": "进编码文本",
                 "type": "STRING",
+                "slot_index": 0,
                 "links": [
                   60
                 ]
-              },
-              {
-                "name": "透明文本",
-                "type": "STRING",
-                "links": []
               }
             ],
             "widgets_values": [
@@ -1409,10 +1143,10 @@
           {
             "id": 4011,
             "type": "MyQi21PromptAssembly",
-            "title": "[4011] 装配全文件·自研",
+            "title": "[4011] 底料拼合·自研",
             "pos": [
-              3650,
-              1150
+              3800,
+              640
             ],
             "size": [
               520,
@@ -1450,9 +1184,6 @@
                 "name": "装配全文",
                 "type": "STRING",
                 "links": [
-                  15,
-                  25,
-                  31,
                   66
                 ]
               }
@@ -1470,8 +1201,8 @@
             "type": "MyQi21PromptSelect",
             "title": "[153] 透明包裹器②·自研",
             "pos": [
-              4550,
-              1150
+              4800,
+              640
             ],
             "size": [
               380,
@@ -1536,15 +1267,12 @@
             ],
             "outputs": [
               {
-                "name": "最终文本",
+                "name": "进编码文本",
                 "type": "STRING",
-                "links": []
-              },
-              {
-                "name": "透明文本",
-                "type": "STRING",
+                "slot_index": 0,
                 "links": [
                   20,
+                  25,
                   35
                 ]
               }
@@ -1566,8 +1294,8 @@
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              700,
-              580
+              1100,
+              1200
             ],
             "size": [
               400,
@@ -1626,8 +1354,8 @@
             "id": 4012,
             "type": "PrimitiveBoolean",
             "pos": [
-              100,
-              900
+              300,
+              1200
             ],
             "size": [
               280,
@@ -1725,26 +1453,10 @@
             "type": "CLIP"
           },
           {
-            "id": 2,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 4016,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
             "id": 3,
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 4015,
-            "target_slot": 2,
-            "type": "VAE"
-          },
-          {
-            "id": 4,
-            "origin_id": -10,
-            "origin_slot": 1,
-            "target_id": 4016,
             "target_slot": 2,
             "type": "VAE"
           },
@@ -1765,22 +1477,6 @@
             "type": "IMAGE"
           },
           {
-            "id": 7,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 4016,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
-            "id": 8,
-            "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 4016,
-            "target_slot": 3,
-            "type": "IMAGE"
-          },
-          {
             "id": 10,
             "origin_id": -10,
             "origin_slot": 5,
@@ -1797,32 +1493,16 @@
             "type": "COMBO"
           },
           {
-            "id": 15,
-            "origin_id": 4011,
+            "id": 20,
+            "origin_id": 153,
             "origin_slot": 0,
             "target_id": 4015,
             "target_slot": 4,
             "type": "STRING"
           },
           {
-            "id": 20,
-            "origin_id": 153,
-            "origin_slot": 1,
-            "target_id": 4016,
-            "target_slot": 4,
-            "type": "STRING"
-          },
-          {
-            "id": 57,
-            "origin_id": 4015,
-            "origin_slot": 0,
-            "target_id": 4017,
-            "target_slot": 0,
-            "type": "CONDITIONING"
-          },
-          {
             "id": 23,
-            "origin_id": 4017,
+            "origin_id": 4015,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
@@ -1838,7 +1518,7 @@
           },
           {
             "id": 25,
-            "origin_id": 4011,
+            "origin_id": 153,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 4,
@@ -1851,14 +1531,6 @@
             "target_id": -20,
             "target_slot": 2,
             "type": "LATENT"
-          },
-          {
-            "id": 27,
-            "origin_id": 4016,
-            "origin_slot": 0,
-            "target_id": 4017,
-            "target_slot": 1,
-            "type": "CONDITIONING"
           },
           {
             "id": 28,
@@ -1885,72 +1557,16 @@
             "type": "IMAGE"
           },
           {
-            "id": 31,
-            "origin_id": 4011,
+            "id": 35,
+            "origin_id": 153,
             "origin_slot": 0,
             "target_id": 171,
             "target_slot": 3,
             "type": "STRING"
           },
           {
-            "id": 33,
-            "origin_id": 171,
-            "origin_slot": 0,
-            "target_id": 173,
-            "target_slot": 0,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 34,
-            "origin_id": 172,
-            "origin_slot": 0,
-            "target_id": 173,
-            "target_slot": 1,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 35,
-            "origin_id": 153,
-            "origin_slot": 1,
-            "target_id": 172,
-            "target_slot": 3,
-            "type": "STRING"
-          },
-          {
-            "id": 36,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 172,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 37,
-            "origin_id": -10,
-            "origin_slot": 1,
-            "target_id": 172,
-            "target_slot": 2,
-            "type": "VAE"
-          },
-          {
-            "id": 38,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 172,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
-            "id": 39,
-            "origin_id": 180,
-            "origin_slot": 0,
-            "target_id": 173,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 40,
-            "origin_id": 173,
+            "origin_id": 171,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 3,
@@ -2029,14 +1645,6 @@
             "type": "STRING"
           },
           {
-            "id": 58,
-            "origin_id": 180,
-            "origin_slot": 0,
-            "target_id": 4017,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 55,
             "origin_id": 4010,
             "origin_slot": 3,
@@ -2075,14 +1683,6 @@
             "target_id": 4014,
             "target_slot": 1,
             "type": "STRING"
-          },
-          {
-            "id": 64,
-            "origin_id": 180,
-            "origin_slot": 0,
-            "target_id": 4014,
-            "target_slot": 3,
-            "type": "BOOLEAN"
           },
           {
             "id": 65,

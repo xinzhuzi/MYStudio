@@ -6,7 +6,11 @@
 
 道劫 t2i [40] 装配子图文本段集成的下游件(吞原 [141] 提示词开关+[209] 透明文本
 开关+[206] 词族剥离+[216] W1收束拼+[207][208] W1包裹+[162][163] RGBA公式拼接
-+[160][161] 头尾常量+[215] W1收束句):PE 路选择+透明文本包裹合成,两口产出。
++[160][161] 头尾常量+[215] W1收束句):PE 路选择+透明文本包裹合成,单口产出
+(10-02-qi21-subgraph-singleport R1 单口化:原两口「最终文本/透明文本」合一为
+「进编码文本」——两口→单口的架构缘起=用户源头分支案,两编码器参数/clip/vae
+全同已核,选择前置源头后双编码+闸门塌缩(R2),合成器内按 pe开关×透明模式
+四象限择文,预览=实况:透明开时预览含头尾,所见即所进编码)。
 
 裁定 A 拆件缘起(在档):一件式三口形态下「装配全文→[140].prompt」与
 「[140].positive_prompt→装配器.PE出文」构成数据环,引擎验证层实测拒绝
@@ -35,18 +39,24 @@ MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
                三固定句参数面(原 [160][161][215] 迁入;multiline 大框=Q4
                「固定句都要输入框」;default=1001 t2i 工作流值逐字;**下沉**)
 
-逻辑(1002 Q4 补强:pe关透明路同包 W1 收束句——grill 五问 Q4 裁定,
-此前仅 pe开路包 W1,pe关透明文本少收束句=裸拼;两路统一后):
-  最终文本 = PE出文 if pe开关 else (装配全文 or "")
-  透明 mid = 剥离(PE出文)+" "+W1收束句 if pe开关
-             else (装配全文 or "")+" "+W1收束句     (Q4:两路同包 W1)
-  透明文本 = RGBA官方头句+" "+透明 mid+" "+RGBA官方尾句
-  剥离(s)  = re.sub(词族pattern, "", s, flags=IGNORECASE)   (原 [206] 语义)
+逻辑(10-02 单口化 R1:两口合一,先 pe开关 选正文→透明模式 决定拼不拼包裹;
+拼接序铁律=原两口形逐字保持,四象限):
+  正文   = PE出文 if pe开关 else (装配全文 or "")
+  剥离(s) = re.sub(词族pattern, "", s, flags=IGNORECASE)   (原 [206] 语义)
+  进编码文本 =
+    pe开+透明   = RGBA官方头句+" "+剥离(PE出文)+" "+W1收束句+" "+RGBA官方尾句
+    pe关+透明   = RGBA官方头句+" "+装配全文+" "+W1收束句+" "+RGBA官方尾句
+                  (1002 Q4:两路同包 W1 收束句)
+    pe关+透明关 = 装配全文 原样
+    pe开+透明关 = PE出文 原样
 
-两口(RETURN_NAMES,口序即返回元组序):
-  最终文本(口0)→ [142].prompt + 子图输出口「最终文本」(-20 槽4 IO 预览);
-  透明文本(口1)→ [143].prompt(机械双产出:透明模式输入不参与文本计算,
-            RGBA 用否由下游 [144] conditioning 开关裁决=R7.4 不可吞边界)。
+单口(RETURN_NAMES,口序即返回元组序):
+  进编码文本(口0)→ 唯一编码器 [4015].prompt + 子图输出口「最终文本」
+  (-20 槽4 IO 预览,预览=实况:单口后预览与进编码同一条文本,R2 双编码
+  塌缩后不再有 [144] conditioning 闸门件,透明/非透明的选择边界自下游闸门
+  迁入本件(透明模式 布尔直接参与文本计算)——原两口形态「机械双产出+
+  [144] 裁决=R7.4 不可吞边界」随 R1/R2 架构裁定退役,边界仍在(选择显式
+  发生在本件),只是不再以两口+下游开关的形态表达。
 
 懒执行协议(SpeedSelect 实名协议,自一件式装配器随裁定 A 挪本件;引擎实码
 对拍 execution.py:507-520 + graph.py:169-170):
@@ -131,17 +141,19 @@ def strip_word_family(text: str) -> str:
 
 
 class MyQi21PromptSelect:
-    """漫影道劫 qi21 最终文本合成器:PE 路选择+透明文本包裹,两口产出。
+    """漫影道劫 qi21 最终文本合成器:单口四象限择文,单口「进编码文本」产出。
 
-    最终文本(口0)=pe开关?PE出文:装配全文;透明文本(口1)=头句+空格+
-    (PE路=剥离(PE出文) / 直写路=装配全文)+空格+W1收束句+空格+尾句
-    (1002 Q4:两路同包 W1),机械双产出(透明模式输入不参与计算,[144]
-    下游裁决,R7.4 不可吞边界)。
+    (10-02-qi21-subgraph-singleport R1 单口化;原两口「最终文本/透明文本」合一)
+    进编码文本 = 透明模式? (pe开关? 头句+剥离(PE出文)+W1+尾句
+                              : 头句+装配全文+W1+尾句)
+                : (pe开关? PE出文 : 装配全文)
+    (拼接序铁律=原两口形逐字保持;Q4 两路同包 W1 收束句;预览=实况=单口文本本身)
     """
 
     CATEGORY = "my"
-    DESCRIPTION = ("道劫最终文本合成器:pe开=PE出文为最终文本/pe关=装配全文;"
-                   "透明文本=RGBA 包裹+词族整句剥离(PE路)")
+    DESCRIPTION = ("道劫最终文本合成器:单口「进编码文本」=透明开关决定拼不拼"
+                   "官方头尾/pe开关决定用 PE 英文还是装配原文(透明时词族剥离+"
+                   "W1收束,所见即所进编码)")
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
@@ -181,8 +193,8 @@ class MyQi21PromptSelect:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("最终文本", "透明文本")
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("进编码文本",)
     FUNCTION = "compose"
 
     def check_lazy_status(self, pe开关: bool | None = None,
@@ -209,15 +221,20 @@ class MyQi21PromptSelect:
     def compose(self, 装配全文: str | None = None, PE出文: str | None = None,
                 pe开关: bool | None = None, 透明模式: bool = False,
                 RGBA官方头句: str = _RGBA_HEAD, RGBA官方尾句: str = _RGBA_TAIL,
-                W1收束句: str = _W1_TAIL) -> tuple[str, str]:
-        """两口合成:最终文本/透明文本(返回元组序=RETURN_NAMES 序)。
+                W1收束句: str = _W1_TAIL) -> tuple[str]:
+        """单口合成:进编码文本(返回元组序=RETURN_NAMES 序,一元组)。
+
+        两口合一(R1):先 pe开关 选正文(PE出文/装配全文),再 透明模式 决定
+        拼 不拼包裹——拼接序铁律=原两口形逐字保持:
+          pe开+透明=头句+" "+剥离(PE出文)+" "+W1收束句+" "+尾句
+          pe关+透明=头句+" "+装配全文+" "+W1收束句+" "+尾句(Q4 两路同包 W1)
+          pe关+透明关=装配全文 原样;pe开+透明关=PE出文 原样。
+        透明模式 直接参与文本计算(边界自下游闸门迁入本件,R2 双编码塌缩后
+        预览=实况:透明开时预览含头尾,所见即所进编码)。
 
         形参序=⑭ 新槽序(两连线槽前置);引擎按名投递与形参序无关,直接调用方
         (单测/脚本)用关键字传参零波及。1002 ⑭ optional 化:全参数有 default,
         缺投不炸 TypeError;pe开关 None 兜底 True(同 widget default/懒钩子)。
-
-        透明模式形参在场但不参与计算(R7.4:[144] conditioning 开关保留在下游
-        裁决,本件机械双产出;形参名=输入槽名,引擎按名投递不可改名)。
 
         装配全文 None(未接线)语义(裁定 A 自洽):pe开路不消费它=照常;pe关路
         降级空串+中文 print 警告(缺真源=缺整段文本,日志可查,不猜不代选)。
@@ -238,12 +255,15 @@ class MyQi21PromptSelect:
                     "pe开关=开但 PE出文 输入未接线:PE 路需要 [140] PE改写的"
                     "positive_prompt 出文——请把 [140] 出文连到本节点 PE出文 "
                     "输入,或把 pe开关 关掉走直写路")
-            final_text = PE出文
+            # pe开路:正文=PE出文;透明 mid=剥离(PE出文)+W1(拼接序=原两口形逐字)
+            main_text = PE出文
             transparent_mid = strip_word_family(PE出文) + " " + W1收束句
         else:
-            # 1002 Q4 补强(grill 五问 Q4 裁定):pe关透明路同包 W1 收束句——
-            # 修前=裸拼装配全文,与 pe开路(剥离+W1)不对称,透明素材收束缺位
-            final_text = direct
+            # pe关路:正文=装配全文;透明 mid 同包 W1 收束句(1002 Q4 grill 裁定
+            # ——修前=裸拼装配全文,与 pe开路(剥离+W1)不对称,透明素材收束缺位)
+            main_text = direct
             transparent_mid = direct + " " + W1收束句
-        transparent_text = f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}"
-        return (final_text, transparent_text)
+        # 透明模式参与计算(R1 边界迁入):开=拼官方头尾,关=正文原样直出
+        if 透明模式:
+            return (f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}",)
+        return (main_text,)

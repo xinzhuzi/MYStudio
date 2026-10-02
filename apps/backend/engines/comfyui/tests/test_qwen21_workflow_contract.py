@@ -356,7 +356,9 @@ QI21_SG_ASM_ID = 4011                                               # MyQi21Prom
 QI21_SG_SEL_ID = 4014                                               # MyQi21PromptSelect 最终文本合成器(裁定A下游;id 复用画幅链已删件)
 QI21_SG_WH_ID = 4018                                                # MyQi21WhSuggest 画幅联动建议器(8合1;id 沿用旧取宽比件)
 QI21_SG_PE_RW = 4013                                                # QwenImage21_T2IPromptRewrite(保留;prompt←[141].装配全文)
-QI21_SG_TE, QI21_SG_TE_RGBA, QI21_SG_RGBA_SW = 4015, 4016, 4017
+QI21_SG_TE = 4015  # 主编码·单编码独挑(10-02 单口化:positive/negative 双出直布出口)
+# 10-02 单口化退役(双编码+输出选择闸门塌缩;防回潮=QI21_SG_GONE_IDS 在册):
+#   QI21_SG_TE_RGBA=4016(RGBA编码)/QI21_SG_RGBA_SW=4017(输出选择 SwitchNode)
 # 1001 用户测试批(④⑥⑦):[210] MyQi21RgbaSelect 三态件退役——透明布尔唯一来源=
 # [150].透明值(型≠自由?rgba_default:面板透明覆盖),纯 BOOLEAN 跨子图边界;
 # 常量 QI21_SG_RGBA_SEL 退役,防回潮并入 QI21_SG_GONE_IDS
@@ -379,7 +381,9 @@ QI21_SG_SEL_WV = {"装配全文占位": 0, "PE出文占位": 1, "pe开关": 2, "
 # +提示词开关(旧141,由装配全文件沿用)+画幅链6[153]-[158](152/151 由新件沿用/复用)
 QI21_SG_GONE_IDS = [110, 130, 131, 160, 161, 162, 163, 206, 207, 208, 209,
                     215, 216, 153, 154, 155, 156, 157, 158,
-                    210]  # +[210] 三态件(1001 用户测试批 ④⑥⑦:透明布尔唯一来源=[150].透明值)
+                    210,  # +[210] 三态件(1001 用户测试批 ④⑥⑦:透明布尔唯一来源=[150].透明值)
+                    # +10-02 单口化(双编码+闸门塌缩):[4016] RGBA编码+[4017] 输出选择
+                    4016, 4017]
 RGBA_MODES_TRIPLECT = ("自动", "true", "false")  # 1001 ① 改文案三串(「自动」=原「跟随型」;combo 真源=my_nodes 节点件)
 # qi21 件 LoRA 槽锚(09-24 R26.4 补槽,id 同构 i2i;t2i 无 Cache——MODEL 上游
 # 穿顶通道 Reroute 溯至 UNETLoader[1])
@@ -432,10 +436,14 @@ I2I_SG_ASM_CLASS = "MyQi21PromptAssembly"
 I2I_SG_SEL_CLASS = "MyQi21PromptSelect"
 I2I_SG_ASM_WV = {"主体句": 0, "锁层A全文": 1}   # [141] 参数位序(同 t2i 件)
 I2I_SG_GONE_IDS = [15, 110, 130, 131, 160, 161, 162, 163,   # 收编 8 件
-                   170, 174, 181, 182, 183, 184]            # Reroute 消化 6 件
+                   170, 174, 181, 182, 183, 184,             # Reroute 消化 6 件
+                   # 10-02 单口化(双编码+双闸门塌缩,四件):
+                   4016, 4017, 172, 173]
 I2I_PE_CHAIN_IDS = (21, 23, 24, 25, 4013, 27)  # PE-I2I 链([26]TG→[4013] 1002 ⑫)
 I2I_SG_BASE_ID = 4010
-I2I_SG_TE, I2I_SG_TE_RGBA, I2I_SG_RGBA_SW = 4015, 4016, 4017
+I2I_SG_TE = 4015  # 主编码·单编码独挑(10-02 单口化)
+# 10-02 单口化退役(防回潮=I2I_SG_GONE_IDS 在册):
+#   I2I_SG_TE_RGBA=4016(RGBA编码)/I2I_SG_RGBA_SW=4017(主路输出选择闸门)
 I2I_SG_RGBA_SEL = 180                    # 0929 S2 D6:MyQi21RgbaSelect 三态件
 # LoRA 加速槽(09-24 R26.4 三件统一接线:t2i/edit 补槽与 i2i 出生槽同构;
 # viggle 蒸馏件已装机(r64 事实=R23 research/02;v0.2→v0.2.1=0924 用户「有最新换最新+清旧」令)——name 预填逐字锚
@@ -556,7 +564,8 @@ STEPS_DIRECT, STEPS_VIGGLE = 40, 6     # 1002 考据轮:viggle=官方模型卡�
 # 「契约锚同步」,design D10 三件通用规则;edit 无预览槽=空真)。
 D10_PREVIEW_SLOT_LAST = True
 # 0928 黑图修复:单参考编码锚保持(edit 主图 [43];i2i 子图行4 [171]-[173] 独立 id 空间)
-I2I_SG_TE1, I2I_SG_TE1R, I2I_SG_TE1SW = 171, 172, 173
+I2I_SG_TE1 = 171  # 单参考编码·单编码独挑 positive_single(10-02 单口化)
+# 10-02 单口化退役:I2I_SG_TE1R=172(透明单图编码)/I2I_SG_TE1SW=173(单图闸门)
 EDIT_TE1 = 4016  # 1002 ⑫:edit 单参考编码 [43]→[4016]
 FUNACC_FILE = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"
 T8_CLASS = "T8QwenImage21FunAccPDD4Step"
@@ -2019,8 +2028,8 @@ class TestEditPEContract:
         """[6].prompt 上游=MyQi21PromptSelect[152](1001 edit 同构收编:原 [15]
         ComfySwitchNode 指令开关退役,件型升级非减数;pe开=PE出文/pe关=装配全文槽=
         指令直写真源);pe开关←-10槽5 宿主面板(默认 true=0926 裁定1 不变量保持);
-        最终文本双扇出 [6].prompt+[43].prompt(双/单参考编码同源);透明文本口悬空
-        (edit 无 RGBA 编码件,机械双产出无消费者无副作用)。"""
+        10-02 R1 单口化:单口「进编码文本」双扇出 [4015].prompt+[4016].prompt
+        (双/单参考编码同源同文;预览=实况;旧两口形「透明文本口悬空」随件改退役)。"""
         graph = GRAPHS["edit"]
         asg = _asg(graph)
         sg_nodes, sg_links = _sg_nodes(asg), _sg_links(asg)
@@ -2030,8 +2039,8 @@ class TestEditPEContract:
             f"[6].prompt 上游应是 {QI21_SG_SEL_CLASS}[{EDIT_SEL_ID}](1001 同构收编替 [15])"
         sel = sg_nodes[EDIT_SEL_ID]
         assert sel["type"] == QI21_SG_SEL_CLASS and \
-            [o["name"] for o in sel["outputs"]] == ["最终文本", "透明文本"], \
-            f"[{EDIT_SEL_ID}] 应双出=最终文本/透明文本"
+            [o["name"] for o in sel["outputs"]] == ["进编码文本"], \
+            f"[{EDIT_SEL_ID}] 应单口=进编码文本(10-02 R1 单口化;预览=实况)"
         assert sel["widgets_values"][:2] == ["", ""], \
             "PromptSelect wv 头部两占位应为空串(前端全序消费;1002 修复轮)"
         assert sel["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
@@ -2050,7 +2059,7 @@ class TestEditPEContract:
         asm_l = sg_links[next(i["link"] for i in sel["inputs"] if i["name"] == "装配全文")]
         assert (asm_l["origin_id"], asm_l["origin_slot"]) == (-10, 4), \
             "装配全文槽 应接 -10 指令槽(pe关=直写臂←主图 [22])"
-        # 最终文本双扇出:[6].prompt(槽4)+[43].prompt(槽3)=双/单参考同源
+        # 进编码文本双扇出:[4015].prompt+[4016].prompt=双/单参考同源同文(10-02 单口)
         te1 = sg_nodes[EDIT_TE1]
         assert sg_links[next(i["link"] for i in te1["inputs"] if i["name"] == "prompt")] \
             ["origin_id"] == EDIT_SEL_ID, \
@@ -2059,9 +2068,7 @@ class TestEditPEContract:
                      for l in sel["outputs"][0]["links"] or [])
         assert fan == sorted([4015, EDIT_TE1]), \
             f"[{EDIT_SEL_ID}].最终文本 应双扇出 [4015]+[{EDIT_TE1}],得 {fan}"
-        # 透明文本口悬空(edit 无 RGBA 编码件,机械双产出无消费者)
-        assert not (sel["outputs"][1].get("links") or []), \
-            "透明文本口应悬空(edit 无 RGBA 编码件)"
+        # 10-02 单口化:单口「进编码文本」(旧两口形「透明文本口悬空」断言随之退场)
 
     def test_edit_select_fixed_sentences_verbatim(self):
         """edit [152] 三固定句参数逐字(1001 同构收编;照 t2i M-3 同款锚):
@@ -2707,8 +2714,9 @@ class TestQi21SubgraphContract:
             "[4010] 四出应为 BASE/WIDTH/HEIGHT/透明值" \
             "(1002 ⑯ 删型名+大轮连带删 rgba_default=i2i [180] 迁透明值后收口)"
         assert node["outputs"][3]["type"] == "BOOLEAN", "[4010].透明值 槽型应 BOOLEAN(⑦)"
-        assert sorted(node["outputs"][3]["links"] or []) == [59, 66], \
-            "[4010].透明值 应双扇出(59→[4017].switch + 66→[4014].透明模式;槽位随 rgba_default 删前移=3)"
+        assert sorted(node["outputs"][3]["links"] or []) == [66], \
+            "[4010].透明值 应单扇出(66→[4014].透明模式;10-02 单口化:59→[4017].switch" \
+            " 随双编码+闸门塌缩退役,透明选择边界迁入合成器文本计算)"
         tmd = sg_links[node["inputs"][1]["link"]]
         assert (tmd["origin_id"], tmd["origin_slot"], tmd["type"]) == (-10, 5, "BOOLEAN"), \
             "[150].透明覆盖 应接 -10 槽5「透明」BOOLEAN(面板布尔直通)"
@@ -2809,9 +2817,11 @@ class TestQi21SubgraphContract:
             "锁层A全文应为参数面(不接线;值恒挂=Q4 可编辑大框)"
 
     def test_cascade_retired_and_linkage_switches_wired(self):
-        """子图开关纪律(1001 用户测试批 ② 重立):子图 ComfySwitchNode 恰 1 枚=
-        [144] RGBA conditioning 开关;固定句常量件恰 0;Reroute 恰 0;退役件 id
-        防回潮(1001 P2 起 [210] 三态件入册);画幅规则(问题②):「画幅联动开关」
+        """子图开关纪律(1001 用户测试批 ② 重立;10-02 单口化再重立):子图
+        ComfySwitchNode 恰 0 枚(双编码+输出选择闸门塌缩,选择前置进合成器);
+        固定句常量件恰 0;Reroute 恰 0;退役件 id
+        防回潮(1001 P2 起 [210] 三态件入册;10-02 起 [4016][4017] 入册);
+        画幅规则(问题②):「画幅联动开关」
         槽退役,[151].联动开关 ← -10 槽4「PE开关」扇出(PE 开=建议路/PE 关=
         手动/九型路,件零改);手动宽/高 ← -10 槽6/7(0=跟型);wh_ratio 单线喂
         [151];宿主面板 手动宽/高 默认 0(恒九型)。"""
@@ -2819,10 +2829,9 @@ class TestQi21SubgraphContract:
         sg = _qi21_sg(graph)
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
         switches = {n["id"]: n for n in sg_nodes.values() if n["type"] == "ComfySwitchNode"}
-        assert sorted(switches) == [QI21_SG_RGBA_SW], \
-            f"子图开关应恰 1 枚=[{QI21_SG_RGBA_SW}] RGBA conditioning,得 {sorted(switches)}"
-        assert switches[QI21_SG_RGBA_SW]["widgets_values"][0] is False, \
-            "[144] RGBA 开关默认应 false(懒旁路语义)"
+        assert switches == {}, \
+            f"子图开关应恰 0 枚(10-02 单口化:双编码+输出选择闸门塌缩,选择前置进" \
+            f"[4014] 合成器文本计算),得 {sorted(switches)}"
         # 固定句常量件恰 0(4 句迁 [141]/[152] 参数面);Reroute 恰 0(Part-A S3B 全删)
         assert not [n for n in sg_nodes.values() if n["type"] == "PrimitiveStringMultiline"], \
             "S8 集成:固定句常量件应恰 0(四句迁两自研件参数面)"
@@ -2935,7 +2944,7 @@ class TestQi21SubgraphContract:
         assert [i["name"] for i in sel["inputs"]] == \
             ["装配全文", "PE出文", "pe开关", "透明模式", "RGBA官方头句", "RGBA官方尾句", "W1收束句"], \
             "[152] 槽序应=装配全文/PE出文(连线槽,⑭ 前置)/pe开关/透明模式/头句/尾句/W1(参数下沉)"
-        assert [o["name"] for o in sel["outputs"]] == ["最终文本", "透明文本"]
+        assert [o["name"] for o in sel["outputs"]] == ["进编码文本"]
         assert sel["widgets_values"][:2] == ["", ""], \
             "PromptSelect wv 头部两占位应为空串(前端全序消费;1002 修复轮)"
         assert sel["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
@@ -2952,7 +2961,7 @@ class TestQi21SubgraphContract:
             "[4014].pe开关 应接 [4012]『PE启用?』扇出(1002 ㉑;⑭ 后=inputs[2])"
         tm_l = sg_links[sel["inputs"][3]["link"]]
         assert (tm_l["origin_id"], tm_l["origin_slot"]) == (QI21_SG_BASE_ID, 3), \
-            "[4014].透明模式 应接 [4010].透明值(大轮后槽位3=rgba_default 删前移;透明模式不参与文本计算)"
+            "[4014].透明模式 应接 [4010].透明值(大轮后槽位3;10-02 单口化:透明模式参与文本计算)"
         final_l = sg_links[sg_nodes[QI21_SG_TE]["inputs"][3]["link"]]
         assert (final_l["origin_id"], final_l["origin_slot"]) == (QI21_SG_SEL_ID, 0), \
             "[142].prompt 上游应 [152].最终文本(子图内闭环)"
@@ -2963,12 +2972,9 @@ class TestQi21SubgraphContract:
             "子图输出槽4 应=最终文本([152]→IO;0929 S4 最末槽)"
         assert sg_links[45]["origin_id"] == QI21_SG_SEL_ID, \
             "最终文本输出应直源 [152](1001 S8:合成器直扇 IO 槽4)"
-        trans_l = sg_links[sg_nodes[QI21_SG_TE_RGBA]["inputs"][3]["link"]]
-        assert (trans_l["origin_id"], trans_l["origin_slot"]) == (QI21_SG_SEL_ID, 1), \
-            "[143].prompt 上游应 [152].透明文本(透明路=头句+剥离/W1包裹+尾句)"
-        rgba_te = sg_nodes[QI21_SG_TE_RGBA]
-        assert _widget(rgba_te, TE_WV["prompt"]) == "", \
-            "RGBA 编码 prompt widget 应清空(公式路现拼,固定演示句已废止)"
+        # 10-02 单口化:[4016] RGBA编码退役——旧「[143].prompt←[152].透明文本」
+        # 与「RGBA 编码 prompt widget 清空」两断言随双编码+闸门塌缩退场
+        # (单口后进编码文本=[4014] 槽0,102 线直喂 [4015] 已锁)
         # RGBA 官方头尾+W1 迁参数面逐字(原 [160][161][215] 常量件;词族剥离=文件单源)
         assert _widget(sel, QI21_SG_SEL_WV["RGBA官方头句"]) == RGBA_HEAD, \
             "[152] RGBA官方头句参数 非官方原文逐字(This is an RGBA format image with transparency.)"
@@ -2987,13 +2993,8 @@ class TestQi21SubgraphContract:
         tm_l = sg_links[sel["inputs"][3]["link"]]
         assert (tm_l["origin_id"], tm_l["origin_slot"]) == (QI21_SG_BASE_ID, 3), \
             "[4014].透明模式 应接 [4010].透明值(大轮后槽位3;④⑥⑦ 解析住底座件)"
-        # [144].switch ← [150].透明值(同一纯布尔双扇出,子图内零自选转换层)
-        rgba_sw = sg_nodes[QI21_SG_RGBA_SW]
-        assert rgba_sw["outputs"][0]["type"] == "CONDITIONING", "RGBA 开关应为 CONDITIONING 泛型"
-        rgba_sw_link = sg_links[rgba_sw["inputs"][2]["link"]]
-        assert (rgba_sw_link["origin_id"], rgba_sw_link["origin_slot"]) == (QI21_SG_BASE_ID, 3), \
-            "RGBA 开关 switch 槽应接 [4010].透明值(大轮后槽位3;④⑥⑦:纯 BOOLEAN 跨子图边界)"
-        assert rgba_sw["widgets_values"][0] is False, "[144] RGBA 开关默认非 false"
+        # 10-02 单口化:[4017] 闸门退役——旧「RGBA 开关 CONDITIONING/switch 槽/默认
+        # false」三断言随双编码+闸门塌缩退场(透明布尔唯一消费=[4014].透明模式)
         # -10 槽5=「透明」BOOLEAN(Q4 裁定;旧「RGBA透明」三态 COMBO 退役)
         _io5 = _qi21_sg(graph)["inputs"][5]
         assert _io5["name"] == "透明" and _io5["type"] == "BOOLEAN", \
@@ -3095,24 +3096,28 @@ class TestQi21SubgraphContract:
         graph = GRAPHS["qi21"]
         sg_nodes = _qi21_sg_nodes(graph)
         def band_of(y: float) -> int:
-            return 0 if y < 1000 else (1 if y < 1500 else 2)
+            return 0 if y < 400 else (1 if y < 1000 else (2 if y < 1750 else 3))
         bands: dict[int, list[int]] = {}
         for n in _qi21_sg(graph)["nodes"]:
             bands.setdefault(band_of(n["pos"][1]), []).append(n["id"])
-        assert sorted(bands) == [0, 1, 2], f"子图应恰 3 带(1001 用户测试批 9 件版),得 {sorted(bands)}"
-        # 1002 大轮重立:pos=用户手改基线+手术增量(4012/4019/4020/4010 归正),
-        # 语义三带叙事退役,带表按终态实况锚定(防回退);主流程左→右断言在下文保持
+        assert sorted(bands) == [0, 1, 2, 3], f"子图应恰 4 带(10-02 单口化四带版),得 {sorted(bands)}"
+        # 10-02 单口化重立(拓扑变更合法重立:删 [4016][4017] 双编码+闸门+四带横排):
+        # 带0=上说明([4100]+[4020])/带1=主链([4011]→[4014]→[4015])/带2=PE([4019]→
+        # [4013]+[4012] 下浮行=消跨带遮挡裁量,理由=手术脚本头注)/带3=最底([4010]
+        # 底座源件下沉+[4018] 画幅;R4 原 [4010] 主链位在四带全右向约束下结构性
+        # 必遮挡,依布局规范优先级 1/2 下沉);带表按终态实况锚定(防回退)
         want_bands = {
-            0: [4011, 4012, 4014, 4015, 4016, 4017, 4019, 4100],
-            1: [4013, 4018],
-            2: [4010, 4020],
+            0: [4020, 4100],
+            1: [4011, 4014, 4015],
+            2: [4012, 4013, 4019],
+            3: [4010, 4018],
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
             assert got == sorted(want), f"带{b} 成员漂移: 应 {sorted(want)} 得 {got}"
         # 各带内 x 严格递增(零左向零同列;S8 后节点数组序无生成器数据流序锚,
         # 改按 x 值判——关键链序由下方 141<140<152 链位断言锁)
-        for b in (0, 1, 2):
+        for b in (0, 1, 2, 3):
             xs = sorted(sg_nodes[nid]["pos"][0] for nid in bands[b])
             assert all(x2 > x1 for x1, x2 in zip(xs, xs[1:])), \
                 f"带{b} 带内 x 非严格递增(应从左到右零同列): {xs}"
@@ -3125,7 +3130,7 @@ class TestQi21SubgraphContract:
         band_tops = {b: min(sg_nodes[nid]["pos"][1] for nid in ids) for b, ids in bands.items()}
         band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]
                                for nid in ids) for b, ids in bands.items()}
-        for b in (0, 1):
+        for b in (0, 1, 2):
             assert band_tops[b + 1] - band_bottoms[b] >= 100, \
                 f"带{b} 与带{b+1} 净距不足(<100): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
         # 零左向线(严格口径=塔测试同款:所有线起点 x < 终点 x;边界线以 IO 槽 pos 计)
@@ -3397,8 +3402,9 @@ class TestI2IContract:
         _rh = _qi21_sg_links(graph)[sel["inputs"][1]["link"]]
         assert _rh["origin_id"] == I2I_SG_BASE_ID and _rh["origin_slot"] == 3, \
             "[180].rgba_hint 上游应 [4010].透明值(1002 大轮:rgba_default 删除迁透明值槽3)"
-        assert sorted(sel["outputs"][0]["links"] or []) == [39, 58, 64, 67], \
-            "[180].rgba_on 应扇出恰四线([144]/[173] 双镜像开关+[152]/[153] 透明模式占位)"
+        assert sorted(sel["outputs"][0]["links"] or []) == [67], \
+            "[180].rgba_on 应单扇出(67→[153].透明模式;10-02 单口化:39/58 双闸门" \
+            "+64 [4014].透明模式 占位随双编码+双闸门塌缩退役,透明边界唯一驻 [153])"
         _io6 = sg["inputs"][6]
         assert _io6["name"] == "PE启用?" and _io6["type"] == "BOOLEAN", \
             "i2i 子图 -10 槽6 应=「PE启用?」BOOLEAN(1002 ㉑);槽7=RGBA透明 COMBO"
@@ -3487,10 +3493,13 @@ class TestI2IContract:
             "锁层A全文应为参数面(不接线;恒挂=Q4 可编辑大框)"
         fan = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
                      for l in asm["outputs"][0]["links"] or [])
-        assert fan == sorted([(I2I_SG_TE, 4), (I2I_SG_TE1, 3), (-20, 4),
-                              (I2I_SG_SEL2_ID, 0)]), \
-            f"[141].装配全文 应四路扇出([142].prompt/[171].prompt/IO槽4/[153].装配全文" \
-            f"(⑭ 前置=target_slot 0)),得 {fan}"
+        assert fan == [(I2I_SG_SEL2_ID, 0)], \
+            f"[141].装配全文 应单路扇出([153].装配全文;10-02 单口化:编码改吃 [153]" \
+            f".进编码文本,prompt 预览出口改接 [153]=预览实况),得 {fan}"
+        fan_sel2 = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
+                          for l in sg_nodes[I2I_SG_SEL2_ID]["outputs"][0]["links"] or [])
+        assert fan_sel2 == sorted([(I2I_SG_TE, 4), (I2I_SG_TE1, 3), (-20, 4)]), \
+            f"[153].进编码文本 应三路扇出([4015].prompt/[171].prompt/IO槽4 prompt=实况),得 {fan_sel2}"
         # W2 反转(0928;1002 ⑬ 升级):主图零 PE 链件+零 PE TE(迁子图 [4019])
         for banned in ("TextGenerate", "StringFormat", "RegexExtract", "BatchImagesNode",
                        "CLIPLoader"):
@@ -3707,7 +3716,7 @@ class TestI2IContract:
             "[153] 透明包裹器 pe开关应恒 false(纯包裹=头句+装配全文+尾句)"
         assert nodes[I2I_LATENT_PB_ID]["widgets_values"][0] is False, "[19] 画幅开关源默认应 false"
         assert nodes[I2I_LATENT_SW_ID]["widgets_values"][0] is False, "[20] 画幅双路默认应 false"
-        assert sg_nodes[I2I_SG_RGBA_SW]["widgets_values"][0] is False, "[144] RGBA 开关默认应 false"
+        # 10-02 单口化:[144]/[173] 双闸门塌缩退役(原「默认 false」断言随之退场)
         host = nodes[I2I_HOST_ID]
         assert host["widgets_values"][3] == "自动", \
             "[6] 面板「RGBA透明」默认应=自动(1001 ① 文案轮;⑲ 序:PE启用? 前移后=第4值)"
@@ -3737,11 +3746,12 @@ class TestI2IContract:
         for slot, want in ((2, I2I_SCALE_IDS[0]), (3, I2I_SCALE_IDS[1])):
             assert links[host["inputs"][slot]["link"]][1] == want, \
                 f"宿主 image 槽{slot} 上游应预缩件[{want}]"
-        for enc_id in (I2I_SG_TE, I2I_SG_TE_RGBA):
+        # 10-02:主编码=[4015] 双图;单图编码=[171] 仅 image_1(单参考正源,0928 黑图修复语义)
+        for enc_id, want_n in ((I2I_SG_TE, 2), (I2I_SG_TE1, 1)):
             enc = sg_nodes[enc_id]
             imgs = [i for i in enc["inputs"] if i["name"].startswith("images.")]
-            assert len(imgs) == 2 and all(i.get("link") for i in imgs), \
-                f"[{enc_id}] 双图槽应全接(透明路也看图编辑)"
+            assert len(imgs) == want_n and all(i.get("link") for i in imgs), \
+                f"[{enc_id}] 图槽数应 {want_n} 且全接(主编码双图/单图编码单参考)"
             assert _widget(enc, TE_WV["resolution"]) == 0, \
                 f"[{enc_id}] resolution 应 0(不重采样,画幅随输入图)"
         scales = {n["id"]: n for n in _by_type(graph, "ImageScaleToTotalPixels")}
@@ -3794,26 +3804,12 @@ class TestI2IContract:
         asm_l = sg_links[next(i["link"] for i in sel2["inputs"] if i["name"] == "装配全文")]
         assert (asm_l["origin_id"], asm_l["origin_slot"]) == (I2I_SG_ASM_ID, 0), \
             "[153].装配全文 应接 [141].装配全文(透明包裹真源,≡原[162].string_b)"
-        fan2 = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
-                      for l in sel2["outputs"][1]["links"] or [])
-        assert fan2 == sorted([(I2I_SG_TE_RGBA, 4), (I2I_SG_TE1R, 3)]), \
-            f"[153].透明文本 应双扇出 [143].prompt(槽4)+[172].prompt(槽3),得 {fan2}"
-        assert not (sel2["outputs"][0].get("links") or []), \
-            "[153].最终文本口应悬空(透明包裹器唯透明文本产出)"
-        assert _widget(sg_nodes[I2I_SG_TE_RGBA], TE_WV["prompt"]) == "", \
-            "RGBA 编码 prompt widget 应清空(公式路现拼)"
-        # RGBA 开关组(直连形态,Reroute 已消化):on_false=[142]/on_true=[143]/
-        # switch=[180];单图线镜像 [173].switch 同源 [180]
-        rsw = sg_nodes[I2I_SG_RGBA_SW]
-        assert sg_links[rsw["inputs"][0]["link"]]["origin_id"] == I2I_SG_TE, \
-            "[144].on_false 上游应主编码 [142](Reroute 中继已消化直连)"
-        assert sg_links[rsw["inputs"][1]["link"]]["origin_id"] == I2I_SG_TE_RGBA, \
-            "[144].on_true 应 RGBA 编码 [143](直连)"
-        assert sg_links[rsw["inputs"][2]["link"]]["origin_id"] == I2I_SG_RGBA_SEL, \
-            "[144].switch 应接 [180] MyQi21RgbaSelect(0929 S2 D6 型联动,直连)"
-        _os1 = sg_links[sg_nodes[I2I_SG_TE1SW]["inputs"][2]["link"]]
-        assert _os1["origin_id"] == I2I_SG_RGBA_SEL, \
-            f"[173] 镜像开关 switch 应接 [{I2I_SG_RGBA_SEL}](D6 同源扇出),得 {_os1['origin_id']}"
+        # 10-02 单口化:[153] 单口「进编码文本」(三路扇出断言见装配段);旧两口形
+        # 「透明文本双扇出+最终文本悬空+RGBA 编码/双闸门组」随 R1/R2 塌缩全数退役
+        assert [o["name"] for o in sel2["outputs"]] == ["进编码文本"], \
+            "[153] 应单口=进编码文本(10-02 R1 单口化;恒 pe关+透明模式四象限)"
+        assert sel2["inputs"][3]["name"] == "透明模式" and sel2["inputs"][3].get("link") is not None, \
+            "[153].透明模式 应保持接线(←[180].rgba_on;透明边界唯一驻件)"
 
     def test_no_custom_titles_except_selfbuilt(self):
         """节点标题铁律(0924-r8 立「核心零 title」;**1002 大轮 ⑤⑧+prd ⑨补
@@ -3923,8 +3919,8 @@ class TestEditPEContract:
         """[6].prompt 上游=MyQi21PromptSelect[152](1001 edit 同构收编:原 [15]
         ComfySwitchNode 指令开关退役,件型升级非减数;pe开=PE出文/pe关=装配全文槽=
         指令直写真源);pe开关←-10槽5 宿主面板(默认 true=0926 裁定1 不变量保持);
-        最终文本双扇出 [6].prompt+[43].prompt(双/单参考编码同源);透明文本口悬空
-        (edit 无 RGBA 编码件,机械双产出无消费者无副作用)。"""
+        10-02 R1 单口化:单口「进编码文本」双扇出 [4015].prompt+[4016].prompt
+        (双/单参考编码同源同文;预览=实况;旧两口形「透明文本口悬空」随件改退役)。"""
         graph = GRAPHS["edit"]
         asg = _asg(graph)
         sg_nodes, sg_links = _sg_nodes(asg), _sg_links(asg)
@@ -3934,8 +3930,8 @@ class TestEditPEContract:
             f"[6].prompt 上游应是 {QI21_SG_SEL_CLASS}[{EDIT_SEL_ID}](1001 同构收编替 [15])"
         sel = sg_nodes[EDIT_SEL_ID]
         assert sel["type"] == QI21_SG_SEL_CLASS and \
-            [o["name"] for o in sel["outputs"]] == ["最终文本", "透明文本"], \
-            f"[{EDIT_SEL_ID}] 应双出=最终文本/透明文本"
+            [o["name"] for o in sel["outputs"]] == ["进编码文本"], \
+            f"[{EDIT_SEL_ID}] 应单口=进编码文本(10-02 R1 单口化;预览=实况)"
         assert sel["widgets_values"][:2] == ["", ""], \
             "PromptSelect wv 头部两占位应为空串(前端全序消费;1002 修复轮)"
         assert sel["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
@@ -3954,7 +3950,7 @@ class TestEditPEContract:
         asm_l = sg_links[next(i["link"] for i in sel["inputs"] if i["name"] == "装配全文")]
         assert (asm_l["origin_id"], asm_l["origin_slot"]) == (-10, 4), \
             "装配全文槽 应接 -10 指令槽(pe关=直写臂←主图 [22])"
-        # 最终文本双扇出:[6].prompt(槽4)+[43].prompt(槽3)=双/单参考同源
+        # 进编码文本双扇出:[4015].prompt+[4016].prompt=双/单参考同源同文(10-02 单口)
         te1 = sg_nodes[EDIT_TE1]
         assert sg_links[next(i["link"] for i in te1["inputs"] if i["name"] == "prompt")] \
             ["origin_id"] == EDIT_SEL_ID, \
@@ -3963,9 +3959,7 @@ class TestEditPEContract:
                      for l in sel["outputs"][0]["links"] or [])
         assert fan == sorted([4015, EDIT_TE1]), \
             f"[{EDIT_SEL_ID}].最终文本 应双扇出 [4015]+[{EDIT_TE1}],得 {fan}"
-        # 透明文本口悬空(edit 无 RGBA 编码件,机械双产出无消费者)
-        assert not (sel["outputs"][1].get("links") or []), \
-            "透明文本口应悬空(edit 无 RGBA 编码件)"
+        # 10-02 单口化:单口「进编码文本」(旧两口形「透明文本口悬空」断言随之退场)
 
     def test_edit_select_fixed_sentences_verbatim(self):
         """edit [152] 三固定句参数逐字(1001 同构收编;照 t2i M-3 同款锚):
@@ -4610,8 +4604,9 @@ class TestQi21SubgraphContract:
             "[4010] 四出应为 BASE/WIDTH/HEIGHT/透明值" \
             "(1002 ⑯ 删型名+大轮连带删 rgba_default=i2i [180] 迁透明值后收口)"
         assert node["outputs"][3]["type"] == "BOOLEAN", "[4010].透明值 槽型应 BOOLEAN(⑦)"
-        assert sorted(node["outputs"][3]["links"] or []) == [59, 66], \
-            "[4010].透明值 应双扇出(59→[4017].switch + 66→[4014].透明模式;槽位随 rgba_default 删前移=3)"
+        assert sorted(node["outputs"][3]["links"] or []) == [66], \
+            "[4010].透明值 应单扇出(66→[4014].透明模式;10-02 单口化:59→[4017].switch" \
+            " 随双编码+闸门塌缩退役,透明选择边界迁入合成器文本计算)"
         tmd = sg_links[node["inputs"][1]["link"]]
         assert (tmd["origin_id"], tmd["origin_slot"], tmd["type"]) == (-10, 5, "BOOLEAN"), \
             "[150].透明覆盖 应接 -10 槽5「透明」BOOLEAN(面板布尔直通)"
@@ -4712,9 +4707,11 @@ class TestQi21SubgraphContract:
             "锁层A全文应为参数面(不接线;值恒挂=Q4 可编辑大框)"
 
     def test_cascade_retired_and_linkage_switches_wired(self):
-        """子图开关纪律(1001 用户测试批 ② 重立):子图 ComfySwitchNode 恰 1 枚=
-        [144] RGBA conditioning 开关;固定句常量件恰 0;Reroute 恰 0;退役件 id
-        防回潮(1001 P2 起 [210] 三态件入册);画幅规则(问题②):「画幅联动开关」
+        """子图开关纪律(1001 用户测试批 ② 重立;10-02 单口化再重立):子图
+        ComfySwitchNode 恰 0 枚(双编码+输出选择闸门塌缩,选择前置进合成器);
+        固定句常量件恰 0;Reroute 恰 0;退役件 id
+        防回潮(1001 P2 起 [210] 三态件入册;10-02 起 [4016][4017] 入册);
+        画幅规则(问题②):「画幅联动开关」
         槽退役,[151].联动开关 ← -10 槽4「PE开关」扇出(PE 开=建议路/PE 关=
         手动/九型路,件零改);手动宽/高 ← -10 槽6/7(0=跟型);wh_ratio 单线喂
         [151];宿主面板 手动宽/高 默认 0(恒九型)。"""
@@ -4722,10 +4719,9 @@ class TestQi21SubgraphContract:
         sg = _qi21_sg(graph)
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
         switches = {n["id"]: n for n in sg_nodes.values() if n["type"] == "ComfySwitchNode"}
-        assert sorted(switches) == [QI21_SG_RGBA_SW], \
-            f"子图开关应恰 1 枚=[{QI21_SG_RGBA_SW}] RGBA conditioning,得 {sorted(switches)}"
-        assert switches[QI21_SG_RGBA_SW]["widgets_values"][0] is False, \
-            "[144] RGBA 开关默认应 false(懒旁路语义)"
+        assert switches == {}, \
+            f"子图开关应恰 0 枚(10-02 单口化:双编码+输出选择闸门塌缩,选择前置进" \
+            f"[4014] 合成器文本计算),得 {sorted(switches)}"
         # 固定句常量件恰 0(4 句迁 [141]/[152] 参数面);Reroute 恰 0(Part-A S3B 全删)
         assert not [n for n in sg_nodes.values() if n["type"] == "PrimitiveStringMultiline"], \
             "S8 集成:固定句常量件应恰 0(四句迁两自研件参数面)"
@@ -4837,7 +4833,7 @@ class TestQi21SubgraphContract:
         assert [i["name"] for i in sel["inputs"]] == \
             ["装配全文", "PE出文", "pe开关", "透明模式", "RGBA官方头句", "RGBA官方尾句", "W1收束句"], \
             "[152] 槽序应=装配全文/PE出文(连线槽,⑭ 前置)/pe开关/透明模式/头句/尾句/W1(参数下沉)"
-        assert [o["name"] for o in sel["outputs"]] == ["最终文本", "透明文本"]
+        assert [o["name"] for o in sel["outputs"]] == ["进编码文本"]
         assert sel["widgets_values"][:2] == ["", ""], \
             "PromptSelect wv 头部两占位应为空串(前端全序消费;1002 修复轮)"
         assert sel["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
@@ -4854,7 +4850,7 @@ class TestQi21SubgraphContract:
             "[4014].pe开关 应接 [4012]『PE启用?』扇出(1002 ㉑;⑭ 后=inputs[2])"
         tm_l = sg_links[sel["inputs"][3]["link"]]
         assert (tm_l["origin_id"], tm_l["origin_slot"]) == (QI21_SG_BASE_ID, 3), \
-            "[4014].透明模式 应接 [4010].透明值(大轮后槽位3=rgba_default 删前移;透明模式不参与文本计算)"
+            "[4014].透明模式 应接 [4010].透明值(大轮后槽位3;10-02 单口化:透明模式参与文本计算)"
         final_l = sg_links[sg_nodes[QI21_SG_TE]["inputs"][3]["link"]]
         assert (final_l["origin_id"], final_l["origin_slot"]) == (QI21_SG_SEL_ID, 0), \
             "[142].prompt 上游应 [152].最终文本(子图内闭环)"
@@ -4865,12 +4861,9 @@ class TestQi21SubgraphContract:
             "子图输出槽4 应=最终文本([152]→IO;0929 S4 最末槽)"
         assert sg_links[45]["origin_id"] == QI21_SG_SEL_ID, \
             "最终文本输出应直源 [152](1001 S8:合成器直扇 IO 槽4)"
-        trans_l = sg_links[sg_nodes[QI21_SG_TE_RGBA]["inputs"][3]["link"]]
-        assert (trans_l["origin_id"], trans_l["origin_slot"]) == (QI21_SG_SEL_ID, 1), \
-            "[143].prompt 上游应 [152].透明文本(透明路=头句+剥离/W1包裹+尾句)"
-        rgba_te = sg_nodes[QI21_SG_TE_RGBA]
-        assert _widget(rgba_te, TE_WV["prompt"]) == "", \
-            "RGBA 编码 prompt widget 应清空(公式路现拼,固定演示句已废止)"
+        # 10-02 单口化:[4016] RGBA编码退役——旧「[143].prompt←[152].透明文本」
+        # 与「RGBA 编码 prompt widget 清空」两断言随双编码+闸门塌缩退场
+        # (单口后进编码文本=[4014] 槽0,102 线直喂 [4015] 已锁)
         # RGBA 官方头尾+W1 迁参数面逐字(原 [160][161][215] 常量件;词族剥离=文件单源)
         assert _widget(sel, QI21_SG_SEL_WV["RGBA官方头句"]) == RGBA_HEAD, \
             "[152] RGBA官方头句参数 非官方原文逐字(This is an RGBA format image with transparency.)"
@@ -4889,13 +4882,8 @@ class TestQi21SubgraphContract:
         tm_l = sg_links[sel["inputs"][3]["link"]]
         assert (tm_l["origin_id"], tm_l["origin_slot"]) == (QI21_SG_BASE_ID, 3), \
             "[4014].透明模式 应接 [4010].透明值(大轮后槽位3;④⑥⑦ 解析住底座件)"
-        # [144].switch ← [150].透明值(同一纯布尔双扇出,子图内零自选转换层)
-        rgba_sw = sg_nodes[QI21_SG_RGBA_SW]
-        assert rgba_sw["outputs"][0]["type"] == "CONDITIONING", "RGBA 开关应为 CONDITIONING 泛型"
-        rgba_sw_link = sg_links[rgba_sw["inputs"][2]["link"]]
-        assert (rgba_sw_link["origin_id"], rgba_sw_link["origin_slot"]) == (QI21_SG_BASE_ID, 3), \
-            "RGBA 开关 switch 槽应接 [4010].透明值(大轮后槽位3;④⑥⑦:纯 BOOLEAN 跨子图边界)"
-        assert rgba_sw["widgets_values"][0] is False, "[144] RGBA 开关默认非 false"
+        # 10-02 单口化:[4017] 闸门退役——旧「RGBA 开关 CONDITIONING/switch 槽/默认
+        # false」三断言随双编码+闸门塌缩退场(透明布尔唯一消费=[4014].透明模式)
         # -10 槽5=「透明」BOOLEAN(Q4 裁定;旧「RGBA透明」三态 COMBO 退役)
         _io5 = _qi21_sg(graph)["inputs"][5]
         assert _io5["name"] == "透明" and _io5["type"] == "BOOLEAN", \
@@ -4997,23 +4985,25 @@ class TestQi21SubgraphContract:
         graph = GRAPHS["qi21"]
         sg_nodes = _qi21_sg_nodes(graph)
         def band_of(y: float) -> int:
-            return 0 if y < 1000 else (1 if y < 1500 else 2)
+            return 0 if y < 400 else (1 if y < 1000 else (2 if y < 1750 else 3))
         bands: dict[int, list[int]] = {}
         for n in _qi21_sg(graph)["nodes"]:
             bands.setdefault(band_of(n["pos"][1]), []).append(n["id"])
-        assert sorted(bands) == [0, 1, 2], f"子图应恰 3 带(1001 用户测试批 9 件版),得 {sorted(bands)}"
-        # 1002 大轮重立:带表按终态实况锚定(pos=手改基线+手术增量;语义三带退役)
+        assert sorted(bands) == [0, 1, 2, 3], f"子图应恰 4 带(10-02 单口化四带版),得 {sorted(bands)}"
+        # 10-02 单口化重立(拓扑变更合法重立):带0 上说明/带1 主链/带2 PE+[4012]
+        # 下浮行/带3 最底([4010] 源件下沉+[4018];R4 主链位四带全右向下必遮挡,裁量下沉)
         want_bands = {
-            0: [4011, 4012, 4014, 4015, 4016, 4017, 4019, 4100],
-            1: [4013, 4018],
-            2: [4010, 4020],
+            0: [4020, 4100],
+            1: [4011, 4014, 4015],
+            2: [4012, 4013, 4019],
+            3: [4010, 4018],
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
             assert got == sorted(want), f"带{b} 成员漂移: 应 {sorted(want)} 得 {got}"
         # 各带内 x 严格递增(零左向零同列;S8 后节点数组序无生成器数据流序锚,
         # 改按 x 值判——关键链序由下方 141<140<152 链位断言锁)
-        for b in (0, 1, 2):
+        for b in (0, 1, 2, 3):
             xs = sorted(sg_nodes[nid]["pos"][0] for nid in bands[b])
             assert all(x2 > x1 for x1, x2 in zip(xs, xs[1:])), \
                 f"带{b} 带内 x 非严格递增(应从左到右零同列): {xs}"
@@ -5026,7 +5016,7 @@ class TestQi21SubgraphContract:
         band_tops = {b: min(sg_nodes[nid]["pos"][1] for nid in ids) for b, ids in bands.items()}
         band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]
                                for nid in ids) for b, ids in bands.items()}
-        for b in (0, 1):
+        for b in (0, 1, 2):
             assert band_tops[b + 1] - band_bottoms[b] >= 100, \
                 f"带{b} 与带{b+1} 净距不足(<100): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
         # 零左向线(严格口径=塔测试同款:所有线起点 x < 终点 x;边界线以 IO 槽 pos 计)
@@ -5298,8 +5288,9 @@ class TestI2IContract:
         _rh = _qi21_sg_links(graph)[sel["inputs"][1]["link"]]
         assert _rh["origin_id"] == I2I_SG_BASE_ID and _rh["origin_slot"] == 3, \
             "[180].rgba_hint 上游应 [4010].透明值(1002 大轮迁透明值槽3)"
-        assert sorted(sel["outputs"][0]["links"] or []) == [39, 58, 64, 67], \
-            "[180].rgba_on 应扇出恰四线([144]/[173] 双镜像开关+[152]/[153] 透明模式占位)"
+        assert sorted(sel["outputs"][0]["links"] or []) == [67], \
+            "[180].rgba_on 应单扇出(67→[153].透明模式;10-02 单口化:39/58 双闸门" \
+            "+64 [4014].透明模式 占位随双编码+双闸门塌缩退役,透明边界唯一驻 [153])"
         _io6 = sg["inputs"][6]
         assert _io6["name"] == "PE启用?" and _io6["type"] == "BOOLEAN", \
             "i2i 子图 -10 槽6 应=「PE启用?」BOOLEAN(1002 ㉑);RGBA透明 三态=槽7"
@@ -5386,10 +5377,13 @@ class TestI2IContract:
             "锁层A全文应为参数面(不接线;恒挂=Q4 可编辑大框)"
         fan = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
                      for l in asm["outputs"][0]["links"] or [])
-        assert fan == sorted([(I2I_SG_TE, 4), (I2I_SG_TE1, 3), (-20, 4),
-                              (I2I_SG_SEL2_ID, 0)]), \
-            f"[141].装配全文 应四路扇出([142].prompt/[171].prompt/IO槽4/[153].装配全文" \
-            f"(⑭ 前置=target_slot 0)),得 {fan}"
+        assert fan == [(I2I_SG_SEL2_ID, 0)], \
+            f"[141].装配全文 应单路扇出([153].装配全文;10-02 单口化:编码改吃 [153]" \
+            f".进编码文本,prompt 预览出口改接 [153]=预览实况),得 {fan}"
+        fan_sel2 = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
+                          for l in sg_nodes[I2I_SG_SEL2_ID]["outputs"][0]["links"] or [])
+        assert fan_sel2 == sorted([(I2I_SG_TE, 4), (I2I_SG_TE1, 3), (-20, 4)]), \
+            f"[153].进编码文本 应三路扇出([4015].prompt/[171].prompt/IO槽4 prompt=实况),得 {fan_sel2}"
         # W2 反转(0928 PE 迁子图轮):主图零 PE 链件;[12] PE 专属TE经 pe_clip 一进线
         for banned in ("TextGenerate", "StringFormat", "RegexExtract", "BatchImagesNode"):
             hit = [n["id"] for n in graph["nodes"] if n["type"] == banned]
@@ -5606,7 +5600,7 @@ class TestI2IContract:
             "[153] 透明包裹器 pe开关应恒 false(纯包裹=头句+装配全文+尾句)"
         assert nodes[I2I_LATENT_PB_ID]["widgets_values"][0] is False, "[19] 画幅开关源默认应 false"
         assert nodes[I2I_LATENT_SW_ID]["widgets_values"][0] is False, "[20] 画幅双路默认应 false"
-        assert sg_nodes[I2I_SG_RGBA_SW]["widgets_values"][0] is False, "[144] RGBA 开关默认应 false"
+        # 10-02 单口化:[144]/[173] 双闸门塌缩退役(原「默认 false」断言随之退场)
         host = nodes[I2I_HOST_ID]
         assert host["widgets_values"][3] == "自动", \
             "[6] 面板「RGBA透明」默认应=自动(1001 ① 文案轮;⑲ 序:PE启用? 前移后=第4值)"
@@ -5636,11 +5630,12 @@ class TestI2IContract:
         for slot, want in ((2, I2I_SCALE_IDS[0]), (3, I2I_SCALE_IDS[1])):
             assert links[host["inputs"][slot]["link"]][1] == want, \
                 f"宿主 image 槽{slot} 上游应预缩件[{want}]"
-        for enc_id in (I2I_SG_TE, I2I_SG_TE_RGBA):
+        # 10-02:主编码=[4015] 双图;单图编码=[171] 仅 image_1(单参考正源,0928 黑图修复语义)
+        for enc_id, want_n in ((I2I_SG_TE, 2), (I2I_SG_TE1, 1)):
             enc = sg_nodes[enc_id]
             imgs = [i for i in enc["inputs"] if i["name"].startswith("images.")]
-            assert len(imgs) == 2 and all(i.get("link") for i in imgs), \
-                f"[{enc_id}] 双图槽应全接(透明路也看图编辑)"
+            assert len(imgs) == want_n and all(i.get("link") for i in imgs), \
+                f"[{enc_id}] 图槽数应 {want_n} 且全接(主编码双图/单图编码单参考)"
             assert _widget(enc, TE_WV["resolution"]) == 0, \
                 f"[{enc_id}] resolution 应 0(不重采样,画幅随输入图)"
         scales = {n["id"]: n for n in _by_type(graph, "ImageScaleToTotalPixels")}
@@ -5693,26 +5688,12 @@ class TestI2IContract:
         asm_l = sg_links[next(i["link"] for i in sel2["inputs"] if i["name"] == "装配全文")]
         assert (asm_l["origin_id"], asm_l["origin_slot"]) == (I2I_SG_ASM_ID, 0), \
             "[153].装配全文 应接 [141].装配全文(透明包裹真源,≡原[162].string_b)"
-        fan2 = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
-                      for l in sel2["outputs"][1]["links"] or [])
-        assert fan2 == sorted([(I2I_SG_TE_RGBA, 4), (I2I_SG_TE1R, 3)]), \
-            f"[153].透明文本 应双扇出 [143].prompt(槽4)+[172].prompt(槽3),得 {fan2}"
-        assert not (sel2["outputs"][0].get("links") or []), \
-            "[153].最终文本口应悬空(透明包裹器唯透明文本产出)"
-        assert _widget(sg_nodes[I2I_SG_TE_RGBA], TE_WV["prompt"]) == "", \
-            "RGBA 编码 prompt widget 应清空(公式路现拼)"
-        # RGBA 开关组(直连形态,Reroute 已消化):on_false=[142]/on_true=[143]/
-        # switch=[180];单图线镜像 [173].switch 同源 [180]
-        rsw = sg_nodes[I2I_SG_RGBA_SW]
-        assert sg_links[rsw["inputs"][0]["link"]]["origin_id"] == I2I_SG_TE, \
-            "[144].on_false 上游应主编码 [142](Reroute 中继已消化直连)"
-        assert sg_links[rsw["inputs"][1]["link"]]["origin_id"] == I2I_SG_TE_RGBA, \
-            "[144].on_true 应 RGBA 编码 [143](直连)"
-        assert sg_links[rsw["inputs"][2]["link"]]["origin_id"] == I2I_SG_RGBA_SEL, \
-            "[144].switch 应接 [180] MyQi21RgbaSelect(0929 S2 D6 型联动,直连)"
-        _os1 = sg_links[sg_nodes[I2I_SG_TE1SW]["inputs"][2]["link"]]
-        assert _os1["origin_id"] == I2I_SG_RGBA_SEL, \
-            f"[173] 镜像开关 switch 应接 [{I2I_SG_RGBA_SEL}](D6 同源扇出),得 {_os1['origin_id']}"
+        # 10-02 单口化:[153] 单口「进编码文本」(三路扇出断言见装配段);旧两口形
+        # 「透明文本双扇出+最终文本悬空+RGBA 编码/双闸门组」随 R1/R2 塌缩全数退役
+        assert [o["name"] for o in sel2["outputs"]] == ["进编码文本"], \
+            "[153] 应单口=进编码文本(10-02 R1 单口化;恒 pe关+透明模式四象限)"
+        assert sel2["inputs"][3]["name"] == "透明模式" and sel2["inputs"][3].get("link") is not None, \
+            "[153].透明模式 应保持接线(←[180].rgba_on;透明边界唯一驻件)"
 
     def test_no_custom_titles_except_selfbuilt(self):
         """(第二域副本=TestI2IContract 域)标题铁律 1002 大轮重立:全节点带号
