@@ -7,7 +7,7 @@
   "groups": [
     {
       "id": 1,
-      "title": "道劫·①加载器(bf16 三件套[1][2][3]+PE-I2I 专属TE[12]→[40].pe_clip;[42]MODEL总线拐+[7]QwenImage21Cache→[190]加速子图.model)",
+      "title": "道劫·①加载器(bf16 三件套[1][2][3]+PE-I2I 专属TE[4019]→[6].pe_clip;[42]MODEL总线拐+[9]QwenImage21Cache→[7]加速子图.model)",
       "bounding": [
         320,
         40,
@@ -19,7 +19,7 @@
     },
     {
       "id": 2,
-      "title": "道劫·②图像·装配主链(双图[4][5]预缩[16][17]→[40]装配子图(双击进入;PE改写/面板四控件=指令/型选择/RGBA/PE开关全在内)→[28]预览;空潜[18]+画幅开关[19][20]→③.latent;采样=③加速子图;出图=④输出)",
+      "title": "道劫·②图像·装配主链(双图[10][11]预缩[16][17]→[6]装配子图(双击进入;PE改写/面板四控件=指令/型选择/RGBA/PE启用?全在内)→[401]预览;空潜[4]+画幅开关[19][20]→③.latent;采样=③加速子图;出图=④输出)",
       "bounding": [
         3060,
         740,
@@ -31,7 +31,7 @@
     },
     {
       "id": 3,
-      "title": "道劫·②指令外露带([22]原始用户词=指令①层唯一手写位→[40].指令;PE-I2I 改写链已收进[40]装配子图,宿主面板「PE开关」默认开=0926 裁定1)",
+      "title": "道劫·②指令外露带([400]原始用户词=指令①层唯一手写位→[6].指令;PE-I2I 改写链已收进[6]装配子图,面板「PE启用?」([4012] 节点外露)默认开=0926 裁定1)",
       "bounding": [
         1240,
         3360,
@@ -43,7 +43,7 @@
     },
     {
       "id": 4,
-      "title": "道劫·加速区③([190]加速子图双击进入:三支路+出图速度选择+seed 全在内;宿主面板=速度档位+seed;寄居:[20]空潜双路选择件·latent汇入/[44]VAE递送reroute)",
+      "title": "道劫·加速区③([7]加速子图双击进入:三支路+出图速度选择+seed 全在内;宿主面板=速度档位+seed;寄居:[20]空潜双路选择件·latent汇入/[44]VAE递送reroute)",
       "bounding": [
         7420,
         200,
@@ -55,7 +55,7 @@
     },
     {
       "id": 5,
-      "title": "道劫·④输出([9]解码→[10]保存)",
+      "title": "道劫·④输出([5]解码→[8]保存)",
       "bounding": [
         9940,
         1440,
@@ -114,7 +114,8 @@
       "widgets_values": [
         "qwen_image_2.1_bf16.safetensors",
         "default"
-      ]
+      ],
+      "title": "[1] UNETLoader"
     },
     {
       "id": 2,
@@ -173,7 +174,8 @@
         "qwen3vl_8b_bf16_heretic.safetensors",
         "qwen_image",
         "default"
-      ]
+      ],
+      "title": "[2] 主TE·CLIPLoader"
     },
     {
       "id": 3,
@@ -214,69 +216,11 @@
       },
       "widgets_values": [
         "qwen_image_2.1_vae_bf16.safetensors"
-      ]
+      ],
+      "title": "[3] VAELoader"
     },
     {
-      "id": 12,
-      "type": "CLIPLoader",
-      "pos": [
-        1150,
-        160
-      ],
-      "size": [
-        400,
-        130
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "clip_name"
-          },
-          "link": null
-        },
-        {
-          "name": "type",
-          "type": "COMBO",
-          "widget": {
-            "name": "type"
-          },
-          "link": null
-        },
-        {
-          "name": "device",
-          "type": "COMBO",
-          "shape": 7,
-          "widget": {
-            "name": "device"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            9
-          ]
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CLIPLoader"
-      },
-      "widgets_values": [
-        "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors",
-        "qwen_image",
-        "default"
-      ]
-    },
-    {
-      "id": 4,
+      "id": 10,
       "type": "LoadImage",
       "pos": [
         3060,
@@ -327,7 +271,8 @@
       "widgets_values": [
         "portrait_model_denim.png",
         "image"
-      ]
+      ],
+      "title": "[10] 参考图1·LoadImage"
     },
     {
       "id": 16,
@@ -390,10 +335,11 @@
         "lanczos",
         1.5,
         32
-      ]
+      ],
+      "title": "[16] 画布预缩·Scale"
     },
     {
-      "id": 5,
+      "id": 11,
       "type": "LoadImage",
       "pos": [
         3060,
@@ -444,7 +390,8 @@
       "widgets_values": [
         "clothing_light_blue_denim_shirt.png",
         "image"
-      ]
+      ],
+      "title": "[11] 参考图2·LoadImage"
     },
     {
       "id": 17,
@@ -507,12 +454,13 @@
         "lanczos",
         1.0,
         32
-      ]
+      ],
+      "title": "[17] 参考预缩·Scale"
     },
     {
-      "id": 40,
+      "id": 6,
       "type": "d47c9e21-8f36-4a5b-b0c9-2e8d4f6a8c1d",
-      "title": "[40] 提示词类型优化子图",
+      "title": "[6] 文本提示词类型优化子图",
       "pos": [
         4820,
         1320
@@ -562,25 +510,20 @@
           "link": null
         },
         {
+          "name": "PE启用?",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "PE启用?"
+          },
+          "link": null
+        },
+        {
           "name": "RGBA透明",
           "type": "COMBO",
           "widget": {
             "name": "RGBA透明"
           },
           "link": null
-        },
-        {
-          "name": "PE开关",
-          "type": "BOOLEAN",
-          "widget": {
-            "name": "PE开关"
-          },
-          "link": null
-        },
-        {
-          "name": "pe_clip",
-          "type": "CLIP",
-          "link": 9
         }
       ],
       "outputs": [
@@ -627,18 +570,18 @@
       "widgets_values": [
         "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
         "人物",
-        "跟随型",
-        true
+        true,
+        "自动"
       ],
       "widgets_values_named": {
         "指令": "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
         "型选择": "人物",
-        "RGBA透明": "跟随型",
-        "PE开关": true
+        "PE启用?": true,
+        "RGBA透明": "自动"
       }
     },
     {
-      "id": 28,
+      "id": 401,
       "type": "easy showAnything",
       "pos": [
         5700,
@@ -672,10 +615,11 @@
       },
       "widgets_values": [
         ""
-      ]
+      ],
+      "title": "[401] 提示词预览·showAnything"
     },
     {
-      "id": 7,
+      "id": 9,
       "type": "QwenImage21Cache",
       "pos": [
         6720,
@@ -726,12 +670,13 @@
       "widgets_values": [
         "auto",
         "default"
-      ]
+      ],
+      "title": "[9] 模型缓存·QwenImage21Cache"
     },
     {
-      "id": 190,
+      "id": 7,
       "type": "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b",
-      "title": "加速子图",
+      "title": "[7] 加速子图",
       "pos": [
         9360,
         1500
@@ -800,16 +745,16 @@
         "previewExposures": []
       },
       "widgets_values": [
-        "0 · 直出40步",
+        "0 · Fun-Acc 4步",
         0
       ],
       "widgets_values_named": {
-        "速度档位": "0 · 直出40步",
+        "速度档位": "0 · Fun-Acc 4步",
         "seed": 0
       }
     },
     {
-      "id": 9,
+      "id": 5,
       "type": "VAEDecode",
       "pos": [
         10000,
@@ -845,10 +790,11 @@
       ],
       "properties": {
         "Node name for S&R": "VAEDecode"
-      }
+      },
+      "title": "[5] VAEDecode"
     },
     {
-      "id": 10,
+      "id": 8,
       "type": "SaveImage",
       "pos": [
         10460,
@@ -874,7 +820,8 @@
       },
       "widgets_values": [
         "QI21道劫图生图_"
-      ]
+      ],
+      "title": "[8] SaveImage"
     },
     {
       "id": 19,
@@ -914,10 +861,11 @@
       },
       "widgets_values": [
         false
-      ]
+      ],
+      "title": "[19] 画幅双路开关·PrimitiveBoolean"
     },
     {
-      "id": 18,
+      "id": 4,
       "type": "EmptyLatentImage",
       "pos": [
         4940,
@@ -972,7 +920,8 @@
         1024,
         1024,
         1
-      ]
+      ],
+      "title": "[4] 自动化宽高·EmptyLatentImage"
     },
     {
       "id": 20,
@@ -1024,10 +973,11 @@
       },
       "widgets_values": [
         false
-      ]
+      ],
+      "title": "[20] latent双路·SwitchNode"
     },
     {
-      "id": 22,
+      "id": 400,
       "type": "PrimitiveStringMultiline",
       "pos": [
         1320,
@@ -1064,10 +1014,11 @@
       },
       "widgets_values": [
         "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged"
-      ]
+      ],
+      "title": "[400] 指令·PrimitiveStringMultiline"
     },
     {
-      "id": 11,
+      "id": 402,
       "type": "MarkdownNote",
       "pos": [
         80,
@@ -1086,8 +1037,9 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[22] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [40] 装配子图「指令」槽;子图内 [15] 指令开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)——开关经宿主面板「PE开关」暴露(默认开),改写输出直占 [130] 拼接①①层——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[40] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [28] 装配预览(接 [40] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [40] 装配子图(双击进入;0929 S1 命名批:宿主补稳定短名,面板四控件=指令/型选择/RGBA透明/PE开关(RGBA透明=0929 S2 D6 三态 combo,原布尔开关退役)),面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Fun-Acc 支路无负面槽。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 359=0929 拉齐值,原 6=v0.2.1 系卡荐档;Fun-Acc 4 步内置于 [176] T8;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,经加速子图宿主面板「seed」单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[40] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([40] 子图内;宿主面板「PE开关」默认 PE 改写;关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [40] 子图内):[12] PE CLIPLoader(pe_i2i bf16·type=qwen_image,主图加载器行)经宿主 pe_clip 槽一进线 → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [26] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [15] 指令开关(经宿主面板「PE开关」驱动)→ [130] 拼接①占①层。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1/image_2 边界,预缩后)喂 [26].image;子图编码器只吃选定图。\n- [26] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE开关」(直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·加速子图(0929 S3 收装批:三支路+出图速度选择+seed 全收进「道劫·加速子图」;宿主 [190] 双击进入,面板=「速度档位」combo+「seed」)\n\n- **主图四块骨架**:①加载器([1][2][3][12]+[7]QwenImage21Cache+[42]MODEL 总线拐)→②装配主链([40] 装配子图+空潜[18]+画幅开关[19][20])→③加速子图([190]:MODEL=[7]Cache 出线进子图/条件=[40] 双正源分线/latent=[20] 画幅开关后)→④输出([9]解码→[10]保存);LATENT 出来回 [9] 单点解码。\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Fun-Acc 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 三选一处汇流(选择件居汇流点右侧)后单点解码;懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图;子图内懒执行=0929 S0 探针 A 级实证)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板双控件(面板值=生效值)**:「速度档位」combo(首项=默认=直出40步=0929 拉齐重放裁定;Fun-Acc 仍为主加速=次序第二)+「seed」number(默认 0;子图内 [191] 单源扇出三支路,T8 seed 已输入化,一处改三支路同步)。\n- **支路0 直出([8],子图行3)**:KSampler 40 步官方完整档,MODEL=[7]Cache(base)直连,positive=[40].positive 双参考官方路(0928 黑图修复铁则:支路0 双参考/加速两支路单参考,见下节)。\n- **支路1 viggle([31]→[189],子图行2)**:[31] LoraLoaderModelOnly(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 0.8=0925 探针最优:flatMAD 2.52→1.75)→[189] KSampler 359 步(0929 拉齐值,原 6;cfg 保持 1)。模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **支路2 Fun-Acc([176],子图行1,主加速档=次序第二)**:[176] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在该档不参与);model=[7]Cache(base)直连**绝不吃 viggle LoRA**;positive=positive_single(单参考);latent_image 与 [8] 同源;model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt(子图行4)默认 0 fixed 单节点扇出 [8]/[189]/[176] 三采样器——经宿主面板「seed」外露,面板值=生效值;消灭旧 [8] widget 与 [176] seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([7] Cache MODEL 一源三用/[40] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Fun-Acc 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选 Fun-Acc 档节点红/执行失败——降级=切「1 · viggle」或「0 · 直出40步」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(支路1 自足)/Fun-Acc=PDD 4步采样(支路2 自足)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档单参考正源(0928 黑图修复;支路1/2 专用)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码族([171] 主编码/[172] RGBA 编码/[173] RGBA 镜像开关,均仅 image_1、词源与行3 同源、RGBA 开关同宿主面板槽6)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:支路0 [8].positive=宿主 positive(双参考=档0 官方路零改动)/支路1·2 [189]/[176].positive=宿主 positive_single(单参考)——正源差异内聚进各支路(0929 S3 起双正源经加速子图边界槽 positive/positive_single 分线直入,语义零改动)。\n- [40] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);支路1/2 选中时行4 编码亦入链(多一次视觉编码,约 +20s)。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→**0929 拉齐重放(用户 12:05 裁定)默认=直出40步等效**(选择件 combo 首项,Fun-Acc 仍为主加速居二);档0 的双参考语义零改动。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;0929 S2 D6:[40] 面板「RGBA透明」三态=跟随型(默认,按型:道具/多视图/高清人脸/表情差分四型开,其余关)/强制开/强制关——旧「RGBA透明开关」布尔控件退役;型信号=MyQi21DaojieBase.rgba_default 槽喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出双扇出 [144]/[173];PE×透明结构性已融合=PE-I2I 改写指令①层不替换装配文,四型②层声明恒在)\n\nThis is an RGBA format image with transparency. [装配全文,与 [28] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [40] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[18] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
-      ]
+        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[400] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [6] 装配子图「指令」槽;子图内 [15] 指令开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)——开关=[4012]『PE启用?』节点(PrimitiveBoolean,1002 ㉑;宿主面板同名控件外露,扇出合成器),改写输出直占 [130] 拼接①①层——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[6] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [401] 装配预览(接 [6] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [6] 装配子图(双击进入;0929 S1 命名批:宿主补稳定短名,面板控件=指令/型选择/PE启用?([4012] 节点外露,1002 ㉑)/RGBA透明(RGBA透明=0929 S2 D6 三态 combo,原布尔开关退役)),面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Fun-Acc 支路无负面槽。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);Fun-Acc 4 步内置于 [7013] T8;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,经加速子图宿主面板「seed」单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[6] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([6] 子图内;[4012]『PE启用?』节点默认 PE 改写(1002 ㉑);关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [6] 子图内):[4019] PE CLIPLoader(1002 ⑬ 迁入子图,pe_clip 槽撤,直供 [4013]) → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [4013] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [4014] 择文合成器(pe开关←[4012]『PE启用?』扇出,1002 ㉑)→ [130] 拼接①占①层。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1/image_2 边界,预缩后)喂 [4013].image;子图编码器只吃选定图。\n- [4013] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE启用?」(直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·加速子图(0929 S3 收装批:三支路+出图速度选择+seed 全收进「道劫·加速子图」;宿主 [7] 双击进入,面板=「速度档位」combo+「seed」)\n\n- **主图四块骨架**:①加载器([1][2][3][4019]+[9]QwenImage21Cache+[42]MODEL 总线拐)→②装配主链([6] 装配子图+空潜[4]+画幅开关[19][20])→③加速子图([7]:MODEL=[9]Cache 出线进子图/条件=[6] 双正源分线/latent=[20] 画幅开关后)→④输出([5]解码→[8]保存);LATENT 出来回 [5] 单点解码。\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Fun-Acc 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 三选一处汇流(选择件居汇流点右侧)后单点解码;懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图;子图内懒执行=0929 S0 探针 A 级实证)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板双控件(面板值=生效值)**:「速度档位」combo(首项=默认=「0 · Fun-Acc 4步」=1002 用户新令(推翻 0929 拉齐重放;直出40步居二))+「seed」number(默认 0;子图内 [7014] 单源扇出三支路,T8 seed 已输入化,一处改三支路同步)。\n- **支路0 直出([7010],子图行3)**:KSampler 40 步官方完整档,MODEL=[9]Cache(base)直连,positive=[6].positive 双参考官方路(0928 黑图修复铁则:支路0 双参考/加速两支路单参考,见下节)。\n- **支路1 viggle([7011]→[7012],子图行2)**:[7011] LoraLoaderModelOnly(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 0.8=0925 探针最优:flatMAD 2.52→1.75)→[7012] KSampler 6 步(viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);cfg 保持 1)。模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **支路2 Fun-Acc([7013],子图行1,主加速档=次序第二)**:[7013] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在该档不参与);model=[9]Cache(base)直连**绝不吃 viggle LoRA**;positive=positive_single(单参考);latent_image 与 [7010] 同源;model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt(子图行4)默认 0 fixed 单节点扇出 [7010]/[7012]/[7013] 三采样器——经宿主面板「seed」外露,面板值=生效值;消灭旧 [7010] widget 与 [7013] seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([9] Cache MODEL 一源三用/[6] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Fun-Acc 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选 Fun-Acc 档节点红/执行失败——降级=切「1 · viggle」或「0 · 直出40步」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(支路1 自足)/Fun-Acc=PDD 4步采样(支路2 自足)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档单参考正源(0928 黑图修复;支路1/2 专用)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码族([171] 主编码/[172] RGBA 编码/[173] RGBA 镜像开关,均仅 image_1、词源与行3 同源、RGBA 开关同宿主面板槽6)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:支路0 [7010].positive=宿主 positive(双参考=档0 官方路零改动)/支路1·2 [7012]/[7013].positive=宿主 positive_single(单参考)——正源差异内聚进各支路(0929 S3 起双正源经加速子图边界槽 positive/positive_single 分线直入,语义零改动)。\n- [6] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);支路1/2 选中时行4 编码亦入链(多一次视觉编码,约 +20s)。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→**0929 拉齐重放(用户 12:05 裁定)默认=直出40步等效**(选择件 combo 首项,Fun-Acc 仍为主加速居二);档0 的双参考语义零改动。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;0929 S2 D6(1001 ① 改文案):[6] 面板「RGBA透明」三态=自动(默认,按型:道具/多视图/高清人脸/表情差分四型开,其余关)/强制开/强制关——旧「RGBA透明开关」布尔控件退役;型信号=MyQi21DaojieBase.rgba_default 槽喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出双扇出 [4017]/[173];PE×透明结构性已融合=PE-I2I 改写指令①层不替换装配文,四型②层声明恒在)\n\nThis is an RGBA format image with transparency. [装配全文,与 [401] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [6] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[4] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
+      ],
+      "title": "[402] 道劫i2i·用法速查"
     },
     {
       "id": 42,
@@ -1122,7 +1074,8 @@
       "properties": {
         "showOutputText": false,
         "horizontal": false
-      }
+      },
+      "title": "[42] Reroute"
     },
     {
       "id": 43,
@@ -1157,7 +1110,8 @@
       "properties": {
         "showOutputText": false,
         "horizontal": false
-      }
+      },
+      "title": "[43] Reroute"
     },
     {
       "id": 44,
@@ -1192,13 +1146,14 @@
       "properties": {
         "showOutputText": false,
         "horizontal": false
-      }
+      },
+      "title": "[44] Reroute"
     }
   ],
   "links": [
     [
       1,
-      4,
+      10,
       0,
       16,
       0,
@@ -1206,7 +1161,7 @@
     ],
     [
       2,
-      5,
+      11,
       0,
       17,
       0,
@@ -1216,7 +1171,7 @@
       3,
       2,
       0,
-      40,
+      6,
       0,
       "CLIP"
     ],
@@ -1224,7 +1179,7 @@
       4,
       3,
       0,
-      40,
+      6,
       1,
       "VAE"
     ],
@@ -1232,7 +1187,7 @@
       5,
       16,
       0,
-      40,
+      6,
       2,
       "IMAGE"
     ],
@@ -1240,31 +1195,23 @@
       6,
       17,
       0,
-      40,
+      6,
       3,
       "IMAGE"
     ],
     [
-      9,
-      12,
-      0,
-      40,
-      8,
-      "CLIP"
-    ],
-    [
       18,
-      22,
+      400,
       0,
-      40,
+      6,
       4,
       "STRING"
     ],
     [
       21,
-      40,
+      6,
       4,
-      28,
+      401,
       0,
       "STRING"
     ],
@@ -1280,21 +1227,21 @@
       24,
       42,
       0,
-      7,
+      9,
       0,
       "MODEL"
     ],
     [
       25,
-      7,
+      9,
       0,
-      190,
+      7,
       0,
       "MODEL"
     ],
     [
       30,
-      40,
+      6,
       2,
       20,
       0,
@@ -1302,7 +1249,7 @@
     ],
     [
       31,
-      18,
+      4,
       0,
       20,
       1,
@@ -1320,39 +1267,39 @@
       33,
       20,
       0,
-      190,
+      7,
       4,
       "LATENT"
     ],
     [
       71,
-      40,
+      6,
       0,
-      190,
+      7,
       1,
       "CONDITIONING"
     ],
     [
       20,
-      40,
+      6,
       1,
-      190,
+      7,
       2,
       "CONDITIONING"
     ],
     [
       70,
-      40,
+      6,
       3,
-      190,
+      7,
       3,
       "CONDITIONING"
     ],
     [
       85,
-      190,
+      7,
       0,
-      9,
+      5,
       0,
       "LATENT"
     ],
@@ -1376,15 +1323,15 @@
       37,
       44,
       0,
-      9,
+      5,
       1,
       "VAE"
     ],
     [
       38,
-      9,
+      5,
       0,
-      10,
+      8,
       0,
       "IMAGE"
     ]
@@ -1396,15 +1343,15 @@
         "version": 1,
         "state": {
           "lastGroupId": 4,
-          "lastNodeId": 184,
-          "lastLinkId": 67,
+          "lastNodeId": 4012,
+          "lastLinkId": 200,
           "lastRerouteId": 2
         },
         "revision": 1,
         "config": {
           "defaultIOState": {}
         },
-        "name": "[40] 提示词类型优化子图(双击进入)",
+        "name": "[6] 文本提示词类型优化子图(双击进入)",
         "inputNode": {
           "id": -10,
           "bounding": [
@@ -1510,6 +1457,18 @@
             ]
           },
           {
+            "id": "a1e2c3d4-9006-4a006-9e006-7d4a9c31a906",
+            "name": "PE启用?",
+            "type": "BOOLEAN",
+            "linkIds": [
+              200
+            ],
+            "pos": [
+              -216,
+              224
+            ]
+          },
+          {
             "id": "c4d5e6f7-0007-4a07-9e07-d47c9e21a007",
             "name": "RGBA透明",
             "type": "COMBO",
@@ -1519,30 +1478,6 @@
             "pos": [
               2700,
               880
-            ]
-          },
-          {
-            "id": "c4d5e6f7-0008-4a08-9e08-d47c9e21a008",
-            "name": "PE开关",
-            "type": "BOOLEAN",
-            "linkIds": [
-              61
-            ],
-            "pos": [
-              2850,
-              650
-            ]
-          },
-          {
-            "id": "c4d5e6f7-0009-4a09-9e09-d47c9e21a009",
-            "name": "pe_clip",
-            "type": "CLIP",
-            "linkIds": [
-              45
-            ],
-            "pos": [
-              1550,
-              510
             ]
           }
         ],
@@ -1611,14 +1546,14 @@
         "widgets": [
           "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
           "人物",
-          "跟随型",
-          true
+          true,
+          "自动"
         ],
         "nodes": [
           {
-            "id": 150,
+            "id": 4010,
             "type": "MyQi21DaojieBase",
-            "title": "底座九选一(MyQi21DaojieBase:BASE=②+B+④ 逐字=05库/磁盘热读;W/H 本件不用=画幅随输入图)",
+            "title": "[4010] 底座九选一·自研",
             "pos": [
               2600,
               1600
@@ -1638,6 +1573,11 @@
                   "name": "base"
                 },
                 "link": 10
+              },
+              {
+                "name": "透明覆盖",
+                "type": "BOOLEAN",
+                "link": null
               }
             ],
             "outputs": [
@@ -1646,40 +1586,40 @@
                 "type": "STRING",
                 "links": [
                   65
-                ]
+                ],
+                "slot_index": 0
               },
               {
                 "name": "WIDTH",
                 "type": "INT",
-                "links": []
+                "links": [],
+                "slot_index": 1
               },
               {
                 "name": "HEIGHT",
                 "type": "INT",
-                "links": []
+                "links": [],
+                "slot_index": 2
               },
               {
-                "name": "型名",
-                "type": "STRING",
-                "links": []
-              },
-              {
-                "name": "rgba_default",
+                "name": "透明值",
                 "type": "BOOLEAN",
                 "links": [
                   55
-                ]
+                ],
+                "slot_index": 3
               }
             ],
             "properties": {
               "Node name for S&R": "MyQi21DaojieBase"
             },
             "widgets_values": [
-              "人物"
+              "人物",
+              false
             ]
           },
           {
-            "id": 142,
+            "id": 4015,
             "type": "TextEncodeQwenImage21",
             "pos": [
               5400,
@@ -1755,10 +1695,11 @@
               "",
               "",
               0
-            ]
+            ],
+            "title": "[4015] 主编码·TextEncode"
           },
           {
-            "id": 143,
+            "id": 4016,
             "type": "TextEncodeQwenImage21",
             "pos": [
               6500,
@@ -1830,12 +1771,13 @@
               "",
               "",
               0
-            ]
+            ],
+            "title": "[4016] RGBA编码·TextEncode"
           },
           {
             "id": 180,
             "type": "MyQi21RgbaSelect",
-            "title": "RGBA透明选择",
+            "title": "[180] RGBA透明选择·自研",
             "pos": [
               2750,
               950
@@ -1879,11 +1821,11 @@
               "Node name for S&R": "MyQi21RgbaSelect"
             },
             "widgets_values": [
-              "跟随型"
+              "自动"
             ]
           },
           {
-            "id": 144,
+            "id": 4017,
             "type": "ComfySwitchNode",
             "pos": [
               7400,
@@ -1932,7 +1874,8 @@
             },
             "widgets_values": [
               false
-            ]
+            ],
+            "title": "[4017] 输出选择·SwitchNode"
           },
           {
             "id": 171,
@@ -2001,7 +1944,8 @@
               "",
               "",
               0
-            ]
+            ],
+            "title": "[171] 单图编码·TextEncode"
           },
           {
             "id": 172,
@@ -2070,7 +2014,8 @@
               "",
               "",
               0
-            ]
+            ],
+            "title": "[172] 透明单图编码·TextEncode"
           },
           {
             "id": 173,
@@ -2122,7 +2067,8 @@
             },
             "widgets_values": [
               false
-            ]
+            ],
+            "title": "[173] 单图输出选择·SwitchNode"
           },
           {
             "id": 23,
@@ -2162,7 +2108,8 @@
             },
             "widgets_values": [
               "\n<|im_end|>\n<|im_start|>assistant\n<think>"
-            ]
+            ],
+            "title": "[23] PE模板尾·Multiline"
           },
           {
             "id": 21,
@@ -2202,7 +2149,8 @@
             },
             "widgets_values": [
               "<|im_start|>system\n# Edit Prompt Enhancer — General (v2, 精简版)\n\n**FIRST — there are TWO separate language decisions. Do NOT conflate them.**\n\n**(A) Language of the rewritten prompt's DESCRIPTIVE prose — every word OUTSIDE double quotes (the description you write for the diffusion model, NOT the text painted into the image). This decision is final and non-negotiable:**\n- User instruction is in Chinese → write the description in Chinese.\n- User instruction is in English → write the description in English.\n- User instruction is in ANY other language (Japanese, Korean, French, Spanish, Thai, etc.) → write the description in English.\n\n**(B) Language of the TEXT THAT WILL BE RENDERED INTO THE OUTPUT IMAGE — the content INSIDE double quotes. Decide it in this strict priority order:**\n1. If the user's instruction gives the exact text to write, OR names a target language for the text (e.g. \"改成'夏日特惠'\", \"把标题写成英文\", \"add a Japanese title\", \"write the caption in Thai\") → render exactly that text / in exactly that specified language.\n2. Otherwise, if the input image already contains text → render in the DOMINANT language of the image's existing text — even when the instruction is written in a different language.\n3. Otherwise (the image contains no text AND the instruction names no target language) → render in the language of the user's instruction itself — including Japanese, Korean, Thai, Arabic, French, etc. Do not force it to English.\nWorked example: image is mostly Thai, instruction is in English asking to add/redesign a title without giving the exact words or a language → the rendered (quoted) text must be **Thai** (the image's dominant language), while the surrounding description (A) is still written in English.\n\nTwo reinforcements on decision (B): all rendered (quoted) text must be **monolingual** — do not mix Chinese and English inside the quotes and do not emit a bilingual pair unless the user explicitly asks for one. And **genre never overrides input language**: a \"spec sheet / cinematic data-document / storyboard / technical parameter\" look is achieved through layout and typography, NOT by switching rendered labels to English — every header, label, and caption stays in the decided language (standardized units and user-given proper nouns may remain Latin).\n\nYou are an expert at clarifying image editing instructions. Given a user's vague or ambiguous edit instruction and the input image(s), rewrite it into a precise, unambiguous, actionable editing directive. An input image is ALWAYS present — this is always an image-editing task, never text-to-image from nothing.\n\n## Core Objective\n\nRewrite the instruction so a downstream image-editing model can execute it without guessing — anchored on what the input image(s) actually show, faithful to the user's intent, inventing nothing.\n\n**How much you build is intent-branched.** When the user wants *this picture changed* (a local object/attribute/background edit, a text or UI edit, a quality or style change, or a viewpoint/canvas transform), clarify and constrain: say exactly what changes, and let everything else stand. When the user wants *a new picture of this subject* (placing a subject in a new scene, compositing across images, a photo-shoot or poster or infographic built from a reference), construct actively: design the scene, lighting, composition and layout to a professional standard. Scale the elaboration to what was asked — a plain placement stays restrained, a styled shoot or a publication-grade poster is built out fully.\n\n## The Governing Principle — Attribute Disentanglement at Full Strength\n\n**Edit exactly the attribute(s) the user named, push each to a strong and unmistakable degree, and hold everything else at input fidelity.**\n\nBoth halves matter, and the two failure modes are symmetric:\n\n- **Leakage** — touching what the user did not name (a sharpen that re-grades color, an upscale that reframes, a style change that drifts a face, an outfit swap that drops an accessory, a background change that \"helpfully\" cleans up something unmentioned).\n- **Under-editing** — an output a viewer could mistake for the unedited input, because the requested change was applied faintly.\n\nPreservation locks **content, never edit strength**. Recognizability is bought by naming what stays fixed, not by holding the effect back.\n\n## What to Anchor, What to Decide\n\n**Anchor on the image.** Every spatial, tonal and contextual claim comes from what is visibly there. If you are unsure a detail exists, leave it out — a preserved element described at a higher level of abstraction is always safer than an invented specific.\n\n**Say what stays, without repainting it.** Name the untargeted content by type, position and role rather than describing its appearance, and prefer one blanket preservation clause over walking the frame. A preservation description reads to the model as a generation instruction: the more concretely you describe something you meant to keep, the more likely it drifts. Describe appearance concretely only for what you are actually changing, or when it is the only way to disambiguate between similar objects.\n\n**Identity is the hardest invariant.** A person's facial identity and the personal accessories that make them recognizable; a product's exact design, markings and count; and the input's rendering medium (photograph, anime, illustration, sketch, 3D render, painting) all survive every edit unless the user explicitly targets them. When identity comes from a reference image, point at that image rather than describing features in words — verbal descriptions make the model regenerate and degrade the likeness.\n\n**Resolve ambiguity, then commit.** Turn vague intent, imprecise spatial reference and unparameterized style words into something concrete and observable. Translate abstract quality language into the visual properties it implies. Where the instruction offers alternatives or contradicts itself, pick the most reasonable reading and state it as a decision. Keep the user's own action verb, spatial relations and described state intact, and treat anything they asked to preserve as absolute. Preserve creative or physically impossible intent rather than correcting it.\n\n**Only what was asked.** Do not add operations the user did not request, and do not clean up unmentioned defects, overlays or clutter however prominent they look. When an edit removes, moves or reveals something, say enough about the newly exposed region that the result stays physically coherent.\n\n**Text in the image is literal.** Whenever readable text will appear in the output, commit to the exact characters — every element, quoted, nothing summarized or abbreviated away. Text you cannot commit to should not be added at all. Match the typography and language the input establishes unless the user asks otherwise. When the operation extends the canvas outward, name it as outpainting explicitly.\n\n**Write it as an instruction.** Lead with the operation, not a description of the finished picture, and write from the perspective of someone holding only the input image(s).\n\n## Thinking Process\n\nBefore emitting JSON, reason through: what the image(s) actually contain (including a complete reading of any text present); what the user is asking for and which attributes that names; what must therefore stay fixed; the output size; and finally the composed directive. Close with a check that every visible element is either the target of the edit or covered by what stays fixed, that the requested change is unmistakable, that nothing outside the target was touched, and that every quoted string obeys language decision (B).\n\n## Image Reference Rules\n\nFor Multi-Image Input (N >= 2), the rewritten instruction MUST use `<image1>`, `<image2>`, ... to refer to each input image. Do not use natural language references like \"图1\", \"第一张图\", \"the first image\", or \"image A\". This tagging format is mandatory and non-negotiable. For single-image input (N = 1), do NOT use tags — refer to the image naturally (\"图像\", \"图片中\", \"the image\").\n\nState each image's role explicitly — which one is the canvas whose composition and untargeted content survive, and which supply material to transfer — and say what is taken from each. For scene generation with no canvas (合影/合照 and the like), all images serve as identity sources. Describe every referenced image individually; never compress several into a range or a group to avoid describing them one by one.\n\n## Output Size Determination\n\nYou must determine two output fields: `wh_ratio` and `ratio_follow`. These two fields are mutually exclusive — when one has a value, the other must be empty string \"\".\n\n### Step 1: Check if the user explicitly specified a size or aspect ratio\n\nLook for any of the following in the user's edit instruction:\n- Exact pixel dimensions: \"1920x1080\", \"800×600\", \"1080p\"\n- Aspect ratios: \"16:9\", \"4:3\", \"3:2\", \"9:16\", \"1:1\"\n- Descriptive terms mapped to aspect ratios:\n  - \"正方形\" / \"square\" / \"头像\" / \"avatar\" / \"profile picture\" / \"专辑封面\" / \"album cover\" → \"1:1\"\n  - \"横版\" / \"landscape\" / \"横屏\" / \"电脑壁纸\" / \"desktop wallpaper\" / \"宽屏\" / \"widescreen\" / \"视频封面\" / \"video thumbnail\" / \"PPT\" / \"幻灯片\" / \"slide\" / \"演示文稿\" → \"16:9\"\n  - \"竖版\" / \"portrait\" / \"竖屏\" / \"手机壁纸\" / \"phone wallpaper\" / \"手机屏幕\" / \"Instagram story\" / \"Stories\" / \"Reels\" / \"短视频封面\" → \"9:16\"\n  - \"手机全面屏\" / \"全面屏\" / \"iPhone屏幕\" / \"iPhone screen\" → \"18:39\"\n  - \"安卓全面屏\" / \"Android screen\" → \"9:20\"\n  - \"超宽\" / \"ultrawide\" / \"带鱼屏\" → \"7:3\"\n  - \"电影画面\" / \"cinematic\" / \"电影比例\" / \"宽银幕\" / \"cinemascope\" → \"21:9\"\n  - \"海报\" / \"poster\" → \"2:3\"\n  - \"证件照\" / \"ID photo\" / \"passport photo\" / \"小红书\" / \"Xiaohongshu\" → \"3:4\"\n  - \"iPad屏幕\" / \"tablet\" / \"平板屏幕\" → \"4:3\"\n  - \"全景图\" / \"panoramic\" / \"panorama\" → \"2:1\"\n  - \"名片\" / \"business card\" → \"9:5\"\n  - \"A4\" → \"5:7\"(竖向)or \"7:5\"(横向)\n  - \"1080p\" / \"720p\" → \"16:9\"\n\n**High-resolution keywords (\"2K\", \"4K\", \"8K\") are quality descriptors, NOT aspect ratio indicators.** When the user mentions \"2K\", \"4K\", or \"8K\", these only express a desire for high image quality. They must NOT be used to infer or determine the aspect ratio. The aspect ratio should still be determined by other explicit cues or by the input image's ratio. For output resolution, always use 2K-level resolution regardless of whether the user says \"2K\", \"4K\", or \"8K\".\n\nIf you specified a size or ratio:\n→ `wh_ratio` = the corresponding ratio (e.g. \"16:9\", \"1:1\", \"3:2\")\n→ `ratio_follow` = \"\"\n\nIf you specified exact pixel dimensions (e.g. \"1920x1080\"), convert to the simplest integer ratio (1920:1080 = 16:9).\n\n### Step 2: If the user did NOT specify any size or ratio\n\n#### Single-image editing (1 input image):\nThe output should follow the input image's resolution.\n→ `wh_ratio` = \"\"\n→ `ratio_follow` = \"<image1>\"\n\n**Exception — Single-image scene generation**: If the task generates a new scene from scratch using the input image only as an identity reference (e.g., \"拍一套写真\", \"cosplay成X\", \"穿越到古代\"), do NOT follow the input image's ratio — the output is a new composition, not an edit of the existing image. Instead, choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Portrait / 写真 / half-body | \"2:3\" |\n| Full-body scene / outdoor activity | \"3:4\" |\n| Landscape-oriented scene | \"3:2\" |\n| No clear orientation hint | Follow the input image's ratio (set `ratio_follow` to `<image1>`, `wh_ratio` to \"\") |\n\n#### Multi-image editing (N ≥ 2 input images):\nYou must identify the **canvas image** (the image whose composition and framing the output should follow), then set `ratio_follow` to that image's tag.\n\n| Edit type | Canvas | ratio_follow |\n|---|---|---|\n| Compositing — transfer subject into a scene (\"把A P到B中\", \"放到\", \"加入到\") | The target scene image | \"<imageX>\" (scene image number) |\n| Face/head swap (\"换脸\", \"换头\") | The body image | \"<imageX>\" (body image number) |\n| Clothing swap (\"换衣服\", \"换装\") | The person image | \"<imageX>\" (person image number) |\n| Style transfer (\"画成X的风格\", \"风格迁移\") | The content image (not the style reference) | \"<imageX>\" (content image number) |\n| Background replacement | The foreground subject image | \"<imageX>\" (subject image number) |\n| Local object replacement | The original image being edited | \"<imageX>\" (original image number) |\n| Scene generation — no canvas (\"合影\", \"合照\", \"一起变老\", \"让他们X\") | No canvas — you must choose a ratio | See below |\n\nFor **scene generation tasks with no canvas** (合影, 合照, 一起吃饭, etc.), set `ratio_follow` = \"\" and choose `wh_ratio` by scene semantics:\n\n| Scene type | wh_ratio |\n|---|---|\n| Group photo / 合影 / 合照 | \"3:2\" |\n| Portrait / 写真 | \"2:3\" |\n| Poster / 海报 | \"2:3\" |\n| Desktop wallpaper | \"16:9\" |\n| Phone wallpaper | \"9:16\" |\n| No clear orientation hint | Follow the last input image's ratio (set `ratio_follow` to the last image, `wh_ratio` to \"\") |\n\n#### Outpainting (扩图 / 延伸画面):\n\nFor outpainting tasks where the user did NOT specify a target aspect ratio, do NOT simply follow the input image's ratio — outpainting changes the image's proportions by definition. Instead, infer the new ratio from the extension direction:\n\n- Extend **right only** or **left only**: widen the ratio. E.g., a 1:1 input → \"3:2\"; a 3:4 input → \"1:1\" or \"4:3\".\n- Extend **both left and right**: widen more aggressively. E.g., a 1:1 input → \"16:9\" or \"2:1\".\n- Extend **down only** or **up only**: make the ratio taller. E.g., a 1:1 input → \"2:3\"; a 16:9 input → \"4:3\" or \"1:1\".\n- Extend **both up and down**: make the ratio significantly taller. E.g., a 1:1 input → \"9:16\".\n- Extend **all sides**: keep the original ratio (the image grows uniformly).\n\nAs a general rule, estimate the extended area as roughly 30%–50% additional space in the specified direction(s), then compute the new W:H ratio accordingly. Set `ratio_follow` = \"\" and `wh_ratio` = the inferred ratio.\n\n#### Panoramic generation (全景 / panorama):\n\n| Panoramic type | wh_ratio |\n|---|---|\n| Standard panorama / 全景 | \"2:1\" |\n| Wide panorama / 超宽全景 | \"3:1\" |\n| 360° / VR panorama | \"2:1\" |\n| User specified a different ratio | Use the user's specified ratio |\n\nSet `ratio_follow` = \"\" and `wh_ratio` = the inferred ratio.\n\n#### Three-view drawings and multi-grid generation (三视图 / 多宫格):\n\nFor three-view or multi-panel grid generation where the user did NOT specify an aspect ratio, do NOT use a fixed default. Determine it adaptively from:\n\n1. **Subject shape proportion**: a tall standing person is vertically oriented, a car is horizontally oriented, a round object roughly square.\n2. **Panel layout arrangement**: how the panels are arranged (1×3 horizontal, 3×1 vertical, 2×2) and the shape of each panel.\n3. **Combined ratio**: (single panel W × columns) : (single panel H × rows), choosing the ratio that best fits the content without excessive empty space or cropping.\n\nExamples:\n- Three side-by-side views of a standing person (each panel ~1:3, portrait) → overall ratio = \"1:1\" — do NOT over-widen to \"2:1\" or \"3:1\", which would squash each portrait panel (use \"3:1\" only when each panel is itself landscape, e.g., a car)\n- Three side-by-side views of a car (each panel ~3:2) → overall ratio = \"3:1\" or \"9:2\"\n- 2×2 grid of a square object → overall ratio = \"1:1\"\n- 3×3 grid of square panels → overall ratio = \"1:1\"\n\nSet `ratio_follow` = \"\" and `wh_ratio` = the adaptively determined ratio.\n\n## Output Format\nOutput a valid JSON object with exactly three fields:\n```json\n{\n  \"rewritten_prompt\": \"<the rewritten editing instruction>\",\n  \"wh_ratio\": \"<aspect ratio like '16:9', or empty string>\",\n  \"ratio_follow\": \"<'<image1>' / '<image2>' / ... / ''>\"\n}\n```\n\n`rewritten_prompt` formatting rules:\n- The entire rewritten prompt must be a single continuous paragraph with NO line breaks or newline characters (`\\n`).\n- All text that should appear as visible, readable content in the output image must be enclosed in double quotes (\"\"). Descriptive or structural language that does not appear as rendered text should NOT be quoted.\n- **Never include any resolution or aspect ratio information in `rewritten_prompt`** (e.g., \"2:3\", \"16:9\", \"1920x1080\", \"2K\", \"4K\"). Resolution and aspect ratio are conveyed exclusively through the `wh_ratio` and `ratio_follow` fields.\n- Write it out in full — no ellipsis, no truncation.\n- State requirements affirmatively (\"保持背景与输入图完全一致\") rather than as prohibitions (\"禁止改变背景\"). Standard preservation phrasing \"保持/保留[X]不变\" is fine.\n- Be precise and decisive: no hedging, no unresolved alternatives, no vague degree words left unresolved.\n- **Language-purge self-check (do this last)**: re-scan every double-quoted string — the text that will be RENDERED in the image — and enforce language decision (B). No quoted string may mix Chinese and English, form a bilingual pair, or carry a parenthetical translation gloss unless the user explicitly asked. Standardized units and user-given proper nouns may remain Latin.\n\nRules for each field:\n- `rewritten_prompt`: The rewritten editing instruction. The descriptive prose (outside double quotes) follows language decision (A); the text rendered inside the image (inside double quotes) follows language decision (B). Retain proper nouns and domain-specific terms in their original language, placed in English double quotes.\n- `wh_ratio`: The target aspect ratio as \"W:H\". Set to \"\" when the output resolution should follow an input image instead.\n- `ratio_follow`: Which input image's resolution the output follows (\"<image1>\", \"<image2>\", …). Set to \"\" when a specific aspect ratio is provided in `wh_ratio`.\n\nMutual exclusivity rule:\n- If `wh_ratio` has a value → `ratio_follow` must be \"\"\n- If `ratio_follow` is \"<imageX>\" → `wh_ratio` must be \"\"\n\nDo not include any text outside the JSON object — no greetings, no explanations, no markdown code fences.\n\nThe user's edit instruction to rewrite is:\n\n<|im_end|>\n<|im_start|>user"
-            ]
+            ],
+            "title": "[21] PE模板头·Multiline"
           },
           {
             "id": 25,
@@ -2242,7 +2190,8 @@
             ],
             "properties": {
               "Node name for S&R": "BatchImagesNode"
-            }
+            },
+            "title": "[25] PE看图合批·BatchImages"
           },
           {
             "id": 24,
@@ -2300,10 +2249,11 @@
             },
             "widgets_values": [
               "{a}{b}{c}"
-            ]
+            ],
+            "title": "[24] PE三段拼装·StringFormat"
           },
           {
-            "id": 26,
+            "id": 4013,
             "type": "TextGenerate",
             "pos": [
               1600,
@@ -2475,7 +2425,8 @@
               false,
               false,
               "auto"
-            ]
+            ],
+            "title": "[4013] PE看图改写·TextGenerate"
           },
           {
             "id": 27,
@@ -2569,12 +2520,13 @@
               false,
               true,
               1
-            ]
+            ],
+            "title": "[27] PE抽取·RegexExtract"
           },
           {
-            "id": 152,
+            "id": 4014,
             "type": "MyQi21PromptSelect",
-            "title": "择文合成器①(i2i:pe开=[27]PE抽取文/pe关=裸指令;替原[15];出文喂[141]主体句位)",
+            "title": "[4014] 择文合成器①·自研",
             "pos": [
               2900,
               580
@@ -2587,6 +2539,18 @@
             "order": 8,
             "mode": 0,
             "inputs": [
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 62
+              },
+              {
+                "name": "PE出文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 63
+              },
               {
                 "name": "pe开关",
                 "type": "BOOLEAN",
@@ -2626,18 +2590,6 @@
                   "name": "W1收束句"
                 },
                 "link": null
-              },
-              {
-                "name": "装配全文",
-                "type": "STRING",
-                "shape": 7,
-                "link": 62
-              },
-              {
-                "name": "PE出文",
-                "type": "STRING",
-                "shape": 7,
-                "link": 63
               }
             ],
             "outputs": [
@@ -2655,6 +2607,8 @@
               }
             ],
             "widgets_values": [
+              "",
+              "",
               true,
               false,
               "This is an RGBA format image with transparency.",
@@ -2666,9 +2620,9 @@
             }
           },
           {
-            "id": 141,
+            "id": 4011,
             "type": "MyQi21PromptAssembly",
-            "title": "装配全文件(择文+BASE+锁层A→装配全文;i2i 版唯一真源,不喂PE链)",
+            "title": "[4011] 装配全文件·自研",
             "pos": [
               3650,
               1150
@@ -2681,6 +2635,12 @@
             "order": 9,
             "mode": 0,
             "inputs": [
+              {
+                "name": "BASE",
+                "type": "STRING",
+                "shape": 7,
+                "link": 65
+              },
               {
                 "name": "主体句",
                 "type": "STRING",
@@ -2696,12 +2656,6 @@
                   "name": "锁层A全文"
                 },
                 "link": null
-              },
-              {
-                "name": "BASE",
-                "type": "STRING",
-                "shape": 7,
-                "link": 65
               }
             ],
             "outputs": [
@@ -2727,7 +2681,7 @@
           {
             "id": 153,
             "type": "MyQi21PromptSelect",
-            "title": "透明包裹器②(恒pe关=头句+装配全文+尾句;替原[162][163][160][161];i2i透明路无剥离无W1)",
+            "title": "[153] 透明包裹器②·自研",
             "pos": [
               4550,
               1150
@@ -2740,6 +2694,18 @@
             "order": 10,
             "mode": 0,
             "inputs": [
+              {
+                "name": "装配全文",
+                "type": "STRING",
+                "shape": 7,
+                "link": 66
+              },
+              {
+                "name": "PE出文",
+                "type": "STRING",
+                "shape": 7,
+                "link": null
+              },
               {
                 "name": "pe开关",
                 "type": "BOOLEAN",
@@ -2779,18 +2745,6 @@
                   "name": "W1收束句"
                 },
                 "link": null
-              },
-              {
-                "name": "装配全文",
-                "type": "STRING",
-                "shape": 7,
-                "link": 66
-              },
-              {
-                "name": "PE出文",
-                "type": "STRING",
-                "shape": 7,
-                "link": null
               }
             ],
             "outputs": [
@@ -2809,6 +2763,8 @@
               }
             ],
             "widgets_values": [
+              "",
+              "",
               false,
               false,
               "This is an RGBA format image with transparency.",
@@ -2818,6 +2774,108 @@
             "properties": {
               "Node name for S&R": "MyQi21PromptSelect"
             }
+          },
+          {
+            "id": 4019,
+            "type": "CLIPLoader",
+            "pos": [
+              700,
+              580
+            ],
+            "size": [
+              400,
+              130
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "clip_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "clip_name"
+                },
+                "link": null
+              },
+              {
+                "name": "type",
+                "type": "COMBO",
+                "widget": {
+                  "name": "type"
+                },
+                "link": null
+              },
+              {
+                "name": "device",
+                "type": "COMBO",
+                "shape": 7,
+                "widget": {
+                  "name": "device"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "CLIP",
+                "type": "CLIP",
+                "links": [
+                  45
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CLIPLoader"
+            },
+            "widgets_values": [
+              "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors",
+              "qwen_image",
+              "default"
+            ],
+            "title": "[4019] PE专属TE·CLIPLoader"
+          },
+          {
+            "id": 4012,
+            "type": "PrimitiveBoolean",
+            "pos": [
+              100,
+              900
+            ],
+            "size": [
+              280,
+              90
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "value"
+                },
+                "link": 200
+              }
+            ],
+            "outputs": [
+              {
+                "name": "BOOLEAN",
+                "type": "BOOLEAN",
+                "links": [
+                  61
+                ],
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "PrimitiveBoolean"
+            },
+            "widgets_values": [
+              true
+            ],
+            "title": "[4012] PE启用?"
           }
         ],
         "groups": [
@@ -2875,7 +2933,7 @@
             "id": 1,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 142,
+            "target_id": 4015,
             "target_slot": 0,
             "type": "CLIP"
           },
@@ -2883,7 +2941,7 @@
             "id": 2,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 143,
+            "target_id": 4016,
             "target_slot": 0,
             "type": "CLIP"
           },
@@ -2891,7 +2949,7 @@
             "id": 3,
             "origin_id": -10,
             "origin_slot": 1,
-            "target_id": 142,
+            "target_id": 4015,
             "target_slot": 2,
             "type": "VAE"
           },
@@ -2899,7 +2957,7 @@
             "id": 4,
             "origin_id": -10,
             "origin_slot": 1,
-            "target_id": 143,
+            "target_id": 4016,
             "target_slot": 2,
             "type": "VAE"
           },
@@ -2907,7 +2965,7 @@
             "id": 5,
             "origin_id": -10,
             "origin_slot": 2,
-            "target_id": 142,
+            "target_id": 4015,
             "target_slot": 1,
             "type": "IMAGE"
           },
@@ -2915,7 +2973,7 @@
             "id": 6,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 142,
+            "target_id": 4015,
             "target_slot": 3,
             "type": "IMAGE"
           },
@@ -2923,7 +2981,7 @@
             "id": 7,
             "origin_id": -10,
             "origin_slot": 2,
-            "target_id": 143,
+            "target_id": 4016,
             "target_slot": 1,
             "type": "IMAGE"
           },
@@ -2931,7 +2989,7 @@
             "id": 8,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 143,
+            "target_id": 4016,
             "target_slot": 3,
             "type": "IMAGE"
           },
@@ -2939,23 +2997,23 @@
             "id": 10,
             "origin_id": -10,
             "origin_slot": 5,
-            "target_id": 150,
+            "target_id": 4010,
             "target_slot": 0,
             "type": "COMBO"
           },
           {
             "id": 11,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 7,
             "target_id": 180,
             "target_slot": 0,
             "type": "COMBO"
           },
           {
             "id": 15,
-            "origin_id": 141,
+            "origin_id": 4011,
             "origin_slot": 0,
-            "target_id": 142,
+            "target_id": 4015,
             "target_slot": 4,
             "type": "STRING"
           },
@@ -2963,21 +3021,21 @@
             "id": 20,
             "origin_id": 153,
             "origin_slot": 1,
-            "target_id": 143,
+            "target_id": 4016,
             "target_slot": 4,
             "type": "STRING"
           },
           {
             "id": 57,
-            "origin_id": 142,
+            "origin_id": 4015,
             "origin_slot": 0,
-            "target_id": 144,
+            "target_id": 4017,
             "target_slot": 0,
             "type": "CONDITIONING"
           },
           {
             "id": 23,
-            "origin_id": 144,
+            "origin_id": 4017,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
@@ -2985,7 +3043,7 @@
           },
           {
             "id": 24,
-            "origin_id": 142,
+            "origin_id": 4015,
             "origin_slot": 1,
             "target_id": -20,
             "target_slot": 1,
@@ -2993,7 +3051,7 @@
           },
           {
             "id": 25,
-            "origin_id": 141,
+            "origin_id": 4011,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 4,
@@ -3001,7 +3059,7 @@
           },
           {
             "id": 26,
-            "origin_id": 142,
+            "origin_id": 4015,
             "origin_slot": 2,
             "target_id": -20,
             "target_slot": 2,
@@ -3009,9 +3067,9 @@
           },
           {
             "id": 27,
-            "origin_id": 143,
+            "origin_id": 4016,
             "origin_slot": 0,
-            "target_id": 144,
+            "target_id": 4017,
             "target_slot": 1,
             "type": "CONDITIONING"
           },
@@ -3041,7 +3099,7 @@
           },
           {
             "id": 31,
-            "origin_id": 141,
+            "origin_id": 4011,
             "origin_slot": 0,
             "target_id": 171,
             "target_slot": 3,
@@ -3121,9 +3179,9 @@
           },
           {
             "id": 45,
-            "origin_id": -10,
-            "origin_slot": 8,
-            "target_id": 26,
+            "origin_id": 4019,
+            "origin_slot": 0,
+            "target_id": 4013,
             "target_slot": 0,
             "type": "CLIP"
           },
@@ -3163,7 +3221,7 @@
             "id": 50,
             "origin_id": 24,
             "origin_slot": 0,
-            "target_id": 26,
+            "target_id": 4013,
             "target_slot": 4,
             "type": "STRING"
           },
@@ -3171,13 +3229,13 @@
             "id": 51,
             "origin_id": 25,
             "origin_slot": 0,
-            "target_id": 26,
+            "target_id": 4013,
             "target_slot": 1,
             "type": "IMAGE"
           },
           {
             "id": 52,
-            "origin_id": 26,
+            "origin_id": 4013,
             "origin_slot": 0,
             "target_id": 27,
             "target_slot": 0,
@@ -3187,72 +3245,72 @@
             "id": 58,
             "origin_id": 180,
             "origin_slot": 0,
-            "target_id": 144,
+            "target_id": 4017,
             "target_slot": 2,
             "type": "BOOLEAN"
           },
           {
             "id": 55,
-            "origin_id": 150,
-            "origin_slot": 4,
+            "origin_id": 4010,
+            "origin_slot": 3,
             "target_id": 180,
             "target_slot": 1,
             "type": "BOOLEAN"
           },
           {
             "id": 60,
-            "origin_id": 152,
+            "origin_id": 4014,
             "origin_slot": 0,
-            "target_id": 141,
-            "target_slot": 0,
+            "target_id": 4011,
+            "target_slot": 1,
             "type": "STRING"
           },
           {
             "id": 61,
-            "origin_id": -10,
-            "origin_slot": 7,
-            "target_id": 152,
-            "target_slot": 0,
+            "origin_id": 4012,
+            "origin_slot": 0,
+            "target_id": 4014,
+            "target_slot": 2,
             "type": "BOOLEAN"
           },
           {
             "id": 62,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 152,
-            "target_slot": 5,
+            "target_id": 4014,
+            "target_slot": 0,
             "type": "STRING"
           },
           {
             "id": 63,
             "origin_id": 27,
             "origin_slot": 0,
-            "target_id": 152,
-            "target_slot": 6,
+            "target_id": 4014,
+            "target_slot": 1,
             "type": "STRING"
           },
           {
             "id": 64,
             "origin_id": 180,
             "origin_slot": 0,
-            "target_id": 152,
-            "target_slot": 1,
+            "target_id": 4014,
+            "target_slot": 3,
             "type": "BOOLEAN"
           },
           {
             "id": 65,
-            "origin_id": 150,
+            "origin_id": 4010,
             "origin_slot": 0,
-            "target_id": 141,
-            "target_slot": 2,
+            "target_id": 4011,
+            "target_slot": 0,
             "type": "STRING"
           },
           {
             "id": 66,
-            "origin_id": 141,
+            "origin_id": 4011,
             "origin_slot": 0,
             "target_id": 153,
-            "target_slot": 5,
+            "target_slot": 0,
             "type": "STRING"
           },
           {
@@ -3260,7 +3318,15 @@
             "origin_id": 180,
             "origin_slot": 0,
             "target_id": 153,
-            "target_slot": 1,
+            "target_slot": 3,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 200,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 4012,
+            "target_slot": 0,
             "type": "BOOLEAN"
           }
         ],
@@ -3409,12 +3475,12 @@
           }
         ],
         "widgets": [
-          "0 · 直出40步",
+          "0 · Fun-Acc 4步",
           0
         ],
         "nodes": [
           {
-            "id": 176,
+            "id": 7013,
             "type": "T8QwenImage21FunAccPDD4Step",
             "pos": [
               1400,
@@ -3475,10 +3541,11 @@
             "widgets_values": [
               "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
               0
-            ]
+            ],
+            "title": "[7013] FunAcc4步·FunAccPDD"
           },
           {
-            "id": 31,
+            "id": 7011,
             "type": "LoraLoaderModelOnly",
             "pos": [
               800,
@@ -3529,10 +3596,11 @@
             "widgets_values": [
               "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
               0.8
-            ]
+            ],
+            "title": "[7011] viggle LoRA·LoraLoader"
           },
           {
-            "id": 189,
+            "id": 7012,
             "type": "KSampler",
             "pos": [
               1400,
@@ -3590,15 +3658,16 @@
             "widgets_values": [
               0,
               "fixed",
-              359,
+              6,
               1,
               "euler",
               "simple",
               1.0
-            ]
+            ],
+            "title": "[7012] viggle6步·KSampler"
           },
           {
-            "id": 8,
+            "id": 7010,
             "type": "KSampler",
             "pos": [
               1400,
@@ -3661,10 +3730,11 @@
               "euler",
               "simple",
               1.0
-            ]
+            ],
+            "title": "[7010] 直出40步·KSampler"
           },
           {
-            "id": 191,
+            "id": 7014,
             "type": "PrimitiveInt",
             "pos": [
               80,
@@ -3704,12 +3774,13 @@
             "widgets_values": [
               0,
               "fixed"
-            ]
+            ],
+            "title": "[7014] seed单源·PrimitiveInt"
           },
           {
-            "id": 192,
+            "id": 7015,
             "type": "MyQi21SpeedSelect",
-            "title": "出图速度选择",
+            "title": "[7015] 出图速度选择·自研",
             "pos": [
               2100,
               900
@@ -3762,7 +3833,7 @@
               "Node name for S&R": "MyQi21SpeedSelect"
             },
             "widgets_values": [
-              "0 · 直出40步"
+              "0 · Fun-Acc 4步"
             ]
           }
         ],
@@ -3821,7 +3892,7 @@
             "id": 1,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 176,
+            "target_id": 7013,
             "target_slot": 0,
             "type": "MODEL"
           },
@@ -3829,7 +3900,7 @@
             "id": 2,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 31,
+            "target_id": 7011,
             "target_slot": 0,
             "type": "MODEL"
           },
@@ -3837,7 +3908,7 @@
             "id": 3,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 8,
+            "target_id": 7010,
             "target_slot": 0,
             "type": "MODEL"
           },
@@ -3845,7 +3916,7 @@
             "id": 4,
             "origin_id": -10,
             "origin_slot": 1,
-            "target_id": 8,
+            "target_id": 7010,
             "target_slot": 1,
             "type": "CONDITIONING"
           },
@@ -3853,7 +3924,7 @@
             "id": 5,
             "origin_id": -10,
             "origin_slot": 2,
-            "target_id": 8,
+            "target_id": 7010,
             "target_slot": 2,
             "type": "CONDITIONING"
           },
@@ -3861,7 +3932,7 @@
             "id": 6,
             "origin_id": -10,
             "origin_slot": 2,
-            "target_id": 189,
+            "target_id": 7012,
             "target_slot": 2,
             "type": "CONDITIONING"
           },
@@ -3869,7 +3940,7 @@
             "id": 7,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 189,
+            "target_id": 7012,
             "target_slot": 1,
             "type": "CONDITIONING"
           },
@@ -3877,7 +3948,7 @@
             "id": 8,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 176,
+            "target_id": 7013,
             "target_slot": 1,
             "type": "CONDITIONING"
           },
@@ -3885,7 +3956,7 @@
             "id": 9,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 176,
+            "target_id": 7013,
             "target_slot": 2,
             "type": "LATENT"
           },
@@ -3893,7 +3964,7 @@
             "id": 10,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 189,
+            "target_id": 7012,
             "target_slot": 3,
             "type": "LATENT"
           },
@@ -3901,7 +3972,7 @@
             "id": 11,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 8,
+            "target_id": 7010,
             "target_slot": 3,
             "type": "LATENT"
           },
@@ -3909,63 +3980,63 @@
             "id": 12,
             "origin_id": -10,
             "origin_slot": 6,
-            "target_id": 191,
+            "target_id": 7014,
             "target_slot": 0,
             "type": "INT"
           },
           {
             "id": 13,
-            "origin_id": 31,
+            "origin_id": 7011,
             "origin_slot": 0,
-            "target_id": 189,
+            "target_id": 7012,
             "target_slot": 0,
             "type": "MODEL"
           },
           {
             "id": 14,
-            "origin_id": 191,
+            "origin_id": 7014,
             "origin_slot": 0,
-            "target_id": 176,
+            "target_id": 7013,
             "target_slot": 4,
             "type": "INT"
           },
           {
             "id": 15,
-            "origin_id": 191,
+            "origin_id": 7014,
             "origin_slot": 0,
-            "target_id": 189,
+            "target_id": 7012,
             "target_slot": 4,
             "type": "INT"
           },
           {
             "id": 16,
-            "origin_id": 191,
+            "origin_id": 7014,
             "origin_slot": 0,
-            "target_id": 8,
+            "target_id": 7010,
             "target_slot": 4,
             "type": "INT"
           },
           {
             "id": 17,
-            "origin_id": 176,
+            "origin_id": 7013,
             "origin_slot": 0,
-            "target_id": 192,
+            "target_id": 7015,
             "target_slot": 1,
             "type": "LATENT"
           },
           {
             "id": 18,
-            "origin_id": 189,
+            "origin_id": 7012,
             "origin_slot": 0,
-            "target_id": 192,
+            "target_id": 7015,
             "target_slot": 2,
             "type": "LATENT"
           },
           {
             "id": 19,
-            "origin_id": 8,
+            "origin_id": 7010,
             "origin_slot": 0,
-            "target_id": 192,
+            "target_id": 7015,
             "target_slot": 3,
             "type": "LATENT"
           },
@@ -3973,13 +4044,13 @@
             "id": 20,
             "origin_id": -10,
             "origin_slot": 5,
-            "target_id": 192,
+            "target_id": 7015,
             "target_slot": 0,
             "type": "COMBO"
           },
           {
             "id": 21,
-            "origin_id": 192,
+            "origin_id": 7015,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
@@ -3993,6 +4064,6 @@
       }
     ]
   },
-  "last_node_id": 192,
-  "last_link_id": 85
+  "last_node_id": 7015,
+  "last_link_id": 200
 }

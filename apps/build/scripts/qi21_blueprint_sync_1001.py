@@ -34,8 +34,9 @@
     RGBA官方头句/尾句 ← §六 0927 条「三生成器 RGBA 头尾句改官方逐字(「…」/「…」」引号对
     W1收束句         ← §一 0930 条「主候选句在案(…)」括号内整句
   刷入位(与契约测试 QI21_SG_ASM_WV / QI21_SG_SEL_WV 同口径,禁漂移):
-    各目标 工作流+蓝图两处子图内 [141] MyQi21PromptAssembly.widgets_values[1](锁层A全文);
-    MyQi21PromptSelect.widgets_values[2/3/4](头句/尾句/W1)
+    各目标 工作流+蓝图两处子图内 [4011] MyQi21PromptAssembly.widgets_values[1](锁层A全文);
+    MyQi21PromptSelect.widgets_values[4/5/6](头句/尾句/W1;1002 大轮 F1 后 7 值形,
+    头部 2 空串=装配全文/PE出文连线槽占位)
   多目标节点面(1001 i2i/edit 批):
     Assembly 恰 1 件→刷锁层A;0 件(edit 无装配层)→跳过并注记;>1 件 fail-closed;
     Select ≥1 件→全刷头/尾/W1(i2i 两件:[152] 择文器+[153] 透明包裹器,同参数面);
@@ -56,7 +57,7 @@ SUBGRAPHS = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs"
 WF_DIR = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像"
 LIB05 = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 ENGINE_DST = Path("/Users/zhengbingjin/Library/Application Support/漫影工作室/comfyui/ComfyUI/custom_nodes/my-nodes/subgraphs")
-SG_NAME_PREFIX = "[40] 提示词类型优化子图"
+SG_NAME_PREFIX = "[6] 文本提示词类型优化子图"
 
 # 目标表(单点串行;t2i=S6 原目标,i2i/edit=1001 同构批入列)
 TARGETS = {
@@ -69,8 +70,11 @@ TARGETS = {
 }
 
 # 刷入位序(契约 QI21_SG_ASM_WV / QI21_SG_SEL_WV 同口径,禁漂移)
-ASM_LOCKA_WV_IDX = 1              # [141] widgets_values = [主体句例文, 锁层A全文]
-SEL_HEAD_TAIL_W1_IDX = (2, 3, 4)  # [152] widgets_values = [pe开关, 透明模式, 头句, 尾句, W1]
+ASM_LOCKA_WV_IDX = 1              # [4011] widgets_values = [主体句例文, 锁层A全文](2 值形不变)
+# 1002 大轮 F1 修复随账:Select wv 头部 2 空串占位回 7 值形(连线 STRING 槽也建
+# widget 按全序消费,契约 test_qwen21_workflow_contract.py:375 QI21_SG_SEL_WV
+# =头4/尾5/W1:6);旧 (2,3,4) 读到 bool(透明模式)致 sha() TypeError——收官轮对齐。
+SEL_HEAD_TAIL_W1_IDX = (4, 5, 6)  # [4014] wv = ["", "", pe开关, 透明模式, 头句, 尾句, W1]
 
 
 def sha(b): return hashlib.sha256(b.encode() if isinstance(b, str) else b).hexdigest()[:16]
@@ -189,7 +193,7 @@ def refresh_from_library(check_only, tags):
             assert asm[0]["widgets_values"][ASM_LOCKA_WV_IDX] == sent["锁层A全文"], \
                 f"{p['path']} 锁层A 回读不逐字"
         for sel in _find_nodes(sg, "MyQi21PromptSelect"):
-            assert sel["widgets_values"][2:5] == [sent["RGBA官方头句"], sent["RGBA官方尾句"], sent["W1收束句"]], \
+            assert sel["widgets_values"][4:7] == [sent["RGBA官方头句"], sent["RGBA官方尾句"], sent["W1收束句"]], \
                 f"{p['path']} 头尾/W1 回读不逐字"
     print("[refresh] 已落盘(各目标 工作流+蓝图 两处)且回读逐字断言过;引擎家蓝图随常规同步腿刷新;"
           "节点 Python default 同批过账提醒见两件 docstring 锚")

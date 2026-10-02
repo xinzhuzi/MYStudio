@@ -2,7 +2,8 @@
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫 qi21 底座节点:型底座下拉选(09-23 造件九型;1001 P1 起十档=九型+自由),
-六出 BASE/WIDTH/HEIGHT/型名/rgba_default/透明值。
+四出 BASE/WIDTH/HEIGHT/透明值(1002 ⑯ 删「型名」出+大轮连带删 rgba_default 出:
+i2i [180].rgba_hint 已迁「透明值」,三件全零消费;槽位迁移=research/slot-map.md)。
 
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):
@@ -150,9 +151,9 @@ def _rgba_default_of(base: str, entry: dict) -> bool:
 class MyQi21DaojieBase:
     """漫影道劫 qi21 底座:选型下拉十选一(九型+自由,1001 P1),BASE(该型②+B+④
     拼合底座全文;自由型空串)+WIDTH/HEIGHT(型档分辨率直出;自由型 1:1/1.0MP
-    兜底 1024×1024)+型名(直通,驱动按型路由)+rgba_default(0929 D6 RGBA 型
-    联动:四型透明声明型 true 其余 false)+透明值(1001 P1 透明执行口:型≠自由
-    ?rgba_default:透明覆盖——纯 BOOLEAN 跨子图边界)六出。"""
+    兜底 1024×1024)+rgba_default(0929 D6 RGBA 型联动:四型透明声明型 true
+    其余 false)+透明值(1001 P1 透明执行口:型≠自由?rgba_default:透明覆盖
+    ——纯 BOOLEAN 跨子图边界)五出(1002 ⑯ 删「型名」第四出:三件全零消费)。"""
 
     CATEGORY = "my"
 
@@ -165,18 +166,32 @@ class MyQi21DaojieBase:
             default = names[0]
         else:
             default = ""
+        # 1002 ⑭ 接口批查:本件零连线输入槽(combo/BOOLEAN 全 widget),「连线槽
+        # 前置」=空操作,声明序维持;⑰ tooltip 补(prd 问题⑰大白话口径)
         return {
-            "required": {"base": (names, {"default": default})},
+            "required": {"base": (names, {
+                "default": default,
+                "tooltip": "选画风型:九个预设型+「自由」(自由=不要型底座,"
+                           "画幅/透明全自己定)"})},
             # 透明覆盖(1001 用户测试批 P1,design §2.4 d 方案):尾部追加,
             # 存量槽序零漂移;缺省 False=九型不受影响(i2i/edit 不接=零波及)
-            "optional": {"透明覆盖": ("BOOLEAN", {"default": False})},
+            "optional": {"透明覆盖": ("BOOLEAN", {
+                "default": False,
+                "tooltip": "只在「自由」型下有用:勾上=出透明底图;九个预设型"
+                           "自动按型决定,这里不用管"})},
         }
 
     # rgba_default 追加最末(0929 D6):不动既有槽序=存量工作流接线零漂移
     # (t2i/i2i 两件 [150] 现用槽 0/1/2,BASE/WIDTH/HEIGHT 索引不变);
     # 透明值追加第六出(1001 P1 同款纪律):型≠自由?rgba_default:透明覆盖
-    RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN", "BOOLEAN")
-    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "型名", "rgba_default", "透明值")
+    # 1002 ⑯ 清理批:删「型名」第四出(三件工作流全零消费=RETURN_TYPES 历史
+    # 按型路由遗留)——中部删,存量连线按槽位映射表迁移(research/slot-map.md);
+    # 1002 大轮连带(prd Grill Q1 裁定 A 案「rgba_default 删除」):rgba_default
+    # 出随 i2i [180].rgba_hint 迁「透明值」(1002 手术 STEP4)一并收口删除
+    # ——四出定形(BASE/WIDTH/HEIGHT/透明值);rgba_default 布尔仍为件内中间量
+    # (透明值=型≠自由?rgba_default:透明覆盖 解析用),只是不再外露输出槽。
+    RETURN_TYPES = ("STRING", "INT", "INT", "BOOLEAN")
+    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "透明值")
     FUNCTION = "run"
 
     @classmethod
@@ -214,4 +229,6 @@ class MyQi21DaojieBase:
             透明值 = bool(透明覆盖) if 透明覆盖 is not None else False
         else:
             透明值 = rgba_default
-        return (entry["base_text"], width, height, base, rgba_default, 透明值)
+        # 1002 ⑯:「型名」直通出删除;1002 大轮连带:rgba_default 出收口删除
+        # (i2i [180].rgba_hint 已迁「透明值」;返回元组序=RETURN_NAMES 四出序)
+        return (entry["base_text"], width, height, 透明值)

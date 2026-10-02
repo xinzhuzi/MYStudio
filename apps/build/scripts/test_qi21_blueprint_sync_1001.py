@@ -128,7 +128,7 @@ class FailClosedChannelTests(unittest.TestCase):
         bp_tmp = Path(tmp.name) / "bp.json"
         lib_tmp = Path(tmp.name) / "05-道劫规范提示词库.md"
         lib_tmp.write_text(GOOD_LIB, encoding="utf-8")  # 提取腿先行,库须合法
-        sg_tmpl = {"name": "[40] 提示词类型优化子图(双击进入)", "nodes": sg_nodes}
+        sg_tmpl = {"name": "[6] 文本提示词类型优化子图(双击进入)", "nodes": sg_nodes}  # 1002 ⑬ 更名
         wf_tmp.write_text(json.dumps(
             {"definitions": {"subgraphs": [sg_tmpl] * sgs_count}}, ensure_ascii=False),
             encoding="utf-8")

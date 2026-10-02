@@ -79,9 +79,11 @@ def test_linkage_off_passes_nine_type_through():
                         九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
     # 联动关+wh_ratio 未接线(lazy 化后可选态)→ 照样九型原样,不炸不猜
     assert node.suggest(联动开关=False, 九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
-    # 默认联动开关=False(原 [157][158] widgets [false] 默认关=恒九型)
+    # 默认联动开关=False(原 [157][158] widgets [false] 默认关=恒九型);
+    # 1002 ⑭:required 置空全住 optional(连线槽前置/参数下沉)
     spec = MyQi21WhSuggest.INPUT_TYPES()
-    assert spec["required"]["联动开关"][1]["default"] is False
+    assert spec["required"] == {}, "required 应置空(1002 ⑭ 连线槽前置重排)"
+    assert spec["optional"]["联动开关"][1]["default"] is False
     assert MyQi21WhSuggest.RETURN_TYPES == ("INT", "INT")
     assert MyQi21WhSuggest.RETURN_NAMES == ("width", "height")
 
@@ -110,18 +112,33 @@ def test_invalid_ratio_falls_back_with_warning_and_raises_when_both_missing(
     assert _parse_ratio(None) is None              # 非字符串归 Q6
 
 
-# ── ⑥ 懒协议形状(1001 深审修复轮:wh_ratio lazy 化) ────────────────────
+# ── ⑥ 懒协议形状(1001 深审修复轮:wh_ratio lazy 化;1002 ⑭ 槽序) ──────
 def test_lazy_protocol_shape():
     """wh_ratio 应 optional+lazy(执行器对该槽默认不建强依赖→联动关时不拉
     [140] 进执行图)+懒钩子实名 check_lazy_status(本版引擎 execution.py
-    只认此名;SpeedSelect/合成器同款协议)。"""
+    只认此名;SpeedSelect/合成器同款协议);1002 ⑭ 声明序=三连线槽前置。"""
     it = MyQi21WhSuggest.INPUT_TYPES()
     assert "wh_ratio" not in it["required"], \
         "wh_ratio 应移出 required(非懒必填槽=修前恒拉 [140] 的证违根因)"
     slot = it["optional"]["wh_ratio"]
     assert slot[0] == "STRING" and slot[1].get("lazy") is True, \
         f"wh_ratio 槽应 STRING+lazy=True,得 {slot}"
+    assert list(it["optional"]) == ["wh_ratio", "九型WIDTH", "九型HEIGHT",
+                                    "联动开关", "手动宽", "手动高"], \
+        f"optional 声明序应=三连线槽前置+联动开关/手动宽高下沉(1002 ⑭)," \
+        f"得 {list(it['optional'])}"
     assert hasattr(MyQi21WhSuggest, "check_lazy_status")
+
+
+def test_tooltips_present_plain_language():
+    """⑰(1002 用户测试批):全部控件 tooltip 在位(大白话一行)。"""
+    it = MyQi21WhSuggest.INPUT_TYPES()
+    tips = {name: spec[1].get("tooltip")
+            for group in ("required", "optional") for name, spec in it[group].items()}
+    for name, tip in tips.items():
+        assert isinstance(tip, str) and tip.strip(), f"{name} 应有非空 tooltip(⑰),得 {tip!r}"
+    assert "PE" in tips["wh_ratio"] and "比例" in tips["wh_ratio"]
+    assert "跟所选型" in tips["手动宽"] and "跟所选型" in tips["手动高"]
 
 
 # ── ⑦ check_lazy_status 四态 + 联动开×未接线报错 ───────────────────────
@@ -219,8 +236,9 @@ def test_manual_slots_shape_and_zero_default_keeps_legacy():
     max 8192/step 8);缺省(0,0)或缺键(None)→ 联动关恒九型原样=旧行为
     逐字节不变(i2i/edit 不接新槽零波及;向后兼容铁律)。"""
     it = MyQi21WhSuggest.INPUT_TYPES()
+    # 1002 ⑭:六槽全住 optional(联动开关随迁;连线槽前置序见 test_lazy_protocol_shape)
     assert set(it["optional"]) == {"wh_ratio", "九型WIDTH", "九型HEIGHT",
-                                   "手动宽", "手动高"}
+                                   "联动开关", "手动宽", "手动高"}
     for slot in ("手动宽", "手动高"):
         kind, opts = it["optional"][slot]
         assert kind == "INT", (slot, kind)

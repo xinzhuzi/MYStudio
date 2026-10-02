@@ -118,26 +118,42 @@ class MyQi21WhSuggest:
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
+        # 1002 ⑭ 接口批:三连线槽(wh_ratio/九型WIDTH/九型HEIGHT)前置=节点
+        # 顶部连线区,参数 widget(联动开关/手动宽/手动高)下沉=节点下部——
+        # required 置空全住 optional(声明序即面板序;连线槽保「可不接」语义,
+        # widget 缺键=签名 default 兜底)。槽位映射表=research/slot-map.md。
+        # 接线蓝图(design §10.6):wh_ratio←[140].wh_ratio;
+        # 联动开关←子图输入口 -10 槽7(宿主面板「画幅联动」,默认关)
+        # wh_ratio lazy 保持(1001 深审修复轮):联动关时不请求
+        # →[140] 零执行零 PE TE 装载(见模块 docstring 懒执行协议)
         return {
-            # 接线蓝图(design §10.6):wh_ratio←[140].wh_ratio;
-            # 联动开关←子图输入口 -10 槽7(宿主面板「画幅联动」,默认关)
-            # wh_ratio lazy+optional(1001 深审修复轮):联动关时不请求
-            # →[140] 零执行零 PE TE 装载(见模块 docstring 懒执行协议)
-            "required": {
-                "联动开关": ("BOOLEAN", {"default": False}),
-            },
+            "required": {},
             # 九型宽高←[150] MyQi21DaojieBase.WIDTH/HEIGHT(轻值不 lazy);
             # wh_ratio lazy:pe关×联动关=[140] 不进执行图(修前恒进=证违根因);
             # 手动宽/手动高(1001 用户测试批 P1,design §2.3):default 0=跟型,
             # 非 0 成对=手填优先(i2i/edit 不接=恒 0=旧行为;不 lazy,轻值同九型槽)
             "optional": {
-                "wh_ratio": ("STRING", {"lazy": True}),
-                "九型WIDTH": ("INT",),
-                "九型HEIGHT": ("INT",),
+                "wh_ratio": ("STRING", {"lazy": True,
+                                        "tooltip": "PE 建议的画幅比例(如 16:9),"
+                                                   "连 PE 改写节点的 wh_ratio 输出"}),
+                "九型WIDTH": ("INT", {"tooltip": "所选型自带的默认宽,连底座节点"
+                                                 "的 WIDTH 输出"}),
+                "九型HEIGHT": ("INT", {"tooltip": "所选型自带的默认高,连底座节点"
+                                                  "的 HEIGHT 输出"}),
+                "联动开关": ("BOOLEAN", {"default": False,
+                                          "tooltip": "开=画幅听 PE 的建议比例(约"
+                                                     "420万像素);关=用手动宽高"
+                                                     "或跟所选型默认"}),
                 "手动宽": ("INT", {"default": 0, "min": 0, "max": 8192,
-                                   "step": 8}),
+                                   "step": 8,
+                                   "tooltip": "PE 关时自己填的画布宽;0=跟所选型"
+                                              "默认,要填就和手动高一起填(8 的"
+                                              "倍数)"}),
                 "手动高": ("INT", {"default": 0, "min": 0, "max": 8192,
-                                   "step": 8}),
+                                   "step": 8,
+                                   "tooltip": "PE 关时自己填的画布高;0=跟所选型"
+                                              "默认,要填就和手动宽一起填(8 的"
+                                              "倍数)"}),
             },
         }
 

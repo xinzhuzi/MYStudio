@@ -14,18 +14,20 @@ venv 实测=「Dependency cycle detected」valid=False;graph.py:169-170 执行�
 虽豁免 lazy 边,验证不过=queuePrompt 直接拒)。拆件成链后:本件(141)→
 [140] PE改写→MyQi21PromptSelect(152),环变链,Q1=B+ 语义零损。
 
-输入口(经典写法,同包 MyQi21SpeedSelect 先例):
-  required
-    主体句    多行大框,接子图输入口「主体句」(-10槽2←顶层 [24]);
-              default=1001 t2i 工作流 [24] 例文逐字
+输入口(1002 ⑭ 接口批重排:连线槽前置/参数 widget 下沉——required 置空,
+全部槽住 optional 按新序声明;槽位映射表=research/slot-map.md):
+  optional(声明序=前端渲染序)
+    BASE      ← [150] MyQi21DaojieBase.BASE(**连线槽,前置=节点顶部**);
+              **缺键(None)/空串纯空白 语义=降级两段拼不炸**(裁定 A 规格②
+              +1001 S8 L-1 空串补:BASE 空即无底座层,主体句+\\n+锁层A;产线
+              缺底座层属静默降质,发中文 print 警告给指路文案,不 raise——
+              与下游合成器的「缺真源」空串语义同款自洽,实弹日志可查)
+    主体句    多行大框(**参数 widget,下沉**),接子图输入口「主体句」
+              (-10槽2←顶层 [24]);default=1001 t2i 工作流 [24] 例文逐字;
+              1002 ⑭ 起随 BASE 迁 optional(缺键=default 例文兜底,宽松化
+              非 breaking——前端 widget 值恒投递,旧行为不变)
     锁层A全文 多行大框参数(原 [110] 通用锁层常量A 迁入;default=工作流值逐字,
-              sha256 前16位锚=eac9a808aa8f7232)
-  optional
-    BASE      ← [150] MyQi21DaojieBase.BASE;**缺键(None)/空串纯空白 语义=降级
-              两段拼不炸**(裁定 A 规格②+1001 S8 L-1 空串补:BASE 空即无底座层,
-              主体句+\\n+锁层A;产线缺底座层属静默降质,发中文 print 警告给指路
-              文案,不 raise——与下游合成器的「缺真源」空串语义同款自洽,实弹
-              日志可查)
+              sha256 前16位锚=eac9a808aa8f7232);optional 化同主体句
 
 输出口(单口):
   装配全文(口0)→ 双喂:[140].prompt(Q1=B+ 根治「写死的种子文被旁路」:[140]
@@ -66,20 +68,24 @@ class MyQi21PromptAssembly:
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
+        # 1002 ⑭ 接口批:连线槽 BASE 前置(节点顶部)/两个大框参数下沉(节点下部)
+        # ——required 置空全住 optional:optional 连线槽保「可不接」语义(BASE 缺键
+        # =两段降级拼,required 化会被引擎验证层拒=breaking);widget 缺键=签名
+        # default 兜底(宽松化)。渲染序=required 序+optional 序,故声明序即面板序。
         return {
-            "required": {
-                "主体句": ("STRING", {"multiline": True, "default": _SUBJECT_EXAMPLE,
-                                       "tooltip": "用户主体描述句(生产接线=子图输入口"
-                                                  "「主体句」;本参数为裸件兜底例文)"}),
-                "锁层A全文": ("STRING", {"multiline": True, "default": _LOCK_A,
-                                          "tooltip": "通用锁层常量A(③层·库首节全文·"
-                                                     "全九型恒挂;原 [110] 迁入)"}),
-            },
+            "required": {},
             "optional": {
                 # BASE:轻件直拉([150] 常驻执行图,非 lazy);未接线或空串=降级两段拼+警告
-                "BASE": ("STRING", {"tooltip": "型底座全文(接 [150] MyQi21DaojieBase."
-                                               "BASE;缺键/空串=主体句+锁层A 两段降级拼,"
-                                               "中文警告可查,不炸队列)"}),
+                "BASE": ("STRING", {"tooltip": "所选型的底座画风文字,连「底座九选一"
+                                               "」的 BASE 输出;不连就只用主体句+锁层A"
+                                               "两段拼"}),
+                "主体句": ("STRING", {"multiline": True, "default": _SUBJECT_EXAMPLE,
+                                       "tooltip": "画面里画什么的人话描述;生产时由子图"
+                                                  "入口喂入,这里一般是兜底例文"}),
+                "锁层A全文": ("STRING", {"multiline": True, "default": _LOCK_A,
+                                          "tooltip": "全九型通用的画风锁底长文(现代"
+                                                     "修仙游戏数字绘画规范),改画风才"
+                                                     "动它,一般不用改"}),
             },
         }
 
@@ -87,9 +93,14 @@ class MyQi21PromptAssembly:
     RETURN_NAMES = ("装配全文",)
     FUNCTION = "assemble"
 
-    def assemble(self, 主体句: str, 锁层A全文: str = _LOCK_A,
-                 BASE: str | None = None) -> tuple[str]:
+    def assemble(self, BASE: str | None = None,
+                 主体句: str = _SUBJECT_EXAMPLE,
+                 锁层A全文: str = _LOCK_A) -> tuple[str]:
         """单口装配:装配全文=主体句+\\n+BASE+\\n+锁层A(返回元组序=RETURN_NAMES 序)。
+
+        形参序=⑭ 新槽序(BASE 连线槽前置);引擎按名投递与形参序无关,直接
+        调用方(单测/脚本)用关键字传参零波及。1002 ⑭ optional 化:主体句/
+        锁层A全文缺键=default 兜底(签名恒有值,可选槽缺投不炸 TypeError)。
 
         BASE None(未接线)或空串/纯空白(BASE 空即无底座层)=两段降级拼
         (主体句+\\n+锁层A)+中文 print 警告(裁定 A 规格② optional 缺键语义

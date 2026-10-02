@@ -60,6 +60,13 @@ edit 主刀轮;映射表=.trellis/tasks/10-01-qi21-i2i-edit-isomorphic/research/
   输入态识别:9件25线且[15]在场=可手术 / 9件25线且[152]在场=已手术(转
   verify-only) / 其它=拒(2)。
 """
+
+# ⛔ 退役警示(2026-10-02 大轮 qi21_biground_surgery_1002.py 落地):
+# 本脚本手术对象已被 1002 大轮终态取代,重跑会把工作流打回旧态——封存勿运行。
+import sys as _sys  # noqa: E402
+print("⛔ 已退役(1002 大轮终态在库):本脚本会打回 10-02 手术,拒绝执行。")
+_sys.exit(3)
+
 import argparse
 import copy
 import hashlib

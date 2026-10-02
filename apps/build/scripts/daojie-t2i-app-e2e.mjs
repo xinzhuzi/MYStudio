@@ -38,6 +38,15 @@
  *   链化判据(1001 装机红修:API 排队图不内联连线文本,prompt=引用 [装配器,0]——
  *   判 PE←装配器口0 直喂且构词三段在场,旧「字面含双特征头」恒 false);panel40
  *   期望集零变(§10.7 子图 inputs 仍 8 口)。
+ *
+ * [1002 大轮终态适配(Trellis 10-01-qi21-usetest-batch implement 步骤10)]
+ *   design §1 编号重排+§2 六手术后的终态面:①宿主/主体句全动态寻址(宿主 type=
+ *   子图 uuid、主体句 type=PrimitiveStringMultiline,旧 [40]/[208]/[24] id 锚废);
+ *   ②子图名锚 includes("提示词类型优化")命中新名「[6] 文本提示词类型优化子图」;
+ *   ③panel 期望集=宿主 node.inputs widget 条目(含 ㉑ 提升控件 PE启用?/透明/手动宽高
+ *   六控件新面板序,Q3 裁定);④S6 排队图三断言域前缀改 truth.accDomain(旧硬编码
+ *   "208:" 废,加速宿主重排 [7],键形 "7:7010" 系;S6b 本就动态)。
+ *   默认档随 ⑱=「0 · Fun-Acc 4步」(truth.speedMode 自装机面现读,零硬编码)。
  */
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
@@ -90,26 +99,32 @@ function parseTruth() {
   const asmSg = sgs.find((s) => String(s.name).includes("提示词类型优化")); // 1001 S8:Part-A S1 改名后的新名锚
   const accSg = sgs.find((s) => String(s.name).includes("加速"));
   if (!asmSg || !accSg) throw new Error(`装机 t2i 子图不全: ${sgs.map((s) => s.name).join(" | ")}`);
-  const host40 = g.nodes.find((n) => String(n.id) === "40");
-  const host208 = g.nodes.find((n) => String(n.id) === "208");
+  // 1002 大轮编号重排适配:宿主/主体句全动态寻址(type/子图 uuid),新旧装机面通吃
+  // (旧面=[40]/[208]/[24] id 锚已随 design §1 重排为 [6]/[7]/[400]——按 id 找必空)
+  const host40 = g.nodes.find((n) => String(n.type) === String(asmSg.id)); // 装配宿主(主图 type=子图 uuid)
+  const host208 = g.nodes.find((n) => String(n.type) === String(accSg.id)); // 加速宿主(同法)
   const ksDirect = accSg.nodes.find((n) => n.type === "KSampler" && n.widgets_values?.[2] === 40);
   const peNode = asmSg.nodes.find((n) => n.type === "QwenImage21_T2IPromptRewrite");
   const asmNode = asmSg.nodes.find((n) => n.type === "MyQi21PromptAssembly"); // 1001 S8 装配全文件(锁层A 参数面真源)
   const save = g.nodes.find((n) => n.type === "SaveImage");
-  const subjNode = g.nodes.find((n) => String(n.id) === "24"); // [24] 主体句(PrimitiveStringMultiline,装机默认=喂料主体句来源)
+  const subjNode = g.nodes.find((n) => n.type === "PrimitiveStringMultiline"); // 主体句(大轮后 [400];主图唯一)
   if (!host40 || !host208 || !ksDirect || !peNode || !asmNode || !save || !subjNode) {
-    throw new Error(`装机 t2i 关键件缺失: host40=${!!host40} host208=${!!host208} ks40=${!!ksDirect} pe=${!!peNode} asm141=${!!asmNode} save=${!!save} subj24=${!!subjNode}`);
+    throw new Error(`装机 t2i 关键件缺失: hostAsm=${!!host40} hostAcc=${!!host208} ks40=${!!ksDirect} pe=${!!peNode} asm=${!!asmNode} save=${!!save} subj=${!!subjNode}`);
   }
-  // 宿主面板期望控件=子图 widget 型输入−已连线槽(S3-gate 0930 口径)
+  // 宿主面板期望控件(1002 大轮适配):宿主 node.inputs 的 widget 型条目=面板全量
+  // (含子图内件提升控件:PE启用?[4012]/透明/手动宽高——旧口径只算子图 IO widget 槽,
+  // 提升控件不在 sg.inputs 会漏;旧「−已连线」过滤同废:面板控件本身可既连线又外露)
   const hostPanel = (sg, host) => {
+    const fromHost = (host.inputs || []).filter((i) => i.widget).map((i) => i.name);
+    if (fromHost.length) return fromHost;
     const linked = new Set((host.inputs || []).filter((i) => i.link !== null && i.link !== undefined).map((i) => i.name));
     return (sg.inputs || []).filter((i) => ["COMBO", "BOOLEAN", "INT", "STRING", "FLOAT"].includes(i.type))
       .map((i) => i.name).filter((nm) => !linked.has(nm));
   };
-  // D1 PE 喂法真值(1001 S8 Q1=B+):[140].prompt=装配器「装配全文」输出(主体句+BASE+
-  // 锁层A)直喂连线,种子文 widget 清空退役(摆设)——链化判据(D5 peFedAssembly):
-  // 排队图 prompt=引用装配器口0+构词三段在场(主体句头 18 字@宿主[24].value+锁层A
-  // 首段头@装配器字面>1000字,防裸主体句回退);零硬编码
+  // D1 PE 喂法真值(1001 S8 Q1=B+,1002 大轮后编号=[4013]):PE.prompt=装配器「装配
+  // 全文」输出(主体句+BASE+锁层A)直喂连线,种子文 widget 清空退役(摆设)——链化判据
+  // (D5 peFedAssembly):排队图 prompt=引用装配器口0+构词三段在场(主体句头 18 字@
+  // 主体句[400].value+锁层A 首段头@装配器字面>1000字,防裸主体句回退);零硬编码
   const peSeed = peNode.widgets_values?.[0] || "";
   const subj24 = String(subjNode.widgets_values?.[0] || "");
   const lockA = String((asmNode.widgets_values || []).find((v) => typeof v === "string" && v.length > 500) || "");
@@ -271,7 +286,7 @@ const pngMagic = (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] =
 /**
  * D5 排队图「PE 吃装配全文」判定(1001 S8 Q1=B+ 链化形态):API 排队图不内联连线
  * 文本——PE.prompt=引用 [装配器key, 0](MyQi21PromptAssembly 单口=装配全文),判据=
- * ①引用指向装配器口0;②装配全文构词在场:主体句引用宿主[24](value 含主体句头18字)
+ * ①引用指向装配器口0;②装配全文构词在场:主体句引用主体句件(大轮后[400],value 含主体句头18字)
  * +锁层A字面含首段头且>1000字(实况 1174)。旧「prompt 字面 includes 文本头」判据
  * 在链化形态下恒 false(数组 stringify 成 "40:141,0" 8 字)——1001 装机红实锤改判。
  */
@@ -628,12 +643,14 @@ async function s6Generate(main, engineBase, truth) {
   } else {
     writeFileSync(join(TMP, "queued-prompt.json"), JSON.stringify(prompt, null, 1));
     const keys = Object.keys(prompt);
-    const ksDir = keys.filter((k) => k.startsWith("208:") && prompt[k]?.class_type === "KSampler" && String(prompt[k]?.inputs?.steps) === String(truth.ksSteps));
+    // 1002 大轮编号锚:旧硬编码 "208:" 已废(加速宿主重排为 [7],域前缀=truth.accDomain
+    // 自真源派生,与 S6b 同款)——实弹键形 "7:7010" 系
+    const ksDir = keys.filter((k) => k.startsWith(truth.accDomain) && prompt[k]?.class_type === "KSampler" && String(prompt[k]?.inputs?.steps) === String(truth.ksSteps));
     check(`S6 排队图:直出 KSampler steps=${truth.ksSteps}(加速域)`, ksDir.length > 0, `key=${ksDir.join(",") || "无"}`);
-    const seeds = keys.filter((k) => k.startsWith("208:") && prompt[k]?.class_type === "PrimitiveInt");
+    const seeds = keys.filter((k) => k.startsWith(truth.accDomain) && prompt[k]?.class_type === "PrimitiveInt");
     const seedOk = seeds.some((k) => String(prompt[k].inputs.value) === String(truth.seedDefault));
     check(`S6 排队图:seed=${truth.seedDefault}(加速域 PrimitiveInt)`, seedOk, `keys=${seeds.join(",") || "无"}`);
-    const sel = keys.filter((k) => k.startsWith("208:") && prompt[k]?.class_type === "MyQi21SpeedSelect");
+    const sel = keys.filter((k) => k.startsWith(truth.accDomain) && prompt[k]?.class_type === "MyQi21SpeedSelect");
     check(`S6 排队图:速度档=${truth.speedMode}`, sel.length > 0 && prompt[sel[0]]?.inputs?.mode === truth.speedMode,
       `mode=${sel.length ? prompt[sel[0]].inputs.mode : "无"}`);
     // 1001 S8 链化形态判据(D5):排队图 PE.prompt=引用装配器口0(装配全文直喂),
@@ -701,10 +718,10 @@ async function s6Generate(main, engineBase, truth) {
 }
 
 // ═══════════ S6b 装配全文进 PE 硬闸(1001 S8 Q1=B+;0930-pt2 D2 沿革) ═══════════
-// Q1=B+ 后 [140].prompt=装配器 MyQi21PromptAssembly「装配全文」输出直喂(主体句+BASE+
-// 锁层A),种子文 widget 清空退役(摆设)——旧「改种子=前缀+主体句」机制失效。新硬闸:
+// Q1=B+ 后 PE改写[4013].prompt=装配器 MyQi21PromptAssembly「装配全文」输出直喂(主体句+
+// BASE+锁层A),种子文 widget 清空退役(摆设)——旧「改种子=前缀+主体句」机制失效。新硬闸:
 // ①程序化入装配子图,装配器参数面锁层A全文=装机真源逐字对拍+PE 种子 widget 空核(退役
-// 在位);②真出图,排队图服务器端硬闸 40:140.prompt=装配器口0直喂+构词三段(D5)。
+// 在位);②真出图,排队图服务器端硬闸 装配域:4013.prompt=装配器口0直喂+构词三段(D5)。
 // 入图走程序化 setGraph(S3-gate 已证形态);内件按 TYPE 寻址(子图内 id 装载可重编号)。
 async function s6bPeFedShot(main, engineBase, truth) {
   step("S6b", `装配全文进 PE 硬闸(Q1=B+;装配器锁层A ${truth.lockA.length}字对拍+排队图 PE 链化判据)`);
@@ -744,7 +761,7 @@ async function s6bPeFedShot(main, engineBase, truth) {
   const asmOk = !!asmFed && !asmFed.err && asmFed.back === truth.lockA;
   check("S6b 装配器参数面:锁层A全文=装机真源逐字(Q1=B+ 装配全文第三段)", asmOk,
     asmOk ? `widget=${asmFed.widget} 读回 ${String(asmFed.back).length} 字逐字✓` : String(asmRaw).slice(0, 200));
-  // PE 种子文 widget 退役在位核([140].prompt 已接装配器输出口0,widget=清空摆设)
+  // PE 种子文 widget 退役在位核(PE改写[4013].prompt 已接装配器输出口0,widget=清空摆设)
   const peWRaw = await wv(main, `(() => {
     const g = window.app.canvas.graph;
     const pe = g && g._nodes ? g._nodes.find(x => x.type === 'QwenImage21_T2IPromptRewrite') : null;

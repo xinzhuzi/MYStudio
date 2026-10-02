@@ -14,26 +14,32 @@
 venv 实测=「Dependency cycle detected」valid=False)。拆件成链后:
 MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
 
-输入口(经典写法,同包 MyQi21SpeedSelect 先例):
-  required
-    pe开关     接 -10槽5(宿主面板「PE开关」,默认 true;独立手动,不再与透明共布尔)
-    透明模式   接 [210] MyQi21RgbaSelect.rgba_on(R7.1b 按型自动链;不参与文本
-               计算=机械双产出,RGBA 用否由下游 [144] conditioning 开关裁决)
+输入口(1002 ⑭ 接口批重排:连线槽前置/参数 widget 下沉——required 置空,
+全部槽住 optional 按新序声明;槽位映射表=research/slot-map.md):
+  optional(声明序=前端渲染序)
+    装配全文   ← [141] MyQi21PromptAssembly.装配全文(**连线槽,前置**;直写路/
+               透明直写路真源);缺键(None)语义=pe关路降级空串+中文警告
+               (裁定 A 自洽语义)
+    PE出文     ← [140] PE改写.positive_prompt(**连线槽,前置**;lazy=True:
+               pe关×联动关时 [140] 无人消费其输出→不进执行图→零 PE TE 装载;
+               1001 深审修复轮起成立——修前 [151].wh_ratio 非懒必填槽强拉
+               [140],实弹证违在档 s8-integration-report.json lazyVerdict=
+               VIOLATED,已随 wh_ratio lazy 化根治,引擎实码最小同构图三拍复验)
+    pe开关     接 -10槽5(宿主面板「PE开关」,默认 true;独立手动,不再与透明
+               共布尔;**参数 widget,下沉**;1002 ⑭ 随迁 optional,缺键兜底
+               =True 与 widget default 同态=0926 裁定1 语义不漂)
+    透明模式   接 [150].透明值(1001 ④⑥⑦:纯 BOOLEAN 跨子图边界,解析住底座件;
+               不参与文本计算=机械双产出,RGBA 用否由下游 [144] conditioning
+               开关裁决)
     RGBA官方头句 / RGBA官方尾句 / W1收束句
                三固定句参数面(原 [160][161][215] 迁入;multiline 大框=Q4
-               「固定句都要输入框」;default=1001 t2i 工作流值逐字)
-  optional
-    装配全文   ← [141] MyQi21PromptAssembly.装配全文(直写路/透明直写路真源);
-               缺键(None)语义=pe关路降级空串+中文警告(裁定 A 自洽语义)
-    PE出文     ← [140] PE改写.positive_prompt(lazy=True:pe关×联动关时 [140]
-               无人消费其输出→不进执行图→零 PE TE 装载;1001 深审修复轮
-               起成立——修前 [151].wh_ratio 非懒必填槽强拉 [140],实弹证违
-               在档 s8-integration-report.json lazyVerdict=VIOLATED,已随
-               wh_ratio lazy 化根治,引擎实码最小同构图三拍复验)
+               「固定句都要输入框」;default=1001 t2i 工作流值逐字;**下沉**)
 
-逻辑(与原一件式三行公式逐字不变):
+逻辑(1002 Q4 补强:pe关透明路同包 W1 收束句——grill 五问 Q4 裁定,
+此前仅 pe开路包 W1,pe关透明文本少收束句=裸拼;两路统一后):
   最终文本 = PE出文 if pe开关 else (装配全文 or "")
-  透明 mid = 剥离(PE出文)+" "+W1收束句 if pe开关 else (装配全文 or "")
+  透明 mid = 剥离(PE出文)+" "+W1收束句 if pe开关
+             else (装配全文 or "")+" "+W1收束句     (Q4:两路同包 W1)
   透明文本 = RGBA官方头句+" "+透明 mid+" "+RGBA官方尾句
   剥离(s)  = re.sub(词族pattern, "", s, flags=IGNORECASE)   (原 [206] 语义)
 
@@ -128,8 +134,9 @@ class MyQi21PromptSelect:
     """漫影道劫 qi21 最终文本合成器:PE 路选择+透明文本包裹,两口产出。
 
     最终文本(口0)=pe开关?PE出文:装配全文;透明文本(口1)=头句+空格+
-    (PE路=剥离(PE出文)+空格+W1收束句 / 直写路=装配全文)+空格+尾句,
-    机械双产出(透明模式输入不参与计算,[144] 下游裁决,R7.4 不可吞边界)。
+    (PE路=剥离(PE出文) / 直写路=装配全文)+空格+W1收束句+空格+尾句
+    (1002 Q4:两路同包 W1),机械双产出(透明模式输入不参与计算,[144]
+    下游裁决,R7.4 不可吞边界)。
     """
 
     CATEGORY = "my"
@@ -138,30 +145,39 @@ class MyQi21PromptSelect:
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
+        # 1002 ⑭ 接口批:两连线槽(装配全文/PE出文)前置=节点顶部连线区,五个
+        # 参数 widget(开关/布尔/三大框)下沉=节点下部参数区——required 置空全住
+        # optional:连线槽保「可不接」语义(装配全文缺键=降级/PE出文缺键=pe关路
+        # 零装载,required 化会被引擎验证层拒=breaking);widget 缺键=签名 default
+        # 兜底。渲染序=required 序+optional 序,故声明序即面板序。
         return {
-            "required": {
-                "pe开关": ("BOOLEAN", {"default": True,
-                                        "tooltip": "PE 改写路总开关(独立手动,默认开);"
-                                                   "关=直写路,装配全文原样进编码"}),
-                "透明模式": ("BOOLEAN", {"default": False,
-                                          "tooltip": "按型自动链输入(接 [210] 三态输出;"
-                                                     "不参与文本计算,RGBA 用否由下游 "
-                                                     "[144] conditioning 开关裁决)"}),
-                "RGBA官方头句": ("STRING", {"multiline": True, "default": _RGBA_HEAD,
-                                             "tooltip": "透明文本官方头句(原 [160] 迁入)"}),
-                "RGBA官方尾句": ("STRING", {"multiline": True, "default": _RGBA_TAIL,
-                                             "tooltip": "透明文本官方尾句(原 [161] 迁入)"}),
-                "W1收束句": ("STRING", {"multiline": True, "default": _W1_TAIL,
-                                          "tooltip": "PE 路透明文本的 W1 收束句"
-                                                     "(原 [215] 迁入)"}),
-            },
+            "required": {},
             "optional": {
-                "装配全文": ("STRING", {"tooltip": "真源装配文本(接 [141] "
-                                                "MyQi21PromptAssembly.装配全文;pe关路"
-                                                "缺键=空串降级+中文警告)"}),
+                "装配全文": ("STRING", {"tooltip": "装配好的完整提示词原文,连「装配"
+                                                "全文件」节点的输出;不连=直写路空文,"
+                                                "日志有中文警告"}),
                 "PE出文": ("STRING", {"lazy": True,
-                                       "tooltip": "PE 改写出文(接 [140].positive_prompt;"
-                                                  "lazy:pe关时不拉起 [140])"}),
+                                       "tooltip": "PE 改写好的英文长提示词,连 PE 改写"
+                                                  "节点的 positive_prompt 输出;开关关"
+                                                  "时它不会被拉起"}),
+                "pe开关": ("BOOLEAN", {"default": True,
+                                        "tooltip": "总开关:开=先用 PE 把中文短句改写"
+                                                   "成英文长提示词;关=直接用装配好的"
+                                                   "原文"}),
+                "透明模式": ("BOOLEAN", {"default": False,
+                                          "tooltip": "要不要出透明底图,自动跟着所选型"
+                                                     "走(接底座节点的「透明值」),"
+                                                     "一般不用管"}),
+                "RGBA官方头句": ("STRING", {"multiline": True, "default": _RGBA_HEAD,
+                                             "tooltip": "教模型输出透明图的官方英文"
+                                                        "开头句,一般不用改"}),
+                "RGBA官方尾句": ("STRING", {"multiline": True, "default": _RGBA_TAIL,
+                                             "tooltip": "告诉模型图带透明通道的官方"
+                                                        "英文收尾句,一般不用改"}),
+                "W1收束句": ("STRING", {"multiline": True, "default": _W1_TAIL,
+                                          "tooltip": "让主体变成干净抠图素材的收尾"
+                                                     "描述(独占画面+四周留透明),"
+                                                     "一般不用改"}),
             },
         }
 
@@ -177,18 +193,28 @@ class MyQi21PromptSelect:
         未接线(optional 不投递)→绝不请求(引擎对未接线槽 make_input_strong_link
         抛 NodeInputError);None=已接线未求值→请求;有值=已求值→放行。pe关时
         即便 PE出文 已接线未求值也不请求([140] 无人消费其输出→不进执行图)。
+
+        1002 ⑭ optional 化补:pe开关 缺键(None,仅手写 API prompt 省略槽时
+        可达;前端 widget 值恒投递)按 widget default=True 兜底(0926 裁定1
+        「画布默认 PE 开路」语义不随槽位搬家漂移)。
         """
+        if pe开关 is None:
+            pe开关 = True
         if not pe开关:
             return []
         if "PE出文" in kwargs and kwargs["PE出文"] is None:
             return ["PE出文"]
         return []
 
-    def compose(self, pe开关: bool, 透明模式: bool,
+    def compose(self, 装配全文: str | None = None, PE出文: str | None = None,
+                pe开关: bool | None = None, 透明模式: bool = False,
                 RGBA官方头句: str = _RGBA_HEAD, RGBA官方尾句: str = _RGBA_TAIL,
-                W1收束句: str = _W1_TAIL, 装配全文: str | None = None,
-                PE出文: str | None = None) -> tuple[str, str]:
+                W1收束句: str = _W1_TAIL) -> tuple[str, str]:
         """两口合成:最终文本/透明文本(返回元组序=RETURN_NAMES 序)。
+
+        形参序=⑭ 新槽序(两连线槽前置);引擎按名投递与形参序无关,直接调用方
+        (单测/脚本)用关键字传参零波及。1002 ⑭ optional 化:全参数有 default,
+        缺投不炸 TypeError;pe开关 None 兜底 True(同 widget default/懒钩子)。
 
         透明模式形参在场但不参与计算(R7.4:[144] conditioning 开关保留在下游
         裁决,本件机械双产出;形参名=输入槽名,引擎按名投递不可改名)。
@@ -196,6 +222,8 @@ class MyQi21PromptSelect:
         装配全文 None(未接线)语义(裁定 A 自洽):pe开路不消费它=照常;pe关路
         降级空串+中文 print 警告(缺真源=缺整段文本,日志可查,不猜不代选)。
         """
+        if pe开关 is None:
+            pe开关 = True
         if 装配全文 is None:
             print("[MyQi21PromptSelect] 装配全文输入未接线:pe关路(直写/透明直写)"
                   "无真源文本可用,最终文本降级为空串——请把 [141] "
@@ -213,7 +241,9 @@ class MyQi21PromptSelect:
             final_text = PE出文
             transparent_mid = strip_word_family(PE出文) + " " + W1收束句
         else:
+            # 1002 Q4 补强(grill 五问 Q4 裁定):pe关透明路同包 W1 收束句——
+            # 修前=裸拼装配全文,与 pe开路(剥离+W1)不对称,透明素材收束缺位
             final_text = direct
-            transparent_mid = direct
+            transparent_mid = direct + " " + W1收束句
         transparent_text = f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}"
         return (final_text, transparent_text)

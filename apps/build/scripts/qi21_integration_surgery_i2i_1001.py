@@ -52,6 +52,13 @@
 用法:python3 apps/build/scripts/qi21_integration_surgery_i2i_1001.py --step all|verify
   输入态识别:28件58线=原始态(可手术)/17件49线=已手术(verify)/其他=拒绝。
 """
+
+# ⛔ 退役警示(2026-10-02 大轮 qi21_biground_surgery_1002.py 落地):
+# 本脚本手术对象已被 1002 大轮终态取代,重跑会把工作流打回旧态——封存勿运行。
+import sys as _sys  # noqa: E402
+print("⛔ 已退役(1002 大轮终态在库):本脚本会打回 10-02 手术,拒绝执行。")
+_sys.exit(3)
+
 import argparse
 import copy
 import hashlib

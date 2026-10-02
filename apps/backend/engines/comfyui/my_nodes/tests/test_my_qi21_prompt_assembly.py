@@ -66,12 +66,12 @@ def test_1_assembled_full_text_verbatim_single_output():
         f"装配全文应=主体句+换行+BASE+换行+锁层A 逐字单口元组,得 {result!r}"
     # 输出口即喂 [140].prompt 的真源(Q1=B+:PE=装配全文的优化器)
     assert node.RETURN_TYPES == ("STRING",) and node.RETURN_NAMES == ("装配全文",)
-    # default 迁移锚(逐字迁入存证)
+    # default 迁移锚(逐字迁入存证;1002 ⑭ 两参数随 BASE 迁 optional,锚随迁)
     inputs = node.INPUT_TYPES()
-    assert _sha16(inputs["required"]["主体句"][1]["default"]) == _DEFAULT_ANCHORS["主体句"]
-    assert _sha16(inputs["required"]["锁层A全文"][1]["default"]) == _DEFAULT_ANCHORS["锁层A全文"]
-    assert inputs["required"]["主体句"][1]["multiline"] is True \
-        and inputs["required"]["锁层A全文"][1]["multiline"] is True, \
+    assert _sha16(inputs["optional"]["主体句"][1]["default"]) == _DEFAULT_ANCHORS["主体句"]
+    assert _sha16(inputs["optional"]["锁层A全文"][1]["default"]) == _DEFAULT_ANCHORS["锁层A全文"]
+    assert inputs["optional"]["主体句"][1]["multiline"] is True \
+        and inputs["optional"]["锁层A全文"][1]["multiline"] is True, \
         "Q4:固定句/主体句参数应 multiline 大框"
 
 
@@ -83,16 +83,31 @@ def test_2_base_unwired_degrades_to_two_segments():
         f"BASE 未接线应降级=主体句+换行+锁层A 两段拼(optional 缺键不炸),得 {result!r}"
 
 
-# ── ③ 接口面锁:单口+optional BASE(裁定 A 拆件形态防回退)────────────
+# ── ③ 接口面锁:⑭ 连线槽前置/参数下沉+optional 化(裁定 A 拆件形态防回退)──
 def test_3_interface_shape_upstream_single_output():
     node = MyQi21PromptAssembly()
     inputs = node.INPUT_TYPES()
-    assert set(inputs["required"]) == {"主体句", "锁层A全文"}, \
-        f"required 应恰 主体句+锁层A全文(头/尾/W1 已随裁定 A 迁选择器件),得 {set(inputs['required'])}"
-    assert set(inputs["optional"]) == {"BASE"}, \
-        f"optional 应恰 BASE,得 {set(inputs['optional'])}"
+    # 1002 ⑭:required 置空(连线槽前置需全槽住 optional——BASE 进 required 会被
+    # 引擎验证层强拒「可不接」语义=breaking);三槽全住 optional
+    assert inputs["required"] == {}, \
+        f"required 应置空(1002 ⑭ 连线槽前置重排),得 {inputs['required']}"
+    assert list(inputs["optional"]) == ["BASE", "主体句", "锁层A全文"], \
+        f"optional 声明序应=BASE(连线槽,前置)/主体句/锁层A全文(参数下沉)," \
+        f"得 {list(inputs['optional'])}"
     assert inputs["optional"]["BASE"][0] == "STRING"
     assert node.FUNCTION == "assemble"
+
+
+def test_tooltips_present_plain_language():
+    """⑰(1002 用户测试批):全部控件 tooltip 在位(大白话一行);头句式样例锁
+    prd ⑰ 给的口径文案关键词,防回退成技术腔/空串。"""
+    inputs = MyQi21PromptAssembly().INPUT_TYPES()
+    tips = {name: spec[1].get("tooltip")
+            for group in ("required", "optional") for name, spec in inputs[group].items()}
+    for name, tip in tips.items():
+        assert isinstance(tip, str) and tip.strip(), f"{name} 应有非空 tooltip(⑰),得 {tip!r}"
+    assert "底座九选一" in tips["BASE"], "BASE tooltip 应大白话指向「底座九选一」件"
+    assert "一般不用改" in tips["锁层A全文"]
 
 
 # ── ④ BASE 已接线但空串/纯空白=与 None 同款两段降级拼+中文警告 ────────
@@ -127,7 +142,8 @@ def test_6_free_type_empty_base_two_segments_neutral_warning(capsys):
     (防锁层A 内换行坑:误把锁层A 换行当段界,或实现误用空行分隔)。"""
     node = MyQi21PromptAssemblyPkg()
     # 真锁层A default(内含换行,三段长文)从 INPUT_TYPES 运行时取,零硬编码
-    lock_a = node.INPUT_TYPES()["required"]["锁层A全文"][1]["default"]
+    # (1002 ⑭ 参数迁 optional,取处随迁)
+    lock_a = node.INPUT_TYPES()["optional"]["锁层A全文"][1]["default"]
     assert "\n" in lock_a, "前置:真锁层A 应内含换行(断言口径成立的前提"
     result = node.assemble(主体句="主体句例", BASE="", 锁层A全文=lock_a)
     out = result[0]

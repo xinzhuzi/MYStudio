@@ -19,6 +19,12 @@ None(已接线未求值态)→请求名单;PE出文未接线(缺键)→[]绝不�
 (case_insensitive 生效,与 [MyQi21PromptAssembly].BASE 无关的独立真源)
 ⑩词库结构坏档锁(1001 S8 深审 L-3):合法 JSON 缺键→同款 RuntimeError
 中文兜底且不写缓存,同进程修文件即自愈(坏 dict 不得钉死缓存)。
+⑪(1002 ⑭)optional 化缺省兜底:pe开关 缺键=None→True(widget default
+同态,0926 裁定1 不漂)+签名全 default 不炸 TypeError。
+⑫(1002 ⑰)全部控件 tooltip 在位(大白话;头句=prd ⑰ 例文逐字)。
+1002 ⑭ 接口批:INPUT_TYPES required 置空,optional 声明序=装配全文/PE出文
+(两连线槽前置)→pe开关/透明模式/头/尾/W1(五参数下沉);Q4 补强:pe关透明
+路同包 W1 收束句(③⑥⑦ 断言随之改)。槽位映射表=任务档 research/slot-map.md。
 
 加载纪律:importlib.util.spec_from_file_location 直载 nodes/ 文件(不 import
 my_nodes 包)。
@@ -62,13 +68,18 @@ def test_1_pe_off_final_equals_assembled_and_defaults():
                                        装配全文="装配全文例")
     assert final == "装配全文例", f"pe关→最终文本应=装配全文(直写路),得 {final!r}"
     inputs = node.INPUT_TYPES()
+    # 1002 ⑭:参数 widget 全迁 optional(连线槽装配全文/PE出文前置),锚随迁
     for name, anchor in _DEFAULT_ANCHORS.items():
-        assert _sha16(inputs["required"][name][1]["default"]) == anchor, \
+        assert _sha16(inputs["optional"][name][1]["default"]) == anchor, \
             f"{name} default 迁移锚漂移(应 sha16={anchor})"
-        assert inputs["required"][name][1]["multiline"] is True, \
+        assert inputs["optional"][name][1]["multiline"] is True, \
             f"Q4:{name} 应 multiline 大框"
-    assert inputs["required"]["pe开关"][1]["default"] is True, "pe开关默认应 true(0926 裁定1)"
-    assert inputs["required"]["透明模式"][1]["default"] is False
+    assert inputs["required"] == {}, "required 应置空(1002 ⑭ 连线槽前置重排)"
+    assert list(inputs["optional"]) == ["装配全文", "PE出文", "pe开关", "透明模式",
+                                        "RGBA官方头句", "RGBA官方尾句", "W1收束句"], \
+        f"optional 声明序应=两连线槽前置+五参数下沉(⑭),得 {list(inputs['optional'])}"
+    assert inputs["optional"]["pe开关"][1]["default"] is True, "pe开关默认应 true(0926 裁定1)"
+    assert inputs["optional"]["透明模式"][1]["default"] is False
 
 
 def test_2_pe_on_final_equals_pe_text():
@@ -78,14 +89,16 @@ def test_2_pe_on_final_equals_pe_text():
     assert final == "PE 出文例", f"pe开→最终文本应=PE出文(优化器路),得 {final!r}"
 
 
-def test_3_transparent_pe_off_wraps_assembled():
+def test_3_transparent_pe_off_wraps_assembled_with_w1():
+    """Q4(1002 grill 五问 Q4 裁定):pe关透明路**同包 W1 收束句**——修前裸拼
+    装配全文(与 pe开路不对称,透明素材收束缺位);现两路统一=头+mid+W1+尾。"""
     node = MyQi21PromptSelect()
     _final, transparent = node.compose(pe开关=False, 透明模式=True,
                                        装配全文="装配全文例",
                                        RGBA官方头句="头句", RGBA官方尾句="尾句",
                                        W1收束句="W1句")
-    assert transparent == "头句 装配全文例 尾句", \
-        f"透明+pe关→头句+空格+装配全文+空格+尾句,得 {transparent!r}"
+    assert transparent == "头句 装配全文例 W1句 尾句", \
+        f"透明+pe关→头句+装配全文+W1+尾句(Q4 两路同包 W1),得 {transparent!r}"
 
 
 def test_4_transparent_pe_on_strips_word_family_and_keeps_w1():
@@ -121,19 +134,23 @@ def test_6_transparent_mode_off_still_produces_transparent_text():
     node = MyQi21PromptSelect()
     _final, transparent = node.compose(pe开关=False, 透明模式=False,
                                        装配全文="装配全文例",
-                                       RGBA官方头句="头句", RGBA官方尾句="尾句")
-    assert transparent == "头句 装配全文例 尾句", \
-        "透明模式=False→透明文本仍机械产出(下游 [144] 不选即弃,R7.4 不可吞边界)"
+                                       RGBA官方头句="头句", RGBA官方尾句="尾句",
+                                       W1收束句="W1句")
+    assert transparent == "头句 装配全文例 W1句 尾句", \
+        "透明模式=False→透明文本仍机械产出(下游 [144] 不选即弃,R7.4 不可吞边界;" \
+        "Q4 后 mid=装配全文+W1)"
 
 
 def test_7_assembled_unwired_pe_off_degrades_to_empty():
     node = MyQi21PromptSelect()
     final, transparent = node.compose(pe开关=False, 透明模式=False,
-                                       RGBA官方头句="头句", RGBA官方尾句="尾句")
+                                      RGBA官方头句="头句", RGBA官方尾句="尾句",
+                                      W1收束句="W1句")
     assert final == "", \
         f"装配全文未接线+pe关→最终文本降级空串(缺真源自洽语义),得 {final!r}"
-    assert transparent == "头句  尾句", \
-        f"同态透明文本=头句+空格+空串+空格+尾句,得 {transparent!r}"
+    # Q4 后空 mid 也包 W1:头句+空格+空串+空格+W1+空格+尾句
+    assert transparent == "头句  W1句 尾句", \
+        f"同态透明文本=头句+(空串+W1)+尾句(Q4),得 {transparent!r}"
     # pe开路不消费装配全文=缺键照常(PE出文为最终文本)
     final2, _t2 = node.compose(pe开关=True, 透明模式=False, PE出文="PE 文")
     assert final2 == "PE 文"
@@ -195,3 +212,42 @@ def test_10_lexicon_valid_json_missing_keys_not_pinned_in_cache():
                 f"同进程修文件后应现读自愈,得 {got!r}"
         finally:
             select._LEXICON_PATH, select._lexicon_cache = real_path, real_cache
+
+
+# ── ⑪ 1002 ⑭ optional 化缺省兜底(手写 API prompt 省略槽态) ──────────
+def test_11_pe_switch_missing_defaults_true():
+    """⑭ 随迁 optional 后 pe开关 可缺键(前端 widget 恒投递,仅手写 API prompt
+    省略槽时可达)——兜底 True=widget default 同态(0926 裁定1「画布默认 PE
+    开路」不随槽位搬家漂移);懒钩子同款兜底;签名全 default 不炸 TypeError。"""
+    node = MyQi21PromptSelect()
+    # 懒钩子:pe开关缺键(None)→按 True 处理→请求未求值的 PE出文
+    assert node.check_lazy_status(PE出文=None) == ["PE出文"], \
+        "pe开关缺省应兜底 True(钩子按 pe开请求 PE出文)"
+    # compose:缺省 pe开关=True→PE 路语义(PE出文 有值即用)
+    final, _t = node.compose(PE出文="PE 文", 装配全文="装配全文例")
+    assert final == "PE 文", "compose pe开关缺省应兜底 True(PE 路)"
+    # 缺省 pe开关=True 而 PE出文 缺键=既有语义保持(中文 ValueError,不猜不代选)
+    try:
+        node.compose(装配全文="装配全文例")
+    except ValueError as exc:
+        assert "PE出文" in str(exc)
+    else:
+        raise AssertionError("pe开关缺省(True)+PE出文缺键应 ValueError(语义不随" \
+                             "槽位搬家漂移)")
+    # pe关路全缺省:签名完整可调用(optional 化不炸 TypeError),降级空串+包裹
+    final2, transparent2 = node.compose(pe开关=False)
+    assert final2 == "", "pe关路装配全文缺键→降级空串(既有语义)"
+    assert transparent2.startswith(select._RGBA_HEAD), "透明文本=头句起头(Q4 包裹)"
+
+
+def test_12_tooltips_present_plain_language():
+    """⑰(1002 用户测试批):全部控件 tooltip 在位(大白话一行);头句 tooltip
+    锁 prd ⑰ 例文口径(「教模型输出透明图的官方英文开头句,一般不用改」)。"""
+    inputs = MyQi21PromptSelect().INPUT_TYPES()
+    tips = {name: spec[1].get("tooltip")
+            for group in ("required", "optional") for name, spec in inputs[group].items()}
+    for name, tip in tips.items():
+        assert isinstance(tip, str) and tip.strip(), f"{name} 应有非空 tooltip(⑰),得 {tip!r}"
+    assert tips["RGBA官方头句"] == \
+        "教模型输出透明图的官方英文开头句,一般不用改", "头句 tooltip=prd ⑰ 例文逐字"
+    assert "总开关" in tips["pe开关"]

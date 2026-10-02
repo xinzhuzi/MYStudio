@@ -54,6 +54,13 @@ implement.md P2 步骤 6 / design §3 映射全表一把)。
 铁律:禁手工编辑 JSON;断言不过=fail-closed 不落盘。
 用法:python3 apps/build/scripts/qi21_usertest_surgery_1001.py [--step all|verify]
 """
+
+# ⛔ 退役警示(2026-10-02 大轮 qi21_biground_surgery_1002.py 落地):
+# 本脚本手术对象已被 1002 大轮终态取代,重跑会把工作流打回旧态——封存勿运行。
+import sys as _sys  # noqa: E402
+print("⛔ 已退役(1002 大轮终态在库):本脚本会打回 10-02 手术,拒绝执行。")
+_sys.exit(3)
+
 import argparse
 import copy
 import hashlib

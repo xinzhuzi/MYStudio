@@ -29,6 +29,13 @@ JSON,落 my_nodes/subgraphs/;info.category 归漫影」):
 铁律:禁手工编辑工作流 JSON(本脚本只读工作流,只写两个新蓝图件);
 回滚=删两个新蓝图件,零残留。
 """
+
+# ⛔ 退役警示(2026-10-02 大轮 qi21_biground_surgery_1002.py 落地):
+# 本脚本手术对象已被 1002 大轮终态取代,重跑会把工作流打回旧态——封存勿运行。
+import sys as _sys  # noqa: E402
+print("⛔ 已退役(1002 大轮终态在库):本脚本会打回 10-02 手术,拒绝执行。")
+_sys.exit(3)
+
 import argparse
 import copy
 import hashlib

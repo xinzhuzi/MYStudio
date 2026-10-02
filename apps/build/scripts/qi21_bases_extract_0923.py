@@ -4,7 +4,9 @@
 从 05 库(docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md,daojie_canon_lib.py
 生成的真源)提取九型底座文本,与 canon 画幅档拼成
 apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json(节点 MyQi21DaojieBase
-热读数据,09-23 造件轮;工作流接线由下一轮做):
+热读数据,09-23 造件轮;工作流接线由下一轮做)。**1002 起十档**=九型提取+尾条
+「自由」(1001 用户测试批 P1,06e6149 入库时提取器漏同步、1002 头身比锚轮补齐——
+见下方 FREE_ENTRY):
 
   每型条目字段:
     zh              = canon zh(顺序=daojie_bases.json 条目顺序,不 sorted;0927 改名轮起
@@ -69,6 +71,21 @@ _RGBA_DECL_ANCHOR = "图为带透明通道的 RGBA 透明底图"
 # 0927 多视图轮·Q2.1侧画幅分档(单源=daojie_canon_lib.Q21_ASPECT_FORK,import 复用
 # 防两处漂移——多视图 3:4 Portrait Standard 4.2MP、退役 override;K2 侧 canon 不动)
 from daojie_canon_lib import Q21_ASPECT_FORK  # noqa: E402  (同目录单源 import)
+
+# 1002 头身比锚轮补账:十档尾条「自由」(1001 用户测试批 P1,design §2.4;06e6149
+# 入库 qi21_bases.json 时本提取器漏同步——十档磁盘态与九型提取器输出不对账,--check
+# 红账自彼起)。自由档=无型底座层(base_text 空串,装配自动降级两段拼=主体句+锁层A)
+# +画幅兜底 1:1/1.0MP(1024×1024,与 my_qi21_base.py FREE_BASE 兜底同源)+透明手动
+# (rgba_default=false,「透明覆盖」面板布尔直通)。条目=06e6149 入库现态逐字冻结
+# (真源链=本常量→json 末条→节点 FREE_BASE 判定);05 库不载自由档(九型节外无此型,
+# 库②层真源域仅九型——自由=「无型底座」语义,与库九型成文零交叠)。
+FREE_ENTRY = {
+    "zh": "自由",
+    "base_text": "",
+    "aspect_ratio": "1:1 (Square)",
+    "megapixels": 1.0,
+    "rgba_default": False,
+}
 
 
 def _fail(msg: str):
@@ -141,6 +158,9 @@ def build_entries() -> list:
                   "RGBA_DEFAULT_TYPES 与 05 库②层透明声明须同笔同步(0928 扩令四型)")
         item["rgba_default"] = zh in RGBA_DEFAULT_TYPES
         entries.append(item)
+    # 1002 补账:十档尾条「自由」(1001 用户测试批 P1)——九型提取后追加;键序与
+    # 06e6149 入库现态逐字一致(serialize 按插入序,自由档恒最末)
+    entries.append(dict(FREE_ENTRY))
     return entries
 
 
@@ -163,20 +183,21 @@ def main() -> int:
             return 1
         n_renwu = sum(1 for e in json.loads(want) if e["zh"] in RENWU_XI)
         n_rgba = sum(1 for e in json.loads(want) if e["rgba_default"])
-        print(f"✅ 守恒校验全绿:{OUT.name} 九型与 05 库②④层逐字一致、③层结构与常量 A/B "
-              f"对账通过、aspect/MP/override 与 canon 逐字一致、rgba_default {n_rgba} 型 "
-              f"true 其余 false(与②层透明声明互锁;人物系 {n_renwu} 型含增量四锁B)。")
+        print(f"✅ 守恒校验全绿:{OUT.name} 十档(九型+自由尾条)与 05 库②④层逐字一致、"
+              f"③层结构与常量 A/B 对账通过、aspect/MP/override 与 canon 逐字一致、"
+              f"rgba_default {n_rgba} 型 true 其余 false(与②层透明声明互锁;"
+              f"人物系 {n_renwu} 型含增量四锁B;自由档=空底座/1:1 1.0MP/false 尾条)。")
         return 0
 
     if OUT.is_file() and OUT.read_text(encoding="utf-8") == want:
-        print(f"已是最新(幂等): {OUT}(九型,与 05 库/canon 一致)")
+        print(f"已是最新(幂等): {OUT}(十档=九型+自由,与 05 库/canon 一致)")
         return 0
     OUT.write_text(want, encoding="utf-8")
     n_renwu = sum(1 for e in json.loads(want) if e["zh"] in RENWU_XI)
     n_rgba = sum(1 for e in json.loads(want) if e["rgba_default"])
-    print(f"生成 → {OUT}(九型 {len(want)} 字符;人物系 {n_renwu} 型 base_text 含增量四锁B;"
-          f"rgba_default {n_rgba} 型 true(四型透明声明型,与②层声明互锁对账已通过);"
-          f"结构自检与常量 A/B 对账已通过)")
+    print(f"生成 → {OUT}(十档=九型+自由尾条 {len(want)} 字符;人物系 {n_renwu} 型 base_text "
+          f"含增量四锁B;rgba_default {n_rgba} 型 true(四型透明声明型,与②层声明互锁"
+          f"对账已通过);结构自检与常量 A/B 对账已通过)")
     return 0
 
 

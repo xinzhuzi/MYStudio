@@ -1,7 +1,7 @@
 {
   "generatedFrom": "工作树实测态(0930 S5 布局终排批棘轮基线定稿,Trellis 09-29-qi21-canvas-batch S5 汇合:提交禁令下提交前重立,0929 先例同法;三生成器幂等字节稳定已汇合复核=重跑三发 EXIT=0/零 diff/md5 三件不动⇒与提交后 HEAD 提取态同字节;三件条目由各 S5 worker 就手改(各 s5Note 指证 research/s5-links-stable-* 对拍档),汇合实测对账=t2i 4/16/0·i2i 8/12/0·edit 9/0/0(crossings: 主图/装配子图/加速子图),layout_check 七判据三件九 scope=交叉恰等棘轮封顶值+余六判据(occlusion/est_overlap/est_spacing/negative_region/output_rightmost/leftward)全 0;真源=三生成器自查段 _CROSS_BASELINE(变更理由=生成器 3g 注记逐批次在册);自此只降不升,任何上调须拓扑变更合法重立(0929 先例)且理由入档;旧值 t2i 67/8·i2i 52/10·edit 58(仅 main 单 scope;bd2cc3f 提交态)及更早 t2i 60/5·i2i 65/10·edit 69 见 git 历史)",
   "head": "93d13b1",
-  "rebuiltAt": "2026-10-01T13:30:15",
+  "rebuiltAt": "2026-10-02T05:47:26",
   "files": {
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
       "scopes": {
@@ -9,50 +9,50 @@
           "crossings": 1,
           "occlusion": 0
         },
-        "sub:道劫·加速子图": {
-          "crossings": 11,
+        "sub:[6] 文本提示词类型优化子图(双击进入": {
+          "crossings": 22,
           "occlusion": 0
         },
-        "sub:[40] 提示词类型优化子图(双击进入)": {
-          "crossings": 10,
+        "sub:道劫·加速子图": {
+          "crossings": 13,
           "occlusion": 0
         }
       },
-      "s5Note": "1001 S8 集成轮拓扑重立(Trellis 10-01-qi21-assembly-blueprint S8 步13,子图39→10件两件式链):装配子图删22件(拼接①②/固定句常量4/词族剥离/W1包裹/RGBA公式/画幅联动链8件)立自研三件(MyQi21PromptAssembly[141]+MyQi21PromptSelect[152]+MyQi21WhSuggest[151]),拓扑变更合法重立;audit 口径实测 主1/装配10/加速11(装配 20→10 净降=内嵌表达式逻辑尽迁 Python 自研件后存量线减少;主1/加速11 持平本轮未动;occlusion 三 scope 沿前值0=生成器口径字段,生成器已退役本轮无此判据未复测);残余10=结构性存量(双编码扇出/WhSuggest 画幅链就位后横穿,逐对明细见 audit 脚本输出);前值=1001 S3 四横带态(主1/装配20/加速11)见 git 历史"
+      "s5Note": "1002 大轮拓扑合法重立(Trellis 10-01-qi21-usetest-batch implement 步8:⑫编号重排/⑬PE TE 迁子图/㉑4012 节点化/⑭槽序重排/⑯出槽清理/Q5 thinking 预览件——节点集与连线集拓扑变更,audit 实测重立;旧值见 git 历史;自此只降不升,上调须拓扑变更合法重立且理由入档)"
     },
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
       "scopes": {
         "main": {
-          "crossings": 8,
+          "crossings": 3,
           "occlusion": 0
         },
-        "sub:[40] 道劫·装配子图(双击进入)": {
-          "crossings": 12,
+        "sub:[6] 文本提示词类型优化子图(双击进入": {
+          "crossings": 77,
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 0,
+          "crossings": 7,
           "occlusion": 0
         }
       },
-      "s5Note": "0930 S5 终排重立(i2i 条目):主图 12→8/装配 20→12/加速 1→0(links 逐字节零变,pos-only;证明=research/s5-links-stable-qi21-daojie-i2i.md;余量=五类结构性存量归因在档;真源=生成器 _CROSS_BASELINE 三域;旧值 52/10=bd2cc3f 前拓扑陈旧值)"
+      "s5Note": "1002 大轮拓扑合法重立(Trellis 10-01-qi21-usetest-batch implement 步8:⑫编号重排/⑬PE TE 迁子图/㉑4012 节点化/⑭槽序重排/⑯出槽清理/Q5 thinking 预览件——节点集与连线集拓扑变更,audit 实测重立;旧值见 git 历史;自此只降不升,上调须拓扑变更合法重立且理由入档)"
     },
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
       "scopes": {
         "main": {
-          "crossings": 9,
+          "crossings": 3,
           "occlusion": 0
         },
-        "sub:[40] 道劫·装配子图(双击进入)": {
-          "crossings": 0,
+        "sub:[6] 文本提示词类型优化子图(双击进入": {
+          "crossings": 19,
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 0,
+          "crossings": 13,
           "occlusion": 0
         }
       },
-      "s5Note": "0930 S5 终排重立(edit 条目):主图 9=S3 收装后工作树实测(rhythm-constants §1.5;S5 纯布局轮主图零改动,9=结构性存量封顶);两子图 0=S5 治达(治前装配 1/加速 4;证明=research/s5-links-stable-edit.md;真源=生成器 _CROSS_BASELINE 三域)"
+      "s5Note": "1002 大轮拓扑合法重立(Trellis 10-01-qi21-usetest-batch implement 步8:⑫编号重排/⑬PE TE 迁子图/㉑4012 节点化/⑭槽序重排/⑯出槽清理/Q5 thinking 预览件——节点集与连线集拓扑变更,audit 实测重立;旧值见 git 历史;自此只降不升,上调须拓扑变更合法重立且理由入档)"
     }
   }
 }
