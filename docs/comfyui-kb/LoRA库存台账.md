@@ -1,5 +1,5 @@
 # LoRA 库存台账(09-19)
-最后核账:2026-09-22
+最后核账:2026-10-02(10-02 单件补登:qwen-image-2.1-consistency; viggle 09-24 / Fun-Acc 09-26 两装机件仍欠登,随下次全量核账)
 
 > **生成方式**:扫描脚本 `apps/build/scripts/daojie_lora_refscan.py`(只读)对三面全量扫描后人工合并定谳——仓库工作流库 54 json(UI `nodes[].widgets_values[_named]` + API/桥 `graph` 递归)+ 引擎家用户区 3 json + my_nodes 数据面 2 json,共 59 个;对装机家 `~/Library/Application Support/漫影工作室/comfyui/models/loras/` 实际文件判存。
 > **首扫(修复前)**:2026-09-19 晚,`BROKEN=13`(引用了不存在文件的节点数;柔水彩×5 节点/复古漫×6 节点/charsheet 模板路径×1/H3 模板×2——审计 §1 只记了其中 4 处,超集/风格参照的 [70] 复古漫与 H3 模板两处为本轮扫描新发现)。
@@ -7,7 +7,7 @@
 > **判存口径**:LoRA 加载节点(类型名含 lora,如 LoraLoaderModelOnly)与 my_nodes 数据面为权威口径(引用即判存);非 LoRA 节点(checkpoint/VAE/TE/DiT/pack)中的同名扩展名字符串仅当命中库内实体才计为引用(pack 内嵌 lora 槽不漏账),未命中的 298 条列入「存疑模型串」不计断链(离线无法判其所属模型域,绝大多数为 VAE/TE/DiT/预览件)。
 > **kill 仅为建议,本台账不执行任何删除**;处置两步制(回收目录 7 天后真删)待用户逐项勾选后另轮执行(PRD R5)。
 
-## 一、库存决策表(23 件实体,10.94 GB;引用计数=修复后复扫实测)
+## 一、库存决策表(24 件实体,11.10 GB;引用计数=修复后复扫实测;#24 为 10-02 单件补登)
 
 | # | 文件(相对 loras/) | 大小 | 引用 | 引用方(节点级) | 定谳出处 | 建议 | 勾选 |
 |---|---|---|---|---|---|---|---|
@@ -34,6 +34,7 @@
 | 21 | DynamicCharacterSheet_krea2_v1.safetensors(根) | 872 MB | 2 | 角色设定[164](官方挂法=必先于 ModelPatch);上游模板 DCS`[164]`（本轮路径修复后入列） | research §1;本轮修复④ | **keep**(角色设定流核心) | ☐ |
 | 22 | minimax_h3_fl2v_turbo_4step…avg_rank_28_bf16.safetensors(根) | 394 MB | 10 | H3 固定线×2/单镜视频/超分2K/潜空间[41](本轮 named 对齐后计入) | research §1(H3 线不动) | **keep**(H3 线,不属本轮治理) | ☐ |
 | 23 | minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors(根) | 1.96 GB | 9 | H3 官方模板×4/Easy×2 等 | research §1(H3 线不动) | **keep**(同上) | ☐ |
+| 24 | qwen-image-2.1-consistency.safetensors(根) | 152 MiB | **0** | 无(未编入工作流;10-02 grep 仓库库/my_nodes 数据面/引擎家用户区零命中复验) | 10-01-consistency-lora-eval research+lora-facts.md 终局「不编入留库备用」;10-02 装机补登(159,436,496 B,sha256 前缀 4f44ada1;HF=ausboss/Qwen-Image-2.1-Consistency-LoRA,step 1500,Qwen 研究许可非商用) | **keep**(照片类素材改图漂移时手动挂;仅英文指令,中文链黑图判死;FunAcc 叠加无害;40步时间税约+80%) | ☐ |
 
 **kill 候选小计 4 件(#12/#13/#19/#20,约 1.3 GB)——全部只是建议,勾选前零动作。**
 

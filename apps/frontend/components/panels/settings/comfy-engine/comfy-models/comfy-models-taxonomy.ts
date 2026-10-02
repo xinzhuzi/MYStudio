@@ -42,8 +42,10 @@ const DOMAIN_RULES: ReadonlyArray<{ match: RegExp; domains: readonly ComfyModelD
   { match: /yue2|sheetsage2|ar_lora_inst|musicgen|qwen3-tts|sensevoice|whisper|snac_|gte-multilingual|^tts\//i, domains: ["audio"] },
   // 图片线:K2 产线(krea2/Krea 2)+ Qwen 图像(含 Q2-1 LoRA= viggle / Fun-Acc / TE= qwen3vl_8b 含 heretic)+
   // 图像超分 + 服装分割 + 视觉理解;qwen3vl_8b 只匹配 8B 件(32B H3 TE 走 video 线规则);
-  // fun-?acc=T8 Fun-Acc 加速 LoRA(文件名连字符 Fun-Acc,不含 qwen_image/viggle,不加点会掉 other 域)
-  { match: /krea\s*2|qwen_image|qwen3vl_8b|viggle|fun-?acc|realesrgan|^segformer|^vlm\/|qwen3-vl-4b/i, domains: ["image"] },
+  // fun-?acc=T8 Fun-Acc 加速 LoRA(文件名连字符 Fun-Acc,不含 qwen_image/viggle,不加点会掉 other 域);
+  // qwen-image-2\.1-consistency=Q2-1 一致性保持 LoRA(10-02 登记;连字符形态 qwen_image 针不吃须显式针,
+  // 勿裸用 consistency 防过匹配,probe 实证 foo-consistency-bar 落 other)
+  { match: /krea\s*2|qwen_image|qwen3vl_8b|viggle|fun-?acc|realesrgan|^segformer|^vlm\/|qwen3-vl-4b|qwen-image-2\.1-consistency/i, domains: ["image"] },
   // 双栖:SEEDVR2 图像修复超分 + H3 视频超分(2K 链)——多重分类的活例
   { match: /seedvr2/i, domains: ["image", "video"] },
 ];
@@ -128,6 +130,8 @@ export const COMFY_MODEL_FILE_NOTES: ReadonlyArray<readonly [string, string]> = 
   ["viggle-turbo", "Qwen-Image-2.1 加速包——道劫工作流拨 LoRA 开关即用(步数自动 6)"],
   // T8 Fun-Acc PDD 加速包(needle 大小写敏感,装机以引擎家 loras 实际文件名逐字核对)
   ["Fun-Acc-4Step-PDD-T8", "Qwen-Image-2.1 加速包(PDD 4步)——需配 T8 专用采样节点(4步/cfg1/无负面词,TE 须 Qwen3-VL 8B 系)"],
+  // 10-02 登记:Q2-1 一致性保持 LoRA(改图保构图;定谳=不编入默认链路留库备用,英文指令专用,中文链黑图判死)
+  ["qwen-image-2.1-consistency", "Qwen-Image-2.1 一致性保持 LoRA(改图保构图)——未编入工作流,照片类改图漂移时手动挂(英文指令,40步,约+80%耗时)"],
   ["rife_v4.26", "视频补帧"],
 ];
 

@@ -145,3 +145,17 @@ it("Fun-Acc 加速包件级注释:T8 PDD 件名命中,文案交代 4步采样要
   expect(note).toContain("加速包");
   expect(note).toContain("T8 专用采样节点");
 });
+
+// 10-02 登记:Q2-1 一致性保持 LoRA——连字符文件名,qwen_image 针不吃,显式针入图片域
+it("consistency 一致性 LoRA:文件名连字符形态命中图片域,裸 consistency 字样不误伤", () => {
+  expect(classifyModelDomains("loras", "qwen-image-2.1-consistency.safetensors")).toEqual(["image"]);
+  // 勿裸用 consistency 防过匹配:无 qwen-image-2.1 前缀的 consistency 字样仍落 other
+  expect(classifyModelDomains("loras", "foo-consistency-bar.safetensors")).toEqual(["other"]);
+});
+
+// 10-02 登记:consistency 件级注释(LoRA 态唯一展示位=模型库行内注释,文案交代留库备用口径)
+it("consistency 一致性 LoRA 件级注释:件名命中,文案交代未编入工作流与手动挂载", () => {
+  const note = modelFileNote("qwen-image-2.1-consistency.safetensors");
+  expect(note).toContain("一致性");
+  expect(note).toContain("手动挂");
+});
