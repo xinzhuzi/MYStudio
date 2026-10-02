@@ -11,14 +11,18 @@ R1 单口化**——原两口「最终文本/透明文本」合一为单口「�
 ①pe关+透明关=装配全文 原样(直写路)+接口面锚(required 置空/optional 声明序
   ⑭ 两连线槽前置/头尾 W1 default 迁移锚 sha256 前16位/multiline 大框)
 ②pe开+透明关=PE出文 原样+pe开×PE出文未接线→中文 ValueError(不猜不代选)
-③pe关+透明开=头句+装配全文+W1+尾句 逐字(Q4 两路同包 W1 保持)+装配全文
-  未接线+pe关→降级空串→包裹=头句+"  "+W1+尾句(双空格形;裁定 A 自洽降级)
+③pe关+透明开=头句+中文透明声明+装配全文+W1+尾句 逐字(Q4 两路同包 W1 保持;
+  R1 双语透明强化=10-02 补强第1轮用户令「补强」:头句后追加官方中文透明声明
+  _ZH_ALPHA_DECL,该象限「原两口形逐字保持」由用户令推翻——s5b 实测单英文包裹
+  出 opaque corners=255/ratioAlpha0=0,中文正文路以中文再锚透明指令)+装配全文
+  未接线+pe关→降级空串→包裹=头句+声明+"  "+W1+尾句(双空格形;裁定 A 自洽降级)
 ④pe开+透明开=头句+剥离(PE出文)+W1+尾句 逐字(词族整句消失+大小写不敏感+
   pattern 真源=数据文件现读)
 ⑤预览实况(R1 验收口径「预览=实况」):RETURN_TYPES 单 STRING 锚(防两口回潮)
   +四象限两口合一语义无损对拍(每象限期望值==原两口形对应出口:透明开=原
-  透明文本口/透明关=原最终文本口,md5 同锚)+进编码文本 md5==预览 md5
-  (单口=预览与进编码同一条文本,实弹 [401] 预览 md5 文证的件级同构)
+  透明文本口/透明关=原最终文本口,md5 同锚;R1 补强例外=pe关+透明象限基线
+  =原两口形+中文声明插在头句后,用户令推翻该象限逐字保持)+进编码文本 md5==
+  预览 md5(单口=预览与进编码同一条文本,实弹 [401] 预览 md5 文证的件级同构)
 ⑥懒保持:check_lazy_status 四分支矩阵(pe关→[]/pe开+PE出文已接线未求值→
   请求名单/未接线缺键→[]绝不请求/已求值→放行)+名单纯字符串形(引擎
   execution.py:513-516 按 isinstance(x,str) 过滤,元组形被静默丢弃)
@@ -83,7 +87,8 @@ _QUADRANTS = [
     # (pe开关, 透明模式, PE出文, 期望单口文本, 说明)
     (False, False, None, _ASSEMBLED, "pe关+透明关=装配全文原样"),
     (True, False, _PE_TEXT, _PE_TEXT, "pe开+透明关=PE出文原样"),
-    (False, True, None, "头句 装配全文例 W1句 尾句", "pe关+透明开=头+装配+W1+尾"),
+    (False, True, None, f"头句 {select._ZH_ALPHA_DECL} 装配全文例 W1句 尾句",
+     "pe关+透明开=头+中文声明+装配+W1+尾(R1 补强)"),
     (True, True, _PE_TEXT, f"头句 {_STRIPPED_PE} W1句 尾句",
      "pe开+透明开=头+剥离(PE出文)+W1+尾"),
 ]
@@ -152,22 +157,32 @@ def test_2_pe_on_transparent_off_returns_pe_text_and_raises_without_wiring():
 
 
 def test_3_pe_off_transparent_on_wraps_assembled_with_w1_and_degrades():
-    """四象限②(pe关+透明开):头句+空格+装配全文+空格+W1收束句+空格+尾句
-    逐字(Q4 两路同包 W1——grill 五问 Q4 裁定保持:pe关透明路不裸拼)。
+    """四象限②(pe关+透明开):头句+空格+中文透明声明+空格+装配全文+空格+
+    W1收束句+空格+尾句 逐字(Q4 两路同包 W1——grill 五问 Q4 裁定保持:pe关透明
+    路不裸拼;R1 双语透明强化=10-02 补强第1轮用户令:头句后追加官方中文透明声明,
+    声明真源=件常量 _ZH_ALPHA_DECL,速查卡在档原文逐字)。
 
     同锁降级象限:装配全文未接线+pe关→正文降级空串+中文 print 警告→包裹=
-    头句+" "+空串+" "+W1+" "+尾句(双空格形;裁定 A 自洽降级语义)。
+    头句+" "+声明+" "+空串+" "+W1+" "+尾句(双空格形;裁定 A 自洽降级语义)。
+    并锚 R1 语义边界:中文声明只驻 pe关路(pe开+透明开零动=剥离+W1 形,防误扇)。
     """
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=False, 透明模式=True, 装配全文=_ASSEMBLED,
                        RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
-    assert got == ("头句 装配全文例 W1句 尾句",), \
-        f"pe关+透明开→头句+装配全文+W1+尾句(Q4 同包 W1)逐字,得 {got!r}"
+    expected = f"头句 {select._ZH_ALPHA_DECL} 装配全文例 W1句 尾句"
+    assert got == (expected,), \
+        f"pe关+透明开→头句+中文声明+装配全文+W1+尾句(R1 补强+Q4 同包 W1)逐字,得 {got!r}"
+    # R1 声明逐字锁(官方中文同款=速查卡在档,两句空格分隔,插在头句后)
+    assert select._ZH_ALPHA_DECL == ("这是一张带有透明度的RGBA图像 "
+                                     "该图像具有alpha通道,背景是透明的"), \
+        f"_ZH_ALPHA_DECL 应=官方中文同款两声句逐字,得 {select._ZH_ALPHA_DECL!r}"
+    assert got[0].index(select._ZH_ALPHA_DECL) == len("头句 "), \
+        "中文声明应紧跟头句(头句后第一个空格即声明起)——R1「插在头句后」"
     degraded = node.compose(pe开关=False, 透明模式=True,
                             RGBA官方头句="头句", RGBA官方尾句="尾句",
                             W1收束句="W1句")
-    assert degraded == ("头句  W1句 尾句",), \
-        f"装配全文未接线+pe关→降级空串包裹=头句+空串+W1+尾句(双空格形),得 {degraded!r}"
+    assert degraded == (f"头句 {select._ZH_ALPHA_DECL}  W1句 尾句",), \
+        f"装配全文未接线+pe关→降级空串包裹=头句+声明+空串+W1+尾句(双空格形),得 {degraded!r}"
     # pe开路不消费装配全文=缺键照常(PE出文为正文;隔离降级语义不外溢)
     pe_on = node.compose(pe开关=True, 透明模式=False, PE出文="PE 文")
     assert pe_on == ("PE 文",), "pe开路不消费装配全文=缺键照常出 PE出文"
@@ -213,10 +228,13 @@ def test_5_single_port_preview_is_live_and_two_port_merge_lossless():
         assert got == expected, \
             f"{note} 期望 {expected!r},得 {got!r}(拼接序铁律=design §1 逐字)"
         # 两口合一语义无损对拍:按透明模式选原两口形对应出口,逐字重构
+        # (R1 补强第1轮用户令:pe关+透明象限对拍基线=原两口形+中文声明插在头句后,
+        #  「逐字保持」在该象限由用户令推翻;其余象限无损对拍原样)
         if 透明模式:
+            zh = "" if pe开关 else select._ZH_ALPHA_DECL + " "
             mid = (select.strip_word_family(pe_text) if pe开关
                    else _ASSEMBLED) + " W1句"
-            legacy = f"头句 {mid} 尾句"  # 原透明文本口(RETURN_NAMES 口1)
+            legacy = f"头句 {zh}{mid} 尾句"  # 原透明文本口(RETURN_NAMES 口1)
         else:
             legacy = pe_text if pe开关 else _ASSEMBLED  # 原最终文本口(口0)
         assert _md5(got) == _md5(legacy), \

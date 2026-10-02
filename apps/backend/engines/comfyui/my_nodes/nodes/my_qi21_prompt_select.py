@@ -45,8 +45,9 @@ MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
   剥离(s) = re.sub(词族pattern, "", s, flags=IGNORECASE)   (原 [206] 语义)
   进编码文本 =
     pe开+透明   = RGBA官方头句+" "+剥离(PE出文)+" "+W1收束句+" "+RGBA官方尾句
-    pe关+透明   = RGBA官方头句+" "+装配全文+" "+W1收束句+" "+RGBA官方尾句
-                  (1002 Q4:两路同包 W1 收束句)
+    pe关+透明   = RGBA官方头句+" "+中文透明声明+" "+装配全文+" "+W1收束句+
+                  " "+RGBA官方尾句(1002 Q4 两路同包 W1;R1 补强第1轮=头句后
+                  追加官方中文透明声明双语强化,只改本路)
     pe关+透明关 = 装配全文 原样
     pe开+透明关 = PE出文 原样
 
@@ -94,6 +95,18 @@ from typing import Any
 _RGBA_HEAD = 'This is an RGBA format image with transparency.'  # 原 [160] RGBA官方头句
 _RGBA_TAIL = 'The image has an alpha channel and a transparent background.'  # 原 [161] RGBA官方尾句
 _W1_TAIL = 'The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges.'  # 原 [215] W1收束句
+
+# ── R1 双语透明强化(10-02 补强实验第1轮,用户令「补强」非接受) ──────────────
+# 缘起:s5b 实测 pe关×透明开单英文包裹→模型出 opaque(四角 alpha=255,ratioAlpha0=0);
+# pe开路同包裹但正文=剥离(PE英文出文)→四型 4/4 过门。差别在正文语言(pe关=装配
+# 中文直写),英文头尾离中文正文远→对 alpha 的服从度衰减。补强=头句后追加官方
+# 中文同款透明声明(两句=qi21-道劫-t2i.json 速查卡在档原文逐字:「中文同款:
+# 这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。」,
+# 亦见 docs/prompts/Qwen-Image-2.1/06-视频提示词精要.md:85),把透明指令以正文
+# 同语种再锚一次。**只改 pe关路(pe开路 4/4 在役形零动)**;代码级常量非参数面
+# (输入面 7 槽零漂=契约锚不动,补强实验轮最小波及)。
+_ZH_ALPHA_DECL = ('这是一张带有透明度的RGBA图像 '
+                  '该图像具有alpha通道,背景是透明的')
 
 # 词族数据文件(单源真源;判据件/审计脚本同此路径取 pattern)
 _LEXICON_PATH = Path(__file__).resolve().parent / "qi21_strip_lexicon.json"
@@ -145,9 +158,12 @@ class MyQi21PromptSelect:
 
     (10-02-qi21-subgraph-singleport R1 单口化;原两口「最终文本/透明文本」合一)
     进编码文本 = 透明模式? (pe开关? 头句+剥离(PE出文)+W1+尾句
-                              : 头句+装配全文+W1+尾句)
+                              : 头句+中文透明声明+装配全文+W1+尾句)
                 : (pe开关? PE出文 : 装配全文)
-    (拼接序铁律=原两口形逐字保持;Q4 两路同包 W1 收束句;预览=实况=单口文本本身)
+    (拼接序铁律=原两口形逐字保持;Q4 两路同包 W1 收束句;预览=实况=单口文本本身。
+    R1 双语透明强化(10-02 补强第1轮,用户令「补强」):pe关+透明象限=头句后追加
+    官方中文透明声明(_ZH_ALPHA_DECL),该象限「逐字保持」由用户令推翻;其余三
+    象限原样)
     """
 
     CATEGORY = "my"
@@ -225,9 +241,10 @@ class MyQi21PromptSelect:
         """单口合成:进编码文本(返回元组序=RETURN_NAMES 序,一元组)。
 
         两口合一(R1):先 pe开关 选正文(PE出文/装配全文),再 透明模式 决定
-        拼 不拼包裹——拼接序铁律=原两口形逐字保持:
+        拼 不拼包裹——拼接序铁律=原两口形逐字保持(pe关+透明象限除外,R1 补强):
           pe开+透明=头句+" "+剥离(PE出文)+" "+W1收束句+" "+尾句
-          pe关+透明=头句+" "+装配全文+" "+W1收束句+" "+尾句(Q4 两路同包 W1)
+          pe关+透明=头句+" "+中文透明声明+" "+装配全文+" "+W1收束句+" "+尾句
+                    (Q4 两路同包 W1;R1 补强第1轮=中文声明双语强化,pe关路专属)
           pe关+透明关=装配全文 原样;pe开+透明关=PE出文 原样。
         透明模式 直接参与文本计算(边界自下游闸门迁入本件,R2 双编码塌缩后
         预览=实况:透明开时预览含头尾,所见即所进编码)。
@@ -260,9 +277,12 @@ class MyQi21PromptSelect:
             transparent_mid = strip_word_family(PE出文) + " " + W1收束句
         else:
             # pe关路:正文=装配全文;透明 mid 同包 W1 收束句(1002 Q4 grill 裁定
-            # ——修前=裸拼装配全文,与 pe开路(剥离+W1)不对称,透明素材收束缺位)
+            # ——修前=裸拼装配全文,与 pe开路(剥离+W1)不对称,透明素材收束缺位);
+            # R1 双语透明强化(10-02 补强第1轮):头句后追加官方中文透明声明——
+            # s5b 实测 pe关单英文包裹出 opaque(corners=255/ratioAlpha0=0),中文正文
+            # 路以中文再锚透明指令;pe开路 4/4 在役形零动(上文 pe开分支不动)。
             main_text = direct
-            transparent_mid = direct + " " + W1收束句
+            transparent_mid = _ZH_ALPHA_DECL + " " + direct + " " + W1收束句
         # 透明模式参与计算(R1 边界迁入):开=拼官方头尾,关=正文原样直出
         if 透明模式:
             return (f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}",)
