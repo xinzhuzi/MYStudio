@@ -467,6 +467,8 @@ I2I_NODE_TYPE_WHITELIST = {
     # 0927 三档轮:T8 Fun-Acc 采样器(easy compare 随 0929 并行化零残留出册);
     # 0929 并行化轮:自研选择件入册;0929 S2 ⑤机制批:自研三态件入册
     "T8QwenImage21FunAccPDD4Step", "MyQi21SpeedSelect", "MyQi21RgbaSelect",
+    # 1002 衔接批㉕:SeedVR2 放大尾档四件组入册(主图输出区;SaveImage 已在册)
+    "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
 }
 # 人物系六型(库 §二:常量B 加挂型)
 PRO_CHAR_TYPES = ("人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
@@ -909,7 +911,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
       形态);面板双控件=速度档位+seed(widgets_values 与子图 widgets[] 双写同值,
       宿主=权威值源,widgets_values_named 具名镜像);默认档=default_mode
       (1002 R2:edit=EDIT_DEFAULT_MODE 直出40步回退(F3 白图);t2i/i2i=DEFAULT_MODE);
-    - 子图内恰 6 件=三支路(直出 KSampler40/LoRA0.8→KSampler359/T8)+seed 单源
+    - 子图内恰 6 件=三支路(直出 KSampler40/LoRA1.0→viggle/T8)+seed 单源
       +选择件;选择件 wv=[default_mode] 且 mode←-10 速度档位槽(面板外露);
       T8 无负面槽/model=-10 model 槽边界直连(绝不吃 LoRA)/positive=加速支路
       正源槽/seed=widget 转输入;KSampler steps=面板生效值+cfg1/euler/simple/
@@ -987,8 +989,10 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         f"{name}: [{sel_id}] 输出应只汇 -20 LATENT(三支路汇流单点)"
     # T8(支路 Fun-Acc;model=-10 model 槽直连=绝不吃 LoRA,比主图溯源更强的域内断言)
     t8 = i_nodes[t8_id]
-    assert t8["widgets_values"][:2] == [FUNACC_FILE, 0], \
-        f"{name}: [{t8_id}] model_file/seed 应逐字 {FUNACC_FILE}/0,得 {t8.get('widgets_values')}"
+    # 1002 衔接批㉔ F1 残留对齐:三件统一三值形 [model_file, seed, control_after_generate]
+    # (旧 i2i/edit 两值形=wv 序列化漂移残留,防回潮锁全长)
+    assert t8["widgets_values"] == [FUNACC_FILE, 0, "randomize"], \
+        f"{name}: [{t8_id}] wv 应三值形 [{FUNACC_FILE!r}, 0, 'randomize'],得 {t8.get('widgets_values')}"
     assert not any(i.get("name") == "negative" for i in t8["inputs"]), \
         f"{name}: [{t8_id}] T8 无负面槽(输入仅 model/positive/latent_image/model_file/seed)"
     for slot_name, b_name in (("model", "model"), ("positive", pos_accel),
@@ -1033,7 +1037,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     lora = i_nodes[lora_id]
     assert _widget(lora, 0) == LORA_FILE, \
         f"{name}: LoRA name 应逐字 {LORA_FILE!r}(白名单不变)"
-    assert _widget(lora, 1) == 0.8, f"{name}: LoRA strength 应 0.8(0925 探针最优)"
+    assert _widget(lora, 1) == 1.0, \
+        f"{name}: LoRA strength 应 1.0(1002 衔接批㉔ 用户令「定在 1.0 否则失去意义」,推翻 0925 探针 0.8)"
     _lm = i_links[next(i["link"] for i in lora["inputs"] if i["name"] == "model")]
     assert (_lm["origin_id"], _lm["origin_slot"]) == (-10, b_idx["model"]), \
         f"{name}: [{lora_id}].model 应接 -10 model 槽(base 直连臂)"
@@ -1564,8 +1569,12 @@ class TestTopology:
         for name, graph in GRAPHS.items():
             nodes = _nodes(graph)
             savers = _by_type(graph, "SaveImage")
-            assert len(savers) == 1, f"{name}: SaveImage 应恰 1 个"
-            seen, stack = set(), [savers[0]["id"]]
+            # 1002 衔接批㉕:qi21/i2i 增⑤放大尾档 [504] 2K 保存(直出 [8]+2K [504]
+            # 双落盘);t2i(通用件)/edit 仍单存。多存档=从全部 SaveImage 回溯并集。
+            want_savers = 2 if name in ("qi21", "i2i") else 1
+            assert len(savers) == want_savers, \
+                f"{name}: SaveImage 应恰 {want_savers} 个(㉕ 尾档双落盘口径)"
+            seen, stack = set(), [s["id"] for s in savers]
             while stack:
                 nid = stack.pop()
                 if nid in seen:
@@ -1580,7 +1589,8 @@ class TestTopology:
                     stack.append(origin_id)
             # MarkdownNote=说明卡、easy showAnything=显示型端点(画布预览,无下游)——
             # 两者都是合法画布端点,不计孤儿(qi21 件 [27] 装配预览,骨承 K2 件 [62]/[86])
-            display_endpoints = {"MarkdownNote", "easy showAnything"}
+            display_endpoints = {"MarkdownNote", "easy showAnything",
+                                 "ImageComparer (rgthree)"}  # ㉖ 对比件=纯预览端点
             orphans = sorted(
                 nodes[i]["type"] for i in nodes
                 if i not in seen and nodes[i]["type"] not in display_endpoints
@@ -2634,6 +2644,9 @@ class TestQi21SubgraphContract:
             "VAEDecode", "SaveImage", "MarkdownNote", "easy showAnything",
             "PrimitiveStringMultiline",
             # 0929 S3 收装:KSampler/LoRA/T8/选择件/seed/Reroute 全出主图册(入子图)
+            # 1002 衔接批㉕㉖:SeedVR2 放大尾档四件组+rgthree 对比件入册(主图输出区)
+            "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
+            "ImageComparer (rgthree)",
         }
         for n in graph["nodes"]:
             if n.get("properties", {}).get("subgraph") in sg_ids:
@@ -3147,8 +3160,8 @@ class TestQi21SubgraphContract:
     def test_no_node_overlap_and_group_budget(self):
         """零重叠(主图+两子图节点矩形两两不相交);group 预算(1001 用户测试批 ③
         重立:t2i 两子图组框全域清空=恰 0——终态节点数已少+布局自身可读,组框反成
-        视觉负担,用户令「这个子图,不要分组了」);主图≤4(0929 四块口径组框,
-        本轮零动)。"""
+        视觉负担,用户令「这个子图,不要分组了」);主图≤5(0929 四块口径组框+
+        1002 衔接批㉕ ⑤放大尾档组框=Ctrl+B 整组旁路语义载体,拓扑变更合法重立)。"""
         graph = GRAPHS["qi21"]
         sg = _qi21_sg(graph)
         xsg = _xsg(graph)
@@ -3156,8 +3169,9 @@ class TestQi21SubgraphContract:
             f"装配子图 group 应恰 0(1001 用户测试批 ③ 组框全域退役),得 {len(sg['groups'])}"
         assert xsg["groups"] == [], \
             f"加速子图 group 应恰 0(1001 用户测试批 ③ 组框全域退役),得 {len(xsg['groups'])}"
-        assert len(graph["groups"]) <= 4, \
-            f"主图 group 应≤4(四块口径:①加载器/②提示词·装配/③加速区/④输出),得 {len(graph['groups'])}"
+        assert len(graph["groups"]) <= 5, \
+            f"主图 group 应≤5(四块口径+1002 衔接批㉕ ⑤SeedVR2放大尾档组框=Ctrl+B 整组旁路" \
+            f"语义载体,拓扑变更合法重立),得 {len(graph['groups'])}"
         for scope, nodes in (("主图", graph["nodes"]), ("装配子图", sg["nodes"]),
                              ("加速子图", xsg["nodes"])):
             for i in range(len(nodes)):
@@ -4524,6 +4538,9 @@ class TestQi21SubgraphContract:
             "VAEDecode", "SaveImage", "MarkdownNote", "easy showAnything",
             "PrimitiveStringMultiline",
             # 0929 S3 收装:KSampler/LoRA/T8/选择件/seed/Reroute 全出主图册(入子图)
+            # 1002 衔接批㉕㉖:SeedVR2 放大尾档四件组+rgthree 对比件入册(主图输出区)
+            "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
+            "ImageComparer (rgthree)",
         }
         for n in graph["nodes"]:
             if n.get("properties", {}).get("subgraph") in sg_ids:
@@ -5033,8 +5050,8 @@ class TestQi21SubgraphContract:
     def test_no_node_overlap_and_group_budget(self):
         """零重叠(主图+两子图节点矩形两两不相交);group 预算(1001 用户测试批 ③
         重立:t2i 两子图组框全域清空=恰 0——终态节点数已少+布局自身可读,组框反成
-        视觉负担,用户令「这个子图,不要分组了」);主图≤4(0929 四块口径组框,
-        本轮零动)。"""
+        视觉负担,用户令「这个子图,不要分组了」);主图≤5(0929 四块口径组框+
+        1002 衔接批㉕ ⑤放大尾档组框=Ctrl+B 整组旁路语义载体,拓扑变更合法重立)。"""
         graph = GRAPHS["qi21"]
         sg = _qi21_sg(graph)
         xsg = _xsg(graph)
@@ -5042,8 +5059,9 @@ class TestQi21SubgraphContract:
             f"装配子图 group 应恰 0(1001 用户测试批 ③ 组框全域退役),得 {len(sg['groups'])}"
         assert xsg["groups"] == [], \
             f"加速子图 group 应恰 0(1001 用户测试批 ③ 组框全域退役),得 {len(xsg['groups'])}"
-        assert len(graph["groups"]) <= 4, \
-            f"主图 group 应≤4(四块口径:①加载器/②提示词·装配/③加速区/④输出),得 {len(graph['groups'])}"
+        assert len(graph["groups"]) <= 5, \
+            f"主图 group 应≤5(四块口径+1002 衔接批㉕ ⑤SeedVR2放大尾档组框=Ctrl+B 整组旁路" \
+            f"语义载体,拓扑变更合法重立),得 {len(graph['groups'])}"
         for scope, nodes in (("主图", graph["nodes"]), ("装配子图", sg["nodes"]),
                              ("加速子图", xsg["nodes"])):
             for i in range(len(nodes)):
@@ -5739,6 +5757,137 @@ class TestI2IContract:
 # 10-01 深夜:社区模板批入库(Trellis 10-01-community-workflow-import),
 # 3_社区模板/ 四件(宏雷两件原样+黑鹤两件本地化改造,台账=漫影工作流清单
 # .md 同批;全树 69→75),8→12(自研/官方不动,+4 社区件)。
+
+# ── 6g. SeedVR2 放大尾档+rgthree 对比件契约(1002 衔接批,Trellis
+# 10-02-qi21-subgraph-singleport implement 步6-9;prd ㉕㉖;手术脚本
+# qi21_linkage_surgery_1002.py;参数真源=qwen21-t2i-seedvr2.json 只读拷贝)──
+
+
+SVR2_DIT, SVR2_VAE, SVR2_UP = 501, 502, 503      # ⑤放大尾档四件组(500 段新带)
+SVR2_SAVE, SVR2_CMP = 504, 505                    # t2i 另有 [505] 对比件(㉖)
+SVR2_DIT_FILE = "seedvr2_7b_sharp_fp8_e4m3fn.safetensors"
+SVR2_VAE_FILE = "ema_vae_fp16.safetensors"
+SVR2_SAVE_PREFIX = "MYStudio-2K"
+SVR2_GROUP_TITLE = "道劫·⑤SeedVR2放大尾档"
+
+
+class TestSeedVR2TailContract1002:
+    """㉕ 尾档结构锚(t2i/i2i):[5] 解码扇出双喂(直出存 [8]+放大路 [503]);
+    四件组 census/接线/wv 逐字(DiT sharp 7B fp8/VAE ema/短边 2048=2K/存
+    MYStudio-2K);⑤组框罩四件=Ctrl+B 整组旁路语义载体(框选→只出 [8] 直出
+    图;[505] 对比件留组外=旁路态仍可预览);edit 零尾档(用户令只点 t2i+i2i)。
+    ㉖ 对比件锚(t2i 专属):image_a=[5] 直出/ image_b=[503] 2K,滑帘对比。"""
+
+    def test_tail_group_present_and_bypass_semantics(self):
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            nodes = _nodes(graph)
+            grp = next((g for g in graph["groups"]
+                        if g.get("title", "").startswith(SVR2_GROUP_TITLE)), None)
+            assert grp is not None, \
+                f"{name}: 缺⑤放大尾档组框(锚={SVR2_GROUP_TITLE!r}…;Ctrl+B 整组旁路语义载体)"
+            gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
+            gx1 = gx0 + grp["bounding"][2]
+            gy1 = gy0 + grp["bounding"][3]
+            for nid in (SVR2_DIT, SVR2_VAE, SVR2_UP, SVR2_SAVE):
+                n = nodes[nid]
+                assert (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
+                        and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1), \
+                    f"{name}: ⑤组框未罩住 [{nid}](框选本组 Ctrl+B 语义成员)"
+            if name == "qi21":
+                cmp_n = nodes[SVR2_CMP]
+                inside = (gx0 <= cmp_n["pos"][0] and cmp_n["pos"][0] + cmp_n["size"][0] <= gx1
+                          and gy0 <= cmp_n["pos"][1] and cmp_n["pos"][1] + cmp_n["size"][1] <= gy1)
+                assert not inside, \
+                    "qi21: [505] 对比件应在⑤组框外(纯预览件,旁路态仍可预览不随组旁路)"
+
+    def test_tail_wiring_and_widgets(self):
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            nodes, links = _nodes(graph), _links(graph)
+            # 四件 census
+            want = {SVR2_DIT: "SeedVR2LoadDiTModel", SVR2_VAE: "SeedVR2LoadVAEModel",
+                    SVR2_UP: "SeedVR2VideoUpscaler", SVR2_SAVE: "SaveImage"}
+            for nid, typ in want.items():
+                assert nodes[nid]["type"] == typ, \
+                    f"{name}: [{nid}] 应 {typ},得 {nodes[nid]['type']}"
+            # wv 逐字(参数真源=qwen21-t2i-seedvr2.json 同款,放大=短边 2048=2K 档)
+            assert nodes[SVR2_DIT]["widgets_values"][0] == SVR2_DIT_FILE, \
+                f"{name}: [{SVR2_DIT}] 应 sharp 7B fp8 权重逐字"
+            assert nodes[SVR2_VAE]["widgets_values"][0] == SVR2_VAE_FILE, \
+                f"{name}: [{SVR2_VAE}] 应 ema_vae_fp16 逐字"
+            assert nodes[SVR2_UP]["widgets_values"][2] == 2048, \
+                f"{name}: [{SVR2_UP}] resolution 应 2048(短边2K 档),得 {nodes[SVR2_UP]['widgets_values']}"
+            assert nodes[SVR2_SAVE]["widgets_values"] == [SVR2_SAVE_PREFIX], \
+                f"{name}: [{SVR2_SAVE}] 前缀应 {SVR2_SAVE_PREFIX!r}"
+            # 接线:[5] 扇出双喂 + DiT/VAE→放大→存
+            out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
+            assert _links_pid(graph, 8) in out5 and _links_pid(graph, SVR2_UP) in out5, \
+                f"{name}: [5] 应扇出喂 [8] 直出存+[503] 放大路,得 {out5}"
+            assert _input_src(nodes, links, SVR2_UP, "image") == 5, \
+                f"{name}: [{SVR2_UP}].image 应接 [5] 解码直出图"
+            assert _input_src(nodes, links, SVR2_UP, "dit") == SVR2_DIT, \
+                f"{name}: [{SVR2_UP}].dit 应接 [{SVR2_DIT}]"
+            assert _input_src(nodes, links, SVR2_UP, "vae") == SVR2_VAE, \
+                f"{name}: [{SVR2_UP}].vae 应接 [{SVR2_VAE}]"
+            assert _input_src(nodes, links, SVR2_SAVE, "images") == SVR2_UP, \
+                f"{name}: [{SVR2_SAVE}].images 应接 [{SVR2_UP}] 2K 产物"
+
+    def test_comparer_t2i_only(self):
+        graph = GRAPHS["qi21"]
+        nodes, links = _nodes(graph), _links(graph)
+        cmp_n = nodes[SVR2_CMP]
+        assert cmp_n["type"] == "ImageComparer (rgthree)", \
+            f"qi21: [{SVR2_CMP}] 应 rgthree 对比件,得 {cmp_n['type']}"
+        assert _input_src(nodes, links, SVR2_CMP, "image_a") == 5, \
+            "[505].image_a 应接 [5] 直出图(放大前)"
+        assert _input_src(nodes, links, SVR2_CMP, "image_b") == SVR2_UP, \
+            "[505].image_b 应接 [503] 2K 图(放大后,滑帘对比细节增益)"
+        up_out = sorted(nodes[SVR2_UP]["outputs"][0]["links"] or [])
+        assert up_out == sorted([_link_of(nodes, links, SVR2_SAVE, "images"),
+                                 _link_of(nodes, links, SVR2_CMP, "image_b")]), \
+            f"[503] 输出应恰扇出 [504]+[505](存盘+对比),得 {up_out}"
+        for banned_name in ("i2i", "edit"):
+            assert not [n for n in GRAPHS[banned_name]["nodes"]
+                        if n["type"] == "ImageComparer (rgthree)"], \
+                f"{banned_name}: 对比件仅 t2i(用户令只点 t2i)"
+
+    def test_edit_has_no_tail(self):
+        graph = GRAPHS["edit"]
+        hits = [n["id"] for n in graph["nodes"]
+                if str(n["type"]).startswith("SeedVR2")]
+        assert hits == [], \
+            f"edit: 主图应零 SeedVR2 尾档件(用户令只点 t2i+i2i),得 {hits}"
+
+    def test_quickref_guide_line(self):
+        """坑5 文案锁:速查卡注明分辨率适配指引(方案2 手动旁路裁定,不加自动判断件)。"""
+        for name in ("qi21", "i2i"):
+            note = next(n for n in GRAPHS[name]["nodes"] if n["id"] == 402)
+            text = note["widgets_values"][0]
+            assert "放大尾档适合 1MP 档(道具/人脸/自由)" in text \
+                and "4.2MP≈纯插值建议旁路" in text, \
+                f"{name}: 速查卡缺放大尾档分辨率适配指引行(㉕ 裁定文案)"
+            assert "框选⑤组框 Ctrl+B" in text, \
+                f"{name}: 速查卡缺 Ctrl+B 整组旁路指引"
+
+
+def _input_src(nodes: dict, links: dict, nid: int, slot_name: str) -> int:
+    n = nodes[nid]
+    inp = next(i for i in n["inputs"] if i.get("name") == slot_name)
+    return links[inp["link"]][1]
+
+
+def _link_of(nodes: dict, links: dict, nid: int, slot_name: str) -> int:
+    n = nodes[nid]
+    inp = next(i for i in n["inputs"] if i.get("name") == slot_name)
+    return inp["link"]
+
+
+def _links_pid(graph: dict, nid: int) -> int:
+    """[nid].images 槽现挂线 id(尾档定位用小件)。"""
+    n = next(x for x in graph["nodes"] if x["id"] == nid)
+    return n["inputs"][0]["link"]
+
 
 class TestCountAnchor:
     def test_qwen21_dir_exactly_seventeen(self):

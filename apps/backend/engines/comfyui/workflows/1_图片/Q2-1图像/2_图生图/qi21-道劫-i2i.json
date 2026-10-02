@@ -55,12 +55,24 @@
     },
     {
       "id": 5,
-      "title": "道劫·④输出([5]解码→[8]保存)",
+      "title": "道劫·④输出([5]解码→[8]直出保存;[5]另扇出→⑤放大尾档)",
       "bounding": [
         9940,
-        1440,
-        960,
-        440
+        1375,
+        1000,
+        980
+      ],
+      "color": "#a88040",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "道劫·⑤SeedVR2放大尾档·2K([501]DiT+[502]VAE→[503]短边2048→[504]存MYStudio-2K;可整组旁路:框选本组Ctrl+B→只出[8]直出图;适合1MP档,4.2MP≈纯插值建议旁路)",
+      "bounding": [
+        10950,
+        1375,
+        1660,
+        1500
       ],
       "color": "#a88040",
       "flags": {}
@@ -784,7 +796,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            38
+            38,
+            201
           ]
         }
       ],
@@ -798,7 +811,7 @@
       "type": "SaveImage",
       "pos": [
         10460,
-        1500
+        1900.0
       ],
       "size": [
         380,
@@ -1037,7 +1050,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[400] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [6] 装配子图「指令」槽;子图内 [15] 指令开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)——开关=[4012]『PE启用?』节点(PrimitiveBoolean,1002 ㉑;宿主面板同名控件外露,扇出合成器),改写输出直占 [130] 拼接①①层——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[6] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [401] 装配预览(接 [6] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [6] 装配子图(双击进入;0929 S1 命名批:宿主补稳定短名,面板控件=指令/型选择/PE启用?([4012] 节点外露,1002 ㉑)/RGBA透明(RGBA透明=0929 S2 D6 三态 combo,原布尔开关退役)),面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Fun-Acc 支路无负面槽。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);Fun-Acc 4 步内置于 [7013] T8;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,经加速子图宿主面板「seed」单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[6] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([6] 子图内;[4012]『PE启用?』节点默认 PE 改写(1002 ㉑);关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [6] 子图内):[4019] PE CLIPLoader(1002 ⑬ 迁入子图,pe_clip 槽撤,直供 [4013]) → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [4013] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [4014] 择文合成器(pe开关←[4012]『PE启用?』扇出,1002 ㉑)→ [130] 拼接①占①层。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1/image_2 边界,预缩后)喂 [4013].image;子图编码器只吃选定图。\n- [4013] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE启用?」(直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·加速子图(0929 S3 收装批:三支路+出图速度选择+seed 全收进「道劫·加速子图」;宿主 [7] 双击进入,面板=「速度档位」combo+「seed」)\n\n- **主图四块骨架**:①加载器([1][2][3][4019]+[9]QwenImage21Cache+[42]MODEL 总线拐)→②装配主链([6] 装配子图+空潜[4]+画幅开关[19][20])→③加速子图([7]:MODEL=[9]Cache 出线进子图/条件=[6] 双正源分线/latent=[20] 画幅开关后)→④输出([5]解码→[8]保存);LATENT 出来回 [5] 单点解码。\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Fun-Acc 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 三选一处汇流(选择件居汇流点右侧)后单点解码;懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图;子图内懒执行=0929 S0 探针 A 级实证)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板双控件(面板值=生效值)**:「速度档位」combo(首项=默认=「0 · Fun-Acc 4步」=1002 用户新令(推翻 0929 拉齐重放;直出40步居二))+「seed」number(默认 0;子图内 [7014] 单源扇出三支路,T8 seed 已输入化,一处改三支路同步)。\n- **支路0 直出([7010],子图行3)**:KSampler 40 步官方完整档,MODEL=[9]Cache(base)直连,positive=[6].positive 双参考官方路(0928 黑图修复铁则:支路0 双参考/加速两支路单参考,见下节)。\n- **支路1 viggle([7011]→[7012],子图行2)**:[7011] LoraLoaderModelOnly(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 0.8=0925 探针最优:flatMAD 2.52→1.75)→[7012] KSampler 6 步(viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);cfg 保持 1)。模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **支路2 Fun-Acc([7013],子图行1,主加速档=次序第二)**:[7013] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在该档不参与);model=[9]Cache(base)直连**绝不吃 viggle LoRA**;positive=positive_single(单参考);latent_image 与 [7010] 同源;model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt(子图行4)默认 0 fixed 单节点扇出 [7010]/[7012]/[7013] 三采样器——经宿主面板「seed」外露,面板值=生效值;消灭旧 [7010] widget 与 [7013] seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([9] Cache MODEL 一源三用/[6] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Fun-Acc 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选 Fun-Acc 档节点红/执行失败——降级=切「1 · viggle」或「0 · 直出40步」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(支路1 自足)/Fun-Acc=PDD 4步采样(支路2 自足)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档单参考正源(0928 黑图修复;支路1/2 专用)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码 [171] 单编码独挑(10-02 单口化:主路 [4016][4017]+单路 [172][173] 双编码+双开关塌缩,透明/非透明选择已在 [153] 合成器内前置,词源与行3 同源)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:支路0 [7010].positive=宿主 positive(双参考=档0 官方路零改动)/支路1·2 [7012]/[7013].positive=宿主 positive_single(单参考)——正源差异内聚进各支路(0929 S3 起双正源经加速子图边界槽 positive/positive_single 分线直入,语义零改动)。\n- [6] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);支路1/2 选中时行4 编码亦入链(多一次视觉编码,约 +20s)。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→**0929 拉齐重放(用户 12:05 裁定)默认=直出40步等效**(选择件 combo 首项,Fun-Acc 仍为主加速居二);档0 的双参考语义零改动。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;0929 S2 D6(1001 ① 改文案):[6] 面板「RGBA透明」三态=自动(默认,按型:道具/多视图/高清人脸/表情差分四型开,其余关)/强制开/强制关——旧「RGBA透明开关」布尔控件退役;型信号=MyQi21DaojieBase.rgba_default 槽喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出单扇出 [153] 透明包裹器(10-02 单口化:透明模式参与文本计算,双编码+双开关已塌缩);PE×透明结构性已融合=PE-I2I 改写指令①层不替换装配文,四型②层声明恒在)\n\nThis is an RGBA format image with transparency. [装配全文,与 [401] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [6] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[4] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
+        "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+九型装配;i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫九型装配的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[400] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [6] 装配子图「指令」槽;子图内 [15] 指令开关(true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路;false=直写=按图选配,单图手动关)——开关=[4012]『PE启用?』节点(PrimitiveBoolean,1002 ㉑;宿主面板同名控件外露,扇出合成器),改写输出直占 [130] 拼接①①层——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[6] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+通用锁层常量A(③层,库首节全文,全九型恒挂)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [401] 装配预览(接 [6] prompt 输出):显示将进编码的最终文本(指令+装配全文)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [6] 装配子图(双击进入;0929 S1 命名批:宿主补稳定短名,面板控件=指令/型选择/PE启用?([4012] 节点外露,1002 ㉑)/RGBA透明(RGBA透明=0929 S2 D6 三态 combo,原布尔开关退役)),面板「型选择」下拉九选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n\n### 官方示例双图(须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16)。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Fun-Acc 支路无负面槽。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);Fun-Acc 4 步内置于 [7013] T8;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,经加速子图宿主面板「seed」单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[6] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.5MP、参考图 1.0MP;控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([6] 子图内;[4012]『PE启用?』节点默认 PE 改写(1002 ㉑);关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [6] 子图内):[4019] PE CLIPLoader(1002 ⑬ 迁入子图,pe_clip 槽撤,直供 [4013]) → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [4013] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [4014] 择文合成器(pe开关←[4012]『PE启用?』扇出,1002 ㉑)→ [130] 拼接①占①层。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1/image_2 边界,预缩后)喂 [4013].image;子图编码器只吃选定图。\n- [4013] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE启用?」(直写选配)时 PE 组不进执行图(ComfySwitchNode 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·加速子图(0929 S3 收装批:三支路+出图速度选择+seed 全收进「道劫·加速子图」;宿主 [7] 双击进入,面板=「速度档位」combo+「seed」)\n\n- **主图四块骨架**:①加载器([1][2][3][4019]+[9]QwenImage21Cache+[42]MODEL 总线拐)→②装配主链([6] 装配子图+空潜[4]+画幅开关[19][20])→③加速子图([7]:MODEL=[9]Cache 出线进子图/条件=[6] 双正源分线/latent=[20] 画幅开关后)→④输出([5]解码→[8]保存);LATENT 出来回 [5] 单点解码。\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Fun-Acc 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 三选一处汇流(选择件居汇流点右侧)后单点解码;懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图;子图内懒执行=0929 S0 探针 A 级实证)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板双控件(面板值=生效值)**:「速度档位」combo(首项=默认=「0 · Fun-Acc 4步」=1002 用户新令(推翻 0929 拉齐重放;直出40步居二))+「seed」number(默认 0;子图内 [7014] 单源扇出三支路,T8 seed 已输入化,一处改三支路同步)。\n- **支路0 直出([7010],子图行3)**:KSampler 40 步官方完整档,MODEL=[9]Cache(base)直连,positive=[6].positive 双参考官方路(0928 黑图修复铁则:支路0 双参考/加速两支路单参考,见下节)。\n- **支路1 viggle([7011]→[7012],子图行2)**:[7011] LoraLoaderModelOnly(name 预填 **Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors**,viggle 蒸馏件已装机,strength 1.0=1002 衔接批㉔用户令「要定在 1.0 上面否则就失去了意义」(推翻 0925 探针定档 0.8=flatMAD 2.52→1.75;「目前暂时」=可视效果再调))→[7012] KSampler 6 步(viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);cfg 保持 1)。模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **支路2 Fun-Acc([7013],子图行1,主加速档=次序第二)**:[7013] T8QwenImage21FunAccPDD4Step 接管采样——4步/sigmas 五值/euler/cfg1 全内置(勿外接采样器),无负面槽(负面词在该档不参与);model=[9]Cache(base)直连**绝不吃 viggle LoRA**;positive=positive_single(单参考);latent_image 与 [7010] 同源;model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt(子图行4)默认 0 fixed 单节点扇出 [7010]/[7012]/[7013] 三采样器——经宿主面板「seed」外露,面板值=生效值;消灭旧 [7010] widget 与 [7013] seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([9] Cache MODEL 一源三用/[6] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Fun-Acc 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选 Fun-Acc 档节点红/执行失败——降级=切「1 · viggle」或「0 · 直出40步」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(支路1 自足)/Fun-Acc=PDD 4步采样(支路2 自足)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档单参考正源(0928 黑图修复;支路1/2 专用)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码 [171] 单编码独挑(10-02 单口化:主路 [4016][4017]+单路 [172][173] 双编码+双开关塌缩,透明/非透明选择已在 [153] 合成器内前置,词源与行3 同源)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:支路0 [7010].positive=宿主 positive(双参考=档0 官方路零改动)/支路1·2 [7012]/[7013].positive=宿主 positive_single(单参考)——正源差异内聚进各支路(0929 S3 起双正源经加速子图边界槽 positive/positive_single 分线直入,语义零改动)。\n- [6] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);支路1/2 选中时行4 编码亦入链(多一次视觉编码,约 +20s)。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→**0929 拉齐重放(用户 12:05 裁定)默认=直出40步等效**(选择件 combo 首项,Fun-Acc 仍为主加速居二);档0 的双参考语义零改动。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;0929 S2 D6(1001 ① 改文案):[6] 面板「RGBA透明」三态=自动(默认,按型:道具/多视图/高清人脸/表情差分四型开,其余关)/强制开/强制关——旧「RGBA透明开关」布尔控件退役;型信号=MyQi21DaojieBase.rgba_default 槽喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出单扇出 [153] 透明包裹器(10-02 单口化:透明模式参与文本计算,双编码+双开关已塌缩);PE×透明结构性已融合=PE-I2I 改写指令①层不替换装配文,四型②层声明恒在)\n\nThis is an RGBA format image with transparency. [装配全文,与 [401] 同源]. The image has an alpha channel and a transparent background.\n中文同款:这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。(头尾逐字=官方原文(0927 勘案修账:改官方逐字,旧缩写版废弃),子图 [160][161][162][163] 现拼)\n\n### 输出画幅双路([19] 开关,默认 false=跟随输入图)\n\n- **false(默认)**:latent 取 [6] 子图编码器 latent,跟随 image_1(预缩后)比例。\n- **true**:[4] EmptyLatentImage 自定义宽高(默认 1024×1024);自定义尺寸须贴近 image_1 比例,否则编辑漂移。\n\n### SeedVR2 放大尾档(⑤组框·2K;1002 衔接批㉕)\n\n- [5] 解码图双喂:[8] 直出保存 + [503] SeedVR2 放大(短边 2048=2K 档)→[504] 存 MYStudio-2K 前缀;模型 [501] seedvr2_7b_sharp_fp8_e4m3fn + [502] ema_vae_fp16 已装机(models/SEEDVR2)。\n- **可整组旁路:框选⑤组框 Ctrl+B → 只出 [8] 直出图**(旁路态放大组零执行零落盘)。\n- **放大尾档适合 1MP 档(道具/人脸/自由),4.2MP≈纯插值建议旁路**(九型实查:4.2MP 六型短边 1376~2096 增益仅 ×1.1~1.3;1.0MP 三型短边 1024 真增益 ×2.0)。\n\n### 提示词起草\n\n已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)——起草/改写提示词时唤取它;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n本件由 apps/build/scripts/qi21_daojie_i2i_0924.py 全量再生成(幂等,重跑逐字节一致);改布局/参数/提示词=改脚本再跑,手改画布会被重跑重置。\n"
       ],
       "title": "[402] 道劫i2i·用法速查"
     },
@@ -1148,6 +1161,557 @@
         "horizontal": false
       },
       "title": "[44] Reroute"
+    },
+    {
+      "id": 501,
+      "type": "SeedVR2LoadDiTModel",
+      "pos": [
+        11050,
+        1600
+      ],
+      "size": [
+        300,
+        254
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "torch_compile_args",
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blocks_to_swap",
+          "name": "blocks_to_swap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "blocks_to_swap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "swap_io_components",
+          "name": "swap_io_components",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "swap_io_components"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cache_model",
+          "name": "cache_model",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "cache_model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "attention_mode",
+          "name": "attention_mode",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "attention_mode"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SEEDVR2_DIT",
+          "name": "SEEDVR2_DIT",
+          "type": "SEEDVR2_DIT",
+          "slot_index": 0,
+          "links": [
+            202
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2LoadDiTModel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "mps",
+        0,
+        false,
+        "none",
+        false,
+        "sdpa"
+      ],
+      "widgets_values_named": {
+        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "device": "mps",
+        "blocks_to_swap": 0,
+        "swap_io_components": false,
+        "offload_device": "none",
+        "cache_model": false,
+        "attention_mode": "sdpa"
+      },
+      "title": "[501] SeedVR2 DiT加载(sharp 7B fp8)"
+    },
+    {
+      "id": 502,
+      "type": "SeedVR2LoadVAEModel",
+      "pos": [
+        11050,
+        2150
+      ],
+      "size": [
+        300,
+        366
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "torch_compile_args",
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "device",
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tiled",
+          "name": "encode_tiled",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "encode_tiled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tile_size",
+          "name": "encode_tile_size",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "encode_tile_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "encode_tile_overlap",
+          "name": "encode_tile_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "encode_tile_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tiled",
+          "name": "decode_tiled",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "decode_tiled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tile_size",
+          "name": "decode_tile_size",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "decode_tile_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decode_tile_overlap",
+          "name": "decode_tile_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "decode_tile_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tile_debug",
+          "name": "tile_debug",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "tile_debug"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cache_model",
+          "name": "cache_model",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "cache_model"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "SEEDVR2_VAE",
+          "name": "SEEDVR2_VAE",
+          "type": "SEEDVR2_VAE",
+          "slot_index": 0,
+          "links": [
+            203
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2LoadVAEModel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "ema_vae_fp16.safetensors",
+        "mps",
+        true,
+        512,
+        160,
+        true,
+        512,
+        160,
+        "false",
+        "none",
+        false
+      ],
+      "widgets_values_named": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "mps",
+        "encode_tiled": false,
+        "encode_tile_size": 1024,
+        "encode_tile_overlap": 128,
+        "decode_tiled": false,
+        "decode_tile_size": 1024,
+        "decode_tile_overlap": 128,
+        "tile_debug": "false",
+        "offload_device": "none",
+        "cache_model": false
+      },
+      "title": "[502] SeedVR2 VAE加载(ema fp16)"
+    },
+    {
+      "id": 503,
+      "type": "SeedVR2VideoUpscaler",
+      "pos": [
+        11560,
+        1475
+      ],
+      "size": [
+        360,
+        458
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 201
+        },
+        {
+          "localized_name": "dit",
+          "name": "dit",
+          "type": "SEEDVR2_DIT",
+          "link": 202
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "SEEDVR2_VAE",
+          "link": 203
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "resolution",
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "max_resolution",
+          "name": "max_resolution",
+          "type": "INT",
+          "widget": {
+            "name": "max_resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "uniform_batch_size",
+          "name": "uniform_batch_size",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "uniform_batch_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "color_correction",
+          "name": "color_correction",
+          "type": "COMBO",
+          "widget": {
+            "name": "color_correction"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "temporal_overlap",
+          "name": "temporal_overlap",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "temporal_overlap"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prepend_frames",
+          "name": "prepend_frames",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "prepend_frames"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "input_noise_scale",
+          "name": "input_noise_scale",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "input_noise_scale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "latent_noise_scale",
+          "name": "latent_noise_scale",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "latent_noise_scale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "offload_device",
+          "name": "offload_device",
+          "shape": 7,
+          "type": "COMBO",
+          "widget": {
+            "name": "offload_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enable_debug",
+          "name": "enable_debug",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enable_debug"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            204
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SeedVR2VideoUpscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        42,
+        "fixed",
+        2048,
+        4096,
+        1,
+        false,
+        "lab",
+        0,
+        0,
+        0,
+        0,
+        "none",
+        false
+      ],
+      "widgets_values_named": {
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "resolution": 2048,
+        "max_resolution": 4096,
+        "batch_size": 1,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 0,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "none",
+        "enable_debug": false
+      },
+      "title": "[503] SeedVR2放大(短边2048=2K档)"
+    },
+    {
+      "id": 504,
+      "type": "SaveImage",
+      "pos": [
+        12160,
+        1475
+      ],
+      "size": [
+        380,
+        330
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 204
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "title": "[504] 放大保存(2K·MYStudio-2K)",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "MYStudio-2K"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "MYStudio-2K"
+      }
     }
   ],
   "links": [
@@ -1332,6 +1896,38 @@
       5,
       0,
       8,
+      0,
+      "IMAGE"
+    ],
+    [
+      201,
+      5,
+      0,
+      503,
+      0,
+      "IMAGE"
+    ],
+    [
+      202,
+      501,
+      0,
+      503,
+      1,
+      "SEEDVR2_DIT"
+    ],
+    [
+      203,
+      502,
+      0,
+      503,
+      2,
+      "SEEDVR2_VAE"
+    ],
+    [
+      204,
+      503,
+      0,
+      504,
       0,
       "IMAGE"
     ]
@@ -3140,7 +3736,8 @@
             },
             "widgets_values": [
               "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
-              0
+              0,
+              "randomize"
             ],
             "title": "[7013] FunAcc4步·FunAccPDD"
           },
@@ -3195,7 +3792,7 @@
             },
             "widgets_values": [
               "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
-              0.8
+              1.0
             ],
             "title": "[7011] viggle LoRA·LoraLoader"
           },
@@ -3665,5 +4262,5 @@
     ]
   },
   "last_node_id": 7015,
-  "last_link_id": 200
+  "last_link_id": 204
 }
