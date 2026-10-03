@@ -76,7 +76,7 @@
 | kill-C | #13 Masterpiece(205 MB,先摘 5 节点)——建议 R2 对拍后定 | ☐ |
 | repair-R2V | H3 R2V 模板 [145] ref2va turbo:下装(约 394 MB 级)/摘除/不动 | ☐ |
 | repair-TTS | 上节 TTS pack lightx2v 槽:下装/引擎内改/不动 | ☐ |
-| repair-VIG64 | 社区-编辑生图整合-TE.json [661]/[663] LoraLoaderModelOnly×2 → `Qwen\Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors`(r64 变体本机从未有,10-03 补登轮全域实读新发现;该社区件 09-19 全量扫描后入库故未入 09-19 断链账):下装 r64/改槽对齐 r256/不动 | ☐ |
+| repair-VIG64 | 社区-编辑生图整合-TE.json [661]/[663] LoraLoaderModelOnly×2 → `Qwen\Qwen-Image-2.1-viggle-turbo-4step-lora-r64.safetensors`(r64 变体本机从未有,10-03 补登轮全域实读新发现;该社区件 09-19 全量扫描后入库故未入 09-19 断链账):下装 r64/改槽对齐 r256/不动 | **✅ 不动**(2026-10-03 用户裁定;依据:产线锚官方荐档 r256@6步×1.0,r64=低秩 4 步变体非升级;4 步生态位已由 Fun-Acc PDD 占据;真跑该社区件时改槽指在位 r256+步数 4→6 即可;断链=留档预期态,同 BanZhang 红节点口径) |
 
 > 勾选后执行走 PRD R5:两步制回收目录 `<home>/models/loras/_trash_0919/`,7 天后真删;执行轮再复扫本台账口径核零断链。
 
