@@ -111,6 +111,10 @@ interface ControllerDeps {
   spawnProcess?: typeof spawn;
   now?: () => number;
   inventoryScanner?: () => Promise<ImageGenModelRow[]>;
+  /** 测试专用:健康探针口位(生产恒缺省=sidecar 固定口 17595)。风暴回归用例
+      注入 17xxx 冷门段空闲口,消除对「本机 17595 空闲」的隐式依赖(真 sidecar
+      在跑时探活直通 ready,期望 failed 的用例即红)。 */
+  healthPort?: number;
 }
 
 export function createImageGenRuntimeController(deps: ControllerDeps) {
@@ -217,10 +221,12 @@ export function createImageGenRuntimeController(deps: ControllerDeps) {
   }
 
   async function fetchHealth(): Promise<boolean> {
+    // healthPort 仅测试注入(见 ControllerDeps 注释);生产路径恒走 17595 固定口
+    const healthPort = deps.healthPort ?? LOCAL_IMAGE_PORT;
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 2000);
-      const response = await fetch(`${LOCAL_IMAGE_BASE_URL}/health`, { signal: controller.signal });
+      const response = await fetch(`http://127.0.0.1:${healthPort}/health`, { signal: controller.signal });
       clearTimeout(timer);
       return response.ok;
     } catch {

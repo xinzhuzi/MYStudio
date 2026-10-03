@@ -1,8 +1,9 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, beforeAll, vi } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
+import net from "node:net";
 import { createImageGenRuntimeController } from "./image-gen-runtime-controller";
 import type { ImageGenModelRow } from "./image-gen-runtime-controller";
 
@@ -107,9 +108,55 @@ describe("reclaimOrphanSidecarPort", () => {
   });
 });
 
+// ── 17xxx 冷门段空闲口(仓库端口铁律:engine_manager.PORT_RANGE 同段顺延,
+// 跳过保留口 17595/17598 与在用口)。风暴用例的健康探针改走此口——旧实现
+// 真探 17595,隐式依赖「本机 17595 空闲」:真 sidecar 在跑时探活直通 ready,
+// 期望 failed 的用例即红(10-03 遗留#11 根因)。──
+const RESERVED_PORTS = new Set([17595, 17598]);
+
+function allocateColdHealthPort(): Promise<number | null> {
+  return new Promise((resolve) => {
+    const tryBind = (port: number): void => {
+      if (port > 17999) {
+        resolve(null);
+        return;
+      }
+      if (RESERVED_PORTS.has(port)) {
+        tryBind(port + 1);
+        return;
+      }
+      const probe = net.createServer();
+      probe.once("error", () => tryBind(port + 1));
+      probe.listen(port, "127.0.0.1", () => {
+        probe.close(() => resolve(port));
+      });
+    };
+    tryBind(17000);
+  });
+}
+
 // ── 09-09 进程风暴根修回归:外部进程占死 17595 时上游每秒级重试 prepare,
 // 旧实现每次全量 spawn——实弹 10 分钟堆 840 个 python、load 657 烫机。──
 describe("setup 风暴止血(单飞+指数退避+stop 中止)", () => {
+  let stormHealthPort: number | null = null;
+  let originalKill: typeof process.kill;
+
+  beforeAll(async () => {
+    stormHealthPort = await allocateColdHealthPort();
+  });
+
+  beforeEach(() => {
+    // setup 失败路径会真调 reclaimOrphanSidecarPort()(真 lsof+真 process.kill):
+    // 真 sidecar 恰在 17595 上跑时,回归用例不得误杀用户在跑的服务——
+    // stub 之(本组断言只看 spawn 次数与阶段,不涉及真实信号送达)。
+    originalKill = process.kill;
+    process.kill = ((_pid: number, _signal?: string) => true) as typeof process.kill;
+  });
+
+  afterEach(() => {
+    process.kill = originalKill;
+  });
+
   interface FakeChild {
     pid: number;
     exitCode: number | null;
@@ -150,12 +197,18 @@ describe("setup 风暴止血(单飞+指数退避+stop 中止)", () => {
       storageBasePath: () => storageDir,
       backendRoot: "/fake/backend",
       spawnProcess: spawnFake as unknown as typeof spawn,
+      healthPort: stormHealthPort ?? undefined,
       ...opts,
     });
     return { controller, spawned, spawnFake };
   }
 
-  it("并发 setup 单飞:三个同时到达只 spawn 一次,共享同一份失败结论", async () => {
+  it("并发 setup 单飞:三个同时到达只 spawn 一次,共享同一份失败结论", async (ctx) => {
+    if (stormHealthPort == null) {
+      console.warn("[skip] 17xxx 冷门段(17000-17999)无空闲口可作健康探针,跳过:本用例需要一个保证空闲的探针口");
+      ctx.skip();
+      return;
+    }
     const { controller, spawned } = makeStormController();
     const results = await Promise.all([controller.setup(), controller.setup(), controller.setup()]);
     expect(spawned).toHaveLength(1);
@@ -164,7 +217,12 @@ describe("setup 风暴止血(单飞+指数退避+stop 中止)", () => {
     }
   });
 
-  it("失败后退避:窗口内重试零 spawn,窗口过后才再试", async () => {
+  it("失败后退避:窗口内重试零 spawn,窗口过后才再试", async (ctx) => {
+    if (stormHealthPort == null) {
+      console.warn("[skip] 17xxx 冷门段(17000-17999)无空闲口可作健康探针,跳过:本用例需要一个保证空闲的探针口");
+      ctx.skip();
+      return;
+    }
     let fakeNow = 1_000;
     const { controller, spawned } = makeStormController({ now: () => fakeNow });
     const first = await controller.setup();
@@ -184,7 +242,12 @@ describe("setup 风暴止血(单飞+指数退避+stop 中止)", () => {
     expect(spawned).toHaveLength(2);
   });
 
-  it("stop() 中止在途 setup:健康轮询立即作废,不再回收重生", async () => {
+  it("stop() 中止在途 setup:健康轮询立即作废,不再回收重生", async (ctx) => {
+    if (stormHealthPort == null) {
+      console.warn("[skip] 17xxx 冷门段(17000-17999)无空闲口可作健康探针,跳过:本用例需要一个保证空闲的探针口");
+      ctx.skip();
+      return;
+    }
     // 存活型假子进程:不秒退,逼出「stop 打断 30s 轮询」路径
     const { controller, spawned } = (() => {
       const children: FakeChild[] = [];
@@ -207,6 +270,7 @@ describe("setup 风暴止血(单飞+指数退避+stop 中止)", () => {
         storageBasePath: () => storageDir,
         backendRoot: "/fake/backend",
         spawnProcess: spawnFake as unknown as typeof spawn,
+        healthPort: stormHealthPort ?? undefined,
       });
       return { controller, spawned: children };
     })();

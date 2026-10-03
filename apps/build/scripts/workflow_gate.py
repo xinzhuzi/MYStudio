@@ -6,7 +6,8 @@
 R2.2:四段实测总时长与挂段决定见任务档 implement.md 执行记录)。
 
 四段:
-  1. generators  三生成器幂等重跑(restore-from-temp 非破坏设计)
+  1. generators  活跃生成器幂等重跑(restore-from-temp 非破坏设计);退役生成器
+                 显式 SKIP 不运行(1001 裁定,见 GENERATORS/RETIRED_GENERATORS 注)
   2. contract   四件契约测试(pytest 显式清单,ls 验存在)
   3. layout     布局棘轮(layout_check 交叉/遮挡数 vs workflow_layout_baseline.json,
                  只降不升:高=RED,低=PASS 附「可降基线」提示)
@@ -57,12 +58,24 @@ REPO = SCRIPTS.parents[2]
 PY = sys.executable or "python3"
 APPS = REPO / "apps"
 
-# 三生成器 → (目标常量名, 生成器脚本)。目标 JSON 路径一律从生成器头部常量
+# 活跃生成器 → (目标常量名, 生成器脚本)。目标 JSON 路径一律从生成器头部常量
 # AST 解析(禁手抄);常量名是生成器既有声明,非路径复制。
 GENERATORS: list[tuple[str, str]] = [
-    ("QI21_JSON", "qi21_daojie_t2i_0923.py"),
     ("I2I_JSON", "qi21_daojie_i2i_0924.py"),
     ("WF", "qwen21_edit_core_pe_0923.py"),
+]
+
+# 退役生成器 → 段1 恒不运行;仅段3 布局棘轮仍解析其头部常量取目标 JSON
+# (基线 workflow_layout_baseline.json = 1001 手术链成员重立,棘轮覆盖不减)。
+# ⛔ 1001 退役警示(Trellis 10-01-qi21-assembly-blueprint;警示原文在
+# qi21_daojie_t2i_0923.py:358-369)——勿再运行该生成器:重跑会把
+# qi21-道劫-t2i.json 重置回 0930 旧布局并抹掉 1001 手术。该 JSON 现真源=
+# 仓库 JSON 本体+手术链(campaigns/qi21_assembly_surgery_1001.py 已役留档、
+# qi21_blueprint_sync_1001.py 蓝图同步通道),内容锁=契约测试
+# backend/engines/comfyui/tests/test_qwen21_workflow_contract.py。
+# (10-03-file-inventory-cleanup 遗留#6:门禁锚与退役裁定对齐)
+RETIRED_GENERATORS: list[tuple[str, str]] = [
+    ("QI21_JSON", "qi21_daojie_t2i_0923.py"),
 ]
 
 # 四件契约测试(design §4.2;ls 验存在,缺失即 RED 不 spawn pytest)
@@ -115,10 +128,17 @@ def _eval_expr(node: ast.AST, env: dict) -> object:
     raise NotImplementedError(f"节点类型不在白名单: {type(node).__name__}")
 
 
-def resolve_generator_targets() -> tuple[list[tuple[str, pathlib.Path, pathlib.Path]], list[str]]:
-    """解析三生成器头部常量,返回 [(常量名, 生成器路径, 目标 JSON 绝对路径)] 与错误清单。"""
+def resolve_generator_targets(
+        generators: list[tuple[str, str]] | None = None,
+) -> tuple[list[tuple[str, pathlib.Path, pathlib.Path]], list[str]]:
+    """解析生成器头部常量,返回 [(常量名, 生成器路径, 目标 JSON 绝对路径)] 与错误清单。
+
+    generators 缺省=仅活跃生成器(段1 运行口径);段3/重建基线显式传
+    GENERATORS + RETIRED_GENERATORS(退役件不运行,但其目标 JSON 仍受布局棘轮覆盖)。
+    """
     pairs, errors = [], []
-    for const_name, script_name in GENERATORS:
+    for const_name, script_name in (generators if generators is not None
+                                    else GENERATORS):
         gen_path = SCRIPTS / script_name
         try:
             tree = ast.parse(gen_path.read_text(encoding="utf-8"), filename=str(gen_path))
@@ -157,10 +177,20 @@ def _repo_rel(p: pathlib.Path) -> str:
 
 
 def stage_generators() -> dict:
-    print("[workflow] 段1 RUN generators:三生成器幂等重跑(restore-from-temp 非破坏)")
+    print("[workflow] 段1 RUN generators:活跃生成器幂等重跑(restore-from-temp 非破坏;"
+          "退役生成器显式 SKIP 不运行)")
     started = time.monotonic()
     pairs, errors = resolve_generator_targets()
     items, ok = [], not errors
+    for const_name, script_name in RETIRED_GENERATORS:
+        # ⛔ 退役件恒不运行(1001 裁定):记 skipped 入报告;其目标 JSON 由段3
+        # 布局棘轮+契约测试守(真源=仓库 JSON+手术链,见 RETIRED_GENERATORS 注)
+        items.append({"generator": script_name, "constant": const_name,
+                      "status": "skipped",
+                      "reason": "⛔1001 退役警示勿再运行(重跑会抹掉 1001 手术);"
+                                "真源=仓库 JSON+手术链+契约测试,段3 布局棘轮仍覆盖"})
+        print(f"[workflow]   SKIPPED {script_name}(⛔ 退役勿再运行;"
+              f"真源=手术链+契约测试,目标 JSON 仍入段3 棘轮)")
     for const_name, gen_path, target in pairs:
         print(f"[workflow]   目标(生成器 {const_name} 头部常量解析):{_repo_rel(target)}")
         if not target.exists():
@@ -264,7 +294,8 @@ def _layout_crossings(json_path: pathlib.Path) -> dict | None:
 
 
 def _targets_rel() -> list[str]:
-    pairs, errors = resolve_generator_targets()
+    # 活跃+退役全量(退役件不运行,但目标 JSON 仍受布局棘轮与基线覆盖)
+    pairs, errors = resolve_generator_targets(GENERATORS + RETIRED_GENERATORS)
     if errors:
         raise RuntimeError("生成器目标解析失败:" + ";".join(errors))
     return [_repo_rel(t) for _, _, t in pairs]

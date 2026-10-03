@@ -173,7 +173,15 @@ def write_raw(entries: list[dict]) -> None:
         raw_dir = DST / "raw" / f"第{('一', '二')[e['qi'] - 1]}期"
         raw_dir.mkdir(parents=True, exist_ok=True)
         src = SRC / f"第{('一', '二')[e['qi'] - 1]}期" / f"{e['n']}.txt"
-        shutil.copy2(src, raw_dir / f"{e['n']:02d}.txt")
+        canonical = raw_dir / f"{e['n']:02d}.txt"
+        shutil.copy2(src, canonical)
+        # 10-03 断根(遗留#10):双命名 N.txt≡0N.txt 逐字节副本清口径——再生只保单份(canonical=NN 前导零侧,
+        # 同 README);若目录里残留同号无前导零 N.txt 且与 0N.txt 逐字节相同则删,内容相异者保留(第二期/8.txt
+        # 先例:源在两次跑之间变更的历史快照,盘点已判保留)。n≥10 时两名同文件,不适用。
+        if e["n"] < 10:
+            stray = raw_dir / f"{e['n']}.txt"
+            if stray.is_file() and stray.read_bytes() == canonical.read_bytes():
+                stray.unlink()
 
 
 def build_db(entries: list[dict]) -> None:
