@@ -1,0 +1,194 @@
+# Action Scene Writing Guide
+
+Read this file when a shot contains staged combat or physical action — duels, hand-to-hand fights, chases, standoffs, vaults, and stunt-driven movement. It adds choreography rules on top of the base and full-reference guides; it does not replace them. How non-exchange action (chases, standoffs, vaults) adapts the six beats is defined in §1.
+
+## 0. Scope and Hook-In Points
+
+- Source: absorbed 2026-10-03 from the archived community skill `docs/comfyui-kb/参考_提示词工程/动作电影Skill-2.0.md` (archived verbatim; this file is the H3-adapted rewrite).
+- Hook-in field = the main description field of the mode you are already writing:
+  - Base modes (T2VA / I2VA / FL2VA / L2VA): every rule below extends how you fill `integrated_multimodal_description` (base-en §4.1).
+  - Full-reference mode (Ref2VA): the same rules extend `detailed_description` (ref-en §5); fighter appearance stays carried by `<Subject N>` definitions.
+- Increment, not replacement: no new fields and no change to either mode's structure — base modes keep their instruction + three core fields (base-en §2), and full-reference mode keeps its six sections (ref-en §1). The Output Rules and the controlled marks are untouched. Camera vocabulary is never invented in this file — every camera word comes from base-en §4.3.
+- Terminology: **video** = the whole generation unit, whose duration comes from the grid; **shot** = one `[Shot N]` segment between cuts, as in base-en. Every per-shot budget in this file — the round budget (§1) and the single space transition (§4) — is counted per `[Shot N]` segment, not per video.
+- References: `base-en §N.N` and `ref-en §N` point into the companion guides; a bare `§N` points to a section of this file.
+- The video's duration always lands on the duration grid of `references/direct-zh.md` §一① (5.167 / 6.583 / 8.000 / 12.250 / 15.083 s) and stays inside the 5-15 s trained range.
+
+Where each section lands in the description:
+
+| Section | Hook-in point |
+|-|-|
+| 1 Six-Beat Action Formula | base-en §4.1 timeline action sentences — the granularity of one action beat |
+| 2 Distance Grammar | base-en §4.1 action chain and spatial description |
+| 3 Spatial Blocking | base-en §4.1 opening composition |
+| 4 Space Progression | base-en §4.2 shot change, or in-shot progression |
+| 5 ACT Camera Participation | base-en §4.3 controlled camera words — reused, never extended |
+| 6 Impact Feedback | base-en §4.1 action sentences + base-en §4.6 `overall_soundscape` for the sound layer |
+| 7 Environmental Destruction | base-en §4.1 environment description |
+| 8 Qi-Effect Translation and VFX Rules | base-en §4.1 action and effect wording |
+| 9 Realism Discipline | base-en §4.1, scattered through the prose |
+
+In full-reference mode the same hooks apply inside `detailed_description`, whose basic formats are shared with base-en (ref-en §5.1).
+
+## 1. Six-Beat Action Formula
+
+Organize staged combat as complete rounds of six beats:
+
+```text
+preparation → movement → attack → impact → reaction → recovery
+```
+
+- **preparation** — how the fighter readies: lower the center of gravity, tighten the grip, adjust the footwork.
+- **movement** — how the action travels: waist rotation, foot drive, the weapon's path.
+- **attack** — the strike itself: thrust, swing, sweep, grapple entry.
+- **impact** — the collision: blade meets blade, fist meets guard, body meets ground.
+- **reaction** — the received force: stagger, lost balance, a forced step back.
+- **recovery** — the re-guard: reset the stance, re-chamber the weapon, set the feet again.
+
+Round budget for the 5-15 s trained range:
+
+- One complete round occupies roughly four to six seconds.
+- Plan **1-2 complete rounds per `[Shot N]` segment**: a 5.167 s or 6.583 s video — normally a single shot — carries one compact round; an 8.000 s video carries one round with room for preparation and aftermath; 12.250 s and 15.083 s videos carry two.
+- Do not cram half-finished rounds into a segment — if the fight needs more rounds, add a cut (base-en §4.2) or another shot and carry the remaining rounds there.
+
+Write the beats as consecutive action sentences along the timeline (base-en §4.1). In polished prompts the beat names dissolve into plain action prose; the worked example in §10 keeps them as inline markers so the six beats stay easy to audit.
+
+Not every action shot is a two-fighter exchange. Adapt the beats instead of abandoning them: a chase keeps preparation → movement → recovery and replaces attack + impact with the pursuit's obstacle beats — a vault, a slide under, a near-miss; a standoff stretches preparation across the whole shot with no attack at all; a lone vault is preparation → movement → impact-as-landing → recovery. For the round budget and the §11 checklist, one adapted sequence — one chase leg, one standoff hold, one vault line — counts as one round.
+
+## 2. Distance Grammar
+
+Fight distance is written in meters, in three working bands:
+
+| Band | Range | Use |
+|-|-|-|
+| far | 8-15 m | standoff, reading the opponent, a sprint closing |
+| mid | 2-5 m | blade exchange, weapon reach, circling |
+| close | 0.5-1 m | grappling, locks, pommel and elbow work |
+
+Write distance changes as a numeric process attached to the movement beat that causes them:
+
+```text
+The attacker sprints up the stone steps and the distance closes from 10 m to 2 m.
+```
+
+Vague distance verbs — "closes in", "approaches", "gets closer", "moves in" — are banned as distance statements. Give the opening distance in the shot's opening composition, then write every change as a from-X-to-Y process inside the action chain.
+
+The bands describe what each range is for; they are not walls. An anchor distance may sit in a gap — a 6 m opening or a 1.5 m grapple entry — as long as the number is explicit and the action matches what that distance physically allows. Name the band only where the band itself carries meaning, such as closing out of far range into mid-range blade reach.
+
+## 3. Spatial Blocking
+
+Block a two-fighter shot in three depth bands and say who occupies each:
+
+- **foreground** — the depth band nearest the lens. In an active exchange the fighter currently pressing the attack often occupies it, but at a standoff no attacker exists yet, and after a role swap the band simply changes hands: assign each band to whoever actually stands in it and name that fighter.
+- **midground** — the engagement zone where the strikes actually land;
+- **background** — the environment that frames the fight and later participates in it.
+
+State who stands closer to the camera and who holds the positional advantage — the high step, the sun at the back, the weapon already raised.
+
+At the opening of every shot, fix three facts for each fighter inside the composition sentence:
+
+1. frame side — frame left or frame right;
+2. facing — which way the body points;
+3. direction of motion — where the fighter moves (or explicitly holds position) once the action starts.
+
+These facts anchor screen direction for the whole shot: keep each fighter's frame side stable inside a shot, and re-state both fighters' positions in full after every cut.
+
+## 4. Space Progression
+
+An advanced fight changes the space it occupies. A progression chain looks like:
+
+```text
+courtyard → stone steps → rooftop → mid-air clash → back to the ground
+```
+
+H3 duration constraint: **at most one space transition per `[Shot N]` segment.** Choose one of:
+
+- one in-shot transition, written as continuous physical motion — the fight climbs from the courtyard onto the stone steps; or
+- a cut to the new space with the base-en §4.2 controlled cut verbs, after which composition, blocking, and distance are stated again from scratch.
+
+Two or more transitions inside one segment exceed the round budget and read as visual flicker.
+
+## 5. ACT Camera Participation
+
+The camera participates in the action (Action Camera Tracking). All four ACT forms are expressed with the controlled camera words of base-en §4.3 — the combination and timing are the increment; the vocabulary adds nothing new:
+
+| ACT form | Controlled word | How to write it |
+|-|-|-|
+| first-person | `POV` | carry the action inside the POV sentence's visible content: a POV shot looks down the defender's blade as the attacker charges |
+| weapon / body follow | `Tracking Shot` | name the followed object: the camera tracks the blade at fast speed through the parry |
+| impact shake | `Shake Strongly` (lighter contact: `Shake Slightly`) | attach to the collision beat: the camera shakes strongly as the two blades meet |
+| orbit | `Arc Shot` | circle a fighter or the engagement zone: the camera arcs around the two fighters with small amplitude at slow speed |
+
+Amplitude and speed follow base-en §4.3 (`with small amplitude` / `with large amplitude`, `at slow speed` / `at fast speed`). Write camera participation as natural English action sentences inside the shot — never as labels stacked at the end — and place each camera sentence on the beat it belongs to: the tracking on the movement beat, the shake on the impact beat, the arc on the recovery beat.
+
+## 6. Impact Feedback
+
+Every attack must carry weight. Give each impact beat at least two of three feedback channels, and put those two channels inside the impact sentence itself:
+
+- **body** — muscle tension, weight shift, stagger, lost balance;
+- **weapon** — vibration up the grip, sliding friction, sparks;
+- **environment** — gravel scattered, wood splinters, dust kicked up, petals shaken loose.
+
+Further body feedback — the stagger, the lost balance — may then develop in the reaction beat, which §1 already reserves for it.
+
+Boundary with §8: debris thrown by a physical hit — gravel kicked up by a skid, splinters from a snapped branch — is impact feedback; drifting dust, petals, and light disturbance with no contact behind them belong to the §8 qi translation. One phenomenon is booked once, under its cause.
+
+The audible layer of an impact — metal ring, collision thud, debris landing, forced breathing — is not a new field: it belongs in `overall_soundscape` (base-en §4.6 already lists impacts, breathing, and footsteps). Keep the hit itself visible in the description and summarize its sound once in the soundscape.
+
+## 7. Environmental Destruction
+
+The environment participates in the fight. Destruction beats make force legible:
+
+- a blade pass shears through a branch;
+- a dropped weapon cracks a stone slab;
+- a heavy landing shakes loose roof tiles.
+
+Choose **1-2 destruction beats per shot** and attach each one to the strike that causes it. Do not stack collapse, shatter, and debris on every beat — one or two clear, physically caused breaks hit harder than a shower of fragments.
+
+## 8. Qi-Effect Translation and VFX Rules
+
+Translate sword-pressure and qi effects into observable physical phenomena. The translation vocabulary:
+
+- **air pressure** — a thin ripple of air along the blade or the fist's path;
+- **petals** — lifted and bent along the pressure front;
+- **dust** — a low skirt lifted off the ground surface;
+- **light change** — the ambient light flickering or shifting across the disturbed air.
+
+Strictly banned: colored energy waves, game-skill effects, glowing trails, and cheap neon overlays. Never name a spell or a skill. Phrase every effect as real physics — real materials, real particle motion, real destruction — so the model renders matter in motion rather than an overlaid glow.
+
+## 9. Realism Discipline
+
+Three one-line disciplines, scattered into the description prose wherever they apply:
+
+- **Light** — every light source has a direction and a physical motive (a low sun, a window, a lantern). No even, sourceless illumination and no AI white light. State where the light comes from, how it rims or models the fighters, and how the ground and environment reflect it.
+- **Hair and cloth** — hair moves with wind, inertia, and rotation; cloth carries weight, folds, and a delayed trail behind the body. No painted-on clothing and no plastic hair.
+- **Materials** — skin and fabric render as real physical materials, never with a plastic sheen.
+
+## 10. Worked Example
+
+A generic wuxia example — two nameless swordsmen, no franchise elements — in an 8.000-second single shot (192 frames at 24 fps) carrying one complete six-beat round, shown in base-mode form; in full-reference mode the same body becomes the `detailed_description` with `<Subject N>` labels carrying the two fighters. It puts every block in place: beat budget (§1), numeric distance with a 10 m → 2 m closing (§2), three-band blocking with frame sides, facing, and direction of motion (§3), no space transition (§4), ACT camera on the movement and impact beats (§5), three-channel impact feedback inside one impact sentence (§6), one destruction beat (§7), qi written as air pressure, dust, and a light change (§8), and disciplined light, hair, and cloth (§9). The inline beat markers are kept for auditability and may dissolve into plain prose in production.
+
+```text
+integrated_multimodal_description: [Shot 1] Live-action, cinematic, a wide shot frames a stone-step clearing at the edge of a bamboo grove in dusk low-angle backlight, the low sun sitting behind the bamboo at frame left so both swordsmen carry a warm rim of light along their shoulders. In the foreground, the grey-robed attacker stands frame right, three stone steps below the top, facing frame left with his weight loaded to drive forward and up the steps; in the midground engagement zone, the dark-green-robed defender stands frame left on the upper step, facing frame right, his feet planted to hold the step with no retreat; layered bamboo stalks and fallen leaves fill the background. The dusk wind lifts stray strands from both men's topknots and drags their robe hems toward frame right. The two swordsmen hold a standoff about 10 m apart, and neither fighter speaks — both keep their lips closed through the whole exchange. Preparation: the attacker lowers his center of gravity, tightens both hands on the hilt of his straight sword, and slides his rear foot half a step back; the defender lets his straight sword hang in a low guard with his weight even on both feet. Movement: the attacker launches up the stone steps and the distance closes from 10 m to 2 m, his grey robe snapping behind him, while the camera tracks the sprint at fast speed along the defender's flank. Attack: at 2 m the attacker drives a straight thrust at the defender's chest. Impact: the defender answers with a rising parry and the two blades meet in a sliding clash that throws sparks, jarring a shudder up the attacker's wrists and skidding his braced front foot half a step sideways as gravel sprays from under his sole; the camera shakes strongly on the contact. Reaction: the attacker's front knee buckles, his weight tips onto his heels, and he staggers back two steps with his loosened hair strands swinging forward at each stop; the wind of the blade pass shears through a thin bamboo stem at the path edge, and the cut stem tips and falls across the steps. Along the defender's blade, a thin ripple of air pressure bends the drifting bamboo leaves and lifts a low skirt of dust off the stone, and the low backlight flickers across the disturbed dust for a heartbeat. Recovery: the attacker resets his grip and squares his shoulders two steps down the stairs, the defender rolls his wrist and returns his blade to the low guard, and the two settle at a new standoff about 4 m apart as the fallen bamboo stem comes to rest on the steps.
+
+overall_soundscape: Bamboo leaves rustle in a steady dusk breeze over the clearing with one distant bird call. Fast footsteps hammer up the stone steps, the two blades meet in a bright metallic clash that rings out and decays, gravel scatters across stone, a bamboo stem shears with a dry crack and drops onto the steps with a hollow knock, and both fighters breathe hard through closed mouths.
+
+non_diegetic_music: A low frame-drum pulse at a fast tempo under a single sustained bamboo-flute hold, ending abruptly on the blade clash and followed by two sparse deep drum hits through the recovery.
+```
+
+## 11. Pre-Flight Checklist
+
+Run this list before sending any fight or action shot (adapted from the source skill's 15-item checklist, kept to the fight-relevant and duration-domain items):
+
+- [ ] The video's duration lands on the grid (5.167 / 6.583 / 8.000 / 12.250 / 15.083 s) and stays inside the 5-15 s trained range.
+- [ ] Round budget holds: 1-2 complete six-beat rounds per `[Shot N]` segment (adapted sequences count, §1), each round ending in reaction and recovery.
+- [ ] The opening composition states frame side, facing, and direction of motion (or an explicit hold) for every fighter (three-band blocking).
+- [ ] Distance is numeric and every change is a from-X-to-Y process; no vague "closes in".
+- [ ] At most one space transition per `[Shot N]` segment.
+- [ ] Every impact beat carries at least two feedback channels inside its impact sentence (body / weapon / environment).
+- [ ] 1-2 environmental-destruction beats, each physically caused by a named strike.
+- [ ] Every camera word comes from base-en §4.3; ACT forms are written as POV / Tracking Shot / Arc Shot, with Shake Strongly or Shake Slightly on impact beats.
+- [ ] Qi effects are air pressure, petals, dust, or a light change — no colored energy waves, no game-skill effects.
+- [ ] Light has a direction and a motive; hair and cloth move with wind, inertia, and lag; no plastic sheen.
+- [ ] Silent fighters keep their lips closed and receive no speaker ID.
+- [ ] `overall_soundscape` covers the impact layer of every distinct clash in the shot — metal ring, thuds, debris landing — without repeating dialogue.
+- [ ] No anaphora: after every cut, positions, props, and states are re-stated in full (a global output rule of the skill, not a fight-only rule).
