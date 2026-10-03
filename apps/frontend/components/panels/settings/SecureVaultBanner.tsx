@@ -36,7 +36,7 @@ interface SecureVaultBannerProps {
 }
 
 /**
- * 四档横幅(out/c1-plan-0924.md §7):
+ * 四档横幅(c1-plan-0924.md §7;1003 文件梳理迁出 out/→~/.zcode/mystudio-local/):
  * A1 decrypt-failed——换机/重装/密文损坏:主按钮「清除无效密文并重新填写」+ 二次确认;
  * A2 read-timeout——可能只是系统繁忙:无破坏性按钮,只有「重试」;
  * B  unavailable——本机安全存储不可用但密文完好:红字次按钮「以明文重新开始(丢弃已加密数据)」+ 二次确认;

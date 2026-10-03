@@ -64,7 +64,7 @@ pgrep -fl "漫影工作室|python.*tts" || true
 - **改了 my_nodes 前端没生效**：`my_nodes` 真源在仓库 `apps/backend/engines/comfyui/my_nodes/`，运行时同步进引擎家；引擎 spawn 用 Resources 覆写引擎家——改 `manying.js` 等文件后必须重新打包才进安装版（开发双家另见 `.agents/skills/comfyui/machine.md`）。
 - **webview 白屏/黑屏**：先确认引擎健康（引擎卡状态=运行中）与 webview 端口一致；云端节点 Sign in 遮罩等界面问题见 [定制代码地图](../comfyui-kb/定制代码地图.md)。
 
-引擎布局/端口/启动方式档案见 `.agents/skills/comfyui/machine.md`；K2/H3 产线参数排障见 [参数速查](../comfyui-kb/参数速查.md) 与 [排障 runbook](../comfyui-kb/K2上色/runbook_画稿上色_错误应对.md)。
+引擎布局/端口/启动方式档案见 `.agents/skills/comfyui/machine.md`；K2/H3 产线参数排障见 [参数速查](../comfyui-kb/参数速查.md)。
 
 ## Remotion 渲染失败
 

@@ -4,7 +4,7 @@
 /**
  * safeStorage 三通道 IPC(0924 C1 专项:API 密钥落盘加密)。
  *
- * 契约铁律(计划 out/c1-plan-0924.md §4.2/§6.1):
+ * 契约铁律(计划 c1-plan-0924.md §4.2/§6.1;1003 文件梳理迁出 out/→~/.zcode/mystudio-local/):
  * - 三通道一律返回显式结果对象,**绝不向渲染层抛错**——渲染层适配器需要区分
  *   「环境不可用」(unavailable)与「密文损坏/解密失败」(error)两种语义,抛错
  *   会让两者混为一谈(对比先例 local-account-vault.ts 只有一个笼统 catch)。

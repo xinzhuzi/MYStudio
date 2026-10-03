@@ -137,10 +137,6 @@
 | [分镜图生成与超分指引](./comfyui-kb/分镜图生成与超分指引.md) | 分镜×H3 配套：分镜图写法要点、一镜张数策略（默认首帧1张/尾帧条件档/九宫格抽卡）、超分结论（输入侧不做、权重替代分辨率）与质量杠杆四件事 |
 | [分镜×H3 视频产线](./comfyui-kb/分镜H3视频产线.md) | 单镜 5s 真动态视频产线：素材到成片链（H3→Remotion shots→video-use 审阅→用户确认/HyperFrames→章节渲染）、17k+5 帧数网格、分辨率/音频裁定、漫影自研单镜工作流、实弹账本（21m07s/5.167s/124 帧）与坑清单 |
 | [定制代码地图](./comfyui-kb/定制代码地图.md) | 四层定制代码位置、生效路径（要不要打包）与坑清单（改 ComfyUI 相关功能前先读） |
-| [Windows 部署指南](./comfyui-kb/README-Windows部署指南.md) | Windows 侧 ComfyUI 引擎部署 |
-| [K2 画稿上色产线四件套](./comfyui-kb/K2上色/prd_画稿上色工作流.md) | PRD / 设计 / 实现 / 错误应对 runbook |
-| [VL 指令验证计划](./comfyui-kb/VL指令验证计划.md) | 视觉语言模型指令链验证计划 |
-| [排查：快流未使用节点](./comfyui-kb/排查_快流未使用节点.md) | 快流工作流排障记录 |
 
 > 用户操作见 [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md)与[本地模型页](./panels/LOCAL_MODELS_GUIDE.md)；开发运维再查定制代码地图。
 

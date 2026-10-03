@@ -2,7 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 /**
- * §6.2 渲染层安全存储适配器全量矩阵(out/c1-plan-0924.md)。
+ * §6.2 渲染层安全存储适配器全量矩阵(c1-plan-0924.md;1003 文件梳理迁出 out/→~/.zcode/mystudio-local/)。
  * 只 mock safeStorage 系统调用本身(fake 桥 = preload IPC 桥替身),被测的
  * 适配器状态机/门禁/降级逻辑零 mock。fake 桥全部返回 Promise,模拟 IPC 异步
  * 时序(保证竞态路径被真实覆盖)。
