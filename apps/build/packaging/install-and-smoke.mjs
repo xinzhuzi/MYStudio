@@ -5,6 +5,17 @@ import { homedir, tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { inspectPackagedRemotionApp } from '../remotion/verify-packaged-remotion.mjs';
 
+// 1003 死守卫:本脚本会关闭既有实例并启动 漫影App 做装机验收(stopInstalledAppIfRunning/
+// verifyRealOpen/ smoke:desktop 子链)。无用户亲手解锁,任何人不许跑;本检查必须发生在
+// 任何 close/launch/spawn App 动作之前(build-mac.sh 与 npm run smoke:installed 两条
+// 调用入口都汇到本件,守在本件顶部即结构性封死全链)。
+if (process.env.MANYYING_ALLOW_APP_LAUNCH !== '1') {
+  console.error(
+    '[死守卫] 拒跑:未设置 MANYYING_ALLOW_APP_LAUNCH=1,禁止关闭/启动 漫影App 做装机验收。解锁用法:用户亲口要打包时前台执行 MANYYING_ALLOW_APP_LAUNCH=1 bash apps/build/packaging/build-mac.sh',
+  );
+  process.exit(1);
+}
+
 const packagedApp = resolve(process.cwd(), 'release', 'build', 'mac-arm64', 'mac-arm64', '漫影工作室.app');
 const installedApp = '/Applications/漫影工作室.app';
 const packagedAsar = resolve(packagedApp, 'Contents', 'Resources', 'app.asar');

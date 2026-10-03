@@ -1,6 +1,15 @@
 #!/usr/bin/env sh
 set -eu
 
+# 1003 死守卫(漫影App 启动解锁透传):本脚本自身不拦 App 启动——拦的职责在
+# install-and-smoke.mjs / smoke-desktop.mjs 等 App 启动件(未解锁时它们会在任何
+# close/launch/spawn App 动作之前拒跑退出)。解锁用法:用户亲口要打包时前台执行
+#   MANYYING_ALLOW_APP_LAUNCH=1 bash apps/build/packaging/build-mac.sh
+# 此处显式 export 确保变量必然透传给 build/install/smoke 全部子脚本与重试递归。
+if [ -n "${MANYYING_ALLOW_APP_LAUNCH:-}" ]; then
+  export MANYYING_ALLOW_APP_LAUNCH
+fi
+
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APPS_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 # The standard macOS package command is build -> overwrite install -> installed smoke.

@@ -23,6 +23,17 @@ import {
   sampleFrontmostApplication,
 } from "./smoke-focus.mjs";
 
+// 1003 死守卫:本脚本会关闭既有实例并直接拉起 漫影App 二进制冒烟
+// (stopExistingMYStudioInstances/spawnSmokeApp)。无用户亲手解锁,任何人不许跑;
+// 本检查必须发生在任何 close/launch/spawn App 动作之前(直跑 npm run
+// smoke:desktop 与 install-and-smoke.mjs 子链两条入口都汇到本件)。
+if (process.env.MANYYING_ALLOW_APP_LAUNCH !== "1") {
+  console.error(
+    "[死守卫] 拒跑:未设置 MANYYING_ALLOW_APP_LAUNCH=1,禁止关闭/启动 漫影App 做冒烟。解锁用法:用户亲口要打包时前台执行 MANYYING_ALLOW_APP_LAUNCH=1 bash apps/build/packaging/build-mac.sh",
+  );
+  process.exit(1);
+}
+
 const appBinCandidates = [
   process.env.MYSTUDIO_SMOKE_APP_BIN,
   resolve(
