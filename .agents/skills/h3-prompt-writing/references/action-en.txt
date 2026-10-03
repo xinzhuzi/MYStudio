@@ -180,7 +180,7 @@ non_diegetic_music: A low frame-drum pulse at a fast tempo under a single sustai
 Run this list before sending any fight or action shot (adapted from the source skill's 15-item checklist, kept to the fight-relevant and duration-domain items):
 
 - [ ] The video's duration lands on the grid (5.167 / 6.583 / 8.000 / 12.250 / 15.083 s) and stays inside the 5-15 s trained range.
-- [ ] Round budget holds: 1-2 complete six-beat rounds per `[Shot N]` segment (adapted sequences count, §1), each round ending in reaction and recovery.
+- [ ] Round budget holds: 1-2 complete six-beat rounds per `[Shot N]` segment; adapted sequences count as rounds and close on their own final beat (§1).
 - [ ] The opening composition states frame side, facing, and direction of motion (or an explicit hold) for every fighter (three-band blocking).
 - [ ] Distance is numeric and every change is a from-X-to-Y process; no vague "closes in".
 - [ ] At most one space transition per `[Shot N]` segment.
