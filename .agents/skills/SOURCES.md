@@ -18,6 +18,7 @@
 **本地自建**(非第三方,无上游):
 - `comfyui/tools/find_orphan_nodes.py` — UI 格式工作流孤儿节点检测(从输出节点反向可达性判定;兼容 cg-use-everywhere 广播、SetGet、rgthree 组旁路器/查看器、UUID 子图节点;`--prune` 生成 .cleaned.json 不动原文件)。2026-09-04 经合成样例 + K2图像/、H3视频/ 真实工作流验证。
 - `generated/` — GitNexus `analyze --skills` 自动生成的按域代码导航地图(**可再生的派生产物,勿手编**;`.gitignore`/`.zcodeignore` 刻意排除不进 git;目录两层深故不进 skill 发现路径,导航请直接用 GitNexus `query()`/`context()` 动态查询——静态地图会滞后,remotion 件内 08-21 刷新注记自证)。09-24 盘点 20 件在档。
+- `daojie-charsheet-prompter/` — 本仓自建(道劫角色设定表提示词技能,2026-10-02 建;10-03 自 .zcode 游离真实目录归一真源+symlink)。
 - `node-graph/` — 节点图与画布布局整合技能(地图+纪律+速查层):单源指路三真源(`.claude/knowledge/node-graph-architecture.md` / `docs/comfyui-kb/画布布局规范-0928.md` / comfyui 技能),布局策略章七块完整自含历次布局裁定系谱。**携带通用代码**(0928 三令,tools/ 两件):`workflow_layout.py`=comfyui 技能同名件归因副本(上游 SlavaSexton/ComfyUI-Agent-Kit,Apache-2.0;文件头归因块,块后与原件逐字节一致;上游更新时以 comfyui 技能原件为准重新拷贝);`layout_check.py`=0928 立宪口径通用布局检查器(本技能自有,无上游;数学逐式移植自生产生成器自查段,三件生产件对拍交叉基线逐值相等;`--selftest` 内嵌合成用例;零 IP 词)。自建 2026-09-28;来源=0928 画布布局立宪+0925 布局战役裁定+comfyui 技能布局工具与章节+思想借鉴 mckruz/comfyui-expert(MIT,意图解析→查清单→选模式→生成→验证流程骨架与八模式选型);三源调研与布局系谱存证 `.trellis/tasks/09-28-node-graph-skill/research/`。
 
 - **Agent-Kit commit**: `74f5b0bbd87b1c4ca0cd95dea169cdcae4b9af9d`(2026-08-20,**master 分支**——仓库默认分支是 master 非 main),Apache-2.0(仓库根 LICENSE/NOTICE,未随目录拷贝;本地使用无附加义务,引用内容请保留上游署名)
