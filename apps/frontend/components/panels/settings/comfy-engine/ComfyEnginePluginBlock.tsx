@@ -460,7 +460,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
             </div>
           );
         })}
-        {/* Qwen-Image-2.1 采样提速插件在位态行(09-24 迁入:资产住进引擎卡,
+        {/* Q2-1 采样提速(TE-Speed)在位态行(09-24 迁入:资产住进引擎卡,
             照 09-09 模型页迁卡先例;非台账目录件,恒列尾) */}
         <Qwen21TeSpeedPluginRow engine={engine} />
       </div>

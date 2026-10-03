@@ -5,14 +5,14 @@
 //   · 加速包(viggle-turbo LoRA)= 模型库「模型」页行内注释(comfy-models-taxonomy
 //     COMFY_MODEL_FILE_NOTES 的 viggle-turbo 条目)——文件本体就在 loras 分类里
 //     列着,注释一句话交代用法,不再单设状态区(09-12 裁定:为一行 LoRA 不值)。
-//   · 采样提速插件(TE-Speed)= 本文件的 Qwen21TeSpeedPluginRow,挂在引擎卡
+//   · Q2-1 采样提速(TE-Speed)= 本文件的 Qwen21TeSpeedPluginRow,挂在引擎卡
 //     「生态插件」区列表尾(ComfyEnginePluginBlock)。
 // 旧形态(ComfyEngineSettingsSection 旁的独立 CapabilityRow)09-24 用户裁定退役:
 // 「要放入到对应 comfyui 里面」——资产住进引擎卡自己的页,不在外面单开行。
 //
 // 状态纪律不变:只管在位态,禁假绿(装好且 nodeCount>0 才亮绿;目录在而节点
 // 没注册=不可用(MPS));名字带 TE 但接 MODEL 链、不降步数只减每步用时
-// (research/02 §二),文案叫「采样提速插件」。启用态不入面板(Q3=A)——
+// (research/02 §二),文案叫「Q2-1 采样提速(TE-Speed)」(10-03 对齐台账目录条目名)。启用态不入面板(Q3=A)——
 // 启停看画布工作流的 LoRA 槽/开关组。
 
 import { cn } from "@/lib/utils";
@@ -69,7 +69,7 @@ type Qwen21TeSpeedPluginRowProps = {
   engine: ComfyEngineSettingsController;
 };
 
-/** 生态插件区列表尾行:采样提速插件(TE-Speed)的在位态。样式与插件行同款。 */
+/** 生态插件区列表尾行:Q2-1 采样提速(TE-Speed)的在位态。样式与插件行同款。 */
 export function Qwen21TeSpeedPluginRow({ engine }: Qwen21TeSpeedPluginRowProps) {
   if (!engine.hasBridge) return null;
   const te = deriveQwen21TeSpeedState(engine.plugins);
@@ -78,7 +78,7 @@ export function Qwen21TeSpeedPluginRow({ engine }: Qwen21TeSpeedPluginRowProps) 
   return (
     <div className="flex items-center gap-3 px-4 py-2.5" data-qwen21-te-row>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium text-foreground">采样提速插件(TE-Speed)</p>
+        <p className="truncate text-xs font-medium text-foreground">Q2-1 采样提速(TE-Speed)</p>
         {hint ? (
           <p className="truncate text-[11px] text-muted-foreground" data-qwen21-te-hint>
             {hint}
