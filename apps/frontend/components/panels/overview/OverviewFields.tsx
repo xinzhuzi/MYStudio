@@ -91,7 +91,7 @@ export function EditableText({
 }
 
 export type SectionCardProps = {
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>; // fiber9 全局 JSX 增强后 ElementType 塌 never(1003 B3)
   title: string;
   children: React.ReactNode;
 };

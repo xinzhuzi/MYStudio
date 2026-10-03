@@ -41,8 +41,8 @@ interface AssetSidebarProps {
 interface NavModule {
   id: string;
   label: string;
-  icon: React.ElementType;
-  children: { id: AssetSection; label: string; icon: React.ElementType }[];
+  icon: React.ComponentType<{ className?: string }>; // fiber9 全局 JSX 增强后 ElementType 塌 never(1003 B3)
+  children: { id: AssetSection; label: string; icon: React.ComponentType<{ className?: string }> }[];
 }
 
 const NAV_MODULES: NavModule[] = [

@@ -60,7 +60,7 @@ function randomChar() {
 function DigitalRainCanvas({
   canvasRef,
 }: {
-  canvasRef: React.RefObject<HTMLCanvasElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>; // React 19:useRef<T>(null) 产 RefObject<T | null>(1003 B3)
 }) {
   useEffect(() => {
     const canvas = canvasRef.current;

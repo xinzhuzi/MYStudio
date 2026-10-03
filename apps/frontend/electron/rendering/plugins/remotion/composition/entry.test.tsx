@@ -114,7 +114,9 @@ describe("fixed composition entry", () => {
   });
 
   it("registers the two parameterized production compositions before the compatibility alias", () => {
-    const children = entry.RemotionRoot().props.children as Array<{ props: { id: string } }>;
+    // React 19:组件返回类型放宽为 ReactNode,取 props 前先显式锚回 ReactElement(1003 B3)
+    const root = entry.RemotionRoot() as React.ReactElement<{ children: Array<{ props: { id: string } }> }>;
+    const children = root.props.children;
     expect(children.map((child) => child.props.id)).toEqual([
       entry.STORYBOARD_SHOT_COMPOSITION_ID,
       entry.CHAPTER_VIDEO_COMPOSITION_ID,

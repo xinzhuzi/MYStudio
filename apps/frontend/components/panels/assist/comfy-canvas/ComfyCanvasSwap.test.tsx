@@ -31,9 +31,11 @@ describe("ComfyCanvasSwap(换代终态,批6)", () => {
 
   it("autoOpenOverview 透传给画布工作室(分镜总览自动打开)", () => {
     render(<ComfyCanvasSwap autoOpenOverview />);
+    // React 19(1003 B3):显式传的 undefined prop 不再被 JSX 剥离(stageFlowNodes:undefined
+    // 入参),函数组件第二参 context 恒 undefined(legacy context 已废),断言随之改形
     expect(ComfyCanvasStudio).toHaveBeenCalledWith(
-      { autoOpenOverview: true },
-      expect.anything(),
+      expect.objectContaining({ autoOpenOverview: true }),
+      undefined,
     );
   });
 });

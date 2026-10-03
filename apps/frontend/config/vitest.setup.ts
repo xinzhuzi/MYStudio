@@ -43,3 +43,15 @@ Object.defineProperty(globalThis, "localStorage", {
   writable: true,
   value: hasStorageMethods(currentStorage) ? currentStorage : createMemoryStorage(),
 });
+
+// react-resizable-panels 4(1003 B3)在挂载布局效应里无条件 new window.ResizeObserver
+// (dist:1953),jsdom 无该构造器直接 TypeError:n is not a constructor;真浏览器原生具备,
+// 仅测试环境补无操作桩(与上方 localStorage 桩同款定位:环境垫片,非业务代码)
+if (typeof globalThis.ResizeObserver === "undefined") {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  (globalThis as typeof globalThis & { ResizeObserver?: unknown }).ResizeObserver = ResizeObserverStub;
+}

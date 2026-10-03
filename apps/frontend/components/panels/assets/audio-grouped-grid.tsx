@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ElementType } from "react";
+import { useState, type ComponentType } from "react";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,7 @@ type AudioGroupedGridProps = {
   type: string;
   items: StudioAssetSummary[];
   isLoading: boolean;
-  Icon: ElementType;
+  Icon: ComponentType<{ className?: string }>; // fiber9 全局 JSX 增强后 ElementType 塌 never(1003 B3)
   error: string;
   emptyText: string;
   selectedIds: Set<string>;

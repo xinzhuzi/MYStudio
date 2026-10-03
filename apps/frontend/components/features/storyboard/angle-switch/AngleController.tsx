@@ -90,7 +90,7 @@ export function AngleController({
   const [cubeRotation, setCubeRotation] = useState(0);
   
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined); // React 19:useRef 必须带初值(1003 B3)
 
   // 组件尺寸
   const size = compact ? 180 : 220;
@@ -187,7 +187,7 @@ export function AngleController({
   }, [lastMousePos, theta, phi, shotSize, snapToGrid]);
 
   // 处理滚轮 (Zoom) - 使用 ref 回调来避免 passive event listener 问题
-  const handleWheelRef = useRef<(e: WheelEvent) => void>();
+  const handleWheelRef = useRef<((e: WheelEvent) => void) | undefined>(undefined); // React 19:useRef 必须带初值(1003 B3)
   handleWheelRef.current = (e: WheelEvent) => {
     e.stopPropagation();
     e.preventDefault();
