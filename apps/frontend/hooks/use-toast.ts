@@ -18,6 +18,7 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- tseslint 8 起「值仅作类型使用」计入未用;此 const 即类型字典(下游 typeof 取联合),B1 形态迁移不改代码形态
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",

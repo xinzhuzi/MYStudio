@@ -57,7 +57,7 @@ type FormalElectronMain = Pick<ElectronMainModule, "app" | "utilityProcess">;
 
 declare global {
   // TypeScript global augmentation requires `var` for a runtime global property.
-  // eslint-disable-next-line no-var
+  // (1003 B1:eslint 10 下 no-var 不再对此报错,旧 disable 指令已失效移除)
   var __MYSTUDIO_FORMAL_ELECTRON_MAIN__: FormalElectronMain | undefined;
 }
 

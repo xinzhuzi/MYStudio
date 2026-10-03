@@ -17,8 +17,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 运行 eslint
-node_modules/.bin/eslint . --config frontend/config/eslint.cjs --ext ts,tsx --max-warnings 0
+# 运行 eslint(1003 B1:eslint 10 flat config,配置自动发现 apps/eslint.config.mjs,--ext 旗标已废)
+node_modules/.bin/eslint . --max-warnings 0
 if [ $? -ne 0 ]; then
     echo "❌ Pre-commit failed: ESLint errors"
     exit 1

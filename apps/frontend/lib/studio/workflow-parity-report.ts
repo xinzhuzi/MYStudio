@@ -26,6 +26,7 @@ import {
 import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
 import { resolveWorkflowTimelineEvidence } from "@/lib/studio/workflow-readiness";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- tseslint 8 起「值仅作类型使用」计入未用;此数组即类型字典(:38 typeof 取联合),B1 形态迁移不改代码形态
 const WORKFLOW_NODE_IDS = [
   "script",
   "scriptPlan",
