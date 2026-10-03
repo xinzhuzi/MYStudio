@@ -5,7 +5,7 @@ import { withMemoryAccountVault } from "../official/transport-test-helpers";
 import { createTwitterTransport } from "./transport";
 
 function createFetchMock() {
-  return vi.fn<[URL | RequestInfo, RequestInit?], Promise<Response>>();
+  return vi.fn<(input: URL | RequestInfo, init?: RequestInit) => Promise<Response>>();
 }
 
 function createRuntime(fetchMock: ReturnType<typeof createFetchMock>): OfficialTransportRuntime {

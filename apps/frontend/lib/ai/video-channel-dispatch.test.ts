@@ -16,7 +16,7 @@ describe("runFreedomVideoRoute", () => {
     "replicate",
   ])("dispatches %s to exactly its registered handler", async (route) => {
     const createHandler = (key: FreedomVideoRoute) => (
-      vi.fn<Parameters<FreedomVideoRouteHandler>, ReturnType<FreedomVideoRouteHandler>>()
+      vi.fn<FreedomVideoRouteHandler>()
         .mockResolvedValue({ url: `https://${key}.test/video.mp4` })
     );
     const handlers: FreedomVideoRouteHandlers = {

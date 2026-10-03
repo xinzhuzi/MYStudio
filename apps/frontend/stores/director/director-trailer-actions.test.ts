@@ -5,7 +5,7 @@ import { createDirectorTrailerActions } from "./director-trailer-actions";
 
 describe("director trailer actions", () => {
   let state: DirectorStore;
-  const setSpy = vi.fn<[Partial<DirectorStore>], void>();
+  const setSpy = vi.fn<(patch: Partial<DirectorStore>) => void>();
 
   beforeEach(() => {
     state = {

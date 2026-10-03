@@ -47,10 +47,10 @@ const importResult = {
   durationUs: 1_000_000,
   source: { kind: "project-file" as const, projectId: "project-a", relativePath: "remotion/audio/song.flac", contentSha256: "a".repeat(64) },
 };
-let read: Mock<any, any>;
-let importAudio: Mock<any, any>;
-let write: Mock<any, any>;
-let closeSession: Mock<any, any>;
+let read: Mock<(...args: any[]) => any>;
+let importAudio: Mock<(...args: any[]) => any>;
+let write: Mock<(...args: any[]) => any>;
+let closeSession: Mock<(...args: any[]) => any>;
 
 function manifest(projectId: string, chapterId: string): RemotionChapterManifestV2 {
   return { projectId, chapterId, revision: 1, sharedAudioBindings: [], shots: [] } as unknown as RemotionChapterManifestV2;

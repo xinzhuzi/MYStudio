@@ -30,7 +30,7 @@ function scene(id: number, overrides: Partial<SplitScene> = {}): SplitScene {
 
 describe("director split scene actions", () => {
   let state: DirectorStore;
-  const setState = vi.fn<[Partial<DirectorStore>], void>();
+  const setState = vi.fn<(patch: Partial<DirectorStore>) => void>();
 
   beforeEach(() => {
     state = {

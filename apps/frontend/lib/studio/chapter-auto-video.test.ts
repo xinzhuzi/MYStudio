@@ -254,7 +254,7 @@ function createDependencies(options: { missingMedia?: boolean; storyboardCount?:
     enqueueRemotionShots: vi.fn(async ({ projectId, chapterId, storyboards }) => {
       calls.push("remotion-queue");
       return {
-        jobs: storyboards.map((item, index) => ({
+        jobs: storyboards.map((item: (typeof storyboards)[number], index: number) => ({
           schemaVersion: 1 as const,
           projectId,
           target: {

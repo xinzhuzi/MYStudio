@@ -4,7 +4,7 @@ import type { OfficialTransportRuntime } from "../official/transport-runtime";
 import { withMemoryAccountVault } from "../official/transport-test-helpers";
 import { createLinkedinTransport } from "./transport";
 
-function createFetchMock() { return vi.fn<[URL | RequestInfo, RequestInit?], Promise<Response>>(); }
+function createFetchMock() { return vi.fn<(input: URL | RequestInfo, init?: RequestInit) => Promise<Response>>(); }
 function createRuntime(fetchMock: ReturnType<typeof createFetchMock>): OfficialTransportRuntime {
   const account: LocalAccountRecord = { id: "aitoearn-local:linkedin:account-1", platform: "linkedin", providerAccountId: "person-1", displayName: "LinkedIn", credential: { kind: "oauth", accessToken: "token-1", expiresAt: "2026-07-28T00:00:00.000Z" }, updatedAt: "2026-07-27T00:00:00.000Z" };
   return {

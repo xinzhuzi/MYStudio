@@ -73,7 +73,7 @@ describe("RemotionStudioRenderQueueBridge", () => {
   it("allows one active native ChapterVideo job at a time", () => {
     let resolve: ((value: { accepted: true; job: RemotionRenderJobV1 }) => void) | undefined;
     const { bridge, enqueueChapter } = createBridge({
-      enqueueChapter: vi.fn(() => new Promise((res) => { resolve = res; })),
+      enqueueChapter: vi.fn(() => new Promise<{ accepted: boolean; job?: RemotionRenderJobV1; message?: string }>((res) => { resolve = res; })),
     });
     const first = nativeJob("chapter-1");
     const second = nativeJob("chapter-2");

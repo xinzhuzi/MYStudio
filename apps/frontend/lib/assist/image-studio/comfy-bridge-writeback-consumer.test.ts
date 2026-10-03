@@ -225,7 +225,7 @@ describe("consumeComfyBridgeWritebacks", () => {
   it.each(["null", "reject"])("ack %s 失败:下一轮重试确认,不重复持久化", async (failure) => {
     const { client } = makeClient([{ id: 1, imageB64: "aGk=", shotTarget: "S01" }]);
     const confirm = client.ackBridgeWritebacks;
-    const ack = vi.fn<Parameters<typeof client.ackBridgeWritebacks>, ReturnType<typeof client.ackBridgeWritebacks>>()
+    const ack = vi.fn<typeof client.ackBridgeWritebacks>()
       .mockImplementationOnce(async (...args) => {
         await confirm(...args); // 服务端已删除,首次应答丢失。
         return failure === "null" ? Promise.resolve(null) : Promise.reject(new Error("offline"));

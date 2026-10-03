@@ -124,7 +124,7 @@ describe("aiManager.text", () => {
   });
 
   it("returns the unconfigured-model error before calling text completion", async () => {
-    const textCompletion = vi.fn<[TextCompletionPayload], Promise<TextCompletionResult>>();
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>();
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     setTestWindow({ textCompletion });
 
@@ -147,7 +147,7 @@ describe("aiManager.text", () => {
 
   it("calls text completion with feature binding defaults", async () => {
     useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
-    const textCompletion = vi.fn<[TextCompletionPayload], Promise<TextCompletionResult>>().mockResolvedValue({
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
       success: true,
       text: "ok",
     });
@@ -172,7 +172,7 @@ describe("aiManager.text", () => {
         { key: "universalAi", name: "", desc: "", modelId: "m1", vendorId: "p1", temperature: 0.7, maxOutputTokens: 1234 },
       ],
     } as never);
-    const textCompletion = vi.fn<[TextCompletionPayload], Promise<TextCompletionResult>>().mockResolvedValue({
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
       success: true,
       text: "fallback",
     });
@@ -200,7 +200,7 @@ describe("aiManager.text", () => {
         { key: "scriptDraft", name: "", desc: "", modelId: "m1", vendorId: "p1", temperature: 0.7, maxOutputTokens: 1234 },
       ],
     } as never);
-    const textCompletion = vi.fn<[TextCompletionPayload], Promise<TextCompletionResult>>().mockResolvedValue({
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
       success: true,
       text: "agent-ok",
     });
@@ -225,8 +225,7 @@ describe("aiManager.textStream", () => {
   it("uses streaming IPC and forwards chunks", async () => {
     useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
     const textCompletionStream = vi.fn<
-      [TextCompletionPayload, (delta: string) => void],
-      Promise<TextCompletionResult>
+      (payload: TextCompletionPayload, onChunk: (delta: string) => void) => Promise<TextCompletionResult>
     >()
       .mockImplementation(async (_payload, onChunk) => {
         onChunk("he");
@@ -254,7 +253,7 @@ describe("aiManager.textStream", () => {
 
   it("falls back to text completion and emits the full text once when streaming IPC is missing", async () => {
     useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
-    const textCompletion = vi.fn<[TextCompletionPayload], Promise<TextCompletionResult>>().mockResolvedValue({
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
       success: true,
       text: "whole",
     });
@@ -278,8 +277,7 @@ describe("aiManager.textStream", () => {
       ],
     } as never);
     const textCompletionStream = vi.fn<
-      [TextCompletionPayload, (delta: string) => void],
-      Promise<TextCompletionResult>
+      (payload: TextCompletionPayload, onChunk: (delta: string) => void) => Promise<TextCompletionResult>
     >()
       .mockImplementation(async (_payload, onChunk) => {
         onChunk("uni");
@@ -311,8 +309,7 @@ describe("aiManager.textStream", () => {
   it("preserves streamed chunks when the streaming IPC reports failure", async () => {
     useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
     const textCompletionStream = vi.fn<
-      [TextCompletionPayload, (delta: string) => void],
-      Promise<TextCompletionResult>
+      (payload: TextCompletionPayload, onChunk: (delta: string) => void) => Promise<TextCompletionResult>
     >()
       .mockImplementation(async (_payload, onChunk) => {
         onChunk("partial-1");
@@ -333,7 +330,7 @@ describe("aiManager.textStream", () => {
 
   it("does not emit chunks when stream fallback text completion fails", async () => {
     useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
-    const textCompletion = vi.fn<[TextCompletionPayload], Promise<TextCompletionResult>>().mockResolvedValue({
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
       success: false,
       error: "text failed",
     });

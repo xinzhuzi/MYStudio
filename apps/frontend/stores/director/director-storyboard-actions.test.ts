@@ -5,7 +5,7 @@ import { createDirectorStoryboardActions } from "./director-storyboard-actions";
 
 describe("director storyboard actions", () => {
   let state: DirectorStore;
-  const setState = vi.fn<[Partial<DirectorStore>], void>();
+  const setState = vi.fn<(patch: Partial<DirectorStore>) => void>();
 
   beforeEach(() => {
     state = {

@@ -33,15 +33,23 @@ export default defineConfig({
   plugins: [
     apiCorsProxyPlugin(),
     react(),
-    electron({
-      main: {
-        entry: 'frontend/electron/main/main.ts',
-      },
-      preload: {
-        input: path.join(projectRoot, 'frontend/electron/preload/preload.ts'),
-      },
-      renderer: process.env.NODE_ENV === 'test' ? undefined : {},
-    }),
+    // vite-plugin-electron 1.x(1003 B2:0.29→1.1)在无渲染入口时会自动在项目根生成
+    // index.html 占位(0.29 无此行为,每次 vitest run 都会冒出 apps/index.html)。
+    // 本 config 仅 test/test:related 消费(打包走 electron-vite.config.ts),electron
+    // 插件的 main/preload 构建 hooks 在 vitest 下本就不触发,故测试态整体不挂载。
+    ...(process.env.NODE_ENV === 'test'
+      ? []
+      : [
+          electron({
+            main: {
+              entry: 'frontend/electron/main/main.ts',
+            },
+            preload: {
+              input: path.join(projectRoot, 'frontend/electron/preload/preload.ts'),
+            },
+            renderer: {},
+          }),
+        ]),
   ],
   test: {
     setupFiles: [path.resolve(configDir, 'vitest.setup.ts')],

@@ -340,7 +340,7 @@ describe("prepareModelTestRequest", () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       data: [{ b64_json: "should-not-be-used" }],
     }), { status: 200 }));
-    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+    const imageSdk = vi.fn<typeof sdkGenerateImage>()
       .mockResolvedValueOnce({
         success: true,
         imageUrl: "data:image/png;base64,iVBORw0KGgo=",
@@ -393,7 +393,7 @@ describe("prepareModelTestRequest", () => {
         code: "insufficient_user_quota",
       },
     }), { status: 403 }));
-    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+    const imageSdk = vi.fn<typeof sdkGenerateImage>()
       .mockResolvedValueOnce({
         success: false,
         status: 403,
@@ -424,7 +424,7 @@ describe("prepareModelTestRequest", () => {
 
   it("continues image model tests with the next configured key", async () => {
     const fetcher = vi.fn();
-    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+    const imageSdk = vi.fn<typeof sdkGenerateImage>()
       .mockResolvedValueOnce({
         success: false,
         status: 401,
@@ -655,7 +655,7 @@ describe("prepareModelTestRequest", () => {
           type: "new_api_error",
         },
       }), { status: 503 }));
-    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+    const imageSdk = vi.fn<typeof sdkGenerateImage>()
       .mockResolvedValueOnce({
         success: false,
         status: 502,
@@ -689,7 +689,7 @@ describe("prepareModelTestRequest", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({
         job: { id: "task_job_1", status: "queued" },
       }), { status: 200 }));
-    const imageSdk = vi.fn<Parameters<typeof sdkGenerateImage>, ReturnType<typeof sdkGenerateImage>>()
+    const imageSdk = vi.fn<typeof sdkGenerateImage>()
       .mockResolvedValueOnce({
         success: false,
         status: 500,

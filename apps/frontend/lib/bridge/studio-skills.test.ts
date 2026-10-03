@@ -67,8 +67,7 @@ describe("getStudioSkillsBridge", () => {
     }));
     const deleteText = vi
       .fn<
-        [relativePath: string],
-        ReturnType<StudioSkillsBridge["deleteText"]>
+        (relativePath: string) => ReturnType<StudioSkillsBridge["deleteText"]>
       >()
       .mockResolvedValueOnce({ success: true, deleted: true })
       .mockRejectedValueOnce(new Error("delete rejected"));
