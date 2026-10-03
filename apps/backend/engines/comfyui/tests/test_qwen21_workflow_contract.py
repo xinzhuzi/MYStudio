@@ -1713,14 +1713,30 @@ class TestCanvasDiscipline:
         两子图全域判——生成器自查三域循环;edit 子图内部=S5 终排工序,生成器
         4e 最小口径仅零重叠/零负区(research/s3-edit §6),恒向右暂不判,如实记)。
         0928 PE 迁子图轮:qi21 冻结回流线 link34 [141]→[40].提示词随架构消灭
-        (PE 链收进子图,提示词全程子图内)——四件左向线一律恒 0,旧单点豁免退役。"""
+        (PE 链收进子图,提示词全程子图内)——四件左向线一律恒 0,旧单点豁免退役。
+        1003 甲案(i2i/edit 宿主层重排):两件主图左向线改豁免集形态锚定——新标准
+        图像输入列=合法先导列,主图零左向线,豁免集恒空;扩容即红(布局回退哨兵,
+        t2i 侧 de7149b 子图豁免集同款口径;qi21/t2i 主图保持逐线直断)。"""
         for name, graph in GRAPHS.items():
             nodes = _nodes(graph)
+            host_allowed: set[int] = set()   # 1003 甲案:i2i/edit 主图豁免集=恒空
+            host_leftward: list[int] = []
             for link in graph["links"]:
                 origin, target = nodes[link[1]], nodes[link[3]]
-                assert target["pos"][0] > origin["pos"][0], (
+                ok = target["pos"][0] > origin["pos"][0]
+                if name in ("i2i", "edit"):
+                    if not ok:
+                        host_leftward.append(link[0])
+                    continue
+                assert ok, (
                     f"{name} link{link[0]}: {origin['type']}→{target['type']} "
                     f"未向右({origin['pos']} → {target['pos']}),纵向塔违规"
+                )
+            if name in ("i2i", "edit"):
+                assert set(host_leftward) == host_allowed, (
+                    f"{name} 主图左向线集 {sorted(set(host_leftward))} ≠ 豁免集 "
+                    f"{sorted(host_allowed)}(1003 甲案新标准:图像输入列=先导列,"
+                    f"骨架横向单向流,主图零左向线;扩容即红)"
                 )
             for sg in graph.get("definitions", {}).get("subgraphs", []):
                 if name == "edit":
@@ -3413,12 +3429,14 @@ class TestCanvasNormalization0925:
 
     GRAPHS_3 = ("qi21", "i2i", "edit")
     # 0929 S3 收装后主图③加速框成员=宿主+留主图伴生物(支路件全入子图):
-    # t2i=[5] 空潜+宿主[208];i2i=宿主[190]+寄居[20] 画幅开关/[44] VAE 递送;
-    # edit=宿主[58]+寄居[29] VAE 递送(生成器自查 W1 同批口径)
+    # t2i=空潜[4]+宿主[7];i2i=宿主[7]+寄居[20] latent汇入/[44] VAE 递送;
+    # edit=宿主[7]+寄居[20] latent汇入/[29] VAE 递送
+    # 1003 甲案重锚:edit [20] 寄居③框与 i2i 同款(两件同骨架,latnet 双路
+    # 汇入件统一居装配列→加速列过渡带,由③框收编罩人)。
     ACCEL_HOST_AREA = {
         "qi21": (QI21_LATENT_ID, QI21_XHOST_ID),   # 1002 ⑫:空潜 [5]→[4](常量)
         "i2i": (I2I_XHOST_ID, 20, 44),
-        "edit": (EDIT_XHOST_ID, 29),
+        "edit": (EDIT_XHOST_ID, 20, 29),
     }
     # 主图③框标题锚(t2i/i2i=「道劫·加速区」前缀;edit=「道劫·③加速」)
     ACCEL_BOX_TITLE = {
@@ -3494,6 +3512,111 @@ class TestCanvasNormalization0925:
                         covered.add(n["id"])
             assert covered == {n["id"] for n in xsg["nodes"]}, \
                 f"{name}: 加速子图组框并集未罩全 6 件(缺 {sorted({n['id'] for n in xsg['nodes']} - covered)})"
+
+
+# ── 6d3. i2i/edit 宿主层布局新标准(1003 甲案:自适应重排跟进 t2i;坐标各自算
+#       不照抄——两件比 t2i 多图像输入链,PRD 构成差异账为证;哨兵=病灶复发即红)──
+
+
+class TestI2IEditHostLayout1003:
+    """1003 甲案不变量锚(i2i/edit 宿主主图;PRD=Trellis 10-03-i2i-edit-
+    layout-follow-t2i):①图像输入列=装配列前的合法先导列(双图+双预缩+缓存[9]
+    +画幅开关[19] 整链成列;[20] 因 [6]→[20] latent 线结构必居装配与加速之间,
+    不列入=③框寄居,见 TestCanvasNormalization0925.ACCEL_HOST_AREA);②[400]
+    指令归位②带(旧病灶=孤岛掉底 i2i y3400/edit y3960,复发即红);③[20] 结构位
+    =[6] 右→[20]→[7] 左(latent 汇入恒右向);④edit 无⑤尾档=输出列即终点
+    ([8] 全图最右+与 [5] 同列相邻,旧病灶=[8] 远端推离 x 差 1830,复发即红);
+    ⑤说明卡置顶;⑥主图零矩形重叠(旧病灶=edit [16]/[10] 近叠行,复发即红);
+    ⑦i2i ⑤尾档居④输出之后(骨架末段)。主图左向线豁免集哨兵在
+    TestCanvasDiscipline.test_horizontal_layout_no_vertical_tower(恒空,扩容即红)。"""
+
+    GRAPHS_2 = ("i2i", "edit")
+    # 图像输入列成员(PRD 1003 甲案口径:双图+双预缩+缓存+画幅开关)
+    INPUT_COL = (10, 11, 16, 17, 9, 19)
+
+    def test_image_input_column_leads_assembly(self):
+        """不变量①:输入列成员全部右于加载列、左于 [6] 装配列(合法先导列)。"""
+        for name in self.GRAPHS_2:
+            graph = GRAPHS[name]
+            nodes = _nodes(graph)
+            loaders_right = max(nodes[i]["pos"][0] + nodes[i]["size"][0]
+                                for i in (1, 2, 3))
+            asm_x = nodes[6]["pos"][0]
+            for nid in self.INPUT_COL:
+                n = nodes[nid]
+                assert loaders_right < n["pos"][0], \
+                    f"{name}: 输入列成员 [{nid}] 应右于加载列(先导列=加载后装配前,1003 甲案)"
+                assert n["pos"][0] + n["size"][0] < asm_x, \
+                    f"{name}: 输入列成员 [{nid}] 应左于 [6] 装配列(合法先导列,1003 甲案)"
+
+    def test_400_directive_home_in_band2(self):
+        """不变量②:[400] 指令归位②带——嵌②主链框内且居 [6] 上方行
+        (孤岛掉底复发即红)。"""
+        for name in self.GRAPHS_2:
+            graph = GRAPHS[name]
+            nodes = _nodes(graph)
+            grp = next(g for g in graph["groups"]
+                       if g.get("title", "").startswith("道劫·②图像·"))
+            n = nodes[400]
+            gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
+            gx1 = gx0 + grp["bounding"][2]
+            gy1 = gy0 + grp["bounding"][3]
+            assert (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
+                    and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1), \
+                f"{name}: [400] 指令应在②主链框内(1003 甲案归位②带;孤岛复发即红)"
+            assert n["pos"][1] < nodes[6]["pos"][1], \
+                f"{name}: [400] 应居 [6] 上方行(指令→装配纵向顺位)"
+
+    def test_switch20_between_assembly_and_accel(self):
+        """不变量③:[20] 结构位=装配列右沿之外、加速宿主 [7] 之外(latent 汇入
+        恒右向;[6]→[20]→[7] 两线即其合法居所=③框寄居)。"""
+        for name in self.GRAPHS_2:
+            nodes = _nodes(GRAPHS[name])
+            assert nodes[6]["pos"][0] + nodes[6]["size"][0] < nodes[20]["pos"][0], \
+                f"{name}: [20] 应右于 [6]([6]→[20] latent 线恒右向)"
+            assert nodes[20]["pos"][0] + nodes[20]["size"][0] < nodes[7]["pos"][0], \
+                f"{name}: [20] 应左于 [7]([20]→[7] latent 汇入恒右向)"
+
+    def test_note_pinned_top(self):
+        """不变量⑤:说明卡 [402] 置顶(高于一切组框上沿)。"""
+        for name in self.GRAPHS_2:
+            graph = GRAPHS[name]
+            note = _by_type(graph, "MarkdownNote")[0]
+            top = min(g["bounding"][1] for g in graph["groups"])
+            assert note["pos"][1] < top, \
+                f"{name}: [402] 说明卡应置顶(y={note['pos'][1]} 应<组框最高沿 {top})"
+
+    def test_main_graph_zero_rect_overlap(self):
+        """不变量⑥:主图节点矩形两两不相交(edit [16]/[10] 近叠行旧病灶复发即红;
+        qi21 侧同款谓词见 TestQi21SubgraphContract.test_no_node_overlap_and_group_budget)。"""
+        for name in self.GRAPHS_2:
+            ns = GRAPHS[name]["nodes"]
+            for i in range(len(ns)):
+                for j in range(i + 1, len(ns)):
+                    a, b = ns[i], ns[j]
+                    ax, ay, aw, ah = a["pos"][0], a["pos"][1], a["size"][0], a["size"][1]
+                    bx, by, bw, bh = b["pos"][0], b["pos"][1], b["size"][0], b["size"][1]
+                    assert not (ax < bx + bw and bx < ax + aw
+                                and ay < by + bh and by < ay + ah), \
+                        f"{name} 主图 node{a['id']} 与 node{b['id']} 矩形重叠(1003 甲案零重叠)"
+
+    def test_edit_output_column_is_endpoint(self):
+        """不变量④:edit 无⑤尾档=输出列即终点——[8] 全图最右件且与 [5] 同列
+        相邻(≤200;旧病灶 [8] 被推远端 x 差 1830,复发即红)。"""
+        graph = GRAPHS["edit"]
+        nodes = _nodes(graph)
+        n5, n8 = nodes[5], nodes[8]
+        assert n8["pos"][0] + n8["size"][0] == \
+            max(n["pos"][0] + n["size"][0] for n in graph["nodes"]), \
+            "edit: [8] 应为全图最右件(无⑤尾档=输出列即终点,1003 甲案)"
+        assert n8["pos"][0] - (n5["pos"][0] + n5["size"][0]) <= 200, \
+            "edit: [8] 应与 [5] 同列相邻(远端推离复发即红)"
+
+    def test_i2i_tail_after_output(self):
+        """不变量⑦:i2i ⑤尾档居④输出之后(骨架横向单向流末段:输出→放大尾档)。"""
+        nodes = _nodes(GRAPHS["i2i"])
+        assert nodes[8]["pos"][0] + nodes[8]["size"][0] < nodes[503]["pos"][0], \
+            "i2i: ⑤尾档 [503] 应居 ④输出 [8] 右沿之外(骨架末段顺位)"
 
 
 # ── 6f. i2i 件专属契约(09-24 新增:道劫风格图生图=edit 骨架+九型装配移植;
