@@ -46,6 +46,12 @@ export default defineConfig({
     build: {
       outDir: path.resolve(electronViteOutDir, 'main'),
       rollupOptions: {
+        // 1003 修复役·防回退:electron 恒钉 external,不得依赖 electron-vite 5.0.0 预设的
+        // 隐式默认——该预设经插件 config 钩子注入的 rollupOptions.external 在 vite 8
+        // (rolldown 化)解析链中会丢失,Electron npm 包引导 shim(install.js 的
+        // spawnSync 风暴源,装机 asar out/main/index.cjs:48 实锤)随即被误打进主包;
+        // 配置文件层显式声明实测存活(vite 8 兼容层转 rolldownOptions)。删除此行=风暴复燃。
+        external: ['electron', /^electron\/.+/],
         input: {
           index: path.resolve(frontendRoot, 'electron/main/main.ts'),
           'remotion-browser-worker': path.resolve(
@@ -73,6 +79,8 @@ export default defineConfig({
     build: {
       outDir: path.resolve(electronViteOutDir, 'preload'),
       rollupOptions: {
+        // 1003 修复役·防回退:同 main——electron 恒钉 external(shim 同样会被打进 preload 产物)。
+        external: ['electron', /^electron\/.+/],
         input: {
           index: path.resolve(frontendRoot, 'electron/preload/preload.ts'),
         },
