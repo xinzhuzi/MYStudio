@@ -93,6 +93,17 @@ def _split_req(line: str) -> tuple[str, str]:
     return match.group(1), match.group(3).strip()
 
 
+def installable_req(raw: str) -> str:
+    """requirements 原文行 → 可直接作 pip 参数的串:剥行内注释。
+
+    pip 只在 requirements 文件模式(-r)剥行内注释;CLI 逐行传参时
+    "Pillow  # 注释" 整串被当包名,报 Invalid requirement(1003 实弹=
+    JZL 上游 requirements 带中文行内注释,更新 job pip 步全量炸)。
+    仅当 # 前有空白才剥,URL 的 #egg= 片段不受影响。
+    """
+    return re.split(r"\s+#", raw.strip())[0].strip()
+
+
 def parse_freeze(text: str) -> dict[str, str]:
     """pip freeze 文本 → {规范名: 版本};跳过 -e/@ file 与注释行。"""
     frozen: dict[str, str] = {}
@@ -513,7 +524,7 @@ def _install_job(job_id: str, plan: dict) -> None:
 
     jobs.update(job_id, progress=40, step="pip", message="安装插件依赖到引擎虚拟环境…")
     if reqs:
-        _pip(["install", *[r["raw"] for r in reqs]],
+        _pip(["install", *[installable_req(r["raw"]) for r in reqs]],
              on_line=lambda line: jobs.update(job_id, tail_line=line))
 
     jobs.update(job_id, progress=70, step="restart", message="重启引擎并校验新节点…")
@@ -860,7 +871,7 @@ def _update_plugin_job(job_id: str, plugin_id: str) -> None:
     reqs, _ = _plugin_requirements({"dirName": plugin_id})
     if reqs:
         jobs.update(job_id, progress=45, step="pip", message="重装依赖…")
-        _pip(["install", *[r["raw"] for r in reqs]], on_line=lambda line: jobs.update(job_id, tail_line=line))
+        _pip(["install", *[installable_req(r["raw"]) for r in reqs]], on_line=lambda line: jobs.update(job_id, tail_line=line))
     jobs.update(job_id, progress=70, step="restart", message="重启并校验节点…")
     nodes_before = engine._safe_node_names()
     engine.restart(progress=lambda pct, msg: jobs.update(job_id, progress=70 + pct * 20 // 100, message=msg))

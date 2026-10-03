@@ -21,6 +21,7 @@ from engines.comfyui.engine_manager import (
 )
 from engines.comfyui.plugin_manager import (
     check_dependency_conflicts,
+    installable_req,
     normalize_pkg,
     parse_freeze,
     parse_requirements,
@@ -59,6 +60,21 @@ class TestParseRequirements:
         reqs, _ = parse_requirements("NumPy>=1.0\nscikit_image\n")
         assert [r["name"] for r in reqs] == ["numpy", "scikit-image"]
         assert normalize_pkg("Foo_Bar.baz") == "foo-bar-baz"
+
+
+class TestInstallableReq:
+    # 1003 实弹回归:JZL 上游 requirements 行内中文注释,CLI 传参整串被
+    # pip 当包名炸 Invalid requirement——install/install 两处 _pip 调用
+    # 均须过 installable_req 剥注释后再传。
+    def test_strips_inline_comment_with_wide_spacing(self):
+        assert installable_req("Pillow      # 图像处理：参考图缩放/缩略图/帧处理（nodes_asset_manager 顶层 import PIL）") == "Pillow"
+
+    def test_plain_versioned_and_marker_lines_untouched(self):
+        assert installable_req("numpy>=1.24.0") == "numpy>=1.24.0"
+        assert installable_req("insightface[cli]>=0.7.3 ; python_version >= '3.10'") == "insightface[cli]>=0.7.3 ; python_version >= '3.10'"
+
+    def test_url_hash_fragment_preserved(self):
+        assert installable_req("git+https://github.com/x/y.git#egg=sam2") == "git+https://github.com/x/y.git#egg=sam2"
 
 
 class TestParseFreeze:
