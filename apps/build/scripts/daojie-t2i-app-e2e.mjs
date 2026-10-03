@@ -47,6 +47,11 @@
  *   六控件新面板序,Q3 裁定);④S6 排队图三断言域前缀改 truth.accDomain(旧硬编码
  *   "208:" 废,加速宿主重排 [7],键形 "7:7010" 系;S6b 本就动态)。
  *   默认档随 ⑱=「0 · Fun-Acc 4步」(truth.speedMode 自装机面现读,零硬编码)。
+ *
+ * [1003 S6b 缓存盲区修(破缓存)] S6(纯默认)与 S6b 两发排队输入全同 ⇒ ComfyUI 全节点
+ *   缓存命中,3s 秒回不落新文件,S6b「output 目录新增」断言恒 FAIL(非 App 缺陷)。修=
+ *   S6b 排队前加速宿主 seed widget +1(真用户重出图行为;PrimitiveInt 7014 control=
+ *   'fixed' 两发间无人拨 seed 是根源),每发真出图,判据不弱化。
  */
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
@@ -781,6 +786,23 @@ async function s6bPeFedShot(main, engineBase, truth) {
   })()`);
   check("S6b 退出子图复位(根节点数回位)", String(exitRaw) === String(truth.rootCount),
     `退出后 ${exitRaw} 节点(期望=${truth.rootCount})`);
+  // ③.5 破缓存改 seed(1003 S6b 盲区修):S6(纯默认)与 S6b 两发排队输入全同——加速域
+  // PrimitiveInt seed 恒=truth.seedDefault(装机真源 7014=[0,'fixed'],两次排队间无人拨)
+  // ⇒ ComfyUI 全节点缓存命中,3s 秒回不落新文件,outNow>outBefore 恒 FAIL(非 App 缺陷)。
+  // 真用户重出图必换 seed:加速宿主 seed widget(面板提升控件,真源名='seed')改 +1,
+  // PrimitiveInt 下游采样链真重跑,每发真出图(判据不弱化,仍恒断 output 目录新增)。
+  const seedRaw = await wv(main, `(() => {
+    const host = window.app.graph._nodes.find(n => n.type === ${JSON.stringify(truth.accId)});
+    if (!host || !host.widgets || !host.widgets.length) return JSON.stringify({ err: 'host-missing' });
+    const w = host.widgets.find(x => String(x.name) === 'seed') || host.widgets.find(x => /seed/i.test(String(x.name)) && typeof x.value === 'number');
+    if (!w) return JSON.stringify({ err: 'seed-widget-missing', names: host.widgets.map(x => x.name).join(',') });
+    const old = w.value; w.value = Number(old) + 1;
+    return JSON.stringify({ name: w.name, old: String(old), now: String(w.value) });
+  })()`);
+  let seedSet = null; try { seedSet = JSON.parse(String(seedRaw)); } catch { /* keep null */ }
+  check("S6b 破缓存改 seed(加速宿主 seed widget +1,防与 S6 全同输入触发全节点缓存秒回)",
+    !!seedSet && !seedSet.err && seedSet.now !== seedSet.old,
+    seedSet && !seedSet.err ? `widget=${seedSet.name} ${seedSet.old}→${seedSet.now}` : String(seedRaw).slice(0, 160));
   // ④ queuePrompt(真前端,与 S6 同通道);排队图抓取走 D3.2 内容过滤(peChain=true:
   // 叠加链化判别=PE.prompt 引用装配器口0,防字面旧形态拍/异拍)
   const knownPids = new Set(Object.keys(await (await fetch(`${engineBase}/history`, { signal: AbortSignal.timeout(8000) })).json()));
