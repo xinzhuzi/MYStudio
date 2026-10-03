@@ -1,8 +1,7 @@
 ---
 name: remotion-captions
-description: Dealing with captions in Remotion
-metadata:
-  tags: subtitles, captions, remotion, json
+description: Transcribing, displaying and animating captions
+version: 4.0.532
 ---
 
 All captions must be processed in JSON. The captions must use the [`Caption`](https://www.remotion.dev/docs/captions/caption.md) type which is the following:
@@ -20,6 +19,7 @@ type Caption = {
   endMs: number;
   timestampMs: number | null;
   confidence: number | null;
+  pageBreakAfter?: boolean;
 };
 ```
 
@@ -34,3 +34,9 @@ To display captions in your video, load the [display-captions.md](display-captio
 ## Importing captions
 
 To import captions from a .srt file, load the [import-srt-captions.md](import-srt-captions.md) file for more instructions.
+
+## Post-creation
+
+After you're done, load this skill: [Remotion Best Practices](../SKILL.md)
+
+If not alreay done, open the Remotion Studio, unless instructed otherwise.

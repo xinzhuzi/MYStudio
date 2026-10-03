@@ -1,9 +1,8 @@
 ---
 name: electron
-description: "Build cross-platform desktop applications with Electron, covering main/renderer process architecture, IPC communication, BrowserWindow management, menus, tray icons, packaging, and security best practices. Use when the user asks about Electron, needs to create desktop applications, implement Electron features, or build cross-platform desktop apps."
-license: Complete terms in LICENSE.txt
+description: Provides comprehensive guidance for Electron framework including main process, renderer process, IPC communication, window management, and desktop app development. Use when the user asks about Electron, needs to create desktop applications, implement Electron features, or build cross-platform desktop apps.
+license: Apache-2.0
 ---
-
 ## When to use this skill
 
 Use this skill whenever the user wants to:
@@ -85,53 +84,44 @@ This skill is organized to match the Electron official documentation structure (
    - `templates/renderer-process.md` - Renderer process template
    - `templates/package-json.md` - package.json template
 
-
 ### Doc mapping (one-to-one with official documentation)
 
 - `examples/` → https://www.electronjs.org/zh/docs/latest/
 - `api/` → https://www.electronjs.org/zh/docs/latest/api/app
 
-## Quick Start Example
+## Examples and Templates
 
-```javascript
-// main.js
-const { app, BrowserWindow, ipcMain } = require('electron')
-const path = require('path')
+This skill includes detailed examples organized to match the official documentation structure. All examples are in the `examples/` directory (see mapping above).
 
-function createWindow() {
-  const win = new BrowserWindow({
-    width: 800, height: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,  // Security: always disable
-      contextIsolation: true    // Security: always enable
-    }
-  })
-  win.loadFile('index.html')
-}
+**To use examples:**
+- Identify the topic from the user's request
+- Load the appropriate example file from the mapping above
+- Follow the instructions, syntax, and best practices in that file
+- Adapt the code examples to your specific use case
 
-app.whenReady().then(createWindow)
+**To use templates:**
+- Reference templates in `templates/` directory for common scaffolding
+- Adapt templates to your specific needs and coding style
 
-// IPC handler example
-ipcMain.handle('get-data', async () => {
-  return { message: 'Hello from main process' }
-})
-```
+## API Reference
 
-```javascript
-// preload.js
-const { contextBridge, ipcRenderer } = require('electron')
-contextBridge.exposeInMainWorld('api', {
-  getData: () => ipcRenderer.invoke('get-data')
-})
-```
+Detailed API documentation is available in the `api/` directory, organized to match the official Electron API documentation structure:
 
-## API Reference (`api/`)
-
+### Core APIs (`api/`)
 - `api/app.md` - app module API
 - `api/browser-window.md` - BrowserWindow API
-- `api/ipc-main.md` / `api/ipc-renderer.md` - IPC APIs
-- `api/menu.md` / `api/tray.md` / `api/dialog.md` - UI APIs
+- `api/ipc-main.md` - ipcMain API
+- `api/ipc-renderer.md` - ipcRenderer API
+- `api/menu.md` - Menu API
+- `api/tray.md` - Tray API
+- `api/dialog.md` - Dialog API
+
+**To use API reference:**
+1. Identify the API you need help with
+2. Load the corresponding API file from the `api/` directory
+3. Find the API signature, parameters, return type, and examples
+4. Reference the linked example files for detailed usage patterns
+5. All API files include links to relevant example files in the `examples/` directory
 
 ## Best Practices
 
@@ -158,3 +148,4 @@ contextBridge.exposeInMainWorld('api', {
 ## Keywords
 
 Electron, desktop app, main process, renderer process, preload, IPC, BrowserWindow, Menu, Tray, Dialog, packaging, electron-builder, electron-forge, electron-fiddle, cross-platform, 桌面应用, 主进程, 渲染进程, IPC 通信, 窗口, 菜单, 托盘, 打包
+
