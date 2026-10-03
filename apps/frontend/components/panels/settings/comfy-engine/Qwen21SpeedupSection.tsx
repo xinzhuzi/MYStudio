@@ -58,7 +58,7 @@ function tePillClass(state: Qwen21TeSpeedState): string {
 }
 
 const TE_HINTS: Partial<Record<Qwen21TeSpeedState, string>> = {
-  missing: "还没装;装好且本机验证通过后才显示已装。",
+  missing: "Mac 装不了(上游仅 Windows 编译件);Windows 机器装好且本机验证通过后才显示已装。",
   unavailable: "插件在,但节点没在本机跑起来(Mac 芯片待验证)。",
   failed: "上次安装没完成;到引擎卡「更新」页重装。",
   checking: "正在读取插件台账…",

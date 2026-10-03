@@ -69,7 +69,7 @@ describe("Qwen21TeSpeedPluginRow(生态插件区尾行)", () => {
   it("未装:行名+指引+灰胶囊", () => {
     render(<Qwen21TeSpeedPluginRow engine={engine([plugin({ id: "other" })])} />);
     expect(screen.getByText("采样提速插件(TE-Speed)")).toBeTruthy();
-    expect(screen.getByText("还没装;装好且本机验证通过后才显示已装。")).toBeTruthy();
+    expect(screen.getByText("Mac 装不了(上游仅 Windows 编译件);Windows 机器装好且本机验证通过后才显示已装。")).toBeTruthy();
     expect(screen.getByText("未装")).toBeTruthy();
   });
 
