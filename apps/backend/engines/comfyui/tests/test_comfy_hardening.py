@@ -413,6 +413,71 @@ class TestCleanOrphanPlugins:
         assert (cn / "manying-nodes").is_dir()
         assert (cn / "__pycache__").is_dir()
 
+    def test_git_orphan_adopted_by_doctor_and_never_cleaned(self, monkeypatch, tmp_path):
+        """1003 根修:含 .git 的孤儿=失联活插件——清理恒不删(跳过+提示),体检自动收编台账。"""
+        import subprocess
+        import engines.comfyui.plugin_manager as pm
+        cn = tmp_path / "custom_nodes"
+        repo_dir = cn / "Fun-Acc-clone"
+        repo_dir.mkdir(parents=True)
+        (cn / "junk-pack").mkdir()
+
+        def git(*args):
+            subprocess.run(["git", *args], cwd=repo_dir, capture_output=True, check=True)
+
+        git("init", "-q")
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x")
+        git("remote", "add", "origin", "https://github.com/T8mars/example.git")
+
+        manifest = {"engine": {}, "plugins": {}}
+        monkeypatch.setattr(pm.cm, "custom_nodes_dir", lambda: cn)
+        monkeypatch.setattr(pm.cm, "load_manifest", lambda: manifest)
+        monkeypatch.setattr(pm.cm, "mutate_manifest", lambda fn: fn(manifest))
+        fake_engine = type("E", (), {"is_healthy": staticmethod(lambda: False),
+                                      "venv_freeze": staticmethod(lambda: [])})()
+        monkeypatch.setattr(pm, "engine_manager", lambda: fake_engine)
+
+        # 未收编时:清理跳过 git 目录、只删真垃圾
+        result = pm.clean_orphan_plugins()
+        assert result["removed"] == ["junk-pack"]
+        assert result["skippedGit"] == ["Fun-Acc-clone"]
+        assert repo_dir.is_dir() and not (cn / "junk-pack").exists()
+
+        # 体检:git 孤儿自动收编,真孤儿照报
+        report = pm.doctor()
+        assert [i["plugin"] for i in report["adopted"]] == ["Fun-Acc-clone"]
+        assert [i["plugin"] for i in report["orphan"]] == []
+        entry = manifest["plugins"]["Fun-Acc-clone"]
+        assert entry["repo"].endswith("example.git") and len(entry["commit"]) == 40
+
+        # 收编后:清理把它当已登记件保留
+        result2 = pm.clean_orphan_plugins()
+        assert result2["removed"] == [] and result2["skippedGit"] == []
+        assert "Fun-Acc-clone" in result2["kept"]
+
+
+class TestRepoMetaLsRemote:
+    """1003 根修:latestSha 主源=git ls-remote(免鉴权无限流),API 限流不再弄瞎可更新灯。"""
+
+    def test_ls_remote_sha_wins_without_api(self, monkeypatch):
+        import engines.comfyui.plugin_manager as pm
+        monkeypatch.setattr(pm, "_github_json", lambda *a, **k: None)
+        monkeypatch.setattr(pm, "_ls_remote_head", lambda url, t: "a" * 40)
+        meta = pm._github_repo_meta("owner/repo", 1.0)
+        assert meta["latestSha"] == "a" * 40
+
+    def test_all_sources_fail_leaves_none(self, monkeypatch):
+        import engines.comfyui.plugin_manager as pm
+        monkeypatch.setattr(pm, "_github_json", lambda *a, **k: None)
+        monkeypatch.setattr(pm, "_ls_remote_head", lambda url, t: None)
+
+        def fail_outbound(*a, **k):
+            raise OSError("offline")
+
+        monkeypatch.setattr(pm, "urlopen_outbound", fail_outbound)
+        meta = pm._github_repo_meta("owner/repo", 1.0)
+        assert meta["latestSha"] is None
+
 
 class TestOutboundProxy:
     """09-19 根修:GitHub 直连不通时,git/pip/市场请求自动走本机代理(探测制)。"""

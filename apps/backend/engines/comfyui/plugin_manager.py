@@ -930,13 +930,42 @@ def doctor() -> dict:
                 if actual and recorded and actual != recorded:
                     drifted.append({"plugin": plugin_dir, "package": dep, "recorded": recorded,
                                     "actual": actual, "message": f"{dep} 账本记录 {recorded},实际是 {actual}(被其它插件顶过版本)"})
+    # 1003 根修:孤儿分两路——含 .git 且远端可解析的=「失联插件」自动收编登记
+    # 台账(手动/离线装不登记=已装列表缺席、可更新灯瞎、清理误删三连的源头,
+    # 实弹:controlnet_aux 等4件);非 git 目录才算真孤儿如实上报。
     ledger_dirs = set(ledger.keys())
-    orphan = [
-        {"plugin": p.name, "message": "目录在 custom_nodes 里但账本没有记录(手动放入?),引擎会照常加载"}
-        for p in sorted(cm.custom_nodes_dir().glob("*"))
-        if p.is_dir() and p.name not in ledger_dirs and not p.name.startswith(".") and not _is_managed_nodes_dir(p.name)
-    ]
-    return {"missing": missing, "drifted": drifted, "orphan": orphan,
+    orphan = []
+    to_adopt: list[dict] = []
+    for p in sorted(cm.custom_nodes_dir().glob("*")):
+        if not p.is_dir() or p.name in ledger_dirs or p.name.startswith(".") or _is_managed_nodes_dir(p.name):
+            continue
+        if (p / ".git").exists():
+            try:
+                repo = _git(["remote", "get-url", "origin"], cwd=p, timeout=10.0).strip()
+                commit = _git(["rev-parse", "HEAD"], cwd=p, timeout=10.0).strip()
+            except EngineOpError:
+                repo = commit = ""
+            if repo and commit:
+                to_adopt.append({"plugin": p.name, "repo": repo, "commit": commit})
+                continue
+        orphan.append({"plugin": p.name, "message": "目录在 custom_nodes 里但账本没有记录(手动放入?),引擎会照常加载"})
+    adopted = []
+    if to_adopt:
+        now_ms = int(time.time() * 1000)
+
+        def _adopt(m: dict) -> None:
+            plugins = m.setdefault("plugins", {})
+            for item in to_adopt:
+                plugins.setdefault(item["plugin"], {
+                    "repo": item["repo"], "commit": item["commit"], "source": "local",
+                    "version": item["commit"][:8], "installedAt": now_ms, "snapshot": None,
+                    "deps": {}, "nodes": [],
+                    "warnings": ["体检自动收编(1003 根修:目录在而台账失联,状态面板失真源头)"]})
+
+        cm.mutate_manifest(_adopt)
+        adopted = [{"plugin": i["plugin"], "message": "账本外 git 插件,已自动收编登记(下轮列表即恢复已装/可更新状态)"}
+                   for i in to_adopt]
+    return {"missing": missing, "drifted": drifted, "orphan": orphan, "adopted": adopted,
             "healthy": not missing and not drifted and not orphan}
 
 
@@ -945,28 +974,37 @@ def clean_orphan_plugins() -> dict:
 
     只删账本没有登记的目录(手动放入的/半装残留);已登记插件一律不动;
     自研节点包 my-nodes 与 __pycache__ 恒不删(同步链管理的非插件目录,09-19)。
+    1003 根修:含 .git 的目录恒不删——那是有上游的活插件(实弹险情:Fun-Acc
+    加速件离线装未登记,清理险些整删),只上报 skippedGit 引导先跑体检收编。
     引擎若在跑,目录删除后需重启才彻底卸载——返回值里带提示。
     """
     import shutil
     engine = engine_manager()
     manifest = cm.load_manifest()
     ledger = cm.plugin_ledger(manifest)
-    removed, kept = [], []
+    removed, kept, skipped_git = [], [], []
     for entry in sorted(cm.custom_nodes_dir().glob("*")):
         if not entry.is_dir() or entry.name.startswith(".") or _is_managed_nodes_dir(entry.name):
             continue
         if entry.name in ledger:
             kept.append(entry.name)
             continue
+        if (entry / ".git").exists():
+            skipped_git.append(entry.name)
+            continue
         shutil.rmtree(entry, ignore_errors=True)
         removed.append(entry.name)
     running = engine.is_healthy()
+    message = ("已清理 " + "、".join(removed) + ";引擎正在运行,重启引擎后完全生效" if removed and running
+               else ("已清理 " + "、".join(removed) if removed else "没有需要清理的未登记插件"))
+    if skipped_git:
+        message += ";跳过 " + "、".join(skipped_git) + "(含 git 的活插件,请先跑体检收编后再管理)"
     return {
         "removed": removed,
         "kept": kept,
+        "skippedGit": skipped_git,
         "running": running,
-        "message": ("已清理 " + "、".join(removed) + ";引擎正在运行,重启引擎后完全生效" if removed and running
-                    else ("已清理 " + "、".join(removed) if removed else "没有需要清理的未登记插件")),
+        "message": message,
     }
 
 
@@ -1129,6 +1167,21 @@ def _github_json(owner_name: str, tail: str, timeout: float) -> dict | None:
     return data if isinstance(data, dict) else None
 
 
+def _ls_remote_head(repo_url: str, timeout: float) -> str | None:
+    """git ls-remote 取远端默认分支 HEAD sha(免鉴权、无限流)。失败返回 None。"""
+    import os as _os
+    import subprocess as _sp
+    try:
+        r = _sp.run(["git", "ls-remote", repo_url, "HEAD"], capture_output=True, text=True,
+                    timeout=max(5.0, float(timeout)),
+                    env={**_os.environ, "GIT_TERMINAL_PROMPT": "0"})
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip().splitlines()[0].split("\t")[0] or None
+    except Exception:
+        pass
+    return None
+
+
 def _github_repo_meta(owner_name: str, timeout: float) -> dict:
     """单仓库一趟:星标 + 最新版本(Releases tag 优先,无 release 回落默认分支
     HEAD 提交 sha——提交漂移即「可更新」)。逐段尽力:任一段失败不拖累其余。"""
@@ -1147,7 +1200,12 @@ def _github_repo_meta(owner_name: str, timeout: float) -> dict:
             meta["latestTag"] = str(tag)
     except Exception:
         pass
-    if not meta["latestTag"]:
+    # 1003 根修:latestSha 主源改 git ls-remote——api.github.com commits 端点在
+    # 免鉴权 60 次/时(叠加代理出口 IP 共享)常态限流,latestSha 拿不到/拿旧=
+    # 「可更新」灯瞎(实弹:BlockCache-T8 落后1静默、controlnet_aux 落后31静默)。
+    # ls-remote 无限流且直取默认分支 HEAD;API 仅作 ls-remote 失败的兜底。
+    sha = _ls_remote_head(f"https://github.com/{owner_name}", timeout)
+    if not sha and not meta["latestTag"]:
         try:
             req = request.Request(
                 f"https://api.github.com/repos/{owner_name}/commits",
@@ -1157,10 +1215,10 @@ def _github_repo_meta(owner_name: str, timeout: float) -> dict:
                 commits = json.loads(response.read().decode("utf-8"))
             if isinstance(commits, list) and commits and isinstance(commits[0], dict):
                 sha = commits[0].get("sha")
-                if sha:
-                    meta["latestSha"] = str(sha)
         except Exception:
             pass
+    if sha:
+        meta["latestSha"] = str(sha)
     return meta
 
 
