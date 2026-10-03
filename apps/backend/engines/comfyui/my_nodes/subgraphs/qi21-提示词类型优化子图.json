@@ -145,9 +145,9 @@
         "id": "96937bbe-99d1-4f16-a06c-d86b57815d91",
         "version": 1,
         "state": {
-          "lastGroupId": 5,
-          "lastNodeId": 4020,
-          "lastLinkId": 201,
+          "lastGroupId": 6,
+          "lastNodeId": 7015,
+          "lastLinkId": 207,
           "lastRerouteId": 10
         },
         "revision": 1,
@@ -161,7 +161,7 @@
             -320,
             80,
             128,
-            228
+            208
           ]
         },
         "outputNode": {
@@ -182,8 +182,8 @@
               98
             ],
             "pos": [
-              3860,
-              540
+              -216,
+              104
             ]
           },
           {
@@ -194,8 +194,8 @@
               3
             ],
             "pos": [
-              3860,
-              560
+              -216,
+              124
             ]
           },
           {
@@ -206,8 +206,8 @@
               101
             ],
             "pos": [
-              820,
-              540
+              -216,
+              144
             ]
           },
           {
@@ -218,8 +218,8 @@
               6
             ],
             "pos": [
-              80,
-              1960
+              -216,
+              164
             ]
           },
           {
@@ -230,8 +230,8 @@
               200
             ],
             "pos": [
-              1820,
-              1620
+              -216,
+              184
             ]
           },
           {
@@ -242,8 +242,8 @@
               7
             ],
             "pos": [
-              80,
-              1980
+              -216,
+              204
             ]
           },
           {
@@ -254,8 +254,8 @@
               69
             ],
             "pos": [
-              2750,
-              2140
+              -216,
+              224
             ]
           },
           {
@@ -266,8 +266,8 @@
               70
             ],
             "pos": [
-              2770,
-              2160
+              -216,
+              244
             ]
           }
         ],
@@ -280,8 +280,8 @@
               20
             ],
             "pos": [
-              5100,
-              540
+              7224,
+              974
             ]
           },
           {
@@ -292,8 +292,8 @@
               21
             ],
             "pos": [
-              5100,
-              560
+              7224,
+              994
             ]
           },
           {
@@ -304,8 +304,8 @@
               42
             ],
             "pos": [
-              4460,
-              1860
+              7224,
+              1014
             ]
           },
           {
@@ -316,8 +316,8 @@
               43
             ],
             "pos": [
-              4460,
-              1880
+              7224,
+              1034
             ]
           },
           {
@@ -328,8 +328,8 @@
               45
             ],
             "pos": [
-              5060,
-              520
+              7224,
+              1054
             ]
           }
         ],
@@ -346,15 +346,15 @@
             "id": 4010,
             "type": "MyQi21DaojieBase",
             "pos": [
-              160,
-              2000
+              -379.7126464843749,
+              691.3645426432273
             ],
             "size": [
               570.5259765625,
               200
             ],
             "flags": {},
-            "order": 6,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
@@ -382,37 +382,37 @@
                 "localized_name": "BASE",
                 "name": "BASE",
                 "type": "STRING",
+                "slot_index": 0,
                 "links": [
                   9
-                ],
-                "slot_index": 0
+                ]
               },
               {
                 "localized_name": "WIDTH",
                 "name": "WIDTH",
                 "type": "INT",
+                "slot_index": 1,
                 "links": [
                   37
-                ],
-                "slot_index": 1
+                ]
               },
               {
                 "localized_name": "HEIGHT",
                 "name": "HEIGHT",
                 "type": "INT",
+                "slot_index": 2,
                 "links": [
                   41
-                ],
-                "slot_index": 2
+                ]
               },
               {
                 "localized_name": "透明值",
                 "name": "透明值",
                 "type": "BOOLEAN",
+                "slot_index": 3,
                 "links": [
                   66
-                ],
-                "slot_index": 3
+                ]
               }
             ],
             "title": "[4010] 底座九选一·自研",
@@ -437,15 +437,15 @@
             "id": 4013,
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
-              1600,
-              1150
+              1428.9534098307286,
+              1856.298950195312
             ],
             "size": [
               502.5630859375,
               340
             ],
             "flags": {},
-            "order": 1,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
@@ -536,15 +536,15 @@
             "id": 4015,
             "type": "TextEncodeQwenImage21",
             "pos": [
-              4000,
-              600
+              4013.503633189137,
+              557.549393078512
             ],
             "size": [
               420,
               320
             ],
             "flags": {},
-            "order": 3,
+            "order": 7,
             "mode": 0,
             "inputs": [
               {
@@ -625,15 +625,15 @@
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              900,
-              600
+              710.734578450521,
+              684.7993977864566
             ],
             "size": [
               520,
               420
             ],
             "flags": {},
-            "order": 2,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
@@ -649,16 +649,12 @@
               {
                 "localized_name": "主体句",
                 "name": "主体句",
+                "shape": 7,
                 "type": "STRING",
                 "widget": {
                   "name": "主体句"
                 },
                 "link": 101
-              },
-              {
-                "name": "锁层A全文",
-                "type": "STRING",
-                "link": null
               }
             ],
             "outputs": [
@@ -686,7 +682,8 @@
               "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。"
             ],
             "widgets_values_named": {
-              "主体句": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+              "BASE": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+              "主体句": "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。",
               "锁层A全文": "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。"
             }
           },
@@ -694,15 +691,15 @@
             "id": 4018,
             "type": "MyQi21WhSuggest",
             "pos": [
-              2900,
-              1900
+              4004.8249830258287,
+              1192.0669382846518
             ],
             "size": [
               380,
               260
             ],
             "flags": {},
-            "order": 7,
+            "order": 8,
             "mode": 0,
             "inputs": [
               {
@@ -738,6 +735,7 @@
               {
                 "localized_name": "联动开关",
                 "name": "联动开关",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "联动开关"
@@ -798,6 +796,9 @@
               0
             ],
             "widgets_values_named": {
+              "wh_ratio": false,
+              "九型WIDTH": 0,
+              "九型HEIGHT": 0,
               "联动开关": false,
               "手动宽": 0,
               "手动高": 0
@@ -831,7 +832,7 @@
               "[4100] 装配子图段说明卡(1002 大轮终态编号:4010 底座/4011 底料拼合/4012 PE启用?/4013 PE改写/4014 合成器·单口/4015 主编码·独挑/4018 画幅建议器/4019 PE专属TE/4020 PE思考预览(10-02 单口化:双编码+输出选择塌缩,[4014] 单口「进编码文本」直喂 [4015],透明/非透明选择边界迁入合成器);机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [4014] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
             ],
             "widgets_values_named": {
-              "text": "[140] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [141] MyQi21PromptAssembly 输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [152] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
+              "text": "[4100] 装配子图段说明卡(1002 大轮终态编号:4010 底座/4011 底料拼合/4012 PE启用?/4013 PE改写/4014 合成器·单口/4015 主编码·独挑/4018 画幅建议器/4019 PE专属TE/4020 PE思考预览(10-02 单口化:双编码+输出选择塌缩,[4014] 单口「进编码文本」直喂 [4015],透明/非透明选择边界迁入合成器);机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [4014] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
             },
             "color": "#432",
             "bgcolor": "#653"
@@ -840,15 +841,15 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              2600,
-              600
+              3103.4818115234407,
+              681.1754150390606
             ],
             "size": [
               380,
               312
             ],
             "flags": {},
-            "order": 8,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
@@ -874,6 +875,7 @@
               {
                 "localized_name": "pe开关",
                 "name": "pe开关",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "pe开关"
@@ -883,37 +885,23 @@
               {
                 "localized_name": "透明模式",
                 "name": "透明模式",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "透明模式"
                 },
                 "link": 66
-              },
-              {
-                "name": "RGBA官方头句",
-                "type": "STRING",
-                "link": null
-              },
-              {
-                "name": "RGBA官方尾句",
-                "type": "STRING",
-                "link": null
-              },
-              {
-                "name": "W1收束句",
-                "type": "STRING",
-                "link": null
               }
             ],
             "outputs": [
               {
-                "localized_name": "最终文本",
+                "localized_name": "进编码文本",
                 "name": "进编码文本",
                 "type": "STRING",
                 "slot_index": 0,
                 "links": [
-                  102,
-                  45
+                  45,
+                  102
                 ]
               }
             ],
@@ -936,32 +924,33 @@
               "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
             ],
             "widgets_values_named": {
+              "装配全文": "",
+              "PE出文": "",
               "pe开关": true,
               "透明模式": false,
               "RGBA官方头句": "This is an RGBA format image with transparency.",
               "RGBA官方尾句": "The image has an alpha channel and a transparent background.",
-              "W1收束句": "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges.",
-              "装配全文": "",
-              "PE出文": ""
+              "W1收束句": "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
             }
           },
           {
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              300,
-              1150
+              802.0621814778652,
+              1413.6415795084713
             ],
             "size": [
               400,
               130
             ],
             "flags": {},
-            "order": 3,
+            "order": 1,
             "mode": 0,
             "inputs": [],
             "outputs": [
               {
+                "localized_name": "CLIP",
                 "name": "CLIP",
                 "type": "CLIP",
                 "links": [
@@ -997,18 +986,19 @@
             "id": 4012,
             "type": "PrimitiveBoolean",
             "pos": [
-              1900,
-              1660
+              1666.895050530334,
+              523.8768854100633
             ],
             "size": [
               280,
               90
             ],
             "flags": {},
-            "order": 0,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "值",
                 "name": "value",
                 "type": "BOOLEAN",
                 "widget": {
@@ -1019,29 +1009,38 @@
             ],
             "outputs": [
               {
+                "localized_name": "布尔",
                 "name": "BOOLEAN",
                 "type": "BOOLEAN",
+                "slot_index": 0,
                 "links": [
                   8,
                   68
-                ],
-                "slot_index": 0
+                ]
               }
             ],
+            "title": "[4012] PE启用?",
             "properties": {
-              "Node name for S&R": "PrimitiveBoolean"
+              "Node name for S&R": "PrimitiveBoolean",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
             },
             "widgets_values": [
               true
             ],
-            "title": "[4012] PE启用?"
+            "widgets_values_named": {
+              "value": true
+            }
           },
           {
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              2200,
-              120
+              2371.3253580729192,
+              2309.5204508463557
             ],
             "size": [
               500,
@@ -1050,30 +1049,41 @@
             "flags": {
               "collapsed": false
             },
-            "order": 0,
-            "mode": 4,
+            "order": 9,
+            "mode": 0,
             "inputs": [
               {
+                "localized_name": "输入任何",
                 "name": "anything",
+                "shape": 7,
                 "type": "*",
                 "link": 201
               }
             ],
             "outputs": [
               {
+                "localized_name": "输出",
                 "name": "output",
                 "type": "*",
-                "links": [],
-                "slot_index": 0
+                "slot_index": 0,
+                "links": []
               }
             ],
+            "title": "[4020] PE思考·showAnything",
             "properties": {
-              "Node name for S&R": "easy showAnything"
+              "Node name for S&R": "easy showAnything",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
             },
             "widgets_values": [
               ""
             ],
-            "title": "[4020] PE思考·showAnything"
+            "widgets_values_named": {
+              "text": ""
+            }
           }
         ],
         "groups": [],

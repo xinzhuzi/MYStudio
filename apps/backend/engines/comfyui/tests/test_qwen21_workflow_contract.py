@@ -1726,14 +1726,22 @@ class TestCanvasDiscipline:
                 if name == "edit":
                     continue   # edit 子图内部恒向右=S5 终排工序(生成器 4e 口径)
                 i_nodes = {n["id"]: n for n in sg["nodes"]}
+                # 1003 手改标准回灌:新布局以子图输入槽→左置 [4010] 为锚,恰
+                # 两条左向线(link6/7)为用户手定标准的一部分——豁免集显式锚定,
+                # 扩容即红(布局回退哨兵),其余全域仍恒向右。
+                leftward = []
                 for l in sg["links"]:
                     ox = sg["inputs"][l["origin_slot"]]["pos"][0] \
                         if l["origin_id"] == -10 else i_nodes[l["origin_id"]]["pos"][0]
                     tx = sg["outputs"][l["target_slot"]]["pos"][0] \
                         if l["target_id"] == -20 else i_nodes[l["target_id"]]["pos"][0]
-                    assert tx > ox, (
-                        f"{name} 子图[{sg['name'][:8]}] link{l['id']}: 未向右({ox} → {tx}),纵向塔违规"
-                    )
+                    if tx <= ox:
+                        leftward.append(l["id"])
+                allowed = {6, 7} if (name in ("qi21", "t2i") and sg["name"].startswith("[6]")) else set()
+                assert set(leftward) == allowed, (
+                    f"{name} 子图[{sg['name'][:8]}] 左向线集 {sorted(set(leftward))} ≠ 豁免集 "
+                    f"{sorted(allowed)}(1003 手改标准:恰 [6]子图 link6/7=输入槽→左置[4010])"
+                )
 
     def test_usage_note_with_parameter_bible(self):
         # 0927 勘案修账①:四件说明统一官方逐字(This is an RGBA format image…,
@@ -2951,8 +2959,12 @@ class TestQi21SubgraphContract:
         # 1002 ⑭:BASE 连线槽前置=inputs[0],主体句/锁层A全文(参数 widget)下沉
         asm = sg_nodes[QI21_SG_ASM_ID]
         assert asm["type"] == QI21_SG_ASM_CLASS
-        assert [i["name"] for i in asm["inputs"]] == ["BASE", "主体句", "锁层A全文"], \
-            "[141] 槽序应=BASE(连线槽,⑭ 前置)/主体句/锁层A全文(参数下沉;optional)"
+        # 1003 手改标准回灌:随 ComfyUI v0.38 前端(v1.53)序列化,widget 型
+        # optional 槽可不入 inputs[](锁层A全文降纯 widget,真值在 widgets_values[1]);
+        # 旧/新两种序列化形态皆合法(i2i 孪生未重存仍是三槽形态)。
+        assert [i["name"] for i in asm["inputs"]] in (
+            ["BASE", "主体句", "锁层A全文"], ["BASE", "主体句"]), \
+            "[4011] 槽序应=BASE(连线槽,⑭ 前置)/主体句/锁层A全文(参数下沉;optional)"
         assert [o["name"] for o in asm["outputs"]] == ["装配全文"]
         base_l = sg_links[asm["inputs"][0]["link"]]
         assert (base_l["origin_id"], base_l["origin_slot"]) == (QI21_SG_BASE_ID, 0), \
@@ -2966,9 +2978,12 @@ class TestQi21SubgraphContract:
         # 1002 ⑭:两连线槽(装配全文/PE出文)前置,五参数 widget(含三固定句)下沉
         sel = sg_nodes[QI21_SG_SEL_ID]
         assert sel["type"] == QI21_SG_SEL_CLASS
-        assert [i["name"] for i in sel["inputs"]] == \
-            ["装配全文", "PE出文", "pe开关", "透明模式", "RGBA官方头句", "RGBA官方尾句", "W1收束句"], \
-            "[152] 槽序应=装配全文/PE出文(连线槽,⑭ 前置)/pe开关/透明模式/头句/尾句/W1(参数下沉)"
+        # 1003 手改标准回灌:新前端序列化=widget 型槽可不入 inputs[](三句固定
+        # 降纯 widget,真值在 widgets_values);两态皆合法。
+        assert [i["name"] for i in sel["inputs"]] in (
+            ["装配全文", "PE出文", "pe开关", "透明模式", "RGBA官方头句", "RGBA官方尾句", "W1收束句"],
+            ["装配全文", "PE出文", "pe开关", "透明模式"]), \
+            "[4014] 槽序应=装配全文/PE出文(连线槽,⑭ 前置)/pe开关/透明模式/头句/尾句/W1(参数下沉)"
         assert [o["name"] for o in sel["outputs"]] == ["进编码文本"]
         assert sel["widgets_values"][:2] == ["", ""], \
             "PromptSelect wv 头部两占位应为空串(前端全序消费;1002 修复轮)"
@@ -3132,10 +3147,11 @@ class TestQi21SubgraphContract:
         # 底座源件下沉+[4018] 画幅;R4 原 [4010] 主链位在四带全右向约束下结构性
         # 必遮挡,依布局规范优先级 1/2 下沉);带表按终态实况锚定(防回退)
         want_bands = {
-            0: [4020, 4100],
-            1: [4011, 4014, 4015],
-            2: [4012, 4013, 4019],
-            3: [4010, 4018],
+            # 1003 手改标准回灌重锚:[4010] 左置带1+PE链下移;阈值不变成员重排
+            0: [4100],
+            1: [4010, 4011, 4012, 4014, 4015],
+            2: [4018, 4019],
+            3: [4013, 4020],
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
@@ -3156,17 +3172,20 @@ class TestQi21SubgraphContract:
         band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]
                                for nid in ids) for b, ids in bands.items()}
         for b in (0, 1, 2):
-            assert band_tops[b + 1] - band_bottoms[b] >= 100, \
-                f"带{b} 与带{b+1} 净距不足(<100): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
-        # 零左向线(严格口径=塔测试同款:所有线起点 x < 终点 x;边界线以 IO 槽 pos 计)
+            # 1003 手改标准:带1→带2 实距 87,门槛 100→80
+            assert band_tops[b + 1] - band_bottoms[b] >= 80, \
+                f"带{b} 与带{b+1} 净距不足(<80): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
+        # 零左向线(严格口径=塔测试同款;1003 手改标准:豁免 link6/7=输入槽→左置[4010])
         sg = _qi21_sg(graph)
         for l in _qi21_sg_links(graph).values():
+            if l["id"] in (6, 7):
+                continue
             ox = sg["inputs"][l["origin_slot"]]["pos"][0] if l["origin_id"] == -10 \
                 else sg_nodes[l["origin_id"]]["pos"][0]
             tx = sg["outputs"][l["target_slot"]]["pos"][0] if l["target_id"] == -20 \
                 else sg_nodes[l["target_id"]]["pos"][0]
             assert tx > ox, \
-                f"左向线残留: link{l['id']} ox={ox} tx={tx}(S8 三带布局应严格右向)"
+                f"左向线残留: link{l['id']} ox={ox} tx={tx}(应严格右向;豁免集=6/7)"
 
 
     def test_no_node_overlap_and_group_budget(self):
@@ -3316,11 +3335,15 @@ class TestCanvasNormalization0925:
                 assert n["pos"][0] >= 80 and n["pos"][1] >= 80, \
                     f"{name} 主图 node{n['id']} 负区坐标 {n['pos']}(W6① 零负区:pos≥80)"
             floor = 80 if name != "edit" else 0
+            # 1003 手改标准:qi21 [6]子图 [4010] 底座左置锚(-380,691)显式豁免
+            neg_ok = {("qi21", 4010)}
             for sg in _sgs(graph):
                 for n in sg["nodes"]:
+                    if (name, n["id"]) in neg_ok:
+                        continue
                     assert n["pos"][0] >= floor and n["pos"][1] >= floor, \
                         f"{name} 子图[{sg['name'][:6]}] node{n['id']} 负区坐标 {n['pos']}" \
-                        f"(W6① 子图零负区:pos≥{floor})"
+                        f"(W6① 子图零负区:pos≥{floor};豁免集见上)"
 
     def test_subgraph_outputs_pinned_rightmost(self):
         """W6②:输出口最右——三件两子图输出 IO 槽钉死最右列(0929 S3:edit 加速
@@ -3506,8 +3529,12 @@ class TestI2IContract:
         asm = sg_nodes[I2I_SG_ASM_ID]
         assert asm["type"] == I2I_SG_ASM_CLASS, \
             f"[{I2I_SG_ASM_ID}] 应为 {I2I_SG_ASM_CLASS}(i2i 版唯一真源,不喂 PE 链)"
-        assert [i["name"] for i in asm["inputs"]] == ["BASE", "主体句", "锁层A全文"], \
-            "[141] 槽序应=BASE(连线槽,⑭ 前置)/主体句/锁层A全文(参数下沉;optional)"
+        # 1003 手改标准回灌:随 ComfyUI v0.38 前端(v1.53)序列化,widget 型
+        # optional 槽可不入 inputs[](锁层A全文降纯 widget,真值在 widgets_values[1]);
+        # 旧/新两种序列化形态皆合法(i2i 孪生未重存仍是三槽形态)。
+        assert [i["name"] for i in asm["inputs"]] in (
+            ["BASE", "主体句", "锁层A全文"], ["BASE", "主体句"]), \
+            "[4011] 槽序应=BASE(连线槽,⑭ 前置)/主体句/锁层A全文(参数下沉;optional)"
         base_l = sg_links[asm["inputs"][0]["link"]]
         assert (base_l["origin_id"], base_l["origin_slot"]) == (I2I_SG_BASE_ID, 0), \
             "[141].BASE 应接 [150].BASE(②层,一处选型;⑭ 前置=inputs[0])"
@@ -4455,12 +4482,19 @@ class TestQi21SubgraphContract:
         assert sg["widgets"] == host["widgets_values"], \
             "子图 sg.widgets 应与宿主 widgets_values 双写同值"
         # 面板控件不占输入槽;主体句=槽+面板双位(外连 [24],widget 值在面板)
+        # 1003 手改标准回灌:新前端(v1.53)序列化=面板控件槽可不入 host inputs
+        # (旧形态=widget 型槽在列)。两态皆合法;控件真值恒在 widgets_values_named
+        # (上方已断言六键序+默认值)。
         exposed_names = {i["name"] for i in host["inputs"]}
         for name in QI21_HOST_WIDGET_INPUTS[1:]:
-            if name != "主体句":
+            if name == "主体句":
+                continue
+            if name in exposed_names:
                 e = next(i for i in host["inputs"] if i["name"] == name)
                 assert e.get("widget") and e.get("link") is None, \
-                    f"面板控件 {name} 应=widget 型槽(在列+无连线;1002 同款 UI)"
+                    f"面板控件 {name} 若入列应=widget 型槽(在列+无连线;1002 同款 UI)"
+            assert name in named, \
+                f"面板控件 {name} 应存在于 widgets_values_named(新序列化真值位)"
         by_name = {i["name"]: i for i in host["inputs"]}
         assert by_name["主体句"]["link"] is not None and "widget" in by_name["主体句"], \
             "主体句槽应外连 [24] 且保留 widget 位(槽+面板双位)"
@@ -4840,12 +4874,15 @@ class TestQi21SubgraphContract:
         # 1002 ⑬:宿主 pe_clip 槽已撤(主图零 PE TE;连线 link31 退役删除)
         assert "pe_clip" not in [i["name"] for i in nodes[QI21_HOST_ID]["inputs"]], \
             "[6] 宿主应无 pe_clip 槽(1002 ⑬)"
-        # ── [141] 装配全文件(裁定A上游):接口面+两去接线 ──
+        # ── [4011] 装配全文件(裁定A上游):接口面+两去接线 ──
         # 1002 ⑭:BASE 连线槽前置=inputs[0],主体句/锁层A全文(参数 widget)下沉
         asm = sg_nodes[QI21_SG_ASM_ID]
         assert asm["type"] == QI21_SG_ASM_CLASS
-        assert [i["name"] for i in asm["inputs"]] == ["BASE", "主体句", "锁层A全文"], \
-            "[141] 槽序应=BASE(连线槽,⑭ 前置)/主体句/锁层A全文(参数下沉;optional)"
+        # 1003 手改标准回灌:新前端(v1.53)序列化=widget 型 optional 槽可不入
+        # inputs[](锁层A全文降纯 widget,真值在 widgets_values[1]);两态皆合法。
+        assert [i["name"] for i in asm["inputs"]] in (
+            ["BASE", "主体句", "锁层A全文"], ["BASE", "主体句"]), \
+            "[4011] 槽序应=BASE(连线槽,⑭ 前置)/主体句/锁层A全文(参数下沉;optional)"
         assert [o["name"] for o in asm["outputs"]] == ["装配全文"]
         base_l = sg_links[asm["inputs"][0]["link"]]
         assert (base_l["origin_id"], base_l["origin_slot"]) == (QI21_SG_BASE_ID, 0), \
@@ -4859,9 +4896,12 @@ class TestQi21SubgraphContract:
         # 1002 ⑭:两连线槽(装配全文/PE出文)前置,五参数 widget(含三固定句)下沉
         sel = sg_nodes[QI21_SG_SEL_ID]
         assert sel["type"] == QI21_SG_SEL_CLASS
-        assert [i["name"] for i in sel["inputs"]] == \
-            ["装配全文", "PE出文", "pe开关", "透明模式", "RGBA官方头句", "RGBA官方尾句", "W1收束句"], \
-            "[152] 槽序应=装配全文/PE出文(连线槽,⑭ 前置)/pe开关/透明模式/头句/尾句/W1(参数下沉)"
+        # 1003 手改标准回灌:新前端序列化=widget 型槽可不入 inputs[](三句固定
+        # 降纯 widget,真值在 widgets_values);两态皆合法。
+        assert [i["name"] for i in sel["inputs"]] in (
+            ["装配全文", "PE出文", "pe开关", "透明模式", "RGBA官方头句", "RGBA官方尾句", "W1收束句"],
+            ["装配全文", "PE出文", "pe开关", "透明模式"]), \
+            "[4014] 槽序应=装配全文/PE出文(连线槽,⑭ 前置)/pe开关/透明模式/头句/尾句/W1(参数下沉)"
         assert [o["name"] for o in sel["outputs"]] == ["进编码文本"]
         assert sel["widgets_values"][:2] == ["", ""], \
             "PromptSelect wv 头部两占位应为空串(前端全序消费;1002 修复轮)"
@@ -5022,10 +5062,11 @@ class TestQi21SubgraphContract:
         # 10-02 单口化重立(拓扑变更合法重立):带0 上说明/带1 主链/带2 PE+[4012]
         # 下浮行/带3 最底([4010] 源件下沉+[4018];R4 主链位四带全右向下必遮挡,裁量下沉)
         want_bands = {
-            0: [4020, 4100],
-            1: [4011, 4014, 4015],
-            2: [4012, 4013, 4019],
-            3: [4010, 4018],
+            # 1003 手改标准回灌重锚:[4010] 左置带1+PE链下移;阈值不变成员重排
+            0: [4100],
+            1: [4010, 4011, 4012, 4014, 4015],
+            2: [4018, 4019],
+            3: [4013, 4020],
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
@@ -5046,17 +5087,20 @@ class TestQi21SubgraphContract:
         band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]
                                for nid in ids) for b, ids in bands.items()}
         for b in (0, 1, 2):
-            assert band_tops[b + 1] - band_bottoms[b] >= 100, \
-                f"带{b} 与带{b+1} 净距不足(<100): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
-        # 零左向线(严格口径=塔测试同款:所有线起点 x < 终点 x;边界线以 IO 槽 pos 计)
+            # 1003 手改标准:带1→带2 实距 87,门槛 100→80
+            assert band_tops[b + 1] - band_bottoms[b] >= 80, \
+                f"带{b} 与带{b+1} 净距不足(<80): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
+        # 零左向线(严格口径=塔测试同款;1003 手改标准:豁免 link6/7=输入槽→左置[4010])
         sg = _qi21_sg(graph)
         for l in _qi21_sg_links(graph).values():
+            if l["id"] in (6, 7):
+                continue
             ox = sg["inputs"][l["origin_slot"]]["pos"][0] if l["origin_id"] == -10 \
                 else sg_nodes[l["origin_id"]]["pos"][0]
             tx = sg["outputs"][l["target_slot"]]["pos"][0] if l["target_id"] == -20 \
                 else sg_nodes[l["target_id"]]["pos"][0]
             assert tx > ox, \
-                f"左向线残留: link{l['id']} ox={ox} tx={tx}(S8 三带布局应严格右向)"
+                f"左向线残留: link{l['id']} ox={ox} tx={tx}(应严格右向;豁免集=6/7)"
 
 
     def test_no_node_overlap_and_group_budget(self):
@@ -5206,11 +5250,15 @@ class TestCanvasNormalization0925:
                 assert n["pos"][0] >= 80 and n["pos"][1] >= 80, \
                     f"{name} 主图 node{n['id']} 负区坐标 {n['pos']}(W6① 零负区:pos≥80)"
             floor = 80 if name != "edit" else 0
+            # 1003 手改标准:qi21 [6]子图 [4010] 底座左置锚(-380,691)显式豁免
+            neg_ok = {("qi21", 4010)}
             for sg in _sgs(graph):
                 for n in sg["nodes"]:
+                    if (name, n["id"]) in neg_ok:
+                        continue
                     assert n["pos"][0] >= floor and n["pos"][1] >= floor, \
                         f"{name} 子图[{sg['name'][:6]}] node{n['id']} 负区坐标 {n['pos']}" \
-                        f"(W6① 子图零负区:pos≥{floor})"
+                        f"(W6① 子图零负区:pos≥{floor};豁免集见上)"
 
     def test_subgraph_outputs_pinned_rightmost(self):
         """W6②:输出口最右——三件两子图输出 IO 槽钉死最右列(0929 S3:edit 加速
@@ -5810,8 +5858,10 @@ class TestSeedVR2TailContract1002:
                 cmp_n = nodes[SVR2_CMP]
                 inside = (gx0 <= cmp_n["pos"][0] and cmp_n["pos"][0] + cmp_n["size"][0] <= gx1
                           and gy0 <= cmp_n["pos"][1] and cmp_n["pos"][1] + cmp_n["size"][1] <= gy1)
-                assert not inside, \
-                    "qi21: [505] 对比件应在⑤组框外(纯预览件,旁路态仍可预览不随组旁路)"
+                # 1003 手改标准:[505] 并入⑤组框(旧"组框外纯预览"裁定退役;
+                # 副作用=整组旁路时对比件随组旁路、b 侧 2K 预览不可用,已知接受)
+                assert inside, \
+                    "qi21: [505] 对比件应在⑤组框内(1003 手改标准:并入组框)"
 
     def test_tail_wiring_and_widgets(self):
         for name in ("qi21", "i2i"):
