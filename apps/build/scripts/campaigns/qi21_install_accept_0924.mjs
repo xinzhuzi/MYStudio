@@ -28,7 +28,7 @@ import { homedir } from "node:os";
 import { promisify } from "node:util";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+const WebSocket = require("ws");
 const execFileP = promisify(execFile);
 
 const CDP_PORT = Number(process.env.CDP_PORT || 9377);

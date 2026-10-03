@@ -4,7 +4,7 @@ const page = list.find(t => t.type === "page" && !t.url.startsWith("devtools"));
 if (!page) process.exit(1);
 const { createRequire } = await import("node:module");
 const require = createRequire(`${process.env.HOME}/Project/Github/MYStudio/apps/`);
-const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+const WebSocket = require("ws");
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise(r => ws.on("open", r));
 let seq = 0; const handlers = new Map();

@@ -23,7 +23,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+const WebSocket = require("ws");
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17000";
 const CDP_PORT = Number(process.env.CDP_PORT || 9377);

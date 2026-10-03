@@ -36,7 +36,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+const WebSocket = require("ws");
 const execFileP = promisify(execFile);
 const HARVEST = process.env.HARVEST === "1"; // ① 相位收编:首跑已排队出图,不重排队只收档取证(R26 HARVEST 同款)
 const ENGINE_LOG = process.env.ENGINE_LOG || "/tmp/qi21-fullpower-live-0924/engine.log";

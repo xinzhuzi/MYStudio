@@ -10,7 +10,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(`${process.env.HOME}/Project/Github/MYStudio/apps/`);
-const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+const WebSocket = require("ws");
 
 const args = process.argv.slice(2);
 const shotsArg = args[args.indexOf("--shots") + 1] ?? "56,70,75";

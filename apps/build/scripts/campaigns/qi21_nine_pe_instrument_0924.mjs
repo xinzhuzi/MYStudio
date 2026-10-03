@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const require = createRequire(import.meta.url);
-const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+const WebSocket = require("ws");
 
 const ENGINE = process.env.ENGINE_URL || "http://127.0.0.1:17002";
 const REPORT = `${process.env.HOME}/Project/Github/MYStudio/apps/out/q21-final-0924/nine-pe-driver-report.json`;

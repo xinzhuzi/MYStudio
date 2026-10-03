@@ -29,7 +29,7 @@ const log = (m) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1).padStar
 
 const APPS = fileURLToPath(new URL("../../", import.meta.url));
 const require = createRequire(APPS);
-const WebSocket = require(APPS + "node_modules/.pnpm/node_modules/ws");
+const WebSocket = require("ws");
 
 // 内置状态注册表:navJs=导航表达式;readyJs=就绪表达式;engine=引擎门(慢是正常);startJs=等待期间尽力点击的开始钮
 const SHOT_REGISTRY = {

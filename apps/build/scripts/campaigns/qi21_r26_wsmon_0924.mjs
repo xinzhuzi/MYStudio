@@ -8,7 +8,7 @@
  */
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
-const WebSocket = require(`${process.env.HOME}/Project/Github/MYStudio/apps/node_modules/.pnpm/node_modules/ws`);
+const WebSocket = require("ws");
 
 const OUT = process.argv[2];
 const MAX_SEC = Number(process.argv[3] || 1200);
