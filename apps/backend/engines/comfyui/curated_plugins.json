@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "策展插件清单(裁定5/ grill Q6:助手草案,用户过目定稿)。verified_license 全部经 GitHub API /repos/{repo}/license 的 license.spdx_id 实查(2026-09-08);仓库无 LICENSE 文件或 API 查不到的一律写 unknown,严禁编造。ComfyUI_poster_nodes 候选在 GitHub/Registry 均无法定位到可信仓库,以 ComfyUI_essentials 替补。",
+  "note": "策展插件清单(裁定5/ grill Q6:助手草案,用户过目定稿)。verified_license 全部经 GitHub API /repos/{repo}/license 的 license.spdx_id 实查(2026-09-08);仓库无 LICENSE 文件或 API 查不到的一律写 unknown,严禁编造。ComfyUI_poster_nodes 候选在 GitHub/Registry 均无法定位到可信仓库,以 ComfyUI_essentials 替补。 1003 增补:装机存量 17 件入册(自研定制件 my-nodes/krea2-vl-instruction/krea2edit-instruction-assembler 不属市场件仍不入册;id=装机目录名使已装判定零歧义;verified_license 经上游 raw LICENSE 逐件实查 2026-10-03,无 LICENSE 或文本未识别者=unknown)。",
   "plugins": [
     {
       "id": "comfyui-krea2edit",
@@ -250,6 +250,142 @@
       "provides": [
         "MiniMaxH3PromptEnhancerT8"
       ]
+    },
+    {
+      "id": "CRT-Nodes",
+      "name": "CRT 复古滤镜",
+      "desc_zh": "CRT 老式显像管风格节点(扫描线/色差/暗角),装出复古监视器质感。",
+      "category": "图像处理",
+      "repo": "https://github.com/PGCRT/CRT-Nodes",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-Custom-Scripts",
+      "name": "画布效率脚本",
+      "desc_zh": "pythongosssss 脚本合集:自动排列、连线直连点、图片预览增强、快捷键等画布效率件。",
+      "category": "效率工具",
+      "repo": "https://github.com/pythongosssss/ComfyUI-Custom-Scripts",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-Easy-Use",
+      "name": "Easy-Use 综合包",
+      "desc_zh": "一站式节点包:Easy 加载器/采样器封装、图像后处理、遮罩工具等大合集。",
+      "category": "综合工具包",
+      "repo": "https://github.com/yolain/ComfyUI-Easy-Use",
+      "verified_license": "GPL-3.0"
+    },
+    {
+      "id": "ComfyUI-Frame-Interpolation",
+      "name": "帧插值",
+      "desc_zh": "RIFE/FILM 帧插值节点,视频补帧/升帧率用。",
+      "category": "视频通用",
+      "repo": "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-GGUF",
+      "name": "GGUF 量化加载",
+      "desc_zh": "city96 GGUF 量化模型加载器(权重反量化进 Krea/Qwen 线)。",
+      "category": "综合工具包",
+      "repo": "https://github.com/city96/ComfyUI-GGUF",
+      "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "ComfyUI-Krea2-NAG",
+      "name": "Krea2 NAG",
+      "desc_zh": "Krea2 归一化注意力引导(NAG)节点,提升画面结构与时序稳定。",
+      "category": "Krea2 图像引擎",
+      "repo": "https://github.com/iljung1106/ComfyUI-Krea2-NAG",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-Krea2T-Enhancer",
+      "name": "Krea2T 增强",
+      "desc_zh": "Krea2T 画质增强辅助节点。",
+      "category": "Krea2 图像引擎",
+      "repo": "https://github.com/Capitan01R/ComfyUI-Krea2T-Enhancer",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "ComfyUI-LTXVideo",
+      "name": "LTX 视频官方线",
+      "desc_zh": "Lightricks 官方 LTX 视频节点(文/图生视频、LoRA 支持)。",
+      "category": "视频通用",
+      "repo": "https://github.com/Lightricks/ComfyUI-LTXVideo",
+      "verified_license": "unknown"
+    },
+    {
+      "id": "ComfyUI-SetGet-Resolver",
+      "name": "SetGet 解析器",
+      "desc_zh": "Set/Get 变量节点跨子图/跨图解析,减少长连线。",
+      "category": "效率工具",
+      "repo": "https://github.com/yujianvip/ComfyUI-SetGet-Resolver",
+      "verified_license": "unknown"
+    },
+    {
+      "id": "ComfyUI-SolAttn-MPS",
+      "name": "SolAttn MPS 加速",
+      "desc_zh": "SolAttn 注意力加速(Apple MPS 适配)——H3 视频 480P 固定线依赖。",
+      "category": "MiniMax H3 视频",
+      "repo": "https://github.com/yshenaw/ComfyUI-SolAttn-MPS",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "Comfyui-Resolution-Master",
+      "name": "分辨率大师",
+      "desc_zh": "分辨率/宽高比/像素量换算节点组,尺寸联动省心算。",
+      "category": "效率工具",
+      "repo": "https://github.com/Azornes/Comfyui-Resolution-Master",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "WhatDreamsCost-ComfyUI",
+      "name": "生成能耗标注",
+      "desc_zh": "生成图像的能耗/成本统计与画布标注节点。",
+      "category": "图像处理",
+      "repo": "https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI",
+      "verified_license": "GPL-3.0"
+    },
+    {
+      "id": "cg-use-everywhere",
+      "name": "万能广播",
+      "desc_zh": "一处节点全网可用(Everywhere 模式免连线广播 MODEL/LATENT 等)。",
+      "category": "效率工具",
+      "repo": "https://github.com/chrisgoringe/cg-use-everywhere",
+      "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "comfy-image-saver",
+      "name": "增强存图",
+      "desc_zh": "增强版存图节点:元数据嵌入、命名模板、子目录归档。",
+      "category": "图像处理",
+      "repo": "https://github.com/giriss/comfy-image-saver",
+      "verified_license": "MIT"
+    },
+    {
+      "id": "comfyui-fashn-human-parser",
+      "name": "人体解析遮罩",
+      "desc_zh": "fashn 人体解析分割,按部位(上衣/下装/全身)出遮罩。",
+      "category": "遮罩与图层",
+      "repo": "https://github.com/dsrunpod/comfyui-fashn-human-parser",
+      "verified_license": "unknown"
+    },
+    {
+      "id": "comfyui-videohelpersuite",
+      "name": "视频辅助套件",
+      "desc_zh": "视频帧序列读写/合成/预览标准件,视频线的基建依赖。",
+      "category": "视频通用",
+      "repo": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+      "verified_license": "GPL-3.0"
+    },
+    {
+      "id": "seedvr2_videoupscaler",
+      "name": "SeedVR2 超分",
+      "desc_zh": "字节 SeedVR2 视频超分/修复,低清视频拉高清。",
+      "category": "修复放大",
+      "repo": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler",
+      "verified_license": "Apache-2.0"
     }
   ]
 }
