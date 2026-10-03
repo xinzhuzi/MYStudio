@@ -1590,7 +1590,7 @@ class TestTopology:
             # MarkdownNote=说明卡、easy showAnything=显示型端点(画布预览,无下游)——
             # 两者都是合法画布端点,不计孤儿(qi21 件 [27] 装配预览,骨承 K2 件 [62]/[86])
             display_endpoints = {"MarkdownNote", "easy showAnything",
-                                 "ImageComparer (rgthree)"}  # ㉖ 对比件=纯预览端点
+                                 "Image Comparer (rgthree)"}  # ㉖ 对比件=纯预览端点
             orphans = sorted(
                 nodes[i]["type"] for i in nodes
                 if i not in seen and nodes[i]["type"] not in display_endpoints
@@ -2646,7 +2646,7 @@ class TestQi21SubgraphContract:
             # 0929 S3 收装:KSampler/LoRA/T8/选择件/seed/Reroute 全出主图册(入子图)
             # 1002 衔接批㉕㉖:SeedVR2 放大尾档四件组+rgthree 对比件入册(主图输出区)
             "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
-            "ImageComparer (rgthree)",
+            "Image Comparer (rgthree)",
         }
         for n in graph["nodes"]:
             if n.get("properties", {}).get("subgraph") in sg_ids:
@@ -4540,7 +4540,7 @@ class TestQi21SubgraphContract:
             # 0929 S3 收装:KSampler/LoRA/T8/选择件/seed/Reroute 全出主图册(入子图)
             # 1002 衔接批㉕㉖:SeedVR2 放大尾档四件组+rgthree 对比件入册(主图输出区)
             "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
-            "ImageComparer (rgthree)",
+            "Image Comparer (rgthree)",
         }
         for n in graph["nodes"]:
             if n.get("properties", {}).get("subgraph") in sg_ids:
@@ -5837,7 +5837,7 @@ class TestSeedVR2TailContract1002:
         graph = GRAPHS["qi21"]
         nodes, links = _nodes(graph), _links(graph)
         cmp_n = nodes[SVR2_CMP]
-        assert cmp_n["type"] == "ImageComparer (rgthree)", \
+        assert cmp_n["type"] == "Image Comparer (rgthree)", \
             f"qi21: [{SVR2_CMP}] 应 rgthree 对比件,得 {cmp_n['type']}"
         assert _input_src(nodes, links, SVR2_CMP, "image_a") == 5, \
             "[505].image_a 应接 [5] 直出图(放大前)"
@@ -5849,7 +5849,7 @@ class TestSeedVR2TailContract1002:
             f"[503] 输出应恰扇出 [504]+[505](存盘+对比),得 {up_out}"
         for banned_name in ("i2i", "edit"):
             assert not [n for n in GRAPHS[banned_name]["nodes"]
-                        if n["type"] == "ImageComparer (rgthree)"], \
+                        if n["type"] == "Image Comparer (rgthree)"], \
                 f"{banned_name}: 对比件仅 t2i(用户令只点 t2i)"
 
     def test_edit_has_no_tail(self):
