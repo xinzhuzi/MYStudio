@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 # 出处:2026-09-21 战役产物(布局守卫,五关协议常跑);2026-09-22 带日期文件名清整提升为常驻件,幂等可重跑。
-"""道劫 t2i 主线工作流布局守卫(09-21 用户令:布局也不许破坏)。
+# 2026-10-03 清账退役:K2 产线 0923 已退役,Downloads 老 K2 基底期望过时,本守卫恒 [SKIP] 退 0(详见 main)。
+"""道劫 t2i 主线工作流布局守卫(09-21 用户令:布局也不许破坏)——已退役,留档。
 
-以 ~/Downloads/mystudio-baselines/ 的字节级基底备份为参照,比对当前仓库文件的
-**布局指纹**:外层与子图内每个节点的 (type, pos, size, mode)、外层与子图内每个
-组框的 (title, id, bounding, color)。内容性改动(权重/文案)不触发布局指纹,
-任何坐标/尺寸/组框漂移=FAIL 并逐项列出差异。
+【1003 清账退役】K2 产线 0923 已退役,本守卫锚定的 Downloads 老 K2 基底
+(K2-文生图-道劫-基底-0922-v5-换装正名.json,~/Downloads/mystudio-baselines/
+整目录已清)期望过时——K2 基线检查就此退役:不再比对、不再 FAIL,恒 [SKIP]
+退 0。后续 t2i 布局守卫以 engines/comfyui/tests 契约测试为准(qi21 新标准,
+见 2026-10-03 de7149b)。
 
-用法:
-  python3 daojie_t2i_guard.py            # 布局守卫(内容改动后跑这个)
-  python3 daojie_t2i_guard.py --full     # 全量守卫:连内容都不许变(整哈希)
+退役前机制(留档):以 ~/Downloads/mystudio-baselines/ 的字节级基底备份为参照,
+比对仓库文件 K2-文生图-道劫.json 的**布局指纹**(每个节点 type/pos/size/mode、
+每个组框 title/id/bounding/color、子图 IO 槽位);内容性改动不触发,坐标/尺寸/
+组框漂移=FAIL。--full 模式连内容都不许变(整哈希)。
 """
 from __future__ import annotations
 
-import hashlib
-import json
 import sys
 from pathlib import Path
 
@@ -63,39 +64,16 @@ def layout_fingerprint(wf: dict) -> list[str]:
 
 
 def main() -> int:
-    if not BASELINE.exists():
-        print(f"[FAIL] 基底备份不存在: {BASELINE}")
-        return 1
-    base_sha = hashlib.sha256(BASELINE.read_bytes()).hexdigest()
-    if base_sha != BASELINE_SHA:
-        print("[FAIL] 基底备份哈希与登记值不符,备份本身被动过,先查备份!")
-        return 1
-    cur = json.loads(MAIN.read_text(encoding="utf-8"))
-    base = json.loads(BASELINE.read_text(encoding="utf-8"))
-
-    if "--full" in sys.argv:
-        cur_sha = hashlib.sha256(MAIN.read_bytes()).hexdigest()
-        if cur_sha == base_sha:
-            print("[PASS] 全量守卫:当前文件与基底逐字节一致")
-            return 0
-        print("[FAIL] 全量守卫:文件与基底存在内容差异(若为预期改动请改用默认布局守卫)")
-        return 1
-
-    cur_fp = layout_fingerprint(cur)
-    base_fp = layout_fingerprint(base)
-    if cur_fp == base_fp:
-        print(f"[PASS] 布局守卫:布局指纹与基底一致(节点 {len(cur_fp)} 项全同;内容性改动不在守卫范围)")
-        return 0
-    base_set = set(base_fp)
-    cur_set = set(cur_fp)
-    print("[FAIL] 布局被改动!与基底差异:")
-    for line in cur_fp:
-        if line not in base_set:
-            print(f"  现值 {line}")
-    for line in base_fp:
-        if line not in cur_set:
-            print(f"  基底 {line}")
-    return 1
+    # 1003 清账退役:K2 产线 0923 已退役,本守卫锚定的 Downloads 老 K2 基底期望
+    # 过时(~/Downloads/mystudio-baselines/ 整目录已清,回滚保险完成使命)——
+    # K2 基线检查就此退役:不再检查基底存在性/哈希、不再比对布局指纹,恒 [SKIP]
+    # 退 0。layout_fingerprint 与基线沿革注释留档仅作历史;t2i 布局守卫由
+    # engines/comfyui/tests 契约测试接棒(qi21 新标准)。
+    print(
+        "[SKIP] K2 基线检查已退役:K2 产线 0923 已退役,1003 清账退役此期望"
+        f"(老基底 {BASELINE.name})"
+    )
+    return 0
 
 
 if __name__ == "__main__":
