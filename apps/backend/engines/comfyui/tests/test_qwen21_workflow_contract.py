@@ -316,6 +316,9 @@ CHATML_A_TAIL = "\n<|im_end|>\n<|im_start|>user"
 CHATML_C = "\n<|im_end|>\n<|im_start|>assistant\n<think>"
 B_SEG = ("Put the light blue denim shirt from <image2> on the character "
          "in <image1>, keep everything else unchanged")
+# 1003 样例换中国域:edit 件默认指令=道劫中文单图(m1z 实测口径逐字;i2i 仍用 B_SEG)
+EDIT_ZH_SEG = ("将<image1>中人物身后的背景改为云雾缭绕的水墨远山,留白取势;"
+               "人物本体、服饰、兵器与姿态保持完全不变。")
 # edit 件节点 id 锚(与生成器 qwen21_edit_core_pe_0923.py 同表)
 EDIT_SCALE_IDS = (16, 17)        # 输入图预缩(画布 1.5MP/参考 1.0MP)
 EDIT_PSM_A_ID, EDIT_PSM_B_ID, EDIT_PSM_C_ID = 21, 400, 23  # chatml a/b/c 三段([22]→[400] 1002 ⑫)
@@ -598,7 +601,11 @@ MODE_VIGGLE = next(m for m, s in SPEED_MODES if s == "latent_viggle")
 # 修);⑱「i2i/edit 默认档同改 Fun-Acc」之 edit 推广就此回退(⑱ 用户原令只点
 # t2i=my_qi21_speed_select.py:32 引文;t2i/i2i 默认仍=DEFAULT_MODE,实弹绿:
 # t2i 四发/s7 i2i 127s opaque)。edit 件 0 档保留可选(手动自担,Note 白图警示)。
-EDIT_DEFAULT_MODE = MODE_DIRECT
+# ── 1003 翻案轮(Trellis 10-03-edit-fun-acc-4-pe,用户令「如果可以用 Fun-Acc
+# 4 步就用」):死因精确定位=PE 关×Fun-Acc(指令直写撞蒸馏头分布);PE开×
+# Fun-Acc=m1z 真图(道劫中文素材 250s vs 直出40 514s,m2z 中文复现白图 33KB)。
+# edit 默认档=MODE_FUNACC(PE 默认本就开=文件原值),危险组合改述「关PE×FunAcc」。
+EDIT_DEFAULT_MODE = MODE_FUNACC
 # 0929 并行化 Note 加速区段共用 tokens(三件 Note 均含;文案真源=三生成器 NOTE 段;
 # 0929 S3 收装轮随双子图文案刷新)
 PARALLEL_NOTE_CORE_TOKENS = (
@@ -626,7 +633,8 @@ I2I_PARALLEL_NOTE_TOKENS = (
 # Fun-Acc×edit 两 seed 全透空白,默认档回退,0 档保留可选但 Note 点名勿用)
 EDIT_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, "MyQi21SpeedSelect", "[7]", "[7015]", "[7012]", "[7014]",
-    "首项", "本件默认=「1 · 直出40步」", "Fun-Acc×edit 白图警示", "edit 件勿选 0 档",
+    "首项", "本件默认=「0 · Fun-Acc 4步」", "须配 PE启用?=开", "Fun-Acc×edit 白图警示",
+    "用 Fun-Acc 必开 PE",
     "一处改三支路同步", "面板值=生效值",
     "单参考正源", "崩纯黑", "唯一色=1", "[4016]", "零改动",
     "速度档位", "加速子图",
@@ -1802,7 +1810,9 @@ class TestEditContract:
         assert scales[EDIT_SCALE_IDS[0]]["widgets_values"][1] == 1.5, "画布预缩应 1.5MP"
         assert scales[EDIT_SCALE_IDS[1]]["widgets_values"][1] == 1.0, "参考图预缩应 1.0MP"
 
-    def test_prompt_is_official_outfit_example(self):
+    def test_prompt_is_daojie_zh_sample(self):
+        """1003 样例换中国域(用户令「项目全是中国的」):默认指令=道劫中文单图
+        (背景改水墨,=m1z 实测口径逐字),弃官方英文换装例句。"""
         graph = GRAPHS["edit"]
         encoder = _sg_nodes(_asg(graph))[4015]
         assert _widget(encoder, TE_WV["prompt"]) == "", \
@@ -1811,18 +1821,20 @@ class TestEditContract:
         assert sorted(origins) == [EDIT_PSM_B_ID], \
             f"直写路应恰 1 个源=[{EDIT_PSM_B_ID}] 原始用户词(主图,经宿主指令槽),得 {sorted(origins)}"
         prompt = _widget(next(iter(origins.values())), 0)
-        for token in ("<image1>", "<image2>"):
-            assert token in prompt, f"默认 prompt 应含点名 {token}"
-        assert "denim shirt" in prompt, "默认 prompt 应为官方换装例句(light blue denim shirt)"
+        assert "<image1>" in prompt, "默认 prompt 应点名 <image1>(中文单图样例)"
+        assert "image2" not in prompt, "默认样例为单图指令,不应点名 <image2>"
+        for token in ("水墨", "背景", "保持完全不变"):
+            assert token in prompt, f"默认 prompt 应为道劫中文样例(含「{token}」)"
         assert _widget(encoder, TE_WV["resolution"]) == 0, \
             "edit 件 resolution 应=0(不重采样,仅取整 32 倍数,输出跟随 image_1)"
 
-    def test_load_images_are_official_samples(self):
+    def test_load_images_are_daojie_samples(self):
+        """1003:样例双槽=道劫人物(同图占位;官方外国样例退役)。"""
         images = sorted(
             _widget(n, 0) for n in _by_type(GRAPHS["edit"], "LoadImage")
         )
-        assert images == ["clothing_light_blue_denim_shirt.png", "portrait_model_denim.png"], \
-            f"edit 件应预填官方示例双图(人像+衬衫),得 {images}"
+        assert images == ["daojie-char-1003.png", "daojie-ref-1003.png"], \
+            f"edit 件应预填道劫样例双槽(人物+参考位占位),得 {images}"
 
     def test_latent_dual_path_switch(self):
         """④latent 双路(0923-r16,design §13;0929 S3 作用域版):PrimitiveBoolean→
@@ -2022,8 +2034,8 @@ class TestEditPEContract:
             f"[{EDIT_PSM_C_ID}] c 段应 assistant+<think> 预填(官方刻意设计,勿改 thinking=True)"
         m_psm = {n["id"]: _widget(n, 0) for n in graph["nodes"]
                  if n["type"] == "PrimitiveStringMultiline"}
-        assert m_psm.get(EDIT_PSM_B_ID) == B_SEG, \
-            f"主图[{EDIT_PSM_B_ID}] 应为原始用户词(官方换装例句,指令①层唯一手写位)"
+        assert m_psm.get(EDIT_PSM_B_ID) == EDIT_ZH_SEG, \
+            f"主图[{EDIT_PSM_B_ID}] 应为原始用户词(1003 道劫中文样例,指令①层唯一手写位)"
 
     def test_edit_pe_group_titled_with_ids(self):
         graph = GRAPHS["edit"]
@@ -3917,8 +3929,8 @@ class TestEditPEContract:
             f"[{EDIT_PSM_C_ID}] c 段应 assistant+<think> 预填(官方刻意设计,勿改 thinking=True)"
         m_psm = {n["id"]: _widget(n, 0) for n in graph["nodes"]
                  if n["type"] == "PrimitiveStringMultiline"}
-        assert m_psm.get(EDIT_PSM_B_ID) == B_SEG, \
-            f"主图[{EDIT_PSM_B_ID}] 应为原始用户词(官方换装例句,指令①层唯一手写位)"
+        assert m_psm.get(EDIT_PSM_B_ID) == EDIT_ZH_SEG, \
+            f"主图[{EDIT_PSM_B_ID}] 应为原始用户词(1003 道劫中文样例,指令①层唯一手写位)"
 
     def test_edit_pe_group_titled_with_ids(self):
         graph = GRAPHS["edit"]

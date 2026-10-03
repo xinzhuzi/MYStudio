@@ -428,3 +428,40 @@ class TestExtraModelPathsKeys:
         yaml_text = (home / "ComfyUI" / "extra_model_paths.yaml").read_text(encoding="utf-8")
         for key in expected:
             assert f"    {key}: {models_dir / key}/" in yaml_text
+
+
+class TestSeedInputSamples1003:
+    """1003 道劫样例种子通道(engine_manager.seed_engine_input_samples)。"""
+
+    def _mk(self, tmp_path):
+        src, dst = tmp_path / "s", tmp_path / "d"
+        src.mkdir(); dst.mkdir()
+        return src, dst
+
+    def test_copies_once_then_idempotent(self, tmp_path):
+        from engines.comfyui.engine_manager import seed_engine_input_samples
+        src, dst = self._mk(tmp_path)
+        (src / "a.png").write_bytes(b"hello")
+        assert seed_engine_input_samples(src, dst) == ["a.png"]
+        assert seed_engine_input_samples(src, dst) == []  # 同字节=跳过
+        assert (dst / "a.png").read_bytes() == b"hello"
+
+    def test_overwrites_on_size_change(self, tmp_path):
+        from engines.comfyui.engine_manager import seed_engine_input_samples
+        src, dst = self._mk(tmp_path)
+        (src / "a.png").write_bytes(b"v1")
+        seed_engine_input_samples(src, dst)
+        (src / "a.png").write_bytes(b"v2-longer")
+        assert seed_engine_input_samples(src, dst) == ["a.png"]  # 源升级=覆盖
+        assert (dst / "a.png").read_bytes() == b"v2-longer"
+
+    def test_missing_src_dir_is_quiet_noop(self, tmp_path):
+        from engines.comfyui.engine_manager import seed_engine_input_samples
+        assert seed_engine_input_samples(tmp_path / "nope", tmp_path / "d") == []
+
+    def test_repo_input_seed_dir_has_daojie_pair(self):
+        from pathlib import Path
+        from engines.comfyui.engine_manager import seed_engine_input_samples
+        src = Path(__file__).resolve().parents[1] / "input_seed"
+        names = {p.name for p in src.iterdir()} if src.is_dir() else set()
+        assert names == {"daojie-char-1003.png", "daojie-ref-1003.png"}, names

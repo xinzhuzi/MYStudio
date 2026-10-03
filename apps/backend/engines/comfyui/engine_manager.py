@@ -670,6 +670,29 @@ def _check_disk_space(required_gb: float = INSTALL_REQUIRED_GB) -> None:
         raise EngineOpError(f"磁盘空间不足:安装 ComfyUI 引擎至少需要 {required_gb:.0f} GB,当前仅剩 {free_gb:.1f} GB")
 
 
+
+def seed_engine_input_samples(src_dir: Path | None = None, dst_dir: Path | None = None) -> list[str]:
+    """随包样例图种子:input_seed/* → 引擎家 input(幂等,可测)。
+
+    1003 立(用户令「项目全是中国的」):官方模板样例图(外国人物)从不在仓库、
+    新装机本就缺失;edit 工作流默认槽位引用道劫域样例(daojie-char/ref-1003),
+    由本通道随包装机落位。存在且同字节数=已种跳过;不同=覆盖(源升级)。"""
+    src = src_dir if src_dir is not None else Path(__file__).resolve().parent / "input_seed"
+    dst = dst_dir if dst_dir is not None else cm.comfy_home() / "input"
+    seeded: list[str] = []
+    if not src.is_dir():
+        return seeded
+    dst.mkdir(parents=True, exist_ok=True)
+    for item in sorted(src.iterdir()):
+        if not item.is_file():
+            continue
+        target = dst / item.name
+        if target.exists() and target.stat().st_size == item.stat().st_size:
+            continue
+        shutil.copy2(item, target)
+        seeded.append(item.name)
+    return seeded
+
 def _write_extra_model_paths(models_dir: Path) -> None:
     """modelsDir → ComfyUI/extra_model_paths.yaml(指向现有模型库免重下)。
 
@@ -1138,6 +1161,8 @@ class EngineManager:
             sub.mkdir(parents=True, exist_ok=True)
         port = find_free_port()
         _write_extra_model_paths(cm.default_models_dir())
+        # 1003:道劫样例图随包种子(幂等;官方外国样例从不在仓,新装机本就缺)
+        seed_engine_input_samples()
         freeze = self.venv_freeze()
         torch_version = next((line.split("==")[1] for line in freeze if line.startswith("torch==")), None)
         try:
