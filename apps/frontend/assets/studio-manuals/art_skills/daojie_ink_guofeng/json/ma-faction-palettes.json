@@ -7,7 +7,6 @@
     "usage": "阵营气质×三轨五职责配色(12阵营)+黄金公式;parts=人工调色份数不进prompt;启用条件=Source facts明文阵营,『黑/夜/冷』不自动推断(魔道分支纪律)"
   },
   "version": "ma-faction-palette-v1",
-  "source_ref": "三轨选色配料.json (ma-gongbi-palette-v1) 42色库；阵营气质 canon：设定集/2.背景势力/README.md",
   "role_order": [
     "base",
     "ink",
@@ -687,5 +686,6 @@
       "份数只表示人工调色优先级，不写入 prompt 不换算百分比",
       "邪道阵营（魔族/鬼族/怪物）走暗色分支：可读冷灰底+浓墨，平光可读，禁满幅黑暗"
     ]
-  }
+  },
+  "source": "三轨选色配料.json (ma-gongbi-palette-v1) 42色库；阵营气质 canon：设定集/2.背景势力/README.md"
 }

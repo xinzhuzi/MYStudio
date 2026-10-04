@@ -14,6 +14,10 @@
 | `prompt_layering.json` | 分层契约完整版(手册版;layer_contract 为其内联精简版,二者由设计互锁) |
 | `ma-palette-source.json` | MA 色卡完整转制:42色库(含 medium_role/suitable/forbidden 用途提示)+24套三轨配料 schemes(乙案配料套切换数据地基;CC-BY-4.0);在用词以 color_lexicon 为准 |
 
+## 不收项边界(1004 穷尽核验轮,防再问漏没漏)
+
+MA `美术风格提炼/` 目录中**未收编**的部分及理由:md 方法论文档×6(选色决策实战卡/宋代审美提炼/装配规范/阵营md/中国式原始提示词208KB案例集/索引)——文档层按裁定住 docs/prompts 参考;`manifest.json`(290KB 上游素材溯源器,管的是 md 素材的来源哈希,不涉色卡数据);`licenses/`(整包许可文件,要点已在两 JSON 的 _meta 注记);`images/` 90+ 素材图。色卡机读资产=两个 toml 的全部内容,已 100% 转制(递归键 diff 零差)。
+
 ## 分发与同步
 
 - 引擎侧 `my_nodes/nodes/` 下四个同名 JSON = **同步产物**(引擎节点按同目录相对路径读,产物必须随 my_nodes 部署走)——由 `apps/build/scripts/daojie_prompt_source_sync.py` 从本家单向复制(四件),契约测试 `test_prompt_source_single_truth` 锁逐字节一致。**禁手改产物,改真源后跑同步脚本。**
