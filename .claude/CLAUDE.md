@@ -65,7 +65,7 @@
 | 诚实无知 | 不确定时寻求确认,不臆想业务 |
 | 复用优先 | 复用现有接口和组件,不创造新的 |
 | **高星参考铁律** | 相关的代码内容必须参考 GitHub 高星项目——别人已经做好的,就直接参考使用,而不是按自己的想法自己写代码 ,必须 多方对比 + 可行性路线分析 + 现有走通的例子|
-| **漫影工作流只读铁律(09-14 用户裁定)** | 漫影固定工作流(仓库静态自研+桥模板同库真源 `apps/backend/engines/comfyui/workflows/**`,旧 `image_engine/workflows/**` 独立目录已不存在;H3 单镜模板 `MY-h3-shot-template*.json` 实住 `apps/frontend/lib/assist/image-studio/`,为前端随包资产,不属工作流库命名铁律范围——豁免属灰区,候用户正式裁定)一律只读,AI 会话禁止改动本体;要改=复制副本后改副本;固定本体的源码/JSON 改造权**仅限用户本人**。详见 `docs/comfyui-kb/漫影工作流清单.md` 修改铁律条 |
+| **漫影工作流只读铁律(09-14 用户裁定)** | 漫影固定工作流(仓库静态自研+桥模板同库真源 `apps/backend/engines/comfyui/workflows/**`,旧 `image_engine/workflows/**` 独立目录已不存在;H3 单镜模板 `h3-shot-template*.json` 实住 `apps/frontend/lib/assist/image-studio/`,为前端随包资产,不属工作流库命名铁律范围——**1004 深夜用户裁定顺手去 MY- 前缀改名(原 `MY-h3-shot-template*.json`,ref2va 变体下划线同步连字符化),引用面已同步**)一律只读,AI 会话禁止改动本体;要改=复制副本后改副本;固定本体的源码/JSON 改造权**仅限用户本人**。详见 `docs/comfyui-kb/漫影工作流清单.md` 修改铁律条 |
 | 简洁回复 | ≤4 行(不含代码),不加前言后语 |
 | 代码引用 | 格式 `file_path:line_number` |
 

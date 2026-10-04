@@ -1,7 +1,7 @@
 // 09-14 晚间用户裁定(research/0914-late-rulings.md):超分不进工作流——
-// 单段直出模板(MY-h3-shot-template,31 节点,无 LatentUpscaler/LTXV,仅节点 9 首帧槽)
-import templateJson from "./MY-h3-shot-template.json";
-import templateRefJson from "./MY-h3-shot-template_ref2va.json";
+// 单段直出模板(h3-shot-template,31 节点,无 LatentUpscaler/LTXV,仅节点 9 首帧槽;1004 深夜用户裁定去 MY- 前缀改名)
+import templateJson from "./h3-shot-template.json";
+import templateRefJson from "./h3-shot-template-ref2va.json";
 import type { StoryboardItem } from "@/types/studio";
 import { buildShotH3Prompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, verifyPlannedTextVerbatim, type H3AudioPolicy } from "./h3-shot-prompt";
 
