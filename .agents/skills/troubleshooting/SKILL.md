@@ -5,9 +5,11 @@ globs:
   - "**/*.json"
 ---
 
-> **LOCAL NOTE (this machine)**: this engine listens on `http://127.0.0.1:17000` — NOT the 8188/8000
-> defaults mentioned below (those are upstream generic ComfyUI knowledge). Engine home, launch recipe
-> and the live model list live in `../comfyui/machine.md` (the authority for this install).
+> **LOCAL NOTE (this machine)**: this engine's port is NOT a fixed constant — read it live from the
+> install's `manifest.json` `engine.port` field (measured drifting 17000↔17001 on 0929-0930; never
+> hardcode it — `17000` below is only the example port). Also NOT the 8188/8000 defaults mentioned
+> below (those are upstream generic ComfyUI knowledge). Engine home, launch recipe and the live model
+> list live in `../comfyui/machine.md` (the authority for this install).
 
 # ComfyUI Troubleshooting Guide
 

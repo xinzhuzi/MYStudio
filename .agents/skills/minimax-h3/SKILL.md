@@ -3,6 +3,10 @@ name: minimax-h3
 description: Use when writing or debugging prompts for MiniMax H3 (Hailuo 3) video-with-audio generation, running the open weights locally in ComfyUI, choosing a quant or an acceleration LoRA for the VRAM you have, wiring reference-to-video with images, video or audio, or when a generated clip produces gibberish speech, drifts off a reference identity, garbles audio after a latent upscale, or refuses to run on a build that looks current.
 ---
 
+> **LOCAL NOTE (2026-10-04, this machine)**: 本地 ref2va 权重 2026-10-04 已删(恢复=外置盘拷回,台账
+> manifest-retired-1004.jsonl,详见 `../comfyui/machine.md`),Ref2VA 路径暂不可本地跑(官方本地 R2V 模板
+> 因此成缺模型死件);本文提示词知识对云端渠道/未来恢复权重仍有效。
+
 # MiniMax H3 (Hailuo 3)
 
 H3 generates **video and synchronised stereo audio jointly**, from text, images, reference video, reference

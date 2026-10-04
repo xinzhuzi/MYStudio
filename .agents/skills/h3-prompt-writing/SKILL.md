@@ -1,8 +1,11 @@
 ---
 name: h3-prompt-writing
-description: Write MiniMax H3 video generation prompts for T2VA, I2VA, FL2VA, L2VA, and Ref2VA, including fight and action choreography. Use when rewriting multimodal requests into H3 prompt structures, composing integrated_multimodal_description, overall_soundscape, and non_diegetic_music, aligning keyframes, or defining reference labels for images, videos, and audio. Also use when a hand-fed Chinese direct draft is needed for manual, non-API generation.
+description: Write MiniMax H3 video generation prompts for T2VA, I2VA, FL2VA, L2VA, and Ref2VA (local ref2va weights deleted 2026-10-04 — Ref2VA not runnable locally for now, see LOCAL NOTE below), including fight and action choreography. Use when rewriting multimodal requests into H3 prompt structures, composing integrated_multimodal_description, overall_soundscape, and non_diegetic_music, aligning keyframes, or defining reference labels for images, videos, and audio. Also use when a hand-fed Chinese direct draft is needed for manual, non-API generation.
 compatibility: Portable to any agent that can read local files — no external API calls, MiniMax Hub tools, or proprietary runtime required. The agents/openai.yaml file only adds optional ChatGPT/Codex UI metadata; it does not restrict the skill to OpenAI agents.
 ---
+
+> **LOCAL NOTE (2026-10-04, this machine)**: 本地 ref2va 权重 2026-10-04 已删(详见 `../comfyui/machine.md`),
+> Ref2VA 路径暂不可本地跑;本文提示词写法知识对云端渠道/未来恢复权重仍有效。
 
 # H3 Prompt Writing
 

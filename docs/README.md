@@ -51,6 +51,7 @@
 | [场景库多视角与四视图](./assets/SCENE_MULTIVIEW_GUIDE.md) | 场景单图、联合图、四视图、切割和批量四视图 |
 | [资产库音色分配](./assets/ASSET_AUDIO_ASSIGNMENT.md) | 从资产音频中给角色分配可克隆音色，并使用自动分配 |
 | [角色音色分配与自动匹配参考](./assets/ROLE_AUDIO_ASSIGNMENT_REFERENCE.md) | 手动音色弹窗字段、自动分配规则、AI 语义匹配、试听和批量识别失败提示 |
+| [资产层项目化裁定调研](./assets/ASSET_LAYER_PROJECTIZATION_DECISION_20260903.md) | 资产层是否项目化的三方案调研对比(09-03 历史快照,推荐 A 维持现状;拍板前严禁动数据) |
 
 ## 导演与高级镜头（director/）
 
@@ -113,6 +114,7 @@
 |---|---|
 | [开发者架构与代码入口](./engineering/DEVELOPER_ARCHITECTURE.md) | 当前目录结构、前端/Electron/后端/TTS/打包模块索引 |
 | [打包、安装与 Smoke 测试](./engineering/PACKAGING_AND_SMOKE_TESTING.md) | 本地验证、macOS 打包、覆盖安装和安装版 smoke 流程 |
+| [测试与验证入口总目录](./engineering/TESTING_ENTRYPOINTS.md) | 改动类型→必跑测试入口的指认路由(命令真源=apps/package.json 与编排脚本,本文不复制命令字面量) |
 | [常见故障排查](./engineering/TROUBLESHOOTING.md) | 白屏、Python、TTS、API、图床、存储和打包问题排查 |
 | [自媒体 / AiToEarn 集成边界](./engineering/self-media-aitoearn-integration.md) | 自媒体域的 provider 适配层、只读上游快照与升级守卫 |
 | [第三方声明](./engineering/THIRD_PARTY_NOTICES.md) | 第三方组件和许可证声明 |
@@ -166,6 +168,7 @@
 | [H3 漫剧产线生态调查 09-14](./research/H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md) | AI 视频方式全景、H3 技能/提示词生态、GitHub 高星漫剧管线、B 站四学派产线落实分析与漫影落点（含 License 红线表） |
 | [H3 生态吸收分析 09-14](./research/H3_ABSORPTION_ANALYSIS_2026-09-14.md) | 生态调查对照漫影代码实况后的吸收裁定建议：P0 四件（提示词接线/素材调度/组装器/桥视频选型）对齐分镜×H3 三件待开工，P1/P2 分级与不吸收清单 |
 | [产线五法吸收分析 09-28](./research/PIPELINE_METHODS_ABSORPTION_ANALYSIS_2026-09-28.md) | 外部影视产线课程包方法对照漫影现状整理的五项提案（四级时长链/台词容量预算/静图可动性预检/成稿剧本接管/跨层版本纪律）——全部提案待拍板，未动生产代码 |
+| [references.missing 编译阻断升格评估 09-29](./research/REFERENCES_MISSING_COMPILE_GATE_EVALUATION_2026-09-29.md) | 跨镜连续性规范 §七P6 落档评估:references.missing 不升编译阻断、维持审计报告项(只评估,零代码改动) |
 
 ## 本地引擎专题（local/）
 

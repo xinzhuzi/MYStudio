@@ -165,7 +165,7 @@ Do NOT write 10-line verses or 8-line choruses — Suno will rush them.
 
 ### Length Limits
 
-- **If draft exceeds 400 words (non-hip-hop) or 600 words (hip-hop)**: Cut it down before presenting.
+- **If draft exceeds 400 words (non-hip-hop) or 600 words (hip-hop)**: Advisory early-warning line — trim toward it before presenting; the hard gate lives in lyric-reviewer (Critical at 500 non-hip-hop / 700 hip-hop).
 - **If draft is under 200 words**: Flag as "likely too short for target duration (3:30–5:00)" — suggest adding sections.
 - Count words after drafting. If over target, remove a verse or trim sections — don't just shorten lines. If under target, add a verse, pre-chorus, or instrumental break.
 

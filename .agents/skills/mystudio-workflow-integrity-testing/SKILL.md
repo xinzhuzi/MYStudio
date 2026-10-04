@@ -5,7 +5,7 @@ description: Use when verifying MYStudio workflow completeness, step-by-step app
 
 # MYStudio Workflow Integrity Testing
 
-> ⚠️ **状态说明（2026-09-13）**：本技能主体描述的 React Flow 七节点画布（WorkflowNodeCanvas/WorkflowNodePreviews 等）已于 2026-09-01 退役删除，Toonflow parity 与预览契约断言不再对应现行 UI（画布已换 ComfyUI，宿主 `comfy-canvas/ComfyCanvasSwap.tsx`）。使用前先核实现状：仍有效的部分=workflow-node-model 数据层、`workflow-smoke-bridge.ts`、`smoke:workflow:*` npm 脚本与打包 smoke 链；已失效部分=任何以 `.react-flow` DOM / Toonflow parity / 预览组件为断言的契约（`smoke-desktop.mjs` 中相应断言待重写）。ComfyUI 画布知识见 `.claude/knowledge/node-graph-architecture.md` §13-15。
+> ⚠️ **状态说明（2026-09-13，2026-10-04 勘正）**：本技能主体描述的 React Flow 七节点画布（WorkflowNodeCanvas/WorkflowNodePreviews 等）已于 2026-09-01 退役删除，Toonflow parity 与预览契约断言不再对应现行 UI（画布已换 ComfyUI，宿主 `comfy-canvas/ComfyCanvasSwap.tsx`）。使用前先核实现状：仍有效的部分=workflow-node-model 数据层（`workflow-node-model.ts` + `.test.ts`，均已核在仓）、`workflow-smoke-bridge.ts` + 同目录测试、`smoke:workflow:*` npm 脚本与打包 smoke 链（均已核在 `apps/package.json`）；已失效部分=任何以 `.react-flow` DOM / Toonflow parity / 预览组件为断言的契约（`smoke-desktop.mjs` 中相应断言待重写）。**2026-10-04 fd 核验：预览契约测试件已删/移位（`workflow-node-previews.test.tsx` 全仓无此文件；`workflow-tabs.test.ts` 已移位 `workflow-stage/`、现为阶段逻辑测试），本文已清除指挥核查上述已删件的段落（原 Integrity Checklist 第2条、原 Step 3/Step 7、原 Visual Inspection 节、Required Commands 中相应测试参数）。** ComfyUI 画布知识见 `.claude/knowledge/node-graph-architecture.md` §13-15。
 
 Use this skill to prove the workflow is complete with fresh evidence, not impressions. Scope includes the Studio workflow graph, workflow data, preview rendering, asset links, storage boundaries, and packaged app smoke tests.
 
@@ -58,24 +58,16 @@ Verify the workflow in layers:
    - Expected node ids: `script`, `scriptPlan`, `assets`, `storyboardTable`, `storyboard`, `remotionProduction`, `workbench`.
    - Expected edges: `script -> scriptPlan`, `script -> assets`, `scriptPlan -> storyboardTable`, `storyboardTable -> storyboard`, `storyboard -> remotionProduction`, `remotionProduction -> workbench`.
 
-2. **Preview contract**
-   - Check `WorkflowNodePreviews.tsx`, `WorkflowProductionNode.tsx`, and `WorkflowNodeCanvas.tsx`.
-   - `script` and `scriptPlan` must render markdown via `MdPreview`.
-   - `assets` must show Toonflow-style source/derived cards, parent asset ids, flow ids, states, prompts/reasons, and real image previews when linked.
-   - Clicking a derived asset card must open the asset image workflow detail with the parent image as the reference node, the derived result as the generated node, and the existing flow id reused when present.
-   - `storyboard` must show generated image tiles when `mediaRef.path` exists.
-   - `remotionProduction` must show the current chapter's StoryboardShot queue, per-shot state, current MP4/evidence readiness, and fail-closed blockers.
-   - `workbench` must show the native Remotion Studio boundary, ChapterVideo renderer/evidence state, and project-scoped chapter output. Legacy track/candidate fields are compatibility metadata, not the current production path.
-
-3. **Smoke bridge seed**
+2. **Smoke bridge seed**
    - Check `apps/frontend/lib/studio/workflow-smoke-bridge.ts`.
    - Seed data should include script, director plan, derived asset plan, character/scene/prop media, storyboard image, voice binding, and isolated project-scoped editing evidence. Legacy track/candidate fields may remain in the seed for projection compatibility, but they must not be used as proof of Remotion production; the model contract must still expose the `remotionProduction` node.
    - Smoke seed must use isolated smoke user data and project-scoped stores.
 
-4. **Packaged smoke assertions**
-   - Check `apps/build/smoke/smoke-desktop.mjs`.
-   - It should assert route health, workflow stages, React Flow canvas, node FlowData text, `hasDirectorPlanPreview`, `hasToonflowDerivativeLinks`, `hasStoryboardImagePreview`, voice flow, Python settings, and visual stats.
+3. **Packaged smoke assertions**
+   - Check `apps/build/smoke/smoke-desktop.mjs`; the live assertion surface is whatever the script currently asserts — the retired `.react-flow` / Toonflow parity / preview-component assertions named in the status note above are pending rewrite and must not be treated as verification items.
    - Screenshot timeout is acceptable only if the script exits `0` and DOM visual fallback reports a low `whiteRatio`.
+
+(2026-10-04: the former "Preview contract" layer was removed — `WorkflowNodePreviews.tsx` / `WorkflowProductionNode.tsx` / `WorkflowNodeCanvas.tsx` no longer exist on disk; see the status note.)
 
 ## Step-by-Step Review And Test Flow
 
@@ -89,15 +81,11 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - Review node ids, edges, metrics, target stages, the `enqueue-remotion-shots` action, and storage/project assumptions in `workflow-node-model.ts`.
    - Test: `npm test -- frontend/components/panels/studio/workflow-node-model.test.ts`.
 
-3. **Step 3 - Preview contract test**
-   - Review markdown previews, derived asset cards, storyboard images, the Remotion shot-production preview, native Studio workbench lanes, and theme-aware canvas controls.
-   - Test: `npm test -- frontend/components/panels/studio/workflow-node-previews.test.tsx frontend/components/panels/studio/workflow-tabs.test.ts`.
-
-4. **Step 4 - Smoke bridge seed test**
+3. **Step 3 - Smoke bridge seed test**
    - Review `workflow-smoke-bridge.ts` for director plan, derived assets, image refs, voice binding, isolated project-scoped editing evidence, and the explicit boundary that seeded track/candidate fields are compatibility-only rather than Remotion production evidence.
    - Test: `npm test -- frontend/lib/studio/workflow-smoke-bridge.test.ts`.
 
-5. **Step 5 - Step-by-step app execution smoke**
+4. **Step 4 - Step-by-step app execution smoke**
    - Review `apps/build/smoke/smoke-desktop.mjs` for `verifyWorkflowStepByStepExecution`.
    - Confirm the smoke entry closes existing MYStudio instances before launching the packaged app.
    - It must use `resetForStepwiseExecution`, `runStepwiseWorkflowStage`, `inspectWorkflowStages`, and wait for each stage to become ready.
@@ -115,14 +103,12 @@ Review evidence before running the matching test. Do not collapse the checklist 
    - Default real-project automatic-video runner: `npm run smoke:workflow:background:project -- --auto-video`. `MYSTUDIO_WORKFLOW_AUTO_VIDEO=1 npm run smoke:workflow:background:project` enables the same path; set `MYSTUDIO_AUTO_VIDEO_TIMEOUT_MS` to a positive millisecond value when the default `600000` is insufficient.
    - AC6 passes only when `chapterAutoVideo.terminalStage` is `completed`, the run did not time out, and `chapterAutoVideo.finalPath` in `apps/output/automation/background-workflow-project-report.json` ends in `.mp4` and exists on disk. A failed, timed-out, foreground-violating, or missing-MP4 auto-video run must not count toward AC6.
 
-6. **Step 6 - Build and packaged smoke test**
+5. **Step 5 - Build and packaged smoke test**
    - Review `apps/build/smoke/smoke-desktop.mjs` for route, stage, node preview, storage, visual, and voice assertions.
    - Confirm stale MYStudio process cleanup runs before the tested app is spawned.
    - Test: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build:mac`, then `npm run smoke:desktop`.
 
-7. **Step 7 - Visual inspection**
-   - Open the packaged app with an isolated `mystudio-smoke-*` user data dir, seed `window.mystudioWorkflowSmoke.seedCompleteWorkflow()`, switch to `storyboard`, and capture `/tmp` evidence.
-   - Confirm all seven nodes, including the Remotion shot-production queue, markdown director plan, derived asset image/link cards, storyboard image, native Studio/ChapterVideo state, no default white React Flow controls, and themed viewport controls.
+(2026-10-04: the former "Step 6 - Visual inspection" and "Step 7" walkthroughs were removed with the React Flow canvas — seeding `seedCompleteWorkflow()` and confirming seven nodes / React Flow controls no longer corresponds to any current UI; see the status note.)
 
 ## Required Commands
 
@@ -130,7 +116,7 @@ For workflow UI, storage, smoke, or Electron-facing changes, run:
 
 ```bash
 cd apps
-npm test -- frontend/config/build-scripts.test.ts frontend/components/panels/studio/workflow-node-model.test.ts frontend/components/panels/studio/workflow-node-previews.test.tsx
+npm test -- frontend/config/build-scripts.test.ts frontend/components/panels/studio/workflow-node-model.test.ts
 npm run typecheck
 npm run lint
 npm test
@@ -168,16 +154,7 @@ The `probe-providers` variant only reads hidden app image configuration and call
 
 ## Visual Inspection
 
-Packaged smoke is the main automated gate. If the user asks whether the graph was personally inspected, also open the packaged app with an isolated smoke user data dir, seed the workflow through `window.mystudioWorkflowSmoke.seedCompleteWorkflow()`, switch to the `storyboard` stage, and capture a screenshot under `/tmp`.
-
-The screenshot/DOM summary should confirm:
-
-- React Flow canvas exists.
-- All seven nodes are visible, including `remotionProduction`.
-- `scriptPlan` has markdown preview content.
-- `assets` has parent and derived cards with image elements.
-- `storyboard` has image preview elements.
-- `remotionProduction` shows StoryboardShot state/current MP4 evidence when seeded; `workbench` shows native Studio/ChapterVideo state.
+Retired with the React Flow canvas (2026-10-04): the old "seed `seedCompleteWorkflow()`, switch to `storyboard`, confirm seven nodes on the React Flow canvas" walkthrough no longer corresponds to any current UI — the canvas is ComfyUI now (see the status note). For human inspection of the packaged app, use `npm run smoke:workflow:open` (starts the packaged app with isolated smoke data and leaves it open) and inspect the current ComfyUI canvas.
 
 ## Failure Triage
 
