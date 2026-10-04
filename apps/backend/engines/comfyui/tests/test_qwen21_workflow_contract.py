@@ -516,15 +516,15 @@ I2I_NODE_TYPE_WHITELIST = {
 PRO_CHAR_TYPES = ("人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
 # ④配色行映射(库 §一映射表)
 PRO_COLOR_MAP = {
-    "人物": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-    "场景": "场景多彩=淡墨+青灰+青绿+赭石+旧金(大面积稳定基底+多色相铺陈各安其位)",
-    "道具": "道具多彩=淡墨+旧金+玉青+赭石+朱红(大面积稳定基底+中等强度器物色+少量高识别强调色)",
-    "美宣": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-    "多视图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-    "高清人脸": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-    "分镜剧情图": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-    "表情差分": "人物多彩=淡墨+石青+青绿+赭石+旧金+朱红(大面积稳定基底+中等强度人物色+少量高识别强调色)",
-    "概念气氛图": "场景多彩=淡墨+青灰+青绿+赭石+旧金(大面积稳定基底+多色相铺陈各安其位)",
+    "人物": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
+    "场景": "场景设色配比：大面积淡墨、青灰为稳定基底，青绿、赭石、旧金多色相铺陈各安其位。",
+    "道具": "道具设色配比：大面积淡墨为稳定基底，旧金、玉青、赭石为中等强度器物色，朱红为少量高识别强调色。",
+    "美宣": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
+    "多视图": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
+    "高清人脸": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
+    "分镜剧情图": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
+    "表情差分": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
+    "概念气氛图": "概念气氛设色配比：大面积淡墨、青灰为稳定基底，青绿、赭石、淡朱二到三色相作焦点色。",
 }
 # 宿主面板 widget 型子图输入(0928 PE 迁子图轮:五 widget——新增 PE开关(默认 true,
 # 照「型选择」combo 暴露机制)/画幅联动开关(默认 false,原主画布 [180] 总闸退役))
@@ -3071,7 +3071,7 @@ class TestQi21SubgraphContract:
         for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
             assert bad not in renwu.split("\n")[0], f"人物②层残留物象词 {bad}(纯画法零物象骨)"
         # 1004 数据实况:多彩配色行在文内(拆分后行序=…多彩行+衣物完整性截短句收尾)
-        assert any(ln.startswith("人物多彩") for ln in renwu.split("\n")), \
+        assert any(ln.startswith("人物设色配比") for ln in renwu.split("\n")), \
             "人物 positive_text 应含④配色行(人物多彩…)"
         assert renwu.split("\n")[-1].startswith("衣物完整性"), \
             "人物 positive_text 末行应=衣物完整性截短句(1004 正负拆开数据形状)"
@@ -4596,3 +4596,22 @@ class TestSanlianContract:
         assert "definitions" not in SANLIAN_GRAPH or \
             not SANLIAN_GRAPH["definitions"].get("subgraphs"), "本件无子图(扁平预设)"
 
+
+
+def test_prompt_source_single_truth():
+    """1004 集中化轮:道劫提示词唯一真源家(json/)×引擎产物(产物漂移即红)。
+
+    真源=daojie_ink_guofeng/json/qi21_bases.json(人只改这份);
+    产物=my_nodes/nodes/qi21_bases.json(引擎同目录相对读,随部署走),
+    由 apps/build/scripts/daojie_prompt_source_sync.py 单向复制。
+    """
+    import hashlib
+    src = _REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
+    dst = QI21_BASES_JSON
+    assert src.is_file(), f"真源家缺 qi21_bases.json: {src}"
+    h_src = hashlib.sha256(src.read_bytes()).hexdigest()
+    h_dst = hashlib.sha256(dst.read_bytes()).hexdigest()
+    assert h_src == h_dst, (
+        "道劫提示词真源×引擎产物漂移: 改真源(json/)后须跑 "
+        "python3 apps/build/scripts/daojie_prompt_source_sync.py 同步;禁手改产物侧"
+    )
