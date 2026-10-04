@@ -10,8 +10,9 @@
 | `qi21_strip_lexicon.json` | Q2.1 清筛正则表(pattern;与 qi21_bases 内嵌 strip_lexicon 词表并存,非重复) |
 | `daojie_lora_stack.json` | K2 LoRA 栈序(14条) |
 | `daojie_loras.json` | K2 LoRA 台账(9条) |
+| `ma-faction-palettes.json` | MA 阵营配色(12阵营×三轨五职责+份数)与黄金公式(CC-BY-4.0);色ID引用 ma-palette-source |
 | `prompt_layering.json` | 分层契约完整版(手册版;layer_contract 为其内联精简版,二者由设计互锁) |
-| `ma-palette-source.json` | MA 42 色备选库摘录(toml→json 转制;CC-BY-4.0);在用词以 color_lexicon 为准 |
+| `ma-palette-source.json` | MA 色卡完整转制:42色库(含 medium_role/suitable/forbidden 用途提示)+24套三轨配料 schemes(乙案配料套切换数据地基;CC-BY-4.0);在用词以 color_lexicon 为准 |
 
 ## 分发与同步
 

@@ -1,10 +1,11 @@
 {
   "_meta": {
-    "what": "MA 42色备选库摘录(toml→json 转制,10-04 用户令:家内格式统一 JSON)",
+    "what": "MA 42色库+24套三轨配料完整转制(toml→json,10-04 用户令:家内格式统一 JSON;补schemes段)",
     "source": "MA ma-imagegen 三轨选色配料.toml (ma-gongbi-palette-v1)",
     "license": "CC-BY-4.0(见原项目 美术风格提炼/licenses/)",
     "excerpted": "2026-10-04",
-    "usage": "color_lexicon 词典的映射判据与备选色库;在用词以 qi21_bases.json#color_lexicon 为准"
+    "usage": "color_lexicon 词典的映射判据与备选色库;在用词以 qi21_bases.json#color_lexicon 为准",
+    "schemes_note": "三轨×8套=24套({'person': 8, 'scene': 8, 'prop': 8});乙案「配料套切换」的数据地基;roles按role_order五职责,parts=人工份数不进prompt"
   },
   "version": null,
   "role_order": null,
@@ -490,6 +491,512 @@
       "medium_role": "木构与树皮本色",
       "suitable": "梁柱、树干、木盒、竹器",
       "forbidden": "不用深褐覆盖木纹结构"
+    }
+  ],
+  "schemes": [
+    {
+      "scheme_id": "person.01",
+      "track": "person",
+      "name": "青黛行旅",
+      "roles": {
+        "base": "paper.01",
+        "ink": "paper.05",
+        "primary": "blue.04",
+        "secondary": "blue.02",
+        "accent": "metal.01"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 2,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "文士、行旅、克制守卫",
+      "forbidden": "不给全员套用；旧金只作衣缘小纹"
+    },
+    {
+      "scheme_id": "person.02",
+      "track": "person",
+      "name": "朱砂法脉",
+      "roles": {
+        "base": "paper.02",
+        "ink": "paper.05",
+        "primary": "red.02",
+        "secondary": "red.04",
+        "accent": "metal.02"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "仪式、符箓、战斗焦点",
+      "forbidden": "禁全身红光、黑红污脏"
+    },
+    {
+      "scheme_id": "person.03",
+      "track": "person",
+      "name": "青玉医修",
+      "roles": {
+        "base": "paper.03",
+        "ink": "paper.04",
+        "primary": "jade.02",
+        "secondary": "green.03",
+        "accent": "red.03"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "医修、雅士、平民精制服",
+      "forbidden": "禁塑料薄荷绿、现代粉妆"
+    },
+    {
+      "scheme_id": "person.04",
+      "track": "person",
+      "name": "玄甲边军",
+      "roles": {
+        "base": "paper.02",
+        "ink": "paper.05",
+        "primary": "metal.04",
+        "secondary": "red.05",
+        "accent": "red.01"
+      },
+      "parts": {
+        "base": 3,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "设定明确的甲士与边军",
+      "forbidden": "甲缘必须可读；不得默认所有军士黑甲"
+    },
+    {
+      "scheme_id": "person.05",
+      "track": "person",
+      "name": "烟紫礼序",
+      "roles": {
+        "base": "purple.03",
+        "ink": "paper.04",
+        "primary": "purple.01",
+        "secondary": "purple.02",
+        "accent": "purple.04"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "礼服、内廷文职、暮色仪典",
+      "forbidden": "禁高饱和紫光、宫斗滤镜；身份色冲突时以 Source facts 为准"
+    },
+    {
+      "scheme_id": "person.06",
+      "track": "person",
+      "name": "苍黄山居",
+      "roles": {
+        "base": "yellow.03",
+        "ink": "blue.04",
+        "primary": "yellow.01",
+        "secondary": "yellow.04",
+        "accent": "yellow.02"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "山居、竹舍、旅人冬衣",
+      "forbidden": "禁病黄旧纸感；藤黄只作小面积纹样"
+    },
+    {
+      "scheme_id": "person.07",
+      "track": "person",
+      "name": "水雾游侠",
+      "roles": {
+        "base": "bluegray.03",
+        "ink": "bluegray.04",
+        "primary": "bluegray.01",
+        "secondary": "bluegray.02",
+        "accent": "red.01"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "雨雪行旅、冷水岸边的轻甲或蓑衣",
+      "forbidden": "禁赛博蓝光；深色接缝须与墨线分开"
+    },
+    {
+      "scheme_id": "person.08",
+      "track": "person",
+      "name": "苔褐守林",
+      "roles": {
+        "base": "paper.01",
+        "ink": "red.05",
+        "primary": "flora.02",
+        "secondary": "flora.04",
+        "accent": "flora.03"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "守林、药圃、湿地劳作与麻布衣物",
+      "forbidden": "禁嫩草荧光绿；不可覆盖既有势力或境界色"
+    },
+    {
+      "scheme_id": "scene.01",
+      "track": "scene",
+      "name": "青绿山门",
+      "roles": {
+        "base": "paper.01",
+        "ink": "paper.04",
+        "primary": "green.01",
+        "secondary": "blue.02",
+        "accent": "red.04"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "山门、道路、层叠山水",
+      "forbidden": "禁无关人物、书案、空白卷轴"
+    },
+    {
+      "scheme_id": "scene.02",
+      "track": "scene",
+      "name": "靛青夜渡",
+      "roles": {
+        "base": "paper.03",
+        "ink": "paper.05",
+        "primary": "blue.01",
+        "secondary": "blue.03",
+        "accent": "metal.01"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "夜水、静谧遗迹、月下渡口",
+      "forbidden": "禁单一灰蓝和电影黑夜"
+    },
+    {
+      "scheme_id": "scene.03",
+      "track": "scene",
+      "name": "赭石旧城",
+      "roles": {
+        "base": "paper.02",
+        "ink": "paper.04",
+        "primary": "red.04",
+        "secondary": "red.05",
+        "accent": "red.01"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "土城、木构、城墙、街巷",
+      "forbidden": "禁煤烟暗滤镜和满画血红"
+    },
+    {
+      "scheme_id": "scene.04",
+      "track": "scene",
+      "name": "铜绿工坊",
+      "roles": {
+        "base": "paper.03",
+        "ink": "paper.05",
+        "primary": "metal.03",
+        "secondary": "green.04",
+        "accent": "metal.02"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 3,
+        "primary": 4,
+        "secondary": 4,
+        "accent": 1
+      },
+      "suitable": "明确的工艺坊、遗构、机关遗迹",
+      "forbidden": "禁赛博管线、蒸汽朋克齿轮堆叠"
+    },
+    {
+      "scheme_id": "scene.05",
+      "track": "scene",
+      "name": "烟紫花坞",
+      "roles": {
+        "base": "purple.03",
+        "ink": "paper.04",
+        "primary": "purple.01",
+        "secondary": "flora.02",
+        "accent": "red.01"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 3,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "暮色花坞、庭院花木、礼序园林",
+      "forbidden": "禁现代紫粉滤镜；朱红须有花木、门扇或印记事实"
+    },
+    {
+      "scheme_id": "scene.06",
+      "track": "scene",
+      "name": "苍黄秋原",
+      "roles": {
+        "base": "yellow.03",
+        "ink": "paper.04",
+        "primary": "yellow.01",
+        "secondary": "flora.03",
+        "accent": "yellow.04"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 3,
+        "accent": 2
+      },
+      "suitable": "秋原、旱地、旧驿道、土坡",
+      "forbidden": "禁满幅病黄；焦茶只落在土木结构"
+    },
+    {
+      "scheme_id": "scene.07",
+      "track": "scene",
+      "name": "水墨雪关",
+      "roles": {
+        "base": "bluegray.03",
+        "ink": "bluegray.04",
+        "primary": "bluegray.01",
+        "secondary": "bluegray.02",
+        "accent": "metal.01"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 5,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "雪关、雨城、冷水峡口、冰面远景",
+      "forbidden": "禁电影黑夜、赛博蓝光；旧金须有灯火或金属事实"
+    },
+    {
+      "scheme_id": "scene.08",
+      "track": "scene",
+      "name": "苔褐湿地",
+      "roles": {
+        "base": "paper.03",
+        "ink": "paper.04",
+        "primary": "flora.02",
+        "secondary": "flora.01",
+        "accent": "flora.04"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "湿地、苔石、药圃、林下庭院",
+      "forbidden": "禁嫩草荧光绿与脏褐满铺；木褐只服务木构或树干"
+    },
+    {
+      "scheme_id": "prop.01",
+      "track": "prop",
+      "name": "青玉玉简",
+      "roles": {
+        "base": "paper.01",
+        "ink": "paper.05",
+        "primary": "jade.02",
+        "secondary": "jade.01",
+        "accent": "metal.01"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "玉简、印、佩饰",
+      "forbidden": "禁塑料高光和默认金框"
+    },
+    {
+      "scheme_id": "prop.02",
+      "track": "prop",
+      "name": "朱砂符印",
+      "roles": {
+        "base": "paper.02",
+        "ink": "paper.05",
+        "primary": "red.02",
+        "secondary": "red.04",
+        "accent": "metal.02"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "印章、符箓、仪式器",
+      "forbidden": "禁生成不可读长文和通用红特效"
+    },
+    {
+      "scheme_id": "prop.03",
+      "track": "prop",
+      "name": "旧铜法器",
+      "roles": {
+        "base": "paper.03",
+        "ink": "paper.05",
+        "primary": "metal.03",
+        "secondary": "green.04",
+        "accent": "red.01"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "明确的青铜与氧化法器",
+      "forbidden": "禁科幻抛光金属和全金滤镜"
+    },
+    {
+      "scheme_id": "prop.04",
+      "track": "prop",
+      "name": "铁灰兵器",
+      "roles": {
+        "base": "paper.01",
+        "ink": "paper.05",
+        "primary": "metal.04",
+        "secondary": "red.05",
+        "accent": "metal.01"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "刀剑、构件、工具",
+      "forbidden": "禁西幻夸张剪影；旧金只作真实镶嵌"
+    },
+    {
+      "scheme_id": "prop.05",
+      "track": "prop",
+      "name": "碧玉灵材",
+      "roles": {
+        "base": "bluegray.03",
+        "ink": "paper.04",
+        "primary": "jade.03",
+        "secondary": "flora.02",
+        "accent": "purple.04"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "碧玉、灵材、药玉、玉石嵌件",
+      "forbidden": "必须有玉或灵材事实；禁塑料绿与默认金框"
+    },
+    {
+      "scheme_id": "prop.06",
+      "track": "prop",
+      "name": "墨玉印玺",
+      "roles": {
+        "base": "paper.01",
+        "ink": "paper.05",
+        "primary": "jade.04",
+        "secondary": "purple.04",
+        "accent": "red.01"
+      },
+      "parts": {
+        "base": 4,
+        "ink": 3,
+        "primary": 5,
+        "secondary": 2,
+        "accent": 1
+      },
+      "suitable": "墨玉印玺、柄端、暗玉镶嵌",
+      "forbidden": "墨玉必须与浓墨线留明度差；禁死黑无结构"
+    },
+    {
+      "scheme_id": "prop.07",
+      "track": "prop",
+      "name": "藤黄竹器",
+      "roles": {
+        "base": "yellow.03",
+        "ink": "yellow.04",
+        "primary": "yellow.02",
+        "secondary": "flora.04",
+        "accent": "flora.02"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "竹器、茶具、竹篾、木竹机关",
+      "forbidden": "藤黄只表现竹篾或功能标记；禁亮黄广告色"
+    },
+    {
+      "scheme_id": "prop.08",
+      "track": "prop",
+      "name": "烟紫银饰",
+      "roles": {
+        "base": "purple.03",
+        "ink": "paper.04",
+        "primary": "purple.01",
+        "secondary": "purple.04",
+        "accent": "jade.03"
+      },
+      "parts": {
+        "base": 5,
+        "ink": 2,
+        "primary": 4,
+        "secondary": 3,
+        "accent": 1
+      },
+      "suitable": "银饰、织物扣件、礼序佩饰",
+      "forbidden": "需有银或织物事实；禁紫色全身发光"
     }
   ]
 }
