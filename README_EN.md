@@ -56,7 +56,7 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 - The `Local Models` page (formerly `Assist`) is a fullscreen ComfyUI workspace hosting the managed engine's full frontend: a ComfyUI canvas for local production pipelines (K2 image, H3 video, music), a TTS voice booth, and a quick image-generation form (pick a checkpoint + prompt).
 - Local models are managed centrally from `Settings -> Local Configuration -> ComfyUI Engine` (the Models tab is a live view of `comfyui/models`).
 - The engine home (ComfyUI source, venv, models, workflow library) lives under the user-data directory and is installed/updated on demand — never bundled with the installer.
-- The app ships a self-developed `manying_nodes` custom node package (prompt / reference / generated / shot / stage / cloud-image nodes), synced into the engine at runtime; ComfyUI itself is never patched — all customization goes through official extension points.
+- The app ships a self-developed `my_nodes` custom node package (prompt / reference / generated / shot / stage / cloud-image nodes), synced into the engine at runtime; ComfyUI itself is never patched — all customization goes through official extension points.
 - Generated results flow into the media asset panel (imported = input, generated = output) and the media library.
 
 ### Asset Library
@@ -66,7 +66,7 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 - Built-in and custom art styles are available from the asset page.
 
 ### Local TTS And Voice
-- Python 3.12 and TTS dependencies are configured manually from `Settings -> Python Configuration`.
+- Python 3.12 and TTS dependencies are configured manually from `Settings -> Local Configuration（本地配置）`.
 - The app does not download Python or start the local TTS backend during startup.
 - Local TTS is exposed as the built-in `manying-local-tts` provider.
 - The default TTS feature binding is `qwen-tts-1.7B`.
@@ -81,8 +81,8 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 
 ### Requirements
 
-- **Node.js** >= 18 (CI and packaging use Node 22)
-- **npm** >= 9
+- **Node.js** >= 22.12.0 (Electron 44 hard requirement; CI uses Node 22)
+- **pnpm** >= 10 (enabled via corepack; aligned with CI and the `apps/patches` remotion patches)
 - Cloud AI mode (image/video/LLM via cloud APIs + local Remotion rendering) runs on any common desktop configuration.
 - Local AI mode requires a local GPU: Apple Silicon on macOS (MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only; Music3 bf16 requires 48 GB+ unified memory), or an NVIDIA CUDA GPU on Windows for local TTS. The managed ComfyUI engine and local models are downloaded on demand — image-generation weights can reach tens of GB.
 
@@ -93,7 +93,7 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 git clone https://github.com/xinzhuzi/MYStudio.git
 cd MYStudio
 
-# Install dependencies and desktop setup helpers
+# Install Node.js dependencies (corepack pnpm, aligned with CI) and setup helpers
 bash apps/build/packaging/setup.sh
 
 # Start development mode
@@ -101,7 +101,7 @@ cd apps
 npm run dev
 ```
 
-**ComfyUI engine in development**: the engine home resolves as `MYSTUDIO_COMFYUI_HOME` env override → app user-data directory (`…/漫影工作室/comfyui`) → dev-only fallback `~/.manying-dev`. The self-developed `manying_nodes` package is synced from `apps/backend/engines/comfyui/manying_nodes/` into the engine home on every engine start — restart the engine to pick up changes; installed apps require repackaging (engine spawn overwrites the home from `Resources`).
+**ComfyUI engine in development**: the engine home resolves as `MYSTUDIO_COMFYUI_HOME` env override → app user-data directory (`…/漫影工作室/comfyui`) → dev-only fallback `~/.manying-dev`. The self-developed `my_nodes` package is synced from `apps/backend/engines/comfyui/my_nodes/` into the engine home on every engine start — restart the engine to pick up changes; installed apps require repackaging (engine spawn overwrites the home from `Resources`).
 
 ### Configure API Key
 
@@ -134,7 +134,7 @@ PYTHONPATH=backend python3 -m pytest backend/engines/comfyui/tests    # ComfyUI 
 cd apps && npm run build:mac
 # Windows
 cd apps && npm run build:win
-# Linux
+# Linux (electron-builder has no Linux target configured yet)
 cd apps && npm run build:linux
 ```
 
@@ -145,19 +145,19 @@ changing the Remotion version or composition, run `cd apps && npm run remotion:b
 `cd apps && npm run remotion:versions` before the target packaging command. See [packaging,
 installation, and smoke testing](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md).
 
-**CI automation** (`.github/workflows/build.yml`): pushes and PRs automatically run `npm ci`, typecheck, lint, Vitest, and `electron-vite build`; pushing a `vX.Y.Z` tag triggers full macOS ARM64 + Windows x64 packaging and attaches the artifacts (dmg / zip / setup.exe) to a GitHub Release.
+**CI automation** (`.github/workflows/build.yml`): pushes and PRs automatically run `corepack pnpm install --frozen-lockfile`, `npm run test:all` (typecheck + lint + Vitest + smoke), and `electron-vite build`; pushing a `vX.Y.Z` tag triggers full macOS ARM64 + Windows x64 packaging and attaches the artifacts (dmg / zip / setup.exe) to a GitHub Release.
 
 ## Architecture
 
 | Layer | Technology |
 |-------|-----------|
-| Desktop Framework | Electron 43 |
-| Frontend | React 18 + TypeScript |
-| Build Tool | electron-vite (Vite 5) |
+| Desktop Framework | Electron 44 |
+| Frontend | React 19 + TypeScript |
+| Build Tool | electron-vite (Vite 8) |
 | State Management | Zustand 5 |
 | UI Components | Radix UI + Tailwind CSS 4 |
 | AI Core | `apps/frontend/lib/ai/core/` (prompt compilation, character bible, task polling) |
-| Local Generation | Managed ComfyUI engine + self-developed `manying_nodes` custom nodes (`apps/backend/engines/comfyui`) |
+| Local Generation | Managed ComfyUI engine + self-developed `my_nodes` custom nodes (`apps/backend/engines/comfyui`) |
 
 ### Project Structure
 

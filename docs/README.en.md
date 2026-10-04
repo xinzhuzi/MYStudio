@@ -12,7 +12,7 @@ From novel to final cut — scripts, storyboards, assets, voice-over, and editin
   <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" />
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey.svg" alt="Platform" />
   <img src="https://img.shields.io/badge/Electron-React%20%2B%20TypeScript-47848F.svg" alt="Electron" />
-  <img src="https://img.shields.io/badge/AI-MLX%20%7C%20ComfyUI%20%7C%20Qwen%20%7C%20SenseVoice-ff6f00.svg" alt="AI" />
+  <img src="https://img.shields.io/badge/AI-MLX%20%7C%20ComfyUI%20%7C%20Qwen%20%7C%20MiniMax%20H3-ff6f00.svg" alt="AI" />
 </p>
 
 [简体中文](../README.md) · [文档中心](./README.md) · [Commercial License](../COMMERCIAL_LICENSE.md)

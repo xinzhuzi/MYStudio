@@ -53,7 +53,7 @@
 - 桌面端应用：基于 Electron 运行，适合管理本地素材、调用本机能力和输出文件。
 - 前端工作台：使用 React 和 TypeScript 构建交互界面。
 - 状态管理：使用 Zustand 管理项目工作流、素材、分镜、候选和配置状态。
-- 本地生成底座：自管 ComfyUI 引擎（安装/更新/端口/插件策展全托管，引擎家驻用户数据目录）+ 自研 `manying_nodes` 节点包，前端以 webview 嵌入引擎完整前端。
+- 本地生成底座：自管 ComfyUI 引擎（安装/更新/端口/插件策展全托管，引擎家驻用户数据目录）+ 自研 `my_nodes` 节点包，前端以 webview 嵌入引擎完整前端。
 - 文件型存储：面向个人创作项目，减少数据库部署和后端维护成本。
 - 视频渲染：Remotion `renderMedia` 渲染每镜分镜视频与章节成片；FFmpeg/ffprobe 作为共享工具链用于素材预备与只读 QC 校验，不承担正式合成。
 
@@ -104,8 +104,8 @@
 
 - **引擎托管**：`设置 → 本地配置 → ComfyUI 引擎` 一站管理——引擎安装/启动/更新、端口（17xxx 动态分配）、插件台账（已装 / 可装 / 可更新）与存储目录；引擎本体与模型按需下载，不随安装包分发。
 - **模型统一家**：全部本地模型住在 `comfyui/models/`，「模型」页签即活清单（按图片 / 视频 / 声音域分组），与 TTS、音效、视觉审核等本地能力共用一套权重。
-- **自研节点包**：`manying_nodes`（漫影提示词 / 参考 / 生成物 / 镜节点 / 环节节点 / 云端图）随仓库分发、运行时同步进引擎家；铁律 = 零改 ComfyUI 本体，全走官方扩展点。
-- **画布复用**：「本地模型」页与 MY 工作流的「分镜视频生成」「图像节点图」页签共用同一 ComfyUI 画布；工作流库按域分类在 `漫影/` 分组（图片 / 视频 / 声音 / 参考）。
+- **自研节点包**：`my_nodes`（漫影提示词 / 参考 / 生成物 / 镜节点 / 环节节点 / 云端图）随仓库分发、运行时同步进引擎家；铁律 = 零改 ComfyUI 本体，全走官方扩展点。
+- **画布复用**：「本地模型」页与 MY 工作流的「分镜视频生成」「图像节点图」页签共用同一 ComfyUI 画布；工作流库按域分类（`0_分镜 / 1_图片 / 2_视频 / 3_声音`，提示词参考资料在文档库）。
 - 改采样参数前先查 [参数速查](docs/comfyui-kb/参数速查.md)；改 ComfyUI 相关功能前先读 [定制代码地图](docs/comfyui-kb/定制代码地图.md)。
 
 ## 许可证
@@ -131,8 +131,8 @@
 |------|---------|---------|
 | 芯片 | **Apple Silicon M1** | M2 Pro / M3 / M4 及以上 |
 | 系统 | macOS 13 Ventura | macOS 14 Sonoma+ |
-| 统一内存 | 16 GB | 32 GB 起；本地音乐整曲（Music3 bf16）需 **48 GB 以上**（硬门禁 44 GB），不足时可改用轻量 MusicGen |
-| 磁盘 | 20 GB 可用空间 | 50 GB+ SSD，另按需为本地模型预留（音乐权重约 28.5 GB、ComfyUI 生图大件数十 GB 级，均显式下载） |
+| 统一内存 | 16 GB | 32 GB 起；本地音乐整曲现行为 ComfyUI 画布 YuE2 工作流（旧 Music3 bf16 已于 09-20 退役——历史要求 **48 GB 以上**、硬门禁 44 GB，数字留档；内存不足时可改用轻量 MusicGen 本地 BGM） |
+| 磁盘 | 20 GB 可用空间 | 50 GB+ SSD，另按需为本地模型预留（ComfyUI 生图大件数十 GB 级，均显式下载；音乐权重约 28.5 GB 为已退役 Music3 的历史数字，现行音乐线 YuE2 权重同样按需下载） |
 
 > ⚠️ **不支持 Intel 芯片的 Mac**（无 MLX GPU 加速）。本地音乐整曲、视觉审核（VLM）等能力基于 MLX，仅 Apple Silicon 可用。
 
@@ -147,14 +147,14 @@
 
 ### 通用
 
-- Node.js >= 18（推荐 LTS 最新版）
+- Node.js >= 22.12.0（Electron 44 硬约束；CI 用 Node 22）
 - Python 3.12（首次使用本地 TTS 前，在设置里手动配置到用户数据目录）
 
 ## 开发环境配置
 
 ### 前置要求
 
-- Node.js >= 18（CI 与打包链使用 Node 22）
+- Node.js >= 22.12.0（Electron 44 硬约束；CI 用 Node 22）
 - macOS (Apple Silicon) / Windows 10+ (NVIDIA GPU) / Linux x86_64
 
 ### 一键配置
@@ -175,7 +175,7 @@ cd MYStudio
 powershell -ExecutionPolicy Bypass -File apps\build\packaging\setup-win.ps1
 ```
 
-脚本只安装 Node.js 依赖（已装则跳过）；Python runtime 延迟安装、不写入后端源码目录——首次使用本地 TTS / ComfyUI 引擎前，在 `设置 → 本地配置 → Python 运行环境` 点击「开始配置」。
+脚本只安装 Node.js 依赖（已装则跳过；经 corepack pnpm 安装，对齐 CI——`apps/patches` 补丁仅对 pnpm 生效）；Python runtime 延迟安装、不写入后端源码目录——首次使用本地 TTS / ComfyUI 引擎前，在 `设置 → 本地配置 → Python 运行环境` 点击「开始配置」。
 
 ### 启动
 
@@ -183,7 +183,7 @@ powershell -ExecutionPolicy Bypass -File apps\build\packaging\setup-win.ps1
 cd apps && npm run dev
 ```
 
-**开发态 ComfyUI 引擎**：引擎家解析顺序为 `MYSTUDIO_COMFYUI_HOME` 环境变量 → 应用用户数据目录（`…/漫影工作室/comfyui`）→ 纯开发兜底 `~/.manying-dev`。`manying_nodes` 自研节点包在每次引擎启动时自动从仓库 `apps/backend/engines/comfyui/manying_nodes/` 同步进引擎家——改完重启引擎即生效；安装版则须重新打包（引擎 spawn 用 Resources 覆写引擎家）。
+**开发态 ComfyUI 引擎**：引擎家解析顺序为 `MYSTUDIO_COMFYUI_HOME` 环境变量 → 应用用户数据目录（`…/漫影工作室/comfyui`）→ 纯开发兜底 `~/.manying-dev`。`my_nodes` 自研节点包在每次引擎启动时自动从仓库 `apps/backend/engines/comfyui/my_nodes/` 同步进引擎家——改完重启引擎即生效；安装版则须重新打包（引擎 spawn 用 Resources 覆写引擎家）。
 
 ### 质量门禁与测试
 
@@ -210,7 +210,7 @@ PYTHONPATH=backend python3 -m pytest backend/engines/comfyui/tests       # Comfy
 cd apps && npm run build:mac
 # Windows
 cd apps && npm run build:win
-# Linux
+# Linux（electron-builder 暂未配置 Linux target）
 cd apps && npm run build:linux
 ```
 
@@ -221,4 +221,4 @@ cd apps && npm run build:linux
 `cd apps && npm run remotion:versions`，再运行目标打包命令。完整流程见
 [打包、安装与 Smoke 测试](docs/engineering/PACKAGING_AND_SMOKE_TESTING.md)。
 
-**CI 自动化**（`.github/workflows/build.yml`）：push / PR 自动跑 `npm ci` + typecheck + lint + Vitest + `electron-vite build`；推 `vX.Y.Z` 标签触发 macOS ARM64 与 Windows x64 全链打包并挂 GitHub Release（dmg / zip / setup.exe）。
+**CI 自动化**（`.github/workflows/build.yml`）：push / PR 自动跑 `corepack pnpm install --frozen-lockfile` + `npm run test:all`（typecheck + lint + Vitest + smoke）+ `electron-vite build`；推 `vX.Y.Z` 标签触发 macOS ARM64 与 Windows x64 全链打包并挂 GitHub Release（dmg / zip / setup.exe）。

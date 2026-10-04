@@ -6,8 +6,8 @@
 
 ### 前置要求
 
-- **Node.js** >= 18
-- **npm** >= 9（或 pnpm >= 8）
+- **Node.js** >= 22.12.0（Electron 44 硬约束；CI 用 Node 22）
+- **pnpm** >= 10（corepack 启用；对齐 CI 与 apps/patches 补丁面）
 - **Git**
 
 ### 快速开始
@@ -40,11 +40,11 @@ manying-studio/
 ### 构建
 
 ```bash
-# 编译项目(从 apps/ 执行)
+# 全链打包：构建 → 覆盖安装 → installed smoke → 关闭应用（从 apps/ 执行；npm run build = npm run build:mac）
 cd apps
 npm run build
 
-# 仅编译（不打包安装程序）
+# 仅编译（不打包安装程序、不覆盖安装）
 npx electron-vite build
 ```
 
@@ -88,9 +88,9 @@ npx electron-vite build
 
 ## 问题反馈
 
-- 🐛 Bug 报告：[GitHub Issues](https://github.com/zhengbingjin/MYStudio/issues)
-- 💡 功能建议：[GitHub Issues](https://github.com/zhengbingjin/MYStudio/issues)
-- 💬 讨论交流：[GitHub Discussions](https://github.com/zhengbingjin/MYStudio/discussions)
+- 🐛 Bug 报告：[GitHub Issues](https://github.com/xinzhuzi/MYStudio/issues)
+- 💡 功能建议：[GitHub Issues](https://github.com/xinzhuzi/MYStudio/issues)
+- 💬 讨论交流：[GitHub Discussions](https://github.com/xinzhuzi/MYStudio/discussions)
 
 ## 行为准则
 

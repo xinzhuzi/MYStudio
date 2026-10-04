@@ -40,7 +40,7 @@
 如需商业许可或有任何疑问，请通过以下方式联系：
 
 - 📧 Email: [1487842110@qq.com](mailto:1487842110@qq.com)
-- 🐙 GitHub: [https://github.com/zhengbingjin/MYStudio/issues](https://github.com/zhengbingjin/MYStudio/issues)
+- 🐙 GitHub: [https://github.com/xinzhuzi/MYStudio/issues](https://github.com/xinzhuzi/MYStudio/issues)
 
 ---
 
