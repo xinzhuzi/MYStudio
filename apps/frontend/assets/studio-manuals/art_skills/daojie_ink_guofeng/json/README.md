@@ -2,7 +2,7 @@
 
 **家规:道劫风格的机读供给资产只住本目录,只有一份。**别处出现的同名文件一律是分发产物或历史记录。
 
-> **统一规范宣言(10-04 用户令)**:本目录是「每个美术风格类型一个 json/ 唯一资产家」规范的**第一个实验**——道劫打样,未来各美术风格目录均照此模式建 `json/` 家。家的边界=**美术风格**,不分 K2/Q2.1 产线(LoRA 栈等风格资产同住)。
+> **统一规范宣言(10-04 用户令)**:本目录是「每个美术风格类型一个 json/ 唯一资产家」规范的**第一个实验**(1005 勘正:色卡正典不住本家——住 ../ma_sync/palette-canon.json,带 MA 同步守护与生产消费方;前晚转制的两件冗余色卡已退役)——道劫打样,未来各美术风格目录均照此模式建 `json/` 家。家的边界=**美术风格**,不分 K2/Q2.1 产线(LoRA 栈等风格资产同住)。
 
 | 文件 | 角色 |
 |---|---|
@@ -10,9 +10,7 @@
 | `qi21_strip_lexicon.json` | Q2.1 清筛正则表(pattern;与 qi21_bases 内嵌 strip_lexicon 词表并存,非重复) |
 | `daojie_lora_stack.json` | K2 LoRA 栈序(14条) |
 | `daojie_loras.json` | K2 LoRA 台账(9条) |
-| `ma-faction-palettes.json` | MA 阵营配色(12阵营×三轨五职责+份数)与黄金公式(CC-BY-4.0);色ID引用 ma-palette-source |
 | `prompt_layering.json` | 分层契约完整版(手册版;layer_contract 为其内联精简版,二者由设计互锁) |
-| `ma-palette-source.json` | MA 色卡完整转制:42色库(含 medium_role/suitable/forbidden 用途提示)+24套三轨配料 schemes(乙案配料套切换数据地基;CC-BY-4.0);在用词以 color_lexicon 为准 |
 
 ## 不收项边界(1004 穷尽核验轮,防再问漏没漏)
 

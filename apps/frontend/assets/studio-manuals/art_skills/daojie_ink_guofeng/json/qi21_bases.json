@@ -683,7 +683,7 @@
   "color_lexicon": {
     "version": "1.0",
     "updated": "2026-10-04",
-    "source": "MA ma-imagegen 三轨选色配料.toml (ma-gongbi-palette-v1, 42色库, CC-BY-4.0;见 .trellis/tasks/10-04-color-fusion-layer-audit)",
+    "source": "ma_sync/palette-canon.json(ma-gongbi-palette-v1 正典:42色/24方案/12阵营,sources SHA 守护,生产消费方 lib/ai/daojie-palette.ts;1005 归正——本词典 hex 映射判据以 canon 为准)",
     "scope_rule": "词典只给在用词配值,不扩词;收录范围=lock_layer色板词汇表+四型多彩行+手册风格词;MA 42色=备选库,非在用清单。『赭黄土色』为lock_layer复合词,近义注记赭石为主",
     "usage": "hex仅供人工审稿与像素/GLM验收对表,禁止写入任何positive/negative prompt正文(文本编码器不读hex);主体句落点色锚必须用本词典词;冲突按conflict_order裁决,在最内层(主体句)解决",
     "conflict_order": [
