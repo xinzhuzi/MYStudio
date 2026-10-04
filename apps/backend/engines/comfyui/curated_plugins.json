@@ -386,6 +386,22 @@
       "category": "修复放大",
       "repo": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler",
       "verified_license": "Apache-2.0"
+    },
+    {
+      "id": "FreeVideo",
+      "name": "FreeVideo(H3 低显存加速引擎)",
+      "desc_zh": "UC Berkeley 出品的 MiniMax H3 消费级 N 卡推理引擎(8 步 VDN-H3 蒸馏+显存/内存/磁盘分级调度,8G 显存可跑)+ComfyUI 创作面板插件。引擎为 CUDA/N 卡专属:Mac 上节点可注册可画布打开但执行必失败,模型(46.9GB VDN-H3 族)未装、住 Windows 尝鲜机;已实测 Windows 4060Ti 8G:10 秒竖屏 319s/横屏 603s,显存峰 7.8/8G。",
+      "category": "H3 视频",
+      "repo": "https://github.com/FlashML-org/FreeVideo",
+      "verified_license": "Apache-2.0(代码);模型权重 MiniMax H3 Community License",
+      "provides": [
+        "FreeVideoGenerate",
+        "FreeVideoMedia",
+        "FreeVideoReference",
+        "FreeVideoLoRA",
+        "FreeVideoLoRAStack",
+        "FreeVideoFrames"
+      ]
     }
   ]
 }
