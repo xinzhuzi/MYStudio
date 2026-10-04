@@ -8,8 +8,10 @@
 MODEL 出 → [12] 采样;另出 applied STRING=实际生效清单(审计/预览用,
 接 easy showAnything 可见,同 MyDaojieLoras 先例)。
 
-槽位真源=本目录 daojie_lora_stack.json(单源数据面,与 daojie_bases.json
-同纪律:磁盘现读、mtime 失效、热改即时生效;新增 LoRA 只改数据文件,
+槽位真源=daojie_ink_guofeng/json/daojie_lora_stack.json(1004 集中化,
+_daojie_data 四层候选现读,原本目录同名件=兜底同步产物;与 qi21_bases.json
+同纪律——原 daojie_bases.json 已退役并入——磁盘现读、mtime 失效、热改即时
+生效;新增 LoRA 只改数据文件,
 工作流零改动——节点 widget 面随 json 动态生长)。槽序=现链运行时序
 (turbo→projector→detail→asianmix→liujin→…,其中 67→76→73 对齐
 [85] daojie_loras.json 人物条目序):ComfyUI lora patch 按调用序累积
@@ -31,9 +33,44 @@ enable=false = 该槽急停(矩阵点亮也被开关压下),applied 清单披露
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-_STACK_JSON = Path(__file__).resolve().parent / "daojie_lora_stack.json"
+
+def _daojie_data(fn: str) -> Path:
+    """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。
+
+    env 显式设置但文件不在=响亮降级原路返回(下游缺档占位/报错指路),不偷偷
+    滑落低层——免测试/定制环境静默读到别家库(MYSTUDIO_ART_SKILLS 先例纪律)。
+    引擎家数据位=parents[4]/daojie-data:随文件真实所在地走(引擎家内节点在
+    <家>/ComfyUI/custom_nodes/my-nodes/nodes/,上四级即家根,上三级只到
+    ComfyUI 源码层),MYSTUDIO_COMFYUI_HOME 覆写/~manying-dev 兜底布局自动
+    跟随,零 import(勿 import 化禁令)。装机固定位两安装位(同 my_styles
+    _INSTALL_FIXED_CANDIDATES)。
+    """
+    _env = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    _here = Path(__file__).resolve()
+    if _env:
+        _p = Path(_env) / fn
+        if not _p.is_file():
+            print(f"[漫影 道劫数据] MYSTUDIO_DAOJIE_DATA 已设但缺 {_p}:"
+                  "响亮降级不兜底其它层(显式覆盖失效须排查,防静默读别家库)")
+        return _p
+    _cands = [
+        _here.parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        _here.parents[4] / "daojie-data",
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app" / "Contents" / "Resources"
+        / "studio-manuals" / "art_skills" / "daojie_ink_guofeng" / "json",
+    ]
+    for _base in _cands:
+        _p = _base / fn
+        if _p.is_file():
+            return _p
+    return _here.parent / fn
+
+
+_STACK_JSON = _daojie_data("daojie_lora_stack.json")
 
 # preset COMBO 首尾两档(九型名夹中间,现读 json);
 # 「跟随底座型」未接 [80] 时的回退型(同 my_daojie_base.DEFAULT_BASE 纪律显式钉死)
@@ -69,7 +106,8 @@ def _load_slots() -> list:
 
 def nine_types() -> list:
     """九型名现读(全槽 presets 键序的首次并集;数据纪律=每槽九型齐备,
-    测试钉死与 daojie_bases.json 一比一)。"""
+    测试钉死与 qi21_bases.json types[] 九型一比一——原 daojie_bases.json
+    已退役并入,1004 集中化)。"""
     seen: list = []
     for slot in _load_slots():
         if not isinstance(slot, dict):
@@ -153,7 +191,7 @@ class MyDaojieLoraStack:
     applied 出=生效清单文本(如「跟随底座型·人物(5/14):Krea2-Turbo-4步蒸馏×1
     + …」)。"""
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):

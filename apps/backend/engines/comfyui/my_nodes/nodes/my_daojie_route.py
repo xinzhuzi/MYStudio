@@ -28,13 +28,46 @@ stem),链序=头(底模侧)在前。PROMPT 不可用/结构不可识别=退回�
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 NINE = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 
-_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
-_LEDGER = (_DATA_HOME / "daojie_lora_stack.json") if (_DATA_HOME / "daojie_lora_stack.json").is_file() else Path(__file__).resolve().parent / "daojie_lora_stack.json"
+def _daojie_data(fn: str) -> Path:
+    """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。
+
+    env 显式设置但文件不在=响亮降级原路返回(下游缺档占位/报错指路),不偷偷
+    滑落低层——免测试/定制环境静默读到别家库(MYSTUDIO_ART_SKILLS 先例纪律)。
+    引擎家数据位=parents[4]/daojie-data:随文件真实所在地走(引擎家内节点在
+    <家>/ComfyUI/custom_nodes/my-nodes/nodes/,上四级即家根,上三级只到
+    ComfyUI 源码层),MYSTUDIO_COMFYUI_HOME 覆写/~manying-dev 兜底布局自动
+    跟随,零 import(勿 import 化禁令)。装机固定位两安装位(同 my_styles
+    _INSTALL_FIXED_CANDIDATES)。
+    """
+    _env = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    _here = Path(__file__).resolve()
+    if _env:
+        _p = Path(_env) / fn
+        if not _p.is_file():
+            print(f"[漫影 道劫数据] MYSTUDIO_DAOJIE_DATA 已设但缺 {_p}:"
+                  "响亮降级不兜底其它层(显式覆盖失效须排查,防静默读别家库)")
+        return _p
+    _cands = [
+        _here.parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        _here.parents[4] / "daojie-data",
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app" / "Contents" / "Resources"
+        / "studio-manuals" / "art_skills" / "daojie_ink_guofeng" / "json",
+    ]
+    for _base in _cands:
+        _p = _base / fn
+        if _p.is_file():
+            return _p
+    return _here.parent / fn
+
+
+_LEDGER = _daojie_data("daojie_lora_stack.json")
 _PLAIN = "路线={base}线(9条真实线路按型分流)"
 _LOADER = "LoraLoaderModelOnly"
 

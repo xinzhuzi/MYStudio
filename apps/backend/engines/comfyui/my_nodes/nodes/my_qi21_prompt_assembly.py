@@ -40,6 +40,9 @@ my_nodes/__init__.py;词族剥离逻辑随选择器件(my_qi21_prompt_select.py,
 """
 
 from __future__ import annotations
+from pathlib import Path
+import json
+import os
 
 from typing import Any
 
@@ -51,7 +54,58 @@ from typing import Any
 # ── 节点此处+工作流顶层[24].wv[0]+子图[141].wv[0](蓝图真源,工作流随 ──
 # ── sync main() 过账)──────────────────────────────────────────────
 _SUBJECT_EXAMPLE = '一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。'  # 顶层 [24] 主体句例文(多行大框 default)
-_LOCK_A = '风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。水墨与工笔降为组件词：工笔画、细线勾勒（工笔 fine line art）；淡彩、薄透矿物罩染（muted watercolor mineral wash）；水墨只承担空气与虚实（淡墨晕染、远景淡化、soft edges），禁黑白滤镜化与满幅泼墨。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。色彩只走工艺：薄透矿物罩染；禁霓虹与糖果饱和度。不得在底座写任何默认固定矿物色板——色相只归主体/来源事实（Subject / Source facts）。禁用默认：网文封面美人、古风美女/帅哥偶像海报、光面现代 CG 特写、赛璐璐、好莱坞三点电影光、任何商业人物/UI/logo 复制。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。\n线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。禁止用大块不透明色面、厚数字颜料块、喷枪明暗法、软 3D 体积或油亮高光塑形。若大色块或软体积比线描更强地承载衣褶与面部结构，则拒收。均匀平光：使用均匀漫射光，禁止电影级主光/填充/轮廓光三点布光和深重写实投影。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。优先薄透罩染而非泥糊死黑块；衣褶用细线束加一两条透明罩染带，禁止油黑渐变。\n成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度——不是好莱坞三点布光/轮廓光/深重写实投影。'  # 原 [110] 通用锁层常量A(③层·库首节全文·全九型恒挂)
+# 1004 正负拆开轮+集中地令:锁层A正向/负向真源=qi21_bases.json lock_layer(唯一集中地)
+# 本文件不再持有 _LOCK_A/_LOCK_A_NEG 硬编码常量——全部热读
+# 1004 §十六 Step2:qi21_bases.json 活路径改四层候选链(真源家优先,同目录产物仅兜底)
+def _daojie_data(fn: str) -> Path:
+    """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。
+
+    env 显式设置但文件不在=响亮降级原路返回(下游缺档占位/报错指路),不偷偷
+    滑落低层——免测试/定制环境静默读到别家库(MYSTUDIO_ART_SKILLS 先例纪律)。
+    引擎家数据位=parents[4]/daojie-data:随文件真实所在地走(引擎家内节点在
+    <家>/ComfyUI/custom_nodes/my-nodes/nodes/,上四级即家根,上三级只到
+    ComfyUI 源码层),MYSTUDIO_COMFYUI_HOME 覆写/~manying-dev 兜底布局自动
+    跟随,零 import(勿 import 化禁令)。装机固定位两安装位(同 my_styles
+    _INSTALL_FIXED_CANDIDATES)。
+    """
+    _env = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    _here = Path(__file__).resolve()
+    if _env:
+        _p = Path(_env) / fn
+        if not _p.is_file():
+            print(f"[漫影 道劫数据] MYSTUDIO_DAOJIE_DATA 已设但缺 {_p}:"
+                  "响亮降级不兜底其它层(显式覆盖失效须排查,防静默读别家库)")
+        return _p
+    _cands = [
+        _here.parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        _here.parents[4] / "daojie-data",
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app" / "Contents" / "Resources"
+        / "studio-manuals" / "art_skills" / "daojie_ink_guofeng" / "json",
+    ]
+    for _base in _cands:
+        _p = _base / fn
+        if _p.is_file():
+            return _p
+    return _here.parent / fn
+
+
+_BASES_FILE = _daojie_data("qi21_bases.json")
+
+def _load_lock_layer() -> dict:
+    """从 qi21_bases.json lock_layer 现读 positive_text/negative_text。"""
+    try:
+        data = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
+        ll = data.get("lock_layer") or {}
+        return {
+            "positive": ll.get("positive_text", ""),
+            "negative": ll.get("negative_text", ""),
+        }
+    except Exception:
+        return {"positive": "", "negative": ""}
+
+_LOCK_A = _load_lock_layer()["positive"]
+_LOCK_A_NEG = _load_lock_layer()["negative"]  # 1004 正负拆开轮:常量A禁令提炼负面词(入负向编码器,不入正向)  # 原 [110] 通用锁层常量A(③层·库首节全文·全九型恒挂)
 
 
 class MyQi21PromptAssembly:
@@ -62,7 +116,7 @@ class MyQi21PromptAssembly:
     或空串/纯空白=降级两段拼(主体句+锁层A)+中文警告,不炸产线。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     DESCRIPTION = ("道劫装配全文件:装配全文=主体句+底座BASE+锁层A 三段换行"
                    "拼合(单口真源,专喂 PE 改写与最终文本合成器)")
 
@@ -89,13 +143,13 @@ class MyQi21PromptAssembly:
             },
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("装配全文",)
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("装配全文", "负面词")
     FUNCTION = "assemble"
 
     def assemble(self, BASE: str | None = None,
                  主体句: str = _SUBJECT_EXAMPLE,
-                 锁层A全文: str = _LOCK_A) -> tuple[str]:
+                 锁层A全文: str = _LOCK_A) -> tuple[str, str]:
         """单口装配:装配全文=主体句+\\n+BASE+\\n+锁层A(返回元组序=RETURN_NAMES 序)。
 
         形参序=⑭ 新槽序(BASE 连线槽前置);引擎按名投递与形参序无关,直接
@@ -120,5 +174,5 @@ class MyQi21PromptAssembly:
                   "(自由型无型底座层);非自由型请检查连线:把 [150] "
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
-            return (f"{主体句}\n{锁层A全文}",)
-        return (f"{主体句}\n{BASE}\n{锁层A全文}",)
+            return (f"{主体句}\n{锁层A全文}", _LOCK_A_NEG)
+        return (f"{主体句}\n{BASE}\n{锁层A全文}", _LOCK_A_NEG)

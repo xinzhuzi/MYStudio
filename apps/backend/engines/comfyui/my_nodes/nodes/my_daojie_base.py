@@ -3,12 +3,13 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫底座节点:九型底座下拉选型,装配收进节点一处(09-18 用户令)。
 
-真源=本目录 daojie_bases.json(九型:人物/场景/道具/美宣/多视图/高清人脸/
-分镜剧情图/表情差分/概念气氛图)磁盘现读:combo=json 条目顺序现读+文件
-mtime 失效重扫;positive/negative 每次 run 重读原文,单文件热改即时生效。
-数据源放包内而非 art_skills——daojie_ink_guofeng 被 electron-builder
-排除、装机读不到(my_styles.py _FIRST_PHASE_EXCLUDED 同因),且与
-daojie-prompt-contract.ts 双写有风险。
+真源=daojie_ink_guofeng/json/qi21_bases.json types[](1004 集中化令;原
+本目录 daojie_bases.json 已退役删件,字段 positive/negative→positive_text/
+negative_text;十档=九型+自由末位)——_daojie_data 四层候选现读:combo=json
+条目顺序现读+文件 mtime 失效重扫;positive/negative 每次 run 重读原文,
+热改即时生效。旧「数据源放包内而非 art_skills(electron-builder 排除、
+装机读不到)」理由已废止留痕——09-22 方案C 解除排除,装机同步打包
+(my_styles.py 与 json/家 README 同口径)。
 
 装配语义(契约测试钉死,test_daojie_workflow_contract.py):
   positive 输出=底座在前+用户主体句在后,零分隔符直拼(底座全文以全角
@@ -18,9 +19,9 @@ daojie-prompt-contract.ts 双写有风险。
   (复用 .my_styles._merge_negative,防两处实现漂移)。
 
 分辨率四出(09-18 两出;09-20 三视图 A 案后扩四出):ASPECT(COMBO)+
-MEGAPIXELS(FLOAT),值按所选型现读 daojie_bases.json 的 aspect_ratio/
+MEGAPIXELS(FLOAT),值按所选型现读 qi21_bases.json 的 aspect_ratio/
 megapixels 字段;另出 WIDTH/HEIGHT(INT) 两出——型带 resolution_override
-([w,h] 整数对,如多视图 1536×512 先例直填)时直出该值,否则按 ASPECTS
+([w,h] 整数对,如多视图 3072×1024 现值直填)时直出该值,否则按 ASPECTS
 公式自算(公式与 [61] ResolutionSelector 逐字节一致:MP 按 1024² 计,
 边长取整到 8 的倍数)。缺字段回退 1:1 (Square)/4.2 并在控制台警告
 (回退 aspect 同为官方枚举逐字串,裸 "1:1" 该 combo 不收)。
@@ -30,7 +31,8 @@ megapixels 字段;另出 WIDTH/HEIGHT(INT) 两出——型带 resolution_overrid
 
 真源关系(双真源链,见 docs/prompts/道劫_底座节点_0918.md):
   链A=0917 提示词包 §一 通用无型底座,唯一持有者=修手图 [12](逐字锁);
-  链B=daojie_bases.json 九型底座,持有者=本节点;两链关系钉死为
+  链B=qi21_bases.json types[] 九型底座(原 daojie_bases.json 已并入,
+  1004 集中化),持有者=本节点;两链关系钉死为
   「人物型=§一 结构性超集」(主干逐字开头+结尾句逐字收尾,契约测试锚
   从 0917 md 运行时切出、零硬编码)。
 """
@@ -39,6 +41,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 
 from .my_styles import _merge_negative
@@ -47,8 +50,40 @@ from .my_styles import _merge_negative
 # 条目顺序不 sorted——设计九型定序即用户使用序,同 my_styles DEFAULT_STYLE 纪律)
 DEFAULT_BASE = "人物"
 
-_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
-_BASES_JSON = (_DATA_HOME / "qi21_bases.json") if (_DATA_HOME / "qi21_bases.json").is_file() else Path(__file__).resolve().parent / "qi21_bases.json"
+def _daojie_data(fn: str) -> Path:
+    """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。
+
+    env 显式设置但文件不在=响亮降级原路返回(下游缺档占位/报错指路),不偷偷
+    滑落低层——免测试/定制环境静默读到别家库(MYSTUDIO_ART_SKILLS 先例纪律)。
+    引擎家数据位=parents[4]/daojie-data:随文件真实所在地走(引擎家内节点在
+    <家>/ComfyUI/custom_nodes/my-nodes/nodes/,上四级即家根,上三级只到
+    ComfyUI 源码层),MYSTUDIO_COMFYUI_HOME 覆写/~manying-dev 兜底布局自动
+    跟随,零 import(勿 import 化禁令)。装机固定位两安装位(同 my_styles
+    _INSTALL_FIXED_CANDIDATES)。
+    """
+    _env = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    _here = Path(__file__).resolve()
+    if _env:
+        _p = Path(_env) / fn
+        if not _p.is_file():
+            print(f"[漫影 道劫数据] MYSTUDIO_DAOJIE_DATA 已设但缺 {_p}:"
+                  "响亮降级不兜底其它层(显式覆盖失效须排查,防静默读别家库)")
+        return _p
+    _cands = [
+        _here.parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        _here.parents[4] / "daojie-data",
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app" / "Contents" / "Resources"
+        / "studio-manuals" / "art_skills" / "daojie_ink_guofeng" / "json",
+    ]
+    for _base in _cands:
+        _p = _base / fn
+        if _p.is_file():
+            return _p
+    return _here.parent / fn
+
+
+_BASES_JSON = _daojie_data("qi21_bases.json")
 
 _JSON_MISSING_COMBO = ["(道劫底座库未找到,请重启漫影或检查安装)"]
 
@@ -98,7 +133,8 @@ _bases_cache: dict = {"mtime": None, "entries": None}
 
 
 def _load_bases() -> list:
-    """daojie_bases.json 现读;mtime 变化即重扫(增删改即刻可见)。"""
+    """qi21_bases.json types[] 现读(1004 集中化;dict 外壳取 types,
+    兼容旧平铺 list);mtime 变化即重扫(增删改即刻可见)。"""
     try:
         mtime = _BASES_JSON.stat().st_mtime
     except OSError:
@@ -175,12 +211,12 @@ def _resolution_of(base: str, entry: dict) -> tuple[str, float]:
     aspect = entry.get("aspect_ratio")
     if not isinstance(aspect, str) or not aspect:
         print(f"[漫影 道劫底座] 「{base}」缺 aspect_ratio 字段,"
-              f"回退 {FALLBACK_ASPECT}(请重新同步自研节点或检查 daojie_bases.json)")
+              f"回退 {FALLBACK_ASPECT}(请重新同步自研节点或检查 qi21_bases.json)")
         aspect = FALLBACK_ASPECT
     megapixels = entry.get("megapixels")
     if isinstance(megapixels, bool) or not isinstance(megapixels, (int, float)):
         print(f"[漫影 道劫底座] 「{base}」缺 megapixels 字段,"
-              f"回退 {FALLBACK_MEGAPIXELS}(请重新同步自研节点或检查 daojie_bases.json)")
+              f"回退 {FALLBACK_MEGAPIXELS}(请重新同步自研节点或检查 qi21_bases.json)")
         megapixels = FALLBACK_MEGAPIXELS
     return aspect, float(megapixels)
 
@@ -253,14 +289,16 @@ class MyDaojieBase:
     def run(self, base, positive=None, negative=None):
         if not _BASES_JSON.is_file():
             raise RuntimeError(
-                "道劫底座库缺失:my_nodes/nodes/daojie_bases.json 未找到,"
+                "道劫底座库缺失:qi21_bases.json 未找到(真源家 "
+                "daojie_ink_guofeng/json/,四层候选均缺;原本目录 "
+                "daojie_bases.json 已退役并入),"
                 "请在漫影设置里重新同步自研节点,或重启漫影工作室")
         entry = _entry(base)
         if entry is None:
             raise RuntimeError(
                 f"未知道劫底座:「{base}」。道劫底座现共 {len(bases_list())} 个可选型,"
-                "请在画布重新选择底座下拉,或检查 my_nodes/nodes/daojie_bases.json "
-                "是否被改动")
+                "请在画布重新选择底座下拉,或检查真源家 qi21_bases.json"
+                "(daojie_ink_guofeng/json/)是否被改动")
         base_positive = entry.get("positive_text", "")
         base_negative = entry.get("negative_text", "")
         aspect, megapixels = _resolution_of(base, entry)

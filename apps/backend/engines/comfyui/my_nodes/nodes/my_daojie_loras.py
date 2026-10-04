@@ -3,9 +3,11 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫按型 LoRA 节点(09-19 用户令「九型让不同的 lora 生效」)。
 
-[80] 选型不仅带底座文案与画幅,还驱动按型 LoRA 组:型→LoRA 清单真源=本目录
-daojie_loras.json(单源数据面,与 daojie_bases.json 同纪律:磁盘现读、mtime
-失效、热改即时生效);节点吃 [80].base 输出(COMBO 直供,同 aspect/megapixels
+[80] 选型不仅带底座文案与画幅,还驱动按型 LoRA 组:型→LoRA 清单真源=
+daojie_ink_guofeng/json/daojie_loras.json(1004 集中化;原本目录同名件=
+四层兜底同步产物,与 qi21_bases.json 同纪律——原 daojie_bases.json 已退役
+并入——_daojie_data 现读、mtime 失效、热改即时生效);节点吃 [80].base
+输出(COMBO 直供,同 aspect/megapixels
 先例)+MODEL 入,按清单顺序叠装 LoRA 后 MODEL 出,另出 applied STRING=
 实际生效清单(审计/预览用,接 showAnything 可见)。
 
@@ -21,9 +23,44 @@ daojie_loras.json(单源数据面,与 daojie_bases.json 同纪律:磁盘现读�
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-_LORAS_JSON = Path(__file__).resolve().parent / "daojie_loras.json"
+
+def _daojie_data(fn: str) -> Path:
+    """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。
+
+    env 显式设置但文件不在=响亮降级原路返回(下游缺档占位/报错指路),不偷偷
+    滑落低层——免测试/定制环境静默读到别家库(MYSTUDIO_ART_SKILLS 先例纪律)。
+    引擎家数据位=parents[4]/daojie-data:随文件真实所在地走(引擎家内节点在
+    <家>/ComfyUI/custom_nodes/my-nodes/nodes/,上四级即家根,上三级只到
+    ComfyUI 源码层),MYSTUDIO_COMFYUI_HOME 覆写/~manying-dev 兜底布局自动
+    跟随,零 import(勿 import 化禁令)。装机固定位两安装位(同 my_styles
+    _INSTALL_FIXED_CANDIDATES)。
+    """
+    _env = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    _here = Path(__file__).resolve()
+    if _env:
+        _p = Path(_env) / fn
+        if not _p.is_file():
+            print(f"[漫影 道劫数据] MYSTUDIO_DAOJIE_DATA 已设但缺 {_p}:"
+                  "响亮降级不兜底其它层(显式覆盖失效须排查,防静默读别家库)")
+        return _p
+    _cands = [
+        _here.parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        _here.parents[4] / "daojie-data",
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app" / "Contents" / "Resources"
+        / "studio-manuals" / "art_skills" / "daojie_ink_guofeng" / "json",
+    ]
+    for _base in _cands:
+        _p = _base / fn
+        if _p.is_file():
+            return _p
+    return _here.parent / fn
+
+
+_LORAS_JSON = _daojie_data("daojie_loras.json")
 
 # 模块级缓存(mtime 失效):热改 json 即时生效(同 my_daojie_base 纪律)
 _loras_cache: dict = {"mtime": None, "entries": None}
@@ -65,7 +102,7 @@ class MyDaojieLoras:
     applied 出=生效清单文本(审计口径,如「场景:Krea2-细节滑杆DetailSlider_v1×1 +
     金雾仙侠GoldenMisty×0.6」)。"""
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):

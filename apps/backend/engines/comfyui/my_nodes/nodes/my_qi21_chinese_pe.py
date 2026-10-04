@@ -52,6 +52,7 @@ _parse_json_answer)逐字仿上游插件 nodes/prompt_rewrite_nodes.py(同包 AG
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -89,8 +90,40 @@ _DEFAULT_NEGATIVE_GUIDANCE = (
 )
 
 # patch 规则数据文件(热读真源;同 my_qi21_base._BASES_JSON 同款定位)
-_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
-_BASES_JSON = (_DATA_HOME / "qi21_bases.json") if (_DATA_HOME / "qi21_bases.json").is_file() else Path(__file__).resolve().parent / "qi21_bases.json"
+def _daojie_data(fn: str) -> Path:
+    """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。
+
+    env 显式设置但文件不在=响亮降级原路返回(下游缺档占位/报错指路),不偷偷
+    滑落低层——免测试/定制环境静默读到别家库(MYSTUDIO_ART_SKILLS 先例纪律)。
+    引擎家数据位=parents[4]/daojie-data:随文件真实所在地走(引擎家内节点在
+    <家>/ComfyUI/custom_nodes/my-nodes/nodes/,上四级即家根,上三级只到
+    ComfyUI 源码层),MYSTUDIO_COMFYUI_HOME 覆写/~manying-dev 兜底布局自动
+    跟随,零 import(勿 import 化禁令)。装机固定位两安装位(同 my_styles
+    _INSTALL_FIXED_CANDIDATES)。
+    """
+    _env = os.environ.get("MYSTUDIO_DAOJIE_DATA")
+    _here = Path(__file__).resolve()
+    if _env:
+        _p = Path(_env) / fn
+        if not _p.is_file():
+            print(f"[漫影 道劫数据] MYSTUDIO_DAOJIE_DATA 已设但缺 {_p}:"
+                  "响亮降级不兜底其它层(显式覆盖失效须排查,防静默读别家库)")
+        return _p
+    _cands = [
+        _here.parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        _here.parents[4] / "daojie-data",
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app" / "Contents" / "Resources"
+        / "studio-manuals" / "art_skills" / "daojie_ink_guofeng" / "json",
+    ]
+    for _base in _cands:
+        _p = _base / fn
+        if _p.is_file():
+            return _p
+    return _here.parent / fn
+
+
+_BASES_JSON = _daojie_data("qi21_bases.json")
 
 # 模块级缓存(mtime 失效,同 my_qi21_base._bases_cache 模式):seen 标记首次
 # 已扫(缺文件 mtime=None 也缓存,免每拍 stat 空转);node=None=节缺位(用内置
