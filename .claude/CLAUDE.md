@@ -4,7 +4,7 @@
 
 - **类型**:Electron 桌面应用(AI 漫剧/短剧制作工作台)
 - **技术栈**:Electron + React 18 + TypeScript + Zustand + Tailwind v4 + electron-vite/Vite + Vercel AI SDK(多 provider:anthropic/openai/google/deepseek/xai/qwen/zhipu/minimax)+ 本地 FFmpeg + Python TTS sidecar(`tts`)
-- **主代码**:`apps/frontend`(renderer:`components/` `stores/` `lib/` `hooks/` `types/` + electron:`main/main.ts`/`preload/preload.ts`/`ipc/`/`rendering/timeline-ffmpeg-command.ts`)、`apps/backend`(Python 域:TTS sidecar + `engines/` 底层模型引擎层,含 ComfyUI 托管引擎与 manying_nodes 自研节点包)、`apps/build`(构建执行器:`chapter_video/` `timeline/` `smoke/` `packaging/`)
+- **主代码**:`apps/frontend`(renderer:`components/` `stores/` `lib/` `hooks/` `types/` + electron:`main/main.ts`/`preload/preload.ts`/`ipc/`/`rendering/timeline-ffmpeg-command.ts`)、`apps/backend`(Python 域:TTS sidecar + `engines/` 底层模型引擎层,含 ComfyUI 托管引擎与 my_nodes 自研节点包(原 manying_nodes,10-03 改名))、`apps/build`(构建执行器:`chapter_video/` `timeline/` `smoke/` `packaging/`)
 - **关键约定**:**没有根 `package.json`**,所有 npm 命令从 `apps/` 执行(`cd apps && npm run dev`)。`apps/out/` `apps/release/` `apps/output/` 是构建产物,禁止 import。
 - **打包约定**:桌面打包统一从 `apps/` 执行;macOS 标准入口 `npm run build:mac` 必须经由 `sh ./build/packaging/build-mac.sh` 完成构建、覆盖安装、installed smoke 和关闭应用,不能只停在安装包。正常打包只校验并复用 `apps/.cache/remotion-bundle`,不得隐式运行 `npm run remotion:bundle`。Remotion 版本、composition 或 bundle 内容变化后,先显式运行 `cd apps && npm run remotion:bundle`,再运行 `cd apps && npm run remotion:versions` 和目标打包命令;固定 bundle 缺失或漂移时应让打包在 electron-vite 前失败。
 - **根目录产物约定**:根目录不得生成 `node_modules/`、`output/` 或 `backups/`;依赖使用 `apps/node_modules`,导出使用 `apps/output`,任务备份使用 `.trellis/tasks/<task>/backups/`。
@@ -65,11 +65,11 @@
 | 诚实无知 | 不确定时寻求确认,不臆想业务 |
 | 复用优先 | 复用现有接口和组件,不创造新的 |
 | **高星参考铁律** | 相关的代码内容必须参考 GitHub 高星项目——别人已经做好的,就直接参考使用,而不是按自己的想法自己写代码 ,必须 多方对比 + 可行性路线分析 + 现有走通的例子|
-| **漫影工作流只读铁律(09-14 用户裁定)** | 漫影固定工作流(仓库静态自研 `engines/comfyui/workflows/**`、桥模板 `image_engine/workflows/**`、H3 模板 `MY-h3-shot-template*.json`)一律只读,AI 会话禁止改动本体;要改=复制副本后改副本;固定本体的源码/JSON 改造权**仅限用户本人**。详见 `docs/comfyui-kb/漫影工作流清单.md` 修改铁律条 |
+| **漫影工作流只读铁律(09-14 用户裁定)** | 漫影固定工作流(仓库静态自研+桥模板同库真源 `apps/backend/engines/comfyui/workflows/**`,旧 `image_engine/workflows/**` 独立目录已不存在;H3 单镜模板 `MY-h3-shot-template*.json` 实住 `apps/frontend/lib/assist/image-studio/`,为前端随包资产,不属工作流库命名铁律范围——豁免属灰区,候用户正式裁定)一律只读,AI 会话禁止改动本体;要改=复制副本后改副本;固定本体的源码/JSON 改造权**仅限用户本人**。详见 `docs/comfyui-kb/漫影工作流清单.md` 修改铁律条 |
 | 简洁回复 | ≤4 行(不含代码),不加前言后语 |
 | 代码引用 | 格式 `file_path:line_number` |
 
-**Git 边界**:默认允许 commit(workflow Phase 3.4 为 required 步骤,但**禁 amend/push**);一切 git 操作(commit/push/branch/删除)必须先获用户明确同意,commit 前向用户说明范围;实际项目按 per-task 惯例常走 no-git/no-worktree。
+**Git 边界**:workflow Phase 3.4 required——本仓惯例 per-task pathspec 提交(提交只圈本任务文件路径,禁全量 add),禁 amend/push;分支/删除/越任务范围操作先获用户同意。
 
 **禁止破坏性操作(保护生产资料)**:
 - **绝对禁止(即使用户同意也不执行)**:`git checkout .`、`git reset --hard`、`git clean -f`、`rm -rf`、批量删除文件、`git push --force`、`git branch -D`、删除已有正文/代码内容、清空文件

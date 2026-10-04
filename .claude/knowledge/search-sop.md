@@ -4,15 +4,15 @@
 >
 > **本文件为权威版**(2026-08-21 起):由 MA 项目 search-sop 融合 MYStudio 实际结构而成,并新增「仓库外本地热路径」与「网络搜索路由」两节;`.trellis/spec/guides/search-sop-guide.md` 为历史版本,内容以本文件为准。
 >
-> ## 🚨 两大铁律 (执行搜索前必读)
+> ## 🚨 两大陷阱 (执行搜索前必读)
 >
-> ### 铁律 1: 中文路径陷阱
+> ### 陷阱一: 中文路径陷阱
 > 部分模型在中英文交界处会自动插入 U+0020 空格!
 > - ❌ 错误：`.trellis/tasks/08-21 任务`(有空格)
 > - ✅ 正确：`.trellis/tasks/08-21任务`(无空格)
 > - 🔧 解决：**永远不要手工拼接中文路径**,用 `fd` 或 Python `os.listdir()` 动态获取。本仓库源码路径以 ASCII 为主,但 `.trellis/tasks/`、`docs/` 下可能有中文命名;**APP 数据目录 `~/Library/Application Support/漫影工作室` 是常驻中文路径**,同样适用。
 >
-> ### 铁律 2: 先 Read 再操作
+> ### 陷阱二: 先 Read 再操作
 > 任何 `Bash/Edit/Write` 命令前**必须先 Read**相关文件找准确位置!
 > - ❌ 错误：没看文件就乱改/乱查
 > - ✅ 正确：`Read` → 找到行号 → `Edit/Bash`
@@ -75,7 +75,7 @@
 
 | 目标 | 首选范围 | 关键约束 |
 |------|----------|----------|
-| 项目注册表 | `~/Library/Application Support/漫影工作室/mystudio-project-store.json` | `location` 字段=项目实体位置权威;**中文路径,铁律 1 适用** |
+| 项目注册表 | `~/Library/Application Support/漫影工作室/mystudio-project-store.json` | `location` 字段=项目实体位置权威;**中文路径,陷阱一适用** |
 | Remotion 渲染队列 | `~/Library/Application Support/漫影工作室/projects/_remotion/queue/queue-state.json` | APP 级设施;看 job 的 `error` 字段;空 staging=job 写盘前早死 |
 | 诊断日志 | `~/Library/Application Support/漫影工作室/logs/diagnostics/diagnostics-*.jsonl` | 模型测试失败先读这里(pathTemplate/bodyKeys/status,Key 已脱敏,时间戳 UTC) |
 | 本地项目实体/设定集/小说正文 | 已移至本地档案(私有路径不入公开仓) | 完整路径见 `~/.zcode/mystudio-local/search-sop-private.md`;小说正文检索须加 `-g '!审查结果/**'` |
@@ -173,7 +173,7 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 
 ### 使用规则(强制)
 
-> 索引过时时运行 `node .gitnexus/run.cjs analyze`(自动选择 runner);无 `run.cjs` 则 `gitnexus analyze`。
+> 索引过时时运行 `node .gitnexus/run.cjs analyze`(自动选择 runner);无 `run.cjs` 则 `npx gitnexus analyze`(npm 11 下 npx 崩溃时 `npm i -g gitnexus` 后再 `gitnexus analyze`,见 #1939)。
 > ⚠️ **多仓库消歧**: 全局索引了 **MYStudio + MA** 两个仓库,CLI 查询命令(`query`/`impact`/`context`/`detect-changes`)**必须带 `-r MYStudio`**——`status` 在仓库目录下能自动识别,但 `query` 不行,不带会报 "Multiple repositories indexed"。MCP 工具带 `repo: "MYStudio"` 参数。
 
 **必做 (Always Do)**
@@ -232,6 +232,8 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 | `rename` | 多文件协调重命名(图搜索) | `rename({symbol_name: "X", new_name: "Y", dryRun: true, repo: "MYStudio"})` |
 | `cypher` | 原始图查询(先读 schema) | `cypher({query: "MATCH (n:Function {name:'X'}) RETURN n"})` |
 | `list_repos` | 列出已索引仓库 | `list_repos()` |
+
+> ⚠️ `rename` 的 dry-run 参数名两版文档不一致(本文件写 `dryRun`,`.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` 写 `dry_run`)——**参数名以真机 MCP schema 实测为准**,未实测前勿照抄任一版(2026-10-04 勘正挂账,待实测后统一)。
 
 **MCP 资源**(轻量读取,用于导航)
 
@@ -304,7 +306,7 @@ gitnexus detect-changes -r MYStudio --scope staged
 
 - 结果过大时优先 `-l`、`-c`、`--max-count`;需要全量统计时用脚本写 JSON(`apps/build/scripts/`),不在对话中搬运全文。
 - `.gitignore` 管 `rg`/`fd` 默认排除;新增产物目录时同步更新。
-- GitNexus 索引数据库在项目根目录生成(`.gitnexus/`,已 gitignore);`.gitnexusrc` 可配置分析选项。索引过时时运行 `gitnexus analyze` 增量更新。
+- GitNexus 索引数据库在项目根目录生成(`.gitnexus/`,已 gitignore);`.gitnexusrc` 可配置分析选项。索引过时时运行 `node .gitnexus/run.cjs analyze`(无 `run.cjs` 则 `npx gitnexus analyze`)增量更新。
 - ⚠️ **永远不要中断 `gitnexus analyze`**:增量 analyze 被 kill 会损坏 LadybugDB 的 WAL(`lbug.wal`);删 WAL 虽能恢复 query 但会**静默丢失部分文件**。若 analyze 被中断,必须 `gitnexus analyze --force` 全量重建,不要只删 WAL。
 - ✅ **语义向量检索已启用(2026-08-21)**:`gitnexus analyze --embeddings` 生成 embeddings(本地 ONNX,cpu 设备),VECTOR 与 fts 扩展均已安装,`query` 现在是 **BM25+向量 RRF 混合**;首次查询会加载嵌入模型(首查 ~400ms 级,之后更快)。日常增量 analyze 不带 `--embeddings` 也会**保留**已有 embeddings(默认不丢)。
 - ⚠️ **DB 单写者锁排障**:报 `Could not set lock on file` / `WAL checkpoint rotation failed` / `LOAD fts failed` 时,先 `ps aux | rg gitnexus` 查残留 analyze 进程——`--repair-fts` 失败会拉起孤儿 `analyze --force` sidecar 长期持锁(2026-08-21 实证:8 分钟重建期间一切写操作都撞锁)。**等它跑完,勿杀**——杀了会 WAL 毒化,任何写打开都 SIGSEGV;毒化后的征兆还包括**其它会话的 gitnexus 查询进程连环 SIGSEGV**(`~/Library/Logs/DiagnosticReports/` .ips 风暴,~30s 一个);处方 = 改名隔离 `.gitnexus/lbug*` 后 `GITNEXUS_LBUG_EXTENSION_INSTALL=auto analyze --embeddings --force --wal-checkpoint-threshold 67108864` 全量重建。
