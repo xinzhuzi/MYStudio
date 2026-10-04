@@ -89,7 +89,8 @@ _DEFAULT_NEGATIVE_GUIDANCE = (
 )
 
 # patch 规则数据文件(热读真源;同 my_qi21_base._BASES_JSON 同款定位)
-_BASES_JSON = Path(__file__).resolve().parent / "qi21_bases.json"
+_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
+_BASES_JSON = (_DATA_HOME / "qi21_bases.json") if (_DATA_HOME / "qi21_bases.json").is_file() else Path(__file__).resolve().parent / "qi21_bases.json"
 
 # 模块级缓存(mtime 失效,同 my_qi21_base._bases_cache 模式):seen 标记首次
 # 已扫(缺文件 mtime=None 也缓存,免每拍 stat 空转);node=None=节缺位(用内置

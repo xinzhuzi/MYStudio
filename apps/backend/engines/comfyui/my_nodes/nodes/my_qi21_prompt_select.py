@@ -106,7 +106,8 @@ from pathlib import Path
 from typing import Any
 
 # 数据真源(10-04 集中地令):同目录 qi21_bases.json
-_BASES_JSON = Path(__file__).resolve().parent / "qi21_bases.json"
+_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
+_BASES_JSON = (_DATA_HOME / "qi21_bases.json") if (_DATA_HOME / "qi21_bases.json").is_file() else Path(__file__).resolve().parent / "qi21_bases.json"
 
 # 整文件解析缓存(mtime 失效,同 my_daojie_base._load_lock_layer 模式):
 # 缓存 json.loads 原文解析结果且以 mtime 为键——热改文件=mtime 变=现读重扫;

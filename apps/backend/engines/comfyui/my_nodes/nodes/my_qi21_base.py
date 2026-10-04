@@ -63,7 +63,8 @@ DEFAULT_BASE = "人物"
 # 回 rgba_default(安全侧),combo 无自由档时用户无从选到,非静默错路。
 FREE_BASE = "自由"
 
-_BASES_JSON = Path(__file__).resolve().parent / "qi21_bases.json"
+_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
+_BASES_JSON = (_DATA_HOME / "qi21_bases.json") if (_DATA_HOME / "qi21_bases.json").is_file() else Path(__file__).resolve().parent / "qi21_bases.json"
 
 _JSON_MISSING_COMBO = ["(qi21底座库未找到,请重启漫影或检查安装)"]
 

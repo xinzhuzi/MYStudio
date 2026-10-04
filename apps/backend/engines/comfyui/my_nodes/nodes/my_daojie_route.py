@@ -33,7 +33,8 @@ from typing import Any
 
 NINE = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 
-_LEDGER = Path(__file__).resolve().parent / "daojie_lora_stack.json"
+_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
+_LEDGER = (_DATA_HOME / "daojie_lora_stack.json") if (_DATA_HOME / "daojie_lora_stack.json").is_file() else Path(__file__).resolve().parent / "daojie_lora_stack.json"
 _PLAIN = "路线={base}线(9条真实线路按型分流)"
 _LOADER = "LoraLoaderModelOnly"
 

@@ -47,7 +47,8 @@ from .my_styles import _merge_negative
 # 条目顺序不 sorted——设计九型定序即用户使用序,同 my_styles DEFAULT_STYLE 纪律)
 DEFAULT_BASE = "人物"
 
-_BASES_JSON = Path(__file__).resolve().parent / "daojie_bases.json"
+_DATA_HOME = Path(__file__).resolve().parents[5] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"  # 1004 统一规范:真源家优先,引擎家兜底同目录产物(勿 import 化——spec 直载场景相对导入炸)
+_BASES_JSON = (_DATA_HOME / "qi21_bases.json") if (_DATA_HOME / "qi21_bases.json").is_file() else Path(__file__).resolve().parent / "qi21_bases.json"
 
 _JSON_MISSING_COMBO = ["(道劫底座库未找到,请重启漫影或检查安装)"]
 
@@ -109,12 +110,50 @@ def _load_bases() -> list:
         entries = []
     else:
         try:
-            entries = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
+            data = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
+            # 1004 正负拆开+集中地令:qi21_bases.json={lock_layer:{...}, types:[...]}
+            entries = data.get("types", []) if isinstance(data, dict) else data
         except (OSError, ValueError):
             entries = []
     cache["mtime"], cache["entries"] = mtime, entries
     return entries
 
+
+
+
+_lock_cache: dict = {"mtime": None, "data": None}
+
+def _load_lock_layer() -> dict:
+    """qi21_bases.json lock_layer 现读(1004 集中地令):风格底座正负双出。
+    
+    Returns: {"positive": str, "negative": str}
+    """
+    try:
+        mtime = _BASES_JSON.stat().st_mtime
+    except OSError:
+        mtime = None
+    cache = _lock_cache
+    if cache["mtime"] == mtime and cache["data"] is not None:
+        return cache["data"]
+    if mtime is None:
+        data = {"positive": "", "negative": ""}
+    else:
+        try:
+            raw = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
+            ll = raw.get("lock_layer", {}) if isinstance(raw, dict) else {}
+            data = {"positive": ll.get("positive_text", ""), "negative": ll.get("negative_text", "")}
+        except (OSError, ValueError):
+            data = {"positive": "", "negative": ""}
+    cache["mtime"], cache["data"] = mtime, data
+    return data
+
+def lock_layer_positive() -> str:
+    """风格底座正向全文(全九型恒挂层)。"""
+    return _load_lock_layer()["positive"]
+
+def lock_layer_negative() -> str:
+    """风格底座负面词(入负向编码器)。"""
+    return _load_lock_layer()["negative"]
 
 def bases_list() -> list:
     """combo 值=json 条目 zh 顺序;文件缺失/解析失败返回占位单条,
@@ -173,7 +212,7 @@ class MyDaojieBase:
     另出该型分辨率 ASPECT(COMBO)+MEGAPIXELS(FLOAT)(JS 侧中文显示名:
     画幅比例/百万像素,见 web/daojie-base-node.js)。"""
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -222,16 +261,20 @@ class MyDaojieBase:
                 f"未知道劫底座:「{base}」。道劫底座现共 {len(bases_list())} 个可选型,"
                 "请在画布重新选择底座下拉,或检查 my_nodes/nodes/daojie_bases.json "
                 "是否被改动")
-        base_positive = entry["positive"]
-        base_negative = entry["negative"]
+        base_positive = entry.get("positive_text", "")
+        base_negative = entry.get("negative_text", "")
         aspect, megapixels = _resolution_of(base, entry)
         width, height = _width_height_of(base, entry, aspect, megapixels)
         user_positive = (positive or "").strip()
         user_negative = (negative or "").strip()
-        # 底座在前+主体句零分隔符直拼:底座全文以全角句号自足收尾,主体句
-        # 原样接续;留空=恒等纯底座(方向裁定记录见 0918 文档:画布链底座
-        # 在前,与手册链正文在前刻意相反,勿"对齐")
-        out_positive = (
-            f"{base_positive}{user_positive}" if user_positive else base_positive)
-        return (out_positive, _merge_negative(user_negative, base_negative),
+        # 1004 正负拆开+集中地令:正向=型底座正向+锁层A正向+主体句;负向=型负面词+锁层A负面词+用户负向(合并去重)
+        lock = _load_lock_layer()
+        lock_pos = lock["positive"]
+        lock_neg = lock["negative"]
+        # 正向三层拼装:型底座 → 锁层A → 主体句(各层换行分隔)
+        parts = [p for p in (base_positive, lock_pos, user_positive) if p.strip()]
+        out_positive = "\n".join(parts)
+        # 负向三层合并:型负面词+锁层A负面词+用户负向(顶层逗号去重)
+        out_negative = _merge_negative(lock_neg, _merge_negative(base_negative, user_negative))
+        return (out_positive, out_negative,
                 aspect, megapixels, base, width, height)
