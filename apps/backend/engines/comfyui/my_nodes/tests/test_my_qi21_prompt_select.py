@@ -17,7 +17,7 @@ R1 单口化**——原两口「最终文本/透明文本」合一为单口「�
   出 opaque corners=255/ratioAlpha0=0,中文正文路以中文再锚透明指令)+装配全文
   未接线+pe关→降级空串→包裹=头句+声明+"  "+W1+尾句(双空格形;裁定 A 自洽降级)
 ④pe开+透明开=头句+剥离(PE出文)+W1+尾句 逐字(词族整句消失+大小写不敏感+
-  pattern 真源=数据文件现读)
+  pattern 真源=qi21_bases.json#strip_lexicon 现读)
 ⑤预览实况(R1 验收口径「预览=实况」):RETURN_TYPES 单 STRING 锚(防两口回潮)
   +四象限两口合一语义无损对拍(每象限期望值==原两口形对应出口:透明开=原
   透明文本口/透明关=原最终文本口,md5 同锚;R1 补强例外=pe关+透明象限基线
@@ -31,8 +31,10 @@ R1 单口化**——原两口「最终文本/透明文本」合一为单口「�
   模式参与计算不改变消费面:透明开(pe关)只用装配全文,PE出文 仍零消费)。
 
 既有契约 4 例(与出口形态无关,随单口解包适配保留):
-⑦词族单源锁:strip_word_family 与 qi21_strip_lexicon.json 现读 pattern
-  行为一致(case_insensitive 生效,与 [MyQi21PromptAssembly].BASE 无关)
+⑦词族单源锁:strip_word_family 与 qi21_bases.json#strip_lexicon 节
+  现读行为一致(1004 集中化令:词族真源迁 qi21_bases.json,旧
+  qi21_strip_lexicon.json=留档件产线不再消费;case_insensitive 生效,
+  与 [MyQi21PromptAssembly].BASE 无关)
 ⑧词库结构坏档锁(S8 深审 L-3):合法 JSON 缺键→同款 RuntimeError 中文兜底
   且不写缓存,同进程修文件即自愈(坏 dict 不得钉死缓存)
 ⑨(1002 ⑭)optional 化缺省兜底:pe开关 缺键=None→True(widget default
@@ -75,10 +77,15 @@ _DEFAULT_ANCHORS = {
     "RGBA官方尾句": "eb30fffec9f87437",  # 原 [161] RGBA官方尾句
     "W1收束句": "c17fba67932284ed",     # 原 [215] W1收束句
 }
-_LEXICON = json.loads((Path(__file__).resolve().parents[1] / "nodes"
-                       / "qi21_strip_lexicon.json").read_text(encoding="utf-8"))
+# 词族真源=qi21_bases.json#strip_lexicon 节(1004 集中化令;旧
+# qi21_strip_lexicon.json=留档件,产线不再消费——my_qi21_prompt_select.py
+# 自注:搬迁对拍 SHA256 一致)。此处独立 json.loads 真源家文件取节(不走产线
+# _load_strip_lexicon 缓存面)=「数据现读对拍」的单源锁形态;路径与产线同源
+# 解析(select._BASES_JSON,四层候选链 dev 环境落真源家)。
+_LEXICON = json.loads(select._BASES_JSON.read_text(
+    encoding="utf-8"))["strip_lexicon"]
 
-# 四象限共用例文(④剥离期望与 qi21_strip_lexicon.json pattern 行为绑定:
+# 四象限共用例文(④剥离期望与 qi21_bases.json#strip_lexicon en 词族行为绑定:
 # "Misty mountains and clouds behind her." 整句属词族句被剥)
 _ASSEMBLED = "装配全文例"
 _PE_TEXT = "a lone cultivator. Misty mountains and clouds behind her. crisp edges."
@@ -191,7 +198,8 @@ def test_3_pe_off_transparent_on_wraps_assembled_with_w1_and_degrades():
 def test_4_pe_on_transparent_on_strips_word_family_and_keeps_w1():
     """四象限①(pe开+透明开):头句+剥离(PE出文)+W1+尾句 逐字——剥离对象=
     PE出文(词族整句删,含 backgrounds 族句 "Misty mountains ... behind her."
-    消失;pattern=数据文件现读,大小写由 case_insensitive 驱动)。"""
+    消失;词族=qi21_bases.json#strip_lexicon 节现读,大小写由 case_insensitive
+    驱动)。"""
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=True, 透明模式=True, 装配全文=_ASSEMBLED,
                        PE出文=_PE_TEXT, RGBA官方头句="头句", RGBA官方尾句="尾句",
@@ -207,10 +215,11 @@ def test_4_pe_on_transparent_on_strips_word_family_and_keeps_w1():
                          RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
     assert "DISTANT MOUNTAINS fade away." not in upper[0], \
         f"case_insensitive=true 应剥大写词族句,得 {upper[0]!r}"
-    pattern = _LEXICON["pattern"]
+    en_patterns = _LEXICON["en"]
     assert _LEXICON["case_insensitive"] is True
-    assert "mountains?" in pattern and "backgrounds?" in pattern, \
-        "剥离 pattern 真源=qi21_strip_lexicon.json(词边界匹配核对)"
+    assert any("mountains?" in p for p in en_patterns) and \
+        any("backgrounds?" in p for p in en_patterns), \
+        "剥离词族真源=qi21_bases.json#strip_lexicon.en(词边界匹配核对)"
 
 
 def test_5_single_port_preview_is_live_and_two_port_merge_lossless():
@@ -272,50 +281,57 @@ def test_6_lazy_protocol_preserved_unchanged():
 
 
 def test_7_strip_uses_lexicon_file_single_source():
-    pattern = _LEXICON["pattern"]
+    """⑦词族单源锁:剥离词族真源=qi21_bases.json#strip_lexicon 节(1004
+    集中化令;旧 qi21_strip_lexicon.json=留档件,产线不再消费,词族逐字
+    在彼节,搬迁对拍 SHA256 一致)——strip_word_family 行为与真源家数据
+    现读一致(case_insensitive 生效,与 [MyQi21PromptAssembly].BASE 无关)。"""
+    en_patterns = _LEXICON["en"]
     assert _LEXICON["case_insensitive"] is True
     # 大小写不敏感由数据文件驱动:大写词族句同样被剥
     text = "Keep this. DISTANT MOUNTAINS fade away. Keep that too."
     stripped = select.strip_word_family(text)
     assert "DISTANT MOUNTAINS fade away." not in stripped, \
         f"case_insensitive=true 应剥大写词族句,得 {stripped!r}"
-    # pattern 真源=数据文件(词边界匹配核对)
-    assert "mountains?" in pattern and "backgrounds?" in pattern
+    # 词族真源=qi21_bases.json#strip_lexicon.en(词边界匹配核对;1004 前旧链
+    # =qi21_strip_lexicon.json pattern 单串,已逐字并入本节)
+    assert any("mountains?" in p for p in en_patterns)
+    assert any("backgrounds?" in p for p in en_patterns)
 
 
 def test_8_lexicon_valid_json_missing_keys_not_pinned_in_cache():
-    """S8 深审 L-3:合法 JSON 缺键→同款 RuntimeError 中文兜底+不写缓存。
+    """S8 深审 L-3(1004 集中化随迁,坏档面=qi21_bases.json 缺 strip_lexicon
+    节):合法 JSON 缺节→同款 RuntimeError 中文兜底;自愈=整文件 mtime 缓存。
 
-    坏档钉死缓存=修文件不自愈须重启引擎(L-3 根除项):缺键词表首调即
-    RuntimeError(非裸 KeyError)且缓存保持 None;同进程修好文件后
-    _load_lexicon 立即现读自愈。
-    """
+    坏档钉死缓存=修文件不自愈须重启引擎(L-3 根除项):缺节词表首调即
+    RuntimeError(非裸 KeyError);节结构校验每次调用现跑,同进程换上好文件
+    后 _load_strip_lexicon 立即现读自愈(旧链 _load_lexicon/_LEXICON_PATH
+    已随集中化退役,锁面平移至 _load_bases_data/_BASES_JSON)。"""
     with tempfile.TemporaryDirectory() as tmp:
-        bad = Path(tmp) / "lexicon_bad.json"
-        bad.write_text('{"foo": 1}', encoding="utf-8")  # 合法 JSON,缺两键
-        real_path, real_cache = select._LEXICON_PATH, select._lexicon_cache
+        bad = Path(tmp) / "bases_bad.json"
+        bad.write_text('{"foo": 1}', encoding="utf-8")  # 合法 JSON,缺 strip_lexicon 节
+        real_path, real_cache = select._BASES_JSON, select._bases_cache
         try:
-            select._LEXICON_PATH, select._lexicon_cache = bad, None
+            select._BASES_JSON, select._bases_cache = bad, {"mtime": None, "data": None}
             try:
-                select._load_lexicon()
+                select._load_strip_lexicon()
             except RuntimeError as exc:
                 assert "词族库" in str(exc) and "结构不合法" in str(exc), \
                     f"应同款 RuntimeError 中文兜底(结构不合法路),得 {exc}"
             else:
-                raise AssertionError("缺键词表应 RuntimeError,非裸 KeyError/静默通过")
-            assert select._lexicon_cache is None, \
-                "坏 dict 不得写入缓存(钉死=修文件不自愈须重启,L-3)"
-            # 同进程修好文件→自愈(缓存未钉死,下次调用现读)
-            good = Path(tmp) / "lexicon_good.json"
-            good.write_text(json.dumps({"pattern": "mountains?",
-                                        "case_insensitive": True}),
+                raise AssertionError("缺节词表应 RuntimeError,非裸 KeyError/静默通过")
+            # 同进程修好(换上含合法 strip_lexicon 节的文件)→自愈(整文件
+            # mtime 缓存对换入文件必然未命中=现读;节校验每次现跑)
+            good = Path(tmp) / "bases_good.json"
+            good.write_text(json.dumps({"strip_lexicon": {"en": ["mountains?"],
+                                                          "zh": [],
+                                                          "case_insensitive": True}}),
                             encoding="utf-8")
-            select._LEXICON_PATH = good
-            got = select._load_lexicon()
-            assert got == ("mountains?", True), \
+            select._BASES_JSON = good
+            got = select._load_strip_lexicon()
+            assert got["en"] == ["mountains?"], \
                 f"同进程修文件后应现读自愈,得 {got!r}"
         finally:
-            select._LEXICON_PATH, select._lexicon_cache = real_path, real_cache
+            select._BASES_JSON, select._bases_cache = real_path, real_cache
 
 
 # ── ⑨ 1002 ⑭ optional 化缺省兜底(手写 API prompt 省略槽态) ──────────
