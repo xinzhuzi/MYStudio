@@ -2,15 +2,19 @@
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. COMMERCIAL_LICENSE.md available.
 """漫影 qi21 最终文本合成器(MyQi21PromptSelect,1001 S8 R7 集成轮裁定 A 拆件
-形态=装配链下游件;主对话裁定 A / design §10.4 修订)。
+形态=装配链下游件;10-04-chinese-negative-cfg4 役 Phase B 双口化+数据热读)。
 
-道劫 t2i [40] 装配子图文本段集成的下游件(吞原 [141] 提示词开关+[209] 透明文本
-开关+[206] 词族剥离+[216] W1收束拼+[207][208] W1包裹+[162][163] RGBA公式拼接
-+[160][161] 头尾常量+[215] W1收束句):PE 路选择+透明文本包裹合成,单口产出
-(10-02-qi21-subgraph-singleport R1 单口化:原两口「最终文本/透明文本」合一为
-「进编码文本」——两口→单口的架构缘起=用户源头分支案,两编码器参数/clip/vae
-全同已核,选择前置源头后双编码+闸门塌缩(R2),合成器内按 pe开关×透明模式
-四象限择文,预览=实况:透明开时预览含头尾,所见即所进编码)。
+沿革:1001 S8 裁定 A 拆件链(装配器→PE→本件)→10-02 单口化(两口合一
+「进编码文本」)→**10-04 双口化**:负向拆开(cfg4 负向真实生效役),出口
+=「进编码正向文本/进编码负向文本」两口;三固定句英硬编码删除,改
+qi21_bases.json rgba 节热读中文化;词族剥离双语化(英文词族+中文背景词族,
+真源同文件 strip_lexicon 节)。
+
+道劫 t2i [40] 装配子图文本段集成的下游件:PE 路选择+透明文本包裹合成+
+负向双路路由。10-04 前单口「进编码文本」;本役起双口——正向路四象限
+择文语义逐字保持(拼接序铁律),负向路新增(pe开关 决定吃 PE负面 还是
+装配器负面词直写,透明包裹/词族剥离均不施于负向路:透明包裹是正向路的
+画幅服从性指令,词族整句删会误伤逗号清单式负面词)。
 
 裁定 A 拆件缘起(在档):一件式三口形态下「装配全文→[140].prompt」与
 「[140].positive_prompt→装配器.PE出文」构成数据环,引擎验证层实测拒绝
@@ -18,68 +22,80 @@
 venv 实测=「Dependency cycle detected」valid=False)。拆件成链后:
 MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
 
-输入口(1002 ⑭ 接口批重排:连线槽前置/参数 widget 下沉——required 置空,
-全部槽住 optional 按新序声明;槽位映射表=research/slot-map.md):
+输入口(1002 ⑭ 接口批重排保持;10-04 负向拆开轮加两槽;required 置空,
+全部槽住 optional 按序声明):
   optional(声明序=前端渲染序)
     装配全文   ← [141] MyQi21PromptAssembly.装配全文(**连线槽,前置**;直写路/
                透明直写路真源);缺键(None)语义=pe关路降级空串+中文警告
                (裁定 A 自洽语义)
+    负面词直写 ← [141] MyQi21PromptAssembly.负面词(**连线槽,前置**;10-04
+               加:装配器整理的负面词清单=pe关路负向真源+pe开路兜底)
     PE出文     ← [140] PE改写.positive_prompt(**连线槽,前置**;lazy=True:
                pe关×联动关时 [140] 无人消费其输出→不进执行图→零 PE TE 装载;
                1001 深审修复轮起成立——修前 [151].wh_ratio 非懒必填槽强拉
                [140],实弹证违在档 s8-integration-report.json lazyVerdict=
-               VIOLATED,已随 wh_ratio lazy 化根治,引擎实码最小同构图三拍复验)
+               VIOLATED,已随 wh_ratio lazy 化根治)
+    PE负面     ← [140] PE改写.negative_prompt(**连线槽,前置**;10-04 加,
+               lazy=True 同上——pe关时不拉起;pe开而为空/未接线=兜底
+               「负面词直写」,design ⑮ fallback 语义)
     pe开关     接 -10槽5(宿主面板「PE开关」,默认 true;独立手动,不再与透明
-               共布尔;**参数 widget,下沉**;1002 ⑭ 随迁 optional,缺键兜底
-               =True 与 widget default 同态=0926 裁定1 语义不漂)
-    透明模式   接 [150].透明值(1001 ④⑥⑦:纯 BOOLEAN 跨子图边界,解析住底座件;
-               不参与文本计算=机械双产出,RGBA 用否由下游 [144] conditioning
-               开关裁决)
+               共布尔;**参数 widget,下沉**;缺键兜底=True 与 widget default
+               同态=0926 裁定1 语义不漂)
+    透明模式   接 [150].透明值(纯 BOOLEAN 跨子图边界,解析住底座件;
+               只参与正向路文本计算)
     RGBA官方头句 / RGBA官方尾句 / W1收束句
-               三固定句参数面(原 [160][161][215] 迁入;multiline 大框=Q4
-               「固定句都要输入框」;default=1001 t2i 工作流值逐字;**下沉**)
+               三固定句参数面(multiline 大框=Q4「固定句都要输入框」;
+               **default=qi21_bases.json rgba 节热读(10-04 中文化:head/tail/
+               w1_closing 三键),INPUT_TYPES 调用即现读=改库即可见**;
+               英文旧值备档=rgba.head_en/tail_en;**下沉**)
 
-逻辑(10-02 单口化 R1:两口合一,先 pe开关 选正文→透明模式 决定拼不拼包裹;
-拼接序铁律=原两口形逐字保持,四象限):
+逻辑(正向路=10-02 单口形逐字保持;负向路=10-04 新增):
   正文   = PE出文 if pe开关 else (装配全文 or "")
-  剥离(s) = re.sub(词族pattern, "", s, flags=IGNORECASE)   (原 [206] 语义)
-  进编码文本 =
+  剥离(s) = 英文词族 pattern 整句删 + 中文背景词族整句删(双语,均自
+            qi21_bases.json strip_lexicon 节热读)
+  进编码正向文本 =
     pe开+透明   = RGBA官方头句+" "+剥离(PE出文)+" "+W1收束句+" "+RGBA官方尾句
     pe关+透明   = RGBA官方头句+" "+中文透明声明+" "+装配全文+" "+W1收束句+
-                  " "+RGBA官方尾句(1002 Q4 两路同包 W1;R1 补强第1轮=头句后
-                  追加官方中文透明声明双语强化,只改本路)
-    pe关+透明关 = 装配全文 原样
-    pe开+透明关 = PE出文 原样
+                  " "+RGBA官方尾句(R1 补强:头句后追加官方中文透明声明双语强化)
+    pe关+透明关 = 装配全文 原样;pe开+透明关 = PE出文 原样
+  进编码负向文本 =
+    pe开 = PE负面 非空? PE负面 : 负面词直写(⑮ fallback)
+    pe关 = 负面词直写(缺键=空串,空负向合法态)
 
-单口(RETURN_NAMES,口序即返回元组序):
-  进编码文本(口0)→ 唯一编码器 [4015].prompt + 子图输出口「最终文本」
-  (-20 槽4 IO 预览,预览=实况:单口后预览与进编码同一条文本,R2 双编码
-  塌缩后不再有 [144] conditioning 闸门件,透明/非透明的选择边界自下游闸门
-  迁入本件(透明模式 布尔直接参与文本计算)——原两口形态「机械双产出+
-  [144] 裁决=R7.4 不可吞边界」随 R1/R2 架构裁定退役,边界仍在(选择显式
-  发生在本件),只是不再以两口+下游开关的形态表达。
+双口(RETURN_NAMES,口序即返回元组序):
+  进编码正向文本(口0)→ 正向编码器 text + 子图输出口「最终文本」
+  进编码负向文本(口1)→ 负向编码器 text + 子图输出口「负面词」
 
-懒执行协议(SpeedSelect 实名协议,自一件式装配器随裁定 A 挪本件;引擎实码
-对拍 execution.py:507-520 + graph.py:169-170):
-  - PE出文 声明 lazy=True=执行图对该槽默认不建强依赖,pe 关时 [140] 无人消费
-    其输出→不进执行图→零 PE TE 装载。**成立条件=pe开关关×联动开关关**
-    ([151] MyQi21WhSuggest.wh_ratio 亦已 lazy 化,1001 深审修复轮;联动开
-    时 wh_ratio 请求仍拉 [140]=建议路既有语义,详见该件 docstring);
-  - 钩子实名 check_lazy_status(本版引擎只认此名):pe关→[];pe开且 PE出文
-    已接线未求值(执行器投 None)→请求名单;未接线槽(kwargs 缺键)绝不请求
+懒执行协议(SpeedSelect 实名协议;引擎实码对拍 execution.py:507-520 +
+graph.py:169-170;10-04 扩双懒槽):
+  - PE出文/PE负面 声明 lazy=True=执行图对该槽默认不建强依赖,pe 关时 [140]
+    无人消费其输出→不进执行图→零 PE TE 装载(**成立条件=pe开关关×联动
+    开关关**;[151] MyQi21WhSuggest.wh_ratio 亦已 lazy 化);
+  - 钩子实名 check_lazy_status(本版引擎只认此名):pe关→[];pe开且槽已接线
+    未求值(执行器投 None)→请求名单;未接线槽(kwargs 缺键)绝不请求
     ——引擎对未接线槽 make_input_strong_link 抛 NodeInputError
     (graph.py:132-133);
-  - 请求名单=**纯字符串列表**(SpeedSelect 同款,my_qi21_speed_select.py:104):
-    引擎把名单 sum() 摊平后按 isinstance(x,str) 过滤再建强链
-    (execution.py:513-516)——元组形条目会被静默丢弃,取 ["PE出文"] 字符串形;
-  - pe开而 PE出文 未接线=合成中文报错(不猜不代选,SpeedSelect「选中档未接线」
-    同款)。
+  - 请求名单=**纯字符串列表**(引擎把名单 sum() 摊平后按 isinstance(x,str)
+    过滤再建强链,execution.py:513-516)——取 ["PE出文","PE负面"] 字符串形;
+  - pe开而 PE出文 未接线=合成中文报错(不猜不代选);PE负面 未接线/为空
+    不报错=兜底负面词直写(⑮)。
 
-词族单源化(R7.3):剥离 pattern 真源=同目录 qi21_strip_lexicon.json(从原
-[206] widgets_values[1] 程序提取,SHA256 前16位 09008edcd2998efc 对拍),
-json.load 现读+进程内缓存(mtime 无关=design §10.5 钦定:词族属代码级常量
-非热改数据)。注册(import+NODE_CLASS_MAPPINGS+DISPLAY「道劫·qi21最终文本
-合成器」)在 my_nodes/__init__.py,本文件不自带注册。
+数据热读(10-04 集中地令:qi21_bases.json 一处持有 lock_layer/rgba/
+expand_instruction/strip_lexicon/types;本件消费 rgba+strip_lexicon 两节):
+  - _load_rgba(key)/_load_strip_lexicon() 走 _load_bases_data() 整文件
+    mtime 缓存(my_daojie_base._load_lock_layer 同款模式)——热改文件=
+    mtime 变=下次现读;节结构校验每次调用现跑,校验失败不写坏值进缓存
+    (与旧 L-3「坏 dict 钉死缓存」根除项等价,修文件即自愈);
+  - import 时刻 _RGBA_HEAD/_RGBA_TAIL/_TAIL 求值一次(widget default 面
+    与旧手术脚本引用面);rgba 节缺失=import 即中文 RuntimeError——装机
+    旧副本未同步时整包不注册,恢复路=漫影设置重新同步自研节点(与库缺失
+    同款恢复路径);
+  - 词族从 1001 §10.5「代码级常量(mtime 无关)」改判「热改数据(mtime
+    缓存)」:词族已搬家进 qi21_bases.json 集中地,属热改数据;旧单源
+  - qi21_strip_lexicon.json 留档不再被本件消费(en 词族已逐字搬入
+    strip_lexicon 节,搬迁对拍=SHA256 一致)。
+注册(import+NODE_CLASS_MAPPINGS+DISPLAY「道劫·qi21最终文本合成器」)在
+my_nodes/__init__.py,本文件不自带注册。
 """
 
 from __future__ import annotations
@@ -89,178 +105,247 @@ import re
 from pathlib import Path
 from typing import Any
 
-# ── 三固定句 default(1001 t2i 工作流值逐字迁入,脚本注入禁手敲;sha256 前16位 ──
-# ── 对拍锚=[160]头句 fe7eca21a0b8dd10 / [161]尾句 eb30fffec9f87437 / ──
-# ── [215]W1 c17fba67932284ed;改值须走 05 库「从库刷参数」同批过账并更新锚)──
-_RGBA_HEAD = 'This is an RGBA format image with transparency.'  # 原 [160] RGBA官方头句
-_RGBA_TAIL = 'The image has an alpha channel and a transparent background.'  # 原 [161] RGBA官方尾句
-_W1_TAIL = 'The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges.'  # 原 [215] W1收束句
+# 数据真源(10-04 集中地令):同目录 qi21_bases.json
+_BASES_JSON = Path(__file__).resolve().parent / "qi21_bases.json"
+
+# 整文件解析缓存(mtime 失效,同 my_daojie_base._load_lock_layer 模式):
+# 缓存 json.loads 原文解析结果且以 mtime 为键——热改文件=mtime 变=现读重扫;
+# 节结构校验(_load_rgba/_load_strip_lexicon)每次调用现跑,失败不写缓存。
+_bases_cache: dict = {"mtime": None, "data": None}
+
+
+def _load_bases_data() -> dict:
+    """qi21_bases.json 整文件现读(mtime 缓存);缺失/损坏=中文 RuntimeError。"""
+    try:
+        mtime = _BASES_JSON.stat().st_mtime
+    except OSError:
+        mtime = None
+    cache = _bases_cache
+    if mtime is not None and cache["mtime"] == mtime and cache["data"] is not None:
+        return cache["data"]
+    if mtime is None:
+        raise RuntimeError(
+            "qi21 数据库缺失:my_nodes/nodes/qi21_bases.json 未找到——请在漫影"
+            "设置里重新同步自研节点,或重启漫影工作室")
+    try:
+        data = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(
+            "qi21 数据库缺失或损坏:my_nodes/nodes/qi21_bases.json 读取失败"
+            f"({exc})——请在漫影设置里重新同步自研节点,或重启漫影工作室") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            "qi21 数据库结构不合法:my_nodes/nodes/qi21_bases.json 顶层应为"
+            "对象(lock_layer/rgba/expand_instruction/strip_lexicon/types)"
+            "——请重新同步自研节点,或重启漫影工作室")
+    cache["mtime"], cache["data"] = mtime, data
+    return data
+
+
+def _load_rgba(key: str) -> str:
+    """qi21_bases.json rgba 节热读(mtime 缓存走 _load_bases_data)。
+
+    key∈{head, tail, head_en, tail_en, w1_closing};节缺失/key 缺失/值非
+    非空串=中文 RuntimeError(不猜不代选;修文件后 mtime 变即自愈)。
+    """
+    rgba = _load_bases_data().get("rgba")
+    if not isinstance(rgba, dict):
+        raise RuntimeError(
+            "qi21_bases.json 缺 rgba 节(应含 head/tail/head_en/tail_en/"
+            "w1_closing 五键)——请在漫影设置里重新同步自研节点,或重启"
+            "漫影工作室")
+    value = rgba.get(key)
+    if not isinstance(value, str) or not value:
+        raise RuntimeError(
+            f"qi21_bases.json rgba 节缺「{key}」或值非非空字符串——请重新"
+            "同步自研节点,或重启漫影工作室")
+    return value
+
+
+def _load_strip_lexicon() -> dict:
+    """qi21_bases.json strip_lexicon 节热读:{en:[正则…], zh:[词…],
+    case_insensitive:bool};结构不合法=中文 RuntimeError(校验每次现跑,
+    修文件 mtime 变即自愈)。"""
+    lex = _load_bases_data().get("strip_lexicon")
+    if (not isinstance(lex, dict)
+            or not isinstance(lex.get("en"), list)
+            or not all(isinstance(p, str) and p for p in lex["en"])
+            or not isinstance(lex.get("zh"), list)
+            or not all(isinstance(w, str) and w for w in lex["zh"])
+            or not isinstance(lex.get("case_insensitive"), bool)):
+        raise RuntimeError(
+            "qi21 词族库缺失或损坏:my_nodes/nodes/qi21_bases.json "
+            "strip_lexicon 节结构不合法(须含 en=非空正则串列表、"
+            "zh=非空词列表、case_insensitive=布尔)——请重新同步自研节点,"
+            "或重启漫影工作室")
+    return lex
+
+
+# ── 三固定句 default(10-04 Phase B:英硬编码删除,改 rgba 节热读;import ──
+# ── 时刻求值一次=旧手术脚本引用面;运行时 default 面=INPUT_TYPES 现读)──
+_RGBA_HEAD = _load_rgba("head")    # RGBA官方头句(中文;英文备档=rgba.head_en)
+_RGBA_TAIL = _load_rgba("tail")    # RGBA官方尾句(中文;英文备档=rgba.tail_en)
+_TAIL = _load_rgba("w1_closing")   # W1收束句(中文)
+_W1_TAIL = _TAIL  # 历史名兼容别名(qi21_integration_surgery_* 旧手术脚本引用)
 
 # ── R1 双语透明强化(10-02 补强实验第1轮,用户令「补强」非接受) ──────────────
 # 缘起:s5b 实测 pe关×透明开单英文包裹→模型出 opaque(四角 alpha=255,ratioAlpha0=0);
 # pe开路同包裹但正文=剥离(PE英文出文)→四型 4/4 过门。差别在正文语言(pe关=装配
 # 中文直写),英文头尾离中文正文远→对 alpha 的服从度衰减。补强=头句后追加官方
-# 中文同款透明声明(两句=qi21-道劫-t2i.json 速查卡在档原文逐字:「中文同款:
-# 这是一张带有透明度的RGBA图像。……该图像具有alpha通道,背景是透明的。」,
-# 亦见 docs/prompts/Qwen-Image-2.1/06-视频提示词精要.md:85),把透明指令以正文
-# 同语种再锚一次。**只改 pe关路(pe开路 4/4 在役形零动)**;代码级常量非参数面
-# (输入面 7 槽零漂=契约锚不动,补强实验轮最小波及)。
+# 中文同款透明声明(两句=qi21-道劫-t2i.json 速查卡在档原文逐字,亦见
+# docs/prompts/Qwen-Image-2.1/06-视频提示词精要.md:85),把透明指令以正文
+# 同语种再锚一次。**只改 pe关路(pe开路 4/4 在役形零动)**。
 _ZH_ALPHA_DECL = ('这是一张带有透明度的RGBA图像 '
                   '该图像具有alpha通道,背景是透明的')
 
-# 词族数据文件(单源真源;判据件/审计脚本同此路径取 pattern)
-_LEXICON_PATH = Path(__file__).resolve().parent / "qi21_strip_lexicon.json"
-
-# 进程内缓存(mtime 无关,design §10.5):词族=代码级常量,改它=改节点代码,
-# 重载引擎生效——与 qi21_bases.json 热改即时生效纪律相反,勿混。
-_lexicon_cache: dict[str, Any] | None = None
-
-
-def _load_lexicon() -> tuple[str, bool]:
-    """词族真源现读:pattern+case_insensitive;首读后进程内缓存。
-
-    结构校验(S8 深审 L-3):json 合法≠结构合法——pattern 须非空 str、
-    case_insensitive 须 bool;不合法视同损坏,同款 RuntimeError 中文兜底
-    且**不写缓存**(坏 dict 钉死缓存=修文件不自愈须重启,就此根除:
-    校验不过缓存恒 None,修好文件下次调用即现读自愈)。
-    """
-    global _lexicon_cache
-    if _lexicon_cache is None:
-        try:
-            data = json.loads(_LEXICON_PATH.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            raise RuntimeError(
-                "qi21 词族库缺失或损坏:my_nodes/nodes/qi21_strip_lexicon.json "
-                f"读取失败({exc})——请在漫影设置里重新同步自研节点,或重启"
-                "漫影工作室") from exc
-        if (not isinstance(data, dict)
-                or not isinstance(data.get("pattern"), str)
-                or not data.get("pattern")
-                or not isinstance(data.get("case_insensitive"), bool)):
-            raise RuntimeError(
-                "qi21 词族库缺失或损坏:my_nodes/nodes/qi21_strip_lexicon.json "
-                "结构不合法(须含 pattern=非空字符串与 case_insensitive=布尔)"
-                "——请在漫影设置里重新同步自研节点,或重启漫影工作室")
-        _lexicon_cache = data
-    return _lexicon_cache["pattern"], bool(_lexicon_cache["case_insensitive"])
-
 
 def strip_word_family(text: str) -> str:
-    """词族整句剥离(原 [206] 语义):命中词族的整句删,词边界匹配;pattern
-    自带句界包裹与可选拖尾句读符;大小写由数据文件 case_insensitive 驱动
-    (=true);count=0 全局替换(逐项对拍 comfy_extras/nodes_string.py:406)。"""
-    pattern, case_insensitive = _load_lexicon()
-    return re.sub(pattern, "", text, flags=re.IGNORECASE if case_insensitive else 0)
+    """词族整句剥离(原 [206] 语义,10-04 双语化):英文词族(pattern 自带句界
+    包裹+词边界,自 strip_lexicon.en)与中文背景词族(句界包裹就地拼装,自
+    strip_lexicon.zh)各跑一遍,命中词族的整句删;大小写由
+    strip_lexicon.case_insensitive 驱动(=true);count=0 全局替换。"""
+    lex = _load_strip_lexicon()
+    flags = re.IGNORECASE if lex["case_insensitive"] else 0
+    out = text
+    for pattern in lex["en"]:
+        out = re.sub(pattern, "", out, flags=flags)
+    zh_words = sorted({w for w in lex["zh"] if w}, key=len, reverse=True)
+    if zh_words:
+        zh_pattern = (r"[^\n。.；;！!？?]*(?:" + "|".join(re.escape(w) for w in zh_words)
+                      + r")[^\n。.；;！!？?]*[。.；;！!？?\n]?")
+        out = re.sub(zh_pattern, "", out)
+    return out
 
 
 class MyQi21PromptSelect:
-    """漫影道劫 qi21 最终文本合成器:单口四象限择文,单口「进编码文本」产出。
+    """漫影道劫 qi21 最终文本合成器:正向四象限择文+负向双路路由,双口产出
+    (10-04 双口化;原单口「进编码文本」拆「进编码正向/负向」)。
 
-    (10-02-qi21-subgraph-singleport R1 单口化;原两口「最终文本/透明文本」合一)
-    进编码文本 = 透明模式? (pe开关? 头句+剥离(PE出文)+W1+尾句
-                              : 头句+中文透明声明+装配全文+W1+尾句)
-                : (pe开关? PE出文 : 装配全文)
-    (拼接序铁律=原两口形逐字保持;Q4 两路同包 W1 收束句;预览=实况=单口文本本身。
-    R1 双语透明强化(10-02 补强第1轮,用户令「补强」):pe关+透明象限=头句后追加
-    官方中文透明声明(_ZH_ALPHA_DECL),该象限「逐字保持」由用户令推翻;其余三
-    象限原样)
+    进编码正向文本 = 透明模式? (pe开关? 头句+剥离(PE出文)+W1+尾句
+                                   : 头句+中文透明声明+装配全文+W1+尾句)
+                     : (pe开关? PE出文 : 装配全文)
+    进编码负向文本 = pe开关? (PE负面 非空? PE负面 : 负面词直写) : 负面词直写
+    (拼接序铁律=10-02 单口形逐字保持;负向不包裹不剥离;预览=实况=口本文本)
     """
 
-    CATEGORY = "my"
-    DESCRIPTION = ("道劫最终文本合成器:单口「进编码文本」=透明开关决定拼不拼"
-                   "官方头尾/pe开关决定用 PE 英文还是装配原文(透明时词族剥离+"
-                   "W1收束,所见即所进编码)")
+    CATEGORY = "漫影"
+    DESCRIPTION = ("道劫最终文本合成器:双口「进编码正向/负向文本」=透明开关"
+                   "决定拼不拼官方头尾、pe开关决定用 PE 出文还是装配原文"
+                   "(透明时词族剥离+W1收束);负向=PE负面/负面词直写双路"
+                   "(pe开吃 PE负面兜底直写,pe关吃直写)")
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
-        # 1002 ⑭ 接口批:两连线槽(装配全文/PE出文)前置=节点顶部连线区,五个
-        # 参数 widget(开关/布尔/三大框)下沉=节点下部参数区——required 置空全住
-        # optional:连线槽保「可不接」语义(装配全文缺键=降级/PE出文缺键=pe关路
-        # 零装载,required 化会被引擎验证层拒=breaking);widget 缺键=签名 default
-        # 兜底。渲染序=required 序+optional 序,故声明序即面板序。
+        # 1002 ⑭ 接口批保持:连线槽前置=节点顶部连线区,参数 widget 下沉;
+        # 10-04 负向拆开轮:负面词直写/PE负面 两连线槽插入(装配全文/负面词
+        # 直写=装配器双出,PE出文/PE负面=PE改写双出,声明序=连线槽四枚前置)。
+        # required 恒空(⑭ 纪律:连线槽保「可不接」语义,required 化会被引擎
+        # 验证层拒=breaking);widget 缺键=签名 default 兜底。渲染序=声明序。
         return {
             "required": {},
             "optional": {
                 "装配全文": ("STRING", {"tooltip": "装配好的完整提示词原文,连「装配"
                                                 "全文件」节点的输出;不连=直写路空文,"
                                                 "日志有中文警告"}),
+                "负面词直写": ("STRING", {"tooltip": "装配器整理好的负面词清单,连"
+                                                 "「装配全文件」节点的 负面词 输出;"
+                                                 "PE 关时它直接进负向编码,PE 开时"
+                                                 "作为 PE负面 的兜底"}),
                 "PE出文": ("STRING", {"lazy": True,
-                                       "tooltip": "PE 改写好的英文长提示词,连 PE 改写"
+                                       "tooltip": "PE 改写好的正向长提示词,连 PE 改写"
                                                   "节点的 positive_prompt 输出;开关关"
                                                   "时它不会被拉起"}),
+                "PE负面": ("STRING", {"lazy": True,
+                                       "tooltip": "PE 改写出的负面词清单,连 PE 改写"
+                                                  "节点的 negative_prompt 输出;开关"
+                                                  "关时它不会被拉起;没接或为空时"
+                                                  "兜底用「负面词直写」"}),
                 "pe开关": ("BOOLEAN", {"default": True,
                                         "tooltip": "总开关:开=先用 PE 把中文短句改写"
-                                                   "成英文长提示词;关=直接用装配好的"
+                                                   "成长提示词;关=直接用装配好的"
                                                    "原文"}),
                 "透明模式": ("BOOLEAN", {"default": False,
                                           "tooltip": "要不要出透明底图,自动跟着所选型"
                                                      "走(接底座节点的「透明值」),"
                                                      "一般不用管"}),
-                "RGBA官方头句": ("STRING", {"multiline": True, "default": _RGBA_HEAD,
-                                             "tooltip": "教模型输出透明图的官方英文"
-                                                        "开头句,一般不用改"}),
-                "RGBA官方尾句": ("STRING", {"multiline": True, "default": _RGBA_TAIL,
+                "RGBA官方头句": ("STRING", {"multiline": True,
+                                             "default": _load_rgba("head"),
+                                             "tooltip": "教模型输出透明图的官方开头句"
+                                                        "(真源=qi21_bases.json,中文;"
+                                                        "一般不用改)"}),
+                "RGBA官方尾句": ("STRING", {"multiline": True,
+                                             "default": _load_rgba("tail"),
                                              "tooltip": "告诉模型图带透明通道的官方"
-                                                        "英文收尾句,一般不用改"}),
-                "W1收束句": ("STRING", {"multiline": True, "default": _W1_TAIL,
+                                                        "收尾句(真源=qi21_bases.json,"
+                                                        "中文;一般不用改)"}),
+                "W1收束句": ("STRING", {"multiline": True,
+                                          "default": _load_rgba("w1_closing"),
                                           "tooltip": "让主体变成干净抠图素材的收尾"
-                                                     "描述(独占画面+四周留透明),"
-                                                     "一般不用改"}),
+                                                     "描述(独占画面+四周留透明,"
+                                                     "真源=qi21_bases.json;一般"
+                                                     "不用改)"}),
             },
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("进编码文本",)
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("进编码正向文本", "进编码负向文本")
     FUNCTION = "compose"
 
     def check_lazy_status(self, pe开关: bool | None = None,
                           **kwargs: Any) -> list[str]:
-        """只请求「pe开×PE出文已接线×尚未求值」的槽,其余一律空名单。
+        """只请求「pe开×已接线×尚未求值」的 PE出文/PE负面,其余一律空名单。
 
         执行器以 kwargs 投递当前输入(经典节点,execution.py:511):缺键=该槽
         未接线(optional 不投递)→绝不请求(引擎对未接线槽 make_input_strong_link
         抛 NodeInputError);None=已接线未求值→请求;有值=已求值→放行。pe关时
-        即便 PE出文 已接线未求值也不请求([140] 无人消费其输出→不进执行图)。
+        即便两槽已接线未求值也不请求([140] 无人消费其输出→不进执行图)。
+        10-04 扩:PE负面 同入请求名单(pe开路负向真源,漏请求=None 静默兜底
+        直写=错路;名单仍纯字符串形)。
 
-        1002 ⑭ optional 化补:pe开关 缺键(None,仅手写 API prompt 省略槽时
-        可达;前端 widget 值恒投递)按 widget default=True 兜底(0926 裁定1
-        「画布默认 PE 开路」语义不随槽位搬家漂移)。
+        pe开关 缺键(None,仅手写 API prompt 省略槽时可达;前端 widget 值恒
+        投递)按 widget default=True 兜底(0926 裁定1「画布默认 PE 开路」
+        语义不随槽位搬家漂移)。
         """
         if pe开关 is None:
             pe开关 = True
         if not pe开关:
             return []
-        if "PE出文" in kwargs and kwargs["PE出文"] is None:
-            return ["PE出文"]
-        return []
+        requests: list[str] = []
+        for slot in ("PE出文", "PE负面"):
+            if slot in kwargs and kwargs[slot] is None:
+                requests.append(slot)
+        return requests
 
-    def compose(self, 装配全文: str | None = None, PE出文: str | None = None,
-                pe开关: bool | None = None, 透明模式: bool = False,
-                RGBA官方头句: str = _RGBA_HEAD, RGBA官方尾句: str = _RGBA_TAIL,
-                W1收束句: str = _W1_TAIL) -> tuple[str]:
-        """单口合成:进编码文本(返回元组序=RETURN_NAMES 序,一元组)。
+    def compose(self, 装配全文: str | None = None,
+                负面词直写: str | None = None, PE出文: str | None = None,
+                PE负面: str | None = None, pe开关: bool | None = None,
+                透明模式: bool = False, RGBA官方头句: str = _RGBA_HEAD,
+                RGBA官方尾句: str = _RGBA_TAIL,
+                W1收束句: str = _TAIL) -> tuple[str, str]:
+        """双口合成:(进编码正向文本, 进编码负向文本)(元组序=RETURN_NAMES 序)。
 
-        两口合一(R1):先 pe开关 选正文(PE出文/装配全文),再 透明模式 决定
-        拼 不拼包裹——拼接序铁律=原两口形逐字保持(pe关+透明象限除外,R1 补强):
+        正向路(10-02 单口形逐字保持):先 pe开关 选正文(PE出文/装配全文),
+        再 透明模式 决定拼不拼包裹——拼接序铁律:
           pe开+透明=头句+" "+剥离(PE出文)+" "+W1收束句+" "+尾句
           pe关+透明=头句+" "+中文透明声明+" "+装配全文+" "+W1收束句+" "+尾句
-                    (Q4 两路同包 W1;R1 补强第1轮=中文声明双语强化,pe关路专属)
           pe关+透明关=装配全文 原样;pe开+透明关=PE出文 原样。
-        透明模式 直接参与文本计算(边界自下游闸门迁入本件,R2 双编码塌缩后
-        预览=实况:透明开时预览含头尾,所见即所进编码)。
+        负向路(10-04 新增,不包裹不剥离):
+          pe开=PE负面 非空? PE负面 : 负面词直写(⑮ fallback)
+          pe关=负面词直写(缺键=空串,空负向合法态)。
 
-        形参序=⑭ 新槽序(两连线槽前置);引擎按名投递与形参序无关,直接调用方
-        (单测/脚本)用关键字传参零波及。1002 ⑭ optional 化:全参数有 default,
-        缺投不炸 TypeError;pe开关 None 兜底 True(同 widget default/懒钩子)。
+        形参序=⑭ 新槽序(四连线槽前置);引擎按名投递与形参序无关,直接调用方
+        (单测/脚本)用关键字传参零波及。全参数有 default,缺投不炸 TypeError;
+        pe开关 None 兜底 True(同 widget default/懒钩子)。
 
         装配全文 None(未接线)语义(裁定 A 自洽):pe开路不消费它=照常;pe关路
         降级空串+中文 print 警告(缺真源=缺整段文本,日志可查,不猜不代选)。
         """
         if pe开关 is None:
             pe开关 = True
+        direct_neg = (负面词直写 or "").strip()
         if 装配全文 is None:
             print("[MyQi21PromptSelect] 装配全文输入未接线:pe关路(直写/透明直写)"
-                  "无真源文本可用,最终文本降级为空串——请把 [141] "
+                  "无真源文本可用,进编码正向文本降级为空串——请把 [141] "
                   "MyQi21PromptAssembly 的 装配全文 输出连到本节点 装配全文 "
                   "输入,或检查该连线是否被改动")
             direct = ""
@@ -272,18 +357,21 @@ class MyQi21PromptSelect:
                     "pe开关=开但 PE出文 输入未接线:PE 路需要 [140] PE改写的"
                     "positive_prompt 出文——请把 [140] 出文连到本节点 PE出文 "
                     "输入,或把 pe开关 关掉走直写路")
-            # pe开路:正文=PE出文;透明 mid=剥离(PE出文)+W1(拼接序=原两口形逐字)
+            # pe开路:正向正文=PE出文;透明 mid=剥离(PE出文)+W1(拼接序=原形逐字);
+            # 负向=PE负面(空/缺=兜底负面词直写,⑮)
             main_text = PE出文
             transparent_mid = strip_word_family(PE出文) + " " + W1收束句
+            pe_neg = (PE负面 or "").strip()
+            negative_text = pe_neg if pe_neg else direct_neg
         else:
-            # pe关路:正文=装配全文;透明 mid 同包 W1 收束句(1002 Q4 grill 裁定
-            # ——修前=裸拼装配全文,与 pe开路(剥离+W1)不对称,透明素材收束缺位);
-            # R1 双语透明强化(10-02 补强第1轮):头句后追加官方中文透明声明——
-            # s5b 实测 pe关单英文包裹出 opaque(corners=255/ratioAlpha0=0),中文正文
-            # 路以中文再锚透明指令;pe开路 4/4 在役形零动(上文 pe开分支不动)。
+            # pe关路:正向正文=装配全文;透明 mid 同包 W1 收束句(Q4;R1 双语
+            # 透明强化:头句后追加官方中文透明声明);负向=负面词直写
             main_text = direct
             transparent_mid = _ZH_ALPHA_DECL + " " + direct + " " + W1收束句
-        # 透明模式参与计算(R1 边界迁入):开=拼官方头尾,关=正文原样直出
+            negative_text = direct_neg
+        # 透明模式参与计算(R1 边界迁入):开=拼官方头尾,关=正文原样直出;
+        # 负向路不包裹(透明包裹是正向路指令)
         if 透明模式:
-            return (f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}",)
-        return (main_text,)
+            return (f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}",
+                    negative_text)
+        return (main_text, negative_text)
