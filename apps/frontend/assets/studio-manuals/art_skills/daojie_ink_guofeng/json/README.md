@@ -6,7 +6,7 @@
 
 | 文件 | 角色 |
 |---|---|
-| `qi21_bases.json` | **生产真源**:风格底座(lock_layer)/十型底座(types)/PE扩写指令/清筛词表/分层契约(layer_contract)/色卡词典(color_lexicon) |
+| `qi21_bases.json` | **生产真源**:风格底座(lock_layer)/九型+自由=10 条底座(types)/PE扩写指令/清筛词表/分层契约(layer_contract)/色卡词典(color_lexicon);types[] 每型含 K2 承接字段:lora_recipe/steps_hint/i2i_routes/postprocess/recipe_version(数据实存,配方矩阵文档为其投影) |
 | `qi21_strip_lexicon.json` | Q2.1 清筛正则表(pattern;与 qi21_bases 内嵌 strip_lexicon 词表并存,非重复) |
 | `daojie_lora_stack.json` | K2 LoRA 栈序(14条) |
 | `daojie_loras.json` | K2 LoRA 台账(9条) |
