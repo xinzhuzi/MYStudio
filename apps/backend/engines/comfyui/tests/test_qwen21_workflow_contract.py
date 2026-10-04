@@ -4606,12 +4606,16 @@ def test_prompt_source_single_truth():
     由 apps/build/scripts/daojie_prompt_source_sync.py 单向复制。
     """
     import hashlib
-    src = _REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-    dst = QI21_BASES_JSON
-    assert src.is_file(), f"真源家缺 qi21_bases.json: {src}"
-    h_src = hashlib.sha256(src.read_bytes()).hexdigest()
-    h_dst = hashlib.sha256(dst.read_bytes()).hexdigest()
-    assert h_src == h_dst, (
-        "道劫提示词真源×引擎产物漂移: 改真源(json/)后须跑 "
-        "python3 apps/build/scripts/daojie_prompt_source_sync.py 同步;禁手改产物侧"
-    )
+    home = _REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"
+    nodes = QI21_BASES_JSON.parent
+    # 10-04 统一规范令:道劫风格全部机读资产四件收拢 json/ 家(不分 K2/Q2.1 产线)
+    for name in ("qi21_bases.json", "qi21_strip_lexicon.json",
+                 "daojie_lora_stack.json", "daojie_loras.json"):
+        src, dst = home / name, nodes / name
+        assert src.is_file(), f"真源家缺 {name}: {src}"
+        h_src = hashlib.sha256(src.read_bytes()).hexdigest()
+        h_dst = hashlib.sha256(dst.read_bytes()).hexdigest()
+        assert h_src == h_dst, (
+            f"道劫资产真源×引擎产物漂移: {name} — 改真源(json/)后须跑 "
+            "python3 apps/build/scripts/daojie_prompt_source_sync.py 同步;禁手改产物侧"
+        )

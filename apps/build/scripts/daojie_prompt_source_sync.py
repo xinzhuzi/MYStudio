@@ -15,8 +15,15 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-SRC = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-DST = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json"
+HOME = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"
+NODES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
+# 道劫风格全部机读资产(不分 K2/Q2.1 产线;10-04 用户令:四件收拢,道劫=统一规范第一个实验)
+PAIRS = {
+    "qi21_bases.json": "Q2.1 九型底座真源(lock_layer/types/PE指令/契约/色卡词典)",
+    "qi21_strip_lexicon.json": "Q2.1 清筛正则表(pattern;与 qi21_bases#strip_lexicon 内嵌词表并存非重复)",
+    "daojie_lora_stack.json": "K2 LoRA 栈序(14条)",
+    "daojie_loras.json": "K2 LoRA 台账(9条)",
+}
 
 
 def sha(p: Path) -> str:
@@ -24,21 +31,27 @@ def sha(p: Path) -> str:
 
 
 def main() -> int:
-    if not SRC.is_file():
-        print(f"✗ 真源缺失: {SRC}")
-        return 1
-    if DST.is_file() and sha(SRC) == sha(DST):
-        print(f"✓ 已一致(sha256 {sha(SRC)[:12]}…): {DST.relative_to(REPO)}")
-        return 0
-    if "--check" in sys.argv:
-        print(f"✗ 产物漂移: 真源 {sha(SRC)[:12]}… vs 产物 {sha(DST)[:12] if DST.is_file() else '缺失'}…\n"
-              f"  修复: python3 apps/build/scripts/daojie_prompt_source_sync.py")
-        return 1
-    DST.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(SRC, DST)
-    assert sha(SRC) == sha(DST)
-    print(f"✓ 同步完成(sha256 {sha(SRC)[:12]}…): {DST.relative_to(REPO)}")
-    return 0
+    check = "--check" in sys.argv
+    rc = 0
+    for name, desc in PAIRS.items():
+        src, dst = HOME / name, NODES / name
+        if not src.is_file():
+            print(f"✗ 真源缺失: {src}")
+            rc = 1
+            continue
+        if dst.is_file() and sha(src) == sha(dst):
+            print(f"✓ 已一致(sha256 {sha(src)[:12]}…): {name} — {desc}")
+            continue
+        if check:
+            print(f"✗ 产物漂移: {name} — 真源 {sha(src)[:12]}… vs 产物 "
+                  f"{sha(dst)[:12] if dst.is_file() else '缺失'}… 修复: 本脚本不带 --check 重跑")
+            rc = 1
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+        assert sha(src) == sha(dst)
+        print(f"✓ 同步完成(sha256 {sha(src)[:12]}…): {name} — {desc}")
+    return rc
 
 
 if __name__ == "__main__":
