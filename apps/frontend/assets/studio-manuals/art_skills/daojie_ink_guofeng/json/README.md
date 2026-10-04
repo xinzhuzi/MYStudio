@@ -11,7 +11,7 @@
 | `daojie_lora_stack.json` | K2 LoRA 栈序(14条) |
 | `daojie_loras.json` | K2 LoRA 台账(9条) |
 | `prompt_layering.json` | 分层契约完整版(手册版;layer_contract 为其内联精简版,二者由设计互锁) |
-| `ma-palette-source.toml` | MA 42 色备选库摘录(CC-BY-4.0);在用词以 color_lexicon 为准 |
+| `ma-palette-source.json` | MA 42 色备选库摘录(toml→json 转制;CC-BY-4.0);在用词以 color_lexicon 为准 |
 
 ## 分发与同步
 

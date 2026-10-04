@@ -187,6 +187,6 @@
       "每图色锚1-2个(背景/光源位各一词;0926色相锚轮实践成文)",
       "写主体句先列色事实账:设定色>材质本色>未知项;未知项不猜色不写色,让多彩行预算兜底;冲突按conflict_order在最内层解决——改主体句,不改型"
     ],
-    "palette_copy": "json/ma-palette-source.toml(42色全量摘录,CC-BY-4.0,防腐外部依赖)"
+    "palette_copy": "json/ma-palette-source.json(42色全量摘录,toml→json 转制;CC-BY-4.0,防腐外部依赖)"
   }
 }

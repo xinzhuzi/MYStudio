@@ -1,0 +1,495 @@
+{
+  "_meta": {
+    "what": "MA 42色备选库摘录(toml→json 转制,10-04 用户令:家内格式统一 JSON)",
+    "source": "MA ma-imagegen 三轨选色配料.toml (ma-gongbi-palette-v1)",
+    "license": "CC-BY-4.0(见原项目 美术风格提炼/licenses/)",
+    "excerpted": "2026-10-04",
+    "usage": "color_lexicon 词典的映射判据与备选色库;在用词以 qi21_bases.json#color_lexicon 为准"
+  },
+  "version": null,
+  "role_order": null,
+  "color_groups": [
+    {
+      "group_id": "paper",
+      "name": "纸墨",
+      "color_ids": [
+        "paper.01",
+        "paper.02",
+        "paper.03",
+        "paper.04",
+        "paper.05"
+      ]
+    },
+    {
+      "group_id": "blue",
+      "name": "青蓝",
+      "color_ids": [
+        "blue.01",
+        "blue.02",
+        "blue.03",
+        "blue.04"
+      ]
+    },
+    {
+      "group_id": "green",
+      "name": "青绿",
+      "color_ids": [
+        "green.01",
+        "green.02",
+        "green.03",
+        "green.04"
+      ]
+    },
+    {
+      "group_id": "red",
+      "name": "红褐",
+      "color_ids": [
+        "red.01",
+        "red.02",
+        "red.03",
+        "red.04",
+        "red.05"
+      ]
+    },
+    {
+      "group_id": "metal",
+      "name": "金属",
+      "color_ids": [
+        "metal.01",
+        "metal.02",
+        "metal.03",
+        "metal.04"
+      ]
+    },
+    {
+      "group_id": "jade",
+      "name": "玉石",
+      "color_ids": [
+        "jade.01",
+        "jade.02",
+        "jade.03",
+        "jade.04"
+      ]
+    },
+    {
+      "group_id": "purple",
+      "name": "紫灰",
+      "color_ids": [
+        "purple.01",
+        "purple.02",
+        "purple.03",
+        "purple.04"
+      ]
+    },
+    {
+      "group_id": "yellow",
+      "name": "黄茶",
+      "color_ids": [
+        "yellow.01",
+        "yellow.02",
+        "yellow.03",
+        "yellow.04"
+      ]
+    },
+    {
+      "group_id": "bluegray",
+      "name": "蓝灰",
+      "color_ids": [
+        "bluegray.01",
+        "bluegray.02",
+        "bluegray.03",
+        "bluegray.04"
+      ]
+    },
+    {
+      "group_id": "flora",
+      "name": "草木",
+      "color_ids": [
+        "flora.01",
+        "flora.02",
+        "flora.03",
+        "flora.04"
+      ]
+    }
+  ],
+  "colors": [
+    {
+      "color_id": "paper.01",
+      "group_id": "paper",
+      "name": "宣纸白",
+      "hex": "#F5F0E8",
+      "medium_role": "浅净底、留白",
+      "suitable": "全轨底色",
+      "forbidden": "可读平涂，不做纸纤维滤镜"
+    },
+    {
+      "color_id": "paper.02",
+      "group_id": "paper",
+      "name": "米白",
+      "hex": "#E9DFC9",
+      "medium_role": "暖底",
+      "suitable": "室内、旧城、人物",
+      "forbidden": "不全画泛黄做旧"
+    },
+    {
+      "color_id": "paper.03",
+      "group_id": "paper",
+      "name": "雪灰",
+      "hex": "#D8D6CF",
+      "medium_role": "雾与留白过渡",
+      "suitable": "山水、夜景、玉石",
+      "forbidden": "不退化为空泛灰洗"
+    },
+    {
+      "color_id": "paper.04",
+      "group_id": "paper",
+      "name": "淡墨",
+      "hex": "#6B6B6B",
+      "medium_role": "远层与次线",
+      "suitable": "远景、次要结构",
+      "forbidden": "不作近景硬轮廓"
+    },
+    {
+      "color_id": "paper.05",
+      "group_id": "paper",
+      "name": "浓墨",
+      "hex": "#1A1A1A",
+      "medium_role": "主线与轮廓",
+      "suitable": "人物、器物、建筑",
+      "forbidden": "不形成油黑大色块"
+    },
+    {
+      "color_id": "blue.01",
+      "group_id": "blue",
+      "name": "靛蓝",
+      "hex": "#2B4570",
+      "medium_role": "夜色与深层",
+      "suitable": "夜渡、远山、深衣",
+      "forbidden": "须有浅色或暖色制衡"
+    },
+    {
+      "color_id": "blue.02",
+      "group_id": "blue",
+      "name": "石青",
+      "hex": "#356A9A",
+      "medium_role": "矿物蓝主区",
+      "suitable": "山石、水、衣料",
+      "forbidden": "不是全员制服色"
+    },
+    {
+      "color_id": "blue.03",
+      "group_id": "blue",
+      "name": "天青",
+      "hex": "#6F9DB2",
+      "medium_role": "空气与水色辅区",
+      "suitable": "天光、薄雾、水面",
+      "forbidden": "禁霓虹青光"
+    },
+    {
+      "color_id": "blue.04",
+      "group_id": "blue",
+      "name": "黛青",
+      "hex": "#355464",
+      "medium_role": "克制深色",
+      "suitable": "衣袍、瓦面、远山",
+      "forbidden": "不做单一灰蓝统治"
+    },
+    {
+      "color_id": "green.01",
+      "group_id": "green",
+      "name": "青绿",
+      "hex": "#5B8C7A",
+      "medium_role": "山水母色",
+      "suitable": "林地、山门、生命题材",
+      "forbidden": "仅在场景事实适用时启用"
+    },
+    {
+      "color_id": "green.02",
+      "group_id": "green",
+      "name": "石绿",
+      "hex": "#5D8E5B",
+      "medium_role": "矿物绿主区",
+      "suitable": "山体、树木、衣料",
+      "forbidden": "不与红金全量齐开"
+    },
+    {
+      "color_id": "green.03",
+      "group_id": "green",
+      "name": "玉青",
+      "hex": "#74A7A0",
+      "medium_role": "玉水过渡",
+      "suitable": "玉器、医修、水色",
+      "forbidden": "不做塑料薄荷绿"
+    },
+    {
+      "color_id": "green.04",
+      "group_id": "green",
+      "name": "铜绿",
+      "hex": "#4F7E70",
+      "medium_role": "氧化点缀",
+      "suitable": "青铜、旧构件",
+      "forbidden": "只用于氧化事实"
+    },
+    {
+      "color_id": "red.01",
+      "group_id": "red",
+      "name": "朱红",
+      "hex": "#B8453A",
+      "medium_role": "焦点与印记",
+      "suitable": "阵纹、印章、小配饰",
+      "forbidden": "不做全画红光"
+    },
+    {
+      "color_id": "red.02",
+      "group_id": "red",
+      "name": "朱砂",
+      "hex": "#C5483C",
+      "medium_role": "仪式主色",
+      "suitable": "法脉、符印、衣饰",
+      "forbidden": "不套给所有资产"
+    },
+    {
+      "color_id": "red.03",
+      "group_id": "red",
+      "name": "胭脂",
+      "hex": "#A94B58",
+      "medium_role": "织物与肤色节制",
+      "suitable": "女性衣饰、花木",
+      "forbidden": "不做现代粉妆感"
+    },
+    {
+      "color_id": "red.04",
+      "group_id": "red",
+      "name": "赭石",
+      "hex": "#8B5E3C",
+      "medium_role": "土木山石",
+      "suitable": "土地、木器、岩壁",
+      "forbidden": "不把浅底染脏"
+    },
+    {
+      "color_id": "red.05",
+      "group_id": "red",
+      "name": "栗褐",
+      "hex": "#654331",
+      "medium_role": "旧木与皮革",
+      "suitable": "木构、鞘、革件",
+      "forbidden": "不做深褐滤镜"
+    },
+    {
+      "color_id": "metal.01",
+      "group_id": "metal",
+      "name": "旧金",
+      "hex": "#A8883C",
+      "medium_role": "鎏金点睛",
+      "suitable": "金属、描金、等级纹",
+      "forbidden": "只在工艺事实成立时用"
+    },
+    {
+      "color_id": "metal.02",
+      "group_id": "metal",
+      "name": "暗金",
+      "hex": "#7A6528",
+      "medium_role": "克制贵重纹",
+      "suitable": "高阶纹样、龙气细丝",
+      "forbidden": "不做大面积金光"
+    },
+    {
+      "color_id": "metal.03",
+      "group_id": "metal",
+      "name": "青铜",
+      "hex": "#7C6546",
+      "medium_role": "青铜本色",
+      "suitable": "鼎、镜、机关构件",
+      "forbidden": "氧化与否须写清"
+    },
+    {
+      "color_id": "metal.04",
+      "group_id": "metal",
+      "name": "铁灰",
+      "hex": "#4A4D50",
+      "medium_role": "铁器本色",
+      "suitable": "兵器、甲片、工具",
+      "forbidden": "与墨线保持边缘分离"
+    },
+    {
+      "color_id": "jade.01",
+      "group_id": "jade",
+      "name": "白玉",
+      "hex": "#DCE5D9",
+      "medium_role": "浅玉本色",
+      "suitable": "玉佩、印、器皿",
+      "forbidden": "禁塑料白高光"
+    },
+    {
+      "color_id": "jade.02",
+      "group_id": "jade",
+      "name": "青玉",
+      "hex": "#6E9B8D",
+      "medium_role": "青玉主体",
+      "suitable": "玉简、佩饰、法器",
+      "forbidden": "不替代通用绿色"
+    },
+    {
+      "color_id": "jade.03",
+      "group_id": "jade",
+      "name": "碧玉",
+      "hex": "#4D806C",
+      "medium_role": "深玉点缀",
+      "suitable": "玉石、灵材",
+      "forbidden": "仅用于玉或明确灵材"
+    },
+    {
+      "color_id": "jade.04",
+      "group_id": "jade",
+      "name": "墨玉",
+      "hex": "#314442",
+      "medium_role": "暗玉嵌件",
+      "suitable": "印、柄、镶嵌",
+      "forbidden": "与浓墨线分开可读"
+    },
+    {
+      "color_id": "purple.01",
+      "group_id": "purple",
+      "name": "烟紫",
+      "hex": "#665675",
+      "medium_role": "克制紫灰主区",
+      "suitable": "礼服、暮色花木、织物",
+      "forbidden": "不做高饱和紫光或现代渐变"
+    },
+    {
+      "color_id": "purple.02",
+      "group_id": "purple",
+      "name": "藕灰",
+      "hex": "#A58F9B",
+      "medium_role": "紫灰层次辅色",
+      "suitable": "内衬、花叶背面、陶釉",
+      "forbidden": "不全画粉灰失去结构"
+    },
+    {
+      "color_id": "purple.03",
+      "group_id": "purple",
+      "name": "藕白",
+      "hex": "#D8CCD0",
+      "medium_role": "冷暖之间的浅底",
+      "suitable": "轻纱、花瓣、室内留白",
+      "forbidden": "不替代全局宣纸白"
+    },
+    {
+      "color_id": "purple.04",
+      "group_id": "purple",
+      "name": "银灰",
+      "hex": "#8C8E98",
+      "medium_role": "冷银与织物过渡",
+      "suitable": "银器、冷甲、绸缎暗部",
+      "forbidden": "不做金属塑料高光"
+    },
+    {
+      "color_id": "yellow.01",
+      "group_id": "yellow",
+      "name": "苍黄",
+      "hex": "#8A7748",
+      "medium_role": "克制土黄主区",
+      "suitable": "秋原、旧墙、山居织物",
+      "forbidden": "不做病黄或满幅陈旧滤镜"
+    },
+    {
+      "color_id": "yellow.02",
+      "group_id": "yellow",
+      "name": "藤黄",
+      "hex": "#C1A34A",
+      "medium_role": "明暖辅色与小点睛",
+      "suitable": "花蕊、竹篾、纹样",
+      "forbidden": "不大面积铺成广告亮黄"
+    },
+    {
+      "color_id": "yellow.03",
+      "group_id": "yellow",
+      "name": "砂白",
+      "hex": "#E5D9BE",
+      "medium_role": "砂土暖浅底",
+      "suitable": "土壁、陶坯、旱地空气",
+      "forbidden": "不与米白无职责地重复"
+    },
+    {
+      "color_id": "yellow.04",
+      "group_id": "yellow",
+      "name": "焦茶",
+      "hex": "#6B5138",
+      "medium_role": "烘焙木竹深层",
+      "suitable": "竹木、茶器、革绳",
+      "forbidden": "不做统一脏褐阴影"
+    },
+    {
+      "color_id": "bluegray.01",
+      "group_id": "bluegray",
+      "name": "水墨蓝灰",
+      "hex": "#536B78",
+      "medium_role": "雨雪与远山母色",
+      "suitable": "雨城、雪关、冷水、远山",
+      "forbidden": "须配冷白或暖点，不单色统治"
+    },
+    {
+      "color_id": "bluegray.02",
+      "group_id": "bluegray",
+      "name": "雾蓝",
+      "hex": "#92A7AD",
+      "medium_role": "湿空气与水雾辅区",
+      "suitable": "薄雾、雨幕、冰面反光",
+      "forbidden": "禁赛博蓝光和软体积雾"
+    },
+    {
+      "color_id": "bluegray.03",
+      "group_id": "bluegray",
+      "name": "冷白",
+      "hex": "#E3E8E5",
+      "medium_role": "清寒浅底与高光",
+      "suitable": "雪地、瓷面、银器留白",
+      "forbidden": "不做曝光过白或纯白塑料"
+    },
+    {
+      "color_id": "bluegray.04",
+      "group_id": "bluegray",
+      "name": "铁黑",
+      "hex": "#30383B",
+      "medium_role": "冷铁深层与暗构件",
+      "suitable": "铁器、瓦脊、冷甲接缝",
+      "forbidden": "不与浓墨合并成死黑块"
+    },
+    {
+      "color_id": "flora.01",
+      "group_id": "flora",
+      "name": "藻褐",
+      "hex": "#64705A",
+      "medium_role": "水岸草木暗层",
+      "suitable": "湿地、藻石、旧木水线",
+      "forbidden": "不做污水绿褐滤镜"
+    },
+    {
+      "color_id": "flora.02",
+      "group_id": "flora",
+      "name": "苔绿",
+      "hex": "#788064",
+      "medium_role": "苔石与阴生植物主区",
+      "suitable": "石阶、湿墙、林下、庭院",
+      "forbidden": "不做嫩草荧光绿"
+    },
+    {
+      "color_id": "flora.03",
+      "group_id": "flora",
+      "name": "枯黄",
+      "hex": "#A99A67",
+      "medium_role": "枯草与秋叶辅区",
+      "suitable": "荒庭、芦苇、旱草、旧席",
+      "forbidden": "不铺满成单调黄褐"
+    },
+    {
+      "color_id": "flora.04",
+      "group_id": "flora",
+      "name": "木褐",
+      "hex": "#765A40",
+      "medium_role": "木构与树皮本色",
+      "suitable": "梁柱、树干、木盒、竹器",
+      "forbidden": "不用深褐覆盖木纹结构"
+    }
+  ]
+}
