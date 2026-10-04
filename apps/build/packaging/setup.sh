@@ -21,7 +21,9 @@ setup_node() {
   fi
   info "安装 Node.js 依赖..."
   cd "$APPS_DIR"
-  npm install
+  # 对齐 CI(build.yml):apps/patches 的补丁仅对 pnpm 生效,npm install 不应用补丁
+  # 会与 CI 产物漂移;pnpm 版本由 apps/package.json 的 packageManager 字段钉住
+  corepack pnpm install --frozen-lockfile
   if [ ! -d "$APPS_DIR/node_modules/electron" ]; then
     echo "❌ Node.js 依赖安装失败"
     exit 1
