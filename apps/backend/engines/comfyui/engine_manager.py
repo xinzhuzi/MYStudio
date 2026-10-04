@@ -1452,6 +1452,14 @@ class EngineManager:
                     _pm.sync_my_nodes()
             except Exception as exc:  # noqa: BLE001 — 补同步失败不拦启动
                 print(f"[image-sidecar] comfy-engine: my-nodes 补同步失败({exc}),启动继续", flush=True)
+            # 1004 design §十六 Step1:道劫数据位(引擎家 daojie-data)同款漂移
+            # 补同步——装机老包无数据位→候选链同目录产物兜底,新包首次启动自动
+            # sync 出数据位(自迁移);失败不拦启动(同上款容错)。
+            try:
+                if _pm.daojie_data_drifted():
+                    _pm.sync_daojie_data()
+            except Exception as exc:  # noqa: BLE001 — 数据位补同步失败不拦启动
+                print(f"[image-sidecar] comfy-engine: 道劫数据位补同步失败({exc}),启动继续", flush=True)
             if already_running:
                 # 0929 深审 R1 快路径枚举窗:自管引擎活着≠全机唯一——旧快路径
                 # 提前 return 永不到达下方主枚举,外部会话此时再拉一台自家实例
@@ -1622,6 +1630,15 @@ class EngineManager:
                           **cm.engine_env_vars(),
                           "MYSTUDIO_BRIDGE_URL": bridge_contract.BRIDGE_URL,
                           "MYSTUDIO_BRIDGE_TOKEN": bridge_contract.resolve_bridge_token()}
+            # 1004 design §十六定名:MYSTUDIO_DAOJIE_DATA dev 由 launch_env 注入
+            # 真源家路径(对齐 MYSTUDIO_ART_SKILLS 先例口径)——仅 dev 仓库布局
+            # 在位才注入,生产 Resources/backend 无 frontend 相对布局不注入(节点
+            # 走引擎家 daojie-data/装机固定位);setdefault=用户/manifest 显式
+            # env 不被遮蔽,桥契约变量仍后置不可遮蔽(上款纪律不变)。
+            _daojie_truth_home = Path(__file__).resolve().parents[3] / (
+                "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json")
+            if _daojie_truth_home.is_dir():
+                launch_env.setdefault("MYSTUDIO_DAOJIE_DATA", str(_daojie_truth_home))
             # spawn 提交进 _lock(09-14 P1):守卫拉起须核对守卫仍在岗(过检后
             # 用户 stop 的窗口),stop() 也持 _lock 摘引用——两序必居其一:先
             # 提交则 stop 摸到新引用照杀,后提交则此处直接拒拉。

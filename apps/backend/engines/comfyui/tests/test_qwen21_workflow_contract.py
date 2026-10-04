@@ -3528,7 +3528,11 @@ class TestQi21SubgraphContract:
         note = _by_type(GRAPHS["qi21"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("装配子图", "MyQi21DaojieBase", "九型", "空镜无人",
                       "从库刷参数",
-                      "[401]", "恒挂", "美化", "05-道劫规范提示词库.md", "[7010]=40", "40-50",
+                      "[401]", "恒挂", "美化",
+                      # 1004 集中化(设计2.6):Note 真源句改指 json/家,05库=记录层
+                      # (旧 token「05-道劫规范提示词库.md」随 Note 勘正退役)
+                      "qi21_bases.json", "05库=记录层",
+                      "[7010]=40", "40-50",
                       RGBA_HEAD, RGBA_TAIL, RGBA_HEAD_ZH, RGBA_TAIL_ZH,
                       "画幅联动",
                       "LoraLoaderModelOnly", LORA_FILE,
@@ -4619,3 +4623,20 @@ def test_prompt_source_single_truth():
             f"道劫资产真源×引擎产物漂移: {name} — 改真源(json/)后须跑 "
             "python3 apps/build/scripts/daojie_prompt_source_sync.py 同步;禁手改产物侧"
         )
+
+
+def test_daojie_data_prefers_truth_home(monkeypatch):
+    """1004 §十六 Step2:道劫数据四层候选链——dev 环境解析到真源家(json/)。
+
+    _daojie_data 样板(env→dev真源家→引擎家数据位→装机固定位→同目录产物
+    兜底)为八件同文件内联(升级五件+三热件,零跨模块 import——spec 直载
+    场景相对导入炸的教训);dev 仓内跑测时第二层候选(dev 真源家)即命中,
+    同目录产物副本只作装机兜底。
+    """
+    monkeypatch.delenv("MYSTUDIO_DAOJIE_DATA", raising=False)
+    from engines.comfyui.my_nodes.nodes import my_qi21_base
+    truth = (_REPO / "apps/frontend/assets/studio-manuals"
+             / "art_skills/daojie_ink_guofeng/json" / "qi21_bases.json")
+    got = my_qi21_base._daojie_data("qi21_bases.json")
+    assert got == truth, f"dev 环境应解析到真源家 {truth},得 {got}"
+    assert got.is_file(), f"真源家文件应存在: {got}"

@@ -1654,3 +1654,99 @@ def my_nodes_drifted() -> bool:
         return sig
 
     return _sig(source) != _sig(target)
+
+
+# ── 道劫数据位(1004 design §十六 Step1:真源 json/ 家→随包种子→引擎家)──
+# 三段式中段的播种者:真源四件随 studio-manuals unpack 进装机固定位,引擎
+# spawn 前漂移检测→补同步展开到引擎家数据位(节点侧 _daojie_data 候选链的
+# 运行时主位)。定位=<comfy-home>/daojie-data(§十六定名,与 my-styles-thumbs
+# 平级)——数据不混进 custom_nodes 代码区运输(用户不满的根),引擎家漫影
+# 自建数据区已有 manifest.json/my-styles-thumbs/bridge-inbox 先例。
+
+DAOJIE_DATA_DIR = "daojie-data"
+# 四件清单与 test_prompt_source_single_truth 同源(10-04 统一规范令:道劫风格
+# 全部机读资产收拢 json/ 家,不分产线)
+DAOJIE_DATA_FILES = ("qi21_bases.json", "qi21_strip_lexicon.json",
+                     "daojie_lora_stack.json", "daojie_loras.json")
+
+
+def daojie_data_seed_candidates() -> list[Path]:
+    """种子家候选:dev 仓库真源家→装机固定位两安装位(对齐节点侧 _daojie_data
+    候选链序;env 层除外——env 是节点侧显式覆盖,不参与播种)。"""
+    here = Path(__file__).resolve()
+    return [
+        here.parents[3] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json",
+        Path("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json"),
+        Path.home() / "Applications" / "漫影工作室.app"
+        / "Contents" / "Resources" / "studio-manuals" / "art_skills"
+        / "daojie_ink_guofeng" / "json",
+    ]
+
+
+def daojie_data_seed_dir() -> Path | None:
+    """第一个四件齐的种子家;全缺=None(种子缺失=不播种,调用方容错)。"""
+    for cand in daojie_data_seed_candidates():
+        if all((cand / fn).is_file() for fn in DAOJIE_DATA_FILES):
+            return cand
+    return None
+
+
+def daojie_data_dir() -> Path:
+    """引擎家数据位:<comfy-home>/daojie-data(comfy_home 随 MYSTUDIO_COMFYUI_HOME
+    覆写/~manying-dev 兜底走,节点侧 parents[4]/daojie-data 与此同位)。"""
+    return cm.comfy_home() / DAOJIE_DATA_DIR
+
+
+def sync_daojie_data() -> dict:
+    """种子家四件 → 引擎家 daojie-data/(幂等;sha256 校验+原子换入)。
+
+    种子缺失=EngineOpError 如实报错(sync_my_nodes 源码位缺失同款);逐件
+    copyfile 到 .tmp→sha256 对拍种子→rename 落位,半拷文件永不登场;目标件
+    内容已同种子=跳过(幂等,启动链每拉起都跑不白拷)。
+    """
+    import hashlib
+
+    seed = daojie_data_seed_dir()
+    if seed is None:
+        raise EngineOpError(
+            f"道劫数据种子缺失(四件任一不在):{[str(c) for c in daojie_data_seed_candidates()]}")
+    target_dir = daojie_data_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for fn in DAOJIE_DATA_FILES:
+        src = seed / fn
+        src_sha = hashlib.sha256(src.read_bytes()).hexdigest()
+        dst = target_dir / fn
+        if dst.is_file() and hashlib.sha256(dst.read_bytes()).hexdigest() == src_sha:
+            continue
+        tmp = target_dir / (fn + ".tmp")
+        shutil.copyfile(src, tmp)
+        if hashlib.sha256(tmp.read_bytes()).hexdigest() != src_sha:
+            tmp.unlink(missing_ok=True)
+            raise EngineOpError(f"道劫数据 sha256 校验失败(种子半拷?):{src}")
+        tmp.rename(dst)
+        copied += 1
+    return {"copied": copied, "seed": str(seed), "target": str(target_dir),
+            "files": list(DAOJIE_DATA_FILES)}
+
+
+def daojie_data_drifted() -> bool:
+    """种子家与引擎家数据位四件是否漂移(sha256 逐件;spawn 前补同步判据)。
+
+    种子缺失(dev 无装机位)=False 不拦启动——缺数据位由节点侧候选链兜底,
+    同 my_nodes_drifted「源缺失交给 sync 报错,这里不拦启动」纪律。
+    """
+    import hashlib
+
+    seed = daojie_data_seed_dir()
+    if seed is None:
+        return False
+    target_dir = daojie_data_dir()
+    for fn in DAOJIE_DATA_FILES:
+        dst = target_dir / fn
+        if not dst.is_file():
+            return True
+        if (hashlib.sha256(dst.read_bytes()).hexdigest()
+                != hashlib.sha256((seed / fn).read_bytes()).hexdigest()):
+            return True
+    return False
