@@ -211,7 +211,7 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 | `gitnexus query` | 语义搜索(BM25 + 向量 + RRF 混合) | `gitnexus query -r MYStudio 'tts model cache lifecycle'` |
 | `gitnexus impact` | 影响分析("改 X 会影响谁") | `gitnexus impact -r MYStudio startTtsRuntime --depth 3` |
 | `gitnexus context` | 符号 360° 视图(入站+出站调用) | `gitnexus context -r MYStudio startTtsRuntime` |
-| `gitnexus rename` | 多文件协调重命名(**仅 MCP**) | MCP: `rename({symbol_name:"Old", new_name:"New", dryRun:true, repo:"MYStudio"})` |
+| `gitnexus rename` | 多文件协调重命名(**仅 MCP**) | MCP: `rename({symbol_name:"Old", new_name:"New", dry_run:true, repo:"MYStudio"})` |
 | `gitnexus wiki` | 从知识图谱生成 LLM 文档 | `gitnexus wiki` |
 | `gitnexus status` | 查看索引状态 | `gitnexus status` |
 | `gitnexus detect-changes` | Git diff 影响分析(提交前) | `gitnexus detect-changes -r MYStudio --scope staged` |
@@ -229,11 +229,11 @@ Claude / 非交互 shell 用原生 `rg` / `fd`,**不得假设** zsh 别名或函
 | `context` | 符号 360° 视图 | `context({name: "LocalTtsPanel", repo: "MYStudio"})` |
 | `impact` | 影响分析(爆炸半径 + 风险等级) | `impact({target: "startTtsRuntime", direction: "upstream", repo: "MYStudio"})` |
 | `detect_changes` | Git diff 影响分析(提交前检查) | `detect_changes({scope: "staged", repo: "MYStudio"})` |
-| `rename` | 多文件协调重命名(图搜索) | `rename({symbol_name: "X", new_name: "Y", dryRun: true, repo: "MYStudio"})` |
+| `rename` | 多文件协调重命名(图搜索) | `rename({symbol_name: "X", new_name: "Y", dry_run: true, repo: "MYStudio"})` |
 | `cypher` | 原始图查询(先读 schema) | `cypher({query: "MATCH (n:Function {name:'X'}) RETURN n"})` |
 | `list_repos` | 列出已索引仓库 | `list_repos()` |
 
-> ⚠️ `rename` 的 dry-run 参数名两版文档不一致(本文件写 `dryRun`,`.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` 写 `dry_run`)——**参数名以真机 MCP schema 实测为准**,未实测前勿照抄任一版(2026-10-04 勘正挂账,待实测后统一)。
+> ✅ 参数名已定谳:**`dry_run`**(2026-10-04 真机实测:ZCode MCP schema 收 `dry_run` 且 dry-run 调用成功返回预览;本文件旧写 `dryRun` 三处已统一改 `dry_run`,与 `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` 一致)。
 
 **MCP 资源**(轻量读取,用于导航)
 
@@ -295,7 +295,7 @@ gitnexus detect-changes -r MYStudio --scope staged
 | 找一个已知文件名 | ✅ `fd 'LocalTtsPanel' apps/frontend` | ❌ | ❌ |
 | 语义搜索(不知道确切关键词) | ❌ | ✅ `gitnexus query '...'` | ✅ `query({query: "..."})` |
 | 谁调用了 X | ❌(grep 无法区分定义和调用) | ✅ `gitnexus impact X` | ✅ `impact({target: "X", direction: "upstream"})` |
-| 改名影响范围 | ❌ | ❌(rename 无 CLI) | ✅ `rename({..., dryRun: true})` |
+| 改名影响范围 | ❌ | ❌(rename 无 CLI) | ✅ `rename({..., dry_run: true})` |
 | 提交前影响检查 | ❌ | ❌ | ✅ `detect_changes({scope: "staged"})` |
 | 正则匹配大量文件 | ✅ `rg -t ts 'export.*Tts' apps/frontend` | ❌ | ❌ |
 | 快速验证(<1秒) | ✅ | ❌(需先索引) | ❌(需索引 + MCP setup) |
