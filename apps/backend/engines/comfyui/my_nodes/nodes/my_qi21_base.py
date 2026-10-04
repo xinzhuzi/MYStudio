@@ -49,7 +49,7 @@ research/slot-map.md;负面词=1005 案B Phase I 第五出,追加最末存量槽
 
   负面词第五出(1005 案B Phase I,design §8.1 ①):=entry.negative_text 现读
   ——型负面 36 条的出口(此前=无出口死数据,PE 编造词顶掉锁层真负面)。
-  上游接 [4011] MyQi21PromptAssembly.BASE负面(optional,缺键=空串),装配器
+  下游接 [4011] MyQi21PromptAssembly.BASE负面(optional,缺键=空串),装配器
   merge(型负面,锁层负面)后经「负面词直写」进负向编码(案B 直写优先)。
   与 BASE 同条目热读(同一 _load_bases 现读链),缺键回退空串(空负向合法态,
   同 BASE 的 .get 默认纪律);追加最末=存量四出槽序零漂移(0929/1001 同款
