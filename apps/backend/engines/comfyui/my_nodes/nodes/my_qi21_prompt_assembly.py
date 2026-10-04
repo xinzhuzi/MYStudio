@@ -7,6 +7,13 @@
 道劫 t2i [40] 装配子图文本段集成的上游件(吞原 [130][131] 装配拼接①②+[110] 锁层
 常量A):装配全文=主体句+底座 BASE+锁层A 三段换行拼合,唯一真源文本。
 
+1005 案B Phase I(design §8.1 ②,负面断路修复):新增 optional 连线槽「BASE负面」
+← [150] MyQi21DaojieBase.负面词(第五出=型负面现读);负面词输出改
+=_merge_negative(BASE负面, 锁层负面现读)——锁层负面弃 import 快照(_LOCK_A_NEG
+退役=遗留债9 清偿),改 _load_lock_layer() mtime 现读;merge 复用同包
+my_styles._merge_negative(K2 MyDaojieBase 同款,防两处实现漂移)。修前断路:
+负面词=纯锁层 import 快照,型负面 36 条无入口=死数据,PE 编造词恒顶真负面。
+
 裁定 A 拆件缘起(在档):一件式三口形态下「装配全文→[140].prompt」与
 「[140].positive_prompt→装配器.PE出文」构成数据环,引擎验证层实测拒绝
 (execution.validate_inputs 对全部连线输入递归环检,lazy 边无豁免;最小同构环
@@ -22,6 +29,9 @@ venv 实测=「Dependency cycle detected」valid=False;graph.py:169-170 执行�
               +1001 S8 L-1 空串补:BASE 空即无底座层,主体句+\\n+锁层A;产线
               缺底座层属静默降质,发中文 print 警告给指路文案,不 raise——
               与下游合成器的「缺真源」空串语义同款自洽,实弹日志可查)
+    BASE负面  ← [150] MyQi21DaojieBase.负面词(**连线槽,前置**;1005 案B
+              Phase I 加);缺键(None)/空串=merge 侧裸输出锁层负面(宽松化
+              语义同 BASE,不警告不炸——型负面缺席=锁层负面兜底,负向链不断)
     主体句    多行大框(**参数 widget,下沉**),接子图输入口「主体句」
               (-10槽2←顶层 [24]);default=1001 t2i 工作流 [24] 例文逐字;
               1002 ⑭ 起随 BASE 迁 optional(缺键=default 例文兜底,宽松化
@@ -29,10 +39,15 @@ venv 实测=「Dependency cycle detected」valid=False;graph.py:169-170 执行�
     锁层A全文 多行大框参数(原 [110] 通用锁层常量A 迁入;default=工作流值逐字,
               sha256 前16位锚=eac9a808aa8f7232);optional 化同主体句
 
-输出口(单口):
+输出口(双口,1004 正负拆开;口1 语义 1005 案B 起改):
   装配全文(口0)→ 双喂:[140].prompt(Q1=B+ 根治「写死的种子文被旁路」:[140]
            种子文 widget 退役清空+Note[250] 注明)+ MyQi21PromptSelect.装配全文
            (下游合成器直写路与透明直写路的真源)
+  负面词(口1)→ MyQi21PromptSelect.负面词直写(pe关路负向真源+pe开路直写
+           优先——案B:直写非空恒胜 PE负面)=merge(BASE负面, 锁层负面):
+           型负面 token 在前、锁层负面 token 在后,整 token 相等才去重
+           (_merge_negative 保守口径;负面清单全角逗号=整段一 token,两段
+           以半角", "拼接=K2 侧同款现行为)
 
 注册(import+NODE_CLASS_MAPPINGS+DISPLAY「道劫·qi21装配全文件」)在
 my_nodes/__init__.py;词族剥离逻辑随选择器件(my_qi21_prompt_select.py,词族
@@ -45,6 +60,19 @@ import json
 import os
 
 from typing import Any
+
+# merge 单源复用(K2 MyDaojieBase 同款防两处实现漂移纪律;design §8.1 ②):
+# 双路导入=本件单测家法 importlib 直载无包上下文,相对导入在该形态 ImportError
+# →同目录直载同一 my_styles.py(同函数对象级防漂移,非复制实现)。
+try:
+    from .my_styles import _merge_negative  # 包上下文(引擎装载/包路径单测)
+except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
+    import importlib.util as _ilu
+    _styles_spec = _ilu.spec_from_file_location(
+        "my_styles_peer_load", Path(__file__).resolve().parent / "my_styles.py")
+    _styles_mod = _ilu.module_from_spec(_styles_spec)
+    _styles_spec.loader.exec_module(_styles_mod)
+    _merge_negative = _styles_mod._merge_negative
 
 # ── 主体句例文+锁层A default(1001 t2i 工作流值逐字迁入,脚本注入禁手敲;──
 # ── sha256 前16位对拍锚=[24]主体句 afd9e6f562e3e606 / [110]锁层A ──
@@ -92,33 +120,55 @@ def _daojie_data(fn: str) -> Path:
 
 _BASES_FILE = _daojie_data("qi21_bases.json")
 
-def _load_lock_layer() -> dict:
-    """从 qi21_bases.json lock_layer 现读 positive_text/negative_text。"""
-    try:
-        data = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
-        ll = data.get("lock_layer") or {}
-        return {
-            "positive": ll.get("positive_text", ""),
-            "negative": ll.get("negative_text", ""),
-        }
-    except Exception:
-        return {"positive": "", "negative": ""}
+# lock_layer mtime 缓存(1005 案B Phase I:负面词改每次装配现读——消灭 _LOCK_A_NEG
+# import 快照=遗留债9;模式=my_daojie_base._load_lock_layer 同款,热改锁层负面
+# 即时生效不重启)
+_lock_cache: dict = {"mtime": None, "data": None}
 
+
+def _load_lock_layer() -> dict:
+    """qi21_bases.json lock_layer 现读(mtime 缓存):positive_text/negative_text。"""
+    try:
+        mtime = _BASES_FILE.stat().st_mtime
+    except OSError:
+        mtime = None
+    cache = _lock_cache
+    if cache["mtime"] == mtime and cache["data"] is not None:
+        return cache["data"]
+    if mtime is None:
+        data = {"positive": "", "negative": ""}
+    else:
+        try:
+            raw = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
+            ll = raw.get("lock_layer", {}) if isinstance(raw, dict) else {}
+            data = {"positive": ll.get("positive_text", ""),
+                    "negative": ll.get("negative_text", "")}
+        except (OSError, ValueError):
+            data = {"positive": "", "negative": ""}
+    cache["mtime"], cache["data"] = mtime, data
+    return data
+
+# widget default 面=import 时刻求值一次(同 my_qi21_prompt_select._RGBA_HEAD 家法:
+# INPUT_TYPES 调用即现读,此处仅签名 default;锁层A正值不改语义);
+# 负面面 1005 案B起弃 import 快照(_LOCK_A_NEG 退役),assemble 内每次现读。
 _LOCK_A = _load_lock_layer()["positive"]
-_LOCK_A_NEG = _load_lock_layer()["negative"]  # 1004 正负拆开轮:常量A禁令提炼负面词(入负向编码器,不入正向)  # 原 [110] 通用锁层常量A(③层·库首节全文·全九型恒挂)
 
 
 class MyQi21PromptAssembly:
-    """漫影道劫 qi21 装配全文件:主体句+BASE+锁层A 三段换行拼合,单口真源输出。
+    """漫影道劫 qi21 装配全文件:主体句+BASE+锁层A 三段换行拼合,装配全文真源
+    +负面词合并出(1005 案B Phase I:负面词=merge(BASE负面, 锁层负面现读))。
 
     装配全文(口0)=唯一真源文本:双喂 [140].prompt(PE 改写输入,Q1=B+)
     与 MyQi21PromptSelect.装配全文(直写路/透明直写路);BASE 未接线(None)
     或空串/纯空白=降级两段拼(主体句+锁层A)+中文警告,不炸产线。
+    负面词(口1)=型负面(BASE负面槽)+锁层负面 mtime 现读 的 _merge_negative
+    合并:BASE负面缺键/空串=裸输出锁层负面(负向链不断,不警告)。
     """
 
     CATEGORY = "漫影"
     DESCRIPTION = ("道劫装配全文件:装配全文=主体句+底座BASE+锁层A 三段换行"
-                   "拼合(单口真源,专喂 PE 改写与最终文本合成器)")
+                   "拼合(真源,专喂 PE 改写与最终文本合成器);负面词=型负面+"
+                   "锁层负面合并(1005 案B:型负面出口接通)")
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
@@ -126,6 +176,8 @@ class MyQi21PromptAssembly:
         # ——required 置空全住 optional:optional 连线槽保「可不接」语义(BASE 缺键
         # =两段降级拼,required 化会被引擎验证层拒=breaking);widget 缺键=签名
         # default 兜底(宽松化)。渲染序=required 序+optional 序,故声明序即面板序。
+        # 1005 案B Phase I:BASE负面 第二连线槽(BASE 与参数 widget 之间,连线槽
+        # 相邻前置);缺键=空串(宽松化语义同 BASE,不警告)。
         return {
             "required": {},
             "optional": {
@@ -133,6 +185,9 @@ class MyQi21PromptAssembly:
                 "BASE": ("STRING", {"tooltip": "所选型的底座画风文字,连「底座九选一"
                                                "」的 BASE 输出;不连就只用主体句+锁层A"
                                                "两段拼"}),
+                "BASE负面": ("STRING", {"tooltip": "所选型自带的负面词清单,连「底座"
+                                                  "九选一」的 负面词 输出;不连就只用"
+                                                  "锁层A自带的负面词"}),
                 "主体句": ("STRING", {"multiline": True, "default": _SUBJECT_EXAMPLE,
                                        "tooltip": "画面里画什么的人话描述;生产时由子图"
                                                   "入口喂入,这里一般是兜底例文"}),
@@ -148,24 +203,35 @@ class MyQi21PromptAssembly:
     FUNCTION = "assemble"
 
     def assemble(self, BASE: str | None = None,
+                 BASE负面: str | None = None,
                  主体句: str = _SUBJECT_EXAMPLE,
                  锁层A全文: str = _LOCK_A) -> tuple[str, str]:
-        """单口装配:装配全文=主体句+\\n+BASE+\\n+锁层A(返回元组序=RETURN_NAMES 序)。
+        """装配:装配全文=主体句+\\n+BASE+\\n+锁层A;负面词=merge(BASE负面,
+        锁层负面现读)(返回元组序=RETURN_NAMES 序)。
 
-        形参序=⑭ 新槽序(BASE 连线槽前置);引擎按名投递与形参序无关,直接
-        调用方(单测/脚本)用关键字传参零波及。1002 ⑭ optional 化:主体句/
-        锁层A全文缺键=default 兜底(签名恒有值,可选槽缺投不炸 TypeError)。
+        形参序=⑭ 槽序(BASE/BASE负面 两连线槽前置);引擎按名投递与形参序无关,
+        直接调用方(单测/脚本)用关键字传参零波及。optional 化:主体句/锁层A全文
+        缺键=default 兜底(签名恒有值,可选槽缺投不炸 TypeError)。
 
         BASE None(未接线)或空串/纯空白(BASE 空即无底座层)=两段降级拼
         (主体句+\\n+锁层A)+中文 print 警告(裁定 A 规格② optional 缺键语义
         +1001 S8 L-1 空串补;判空家法=my_daojie_base (x or "").strip();
-        实弹日志可查,与选择器件空串语义同款)。
+        实弹日志可查,与选择器件空串语义同款)。BASE负面缺键/空串=merge 侧
+        裸输出锁层负面(1005 案B:型负面缺席=锁层兜底,负向链不断,不警告)。
+
+        负面词=1005 案B Phase I:_merge_negative(BASE负面 or "", 锁层负面)
+        ——型负面 token 在前、锁层负面在后,整 token 相等去重(my_styles 单源
+        复用,K2 同款);锁层负面=_load_lock_layer() mtime 现读(遗留债9:
+        import 快照退役,热改锁层负面即时生效)。
 
         1001 用户测试批 P1 警告中性化(design §2.2):自由型 BASE 恒空串
         (qi21_bases.json 十档末位,base_text="")→空 BASE=自由型正常态,
         警告改双关文案「自由型正常态;非自由型请检查连线」——逻辑零改,
         仅文案去「意外断线」口吻(旧行为/旧两段拼语义不变,i2i/edit 零波及)。
         """
+        # 负面词(口1):merge 单源复用+锁层负面 mtime 现读(两分支同值,先算)
+        negative = _merge_negative((BASE负面 or ""),
+                                   _load_lock_layer()["negative"])
         if not (BASE or "").strip():
             # 1001 用户测试批 P1 中性化:自由型(BASE 空串)此为正常态;非自由型
             # BASE 空=缺整个型底座层,请检查连线——双关文案,逻辑零改(design §2.2)
@@ -174,5 +240,5 @@ class MyQi21PromptAssembly:
                   "(自由型无型底座层);非自由型请检查连线:把 [150] "
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
-            return (f"{主体句}\n{锁层A全文}", _LOCK_A_NEG)
-        return (f"{主体句}\n{BASE}\n{锁层A全文}", _LOCK_A_NEG)
+            return (f"{主体句}\n{锁层A全文}", negative)
+        return (f"{主体句}\n{BASE}\n{锁层A全文}", negative)

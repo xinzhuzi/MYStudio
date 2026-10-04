@@ -2,8 +2,9 @@
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫 qi21 底座节点:型底座下拉选(09-23 造件九型;1001 P1 起十档=九型+自由),
-四出 BASE/WIDTH/HEIGHT/透明值(1002 ⑯ 删「型名」出+大轮连带删 rgba_default 出:
-i2i [180].rgba_hint 已迁「透明值」,三件全零消费;槽位迁移=research/slot-map.md)。
+五出 BASE/WIDTH/HEIGHT/透明值/负面词(1002 ⑯ 删「型名」出+大轮连带删
+rgba_default 出:i2i [180].rgba_hint 已迁「透明值」,三件全零消费;槽位迁移=
+research/slot-map.md;负面词=1005 案B Phase I 第五出,追加最末存量槽序零漂移)。
 
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):
@@ -45,6 +46,14 @@ i2i [180].rgba_hint 已迁「透明值」,三件全零消费;槽位迁移=resear
   run 重读原文,单文件热改即时生效;IS_CHANGED 返回 mtime 签名穿透引擎输出
   缓存(my_styles 09-16 战役同根修)。缺分辨率字段回退 1:1 (Square)/4.2 并在
   控制台警告(回退值=FALLBACK 常量,与 K2 单源)。
+
+  负面词第五出(1005 案B Phase I,design §8.1 ①):=entry.negative_text 现读
+  ——型负面 36 条的出口(此前=无出口死数据,PE 编造词顶掉锁层真负面)。
+  上游接 [4011] MyQi21PromptAssembly.BASE负面(optional,缺键=空串),装配器
+  merge(型负面,锁层负面)后经「负面词直写」进负向编码(案B 直写优先)。
+  与 BASE 同条目热读(同一 _load_bases 现读链),缺键回退空串(空负向合法态,
+  同 BASE 的 .get 默认纪律);追加最末=存量四出槽序零漂移(0929/1001 同款
+  纪律,旧工作流不接第五出=零波及)。
 """
 
 from __future__ import annotations
@@ -189,7 +198,8 @@ class MyQi21DaojieBase:
     拼合底座全文;自由型空串)+WIDTH/HEIGHT(型档分辨率直出;自由型 1:1/1.0MP
     兜底 1024×1024)+rgba_default(0929 D6 RGBA 型联动:四型透明声明型 true
     其余 false)+透明值(1001 P1 透明执行口:型≠自由?rgba_default:透明覆盖
-    ——纯 BOOLEAN 跨子图边界)五出(1002 ⑯ 删「型名」第四出:三件全零消费)。"""
+    ——纯 BOOLEAN 跨子图边界)+负面词(1005 案B Phase I:=entry.negative_text
+    现读,型负面出口)五出(1002 ⑯ 删「型名」第四出:三件全零消费)。"""
 
     CATEGORY = "漫影"
 
@@ -224,10 +234,12 @@ class MyQi21DaojieBase:
     # 按型路由遗留)——中部删,存量连线按槽位映射表迁移(research/slot-map.md);
     # 1002 大轮连带(prd Grill Q1 裁定 A 案「rgba_default 删除」):rgba_default
     # 出随 i2i [180].rgba_hint 迁「透明值」(1002 手术 STEP4)一并收口删除
-    # ——四出定形(BASE/WIDTH/HEIGHT/透明值);rgba_default 布尔仍为件内中间量
-    # (透明值=型≠自由?rgba_default:透明覆盖 解析用),只是不再外露输出槽。
-    RETURN_TYPES = ("STRING", "INT", "INT", "BOOLEAN")
-    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "透明值")
+    # ——rgba_default 布尔仍为件内中间量(透明值=型≠自由?rgba_default:
+    # 透明覆盖 解析用),只是不再外露输出槽;
+    # 负面词追加第五出(1005 案B Phase I,design §8.1 ①):=entry.negative_text
+    # 现读(与 BASE 同条目),追加最末=四出槽序零漂移(旧工作流不接=零波及)。
+    RETURN_TYPES = ("STRING", "INT", "INT", "BOOLEAN", "STRING")
+    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "透明值", "负面词")
     FUNCTION = "run"
 
     @classmethod
@@ -266,5 +278,8 @@ class MyQi21DaojieBase:
         else:
             透明值 = rgba_default
         # 1002 ⑯:「型名」直通出删除;1002 大轮连带:rgba_default 出收口删除
-        # (i2i [180].rgba_hint 已迁「透明值」;返回元组序=RETURN_NAMES 四出序)
-        return (entry.get("positive_text", ""), width, height, 透明值)
+        # (i2i [180].rgba_hint 已迁「透明值」);
+        # 1005 案B Phase I:负面词第五出=型负面现读(缺键回退空串=空负向合法态,
+        # 与 BASE 的 .get 默认同款纪律;返回元组序=RETURN_NAMES 五出序)
+        return (entry.get("positive_text", ""), width, height, 透明值,
+                entry.get("negative_text", ""))

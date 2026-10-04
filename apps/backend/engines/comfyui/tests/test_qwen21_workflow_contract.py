@@ -2956,12 +2956,14 @@ class TestQi21SubgraphContract:
 
     def test_qi21_base_node_present_and_combo_default(self):
         """[150] MyQi21DaojieBase 在子图内:combo base 槽=widget 转输入接 -10 槽3
-        (宿主面板「型选择」COMBO 十选一=九型+自由);widgets 默认=人物;四出
-        BASE/WIDTH/HEIGHT/透明值(1002 ⑯ 删「型名」第四出=三件零消费;1001 用户
-        测试批 P1+P2):BASE 喂 [141] 装配全文件.BASE;WIDTH/HEIGHT 原样直通子图
-        width/height 出口(1004:建议器 [4018] 迁主图,九型 W/H 不再喂建议器,
+        (宿主面板「型选择」COMBO 十选一=九型+自由);widgets 默认=人物;五出
+        BASE/WIDTH/HEIGHT/透明值/负面词(2002 ⑯ 删「型名」第四出=三件零消费;
+        1001 用户测试批 P1+P2;负面词=1005 案B Phase I 第五出):BASE 喂 [141]
+        装配全文件.BASE;WIDTH/HEIGHT 原样直通子图
+        width/height 出口(2004:建议器 [4018] 迁主图,九型 W/H 不再喂建议器,
         由主图 [4018] 经 [6] 出口回吃);透明值单扇出 [4014].透明模式(⑦ 纯
         BOOLEAN 跨界;槽位 5→4 随 ⑯ 前移,存量连线迁移表=research/slot-map.md §4);
+        负面词单扇出 [4011].BASE负面(型负面出口,1005 案B);
         透明覆盖(optional 尾部入)←-10 槽5「透明」。"""
         graph = GRAPHS["qi21"]
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
@@ -2980,13 +2982,26 @@ class TestQi21SubgraphContract:
         assert [i["name"] for i in node["inputs"]] == ["base", "透明覆盖"], \
             "[150] 入槽应= base+透明覆盖(optional 尾部,P1 件侧接口面)"
         assert [o["name"] for o in node["outputs"]] == \
-            ["BASE", "WIDTH", "HEIGHT", "透明值"], \
-            "[4010] 四出应为 BASE/WIDTH/HEIGHT/透明值" \
-            "(1002 ⑯ 删型名+大轮连带删 rgba_default=i2i [180] 迁透明值后收口)"
+            ["BASE", "WIDTH", "HEIGHT", "透明值", "负面词"], \
+            "[4010] 五出应为 BASE/WIDTH/HEIGHT/透明值/负面词" \
+            "(2002 ⑯ 删型名+大轮连带删 rgba_default=i2i [180] 迁透明值后收口;" \
+            "负面词=1005 案B Phase I 第五出=型负面出口,追加最末存量槽序零漂移)"
         assert node["outputs"][3]["type"] == "BOOLEAN", "[4010].透明值 槽型应 BOOLEAN(⑦)"
         assert sorted(node["outputs"][3]["links"] or []) == [66], \
             "[4010].透明值 应单扇出(66→[4014].透明模式;10-02 单口化:59→[4017].switch" \
             " 随双编码+闸门塌缩退役,透明选择边界迁入合成器文本计算)"
+        # 1005 案B Phase I:[4010].负面词(第五出,槽4)→[4011].BASE负面(inputs[1])
+        # ——型负面出口接通装配器 merge(型负面,锁层负面),修「型负面 36 条无
+        # 出口死数据」断路(design §8.1 ①④)
+        assert node["outputs"][4]["type"] == "STRING", \
+            "[4010].负面词 槽型应 STRING(1005 案B 型负面出口)"
+        assert node["outputs"][4]["links"] == [204], \
+            "[4010].负面词 应单扇出(204→[4011].BASE负面;1005 案B Phase I)"
+        neg_link = sg_links[204]
+        assert (neg_link["origin_id"], neg_link["origin_slot"],
+                neg_link["target_id"], neg_link["target_slot"]) \
+            == (QI21_SG_BASE_ID, 4, QI21_SG_ASM_ID, 1), \
+            "[4010].负面词→[4011].BASE负面 连线应 4010槽4→4011槽1(1005 案B)"
         tmd = sg_links[node["inputs"][1]["link"]]
         assert (tmd["origin_id"], tmd["origin_slot"], tmd["type"]) == (-10, 5, "BOOLEAN"), \
             "[150].透明覆盖 应接 -10 槽5「透明」BOOLEAN(面板布尔直通)"
@@ -3117,10 +3132,15 @@ class TestQi21SubgraphContract:
             and "成片质量：" in lock_a, \
             "锁层A 参数面应保有 风格底座/线描优先/成片质量 三段骨架(1004 骨架锚)"
         # 恒挂语义:装配全文=主体句+BASE+锁层A(锁层在件内固定拼合,不经任何开关)
-        # 1002 ⑭:BASE 前置=inputs[0],主体句=inputs[1](锁层A全文=纯参数 widget)
-        subj_link = sg_links[asm["inputs"][1]["link"]]
+        # 2002 ⑭:BASE 前置=inputs[0];1005 案B Phase I:BASE负面=inputs[1]
+        # (←[4010].负面词),主体句前插后移=inputs[2](锁层A全文=纯参数 widget)
+        subj_link = sg_links[asm["inputs"][2]["link"]]
         assert subj_link["origin_id"] == -10 and subj_link["origin_slot"] == 2, \
-            "[141].主体句 应接 -10 槽2(主体句输入口;⑭ 后=inputs[1])"
+            "[141].主体句 应接 -10 槽2(主体句输入口;1005 案B 后=inputs[2])"
+        base_neg_link = sg_links[asm["inputs"][1]["link"]]
+        assert (base_neg_link["origin_id"], base_neg_link["origin_slot"],
+                base_neg_link["target_slot"]) == (QI21_SG_BASE_ID, 4, 1), \
+            "[4011].BASE负面 应接 [4010].负面词(第五出槽4;1005 案B Phase I 型负面出口)"
         assert all(i["name"] != "锁层A全文" or i.get("link") is None
                    for i in asm["inputs"]), \
             "锁层A全文应为参数面(不接线;值恒挂=Q4 可编辑大框)"
@@ -3239,23 +3259,32 @@ class TestQi21SubgraphContract:
         assert "pe_clip" not in [i["name"] for i in nodes[QI21_HOST_ID]["inputs"]], \
             "[6] 宿主应无 pe_clip 槽(1002 ⑬)"
         # ── [4011] 装配全文件(裁定A上游):接口面+两去接线 ──
-        # 1002 ⑭:BASE 连线槽前置=inputs[0],主体句/锁层A全文(参数 widget)下沉
+        # 2002 ⑭:BASE 连线槽前置=inputs[0],主体句/锁层A全文(参数 widget)下沉;
+        # 1005 案B Phase I:BASE负面 第二连线槽=inputs[1](←[4010].负面词),
+        # 主体句前插后移=inputs[2]
         asm = sg_nodes[QI21_SG_ASM_ID]
         assert asm["type"] == QI21_SG_ASM_CLASS
-        # 1003 手改标准回灌:新前端(v1.53)序列化=widget 型 optional 槽可不入
-        # inputs[](锁层A全文降纯 widget,真值在 widgets_values[1]);两态皆合法。
+        # 2003 手改标准回灌:新前端(v1.53)序列化=widget 型 optional 槽可不入
+        # inputs[](锁层A全文降纯 widget,真值在 widgets_values[1]);两态皆合法
+        # (1005 案B:两态各插 BASE负面 于 inputs[1])。
         assert [i["name"] for i in asm["inputs"]] in (
-            ["BASE", "主体句", "锁层A全文"], ["BASE", "主体句"]), \
-            "[4011] 槽序应=BASE(连线槽,⑭ 前置)/主体句/锁层A全文(参数下沉;optional)"
-        # 1004 Phase B:装配器双口化——出=装配全文/负面词(正负拆开)
+            ["BASE", "BASE负面", "主体句", "锁层A全文"],
+            ["BASE", "BASE负面", "主体句"]), \
+            "[4011] 槽序应=BASE/BASE负面(两连线槽,⑭ 前置;1005 案B Phase I)" \
+            "/主体句/锁层A全文(参数下沉;optional)"
+        # 2004 Phase B:装配器双口化——出=装配全文/负面词(正负拆开;
+        # 1005 案B:口1 真值=merge(BASE负面, 锁层负面现读))
         assert [o["name"] for o in asm["outputs"]] == ["装配全文", "负面词"], \
-            "[4011] 双出应=装配全文/负面词(1004 Phase B 装配器双口化)"
+            "[4011] 双出应=装配全文/负面词(2004 Phase B 装配器双口化)"
         base_l = sg_links[asm["inputs"][0]["link"]]
         assert (base_l["origin_id"], base_l["origin_slot"]) == (QI21_SG_BASE_ID, 0), \
             "[141].BASE 应接 [150].BASE(一处选型;⑭ 前置=inputs[0])"
-        subj_l = sg_links[asm["inputs"][1]["link"]]
+        base_neg_l = sg_links[asm["inputs"][1]["link"]]
+        assert (base_neg_l["origin_id"], base_neg_l["origin_slot"]) == (QI21_SG_BASE_ID, 4), \
+            "[4011].BASE负面 应接 [150].负面词(第五出;1005 案B Phase I 型负面出口)"
+        subj_l = sg_links[asm["inputs"][2]["link"]]
         assert (subj_l["origin_id"], subj_l["origin_slot"]) == (-10, 2), \
-            "[141].主体句 应接 -10 槽2"
+            "[141].主体句 应接 -10 槽2(1005 案B 后=inputs[2])"
         assert sorted(asm["outputs"][0]["links"] or []) == [65, 67], \
             "[141].装配全文 应双扇出(65→[4013].prompt + 67→[4014].装配全文)"
         assert asm["outputs"][1]["links"] == [203], \
@@ -3389,6 +3418,60 @@ class TestQi21SubgraphContract:
                 assert hasattr(cls, "check_lazy_status"), (
                     f"{tgt_type} 缺实名懒钩子 check_lazy_status(本版引擎只认"
                     f"此名;lazy 槽永不请求=pe开路也拿不到值)")
+
+    def test_case_b_negative_truth_chain_1005(self):
+        """1005 案B Phase I 负向全链真值锚(design §8.1):结构锚(4010 第五出
+        →4011 BASE负面→4014 负面词直写)之上,钉「文本在链上流动后的真值」——
+
+        ① 底座第五出真值:MyQi21DaojieBase.run.负面词=qi21_bases.json
+           types[].negative_text(型负面,人物型=36 条全角逗号清单);
+        ② 装配真值:负面词=merge(BASE负面, 锁层负面)=型负面在前+锁层负面
+           在后(全角逗号清单=整段一 token,两段半角", "拼接;整 token 相等
+           去重——my_styles._merge_negative 单源,K2 同款);
+        ③ 合成器真值:pe开直写优先(直写非空恒胜 PE负面;空档才兜底),
+           pe关=直写——修前 PE 编造词恒胜=26+36 条真负面零命中断路
+           (实弹 1/2-negative.txt 证实在档)。"""
+        bases = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))
+        renwu_neg = next(e["negative_text"] for e in bases["types"]
+                         if e["zh"] == "人物")
+        lock_neg = bases["lock_layer"]["negative_text"]
+        assert renwu_neg and lock_neg and renwu_neg != lock_neg
+        # ① 底座第五出(件级锚在 test_my_qi21_base;此处契约侧联动钉)
+        base_cls = None
+        try:
+            from engines.comfyui.my_nodes.nodes.my_qi21_base import (
+                MyQi21DaojieBase as base_cls)
+        except ImportError:  # pragma: no cover - 包路径缺席(直载家法兜底)
+            base_cls = None
+        if base_cls is not None:
+            assert base_cls().run("人物")[4] == renwu_neg, \
+                "[4010].负面词 第五出应=人物型 negative_text 逐字(1005 案B)"
+        # ② 装配真值:merge(型负面, 锁层负面)——同一 _merge_negative 计算,
+        # 锚=「型负面在前,锁层在后」拼接形与去重形
+        asm_cls = _load_my_node_class(QI21_SG_ASM_CLASS)
+        assert asm_cls is not None, "MyQi21PromptAssembly 应可现读加载"
+        asm = asm_cls()
+        truth = asm.assemble(主体句="s", BASE="b", BASE负面=renwu_neg,
+                             锁层A全文="l")[1]
+        assert truth == f"{renwu_neg}, {lock_neg}", \
+            "负面词直写真值应=型负面在前+锁层负面在后(1005 案B 合并;直写进编码)"
+        assert asm.assemble(主体句="s", BASE="b", BASE负面=lock_neg,
+                            锁层A全文="l")[1] == lock_neg, \
+            "整 token 相等去重:BASE负面=整段锁层负面→裸输出(合并不复读)"
+        # ③ 合成器真值:直写优先/空档兜底(pe关=直写不变量)
+        sel_cls = _load_my_node_class(QI21_SG_SEL_CLASS)
+        assert sel_cls is not None, "MyQi21PromptSelect 应可现读加载"
+        sel = sel_cls()
+        got = sel.compose(pe开关=True, 透明模式=False, 装配全文="a",
+                          PE出文="p", 负面词直写=truth, PE负面="PE编造词")
+        assert got[1] == truth, \
+            "pe开:直写真值(型+锁层)非空应恒胜 PE负面(1005 案B 直写优先)"
+        got_fb = sel.compose(pe开关=True, 透明模式=False, 装配全文="a",
+                             PE出文="p", 负面词直写="", PE负面="PE编造词")
+        assert got_fb[1] == "PE编造词", "pe开:直写空档→PE负面兜底(⑮ 对调)"
+        got_off = sel.compose(pe开关=False, 透明模式=False, 装配全文="a",
+                              负面词直写=truth, PE负面="PE编造词")
+        assert got_off[1] == truth, "pe关:直写恒胜(不变量,透明/PE负面 不参与负向)"
 
     def test_subgraph_outputs_feed_sampler_latent_and_preview(self):
         graph = GRAPHS["qi21"]

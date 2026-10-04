@@ -4,29 +4,39 @@
 """MyQi21DaojieBase 契约测试(qi21 道劫九选一底座节点,09-23 造件;与
 test_my_daojie_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 
+1004 集中化令随迁:canon/数据真源=daojie_ink_guofeng/json/qi21_bases.json
+(dict 外壳 types[];原本目录 daojie_bases.json 退役删件,字段 positive/
+negative→positive_text/negative_text);05 库逐字互锁退役(05 库=记录层,
+措辞可与真源漂移——如衣物完整性长短版),BASE 锚随迁真源家 json。
+
 锁:注册面(含 test_my_nodes.py 注册面全集钉)/COMBO 十项有序(1001 P1 起
-=canon daojie_bases.json zh 顺序九型+「自由」末位;0923-1001 为九项 canon)
-+默认钉死「人物」/五出形状(BASE·WIDTH·HEIGHT·rgba_default·透明值——
+=canon zh 顺序九型+「自由」末位)
++默认钉死「人物」/五出形状(BASE·WIDTH·HEIGHT·透明值·负面词——
 1002 ⑯ 删「型名」第四出:三件工作流全零消费,输出槽迁移表=任务档
-research/slot-map.md;rgba_default 0929 D6 追加/透明值 1001 P1 透明执行口
-d 方案,同款零漂移纪律)/全部控件 tooltip 在位(1002 ⑰)/BASE 与 05 库
-对应型逐字一致(②美化版底座
-+人物系增量四锁B+④配色行,
-锚从库运行时切出、零硬编码;①槽与常量A 不在 BASE 内——工作流恒挂层承担;
-自由型 BASE=空串例外)/W/H 与 K2 MyDaojieBase 同型同参输出一比一(K2 侧多视图 override 3072×1024 直出;Q2.1 侧 0927 起多视图分档 3:4 无 override;
-公式=MP 按 1024² 计、边长取整 8 倍数;自由型 1:1/1.0MP 兜底 1024×1024)/
+research/slot-map.md;透明值 1001 P1 透明执行口 d 方案,同款零漂移纪律;
+负面词=1005 案B Phase I 第五出:型负面出口=entry.negative_text 逐字,
+追加最末存量四出槽序零漂移)/全部控件 tooltip 在位(1002 ⑰)/
+BASE=真源家 positive_text 逐字(①槽与常量A 不在 BASE 内——工作流恒挂层
+承担;人物系=②+锁B+④+衣物完整性 7 行,非人物系 2 行;自由型 BASE=空串
+例外)/负面词=真源家 negative_text 逐字(1005 案B:十档全带,自由型非空
+例外与 BASE 相反)/
+W/H 与 K2 MyDaojieBase 同型同参输出一比一(1004 集中化:两件同源直读
+真源家,0927 Q21 多视图分档随 sidecar 提取链退役,多视图回 canon 合板
+override 3072×1024 直出;公式=MP 按 1024² 计、边长取整 8 倍数;自由型
+1:1/1.0MP 兜底 1024×1024)/
 rgba_default 四型(道具/多视图/高清人脸/表情差分)=true 其余五型 false
-+自由型 false(锚=②层透明声明句全串运行时判定+四型集合独立钉;缺字段回退
-False)/透明值三例(1001 P1:自由+覆盖true→true/人物+覆盖true→false 型默认
-优先/缺省覆盖→各型 rgba_default)/数据文件 schema(aspect/MP/override
-与 canon 逐字镜像;自由型独立钉)/未知型与库缺失中文 RuntimeError/
++自由型 false(布尔真源=json 字段+四型集合独立钉;旧「②层透明声明句全串
+运行时判定」互锁随 1004 重建退役——真源家 positive_text 仅道具型保留
+声明句;缺字段回退 False)/透明值三例(1001 P1:自由+覆盖true→true/
+人物+覆盖true→false 型默认优先/缺省覆盖→各型 rgba_default)/数据文件
+schema(dict 外壳 types[] 十档;aspect/MP/override 与 canon 逐字镜像;
+自由型独立钉)/未知型与库缺失中文 RuntimeError/
 mtime 失效热改。
 """
 
 from __future__ import annotations
 
 import json
-import re
 import time
 from pathlib import Path
 
@@ -39,11 +49,16 @@ from engines.comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
 
 # 仓库根:my_nodes/tests/test_x.py → parents[6]=仓库根(apps 的上一级)
 REPO = Path(__file__).resolve().parents[6]
-LIB_MD = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
-CANON_BASES = (REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
-               / "daojie_bases.json")
+# 1004 集中化:canon=真源家 qi21_bases.json(dict 外壳;原 sidecar canon
+# daojie_bases.json 退役删件,锚随迁);sidecar nodes/qi21_bases.json=四层
+# 兜底同步产物(镜像对拍见 test_aspect_megapixels_mirror_canon)
+CANON_BASES = (REPO / "apps/frontend/assets/studio-manuals"
+               / "art_skills/daojie_ink_guofeng/json" / "qi21_bases.json")
+SIDECAR_BASES = (REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
+                 / "qi21_bases.json")
 
-# 人物系六型(base_text 含常量B 增量四锁;与 05 库生成器 daojie_canon_lib.py 同表)
+# 人物系六型(positive_text 含锁B 增量四锁+衣物完整性行;1004 集中化后真源
+# =qi21_bases.json 自身,旧「05 库生成器 daojie_canon_lib.py 同表」提取链退役)
 RENWU_XI = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
 
 # 0929 D6 rgba_default 四型(用户拍板:道具/多视图/高清人脸/表情差分默认开 RGBA,
@@ -63,41 +78,20 @@ def _reset_bases_cache():
     my_qi21_base._bases_cache.update(mtime=None, entries=None)
 
 
+def _canon_types() -> list:
+    """真源家 types[] 九型(排除自由=Q2.1 十档末位,非 canon 九型)。"""
+    data = json.loads(CANON_BASES.read_text(encoding="utf-8"))
+    return [e for e in data["types"] if e["zh"] != "自由"]
+
+
 def _canon_order() -> list:
-    return [e["zh"] for e in json.loads(CANON_BASES.read_text(encoding="utf-8"))]
-
-
-def _lib_doc() -> str:
-    return LIB_MD.read_text(encoding="utf-8")
-
-
-def _lib_const_b(doc: str) -> list:
-    """库首「常量 B·人物系增量」围栏逐行(§四.4-.7 四把全员锁,提取零硬编码)。"""
-    i = doc.find("**常量 B·人物系增量")
-    assert i >= 0, "05 库缺常量 B 标记"
-    m = re.search(r"```text\n(.*?)\n```", doc[i:], re.S)
-    assert m, "05 库常量 B 缺围栏"
-    return m.group(1).split("\n")
-
-
-def _lib_base_text(doc: str, zh: str) -> str:
-    """从 05 库运行时切出该型期望 BASE:②层+人物系增量四锁B+④配色行换行拼合。"""
-    m = re.search(rf"^### {re.escape(zh)}-基础\s*$", doc, re.M)
-    assert m, f"05 库缺节: {zh}"
-    nxt = re.search(r"^### ", doc[m.end():], re.M)
-    seg = doc[m.end(): m.end() + nxt.start()] if nxt else doc[m.end():]
-    fence = re.search(r"```text\n(.*?)\n```", seg, re.S)
-    assert fence, f"{zh}: 缺装配全文围栏"
-    lines = fence.group(1).split("\n")
-    assert lines[0].startswith("⟨①:") and lines[0].endswith("⟩"), zh
-    base, pal = lines[1], lines[-1]
-    return "\n".join([base, *_lib_const_b(doc), pal] if zh in RENWU_XI else [base, pal])
+    return [e["zh"] for e in _canon_types()]
 
 
 # ── 注册面 ────────────────────────────────────────────────
 def test_registry_exposes_qi21_base():
     assert NODE_CLASS_MAPPINGS.get("MyQi21DaojieBase") is MyQi21DaojieBase
-    assert MyQi21DaojieBase.CATEGORY == "my"  # 类目与 K2 件(MyDaojieBase)同区
+    assert MyQi21DaojieBase.CATEGORY == "漫影"  # 类目与 K2 件(MyDaojieBase)同区
     assert NODE_DISPLAY_NAME_MAPPINGS["MyQi21DaojieBase"] == "道劫·qi21底座九选一"
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingQi21DaojieBase" not in NODE_CLASS_MAPPINGS
@@ -120,11 +114,13 @@ def test_combo_ten_options_in_canon_order_with_pinned_default():
     assert combo[1]["default"] == "人物"  # DEFAULT_BASE 钉死(自由不加塞默认)
     # 1002 ⑯:删「型名」第四出(三件工作流全零消费=按型路由历史遗留);1002 大轮
     # 连带(prd Grill Q1「rgba_default 删除」):rgba_default 出随 i2i [180].rgba_hint
-    # 迁「透明值」(手术 STEP4)收口删除——四出定形,透明值槽 3(存量连线已迁)
+    # 迁「透明值」(手术 STEP4)收口删除;1005 案B Phase I:负面词追加第五出
+    # (=entry.negative_text 型负面出口,design §8.1 ①)——追加最末=存量四出
+    # 槽序零漂移(存量连线按槽 0-3 不动)
     assert MyQi21DaojieBase.RETURN_TYPES == (
-        "STRING", "INT", "INT", "BOOLEAN")
+        "STRING", "INT", "INT", "BOOLEAN", "STRING")
     assert MyQi21DaojieBase.RETURN_NAMES == (
-        "BASE", "WIDTH", "HEIGHT", "透明值")
+        "BASE", "WIDTH", "HEIGHT", "透明值", "负面词")
     assert MyQi21DaojieBase.FUNCTION == "run"
 
 
@@ -139,48 +135,72 @@ def test_tooltips_present_plain_language():
     assert "自由" in tips["透明覆盖"], "透明覆盖 tooltip 应说明仅自由型生效"
 
 
-# ── BASE:九型与 05 库对应型逐字一致(锚运行时切出,零硬编码)─────────
+# ── BASE:九型与真源家 positive_text 逐字一致(1004 集中化锚)─────────
 def test_base_text_verbatim_from_lib_for_all_nine():
-    doc = _lib_doc()
+    """BASE=真源家 qi21_bases.json types[].positive_text 逐字(1004 集中化:
+    05 库→json 逐字互锁退役,05 库=记录层措辞可与真源漂移——如衣物完整性
+    长短版,旧「从 05 库运行时切出」锚废止留痕,锚随迁真源家)。
+    人物系=②+锁B四行+④+衣物完整性行共 7 行(1004 增衣物完整性锁);
+    非人物系(场景/道具/概念气氛图)=②+④共 2 行。"""
     for zh in _canon_order():
-        # 1002 ⑯+大轮连带:四出解包(型名/rgba_default 出均删)
-        base_text, _w, _h, _t = MyQi21DaojieBase().run(zh)
-        assert base_text == _lib_base_text(doc, zh), zh
+        entry = my_qi21_base._entry(zh)
+        # 1002 ⑯+大轮连带:四出解包(型名/rgba_default 出均删);
+        # 1005 案B Phase I:五出解包,第五出负面词=型负面真值逐字
+        base_text, _w, _h, _t, neg_text = MyQi21DaojieBase().run(zh)
+        assert base_text == entry["positive_text"], zh
+        assert neg_text == entry["negative_text"], zh  # 型负面出口(案B:去死数据)
         lines = base_text.split("\n")
-        # 人物系=②+四锁+④共 6 行;非人物系(场景/道具/概念气氛图)=②+④共 2 行
-        assert len(lines) == (6 if zh in RENWU_XI else 2), zh
-        assert "=" in lines[-1], (zh, "④配色行「色名=…」形状")
+        assert len(lines) == (7 if zh in RENWU_XI else 2), zh
         assert lines[0].endswith("。")  # ②层美化版底座句号自足收尾
         # ①槽与常量A 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
         assert not base_text.startswith("⟨①:")
         assert "风格底座：现代修仙游戏" not in base_text  # 常量A §四.1 首句禁入
-    # 自由型(1001 P1):无型底座层=BASE 空串(装配器两段降级拼的常常态)
+    # 自由型(1001 P1):无型底座层=BASE 空串(装配器两段降级拼的常常态);
+    # 负面词=短清单非空(schema 独立钉:十档 negative_text 应非空,自由型例外
+    # 方向与 positive_text 相反——BASE 空但型负面在场)
     free_base, *_rest = MyQi21DaojieBase().run("自由")
     assert free_base == ""
 
 
 def test_run_all_options_produce_nonempty_outputs():
     for zh in _canon_order():
-        base_text, w, h, _t = MyQi21DaojieBase().run(zh)
+        base_text, w, h, _t, neg_text = MyQi21DaojieBase().run(zh)
         assert base_text and ("细墨线" in base_text or "运笔" in base_text)
         assert isinstance(w, int) and isinstance(h, int) and w > 0 and h > 0
+        assert neg_text, zh  # 1005 案B:第五出型负面十档非空
     # 自由型:BASE 空串(正常态),W/H 兜底 1:1 (Square)/1.0MP=1024×1024
-    base_text, w, h, _t = MyQi21DaojieBase().run("自由")
+    base_text, w, h, _t, free_neg = MyQi21DaojieBase().run("自由")
     assert base_text == ""
     assert (w, h) == (1024, 1024) and w % 8 == 0 and h % 8 == 0
+    assert free_neg  # 自由型型负面在场(短清单)
+
+
+# ── 负面词第五出:真源家 negative_text 逐字(1005 案B Phase I 新锚)──────
+def test_negative_output_verbatim_from_lib_for_all_ten():
+    """第五出「负面词」=真源家 qi21_bases.json types[].negative_text 逐字
+    (1005 案B Phase I,design §8.1 ①:型负面出口——修前无出口死数据,
+    PE 编造词顶掉真负面);追加最末=存量四出零漂移(前四出值与本测试族
+    其余锚同值);缺键回退空串(BASE 同款 .get 纪律,热改档容错)。"""
+    data = json.loads(my_qi21_base._BASES_JSON.read_text(encoding="utf-8"))
+    for entry in data["types"]:
+        zh = entry["zh"]
+        base_text, _w, _h, transparent, neg_text = MyQi21DaojieBase().run(zh)
+        assert neg_text == entry["negative_text"], zh
+        assert isinstance(neg_text, str) and neg_text, zh
+        # 存量四出零漂移:第五出追加不改前四出形状与取值口径
+        assert isinstance(base_text, str) and isinstance(transparent, bool), zh
+    # 头部基线四词(契约 test_qi21_bases_json_interlocks_library 同口径抽验)
+    assert "模糊" in MyQi21DaojieBase().run("人物")[4]
 
 
 # ── W/H:与 K2 MyDaojieBase 同型同参输出一致(公式口径单源)─────
 def test_width_height_match_k2_same_type_and_params():
     for zh in _canon_order():
-        _b, w, h, _t = MyQi21DaojieBase().run(zh)
+        _b, w, h, _t, _n = MyQi21DaojieBase().run(zh)
         _p, _neg, aspect, mp, _bn, k_w, k_h = MyDaojieBase().run(zh)
-        if zh == "多视图":
-            # 0927 多视图轮:Q2.1侧画幅分档(3:4 Portrait 4.2MP 分张,退役 override;提取器
-            # Q21_ASPECT_FORK)——K2 侧 canon 合板口径(21:9+3072×1024)不动,两制分道;
-            # 型名对齐锁不受影响(此型外八型仍一比一)
-            assert (w, h) == native_px("3:4 (Portrait Standard)", 4.2) == (1816, 2424), zh
-            continue
+        # 1004 集中化:两件同源直读真源家 qi21_bases.json,十档全型一比一
+        # (0927 Q21 多视图分档 3:4 分张/退役 override 随 sidecar 提取链退役,
+        # 多视图回 canon 合板口径 override 3072×1024 直出——两制分道终结留痕)
         assert (w, h) == (k_w, k_h), zh  # 同型同参(aspect/MP/override 同 canon)
         entry = my_qi21_base._entry(zh)
         if entry.get("resolution_override") is None:
@@ -193,59 +213,69 @@ def test_width_height_match_k2_same_type_and_params():
 
 def test_width_height_reference_table():
     """十型对照表(型→宽×高;防 K2 侧公式漂移时静默跟漂的独立钉)。
-    自由型(1001 P1)=1:1 (Square)/1.0MP 兜底 1024×1024(design §2.1)。"""
+    自由型(1001 P1)=1:1 (Square)/1.0MP 兜底 1024×1024(design §2.1);
+    多视图=canon override 3072×1024 直出(0927 Q21 分档退役,见上)。"""
     expect = {
         "人物": (1816, 2424), "场景": (2800, 1576), "道具": (1024, 1024),
-        "美宣": (3208, 1376), "多视图": (1816, 2424), "高清人脸": (1024, 1024),
+        "美宣": (3208, 1376), "多视图": (3072, 1024), "高清人脸": (1024, 1024),
         "分镜剧情图": (2800, 1576), "表情差分": (2096, 2096),
         "概念气氛图": (2800, 1576), "自由": (1024, 1024)}
     for zh, (w, h) in expect.items():
-        _b, w_out, h_out, _t = MyQi21DaojieBase().run(zh)
+        _b, w_out, h_out, _t, _n = MyQi21DaojieBase().run(zh)
         assert (w_out, h_out) == (w, h), (zh, w_out, h_out)
 
 
 # ── rgba_default:四型透明声明型 true 其余 false(0929 D6)─────────
 def test_rgba_default_four_types_true_rest_false():
-    """rgba_default(0929 画布治理批 D6,用户拍板四型):①锚=②层透明声明句全串
-    运行判定(零硬编码;全串防「透明头皮」光头禁令条款误判);②四型集合独立钉
-    (防提取器 RGBA_DEFAULT_TYPES 被静默改);③节点输出与 json 字段一致。"""
+    """rgba_default(0929 画布治理批 D6,用户拍板四型):①布尔真源=json
+    rgba_default 字段(1004 重建后「②层透明声明句全串运行时判定」互锁退役
+    留痕——真源家 positive_text 仅道具型保留声明句,声明句与布尔不再逐型
+    互锁;RGBA_DECL_ANCHOR 保留为道具型单点锚);②四型集合独立钉(防
+    RGBA_DEFAULT_TYPES 被静默改);③节点输出与 json 字段一致。"""
+    daojv = next(e for e in _canon_types() if e["zh"] == "道具")
+    assert RGBA_DECL_ANCHOR in daojv["positive_text"]  # 道具型声明句单点锚
     for zh in _canon_order():
-        base_text, _w, _h, _t = MyQi21DaojieBase().run(zh)
+        base_text, _w, _h, _t, _n = MyQi21DaojieBase().run(zh)
         entry = my_qi21_base._entry(zh)
-        # 大轮后 rgba_default 不再外露:以 json 字段+声明句锚对拍(中间量仍件内解析)
-        assert entry["rgba_default"] == (RGBA_DECL_ANCHOR in base_text), zh
+        assert base_text == entry["positive_text"], zh  # BASE 真源逐字(见上锁)
         assert _t == entry["rgba_default"], zh  # 透明值(第4出)=json rgba_default(九型)
     got = {zh for zh in _canon_order() if MyQi21DaojieBase().run(zh)[3]}  # 大轮后透明值=第4出(索引3;九型无覆盖=rgba_default 同值)
     assert got == RGBA_DEFAULT_TYPES, got
     # 自由型(1001 P1):rgba_default=false(用户指定;BASE 空串无透明声明句)
-    _fb, _fw, _fh, free_t = MyQi21DaojieBase().run("自由")
+    _fb, _fw, _fh, free_t, _fn = MyQi21DaojieBase().run("自由")
     assert free_t is False       # 自由型透明值=False(=json rgba_default 同值)
 
 
 # ── 数据文件 schema:字段形状+与 canon 逐字镜像 ─────────────────
 def test_data_file_schema():
-    entries = json.loads(
-        my_qi21_base._BASES_JSON.read_text(encoding="utf-8"))
-    assert isinstance(entries, list) and len(entries) == 10  # 1001 P1:九型+自由
+    """1004 集中化 schema:dict 外壳 {lock_layer?, types[]}(原平铺 list 退役);
+    字段 base_text→positive_text/negative_text(正负拆开)。"""
+    data = json.loads(my_qi21_base._BASES_JSON.read_text(encoding="utf-8"))
+    assert isinstance(data, dict) and isinstance(data.get("types"), list)
+    entries = data["types"]
+    assert len(entries) == 10  # 1001 P1:九型+自由
     assert [e["zh"] for e in entries] == _canon_order() + ["自由"]  # 自由末位
     for e in entries:
         zh = e["zh"]
         assert isinstance(zh, str) and zh
-        bt = e["base_text"]
+        bt = e["positive_text"]
         assert isinstance(bt, str)
+        assert isinstance(e["negative_text"], str) and e["negative_text"], zh
         if zh == "自由":
-            # 自由型(1001 P1,design §2.1):base_text 空串=无型底座层(唯一例外)
+            # 自由型(1001 P1,design §2.1):positive_text 空串=无型底座层(唯一例外;
+            # v3 字段(key/purpose/lora_recipe/steps_hint/i2i_routes/postprocess)不带)
             assert bt == "", (zh, bt)
             assert e["aspect_ratio"] == "1:1 (Square)"
             assert e["megapixels"] == 1.0
             continue
         assert bt  # 九型底座文本非空
-        assert len(bt.split("\n")) == (6 if zh in RENWU_XI else 2), zh
+        # 1004 增衣物完整性锁:人物系 7 行(②+锁B四行+④+完整性),非人物系 2 行
+        assert len(bt.split("\n")) == (7 if zh in RENWU_XI else 2), zh
         assert e["aspect_ratio"] in ASPECTS, (zh, e["aspect_ratio"])  # 官方枚举串
         mp = e["megapixels"]
         assert (isinstance(mp, (int, float)) and not isinstance(mp, bool)
                 and mp > 0), (zh, mp)
-        # 0929 D6:rgba_default 九型全带布尔(提取器 RGBA_DEFAULT_TYPES 真源)
+        # 0929 D6:rgba_default 九型全带布尔(RGBA_DEFAULT_TYPES 集合真源)
         assert isinstance(e["rgba_default"], bool), (zh, e.get("rgba_default"))
         assert e["rgba_default"] == (zh in RGBA_DEFAULT_TYPES), zh
         if "resolution_override" in e:
@@ -260,33 +290,32 @@ def test_data_file_schema():
 
 
 def test_aspect_megapixels_mirror_canon():
-    """画幅档与 canon(daojie_bases.json)逐字镜像(aspect/MP/override 三字段;
-    多视图型例外=0927 多视图轮 Q2.1侧画幅分档,与提取器 Q21_ASPECT_FORK 单源;
-    自由型例外=1001 P1 十档末位,非 canon 镜像,字段独立钉见 test_data_file_schema)。"""
-    fork = {"多视图": ("3:4 (Portrait Standard)", 4.2, None)}
-    canon = {e["zh"]: e for e in json.loads(CANON_BASES.read_text(encoding="utf-8"))}
-    for e in json.loads(
-            my_qi21_base._BASES_JSON.read_text(encoding="utf-8")):
-        if e["zh"] == "自由":
-            continue  # 自由型不在 canon(1001 P1 独立条目,非提取器产物)
+    """sidecar 同步产物与真源家 canon 逐字镜像(aspect/MP/override 三字段;
+    1004 集中化:canon=真源家 qi21_bases.json,本仓 sidecar nodes/qi21_bases.json
+    =四层兜底同步产物(原 canon daojie_bases.json 退役删件,锚随迁);0927
+    多视图 Q21 分档随 sidecar 提取链退役——两侧同读真源家,fork 不复存在)。"""
+    canon = {e["zh"]: e for e in json.loads(
+        CANON_BASES.read_text(encoding="utf-8"))["types"]}
+    sidecar = json.loads(SIDECAR_BASES.read_text(encoding="utf-8"))["types"]
+    for e in sidecar:
         c = canon[e["zh"]]
-        want_a, want_m, want_ov = fork.get(
-            e["zh"], (c["aspect_ratio"], c["megapixels"], c.get("resolution_override")))
-        assert e["aspect_ratio"] == want_a, e["zh"]
-        assert e["megapixels"] == want_m, e["zh"]
-        assert e.get("resolution_override") == want_ov, e["zh"]
+        assert e["aspect_ratio"] == c["aspect_ratio"], e["zh"]
+        assert e["megapixels"] == c["megapixels"], e["zh"]
+        assert e.get("resolution_override") == c.get("resolution_override"), e["zh"]
 
 
 # ── 热改:mtime 失效(json 文案改=下次 run 即新文)───────────
 def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
+    # 1004 集中化 schema:dict 外壳 types[]+positive_text(原平铺 list/base_text 退役)
     fake = tmp_path / "qi21_bases.json"
-    fake.write_text(json.dumps([
-        {"zh": "测试型", "base_text": "测试底座"}], ensure_ascii=False),
+    fake.write_text(json.dumps({"types": [
+        {"zh": "测试型", "positive_text": "测试底座"}]}, ensure_ascii=False),
         encoding="utf-8")
     monkeypatch.setattr(my_qi21_base, "_BASES_JSON", fake)
     assert my_qi21_base.bases_list() == ["测试型"]
-    bt, w, h, transparent = MyQi21DaojieBase().run("测试型")
+    bt, w, h, transparent, neg = MyQi21DaojieBase().run("测试型")
     assert bt == "测试底座"
+    assert neg == ""  # 缺 negative_text 键=回退空串(案B:.get 纪律,空负向合法态)
     # 缺 rgba_default 字段:回退 False(0929 D6;默认关=安全侧,与五型默认同态)
     # 非自由型透明值=rgba_default 型默认优先(1001 P1;覆盖缺省不改变九型行为)
     assert transparent is False
@@ -297,14 +326,15 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     assert "缺 rgba_default 字段" in out
     assert "回退" in out
     # 热改:同路径改内容+推 mtime(免文件系统时间粒度),现读即生效
-    entries = json.loads(fake.read_text(encoding="utf-8"))
-    entries[0]["base_text"] = "热改后的底座"
-    fake.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+    entries = json.loads(fake.read_text(encoding="utf-8"))["types"]
+    entries[0]["positive_text"] = "热改后的底座"
+    fake.write_text(json.dumps({"types": entries}, ensure_ascii=False),
+                    encoding="utf-8")
     stat = fake.stat()
     time.sleep(0.01)
     import os
     os.utime(fake, (stat.st_atime + 5, stat.st_mtime + 5))
-    bt2, _w2, _h2, _t2 = MyQi21DaojieBase().run("测试型")
+    bt2, _w2, _h2, _t2, _n2 = MyQi21DaojieBase().run("测试型")
     assert bt2 == "热改后的底座"
 
 
@@ -348,7 +378,7 @@ def test_missing_json_degrades_loudly(tmp_path, monkeypatch):
 def test_free_base_transparent_value_passes_override():
     """自由+透明覆盖 true → 透明值 true(design §2.4 新单测例1:面板布尔
     直通;BASE 空串+W/H 兜底 1024×1024+rgba_default=false 一并钉)。"""
-    base_text, w, h, transparent = MyQi21DaojieBase().run(
+    base_text, w, h, transparent, _neg = MyQi21DaojieBase().run(
         "自由", 透明覆盖=True)
     assert base_text == ""
     assert (w, h) == (1024, 1024)
@@ -359,9 +389,9 @@ def test_nine_type_transparent_value_ignores_override():
     """九型+透明覆盖 → 透明值=型默认优先(design §2.4 新单测例2:人物+true
     →false;反向钉道具+false→true——覆盖在九型恒被忽略,双方向防「覆盖
     恒压制」或「透明值恒取覆盖」两类实现漂移)。"""
-    _b, _w, _h, transparent = MyQi21DaojieBase().run("人物", 透明覆盖=True)
+    _b, _w, _h, transparent, _n = MyQi21DaojieBase().run("人物", 透明覆盖=True)
     assert transparent is False  # 人物 rgba_default=false(覆盖被忽略)
-    _b, _w, _h, transparent = MyQi21DaojieBase().run("道具", 透明覆盖=False)
+    _b, _w, _h, transparent, _n = MyQi21DaojieBase().run("道具", 透明覆盖=False)
     assert transparent is True   # 道具 rgba_default=true(覆盖被忽略)
 
 
@@ -370,9 +400,9 @@ def test_default_override_transparent_value_follows_rgba_default():
     例3:十档全扫——九型逐一相等;自由型 None→False 与 default 同态;
     i2i/edit 旧工作流不接新槽=第四/五出同值,零波及;⑯ 删型名后仍同构)。"""
     for zh, rgba in [(z, z in RGBA_DEFAULT_TYPES) for z in _canon_order()] + [("自由", False)]:
-        _b, _w, _h, transparent = MyQi21DaojieBase().run(zh)
+        _b, _w, _h, transparent, _n = MyQi21DaojieBase().run(zh)
         assert isinstance(transparent, bool), zh
         assert transparent == rgba, (zh, rgba, transparent)  # 与 json rgba_default 同值
     # 显式缺省形态:None(引擎 optional 未接线投递)同 0 覆盖行为
-    _b, _w, _h, transparent = MyQi21DaojieBase().run("自由", 透明覆盖=None)
+    _b, _w, _h, transparent, _n = MyQi21DaojieBase().run("自由", 透明覆盖=None)
     assert transparent is False

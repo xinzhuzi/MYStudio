@@ -2,52 +2,38 @@
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. COMMERCIAL_LICENSE.md available.
 """MyQi21PromptSelect(最终文本合成器)契约测试(1001 S8 R7 集成轮裁定 A 拆件
-形态=装配链下游件;1002 ⑭/⑰/Q4 接口批沿革;**10-02-qi21-subgraph-singleport
-R1 单口化**——原两口「最终文本/透明文本」合一为单口「进编码文本」)。
+形态=装配链下游件;10-02 R1 单口化→**10-04 双口化**(「进编码文本」拆
+「进编码正向/负向文本」,9 槽 4 占位 wv 形)→**1005 案B Phase I 重锚**:
+pe开路负向一行对调=直写优先(负面词直写 非空恒胜,PE负面 仅空档兜底——
+修 PE 编造词顶掉锁层/型层真负面断路,design §8.1 ③)。
 
-锁(10 例=本役 6 例+既有契约 4 例随单口适配保留):
+锁:
 
-本役 6 例(design §1 钦定口径:四象限+预览实况+懒保持):
+本役重锚 6 例(10-04 双口+1005 案B口径):
 ①pe关+透明关=装配全文 原样(直写路)+接口面锚(required 置空/optional 声明序
-  ⑭ 两连线槽前置/头尾 W1 default 迁移锚 sha256 前16位/multiline 大框)
+  ⑭ 四连线槽前置/头尾 W1 default=qi21_bases.json rgba 节现读/multiline 大框)
 ②pe开+透明关=PE出文 原样+pe开×PE出文未接线→中文 ValueError(不猜不代选)
-③pe关+透明开=头句+中文透明声明+装配全文+W1+尾句 逐字(Q4 两路同包 W1 保持;
-  R1 双语透明强化=10-02 补强第1轮用户令「补强」:头句后追加官方中文透明声明
-  _ZH_ALPHA_DECL,该象限「原两口形逐字保持」由用户令推翻——s5b 实测单英文包裹
-  出 opaque corners=255/ratioAlpha0=0,中文正文路以中文再锚透明指令)+装配全文
-  未接线+pe关→降级空串→包裹=头句+声明+"  "+W1+尾句(双空格形;裁定 A 自洽降级)
-④pe开+透明开=头句+剥离(PE出文)+W1+尾句 逐字(词族整句消失+大小写不敏感+
-  pattern 真源=qi21_bases.json#strip_lexicon 现读)
-⑤预览实况(R1 验收口径「预览=实况」):RETURN_TYPES 单 STRING 锚(防两口回潮)
-  +四象限两口合一语义无损对拍(每象限期望值==原两口形对应出口:透明开=原
-  透明文本口/透明关=原最终文本口,md5 同锚;R1 补强例外=pe关+透明象限基线
-  =原两口形+中文声明插在头句后,用户令推翻该象限逐字保持)+进编码文本 md5==
-  预览 md5(单口=预览与进编码同一条文本,实弹 [401] 预览 md5 文证的件级同构)
+  +案B:pe开负向=直写非空恒胜/空档兜底 PE负面
+③pe关+透明开=头句+中文透明声明+装配全文+W1+尾句 逐字(R1 补强;Q4 同包 W1)
+  +降级双空格形+负向不随透明包裹(pe关负向=直写)
+④pe开+透明开=头句+剥离(PE出文)+W1+尾句 逐字(词族真源=qi21_bases.json
+  #strip_lexicon 现读)+负向不剥离不包裹(案B 同胜)
+⑤双口形状锚(RETURN_TYPES/NAMES=进编码正向/负向文本)+四象限两口期望对拍
 ⑥懒保持:check_lazy_status 四分支矩阵(pe关→[]/pe开+PE出文已接线未求值→
-  请求名单/未接线缺键→[]绝不请求/已求值→放行)+名单纯字符串形(引擎
-  execution.py:513-516 按 isinstance(x,str) 过滤,元组形被静默丢弃)
-  +INPUT_TYPES「PE出文」lazy=True 声明锚(契约测试 _load_my_node_class
-  动态消费的正是此两面,件改不得伤;懒成立条件=pe开关关(单口化后透明
-  模式参与计算不改变消费面:透明开(pe关)只用装配全文,PE出文 仍零消费)。
+  请求名单/未接线缺键→[]绝不请求/已求值→放行)+名单纯字符串形
+  +PE出文/PE负面 lazy=True 声明锚(1004 双懒槽,案B 不改懒面:PE负面 值
+  降为兜底但求值请求照旧——漏请求=None 静默错路)
 
-既有契约 4 例(与出口形态无关,随单口解包适配保留):
+既有契约 3 例(数据面,随集中化保留):
 ⑦词族单源锁:strip_word_family 与 qi21_bases.json#strip_lexicon 节
-  现读行为一致(1004 集中化令:词族真源迁 qi21_bases.json,旧
-  qi21_strip_lexicon.json=留档件产线不再消费;case_insensitive 生效,
-  与 [MyQi21PromptAssembly].BASE 无关)
-⑧词库结构坏档锁(S8 深审 L-3):合法 JSON 缺键→同款 RuntimeError 中文兜底
-  且不写缓存,同进程修文件即自愈(坏 dict 不得钉死缓存)
-⑨(1002 ⑭)optional 化缺省兜底:pe开关 缺键=None→True(widget default
-  同态,0926 裁定1 不漂)+签名全 default 不炸 TypeError
-⑩(1002 ⑰)全部控件 tooltip 在位(大白话;头句=prd ⑰ 例文逐字)。
-
-退役锁(R1 架构裁定随行):原「透明模式=False→透明文本仍产出」机械双产出锁
-(R7.4 两口形态专属)退役——单口后选择边界自下游 [144] 闸门迁入本件,透明
-模式 直接参与文本计算,透明关=正文原样直出(=①②所锁)。
-
-1002 ⑭ 接口批:INPUT_TYPES required 置空,optional 声明序=装配全文/PE出文
-(两连线槽前置)→pe开关/透明模式/头/尾/W1(五参数下沉);Q4 补强:pe关透明
-路同包 W1 收束句(③⑨ 断言随行)。槽位映射表=任务档 research/slot-map.md。
+  现读行为一致(1004 集中地令)
+⑧词库结构坏档锁(S8 深审 L-3):缺节→RuntimeError 中文兜底不写缓存,
+  同进程修文件即自愈
+⑨optional 化缺省兜底:pe开关 缺键=None→True+签名全 default 不炸
+⑩全部控件 tooltip 在位(大白话;头句 tooltip=中文真源口径;案B 两负向槽
+  tooltip 语义锚:直写「优先」/PE负面「兜底」)
+⑪(1005 案B 新锚)负向路由矩阵五路:pe开直写胜/pe开空档兜底/pe开双空=
+  空负向/pe关直写/缺键同空串。
 
 加载纪律:importlib.util.spec_from_file_location 直载 nodes/ 文件(不 import
 my_nodes 包)。
@@ -55,7 +41,6 @@ my_nodes 包)。
 
 from __future__ import annotations
 
-import hashlib
 import importlib.util
 import json
 import tempfile
@@ -70,18 +55,12 @@ select = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(select)
 MyQi21PromptSelect = select.MyQi21PromptSelect
 
-# 三固定句 default 迁移锚(SHA256 前16位;迁入时对拍 1001 t2i 工作流
-# [160]/[161]/[215] 现值;改值须同批过账更新)
-_DEFAULT_ANCHORS = {
-    "RGBA官方头句": "fe7eca21a0b8dd10",  # 原 [160] RGBA官方头句
-    "RGBA官方尾句": "eb30fffec9f87437",  # 原 [161] RGBA官方尾句
-    "W1收束句": "c17fba67932284ed",     # 原 [215] W1收束句
-}
-# 词族真源=qi21_bases.json#strip_lexicon 节(1004 集中化令;旧
-# qi21_strip_lexicon.json=留档件,产线不再消费——my_qi21_prompt_select.py
-# 自注:搬迁对拍 SHA256 一致)。此处独立 json.loads 真源家文件取节(不走产线
-# _load_strip_lexicon 缓存面)=「数据现读对拍」的单源锁形态;路径与产线同源
-# 解析(select._BASES_JSON,四层候选链 dev 环境落真源家)。
+# 三固定句 default 真源(10-04 随库中文化):=qi21_bases.json rgba 节现读
+# (单源对拍形态,同 _LEXICON;旧 sha16 英文锚随 Phase B 中文化废止——真源
+# 家热改数据即所见,契约测试另钉工作流 wv 逐字)
+_RGBA = json.loads(select._BASES_JSON.read_text(encoding="utf-8"))["rgba"]
+# 词族真源=qi21_bases.json#strip_lexicon 节(1004 集中地令;旧
+# qi21_strip_lexicon.json=留档件,产线不再消费)
 _LEXICON = json.loads(select._BASES_JSON.read_text(
     encoding="utf-8"))["strip_lexicon"]
 
@@ -90,70 +69,65 @@ _LEXICON = json.loads(select._BASES_JSON.read_text(
 _ASSEMBLED = "装配全文例"
 _PE_TEXT = "a lone cultivator. Misty mountains and clouds behind her. crisp edges."
 _STRIPPED_PE = "a lone cultivator. crisp edges."
-_QUADRANTS = [
-    # (pe开关, 透明模式, PE出文, 期望单口文本, 说明)
-    (False, False, None, _ASSEMBLED, "pe关+透明关=装配全文原样"),
-    (True, False, _PE_TEXT, _PE_TEXT, "pe开+透明关=PE出文原样"),
-    (False, True, None, f"头句 {select._ZH_ALPHA_DECL} 装配全文例 W1句 尾句",
-     "pe关+透明开=头+中文声明+装配+W1+尾(R1 补强)"),
-    (True, True, _PE_TEXT, f"头句 {_STRIPPED_PE} W1句 尾句",
-     "pe开+透明开=头+剥离(PE出文)+W1+尾"),
-]
+_DIRECT_NEG = "直写负面例"
+_PE_NEG = "PE负面例"
 
 
-def _sha16(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()[:16]
-
-
-def _md5(text: str) -> str:
-    return hashlib.md5(text.encode()).hexdigest()
-
-
-def _compose_quadrant(pe开关: bool, 透明模式: bool, PE出文: str | None) -> str:
+def _compose_quadrant(pe开关: bool, 透明模式: bool, PE出文: str | None,
+                      负面词直写: str | None = _DIRECT_NEG,
+                      PE负面: str | None = None) -> tuple[str, str]:
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=pe开关, 透明模式=透明模式,
                        装配全文=_ASSEMBLED if PE出文 is None else "被忽略",
-                       PE出文=PE出文, RGBA官方头句="头句", RGBA官方尾句="尾句",
-                       W1收束句="W1句")
-    assert isinstance(got, tuple) and len(got) == 1, \
-        f"单口形=一元组,得 {got!r}"
-    return got[0]
+                       PE出文=PE出文, 负面词直写=负面词直写, PE负面=PE负面,
+                       RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
+    assert isinstance(got, tuple) and len(got) == 2, \
+        f"双口形=二元组(10-04 Phase B),得 {got!r}"
+    return got
 
 
 def test_1_pe_off_transparent_off_returns_assembled_verbatim():
-    """四象限③(pe关+透明关):装配全文 原样直出(不包裹不剥离不拼 W1)。
+    """四象限(pe关+透明关):进编码正向=装配全文 原样直出(不包裹不剥离不拼
+    W1)+进编码负向=负面词直写。
 
-    并锚 ⑭ 接口面(required 置空/optional 声明序/default 三锚/multiline)
-    ——原两口形 test_1 接口面锁全数随单口迁入(输入面不动=R1 单口化只改
-    出口面,拼接序铁律保持)。
+    并锚 ⑭ 接口面(required 置空/optional 声明序 9 槽/default 三锚=rgba 节
+    现读/multiline)。
     """
     node = MyQi21PromptSelect()
-    got = node.compose(pe开关=False, 透明模式=False, 装配全文=_ASSEMBLED)
-    assert got == (_ASSEMBLED,), \
-        f"pe关+透明关→进编码文本应=装配全文原样,得 {got!r}"
+    got = node.compose(pe开关=False, 透明模式=False, 装配全文=_ASSEMBLED,
+                       负面词直写=_DIRECT_NEG)
+    assert got == (_ASSEMBLED, _DIRECT_NEG), \
+        f"pe关+透明关→(装配全文原样, 负面词直写),得 {got!r}"
     inputs = node.INPUT_TYPES()
-    # 1002 ⑭:参数 widget 全迁 optional(连线槽装配全文/PE出文前置),锚随迁
-    for name, anchor in _DEFAULT_ANCHORS.items():
-        assert _sha16(inputs["optional"][name][1]["default"]) == anchor, \
-            f"{name} default 迁移锚漂移(应 sha16={anchor})"
+    # 2002 ⑭+10-04 双口化:参数 widget 全迁 optional(四连线槽前置),锚随迁
+    for name, live in (("RGBA官方头句", _RGBA["head"]),
+                       ("RGBA官方尾句", _RGBA["tail"]),
+                       ("W1收束句", _RGBA["w1_closing"])):
+        assert inputs["optional"][name][1]["default"] == live, \
+            f"{name} default 应=qi21_bases.json rgba 节现读(10-04 中文化)"
         assert inputs["optional"][name][1]["multiline"] is True, \
             f"Q4:{name} 应 multiline 大框"
-    assert inputs["required"] == {}, "required 应置空(1002 ⑭ 连线槽前置重排)"
-    assert list(inputs["optional"]) == ["装配全文", "PE出文", "pe开关", "透明模式",
+    assert inputs["required"] == {}, "required 应置空(2002 ⑭ 连线槽前置重排)"
+    assert list(inputs["optional"]) == ["装配全文", "负面词直写", "PE出文", "PE负面",
+                                        "pe开关", "透明模式",
                                         "RGBA官方头句", "RGBA官方尾句", "W1收束句"], \
-        f"optional 声明序应=两连线槽前置+五参数下沉(⑭),得 {list(inputs['optional'])}"
+        f"optional 声明序应=四连线槽前置+五参数下沉(⑭+10-04 负向拆开),得 {list(inputs['optional'])}"
     assert inputs["optional"]["pe开关"][1]["default"] is True, "pe开关默认应 true(0926 裁定1)"
     assert inputs["optional"]["透明模式"][1]["default"] is False
 
 
 def test_2_pe_on_transparent_off_returns_pe_text_and_raises_without_wiring():
-    """四象限④(pe开+透明关):PE出文 原样直出(PE 路正文,不包裹不剥离);
-    pe开×PE出文未接线→中文 ValueError(不猜不代选,SpeedSelect 同款)。"""
+    """四象限(pe开+透明关):进编码正向=PE出文 原样直出(PE 路正文,不包裹
+    不剥离);pe开×PE出文未接线→中文 ValueError(不猜不代选,SpeedSelect 同款)。
+
+    案B(1005 Phase I):pe开负向=直写优先——负面词直写 非空恒胜 PE负面
+    (修前 PE负面 非空恒胜=PE 编造词顶掉真负面的断路根)。"""
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED,
-                       PE出文="PE 出文例")
-    assert got == ("PE 出文例",), \
-        f"pe开+透明关→进编码文本应=PE出文原样(优化器路),得 {got!r}"
+                       PE出文="PE 出文例", 负面词直写=_DIRECT_NEG,
+                       PE负面=_PE_NEG)
+    assert got == ("PE 出文例", _DIRECT_NEG), \
+        f"pe开+透明关→(PE出文原样, 案B直写胜),得 {got!r}"
     try:
         node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED)
     except ValueError as exc:
@@ -164,21 +138,20 @@ def test_2_pe_on_transparent_off_returns_pe_text_and_raises_without_wiring():
 
 
 def test_3_pe_off_transparent_on_wraps_assembled_with_w1_and_degrades():
-    """四象限②(pe关+透明开):头句+空格+中文透明声明+空格+装配全文+空格+
-    W1收束句+空格+尾句 逐字(Q4 两路同包 W1——grill 五问 Q4 裁定保持:pe关透明
-    路不裸拼;R1 双语透明强化=10-02 补强第1轮用户令:头句后追加官方中文透明声明,
-    声明真源=件常量 _ZH_ALPHA_DECL,速查卡在档原文逐字)。
+    """四象限(pe关+透明开):正向=头句+空格+中文透明声明+空格+装配全文+空格+
+    W1收束句+空格+尾句 逐字(Q4 两路同包 W1;R1 双语透明强化:头句后追加
+    官方中文透明声明,真源=件常量 _ZH_ALPHA_DECL,速查卡在档原文逐字)。
 
-    同锁降级象限:装配全文未接线+pe关→正文降级空串+中文 print 警告→包裹=
-    头句+" "+声明+" "+空串+" "+W1+" "+尾句(双空格形;裁定 A 自洽降级语义)。
-    并锚 R1 语义边界:中文声明只驻 pe关路(pe开+透明开零动=剥离+W1 形,防误扇)。
-    """
+    同锁降级象限:装配全文未接线+pe关→正向降级空串+中文 print 警告→包裹=
+    头句+" "+声明+" "+空串+" "+W1+" "+尾句(双空格形);负向路不随透明包裹
+    (透明包裹是正向路画幅指令)——pe关负向恒=负面词直写,缺键=空串。"""
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=False, 透明模式=True, 装配全文=_ASSEMBLED,
+                       负面词直写=_DIRECT_NEG,
                        RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
     expected = f"头句 {select._ZH_ALPHA_DECL} 装配全文例 W1句 尾句"
-    assert got == (expected,), \
-        f"pe关+透明开→头句+中文声明+装配全文+W1+尾句(R1 补强+Q4 同包 W1)逐字,得 {got!r}"
+    assert got == (expected, _DIRECT_NEG), \
+        f"pe关+透明开→正向=头句+中文声明+装配+W1+尾(R1+Q4)逐字+负向=直写,得 {got!r}"
     # R1 声明逐字锁(官方中文同款=速查卡在档,两句空格分隔,插在头句后)
     assert select._ZH_ALPHA_DECL == ("这是一张带有透明度的RGBA图像 "
                                      "该图像具有alpha通道,背景是透明的"), \
@@ -188,27 +161,27 @@ def test_3_pe_off_transparent_on_wraps_assembled_with_w1_and_degrades():
     degraded = node.compose(pe开关=False, 透明模式=True,
                             RGBA官方头句="头句", RGBA官方尾句="尾句",
                             W1收束句="W1句")
-    assert degraded == (f"头句 {select._ZH_ALPHA_DECL}  W1句 尾句",), \
-        f"装配全文未接线+pe关→降级空串包裹=头句+声明+空串+W1+尾句(双空格形),得 {degraded!r}"
+    assert degraded == (f"头句 {select._ZH_ALPHA_DECL}  W1句 尾句", ""), \
+        f"装配全文未接线+pe关→正向降级双空格形+负向缺键=空串(空负向合法态),得 {degraded!r}"
     # pe开路不消费装配全文=缺键照常(PE出文为正文;隔离降级语义不外溢)
     pe_on = node.compose(pe开关=True, 透明模式=False, PE出文="PE 文")
-    assert pe_on == ("PE 文",), "pe开路不消费装配全文=缺键照常出 PE出文"
+    assert pe_on == ("PE 文", ""), "pe开路不消费装配全文=缺键照常出 PE出文"
 
 
 def test_4_pe_on_transparent_on_strips_word_family_and_keeps_w1():
-    """四象限①(pe开+透明开):头句+剥离(PE出文)+W1+尾句 逐字——剥离对象=
+    """四象限(pe开+透明开):正向=头句+剥离(PE出文)+W1+尾句 逐字——剥离对象=
     PE出文(词族整句删,含 backgrounds 族句 "Misty mountains ... behind her."
     消失;词族=qi21_bases.json#strip_lexicon 节现读,大小写由 case_insensitive
-    驱动)。"""
+    驱动);负向不剥离(词族整句删会误伤逗号清单式负面词)+案B 直写胜。"""
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=True, 透明模式=True, 装配全文=_ASSEMBLED,
-                       PE出文=_PE_TEXT, RGBA官方头句="头句", RGBA官方尾句="尾句",
-                       W1收束句="W1句")
+                       PE出文=_PE_TEXT, 负面词直写=_DIRECT_NEG, PE负面=_PE_NEG,
+                       RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
     assert "Misty mountains and clouds behind her." not in got[0], \
         f"词族整句(backgrounds 族)应被剥离,得 {got[0]!r}"
     assert "W1句" in got[0], "W1收束句应在场(剥离之后拼接)"
-    assert got == (f"头句 {_STRIPPED_PE} W1句 尾句",), \
-        f"pe开+透明开=头句+剥离文+W1+尾句 逐字,得 {got[0]!r}"
+    assert got == (f"头句 {_STRIPPED_PE} W1句 尾句", _DIRECT_NEG), \
+        f"pe开+透明开=正向头+剥离文+W1+尾 逐字+负向案B直写胜(不剥离),得 {got!r}"
     # 大小写不敏感由数据文件驱动:大写词族句同样被剥(case_insensitive=true)
     upper = node.compose(pe开关=True, 透明模式=True,
                          PE出文="Keep this. DISTANT MOUNTAINS fade away. Keep that too.",
@@ -222,42 +195,38 @@ def test_4_pe_on_transparent_on_strips_word_family_and_keeps_w1():
         "剥离词族真源=qi21_bases.json#strip_lexicon.en(词边界匹配核对)"
 
 
-def test_5_single_port_preview_is_live_and_two_port_merge_lossless():
-    """预览实况(R1 验收口径):单口=预览与进编码同一条文本(所见即所进编码,
-    透明开时预览含头尾);两口合一语义无损(每象限期望值==原两口形对应出口
-    的 md5:透明开=原透明文本口/透明关=原最终文本口)+单 STRING 出口锚防回潮。
-    """
+def test_5_two_port_shape_and_quadrant_expectations():
+    """双口形状锚(10-04 Phase B)+四象限两口期望对拍:正向路四象限逐字
+    (拼接序铁律),负向路=pe开关 单扇(pe开=案B 直写胜[直写空则 PE负面],
+    pe关=直写缺键空串);负向不包裹不剥离(透明象限负向与透明关象限同文)。"""
     node = MyQi21PromptSelect()
-    assert node.RETURN_TYPES == ("STRING",), \
-        f"单口化:RETURN_TYPES 应单 STRING(R1),得 {node.RETURN_TYPES}"
-    assert node.RETURN_NAMES == ("进编码文本",), \
-        f"单口名应=「进编码文本」(R1),得 {node.RETURN_NAMES}"
-    for pe开关, 透明模式, pe_text, expected, note in _QUADRANTS:
-        got = _compose_quadrant(pe开关, 透明模式, pe_text)
-        assert got == expected, \
-            f"{note} 期望 {expected!r},得 {got!r}(拼接序铁律=design §1 逐字)"
-        # 两口合一语义无损对拍:按透明模式选原两口形对应出口,逐字重构
-        # (R1 补强第1轮用户令:pe关+透明象限对拍基线=原两口形+中文声明插在头句后,
-        #  「逐字保持」在该象限由用户令推翻;其余象限无损对拍原样)
-        if 透明模式:
-            zh = "" if pe开关 else select._ZH_ALPHA_DECL + " "
-            mid = (select.strip_word_family(pe_text) if pe开关
-                   else _ASSEMBLED) + " W1句"
-            legacy = f"头句 {zh}{mid} 尾句"  # 原透明文本口(RETURN_NAMES 口1)
-        else:
-            legacy = pe_text if pe开关 else _ASSEMBLED  # 原最终文本口(口0)
-        assert _md5(got) == _md5(legacy), \
-            f"{note} 两口合一应无损:单口 md5={_md5(got)} 原两口对应出口 md5={_md5(legacy)}"
-        # 预览=实况:进编码文本 md5==预览 md5(同一条文本;实弹 [401] 预览
-        # md5==进编码文本 文证的件级同构=单口形态下不存在第二条预览文本)
-        assert _md5(got) == _md5(expected), f"{note} 预览实况 md5 应同锚"
+    assert node.RETURN_TYPES == ("STRING", "STRING"), \
+        f"双口化:RETURN_TYPES 应双 STRING(10-04 Phase B),得 {node.RETURN_TYPES}"
+    assert node.RETURN_NAMES == ("进编码正向文本", "进编码负向文本"), \
+        f"双口名应=「进编码正向/负向文本」(10-04),得 {node.RETURN_NAMES}"
+    # 正向四象限(10-02 单口形逐字保持;负向随 pe开关 单扇)
+    quadrants = [
+        # (pe开关, 透明模式, PE出文, 期望正向, 期望负向)
+        (False, False, None, _ASSEMBLED, _DIRECT_NEG),
+        (True, False, _PE_TEXT, _PE_TEXT, _DIRECT_NEG),   # 案B:直写胜
+        (False, True, None,
+         f"头句 {select._ZH_ALPHA_DECL} 装配全文例 W1句 尾句", _DIRECT_NEG),
+        (True, True, _PE_TEXT, f"头句 {_STRIPPED_PE} W1句 尾句", _DIRECT_NEG),
+    ]
+    for pe_on, transparent, pe_text, want_pos, want_neg in quadrants:
+        got = _compose_quadrant(pe_on, transparent, pe_text)
+        assert got == (want_pos, want_neg), \
+            f"象限(pe={pe_on},透明={transparent}) 期望 {(want_pos[:30] + '…', want_neg)!r},得 {got!r}"
+    # pe开×直写缺键×PE负面接线=空档兜底(案B fallback 路)
+    assert _compose_quadrant(True, False, _PE_TEXT,
+                             负面词直写=None, PE负面=_PE_NEG) == (_PE_TEXT, _PE_NEG), \
+        "pe开×直写缺键→PE负面兜底(空档才轮到)"
 
 
 def test_6_lazy_protocol_preserved_unchanged():
-    """懒保持:check_lazy_status 四分支矩阵原样+纯字符串名单+PE出文 lazy=True
-    INPUT_TYPES 声明锚(契约测试 _load_my_node_class 动态消费的两面;单口化
-    不改变消费面:PE出文 的消费仅由 pe开关 决定,透明模式参与计算后 pe关路
-    仍零消费 PE出文——懒成立条件=pe开关关,协议零漂移)。"""
+    """懒保持:check_lazy_status 四分支矩阵原样+纯字符串名单+PE出文/PE负面
+    lazy=True INPUT_TYPES 声明锚(2004 双懒槽;1005 案B 不改懒面——PE负面
+    值降为空档兜底,但求值请求照旧:漏请求=None 静默错路)。"""
     node = MyQi21PromptSelect()
     assert node.check_lazy_status(pe开关=False, PE出文=None) == [], \
         "pe关→[]([140] 无人消费其输出→不进执行图,PE TE 零装载)"
@@ -270,21 +239,24 @@ def test_6_lazy_protocol_preserved_unchanged():
         "PE出文未接线(缺键)→[]绝不请求(未接线槽建强链=NodeInputError)"
     assert node.check_lazy_status(pe开关=True, PE出文="已求值") == [], \
         "PE出文已求值→放行(空名单)"
-    # pe关×透明开=装配全文 包裹路,PE出文 仍零消费(单口化不外溢懒面)
+    # pe关×透明开=装配全文 包裹路,PE出文 仍零消费(双口化不外溢懒面)
     assert node.check_lazy_status(pe开关=False, PE出文=None, 透明模式=True) == [], \
         "pe关×透明开→[](透明路正文=装配全文,PE出文 零消费)"
     decl = node.INPUT_TYPES()["optional"]["PE出文"]
     assert (decl[1] or {}).get("lazy") is True, \
         f"PE出文 应保持 lazy=True 声明(懒协议锚),得 {decl}"
+    decl_neg = node.INPUT_TYPES()["optional"]["PE负面"]
+    assert (decl_neg[1] or {}).get("lazy") is True, \
+        f"PE负面 应保持 lazy=True 声明(2004 双懒槽;案B 不改懒面),得 {decl_neg}"
     assert hasattr(node, "check_lazy_status"), \
         "实名懒钩子 check_lazy_status 必须在位(引擎只认此名)"
 
 
 def test_7_strip_uses_lexicon_file_single_source():
     """⑦词族单源锁:剥离词族真源=qi21_bases.json#strip_lexicon 节(1004
-    集中化令;旧 qi21_strip_lexicon.json=留档件,产线不再消费,词族逐字
+    集中地令;旧 qi21_strip_lexicon.json=留档件,产线不再消费,词族逐字
     在彼节,搬迁对拍 SHA256 一致)——strip_word_family 行为与真源家数据
-    现读一致(case_insensitive 生效,与 [MyQi21PromptAssembly].BASE 无关)。"""
+    现读一致(case_insensitive 生效)。"""
     en_patterns = _LEXICON["en"]
     assert _LEXICON["case_insensitive"] is True
     # 大小写不敏感由数据文件驱动:大写词族句同样被剥
@@ -292,20 +264,18 @@ def test_7_strip_uses_lexicon_file_single_source():
     stripped = select.strip_word_family(text)
     assert "DISTANT MOUNTAINS fade away." not in stripped, \
         f"case_insensitive=true 应剥大写词族句,得 {stripped!r}"
-    # 词族真源=qi21_bases.json#strip_lexicon.en(词边界匹配核对;1004 前旧链
-    # =qi21_strip_lexicon.json pattern 单串,已逐字并入本节)
+    # 词族真源=qi21_bases.json#strip_lexicon.en(词边界匹配核对)
     assert any("mountains?" in p for p in en_patterns)
     assert any("backgrounds?" in p for p in en_patterns)
 
 
 def test_8_lexicon_valid_json_missing_keys_not_pinned_in_cache():
-    """S8 深审 L-3(1004 集中化随迁,坏档面=qi21_bases.json 缺 strip_lexicon
+    """S8 深审 L-3(2004 集中化随迁,坏档面=qi21_bases.json 缺 strip_lexicon
     节):合法 JSON 缺节→同款 RuntimeError 中文兜底;自愈=整文件 mtime 缓存。
 
     坏档钉死缓存=修文件不自愈须重启引擎(L-3 根除项):缺节词表首调即
     RuntimeError(非裸 KeyError);节结构校验每次调用现跑,同进程换上好文件
-    后 _load_strip_lexicon 立即现读自愈(旧链 _load_lexicon/_LEXICON_PATH
-    已随集中化退役,锁面平移至 _load_bases_data/_BASES_JSON)。"""
+    后 _load_strip_lexicon 立即现读自愈。"""
     with tempfile.TemporaryDirectory() as tmp:
         bad = Path(tmp) / "bases_bad.json"
         bad.write_text('{"foo": 1}', encoding="utf-8")  # 合法 JSON,缺 strip_lexicon 节
@@ -319,8 +289,7 @@ def test_8_lexicon_valid_json_missing_keys_not_pinned_in_cache():
                     f"应同款 RuntimeError 中文兜底(结构不合法路),得 {exc}"
             else:
                 raise AssertionError("缺节词表应 RuntimeError,非裸 KeyError/静默通过")
-            # 同进程修好(换上含合法 strip_lexicon 节的文件)→自愈(整文件
-            # mtime 缓存对换入文件必然未命中=现读;节校验每次现跑)
+            # 同进程修好(换上含合法 strip_lexicon 节的文件)→自愈
             good = Path(tmp) / "bases_good.json"
             good.write_text(json.dumps({"strip_lexicon": {"en": ["mountains?"],
                                                           "zh": [],
@@ -334,18 +303,18 @@ def test_8_lexicon_valid_json_missing_keys_not_pinned_in_cache():
             select._BASES_JSON, select._bases_cache = real_path, real_cache
 
 
-# ── ⑨ 1002 ⑭ optional 化缺省兜底(手写 API prompt 省略槽态) ──────────
+# ── ⑨ 2002 ⑭ optional 化缺省兜底(手写 API prompt 省略槽态) ──────────
 def test_9_pe_switch_missing_defaults_true():
     """⑭ 随迁 optional 后 pe开关 可缺键(前端 widget 恒投递,仅手写 API prompt
-    省略槽时可达)——兜底 True=widget default 同态(0926 裁定1「画布默认 PE
-    开路」不随槽位搬家漂移);懒钩子同款兜底;签名全 default 不炸 TypeError。"""
+    省略槽时可达)——兜底 True=widget default 同态(0926 裁定1);懒钩子同款
+    兜底;签名全 default 不炸 TypeError(双口返回)。"""
     node = MyQi21PromptSelect()
     # 懒钩子:pe开关缺键(None)→按 True 处理→请求未求值的 PE出文
     assert node.check_lazy_status(PE出文=None) == ["PE出文"], \
         "pe开关缺省应兜底 True(钩子按 pe开请求 PE出文)"
-    # compose:缺省 pe开关=True→PE 路语义(PE出文 有值即用)
+    # compose:缺省 pe开关=True→PE 路语义(PE出文 有值即用;负向双缺=空)
     got = node.compose(PE出文="PE 文", 装配全文="装配全文例")
-    assert got == ("PE 文",), "compose pe开关缺省应兜底 True(PE 路)"
+    assert got == ("PE 文", ""), "compose pe开关缺省应兜底 True(PE 路;负向双缺=空串)"
     # 缺省 pe开关=True 而 PE出文 缺键=既有语义保持(中文 ValueError,不猜不代选)
     try:
         node.compose(装配全文="装配全文例")
@@ -356,19 +325,56 @@ def test_9_pe_switch_missing_defaults_true():
                              "槽位搬家漂移)")
     # pe关路全缺省:签名完整可调用(optional 化不炸 TypeError),降级空串+包裹
     got2 = node.compose(pe开关=False)
-    assert got2 == ("",), "pe关路装配全文缺键→降级空串(既有语义;透明关=原样)"
+    assert got2 == ("", ""), "pe关路装配全文缺键→正向降级空串+负向缺键空串"
     got3 = node.compose(pe开关=False, 透明模式=True)
     assert got3[0].startswith(select._RGBA_HEAD), "pe关+透明开→头句起头(Q4 包裹)"
 
 
 def test_10_tooltips_present_plain_language():
-    """⑰(1002 用户测试批):全部控件 tooltip 在位(大白话一行);头句 tooltip
-    锁 prd ⑰ 例文口径(「教模型输出透明图的官方英文开头句,一般不用改」)。"""
+    """⑰(2002 用户测试批):全部控件 tooltip 在位(大白话一行);头句 tooltip
+    =中文真源口径(10-04 随库中文化);案B 两负向槽 tooltip 语义锚:直写
+    「优先」/PE负面「兜底」(1005 Phase I)。"""
     inputs = MyQi21PromptSelect().INPUT_TYPES()
     tips = {name: spec[1].get("tooltip")
             for group in ("required", "optional") for name, spec in inputs[group].items()}
     for name, tip in tips.items():
         assert isinstance(tip, str) and tip.strip(), f"{name} 应有非空 tooltip(⑰),得 {tip!r}"
     assert tips["RGBA官方头句"] == \
-        "教模型输出透明图的官方英文开头句,一般不用改", "头句 tooltip=prd ⑰ 例文逐字"
+        "教模型输出透明图的官方开头句(真源=qi21_bases.json,中文;一般不用改)", \
+        "头句 tooltip=中文真源口径(10-04 中文化)"
     assert "总开关" in tips["pe开关"]
+    # 案B 语义锚(1005):直写优先/PE负面兜底,面板话术与路由同向
+    assert "优先" in tips["负面词直写"], "负面词直写 tooltip 应言明 PE 开时直写优先(案B)"
+    assert "兜底" in tips["PE负面"], "PE负面 tooltip 应言明兜底位(案B)"
+
+
+# ── ⑪ 1005 案B:负向路由矩阵五路(design §8.1 ③ 一行对调的件级锚)────
+def test_11_case_b_negative_routing_matrix():
+    """案B 负向路由矩阵:pe开=direct_neg 非空?direct_neg:pe_neg(修前=
+    pe_neg 非空恒胜——实弹 1/2-negative.txt 全 PE 编造词,26+36 条真负面
+    零命中);pe关路不变=direct_neg;双空=空负向合法态;缺键同空串。"""
+    node = MyQi21PromptSelect()
+    # 路1:pe开×双负向在场→直写胜(修前此路=PE负面胜,断路根)
+    got1 = node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED,
+                        PE出文="P", 负面词直写=_DIRECT_NEG, PE负面=_PE_NEG)
+    assert got1[1] == _DIRECT_NEG, f"案B:pe开直写非空应恒胜,得 {got1[1]!r}"
+    # 路2:pe开×直写空串→PE负面空档兜底
+    got2 = node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED,
+                        PE出文="P", 负面词直写="", PE负面=_PE_NEG)
+    assert got2[1] == _PE_NEG, f"案B:直写空串→PE负面兜底,得 {got2[1]!r}"
+    # 路3:pe开×直写缺键(None)→兜底(缺键=空串同态)
+    got3 = node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED,
+                        PE出文="P", PE负面=_PE_NEG)
+    assert got3[1] == _PE_NEG, f"案B:直写缺键→PE负面兜底,得 {got3[1]!r}"
+    # 路4:pe开×双空→空负向(合法态;禁凭空造词)
+    got4 = node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED,
+                        PE出文="P")
+    assert got4[1] == "", f"案B:双空→空负向,得 {got4[1]!r}"
+    # 路5:pe关路不变——直写恒胜(PE负面 在场也被忽略,修前修后同此路)
+    got5 = node.compose(pe开关=False, 透明模式=False, 装配全文=_ASSEMBLED,
+                        负面词直写=_DIRECT_NEG, PE负面=_PE_NEG)
+    assert got5[1] == _DIRECT_NEG, f"pe关=直写(不变量),得 {got5[1]!r}"
+    # 纯空白直写=空(strip 家法:全空白清单视同空→兜底)
+    got6 = node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED,
+                        PE出文="P", 负面词直写="   ", PE负面=_PE_NEG)
+    assert got6[1] == _PE_NEG, "纯空白直写应视同空(空档兜底)"

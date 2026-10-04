@@ -35,8 +35,9 @@
     W1收束句         ← §一 0930 条「主候选句在案(…)」括号内整句
   刷入位(与契约测试 QI21_SG_ASM_WV / QI21_SG_SEL_WV 同口径,禁漂移):
     各目标 工作流+蓝图两处子图内 [4011] MyQi21PromptAssembly.widgets_values[1](锁层A全文);
-    MyQi21PromptSelect.widgets_values[4/5/6](头句/尾句/W1;1002 大轮 F1 后 7 值形,
-    头部 2 空串=装配全文/PE出文连线槽占位)
+    MyQi21PromptSelect.widgets_values[6/7/8](头句/尾句/W1;1004 Phase B 双口化后
+    qi21 件 9 值形,头部 4 空串=装配全文/负面词直写/PE出文/PE负面四连线槽占位;
+    i2i/edit 件仍 7 值旧形——头/尾/W1 在 4/5/6,锚随 i2i/edit 推广役再分 target 化)
   多目标节点面(1001 i2i/edit 批):
     Assembly 恰 1 件→刷锁层A;0 件(edit 无装配层)→跳过并注记;>1 件 fail-closed;
     Select ≥1 件→全刷头/尾/W1(i2i 两件:[152] 择文器+[153] 透明包裹器,同参数面);
@@ -71,10 +72,12 @@ TARGETS = {
 
 # 刷入位序(契约 QI21_SG_ASM_WV / QI21_SG_SEL_WV 同口径,禁漂移)
 ASM_LOCKA_WV_IDX = 1              # [4011] widgets_values = [主体句例文, 锁层A全文](2 值形不变)
-# 1002 大轮 F1 修复随账:Select wv 头部 2 空串占位回 7 值形(连线 STRING 槽也建
-# widget 按全序消费,契约 test_qwen21_workflow_contract.py:375 QI21_SG_SEL_WV
-# =头4/尾5/W1:6);旧 (2,3,4) 读到 bool(透明模式)致 sha() TypeError——收官轮对齐。
-SEL_HEAD_TAIL_W1_IDX = (4, 5, 6)  # [4014] wv = ["", "", pe开关, 透明模式, 头句, 尾句, W1]
+# 1002 大轮 F1 修复随账:连线 STRING 槽也建 widget 按全序消费 wv(契约
+# QI21_SG_SEL_WV 同口径);1004 Phase B 双口化加 负面词直写/PE负面 两连线槽
+# →qi21 件 9 值形,头/尾/W1 移 idx 6/7/8(遗留债4:旧 (4,5,6) 按 7 值形锚,
+# 术后跑 refresh 读 idx4=bool(pe开关) sha() TypeError 崩、写则错槽——1005
+# 案B Phase I 随账归正;i2i/edit 件仍 7 值形,该通道跑 i2i/edit 侧须待其推广役)。
+SEL_HEAD_TAIL_W1_IDX = (6, 7, 8)  # [4014] wv = ["","","","", pe开关, 透明模式, 头句, 尾句, W1]
 
 
 def sha(b): return hashlib.sha256(b.encode() if isinstance(b, str) else b).hexdigest()[:16]
@@ -193,7 +196,7 @@ def refresh_from_library(check_only, tags):
             assert asm[0]["widgets_values"][ASM_LOCKA_WV_IDX] == sent["锁层A全文"], \
                 f"{p['path']} 锁层A 回读不逐字"
         for sel in _find_nodes(sg, "MyQi21PromptSelect"):
-            assert sel["widgets_values"][4:7] == [sent["RGBA官方头句"], sent["RGBA官方尾句"], sent["W1收束句"]], \
+            assert sel["widgets_values"][6:9] == [sent["RGBA官方头句"], sent["RGBA官方尾句"], sent["W1收束句"]], \
                 f"{p['path']} 头尾/W1 回读不逐字"
     print("[refresh] 已落盘(各目标 工作流+蓝图 两处)且回读逐字断言过;引擎家蓝图随常规同步腿刷新;"
           "节点 Python default 同批过账提醒见两件 docstring 锚")
