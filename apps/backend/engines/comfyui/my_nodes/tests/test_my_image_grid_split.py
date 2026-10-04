@@ -62,7 +62,7 @@ def _module_level_heavy_imports(path: Path) -> list[str]:
 def test_registry_exposes_grid_split():
     assert NODE_CLASS_MAPPINGS.get("MyImageGridSplit") is MyImageGridSplit
     assert NODE_DISPLAY_NAME_MAPPINGS["MyImageGridSplit"] == "漫影 宫格切割回灌"
-    assert MyImageGridSplit.CATEGORY == "my"  # 类目随包内现行目录(兄弟件同区)
+    assert MyImageGridSplit.CATEGORY == "漫影"  # 类目随包内现行目录(兄弟件同区)
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingImageGridSplit" not in NODE_CLASS_MAPPINGS
 

@@ -60,7 +60,7 @@ def _module_level_heavy_imports(path: Path) -> list[str]:
 def test_registry_exposes_image_ab_compare():
     assert NODE_CLASS_MAPPINGS.get("MyImageABCompare") is MyImageABCompare
     assert NODE_DISPLAY_NAME_MAPPINGS["MyImageABCompare"] == "漫影 图对比审片"
-    assert MyImageABCompare.CATEGORY == "my"
+    assert MyImageABCompare.CATEGORY == "漫影"
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingImageABCompare" not in NODE_CLASS_MAPPINGS
 

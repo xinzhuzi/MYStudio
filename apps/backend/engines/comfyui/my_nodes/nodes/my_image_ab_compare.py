@@ -107,7 +107,7 @@ class MyImageABCompare:
     ZOOM_MAX;帘位/镜位/倍率状态存 node.properties(随工作流保存复原)。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     OUTPUT_NODE = True
     DESCRIPTION = ("A/B 双图透传旁观对比:首帧落 temp,画布滑动帘+2-7x "
                    "放大镜纯前端对比(关键帧迭代审片;零后端交互)")

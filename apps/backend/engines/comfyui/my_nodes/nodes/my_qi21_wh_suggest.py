@@ -114,7 +114,7 @@ class MyQi21WhSuggest:
     告;九型无值可用时中文报错,不猜不代选。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:

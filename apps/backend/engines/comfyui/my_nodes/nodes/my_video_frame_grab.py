@@ -115,7 +115,7 @@ class MyVideoFrameGrab:
     口径(按帧号精确取帧);策略三档见 FRAME_STRATEGIES(默认均匀等距)。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     OUTPUT_NODE = True
     DESCRIPTION = ("视频按策略抽 N 帧成 PNG 写回输入目录变新输入"
                    "(候选关键帧;帧号精确对齐 frame_count 口径)")

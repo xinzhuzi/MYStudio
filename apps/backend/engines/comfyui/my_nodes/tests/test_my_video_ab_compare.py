@@ -63,7 +63,7 @@ def _module_level_heavy_imports(path: Path) -> list[str]:
 def test_registry_exposes_video_ab_compare():
     assert NODE_CLASS_MAPPINGS.get("MyVideoABCompare") is MyVideoABCompare
     assert NODE_DISPLAY_NAME_MAPPINGS["MyVideoABCompare"] == "漫影 视频对比审片"
-    assert MyVideoABCompare.CATEGORY == "my"
+    assert MyVideoABCompare.CATEGORY == "漫影"
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingVideoABCompare" not in NODE_CLASS_MAPPINGS
 

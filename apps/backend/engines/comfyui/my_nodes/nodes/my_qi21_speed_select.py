@@ -73,7 +73,7 @@ class MyQi21SpeedSelect:
     默认档仅初始值,随时可切任何档。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:

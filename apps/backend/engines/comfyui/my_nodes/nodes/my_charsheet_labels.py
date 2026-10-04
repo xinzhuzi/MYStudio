@@ -123,7 +123,7 @@ class MyCharsheetLabels:
     """漫影设定表标注:image 入图左栏程序叠加真汉字出图(无文字版模板的
     配套后处理;JS 侧输入槽中文显示名见 web/my-charsheet-labels-node.js)。"""
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):

@@ -63,7 +63,7 @@ def _module_level_heavy_imports(path: Path) -> list[str]:
 def test_registry_exposes_frame_grab():
     assert NODE_CLASS_MAPPINGS.get("MyVideoFrameGrab") is MyVideoFrameGrab
     assert NODE_DISPLAY_NAME_MAPPINGS["MyVideoFrameGrab"] == "漫影 视频截帧回灌"
-    assert MyVideoFrameGrab.CATEGORY == "my"
+    assert MyVideoFrameGrab.CATEGORY == "漫影"
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingVideoFrameGrab" not in NODE_CLASS_MAPPINGS
 

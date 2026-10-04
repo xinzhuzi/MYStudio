@@ -110,7 +110,7 @@ class MyImageGridSplit:
     永不回吐宫格图。框选 crop 归一化 0-1(默认整幅);格命名 r行c列。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     OUTPUT_NODE = True
     DESCRIPTION = ("宫格图按 rows×cols 逐格切割成 PNG 写回输入目录变新输入"
                    "(A5 铁约束:宫格图只作中间产物,绝不当视频参考)")

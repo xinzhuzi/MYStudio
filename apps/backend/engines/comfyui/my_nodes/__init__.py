@@ -8,10 +8,12 @@
 design.md 2.1)。引擎库(torch/PIL/folder_paths)全懒加载——源码位可在
 sidecar pytest 里验契约。业务语义层见 lib/studio/image-workflow。
 
-09-14 manying→my 改名:注册面正名 My*(CATEGORY=my);旧键 Manying* 以
+09-14 manying→my 改名:注册面正名 My*;旧键 Manying* 以
 DEPRECATED 别名保留——存量工作流(库 JSON/用户存档)按旧名照常加载执行,
 object_info 标 deprecated=前端默认从菜单/搜索隐藏(Comfy.Node.ShowDeprecated
 默认关),不会出现重复菜单项。显示名维持「漫影 …」用户裁定不变。
+10-04 类目统一:My* 的 CATEGORY 由 "my" 改 "漫影"(右键菜单单分组,
+用户裁定;MyDaojieRoute/MyModelBus 09-21 起即 "漫影/道劫" 子组不变)。
 """
 
 from .nodes.my_prompt import MyPrompt

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 
 class MyGenerated:
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     OUTPUT_NODE = True
 
     @classmethod

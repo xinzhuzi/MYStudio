@@ -24,7 +24,7 @@ ASPECT_RATIOS = ["auto", "1:1", "3:4", "4:3", "9:16", "16:9"]
 
 
 class MyCloudImage:
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     OUTPUT_NODE = False
 
     @classmethod

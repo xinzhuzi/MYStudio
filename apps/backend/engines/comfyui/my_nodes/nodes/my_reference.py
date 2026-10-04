@@ -7,7 +7,7 @@ from __future__ import annotations
 
 
 class MyReference:
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):

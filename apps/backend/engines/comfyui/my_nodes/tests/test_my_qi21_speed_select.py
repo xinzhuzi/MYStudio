@@ -33,7 +33,7 @@ def test_registry_exposes_speed_select():
     assert NODE_CLASS_MAPPINGS.get("MyQi21SpeedSelect") is MyQi21SpeedSelect
     assert NODE_DISPLAY_NAME_MAPPINGS["MyQi21SpeedSelect"] == \
         "Q2-1 加速档位(三选一·默认Fun-Acc 4步)"  # ⑱ 1002 默认档改 Fun-Acc(随档序重排同步)
-    assert MyQi21SpeedSelect.CATEGORY == "my"  # 类目随包内现行目录(兄弟件同区)
+    assert MyQi21SpeedSelect.CATEGORY == "漫影"  # 类目随包内现行目录(兄弟件同区)
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingQi21SpeedSelect" not in NODE_CLASS_MAPPINGS
 

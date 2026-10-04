@@ -59,7 +59,7 @@ def test_registry_exposes_rgba_select():
     assert NODE_CLASS_MAPPINGS.get("MyQi21RgbaSelect") is MyQi21RgbaSelect
     assert NODE_DISPLAY_NAME_MAPPINGS["MyQi21RgbaSelect"] == \
         "Q2-1 RGBA透明开关(三选一·默认自动)"  # 与 MyQi21SpeedSelect 显示名同构
-    assert MyQi21RgbaSelect.CATEGORY == "my"  # 类目随包内现行目录(兄弟件同区)
+    assert MyQi21RgbaSelect.CATEGORY == "漫影"  # 类目随包内现行目录(兄弟件同区)
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingQi21RgbaSelect" not in NODE_CLASS_MAPPINGS
 

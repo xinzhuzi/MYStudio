@@ -153,7 +153,7 @@ class MyVideoABCompare:
     frame_rate 换算,两路帧率可不同)+A/B 声道切换(AUDIO_CHANNELS 枚举)。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     OUTPUT_NODE = True
     DESCRIPTION = ("A/B 双视频透传旁观对比:双路落 temp mp4,画布双 video "
                    "滑帘+rAF 同步+帧对齐+A/B 声道切换(审片;长视频先裁窗)")

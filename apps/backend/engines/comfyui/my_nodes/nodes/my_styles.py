@@ -237,7 +237,7 @@ def _merge_negative(user_text: str, style_text: str) -> str:
 class MyStylesLibrary:
     """漫影风格库:style 下拉选风格,手册锚定段注入正/负 STRING 双出。"""
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):

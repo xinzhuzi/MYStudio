@@ -81,7 +81,7 @@ def mini_tree(tmp_path):
 # ── 注册面 ────────────────────────────────────────────────
 def test_registry_exposes_styles_library():
     assert NODE_CLASS_MAPPINGS.get("MyStylesLibrary") is MyStylesLibrary
-    assert MyStylesLibrary.CATEGORY == "my"
+    assert MyStylesLibrary.CATEGORY == "漫影"
     assert NODE_DISPLAY_NAME_MAPPINGS["MyStylesLibrary"] == "漫影 风格库"
     # 设计裁定:此类无存量工作流,不建 Manying 旧名别名
     assert "ManyingStylesLibrary" not in NODE_CLASS_MAPPINGS

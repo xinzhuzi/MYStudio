@@ -79,7 +79,7 @@ class MyImageSave(SaveImage):
     optional prompt_text 口与 ui.myPrompt 单元素列表(扁平化契约)。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     DESCRIPTION = ("存图+底部 prompt 面板(随图追溯,双击复制;"
                    "其余同核心存图)")
 

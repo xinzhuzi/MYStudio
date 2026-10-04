@@ -3,7 +3,7 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """MyCharsheetLabels 契约测试(09-20 设定表汉字程序叠加,案一)。
 
-锁:INPUT_TYPES 形状(combo 双值序+默认姓名/字段)+注册 CATEGORY=My;
+锁:INPUT_TYPES 形状(combo 双值序+默认姓名/字段)+注册 CATEGORY=漫影;
 端到端(白底 2K tensor→run)形状保持 RGBA→RGB 三通/左栏出现墨色像素/
 印区出现朱砂像素;长姓名(>6 字)缩宽不炸;字段溢出印区截断不炸;
 字体栈回退链按本机 macOS 系统字体探测(skipif 全缺)。
@@ -34,7 +34,7 @@ def _white_sheet(h: int = 1712, w: int = 2568):
 def test_input_types_shape_and_registry():
     node = NODE_CLASS_MAPPINGS["MyCharsheetLabels"]
     assert node is mcl.MyCharsheetLabels
-    assert node.CATEGORY == "my"
+    assert node.CATEGORY == "漫影"
     spec = node.INPUT_TYPES()["required"]
     assert spec["image"] == ("IMAGE",)
     assert tuple(spec["font"][0]) == ("苹方(简体)", "宋体", "黑体")  # 09-20 二轮:苹方=大陆规范字形默认

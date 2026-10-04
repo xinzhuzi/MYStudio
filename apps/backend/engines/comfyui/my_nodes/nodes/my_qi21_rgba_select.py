@@ -54,7 +54,7 @@ class MyQi21RgbaSelect:
     跟随仅初始语义,用户随时可 true/false,不固化。
     """
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
     DESCRIPTION = ("透明开关三态选择:自动按型默认(四型开/五型关,"
                    "信号接 MyQi21DaojieBase.透明值);true/false=手动权威覆盖")
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 
 class MyPrompt:
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):
