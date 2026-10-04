@@ -38,6 +38,9 @@ apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json(节点 MyQi21DaojieB
   python3 apps/build/scripts/qi21_bases_extract_0923.py           # 提取落盘(幂等,重复跑逐字节同输出)
   python3 apps/build/scripts/qi21_bases_extract_0923.py --check   # 守恒校验磁盘文件与 05 库/canon 一致
 """
+# 1004 集中化勘正:②层数据真源已迁 daojie_ink_guofeng/json/qi21_bases.json(直接改真源家+跑
+# daojie_prompt_source_sync.py);本提取器的「库→json」单向链自 1004 起退役为留档,勿再以此为改②层入口。
+
 from __future__ import annotations
 
 import argparse
