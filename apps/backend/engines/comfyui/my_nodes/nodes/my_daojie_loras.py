@@ -131,7 +131,7 @@ class MyDaojieLoras:
         if entries is None:
             raise RuntimeError(
                 f"未知道劫型:「{base}」。按型 LoRA 现共 {len(types_list())} 个可选型,"
-                "请检查 my_nodes/nodes/daojie_loras.json 或 [80]→[85] 供线")
+                "请检查真源家 daojie_ink_guofeng/json/daojie_loras.json 或 [80]→[85] 供线")
         if not entries:
             return (model, f"{base}:无按型 LoRA(直通)")
 
@@ -153,7 +153,7 @@ class MyDaojieLoras:
             if path is None:
                 raise RuntimeError(
                     f"按型 LoRA 文件未找到:{name}(型={base});"
-                    "请检查模型目录或 my_nodes/nodes/daojie_loras.json")
+                    "请检查模型目录或真源家 daojie_loras.json(daojie_ink_guofeng/json/)")
             lora = comfy.utils.load_torch_file(path, safe_load=True)
             model = comfy.sd.load_lora_for_models(model, None, lora, strength, 0.0)[0]
             applied.append(f"{Path(name).stem}×{strength:g}")

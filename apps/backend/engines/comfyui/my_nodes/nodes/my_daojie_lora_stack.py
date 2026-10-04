@@ -166,7 +166,7 @@ def resolve_plan(slots, preset, base=None, enables=None, weights=None):
     if ptype not in nine:
         raise RuntimeError(
             f"未知道劫型:「{ptype}」。LoRA 栈现支持 {'/'.join(nine or ['(空)'])},"
-            "请检查 [80]→栈节点 base 供线,或 my_nodes/nodes/daojie_lora_stack.json")
+            "请检查 [80]→栈节点 base 供线,或真源家 daojie_lora_stack.json(daojie_ink_guofeng/json/)")
     display = f"{FOLLOW_PRESET}·{ptype}" if preset == FOLLOW_PRESET else ptype
     plan, masked = [], []
     for slot in slots:

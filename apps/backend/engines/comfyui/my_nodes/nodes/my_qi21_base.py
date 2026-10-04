@@ -8,8 +8,9 @@ i2i [180].rgba_hint 已迁「透明值」,三件全零消费;槽位迁移=resear
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):
 
-  真源=本目录 qi21_bases.json(九型 zh 顺序=canon qi21_bases.json 条目顺序;
-  由 apps/build/scripts/qi21_bases_extract_0923.py 从 05 库幂等提取落盘):
+  数据真源=daojie_ink_guofeng/json/qi21_bases.json(1004 集中化令;本目录同名件=
+  四层兜底同步产物,禁手改,改真源家后跑同步;九型 zh 顺序=条目 canon 顺序;
+  原「05 库→qi21_bases_extract_0923.py 提取器」旧链已退役留档,勿再以为改②层入口):
     base_text=库②层(型底座·美化版)+人物系增量四锁B(常量B·§四.4-.7)+
     ④配色行的换行拼合,与 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md
     对应型逐字一致(契约测试从 05 库运行时切出对拍,零硬编码);①主体句槽与

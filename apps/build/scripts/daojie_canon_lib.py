@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """道劫 canon 九型提示词库(甲案·全库中文)生成器 + 守恒自检 — 2026-09-23;同日第二轮=②层底座美化版。
 
+【1004 勘正(集中化令)】②层数据真源已迁 daojie_ink_guofeng/json/qi21_bases.json;
+本生成器与「05 库=②层唯一真源」口径自 1004 起退役留档(同 qi21_bases_extract_0923.py 头部勘正),
+勿再以本链(05 库↔本生成器)为改②层入口;下文「本层即 ②层唯一真源」等旧句按史保留。
+
 生成 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md:
   型录与顺序 = daojie_bases.json 九型 zh(型名/画幅/MP 仍取 canon;②层不再逐字=canon positive);
   每型一节(标题「### {zh}-基础」),恰 9 节。四层装配逐层成文:
