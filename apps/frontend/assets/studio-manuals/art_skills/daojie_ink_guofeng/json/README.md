@@ -2,6 +2,8 @@
 
 **家规:道劫风格的机读供给资产只住本目录,只有一份。**别处出现的同名文件一律是分发产物或历史记录。
 
+**MA 绑定铁律(1005 用户令:跨仓引用一律相对路径)**:本风格已与 MA 项目绑定(MA 侧家=`skills/art_skills/daojie_ink_guofeng/`,其 `ma_sync/`=同步契约快照)。**两仓任何文件互相引用只写各自仓内相对路径**(如 MYStudio `apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/`、MA `scripts/data/三轨选色配料.toml`),**禁 `/Users/...` 绝对路径**——MA 已历 Unity/MA→IP/MA 迁移,绝对路径即断的实证;仓位注入走参数/环境变量(`--ma-root`/`--repo-root`/`MA_IMAGEGEN_ROOT`/`MYSTUDIO_APPS_ROOT`),不落默认绝对值。色卡正典=`../ma_sync/palette-canon.json`(本仓相对,双侧 sha 一致)。
+
 > **统一规范宣言(10-04 用户令)**:本目录是「每个美术风格类型一个 json/ 唯一资产家」规范的**第一个实验**(1005 勘正:色卡正典不住本家——住 ../ma_sync/palette-canon.json,带 MA 同步守护与生产消费方;前晚转制的两件冗余色卡已退役)——道劫打样,未来各美术风格目录均照此模式建 `json/` 家。家的边界=**美术风格**,不分 K2/Q2.1 产线(LoRA 栈等风格资产同住)。
 
 | 文件 | 角色 |
