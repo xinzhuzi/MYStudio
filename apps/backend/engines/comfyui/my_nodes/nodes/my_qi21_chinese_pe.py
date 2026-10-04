@@ -152,12 +152,18 @@ def _patch_config() -> tuple[list[dict[str, str]], str, str]:
 
 
 def _load_and_patch_system_prompt() -> str:
-    """读上游 PE t2i 系统指令+内存 patch(design §三;磁盘零写)。
+    """取系统指令:优先用集中地中文版(1004 中文补丁根修);无则退化英文原版+patch。
 
-    返回:patched 系统指令;PE 插件文件不存在/空 → 空串(rewrite 据此透传);
-    全部 patch 未命中 → 原文返回(英文退化 fallback);部分命中 → 尽力
-    patch 结果(不炸)。
+    中文版=qi21_bases.json expand_instruction.system_prompt_zh 字段——完整中文
+    方法论(八步法),LLM 看到中文指令+中文输入=输出中文。1004 根修:运行时
+    补丁英文原版的路径被实证无效(200 行英文语境淹没两句语言规则),改为
+    集中地持有完整中文指令。回滚③=清空 system_prompt_zh 字段即回退补丁模式。
     """
+    # ① 优先:集中地中文系统指令(全权接管,不走英文原版)
+    node = _load_expand_instruction()
+    if node and isinstance(node.get("system_prompt_zh"), str) and node["system_prompt_zh"].strip():
+        return node["system_prompt_zh"]
+    # ② 退化:读上游英文原版+运行时 patch(旧路径,保留作回滚态)
     original: str | None = None
     for path in (_PE_PROMPT_RELATIVE, _PE_PROMPT_ENGINE_HOME):
         try:

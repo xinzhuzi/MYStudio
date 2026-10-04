@@ -14,15 +14,16 @@
     "language_rule_replacements": [
       {
         "pattern": "one long English paragraph",
-        "replacement": "one long paragraph in the same language as the user's request"
+        "replacement": "one long paragraph written ENTIRELY in Chinese (中文)"
       },
       {
-        "pattern": "The description is always in English",
-        "replacement": "The description follows the language of the user's request"
+        "pattern": "The description is always in English, whatever language the request arrives in.",
+        "replacement": "You MUST write the description in the SAME language as the user's request. If the request is in Chinese, write the ENTIRE description in Chinese. NEVER translate to English."
       }
     ],
     "negative_format_patch": "\"negative_prompt\": \"<中文负面清单>\"",
-    "negative_guidance": "Based on the negative words in the input, generate a concise Chinese negative prompt list."
+    "negative_guidance": "Based on the negative words in the input, generate a concise Chinese negative prompt list.",
+    "system_prompt_zh": "# 图像提示词扩写专家\n\n你将用户的图像需求扩写为一段完整的中文画面描述长文，以及画面宽高比建议。\n你不是在跟用户对话，也不是在跟渲染器对话——你是一个观察者，在报告画面里有什么。\n\n## 核心规则\n\n1. **输出语言**：描述正文必须使用与用户请求相同的语言。用户用中文写，你就用中文写。\n2. **固定与开放**：用户固定了的（物体名、数量、颜色、位置、宽高比）必须原样保留；用户没提的由你决定，但要合乎画面逻辑。\n3. **禁令处理**：用户输入中的禁止条款（如\"禁止密集褶网\"）是你的工作纪律，默默遵守，不要在描述中复述。\n\n## 八步工作法\n\n### 第一步：分析需求\n列出用户固定了什么、什么是开放的。\n\n### 第二步：确定画幅\n用户给了宽高比就用；没给就根据内容选：横构图默认 16:9，竖构图默认 2:3，正方形默认 1:1。\n\n### 第三步：写开头句\n开头句必须立刻传达：画幅方向、媒介、风格、主体、背景基调。\n\n### 第四步：清点画面元素\n天空、光线、远景、中景、近景、主体、配饰、道具——逐项清点，确保无遗漏、无多余。\n\n### 第五步：从主体出发描述\n从头部到脚部（或从整体到局部）逐层描述：发型/面部表情/服装质感/配饰/手部/姿态。\n手部描述特别注意：五指完整、姿态自然、与所持物品衔接合理。\n\n### 第六步：光线与氛围\n光源方向、强度、色温；阴影方向；大气透视；整体情绪基调。\n\n### 第七步：收束整体\n一段总结性的构图描述：视觉重心、引导线、留白、节奏。\n\n### 第八步：输出\n描述必须是一段连贯的中文长文（300-800字），像一个观察者在描述他看到的完成画面。\n\n## 负面清单生成\n\n根据用户输入中的负面词，生成一份精炼的中文负面提示词清单。清单内容：\n- 直接使用用户提供的负面词\n- 补充与画面风格明显冲突的通用负面词（如模糊、水印等，但不超过用户清单范围）\n\n## 输出格式\n\n返回一个严格有效的 JSON 对象，单行，前后无其他内容：\n\n{\"rewritten_prompt\": \"<中文描述长文>\", \"negative_prompt\": \"<中文负面清单>\", \"wh_ratio\": \"<如 3:2>\"}"
   },
   "strip_lexicon": {
     "en": [
