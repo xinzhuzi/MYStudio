@@ -9,7 +9,7 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   `~/Project/ComfyUI` was retired 2026-09-10 and has since been **deleted from disk entirely**
   (09-24 verified: path no longer exists; the old "kept as read-only archive" state is history)).
   Home = **`~/Library/Application Support/漫影工作室/comfyui`** (isolated layout:
-  `ComfyUI/` engine source v0.35.0 torch 2.14, `venv/` private runtime, `models/`, `workflows/` legacy,
+  `ComfyUI/` engine source v0.37.0 torch 2.14 (upgraded 09-21 past the v0.35.0 pre-fill, see the 09-21 note below), `venv/` private runtime, `models/`, `workflows/` legacy,
   `manifest.json` config). Engine source & custom_nodes live at `<home>/ComfyUI` — ComfyUI only loads
   custom_nodes from INSIDE the source dir in this layout (manifest.py 09-08 fix), do not drop plugins at
   `<home>/custom_nodes`. API at **`http://127.0.0.1:<port>`** — 端口以装机家 manifest.json 的
@@ -32,7 +32,12 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     从 models/ 下拷回,工作流 JSON 保留存档。**
   - **Video line = MiniMax H3**: BF16 FL2VA DiT + Heretic 32B Q4_K_M GGUF TE + mmproj (same files as the
     retired install) + turbo LoRAs (4step v1.1 + 8step v1.0). Fixed routes: 480P direct (daily),
-    960P direct (final), SeedVR2 for 2K upscale (slow — use selectively). Music3 line also present.
+    960P direct (final), SeedVR2 for 2K upscale (slow — use selectively). Music3 line RETIRED
+    (cloud nodes 09-09, weights physically isolated 09-20; the current audio line is YuE2 —
+    see docs/comfyui-kb/漫影工作流清单.md `3_声音/Yue2/`).
+    **ref2va 10-04 退役,权重已删,恢复=外置盘(卷名=真名不入仓,完整路径见本地档案 ~/.zcode/mystudio-local/external-drive-path.txt)
+    /AI/H3/diffusion_models/minimax_h3_ref2va_pruned_bf16.safetensors 拷回,台账=同目录 manifest-retired-1004.jsonl;
+    官方本地 R2V 模板(官方本地-R2V-480P-需解冻ref2va.json)因此成缺模型死件(留库未归档)。**
 - **GUI workflows folder**: `<home>/ComfyUI/user/default/workflows/漫影/` — everything lives under the
   `漫影/` group with domain-first nesting (2026-09-10 reorg): `1_图片/` (K2图像 with 1_文生图…6_修复超分,
   分镜 with 1_总览 chapter overviews + 2_单镜图 per-shot migrated flows), `2_视频/` (H3视频: 1_漫影自研
@@ -54,12 +59,20 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     share this engine queue-serially — ComfyUI's smart memory management swaps weights between
     runs, which does NOT violate the no-second-model-process rule; video = H3. Repo workflows:
     `1_图片/K2图像/` + `1_图片/Q2-1图像/` (qwen21-t2i / qwen21-edit, engine-openable canvas format).
+    **〔Superseded 1004 audit: the "K2 **and** Q2-1" parallel verdict above is dead history —
+    K2 retired 09-23/24 (weights deleted, see the Image line note above); current image line =
+    Q2-1 ONLY, repo workflows `1_图片/Q2-1图像/` (17 canvas pieces as of 10-04, count per
+    docs/comfyui-kb/漫影工作流清单.md). The queue-serially / smart-memory-swap note still applies
+    to Q2-1 base+PE weight swapping.〕**
   - (09-24) Q2-1 daojie i2i workflow `1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json` (4th Q2-1
     piece; generate-and-refine-are-one architecture — image input IS instruction editing, no
     denoise repaint): edit skeleton + nine-type assembly subgraph [40] (directive occupies ①
     layer) + LoRA speed slot bypassed by default (`models/loras/Qwen-Image-2.1-viggle-turbo-
     v0.2.1-6step-lora-r256.safetensors` — 0924 换最新+清旧后唯一在库件;满血联动=[30] 一拨全配,
-    开=LoRA 挂链+steps 自动 6,关=自动回 40); TE-Speed
+    开=LoRA 挂链+steps 自动 6,关=自动回 40)**〔Superseded 0929:注入式 LoRA 槽+开关农场架构已被
+    三支路+选择件架构取代(direct-40 / viggle / Fun-Acc T8 各自完整支路 + MyQi21SpeedSelect 单点
+    懒选择);默认档现=Fun-Acc 4步(10-02 用户令),viggle 支路 steps=6、LoRA strength=1.0,见下
+    (10-02/10-03 现状) 条〕**; TE-Speed
     slot deliberately NOT in this piece (plugin absent = red node; R26.4 wiring round). Idempotent
     generator `apps/build/scripts/qi21_daojie_i2i_0924.py`; contract = TestI2IContract.
   - (09-23) Q2-1 line weights (bf16, MPS path — int8_convrot is CUDA-only, never on this Mac):
@@ -74,7 +87,9 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     (原 18,819,722,392 B, 自转件 via `apps/build/scripts/qwen21_pe_i2i_bf16_convert_0923.py`)
     ——09-24 工作流终局轮实查 text_encoders 无此件(外置盘/Trash/mdfind 均无);在库
     qwen21-edit.json 与 qi21-道劫-i2i.json 同引用该件,PE 开关默认旁路故直写主路不受影响,
-    但 PE 开路当前过不了排队验证;恢复=重下原版四分片+重跑转换脚本(三重自证)。
+    但 PE 开路当前过不了排队验证;**〔Superseded(1004 audit):「默认旁路」系 0929 前旧态——t2i 自
+    1001 起 PE 默认开、edit 自 1003 手术起 PE 默认开(三件现值均 PE on);「过不了排队验证」已于
+    同日恢复实录解除(见下段「恢复实录」)〕**;恢复=重下原版四分片+重跑转换脚本(三重自证)。
     **恢复实录(0924 pe-i2i-restore)**:重下 `Qwen/Qwen-Image-2.1-PE-I2I` 四分片
     (model-00001..00004,字节+SHA256 双对账绿,证据 ~/Downloads/qwen21-pe-i2i-restore-0924/)
     → 重跑转换三重自证全绿(760 键双射/字节守恒 18,819,722,392 B 精确/抽样逐位)→
@@ -90,6 +105,13 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     SHA256 b1f17ffe…74b1 外置盘已备份;CLIPLoader(qwen_image) 直载+真出图=活,与官方
     qwen3vl_8b 同题同 seed 像素带均差仅 3.96/255);TE-Speed-QwenImage21 插件=Windows
     专属(nodes.pyd PE32+ DLL,macOS import 即败零注册),已清退勿再装。
+  - (10-02/10-03) Q2-1 道劫线默认档现状:三件(t2i/i2i/edit)加速区=三支路+选择件(direct-40 /
+    viggle / Fun-Acc T8)+MyQi21SpeedSelect 单点懒选择(0929/0930 收装为加速子图);**默认=Fun-Acc
+    4步**(2026-10-02 用户令「qi21-道劫-t2i.json 默认是 Fun-Acc 加速,默认就要设置这个」,推翻 0929
+    拉齐重放的直出40默认;档序 0=Fun-Acc 4步/1=直出40步/2=viggle);viggle 支路 steps=6、LoRA
+    strength=1.0(10-02 令);edit 于 10-03 手术切入 Fun-Acc+PE 开;三件 PE 开关现值均 on(t2i 自
+    1001 起/edit 自 1003 起)。F3 白图例外=「PE关×FunAcc 组合域」问题,切直出40 即愈(非 Fun-Acc
+    本身问题)。档位表真源=`my_nodes/nodes/my_qi21_speed_select.py` SPEED_MODES。
   - (09-21) Engine upgraded past the pre-fill: v0.37.0 now (subgraphs + hash-based workflow restore).
   - (09-21) **Subgraph groups MUST carry an `id` field each** (any increasing int): without id only
     `groups[0]` loads, the rest are silently dropped. Cost a full debug round on the 道劫 [90] matrix.
