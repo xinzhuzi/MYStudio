@@ -4,9 +4,11 @@
     MY-K2_文生图_道劫.json)一度删除(tar 备份+git 历史双路可恢复);同日晚间
 裁定改为全库改名保留——MY- 前缀废弃,51 件去前缀+下划线转连字符,该件现名
     engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-道劫.json(在库)。
-本测试维持「九型底座数据面契约」口径不变——唯一被测
-对象链B = my_nodes/nodes/daojie_bases.json(运行时节点数据,MyDaojieBase
-消费)↔ docs/prompts/道劫_底座节点_0918.md 围栏,逐字互锁;链A =
+1004 Phase A 起数据层正负拆开:daojie_bases.json 退役删件,九型 canon=
+qi21_bases.json types 前 9(字段 positive/negative→positive_text/
+negative_text,负面中文化);旧「json↔0918 md 围栏逐字互锁」随数据瘦身
+废止(0918 md 降级设计记录,同 05 库 A4 头部声明口径),改锁 1004 结构锚
+(人物系统一立绘底座/正向零禁令句/中文负面基线词);链A =
 docs/prompts/道劫_新提示词包_0917.md(修手图 [12] 唯一持有)历史口径锚。
 
 随工作流文件退役的用例(拓扑/装配链/模型链/链接双向一致/输出卡/画布纪律,
@@ -28,10 +30,14 @@ _TESTS_DIR = pathlib.Path(__file__).resolve().parent
 _REPO = _TESTS_DIR.parents[4]  # tests → comfyui → engines → backend → apps → 仓库根
 PROMPT_MD = _REPO / "docs" / "prompts" / "道劫_新提示词包_0917.md"
 BASES_MD = _REPO / "docs" / "prompts" / "道劫_底座节点_0918.md"
-BASES_JSON = _TESTS_DIR.parent / "my_nodes" / "nodes" / "daojie_bases.json"
+# 1004 Phase A:daojie_bases.json 退役删件(字段合并进 qi21_bases.json 集中地);
+# 九型 canon=qi21_bases.json types 前 9 条(末位第 10 条=「自由」不入 canon);
+# 字段 positive/negative → positive_text/negative_text(1004 正负拆开,负面中文化)
+BASES_JSON = _TESTS_DIR.parent / "my_nodes" / "nodes" / "qi21_bases.json"
 
-# 九型底座机器真源(与 0918 md 围栏逐字互锁,见 TestDaojieBasesSources)
-DAOJIE_BASES = json.loads(BASES_JSON.read_text(encoding="utf-8"))
+# 九型底座机器真源(1004 前=旧 daojie_bases.json 与 0918 md 围栏逐字互锁;1004
+# 正负拆开瘦身后 0918 md 降级设计记录,逐字互锁废止——数据面锚见 TestDaojieBasesSources)
+DAOJIE_BASES = json.loads(BASES_JSON.read_text(encoding="utf-8"))["types"][:9]
 BASES_BY_NAME = {e["zh"]: e for e in DAOJIE_BASES}
 OPTIONS_ORDER = [e["zh"] for e in DAOJIE_BASES]
 
@@ -52,8 +58,10 @@ MD_NEG = _md_fence(PROMPT_MD, "## 四、")       # Negative 基线
 MD_TAIL = "仙道古韵，气韵深远，完成度高的画作。"
 MD_HEAD = MD_BASE[: -len(MD_TAIL)]
 
-# 脏词禁入(§六纪律 2 + 任务书门禁口径)
-DIRTY_WORDS = ("宣纸", "工笔线描", "工笔白描", "写意泼墨", "xuan")  # 风格锚:两侧都禁
+# 脏词禁入(§六纪律 2 + 任务书门禁口径;1004 口径修正:数据=全本底座,0925
+# 四令多彩轮文案「宣纸白只作局部透气位」=合法色彩描述在场——禁裸风格词
+# 「宣纸」废止,精准锚 工笔线描/工笔白描/写意泼墨/xuan 保持两侧都禁)
+DIRTY_WORDS = ("工笔线描", "工笔白描", "写意泼墨", "xuan")
 POSITIVE_DIRTY = ("做旧", "泛黄", "纸纹")  # 纸纹脏污族:正向禁;负向列它们=合法内容
 
 # 多格同人型负向黑名单(09-18 评审问题1 处置:系统性防复犯)
@@ -76,18 +84,22 @@ _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b")
 
 class TestBasesHygiene:
     def test_positive_fullwidth_punctuation(self):
+        # 1004:多彩配色行(「…多彩=…(记法)」)半角括号=配色职责行记法,豁免;
+        # 正文行半角标点仍禁(纪律 4:中文+全角标点)
         for e in DAOJIE_BASES:
+            body_lines = [ln for ln in e["positive_text"].split("\n")
+                          if "多彩=" not in ln]
             for ch in ",;:!?()":
-                assert ch not in e["positive"], \
-                    f"底座「{e['zh']}」positive 含半角标点 {ch!r}(纪律 4:中文+全角标点)"
+                assert all(ch not in ln for ln in body_lines), \
+                    f"底座「{e['zh']}」positive 正文含半角标点 {ch!r}(纪律 4:中文+全角标点)"
 
     def test_positive_no_dirty_words(self):
         for e in DAOJIE_BASES:
-            low = e["positive"].lower()
+            low = e["positive_text"].lower()
             for w in DIRTY_WORDS:
                 assert w not in low, f"底座「{e['zh']}」positive 含脏词 {w!r}"
         for e in DAOJIE_BASES:
-            low = e["positive"].lower()
+            low = e["positive_text"].lower()
             for w in POSITIVE_DIRTY:
                 assert w not in low, f"底座「{e['zh']}」positive 含脏词 {w!r}"
         low64 = MD_NEG.lower()
@@ -95,15 +107,17 @@ class TestBasesHygiene:
             assert w not in low64, f"[64] 负向含风格锚脏词 {w!r}"
 
     def test_positive_no_prohibition_phrasing(self):
-        # 提示词为正向描述文体,禁令式措辞(不要/禁止/严禁)属污染
+        # 提示词为正向描述文体,禁令式措辞(不要/禁止/严禁)属污染;1004 正负
+        # 拆开后禁令句应全部住在 negative_text(正向残留即红);「而非」废止
+        # (0925 四令「受控饱和而非一律低饱和」=对比修辞,合法在场)
         for e in DAOJIE_BASES:
-            for w in ("不要", "禁止", "严禁", "避免", "而非"):
-                assert w not in e["positive"], \
-                    f"底座「{e['zh']}」positive 含禁句式 {w!r}"
+            for w in ("不要", "禁止", "严禁", "避免"):
+                assert w not in e["positive_text"], \
+                    f"底座「{e['zh']}」positive 含禁句式 {w!r}(1004 正负拆开:禁令住负面)"
 
     def test_positive_no_hex_colors(self):
         for e in DAOJIE_BASES:
-            assert not _HEX_COLOR.search(e["positive"]), \
+            assert not _HEX_COLOR.search(e["positive_text"]), \
                 f"底座「{e['zh']}」positive 含十六进制色号(色彩职责在色名不在色号)"
 
 
@@ -117,31 +131,48 @@ class TestDaojieBasesSources:
             "九型顺序=设计定序(json 条目序),不得重排"
 
     def test_json_positive_matches_0918_fences(self):
+        """1004 Phase A 废止注记:旧 daojie_bases.json positive 与 0918 md 围栏
+        逐字互锁(唯一双写对)——1004 正负拆开+统一立绘底座重写后数据瘦身,
+        0918 md 降级设计记录(05 库头部声明同款口径),逐字互锁废止;改锁
+        1004 结构锚:人物系六型=统一「主体的单人立绘」底座开头(design §一
+        钦定),道具型=定式句保留,场景/概念=空镜/气氛开幅。"""
+        renwu_xi = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
         for name, entry in BASES_BY_NAME.items():
-            fence = _md_fence(BASES_MD, f"## {name}")
-            assert entry["positive"] == fence, \
-                f"底座「{name}」positive 与 0918 md 围栏不逐字相等(唯一双写对,兜底即此)"
+            pt = entry["positive_text"]
+            if name in renwu_xi:
+                assert pt.startswith("主体的单人立绘"), \
+                    f"底座「{name}」应=统一立绘底座开头(1004 design §一),得 {pt[:12]!r}"
+            elif name == "道具":
+                assert "尺寸标注设定图" in pt, "底座「道具」应保留定式句(1002 Q2 特例)"
+            elif name == "场景":
+                assert pt.startswith("空镜场景"), f"底座「场景」应以空镜开幅,得 {pt[:6]!r}"
+            elif name == "概念气氛图":
+                assert "气氛" in pt[:30], f"底座「概念气氛图」应气氛开幅,得 {pt[:30]!r}"
+            assert "```" not in pt and pt.strip(), f"底座「{name}」positive_text 应为净文本"
 
     def test_renwu_new_framing_after_v22_switch(self):
         """09-22 v5 纯画法口径:底座零物象词,人物型以主体立绘构图句开幅,
         句首定性句「现代修仙游戏的××资产」禁回潮;旧 §一 主干/尾句零回潮,
         v5 画法关键词在场且物象词零残留(防回退锚,与 my_nodes/tests 同口径)。"""
-        renwu = BASES_BY_NAME["人物"]["positive"]
+        renwu = BASES_BY_NAME["人物"]["positive_text"]
         assert renwu.startswith("主体的单人立绘"), \
             "人物型必须以主体立绘构图句开幅(v5 纯画法口径)"
         assert not renwu.startswith("现代修仙"), "人物型回潮 v2.2 句首定性句"
         assert not renwu.startswith(MD_HEAD), "人物型回潮旧 §一 主干开头"
         assert not renwu.endswith(MD_TAIL), "人物型回潮旧 §一 尾句收尾"
-        for kw in ("单人立绘", "全身入画", "细墨线勾勒", "线有粗细变化"):
-            assert kw in renwu, f"人物型缺 v5 画法关键词 {kw}"
-        for bad in ("骨相", "眉眼", "发丝", "衣褶"):
-            assert bad not in renwu, f"人物型残留物象词 {bad}(v5 底座禁具体画面)"
+        for kw in ("单人立绘", "全身入画", "细墨线勾勒", "线随结构时粗时细"):
+            assert kw in renwu, f"人物型缺 v5 画法关键词 {kw}(1004 统一底座措辞)"
+        # 物象词禁令域=首行画法行(1004 统一底座含 四锁段截短版=衣褶/衣物/
+        # 头发/鞋靴 段头自带物象名=合法;与 qwen21 契约 split("\n")[0] 同口径)
+        for bad in ("骨相", "眉眼", "发丝"):
+            assert bad not in renwu.split("\n")[0], \
+                f"人物型首行残留物象词 {bad}(v5 底座禁具体画面)"
 
     def test_positives_carry_no_old_framing_anchors(self):
         """09-18 v2.2 已废锚九型全禁:SD 质量标签串、旧「水墨国风」基底定
         性、「新中式」裸词(仅内部工作分类词,不入提示词正文)。"""
         for e in DAOJIE_BASES:
-            low = e["positive"].lower()
+            low = e["positive_text"].lower()
             for w in ("最佳质量", "杰作", "高细节", "水墨国风", "新中式",
                       "masterpiece", "best quality", "high detail"):
                 assert w not in low, f"底座「{e['zh']}」positive 残留旧锚 {w!r}"
@@ -153,12 +184,22 @@ class TestDaojieBasesSources:
         duplicated view,语义反向误伤,详见 CLONE_TOKENS 注);守护对象仍
         活,本门禁不退休。"""
         for name in MULTI_PANEL_OPTIONS:
-            neg = BASES_BY_NAME[name]["negative"].lower()
+            neg = BASES_BY_NAME[name]["negative_text"].lower()
             for tok in CLONE_TOKENS:
                 assert tok not in neg, \
                     f"多格同人型「{name}」负向含禁用 token {tok!r}"
 
     def test_all_negatives_english_comma_tokens(self):
+        """1004 中文负面役:负面词全面中文化(旧英文逗号 token 形态退役)——
+        负面=中文全角逗号清单;基线四词(模糊/水印/多手指/文字错误)九型在场;
+        旧英文 token 零残留。"""
         for name, entry in BASES_BY_NAME.items():
-            assert not _CJK.search(entry["negative"]), \
-                f"底座「{name}」negative 残留中文(应为英文逗号 token 形态)"
+            neg = entry["negative_text"]
+            assert _CJK.search(neg), \
+                f"底座「{name}」negative 应为中文负面清单(1004 中文负面役),得 {neg[:20]!r}"
+            for base_w in ("模糊", "水印", "多手指", "文字错误"):
+                assert base_w in neg, \
+                    f"底座「{name}」negative 缺基线负面词 {base_w!r}(1004 基线)"
+            for en in ("blurry", "watermark", "low quality", "worst quality"):
+                assert en not in neg.lower(), \
+                    f"底座「{name}」negative 残留旧英文 token {en!r}"
