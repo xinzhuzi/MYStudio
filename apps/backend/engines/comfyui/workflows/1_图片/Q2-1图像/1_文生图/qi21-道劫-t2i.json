@@ -2162,7 +2162,7 @@
                 ]
               }
             ],
-            "title": "[4019] 扩写TE·CLIPLoader",
+            "title": "[4019] 扩写TE·heretic(1005换装:中文PE听指令;旧pe_t2i=英文改写模型——语言由检查点决定,E1/E5实验定谳)",
             "properties": {
               "Node name for S&R": "CLIPLoader",
               "ue_properties": {
@@ -2176,7 +2176,7 @@
               }
             },
             "widgets_values": [
-              "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+              "qwen3vl_8b_bf16_heretic.safetensors",
               "qwen_image",
               "default"
             ],
