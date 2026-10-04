@@ -8,7 +8,7 @@ i2i [180].rgba_hint 已迁「透明值」,三件全零消费;槽位迁移=resear
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):
 
-  真源=本目录 qi21_bases.json(九型 zh 顺序=canon daojie_bases.json 条目顺序;
+  真源=本目录 qi21_bases.json(九型 zh 顺序=canon qi21_bases.json 条目顺序;
   由 apps/build/scripts/qi21_bases_extract_0923.py 从 05 库幂等提取落盘):
     base_text=库②层(型底座·美化版)+人物系增量四锁B(常量B·§四.4-.7)+
     ④配色行的换行拼合,与 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md
@@ -84,7 +84,8 @@ def _load_bases() -> list:
         entries = []
     else:
         try:
-            entries = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
+            data = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
+            entries = data.get("types", []) if isinstance(data, dict) else data
         except (OSError, ValueError):
             entries = []
     cache["mtime"], cache["entries"] = mtime, entries
@@ -155,7 +156,7 @@ class MyQi21DaojieBase:
     其余 false)+透明值(1001 P1 透明执行口:型≠自由?rgba_default:透明覆盖
     ——纯 BOOLEAN 跨子图边界)五出(1002 ⑯ 删「型名」第四出:三件全零消费)。"""
 
-    CATEGORY = "my"
+    CATEGORY = "漫影"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -231,4 +232,4 @@ class MyQi21DaojieBase:
             透明值 = rgba_default
         # 1002 ⑯:「型名」直通出删除;1002 大轮连带:rgba_default 出收口删除
         # (i2i [180].rgba_hint 已迁「透明值」;返回元组序=RETURN_NAMES 四出序)
-        return (entry["base_text"], width, height, 透明值)
+        return (entry.get("positive_text", ""), width, height, 透明值)
