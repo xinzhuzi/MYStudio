@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# [RETIRED 1005 Step4] 产品侧四件已删,本脚本留档勿运行(真源=daojie_ink_guofeng/json/;装机=Resources/studio-manuals随包;引擎家=daojie-data自播种)
 """道劫提示词真源单向同步:daojie_ink_guofeng/json/(唯一真源家) → my_nodes/nodes/(引擎分发产物)。
 
 家规见 apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/README.md:

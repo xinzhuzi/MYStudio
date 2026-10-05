@@ -33,7 +33,7 @@ BASES_MD = _REPO / "docs" / "prompts" / "道劫_底座节点_0918.md"
 # 1004 Phase A:daojie_bases.json 退役删件(字段合并进 qi21_bases.json 集中地);
 # 九型 canon=qi21_bases.json types 前 9 条(末位第 10 条=「自由」不入 canon);
 # 字段 positive/negative → positive_text/negative_text(1004 正负拆开,负面中文化)
-BASES_JSON = _TESTS_DIR.parent / "my_nodes" / "nodes" / "qi21_bases.json"
+BASES_JSON = _TESTS_DIR.parents[3] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"  # 1005 Step4:产品侧退役,直读真源家
 
 # 九型底座机器真源(1004 前=旧 daojie_bases.json 与 0918 md 围栏逐字互锁;1004
 # 正负拆开瘦身后 0918 md 降级设计记录,逐字互锁废止——数据面锚见 TestDaojieBasesSources)

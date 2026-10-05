@@ -23,7 +23,7 @@ from engines.comfyui.my_nodes.nodes.my_daojie_route import MyDaojieRoute
 _ROOT = Path(__file__).resolve().parents[6]  # …/MYStudio
 WORKFLOWS = _ROOT / "apps" / "backend" / "engines" / "comfyui" / "workflows"
 DAOJIE_T2I = WORKFLOWS / "1_图片" / "K2图像" / "1_文生图" / "K2-文生图-道劫.json"
-STACK_DATA = (Path(__file__).resolve().parents[1] / "nodes" / "daojie_lora_stack.json")
+STACK_DATA = (Path(__file__).resolve().parents[6] / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/daojie_lora_stack.json")  # 1005 Step4:产品侧退役,直读真源家
 
 NINE = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 

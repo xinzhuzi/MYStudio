@@ -290,21 +290,17 @@ def test_data_file_schema():
 
 
 def test_aspect_megapixels_mirror_canon():
-    """sidecar 同步产物与真源家 canon 逐字镜像(aspect/MP/override 三字段;
-    1004 集中化:canon=真源家 qi21_bases.json,本仓 sidecar nodes/qi21_bases.json
-    =四层兜底同步产物(原 canon daojie_bases.json 退役删件,锚随迁);0927
-    多视图 Q21 分档随 sidecar 提取链退役——两侧同读真源家,fork 不复存在)。"""
-    canon = {e["zh"]: e for e in json.loads(
-        CANON_BASES.read_text(encoding="utf-8"))["types"]}
-    sidecar = json.loads(SIDECAR_BASES.read_text(encoding="utf-8"))["types"]
-    for e in sidecar:
-        c = canon[e["zh"]]
-        assert e["aspect_ratio"] == c["aspect_ratio"], e["zh"]
-        assert e["megapixels"] == c["megapixels"], e["zh"]
-        assert e.get("resolution_override") == c.get("resolution_override"), e["zh"]
+    """1005 Step4 退役守卫:sidecar 产品件已删,canon 真源自洽(aspect/MP/override 全)。
 
+    旧「sidecar×canon 镜像对拍」随产品侧退役废止;镜像语义由
+    test_prompt_source_single_truth(装机固定位 sha)承接。
+    """
+    assert not SIDECAR_BASES.exists(), "产品侧 qi21_bases.json 回潮:Step4 已退役"
+    canon = json.loads(CANON_BASES.read_text(encoding="utf-8"))["types"]
+    assert len(canon) >= 10
+    for e in canon:
+        assert e.get("aspect_ratio") and e.get("megapixels"), f"{e.get('zh')} 缺 aspect/MP"
 
-# ── 热改:mtime 失效(json 文案改=下次 run 即新文)───────────
 def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     # 1004 集中化 schema:dict 外壳 types[]+positive_text(原平铺 list/base_text 退役)
     fake = tmp_path / "qi21_bases.json"

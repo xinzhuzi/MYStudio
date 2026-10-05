@@ -293,7 +293,7 @@ K2_DIR = _IMG_DIR / "K2图像"
 PROMPT_LIB = _REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 # 1004 Phase A 起 daojie_bases.json 退役删件(字段合并进 qi21_bases.json 集中地);
 # canon 九型口径改读 qi21_bases.json types 前 9 条(末位第 10 条=「自由」,不入 canon)。
-BASES_JSON = _TESTS_DIR.parent / "my_nodes/nodes/qi21_bases.json"
+BASES_JSON = (_TESTS_DIR.parents[3] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json")  # 1005 Step4:产品侧退役,测试直读真源家
 
 
 def _canon_types() -> list[dict]:
@@ -534,7 +534,7 @@ QI21_HOST_WIDGET_INPUTS = [
   # 「PE启用?」(seed 手法=-10 widget 槽+子图内 Primitive 单源扇出)
 # 0928 PE 迁子图轮:画幅联动总闸[180] 退役为宿主面板 widget;冻结回流线 link34
 # 随架构消灭(主图左向线恒 0,豁免不再存在);PE/联动件全数迁入 [40] 子图(id 承袭)
-QI21_BASES_JSON = _TESTS_DIR.parent / "my_nodes/nodes/qi21_bases.json"
+QI21_BASES_JSON = (_TESTS_DIR.parents[3] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json")  # 1005 Step4:产品侧退役,测试直读真源家
 # 蓝图真源(1001 S8 深审 L-8 落锚用):S5 术后宿主定义id=实例uuid 与蓝图恒定id
 # 分轨;同步钦定通道=apps/build/scripts/qi21_blueprint_sync_1001.py,幂等口径=
 # 除 id 外 canonical 全等(见 test_blueprint_definition_matches_host_subgraph)
@@ -4686,26 +4686,31 @@ class TestSanlianContract:
 
 
 def test_prompt_source_single_truth():
-    """1004 集中化轮:道劫提示词唯一真源家(json/)×引擎产物(产物漂移即红)。
+    """1005 Step4 退役后:产品侧四件已删,真源=唯一份;装机固定位=随包种子。
 
-    真源=daojie_ink_guofeng/json/qi21_bases.json(人只改这份);
-    产物=my_nodes/nodes/qi21_bases.json(引擎同目录相对读,随部署走),
-    由 apps/build/scripts/daojie_prompt_source_sync.py 单向复制。
+    - my_nodes/nodes/ 下四件必须不存在(存在=退役回潮,禁手改产品侧已废止)
+    - 真源家四件在位且可解析
+    - 装机固定位(Resources/studio-manuals/.../json/)若在,与真源家逐字节一致
+      (dev 无安装包时该腿自然跳过——CI 安全)
     """
     import hashlib
     home = _REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"
-    nodes = QI21_BASES_JSON.parent
-    # 10-04 统一规范令:道劫风格全部机读资产四件收拢 json/ 家(不分 K2/Q2.1 产线)
+    nodes = _TESTS_DIR.parent / "my_nodes/nodes"  # 产品侧目录(Step4 后四件应不在)
     for name in ("qi21_bases.json", "qi21_strip_lexicon.json",
                  "daojie_lora_stack.json", "daojie_loras.json"):
-        src, dst = home / name, nodes / name
-        assert src.is_file(), f"真源家缺 {name}: {src}"
-        h_src = hashlib.sha256(src.read_bytes()).hexdigest()
-        h_dst = hashlib.sha256(dst.read_bytes()).hexdigest()
-        assert h_src == h_dst, (
-            f"道劫资产真源×引擎产物漂移: {name} — 改真源(json/)后须跑 "
-            "python3 apps/build/scripts/daojie_prompt_source_sync.py 同步;禁手改产物侧"
-        )
+        src = home / name
+        assert src.is_file(), f"真源家缺 {name}"
+        json.loads(src.read_text(encoding="utf-8"))
+        assert not (nodes / name).exists(), \
+            f"产品侧 {name} 仍在:Step4 已退役(改真源家,勿手建产品侧)"
+    from pathlib import Path as _P
+    fixed = _P("/Applications/漫影工作室.app/Contents/Resources/studio-manuals/art_skills/daojie_ink_guofeng/json")
+    if fixed.is_dir():
+        for name in ("qi21_bases.json", "qi21_strip_lexicon.json",
+                     "daojie_lora_stack.json", "daojie_loras.json"):
+            a = hashlib.sha256((home / name).read_bytes()).hexdigest()
+            b = hashlib.sha256((fixed / name).read_bytes()).hexdigest()
+            assert a == b, f"装机固定位漂移: {name}(重打包或修 extraResources)"
 
 
 def test_daojie_data_prefers_truth_home(monkeypatch):
