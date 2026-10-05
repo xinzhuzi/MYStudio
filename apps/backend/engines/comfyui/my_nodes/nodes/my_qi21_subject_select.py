@@ -55,6 +55,9 @@ class MyQi21SubjectSelect:
                     "lazy": True,
                     "tooltip": "PE 改写好的主体句扩写长文,连 PE 改写节点"
                                "的 positive_prompt;开关关时不被拉起"}),
+                "PE宽高比": ("STRING", {
+                    "lazy": True,
+                    "tooltip": "PE 改写给出的宽高比(如 16:9);开关关时不请求,PE 零执行零装载"}),
                 "pe开关": ("BOOLEAN", {
                     "default": True,
                     "tooltip": "与 [4014] 同源总开关:开=主体句先过 PE 再"
@@ -62,8 +65,8 @@ class MyQi21SubjectSelect:
             },
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("选定的主体句",)
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("选定的主体句", "宽高比")
     FUNCTION = "select_subject"
     OUTPUT_NODE = False
 
@@ -81,13 +84,15 @@ class MyQi21SubjectSelect:
         if not pe开关:
             return []
         requests: list[str] = []
-        if "PE出文" in kwargs and kwargs["PE出文"] is None:
-            requests.append("PE出文")
+        for slot in ("PE出文", "PE宽高比"):
+            if slot in kwargs and kwargs[slot] is None:
+                requests.append(slot)
         return requests
 
     def select_subject(self, 主体句: str | None = None,
                        PE出文: str | None = None,
-                       pe开关: bool | None = None) -> tuple[str]:
+                       PE宽高比: str | None = None,
+                       pe开关: bool | None = None) -> tuple[str, str]:
         """单口输出:pe开且 PE出文 非空→PE出文;否则→原主体句。
 
         全参数有 default,缺投不炸 TypeError;pe开而 PE出文 空/None
@@ -95,8 +100,10 @@ class MyQi21SubjectSelect:
         """
         if pe开关 is None:
             pe开关 = True
+        wh = ""
         if pe开关:
             pe_text = (PE出文 or "").strip()
+            wh = (PE宽高比 or "").strip()
             if pe_text:
-                return (pe_text,)
-        return ((主体句 or "").strip(),)
+                return (pe_text, wh)
+        return ((主体句 or "").strip(), wh)

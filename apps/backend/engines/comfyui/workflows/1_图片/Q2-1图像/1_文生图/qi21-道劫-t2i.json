@@ -1676,7 +1676,7 @@
             "name": "wh_ratio",
             "type": "STRING",
             "linkIds": [
-              25
+              226
             ],
             "pos": [
               7224,
@@ -1858,7 +1858,8 @@
                 "name": "wh_ratio",
                 "type": "STRING",
                 "links": [
-                  25
+                  25,
+                  225
                 ]
               },
               {
@@ -2343,6 +2344,12 @@
                 "link": 220
               },
               {
+                "name": "PE宽高比",
+                "type": "STRING",
+                "link": 225,
+                "lazy": true
+              },
+              {
                 "localized_name": "pe开关",
                 "name": "pe开关",
                 "shape": 7,
@@ -2361,6 +2368,13 @@
                 "slot_index": 0,
                 "links": [
                   101
+                ]
+              },
+              {
+                "name": "宽高比",
+                "type": "STRING",
+                "links": [
+                  226
                 ]
               }
             ],
@@ -2441,14 +2455,6 @@
             "origin_slot": 0,
             "target_id": 4014,
             "target_slot": 2,
-            "type": "STRING"
-          },
-          {
-            "id": 25,
-            "origin_id": 4013,
-            "origin_slot": 2,
-            "target_id": -20,
-            "target_slot": 4,
             "type": "STRING"
           },
           {
@@ -2602,6 +2608,22 @@
             "target_id": 4014,
             "target_slot": 4,
             "type": "BOOLEAN"
+          },
+          {
+            "id": 225,
+            "origin_id": 4013,
+            "origin_slot": 2,
+            "target_id": 4021,
+            "target_slot": 2,
+            "type": "STRING"
+          },
+          {
+            "id": 226,
+            "origin_id": 4021,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "STRING"
           }
         ],
         "extra": {
