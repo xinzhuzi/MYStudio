@@ -750,7 +750,7 @@
                 "widget": {
                   "name": "pe开关"
                 },
-                "link": 225
+                "link": 224
               },
               {
                 "localized_name": "透明模式",
@@ -866,51 +866,44 @@
           },
           {
             "id": 4012,
-            "type": "PrimitiveBoolean",
+            "type": "MyQi21BoolBranch",
             "pos": [
               50,
               500
             ],
             "size": [
               280,
-              90
+              100
             ],
             "flags": {},
             "order": 4,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "值",
                 "name": "value",
                 "type": "BOOLEAN",
-                "widget": {
-                  "name": "value"
-                },
-                "link": 200
+                "link": null,
+                "widget": true
               }
             ],
             "outputs": [
               {
-                "localized_name": "布尔",
-                "name": "BOOLEAN",
+                "name": "true路",
                 "type": "BOOLEAN",
-                "slot_index": 0,
                 "links": [
-                  8,
-                  68,
-                  221,
-                  223
+                  223,
+                  224
                 ]
+              },
+              {
+                "name": "false路",
+                "type": "BOOLEAN",
+                "links": []
               }
             ],
-            "title": "[4012] PE启用?",
+            "title": "[4012] PE开关(true=扩写路/false=直写路)",
             "properties": {
-              "Node name for S&R": "PrimitiveBoolean",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
+              "Node name for S&R": "MyQi21BoolBranch"
             },
             "widgets_values": [
               true
@@ -1012,7 +1005,7 @@
                 "widget": {
                   "name": "pe开关"
                 },
-                "link": 224
+                "link": 223
               }
             ],
             "outputs": [
@@ -1045,45 +1038,6 @@
               "PE出文": "",
               "pe开关": true
             }
-          },
-          {
-            "id": 4022,
-            "type": "MyQi21BoolBranch",
-            "pos": [
-              400,
-              500
-            ],
-            "size": [
-              200,
-              100
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "value",
-                "type": "BOOLEAN",
-                "link": 223
-              }
-            ],
-            "outputs": [
-              {
-                "name": "true路",
-                "type": "BOOLEAN",
-                "links": [
-                  224,
-                  225
-                ]
-              },
-              {
-                "name": "false路",
-                "type": "BOOLEAN",
-                "links": []
-              }
-            ],
-            "title": "[4022] PE分支(true=扩写路/false=直写路)",
-            "properties": {}
           }
         ],
         "groups": [],
@@ -1292,21 +1246,13 @@
             "id": 223,
             "origin_id": 4012,
             "origin_slot": 0,
-            "target_id": 4022,
-            "target_slot": 0,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 224,
-            "origin_id": 4022,
-            "origin_slot": 0,
             "target_id": 4021,
             "target_slot": 2,
             "type": "BOOLEAN"
           },
           {
-            "id": 225,
-            "origin_id": 4022,
+            "id": 224,
+            "origin_id": 4012,
             "origin_slot": 0,
             "target_id": 4014,
             "target_slot": 4,
