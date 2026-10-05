@@ -56,6 +56,17 @@ Follow the loaded instructions. After each `[required]` step completes, move to 
 
 ---
 
+## 接手在途战役的第一动作(2026-10-05 用户裁定)
+
+恢复一个跑过 dynamic workflow 的战役时,在挑 Phase/Step 之前先验「在途现场」。规矩全文见 `.claude/CLAUDE.md` 铁律 8:
+
+1. `ListWorkflowRuns`:本战役 runs 逐条核状态——`running` 的看 last_progress 判生死(`possibly_interrupted` 标注须实查,不许凭标注判死);`stopped` 且有在飞步骤的,24 小时内必须 `ResumeWorkflowRun` 续跑或把剩余步转记进任务档,不许无限期挂起。
+2. `pgrep` 引擎/App:上一场收没收摊(干完即停铁律);残留且无主=先处置再开工。
+3. 读最后一条 run 的 notCovered 清单,逐项显式承接(接走或写明归档去向)——开新切片不接旧账=遗留重演。
+4. run 属主会话仍在跑时,其脚本范围内的活不抢;只接它明确没装的部分。
+
+---
+
 ## Reference
 
 Full workflow and detailed phase steps live in `.trellis/workflow.md`. This command is only an entry point — the canonical guidance is there.

@@ -62,3 +62,9 @@ From Step 1 you know the current task and status. Check the task directory:
 | Learned something worth capturing | `trellis-update-spec` |
 
 Full rules + anti-rationalization table in `.trellis/workflow.md`.
+
+---
+
+## 在途 workflow run 核查(2026-10-05 用户裁定)
+
+Step 1 若显示活跃任务曾跑过 dynamic workflow(战役型),会话开工第一动作加一项:`ListWorkflowRuns` 验该任务 runs 死活 + `pgrep` 引擎/App 是否残留(上一会话没收摊)。在途 run 有活没接走、引擎残留吃内存,都属「会话交接欠账」——详见 `.claude/CLAUDE.md` 铁律 8。发现即向用户报告处置选项(resume/转记/收摊),不默默开工。

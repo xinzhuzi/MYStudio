@@ -59,6 +59,17 @@ Before archiving ANY task, run the A1–A5 checklist from `.trellis/spec/guides/
 
 Write evidence to the task's `research/archive_precheck_<YYYYMMDD>.md`. Any red = no archive, and do not offer archive as an option; report open items and parallel blockers instead.
 
+## Step 2.7: Campaign closeout gate(战役清账门,2026-10-05 用户裁定)
+
+Applies when the task being archived was executed via dynamic-workflow runs(战役型任务). Full rules in `.claude/CLAUDE.md` 铁律 8. Before `task.py archive`:
+
+1. **Run 终态核验**:`ListWorkflowRuns` —— 本战役全部 run 须已终态;被停且仍有在飞步骤的 run ≤24h 须 `ResumeWorkflowRun` 续跑或把剩余步转记进任务档,不许带活归档。
+2. **notCovered 接力核对**:最后一条 run 的 notCovered 清单逐项有着落——`done / 候令 / 候窗 / 归档于X` 四类之一;悬空项=欠账,**欠账非零不得归档**。
+3. **四标清单落档**:收官四标(done/候令/候窗/欠账)清单写进任务档(implement.md 尾部或 check 记录),不只留在会话报告散文里。
+4. **清账四查②③④**:git 账面 M/未 push 归零或写明归属、/tmp 易失证据已回收、自起引擎/App 已 pgrep 验死。
+
+Evidence 并入 Step 2.5 的 `research/archive_precheck_<YYYYMMDD>.md`(A1–A5 之外加「C1 战役清账」一节)。Any red = no archive.
+
 ## Step 3: Archive task(s)
 
 ```bash

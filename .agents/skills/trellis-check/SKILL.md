@@ -109,8 +109,9 @@ Skip this step if your change is confined to a single layer.
 
 - [ ] Searched for existing similar code before creating new?
   ```bash
-  grep -r "pattern" src/
+  rg "pattern" <具体热路径>
   ```
+  (禁 `grep -r`/`find . -name`/无路径 rg——搜索纪律见 `.claude/knowledge/search-sop.md`)
 - [ ] If the same value repeats, does it represent one stable concept whose callers must change together? Extract only then — two literals that merely happen to match today should stay separate.
 - [ ] After batch modification, all occurrences updated?
 
@@ -133,3 +134,18 @@ Report every violation you find. Then:
 - Design or judgment (naming a shared concept, moving a module boundary, changing a public interface, reassigning where behavior lives) → record the evidence and your recommendation, and stop. Do not rewrite it silently.
 
 If a fix would touch files outside the current task's scope, say so and stop instead of widening the change.
+
+---
+
+## 战役清账门(Campaign Closeout Gate,2026-10-05 用户裁定)
+
+本节在「代码写完要验质量」之外补一道「战役要收官先清账」的门。适用:多阶段、跑 dynamic workflow、由任务档驱动的战役型任务;单文件快改不适用。规矩全文见 `.claude/CLAUDE.md` 铁律 8。
+
+宣称「收官/全清/终态」前逐项核验:
+
+- [ ] **对拍任务档**:implement.md 全部 Phase 行逐行结清,每行打四标之一 `done / 候令 / 候窗 / 欠账`(候令须写明等谁的什么令;**欠账非零=不得称收官**,只能称阶段边界)
+- [ ] **git 账面**:工作树 M 件数、未 push 笔数;非零则逐件写明归账路径(谁的役、随哪笔提交),不许「先放着」无主
+- [ ] **易失证据回收**:/tmp 与本机临时位的取证文件(截图/日志/判读 JSON)已收回仓库或任务档——重启即丢的证据等于没取
+- [ ] **资源收摊**:自起的引擎/App 进程已按「干完即停」铁律 pgrep 双口验死
+- [ ] **台账随收**:implement.md checkbox 已随对应提交勾划;无「代码已提交、checkbox 全空」的账实分离
+- [ ] **接力交代**:若开新 run 承接本战役,上一条 run 的 notCovered 已逐项显式接走或写明归档去向
