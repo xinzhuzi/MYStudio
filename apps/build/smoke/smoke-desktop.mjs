@@ -217,7 +217,7 @@ function stopExistingMYStudioInstances() {
   if (process.platform === "darwin") {
     runOptional("osascript", [
       "-e",
-      'tell application id "com.manju2026.manying-studio" to quit',
+      'tell application id "com.my.manying-studio" to quit',
     ]);
   }
   for (const processName of [
@@ -637,7 +637,7 @@ function bringSmokeAppToForeground(childProcess, launchMode = "direct") {
   if (launchMode === "launch-services") {
     const result = spawnSync(
       "osascript",
-      ["-e", 'tell application id "com.manju2026.manying-studio" to activate'],
+      ["-e", 'tell application id "com.my.manying-studio" to activate'],
       { stdio: "ignore" },
     );
     if (result.status !== 0) {

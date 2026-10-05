@@ -67,7 +67,7 @@ if (page) {
   }
   log("cold boot: 清残留实例(仅此一轮)");
   for (const [c, a] of [
-    ["osascript", ["-e", 'tell application id "com.manju2026.manying-studio" to quit']],
+    ["osascript", ["-e", 'tell application id "com.my.manying-studio" to quit']],
     ["pkill", ["-f", "漫影工作室.app/Contents"]],
     ["pkill", ["-f", "漫影工作室/comfyui/ComfyUI/main.py"]],
   ]) { try { execFileSync(c, a, { stdio: "ignore" }); } catch {} }
@@ -160,7 +160,7 @@ log(`DONE shots=${results.length} console异常=${consoleLogs.length}`);
 if (consoleLogs.length) console.log("CONSOLE-TAIL " + consoleLogs.slice(-5).join(" || "));
 results.forEach((f) => console.log("SHOT " + f));
 if (flag("quit")) {
-  try { execFileSync("osascript", ["-e", 'tell application id "com.manju2026.manying-studio" to quit'], { stdio: "ignore" }); } catch {}
+  try { execFileSync("osascript", ["-e", 'tell application id "com.my.manying-studio" to quit'], { stdio: "ignore" }); } catch {}
   log("已退出应用(--quit)");
 } else {
   log("应用保持运行(保温),下轮审计直接附着;要收摊加 --quit");

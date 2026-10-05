@@ -65,7 +65,7 @@ const require = createRequire(import.meta.url);
 const WebSocket = require("ws");
 
 const APP_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
-const APP_BUNDLE_ID = "com.manju2026.manying-studio";
+const APP_BUNDLE_ID = "com.my.manying-studio";
 const ENGINE_HOME = join(homedir(), "Library/Application Support/漫影工作室/comfyui");
 const ENGINE_OUTPUT = join(ENGINE_HOME, "output");
 // 装机 App 的 repo: 工作流真源(引擎 manifest.repo_workflows_dir=装机 backend 树;

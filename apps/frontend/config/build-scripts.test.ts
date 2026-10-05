@@ -683,7 +683,7 @@ describe("desktop build scripts", () => {
     expect(smokeScript).toContain("MYSTUDIO_SMOKE_WORKFLOW_E2E_TIMEOUT_MS");
     expect(smokeScript).toContain("WORKFLOW_E2E_TIMEOUT_MS");
     expect(smokeScript).toContain("stopExistingMYStudioInstances");
-    expect(smokeScript).toContain('tell application id "com.manju2026.manying-studio" to quit');
+    expect(smokeScript).toContain('tell application id "com.my.manying-studio" to quit');
     expect(smokeScript).toContain('runOptional("pkill", ["-x", processName])');
     expect(smokeScript).toContain('runOptional("pkill", ["-f", "漫影工作室.app/Contents"])');
     expect(smokeScript).toContain("closed existing MYStudio instances before smoke run");
@@ -1302,7 +1302,7 @@ describe("desktop build scripts", () => {
     expect(openScript).toContain("MYSTUDIO_SMOKE");
     expect(openScript).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
     expect(openScript).toContain("stopExistingMYStudioInstances");
-    expect(openScript).toContain('tell application id "com.manju2026.manying-studio" to quit');
+    expect(openScript).toContain('tell application id "com.my.manying-studio" to quit');
     expect(openScript).toContain('runOptional("pkill", ["-x", processName])');
     expect(openScript).toContain('runOptional("pkill", ["-f", "漫影工作室.app/Contents"])');
     expect(openScript).toContain("detached: true");
@@ -1335,7 +1335,7 @@ describe("desktop build scripts", () => {
     expect(runnerScript).toContain("MYSTUDIO_SMOKE_KEEP_OPEN");
     expect(runnerScript).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
     expect(runnerScript).toContain("stopExistingMYStudioInstances");
-    expect(runnerScript).toContain('tell application id "com.manju2026.manying-studio" to quit');
+    expect(runnerScript).toContain('tell application id "com.my.manying-studio" to quit');
     expect(runnerScript).toContain('runOptional("pkill", ["-x", processName])');
     expect(runnerScript).toContain('runOptional("pkill", ["-f", "漫影工作室.app/Contents"])');
     expect(runnerScript).toContain("MYSTUDIO_SMOKE_STEP_DELAY_MS");
@@ -2366,7 +2366,7 @@ describe("desktop build scripts", () => {
     expect(installSmokeScript).toContain("/Applications/漫影工作室.app");
     expect(installSmokeScript).toContain("stopInstalledAppIfRunning");
     expect(installSmokeScript).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
-    expect(installSmokeScript).toContain("tell application id \"com.manju2026.manying-studio\" to quit");
+    expect(installSmokeScript).toContain("tell application id \"com.my.manying-studio\" to quit");
     expect(installSmokeScript).toContain("pkill");
     expect(installSmokeScript).toContain("漫影工作室");
     expect(installSmokeScript).toContain("漫影工作室 Helper");
@@ -2466,7 +2466,7 @@ describe("desktop build scripts", () => {
     expect(videoScript).toContain("chapter001-video-report.json");
     expect(videoScript).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
     expect(videoScript).toContain("stopExistingMYStudioInstances");
-    expect(videoScript).toContain("tell application id \"com.manju2026.manying-studio\" to quit");
+    expect(videoScript).toContain("tell application id \"com.my.manying-studio\" to quit");
     expect(videoScript).toContain("pkill");
     expect(videoScript).toContain("漫影工作室 Helper");
     expect(videoScript).toContain("漫影工作室.app/Contents");

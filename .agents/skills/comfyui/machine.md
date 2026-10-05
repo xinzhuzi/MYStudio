@@ -8,7 +8,9 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
 - **ComfyUI**: MYStudio-managed engine (app 漫影工作室; no longer Comfy Desktop — that install at
   `~/Project/ComfyUI` was retired 2026-09-10 and has since been **deleted from disk entirely**
   (09-24 verified: path no longer exists; the old "kept as read-only archive" state is history)).
-  Home = **`~/Library/Application Support/漫影工作室/comfyui`** (isolated layout:
+  Home = **`~/Library/Application Support/漫影工作室/comfyui`** — 2026-10-05 起此路径为**符号链接(门)**,
+  实体已同盘纯改名迁至 `/Users/zhengbingjin/Project/IP/漫影工作室/comfyui`(零拷贝零删除;旧路径引用经门
+  一律有效,但做路径比对前须先 realpath 归一,勿拿门路径与实体路径做字符串直比). Isolated layout:
   `ComfyUI/` engine source v0.37.0 torch 2.14 (upgraded 09-21 past the v0.35.0 pre-fill, see the 09-21 note below), `venv/` private runtime, `models/`, `workflows/` legacy,
   `manifest.json` config). Engine source & custom_nodes live at `<home>/ComfyUI` — ComfyUI only loads
   custom_nodes from INSIDE the source dir in this layout (manifest.py 09-08 fix), do not drop plugins at

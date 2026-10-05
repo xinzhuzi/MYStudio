@@ -24,7 +24,7 @@ const WebSocket = require("ws");
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 const CDP_BASE = `http://127.0.0.1:${CDP_PORT}`;
 const APP_BIN = "/Applications/漫影工作室.app/Contents/MacOS/漫影工作室";
-const APP_BUNDLE_ID = "com.manju2026.manying-studio";
+const APP_BUNDLE_ID = "com.my.manying-studio";
 const WF_T2I_REL = "1_图片/K2图像/1_文生图/K2-文生图.json";
 const WF_DIR = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows`;
 

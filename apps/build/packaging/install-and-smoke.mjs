@@ -67,7 +67,7 @@ function stopInstalledAppIfRunning() {
   }
   runOptional('osascript', [
     '-e',
-    'tell application id "com.manju2026.manying-studio" to quit',
+    'tell application id "com.my.manying-studio" to quit',
   ]);
   for (const processName of [
     '漫影工作室',
@@ -215,7 +215,7 @@ function verifyRealOpen() {
   console.log('[open-verify] quitting the verified instance');
   runOptional('osascript', [
     '-e',
-    'tell application id "com.manju2026.manying-studio" to quit',
+    'tell application id "com.my.manying-studio" to quit',
   ]);
   const quitDeadline = Date.now() + 10_000;
   while (findInstalledAppPid() && Date.now() < quitDeadline) {
