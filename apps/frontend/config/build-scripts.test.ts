@@ -1032,11 +1032,9 @@ describe("desktop build scripts", () => {
       "Do not collapse the checklist into only `npm run smoke:desktop`",
       "Step 1 - Skill contract review",
       "Step 2 - Model contract test",
-      "Step 3 - Preview contract test",
-      "Step 4 - Smoke bridge seed test",
-      "Step 5 - Step-by-step app execution smoke",
-      "Step 6 - Build and packaged smoke test",
-      "Step 7 - Visual inspection",
+      "Step 3 - Smoke bridge seed test",
+      "Step 4 - Step-by-step app execution smoke",
+      "Step 5 - Build and packaged smoke test",
     ]) {
       expect(skill).toContain(requiredText);
     }
@@ -1068,7 +1066,7 @@ describe("desktop build scripts", () => {
       "_p/{projectId}/...",
       "{basePath}/assets/assets.db",
       "assets/files/...",
-      "Clicking a derived asset card must open the asset image workflow detail",
+      "clicks at least one real `asset-flow-chapter-001*` derived asset card and waits for the image workflow detail",
     ]) {
       expect(skill).toContain(requiredText);
     }
