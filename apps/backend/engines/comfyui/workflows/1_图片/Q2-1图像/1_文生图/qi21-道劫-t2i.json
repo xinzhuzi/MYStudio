@@ -1544,9 +1544,7 @@
             "name": "主体句",
             "type": "STRING",
             "linkIds": [
-              65,
-              205,
-              219
+              227
             ],
             "pos": [
               -216,
@@ -1688,7 +1686,7 @@
             "name": "PE启用?",
             "type": "BOOLEAN",
             "linkIds": [
-              68
+              232
             ],
             "pos": [
               7224,
@@ -1810,7 +1808,7 @@
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
               100,
-              600
+              450
             ],
             "size": [
               502.5630859375,
@@ -1824,7 +1822,7 @@
                 "localized_name": "clip",
                 "name": "clip",
                 "type": "CLIP",
-                "link": 46
+                "link": 233
               },
               {
                 "localized_name": "prompt",
@@ -1833,7 +1831,7 @@
                 "widget": {
                   "name": "prompt"
                 },
-                "link": 65
+                "link": 228
               }
             ],
             "outputs": [
@@ -1842,7 +1840,7 @@
                 "name": "positive_prompt",
                 "type": "STRING",
                 "links": [
-                  220
+                  234
                 ]
               },
               {
@@ -1850,7 +1848,7 @@
                 "name": "negative_prompt",
                 "type": "STRING",
                 "links": [
-                  216
+                  235
                 ]
               },
               {
@@ -1858,8 +1856,7 @@
                 "name": "wh_ratio",
                 "type": "STRING",
                 "links": [
-                  25,
-                  225
+                  236
                 ]
               },
               {
@@ -1867,7 +1864,7 @@
                 "name": "thinking",
                 "type": "STRING",
                 "links": [
-                  201
+                  237
                 ]
               },
               {
@@ -1911,7 +1908,7 @@
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              1050,
+              850,
               100
             ],
             "size": [
@@ -2004,8 +2001,8 @@
             "id": 4100,
             "type": "MarkdownNote",
             "pos": [
-              750,
-              1100
+              850,
+              600
             ],
             "size": [
               420,
@@ -2037,7 +2034,7 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              1700,
+              1500,
               100
             ],
             "size": [
@@ -2086,7 +2083,7 @@
                 "widget": {
                   "name": "PE负面"
                 },
-                "link": 216
+                "link": 235
               },
               {
                 "localized_name": "pe开关",
@@ -2096,7 +2093,7 @@
                 "widget": {
                   "name": "pe开关"
                 },
-                "link": 224
+                "link": 231
               },
               {
                 "localized_name": "透明模式",
@@ -2165,8 +2162,8 @@
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              700,
-              800
+              100,
+              850
             ],
             "size": [
               400,
@@ -2182,7 +2179,9 @@
                 "name": "CLIP",
                 "type": "CLIP",
                 "links": [
-                  46
+                  46,
+                  229,
+                  233
                 ]
               }
             ],
@@ -2212,33 +2211,52 @@
           },
           {
             "id": 4012,
-            "type": "MyQi21BoolBranch",
+            "type": "MyQi21PESwitch",
             "pos": [
               50,
-              400
+              100
             ],
             "size": [
-              280,
-              100
+              320,
+              200
             ],
             "flags": {},
             "order": 4,
             "mode": 0,
             "inputs": [
               {
-                "name": "value",
+                "name": "主体句",
+                "type": "STRING",
+                "link": 227
+              },
+              {
+                "name": "pe开关",
                 "type": "BOOLEAN",
-                "link": null,
-                "widget": true
+                "link": null
               }
             ],
             "outputs": [
               {
+                "name": "PE路主体句",
+                "type": "STRING",
+                "links": [
+                  228
+                ]
+              },
+              {
+                "name": "直写路主体句",
+                "type": "STRING",
+                "links": [
+                  229
+                ]
+              },
+              {
                 "name": "true路",
                 "type": "BOOLEAN",
                 "links": [
-                  223,
-                  224
+                  230,
+                  231,
+                  232
                 ]
               },
               {
@@ -2247,11 +2265,12 @@
                 "links": []
               }
             ],
-            "title": "[4012] PE开关(true=扩写路/false=直写路)",
+            "title": "[4012] PE开关(true=走PE扩写 / false=原句直拼)",
             "properties": {
-              "Node name for S&R": "MyQi21BoolBranch"
+              "Node name for S&R": "MyQi21PESwitch"
             },
             "widgets_values": [
+              "",
               true
             ],
             "widgets_values_named": {
@@ -2262,8 +2281,8 @@
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              1300,
-              800
+              700,
+              850
             ],
             "size": [
               500,
@@ -2280,7 +2299,7 @@
                 "name": "anything",
                 "shape": 7,
                 "type": "*",
-                "link": 201
+                "link": 237
               }
             ],
             "outputs": [
@@ -2312,7 +2331,7 @@
             "id": 4021,
             "type": "MyQi21SubjectSelect",
             "pos": [
-              750,
+              500,
               100
             ],
             "size": [
@@ -2331,7 +2350,7 @@
                 "widget": {
                   "name": "主体句"
                 },
-                "link": 219
+                "link": 229
               },
               {
                 "localized_name": "PE出文",
@@ -2341,12 +2360,12 @@
                 "widget": {
                   "name": "PE出文"
                 },
-                "link": 220
+                "link": 234
               },
               {
                 "name": "PE宽高比",
                 "type": "STRING",
-                "link": 225,
+                "link": 236,
                 "lazy": true
               },
               {
@@ -2357,7 +2376,7 @@
                 "widget": {
                   "name": "pe开关"
                 },
-                "link": 223
+                "link": 230
               }
             ],
             "outputs": [
@@ -2399,7 +2418,21 @@
             }
           }
         ],
-        "groups": [],
+        "groups": [
+          {
+            "title": "PE 扩写组(开关=true 时激活,false 时零执行零装载)",
+            "bounding": [
+              70,
+              390,
+              1160,
+              650
+            ],
+            "color": "#3f789e",
+            "font_size": 24,
+            "flags": {},
+            "id": 1
+          }
+        ],
         "links": [
           {
             "id": 6,
@@ -2415,14 +2448,6 @@
             "origin_slot": 5,
             "target_id": 4010,
             "target_slot": 1,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 8,
-            "origin_id": 4012,
-            "origin_slot": 0,
-            "target_id": 4014,
-            "target_slot": 4,
             "type": "BOOLEAN"
           },
           {
@@ -2474,22 +2499,6 @@
             "type": "INT"
           },
           {
-            "id": 46,
-            "origin_id": 4019,
-            "origin_slot": 0,
-            "target_id": 4013,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 65,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 4013,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
             "id": 66,
             "origin_id": 4010,
             "origin_slot": 3,
@@ -2504,14 +2513,6 @@
             "target_id": 4014,
             "target_slot": 0,
             "type": "STRING"
-          },
-          {
-            "id": 68,
-            "origin_id": 4012,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 5,
-            "type": "BOOLEAN"
           },
           {
             "id": 101,
@@ -2530,22 +2531,6 @@
             "type": "BOOLEAN"
           },
           {
-            "id": 201,
-            "origin_id": 4013,
-            "origin_slot": 3,
-            "target_id": 4020,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 216,
-            "origin_id": 4013,
-            "origin_slot": 1,
-            "target_id": 4014,
-            "target_slot": 3,
-            "type": "STRING"
-          },
-          {
             "id": 217,
             "origin_id": 4011,
             "origin_slot": 1,
@@ -2562,59 +2547,11 @@
             "type": "STRING"
           },
           {
-            "id": 219,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 4021,
-            "target_slot": 0,
-            "type": "STRING"
-          },
-          {
-            "id": 220,
-            "origin_id": 4013,
-            "origin_slot": 0,
-            "target_id": 4021,
-            "target_slot": 1,
-            "type": "STRING"
-          },
-          {
-            "id": 221,
-            "origin_id": 4012,
-            "origin_slot": 0,
-            "target_id": 4021,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 222,
             "origin_id": -10,
             "origin_slot": 8,
             "target_id": 4011,
             "target_slot": 3,
-            "type": "STRING"
-          },
-          {
-            "id": 223,
-            "origin_id": 4012,
-            "origin_slot": 0,
-            "target_id": 4021,
-            "target_slot": 2,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 224,
-            "origin_id": 4012,
-            "origin_slot": 0,
-            "target_id": 4014,
-            "target_slot": 4,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 225,
-            "origin_id": 4013,
-            "origin_slot": 2,
-            "target_id": 4021,
-            "target_slot": 2,
             "type": "STRING"
           },
           {
@@ -2624,6 +2561,94 @@
             "target_id": -20,
             "target_slot": 4,
             "type": "STRING"
+          },
+          {
+            "id": 227,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 4012,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 228,
+            "origin_id": 4012,
+            "origin_slot": 0,
+            "target_id": 4013,
+            "target_slot": 1,
+            "type": "STRING"
+          },
+          {
+            "id": 229,
+            "origin_id": 4012,
+            "origin_slot": 1,
+            "target_id": 4021,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 230,
+            "origin_id": 4012,
+            "origin_slot": 2,
+            "target_id": 4021,
+            "target_slot": 3,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 231,
+            "origin_id": 4012,
+            "origin_slot": 2,
+            "target_id": 4014,
+            "target_slot": 4,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 232,
+            "origin_id": 4012,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 5,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 233,
+            "origin_id": 4019,
+            "origin_slot": 0,
+            "target_id": 4013,
+            "target_slot": 0,
+            "type": "CLIP"
+          },
+          {
+            "id": 234,
+            "origin_id": 4013,
+            "origin_slot": 0,
+            "target_id": 4021,
+            "target_slot": 1,
+            "type": "STRING"
+          },
+          {
+            "id": 235,
+            "origin_id": 4013,
+            "origin_slot": 1,
+            "target_id": 4014,
+            "target_slot": 3,
+            "type": "STRING"
+          },
+          {
+            "id": 236,
+            "origin_id": 4013,
+            "origin_slot": 2,
+            "target_id": 4021,
+            "target_slot": 2,
+            "type": "STRING"
+          },
+          {
+            "id": 237,
+            "origin_id": 4013,
+            "origin_slot": 3,
+            "target_id": 4020,
+            "target_slot": 0,
+            "type": "*"
           }
         ],
         "extra": {
