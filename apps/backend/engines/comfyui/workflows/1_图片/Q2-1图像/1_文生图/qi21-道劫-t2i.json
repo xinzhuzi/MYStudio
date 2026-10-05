@@ -167,7 +167,7 @@
           ]
         }
       ],
-      "title": "[400] 主体句·PrimitiveStringMultiline",
+      "title": "[400] 正向主体句",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline",
         "ue_properties": {
@@ -436,7 +436,7 @@
       "mode": 0,
       "inputs": [
         {
-          "name": "主体句",
+          "name": "正向主体句",
           "type": "STRING",
           "link": 15
         },
@@ -459,17 +459,7 @@
           "widget": true
         },
         {
-          "name": "手动宽",
-          "type": "INT",
-          "link": null
-        },
-        {
-          "name": "手动高",
-          "type": "INT",
-          "link": null
-        },
-        {
-          "name": "主体句负面",
+          "name": "负向主体句",
           "type": "STRING",
           "link": 218
         }
@@ -539,10 +529,10 @@
         false
       ],
       "widgets_values_named": {
-        "主体句": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
         "型选择": "人物",
         "PE启用?": true,
-        "透明": false
+        "透明": false,
+        "正向主体句": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
       }
     },
     {
@@ -1189,7 +1179,7 @@
       "widgets_values": [
         ""
       ],
-      "title": "[404] 主体句负面·PrimitiveStringMultiline",
+      "title": "[404] 负向主体句",
       "properties": {}
     }
   ],
@@ -1510,7 +1500,7 @@
         "inputs": [
           {
             "id": "a1e2c3d4-0003-4a03-9e03-7d4a9c31a003",
-            "name": "主体句",
+            "name": "正向主体句",
             "type": "STRING",
             "linkIds": [
               302
@@ -1558,27 +1548,7 @@
           },
           {
             "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
-            "name": "手动宽",
-            "type": "INT",
-            "linkIds": [],
-            "pos": [
-              -216,
-              224
-            ]
-          },
-          {
-            "id": "a1e2c3d4-0010-4a10-9e10-7d4a9c31a010",
-            "name": "手动高",
-            "type": "INT",
-            "linkIds": [],
-            "pos": [
-              -216,
-              244
-            ]
-          },
-          {
-            "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
-            "name": "主体句负面",
+            "name": "负向主体句",
             "type": "STRING",
             "linkIds": [
               303
@@ -2391,7 +2361,7 @@
           {
             "id": 303,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 4,
             "target_id": 4011,
             "target_slot": 3,
             "type": "STRING"
