@@ -121,7 +121,7 @@ def test_3_interface_shape_upstream_single_output():
     # (BASE 与参数 widget 之间,连线槽相邻前置)
     assert inputs["required"] == {}, \
         f"required 应置空(2002 ⑭ 连线槽前置重排),得 {inputs['required']}"
-    assert list(inputs["optional"]) == ["BASE", "BASE负面", "主体句", "锁层A全文"], \
+    assert list(inputs["optional"]) == ["BASE", "BASE负面", "主体句", "主体句负面", "锁层A全文"], \
         f"optional 声明序应=BASE/BASE负面(两连线槽,⑭ 前置)/主体句/锁层A全文" \
         f"(参数下沉;1005 案B Phase I),得 {list(inputs['optional'])}"
     assert inputs["optional"]["BASE"][0] == "STRING"

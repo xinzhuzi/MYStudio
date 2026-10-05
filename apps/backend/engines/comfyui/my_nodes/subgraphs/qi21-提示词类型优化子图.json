@@ -364,8 +364,8 @@
             "id": 4010,
             "type": "MyQi21DaojieBase",
             "pos": [
-              50.63612586230385,
-              725.6122717393408
+              50,
+              100
             ],
             "size": [
               570.5259765625,
@@ -442,7 +442,7 @@
                 ]
               }
             ],
-            "title": "[4010] 底座(正向BASE+负面词)·自研",
+            "title": "[4010] 类型句选择(正向类型文+负面类型词+画幅+透明)",
             "properties": {
               "Node name for S&R": "MyQi21DaojieBase",
               "ue_properties": {
@@ -464,8 +464,8 @@
             "id": 4013,
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
-              260.94490546830707,
-              1181.951531274634
+              400,
+              100
             ],
             "size": [
               502.5630859375,
@@ -565,12 +565,12 @@
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              2559.9490383065117,
-              80
+              1100,
+              100
             ],
             "size": [
               520,
-              420
+              500
             ],
             "flags": {},
             "order": 3,
@@ -632,7 +632,7 @@
                 ]
               }
             ],
-            "title": "[4011] 装配器(正向拼合+负面合并)·自研",
+            "title": "[4011] 三层拼装(主体句+类型句+美术底座→正向 / 类型负面+美术负面+主体句负面→负向)",
             "properties": {
               "Node name for S&R": "MyQi21PromptAssembly",
               "ue_properties": {
@@ -658,8 +658,8 @@
             "id": 4100,
             "type": "MarkdownNote",
             "pos": [
-              1400,
-              120
+              1100,
+              700
             ],
             "size": [
               420,
@@ -691,12 +691,12 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              3570.52925039746,
-              386.12695372034955
+              1700,
+              100
             ],
             "size": [
-              380,
-              360
+              420,
+              400
             ],
             "flags": {},
             "order": 6,
@@ -750,7 +750,7 @@
                 "widget": {
                   "name": "pe开关"
                 },
-                "link": 8
+                "link": 225
               },
               {
                 "localized_name": "透明模式",
@@ -783,7 +783,7 @@
                 ]
               }
             ],
-            "title": "[4014] 合成器(正向出口+负向出口)·自研",
+            "title": "[4014] 最终输出(正向:PE开=三层合一文/PE关=中文直拼文 + 负向:三层负面词)",
             "properties": {
               "Node name for S&R": "MyQi21PromptSelect",
               "ue_properties": {
@@ -819,8 +819,8 @@
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              -717.8480473438094,
-              1196.5879920746038
+              50,
+              750
             ],
             "size": [
               400,
@@ -868,8 +868,8 @@
             "id": 4012,
             "type": "PrimitiveBoolean",
             "pos": [
-              421.6502830645237,
-              263.2093921688276
+              50,
+              500
             ],
             "size": [
               280,
@@ -898,7 +898,8 @@
                 "links": [
                   8,
                   68,
-                  221
+                  221,
+                  223
                 ]
               }
             ],
@@ -922,8 +923,8 @@
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              1352.8023795196955,
-              1323.9790392459165
+              400,
+              950
             ],
             "size": [
               500,
@@ -972,8 +973,8 @@
             "id": 4021,
             "type": "MyQi21SubjectSelect",
             "pos": [
-              1679.5954613983045,
-              508.26663178512115
+              750,
+              100
             ],
             "size": [
               259.5455078125,
@@ -1011,7 +1012,7 @@
                 "widget": {
                   "name": "pe开关"
                 },
-                "link": 221
+                "link": 224
               }
             ],
             "outputs": [
@@ -1025,7 +1026,7 @@
                 ]
               }
             ],
-            "title": "[4021] 主体句选择(pe开=PE扩写/pe关=原文)·自研",
+            "title": "[4021] 主体句选择(PE开=PE扩写文 / PE关=原句直通)",
             "properties": {
               "Node name for S&R": "MyQi21SubjectSelect",
               "ue_properties": {
@@ -1044,6 +1045,45 @@
               "PE出文": "",
               "pe开关": true
             }
+          },
+          {
+            "id": 4022,
+            "type": "MyQi21BoolBranch",
+            "pos": [
+              400,
+              500
+            ],
+            "size": [
+              200,
+              100
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "BOOLEAN",
+                "link": 223
+              }
+            ],
+            "outputs": [
+              {
+                "name": "true路",
+                "type": "BOOLEAN",
+                "links": [
+                  224,
+                  225
+                ]
+              },
+              {
+                "name": "false路",
+                "type": "BOOLEAN",
+                "links": []
+              }
+            ],
+            "title": "[4022] PE分支(true=扩写路/false=直写路)",
+            "properties": {}
           }
         ],
         "groups": [],
@@ -1247,6 +1287,30 @@
             "target_id": 4011,
             "target_slot": 3,
             "type": "STRING"
+          },
+          {
+            "id": 223,
+            "origin_id": 4012,
+            "origin_slot": 0,
+            "target_id": 4022,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 224,
+            "origin_id": 4022,
+            "origin_slot": 0,
+            "target_id": 4021,
+            "target_slot": 2,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 225,
+            "origin_id": 4022,
+            "origin_slot": 0,
+            "target_id": 4014,
+            "target_slot": 4,
+            "type": "BOOLEAN"
           }
         ],
         "extra": {
