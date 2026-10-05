@@ -464,8 +464,8 @@
             "id": 4013,
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
-              300,
-              450
+              100,
+              600
             ],
             "size": [
               502.5630859375,
@@ -565,7 +565,7 @@
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              1000,
+              1050,
               100
             ],
             "size": [
@@ -658,8 +658,8 @@
             "id": 4100,
             "type": "MarkdownNote",
             "pos": [
-              600,
-              850
+              750,
+              1100
             ],
             "size": [
               420,
@@ -691,7 +691,7 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              1600,
+              1700,
               100
             ],
             "size": [
@@ -819,8 +819,8 @@
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              50,
-              650
+              700,
+              800
             ],
             "size": [
               400,
@@ -869,7 +869,7 @@
             "type": "MyQi21BoolBranch",
             "pos": [
               50,
-              280
+              400
             ],
             "size": [
               280,
@@ -898,9 +898,7 @@
               {
                 "name": "false路",
                 "type": "BOOLEAN",
-                "links": [
-                  225
-                ]
+                "links": []
               }
             ],
             "title": "[4012] PE开关(true=扩写路/false=直写路)",
@@ -918,8 +916,8 @@
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              600,
-              650
+              1300,
+              800
             ],
             "size": [
               500,
@@ -968,7 +966,7 @@
             "id": 4021,
             "type": "MyQi21SubjectSelect",
             "pos": [
-              600,
+              750,
               100
             ],
             "size": [
@@ -1040,37 +1038,6 @@
               "PE出文": "",
               "pe开关": true
             }
-          },
-          {
-            "id": 4023,
-            "type": "easy showAnything",
-            "pos": [
-              350,
-              280
-            ],
-            "size": [
-              250,
-              80
-            ],
-            "flags": {},
-            "order": 0,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "anything",
-                "type": "*",
-                "link": 225
-              }
-            ],
-            "outputs": [
-              {
-                "name": "output",
-                "type": "*",
-                "links": null
-              }
-            ],
-            "title": "[4023] 直写路指示(PE关闭时=true)",
-            "properties": {}
           }
         ],
         "groups": [],
@@ -1289,14 +1256,6 @@
             "origin_slot": 0,
             "target_id": 4014,
             "target_slot": 4,
-            "type": "BOOLEAN"
-          },
-          {
-            "id": 225,
-            "origin_id": 4012,
-            "origin_slot": 1,
-            "target_id": 4023,
-            "target_slot": 0,
             "type": "BOOLEAN"
           }
         ],
