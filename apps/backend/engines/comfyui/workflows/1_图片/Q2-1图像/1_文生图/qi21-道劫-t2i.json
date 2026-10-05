@@ -436,16 +436,6 @@
       "mode": 0,
       "inputs": [
         {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 12
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 13
-        },
-        {
           "name": "主体句",
           "type": "STRING",
           "widget": {
@@ -1230,22 +1220,6 @@
       "IMAGE"
     ],
     [
-      12,
-      2,
-      0,
-      6,
-      0,
-      "CLIP"
-    ],
-    [
-      13,
-      3,
-      0,
-      6,
-      1,
-      "VAE"
-    ],
-    [
       15,
       400,
       0,
@@ -1520,26 +1494,6 @@
         },
         "inputs": [
           {
-            "id": "a1e2c3d4-0001-4a01-9e01-7d4a9c31a001",
-            "name": "clip",
-            "type": "CLIP",
-            "linkIds": [],
-            "pos": [
-              -216,
-              104
-            ]
-          },
-          {
-            "id": "a1e2c3d4-0002-4a02-9e02-7d4a9c31a002",
-            "name": "vae",
-            "type": "VAE",
-            "linkIds": [],
-            "pos": [
-              -216,
-              124
-            ]
-          },
-          {
             "id": "a1e2c3d4-0003-4a03-9e03-7d4a9c31a003",
             "name": "主体句",
             "type": "STRING",
@@ -1567,7 +1521,9 @@
             "id": "a1e2c3d4-9004-4a004-9e004-7d4a9c31a904",
             "name": "PE启用?",
             "type": "BOOLEAN",
-            "linkIds": [],
+            "linkIds": [
+              324
+            ],
             "pos": [
               -216,
               184
@@ -1709,7 +1665,7 @@
               100
             ],
             "size": [
-              570.5259765625,
+              570,
               200
             ],
             "flags": {},
@@ -1806,10 +1762,10 @@
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
               100,
-              450
+              700
             ],
             "size": [
-              502.5630859375,
+              503,
               340
             ],
             "flags": {},
@@ -1904,7 +1860,7 @@
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              850,
+              1100,
               100
             ],
             "size": [
@@ -1996,8 +1952,8 @@
             "id": 4100,
             "type": "MarkdownNote",
             "pos": [
-              850,
-              600
+              600,
+              400
             ],
             "size": [
               420,
@@ -2029,7 +1985,7 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              1500,
+              1750,
               100
             ],
             "size": [
@@ -2113,7 +2069,7 @@
             "type": "CLIPLoader",
             "pos": [
               100,
-              850
+              1100
             ],
             "size": [
               400,
@@ -2162,7 +2118,7 @@
             "type": "MyQi21PESwitch",
             "pos": [
               50,
-              100
+              400
             ],
             "size": [
               320,
@@ -2180,7 +2136,7 @@
               {
                 "name": "pe开关",
                 "type": "BOOLEAN",
-                "link": null
+                "link": 324
               }
             ],
             "outputs": [
@@ -2228,8 +2184,8 @@
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              700,
-              850
+              600,
+              1100
             ],
             "size": [
               500,
@@ -2278,12 +2234,12 @@
             "id": 4021,
             "type": "MyQi21SubjectSelect",
             "pos": [
-              500,
+              700,
               100
             ],
             "size": [
-              259.5455078125,
-              120
+              300,
+              200
             ],
             "flags": {},
             "order": 8,
@@ -2379,11 +2335,11 @@
         ],
         "groups": [
           {
-            "title": "PE 扩写组(开关=true 时激活,false 时零执行零装载)",
+            "title": "PE 扩写组",
             "bounding": [
               70,
-              390,
-              1160,
+              640,
+              1060,
               650
             ],
             "color": "#3f789e",
@@ -2396,7 +2352,7 @@
           {
             "id": 300,
             "origin_id": -10,
-            "origin_slot": 3,
+            "origin_slot": 1,
             "target_id": 4010,
             "target_slot": 0,
             "type": "COMBO"
@@ -2404,7 +2360,7 @@
           {
             "id": 301,
             "origin_id": -10,
-            "origin_slot": 5,
+            "origin_slot": 3,
             "target_id": 4010,
             "target_slot": 1,
             "type": "BOOLEAN"
@@ -2412,7 +2368,7 @@
           {
             "id": 302,
             "origin_id": -10,
-            "origin_slot": 2,
+            "origin_slot": 0,
             "target_id": 4012,
             "target_slot": 0,
             "type": "STRING"
@@ -2420,7 +2376,7 @@
           {
             "id": 303,
             "origin_id": -10,
-            "origin_slot": 8,
+            "origin_slot": 6,
             "target_id": 4011,
             "target_slot": 3,
             "type": "STRING"
@@ -2584,6 +2540,14 @@
             "target_id": -20,
             "target_slot": 1,
             "type": "STRING"
+          },
+          {
+            "id": 324,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 4012,
+            "target_slot": 1,
+            "type": "BOOLEAN"
           }
         ],
         "extra": {
