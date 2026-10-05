@@ -59,8 +59,10 @@ class MyQi21SubjectSelect:
                     "lazy": True,
                     "tooltip": "PE 改写给出的宽高比(如 16:9);开关关时不请求,PE 零执行零装载"}),
                 "主体句负面": ("STRING", {
-                    "multiline": True, "default": "",
-                    "tooltip": "用户手写的主体句负面描述;透传到 [4011] 三层拼装"}),
+                    "forceInput": True,
+                    "tooltip": "用户手写的主体句负面描述;透传到 [4011] 三层拼装"
+                               "(1005 ㊇ forceInput 纯槽:防前端提升 multiline "
+                               "widget 致宿主裸点)"}),
                 "pe开关": ("BOOLEAN", {
                     "default": True,
                     "tooltip": "与 [4014] 同源总开关:开=主体句先过 PE 再"

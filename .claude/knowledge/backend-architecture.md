@@ -54,7 +54,7 @@ apps/backend/
     video_qc_engine/              # dover_scoring+dover_mobile_arch+model_cache+DOVER_LICENSE
     music3_engine/                # 权重件(model_cache+install_mlxserv_weights;推理经 mlx-serve 留服务包)
     comfyui/                      # 托管实例:manifest/engine_manager/plugin_manager/execute
-                                  #   +curated_plugins+manying_nodes(规划位)+tests/
+                                  #   +curated_plugins+my_nodes(原 manying_nodes 规划位,10-03 落地名)+tests/
   # ── 域2:模态服务包(纯服务面:HTTP/CLI/编排/存储)──
   tts/                            # server/main/routes/storage/runtime_state/model_inventory
   image_gen/                      # server/pipeline/uncloth_pipeline/model_inventory/download_model/scripts

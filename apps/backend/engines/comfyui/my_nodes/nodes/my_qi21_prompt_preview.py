@@ -1,6 +1,6 @@
 # Copyright (c) 2025 hotflow2024
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
-"""漫影 qi21 正负双预览节点(MyQi21PromptPreview,2005 用户令合成一个预览)。
+"""漫影 qi21 正负双预览节点(MyQi21PromptPreview,1005 用户令合成一个预览)。
 
 取代此前 [401]正向 + [403]负向 两个 showAnything——用户令「合成1个节点」。
 本件=单节点同时显示正向与负向终稿:
@@ -42,11 +42,17 @@ class MyQi21PromptPreview:
     OUTPUT_NODE = True
 
     def preview(self, 正向提示词: str | None = None,
-                负向提示词: str | None = None) -> tuple[str]:
-        """合并显示:正向在上,负向在下,分隔线隔开。"""
+                负向提示词: str | None = None) -> dict:
+        """合并显示:正向在上,负向在下,分隔线隔开。
+
+        1005 ㊈ 显示通道补路:此前返回裸元组,前端对 OUTPUT_NODE 的字符串返回
+        不渲染=预览算了但看不见(输入连线又隐藏 multiline 框,节点体全空)。
+        改 ui 载荷(ShowText|pysssss 同款机制)+web/my-qi21-prompt-preview.js
+        onExecuted 落框,零改 ComfyUI 本体。
+        """
         pos = (正向提示词 or "").strip()
         neg = (负向提示词 or "").strip()
         text = f"═══ 正向提示词 ═══\n{pos}"
         if neg:
             text += f"\n\n═══ 负向提示词 ═══\n{neg}"
-        return (text,)
+        return {"ui": {"merged": [text]}, "result": (text,)}

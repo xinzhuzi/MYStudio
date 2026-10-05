@@ -63,8 +63,9 @@ MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
             qi21_bases.json strip_lexicon 节热读)
   进编码正向文本 =
     pe开+透明   = RGBA官方头句+" "+剥离(PE出文)+" "+W1收束句+" "+RGBA官方尾句
-    pe关+透明   = RGBA官方头句+" "+中文透明声明+" "+装配全文+" "+W1收束句+
-                  " "+RGBA官方尾句(R1 补强:头句后追加官方中文透明声明双语强化)
+    pe关+透明   = RGBA官方头句+" "+装配全文+" "+W1收束句+" "+RGBA官方尾句
+                  (1005 用户令去重:中文透明声明插入已删——声明逐字=头+尾拼接,
+                  头尾转中文后即书挡,再插一遍=同一句话出现两次)
     pe关+透明关 = 装配全文 原样;pe开+透明关 = PE出文 原样
   进编码负向文本 =
     pe开 = 负面词直写 非空? 负面词直写 : PE负面(1005 案B 直写优先;PE负面=空档兜底)
@@ -102,6 +103,12 @@ expand_instruction/strip_lexicon/types;本件消费 rgba+strip_lexicon 两节):
     缓存)」:词族已搬家进 qi21_bases.json 集中地,属热改数据;旧单源
   - qi21_strip_lexicon.json 留档不再被本件消费(en 词族已逐字搬入
     strip_lexicon 节,搬迁对拍=SHA256 一致)。
+1005 ㊄ 拆双类修「一类两用」断裂:t2i 新管线(主体句→[4012]PE开关→[4021]
+路由→[4011]装配→最终输出)已迁专用简化件 MyQi21FinalOutput
+(my_qi21_final_output.py;零 PE 槽,透明包裹+双口输出)——本件自此**只服务
+i2i/edit 老架构**(装配→PE→选择 全逻辑+lazy 协议),勿再为本件加 t2i 专属
+逻辑;t2i 工作流 [4014] 的 type 已换 MyQi21FinalOutput。
+
 注册(import+NODE_CLASS_MAPPINGS+DISPLAY「道劫·qi21最终文本合成器」)在
 my_nodes/__init__.py,本文件不自带注册。
 """
@@ -233,12 +240,11 @@ _W1_TAIL = _TAIL  # 历史名兼容别名(qi21_integration_surgery_* 旧手术�
 # ── R1 双语透明强化(10-02 补强实验第1轮,用户令「补强」非接受) ──────────────
 # 缘起:s5b 实测 pe关×透明开单英文包裹→模型出 opaque(四角 alpha=255,ratioAlpha0=0);
 # pe开路同包裹但正文=剥离(PE英文出文)→四型 4/4 过门。差别在正文语言(pe关=装配
-# 中文直写),英文头尾离中文正文远→对 alpha 的服从度衰减。补强=头句后追加官方
-# 中文同款透明声明(两句=qi21-道劫-t2i.json 速查卡在档原文逐字,亦见
-# docs/prompts/Qwen-Image-2.1/06-视频提示词精要.md:85),把透明指令以正文
-# 同语种再锚一次。**只改 pe关路(pe开路 4/4 在役形零动)**。
-_ZH_ALPHA_DECL = ('这是一张带有透明度的RGBA图像 '
-                  '该图像具有alpha通道,背景是透明的')
+# 中文直写),英文头尾离中文正文远→对 alpha 的服从度衰减。R1 补强=头句后追加
+# 官方中文同款透明声明(逐字=头+尾拼接,亦见
+# docs/prompts/Qwen-Image-2.1/06-视频提示词精要.md:85)。**1005 用户令去重:
+# 声明插入已删**——头尾转中文后本身就是正文同语种书挡,声明再插一遍=同一句
+# 话出现两次,锚定意图由中文头尾承担。**pe开路 4/4 在役形零动(维持)**。
 
 
 def strip_word_family(text: str) -> str:
@@ -264,7 +270,7 @@ class MyQi21PromptSelect:
     (10-04 双口化;原单口「进编码文本」拆「进编码正向/负向」)。
 
     进编码正向文本 = 透明模式? (pe开关? 头句+剥离(PE出文)+W1+尾句
-                                   : 头句+中文透明声明+装配全文+W1+尾句)
+                                   : 头句+装配全文+W1+尾句)
                      : (pe开关? PE出文 : 装配全文)
     进编码负向文本 = pe开关? (负面词直写 非空? 负面词直写 : PE负面) : 负面词直写
     (拼接序铁律=10-02 单口形逐字保持;负向不包裹不剥离;预览=实况=口本文本;
@@ -351,17 +357,28 @@ class MyQi21PromptSelect:
         投递)按 widget default=True 兜底(0926 裁定1「画布默认 PE 开路」
         语义不随槽位搬家漂移)。
         """
-        return []  # 2005 简化:无 lazy 槽
+        if pe开关 is None:
+            pe开关 = True
+        if not pe开关:
+            return []
+        requests: list[str] = []
+        for slot in ("PE出文", "PE负面"):
+            if slot in kwargs and kwargs[slot] is None:
+                requests.append(slot)
+        return requests
 
     def compose(self, 装配全文: str | None = None,
-                负面词直写: str | None = None,
-                透明模式: bool = False) -> tuple[str, str]:
+                负面词直写: str | None = None, PE出文: str | None = None,
+                PE负面: str | None = None, pe开关: bool | None = None,
+                透明模式: bool = False, RGBA官方头句: str = _RGBA_HEAD,
+                RGBA官方尾句: str = _RGBA_TAIL,
+                W1收束句: str = _TAIL) -> tuple[str, str]:
         """双口合成:(进编码正向文本, 进编码负向文本)(元组序=RETURN_NAMES 序)。
 
         正向路(10-02 单口形逐字保持):先 pe开关 选正文(PE出文/装配全文),
         再 透明模式 决定拼不拼包裹——拼接序铁律:
           pe开+透明=头句+" "+剥离(PE出文)+" "+W1收束句+" "+尾句
-          pe关+透明=头句+" "+中文透明声明+" "+装配全文+" "+W1收束句+" "+尾句
+          pe关+透明=头句+" "+装配全文+" "+W1收束句+" "+尾句(1005 去重:声明插入已删)
           pe关+透明关=装配全文 原样;pe开+透明关=PE出文 原样。
         负向路(10-04 新增,不包裹不剥离;1005 案B 直写优先):
           pe开=负面词直写 非空? 负面词直写 : PE负面(空档兜底)
@@ -407,14 +424,14 @@ class MyQi21PromptSelect:
             pe_neg = (PE负面 or "").strip()
             negative_text = direct_neg if direct_neg else pe_neg
         else:
-            # pe关路:正向正文=装配全文;透明 mid 同包 W1 收束句(Q4;R1 双语
-            # 透明强化:头句后追加官方中文透明声明);负向=负面词直写
+            # pe关路:正向正文=装配全文;透明 mid 同包 W1 收束句(Q4;1005 去重:
+            # 中文声明插入已删,透明锚定=中文头尾书挡);负向=负面词直写
             main_text = direct
-            transparent_mid = _ZH_ALPHA_DECL + " " + direct + " " + W1收束句
+            transparent_mid = direct + " " + W1收束句
             negative_text = direct_neg
         # 透明模式参与计算(R1 边界迁入):开=拼官方头尾,关=正文原样直出;
         # 负向路不包裹(透明包裹是正向路指令)
         if 透明模式:
-            return (f"{_RGBA_HEAD} {transparent_mid} {_RGBA_TAIL}",
+            return (f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}",
                     negative_text)
         return (main_text, negative_text)

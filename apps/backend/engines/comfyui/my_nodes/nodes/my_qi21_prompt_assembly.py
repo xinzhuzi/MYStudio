@@ -44,8 +44,9 @@ venv 实测=「Dependency cycle detected」valid=False;graph.py:169-170 执行�
            种子文 widget 退役清空+Note[250] 注明)+ MyQi21PromptSelect.装配全文
            (下游合成器直写路与透明直写路的真源)
   负面词(口1)→ MyQi21PromptSelect.负面词直写(pe关路负向真源+pe开路直写
-           优先——案B:直写非空恒胜 PE负面)=merge(BASE负面, 锁层负面):
-           型负面 token 在前、锁层负面 token 在后,整 token 相等才去重
+           优先——案B:直写非空恒胜 PE负面)=merge(BASE负面,
+           锁层负面, 主体句负面)(1005 ㊄ 三源:型负面 token 在前、锁层负面
+           居中、主体句负面(用户手写,经 [4021] 透传)在后,整 token 相等才去重
            (_merge_negative 保守口径;负面清单全角逗号=整段一 token,两段
            以半角", "拼接=K2 侧同款现行为)
 

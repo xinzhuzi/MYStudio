@@ -48,8 +48,10 @@ def test_registry_exposes_first_batch_nodes():
         "MyQi21WhSuggest",  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
         "MyQi21ChinesePE",  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出)
         "MyQi21SubjectSelect",  # 1005 ㉜ 管线重序:主体句过PE后拼型/底座(pe开选PE扩写文)
-        "MyQi21PromptPreview",  # 2005 正负双预览(合成一个节点)
-        "MyQi21BoolBranch",  # 2005 布尔分支(true/false双路)
+        "MyQi21PromptPreview",  # 1005 正负双预览(合成一个节点)
+        "MyQi21BoolBranch",  # 1005 布尔分支(true/false双路;㊄已退役留档=回滚杠杆)
+        "MyQi21PESwitch",  # 1005 ㊝ PE开关路由:主体句+开关→PE路/直写路+true/false双出
+        "MyQi21FinalOutput",  # 1005 ㊄ 拆双类:t2i专用最终输出(零PE槽,透明包裹+双口输出)
         "MyImageGridSplit",  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
         "MyVideoFrameGrab",  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
         "MyImageABCompare",  # 0929 TE-MAN 排查 B2:图对比审片(canvas 滑帘+2-7x 放大镜)

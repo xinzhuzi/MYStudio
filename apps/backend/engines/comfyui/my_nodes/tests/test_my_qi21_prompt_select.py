@@ -14,7 +14,8 @@ pe开路负向一行对调=直写优先(负面词直写 非空恒胜,PE负面 �
   ⑭ 四连线槽前置/头尾 W1 default=qi21_bases.json rgba 节现读/multiline 大框)
 ②pe开+透明关=PE出文 原样+pe开×PE出文未接线→中文 ValueError(不猜不代选)
   +案B:pe开负向=直写非空恒胜/空档兜底 PE负面
-③pe关+透明开=头句+中文透明声明+装配全文+W1+尾句 逐字(R1 补强;Q4 同包 W1)
+③pe关+透明开=头句+装配全文+W1+尾句 逐字(1005 用户令去重:R1 中文透明声明
+  插入已删,声明逐字=头+尾拼接头尾转中文后即重复;Q4 同包 W1)
   +降级双空格形+负向不随透明包裹(pe关负向=直写)
 ④pe开+透明开=头句+剥离(PE出文)+W1+尾句 逐字(词族真源=qi21_bases.json
   #strip_lexicon 现读)+负向不剥离不包裹(案B 同胜)
@@ -138,30 +139,28 @@ def test_2_pe_on_transparent_off_returns_pe_text_and_raises_without_wiring():
 
 
 def test_3_pe_off_transparent_on_wraps_assembled_with_w1_and_degrades():
-    """四象限(pe关+透明开):正向=头句+空格+中文透明声明+空格+装配全文+空格+
-    W1收束句+空格+尾句 逐字(Q4 两路同包 W1;R1 双语透明强化:头句后追加
-    官方中文透明声明,真源=件常量 _ZH_ALPHA_DECL,速查卡在档原文逐字)。
+    """四象限(pe关+透明开):正向=头句+空格+装配全文+空格+W1收束句+空格+尾句
+    逐字(Q4 两路同包 W1;1005 用户令去重——R1 的中文透明声明插入已删,它
+    逐字=中文头+尾拼接,头尾转中文后即书挡,再插一遍=同一句话出现两次,
+    锚定意图由中文头尾承担)。
 
     同锁降级象限:装配全文未接线+pe关→正向降级空串+中文 print 警告→包裹=
-    头句+" "+声明+" "+空串+" "+W1+" "+尾句(双空格形);负向路不随透明包裹
+    头句+" "+" "+W1+" "+尾句(双空格形);负向路不随透明包裹
     (透明包裹是正向路画幅指令)——pe关负向恒=负面词直写,缺键=空串。"""
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=False, 透明模式=True, 装配全文=_ASSEMBLED,
                        负面词直写=_DIRECT_NEG,
                        RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
-    expected = f"头句 {select._ZH_ALPHA_DECL} 装配全文例 W1句 尾句"
+    expected = f"头句 装配全文例 W1句 尾句"
     assert got == (expected, _DIRECT_NEG), \
-        f"pe关+透明开→正向=头句+中文声明+装配+W1+尾(R1+Q4)逐字+负向=直写,得 {got!r}"
-    # R1 声明逐字锁(官方中文同款=速查卡在档,两句空格分隔,插在头句后)
-    assert select._ZH_ALPHA_DECL == ("这是一张带有透明度的RGBA图像 "
-                                     "该图像具有alpha通道,背景是透明的"), \
-        f"_ZH_ALPHA_DECL 应=官方中文同款两声句逐字,得 {select._ZH_ALPHA_DECL!r}"
-    assert got[0].index(select._ZH_ALPHA_DECL) == len("头句 "), \
-        "中文声明应紧跟头句(头句后第一个空格即声明起)——R1「插在头句后」"
+        f"pe关+透明开→正向=头句+装配+W1+尾(去重后)逐字+负向=直写,得 {got!r}"
+    # 去重锁:R1 声明常量须已删(它逐字=中文头+尾拼接,插回即同一句话两次)
+    assert not hasattr(select, "_ZH_ALPHA_DECL"), \
+        f"_ZH_ALPHA_DECL 应已删(1005 去重令:头尾中文书挡后声明=逐字重复)"
     degraded = node.compose(pe开关=False, 透明模式=True,
                             RGBA官方头句="头句", RGBA官方尾句="尾句",
                             W1收束句="W1句")
-    assert degraded == (f"头句 {select._ZH_ALPHA_DECL}  W1句 尾句", ""), \
+    assert degraded == (f"头句  W1句 尾句", ""), \
         f"装配全文未接线+pe关→正向降级双空格形+负向缺键=空串(空负向合法态),得 {degraded!r}"
     # pe开路不消费装配全文=缺键照常(PE出文为正文;隔离降级语义不外溢)
     pe_on = node.compose(pe开关=True, 透明模式=False, PE出文="PE 文")
@@ -210,7 +209,7 @@ def test_5_two_port_shape_and_quadrant_expectations():
         (False, False, None, _ASSEMBLED, _DIRECT_NEG),
         (True, False, _PE_TEXT, _PE_TEXT, _DIRECT_NEG),   # 案B:直写胜
         (False, True, None,
-         f"头句 {select._ZH_ALPHA_DECL} 装配全文例 W1句 尾句", _DIRECT_NEG),
+         f"头句 装配全文例 W1句 尾句", _DIRECT_NEG),   # 1005 去重:声明插入已删
         (True, True, _PE_TEXT, f"头句 {_STRIPPED_PE} W1句 尾句", _DIRECT_NEG),
     ]
     for pe_on, transparent, pe_text, want_pos, want_neg in quadrants:
