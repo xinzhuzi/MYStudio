@@ -22,7 +22,7 @@
         "previewExposures": [],
         "ue_properties": {
           "widget_ue_connectable": {
-            "主体句": true
+            "正向主体句": true
           },
           "version": "7.8",
           "input_ue_unconnectable": {}
@@ -30,23 +30,9 @@
       },
       "inputs": [
         {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 12
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": 13
-        },
-        {
-          "name": "主体句",
+          "name": "正向主体句",
           "type": "STRING",
-          "widget": {
-            "name": "主体句"
-          },
-          "link": 15
+          "link": null
         },
         {
           "name": "型选择",
@@ -65,74 +51,46 @@
           "link": null
         },
         {
-          "name": "透明",
-          "type": "BOOLEAN",
-          "widget": {
-            "name": "透明"
-          },
-          "link": null
-        },
-        {
-          "name": "手动宽",
-          "type": "INT",
-          "widget": {
-            "name": "手动宽"
-          },
-          "link": null
-        },
-        {
-          "name": "手动高",
-          "type": "INT",
-          "widget": {
-            "name": "手动高"
-          },
+          "name": "负向主体句",
+          "type": "STRING",
           "link": null
         }
       ],
       "outputs": [
         {
           "name": "positive",
-          "type": "CONDITIONING",
-          "links": [
-            16
-          ]
+          "type": "STRING",
+          "links": []
         },
         {
           "name": "negative",
-          "type": "CONDITIONING",
-          "links": [
-            17
-          ]
+          "type": "STRING",
+          "links": []
         },
         {
           "name": "width",
           "type": "INT",
-          "links": [
-            1
-          ]
+          "links": []
         },
         {
           "name": "height",
           "type": "INT",
-          "links": [
-            2
-          ]
+          "links": []
         },
         {
-          "name": "最终文本",
+          "name": "wh_ratio",
           "type": "STRING",
-          "links": [
-            18
-          ]
+          "links": []
+        },
+        {
+          "name": "PE启用?",
+          "type": "BOOLEAN",
+          "links": []
         }
       ],
       "widgets_values": [
-        "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
         "人物",
-        true,
-        false,
-        0,
-        0
+        true
       ],
       "title": "[6] 文本提示词类型优化子图"
     }
@@ -622,10 +580,10 @@
               }
             },
             "widgets_values": [
-              "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE启用?/4013 PE扩写·官方T2IRewrite(1005 回官方设计)/4014 最终输出·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive STRING 最终文本/negative STRING 负面词/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),PE=装配全文的优化器;正负已在 [4012]/[4021] 前置路由,[4014]=MyQi21FinalOutput 只做透明包裹(pe开=PE出文/PE负面,pe关=装配全文/负面词直写;1004 中文PE=中文长文+中文负面出)"
+              "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE开关(MyQi21PESwitch)/4013 PE扩写·官方T2IRewrite(1005 回官方设计)/4014 最终输出·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive/negative(STRING=进编码正向文本/进编码负向文本)/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=主体句(1005 管线重序):prompt 槽接 [4012] MyQi21PESwitch 输出口0「PE路主体句」,PE=主体句的扩写器、只吃主体句(短句→英文长文);扩写文经 [4021] 主体句路由选择(开=PE出文/关=原句直通)进 [4011] 三层拼装(主体句+BASE+锁层A=装配全文;负面词=型+锁层+主体句负面 三源合并),装配全文/负面词 双口喂 [4014]=MyQi21FinalOutput 只做透明包裹(pe开=英文扩写主体句拼装/pe关=中文主体句直拼;1001 Q1=B+「装配全文进 PE」随 1005 拆件退役)"
             ],
             "widgets_values_named": {
-              "text": "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE启用?/4013 PE扩写·官方T2IRewrite(1005 回官方设计)/4014 最终输出·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive STRING 最终文本/negative STRING 负面词/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),PE=装配全文的优化器;正负已在 [4012]/[4021] 前置路由,[4014]=MyQi21FinalOutput 只做透明包裹(pe开=PE出文/PE负面,pe关=装配全文/负面词直写;1004 中文PE=中文长文+中文负面出)"
+              "text": "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE开关(MyQi21PESwitch)/4013 PE扩写·官方T2IRewrite(1005 回官方设计)/4014 最终输出·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive/negative(STRING=进编码正向文本/进编码负向文本)/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=主体句(1005 管线重序):prompt 槽接 [4012] MyQi21PESwitch 输出口0「PE路主体句」,PE=主体句的扩写器、只吃主体句(短句→英文长文);扩写文经 [4021] 主体句路由选择(开=PE出文/关=原句直通)进 [4011] 三层拼装(主体句+BASE+锁层A=装配全文;负面词=型+锁层+主体句负面 三源合并),装配全文/负面词 双口喂 [4014]=MyQi21FinalOutput 只做透明包裹(pe开=英文扩写主体句拼装/pe关=中文主体句直拼;1001 Q1=B+「装配全文进 PE」随 1005 拆件退役)"
             },
             "color": "#432",
             "bgcolor": "#653"

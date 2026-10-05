@@ -8,7 +8,8 @@ base_text→positive_text、负面中文化、05 库降级设计规范=A4 头部
 静态件不换=PE_CLASS_PLUGIN 单列);Phase D 编码器/画幅建议器迁主图([4015]/
 [4015N=4016]/[4018];子图六出=positive/negative 改 STRING+wh_ratio/PE启用?)
 +加速子图 [7010] cfg4+[7016] 负向档位 Note;[4014] 双口化(9 槽 4 占位
-wv=QI21_SG_SEL_WV_1004,双出进编码正/负向文本);锁层A 参数面与库逐字互锁
+wv 常量已随 1005 拆件退役删除——t2i [4014] 现为 MyQi21FinalOutput 零 widget,
+双出进编码正/负向文本);锁层A 参数面与库逐字互锁
 废止(改两件横锁 _wf_lock_a+骨架锚);数据↔库②层逐字互锁废止(改数据面
 结构锚:统一立绘底座/正向零禁令/中文负面基线/多彩行);i2i/edit 件未同步轮
 (Select 仍 7 值旧形,QI21_SG_SEL_WV 保留供其用)。
@@ -412,12 +413,6 @@ QI21_SG_ASM_WV = {"主体句": 0, "锁层A全文": 1}
 # 修法=wv 头部 2 空串占位(7 值形);占位恒空串(防未接线 PE出文 误用占位文本)。
 QI21_SG_SEL_WV = {"装配全文占位": 0, "PE出文占位": 1, "pe开关": 2, "透明模式": 3,
                   "RGBA官方头句": 4, "RGBA官方尾句": 5, "W1收束句": 6}
-# 1004 Phase B 双口化(qi21 件 9 值形):+负面词直写/PE负面 两连线槽(前置占位
-# 扩 4 头),wv 全序=[占位×4, pe开关, 透明模式, 头句, 尾句, W1];i2i/edit 件仍
-# 7 值旧形(未同步轮,沿用上表)。
-QI21_SG_SEL_WV_1004 = {"装配全文占位": 0, "负面词直写占位": 1, "PE出文占位": 2,
-                       "PE负面占位": 3, "pe开关": 4, "透明模式": 5,
-                       "RGBA官方头句": 6, "RGBA官方尾句": 7, "W1收束句": 8}
 # 1001 S8 R7 集成退役件(子图 28→10;防回潮):装配拼接7[130][131]+RGBA拼②[162][163]
 # +常量4[110][160][161][215]+剥离[206]+W1三拼[216][207][208]+透明文本开关[209]
 # +提示词开关(旧141,由装配全文件沿用)+画幅链6[153]-[158](152/151 由新件沿用/复用)
@@ -3656,9 +3651,13 @@ class TestQi21SubgraphContract:
         """子图版 Note 要点锁(1001 S8 集成轮更新):装配子图用法/MyQi21DaojieBase
         九选一/主体句纪律(空镜无人)/[27] 过目指引/锁层恒挂(迁 [141] 参数面)/底座
         美化口径/steps 40 完整态/RGBA 官方公式(中英)/画幅联动([151] 建议器)/0929
-        并行化加速区文案。S8 新锚:两件链(MyQi21PromptAssembly/MyQi21PromptSelect/
-        MyQi21WhSuggest)/Q1=B+ 装配全文直喂 PE/种子文 widget 退役/词族单源文件/
-        「从库刷参数」通道/28→10 节点。Note 被重跑回退即红。"""
+        并行化加速区文案。S8 新锚:两件链(MyQi21PromptAssembly/MyQi21FinalOutput/
+        MyQi21WhSuggest)/1005 管线重序(主体句过 PE:[4013] 只吃主体句→[4021] 路由
+        →[4011] 拼装→[4014] 最终输出无词族剥离)、「从库刷参数」通道/28→10 节点。
+        Note 被重跑回退即红。1005 重锚(10-06 契约收尾役):旧 token(PromptSelect/
+        种子文退役/qi21_strip_lexicon/最终文本出口名)换 1005 拆件新机制对应 token
+        ——依据=link304([4013].prompt←[4012]:0 PE路主体句)+my_qi21_final_output.py
+        compose(纯头尾包裹无剥离)+[6] 出口现名 positive/negative。"""
         note = _by_type(GRAPHS["qi21"], "MarkdownNote")[0]["widgets_values"][0]
         for token in ("装配子图", "MyQi21DaojieBase", "九型", "空镜无人",
                       "从库刷参数",
@@ -3685,10 +3684,21 @@ class TestQi21SubgraphContract:
                       "中文负面", "扩写TE", "expand_instruction", "负面词直写",
                       "[4018]", "进编码正向", "drop-in",
                       # 0928 PE 迁子图轮:面板控件口径([180] 总闸退役)
-                      "PE启用?", "画幅联动开关", "最终文本",
+                      # 1005 重锚:「最终文本」出口名已退役([6] 出口现名 positive/
+                      # negative,载荷=[4014] MyQi21FinalOutput 双口)→换新口名 token
+                      "PE启用?", "画幅联动开关", "进编码正向文本",
                       # 1001 S8 R7 集成轮新锚(裁定A两件链+Q1=B+)
-                      "MyQi21PromptAssembly", "MyQi21PromptSelect", "MyQi21WhSuggest",
-                      "装配全文", "种子文 widget 退役", "qi21_strip_lexicon.json",
+                      # 1005 重锚:t2i [4014] type 已换 MyQi21FinalOutput
+                      # (my_qi21_prompt_select.py:107-110 存照「t2i 不再用
+                      # MyQi21PromptSelect」)→PromptSelect 换 FinalOutput
+                      "MyQi21PromptAssembly", "MyQi21FinalOutput", "MyQi21WhSuggest",
+                      # 1005 重锚:「种子文 widget 退役」随 D5 旧锚(Q1=B+ 装配全文
+                      # 进 PE)退役——实测 link304=[4013].prompt←[4012]:0 PE路主体句
+                      # (PE=主体句扩写器)→换「只吃主体句」;「qi21_strip_lexicon.json」
+                      # 真源指针已死(my_nodes 下无此文件)且 [4014] FinalOutput.compose
+                      # 无剥离(my_qi21_final_output.py:190-194 纯头尾包裹)→换
+                      # 「无词族剥离」
+                      "装配全文", "只吃主体句", "无词族剥离",
                       "28→10 节点", "裁定A"):
             assert token in note, f"Note 缺子图版要点: {token!r}"
 
