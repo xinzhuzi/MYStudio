@@ -26,8 +26,7 @@ class MyQi21PromptPreview:
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
         return {
-            "required": {},
-            "optional": {
+            "required": {
                 "正向提示词": ("STRING", {
                     "multiline": True, "default": "",
                     "tooltip": "正向终稿(主体句扩写+类型句+美术底座)"}),
