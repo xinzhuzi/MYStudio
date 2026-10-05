@@ -63,6 +63,8 @@ Write evidence to the task's `research/archive_precheck_<YYYYMMDD>.md`. Any red 
 
 Applies when the task being archived was executed via dynamic-workflow runs(战役型任务). Full rules in `.claude/CLAUDE.md` 铁律 8. Before `task.py archive`:
 
+0. **C1 机检先行**:`python3 apps/build/scripts/campaign_closeout_audit.py --task <task-name>` —— 输出(--json 同步留档)贴进 `research/archive_precheck_<YYYYMMDD>.md` 作 C1 证据;**exit 2(任何红)= no archive**;warn 项=候令/候窗,须在四标清单中写明等谁的令/什么窗。
+
 1. **Run 终态核验**:`ListWorkflowRuns` —— 本战役全部 run 须已终态;被停且仍有在飞步骤的 run ≤24h 须 `ResumeWorkflowRun` 续跑或把剩余步转记进任务档,不许带活归档。
 2. **notCovered 接力核对**:最后一条 run 的 notCovered 清单逐项有着落——`done / 候令 / 候窗 / 归档于X` 四类之一;悬空项=欠账,**欠账非零不得归档**。
 3. **四标清单落档**:收官四标(done/候令/候窗/欠账)清单写进任务档(implement.md 尾部或 check 记录),不只留在会话报告散文里。

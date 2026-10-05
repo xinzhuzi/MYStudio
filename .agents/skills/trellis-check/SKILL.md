@@ -141,7 +141,7 @@ If a fix would touch files outside the current task's scope, say so and stop ins
 
 本节在「代码写完要验质量」之外补一道「战役要收官先清账」的门。适用:多阶段、跑 dynamic workflow、由任务档驱动的战役型任务;单文件快改不适用。规矩全文见 `.claude/CLAUDE.md` 铁律 8。
 
-宣称「收官/全清/终态」前逐项核验:
+**机检入口(先跑再人工)**:`python3 apps/build/scripts/campaign_closeout_audit.py --task <任务目录名>`——exit 0=无红,exit 2=有红须清账后复跑;`--json` 供 workflow 收尾 phase 断言;`--evidence <临时取证路径>` 可反复传。下列人工项在机检之外补语义判断(四标是否属实、归账路径是否成立):
 
 - [ ] **对拍任务档**:implement.md 全部 Phase 行逐行结清,每行打四标之一 `done / 候令 / 候窗 / 欠账`(候令须写明等谁的什么令;**欠账非零=不得称收官**,只能称阶段边界)
 - [ ] **git 账面**:工作树 M 件数、未 push 笔数;非零则逐件写明归账路径(谁的役、随哪笔提交),不许「先放着」无主
