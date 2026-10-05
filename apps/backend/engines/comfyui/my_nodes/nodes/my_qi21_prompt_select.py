@@ -406,7 +406,15 @@ class MyQi21PromptSelect:
             # 负向=1005 案B 直写优先——负面词直写(型+锁层真值)非空恒胜,
             # PE负面 仅空档兜底(修 PE 编造词顶掉真负面断路;⑮ 对调)
             main_text = PE出文
-            transparent_mid = strip_word_family(PE出文) + " " + W1收束句
+            # 1005 ㉜ 重序修复:PE出文=装配全文(PE扩写主体句\n型底座\n锁层A)
+            # 剥离只作用于第一段(PE 扩写段),中文型底座/锁层A 段禁过剥离
+            # (旧管线 PE出文=纯英文长文可整段剥;新管线中文层含画风定义句,
+            #  zh 词族"山水/远景"会误删锁层A 核心句——深度审查 HIGH-2 实锤)
+            _parts = PE出文.split("\n", 1)
+            _stripped_subject = strip_word_family(_parts[0])
+            _kept_layers = _parts[1] if len(_parts) > 1 else ""
+            _stripped_full = _stripped_subject + ("\n" + _kept_layers if _kept_layers else "")
+            transparent_mid = _stripped_full + " " + W1收束句
             pe_neg = (PE负面 or "").strip()
             negative_text = direct_neg if direct_neg else pe_neg
         else:

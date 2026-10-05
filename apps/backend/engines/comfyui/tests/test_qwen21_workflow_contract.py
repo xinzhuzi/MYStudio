@@ -2127,10 +2127,8 @@ def _wf_lock_a() -> str:
     在档旧全本,装载后覆盖 default=执行值仍是旧全本——参数面与数据层的重灌走
     「从库刷参数」通道(说明卡注),本测试不锁两者逐字,只锁 qi21/i2i 两件参数
     面同值(防单件漂移)+骨架锚(见 test_lock_constant_present_and_always_wired)。"""
-    qi_lock = _qi21_sg_nodes(GRAPHS["qi21"])[QI21_SG_ASM_ID]["widgets_values"][
-        QI21_SG_ASM_WV["锁层A全文"]]
-    i2i_lock = _qi21_sg_nodes(GRAPHS["i2i"])[I2I_SG_ASM_ID]["widgets_values"][
-        I2I_SG_ASM_WV["锁层A全文"]]
+    qi_lock = _qi21_sg_nodes(GRAPHS["qi21"])[QI21_SG_ASM_ID]["widgets_values"][-1]  # 2005 ㉜后=4值形,锁层A=末位
+    i2i_lock = _qi21_sg_nodes(GRAPHS["i2i"])[I2I_SG_ASM_ID]["widgets_values"][-1]  # i2i 2值形,锁层A=末位
     assert qi_lock == i2i_lock, \
         "锁层A 参数面 qi21/i2i 两件应同值(1004 横锁;漂移=单件被误改)"
     return qi_lock
@@ -3125,7 +3123,7 @@ class TestQi21SubgraphContract:
         # 真源=qi21_bases.json lock_layer,存量参数=历史在档旧全本,见 _wf_lock_a)
         # ——改锁两件横锁+骨架锚(风骨三段俱在,防参数被清空/误删段)
         lock_a = _wf_lock_a()
-        assert _widget(asm, QI21_SG_ASM_WV["锁层A全文"]) == lock_a, \
+        assert asm["widgets_values"][-1] == lock_a, \
             "[4011] 锁层A全文参数 应=两件在档同值(1004 横锁;恒挂=装配公式第三段)"
         assert lock_a.startswith("风格底座：") and "线描优先工笔结构：" in lock_a \
             and "成片质量：" in lock_a, \
@@ -3220,7 +3218,7 @@ class TestQi21SubgraphContract:
         assembled = "\n".join([
             _widget(nodes[QI21_SUBJECT_ID], 0),
             qi21["人物"]["positive_text"],
-            _widget(sg_nodes[QI21_SG_ASM_ID], QI21_SG_ASM_WV["锁层A全文"])])
+            sg_nodes[QI21_SG_ASM_ID]["widgets_values"][-1]])
         want = "\n".join([
             _widget(nodes[QI21_SUBJECT_ID], 0),
             qi21["人物"]["positive_text"],
