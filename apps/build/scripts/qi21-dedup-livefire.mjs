@@ -8,7 +8,8 @@
  * 去重后透明开正向文本 = 头句 + " " + 装配全文 + " " + W1收束句 + " " + 尾句
  * (compose,my_qi21_final_output.py:190-194)——三短语各恰好出现 1 次(修复前各 2 次):
  *   「这是一张带有透明度的RGBA图像」「该图像具有alpha通道」「主体呈现为干净的平面剪裁」。
- * 主判据=④文本计数断言(机器门);alpha 四角=⑤信息项非门。
+ * 主判据=④文本计数断言(机器门);alpha=⑤三门机器门(1005 升门:
+ * mode==RGBA / 四角 alpha 全≤8 / PNG 取证成功,任一不过 exit 1)。
  *
  * 取证位定谳:resolved 正向文本不内联在排队图(TextEncodeQwenImage21.prompt=连线
  * 引用 ["6",0])——真源=根图 [401] MyQi21PromptPreview(OUTPUT_NODE=True,
@@ -26,8 +27,13 @@
  *   ③真前端 app.queuePrompt 发一枪,poll /history 至终态(预算 30 分钟;
  *     Fun-Acc 4 步默认档通常几分钟);
  *   ④取 [401] merged 正向段,三短语计数各==1;任一不满足 exit 1 + 打印实际文本前后 80 字;
+ *   ④b(S11,插 S8/S9 间)显示层端到端:wv() 在 webview 取子图 [401] 合并预览框值
+ *     (web JS onExecuted 回填,__myPreviewDisplay 标记,my-qi21-prompt-preview.js:35)
+ *     ——两门:长度>300 且含透明头句;host.subgraph 取不到回退 canvas.graph(子图
+ *     打开态),双路皆空=FAIL+诊断(host 键名/widgets 名单),不许静默跳过;
  *   ⑤取输出 PNG,引擎 venv python(~/Project/IP/漫影工作室/comfyui/venv/bin/python
- *     优先)读 alpha 四角;RGB 无 alpha 如实打印(信息项,非门);
+ *     优先)读 mode/size/四角 RGBA(stdout 一行 JSON);三门:mode==RGBA、
+ *     四角 alpha 全≤8、PNG 取证成功——任一不过 FAIL 进 results(参与 exit code);
  *   ⑥证据写 apps/output/comfy-canvas-verify/dedup-livefire.md;KEEP_APP=1 留 App。
  *
  * 退出码:0=全过;1=断言失败;2=环境错误。stdout 简洁行(门禁只认 exit code)。
@@ -301,24 +307,25 @@ const ctxAround = (t, s) => {
   return JSON.stringify(t.slice(Math.max(0, i - 80), i + s.length + 80));
 };
 
-// ── ⑤alpha 四角(引擎 venv python 优先;信息项非门) ──
+// ── ⑤alpha 探针(引擎 venv python 优先;stdout 一行 JSON:mode/size/corners) ──
 function alphaProbe(pngPath) {
   const script = join(TMP, "alpha_probe.py");
-  writeFileSync(script, `import sys
+  writeFileSync(script, `import sys, json
 try:
     from PIL import Image
 except Exception as e:
-    print("PIL_IMPORT_FAIL:" + str(e)); sys.exit(3)
+    print(json.dumps({"error": "PIL_IMPORT_FAIL", "detail": str(e)})); sys.exit(3)
 im = Image.open(sys.argv[1])
-print("mode=%s size=%s" % (im.mode, im.size))
-has_alpha = im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info)
-if not has_alpha:
-    print("RGB 无 alpha(信息项,非门)")
-else:
+mode = im.mode
+size = list(im.size)
+has_alpha = mode in ("RGBA", "LA") or (mode == "P" and "transparency" in im.info)
+corners = []
+if has_alpha:
     rgba = im.convert("RGBA")
     w, h = rgba.size
     for c in [(0,0),(w-1,0),(0,h-1),(w-1,h-1)]:
-        print("corner %s RGBA=%s" % (c, rgba.getpixel(c)))
+        corners.append(list(rgba.getpixel(c)))
+print(json.dumps({"mode": mode, "size": size, "corners": corners}))
 `);
   const cands = [
     `${HOME}/Project/IP/漫影工作室/comfyui/venv/bin/python`,
@@ -337,7 +344,7 @@ else:
       if (!msg.includes("PIL_IMPORT_FAIL")) return { py, out: `PYTHON_ERR ${last}` }; // 非缺 PIL=脚本/文件错,不再换
     }
   }
-  return { py: null, out: `PIL 不可用,alpha 未读(信息项,非门)(${last})` };
+  return { py: null, out: `PIL 不可用,alpha 未读,三门将 FAIL(${last})` };
 }
 
 // ═══════════ 主流程(失败也落证据,统一收摊) ═══════════
@@ -604,8 +611,58 @@ async function main() {
       }
     }
 
-    // ── S9 ⑤alpha 四角(信息项非门)+ /view 取证落盘 ──
-    step("S9", "输出 PNG alpha 四角(信息项,非门)");
+    // ── S11 预览框回填门(显示层端到端:[401] 合并预览框由 web JS onExecuted 回填, ──
+    //    与 S8 的服务端 history 文本互为独立证据;widget 标记 __myPreviewDisplay)
+    step("S11", "预览框回填门(webview 显示层 [401] 合并预览框)");
+    if (!hist || hist.error) {
+      check("S11 显示控件值可读(subgraph→canvas 回退)", false, "前置断(S7 无成功终态),回填门未执行");
+    } else {
+      // /history 终态与前端 onExecuted(websocket)可能有秒级竞态:短轮询收口,取到即停
+      let s11raw = null;
+      for (let i = 0; i < 6; i++) {
+        s11raw = await wv(client, `(() => {
+          const host = window.app.graph._nodes.find(n => n.type === ${JSON.stringify(truth.asmId)});
+          const sg = host && host.subgraph;
+          let pvn = sg && sg.nodes && sg.nodes.find(n => n.type === "MyQi21PromptPreview");
+          let via = "host.subgraph";
+          if (!pvn) { // 回退:子图打开态时 canvas.graph 即子图内部图
+            const cg = window.app.canvas && window.app.canvas.graph;
+            pvn = cg && (cg._nodes || cg.nodes || []).find(n => n.type === "MyQi21PromptPreview");
+            via = "canvas.graph";
+          }
+          const w = pvn && pvn.widgets && pvn.widgets.find(x => x.__myPreviewDisplay);
+          const text = String((w && w.value) || "");
+          if (text) return JSON.stringify({ text: text, via: via });
+          return JSON.stringify({ text: "", via: via, diag: {
+            hostFound: !!host,
+            hostKeys: host ? Object.keys(host).join("|").slice(0, 300) : null,
+            hostWidgets: host && host.widgets ? host.widgets.map(x => x.name).join(",") : null,
+            sgNodes: sg && sg.nodes ? sg.nodes.length : null,
+            pvnFound: !!pvn,
+            pvnWidgets: pvn && pvn.widgets ? pvn.widgets.map(x => x.name).join(",") : null } });
+        })()`);
+        let r = null; try { r = JSON.parse(String(s11raw)); } catch { /* keep null */ }
+        if (r && r.text) break;
+        log(`S11 显示框未取到/未回填(第${i + 1}次)——${s11raw == null ? "wv 执行异常" : String(s11raw).slice(0, 160)}`);
+        await sleep(2000);
+      }
+      let s11 = null; try { s11 = JSON.parse(String(s11raw)); } catch { /* keep null */ }
+      const s11Text = s11 && typeof s11.text === "string" ? s11.text : "";
+      if (s11Text) {
+        check("S11 显示控件值可读(subgraph→canvas 回退)", true, `via=${s11.via} 长度=${s11Text.length}`);
+        check("S11 预览框回填门1 显示值长度>300", s11Text.length > 300, `实际=${s11Text.length}`);
+        const s11Hit = s11Text.includes(NEEDLE_HEAD);
+        check(`S11 预览框回填门2 含透明头句「${NEEDLE_HEAD}」`, s11Hit,
+          s11Hit ? `count=${countOf(s11Text, NEEDLE_HEAD)}` : ctxAround(s11Text, NEEDLE_HEAD));
+      } else {
+        check("S11 显示控件值可读(subgraph→canvas 回退)", false,
+          `双路径均未取到显示控件值——诊断(host 键名/widgets 名单) ${String(s11raw).slice(0, 400)}`);
+      }
+    }
+
+    // ── S9 ⑤alpha 三门(mode==RGBA/四角 alpha≤8/PNG 取证成功)+ /view 取证落盘 ──
+    step("S9", "输出 PNG alpha 三门(RGBA/四角≤8/取证成功)");
+    let pngOk = false;
     if (hist && !hist.error) {
       const imgs = [];
       for (const [k, o] of Object.entries(hist.entry.outputs || {})) if (o.images) imgs.push({ key: k, arr: o.images });
@@ -625,14 +682,24 @@ async function main() {
       }
       if (pngBuf) {
         writeFileSync(outPngPath, pngBuf);
+        pngOk = true;
         const ap = alphaProbe(outPngPath);
         alphaPy = ap.py || "-"; alphaOut = ap.out;
       } else {
-        alphaOut = "无输出图可取,alpha 跳过(信息项,非门)";
+        alphaOut = "无输出图可取";
       }
     } else {
-      alphaOut = "前置断(S7 无成功终态),alpha 跳过(信息项,非门)";
+      alphaOut = "前置断(S7 无成功终态),无 PNG 可探";
     }
+    // 三门(1005 升门:任一不过=FAIL 进 results,参与 exit code;探针输出为一行 JSON)
+    let alphaInfo = null;
+    try { alphaInfo = JSON.parse(String(alphaOut)); } catch { alphaInfo = null; }
+    const corners = Array.isArray(alphaInfo?.corners) ? alphaInfo.corners : [];
+    check("⑤ alpha 门1 PNG 取证成功", pngOk, pngOk ? `${outPngPath}(${pngFilename})` : String(alphaOut).slice(0, 160));
+    check("⑤ alpha 门2 mode==RGBA", alphaInfo?.mode === "RGBA", `mode=${alphaInfo?.mode ?? "?"}`);
+    check("⑤ alpha 门3 四角 alpha 全≤8",
+      corners.length === 4 && corners.every((c) => Array.isArray(c) && c.length >= 4 && Number(c[3]) <= 8),
+      corners.length ? JSON.stringify(corners) : `corners=${corners.length}(需 4)`);
     log(`⑤ alpha(${alphaPy}): ${alphaOut.split("\n").join(" | ").slice(0, 280)}`);
   } catch (e) {
     fatal = String(e?.message || e).slice(0, 400);
@@ -679,7 +746,7 @@ async function main() {
       posText ?? "(未取到——见上判定行)",
       "```",
       ``,
-      `## ⑤ alpha 四角(信息项,非门)`,
+      `## ⑤ alpha 三门(mode==RGBA/四角 alpha≤8/PNG 取证成功)`,
       ``,
       `- python: \`${alphaPy}\``,
       `- 输出 PNG: ${pngFilename ? `${outPngPath}(${pngFilename})` : "无"}`,

@@ -22,7 +22,13 @@ app.registerExtension({
         const onExecuted = nodeType.prototype.onExecuted;
         nodeType.prototype.onExecuted = function (message) {
             onExecuted?.apply(this, arguments);
-            const merged = (message && message.merged) || [""];
+            // 前端版本差异:有的传 ui 载荷(message.merged),有的传整个 detail
+            // (message.output.merged)——两种形态都吃(1005 实弹定谳:前者取不到
+            // 时 text 落成空串,框被"清空",正是当晚首跑实弹所见)。
+            const payload = message && message.merged ? message
+                : message && message.output && message.output.merged ? message.output
+                : null;
+            const merged = (payload && payload.merged) || [""];
             const text = String(merged[0] ?? "");
             const w = (this.widgets || []).find((x) => x.__myPreviewDisplay);
             if (!w) return;
