@@ -29,8 +29,10 @@ class MyQi21PromptPreview:
             "required": {},
             "optional": {
                 "正向提示词": ("STRING", {
+                    "multiline": True, "default": "",
                     "tooltip": "正向终稿(主体句扩写+类型句+美术底座)"}),
                 "负向提示词": ("STRING", {
+                    "multiline": True, "default": "",
                     "tooltip": "负向终稿(类型负面+美术负面+主体句负面)"}),
             },
         }
