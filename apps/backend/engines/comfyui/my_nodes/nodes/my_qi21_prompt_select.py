@@ -351,19 +351,10 @@ class MyQi21PromptSelect:
         投递)按 widget default=True 兜底(0926 裁定1「画布默认 PE 开路」
         语义不随槽位搬家漂移)。
         """
-        if pe开关 is None:
-            pe开关 = True
-        if not pe开关:
-            return []
-        requests: list[str] = []
-        for slot in ("PE出文", "PE负面"):
-            if slot in kwargs and kwargs[slot] is None:
-                requests.append(slot)
-        return requests
+        return []  # 2005 简化:无 lazy 槽
 
     def compose(self, 装配全文: str | None = None,
-                负面词直写: str | None = None, PE出文: str | None = None,
-                PE负面: str | None = None, pe开关: bool | None = None,
+                负面词直写: str | None = None,
                 透明模式: bool = False, RGBA官方头句: str = _RGBA_HEAD,
                 RGBA官方尾句: str = _RGBA_TAIL,
                 W1收束句: str = _TAIL) -> tuple[str, str]:
