@@ -314,7 +314,7 @@ VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
 # PE 改写组契约(1004 Phase C 换件:自建中文 PE MyQi21ChinesePE drop-in 替插件
 # QwenImage21_T2IPromptRewrite,连线槽名不变(prompt/clip);qi21 件已换件——
 # 通用官方件 qwen21-t2i.json 仍持插件原件(静态官方件不动口径)
-PE_CLASS = "MyQi21ChinesePE"
+PE_CLASS = "QwenImage21_T2IPromptRewrite"  # 1005 用户令回官方件(此前 MyQi21ChinesePE)
 PE_CLASS_PLUGIN = "QwenImage21_T2IPromptRewrite"  # t2i 通用官方件(未随 1004 换件)
 PE_CLIP_FILE = "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors"
 # MyQi21ChinesePE(1004 前插件 QwenImage21_T2IPromptRewrite 同序 drop-in)
@@ -388,7 +388,7 @@ QI21_MAIN_TE_ID = 4015        # 主编码 TextEncodeQwenImage21(主图;text←[6
 QI21_NEG_TE_ID = 4016         # 负向编码 [4015N] TextEncodeQwenImage21(主图;text←[6].negative;id 复用 10-02 退役 RGBA 编码号)
 QI21_WH_ID = 4018             # MyQi21WhSuggest 画幅建议器(主图;wh_ratio←[6] 槽4)
 QI21_ACC_NOTE_ID = 7016       # 加速子图负向生效档位 Note(Phase D D6b)
-QI21_SG_PE_RW = 4013                                                # MyQi21ChinesePE(1004 换件;prompt←[4011].装配全文)
+QI21_SG_PE_RW = 4013                                                # 官方T2IRewrite(1005 回官方;prompt←[4011].装配全文)
 QI21_SG_TE = QI21_MAIN_TE_ID  # 语义名随迁(10-02 单口化主编码;1004 迁主图)
 # 10-02 单口化退役(双编码+输出选择闸门塌缩;防回潮=QI21_SG_GONE_IDS 在册):
 #   QI21_SG_TE_RGBA=4016(RGBA编码)/QI21_SG_RGBA_SW=4017(输出选择 SwitchNode)
@@ -3630,7 +3630,7 @@ class TestQi21SubgraphContract:
                       "摆设值不生效", "加速区", "[4013]", "[4011]",
                       # 1004 中文负面+cfg4 役新锚(D6/D7:自建中文 PE+负向编码器+
                       # 加速子图负向档位 Note+词族/PE 补丁真源迁 qi21_bases.json)
-                      "MyQi21ChinesePE", "[4015N]", "负向仅档1", "[7016]", "cfg4",
+                      "QwenImage21_T2IPromptRewrite", "[4015N]", "负向仅档1", "[7016]", "cfg4",
                       "中文负面", "扩写TE", "expand_instruction", "负面词直写",
                       "[4018]", "进编码正向", "drop-in",
                       # 0928 PE 迁子图轮:面板控件口径([180] 总闸退役)
@@ -4573,11 +4573,11 @@ class TestCountAnchor:
         import hashlib
         pinned = {
             "image_qwen_image_2_1_t2i.json":
-                "d33a6b36d530756e26ef4e25beb17d950daaea09d295475cd65f97f5d0af3b41",
+                "737ce0400bdca139108b6c88b033c0cd8b40dba5b1ca5c3495872ee3824471e3",
             "image_qwen_image_2_1_image_edit.json":
-                "d6dd8695469c20ca5e77b4bddf981b898ee0e034f0cfc5840c86f15b812ca081",
+                "25b9f329e26331c31318dd8f42d64b387e5bf4b786fe890a6ef159e60519f8ee",
             "image_qwen_image_2_1_background_removal.json":
-                "642e700e358fd47911d35f61c545945821fd516c898b793e9f58f5a92439aa72",
+                "2e7b22f9040a59eabcad59a7af8ceaa0e69844fc5fd078723e0b743633caed9a",
         }
         for name, sha in pinned.items():
             p = _IMG_DIR / "Q2-1图像" / "0_官方模板" / name

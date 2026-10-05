@@ -448,7 +448,7 @@
           },
           {
             "id": 4013,
-            "type": "MyQi21ChinesePE",
+            "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
               1428.9534098307286,
               1856.298950195312
@@ -517,9 +517,9 @@
                 "links": []
               }
             ],
-            "title": "[4013] 中文PE改写·MyQi21ChinesePE",
+            "title": "[4013] PE改写·官方T2IRewrite",
             "properties": {
-              "Node name for S&R": "MyQi21ChinesePE",
+              "Node name for S&R": "QwenImage21_T2IPromptRewrite",
               "ue_properties": {
                 "widget_ue_connectable": {},
                 "version": "7.8",
@@ -657,7 +657,7 @@
               }
             },
             "widgets_values": [
-              "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE启用?/4013 中文PE·MyQi21ChinesePE/4014 合成器·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive STRING 最终文本/negative STRING 负面词/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),PE=装配全文的优化器;正负双路选择在 [4014] MyQi21PromptSelect(pe开=PE出文/PE负面,pe关=装配全文/负面词直写;1004 中文PE=中文长文+中文负面出)"
+              "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE启用?/4013 PE改写·官方T2IRewrite(1005 回官方设计)/4014 合成器·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive STRING 最终文本/negative STRING 负面词/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),PE=装配全文的优化器;正负双路选择在 [4014] MyQi21PromptSelect(pe开=PE出文/PE负面,pe关=装配全文/负面词直写;1004 中文PE=中文长文+中文负面出)"
             ],
             "widgets_values_named": {
               "text": "[4100] 装配子图段说明卡(1002 大轮终态编号:4010 底座/4011 底料拼合/4012 PE启用?/4013 PE改写/4014 合成器·单口/4015 主编码·独挑/4018 画幅建议器/4019 PE专属TE/4020 PE思考预览(10-02 单口化:双编码+输出选择塌缩,[4014] 单口「进编码文本」直喂 [4015],透明/非透明选择边界迁入合成器);机制细节见主图 [402] 速查卡)\n[4013] 输入=装配全文件·装配全文(1001 S8 Q1=B+ 裁定 / 裁定A拆件):prompt 槽接 [4011] MyQi21PromptAssembly(底料拼合)输出口0「装配全文」(主体句+BASE+锁层A),种子文 widget 已退役清空——PE=装配全文的优化器;路选择在 [4014] MyQi21PromptSelect(pe开=PE出文/pe关=装配全文直写)"
@@ -848,7 +848,7 @@
                 ]
               }
             ],
-            "title": "[4019] 扩写TE·heretic(1005换装:中文PE听指令;旧pe_t2i=英文改写模型——语言由检查点决定,E1/E5实验定谳)",
+            "title": "[4019] 扩写TE·CLIPLoader(pe_t2i·1005回官方)",
             "properties": {
               "Node name for S&R": "CLIPLoader",
               "ue_properties": {
@@ -862,7 +862,7 @@
               }
             },
             "widgets_values": [
-              "qwen3vl_8b_bf16_heretic.safetensors",
+              "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
               "qwen_image",
               "default"
             ],
