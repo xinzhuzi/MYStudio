@@ -438,10 +438,25 @@
         {
           "name": "主体句",
           "type": "STRING",
-          "widget": {
-            "name": "主体句"
-          },
           "link": 15
+        },
+        {
+          "name": "型选择",
+          "type": "COMBO",
+          "link": null,
+          "widget": true
+        },
+        {
+          "name": "PE启用?",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": true
+        },
+        {
+          "name": "透明",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": true
         },
         {
           "name": "手动宽",
