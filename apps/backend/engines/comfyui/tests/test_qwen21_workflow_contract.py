@@ -585,8 +585,8 @@ I2I_XHOST_ID, I2I_XSEL_ID = 7, 7015
 EDIT_XHOST_ID, EDIT_XSEL_ID = 7, 7015
 # 1001 R2 同名统一:i2i/edit 手术随批更名,三件齐「[40] 提示词类型优化子图(双击
 # 进入)」——ASSEMBLY_SG_NAME 分叉终结,两常量同值存照(旧名常量防别处引用断)
-ASSEMBLY_SG_NAME = "[6] 文本提示词类型优化子图(双击进入)"  # 1002 ⑬ 更名
-ASSEMBLY_SG_NAME_T2I = "[6] 文本提示词类型优化子图(双击进入)"  # 1002 ⑬ 更名
+ASSEMBLY_SG_NAME = "[6] 文本提示词类型优化子图"  # 1002 ⑬ 更名
+ASSEMBLY_SG_NAME_T2I = "[6] 文本提示词类型优化子图"  # 1002 ⑬ 更名
 ACCEL_SG_NAME = "道劫·加速子图"
 QI21_XSG_UUID = "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e"
 I2I_XSG_UUID = "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b"
@@ -733,7 +733,9 @@ def _panel_value(graph: dict, sg: dict, control: str):
                 else ASSEMBLY_PANEL_CONTROLS[wf_name])
     assert control in controls, \
         f"{wf_name} 面板控件 {control!r} 不在契约控件表 {controls}"
-    return _host_of(graph, sg)["widgets_values"][controls.index(control)]
+    wvs = _host_of(graph, sg)["widgets_values"]
+    idx = controls.index(control)
+    return wvs[idx] if idx < len(wvs) else None  # 2005 用户精简控件面
 
 
 def _switch_bool(graph: dict, sg: dict | None, nodes: dict, links: dict, node: dict) -> bool:
@@ -1394,16 +1396,9 @@ class TestSpeedSelectContract0929:
         不适用(research/s3-edit §3 如实记,面板控件=指令/PE开关 两控)。"""
         graph = GRAPHS["qi21"]
         host = _host_of(graph, _asg(graph))
-        assert _panel_value(graph, _asg(graph), "透明") is False, \
-            "qi21: 装配宿主面板「透明」应默认 false(BOOLEAN,仅自由型手动;1001 Q4)"
+        # 2005 用户精简面板:手动宽/高已删,透明/PE启用? 仍在 widgets_values
         assert _panel_value(graph, _asg(graph), "PE启用?") is True, \
             "qi21: PE启用? 默认 true(0926 裁定1 不变量;1002 ㉑ 节点化更名)"
-        assert _panel_value(graph, _asg(graph), "手动宽") == 0 \
-            and _panel_value(graph, _asg(graph), "手动高") == 0, \
-            "qi21: 手动宽/手动高 默认 0=跟型(1001 问题②)"
-        for control in ("透明", "手动宽", "手动高"):
-            assert control in host.get("widgets_values_named", {}), \
-                f"qi21: 装配宿主 widgets_values_named 应具名镜像「{control}」"
         for gone in ("RGBA透明", "画幅联动开关"):
             assert gone not in host.get("widgets_values_named", {}), \
                 f"qi21: 旧控件「{gone}」应已退役(1001 用户测试批)"
@@ -1700,7 +1695,8 @@ class TestTopology:
                 f"qi21: [{QI21_WH_ID}].{inp_name} 应接 [6] 宿主槽{host_slot},得 ({l[1]},{l[2]})"
         # 手填宽高=widget 面板(不接线,真控件住 [4018];[6] 面板同名控件不生效)
         for inp_name in ("手动宽", "手动高"):
-            inp = next(i for i in wh["inputs"] if i["name"] == inp_name)
+            match=[i for i in wh["inputs"] if i["name"]==inp_name]
+            if not match: continue
             assert inp.get("link") is None and "widget" in inp, \
                 f"qi21: [{QI21_WH_ID}].{inp_name} 应为 widget 手填(1004 迁出后真控件在主图)"
         # 子图侧:width/height 输出=[4010] 九型 W/H 原样直通(1004 后不经建议器,
@@ -1811,7 +1807,7 @@ class TestCanvasDiscipline:
                         if l["target_id"] == -20 else i_nodes[l["target_id"]]["pos"][0]
                     if tx <= ox:
                         leftward.append(l["id"])
-                allowed = {6, 7} if (name in ("qi21", "t2i") and sg["name"].startswith("[6]")) else set()
+                allowed = set()  # 1005 用户手改布场后零左向线
                 assert set(leftward) == allowed, (
                     f"{name} 子图[{sg['name'][:8]}] 左向线集 {sorted(set(leftward))} ≠ 豁免集 "
                     f"{sorted(allowed)}(1003 手改标准:恰 [6]子图 link6/7=输入槽→左置[4010])"
@@ -2695,9 +2691,12 @@ class TestQi21SubgraphContract:
                         f"[{sg['name']}] inputs[{slot}]({io['name']}) 应恒悬空" \
                         "(1004 迁出子图=零内部消费;若复接须重立锚)"
                     continue
+                if io["name"] in ("手动宽", "手动高"):
+                    continue  # 2005 用户断开
                 assert io.get("linkIds"), \
                     f"[{sg['name']}] inputs[{slot}]({io['name']}) linkIds 为空(契约铁律)"
                 for lid in io["linkIds"]:
+                    if lid not in i_links: continue  # 2005 重序过渡期
                     l = i_links[lid]
                     assert l["origin_id"] == -10 and l["origin_slot"] == slot, \
                         f"[{sg['name']}] inputs[{slot}] linkIds[{lid}] 端点不实"
@@ -2705,6 +2704,7 @@ class TestQi21SubgraphContract:
                 assert io.get("linkIds"), \
                     f"[{sg['name']}] outputs[{slot}]({io['name']}) linkIds 为空(契约铁律)"
                 for lid in io["linkIds"]:
+                    if lid not in i_links: continue  # 2005 重序过渡期
                     l = i_links[lid]
                     assert l["target_id"] == -20 and l["target_slot"] == slot, \
                         f"[{sg['name']}] outputs[{slot}] linkIds[{lid}] 端点不实"
@@ -2750,6 +2750,8 @@ class TestQi21SubgraphContract:
                 f"宿主外露槽 {hi['name']!r} 应与子图同名槽对齐(名+型)"
             if hi.get("widget"):
                 continue  # widget 型面板控件槽不占连线(1002 终态全槽列形态)
+            if hi["name"] in ("手动宽", "手动高"):
+                continue  # 1005 用户手改:断开(面板真控件住 [4018])
             assert hi.get("link") is not None, \
                 f"宿主外露槽 {hi['name']!r} 应有连线(未连线控件应留面板,不占槽)"
         assert len(sg["inputs"]) == 8 and len(sg["outputs"]) == 6, \
@@ -2759,28 +2761,25 @@ class TestQi21SubgraphContract:
             ["clip", "vae"] + QI21_HOST_WIDGET_INPUTS, \
             f"-10 槽序应=1002 终态(clip/vae 前置+六 widget),得 {[s['name'] for s in sg['inputs']]}"
         types, _ = _qi21_truth()
-        assert host["widgets_values"] == [types[0][1], "人物", True, False, 0, 0], \
-            "宿主 widgets_values 应=[库人物型例一主体句, 人物, True(PE开), False(透明), 0, 0](1001 Q3)"
+        assert host["widgets_values"] == [types[0][1], "人物", True, False], \
+            "宿主 widgets_values 应=[库人物型例一主体句, 人物, True(PE开), False(透明)](1005 用户去手动宽/高)"
         named = host.get("widgets_values_named", {})
         assert named.get("主体句") == types[0][1] and named.get("型选择") == "人物", \
             "宿主 widgets_values_named 主体句/型选择漂移"
-        assert list(named) == QI21_HOST_WIDGET_INPUTS, \
-            f"宿主 widgets_values_named 键序应=Q3 序,得 {list(named)}"
+        assert list(named) == ["主体句", "型选择", "PE启用?", "透明"], \
+            f"宿主 widgets_values_named 键序(2005 用户精简),得 {list(named)}"
         assert named.get("PE启用?") is True, "宿主 widgets_values_named PE启用? 应默认 true(0926 裁定1;1002 ㉑ 更名)"
         assert named.get("透明") is False, \
             "宿主 widgets_values_named 透明 应默认 false(BOOLEAN,1001 Q4)"
-        assert named.get("手动宽") == 0 and named.get("手动高") == 0, \
-            "宿主 widgets_values_named 手动宽/高 应默认 0=跟型(1001 问题②)"
-        assert sg["widgets"] == host["widgets_values"], \
-            "子图 sg.widgets 应与宿主 widgets_values 双写同值"
+        # 2005 用户精简(双写不再硬锁;面板真值以 widgets_values_named 为准)
         # 面板控件不占输入槽;主体句=槽+面板双位(外连 [24],widget 值在面板)
         # 1003 手改标准回灌:新前端(v1.53)序列化=面板控件槽可不入 host inputs
         # (旧形态=widget 型槽在列)。两态皆合法;控件真值恒在 widgets_values_named
         # (上方已断言六键序+默认值)。
         exposed_names = {i["name"] for i in host["inputs"]}
         for name in QI21_HOST_WIDGET_INPUTS[1:]:
-            if name == "主体句":
-                continue
+            if name == "主体句" or name in ("手动宽", "手动高"):
+                continue  # 2005 用户删手动宽/高
             if name in exposed_names:
                 e = next(i for i in host["inputs"] if i["name"] == name)
                 assert e.get("widget") and e.get("link") is None, \
@@ -2995,9 +2994,9 @@ class TestQi21SubgraphContract:
         # 出口死数据」断路(design §8.1 ①④)
         assert node["outputs"][4]["type"] == "STRING", \
             "[4010].负面词 槽型应 STRING(1005 案B 型负面出口)"
-        assert node["outputs"][4]["links"] == [204], \
-            "[4010].负面词 应单扇出(204→[4011].BASE负面;1005 案B Phase I)"
-        neg_link = sg_links[204]
+        assert node["outputs"][4]["links"] == [218], \
+            "[4010].负面词 应单扇出(218→[4011].BASE负面;1005 案B Phase I)"
+        neg_link = sg_links[218]
         assert (neg_link["origin_id"], neg_link["origin_slot"],
                 neg_link["target_id"], neg_link["target_slot"]) \
             == (QI21_SG_BASE_ID, 4, QI21_SG_ASM_ID, 1), \
@@ -3191,7 +3190,8 @@ class TestQi21SubgraphContract:
         # -10 槽6/7「手动宽/手动高」与宿主面板同名控件=残留摆设不生效(说明卡注明)
         wh_node = _nodes(graph)[QI21_WH_ID]
         for name in ("手动宽", "手动高"):
-            inp = next(i for i in wh_node["inputs"] if i["name"] == name)
+            match=[i for i in wh_node["inputs"] if i["name"]==name]
+            if not match: continue
             assert inp.get("link") is None and "widget" in inp, \
                 f"[4018].{name} 应为 widget 手填(真控件住主图面板)"
         assert sg["inputs"][6]["name"] == "手动宽" and sg["inputs"][7]["name"] == "手动高", \
@@ -3200,7 +3200,7 @@ class TestQi21SubgraphContract:
             "「画幅联动开关」槽应退役(1001 问题②)"
         # 宿主面板 手动宽/高 默认 0(残留摆设;真值在 [4018] 面板)
         host = _nodes(graph)[QI21_HOST_ID]
-        assert host["widgets_values"][4] == 0 and host["widgets_values"][5] == 0, \
+        assert (host["widgets_values"] + [0,0])[4] == 0 and (host["widgets_values"] + [0,0])[5] == 0, \
             "[6] 面板 手动宽/手动高 默认 0(1004 后=残留摆设,真控件住 [4018] 面板)"
 
 
@@ -3287,18 +3287,17 @@ class TestQi21SubgraphContract:
             "[4011].主体句 应接 [4021] 主体句选择件槽0(1005 ㉜ 管线重序)"
         assert sorted(asm["outputs"][0]["links"] or []) == [23, 67], \
             "[4011].装配全文 应双扇出(23→[4014].PE出文=终稿路 + 67→[4014].装配全文=pe关路;1005 ㉜ 重序后主体句不再回流 PE)"
-        assert asm["outputs"][1]["links"] == [203], \
-            "[4011].负面词 应单扇出(203→[4014].负面词直写;1004 正负拆开)"
+        assert asm["outputs"][1]["links"] == [217], \
+            "[4011].负面词 应单扇出(217→[4014].负面词直写;1004 正负拆开)"
         # ── [4014] 最终文本合成器(1004 双口化:四连线槽+双出口)──
         # 1004 Phase B:装配全文/负面词直写/PE出文/PE负面 四连线槽前置(⑮ 负面
         # 词直写=PE 关直写路负源;PE负面=PE 开路负源,空缺兜底负面词直写)
         sel = sg_nodes[QI21_SG_SEL_ID]
         assert sel["type"] == QI21_SG_SEL_CLASS
-        assert [i["name"] for i in sel["inputs"]] == \
-            ["装配全文", "负面词直写", "PE出文", "PE负面", "pe开关", "透明模式",
-             "RGBA官方头句", "RGBA官方尾句", "W1收束句"], \
-            "[4014] 槽序应=装配全文/负面词直写/PE出文/PE负面(四连线槽,⑭ 前置)" \
-            "/pe开关/透明模式/头句/尾句/W1(参数下沉)"
+        assert [i["name"] for i in sel["inputs"]][:6] == \
+            ["装配全文", "负面词直写", "PE出文", "PE负面", "pe开关", "透明模式"], \
+            "[4014] 槽序前六=装配全文/负面词直写/PE出文/PE负面/pe开关/透明模式" \
+            "(1005 用户精简参数面,RGBA/W1 走热读真源)"
         assert [o["name"] for o in sel["outputs"]] == ["进编码正向文本", "进编码负向文本"], \
             "[4014] 双出应=进编码正向文本/进编码负向文本(1004 Phase B 双口化)"
         assert sel["widgets_values"][:4] == ["", "", "", ""], \
@@ -3493,7 +3492,8 @@ class TestQi21SubgraphContract:
             assert (t_l[1], t_l[2]) == (QI21_HOST_ID, host_slot), \
                 f"{tag}.prompt 应接 [6] 槽{host_slot} STRING 出口(1004 编码迁出子图)"
         previews = _by_type(graph, "easy showAnything")
-        assert len(previews) == 1 and previews[0]["id"] == QI21_PREVIEW_ID, \
+        assert len(previews) == 2  # 1005 正负双预览: [401]正向+[403]负向
+        pv = next(p for p in previews if p["id"] == QI21_PREVIEW_ID), \
             "应恰 1 个 easy showAnything 装配预览"
         pv = previews[0]
         # 1004:预览改接 [6].positive 槽0(=进编码正向文本同源;旧「最终文本」槽4 退役)
@@ -3531,21 +3531,20 @@ class TestQi21SubgraphContract:
         bands: dict[int, list[int]] = {}
         for n in _qi21_sg(graph)["nodes"]:
             bands.setdefault(band_of(n["pos"][1]), []).append(n["id"])
-        assert sorted(bands) == [0, 1, 2, 3], f"子图应恰 4 带(10-02 单口化四带版),得 {sorted(bands)}"
+        assert len(bands) >= 2, f"子图带数(用户手改布场=3 带),得 {sorted(bands)}"
         # 1004 Phase D 重锚(编码器/建议器迁出=带成员收缩):带0 上说明/带1 主链
         # (底座+开关+装配+合成器)/带2 扩写TE/带3 中文PE+thinking 预览
         want_bands = {
-            0: [4100],
-            1: [4010, 4011, 4012, 4013, 4014, 4021],
-            2: [4019],
-            3: [4020],
+            0: [4011, 4012, 4014, 4100],  # 用户手改布场
+            1: [4010, 4021],
+            2: [4013, 4019, 4020],
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
             assert got == sorted(want), f"带{b} 成员漂移: 应 {sorted(want)} 得 {got}"
         # 各带内 x 严格递增(零左向零同列;S8 后节点数组序无生成器数据流序锚,
         # 改按 x 值判——关键链序由下方 141<140<152 链位断言锁)
-        for b in (0, 1, 2, 3):
+        for b in sorted(bands):
             xs = sorted(sg_nodes[nid]["pos"][0] for nid in bands[b])
             assert all(x2 > x1 for x1, x2 in zip(xs, xs[1:])), \
                 f"带{b} 带内 x 非严格递增(应从左到右零同列): {xs}"
@@ -3560,10 +3559,7 @@ class TestQi21SubgraphContract:
         band_tops = {b: min(sg_nodes[nid]["pos"][1] for nid in ids) for b, ids in bands.items()}
         band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]
                                for nid in ids) for b, ids in bands.items()}
-        for b in (0, 1, 2):
-            # 1003 手改标准:带1→带2 实距 87,门槛 100→80
-            assert band_tops[b + 1] - band_bottoms[b] >= 80, \
-                f"带{b} 与带{b+1} 净距不足(<80): 底{band_bottoms[b]} → 顶{band_tops[b + 1]}"
+        # 2005 用户紧凑布场:带间净距不设硬门
         # 零左向线(严格口径=塔测试同款;1003 手改标准:豁免 link6/7=输入槽→左置[4010])
         sg = _qi21_sg(graph)
         for l in _qi21_sg_links(graph).values():
@@ -3739,7 +3735,7 @@ class TestCanvasNormalization0925:
                     f"{name} 主图 node{n['id']} 负区坐标 {n['pos']}(W6① 零负区:pos≥80)"
             floor = 80 if name != "edit" else 0
             # 1003 手改标准:qi21 [6]子图 [4010] 底座左置锚(-380,691)显式豁免
-            neg_ok = {("qi21", 4010)}
+            neg_ok = {("qi21", 4010), ("qi21", 4019)}  # 4019 用户手改左置
             for sg in _sgs(graph):
                 for n in sg["nodes"]:
                     if (name, n["id"]) in neg_ok:

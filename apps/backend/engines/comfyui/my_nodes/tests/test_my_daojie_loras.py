@@ -3,9 +3,10 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫按型 LoRA 节点测试(09-19 九型驱动 LoRA)。
 
-repo 侧(无引擎)只测数据面与映射纯函数:九型键与 daojie_bases.json 一比一、
-条目字段完备、强度区间 sane、金雾/裁定锚在位;引擎依赖(comfy.*)在 run 内
-懒加载,repo 侧触不到也不该触到。"""
+repo 侧(无引擎)只测数据面与映射纯函数:九型键与真源家 qi21_bases.json
+types[] 一比一(1004 集中化;原 daojie_bases.json 已退役并入,自由=Q2.1
+十档末位不入 K2 按型面)、条目字段完备、强度区间 sane、金雾/裁定锚在位;
+引擎依赖(comfy.*)在 run 内懒加载,repo 侧触不到也不该触到。"""
 from __future__ import annotations
 
 import json
@@ -23,10 +24,13 @@ def _entries():
 
 
 def test_loras_json_nine_types_match_bases_exactly():
-    """按型 LoRA 数据面九型与底座数据面一比一(键与顺序),[80] 选型全覆盖。"""
+    """按型 LoRA 数据面九型与底座数据面一比一(键与顺序),[80] 选型全覆盖。
+    1004 集中化:底座面=真源家 qi21_bases.json types[](dict 外壳;原平铺
+    daojie_bases.json 退役),自由型=Q2.1 十档末位不驱动 K2 按型 LoRA,排除。"""
     bases = json.loads(my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
-    assert [e["key"] for e in _entries()] == [e["key"] for e in bases]
-    assert [e["zh"] for e in _entries()] == [e["zh"] for e in bases]
+    nine = [e for e in bases["types"] if e["zh"] != "自由"]
+    assert [e["key"] for e in _entries()] == [e["key"] for e in nine]
+    assert [e["zh"] for e in _entries()] == [e["zh"] for e in nine]
 
 
 def test_loras_for_matches_by_zh_and_key():
@@ -59,7 +63,7 @@ def test_ruling_anchors_present():
 def test_node_class_surface():
     """节点类表面:类别/返回/懒加载纪律(run 不 import 引擎库直至被调)。"""
     cls = my_daojie_loras.MyDaojieLoras
-    assert cls.CATEGORY == "my"
+    assert cls.CATEGORY == "漫影"
     assert cls.RETURN_TYPES == ("MODEL", "STRING")
     assert cls.RETURN_NAMES == ("model", "applied")
     assert "base" in cls.INPUT_TYPES()["required"]

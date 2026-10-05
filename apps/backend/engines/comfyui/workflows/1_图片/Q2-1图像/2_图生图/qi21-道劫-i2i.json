@@ -1947,7 +1947,7 @@
         "config": {
           "defaultIOState": {}
         },
-        "name": "[6] 文本提示词类型优化子图(双击进入)",
+        "name": "[6] 文本提示词类型优化子图",
         "inputNode": {
           "id": -10,
           "bounding": [

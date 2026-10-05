@@ -44,7 +44,8 @@ from engines.comfyui.my_nodes.nodes.my_qi21_wh_suggest import (
     MyQi21WhSuggest, _parse_ratio)
 
 # 九型宽高哨兵(回传语义用任意值即证「原样」;非九型真值,真值住
-# daojie_bases.json,与本件回传行为无关)
+# qi21_bases.json types[]——1004 集中化,原 daojie_bases.json 已退役并入,
+# 与本件回传行为无关)
 _W, _H = 1328, 1328
 
 

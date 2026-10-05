@@ -102,7 +102,7 @@
     "subgraphs": [
       {
         "id": "6a0e2f81-1a4b-4c2d-9e30-5b7c8d9e0f01",
-        "name": "[6] 文本提示词类型优化子图(双击进入)",
+        "name": "[6] 文本提示词类型优化子图",
         "version": 1,
         "revision": 0,
         "state": {

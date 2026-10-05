@@ -50,8 +50,10 @@ def _slots():
 
 
 def _bases_keys():
+    """底座数据面九型键(1004 集中化:真源家 qi21_bases.json types[] dict 外壳,
+    原平铺 daojie_bases.json 退役;自由=Q2.1 十档末位不入 K2 栈预设面)。"""
     bases = json.loads(my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
-    return [e["zh"] for e in bases]
+    return [e["zh"] for e in bases["types"] if e["zh"] != "自由"]
 
 
 def _widgets(all_on=True, weights=None):
@@ -212,11 +214,12 @@ def test_ink_mutex_across_presets():
 
 
 def test_presets_equal_bases_lora_recipe():
-    """C2/C3 数据一致:栈预设点亮 = daojie_bases.lora_recipe 一比一
-    (bases 侧同款钉子的对侧;全局件 turbo/projector 恒挂不入配方)。"""
+    """C2/C3 数据一致:栈预设点亮 = qi21_bases types[].lora_recipe 一比一
+    (1004 集中化:原 daojie_bases.json 退役并入,自由型不入 K2 栈预设面;
+    bases 侧同款钉子的对侧;全局件 turbo/projector 恒挂不入配方)。"""
     bases = json.loads(my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
     slots = _slots()
-    for e in bases:
+    for e in [x for x in bases["types"] if x["zh"] != "自由"]:
         zh, want = e["zh"], {i["file"]: i["weight"] for i in e["lora_recipe"]}
         for s in slots:
             if s["key"] in ("turbo", "projector"):
@@ -359,7 +362,7 @@ def test_node_class_surface_and_registration():
     from engines.comfyui.my_nodes import NODE_CLASS_MAPPINGS
     cls = stack.MyDaojieLoraStack
     assert NODE_CLASS_MAPPINGS.get("MyDaojieLoraStack") is cls
-    assert cls.CATEGORY == "my"
+    assert cls.CATEGORY == "漫影"
     assert cls.RETURN_TYPES == ("MODEL", "STRING")
     assert cls.RETURN_NAMES == ("model", "applied")
     spec = cls.INPUT_TYPES()
