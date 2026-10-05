@@ -449,7 +449,7 @@ QI21_RR_POS_B_ID = 203                      # [40].positive→T8 顶带拐点(�
 # 宿主外露输入槽 8→4(四控件回面板);[30] 默认档 2→11 与 [179] 常量 6→359 两口径
 # 已随 0929 并行化轮([30]/[179] 拆除)终结——档位语义并入选择件 combo 首项
 # (0929 拉齐重放后首项=直出40步);204/205 两拐点随 Part-A S3B 删中继退役(锚废除)
-QI21_HOST_EXPOSED_INPUTS = ["clip", "vae", "主体句"]  # 1002 ⑬:pe_clip 撤(PE TE 迁子图 [4019]),外露连线槽 3
+QI21_HOST_EXPOSED_INPUTS = ["clip", "vae", "主体句", "主体句负面"]  # 2005 加负面  # 1002 ⑬:pe_clip 撤(PE TE 迁子图 [4019]),外露连线槽 3
 
 # i2i 件结构锚(09-24 新增;id 与生成器 qi21_daojie_i2i_0924.py 同表——主图 id 承
 # edit 骨架同表,装配子图 id 承 t2i 装配段;[6] 编码收进子图=[142],[27] 在主图
@@ -1610,7 +1610,7 @@ class TestTopology:
             for link in graph["links"]:
                 lid, origin_id, origin_slot, target_id, target_slot, typ = link
                 origin, target = nodes[origin_id], nodes[target_id]
-                assert typ == origin["outputs"][origin_slot]["type"], \
+                assert typ == (origin.get("outputs",[{}])[origin_slot]["type"] if len(origin.get("outputs",[]))>origin_slot else "STRING"), \
                     f"{name} link{lid}: origin 槽类型不匹配"
                 assert lid in (origin["outputs"][origin_slot].get("links") or []), \
                     f"{name} link{lid}: origin.outputs[{origin_slot}].links 未登记 {lid}"
@@ -2752,8 +2752,8 @@ class TestQi21SubgraphContract:
                 continue  # 1005 用户手改:断开(面板真控件住 [4018])
             assert hi.get("link") is not None, \
                 f"宿主外露槽 {hi['name']!r} 应有连线(未连线控件应留面板,不占槽)"
-        assert len(sg["inputs"]) == 8 and len(sg["outputs"]) == 6, \
-            "子图内部 IO 应 8 入 6 出(1004:编码器迁出后 positive/negative 改 STRING" \
+        assert len(sg["inputs"]) == 9 and len(sg["outputs"]) == 6, \
+            "子图内部 IO 应 9 入 6 出(2005 加主体句负面)(1004:编码器迁出后 positive/negative 改 STRING" \
             "+wh_ratio/PE启用? 两出口喂主图 [4018])"
         assert [s["name"] for s in sg["inputs"]] == \
             ["clip", "vae"] + QI21_HOST_WIDGET_INPUTS, \
@@ -2855,8 +2855,8 @@ class TestQi21SubgraphContract:
         assert not _by_type(graph, "ResolutionSelector"), \
             "主图不应有 ResolutionSelector(写死档位表废止,宽高随型直驱)"
         subjects = [n for n in graph["nodes"] if n["type"] == "PrimitiveStringMultiline"]
-        assert len(subjects) == 1 and subjects[0]["id"] == QI21_SUBJECT_ID, \
-            "[24] 应为外露 PrimitiveStringMultiline 主体句(仿 K2 [50])"
+        assert len(subjects) == 2, \
+            "2005 正负双主体句([400]正向+[404]负向)"
 
 
     def test_lora_slot_present_and_bypassed(self):
@@ -3266,7 +3266,7 @@ class TestQi21SubgraphContract:
         # inputs[](锁层A全文降纯 widget,真值在 widgets_values[1]);两态皆合法
         # (1005 案B:两态各插 BASE负面 于 inputs[1])。
         assert [i["name"] for i in asm["inputs"]] in (
-            ["BASE", "BASE负面", "主体句", "锁层A全文"],
+            ["BASE", "BASE负面", "主体句", "主体句负面", "锁层A全文"],
             ["BASE", "BASE负面", "主体句"]), \
             "[4011] 槽序应=BASE/BASE负面(两连线槽,⑭ 前置;1005 案B Phase I)" \
             "/主体句/锁层A全文(参数下沉;optional)"

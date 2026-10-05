@@ -2,7 +2,7 @@
   "id": "7d4a9c31-5e62-4b8a-b1f0-2c8e57a90413",
   "revision": 0,
   "last_node_id": 7016,
-  "last_link_id": 221,
+  "last_link_id": 222,
   "nodes": [
     {
       "id": 1,
@@ -459,6 +459,11 @@
           "name": "手动高",
           "type": "INT",
           "link": null
+        },
+        {
+          "name": "主体句负面",
+          "type": "STRING",
+          "link": 218
         }
       ],
       "outputs": [
@@ -1189,6 +1194,26 @@
       ],
       "title": "[403] 负向提示词预览·showAnything",
       "properties": {}
+    },
+    {
+      "id": 404,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        1686.1656665057667,
+        2130.200364074004
+      ],
+      "size": [
+        400,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "widgets_values": [
+        ""
+      ],
+      "title": "[404] 主体句负面·PrimitiveStringMultiline",
+      "properties": {}
     }
   ],
   "links": [
@@ -1415,6 +1440,14 @@
       403,
       0,
       "STRING"
+    ],
+    [
+      218,
+      404,
+      0,
+      6,
+      5,
+      "STRING"
     ]
   ],
   "groups": [
@@ -1602,6 +1635,18 @@
             "pos": [
               -216,
               244
+            ]
+          },
+          {
+            "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
+            "name": "主体句负面",
+            "type": "STRING",
+            "linkIds": [
+              222
+            ],
+            "pos": [
+              -216,
+              264
             ]
           }
         ],
@@ -1933,6 +1978,11 @@
                   "name": "主体句"
                 },
                 "link": 101
+              },
+              {
+                "name": "主体句负面",
+                "type": "STRING",
+                "link": 222
               }
             ],
             "outputs": [
@@ -2562,6 +2612,14 @@
             "target_id": 4021,
             "target_slot": 2,
             "type": "BOOLEAN"
+          },
+          {
+            "id": 222,
+            "origin_id": -10,
+            "origin_slot": 8,
+            "target_id": 4011,
+            "target_slot": 3,
+            "type": "STRING"
           }
         ],
         "extra": {

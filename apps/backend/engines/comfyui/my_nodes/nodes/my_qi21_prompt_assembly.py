@@ -191,6 +191,8 @@ class MyQi21PromptAssembly:
                 "主体句": ("STRING", {"multiline": True, "default": _SUBJECT_EXAMPLE,
                                        "tooltip": "画面里画什么的人话描述;生产时由子图"
                                                   "入口喂入,这里一般是兜底例文"}),
+                "主体句负面": ("STRING", {"multiline": True, "default": "",
+                                       "tooltip": "用户手写的主体句负面描述(如「不要出现xxx」);与型负面/锁层负面合并"}),
                 "锁层A全文": ("STRING", {"multiline": True, "default": _LOCK_A,
                                           "tooltip": "全九型通用的画风锁底长文(现代"
                                                      "修仙游戏数字绘画规范),改画风才"

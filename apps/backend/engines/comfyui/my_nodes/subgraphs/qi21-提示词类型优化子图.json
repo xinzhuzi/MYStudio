@@ -263,6 +263,18 @@
               -216,
               244
             ]
+          },
+          {
+            "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
+            "name": "主体句负面",
+            "type": "STRING",
+            "linkIds": [
+              222
+            ],
+            "pos": [
+              -216,
+              264
+            ]
           }
         ],
         "outputs": [
@@ -593,6 +605,11 @@
                   "name": "主体句"
                 },
                 "link": 101
+              },
+              {
+                "name": "主体句负面",
+                "type": "STRING",
+                "link": 222
               }
             ],
             "outputs": [
@@ -1222,6 +1239,14 @@
             "target_id": 4021,
             "target_slot": 2,
             "type": "BOOLEAN"
+          },
+          {
+            "id": 222,
+            "origin_id": -10,
+            "origin_slot": 8,
+            "target_id": 4011,
+            "target_slot": 3,
+            "type": "STRING"
           }
         ],
         "extra": {
