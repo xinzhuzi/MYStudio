@@ -307,19 +307,19 @@
         },
         "models": [
           {
-            "name": "qwen3vl_8b_bf16.safetensors",
+            "name": "qwen3vl_8b_bf16_heretic.safetensors",
             "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3vl_8b_int8_convrot.safetensors",
+        "qwen3vl_8b_bf16_heretic.safetensors",
         "qwen_image",
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+        "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
         "type": "qwen_image",
         "device": "default"
       },
@@ -1752,19 +1752,19 @@
         },
         "models": [
           {
-            "name": "qwen3vl_8b_bf16.safetensors",
+            "name": "qwen3vl_8b_bf16_heretic.safetensors",
             "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_bf16.safetensors",
             "directory": "text_encoders"
           }
         ]
       },
       "widgets_values": [
-        "qwen3vl_8b_int8_convrot.safetensors",
+        "qwen3vl_8b_bf16_heretic.safetensors",
         "qwen_image",
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+        "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
         "type": "qwen_image",
         "device": "default"
       },

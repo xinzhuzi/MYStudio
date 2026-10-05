@@ -33,6 +33,8 @@ TARGETS = {
     ],
     "nvfp4(官方H3 TE)": ["qwen3vl_32b_minimax_h3_nvfp4_awq"],
     "旧4B-heretic(已删,活引用必须为零)": ["qwen3-vl-4b-heretic"],
+    # 1005 乙案退役:原版 8B TE 删除(16G,产线 0924 起全 heretic);守卫防回流
+    "原版8B TE(qwen3vl_8b_bf16, 1005乙案已删,活引用必须为零)": ["qwen3vl_8b_bf16.safetensors"],
 }
 
 NOTE_TYPES = {"MarkdownNote", "Note"}
