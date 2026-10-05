@@ -58,6 +58,9 @@ class MyQi21SubjectSelect:
                 "PE宽高比": ("STRING", {
                     "lazy": True,
                     "tooltip": "PE 改写给出的宽高比(如 16:9);开关关时不请求,PE 零执行零装载"}),
+                "主体句负面": ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "用户手写的主体句负面描述;透传到 [4011] 三层拼装"}),
                 "pe开关": ("BOOLEAN", {
                     "default": True,
                     "tooltip": "与 [4014] 同源总开关:开=主体句先过 PE 再"
@@ -65,8 +68,8 @@ class MyQi21SubjectSelect:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("选定的主体句", "宽高比")
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("选定的主体句", "宽高比", "主体句负面")
     FUNCTION = "select_subject"
     OUTPUT_NODE = False
 
@@ -92,7 +95,8 @@ class MyQi21SubjectSelect:
     def select_subject(self, 主体句: str | None = None,
                        PE出文: str | None = None,
                        PE宽高比: str | None = None,
-                       pe开关: bool | None = None) -> tuple[str, str]:
+                       主体句负面: str | None = None,
+                       pe开关: bool | None = None) -> tuple[str, str, str]:
         """单口输出:pe开且 PE出文 非空→PE出文;否则→原主体句。
 
         全参数有 default,缺投不炸 TypeError;pe开而 PE出文 空/None
@@ -105,5 +109,5 @@ class MyQi21SubjectSelect:
             pe_text = (PE出文 or "").strip()
             wh = (PE宽高比 or "").strip()
             if pe_text:
-                return (pe_text, wh)
-        return ((主体句 or "").strip(), wh)
+                return (pe_text, wh, (主体句负面 or "").strip())
+        return ((主体句 or "").strip(), wh, (主体句负面 or "").strip())

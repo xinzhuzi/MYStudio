@@ -355,9 +355,7 @@ class MyQi21PromptSelect:
 
     def compose(self, 装配全文: str | None = None,
                 负面词直写: str | None = None,
-                透明模式: bool = False, RGBA官方头句: str = _RGBA_HEAD,
-                RGBA官方尾句: str = _RGBA_TAIL,
-                W1收束句: str = _TAIL) -> tuple[str, str]:
+                透明模式: bool = False) -> tuple[str, str]:
         """双口合成:(进编码正向文本, 进编码负向文本)(元组序=RETURN_NAMES 序)。
 
         正向路(10-02 单口形逐字保持):先 pe开关 选正文(PE出文/装配全文),
@@ -417,6 +415,6 @@ class MyQi21PromptSelect:
         # 透明模式参与计算(R1 边界迁入):开=拼官方头尾,关=正文原样直出;
         # 负向路不包裹(透明包裹是正向路指令)
         if 透明模式:
-            return (f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}",
+            return (f"{_RGBA_HEAD} {transparent_mid} {_RGBA_TAIL}",
                     negative_text)
         return (main_text, negative_text)
