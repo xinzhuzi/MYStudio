@@ -464,8 +464,8 @@
             "id": 4013,
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
-              400,
-              100
+              300,
+              450
             ],
             "size": [
               502.5630859375,
@@ -565,7 +565,7 @@
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              1100,
+              1000,
               100
             ],
             "size": [
@@ -658,8 +658,8 @@
             "id": 4100,
             "type": "MarkdownNote",
             "pos": [
-              1100,
-              700
+              600,
+              850
             ],
             "size": [
               420,
@@ -691,7 +691,7 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              1700,
+              1600,
               100
             ],
             "size": [
@@ -820,7 +820,7 @@
             "type": "CLIPLoader",
             "pos": [
               50,
-              750
+              650
             ],
             "size": [
               400,
@@ -869,7 +869,7 @@
             "type": "MyQi21BoolBranch",
             "pos": [
               50,
-              500
+              280
             ],
             "size": [
               280,
@@ -918,8 +918,8 @@
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              400,
-              950
+              600,
+              650
             ],
             "size": [
               500,
@@ -968,7 +968,7 @@
             "id": 4021,
             "type": "MyQi21SubjectSelect",
             "pos": [
-              750,
+              600,
               100
             ],
             "size": [
@@ -1045,8 +1045,8 @@
             "id": 4023,
             "type": "easy showAnything",
             "pos": [
-              400,
-              600
+              350,
+              280
             ],
             "size": [
               250,
