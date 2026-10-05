@@ -80,7 +80,7 @@ python3 ./.trellis/scripts/task.py archive <task-name> --skip-branch-validation
 
 (Flag is mandatory in this repo: 0.6.16 `create` defaults `base_branch=main` + remote present → branch validation refuses archive; tasks here are never PR-backed.)
 
-At minimum: the current active task (if any). Plus any extra tasks the user confirmed in Step 1. Each archive produces a `chore(task): archive ...` commit via the script's auto-commit.
+At minimum: the current active task (if any). Plus any extra tasks the user confirmed in Step 1. Each archive produces a `chore(task): archive ...` commit via the script's auto-commit — **unless `session_auto_commit: false`**(本仓 2026-10-05 实测口径:config 关自动提交时脚本整体跳过 git,归档/日志的落盘仍生效,提交按需手动,pathspec 圈 `.trellis` 之外零波及).
 
 If there is no active task and the user did not confirm any cleanup archives, skip this step.
 

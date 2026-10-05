@@ -2,7 +2,7 @@
 
 Resume work on the current task — pick up at the right phase/step in `.trellis/workflow.md`.
 
----
+<!-- 2026-10-05 全量同步自 .agents/skills/trellis-continue/SKILL.md(补「接手在途战役的第一动作」);此后漂移以技能件为准 -->
 
 ## Step 1: Load Current Context
 
@@ -41,7 +41,7 @@ Phase rules (full detail in `.trellis/workflow.md`):
 
 ## Step 4: Load the Specific Step
 
-Once you know which step to resume at:
+Once you know the step to resume at:
 
 ```bash
 python3 ./.trellis/scripts/get_context.py --mode phase --step <X.X> --platform claude
@@ -59,6 +59,7 @@ Follow the loaded instructions. After each `[required]` step completes, move to 
 2. `pgrep` 引擎/App:上一场收没收摊(干完即停铁律);残留且无主=先处置再开工。
 3. 读最后一条 run 的 notCovered 清单,逐项显式承接(接走或写明归档去向)——开新切片不接旧账=遗留重演。
 4. run 属主会话仍在跑时,其脚本范围内的活不抢;只接它明确没装的部分。
+5. **归因不明不动手**:引擎死/run 被停/树在动,先查清谁干的、为什么、现在是否有人正在做(任务档 mtime/release 产物/负载来源),查清属主再接(1005 实案:run「stopped+引擎死+无心跳」看似孤儿,实为活跃会话手工接管中)。
 
 ---
 
