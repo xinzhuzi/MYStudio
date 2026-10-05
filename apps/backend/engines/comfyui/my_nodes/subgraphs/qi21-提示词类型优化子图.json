@@ -211,18 +211,6 @@
             ]
           },
           {
-            "id": "a1e2c3d4-0005-4a05-9e05-7d4a9c31a005",
-            "name": "透明",
-            "type": "BOOLEAN",
-            "linkIds": [
-              301
-            ],
-            "pos": [
-              -216,
-              204
-            ]
-          },
-          {
             "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
             "name": "负向主体句",
             "type": "STRING",
@@ -350,7 +338,7 @@
                 "widget": {
                   "name": "透明覆盖"
                 },
-                "link": 301
+                "link": null
               }
             ],
             "outputs": [
@@ -1019,14 +1007,6 @@
             "type": "COMBO"
           },
           {
-            "id": 301,
-            "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 4010,
-            "target_slot": 1,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 302,
             "origin_id": -10,
             "origin_slot": 0,
@@ -1037,7 +1017,7 @@
           {
             "id": 303,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 3,
             "target_id": 4011,
             "target_slot": 3,
             "type": "STRING"

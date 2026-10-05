@@ -192,7 +192,7 @@
       ],
       "size": [
         500,
-        300
+        600
       ],
       "flags": {},
       "order": 8,
@@ -453,12 +453,6 @@
           "widget": true
         },
         {
-          "name": "透明",
-          "type": "BOOLEAN",
-          "link": null,
-          "widget": true
-        },
-        {
           "name": "负向主体句",
           "type": "STRING",
           "link": 218
@@ -531,7 +525,6 @@
       "widgets_values_named": {
         "型选择": "人物",
         "PE启用?": true,
-        "透明": false,
         "正向主体句": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
       }
     },
@@ -1535,18 +1528,6 @@
             ]
           },
           {
-            "id": "a1e2c3d4-0005-4a05-9e05-7d4a9c31a005",
-            "name": "透明",
-            "type": "BOOLEAN",
-            "linkIds": [
-              301
-            ],
-            "pos": [
-              -216,
-              204
-            ]
-          },
-          {
             "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
             "name": "负向主体句",
             "type": "STRING",
@@ -1674,7 +1655,7 @@
                 "widget": {
                   "name": "透明覆盖"
                 },
-                "link": 301
+                "link": null
               }
             ],
             "outputs": [
@@ -2343,14 +2324,6 @@
             "type": "COMBO"
           },
           {
-            "id": 301,
-            "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 4010,
-            "target_slot": 1,
-            "type": "BOOLEAN"
-          },
-          {
             "id": 302,
             "origin_id": -10,
             "origin_slot": 0,
@@ -2361,7 +2334,7 @@
           {
             "id": 303,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 3,
             "target_id": 4011,
             "target_slot": 3,
             "type": "STRING"
