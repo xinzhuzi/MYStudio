@@ -207,6 +207,7 @@ class MyQi21PromptAssembly:
     def assemble(self, BASE: str | None = None,
                  BASE负面: str | None = None,
                  主体句: str = _SUBJECT_EXAMPLE,
+                 主体句负面: str | None = None,
                  锁层A全文: str = _LOCK_A) -> tuple[str, str]:
         """装配:装配全文=主体句+\\n+BASE+\\n+锁层A;负面词=merge(BASE负面,
         锁层负面现读)(返回元组序=RETURN_NAMES 序)。
@@ -232,8 +233,9 @@ class MyQi21PromptAssembly:
         仅文案去「意外断线」口吻(旧行为/旧两段拼语义不变,i2i/edit 零波及)。
         """
         # 负面词(口1):merge 单源复用+锁层负面 mtime 现读(两分支同值,先算)
-        negative = _merge_negative((BASE负面 or ""),
-                                   _load_lock_layer()["negative"])
+        negative = _merge_negative(_merge_negative((BASE负面 or ""),
+                                   _load_lock_layer()["negative"]),
+                                  (主体句负面 or "").strip())
         if not (BASE or "").strip():
             # 1001 用户测试批 P1 中性化:自由型(BASE 空串)此为正常态;非自由型
             # BASE 空=缺整个型底座层,请检查连线——双关文案,逻辑零改(design §2.2)
