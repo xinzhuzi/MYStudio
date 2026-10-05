@@ -2099,7 +2099,7 @@
                 ]
               }
             ],
-            "title": "[4014] 最终输出(正向+负向+透明包裹)",
+            "title": "[4014] 最终输出(正向终稿+负向终稿+透明包裹)",
             "properties": {
               "Node name for S&R": "MyQi21PromptSelect",
               "ue_properties": {
@@ -2238,7 +2238,7 @@
                 "links": []
               }
             ],
-            "title": "[4012] PE开关(true=走PE扩写 / false=原句直拼)",
+            "title": "[4012] PE开关(true=主体句走PE扩写 / false=主体句直通)",
             "properties": {
               "Node name for S&R": "MyQi21PESwitch"
             },
@@ -2370,7 +2370,7 @@
                 ]
               }
             ],
-            "title": "[4021] 主体句选择(PE开=PE扩写文 / PE关=原句直通)",
+            "title": "[4021] 主体句选择(PE开=选PE扩写文 / PE关=选原主体句)",
             "properties": {
               "Node name for S&R": "MyQi21SubjectSelect",
               "ue_properties": {
