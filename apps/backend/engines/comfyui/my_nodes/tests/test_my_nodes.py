@@ -13,7 +13,6 @@ import io
 import json
 import sys
 import types
-from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
@@ -27,6 +26,14 @@ from engines.comfyui.my_nodes import (
 
 
 # ── 注册面 ────────────────────────────────────────────────
+def _json_types(bases_json_path) -> list:
+    """道劫底座真源 types[] 现读(1004 集中化:qi21_bases.json dict 外壳,
+    原平铺 daojie_bases.json 退役删件;十档=九型+自由)。"""
+    import json as _json
+    data = _json.loads(bases_json_path.read_text(encoding="utf-8"))
+    return data["types"]
+
+
 def test_registry_exposes_first_batch_nodes():
     assert set(NODE_CLASS_MAPPINGS) == {
         "MyPrompt", "MyReference", "MyGenerated", "MyShot", "MyCloudImage",
@@ -39,6 +46,8 @@ def test_registry_exposes_first_batch_nodes():
         "MyQi21PromptAssembly",  # 1001 S8 R7 集成(裁定A上游):装配全文=主体句+BASE+锁层A 单口真源
         "MyQi21PromptSelect",  # 1001 S8 R7 集成(裁定A下游):最终文本=pe开关选路+透明文本包裹(lazy 破环)
         "MyQi21WhSuggest",  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
+        "MyQi21ChinesePE",  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出)
+        "MyQi21SubjectSelect",  # 1005 ㉜ 管线重序:主体句过PE后拼型/底座(pe开选PE扩写文)
         "MyImageGridSplit",  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
         "MyVideoFrameGrab",  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
         "MyImageABCompare",  # 0929 TE-MAN 排查 B2:图对比审片(canvas 滑帘+2-7x 放大镜)
@@ -56,11 +65,12 @@ def test_registry_exposes_first_batch_nodes():
         f"仅显示名表有 {sorted(set(NODE_DISPLAY_NAME_MAPPINGS) - set(NODE_CLASS_MAPPINGS))},"
         f"仅 CLASS 表有 {sorted(set(NODE_CLASS_MAPPINGS) - set(NODE_DISPLAY_NAME_MAPPINGS))}")
     for name, node in NODE_CLASS_MAPPINGS.items():
-        # 道劫子图走线族(09-21)归「漫影/道劫」画布菜单组,其余恒 "my"
+        # 1004 类目统一:右键菜单单分组「漫影」——道劫走线族(09-21)仍归
+        # 「漫影/道劫」子组,其余恒 "漫影"(原 "my" 并入,用户裁定)。
         if name in ("MyDaojieRoute", "MyModelBus"):
             assert node.CATEGORY == "漫影/道劫"
         else:
-            assert node.CATEGORY == "my"
+            assert node.CATEGORY == "漫影"
 
 
 def test_legacy_aliases_deprecated_and_behaviour_aligned():
@@ -238,9 +248,11 @@ def test_daojie_base_options_and_assembly():
     inputs = node.INPUT_TYPES()
     assert set(inputs["required"]) == {"base"}
     combo = inputs["required"]["base"]
+    # 1004 集中化:combo=真源家 qi21_bases.json types[] 全十档(九型+自由末位;
+    # 原九型 sidecar daojie_bases.json 退役删件,锚随迁)
     assert combo[0] == [
         "人物", "场景", "道具", "美宣", "多视图",
-        "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
+        "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "自由"]
     assert combo[1]["default"] == "人物"
     # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/
     # megapixels(FLOAT) 两出,前两 STRING 槽位不动(存量图 [80] 链 45/46 免改);
@@ -248,32 +260,34 @@ def test_daojie_base_options_and_assembly():
     assert node.RETURN_TYPES == ("STRING", "STRING", "COMBO", "FLOAT", "COMBO", "INT", "INT")  # 09-20 +WH 两出
     assert node.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels", "base", "width", "height")
 
-    import json as _json
-    bases = _json.loads(
-        (Path(__file__).resolve().parent.parent / "nodes" / "daojie_bases.json")
-        .read_text(encoding="utf-8"))
+    from engines.comfyui.my_nodes.nodes import my_daojie_base
+    from engines.comfyui.my_nodes.nodes.my_styles import _merge_negative
+    bases = _json_types(my_daojie_base._BASES_JSON)
     renwu = next(e for e in bases if e["zh"] == "人物")
-    # 拼接行为:底座在前+主体句零分隔符直拼;留空=恒等纯底座
+    lock = my_daojie_base._load_lock_layer()
+    # 1004 正负拆开:正向=型底座→锁层A→主体句三层换行拼装(旧零分隔符直拼废止)
     pos, _neg, _ar, _mp, _base, _w, _h = node.run("人物", positive="一位女修士")
-    assert pos == renwu["positive"] + "一位女修士"
+    assert pos == "\n".join([renwu["positive_text"], lock["positive"], "一位女修士"])
     pos_empty, neg_empty, ar_empty, mp_empty, _b, _w, _h = node.run("人物")
-    assert pos_empty == renwu["positive"]
-    assert neg_empty == renwu["negative"]  # 输出非空(纯英文负面基线)
+    assert pos_empty == "\n".join([renwu["positive_text"], lock["positive"]])
+    # 负向=锁层A+型负面+用户负向三层合并去重(输出非空,中文负面基线)
+    assert neg_empty == _merge_negative(
+        lock["negative"], _merge_negative(renwu["negative_text"], ""))
     assert (ar_empty, mp_empty) == (renwu["aspect_ratio"], renwu["megapixels"])
 
 
 def test_daojie_base_resolution_outputs_nine_types():
-    """九型分辨率两出全枚举实测:aspect 逐字命中官方 ResolutionSelector
+    """九型+自由分辨率两出全枚举实测:aspect 逐字命中官方 ResolutionSelector
     AspectRatio 枚举(引擎 comfy_extras/nodes_resolution.py,8 项;sidecar
-    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 道具/高清人脸
-    1.0(09-19 用户裁定出 1024×1024,该节点口径 1.0 MP 精确=1024×1024)
-    其余 4.2、
-    两值与 daojie_bases.json 字段一比一;正负 STRING 原语义逐字不变。"""
+    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 道具/高清人脸/
+    自由 1.0(09-19 用户裁定出 1024×1024,该节点口径 1.0 MP 精确=1024×1024;
+    自由=Q2.1 十档末位 1:1/1.0MP 兜底)其余 4.2、
+    两值与真源家 qi21_bases.json types[] 字段一比一(原 daojie_bases.json
+    退役,锚随迁);正负 STRING=1004 三层拼装/合并语义(逐字锚归
+    test_my_daojie_base.py 专项件)。"""
     node = NODE_CLASS_MAPPINGS["MyDaojieBase"]()
-    import json as _json
-    bases = _json.loads(
-        (Path(__file__).resolve().parent.parent / "nodes" / "daojie_bases.json")
-        .read_text(encoding="utf-8"))
+    from engines.comfyui.my_nodes.nodes import my_daojie_base
+    bases = _json_types(my_daojie_base._BASES_JSON)
     official_aspects = {
         "1:1 (Square)", "2:3 (Portrait Photo)", "3:2 (Photo)",
         "3:4 (Portrait Standard)", "4:3 (Standard)",
@@ -284,11 +298,11 @@ def test_daojie_base_resolution_outputs_nine_types():
         assert base_out == entry["zh"]  # 09-19 第五出=型直通(驱动按型 LoRA 供线)
         assert aspect == entry["aspect_ratio"], entry["zh"]
         assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
-        expected_mp = 1.0 if entry["zh"] in ("道具", "高清人脸") else 4.2
+        expected_mp = 1.0 if entry["zh"] in ("道具", "高清人脸", "自由") else 4.2
         assert megapixels == entry["megapixels"] == expected_mp, entry["zh"]
-        # 原两路 STRING 语义不受新出影响:留空=恒等纯底座/纯负面基线
-        assert pos == entry["positive"]
-        assert neg == entry["negative"]
+        # 留空=型底座+锁层A 恒等拼装;负向=锁层A+型负面合并(中文基线非空)
+        assert entry["positive_text"] in pos and pos.endswith("。")
+        assert neg and "模糊" in neg
 
 
 # ── bridge 传输:令牌头+载荷形状+失败大白话 ───────────────

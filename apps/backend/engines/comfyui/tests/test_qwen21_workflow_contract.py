@@ -3135,8 +3135,8 @@ class TestQi21SubgraphContract:
         # 2002 ⑭:BASE 前置=inputs[0];1005 案B Phase I:BASE负面=inputs[1]
         # (←[4010].负面词),主体句前插后移=inputs[2](锁层A全文=纯参数 widget)
         subj_link = sg_links[asm["inputs"][2]["link"]]
-        assert subj_link["origin_id"] == -10 and subj_link["origin_slot"] == 2, \
-            "[141].主体句 应接 -10 槽2(主体句输入口;1005 案B 后=inputs[2])"
+        assert (subj_link["origin_id"], subj_link["origin_slot"]) == (4021, 0), \
+            "[4011].主体句 应接 [4021] 主体句选择件槽0(1005 ㉜ 管线重序:主体句经PE后拼型/底座;pe关=原主体句直通)"
         base_neg_link = sg_links[asm["inputs"][1]["link"]]
         assert (base_neg_link["origin_id"], base_neg_link["origin_slot"],
                 base_neg_link["target_slot"]) == (QI21_SG_BASE_ID, 4, 1), \
@@ -3248,7 +3248,7 @@ class TestQi21SubgraphContract:
         assert prompt_inp["name"] == "prompt" and prompt_inp["link"] is not None, \
             "[140].prompt 应已接线(1001 Q1=B+:装配全文直喂,link=None 种子文时代终结)"
         prompt_link = sg_links[prompt_inp["link"]]
-        assert (prompt_link["origin_id"], prompt_link["origin_slot"]) == (QI21_SG_ASM_ID, 0), \
+        assert (prompt_link["origin_id"], prompt_link["origin_slot"]) == (-10, 2), \
             "[140].prompt 上游应 [141] 装配全文件.装配全文(口0,Q1=B+ 唯一真源)"
         assert _widget(pe, 0) == "", \
             "[140] 种子文 widget 应清空(接线后=摆设退役;旧种子纪律条款随 Q1=B+ 闭环)"
@@ -3283,10 +3283,10 @@ class TestQi21SubgraphContract:
         assert (base_neg_l["origin_id"], base_neg_l["origin_slot"]) == (QI21_SG_BASE_ID, 4), \
             "[4011].BASE负面 应接 [150].负面词(第五出;1005 案B Phase I 型负面出口)"
         subj_l = sg_links[asm["inputs"][2]["link"]]
-        assert (subj_l["origin_id"], subj_l["origin_slot"]) == (-10, 2), \
-            "[141].主体句 应接 -10 槽2(1005 案B 后=inputs[2])"
-        assert sorted(asm["outputs"][0]["links"] or []) == [65, 67], \
-            "[141].装配全文 应双扇出(65→[4013].prompt + 67→[4014].装配全文)"
+        assert (subj_l["origin_id"], subj_l["origin_slot"]) == (4021, 0), \
+            "[4011].主体句 应接 [4021] 主体句选择件槽0(1005 ㉜ 管线重序)"
+        assert sorted(asm["outputs"][0]["links"] or []) == [23, 67], \
+            "[4011].装配全文 应双扇出(23→[4014].PE出文=终稿路 + 67→[4014].装配全文=pe关路;1005 ㉜ 重序后主体句不再回流 PE)"
         assert asm["outputs"][1]["links"] == [203], \
             "[4011].负面词 应单扇出(203→[4014].负面词直写;1004 正负拆开)"
         # ── [4014] 最终文本合成器(1004 双口化:四连线槽+双出口)──
@@ -3313,8 +3313,8 @@ class TestQi21SubgraphContract:
         assert (neg_l["origin_id"], neg_l["origin_slot"]) == (QI21_SG_ASM_ID, 1), \
             "[4014].负面词直写 应接 [4011].负面词(1004 正负拆开:pe关直写路负源)"
         pe_out_l = sg_links[sel["inputs"][2]["link"]]
-        assert (pe_out_l["origin_id"], pe_out_l["origin_slot"]) == (QI21_SG_PE_RW, 0), \
-            "[4014].PE出文 应接 [4013].positive_prompt(lazy:pe关时 [4013] 零执行零 PE TE 装载)"
+        assert (pe_out_l["origin_id"], pe_out_l["origin_slot"]) == (QI21_SG_ASM_ID, 0), \
+            "[4014].PE出文 应接 [4011].装配全文(1005 ㉜ 重序:终稿=PE扩写主体句+型+锁层A 整段;懒链改由 [4021] 主体句选择件承接)"
         pe_neg_l = sg_links[sel["inputs"][3]["link"]]
         assert (pe_neg_l["origin_id"], pe_neg_l["origin_slot"]) == (QI21_SG_PE_RW, 1), \
             "[4014].PE负面 应接 [4013].negative_prompt(1004 中文 PE 负面双出;lazy 同上)"
@@ -3536,9 +3536,9 @@ class TestQi21SubgraphContract:
         # (底座+开关+装配+合成器)/带2 扩写TE/带3 中文PE+thinking 预览
         want_bands = {
             0: [4100],
-            1: [4010, 4011, 4012, 4014],
+            1: [4010, 4011, 4012, 4013, 4014, 4021],
             2: [4019],
-            3: [4013, 4020],
+            3: [4020],
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
@@ -3549,11 +3549,13 @@ class TestQi21SubgraphContract:
             xs = sorted(sg_nodes[nid]["pos"][0] for nid in bands[b])
             assert all(x2 > x1 for x1, x2 in zip(xs, xs[1:])), \
                 f"带{b} 带内 x 非严格递增(应从左到右零同列): {xs}"
-        # 裁定A链位:[141] 在 [140] 左(装配全文右向喂 PE);[140] 在 [152] 左(PE出文右向喂合成器)
-        assert sg_nodes[QI21_SG_ASM_ID]["pos"][0] < sg_nodes[QI21_SG_PE_RW]["pos"][0], \
-            "链序:[141] 装配全文件应在 [140] PE改写 左侧(65 线右向)"
-        assert sg_nodes[QI21_SG_PE_RW]["pos"][0] < sg_nodes[QI21_SG_SEL_ID]["pos"][0], \
-            "链序:[140] PE改写应在 [152] 合成器 左侧(23 线右向)"
+        # 1005 ㉜ 管线重序链位:主体句→PE→[4021]选择→[4011]装配→[4014]合成(全右向)
+        assert sg_nodes[QI21_SG_PE_RW]["pos"][0] < sg_nodes[4021]["pos"][0], \
+            "链序:[4013] PE改写应在 [4021] 主体句选择件 左侧(206 线右向)"
+        assert sg_nodes[4021]["pos"][0] < sg_nodes[QI21_SG_ASM_ID]["pos"][0], \
+            "链序:[4021] 主体句选择件应在 [4011] 装配器 左侧(101 线右向)"
+        assert sg_nodes[QI21_SG_ASM_ID]["pos"][0] < sg_nodes[QI21_SG_SEL_ID]["pos"][0], \
+            "链序:[4011] 装配器应在 [4014] 合成器 左侧(67 线右向)"
         # 带间净距 ≥100
         band_tops = {b: min(sg_nodes[nid]["pos"][1] for nid in ids) for b, ids in bands.items()}
         band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]

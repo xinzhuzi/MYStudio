@@ -199,7 +199,8 @@
             "name": "主体句",
             "type": "STRING",
             "linkIds": [
-              101
+              65,
+              205
             ],
             "pos": [
               -216,
@@ -350,8 +351,8 @@
             "id": 4010,
             "type": "MyQi21DaojieBase",
             "pos": [
-              -379.7126464843749,
-              691.3645426432273
+              -379.7,
+              691.4
             ],
             "size": [
               570.5259765625,
@@ -450,8 +451,8 @@
             "id": 4013,
             "type": "QwenImage21_T2IPromptRewrite",
             "pos": [
-              1428.9534098307286,
-              1856.298950195312
+              620,
+              470
             ],
             "size": [
               502.5630859375,
@@ -483,7 +484,7 @@
                 "name": "positive_prompt",
                 "type": "STRING",
                 "links": [
-                  23
+                  206
                 ]
               },
               {
@@ -551,8 +552,8 @@
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              710.734578450521,
-              684.7993977864566
+              1450,
+              480
             ],
             "size": [
               520,
@@ -599,7 +600,7 @@
                 "name": "装配全文",
                 "type": "STRING",
                 "links": [
-                  65,
+                  23,
                   67
                 ]
               },
@@ -669,8 +670,8 @@
             "id": 4014,
             "type": "MyQi21PromptSelect",
             "pos": [
-              3103.4818115234407,
-              681.1754150390606
+              3103.5,
+              681.2
             ],
             "size": [
               380,
@@ -827,8 +828,8 @@
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              802.0621814778652,
-              1413.6415795084713
+              380,
+              1413.6
             ],
             "size": [
               400,
@@ -876,8 +877,8 @@
             "id": 4012,
             "type": "PrimitiveBoolean",
             "pos": [
-              1666.895050530334,
-              523.8768854100633
+              250,
+              500
             ],
             "size": [
               280,
@@ -905,7 +906,8 @@
                 "slot_index": 0,
                 "links": [
                   8,
-                  68
+                  68,
+                  207
                 ]
               }
             ],
@@ -929,8 +931,8 @@
             "id": 4020,
             "type": "easy showAnything",
             "pos": [
-              2371.3253580729192,
-              2309.5204508463557
+              2371.3,
+              2309.5
             ],
             "size": [
               500,
@@ -974,6 +976,53 @@
             "widgets_values_named": {
               "text": ""
             }
+          },
+          {
+            "id": 4021,
+            "type": "MyQi21SubjectSelect",
+            "pos": [
+              1180,
+              560
+            ],
+            "size": [
+              210,
+              120
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "主体句",
+                "type": "STRING",
+                "link": 205
+              },
+              {
+                "name": "PE出文",
+                "type": "STRING",
+                "link": 206,
+                "lazy": true
+              },
+              {
+                "name": "pe开关",
+                "type": "BOOLEAN",
+                "link": 207
+              }
+            ],
+            "outputs": [
+              {
+                "name": "选定的主体句",
+                "type": "STRING",
+                "links": [
+                  101
+                ],
+                "slot_index": 0
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21SubjectSelect"
+            },
+            "title": "[4021] 主体句选择·pe开=PE扩写文"
           }
         ],
         "groups": [],
@@ -1028,7 +1077,7 @@
           },
           {
             "id": 23,
-            "origin_id": 4013,
+            "origin_id": 4011,
             "origin_slot": 0,
             "target_id": 4014,
             "target_slot": 2,
@@ -1068,8 +1117,8 @@
           },
           {
             "id": 65,
-            "origin_id": 4011,
-            "origin_slot": 0,
+            "origin_id": -10,
+            "origin_slot": 2,
             "target_id": 4013,
             "target_slot": 1,
             "type": "STRING"
@@ -1100,8 +1149,8 @@
           },
           {
             "id": 101,
-            "origin_id": -10,
-            "origin_slot": 2,
+            "origin_id": 4021,
+            "origin_slot": 0,
             "target_id": 4011,
             "target_slot": 2,
             "type": "STRING"
@@ -1145,6 +1194,30 @@
             "target_id": 4011,
             "target_slot": 1,
             "type": "STRING"
+          },
+          {
+            "id": 205,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 4021,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 206,
+            "origin_id": 4013,
+            "origin_slot": 0,
+            "target_id": 4021,
+            "target_slot": 1,
+            "type": "STRING"
+          },
+          {
+            "id": 207,
+            "origin_id": 4012,
+            "origin_slot": 0,
+            "target_id": 4021,
+            "target_slot": 2,
+            "type": "BOOLEAN"
           }
         ],
         "extra": {

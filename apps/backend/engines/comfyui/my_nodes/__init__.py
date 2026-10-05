@@ -32,6 +32,7 @@ from .nodes.my_qi21_speed_select import MyQi21SpeedSelect
 from .nodes.my_qi21_rgba_select import MyQi21RgbaSelect
 from .nodes.my_qi21_prompt_assembly import MyQi21PromptAssembly
 from .nodes.my_qi21_prompt_select import MyQi21PromptSelect
+from .nodes.my_qi21_subject_select import MyQi21SubjectSelect
 from .nodes.my_qi21_wh_suggest import MyQi21WhSuggest
 from .nodes.my_qi21_chinese_pe import MyQi21ChinesePE
 from .nodes.my_image_grid_split import MyImageGridSplit
@@ -123,7 +124,8 @@ NODE_CLASS_MAPPINGS = {
     "MyQi21SpeedSelect": MyQi21SpeedSelect,  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
     "MyQi21RgbaSelect": MyQi21RgbaSelect,  # 0929 D6 三态选择;1001 ① 文案轮:自动/true/false
     "MyQi21PromptAssembly": MyQi21PromptAssembly,  # 1001 S8 R7 集成(裁定A拆件):装配全文=主体句+BASE+锁层A,单口真源
-    "MyQi21PromptSelect": MyQi21PromptSelect,  # 1001 S8 R7 集成(裁定A拆件):最终文本=pe开关选路+透明文本包裹(链下游,破 lazy 环)
+    "MyQi21PromptSelect": MyQi21PromptSelect,
+    "MyQi21SubjectSelect": MyQi21SubjectSelect,  # 1005 ㉜ 管线重序:主体句过PE后拼型/底座(pe开选PE扩写文)  # 1001 S8 R7 集成(裁定A拆件):最终文本=pe开关选路+透明文本包裹(链下游,破 lazy 环)
     "MyQi21WhSuggest": MyQi21WhSuggest,  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
     "MyQi21ChinesePE": MyQi21ChinesePE,  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出,磁盘零改)
     "MyImageGridSplit": MyImageGridSplit,  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
@@ -162,6 +164,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyQi21RgbaSelect": "Q2-1 RGBA透明开关(三选一·默认自动)",
     "MyQi21PromptAssembly": "道劫·qi21装配全文件",
     "MyQi21PromptSelect": "道劫·qi21最终文本合成器",
+    "MyQi21SubjectSelect": "道劫·qi21主体句选择件",
     "MyQi21WhSuggest": "道劫·qi21画幅联动建议器",
     "MyQi21ChinesePE": "漫影 中文扩写PE",
     "MyImageGridSplit": "漫影 宫格切割回灌",
