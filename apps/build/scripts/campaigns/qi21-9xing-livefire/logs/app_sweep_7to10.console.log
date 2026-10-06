@@ -1,0 +1,58 @@
+[T+0s] ═══ 型 7/10 「分镜剧情图」(透明预期=false)═══
+[T+0s] S1 置型: {"host":"set:old=人物","readback":"分镜剧情图","n400":147,"prev401Len":0,"dryBase":"分镜剧情图"}
+[T+0s] 🚀 queued(引擎=http://127.0.0.1:17000,history 基线 13 条)
+[T+0s] ⏳ 执行中 T+0s(pid=4945120e queue running=1)
+[T+60s] ⏳ 执行中 T+60s(pid=4945120e queue running=1)
+[T+120s] ⏳ 执行中 T+120s(pid=4945120e queue running=1)
+[T+180s] ⏳ 执行中 T+180s(pid=4945120e queue running=1)
+[T+240s] ⏳ 执行中 T+240s(pid=4945120e queue running=1)
+[T+301s] ⏳ 执行中 T+300s(pid=4945120e queue running=1)
+[T+363s] ⏳ 执行中 T+363s(pid=4945120e queue running=1)
+[T+394s] ✅ 引擎终态 success pid=4945120e dur=6.56min cached=1/30
+[T+399s] S4 [401] __myPreviewDisplay: {"len":5194,"head":"═══ 正向提示词 ═══|A vertical fantasy portrait shows a "}
+[T+399s] 🖼 images/type-7-分镜剧情图.direct.png(QI21道劫文生图__00112_.png,8356489B,PNG✓) ; images/type-7-分镜剧情图.2k.png(MYStudio-2K_00033_.png,11099369B,PNG✓)
+[T+399s] 📋 看板落盘 /tmp/nine_type_results.json(10 项中 7 有产物,绿 4)
+[T+402s] ═══ 型 8/10 「表情差分」(透明预期=true)═══
+[T+402s] S1 置型: {"host":"set:old=分镜剧情图","readback":"表情差分","n400":147,"prev401Len":5194,"dryBase":"表情差分"}
+[T+402s] 🚀 queued(引擎=http://127.0.0.1:17000,history 基线 14 条)
+[T+402s] ⏳ 执行中 T+0s(pid=91ea95a6 queue running=1)
+[T+462s] ⏳ 执行中 T+60s(pid=91ea95a6 queue running=1)
+[T+522s] ⏳ 执行中 T+120s(pid=91ea95a6 queue running=1)
+[T+582s] ⏳ 执行中 T+180s(pid=91ea95a6 queue running=1)
+[T+642s] ⏳ 执行中 T+240s(pid=91ea95a6 queue running=1)
+[T+702s] ⏳ 执行中 T+300s(pid=91ea95a6 queue running=1)
+[T+763s] ⏳ 执行中 T+361s(pid=91ea95a6 queue running=1)
+[T+817s] ✅ 引擎终态 success pid=91ea95a6 dur=6.93min cached=10/30
+[T+822s] S4 [401] __myPreviewDisplay: {"len":5472,"head":"═══ 正向提示词 ═══|这是一张带有透明度的RGBA图像。 A cinematic fantas"}
+[T+822s] 🖼 images/type-8-表情差分.direct.png(QI21道劫文生图__00113_.png,8628311B,PNG✓) ; images/type-8-表情差分.2k.png(MYStudio-2K_00034_.png,11374006B,PNG✓)
+[T+823s] S6 alpha 直出=[255,255,255,254] 2K=[255,255,255,203] → FAIL
+[T+823s] 📋 看板落盘 /tmp/nine_type_results.json(10 项中 8 有产物,绿 4)
+[T+826s] ═══ 型 9/10 「概念气氛图」(透明预期=false)═══
+[T+826s] S1 置型: {"host":"set:old=表情差分","readback":"概念气氛图","n400":147,"prev401Len":5472,"dryBase":"概念气氛图"}
+[T+826s] 🚀 queued(引擎=http://127.0.0.1:17000,history 基线 15 条)
+[T+826s] ⏳ 执行中 T+0s(pid=2bb4e36f queue running=1)
+[T+886s] ⏳ 执行中 T+60s(pid=2bb4e36f queue running=1)
+[T+946s] ⏳ 执行中 T+120s(pid=2bb4e36f queue running=1)
+[T+1006s] ⏳ 执行中 T+180s(pid=2bb4e36f queue running=1)
+[T+1066s] ⏳ 执行中 T+240s(pid=2bb4e36f queue running=1)
+[T+1126s] ⏳ 执行中 T+300s(pid=2bb4e36f queue running=1)
+[T+1187s] ⏳ 执行中 T+361s(pid=2bb4e36f queue running=1)
+[T+1244s] ✅ 引擎终态 success pid=2bb4e36f dur=6.97min cached=10/30
+[T+1249s] S4 [401] __myPreviewDisplay: {"len":5538,"head":"═══ 正向提示词 ═══|A vertical fantasy-style portrait sh"}
+[T+1249s] 🖼 images/type-9-概念气氛图.direct.png(QI21道劫文生图__00114_.png,8321367B,PNG✓) ; images/type-9-概念气氛图.2k.png(MYStudio-2K_00035_.png,11013650B,PNG✓)
+[T+1249s] 📋 看板落盘 /tmp/nine_type_results.json(10 项中 9 有产物,绿 5)
+[T+1252s] ═══ 型 10/10 「自由」(透明预期=false)═══
+[T+1252s] S1 置型: {"host":"set:old=概念气氛图","readback":"自由","n400":147,"prev401Len":5538,"dryBase":"自由"}
+[T+1252s] 🚀 queued(引擎=http://127.0.0.1:17000,history 基线 17 条)
+[T+1252s] ⏳ 执行中 T+0s(pid=8317cb37 queue running=1)
+[T+1312s] ⏳ 执行中 T+60s(pid=8317cb37 queue running=1)
+[T+1372s] ⏳ 执行中 T+120s(pid=8317cb37 queue running=1)
+[T+1432s] ⏳ 执行中 T+180s(pid=8317cb37 queue running=1)
+[T+1492s] ⏳ 执行中 T+240s(pid=8317cb37 queue running=1)
+[T+1553s] ⏳ 执行中 T+301s(pid=8317cb37 queue running=1)
+[T+1615s] ⏳ 执行中 T+363s(pid=8317cb37 queue running=1)
+[T+1639s] ✅ 引擎终态 success pid=8317cb37 dur=6.45min cached=10/30
+[T+1644s] S4 [401] __myPreviewDisplay: {"len":5214,"head":"═══ 正向提示词 ═══|A vertical fantasy-style portrait sh"}
+[T+1644s] 🖼 images/type-10-自由.direct.png(QI21道劫文生图__00115_.png,8488786B,PNG✓) ; images/type-10-自由.2k.png(MYStudio-2K_00036_.png,11144039B,PNG✓)
+[T+1644s] 📋 看板落盘 /tmp/nine_type_results.json(10 项中 10 有产物,绿 6)
+[T+1647s] ═══ 扫场结束: 本会话 7-10 绿 3/4 ═══

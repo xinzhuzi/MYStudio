@@ -1,0 +1,51 @@
+[T+0s] ═ type 8/9 「表情差分」 引擎=http://127.0.0.1:17000 CDP=9310 ═
+[T+0s] ✅ S1 引擎在(/system_stats 200) — comfyui_version=0.38.0
+[T+0s] ✅ S1 底座 combo 含「表情差分」(九型+自由十档) — ["人物","场景","道具","美宣","多视图","高清人脸","分镜剧情图","表情差分","概念气氛图","自由"]
+[T+0s] ✅ S1 PE 件在册(QwenImage21_T2IPromptRewrite,1005 官方件)
+[T+0s] ✅ S2 主体句读入(/tmp/qi21-subject-type8.txt) — len=390 md5=e1dea2d1bbb9e90d7b6ce4d14816cbbd
+[T+0s] ✅ S3 真源解析(锁层A>500字 / 宿主[6][7]在) — lockA=739字 宿主6存档=["人物",true] 宿主7存档=["0 · Fun-Acc 4步",0]
+[T+5s] ✅ S4 仓库真源装载(画布根节点=20) — md5=65d4708ff1d9557caa8813e913b516b6
+[T+5s] 改前保存态: {"host6":{"型选择":"人物","PE启用?":true},"host7":{"速度档位":"0 · Fun-Acc 4步","seed":0},"n400len":147,"n404":"\"\""}
+[T+5s] ✅ S6 改动① 型选择=表情差分(setViaHook) — set:型选择:old=人物
+[T+5s] ✅ S6 改动② [400] 主体句=canon 原句(setNodeWidget) — set:value:oldLen=147
+[T+6s] ✅ S7 读回:型选择=表情差分 / PE启用?=true(保存态) — {"型选择":"表情差分","PE启用?":true}
+[T+6s] ✅ S7 读回:[400] 主体句逐字=canon(md5 同) — md5(canvas)=e1dea2d1bbb9e90d7b6ce4d14816cbbd vs md5(canon)=e1dea2d1bbb9e90d7b6ce4d14816cbbd
+[T+6s] ✅ S7 读回:[404] 负向主体句保持空(保存态) — ""
+[T+6s] ✅ S7 读回:[7] 速度档位=0 · Fun-Acc 4步 / seed=0(保存态未动) — {"速度档位":"0 · Fun-Acc 4步","seed":0}
+[T+6s] ✅ S7 读回:除任务书两处(及裁定① seed)外宿主面板其余槽未漂移 — host6.PE启用?/host7.速度档位/404 改前后一致(seed 走裁定①通道时除外)
+[T+6s] ✅ Q [6:4010].base=「表情差分」(型值真进图) — "表情差分"
+[T+6s] ✅ Q D5 三闸:PE←PE开关口0+主体句源含头18字+BASE←型底座+锁层A 逐字 — 链=PE←PE开关6:4012:0✓ 主体句源含头18字=true/装配器6:4011 BASE←型底座=true/锁层A 739 字逐字=true(真值 739 字)
+[T+6s] ✅ Q D5 加严:主体句源=canon 全文逐字(非仅头18字) — len=390/390 md5=e1dea2d1bbb9e90d7b6ce4d14816cbbd
+[T+6s] ✅ Q 双编码接线:[4015].prompt←[6:4014,0] / [4016].prompt←[6:4014,1] — 4015=["6:4014",0];4016=["6:4014",1]
+[T+6s] ✅ Q 宽高连线:[4].width/height←[4018,0/1](跟型/PE 画幅,非手填) — w=["4018",0] h=["4018",1]
+[T+6s] ✅ Q 速度档=0 · Fun-Acc 4步(保存态;档0 FunAcc 无负槽,负向仅档1 生效) — 7:7015.mode
+[T+6s] ✅ Q 档0 支路在图:[7:7013]=T8QwenImage21FunAccPDD4Step — T8QwenImage21FunAccPDD4Step
+[T+6s] ✅ Q seed 单源=[7:7014] 值 0(保存态 fixed) — 0
+[T+6s] ✅ Q 保存前缀:[8]=QI21道劫文生图_ / [504]=MYStudio-2K — QI21道劫文生图_/MYStudio-2K
+[T+6s] ✅ Q [6:4010].透明覆盖=false(九型透明跟型默认) — false
+[T+6s] 🚀 已排队 pid=fec5c1d6-5ace-4e62-a9c3-35ccb1df382c client=qi21-9xing-8-1791263270962
+[T+6s] ⏳ 执行中 T+0s(status=无;queue running=1)
+[T+66s] ⏳ 执行中 T+60s(status=无;queue running=1)
+[T+126s] ⏳ 执行中 T+120s(status=无;queue running=1)
+[T+186s] ⏳ 执行中 T+180s(status=无;queue running=1)
+[T+246s] ⏳ 执行中 T+240s(status=无;queue running=1)
+[T+306s] ⏳ 执行中 T+300s(status=无;queue running=1)
+[T+367s] ⏳ 执行中 T+361s(status=无;queue running=1)
+[T+428s] ⏳ 执行中 T+422s(status=无;queue running=1)
+[T+438s] ⚠️ 部分缓存:cached=8 fresh=22(4,5,8,400,401,503,504,505,4015,4016,4018,6:4010,6:4013,6:4011,6:4014,6:4012,6:4021,7:7013,7:7011,7:7012,7:7015,7:7010)
+[T+438s] ✅ S10 [401] 终稿:正向含主体句或其 PE 扩写链(非空长文) — posLen=6076 negLen=388 thinkLen=0
+[T+438s] 🖼 [8] QI21道劫文生图__00117_.png → images/type-8-表情差分.direct.png (8596658B, 引擎侧 mtime=2026-10-06T05:13:33.101Z)
+[T+438s] 🖼 [504] MYStudio-2K_00038_.png → images/type-8-表情差分.2k.png (7917663B, 引擎侧 mtime=2026-10-06T05:14:59.037Z)
+[T+438s] ✅ S11 产物图存在且>0字节([8] images/type-8-表情差分.direct.png) — 8596658B
+[T+438s] ✅ S11 PNG 魔数([8])
+[T+439s] ✅ S11 PNG 可解析(PIL,[8]) — {"mode":"RGBA","size":[2096,2096],"format":"PNG"}
+[T+439s] ✅ S11 产物图存在且>0字节([504] images/type-8-表情差分.2k.png) — 7917663B
+[T+439s] ✅ S11 PNG 魔数([504])
+[T+439s] ✅ S11 PNG 可解析(PIL,[504]) — {"mode":"RGBA","size":[2048,2048],"format":"PNG"}
+[T+439s] ✅ S11 PNG 元数据 tEXt prompt 可解析且含本拍 PE 键(6:4013) — len=13702 nodes=30
+[T+439s] ❌ S11 PNG 元数据=history prompt(稳态同:键序无关逐值同) — pngMd5=5562a7169036120abbefd4ce29257a78 histMd5=3696747d779d07b8b76691d030f13c02
+[T+439s] ✅ S12 实际参数回读在档(seed=0 / T8 件在拍) — {"seed":{"value":0},"t8":"T8QwenImage21FunAccPDD4Step"}
+[T+439s] ✅ S12 image-prompts 日志段(入队+摘要+全量JSON 三行俱在) — image-prompts-20261006.log:73-75
+[T+439s] ❌ ★ 终判:三层收据齐全+图在+PNG 可解析+排队图断言全绿 — 收据={image-prompts:true,pngMeta:true,history:true} 图=8,504
+[T+439s] raw → runs/type-8-表情差分.json (exit=1)
+DRIVER_EXIT=1

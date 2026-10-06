@@ -1,0 +1,32 @@
+{
+ "G1_无环境描写": true,
+ "G1_hits": [],
+ "G2_透明隔离句": false,
+ "G3_主体要件存活": false,
+ "G3_missing": [
+  "sword",
+  "bronze",
+  "jade",
+  "110"
+ ],
+ "G4_语言形状": {
+  "cjk_chars": 0,
+  "wh_ratio": "",
+  "json_parsed": false
+ },
+ "params": {
+  "sampling": {
+   "sampling_mode": "on",
+   "sampling_mode.temperature": 1.0,
+   "sampling_mode.top_k": 20,
+   "sampling_mode.top_p": 0.95,
+   "sampling_mode.min_p": 0.05,
+   "sampling_mode.repetition_penalty": 1.05,
+   "sampling_mode.seed": 42
+  },
+  "max_length": 16256,
+  "checkpoint": "pe_t2i",
+  "harness": "TextGenerate.system_prompt",
+  "pid": "9ff2981b-1927-41db-a58d-3deffd342975"
+ }
+}

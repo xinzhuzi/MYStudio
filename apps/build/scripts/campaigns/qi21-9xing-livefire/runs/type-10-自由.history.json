@@ -1,0 +1,4037 @@
+{
+ "prompt": [
+  18,
+  "8317cb37-0f06-466b-96f6-875197c835c9",
+  {
+   "1": {
+    "inputs": {
+     "unet_name": "qwen_image_2.1_bf16.safetensors",
+     "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+     "title": "[1] UNETLoader"
+    }
+   },
+   "2": {
+    "inputs": {
+     "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+     "type": "qwen_image",
+     "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+     "title": "[2] 主TE·CLIPLoader"
+    }
+   },
+   "3": {
+    "inputs": {
+     "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+     "title": "[3] VAELoader"
+    }
+   },
+   "4": {
+    "inputs": {
+     "width": [
+      "4018",
+      0
+     ],
+     "height": [
+      "4018",
+      1
+     ],
+     "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+     "title": "[4] 自动化宽高·EmptyLatentImage"
+    }
+   },
+   "5": {
+    "inputs": {
+     "samples": [
+      "7:7015",
+      0
+     ],
+     "vae": [
+      "3",
+      0
+     ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+     "title": "[5] VAEDecode"
+    }
+   },
+   "8": {
+    "inputs": {
+     "filename_prefix": "QI21道劫文生图_",
+     "images": [
+      "5",
+      0
+     ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+     "title": "[8] SaveImage"
+    }
+   },
+   "400": {
+    "inputs": {
+     "value": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+     "title": "[400] 正向主体句"
+    }
+   },
+   "401": {
+    "inputs": {
+     "正向提示词": [
+      "6:4014",
+      0
+     ],
+     "负向提示词": [
+      "6:4014",
+      1
+     ],
+     "合并预览": "═══ 正向提示词 ═══\nA vertical fantasy-style portrait shows a young East Asian-presenting woman standing on an ancient stone stairway built along a high mountain cliff. The upper-left area is filled with warm golden sunrise light, with the sun low near the horizon and partially diffused by glowing haze. The sky transitions from pale amber and cream near the sun to soft blue-gray higher up, with scattered illuminated clouds. Across the distant background, jagged mountain silhouettes recede into atmospheric mist, their outlines fading from gray-blue to pale gold due to depth and haze. A broad sea of clouds fills the valleys below, creating a floating, elevated sense of height, while small temple-like rooftops and pagoda structures appear intermittently among the mountains and forested slopes.\n\nThe central subject occupies most of the middle and right side of the frame. She is shown from roughly mid-thigh upward in a three-quarter rear profile, positioned slightly right of center and looking out toward the bright horizon on the left. Her posture is upright and composed, with one hand resting lightly near the hilt of a sheathed sword at her waist. She has a slim build, fair skin, a narrow oval face, delicate brows, defined eyeliner, subtle warm-toned eye makeup, softly contoured cheeks, and muted red lipstick. Her expression is calm, focused, and contemplative. Her long black hair flows dramatically to the right in thin windblown strands, while the back portion is gathered into a traditional half-up style secured with a plain silver hairpin. Loose tendrils frame her face and neck, catching the backlight.\n\nShe wears a flowing ancient Chinese-inspired hanfu-style outfit in muted jade green and pale sage tones. The robe is made of translucent, gauzy fabric with layered sleeves and embroidered floral or vine-like patterns along the shoulders, cuffs, collar, and front trim. The garment drapes loosely over her body, with a cinched moon-white waist sash and long ribbon ties hanging down the back. The fabric has a sheer, lightweight texture, visible folds, and wind-swept movement, especially around the trailing sleeves and skirt panels. The color palette of the clothing harmonizes with the misty landscape, using cool greens contrasted by warm sunlight.\n\nAt her waist on the right side of her body hangs an ornate sword in a dark wooden scabbard. The sword has a decorative silver-white fitting, a carved guard, and a handle wrapped in grey silver wire. A dark red tassel hangs from the pommel or scabbard end, adding a vivid accent against the otherwise subdued palette. The sword lies diagonally from the lower-right area toward her hip, visually balancing the woman’s outward gaze and reinforcing the martial fantasy theme.\n\nOn the left-middle side, a cluster of tall carved stone pillars or gate ruins rises beside the stairway. These vertical architectural elements are weathered gray-brown stone with intricate relief carvings, aged edges, and mossy discoloration. They sit behind and to the left of the woman, partially framing her silhouette against the glowing sky. Beneath them, a stone railing with rounded posts runs horizontally behind her shoulder and waist area, its surface rough, chipped, and mottled with age. The lower-right foreground contains a steep flight of worn stone steps leading upward and backward into the scene. The steps are irregular, dark gray, and heavily textured, with cracks, uneven edges, patches of moss, and small plants growing between stones.\n\nThe lower-left and mid-background contain rocky cliffs, tree-covered ledges, mist-filled ravines, and glimpses of traditional East Asian rooftops embedded in the landscape. These architectural forms are partially obscured by fog and depth-of-field blur, giving the environment a grand, mythic scale. The composition uses a low-angle viewpoint looking slightly upward at the woman, making her appear poised and heroic against the vast landscape. Strong backlighting from the left creates rim highlights along her hair, shoulder, sleeve edges, and the contours of the stone railing, while softer shadow falls across the right side of her robe and face. The overall visual style is highly detailed cinematic digital painting or AI-generated fantasy realism, with xianxia-inspired costume design, dramatic atmospheric perspective, soft volumetric light, and painterly photographic realism.\n一幅以气氛为主的画面，主体落在画面偏侧。细墨线只勾近处轮廓，运笔有提按顿挫，线随结构时粗时细；墨色浓淡分明，远处交给淡墨，层层退远，整体对比低。色彩层次承担画面呼吸，远景轻轻压住，近处轮廓清楚而细节少；底色浅净，少数焦点色可二到三色相，青绿、赭石、淡朱各安其位，受控饱和；均匀柔光，平涂的底。\n概念气氛设色配比：大面积淡墨、青灰为稳定基底，青绿、赭石、淡朱二到三色相作焦点色。\n风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。\n\n═══ 负向提示词 ═══\n模糊，水印，多手指，文字错误, 模糊，水印，多手指，文字错误，网文封面美人，古风美女/帅哥偶像海报，光面现代 CG 特写，赛璐璐，好莱坞三点电影光，深重写实投影，禁止电影级主光/填充/轮廓光三点布光，电影级主光，轮廓光，大块不透明色面，厚数字颜料块，喷枪明暗法，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物/UI/logo 复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，糖果饱和度"
+    },
+    "class_type": "MyQi21PromptPreview",
+    "_meta": {
+     "title": "[401] 提示词预览(正向+负向)"
+    }
+   },
+   "404": {
+    "inputs": {
+     "value": ""
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+     "title": "[404] 负向主体句"
+    }
+   },
+   "501": {
+    "inputs": {
+     "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+     "device": "mps",
+     "blocks_to_swap": 0,
+     "swap_io_components": false,
+     "offload_device": "none",
+     "cache_model": false,
+     "attention_mode": "sdpa"
+    },
+    "class_type": "SeedVR2LoadDiTModel",
+    "_meta": {
+     "title": "[501] SeedVR2 DiT加载(sharp 7B fp8)"
+    }
+   },
+   "502": {
+    "inputs": {
+     "model": "ema_vae_fp16.safetensors",
+     "device": "mps",
+     "encode_tiled": true,
+     "encode_tile_size": 512,
+     "encode_tile_overlap": 160,
+     "decode_tiled": true,
+     "decode_tile_size": 512,
+     "decode_tile_overlap": 160,
+     "tile_debug": "false",
+     "offload_device": "none",
+     "cache_model": false
+    },
+    "class_type": "SeedVR2LoadVAEModel",
+    "_meta": {
+     "title": "[502] SeedVR2 VAE加载(ema fp16)"
+    }
+   },
+   "503": {
+    "inputs": {
+     "seed": 42,
+     "resolution": 2048,
+     "max_resolution": 4096,
+     "batch_size": 1,
+     "uniform_batch_size": false,
+     "color_correction": "lab",
+     "temporal_overlap": 0,
+     "prepend_frames": 0,
+     "input_noise_scale": 0,
+     "latent_noise_scale": 0,
+     "offload_device": "none",
+     "enable_debug": false,
+     "image": [
+      "5",
+      0
+     ],
+     "dit": [
+      "501",
+      0
+     ],
+     "vae": [
+      "502",
+      0
+     ]
+    },
+    "class_type": "SeedVR2VideoUpscaler",
+    "_meta": {
+     "title": "[503] SeedVR2放大(短边2048=2K档)"
+    }
+   },
+   "504": {
+    "inputs": {
+     "filename_prefix": "MYStudio-2K",
+     "images": [
+      "503",
+      0
+     ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+     "title": "[504] 放大保存(2K·MYStudio-2K)"
+    }
+   },
+   "505": {
+    "inputs": {
+     "rgthree_comparer": {
+      "images": [
+       {
+        "name": "A",
+        "selected": true,
+        "url": "/api/view?filename=rgthree.compare._temp_udaxi_00019_.png&type=temp&subfolder=&rand=0.4319713294739881"
+       },
+       {
+        "name": "B",
+        "selected": true,
+        "url": "/api/view?filename=rgthree.compare._temp_udaxi_00020_.png&type=temp&subfolder=&rand=0.2195091369564378"
+       }
+      ]
+     },
+     "image_a": [
+      "5",
+      0
+     ],
+     "image_b": [
+      "503",
+      0
+     ]
+    },
+    "class_type": "Image Comparer (rgthree)",
+    "_meta": {
+     "title": "[505] 直出×2K对比·ImageComparer"
+    }
+   },
+   "4015": {
+    "inputs": {
+     "prompt": [
+      "6:4014",
+      0
+     ],
+     "negative_prompt": "",
+     "resolution": 1024,
+     "clip": [
+      "2",
+      0
+     ]
+    },
+    "class_type": "TextEncodeQwenImage21",
+    "_meta": {
+     "title": "[4015] 主编码·TextEncode"
+    }
+   },
+   "4016": {
+    "inputs": {
+     "prompt": [
+      "6:4014",
+      1
+     ],
+     "negative_prompt": "",
+     "resolution": 1024,
+     "clip": [
+      "2",
+      0
+     ]
+    },
+    "class_type": "TextEncodeQwenImage21",
+    "_meta": {
+     "title": "[4015N] 负向编码·TextEncode"
+    }
+   },
+   "4018": {
+    "inputs": {
+     "wh_ratio": [
+      "6:4021",
+      1
+     ],
+     "九型WIDTH": [
+      "6:4010",
+      1
+     ],
+     "九型HEIGHT": [
+      "6:4010",
+      2
+     ],
+     "联动开关": [
+      "6:4012",
+      2
+     ],
+     "手动宽": 0,
+     "手动高": 0
+    },
+    "class_type": "MyQi21WhSuggest",
+    "_meta": {
+     "title": "[4018] 画幅建议器·自研"
+    }
+   },
+   "6:4010": {
+    "inputs": {
+     "base": "自由",
+     "透明覆盖": false
+    },
+    "class_type": "MyQi21DaojieBase",
+    "_meta": {
+     "title": "[4010] 类型句选择"
+    }
+   },
+   "6:4013": {
+    "inputs": {
+     "prompt": [
+      "6:4012",
+      0
+     ],
+     "temperature": 1,
+     "top_p": 0.95,
+     "top_k": 20,
+     "presence_penalty": 1.5,
+     "max_new_tokens": 16256,
+     "seed": 2238647577,
+     "clip": [
+      "6:4019",
+      0
+     ]
+    },
+    "class_type": "QwenImage21_T2IPromptRewrite",
+    "_meta": {
+     "title": "[4013] PE扩写"
+    }
+   },
+   "6:4011": {
+    "inputs": {
+     "BASE": [
+      "6:4010",
+      0
+     ],
+     "BASE负面": [
+      "6:4010",
+      4
+     ],
+     "主体句": [
+      "6:4021",
+      0
+     ],
+     "主体句负面": [
+      "6:4021",
+      2
+     ],
+     "锁层A全文": "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。"
+    },
+    "class_type": "MyQi21PromptAssembly",
+    "_meta": {
+     "title": "[4011] 三层拼装(正向三层+负向三层)"
+    }
+   },
+   "6:4014": {
+    "inputs": {
+     "装配全文": [
+      "6:4011",
+      0
+     ],
+     "负面词直写": [
+      "6:4011",
+      1
+     ],
+     "透明模式": [
+      "6:4010",
+      3
+     ]
+    },
+    "class_type": "MyQi21FinalOutput",
+    "_meta": {
+     "title": "[4014] 最终输出(正向+负向+透明)"
+    }
+   },
+   "6:4019": {
+    "inputs": {
+     "clip_name": "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+     "type": "qwen_image",
+     "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+     "title": "[4019] PE模型加载"
+    }
+   },
+   "6:4012": {
+    "inputs": {
+     "pe开关": true,
+     "主体句": [
+      "400",
+      0
+     ]
+    },
+    "class_type": "MyQi21PESwitch",
+    "_meta": {
+     "title": "[4012] PE开关(true=扩写 / false=直通)"
+    }
+   },
+   "6:4021": {
+    "inputs": {
+     "主体句": [
+      "6:4012",
+      1
+     ],
+     "PE出文": [
+      "6:4013",
+      0
+     ],
+     "PE宽高比": [
+      "6:4013",
+      2
+     ],
+     "pe开关": [
+      "6:4012",
+      2
+     ],
+     "主体句负面": [
+      "404",
+      0
+     ]
+    },
+    "class_type": "MyQi21SubjectSelect",
+    "_meta": {
+     "title": "[4021] 主体句路由(正向+负面)"
+    }
+   },
+   "7:7013": {
+    "inputs": {
+     "model_file": "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
+     "seed": [
+      "7:7014",
+      0
+     ],
+     "model": [
+      "1",
+      0
+     ],
+     "positive": [
+      "4015",
+      0
+     ],
+     "latent_image": [
+      "4",
+      0
+     ]
+    },
+    "class_type": "T8QwenImage21FunAccPDD4Step",
+    "_meta": {
+     "title": "[7013] FunAcc4步·FunAccPDD"
+    }
+   },
+   "7:7011": {
+    "inputs": {
+     "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
+     "strength_model": 1,
+     "model": [
+      "1",
+      0
+     ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+     "title": "[7011] viggle LoRA·LoraLoader"
+    }
+   },
+   "7:7012": {
+    "inputs": {
+     "seed": [
+      "7:7014",
+      0
+     ],
+     "steps": 6,
+     "cfg": 1,
+     "sampler_name": "euler",
+     "scheduler": "simple",
+     "denoise": 1,
+     "model": [
+      "7:7011",
+      0
+     ],
+     "positive": [
+      "4015",
+      0
+     ],
+     "negative": [
+      "4016",
+      0
+     ],
+     "latent_image": [
+      "4",
+      0
+     ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+     "title": "[7012] viggle6步·KSampler"
+    }
+   },
+   "7:7015": {
+    "inputs": {
+     "mode": "0 · Fun-Acc 4步",
+     "latent_funacc": [
+      "7:7013",
+      0
+     ],
+     "latent_viggle": [
+      "7:7012",
+      0
+     ],
+     "latent_direct": [
+      "7:7010",
+      0
+     ]
+    },
+    "class_type": "MyQi21SpeedSelect",
+    "_meta": {
+     "title": "[7015] 出图速度选择·自研"
+    }
+   },
+   "7:7014": {
+    "inputs": {
+     "value": 0
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+     "title": "[7014] seed单源·PrimitiveInt"
+    }
+   },
+   "7:7010": {
+    "inputs": {
+     "seed": [
+      "7:7014",
+      0
+     ],
+     "steps": 40,
+     "cfg": 4,
+     "sampler_name": "euler",
+     "scheduler": "simple",
+     "denoise": 1,
+     "model": [
+      "1",
+      0
+     ],
+     "positive": [
+      "4015",
+      0
+     ],
+     "negative": [
+      "4016",
+      0
+     ],
+     "latent_image": [
+      "4",
+      0
+     ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+     "title": "[7010] 直出40步·KSampler"
+    }
+   }
+  },
+  {
+   "comfy_usage_source": "comfyui-frontend",
+   "extra_pnginfo": {
+    "workflow": {
+     "id": "7d4a9c31-5e62-4b8a-b1f0-2c8e57a90413",
+     "revision": 0,
+     "last_node_id": 7016,
+     "last_link_id": 324,
+     "nodes": [
+      {
+       "id": 1,
+       "type": "UNETLoader",
+       "pos": [
+        1109.8651591694422,
+        1386.1020432968764
+       ],
+       "size": [
+        340,
+        84
+       ],
+       "flags": {},
+       "order": 0,
+       "mode": 0,
+       "inputs": [],
+       "outputs": [
+        {
+         "name": "MODEL",
+         "type": "MODEL",
+         "links": [
+          97
+         ]
+        }
+       ],
+       "title": "[1] UNETLoader",
+       "properties": {
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+         "widget_ue_connectable": {
+          "unet_name": true,
+          "weight_dtype": true
+         },
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+       ],
+       "widgets_values_named": {
+        "unet_name": "qwen_image_2.1_bf16.safetensors",
+        "weight_dtype": "default"
+       }
+      },
+      {
+       "id": 2,
+       "type": "CLIPLoader",
+       "pos": [
+        1114.9694248190124,
+        1673.0490810436609
+       ],
+       "size": [
+        360,
+        130
+       ],
+       "flags": {},
+       "order": 1,
+       "mode": 0,
+       "inputs": [],
+       "outputs": [
+        {
+         "name": "CLIP",
+         "type": "CLIP",
+         "links": [
+          210,
+          211
+         ]
+        }
+       ],
+       "title": "[2] 主TE·CLIPLoader",
+       "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+         "widget_ue_connectable": {
+          "clip_name": true,
+          "type": true,
+          "device": true
+         },
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "qwen3vl_8b_bf16_heretic.safetensors",
+        "qwen_image",
+        "default"
+       ],
+       "widgets_values_named": {
+        "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+       }
+      },
+      {
+       "id": 3,
+       "type": "VAELoader",
+       "pos": [
+        1110.6277697298883,
+        1538.4957643125015
+       ],
+       "size": [
+        340,
+        60
+       ],
+       "flags": {},
+       "order": 2,
+       "mode": 0,
+       "inputs": [],
+       "outputs": [
+        {
+         "name": "VAE",
+         "type": "VAE",
+         "links": [
+          10
+         ]
+        }
+       ],
+       "title": "[3] VAELoader",
+       "properties": {
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+         "widget_ue_connectable": {
+          "vae_name": true
+         },
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+       ],
+       "widgets_values_named": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+       }
+      },
+      {
+       "id": 400,
+       "type": "PrimitiveStringMultiline",
+       "pos": [
+        1686,
+        1910
+       ],
+       "size": [
+        661,
+        200
+       ],
+       "flags": {},
+       "order": 3,
+       "mode": 0,
+       "inputs": [],
+       "outputs": [
+        {
+         "name": "STRING",
+         "type": "STRING",
+         "slot_index": 0,
+         "links": [
+          15
+         ]
+        }
+       ],
+       "title": "[400] 正向主体句",
+       "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+       ],
+       "widgets_values_named": {
+        "value": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+       }
+      },
+      {
+       "id": 401,
+       "type": "MyQi21PromptPreview",
+       "pos": [
+        3054,
+        2360
+       ],
+       "size": [
+        500,
+        600
+       ],
+       "flags": {},
+       "order": 11,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "正向提示词",
+         "type": "STRING",
+         "widget": {
+          "name": "正向提示词"
+         },
+         "link": 18
+        },
+        {
+         "name": "负向提示词",
+         "type": "STRING",
+         "widget": {
+          "name": "负向提示词"
+         },
+         "link": 217
+        }
+       ],
+       "outputs": [
+        {
+         "name": "合并预览",
+         "type": "STRING",
+         "links": null
+        }
+       ],
+       "title": "[401] 提示词预览(正向+负向)",
+       "properties": {
+        "Node name for S&R": "MyQi21PromptPreview",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "",
+        ""
+       ],
+       "widgets_values_named": {
+        "正向提示词": "",
+        "负向提示词": ""
+       }
+      },
+      {
+       "id": 4,
+       "type": "EmptyLatentImage",
+       "pos": [
+        4619.132368001512,
+        1999.1219496746078
+       ],
+       "size": [
+        261.0357421875,
+        106
+       ],
+       "flags": {},
+       "order": 13,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "width",
+         "type": "INT",
+         "widget": {
+          "name": "width"
+         },
+         "link": 1
+        },
+        {
+         "name": "height",
+         "type": "INT",
+         "widget": {
+          "name": "height"
+         },
+         "link": 2
+        }
+       ],
+       "outputs": [
+        {
+         "name": "LATENT",
+         "type": "LATENT",
+         "links": [
+          5
+         ]
+        }
+       ],
+       "title": "[4] 自动化宽高·EmptyLatentImage",
+       "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "ue_properties": {
+         "widget_ue_connectable": {
+          "width": true,
+          "height": true
+         },
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        1024,
+        1024,
+        1
+       ],
+       "widgets_values_named": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+       }
+      },
+      {
+       "id": 5,
+       "type": "VAEDecode",
+       "pos": [
+        5562.387342831741,
+        1761.2816505712733
+       ],
+       "size": [
+        240,
+        50
+       ],
+       "flags": {},
+       "order": 15,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "samples",
+         "type": "LATENT",
+         "link": 62
+        },
+        {
+         "name": "vae",
+         "type": "VAE",
+         "link": 10
+        }
+       ],
+       "outputs": [
+        {
+         "name": "IMAGE",
+         "type": "IMAGE",
+         "links": [
+          11,
+          202,
+          206
+         ]
+        }
+       ],
+       "title": "[5] VAEDecode",
+       "properties": {
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       }
+      },
+      {
+       "id": 8,
+       "type": "SaveImage",
+       "pos": [
+        6010.239280551246,
+        2400
+       ],
+       "size": [
+        918.3911039062505,
+        833.1968023437494
+       ],
+       "flags": {},
+       "order": 16,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "images",
+         "type": "IMAGE",
+         "link": 11
+        }
+       ],
+       "outputs": [
+        {
+         "name": "images",
+         "type": "IMAGE",
+         "links": null
+        }
+       ],
+       "title": "[8] SaveImage",
+       "properties": {
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "QI21道劫文生图_"
+       ],
+       "widgets_values_named": {
+        "filename_prefix": "QI21道劫文生图_"
+       }
+      },
+      {
+       "id": 402,
+       "type": "MarkdownNote",
+       "pos": [
+        1746.6546534466322,
+        557.2078285470109
+       ],
+       "size": [
+        1483.5418131597644,
+        608.5266302474627
+       ],
+       "flags": {},
+       "order": 4,
+       "mode": 0,
+       "inputs": [],
+       "outputs": [],
+       "title": "[402] 道劫·用法速查",
+       "properties": {
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "## 道劫 · Qwen-Image-2.1 文生图(双子图版·1001 用户测试批)\n\nK2 道劫『一处选型+分件装配+子图收装』思想的 Q2-1 原生落地(0928 用户裁定:所有提示词必须过 PE——PE 改写链已收进 [6] 装配子图,消灭 [6]→主图 PE 链→[6] 来回绕线,主图零 PE 件零左向线)。**0929 S3 收装轮:加速区整体收进 [7] 加速子图**(三支路+viggle LoRA+seed 单源+出图速度选择全在内,双击进入;主图退成四块骨架=①加载器→②提示词·装配([400][6][401]+编码/画幅三件 [4015][4015N][4018],1004 编码器与画幅建议器迁出子图)→③加速([4] 空潜+[7] 加速子图)→④输出([5][8]→⑤放大尾档);每画布恰两子图=②提示词子图管内容语义+③加速子图管采样策略,职责互斥不掺和)。**1001 S8 集成轮:装配子图 28→10 节点(裁定A两件链)**;**1001 用户测试批:10 节点=9 功能件+[4100] 段说明卡([210] 三态件退役)+型选择十档(九型+自由)+透明纯布尔直布+画幅规则重构(PE 开=自动/PE 关才可手动)+两子图分组框全清空+节点标题瘦身(机制注记迁本卡)**;提示词真源=daojie_ink_guofeng/json/qi21_bases.json(1004 集中化;05库=记录层)。**1003 手改回灌:布局/位置经用户手定为新标准(结构零增删,生效参数零变化)**(②层底座=09-23 美化版,型名/顺序对齐 qi21_bases.json,原 daojie_bases.json 已并入)。\n\n### 怎么换型(一处切换;十档=九型+「自由」)\n- 主画布点选 [6] 装配子图,面板「型选择」下拉十选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图/自由——子图内 [4010] 底座九选一(MyQi21DaojieBase:BASE=②层底座+人物系增量四锁B+④配色行逐字=05 库/宽高随型直出/磁盘热读)按选型出 BASE 与 WIDTH/HEIGHT(型档分辨率直出);**「自由」型**(1001 用户测试批)=无型底座(BASE 空,装配自动降级两段拼=主体句+锁层A)+画幅兜底 1024×1024+透明手动(见下节)。\n- **分辨率**:PE 开=画幅自动跟 PE 建议(见画幅节);PE 关=跟所选型默认画幅,或在面板「手动宽/手动高」填成对非 0 值(0=跟型)。主图 [4018] 画幅建议器 width/height 直驱 [4] 空潜宽高([6] width/height 出口=九型原样直通喂 [4018],1004 迁出子图;九型档=qi21_bases.json 的 aspect/MP/override;多视图=Q2.1侧分档 3:4 Portrait 4.2MP 分张产线)——[4] 面板 1024×1024=**摆设值不生效**(实际由 [4018] 供给)。\n- 换型后 [400] 主体句须同步换成本型主体句(各型例句见库文档;场景/概念气氛图不写人——空镜句尾可明写「空镜无人」);主体句只写主体与画面,不重复风格词,全角标点,质量词/比例词/否定式禁入(库文档主体句纪律五则)。\n- 警示(手贴 vs 库真源):手贴内容只活在画布件——历史生成脚本已退役(qi21_daojie_t2i_0923.py 在 1001 手术轮后**勿再运行**,重跑必回退手术;真源=本 JSON+蓝图);主体句默认/锁层全文真源链仍在(底座 BASE 不经画布常量、直读 qi21_bases.json),装配器参数面(锁层A/头尾句/W1)改后要长久保留先回写库文档再经「从库刷参数」通道过账,或改前另存画布件。\n\n### 画幅怎么定(大白话:PE 开=自动,PE 关=可手动)\n- **PE 开**:画幅由 PE 改写给出的宽高比决定——[4013] 的 wh_ratio(如 16:9)经 [6] wh_ratio 出口喂主图 [4018] 画幅建议器(MyQi21WhSuggest:4.2MP 公式+8 倍数取整,1004 迁出子图)算出建议宽高自动生效([6] PE启用? 出口同步喂 [4018] 联动开关=联动跟 PE 开关)。\n- **PE 关**:跟所选型默认画幅;想自定就在主图 [4018] 画幅建议器「手动宽」「手动高」两个数字框填成对值(**两个都非 0 才生效;只填一个会报错,不猜不代选**;都留 0=跟型;1004 迁出后真控件住 [4018] 面板,[6] 面板同名控件不生效)。\n- 旧「画幅联动开关」独立控件已退役(其语义并入 PE 开关——[4018].联动开关 改接 [6] PE启用? 出口扇出,建议器件零改;PE 关=联动关=九型原样,与旧默认同态)。\n\n### 透明怎么定(大白话:九型全自动,自由型才手动)\n- **九型**:透明=纯按型默认(道具/多视图/高清人脸/表情差分四型开,其余五型关),面板无透明控件,不用管——RGBA 编码路自动跟随型。\n- **「自由」型**:面板出现「透明」开关(true/false,默认 false)手动定;切到九型时该开关自动隐藏(面板布尔值保留不丢,切回自由型还在)。\n- 机制(1001 ④⑥⑦ 落地):旧「RGBA透明」三态控件(跟随型/强制开/强制关)与子图内 [210] 三态选择件已退役——透明布尔唯一来源=底座件 [4010] 第4出「透明值」(⑯ 后四出:BASE/WIDTH/HEIGHT/透明值)(型≠自由=该型 rgba_default;自由型=面板「透明」布尔经 [4010].透明覆盖 直通),纯 BOOLEAN 直布 [4014] 合成器(透明模式参与文本计算,选择边界在合成器内;1004 复拆双编码=主图 [4015]/[4015N]),子图内零自选转换层;透明图必须存 PNG 才保 alpha。\n- **道具型判据特例(1002 收口 Q2 裁定)**:道具型=尺寸标注设定图,结构性半透明=功能设计非缺陷,透明判据不适用于此型。\n\n### 装配怎么拼([400] 唯一手写位;最终文本经 [6] positive/negative 出口过目 [401] 提示词预览)\n- 拼法(1005 管线重序:**主体句过 PE,型底座/锁层A 中文原文拼其后**)=主体句 → [4012] PE开关(MyQi21PESwitch:true=扩写/false=直通,与宿主面板「PE启用?」同源)→(开)[4013] PE扩写(QwenImage21_T2IPromptRewrite:只吃主体句,短句扩写英文长文)→[4021] 主体句路由(MyQi21SubjectSelect:开=选 PE出文,关=原主体句直通)→[4011] 三层拼装(MyQi21PromptAssembly:选定的主体句+型底座 BASE+锁层A 换行拼合=装配全文,负面词=型负面+锁层负面+主体句负面 三源合并去重)→[4014] 最终输出(MyQi21FinalOutput:透明包裹+双口输出「进编码正向文本/进编码负向文本」,无词族剥离;透明自动跟型=[4010] 透明值→线314)——双口经 [6] positive/negative 出口(STRING,1004 编码迁出子图)到主图 [4015] 主编码/[4015N] 负向编码,主画布 [401] 提示词预览(正向+负向)过目。**PE 开关=[4012] MyQi21PESwitch**(默认开;宿主面板四槽=正向主体句/型选择/PE启用?/负向主体句;PE 关=[4013] 零消费零执行不载扩写TE);1004 迁出后手动宽高住主图 [4018] 面板。\n- 层次序注:画布装配行序=①主体句→②型底座→(人物系增量锁)→④配色行→③通用锁层;库文档直写件行序=①②③(内嵌增量锁)④——层内容零差异,仅行序不同(锁层常量恒挂不可拆,增量锁随型走在 BASE 内;锁层A=③层库首节全文,全型恒挂不随型,参数面大框可编辑)。\n- 甲案围栏:pe开关 关=甲案全中文直书(中文合法);开=官方 PE 改写路(**主体句进、英文扩写出**,型底座/锁层A 仍中文原文拼其后——1005 管线重序,PE 只吃主体句),两态由 [4012]/[4021] 互斥路由二选一(库文档禁混条款一)。\n\n### PE 改写([4013]=QwenImage21_T2IPromptRewrite 官方件+pe_t2i;英文长文出;默认开路;pp=1.5 已定档;1005 用户令回官方设计)\n- **1005 回官方件(用户令「换回原来官方的设计」):官方节点原位回归(自研中文PE 曾 drop-in 兼容其槽序,连线零改)+官方 pe_t2i 检查点+官方英文系统指令;三层资产(主体句/型底座/锁层A)固定中文入,终稿经 PE 为英文(官方 t2i 设计)**——运行时读上游 PE 插件系统指令+内存改语言规则(英文铁幕→跟随输入语言)+输出 JSON 加 negative_prompt 字段+负向生成指引(补丁规则真源=qi21_bases.json expand_instruction 节热读);**输出=中文扩写长文(positive)+中文负面清单(negative)**,PE JSON 缺 negative_prompt 时兜底=装配器负面词直写。\n- clip 由子图内 [4019] 扩写TE 直供(只服务 PE 的 LLM 推理扩写(pe_t2i),不做最终编码,最终编码=主图 [4015]/[4015N] 吃 [2] 主TE);关 PE启用?=直写选配时旁路懒执行不载。PE 参数=插件官方 README 推荐值(temp1.0/topP0.95/topK20/**presence_penalty=1.5**(0925 拍板)/max16256/seed42)。\n- **[4013] 输入=主体句**(1005 管线重序:prompt 槽接 [4012] MyQi21PESwitch 输出口0「PE路主体句」,PE=主体句的扩写器、只吃主体句——1001 Q1=B+「装配全文进 PE」随 1005 拆件退役);宪法=05 库 §一/§六「PE 种子纪律」。\n- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n### 负面线说明(cfg=4 负向真实生效,1004 用户令)\n- **cfg=4 下负面提示词真实参与采样**:中文负面词(PE 关=装配器负面词直写/PE 开=官方 PE 负面槽为空壳,同走直写(案B 直写优先恒生效))经主图 [4015N] 负向编码(TextEncodeQwenImage21,吃 [2] 主TE)→CONDITIONING→加速子图 [7010] 负向槽;负向仅档1(直出40步 cfg4)生效,档0 Fun-Acc 无负槽,档2 viggle 蒸馏件 cfg 恒 1 负向无效(详见加速子图 [7016] 卡)。\n\n### 加速区·加速子图([7] 双击进入;默认=Fun-Acc 4步=1002 用户新令(推翻 0929 拉齐重放);横向三支路三横线)\n- **主图只剩一个加速子图节点 [7]**:双击进入=并行三支路+viggle LoRA+seed 单源+出图速度选择,**前面只有一个选择逻辑**=子图内 [7015] MyQi21SpeedSelect(LATENT 汇流单点,combo 三选一**首项=默认=「0 · Fun-Acc 4步」**(1002 用户新令,推翻 0929 拉齐重放;直出40步居二/viggle 居三)):档1支路=[7010] 直出40步(KSampler 官方完整档·40步·**cfg4**(1004 用户令,负向真实生效))/档2支路=[7011] viggle LoRA(v0.2.1 r256·strength 1.0)→[7012] viggle6步(KSampler·6步·cfg1;viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值))/档0支路=[7013] FunAcc4步(T8QwenImage21FunAccPDD4Step·4步/sigmas 五值/euler/cfg1 全内置勿外接采样器;model=[1] base 直连**绝不吃 viggle LoRA**;无负面槽)。布局=出入口同一横轴+三支路三条平行横线([7014] seed 单源居主轴左端扇出)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板两控件=「速度档位」+「seed」**(照 [6] 型选择外露机制):速度档位=combo 三选一(默认=「0 · Fun-Acc 4步」,随时可切);seed=number(默认 0 fixed 可复现,**seed 单源**——子图内 [7014] PrimitiveInt 单源扇出三支路采样器,各采样器面板 seed 值=摆设值不生效,改 seed 只动宿主面板一处,三支路同步)。**面板值=生效值**(steps 回归各支路 widget 真实生效:[7010]=40 官方区间 40-50 起手即完整态/[7012]=6(官方荐档);cfg=[7010]4/[7012]1(蒸馏件恒1)/[7013]内置;euler/simple/denoise 1 照官方)。\n- **边界**:model=主图 [1] UNET 直连进子图;positive/negative=主图 [4015]/[4015N] 编码输出([6] 出口 1004 改型 STRING,编码在主图,见负面线说明);latent=[4] 空潜;LATENT 出子图→[5] 解码→[8] 保存。\n- **懒执行**:未选中支路整体不进执行图零加载(MyQi21SpeedSelect 懒选择,check_lazy_status 只拉起选中档支路;如默认 Fun-Acc 4步时 [7010]/[7012]/[7011] 全不在执行图;子图环境同款生效)。\n- **档2=viggle**:[7011] LoraLoaderModelOnly 挂链(name 预填 Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors,viggle 蒸馏件已装机,strength 1.0——1002 衔接批㉔用户令「要定在 1.0 上面否则就失去了意义」(推翻 0925 探针定档 0.8=flatMAD 2.52→1.75;「目前暂时」=可视效果再调);8步方案 2.60 无收益+超荐档弃)+[7012] 6 步;模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **档0=Fun-Acc**:[7013] model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **依赖警示:档0 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档0 节点红/执行失败——降级=经宿主面板「速度档位」切回 1/2 档(直出/viggle,零插件依赖)。TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### SeedVR2 放大尾档(⑤组框·2K;1002 衔接批㉕)\n\n- [5] 解码图双喂:[8] 直出保存 + [503] SeedVR2 放大(短边 2048=2K 档)→[504] 存 MYStudio-2K 前缀;模型 [501] seedvr2_7b_sharp_fp8_e4m3fn + [502] ema_vae_fp16 已装机(models/SEEDVR2)。\n- **可整组旁路:框选⑤组框 Ctrl+B → 只出 [8] 直出图**(旁路态放大组零执行零落盘)。\n- **放大尾档适合 1MP 档(道具/人脸/自由),4.2MP≈纯插值建议旁路**(九型实查:4.2MP 六型短边 1376~2096 增益仅 ×1.1~1.3;1.0MP 三型短边 1024 真增益 ×2.0)。\n- [505] Image Comparer (rgthree) 对比件:image_a=[5] 直出图/image_b=[503] 2K 图,滑帘左右对比细节增益(纯预览不落盘;⑤组旁路时 b 侧收直出图=同图对比)。\n\n### 参数圣经\n- cfg=[7010]4/[7012]1/[7013]内置(Fun-Acc cfg 内置勿外接;负向仅档1 生效,见负面线说明);**步数=各支路面板真实生效值([7010]=40 官方完整档,官方区间 40-50;[7012]=6(官方荐档)=viggle 支路;档0=Fun-Acc 4 步内置于 [7013] T8)**;分辨率走主图 [4018] 画幅建议器 width/height 直驱 [4](1004 迁出子图;宽高恒 8 倍数;PE 开=[6] wh_ratio 出口喂 PE 建议/PE 关=跟型或手动宽高);seed=加速子图宿主面板「seed」;风格终审=用户。\n- RGBA 透明官方公式 头句+[装配全文+W1收束句]+尾句(实际包裹头尾=中文逐字,真源=qi21_bases.json rgba 节 head/tail 热读;中文头句「这是一张带有透明度的RGBA图像。」中文尾句「该图像具有alpha通道,背景是透明的。」;英文原文备档 head_en/tail_en:This is an RGBA format image with transparency. / The image has an alpha channel and a transparent background.);**PE×透明融合**(1005 ㊄ 拆件终态):透明包裹=[4014] MyQi21FinalOutput 内置纯头尾拼接——透明开=中文头句+「 」+装配全文+「 」+W1收束句(型盲静态,句身=qi21_bases.json rgba.w1_closing 热读)+中文尾句,无词族剥离(剥离不施于本件;装配全文=纯中文三层,禁过剥离);透明关=装配全文原样直喂 [4015] 主编码(1004 迁出子图);负向=负面词直写原样(不包裹不剥离);透明值自动跟型=[4010] 透明值输出→线314→[4014] 透明模式(九型按型默认,自由型=面板透明开关,见「透明怎么定」节)。透明路出图必须存 PNG 才保 alpha。\n- [4] 自动化宽高:宽高直连主图 [4018] 画幅建议器输出=画幅规则后终值([6] width/height 出口=九型原样直通,喂 [4018] 九型槽);本节点面板 1024 为摆设值不生效。\n- [401] 最终提示词预览:接 [6] positive 出口(=最终文本 STRING,1004 出口改型)=将进编码的最终文本;跑图前过目。\n\n\n## 负面描述怎么写(2005 新增)\n- **[400] 主体句**=你想画什么(正向描述)\n- **[404] 主体句负面**=你不要什么(负向描述,如「不要出现xxx」「避免xxx」)\n- 负面词三层合并:[404]你写的 + [4010]型负面(自动) + 锁层A负面(自动),去重后进负向编码\n- [401] 正负双预览:运行一次后节点上显示正/负合并终稿(1005 ㊈ 显示通道)"
+       ],
+       "widgets_values_named": {
+        "text": "## 道劫 · Qwen-Image-2.1 文生图(双子图版·1001 用户测试批)\n\nK2 道劫『一处选型+分件装配+子图收装』思想的 Q2-1 原生落地(0928 用户裁定:所有提示词必须过 PE——PE 改写链已收进 [6] 装配子图,消灭 [6]→主图 PE 链→[6] 来回绕线,主图零 PE 件零左向线)。**0929 S3 收装轮:加速区整体收进 [7] 加速子图**(三支路+viggle LoRA+seed 单源+出图速度选择全在内,双击进入;主图退成四块骨架=①加载器→②提示词·装配([400][6][401]+编码/画幅三件 [4015][4015N][4018],1004 编码器与画幅建议器迁出子图)→③加速([4] 空潜+[7] 加速子图)→④输出([5][8]→⑤放大尾档);每画布恰两子图=②提示词子图管内容语义+③加速子图管采样策略,职责互斥不掺和)。**1001 S8 集成轮:装配子图 28→10 节点(裁定A两件链)**;**1001 用户测试批:10 节点=9 功能件+[4100] 段说明卡([210] 三态件退役)+型选择十档(九型+自由)+透明纯布尔直布+画幅规则重构(PE 开=自动/PE 关才可手动)+两子图分组框全清空+节点标题瘦身(机制注记迁本卡)**;提示词真源=daojie_ink_guofeng/json/qi21_bases.json(1004 集中化;05库=记录层)。**1003 手改回灌:布局/位置经用户手定为新标准(结构零增删,生效参数零变化)**(②层底座=09-23 美化版,型名/顺序对齐 qi21_bases.json,原 daojie_bases.json 已并入)。\n\n### 怎么换型(一处切换;十档=九型+「自由」)\n- 主画布点选 [6] 装配子图,面板「型选择」下拉十选一(默认①人物):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图/自由——子图内 [4010] 底座九选一(MyQi21DaojieBase:BASE=②层底座+人物系增量四锁B+④配色行逐字=05 库/宽高随型直出/磁盘热读)按选型出 BASE 与 WIDTH/HEIGHT(型档分辨率直出);**「自由」型**(1001 用户测试批)=无型底座(BASE 空,装配自动降级两段拼=主体句+锁层A)+画幅兜底 1024×1024+透明手动(见下节)。\n- **分辨率**:PE 开=画幅自动跟 PE 建议(见画幅节);PE 关=跟所选型默认画幅,或在面板「手动宽/手动高」填成对非 0 值(0=跟型)。主图 [4018] 画幅建议器 width/height 直驱 [4] 空潜宽高([6] width/height 出口=九型原样直通喂 [4018],1004 迁出子图;九型档=qi21_bases.json 的 aspect/MP/override;多视图=Q2.1侧分档 3:4 Portrait 4.2MP 分张产线)——[4] 面板 1024×1024=**摆设值不生效**(实际由 [4018] 供给)。\n- 换型后 [400] 主体句须同步换成本型主体句(各型例句见库文档;场景/概念气氛图不写人——空镜句尾可明写「空镜无人」);主体句只写主体与画面,不重复风格词,全角标点,质量词/比例词/否定式禁入(库文档主体句纪律五则)。\n- 警示(手贴 vs 库真源):手贴内容只活在画布件——历史生成脚本已退役(qi21_daojie_t2i_0923.py 在 1001 手术轮后**勿再运行**,重跑必回退手术;真源=本 JSON+蓝图);主体句默认/锁层全文真源链仍在(底座 BASE 不经画布常量、直读 qi21_bases.json),装配器参数面(锁层A/头尾句/W1)改后要长久保留先回写库文档再经「从库刷参数」通道过账,或改前另存画布件。\n\n### 画幅怎么定(大白话:PE 开=自动,PE 关=可手动)\n- **PE 开**:画幅由 PE 改写给出的宽高比决定——[4013] 的 wh_ratio(如 16:9)经 [6] wh_ratio 出口喂主图 [4018] 画幅建议器(MyQi21WhSuggest:4.2MP 公式+8 倍数取整,1004 迁出子图)算出建议宽高自动生效([6] PE启用? 出口同步喂 [4018] 联动开关=联动跟 PE 开关)。\n- **PE 关**:跟所选型默认画幅;想自定就在主图 [4018] 画幅建议器「手动宽」「手动高」两个数字框填成对值(**两个都非 0 才生效;只填一个会报错,不猜不代选**;都留 0=跟型;1004 迁出后真控件住 [4018] 面板,[6] 面板同名控件不生效)。\n- 旧「画幅联动开关」独立控件已退役(其语义并入 PE 开关——[4018].联动开关 改接 [6] PE启用? 出口扇出,建议器件零改;PE 关=联动关=九型原样,与旧默认同态)。\n\n### 透明怎么定(大白话:九型全自动,自由型才手动)\n- **九型**:透明=纯按型默认(道具/多视图/高清人脸/表情差分四型开,其余五型关),面板无透明控件,不用管——RGBA 编码路自动跟随型。\n- **「自由」型**:面板出现「透明」开关(true/false,默认 false)手动定;切到九型时该开关自动隐藏(面板布尔值保留不丢,切回自由型还在)。\n- 机制(1001 ④⑥⑦ 落地):旧「RGBA透明」三态控件(跟随型/强制开/强制关)与子图内 [210] 三态选择件已退役——透明布尔唯一来源=底座件 [4010] 第4出「透明值」(⑯ 后四出:BASE/WIDTH/HEIGHT/透明值)(型≠自由=该型 rgba_default;自由型=面板「透明」布尔经 [4010].透明覆盖 直通),纯 BOOLEAN 直布 [4014] 合成器(透明模式参与文本计算,选择边界在合成器内;1004 复拆双编码=主图 [4015]/[4015N]),子图内零自选转换层;透明图必须存 PNG 才保 alpha。\n- **道具型判据特例(1002 收口 Q2 裁定)**:道具型=尺寸标注设定图,结构性半透明=功能设计非缺陷,透明判据不适用于此型。\n\n### 装配怎么拼([400] 唯一手写位;最终文本经 [6] positive/negative 出口过目 [401] 提示词预览)\n- 拼法(1005 管线重序:**主体句过 PE,型底座/锁层A 中文原文拼其后**)=主体句 → [4012] PE开关(MyQi21PESwitch:true=扩写/false=直通,与宿主面板「PE启用?」同源)→(开)[4013] PE扩写(QwenImage21_T2IPromptRewrite:只吃主体句,短句扩写英文长文)→[4021] 主体句路由(MyQi21SubjectSelect:开=选 PE出文,关=原主体句直通)→[4011] 三层拼装(MyQi21PromptAssembly:选定的主体句+型底座 BASE+锁层A 换行拼合=装配全文,负面词=型负面+锁层负面+主体句负面 三源合并去重)→[4014] 最终输出(MyQi21FinalOutput:透明包裹+双口输出「进编码正向文本/进编码负向文本」,无词族剥离;透明自动跟型=[4010] 透明值→线314)——双口经 [6] positive/negative 出口(STRING,1004 编码迁出子图)到主图 [4015] 主编码/[4015N] 负向编码,主画布 [401] 提示词预览(正向+负向)过目。**PE 开关=[4012] MyQi21PESwitch**(默认开;宿主面板四槽=正向主体句/型选择/PE启用?/负向主体句;PE 关=[4013] 零消费零执行不载扩写TE);1004 迁出后手动宽高住主图 [4018] 面板。\n- 层次序注:画布装配行序=①主体句→②型底座→(人物系增量锁)→④配色行→③通用锁层;库文档直写件行序=①②③(内嵌增量锁)④——层内容零差异,仅行序不同(锁层常量恒挂不可拆,增量锁随型走在 BASE 内;锁层A=③层库首节全文,全型恒挂不随型,参数面大框可编辑)。\n- 甲案围栏:pe开关 关=甲案全中文直书(中文合法);开=官方 PE 改写路(**主体句进、英文扩写出**,型底座/锁层A 仍中文原文拼其后——1005 管线重序,PE 只吃主体句),两态由 [4012]/[4021] 互斥路由二选一(库文档禁混条款一)。\n\n### PE 改写([4013]=QwenImage21_T2IPromptRewrite 官方件+pe_t2i;英文长文出;默认开路;pp=1.5 已定档;1005 用户令回官方设计)\n- **1005 回官方件(用户令「换回原来官方的设计」):官方节点原位回归(自研中文PE 曾 drop-in 兼容其槽序,连线零改)+官方 pe_t2i 检查点+官方英文系统指令;三层资产(主体句/型底座/锁层A)固定中文入,终稿经 PE 为英文(官方 t2i 设计)**——运行时读上游 PE 插件系统指令+内存改语言规则(英文铁幕→跟随输入语言)+输出 JSON 加 negative_prompt 字段+负向生成指引(补丁规则真源=qi21_bases.json expand_instruction 节热读);**输出=中文扩写长文(positive)+中文负面清单(negative)**,PE JSON 缺 negative_prompt 时兜底=装配器负面词直写。\n- clip 由子图内 [4019] 扩写TE 直供(只服务 PE 的 LLM 推理扩写(pe_t2i),不做最终编码,最终编码=主图 [4015]/[4015N] 吃 [2] 主TE);关 PE启用?=直写选配时旁路懒执行不载。PE 参数=插件官方 README 推荐值(temp1.0/topP0.95/topK20/**presence_penalty=1.5**(0925 拍板)/max16256/seed42)。\n- **[4013] 输入=主体句**(1005 管线重序:prompt 槽接 [4012] MyQi21PESwitch 输出口0「PE路主体句」,PE=主体句的扩写器、只吃主体句——1001 Q1=B+「装配全文进 PE」随 1005 拆件退役);宪法=05 库 §一/§六「PE 种子纪律」。\n- 起草/改写提示词唤取技能 qwen-image-2-1-prompter。\n\n### 负面线说明(cfg=4 负向真实生效,1004 用户令)\n- **cfg=4 下负面提示词真实参与采样**:中文负面词(PE 关=装配器负面词直写/PE 开=官方 PE 负面槽为空壳,同走直写(案B 直写优先恒生效))经主图 [4015N] 负向编码(TextEncodeQwenImage21,吃 [2] 主TE)→CONDITIONING→加速子图 [7010] 负向槽;负向仅档1(直出40步 cfg4)生效,档0 Fun-Acc 无负槽,档2 viggle 蒸馏件 cfg 恒 1 负向无效(详见加速子图 [7016] 卡)。\n\n### 加速区·加速子图([7] 双击进入;默认=Fun-Acc 4步=1002 用户新令(推翻 0929 拉齐重放);横向三支路三横线)\n- **主图只剩一个加速子图节点 [7]**:双击进入=并行三支路+viggle LoRA+seed 单源+出图速度选择,**前面只有一个选择逻辑**=子图内 [7015] MyQi21SpeedSelect(LATENT 汇流单点,combo 三选一**首项=默认=「0 · Fun-Acc 4步」**(1002 用户新令,推翻 0929 拉齐重放;直出40步居二/viggle 居三)):档1支路=[7010] 直出40步(KSampler 官方完整档·40步·**cfg4**(1004 用户令,负向真实生效))/档2支路=[7011] viggle LoRA(v0.2.1 r256·strength 1.0)→[7012] viggle6步(KSampler·6步·cfg1;viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值))/档0支路=[7013] FunAcc4步(T8QwenImage21FunAccPDD4Step·4步/sigmas 五值/euler/cfg1 全内置勿外接采样器;model=[1] base 直连**绝不吃 viggle LoRA**;无负面槽)。布局=出入口同一横轴+三支路三条平行横线([7014] seed 单源居主轴左端扇出)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板两控件=「速度档位」+「seed」**(照 [6] 型选择外露机制):速度档位=combo 三选一(默认=「0 · Fun-Acc 4步」,随时可切);seed=number(默认 0 fixed 可复现,**seed 单源**——子图内 [7014] PrimitiveInt 单源扇出三支路采样器,各采样器面板 seed 值=摆设值不生效,改 seed 只动宿主面板一处,三支路同步)。**面板值=生效值**(steps 回归各支路 widget 真实生效:[7010]=40 官方区间 40-50 起手即完整态/[7012]=6(官方荐档);cfg=[7010]4/[7012]1(蒸馏件恒1)/[7013]内置;euler/simple/denoise 1 照官方)。\n- **边界**:model=主图 [1] UNET 直连进子图;positive/negative=主图 [4015]/[4015N] 编码输出([6] 出口 1004 改型 STRING,编码在主图,见负面线说明);latent=[4] 空潜;LATENT 出子图→[5] 解码→[8] 保存。\n- **懒执行**:未选中支路整体不进执行图零加载(MyQi21SpeedSelect 懒选择,check_lazy_status 只拉起选中档支路;如默认 Fun-Acc 4步时 [7010]/[7012]/[7011] 全不在执行图;子图环境同款生效)。\n- **档2=viggle**:[7011] LoraLoaderModelOnly 挂链(name 预填 Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors,viggle 蒸馏件已装机,strength 1.0——1002 衔接批㉔用户令「要定在 1.0 上面否则就失去了意义」(推翻 0925 探针定档 0.8=flatMAD 2.52→1.75;「目前暂时」=可视效果再调);8步方案 2.60 无收益+超荐档弃)+[7012] 6 步;模型卡注 shift_terminal=0.02 伤末步,画质异常先查调度。\n- **档0=Fun-Acc**:[7013] model_file=Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(已装机 models/loras/)。实测速度(0926 三轮实弹):1024² 28.8s/2048² 130.7s(viggle 34.1/183.1,直出 214.7/1173.4)。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **依赖警示:档0 需引擎装 Fun-Acc 插件(T8 节点,见设置页生态插件区 Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8)**;未装的机器选档0 节点红/执行失败——降级=经宿主面板「速度档位」切回 1/2 档(直出/viggle,零插件依赖)。TE-Speed 槽不加(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### SeedVR2 放大尾档(⑤组框·2K;1002 衔接批㉕)\n\n- [5] 解码图双喂:[8] 直出保存 + [503] SeedVR2 放大(短边 2048=2K 档)→[504] 存 MYStudio-2K 前缀;模型 [501] seedvr2_7b_sharp_fp8_e4m3fn + [502] ema_vae_fp16 已装机(models/SEEDVR2)。\n- **可整组旁路:框选⑤组框 Ctrl+B → 只出 [8] 直出图**(旁路态放大组零执行零落盘)。\n- **放大尾档适合 1MP 档(道具/人脸/自由),4.2MP≈纯插值建议旁路**(九型实查:4.2MP 六型短边 1376~2096 增益仅 ×1.1~1.3;1.0MP 三型短边 1024 真增益 ×2.0)。\n- [505] Image Comparer (rgthree) 对比件:image_a=[5] 直出图/image_b=[503] 2K 图,滑帘左右对比细节增益(纯预览不落盘;⑤组旁路时 b 侧收直出图=同图对比)。\n\n### 参数圣经\n- cfg=[7010]4/[7012]1/[7013]内置(Fun-Acc cfg 内置勿外接;负向仅档1 生效,见负面线说明);**步数=各支路面板真实生效值([7010]=40 官方完整档,官方区间 40-50;[7012]=6(官方荐档)=viggle 支路;档0=Fun-Acc 4 步内置于 [7013] T8)**;分辨率走主图 [4018] 画幅建议器 width/height 直驱 [4](1004 迁出子图;宽高恒 8 倍数;PE 开=[6] wh_ratio 出口喂 PE 建议/PE 关=跟型或手动宽高);seed=加速子图宿主面板「seed」;风格终审=用户。\n- RGBA 透明官方公式 头句+[装配全文+W1收束句]+尾句(实际包裹头尾=中文逐字,真源=qi21_bases.json rgba 节 head/tail 热读;中文头句「这是一张带有透明度的RGBA图像。」中文尾句「该图像具有alpha通道,背景是透明的。」;英文原文备档 head_en/tail_en:This is an RGBA format image with transparency. / The image has an alpha channel and a transparent background.);**PE×透明融合**(1005 ㊄ 拆件终态):透明包裹=[4014] MyQi21FinalOutput 内置纯头尾拼接——透明开=中文头句+「 」+装配全文+「 」+W1收束句(型盲静态,句身=qi21_bases.json rgba.w1_closing 热读)+中文尾句,无词族剥离(剥离不施于本件;装配全文=纯中文三层,禁过剥离);透明关=装配全文原样直喂 [4015] 主编码(1004 迁出子图);负向=负面词直写原样(不包裹不剥离);透明值自动跟型=[4010] 透明值输出→线314→[4014] 透明模式(九型按型默认,自由型=面板透明开关,见「透明怎么定」节)。透明路出图必须存 PNG 才保 alpha。\n- [4] 自动化宽高:宽高直连主图 [4018] 画幅建议器输出=画幅规则后终值([6] width/height 出口=九型原样直通,喂 [4018] 九型槽);本节点面板 1024 为摆设值不生效。\n- [401] 最终提示词预览:接 [6] positive 出口(=最终文本 STRING,1004 出口改型)=将进编码的最终文本;跑图前过目。\n\n\n## 负面描述怎么写(2005 新增)\n- **[400] 主体句**=你想画什么(正向描述)\n- **[404] 主体句负面**=你不要什么(负向描述,如「不要出现xxx」「避免xxx」)\n- 负面词三层合并:[404]你写的 + [4010]型负面(自动) + 锁层A负面(自动),去重后进负向编码\n- [401] 正负双预览:运行一次后节点上显示正/负合并终稿(1005 ㊈ 显示通道)"
+       },
+       "color": "#432",
+       "bgcolor": "#653"
+      },
+      {
+       "id": 6,
+       "type": "96937bbe-99d1-4f16-a06c-d86b57815d91",
+       "pos": [
+        2384.3991914937496,
+        1764.3715811675797
+       ],
+       "size": [
+        330,
+        300
+       ],
+       "flags": {},
+       "order": 8,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "正向主体句",
+         "type": "STRING",
+         "link": 15
+        },
+        {
+         "name": "负向主体句",
+         "shape": 7,
+         "type": "STRING",
+         "link": 218
+        }
+       ],
+       "outputs": [
+        {
+         "name": "positive",
+         "type": "STRING",
+         "links": [
+          18,
+          208
+         ]
+        },
+        {
+         "name": "negative",
+         "type": "STRING",
+         "links": [
+          209,
+          217
+         ]
+        },
+        {
+         "name": "width",
+         "type": "INT",
+         "links": [
+          212
+         ]
+        },
+        {
+         "name": "height",
+         "type": "INT",
+         "links": [
+          213
+         ]
+        },
+        {
+         "name": "wh_ratio",
+         "type": "STRING",
+         "links": [
+          214
+         ]
+        },
+        {
+         "name": "PE启用?",
+         "type": "BOOLEAN",
+         "links": [
+          215
+         ]
+        }
+       ],
+       "properties": {
+        "subgraph": "96937bbe-99d1-4f16-a06c-d86b57815d91",
+        "previewExposures": [],
+        "ue_properties": {
+         "widget_ue_connectable": {
+          "主体句": true
+         },
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "自由",
+        true
+       ],
+       "widgets_values_named": {
+        "型选择": "自由",
+        "PE启用?": true
+       }
+      },
+      {
+       "id": 7,
+       "type": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
+       "pos": [
+        4983.056084299114,
+        1841.4270593532246
+       ],
+       "size": [
+        309.3620703125001,
+        302.9512890624999
+       ],
+       "flags": {},
+       "order": 14,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "model",
+         "type": "MODEL",
+         "link": 97
+        },
+        {
+         "name": "positive",
+         "type": "CONDITIONING",
+         "link": 16
+        },
+        {
+         "name": "negative",
+         "type": "CONDITIONING",
+         "link": 17
+        },
+        {
+         "name": "latent",
+         "type": "LATENT",
+         "link": 5
+        }
+       ],
+       "outputs": [
+        {
+         "name": "LATENT",
+         "type": "LATENT",
+         "links": [
+          62
+         ]
+        }
+       ],
+       "title": "[7] 加速子图",
+       "properties": {
+        "subgraph": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
+        "previewExposures": [],
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "0 · Fun-Acc 4步",
+        0
+       ],
+       "widgets_values_named": {
+        "速度档位": "0 · Fun-Acc 4步",
+        "seed": 0
+       }
+      },
+      {
+       "id": 501,
+       "type": "SeedVR2LoadDiTModel",
+       "pos": [
+        7335.669820756993,
+        2284.2738836598587
+       ],
+       "size": [
+        300,
+        254
+       ],
+       "flags": {},
+       "order": 5,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "torch_compile_args",
+         "shape": 7,
+         "type": "TORCH_COMPILE_ARGS",
+         "link": null
+        }
+       ],
+       "outputs": [
+        {
+         "name": "SEEDVR2_DIT",
+         "type": "SEEDVR2_DIT",
+         "slot_index": 0,
+         "links": [
+          203
+         ]
+        }
+       ],
+       "title": "[501] SeedVR2 DiT加载(sharp 7B fp8)",
+       "properties": {
+        "Node name for S&R": "SeedVR2LoadDiTModel",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "mps",
+        0,
+        false,
+        "none",
+        false,
+        "sdpa"
+       ],
+       "widgets_values_named": {
+        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "device": "mps",
+        "blocks_to_swap": 0,
+        "swap_io_components": false,
+        "offload_device": "none",
+        "cache_model": false,
+        "attention_mode": "sdpa"
+       }
+      },
+      {
+       "id": 502,
+       "type": "SeedVR2LoadVAEModel",
+       "pos": [
+        7295.645890940366,
+        2758.896520393282
+       ],
+       "size": [
+        300,
+        366
+       ],
+       "flags": {},
+       "order": 6,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "torch_compile_args",
+         "shape": 7,
+         "type": "TORCH_COMPILE_ARGS",
+         "link": null
+        }
+       ],
+       "outputs": [
+        {
+         "name": "SEEDVR2_VAE",
+         "type": "SEEDVR2_VAE",
+         "slot_index": 0,
+         "links": [
+          204
+         ]
+        }
+       ],
+       "title": "[502] SeedVR2 VAE加载(ema fp16)",
+       "properties": {
+        "Node name for S&R": "SeedVR2LoadVAEModel",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "ema_vae_fp16.safetensors",
+        "mps",
+        true,
+        512,
+        160,
+        true,
+        512,
+        160,
+        "false",
+        "none",
+        false
+       ],
+       "widgets_values_named": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "mps",
+        "encode_tiled": true,
+        "encode_tile_size": 512,
+        "encode_tile_overlap": 160,
+        "decode_tiled": true,
+        "decode_tile_size": 512,
+        "decode_tile_overlap": 160,
+        "tile_debug": "false",
+        "offload_device": "none",
+        "cache_model": false
+       }
+      },
+      {
+       "id": 503,
+       "type": "SeedVR2VideoUpscaler",
+       "pos": [
+        8009.6498632238845,
+        2262.860010455965
+       ],
+       "size": [
+        360,
+        458
+       ],
+       "flags": {},
+       "order": 17,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "image",
+         "type": "IMAGE",
+         "link": 202
+        },
+        {
+         "name": "dit",
+         "type": "SEEDVR2_DIT",
+         "link": 203
+        },
+        {
+         "name": "vae",
+         "type": "SEEDVR2_VAE",
+         "link": 204
+        }
+       ],
+       "outputs": [
+        {
+         "name": "IMAGE",
+         "type": "IMAGE",
+         "slot_index": 0,
+         "links": [
+          205,
+          207
+         ]
+        }
+       ],
+       "title": "[503] SeedVR2放大(短边2048=2K档)",
+       "properties": {
+        "Node name for S&R": "SeedVR2VideoUpscaler",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        42,
+        "fixed",
+        2048,
+        4096,
+        1,
+        false,
+        "lab",
+        0,
+        0,
+        0,
+        0,
+        "none",
+        false
+       ],
+       "widgets_values_named": {
+        "seed": 42,
+        "control_after_generate": "fixed",
+        "resolution": 2048,
+        "max_resolution": 4096,
+        "batch_size": 1,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 0,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "none",
+        "enable_debug": false
+       }
+      },
+      {
+       "id": 504,
+       "type": "SaveImage",
+       "pos": [
+        8698.110753766723,
+        2809.361462459863
+       ],
+       "size": [
+        380,
+        330
+       ],
+       "flags": {},
+       "order": 18,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "images",
+         "type": "IMAGE",
+         "link": 205
+        }
+       ],
+       "outputs": [
+        {
+         "name": "images",
+         "type": "IMAGE",
+         "links": null
+        }
+       ],
+       "title": "[504] 放大保存(2K·MYStudio-2K)",
+       "properties": {
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "MYStudio-2K"
+       ],
+       "widgets_values_named": {
+        "filename_prefix": "MYStudio-2K"
+       }
+      },
+      {
+       "id": 505,
+       "type": "Image Comparer (rgthree)",
+       "pos": [
+        8657.588637670977,
+        1792.9694536906104
+       ],
+       "size": [
+        420,
+        460
+       ],
+       "flags": {},
+       "order": 19,
+       "mode": 0,
+       "inputs": [
+        {
+         "dir": 3,
+         "name": "image_a",
+         "type": "IMAGE",
+         "link": 206
+        },
+        {
+         "dir": 3,
+         "name": "image_b",
+         "type": "IMAGE",
+         "link": 207
+        }
+       ],
+       "outputs": [
+        {
+         "dir": 4,
+         "name": "IMAGES",
+         "type": "IMAGE",
+         "links": null
+        }
+       ],
+       "title": "[505] 直出×2K对比·ImageComparer",
+       "properties": {
+        "comparer_mode": "Slide",
+        "Node name for S&R": "Image Comparer (rgthree)",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        [
+         {
+          "name": "A",
+          "selected": true,
+          "url": "/api/view?filename=rgthree.compare._temp_udaxi_00019_.png&type=temp&subfolder=&rand=0.4319713294739881"
+         },
+         {
+          "name": "B",
+          "selected": true,
+          "url": "/api/view?filename=rgthree.compare._temp_udaxi_00020_.png&type=temp&subfolder=&rand=0.2195091369564378"
+         }
+        ]
+       ],
+       "widgets_values_named": {
+        "rgthree_comparer": {
+         "images": [
+          {
+           "name": "A",
+           "selected": true,
+           "url": "/api/view?filename=rgthree.compare._temp_udaxi_00019_.png&type=temp&subfolder=&rand=0.4319713294739881",
+           "img": {}
+          },
+          {
+           "name": "B",
+           "selected": true,
+           "url": "/api/view?filename=rgthree.compare._temp_udaxi_00020_.png&type=temp&subfolder=&rand=0.2195091369564378",
+           "img": {}
+          }
+         ]
+        }
+       }
+      },
+      {
+       "id": 4015,
+       "type": "TextEncodeQwenImage21",
+       "pos": [
+        3060,
+        1560
+       ],
+       "size": [
+        420,
+        320
+       ],
+       "flags": {},
+       "order": 9,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "clip",
+         "type": "CLIP",
+         "link": 210
+        },
+        {
+         "name": "images.image_1",
+         "shape": 7,
+         "type": "IMAGE",
+         "link": null
+        },
+        {
+         "name": "vae",
+         "shape": 7,
+         "type": "VAE",
+         "link": null
+        },
+        {
+         "name": "prompt",
+         "type": "STRING",
+         "widget": {
+          "name": "prompt"
+         },
+         "link": 208
+        }
+       ],
+       "outputs": [
+        {
+         "name": "positive",
+         "type": "CONDITIONING",
+         "links": [
+          16
+         ]
+        },
+        {
+         "name": "negative",
+         "type": "CONDITIONING",
+         "links": []
+        },
+        {
+         "name": "latent",
+         "type": "LATENT",
+         "links": []
+        }
+       ],
+       "title": "[4015] 主编码·TextEncode",
+       "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "",
+        "",
+        1024
+       ],
+       "widgets_values_named": {
+        "prompt": "",
+        "negative_prompt": "",
+        "resolution": 1024
+       }
+      },
+      {
+       "id": 4016,
+       "type": "TextEncodeQwenImage21",
+       "pos": [
+        3100.1394635395586,
+        1982.9255519126211
+       ],
+       "size": [
+        420,
+        320
+       ],
+       "flags": {},
+       "order": 10,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "clip",
+         "type": "CLIP",
+         "link": 211
+        },
+        {
+         "name": "images.image_1",
+         "shape": 7,
+         "type": "IMAGE",
+         "link": null
+        },
+        {
+         "name": "vae",
+         "shape": 7,
+         "type": "VAE",
+         "link": null
+        },
+        {
+         "name": "prompt",
+         "type": "STRING",
+         "widget": {
+          "name": "prompt"
+         },
+         "link": 209
+        }
+       ],
+       "outputs": [
+        {
+         "name": "positive",
+         "type": "CONDITIONING",
+         "links": [
+          17
+         ]
+        },
+        {
+         "name": "negative",
+         "type": "CONDITIONING",
+         "links": []
+        },
+        {
+         "name": "latent",
+         "type": "LATENT",
+         "links": []
+        }
+       ],
+       "title": "[4015N] 负向编码·TextEncode",
+       "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        "",
+        "",
+        1024
+       ],
+       "widgets_values_named": {
+        "prompt": "",
+        "negative_prompt": "",
+        "resolution": 1024
+       }
+      },
+      {
+       "id": 4018,
+       "type": "MyQi21WhSuggest",
+       "pos": [
+        4063.706345107683,
+        1923.054541393863
+       ],
+       "size": [
+        380,
+        260
+       ],
+       "flags": {},
+       "order": 12,
+       "mode": 0,
+       "inputs": [
+        {
+         "name": "wh_ratio",
+         "shape": 7,
+         "type": "STRING",
+         "widget": {
+          "name": "wh_ratio"
+         },
+         "link": 214
+        },
+        {
+         "name": "九型WIDTH",
+         "shape": 7,
+         "type": "INT",
+         "widget": {
+          "name": "九型WIDTH"
+         },
+         "link": 212
+        },
+        {
+         "name": "九型HEIGHT",
+         "shape": 7,
+         "type": "INT",
+         "widget": {
+          "name": "九型HEIGHT"
+         },
+         "link": 213
+        },
+        {
+         "name": "联动开关",
+         "shape": 7,
+         "type": "BOOLEAN",
+         "widget": {
+          "name": "联动开关"
+         },
+         "link": 215
+        }
+       ],
+       "outputs": [
+        {
+         "name": "width",
+         "type": "INT",
+         "links": [
+          1
+         ]
+        },
+        {
+         "name": "height",
+         "type": "INT",
+         "links": [
+          2
+         ]
+        }
+       ],
+       "title": "[4018] 画幅建议器·自研",
+       "properties": {
+        "Node name for S&R": "MyQi21WhSuggest",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        false,
+        0,
+        0,
+        false,
+        0,
+        0
+       ],
+       "widgets_values_named": {
+        "wh_ratio": false,
+        "九型WIDTH": 0,
+        "九型HEIGHT": 0,
+        "联动开关": false,
+        "手动宽": 0,
+        "手动高": 0
+       }
+      },
+      {
+       "id": 404,
+       "type": "PrimitiveStringMultiline",
+       "pos": [
+        1686,
+        2180
+       ],
+       "size": [
+        400,
+        120
+       ],
+       "flags": {},
+       "order": 7,
+       "mode": 0,
+       "inputs": [],
+       "outputs": [
+        {
+         "name": "STRING",
+         "type": "STRING",
+         "slot_index": 0,
+         "links": [
+          218
+         ]
+        }
+       ],
+       "title": "[404] 负向主体句",
+       "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "ue_properties": {
+         "widget_ue_connectable": {},
+         "version": "7.8",
+         "input_ue_unconnectable": {}
+        }
+       },
+       "widgets_values": [
+        ""
+       ],
+       "widgets_values_named": {
+        "value": ""
+       }
+      }
+     ],
+     "links": [
+      [
+       1,
+       4018,
+       0,
+       4,
+       0,
+       "INT"
+      ],
+      [
+       2,
+       4018,
+       1,
+       4,
+       1,
+       "INT"
+      ],
+      [
+       5,
+       4,
+       0,
+       7,
+       3,
+       "LATENT"
+      ],
+      [
+       10,
+       3,
+       0,
+       5,
+       1,
+       "VAE"
+      ],
+      [
+       11,
+       5,
+       0,
+       8,
+       0,
+       "IMAGE"
+      ],
+      [
+       15,
+       400,
+       0,
+       6,
+       0,
+       "STRING"
+      ],
+      [
+       16,
+       4015,
+       0,
+       7,
+       1,
+       "CONDITIONING"
+      ],
+      [
+       17,
+       4016,
+       0,
+       7,
+       2,
+       "CONDITIONING"
+      ],
+      [
+       18,
+       6,
+       0,
+       401,
+       0,
+       "STRING"
+      ],
+      [
+       62,
+       7,
+       0,
+       5,
+       0,
+       "LATENT"
+      ],
+      [
+       97,
+       1,
+       0,
+       7,
+       0,
+       "MODEL"
+      ],
+      [
+       202,
+       5,
+       0,
+       503,
+       0,
+       "IMAGE"
+      ],
+      [
+       203,
+       501,
+       0,
+       503,
+       1,
+       "SEEDVR2_DIT"
+      ],
+      [
+       204,
+       502,
+       0,
+       503,
+       2,
+       "SEEDVR2_VAE"
+      ],
+      [
+       205,
+       503,
+       0,
+       504,
+       0,
+       "IMAGE"
+      ],
+      [
+       206,
+       5,
+       0,
+       505,
+       0,
+       "IMAGE"
+      ],
+      [
+       207,
+       503,
+       0,
+       505,
+       1,
+       "IMAGE"
+      ],
+      [
+       208,
+       6,
+       0,
+       4015,
+       3,
+       "STRING"
+      ],
+      [
+       209,
+       6,
+       1,
+       4016,
+       3,
+       "STRING"
+      ],
+      [
+       210,
+       2,
+       0,
+       4015,
+       0,
+       "CLIP"
+      ],
+      [
+       211,
+       2,
+       0,
+       4016,
+       0,
+       "CLIP"
+      ],
+      [
+       212,
+       6,
+       2,
+       4018,
+       1,
+       "INT"
+      ],
+      [
+       213,
+       6,
+       3,
+       4018,
+       2,
+       "INT"
+      ],
+      [
+       214,
+       6,
+       4,
+       4018,
+       0,
+       "STRING"
+      ],
+      [
+       215,
+       6,
+       5,
+       4018,
+       3,
+       "BOOLEAN"
+      ],
+      [
+       217,
+       6,
+       1,
+       401,
+       1,
+       "STRING"
+      ],
+      [
+       218,
+       404,
+       0,
+       6,
+       1,
+       "STRING"
+      ]
+     ],
+     "groups": [
+      {
+       "id": 2,
+       "title": "道劫·①加载器(UNET[1]/VAE[3]/主TE:[2]→[6];PE专属TE已迁装配子图(1002 ⑬))",
+       "bounding": [
+        960.7207617592857,
+        1286.6644191406253,
+        589.1410567907785,
+        761.9084234375005
+       ],
+       "color": "#3f789e",
+       "flags": {}
+      },
+      {
+       "id": 3,
+       "title": "道劫·②提示词·装配([400]正向主体句=①层唯一手写位;[404]负向主体句;[6]装配子图(双击进入;主体句PE扩写+型底座+锁层A三层拼装全在内,面板=正向主体句/负向主体句/型选择/PE启用?);[401]正负双预览)",
+       "bounding": [
+        1670,
+        1600,
+        1897.4698393220197,
+        932.8716670129252
+       ],
+       "color": "#a1309b",
+       "flags": {}
+      },
+      {
+       "id": 4,
+       "title": "道劫·加速区·③([4]空潜→[7]加速子图(双击进入:并行三支路+viggle LoRA+seed单源+出图速度选择全在内;面板=速度档位/seed;未选支路懒执行零加载)→LATENT)",
+       "bounding": [
+        3870,
+        1690,
+        1491.7944248828126,
+        509.81876089843763
+       ],
+       "color": "#4d9e6a",
+       "flags": {}
+      },
+      {
+       "id": 5,
+       "title": "道劫·④输出([5]VAEDecode→[8]直出保存;[5]另扇出→⑤放大尾档)",
+       "bounding": [
+        5526.713955331739,
+        1652.0942642431482,
+        1480.9497520183113,
+        1650
+       ],
+       "color": "#b58b2a",
+       "flags": {}
+      },
+      {
+       "id": 6,
+       "title": "道劫·⑤SeedVR2放大尾档·2K([501]DiT+[502]VAE→[503]短边2048→[504]存MYStudio-2K;可整组旁路:框选本组Ctrl+B→只出[8]直出图;适合1MP档,4.2MP≈纯插值建议旁路)",
+       "bounding": [
+        7260.241079737558,
+        1651.9282590413904,
+        1860,
+        1500
+       ],
+       "color": "#b58b2a",
+       "flags": {}
+      }
+     ],
+     "definitions": {
+      "subgraphs": [
+       {
+        "id": "96937bbe-99d1-4f16-a06c-d86b57815d91",
+        "version": 1,
+        "state": {
+         "lastGroupId": 6,
+         "lastNodeId": 7016,
+         "lastLinkId": 324,
+         "lastRerouteId": 10
+        },
+        "revision": 1,
+        "config": {
+         "defaultIOState": {}
+        },
+        "name": "[6] 文本提示词类型优化子图",
+        "inputNode": {
+         "id": -10,
+         "bounding": [
+          -320,
+          80,
+          128,
+          128
+         ]
+        },
+        "outputNode": {
+         "id": -20,
+         "bounding": [
+          2400,
+          80,
+          128,
+          168
+         ]
+        },
+        "inputs": [
+         {
+          "id": "a1e2c3d4-0003-4a03-9e03-7d4a9c31a003",
+          "name": "正向主体句",
+          "type": "STRING",
+          "linkIds": [
+           302
+          ],
+          "pos": [
+           -216,
+           104
+          ]
+         },
+         {
+          "id": "a1e2c3d4-0004-4a04-9e04-7d4a9c31a004",
+          "name": "型选择",
+          "type": "COMBO",
+          "linkIds": [
+           300
+          ],
+          "pos": [
+           -216,
+           124
+          ]
+         },
+         {
+          "id": "a1e2c3d4-9004-4a004-9e004-7d4a9c31a904",
+          "name": "PE启用?",
+          "type": "BOOLEAN",
+          "linkIds": [
+           324
+          ],
+          "pos": [
+           -216,
+           144
+          ]
+         },
+         {
+          "id": "a1e2c3d4-0009-4a09-9e09-7d4a9c31a009",
+          "name": "负向主体句",
+          "type": "STRING",
+          "linkIds": [
+           303
+          ],
+          "pos": [
+           -216,
+           164
+          ]
+         }
+        ],
+        "outputs": [
+         {
+          "id": "b2f3a4c5-0001-4b01-8f01-3c5f81b56b01",
+          "name": "positive",
+          "type": "STRING",
+          "linkIds": [
+           322
+          ],
+          "pos": [
+           2424,
+           104
+          ]
+         },
+         {
+          "id": "b2f3a4c5-0002-4b02-8f02-3c5f81b56b02",
+          "name": "negative",
+          "type": "STRING",
+          "linkIds": [
+           323
+          ],
+          "pos": [
+           2424,
+           124
+          ]
+         },
+         {
+          "id": "b2f3a4c5-0004-4b04-8f04-3c5f81b56b04",
+          "name": "width",
+          "type": "INT",
+          "linkIds": [
+           315
+          ],
+          "pos": [
+           2424,
+           144
+          ]
+         },
+         {
+          "id": "b2f3a4c5-0005-4b05-8f05-3c5f81b56b05",
+          "name": "height",
+          "type": "INT",
+          "linkIds": [
+           316
+          ],
+          "pos": [
+           2424,
+           164
+          ]
+         },
+         {
+          "id": "b2f3a4c5-0006-4b06-8f06-3c5f81b56b06",
+          "name": "wh_ratio",
+          "type": "STRING",
+          "linkIds": [
+           318
+          ],
+          "pos": [
+           2424,
+           184
+          ]
+         },
+         {
+          "id": "b2f3a4c5-0007-4b07-8f07-3c5f81b56b07",
+          "name": "PE启用?",
+          "type": "BOOLEAN",
+          "linkIds": [
+           307
+          ],
+          "pos": [
+           2424,
+           204
+          ]
+         }
+        ],
+        "widgets": [
+         "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+         "人物",
+         true,
+         false,
+         0,
+         0
+        ],
+        "nodes": [
+         {
+          "id": 4010,
+          "type": "MyQi21DaojieBase",
+          "pos": [
+           80,
+           100
+          ],
+          "size": [
+           570,
+           200
+          ],
+          "flags": {},
+          "order": 2,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "base",
+            "name": "base",
+            "type": "COMBO",
+            "widget": {
+             "name": "base"
+            },
+            "link": 300
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "BASE",
+            "name": "BASE",
+            "type": "STRING",
+            "slot_index": 0,
+            "links": [
+             312
+            ]
+           },
+           {
+            "localized_name": "WIDTH",
+            "name": "WIDTH",
+            "type": "INT",
+            "slot_index": 1,
+            "links": [
+             315
+            ]
+           },
+           {
+            "localized_name": "HEIGHT",
+            "name": "HEIGHT",
+            "type": "INT",
+            "slot_index": 2,
+            "links": [
+             316
+            ]
+           },
+           {
+            "localized_name": "透明值",
+            "name": "透明值",
+            "type": "BOOLEAN",
+            "slot_index": 3,
+            "links": [
+             314
+            ]
+           },
+           {
+            "localized_name": "负面词",
+            "name": "负面词",
+            "type": "STRING",
+            "slot_index": 4,
+            "links": [
+             313
+            ]
+           }
+          ],
+          "title": "[4010] 类型句选择",
+          "properties": {
+           "Node name for S&R": "MyQi21DaojieBase",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "人物",
+           false
+          ],
+          "widgets_values_named": {
+           "base": "人物",
+           "透明覆盖": false
+          }
+         },
+         {
+          "id": 4013,
+          "type": "QwenImage21_T2IPromptRewrite",
+          "pos": [
+           100,
+           650
+          ],
+          "size": [
+           503,
+           340
+          ],
+          "flags": {},
+          "order": 5,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "clip",
+            "name": "clip",
+            "type": "CLIP",
+            "link": 308
+           },
+           {
+            "localized_name": "prompt",
+            "name": "prompt",
+            "type": "STRING",
+            "widget": {
+             "name": "prompt"
+            },
+            "link": 304
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "positive_prompt",
+            "name": "positive_prompt",
+            "type": "STRING",
+            "links": [
+             309
+            ]
+           },
+           {
+            "localized_name": "negative_prompt",
+            "name": "negative_prompt",
+            "type": "STRING",
+            "links": []
+           },
+           {
+            "localized_name": "wh_ratio",
+            "name": "wh_ratio",
+            "type": "STRING",
+            "links": [
+             310
+            ]
+           },
+           {
+            "localized_name": "thinking",
+            "name": "thinking",
+            "type": "STRING",
+            "links": [
+             311
+            ]
+           },
+           {
+            "localized_name": "parse_ok",
+            "name": "parse_ok",
+            "type": "BOOLEAN",
+            "links": []
+           }
+          ],
+          "title": "[4013] PE扩写",
+          "properties": {
+           "Node name for S&R": "QwenImage21_T2IPromptRewrite",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "",
+           1,
+           0.95,
+           20,
+           1.5,
+           16256,
+           2238647577,
+           "randomize"
+          ],
+          "widgets_values_named": {
+           "prompt": "",
+           "temperature": 1,
+           "top_p": 0.95,
+           "top_k": 20,
+           "presence_penalty": 1.5,
+           "max_new_tokens": 16256,
+           "seed": 2238647577,
+           "control_after_generate": "randomize"
+          }
+         },
+         {
+          "id": 4011,
+          "type": "MyQi21PromptAssembly",
+          "pos": [
+           1300,
+           100
+          ],
+          "size": [
+           520,
+           500
+          ],
+          "flags": {},
+          "order": 3,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "BASE",
+            "name": "BASE",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "BASE"
+            },
+            "link": 312
+           },
+           {
+            "localized_name": "BASE负面",
+            "name": "BASE负面",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "BASE负面"
+            },
+            "link": 313
+           },
+           {
+            "localized_name": "主体句",
+            "name": "主体句",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "主体句"
+            },
+            "link": 317
+           },
+           {
+            "localized_name": "主体句负面",
+            "name": "主体句负面",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "主体句负面"
+            },
+            "link": 319
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "装配全文",
+            "name": "装配全文",
+            "type": "STRING",
+            "links": [
+             320
+            ]
+           },
+           {
+            "localized_name": "负面词",
+            "name": "负面词",
+            "type": "STRING",
+            "slot_index": 1,
+            "links": [
+             321
+            ]
+           }
+          ],
+          "title": "[4011] 三层拼装(正向三层+负向三层)",
+          "properties": {
+           "Node name for S&R": "MyQi21PromptAssembly",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "",
+           "",
+           "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+           "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。",
+           "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。"
+          ],
+          "widgets_values_named": {
+           "BASE": "",
+           "BASE负面": "",
+           "主体句": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+           "主体句负面": "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。",
+           "锁层A全文": "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。"
+          }
+         },
+         {
+          "id": 4100,
+          "type": "MarkdownNote",
+          "pos": [
+           1300,
+           700
+          ],
+          "size": [
+           420,
+           110
+          ],
+          "flags": {},
+          "order": 0,
+          "mode": 0,
+          "inputs": [],
+          "outputs": [],
+          "title": "[4100] 段说明卡",
+          "properties": {
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE开关(MyQi21PESwitch)/4013 PE扩写·官方T2IRewrite(1005 回官方设计)/4014 最终输出·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive/negative(STRING=进编码正向文本/进编码负向文本)/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=主体句(1005 管线重序):prompt 槽接 [4012] MyQi21PESwitch 输出口0「PE路主体句」,PE=主体句的扩写器、只吃主体句(短句→英文长文);扩写文经 [4021] 主体句路由选择(开=PE出文/关=原句直通)进 [4011] 三层拼装(主体句+BASE+锁层A=装配全文;负面词=型+锁层+主体句负面 三源合并),装配全文/负面词 双口喂 [4014]=MyQi21FinalOutput 只做透明包裹(pe开=英文扩写主体句拼装/pe关=中文主体句直拼;1001 Q1=B+「装配全文进 PE」随 1005 拆件退役)"
+          ],
+          "widgets_values_named": {
+           "text": "[4100] 装配子图段说明卡(1004 中文负面+cfg4 轮终态编号:4010 底座/4011 底料拼合·双口(装配全文+负面词)/4012 PE开关(MyQi21PESwitch)/4013 PE扩写·官方T2IRewrite(1005 回官方设计)/4014 最终输出·双口(进编码正向文本+进编码负向文本)/4019 扩写TE/4020 PE思考预览——**[4015] 主编码与 [4018] 画幅建议器已迁出子图到主图**(1004 ⑪:编码吃 [2] 主TE,画幅吃 [6] wh_ratio/PE启用? 出口;10-02 单口化就此翻篇);出口=positive/negative(STRING=进编码正向文本/进编码负向文本)/width/height 九型直通/wh_ratio/PE启用?;机制细节见主图 [402] 速查卡)\n[4013] 输入=主体句(1005 管线重序):prompt 槽接 [4012] MyQi21PESwitch 输出口0「PE路主体句」,PE=主体句的扩写器、只吃主体句(短句→英文长文);扩写文经 [4021] 主体句路由选择(开=PE出文/关=原句直通)进 [4011] 三层拼装(主体句+BASE+锁层A=装配全文;负面词=型+锁层+主体句负面 三源合并),装配全文/负面词 双口喂 [4014]=MyQi21FinalOutput 只做透明包裹(pe开=英文扩写主体句拼装/pe关=中文主体句直拼;1001 Q1=B+「装配全文进 PE」随 1005 拆件退役)"
+          },
+          "color": "#432",
+          "bgcolor": "#653"
+         },
+         {
+          "id": 4014,
+          "type": "MyQi21FinalOutput",
+          "pos": [
+           2000,
+           100
+          ],
+          "size": [
+           380,
+           250
+          ],
+          "flags": {},
+          "order": 6,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "装配全文",
+            "name": "装配全文",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "装配全文"
+            },
+            "link": 320
+           },
+           {
+            "localized_name": "负面词直写",
+            "name": "负面词直写",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "负面词直写"
+            },
+            "link": 321
+           },
+           {
+            "localized_name": "透明模式",
+            "name": "透明模式",
+            "shape": 7,
+            "type": "BOOLEAN",
+            "widget": {
+             "name": "透明模式"
+            },
+            "link": 314
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "进编码正向文本",
+            "name": "进编码正向文本",
+            "type": "STRING",
+            "slot_index": 0,
+            "links": [
+             322
+            ]
+           },
+           {
+            "localized_name": "进编码负向文本",
+            "name": "进编码负向文本",
+            "type": "STRING",
+            "slot_index": 1,
+            "links": [
+             323
+            ]
+           }
+          ],
+          "title": "[4014] 最终输出(正向+负向+透明)",
+          "properties": {
+           "Node name for S&R": "MyQi21FinalOutput",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "",
+           "",
+           false
+          ],
+          "widgets_values_named": {
+           "装配全文": "",
+           "负面词直写": "",
+           "透明模式": false
+          }
+         },
+         {
+          "id": 4019,
+          "type": "CLIPLoader",
+          "pos": [
+           100,
+           1050
+          ],
+          "size": [
+           400,
+           130
+          ],
+          "flags": {},
+          "order": 1,
+          "mode": 0,
+          "inputs": [],
+          "outputs": [
+           {
+            "localized_name": "CLIP",
+            "name": "CLIP",
+            "type": "CLIP",
+            "links": [
+             308
+            ]
+           }
+          ],
+          "title": "[4019] PE模型加载",
+          "properties": {
+           "Node name for S&R": "CLIPLoader",
+           "ue_properties": {
+            "widget_ue_connectable": {
+             "clip_name": true,
+             "type": true,
+             "device": true
+            },
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+           "qwen_image",
+           "default"
+          ],
+          "widgets_values_named": {
+           "clip_name": "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+           "type": "qwen_image",
+           "device": "default"
+          }
+         },
+         {
+          "id": 4012,
+          "type": "MyQi21PESwitch",
+          "pos": [
+           80,
+           400
+          ],
+          "size": [
+           320,
+           200
+          ],
+          "flags": {},
+          "order": 4,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "主体句",
+            "name": "主体句",
+            "type": "STRING",
+            "link": 302
+           },
+           {
+            "localized_name": "pe开关",
+            "name": "pe开关",
+            "type": "BOOLEAN",
+            "widget": {
+             "name": "pe开关"
+            },
+            "link": 324
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "PE路主体句",
+            "name": "PE路主体句",
+            "type": "STRING",
+            "links": [
+             304
+            ]
+           },
+           {
+            "localized_name": "直写路主体句",
+            "name": "直写路主体句",
+            "type": "STRING",
+            "links": [
+             305
+            ]
+           },
+           {
+            "localized_name": "true路",
+            "name": "true路",
+            "type": "BOOLEAN",
+            "links": [
+             306,
+             307
+            ]
+           },
+           {
+            "localized_name": "false路",
+            "name": "false路",
+            "type": "BOOLEAN",
+            "links": []
+           }
+          ],
+          "title": "[4012] PE开关(true=扩写 / false=直通)",
+          "properties": {
+           "Node name for S&R": "MyQi21PESwitch",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           true
+          ],
+          "widgets_values_named": {
+           "pe开关": true
+          }
+         },
+         {
+          "id": 4020,
+          "type": "easy showAnything",
+          "pos": [
+           600,
+           1050
+          ],
+          "size": [
+           500,
+           160
+          ],
+          "flags": {
+           "collapsed": false
+          },
+          "order": 7,
+          "mode": 4,
+          "inputs": [
+           {
+            "localized_name": "输入任何",
+            "name": "anything",
+            "shape": 7,
+            "type": "*",
+            "link": 311
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "输出",
+            "name": "output",
+            "type": "*",
+            "slot_index": 0,
+            "links": []
+           }
+          ],
+          "title": "[4020] PE思考预览",
+          "properties": {
+           "Node name for S&R": "easy showAnything",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           ""
+          ],
+          "widgets_values_named": {
+           "text": ""
+          }
+         },
+         {
+          "id": 4021,
+          "type": "MyQi21SubjectSelect",
+          "pos": [
+           800,
+           100
+          ],
+          "size": [
+           300,
+           200
+          ],
+          "flags": {},
+          "order": 8,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "主体句负面",
+            "name": "主体句负面",
+            "shape": 7,
+            "type": "STRING",
+            "link": 303
+           },
+           {
+            "localized_name": "主体句",
+            "name": "主体句",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "主体句"
+            },
+            "link": 305
+           },
+           {
+            "localized_name": "PE出文",
+            "name": "PE出文",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "PE出文"
+            },
+            "link": 309
+           },
+           {
+            "localized_name": "PE宽高比",
+            "name": "PE宽高比",
+            "shape": 7,
+            "type": "STRING",
+            "widget": {
+             "name": "PE宽高比"
+            },
+            "link": 310
+           },
+           {
+            "localized_name": "pe开关",
+            "name": "pe开关",
+            "shape": 7,
+            "type": "BOOLEAN",
+            "widget": {
+             "name": "pe开关"
+            },
+            "link": 306
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "选定的主体句",
+            "name": "选定的主体句",
+            "type": "STRING",
+            "slot_index": 0,
+            "links": [
+             317
+            ]
+           },
+           {
+            "localized_name": "宽高比",
+            "name": "宽高比",
+            "type": "STRING",
+            "links": [
+             318
+            ]
+           },
+           {
+            "localized_name": "主体句负面",
+            "name": "主体句负面",
+            "type": "STRING",
+            "links": [
+             319
+            ]
+           }
+          ],
+          "title": "[4021] 主体句路由(正向+负面)",
+          "properties": {
+           "Node name for S&R": "MyQi21SubjectSelect",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "",
+           "",
+           true,
+           true
+          ],
+          "widgets_values_named": {
+           "主体句": "",
+           "PE出文": "",
+           "PE宽高比": true,
+           "pe开关": true
+          }
+         }
+        ],
+        "groups": [
+         {
+          "id": 1,
+          "title": "PE 扩写组",
+          "bounding": [
+           70,
+           600,
+           1060,
+           630
+          ],
+          "color": "#3f789e",
+          "flags": {}
+         }
+        ],
+        "links": [
+         {
+          "id": 300,
+          "origin_id": -10,
+          "origin_slot": 1,
+          "target_id": 4010,
+          "target_slot": 0,
+          "type": "COMBO"
+         },
+         {
+          "id": 302,
+          "origin_id": -10,
+          "origin_slot": 0,
+          "target_id": 4012,
+          "target_slot": 0,
+          "type": "STRING"
+         },
+         {
+          "id": 304,
+          "origin_id": 4012,
+          "origin_slot": 0,
+          "target_id": 4013,
+          "target_slot": 1,
+          "type": "STRING"
+         },
+         {
+          "id": 306,
+          "origin_id": 4012,
+          "origin_slot": 2,
+          "target_id": 4021,
+          "target_slot": 4,
+          "type": "BOOLEAN"
+         },
+         {
+          "id": 307,
+          "origin_id": 4012,
+          "origin_slot": 2,
+          "target_id": -20,
+          "target_slot": 5,
+          "type": "BOOLEAN"
+         },
+         {
+          "id": 308,
+          "origin_id": 4019,
+          "origin_slot": 0,
+          "target_id": 4013,
+          "target_slot": 0,
+          "type": "CLIP"
+         },
+         {
+          "id": 311,
+          "origin_id": 4013,
+          "origin_slot": 3,
+          "target_id": 4020,
+          "target_slot": 0,
+          "type": "STRING"
+         },
+         {
+          "id": 312,
+          "origin_id": 4010,
+          "origin_slot": 0,
+          "target_id": 4011,
+          "target_slot": 0,
+          "type": "STRING"
+         },
+         {
+          "id": 313,
+          "origin_id": 4010,
+          "origin_slot": 4,
+          "target_id": 4011,
+          "target_slot": 1,
+          "type": "STRING"
+         },
+         {
+          "id": 314,
+          "origin_id": 4010,
+          "origin_slot": 3,
+          "target_id": 4014,
+          "target_slot": 2,
+          "type": "BOOLEAN"
+         },
+         {
+          "id": 315,
+          "origin_id": 4010,
+          "origin_slot": 1,
+          "target_id": -20,
+          "target_slot": 2,
+          "type": "INT"
+         },
+         {
+          "id": 316,
+          "origin_id": 4010,
+          "origin_slot": 2,
+          "target_id": -20,
+          "target_slot": 3,
+          "type": "INT"
+         },
+         {
+          "id": 317,
+          "origin_id": 4021,
+          "origin_slot": 0,
+          "target_id": 4011,
+          "target_slot": 2,
+          "type": "STRING"
+         },
+         {
+          "id": 318,
+          "origin_id": 4021,
+          "origin_slot": 1,
+          "target_id": -20,
+          "target_slot": 4,
+          "type": "STRING"
+         },
+         {
+          "id": 319,
+          "origin_id": 4021,
+          "origin_slot": 2,
+          "target_id": 4011,
+          "target_slot": 3,
+          "type": "STRING"
+         },
+         {
+          "id": 320,
+          "origin_id": 4011,
+          "origin_slot": 0,
+          "target_id": 4014,
+          "target_slot": 0,
+          "type": "STRING"
+         },
+         {
+          "id": 321,
+          "origin_id": 4011,
+          "origin_slot": 1,
+          "target_id": 4014,
+          "target_slot": 1,
+          "type": "STRING"
+         },
+         {
+          "id": 322,
+          "origin_id": 4014,
+          "origin_slot": 0,
+          "target_id": -20,
+          "target_slot": 0,
+          "type": "STRING"
+         },
+         {
+          "id": 323,
+          "origin_id": 4014,
+          "origin_slot": 1,
+          "target_id": -20,
+          "target_slot": 1,
+          "type": "STRING"
+         },
+         {
+          "id": 324,
+          "origin_id": -10,
+          "origin_slot": 2,
+          "target_id": 4012,
+          "target_slot": 1,
+          "type": "BOOLEAN"
+         },
+         {
+          "id": 305,
+          "origin_id": 4012,
+          "origin_slot": 1,
+          "target_id": 4021,
+          "target_slot": 1,
+          "type": "STRING"
+         },
+         {
+          "id": 309,
+          "origin_id": 4013,
+          "origin_slot": 0,
+          "target_id": 4021,
+          "target_slot": 2,
+          "type": "STRING"
+         },
+         {
+          "id": 310,
+          "origin_id": 4013,
+          "origin_slot": 2,
+          "target_id": 4021,
+          "target_slot": 3,
+          "type": "STRING"
+         },
+         {
+          "id": 303,
+          "origin_id": -10,
+          "origin_slot": 3,
+          "target_id": 4021,
+          "target_slot": 0,
+          "type": "STRING"
+         }
+        ],
+        "extra": {
+         "ue_links": [],
+         "links_added_by_ue": []
+        }
+       },
+       {
+        "id": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
+        "version": 1,
+        "state": {
+         "lastGroupId": 6,
+         "lastNodeId": 7016,
+         "lastLinkId": 324,
+         "lastRerouteId": 10
+        },
+        "revision": 1,
+        "config": {
+         "defaultIOState": {}
+        },
+        "name": "道劫·加速子图",
+        "inputNode": {
+         "id": -10,
+         "bounding": [
+          -190,
+          380,
+          128,
+          168
+         ]
+        },
+        "outputNode": {
+         "id": -20,
+         "bounding": [
+          3790,
+          430,
+          128,
+          68
+         ]
+        },
+        "inputs": [
+         {
+          "id": "e8c1d2f3-0001-4d01-9a01-e7b9d4a2a001",
+          "name": "model",
+          "type": "MODEL",
+          "linkIds": [
+           103,
+           104,
+           105
+          ],
+          "pos": [
+           -86,
+           404
+          ]
+         },
+         {
+          "id": "e8c1d2f3-0002-4d02-9a02-e7b9d4a2a002",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "linkIds": [
+           106,
+           107,
+           108
+          ],
+          "pos": [
+           -86,
+           424
+          ]
+         },
+         {
+          "id": "e8c1d2f3-0003-4d03-9a03-e7b9d4a2a003",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "linkIds": [
+           109,
+           110
+          ],
+          "pos": [
+           -86,
+           444
+          ]
+         },
+         {
+          "id": "e8c1d2f3-0004-4d04-9a04-e7b9d4a2a004",
+          "name": "latent",
+          "type": "LATENT",
+          "linkIds": [
+           111,
+           112,
+           113
+          ],
+          "pos": [
+           -86,
+           464
+          ]
+         },
+         {
+          "id": "e8c1d2f3-0005-4d05-9a05-e7b9d4a2a005",
+          "name": "速度档位",
+          "type": "COMBO",
+          "linkIds": [
+           114
+          ],
+          "pos": [
+           -86,
+           484
+          ]
+         },
+         {
+          "id": "e8c1d2f3-0006-4d06-9a06-e7b9d4a2a006",
+          "name": "seed",
+          "type": "INT",
+          "linkIds": [
+           115
+          ],
+          "pos": [
+           -86,
+           504
+          ]
+         }
+        ],
+        "outputs": [
+         {
+          "id": "f4b5c6d7-0001-4e01-8b01-e7b9d4a2b01",
+          "name": "LATENT",
+          "type": "LATENT",
+          "linkIds": [
+           122
+          ],
+          "pos": [
+           3814,
+           454
+          ]
+         }
+        ],
+        "widgets": [
+         "0 · Fun-Acc 4步",
+         0
+        ],
+        "nodes": [
+         {
+          "id": 7013,
+          "type": "T8QwenImage21FunAccPDD4Step",
+          "pos": [
+           1400,
+           140
+          ],
+          "size": [
+           470.7826947841339,
+           228.34976377696125
+          ],
+          "flags": {},
+          "order": 4,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "model",
+            "name": "model",
+            "type": "MODEL",
+            "link": 105
+           },
+           {
+            "localized_name": "positive",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "link": 108
+           },
+           {
+            "localized_name": "latent_image",
+            "name": "latent_image",
+            "type": "LATENT",
+            "link": 113
+           },
+           {
+            "localized_name": "seed",
+            "name": "seed",
+            "type": "INT",
+            "widget": {
+             "name": "seed"
+            },
+            "link": 118
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "Latent",
+            "name": "LATENT",
+            "type": "LATENT",
+            "links": [
+             121
+            ]
+           }
+          ],
+          "title": "[7013] FunAcc4步·FunAccPDD",
+          "properties": {
+           "Node name for S&R": "T8QwenImage21FunAccPDD4Step",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
+           0,
+           "randomize"
+          ],
+          "widgets_values_named": {
+           "model_file": "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
+           "seed": 0,
+           "control_after_generate": "randomize"
+          }
+         },
+         {
+          "id": 7011,
+          "type": "LoraLoaderModelOnly",
+          "pos": [
+           800,
+           900
+          ],
+          "size": [
+           270,
+           130
+          ],
+          "flags": {},
+          "order": 2,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "模型",
+            "name": "model",
+            "type": "MODEL",
+            "link": 104
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "模型",
+            "name": "MODEL",
+            "type": "MODEL",
+            "links": [
+             14
+            ]
+           }
+          ],
+          "title": "[7011] viggle LoRA·LoraLoader",
+          "properties": {
+           "Node name for S&R": "LoraLoaderModelOnly",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
+           1
+          ],
+          "widgets_values_named": {
+           "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
+           "strength_model": 1
+          }
+         },
+         {
+          "id": 7012,
+          "type": "KSampler",
+          "pos": [
+           1400,
+           900
+          ],
+          "size": [
+           361.4615704112131,
+           262
+          ],
+          "flags": {},
+          "order": 3,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "模型",
+            "name": "model",
+            "type": "MODEL",
+            "link": 14
+           },
+           {
+            "localized_name": "正面条件",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "link": 107
+           },
+           {
+            "localized_name": "负面条件",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "link": 110
+           },
+           {
+            "localized_name": "Latent图像",
+            "name": "latent_image",
+            "type": "LATENT",
+            "link": 112
+           },
+           {
+            "localized_name": "种子",
+            "name": "seed",
+            "type": "INT",
+            "widget": {
+             "name": "seed"
+            },
+            "link": 117
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "Latent",
+            "name": "LATENT",
+            "type": "LATENT",
+            "links": [
+             120
+            ]
+           }
+          ],
+          "title": "[7012] viggle6步·KSampler",
+          "properties": {
+           "Node name for S&R": "KSampler",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           0,
+           "fixed",
+           6,
+           1,
+           "euler",
+           "simple",
+           1
+          ],
+          "widgets_values_named": {
+           "seed": 0,
+           "control_after_generate": "fixed",
+           "steps": 6,
+           "cfg": 1,
+           "sampler_name": "euler",
+           "scheduler": "simple",
+           "denoise": 1
+          }
+         },
+         {
+          "id": 7015,
+          "type": "MyQi21SpeedSelect",
+          "pos": [
+           2100,
+           900
+          ],
+          "size": [
+           380,
+           150
+          ],
+          "flags": {},
+          "order": 6,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "latent_funacc",
+            "name": "latent_funacc",
+            "shape": 7,
+            "type": "LATENT",
+            "link": 121
+           },
+           {
+            "localized_name": "latent_viggle",
+            "name": "latent_viggle",
+            "shape": 7,
+            "type": "LATENT",
+            "link": 120
+           },
+           {
+            "localized_name": "latent_direct",
+            "name": "latent_direct",
+            "shape": 7,
+            "type": "LATENT",
+            "link": 119
+           },
+           {
+            "localized_name": "mode",
+            "name": "mode",
+            "type": "COMBO",
+            "widget": {
+             "name": "mode"
+            },
+            "link": 114
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "latent",
+            "name": "latent",
+            "type": "LATENT",
+            "links": [
+             122
+            ]
+           }
+          ],
+          "title": "[7015] 出图速度选择·自研",
+          "properties": {
+           "Node name for S&R": "MyQi21SpeedSelect",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "0 · Fun-Acc 4步"
+          ],
+          "widgets_values_named": {
+           "mode": "0 · Fun-Acc 4步"
+          }
+         },
+         {
+          "id": 7014,
+          "type": "PrimitiveInt",
+          "pos": [
+           80,
+           1300
+          ],
+          "size": [
+           270,
+           90
+          ],
+          "flags": {},
+          "order": 5,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "数值",
+            "name": "value",
+            "type": "INT",
+            "widget": {
+             "name": "value"
+            },
+            "link": 115
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "整数",
+            "name": "INT",
+            "type": "INT",
+            "links": [
+             116,
+             117,
+             118
+            ]
+           }
+          ],
+          "title": "[7014] seed单源·PrimitiveInt",
+          "properties": {
+           "Node name for S&R": "PrimitiveInt",
+           "cnr_id": "comfy-core",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           0,
+           "fixed"
+          ],
+          "widgets_values_named": {
+           "value": 0,
+           "fixed": "fixed"
+          }
+         },
+         {
+          "id": 7010,
+          "type": "KSampler",
+          "pos": [
+           1400,
+           1660
+          ],
+          "size": [
+           302.31739744199706,
+           262
+          ],
+          "flags": {},
+          "order": 1,
+          "mode": 0,
+          "inputs": [
+           {
+            "localized_name": "模型",
+            "name": "model",
+            "type": "MODEL",
+            "link": 103
+           },
+           {
+            "localized_name": "正面条件",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "link": 106
+           },
+           {
+            "localized_name": "负面条件",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "link": 109
+           },
+           {
+            "localized_name": "Latent图像",
+            "name": "latent_image",
+            "type": "LATENT",
+            "link": 111
+           },
+           {
+            "localized_name": "种子",
+            "name": "seed",
+            "type": "INT",
+            "widget": {
+             "name": "seed"
+            },
+            "link": 116
+           }
+          ],
+          "outputs": [
+           {
+            "localized_name": "Latent",
+            "name": "LATENT",
+            "type": "LATENT",
+            "links": [
+             119
+            ]
+           }
+          ],
+          "title": "[7010] 直出40步·KSampler",
+          "properties": {
+           "Node name for S&R": "KSampler",
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           0,
+           "fixed",
+           40,
+           4,
+           "euler",
+           "simple",
+           1
+          ],
+          "widgets_values_named": {
+           "seed": 0,
+           "control_after_generate": "fixed",
+           "steps": 40,
+           "cfg": 4,
+           "sampler_name": "euler",
+           "scheduler": "simple",
+           "denoise": 1
+          }
+         },
+         {
+          "id": 7016,
+          "type": "Note",
+          "pos": [
+           1400,
+           1960
+          ],
+          "size": [
+           420,
+           110
+          ],
+          "flags": {},
+          "order": 0,
+          "mode": 0,
+          "inputs": [],
+          "outputs": [],
+          "title": "[7016] 负向生效档位",
+          "properties": {
+           "ue_properties": {
+            "widget_ue_connectable": {},
+            "version": "7.8",
+            "input_ue_unconnectable": {}
+           }
+          },
+          "widgets_values": [
+           "负向仅档1(直出40步 cfg4)生效;档0 FunAcc 无负槽;档2 viggle 蒸馏件 cfg恒1 负向无效"
+          ],
+          "widgets_values_named": {
+           "text": "负向仅档1(直出40步 cfg4)生效;档0 FunAcc 无负槽;档2 viggle 蒸馏件 cfg恒1 负向无效"
+          },
+          "color": "#432",
+          "bgcolor": "#653"
+         }
+        ],
+        "groups": [],
+        "links": [
+         {
+          "id": 103,
+          "origin_id": -10,
+          "origin_slot": 0,
+          "target_id": 7010,
+          "target_slot": 0,
+          "type": "MODEL"
+         },
+         {
+          "id": 104,
+          "origin_id": -10,
+          "origin_slot": 0,
+          "target_id": 7011,
+          "target_slot": 0,
+          "type": "MODEL"
+         },
+         {
+          "id": 105,
+          "origin_id": -10,
+          "origin_slot": 0,
+          "target_id": 7013,
+          "target_slot": 0,
+          "type": "MODEL"
+         },
+         {
+          "id": 106,
+          "origin_id": -10,
+          "origin_slot": 1,
+          "target_id": 7010,
+          "target_slot": 1,
+          "type": "CONDITIONING"
+         },
+         {
+          "id": 107,
+          "origin_id": -10,
+          "origin_slot": 1,
+          "target_id": 7012,
+          "target_slot": 1,
+          "type": "CONDITIONING"
+         },
+         {
+          "id": 108,
+          "origin_id": -10,
+          "origin_slot": 1,
+          "target_id": 7013,
+          "target_slot": 1,
+          "type": "CONDITIONING"
+         },
+         {
+          "id": 109,
+          "origin_id": -10,
+          "origin_slot": 2,
+          "target_id": 7010,
+          "target_slot": 2,
+          "type": "CONDITIONING"
+         },
+         {
+          "id": 110,
+          "origin_id": -10,
+          "origin_slot": 2,
+          "target_id": 7012,
+          "target_slot": 2,
+          "type": "CONDITIONING"
+         },
+         {
+          "id": 111,
+          "origin_id": -10,
+          "origin_slot": 3,
+          "target_id": 7010,
+          "target_slot": 3,
+          "type": "LATENT"
+         },
+         {
+          "id": 112,
+          "origin_id": -10,
+          "origin_slot": 3,
+          "target_id": 7012,
+          "target_slot": 3,
+          "type": "LATENT"
+         },
+         {
+          "id": 113,
+          "origin_id": -10,
+          "origin_slot": 3,
+          "target_id": 7013,
+          "target_slot": 2,
+          "type": "LATENT"
+         },
+         {
+          "id": 115,
+          "origin_id": -10,
+          "origin_slot": 5,
+          "target_id": 7014,
+          "target_slot": 0,
+          "type": "INT"
+         },
+         {
+          "id": 14,
+          "origin_id": 7011,
+          "origin_slot": 0,
+          "target_id": 7012,
+          "target_slot": 0,
+          "type": "MODEL"
+         },
+         {
+          "id": 116,
+          "origin_id": 7014,
+          "origin_slot": 0,
+          "target_id": 7010,
+          "target_slot": 4,
+          "type": "INT"
+         },
+         {
+          "id": 117,
+          "origin_id": 7014,
+          "origin_slot": 0,
+          "target_id": 7012,
+          "target_slot": 4,
+          "type": "INT"
+         },
+         {
+          "id": 122,
+          "origin_id": 7015,
+          "origin_slot": 0,
+          "target_id": -20,
+          "target_slot": 0,
+          "type": "LATENT"
+         },
+         {
+          "id": 114,
+          "origin_id": -10,
+          "origin_slot": 4,
+          "target_id": 7015,
+          "target_slot": 3,
+          "type": "COMBO"
+         },
+         {
+          "id": 121,
+          "origin_id": 7013,
+          "origin_slot": 0,
+          "target_id": 7015,
+          "target_slot": 0,
+          "type": "LATENT"
+         },
+         {
+          "id": 120,
+          "origin_id": 7012,
+          "origin_slot": 0,
+          "target_id": 7015,
+          "target_slot": 1,
+          "type": "LATENT"
+         },
+         {
+          "id": 119,
+          "origin_id": 7010,
+          "origin_slot": 0,
+          "target_id": 7015,
+          "target_slot": 2,
+          "type": "LATENT"
+         },
+         {
+          "id": 118,
+          "origin_id": 7014,
+          "origin_slot": 0,
+          "target_id": 7013,
+          "target_slot": 3,
+          "type": "INT"
+         }
+        ],
+        "extra": {
+         "ue_links": [],
+         "links_added_by_ue": []
+        }
+       }
+      ]
+     },
+     "config": {},
+     "extra": {
+      "ue_links": [],
+      "frontendVersion": "1.53.10",
+      "VHS_latentpreview": false,
+      "VHS_latentpreviewrate": 0,
+      "VHS_MetadataImage": true,
+      "VHS_KeepIntermediate": true,
+      "links_added_by_ue": []
+     },
+     "extensions": {
+      "seed_widgets": {
+       "7": 1,
+       "503": 0
+      }
+     },
+     "version": 0.4,
+     "seed_widgets": {
+      "7": 1,
+      "503": 0
+     }
+    }
+   },
+   "client_id": "472033dc20c244a4b5408a0293ecd237",
+   "create_time": 1791261215922
+  },
+  [
+   "8",
+   "505",
+   "401",
+   "504"
+  ]
+ ],
+ "outputs": {
+  "8": {
+   "images": [
+    {
+     "filename": "QI21道劫文生图__00115_.png",
+     "subfolder": "",
+     "type": "output"
+    }
+   ]
+  },
+  "401": {
+   "merged": [
+    "═══ 正向提示词 ═══\nA vertical fantasy-style portrait shows a young adult woman with an East Asian appearance standing on weathered stone steps beside an ancient East Asian mountain temple. She occupies the central foreground, framed from roughly mid-thigh upward in a three-quarter view, facing toward the right side of the image while gazing into the distance. Her posture is composed and alert, with her right hand resting lightly near the hilt of a sheathed sword at her waist. She has a slim build, fair skin, an oval face, straight dark eyebrows, almond-shaped dark eyes, a small nose, and softly defined lips with muted rose lipstick. Her expression is calm, serious, and contemplative. Subtle makeup emphasizes her eyes with fine eyeliner and natural blush, while her long black-brown hair flows down her back and over her shoulder in the wind. Part of her hair is gathered into a high half-ponytail secured with a single plain silver hairpin, and loose strands catch the sunlight along the crown and cheeks. She wears layered flowing hanfu-inspired robes in jade green, pale sage, white, and translucent gray tones. The outer robe is sheer and gauzy, with embroidered silver botanical patterns across the sleeves and chest, wide draped sleeves, and a long trailing skirt panel that moves leftward in the wind. Beneath it are darker teal-green inner layers with structured trim and ornamental fastenings. Around her waist are multiple belts, cords, tassels, and small decorative charms in metallic silver and muted turquoise tones. A dark red tassel hangs near the sword, adding contrast against the pale robes. The sword sits horizontally at her right hip, angled slightly downward toward the lower-right side of the frame. Its scabbard is dark wood or black lacquer with engraved patterns, metal fittings, a white jade-toned guard, and a textured gray-silver-wrapped handle. The visible hilt and scabbard fittings appear polished and elaborate, consistent with historical fantasy armor details. The woman stands on uneven gray stone stairs and platforms with rough chiseled texture, mossy darkened edges, cracks, and worn surfaces. Wooden temple structures surround her: at the upper-left edge, a carved roof eave projects diagonally into the frame, with dark weathered beams, layered ceramic tiles, and an aged hanging sign or plaque carrying indistinct decorative Chinese-style calligraphy-like markings that are too blurred and stylized to transcribe reliably. Similar carved wooden pillars, brackets, and plaques appear on the left side behind her, partially obscured by mist and shadow. On the right side, another dark wooden railing and pillar structure rises along the staircase, decorated with geometric lattice cutouts and carved panels. In the lower-right corner, a short stone post or lantern-like architectural block appears partly cropped, with rounded cap details and rough masonry texture. Small leaves or petals drift through the air, especially near the woman’s robe and the bright sky, suggesting a gentle mountain breeze. The background opens into a vast cinematic landscape of steep rocky mountains rising above thick layers of white and gray clouds. Several traditional pavilion buildings cling to cliffs at different depths, their dark roofs and wooden frames softened by atmospheric haze. Warm sunlight enters from the left side, producing strong golden rim light on the woman’s hair, cheek, robe edges, and the stair rails. The sun sits low near the horizon, partially veiled by glowing clouds, creating lens-like flare and a luminous yellow-orange gradient across the left sky. The color palette blends cool jade greens, stone grays, misty whites, and warm amber highlights. The composition uses dramatic backlighting, shallow depth of field, and painterly photorealistic detail: the woman and sword are sharply rendered, while distant mountains, temples, clouds, and parts of the temple architecture fade into soft bokeh and atmospheric perspective. The viewpoint is slightly below eye level, making the figure appear poised and heroic against the towering mountain scenery. The overall image reads as a high-fantasy xianxia or wuxia character portrait, emphasizing elegance, solitude, discipline, and a mythical mountain realm.\n风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。\n\n═══ 负向提示词 ═══\n模糊，水印，多手指，文字错误, 模糊，水印，多手指，文字错误，网文封面美人，古风美女/帅哥偶像海报，光面现代 CG 特写，赛璐璐，好莱坞三点电影光，深重写实投影，禁止电影级主光/填充/轮廓光三点布光，电影级主光，轮廓光，大块不透明色面，厚数字颜料块，喷枪明暗法，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物/UI/logo 复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，糖果饱和度"
+   ]
+  },
+  "504": {
+   "images": [
+    {
+     "filename": "MYStudio-2K_00036_.png",
+     "subfolder": "",
+     "type": "output"
+    }
+   ]
+  },
+  "505": {
+   "a_images": [
+    {
+     "filename": "rgthree.compare._temp_udaxi_00021_.png",
+     "subfolder": "",
+     "type": "temp"
+    }
+   ],
+   "b_images": [
+    {
+     "filename": "rgthree.compare._temp_udaxi_00022_.png",
+     "subfolder": "",
+     "type": "temp"
+    }
+   ]
+  }
+ },
+ "status": {
+  "status_str": "success",
+  "completed": true,
+  "messages": [
+   [
+    "execution_start",
+    {
+     "prompt_id": "8317cb37-0f06-466b-96f6-875197c835c9",
+     "timestamp": 1791261215925
+    }
+   ],
+   [
+    "execution_cached",
+    {
+     "nodes": [
+      "1",
+      "2",
+      "3",
+      "400",
+      "404",
+      "501",
+      "502",
+      "6:4019",
+      "6:4012",
+      "7:7014"
+     ],
+     "prompt_id": "8317cb37-0f06-466b-96f6-875197c835c9",
+     "timestamp": 1791261215929
+    }
+   ],
+   [
+    "execution_success",
+    {
+     "prompt_id": "8317cb37-0f06-466b-96f6-875197c835c9",
+     "timestamp": 1791261602883
+    }
+   ]
+  ]
+ },
+ "meta": {
+  "8": {
+   "node_id": "8",
+   "display_node": "8",
+   "parent_node": null,
+   "real_node_id": "8"
+  },
+  "401": {
+   "node_id": "401",
+   "display_node": "401",
+   "parent_node": null,
+   "real_node_id": "401"
+  },
+  "504": {
+   "node_id": "504",
+   "display_node": "504",
+   "parent_node": null,
+   "real_node_id": "504"
+  },
+  "505": {
+   "node_id": "505",
+   "display_node": "505",
+   "parent_node": null,
+   "real_node_id": "505"
+  }
+ }
+}

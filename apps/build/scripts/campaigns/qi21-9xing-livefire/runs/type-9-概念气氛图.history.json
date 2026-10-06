@@ -1,7 +1,7 @@
 {
   "prompt": [
-    22,
-    "5b05816c-721e-4d65-a894-1a4d75fbf0d1",
+    24,
+    "aae7ec8e-c170-4617-b2b6-90fcb31fddc2",
     {
       "1": {
         "inputs": {
@@ -81,7 +81,7 @@
       },
       "400": {
         "inputs": {
-          "value": "山雨欲来的渡口，青年刀修玄色劲装束袖束腰，长发高束马尾，腰侧黑革刀带悬一柄短刀，黑鲨皮鞘、黄铜刀格、缠灰绳刀柄，刀身完整收在鞘中，第一次背起行囊离乡；老船工收篙回望，江天压满墨青雨云，渡口一盏朱红灯笼是画面唯一的暖色，两人的目光都投向江雾深处若隐若现的仙山轮廓。"
+          "value": "千年一次的灵潮涨落之夜，悬浮的碎裂古殿群沐浴在夜色与灵光中，殿瓦飞檐敷压沉一档的青蓝色、檐角悬旧金铃铎，万千萤火状灵尘随气流缓缓升腾，暖金与朱红双色的灵光染亮殿群四周的夜雾，粒尘辉光聚于殿群与灵光带，山间平涂区保持干净平滑，全图多色相并陈、受控中等饱和；画面九成留给静谧的蓝灰夜空与雾，只余殿群一角与一株横生孤松的剪影，全色相并陈，受控中等饱和。"
         },
         "class_type": "PrimitiveStringMultiline",
         "_meta": {
@@ -276,7 +276,7 @@
       },
       "6:4010": {
         "inputs": {
-          "base": "分镜剧情图",
+          "base": "概念气氛图",
           "透明覆盖": false
         },
         "class_type": "MyQi21DaojieBase",
@@ -540,8 +540,8 @@
       }
     },
     {
-      "client_id": "qi21-9xing-7-1791262238668",
-      "create_time": 1791262238672
+      "client_id": "qi21-9xing-9-1791264272047",
+      "create_time": 1791264272051
     },
     [
       "8",
@@ -554,7 +554,7 @@
     "8": {
       "images": [
         {
-          "filename": "QI21道劫文生图__00116_.png",
+          "filename": "QI21道劫文生图__00118_.png",
           "subfolder": "",
           "type": "output"
         }
@@ -562,13 +562,13 @@
     },
     "401": {
       "merged": [
-        "═══ 正向提示词 ═══\nA cinematic fantasy-style landscape illustration shows a rugged riverside setting beneath a heavy storm sky. Across the upper portion, vast dark clouds fill most of the frame, rendered in layered grays, blue-grays, and charcoal tones with soft glowing breaks where pale sunlight filters through. The cloud texture is dense, turbulent, and volumetric, creating a dramatic sense of approaching rain. In the upper-left and central background, a tall jagged mountain formation rises steeply from mist, its rocky ridges sharply textured and partially veiled by fog. Smaller mountain silhouettes recede into the distance along the left side, forming a hazy valley that opens toward the river.\n\nThe middle distance contains a broad river or lake running horizontally through the scene, reflecting muted gray-green light from the sky. Several small sailboats and wooden vessels appear far away on the water, reduced to delicate silhouettes and vertical masts against the mist. Low banks, scattered trees, and fog layers soften the horizon. On the far bank, a multi-tiered East Asian pagoda-like building sits among dark trees and vegetation, its rooflines tiered and angular, colored in subdued browns and grays. The surrounding forest includes dense coniferous and deciduous tree forms, with autumnal muted greens, ochres, and brown leaves blending into the shadowed terrain.\n\nIn the foreground, the viewer looks from a rocky stone dock or path beside the water. The ground is made of uneven wet stone slabs with puddles, cracks, moss, grass tufts, and reflective highlights. A large vermilion paper lantern hangs from a dark wooden post near the center-right foreground, slightly left of the main figure. The lantern is cylindrical with rounded caps at top and bottom, ribbed vertical segments, dark metal bands, and a warm orange flame glowing inside. Its vermilion color provides the primary warm accent in the otherwise cool, desaturated palette. Around it are rough wooden planks, posts, ropes, barrels, crates, and weathered dock structures arranged irregularly along the riverbank. Thin smoke or mist curls upward near the lantern and around the trees, reinforcing the damp, cold atmosphere.\n\nThe dominant human subject stands in the right-center foreground, shown from behind in three-quarter profile facing toward the distant mountains and river. The person appears to be a young adult East Asian man with a slim-to-athletic build, average height, and light-to-medium skin tone. He has long black hair tied high into a thick ponytail, with loose strands blown sideways by wind. His face is visible in side profile, showing a straight nose, defined jawline, focused eyes, and a serious, contemplative expression. He wears dark, layered, worn travel robes or martial-arts-inspired garments in black and charcoal gray, with a cinched belt and wrapped sleeves. The clothing has a matte, weathered fabric texture with subtle folds, frayed edges, and decorative embroidered-looking trim on the shoulder and back area. A large backpack or bundled gear sack rests on his back, secured with straps, cords, and buckles. Long belts, sashes, and hanging fabric strips trail from his waist, emphasizing movement and wind. At his waist and hip, a short sword with a black shark hide scabbard, brass guard, and gray rope-wrapped handle hangs visibly from the side; the blade is fully sheathed, with metallic highlights along the brass fittings and a narrow, sharp silhouette suggesting a weapon carried for travel or combat.\n\nTo the right, near the riverboat, an elderly East Asian man stands partly turned toward the younger traveler. He has a lean, wiry build, deeply wrinkled facial features, gray-white hair tied into a small bun, and a weathered, serious expression. He wears dark ragged clothing with layered, torn sleeves and rough fabric textures. His posture is bent slightly forward as he grips a long pole or oar extending diagonally into the water. The interaction between the two men is quiet and tense: the older man looks toward the younger figure while standing beside the boat, and the younger figure faces away into the landscape, visually separated by the dock space and their opposing orientations.\n\nBehind the older man, a wooden riverboat occupies the lower-right middle ground. It has a dark curved roof with upturned eaves, weathered railings, vertical support beams, and a hull sitting low on the rippling water. The boat’s surfaces appear aged, soaked, and uneven, with dark brown wood and muted black shadows. Reflections shimmer faintly beneath it in the river. The dock edge, posts, and mooring lines connect the boat to the stone path, creating a dense arrangement of practical travel objects.\n\nThe overall composition uses strong depth perspective: the stone path leads from the bottom foreground toward the travelers, then across the river toward the misty pagoda and towering mountains. The main figure occupies the right half of the frame, while the mountain peak and storm sky balance the left and upper portions. Lighting is dramatic and directional, with cool ambient storm light from the cloudy sky and a localized warm glow from the lantern. The color grading is cinematic, dominated by desaturated blue-gray, slate, black, deep green, and earthy brown, contrasted by the lantern’s amber-orange light. The image has the appearance of high-detail digital painting or AI-generated fantasy concept art, with realistic environmental rendering, painterly textures, atmospheric haze, and a historical wuxia or xianxia-inspired visual language.\n主体的单人立绘，全身入画，头身比约七头半，解剖比例写实，下肢不过度拉长。运笔有提按顿挫的细墨线勾勒全身轮廓，线随结构时粗时细，转折衔接处轻重分明；墨色浓淡分明，干湿五阶层次清楚，近处轮廓清楚、墨线饱满，远景以淡墨晕染层层退开。背景是多色相铺陈的山水基底：淡墨远山、青灰近石、青绿草木、赭黄土色各安其位，宣纸白只作局部透气位；传统色中等强度，石青、青绿、赭石、旧金、朱红各安其位，受控饱和而非一律低饱和；一块鲜明的点题色收束视线；均匀柔光，浅净平涂的底，画面疏朗有呼吸。\n衣褶/裙摆：使用宽幅平静布面，正面仅允许两到四条长结构褶（稀疏结构褶 2-4 条）。\n材质可以朴素或粗陋（灰布、素袍、劳动布）但须看起来可穿且完整；服饰保持结构安静：袖口和下摆是连续闭合布面。\n头发存在：头皮须有可见头发，有清晰发量与发际线；短发、长发、扎发、平头或短寸均可。\n鞋靴性别：鞋靴性别呈现须匹配角色生理性别与来源事实。\n人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。\n衣物完整性：服饰须完整、线条干净、可生产。\n风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。\n\n═══ 负向提示词 ═══\n模糊，水印，多手指，文字错误，密集褶网，密集皱褶网格，混乱多褶堆叠，风驱褶喷，扇贝状/破损/分叉的裙摆或袍摆，分叉袍摆，分离的飘带状下摆条，下摆缺角，风碎流苏，乞丐破衣，撕裂下摆，碎边，破洞，磨损补丁，虫蛀布面，垂挂碎条，绳捆破布，刻意破烂造型，拉扯衣袍，分裂衣袍，分叉衣袍，破破烂烂，剃净头皮，透明头皮，无发干净圆顶，女性高跟鞋，细高跟，尖头女鞋，精巧女舞鞋，细带玛丽珍鞋，男性超大号通用工靴，异装鞋靴, 模糊，水印，多手指，文字错误，网文封面美人，古风美女/帅哥偶像海报，光面现代 CG 特写，赛璐璐，好莱坞三点电影光，深重写实投影，禁止电影级主光/填充/轮廓光三点布光，电影级主光，轮廓光，大块不透明色面，厚数字颜料块，喷枪明暗法，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物/UI/logo 复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，糖果饱和度"
+        "═══ 正向提示词 ═══\nA vertical fantasy landscape shows an ancient East Asian architectural complex suspended high above mist-filled clouds and distant mountains at night. The upper portion is dominated by a vast deep blue-gray sky, graded from very dark navy at the top to cooler blue-gray tones near the horizon, with soft layered cloud bands, faint stars, subtle speckled cosmic textures, and sweeping cloudy nebula-like formations. Near the left-center horizon, a slim crescent moon glows pale white-blue just above the cloud line, partially surrounded by diffused moonlight and mist. Small golden and vermilion star-like points and ember-like particles are scattered throughout the sky, especially around the structures below, creating a magical nocturnal atmosphere.\n\nOn the far left edge, a large windswept pine tree grows from a dark rocky cliff. Its trunk leans diagonally upward from the lower-left corner, with rough dark bark and twisting branches extending horizontally toward the center. The foliage is dense, irregular, and shadowed, nearly black-green against the dim sky, functioning as a strong foreground silhouette. Beneath it, the cliff face is steep, jagged, and textured with cracks, ledges, and deep shadows, colored in dark charcoal, muted brown, and bluish gray.\n\nAcross the lower middle and right side, a fragmented cluster of traditional pagoda-style buildings floats or perches on a massive suspended stone-and-wood platform. The architecture features layered curved tiled roofs with upturned eaves, ornate ridge ornaments, carved beams, balconies, columns, railings, stairways, and illuminated wooden interiors. The largest building sits near the center-right, occupying roughly the lower third of the image, with warm amber light glowing from within its rooms and windows. Its roof tiles are rendered in a cyan-blue tone with ridged texture, while the trim is accented by reddish-brown and gilded highlights. Several smaller pavilions and attached structures extend to the left and right, connected by narrow walkways, stairs, and elevated bridges. Red banners or draped fabric strips hang from some corners and poles, subtly catching the warm light.\n\nGolden bells hang from the eaves of multiple rooftops, including a prominent dangling bell under the central roof’s right-facing overhang and several smaller bells along the extended pavilions. They appear metallic, polished, and warm bronze-gold, catching highlights from the surrounding glow. Numerous tiny luminous particles, sparks, and floating flecks surround the buildings, particularly beneath the roofs and along the right side, forming swirling trails of warm orange-gold and vermilion energy. These light particles vary in size from pinpoints to small glowing dots, with some clustered densely near the architecture and others drifting upward into the sky. Their motion-like arrangement suggests wind, magic, or embers carried by the night air.\n\nThe platform beneath the buildings consists of broken stone slabs, timber supports, carved columns, exposed beams, latticework, and weathered architectural fragments. The surface appears uneven and ancient, with chipped edges, gaps, stacked planks, ropes or cables stretching between sections, and debris-like protrusions hanging downward. The underside descends into darkness, where shadowed rock and structural remnants fade into mist. At the bottom center, translucent waterfalls pour from the floating cliff face into the clouds below, rendered as pale blue-white streams with soft streaks and droplets, giving the suspended platform a dreamlike levitating quality.\n\nIn the background behind the main structure, distant mountain silhouettes rise through thick layers of fog. The mountains are softly blurred and desaturated, colored in cool blue-gray and pale gray, with their peaks emerging from cloud banks. Atmospheric haze fills the valley areas, and the lighting creates a strong contrast between the cold moonlit environment and the warm architectural illumination. The overall composition places the dark tree and cliff on the left as a framing element, the glowing temple complex in the lower-right as the focal point, and the expansive starry sky above as a dramatic sense of scale.\n\nThe image is a highly detailed digital fantasy illustration with cinematic lighting, realistic material rendering, and painterly atmospheric effects. It uses a vertical composition, a slightly low-to-mid vantage point looking across the floating ruins, and a cool blue night palette contrasted by warm gold and vermilion highlights. The style combines xianxia-inspired fantasy architecture, ancient Chinese pavilion forms, ethereal mountain scenery, volumetric fog, luminous particle effects, and epic environmental concept-art detail.\n一幅以气氛为主的画面，主体落在画面偏侧。细墨线只勾近处轮廓，运笔有提按顿挫，线随结构时粗时细；墨色浓淡分明，远处交给淡墨，层层退远，整体对比低。色彩层次承担画面呼吸，远景轻轻压住，近处轮廓清楚而细节少；底色浅净，少数焦点色可二到三色相，青绿、赭石、淡朱各安其位，受控饱和；均匀柔光，平涂的底。\n概念气氛设色配比：大面积淡墨、青灰为稳定基底，青绿、赭石、淡朱二到三色相作焦点色。\n风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。\n\n═══ 负向提示词 ═══\n模糊，水印，多手指，文字错误, 模糊，水印，多手指，文字错误，网文封面美人，古风美女/帅哥偶像海报，光面现代 CG 特写，赛璐璐，好莱坞三点电影光，深重写实投影，禁止电影级主光/填充/轮廓光三点布光，电影级主光，轮廓光，大块不透明色面，厚数字颜料块，喷枪明暗法，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物/UI/logo 复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，糖果饱和度"
       ]
     },
     "504": {
       "images": [
         {
-          "filename": "MYStudio-2K_00037_.png",
+          "filename": "MYStudio-2K_00039_.png",
           "subfolder": "",
           "type": "output"
         }
@@ -577,14 +577,14 @@
     "505": {
       "a_images": [
         {
-          "filename": "rgthree.compare._temp_udaxi_00023_.png",
+          "filename": "rgthree.compare._temp_udaxi_00027_.png",
           "subfolder": "",
           "type": "temp"
         }
       ],
       "b_images": [
         {
-          "filename": "rgthree.compare._temp_udaxi_00024_.png",
+          "filename": "rgthree.compare._temp_udaxi_00028_.png",
           "subfolder": "",
           "type": "temp"
         }
@@ -598,25 +598,32 @@
       [
         "execution_start",
         {
-          "prompt_id": "5b05816c-721e-4d65-a894-1a4d75fbf0d1",
-          "timestamp": 1791262238673
+          "prompt_id": "aae7ec8e-c170-4617-b2b6-90fcb31fddc2",
+          "timestamp": 1791264272052
         }
       ],
       [
         "execution_cached",
         {
           "nodes": [
-            "6:4019"
+            "1",
+            "2",
+            "3",
+            "404",
+            "501",
+            "502",
+            "6:4019",
+            "7:7014"
           ],
-          "prompt_id": "5b05816c-721e-4d65-a894-1a4d75fbf0d1",
-          "timestamp": 1791262238679
+          "prompt_id": "aae7ec8e-c170-4617-b2b6-90fcb31fddc2",
+          "timestamp": 1791264272056
         }
       ],
       [
         "execution_success",
         {
-          "prompt_id": "5b05816c-721e-4d65-a894-1a4d75fbf0d1",
-          "timestamp": 1791262691593
+          "prompt_id": "aae7ec8e-c170-4617-b2b6-90fcb31fddc2",
+          "timestamp": 1791264697380
         }
       ]
     ]
