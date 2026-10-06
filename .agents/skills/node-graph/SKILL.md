@@ -183,6 +183,20 @@ metadata:
 
 以上四规则的治理优先级仍服从 ④ 五层优先级序:槽序对齐是「线不交叉」高位目标的结构性手段;挪位/并线优先于垫 Reroute 的手法序不变;节奏常数属第 4 层观感判据的量化,不破 est/负区下限。
 
+### ⑨ 市面同域印证与吸收(1006 普查;来源均 MIT,吸收带署名)
+
+普查(skills.sh 注册表+GitHub 仓库/代码搜索,四形状):同域实质两家=artokun/comfyui-mcp `workflow-layout`(790★,活跃)与 peteromallet/VibeComfy `reorganise-comfy-workflow`(150★);字面 node-graph 仅 HaJH/node-graph-skills(0★,Substance 专用,ComfyUI 仍"计划")。**不整装原因**:前者绑其 `panel_*` MCP 工具族、后者绑 vibecomfy CLI,本仓走纯 JSON 生成器路线——只吸收方法与印证;「JSON 配置+执行链+宿主渲染认知层」普查后仍零对手。
+
+独立印证(他两家实测踩实本仓既有判据,佐证非新增):标题栏不在 `size[1]` 里(机身之上约 30px,按 size 裸堆叠=每节点叠一个头,须含头足迹——本仓 est「标题 36+…」同判);预览/载图类节点媒体未载时 size 偏小、渲染撑高,下方留 ~250-300px(本仓 est 预览类+260 同判);子图轨不随内节点走、搬完必重钉(本仓「出口 pos 紧邻最右」同判);收装子图保内部节点 id、wrapper 取新 id(本仓「宿主 id 沿用原选择件 id」更强);布局-only 契约=只准动 pos/size/组框/颜色/旗标/注释,禁改拓扑/连线/widget 值/prompt(VibeComfy structural-noop 证据与本仓 LINKS-STABLE 对拍同律)。
+
+吸收的做法(落点):
+- **双侧钉轨配方**(artokun):入轨=[最左内节点 x−180, 首行 y]、出轨=[最右内节点 x+60, 首行 y]——补强本仓单侧「出口紧邻」判据为两侧都有锚。
+- **列内 barycenter 重排**(artokun):同列节点 y 逼近其连线邻居的均值,属 ④ 手法序「挪位置」的具体化,先于垫 Reroute。
+- **组框 vs 子图 deliberate choice**(artokun):组框优先(轻量视觉带);2-3 节点的阶段不值得子图化,过度子图化伤可读性与打包交接——制衡「完整功能域收装子图」(收装判据不变:功能域完整才收,不为收而收)。
+- **禁擅自大重排**(VibeComfy off/suggest/candidate 治理):布局整理恒显式任务,不做功能编辑的搭车动作;与 1006「手术顺手清残留」不冲突(清残留=删已退役件遗骸,非重排)。
+- **对拍证据落盘**(VibeComfy):组框/摆位手术后,对拍结论(逐字节等价+只动 pos/groups)落证据文件,勿只在会话里口头绿。
+- **前端扩展 v2 API 指针**(artokun comfyui-frontend-extensions;涉认知章 §1):ComfyUI 前端 v2 扩展 API 已发布 npm 包 `@comfyorg/extension-api`(defineNode/defineExtension/defineWidget、typed 事件、Disposable 句柄),替代 v1 `app.registerExtension`+prototype 补丁形;本仓 my_nodes web JS 现为 v1 形(onExecuted)仍受支持,新写扩展候考 v2——**未本机实测,用时先验装机前端版本兼容**。
+
 ## 三真源地图(什么情况读哪个、读到哪节)
 
 | 症状/任务 | 去处 |
