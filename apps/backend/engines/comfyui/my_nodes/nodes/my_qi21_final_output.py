@@ -149,12 +149,12 @@ class MyQi21FinalOutput:
         return {
             "required": {},
             "optional": {
-                "装配全文": ("STRING", {"tooltip": "装配好的完整提示词原文"
+                "正向提示词": ("STRING", {"tooltip": "AI 扩写后的完整正向提示词"
                                                 "(主体句×PE选择+型底座+锁层A三层"
                                                 "拼装),连「三层拼装」节点的"
                                                 " 装配全文 输出;不连=正向降级"
                                                 "空串,日志有中文警告"}),
-                "负面词直写": ("STRING", {"tooltip": "三源合并的负面词清单"
+                "负向提示词": ("STRING", {"tooltip": "AI 精炼后的负面清单"
                                                  "(型负面+锁层负面+主体句负面),"
                                                  "连「三层拼装」节点的 负面词 "
                                                  "输出;不连=空负向(合法态)"}),
@@ -169,8 +169,8 @@ class MyQi21FinalOutput:
     RETURN_NAMES = ("进编码正向文本", "进编码负向文本")
     FUNCTION = "compose"
 
-    def compose(self, 装配全文: str | None = None,
-                负面词直写: str | None = None,
+    def compose(self, 正向提示词: str | None = None,
+                负向提示词: str | None = None,
                 透明模式: bool = False) -> tuple[str, str]:
         """最终处理:(进编码正向文本, 进编码负向文本)(元组序=RETURN_NAMES 序)。
 
@@ -179,14 +179,14 @@ class MyQi21FinalOutput:
         剥离不施于本件(词族剥离只用于 PE 扩写段;装配全文=纯中文三层,
         禁过剥离——zh 词族会误删锁层A 核心句,6d5fa8a 深审 HIGH-2 同款口径)。
         """
-        direct_neg = (负面词直写 or "").strip()
-        if 装配全文 is None:
+        direct_neg = (负向提示词 or "").strip()
+        if 正向提示词 is None:
             print("[MyQi21FinalOutput] 装配全文输入未接线:正向无真源文本可用,"
                   "进编码正向文本降级为空串——请把 [4011] 三层拼装的 装配全文 "
                   "输出连到本节点 装配全文 输入,或检查该连线是否被改动")
             direct = ""
         else:
-            direct = 装配全文
+            direct = 正向提示词
         transparent_mid = direct + " " + _TAIL
         if 透明模式:
             return (f"{_RGBA_HEAD} {transparent_mid} {_RGBA_TAIL}",

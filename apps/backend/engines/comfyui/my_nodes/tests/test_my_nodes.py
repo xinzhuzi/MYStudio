@@ -52,6 +52,8 @@ def test_registry_exposes_first_batch_nodes():
         "MyQi21BoolBranch",  # 1005 布尔分支(true/false双路;㊄已退役留档=回滚杠杆)
         "MyQi21PESwitch",  # 1005 ㊝ PE开关路由:主体句+开关→PE路/直写路+true/false双出
         "MyQi21FinalOutput",  # 1005 ㊄ 拆双类:t2i专用最终输出(零PE槽,透明包裹+双口输出)
+        "MyQi21ApiPE",  # 1006 API版PE:LM Studio本机大模型按真源教材扩写(批C 九入全上下文+双口;服务不在=透传)
+        "MyQi21BasesText",  # 1006 真源文本:qi21_bases.json三节只读出口(全上下文节点化)
         "MyImageGridSplit",  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
         "MyVideoFrameGrab",  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
         "MyImageABCompare",  # 0929 TE-MAN 排查 B2:图对比审片(canvas 滑帘+2-7x 放大镜)

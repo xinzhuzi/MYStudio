@@ -41,3 +41,50 @@ app.registerExtension({
         };
     },
 });
+
+// 1006 四轮:MyQi21ApiPE(AI扩写)节点上两只只读多行展示框——onExecuted 把
+// ui.api_pe_pos/api_pe_neg(双形态载荷:直挂或 output 内挂,同上兼容)落框
+app.registerExtension({
+    name: "MY.qi21_api_pe_display",
+    async beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== "MyQi21ApiPE") return;
+        const onExecuted = nodeType.prototype.onExecuted;
+        nodeType.prototype.onExecuted = function (message) {
+            onExecuted?.apply(this, arguments);
+            const payload = message && (message.output || message);
+            const pos = payload && payload.api_pe_pos ? payload.api_pe_pos
+                : message && message.api_pe_pos ? message.api_pe_pos : null;
+            const neg = payload && payload.api_pe_neg ? payload.api_pe_neg
+                : message && message.api_pe_neg ? message.api_pe_neg : null;
+            const setBox = (names, arr) => {
+                if (!arr) return;
+                const w = (this.widgets || []).find((x) => names.includes(x.name));
+                if (!w) return;
+                w.value = String(arr[0] ?? "");
+            };
+            setBox(["正向扩写全文"], pos);
+            setBox(["负向扩写清单"], neg);
+        };
+    },
+});
+
+// 1006 批A:MyQi21BasesText(真源文本)节点上一只只读多行展示框「内容」——
+// onExecuted 把 ui.bases_text(双形态载荷:直挂或 output 内挂,同上兼容)落框;
+// 载荷缺位不清框(Q4 决议:会话内不丢)
+app.registerExtension({
+    name: "MY.qi21_bases_text_display",
+    async beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== "MyQi21BasesText") return;
+        const onExecuted = nodeType.prototype.onExecuted;
+        nodeType.prototype.onExecuted = function (message) {
+            onExecuted?.apply(this, arguments);
+            const payload = message && (message.output || message);
+            const arr = payload && payload.bases_text ? payload.bases_text
+                : message && message.bases_text ? message.bases_text : null;
+            if (!arr) return;
+            const w = (this.widgets || []).find((x) => x.name === "内容");
+            if (!w) return;
+            w.value = String(arr[0] ?? "");
+        };
+    },
+});
