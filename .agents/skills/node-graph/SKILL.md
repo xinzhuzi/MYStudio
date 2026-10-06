@@ -195,7 +195,7 @@ metadata:
 - **组框 vs 子图 deliberate choice**(artokun):组框优先(轻量视觉带);2-3 节点的阶段不值得子图化,过度子图化伤可读性与打包交接——制衡「完整功能域收装子图」(收装判据不变:功能域完整才收,不为收而收)。
 - **禁擅自大重排**(VibeComfy off/suggest/candidate 治理):布局整理恒显式任务,不做功能编辑的搭车动作;与 1006「手术顺手清残留」不冲突(清残留=删已退役件遗骸,非重排)。
 - **对拍证据落盘**(VibeComfy):组框/摆位手术后,对拍结论(逐字节等价+只动 pos/groups)落证据文件,勿只在会话里口头绿。
-- **前端扩展 v2 API 指针**(artokun comfyui-frontend-extensions;涉认知章 §1):ComfyUI 前端 v2 扩展 API 已发布 npm 包 `@comfyorg/extension-api`(defineNode/defineExtension/defineWidget、typed 事件、Disposable 句柄),替代 v1 `app.registerExtension`+prototype 补丁形;本仓 my_nodes web JS 现为 v1 形(onExecuted)仍受支持,新写扩展候考 v2——**未本机实测,用时先验装机前端版本兼容**。
+- **前端扩展 v2 API 指针(含勘正)**(artokun comfyui-frontend-extensions;涉认知章 §1):该技能称 v2 扩展 API 已发布为 npm 包 `@comfyorg/extension-api`(defineNode/defineExtension/defineWidget、typed 事件、Disposable 句柄)——**2026-10-06 npm 三形状实查 404,该包名不存在**(@comfyorg 域现仅 litegraph/sdk 两包),勿按此包名引入;现行可靠路仍是 v1 `app.registerExtension`+`onExecuted` 形(本仓 my_nodes web JS 在用),v2 说法候上游真发布后再考。
 
 ## 三真源地图(什么情况读哪个、读到哪节)
 
