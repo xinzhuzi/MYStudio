@@ -1,6 +1,6 @@
 ---
 name: node-graph
-description: 节点图(node graph)与画布布局(canvas layout)技能——凡涉 ComfyUI 工作流构建或修改、画布布局、工作流布局、节点图搭建、连线交叉治理、线遮节点、横向排版、组框、负区、输出口位、workflow JSON 两种格式、连线与类型机制、多模式/加速档拓扑怎么搭(并行支路/节点复用/懒选择)的任务先读此技能。含拓扑结构策略章(0929:并行支路+单一选择点/单源扇出+零真重复/懒执行选择/注入式反模式;0930 补:完整功能域收装子图)、历次布局裁定系谱(09-19 横向铁律→0926 线不遮节点→0928 交叉立宪→0930 输出槽排布/节点命名/节奏常数)与布局策略全谱(①-⑦+⑧ 输出槽排布·节点命名·对称规整节奏常数);本技能管图结构与布局,引擎驱动与生成归 comfyui 技能。Use for any node graph / canvas layout / workflow building or editing / crossing-and-group governance / topology-patterning task.
+description: 节点图(node graph)与画布布局(canvas layout)技能——凡涉 ComfyUI 工作流构建或修改、画布布局、工作流布局、节点图搭建、连线交叉治理、线遮节点、横向排版、组框、负区、输出口位、workflow JSON 两种格式、连线与类型机制、多模式/加速档拓扑怎么搭(并行支路/节点复用/懒选择)的任务先读此技能。含拓扑结构策略章(0929:并行支路+单一选择点/单源扇出+零真重复/懒执行选择/注入式反模式;0930 补:完整功能域收装子图)、历次布局裁定系谱(09-19 横向铁律→0926 线不遮节点→0928 交叉立宪→0930 输出槽排布/节点命名/节奏常数)与布局策略全谱(①-⑦+⑧ 输出槽排布·节点命名·对称规整节奏常数);本技能管图结构与布局,引擎驱动与生成归 comfyui 技能;1006 增「节点与工作流认知」章(节点解剖/object_info 真源/子图六同步与蓝图单向/宿主槽渲染/自研节点设计纪律/工作流四副本与热覆盖/mermaid 展示/交付三道门)与「工作流 JSON 配置与逻辑」章(GUI/API 双格式逐字段解剖+graphToPrompt 执行链)。Use for any node graph / canvas layout / workflow building or editing / crossing-and-group governance / topology-patterning / node details / subgraph host panel / workflow-cache-path / workflow JSON fields and execution chain task.
 metadata:
   type: reference
 ---
@@ -21,6 +21,7 @@ metadata:
 - 写或改 workflow JSON(两种格式、连线写法、类型匹配、转换件);
 - 与 comfyui 技能分界:本技能管**图结构与布局**(排布/治理/格式/连线);跑图/模型/参数/VRAM 等引擎驱动与生成归 comfyui 技能。两域重叠的任务先本技能定结构,再 comfyui 技能执行。
 - 定图结构:多模式/加速档/参数互斥切换怎么搭(并行支路 vs 注入式)、节点复用、懒选择——先读下方「拓扑结构策略」章再进布局策略;**结构先定、布局后排,错拓扑用布局治理只治标**(0928 布局轮坐标-only 重排未能治好注入式加速区的观感混乱,即为例证)。
+- 节点详情/子图宿主面板(输入点不渲染/错名/widget 丢失)/「改了没生效」缓存疑云/自研节点设计与展示——先读下方「节点与工作流认知」章;宿主槽排查与缓存路径全图的专文见三真源地图。
 
 ## 拓扑结构策略(0929 新章:图结构层,布局层的上游)
 
@@ -37,6 +38,59 @@ metadata:
 4. **懒执行选择**:选择点必须懒——未选中支路零执行零加载(原生 ComfySwitchNode=二态懒开关;N 选 1 用二态级联(仍多件)或自研懒选择节点(参照核心 comfy_extras 开关件 `check_lazy_inputs` 写法,首例见 my_nodes 的 MyQi21SpeedSelect))。档位类闭集用 combo(列表即契约,首项=默认),禁裸 int 档位号。
 5. **面板值=生效值**:被输入接管的 widget=摆设值,须 Note 注明或重构消灭;并行化后各支路参数回归自身 widget 即自然达标。
 6. **完整功能域收装子图**(0930 用户令:「[206]/[7]/[198] 这个排列太奇怪了…将上面三种情况,都写入自定义加速节点图里面,才是正道,现在,在外面做的看起来太奇怪了!」):完整功能域(并行支路+其伺服件+选择件+seed 类机构)**整体收进一个子图**,主图退成「加载器→提示词子图→加速子图→输出」四块骨架——机构在主图摊开成排=反模式(观感判例同令)。收装铁则:①**宿主 id=原汇流/选择件节点 id 沿用**(t2i[208]/i2i[190]/edit[58],锚变动最小、契约残留可循;子图内让位件取新 id,展开形 `宿主id:内部id` 避同号);②宿主 title=用户语言短名(命名规范见布局策略 ⑧2);③用户控件(速度档位/seed/三态 RGBA)经**宿主面板外露**(widget 型输入槽,无连线;值权威=宿主 `widgets_values`,与 `sg.widgets` 同序镜像双写);④**懒执行语义子图内保持**(收装后必须实弹复核未选支路零执行零加载);⑤**两子图职责互斥**(提示词子图管内容语义:型选择/装配/PE改写/RGBA;加速子图管采样策略:三支路+档位+seed;不掺和)。先例:Q2-1 道劫三件 0930 收装批(09-29-qi21-canvas-batch)——干跑执行集四档对拍逐 id 等价、实弹三档懒执行取证全绿、每件恰两子图;子图工程登记惯例(宿主 id 沿用/widget 外露清单式)入 `docs/comfyui-kb/子图工作流工程契约.md` §八。
+
+## 节点与工作流认知(1006 新章:节点详情·子图关系·设计纪律·文件关系)
+
+> 本章收拢历役踩坑定谳(0922~1006;机制类=前端源码/活机实证,稳定;实据战役随条标注)。凡写/改节点、建/改子图、排查「改了没生效」先通读本章;与排查专文冲突时专文胜,回改本章。
+
+### 1. 节点解剖(基础节点必知)
+
+- 节点 JSON 字段:`id/type/pos/size/title/properties`+`inputs[]`(每项 `{name,type,link}`,widget 槽另有 `"widget"` 键)+`outputs[]`(每项 `{name,type,links[]}`)+`widgets_values`(按 widget 序装值)。**手建节点漏 `outputs[]`=双向一致性破**(实据:PrimitiveString 手建件);`widgets_values` 错位/缺占位=子图件多发实弹红根源(1002 F1)。
+- **widget 输入 vs 连线输入**:同槽二选一,接线后 widget 成**摆设值**(面板值≠生效值),须 Note 注明或重构消灭。
+- **links 三处挂接+死槽死线零容忍**:每条连线同挂 links 表+源 `outputs[].links`+目标 `inputs[].link`;`link.type` 必须=origin 槽实型(`"*"`≠STRING 会出事);节点删改后 link/边界槽/主图连线**不自动清**,架构改后全链审计(实据:五轮手术漏删 link330 被自检拦下;link303 陈旧指向=用户负向主体句静默丢弃)。
+- **隐藏输入可回溯真实执行链**:`hidden:{"prompt":"PROMPT","unique_id":"UNIQUE_ID"}` 引擎执行期注入完整执行图;API 批量路径会剪枝路由节点、画布旁路件在 UI→API 转换期已剔除——披露/审计类需求走此路,勿读静态台账(先例 my_daojie_route [86],0922)。
+- **OUTPUT_NODE 想看得见=ui 载荷+JS onExecuted**:裸元组返回前端不画(预览算了但看不见);py 侧回 `{"ui":{...},"result":...}`+web 扩展 `onExecuted` 回填显示框(serialize=false;前端版本可能传 `message.output.merged` 或 `message.merged`,**双形态兼容**);`WEB_DIRECTORY="./web"` 官方扩展点零改本体。刚打开不跑=空框是设计内(只在跑完一发后回填)。
+- **multiline 文本框**:STRING 要渲染成占满节点的大文字框=`required`+`multiline:True`;**只读展示框必须放 optional**——required 会被 `/prompt` 验证层强求值直接 400(1006 实据)。
+
+### 2. 节点真实形状以 /object_info 为唯一真源
+
+- **API 输入名≠画布显示名**(LoraLoaderModelOnly 真名 `lora_name`/`strength_model`,画布显示 `lora`/`strength`):读输入/写 API 图/造单测假图一律 `/object_info/<NodeType>` 实查 `input.required/input.optional/output`,禁凭画布记忆——单测假图必须按 object_info 形状造,否则假绿真弹全穿(0922 四连坑之首)。
+- `/prompt` API **不吃 widget 默认值**(model/temp/max_tokens 必显式带,max_tokens 下限 256);裸 COMBO 槽写字面值会被空列表校验拒(value_not_in_list),须链接形态;easy showAnything 的 history 取值键=`text` 非 anything。
+- **引擎验证层环检对 lazy 边不豁免**(`execution.validate_prompt`;执行层 graph.py 才豁免):A出B、B出A 的图 queuePrompt 直接拒——解法=拆件成链,不能靠 lazy 硬绕(1001 S8)。
+
+### 3. 子图关系模型(宿主·定义·边界·主图,一处改处处查)
+
+- 关系链:`definitions.subgraphs[]` 定义(内嵌 nodes/links/inputs/outputs)↔ 主图宿主节点(type+properties.subgraph=子图 uuid)↔ 宿主 `inputs[]`(与 sg.inputs 逐项镜像)↔ 主图 `links`(target_slot=宿主槽号)。**架构改后必跑六同步**(清单专文=排查文档 §五):①子图边界 inputs ②宿主 host.inputs ③主图 links target_slot(**删中间槽后后续槽号整体移位,连线不跟=输入入口消失,最易漏**)④子图 outputs[].pos(出口 pos 与最右节点紧邻,隔千 px 空白=用户可感知 bug)⑤工作流三处副本(见 §6)⑥inputNode(-10).outputs(不存在/空=宿主零输入口)。
+- **-10/-20=虚拟边界概念**:−10 只住 `sg.inputNode` 元数据字段(`{id:-10,bounding:[…]}`,驱动宿主输入口渲染),−20 只作出口边界;**禁塞进 sg.nodes 数组**(前端不认 `__subgraph_input__` 类型,报「请安装缺失的包」,1005)。
+- **蓝图同步恒单向(蓝图→工作流)**:术后先「抽离回蓝图」再跑 sync,否则 sync 把手术打回旧版(1001);蓝图化宿主 type=前端新造实例 uuid(非定义原 uuid),幂等比较须除 id 归一;蓝图改后蓝图文件不同步=契约锚红。子图内新节点类型须重启引擎才注册(队列==0 硬门再重启)。
+
+### 4. 宿主面板槽渲染(前端源码+活机定谳;排查专文=「子图宿主面板排查.md」)
+
+- **宿主槽渲染成什么由子图内部落点决定,与宿主序列化无关**:边界线落点是带 widget 的输入(COMBO/BOOLEAN 等)→widget **提升**到宿主=面板控件;落点是 forceInput 纯槽→宿主渲染带名连线点(MODEL/CONDITIONING/LATENT 天然纯槽=带名)。修「面板不渲染/错名」先查内部落点声明(forceInput),勿再照序列化格式盲改(1005 ㊇翻案)。
+- **终态公式**:STRING 连线槽=纯槽形(只 name/type/link;对象形+活 link 在连线后=裸点无标签+隐藏 widget 占位大空白);widget 槽=对象形 `"widget":{"name":"槽名"}`(布尔 `true` 无效);`widgets_values` 只装 widget 槽值。
+- **序列化零重叠≠视觉零重叠**:multiline 展示框把实际渲染撑大于序列化 size——间距按渲染后占位留,画布门加活机截图复核(est/自查仍按序列化口径,见 ②)。
+
+### 5. 自研节点设计纪律(用户 UI 哲学,违者返工)
+
+- **开关只在一处、选择只在一处、下游只做处理**;控制流分散多节点=认知负担+冗余。
+- **零死槽死线+标题正名**:删功能连边界槽/宿主槽/主图连线/标题残留一起清;标题=用户界面禁残留已删功能描述,机制细节住 Note/组框标题,信息零丢失。
+- **改共享类前先查全部消费方**(一类两用=拆双类,先例 MyQi21FinalOutput=t2i/MyQi21PromptSelect=i2i·edit);半途签名手术=运行期才炸的哑雷,简化后必须真调用一次验证;**共用常量改前 grep 全部用法**(一名多锚,改它=他处口径全变)。
+- **改节点行为=改 my_nodes 代码层让旧工作流自动继承,禁碰用户工作流 JSON**(用户画布手改=权威,改前必重读);JSON 热读数据(教材/色卡/风格底座)节点内读真源文件零复制进画布;无用参数框=认知噪音禁 UI 暴露。
+- **改管线/改节点签名=契约与 E2E 锚同批重锚**(速查卡/说明卡/契约常量/E2E 锚点全链对账;实据:E2E D5 旧锚 FAIL=锚债非缺陷,响亮 FAIL 恰证判别力)。
+
+### 6. 工作流文件四副本与读取路径(改前追真读源,改后热覆盖)
+
+- 四副本:①仓库真源 `apps/backend/engines/comfyui/workflows/` ②装机包种子 `/Applications/….app/Contents/Resources/backend/…` ③构建产物 `apps/release/build/…`(拿它代替验证=AGENTS 禁)④引擎家用户区 `<engine-home>/ComfyUI/user/default/workflows/`(用户另存件家;旧快照与 repo 恒 differ=用户手存非装机件)。`~/Library/漫影工作室`=软链→新家,非第五处。
+- **改任何 UI/工作流前先从用户看到的界面反向追实际读取路径**,勿只改理论源头(1005 十轮白改教训):侧栏 `repo:` 叶子直载读**②装机包**非④(活机判据 `activeWorkflow.path` 形如 `workflows/<rel>`);全图见排查文档 §七。
+- **画布类改动=热覆盖零打包**(1006 最高令):仓库→装机包 Resources→引擎缓存三路覆盖,涉节点 .py 再加引擎家 custom_nodes 且须引擎重启(App 首启 sync 覆写 custom_nodes——手动 cp 引擎家重启必被冲掉,持久热修=改 Resources 种子);md5 指纹四处全一才算同步;**打包仅用户明令才跑 build-mac.sh**。
+- 「改了没生效」四根因按序查:读错副本→已开标签内存副本(须关签重开)→节点 .py 未重启引擎→webview 未载新 JS;对拍内容用 `python3 -m json.tool` 规范化,装机包序列化格式异而内容同≠种子过期。
+- 活机自验:`node apps/build/scripts/comfy-canvas-verify.mjs`(**整跑 prekill 全家,用户开着 App 时禁跑**)或一次性 CDP 探针(连 9222-9231 活实例读 activeWorkflow.path/宿主 inputs/组框标题+截图,不杀 App)。
+
+### 7. 展示与交付纪律
+
+- **展示节点图/拓扑/数据流一律用 mermaid graph 代码块**(graph LR/TB+subgraph 分层+节点标签带编号短名+分支带标签连线 `-->|"条件"|`),**禁字符画箭头图**(用户终端错位难读,1002 裁定)。
+- **交付三道门**(画布/节点 UI 类改动,不过不报完成):①指纹三处(仓库+装机包+引擎缓存)md5 同一;②相关 pytest 绿;③活机对账+截图 AI 亲眼看渲染。禁拿用户当测试仪(1005 问责立宪)。
+- **诊断顺序**:活机探针>读前端源码(Comfy-Org/ComfyUI_frontend)>同仓参照件逐字段 diff>才轮到假设;禁凭记忆编序列化格式。
 
 ## 布局策略全谱(核心章,完整自含)
 
@@ -58,6 +112,7 @@ metadata:
 - est 间距:同行横距 **≥200**、同列纵距 **≥80**(Reroute/Note 豁免间距阈值,但 est 盒重叠**不豁免**);
 - 子图行排版:按 y 分行(行数=阶段数),Reroute 拐点**不占行**,**行间净距≥100**,行内 x 严格递增;
 - **禁两节点同 pos**。
+- **序列化 size≠渲染占位**:multiline 展示框等会把实际渲染撑大于序列化 size——est/自查按序列化口径跑,视觉重叠须活机截图复核(机制见「节点与工作流认知」§4)。
 - est 足迹估算(自查/估尺寸用):高=标题 36+槽位行数×24(行数=max(输入数,输出数))+控件数×30+垫高 28,预览类节点(SaveImage/LoadImage 等)再+260;宽=max(250,声明宽),高不低于声明高(声明宽/高=节点 JSON 的 `size[0]`/`size[1]`;size 缺省时 est 宽自 250 起步、高按公式)。公式出处=本技能 `tools/workflow_layout.py`(归因副本;上游同步以 comfyui 技能原件为准)的 `est_size()`。备察:`est_size` 较生成器自查段内联 est 式为**超集**(预览类节点再 +260 高度并取整);est 类检查已对三件生产件实跑与生成器绿零分歧——差异系口径来源不同,非移植失真(立宪检查器 est 盒按 R14 明文复用 est_size;R14=同任务档 prd.md 的「通用代码入技能」条款——0928 三令「通用性的代码设计,是需要在这个技能中的」所落,与头部 R13 同档相邻条)。
 - 三个纵向数的适用面(勿混):**PITCH(标准 760)=分层行的层间距**(整条并行链换层时用;行带 y 等差单常数,0930 前旧值 dy=720 已退役);**同列纵距≥80**=est 制同列相邻节点最小净距(主图+子图通用);**行间净距≥100**=子图行排版中阶段行之间的净距。
 
@@ -98,6 +153,7 @@ metadata:
 - **预算**:主图 **≤4**、子图 **≤4**;框**两两不相交**。
 - 组框标题 **≤20 字**;颜色编码按阶段(加载器灰/条件蓝/采样绿/解码保存紫/后处理橙)。
 - **画布禁功能横幅**(0915 裁定:文件名已说明功能;MarkdownNote 与组框标题不在此列)。
+- 组框文案住 `groups[].title`(画布上的组框横幅);扫陈旧描述别只扫 Note 节点(1005 实据:粉色横幅=组框 title,一度漏扫)。
 
 ### ⑥ 验证纪律
 
@@ -137,6 +193,8 @@ metadata:
 | 本项目画布架构/桥/工作流库/迁移 | 同上第二部分 §13-§20 |
 | 「改 X 去哪」/不可协商裁定/历史坑 | 同上第三/四/五部分 |
 | 布局优先级序与交叉治理(立宪) | `docs/comfyui-kb/画布布局规范-0928.md` |
+| 宿主面板不渲染/槽错名/widget 丢失/六同步清单/缓存路径全图 | `docs/comfyui-kb/子图宿主面板排查.md` |
+| 子图 linkIds 症状三连/装载机理/收装惯例/蓝图件 | `docs/comfyui-kb/子图工作流工程契约.md` |
 | 工作流构建/连线/类型/Subgraph/参数化 | `.agents/skills/comfyui/SKILL.md` 的「Compose a NEW workflow from pieces」「Workflow JSON」「Subgraphs」章 |
 | 布局工具三函数 | `.agents/skills/comfyui/workflow_layout.py` |
 | 本地捆绑工具(排布+est 口径+立宪检查) | 本技能 `tools/workflow_layout.py`(归因副本)与 `tools/layout_check.py`(立宪口径检查器);配方见「工具调用配方」章 |
@@ -146,27 +204,93 @@ metadata:
 
 > 路径失效时按文件名在 `docs/comfyui-kb/` 与 `.claude/knowledge/` 下重找(真源改名容错)。
 
-## 工作流 JSON 速查
+## 工作流 JSON 配置与逻辑(逐字段+执行链,1006 扩写)
+
+> 字段名与取值口径取自本仓生产件实况(逐字段核对过 qi21-道劫-t2i.json,2026-10-06),非凭记忆;与前端新版序列化行为冲突时,以图内 `extra.frontendVersion` 对应版本行为为准并回改本节。
+
+### 术语对照与区分口径(先读:用户问法→JSON 字段)
+
+- **node=节点**:`nodes[]` 一项;宿主节点 type 位=子图 uuid。
+- **slot=槽,port=端口**:一物两面——JSON 里 `inputs[]`/`outputs[]` 一项=slot,画布上渲染的圆点=port;**port 的标题=slot 的 `name` 字段**。
+- **link=连线(输入线)**:`links[]` 一条记录,一条线三处挂接(links 表+源输出槽 `links`+目标输入槽 `link`)。
+- **rail=边界轨**:子图 `sg.inputs`/`sg.outputs` 边界槽表,子图内部连线以 `-10`/`-20` 指向它们。
+- **三个号码域不混**:节点 id / 线 id(`link_id`)/ 槽序号(`src_slot`/`dst_slot`,0 起算,**按位索引** `outputs[]`/`inputs[]`)。读法示例:`links` 项 `[218,404,0,6,2,"STRING"]`=「404 的输出槽 0 → 6 的输入槽 2,这条线编号 218」。
+- **进出不对称**:输入槽 `link` 是**单值**(最多一条进线,再接=顶替);输出槽 `links` 是**数组**(一出扇出多家)。拆一条线动三处,给一个输出加消费者只动源 `outputs` 一处。
+- **同名不同物四例**:节点 `title`≠端口 `name`;端口显示名≠API 输入名(`/object_info` 为准,见认知章 §2);顶层 links 数组形≠子图 links 对象形;输出 **port**≠输出**节点**(OUTPUT_NODE=执行图取件端)。
+- **widget 槽三态**:`link:null`+widget 在场=字面值生效;`link` 有值+widget 在场=摆设值(面板值≠生效值);宿主提升槽=面板控件(实例值权威=宿主 `widgets_values`,定义级 `sg.widgets` 只是出生缺省)。
+- **「输入输出」三层各归各**:①节点槽级(输入/输出 port)②子图边界轨级(`sg.inputs`/`sg.outputs`,-10/-20)③输出节点级(OUTPUT_NODE;graphToPrompt 只保留可达输出节点的子图,见「执行链」)。
 
 **两种格式,何时写哪种**:
 
-- **GUI 格式**(画布加载与「保存」产出):顶层 `nodes`(各含 `id/type/pos/size/widgets_values/inputs/outputs`)+`links`+`groups`;写它=给人打开看(桥)。
-- **API 格式**(`/prompt` 运行):`{ "<id>": { "class_type", "inputs" } }`;写它=headless 跑。
-- 双格式产出者:手建图时你自己(构建一次两格式都写:GUI 给画布/桥看,API 给 `/prompt` headless 跑——此纪律出自 comfyui 技能);本仓生产件真源=GUI 格式(生成器产出,引擎侧栏以 `repo:` id 只读合并消费)。
+- **GUI 格式**(画布加载与「保存」产出):顶层 `nodes`+`links`+`groups`+`definitions`(子图)+发号器+视图状态;写它=给人打开看(桥/引擎侧栏)。本仓生产件真源=GUI 格式(生成器产出,引擎侧栏以 `repo:` id 只读合并消费)。
+- **API 格式**(`/prompt` 运行):`{ "<节点id>": { "class_type", "inputs" } }`;写它=headless 跑。**它不是第二份手写真源,是前端 `graphToPrompt` 从 GUI 现转的产物**(转换逻辑见「执行链」);手建图双格式都写(GUI 给画布/桥看,API 给 `/prompt` headless 跑——此纪律出自 comfyui 技能)。
 
-**连线与类型机制**:
+### GUI 格式逐字段(配置层)
 
-- API 格式连线:每个输入=字面值**或** `["<源节点id>", <输出槽序号>]` 二项引用(槽号=源节点匹配输出的 index)。
-- GUI 格式连线:`links` 每项 `[link_id, src_node, src_slot, dst_node, dst_slot, type]`;节点 `inputs[].link`/`outputs[].links` 挂接这些 id。
-- **类型必须匹配**(IMAGE/LATENT/MODEL/CLIP/VAE/CONDITIONING/MASK/CONTROL_NET…);缝上类型不同就插转换件:`VAEEncode`(IMAGE→LATENT)、`VAEDecode`(LATENT→IMAGE)、`CLIPTextEncode`(text→CONDITIONING)、`ImageScale`(尺寸)。绝不 IMAGE 直塞 LATENT 输入。
-- 节点真实输入输出以 `/object_info/<NodeType>` 实查(`input.required`/`output`),不猜。
+顶层字段:
 
-**子图(Subgraph)GUI JSON 速记**(仅骨架,够独立读懂与改对;构建侧契约真源=`docs/comfyui-kb/子图工作流工程契约.md`(linkIds 登记/装载稳定序/收装惯例)+comfyui 技能 Subgraphs 章+契约测试):
+| 字段 | 含义与逻辑 |
+| --- | --- |
+| `id` | 工作流 uuid(前端标识侧栏/标签) |
+| `revision` | 修订计数(前端维护;手写保持现值勿乱动) |
+| `last_node_id` / `last_link_id` | **发号器高水位**(新建节点/连线取 next id):手写图必须 ≥ 图内现有最大 id,否则前端新建即撞号 |
+| `nodes[]` | 节点表(逐字段见下表) |
+| `links[]` | 连线表,每项 `[link_id, src_node, src_slot, dst_node, dst_slot, type]`(数组形六元组按位);节点 `inputs[].link`/`outputs[].links` 挂接这些 id |
+| `groups[]` | 组框 `{id,title,bounding:[x,y,w,h],color,flags}`;组框文案住 `title`(画布横幅),非 Note |
+| `definitions.subgraphs[]` | 子图定义表(见下小节);无子图的图可整键缺席 |
+| `extra` | 前端杂项:`frontendVersion`(序列化格式以其为准)/`ds`(画布视图 scale+offset,保存视口)/插件块 |
+| `extensions` | 前端扩展持久化块(如 `seed_widgets`,其内容另在顶层 `seed_widgets` 键双写=前端行为,内容同) |
+| `config` / `version` | 图级配置(现恒空)/LiteGraph schema 版本(0.4) |
 
-- 容器:`definitions.subgraphs[]`;每个子图含 `nodes`(普通节点表)、`links`(**对象形** `{id, origin_id, origin_slot, target_id, target_slot, type}`——与顶层数组形是两制)、`inputs`/`outputs`(IO 槽表,槽含 `name/type/pos/linkIds`)。
-- 宿主:主图以一个普通节点代表子图,其 `type` 与 `properties.subgraph` 均填子图 uuid;外部经宿主输入/输出槽接线。
-- 边界线:子图内 `origin_id=−10` 取自 `inputs[origin_slot]`、`target_id=−20` 送到 `outputs[target_slot]`(来历见 ④);IO 槽自带 `pos` 布局坐标(输出口最右判据以它为端点)。
+节点对象(`nodes[]` 每项):
+
+| 字段 | 含义与逻辑 |
+| --- | --- |
+| `id` | 图内唯一正整数;API 格式以此为键 |
+| `type` | 节点类名(须引擎已注册,`/object_info` 可查);**宿主节点此位=子图 uuid** |
+| `pos` / `size` | `[x,y]` 浮点画布坐标 / `[w,h]` 渲染尺寸(est 判据原料) |
+| `flags` | 节点旗标(如折叠);常态 `{}` |
+| `order` | 前端绘制/保存序,**≠执行序**(执行序运行时按拓扑现定,改它不改执行) |
+| `mode` | `0`=常规;`2`=静音、`4`=旁路——两者都进不了执行图(见执行链) |
+| `inputs[]` | 输入槽 `{name,type,link}`;widget 槽=同名加对象形 `"widget":{"name":槽名}` 且 `link:null`;**连线纯槽形只 name/type/link 三键**(形态语义见「节点与工作流认知」§4) |
+| `outputs[]` | 输出槽 `{name,type,links:[link_id…]}`;手建节点漏此键=双向一致性破 |
+| `widgets_values` | 按 widget 声明序装值;**宿主只装 widget 槽值**(序=面板控件序);错位/缺占位=实弹红根源(F1 七值形头部空串占位) |
+| `widgets_values_named` | 按名寻址镜像(前端 1.53+ 双写);对拍/幂等比较两表都要认 |
+| `title` | 画布显示名(规范见 ⑧2;缺省=类名) |
+| `properties` | `{"Node name for S&R": 真类名}`(搜索替换/渲染锚);宿主另有 `"subgraph": uuid` |
+
+子图定义(`definitions.subgraphs[]` 每项;契约真源=`docs/comfyui-kb/子图工作流工程契约.md`(linkIds 登记/装载稳定序/收装惯例)+comfyui 技能 Subgraphs 章+契约测试):
+
+- 标量:`id`(uuid;宿主 type 指它)/`name`/`version`(子图 schema 版,现 1)/`revision`/`last_link_id`。
+- `state`:前端计数器(lastGroupId/lastNodeId/lastLinkId/lastRerouteId),机器域勿手编。
+- `inputs[]`/`outputs[]`:边界槽 `{id:uuid, name, type, linkIds:[…], pos:[x,y]}`——pos=边界槽在子图画布的坐标(输出口最右判据以它为端点;出口 pos 必须与最右节点紧邻,见 ④/认知章 §3)。
+- `links[]`:**对象形** `{id, origin_id, origin_slot, target_id, target_slot, type}`(与顶层数组形是两制,勿混写);`origin_id=-10` 取自 `inputs[origin_slot]`、`target_id=-20` 送到 `outputs[target_slot]`(来历见 ④)。
+- `inputNode`/`outputNode`:`{id:-10/-20, bounding:[…]}` 元数据(驱动宿主口渲染);**±10/±20 禁入 `nodes[]`**(认知章 §3)。
+- `widgets`:定义级 widget 缺省快照(新实例出生缺省);**实例运行值权威=宿主 `widgets_values`**,读值以宿主为准。
+- **宿主节点(主图侧)**:主图以一个普通节点代表子图,外部经宿主输入/输出槽接线;`inputs[]` 与 `sg.inputs` 逐项镜像(连线槽=纯三键+活 link,widget 槽=对象形+`link:null`)。实况样例(生产件宿主 [6]):inputs=[正向主体句(纯槽,link15)/型选择(COMBO+widget 对象,link:null)/负向主体句(纯槽,link218)],widgets_values=["人物"]。
 - 布局:layout_check 对顶层与每个子图分 scope 独立跑全套判据(scope 名 `sub:<子图名>`)。
+
+### API 格式与连线类型机制
+
+- API 每输入=字面值**或** `["<源节点id>", <输出槽序号>]` 二项引用(槽号=源节点匹配输出的 index,0 起算)。
+- **类型必须匹配**(IMAGE/LATENT/MODEL/CLIP/VAE/CONDITIONING/MASK/CONTROL_NET…);缝上类型不同就插转换件:`VAEEncode`(IMAGE→LATENT)、`VAEDecode`(LATENT→IMAGE)、`CLIPTextEncode`(text→CONDITIONING)、`ImageScale`(尺寸)。绝不 IMAGE 直塞 LATENT 输入。
+- 节点真实输入输出以 `/object_info/<NodeType>` 实查(`input.required`/`input.optional`/`output`),不猜;API 输入名≠画布显示名(认知章 §2)。
+
+### 执行链(GUI JSON 怎么变成一次跑图;逻辑层)
+
+```mermaid
+graph LR
+  A["引擎侧栏 repo: 叶子<br/>读②装机包"] --> B["前端装载 GUI JSON<br/>开签=内存副本,改文件须关签重开"]
+  B --> C["graphToPrompt 现转 API 格式<br/>剔除 mode2静音/4旁路+剪枝不可达死端"]
+  C --> D["POST /prompt"]
+  D --> E["validate_prompt<br/>类型/COMBO值域/环检无lazy豁免"]
+  E --> F["执行层拓扑跑<br/>lazy 豁免在此层"]
+  F --> G["history 取件<br/>ui载荷/showAnything=text/PNG元数据"]
+```
+
+- 转换期副作用(披露/审计类的坑):**画布上有什么≠执行图里有什么**——mode 2/4 件与不可达死端在 `graphToPrompt` 就消失(子图内死端被剪枝实据 1002);审计真实加载链走 hidden PROMPT 注入回溯(认知章 §1),勿数画布。
+- 验证层环检对 lazy 边不豁免、执行层才豁免(认知章 §2);`/prompt` 不吃 widget 默认值,COMBO 字面值过不了值域校验。
+- history 取件键随节点而异(easy showAnything=`text`;自研 OUTPUT_NODE=ui 载荷键);PNG 元数据=提示词三层收据之一。
 
 ## 构建流程骨架(思想借鉴 mckruz/comfyui-expert,MIT)
 
