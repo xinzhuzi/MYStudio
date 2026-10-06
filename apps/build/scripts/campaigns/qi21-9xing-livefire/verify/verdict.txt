@@ -1,0 +1,105 @@
+qi21-9xing-livefire 收账机器校验判定(verdict.txt)
+时点:2026-10-06 收账员;脚本:verify/verify_closeout.py;解释器:/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/venv/bin/python
+四查口径:[A]每型记录文件齐全(含 .md 四段标题) [B]图片存在且PNG可解析 [C]raw JSON可解析 [D]总报告引用路径全部存在;附查 [E]prompt_id/终态对账
+
+== A 记录齐全:12/12 绿 ==
+[PASS] type-1-人物 | 9+件全在
+[PASS] type-1-人物 .md 四段提示词标题 | ①②③③′ 俱在
+[PASS] type-2-场景 | 9+件全在
+[PASS] type-2-场景 .md 四段提示词标题 | ①②③③′ 俱在
+[PASS] type-3-道具 | 9+件全在
+[PASS] type-3-道具 .md 四段提示词标题 | ①②③③′ 俱在
+[PASS] type-4-美宣 | 9+件全在
+[PASS] type-4-美宣 .md 四段提示词标题 | ①②③③′ 俱在
+[PASS] type-5-多视图 | 9+件全在
+[PASS] type-5-多视图 .md 四段提示词标题 | ①②③③′ 俱在
+[PASS] type-6-高清人脸 | 9+件全在
+[PASS] type-6-高清人脸 .md 四段提示词标题 | ①②③③′ 俱在
+
+== B 图片PNG:36/36 绿 ==
+[PASS] type-1-人物.direct 存在且>0B | 8372893B
+[PASS] type-1-人物.direct PNG魔数 | 89504e470d0a1a0a
+[PASS] type-1-人物.direct PIL可解析 | mode=RGBA size=1712x2560
+[PASS] type-1-人物.2k 存在且>0B | 10949704B
+[PASS] type-1-人物.2k PNG魔数 | 89504e470d0a1a0a
+[PASS] type-1-人物.2k PIL可解析 | mode=RGBA size=2048x3062
+[PASS] type-2-场景.direct 存在且>0B | 9102292B
+[PASS] type-2-场景.direct PNG魔数 | 89504e470d0a1a0a
+[PASS] type-2-场景.direct PIL可解析 | mode=RGBA size=2560x1712
+[PASS] type-2-场景.2k 存在且>0B | 11659631B
+[PASS] type-2-场景.2k PNG魔数 | 89504e470d0a1a0a
+[PASS] type-2-场景.2k PIL可解析 | mode=RGBA size=3062x2048
+[PASS] type-3-道具.direct 存在且>0B | 7013317B
+[PASS] type-3-道具.direct PNG魔数 | 89504e470d0a1a0a
+[PASS] type-3-道具.direct PIL可解析 | mode=RGBA size=2560x1712
+[PASS] type-3-道具.2k 存在且>0B | 9851067B
+[PASS] type-3-道具.2k PNG魔数 | 89504e470d0a1a0a
+[PASS] type-3-道具.2k PIL可解析 | mode=RGBA size=3062x2048
+[PASS] type-4-美宣.direct 存在且>0B | 8466985B
+[PASS] type-4-美宣.direct PNG魔数 | 89504e470d0a1a0a
+[PASS] type-4-美宣.direct PIL可解析 | mode=RGBA size=1712x2560
+[PASS] type-4-美宣.2k 存在且>0B | 11060543B
+[PASS] type-4-美宣.2k PNG魔数 | 89504e470d0a1a0a
+[PASS] type-4-美宣.2k PIL可解析 | mode=RGBA size=2048x3062
+[PASS] type-5-多视图.direct 存在且>0B | 8296120B
+[PASS] type-5-多视图.direct PNG魔数 | 89504e470d0a1a0a
+[PASS] type-5-多视图.direct PIL可解析 | mode=RGBA size=1712x2560
+[PASS] type-5-多视图.2k 存在且>0B | 10776016B
+[PASS] type-5-多视图.2k PNG魔数 | 89504e470d0a1a0a
+[PASS] type-5-多视图.2k PIL可解析 | mode=RGBA size=2048x3062
+[PASS] type-6-高清人脸.direct 存在且>0B | 7971532B
+[PASS] type-6-高清人脸.direct PNG魔数 | 89504e470d0a1a0a
+[PASS] type-6-高清人脸.direct PIL可解析 | mode=RGBA size=1712x2560
+[PASS] type-6-高清人脸.2k 存在且>0B | 10774601B
+[PASS] type-6-高清人脸.2k PNG魔数 | 89504e470d0a1a0a
+[PASS] type-6-高清人脸.2k PIL可解析 | mode=RGBA size=2048x3062
+
+== C rawJSON:27/27 绿 ==
+[PASS] runs/type-1-人物.attempt1-cache-echo.json | json.load OK
+[PASS] runs/type-1-人物.history.attempt1-cache-echo.json | json.load OK
+[PASS] runs/type-1-人物.history.json | json.load OK
+[PASS] runs/type-1-人物.json | json.load OK
+[PASS] runs/type-2-场景.history.json | json.load OK
+[PASS] runs/type-2-场景.json | json.load OK
+[PASS] runs/type-3-道具.history.json | json.load OK
+[PASS] runs/type-3-道具.json | json.load OK
+[PASS] runs/type-4-美宣.history.json | json.load OK
+[PASS] runs/type-4-美宣.json | json.load OK
+[PASS] runs/type-5-多视图.history.json | json.load OK
+[PASS] runs/type-5-多视图.json | json.load OK
+[PASS] runs/type-6-高清人脸.history.json | json.load OK
+[PASS] runs/type-6-高清人脸.json | json.load OK
+[PASS] verify/type-1-人物.cache-collision-diff.json | json.load OK
+[PASS] verify/type-1-人物.png-prompt-metadata.json | json.load OK
+[PASS] verify/type-1-人物.postcheck.json | json.load OK
+[PASS] verify/type-2-场景.png-prompt-metadata.json | json.load OK
+[PASS] verify/type-2-场景.postcheck.json | json.load OK
+[PASS] verify/type-3-道具.png-prompt-metadata.json | json.load OK
+[PASS] verify/type-3-道具.postcheck.json | json.load OK
+[PASS] verify/type-4-美宣.png-prompt-metadata.json | json.load OK
+[PASS] verify/type-4-美宣.postcheck.json | json.load OK
+[PASS] verify/type-5-多视图.png-prompt-metadata.json | json.load OK
+[PASS] verify/type-5-多视图.postcheck.json | json.load OK
+[PASS] verify/type-6-高清人脸.png-prompt-metadata.json | json.load OK
+[PASS] verify/type-6-高清人脸.postcheck.json | json.load OK
+
+== D 报告路径:1/1 绿 ==
+[PASS] 九型实弹总报告.md 引用路径(70 个去重 token) | 全部存在
+
+== E prompt_id对账:6/6 绿 ==
+[PASS] type-1-人物 | history=9c4d3719-5d46-4f91-8dac-eac84336f713 ask=9c4d3719-5d46-4f91-8dac-eac84336f713
+[PASS] type-2-场景 | history=c1707be8-c301-44d5-b0d7-6411439d04a3 ask=c1707be8-c301-44d5-b0d7-6411439d04a3
+[PASS] type-3-道具 | history=fc46aba4-3c78-493b-8bf5-b82e8def7c7a ask=fc46aba4-3c78-493b-8bf5-b82e8def7c7a
+[PASS] type-4-美宣 | history=ad8280e7-62cf-4cd7-81b7-c266f18a1c6a ask=ad8280e7-62cf-4cd7-81b7-c266f18a1c6a
+[PASS] type-5-多视图 | history=c972ae02-8ccb-4678-b663-a19b23f70f1f ask=c972ae02-8ccb-4678-b663-a19b23f70f1f
+[PASS] type-6-高清人脸 | history=a00b747a-301e-432b-bd15-819538c072b7 ask=a00b747a-301e-432b-bd15-819538c072b7
+
+== E 终态:6/6 绿 ==
+[PASS] type-1-人物 | success
+[PASS] type-2-场景 | success
+[PASS] type-3-道具 | success
+[PASS] type-4-美宣 | success
+[PASS] type-5-多视图 | success
+[PASS] type-6-高清人脸 | success
+
+总判:PASS(共 88 项,红 0)

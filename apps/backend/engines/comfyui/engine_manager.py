@@ -640,7 +640,20 @@ def _proxy_subprocess_env() -> dict[str, str] | None:
 
 
 def _port_bindable(port: int) -> bool:
+    """探测口可绑性,语义与引擎实际绑口对齐(1006 漂移定谳)。
+
+    引擎侧 aiohttp TCPSite → asyncio create_server 在 POSIX 默认带
+    SO_REUSEADDR 绑口(venv Python 3.12 实读 base_events),刚死引擎残留的
+    TIME_WAIT(macOS 2×MSL=30s,内核持有、与进程无关)挡不住引擎绑回原口;
+    探测若不带 REUSEADDR 会把该窗口误判「被占」→ find_free_port 无谓顺延
+    → 端口漂移(实测实录 17000↔17001 摇摆,每次会话重启都换 origin)。
+    REUSEADDR 只放行 TIME_WAIT 残留;活监听者仍 EADDRINUSE(本机实验证,
+    双引擎不可能漏判)。Windows 的 REUSEADDR 语义相反(允许双绑活口),
+    仅 POSIX 设置。
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        if os.name == "posix":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(("127.0.0.1", port))
             return True

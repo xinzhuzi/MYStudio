@@ -1,0 +1,797 @@
+{
+  "type": {
+    "idx": 1,
+    "key": "人物",
+    "transparent": false
+  },
+  "engine": {
+    "url": "http://127.0.0.1:17000",
+    "startedByUs": false,
+    "precheck": {
+      "system_stats": {
+        "comfyui_version": "0.38.0",
+        "python": "3.12.7 (main, Oct 16 2024, 07:12:08) [Clang 18.1.8 ]",
+        "device": "mps"
+      },
+      "combo": [
+        "人物",
+        "场景",
+        "道具",
+        "美宣",
+        "多视图",
+        "高清人脸",
+        "分镜剧情图",
+        "表情差分",
+        "概念气氛图",
+        "自由"
+      ],
+      "queueAtStart": {
+        "running": 0,
+        "pending": 0
+      }
+    }
+  },
+  "subject": {
+    "file": "/tmp/type1-subject-canon.txt",
+    "len": 147,
+    "md5": "d5823ac89e035a3cec7672564a0f2df7",
+    "head": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长"
+  },
+  "workflow": {
+    "path": "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+    "md5": "65d4708ff1d9557caa8813e913b516b6",
+    "rootNodes": 20,
+    "mtime": null
+  },
+  "changes": [
+    {
+      "where": "[6] 宿主面板.型选择",
+      "to": "人物",
+      "result": "set:型选择:old=人物"
+    },
+    {
+      "where": "[400] 正向主体句.value",
+      "to": "<subject 147字 md5=d5823ac89e035a3cec7672564a0f2df7>",
+      "result": "set:value:oldLen=147"
+    }
+  ],
+  "readbacks": {
+    "before": {
+      "host6": {
+        "型选择": "人物",
+        "PE启用?": true
+      },
+      "host7": {
+        "速度档位": "0 · Fun-Acc 4步",
+        "seed": 0
+      },
+      "n400": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+      "n404": ""
+    },
+    "after": {
+      "host6": {
+        "型选择": "人物",
+        "PE启用?": true
+      },
+      "host7": {
+        "速度档位": "0 · Fun-Acc 4步",
+        "seed": 0
+      },
+      "n400": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+      "n404": ""
+    }
+  },
+  "queueAsserts": [
+    {
+      "name": "[6:4010].base=「人物」(型值真进图)",
+      "pass": true,
+      "detail": "\"人物\""
+    },
+    {
+      "name": "D5 三闸:PE←PE开关口0+主体句源含头18字+BASE←型底座+锁层A 逐字",
+      "pass": true,
+      "detail": "链=PE←PE开关6:4012:0✓ 主体句源含头18字=true/装配器6:4011 BASE←型底座=true/锁层A 739 字逐字=true(真值 739 字)"
+    },
+    {
+      "name": "D5 加严:主体句源=canon 全文逐字(非仅头18字)",
+      "pass": true,
+      "detail": "len=147/147 md5=d5823ac89e035a3cec7672564a0f2df7"
+    },
+    {
+      "name": "双编码接线:[4015].prompt←[6:4014,0] / [4016].prompt←[6:4014,1]",
+      "pass": true,
+      "detail": "4015=[\"6:4014\",0];4016=[\"6:4014\",1]"
+    },
+    {
+      "name": "宽高连线:[4].width/height←[4018,0/1](跟型/PE 画幅,非手填)",
+      "pass": true,
+      "detail": "w=[\"4018\",0] h=[\"4018\",1]"
+    },
+    {
+      "name": "速度档=0 · Fun-Acc 4步(保存态;档0 FunAcc 无负槽,负向仅档1 生效)",
+      "pass": true,
+      "detail": "7:7015.mode"
+    },
+    {
+      "name": "档0 支路在图:[7:7013]=T8QwenImage21FunAccPDD4Step",
+      "pass": true,
+      "detail": "T8QwenImage21FunAccPDD4Step"
+    },
+    {
+      "name": "seed 单源=[7:7014] 值 0(保存态 fixed)",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "name": "保存前缀:[8]=QI21道劫文生图_ / [504]=MYStudio-2K",
+      "pass": true,
+      "detail": "QI21道劫文生图_/MYStudio-2K"
+    },
+    {
+      "name": "[6:4010].透明覆盖=false(九型透明跟型默认)",
+      "pass": true,
+      "detail": "false"
+    }
+  ],
+  "timings": {
+    "dryRunAt": "2026-10-06T01:08:07.921Z",
+    "tQueue": "2026-10-06T01:08:07.922Z",
+    "tRunningSeen": null,
+    "tDone": "2026-10-06T01:08:08.110Z",
+    "durationMin": 0
+  },
+  "receipts": {
+    "historyJson": "runs/type-1-人物.history.json"
+  },
+  "images": {},
+  "checks": [
+    {
+      "name": "S1 引擎在(/system_stats 200)",
+      "pass": true,
+      "ok": true,
+      "detail": "comfyui_version=0.38.0"
+    },
+    {
+      "name": "S1 底座 combo 含「人物」(九型+自由十档)",
+      "pass": true,
+      "ok": true,
+      "detail": "[\"人物\",\"场景\",\"道具\",\"美宣\",\"多视图\",\"高清人脸\",\"分镜剧情图\",\"表情差分\",\"概念气氛图\",\"自由\"]"
+    },
+    {
+      "name": "S1 PE 件在册(QwenImage21_T2IPromptRewrite,1005 官方件)",
+      "pass": true,
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "S2 主体句读入(/tmp/type1-subject-canon.txt)",
+      "pass": true,
+      "ok": true,
+      "detail": "len=147 md5=d5823ac89e035a3cec7672564a0f2df7"
+    },
+    {
+      "name": "S3 真源解析(锁层A>500字 / 宿主[6][7]在)",
+      "pass": true,
+      "ok": true,
+      "detail": "lockA=739字 宿主6存档=[\"人物\",true] 宿主7存档=[\"0 · Fun-Acc 4步\",0]"
+    },
+    {
+      "name": "S4 仓库真源装载(画布根节点=20)",
+      "pass": true,
+      "ok": true,
+      "detail": "md5=65d4708ff1d9557caa8813e913b516b6"
+    },
+    {
+      "name": "S6 改动① 型选择=人物(setViaHook)",
+      "pass": true,
+      "ok": true,
+      "detail": "set:型选择:old=人物"
+    },
+    {
+      "name": "S6 改动② [400] 主体句=canon 原句(setNodeWidget)",
+      "pass": true,
+      "ok": true,
+      "detail": "set:value:oldLen=147"
+    },
+    {
+      "name": "S7 读回:型选择=人物 / PE启用?=true(保存态)",
+      "pass": true,
+      "ok": true,
+      "detail": "{\"型选择\":\"人物\",\"PE启用?\":true}"
+    },
+    {
+      "name": "S7 读回:[400] 主体句逐字=canon(md5 同)",
+      "pass": true,
+      "ok": true,
+      "detail": "md5(canvas)=d5823ac89e035a3cec7672564a0f2df7 vs md5(canon)=d5823ac89e035a3cec7672564a0f2df7"
+    },
+    {
+      "name": "S7 读回:[404] 负向主体句保持空(保存态)",
+      "pass": true,
+      "ok": true,
+      "detail": "\"\""
+    },
+    {
+      "name": "S7 读回:[7] 速度档位=0 · Fun-Acc 4步 / seed=0(保存态未动)",
+      "pass": true,
+      "ok": true,
+      "detail": "{\"速度档位\":\"0 · Fun-Acc 4步\",\"seed\":0}"
+    },
+    {
+      "name": "S7 读回:除两处改动外宿主面板其余槽未漂移",
+      "pass": true,
+      "ok": true,
+      "detail": "host6.PE启用?/host7 全槽/404 改前后一致"
+    }
+  ],
+  "ok": false,
+  "truth": {
+    "asmHostId": 6,
+    "accelHostId": 7,
+    "lockALen": 739,
+    "lockAHead": "风格底座：现代修仙游戏的数字绘画资产",
+    "savedHost6Widgets": [
+      "人物",
+      true
+    ],
+    "savedHost7Widgets": [
+      "0 · Fun-Acc 4步",
+      0
+    ]
+  },
+  "queue": {
+    "nodeCount": 30,
+    "prompt": {
+      "1": {
+        "inputs": {
+          "unet_name": "qwen_image_2.1_bf16.safetensors",
+          "weight_dtype": "default"
+        },
+        "class_type": "UNETLoader",
+        "_meta": {
+          "title": "[1] UNETLoader"
+        }
+      },
+      "2": {
+        "inputs": {
+          "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        },
+        "class_type": "CLIPLoader",
+        "_meta": {
+          "title": "[2] 主TE·CLIPLoader"
+        }
+      },
+      "3": {
+        "inputs": {
+          "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+        },
+        "class_type": "VAELoader",
+        "_meta": {
+          "title": "[3] VAELoader"
+        }
+      },
+      "4": {
+        "inputs": {
+          "width": [
+            "4018",
+            0
+          ],
+          "height": [
+            "4018",
+            1
+          ],
+          "batch_size": 1
+        },
+        "class_type": "EmptyLatentImage",
+        "_meta": {
+          "title": "[4] 自动化宽高·EmptyLatentImage"
+        }
+      },
+      "5": {
+        "inputs": {
+          "samples": [
+            "7:7015",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ]
+        },
+        "class_type": "VAEDecode",
+        "_meta": {
+          "title": "[5] VAEDecode"
+        }
+      },
+      "8": {
+        "inputs": {
+          "filename_prefix": "QI21道劫文生图_",
+          "images": [
+            "5",
+            0
+          ]
+        },
+        "class_type": "SaveImage",
+        "_meta": {
+          "title": "[8] SaveImage"
+        }
+      },
+      "400": {
+        "inputs": {
+          "value": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。"
+        },
+        "class_type": "PrimitiveStringMultiline",
+        "_meta": {
+          "title": "[400] 正向主体句"
+        }
+      },
+      "401": {
+        "inputs": {
+          "正向提示词": [
+            "6:4014",
+            0
+          ],
+          "负向提示词": [
+            "6:4014",
+            1
+          ],
+          "合并预览": ""
+        },
+        "class_type": "MyQi21PromptPreview",
+        "_meta": {
+          "title": "[401] 提示词预览(正向+负向)"
+        }
+      },
+      "404": {
+        "inputs": {
+          "value": ""
+        },
+        "class_type": "PrimitiveStringMultiline",
+        "_meta": {
+          "title": "[404] 负向主体句"
+        }
+      },
+      "501": {
+        "inputs": {
+          "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+          "device": "mps",
+          "blocks_to_swap": 0,
+          "swap_io_components": false,
+          "offload_device": "none",
+          "cache_model": false,
+          "attention_mode": "sdpa"
+        },
+        "class_type": "SeedVR2LoadDiTModel",
+        "_meta": {
+          "title": "[501] SeedVR2 DiT加载(sharp 7B fp8)"
+        }
+      },
+      "502": {
+        "inputs": {
+          "model": "ema_vae_fp16.safetensors",
+          "device": "mps",
+          "encode_tiled": true,
+          "encode_tile_size": 512,
+          "encode_tile_overlap": 160,
+          "decode_tiled": true,
+          "decode_tile_size": 512,
+          "decode_tile_overlap": 160,
+          "tile_debug": "false",
+          "offload_device": "none",
+          "cache_model": false
+        },
+        "class_type": "SeedVR2LoadVAEModel",
+        "_meta": {
+          "title": "[502] SeedVR2 VAE加载(ema fp16)"
+        }
+      },
+      "503": {
+        "inputs": {
+          "seed": 42,
+          "resolution": 2048,
+          "max_resolution": 4096,
+          "batch_size": 1,
+          "uniform_batch_size": false,
+          "color_correction": "lab",
+          "temporal_overlap": 0,
+          "prepend_frames": 0,
+          "input_noise_scale": 0,
+          "latent_noise_scale": 0,
+          "offload_device": "none",
+          "enable_debug": false,
+          "image": [
+            "5",
+            0
+          ],
+          "dit": [
+            "501",
+            0
+          ],
+          "vae": [
+            "502",
+            0
+          ]
+        },
+        "class_type": "SeedVR2VideoUpscaler",
+        "_meta": {
+          "title": "[503] SeedVR2放大(短边2048=2K档)"
+        }
+      },
+      "504": {
+        "inputs": {
+          "filename_prefix": "MYStudio-2K",
+          "images": [
+            "503",
+            0
+          ]
+        },
+        "class_type": "SaveImage",
+        "_meta": {
+          "title": "[504] 放大保存(2K·MYStudio-2K)"
+        }
+      },
+      "505": {
+        "inputs": {
+          "rgthree_comparer": {
+            "images": []
+          },
+          "image_a": [
+            "5",
+            0
+          ],
+          "image_b": [
+            "503",
+            0
+          ]
+        },
+        "class_type": "Image Comparer (rgthree)",
+        "_meta": {
+          "title": "[505] 直出×2K对比·ImageComparer"
+        }
+      },
+      "4015": {
+        "inputs": {
+          "prompt": [
+            "6:4014",
+            0
+          ],
+          "negative_prompt": "",
+          "resolution": 1024,
+          "clip": [
+            "2",
+            0
+          ]
+        },
+        "class_type": "TextEncodeQwenImage21",
+        "_meta": {
+          "title": "[4015] 主编码·TextEncode"
+        }
+      },
+      "4016": {
+        "inputs": {
+          "prompt": [
+            "6:4014",
+            1
+          ],
+          "negative_prompt": "",
+          "resolution": 1024,
+          "clip": [
+            "2",
+            0
+          ]
+        },
+        "class_type": "TextEncodeQwenImage21",
+        "_meta": {
+          "title": "[4015N] 负向编码·TextEncode"
+        }
+      },
+      "4018": {
+        "inputs": {
+          "wh_ratio": [
+            "6:4021",
+            1
+          ],
+          "九型WIDTH": [
+            "6:4010",
+            1
+          ],
+          "九型HEIGHT": [
+            "6:4010",
+            2
+          ],
+          "联动开关": [
+            "6:4012",
+            2
+          ],
+          "手动宽": 0,
+          "手动高": 0
+        },
+        "class_type": "MyQi21WhSuggest",
+        "_meta": {
+          "title": "[4018] 画幅建议器·自研"
+        }
+      },
+      "6:4010": {
+        "inputs": {
+          "base": "人物",
+          "透明覆盖": false
+        },
+        "class_type": "MyQi21DaojieBase",
+        "_meta": {
+          "title": "[4010] 类型句选择"
+        }
+      },
+      "6:4013": {
+        "inputs": {
+          "prompt": [
+            "6:4012",
+            0
+          ],
+          "temperature": 1,
+          "top_p": 0.95,
+          "top_k": 20,
+          "presence_penalty": 1.5,
+          "max_new_tokens": 16256,
+          "seed": 42,
+          "clip": [
+            "6:4019",
+            0
+          ]
+        },
+        "class_type": "QwenImage21_T2IPromptRewrite",
+        "_meta": {
+          "title": "[4013] PE扩写"
+        }
+      },
+      "6:4011": {
+        "inputs": {
+          "BASE": [
+            "6:4010",
+            0
+          ],
+          "BASE负面": [
+            "6:4010",
+            4
+          ],
+          "主体句": [
+            "6:4021",
+            0
+          ],
+          "主体句负面": [
+            "6:4021",
+            2
+          ],
+          "锁层A全文": "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统人物画审美 DNA（工笔、白描、水墨、连环画、传统色、古典山水）经现代游戏角色设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、服饰、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术，不是把一幅古画直接搬进游戏。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续铁线描/丝线描（iron-wire outlines），薄透矿物色分染/罩染，柔和均匀平光照明，干净空灵，清晰视觉焦点。底色：浅净哑光平涂底的完成度，多色相基底铺陈（淡墨、青灰、青绿、赭黄土色各安其位），保证可读性。画面保持干净平滑：墨与色落在平涂色场上，而非有纹理的纸面。工笔线条质量：连续铁线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，墨线带手绘笔性，防机械勾边与矢量感。线描优先工笔结构：100% 视图下，脸部、手部、发丝、衣边、缝线、褶皱、配件和武器构造须先于上色或 shading 从连续纪律性 linework 保持可读。用白描/铁线描加薄透矿物罩染、反复轻分染与罩染建模；保持浅净平涂底面在层间呼吸。浅净哑光底须在每层色罩下保持可见，除非是刻意的墨线、紧凑发块或来源事实要求的深色主体（如尚黑阵营的甲胄旗纛）。成片质量：生产级最终画面清晰度——强制降噪泥糊 AI 伪影；边缘锐利但不产生过锐光晕；表面干净可读；颜料层纯净均匀。默认表面须保持干净精致：只用纯净罩染与克制的矿物颗粒。岁月、风霜或战痕仅在来源事实要求时作克制的叙事线索，须次要、不抢戏。电影级成片质量指干净的可读性与精致的工艺清晰度。"
+        },
+        "class_type": "MyQi21PromptAssembly",
+        "_meta": {
+          "title": "[4011] 三层拼装(正向三层+负向三层)"
+        }
+      },
+      "6:4014": {
+        "inputs": {
+          "装配全文": [
+            "6:4011",
+            0
+          ],
+          "负面词直写": [
+            "6:4011",
+            1
+          ],
+          "透明模式": [
+            "6:4010",
+            3
+          ]
+        },
+        "class_type": "MyQi21FinalOutput",
+        "_meta": {
+          "title": "[4014] 最终输出(正向+负向+透明)"
+        }
+      },
+      "6:4019": {
+        "inputs": {
+          "clip_name": "qwen3.5_9b_qwen_image_2.1_pe_t2i_bf16.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        },
+        "class_type": "CLIPLoader",
+        "_meta": {
+          "title": "[4019] PE模型加载"
+        }
+      },
+      "6:4012": {
+        "inputs": {
+          "pe开关": true,
+          "主体句": [
+            "400",
+            0
+          ]
+        },
+        "class_type": "MyQi21PESwitch",
+        "_meta": {
+          "title": "[4012] PE开关(true=扩写 / false=直通)"
+        }
+      },
+      "6:4021": {
+        "inputs": {
+          "主体句": [
+            "6:4012",
+            1
+          ],
+          "PE出文": [
+            "6:4013",
+            0
+          ],
+          "PE宽高比": [
+            "6:4013",
+            2
+          ],
+          "pe开关": [
+            "6:4012",
+            2
+          ],
+          "主体句负面": [
+            "404",
+            0
+          ]
+        },
+        "class_type": "MyQi21SubjectSelect",
+        "_meta": {
+          "title": "[4021] 主体句路由(正向+负面)"
+        }
+      },
+      "7:7013": {
+        "inputs": {
+          "model_file": "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors",
+          "seed": [
+            "7:7014",
+            0
+          ],
+          "model": [
+            "1",
+            0
+          ],
+          "positive": [
+            "4015",
+            0
+          ],
+          "latent_image": [
+            "4",
+            0
+          ]
+        },
+        "class_type": "T8QwenImage21FunAccPDD4Step",
+        "_meta": {
+          "title": "[7013] FunAcc4步·FunAccPDD"
+        }
+      },
+      "7:7011": {
+        "inputs": {
+          "lora_name": "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors",
+          "strength_model": 1,
+          "model": [
+            "1",
+            0
+          ]
+        },
+        "class_type": "LoraLoaderModelOnly",
+        "_meta": {
+          "title": "[7011] viggle LoRA·LoraLoader"
+        }
+      },
+      "7:7012": {
+        "inputs": {
+          "seed": [
+            "7:7014",
+            0
+          ],
+          "steps": 6,
+          "cfg": 1,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "denoise": 1,
+          "model": [
+            "7:7011",
+            0
+          ],
+          "positive": [
+            "4015",
+            0
+          ],
+          "negative": [
+            "4016",
+            0
+          ],
+          "latent_image": [
+            "4",
+            0
+          ]
+        },
+        "class_type": "KSampler",
+        "_meta": {
+          "title": "[7012] viggle6步·KSampler"
+        }
+      },
+      "7:7015": {
+        "inputs": {
+          "mode": "0 · Fun-Acc 4步",
+          "latent_funacc": [
+            "7:7013",
+            0
+          ],
+          "latent_viggle": [
+            "7:7012",
+            0
+          ],
+          "latent_direct": [
+            "7:7010",
+            0
+          ]
+        },
+        "class_type": "MyQi21SpeedSelect",
+        "_meta": {
+          "title": "[7015] 出图速度选择·自研"
+        }
+      },
+      "7:7014": {
+        "inputs": {
+          "value": 0
+        },
+        "class_type": "PrimitiveInt",
+        "_meta": {
+          "title": "[7014] seed单源·PrimitiveInt"
+        }
+      },
+      "7:7010": {
+        "inputs": {
+          "seed": [
+            "7:7014",
+            0
+          ],
+          "steps": 40,
+          "cfg": 4,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "denoise": 1,
+          "model": [
+            "1",
+            0
+          ],
+          "positive": [
+            "4015",
+            0
+          ],
+          "negative": [
+            "4016",
+            0
+          ],
+          "latent_image": [
+            "4",
+            0
+          ]
+        },
+        "class_type": "KSampler",
+        "_meta": {
+          "title": "[7010] 直出40步·KSampler"
+        }
+      }
+    },
+    "d5": {
+      "pe": [
+        "6:4013"
+      ],
+      "subjFull": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门石阶最上一级，腰侧石青剑绦悬一柄长剑，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，右手轻按剑柄，视线越过阶下青灰云海望向远处，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+      "asmKey": "6:4011",
+      "lockALen": 739,
+      "ok": true,
+      "why": "链=PE←PE开关6:4012:0✓ 主体句源含头18字=true/装配器6:4011 BASE←型底座=true/锁层A 739 字逐字=true(真值 739 字)"
+    }
+  },
+  "promptId": "f3539410-34ba-48f6-bd68-7fb3d199a31f",
+  "clientId": "qi21-9xing-1-1791248887922",
+  "historyStatus": "success",
+  "fatal": "history [401] 无正负双预览文本(ui.merged)",
+  "elapsedSec": 6
+}
