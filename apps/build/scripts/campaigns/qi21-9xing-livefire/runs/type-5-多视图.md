@@ -1,6 +1,6 @@
 # 实弹记录 · 第 5/9 型「多视图」(type-5-多视图)
 
-**结果:❌ 透明门红——其余机器判据全绿(17/18),本型为透明型(FACTS rgba_default=true,真源 qi21_bases.json 多视图条程序化核对 rgba_default=true/aspect_ratio="3:4 (Portrait Standard)"),四角 alpha 门实测直出图 4/4 角全不透明([255,255,255,255]),整幅 100.00% 像素 alpha>250(0.00% 像素 alpha<8,连透明残量都没有),响亮失败;与 3 型道具同款透明门红且形态更彻底(3 型 2/4 角不透明/整幅 90.6% 不透明,本型 4/4 角/100.00%)**
+**结果:❌ 透明门红——其余机器判据全绿(18/19),本型为透明型(FACTS rgba_default=true,真源 qi21_bases.json 多视图条程序化核对 rgba_default=true/aspect_ratio="3:4 (Portrait Standard)"),四角 alpha 门实测直出图 4/4 角全不透明([255,255,255,255]),整幅 100.00% 像素 alpha>250(0.00% 像素 alpha<8,连透明残量都没有),响亮失败;与 3 型道具同款透明门红且形态更彻底(3 型 2/4 角不透明/整幅 90.6% 不透明,本型 4/4 角/100.00%)**
 
 - 日期:2026-10-06(排队 10:56:55 → 终态 11:03:45 CST)
 - 引擎:`http://127.0.0.1:17000`(pid 92224,manifest port=17000,comfyui 0.38.0/mps,与 FACTS §4.3 同一进程)——**复用现役,非本 run 所起(engineStartedByUs=false)**;投前队列空(running=0/pending=0,独占跑拍)
@@ -170,7 +170,7 @@ The composition is highly symmetrical and cinematic, with the warrior placed alm
 - 本役受任务书「恰两处改动」约束,无合规通道在本拍内验证缓解组合(PE启用?=false 为第三处改动=越权;裁定① seed 破缓存通道仅授权于全缓存回声场景,本拍非回声(1/30),不适用,且换 seed 属门值重掷非根因修复——PE seed=42 恒参下改写输出主要由主体句驱动,主体句已为 canon 逐字,无操纵空间)。
 - 产物图按机器判据(存在/>0字节/PNG 可解析/三层收据)全数在档合格,**仅透明门红**;产物图与全部收据保留现场,未做任何补救性重投。
 
-## 8. 机器判据(后核 `verify/type-5-多视图.postcheck.json`,exit=1,17/18;**权威判=后核**)
+## 8. 机器判据(后核 `verify/type-5-多视图.postcheck.json`,exit=1,18/19;**权威判=后核**)
 | ✅ | history 收据文件可解析(键=prompt/outputs/status) | pid=c972ae02-8ccb-4678-b663-a19b23f70f1f |
 | ✅ | history status=success | success |
 | ✅ | 非全缓存回声(真渲染;owner 裁定③禁回声记账) | cached=1/30 |
@@ -203,6 +203,7 @@ The composition is highly symmetrical and cinematic, with the warrior placed alm
 - **产线日志序号账**:本拍 number=10(当日第 12 条入队;序号序列 0,0,0,1,2,3,4,5,6,7,9,10——**缺 8**,服务端序号器口径,日志内无对应入队行,如实记不推测)。
 - **分辨率机制链含推断标注**:2:3 公式唯一命中(1712=107×16 恰 /16 对齐/3:4 型线精算宽≈1816-1824≠1712)沿用 4 型 §3 探针实证口径(本型未重拍探针);其余环节(PE建议路在拍/排队图连线断言/4.2MP 公式真源 my_qi21_wh_suggest.py:2-10)全为实测或代码引证。
 - **人眼复核未做**(本会话无视觉输入,如实声明,与 3/4 型同款口径):图像内容判读全部基于像素统计(alpha/亮度/色锚/逐行)+PE 文本自报对照;「是否同一人/四件套是否逐项在场」类部件级判读未做——但透明门判据(四角 alpha/全图 alpha 分布)为纯机器判据,不受此限。
+- **后核计数勘正(2026-10-06 12:1x 复核收账)**:本记录首行结果括号/§8 标题/§10 后核行原写「17/18」系计数笔误——经对 `verify/type-5-多视图.postcheck.json` 实数复核:checks=19 项、绿 18、红 1(唯一红=透明门「四角 alpha<=8(FACTS rgba_default 型)」;ok=False/exit=1 与「透明门红」判定属实),正确计数=**18/19**;三处已就地勘正(ok 型 1/2/4 记录的 18/18 与其 JSON 实数相符,不受影响)。
 
 ## 10. 三层收据存档
 
@@ -213,7 +214,7 @@ The composition is highly symmetrical and cinematic, with the warrior placed alm
 | ③ history prompt JSON | `runs/type-5-多视图.history.json` | 全量 entry(prompt 五元组+outputs+status) |
 | 驱动 raw | `runs/type-5-多视图.json` | 断言 12 项/读回前后/改动两笔/时间账(终判红=§9①假红×2,权威判据见 §8) |
 | 驱动控制台 | `logs/type-5-多视图.driver.console.log` | 全程日志(DRIVER_EXIT=1 自证=假红级联;后核 POSTCHECK_EXIT=1 追加自证=透明门红) |
-| 后核 | `verify/type-5-多视图.postcheck.json` | 机器判据权威判(17/18,透明门红,exit=1) |
+| 后核 | `verify/type-5-多视图.postcheck.json` | 机器判据权威判(18/19,透明门红,exit=1) |
 | 产物图 | `images/type-5-多视图.direct.png` / `images/type-5-多视图.2k.png` | §4(1712×2560 RGBA 竖幅 2:3 / 2048×3062 2K;四角 alpha=255,255,255,255 / 0,255,255,188——透明门红的原始证据) |
 | 主体句 canon | `/tmp/type5-subject-canon.txt`(临时)+ 本记录 §1① 全文引 | 77 字 md5 5aa333feaae436fb974053ee4a4d1233 |
 | PE 扩写全文 | 本记录 §1② 全文引(+ /tmp/type5-pe-full.txt 临时件,md5 530698ad94d580332d2040c9182bc937) | 4534 字(6 段) |

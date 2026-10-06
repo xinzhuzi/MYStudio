@@ -159,6 +159,24 @@ def check_report_paths():
     return tokens
 
 
+def check_counts():
+    """[F] 计数口径守卫(2026-10-06 复核勘正后加):报告中的后核计数必须与 postcheck.json 实数一致,
+    且旧误计数「17/18」零残留(失败型实数=19 项/绿 18/红 1,ok 型=18/18)。"""
+    if not os.path.isfile(REPORT):
+        return
+    text = open(REPORT, encoding="utf-8").read()
+    for slug, _pid in TYPES:
+        pc = json.load(open(os.path.join(CAMP, "verify", slug + ".postcheck.json"), encoding="utf-8"))
+        total = len(pc["checks"])
+        green = sum(1 for c in pc["checks"] if c["ok"])
+        rec(f"{green}/{total}" in text, "F 计数口径", slug,
+            f"postcheck {green}/{total} 已在报告中(以 JSON 实数为准)")
+    # 旧误计数「17/18」只许以历史引文形态出现在「勘正」标注行内,不得作为现行计数残留
+    bad_lines = [l for l in text.split("\n") if "17/18" in l and "勘正" not in l]
+    rec(not bad_lines, "F 计数口径", "旧误计数清零",
+        "非勘正上下文零残留" if not bad_lines else "非勘正行残留:" + " | ".join(bad_lines[:2]))
+
+
 def check_extra():
     for slug, pid in TYPES:
         h = json.load(open(os.path.join(CAMP, f"runs/{slug}.history.json"), encoding="utf-8"))
@@ -176,6 +194,7 @@ def main():
     check_images()
     check_json()
     check_report_paths()
+    check_counts()
     check_extra()
 
     lines = []

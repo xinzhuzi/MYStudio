@@ -1,6 +1,6 @@
 # 实弹记录 · 第 3/9 型「道具」(type-3-道具)
 
-**结果:❌ 透明门红——其余机器判据全绿(17/18),本型为透明型(FACTS rgba_default=true),四角 alpha 门实测 2/4 角不透明,响亮失败**
+**结果:❌ 透明门红——其余机器判据全绿(18/19),本型为透明型(FACTS rgba_default=true),四角 alpha 门实测 2/4 角不透明,响亮失败**
 
 - 日期:2026-10-06(排队 10:08:32 → 终态 10:15:15 CST)
 - 引擎:`http://127.0.0.1:17000`(pid 92224,复用现役,与 FACTS §4.3 同一进程;**非本 run 所起,engineStartedByUs=false**)
@@ -146,7 +146,7 @@ The overall composition emphasizes craftsmanship and age: the sword is sharply f
 - 本役受任务书「恰两处改动」约束,无合规通道在本拍内验证缓解组合(PE启用?=false 为第三处改动=越权;裁定① seed 破缓存通道仅授权于全缓存回声场景,本拍非回声,不适用,且换 seed 属门值重掷非根因修复)。
 - 产物图按机器判据(存在/>0字节/PNG 可解析/三层收据)全数在档合格,**仅透明门红**;产物图与全部收据保留现场,未做任何补救性重投。
 
-## 8. 机器判据(后核 `verify/type-3-道具.postcheck.json`,exit=1,17/18)
+## 8. 机器判据(后核 `verify/type-3-道具.postcheck.json`,exit=1,18/19)
 
 | 判 | 项 | 实测 |
 |---|---|---|
@@ -178,6 +178,7 @@ The overall composition emphasizes craftsmanship and age: the sword is sharply f
 - **[4019] 为本拍唯一缓存件**(PE TE 加载器;1/30 cached)——其缓存属模型加载器级缓存,不影响 6:4013 改写本体的新鲜性(改写输入=本拍新主体句,输出经探针确定性交叉验证=§3 wh_ratio 同参同输出"3:2")。
 - **wh_ratio 探针拍 97878877 为本型记录内独立取证件**(非产线拍;仅 CLIPLoader+PE改写+showAnything 三节点,零写盘零产线节点,与 2 型 §8⑤ 同款);不改本型产物收据链(收据均属产线拍 fc46aba4)。
 - **分辨率机制链含一处推断标注**:/16 网格截 8(2568→2560)未逐行核源,与 2 型 §8④ 同款口径;其余环节(PE建议路在拍/wh_ratio=3:2 探针实测/4.2MP 公式逐字/回退臂值互证)全为实测或代码引证。
+- **后核计数勘正(2026-10-06 12:1x 复核收账)**:本记录首行结果括号/§8 标题/§10 后核行原写「17/18」系计数笔误——经对 `verify/type-3-道具.postcheck.json` 实数复核:checks=19 项、绿 18、红 1(唯一红=透明门「四角 alpha<=8(FACTS rgba_default 型)」;ok=False/exit=1 与「透明门红」判定属实),正确计数=**18/19**;三处已就地勘正(ok 型 1/2/4 记录的 18/18 与其 JSON 实数相符,不受影响)。
 
 ## 10. 三层收据存档
 
@@ -188,7 +189,7 @@ The overall composition emphasizes craftsmanship and age: the sword is sharply f
 | ③ history prompt JSON | `runs/type-3-道具.history.json` | 全量 entry(prompt 五元组+outputs+status) |
 | 驱动 raw | `runs/type-3-道具.json` | 断言 12 项/读回前后/改动两笔/时间账(终判红=§9①假红×2,权威判据见 §8) |
 | 驱动控制台 | `logs/type-3-道具.driver.console.log` | 全程日志(DRIVER_EXIT=1 自证) |
-| 后核 | `verify/type-3-道具.postcheck.json` | 机器判据权威判(17/18,**透明门红**) |
+| 后核 | `verify/type-3-道具.postcheck.json` | 机器判据权威判(18/19,**透明门红**) |
 | 产物图 | `images/type-3-道具.direct.png` / `images/type-3-道具.2k.png` | §4(四角 alpha=255,255,1,0 / 255,255,0,0——透明门红的原始证据) |
 | 主体句 canon | `/tmp/type3-subject-canon.txt`(临时)+ 本记录 §1① 全文引 | 135 字 md5 122d7b2f… |
 | PE 扩写全文 | 本记录 §1② 全文引(+ /tmp/type3-pe-full.txt 临时件,md5 2d065e6e…) | 3622 字含头句(6 段) |

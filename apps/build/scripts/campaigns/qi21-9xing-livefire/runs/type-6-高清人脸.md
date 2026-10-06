@@ -1,6 +1,6 @@
 # 实弹记录 · 第 6/9 型「高清人脸」(type-6-高清人脸)
 
-**结果:❌ 透明门红——其余机器判据全绿(17/18),本型为透明型(FACTS rgba_default=true,真源 qi21_bases.json 高清人脸条程序化核对 rgba_default=true/aspect_ratio="1:1 (Square)"/megapixels=1.0),四角 alpha 门实测直出图 4/4 角全不透明([255,255,254,254]),2K 图 4/4 角全不透明([255,255,255,218]),直出整幅 100.00% 像素 alpha>250(0.00% 像素 alpha<8,连透明残量都没有),响亮失败;与 3 型道具(2/4 角红)/5 型多视图(4/4 角红)同款透明门红——**透明型三连红**(道具→多视图→高清人脸),仅剩表情差分未测**
+**结果:❌ 透明门红——其余机器判据全绿(18/19),本型为透明型(FACTS rgba_default=true,真源 qi21_bases.json 高清人脸条程序化核对 rgba_default=true/aspect_ratio="1:1 (Square)"/megapixels=1.0),四角 alpha 门实测直出图 4/4 角全不透明([255,255,254,254]),2K 图 4/4 角全不透明([255,255,255,218]),直出整幅 100.00% 像素 alpha>250(0.00% 像素 alpha<8,连透明残量都没有),响亮失败;与 3 型道具(2/4 角红)/5 型多视图(4/4 角红)同款透明门红——**透明型三连红**(道具→多视图→高清人脸),仅剩表情差分未测**
 
 - 日期:2026-10-06(排队 11:15:50 → 终态 11:22:03 CST)
 - 引擎:`http://127.0.0.1:17000`(pid 92224,manifest port=17000,comfyui 0.38.0/mps,与 FACTS §4.3 同一进程)——**复用现役,非本 run 所起(engineStartedByUs=false)**;投前队列空(running=0/pending=0,独占跑拍)
@@ -171,7 +171,7 @@ The composition uses a tight portrait crop from roughly the upper chest upward, 
 - 本役受任务书「恰两处改动」约束,无合规通道在本拍内验证缓解组合(PE启用?=false 为第三处改动=越权;裁定① seed 破缓存通道仅授权于全缓存回声场景,本拍非回声(8/30 加载器级),不适用;换 seed 亦属门值重掷非根因修复——PE seed=42 恒参下改写输出主要由主体句驱动,主体句已为 canon 逐字,canon 内生的背景子句无法在「主体句=canon 逐字」约束下移除)。
 - 产物图按机器判据(存在/>0字节/PNG 可解析/三层收据)全数在档合格,**仅透明门红**;产物图与全部收据保留现场,未做任何补救性重投。
 
-## 8. 机器判据(后核 `verify/type-6-高清人脸.postcheck.json`,exit=1,17/18;**权威判=后核**)
+## 8. 机器判据(后核 `verify/type-6-高清人脸.postcheck.json`,exit=1,18/19;**权威判=后核**)
 | ✅ | history 收据文件可解析(键=prompt/outputs/status) | pid=a00b747a-301e-432b-bd15-819538c072b7 |
 | ✅ | history status=success | success |
 | ✅ | 非全缓存回声(真渲染;owner 裁定③禁回声记账) | cached=8/30 |
@@ -205,6 +205,7 @@ The composition uses a tight portrait crop from roughly the upper chest upward, 
 - **缓存 8/30 明细**:['1','2','3','404','501','502','6:4019','7:7014']=UNET/主TE/VAE/PE TE/SeedVR2 双件五加载器+404 空串常量+7014 seed 常量——比 4/5 型的 1/30(cached=仅 6:4019)多 7 件=**本役连拍产线模型常驻与常量件恒等的自然结果**(加载器与常量件输入与 5 型拍逐值同,节点缓存命中属预期;**装配链/编码器/建议器/采样器/存图件全数新鲜**,主拍真渲染性不受影响,§8「非全缓存回声」门=✅ cached=8/30)。
 - **产线日志序号账**:本拍 number=11(当日第 14 条入队;序号序列 0,0,0,1,2,3,4,5,6,7,9,10,11,12,13——缺 8,服务端序号器口径,型5记录已记);本役两发 wh 探针=number=12(行40,11:34:28)/number=13(行43,11:37:23),均入产线日志,账目合。
 - **人眼复核未做**(本会话无视觉输入,如实声明,与 1-5 型同款口径):图像内容判读全部基于像素统计(alpha/亮度/色锚/逐行)+PE 文本自报对照;「是否同脸/五官是否逐项在场」类部件级判读未做——但透明门判据(四角 alpha/全图 alpha 分布)为纯机器判据,不受此限;§7 身份件承接表=PE 文本自报与 canon 逐词对照,已标注口径。
+- **后核计数勘正(2026-10-06 12:1x 复核收账)**:本记录首行结果括号/§8 标题/§10 后核行原写「17/18」系计数笔误——经对 `verify/type-6-高清人脸.postcheck.json` 实数复核:checks=19 项、绿 18、红 1(唯一红=透明门「四角 alpha<=8(FACTS rgba_default 型)」;ok=False/exit=1 与「透明门红」判定属实),正确计数=**18/19**;三处已就地勘正(ok 型 1/2/4 记录的 18/18 与其 JSON 实数相符,不受影响)。
 
 ## 10. 三层收据存档
 
@@ -215,7 +216,7 @@ The composition uses a tight portrait crop from roughly the upper chest upward, 
 | ③ history prompt JSON | `runs/type-6-高清人脸.history.json` | 全量 entry(prompt 五元组+outputs+status) |
 | 驱动 raw | `runs/type-6-高清人脸.json` | 断言 12 项/读回前后/改动两笔/时间账/缓存名单(终判红=§9①假红级联,权威判据见 §8) |
 | 驱动控制台 | `logs/type-6-高清人脸.driver.console.log` | 全程日志(DRIVER_EXIT=1 自证=假红级联;后核 POSTCHECK_EXIT=1 追加自证=透明门红) |
-| 后核 | `verify/type-6-高清人脸.postcheck.json` | 机器判据权威判(17/18,透明门红,exit=1) |
+| 后核 | `verify/type-6-高清人脸.postcheck.json` | 机器判据权威判(18/19,透明门红,exit=1) |
 | 产物图 | `images/type-6-高清人脸.direct.png` / `images/type-6-高清人脸.2k.png` | §4(1712×2560 RGBA 竖幅 2:3 / 2048×3062 2K;四角 alpha=255,255,254,254 / 255,255,255,218——透明门红的原始证据) |
 | 主体句 canon | `/tmp/type6-subject-canon.txt`(临时)+ 本记录 §1① 全文引 | 197 字 md5 70373a76f2b996d724d04767b6cfb36b |
 | PE 扩写全文 | 本记录 §1② 全文引(+ /tmp/type6-pe-full.txt 临时件,md5 44598d34fe1c37250b9749bba33c2b5c) | 3342 字(5 段) |
