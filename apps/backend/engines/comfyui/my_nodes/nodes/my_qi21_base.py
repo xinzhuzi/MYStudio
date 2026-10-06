@@ -238,8 +238,8 @@ class MyQi21DaojieBase:
     # 透明覆盖 解析用),只是不再外露输出槽;
     # 负面词追加第五出(1005 案B Phase I,design §8.1 ①):=entry.negative_text
     # 现读(与 BASE 同条目),追加最末=四出槽序零漂移(旧工作流不接=零波及)。
-    RETURN_TYPES = ("STRING", "INT", "INT", "BOOLEAN", "STRING")
-    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "透明值", "负面词")
+    RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN")
+    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "负面词", "透明值")
     FUNCTION = "run"
 
     @classmethod
@@ -281,5 +281,5 @@ class MyQi21DaojieBase:
         # (i2i [180].rgba_hint 已迁「透明值」);
         # 1005 案B Phase I:负面词第五出=型负面现读(缺键回退空串=空负向合法态,
         # 与 BASE 的 .get 默认同款纪律;返回元组序=RETURN_NAMES 五出序)
-        return (entry.get("positive_text", ""), width, height, 透明值,
-                entry.get("negative_text", ""))
+        return (entry.get("positive_text", ""), width, height,
+                entry.get("negative_text", ""), 透明值)

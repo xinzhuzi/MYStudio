@@ -54,6 +54,9 @@ def test_registry_exposes_first_batch_nodes():
         "MyQi21FinalOutput",  # 1005 ㊄ 拆双类:t2i专用最终输出(零PE槽,透明包裹+双口输出)
         "MyQi21ApiPE",  # 1006 API版PE:LM Studio本机大模型按真源教材扩写(批C 九入全上下文+双口;服务不在=透传)
         "MyQi21BasesText",  # 1006 真源文本:qi21_bases.json三节只读出口(全上下文节点化)
+        "MyQi21系统提示词",  # 1006 九轮:零控件专用类(无下拉)
+        "MyQi21色卡",
+        "MyQi21美术风格底座",
         "MyImageGridSplit",  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
         "MyVideoFrameGrab",  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
         "MyImageABCompare",  # 0929 TE-MAN 排查 B2:图对比审片(canvas 滑帘+2-7x 放大镜)

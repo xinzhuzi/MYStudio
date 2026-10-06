@@ -37,7 +37,7 @@ from .nodes.my_qi21_subject_select import MyQi21SubjectSelect
 from .nodes.my_qi21_wh_suggest import MyQi21WhSuggest
 from .nodes.my_qi21_chinese_pe import MyQi21ChinesePE
 from .nodes.my_qi21_api_pe import MyQi21ApiPE
-from .nodes.my_qi21_bases_text import MyQi21BasesText
+from .nodes.my_qi21_bases_text import MyQi21BasesText, MyQi21系统提示词, MyQi21色卡, MyQi21美术风格底座
 from .nodes.my_image_grid_split import MyImageGridSplit
 from .nodes.my_video_frame_grab import MyVideoFrameGrab
 from .nodes.my_image_ab_compare import MyImageABCompare
@@ -139,7 +139,10 @@ NODE_CLASS_MAPPINGS = {
     "MyQi21WhSuggest": MyQi21WhSuggest,  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
     "MyQi21ChinesePE": MyQi21ChinesePE,  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出,磁盘零改)
     "MyQi21ApiPE": MyQi21ApiPE,  # 1006 API版PE:LM Studio本机大模型按真源教材扩写(服务不在=透传);三轮=六入全上下文+双口出
-    "MyQi21BasesText": MyQi21BasesText,  # 1006 真源文本:qi21_bases.json三节只读出口(系统提示词/色卡/美术风格底座),全上下文节点化
+    "MyQi21BasesText": MyQi21BasesText,
+    "MyQi21系统提示词": MyQi21系统提示词,
+    "MyQi21色卡": MyQi21色卡,
+    "MyQi21美术风格底座": MyQi21美术风格底座,  # 1006 真源文本:qi21_bases.json三节只读出口(系统提示词/色卡/美术风格底座),全上下文节点化
     "MyImageGridSplit": MyImageGridSplit,  # 0929 TE-MAN 排查 B3:宫格切割回灌 input(A5 铁约束随档)
     "MyVideoFrameGrab": MyVideoFrameGrab,  # 0929 TE-MAN 排查 B1:视频截帧回灌 input(keyframes 最后一跳)
     "MyImageABCompare": MyImageABCompare,  # 0929 TE-MAN 排查 B2:图对比审片(canvas 滑帘+放大镜)
@@ -185,6 +188,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyQi21ChinesePE": "漫影 中文扩写PE",
     "MyQi21ApiPE": "漫影 API扩写PE",
     "MyQi21BasesText": "漫影 真源文本",
+    "MyQi21系统提示词": "漫影 系统提示词",
+    "MyQi21色卡": "漫影 色卡",
+    "MyQi21美术风格底座": "漫影 美术风格底座",
     "MyImageGridSplit": "漫影 宫格切割回灌",
     "MyVideoFrameGrab": "漫影 视频截帧回灌",
     "MyImageABCompare": "漫影 图对比审片",

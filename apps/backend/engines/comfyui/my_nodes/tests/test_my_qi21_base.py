@@ -118,9 +118,9 @@ def test_combo_ten_options_in_canon_order_with_pinned_default():
     # (=entry.negative_text 型负面出口,design §8.1 ①)——追加最末=存量四出
     # 槽序零漂移(存量连线按槽 0-3 不动)
     assert MyQi21DaojieBase.RETURN_TYPES == (
-        "STRING", "INT", "INT", "BOOLEAN", "STRING")
+        "STRING", "INT", "INT", "STRING", "BOOLEAN")
     assert MyQi21DaojieBase.RETURN_NAMES == (
-        "BASE", "WIDTH", "HEIGHT", "透明值", "负面词")
+        "BASE", "WIDTH", "HEIGHT", "负面词", "透明值")
     assert MyQi21DaojieBase.FUNCTION == "run"
 
 
@@ -145,8 +145,8 @@ def test_base_text_verbatim_from_lib_for_all_nine():
     for zh in _canon_order():
         entry = my_qi21_base._entry(zh)
         # 1002 ⑯+大轮连带:四出解包(型名/rgba_default 出均删);
-        # 1005 案B Phase I:五出解包,第五出负面词=型负面真值逐字
-        base_text, _w, _h, _t, neg_text = MyQi21DaojieBase().run(zh)
+        # 1006 十轮:五出解包,第四出负面词(序改:负面词上,透明值下)
+        base_text, _w, _h, neg_text, _t = MyQi21DaojieBase().run(zh)
         assert base_text == entry["positive_text"], zh
         assert neg_text == entry["negative_text"], zh  # 型负面出口(案B:去死数据)
         lines = base_text.split("\n")
@@ -164,12 +164,12 @@ def test_base_text_verbatim_from_lib_for_all_nine():
 
 def test_run_all_options_produce_nonempty_outputs():
     for zh in _canon_order():
-        base_text, w, h, _t, neg_text = MyQi21DaojieBase().run(zh)
+        base_text, w, h, neg_text, _t = MyQi21DaojieBase().run(zh)
         assert base_text and ("细墨线" in base_text or "运笔" in base_text)
         assert isinstance(w, int) and isinstance(h, int) and w > 0 and h > 0
         assert neg_text, zh  # 1005 案B:第五出型负面十档非空
     # 自由型:BASE 空串(正常态),W/H 兜底 1:1 (Square)/1.0MP=1024×1024
-    base_text, w, h, _t, free_neg = MyQi21DaojieBase().run("自由")
+    base_text, w, h, free_neg, _t = MyQi21DaojieBase().run("自由")
     assert base_text == ""
     assert (w, h) == (1024, 1024) and w % 8 == 0 and h % 8 == 0
     assert free_neg  # 自由型型负面在场(短清单)
@@ -184,19 +184,19 @@ def test_negative_output_verbatim_from_lib_for_all_ten():
     data = json.loads(my_qi21_base._BASES_JSON.read_text(encoding="utf-8"))
     for entry in data["types"]:
         zh = entry["zh"]
-        base_text, _w, _h, transparent, neg_text = MyQi21DaojieBase().run(zh)
+        base_text, _w, _h, neg_text, transparent = MyQi21DaojieBase().run(zh)
         assert neg_text == entry["negative_text"], zh
         assert isinstance(neg_text, str) and neg_text, zh
         # 存量四出零漂移:第五出追加不改前四出形状与取值口径
         assert isinstance(base_text, str) and isinstance(transparent, bool), zh
     # 头部基线四词(契约 test_qi21_bases_json_interlocks_library 同口径抽验)
-    assert "模糊" in MyQi21DaojieBase().run("人物")[4]
+    assert "模糊" in MyQi21DaojieBase().run("人物")[3]
 
 
 # ── W/H:与 K2 MyDaojieBase 同型同参输出一致(公式口径单源)─────
 def test_width_height_match_k2_same_type_and_params():
     for zh in _canon_order():
-        _b, w, h, _t, _n = MyQi21DaojieBase().run(zh)
+        _b, w, h, _n, _t = MyQi21DaojieBase().run(zh)
         _p, _neg, aspect, mp, _bn, k_w, k_h = MyDaojieBase().run(zh)
         # 1004 集中化:两件同源直读真源家 qi21_bases.json,十档全型一比一
         # (0927 Q21 多视图分档 3:4 分张/退役 override 随 sidecar 提取链退役,
@@ -221,7 +221,7 @@ def test_width_height_reference_table():
         "分镜剧情图": (2800, 1576), "表情差分": (2096, 2096),
         "概念气氛图": (2800, 1576), "自由": (1024, 1024)}
     for zh, (w, h) in expect.items():
-        _b, w_out, h_out, _t, _n = MyQi21DaojieBase().run(zh)
+        _b, w_out, h_out, _n, _t = MyQi21DaojieBase().run(zh)
         assert (w_out, h_out) == (w, h), (zh, w_out, h_out)
 
 
@@ -235,14 +235,14 @@ def test_rgba_default_four_types_true_rest_false():
     daojv = next(e for e in _canon_types() if e["zh"] == "道具")
     assert RGBA_DECL_ANCHOR in daojv["positive_text"]  # 道具型声明句单点锚
     for zh in _canon_order():
-        base_text, _w, _h, _t, _n = MyQi21DaojieBase().run(zh)
+        base_text, _w, _h, _n, _t = MyQi21DaojieBase().run(zh)
         entry = my_qi21_base._entry(zh)
         assert base_text == entry["positive_text"], zh  # BASE 真源逐字(见上锁)
         assert _t == entry["rgba_default"], zh  # 透明值(第4出)=json rgba_default(九型)
-    got = {zh for zh in _canon_order() if MyQi21DaojieBase().run(zh)[3]}  # 大轮后透明值=第4出(索引3;九型无覆盖=rgba_default 同值)
+    got = {zh for zh in _canon_order() if MyQi21DaojieBase().run(zh)[4]}  # 大轮后透明值=第5出(索引4;1006 十轮序改)
     assert got == RGBA_DEFAULT_TYPES, got
     # 自由型(1001 P1):rgba_default=false(用户指定;BASE 空串无透明声明句)
-    _fb, _fw, _fh, free_t, _fn = MyQi21DaojieBase().run("自由")
+    _fb, _fw, _fh, _fn, free_t = MyQi21DaojieBase().run("自由")
     assert free_t is False       # 自由型透明值=False(=json rgba_default 同值)
 
 
@@ -309,7 +309,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
         encoding="utf-8")
     monkeypatch.setattr(my_qi21_base, "_BASES_JSON", fake)
     assert my_qi21_base.bases_list() == ["测试型"]
-    bt, w, h, transparent, neg = MyQi21DaojieBase().run("测试型")
+    bt, w, h, neg, transparent = MyQi21DaojieBase().run("测试型")
     assert bt == "测试底座"
     assert neg == ""  # 缺 negative_text 键=回退空串(案B:.get 纪律,空负向合法态)
     # 缺 rgba_default 字段:回退 False(0929 D6;默认关=安全侧,与五型默认同态)
@@ -330,7 +330,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     time.sleep(0.01)
     import os
     os.utime(fake, (stat.st_atime + 5, stat.st_mtime + 5))
-    bt2, _w2, _h2, _t2, _n2 = MyQi21DaojieBase().run("测试型")
+    bt2, _w2, _h2, _n2, _t2 = MyQi21DaojieBase().run("测试型")
     assert bt2 == "热改后的底座"
 
 
@@ -374,7 +374,7 @@ def test_missing_json_degrades_loudly(tmp_path, monkeypatch):
 def test_free_base_transparent_value_passes_override():
     """自由+透明覆盖 true → 透明值 true(design §2.4 新单测例1:面板布尔
     直通;BASE 空串+W/H 兜底 1024×1024+rgba_default=false 一并钉)。"""
-    base_text, w, h, transparent, _neg = MyQi21DaojieBase().run(
+    base_text, w, h, _neg, transparent = MyQi21DaojieBase().run(
         "自由", 透明覆盖=True)
     assert base_text == ""
     assert (w, h) == (1024, 1024)
@@ -385,9 +385,9 @@ def test_nine_type_transparent_value_ignores_override():
     """九型+透明覆盖 → 透明值=型默认优先(design §2.4 新单测例2:人物+true
     →false;反向钉道具+false→true——覆盖在九型恒被忽略,双方向防「覆盖
     恒压制」或「透明值恒取覆盖」两类实现漂移)。"""
-    _b, _w, _h, transparent, _n = MyQi21DaojieBase().run("人物", 透明覆盖=True)
+    _b, _w, _h, _n, transparent = MyQi21DaojieBase().run("人物", 透明覆盖=True)
     assert transparent is False  # 人物 rgba_default=false(覆盖被忽略)
-    _b, _w, _h, transparent, _n = MyQi21DaojieBase().run("道具", 透明覆盖=False)
+    _b, _w, _h, _n, transparent = MyQi21DaojieBase().run("道具", 透明覆盖=False)
     assert transparent is True   # 道具 rgba_default=true(覆盖被忽略)
 
 
@@ -396,9 +396,9 @@ def test_default_override_transparent_value_follows_rgba_default():
     例3:十档全扫——九型逐一相等;自由型 None→False 与 default 同态;
     i2i/edit 旧工作流不接新槽=第四/五出同值,零波及;⑯ 删型名后仍同构)。"""
     for zh, rgba in [(z, z in RGBA_DEFAULT_TYPES) for z in _canon_order()] + [("自由", False)]:
-        _b, _w, _h, transparent, _n = MyQi21DaojieBase().run(zh)
+        _b, _w, _h, _n, transparent = MyQi21DaojieBase().run(zh)
         assert isinstance(transparent, bool), zh
         assert transparent == rgba, (zh, rgba, transparent)  # 与 json rgba_default 同值
     # 显式缺省形态:None(引擎 optional 未接线投递)同 0 覆盖行为
-    _b, _w, _h, transparent, _n = MyQi21DaojieBase().run("自由", 透明覆盖=None)
+    _b, _w, _h, _n, transparent = MyQi21DaojieBase().run("自由", 透明覆盖=None)
     assert transparent is False

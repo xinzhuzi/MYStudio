@@ -13,14 +13,16 @@ qwen3.8-27b-uncensored-mlx:qwen3.5 族与 Qwen-Image 同源、中文母语、指
   出 positive_prompt/negative_prompt/wh_ratio/thinking/parse_ok
 
 系统指令真源=qi21_bases.json#expand_instruction.system_prompt_zh(热读+mtime
-失效缓存,同 my_qi21_base 模式:改 json 即时生效免重启)+节点内固定补丁两则:
-  a. 句尾 /no_think——27B 思考模式实测可吃光 token 预算零正文(232s/2047tok
-     全思考案),关后 70s 出 500 字正文;
-  b. 肯定式纪律一句——教材未含(1006 实测唯一瑕疵:「未出锋」否定式)。
+失效缓存,同 my_qi21_base 模式:改 json 即时生效免重启)。历史补丁两则中
+/no_think 已于 1007 退役(五探实弹:文本软开关被 aggressive finetune 无视,
+与 chat_template_kwargs 一样无效,「低」档两测无衰减同废);思考控制=
+thinking_effort 档位 → 顶层 reasoning_effort 参数(none=硬关,不发=模板默认 xhigh)。
 
 容错(design 同 MyQi21ChinesePE:PE 关同效,不炸产线):
+  - 发前 3s 探活(_alive)快跳死主机(黑洞 ~75s→3s)+ 全程无代理 opener
+    (_LAN_OPENER,防 Clash 系统代理截流局域网——1007);
   - 服务不可达/超时/HTTP 错/JSON 解析失败 → 透传 (prompt,"","","",False)
-    +中文 print 警告(画幅链与直写路不受波及);
+    +中文 print 警告 +ui.api_pe_status 状态字段(JS 上画布标红警示,1007);
   - LM Studio 须常驻(单飞资源,+16GB);本节点同步阻塞引擎队列(实测
     ~70s/发,冷首发与长思考更慢——耐心或加 timeout_sec)。
 
@@ -45,10 +47,30 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+# 局域网恒直连 opener:macOS 的 urllib 会自动吃系统代理(Clash 系统代理=
+# 127.0.0.1:7897),局域网通否取决于代理对私网的放行规则——隐性依赖,恒绕过
+# (1007 实测定谳:探活走代理转发成功,但代理一退/改规则即断,勿赌)
+_LAN_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def _alive(base: str, timeout: float = 3.0) -> bool:
+    """发前轻量探活(GET /v1/models)——主机黑洞/防火墙 drop 时把死等从 OS 级
+    ~75s(SYN 重试耗尽)降到 3s;HTTP 任何应答(含错误码)=服务在。"""
+    try:
+        with _LAN_OPENER.open(base + "/v1/models", timeout=timeout) as _r:
+            _r.read(1)
+        return True
+    except urllib.error.HTTPError:
+        return True
+    except Exception:
+        return False
 
 # ── 数据真源(与 my_qi21_base 同款四层候选链,零 import——勿 import 化禁令) ──
 def _daojie_data(fn: str) -> Path:
@@ -99,12 +121,30 @@ def _context_materials() -> tuple[str, str]:
         return _ctx_cache["style"], _ctx_cache["colors"]
     data = _load_bases_node()
     style = str((data.get("lock_layer") or {}).get("positive_text") or "").strip()
-    lines = ["- 大面积基底=淡墨;主体色=石青/青绿/赭石;点睛(accent)只落一个叙事焦点=旧金或朱红(仅来源事实存在时)",
-             "- 色词必须落到实物载体(部件/材质/布面),禁落光效特效;禁裸色词(色+材质组合,如「石青丝绦」)"]
-    for word, ent in sorted((data.get("color_lexicon") or {}).get("entries", {}).items()):
-        if isinstance(ent, dict):
-            lines.append(f"- {word}({ent.get('ma_id','')}):{ent.get('usage_hint','')}")
-    colors = "\n".join(lines) if len(lines) > 2 else ""
+    # 1007 v9:色库数据出教材归[4031]——兜底升级为[4031]同款全量
+    # (在用词详表+canon42全库;教材只剩选题逻辑,不接线不得缺42色)
+    cl = data.get("color_lexicon") or {}
+    IN_USE = set((cl.get("entries") or {}).keys())
+    lines = ["【项目色卡选项清单】(从中选 2-5 个,用且仅用选中色词写终稿;禁止全选)",
+             "选法:大面积基底(stable)选1 | 主体色(mid)选1-3 | 点睛(accent)选0-1",
+             "色词必须落到实物载体(部件/材质/布面),禁落光效;禁裸色词(色+材质)",
+             "冲突裁决序(高>低): " + " > ".join(cl.get("conflict_order", []))]
+    for i, (word, ent) in enumerate(sorted((cl.get("entries") or {}).items()), 1):
+            lines.append(f"  ★在用{i}. {word}({ent.get('ma_id','')}):{ent.get('usage_hint','')}")
+    try:
+        canon = json.loads((_BASES_JSON.parent.parent / "ma_sync" / "palette-canon.json")
+                           .read_text(encoding="utf-8"))
+        groups = {g["groupId"]: g["name"] for g in canon.get("colorGroups", [])}
+        by_group = {}
+        for c in canon.get("colors", []):
+            by_group.setdefault(c.get("groupId", "?"), []).append(c)
+        lines.append(f"备选色卡全库({len(canon.get('colors', []))}色,含在用):")
+        for gid in sorted(by_group):
+            lines.append(f"【{groups.get(gid, gid)}系】 " + " | ".join(
+                f"{c['name']}" for c in by_group[gid]))
+    except Exception as exc:
+        lines.append(f"(备选全库读取失败:{exc})")
+    colors = "\n".join(lines) if len(lines) > 4 else ""
     _ctx_cache.update(mtime=mtime, style=style, colors=colors)
     return style, colors
 
@@ -125,29 +165,168 @@ def _hot_fallbacks() -> tuple[str, str, str]:
 
 
 def _build_system(wired_sys: str | None, wired_colors: str | None) -> str:
-    """终版系统提示 = (连线教材||热读教材) + PE 补丁纪律 + (连线色卡||热读色卡) + /no_think。"""
+    """终版系统提示 = (连线教材||热读教材) + (连线色卡||热读色卡节)。
+
+    2006 九轮:教材全面重写(qi21_bases.json system_prompt_zh 1557字)——
+    色卡全量嵌入(10词+冲突裁决序+选题纪律)、透明模式完整逻辑(开=禁虚构
+    背景/禁环境光/收束句)、全文润炼铁律、肯定式、JSON输出铁律全在教材内。
+    代码不再补丁——真源即全量,改 json 即时生效。
+    (1007 起 /no_think 尾巴退役:五探实弹证明 aggressive finetune 无视文本
+    软开关,思考控制改走顶层 reasoning_effort 参数,接线在 rewrite 内)
+    (1007 B案用户令:色卡输入槽真通——[4031] 连线值拼进系统消息尾部,
+    没连线=热读色卡节兜底;教材内嵌色库块保留(同源双份,数据非规则,
+    不增思考负担;瘦身指针化=另案候令))
+    """
     textbook, hot_colors, _ = _hot_fallbacks()
     sys_text = (wired_sys or "").strip() or textbook
-    colors_text = (wired_colors or "").strip() or hot_colors
-    text = (sys_text
-            + "\n\n## 补充纪律\n"
-              "- 画面状态一律肯定式描述(如「剑身完整收在鞘中」),禁用「未/不」"
-              "句式;排除项只进 negative_prompt。\n"
-              "- **全文润炼铁律(2006 五轮)**:输入是完整装配提示词(主体句+型底座"
-              "+锁层A)。你是终炼师:保留全部语义锚点——身份段/部件清单/材质色号/"
-              "色锚/画法关键句逐字语义不丢,只做润色衔接、增彩补细节、去冗余重复,"
-              "**不得删除或改写任何名词实体**;色卡词优先落实物载体。\n"
-              "- **外部手写原文(正向提示词/负向提示词)=锚点权重最高,润炼逐字"
-              "保留其实体**:用户手写的正/负向原文实体一字不改进终稿;"
-              "负向原文条目逐条并入 negative_prompt,不丢不译。\n"
-              "- **透明模式**:上下文标「透明=开」时,本图是透明素材图,主体句"
-              "禁虚构繁杂背景环境与远景叙事(背景将被透明化处理)。\n"
-              "- **输出铁律**:答文=单行合法 JSON,恰含 rewritten_prompt/"
-              "negative_prompt/wh_ratio 三键;禁止 Markdown 围栏、注释、"
-              "键外任何文字(结构化供下游机器解析)。")
-    if colors_text:
-        text += "\n\n## 色卡(用色参考,词可入文,载体纪律在上)\n" + colors_text
-    return text + "\n/no_think"
+    colors = (wired_colors or "").strip() or hot_colors
+    return sys_text + ("\n\n" + colors if colors else "")
+
+def _env_spans(subj: str) -> list[tuple[int, int]]:
+    out: list[tuple[int, int]] = []
+    for tok in _ENV_TOKENS:
+        start = subj.find(tok)
+        while start >= 0:
+            out.append((start, start + len(tok)))
+            start = subj.find(tok, start + 1)
+    return out
+
+
+_PUNCT = "，。；、,.;:!！？？"
+
+
+def _subject_colors(subj: str, transparent: bool = False) -> list[str]:
+    """从主体句提取色词候选(确定性三源):
+    ①color_lexicon 在用词 ②palette-canon 42 色名 ③模式提取(X色/X+色字)。
+    只取在主体句中实际出现的——这些是核心规则4的逐字禁换对象。
+    跨度贪心去重叠:长词优先("阶下青灰"取"青灰"弃"下青",防边界误报)。"""
+    import re as _re
+    _cs = set("白红青金墨灰绿蓝褐黑黄紫银玉")
+    # (start, end, word, prio):词典源=0 优先于 模式源=1
+    spans: list[tuple[int, int, str, int]] = []
+    try:
+        data = _load_bases_node()
+        lex = set(((data.get("color_lexicon") or {}).get("entries") or {}).keys())
+        canon_p = _daojie_data("qi21_bases.json").parent.parent / "ma_sync" / "palette-canon.json"
+        canon = json.loads(canon_p.read_text(encoding="utf-8"))
+        lex |= {str(c.get("name", "")) for c in canon.get("colors", [])}
+        lex |= {"青灰"}  # 风格底座多色相基底标配词,canon未收(蓝灰组名不同)
+    except Exception:
+        lex = {"青灰"}
+    for w in lex:
+        if not w:
+            continue
+        start = subj.find(w)
+        while start >= 0:
+            spans.append((start, start + len(w), w, 0))
+            start = subj.find(w, start + 1)
+    # 前瞻扫描取全重叠候选(finditer 非重叠会吞字:"缠灰"会吃掉"灰银"的"灰")
+    for m2 in _re.finditer(r"(?=([一-龥]{1,2}色))", subj):
+        g = m2.group(1)
+        spans.append((m2.start(), m2.start() + len(g), g, 1))
+    for m2 in _re.finditer(r"(?=([一-龥][白红青金墨灰绿蓝褐黑黄紫银玉]))", subj):
+        g = m2.group(1)
+        spans.append((m2.start(), m2.start() + len(g), g, 1))
+    kept: list[tuple[int, int, str, int]] = []
+    for s, e, w, pr in sorted(spans, key=lambda x: (-(x[1] - x[0]),
+                                                    sum(c not in _cs for c in x[2]),
+                                                    x[3], x[0])):
+        if any(s < ke and e > ks for ks, ke, _, _ in kept):
+            continue
+        # 透明开:与环境词同小句紧邻(间隔≤4字且无标点)的色词随环境合法删,不检
+        if transparent and any(
+                max(s - ee, es - e, 0) <= 4
+                and not any(ch in _PUNCT
+                            for ch in subj[min(e, es):max(s, ee)])
+                for es, ee in _env_spans(subj)):
+            continue
+        kept.append((s, e, w, pr))
+    return [w for _, _, w, _ in sorted(kept)]
+
+
+def _subject_stages(subj: str) -> list[str]:
+    """境界词提取(道劫域确定性):筑基后期/金丹中期/元婴大圆满类——
+    身份锚点里唯一可模式化的家族,丢了=身份漂移,机检兜底。"""
+    import re as _re
+    realms = "炼气|筑基|金丹|元婴|化神|炼虚|合体|大乘|渡劫|仙人|真仙"
+    return [m.group() for m in _re.finditer(
+        rf"(?:{realms})(?:初期|中期|后期|大圆满|圆满|期)", subj)]
+
+
+def _strip_env_parens(pos: str) -> str:
+    """透明开括号剥离(1007 v9实弹案):环境词被塞进括号补注
+    ("(虽背景透明,但姿态暗示其原立于山门石阶…)")——含黑名单词的
+    全/半角括号段整段删,括号外的正文保留。"""
+    import re as _re
+    def _drop(m):
+        inner = m.group(0)
+        return "" if any(t in inner for t in _META_TOKENS + _ENV_TOKENS) else inner
+    return _re.sub(r"（[^（）]*）|\([^()]*\)", _drop, pos)
+
+
+def _strip_env_sentences(pos: str, subj: str) -> str:
+    """透明开纯环境句删除(1006 B案收口):含黑名单词且不含主体锚
+    (主体句色词/境界词)的整句直接删——风格底座的"背景是…山水基底"类
+    整句环境描写不再依赖模型自觉。主体+环境混句(句子带主体锚)保留,
+    交给补发重试治。"""
+    import re as _re
+    anchors = _subject_colors(subj, False) + _subject_stages(subj)
+    parts = [x for x in _re.split(r"(?<=[。！？；;\n])", pos) if x.strip()]
+    kept = []
+    for sent in parts:
+        hit = any(t in sent for t in _META_TOKENS + _ENV_TOKENS)
+        has_anchor = any(a in sent for a in anchors)
+        if hit and not has_anchor:
+            continue
+        kept.append(sent)
+    out = "".join(kept)
+    floor = max(40, int(len(pos) * 0.25))
+    return out if len(out) >= floor else pos  # 删过头保护(<25%或40字=误删,回退原文)
+
+
+def _squash(text: str) -> str:
+    """空白归一(半角/全角空格)——"软 3D体积塑形"与"软3D体积塑形"判同。"""
+    return text.replace(" ", "").replace("\u3000", "")
+
+
+# 1006 十型实弹定谳的确定性黑名单(系统提示词 v5+ 同款口径)
+_META_TOKENS = ("背景", "仅写", "已移除", "透明模式", "锚点", "豁免", "色卡")
+_ENV_TOKENS = ("远山", "云海", "云雾", "远景", "天空", "远处", "山门石阶")
+# 部件名词表(核心规则5例举域+道劫常用配件;与色词同法:主体句出现即须终稿在场)
+_PART_TOKENS = ("剑鞘", "剑格", "剑穗", "剑柄", "剑绦", "剑身", "腰带", "发簪",
+                "耳坠", "袖口", "下摆", "衣袂", "丝绦", "木塞", "灯笼", "匾额",
+                "山门", "残碑", "衣角", "发际线")
+
+
+def _self_check(pos: str, neg: str, neg_tokens: list[str],
+                transparent: bool, subj: str) -> list[str]:
+    """出稿机器自检(1006 B案:节点自检+有界重试)。
+    三检全确定性:①负向三源逐条在场 ②透明开禁指令词/环境词 ③主体句色词逐字在场。
+    违例清单非空=可补发;锚点类(云海/匾额等名词)无法确定性判定,不在此检。"""
+    v: list[str] = []
+    pos_c, neg_c = _squash(pos), _squash(neg)  # 空白归一:"软 3D"与"软3D"判同
+    for tok in neg_tokens:
+        if _squash(tok) not in neg_c:
+            v.append(f"负向缺:{tok}")
+    if transparent:
+        for tok in _META_TOKENS + _ENV_TOKENS:
+            if tok in pos:
+                v.append(f"透明残留:{tok}")
+    else:
+        # 关模式对称检:主体句里的环境词须保留(美宣案:云海被误删)
+        for tok in _ENV_TOKENS:
+            if tok in subj and tok not in pos_c:
+                v.append(f"环境丢:{tok}")
+    for c in _subject_colors(subj, bool(transparent)):
+        if c not in pos_c:
+            v.append(f"色词丢:{c}")
+    for st in _subject_stages(subj):
+        if st not in pos_c:
+            v.append(f"境界丢:{st}")
+    for pt in _PART_TOKENS:
+        if pt in subj and pt not in pos_c:
+            v.append(f"部件丢:{pt}")
+    return v
 
 
 def _balanced_json(text: str) -> dict | None:
@@ -197,56 +376,38 @@ class MyQi21ApiPE:
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
         ctx = {
-                # 1006 六轮(问题5/6/7):上下文槽全 forceInput 纯槽=画布带名连线点
-                # (渲染终极机制:对象形+活连线=裸点无标签);[4010] 全五出直连本件
-                "系统提示词": ("STRING", {"forceInput": True,
-                                         "tooltip": "连 [4030] 真源文本·系统提示词;不连=真源热读兜底"}),
-                "色卡": ("STRING", {"forceInput": True,
-                                    "tooltip": "连 [4031] 真源文本·色卡;不连=真源热读兜底"}),
-                "美术风格底座": ("STRING", {"forceInput": True,
-                                            "tooltip": "连 [4032] 真源文本·美术风格底座;不连=热读兜底"}),
-                "型底座": ("STRING", {"forceInput": True,
-                                      "tooltip": "连 [4010].0 型底座 BASE 原文(参考上下文)"}),
-                "正向提示词": ("STRING", {"forceInput": True,
-                                        "tooltip": "外部手写正向原文(边界直连);锚点权重最高,润炼逐字保留其实体"}),
-                "负向提示词": ("STRING", {"forceInput": True,
-                                        "tooltip": "外部手写负向原文(边界直连);逐条并入 negative_prompt 不丢条目"}),
-                "画幅宽": ("INT", {"forceInput": True,
-                                  "tooltip": "连 [4010].1 九型WIDTH(画幅语境)"}),
-                "画幅高": ("INT", {"forceInput": True,
-                                  "tooltip": "连 [4010].2 九型HEIGHT(画幅语境)"}),
-                "型负面": ("STRING", {"forceInput": True,
-                                      "tooltip": "连 [4010].4 型负面词(负面精炼原料)"}),
-                "透明模式": ("BOOLEAN", {"default": False,
-                                        "tooltip": "连 [4010].3 透明值:开=透明素材图,主体句勿虚构背景"}),
-                "正向扩写全文": ("STRING", {"multiline": True,
-                                            "tooltip": "展示框:AI 扩写正向全文(执行后 JS 回填,不参与计算)"}),
-                "负向扩写清单": ("STRING", {"multiline": True,
-                                            "tooltip": "展示框:AI 扩写负向清单(执行后 JS 回填,不参与计算)"}),
+                "系统提示词": ("STRING", {"forceInput": True, "tooltip": "连 [4030] 真源文本·系统提示词;不连=真源热读兜底"}),
+                "色卡": ("STRING", {"forceInput": True, "tooltip": "连 [4031] 真源文本·色卡;不连=真源热读兜底"}),
+                "美术风格底座": ("STRING", {"forceInput": True, "tooltip": "连 [4032] 真源文本·美术风格底座;不连=热读兜底"}),
+                "正向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写正向原文;锚点权重最高,润炼逐字保留其实体"}),
+                "负向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写负向原文;逐条并入 negative_prompt 不丢条目"}),
+                "类型句正向": ("STRING", {"forceInput": True, "tooltip": "连 [4010].0 类型句(BASE 正文)"}),
+                "类型句负向": ("STRING", {"forceInput": True, "tooltip": "连 [4010].4 类型句负面词(负面精炼原料)"}),
+                "画幅宽": ("INT", {"forceInput": True, "tooltip": "连 [4010].1 九型WIDTH(画幅语境)"}),
+                "画幅高": ("INT", {"forceInput": True, "tooltip": "连 [4010].2 九型HEIGHT(画幅语境)"}),
+                "透明模式": ("BOOLEAN", {"forceInput": True, "tooltip": "连 [4010].3 透明值:开=透明素材图,勿虚构背景"}),
         }
         return {
             "required": {
-                "装配全文": ("STRING", {"forceInput": True,
-                                       "tooltip": "完整装配提示词(主体句+型底座+锁层A;连 [4011].0——所有提示词都经过AI,2006 五轮管线归位)"}),
-                "负面词": ("STRING", {"forceInput": True,
-                                     "tooltip": "三源合并负面清单(连 [4011].1;经 AI 精炼后出)"}),
-                "api_url": ("STRING", {"default": "http://127.0.0.1:1234",
-                                       "tooltip": "LM Studio 服务地址(不带 /v1;默认本机1234口)"}),
-                "model": ("STRING", {"default": "qwen3.8-27b-uncensored-mlx",
-                                     "tooltip": "LM Studio 里的模型 id(lms ls 可查)"}),
+                "api_url": ("STRING", {"default": "http://192.168.0.101:1234,http://127.0.0.1:1234",
+                                       "tooltip": "LM Studio 服务地址,多个逗号分隔依次尝试(远程优先,本地兜底)"}),
+                "model": ("STRING", {"default": "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx",
+                                     "tooltip": "模型 id,逗号分隔与 api_url 逐一配对(远程9B,本地27B兜底)"}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0,
                                           "step": 0.05,
                                           "tooltip": "低温更听话;0.7=实测扩写质量档"}),
                 "max_tokens": ("INT", {"default": 12000, "min": 256, "max": 13000,
-                                       "tooltip": "含思考链的生成预算(qwen3.8思考焊死无法关,实测全上下文思考~7k字+正文~1k;贴 16k 上下文窗上限)"}),
+                                       "tooltip": "生成预算:思考(xhigh)档思考链吃 ~7k 字+正文 ~1k;思考档位=关闭 时只需 ~2k 即够"}),
                 "timeout_sec": ("INT", {"default": 600, "min": 10, "max": 3600,
                                         "tooltip": "整发预算(冷首发+长文要留足;超时=透传不炸)"}),
+                "thinking_effort": (["关闭", "思考(xhigh)"], {"default": "关闭",
+                                    "tooltip": "思考档位(1007 实弹):关闭=reasoning_effort none 硬关,确定性零思考 token,全链 ~40s 内含自检补发;思考(xhigh)=模型模板原生档(=不发参数,思考量随机 ~1200-4600 tok/发,全链 21s~300s+ 波动,1006 全程即此档);「低」档实测无衰减已移除"}),
             },
             "optional": ctx,
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("正向提示词", "负向提示词")
+    RETURN_TYPES = ("STRING", "STRING", "BOOLEAN", "INT", "INT")
+    RETURN_NAMES = ("正向提示词", "负向提示词", "透明模式", "画幅宽", "画幅高")
     FUNCTION = "rewrite"
     # 1006 四轮(用户令:UI 展示提示词,多行输入框):OUTPUT_NODE+ui 双载荷,
     # JS(my-qi21-prompt-preview.js 同款)把 api_pe_pos/api_pe_neg 落到下方
@@ -255,15 +416,16 @@ class MyQi21ApiPE:
     # 未连线时仍为展示框(JS 回填)——双态同一槽
     OUTPUT_NODE = True
 
-    def rewrite(self, 装配全文: str, 负面词: str | None = None,
-                系统提示词: str | None = None, 色卡: str | None = None,
-                美术风格底座: str | None = None, 型底座: str | None = None,
-                正向提示词: str | None = None, 负向提示词: str | None = None,
+    def rewrite(self, 正向提示词: str | None = None, 负向提示词: str | None = None,
+                类型句正向: str | None = None, 类型句负向: str | None = None,
                 画幅宽: int | None = None, 画幅高: int | None = None,
-                型负面: str | None = None, 透明模式: bool = False,
+                透明模式: bool = False,
+                系统提示词: str | None = None, 色卡: str | None = None,
+                美术风格底座: str | None = None,
                 api_url: str = "http://127.0.0.1:1234",
                 model: str = "qwen3.8-27b-uncensored-mlx", temperature: float = 0.7,
                 max_tokens: int = 12000, timeout_sec: int = 600,
+                thinking_effort: str = "关闭",
                 正向扩写全文: str = "", 负向扩写清单: str = ""
                 ) -> dict:
         """九入全上下文→LM Studio 扩写→(正向提示词, 负向提示词) 双口。
@@ -272,55 +434,96 @@ class MyQi21ApiPE:
         无则跳),改写对象仍是装配全文;服务不在/超时/解析失败=透传
         (prompt原文, "")——PE关同效,不炸产线。
         """
-        direct = (装配全文 or "").strip()
+        # 2006 七轮(用户令「AI挂了也从本节点做,恒有输出」):三层装配内置,
+        # 逐字复刻 [4011] 格式(主体句\nBASE\n锁层A;BASE 空=两段)——AI 输入
+        # 基底与降级正稿同源;AI 挂=本正稿直出,节点任何情况都有输出
+        subj = (正向提示词 or "").strip()
+        base = (类型句正向 or "").strip()
         _, _, hot_style = _hot_fallbacks()
         style = (美术风格底座 or "").strip() or hot_style
+        direct = f"{subj}\n{base}\n{style}".strip() if base else f"{subj}\n{style}".strip()
+        if not subj:
+            print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+风格两段")
+        # 负面三源(型负面+锁层负面热读+外部负向)去重合并——AI 精炼,挂=直出
+        try:
+            lock_neg = str((_load_bases_node().get("lock_layer") or {})
+                           .get("negative_text") or "").strip()
+        except Exception:
+            lock_neg = ""
+        neg_tokens, seen = [], set()
+        for src in (类型句负向, lock_neg, 负向提示词):
+            for tok in (x.strip() for x in re.split(r"[,，\n]", (src or "")) if x.strip()):
+                if tok not in seen:
+                    seen.add(tok)
+                    neg_tokens.append(tok)
+        neg_fallback = ", ".join(neg_tokens)
         ctx = ["--- 画面上下文(色卡用词与画风基调参考) ---"]
         if style:
-            ctx.append("[美术风格底座] " + style)
-        if (型底座 or "").strip():
-            ctx.append("[型底座] " + 型底座.strip() +
-                       "(型选择真源参考,严禁复述进 rewritten_prompt)")
-        if (正向提示词 or "").strip():
-            ctx.append("[正向提示词·外部手写原文] " + 正向提示词.strip() +
-                       "(锚点权重最高,实体逐字保留进 rewritten_prompt)")
-        if (负向提示词 or "").strip():
-            ctx.append("[负向提示词·外部手写原文] " + 负向提示词.strip() +
-                       "(逐条并入 negative_prompt,不丢条目)")
-        neg_src = " | ".join(x.strip() for x in (负面词, 型负面, 负向提示词) if (x or "").strip())
-        if neg_src:
-            ctx.append("[负面词清单] " + neg_src +
+            ctx.append("[正稿结构] 主体句\n型底座\n美术风格底座 三层(基底即上文)")
+        if neg_fallback:
+            ctx.append("[负面词清单] " + neg_fallback +
                        "(逐条精炼合并去重后写进 negative_prompt,可补通用负面,不丢条目)")
         if 画幅宽 and 画幅高:
             ctx.append(f"[画幅] {画幅宽}×{画幅高}(按此纵横比组织画面描述)")
         ctx.append(f"[透明] {'开:本图为透明素材图,勿虚构繁杂背景' if 透明模式 else '关:常规成图'}")
-        user_with_ctx = (装配全文 or "") + "\n\n" + "\n".join(ctx)
-        url = (api_url or "http://127.0.0.1:1234").rstrip("/") + "/v1/chat/completions"
+        user_with_ctx = direct + "\n\n" + "\n".join(ctx)
+        urls = [u.strip().rstrip("/") for u in (api_url or "http://192.168.0.101:1234,http://127.0.0.1:1234").split(",") if u.strip()]
+        models = [m.strip() for m in (model or "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx").split(",") if m.strip()]
+        # URL+model 按索引配对;model 不够时用末位
+        pair = lambda i: (urls[i], models[i] if i < len(models) else models[-1] if models else "qwen3.5-9b")
         payload = {
             "model": model or "qwen3.8-27b-uncensored-mlx",
             "messages": [
                 {"role": "system", "content": _build_system(系统提示词, 色卡)},
-                {"role": "user", "content": user_with_ctx + "\n/no_think"},
+                {"role": "user", "content": user_with_ctx},
             ],
             "temperature": float(temperature),
             "max_tokens": int(max_tokens),
-            "chat_template_kwargs": {"enable_thinking": False},
         }
+        # 1007 实测(1234 实弹两轮):chat_template_kwargs 被 LM Studio 层丢弃
+        # (enable_thinking:false 52/52 无视)、/no_think 文本尾被 aggressive
+        # finetune 无视、「低」档无衰减(1565/1696 tok,两测);顶层 reasoning_effort
+        # 转发生效——none=模板预填空 <think> 块硬关思考(确定性零思考 token),
+        # 不发=模板默认 xhigh(思考量随机 ~1200-4600 tok/发)。本地 27B 同层待首用复验
+        if thinking_effort == "关闭":
+            payload["reasoning_effort"] = "none"
         def _post(pl: dict) -> dict:
             req = urllib.request.Request(
                 url, data=json.dumps(pl).encode("utf-8"),
                 headers={"Content-Type": "application/json"}, method="POST")
-            return json.loads(urllib.request.urlopen(
+            return json.loads(_LAN_OPENER.open(
                 req, timeout=max(10, int(timeout_sec))).read())
 
         t0 = time.time()
-        try:
-            resp = _post(payload)
-        except Exception as exc:  # 服务不在/超时/HTTP 错:透传=PE关同效,不炸
-            print(f"[漫影 API扩写PE] LM Studio 不可达({url},{exc})——"
-                  f"本发透传主体句原文(PE关同效);请确认 lms server start 且已 load 模型")
-            return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [""]},
-                    "result": (direct, "")}
+        resp = None
+        served = ""
+        for _i in range(len(urls)):
+            _u, _m = pair(_i)
+            if not _alive(_u):
+                print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
+                      "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查-1007.md)")
+                continue
+            url = _u + "/v1/chat/completions"
+            payload["model"] = _m
+            try:
+                _r = _post(payload)
+                # 空正文(思考吃光)也视为不可用,切下一 URL(1006:远程9B 上下文不足案)
+                _msg0 = (_r.get("choices") or [{}])[0].get("message", {})
+                if not (_msg0.get("content") or "").strip() and not (_msg0.get("reasoning_content") or "").strip():
+                    print(f"[漫影 API扩写PE] {_u}({_m}) 返回空,试下一个…")
+                    continue
+                resp = _r
+                served = _m
+                break  # 首个有内容的用
+            except Exception as exc:
+                print(f"[漫影 API扩写PE] {_u}({_m}) 不可达({exc}),试下一个…")
+                continue
+        if resp is None:
+            print(f"[漫影 API扩写PE] 全部 {len(urls)} 个 LM Studio 均不可达——"
+                  f"本发透传自装配三层(恒有输出);请检查 LM Studio 服务")
+            return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_fallback],
+                           "api_pe_status": ["透传:LM Studio 均不可达"]},
+                    "result": (direct, neg_fallback, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         try:
             msg = (resp.get("choices") or [{}])[0].get("message", {})
         except (AttributeError, IndexError):
@@ -347,13 +550,55 @@ class MyQi21ApiPE:
         pos = obj.get("rewritten_prompt") if obj else None
         if isinstance(pos, str) and pos.strip():
             neg = obj.get("negative_prompt")
-            print(f"[漫影 API扩写PE] 扩写完成:{len(pos)}字,"
+            pos_s, neg_s = pos.strip(), (neg.strip() if isinstance(neg, str) else "")
+            neg_s = neg_s or neg_fallback
+            if 透明模式:
+                pos_s = _strip_env_parens(_strip_env_sentences(pos_s, subj))
+            # 1006 B案(用户拍板):出稿机器自检——①负向三源逐条 ②透明开黑名单
+            # ③色词逐字;不过=同模型补发一次(缺什么点什么),两稿取违例更少者。
+            v1 = _self_check(pos_s, neg_s, neg_tokens, bool(透明模式), subj)
+            if v1:
+                print(f"[漫影 API扩写PE] 机器自检 {len(v1)} 项不过({';'.join(v1[:6])}"
+                      f"{'…' if len(v1) > 6 else ''})——同模型补发一次")
+                try:
+                    pl = dict(payload)
+                    pl["messages"] = payload["messages"][:-1] + [
+                        {"role": "user",
+                         "content": payload["messages"][-1]["content"]
+                         + "\n你上一稿机器自检未过,逐项修正后重出完整 JSON(单行,只输出 JSON):"
+                         + ";".join(v1[:12])
+                         + "。以上缺失词逐字补进对应字段,违禁词从正文删除,"
+                           "其余内容与上一稿保持一致,只做最小修正。"}]
+                    resp3 = _post(pl)
+                    _m3 = (resp3.get("choices") or [{}])[0].get("message", {})
+                    _c3 = (_m3.get("content") or "").strip()
+                    _r3 = str(_m3.get("reasoning_content") or "")
+                    _o3 = _balanced_json(_c3) or _balanced_json(_r3[-4000:])
+                    _p3 = _o3.get("rewritten_prompt") if _o3 else None
+                    if isinstance(_p3, str) and _p3.strip():
+                        _n3 = (_o3.get("negative_prompt")
+                               if isinstance(_o3.get("negative_prompt"), str) else "")
+                        _n3 = _n3.strip() or neg_fallback
+                        _p3s = _strip_env_parens(_strip_env_sentences(
+                            _p3.strip(), subj)) if 透明模式 else _p3.strip()
+                        v2 = _self_check(_p3s, _n3, neg_tokens,
+                                         bool(透明模式), subj)
+                        if len(v2) < len(v1):
+                            print(f"[漫影 API扩写PE] 自检重奏效:{len(v1)}→{len(v2)} 项"
+                                  f"{('(余:' + ';'.join(v2[:4]) + ')') if v2 else '(全过)'}——取第二稿")
+                            pos_s, neg_s, v1 = _p3s, _n3, v2
+                        else:
+                            print(f"[漫影 API扩写PE] 自检重试未更优({len(v2)}≥{len(v1)})——保留第一稿")
+                except Exception as exc:
+                    print(f"[漫影 API扩写PE] 自检补发失败({exc})——保留第一稿")
+            print(f"[漫影 API扩写PE] 扩写完成:{len(pos_s)}字,"
                   f"耗时 {time.time() - t0:.0f}s(全上下文:系统提示词/色卡/"
                   f"风格/型底座/外部原文/透明)")
-            neg_s = (neg.strip() if isinstance(neg, str) else "") or (负面词 or "").strip()
-            return {"ui": {"api_pe_pos": [pos.strip()], "api_pe_neg": [neg_s]},
-                    "result": (pos.strip(), neg_s)}
+            return {"ui": {"api_pe_pos": [pos_s], "api_pe_neg": [neg_s],
+                           "api_pe_status": [f"AI扩写OK:{served}"]},
+                    "result": (pos_s, neg_s, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         print(f"[漫影 API扩写PE] 答文无 rewritten_prompt(解析失败)——透传原文;"
               f"正文{len(content)}字/思考{len(reasoning)}字,正文头200:{content[:200]!r}")
-        return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [""]},
-                "result": (direct, "")}
+        return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_fallback],
+                       "api_pe_status": ["透传:答文解析失败"]},
+                "result": (direct, neg_fallback, 透明模式, 画幅宽 or 0, 画幅高 or 0)}

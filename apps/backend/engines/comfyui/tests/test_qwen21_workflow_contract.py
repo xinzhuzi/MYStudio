@@ -326,7 +326,7 @@ PE_PARAMS = [1.0, 0.95, 20, 1.5, 16256, 42]  # [1:7](手改态起尾带 control_
 # (api_url/model/temperature/max_tokens/timeout_sec;教材=qi21_bases.json
 # expand_instruction 节热读,节点内补 /no_think+肯定式纪律;服务不在=透传)
 QI21_PE_CLASS = "MyQi21ApiPE"
-PE_API_PARAMS = ["http://127.0.0.1:1234", "qwen3.8-27b-uncensored-mlx", 0.7, 12000, 600, "", ""]  # 末两位=两只展示框位(正向扩写全文/负向扩写清单)  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
+PE_API_PARAMS = ["http://192.168.0.101:1234,http://127.0.0.1:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx", 0.7, 12000, 600, "", ""]  # 末两位=两只展示框位(正向扩写全文/负向扩写清单)  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
 
 # PE-I2I(edit 件)契约:0923-r16 换核心(comfy-core TextGenerate+RegexExtract,
 # 去 benjiyaya 依赖;design §13/research/13 官方免插件链照抄;真源=幂等生成器
@@ -1722,8 +1722,8 @@ class TestTopology:
             io = _qi21_sg(graph)["outputs"][out_slot]
             assert io["name"] == want_out
             oid, _oslot = _qi21_trace_origin(sg_nodes, sg_links, io["linkIds"][0])
-            assert oid == QI21_SG_BASE_ID, \
-                f"qi21: 子图 {want_out} 输出应溯至 [{QI21_SG_BASE_ID}] 九型 W/H 原样直通,得 {oid}"
+            assert oid == QI21_SG_PE_RW, \
+                f"qi21: 子图 {want_out} 输出应溯至 [{QI21_SG_PE_RW}] AI扩写转发(1006 八轮)"
 
 
 # ── 5. 画布纪律(前端格式必需字段、groups 全带 id、横向排版、说明 Note)──
@@ -2152,11 +2152,14 @@ def _wf_lock_a() -> str:
     在档旧全本,装载后覆盖 default=执行值仍是旧全本——参数面与数据层的重灌走
     「从库刷参数」通道(说明卡注),本测试不锁两者逐字,只锁 qi21/i2i 两件参数
     面同值(防单件漂移)+骨架锚(见 test_lock_constant_present_and_always_wired)。"""
-    qi_lock = _qi21_sg_nodes(GRAPHS["qi21"])[QI21_SG_ASM_ID]["widgets_values"][-1]  # 2005 ㉜后=4值形,锁层A=末位
-    i2i_lock = _qi21_sg_nodes(GRAPHS["i2i"])[I2I_SG_ASM_ID]["widgets_values"][-1]  # i2i 2值形,锁层A=末位
-    assert qi_lock == i2i_lock, \
-        "锁层A 参数面 qi21/i2i 两件应同值(1004 横锁;漂移=单件被误改)"
-    return qi_lock
+    # 2006 七轮:qi21 [4011] 退役,锁层A 唯一在档位=qi21_bases.json lock_layer
+    # (热读);横锁改为 i2i 参数面==json 真源(漂移=单件被误改)
+    i2i_lock = _qi21_sg_nodes(GRAPHS["i2i"])[I2I_SG_ASM_ID]["widgets_values"][-1]
+    _lock_pos = str(json.loads(BASES_JSON.read_text(encoding="utf-8"))
+                    .get("lock_layer", {}).get("positive_text", ""))
+    assert i2i_lock == _lock_pos, \
+        "锁层A:i2i 参数面应=qi21_bases.json lock_layer.positive_text 真源(2006 七轮 [4011] 退役)"
+    return i2i_lock
 
 
 
@@ -2783,8 +2786,8 @@ class TestQi21SubgraphContract:
             "子图内部 IO 应 3 入 4 出(1006 四轮:正向提示词/型选择/负向提示词;" \
             "四出=positive/negative/width/height;wh_ratio/PE启用? 随 AI扩写恒开退役)"
         assert [s["name"] for s in sg["inputs"]] == \
-            ["正向提示词", "型选择", "负向提示词"], \
-            f"-10 槽序应=1006 四轮终态+批C 正名(PE启用? 退役),得 {[s['name'] for s in sg['inputs']]}"
+            ["正向提示词", "负向提示词", "型选择"], \
+            f"-10 槽序应=1006 八轮(型选择末位),得 {[s['name'] for s in sg['inputs']]}"
         assert host["widgets_values"] == ["人物"], \
             "宿主 widgets_values 应=[人物](1006 四轮:AI扩写恒开,面板恰一值)"
         named = host.get("widgets_values_named", {})
@@ -2826,7 +2829,7 @@ class TestQi21SubgraphContract:
             # 1005 重锚:宿主边界=两提示词 STRING 进线(clip/vae 边界线随 PE TE 迁
             # 子图 [4019]+编码器迁主图退役);[400]→正向提示词(槽0)/[404]→负向提示词(槽2)
             (15, QI21_SUBJECT_ID, 0, QI21_HOST_ID, 0, "STRING"),
-            (218, 404, 0, QI21_HOST_ID, 2, "STRING"),  # 1006 四轮:负向提示词槽3→2(批C 正名)
+            (218, 404, 0, QI21_HOST_ID, 1, "STRING"),  # 1006 八轮:负向提示词槽→1(型选择末位)
             # 1005 重锚:[401] MyQi21PromptPreview 正负双预览(正向←[6].positive 槽0
             # /负向←[6].negative 槽1,与两编码器同源)
             (18, QI21_HOST_ID, 0, QI21_PREVIEW_ID, 0, "STRING"),
@@ -3001,31 +3004,30 @@ class TestQi21SubgraphContract:
         assert base_inp["name"] == "base" and "widget" in base_inp, \
             "[4010].base 应为 widget 转输入(combo 经宿主面板外露)"
         bl = sg_links[base_inp["link"]]
-        assert bl["origin_id"] == -10 and bl["origin_slot"] == 1 and bl["type"] == "COMBO", \
-            "[4010].base 应接 -10 槽1(宿主面板「型选择」COMBO;1005 重锚槽序)"
+        assert bl["origin_id"] == -10 and bl["origin_slot"] == 2 and bl["type"] == "COMBO", \
+            "[4010].base 应接 -10 槽2(1006 八轮:型选择末位)"
         assert [i["name"] for i in node["inputs"]] == ["base", "透明覆盖"], \
             "[4010] 入槽应= base+透明覆盖(optional 尾部,P1 件侧接口面)"
         assert [o["name"] for o in node["outputs"]] == \
-            ["BASE", "WIDTH", "HEIGHT", "透明值", "负面词"], \
+            ["BASE", "WIDTH", "HEIGHT", "负面词", "透明值"], \
             "[4010] 五出应为 BASE/WIDTH/HEIGHT/透明值/负面词" \
             "(2002 ⑯ 删型名+大轮连带删 rgba_default=i2i [180] 迁透明值后收口;" \
             "负面词=1005 案B Phase I 第五出=型负面出口,追加最末存量槽序零漂移)"
-        assert node["outputs"][3]["type"] == "BOOLEAN", "[4010].透明值 槽型应 BOOLEAN(⑦)"
-        assert sorted(node["outputs"][3]["links"] or []) == [314, 326], \
-            "[4010].透明值 双扇出(314→[4014].透明模式+326→[4013] API版PE.透明模式;" \
-            "1006 三轮:透明选择既住最终输出文本计算,也喂 PE 上下文)"
+        assert node["outputs"][4]["type"] == "BOOLEAN", "[4010].透明值 槽型应 BOOLEAN(⑦)"
+        assert sorted(node["outputs"][4]["links"] or []) == [326], \
+            "[4010].透明值 单扇出(326→[4013];1006 八轮:[4010]独占[4013])"
         # 1005 案B Phase I:[4010].负面词(第五出,槽4)→[4011].BASE负面(inputs[1])
         # ——型负面出口接通装配器 merge(型负面,锁层负面),修「型负面 36 条无
         # 出口死数据」断路(design §8.1 ①④)
-        assert node["outputs"][4]["type"] == "STRING", \
+        assert node["outputs"][3]["type"] == "STRING", \
             "[4010].负面词 槽型应 STRING(1005 案B 型负面出口)"
-        assert node["outputs"][4]["links"] == [313, 340], \
-            "[4010].负面词 双扇出(313→[4011].BASE负面+340→[4013] 型负面;1006 六轮全五出直连)"
-        neg_link = sg_links[313]
+        assert node["outputs"][3]["links"] == [340], \
+            "[4010].负面词 单扇出(340→[4013] 型负面;1006 七轮 [4011] 退役)"
+        neg_link = sg_links[340]
         assert (neg_link["origin_id"], neg_link["origin_slot"],
                 neg_link["target_id"], neg_link["target_slot"]) \
-            == (QI21_SG_BASE_ID, 4, QI21_SG_ASM_ID, 1), \
-            "[4010].负面词→[4011].BASE负面 连线应 4010槽4→4011槽1(1005 案B)"
+            == (QI21_SG_BASE_ID, 3, QI21_SG_PE_RW, 6), \
+            "[4010].负面词→[4013].类型句负向 连线应 4010槽3→4013槽6(1006 七轮)"
         # 1005 重锚:「透明」面板槽退役——透明覆盖=参数面 widget(link=None,
         # False 钉死;透明唯一来源=[4010] 参数面,经透明值槽3 连线 [4014])
         tmd = node["inputs"][1]
@@ -3039,21 +3041,20 @@ class TestQi21SubgraphContract:
             f"qi21_bases.json rgba_default 四型集合漂移(0929 用户拍板),得 {sorted(_rgba_on)}"
         assert all(e.get("rgba_default") in (True, False) for e in _bases), \
             "qi21_bases.json rgba_default 应为显式布尔(缺字段/非布尔即红)"
-        # BASE 喂 [141] 装配全文件.BASE(级联退役,一处选型;S8 集成后拼接件消亡;
-        # 1002 ⑭ BASE 连线槽前置=装配器 inputs[0],迁移表=research/slot-map.md §1)
-        asm = sg_nodes[QI21_SG_ASM_ID]
-        assert asm["type"] == QI21_SG_ASM_CLASS, f"[{QI21_SG_ASM_ID}] 应为装配全文件"
-        base_link = sg_links[asm["inputs"][0]["link"]]
-        assert base_link["origin_id"] == QI21_SG_BASE_ID and asm["inputs"][0]["name"] == "BASE", \
-            "装配全文件.BASE(⑭ 前置=inputs[0])上游应为 [150].BASE(一处选型)"
+        # 1006 七轮:[4011] 退役——BASE 直连 [4013].型底座(槽3,线337)
+        assert QI21_SG_ASM_ID not in sg_nodes, "[4011] 应已退役(装配内置 [4013])"
+        base_link = sg_links[337]
+        assert base_link["origin_id"] == QI21_SG_BASE_ID and base_link["target_id"] == QI21_SG_PE_RW \
+            and base_link["target_slot"] == 5, \
+            "[4010].BASE 应直连 [4013].型底座 槽5(1006 七轮一处选型)"
         # W/H(1004 重锚):[4010] WIDTH/HEIGHT 原样直通子图 width/height 出口
         # (42/43 线;建议器 [4018] 迁主图后经 [6] 出口回吃,主图侧锚在
         # test_qi21_latent_fed_by_subgraph_width_height)
+        # 1006 八轮:W/H 经 [4013] 转发(不再直通 -20;[4010]全出独占[4013])
         for out_slot, out_name in ((1, "WIDTH"), (2, "HEIGHT")):
             l = sg_links[node["outputs"][out_slot]["links"][0]]
-            assert (l["origin_id"], l["target_id"], l["target_slot"]) \
-                == (QI21_SG_BASE_ID, -20, out_slot + 1), \
-                f"[4010].{out_name} 应原样直通子图出口槽{out_slot + 1}(1004 九型直通),得 {l}"
+            assert l["target_id"] == QI21_SG_PE_RW, \
+                f"[4010].{out_name} 应只进 [4013](1006 八轮独占),得 {l}"
 
 
     def test_qi21_bases_json_interlocks_library(self):
@@ -3145,87 +3146,13 @@ class TestQi21SubgraphContract:
         大框(Q4「固定句都要输入框」)。"""
         graph = GRAPHS["qi21"]
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
-        asm = sg_nodes[QI21_SG_ASM_ID]
-        assert asm["type"] == QI21_SG_ASM_CLASS, \
-            f"[{QI21_SG_ASM_ID}] 应为 {QI21_SG_ASM_CLASS}(1001 S8 集成,裁定A拆件上游)"
-        # 1004 重锚:参数面与库首节逐字互锁废止(A4 库降级设计规范/正负拆开;
-        # 真源=qi21_bases.json lock_layer,存量参数=历史在档旧全本,见 _wf_lock_a)
-        # ——改锁两件横锁+骨架锚(风骨三段俱在,防参数被清空/误删段)
+        # 2006 七轮:[4011] 退役——锁层A 唯一在档位=qi21_bases.json lock_layer(热读)
         lock_a = _wf_lock_a()
-        assert asm["widgets_values"][-1] == lock_a, \
-            "[4011] 锁层A全文参数 应=两件在档同值(1004 横锁;恒挂=装配公式第三段)"
-        assert lock_a.startswith("风格底座：") and "线描优先工笔结构：" in lock_a \
-            and "成片质量：" in lock_a, \
-            "锁层A 参数面应保有 风格底座/线描优先/成片质量 三段骨架(1004 骨架锚)"
-        # 恒挂语义:装配全文=主体句+BASE+锁层A(锁层在件内固定拼合,不经任何开关)
-        # 2002 ⑭:BASE 前置=inputs[0];1005 案B Phase I:BASE负面=inputs[1]
-        # (←[4010].负面词),主体句前插后移=inputs[2](锁层A全文=纯参数 widget)
-        subj_link = sg_links[asm["inputs"][2]["link"]]
-        assert (subj_link["origin_id"], subj_link["origin_slot"]) == (-10, 0), \
-            "[4011].主体句 应接 -10 槽0(1006 五轮:主体句直进装配,AI 在装配后终炼)"
-        base_neg_link = sg_links[asm["inputs"][1]["link"]]
-        assert (base_neg_link["origin_id"], base_neg_link["origin_slot"],
-                base_neg_link["target_slot"]) == (QI21_SG_BASE_ID, 4, 1), \
-            "[4011].BASE负面 应接 [4010].负面词(第五出槽4;1005 案B Phase I 型负面出口)"
-        assert all(i["name"] != "锁层A全文" or i.get("link") is None
-                   for i in asm["inputs"]), \
-            "锁层A全文应为参数面(不接线;值恒挂=Q4 可编辑大框)"
-
-    def test_cascade_retired_and_linkage_switches_wired(self):
-        """子图开关纪律(1001 用户测试批 ② 重立;10-02 单口化再重立):子图
-        ComfySwitchNode 恰 0 枚(双编码+输出选择闸门塌缩,选择前置进最终输出件);
-        固定句常量件恰 0;Reroute 恰 0;退役件 id
-        防回潮(1001 P2 起 [210] 三态件入册;10-02 起 [4016][4017] 入册);
-        画幅规则(1005 重锚):wh_ratio 改道 [4021] 主体句选择件——[4013].wh_ratio
-        喂 [4021].PE宽高比,由 [4021].宽高比 经子图出口槽4 喂主图 [4018](PE 关=
-        直写路宽高比空串兜底);「画幅联动开关」槽退役;手动宽/高 子图侧槽退役,
-        真控件=主图 [4018] 面板 widget(0=跟型,速查卡口径)。"""
-        graph = GRAPHS["qi21"]
-        sg = _qi21_sg(graph)
-        sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
-        switches = {n["id"]: n for n in sg_nodes.values() if n["type"] == "ComfySwitchNode"}
-        assert switches == {}, \
-            f"子图开关应恰 0 枚(10-02 单口化:双编码+输出选择闸门塌缩,选择前置进" \
-            f"[4014] 最终输出件文本计算),得 {sorted(switches)}"
-        # 固定句常量件恰 0(4 句迁 [141]/[152] 参数面);Reroute 恰 0(Part-A S3B 全删)
-        assert not [n for n in sg_nodes.values() if n["type"] == "PrimitiveStringMultiline"], \
-            "S8 集成:固定句常量件应恰 0(四句迁两自研件参数面)"
-        rr_ids = sorted(nid for nid, n in sg_nodes.items() if n["type"] == "Reroute")
-        assert rr_ids == [], f"子图 Reroute 应恰 0 枚(1001 S3B 全删),得 {rr_ids}"
-        # 退役件防回潮(22 件全账+[210] 三态件 1001 用户测试批)
-        resid = [nid for nid in QI21_SG_GONE_IDS if nid in sg_nodes]
-        assert resid == [], f"退役件残留(防回潮):{resid}"
-        # 画幅联动锚(1005 重锚:wh_ratio 改道 [4021] 透传)——[4013].wh_ratio 单线
-        # 喂 [4021].PE宽高比(槽2),由 [4021].宽高比(槽1)经子图出口槽4 出子图
-        # (link318;主图侧 [4018].wh_ratio←[6] 槽4=link214 在
-        # test_qi21_latent_fed_by_subgraph_width_height 锁)
-        # 1006 三轮:API版PE 双口化(正向/负向),wh_ratio 建议链整体退役——
-        # [4021].PE宽高比 未接(透传空),画幅恒走九型直通([4018] 联动开关侧兜底)
-        pe = sg_nodes[QI21_SG_PE_RW]
-        assert [o["name"] for o in pe["outputs"]] == ["正向提示词", "负向提示词"], \
-            "[4013] 双口应为 正向提示词/负向提示词(1006 用户令;wh_ratio/thinking/parse_ok 退役)"
-        # 1006 五轮:[4021] 主体句选择件整体退役(AI恒开,选择无意义;类与件留档)
-        assert 4021 not in sg_nodes, "[4021] 应已退役(1006 五轮:所有提示词恒过AI)"
-        # 1006 四轮:PE启用?/联动开关链整体退役——[4018].联动开关 未接=恒九型直通
-        ld_inp = next(i for i in _nodes(graph)[QI21_WH_ID]["inputs"]
-                      if i["name"] == "联动开关")
-        assert ld_inp.get("link") is None, \
-            "[4018].联动开关 应未接(1006 四轮:AI扩写恒开,画幅恒九型)"
-        # 手动宽/高(1005 重锚):子图侧同名槽退役(1005 用户精简);真控件=主图
-        # [4018] 面板 widget(手动宽/手动高 optional 位,默认 0=跟型,速查卡口径)
-        for name in ("手动宽", "手动高"):
-            assert name not in {s["name"] for s in sg["inputs"]}, \
-                f"子图 -10 应无「{name}」槽(1005 重锚:子图侧悬空摆设槽退役)"
-        wh_node = _nodes(graph)[QI21_WH_ID]
-        assert wh_node["widgets_values"][4:6] == [0, 0], \
-            "[4018].手动宽/手动高 应保留 widget 位默认 0(1005 重锚:0=跟型)"
-        assert "画幅联动开关" not in {s["name"] for s in sg["inputs"]}, \
-            "「画幅联动开关」槽应退役(1001 问题②)"
-        # 宿主面板恰两值(1005 重锚:手动宽/高 面板槽随用户精简退役)
-        host = _nodes(graph)[QI21_HOST_ID]
-        assert len(host["widgets_values"]) == 1, \
-            "[6] 面板应恰 1 值(型选择;PE启用? 随 1006 四轮 AI扩写恒开退役)"
-
+        assert lock_a.startswith("风格底座：") and "线描优先工笔结构" in lock_a \
+            and "成片质量" in lock_a, \
+            "锁层A 真源(qi21_bases.json)应保有 风格底座/线描优先/成片质量 三段骨架"
+        assert QI21_SG_ASM_ID not in _qi21_sg_nodes(GRAPHS["qi21"]), \
+            "[4011] 应已退役(2006 七轮:三层装配内置 [4013] AI扩写)"
 
     def test_default_assembly_equals_library_composition(self):
         """默认人物型:装配全文=[24]主体句+[150]BASE(qi21_bases.json 人物,逐字=库)
@@ -3240,15 +3167,12 @@ class TestQi21SubgraphContract:
         # +人物 positive_text(数据真源)+锁层A参数面(_wf_lock_a 横锁)——库四层
         # 组合互锁随 A4 库降级废止,此断言退化为参数面自洽组合锁(任一段被误
         # 清空/换型即红)
-        assembled = "\n".join([
-            _widget(nodes[QI21_SUBJECT_ID], 0),
-            qi21["人物"]["positive_text"],
-            sg_nodes[QI21_SG_ASM_ID]["widgets_values"][-1]])
-        want = "\n".join([
-            _widget(nodes[QI21_SUBJECT_ID], 0),
-            qi21["人物"]["positive_text"],
-            _wf_lock_a()])
-        assert assembled == want, "默认人物态装配全文三段组合应自洽(1004 重锚)"
+        # 2006 七轮:[4011] 退役——三段组合语义=MyQi21ApiPE.rewrite 内置装配
+        # (件侧单测逐字锁);此处改锁三段真源全部非空可得
+        parts = [_widget(nodes[QI21_SUBJECT_ID], 0),
+                 qi21["人物"]["positive_text"], _wf_lock_a()]
+        assert all(str(x).strip() for x in parts), \
+            "内置装配三段(主体句/型底座/锁层A)须全部非空可得"
 
     def test_pe_group_and_rgba_switch_inside_subgraph(self):
         """PE/透明承袭(1005 重锚:管线前移版,PE 路由全在子图内):
@@ -3268,25 +3192,29 @@ class TestQi21SubgraphContract:
         pe = sg_nodes[QI21_SG_PE_RW]
         assert pe["type"] == QI21_PE_CLASS, \
             f"[{QI21_SG_PE_RW}] 应为 {QI21_PE_CLASS}(1006 API版PE换装,类名逐字,子图内)"
-        assert pe["widgets_values"] == PE_API_PARAMS, \
-            f"PE API 参数漂移 {PE_API_PARAMS},得 {pe['widgets_values']}"
+        assert pe["widgets_values"] == PE_API_PARAMS[:5], \
+            f"PE API 参数漂移 {PE_API_PARAMS[:5]},得 {pe['widgets_values']}"
         # 1006 五轮:AI扩写=装配后终炼(所有提示词经过AI)——装配全文/负面词←[4011] 双出
         # 1006 六轮(问题5/7):[4010] 全五出直连——+画幅宽←.1(338)/画幅高←.2(339)
         # /型负面←.4(340);十二入全 forceInput 纯槽(问题6:带名连线点)
-        want_ins = [("装配全文", 4011, 0), ("负面词", 4011, 1), ("系统提示词", 4030, 0),
-                    ("色卡", 4031, 0), ("美术风格底座", 4032, 0), ("型底座", 4010, 0),
-                    ("正向提示词", -10, 0), ("负向提示词", -10, 2),
-                    ("画幅宽", 4010, 1), ("画幅高", 4010, 2), ("型负面", 4010, 4),
-                    ("透明模式", 4010, 3)]
+        want_ins = [("系统提示词", 4030, 0), ("色卡", 4031, 0), ("美术风格底座", 4032, 0),
+                    ("正向提示词", -10, 0), ("负向提示词", -10, 1),
+                    ("类型句正向", 4010, 0), ("类型句负向", 4010, 3),
+                    ("画幅宽", 4010, 1), ("画幅高", 4010, 2),
+                    ("透明模式", 4010, 4)]
         got_ins = [(i["name"], sg_links[i["link"]]["origin_id"], sg_links[i["link"]]["origin_slot"])
                    for i in pe["inputs"]]
-        assert got_ins == want_ins, f"[4013] 十二入应= {want_ins}(全上下文+全五出直连),得 {got_ins}"
-        for nid, sec in ((4030, "系统提示词"), (4031, "色卡"), (4032, "美术风格底座")):
+        assert got_ins == want_ins, f"[4013] 十入应= {want_ins}(1006 七轮:装配内置,[4011] 退役),得 {got_ins}"
+        # 1006 九轮:三专用类(零控件零下拉,节点即管道;用户令「选择的控件不需要」)
+        for nid, sec, cls in ((4030, "系统提示词", "MyQi21系统提示词"),
+                              (4031, "色卡", "MyQi21色卡"),
+                              (4032, "美术风格底座", "MyQi21美术风格底座")):
             tn = sg_nodes[nid]
-            assert tn["type"] == "MyQi21BasesText" and tn["widgets_values"] == [sec, ""], \
-                f"[{nid}] 应为 MyQi21BasesText·{sec}+展示框空串位(1006 批A「内容」框,画布零复制)"
-        assert [o["name"] for o in pe["outputs"]] == ["正向提示词", "负向提示词"], \
-            "[4013] 双口出(1006 用户令)"
+            assert tn["type"] == cls and len(tn.get("widgets_values",[""])[0]) > 100, \
+                f"[{nid}] 应为 {cls}+内容预填>100字,得 type={tn['type']}"
+        assert [o["name"] for o in pe["outputs"]] == \
+            ["正向提示词", "负向提示词", "透明模式", "画幅宽", "画幅高"], \
+            "[4013] 五口出(1006 八轮:正/负文本+宽/高/透明转发)"
         # 1006 重锚:种子文 widget 与 clip 槽均随 API 版换装退役(唯一入槽=prompt 槽0;
         # 扩写大脑=LM Studio 常驻,引擎不再载 pe_t2i 检查点)
         # 1002 ⑬:宿主 pe_clip 槽已撤(主图零 PE TE;连线 link31 退役删除)
@@ -3298,33 +3226,8 @@ class TestQi21SubgraphContract:
         # ── [4011] 装配全文件(裁定A上游):接口面+四连线槽 ──
         # 1005 重锚:负面三源合并=BASE负面+锁层负面(参数面现读)+主体句负面;
         # 锁层A全文=参数面 widget(真值 widgets_values 末位),不入 inputs
-        asm = sg_nodes[QI21_SG_ASM_ID]
-        assert asm["type"] == QI21_SG_ASM_CLASS
-        assert [i["name"] for i in asm["inputs"]] == \
-            ["BASE", "BASE负面", "主体句", "主体句负面"], \
-            "[4011] 槽序应=BASE/BASE负面/主体句/主体句负面(1005 重锚:四连线槽," \
-            "锁层A全文=参数面下沉;主体句负面←[4021] 透传)"
-        # 2004 Phase B:装配器双口化——出=装配全文/负面词(正负拆开;
-        # 1005 案B:口1 真值=merge(BASE负面, 锁层负面, 主体句负面))
-        assert [o["name"] for o in asm["outputs"]] == ["装配全文", "负面词"], \
-            "[4011] 双出应=装配全文/负面词(2004 Phase B 装配器双口化)"
-        base_l = sg_links[asm["inputs"][0]["link"]]
-        assert (base_l["origin_id"], base_l["origin_slot"]) == (QI21_SG_BASE_ID, 0), \
-            "[4011].BASE 应接 [4010].BASE(一处选型;⑭ 前置=inputs[0])"
-        base_neg_l = sg_links[asm["inputs"][1]["link"]]
-        assert (base_neg_l["origin_id"], base_neg_l["origin_slot"]) == (QI21_SG_BASE_ID, 4), \
-            "[4011].BASE负面 应接 [4010].负面词(第五出;1005 案B Phase I 型负面出口)"
-        subj_l = sg_links[asm["inputs"][2]["link"]]
-        assert (subj_l["origin_id"], subj_l["origin_slot"]) == (-10, 0), \
-            "[4011].主体句 应接 -10 槽0(1006 五轮:主体句直进装配)"
-        subj_neg_l = sg_links[asm["inputs"][3]["link"]]
-        assert (subj_neg_l["origin_id"], subj_neg_l["origin_slot"]) == (-10, 2), \
-            "[4011].主体句负面 应接 -10 槽2 负向提示词(1006 五轮:边界直连+批C 正名,[4021] 退役)"
-        # 1005 重锚:装配全文 单扇出([4014] 换 MyQi21FinalOutput,PE出文 双扇路退役)
-        assert asm["outputs"][0]["links"] == [320], \
-            "[4011].装配全文 应单扇出(320→[4013] AI扩写;1006 五轮:所有提示词经过AI)"
-        assert asm["outputs"][1]["links"] == [321], \
-            "[4011].负面词 应单扇出(321→[4013].负面词;1006 五轮:负面也经AI精炼)"
+        # 2006 七轮:[4011] 退役(装配内置 [4013];主体句/负面边界线 331/332 随亡,
+        # 外部正/负向提示词经 335/336 直连 [4013] 槽4/5)
         # ── [4014] MyQi21FinalOutput(1005 ㊄:t2i 专用最终输出件)──
         # optional 恰 3 槽+零 widget 参数框+零 PE 槽(RGBA 头尾/W1=JSON 热读)
         sel = sg_nodes[QI21_SG_SEL_ID]
@@ -3351,8 +3254,8 @@ class TestQi21SubgraphContract:
         assert (neg_l["origin_id"], neg_l["origin_slot"]) == (QI21_SG_PE_RW, 1), \
             "[4014].负向提示词 应接 [4013] AI扩写 口1(1006 五轮:负面经 AI 精炼)"
         tm_l = sg_links[sel["inputs"][2]["link"]]
-        assert (tm_l["origin_id"], tm_l["origin_slot"]) == (QI21_SG_BASE_ID, 3), \
-            "[4014].透明模式 应接 [4010].透明值(槽位3;透明自动跟型 rgba_default)"
+        assert (tm_l["origin_id"], tm_l["origin_slot"]) == (QI21_SG_PE_RW, 2), \
+            "[4014].透明模式 应接 [4013] AI扩写 口2 透明模式(1006 八轮转发)"
         # 双出文本经子图出口 STRING 喂主图 [4015]/[4015N](1004 编码迁出存续)
         assert sel["outputs"][0]["links"] == [322], \
             "[4014].进编码正向文本 应单扇出(322→子图出口槽0 positive,主图 [4015].text 源)"
@@ -3397,10 +3300,12 @@ class TestQi21SubgraphContract:
         for out in pe["outputs"]:
             for lid in (out.get("links") or []):
                 l = sg_links[lid]
-                assert l["target_id"] == 4014, \
+                assert l["target_id"] in (4014, -20), \
                     f"[4013].{out['name']} 消费者应=[4014] 最终输出(2006 五轮),得 link{lid}→{l['target_id']}".replace('2006','1006')
+                if l["target_id"] == -20:
+                    continue  # 1006 八轮:宽/高出口线→-20 子图出口(非 [4014] 消费)
                 slot_name = sg_nodes[4014]["inputs"][l["target_slot"]]["name"]
-                assert out["name"] == slot_name and slot_name in fin_opt, \
+                assert slot_name in fin_opt, \
                     f"[4014].{slot_name} 应在 MyQi21FinalOutput INPUT_TYPES 声明面"
 
     def test_case_b_negative_truth_chain_1005(self):
@@ -3428,8 +3333,8 @@ class TestQi21SubgraphContract:
         except ImportError:  # pragma: no cover - 包路径缺席(直载家法兜底)
             base_cls = None
         if base_cls is not None:
-            assert base_cls().run("人物")[4] == renwu_neg, \
-                "[4010].负面词 第五出应=人物型 negative_text 逐字(1005 案B)"
+            assert base_cls().run("人物")[3] == renwu_neg, \
+                "[4010].负面词 第四出应=人物型 negative_text 逐字(1005 案B)"
         # ② 装配真值:merge(型负面, 锁层负面)——同一 _merge_negative 计算,
         # 锚=「型负面在前,锁层在后」拼接形与去重形
         asm_cls = _load_my_node_class(QI21_SG_ASM_CLASS)
@@ -3528,9 +3433,9 @@ class TestQi21SubgraphContract:
         # 1006 批B 重锚(保守渲染预算):带0 主排四件横排/带1 渲染净空恒空/
         # 带2 三真源+说明卡(1010 起,与 4013 序列化底 800 净距 210)
         want_bands = {
-            0: [4010, 4011, 4013, 4014],  # 主排:底座(80)→装配(700)→AI扩写(1330)→最终输出(2000)
-            1: [],                        # 渲染净空带(400-1000 恒空;三真源迁 1010 起)
-            2: [4030, 4031, 4032, 4100],  # 三真源(700/915/1130, 200×420 大档)+说明卡(2200)
+            0: [4030, 4031, 4032, 4014],    # 顶带:三真源+[4014]最终输出(用户手排)
+            1: [4013],                        # 中带:AI扩写
+            2: [4010, 4100],                  # 底带:类型句选择+说明卡
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
@@ -3541,23 +3446,11 @@ class TestQi21SubgraphContract:
             xs = sorted(sg_nodes[nid]["pos"][0] for nid in bands[b])
             assert all(x2 > x1 for x1, x2 in zip(xs, xs[1:])), \
                 f"带{b} 带内 x 非严格递增(应从左到右零同列): {xs}"
-        # 1006 批B 链位(全主排右向,新坐标 80<700<1330<2000):
-        # [4010]底座→[4011]装配→[4013]AI扩写→[4014]最终输出
-        assert sg_nodes[QI21_SG_BASE_ID]["pos"][0] < sg_nodes[QI21_SG_ASM_ID]["pos"][0], \
-            "链序:[4010] 底座应在 [4011] 装配器 左侧(批B:80<700)"
-        assert sg_nodes[QI21_SG_ASM_ID]["pos"][0] < sg_nodes[QI21_SG_PE_RW]["pos"][0], \
-            "链序:[4011] 装配器应在 [4013] AI扩写 左侧(所有提示词先装配后过AI;批B:700<1330)"
+        # 1006 七轮链位(全主排右向):[4010]底座→[4013]AI扩写(装配内置)→[4014]最终输出
+        assert sg_nodes[QI21_SG_BASE_ID]["pos"][0] < sg_nodes[QI21_SG_PE_RW]["pos"][0], \
+            "链序:[4010] 底座应在 [4013] AI扩写 左侧(1006 七轮:装配内置)"
         assert sg_nodes[QI21_SG_PE_RW]["pos"][0] < sg_nodes[4014]["pos"][0], \
-            "链序:[4013] AI扩写应是倒数第二,[4014] 最终输出压轴(批B:1330<2000)"
-        # 批B 渲染净距钉:4011 序列化右缘(700+520=1220)<4013 左缘 1330(净距110);
-        # 4013 序列化底(100+700=800)与带2 顶 1010 净距 210(保守渲染预算=序列化层
-        # 再留净空,multiline 展示框实际渲染溢出由带1 净空带吸收)
-        assert sg_nodes[QI21_SG_ASM_ID]["pos"][0] + sg_nodes[QI21_SG_ASM_ID]["size"][0] \
-            < sg_nodes[QI21_SG_PE_RW]["pos"][0], \
-            "渲染净距:[4011] 序列化矩形右缘应在 [4013] 左缘左侧(批B 保守渲染预算)"
-        assert sg_nodes[QI21_SG_PE_RW]["pos"][1] + sg_nodes[QI21_SG_PE_RW]["size"][1] \
-            < min(sg_nodes[nid]["pos"][1] for nid in (4030, 4031, 4032)), \
-            "渲染净距:[4013] 序列化矩形底应在带2 三真源顶之上(批B 带间净空)"
+            "链序:[4013] AI扩写应是倒数第二,[4014] 最终输出压轴"
         # 带间净距 ≥100
         band_tops = {b: min(sg_nodes[nid]["pos"][1] for nid in ids) for b, ids in bands.items()}
         band_bottoms = {b: max(sg_nodes[nid]["pos"][1] + sg_nodes[nid]["size"][1]

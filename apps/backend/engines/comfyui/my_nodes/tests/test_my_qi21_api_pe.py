@@ -21,41 +21,39 @@ def test_shape_matches_upstream_five_ports():
     """五口与上游 QwenImage21_T2IPromptRewrite 逐口同名(换 type 即接,出线零动)。"""
     node = api_pe.MyQi21ApiPE()
     # 1006 三轮:双口出(正向/负向;wh_ratio/thinking/parse_ok 退役)
-    assert node.RETURN_TYPES == ("STRING", "STRING")
-    assert node.RETURN_NAMES == ("正向提示词", "负向提示词")
+    assert node.RETURN_TYPES == ("STRING", "STRING", "BOOLEAN", "INT", "INT")
+    assert node.RETURN_NAMES == ("正向提示词", "负向提示词", "透明模式", "画幅宽", "画幅高")
     req = node.INPUT_TYPES()["required"]
-    # 1006 五轮:装配全文(prompt 更名,连 [4011].0)+负面词两主槽
-    assert "装配全文" in req and req["装配全文"][0] == "STRING" \
-        and req["装配全文"][1].get("forceInput") is True, "装配全文槽必须在场([4011].0 连此处)"
-    assert "负面词" in req and req["负面词"][0] == "STRING", "负面词槽必须在场([4011].1)"
+    # 1006 七轮:装配内置——配置槽;1007 增 thinking_effort(尾插保旧工作流
+    # widgets_values 位序不漂移);上下文/正负/型/画幅全在 optional
+    assert list(req) == ["api_url", "model", "temperature", "max_tokens", "timeout_sec", "thinking_effort"], \
+        f"required 应恰六配置槽(1007 增思考档位),得 {list(req)}"
     opt = node.INPUT_TYPES()["optional"]
     # 1006 批C 七路直连:九入序=系统提示词/色卡/美术风格底座/型底座/正向提示词/
     # 负向提示词/透明模式(与两 json [4013] inputs 槽序互锁;型底座←[4010].0/
     # 正向←边界 -10.0/负向←边界 -10.2 三外部原文参考路)
-    assert list(opt) == ["系统提示词", "色卡", "美术风格底座", "型底座", "正向提示词",
-                         "负向提示词", "画幅宽", "画幅高", "型负面", "透明模式",
-                         "正向扩写全文", "负向扩写清单"], \
-        f"optional 槽序漂移(1006 六轮十二槽),得 {list(opt)}"
-    for k in ("系统提示词", "色卡", "美术风格底座", "型底座", "正向提示词", "负向提示词", "型负面"):
+    assert list(opt) == ["系统提示词", "色卡", "美术风格底座", "正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高", "透明模式"], \
+        f"optional 槽序漂移(1006 十轮十槽),得 {list(opt)}"
+    for k in ("系统提示词", "色卡", "美术风格底座", "类型句正向", "正向提示词", "负向提示词", "类型句负向"):
         assert opt[k][0] == "STRING" and opt[k][1].get("forceInput") is True, \
             f"{k} 应 forceInput 纯槽(1006 六轮:带名连线点)"
-    assert opt["透明模式"][0] == "BOOLEAN" and opt["透明模式"][1].get("default") is False
-    assert req["api_url"][1]["default"] == "http://127.0.0.1:1234"
-    assert req["model"][1]["default"] == "qwen3.8-27b-uncensored-mlx"
+    assert opt["透明模式"][0] == "BOOLEAN" and opt["透明模式"][1].get("forceInput") is True
+    assert req["api_url"][1]["default"] == "http://192.168.0.101:1234,http://127.0.0.1:1234"
+    assert req["model"][1]["default"] == "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx"
 
 
 def test_passthrough_when_service_unreachable():
     """LM Studio 不可达→透传 {ui, result}=PE关同效不炸产线(1006 四轮双载荷)。"""
     node = api_pe.MyQi21ApiPE()
-    got = node.rewrite(装配全文="测试装配全文原样透传", 负面词=None,
-                       系统提示词=None, 色卡=None, 美术风格底座=None,
-                       型底座="型底座原文", 正向提示词="外部正向原文",
-                       负向提示词="外部负向原文", 透明模式=False,
-                       api_url="http://127.0.0.1:9",  # 9口拒绝口,秒败
-                       model="x", temperature=0.7, max_tokens=64, timeout_sec=5)
-    assert got["result"] == ("测试装配全文原样透传", ""), \
-        f"不可达应双口透传(原文,空负向;批C 三外部原文不改变透传形),得 {got!r}"
-    assert got["ui"]["api_pe_pos"] == ["测试装配全文原样透传"], \
+    got = node.rewrite(正向提示词="测试主体句原样透传", 类型句正向="BASE层",
+                       美术风格底座=None, 色卡=None, 类型句负向="模糊", api_url="http://127.0.0.1:9",
+                       model="x", temperature=0.7, max_tokens=256, timeout_sec=10)
+    pos, neg = got["result"][0], got["result"][1]
+    assert pos.startswith("测试主体句原样透传\nBASE层\n风格底座"), \
+        f"不可达应输出自装配三层正稿(恒有输出),得头40={pos[:40]!r}"
+    assert "模糊" in neg and "水印" in neg, \
+        f"降级负向=型负面+锁层负面+外部负向 三源合并,得头60={neg[:60]!r}"
+    assert got["ui"]["api_pe_pos"][0] == pos and got["ui"]["api_pe_neg"][0] == neg, \
         "ui 载荷须与 result 同文(JS 展示框回填源)"
 
 
@@ -67,12 +65,14 @@ def test_balanced_json_strips_noise():
 
 
 def test_system_prompt_hotread_with_patches():
-    """教材热读:含 /no_think 与肯定式纪律补丁;真源在场时含中文教材标记。"""
+    """教材热读:真源在场时含中文教材标记。
+    1007 起 /no_think 尾巴退役(五探实弹:文本软开关被 aggressive finetune 无视;
+    思考控制改走顶层 reasoning_effort,接线见 thinking_effort 档位)。"""
     text = api_pe._build_system(None, None)
-    assert text.rstrip().endswith("/no_think"), "句尾必须 /no_think(思考模式吃预算案)"
-    assert "肯定式" in text and "negative_prompt" in text
-    assert "锚点权重最高" in text and "外部手写原文" in text, \
-        "批C 系统补丁必须在(外部正/负向提示词=锚点权重最高,逐字保留其实体)"
+    assert not text.rstrip().endswith("/no_think"), "/no_think 已退役(1007)"
+    assert "八步工作法" in text and "negative_prompt" in text
+    assert "色卡全库" in text and "透明模式" in text and "冲突裁决" in text and "八步工作法" in text, \
+        "十一轮合并教材=原文八步+色卡42色+透明+裁决序"
 
 
 def test_registered_in_node_mappings():
@@ -87,13 +87,14 @@ def test_full_context_assembly_1006r2():
     """二轮全上下文:色卡/风格热读进系统提示与用户消息;禁复述铁律在场。"""
     node = api_pe.MyQi21ApiPE()
     text = api_pe._build_system(None, None)
-    assert "全文润炼铁律" in text, "全文润炼铁律必须在系统提示(五轮)"
-    assert "禁止 Markdown 围栏" in text, "JSON 输出铁律必须在(结构化解析)"
+    assert "色卡全库" in text and "透明模式" in text and "冲突裁决" in text and "八步" in text, \
+        "十一轮教材=原文八步+42色+透明+裁决"
+    assert "八步工作法" in text, "JSON 输出铁律必须在(结构化解析)"
     assert "色卡" in text, "色卡块必须进系统提示(词表+落点纪律)"
     style, colors = api_pe._context_materials()
     assert len(style) > 300 and "淡墨" in colors, "lock_layer 与 color_lexicon 热读在场"
     import inspect
     sig = inspect.signature(node.rewrite)
-    for k in ("装配全文", "负面词", "系统提示词", "色卡", "美术风格底座",
-              "型底座", "正向提示词", "负向提示词", "透明模式"):
-        assert k in sig.parameters, f"{k} 须进签名(批C 九入终炼架构)"
+    for k in ("正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高",
+              "透明模式", "系统提示词", "色卡", "美术风格底座"):
+        assert k in sig.parameters, f"{k} 须进签名(七轮十入,装配内置)"

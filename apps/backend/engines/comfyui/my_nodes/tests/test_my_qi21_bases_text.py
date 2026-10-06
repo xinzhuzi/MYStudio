@@ -23,8 +23,12 @@ def test_three_sections_hotread():
     教材 = bt._section_text("系统提示词")
     色卡 = bt._section_text("色卡")
     风格 = bt._section_text("美术风格底座")
-    assert "扩写" in 教材 and len(教材) > 500, "教材应 935 字级"
-    assert "淡墨" in 色卡 and "实物" in 色卡 and 色卡.count("\n") >= 10, "色卡应词表+纪律"
+    # 1007 v9:色库数据出教材归[4031]——教材只留选题逻辑,数据块不得在场
+    assert "八步工作法" in 教材 and "色卡选题" in 教材 and len(教材) > 2500, \
+        "教材应 2500+ 字(八步法+选题逻辑)"
+    assert "项目色卡全库" not in 教材, "色库数据已迁[4031],教材不得内嵌(1007 用户令)"
+    assert "42色" in 色卡 or "42 色" in 色卡, "色卡应含42色全库"
+    assert "★在用" in 色卡 and "hex=" in 色卡 and "五职责" in 色卡, "色卡应在用标记+hex+五职责"
     assert len(风格) > 300, "风格底座应锁层A全文量级"
 
 

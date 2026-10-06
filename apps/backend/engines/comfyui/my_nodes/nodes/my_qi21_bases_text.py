@@ -86,12 +86,42 @@ def _section_text(section: str) -> str:
         raw = (data.get("lock_layer") or {}).get("positive_text")
         return str(raw).strip() if isinstance(raw, str) else ""
     if section == "色卡":
-        lines = ["大面积基底=淡墨;主体色=石青/青绿/赭石;点睛(accent)只落一个叙事焦点=旧金或朱红(仅来源事实存在时)",
-                 "色词必须落到实物载体(部件/材质/布面),禁落光效特效;禁裸色词(色+材质组合,如「石青丝绦」)"]
-        for word, ent in sorted((data.get("color_lexicon") or {}).get("entries", {}).items()):
+        cl = data.get("color_lexicon") or {}
+        if not cl:
+            return ""
+        IN_USE = set(cl.get("entries", {}).keys())
+        L = [f"版本{cl.get('version','')}({cl.get('updated','')}) | 范围:{cl.get('scope_rule','')}",
+             f"用法:{cl.get('usage','')}",
+             "冲突裁决序(高>低): " + " > ".join(cl.get("conflict_order", [])),
+             "五职责制:"]
+        for rk, rv in (cl.get("roles") or {}).items():
+            if isinstance(rv, str) and rk != "note":
+                L.append(f"  {rk}: {rv}")
+        # 在用 10 词
+        L.append(f"\n═ ★在用色卡({len(IN_USE)}词,优先选) ═")
+        for i, (word, ent) in enumerate(sorted(cl.get("entries", {}).items()), 1):
             if isinstance(ent, dict):
-                lines.append(f"{word}({ent.get('ma_id', '')}):{ent.get('usage_hint', '')}")
-        return "\n".join(lines) if len(lines) > 2 else ""
+                L.append(f"  {i}. {word}({ent.get('ma_id','')}) hex={ent.get('hex','')} "
+                         f"| {ent.get('usage_hint','')} | 在用:{'/'.join(ent.get('in_use', []))}")
+        # 42 色全库(读 palette-canon.json)
+        canon_p = _BASES_JSON.parent.parent / "ma_sync" / "palette-canon.json"
+        try:
+            canon = json.loads(canon_p.read_text(encoding="utf-8"))
+            colors = canon.get("colors", [])
+            groups = {g["groupId"]: g["name"] for g in canon.get("colorGroups", [])}
+            L.append(f"\n═ 备选色卡全库({len(colors)}色,含在用) ═")
+            by_group = {}
+            for c in colors:
+                by_group.setdefault(c.get("groupId", "?"), []).append(c)
+            for gid in sorted(by_group):
+                gname = groups.get(gid, gid)
+                L.append(f"\n【{gname}系】")
+                for c in by_group[gid]:
+                    tag = " ★在用" if c.get("name") in IN_USE else ""
+                    L.append(f"  {c['colorId']} {c['name']} #{c['hex']} — {c.get('mediumRole','')};适合:{c.get('suitable','')}{tag}")
+        except Exception as exc:
+            L.append(f"\n(备选42色库读取失败:{exc})")
+        return "\n".join(L)
     return ""
 
 
@@ -129,3 +159,39 @@ class MyQi21BasesText:
         if not text:
             print(f"[漫影 真源文本] 「{文本节}」节为空——请检查 qi21_bases.json 对应节")
         return {"ui": {"bases_text": [text]}, "result": (text,)}
+
+
+# ── 1006 九轮:三专用类(零控件零下拉,节点即出口;用户令「选择的控件不需要」)──
+def _make_section_node(section: str, display: str):
+    """造一个零控件真源出口类:无 INPUT_TYPES(无 widget/无下拉),仅一口 STRING 出。"""
+    class _SectionNode:
+        CATEGORY = "漫影"
+        DESCRIPTION = f"{display}:qi21_bases.json 热读只读出口(零控件,节点即管道)"
+
+        @classmethod
+        def INPUT_TYPES(cls):
+            return {"required": {}, "optional": {
+                "内容": ("STRING", {"multiline": True,
+                                    "tooltip": f"{display}全文展示(JS 回填;预填=部署时快照"}),
+            }}
+
+        RETURN_TYPES = ("STRING",)
+        RETURN_NAMES = ("文本",)
+        FUNCTION = "output"
+        OUTPUT_NODE = True
+
+        def output(self, 内容: str = ""):
+            _ = 内容  # 展示框值不参与计算(JS 回填/预填快照)
+            text = _section_text(section)
+            if not text:
+                print(f"[漫影 {display}] 「{section}」节为空——请检查 qi21_bases.json")
+            return {"ui": {"bases_text": [text]}, "result": (text,)}
+
+    _SectionNode.__name__ = f"MyQi21{section.replace(' ', '')}"
+    _SectionNode.__qualname__ = _SectionNode.__name__
+    return _SectionNode
+
+
+MyQi21系统提示词 = _make_section_node("系统提示词", "系统提示词")
+MyQi21色卡 = _make_section_node("色卡", "色卡")
+MyQi21美术风格底座 = _make_section_node("美术风格底座", "美术风格底座")

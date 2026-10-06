@@ -155,3 +155,6 @@ docs/prompts/portrait_aesthetics/.DS_Store
 # 道劫九型实弹/消融证据:PNG 大件不入库(审计真源=runs_audit.json;图在 ~/Downloads 同名镜像)
 docs/prompts/道劫_九型实弹_0919/**/*.png
 apps/build/scripts/campaigns/
+
+# qi21 教材实弹测具与运行进度件(livefire 家,08规范§8.7 引用;进度/报告件不入库,同 campaigns 惯例)
+apps/backend/engines/comfyui/runs/
