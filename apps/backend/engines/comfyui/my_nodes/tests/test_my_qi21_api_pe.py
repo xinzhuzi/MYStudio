@@ -149,3 +149,42 @@ def test_cloud_key_runtime_takes_priority_1007(monkeypatch):
         monkeypatch.delenv("MYSTUDIO_QI21_PE_KEY", raising=False)
     # 路由注册函数在无 PromptServer 环境可安全调用(单测直载即此形态)
     api_pe._register_key_route()  # 不抛即过
+
+
+def test_cloud_targets_builtin_local_guaranteed_1007night():
+    """1007夜脏图役补强:云端模式目标链=云端在前+api_url列表+内置本地对
+    强制链尾去重——api_url 被填成云端地址(00011 实弹形态)时本地 9B 仍在链。"""
+    # 00011 形态:api_url 填了云端 anthropic 口,本地列表被挤掉
+    urls, models = api_pe._cloud_targets(
+        "https://open.bigmodel.cn/api/anthropic", "GLM-5.3")
+    assert urls[0] == api_pe._CLOUD_URL.rstrip("/") and models[0] == api_pe._CLOUD_MODEL, \
+        "云端永远打头"
+    assert "http://192.168.0.101:1234" in urls and "http://127.0.0.1:1234" in urls, \
+        f"内置本地对必须兜底在场(00011 实弹:云端429+本地不在链=透传=脏图),得 {urls}"
+    i = urls.index("http://192.168.0.101:1234")
+    assert models[i] == "qwen3.5-9b-uncensored-hauhaucs-aggressive", "内置对 URL/model 配对"
+    assert urls[-1] == "http://127.0.0.1:1234", "内置本地在链尾(先试远端 9B 再本机 27B)"
+
+    # api_url 留空:本地默认列表+内置对合并不重不漏
+    urls2, models2 = api_pe._cloud_targets(None, None)
+    assert urls2[1] == "http://192.168.0.101:1234" and urls2[2] == "http://127.0.0.1:1234"
+    assert len(urls2) == 3 and len(set(urls2)) == 3, f"空 api_url 应恰云端+两本地,得 {urls2}"
+
+    # api_url 本来就含内置本地:去重不双插
+    urls3, _ = api_pe._cloud_targets(
+        "http://192.168.0.101:1234,http://127.0.0.1:1234", "m1,m2")
+    assert urls3.count("http://192.168.0.101:1234") == 1, "内置对去重"
+    assert len(urls3) == 3
+
+
+def test_sanitize_negative_strips_dirty_words_1007():
+    """1007 用户令「解决脏问题」:扩写自补的构图景深词(远处/背景等)按整词剥,
+    其余负面词逐条保留;真源负面六词恒无(复核在案),剥除不误伤。"""
+    dirty = "模糊, 水印, 远处，背景, 写实油画, 远景, 景深"
+    out = api_pe._sanitize_negative(dirty)
+    for w in api_pe._NEG_DIRTY_WORDS:
+        assert w not in out.split(", "), f"{w} 应被整词剥除"
+    assert "模糊" in out and "水印" in out and "写实油画" in out
+    # 全脏=保底原文不清空;空串=原样
+    assert api_pe._sanitize_negative("远处,背景") == "远处,背景"
+    assert api_pe._sanitize_negative("") == ""

@@ -27,8 +27,9 @@ thinking_effort 档位 → 顶层 reasoning_effort 参数(none=硬关,不发=模
     ~70s/发,冷首发与长思考更慢——耐心或加 timeout_sec)。
   - 云端开关=api_key 控件(1007 用户令「填写apikey就是走云端,不填写走本地」):
     填→_CLOUD_URL/_CLOUD_MODEL 内置(bigmodel v4+glm-5.3-flash)key=填的值;
-    留空→api_url/model 原样(本地),key 永不查。云端失败→回落本地透传,
-    api_pe_status 明示「云端失败:HTTP码+原因」(画布标红)。key 勿明文落
+    留空→api_url/model 原样(本地),key 永不查。云端失败→回落本地列表逐个
+    改写(1007晚用户令:云端挂≠弃改写),全挂才透传;api_pe_status 明示
+    「云端失败:HTTP码+原因」(画布标红)。key 勿明文落
     代码/文档/工作流;档位映射逐目标:本地关闭→none/云端 low|max(1210 值域)。
 
 全上下文三轮(1006 用户令「五样上下文在子图里必须是节点,全连进本件,
@@ -83,6 +84,28 @@ _RUNTIME_KEY: str | None = None  # UI 控件通道(引擎进程内存,重启即�
 # 模型钉死 glm-5.3-flash 勿擅换——同 local-ocr 技能钉型令)
 _CLOUD_URL = os.environ.get("MYSTUDIO_QI21_CLOUD_URL", "https://open.bigmodel.cn/api/paas/v4")
 _CLOUD_MODEL = os.environ.get("MYSTUDIO_QI21_CLOUD_MODEL", "glm-5.3-flash")
+# 内置本地兜底对(URL, model)——cloud_mode 强制在链尾,防 api_url 被填成
+# 云端地址挤掉本地(1007夜 00011 实弹:云端429+本地不在链=透传=脏图)
+_BUILTIN_LOCAL: tuple[tuple[str, str], ...] = (
+    ("http://192.168.0.101:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive"),
+    ("http://127.0.0.1:1234", "qwen3.8-27b-uncensored-mlx"),
+)
+
+
+def _cloud_targets(api_url: str | None, model: str | None) -> tuple[list[str], list[str]]:
+    """云端模式目标链:云端在前 + api_url 本地列表 + 内置本地对强制追加去重。
+
+    1007晚用户令「云端挂≠弃改写」:旧版云端挂直接透传(弃了本地9B);
+    1007夜补强:api_url 填了云端地址时 local 列表全非本地,内置对保底。"""
+    urls = [_CLOUD_URL.rstrip("/")] + [
+        u.strip().rstrip("/") for u in (api_url or "").split(",") if u.strip()]
+    models = [_CLOUD_MODEL] + [
+        m.strip() for m in (model or "").split(",") if m.strip()]
+    for _u, _m in _BUILTIN_LOCAL:
+        if _u not in urls:
+            urls.append(_u)
+            models.append(_m)
+    return urls, models
 
 
 def _cloud_key() -> str:
@@ -427,6 +450,33 @@ def _self_check(pos: str, neg: str, neg_tokens: list[str],
     return v
 
 
+_NEG_DIRTY_WORDS = ("远处", "背景", "远景", "近景", "中景", "景深")
+
+
+def _sanitize_negative(neg: str) -> str:
+    """剥扩写自补的构图景深脏词(1007 用户令「解决脏问题」)。
+
+    实弹档案:场景终稿负向末尾被 9B 自补「远处」、人物被自补「远处, 背景」
+    ——型负面/锁层负面/装配代码三处真源恒无(1007 复核六词零命中),且与
+    正向内容词(远景淡墨云海等)直接打架=负向禁画远处/背景,正向又要画。
+    剥除=确定性后处理,不依赖模型听话;按整词剥(逗号分词,非子串替换),
+    真源负面若未来合法引入这些词须同步修订本表。
+    """
+    if not neg:
+        return neg
+    parts = re.split(r"([,，])", neg)
+    out: list[str] = []
+    for idx, p in enumerate(parts):
+        if p.strip() in _NEG_DIRTY_WORDS:
+            if out and out[-1] in (",", "，"):
+                out.pop()  # 词在中段/尾部:吃掉词前分隔符
+            elif idx + 1 < len(parts) and parts[idx + 1] in (",", "，"):
+                parts[idx + 1] = ""  # 词在首位:吃掉词后分隔符
+            continue
+        out.append(p)
+    return "".join(out) or neg
+
+
 def _balanced_json(text: str) -> dict | None:
     """从模型答文里剥出第一个深度归零的 JSON 对象(容忍前后噪声/空白)。"""
     try:
@@ -568,12 +618,15 @@ class MyQi21ApiPE:
         # 1007 用户令(开关=api_key 控件):填=云端(_CLOUD_URL/_CLOUD_MODEL 内置,
         # key=填的值),留空=本地(api_url/model 原样);云端失败→回落本地并明示原因
         cloud_mode = bool(_RUNTIME_KEY)
+        local_urls = [u.strip().rstrip("/") for u in (api_url or "http://192.168.0.101:1234,http://127.0.0.1:1234").split(",") if u.strip()]
+        local_models = [m.strip() for m in (model or "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx").split(",") if m.strip()]
         if cloud_mode:
-            urls = [_CLOUD_URL.rstrip("/")]
-            models = [_CLOUD_MODEL]
+            # 1007晚(用户令「按建议做完」):云端在前,挂了回落本地列表逐个
+            # 改写(旧=云端挂直接透传,弃了本地9B)——全挂才透传;
+            # 内置本地对强制链尾保底(见 _cloud_targets,1007夜脏图役)
+            urls, models = _cloud_targets(api_url, model)
         else:
-            urls = [u.strip().rstrip("/") for u in (api_url or "http://192.168.0.101:1234,http://127.0.0.1:1234").split(",") if u.strip()]
-            models = [m.strip() for m in (model or "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx").split(",") if m.strip()]
+            urls, models = local_urls, local_models
         # URL+model 按索引配对;model 不够时用末位
         pair = lambda i: (urls[i], models[i] if i < len(models) else models[-1] if models else "qwen3.5-9b")
         payload = {
@@ -648,8 +701,9 @@ class MyQi21ApiPE:
         if resp is None:
             _why = "; ".join(_errs[-2:]) if _errs else "无目标"
             if cloud_mode:
-                print(f"[漫影 API扩写PE] 云端失败({_why})→已回落本地透传自装配三层(恒有输出)")
-                _status = f"云端失败:{_why}→已回落本地透传"
+                print(f"[漫影 API扩写PE] 云端失败({_why})→内置本地兜底亦全挂——"
+                      f"本发透传自装配三层(恒有输出);请检查 LM Studio 服务与云端余额")
+                _status = f"云端失败:{_why}→本地兜底全挂,透传"
             else:
                 print(f"[漫影 API扩写PE] 全部 {len(urls)} 个 LM Studio 均不可达({_why})——"
                       f"本发透传自装配三层(恒有输出);请检查 LM Studio 服务")
@@ -684,7 +738,7 @@ class MyQi21ApiPE:
         if isinstance(pos, str) and pos.strip():
             neg = obj.get("negative_prompt")
             pos_s, neg_s = pos.strip(), (neg.strip() if isinstance(neg, str) else "")
-            neg_s = neg_s or neg_fallback
+            neg_s = _sanitize_negative(neg_s or neg_fallback)
             if 透明模式:
                 pos_s = _strip_env_parens(_strip_env_sentences(pos_s, subj))
             # 1006 B案(用户拍板):出稿机器自检——①负向三源逐条 ②透明开黑名单
@@ -711,7 +765,7 @@ class MyQi21ApiPE:
                     if isinstance(_p3, str) and _p3.strip():
                         _n3 = (_o3.get("negative_prompt")
                                if isinstance(_o3.get("negative_prompt"), str) else "")
-                        _n3 = _n3.strip() or neg_fallback
+                        _n3 = _sanitize_negative(_n3.strip() or neg_fallback)
                         _p3s = _strip_env_parens(_strip_env_sentences(
                             _p3.strip(), subj)) if 透明模式 else _p3.strip()
                         v2 = _self_check(_p3s, _n3, neg_tokens,
@@ -727,8 +781,11 @@ class MyQi21ApiPE:
             print(f"[漫影 API扩写PE] 扩写完成:{len(pos_s)}字,"
                   f"耗时 {time.time() - t0:.0f}s(全上下文:系统提示词/色卡/"
                   f"风格/型底座/外部原文/透明)")
+            _ok = f"AI扩写OK:{served}"
+            if cloud_mode and not served.endswith("(云端)"):
+                _ok += "(云端失败→本地回落改写)"
             return {"ui": {"api_pe_pos": [pos_s], "api_pe_neg": [neg_s],
-                           "api_pe_status": [f"AI扩写OK:{served}"]},
+                           "api_pe_status": [_ok]},
                     "result": (pos_s, neg_s, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         print(f"[漫影 API扩写PE] 答文无 rewritten_prompt(解析失败)——透传原文;"
               f"正文{len(content)}字/思考{len(reasoning)}字,正文头200:{content[:200]!r}")
