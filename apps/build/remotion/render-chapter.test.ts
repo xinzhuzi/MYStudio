@@ -57,7 +57,7 @@ describe("runChapterSmoke lifecycle", () => {
         schemaVersion: 2,
         templateId: "mystudio-remotion-v1",
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
         compositionId: "DaojieTimeline",
         contentHash: "a".repeat(64),

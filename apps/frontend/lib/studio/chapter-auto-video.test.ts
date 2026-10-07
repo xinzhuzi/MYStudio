@@ -268,7 +268,7 @@ function createDependencies(options: { missingMedia?: boolean; storyboardCount?:
           renderSettingsHash: "c".repeat(64),
           jobId: `remotion-${item.id}`,
           templateVersion: "1.0.0",
-          remotionVersion: "4.0.499",
+          remotionVersion: "4.0.533",
           status: "queued" as const,
           attempt: 0,
           progress: 0,

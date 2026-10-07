@@ -8,7 +8,7 @@ import { hashBundleContent, verifyFixedRemotionBundle } from "./bundle-preflight
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "remotion-preflight-"));
   fs.mkdirSync(path.join(root, ".cache", "remotion-bundle"), { recursive: true });
-  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.499" }}));
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.533" }}));
   const dir = path.join(root, ".cache", "remotion-bundle");
   for (const file of ["index.html", "bundle.js", "bundle.js.map"]) fs.writeFileSync(path.join(dir, file), file);
   const contentHash = hashBundleContent(dir);
@@ -16,7 +16,7 @@ function fixture() {
     schemaVersion: 2,
     templateId: "mystudio-remotion-v1",
     templateVersion: "1.0.0",
-    remotionVersion: "4.0.499",
+    remotionVersion: "4.0.533",
     compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
     compositionId: "DaojieTimeline",
     contentHash,
@@ -33,7 +33,7 @@ describe("fixed Remotion bundle preflight", () => {
   it("rejects version drift and content drift", () => {
     const { root, dir } = fixture(); fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.500" }}));
     expect(() => verifyFixedRemotionBundle({ appRoot: root })).toThrow(/版本漂移/);
-    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.499" }})); fs.appendFileSync(path.join(dir, "bundle.js"), "drift");
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.533" }})); fs.appendFileSync(path.join(dir, "bundle.js"), "drift");
     expect(() => verifyFixedRemotionBundle({ appRoot: root })).toThrow(/contentHash/);
   });
   it("rejects a reordered or incomplete composition registry", () => {

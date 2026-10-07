@@ -53,7 +53,7 @@ const job = {
   bundleContentHash: "b".repeat(64),
   renderSettingsHash: "c".repeat(64),
   templateVersion: "1.0.0",
-  remotionVersion: "4.0.499",
+  remotionVersion: "4.0.533",
   status: "ready",
   attempt: 0,
   progress: 0,
@@ -138,7 +138,7 @@ describe("useFirstShotPreviewActions", () => {
     window.remotionRuntime = {
       workspaceRuntime: vi.fn(async () => ({
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         bundleContentHash: "b".repeat(64),
         defaultRenderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
       })),
@@ -199,7 +199,7 @@ describe("useFirstShotPreviewActions", () => {
     window.remotionRuntime = {
       workspaceRuntime: vi.fn(async () => ({
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         bundleContentHash: "b".repeat(64),
         defaultRenderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
       })),
@@ -255,7 +255,7 @@ describe("useFirstShotPreviewActions", () => {
     window.remotionRuntime = {
       workspaceRuntime: vi.fn(async () => ({
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         bundleContentHash: "b".repeat(64),
         defaultRenderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
       })),
@@ -288,7 +288,7 @@ describe("useFirstShotPreviewActions", () => {
     window.remotionRuntime = {
       workspaceRuntime: vi.fn(async () => ({
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         bundleContentHash: "b".repeat(64),
         defaultRenderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
       })),
@@ -361,7 +361,7 @@ describe("useFirstShotPreviewActions", () => {
     await act(async () => {
       resolveRuntime?.({
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         bundleContentHash: "b".repeat(64),
         defaultRenderSettings: DEFAULT_REMOTION_RENDER_SETTINGS,
       });

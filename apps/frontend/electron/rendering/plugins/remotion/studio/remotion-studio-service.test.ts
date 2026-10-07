@@ -126,9 +126,9 @@ function fakeServer(
   return {
     upstreamPort: port,
     versions: {
-      remotion: "4.0.499",
-      renderer: "4.0.499",
-      studioServer: "4.0.499",
+      remotion: "4.0.533",
+      renderer: "4.0.533",
+      studioServer: "4.0.533",
     },
     close,
   };

@@ -38,14 +38,14 @@ describe("Remotion fixed bundle", () => {
     expect(contentHash).toMatch(/^[a-f0-9]{64}$/);
     expect(
       buildBundleManifest({
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         contentHash,
       }),
     ).toEqual({
       schemaVersion: BUNDLE_MANIFEST_SCHEMA_VERSION,
       templateId: REMOTION_TEMPLATE_ID,
       templateVersion: REMOTION_TEMPLATE_VERSION,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       compositionIds: BUNDLED_COMPOSITION_IDS,
       compositionId: "DaojieTimeline",
       contentHash,
@@ -55,10 +55,10 @@ describe("Remotion fixed bundle", () => {
   it("rejects drifted or incomplete manifest inputs", () => {
     const hash = hashBundleContent("x");
     expect(() =>
-      buildBundleManifest({ remotionVersion: "^4.0.499", contentHash: hash }),
+      buildBundleManifest({ remotionVersion: "^4.0.533", contentHash: hash }),
     ).toThrow("精确 Remotion semver");
     expect(() =>
-      buildBundleManifest({ remotionVersion: "4.0.499", contentHash: "nope" }),
+      buildBundleManifest({ remotionVersion: "4.0.533", contentHash: "nope" }),
     ).toThrow("sha256 contentHash");
   });
 
@@ -80,7 +80,7 @@ describe("Remotion fixed bundle", () => {
       "export default {};\n",
       "utf8",
     );
-    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.499" } }), "utf8");
+    fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ dependencies: { remotion: "4.0.533" } }), "utf8");
     try {
       const calls: string[] = [];
       const result = await runBundle({
@@ -96,7 +96,7 @@ describe("Remotion fixed bundle", () => {
         schemaVersion: BUNDLE_MANIFEST_SCHEMA_VERSION,
         templateId: REMOTION_TEMPLATE_ID,
         templateVersion: REMOTION_TEMPLATE_VERSION,
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         compositionIds: BUNDLED_COMPOSITION_IDS,
         compositionId: "DaojieTimeline",
       });

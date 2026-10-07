@@ -52,7 +52,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     const children: FakeUtilityProcess[] = [];
     const supervisor = new RemotionBrowserUtilitySupervisor({
       userDataDir: userData,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       workerPath: "/app/remotion-browser-worker.cjs",
       fork: () => {
         const child = new FakeUtilityProcess();
@@ -66,7 +66,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     children[0].reply({
       kind: "result",
       requestId: statusRequest.requestId,
-      status: { state: "not-installed", remotionVersion: "4.0.499" },
+      status: { state: "not-installed", remotionVersion: "4.0.533" },
     });
     await status;
 
@@ -75,7 +75,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     children[1].reply({
       kind: "result",
       requestId: downloadRequest.requestId,
-      status: { state: "ready", remotionVersion: "4.0.499" },
+      status: { state: "ready", remotionVersion: "4.0.533" },
       executablePath: "/tmp/headless-shell",
     });
     await download;
@@ -92,7 +92,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     const child = new FakeUtilityProcess();
     const supervisor = new RemotionBrowserUtilitySupervisor({
       userDataDir: userData,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       workerPath: "/app/remotion-browser-worker.cjs",
       fork: () => child,
     });
@@ -130,7 +130,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     const children: FakeUtilityProcess[] = [];
     const supervisor = new RemotionBrowserUtilitySupervisor({
       userDataDir: userData,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       workerPath: "/app/remotion-browser-worker.cjs",
       fork: (_modulePath, _args, options) => {
         expect(options.cwd).toBe(path.join(userData, "remotion-runtime"));
@@ -146,7 +146,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     probeChild.reply({
       kind: "result",
       requestId: probeRequest.requestId,
-      status: { state: "not-installed", remotionVersion: "4.0.499" },
+      status: { state: "not-installed", remotionVersion: "4.0.533" },
     });
     await expect(probe).resolves.toMatchObject({ status: { state: "not-installed" } });
     expect(probeChild.killed).toBe(true);
@@ -159,16 +159,16 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     downloadChild.reply({
       kind: "progress",
       requestId: downloadRequest.requestId,
-      progress: { phase: "downloading", ratio: 0.25, remotionVersion: "4.0.499" },
+      progress: { phase: "downloading", ratio: 0.25, remotionVersion: "4.0.533" },
     });
     downloadChild.reply({
       kind: "result",
       requestId: downloadRequest.requestId,
-      status: { state: "ready", remotionVersion: "4.0.499" },
+      status: { state: "ready", remotionVersion: "4.0.533" },
       executablePath: "/tmp/headless-shell",
     });
     await expect(download).resolves.toEqual({
-      status: { state: "ready", remotionVersion: "4.0.499" },
+      status: { state: "ready", remotionVersion: "4.0.533" },
       executablePath: "/tmp/headless-shell",
     });
     expect(ratios).toEqual([0.25]);
@@ -176,7 +176,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     expect(children).toHaveLength(2);
     expect(JSON.parse(fs.readFileSync(path.join(userData, "remotion-runtime/package.json"), "utf8"))).toMatchObject({
       name: "@mystudio/remotion-runtime",
-      version: "4.0.499",
+      version: "4.0.533",
       private: true,
     });
     supervisor.dispose();
@@ -188,7 +188,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     const child = new FakeUtilityProcess();
     const supervisor = new RemotionBrowserUtilitySupervisor({
       userDataDir: userData,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       workerPath: "/app/remotion-browser-worker.cjs",
       fork: () => child,
     });
@@ -204,7 +204,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     const child = new FakeUtilityProcess();
     const supervisor = new RemotionBrowserUtilitySupervisor({
       userDataDir: userData,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       workerPath: "/app/remotion-browser-worker.cjs",
       fork: () => child,
     });
@@ -216,7 +216,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     child.reply({
       kind: "result",
       requestId: request.requestId,
-      status: { state: "not-installed", remotionVersion: "4.0.499" },
+      status: { state: "not-installed", remotionVersion: "4.0.533" },
     });
     await first;
     fs.rmSync(userData, { recursive: true, force: true });
@@ -227,7 +227,7 @@ describe("RemotionBrowserUtilitySupervisor", () => {
     const child = new FakeUtilityProcess();
     const supervisor = new RemotionBrowserUtilitySupervisor({
       userDataDir: userData,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       workerPath: "/app/remotion-browser-worker.cjs",
       fork: () => child,
     });

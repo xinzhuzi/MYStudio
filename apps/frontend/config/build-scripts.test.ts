@@ -1817,7 +1817,7 @@ describe("desktop build scripts", () => {
       bundleContentHash: "b".repeat(64),
       renderSettingsHash: "c".repeat(64),
       templateVersion: "1.0.0",
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       attempt: 1,
     };
     const evidence = {
@@ -1874,14 +1874,14 @@ describe("desktop build scripts", () => {
       uiOutputPath: outputPath,
       browserStatus: {
         state: "ready",
-        remotionVersion: "4.0.499",
-        preparedForRemotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
+        preparedForRemotionVersion: "4.0.533",
       },
       workspaceRuntime: {
         schemaVersion: 1,
         templateId: "mystudio-remotion-v1",
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.499",
+        remotionVersion: "4.0.533",
         bundleContentHash: "b".repeat(64),
         compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
       },
@@ -1898,7 +1898,7 @@ describe("desktop build scripts", () => {
     const drifted = auditVisibleFirstShotPreview({
       firstShotPreview: {
         ...firstShotPreview,
-        downloadProgressEvents: [{ phase: "downloading", ratio: 0.5, remotionVersion: "4.0.499" }],
+        downloadProgressEvents: [{ phase: "downloading", ratio: 0.5, remotionVersion: "4.0.533" }],
       },
       userDataDir,
       expected: { ...expected, shotRevision: 8 },

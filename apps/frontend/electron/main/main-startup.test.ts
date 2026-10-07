@@ -75,7 +75,7 @@ describe("main process startup", () => {
     expect(beforeQuitBlock).toContain("stopLocalServices: stopAllLocalServices");
     expect(mainSource).toContain("disposeRemotionRuntime?.()");
     expect(mainSource).toContain("package.json 必须声明精确 Remotion 版本");
-    expect(mainSource).not.toContain("?? '4.0.499'");
+    expect(mainSource).not.toContain("?? '4.0.533'");
   });
 
   it("图片生图 sidecar 随本地服务一并停止(09-02 僵尸端口窗口根修)", () => {

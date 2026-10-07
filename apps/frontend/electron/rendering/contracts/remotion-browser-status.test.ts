@@ -19,8 +19,8 @@ describe("validateRemotionBrowserStatus", () => {
   it("accepts a well-formed status", () => {
     const result = validateRemotionBrowserStatus({
       state: "ready",
-      remotionVersion: "4.0.499",
-      preparedForRemotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
+      preparedForRemotionVersion: "4.0.533",
     });
     expect(result.success).toBe(true);
   });
@@ -49,7 +49,7 @@ describe("validateRemotionBrowserStatus", () => {
   it("rejects a non-string prepared version", () => {
     const result = validateRemotionBrowserStatus({
       state: "ready",
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
       preparedForRemotionVersion: 4,
     });
     expect(result.success).toBe(false);
@@ -61,7 +61,7 @@ describe("validateRemotionBrowserDownloadProgress", () => {
     const result = validateRemotionBrowserDownloadProgress({
       phase: "downloading",
       ratio: 0.5,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
     });
     expect(result.success).toBe(true);
   });
@@ -70,7 +70,7 @@ describe("validateRemotionBrowserDownloadProgress", () => {
     const result = validateRemotionBrowserDownloadProgress({
       phase: "downloading",
       ratio: 1.5,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -82,7 +82,7 @@ describe("validateRemotionBrowserDownloadProgress", () => {
     const result = validateRemotionBrowserDownloadProgress({
       phase: "installing",
       ratio: 0.5,
-      remotionVersion: "4.0.499",
+      remotionVersion: "4.0.533",
     });
     expect(result.success).toBe(false);
   });

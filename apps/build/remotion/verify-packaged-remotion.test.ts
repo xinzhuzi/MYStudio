@@ -24,30 +24,30 @@ describe("packaged Remotion runtime", () => {
       const listAsarEntries = () => ["/out/main.js", "/node_modules/remotion/index.js"];
       expect(inspectPackagedRemotionApp(appPath, {
         listAsarEntries,
-        readRemotionVersion: () => "4.0.499",
-      }).manifest.remotionVersion).toBe("4.0.499");
+        readRemotionVersion: () => "4.0.533",
+      }).manifest.remotionVersion).toBe("4.0.533");
       fs.rmSync(workerChunkPath);
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries,
-        readRemotionVersion: () => "4.0.499",
+        readRemotionVersion: () => "4.0.533",
       })).toThrow("缺少解包 chunk");
       fs.writeFileSync(workerChunkPath, "module.exports = {};\n", "utf8");
       fs.appendFileSync(path.join(bundle, "bundle.js"), "tampered");
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries,
-        readRemotionVersion: () => "4.0.499",
+        readRemotionVersion: () => "4.0.533",
       })).toThrow("contentHash");
       fs.writeFileSync(path.join(bundle, "bundle.js"), "//# sourceMappingURL=bundle.js.map\n", "utf8");
       fs.rmSync(path.join(bundle, "bundle.js.map"));
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries,
-        readRemotionVersion: () => "4.0.499",
+        readRemotionVersion: () => "4.0.533",
       })).toThrow("bundle.js.map");
       fs.writeFileSync(path.join(bundle, "bundle.js.map"), "{}", "utf8");
       fs.rmSync(path.join(compositor, "ffprobe"));
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries,
-        readRemotionVersion: () => "4.0.499",
+        readRemotionVersion: () => "4.0.533",
       })).toThrow("ffprobe");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -66,7 +66,7 @@ describe("packaged Remotion runtime", () => {
     try {
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries: () => ["/out/main.js", forbiddenEntry],
-        readRemotionVersion: () => "4.0.499",
+        readRemotionVersion: () => "4.0.533",
       })).toThrow("禁止的 Remotion 开发/浏览器资源");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -93,7 +93,7 @@ describe("packaged Remotion runtime", () => {
     try {
       expect(() => inspectPackagedRemotionApp(appPath, {
         listAsarEntries: () => ["/out/main.js", "/node_modules/remotion/index.js"],
-        readRemotionVersion: () => "4.0.499",
+        readRemotionVersion: () => "4.0.533",
       })).toThrow("app.asar.unpacked 裸加载");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -144,7 +144,7 @@ function writeFixedBundleFixture(bundle: string): void {
     schemaVersion: 2,
     templateId: "mystudio-remotion-v1",
     templateVersion: "1.0.0",
-    remotionVersion: "4.0.499",
+    remotionVersion: "4.0.533",
     compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
     compositionId: "DaojieTimeline",
     contentHash: hashBundleContent(bundle),

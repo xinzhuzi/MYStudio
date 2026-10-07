@@ -17,7 +17,7 @@ function validManifest(overrides: Record<string, unknown> = {}) {
     schemaVersion: 2,
     templateId: "mystudio-remotion-v1",
     templateVersion: "1.0.0",
-    remotionVersion: "4.0.499",
+    remotionVersion: "4.0.533",
     compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
     compositionId: "DaojieTimeline",
     contentHash: VALID_HASH,
@@ -60,7 +60,7 @@ describe("validateBundleManifest", () => {
   });
 
   it("rejects a non-exact remotion version", () => {
-    const result = validateBundleManifest(validManifest({ remotionVersion: "^4.0.499" }));
+    const result = validateBundleManifest(validManifest({ remotionVersion: "^4.0.533" }));
     expect(result.success).toBe(false);
   });
 
@@ -94,7 +94,7 @@ describe("validateBundleManifest", () => {
 describe("assertBundleMatchesRuntime", () => {
   it("passes when bundle and runtime versions match", () => {
     expect(() =>
-      assertBundleMatchesRuntime(validManifest(), "4.0.499"),
+      assertBundleMatchesRuntime(validManifest(), "4.0.533"),
     ).not.toThrow();
   });
 
@@ -106,7 +106,7 @@ describe("assertBundleMatchesRuntime", () => {
 
   it("throws when the manifest itself is invalid", () => {
     expect(() =>
-      assertBundleMatchesRuntime({ schemaVersion: 2 }, "4.0.499"),
+      assertBundleMatchesRuntime({ schemaVersion: 2 }, "4.0.533"),
     ).toThrow();
   });
 });

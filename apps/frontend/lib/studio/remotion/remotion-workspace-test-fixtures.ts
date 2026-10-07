@@ -28,7 +28,7 @@ export function makeWorkspaceManifest(): RemotionWorkspaceManifestV1 {
     workspaceId: "workspace-project-a",
     templateId: "mystudio-remotion-v1",
     templateVersion: "1.0.0",
-    remotionVersion: "4.0.499",
+    remotionVersion: "4.0.533",
     bundleContentHash: TEST_SHA_A,
     compositionIds: ["StoryboardShot", "ChapterVideo"],
     defaultRenderSettings: {
@@ -247,7 +247,7 @@ export function makeSucceededShotJob(): RemotionRenderJobV1 {
     bundleContentHash: TEST_SHA_B,
     renderSettingsHash: TEST_SHA_C,
     templateVersion: "1.0.0",
-    remotionVersion: "4.0.499",
+    remotionVersion: "4.0.533",
     status: "succeeded",
     attempt: 1,
     progress: 1,

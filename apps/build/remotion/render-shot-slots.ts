@@ -44,7 +44,7 @@ import {
   resolveUserDataDir,
 } from "../timeline/storage-paths";
 
-const remotionVersion = "4.0.499";
+const remotionVersion = "4.0.533";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 const chapterId = process.env.MYSTUDIO_CHAPTER_ID || "chapter-001";
 

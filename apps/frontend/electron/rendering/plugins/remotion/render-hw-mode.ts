@@ -52,8 +52,9 @@ export function detectSystemChrome(): string | null {
 
 /**
  * renderMedia 通道参数（按开关分支；调用方不得把本结果并入 plan/hashInput）。
- * Remotion 4.0.499 无 chromeMode:"chrome"——完整 Chrome 的 Metal 路线 =
- * browserExecutable 指系统 Chrome + 不传 swangle（真 GPU 跑 headless）。
+ * （史实更新 1007：4.0.533 起 remotion 已提供 chromeMode（'chrome'|'headless-shell'），
+ * 4.0.499 时代确无——现行仍走 browserExecutable 指系统 Chrome + 不传 swangle
+ * （真 GPU 跑 headless）；是否改用原生 chromeMode 待单独评估，勿随手切。）
  * 探测不到系统 Chrome 时回退软渲（调用方以 browserExecutable 为准判通道）。
  */
 export function renderChannelOptions(

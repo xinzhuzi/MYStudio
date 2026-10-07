@@ -21,8 +21,8 @@ describe("verifyRemotionVersions", () => {
   it("accepts the installed MYStudio Remotion dependency set", () => {
     expect(verifyRemotionVersions()).toMatchObject({
       success: true,
-      expectedRemotionVersion: "4.0.499",
-      expectedMediabunnyVersion: "1.50.8",
+      expectedRemotionVersion: "4.0.533",
+      expectedMediabunnyVersion: "1.56.1",
       errors: [],
     });
   });
@@ -32,14 +32,14 @@ describe("verifyRemotionVersions", () => {
     const manifestPath = path.join(root, "package.json");
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     manifest.dependencies["@remotion/player"] = "4.0.498";
-    manifest.dependencies["@remotion/transitions"] = "4.0.499";
+    manifest.dependencies["@remotion/transitions"] = "4.0.533";
     writeJson(manifestPath, manifest);
 
     const result = verifyRemotionVersions({ root });
 
     expect(result.success).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([
-      "dependencies.@remotion/player 必须精确等于 4.0.499",
+      "dependencies.@remotion/player 必须精确等于 4.0.533",
       "dependencies.@remotion/player 版本漂移: 4.0.498",
       "dependencies 禁止安装 @remotion/transitions",
     ]));
@@ -49,15 +49,15 @@ describe("verifyRemotionVersions", () => {
     const root = fixtureRoot();
     const lockPath = path.join(root, "pnpm-lock.yaml");
     fs.writeFileSync(lockPath, fs.readFileSync(lockPath, "utf8")
-      .replace("mediabunny: 1.50.8", "mediabunny: 1.50.7")
-      .replace("mediabunny@1.50.8", "mediabunny@1.50.6"), "utf8");
+      .replace("mediabunny: 1.56.1", "mediabunny: 1.50.7")
+      .replace("mediabunny@1.56.1", "mediabunny@1.50.6"), "utf8");
 
     const result = verifyRemotionVersions({ root });
 
     expect(result.success).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([
-      "pnpm-lock mediabunny 说明符必须精确等于 1.50.8: 1.50.7",
-      "pnpm-lock mediabunny@1.50.6 锁定版本漂移(期望 1.50.8)",
+      "pnpm-lock mediabunny 说明符必须精确等于 1.56.1: 1.50.7",
+      "pnpm-lock mediabunny@1.50.6 锁定版本漂移(期望 1.56.1)",
     ]));
   });
 
@@ -65,7 +65,7 @@ describe("verifyRemotionVersions", () => {
     const root = fixtureRoot();
     fs.appendFileSync(
       path.join(root, "pnpm-lock.yaml"),
-      "  '@remotion/transitions@4.0.499':\n    resolution: {integrity: x}\n",
+      "  '@remotion/transitions@4.0.533':\n    resolution: {integrity: x}\n",
     );
     const result = verifyRemotionVersions({ root });
     expect(result.errors).toContain("pnpm-lock 禁止锁定 @remotion/transitions");
@@ -96,8 +96,8 @@ describe("verifyRemotionVersions", () => {
 function fixtureRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-versions-"));
   temporaryRoots.push(root);
-  const version = "4.0.499";
-  const mediaVersion = "1.50.8";
+  const version = "4.0.533";
+  const mediaVersion = "1.56.1";
   const manifest = {
     dependencies: { mediabunny: mediaVersion },
     devDependencies: {},

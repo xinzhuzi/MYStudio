@@ -24,7 +24,7 @@ import { createRemotionEnsureBrowserAdapters, type RemotionEnsureBrowser } from 
 import { probeRenderedMedia } from "./render-smoke-evidence";
 import { resolveProjectDir, resolveUserDataDir } from "../timeline/storage-paths";
 
-const remotionVersion = "4.0.499";
+const remotionVersion = "4.0.533";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 
 async function sha256File(filePath: string): Promise<string> {

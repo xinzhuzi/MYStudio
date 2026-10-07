@@ -23,7 +23,7 @@ import { resolveRemotionRuntimeDir } from "../timeline/storage-paths";
 
 const execFileAsync = promisify(execFile);
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
-const remotionVersion = "4.0.499";
+const remotionVersion = "4.0.533";
 
 export interface FiveShotReport {
   ok: true;
