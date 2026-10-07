@@ -168,6 +168,7 @@ metadata:
 
 1. **线不交叉**(线-线交叉对数越少越好,治理目标 0);
 2. **线不遮节点**(0926 铁律:线不得从非端点节点身上穿过;=「节点不遮线」同义双向口径,1007 用户令重申——遮挡是线与节点盒的相对关系,两个说法同一判据,layout_check `occlusion` 41 点采样执行);
+   1b. **DOM 渲染路线双写铁律**(1007 用户实拍「[401] 没有内容」):新前端 multiline/customtext=**DOM 文本框渲染**——程序性只写 `w.value` 不刷 `inputEl.value`,数据层 1226 字、像素层永远占位符空框(数据在场≠渲染在场 DOM 版)。onExecuted/程序性赋值一律 `w.value` 与 `inputEl.value`(无 inputEl 则 `element.value`)双写;验收=CDP 读 `inputEl.value`+截图,勿只读数据层。
    2b. **组与组不重叠**(1007 用户令):任意两组框 bounding 两两零交集——判据已入 layout_check(CHECK_KEY=`group_overlap`,C8 自测双向过;今日实测 分镜 4 组/t2i 5 组零重叠);
 3. **恒向右/横向排版**(09-19 铁律;左向线=冻结豁免项钉死);
 4. est 零重叠 / 横距≥200 纵距≥80 / 零负区(pos≥80)/ 输出口最右;

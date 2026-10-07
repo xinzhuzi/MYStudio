@@ -45,6 +45,10 @@ app.registerExtension({
             const w = (this.widgets || []).find((x) => x.__myPreviewDisplay);
             if (!w) return;
             w.value = text;
+            // 1007:新前端 multiline=DOM 文本框渲染——只写 w.value 不刷 DOM 元素,
+            // 节点上永远显示占位符空框(用户实拍「没有内容」)。双写才可见。
+            if (w.inputEl) w.inputEl.value = text;
+            else if (w.element) w.element.value = text;
             requestAnimationFrame(() => {
                 const sz = this.computeSize();
                 this.onResize?.([Math.max(this.size[0], sz[0]), Math.max(this.size[1], sz[1])]);
@@ -149,9 +153,18 @@ app.registerExtension({
             getMaxHeight: () => 38,
             getHeight: () => 38,
             minNodeSize: [300, 40],
+            // 执行图闸(1007 晚泄密勘误):前端两套序列化分权(executionUtil.ts
+            // 原注释:"widget.options.serialize controls prompt inclusion /
+            // widget.serialize controls workflow persistence")——只设
+            // w.serialize=false 时控件现值仍随 /prompt 提交,SaveImage 把
+            // 执行图逐字刻进 PNG 元数据(00010/00011 实泄 key 明文)。
+            serialize: false,
         });
         w.element = el; // ★ 饿汉挂载:装载期 computeLayoutSize 即有元素
-        w.serialize = false;
+        w.serialize = false; // 工作流闸(只此一道拦不住执行图→PNG,见上 options.serialize)
+        // 执行图闸第二挂点=官方 core 同款(uploadAudio.ts 对 audioUIWidget 即
+        // 属性+options 双挂):不依赖 addDOMWidget 对入参 options 的透传细节
+        w.options.serialize = false;
         el.addEventListener("change", () => post(el.value));
         el.addEventListener("blur", () => post(el.value));
     },
