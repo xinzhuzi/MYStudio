@@ -173,7 +173,7 @@ metadata:
 
 1. **线不交叉**(线-线交叉对数越少越好,治理目标 0);
 2. **线不遮节点**(0926 铁律:线不得从非端点节点身上穿过;=「节点不遮线」同义双向口径,1007 用户令重申——遮挡是线与节点盒的相对关系,两个说法同一判据,layout_check `occlusion` 41 点采样执行);
-   1b. **DOM 渲染路线双写铁律**(1007 用户实拍「[401] 没有内容」):新前端 multiline/customtext=**DOM 文本框渲染**——程序性只写 `w.value` 不刷 `inputEl.value`,数据层 1226 字、像素层永远占位符空框(数据在场≠渲染在场 DOM 版)。onExecuted/程序性赋值一律 `w.value` 与 `inputEl.value`(无 inputEl 则 `element.value`)双写;验收=CDP 读 `inputEl.value`+截图,勿只读数据层。
+   1b. **⚠ [401] 预览显示=已立专项(1007晚 未解,三方案试毕实录)**:现象=工作流执行成功(history [401] 输出 1226 字终稿实证,提示词零丢失)、数据层 `w.value` 1226 字在场,但节点像素层永远空框。已试三方案全败:①onExecuted 双写 `inputEl.value`——**实测 inputEl 根本不存在**(undefined,守卫静默跳过=假修复);②`w.element` 直写——同样不存在;③addDOMWidget type 换专属名——仍 LegacyWidget。**解剖铁证**:JS `addWidget("customtext")` 走新前端 LegacyWidget 兼容层,`element` 懒 materialize 且挂载管线未通;对照=py 端 multiline 输入走 DOMWidgetImpl(inputEl=TEXTAREA comfy-multiline-input 永在,Vue 可靠渲染,如 [400]/三真源)。**下一步=专项读 ComfyUI_frontend 源码**(addDOMWidget 挂载管线/TransformPane 何时 materialize/或 py 端同构改造评估);期间的诚实替代=数据层持久化已保(serialize=true 文本不丢),显示候专项。判据=CDP 读 element+截图见字。
    2b. **组与组不重叠**(1007 用户令):任意两组框 bounding 两两零交集——判据已入 layout_check(CHECK_KEY=`group_overlap`,C8 自测双向过;今日实测 分镜 4 组/t2i 5 组零重叠);
 3. **恒向右/横向排版**(09-19 铁律;左向线=冻结豁免项钉死);
 4. est 零重叠 / 横距≥200 纵距≥80 / 零负区(pos≥80)/ 输出口最右;

@@ -1,19 +1,45 @@
-// 漫影 qi21 正负双预览显示扩展(1005 ㊈)
+// 漫影 qi21 正负双预览显示扩展(1005 ㊈;1007 三场重写=addDOMWidget 只读 textarea)
 // MyQi21PromptPreview 是 OUTPUT_NODE,但前端不渲染字符串返回值;本扩展在节点上
-// 挂一只只读 multiline 显示框,onExecuted 时把 ui.merged(正/负分区合并文)落框
-// 并自适应尺寸。参照 pysssss showText.js 同款机制;零改 ComfyUI 本体。
+// 挂一只只读 multiline 显示框,onExecuted 时把 ui.merged(正/负分区合并文)落框。
+// 零改 ComfyUI 本体。
+//
+// 1007 三场定谳(用户实拍「没有内容」+解剖 LegacyWidget):新前端 customtext 走
+// LegacyWidget 兼容层,element 懒 materialize 且无可靠可见渲染路径——数据层
+// w.value 有 1226 字、像素层永远空框。终极解=换 api_key 同款 addDOMWidget
+// 真实 DOM textarea(全 App 被证实渲染可靠),饿汉挂载+值直写元素。
 import { app } from "../../scripts/app.js";
 
 app.registerExtension({
     name: "MY.Qi21PromptPreview",
     async nodeCreated(node) {
         if (node.comfyClass !== "MyQi21PromptPreview") return;
-        const w = node.addWidget("customtext", "合并预览", "", () => {}, { multiline: true });
+        // 1007:预览跨重启持久化——serialize=true 文本随 widgets_values 落盘,
+        // 载入时 getValue 回读预填(运行期仍由 onExecuted 覆盖)。
+        // api_key 控件的 serialize=false 是密钥不落盘,另一回事勿动。
+        const el = document.createElement("textarea");
+        el.readOnly = true;
+        el.spellcheck = false;
+        el.placeholder = "排队运行一次后,此处显示正向/负向终稿";
+        el.style.width = "100%";
+        el.style.height = "100%";
+        el.style.minHeight = "380px";
+        el.style.boxSizing = "border-box";
+        el.style.backgroundColor = "var(--comfy-input-bg, #222)";
+        el.style.color = "var(--input-text, #ddd)";
+        el.style.border = "1px solid var(--border-color, #444)";
+        el.style.borderRadius = "4px";
+        el.style.padding = "6px 8px";
+        el.style.resize = "none";
+        el.style.overflow = "auto";
+        el.style.fontFamily = "monospace";
+        const w = node.addDOMWidget("合并预览", "myq21previewtext", () => el, {
+            getValue: () => el.value,
+            setValue: (v) => { el.value = v ?? ""; },
+            minNodeSize: [300, 40],
+        });
         w.__myPreviewDisplay = true;
-        // 1007 用户令:预览跨重启持久化——serialize=true 文本随 widgets_values 落盘,
-        // 载入时框架按位预填(运行期仍由 onExecuted 覆盖)。原「serialize=false 不
-        // 污染序列化」作废;api_key 控件的 serialize=false 是密钥不落盘,另一回事勿动。
         w.serialize = true;
+        w.element = el; // 饿汉挂载:装载期 computeLayoutSize 即有元素(api_key 同款)
         // 旧存档(serialize=false 时代)widgets_values 缺本槽位——框架按位填充可能
         // 留 undefined,显式归 ""(onConfigure 在 widgets_values 应用后跑)。
         const origConfigure = node.onConfigure;
@@ -21,13 +47,9 @@ app.registerExtension({
             const r = origConfigure?.apply(this, a);
             const pw = (this.widgets || []).find((x) => x.__myPreviewDisplay);
             if (pw && (pw.value === undefined || pw.value === null)) pw.value = "";
+            if (pw && pw.element) pw.element.value = pw.value ?? "";
             return r;
         };
-        if (w.inputEl) {
-            w.inputEl.readOnly = true;
-            w.inputEl.style.opacity = 0.85;
-            w.inputEl.placeholder = "排队运行一次后,此处显示正向/负向终稿";
-        }
     },
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "MyQi21PromptPreview") return;
