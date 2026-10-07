@@ -49,7 +49,7 @@ metadata:
 - **widget 输入 vs 连线输入**:同槽二选一,接线后 widget 成**摆设值**(面板值≠生效值),须 Note 注明或重构消灭。
 - **links 三处挂接+死槽死线零容忍**:每条连线同挂 links 表+源 `outputs[].links`+目标 `inputs[].link`;`link.type` 必须=origin 槽实型(`"*"`≠STRING 会出事);节点删改后 link/边界槽/主图连线**不自动清**,架构改后全链审计(实据:五轮手术漏删 link330 被自检拦下;link303 陈旧指向=用户负向主体句静默丢弃)。
 - **隐藏输入可回溯真实执行链**:`hidden:{"prompt":"PROMPT","unique_id":"UNIQUE_ID"}` 引擎执行期注入完整执行图;API 批量路径会剪枝路由节点、画布旁路件在 UI→API 转换期已剔除——披露/审计类需求走此路,勿读静态台账(先例 my_daojie_route [86],0922)。
-- **OUTPUT_NODE 想看得见=ui 载荷+JS onExecuted**:裸元组返回前端不画(预览算了但看不见);py 侧回 `{"ui":{...},"result":...}`+web 扩展 `onExecuted` 回填显示框(serialize=false;前端版本可能传 `message.output.merged` 或 `message.merged`,**双形态兼容**);`WEB_DIRECTORY="./web"` 官方扩展点零改本体。刚打开不跑的两形态都属设计内:**有预填快照的件=打开即见快照**(部署时写进 JSON `widgets_values`,1006 展示框预填),**无预填的件=空框**;两者跑完一发都被 `onExecuted` 回填覆盖。
+- **OUTPUT_NODE 想看得见=ui 载荷+JS onExecuted**:裸元组返回前端不画(预览算了但看不见);py 侧回 `{"ui":{...},"result":...}`+web 扩展 `onExecuted` 回填显示框(前端版本可能传 `message.output.merged` 或 `message.merged`,**双形态兼容**);`WEB_DIRECTORY="./web"` 官方扩展点零改本体。刚打开不跑的两形态都属设计内:**有预填快照的件=打开即见快照**(部署时写进 JSON `widgets_values`,1006 展示框预填),**无预填的件=空框**;两者跑完一发都被 `onExecuted` 回填覆盖。**展示框持久化是双态设计(1007 用户令定谳)**:①短暂态 `serialize=false`(不进 widgets_values=不污染序列化,重启即空);②**持久态 `serialize=true` 文本随 widgets_values 落盘+载入预填,必须配 `onConfigure` 链守卫**(serialize=false 时代的旧存档缺本槽位,框架按位填充可能留 undefined,显式归 "";运行期仍由 onExecuted 覆盖)。实例=[401] 合并预览已转持久态(用户令「预览跨重启持久化」);同文件 api_key 密码控件的 serialize=false 是**密钥不落盘**设计,两者勿混。api 格式零波及:非 py 输入的 widget 不进 graphToPrompt,serialize 位只影响工作流文件 widgets_values。
 - **multiline 文本框**:STRING 要渲染成占满节点的大文字框=`required`+`multiline:True`;**只读展示框必须放 optional**——required 会被 `/prompt` 验证层强求值直接 400(1006 实据)。展示框与控件的退役分界(删下拉框≠删展示框)见 §5。
 
 ### 2. 节点真实形状以 /object_info 为唯一真源
