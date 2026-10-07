@@ -10,7 +10,19 @@ app.registerExtension({
         if (node.comfyClass !== "MyQi21PromptPreview") return;
         const w = node.addWidget("customtext", "合并预览", "", () => {}, { multiline: true });
         w.__myPreviewDisplay = true;
-        w.serialize = false;           // 不进 widgets_values,不污染序列化
+        // 1007 用户令:预览跨重启持久化——serialize=true 文本随 widgets_values 落盘,
+        // 载入时框架按位预填(运行期仍由 onExecuted 覆盖)。原「serialize=false 不
+        // 污染序列化」作废;api_key 控件的 serialize=false 是密钥不落盘,另一回事勿动。
+        w.serialize = true;
+        // 旧存档(serialize=false 时代)widgets_values 缺本槽位——框架按位填充可能
+        // 留 undefined,显式归 ""(onConfigure 在 widgets_values 应用后跑)。
+        const origConfigure = node.onConfigure;
+        node.onConfigure = function (...a) {
+            const r = origConfigure?.apply(this, a);
+            const pw = (this.widgets || []).find((x) => x.__myPreviewDisplay);
+            if (pw && (pw.value === undefined || pw.value === null)) pw.value = "";
+            return r;
+        };
         if (w.inputEl) {
             w.inputEl.readOnly = true;
             w.inputEl.style.opacity = 0.85;
