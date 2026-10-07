@@ -81,7 +81,7 @@ RIGHTMOST_SLACK = 50     # output IO x >= max node x - 50
 SPACING_EXEMPT_TYPES = ("Reroute", "MarkdownNote")  # spacing-only exemption
 
 CHECK_KEYS = ("crossings", "occlusion", "est_overlap", "est_spacing",
-              "negative_region", "output_rightmost", "leftward")
+              "negative_region", "output_rightmost", "leftward", "group_overlap")
 
 
 # --- geometry helpers (ported verbatim) -----------------------------------------
@@ -178,7 +178,8 @@ def _boundary_io_x(sg, slot: int, side: str):
 
 # --- per-scope checks ------------------------------------------------------------
 
-def check_scope(name, nodes, links, sg, max_crossings=0, allow_leftward=frozenset()):
+def check_scope(name, nodes, links, sg, max_crossings=0, allow_leftward=frozenset(),
+                groups=None):
     """Run all calibers on one scope. Returns {"name", "counts", "violations"}."""
     byid = {n["id"]: n for n in nodes}
     counts = {k: 0 for k in CHECK_KEYS}
@@ -188,6 +189,22 @@ def check_scope(name, nodes, links, sg, max_crossings=0, allow_leftward=frozense
         entry = {"scope": name, "check": check, "message": message}
         entry.update(extra)
         viol.append(entry)
+
+    # group_overlap(1007 用户令「组与组之间不能重叠」):任意两组框 bounding
+    # 两两零交集;无 bounding 的组跳过;主图组由 check_workflow 传入,子图组取 sg.groups。
+    _gs = [g for g in (groups if groups is not None else (sg or {}).get("groups") or [])
+           if g.get("bounding")]
+    for gi in range(len(_gs)):
+        for gj in range(gi + 1, len(_gs)):
+            a, b = _gs[gi]["bounding"], _gs[gj]["bounding"]
+            if len(a) == 4 and len(b) == 4 and \
+               a[0] < b[0] + b[2] and a[0] + a[2] > b[0] and \
+               a[1] < b[1] + b[3] and a[1] + a[3] > b[1]:
+                counts["group_overlap"] += 1
+                _v("group_overlap", "groups overlap: [%s] x [%s]" % (
+                    str(_gs[gi].get("title") or "?")[:28],
+                    str(_gs[gj].get("title") or "?")[:28]),
+                   a=[round(v) for v in a], b=[round(v) for v in b])
 
     # crossings: 24-point polylines, pairwise intersection, each pair max 1;
     # boundary links (endpoint not a node) skipped — ported counting loop.
@@ -314,7 +331,8 @@ def check_scope(name, nodes, links, sg, max_crossings=0, allow_leftward=frozense
 def check_workflow(wf: dict, max_crossings=0, allow_leftward=frozenset()):
     """Check every scope of a GUI-format workflow; returns the scope report list."""
     return [check_scope(name, nodes, links, sg,
-                        max_crossings=max_crossings, allow_leftward=allow_leftward)
+                        max_crossings=max_crossings, allow_leftward=allow_leftward,
+                        groups=(wf.get("groups") if sg is None else None))
             for name, nodes, links, sg in _scopes(wf)]
 
 
@@ -447,6 +465,20 @@ def _selftest() -> int:
     c = counts_of(r, "main")
     expect(c["est_overlap"] == 1, "C7 Reroute est overlap counted (got %d)" % c["est_overlap"])
     expect(c["est_spacing"] == 0, "C7 Reroute spacing exempt")
+
+    # C8: group_overlap — 组框 bounding 相交报 1,分离报 0(1007 用户令:组与组不重叠)。
+    c8 = {"nodes": [_mk_node(1, [100, 100], [200, 100])],
+          "links": [],
+          "groups": [{"title": "A", "bounding": [50, 50, 400, 300]},
+                     {"title": "B", "bounding": [300, 200, 400, 300]}]}
+    r = check_workflow(c8)
+    c = counts_of(r, "main")
+    expect(c["group_overlap"] == 1, "C8 overlapping groups == 1 (got %d)" % c["group_overlap"])
+    expect(all_violations(r)[0]["check"] == "group_overlap", "C8 violation check name")
+    c8["groups"][1]["bounding"] = [600, 50, 400, 300]
+    r = check_workflow(c8)
+    c = counts_of(r, "main")
+    expect(c["group_overlap"] == 0, "C8 separated groups == 0 (got %d)" % c["group_overlap"])
 
     print("selftest: %d failure(s)" % len(failures))
     return 1 if failures else 0
