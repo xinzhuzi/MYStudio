@@ -6,6 +6,7 @@
 //   node canvas_deploy.mjs <文件路径...>            # 部署+生效+验证
 //   node canvas_deploy.mjs <文件...> --verify-only  # 只验证不部署
 //   node canvas_deploy.mjs <文件...> --no-restart   # .py 部署但不重启引擎(慎用)
+//   node canvas_deploy.mjs --audit                  # 全量四副本对账机器门(workflows+my_nodes)
 // 选项: --push-canvas 强制 CDP loadGraphData(json 类型默认推)
 // 纪律:本脚本输出的 PASS/FAIL 即交付结论;agent 报「已生效」必须引用本脚本的活机读数。
 import { spawn, execSync } from "node:child_process";
@@ -33,6 +34,44 @@ function classify(file) {
   if (/^apps\/backend\/engines\/comfyui\/workflows\/.*\.json$/.test(f)) return { type: "workflow", rel: f };
   return null;
 }
+
+// ── --audit 全量四副本对账机器门(1007晚 复毒事故立门:三处对账靠散文+自觉必漏)──
+// workflows: 装机=必须同在且同字节;用户区=存在必须同字节(缺席=NOTE 基线,零回灌设计内)
+// my_nodes:  装机+引擎家=必须同在且同字节;tests/** 两路豁免(打包白名单设计内)
+// exit code: 0=ALL PASS, 1=有 FAIL —— 报「同步完成/指纹一致」前必跑,人工逐文件对账不再作数
+async function auditAll() {
+  const { readdirSync } = await import("node:fs");
+  const rels = [];
+  const walk = (base, prefix = "") => {
+    for (const e of readdirSync(base, { withFileTypes: true })) {
+      const p = prefix ? prefix.replace(/\/+$/, "") + "/" + e.name : e.name;
+      if (e.isDirectory()) walk(join(base, e.name), p);
+      else if (/\.(py|js|json)$/.test(e.name) && e.name !== ".keep.json") rels.push(p);
+    }
+  };
+  walk(join(REPO, "apps/backend/engines/comfyui/workflows"), "workflows/");
+  walk(join(REPO, "apps/backend/engines/comfyui/my_nodes"), "my_nodes/");
+  const USER_WF = join(ENGINE_HOME, "user/default/workflows");
+  const ENG_MY = join(ENGINE_HOME, "custom_nodes/my-nodes");
+  let fail = 0, pass = 0, notes = 0;
+  for (const rel of rels.sort()) {
+    const src = join(REPO, "apps/backend/engines/comfyui", rel);
+    const isWf = rel.startsWith("workflows/");
+    const isTest = rel.startsWith("my_nodes/tests/");
+    if (isTest) continue; // tests 只住仓库+跑 pytest,打包白名单排除(electron-builder !tests/**),两路皆豁免
+    const sMd5 = md5(src);
+    const legs = [["装机", join(APP_RES, rel)]];
+    if (isWf) legs.push(["用户区", join(USER_WF, rel.slice("workflows/".length))]);
+    else legs.push(["引擎家", join(ENG_MY, rel.slice("my_nodes/".length))]);
+    for (const [label, dst] of legs) {
+      if (!statOk(dst)) { isWf && label === "用户区" ? (notes++, log(`NOTE ${rel} — 用户区无副本(零回灌基线,非漏)`)) : (fail++, bad(`audit ${label}缺件`, rel)); continue; }
+      md5(dst) === sMd5 ? pass++ : (fail++, bad(`audit ${label}漂移`, rel));
+    }
+  }
+  log(`═══ 审计结论: ${fail ? "FAIL(" + fail + ")" : "ALL PASS"} — 对齐 ${pass} 路,NOTE ${notes} 条 ${fail ? "" : "(三副本零漂移)"}`);
+  process.exit(fail ? 1 : 0);
+}
+function statOk(p) { try { statSync(p); return true; } catch { return false; } }
 const targetsFor = (type, rel) => {
   const tail = rel.split("engines/comfyui/")[1] || rel;
   const t = [[REPO + "/" + rel, "仓库"]];
@@ -147,7 +186,8 @@ function compareJson(doc, live) {
 }
 
 async function main() {
-  if (!args.length) { console.error("用法: node canvas_deploy.mjs <文件...> [--verify-only] [--no-restart]"); process.exit(2); }
+  if (OPTS.has("--audit")) return auditAll();
+  if (!args.length) { console.error("用法: node canvas_deploy.mjs <文件...> [--verify-only] [--no-restart] | --audit"); process.exit(2); }
   const jobs = [];
   for (const a of args) {
     const abs = resolve(a);
