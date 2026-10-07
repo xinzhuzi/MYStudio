@@ -326,7 +326,7 @@ PE_PARAMS = [1.0, 0.95, 20, 1.5, 16256, 42]  # [1:7](手改态起尾带 control_
 # (api_url/model/temperature/max_tokens/timeout_sec;教材=qi21_bases.json
 # expand_instruction 节热读,节点内补 /no_think+肯定式纪律;服务不在=透传)
 QI21_PE_CLASS = "MyQi21ApiPE"
-PE_API_PARAMS = ["http://192.168.0.101:1234,http://127.0.0.1:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx", 0.7, 12000, 600, "", ""]  # 末两位=两只展示框位(正向扩写全文/负向扩写清单)  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
+PE_API_PARAMS = ["http://192.168.0.101:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive", 0.7, 12000, 600, "", ""]  # 1007夜 a2af54f2 用户终裁「不用Mac本机接,恒Windows LM Studio 9B」:api_url/model 双值收单值(Mac 127.0.0.1 端点+27B 型号名退役,锚随真源重立);末两位=两只展示框位  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
 
 # PE-I2I(edit 件)契约:0923-r16 换核心(comfy-core TextGenerate+RegexExtract,
 # 去 benjiyaya 依赖;design §13/research/13 官方免插件链照抄;真源=幂等生成器

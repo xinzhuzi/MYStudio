@@ -1,32 +1,15 @@
 {
-  "generatedFrom": "工作树实测态(10-02 单口化手术轮,Trellis 10-02-qi21-subgraph-singleport;拓扑变更合法重立=0929/0930/1001 先例同法;实测=t2i 主3/装配13/加速0 · i2i 主5/装配7/加速0 · edit 主6/装配6/加速0;main 三件与术前实测持平(基线旧值 1/3/3 系大轮收官前旧账,本轮按现状重立入册)",
-  "head": "93d13b1",
-  "rebuiltAt": "2026-10-02T18:40:00",
+  "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
+  "head": "b4107de1",
+  "rebuiltAt": "2026-10-07T21:56:34",
   "files": {
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
-      "scopes": {
-        "main": {
-          "crossings": 3,
-          "occlusion": 0
-        },
-        "sub:[6] 文本提示词类型优化子图(双击进入": {
-          "crossings": 13,
-          "occlusion": 1
-        },
-        "sub:道劫·加速子图": {
-          "crossings": 0,
-          "occlusion": 0
-        }
-      },
-      "s5Note": "10-02 单口化拓扑合法重立(Trellis 10-02-qi21-subgraph-singleport implement 步3:装配子图删双编码+闸门(t2i [4016][4017]/i2i 四件)+单口重接+横向四带重排+加速三横排+IO 圆点就近;节点集与连线集拓扑变更,audit 实测重立;旧值见 git 历史;t2i 装配 occlusion 残 1=link66 [4010]:3→[4014] 穿 [4013],链序约束([4010]<[4011]<[4013]<[4014])+全右向铁律下纯坐标不可消,结构性存量入册,Reroute 手段被契约恰零断言禁用;自此只降不升,上调须拓扑变更合法重立且理由入档)"
-    },
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
       "scopes": {
         "main": {
-          "crossings": 5,
-          "occlusion": 0
+          "crossings": 19,
+          "occlusion": 8
         },
-        "sub:[6] 文本提示词类型优化子图(双击进入": {
+        "sub:[6] 文本提示词类型优化子图": {
           "crossings": 7,
           "occlusion": 0
         },
@@ -34,16 +17,15 @@
           "crossings": 0,
           "occlusion": 0
         }
-      },
-      "s5Note": "10-02 单口化拓扑合法重立(Trellis 10-02-qi21-subgraph-singleport implement 步3:装配子图删双编码+闸门(t2i [4016][4017]/i2i 四件)+单口重接+横向四带重排+加速三横排+IO 圆点就近;节点集与连线集拓扑变更,audit 实测重立;旧值见 git 历史;t2i 装配 occlusion 残 1=link66 [4010]:3→[4014] 穿 [4013],链序约束([4010]<[4011]<[4013]<[4014])+全右向铁律下纯坐标不可消,结构性存量入册,Reroute 手段被契约恰零断言禁用;自此只降不升,上调须拓扑变更合法重立且理由入档)"
+      }
     },
     "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
       "scopes": {
         "main": {
-          "crossings": 6,
-          "occlusion": 0
+          "crossings": 17,
+          "occlusion": 4
         },
-        "sub:[6] 文本提示词类型优化子图(双击进入": {
+        "sub:[6] 文本提示词类型优化子图": {
           "crossings": 6,
           "occlusion": 0
         },
@@ -51,8 +33,23 @@
           "crossings": 0,
           "occlusion": 0
         }
-      },
-      "s5Note": "10-02 单口化拓扑合法重立(Trellis 10-02-qi21-subgraph-singleport implement 步3:装配子图删双编码+闸门(t2i [4016][4017]/i2i 四件)+单口重接+横向四带重排+加速三横排+IO 圆点就近;节点集与连线集拓扑变更,audit 实测重立;旧值见 git 历史;t2i 装配 occlusion 残 1=link66 [4010]:3→[4014] 穿 [4013],链序约束([4010]<[4011]<[4013]<[4014])+全右向铁律下纯坐标不可消,结构性存量入册,Reroute 手段被契约恰零断言禁用;自此只降不升,上调须拓扑变更合法重立且理由入档)"
+      }
+    },
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
+      "scopes": {
+        "main": {
+          "crossings": 10,
+          "occlusion": 1
+        },
+        "sub:[6] 文本提示词类型优化子图": {
+          "crossings": 4,
+          "occlusion": 2
+        },
+        "sub:道劫·加速子图": {
+          "crossings": 0,
+          "occlusion": 0
+        }
+      }
     }
   }
 }
