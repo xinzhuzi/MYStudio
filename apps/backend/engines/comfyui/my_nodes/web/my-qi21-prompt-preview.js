@@ -102,9 +102,11 @@ app.registerExtension({
     async nodeCreated(node) {
         if (node.comfyClass !== "MyQi21ApiPE") return;
         if ((node.widgets || []).some((x) => x.name === "api_key")) return;
-        // 1007 实勘:addWidget("customtext",{multiline:false}) 在新前端不生成
-        // 输入框 DOM(数据层有、面板渲染不出来=用户看到的「没法填」)——改用
-        // addDOMWidget 原生 input[type=password],所见即可填。
+        // 1007 两轮实勘定谳:①customtext+multiline:false 无 DOM(面板不可见);
+        // ②addDOMWidget 懒元素在 loadGraphData 期 computeLayoutSize 读
+        // this.element=getComputedStyle(undefined)→整个装载炸(「打开失败」)。
+        // 修法=框架 customtext 封装同款官方模式:元素先造,addDOMWidget 后
+        // 立即 w.element=el 饿汉挂载(computeLayoutSize 出生即有元素)。
         const post = (v) => {
             try {
                 fetch("/my-nodes/qi21-pe-key", {
@@ -114,23 +116,26 @@ app.registerExtension({
                 }).catch(() => {});
             } catch { /* 探针环境无 fetch 时静默 */ }
         };
-        const w = node.addDOMWidget("api_key", "password", () => {
-            const el = document.createElement("input");
-            el.type = "password";
-            el.autocomplete = "off";
-            el.spellcheck = false;
-            el.placeholder = "留空=用钥匙串/env;仅存本会话内存,不入盘";
-            el.style.width = "100%";
-            el.style.boxSizing = "border-box";
-            el.style.backgroundColor = "var(--comfy-input-bg, #222)";
-            el.style.color = "var(--input-text, #ddd)";
-            el.style.border = "1px solid var(--border-color, #444)";
-            el.style.borderRadius = "4px";
-            el.style.padding = "4px 8px";
-            el.addEventListener("change", () => { w.value = el.value; post(el.value); });
-            el.addEventListener("blur", () => { if (w.value !== el.value) { w.value = el.value; post(el.value); } });
-            return el;
-        }, {});
+        const el = document.createElement("input");
+        el.type = "password";
+        el.autocomplete = "off";
+        el.spellcheck = false;
+        el.placeholder = "留空=用钥匙串/env;仅存本会话内存,不入盘";
+        el.style.width = "100%";
+        el.style.boxSizing = "border-box";
+        el.style.backgroundColor = "var(--comfy-input-bg, #222)";
+        el.style.color = "var(--input-text, #ddd)";
+        el.style.border = "1px solid var(--border-color, #444)";
+        el.style.borderRadius = "4px";
+        el.style.padding = "4px 8px";
+        const w = node.addDOMWidget("api_key", "password", () => el, {
+            getValue: () => el.value,
+            setValue: (v) => { el.value = v ?? ""; },
+            minNodeSize: [300, 40],
+        });
+        w.element = el; // ★ 饿汉挂载:装载期 computeLayoutSize 即有元素
         w.serialize = false;
+        el.addEventListener("change", () => post(el.value));
+        el.addEventListener("blur", () => post(el.value));
     },
 });
