@@ -85,10 +85,11 @@ _RUNTIME_KEY: str | None = None  # UI 控件通道(引擎进程内存,重启即�
 _CLOUD_URL = os.environ.get("MYSTUDIO_QI21_CLOUD_URL", "https://open.bigmodel.cn/api/paas/v4")
 _CLOUD_MODEL = os.environ.get("MYSTUDIO_QI21_CLOUD_MODEL", "glm-5.3-flash")
 # 内置本地兜底对(URL, model)——cloud_mode 强制在链尾,防 api_url 被填成
-# 云端地址挤掉本地(1007夜 00011 实弹:云端429+本地不在链=透传=脏图)
+# 云端地址挤掉本地(1007夜 00011 实弹:云端429+本地不在链=透传=脏图)。
+# 1007夜用户令「不用本地接,用 Windows 的那个 LM Studio 接」——兜底恒
+# Windows 9B,Mac 本机 27B(127.0.0.1:1234)出局
 _BUILTIN_LOCAL: tuple[tuple[str, str], ...] = (
     ("http://192.168.0.101:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive"),
-    ("http://127.0.0.1:1234", "qwen3.8-27b-uncensored-mlx"),
 )
 
 
@@ -537,10 +538,10 @@ class MyQi21ApiPE:
         }
         return {
             "required": {
-                "api_url": ("STRING", {"default": "http://192.168.0.101:1234,http://127.0.0.1:1234",
-                                       "tooltip": "LM Studio 服务地址,多个逗号分隔依次尝试(远程优先,本地兜底)"}),
-                "model": ("STRING", {"default": "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx",
-                                     "tooltip": "模型 id,逗号分隔与 api_url 逐一配对(远程9B,本地27B兜底)"}),
+                "api_url": ("STRING", {"default": "http://192.168.0.101:1234",
+                                       "tooltip": "LM Studio 服务地址,多个逗号分隔依次尝试(Windows 远程 9B;1007夜用户令:不用 Mac 本机接)"}),
+                "model": ("STRING", {"default": "qwen3.5-9b-uncensored-hauhaucs-aggressive",
+                                     "tooltip": "模型 id,逗号分隔与 api_url 逐一配对(Windows LM Studio 9B)"}),
                 "temperature": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 2.0,
                                           "step": 0.05,
                                           "tooltip": "低温更听话;0.7=实测扩写质量档"}),
@@ -570,8 +571,8 @@ class MyQi21ApiPE:
                 透明模式: bool = False,
                 系统提示词: str | None = None, 色卡: str | None = None,
                 美术风格底座: str | None = None,
-                api_url: str = "http://127.0.0.1:1234",
-                model: str = "qwen3.8-27b-uncensored-mlx", temperature: float = 0.7,
+                api_url: str = "http://192.168.0.101:1234",
+                model: str = "qwen3.5-9b-uncensored-hauhaucs-aggressive", temperature: float = 0.7,
                 max_tokens: int = 12000, timeout_sec: int = 600,
                 thinking_effort: str = "关闭",
                 正向扩写全文: str = "", 负向扩写清单: str = ""
@@ -618,8 +619,10 @@ class MyQi21ApiPE:
         # 1007 用户令(开关=api_key 控件):填=云端(_CLOUD_URL/_CLOUD_MODEL 内置,
         # key=填的值),留空=本地(api_url/model 原样);云端失败→回落本地并明示原因
         cloud_mode = bool(_RUNTIME_KEY)
-        local_urls = [u.strip().rstrip("/") for u in (api_url or "http://192.168.0.101:1234,http://127.0.0.1:1234").split(",") if u.strip()]
-        local_models = [m.strip() for m in (model or "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx").split(",") if m.strip()]
+        # 1007夜用户令「不用本地接,用 Windows 的 LM Studio 接」——api_url 空时
+        # 默认恒 Windows 9B,Mac 本机 27B(127.0.0.1:1234)出局
+        local_urls = [u.strip().rstrip("/") for u in (api_url or "http://192.168.0.101:1234").split(",") if u.strip()]
+        local_models = [m.strip() for m in (model or "qwen3.5-9b-uncensored-hauhaucs-aggressive").split(",") if m.strip()]
         if cloud_mode:
             # 1007晚(用户令「按建议做完」):云端在前,挂了回落本地列表逐个
             # 改写(旧=云端挂直接透传,弃了本地9B)——全挂才透传;
@@ -630,7 +633,7 @@ class MyQi21ApiPE:
         # URL+model 按索引配对;model 不够时用末位
         pair = lambda i: (urls[i], models[i] if i < len(models) else models[-1] if models else "qwen3.5-9b")
         payload = {
-            "model": model or "qwen3.8-27b-uncensored-mlx",
+            "model": model or "qwen3.5-9b-uncensored-hauhaucs-aggressive",
             "messages": [
                 {"role": "system", "content": _build_system(系统提示词, 色卡)},
                 {"role": "user", "content": user_with_ctx},

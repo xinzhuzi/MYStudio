@@ -38,8 +38,8 @@ def test_shape_matches_upstream_five_ports():
         assert opt[k][0] == "STRING" and opt[k][1].get("forceInput") is True, \
             f"{k} 应 forceInput 纯槽(1006 六轮:带名连线点)"
     assert opt["透明模式"][0] == "BOOLEAN" and opt["透明模式"][1].get("forceInput") is True
-    assert req["api_url"][1]["default"] == "http://192.168.0.101:1234,http://127.0.0.1:1234"
-    assert req["model"][1]["default"] == "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx"
+    assert req["api_url"][1]["default"] == "http://192.168.0.101:1234"
+    assert req["model"][1]["default"] == "qwen3.5-9b-uncensored-hauhaucs-aggressive"
 
 
 def test_passthrough_when_service_unreachable():
@@ -152,29 +152,33 @@ def test_cloud_key_runtime_takes_priority_1007(monkeypatch):
 
 
 def test_cloud_targets_builtin_local_guaranteed_1007night():
-    """1007夜脏图役补强:云端模式目标链=云端在前+api_url列表+内置本地对
-    强制链尾去重——api_url 被填成云端地址(00011 实弹形态)时本地 9B 仍在链。"""
+    """1007夜脏图役补强+用户令「不用本地接,用 Windows 的 LM Studio 接」:
+    云端模式目标链=云端在前+api_url列表+内置兜底对(恒 Windows 9B)强制链尾
+    去重——api_url 被填成云端地址(00011 实弹形态)时 9B 仍在链;
+    Mac 本机 27B(127.0.0.1:1234)不进兜底。"""
     # 00011 形态:api_url 填了云端 anthropic 口,本地列表被挤掉
     urls, models = api_pe._cloud_targets(
         "https://open.bigmodel.cn/api/anthropic", "GLM-5.3")
     assert urls[0] == api_pe._CLOUD_URL.rstrip("/") and models[0] == api_pe._CLOUD_MODEL, \
         "云端永远打头"
-    assert "http://192.168.0.101:1234" in urls and "http://127.0.0.1:1234" in urls, \
-        f"内置本地对必须兜底在场(00011 实弹:云端429+本地不在链=透传=脏图),得 {urls}"
+    assert "http://192.168.0.101:1234" in urls, \
+        f"内置 Windows 9B 必须兜底在场(00011 实弹:云端429+本地不在链=透传=脏图),得 {urls}"
+    assert "http://127.0.0.1:1234" not in urls, \
+        f"Mac 本机 27B 出局(1007夜用户令「不用本地接」),得 {urls}"
     i = urls.index("http://192.168.0.101:1234")
     assert models[i] == "qwen3.5-9b-uncensored-hauhaucs-aggressive", "内置对 URL/model 配对"
-    assert urls[-1] == "http://127.0.0.1:1234", "内置本地在链尾(先试远端 9B 再本机 27B)"
+    assert urls[-1] == "http://192.168.0.101:1234", "内置兜底=Windows 9B 钉链尾"
 
-    # api_url 留空:本地默认列表+内置对合并不重不漏
+    # api_url 留空:恰云端+Windows 9B 两条
     urls2, models2 = api_pe._cloud_targets(None, None)
-    assert urls2[1] == "http://192.168.0.101:1234" and urls2[2] == "http://127.0.0.1:1234"
-    assert len(urls2) == 3 and len(set(urls2)) == 3, f"空 api_url 应恰云端+两本地,得 {urls2}"
+    assert urls2 == [api_pe._CLOUD_URL.rstrip("/"), "http://192.168.0.101:1234"], \
+        f"空 api_url 应恰云端+Windows 9B,得 {urls2}"
+    assert models2 == [api_pe._CLOUD_MODEL, "qwen3.5-9b-uncensored-hauhaucs-aggressive"]
 
-    # api_url 本来就含内置本地:去重不双插
-    urls3, _ = api_pe._cloud_targets(
-        "http://192.168.0.101:1234,http://127.0.0.1:1234", "m1,m2")
+    # api_url 本来就含 Windows 9B:去重不双插
+    urls3, _ = api_pe._cloud_targets("http://192.168.0.101:1234", "m1")
     assert urls3.count("http://192.168.0.101:1234") == 1, "内置对去重"
-    assert len(urls3) == 3
+    assert len(urls3) == 2, f"应恰云端+Windows 9B,得 {urls3}"
 
 
 def test_sanitize_negative_strips_dirty_words_1007():
