@@ -25,6 +25,10 @@ thinking_effort 档位 → 顶层 reasoning_effort 参数(none=硬关,不发=模
     +中文 print 警告 +ui.api_pe_status 状态字段(JS 上画布标红警示,1007);
   - LM Studio 须常驻(单飞资源,+16GB);本节点同步阻塞引擎队列(实测
     ~70s/发,冷首发与长思考更慢——耐心或加 timeout_sec)。
+  - api_url 亦可列 https 云端端点(bigmodel v4 = https://open.bigmodel.cn/api/paas/v4,
+    model 填 glm-5.3 系):鉴权走 env MYSTUDIO_QI21_PE_KEY 或 macOS 钥匙串
+    MYStudio/qi21-pe-key(1007 用户令:key 勿明文落代码/文档/工作流);
+    云端档位映射 关闭→low/思考→max(1210 值域,始终思考关不掉)。
 
 全上下文三轮(1006 用户令「五样上下文在子图里必须是节点,全连进本件,
 输出两口=正向/负向」)+ 批C 七路直连(1006 问题2,Q1=甲):
@@ -48,6 +52,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -58,6 +63,39 @@ from typing import Any
 # 127.0.0.1:7897),局域网通否取决于代理对私网的放行规则——隐性依赖,恒绕过
 # (1007 实测定谳:探活走代理转发成功,但代理一退/改规则即断,勿赌)
 _LAN_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def _chat_url(base: str) -> str:
+    """OpenAI 兼容端点拼接:LM Studio(局域网)基址补 /v1/chat/completions;
+    以 /v数字 结尾的云端基址(bigmodel v4)只补 /chat/completions(1007)。"""
+    if base.endswith("/chat/completions"):
+        return base
+    tail = base.rsplit("/", 1)[-1]
+    if tail.startswith("v") and tail[1:].isdigit():
+        return base + "/chat/completions"
+    return base + "/v1/chat/completions"
+
+
+_CLOUD_KEY_CACHE: str | None = None
+
+
+def _cloud_key() -> str:
+    """云端端点(https 条目)鉴权:env MYSTUDIO_QI21_PE_KEY 优先,macOS 钥匙串
+    (MYStudio/qi21-pe-key)兜底——key 永不落代码/文档/工作流(1007 用户令)。"""
+    global _CLOUD_KEY_CACHE
+    if _CLOUD_KEY_CACHE is not None:
+        return _CLOUD_KEY_CACHE
+    key = os.environ.get("MYSTUDIO_QI21_PE_KEY", "")
+    if not key:
+        try:
+            key = subprocess.run(
+                ["security", "find-generic-password", "-s", "MYStudio",
+                 "-a", "qi21-pe-key", "-w"],
+                capture_output=True, text=True, timeout=5).stdout.strip()
+        except Exception:
+            key = ""
+    _CLOUD_KEY_CACHE = key
+    return key
 
 
 def _alive(base: str, timeout: float = 3.0) -> bool:
@@ -488,9 +526,12 @@ class MyQi21ApiPE:
         if thinking_effort == "关闭":
             payload["reasoning_effort"] = "none"
         def _post(pl: dict) -> dict:
+            headers = {"Content-Type": "application/json"}
+            if url.startswith("https://"):
+                headers["Authorization"] = f"Bearer {_cloud_key()}"
             req = urllib.request.Request(
                 url, data=json.dumps(pl).encode("utf-8"),
-                headers={"Content-Type": "application/json"}, method="POST")
+                headers=headers, method="POST")
             return json.loads(_LAN_OPENER.open(
                 req, timeout=max(10, int(timeout_sec))).read())
 
@@ -503,7 +544,7 @@ class MyQi21ApiPE:
                 print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
                       "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查-1007.md)")
                 continue
-            url = _u + "/v1/chat/completions"
+            url = _chat_url(_u)
             payload["model"] = _m
             try:
                 _r = _post(payload)
@@ -514,6 +555,11 @@ class MyQi21ApiPE:
                     continue
                 resp = _r
                 served = _m
+                if _u.startswith("https://"):
+                    # 云端档位映射(1210 实测:该族始终思考,值域 low/high/max,
+                    # 不认 none/xhigh);预算重试与自检补发共用 payload,在此定型。
+                    # 用户令(1007):云端开最高思考→max
+                    payload["reasoning_effort"] = "low" if thinking_effort == "关闭" else "max"
                 break  # 首个有内容的用
             except Exception as exc:
                 print(f"[漫影 API扩写PE] {_u}({_m}) 不可达({exc}),试下一个…")
@@ -535,7 +581,7 @@ class MyQi21ApiPE:
         if not content.strip() and reasoning:
             print(f"[漫影 API扩写PE] 正文空(思考链吃了 {len(reasoning)} 字)——加预算重试一次")
             payload2 = dict(payload)
-            payload2["max_tokens"] = min(int(max_tokens) * 2, 13000)
+            payload2["max_tokens"] = min(int(max_tokens) * 2, 24000)  # 32k窗固化后旧帽13000过时;云端思考另吃预算须放宽
             payload2["messages"] = payload["messages"][:-1] + [
                 {"role": "user",
                  "content": payload["messages"][-1]["content"] + "\n直接输出最终 JSON 结果,不要再思考。"}]

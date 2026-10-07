@@ -98,3 +98,38 @@ def test_full_context_assembly_1006r2():
     for k in ("正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高",
               "透明模式", "系统提示词", "色卡", "美术风格底座"):
         assert k in sig.parameters, f"{k} 须进签名(七轮十入,装配内置)"
+
+
+def test_chat_url_suffix_rules_1007():
+    """1007 云端支持:端点拼接三态——LM Studio 补 /v1/、v4 系只补 /chat/、全 URL 原样。"""
+    assert api_pe._chat_url("http://192.168.0.101:1234") == \
+        "http://192.168.0.101:1234/v1/chat/completions"
+    assert api_pe._chat_url("http://127.0.0.1:1234") == \
+        "http://127.0.0.1:1234/v1/chat/completions"
+    assert api_pe._chat_url("https://open.bigmodel.cn/api/paas/v4") == \
+        "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    assert api_pe._chat_url("https://x.example/v1") == \
+        "https://x.example/v1/chat/completions"
+    assert api_pe._chat_url("https://x.example/api/v4/chat/completions") == \
+        "https://x.example/api/v4/chat/completions"
+
+
+def test_cloud_key_env_priority_1007(monkeypatch):
+    """1007 云端鉴权:env 优先于钥匙串;key 永不落工作流/文档(无控件承载)。"""
+    monkeypatch.setenv("MYSTUDIO_QI21_PE_KEY", "env-key-123")
+    api_pe._CLOUD_KEY_CACHE = None
+    try:
+        assert api_pe._cloud_key() == "env-key-123"
+    finally:
+        api_pe._CLOUD_KEY_CACHE = None
+    # 无 env 时走钥匙串兜底(测机上真有一条,只验形态:非空 str 或空串皆合法)
+    monkeypatch.delenv("MYSTUDIO_QI21_PE_KEY", raising=False)
+    v = api_pe._cloud_key()
+    assert isinstance(v, str)
+    api_pe._CLOUD_KEY_CACHE = None
+    # 控件面零新增:云端凭证不进 INPUT_TYPES(key 明文禁令)
+    assert "api_key" not in node_required_keys()
+
+
+def node_required_keys():
+    return list(api_pe.MyQi21ApiPE.INPUT_TYPES()["required"])
