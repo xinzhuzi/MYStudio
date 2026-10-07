@@ -131,6 +131,11 @@ app.registerExtension({
         const w = node.addDOMWidget("api_key", "password", () => el, {
             getValue: () => el.value,
             setValue: (v) => { el.value = v ?? ""; },
+            // 单行钉死(与 api_url 同款行高):分离元素的 --comfy-widget-* 变量
+            // 读出来是空→parseInt NaN→布局放飞成巨框(1007 用户实拍),给死值。
+            getMinHeight: () => 38,
+            getMaxHeight: () => 38,
+            getHeight: () => 38,
             minNodeSize: [300, 40],
         });
         w.element = el; // ★ 饿汉挂载:装载期 computeLayoutSize 即有元素
