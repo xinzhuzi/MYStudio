@@ -4,8 +4,8 @@
 #
 # 用法:
 #   lmstudio-win-remote.sh status              # 查服务与模型装载状态
-#   lmstudio-win-remote.sh chat "你好" [9b|27b] [off]   # 第3参 off=硬关思考;直接用 URL 对 Windows 模型发话(未装载则 JIT 自动装载)
-#   lmstudio-win-remote.sh load                # 装载默认 9B 模型(JIT 法,本版无 /models/load 端点)
+#   lmstudio-win-remote.sh chat "你好" [vl4b|9b|27b] [off]   # 第3参 off=硬关思考;直接用 URL 对 Windows 模型发话(未装载则 JIT 自动装载)
+#   lmstudio-win-remote.sh load                # 装载默认模型 qwen3-vl-4b(1007 用户令转正;JIT 法,本版无 /models/load 端点)
 #   lmstudio-win-remote.sh load 27b            # 装载 27B(18.74GB,4060Ti 8G 部分offload,较慢)
 #   lmstudio-win-remote.sh unload              # 卸载当前模型(REST 不支持时走 ssh lms unload)
 #   lmstudio-win-remote.sh start               # 服务没起时经 SSH 计划任务拉起(常用于 Windows 重启后)
@@ -34,9 +34,15 @@
 #      +自愈服务/装载;详见 docs/comfyui-kb/LMStudio-Windows远程排查-1007.md
 # 备份: http-server-config.json 原件 = 同名+.bak-lan-1006
 #
-# 模型档案(Windows 侧, lms ls 实查 1006):
-#   9b  = qwen3.5-9b-uncensored-hauhaucs-aggressive       6.55GB Q4_K_M(默认,4060Ti 全进显存,~32 tok/s)
+# 模型档案(Windows 侧, lms ls 实查 1006/1007):
+#   vl4b(默认常驻,1007 用户令) = qwen/qwen3-vl-4b  3.33GB 全显存,带眼看图,OCR 最快最准(5s/张),批量转录首选
+#   9b  = qwen3.5-9b-uncensored-hauhaucs-aggressive       6.55GB Q4_K_M(4060Ti 全进显存,~32 tok/s;qi21 AI扩写文本主力,需文本算力时 load 9b)
 #   27b = qwen3.8-27b-uncensored-hauhaucs-aggressive-mtp  18.74GB(部分offload)
+#   视觉三件(1007 实弹入册,发图走 content 数组 image_url/base64,与 OpenAI 同构):
+#   vl4b  = qwen/qwen3-vl-4b                3.33GB 全显存,OCR 最快最准(5s/张,中文逐字满分),批量转录首选
+#   vl30b = qwen3-vl-30b-a3b-instruct      19.64GB(主件+mmproj,~7.7G显存+余进内存),版面/表格理解最强,
+#           但 3-5 tok/s 慢且偶有字级误读(墨→黑),疑难终审用;装载 lms load --gpu max -c 32768 -y qwen3-vl-30b-a3b-instruct
+#   9b 本身带 mmproj 即原生看图(1007 平反实测:中文 OCR 近满分)——轻判定直接用 9b 不必换件
 #   坑: aggressive 思考型 finetune,enable_thinking=false 与 /no_think 均被无视,
 #       completion 全额先烧思考链 → max_tokens 必须给足(本脚本默认 4096,~32 tok/s 下最长约 2 分钟)
 #   坑: JIT 退路装载=默认 ctx 8192 → qi21 提示词结构性饿死(正文 0 字),勿依赖;大窗走 load 子命令
@@ -47,6 +53,7 @@ HOST="${LMS_WIN_HOST:-192.168.0.101}"
 PORT="${LMS_WIN_PORT:-1234}"
 USER_="${LMS_WIN_USER:-zbj}"
 BASE="http://${HOST}:${PORT}"
+MODEL_VL4B="qwen/qwen3-vl-4b"
 MODEL_9B="qwen3.5-9b-uncensored-hauhaucs-aggressive"
 MODEL_27B="qwen3.8-27b-uncensored-hauhaucs-aggressive-mtp"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=8)
@@ -57,8 +64,9 @@ CURL=(curl --noproxy '*' -sS -m 30)
 die() { echo "❌ $*" >&2; exit 1; }
 say() { echo "[$(date +%H:%M:%S)] $*"; }
 
-pick_model() {  # $1=9b|27b|完整模型键
-  case "${1:-9b}" in
+pick_model() {  # $1=vl4b(默认,1007 用户令)|9b|27b|完整模型键
+  case "${1:-vl4b}" in
+    vl4b) echo "$MODEL_VL4B" ;;
     9b)  echo "$MODEL_9B" ;;
     27b) echo "$MODEL_27B" ;;
     *)   echo "$1" ;;
