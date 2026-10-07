@@ -83,16 +83,16 @@ metadata:
 
 ### 6. 工作流文件四副本与读取路径(改前追真读源,改后热覆盖)
 
-**⭐ 唯一交付管线(1007 判图役五连修定谳,改画布/节点/JS 一律照此走,禁跳步禁凭感觉)**:
+**⭐ 唯一交付管线(1007 判图役五连修定谳+1007晚 出口销整备改序:契约前置,验证绿了才准部署;禁跳步禁凭感觉)**:
 
 1. **改仓库真源**(唯一编辑位;生产件=带断言手术脚本,fail-closed)。
-2. **cp 热覆盖**(按类型):.py=仓库→装机 Resources→引擎家 custom_nodes 三方;工作流 JSON=仓库→装机→引擎缓存三方**+蓝图 subgraphs 双刷**+`qi21_blueprint_sync_1001.py --check`;JS=仓库→装机→引擎家两方。
-3. **生效动作**(按类型,缺这步=用户看到的永远是旧的):.py→**重启引擎**(队列==0 硬门);工作流 JSON→**画布重载文件**(关签重开或 CDP `loadGraphData`——**reload 页面只恢复会话快照≠读盘**);JS→**页面重载**(no-cache 已根治缓存)。
-4. **活机读数**(无读数不得报「已生效」;只许说「盘上已改待载」):.py→`/object_info/<类>`+路由 curl;JSON→CDP `app.graph.serialize()` 读 definitions(根图恒 `app.graph`,`app.canvas.graph` 在子图视图=内层图);JS→CDP 验 DOM(`w.element/inputEl` 在场,数据层在场≠渲染在场)。探针姿势=App 带 `--remote-debugging-port=9225` 启动→`/json/list` 取 webview target→executeJavaScript。
-5. **契约测试**:`pytest tests/test_qwen21_workflow_contract.py my_nodes/tests/ -q`(既有红账如实注,零新增为准)。
+2. **契约测试(前置门,绿了才准进第 3 步)**:`pytest tests/test_qwen21_workflow_contract.py my_nodes/tests/ -q`——**零新增红;不绿=带伤部署,坏版本会流进用户画布被点运行(1007晚 实弹:reroute 手术 4304 slot 错,契约当场抓到,但部署已先行,用户窗口期执行被前端校验拒收=全节点零输出)**。既有红账如实注,零新增为准。
+3. **cp 热覆盖**(按类型):.py=仓库→装机 Resources→引擎家 custom_nodes 三方;工作流 JSON=仓库→装机→引擎缓存三方**+蓝图 subgraphs 双刷**+`qi21_blueprint_sync_1001.py --check`;JS=仓库→装机→引擎家两方。
+4. **生效动作**(按类型,缺这步=用户看到的永远是旧的):.py→**重启引擎**(队列==0 硬门);工作流 JSON→**画布重载文件**(关签重开或 CDP `loadGraphData`——**reload 页面只恢复会话快照≠读盘**);JS→**页面重载**(no-cache 已根治缓存)。
+5. **活机读数**(无读数不得报「已生效」;只许说「盘上已改待载」):.py→`/object_info/<类>`+路由 curl;JSON→CDP `app.graph.serialize()` 读 definitions(根图恒 `app.graph`,`app.canvas.graph` 在子图视图=内层图);JS→CDP 验 DOM(`w.element/inputEl` 在场,数据层在场≠渲染在场)。探针姿势=App 带 `--remote-debugging-port=9225` 启动→`/json/list` 取 webview target→executeJavaScript。
 6. **报账**:生效声明+活机读数+测试结果,三件同报。
 
-> 1007 实弹反例存档(每步漏掉的代价):漏 3→用户看旧布局(会话快照恢复)「布局没改」;漏 4→控件数据层在场面板无 DOM、装载期炸 getComputedStyle;漏 4 的读数→「webview 已刷」实为恢复快照,错0 二犯。
+> 1007 实弹反例存档(每步漏掉的代价):漏 3→用户看旧布局(会话快照恢复)「布局没改」;漏 4→控件数据层在场面板无 DOM、装载期炸 getComputedStyle;漏 4 的读数→「webview 已刷」实为恢复快照,错0 二犯;**错序(先部署后测)→带伤版本流出,用户执行被前端校验拒收=全节点零输出(1007晚 出口销整备 4304 slot 错)**。
 
 - 四副本:①仓库真源 `apps/backend/engines/comfyui/workflows/` ②装机包种子 `/Applications/….app/Contents/Resources/backend/…` ③构建产物 `apps/release/build/…`(拿它代替验证=AGENTS 禁)④引擎家用户区 `<engine-home>/ComfyUI/user/default/workflows/`(用户另存件家;旧快照与 repo 恒 differ=用户手存非装机件)。`~/Library/漫影工作室`=软链→新家,非第五处。
 - **改任何 UI/工作流前先从用户看到的界面反向追实际读取路径**,勿只改理论源头(1005 十轮白改教训):侧栏 `repo:` 叶子直载读**②装机包**非④(活机判据 `activeWorkflow.path` 形如 `workflows/<rel>`);全图见排查文档 §七。
