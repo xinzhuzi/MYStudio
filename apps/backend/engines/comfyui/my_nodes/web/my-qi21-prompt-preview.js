@@ -59,7 +59,7 @@ app.registerExtension({
             const status = arr ? String(arr[0] ?? "") : "";
             if (!status) return;
             if (this._myTitle0 === undefined) this._myTitle0 = this.title;
-            if (status.startsWith("透传")) {
+            if (status.startsWith("透传") || status.startsWith("云端失败")) {
                 this.title = this._myTitle0 + " ⚠" + status;
                 this.bgcolor = "#4a2020";
             } else {
@@ -120,7 +120,7 @@ app.registerExtension({
         el.type = "password";
         el.autocomplete = "off";
         el.spellcheck = false;
-        el.placeholder = "留空=用钥匙串/env;仅存本会话内存,不入盘";
+            el.placeholder = "填=本次走云端glm-5.3-flash(最高思考);留空=本地LM Studio;仅存内存不入盘";
         el.style.width = "100%";
         el.style.boxSizing = "border-box";
         el.style.backgroundColor = "var(--comfy-input-bg, #222)";

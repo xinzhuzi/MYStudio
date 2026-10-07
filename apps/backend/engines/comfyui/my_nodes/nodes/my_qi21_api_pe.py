@@ -25,10 +25,11 @@ thinking_effort 档位 → 顶层 reasoning_effort 参数(none=硬关,不发=模
     +中文 print 警告 +ui.api_pe_status 状态字段(JS 上画布标红警示,1007);
   - LM Studio 须常驻(单飞资源,+16GB);本节点同步阻塞引擎队列(实测
     ~70s/发,冷首发与长思考更慢——耐心或加 timeout_sec)。
-  - api_url 亦可列 https 云端端点(bigmodel v4 = https://open.bigmodel.cn/api/paas/v4,
-    model 填 glm-5.3 系):鉴权走 env MYSTUDIO_QI21_PE_KEY 或 macOS 钥匙串
-    MYStudio/qi21-pe-key(1007 用户令:key 勿明文落代码/文档/工作流);
-    云端档位映射 关闭→low/思考→max(1210 值域,始终思考关不掉)。
+  - 云端开关=api_key 控件(1007 用户令「填写apikey就是走云端,不填写走本地」):
+    填→_CLOUD_URL/_CLOUD_MODEL 内置(bigmodel v4+glm-5.3-flash)key=填的值;
+    留空→api_url/model 原样(本地),key 永不查。云端失败→回落本地透传,
+    api_pe_status 明示「云端失败:HTTP码+原因」(画布标红)。key 勿明文落
+    代码/文档/工作流;档位映射逐目标:本地关闭→none/云端 low|max(1210 值域)。
 
 全上下文三轮(1006 用户令「五样上下文在子图里必须是节点,全连进本件,
 输出两口=正向/负向」)+ 批C 七路直连(1006 问题2,Q1=甲):
@@ -78,6 +79,10 @@ def _chat_url(base: str) -> str:
 
 _CLOUD_KEY_CACHE: str | None = None
 _RUNTIME_KEY: str | None = None  # UI 控件通道(引擎进程内存,重启即失;1007)
+# 云端档(1007 用户令:开关=api_key 控件,填=云端/留空=本地;URL+模型内置,
+# 模型钉死 glm-5.3-flash 勿擅换——同 local-ocr 技能钉型令)
+_CLOUD_URL = os.environ.get("MYSTUDIO_QI21_CLOUD_URL", "https://open.bigmodel.cn/api/paas/v4")
+_CLOUD_MODEL = os.environ.get("MYSTUDIO_QI21_CLOUD_MODEL", "glm-5.3-flash")
 
 
 def _cloud_key() -> str:
@@ -560,8 +565,15 @@ class MyQi21ApiPE:
             ctx.append(f"[画幅] {画幅宽}×{画幅高}(按此纵横比组织画面描述)")
         ctx.append(f"[透明] {'开:本图为透明素材图,勿虚构繁杂背景' if 透明模式 else '关:常规成图'}")
         user_with_ctx = direct + "\n\n" + "\n".join(ctx)
-        urls = [u.strip().rstrip("/") for u in (api_url or "http://192.168.0.101:1234,http://127.0.0.1:1234").split(",") if u.strip()]
-        models = [m.strip() for m in (model or "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx").split(",") if m.strip()]
+        # 1007 用户令(开关=api_key 控件):填=云端(_CLOUD_URL/_CLOUD_MODEL 内置,
+        # key=填的值),留空=本地(api_url/model 原样);云端失败→回落本地并明示原因
+        cloud_mode = bool(_RUNTIME_KEY)
+        if cloud_mode:
+            urls = [_CLOUD_URL.rstrip("/")]
+            models = [_CLOUD_MODEL]
+        else:
+            urls = [u.strip().rstrip("/") for u in (api_url or "http://192.168.0.101:1234,http://127.0.0.1:1234").split(",") if u.strip()]
+            models = [m.strip() for m in (model or "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx").split(",") if m.strip()]
         # URL+model 按索引配对;model 不够时用末位
         pair = lambda i: (urls[i], models[i] if i < len(models) else models[-1] if models else "qwen3.5-9b")
         payload = {
@@ -573,13 +585,11 @@ class MyQi21ApiPE:
             "temperature": float(temperature),
             "max_tokens": int(max_tokens),
         }
-        # 1007 实测(1234 实弹两轮):chat_template_kwargs 被 LM Studio 层丢弃
-        # (enable_thinking:false 52/52 无视)、/no_think 文本尾被 aggressive
-        # finetune 无视、「低」档无衰减(1565/1696 tok,两测);顶层 reasoning_effort
-        # 转发生效——none=模板预填空 <think> 块硬关思考(确定性零思考 token),
-        # 不发=模板默认 xhigh(思考量随机 ~1200-4600 tok/发)。本地 27B 同层待首用复验
-        if thinking_effort == "关闭":
-            payload["reasoning_effort"] = "none"
+        # 1007 实测(1234 实弹两轮):chat_template_kwargs 被 LM Studio 层丢弃、
+        # /no_think 文本尾被 aggressive finetune 无视;顶层 reasoning_effort 转发生效。
+        # 档位映射**逐目标**定(本地与云端值域不同):本地 关闭→none/思考→不发;
+        # 云端(1210:该族始终思考,值域 low/high/max)关闭→low/思考→max(用户令最高思考)。
+        # 在目标循环内按协议设置(见下),此处不预置。
         def _post(pl: dict) -> dict:
             headers = {"Content-Type": "application/json"}
             if url.startswith("https://"):
@@ -593,11 +603,21 @@ class MyQi21ApiPE:
         t0 = time.time()
         resp = None
         served = ""
+        _errs: list[str] = []  # 逐目标失败详情(云端失败要明示原因,1007 用户令)
         for _i in range(len(urls)):
             _u, _m = pair(_i)
+            _https = _u.startswith("https://")
+            # 档位映射逐目标定(本地 none/不发;云端 low/max——1210 值域)
+            if _https:
+                payload["reasoning_effort"] = "low" if thinking_effort == "关闭" else "max"
+            elif thinking_effort == "关闭":
+                payload["reasoning_effort"] = "none"
+            else:
+                payload.pop("reasoning_effort", None)
             if not _alive(_u):
                 print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
                       "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查-1007.md)")
+                _errs.append(f"{_m}:探活不通")
                 continue
             url = _chat_url(_u)
             payload["model"] = _m
@@ -607,23 +627,35 @@ class MyQi21ApiPE:
                 _msg0 = (_r.get("choices") or [{}])[0].get("message", {})
                 if not (_msg0.get("content") or "").strip() and not (_msg0.get("reasoning_content") or "").strip():
                     print(f"[漫影 API扩写PE] {_u}({_m}) 返回空,试下一个…")
+                    _errs.append(f"{_m}:返回空")
                     continue
                 resp = _r
-                served = _m
-                if _u.startswith("https://"):
-                    # 云端档位映射(1210 实测:该族始终思考,值域 low/high/max,
-                    # 不认 none/xhigh);预算重试与自检补发共用 payload,在此定型。
-                    # 用户令(1007):云端开最高思考→max
-                    payload["reasoning_effort"] = "low" if thinking_effort == "关闭" else "max"
+                served = _m + ("(云端)" if _https else "")
                 break  # 首个有内容的用
+            except urllib.error.HTTPError as _he:
+                _detail = ""
+                try:
+                    _detail = _he.read()[:160].decode("utf-8", "ignore")
+                except Exception:
+                    pass
+                print(f"[漫影 API扩写PE] {_u}({_m}) HTTP {_he.code}: {_detail[:120]}")
+                _errs.append(f"{_m}:HTTP {_he.code} {_detail[:80]}")
+                continue
             except Exception as exc:
                 print(f"[漫影 API扩写PE] {_u}({_m}) 不可达({exc}),试下一个…")
+                _errs.append(f"{_m}:{str(exc)[:80]}")
                 continue
         if resp is None:
-            print(f"[漫影 API扩写PE] 全部 {len(urls)} 个 LM Studio 均不可达——"
-                  f"本发透传自装配三层(恒有输出);请检查 LM Studio 服务")
+            _why = "; ".join(_errs[-2:]) if _errs else "无目标"
+            if cloud_mode:
+                print(f"[漫影 API扩写PE] 云端失败({_why})→已回落本地透传自装配三层(恒有输出)")
+                _status = f"云端失败:{_why}→已回落本地透传"
+            else:
+                print(f"[漫影 API扩写PE] 全部 {len(urls)} 个 LM Studio 均不可达({_why})——"
+                      f"本发透传自装配三层(恒有输出);请检查 LM Studio 服务")
+                _status = "透传:LM Studio 均不可达"
             return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_fallback],
-                           "api_pe_status": ["透传:LM Studio 均不可达"]},
+                           "api_pe_status": [_status]},
                     "result": (direct, neg_fallback, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         try:
             msg = (resp.get("choices") or [{}])[0].get("message", {})
