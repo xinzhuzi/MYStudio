@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "cbb9d8780f9148ccaf6012a74d9f4ed4a474aae2a29421711918f1fb1e67ff4f",
+  "contractSha256": "a89acbf5e2575362a6c4006ecdb2bdae1379bff716d567fd43ee3c2fc6bbc2fa",
   "syncedAt": "2026-09-18",
   "maSources": [
     {
@@ -147,7 +147,7 @@
     },
     "finish.quality": {
       "moduleId": "finish.quality",
-      "text": "成片质量（硬）：强制降噪，生产级最终画面清晰度。",
+      "text": "成片质量（硬）：生产级最终画面清晰度——表面干净可读，细节边缘锐利自然。",
       "required": true,
       "singletonKey": "finish_quality",
       "source": {

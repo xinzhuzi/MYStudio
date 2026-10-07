@@ -187,12 +187,12 @@
       "id": 401,
       "type": "MyQi21PromptPreview",
       "pos": [
-        3054,
+        3060,
         2400
       ],
       "size": [
         500,
-        600
+        560
       ],
       "flags": {},
       "order": 8,
@@ -226,10 +226,12 @@
         }
       },
       "widgets_values": [
+        "",
         ""
       ],
       "widgets_values_named": {
-        "text": ""
+        "正向终稿": "",
+        "负向终稿": ""
       }
     },
     {

@@ -1,54 +1,62 @@
 // 漫影 qi21 正负双预览显示扩展(1005 ㊈;1007晚 终态=py-DOM 同构)
 // MyQi21PromptPreview 是 OUTPUT_NODE,但前端不渲染字符串返回值;显示位=
-// py 端 optional multiline「预览显示」(DOMWidgetImpl 可靠路径),本扩展
-// onExecuted 按 name 把 ui.merged(正/负分区合并文)写进该框,并把它钉成
-// 只读展示面板(1007晚 用户令「多了个渲染控件,布局也不合理」:预览框是
-// 展示位不是输入控件)。零改 ComfyUI 本体。
+// py 端 optional multiline「正向终稿/负向终稿」(DOMWidgetImpl 可靠路径),
+// 本扩展 onExecuted 按 name 把 ui.positive/ui.negative 分键写进各框。
+// 零改 ComfyUI 本体。
+//
+// 1007深夜二轮(用户令「正负提示词都传入了,但是又多了个渲染控件,布局也
+// 不合理」):单「预览显示」合并框退役——正/负各自成框,框数=2 零多余控件,
+// 与件名「提示词预览(正向+负向)」字面一致;框钉只读展示面板(readOnly+
+// 占位文案+钉高,吸收并行会话单框版同款打磨)。
 //
 // 1007 定谳存档:JS customtext/addDOMWidget 走新前端 LegacyWidget 兼容层,
 // element 懒 materialize 无可靠可见渲染(三方案试毕全败)——显示位已撤到
 // py 端,勿再走 JS 自建 widget 路线。
 import { app } from "../../scripts/app.js";
 
-// 1007晚:预览框钉成只读展示面板——readOnly+占位文案+钉高(节点唯一 widget,
-// 正文≈正/负终稿合并文;onConfigure 载入预填后同样保持只读态)。
+// 显示框钉只读展示面板:readOnly+占位文案+钉高(两框各半,合计≈原单框高;
+// onConfigure 载入预填后同样保持只读态)。
 app.registerExtension({
     name: "MY.Qi21PromptPreview",
     async nodeCreated(node) {
         if (node.comfyClass !== "MyQi21PromptPreview") return;
-        const w = (node.widgets || []).find((x) => x.name === "预览显示");
-        if (!w) return;
-        const el = w.inputEl ?? w.element;
-        if (!el) return;
-        el.readOnly = true;
-        el.spellcheck = false;
-        el.placeholder = "跑一发后此处显示正向/负向终稿";
-        el.style.minHeight = "520px";
-        el.style.overflow = "auto";
+        const pin = (name, hint) => {
+            const w = (node.widgets || []).find((x) => x.name === name);
+            if (!w) return;
+            const el = w.inputEl ?? w.element;
+            if (!el) return;
+            el.readOnly = true;
+            el.spellcheck = false;
+            el.placeholder = hint;
+            el.style.minHeight = "245px";
+            el.style.overflow = "auto";
+        };
+        pin("正向终稿", "跑一发后此处显示正向终稿");
+        pin("负向终稿", "跑一发后此处显示负向终稿");
     },
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "MyQi21PromptPreview") return;
         const onExecuted = nodeType.prototype.onExecuted;
         nodeType.prototype.onExecuted = function (message) {
             onExecuted?.apply(this, arguments);
-            // 前端版本差异:有的传 ui 载荷(message.merged),有的传整个 detail
-            // (message.output.merged)——两种形态都吃(1005 实弹定谳)。
-            const payload = message && message.merged ? message
-                : message && message.output && message.output.merged ? message.output
-                : null;
-            // 载荷缺位不清框(1005 实弹:取不到时落空串=框被"清空"正是当晚所见;
-            // 1007晚重申为守卫)——保上一次内容,只在工作真载荷时刷新。
-            if (!payload) return;
-            const merged = payload.merged || [""];
-            const text = String(merged[0] ?? "");
-            const w = (this.widgets || []).find((x) => x.name === "预览显示");
-            if (!w) return;
-            w.value = text;
-            // DOM 直写+input 事件派发(Vue v-model 同步)——数据层与像素层双写
-            if (w.inputEl) {
-                w.inputEl.value = text;
-                w.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-            }
+            // 前端版本差异:载荷直挂(message.positive)或整体 detail
+            // (message.output.positive)——两种形态都吃(1005 实弹定谳沿用)。
+            const payload = message && (message.output || message);
+            const fill = (widgetName, arr) => {
+                if (!arr) return; // 载荷缺位不清框(1005 实弹定谳:清框正是当晚所见)
+                const text = String(arr[0] ?? "");
+                const w = (this.widgets || []).find((x) => x.name === widgetName);
+                if (!w) return;
+                w.value = text;
+                // DOM 直写+input 事件派发(Vue v-model 同步)——数据层与像素层双写
+                const el = w.inputEl || w.element;
+                if (el && el.value !== undefined) {
+                    el.value = text;
+                    el.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+            };
+            fill("正向终稿", payload && payload.positive);
+            fill("负向终稿", payload && payload.negative);
             requestAnimationFrame(() => {
                 const sz = this.computeSize();
                 this.onResize?.([Math.max(this.size[0], sz[0]), Math.max(this.size[1], sz[1])]);
