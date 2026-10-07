@@ -77,25 +77,65 @@ def _chat_url(base: str) -> str:
 
 
 _CLOUD_KEY_CACHE: str | None = None
+_RUNTIME_KEY: str | None = None  # UI 控件通道(引擎进程内存,重启即失;1007)
 
 
 def _cloud_key() -> str:
-    """云端端点(https 条目)鉴权:env MYSTUDIO_QI21_PE_KEY 优先,macOS 钥匙串
-    (MYStudio/qi21-pe-key)兜底——key 永不落代码/文档/工作流(1007 用户令)。"""
+    """云端端点(https 条目)鉴权三级:UI 控件(运行时内存)>env MYSTUDIO_QI21_PE_KEY
+    >macOS 钥匙串(MYStudio/qi21-pe-key)——key 永不落代码/文档/工作流/PNG(1007 用户令)。"""
     global _CLOUD_KEY_CACHE
+    if _RUNTIME_KEY:
+        return _RUNTIME_KEY
+    env = os.environ.get("MYSTUDIO_QI21_PE_KEY", "")
+    if env:
+        return env
     if _CLOUD_KEY_CACHE is not None:
         return _CLOUD_KEY_CACHE
-    key = os.environ.get("MYSTUDIO_QI21_PE_KEY", "")
-    if not key:
-        try:
-            key = subprocess.run(
-                ["security", "find-generic-password", "-s", "MYStudio",
-                 "-a", "qi21-pe-key", "-w"],
-                capture_output=True, text=True, timeout=5).stdout.strip()
-        except Exception:
-            key = ""
+    try:
+        key = subprocess.run(
+            ["security", "find-generic-password", "-s", "MYStudio",
+             "-a", "qi21-pe-key", "-w"],
+            capture_output=True, text=True, timeout=5).stdout.strip()
+    except Exception:
+        key = ""
     _CLOUD_KEY_CACHE = key
     return key
+
+
+def _register_key_route() -> None:
+    """引擎侧临时 key 通道(1007):前端密码控件 onChange POST 到此,存引擎进程
+    内存(_RUNTIME_KEY)——不进 /prompt JSON(→不进 PNG 元数据)、不进工作流文件、
+    不进仓库;引擎重启即失,钥匙串兜底仍在。GET 查当前来源(不回传 key 本体)。"""
+    try:
+        from server import PromptServer  # 引擎环境才有;单测 spec 直载无此模块即跳过
+        from aiohttp import web
+    except Exception:
+        return
+    routes = PromptServer.instance.routes
+
+    async def _set_key(request):
+        global _RUNTIME_KEY
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        _RUNTIME_KEY = str((body or {}).get("key") or "").strip()
+        return web.json_response({"ok": True, "set": bool(_RUNTIME_KEY)})
+
+    async def _get_key(_request):
+        if _RUNTIME_KEY:
+            src = "runtime"
+        elif os.environ.get("MYSTUDIO_QI21_PE_KEY"):
+            src = "env"
+        else:
+            src = "keychain" if _CLOUD_KEY_CACHE or _keychain_probe() else "none"
+        return web.json_response({"ok": True, "source": src})
+
+    def _keychain_probe() -> bool:
+        return bool(_cloud_key()) if not os.environ.get("MYSTUDIO_QI21_PE_KEY") else False
+
+    routes.post("/my-nodes/qi21-pe-key")(_set_key)
+    routes.get("/my-nodes/qi21-pe-key")(_get_key)
 
 
 def _alive(base: str, timeout: float = 3.0) -> bool:
@@ -648,3 +688,6 @@ class MyQi21ApiPE:
         return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_fallback],
                        "api_pe_status": ["透传:答文解析失败"]},
                 "result": (direct, neg_fallback, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+
+
+_register_key_route()

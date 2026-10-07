@@ -91,3 +91,33 @@ app.registerExtension({
         };
     },
 });
+
+// 1007:云端 api_key 密码控件(用户令「UI控件输入apikey,需要加密」)——
+// 掩码显示(inputEl type=password)+ serialize=false(不进 widgets_values=不落
+// 工作流文件)+ onChange POST 引擎侧 /my-nodes/qi21-pe-key(存引擎进程内存,
+// 不进 /prompt JSON→不进 PNG 元数据)+ 引擎重启即失(钥匙串兜底)。
+// key 全链路零明文落盘:仓库/工作流/PNG 三处均无;控件值为空=走钥匙串/env。
+app.registerExtension({
+    name: "MY.qi21_api_pe_key",
+    async nodeCreated(node) {
+        if (node.comfyClass !== "MyQi21ApiPE") return;
+        if ((node.widgets || []).some((x) => x.name === "api_key")) return;
+        const w = node.addWidget("customtext", "api_key(临时·掩码)", "", () => {}, { multiline: false });
+        w.serialize = false;
+        if (w.inputEl) {
+            w.inputEl.type = "password";
+            w.inputEl.autocomplete = "off";
+            w.inputEl.spellcheck = false;
+            w.inputEl.placeholder = "留空=用钥匙串/env;粘贴仅存本会话内存,不入盘";
+        }
+        w.callback = (v) => {
+            try {
+                fetch("/my-nodes/qi21-pe-key", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ key: String(v ?? "") }),
+                }).catch(() => {});
+            } catch { /* 探针环境无 fetch 时静默 */ }
+        };
+    },
+});

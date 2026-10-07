@@ -133,3 +133,19 @@ def test_cloud_key_env_priority_1007(monkeypatch):
 
 def node_required_keys():
     return list(api_pe.MyQi21ApiPE.INPUT_TYPES()["required"])
+
+
+def test_cloud_key_runtime_takes_priority_1007(monkeypatch):
+    """1007 UI 控件通道:运行时 key(_RUNTIME_KEY,引擎内存)>env>钥匙串;
+    控件值不进 INPUT_TYPES(key 永不落工作流),路由注册在无 server 环境静默跳过。"""
+    monkeypatch.setattr(api_pe, "_RUNTIME_KEY", "runtime-key", raising=False)
+    monkeypatch.setenv("MYSTUDIO_QI21_PE_KEY", "env-key")
+    api_pe._CLOUD_KEY_CACHE = None
+    try:
+        assert api_pe._cloud_key() == "runtime-key"
+    finally:
+        api_pe._RUNTIME_KEY = None
+        api_pe._CLOUD_KEY_CACHE = None
+        monkeypatch.delenv("MYSTUDIO_QI21_PE_KEY", raising=False)
+    # 路由注册函数在无 PromptServer 环境可安全调用(单测直载即此形态)
+    api_pe._register_key_route()  # 不抛即过
