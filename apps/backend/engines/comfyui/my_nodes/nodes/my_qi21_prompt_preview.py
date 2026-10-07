@@ -34,6 +34,16 @@ class MyQi21PromptPreview:
                     "multiline": True, "default": "",
                     "tooltip": "负向终稿(类型负面+美术负面+主体句负面)"}),
             },
+            # 1007 用户令「[401] 没有内容」根治:显示位=py 端 optional multiline
+            # (DOMWidgetImpl/comfy-multiline-input,全画布唯一被证实可靠的渲染
+            # 路径;JS customtext=LegacyWidget 懒 element 不可靠已废,三方案试毕
+            # 详 SKILL §5 1b)。前端 onExecuted 把 ui.merged 写进本框;不连线=
+            # 纯显示位,无需手填。
+            "optional": {
+                "预览显示": ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "预览显示位(执行后自动刷新,无需手填/连线)"}),
+            },
         }
 
     RETURN_TYPES = ("STRING",)
@@ -42,7 +52,8 @@ class MyQi21PromptPreview:
     OUTPUT_NODE = True
 
     def preview(self, 正向提示词: str | None = None,
-                负向提示词: str | None = None) -> dict:
+                负向提示词: str | None = None,
+                预览显示: str | None = None) -> dict:
         """合并显示:正向在上,负向在下,分隔线隔开。
 
         1005 ㊈ 显示通道补路:此前返回裸元组,前端对 OUTPUT_NODE 的字符串返回

@@ -9,68 +9,37 @@
 // 真实 DOM textarea(全 App 被证实渲染可靠),饿汉挂载+值直写元素。
 import { app } from "../../scripts/app.js";
 
+// 1007 三场定谳(用户实拍「没有内容」+解剖 LegacyWidget):JS customtext 走
+// LegacyWidget 兼容层,element 懒 materialize 无可靠可见渲染——已废。显示位=
+// py 端 optional multiline「预览显示」(DOMWidgetImpl/comfy-multiline-input,
+// 全画布唯一被证实可靠路径,与 [400]/三真源同构)。onExecuted 双写数据层与
+// DOM 层+input 事件派发(Vue v-model 同步)。serialize 持久化由 py widget
+// 天然承担(widgets_values),跨重启不丢。
 app.registerExtension({
     name: "MY.Qi21PromptPreview",
-    async nodeCreated(node) {
-        if (node.comfyClass !== "MyQi21PromptPreview") return;
-        // 1007:预览跨重启持久化——serialize=true 文本随 widgets_values 落盘,
-        // 载入时 getValue 回读预填(运行期仍由 onExecuted 覆盖)。
-        // api_key 控件的 serialize=false 是密钥不落盘,另一回事勿动。
-        const el = document.createElement("textarea");
-        el.readOnly = true;
-        el.spellcheck = false;
-        el.placeholder = "排队运行一次后,此处显示正向/负向终稿";
-        el.style.width = "100%";
-        el.style.height = "100%";
-        el.style.minHeight = "380px";
-        el.style.boxSizing = "border-box";
-        el.style.backgroundColor = "var(--comfy-input-bg, #222)";
-        el.style.color = "var(--input-text, #ddd)";
-        el.style.border = "1px solid var(--border-color, #444)";
-        el.style.borderRadius = "4px";
-        el.style.padding = "6px 8px";
-        el.style.resize = "none";
-        el.style.overflow = "auto";
-        el.style.fontFamily = "monospace";
-        const w = node.addDOMWidget("合并预览", "myq21previewtext", () => el, {
-            getValue: () => el.value,
-            setValue: (v) => { el.value = v ?? ""; },
-            minNodeSize: [300, 40],
-        });
-        w.__myPreviewDisplay = true;
-        w.serialize = true;
-        w.element = el; // 饿汉挂载:装载期 computeLayoutSize 即有元素(api_key 同款)
-        // 旧存档(serialize=false 时代)widgets_values 缺本槽位——框架按位填充可能
-        // 留 undefined,显式归 ""(onConfigure 在 widgets_values 应用后跑)。
-        const origConfigure = node.onConfigure;
-        node.onConfigure = function (...a) {
-            const r = origConfigure?.apply(this, a);
-            const pw = (this.widgets || []).find((x) => x.__myPreviewDisplay);
-            if (pw && (pw.value === undefined || pw.value === null)) pw.value = "";
-            if (pw && pw.element) pw.element.value = pw.value ?? "";
-            return r;
-        };
-    },
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "MyQi21PromptPreview") return;
         const onExecuted = nodeType.prototype.onExecuted;
         nodeType.prototype.onExecuted = function (message) {
             onExecuted?.apply(this, arguments);
             // 前端版本差异:有的传 ui 载荷(message.merged),有的传整个 detail
-            // (message.output.merged)——两种形态都吃(1005 实弹定谳:前者取不到
-            // 时 text 落成空串,框被"清空",正是当晚首跑实弹所见)。
+            // (message.output.merged)——两种形态都吃(1005 实弹定谳)。
             const payload = message && message.merged ? message
                 : message && message.output && message.output.merged ? message.output
                 : null;
-            const merged = (payload && payload.merged) || [""];
+            // 载荷缺位不清框(1005 实弹:取不到时落空串=框被"清空"正是当晚所见;
+            // 1007晚重申为守卫)——保上一次内容,只在工作真载荷时刷新。
+            if (!payload) return;
+            const merged = payload.merged || [""];
             const text = String(merged[0] ?? "");
-            const w = (this.widgets || []).find((x) => x.__myPreviewDisplay);
+            const w = (this.widgets || []).find((x) => x.name === "预览显示");
             if (!w) return;
             w.value = text;
-            // 1007:新前端 multiline=DOM 文本框渲染——只写 w.value 不刷 DOM 元素,
-            // 节点上永远显示占位符空框(用户实拍「没有内容」)。双写才可见。
-            if (w.inputEl) w.inputEl.value = text;
-            else if (w.element) w.element.value = text;
+            // DOM 直写+input 事件派发(Vue v-model 同步)——数据层与像素层双写
+            if (w.inputEl) {
+                w.inputEl.value = text;
+                w.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+            }
             requestAnimationFrame(() => {
                 const sz = this.computeSize();
                 this.onResize?.([Math.max(this.size[0], sz[0]), Math.max(this.size[1], sz[1])]);
