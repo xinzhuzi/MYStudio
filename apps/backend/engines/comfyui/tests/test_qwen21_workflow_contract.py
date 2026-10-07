@@ -3585,9 +3585,9 @@ class TestQi21SubgraphContract:
             assert len(lines) == want_lines, \
                 f"{zh}: 装配全文应 {want_lines} 行(②型底座+③锁层[+增量锁]+④配色行),得 {len(lines)}"
             # 1004:库围栏=设计记录旧全本(数据真源=qi21_bases.json),带随
-            # 实测定带 1200-2100(1004 立带 1200-2000;1007 头发两态后库自查现值 1681-2001)
-            assert 1200 <= len(fence) <= 2100, \
-                f"{zh}: 装配全文字符数 {len(fence)} 出带 1200-2100(1004 立带,1007 头发两态后上调)"
+            # 实测定带 1150-2100(1004 立带 1200-2000;1007 头发两态+否定式清退后下调,现值 1188-1980)
+            assert 1150 <= len(fence) <= 2100, \
+                f"{zh}: 装配全文字符数 {len(fence)} 出带 1150-2100(1004 立带;1007 头发两态+否定式清退两轮后下调)"
             assert lines[0].startswith("⟨①:") and lines[0].endswith("⟩"), f"{zh}: 首行应为 ⟨①:…⟩ 槽"
             assert lines[-1] == PRO_COLOR_MAP[zh], f"{zh}: 末行应为④配色行"
             if lines[1] != canon_pos[zh]:
