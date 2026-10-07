@@ -108,7 +108,7 @@ def _register_key_route() -> None:
     不进仓库;引擎重启即失,钥匙串兜底仍在。GET 查当前来源(不回传 key 本体)。"""
     try:
         from server import PromptServer  # 引擎环境才有;单测 spec 直载无此模块即跳过
-        from aiohttp import web
+        from aiohttp import web as _web
     except Exception:
         return
     routes = PromptServer.instance.routes
@@ -136,6 +136,21 @@ def _register_key_route() -> None:
 
     routes.post("/my-nodes/qi21-pe-key")(_set_key)
     routes.get("/my-nodes/qi21-pe-key")(_get_key)
+
+    # 扩展 JS 恒新鲜(1007 根治「改 JS 后 webview 吃旧缓存」复发类):/extensions/*
+    # 响应补 no-cache——aiohttp 静态文件默认只给 Last-Modified,浏览器启发式缓存
+    # 会拿旧 JS;no-cache=每次重载都回源校验(304 命中零成本)。app 未冻结期挂入。
+    @_web.middleware
+    async def _no_cache_extensions(request, handler):
+        resp = await handler(request)
+        if request.path.startswith("/extensions/"):
+            resp.headers.setdefault("Cache-Control", "no-cache")
+        return resp
+
+    try:
+        PromptServer.instance.app.middlewares.append(_no_cache_extensions)
+    except Exception:
+        pass
 
 
 def _alive(base: str, timeout: float = 3.0) -> bool:
