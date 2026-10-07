@@ -1677,11 +1677,12 @@ class TestTopology:
                 f"{name}: EmptyLatentImage.width 上游必须是 ResolutionSelector"
 
     def test_qi21_latent_fed_by_subgraph_width_height(self):
-        """qi21 件宽高链(1004 Phase D 重锚):[4018] MyQi21WhSuggest 画幅建议器迁
-        主图装配块旁——[4] 空潜宽高直连 [4018].width/height(建议器=画幅规则后
-        终值);[4018] 吃 [6] 宿主三出口:九型W/H(槽2/3,子图内直源 [4010] 原样
-        直通)+wh_ratio(槽4,PE 建议)+联动开关(槽5=PE启用? 扇出);手填宽高
-        住 [4018] 面板 widget([6] 面板同名控件不生效,说明卡注明)。"""
+        """qi21 件宽高链(1004 Phase D 重锚;1008 建议路清退重锚):[4018]
+        MyQi21WhSuggest 画幅定值件居主图装配块旁——[4] 空潜宽高直连
+        [4018].width/height(画幅规则后终值);[4018] 吃 [6] 宿主两出口:九型W/H
+        (宿主槽2/3,子图内 [4013] AI扩写透传 [4010] 型默认画幅);wh_ratio/
+        联动开关建议路随 1006 换装休眠、1008 整槽清退;手填宽高住 [4018]
+        面板 widget([6] 面板同名控件不生效,说明卡注明)。"""
         graph = GRAPHS["qi21"]
         assert not _by_type(graph, "ResolutionSelector"), \
             "qi21 件不应再有 ResolutionSelector(写死档位表已废止,宽高随型直驱)"
@@ -1697,24 +1698,28 @@ class TestTopology:
             link = _links(graph)[inp["link"]]
             assert (link[1], link[2]) == (QI21_WH_ID, slot), \
                 f"qi21: EmptyLatentImage.{want_out} 应直连 [{QI21_WH_ID}].{want_out}(终值直驱)"
-        # 1006 四轮:建议器仅 W/H 两入线溯宿主(九型W←宿主2/九型H←宿主3);
-        # wh_ratio/联动开关 未接=恒九型直通(AI扩写恒开,无画幅建议)
+        # 1008 清退:wh_ratio/联动开关 两槽整删(建议路防回潮);建议器仅 W/H
+        # 两入线溯宿主(九型W←宿主2/九型H←宿主3=[4013] AI/型宽高直通),删槽后
+        # 两槽号前移(1/2→0/1)
         host_links = {l[0]: l for l in graph["links"]}
-        for inp_name, host_slot in (("九型WIDTH", 2), ("九型HEIGHT", 3)):
+        for inp_name, host_slot, dst_slot in (("九型WIDTH", 2, 0), ("九型HEIGHT", 3, 1)):
             inp = next(i for i in wh["inputs"] if i["name"] == inp_name)
+            assert wh["inputs"].index(inp) == dst_slot, \
+                f"qi21: [{QI21_WH_ID}].{inp_name} 删槽后应居槽{dst_slot}(1008 槽号前移)"
             l = host_links[inp["link"]]
             assert (l[1], l[2]) == (QI21_HOST_ID, host_slot), \
                 f"qi21: [{QI21_WH_ID}].{inp_name} 应接 [6] 宿主槽{host_slot},得 ({l[1]},{l[2]})"
-        for inp_name in ("wh_ratio", "联动开关"):
-            inp = next(i for i in wh["inputs"] if i["name"] == inp_name)
-            assert inp.get("link") is None, \
-                f"qi21: [{QI21_WH_ID}].{inp_name} 应未接(1006 四轮:恒九型直通)"
-        # 手填宽高=widget 面板(不接线,真控件住 [4018];[6] 面板同名控件不生效)
-        for inp_name in ("手动宽", "手动高"):
-            match=[i for i in wh["inputs"] if i["name"]==inp_name]
-            if not match: continue
-            assert inp.get("link") is None and "widget" in inp, \
-                f"qi21: [{QI21_WH_ID}].{inp_name} 应为 widget 手填(1004 迁出后真控件在主图)"
+        wh_names = {i["name"] for i in wh["inputs"]}
+        for gone in ("wh_ratio", "联动开关"):
+            assert gone not in wh_names, \
+                f"qi21: [{QI21_WH_ID}].{gone} 应已整槽清退(1008 建议路删除,防回潮)"
+        # 手填宽高=纯 widget(未接线不入 inputs[];真控件住 [4018],缺省 0=跟型)
+        wh_wvn = wh.get("widgets_values_named", {})
+        assert wh_wvn.get("手动宽") == 0 and wh_wvn.get("手动高") == 0, \
+            f"qi21: [{QI21_WH_ID}] 手动宽高应缺省 0=跟型,得 {wh_wvn}"
+        assert wh.get("widgets_values") == [0, 0, 0, 0], \
+            f"qi21: [{QI21_WH_ID}] widgets_values 应=四槽缺省 [0,0,0,0](1008 清退后)," \
+            f"得 {wh.get('widgets_values')}"
         # 子图侧:width/height 输出=[4010] 九型 W/H 原样直通(1004 后不经建议器,
         # 建议逻辑整体迁主图 [4018])
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
@@ -1843,7 +1848,10 @@ class TestCanvasDiscipline:
         # 双源=官方模板 Note+qi21-edit Note;旧缩写版常量 RGBA_HEAD_OFFICIAL 退役)
         rgba_token = {
             "qi21": RGBA_HEAD, "t2i": RGBA_HEAD, "edit": RGBA_HEAD,
-            "i2i": RGBA_HEAD,
+            # 1008 重锚:i2i 卡 RGBA 句式随 10-04 中文化改中文头句(RGBA_HEAD_ZH,
+            # 真源=qi21_bases.json rgba 节热读;英文官方头句在卡内仅以退役点名形
+            # 留档);edit 仍对拍英文官方头句([4014] widgets 实值双源)。
+            "i2i": RGBA_HEAD_ZH,
         }
         for name, graph in GRAPHS.items():
             notes = _by_type(graph, "MarkdownNote")
@@ -2058,7 +2066,9 @@ class TestEditContract:
     def test_note_three_mode_accel_and_dependency_warning(self):
         """0929 S3 收装 Note 锚:加速子图=宿主 [58] 双击进入(三支路+viggle LoRA+
         选择件+seed 全在内;面板=速度档位+seed;懒执行 check_lazy_status 子图环境
-        生效)+Fun-Acc 插件依赖警示(未装该档节点红,降级=切回 0/1 档)+T8 事实
+        生效)+Fun-Acc 插件依赖警示(未装该档节点红,降级=切回 1/2 档(1008 重锚:
+        卡文旧档号 0/1 随现役档序 0=Fun-Acc/1=直出/2=viggle 改 1/2,断言 token
+        「降级」不变))+T8 事实
         (无负面槽/model=Cache 直连/绝不吃 viggle LoRA)。Note 被重跑回退即红。"""
         note = _by_type(GRAPHS["edit"], "MarkdownNote")[0]["widgets_values"][0]
         for token in EDIT_PARALLEL_NOTE_TOKENS:
@@ -2817,7 +2827,8 @@ class TestQi21SubgraphContract:
         """外部接线(1005 重锚:宿主边界瘦身为两提示词 STRING 进线,1006 批C 正名):
         [400]→宿主.正向提示词(link15)/[404]→负向提示词(link218);[6].positive/negative
         →[401] 正负双预览(link18/217)+[4015]/[4015N] 编码(link208/209);[2]
-        主TE→双编码 clip(link210/211);[6] 四出口喂 [4018] 建议器(212-215);
+        主TE→双编码 clip(link210/211);[6] 两出口喂 [4018](link212/213;1006 四轮
+        起 214/215 随 wh_ratio/PE启用? 出口退役);
         [4018] width/height 直驱 [4] 空潜(link1/2);[1] UNET→加速宿主.model
         (link97);CONDITIONING→加速宿主(link16/17);[5] 空潜→加速宿主.latent
         (link5);加速宿主.LATENT→[5] 解码(link62)。主图应无 KSampler/LoRA/T8/
@@ -2834,13 +2845,13 @@ class TestQi21SubgraphContract:
             # /负向←[6].negative 槽1,与两编码器同源)
             (18, QI21_HOST_ID, 0, QI21_PREVIEW_ID, 0, "STRING"),
             (217, QI21_HOST_ID, 1, QI21_PREVIEW_ID, 1, "STRING"),
-            # 1004 Phase D:编码器/画幅建议器迁主图——[6] 三出口喂 [4018] 建议器
-            # (九型W/H+wh_ratio+PE启用? 联动);[4018].width/height 直驱 [4] 空潜
+            # 1004 Phase D:编码器/画幅定值件迁主图;1008 清退 wh_ratio/联动开关
+            # 槽后九型W/H 槽号前移(1/2→0/1);[4018].width/height 直驱 [4] 空潜
             (1, QI21_WH_ID, 0, QI21_LATENT_ID, 0, "INT"),
             (2, QI21_WH_ID, 1, QI21_LATENT_ID, 1, "INT"),
-            (212, QI21_HOST_ID, 2, QI21_WH_ID, 1, "INT"),
-            (213, QI21_HOST_ID, 3, QI21_WH_ID, 2, "INT"),
-            # 1006 四轮:214/215 随 wh_ratio/PE启用? 出口退役;[4018] 恒九型直通
+            (212, QI21_HOST_ID, 2, QI21_WH_ID, 0, "INT"),
+            (213, QI21_HOST_ID, 3, QI21_WH_ID, 1, "INT"),
+            # 1006 四轮:214/215 随 wh_ratio/PE启用? 出口退役;1008:[4018] 建议路槽清退
             # 主图双编码器(1004):[6].positive/negative(STRING)→[4015]/[4015N]
             # .prompt;clip←[2] 主TE 直供;CONDITIONING→[7] 加速宿主
             (208, QI21_HOST_ID, 0, QI21_MAIN_TE_ID, 3, "STRING"),
@@ -3537,29 +3548,29 @@ class TestQi21SubgraphContract:
                       # 0925 收窄轮要点(W1 组框+摆设值/pp 定档/W2 主画布);1004 D7
                       # 说明卡改写:旧「数学上不参与采样/官方同构/占位/
                       # ResolutionSelector 已退役」四 token 随 cfg4 负向真实生效退役
-                      "已定档",
+                      # 1008 重锚:「已定档」(pp=1.5)随官方 PE 退役(卡片对账役)
                       "摆设值不生效", "加速区", "[4013]", "[4011]",
                       # 1004 中文负面+cfg4 役新锚(D6/D7:自建中文 PE+负向编码器+
                       # 加速子图负向档位 Note+词族/PE 补丁真源迁 qi21_bases.json)
+                      # 1008 重锚(API版PE 卡片对账):官方件名保留在卡内退役注;
+                      # 「中文负面/负面词直写/drop-in」随案B直写与官方件退役→
+                      # 换 AI 精炼负向口径「负向终稿/直写兜底」
                       "QwenImage21_T2IPromptRewrite", "[4015N]", "负向仅档1", "[7016]", "cfg4",
-                      "中文负面", "扩写TE", "expand_instruction", "负面词直写",
-                      "[4018]", "进编码正向", "drop-in",
+                      "扩写TE", "expand_instruction", "负向终稿", "直写兜底",
+                      "[4018]", "进编码正向",
                       # 0928 PE 迁子图轮:面板控件口径([180] 总闸退役)
                       # 1005 重锚:「最终文本」出口名已退役([6] 出口现名 positive/
                       # negative,载荷=[4014] MyQi21FinalOutput 双口)→换新口名 token
                       "PE启用?", "画幅联动开关", "进编码正向文本",
                       # 1001 S8 R7 集成轮新锚(裁定A两件链+Q1=B+)
                       # 1005 重锚:t2i [4014] type 已换 MyQi21FinalOutput
-                      # (my_qi21_prompt_select.py:107-110 存照「t2i 不再用
-                      # MyQi21PromptSelect」)→PromptSelect 换 FinalOutput
-                      "MyQi21PromptAssembly", "MyQi21FinalOutput", "MyQi21WhSuggest",
+                      # 1008 重锚:MyQi21PromptAssembly 随装配内置 [4013] 退役→换 MyQi21ApiPE
+                      "MyQi21FinalOutput", "MyQi21WhSuggest", "MyQi21ApiPE",
                       # 1005 重锚:「种子文 widget 退役」随 D5 旧锚(Q1=B+ 装配全文
-                      # 进 PE)退役——实测 link304=[4013].prompt←[4012]:0 PE路主体句
-                      # (PE=主体句扩写器)→换「只吃主体句」;「qi21_strip_lexicon.json」
-                      # 真源指针已死(my_nodes 下无此文件)且 [4014] FinalOutput.compose
-                      # 无剥离(my_qi21_final_output.py:190-194 纯头尾包裹)→换
-                      # 「无词族剥离」
-                      "装配全文", "只吃主体句", "无词族剥离",
+                      # 进 PE)退役;1008 重锚:「只吃主体句」随 1006 装配内置退役
+                      # →换「改写对象=装配全文」+新机制锚(十入五出/透传自装配)
+                      "装配全文", "改写对象=装配全文", "无词族剥离",
+                      "十入五出", "透传自装配",
                       "28→10 节点", "裁定A"):
             assert token in note, f"Note 缺子图版要点: {token!r}"
 

@@ -120,7 +120,9 @@ three text-assembly nodes added by the 1001 S8 integration round (task 10-01-qi2
 below is **confirmed from the node source files on 2026-10-01** (not a live get_node_info pull; the engine was
 not queried). They form the two-piece chain that replaced 22 embedded-expression nodes inside the qi21 道劫-t2i
 assembly subgraph: `MyQi21PromptAssembly (141) → QwenImage21_T2IPromptRewrite (140) → MyQi21PromptSelect (152)`,
-plus `MyQi21WhSuggest (151)` for aspect-linked width/height.
+plus `MyQi21WhSuggest` for width/height finalizing (main-graph [4018]; the aspect-suggestion
+path — wh_ratio × 联动开关 × 4.2MP formula — went dormant with the 1006 API-PE swap and was
+removed entirely in the 1008 cleanup; history in git).
 
 ### MyQi21PromptAssembly  (display: "道劫·qi21装配全文件")
 - **category:** `my` | **purpose:** the single-source assembly text: 装配全文 = 主体句 + "\n" + BASE + "\n" + 锁层A全文. Replaced concat pair [130][131] + lock constant [110].
@@ -137,11 +139,11 @@ plus `MyQi21WhSuggest (151)` for aspect-linked width/height.
 - **placement:** downstream of the PE rewriter; the two-piece split exists because the one-piece three-output form made a data cycle with [140] that the engine's validation-layer cycle check rejects with NO lazy exemption (see 子图工作流工程契约.md §九.6).
 
 ### MyQi21WhSuggest  (display: "道劫·qi21画幅联动建议器")
-- **category:** `my` | **purpose:** aspect-linked canvas-size suggestion, 8 nodes → 1 (regex pair [151][152] + int converts [153][154] + 4.2MP formulas [155][156] + INT switches [157][158]). Formula migrated verbatim: `round(a*sqrt(4.2*1024*1024/(a*b))/8)*8` (and the b-form).
-- **inputs:** required `wh_ratio` (STRING ← [140].wh_ratio), `联动开关` (BOOLEAN default false ← subgraph input -10 slot 7 「画幅联动」); optional `九型WIDTH` / `九型HEIGHT` (INT ← [150].WIDTH/HEIGHT; not lazy — light values).
-- **outputs:** `width`, `height` (INT → subgraph IO slots 2/3). Sanity anchors: 16:9→(2800,1576), 1:1→(2096,2096), 9:16→(1576,2800).
-- **gotchas:** Q6 fault-tolerance — unparseable wh_ratio (not "宽:高" digits, or 0 ratio) with the switch ON = Chinese warning + fall back to 九型 values, queue never dies; both unparseable AND 九型 unwired = Chinese error (no value available, never guesses). Note the implement.md expectation list's (2560,1440) was a transcription slip — the formula and [155] both say 4.2MP.
-- **placement:** inside the qi21 assembly subgraph; switch OFF = 九型 passthrough (the old on_false arm).
+- **category:** `my` | **purpose:** width/height finalizer — manual pair override, else 九型/AI width-height passthrough. Born 1001 S8 as an 8→1 merge WITH a PE-ratio suggestion path (wh_ratio → verbatim `round(a*sqrt(4.2*1024*1024/(a*b))/8)*8`, anchors 16:9→(2800,1576) etc.); that path went dormant with the 1006 API-PE swap (wh_ratio output retired) and was **removed entirely in the 1008 cleanup** — slots, lazy protocol, formula all deleted (history in git).
+- **inputs (optional, all):** `九型WIDTH` / `九型HEIGHT` (INT ← [6] subgraph width/height outputs = MyQi21ApiPE passthrough of the [4010] type defaults), `手动宽` / `手动高` (INT widget, default 0 = follow type, step 8, max 8192; both non-zero = the manual pair wins).
+- **outputs:** `width`, `height` (INT → [4] EmptyLatentImage).
+- **gotchas:** half-filled manual pair (exactly one non-zero) = Chinese error, never guesses for you; no manual fill + unwired 九型 = Chinese error (no value available). widgets_values order = [九型W, 九型H, 手动宽, 手动高].
+- **placement:** main graph of qi21-道劫-t2i ([4018], moved out of the subgraph in 1004).
 
 ---
 

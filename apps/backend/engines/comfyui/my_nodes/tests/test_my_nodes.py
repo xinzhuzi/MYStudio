@@ -45,7 +45,7 @@ def test_registry_exposes_first_batch_nodes():
         "MyQi21RgbaSelect",  # 0929 D6 三态选择;1001 ① 文案轮:自动/true/false
         "MyQi21PromptAssembly",  # 1001 S8 R7 集成(裁定A上游):装配全文=主体句+BASE+锁层A 单口真源
         "MyQi21PromptSelect",  # 1001 S8 R7 集成(裁定A下游):最终文本=pe开关选路+透明文本包裹(lazy 破环)
-        "MyQi21WhSuggest",  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
+        "MyQi21WhSuggest",  # 1001 S8 R7 集成:画幅联动链 8合1;1008 建议路清退(现役=手动成对/九型直通)
         "MyQi21ChinesePE",  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出)
         "MyQi21SubjectSelect",  # 1005 ㉜ 管线重序:主体句过PE后拼型/底座(pe开选PE扩写文)
         "MyQi21PromptPreview",  # 1005 正负双预览(合成一个节点)

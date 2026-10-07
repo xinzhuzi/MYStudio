@@ -79,7 +79,7 @@ MyQi21PromptAssembly(141)→[140] PE改写→本件(152),环变链。
 graph.py:169-170;10-04 扩双懒槽):
   - PE出文/PE负面 声明 lazy=True=执行图对该槽默认不建强依赖,pe 关时 [140]
     无人消费其输出→不进执行图→零 PE TE 装载(**成立条件=pe开关关×联动
-    开关关**;[151] MyQi21WhSuggest.wh_ratio 亦已 lazy 化);
+    开关关**;[151] MyQi21WhSuggest.wh_ratio 懒槽已随 1008 建议路清退);
   - 钩子实名 check_lazy_status(本版引擎只认此名):pe关→[];pe开且槽已接线
     未求值(执行器投 None)→请求名单;未接线槽(kwargs 缺键)绝不请求
     ——引擎对未接线槽 make_input_strong_link 抛 NodeInputError
