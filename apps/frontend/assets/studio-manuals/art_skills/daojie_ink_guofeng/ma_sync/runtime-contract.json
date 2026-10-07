@@ -1,11 +1,11 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "5edf3d2228a003e68b4a24c1e80a23dd423011708841340ef4a034c6920e6965",
+  "contractSha256": "cbb9d8780f9148ccaf6012a74d9f4ed4a474aae2a29421711918f1fb1e67ff4f",
   "syncedAt": "2026-09-18",
   "maSources": [
     {
       "path": "scripts/gongbi/daojie_gongbi_restyle.py",
-      "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+      "sha256": "dacd5f6dcf6f449e9eb85dee05173194a9192b649520a7d29015280197ec8da9",
       "responsibility": "共享底座与三轨 compact 锁"
     },
     {
@@ -99,7 +99,7 @@
       "singletonKey": "gongbi_style_base",
       "source": {
         "path": "scripts/gongbi/daojie_gongbi_restyle.py",
-        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "sha256": "dacd5f6dcf6f449e9eb85dee05173194a9192b649520a7d29015280197ec8da9",
         "anchor": "GONGBI_STYLE_BASE_COMPACT"
       }
     },
@@ -113,7 +113,7 @@
       ],
       "source": {
         "path": "scripts/gongbi/daojie_gongbi_restyle.py",
-        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "sha256": "dacd5f6dcf6f449e9eb85dee05173194a9192b649520a7d29015280197ec8da9",
         "anchor": "GONGBI_TRACK_PERSON_LOCK_COMPACT"
       }
     },
@@ -127,7 +127,7 @@
       ],
       "source": {
         "path": "scripts/gongbi/daojie_gongbi_restyle.py",
-        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "sha256": "dacd5f6dcf6f449e9eb85dee05173194a9192b649520a7d29015280197ec8da9",
         "anchor": "GONGBI_TRACK_SCENE_LOCK_COMPACT"
       }
     },
@@ -141,7 +141,7 @@
       ],
       "source": {
         "path": "scripts/gongbi/daojie_gongbi_restyle.py",
-        "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+        "sha256": "dacd5f6dcf6f449e9eb85dee05173194a9192b649520a7d29015280197ec8da9",
         "anchor": "GONGBI_TRACK_PROP_LOCK_COMPACT"
       }
     },

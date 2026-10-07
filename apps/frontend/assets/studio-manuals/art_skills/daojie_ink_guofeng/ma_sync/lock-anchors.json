@@ -1,10 +1,10 @@
 {
   "comment": "道劫手册工笔硬锁 ↔ MA ma-imagegen 权威锚点对。manualAnchor 必须逐字出现在 prefix.md「工笔硬锁」节;maAnchor 必须逐字出现在 MA 权威文件中(由测试直连校验)。maSources.path 为 ma-imagegen 技能根内相对路径,本机工作区根由 daojie-ma-sync-check.py --ma-root 解析(08-24 起 seed 不再内嵌机器绝对路径,与 runtime-contract.json 同构)。",
-  "syncedAt": "2026-09-18",
+  "syncedAt": "2026-10-07",
   "maSources": [
     {
       "path": "scripts/gongbi/daojie_gongbi_restyle.py",
-      "sha256": "5e99f2f952bb5c273b910ff3306f1c9662928e833c6c2befe6345542bcfd8bf8",
+      "sha256": "dacd5f6dcf6f449e9eb85dee05173194a9192b649520a7d29015280197ec8da9",
       "locks": [
         "风格底座锁",
         "工笔结构锁",
@@ -147,12 +147,12 @@
     {
       "name": "头发存在锁",
       "manualAnchors": [
-        "头发存在（硬，全员，除非来源事实指定佛门剃度/光头例外）",
-        "有清晰发量与发际线"
+        "头发（硬，全员，两态）：有头发时，头皮被头发自然覆盖",
+        "这是僧人、尼姑、剃度角色的正常头形"
       ],
       "maAnchors": [
-        "头发存在（硬，全员，除非 Source facts 指定佛门剃度/光头例外）",
-        "有清晰发量与发际线"
+        "头发（硬，全员，两态）：有头发时，头皮被头发自然覆盖",
+        "这是僧人、尼姑、剃度角色的正常头形"
       ],
       "manualFile": "prefix.md",
       "sourceIndex": 0

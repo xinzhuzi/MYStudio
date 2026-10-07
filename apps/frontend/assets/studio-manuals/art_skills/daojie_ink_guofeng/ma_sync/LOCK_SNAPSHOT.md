@@ -11,7 +11,7 @@
 
 | MA 文件 | sha256 | 提供锁 |
 |---|---|---|
-| scripts/gongbi/daojie_gongbi_restyle.py | 5e99f2f9…d8bf8 | 底座/结构/身份/衣褶/衣物/头发/鞋靴 |
+| scripts/gongbi/daojie_gongbi_restyle.py | dacd5f6d…c8da9 | 底座/结构/身份/衣褶/衣物/头发/鞋靴 |
 | scripts/prompting/finish_locks.py | 365f0ca0…65cb3 | 成片质量 |
 | knowledge/prompt-templates/美术成片风格提示词模板库.md | 977a0dab…758b9 | 成片主风格锁/通用成片负面(Phase 3) |
 | scripts/prompting/gongbi_contract.py | d7f755ef…e71ff | source-facts-only 配料模块 |

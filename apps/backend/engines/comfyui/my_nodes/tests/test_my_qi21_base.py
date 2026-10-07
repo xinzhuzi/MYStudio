@@ -140,7 +140,7 @@ def test_base_text_verbatim_from_lib_for_all_nine():
     """BASE=真源家 qi21_bases.json types[].positive_text 逐字(1004 集中化:
     05 库→json 逐字互锁退役,05 库=记录层措辞可与真源漂移——如衣物完整性
     长短版,旧「从 05 库运行时切出」锚废止留痕,锚随迁真源家)。
-    人物系=②+锁B四行+④+衣物完整性行共 7 行(1004 增衣物完整性锁);
+    人物系=②+锁B四行+④+衣物完整性行共 8 行(1004 增衣物完整性锁;1007 头发两态句一段拆两段);
     非人物系(场景/道具/概念气氛图)=②+④共 2 行。"""
     for zh in _canon_order():
         entry = my_qi21_base._entry(zh)
@@ -150,7 +150,7 @@ def test_base_text_verbatim_from_lib_for_all_nine():
         assert base_text == entry["positive_text"], zh
         assert neg_text == entry["negative_text"], zh  # 型负面出口(案B:去死数据)
         lines = base_text.split("\n")
-        assert len(lines) == (7 if zh in RENWU_XI else 2), zh
+        assert len(lines) == (8 if zh in RENWU_XI else 2), zh  # 1007 头发两态句拆两段:7→8
         assert lines[0].endswith("。")  # ②层美化版底座句号自足收尾
         # ①槽与常量A 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
         assert not base_text.startswith("⟨①:")
@@ -270,7 +270,7 @@ def test_data_file_schema():
             continue
         assert bt  # 九型底座文本非空
         # 1004 增衣物完整性锁:人物系 7 行(②+锁B四行+④+完整性),非人物系 2 行
-        assert len(bt.split("\n")) == (7 if zh in RENWU_XI else 2), zh
+        assert len(bt.split("\n")) == (8 if zh in RENWU_XI else 2), zh  # 1007 头发两态句拆段
         assert e["aspect_ratio"] in ASPECTS, (zh, e["aspect_ratio"])  # 官方枚举串
         mp = e["megapixels"]
         assert (isinstance(mp, (int, float)) and not isinstance(mp, bool)
