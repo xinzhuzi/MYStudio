@@ -102,15 +102,10 @@ app.registerExtension({
     async nodeCreated(node) {
         if (node.comfyClass !== "MyQi21ApiPE") return;
         if ((node.widgets || []).some((x) => x.name === "api_key")) return;
-        const w = node.addWidget("customtext", "api_key(临时·掩码)", "", () => {}, { multiline: false });
-        w.serialize = false;
-        if (w.inputEl) {
-            w.inputEl.type = "password";
-            w.inputEl.autocomplete = "off";
-            w.inputEl.spellcheck = false;
-            w.inputEl.placeholder = "留空=用钥匙串/env;粘贴仅存本会话内存,不入盘";
-        }
-        w.callback = (v) => {
+        // 1007 实勘:addWidget("customtext",{multiline:false}) 在新前端不生成
+        // 输入框 DOM(数据层有、面板渲染不出来=用户看到的「没法填」)——改用
+        // addDOMWidget 原生 input[type=password],所见即可填。
+        const post = (v) => {
             try {
                 fetch("/my-nodes/qi21-pe-key", {
                     method: "POST",
@@ -119,5 +114,23 @@ app.registerExtension({
                 }).catch(() => {});
             } catch { /* 探针环境无 fetch 时静默 */ }
         };
+        const w = node.addDOMWidget("api_key", "password", () => {
+            const el = document.createElement("input");
+            el.type = "password";
+            el.autocomplete = "off";
+            el.spellcheck = false;
+            el.placeholder = "留空=用钥匙串/env;仅存本会话内存,不入盘";
+            el.style.width = "100%";
+            el.style.boxSizing = "border-box";
+            el.style.backgroundColor = "var(--comfy-input-bg, #222)";
+            el.style.color = "var(--input-text, #ddd)";
+            el.style.border = "1px solid var(--border-color, #444)";
+            el.style.borderRadius = "4px";
+            el.style.padding = "4px 8px";
+            el.addEventListener("change", () => { w.value = el.value; post(el.value); });
+            el.addEventListener("blur", () => { if (w.value !== el.value) { w.value = el.value; post(el.value); } });
+            return el;
+        }, {});
+        w.serialize = false;
     },
 });

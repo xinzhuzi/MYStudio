@@ -120,7 +120,7 @@ def _register_key_route() -> None:
         except Exception:
             body = {}
         _RUNTIME_KEY = str((body or {}).get("key") or "").strip()
-        return web.json_response({"ok": True, "set": bool(_RUNTIME_KEY)})
+        return _web.json_response({"ok": True, "set": bool(_RUNTIME_KEY)})
 
     async def _get_key(_request):
         if _RUNTIME_KEY:
@@ -129,7 +129,7 @@ def _register_key_route() -> None:
             src = "env"
         else:
             src = "keychain" if _CLOUD_KEY_CACHE or _keychain_probe() else "none"
-        return web.json_response({"ok": True, "source": src})
+        return _web.json_response({"ok": True, "source": src})
 
     def _keychain_probe() -> bool:
         return bool(_cloud_key()) if not os.environ.get("MYSTUDIO_QI21_PE_KEY") else False
