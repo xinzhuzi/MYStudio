@@ -2124,10 +2124,10 @@ def _qi21_truth():
         subject = lines[0][len("⟨①:"):-len("⟩")]
         base, color, mid = lines[1], lines[-1], lines[2:-1]
         assert color == PRO_COLOR_MAP[zh], f"{zh} ④配色行与 §一映射表不一致"
-        want_mid_len = 7 if zh in PRO_CHAR_TYPES else 3
+        want_mid_len = 8 if zh in PRO_CHAR_TYPES else 3  # 1007 头发两态句一段拆两段:7→8(随 1d01ff71 库改锚,对齐 my_nodes 版)
         assert len(mid) == want_mid_len, f"{zh} ③锁层行数 {len(mid)} ≠ {want_mid_len}"
         if zh in PRO_CHAR_TYPES:
-            assert mid[2:6] == b_lines, f"{zh} ③锁层中段与常量B 不逐字一致"
+            assert mid[2:7] == b_lines, f"{zh} ③锁层中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
         constant_text = "\n".join([base] + (b_lines if zh in PRO_CHAR_TYPES else []) + [color])
         types.append((zh, subject, base, constant_text))
     return types, const_a
@@ -2619,10 +2619,10 @@ def _qi21_truth():
         subject = lines[0][len("⟨①:"):-len("⟩")]
         base, color, mid = lines[1], lines[-1], lines[2:-1]
         assert color == PRO_COLOR_MAP[zh], f"{zh} ④配色行与 §一映射表不一致"
-        want_mid_len = 7 if zh in PRO_CHAR_TYPES else 3
+        want_mid_len = 8 if zh in PRO_CHAR_TYPES else 3  # 1007 头发两态句一段拆两段:7→8(随 1d01ff71 库改锚,对齐 my_nodes 版)
         assert len(mid) == want_mid_len, f"{zh} ③锁层行数 {len(mid)} ≠ {want_mid_len}"
         if zh in PRO_CHAR_TYPES:
-            assert mid[2:6] == b_lines, f"{zh} ③锁层中段与常量B 不逐字一致"
+            assert mid[2:7] == b_lines, f"{zh} ③锁层中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
         constant_text = "\n".join([base] + (b_lines if zh in PRO_CHAR_TYPES else []) + [color])
         types.append((zh, subject, base, constant_text))
     return types, const_a
@@ -3427,7 +3427,10 @@ class TestQi21SubgraphContract:
         def band_of(y: float) -> int:
             return 0 if y < 400 else (1 if y < 1000 else (2 if y < 1750 else 3))
         bands: dict[int, list[int]] = {}
+        # Reroute=布局家具(垫脚消遮挡),不入带成员锚(1007:随出口销重排进带1,豁免)
         for n in _qi21_sg(graph)["nodes"]:
+            if n.get("type") == "Reroute":
+                continue
             bands.setdefault(band_of(n["pos"][1]), []).append(n["id"])
         assert len(bands) >= 2, f"子图带数(批B=带0+带2 双带),得 {sorted(bands)}"
         # 1006 批B 重锚(保守渲染预算):带0 主排四件横排/带1 渲染净空恒空/
@@ -3571,13 +3574,13 @@ class TestQi21SubgraphContract:
             m = re.search(rf"^### {zh}-基础\s*$", md, re.M)
             fence = re.search(r"```text\n(.*?)\n```", md[m.end():], re.S).group(1)
             lines = fence.split("\n")
-            want_lines = 10 if zh in PRO_CHAR_TYPES else 6
+            want_lines = 11 if zh in PRO_CHAR_TYPES else 6  # 1007 头发两态句拆段:10→11
             assert len(lines) == want_lines, \
                 f"{zh}: 装配全文应 {want_lines} 行(②型底座+③锁层[+增量锁]+④配色行),得 {len(lines)}"
             # 1004:库围栏=设计记录旧全本(数据真源=qi21_bases.json),带随
-            # 实测定带 1200-2000(库自查现值 1233-1963)
-            assert 1200 <= len(fence) <= 2000, \
-                f"{zh}: 装配全文字符数 {len(fence)} 出带 1200-2000(1004 实测定带)"
+            # 实测定带 1200-2100(1004 立带 1200-2000;1007 头发两态后库自查现值 1681-2001)
+            assert 1200 <= len(fence) <= 2100, \
+                f"{zh}: 装配全文字符数 {len(fence)} 出带 1200-2100(1004 立带,1007 头发两态后上调)"
             assert lines[0].startswith("⟨①:") and lines[0].endswith("⟩"), f"{zh}: 首行应为 ⟨①:…⟩ 槽"
             assert lines[-1] == PRO_COLOR_MAP[zh], f"{zh}: 末行应为④配色行"
             if lines[1] != canon_pos[zh]:
