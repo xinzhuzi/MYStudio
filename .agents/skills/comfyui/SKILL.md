@@ -10,6 +10,10 @@ metadata:
 Use this whenever the task involves generating or rendering images, video, or audio with ComfyUI, or
 building/running a ComfyUI workflow. Read it first, then act.
 
+## TASK ROUTING (this repo)
+
+> Routing note (this repo): work splits three ways — **(1) production workflow JSON, widget text, slot wiring, subgraphs, canvas layout in THIS repo** (the MYStudio set under `apps/backend/engines/comfyui/`) belongs to the sibling **node-graph** skill (`.agents/skills/node-graph/SKILL.md`); read it FIRST, before the first edit to any workflow file — memory of past sessions and old test runs corroborate that read, they never replace it. **(2) Engine driving, generation/rendering runs, model choice + model downloads** stay HERE. **(3) Node python logic** (`INPUT_TYPES` / `FUNCTION` / `RETURN` / JS extensions) → `docs/BUILDING_NODES.md` here + node-graph's cognition chapter for the host-panel/widget-shape rules.
+
 ## Files in this kit (pull the right one on demand)
 
 Only this SKILL.md auto-loads; everything else is read when relevant, so route to it instead of leaving it unread.
@@ -33,7 +37,7 @@ file is missing.
 - **`docs/ADVANCED.md`** - hard tasks: real strengths, gotchas + workarounds, temporal stability, high-detail matting, crop-and-stitch inpaint, PBR, and the verified tool table with licenses.
 - **`docs/KNOWN_ISSUES.md`** - read BEFORE building, so you do not wire around a currently-broken path.
 - **`docs/NODE_LIBRARY/_INDEX.md`** - the per-node reference (Nuke-style): for any node, what each input / output is for, how it behaves, bugs + fixes, anti-patterns, and where it slots in a graph. **Start here for ANY node question**, then query `get_node_info` for live I/O. When you use or meet a node not in it, add the entry before finishing (`docs/NODE_LIBRARY/_SCHEMA.md`).
-- **`workflow_layout.py`** - before saving ANY workflow you build, arrange and verify it IN CODE: `auto_layout(wf)` positions nodes left-to-right by dependency depth with parallel branches stacked and ZERO overlaps; `inspect(wf)` reports overlaps / crossings / bounds from the coordinates; `fit_group(wf, title)` wraps the laid-out nodes in a backdrop that FULLY covers the functional group (edge to edge, none sticking out). NEVER judge a graph's layout from a screenshot (it burns tokens, and clients hit the same wall) - read the positions.
+- **`workflow_layout.py`** - before saving any workflow you build, arrange and verify it IN CODE (scope: MYStudio PRODUCTION workflows follow the stricter canvas constitution in `.agents/skills/node-graph/SKILL.md` instead — the constants below are below repo thresholds, and `auto_layout`/`--apply` is for temporary/non-project graphs only): `auto_layout(wf)` positions nodes left-to-right by dependency depth with parallel branches stacked and ZERO overlaps; `inspect(wf)` reports overlaps / crossings / bounds from the coordinates; `fit_group(wf, title)` wraps the laid-out nodes in a backdrop that FULLY covers the functional group (edge to edge, none sticking out). NEVER judge a graph's layout from a screenshot (it burns tokens, and clients hit the same wall) - read the positions.
 - **`docs/NODE_LIBRARY/ocio.md`** - our own **ComfyUI-OCIO** pack, **v1.3.0** (eleven Nuke-style OpenColorIO nodes: Read / Write / Player, six color operators, and the **OCIO VAE Decode / VAE Encode** pair that decodes without the stock 0..1 clamp; published, github.com/SlavaSexton/ComfyUI-OCIO). Read it for ANY color-management / VFX color task (load a sequence, grade in ACES, write ProRes / EXR, keep values above 1.0 and below 0 out of a generative model). **v1.3.0 renamed OCIO Write's `from_colorspace` to `input_colorspace`, and an API-format graph carrying the old key is refused**, so read the file before building one.
 - **`docs/BUILDING_NODES.md`** - the hard-won field guide to WRITING a custom node pack (widget order, the combo-validation trap, the JS front-end, server routes, ComfyUI facts, verify-on-real-files). Read it first when you write or modify a custom node, alongside the `comfyui-node-*` skills.
 - **`docs/KIJAI.md`** - the kijai ecosystem (his ComfyUI wrappers and nodes: Wan / Hunyuan / CogVideoX / Florence2 / KJNodes / SUPIR / FramePack / SAM2 / FluxTrainer / IC-Light / DepthAnythingV2 and ~50 more) - what each does + node I/O, what is active vs legacy by date, and the supersede map (old -> better). Read it for ANY kijai tool, and to pick the current option over a sunset wrapper.
@@ -53,6 +57,10 @@ once and never overwritten.
 If `machine.md` is missing or still full of angle brackets, run the bootstrap now (`docs/BOOTSTRAP.md`):
 `health_check`, or `comfy_client.alive()` plus `GET /system_stats` and `/object_info`, then write the real
 values into `machine.md`. Never assume another machine matches an example.
+
+**PORTS (this repo):** the engine never runs on the upstream default `:8188` — it always binds a 17xxx
+port (true source = manifest/engine status, recorded in `machine.md`). Wherever this manual says
+`:8188`, substitute the machine's real host:port; polling `:8188` here will misread a live engine as down.
 
 ## The four layers (what this kit installs)
 
@@ -102,7 +110,7 @@ Official starting graphs: **Workflow -> Templates** browser (per model). Save th
 
 The official Comfy-Org workflow templates are the source of truth for how to do any task in ComfyUI. The kit
 clones them (sparse) to a local folder and builds a compact lookup index. Default location set by the installer;
-record it in the machine block above. Master index: `templates/_quick_index.json` (name -> title, category,
+record it in `machine.md` next to this file (this file no longer carries a machine block). Master index: `templates/_quick_index.json` (name -> title, category,
 models, tags, mediaType, vram, description), regenerate with `shared/tools/gen_quick_index.py`. Update: `git pull` in
 the clone, then rerun the generator.
 
@@ -140,7 +148,7 @@ output types from `/object_info/<NodeType>` (`input.required` / `output` / `outp
 differ, insert a converter: `VAEEncode` (IMAGE -> LATENT), `VAEDecode` (LATENT -> IMAGE), `CLIPTextEncode`
 (text -> CONDITIONING), `ImageScale` / an upscaler for size. Never wire an IMAGE into a LATENT input.
 
-**Common node I/O (memorize these; for anything else read `/object_info/<NodeType>`).** A node's WIDGETS are values you set; its INPUT SLOTS must receive the matching TYPE from another node's OUTPUT. You cannot feed text into a LoRA input, or a MODEL into a text box.
+**Common node I/O (memorize these; for anything else read `/object_info/<NodeType>`).** A node's WIDGETS are values you set while its input slot is UNWIRED; once you wire that same slot, the link wins and the widget becomes a display-only decoy (panel value ≠ effective value). Its INPUT SLOTS must receive the matching TYPE from another node's OUTPUT. You cannot feed text into a LoRA input, or a MODEL into a text box.
 - `CheckpointLoaderSimple` -> out: MODEL, CLIP, VAE. (Flux/newer split loaders: `UNETLoader` -> MODEL ; `DualCLIPLoader`/`CLIPLoader` -> CLIP ; `VAELoader` -> VAE.)
 - `LoraLoader`: in MODEL + CLIP (+ name/strength widgets) -> out MODEL, CLIP. A LoRA is applied ONTO the MODEL+CLIP stream, never wired as text.
 - `CLIPTextEncode`: in CLIP + text widget -> out CONDITIONING. Your prompt becomes CONDITIONING here; downstream nodes want CONDITIONING, not raw text.
@@ -274,16 +282,18 @@ Two JSON formats, keep both in mind:
 **Flow:**
 - Claude builds -> write the GUI-format `.json` to `user/default/workflows/<name>.json` -> tell the owner to
   refresh the built-in Workflows sidebar (folder icon) and open it -> he sees exactly what Claude built.
-- Owner builds/edits -> Save (API Format) into a shared `workflows/` folder -> Claude reads and runs it.
+- Owner builds/edits -> Save (API Format) into the same `<ComfyUI>/user/default/workflows/` folder (keep the GUI-format copy alongside — the canvas sidebar only loads GUI format) -> Claude reads and runs it.
 
 ## Lay the graph out cleanly (structured blocks, no overlap)
 
 A graph that piles nodes at 0,0 or lets them overlap is unusable in the canvas. Lay it out like a real pipeline. Every node carries `pos:[x,y]` + `size:[w,h]`; each block is a `groups` entry `{title, bounding:[x,y,w,h], color}`. COMPUTE positions, never eyeball them.
 
+> Scope note (this repo): the constants below (60px column gap, one group per stage with 6 stages) are fine for quick temporary graphs OUTSIDE MYStudio's production set. MYStudio production workflows follow the stricter canvas constitution in `.agents/skills/node-graph/SKILL.md` (row pitch 760, est spacing ≥200/≥80, ≤4 group boxes per graph, assertion-script route) — never apply this section's method there.
+
 - **Columns = stages, strictly left to right.** One pipeline stage per column (loaders -> conditioning -> sample -> decode -> save -> post). Column x = `x0 + col * COL_W`, `COL_W = widest node width + 80` (~360 typical). Data never flows backward (no right-to-left wire).
 - **Per-column y-cursor = zero overlap.** Stack a column top-down: `y = y0`; place a node; then `y += node_h + 60`. The next slot always clears the previous node's full height, so nodes in a column cannot overlap, and `COL_W >= widest + 80` clears them horizontally. Read real `size` from the template (assume ~[320,200], taller for KSampler / CLIPTextEncode). Never give two nodes the same pos.
 - **One Group box per stage (this is what makes it read as blocks).** After placing a stage's nodes, add a group whose `bounding` wraps them with padding: `[minX-30, minY-50, (maxX+w)-minX+60, (maxY+h)-minY+80]` (extra top room for the title bar). Title by stage ("Load models", "Conditioning", "Sample", "Decode + Save", "Upscale", "Image to Video"); color-code (loaders grey, conditioning blue, sampler green, decode/save purple, post orange). Shared loaders sit in one group top-left, feeding every stage.
-- **Reroute long or crossing wires.** When a shared output must reach a far column, insert `Reroute` nodes and run the wire along a horizontal gutter between groups instead of a diagonal across the graph. Kills the spaghetti look.
+- **Reroute long or crossing wires.** When a shared output must reach a far column, insert `Reroute` nodes and run the wire along a horizontal gutter between groups instead of a diagonal across the graph. Kills the spaghetti look. (First try moving nodes / merging wires: a Reroute counts toward the crossing budget — it relocates a crossing rather than removing it.)
 - **Tidy pass before saving.** Same node width per column, left edges aligned, seeds + savers last, no node outside its group box, no two group boxes overlapping. With the MCP, `visualize_workflow_hierarchical` renders the layout so you SEE overlaps before handing it to the owner.
 
 ## Collapse a stage into one reusable node (Subgraphs)
@@ -293,7 +303,7 @@ ComfyUI **Subgraphs** (official since 2025-08; they supersede the old **Group No
 In the GUI (tell the owner, or do it yourself when driving):
 - **Collapse:** select the nodes (plus groups and reroutes), click the subgraph icon in the toolbar. ComfyUI auto-wires the boundary from the selection's external inputs/outputs.
 - **Edit inside:** double-click the subgraph's empty area to enter; `Esc` or the top nav bar to exit (the nav bar shows the nesting level).
-- **Expose only what matters:** the **Edit Subgraph Widgets** button (parameters panel) reorders and shows/hides widgets without entering; in edit mode, right-click a boundary slot to rename/delete/disconnect, and the labeled default slot adds a new input/output. Surface seed/steps/cfg/prompt, hide the rest.
+- **Expose only what matters:** the **Edit Subgraph Widgets** button (parameters panel) reorders and shows/hides widgets without entering; in edit mode, right-click a boundary slot to rename/delete/disconnect, and the labeled default slot adds a new input/output. Surface seed/steps/cfg/prompt, hide the rest. (Deleting a boundary slot shifts every later slot number: re-sync the host `inputs[]` mirror, top-level `links` target_slots and the blueprint — see `子图工作流工程契约.md` §五点五 and the node-graph skill's six-sync list.)
 - **Make it a reusable brick:** **Add Subgraph to Library** (the publish/book icon, ComfyUI v1.27.7+) turns it into a **Subgraph Blueprint**, searchable and draggable like any node. This is exactly what this kit's `blueprints/` bricks are.
 - **Nest** subgraphs inside subgraphs for hierarchical pipelines; **Unpack subgraph** (right-click or the selection toolbox) reverts it to raw nodes.
 
@@ -437,7 +447,8 @@ nodes ask the OWNER to reopen the app. For a CLI/source ComfyUI the MCP restart 
 
 ## Start ComfyUI yourself when it is down (auto-start the server)
 
-For GENERATION you need the ComfyUI SERVER (the API on :8188), NOT the GUI window. When it is down, start the
+For GENERATION you need the ComfyUI SERVER (the API on the machine's recorded port — in this repo always a
+17xxx port from `machine.md`, NEVER the upstream default :8188), NOT the GUI window. When it is down, start the
 server yourself in the BACKGROUND instead of only asking the owner to open the app. You need the recorded launch
 command (captured in the BOOTSTRAP machine block), then start it and wait for :8188 to answer.
 

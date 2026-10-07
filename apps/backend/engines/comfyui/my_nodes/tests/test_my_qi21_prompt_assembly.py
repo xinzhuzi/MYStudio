@@ -139,9 +139,9 @@ def test_tooltips_present_plain_language():
             for group in ("required", "optional") for name, spec in inputs[group].items()}
     for name, tip in tips.items():
         assert isinstance(tip, str) and tip.strip(), f"{name} 应有非空 tooltip(⑰),得 {tip!r}"
-    assert "底座九选一" in tips["BASE"], "BASE tooltip 应大白话指向「底座九选一」件"
-    assert "负面词" in tips["BASE负面"] and "底座九选一" in tips["BASE负面"], \
-        "BASE负面 tooltip 应指路「底座九选一」件的 负面词 输出(案B)"
+    assert "底座十选一" in tips["BASE"], "BASE tooltip 应大白话指向「底座十选一」件"
+    assert "负面词" in tips["BASE负面"] and "底座十选一" in tips["BASE负面"], \
+        "BASE负面 tooltip 应指路「底座十选一」件的 负面词 输出(案B)"
     assert "一般不用改" in tips["锁层A全文"]
 
 

@@ -8,7 +8,7 @@
 免重启,节点无需任何参数框。
 
 三节:
-  系统提示词   = expand_instruction.system_prompt_zh(扩写教材,935字级)
+  系统提示词   = expand_instruction.system_prompt_zh(扩写教材,3118字(v9))
   色卡         = color_lexicon.entries 格式化(词+ma_id+用途)前缀职责预算两行
   美术风格底座 = lock_layer.positive_text(锁层A全文)
 
@@ -150,7 +150,7 @@ class MyQi21BasesText:
     RETURN_NAMES = ("文本",)
     FUNCTION = "output"
     # 1006 批A(问题1):OUTPUT_NODE+ui 载荷 bases_text——JS 把真源全文回填
-    # 「内容」展示框,画布上直接看 935字教材/色卡词表/739字锁层A
+    # 「内容」展示框,画布上直接看 3118字(v9)教材/色卡词表/715字锁层A
     OUTPUT_NODE = True
 
     def output(self, 文本节: str, 内容: str = "") -> dict:

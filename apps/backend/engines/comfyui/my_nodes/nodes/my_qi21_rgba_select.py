@@ -23,7 +23,8 @@ D6(任务 09-29-qi21-canvas-batch design §D6)型联动 RGBA 的三态选择件:
 
 rgba_hint 真源链(单源,本件绝不自带四型名单——防名单第二真源漂移):
 提取器 qi21_bases_extract_0923.py 内置四型常量 → qi21_bases.json
-rgba_default 字段 → MyQi21DaojieBase.rgba_default 输出槽 → 本件 rgba_hint。
+rgba_default 字段 → MyQi21DaojieBase「透明值」输出(1002 ⑯ 起 rgba_default
+输出槽已删,布尔从透明值出)→ 本件 rgba_hint。
 rgba_hint 为 optional:未接线(画布缺键)/未求值(None)一律视为 False
 (自动无型可跟=保守关,与 0929 前全局默认关现状同向;true/false 不依赖
 它,裸件也能用)。加速启停=用户操控杆(0920 铁律)同款哲学:默认跟随仅

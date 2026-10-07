@@ -444,7 +444,7 @@ export function Dashboard({
 
           {/* Project Grid */}
           <div className="dashboard-project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {sortedProjects.map((project, index) => {
+            {sortedProjects.map((project) => {
               const isSelected = selectedIds.has(project.id);
               const isDuplicating = duplicatingId === project.id;
 
@@ -500,69 +500,15 @@ export function Dashboard({
                     </div>
                   )}
 
-                  {/* Project Thumbnail - 电影海报银幕画布 */}
-                  <div className="dashboard-project-thumb cinematic-poster-canvas aspect-video flex items-center justify-center relative group-hover:scale-[1.01] transition-transform duration-300">
-                    {/* 胶片齿孔与顶沿 */}
-                    <div className="cinematic-film-sprockets" aria-hidden="true">
-                      <div className="cinematic-film-sprocket-hole" />
-                      <div className="cinematic-film-sprocket-hole" />
-                      <div className="cinematic-film-sprocket-hole" />
-                      <div className="cinematic-film-sprocket-hole" />
-                      <div className="cinematic-film-sprocket-hole" />
-                    </div>
-
-                    {/* 取景框十字光标 */}
-                    <div className="absolute inset-2.5 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity" aria-hidden="true">
-                      <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-primary/40" />
-                      <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-primary/40" />
-                      <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-primary/40" />
-                      <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-primary/40" />
-                    </div>
-
-                    <div className="dashboard-project-thumb-mark relative z-10 p-3.5 rounded-2xl cinematic-lens-tile group-hover:border-primary/40 transition-colors">
-                      <Film className="w-8 h-8 text-primary" />
-                    </div>
-
-                    {/* 底部银幕规格与时间线印记 */}
-                    <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between z-10 text-[9px] font-mono text-muted-foreground/60">
-                      <span>2.35:1 ANAMORPHIC</span>
-                      <span>MASTER REEL</span>
-                    </div>
-
-                    <div className="dashboard-project-thumb-timeline" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                    {isDuplicating && (
-                      <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-20">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-                      </div>
-                    )}
-                  </div>
-
                   {/* Project Info */}
                   <div className="p-4">
-                    <div className="metadata-mono text-[9px] text-accent/80 tracking-widest mb-1.5 font-medium">
-                      REEL // {(sortedProjects.length - index).toString().padStart(3, "0")}
-                    </div>
-                    <h3 className="font-semibold text-foreground truncate mb-2 text-[15px]">
-                      {project.name}
-                    </h3>
-                    {project.location && (
-                      <p
-                        className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground/80 truncate mb-2"
-                        title={project.location}
-                      >
-                        <FolderOpen className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{project.location}</span>
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        <span className="metadata-mono">{formatDate(project.updatedAt)}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="cinematic-lens-tile shrink-0 flex items-center justify-center w-10 h-10 rounded-xl group-hover:border-primary/40 transition-colors">
+                        <Film className="w-[18px] h-[18px] text-primary" />
                       </div>
+                      <h3 className="font-semibold text-foreground truncate flex-1 text-[15px]" title={project.name}>
+                        {project.name}
+                      </h3>
 
                       {/* Actions menu (hidden in selection mode) */}
                       {!selectionMode && (
@@ -595,7 +541,26 @@ export function Dashboard({
                         </DropdownMenu>
                       )}
                     </div>
+                    {project.location && (
+                      <p
+                        className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground/80 truncate mt-2.5"
+                        title={project.location}
+                      >
+                        <FolderOpen className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{project.location}</span>
+                      </p>
+                    )}
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
+                      <Clock className="w-3 h-3" />
+                      <span className="metadata-mono">{formatDate(project.updatedAt)}</span>
+                    </div>
                   </div>
+
+                  {isDuplicating && (
+                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-20">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                    </div>
+                  )}
 
                   {/* Hover Overlay (not in selection mode) */}
                   {!selectionMode && (

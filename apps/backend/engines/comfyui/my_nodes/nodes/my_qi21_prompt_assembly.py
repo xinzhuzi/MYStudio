@@ -183,11 +183,11 @@ class MyQi21PromptAssembly:
             "required": {},
             "optional": {
                 # BASE:轻件直拉([150] 常驻执行图,非 lazy);未接线或空串=降级两段拼+警告
-                "BASE": ("STRING", {"tooltip": "所选型的底座画风文字,连「底座九选一"
+                "BASE": ("STRING", {"tooltip": "所选型的底座画风文字,连「底座十选一"
                                                "」的 BASE 输出;不连就只用主体句+锁层A"
                                                "两段拼"}),
                 "BASE负面": ("STRING", {"tooltip": "所选型自带的负面词清单,连「底座"
-                                                  "九选一」的 负面词 输出;不连就只用"
+                                                  "十选一」的 负面词 输出;不连就只用"
                                                   "锁层A自带的负面词"}),
                 "主体句": ("STRING", {"multiline": True, "default": _SUBJECT_EXAMPLE,
                                        "tooltip": "画面里画什么的人话描述;生产时由子图"

@@ -2,9 +2,10 @@
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫 qi21 底座节点:型底座下拉选(09-23 造件九型;1001 P1 起十档=九型+自由),
-五出 BASE/WIDTH/HEIGHT/透明值/负面词(1002 ⑯ 删「型名」出+大轮连带删
-rgba_default 出:i2i [180].rgba_hint 已迁「透明值」,三件全零消费;槽位迁移=
-research/slot-map.md;负面词=1005 案B Phase I 第五出,追加最末存量槽序零漂移)。
+五出 BASE/WIDTH/HEIGHT/负面词/透明值(RETURN_NAMES 实序:负面词=槽3、透明值=
+槽4 最末;1002 ⑯ 删「型名」出+大轮连带删 rgba_default 出:i2i [180].rgba_hint
+已迁「透明值」,三件全零消费;槽位迁移=research/slot-map.md;负面词=1005 案B
+Phase I 增出,旧注「追加最末」系当时四出时代口径,现行透明值居末)。
 
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):

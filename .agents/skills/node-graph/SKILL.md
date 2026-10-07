@@ -9,6 +9,13 @@ metadata:
 
 本技能是**整合者**:地图(指路三真源)+纪律(优先级序)+速查层(脱离外部文件可用的最小操作集)。三真源(`.claude/knowledge/node-graph-architecture.md`、`docs/comfyui-kb/画布布局规范-0928.md`、`.agents/skills/comfyui/`)仍是唯一权威;**任何冲突——包括布局策略章与 0928 立宪文档的冲突——一律真源胜,然后回改本技能**。「布局策略章完整自含」(0928 用户二令)的边界:指该章不依赖外部文件即可读全布局纪律,不指权威高于真源;优先级序的第一出处仍是 0928 立宪文档。
 
+## SKILL ROUTING(技能分流)
+
+- 改工作流 JSON/控件/槽位/子图/画布布局 → 本技能;
+- 跑图/引擎驱动/模型选型与下载 → comfyui 技能(`.agents/skills/comfyui`);
+- 涉节点 py 逻辑(INPUT_TYPES/FUNCTION/RETURN/JS 扩展)→ comfyui 技能 BUILDING_NODES.md + 本技能认知章(形态/宿主面)。
+- **纪律**:动手前先读对应章;记忆与实测是佐证不是替代(1008 实据=未首读而两坑各踩一发:widget 长文本双槽序列化复活/inputs 插条目槽位后移连线错指,判例见认知章 §3 与 JSON 章节点字段表后)。
+
 ## 头部声明(两条,先读)
 
 1. **裁定同步钩子(R13)**:R13=本技能建档任务档的需求条款编号(全文见 `.trellis/tasks/archive/2026-09/09-28-node-graph-skill/prd.md`,已归档)。规矩:今后新布局裁定落账(立宪文档或生成器自查谓词变更)时,**同一战役批次内**同步本章布局策略——本技能不是写死的静态件。
@@ -61,6 +68,7 @@ metadata:
 ### 3. 子图关系模型(宿主·定义·边界·主图,一处改处处查)
 
 - 关系链:`definitions.subgraphs[]` 定义(内嵌 nodes/links/inputs/outputs)↔ 主图宿主节点(type+properties.subgraph=子图 uuid)↔ 宿主 `inputs[]`(与 sg.inputs 逐项镜像)↔ 主图 `links`(target_slot=宿主槽号)。**架构改后必跑六同步**(清单专文=排查文档 §五,两处须同款六项):①子图边界 inputs(槽名+槽号;含 `sg.inputNode(-10)` 元数据在场非空——缺/空=宿主零输入口)②宿主 host.inputs ③主图 links target_slot(**删中间槽后后续槽号整体移位,连线不跟=输入入口消失,最易漏**)④子图出口销位置=**虚拟出口节点(id=-20,SubgraphOutputNode)装载时按节点布局自动推导**(实测≈最右节点 pos.x+50 / 最顶节点 pos.y;1007 晚两会话双机实证),`outputs[].pos` 是被 `arrange()` 重算的**装饰字段,改它零视觉效果**(pos=4000 实验点不动实证;上会话 2450→2780 三修无效同因)——**调销位=调节点布局**:装配子图 [4014] y 204→340(带0 内),销盒底 208 与节点顶净距 132px,锚=契约 `test_subgraph_row_layout_top_to_bottom`(1007 深夜用户令再上移 y→80 顶带对齐:y 向净距防线就此退役——推导位横落 [4014] x 带与 y 无关,恒向右零重叠全权交 io-anchor enforcement;活机实证=轨 x 右缘+104px,带0 契约锚不变);**运行时执行器=`my_nodes/web/subgraph-io-anchor.js`**(1007 用户令「输出 port 须在输入 port 右侧且有距离」:看门狗 600ms 轻检,出口销 x 低于最右节点右缘+80 时锚定到下限,手拖更右不回拉;文件布局推导位必然内落,此扩展=恒向右/输出口最右铁律的落地 enforcement)⑤工作流三路热覆盖(仓库→装机 Resources→引擎缓存,见 §6)⑥蓝图重同步(子图定义改后跑 sync,否则 blueprint-match 锚红)。
+- **inputs[] 插条目=槽位后移连线错指(1008 实弹,上条六同步③「删中间槽」的 INSERT 方向镜像)**:节点 `inputs[]` 数组插入新条目→后续槽位号整体后移;子图 `links` 的 `target_slot`(对 outputs 则 `origin_slot`)按索引寻址→指向后移区的旧线全部错指到新槽名。实据:1008 给 i2i/edit 的 MyQi21PromptSelect 实例补「负面词直写/PE负面」两槽后 5 条连线错指(i2i link61/63/67、edit link12/19),被 PE 链 lazy 契约测试当场抓红。纪律:插条目必①按旧→新映射迁移连线槽号②全子图连线-槽名-类型一致性终验(槽型 `*` 通配豁免)③契约测试位序锚(inputs[N]/outputs[N]/名键索引表)随迁。配方:`apps/build/scripts/qi21_i2i_linkslot_fix_1008.py`(`REMAPPED` 旧槽→新槽映射+`coherence` 终验)。
 - **层级与嵌套口径**:主图(=用户所说「父图」)→宿主节点→`definitions.subgraphs[]` 定义,三层各归各位;**本仓恒单层子图**(10-06 全库扫描 81 件 JSON:13 件含子图定义,子图内嵌子图节点 0 命中;契约文档无嵌套条款,layout_check scope 亦单层 `sub:<名>` 不递归)——未来若引入嵌套,六同步清单与 scope 模型两处口径须先扩再动手。
 - **-10/-20=虚拟边界概念**:−10 只住 `sg.inputNode` 元数据字段(`{id:-10,bounding:[…]}`,驱动宿主输入口渲染),−20 只作出口边界;**禁塞进 sg.nodes 数组**(前端不认 `__subgraph_input__` 类型,报「请安装缺失的包」,1005)。
 - **蓝图同步恒单向(蓝图→工作流)**:术后先「抽离回蓝图」再跑 sync,否则 sync 把手术打回旧版(1001);蓝图化宿主 type=前端新造实例 uuid(非定义原 uuid),幂等比较须除 id 归一;蓝图改后蓝图文件不同步=契约锚红。子图内新节点类型须重启引擎才注册(队列==0 硬门再重启)。
@@ -321,6 +329,8 @@ metadata:
 | `widgets_values_named` | 按名寻址镜像(前端 1.53+ 双写);对拍/幂等比较两表都要认 |
 | `title` | 画布显示名(规范见 ⑧2;缺省=类名) |
 | `properties` | `{"Node name for S&R": 真类名}`(搜索替换/渲染锚);宿主另有 `"subgraph": uuid` |
+
+- **widget 长文本双槽同改,只改列表槽=旧文从命名槽复活(1008 实弹,上表 `widgets_values_named` 行的手术执行面)**:新序列化把节点 widget 长文本存两份——`widgets_values`(按序列表)与 `widgets_values_named`(按名字典,前端 1.53+ 双写);保存/装载时命名槽旧文覆掉列表槽新文=手术静默失效。实据:[4100] 段说明卡命名槽滞留 1004 老卡(662 字)跨两轮手术未察;1008 夜并行会话改 t2i [402] 又只写列表槽(列表 8825/命名 8778 双槽分裂,静默 30 分钟后由主会话镜像补完)。纪律:改卡文/widget 长文本必双槽同改+术后逐字一致断言;双槽互异时以能吃下全部手术配对串的现役版为基准镜像。配方:`apps/build/scripts/qi21_cards_refresh_1008.py` 的 `card_text_mutate`(两段式:逐槽手术一致即收,否则唯一基准镜像)。
 
 子图定义(`definitions.subgraphs[]` 每项;契约真源=`docs/comfyui-kb/子图工作流工程契约.md`(linkIds 登记/装载稳定序/收装惯例)+comfyui 技能 Subgraphs 章+契约测试):
 

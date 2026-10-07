@@ -206,3 +206,14 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ManyingCloudImage": "漫影 云端生图",
     "ManyingStage": "漫影 环节",
 }
+
+# ── PNG 元数据脱敏闸(1007 晚泄密事故·乙案兜底)────────────────────────
+# SaveImage 原生行为=把整张执行图逐字写进 PNG tEXt「prompt」块(复现用),
+# 凡带密值的节点输入一旦进执行图即落盘明文(00010/00011 两张云端实弹图
+# 实泄 MyQi21ApiPE.api_key)。甲案=JS 控件双闸不进执行图
+# (web/my-qi21-prompt-preview.js,options.serialize=false,官方 core 同款);
+# 本件=后端兜底,写盘前自研节点 inputs 的 api_key 一律 → "***"。
+# 失败静默降级不挡出图(详见 prompt_meta_guard 模块注)。
+from .prompt_meta_guard import install_saveimage_metadata_guard
+
+install_saveimage_metadata_guard()

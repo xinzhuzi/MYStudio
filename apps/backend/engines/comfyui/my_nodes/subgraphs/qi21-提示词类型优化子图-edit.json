@@ -897,10 +897,26 @@
                 "link": 11
               },
               {
+                "name": "负面词直写",
+                "type": "STRING",
+                "widget": {
+                  "name": "负面词直写"
+                },
+                "link": null
+              },
+              {
                 "name": "PE出文",
                 "type": "STRING",
                 "shape": 7,
                 "link": 19
+              },
+              {
+                "name": "PE负面",
+                "type": "STRING",
+                "widget": {
+                  "name": "PE负面"
+                },
+                "link": null
               },
               {
                 "name": "pe开关",
@@ -945,23 +961,31 @@
             ],
             "outputs": [
               {
-                "name": "进编码文本",
+                "name": "进编码正向文本",
                 "type": "STRING",
                 "slot_index": 0,
                 "links": [
                   20,
                   21
                 ]
+              },
+              {
+                "name": "进编码负向文本",
+                "type": "STRING",
+                "links": [],
+                "slot_index": 1
               }
             ],
             "widgets_values": [
               "",
               "",
+              "",
+              "",
               true,
               false,
-              "This is an RGBA format image with transparency.",
-              "The image has an alpha channel and a transparent background.",
-              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
+              "这是一张带有透明度的RGBA图像。",
+              "该图像具有alpha通道,背景是透明的。",
+              "主体呈现为干净的平面剪裁,单一独立素材完整保持在画幅内,四周被空白透明度包围,轮廓至边缘清晰完整不断裂。"
             ],
             "properties": {
               "Node name for S&R": "MyQi21PromptSelect"
@@ -1189,7 +1213,7 @@
             "origin_id": 4012,
             "origin_slot": 0,
             "target_id": 4014,
-            "target_slot": 2,
+            "target_slot": 4,
             "type": "BOOLEAN"
           },
           {
@@ -1245,7 +1269,7 @@
             "origin_id": 27,
             "origin_slot": 0,
             "target_id": 4014,
-            "target_slot": 1,
+            "target_slot": 2,
             "type": "STRING"
           },
           {

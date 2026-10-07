@@ -1,16 +1,21 @@
 # Copyright (c) 2026 MYStudio
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
-"""漫影 qi21 API版扩写 PE(MyQi21ApiPE,1006 LM Studio 27B 役)。
+"""漫影 qi21 API版扩写 PE(MyQi21ApiPE;1006 生,1007夜 终裁 Windows 远程 9B)。
 
 [4013] 换装件:上游 QwenImage21_T2IPromptRewrite(蒸馏 pe_t2i,英文锁死+
-漂移不可训)的管线级替代——扩写大脑=本机 LM Studio OpenAI 兼容服务(默认
-qwen3.8-27b-uncensored-mlx:qwen3.5 族与 Qwen-Image 同源、中文母语、指令真
+漂移不可训)的管线级替代——扩写大脑=LM Studio OpenAI 兼容服务(默认
+Windows 远程 9B http://192.168.0.101:1234/qwen3.5-9b-uncensored-
+hauhaucs-aggressive:qwen3.5 族与 Qwen-Image 同源、中文母语、指令真
 听话;1006 实测:身份段/四部件/动作/全部色锚零丢失+一段式中文长文+JSON
-格式全对+负面清单自动收「剑出鞘」)。
+格式全对+负面清单自动收「剑出鞘」;Mac 本机 27B 于 1007夜出局)。
 
-槽口(上游逐口同名,换 type 即接、出线零动):
-  入 prompt        ← [4012] PE开关 口0(纯连线槽 forceInput)
-  出 positive_prompt/negative_prompt/wh_ratio/thinking/parse_ok
+槽口(现役十入五出;连线槽全 forceInput,未连=真源热读兜底):
+  入(十) 系统提示词←[4030]/色卡←[4031]/美术风格底座←[4032]/
+          正·负向提示词←宿主面板手写原文(边界两槽)/
+          类型句正向←[4010].0(BASE)/类型句负向←[4010].3(负面词)/
+          画幅宽←[4010].1(WIDTH)/画幅高←[4010].2(HEIGHT)/
+          透明模式←[4010].4(透明值:开=透明素材图勿虚构背景)
+  出(五) 正向提示词/负向提示词/透明模式/画幅宽/画幅高
 
 系统指令真源=qi21_bases.json#expand_instruction.system_prompt_zh(热读+mtime
 失效缓存,同 my_qi21_base 模式:改 json 即时生效免重启)。历史补丁两则中
@@ -32,16 +37,13 @@ thinking_effort 档位 → 顶层 reasoning_effort 参数(none=硬关,不发=模
     「云端失败:HTTP码+原因」(画布标红)。key 勿明文落
     代码/文档/工作流;档位映射逐目标:本地关闭→none/云端 low|max(1210 值域)。
 
-全上下文三轮(1006 用户令「五样上下文在子图里必须是节点,全连进本件,
-输出两口=正向/负向」)+ 批C 七路直连(1006 问题2,Q1=甲):
-  - 九入(全连线,未连=真源热读兜底):装配全文←[4011].0/负面词←[4011].1/
-    系统提示词←[4030] MyQi21BasesText/色卡←[4031]/美术风格底座←[4032]/
-    型底座←[4010].0(随型选择变)/正向提示词←边界 -10.0(外部手写原文)/
-    负向提示词←边界 -10.2(外部手写原文)/透明模式←[4010].3(开=透明素材图
-    勿虚构背景)——三路原文(型底座/正/负)只并入「画面上下文」参考块,
-    改写对象仍是装配全文,装配链不动;
-  - 双口出:(正向提示词,负向提示词)——wh_ratio/thinking/parse_ok 三口退役
-    (画幅走九型直通,思考链不再上画布);
+全上下文三轮(1006 用户令「五样上下文在子图里必须是节点,全连进本件」)+
+批C 七路直连(1006 问题2,Q1=甲;现役十入清单见上「槽口」):
+  - 三路原文(型底座/正/负)只并入「画面上下文」参考块,改写对象仍是
+    装配全文,装配链不动;
+  - 五口出:(正向提示词,负向提示词,透明模式,画幅宽,画幅高)——
+    wh_ratio/thinking/parse_ok 旧三口已退役(画幅走九型直通,思考链
+    不再上画布);
   - 输出仍=主体句层(身份/动作/环境/光位/落色锚),三层装配架构不动;
     上下文纪律(底座/风格/色卡严禁复述进 rewritten_prompt)由本件补进系统提示。
 
@@ -289,7 +291,8 @@ def _hot_fallbacks() -> tuple[str, str, str]:
 def _build_system(wired_sys: str | None, wired_colors: str | None) -> str:
     """终版系统提示 = (连线教材||热读教材) + (连线色卡||热读色卡节)。
 
-    2006 九轮:教材全面重写(qi21_bases.json system_prompt_zh 1557字)——
+    1006 九轮:教材全面重写(qi21_bases.json system_prompt_zh,当时 1557 字,
+    今 3118 字 v9)——
     色卡全量嵌入(10词+冲突裁决序+选题纪律)、透明模式完整逻辑(开=禁虚构
     背景/禁环境光/收束句)、全文润炼铁律、肯定式、JSON输出铁律全在教材内。
     代码不再补丁——真源即全量,改 json 即时生效。
@@ -515,12 +518,12 @@ def _balanced_json(text: str) -> dict | None:
 
 
 class MyQi21ApiPE:
-    """漫影 API扩写PE:LM Studio 本地大模型按真源教材终炼装配全文(批C 九入全上下文)。"""
+    """漫影 API扩写PE:LM Studio(默认 Windows 远程 9B)按真源教材终炼装配全文(十入全上下文)。"""
 
     CATEGORY = "漫影"
-    DESCRIPTION = ("API扩写PE:本机 LM Studio(OpenAI 兼容)按 qi21_bases.json "
-                   "中文教材扩写主体句;锚点保全实测优于蒸馏 pe_t2i;服务不在="
-                   "透传不炸")
+    DESCRIPTION = ("API扩写PE:LM Studio(默认 Windows 远程 9B,OpenAI 兼容)按 "
+                   "qi21_bases.json 中文教材扩写主体句;锚点保全实测优于蒸馏 "
+                   "pe_t2i;全挂=透传自装配不炸")
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
@@ -531,10 +534,10 @@ class MyQi21ApiPE:
                 "正向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写正向原文;锚点权重最高,润炼逐字保留其实体"}),
                 "负向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写负向原文;逐条并入 negative_prompt 不丢条目"}),
                 "类型句正向": ("STRING", {"forceInput": True, "tooltip": "连 [4010].0 类型句(BASE 正文)"}),
-                "类型句负向": ("STRING", {"forceInput": True, "tooltip": "连 [4010].4 类型句负面词(负面精炼原料)"}),
+                "类型句负向": ("STRING", {"forceInput": True, "tooltip": "连 [4010].3 类型句负面词(负面精炼原料)"}),
                 "画幅宽": ("INT", {"forceInput": True, "tooltip": "连 [4010].1 九型WIDTH(画幅语境)"}),
                 "画幅高": ("INT", {"forceInput": True, "tooltip": "连 [4010].2 九型HEIGHT(画幅语境)"}),
-                "透明模式": ("BOOLEAN", {"forceInput": True, "tooltip": "连 [4010].3 透明值:开=透明素材图,勿虚构背景"}),
+                "透明模式": ("BOOLEAN", {"forceInput": True, "tooltip": "连 [4010].4 透明值:开=透明素材图,勿虚构背景"}),
         }
         return {
             "required": {
@@ -577,14 +580,14 @@ class MyQi21ApiPE:
                 thinking_effort: str = "关闭",
                 正向扩写全文: str = "", 负向扩写清单: str = ""
                 ) -> dict:
-        """九入全上下文→LM Studio 扩写→(正向提示词, 负向提示词) 双口。
+        """十入全上下文→LM Studio 扩写→五口(正向/负向/透明/宽/高)。
 
         三路外部原文(型底座/正/负向提示词)并入「画面上下文」参考块(有则加,
         无则跳),改写对象仍是装配全文;服务不在/超时/解析失败=透传
         (prompt原文, "")——PE关同效,不炸产线。
         """
-        # 2006 七轮(用户令「AI挂了也从本节点做,恒有输出」):三层装配内置,
-        # 逐字复刻 [4011] 格式(主体句\nBASE\n锁层A;BASE 空=两段)——AI 输入
+        # 1006 七轮(用户令「AI挂了也从本节点做,恒有输出」):三层装配内置,
+        # 逐字复刻三层装配格式(主体句\nBASE\n锁层A;BASE 空=两段)——AI 输入
         # 基底与降级正稿同源;AI 挂=本正稿直出,节点任何情况都有输出
         subj = (正向提示词 or "").strip()
         base = (类型句正向 or "").strip()

@@ -333,7 +333,7 @@
           {
             "id": 4010,
             "type": "MyQi21DaojieBase",
-            "title": "[4010] 底座九选一·自研",
+            "title": "[4010] 底座十选一·自研",
             "pos": [
               3400,
               1900
@@ -382,12 +382,18 @@
                 "slot_index": 2
               },
               {
+                "name": "负面词",
+                "type": "STRING",
+                "links": [],
+                "slot_index": 3
+              },
+              {
                 "name": "透明值",
                 "type": "BOOLEAN",
                 "links": [
                   55
                 ],
-                "slot_index": 3
+                "slot_index": 4
               }
             ],
             "properties": {
@@ -1071,10 +1077,26 @@
                 "link": 62
               },
               {
+                "name": "负面词直写",
+                "type": "STRING",
+                "widget": {
+                  "name": "负面词直写"
+                },
+                "link": null
+              },
+              {
                 "name": "PE出文",
                 "type": "STRING",
                 "shape": 7,
                 "link": 63
+              },
+              {
+                "name": "PE负面",
+                "type": "STRING",
+                "widget": {
+                  "name": "PE负面"
+                },
+                "link": null
               },
               {
                 "name": "pe开关",
@@ -1119,22 +1141,30 @@
             ],
             "outputs": [
               {
-                "name": "进编码文本",
+                "name": "进编码正向文本",
                 "type": "STRING",
                 "slot_index": 0,
                 "links": [
                   60
                 ]
+              },
+              {
+                "name": "进编码负向文本",
+                "type": "STRING",
+                "links": [],
+                "slot_index": 1
               }
             ],
             "widgets_values": [
               "",
               "",
+              "",
+              "",
               true,
               false,
-              "This is an RGBA format image with transparency.",
-              "The image has an alpha channel and a transparent background.",
-              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
+              "这是一张带有透明度的RGBA图像。",
+              "该图像具有alpha通道,背景是透明的。",
+              "主体呈现为干净的平面剪裁,单一独立素材完整保持在画幅内,四周被空白透明度包围,轮廓至边缘清晰完整不断裂。"
             ],
             "properties": {
               "Node name for S&R": "MyQi21PromptSelect"
@@ -1219,9 +1249,25 @@
                 "link": 66
               },
               {
+                "name": "负面词直写",
+                "type": "STRING",
+                "widget": {
+                  "name": "负面词直写"
+                },
+                "link": null
+              },
+              {
                 "name": "PE出文",
                 "type": "STRING",
                 "shape": 7,
+                "link": null
+              },
+              {
+                "name": "PE负面",
+                "type": "STRING",
+                "widget": {
+                  "name": "PE负面"
+                },
                 "link": null
               },
               {
@@ -1267,7 +1313,7 @@
             ],
             "outputs": [
               {
-                "name": "进编码文本",
+                "name": "进编码正向文本",
                 "type": "STRING",
                 "slot_index": 0,
                 "links": [
@@ -1275,16 +1321,24 @@
                   25,
                   35
                 ]
+              },
+              {
+                "name": "进编码负向文本",
+                "type": "STRING",
+                "links": [],
+                "slot_index": 1
               }
             ],
             "widgets_values": [
               "",
               "",
+              "",
+              "",
               false,
               false,
-              "This is an RGBA format image with transparency.",
-              "The image has an alpha channel and a transparent background.",
-              "The subject reads as a clean flat cutout, a single isolated asset held entirely within the frame, surrounded on all sides by empty transparency, with a crisp unbroken silhouette out to its very edges."
+              "这是一张带有透明度的RGBA图像。",
+              "该图像具有alpha通道,背景是透明的。",
+              "主体呈现为干净的平面剪裁,单一独立素材完整保持在画幅内,四周被空白透明度包围,轮廓至边缘清晰完整不断裂。"
             ],
             "properties": {
               "Node name for S&R": "MyQi21PromptSelect"
@@ -1647,7 +1701,7 @@
           {
             "id": 55,
             "origin_id": 4010,
-            "origin_slot": 3,
+            "origin_slot": 4,
             "target_id": 180,
             "target_slot": 1,
             "type": "BOOLEAN"
@@ -1665,7 +1719,7 @@
             "origin_id": 4012,
             "origin_slot": 0,
             "target_id": 4014,
-            "target_slot": 2,
+            "target_slot": 4,
             "type": "BOOLEAN"
           },
           {
@@ -1681,7 +1735,7 @@
             "origin_id": 27,
             "origin_slot": 0,
             "target_id": 4014,
-            "target_slot": 1,
+            "target_slot": 2,
             "type": "STRING"
           },
           {
@@ -1705,7 +1759,7 @@
             "origin_id": 180,
             "origin_slot": 0,
             "target_id": 153,
-            "target_slot": 3,
+            "target_slot": 5,
             "type": "BOOLEAN"
           },
           {
