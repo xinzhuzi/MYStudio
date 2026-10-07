@@ -2846,15 +2846,20 @@ class TestQi21SubgraphContract:
             (208, QI21_HOST_ID, 0, QI21_MAIN_TE_ID, 3, "STRING"),
             (209, QI21_HOST_ID, 1, QI21_NEG_TE_ID, 3, "STRING"),
             (210, 2, 0, QI21_MAIN_TE_ID, 0, "CLIP"),
-            (211, 2, 0, QI21_NEG_TE_ID, 0, "CLIP"),
+            (211, 2, 0, 4204, 0, "CLIP"),
+            (4304, 4204, 0, QI21_NEG_TE_ID, 0, "CLIP"),       # 垫脚出口→[4015N].clip
             # 0929 S3 加速边界(语义锚保号:97=旧 [1]→[31] LoRA 臂/16·17=旧
             # positive/negative 首扇出/5=旧 latent 首扇出/62=旧选择件→[8],全改指宿主)
-            (97, 1, 0, QI21_XHOST_ID, 0, "MODEL"),            # [1] UNET→宿主.model(直连)
+            # 1007 布局整备:97/10/211 垫脚 Reroute(4203/4202/4204,消遮挡锚随行同步,
+            # 手法=SKILL 布局章 L184 sanctioned「垫 Reroute」)
+            (97, 1, 0, 4203, 0, "MODEL"),
+            (4303, 4203, 0, QI21_XHOST_ID, 0, "MODEL"),       # 垫脚出口→宿主.model
             (16, QI21_MAIN_TE_ID, 0, QI21_XHOST_ID, 1, "CONDITIONING"),
             (17, QI21_NEG_TE_ID, 0, QI21_XHOST_ID, 2, "CONDITIONING"),
             (5, QI21_LATENT_ID, 0, QI21_XHOST_ID, 3, "LATENT"),
             (62, QI21_XHOST_ID, 0, 5, 0, "LATENT"),           # 宿主→[5] 解码(单点;⑫ [8]→[5])
-            (10, 3, 0, 5, 1, "VAE"),
+            (10, 3, 0, 4202, 0, "VAE"),
+            (4302, 4202, 0, 5, 1, "VAE"),                     # 垫脚出口→[5].vae
         ]:
             assert want in got, f"外部接线缺: link{want[0]}"
         # 1004 Phase D:主编码+负向编码两件 TextEncodeQwenImage21 迁主图装配块旁
@@ -2920,6 +2925,8 @@ class TestQi21SubgraphContract:
             "Image Comparer (rgthree)",
             # 1004 Phase D:编码器/画幅建议器迁主图(装配块旁三件 [4015][4015N][4018])
             "TextEncodeQwenImage21", "MyQi21WhSuggest",
+            # 1007 布局整备:垫脚 Reroute 准入(SKILL 布局章 L184 sanctioned 消遮挡手法)
+            "Reroute",
             # 1005 重锚:[401] MyQi21PromptPreview 正负双预览件入册(OUTPUT_NODE
             # 显示件,执行根非 SaveImage 上游属正常;no_orphans 同款豁免口径)
             "MyQi21PromptPreview",

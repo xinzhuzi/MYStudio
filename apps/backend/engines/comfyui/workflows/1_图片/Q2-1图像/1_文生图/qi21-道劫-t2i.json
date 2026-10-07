@@ -2,14 +2,14 @@
   "id": "7d4a9c31-5e62-4b8a-b1f0-2c8e57a90413",
   "revision": 0,
   "last_node_id": 7016,
-  "last_link_id": 345,
+  "last_link_id": 4304,
   "nodes": [
     {
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        1109.8651591694422,
-        1386.1020432968764
+        1110,
+        1300
       ],
       "size": [
         340,
@@ -53,8 +53,8 @@
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        1114.9694248190124,
-        1673.0490810436609
+        1110,
+        1820
       ],
       "size": [
         360,
@@ -103,8 +103,8 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        1110.6277697298883,
-        1538.4957643125015
+        1110,
+        1560
       ],
       "size": [
         340,
@@ -188,7 +188,7 @@
       "type": "MyQi21PromptPreview",
       "pos": [
         3054,
-        2360
+        2400
       ],
       "size": [
         500,
@@ -319,7 +319,7 @@
         {
           "name": "vae",
           "type": "VAE",
-          "link": 10
+          "link": 4302
         }
       ],
       "outputs": [
@@ -509,8 +509,8 @@
       "id": 7,
       "type": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
       "pos": [
-        4983.056084299114,
-        1841.4270593532246
+        5090,
+        1900
       ],
       "size": [
         309.3620703125001,
@@ -523,7 +523,7 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 97
+          "link": 4303
         },
         {
           "name": "positive",
@@ -976,7 +976,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 211
+          "link": 4304
         },
         {
           "name": "images.image_1",
@@ -1042,8 +1042,8 @@
       "id": 4018,
       "type": "MyQi21WhSuggest",
       "pos": [
-        4063.706345107683,
-        1923.054541393863
+        4064,
+        2400
       ],
       "size": [
         380,
@@ -1137,7 +1137,7 @@
       "type": "PrimitiveStringMultiline",
       "pos": [
         1686,
-        2180
+        2200
       ],
       "size": [
         400,
@@ -1161,6 +1161,114 @@
           "slot_index": 0
         }
       ]
+    },
+    {
+      "id": 4202,
+      "type": "Reroute",
+      "pos": [
+        1500,
+        1200
+      ],
+      "size": [
+        60,
+        30
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Reroute",
+          "type": "VAE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            4302
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 4203,
+      "type": "Reroute",
+      "pos": [
+        3100,
+        1400
+      ],
+      "size": [
+        60,
+        30
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Reroute",
+          "type": "MODEL",
+          "link": 97
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            4303
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 4204,
+      "type": "Reroute",
+      "pos": [
+        2400,
+        1810
+      ],
+      "size": [
+        60,
+        30
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "Reroute",
+          "type": "CLIP",
+          "link": 211
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "CLIP",
+          "links": [
+            4304
+          ]
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      },
+      "widgets_values": []
     }
   ],
   "links": [
@@ -1192,8 +1300,8 @@
       10,
       3,
       0,
-      5,
-      1,
+      4202,
+      0,
       "VAE"
     ],
     [
@@ -1248,7 +1356,7 @@
       97,
       1,
       0,
-      7,
+      4203,
       0,
       "MODEL"
     ],
@@ -1328,7 +1436,7 @@
       211,
       2,
       0,
-      4016,
+      4204,
       0,
       "CLIP"
     ],
@@ -1363,6 +1471,30 @@
       6,
       1,
       "STRING"
+    ],
+    [
+      4302,
+      4202,
+      0,
+      5,
+      1,
+      "VAE"
+    ],
+    [
+      4303,
+      4203,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      4304,
+      4204,
+      0,
+      4016,
+      0,
+      "CLIP"
     ]
   ],
   "groups": [
@@ -1383,9 +1515,9 @@
       "title": "道劫·②提示词·装配([400]正向提示词=①层唯一手写位;[404]负向提示词;[6]装配子图(双击进入;主体句PE扩写+型底座+锁层A三层拼装全在内,面板=正向提示词/负向提示词/型选择/PE启用?);[401]正负双预览)",
       "bounding": [
         1670,
-        1600,
-        1897.4698393220197,
-        932.8716670129252
+        1500,
+        1897,
+        1540
       ],
       "color": "#a1309b",
       "flags": {}
@@ -1396,8 +1528,8 @@
       "bounding": [
         3870,
         1690,
-        1491.7944248828126,
-        509.81876089843763
+        1560,
+        1000
       ],
       "color": "#4d9e6a",
       "flags": {}
@@ -1662,7 +1794,7 @@
             "id": 4013,
             "type": "MyQi21ApiPE",
             "pos": [
-              1330,
+              1500,
               500
             ],
             "size": [
@@ -1797,8 +1929,8 @@
             "id": 4100,
             "type": "MarkdownNote",
             "pos": [
-              2000,
-              1100
+              2100,
+              1120
             ],
             "size": [
               420,
@@ -1922,8 +2054,8 @@
             "id": 4031,
             "type": "MyQi21色卡",
             "pos": [
-              320,
-              80
+              530,
+              350
             ],
             "size": [
               200,
@@ -1952,7 +2084,7 @@
             "id": 4032,
             "type": "MyQi21美术风格底座",
             "pos": [
-              560,
+              980,
               80
             ],
             "size": [
@@ -2130,7 +2262,8 @@
           "ue_links": [],
           "links_added_by_ue": []
         },
-        "last_link_id": 345
+        "last_link_id": 4301,
+        "last_node_id": 4201
       },
       {
         "id": "e7b9d4a2-3c5f-4e61-8d70-9f2a5c8b4d6e",
@@ -2693,7 +2826,7 @@
             "id": 7016,
             "type": "Note",
             "pos": [
-              1400,
+              1902.317397441997,
               1960
             ],
             "size": [
