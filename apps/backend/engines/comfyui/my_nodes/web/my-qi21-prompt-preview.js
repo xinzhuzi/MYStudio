@@ -1,22 +1,31 @@
-// 漫影 qi21 正负双预览显示扩展(1005 ㊈;1007 三场重写=addDOMWidget 只读 textarea)
-// MyQi21PromptPreview 是 OUTPUT_NODE,但前端不渲染字符串返回值;本扩展在节点上
-// 挂一只只读 multiline 显示框,onExecuted 时把 ui.merged(正/负分区合并文)落框。
-// 零改 ComfyUI 本体。
+// 漫影 qi21 正负双预览显示扩展(1005 ㊈;1007晚 终态=py-DOM 同构)
+// MyQi21PromptPreview 是 OUTPUT_NODE,但前端不渲染字符串返回值;显示位=
+// py 端 optional multiline「预览显示」(DOMWidgetImpl 可靠路径),本扩展
+// onExecuted 按 name 把 ui.merged(正/负分区合并文)写进该框,并把它钉成
+// 只读展示面板(1007晚 用户令「多了个渲染控件,布局也不合理」:预览框是
+// 展示位不是输入控件)。零改 ComfyUI 本体。
 //
-// 1007 三场定谳(用户实拍「没有内容」+解剖 LegacyWidget):新前端 customtext 走
-// LegacyWidget 兼容层,element 懒 materialize 且无可靠可见渲染路径——数据层
-// w.value 有 1226 字、像素层永远空框。终极解=换 api_key 同款 addDOMWidget
-// 真实 DOM textarea(全 App 被证实渲染可靠),饿汉挂载+值直写元素。
+// 1007 定谳存档:JS customtext/addDOMWidget 走新前端 LegacyWidget 兼容层,
+// element 懒 materialize 无可靠可见渲染(三方案试毕全败)——显示位已撤到
+// py 端,勿再走 JS 自建 widget 路线。
 import { app } from "../../scripts/app.js";
 
-// 1007 三场定谳(用户实拍「没有内容」+解剖 LegacyWidget):JS customtext 走
-// LegacyWidget 兼容层,element 懒 materialize 无可靠可见渲染——已废。显示位=
-// py 端 optional multiline「预览显示」(DOMWidgetImpl/comfy-multiline-input,
-// 全画布唯一被证实可靠路径,与 [400]/三真源同构)。onExecuted 双写数据层与
-// DOM 层+input 事件派发(Vue v-model 同步)。serialize 持久化由 py widget
-// 天然承担(widgets_values),跨重启不丢。
+// 1007晚:预览框钉成只读展示面板——readOnly+占位文案+钉高(节点唯一 widget,
+// 正文≈正/负终稿合并文;onConfigure 载入预填后同样保持只读态)。
 app.registerExtension({
     name: "MY.Qi21PromptPreview",
+    async nodeCreated(node) {
+        if (node.comfyClass !== "MyQi21PromptPreview") return;
+        const w = (node.widgets || []).find((x) => x.name === "预览显示");
+        if (!w) return;
+        const el = w.inputEl ?? w.element;
+        if (!el) return;
+        el.readOnly = true;
+        el.spellcheck = false;
+        el.placeholder = "跑一发后此处显示正向/负向终稿";
+        el.style.minHeight = "520px";
+        el.style.overflow = "auto";
+    },
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name !== "MyQi21PromptPreview") return;
         const onExecuted = nodeType.prototype.onExecuted;

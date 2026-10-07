@@ -26,20 +26,20 @@ class MyQi21PromptPreview:
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
         return {
-            "required": {
-                "正向提示词": ("STRING", {
-                    "multiline": True, "default": "",
-                    "tooltip": "正向终稿(主体句扩写+类型句+美术底座)"}),
-                "负向提示词": ("STRING", {
-                    "multiline": True, "default": "",
-                    "tooltip": "负向终稿(类型负面+美术负面+主体句负面)"}),
-            },
-            # 1007 用户令「[401] 没有内容」根治:显示位=py 端 optional multiline
-            # (DOMWidgetImpl/comfy-multiline-input,全画布唯一被证实可靠的渲染
-            # 路径;JS customtext=LegacyWidget 懒 element 不可靠已废,三方案试毕
-            # 详 SKILL §5 1b)。前端 onExecuted 把 ui.merged 写进本框;不连线=
-            # 纯显示位,无需手填。
+            "required": {},
+            # 1007晚 用户令「多了个渲染控件,布局也不合理」根治:正/负向改
+            # forceInput 纯槽(带名连线点,零 widget)——multiline widget 在接线态
+            # 会留两块隐藏占位空白,叠上显示框成三框堆叠,即布局病灶本体;本件
+            # 双入恒接线(契约钉 link18/217),连线槽才是它的真实形状。optional
+            # 非 required=未连线也能跑(preview() 收 None),[4013] 十入同款。
             "optional": {
+                "正向提示词": ("STRING", {"forceInput": True}),
+                "负向提示词": ("STRING", {"forceInput": True}),
+                # 1007 用户令「[401] 没有内容」根治:显示位=py 端 optional multiline
+                # (DOMWidgetImpl/comfy-multiline-input,全画布唯一被证实可靠的渲染
+                # 路径;JS customtext=LegacyWidget 懒 element 不可靠已废,三方案试毕
+                # 详 SKILL §5 1b)。前端 onExecuted 按 name 把 ui.merged 写进本框,
+                # 并钉只读+钉高(展示面板非输入控件);不连线=纯显示位,无需手填。
                 "预览显示": ("STRING", {
                     "multiline": True, "default": "",
                     "tooltip": "预览显示位(执行后自动刷新,无需手填/连线)"}),
