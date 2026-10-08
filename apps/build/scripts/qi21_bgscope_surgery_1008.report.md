@@ -45,3 +45,9 @@
   - 风格无漂移:两侧同属工笔水墨,传统色秩序保持
 - 口径注:FunAcc cfg1 负向惰性,本轮=正向作用域切分单变量净效;负向+4在40步cfg4档才生效(防御纵深,候窗可另拍)
 - 结论:方向验证通过,recipe_version 刷新待用户终审(看图:leg_A.png=旧 / leg_B.png=新)
+
+## 打包覆盖安装(1008 13:0x,build-mac.sh 唯一入口,exit 0)
+- 链路:arm64 构建 → 覆盖安装 → desktop smoke 全过(routes=6/workflowE2E=ok/assetVoiceFlow=ok/pluginSettings=ok)→ Launch Services 开验通过(pid 存活确认)
+- 装机终验:json 四路 md5 归一 b462ff18(仓库/装机/引擎家daojie-data/MA);t2i 卡文槽逐字==json底座正负(786/253字),装机==构建树==仓库 md5 d1187992;daojie-data 其余三件同种子家
+- 探针勘误存档:卡文指纹误用型级B句(型句不入卡文)致假警报——卡文正确性以逐字相等断言+md5为准
+- 引擎停态收尾:引擎于打包前已停,下次开App自愈拉起即读新 daojie-data(json 热读)
