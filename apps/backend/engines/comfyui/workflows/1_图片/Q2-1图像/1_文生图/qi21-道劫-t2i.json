@@ -582,7 +582,7 @@
       ],
       "flags": {},
       "order": 5,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "torch_compile_args",
@@ -642,7 +642,7 @@
       ],
       "flags": {},
       "order": 6,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "torch_compile_args",
@@ -710,7 +710,7 @@
       ],
       "flags": {},
       "order": 16,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "image",
@@ -792,7 +792,7 @@
       ],
       "flags": {},
       "order": 17,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "images",
@@ -836,7 +836,7 @@
       ],
       "flags": {},
       "order": 18,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "dir": 3,
@@ -1526,7 +1526,7 @@
     },
     {
       "id": 6,
-      "title": "道劫·⑤SeedVR2放大尾档·2K([501]DiT+[502]VAE→[503]短边2048→[504]存MYStudio-2K;可整组旁路:框选本组Ctrl+B→只出[8]直出图;适合1MP档,4.2MP≈纯插值建议旁路)",
+      "title": "道劫·⑤SeedVR2放大尾档·2K([501]DiT+[502]VAE→[503]短边2048→[504]存MYStudio-2K;默认旁路(组员mode=4,1008用户令;启用=框选本组Ctrl+B→只出[8]直出图外的2K放大);适合1MP档,4.2MP≈纯插值建议旁路)",
       "bounding": [
         7260.241079737558,
         1651.9282590413904,
@@ -3028,11 +3028,11 @@
             },
             "widgets_values": [
               "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25",
-              0
+              5
             ],
             "widgets_values_named": {
               "sigmas_string": "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25",
-              "interpolate_to_steps": 0
+              "interpolate_to_steps": 5
             }
           }
         ],
