@@ -318,6 +318,8 @@ def _hot_fallbacks() -> tuple[str, str, str]:
     raw = (data.get("expand_instruction") or {}).get("system_prompt_zh")
     textbook = str(raw).strip() if isinstance(raw, str) else ""
     if not textbook:
+        # 注(1008 PE教材环境低频轮):本串=连线缺位且真源热读失败时的应急极简桩,非教材副本——
+        # 教材正文(含 v11 环境低频纪律)恒热读 qi21_bases.json,桩不随教材版本走(A3 口径)。
         textbook = ("你是图像提示词扩写专家。把用户的画面需求扩写为一段完整的中文"
                     "画面描述长文(篇幅软参考300-800字),观察者口吻;用户固定的名词/数量/"
                     "颜色/位置逐字保留。输出单行 JSON:"

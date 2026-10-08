@@ -64,7 +64,7 @@ MyQi21PromptAssembly = assembly.MyQi21PromptAssembly
 # 与真源家正负拆开瘦身版(739 字)不同文,锚随真源迁)
 _DEFAULT_ANCHORS = {
     "主体句": "afd9e6f562e3e606",       # 原 顶层 [24] 主体句例文
-    "锁层A全文": "1ca64a01c49e67e5",    # qi21_bases.json art_style_base.positive_text(1008 作用域切分轮后重锚:DNA撤水墨/古典山水+罩染限定人物+整块大色面+尾句生产级)
+    "锁层A全文": "46a93ccb121cbabe",    # qi21_bases.json art_style_base.positive_text(1008 删词刀第三轮后重锚:成片质量句限定人物+四型远景句低对比淡墨色面)
 }
 
 

@@ -3131,7 +3131,7 @@ class TestQi21SubgraphContract:
                 f"qi21_bases.json「{e['zh']}」negative_text 缺基线负面词(模糊/水印)"
         # 美化版锚词抽验(人物型):纯画法骨
         renwu = qi21[0]["positive_text"]
-        for kw in ("细墨线", "线随结构", "淡墨晕染"):  # 1008 A+B清偿:⑩去双载删「提按顿挫/墨色浓淡分明」(底座已有轻重提按),换存世锚词
+        for kw in ("细墨线", "线随结构", "低对比淡墨色面"):  # 1008 删词刀第三轮:远景句「淡墨晕染」退役为「低对比淡墨色面」,锚随源重锚(前锚 1008 A+B清偿立)
             assert kw in renwu, f"qi21_bases.json 人物 positive_text 缺美化版锚词 {kw}"
         for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
             assert bad not in renwu.split("\n")[0], f"人物②层残留物象词 {bad}(纯画法零物象骨)"
