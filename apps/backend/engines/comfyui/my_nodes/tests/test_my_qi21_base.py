@@ -60,11 +60,11 @@ SIDECAR_BASES = (REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
 
 # 人物系六型(positive_text 含锁B 增量四锁+衣物完整性行;1004 集中化后真源
 # =qi21_bases.json 自身,旧「05 库生成器 daojie_canon_lib.py 同表」提取链退役)
-RENWU_XI = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
+RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分"}
 
 # 0929 D6 rgba_default 四型(用户拍板:道具/多视图/高清人脸/表情差分默认开 RGBA,
 # 其余五型默认关)——独立钉(防提取器 RGBA_DEFAULT_TYPES 常量被静默改)
-RGBA_DEFAULT_TYPES = {"道具", "多视图", "高清人脸", "表情差分"}
+RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分"}
 
 # 透明声明句核锚=全串(防「透明头皮」光头禁令条款误判,S0 research/transparency-
 # fusion.md 注记;canon_lib TRANSPARENT_DECL 首段,表情差分变体尾同前缀)
@@ -151,7 +151,8 @@ def test_base_text_verbatim_from_lib_for_all_nine():
         assert base_text == entry["positive_text"], zh
         assert neg_text == entry["negative_text"], zh  # 型负面出口(案B:去死数据)
         lines = base_text.split("\n")
-        assert len(lines) == (5 if zh in RENWU_XI else 2), zh  # 1008 A+B清偿:删鞋靴/完整性两行:7→5
+        # 1008晚透明句加入:三透明型(人物多视图/高清人脸/表情差分)型文+透明声明行=6行
+        assert len(lines) == (6 if zh in {"人物多视图", "高清人脸", "表情差分"} else (5 if zh in RENWU_XI else 2)), zh
         assert lines[0].endswith("。")  # ②层美化版底座句号自足收尾
         # ①槽与美术风格底座常量 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
         assert not base_text.startswith("⟨①:")
@@ -220,7 +221,7 @@ def test_width_height_reference_table():
     快出+后放大;4.2 旧档宽高表入 git 史)。"""
     expect = {
         "人物": (1088, 1448), "场景": (1672, 944), "道具": (1024, 1024),
-        "美宣": (1912, 824), "多视图": (2448, 816), "高清人脸": (1024, 1024),
+        "美宣": (1912, 824), "人物多视图": (2448, 816), "高清人脸": (1024, 1024),
         "分镜剧情图": (1672, 944), "表情差分": (1256, 1256),
         "概念气氛图": (1672, 944), "自由": (1024, 1024)}
     for zh, (w, h) in expect.items():
@@ -273,7 +274,7 @@ def test_data_file_schema():
             continue
         assert bt  # 九型底座文本非空
         # 1004 增衣物完整性锁:人物系 7 行(②+锁B四行+④+完整性),非人物系 2 行
-        assert len(bt.split("\n")) == (5 if zh in RENWU_XI else 2), zh  # 1008 A+B清偿:7→5
+        assert len(bt.split("\n")) == (6 if zh in {"人物多视图", "高清人脸", "表情差分"} else (5 if zh in RENWU_XI else 2)), zh  # 1008晚透明句加入:三透明型+1行
         assert e["aspect_ratio"] in ASPECTS, (zh, e["aspect_ratio"])  # 官方枚举串
         mp = e["megapixels"]
         assert (isinstance(mp, (int, float)) and not isinstance(mp, bool)

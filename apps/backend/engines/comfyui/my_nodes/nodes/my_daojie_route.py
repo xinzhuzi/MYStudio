@@ -32,7 +32,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-NINE = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
+NINE = ["人物", "场景", "道具", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 
 def _daojie_data(fn: str) -> Path:
     """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。

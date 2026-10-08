@@ -39,7 +39,7 @@ REPO = Path(__file__).resolve().parents[6]
 PROMPT_MD_0917 = REPO / "docs" / "prompts" / "道劫_新提示词包_0917.md"
 
 EXPECTED_OPTIONS = [
-    "人物", "场景", "道具", "美宣", "多视图",
+    "人物", "场景", "道具", "美宣", "人物多视图",
     "高清人脸", "分镜剧情图", "表情差分", "概念气氛图",
 ]
 
@@ -142,7 +142,7 @@ def test_run_all_options_produce_nonempty_outputs():
         # (用户令 1-2MP 快出+后放大):道具/高清人脸 1.0(09-19 裁定出
         # 1024×1024,节点口径 1.0 MP 精确命中)、多视图 1.8、其余五型 1.5
         assert aspect.endswith(")") and ":" in aspect
-        assert mp == {"道具": 1.0, "高清人脸": 1.0, "多视图": 1.8}.get(name, 1.5)
+        assert mp == {"道具": 1.0, "高清人脸": 1.0, "人物多视图": 1.8}.get(name, 1.5)
 
 
 # ── 负向(1008):[4010] 只出型层负向,不再拼底座负向+用户负向 ──
@@ -302,7 +302,7 @@ def test_v3_recipe_mutex_and_rulings():
     trio = {"Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors": 1.0,
             "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.4,
             "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors": 0.3}
-    for zh in ("多视图", "表情差分"):
+    for zh in ("人物多视图", "表情差分"):
         assert by[zh] == trio, (zh, by[zh])
     # 美宣=0922 用户终审 8 件(画布 01:00 终态): asianmix→0.2,+Afterlight0.2,+Masterpiece1.0,+金雾0.8
     assert by["美宣"] == {**trio, "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.2, "Krea2-光影/Afterlight_v1.safetensors": 0.2, "Krea2-画风/Krea2-美学Masterpiece_v51.safetensors": 1.0, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
@@ -385,7 +385,7 @@ def test_width_height_override_and_formula():
     """WIDTH/HEIGHT 两出(09-20 多视图(旧名三视图) A 案转正):override 直出先例 1536×512;
     无 override 型走公式,与 [61] 逐字节一致(场景 16:9·1.5→1672×944)。
     1008 快出档缩编:多视图 override 3072×1024→2448×816、场景 4.2→1.5MP。"""
-    _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("多视图")  # 0927 改名轮(K2 侧 override 合板口径)
+    _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("人物多视图")  # 0927 改名轮(K2 侧 override 合板口径);1008 晚改名 多视图→人物多视图
     assert (w, h) == (2448, 816), (w, h)  # 1008 快出档:3:1 精确 8 倍数 1.9MP(旧 3072×1024 入 git 史)
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("场景")
     assert (w, h) == (1672, 944), (w, h)

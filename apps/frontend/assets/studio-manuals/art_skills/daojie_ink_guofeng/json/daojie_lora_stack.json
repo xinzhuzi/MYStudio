@@ -24,7 +24,7 @@
         "on": true,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": true,
         "weight": 1.0
       },
@@ -75,7 +75,7 @@
         "on": true,
         "weight": 0.2
       },
-      "多视图": {
+      "人物多视图": {
         "on": true,
         "weight": 0.1
       },
@@ -126,7 +126,7 @@
         "on": true,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": true,
         "weight": 1.0
       },
@@ -177,7 +177,7 @@
         "on": true,
         "weight": 0.2
       },
-      "多视图": {
+      "人物多视图": {
         "on": true,
         "weight": 0.4
       },
@@ -228,7 +228,7 @@
         "on": true,
         "weight": 0.2
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 0.8
       },
@@ -279,7 +279,7 @@
         "on": false,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },
@@ -330,7 +330,7 @@
         "on": false,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },
@@ -381,7 +381,7 @@
         "on": false,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },
@@ -432,7 +432,7 @@
         "on": true,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },
@@ -483,7 +483,7 @@
         "on": false,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },
@@ -534,7 +534,7 @@
         "on": false,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },
@@ -585,7 +585,7 @@
         "on": false,
         "weight": 1.0
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },
@@ -636,7 +636,7 @@
         "on": true,
         "weight": 0.3
       },
-      "多视图": {
+      "人物多视图": {
         "on": true,
         "weight": 0.3
       },
@@ -687,7 +687,7 @@
         "on": true,
         "weight": 0.8
       },
-      "多视图": {
+      "人物多视图": {
         "on": false,
         "weight": 1.0
       },

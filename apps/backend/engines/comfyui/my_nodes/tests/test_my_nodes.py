@@ -260,7 +260,7 @@ def test_daojie_base_options_and_assembly():
     # 1004 集中化:combo=真源家 qi21_bases.json types[] 全十档(九型+自由末位;
     # 原九型 sidecar daojie_bases.json 退役删件,锚随迁)
     assert combo[0] == [
-        "人物", "场景", "道具", "美宣", "多视图",
+        "人物", "场景", "道具", "美宣", "人物多视图",
         "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "自由"]
     assert combo[1]["default"] == "人物"
     # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/
@@ -303,7 +303,7 @@ def test_daojie_base_resolution_outputs_nine_types():
         "9:16 (Portrait Widescreen)", "16:9 (Widescreen)", "21:9 (Ultrawide)",
     }
     expected_mp = {"道具": 1.0, "高清人脸": 1.0, "自由": 1.0,
-                   "多视图": 1.8}.get  # 其余五型 1.5(缺省)
+                   "人物多视图": 1.8}.get  # 其余五型 1.5(缺省)
     for entry in bases:
         pos, neg, aspect, megapixels, base_out, _w, _h = node.run(entry["zh"])
         assert base_out == entry["zh"]  # 09-19 第五出=型直通(驱动按型 LoRA 供线)
