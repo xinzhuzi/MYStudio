@@ -1,8 +1,8 @@
 {
   "id": "7d4a9c31-5e62-4b8a-b1f0-2c8e57a90413",
   "revision": 0,
-  "last_node_id": 7020,
-  "last_link_id": 4310,
+  "last_node_id": 7025,
+  "last_link_id": 4321,
   "nodes": [
     {
       "id": 1,
@@ -563,14 +563,12 @@
       "widgets_values": [
         "2 · viggle",
         0,
-        "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333",
-        8
+        "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333"
       ],
       "widgets_values_named": {
         "速度档位": "2 · viggle",
         "seed": 0,
-        "σ表": "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333",
-        "插值": 8
+        "σ表": "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333"
       }
     },
     {
@@ -1776,8 +1774,8 @@
             "id": 4013,
             "type": "MyQi21ApiPE",
             "pos": [
-              1500,
-              500
+              1560,
+              780
             ],
             "size": [
               540,
@@ -2078,8 +2076,8 @@
               80
             ],
             "size": [
-              200,
-              420
+              560,
+              620
             ],
             "flags": {},
             "order": 11,
@@ -2313,7 +2311,8 @@
             "linkIds": [
               103,
               104,
-              105
+              105,
+              4313
             ],
             "pos": [
               -86,
@@ -2327,7 +2326,8 @@
             "linkIds": [
               106,
               107,
-              108
+              108,
+              4314
             ],
             "pos": [
               -86,
@@ -2353,7 +2353,8 @@
             "linkIds": [
               111,
               112,
-              113
+              113,
+              4311
             ],
             "pos": [
               -86,
@@ -2395,18 +2396,6 @@
               -86,
               524
             ]
-          },
-          {
-            "id": "19c9d604-43fe-48e7-9db6-92a1a7071d81",
-            "name": "插值",
-            "type": "INT",
-            "linkIds": [
-              4310
-            ],
-            "pos": [
-              -86,
-              544
-            ]
           }
         ],
         "outputs": [
@@ -2426,8 +2415,7 @@
         "widgets": [
           "2 · viggle",
           0,
-          "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333",
-          8
+          "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333"
         ],
         "nodes": [
           {
@@ -2505,7 +2493,7 @@
           },
           {
             "id": 7011,
-            "type": "LoraLoaderModelOnly",
+            "type": "ViggleTurboLora",
             "pos": [
               800,
               700
@@ -2535,9 +2523,9 @@
                 ]
               }
             ],
-            "title": "[7011] viggle LoRA·LoraLoader",
+            "title": "[7011] viggle LoRA·官方未合并件",
             "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
+              "Node name for S&R": "ViggleTurboLora",
               "ue_properties": {
                 "widget_ue_connectable": {},
                 "version": "7.8",
@@ -2590,7 +2578,7 @@
                 "name": "sigmas",
                 "type": "SIGMAS",
                 "localized_name": "Sigmas",
-                "link": 4308
+                "link": 4312
               },
               {
                 "name": "latent_image",
@@ -2605,7 +2593,7 @@
                 "name": "output",
                 "type": "LATENT",
                 "links": [
-                  120
+                  4319
                 ]
               },
               {
@@ -2631,8 +2619,8 @@
             "id": 7015,
             "type": "MyQi21SpeedSelect",
             "pos": [
-              2350,
-              900
+              2760,
+              1150
             ],
             "size": [
               380,
@@ -2760,7 +2748,7 @@
             "type": "KSampler",
             "pos": [
               400,
-              1750
+              1900
             ],
             "size": [
               302.31739744199706,
@@ -2851,7 +2839,7 @@
             ],
             "size": [
               560,
-              240
+              200
             ],
             "flags": {},
             "order": 0,
@@ -2867,10 +2855,10 @@
               }
             },
             "widgets_values": [
-              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方6σ=[7011 LoRA r256]→[7019 BasicGuider 单正条件]→[7012 SamplerCustomAdvanced]+[7017 noise/7018 euler/7020 6σ插值0],蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用=FunAcc seed/viggle noise_seed/直出 seed;三支路汇 [7015] 单点出 LATENT。\n换步数=面板「σ表/插值」:6步官方=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 + 5;9点官方9步前段=1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333 + 8(全turbo近似,官方9步后2步须摘LoRA=双段链);N点填 N-1。"
+              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方9步满血=前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用;三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。"
             ],
             "widgets_values_named": {
-              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方6σ=[7011 LoRA r256]→[7019 BasicGuider 单正条件]→[7012 SamplerCustomAdvanced]+[7017 noise/7018 euler/7020 6σ插值0],蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用=FunAcc seed/viggle noise_seed/直出 seed;三支路汇 [7015] 单点出 LATENT。\n换步数=面板「σ表/插值」:6步官方=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 + 5;9点官方9步前段=1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333 + 8(全turbo近似,官方9步后2步须摘LoRA=双段链);N点填 N-1。"
+              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方9步满血=前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用;三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。"
             },
             "color": "#432",
             "bgcolor": "#653"
@@ -2879,8 +2867,8 @@
             "id": 7017,
             "type": "RandomNoise",
             "pos": [
-              1050,
-              470
+              870,
+              430
             ],
             "size": [
               270,
@@ -2933,8 +2921,8 @@
             "id": 7018,
             "type": "KSamplerSelect",
             "pos": [
-              800,
-              1485
+              380,
+              1500
             ],
             "size": [
               270,
@@ -2950,7 +2938,8 @@
                 "name": "SAMPLER",
                 "type": "SAMPLER",
                 "links": [
-                  4307
+                  4307,
+                  4315
                 ]
               }
             ],
@@ -3024,10 +3013,10 @@
           },
           {
             "id": 7020,
-            "type": "CustomSigmas",
+            "type": "ViggleTurboSigmas",
             "pos": [
               830,
-              1150
+              1000
             ],
             "size": [
               330,
@@ -3038,22 +3027,19 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "σ表",
-                "name": "sigmas_string",
-                "type": "STRING",
-                "widget": {
-                  "name": "sigmas_string"
-                },
-                "link": 4309
+                "localized_name": "Latent图像",
+                "name": "latent",
+                "type": "LATENT",
+                "link": 4311
               },
               {
-                "localized_name": "插值步数",
-                "name": "interpolate_to_steps",
-                "type": "INT",
+                "localized_name": "σ表",
+                "name": "nodes",
+                "type": "STRING",
                 "widget": {
-                  "name": "interpolate_to_steps"
+                  "name": "nodes"
                 },
-                "link": 4310
+                "link": 4309
               }
             ],
             "outputs": [
@@ -3066,9 +3052,238 @@
                 ]
               }
             ],
-            "title": "[7020] 官方6σ·CustomSigmas",
+            "title": "[7020] 官方6σ·ViggleTurboSigmas(动态shift)",
             "properties": {
-              "Node name for S&R": "CustomSigmas",
+              "Node name for S&R": "ViggleTurboSigmas",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7021,
+            "type": "SplitSigmas",
+            "pos": [
+              1360,
+              1050
+            ],
+            "size": [
+              270,
+              110
+            ],
+            "flags": {},
+            "order": 10,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "Sigmas",
+                "name": "sigmas",
+                "type": "SIGMAS",
+                "link": 4308
+              },
+              {
+                "localized_name": "步",
+                "name": "step",
+                "type": "INT",
+                "widget": {
+                  "name": "step"
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "high_sigmas",
+                "name": "SIGMAS",
+                "type": "SIGMAS",
+                "links": [
+                  4312
+                ]
+              },
+              {
+                "localized_name": "low_sigmas",
+                "name": "SIGMAS",
+                "type": "SIGMAS",
+                "links": [
+                  4320
+                ]
+              }
+            ],
+            "title": "[7021] σ切分·SplitSigmas(9步=7+2)",
+            "properties": {
+              "Node name for S&R": "SplitSigmas",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              7
+            ],
+            "widgets_values_named": {
+              "step": 7
+            }
+          },
+          {
+            "id": 7022,
+            "type": "BasicGuider",
+            "pos": [
+              1430,
+              1700
+            ],
+            "size": [
+              270,
+              110
+            ],
+            "flags": {},
+            "order": 11,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "模型",
+                "name": "model",
+                "type": "MODEL",
+                "link": 4313
+              },
+              {
+                "localized_name": "条件",
+                "name": "conditioning",
+                "type": "CONDITIONING",
+                "link": 4314
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "引导",
+                "name": "GUIDER",
+                "type": "GUIDER",
+                "links": [
+                  4317
+                ]
+              }
+            ],
+            "title": "[7022] 底模引导·BasicGuider(段2无LoRA)",
+            "properties": {
+              "Node name for S&R": "BasicGuider",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7023,
+            "type": "DisableNoise",
+            "pos": [
+              500,
+              1700
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 12,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+              {
+                "localized_name": "噪声",
+                "name": "NOISE",
+                "type": "NOISE",
+                "links": [
+                  4316
+                ]
+              }
+            ],
+            "title": "[7023] 零噪声·DisableNoise(段2续采)",
+            "properties": {
+              "Node name for S&R": "DisableNoise",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7024,
+            "type": "SamplerCustomAdvanced",
+            "pos": [
+              2190,
+              1050
+            ],
+            "size": [
+              330,
+              200
+            ],
+            "flags": {},
+            "order": 13,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "噪声",
+                "name": "noise",
+                "type": "NOISE",
+                "link": 4316
+              },
+              {
+                "localized_name": "引导",
+                "name": "guider",
+                "type": "GUIDER",
+                "link": 4317
+              },
+              {
+                "localized_name": "采样器",
+                "name": "sampler",
+                "type": "SAMPLER",
+                "link": 4315
+              },
+              {
+                "localized_name": "Sigmas",
+                "name": "sigmas",
+                "type": "SIGMAS",
+                "link": 4320
+              },
+              {
+                "localized_name": "Latent图像",
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 4319
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "输出",
+                "name": "output",
+                "type": "LATENT",
+                "links": [
+                  120
+                ]
+              },
+              {
+                "localized_name": "去噪输出",
+                "name": "denoised_output",
+                "type": "LATENT",
+                "links": []
+              }
+            ],
+            "title": "[7024] 段2采样·SamplerCustom(底模收尾2步)",
+            "properties": {
+              "Node name for S&R": "SamplerCustomAdvanced",
+              "cnr_id": "comfy-core",
               "ue_properties": {
                 "widget_ue_connectable": {},
                 "version": "7.8",
@@ -3094,12 +3309,12 @@
           },
           {
             "id": 92,
-            "title": "道劫·加速子图·②viggle v0.3 官方6σ 支路([7011]LoRA r256→[7019]BasicGuider cfg1 单正条件→[7012]SamplerCustomAdvanced;[7017]noise/[7018]euler/[7020]官方6σ逐字插值0;负向不接=蒸馏件 cfg恒1 负向无效)",
+            "title": "道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)",
             "bounding": [
-              760,
-              430,
-              1360,
-              1175
+              370,
+              425,
+              2180,
+              1400
             ],
             "color": "#4d9e6a",
             "flags": {}
@@ -3109,7 +3324,7 @@
             "title": "道劫·加速子图·③直出40步支路([7010]KSampler cfg4=负向真实生效档)",
             "bounding": [
               340,
-              1700,
+              1850,
               420,
               380
             ],
@@ -3122,7 +3337,7 @@
             "bounding": [
               40,
               350,
-              340,
+              320,
               230
             ],
             "color": "#6a4d8c",
@@ -3132,10 +3347,10 @@
             "id": 95,
             "title": "道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)",
             "bounding": [
-              2300,
-              840,
+              2710,
+              1090,
               480,
-              250
+              290
             ],
             "color": "#8c465e",
             "flags": {}
@@ -3280,7 +3495,7 @@
           },
           {
             "id": 120,
-            "origin_id": 7012,
+            "origin_id": 7024,
             "origin_slot": 0,
             "target_id": 7015,
             "target_slot": 1,
@@ -3330,8 +3545,8 @@
             "id": 4308,
             "origin_id": 7020,
             "origin_slot": 0,
-            "target_id": 7012,
-            "target_slot": 3,
+            "target_id": 7021,
+            "target_slot": 0,
             "type": "SIGMAS"
           },
           {
@@ -3339,16 +3554,80 @@
             "origin_id": -10,
             "origin_slot": 6,
             "target_id": 7020,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "STRING"
           },
           {
-            "id": 4310,
+            "id": 4311,
             "origin_id": -10,
-            "origin_slot": 7,
+            "origin_slot": 3,
             "target_id": 7020,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 4312,
+            "origin_id": 7021,
+            "origin_slot": 0,
+            "target_id": 7012,
+            "target_slot": 3,
+            "type": "SIGMAS"
+          },
+          {
+            "id": 4313,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7022,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 4314,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7022,
             "target_slot": 1,
-            "type": "INT"
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 4315,
+            "origin_id": 7018,
+            "origin_slot": 0,
+            "target_id": 7024,
+            "target_slot": 2,
+            "type": "SAMPLER"
+          },
+          {
+            "id": 4316,
+            "origin_id": 7023,
+            "origin_slot": 0,
+            "target_id": 7024,
+            "target_slot": 0,
+            "type": "NOISE"
+          },
+          {
+            "id": 4317,
+            "origin_id": 7022,
+            "origin_slot": 0,
+            "target_id": 7024,
+            "target_slot": 1,
+            "type": "GUIDER"
+          },
+          {
+            "id": 4319,
+            "origin_id": 7012,
+            "origin_slot": 0,
+            "target_id": 7024,
+            "target_slot": 4,
+            "type": "LATENT"
+          },
+          {
+            "id": 4320,
+            "origin_id": 7021,
+            "origin_slot": 1,
+            "target_id": 7024,
+            "target_slot": 3,
+            "type": "SIGMAS"
           }
         ],
         "extra": {

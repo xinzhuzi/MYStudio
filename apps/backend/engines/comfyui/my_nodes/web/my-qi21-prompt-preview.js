@@ -118,6 +118,12 @@ app.registerExtension({
             el.style.minHeight = PIN[nm];
             el.style.overflow = "auto";
         }
+        // 1008晚用户令「布局需要宽大」:四只长文框,面板钉宽560×高640下限
+        // (onConfigure 期旧存档会以文件尺寸覆盖,nodeCreated 设的是新 placements
+        // 与下限;存量工作流尺寸由卡文同批布局落刀同步,见 t2i/子图 [4032] size)
+        const need = [560, 640];
+        node.size = [Math.max(node.size?.[0] ?? 0, need[0]), Math.max(node.size?.[1] ?? 0, need[1])];
+        node.onResize?.(node.size);
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (!["MyQi21BasesText","MyQi21系统提示词","MyQi21色卡","MyQi21美术风格底座"].includes(nodeData.name)) return;
