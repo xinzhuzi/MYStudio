@@ -55,7 +55,7 @@ def _daojie_data(fn: str) -> Path:
 
 _BASES_JSON = _daojie_data("qi21_bases.json")
 
-SECTIONS = ("系统提示词", "色卡", "美术风格底座")
+SECTIONS = ("系统提示词", "色卡", "美术风格底座", "风格工艺件", "底色背景件", "透明承载件")
 
 _cache: dict = {"mtime": None, "data": None}
 
@@ -84,6 +84,13 @@ def _section_text(section: str) -> str:
         return str(raw).strip() if isinstance(raw, str) else ""
     if section == "美术风格底座":
         raw = (data.get("art_style_base") or {}).get("positive_text")
+        return str(raw).strip() if isinstance(raw, str) else ""
+    # 1008晚三件拆分(用户令):风格工艺件/底色背景件/透明承载件——画布可见可连的拆分出口
+    if section in ("风格工艺件", "底色背景件", "透明承载件"):
+        _k = {"风格工艺件": "positive_style_text",
+              "底色背景件": "positive_ground_text",
+              "透明承载件": "rgba_text"}[section]
+        raw = (data.get("art_style_base") or {}).get(_k)
         return str(raw).strip() if isinstance(raw, str) else ""
     if section == "色卡":
         cl = data.get("color_lexicon") or {}
@@ -137,7 +144,7 @@ class MyQi21BasesText:
         return {
             "required": {
                 "文本节": (list(SECTIONS), {"default": "系统提示词",
-                                            "tooltip": "真源节:系统提示词=扩写教材/色卡=在用词表+落点纪律/美术风格底座=底座全文"}),
+                                            "tooltip": "真源节:系统提示词=扩写教材/色卡=在用词表+落点纪律/美术风格底座=底座全文(带背景)/风格工艺件·底色背景件·透明承载件=底座三件拆分(1008:透明型=风格+透明承载,带背景型=风格+底色)"}),
             },
             # 1006 批A 展示槽(必 optional:required 会被 /prompt 验证层 400,在案)
             "optional": {

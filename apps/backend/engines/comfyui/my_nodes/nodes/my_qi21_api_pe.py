@@ -312,15 +312,18 @@ def _context_materials() -> tuple[str, str]:
 
 
 def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
-    """透明路回退极简公式(1008 R3九型实弹定谳):头英句+主体句+该型rgba_positive+尾英句。
+    """透明路回退极简公式(1008 R3九型实弹定谳):头英句+主体句+该型rgba_positive+底座rgba_text托底+尾英句。
 
     依据:富装配17句画背景命令以6.7~8.3:1兵力比淹没透明指令(道具全透
     4.98%/多视图·高清人脸·表情差分0.00%,同seed四连逐字节复现;0927d
     剂量-响应同构)。配方=0927d探针实测定谳(英文公式短文直塞90.34%透明;
     专用件 qwen21-daotu-rgba-t2i 同款),头尾取 rgba 真源节热读;
-    rgba_positive=该型透明路格式锁(纯框架零绘画词),按型文逐字匹配取用。
+    rgba_positive=该型透明路格式锁(纯框架零绘画词),按型文逐字匹配取用;
+    rgba_text=底座风格托底(1008 用户令拆分:画法工艺子集随行托风格,
+    底色/平涂/背景语言仍排除——1008晚二轮实证纯主体句无托底=风格漂成普通渲染)。
     """
-    rgba = (_load_bases_node().get("rgba") or {})
+    bases = _load_bases_node()
+    rgba = (bases.get("rgba") or {})
     head = str(rgba.get("head_en") or "").strip() or \
         "This is an RGBA format image with transparency."
     tail = str(rgba.get("tail_en") or "").strip() or \
@@ -328,11 +331,13 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     body = (subj or "").strip()
     extra = ""
     if (type_pos or "").strip():
-        for t in (_load_bases_node().get("types") or []):
+        for t in (bases.get("types") or []):
             if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
                 extra = str(t.get("rgba_positive") or "").strip()
                 break
-    parts = [p for p in (body, extra) if p]
+    style_backing = str((bases.get("art_style_base") or {}).get("positive_style_text") or "").strip()
+    carry = str((bases.get("art_style_base") or {}).get("rgba_text") or "").strip()
+    parts = [p for p in (body, extra, style_backing, carry) if p]
     if not parts:
         parts = ["A single game asset, clean flat cutout, centered, isolated on a transparent background."]
     return f"{head} {' '.join(parts)} {tail}"
@@ -695,6 +700,15 @@ class MyQi21ApiPE:
         base = (类型句正向 or "").strip()
         _, _, hot_style = _hot_fallbacks()
         style = (kw.get("美术风格底座-正向") or "").strip() or hot_style
+        # 1008晚三件拆分(用户令):透明开的 PE 输入装配也换「风格工艺件+透明承载件」
+        # 组合(零底色/背景命令进模型,与回退极简公式同一拆分口径);连线槽的
+        # 底座全文(带背景版)透明路不采信,热读真源组合;缺拆分件旧库回退全文。
+        if 透明模式:
+            _asb = (_load_bases_node().get("art_style_base") or {})
+            _st = str(_asb.get("positive_style_text") or "").strip()
+            _rt = str(_asb.get("rgba_text") or "").strip()
+            if _st and _rt:
+                style = _st + _rt
         direct = f"{subj}\n{base}\n{style}".strip() if base else f"{subj}\n{style}".strip()
         if not subj:
             print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+风格两段")

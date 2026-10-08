@@ -15,7 +15,9 @@ def test_shape_single_output_with_combo():
     node = bt.MyQi21BasesText()
     assert node.RETURN_TYPES == ("STRING",) and node.RETURN_NAMES == ("文本",)
     req = node.INPUT_TYPES()["required"]["文本节"]
-    assert set(req[0]) == {"系统提示词", "色卡", "美术风格底座"}
+    # 1008晚三件拆分:下拉三节→六节(+风格工艺件/底色背景件/透明承载件)
+    assert set(req[0]) == {"系统提示词", "色卡", "美术风格底座",
+                           "风格工艺件", "底色背景件", "透明承载件"}
 
 
 def test_three_sections_hotread():

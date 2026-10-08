@@ -128,7 +128,7 @@ _lock_cache: dict = {"mtime": None, "data": None}
 
 
 def _load_art_style_base() -> dict:
-    """qi21_bases.json art_style_base 现读(mtime 缓存):positive_text/negative_text。"""
+    """qi21_bases.json art_style_base 现读(mtime 缓存):positive/negative+三件拆分件。"""
     try:
         mtime = _BASES_FILE.stat().st_mtime
     except OSError:
@@ -137,17 +137,49 @@ def _load_art_style_base() -> dict:
     if cache["mtime"] == mtime and cache["data"] is not None:
         return cache["data"]
     if mtime is None:
-        data = {"positive": "", "negative": ""}
+        data = {"positive": "", "negative": "",
+                "positive_style_text": "", "positive_ground_text": "", "rgba_text": ""}
     else:
         try:
             raw = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
             ll = raw.get("art_style_base", {}) if isinstance(raw, dict) else {}
             data = {"positive": ll.get("positive_text", ""),
                     "negative": ll.get("negative_text", "")}
+            # 1008晚三件拆分(用户令):风格工艺件/底色背景件/透明承载件;缺字段=旧库
+            # 兼容回退(拆件面回退用 positive 全文,保产线恒有输出)
+            for k in ("positive_style_text", "positive_ground_text", "rgba_text"):
+                v = ll.get(k, "")
+                data[k] = v if isinstance(v, str) else ""
         except (OSError, ValueError):
-            data = {"positive": "", "negative": ""}
+            data = {"positive": "", "negative": "",
+                    "positive_style_text": "", "positive_ground_text": "", "rgba_text": ""}
     cache["mtime"], cache["data"] = mtime, data
     return data
+
+
+def _type_is_transparent(base_text: str) -> bool:
+    """BASE 型文逐字匹配 types[] 判该型 rgba_default(1008晚三件拆分:装配按型配底)。
+
+    匹配不到(自由型空串/外接自定义型文)=按不透明处理(产线保守);零跨模块
+    import,与 ApiPE._rgba_lean_pos 同款逐字匹配家法。
+    """
+    try:
+        raw = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
+        for t in raw.get("types") or []:
+            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == (base_text or "").strip() \
+                    and t.get("rgba_default") is True:
+                return True
+    except (OSError, ValueError):
+        pass
+    return False
+
+
+def _style_combo_transparent() -> str:
+    """透明型底座组合=风格工艺件+透明承载件(1008晚三件拆分;缺件回退 positive 全文)。"""
+    d = _load_art_style_base()
+    if d.get("positive_style_text") and d.get("rgba_text"):
+        return d["positive_style_text"] + d["rgba_text"]
+    return d["positive"]
 
 # widget default 面=import 时刻求值一次(同 my_qi21_prompt_select._RGBA_HEAD 家法:
 # INPUT_TYPES 调用即现读,此处仅签名 default;美术风格底座正值不改语义);
@@ -237,6 +269,11 @@ class MyQi21PromptAssembly:
         negative = _merge_negative(_merge_negative((BASE负面 or ""),
                                    _load_art_style_base()["negative"]),
                                   (主体句负面 or "").strip())
+        # 1008晚三件拆分(用户令):BASE 逐字匹配 types[] 命中 rgba_default 型=透明路,
+        # 底座段换「风格工艺件+透明承载件」组合(零底色/背景命令);带背景型/匹配不到
+        # =锁层A全文原样(positive_text 字节不变,六型行为零变)。缺拆分件的旧库
+        # 回退 positive 全文(_style_combo_transparent 内兜底),产线恒有输出。
+        style_out = _style_combo_transparent() if _type_is_transparent(BASE) else 锁层A全文
         if not (BASE or "").strip():
             # 1001 用户测试批 P1 中性化:自由型(BASE 空串)此为正常态;非自由型
             # BASE 空=缺整个型底座层,请检查连线——双关文案,逻辑零改(design §2.2)
@@ -246,4 +283,4 @@ class MyQi21PromptAssembly:
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
             return (f"{主体句}\n{锁层A全文}", negative)
-        return (f"{主体句}\n{BASE}\n{锁层A全文}", negative)
+        return (f"{主体句}\n{BASE}\n{style_out}", negative)
