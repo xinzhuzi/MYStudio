@@ -12,7 +12,7 @@ from engines.comfyui.my_nodes.nodes import my_qi21_api_pe as mod
 
 _SUBJ = ("一柄传承千年的青铜剑，剑身暗金底色上盘绕细密云雷纹，剑格铸成兽首衔环，"
          "剑柄缠深红丝绳，穗尾垂一枚带裂纹的灵玉。")
-_TYPE_POS = "主体的尺寸标注设定图：器物主体以正侧面平视图水平居中平放，图为带透明通道的 RGBA 透明底图，背景透明。"
+_TYPE_POS = "主体的器物设定图：器物主体以正侧面平视图水平居中平放，图为带透明通道的 RGBA 透明底图，背景透明。"
 _TYPE_NEG = "模糊，水印，透视变形"
 _DEAD_URL = "http://127.0.0.1:9"  # 确定性不可达→必走透传分支
 
@@ -65,8 +65,8 @@ def test_lean_carries_type_rgba_positive_framing():
     types = json.loads(jp.read_text(encoding="utf-8"))["types"]
     prop = next(t for t in types if t["zh"] == "道具")
     pos = mod._rgba_lean_pos(_SUBJ, prop["positive_text"])
-    assert "尺寸标注设定图" in pos, "rgba_positive 格式锁应随行"
-    assert "引线" in pos and "背景透明" in pos
+    assert "器物设定图" in pos, "rgba_positive 格式锁应随行"
+    assert "背景透明" in pos
     assert "铁线描" in pos and "罩染通透细腻" in pos, "底座rgba_text风格托底应随行(1008晚用户令拆分)"
     for bad in ("薄透罩染轻敷", "多色相铺陈", "平涂", "美术风格底座", "底色：浅净哑光", "大色面"):
         assert bad not in pos, f"绘画/背景词泄漏: {bad}"

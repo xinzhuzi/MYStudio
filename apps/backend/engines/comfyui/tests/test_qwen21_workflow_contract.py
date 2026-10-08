@@ -524,14 +524,14 @@ I2I_NODE_TYPE_WHITELIST = {
     "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
 }
 # 人物系六型(库 §二:常量B 加挂型)
-PRO_CHAR_TYPES = ("人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
+PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
 # ④配色行映射(库 §一映射表)
 PRO_COLOR_MAP = {
     "人物": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
     "场景": "场景设色配比：大面积淡墨、青灰为稳定基底，青绿、赭石、旧金多色相铺陈各安其位。",
     "道具": "道具设色配比：大面积淡墨为稳定基底，旧金、玉青、赭石为中等强度器物色，朱红为少量高识别强调色。",
     "美宣": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
-    "多视图": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
+    "人物多视图": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
     "高清人脸": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
     "分镜剧情图": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
     "表情差分": "人物设色配比：大面积淡墨为稳定基底，石青、青绿、赭石为中等强度人物色，旧金、朱红为少量高识别强调色。",
@@ -592,7 +592,9 @@ EDIT_SAMPLER_VIG_ID, EDIT_SEED_ID = 7012, 7014
 # 1008 官方参数化(用户令):qi21 viggle 支路=SamplerCustomAdvanced 官方链
 # (v0.3 口径:6σ 定制表逐字+BasicGuider cfg1 单正条件+euler;官方 ViggleTurboSigmas
 # 以已装 KJNodes CustomSigmas 等位替用,interpolate_to_steps=0=不插值)
-QI21_VIG_CHAIN = {"noise": 7017, "select": 7018, "guider": 7019, "sigmas": 7020}
+QI21_VIG_CHAIN = {"noise": 7017, "select": 7018, "guider": 7019, "sigmas": 7020,
+                  "split": 7021, "guider_base": 7022, "noise_off": 7023,
+                  "sampler_b": 7024}  # 段B euler 复用 [7018] 扇出(0929 零真重复铁则,7025 退役)
 VIGGLE_OFFICIAL_SIGMAS = "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25"
 QI21_T8, I2I_T8, EDIT_T8 = 7013, 7013, 7013  # 1002 ⑫:三件 T8 支路统一 [7013]
 QI21_XHOST_ID, QI21_XSEL_ID = 7, 7015      # 1002 ⑫:宿主 [208]→[7]/选择件 [214]→[7015]
@@ -609,10 +611,11 @@ EDIT_XSG_UUID = "7b1f3a92-2b5c-4d3e-8f41-6c8d9e0f1a02"
 # 宿主面板控件名(=子图 widget 型 -10 槽,值序↔宿主 widgets_values;生成器
 # WIDGET_INPUTS/ACCEL_WIDGET_INPUTS 同表——面板控件名即契约):
 ACCEL_PANEL_CONTROLS = ["速度档位", "seed"]              # 三件加速宿主面板双控件
-# 1008 用户令:qi21 加速面板增「σ表/插值」=自由换步数(默认=9点官方表+8 全turbo近似9步;
-# 6步官方=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 + 5;N点填 N-1;i2i/edit 未随令保持双控)
-QI21_ACCEL_EXTRA_PANEL = ["σ表", "插值"]
-QI21_ACCEL_PANEL_DEFAULT = ["1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333", 8]
+# 1008 用户令:qi21 加速面板增「σ表」=自由换步数(默认=6点官方表;N点表直接贴,
+# ViggleTurboSigmas 按分辨率动态 shift+末位自动补 0);「插值」控件随官方件退役
+# (KJNodes 专用参数,官方件无此坑);9点全turbo=近似 9 步,真摘 LoRA 双段链另令
+QI21_ACCEL_EXTRA_PANEL = ["σ表"]
+QI21_ACCEL_PANEL_DEFAULT = ["1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333"]
 ASSEMBLY_PANEL_CONTROLS = {
     # 1001 用户测试批 Q3 序;1002 ㉑:三件「PE开关」槽撤→[4012] PrimitiveBoolean
     # 「PE启用?」外露(seed 手法=-10 widget 槽+子图内 Primitive 单源扇出)
@@ -977,6 +980,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                            note_id: int | None = None,
                            ks_cfgs: tuple = (1, 1),
                            viggle_class: str = "KSampler",
+                           lora_class: str = "LoraLoaderModelOnly",
                            viggle_chain: dict | None = None,
                            panel_extra: tuple = (),
                            banned_main_types: tuple = (), gone_main_ids: tuple = ()):
@@ -1045,13 +1049,12 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     _panel_named = {"速度档位": default_mode, "seed": 0}
     if panel_extra:
         _panel_named["σ表"] = panel_extra[0]
-        _panel_named["插值"] = panel_extra[1]
     assert host.get("widgets_values_named") == _panel_named, \
         f"{name}: [{host_id}] widgets_values_named 应具名镜像面板控件,得 {host.get('widgets_values_named')}"
     # 子图内恰 6 件(机构 census,id 与生成器同表;1004 qi21 +[7016] 负向生效
     # 档位 Note=7 件,note_id 传入即入册)
     want_census = {sel_id: SPEED_SELECT_CLASS, ks_direct: "KSampler",
-                   ks_viggle: viggle_class, lora_id: "LoraLoaderModelOnly",
+                   ks_viggle: viggle_class, lora_id: lora_class,
                    t8_id: T8_CLASS, seed_id: "PrimitiveInt"}
     if note_id is not None:
         want_census[note_id] = "Note"
@@ -1059,7 +1062,12 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         want_census.update({viggle_chain["noise"]: "RandomNoise",
                             viggle_chain["select"]: "KSamplerSelect",
                             viggle_chain["guider"]: "BasicGuider",
-                            viggle_chain["sigmas"]: "CustomSigmas"})
+                            viggle_chain["sigmas"]: "ViggleTurboSigmas",
+                            # 1008 9步满血双段:切分/底模引导/零噪声/段B采样/段B euler
+                            viggle_chain["split"]: "SplitSigmas",
+                            viggle_chain["guider_base"]: "BasicGuider",
+                            viggle_chain["noise_off"]: "DisableNoise",
+                            viggle_chain["sampler_b"]: "SamplerCustomAdvanced"})
     got_census = {n["id"]: n["type"] for n in sg["nodes"]}
     assert got_census == want_census, \
         f"{name}: 加速子图应恰 {len(want_census)} 件={want_census},得 {got_census}"
@@ -1074,7 +1082,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         f"{name}: [{sel_id}].mode 应 widget 转输入接 -10 速度档位槽(宿主面板「速度档位」)"
     slot_src = {i["name"]: i_links[i["link"]]["origin_id"]
                 for i in sel["inputs"] if i.get("name", "").startswith("latent_")}
-    assert slot_src == {"latent_funacc": t8_id, "latent_viggle": ks_viggle,
+    _vig_out = viggle_chain["sampler_b"] if viggle_chain else ks_viggle  # 1008 9步:段B输出
+    assert slot_src == {"latent_funacc": t8_id, "latent_viggle": _vig_out,
                         "latent_direct": ks_direct}, \
         f"{name}: [{sel_id}] 三 latent 槽接线应 funacc←[{t8_id}]/viggle←[{ks_viggle}]" \
         f"/direct←[{ks_direct}](按名寻址,mode 占 slot0 后槽序 1/2/3),得 {slot_src}"
@@ -1140,8 +1149,9 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         sc = i_nodes[ks_viggle]
         assert sc["type"] == "SamplerCustomAdvanced", f"{name}: [{ks_viggle}] 应官方链采样器"
         _in = {i["name"]: i for i in sc["inputs"]}
+        _sig_src = (vc["split"], 0) if "split" in vc else (vc["sigmas"], 0)  # 1008 9步:经切分高段
         for nm, want in (("noise", (vc["noise"], 0)), ("guider", (vc["guider"], 0)),
-                         ("sampler", (vc["select"], 0)), ("sigmas", (vc["sigmas"], 0)),
+                         ("sampler", (vc["select"], 0)), ("sigmas", _sig_src),
                          ("latent_image", (-10, b_idx["latent"]))):
             _l = i_links[_in[nm]["link"]]
             assert (_l["origin_id"], _l["origin_slot"]) == want, \
@@ -1158,13 +1168,51 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         _sel_n = i_nodes[vc["select"]]
         assert _sel_n["widgets_values"] == ["euler"], f"{name}: 链采样器应 euler"
         _sg_n = i_nodes[vc["sigmas"]]
-        # 1008 用户令:σ表/插值 已提升面板(sg.widgets[2]/[3]);默认=9点官方表+8(全turbo近似9步;
-        # KJNodes 事故锚:N=σ个数-1,填 0=插值成1个点=零步采样出平面图)
-        assert _sg_n["widgets_values"] == [], f"{name}: σ链件 widget 应已提升面板"
+        # 1008 用户令「必须完整发挥」:σ链件=官方 ViggleTurboSigmas(动态 shift 按
+        # 分辨率,latent 口必接;nodes 表已提升面板;插值参数随官方件退役)
+        assert _sg_n["type"] == "ViggleTurboSigmas", f"{name}: σ链件应=官方 ViggleTurboSigmas"
+        assert _sg_n["widgets_values"] == [], f"{name}: nodes widget 应已提升面板"
+        _sg_in = {i["name"]: i for i in _sg_n["inputs"]}
+        assert i_links[_sg_in["latent"]["link"]]["origin_slot"] == b_idx["latent"], \
+            f"{name}: 官方件 latent 口应接边界槽(动态 shift 按分辨率)"
         _pv = sg["widgets"]
-        assert _pv[3] == 8, f"{name}: 面板插值应=8(9点官方表,1008 令默认 9 步近似)"
-        _sig_vals = [v.strip() for v in str(_pv[2]).split(",") if v.strip()]
-        assert len(_sig_vals) == 9, f"{name}: 面板默认应=9点官方表,得 {len(_sig_vals)}"
+        assert _pv[2] == QI21_ACCEL_PANEL_DEFAULT[0], f"{name}: 面板默认=9点官方表(9步满血)"
+        # 1008 用户令「要 9 步满血」:双段链——[7021]SplitSigmas(step=7) 切高/低段,
+        # 段A [7012] sigmas=高段(7步turbo);段B [7024] 底模(摘LoRA)收尾2步:
+        # [7022]BasicGuider(边界 base)+[7023]DisableNoise(续采零噪声)+[7025]euler
+        _sp = i_nodes[vc["split"]]
+        assert _sp["widgets_values"] == [7], f"{name}: SplitSigmas step 应=7(9步=7+2)"
+        _sp_in = {i["name"]: i for i in _sp["inputs"]}
+        assert i_links[_sp_in["sigmas"]["link"]]["origin_id"] == vc["sigmas"], \
+            f"{name}: 切分件应吃 [7020] 全表"
+        _scA_in = {i["name"]: i for i in sc["inputs"]}
+        assert i_links[_scA_in["sigmas"]["link"]]["origin_id"] == vc["split"] \
+            and i_links[_scA_in["sigmas"]["link"]]["origin_slot"] == 0, \
+            f"{name}: 段A sigmas 应=切分高段"
+        _sb = i_nodes[vc["sampler_b"]]
+        assert _sb["type"] == "SamplerCustomAdvanced", f"{name}: 段B 应=SamplerCustomAdvanced"
+        _sb_in = {i["name"]: i for i in _sb["inputs"]}
+        assert i_links[_sb_in["sigmas"]["link"]]["origin_id"] == vc["split"] \
+            and i_links[_sb_in["sigmas"]["link"]]["origin_slot"] == 1, \
+            f"{name}: 段B sigmas 应=切分低段(含终止0)"
+        assert i_links[_sb_in["latent_image"]["link"]]["origin_id"] == ks_viggle, \
+            f"{name}: 段B latent 应=段A输出(连读)"
+        assert i_links[_sb_in["noise"]["link"]]["origin_id"] == vc["noise_off"], \
+            f"{name}: 段B 噪声应=DisableNoise(续采不重加噪)"
+        assert i_links[_sb_in["guider"]["link"]]["origin_id"] == vc["guider_base"], \
+            f"{name}: 段B 引导应=底模 BasicGuider(摘 LoRA)"
+        assert i_links[_sb_in["sampler"]["link"]]["origin_id"] == vc["select"], \
+            f"{name}: 段B 采样器应=[7018] euler 共享扇出(0929 零真重复)"
+        _gb = i_nodes[vc["guider_base"]]
+        _gb_in = {i["name"]: i for i in _gb["inputs"]}
+        _gbm = i_links[_gb_in["model"]["link"]]
+        assert (_gbm["origin_id"], _gbm["origin_slot"]) == (-10, b_idx["model"]), \
+            f"{name}: 段B 底模引导应接边界 base(绝不吃 LoRA=官方 disable_lora)"
+        assert i_links[_gb_in["conditioning"]["link"]]["origin_slot"] == b_idx[pos_accel], \
+            f"{name}: 段B 条件应=加速支路正源"
+        _sl_in = {i["name"]: i for i in i_nodes[sel_id]["inputs"]}
+        assert i_links[_sl_in["latent_viggle"]["link"]]["origin_id"] == vc["sampler_b"], \
+            f"{name}: 档2 汇流源应=段B输出"
         _rn = next(i for i in i_nodes[vc["noise"]]["inputs"] if i["name"] == "noise_seed")
         assert "widget" in _rn and i_links[_rn["link"]]["origin_id"] == seed_id, \
             f"{name}: RandomNoise.noise_seed 应接 [{seed_id}] 单源"
@@ -1467,7 +1515,6 @@ class TestSpeedSelectContract0929:
             _panel_named = {"速度档位": dmode, "seed": 0}
             if name == "qi21":
                 _panel_named["σ表"] = QI21_ACCEL_PANEL_DEFAULT[0]
-                _panel_named["插值"] = QI21_ACCEL_PANEL_DEFAULT[1]
             assert host.get("widgets_values_named") == _panel_named, \
                 f"{name}: [{host['id']}] 具名镜像漂移,得 {host.get('widgets_values_named')}"
             assert xsg["widgets"] == host["widgets_values"], \
@@ -1476,8 +1523,10 @@ class TestSpeedSelectContract0929:
             assert w_types.get("速度档位") == "COMBO" and w_types.get("seed") == "INT", \
                 f"{name}: 加速子图应含控件型边界槽 速度档位(COMBO)/seed(INT),得 {w_types}"
             if name == "qi21":
-                assert w_types.get("σ表") == "STRING" and w_types.get("插值") == "INT", \
-                    f"{name}: 加速子图应含 σ表(STRING)/插值(INT) 面板槽(1008 令),得 {w_types}"
+                assert w_types.get("σ表") == "STRING", \
+                    f"{name}: 加速子图应含 σ表(STRING) 面板槽(1008 令),得 {w_types}"
+                assert "插值" not in w_types, \
+                    f"{name}: 「插值」控件应随官方件退役(KJNodes 专用参,1008 令),得 {w_types}"
 
     def test_assembly_rgba_tri_state_controls_0929(self):
         """透明/三态面板控件(0929 S2 D6 立;1001 用户测试批 ④⑥⑦ qi21 分支重立):
@@ -1654,12 +1703,13 @@ class TestSamplerContract:
                 if name == "qi21":
                     assert len(samplers) == 1, \
                         f"{name}: 加速子图内 KSampler 应恰 1 个(直出;viggle=官方链),得 {len(samplers)}"
-                    # 1008 用户令:σ表/插值 已提升面板(默认=9点官方表+8 全turbo近似9步;
-                    # KJNodes 事故锚:N=σ个数-1,填 0=插值成1点=零步采样)
+                    # 1008 用户令:σ表已提升面板(默认=9点官方表=9步满血;官方件动态 shift)
                     _wvs = _xsg(graph)["widgets"]
-                    assert _wvs[3] == 8, f"{name}: 面板插值应=8(9点表)"
                     assert len([v for v in str(_wvs[2]).split(",") if v.strip()]) == 9, \
-                        f"{name}: 面板默认=9点官方表"
+                        f"{name}: 面板默认=9点官方表(9步满血)"
+                    _sp9 = [n for n in _xsg(graph)["nodes"] if n["type"] == "SplitSigmas"]
+                    assert len(_sp9) == 1 and _sp9[0]["widgets_values"] == [7], \
+                        f"{name}: 双段切分 step=7(7 turbo+2 base)"
                 else:
                     assert len(samplers) == 2, \
                         f"{name}: 加速子图内 KSampler 应恰 2 个(直出/viggle 支路),得 {len(samplers)}"
@@ -3022,13 +3072,14 @@ class TestQi21SubgraphContract:
             boundary_inputs=[("model", "MODEL"), ("positive", "CONDITIONING"),
                              ("negative", "CONDITIONING"), ("latent", "LATENT"),
                              ("速度档位", "COMBO"), ("seed", "INT"),
-                             ("σ表", "STRING"), ("插值", "INT")],
+                             ("σ表", "STRING")],
             host_inputs=[("model", True, False), ("positive", True, False),
                          ("negative", True, False), ("latent", True, False)],
             note_id=QI21_ACC_NOTE_ID,   # 1004 D6b:加速子图 [7016] 负向生效档位 Note
             ks_cfgs=(4, 1),             # 1004 D6a:[7010] cfg4 负向真实生效;[7012] 恒 1
             viggle_class="SamplerCustomAdvanced", viggle_chain=QI21_VIG_CHAIN,  # 1008 官方参数化
-            panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板四控
+            lora_class="ViggleTurboLora",  # 1008「完整发挥」:官方未合并加载(拒 bf16 合并丢 30%)
+            panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板三控
             # 1008 用户新令:道劫本件默认档改 viggle 路线(实例五处+Note 文案随令;
             # py 侧 DEFAULT_MODE 出厂首项不动,i2i 与新实例出生缺省仍 Fun-Acc)
             default_mode=MODE_VIGGLE,
@@ -3079,9 +3130,8 @@ class TestQi21SubgraphContract:
         x_nodes = _sg_nodes(_xsg(GRAPHS["qi21"]))
         # 1008 官方参数化:qi21 viggle 支路步数=官方 6σ 表长(链内 CustomSigmas)
         if x_nodes[QI21_SAMPLER_VIG_ID]["type"] == "SamplerCustomAdvanced":
-            # 1008 用户令:σ表/插值 在面板(sg.widgets[2]/[3]);默认=9点官方表+8
+            # 1008 用户令:σ表在面板(sg.widgets[2]);默认=9点官方表(9步满血双段)
             _wvs = _xsg(GRAPHS["qi21"])["widgets"]
-            assert _wvs[3] == 8
             _n_sig = len([v for v in str(_wvs[2]).split(",") if v.strip()])
             assert sorted([x_nodes[QI21_SAMPLER_ID]["widgets_values"][K_SAMPLER_WV["steps"]],
                            _n_sig]) == sorted([STEPS_DIRECT, 9])
@@ -3177,7 +3227,7 @@ class TestQi21SubgraphContract:
         # 名单→qi21_bases.json 字段→本槽;四型集合=道具/多视图/高清人脸/表情差分
         _bases = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
         _rgba_on = {e["zh"] for e in _bases if e.get("rgba_default") is True}
-        assert _rgba_on == {"道具", "多视图", "高清人脸", "表情差分"}, \
+        assert _rgba_on == {"道具", "人物多视图", "高清人脸", "表情差分"}, \
             f"qi21_bases.json rgba_default 四型集合漂移(0929 用户拍板),得 {sorted(_rgba_on)}"
         assert all(e.get("rgba_default") in (True, False) for e in _bases), \
             "qi21_bases.json rgba_default 应为显式布尔(缺字段/非布尔即红)"
@@ -3230,11 +3280,11 @@ class TestQi21SubgraphContract:
                 f"qi21_bases.json「{e['zh']}」aspect_ratio 应=官方枚举,得 {e['aspect_ratio']!r}"
             assert 0.5 <= e["megapixels"] <= 8.0, \
                 f"qi21_bases.json「{e['zh']}」megapixels 数值域异常,得 {e['megapixels']}"
-        mv = next(e for e in qi21 if e["zh"] == "多视图")
+        mv = next(e for e in qi21 if e["zh"] == "人物多视图")
         assert (mv["aspect_ratio"], mv["megapixels"]) == ("3:4 (Portrait Standard)", 1.8), \
-            "qi21_bases.json「多视图」画幅档应=Q2.1侧公式档 3:4/1.8(1008 快出档缩编)"
+            "qi21_bases.json「人物多视图」画幅档应=Q2.1侧公式档 3:4/1.8(1008 快出档缩编)"
         assert mv.get("resolution_override") == [2448, 816], \
-            "qi21_bases.json「多视图」override 应=K2 侧合板值 [2448,816] 在档(Q2.1 消费面忽略)"
+            "qi21_bases.json「人物多视图」override 应=K2 侧合板值 [2448,816] 在档(Q2.1 消费面忽略)"
         # 1004 正负拆开硬口径:positive_text=正向描述文体,禁令句(禁止/不得/
         # 默认禁止)应拆入 negative_text,正向残留即红
         for e in qi21[:9]:
@@ -3267,7 +3317,7 @@ class TestQi21SubgraphContract:
         # 1008 S3 三型差异化重锚:分镜剧情图退出统一立绘锁(4fa15e9 素材+㉗ 重写
         # =单格叙事帧开头,叙事画面取景自由、可多人;头身比锚随 1002 ㉒「分镜
         # 不锚」同批退役;断言分层职责,不冻结 1004 压平旧文案)
-        renwu_xi = {"人物", "美宣", "多视图", "高清人脸", "表情差分"}
+        renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
         for e in qi21[:9]:
             if e["zh"] in renwu_xi:
                 assert e["positive_text"].startswith("主体的单人立绘"), \
@@ -3286,8 +3336,8 @@ class TestQi21SubgraphContract:
         resid = [p for p in retired if p in dao_e["positive_text"]]
         assert not resid, f"qi21_bases.json「道具」残留退役背景职责句: {resid}"
         dao = next(e for e in qi21 if e["zh"] == "道具")
-        assert "尺寸标注设定图" in dao["positive_text"], \
-            "道具型应保留定式句(尺寸标注设定图,1002 Q2 结构性半透明特例)"
+        assert "器物设定图" in dao["positive_text"], \
+            "道具型定式句随 1008 用户令去文字化(标注系统退役)"
 
     def test_lock_constant_present_and_always_wired(self):
         """美术风格底座常量迁参数面(1001 S8 R7 集成,裁定A):[141] 装配全文件

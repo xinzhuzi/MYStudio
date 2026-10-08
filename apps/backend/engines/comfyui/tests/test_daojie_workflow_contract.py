@@ -65,7 +65,7 @@ DIRTY_WORDS = ("工笔线描", "工笔白描", "写意泼墨", "xuan")
 POSITIVE_DIRTY = ("做旧", "泛黄", "纸纹")  # 纸纹脏污族:正向禁;负向列它们=合法内容
 
 # 多格同人型负向黑名单(09-18 评审问题1 处置:系统性防复犯)
-MULTI_PANEL_OPTIONS = ("多视图", "表情差分")  # 0927 改名轮:三视图→多视图
+MULTI_PANEL_OPTIONS = ("人物多视图", "表情差分")  # 0927 改名轮:三视图→多视图
 # 09-24 债清算(全仓套件唯一容红清零):裸词 "duplicated" 退役——81ab725
 # 裁定21 六形态定界把「duplicated view, identical pose repeated」定为三视图
 # 负向有意文案(守护格子间视角/姿势差异化),与 09-18 立黑名单所防的「克隆
@@ -126,7 +126,7 @@ class TestBasesHygiene:
 class TestDaojieBasesSources:
     def test_options_are_nine_in_design_order(self):
         assert OPTIONS_ORDER == [
-            "人物", "场景", "道具", "美宣", "多视图",
+            "人物", "场景", "道具", "美宣", "人物多视图",
             "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"], \
             "九型顺序=设计定序(json 条目序),不得重排"
 
@@ -139,7 +139,7 @@ class TestDaojieBasesSources:
         分镜剧情图退出统一立绘锁(4fa15e9 素材+㉗ 重写=单格叙事帧开头,叙事
         画面取景自由、可多人;断言分层职责,不冻结 1004 压平旧文案——与
         test_qwen21_workflow_contract.py:3143 同口径)。"""
-        renwu_xi = {"人物", "美宣", "多视图", "高清人脸", "表情差分"}
+        renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
         for name, entry in BASES_BY_NAME.items():
             pt = entry["positive_text"]
             if name in renwu_xi:
@@ -151,7 +151,7 @@ class TestDaojieBasesSources:
                 assert "头身比" not in pt, \
                     "底座「分镜剧情图」不锚头身比(1002 ㉒ 型格差异;1008 S3 随差异化恢复)"
             elif name == "道具":
-                assert "尺寸标注设定图" in pt, "底座「道具」应保留定式句(1002 Q2 特例)"
+                assert "器物设定图" in pt, "底座「道具」定式句随 1008 用户令去文字化(标注系统退役)"
             elif name == "场景":
                 assert pt.startswith("空镜场景"), f"底座「场景」应以空镜开幅,得 {pt[:6]!r}"
             elif name == "概念气氛图":
