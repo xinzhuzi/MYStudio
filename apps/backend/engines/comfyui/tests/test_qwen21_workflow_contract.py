@@ -3318,8 +3318,14 @@ class TestQi21SubgraphContract:
         # =单格叙事帧开头,叙事画面取景自由、可多人;头身比锚随 1002 ㉒「分镜
         # 不锚」同批退役;断言分层职责,不冻结 1004 压平旧文案)
         renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
+        # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
+        _OPEN = {"人物多视图": "同一角色的三视图设定图", "高清人脸": "同一角色的面部特写素材",
+                 "表情差分": "同一角色的九格表情对比表"}
         for e in qi21[:9]:
-            if e["zh"] in renwu_xi:
+            if e["zh"] in _OPEN:
+                assert e["positive_text"].startswith(_OPEN[e["zh"]]), \
+                    f"qi21_bases.json「{e['zh']}」应={_OPEN[e['zh']]}开头(1008 用户令)"
+            elif e["zh"] in renwu_xi:
                 assert e["positive_text"].startswith("主体的单人立绘"), \
                     f"qi21_bases.json「{e['zh']}」应=立绘底座开头(1004 design §一)"
         fj = next(e for e in qi21 if e["zh"] == "分镜剧情图")

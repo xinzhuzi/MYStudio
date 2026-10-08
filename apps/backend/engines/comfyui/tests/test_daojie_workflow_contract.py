@@ -142,7 +142,13 @@ class TestDaojieBasesSources:
         renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
         for name, entry in BASES_BY_NAME.items():
             pt = entry["positive_text"]
-            if name in renwu_xi:
+            # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
+            _OPEN = {"人物多视图": "同一角色的三视图设定图", "高清人脸": "同一角色的面部特写素材",
+                     "表情差分": "同一角色的九格表情对比表"}
+            if name in _OPEN:
+                assert pt.startswith(_OPEN[name]), \
+                    f"底座「{name}」应={_OPEN[name]}开头(1008 用户令),得 {pt[:12]!r}"
+            elif name in renwu_xi:
                 assert pt.startswith("主体的单人立绘"), \
                     f"底座「{name}」应=立绘底座开头(1004 design §一),得 {pt[:12]!r}"
             elif name == "分镜剧情图":
