@@ -83,7 +83,8 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
   it("ships a bounded, source-fingerprinted machine contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
-      "5edf3d2228a003e68b4a24c1e80a23dd423011708841340ef4a034c6920e6965",
+      // 锚随源(1009):b4107de1 自指纹回写后的现值,与 daojie-ma-sync-check.py 现算同源
+      "a89acbf5e2575362a6c4006ecdb2bdae1379bff716d567fd43ee3c2fc6bbc2fa",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 800 });
@@ -162,7 +163,8 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     expect(withReference.contractSha256).toMatch(/^[a-f0-9]{64}$/);
     // MA 传输形态:核心模块空格相连,成片/参考图锁以换行追加
     expect(withReference.positive).toMatch(/% light。?\n成片质量（硬）/);
-    expect(withReference.positive).toMatch(/清晰度。\n参考图降噪（硬）/);
+    // 锚随源(1009):成片质量句 b4107de1 扩写「——表面干净可读，细节边缘锐利自然」后重锚
+    expect(withReference.positive).toMatch(/锐利自然。\n参考图降噪（硬）/);
     expect(withoutReference.positive.match(/\n/g)).toHaveLength(1);
     expect(withoutReference.positive).not.toContain("参考图降噪");
     // MA transport 负面方言:作业负面在前,词条以 ", " 连接
@@ -269,7 +271,8 @@ describe("Daojie provider-visible length policy", () => {
     });
     const compiled = await compileDaojiePrompt({
       runtimeTrack: "character",
-      subjectBody: "x".repeat(5),
+      // 锚随源(1009):成片质量句扩长后,夹具 5→3 保持正稿落在 300 警戒线下的边界语义
+      subjectBody: "x".repeat(3),
       negativeTerms: "Avoid: 水印, Avoid: 自定义缺陷",
     });
     expect(compiled.providerPrompt.match(/Avoid:/g)).toHaveLength(1);

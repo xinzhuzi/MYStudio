@@ -34,6 +34,9 @@ NINE_ORDER = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸
               "分镜剧情图", "表情差分", "概念气氛图"]
 # 循环序(缺省=canon 全序;--only 重拍轮被过滤,seed 仍锚 NINE_ORDER 不飘)
 TYPE_ORDER = list(NINE_ORDER)
+# 1008 改名适配:型名已改「人物多视图」(原「多视图」)——文档§节头仍叫「多视图」,
+# NINE_ORDER 仍按文档节序(序断言不破);底座 run/产物文件名/SaveImage 前缀走真名映射。
+BASE_ZH = {"多视图": "人物多视图"}
 SEED_BASE = 2008
 T8_MODEL = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"
 PER_FIRE_TIMEOUT = 1500  # 单发轮询上限(秒);FunAcc 产线约 3 分/发
@@ -199,21 +202,22 @@ def main() -> None:
         # seed 锚 canon 全序 §序(与首轮同款公式),子集循环不得重数——
         # 否则 seed 飘(1008 R2 实弹事故:过滤后 enumerate 重数,道具拿了 2009)
         seed = SEED_BASE + NINE_ORDER.index(zh) + 1
-        base_text, w, h, neg_text, alpha = base_node.run(zh)
+        bz = BASE_ZH.get(zh, zh)  # 文档节名→底座真名(多视图→人物多视图)
+        base_text, w, h, neg_text, alpha = base_node.run(bz)
         full, merged_neg = asm.assemble(BASE=base_text, BASE负面=neg_text,
                                         主体句=subjects[zh])
         pos, neg = fin.compose(正向提示词=full, 负向提示词=merged_neg, 透明模式=alpha)
-        (OUT / f"{zh}.装配文.txt").write_text(
+        (OUT / f"{bz}.装配文.txt").write_text(
             f"# 型={zh} seed={seed} latent={w}x{h} 透明模式={alpha} "
             f"正向{len(pos)}字 负向{len(neg)}字\n\n"
             f"═══ 主体句(文档§{sec}逐字) ═══\n{subjects[zh]}\n\n"
             f"═══ 进编码正向 ═══\n{pos}\n\n═══ 进编码负向 ═══\n{neg}\n",
             encoding="utf-8")
-        print(f"[ASM] {zh} seed={seed} latent={w}x{h} alpha={alpha} "
+        print(f"[ASM] {zh}(→{bz}) seed={seed} latent={w}x{h} alpha={alpha} "
               f"pos={len(pos)}字 neg={len(neg)}字", flush=True)
-        status, detail = fire_one(zh, seed, pos, neg, w, h, oi)
-        print(f"[{status}] {zh} {detail}", flush=True)
-        results.append({"zh": zh, "seed": seed, "status": status, "detail": detail})
+        status, detail = fire_one(bz, seed, pos, neg, w, h, oi)
+        print(f"[{status}] {bz} {detail}", flush=True)
+        results.append({"zh": bz, "seed": seed, "status": status, "detail": detail})
     print("SUMMARY " + json.dumps(results, ensure_ascii=False))
     bad = [r for r in results if r["status"] != "DONE"]
     sys.exit(1 if bad else 0)

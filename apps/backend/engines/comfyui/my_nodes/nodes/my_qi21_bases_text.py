@@ -179,8 +179,14 @@ def _make_section_node(section: str, display: str, negative: bool = False,
     pieces=True(1008晚二轮·用户令「展示4种类型」+复诊「重复了」):美术风格底座
     =恰四展示框「风格工艺件/底色背景件/透明承载件/负向词表」(正向三件在前负向
     殿后,同构 [401] 正负分族),「内容」全文框退役(全文=风格+底色逐字重复源);
-    JS 按名回填 bases_text_style/ground/rgba/negative;输出主口恒=positive_text
-    全文(带背景消费方接线语义不变);删框同批重对卡文 widgets_values(技能纪律)。
+    JS 按名回填 bases_text_style/ground/rgba/negative;删框同批重对卡文
+    widgets_values(技能纪律)。
+    1009 单线四段协议(用户令「1条线分4段,透明与背景分开,[4013]拼装更方便」):
+    输出主口「文本」改发四段标记协议文(线上唯一载体,格式逐字定死:
+    【风格工艺件】/【底色背景件】/【透明承载件】/【负向词表】四段各占一行,段内
+    =真源对应字段现值);负向词表输出槽(第二口)照旧输出 negative(兼容旧消费);
+    加第五展示框「四段协议」(JS 按名回填 ui.bases_text_protocol=线上传输的标记
+    全文,UI 标记可见);真源缺拆分字段(旧库)响亮 print 回退=全文不加标记。
     """
     class _SectionNode:
         CATEGORY = "漫影"
@@ -190,8 +196,9 @@ def _make_section_node(section: str, display: str, negative: bool = False,
         def INPUT_TYPES(cls):
             # 1008晚二轮(用户令「UI设计的不对,提示词重复了」):pieces 节点=恰四框
             # (风格工艺件/底色背景件/透明承载件/负向词表),「内容」全文框退役
-            # ——全文=风格件+底色件逐字重复源,展示层不再双载;输出主口恒=全文
-            # (计算层零变),展示框快照由卡文同批重对(技能纪律:删框必重对值)。
+            # ——全文=风格件+底色件逐字重复源,展示层不再双载;1009 单线四段协议:
+            # 输出主口改发四段标记协议文([4013] 按标记拆装),+「四段协议」展示框
+            # (UI 标记可见,追加在尾=旧四值存档按位零错位)。
             if pieces:
                 optional = {}
                 for nm, tip in (("风格工艺件", "十型恒挂的画法工艺段(透明型也托底)"),
@@ -203,6 +210,12 @@ def _make_section_node(section: str, display: str, negative: bool = False,
                 optional["负向词表"] = ("STRING", {
                     "multiline": True, "default": "",
                     "tooltip": "负向词表展示框(执行后 JS 自动回填真源负向,无需手填/连线)"})
+                # 1009 单线四段协议:UI 标记可见(用户令)——线上传输的四段标记全文
+                # (与主口「文本」同文;追加在尾=旧四值存档按位加载零错位)
+                optional["四段协议"] = ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "线上传输的四段标记全文(【风格工艺件】/【底色背景件】/"
+                               "【透明承载件】/【负向词表】四段各占一行;执行后 JS 回填,无需手填/连线)"})
                 return {"required": {}, "optional": optional}
             optional = {
                 "内容": ("STRING", {"multiline": True,
@@ -243,6 +256,22 @@ def _make_section_node(section: str, display: str, negative: bool = False,
                                    ("bases_text_ground", "positive_ground_text"),
                                    ("bases_text_rgba", "rgba_text")):
                     ui[key] = [str(asb.get(field) or "")]
+                # 1009 单线四段协议(用户令):主口=四段标记协议文(线上唯一载体,
+                # [4013] 按标记拆装;透明与背景分开);负向段取真源 negative_text
+                # 现值,第二口照旧原样出 neg(兼容旧消费)。
+                _st = str(asb.get("positive_style_text") or "").strip()
+                _gd = str(asb.get("positive_ground_text") or "").strip()
+                _rg = str(asb.get("rgba_text") or "").strip()
+                if _st and _gd and _rg:
+                    text = (f"【风格工艺件】{_st}\n【底色背景件】{_gd}\n"
+                            f"【透明承载件】{_rg}\n【负向词表】{neg}")
+                else:
+                    # 旧库回退:缺任一拆分件=全文不加标记(协议解析侧按无标记走 legacy)
+                    print(f"[漫影 {display}] 真源缺拆分字段(风格工艺件/底色背景件/"
+                          "透明承载件有缺)——主口回退全文不加四段标记,请同步 "
+                          "qi21_bases.json 三件拆分")
+                ui["bases_text"] = [text]
+                ui["bases_text_protocol"] = [text]
             return {"ui": ui, "result": ((text,) if not negative else (text, neg))}
 
     _SectionNode.__name__ = f"MyQi21{section.replace(' ', '')}"

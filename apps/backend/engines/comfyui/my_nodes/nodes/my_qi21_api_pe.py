@@ -343,6 +343,41 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     return f"{head} {' '.join(parts)} {tail}"
 
 
+# ── 1009 单线四段协议(用户令「1条线分4段,透明与背景分开,[4013]拼装更方便」)──
+# 线上唯一载体=[4032] 主口「文本」,格式逐字定死(四段各占一行,段内=真源字段现值):
+#   【风格工艺件】{positive_style_text}
+#   【底色背景件】{positive_ground_text}
+#   【透明承载件】{rgba_text}
+#   【负向词表】{negative_text}
+# 以【风格工艺件】开头=协议模式;无标记(i2i 旧线传全文)=legacy 一字不变。
+_PROTO_TAGS = ("【风格工艺件】", "【底色背景件】", "【透明承载件】", "【负向词表】")
+
+
+def _parse_bases_protocol(text: str | None) -> dict | None:
+    """四段协议解析:恰 4 段断言(每段去标记取正文)。
+
+    返回 {"style","ground","rgba","neg"};无标记=None(legacy 全文直通);
+    开头带标记但段数≠4(坏协议,现网唯一生产者 [4032] 不可能产)→响亮 print
+    后按 None 走 legacy 全文(恒有输出不炸产线,与本件容错哲学同款)。"""
+    t = (text or "").strip()
+    if not t.startswith(_PROTO_TAGS[0]):
+        return None
+    segs = re.split("【风格工艺件】|【底色背景件】|【透明承载件】|【负向词表】", t)
+    if len(segs) != 5 or segs[0].strip():
+        print(f"[漫影 API扩写PE] 四段协议段数异常({len(segs) - 1}段,应恰4)——"
+              "按旧全文直通处理,请检查 [4032] 出文")
+        return None
+    style, ground, rgba, neg = (s.strip() for s in segs[1:])
+    return {"style": style, "ground": ground, "rgba": rgba, "neg": neg}
+
+
+def _proto_base_segment(proto: dict, transparent: bool) -> str:
+    """协议底座段(与装配器 _style_combo_transparent 同口径直接拼接):
+    透明开=风格段+透明承载段(零底色/背景命令进模型);关=风格段+底色段。"""
+    second = proto["rgba"] if transparent else proto["ground"]
+    return (proto["style"] or "") + (second or "")
+
+
 def _hot_fallbacks() -> tuple[str, str, str]:
     """(教材, 色卡, 风格底座) 真源热读兜底(连线缺位时用;mtime 缓存)。"""
     style, colors = _context_materials()
@@ -699,23 +734,41 @@ class MyQi21ApiPE:
         subj = (正向提示词 or "").strip()
         base = (类型句正向 or "").strip()
         _, _, hot_style = _hot_fallbacks()
-        style = (kw.get("美术风格底座-正向") or "").strip() or hot_style
+        wired_style = (kw.get("美术风格底座-正向") or "").strip()
+        # 1009 单线四段协议:连线值以【风格工艺件】开头=协议模式——恰4段拆解后
+        # 按型拼底座段(透明开=风格+透明承载/关=风格+底色,透明与背景分开);
+        # 负向段替换 style_base_neg 连线位(型负在前负向段在后,合并次序照旧)。
+        # 非协议(值存在但无标记,如 i2i 旧线传全文)=现行全文行为一字不变。
+        proto = _parse_bases_protocol(wired_style)
+        proto_neg: str | None = None
+        if proto is not None:
+            proto_neg = proto["neg"]
+            style = _proto_base_segment(proto, bool(透明模式))
         # 1008晚三件拆分(用户令):透明开的 PE 输入装配也换「风格工艺件+透明承载件」
         # 组合(零底色/背景命令进模型,与回退极简公式同一拆分口径);连线槽的
         # 底座全文(带背景版)透明路不采信,热读真源组合;缺拆分件旧库回退全文。
-        if 透明模式:
+        # (1009:协议模式在上方已按段拼装,热读组合只服务 legacy 无标记线)
+        elif 透明模式:
             _asb = (_load_bases_node().get("art_style_base") or {})
             _st = str(_asb.get("positive_style_text") or "").strip()
             _rt = str(_asb.get("rgba_text") or "").strip()
             if _st and _rt:
                 style = _st + _rt
+            else:
+                style = wired_style or hot_style
+        else:
+            style = wired_style or hot_style
         direct = f"{subj}\n{base}\n{style}".strip() if base else f"{subj}\n{style}".strip()
         if not subj:
             print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+风格两段")
         # 负面三源(型负面+美术风格底座负面热读+外部负向)去重合并——终稿负向唯一真源
         # (程序构造不进模型,1008 解耦;挂=同值直出)
         # 1008 用户令:[4032].1 负向接线优先(可视化真源链),未连=真源热读兜底(同款)
-        style_base_neg = (kw.get("美术风格底座-负向") or "").strip()
+        # 1009 协议模式:负向段替换连线位(段空=热读兜底照旧,同源同值)
+        if proto_neg is not None:
+            style_base_neg = proto_neg
+        else:
+            style_base_neg = (kw.get("美术风格底座-负向") or "").strip()
         if not style_base_neg:
             try:
                 style_base_neg = str((_load_bases_node().get("art_style_base") or {})

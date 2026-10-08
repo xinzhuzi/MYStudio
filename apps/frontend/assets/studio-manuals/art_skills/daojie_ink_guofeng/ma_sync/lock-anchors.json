@@ -1,6 +1,6 @@
 {
   "comment": "道劫手册工笔硬锁 ↔ MA ma-imagegen 权威锚点对。manualAnchor 必须逐字出现在 prefix.md「工笔硬锁」节;maAnchor 必须逐字出现在 MA 权威文件中(由测试直连校验)。maSources.path 为 ma-imagegen 技能根内相对路径,本机工作区根由 daojie-ma-sync-check.py --ma-root 解析(08-24 起 seed 不再内嵌机器绝对路径,与 runtime-contract.json 同构)。",
-  "syncedAt": "2026-10-07",
+  "syncedAt": "2026-10-09",
   "maSources": [
     {
       "path": "scripts/gongbi/daojie_gongbi_restyle.py",
@@ -177,7 +177,7 @@
         "电影级成片质量指干净的可读性与精致的工艺清晰度"
       ],
       "maAnchors": [
-        "成片质量（硬，所有资产）：生产级最终画面清晰度——表面干净可读",
+        "成片质量（硬，所有资产）：生产级最终画面清晰度",
         "电影级成片质量指干净的可读性与精致的工艺清晰度"
       ],
       "manualFile": "prefix.md",

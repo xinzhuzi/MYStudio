@@ -106,7 +106,9 @@ app.registerExtension({
         if (node.comfyClass !== "MyQi21美术风格底座") return;
         // 1008晚三件拆分:负向词表+三只拆分件框统一钉只读+占位(按名找,缺框跳过);
         // 透明承载件仅21字,矮框(110px大框给它=布局浪费,用户截图病灶之一)
-        const PIN = { "负向词表": "110px", "风格工艺件": "110px", "底色背景件": "110px", "透明承载件": "48px" };
+        // 1009 单线四段协议:+「四段协议」框(UI 标记可见,线上传输全文≈千字,钉高充裕)
+        const PIN = { "负向词表": "110px", "风格工艺件": "110px", "底色背景件": "110px",
+                      "透明承载件": "48px", "四段协议": "150px" };
         for (const nm of Object.keys(PIN)) {
             const w = (node.widgets || []).find((x) => x.name === nm);
             if (!w) continue;
@@ -121,7 +123,8 @@ app.registerExtension({
         // 1008晚用户令「布局需要宽大」:四只长文框,面板钉宽560×高640下限
         // (onConfigure 期旧存档会以文件尺寸覆盖,nodeCreated 设的是新 placements
         // 与下限;存量工作流尺寸由卡文同批布局落刀同步,见 t2i/子图 [4032] size)
-        const need = [560, 640];
+        // 1009 四段协议第五框:+120px→下限760(卡文 size 同批 560×620→560×760 落刀)
+        const need = [560, 760];
         node.size = [Math.max(node.size?.[0] ?? 0, need[0]), Math.max(node.size?.[1] ?? 0, need[1])];
         node.onResize?.(node.size);
     },
@@ -156,6 +159,8 @@ app.registerExtension({
             fillBox("风格工艺件", "bases_text_style");
             fillBox("底色背景件", "bases_text_ground");
             fillBox("透明承载件", "bases_text_rgba");
+            // 1009 单线四段协议:UI 标记可见——线上传输的四段标记全文落「四段协议」框
+            fillBox("四段协议", "bases_text_protocol");
         };
         // 1008晚错位守卫(用户截图病灶:旧两框草稿按位回填新四框=全文灌进风格件框/
         // 负向灌进底色件框,挂到下次执行才自愈)——onConfigure 期按指纹检测错位,
