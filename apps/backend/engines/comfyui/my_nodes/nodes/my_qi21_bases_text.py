@@ -169,12 +169,17 @@ class MyQi21BasesText:
 
 
 # ── 1006 九轮:三专用类(零控件零下拉,节点即出口;用户令「选择的控件不需要」)──
-def _make_section_node(section: str, display: str, negative: bool = False):
+def _make_section_node(section: str, display: str, negative: bool = False,
+                       pieces: bool = False):
     """造一个零控件真源出口类:无 INPUT_TYPES(无 widget/无下拉),仅一口 STRING 出。
 
     negative=True(1008 用户令「美术风格底座为什么没有展示负提示词」):加第二
     展示框「负向词表」(optional multiline,JS 按名回填 ui.bases_text_negative)
     ——照 [401] 正负双框同构(py-DOM 显示位,OPTIMIZATION 布局④ 1b 在案路径)。
+    pieces=True(1008晚用户令「UI 改成展示4种类型」):美术风格底座再加三只拆分件
+    展示框「风格工艺件/底色背景件/透明承载件」(append 在既有框之后,存量工作流
+    widgets_values 槽位不移位),JS 按名回填 bases_text_style/ground/rgba;
+    输出主口恒=positive_text 全文(带背景消费方接线语义不变)。
     """
     class _SectionNode:
         CATEGORY = "漫影"
@@ -190,6 +195,13 @@ def _make_section_node(section: str, display: str, negative: bool = False):
                 optional["负向词表"] = ("STRING", {
                     "multiline": True, "default": "",
                     "tooltip": "负向词表展示框(执行后 JS 自动回填真源负向,无需手填/连线)"})
+            if pieces:
+                for nm, tip in (("风格工艺件", "十型恒挂的画法工艺段(透明型也托底)"),
+                                ("底色背景件", "带背景六型的底色/平涂/大色面段"),
+                                ("透明承载件", "透明型的透明承载段")):
+                    optional[nm] = ("STRING", {
+                        "multiline": True, "default": "",
+                        "tooltip": f"{tip}(执行后 JS 自动回填,无需手填/连线)"})
             return {"required": {}, "optional": optional}
 
         # 1008 用户令:[4032] 出双口(正向「文本」+负向「负向词表」),供 [4013]
@@ -203,8 +215,9 @@ def _make_section_node(section: str, display: str, negative: bool = False):
         FUNCTION = "output"
         OUTPUT_NODE = True
 
-        def output(self, 内容: str = "", 负向词表: str = ""):
-            _ = 内容, 负向词表  # 展示框值不参与计算(JS 回填/预填快照)
+        def output(self, 内容: str = "", 负向词表: str = "",
+                   风格工艺件: str = "", 底色背景件: str = "", 透明承载件: str = ""):
+            _ = 内容, 负向词表, 风格工艺件, 底色背景件, 透明承载件  # 展示框值不参与计算
             text = _section_text(section)
             if not text:
                 print(f"[漫影 {display}] 「{section}」节为空——请检查 qi21_bases.json")
@@ -214,6 +227,12 @@ def _make_section_node(section: str, display: str, negative: bool = False):
                 raw = (_load_data().get("art_style_base") or {}).get("negative_text")
                 neg = str(raw).strip() if isinstance(raw, str) else ""
                 ui["bases_text_negative"] = [neg]
+            if pieces:
+                asb = _load_data().get("art_style_base") or {}
+                for key, field in (("bases_text_style", "positive_style_text"),
+                                   ("bases_text_ground", "positive_ground_text"),
+                                   ("bases_text_rgba", "rgba_text")):
+                    ui[key] = [str(asb.get(field) or "")]
             return {"ui": ui, "result": ((text,) if not negative else (text, neg))}
 
     _SectionNode.__name__ = f"MyQi21{section.replace(' ', '')}"
@@ -223,4 +242,4 @@ def _make_section_node(section: str, display: str, negative: bool = False):
 
 MyQi21系统提示词 = _make_section_node("系统提示词", "系统提示词")
 MyQi21色卡 = _make_section_node("色卡", "色卡")
-MyQi21美术风格底座 = _make_section_node("美术风格底座", "美术风格底座", negative=True)
+MyQi21美术风格底座 = _make_section_node("美术风格底座", "美术风格底座", negative=True, pieces=True)

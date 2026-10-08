@@ -104,15 +104,18 @@ app.registerExtension({
     name: "MY.qi21_bases_text_display",
     async nodeCreated(node) {
         if (node.comfyClass !== "MyQi21美术风格底座") return;
-        const w = (node.widgets || []).find((x) => x.name === "负向词表");
-        if (!w) return;
-        const el = w.inputEl ?? w.element;
-        if (!el) return;
-        el.readOnly = true;
-        el.spellcheck = false;
-        el.placeholder = "跑一发后此处显示真源负向词表";
-        el.style.minHeight = "110px";
-        el.style.overflow = "auto";
+        // 1008晚三件拆分:负向词表+三只拆分件框统一钉只读+占位(按名找,缺框跳过)
+        for (const nm of ["负向词表", "风格工艺件", "底色背景件", "透明承载件"]) {
+            const w = (node.widgets || []).find((x) => x.name === nm);
+            if (!w) continue;
+            const el = w.inputEl ?? w.element;
+            if (!el) continue;
+            el.readOnly = true;
+            el.spellcheck = false;
+            el.placeholder = "跑一发后此处显示真源" + nm;
+            el.style.minHeight = "110px";
+            el.style.overflow = "auto";
+        }
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (!["MyQi21BasesText","MyQi21系统提示词","MyQi21色卡","MyQi21美术风格底座"].includes(nodeData.name)) return;
@@ -126,21 +129,25 @@ app.registerExtension({
                 const w = (this.widgets || []).find((x) => x.name === "内容");
                 if (w) w.value = String(arr[0] ?? "");
             }
-            // 1008:[4032] 负向词表分键落框(双形态兼容,缺位不清框同 Q4)
-            const negArr = payload && payload.bases_text_negative ? payload.bases_text_negative
-                : message && message.bases_text_negative ? message.bases_text_negative : null;
-            if (negArr) {
-                const nw = (this.widgets || []).find((x) => x.name === "负向词表");
-                if (nw) {
-                    const text = String(negArr[0] ?? "");
-                    nw.value = text;
-                    const el = nw.inputEl || nw.element;
-                    if (el && el.value !== undefined) {
-                        el.value = text;
-                        el.dispatchEvent(new Event("input", { bubbles: true }));
-                    }
+            // 1008:[4032] 负向词表+三只拆分件分键落框(双形态兼容,缺位不清框同 Q4)
+            const fillBox = (boxName, key) => {
+                const arr = payload && payload[key] ? payload[key]
+                    : message && message[key] ? message[key] : null;
+                if (!arr) return;
+                const bw = (this.widgets || []).find((x) => x.name === boxName);
+                if (!bw) return;
+                const text = String(arr[0] ?? "");
+                bw.value = text;
+                const el = bw.inputEl || bw.element;
+                if (el && el.value !== undefined) {
+                    el.value = text;
+                    el.dispatchEvent(new Event("input", { bubbles: true }));
                 }
-            }
+            };
+            fillBox("负向词表", "bases_text_negative");
+            fillBox("风格工艺件", "bases_text_style");
+            fillBox("底色背景件", "bases_text_ground");
+            fillBox("透明承载件", "bases_text_rgba");
         };
     },
 });
