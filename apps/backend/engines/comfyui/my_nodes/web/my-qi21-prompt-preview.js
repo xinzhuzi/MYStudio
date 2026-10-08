@@ -104,8 +104,10 @@ app.registerExtension({
     name: "MY.qi21_bases_text_display",
     async nodeCreated(node) {
         if (node.comfyClass !== "MyQi21美术风格底座") return;
-        // 1008晚三件拆分:负向词表+三只拆分件框统一钉只读+占位(按名找,缺框跳过)
-        for (const nm of ["负向词表", "风格工艺件", "底色背景件", "透明承载件"]) {
+        // 1008晚三件拆分:负向词表+三只拆分件框统一钉只读+占位(按名找,缺框跳过);
+        // 透明承载件仅21字,矮框(110px大框给它=布局浪费,用户截图病灶之一)
+        const PIN = { "负向词表": "110px", "风格工艺件": "110px", "底色背景件": "110px", "透明承载件": "48px" };
+        for (const nm of Object.keys(PIN)) {
             const w = (node.widgets || []).find((x) => x.name === nm);
             if (!w) continue;
             const el = w.inputEl ?? w.element;
@@ -113,7 +115,7 @@ app.registerExtension({
             el.readOnly = true;
             el.spellcheck = false;
             el.placeholder = "跑一发后此处显示真源" + nm;
-            el.style.minHeight = "110px";
+            el.style.minHeight = PIN[nm];
             el.style.overflow = "auto";
         }
     },
@@ -148,6 +150,28 @@ app.registerExtension({
             fillBox("风格工艺件", "bases_text_style");
             fillBox("底色背景件", "bases_text_ground");
             fillBox("透明承载件", "bases_text_rgba");
+        };
+        // 1008晚错位守卫(用户截图病灶:旧两框草稿按位回填新四框=全文灌进风格件框/
+        // 负向灌进底色件框,挂到下次执行才自愈)——onConfigure 期按指纹检测错位,
+        // 三只拆分件框归空(onExecuted 跑一发即回填真源;负向框旧值本就正确,保留)。
+        const onConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function (info) {
+            onConfigure?.apply(this, arguments);
+            if (this.comfyClass !== "MyQi21美术风格底座") return;
+            const wStyle = (this.widgets || []).find((x) => x.name === "风格工艺件");
+            const wGround = (this.widgets || []).find((x) => x.name === "底色背景件");
+            if (!wStyle) return;
+            const stale = typeof wStyle.value === "string" &&
+                (wStyle.value.includes("透明承载：") || wStyle.value.includes("底色：浅净哑光")
+                 || wStyle.value.includes("图为带透明通道"));
+            const negInGround = typeof wGround?.value === "string" && wGround.value.includes("网文封面画风");
+            if (stale || negInGround) {
+                for (const nm of ["风格工艺件", "底色背景件", "透明承载件"]) {
+                    const w = (this.widgets || []).find((x) => x.name === nm);
+                    if (w) w.value = "";
+                }
+                console.info("[MY.qi21_bases_text_display] 检测到旧草稿按位错填,三只拆分件框已归空待回填");
+            }
         };
     },
 });
