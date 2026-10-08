@@ -2,7 +2,7 @@
   "id": "7d4a9c31-5e62-4b8a-b1f0-2c8e57a90413",
   "revision": 0,
   "last_node_id": 7020,
-  "last_link_id": 4308,
+  "last_link_id": 4310,
   "nodes": [
     {
       "id": 1,
@@ -562,11 +562,15 @@
       },
       "widgets_values": [
         "2 · viggle",
-        0
+        0,
+        "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333",
+        8
       ],
       "widgets_values_named": {
         "速度档位": "2 · viggle",
-        "seed": 0
+        "seed": 0,
+        "σ表": "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333",
+        "插值": 8
       }
     },
     {
@@ -2379,6 +2383,30 @@
               -86,
               504
             ]
+          },
+          {
+            "id": "02968da0-06ed-4181-9fab-f485d999735d",
+            "name": "σ表",
+            "type": "STRING",
+            "linkIds": [
+              4309
+            ],
+            "pos": [
+              -86,
+              524
+            ]
+          },
+          {
+            "id": "19c9d604-43fe-48e7-9db6-92a1a7071d81",
+            "name": "插值",
+            "type": "INT",
+            "linkIds": [
+              4310
+            ],
+            "pos": [
+              -86,
+              544
+            ]
           }
         ],
         "outputs": [
@@ -2397,7 +2425,9 @@
         ],
         "widgets": [
           "2 · viggle",
-          0
+          0,
+          "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333",
+          8
         ],
         "nodes": [
           {
@@ -2837,10 +2867,10 @@
               }
             },
             "widgets_values": [
-              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方6σ=[7011 LoRA r256]→[7019 BasicGuider 单正条件]→[7012 SamplerCustomAdvanced]+[7017 noise/7018 euler/7020 6σ插值0],蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用=FunAcc seed/viggle noise_seed/直出 seed;三支路汇 [7015] 单点出 LATENT。"
+              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方6σ=[7011 LoRA r256]→[7019 BasicGuider 单正条件]→[7012 SamplerCustomAdvanced]+[7017 noise/7018 euler/7020 6σ插值0],蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用=FunAcc seed/viggle noise_seed/直出 seed;三支路汇 [7015] 单点出 LATENT。\n换步数=面板「σ表/插值」:6步官方=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 + 5;9点官方9步前段=1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333 + 8(全turbo近似,官方9步后2步须摘LoRA=双段链);N点填 N-1。"
             ],
             "widgets_values_named": {
-              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方6σ=[7011 LoRA r256]→[7019 BasicGuider 单正条件]→[7012 SamplerCustomAdvanced]+[7017 noise/7018 euler/7020 6σ插值0],蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用=FunAcc seed/viggle noise_seed/直出 seed;三支路汇 [7015] 单点出 LATENT。"
+              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed;未选支路懒执行零加载)。\n三支路:①档0 FunAcc 无负槽=[7013] T8 一体采样 4 步;②档1 直出40步 cfg4=[7010] KSampler,负向仅档1(直出40步 cfg4)生效;③档2 viggle v0.3 官方6σ=[7011 LoRA r256]→[7019 BasicGuider 单正条件]→[7012 SamplerCustomAdvanced]+[7017 noise/7018 euler/7020 6σ插值0],蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源三用=FunAcc seed/viggle noise_seed/直出 seed;三支路汇 [7015] 单点出 LATENT。\n换步数=面板「σ表/插值」:6步官方=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 + 5;9点官方9步前段=1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333 + 8(全turbo近似,官方9步后2步须摘LoRA=双段链);N点填 N-1。"
             },
             "color": "#432",
             "bgcolor": "#653"
@@ -3006,7 +3036,26 @@
             "flags": {},
             "order": 9,
             "mode": 0,
-            "inputs": [],
+            "inputs": [
+              {
+                "localized_name": "σ表",
+                "name": "sigmas_string",
+                "type": "STRING",
+                "widget": {
+                  "name": "sigmas_string"
+                },
+                "link": 4309
+              },
+              {
+                "localized_name": "插值步数",
+                "name": "interpolate_to_steps",
+                "type": "INT",
+                "widget": {
+                  "name": "interpolate_to_steps"
+                },
+                "link": 4310
+              }
+            ],
             "outputs": [
               {
                 "localized_name": "Sigmas",
@@ -3026,14 +3075,8 @@
                 "input_ue_unconnectable": {}
               }
             },
-            "widgets_values": [
-              "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25",
-              5
-            ],
-            "widgets_values_named": {
-              "sigmas_string": "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25",
-              "interpolate_to_steps": 5
-            }
+            "widgets_values": [],
+            "widgets_values_named": {}
           }
         ],
         "groups": [
@@ -3290,6 +3333,22 @@
             "target_id": 7012,
             "target_slot": 3,
             "type": "SIGMAS"
+          },
+          {
+            "id": 4309,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 7020,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 4310,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 7020,
+            "target_slot": 1,
+            "type": "INT"
           }
         ],
         "extra": {

@@ -287,9 +287,10 @@ def test_daojie_base_options_and_assembly():
 def test_daojie_base_resolution_outputs_nine_types():
     """九型+自由分辨率两出全枚举实测:aspect 逐字命中官方 ResolutionSelector
     AspectRatio 枚举(引擎 comfy_extras/nodes_resolution.py,8 项;sidecar
-    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 道具/高清人脸/
-    自由 1.0(09-19 用户裁定出 1024×1024,该节点口径 1.0 MP 精确=1024×1024;
-    自由=Q2.1 十档末位 1:1/1.0MP 兜底)其余 4.2、
+    测试不可 import 引擎库,枚举镜像硬编码于此)、megapixels 1008 快出档缩编
+    (用户令 1-2MP 快出+后放大):道具/高清人脸/自由 1.0(09-19 用户裁定出
+    1024×1024,该节点口径 1.0 MP 精确=1024×1024;自由=Q2.1 十档末位
+    1:1/1.0MP 兜底)、多视图 1.8、其余五型 1.5(4.2 旧档退役入 git 史)、
     两值与真源家 qi21_bases.json types[] 字段一比一(原 daojie_bases.json
     退役,锚随迁);正负 STRING=1004 三层拼装/合并语义(逐字锚归
     test_my_daojie_base.py 专项件)。"""
@@ -301,13 +302,14 @@ def test_daojie_base_resolution_outputs_nine_types():
         "3:4 (Portrait Standard)", "4:3 (Standard)",
         "9:16 (Portrait Widescreen)", "16:9 (Widescreen)", "21:9 (Ultrawide)",
     }
+    expected_mp = {"道具": 1.0, "高清人脸": 1.0, "自由": 1.0,
+                   "多视图": 1.8}.get  # 其余五型 1.5(缺省)
     for entry in bases:
         pos, neg, aspect, megapixels, base_out, _w, _h = node.run(entry["zh"])
         assert base_out == entry["zh"]  # 09-19 第五出=型直通(驱动按型 LoRA 供线)
         assert aspect == entry["aspect_ratio"], entry["zh"]
         assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
-        expected_mp = 1.0 if entry["zh"] in ("道具", "高清人脸", "自由") else 4.2
-        assert megapixels == entry["megapixels"] == expected_mp, entry["zh"]
+        assert megapixels == entry["megapixels"] == expected_mp(entry["zh"], 1.5), entry["zh"]
         # 1008:留空=纯型层(不再拼底座);负向=纯型层负向(中文基线非空)
         assert pos == entry["positive_text"]
         if pos:  # 自由型正向=空串,跳过句号检查

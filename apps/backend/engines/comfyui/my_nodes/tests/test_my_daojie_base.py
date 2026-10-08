@@ -122,7 +122,7 @@ def test_run_empty_subject_is_identity_pure_base():
     pos, neg, aspect, mp, base_out, w_out, h_out = MyDaojieBase().run("场景")
     assert base_out == "场景"
     assert pos == scene["positive_text"]  # 纯型层
-    assert aspect == "16:9 (Widescreen)" and mp == 4.2
+    assert aspect == "16:9 (Widescreen)" and mp == 1.5  # 1008 快出档缩编
     pos2, _n2, _a2, _m2, _b2, _w, _h = MyDaojieBase().run("场景", positive=None, negative=None)
     assert pos2 == pos
 
@@ -138,10 +138,11 @@ def test_run_all_options_produce_nonempty_outputs():
         assert pos.endswith("。")
         # 1004 中文负面役:九型负面基线=中文「，」token,美术风格底座负面同并入
         assert neg and "模糊" in neg
-        # 09-18 分辨率两出:九型 aspect 一律官方枚举串;mp 道具/高清人脸 1.0
-        # (09-19 裁定出 1024×1024,节点口径 1.0 MP 精确命中)、其余一律 4.2
+        # 09-18 分辨率两出:九型 aspect 一律官方枚举串;mp 1008 快出档缩编
+        # (用户令 1-2MP 快出+后放大):道具/高清人脸 1.0(09-19 裁定出
+        # 1024×1024,节点口径 1.0 MP 精确命中)、多视图 1.8、其余五型 1.5
         assert aspect.endswith(")") and ":" in aspect
-        assert mp == (1.0 if name in ("道具", "高清人脸") else 4.2)
+        assert mp == {"道具": 1.0, "高清人脸": 1.0, "多视图": 1.8}.get(name, 1.5)
 
 
 # ── 负向(1008):[4010] 只出型层负向,不再拼底座负向+用户负向 ──
@@ -382,8 +383,9 @@ def test_v3_recipe_reader_helpers_and_fallback(tmp_path, monkeypatch):
 
 def test_width_height_override_and_formula():
     """WIDTH/HEIGHT 两出(09-20 多视图(旧名三视图) A 案转正):override 直出先例 1536×512;
-    无 override 型走公式,与 [61] 逐字节一致(场景 16:9·4.2→2800×1576)。"""
-    _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("多视图")  # 0927 改名轮(K2 侧 override 3072×1024 口径不动)
-    assert (w, h) == (3072, 1024), (w, h)  # 09-20 B案:行业标准高度1024
+    无 override 型走公式,与 [61] 逐字节一致(场景 16:9·1.5→1672×944)。
+    1008 快出档缩编:多视图 override 3072×1024→2448×816、场景 4.2→1.5MP。"""
+    _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("多视图")  # 0927 改名轮(K2 侧 override 合板口径)
+    assert (w, h) == (2448, 816), (w, h)  # 1008 快出档:3:1 精确 8 倍数 1.9MP(旧 3072×1024 入 git 史)
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("场景")
-    assert (w, h) == (2800, 1576), (w, h)
+    assert (w, h) == (1672, 944), (w, h)

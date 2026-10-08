@@ -498,8 +498,9 @@ I2I_SG_TE = 4015  # 主编码·单编码独挑(10-02 单口化)
 #   I2I_SG_TE_RGBA=4016(RGBA编码)/I2I_SG_RGBA_SW=4017(主路输出选择闸门)
 I2I_SG_RGBA_SEL = 180                    # 0929 S2 D6:MyQi21RgbaSelect 三态件
 # LoRA 加速槽(09-24 R26.4 三件统一接线:t2i/edit 补槽与 i2i 出生槽同构;
-# viggle 蒸馏件已装机(r64 事实=R23 research/02;v0.2→v0.2.1=0924 用户「有最新换最新+清旧」令)——name 预填逐字锚
-LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r256.safetensors"
+# viggle 蒸馏件已装机(r64 事实=R23 research/02;v0.2→v0.2.1=0924 用户「有最新换最新+清旧」令;
+# v0.2.1→v0.3=1008 用户「LoRA 形态直接换文件」令,锚随源重锚)——name 预填逐字锚
+LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors"
 I2I_LORA_FILE = LORA_FILE
 # 指令①层默认=官方换装例句(edit 生成器口径逐字)
 I2I_B_SEG = ("Put the light blue denim shirt from <image2> on the character "
@@ -588,6 +589,11 @@ def _links(graph: dict) -> dict:
 QI21_SAMPLER_VIG_ID, QI21_SEED_ID = 7012, 7014         # 1002 ⑫:viggle 采样器/seed 单源
 I2I_SAMPLER_VIG_ID, I2I_SEED_ID = 7012, 7014
 EDIT_SAMPLER_VIG_ID, EDIT_SEED_ID = 7012, 7014
+# 1008 官方参数化(用户令):qi21 viggle 支路=SamplerCustomAdvanced 官方链
+# (v0.3 口径:6σ 定制表逐字+BasicGuider cfg1 单正条件+euler;官方 ViggleTurboSigmas
+# 以已装 KJNodes CustomSigmas 等位替用,interpolate_to_steps=0=不插值)
+QI21_VIG_CHAIN = {"noise": 7017, "select": 7018, "guider": 7019, "sigmas": 7020}
+VIGGLE_OFFICIAL_SIGMAS = "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25"
 QI21_T8, I2I_T8, EDIT_T8 = 7013, 7013, 7013  # 1002 ⑫:三件 T8 支路统一 [7013]
 QI21_XHOST_ID, QI21_XSEL_ID = 7, 7015      # 1002 ⑫:宿主 [208]→[7]/选择件 [214]→[7015]
 I2I_XHOST_ID, I2I_XSEL_ID = 7, 7015
@@ -603,6 +609,10 @@ EDIT_XSG_UUID = "7b1f3a92-2b5c-4d3e-8f41-6c8d9e0f1a02"
 # 宿主面板控件名(=子图 widget 型 -10 槽,值序↔宿主 widgets_values;生成器
 # WIDGET_INPUTS/ACCEL_WIDGET_INPUTS 同表——面板控件名即契约):
 ACCEL_PANEL_CONTROLS = ["速度档位", "seed"]              # 三件加速宿主面板双控件
+# 1008 用户令:qi21 加速面板增「σ表/插值」=自由换步数(默认=9点官方表+8 全turbo近似9步;
+# 6步官方=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 + 5;N点填 N-1;i2i/edit 未随令保持双控)
+QI21_ACCEL_EXTRA_PANEL = ["σ表", "插值"]
+QI21_ACCEL_PANEL_DEFAULT = ["1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333", 8]
 ASSEMBLY_PANEL_CONTROLS = {
     # 1001 用户测试批 Q3 序;1002 ㉑:三件「PE开关」槽撤→[4012] PrimitiveBoolean
     # 「PE启用?」外露(seed 手法=-10 widget 槽+子图内 Primitive 单源扇出)
@@ -656,6 +666,10 @@ MODE_VIGGLE = next(m for m, s in SPEED_MODES if s == "latent_viggle")
 # Fun-Acc=m1z 真图(道劫中文素材 250s vs 直出40 514s,m2z 中文复现白图 33KB)。
 # edit 默认档=MODE_FUNACC(PE 默认本就开=文件原值),危险组合改述「关PE×FunAcc」。
 EDIT_DEFAULT_MODE = MODE_FUNACC
+# 三件默认档分域表(单一真源;1008 用户新令:道劫 t2i 本件默认改 viggle 路线,
+# 实例五处+Note 文案随令,py 侧 DEFAULT_MODE 出厂首项不动)——
+# test_three_files_default_mode_consistent / test_accel_panel_controls_present_0929 共用
+DEFAULT_MODE_OF = {"qi21": MODE_VIGGLE, "i2i": DEFAULT_MODE, "edit": EDIT_DEFAULT_MODE}
 # 0929 并行化 Note 加速区段共用 tokens(三件 Note 均含;文案真源=三生成器 NOTE 段;
 # 0929 S3 收装轮随双子图文案刷新)
 PARALLEL_NOTE_CORE_TOKENS = (
@@ -664,10 +678,11 @@ PARALLEL_NOTE_CORE_TOKENS = (
     T8_CLASS, FUNACC_FILE, "降级", "shift_terminal=0.02", "TE-Speed",
 )
 # qi21 件 Note 加速区段(0929 S3 双子图文案;[214]=子图内选择件/[208]=加速宿主;
-# 1002 ⑱ 默认档 token 随档序重排改 Fun-Acc,Note 文案随工作流迁移波次同步)
+# 1002 ⑱ 默认档 token 随档序重排改 Fun-Acc,Note 文案随工作流迁移波次同步;
+# 1008 用户新令:道劫本件默认改 viggle——token 拆「全局出厂首项」与「本件默认」两截)
 QI21_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, "MyQi21SpeedSelect", "[7]", "[7015]", "[7012]", "[7014]",
-    "首项=默认", "默认=Fun-Acc 4步", "seed 单源", "真实生效", "并行三支路",
+    "首项=「0 · Fun-Acc 4步」=全局出厂默认", "本件默认=「2 · viggle」", "seed 单源", "真实生效", "并行三支路",
     "速度档位", "双子图",
 )
 # i2i 件 Note 加速区段(0929 S3 收装;i2i 家风=选择件/seed 以名示人不带 id 号,
@@ -961,6 +976,9 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                            default_mode: str = DEFAULT_MODE,
                            note_id: int | None = None,
                            ks_cfgs: tuple = (1, 1),
+                           viggle_class: str = "KSampler",
+                           viggle_chain: dict | None = None,
+                           panel_extra: tuple = (),
                            banned_main_types: tuple = (), gone_main_ids: tuple = ()):
     """0929 S3 收装轮·加速子图三件同构契约(prd 问题④/design D3/D4/D5;
     research/s3-qi21-*.md 三档;生成器自查谓词=契约单源,条款以生成器 verify 口径):
@@ -972,7 +990,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
       宿主输入=host_inputs(连线槽+widget 型槽,i2i/edit 全列形态/t2i 仅连线槽
       形态);面板双控件=速度档位+seed(widgets_values 与子图 widgets[] 双写同值,
       宿主=权威值源,widgets_values_named 具名镜像);默认档=default_mode
-      (1002 R2:edit=EDIT_DEFAULT_MODE 直出40步回退(F3 白图);t2i/i2i=DEFAULT_MODE);
+      (分域:qi21=MODE_VIGGLE(1008 用户新令,本件默认改 viggle)/i2i=DEFAULT_MODE
+      (1002 ⑱ 出厂首项 Fun-Acc)/edit=EDIT_DEFAULT_MODE(1003 翻案 Fun-Acc,PE 开));
     - 子图内恰 6 件=三支路(直出 KSampler40/LoRA1.0→viggle/T8)+seed 单源
       +选择件;选择件 wv=[default_mode] 且 mode←-10 速度档位槽(面板外露);
       T8 无负面槽/model=-10 model 槽边界直连(绝不吃 LoRA)/positive=加速支路
@@ -1018,19 +1037,29 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
             f"{name}: 加速子图 outputs[{io['name']}] linkIds 为空(子图工程契约铁律)"
     # 面板双控件(D5 推荐案:速度档位+seed;值双写,宿主=权威值源)
     b_idx = {n: i for i, (n, _t) in enumerate(boundary_inputs)}
-    assert host["widgets_values"] == [default_mode, 0], \
-        f"{name}: [{host_id}] 面板 widgets_values 应=[{default_mode!r}, 0],得 {host['widgets_values']}"
+    _panel_expect = [default_mode, 0] + list(panel_extra)
+    assert host["widgets_values"] == _panel_expect, \
+        f"{name}: [{host_id}] 面板 widgets_values 应={_panel_expect!r},得 {host['widgets_values']}"
     assert sg["widgets"] == host["widgets_values"], \
         f"{name}: 加速子图 widgets[] 应与宿主 widgets_values 双写同值,得 {sg.get('widgets')}"
-    assert host.get("widgets_values_named") == {"速度档位": default_mode, "seed": 0}, \
-        f"{name}: [{host_id}] widgets_values_named 应具名镜像速度档位/seed,得 {host.get('widgets_values_named')}"
+    _panel_named = {"速度档位": default_mode, "seed": 0}
+    if panel_extra:
+        _panel_named["σ表"] = panel_extra[0]
+        _panel_named["插值"] = panel_extra[1]
+    assert host.get("widgets_values_named") == _panel_named, \
+        f"{name}: [{host_id}] widgets_values_named 应具名镜像面板控件,得 {host.get('widgets_values_named')}"
     # 子图内恰 6 件(机构 census,id 与生成器同表;1004 qi21 +[7016] 负向生效
     # 档位 Note=7 件,note_id 传入即入册)
     want_census = {sel_id: SPEED_SELECT_CLASS, ks_direct: "KSampler",
-                   ks_viggle: "KSampler", lora_id: "LoraLoaderModelOnly",
+                   ks_viggle: viggle_class, lora_id: "LoraLoaderModelOnly",
                    t8_id: T8_CLASS, seed_id: "PrimitiveInt"}
     if note_id is not None:
         want_census[note_id] = "Note"
+    if viggle_chain:
+        want_census.update({viggle_chain["noise"]: "RandomNoise",
+                            viggle_chain["select"]: "KSamplerSelect",
+                            viggle_chain["guider"]: "BasicGuider",
+                            viggle_chain["sigmas"]: "CustomSigmas"})
     got_census = {n["id"]: n["type"] for n in sg["nodes"]}
     assert got_census == want_census, \
         f"{name}: 加速子图应恰 {len(want_census)} 件={want_census},得 {got_census}"
@@ -1070,9 +1099,13 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         f"{name}: [{t8_id}].seed 应 widget 转输入接 [{seed_id}] 单源(research/05 §3 无例外)"
     # 支路采样器×2(steps 面板=生效值;seed 单源;cfg=ks_cfgs 直出/viggle 分档;
     # 1004:qi21 直出支路 cfg4=负向真实生效,viggle 蒸馏件恒 1;i2i/edit 恒 1/1)
-    for (sid, want_steps, model_want, pos_b), want_cfg in zip(
-            ((ks_direct, STEPS_DIRECT, (-10, b_idx["model"]), pos_direct),
-             (ks_viggle, STEPS_VIGGLE, (lora_id, 0), pos_accel)), ks_cfgs):
+    _vig_is_chain = viggle_chain is not None
+    _ks_entries = [
+        ((ks_direct, STEPS_DIRECT, (-10, b_idx["model"]), pos_direct), ks_cfgs[0])
+    ] + (
+        [] if _vig_is_chain else
+        [((ks_viggle, STEPS_VIGGLE, (lora_id, 0), pos_accel), ks_cfgs[1])])
+    for (sid, want_steps, model_want, pos_b), want_cfg in _ks_entries:
         ks = i_nodes[sid]
         wv = ks["widgets_values"]
         assert wv[K_SAMPLER_WV["steps"]] == want_steps, \
@@ -1100,6 +1133,41 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         _lat = i_links[next(i["link"] for i in ks["inputs"] if i["name"] == "latent_image")]
         assert (_lat["origin_id"], _lat["origin_slot"]) == (-10, b_idx["latent"]), \
             f"{name}: [{sid}].latent_image 应接 -10 latent 槽(三支路同源)"
+    if _vig_is_chain:
+        # 1008 官方链:SamplerCustomAdvanced+BasicGuider(cfg1 单正条件,负向不接)
+        # +CustomSigmas 官方6σ 逐字+RandomNoise(seed 单源改喂 noise_seed)
+        vc = viggle_chain
+        sc = i_nodes[ks_viggle]
+        assert sc["type"] == "SamplerCustomAdvanced", f"{name}: [{ks_viggle}] 应官方链采样器"
+        _in = {i["name"]: i for i in sc["inputs"]}
+        for nm, want in (("noise", (vc["noise"], 0)), ("guider", (vc["guider"], 0)),
+                         ("sampler", (vc["select"], 0)), ("sigmas", (vc["sigmas"], 0)),
+                         ("latent_image", (-10, b_idx["latent"]))):
+            _l = i_links[_in[nm]["link"]]
+            assert (_l["origin_id"], _l["origin_slot"]) == want, \
+                f"{name}: [{ks_viggle}].{nm} 上游应 {want}(官方链接线)"
+        assert not any(i["name"] == "negative" for i in sc["inputs"]), \
+            f"{name}: 官方链无负向槽(cfg1=空负向)"
+        _gu = i_nodes[vc["guider"]]
+        _gl = i_links[next(i["link"] for i in _gu["inputs"] if i["name"] == "model")]
+        assert (_gl["origin_id"], _gl["origin_slot"]) == (lora_id, 0), \
+            f"{name}: BasicGuider.model 应=LoRA 后"
+        _gp = i_links[next(i["link"] for i in _gu["inputs"] if i["name"] == "conditioning")]
+        assert (_gp["origin_id"], _gp["origin_slot"]) == (-10, b_idx[pos_accel]), \
+            f"{name}: BasicGuider.conditioning 应=加速支路正源槽(cfg1)"
+        _sel_n = i_nodes[vc["select"]]
+        assert _sel_n["widgets_values"] == ["euler"], f"{name}: 链采样器应 euler"
+        _sg_n = i_nodes[vc["sigmas"]]
+        # 1008 用户令:σ表/插值 已提升面板(sg.widgets[2]/[3]);默认=9点官方表+8(全turbo近似9步;
+        # KJNodes 事故锚:N=σ个数-1,填 0=插值成1个点=零步采样出平面图)
+        assert _sg_n["widgets_values"] == [], f"{name}: σ链件 widget 应已提升面板"
+        _pv = sg["widgets"]
+        assert _pv[3] == 8, f"{name}: 面板插值应=8(9点官方表,1008 令默认 9 步近似)"
+        _sig_vals = [v.strip() for v in str(_pv[2]).split(",") if v.strip()]
+        assert len(_sig_vals) == 9, f"{name}: 面板默认应=9点官方表,得 {len(_sig_vals)}"
+        _rn = next(i for i in i_nodes[vc["noise"]]["inputs"] if i["name"] == "noise_seed")
+        assert "widget" in _rn and i_links[_rn["link"]]["origin_id"] == seed_id, \
+            f"{name}: RandomNoise.noise_seed 应接 [{seed_id}] 单源"
     # LoRA(支路 viggle 专属;名白名单不变)
     lora = i_nodes[lora_id]
     assert _widget(lora, 0) == LORA_FILE, \
@@ -1110,7 +1178,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     assert (_lm["origin_id"], _lm["origin_slot"]) == (-10, b_idx["model"]), \
         f"{name}: [{lora_id}].model 应接 -10 model 槽(base 直连臂)"
     lora_fans = sorted(lora["outputs"][0]["links"] or [])
-    assert len(lora_fans) == 1 and i_links[lora_fans[0]]["target_id"] == ks_viggle, \
+    _lora_feed = viggle_chain["guider"] if viggle_chain else ks_viggle
+    assert len(lora_fans) == 1 and i_links[lora_fans[0]]["target_id"] == _lora_feed, \
         f"{name}: [{lora_id}] 输出应扇出恰一线只喂 [{ks_viggle}](支路专属,单源不复用消歧)"
     # seed 单源三用(value=面板「seed」外露;扇出恰三线)
     seed = i_nodes[seed_id]
@@ -1124,7 +1193,9 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     seed_targets = sorted((i_links[l]["target_id"],
                            _input_name(i_nodes[i_links[l]["target_id"]], i_links[l]["target_slot"]))
                           for l in seed["outputs"][0]["links"])
-    want_targets = sorted([(ks_direct, "seed"), (ks_viggle, "seed"), (t8_id, "seed")])
+    want_targets = sorted([(ks_direct, "seed"), (t8_id, "seed")]
+                          + ([(viggle_chain["noise"], "noise_seed")] if viggle_chain
+                             else [(ks_viggle, "seed")]))
     assert seed_targets == want_targets, \
         f"{name}: [{seed_id}] seed 应扇出恰三线到三采样器 seed 槽(R5 单源三用),得 {seed_targets}"
     # 主图拆净(支路机构全在子图;旧注入式件不回潮)
@@ -1137,7 +1208,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     # 零真重复(0929 复用铁则,三域分域)
     _assert_no_true_duplicates(graph, name)
     # 懒执行三档干跑(作用域遍历;1002 R2 起默认态=default_mode:三档支路成员
-    # 表驱动——t2i/i2i 默认态=combo 首项 Fun-Acc 4步,edit 默认态=直出40步回退档)
+    # 表驱动——t2i 默认态=viggle(1008 令)/i2i=首项 Fun-Acc/edit=Fun-Acc(1003 翻案,PE 开))
     _mode_members = {MODE_FUNACC: (t8_id,), MODE_VIGGLE: (lora_id, ks_viggle),
                      MODE_DIRECT: (ks_direct,)}
     _all_accel = (ks_direct, ks_viggle, lora_id, t8_id)
@@ -1377,8 +1448,9 @@ class TestSpeedSelectContract0929:
 
     def test_accel_panel_controls_present_0929(self):
         """宿主面板双控件在位(D5 推荐案落地,回退案未启用):「速度档位」COMBO
-        (闭集单源=自研件 SPEED_MODES import 互锁;默认档分域——t2i/i2i=首项
-        Fun-Acc(1002 ⑱)/edit=直出40步(1002 R2 F3 白图回退))+「seed」INT
+        (闭集单源=自研件 SPEED_MODES import 互锁;默认档分域——qi21=viggle
+        (1008 令)/i2i=首项 Fun-Acc(1002 ⑱)/edit=Fun-Acc(1003 翻案,PE 开))
+        +「seed」INT
         (默认 0;子图内 seed 单源 value 经 -10 槽外露);widgets_values 与子图
         widgets[] 双写同值+具名镜像(宿主=权威值源);控件型边界槽在子图 -10 IO
         在册(i2i/edit 宿主输入列全列形态含 widget 位,t2i 仅连线槽形态——
@@ -1387,17 +1459,25 @@ class TestSpeedSelectContract0929:
             graph = GRAPHS[name]
             xsg = _xsg(graph)
             host = _host_of(graph, xsg)
-            dmode = EDIT_DEFAULT_MODE if name == "edit" else DEFAULT_MODE
-            assert host["widgets_values"] == [dmode, 0], \
-                f"{name}: [{host['id']}] 面板应=[速度档位={dmode!r}, seed=0]," \
-                f"得 {host['widgets_values']}"
-            assert host.get("widgets_values_named") == {"速度档位": dmode, "seed": 0}, \
+            dmode = DEFAULT_MODE_OF[name]
+            # 1008 用户令:qi21 面板四控(σ表/插值=自由换步数,默认 9点表+8)
+            _panel_wv = [dmode, 0] + (QI21_ACCEL_PANEL_DEFAULT if name == "qi21" else [])
+            assert host["widgets_values"] == _panel_wv, \
+                f"{name}: [{host['id']}] 面板应={_panel_wv!r},得 {host['widgets_values']}"
+            _panel_named = {"速度档位": dmode, "seed": 0}
+            if name == "qi21":
+                _panel_named["σ表"] = QI21_ACCEL_PANEL_DEFAULT[0]
+                _panel_named["插值"] = QI21_ACCEL_PANEL_DEFAULT[1]
+            assert host.get("widgets_values_named") == _panel_named, \
                 f"{name}: [{host['id']}] 具名镜像漂移,得 {host.get('widgets_values_named')}"
             assert xsg["widgets"] == host["widgets_values"], \
                 f"{name}: 子图 widgets[] 与宿主 widgets_values 应双写同值,得 {xsg.get('widgets')}"
             w_types = {i["name"]: i["type"] for i in xsg["inputs"]}
             assert w_types.get("速度档位") == "COMBO" and w_types.get("seed") == "INT", \
                 f"{name}: 加速子图应含控件型边界槽 速度档位(COMBO)/seed(INT),得 {w_types}"
+            if name == "qi21":
+                assert w_types.get("σ表") == "STRING" and w_types.get("插值") == "INT", \
+                    f"{name}: 加速子图应含 σ表(STRING)/插值(INT) 面板槽(1008 令),得 {w_types}"
 
     def test_assembly_rgba_tri_state_controls_0929(self):
         """透明/三态面板控件(0929 S2 D6 立;1001 用户测试批 ④⑥⑦ qi21 分支重立):
@@ -1460,15 +1540,16 @@ class TestSpeedSelectContract0929:
 
     def test_three_files_default_mode_consistent(self):
         """三件各自宿主=选择件同值(AC):加速子图内选择件 widgets_values 与宿主
-        面板首控(权威值源)同值——默认档分域(1002 R2):t2i/i2i=DEFAULT_MODE
-        (1002 ⑱ 首项 Fun-Acc)/edit=EDIT_DEFAULT_MODE(直出40步,F3 白图回退);
-        重跑任一生成器漂移即红。"""
+        面板首控(权威值源)同值——默认档分域:qi21=MODE_VIGGLE(1008 用户新令,
+        本件默认改 viggle)/i2i=DEFAULT_MODE(1002 ⑱ 首项 Fun-Acc)/edit=
+        EDIT_DEFAULT_MODE(1003 翻案 Fun-Acc,PE 开);任一件面板漂移即红。"""
+        _DMODE_OF = DEFAULT_MODE_OF
         for name in ("qi21", "i2i", "edit"):
             xsg = _xsg(GRAPHS[name])
             sel = _sg_nodes(xsg)[self.XSELS[name]]
             assert sel["type"] == SPEED_SELECT_CLASS, \
                 f"{name}: [{self.XSELS[name]}] 应为 {SPEED_SELECT_CLASS}(加速子图内)"
-            dmode = EDIT_DEFAULT_MODE if name == "edit" else DEFAULT_MODE
+            dmode = _DMODE_OF[name]
             assert sel["widgets_values"] == [dmode], \
                 f"{name}: [{self.XSELS[name]}] 默认档应={dmode!r}(与宿主同值)," \
                 f"得 {sel.get('widgets_values')}"
@@ -1569,15 +1650,29 @@ class TestSamplerContract:
                 assert not _by_type(graph, "KSampler"), \
                     f"{name}: 主图应零 KSampler(0929 S3:支路机构收进加速子图)"
                 samplers = [n for n in _xsg(graph)["nodes"] if n["type"] == "KSampler"]
-                assert len(samplers) == 2, \
-                    f"{name}: 加速子图内 KSampler 应恰 2 个(直出/viggle 支路),得 {len(samplers)}"
-                assert sorted(s["widgets_values"][K_SAMPLER_WV["steps"]] for s in samplers) \
-                    == sorted([STEPS_DIRECT, STEPS_VIGGLE]), \
-                    f"{name}: 两支路 steps 应=40/6(面板=生效值;1002 viggle 考据)"
+                # 1008 官方参数化:qi21 viggle 支路=官方链(KSampler 仅直出)
+                if name == "qi21":
+                    assert len(samplers) == 1, \
+                        f"{name}: 加速子图内 KSampler 应恰 1 个(直出;viggle=官方链),得 {len(samplers)}"
+                    # 1008 用户令:σ表/插值 已提升面板(默认=9点官方表+8 全turbo近似9步;
+                    # KJNodes 事故锚:N=σ个数-1,填 0=插值成1点=零步采样)
+                    _wvs = _xsg(graph)["widgets"]
+                    assert _wvs[3] == 8, f"{name}: 面板插值应=8(9点表)"
+                    assert len([v for v in str(_wvs[2]).split(",") if v.strip()]) == 9, \
+                        f"{name}: 面板默认=9点官方表"
+                else:
+                    assert len(samplers) == 2, \
+                        f"{name}: 加速子图内 KSampler 应恰 2 个(直出/viggle 支路),得 {len(samplers)}"
+                    assert sorted(s["widgets_values"][K_SAMPLER_WV["steps"]] for s in samplers) \
+                        == sorted([STEPS_DIRECT, STEPS_VIGGLE]), \
+                        f"{name}: 两支路 steps 应=40/6(面板=生效值;1002 viggle 考据)"
                 # 1004 Phase D(中文负面役用户令):qi21 [7010] 直出支路 cfg 1→4=
                 # 负面提示词真实参与采样;[7012] viggle 蒸馏件 cfg 恒 1(模型卡口径
                 # 负向无效,加速子图 [7016] Note 注明);i2i/edit 两支路仍恒 1。
-                want_cfgs = [1, 4] if name == "qi21" else [1, 1]
+                # 1008 官方参数化:qi21 链态 cfg1 由 BasicGuider 单正条件表达(无 cfg widget)
+                _chain = any(n["type"] == "SamplerCustomAdvanced"
+                             for n in _xsg(graph)["nodes"])
+                want_cfgs = ([4] if _chain else [1, 4]) if name == "qi21" else [1, 1]
                 assert sorted(s["widgets_values"][K_SAMPLER_WV["cfg"]] for s in samplers) \
                     == want_cfgs, \
                     f"{name}: 两支路 cfg 应={want_cfgs}(1004:qi21 [7010] cfg4 负向生效)," \
@@ -1781,8 +1876,12 @@ class TestCanvasDiscipline:
                             assert len(sg["groups"]) == 0, \
                                 f"qi21: 装配子图 groups 应恰 0(1006 四轮:PE 扩写组围栏退役),得 {len(sg['groups'])}"
                         else:
-                            assert sg["groups"] == [], \
-                                f"qi21: 加速子图[{sg['name'][:8]}] groups 应恰 0(全域清空存续)"
+                            # 1008 用户令:加速子图重新分组(推翻 1001 ③「不要分组」)
+                            assert sg["groups"], \
+                                f"qi21: 加速子图[{sg['name'][:8]}] 应分组(1008 令)"
+                            for group in sg["groups"]:
+                                assert isinstance(group.get("id"), int), \
+                                    f"qi21: 子图 group {group.get('title')!r} 缺 id 字段"
                         continue
                     assert sg["groups"], f"{name}: 子图应有分组"
                     for group in sg["groups"]:
@@ -2907,10 +3006,11 @@ class TestQi21SubgraphContract:
 
     def test_lora_slot_present_and_bypassed(self):
         """0929 S3 收装:LoRA/支路/选择件/seed 全居加速子图([208] 宿主,id 沿用
-        原选择件;[1] UNET MODEL 直连进子图=t2i 无 Cache);默认档=直出40步 干跑
-        零 LoRA(懒选择);TE-Speed 槽不加(3c 试装已死归档,D4 终审永不装);
-        t2i 无图参考=无黑图修复需求:三支路 positive 统一边界 positive 槽(同源
-        [40].positive);主图类型白名单(加速域类型全出册,两宿主按 uuid 豁免)。"""
+        原选择件;[1] UNET MODEL 直连进子图=t2i 无 Cache);默认档=viggle(1008
+        用户新令)干跑零直出/FunAcc(懒选择);TE-Speed 槽不加(3c 试装已死归档,
+        D4 终审永不装);t2i 无图参考=无黑图修复需求:三支路 positive 统一边界
+        positive 槽(同源 [40].positive);主图类型白名单(加速域类型全出册,
+        两宿主按 uuid 豁免)。"""
         graph = GRAPHS["qi21"]
         _assert_accel_subgraph(
             graph, "qi21",
@@ -2921,11 +3021,17 @@ class TestQi21SubgraphContract:
             pos_direct="positive", pos_accel="positive",
             boundary_inputs=[("model", "MODEL"), ("positive", "CONDITIONING"),
                              ("negative", "CONDITIONING"), ("latent", "LATENT"),
-                             ("速度档位", "COMBO"), ("seed", "INT")],
+                             ("速度档位", "COMBO"), ("seed", "INT"),
+                             ("σ表", "STRING"), ("插值", "INT")],
             host_inputs=[("model", True, False), ("positive", True, False),
                          ("negative", True, False), ("latent", True, False)],
             note_id=QI21_ACC_NOTE_ID,   # 1004 D6b:加速子图 [7016] 负向生效档位 Note
             ks_cfgs=(4, 1),             # 1004 D6a:[7010] cfg4 负向真实生效;[7012] 恒 1
+            viggle_class="SamplerCustomAdvanced", viggle_chain=QI21_VIG_CHAIN,  # 1008 官方参数化
+            panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板四控
+            # 1008 用户新令:道劫本件默认档改 viggle 路线(实例五处+Note 文案随令;
+            # py 侧 DEFAULT_MODE 出厂首项不动,i2i 与新实例出生缺省仍 Fun-Acc)
+            default_mode=MODE_VIGGLE,
             banned_main_types=("easy compare",),
             gone_main_ids=(QI21_LORA_PB_ID, QI21_LORA_SW_ID, 177, 178, 179,
                            193, 194, 195, 196, 197, QI21_RR_POS_B_ID))
@@ -2971,9 +3077,18 @@ class TestQi21SubgraphContract:
             assert gone not in nodes, \
                 f"qi21: 旧注入式件 [{gone}] 应已拆除(0929 并行化)"
         x_nodes = _sg_nodes(_xsg(GRAPHS["qi21"]))
-        assert sorted(n["widgets_values"][K_SAMPLER_WV["steps"]]
-                      for n in (x_nodes[QI21_SAMPLER_ID], x_nodes[QI21_SAMPLER_VIG_ID])) \
-            == sorted([STEPS_DIRECT, STEPS_VIGGLE])
+        # 1008 官方参数化:qi21 viggle 支路步数=官方 6σ 表长(链内 CustomSigmas)
+        if x_nodes[QI21_SAMPLER_VIG_ID]["type"] == "SamplerCustomAdvanced":
+            # 1008 用户令:σ表/插值 在面板(sg.widgets[2]/[3]);默认=9点官方表+8
+            _wvs = _xsg(GRAPHS["qi21"])["widgets"]
+            assert _wvs[3] == 8
+            _n_sig = len([v for v in str(_wvs[2]).split(",") if v.strip()])
+            assert sorted([x_nodes[QI21_SAMPLER_ID]["widgets_values"][K_SAMPLER_WV["steps"]],
+                           _n_sig]) == sorted([STEPS_DIRECT, 9])
+        else:
+            assert sorted(n["widgets_values"][K_SAMPLER_WV["steps"]]
+                          for n in (x_nodes[QI21_SAMPLER_ID], x_nodes[QI21_SAMPLER_VIG_ID])) \
+                == sorted([STEPS_DIRECT, STEPS_VIGGLE])
 
     def test_subject_slot_defaults_to_library_renwen_example(self):
         types, _ = _qi21_truth()
@@ -2993,10 +3108,12 @@ class TestQi21SubgraphContract:
         seed = x_nodes[QI21_SEED_ID]
         assert seed["type"] == "PrimitiveInt" and seed["widgets_values"][:2] == [0, "fixed"], \
             f"[{QI21_SEED_ID}] seed 单源应 PrimitiveInt 默认 0 fixed,得 {seed.get('widgets_values')}"
-        for nid in (QI21_SAMPLER_ID, QI21_SAMPLER_VIG_ID, QI21_T8):
-            inp = next((i for i in x_nodes[nid]["inputs"] if i.get("name") == "seed"), None)
+        _seed_fans = ((QI21_SAMPLER_ID, "seed"), (QI21_T8, "seed"),
+                      (QI21_VIG_CHAIN["noise"], "noise_seed"))  # 1008 官方链噪声件
+        for nid, want_name in _seed_fans:
+            inp = next((i for i in x_nodes[nid]["inputs"] if i.get("name") == want_name), None)
             assert inp is not None and "widget" in inp and inp.get("link") is not None, \
-                f"qi21 [{nid}].seed 应 widget 转输入接 [{QI21_SEED_ID}](不再外露 widget)"
+                f"qi21 [{nid}].{want_name} 应 widget 转输入接 [{QI21_SEED_ID}](不再外露 widget)"
         assert not _by_type(graph, "PrimitiveInt"), \
             "qi21 主图应零 PrimitiveInt(seed 单源已迁加速子图)"
 
@@ -3098,8 +3215,10 @@ class TestQi21SubgraphContract:
             and free.get("rgba_default") is False, \
             f"qi21_bases.json 末位应为「自由」档(BASE空/1:1 1.0MP/rgba_default=false),得 {free}"
         # 画幅档:官方 ResolutionSelector 枚举 8 档逐字串 + MP 数值域;多视图=
-        # Q2.1侧分档 3:4/4.2(0927 轮)。override 双口径如实记:K2 侧件
-        # (my_daojie_base)消费 override=3072×1024 合板直出,Q2.1 侧件
+        # Q2.1侧公式档 3:4/1.8(1008 快出档缩编,用户令 1-2MP 快出+后放大;
+        # 0927 旧档 3:4/4.2 退役入 git 史)。override 双口径如实记:K2 侧件
+        # (my_daojie_base)消费 override=2448×816 合板直出(旧 3072×1024),
+        # Q2.1 侧件
         # (my_qi21_base)不消费 override(消费面忽略)=分张产线口径,两件各取
         # 所需共享同一数据集(1004 集中地后 K2/Q2.1 单文件双口径)
         _aspects = {"1:1 (Square)", "2:3 (Portrait Photo)", "3:2 (Photo)",
@@ -3112,10 +3231,10 @@ class TestQi21SubgraphContract:
             assert 0.5 <= e["megapixels"] <= 8.0, \
                 f"qi21_bases.json「{e['zh']}」megapixels 数值域异常,得 {e['megapixels']}"
         mv = next(e for e in qi21 if e["zh"] == "多视图")
-        assert (mv["aspect_ratio"], mv["megapixels"]) == ("3:4 (Portrait Standard)", 4.2), \
-            "qi21_bases.json「多视图」画幅档应=Q2.1侧分档 3:4/4.2(0927)"
-        assert mv.get("resolution_override") == [3072, 1024], \
-            "qi21_bases.json「多视图」override 应=K2 侧合板值 [3072,1024] 在档(Q2.1 消费面忽略)"
+        assert (mv["aspect_ratio"], mv["megapixels"]) == ("3:4 (Portrait Standard)", 1.8), \
+            "qi21_bases.json「多视图」画幅档应=Q2.1侧公式档 3:4/1.8(1008 快出档缩编)"
+        assert mv.get("resolution_override") == [2448, 816], \
+            "qi21_bases.json「多视图」override 应=K2 侧合板值 [2448,816] 在档(Q2.1 消费面忽略)"
         # 1004 正负拆开硬口径:positive_text=正向描述文体,禁令句(禁止/不得/
         # 默认禁止)应拆入 negative_text,正向残留即红
         for e in qi21[:9]:
@@ -3516,8 +3635,9 @@ class TestQi21SubgraphContract:
         # 三件组 [4013][4019][4020]);加速子图仍全域清空=恰 0(1001 ③ 口径存续)
         assert sg["groups"] == [], \
             f"装配子图 group 应恰 0(1006 四轮:AI扩写带节点自明,「PE 扩写组」围栏退役),得 {sg['groups']}"
-        assert xsg["groups"] == [], \
-            f"加速子图 group 应恰 0(1001 用户测试批 ③ 组框全域退役存续),得 {len(xsg['groups'])}"
+        # 1008 用户令:加速子图重新分组=六框罩三支路+seed+选择(推翻 1001 ③ 全域清空)
+        assert 1 <= len(xsg["groups"]) <= 6, \
+            f"加速子图 group 预算 ≤6(1008 令分组),得 {len(xsg['groups'])}"
         assert len(graph["groups"]) <= 5, \
             f"主图 group 应≤5(四块口径+1002 衔接批㉕ ⑤SeedVR2放大尾档组框=Ctrl+B 整组旁路" \
             f"语义载体,拓扑变更合法重立),得 {len(graph['groups'])}"
@@ -3727,8 +3847,20 @@ class TestCanvasNormalization0925:
             # i2i/edit=组框并集罩全支路成员(t2i/edit 单一功能域框/i2i 四行框)
             xsg = _xsg(graph)
             if name == "qi21":
-                assert xsg["groups"] == [], \
-                    "qi21: 加速子图组框应恰 0(1001 用户测试批 ③ 全域清空)"
+                # 1008 用户令:组框并集罩全功能件(子图说明 Note [7016] 恒驻入口,豁免)
+                assert xsg["groups"], "qi21: 加速子图应分组(1008 令,推翻 1001 ③)"
+                covered = set()
+                for igrp in xsg["groups"]:
+                    bx0, by0 = igrp["bounding"][0], igrp["bounding"][1]
+                    bx1, by1 = bx0 + igrp["bounding"][2], by0 + igrp["bounding"][3]
+                    for n in xsg["nodes"]:
+                        if n["type"] == "Note":
+                            continue
+                        if (bx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= bx1
+                                and by0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= by1):
+                            covered.add(n["id"])
+                assert covered == {n["id"] for n in xsg["nodes"] if n["type"] != "Note"}, \
+                    f"qi21: 组框并集未罩全功能件(缺 {sorted({n['id'] for n in xsg['nodes'] if n['type'] != 'Note'} - covered)})"
                 continue
             covered = set()
             for igrp in xsg["groups"]:
@@ -4516,11 +4648,13 @@ class TestCountAnchor:
             "qwen21-t2i-seedvr2.json",
             "qwen21-t2i.json",
             "qwen21-titlecard-t2i.json",
+            "官方-viggle-turbo-v0.3-merged-t2i.json",
+            "官方-viggle-turbo-v0.3-t2i.json",
             "社区-skill姿态图放大-扩展整合.json",
             "社区-全能图片编辑-官方PE.json",
             "社区-全能文生图-官方PE.json",
             "社区-编辑生图整合-TE.json",
-        ], f"Q2-1图像 应恰 17 件(10 自研+3 官方模板+4 社区模板;10-02 自研扩批五件入库 12→17,前账:10-01 社区模板批入库 8→12、2026-10-01 B4 吸收件 qwen21-sanlian-t2i 新增),得 {files}"
+        ], f"Q2-1图像 应恰 19 件(10 自研+5 官方模板+4 社区模板;1008 用户令 Viggle 官方两件入库 17→19,前账:10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。
