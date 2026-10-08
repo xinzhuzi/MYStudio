@@ -176,10 +176,11 @@ def _make_section_node(section: str, display: str, negative: bool = False,
     negative=True(1008 用户令「美术风格底座为什么没有展示负提示词」):加第二
     展示框「负向词表」(optional multiline,JS 按名回填 ui.bases_text_negative)
     ——照 [401] 正负双框同构(py-DOM 显示位,OPTIMIZATION 布局④ 1b 在案路径)。
-    pieces=True(1008晚用户令「UI 改成展示4种类型」):美术风格底座再加三只拆分件
-    展示框「风格工艺件/底色背景件/透明承载件」(append 在既有框之后,存量工作流
-    widgets_values 槽位不移位),JS 按名回填 bases_text_style/ground/rgba;
-    输出主口恒=positive_text 全文(带背景消费方接线语义不变)。
+    pieces=True(1008晚二轮·用户令「展示4种类型」+复诊「重复了」):美术风格底座
+    =恰四展示框「风格工艺件/底色背景件/透明承载件/负向词表」(正向三件在前负向
+    殿后,同构 [401] 正负分族),「内容」全文框退役(全文=风格+底色逐字重复源);
+    JS 按名回填 bases_text_style/ground/rgba/negative;输出主口恒=positive_text
+    全文(带背景消费方接线语义不变);删框同批重对卡文 widgets_values(技能纪律)。
     """
     class _SectionNode:
         CATEGORY = "漫影"
@@ -187,6 +188,22 @@ def _make_section_node(section: str, display: str, negative: bool = False,
 
         @classmethod
         def INPUT_TYPES(cls):
+            # 1008晚二轮(用户令「UI设计的不对,提示词重复了」):pieces 节点=恰四框
+            # (风格工艺件/底色背景件/透明承载件/负向词表),「内容」全文框退役
+            # ——全文=风格件+底色件逐字重复源,展示层不再双载;输出主口恒=全文
+            # (计算层零变),展示框快照由卡文同批重对(技能纪律:删框必重对值)。
+            if pieces:
+                optional = {}
+                for nm, tip in (("风格工艺件", "十型恒挂的画法工艺段(透明型也托底)"),
+                                ("底色背景件", "带背景六型的底色/平涂/大色面段"),
+                                ("透明承载件", "透明型的透明承载段")):
+                    optional[nm] = ("STRING", {
+                        "multiline": True, "default": "",
+                        "tooltip": f"{tip}(执行后 JS 自动回填,无需手填/连线)"})
+                optional["负向词表"] = ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "负向词表展示框(执行后 JS 自动回填真源负向,无需手填/连线)"})
+                return {"required": {}, "optional": optional}
             optional = {
                 "内容": ("STRING", {"multiline": True,
                                     "tooltip": f"{display}全文展示(JS 回填;预填=部署时快照"}),
@@ -195,13 +212,6 @@ def _make_section_node(section: str, display: str, negative: bool = False,
                 optional["负向词表"] = ("STRING", {
                     "multiline": True, "default": "",
                     "tooltip": "负向词表展示框(执行后 JS 自动回填真源负向,无需手填/连线)"})
-            if pieces:
-                for nm, tip in (("风格工艺件", "十型恒挂的画法工艺段(透明型也托底)"),
-                                ("底色背景件", "带背景六型的底色/平涂/大色面段"),
-                                ("透明承载件", "透明型的透明承载段")):
-                    optional[nm] = ("STRING", {
-                        "multiline": True, "default": "",
-                        "tooltip": f"{tip}(执行后 JS 自动回填,无需手填/连线)"})
             return {"required": {}, "optional": optional}
 
         # 1008 用户令:[4032] 出双口(正向「文本」+负向「负向词表」),供 [4013]
