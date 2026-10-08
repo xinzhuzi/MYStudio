@@ -93,6 +93,19 @@ def _pos(n: dict) -> tuple[float, float]:
     return float(p[0]), float(p[1])
 
 
+def _size_wh(sz) -> tuple[float, float]:
+    """Declared (w, h) as floats. Old frontends (<=1.51.x) serialize some node
+    sizes as a string-keyed dict {"0": w, "1": h} (MarkdownNote in community
+    files in the wild); anything absent/partial falls back to the default
+    occlusion box, mirroring workflow_layout.est_size's tolerance."""
+    if isinstance(sz, dict):
+        sz = [sz.get("0"), sz.get("1")]
+    try:
+        return float(sz[0]), float(sz[1])
+    except (TypeError, ValueError, IndexError):
+        return float(DEFAULT_OCCL_SIZE[0]), float(DEFAULT_OCCL_SIZE[1])
+
+
 def _iter_links(links):
     """Yield (link_id, origin_id, origin_slot, target_id, target_slot) from either
     the array form [..., type] (top level) or the object form (subgraphs)."""
@@ -109,9 +122,9 @@ def _occl_box(n: dict):
     if n.get("type") == "Reroute":
         w, h = REROUTE_OCCL_W, REROUTE_OCCL_H
     else:
-        w, h = (n.get("size") or list(DEFAULT_OCCL_SIZE))[:2]
+        w, h = _size_wh(n.get("size"))
     x, y = _pos(n)
-    return x, y, x + float(w), y + float(h)
+    return x, y, x + w, y + h
 
 
 def _slot_pt(n: dict, slot: int, side: str) -> tuple[float, float]:
@@ -479,6 +492,25 @@ def _selftest() -> int:
     r = check_workflow(c8)
     c = counts_of(r, "main")
     expect(c["group_overlap"] == 0, "C8 separated groups == 0 (got %d)" % c["group_overlap"])
+
+    # C9: old-frontend dict-form size {"0":w,"1":h} must not kill the run and the
+    # declared w/h must be honored (community files in the wild, frontend <=1.51.x;
+    # this form used to abort the whole file with rc=2).
+    box = _occl_box({"id": 9, "type": "MarkdownNote", "pos": [100, 100],
+                     "size": {"0": 460, "1": 200}})
+    expect(box == (100, 100, 560.0, 300.0),
+           "C9 dict-form size honored: box == (100,100,560,300) (got %s)" % (box,))
+    box = _occl_box({"id": 10, "type": "Note", "pos": [0, 0]})
+    expect(box == (0, 0, 220.0, 120.0), "C9 absent size -> default box (got %s)" % (box,))
+    box = _occl_box({"id": 11, "type": "Note", "pos": [0, 0], "size": {"0": 460}})
+    expect(box == (0, 0, 220.0, 120.0),
+           "C9 partial dict size -> default box (got %s)" % (box,))
+    c9 = {"nodes": [dict(_mk_node(9, [100, 100], [200, 100]),
+                         type="MarkdownNote", size={"0": 460, "1": 200})],
+          "links": []}
+    r = check_workflow(c9)
+    c = counts_of(r, "main")
+    expect(all(c[k] == 0 for k in CHECK_KEYS), "C9 dict-size workflow checks clean (got %s)" % c)
 
     print("selftest: %d failure(s)" % len(failures))
     return 1 if failures else 0

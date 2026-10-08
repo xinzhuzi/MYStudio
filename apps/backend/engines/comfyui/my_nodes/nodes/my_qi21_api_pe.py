@@ -10,7 +10,7 @@ hauhaucs-aggressive:qwen3.5 族与 Qwen-Image 同源、中文母语、指令真
 格式全对+负面清单自动收「剑出鞘」;Mac 本机 27B 于 1007夜出局)。
 
 槽口(现役十入五出;连线槽全 forceInput,未连=真源热读兜底):
-  入(十) 系统提示词←[4030]/色卡←[4031]/美术风格底座←[4032]/
+  入(十一) 系统提示词←[4030]/色卡←[4031]/美术风格底座-正向←[4032].0/美术风格底座-负向←[4032].1/
           正·负向提示词←宿主面板手写原文(边界两槽)/
           类型句正向←[4010].0(BASE)/类型句负向←[4010].3(负面词)/
           画幅宽←[4010].1(WIDTH)/画幅高←[4010].2(HEIGHT)/
@@ -60,8 +60,46 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+
+# 1008 用户令「自定义节点不能打断吗?」:ComfyUI 官方打断机制接入
+# (comfy.model_management.throw_exception_if_processing_interrupted)
+def _check_interrupt():
+    """用户按取消时立刻中断节点执行(阻塞 HTTP 调用前/后/重试前各查一次)"""
+    try:
+        from comfy.model_management import throw_exception_if_processing_interrupted
+        throw_exception_if_processing_interrupted()
+    except ImportError:
+        pass  # 测试环境无 ComfyUI 本体时静默跳过
+    except Exception:
+        raise  # ComfyUI 环境下的 InterruptException 正常上抛
 from pathlib import Path
 from typing import Any
+
+
+# 1008 用户令「不能异步调用?」:urlopen 放后台线程,主线程每 5 秒查打断
+import threading
+
+def _interruptible_urlopen(req, timeout, poll_interval=5):
+    """可打断的 urlopen:HTTP 调用在 daemon 线程跑,主线程轮询打断信号。
+    用户按取消 → _check_interrupt() 抛 InterruptException → 立刻返回,
+    不等 LLM 响应(最长可等 timeout 秒的旧方案就此退役)。"""
+    result = {"resp": None, "error": None}
+    done = threading.Event()
+
+    def _worker():
+        try:
+            result["resp"] = urllib.request.urlopen(req, timeout=timeout)
+        except Exception as exc:
+            result["error"] = exc
+        finally:
+            done.set()
+
+    threading.Thread(target=_worker, daemon=True).start()
+    while not done.wait(timeout=poll_interval):
+        _check_interrupt()  # 用户取消 → 立刻抛异常返回
+    if result["error"] is not None:
+        raise result["error"]
+    return result["resp"]
 
 # 局域网恒直连 opener:macOS 的 urllib 会自动吃系统代理(Clash 系统代理=
 # 127.0.0.1:7897),局域网通否取决于代理对私网的放行规则——隐性依赖,恒绕过
@@ -480,6 +518,10 @@ def _self_check(pos: str, neg_tokens: list[str],
         if pt in subj and pt not in pos_c:
             v.append(f"部件丢:{pt}")
     v.extend(_pos_neg_clash(pos, neg_tokens))
+    # 1008 用户令「为啥不在代码中加入日志」+「模型挂了不会拼接?」:
+    # ⑦最短长度门(<300字=底座/型层被丢,拒收回退装配文保底)
+    if len(pos.strip()) < 300:
+        v.append(f"过短:{len(pos.strip())}字(<300,底座/型层疑似被丢)")
     return v
 
 
@@ -562,7 +604,8 @@ class MyQi21ApiPE:
         ctx = {
                 "系统提示词": ("STRING", {"forceInput": True, "tooltip": "连 [4030] 真源文本·系统提示词;不连=真源热读兜底"}),
                 "色卡": ("STRING", {"forceInput": True, "tooltip": "连 [4031] 真源文本·色卡;不连=真源热读兜底"}),
-                "美术风格底座": ("STRING", {"forceInput": True, "tooltip": "连 [4032] 真源文本·美术风格底座;不连=热读兜底"}),
+                "美术风格底座-正向": ("STRING", {"forceInput": True, "tooltip": "连 [4032].0 美术风格底座·正向全文;不连=真源热读兜底"}),
+                "美术风格底座-负向": ("STRING", {"forceInput": True, "tooltip": "连 [4032].1 美术风格底座·负向词表(终稿负向三源之一);不连=真源热读兜底"}),
                 "正向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写正向原文;锚点权重最高,润炼逐字保留其实体"}),
                 "负向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写负向原文;逐条并入 negative_prompt 不丢条目"}),
                 "类型句正向": ("STRING", {"forceInput": True, "tooltip": "连 [4010].0 类型句(BASE 正文)"}),
@@ -605,13 +648,11 @@ class MyQi21ApiPE:
                 画幅宽: int | None = None, 画幅高: int | None = None,
                 透明模式: bool = False,
                 系统提示词: str | None = None, 色卡: str | None = None,
-                美术风格底座: str | None = None,
                 api_url: str = "http://192.168.0.101:1234",
                 model: str = "qwen3.5-9b-uncensored-hauhaucs-aggressive", temperature: float = 0.7,
                 max_tokens: int = 12000, timeout_sec: int = 600,
                 thinking_effort: str = "关闭",
-                正向扩写全文: str = "", 负向扩写清单: str = ""
-                ) -> dict:
+                **kw):  # 1008 槽名带连字符(美术风格底座-正向/-负向)不能作形参,**kw 按键名取
         """十入全上下文→LM Studio 扩写→五口(正向/负向/透明/宽/高)。
 
         三路外部原文(型底座/正/负向提示词)并入「画面上下文」参考块(有则加,
@@ -624,17 +665,20 @@ class MyQi21ApiPE:
         subj = (正向提示词 or "").strip()
         base = (类型句正向 or "").strip()
         _, _, hot_style = _hot_fallbacks()
-        style = (美术风格底座 or "").strip() or hot_style
+        style = (kw.get("美术风格底座-正向") or "").strip() or hot_style
         direct = f"{subj}\n{base}\n{style}".strip() if base else f"{subj}\n{style}".strip()
         if not subj:
             print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+风格两段")
         # 负面三源(型负面+美术风格底座负面热读+外部负向)去重合并——终稿负向唯一真源
         # (程序构造不进模型,1008 解耦;挂=同值直出)
-        try:
-            style_base_neg = str((_load_bases_node().get("art_style_base") or {})
-                           .get("negative_text") or "").strip()
-        except Exception:
-            style_base_neg = ""
+        # 1008 用户令:[4032].1 负向接线优先(可视化真源链),未连=真源热读兜底(同款)
+        style_base_neg = (kw.get("美术风格底座-负向") or "").strip()
+        if not style_base_neg:
+            try:
+                style_base_neg = str((_load_bases_node().get("art_style_base") or {})
+                               .get("negative_text") or "").strip()
+            except Exception:
+                style_base_neg = ""
         neg_tokens, seen = [], set()
         for src in (类型句负向, style_base_neg, 负向提示词):
             for tok in (x.strip() for x in re.split(r"[,，\n]", (src or "")) if x.strip()):
@@ -688,11 +732,54 @@ class MyQi21ApiPE:
             headers = {"Content-Type": "application/json"}
             if url.startswith("https://"):
                 headers["Authorization"] = f"Bearer {_cloud_key()}"
+            # 1008 用户令「做」:stream=true 流式读取(SSE)——逐块读+块间查打断
+            # 打断延迟<1秒(旧 urlopen 阻塞最长 600 秒不可打断);附带进度可见
+            pl["stream"] = True
             req = urllib.request.Request(
                 url, data=json.dumps(pl).encode("utf-8"),
                 headers=headers, method="POST")
-            return json.loads(_LAN_OPENER.open(
-                req, timeout=max(10, int(timeout_sec))).read())
+            _check_interrupt()  # 发请求前查打断
+            raw = _LAN_OPENER.open(req, timeout=max(10, int(timeout_sec)))
+            # 1008 兼容:mock/旧 opener 无 readline → 走旧整块 JSON
+            if not hasattr(raw, "readline"):
+                return json.loads(raw.read())
+            # 首行非 data: 开头=非 SSE → 整块 JSON(服务端不支持流式)
+            first_line = raw.readline().decode("utf-8", errors="replace").strip()
+            if not first_line.startswith("data: "):
+                rest = raw.read().decode("utf-8", errors="replace")
+                return json.loads(first_line + rest)
+            content, reasoning = [], []
+            for line_b in raw:
+                line = line_b.decode("utf-8", errors="replace").strip()
+                if not line.startswith("data: "):
+                    continue
+                _check_interrupt()  # 每块查打断(用户取消→<1秒断)
+                data_str = line[6:]
+                if data_str == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                except ValueError:
+                    continue
+                delta = (chunk.get("choices") or [{}])[0].get("delta", {})
+                if delta.get("content"):
+                    content.append(delta["content"])
+                if delta.get("reasoning_content"):
+                    reasoning.append(delta["reasoning_content"])
+            full_text = "".join(content)
+            full_reason = "".join(reasoning)
+            if not full_text and not full_reason:
+                # 流式空(服务端不支持 stream 或出错)→ 回退非流式
+                pl.pop("stream", None)
+                req2 = urllib.request.Request(
+                    url, data=json.dumps(pl).encode("utf-8"),
+                    headers=headers, method="POST")
+                return json.loads(_LAN_OPENER.open(
+                    req2, timeout=max(10, int(timeout_sec))).read())
+            # 流式结果重组为与旧格式同构的 dict
+            return {"choices": [{"message": {
+                "content": full_text,
+                "reasoning_content": full_reason}}]}
 
         t0 = time.time()
         resp = None
@@ -753,6 +840,7 @@ class MyQi21ApiPE:
                            "api_pe_status": [_status]},
                     "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         try:
+            _check_interrupt()  # 1008:LLM 响应后查打断(重试/自检前)
             msg = (resp.get("choices") or [{}])[0].get("message", {})
         except (AttributeError, IndexError):
             msg = {}
@@ -787,6 +875,7 @@ class MyQi21ApiPE:
             # (拒收可见性=节点 print 日志+引擎 history;零新画布口,恒有输出不炸产线)。
             v1 = _self_check(pos_s, neg_tokens, bool(透明模式), subj)
             if v1:
+                _check_interrupt()  # 1008:补发前查打断
                 print(f"[漫影 API扩写PE] 机器自检 {len(v1)} 项违例({';'.join(v1[:6])}"
                       f"{'…' if len(v1) > 6 else ''})——同模型补发一次(零违例才收)")
                 try:
@@ -804,10 +893,12 @@ class MyQi21ApiPE:
                     _r3 = str(_m3.get("reasoning_content") or "")
                     _o3 = _balanced_json(_c3) or _balanced_json(_r3[-4000:])
                     _p3 = _o3.get("rewritten_prompt") if _o3 else None
+                    _check_interrupt()  # 1008:拒收回退前查打断
                     if not (isinstance(_p3, str) and _p3.strip()):
                         print(f"[漫影 API扩写PE] 拒收:重试稿解析失败(无 rewritten_prompt)"
                               f"——模型稿全部拒收,回退装配正稿(direct {len(direct)}字+"
                               f"三源确定性负向 {len(neg_out)}字);引擎 history 可查本行")
+                        print(f"[漫影 API扩写PE] 回退文头100: {direct[:100]!r}")
                         return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:重试解析失败,透传装配正稿"]},
                                 "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -820,6 +911,7 @@ class MyQi21ApiPE:
                               f"——模型稿全部拒收(违例变少不算过),回退装配正稿"
                               f"(direct {len(direct)}字+三源确定性负向 {len(neg_out)}字);"
                               f"引擎 history 可查本行")
+                        print(f"[漫影 API扩写PE] 回退文头100: {direct[:100]!r}")
                         return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:自检违例未清,透传装配正稿"]},
                                 "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -829,12 +921,16 @@ class MyQi21ApiPE:
                     print(f"[漫影 API扩写PE] 拒收:自检补发失败({exc})"
                           f"——模型稿全部拒收,回退装配正稿(direct {len(direct)}字+"
                           f"三源确定性负向 {len(neg_out)}字);引擎 history 可查本行")
+                    print(f"[漫影 API扩写PE] 回退文头100: {direct[:100]!r}")
                     return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
                                    "api_pe_status": ["拒收回退:补发失败,透传装配正稿"]},
                             "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
             print(f"[漫影 API扩写PE] 扩写完成:{len(pos_s)}字,"
                   f"耗时 {time.time() - t0:.0f}s(全上下文:系统提示词/色卡/"
                   f"风格/型底座/外部原文/透明;负向=三源程序构造 {len(neg_out)}字)")
+            # 1008 用户令「不打日志吗?」:终稿前120字入日志(排障用)
+            print(f"[漫影 API扩写PE] 终稿头120: {pos_s[:120]!r}")
+            print(f"[漫影 API扩写PE] 终稿尾60: {pos_s[-60:]!r}")
             _ok = f"AI扩写OK:{served}"
             if cloud_mode and not served.endswith("(云端)"):
                 _ok += "(云端失败→本地回落改写)"

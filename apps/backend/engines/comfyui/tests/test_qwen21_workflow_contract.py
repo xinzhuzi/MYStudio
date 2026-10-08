@@ -326,7 +326,7 @@ PE_PARAMS = [1.0, 0.95, 20, 1.5, 16256, 42]  # [1:7](手改态起尾带 control_
 # (api_url/model/temperature/max_tokens/timeout_sec;教材=qi21_bases.json
 # expand_instruction 节热读,节点内补 /no_think+肯定式纪律;服务不在=透传)
 QI21_PE_CLASS = "MyQi21ApiPE"
-PE_API_PARAMS = ["http://192.168.0.101:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive", 0.7, 12000, 600, "", ""]  # 1007夜 a2af54f2 用户终裁「不用Mac本机接,恒Windows LM Studio 9B」:api_url/model 双值收单值(Mac 127.0.0.1 端点+27B 型号名退役,锚随真源重立);末两位=两只展示框位  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
+PE_API_PARAMS = ["http://192.168.0.101:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive", 0.7, 12000, 600, "关闭", "", ""]  # 1008 全量改造:第6位=thinking_effort 控件值回填快照(1007 bbeeecac 入py未回写,finding 清偿;默认关闭)  # 1007夜 a2af54f2 用户终裁「不用Mac本机接,恒Windows LM Studio 9B」:api_url/model 双值收单值(Mac 127.0.0.1 端点+27B 型号名退役,锚随真源重立);末两位=两只展示框位  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
 
 # PE-I2I(edit 件)契约:0923-r16 换核心(comfy-core TextGenerate+RegexExtract,
 # 去 benjiyaya 依赖;design §13/research/13 官方免插件链照抄;真源=幂等生成器
@@ -2137,10 +2137,10 @@ def _qi21_truth():
         subject = lines[0][len("⟨①:"):-len("⟩")]
         base, color, mid = lines[1], lines[-1], lines[2:-1]
         assert color == PRO_COLOR_MAP[zh], f"{zh} ④配色行与 §一映射表不一致"
-        want_mid_len = 8 if zh in PRO_CHAR_TYPES else 3  # 1007 头发两态句一段拆两段:7→8(随 1d01ff71 库改锚,对齐 my_nodes 版)
+        want_mid_len = 6 if zh in PRO_CHAR_TYPES else 3  # 1008 A+B清偿:删鞋靴/完整性行:7→6
         assert len(mid) == want_mid_len, f"{zh} ③美术风格底座行数 {len(mid)} ≠ {want_mid_len}"
         if zh in PRO_CHAR_TYPES:
-            assert mid[2:7] == b_lines, f"{zh} ③美术风格底座中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
+            assert mid[2:5] == b_lines, f"{zh} ③美术风格底座中段与常量B 不逐字一致"  # 1008 A+B清偿:B块4→3行,切片[2:6]→[2:5]
         constant_text = "\n".join([base] + (b_lines if zh in PRO_CHAR_TYPES else []) + [color])
         types.append((zh, subject, base, constant_text))
     return types, const_a
@@ -2634,10 +2634,10 @@ def _qi21_truth():
         subject = lines[0][len("⟨①:"):-len("⟩")]
         base, color, mid = lines[1], lines[-1], lines[2:-1]
         assert color == PRO_COLOR_MAP[zh], f"{zh} ④配色行与 §一映射表不一致"
-        want_mid_len = 8 if zh in PRO_CHAR_TYPES else 3  # 1007 头发两态句一段拆两段:7→8(随 1d01ff71 库改锚,对齐 my_nodes 版)
+        want_mid_len = 6 if zh in PRO_CHAR_TYPES else 3  # 1008 A+B清偿:删鞋靴/完整性行:7→6
         assert len(mid) == want_mid_len, f"{zh} ③美术风格底座行数 {len(mid)} ≠ {want_mid_len}"
         if zh in PRO_CHAR_TYPES:
-            assert mid[2:7] == b_lines, f"{zh} ③美术风格底座中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
+            assert mid[2:5] == b_lines, f"{zh} ③美术风格底座中段与常量B 不逐字一致"  # 1008 A+B清偿:B块4→3行,切片[2:6]→[2:5]
         constant_text = "\n".join([base] + (b_lines if zh in PRO_CHAR_TYPES else []) + [color])
         types.append((zh, subject, base, constant_text))
     return types, const_a
@@ -3049,8 +3049,8 @@ class TestQi21SubgraphContract:
         neg_link = sg_links[340]
         assert (neg_link["origin_id"], neg_link["origin_slot"],
                 neg_link["target_id"], neg_link["target_slot"]) \
-            == (QI21_SG_BASE_ID, 3, QI21_SG_PE_RW, 6), \
-            "[4010].负面词→[4013].类型句负向 连线应 4010槽3→4013槽6(1006 七轮)"
+            == (QI21_SG_BASE_ID, 3, QI21_SG_PE_RW, 7), \
+            "[4010].负面词→[4013].类型句负向 连线应 4010槽3→4013槽7(1008 底座-负向插槽后移)"
         # 1005 重锚:「透明」面板槽退役——透明覆盖=参数面 widget(link=None,
         # False 钉死;透明唯一来源=[4010] 参数面,经透明值槽3 连线 [4014])
         tmd = node["inputs"][1]
@@ -3068,8 +3068,8 @@ class TestQi21SubgraphContract:
         assert QI21_SG_ASM_ID not in sg_nodes, "[4011] 应已退役(装配内置 [4013])"
         base_link = sg_links[337]
         assert base_link["origin_id"] == QI21_SG_BASE_ID and base_link["target_id"] == QI21_SG_PE_RW \
-            and base_link["target_slot"] == 5, \
-            "[4010].BASE 应直连 [4013].型底座 槽5(1006 七轮一处选型)"
+            and base_link["target_slot"] == 6, \
+            "[4010].BASE 应直连 [4013].型底座 槽6(1008 底座-负向插槽后移;1006 曾槽5)"
         # W/H(1004 重锚):[4010] WIDTH/HEIGHT 原样直通子图 width/height 出口
         # (42/43 线;建议器 [4018] 迁主图后经 [6] 出口回吃,主图侧锚在
         # test_qi21_latent_fed_by_subgraph_width_height)
@@ -3131,15 +3131,15 @@ class TestQi21SubgraphContract:
                 f"qi21_bases.json「{e['zh']}」negative_text 缺基线负面词(模糊/水印)"
         # 美化版锚词抽验(人物型):纯画法骨
         renwu = qi21[0]["positive_text"]
-        for kw in ("细墨线", "提按顿挫", "墨色浓淡分明"):
+        for kw in ("细墨线", "线随结构", "淡墨晕染"):  # 1008 A+B清偿:⑩去双载删「提按顿挫/墨色浓淡分明」(底座已有轻重提按),换存世锚词
             assert kw in renwu, f"qi21_bases.json 人物 positive_text 缺美化版锚词 {kw}"
         for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
             assert bad not in renwu.split("\n")[0], f"人物②层残留物象词 {bad}(纯画法零物象骨)"
         # 1004 数据实况:多彩配色行在文内(拆分后行序=…多彩行+衣物完整性截短句收尾)
         assert any(ln.startswith("人物设色配比") for ln in renwu.split("\n")), \
             "人物 positive_text 应含④配色行(人物多彩…)"
-        assert renwu.split("\n")[-1].startswith("衣物完整性"), \
-            "人物 positive_text 末行应=衣物完整性截短句(1004 正负拆开数据形状)"
+        assert renwu.split("\n")[-1].startswith("人物设色配比"), \
+            "人物 positive_text 末行应=④配色行(1008 A+B清偿:鞋靴/完整性两规则行退役后配色行收尾)"
         # 1004 重锚(design §一 钦定):人物系②层=「主体的单人立绘」开头的纯正向
         # 底座(design.md §一样例「主体的单人立绘…(449字纯正向)」);
         # 旧 0928 底座级透明声明段随统一底座让渡——透明语义现由 [4014] 合成器
@@ -3223,12 +3223,12 @@ class TestQi21SubgraphContract:
         pe = sg_nodes[QI21_SG_PE_RW]
         assert pe["type"] == QI21_PE_CLASS, \
             f"[{QI21_SG_PE_RW}] 应为 {QI21_PE_CLASS}(1006 API版PE换装,类名逐字,子图内)"
-        assert pe["widgets_values"] == PE_API_PARAMS[:5], \
-            f"PE API 参数漂移 {PE_API_PARAMS[:5]},得 {pe['widgets_values']}"
+        assert pe["widgets_values"] == PE_API_PARAMS[:6], \
+            f"PE API 参数漂移 {PE_API_PARAMS[:6]},得 {pe['widgets_values']}"
         # 1006 五轮:AI扩写=装配后终炼(所有提示词经过AI)——装配全文/负面词←[4011] 双出
         # 1006 六轮(问题5/7):[4010] 全五出直连——+画幅宽←.1(338)/画幅高←.2(339)
         # /型负面←.4(340);十二入全 forceInput 纯槽(问题6:带名连线点)
-        want_ins = [("系统提示词", 4030, 0), ("色卡", 4031, 0), ("美术风格底座", 4032, 0),
+        want_ins = [("系统提示词", 4030, 0), ("色卡", 4031, 0), ("美术风格底座-正向", 4032, 0), ("美术风格底座-负向", 4032, 1),
                     ("正向提示词", -10, 0), ("负向提示词", -10, 1),
                     ("类型句正向", 4010, 0), ("类型句负向", 4010, 3),
                     ("画幅宽", 4010, 1), ("画幅高", 4010, 2),
@@ -3605,13 +3605,13 @@ class TestQi21SubgraphContract:
             m = re.search(rf"^### {zh}-基础\s*$", md, re.M)
             fence = re.search(r"```text\n(.*?)\n```", md[m.end():], re.S).group(1)
             lines = fence.split("\n")
-            want_lines = 11 if zh in PRO_CHAR_TYPES else 6  # 1007 头发两态句拆段:10→11
+            want_lines = 9 if zh in PRO_CHAR_TYPES else 6  # 1008 A+B清偿:11→9(双态并一-1,鞋靴/完整性-2)
             assert len(lines) == want_lines, \
                 f"{zh}: 装配全文应 {want_lines} 行(②型底座+③美术风格底座[+增量锁]+④配色行),得 {len(lines)}"
             # 1004:库围栏=设计记录旧全本(数据真源=qi21_bases.json),带随
             # 实测定带 1150-2100(1004 立带 1200-2000;1007 头发两态+否定式清退后下调,现值 1188-1980)
-            assert 1150 <= len(fence) <= 2100, \
-                f"{zh}: 装配全文字符数 {len(fence)} 出带 1150-2100(1004 立带;1007 头发两态+否定式清退两轮后下调)"
+            assert 1100 <= len(fence) <= 2100, \
+                f"{zh}: 装配全文字符数 {len(fence)} 出带 1100-2100(2004 立带;1007/1008 两轮清退后下调)"
             assert lines[0].startswith("⟨①:") and lines[0].endswith("⟩"), f"{zh}: 首行应为 ⟨①:…⟩ 槽"
             assert lines[-1] == PRO_COLOR_MAP[zh], f"{zh}: 末行应为④配色行"
             if lines[1] != canon_pos[zh]:

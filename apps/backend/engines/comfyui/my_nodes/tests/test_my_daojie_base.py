@@ -105,24 +105,24 @@ def test_combo_nine_options_in_json_order_with_pinned_default():
 
 # ── 装配语义(1004 正负拆开):正向=型底座→美术风格底座→主体句三层换行拼装 ──
 def test_run_assembles_base_first_then_subject_verbatim():
+    """1008 用户令「[4010] 应该只有类型句才对」:[4010] 只出型层,不再拼底座+主体句。
+    三层拼装职责归 [4013] PE(subj+base+style),[4010] 是纯型层出口。"""
     renwu = next(e for e in _bases_entries() if e["zh"] == "人物")
-    lock_pos = my_daojie_base._load_art_style_base()["positive"]
     pos, _neg, _aspect, _mp, _base, _w, _h = MyDaojieBase().run(
         "人物", positive="  一位女修士，青年金丹期。 ")
-    # 型底座在前、美术风格底座居中、主体句 strip 后殿后,三层换行拼装
-    # (旧「底座在前零分隔符直拼」口径已随 1004 正负拆开废止留痕)
-    assert pos == "\n".join(
-        [renwu["positive_text"], lock_pos, "一位女修士，青年金丹期。"])
+    assert pos == renwu["positive_text"]  # 纯型层,不含底座/主体句
+    lock_pos = my_daojie_base._load_art_style_base()["positive"]
+    assert lock_pos not in pos  # 底座不在(由 [4032] 供)
+    assert "一位女修士" not in pos  # 主体句不在(由 [400] 供)
 
 
 def test_run_empty_subject_is_identity_pure_base():
+    """1008 同上:[4010] 空主体句=纯型层(不再拼底座)。"""
     scene = next(e for e in _bases_entries() if e["zh"] == "场景")
-    lock_pos = my_daojie_base._load_art_style_base()["positive"]
     pos, neg, aspect, mp, base_out, w_out, h_out = MyDaojieBase().run("场景")
-    assert base_out == "场景"  # 09-19 第五出=型直通
-    assert pos == "\n".join([scene["positive_text"], lock_pos])  # 留空=底座+美术风格底座
-    assert pos.endswith("。")  # 美术风格底座正向句号自足收尾
-    assert aspect == "16:9 (Widescreen)" and mp == 4.2  # 分辨率两出随型
+    assert base_out == "场景"
+    assert pos == scene["positive_text"]  # 纯型层
+    assert aspect == "16:9 (Widescreen)" and mp == 4.2
     pos2, _n2, _a2, _m2, _b2, _w, _h = MyDaojieBase().run("场景", positive=None, negative=None)
     assert pos2 == pos
 
@@ -144,22 +144,15 @@ def test_run_all_options_produce_nonempty_outputs():
         assert mp == (1.0 if name in ("道具", "高清人脸") else 4.2)
 
 
-# ── 负向(1004 正负拆开):美术风格底座+型负面+用户负向三层合并去重 ──
+# ── 负向(1008):[4010] 只出型层负向,不再拼底座负向+用户负向 ──
 def test_run_negative_merges_and_dedupes_tokens():
-    """负向=美术风格底座负面→型负面→用户负向,复用 my_styles._merge_negative 整
-    token 去重(中文基线「，」不切分=整串单 token,跨层整串相等才去重——
-    保守纪律同旧;层序=美术风格底座殿前、用户殿后,旧「用户段在前」口径废止留痕)。"""
-    from engines.comfyui.my_nodes.nodes.my_styles import _merge_negative
+    """1008:[4010] 负向=纯型层 negative_text(三层合并归 [4013] PE)。"""
     renwu = next(e for e in _bases_entries() if e["zh"] == "人物")
-    lock_neg = my_daojie_base._load_art_style_base()["negative"]
     _, neg, _, _, _b, _w, _h = MyDaojieBase().run("人物", negative="text")
-    assert neg == _merge_negative(
-        lock_neg, _merge_negative(renwu["negative_text"], "text"))
-    assert neg.endswith(", text")  # 用户负向殿后
-    # 整 token 去重仍生效:用户重给型负面整串(「，」单 token)只保留一份
-    _, neg2, _, _, _b2, _w, _h = MyDaojieBase().run(
-        "人物", negative=renwu["negative_text"])
-    assert neg2.count(renwu["negative_text"]) == 1
+    assert neg == renwu["negative_text"]  # 纯型层负向
+    lock_neg = my_daojie_base._load_art_style_base()["negative"]
+    assert lock_neg not in neg  # 底座负向不在(由 [4032].1 供)
+    assert "text" not in neg  # 用户负向不在(由 [404] 供)
 
 
 def test_merge_negative_reused_from_my_styles():

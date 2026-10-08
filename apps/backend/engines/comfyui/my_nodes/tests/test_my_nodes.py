@@ -270,18 +270,17 @@ def test_daojie_base_options_and_assembly():
     assert node.RETURN_NAMES == ("positive", "negative", "aspect", "megapixels", "base", "width", "height")
 
     from engines.comfyui.my_nodes.nodes import my_daojie_base
-    from engines.comfyui.my_nodes.nodes.my_styles import _merge_negative
     bases = _json_types(my_daojie_base._BASES_JSON)
     renwu = next(e for e in bases if e["zh"] == "人物")
     lock = my_daojie_base._load_art_style_base()
-    # 1004 正负拆开:正向=型底座→美术风格底座→主体句三层换行拼装(旧零分隔符直拼废止)
+    # 1008 用户令「[4010] 应该只有类型句才对」:只出型层,三层拼装归 [4013] PE
     pos, _neg, _ar, _mp, _base, _w, _h = node.run("人物", positive="一位女修士")
-    assert pos == "\n".join([renwu["positive_text"], lock["positive"], "一位女修士"])
+    assert pos == renwu["positive_text"]  # 纯型层
+    assert lock["positive"] not in pos  # 底座不在
+    assert "一位女修士" not in pos  # 主体句不在
     pos_empty, neg_empty, ar_empty, mp_empty, _b, _w, _h = node.run("人物")
-    assert pos_empty == "\n".join([renwu["positive_text"], lock["positive"]])
-    # 负向=美术风格底座+型负面+用户负向三层合并去重(输出非空,中文负面基线)
-    assert neg_empty == _merge_negative(
-        lock["negative"], _merge_negative(renwu["negative_text"], ""))
+    assert pos_empty == renwu["positive_text"]
+    assert neg_empty == renwu["negative_text"]  # 纯型层负向
     assert (ar_empty, mp_empty) == (renwu["aspect_ratio"], renwu["megapixels"])
 
 
@@ -309,9 +308,11 @@ def test_daojie_base_resolution_outputs_nine_types():
         assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
         expected_mp = 1.0 if entry["zh"] in ("道具", "高清人脸", "自由") else 4.2
         assert megapixels == entry["megapixels"] == expected_mp, entry["zh"]
-        # 留空=型底座+美术风格底座 恒等拼装;负向=美术风格底座+型负面合并(中文基线非空)
-        assert entry["positive_text"] in pos and pos.endswith("。")
-        assert neg and "模糊" in neg
+        # 1008:留空=纯型层(不再拼底座);负向=纯型层负向(中文基线非空)
+        assert pos == entry["positive_text"]
+        if pos:  # 自由型正向=空串,跳过句号检查
+            assert pos.endswith("。")
+        assert neg == entry.get("negative_text", "") or (neg and "模糊" in neg)
 
 
 # ── bridge 传输:令牌头+载荷形状+失败大白话 ───────────────

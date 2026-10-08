@@ -46,3 +46,19 @@ def test_negative_token_format_baseline_1008():
     _assert_clean("art_style_base", data["art_style_base"]["negative_text"])
     for ty in data["types"]:
         _assert_clean(f"types[{ty.get('zh')}]", ty.get("negative_text", ""))
+
+
+def test_type_positive_no_branching_menu_1008():
+    """型正向分支菜单门(1008 双态菜单清退立):
+
+    用户终审定谳:「有头发时…/光头时…均可」=让生成模型做选择题——条件分支两态
+    词汇都被编码器激活(光头词给每个有发角色每发注入),「均可」=发型决定权让渡
+    给骰子。发型/光头唯一落点=主体句身份段(07宪法§三);型层只许无条件画法锁。
+    """
+    data = json.loads(my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
+    for ty in data["types"]:
+        pos = ty.get("positive_text", "")
+        for marker in ("均可", "皆可", "时："):
+            assert marker not in pos, \
+                f"types[{ty.get('zh')}] 正向含分支/菜单标记 {marker!r}" \
+                "(状态选择归主体句,型层禁菜单——1008 双态菜单清退)"

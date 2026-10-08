@@ -32,9 +32,9 @@ def test_shape_matches_upstream_five_ports():
     # 1006 批C 七路直连:九入序=系统提示词/色卡/美术风格底座/型底座/正向提示词/
     # 负向提示词/透明模式(与两 json [4013] inputs 槽序互锁;型底座←[4010].0/
     # 正向←边界 -10.0/负向←边界 -10.2 三外部原文参考路)
-    assert list(opt) == ["系统提示词", "色卡", "美术风格底座", "正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高", "透明模式"], \
+    assert list(opt) == ["系统提示词", "色卡", "美术风格底座-正向", "美术风格底座-负向", "正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高", "透明模式"], \
         f"optional 槽序漂移(1006 十轮十槽),得 {list(opt)}"
-    for k in ("系统提示词", "色卡", "美术风格底座", "类型句正向", "正向提示词", "负向提示词", "类型句负向"):
+    for k in ("系统提示词", "色卡", "美术风格底座-正向", "美术风格底座-负向", "类型句正向", "正向提示词", "负向提示词", "类型句负向"):
         assert opt[k][0] == "STRING" and opt[k][1].get("forceInput") is True, \
             f"{k} 应 forceInput 纯槽(1006 六轮:带名连线点)"
     assert opt["透明模式"][0] == "BOOLEAN" and opt["透明模式"][1].get("forceInput") is True
@@ -46,7 +46,7 @@ def test_passthrough_when_service_unreachable():
     """LM Studio 不可达→透传 {ui, result}=PE关同效不炸产线(1006 四轮双载荷)。"""
     node = api_pe.MyQi21ApiPE()
     got = node.rewrite(正向提示词="测试主体句原样透传", 类型句正向="BASE层",
-                       美术风格底座=None, 色卡=None, 类型句负向="模糊", api_url="http://127.0.0.1:9",
+                       **{"美术风格底座-正向": None, "美术风格底座-负向": None}, 色卡=None, 类型句负向="模糊", api_url="http://127.0.0.1:9",
                        model="x", temperature=0.7, max_tokens=256, timeout_sec=10)
     pos, neg = got["result"][0], got["result"][1]
     assert pos.startswith("测试主体句原样透传\nBASE层\n风格底座"), \
@@ -101,8 +101,10 @@ def test_full_context_assembly_1006r2():
     import inspect
     sig = inspect.signature(node.rewrite)
     for k in ("正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高",
-              "透明模式", "系统提示词", "色卡", "美术风格底座"):
+              "透明模式", "系统提示词", "色卡"):
         assert k in sig.parameters, f"{k} 须进签名(七轮十入,装配内置)"
+    # 1008 底座双槽(连字符键不能作形参)走 **kw 通路
+    assert any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values()), "底座双槽连字符键须 **kw 通路"
 
 
 def test_chat_url_suffix_rules_1007():

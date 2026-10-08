@@ -150,7 +150,7 @@ def test_base_text_verbatim_from_lib_for_all_nine():
         assert base_text == entry["positive_text"], zh
         assert neg_text == entry["negative_text"], zh  # 型负面出口(案B:去死数据)
         lines = base_text.split("\n")
-        assert len(lines) == (8 if zh in RENWU_XI else 2), zh  # 1007 头发两态句拆两段:7→8
+        assert len(lines) == (5 if zh in RENWU_XI else 2), zh  # 1008 A+B清偿:删鞋靴/完整性两行:7→5
         assert lines[0].endswith("。")  # ②层美化版底座句号自足收尾
         # ①槽与美术风格底座常量 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
         assert not base_text.startswith("⟨①:")
@@ -270,7 +270,7 @@ def test_data_file_schema():
             continue
         assert bt  # 九型底座文本非空
         # 1004 增衣物完整性锁:人物系 7 行(②+锁B四行+④+完整性),非人物系 2 行
-        assert len(bt.split("\n")) == (8 if zh in RENWU_XI else 2), zh  # 1007 头发两态句拆段
+        assert len(bt.split("\n")) == (5 if zh in RENWU_XI else 2), zh  # 1008 A+B清偿:7→5
         assert e["aspect_ratio"] in ASPECTS, (zh, e["aspect_ratio"])  # 官方枚举串
         mp = e["megapixels"]
         assert (isinstance(mp, (int, float)) and not isinstance(mp, bool)

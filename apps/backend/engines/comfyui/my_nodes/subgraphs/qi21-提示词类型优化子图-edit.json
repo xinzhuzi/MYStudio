@@ -25,22 +25,22 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 3
+          "link": null
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 4
+          "link": null
         },
         {
           "name": "image_1",
           "type": "IMAGE",
-          "link": 9
+          "link": null
         },
         {
           "name": "image_2",
           "type": "IMAGE",
-          "link": 10
+          "link": null
         },
         {
           "name": "指令",
@@ -48,7 +48,7 @@
           "widget": {
             "name": "指令"
           },
-          "link": 15
+          "link": null
         },
         {
           "name": "PE启用?",
@@ -63,30 +63,22 @@
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "links": [
-            68
-          ]
+          "links": []
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "links": [
-            8
-          ]
+          "links": []
         },
         {
           "name": "latent",
           "type": "LATENT",
-          "links": [
-            23
-          ]
+          "links": []
         },
         {
           "name": "positive_single",
           "type": "CONDITIONING",
-          "links": [
-            69
-          ]
+          "links": []
         }
       ],
       "widgets_values": [

@@ -162,30 +162,52 @@ class MyQi21BasesText:
 
 
 # ── 1006 九轮:三专用类(零控件零下拉,节点即出口;用户令「选择的控件不需要」)──
-def _make_section_node(section: str, display: str):
-    """造一个零控件真源出口类:无 INPUT_TYPES(无 widget/无下拉),仅一口 STRING 出。"""
+def _make_section_node(section: str, display: str, negative: bool = False):
+    """造一个零控件真源出口类:无 INPUT_TYPES(无 widget/无下拉),仅一口 STRING 出。
+
+    negative=True(1008 用户令「美术风格底座为什么没有展示负提示词」):加第二
+    展示框「负向词表」(optional multiline,JS 按名回填 ui.bases_text_negative)
+    ——照 [401] 正负双框同构(py-DOM 显示位,OPTIMIZATION 布局④ 1b 在案路径)。
+    """
     class _SectionNode:
         CATEGORY = "漫影"
         DESCRIPTION = f"{display}:qi21_bases.json 热读只读出口(零控件,节点即管道)"
 
         @classmethod
         def INPUT_TYPES(cls):
-            return {"required": {}, "optional": {
+            optional = {
                 "内容": ("STRING", {"multiline": True,
                                     "tooltip": f"{display}全文展示(JS 回填;预填=部署时快照"}),
-            }}
+            }
+            if negative:
+                optional["负向词表"] = ("STRING", {
+                    "multiline": True, "default": "",
+                    "tooltip": "负向词表展示框(执行后 JS 自动回填真源负向,无需手填/连线)"})
+            return {"required": {}, "optional": optional}
 
-        RETURN_TYPES = ("STRING",)
-        RETURN_NAMES = ("文本",)
+        # 1008 用户令:[4032] 出双口(正向「文本」+负向「负向词表」),供 [4013]
+        # 双槽接线(美术风格底座-正向/-负向);negative=False 类仍单口
+        if negative:
+            RETURN_TYPES = ("STRING", "STRING")
+            RETURN_NAMES = ("文本", "负向词表")
+        else:
+            RETURN_TYPES = ("STRING",)
+            RETURN_NAMES = ("文本",)
         FUNCTION = "output"
         OUTPUT_NODE = True
 
-        def output(self, 内容: str = ""):
-            _ = 内容  # 展示框值不参与计算(JS 回填/预填快照)
+        def output(self, 内容: str = "", 负向词表: str = ""):
+            _ = 内容, 负向词表  # 展示框值不参与计算(JS 回填/预填快照)
             text = _section_text(section)
             if not text:
                 print(f"[漫影 {display}] 「{section}」节为空——请检查 qi21_bases.json")
-            return {"ui": {"bases_text": [text]}, "result": (text,)}
+            ui = {"bases_text": [text]}
+            neg = ""
+            if negative:
+                raw = (_load_data().get("art_style_base") or {}).get("negative_text")
+                neg = str(raw).strip() if isinstance(raw, str) else ""
+                ui["bases_text_negative"] = [neg]
+            return {"ui": ui, "result": ((text,) if not negative else (text, neg))}
 
     _SectionNode.__name__ = f"MyQi21{section.replace(' ', '')}"
     _SectionNode.__qualname__ = _SectionNode.__name__
@@ -194,4 +216,4 @@ def _make_section_node(section: str, display: str):
 
 MyQi21系统提示词 = _make_section_node("系统提示词", "系统提示词")
 MyQi21色卡 = _make_section_node("色卡", "色卡")
-MyQi21美术风格底座 = _make_section_node("美术风格底座", "美术风格底座")
+MyQi21美术风格底座 = _make_section_node("美术风格底座", "美术风格底座", negative=True)

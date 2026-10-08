@@ -306,14 +306,12 @@ class MyDaojieBase:
         width, height = _width_height_of(base, entry, aspect, megapixels)
         user_positive = (positive or "").strip()
         user_negative = (negative or "").strip()
-        # 1004 正负拆开+集中地令:正向=型底座正向+美术风格底座正向+主体句;负向=型负面词+美术风格底座负面词+用户负向(合并去重)
-        lock = _load_art_style_base()
-        lock_pos = lock["positive"]
-        lock_neg = lock["negative"]
-        # 正向三层拼装:型底座 → 美术风格底座 → 主体句(各层换行分隔)
-        parts = [p for p in (base_positive, lock_pos, user_positive) if p.strip()]
-        out_positive = "\n".join(parts)
-        # 负向三层合并:型负面词+美术风格底座负面词+用户负向(顶层逗号去重)
-        out_negative = _merge_negative(lock_neg, _merge_negative(base_negative, user_negative))
+        # 1008 用户令「[4010] 应该只有类型句才对」:
+        # 底座由 [4032] 独立供给、主体句由 [400] 直连 [4013]——[4010] 只出型层
+        # 原三层拼装(base+lock+user)退役:PE [4013] 已内置三层拼装,双重拼=底座双载
+        # user_positive/user_negative 仍收(兼容旧连线),但在当前工作流中恒空
+        _ = user_positive, user_negative, _load_art_style_base  # 保持引用不断
+        out_positive = base_positive
+        out_negative = base_negative
         return (out_positive, out_negative,
                 aspect, megapixels, base, width, height)

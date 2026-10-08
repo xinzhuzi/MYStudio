@@ -98,8 +98,22 @@ app.registerExtension({
 // 1006 批A:MyQi21BasesText(真源文本)节点上一只只读多行展示框「内容」——
 // onExecuted 把 ui.bases_text(双形态载荷:直挂或 output 内挂,同上兼容)落框;
 // 载荷缺位不清框(Q4 决议:会话内不丢)
+// 1008 用户令「美术风格底座为什么没有展示负提示词」:[4032] 加「负向词表」框
+// (ui.bases_text_negative 分键按名落框,同构 [401] 双框;钉只读+占位+钉高)。
 app.registerExtension({
     name: "MY.qi21_bases_text_display",
+    async nodeCreated(node) {
+        if (node.comfyClass !== "MyQi21美术风格底座") return;
+        const w = (node.widgets || []).find((x) => x.name === "负向词表");
+        if (!w) return;
+        const el = w.inputEl ?? w.element;
+        if (!el) return;
+        el.readOnly = true;
+        el.spellcheck = false;
+        el.placeholder = "跑一发后此处显示真源负向词表";
+        el.style.minHeight = "110px";
+        el.style.overflow = "auto";
+    },
     async beforeRegisterNodeDef(nodeType, nodeData) {
         if (!["MyQi21BasesText","MyQi21系统提示词","MyQi21色卡","MyQi21美术风格底座"].includes(nodeData.name)) return;
         const onExecuted = nodeType.prototype.onExecuted;
@@ -108,10 +122,25 @@ app.registerExtension({
             const payload = message && (message.output || message);
             const arr = payload && payload.bases_text ? payload.bases_text
                 : message && message.bases_text ? message.bases_text : null;
-            if (!arr) return;
-            const w = (this.widgets || []).find((x) => x.name === "内容");
-            if (!w) return;
-            w.value = String(arr[0] ?? "");
+            if (arr) {
+                const w = (this.widgets || []).find((x) => x.name === "内容");
+                if (w) w.value = String(arr[0] ?? "");
+            }
+            // 1008:[4032] 负向词表分键落框(双形态兼容,缺位不清框同 Q4)
+            const negArr = payload && payload.bases_text_negative ? payload.bases_text_negative
+                : message && message.bases_text_negative ? message.bases_text_negative : null;
+            if (negArr) {
+                const nw = (this.widgets || []).find((x) => x.name === "负向词表");
+                if (nw) {
+                    const text = String(negArr[0] ?? "");
+                    nw.value = text;
+                    const el = nw.inputEl || nw.element;
+                    if (el && el.value !== undefined) {
+                        el.value = text;
+                        el.dispatchEvent(new Event("input", { bubbles: true }));
+                    }
+                }
+            }
         };
     },
 });
