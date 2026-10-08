@@ -311,6 +311,33 @@ def _context_materials() -> tuple[str, str]:
     return style, colors
 
 
+def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
+    """透明路回退极简公式(1008 R3九型实弹定谳):头英句+主体句+该型rgba_positive+尾英句。
+
+    依据:富装配17句画背景命令以6.7~8.3:1兵力比淹没透明指令(道具全透
+    4.98%/多视图·高清人脸·表情差分0.00%,同seed四连逐字节复现;0927d
+    剂量-响应同构)。配方=0927d探针实测定谳(英文公式短文直塞90.34%透明;
+    专用件 qwen21-daotu-rgba-t2i 同款),头尾取 rgba 真源节热读;
+    rgba_positive=该型透明路格式锁(纯框架零绘画词),按型文逐字匹配取用。
+    """
+    rgba = (_load_bases_node().get("rgba") or {})
+    head = str(rgba.get("head_en") or "").strip() or \
+        "This is an RGBA format image with transparency."
+    tail = str(rgba.get("tail_en") or "").strip() or \
+        "The image has an alpha channel and a transparent background."
+    body = (subj or "").strip()
+    extra = ""
+    if (type_pos or "").strip():
+        for t in (_load_bases_node().get("types") or []):
+            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
+                extra = str(t.get("rgba_positive") or "").strip()
+                break
+    parts = [p for p in (body, extra) if p]
+    if not parts:
+        parts = ["A single game asset, clean flat cutout, centered, isolated on a transparent background."]
+    return f"{head} {' '.join(parts)} {tail}"
+
+
 def _hot_fallbacks() -> tuple[str, str, str]:
     """(教材, 色卡, 风格底座) 真源热读兜底(连线缺位时用;mtime 缓存)。"""
     style, colors = _context_materials()
@@ -693,6 +720,13 @@ class MyQi21ApiPE:
         # 程序合并·去重·清洗(neg_out),模型返回负向键一律忽略,首稿/重试/拒收
         # 回退/透传全路径同值(确定性)。
         neg_out = _sanitize_negative(", ".join(neg_tokens))
+        # 1008 透明极简回退(R3九型实弹定谳):富装配17句画背景命令以6.7~8.3:1
+        # 兵力比淹没透明指令(道具全透4.98%/三型0.00%,同seed四连逐字节复现;
+        # 0927d剂量-响应同构)——透明开时,PE失败/拒收/解析失败的一切回退稿
+        # 不再放行富装配,改走极简公式(head_en+主体句+tail_en;0927d实测
+        # 90.34%透明,专用件qwen21-daotu-rgba-t2i同款)。PE成功稿不受影响
+        # (自带环境句剥离+六检+教材透明逻辑);[4014]中文包裹照旧叠加。
+        fallback_pos = _rgba_lean_pos(subj, base) if 透明模式 else direct
         ctx = ["--- 画面上下文(色卡用词与画风基调参考) ---"]
         if style:
             ctx.append("[正稿结构] 主体句\n型底座\n美术风格底座 三层(基底即上文)")
@@ -838,9 +872,9 @@ class MyQi21ApiPE:
                 print(f"[漫影 API扩写PE] 全部 {len(urls)} 个 LM Studio 均不可达({_why})——"
                       f"本发透传自装配三层(恒有输出);请检查 LM Studio 服务")
                 _status = "透传:LM Studio 均不可达"
-            return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
+            return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                            "api_pe_status": [_status]},
-                    "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+                    "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         try:
             _check_interrupt()  # 1008:LLM 响应后查打断(重试/自检前)
             msg = (resp.get("choices") or [{}])[0].get("message", {})
@@ -864,7 +898,17 @@ class MyQi21ApiPE:
                     content, msg = msg2["content"], msg2
             except Exception as exc:
                 print(f"[漫影 API扩写PE] 重试失败({exc})——走思考链剥离兜底")
-        obj = _balanced_json(content) or _balanced_json(reasoning[-4000:])
+        obj = None
+        _raw = content.strip()
+        # 1008 画布实弹加固(9B格式抖动两例在案:丢开括号/带markdown围栏):
+        # 剥代码围栏;有 rewritten_prompt 键但缺开括号时补 { ——只修边不修义。
+        if _raw.startswith("```"):
+            _raw = _raw.strip("`").strip()
+            if _raw.startswith("json"):
+                _raw = _raw[4:].strip()
+        if '"rewritten_prompt"' in _raw and not _raw.lstrip().startswith("{"):
+            _raw = "{" + _raw.lstrip()
+        obj = _balanced_json(_raw) or _balanced_json(reasoning[-4000:])
         pos = obj.get("rewritten_prompt") if obj else None
         if isinstance(pos, str) and pos.strip():
             # 模型负向键(negative_prompt)一律不采信(1008 解耦):终稿负向恒=neg_out
@@ -898,12 +942,12 @@ class MyQi21ApiPE:
                     _check_interrupt()  # 1008:拒收回退前查打断
                     if not (isinstance(_p3, str) and _p3.strip()):
                         print(f"[漫影 API扩写PE] 拒收:重试稿解析失败(无 rewritten_prompt)"
-                              f"——模型稿全部拒收,回退装配正稿(direct {len(direct)}字+"
+                              f"——模型稿全部拒收,回退装配正稿(fallback_pos {len(fallback_pos)}字+"
                               f"三源确定性负向 {len(neg_out)}字);引擎 history 可查本行")
-                        print(f"[漫影 API扩写PE] 回退文头100: {direct[:100]!r}")
-                        return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
+                        print(f"[漫影 API扩写PE] 回退文头100: {fallback_pos[:100]!r}")
+                        return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:重试解析失败,透传装配正稿"]},
-                                "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+                                "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
                     _p3s = _strip_env_parens(_strip_env_sentences(
                         _p3.strip(), subj)) if 透明模式 else _p3.strip()
                     v2 = _self_check(_p3s, neg_tokens, bool(透明模式), subj)
@@ -911,22 +955,22 @@ class MyQi21ApiPE:
                         print(f"[漫影 API扩写PE] 拒收:重试稿仍有 {len(v2)} 项违例"
                               f"({';'.join(v2[:6])};首稿违例={';'.join(v1[:6])})"
                               f"——模型稿全部拒收(违例变少不算过),回退装配正稿"
-                              f"(direct {len(direct)}字+三源确定性负向 {len(neg_out)}字);"
+                              f"(fallback_pos {len(fallback_pos)}字+三源确定性负向 {len(neg_out)}字);"
                               f"引擎 history 可查本行")
-                        print(f"[漫影 API扩写PE] 回退文头100: {direct[:100]!r}")
-                        return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
+                        print(f"[漫影 API扩写PE] 回退文头100: {fallback_pos[:100]!r}")
+                        return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:自检违例未清,透传装配正稿"]},
-                                "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+                                "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
                     print(f"[漫影 API扩写PE] 自检重试零违例({len(v1)}→0)——取第二稿")
                     pos_s = _p3s
                 except Exception as exc:
                     print(f"[漫影 API扩写PE] 拒收:自检补发失败({exc})"
-                          f"——模型稿全部拒收,回退装配正稿(direct {len(direct)}字+"
+                          f"——模型稿全部拒收,回退装配正稿(fallback_pos {len(fallback_pos)}字+"
                           f"三源确定性负向 {len(neg_out)}字);引擎 history 可查本行")
-                    print(f"[漫影 API扩写PE] 回退文头100: {direct[:100]!r}")
-                    return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
+                    print(f"[漫影 API扩写PE] 回退文头100: {fallback_pos[:100]!r}")
+                    return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                    "api_pe_status": ["拒收回退:补发失败,透传装配正稿"]},
-                            "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+                            "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
             print(f"[漫影 API扩写PE] 扩写完成:{len(pos_s)}字,"
                   f"耗时 {time.time() - t0:.0f}s(全上下文:系统提示词/色卡/"
                   f"风格/型底座/外部原文/透明;负向=三源程序构造 {len(neg_out)}字)")
@@ -941,9 +985,9 @@ class MyQi21ApiPE:
                     "result": (pos_s, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         print(f"[漫影 API扩写PE] 答文无 rewritten_prompt(解析失败)——透传原文;"
               f"正文{len(content)}字/思考{len(reasoning)}字,正文头200:{content[:200]!r}")
-        return {"ui": {"api_pe_pos": [direct], "api_pe_neg": [neg_out],
+        return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                        "api_pe_status": ["透传:答文解析失败"]},
-                "result": (direct, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+                "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
 
 
 _register_key_route()
