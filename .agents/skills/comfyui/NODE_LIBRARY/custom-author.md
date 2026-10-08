@@ -128,7 +128,7 @@ removed entirely in the 1008 cleanup; history in git).
 - **category:** `my` | **purpose:** the single-source assembly text: 装配全文 = 主体句 + "\n" + BASE + "\n" + 锁层A全文. Replaced concat pair [130][131] + lock constant [110].
 - **inputs:** required `主体句` (STRING multiline, default = the workflow's [24] example), `锁层A全文` (STRING multiline, default = the former [110] constant verbatim); optional `BASE` (STRING ← MyQi21DaojieBase.BASE).
 - **outputs:** `装配全文` (STRING, the ONLY output) — dual-fed to `[140].prompt` (the PE rewriter's input; killed the dead seed-text bypass) and to MyQi21PromptSelect.装配全文.
-- **gotchas:** BASE unconnected (None) = silent degrade to 主体句+锁层A two-segment text + a Chinese console warning — the queue does NOT fail, so check logs if the base layer looks missing. Changing the defaults must go through the 05-library "refresh-from-library" pass (sha256 anchors in source).
+- **gotchas:** BASE unconnected (None) = silent degrade to 主体句+美术风格底座 two-segment text + a Chinese console warning — the queue does NOT fail, so check logs if the base layer looks missing. Changing the defaults must go through the 05-library "refresh-from-library" pass (sha256 anchors in source).
 - **placement:** upstream of the PE rewriter in the qi21 assembly subgraph; harmless standalone (example-text default).
 
 ### MyQi21PromptSelect  (display: "道劫·qi21最终文本合成器")

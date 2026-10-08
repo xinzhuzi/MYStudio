@@ -2,7 +2,7 @@
 1001 i2i/edit 批随多目标化更新)。
 
 锁两件事:
-  ① RGBA 头/尾句提取与锁层A/W1 同款严格唯一——§六 0927 条⑥ 窗口内多重命中/
+  ① RGBA 头/尾句提取与美术风格底座/W1 同款严格唯一——§六 0927 条⑥ 窗口内多重命中/
      未命中即中文报错拒刷(兑现 docstring「提取未命中/多重命中→中文报错 exit 2,
      fail-closed 绝不猜」承诺;旧 re.search 首命中静默取一,违背承诺);
   ② fail-closed 退出码统一 exit 2(旧 raise SystemExit(中文串) 实测退 1,
@@ -30,7 +30,7 @@ SCRIPT = Path(__file__).resolve().parent / "qi21_blueprint_sync_1001.py"
 HEAD = "This is an RGBA format image with transparency."
 TAIL = "The image has an alpha channel and a transparent background."
 W1 = "The subject reads the quiet surface of the river."
-LOCK_A = "LOCK-A-BODY 锁层A正文"
+LOCK_A = "LOCK-A-BODY 美术风格底座正文"
 
 GOOD_LIB = (
     "# 05 库(测试夹具)\n"

@@ -29,7 +29,7 @@ def test_three_sections_hotread():
     assert "项目色卡全库" not in 教材, "色库数据已迁[4031],教材不得内嵌(1007 用户令)"
     assert "42色" in 色卡 or "42 色" in 色卡, "色卡应含42色全库"
     assert "★在用" in 色卡 and "hex=" in 色卡 and "五职责" in 色卡, "色卡应在用标记+hex+五职责"
-    assert len(风格) > 300, "风格底座应锁层A全文量级"
+    assert len(风格) > 300, "风格底座应=美术风格底座全文量级"
 
 
 def test_unknown_section_falls_back_and_registered():

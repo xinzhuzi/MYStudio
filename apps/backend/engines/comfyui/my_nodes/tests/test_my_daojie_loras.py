@@ -29,7 +29,8 @@ def test_loras_json_nine_types_match_bases_exactly():
     daojie_bases.json 退役),自由型=Q2.1 十档末位不驱动 K2 按型 LoRA,排除。"""
     bases = json.loads(my_daojie_base._BASES_JSON.read_text(encoding="utf-8"))
     nine = [e for e in bases["types"] if e["zh"] != "自由"]
-    assert [e["key"] for e in _entries()] == [e["key"] for e in nine]
+    # 1008 R 批:qi21_bases.json types[].key 冗余双键删除(选型唯一键=zh),
+    # 本对账改单比 zh(序=型序,旧 key≡zh 同值,对账强度不降)
     assert [e["zh"] for e in _entries()] == [e["zh"] for e in nine]
 
 

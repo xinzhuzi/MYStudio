@@ -129,7 +129,7 @@ NODE_CLASS_MAPPINGS = {
     "MyQi21DaojieBase": MyQi21DaojieBase,  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
     "MyQi21SpeedSelect": MyQi21SpeedSelect,  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
     "MyQi21RgbaSelect": MyQi21RgbaSelect,  # 0929 D6 三态选择;1001 ① 文案轮:自动/true/false
-    "MyQi21PromptAssembly": MyQi21PromptAssembly,  # 1001 S8 R7 集成(裁定A拆件):装配全文=主体句+BASE+锁层A,单口真源
+    "MyQi21PromptAssembly": MyQi21PromptAssembly,  # 1001 S8 R7 集成(裁定A拆件):装配全文=主体句+BASE+美术风格底座,单口真源
     "MyQi21PromptSelect": MyQi21PromptSelect,  # 1001 S8 R7 集成(裁定A拆件):最终文本=pe开关选路+透明文本包裹(链下游,破 lazy 环);1005 ㊄ 起只服务 i2i/edit 老架构
     "MyQi21FinalOutput": MyQi21FinalOutput,  # 1005 ㊄ 拆双类:t2i 新管线专用最终输出(零PE槽,透明包裹+双口输出,RGBA三固定句JSON热读)
     "MyQi21SubjectSelect": MyQi21SubjectSelect,  # 1005 ㉜ 管线重序:主体句过PE后拼型/底座(pe开选PE扩写文;懒门兼负面透传)

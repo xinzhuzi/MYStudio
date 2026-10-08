@@ -17,9 +17,9 @@ qi21_bases.json rgba 节热读中文化;词族剥离双语化(英文词族+中�
 画幅服从性指令,词族整句删会误伤逗号清单式负面词)。
 
 1005 案B Phase I(design §8.1 ③,负面断路修复):pe开路负向一行对调=
-「直写优先」——负面词直写(=装配器 merge(型负面,锁层负面) 真值)非空
+「直写优先」——负面词直写(=装配器 merge(型负面,美术风格底座负面) 真值)非空
 恒胜,PE负面 仅空档兜底。修前断路:PE 编造词(~6 条通用词)非空恒胜,
-锁层 26+型 36 条真负面被顶掉(实弹 1/2-negative.txt 证实)。
+美术风格底座 26+型 36 条真负面被顶掉(实弹 1/2-negative.txt 证实)。
 
 裁定 A 拆件缘起(在档):一件式三口形态下「装配全文→[140].prompt」与
 「[140].positive_prompt→装配器.PE出文」构成数据环,引擎验证层实测拒绝
@@ -89,10 +89,10 @@ graph.py:169-170;10-04 扩双懒槽):
   - pe开而 PE出文 未接线=合成中文报错(不猜不代选);PE负面 未接线/为空
     不报错=直写优先直接吃负面词直写(1005 案B:PE负面=空档兜底,⑮ 对调)。
 
-数据热读(10-04 集中地令:qi21_bases.json 一处持有 lock_layer/rgba/
+数据热读(10-04 集中地令:qi21_bases.json 一处持有 art_style_base/rgba/
 expand_instruction/strip_lexicon/types;本件消费 rgba+strip_lexicon 两节):
   - _load_rgba(key)/_load_strip_lexicon() 走 _load_bases_data() 整文件
-    mtime 缓存(my_daojie_base._load_lock_layer 同款模式)——热改文件=
+    mtime 缓存(my_daojie_base._load_art_style_base 同款模式)——热改文件=
     mtime 变=下次现读;节结构校验每次调用现跑,校验失败不写坏值进缓存
     (与旧 L-3「坏 dict 钉死缓存」根除项等价,修文件即自愈);
   - import 时刻 _RGBA_HEAD/_RGBA_TAIL/_TAIL 求值一次(widget default 面
@@ -157,7 +157,7 @@ def _daojie_data(fn: str) -> Path:
 
 _BASES_JSON = _daojie_data("qi21_bases.json")
 
-# 整文件解析缓存(mtime 失效,同 my_daojie_base._load_lock_layer 模式):
+# 整文件解析缓存(mtime 失效,同 my_daojie_base._load_art_style_base 模式):
 # 缓存 json.loads 原文解析结果且以 mtime 为键——热改文件=mtime 变=现读重扫;
 # 节结构校验(_load_rgba/_load_strip_lexicon)每次调用现跑,失败不写缓存。
 _bases_cache: dict = {"mtime": None, "data": None}
@@ -185,7 +185,7 @@ def _load_bases_data() -> dict:
     if not isinstance(data, dict):
         raise RuntimeError(
             "qi21 数据库结构不合法:my_nodes/nodes/qi21_bases.json 顶层应为"
-            "对象(lock_layer/rgba/expand_instruction/strip_lexicon/types)"
+            "对象(art_style_base/rgba/expand_instruction/strip_lexicon/types)"
             "——请重新同步自研节点,或重启漫影工作室")
     cache["mtime"], cache["data"] = mtime, data
     return data
@@ -409,13 +409,13 @@ class MyQi21PromptSelect:
                     "positive_prompt 出文——请把 [140] 出文连到本节点 PE出文 "
                     "输入,或把 pe开关 关掉走直写路")
             # pe开路:正向正文=PE出文;透明 mid=剥离(PE出文)+W1(拼接序=原形逐字);
-            # 负向=1005 案B 直写优先——负面词直写(型+锁层真值)非空恒胜,
+            # 负向=1005 案B 直写优先——负面词直写(型+美术风格底座真值)非空恒胜,
             # PE负面 仅空档兜底(修 PE 编造词顶掉真负面断路;⑮ 对调)
             main_text = PE出文
-            # 1005 ㉜ 重序修复:PE出文=装配全文(PE扩写主体句\n型底座\n锁层A)
-            # 剥离只作用于第一段(PE 扩写段),中文型底座/锁层A 段禁过剥离
+            # 1005 ㉜ 重序修复:PE出文=装配全文(PE扩写主体句\n型底座\n美术风格底座)
+            # 剥离只作用于第一段(PE 扩写段),中文型底座/美术风格底座 段禁过剥离
             # (旧管线 PE出文=纯英文长文可整段剥;新管线中文层含画风定义句,
-            #  zh 词族"山水/远景"会误删锁层A 核心句——深度审查 HIGH-2 实锤)
+            #  zh 词族"山水/远景"会误删美术风格底座 核心句——深度审查 HIGH-2 实锤)
             _parts = PE出文.split("\n", 1)
             _stripped_subject = strip_word_family(_parts[0])
             _kept_layers = _parts[1] if len(_parts) > 1 else ""

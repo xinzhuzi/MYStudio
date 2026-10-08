@@ -52,7 +52,7 @@ def test_passthrough_when_service_unreachable():
     assert pos.startswith("测试主体句原样透传\nBASE层\n风格底座"), \
         f"不可达应输出自装配三层正稿(恒有输出),得头40={pos[:40]!r}"
     assert "模糊" in neg and "水印" in neg, \
-        f"降级负向=型负面+锁层负面+外部负向 三源合并,得头60={neg[:60]!r}"
+        f"降级负向=型负面+美术风格底座负面+外部负向 三源合并,得头60={neg[:60]!r}"
     assert got["ui"]["api_pe_pos"][0] == pos and got["ui"]["api_pe_neg"][0] == neg, \
         "ui 载荷须与 result 同文(JS 展示框回填源)"
 
@@ -67,10 +67,15 @@ def test_balanced_json_strips_noise():
 def test_system_prompt_hotread_with_patches():
     """教材热读:真源在场时含中文教材标记。
     1007 起 /no_think 尾巴退役(五探实弹:文本软开关被 aggressive finetune 无视;
-    思考控制改走顶层 reasoning_effort,接线见 thinking_effort 档位)。"""
+    思考控制改走顶层 reasoning_effort,接线见 thinking_effort 档位)。
+    1008 S2 终裁:教材不再载负向职责——negative_prompt/负面清单引用彻底移除,
+    输出契约收敛单键 rewritten_prompt(负向键存在则忽略)。"""
     text = api_pe._build_system(None, None)
     assert not text.rstrip().endswith("/no_think"), "/no_think 已退役(1007)"
-    assert "八步工作法" in text and "negative_prompt" in text
+    assert "八步工作法" in text and "rewritten_prompt" in text
+    assert "negative_prompt" not in text, "教材不得再载负向职责/负面清单引用(1008 终裁)"
+    assert "负面清单生成" not in text, "负面清单生成节已删(模型输入已无负面清单)"
+    assert "300-800字" in text and "软参考" in text, "字数=软参考(1008 方案②,非硬线)"
     assert "色卡全库" in text and "透明模式" in text and "冲突裁决" in text and "八步工作法" in text, \
         "十一轮合并教材=原文八步+色卡42色+透明+裁决序"
 
@@ -92,7 +97,7 @@ def test_full_context_assembly_1006r2():
     assert "八步工作法" in text, "JSON 输出铁律必须在(结构化解析)"
     assert "色卡" in text, "色卡块必须进系统提示(词表+落点纪律)"
     style, colors = api_pe._context_materials()
-    assert len(style) > 300 and "淡墨" in colors, "lock_layer 与 color_lexicon 热读在场"
+    assert len(style) > 300 and "淡墨" in colors, "art_style_base 与 color_lexicon 热读在场"
     import inspect
     sig = inspect.signature(node.rewrite)
     for k in ("正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高",
@@ -181,14 +186,18 @@ def test_cloud_targets_builtin_local_guaranteed_1007night():
     assert len(urls3) == 2, f"应恰云端+Windows 9B,得 {urls3}"
 
 
-def test_sanitize_negative_strips_dirty_words_1007():
-    """1007 用户令「解决脏问题」:扩写自补的构图景深词(远处/背景等)按整词剥,
-    其余负面词逐条保留;真源负面六词恒无(复核在案),剥除不误伤。"""
+def test_sanitize_negative_strips_dirty_words_1008():
+    """1007 立「解决脏问题」/1008 S1 根修(负向解耦终裁):扩写自补的构图景深词
+    (远处/背景等)按整词剥,其余负面词逐条保留不改写;全脏输入清洗后返回空串
+    (旧=回传原文,脏词泄漏进负向编码器的缺陷就此根修);空串原样;中英文逗号同规。"""
     dirty = "模糊, 水印, 远处，背景, 写实油画, 远景, 景深"
     out = api_pe._sanitize_negative(dirty)
     for w in api_pe._NEG_DIRTY_WORDS:
         assert w not in out.split(", "), f"{w} 应被整词剥除"
     assert "模糊" in out and "水印" in out and "写实油画" in out
-    # 全脏=保底原文不清空;空串=原样
-    assert api_pe._sanitize_negative("远处,背景") == "远处,背景"
+    # 全脏=空串,不回传原文(中英文逗号两式);合法词原样保留零改写
+    assert api_pe._sanitize_negative("远处,背景") == ""
+    assert api_pe._sanitize_negative("远处，背景") == ""
+    assert api_pe._sanitize_negative("远景，近景，中景，景深") == ""
     assert api_pe._sanitize_negative("") == ""
+    assert api_pe._sanitize_negative("模糊") == "模糊"

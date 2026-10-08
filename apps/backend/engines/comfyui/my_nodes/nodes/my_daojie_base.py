@@ -147,7 +147,7 @@ def _load_bases() -> list:
     else:
         try:
             data = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
-            # 1004 正负拆开+集中地令:qi21_bases.json={lock_layer:{...}, types:[...]}
+            # 1004 正负拆开+集中地令:qi21_bases.json={art_style_base:{...}, types:[...]}
             entries = data.get("types", []) if isinstance(data, dict) else data
         except (OSError, ValueError):
             entries = []
@@ -159,8 +159,8 @@ def _load_bases() -> list:
 
 _lock_cache: dict = {"mtime": None, "data": None}
 
-def _load_lock_layer() -> dict:
-    """qi21_bases.json lock_layer 现读(1004 集中地令):风格底座正负双出。
+def _load_art_style_base() -> dict:
+    """qi21_bases.json art_style_base 现读(1004 集中地令):风格底座正负双出。
     
     Returns: {"positive": str, "negative": str}
     """
@@ -176,20 +176,20 @@ def _load_lock_layer() -> dict:
     else:
         try:
             raw = json.loads(_BASES_JSON.read_text(encoding="utf-8"))
-            ll = raw.get("lock_layer", {}) if isinstance(raw, dict) else {}
+            ll = raw.get("art_style_base", {}) if isinstance(raw, dict) else {}
             data = {"positive": ll.get("positive_text", ""), "negative": ll.get("negative_text", "")}
         except (OSError, ValueError):
             data = {"positive": "", "negative": ""}
     cache["mtime"], cache["data"] = mtime, data
     return data
 
-def lock_layer_positive() -> str:
+def art_style_base_positive() -> str:
     """风格底座正向全文(全九型恒挂层)。"""
-    return _load_lock_layer()["positive"]
+    return _load_art_style_base()["positive"]
 
-def lock_layer_negative() -> str:
+def art_style_base_negative() -> str:
     """风格底座负面词(入负向编码器)。"""
-    return _load_lock_layer()["negative"]
+    return _load_art_style_base()["negative"]
 
 def bases_list() -> list:
     """combo 值=json 条目 zh 顺序;文件缺失/解析失败返回占位单条,
@@ -200,7 +200,8 @@ def bases_list() -> list:
 
 def _entry(base: str):
     for e in _load_bases():
-        if isinstance(e, dict) and base in (e.get("zh"), e.get("key")):
+        # 1008 R 批:types[].key 冗余双键删除(九型 key≡zh 同值),选型单读 zh
+        if isinstance(e, dict) and base == e.get("zh"):
             return e
     return None
 
@@ -305,14 +306,14 @@ class MyDaojieBase:
         width, height = _width_height_of(base, entry, aspect, megapixels)
         user_positive = (positive or "").strip()
         user_negative = (negative or "").strip()
-        # 1004 正负拆开+集中地令:正向=型底座正向+锁层A正向+主体句;负向=型负面词+锁层A负面词+用户负向(合并去重)
-        lock = _load_lock_layer()
+        # 1004 正负拆开+集中地令:正向=型底座正向+美术风格底座正向+主体句;负向=型负面词+美术风格底座负面词+用户负向(合并去重)
+        lock = _load_art_style_base()
         lock_pos = lock["positive"]
         lock_neg = lock["negative"]
-        # 正向三层拼装:型底座 → 锁层A → 主体句(各层换行分隔)
+        # 正向三层拼装:型底座 → 美术风格底座 → 主体句(各层换行分隔)
         parts = [p for p in (base_positive, lock_pos, user_positive) if p.strip()]
         out_positive = "\n".join(parts)
-        # 负向三层合并:型负面词+锁层A负面词+用户负向(顶层逗号去重)
+        # 负向三层合并:型负面词+美术风格底座负面词+用户负向(顶层逗号去重)
         out_negative = _merge_negative(lock_neg, _merge_negative(base_negative, user_negative))
         return (out_positive, out_negative,
                 aspect, megapixels, base, width, height)

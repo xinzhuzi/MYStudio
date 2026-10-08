@@ -16,7 +16,7 @@ negative→positive_text/negative_text);05 库逐字互锁退役(05 库=记录�
 research/slot-map.md;透明值 1001 P1 透明执行口 d 方案,同款零漂移纪律;
 负面词=1005 案B Phase I 第五出:型负面出口=entry.negative_text 逐字,
 追加最末存量四出槽序零漂移)/全部控件 tooltip 在位(1002 ⑰)/
-BASE=真源家 positive_text 逐字(①槽与常量A 不在 BASE 内——工作流恒挂层
+BASE=真源家 positive_text 逐字(①槽与美术风格底座常量 不在 BASE 内——工作流恒挂层
 承担;人物系=②+锁B+④+衣物完整性 7 行,非人物系 2 行;自由型 BASE=空串
 例外)/负面词=真源家 negative_text 逐字(1005 案B:十档全带,自由型非空
 例外与 BASE 相反)/
@@ -152,9 +152,9 @@ def test_base_text_verbatim_from_lib_for_all_nine():
         lines = base_text.split("\n")
         assert len(lines) == (8 if zh in RENWU_XI else 2), zh  # 1007 头发两态句拆两段:7→8
         assert lines[0].endswith("。")  # ②层美化版底座句号自足收尾
-        # ①槽与常量A 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
+        # ①槽与美术风格底座常量 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
         assert not base_text.startswith("⟨①:")
-        assert "风格底座：现代修仙游戏" not in base_text  # 常量A §四.1 首句禁入
+        assert "风格底座：现代修仙游戏" not in base_text  # 美术风格底座常量 §四.1 首句禁入
     # 自由型(1001 P1):无型底座层=BASE 空串(装配器两段降级拼的常常态);
     # 负面词=短清单非空(schema 独立钉:十档 negative_text 应非空,自由型例外
     # 方向与 positive_text 相反——BASE 空但型负面在场)
@@ -248,7 +248,7 @@ def test_rgba_default_four_types_true_rest_false():
 
 # ── 数据文件 schema:字段形状+与 canon 逐字镜像 ─────────────────
 def test_data_file_schema():
-    """1004 集中化 schema:dict 外壳 {lock_layer?, types[]}(原平铺 list 退役);
+    """1004 集中化 schema:dict 外壳 {art_style_base?, types[]}(原平铺 list 退役);
     字段 base_text→positive_text/negative_text(正负拆开)。"""
     data = json.loads(my_qi21_base._BASES_JSON.read_text(encoding="utf-8"))
     assert isinstance(data, dict) and isinstance(data.get("types"), list)

@@ -43,7 +43,7 @@ def test_registry_exposes_first_batch_nodes():
         "MyQi21DaojieBase",  # 09-23 qi21 道劫九选一底座(仿 K2 MyDaojieBase)
         "MyQi21SpeedSelect",  # 09-29 qi21 加速区并行化:三支路 LATENT 单点懒选择
         "MyQi21RgbaSelect",  # 0929 D6 三态选择;1001 ① 文案轮:自动/true/false
-        "MyQi21PromptAssembly",  # 1001 S8 R7 集成(裁定A上游):装配全文=主体句+BASE+锁层A 单口真源
+        "MyQi21PromptAssembly",  # 1001 S8 R7 集成(裁定A上游):装配全文=主体句+BASE+美术风格底座 单口真源
         "MyQi21PromptSelect",  # 1001 S8 R7 集成(裁定A下游):最终文本=pe开关选路+透明文本包裹(lazy 破环)
         "MyQi21WhSuggest",  # 1001 S8 R7 集成:画幅联动链 8合1;1008 建议路清退(现役=手动成对/九型直通)
         "MyQi21ChinesePE",  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出)
@@ -273,13 +273,13 @@ def test_daojie_base_options_and_assembly():
     from engines.comfyui.my_nodes.nodes.my_styles import _merge_negative
     bases = _json_types(my_daojie_base._BASES_JSON)
     renwu = next(e for e in bases if e["zh"] == "人物")
-    lock = my_daojie_base._load_lock_layer()
-    # 1004 正负拆开:正向=型底座→锁层A→主体句三层换行拼装(旧零分隔符直拼废止)
+    lock = my_daojie_base._load_art_style_base()
+    # 1004 正负拆开:正向=型底座→美术风格底座→主体句三层换行拼装(旧零分隔符直拼废止)
     pos, _neg, _ar, _mp, _base, _w, _h = node.run("人物", positive="一位女修士")
     assert pos == "\n".join([renwu["positive_text"], lock["positive"], "一位女修士"])
     pos_empty, neg_empty, ar_empty, mp_empty, _b, _w, _h = node.run("人物")
     assert pos_empty == "\n".join([renwu["positive_text"], lock["positive"]])
-    # 负向=锁层A+型负面+用户负向三层合并去重(输出非空,中文负面基线)
+    # 负向=美术风格底座+型负面+用户负向三层合并去重(输出非空,中文负面基线)
     assert neg_empty == _merge_negative(
         lock["negative"], _merge_negative(renwu["negative_text"], ""))
     assert (ar_empty, mp_empty) == (renwu["aspect_ratio"], renwu["megapixels"])
@@ -309,7 +309,7 @@ def test_daojie_base_resolution_outputs_nine_types():
         assert aspect in official_aspects, f"「{entry['zh']}」aspect 非官方枚举逐字串"
         expected_mp = 1.0 if entry["zh"] in ("道具", "高清人脸", "自由") else 4.2
         assert megapixels == entry["megapixels"] == expected_mp, entry["zh"]
-        # 留空=型底座+锁层A 恒等拼装;负向=锁层A+型负面合并(中文基线非空)
+        # 留空=型底座+美术风格底座 恒等拼装;负向=美术风格底座+型负面合并(中文基线非空)
         assert entry["positive_text"] in pos and pos.endswith("。")
         assert neg and "模糊" in neg
 

@@ -10,7 +10,7 @@
 三节:
   系统提示词   = expand_instruction.system_prompt_zh(扩写教材,3118字(v9))
   色卡         = color_lexicon.entries 格式化(词+ma_id+用途)前缀职责预算两行
-  美术风格底座 = lock_layer.positive_text(锁层A全文)
+  美术风格底座 = art_style_base.positive_text(装配器参数面旧名「锁层A全文」)
 
 注册(import+NODE_CLASS_MAPPINGS+DISPLAY「漫影 真源文本」)在
 my_nodes/__init__.py,本文件不自带注册。
@@ -83,7 +83,7 @@ def _section_text(section: str) -> str:
         raw = (data.get("expand_instruction") or {}).get("system_prompt_zh")
         return str(raw).strip() if isinstance(raw, str) else ""
     if section == "美术风格底座":
-        raw = (data.get("lock_layer") or {}).get("positive_text")
+        raw = (data.get("art_style_base") or {}).get("positive_text")
         return str(raw).strip() if isinstance(raw, str) else ""
     if section == "色卡":
         cl = data.get("color_lexicon") or {}
@@ -137,7 +137,7 @@ class MyQi21BasesText:
         return {
             "required": {
                 "文本节": (list(SECTIONS), {"default": "系统提示词",
-                                            "tooltip": "真源节:系统提示词=扩写教材/色卡=在用词表+落点纪律/美术风格底座=锁层A全文"}),
+                                            "tooltip": "真源节:系统提示词=扩写教材/色卡=在用词表+落点纪律/美术风格底座=底座全文"}),
             },
             # 1006 批A 展示槽(必 optional:required 会被 /prompt 验证层 400,在案)
             "optional": {
@@ -150,7 +150,7 @@ class MyQi21BasesText:
     RETURN_NAMES = ("文本",)
     FUNCTION = "output"
     # 1006 批A(问题1):OUTPUT_NODE+ui 载荷 bases_text——JS 把真源全文回填
-    # 「内容」展示框,画布上直接看 3118字(v9)教材/色卡词表/715字锁层A
+    # 「内容」展示框,画布上直接看 3118字(v9)教材/色卡词表/715字美术风格底座
     OUTPUT_NODE = True
 
     def output(self, 文本节: str, 内容: str = "") -> dict:

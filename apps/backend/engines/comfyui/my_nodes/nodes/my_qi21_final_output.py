@@ -5,7 +5,7 @@
 用户令(1005):[4014] 从「PE 路由+合成」简化为「最终处理(透明包裹+双口
 输出)」——删掉全部 PE 相关输入(pe开关/PE出文/PE负面/lazy 协议)和 PE 路由
 逻辑;PE 选择全部前移到 [4012] PE开关路由 + [4021] 主体句路由(主体句过
-PE 后再拼型底座/锁层A,装配器出全文,到本件时 PE 事已毕)。
+PE 后再拼型底座/美术风格底座,装配器出全文,到本件时 PE 事已毕)。
 
 本件与 MyQi21PromptSelect 的分工(1005 ㊄ 拆双类,修「一类两用」断裂):
   MyQi21PromptSelect = i2i/edit 老架构专用(装配→PE→选择 全逻辑+lazy 协议,
@@ -16,7 +16,7 @@ PE 后再拼型底座/锁层A,装配器出全文,到本件时 PE 事已毕)。
 rgba 节热读,改库即可见,画布无参数框=1005 用户令「删参数框(JSON热读)」):
   装配全文   ← [4011] MyQi21PromptAssembly.装配全文;缺键(None)=降级空串
              +中文 print 警告(裁定 A 自洽语义,与 select 件同款)
-  负面词直写 ← [4011] MyQi21PromptAssembly.负面词(=型负面+锁层负面+主体句
+  负面词直写 ← [4011] MyQi21PromptAssembly.负面词(=型负面+美术风格底座负面+主体句
              负面 三源 merge 真值);缺键=空串(空负向合法态)
   透明模式   ← [4010].透明值(纯 BOOLEAN 连线,透明自动跟型;rgba_default
              出已随 1002 ⑯ 删,布尔现从透明值出)
@@ -80,7 +80,7 @@ def _daojie_data(fn: str) -> Path:
 
 _BASES_JSON = _daojie_data("qi21_bases.json")
 
-# 整文件解析缓存(mtime 失效,同 my_daojie_base._load_lock_layer 模式):
+# 整文件解析缓存(mtime 失效,同 my_daojie_base._load_art_style_base 模式):
 # 缓存 json.loads 原文解析结果且以 mtime 为键——热改文件=mtime 变=现读重扫。
 _bases_cache: dict = {"mtime": None, "data": None}
 
@@ -151,12 +151,12 @@ class MyQi21FinalOutput:
             "required": {},
             "optional": {
                 "正向提示词": ("STRING", {"tooltip": "AI 扩写后的完整正向提示词"
-                                                "(主体句×PE选择+型底座+锁层A三层"
+                                                "(主体句×PE选择+型底座+美术风格底座三层"
                                                 "拼装),连「三层拼装」节点的"
                                                 " 装配全文 输出;不连=正向降级"
                                                 "空串,日志有中文警告"}),
                 "负向提示词": ("STRING", {"tooltip": "AI 精炼后的负面清单"
-                                                 "(型负面+锁层负面+主体句负面),"
+                                                 "(型负面+美术风格底座负面+主体句负面),"
                                                  "连「三层拼装」节点的 负面词 "
                                                  "输出;不连=空负向(合法态)"}),
                 "透明模式": ("BOOLEAN", {"default": False,
@@ -179,7 +179,7 @@ class MyQi21FinalOutput:
         全参数有 default,缺投不炸 TypeError;装配全文 None=降级空串+中文
         print 警告(裁定 A 自洽:缺真源=缺整段文本,日志可查,不猜不代选)。
         剥离不施于本件(词族剥离只用于 PE 扩写段;装配全文=纯中文三层,
-        禁过剥离——zh 词族会误删锁层A 核心句,6d5fa8a 深审 HIGH-2 同款口径)。
+        禁过剥离——zh 词族会误删美术风格底座 核心句,6d5fa8a 深审 HIGH-2 同款口径)。
         """
         direct_neg = (负向提示词 or "").strip()
         if 正向提示词 is None:

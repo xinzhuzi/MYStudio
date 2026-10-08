@@ -51,8 +51,8 @@ def build_payload(fill_chars: int = 0, max_tokens: int = 384, nonce: bool = Fals
     """与 my_qi21_api_pe.py 组装同构:system=教材+/no_think;user=装配三层+ctx块。"""
     data = json.loads(BASES_JSON.read_text(encoding="utf-8"))
     textbook = (data.get("expand_instruction") or {}).get("system_prompt_zh") or ""
-    style = (data.get("lock_layer") or {}).get("positive_text") or ""
-    lock_neg = (data.get("lock_layer") or {}).get("negative_text") or ""
+    style = (data.get("art_style_base") or {}).get("positive_text") or ""
+    lock_neg = (data.get("art_style_base") or {}).get("negative_text") or ""
     types = data.get("types") or []
     # 型底座:挑人物立绘类(positive 最长的立绘型),与实弹案一致
     cands = [t for t in types if isinstance(t, dict) and t.get("positive_text")]

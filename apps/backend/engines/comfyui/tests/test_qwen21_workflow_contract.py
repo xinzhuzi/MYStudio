@@ -9,7 +9,7 @@ base_text→positive_text、负面中文化、05 库降级设计规范=A4 头部
 [4015N=4016]/[4018];子图六出=positive/negative 改 STRING+wh_ratio/PE启用?)
 +加速子图 [7010] cfg4+[7016] 负向档位 Note;[4014] 双口化(9 槽 4 占位
 wv 常量已随 1005 拆件退役删除——t2i [4014] 现为 MyQi21FinalOutput 零 widget,
-双出进编码正/负向文本);锁层A 参数面与库逐字互锁
+双出进编码正/负向文本);美术风格底座 参数面与库逐字互锁
 废止(改两件横锁 _wf_lock_a+骨架锚);数据↔库②层逐字互锁废止(改数据面
 结构锚:统一立绘底座/正向零禁令/中文负面基线/多彩行);i2i/edit 件未同步轮
 (Select 仍 7 值旧形,QI21_SG_SEL_WV 保留供其用)。
@@ -45,7 +45,7 @@ wv 常量已随 1005 拆件退役删除——t2i [4014] 现为 MyQi21FinalOutput
 apps/build/scripts/qi21_daojie_t2i_0923.py 驱动;前代 qwen21-daojie-t2i-pro.json
 与其生成器 qwen21_daojie_pro_0923.py 随本轮退役删除):
   H. 旧 pro 件(九型分层装配平铺版)改名 qi21-道劫-t2i.json 并**子图化**——
-     布局学 K2-文生图-道劫.json [90] 组织法:『底座九选一+主体句+通用锁层+
+     布局学 K2-文生图-道劫.json [90] 组织法:『底座九选一+主体句+美术风格底座+
      装配链+PE 组+RGBA 开关』整体收进一个 definitions.subgraphs 子图(宿主
      [40]);外部只剩加载器/分辨率/采样/解码/保存/说明 Note 与外露件
      ([24] 主体句、[27] 装配预览)。子图外露参数:型选择控制(八级选型开关=
@@ -55,7 +55,7 @@ apps/build/scripts/qi21_daojie_t2i_0923.py 驱动;前代 qwen21-daojie-t2i-pro.j
      子图 IO 必须写 inputs[].linkIds/outputs[].linkIds、内部 links 对象格式。
   I. 九型底座常量=05 库②层「09-23 美化版」(《三国望神州》v2.2+手册词汇成文,
      纯画法零物象骨/锁质要点逐项保留/禁自造质感词与质量词);canon-json
-     逐字锚废止,型名/顺序仍与 daojie_bases.json 对齐;通用锁层常量A 照旧
+     逐字锚废止,型名/顺序仍与 daojie_bases.json 对齐;美术风格底座常量 照旧
      逐字=库首常量(写全条款不动)。真源链:05 库→工作流常量逐字=库→本测试
      库↔工作流互锁(TestQi21SubgraphContract)。
 
@@ -143,7 +143,7 @@ qi21_blueprint_sync_1001.py 幂等比较/f929798 同款,漂移即红)。
 新功能子夹,对标 K2 线 krea2-daojie-i2i.json 同域同式)与 TestI2IContract——
 edit 骨架保留(PE-I2I 核心链[15]默认旁路/BatchImages 双通道/latent 双路/双图
 预缩 1.5+1.0MP)+qi21 九型装配移植进 [40] 装配子图(MyQi21DaojieBase combo
-经宿主面板「型选择」外露默认人物/锁层A 恒挂/RGBA 官方公式;画幅联动行不移植=
+经宿主面板「型选择」外露默认人物/美术风格底座 恒挂/RGBA 官方公式;画幅联动行不移植=
 画幅随输入图);拼接次序=05 库四层口径(指令占①层位,指令即主体);LoRA 加速
 槽出生自带(LoraLoaderModelOnly name 预填 viggle v0.2.1 r256 逐字(0924 换最新口径),MODEL 链开关默认
 旁路),TE-Speed 槽禁入本件(节点类型白名单锁,R26.4 统一接线轮补);计数锚
@@ -170,7 +170,7 @@ QwenImage21_T2IPromptRewrite+[141] 提示词开关+画幅联动链 [151]-[158]+�
 [180] 全迁主画布,PE 位置三件同构=均主画布;**契约冻结项**:PE 开关在主画布+
 双路编码在子图(拍板③)⇒ [141]→[40]「提示词」槽回流线在几何上必有且恰 1 条
 左向线(link34),test_horizontal_layout_no_vertical_tower 对该线单点豁免并钉
-死端点——仿 ad22a9e 契约冻结先例)/W3 [40] 子图收窄=九型+锁层+拼接+RGBA 公式+
+死端点——仿 ad22a9e 契约冻结先例)/W3 [40] 子图收窄=九型+美术风格底座+拼接+RGBA 公式+
 双路编码(三行,宿主三 widget 同构 i2i)/W5 负面线=cfg=1 下数学不参与采样、
 官方同构占位;PE pp=1.5 定档;[7]/[8] steps 与 [5] 空潜面板值=摆设值注明/
 W6 零负区(主图+子图所有节点 pos≥40)+输出口最右(子图输出 IO 槽 x≥全子图
@@ -226,10 +226,10 @@ apps/build/scripts/qi21_integration_surgery_i2i_1001.py+qi21_integration_surgery
 title+子图 name 迁「[40] 提示词类型优化子图(双击进入)」口径(ASSEMBLY_SG_NAME
 分叉终结,三件同锚);②i2i=双 Select 链(28→17 节点):[152] Select①「择文合成器」
 替原 [15](PE 链吃 -10槽4 裸指令,绝不吃装配全文=防环红线,map §六)→[141]
-Assembly(锁层A迁参数面)→[153] Select②「透明包裹器」恒 pe关 替原 [162][163]
+Assembly(美术风格底座迁参数面)→[153] Select②「透明包裹器」恒 pe关 替原 [162][163]
 [160][161](头尾句迁参数面);Reroute 6 件消化直连;③edit=[15] ComfySwitchNode→
 [152] MyQi21PromptSelect(9→9 节点件型升级,透明文本口悬空=无 RGBA 编码件);
-④三自研件参数逐字锚(锁层A/头/尾/W1 收束句=库真源,照 t2i M-3 同款);⑤懒声明
+④三自研件参数逐字锚(美术风格底座/头/尾/W1 收束句=库真源,照 t2i M-3 同款);⑤懒声明
 +PE 链消费者 lazy 谓词+pe关 干跑(PE 链六件+主图 PE TE 零入集,照 t2i M-4 同款);
 ⑥_reach_state/_resolve_default_string_origins 增 MyQi21PromptSelect 走臂理解
 (直写选配臂=装配全文槽)。
@@ -409,7 +409,7 @@ QI21_SG_SEL_CLASS = "MyQi21PromptSelect"
 QI21_SG_FINAL_CLASS = "MyQi21FinalOutput"  # 1005 ㊄ t2i [4014]=最终输出件锚
 QI21_SG_WH_CLASS = "MyQi21WhSuggest"
 # [141]/[152] widgets_values 位序(接口面契约;1002 ⑭ 槽序重排后 widget 子序
-# **不变**(连线槽前置不占 widget 位;主体句/锁层A 与 pe开关/透明模式/头/尾/W1
+# **不变**(连线槽前置不占 widget 位;主体句/美术风格底座 与 pe开关/透明模式/头/尾/W1
 # 相对序保持),位序锚继续有效;连线槽位迁移=research/slot-map.md)
 QI21_SG_ASM_WV = {"主体句": 0, "锁层A全文": 1}
 # 1002 修复轮(实弹 probe 坐实):前端为全部参数型输入(含连线中的装配全文/
@@ -479,9 +479,9 @@ I2I_SCALE_IDS = (16, 17)          # 输入图预缩(画布 1.5MP/参考 1.0MP)
 I2I_LATENT_PB_ID, I2I_EL_ID, I2I_LATENT_SW_ID = 19, 4, 20
 I2I_LORA_PB_ID, I2I_LORA_ID, I2I_LORA_SW_ID = 30, 7011, 32  # ⑫:LoRA [31]→[7011]
 # 1001 同构集成轮锚(手术脚本 qi21_integration_surgery_i2i_1001.py map §5.1 同表;
-# 旧件锚退役:[15]指令开关/[110]锁层A/[130][131]装配拼接/[160][161]RGBA头尾/
+# 旧件锚退役:[15]指令开关/[110]美术风格底座/[130][131]装配拼接/[160][161]RGBA头尾/
 # [162][163]RGBA拼②/Reroute[170][174][181]-[184]——全数收编三自研件+直连):
-I2I_SG_ASM_ID = 4011     # MyQi21PromptAssembly 装配全文件(锁层A迁参数面 wv[1])
+I2I_SG_ASM_ID = 4011     # MyQi21PromptAssembly 装配全文件(美术风格底座迁参数面 wv[1])
 I2I_SG_SEL1_ID = 4014    # MyQi21PromptSelect 择文合成器①(替 [15];择文上位喂装配)
 I2I_SG_SEL2_ID = 153    # MyQi21PromptSelect 透明包裹器②(替 [162][163]等四件;恒pe关)
 I2I_SG_ASM_CLASS = "MyQi21PromptAssembly"
@@ -2121,9 +2121,9 @@ def _qi21_truth():
     bases = _canon_types()   # 1004:daojie_bases.json 并入 qi21_bases.json types 前 9
     zh_order = [b["zh"] for b in bases]
     fences = re.findall(r"```text\n(.*?)\n```", md.split("## 三、")[0], re.S)
-    # 1004 Phase A:常量A 拆正负双围栏(fences[1]=正向全文/fences[2]=负面词,
+    # 1004 Phase A:美术风格底座常量 拆正负双围栏(fences[1]=正向全文/fences[2]=负面词,
     # 负面词进负向编码器);常量B(衣褶四段)随拆位后移=fences[3]
-    assert len(fences) >= 4, "库 §二 常量围栏不足(装配顺序+常量A正/负+常量B)"
+    assert len(fences) >= 4, "库 §二 常量围栏不足(装配顺序+美术风格底座常量正/负+常量B)"
     const_a, const_b = fences[1], fences[3]
     b_lines = const_b.split("\n")
 
@@ -2138,9 +2138,9 @@ def _qi21_truth():
         base, color, mid = lines[1], lines[-1], lines[2:-1]
         assert color == PRO_COLOR_MAP[zh], f"{zh} ④配色行与 §一映射表不一致"
         want_mid_len = 8 if zh in PRO_CHAR_TYPES else 3  # 1007 头发两态句一段拆两段:7→8(随 1d01ff71 库改锚,对齐 my_nodes 版)
-        assert len(mid) == want_mid_len, f"{zh} ③锁层行数 {len(mid)} ≠ {want_mid_len}"
+        assert len(mid) == want_mid_len, f"{zh} ③美术风格底座行数 {len(mid)} ≠ {want_mid_len}"
         if zh in PRO_CHAR_TYPES:
-            assert mid[2:7] == b_lines, f"{zh} ③锁层中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
+            assert mid[2:7] == b_lines, f"{zh} ③美术风格底座中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
         constant_text = "\n".join([base] + (b_lines if zh in PRO_CHAR_TYPES else []) + [color])
         types.append((zh, subject, base, constant_text))
     return types, const_a
@@ -2158,20 +2158,20 @@ def _qi21_w1_truth() -> str:
 
 
 def _wf_lock_a() -> str:
-    """锁层A 工作流参数面在档值(1004 正负拆开后重立的横锁真源)。
+    """美术风格底座 工作流参数面在档值(1004 正负拆开后重立的横锁真源)。
 
-    1004 Phase A 把常量A 拆 lock_layer.positive_text/negative_text(数据真源
+    1004 Phase A 把美术风格底座常量 拆 art_style_base.positive_text/negative_text(数据真源
     =qi21_bases.json,装配器 default 热读);存量工作流 [4011] 参数面 wv=历史
     在档旧全本,装载后覆盖 default=执行值仍是旧全本——参数面与数据层的重灌走
     「从库刷参数」通道(说明卡注),本测试不锁两者逐字,只锁 qi21/i2i 两件参数
     面同值(防单件漂移)+骨架锚(见 test_lock_constant_present_and_always_wired)。"""
-    # 1006 七轮:qi21 [4011] 退役,锁层A 唯一在档位=qi21_bases.json lock_layer
+    # 1006 七轮:qi21 [4011] 退役,美术风格底座 唯一在档位=qi21_bases.json art_style_base
     # (热读);横锁改为 i2i 参数面==json 真源(漂移=单件被误改)
     i2i_lock = _qi21_sg_nodes(GRAPHS["i2i"])[I2I_SG_ASM_ID]["widgets_values"][-1]
     _lock_pos = str(json.loads(BASES_JSON.read_text(encoding="utf-8"))
-                    .get("lock_layer", {}).get("positive_text", ""))
+                    .get("art_style_base", {}).get("positive_text", ""))
     assert i2i_lock == _lock_pos, \
-        "锁层A:i2i 参数面应=qi21_bases.json lock_layer.positive_text 真源(1006 七轮 [4011] 退役)"
+        "美术风格底座:i2i 参数面应=qi21_bases.json art_style_base.positive_text 真源(1006 七轮 [4011] 退役)"
     return i2i_lock
 
 
@@ -2618,9 +2618,9 @@ def _qi21_truth():
     bases = _canon_types()   # 1004:daojie_bases.json 并入 qi21_bases.json types 前 9
     zh_order = [b["zh"] for b in bases]
     fences = re.findall(r"```text\n(.*?)\n```", md.split("## 三、")[0], re.S)
-    # 1004 Phase A:常量A 拆正负双围栏(fences[1]=正向全文/fences[2]=负面词,
+    # 1004 Phase A:美术风格底座常量 拆正负双围栏(fences[1]=正向全文/fences[2]=负面词,
     # 负面词进负向编码器);常量B(衣褶四段)随拆位后移=fences[3]
-    assert len(fences) >= 4, "库 §二 常量围栏不足(装配顺序+常量A正/负+常量B)"
+    assert len(fences) >= 4, "库 §二 常量围栏不足(装配顺序+美术风格底座常量正/负+常量B)"
     const_a, const_b = fences[1], fences[3]
     b_lines = const_b.split("\n")
 
@@ -2635,9 +2635,9 @@ def _qi21_truth():
         base, color, mid = lines[1], lines[-1], lines[2:-1]
         assert color == PRO_COLOR_MAP[zh], f"{zh} ④配色行与 §一映射表不一致"
         want_mid_len = 8 if zh in PRO_CHAR_TYPES else 3  # 1007 头发两态句一段拆两段:7→8(随 1d01ff71 库改锚,对齐 my_nodes 版)
-        assert len(mid) == want_mid_len, f"{zh} ③锁层行数 {len(mid)} ≠ {want_mid_len}"
+        assert len(mid) == want_mid_len, f"{zh} ③美术风格底座行数 {len(mid)} ≠ {want_mid_len}"
         if zh in PRO_CHAR_TYPES:
-            assert mid[2:7] == b_lines, f"{zh} ③锁层中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
+            assert mid[2:7] == b_lines, f"{zh} ③美术风格底座中段与常量B 不逐字一致"  # 1007 头发两态:B块4→5行,切片[2:6]→[2:7]
         constant_text = "\n".join([base] + (b_lines if zh in PRO_CHAR_TYPES else []) + [color])
         types.append((zh, subject, base, constant_text))
     return types, const_a
@@ -2867,7 +2867,7 @@ class TestQi21SubgraphContract:
             # 0929 S3 加速边界(语义锚保号:97=旧 [1]→[31] LoRA 臂/16·17=旧
             # positive/negative 首扇出/5=旧 latent 首扇出/62=旧选择件→[8],全改指宿主)
             # 1007 布局整备:97/10/211 垫脚 Reroute(4203/4202/4204,消遮挡锚随行同步,
-            # 手法=SKILL 布局章 L184 sanctioned「垫 Reroute」)
+            # 手法=优化集 OPTIMIZATION.md 布局④「治理手法与棘轮」sanctioned「垫 Reroute」)
             (97, 1, 0, 4203, 0, "MODEL"),
             (4303, 4203, 0, QI21_XHOST_ID, 0, "MODEL"),       # 垫脚出口→宿主.model
             (16, QI21_MAIN_TE_ID, 0, QI21_XHOST_ID, 1, "CONDITIONING"),
@@ -2941,7 +2941,7 @@ class TestQi21SubgraphContract:
             "Image Comparer (rgthree)",
             # 1004 Phase D:编码器/画幅建议器迁主图(装配块旁三件 [4015][4015N][4018])
             "TextEncodeQwenImage21", "MyQi21WhSuggest",
-            # 1007 布局整备:垫脚 Reroute 准入(SKILL 布局章 L184 sanctioned 消遮挡手法)
+            # 1007 布局整备:垫脚 Reroute 准入(优化集 OPTIMIZATION.md 布局④「治理手法与棘轮」sanctioned 消遮挡手法)
             "Reroute",
             # 1005 重锚:[401] MyQi21PromptPreview 正负双预览件入册(OUTPUT_NODE
             # 显示件,执行根非 SaveImage 上游属正常;no_orphans 同款豁免口径)
@@ -3040,7 +3040,7 @@ class TestQi21SubgraphContract:
         assert sorted(node["outputs"][4]["links"] or []) == [326], \
             "[4010].透明值 单扇出(326→[4013];1006 八轮:[4010]独占[4013])"
         # 1005 案B Phase I:[4010].负面词(第五出,槽4)→[4011].BASE负面(inputs[1])
-        # ——型负面出口接通装配器 merge(型负面,锁层负面),修「型负面 36 条无
+        # ——型负面出口接通装配器 merge(型负面,美术风格底座负面),修「型负面 36 条无
         # 出口死数据」断路(design §8.1 ①④)
         assert node["outputs"][3]["type"] == "STRING", \
             "[4010].负面词 槽型应 STRING(1005 案B 型负面出口)"
@@ -3140,16 +3140,24 @@ class TestQi21SubgraphContract:
             "人物 positive_text 应含④配色行(人物多彩…)"
         assert renwu.split("\n")[-1].startswith("衣物完整性"), \
             "人物 positive_text 末行应=衣物完整性截短句(1004 正负拆开数据形状)"
-        # 1004 重锚(design §一 钦定):人物系六型②层=统一「主体的单人立绘」
-        # 开头的纯正向底座(design.md §一样例「主体的单人立绘…(449字纯正向)」);
+        # 1004 重锚(design §一 钦定):人物系②层=「主体的单人立绘」开头的纯正向
+        # 底座(design.md §一样例「主体的单人立绘…(449字纯正向)」);
         # 旧 0928 底座级透明声明段随统一底座让渡——透明语义现由 [4014] 合成器
         # rgba 节中文头尾句承载(锚在 test_pe_group:RGBA_HEAD_ZH/RGBA_TAIL_ZH/
         # w1_closing);道具型保留定式句(尺寸标注设定图,1002 Q2 裁定不透明特例)
-        renwu_xi = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
+        # 1008 S3 三型差异化重锚:分镜剧情图退出统一立绘锁(4fa15e9 素材+㉗ 重写
+        # =单格叙事帧开头,叙事画面取景自由、可多人;头身比锚随 1002 ㉒「分镜
+        # 不锚」同批退役;断言分层职责,不冻结 1004 压平旧文案)
+        renwu_xi = {"人物", "美宣", "多视图", "高清人脸", "表情差分"}
         for e in qi21[:9]:
             if e["zh"] in renwu_xi:
                 assert e["positive_text"].startswith("主体的单人立绘"), \
-                    f"qi21_bases.json「{e['zh']}」应=统一立绘底座开头(1004 design §一)"
+                    f"qi21_bases.json「{e['zh']}」应=立绘底座开头(1004 design §一)"
+        fj = next(e for e in qi21 if e["zh"] == "分镜剧情图")
+        assert fj["positive_text"].startswith("一幅单格叙事画面"), \
+            "qi21_bases.json「分镜剧情图」应=单格叙事帧开头(1008 S3 三型差异化)"
+        assert "头身比" not in fj["positive_text"], \
+            "分镜剧情图不锚头身比(1002 ㉒ 型格差异;1008 S3 随差异化恢复)"
         # retired 零回潮(0928):道具型=唯一保留定式句的透明特例型,专项检查;
         # 其余三型已并统一立绘底座(模板自带「均匀柔光,浅净平涂的底」=正向画法
         # 描述,非旧背景职责句,不在本谓词域)
@@ -3163,31 +3171,31 @@ class TestQi21SubgraphContract:
             "道具型应保留定式句(尺寸标注设定图,1002 Q2 结构性半透明特例)"
 
     def test_lock_constant_present_and_always_wired(self):
-        """锁层常量迁参数面(1001 S8 R7 集成,裁定A):[141] 装配全文件
-        widgets_values[锁层A全文 位]=库首节常量A 全文逐字(原 [110] 常量件迁入
+        """美术风格底座常量迁参数面(1001 S8 R7 集成,裁定A):[141] 装配全文件
+        widgets_values[锁层A全文 位]=库首节美术风格底座常量 全文逐字(原 [110] 常量件迁入
         节点参数面,恒挂=装配公式第三段固定拼入,不经开关不随型);multiline
         大框(Q4「固定句都要输入框」)。"""
         graph = GRAPHS["qi21"]
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
-        # 1006 七轮:[4011] 退役——锁层A 唯一在档位=qi21_bases.json lock_layer(热读)
+        # 1006 七轮:[4011] 退役——美术风格底座 唯一在档位=qi21_bases.json art_style_base(热读)
         lock_a = _wf_lock_a()
         assert lock_a.startswith("风格底座：") and "线描优先工笔结构" in lock_a \
             and "成片质量" in lock_a, \
-            "锁层A 真源(qi21_bases.json)应保有 风格底座/线描优先/成片质量 三段骨架"
+            "美术风格底座 真源(qi21_bases.json)应保有 风格底座/线描优先/成片质量 三段骨架"
         assert QI21_SG_ASM_ID not in _qi21_sg_nodes(GRAPHS["qi21"]), \
             "[4011] 应已退役(1006 七轮:三层装配内置 [4013] AI扩写)"
 
     def test_default_assembly_equals_library_composition(self):
         """默认人物型:装配全文=[24]主体句+[150]BASE(qi21_bases.json 人物,逐字=库)
         +[141] 锁层A全文参数 逐字组合(画布行序①②(增量锁)④③,库直写行序①②③④
-        ——层内容零差异;1001 S8:锁层自 [110] 常量件迁 [141] 参数面)。"""
+        ——层内容零差异;1001 S8:美术风格底座自 [110] 常量件迁 [141] 参数面)。"""
         graph = GRAPHS["qi21"]
         nodes = _nodes(graph)
         sg_nodes = _qi21_sg_nodes(graph)
         qi21 = {e["zh"]: e for e in
                 json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]}
         # 1004 重锚:三段=主体句([400] 默认=库人物①例,锚在 test_subject_slot)
-        # +人物 positive_text(数据真源)+锁层A参数面(_wf_lock_a 横锁)——库四层
+        # +人物 positive_text(数据真源)+美术风格底座参数面(_wf_lock_a 横锁)——库四层
         # 组合互锁随 A4 库降级废止,此断言退化为参数面自洽组合锁(任一段被误
         # 清空/换型即红)
         # 1006 七轮:[4011] 退役——三段组合语义=MyQi21ApiPE.rewrite 内置装配
@@ -3195,7 +3203,7 @@ class TestQi21SubgraphContract:
         parts = [_widget(nodes[QI21_SUBJECT_ID], 0),
                  qi21["人物"]["positive_text"], _wf_lock_a()]
         assert all(str(x).strip() for x in parts), \
-            "内置装配三段(主体句/型底座/锁层A)须全部非空可得"
+            "内置装配三段(主体句/型底座/美术风格底座)须全部非空可得"
 
     def test_pe_group_and_rgba_switch_inside_subgraph(self):
         """PE/透明承袭(1005 重锚:管线前移版,PE 路由全在子图内):
@@ -3205,7 +3213,7 @@ class TestQi21SubgraphContract:
         [4021] MyQi21SubjectSelect 五入(主体句/PE出文/PE宽高比/主体句负面/pe开关)
         三出(选定主体句/宽高比/主体句负面;主体句负面←-10 槽3,透传 [4011] 槽3);
         [4011] 装配器四连线槽(BASE/BASE负面/主体句/主体句负面;锁层A全文=参数面
-        widget);负面词=三源合并(BASE负面+锁层负面+主体句负面);
+        widget);负面词=三源合并(BASE负面+美术风格底座负面+主体句负面);
         [4014]=MyQi21FinalOutput(1005 ㊄:t2i 不再用 MyQi21PromptSelect)——
         optional 恰 3 槽 装配全文/负面词直写/透明模式,零 widget 参数框(RGBA 头尾
         /W1 走 qi21_bases.json rgba 节热读),零 PE 槽;[210] 三态件退役存续。"""
@@ -3247,7 +3255,7 @@ class TestQi21SubgraphContract:
         # LM Studio 不在=节点透传兜底=旧直写路等价;件与类留档=回滚杠杆)──
         # ── [4021] MyQi21SubjectSelect(1006 五轮退役:AI 恒开,选择无意义)──
         # ── [4011] 装配全文件(裁定A上游):接口面+四连线槽 ──
-        # 1005 重锚:负面三源合并=BASE负面+锁层负面(参数面现读)+主体句负面;
+        # 1005 重锚:负面三源合并=BASE负面+美术风格底座负面(参数面现读)+主体句负面;
         # 锁层A全文=参数面 widget(真值 widgets_values 末位),不入 inputs
         # 1006 七轮:[4011] 退役(装配内置 [4013];主体句/负面边界线 331/332 随亡,
         # 外部正/负向提示词经 335/336 直连 [4013] 槽4/5)
@@ -3337,7 +3345,7 @@ class TestQi21SubgraphContract:
 
         ① 底座第五出真值:MyQi21DaojieBase.run.负面词=qi21_bases.json
            types[].negative_text(型负面,人物型=36 条全角逗号清单);
-        ② 装配真值:负面词=merge(BASE负面, 锁层负面)=型负面在前+锁层负面
+        ② 装配真值:负面词=merge(BASE负面, 美术风格底座负面)=型负面在前+美术风格底座负面
            在后(全角逗号清单=整段一 token,两段半角", "拼接;整 token 相等
            去重——my_styles._merge_negative 单源,K2 同款);
         ③ 合成器真值:pe开直写优先(直写非空恒胜 PE负面;空档才兜底),
@@ -3346,7 +3354,7 @@ class TestQi21SubgraphContract:
         bases = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))
         renwu_neg = next(e["negative_text"] for e in bases["types"]
                          if e["zh"] == "人物")
-        lock_neg = bases["lock_layer"]["negative_text"]
+        lock_neg = bases["art_style_base"]["negative_text"]
         assert renwu_neg and lock_neg and renwu_neg != lock_neg
         # ① 底座第五出(件级锚在 test_my_qi21_base;此处契约侧联动钉)
         base_cls = None
@@ -3358,18 +3366,18 @@ class TestQi21SubgraphContract:
         if base_cls is not None:
             assert base_cls().run("人物")[3] == renwu_neg, \
                 "[4010].负面词 第四出应=人物型 negative_text 逐字(1005 案B)"
-        # ② 装配真值:merge(型负面, 锁层负面)——同一 _merge_negative 计算,
-        # 锚=「型负面在前,锁层在后」拼接形与去重形
+        # ② 装配真值:merge(型负面, 美术风格底座负面)——同一 _merge_negative 计算,
+        # 锚=「型负面在前,美术风格底座在后」拼接形与去重形
         asm_cls = _load_my_node_class(QI21_SG_ASM_CLASS)
         assert asm_cls is not None, "MyQi21PromptAssembly 应可现读加载"
         asm = asm_cls()
         truth = asm.assemble(主体句="s", BASE="b", BASE负面=renwu_neg,
                              锁层A全文="l")[1]
         assert truth == f"{renwu_neg}, {lock_neg}", \
-            "负面词直写真值应=型负面在前+锁层负面在后(1005 案B 合并;直写进编码)"
+            "负面词直写真值应=型负面在前+美术风格底座负面在后(1005 案B 合并;直写进编码)"
         assert asm.assemble(主体句="s", BASE="b", BASE负面=lock_neg,
                             锁层A全文="l")[1] == lock_neg, \
-            "整 token 相等去重:BASE负面=整段锁层负面→裸输出(合并不复读)"
+            "整 token 相等去重:BASE负面=整段美术风格底座负面→裸输出(合并不复读)"
         # ③ 合成器真值:直写优先/空档兜底(pe关=直写不变量)
         sel_cls = _load_my_node_class(QI21_SG_SEL_CLASS)
         assert sel_cls is not None, "MyQi21PromptSelect 应可现读加载"
@@ -3377,7 +3385,7 @@ class TestQi21SubgraphContract:
         got = sel.compose(pe开关=True, 透明模式=False, 装配全文="a",
                           PE出文="p", 负面词直写=truth, PE负面="PE编造词")
         assert got[1] == truth, \
-            "pe开:直写真值(型+锁层)非空应恒胜 PE负面(1005 案B 直写优先)"
+            "pe开:直写真值(型+美术风格底座)非空应恒胜 PE负面(1005 案B 直写优先)"
         got_fb = sel.compose(pe开关=True, 透明模式=False, 装配全文="a",
                              PE出文="p", 负面词直写="", PE负面="PE编造词")
         assert got_fb[1] == "PE编造词", "pe开:直写空档→PE负面兜底(⑮ 对调)"
@@ -3526,7 +3534,7 @@ class TestQi21SubgraphContract:
 
     def test_usage_note_subgraph_warnings(self):
         """子图版 Note 要点锁(1001 S8 集成轮更新):装配子图用法/MyQi21DaojieBase
-        九选一/主体句纪律(空镜无人)/[27] 过目指引/锁层恒挂(迁 [141] 参数面)/底座
+        九选一/主体句纪律(空镜无人)/[27] 过目指引/美术风格底座恒挂(迁 [141] 参数面)/底座
         美化口径/steps 40 完整态/RGBA 官方公式(中英)/画幅联动([151] 建议器)/0929
         并行化加速区文案。S8 新锚:两件链(MyQi21PromptAssembly/MyQi21FinalOutput/
         MyQi21WhSuggest)/1005 管线重序(主体句过 PE:[4013] 只吃主体句→[4021] 路由
@@ -3599,7 +3607,7 @@ class TestQi21SubgraphContract:
             lines = fence.split("\n")
             want_lines = 11 if zh in PRO_CHAR_TYPES else 6  # 1007 头发两态句拆段:10→11
             assert len(lines) == want_lines, \
-                f"{zh}: 装配全文应 {want_lines} 行(②型底座+③锁层[+增量锁]+④配色行),得 {len(lines)}"
+                f"{zh}: 装配全文应 {want_lines} 行(②型底座+③美术风格底座[+增量锁]+④配色行),得 {len(lines)}"
             # 1004:库围栏=设计记录旧全本(数据真源=qi21_bases.json),带随
             # 实测定带 1150-2100(1004 立带 1200-2000;1007 头发两态+否定式清退后下调,现值 1188-1980)
             assert 1150 <= len(fence) <= 2100, \
@@ -3842,7 +3850,7 @@ class TestI2IEditHostLayout1003:
 # ── 6f. i2i 件专属契约(09-24 新增:道劫风格图生图=edit 骨架+九型装配移植;
 # 机制=生修合一·图输入即指令编辑,零 denoise 重绘;真源=幂等生成器
 # apps/build/scripts/qi21_daojie_i2i_0924.py;拼接次序=05 库 §一四层装配口径:
-# 指令占①层位(指令即主体)+②型底座+③锁层A 换行分层)──────────────────
+# 指令占①层位(指令即主体)+②型底座+③美术风格底座 换行分层)──────────────────
 
 
 class TestI2IContract:
@@ -3862,11 +3870,11 @@ class TestI2IContract:
     def test_subgraph_assembly_present_and_host_panel(self):
         """装配子图在场(1001 同构集成轮双 Select 链形态,28→17 节点):
         MyQi21DaojieBase 九选一(combo 经宿主面板「型选择」COMBO 外露,默认人物;
-        W/H 零消费=画幅随输入图)+[141] 装配全文件(锁层A迁参数面)+[152] 择文
+        W/H 零消费=画幅随输入图)+[141] 装配全文件(美术风格底座迁参数面)+[152] 择文
         合成器①(替原 [15])+[153] 透明包裹器②(替原 [162][163][160][161]);
         宿主面板 widget=指令+型选择+RGBA透明+PE开关(四控零变化);画幅联动件
         不移植(RegexExtract 画幅链/ComfyNumberConvert/ComfyMathExpression 禁入);
-        StringConstant 恰 0(锁层A/头尾句全迁参数面)。"""
+        StringConstant 恰 0(美术风格底座/头尾句全迁参数面)。"""
         graph = GRAPHS["i2i"]
         sg = _qi21_sg(graph)
         sg_nodes = _qi21_sg_nodes(graph)
@@ -3930,7 +3938,7 @@ class TestI2IContract:
         for banned in ("ComfyNumberConvert", "ComfyMathExpression"):
             assert not [n for n in sg_nodes.values() if n["type"] == banned], \
                 f"i2i 子图不应有 {banned}(画幅联动行不移植)"
-        # 1001 同构集成:固定句常量件恰 0(锁层A迁 [141].wv[1]/头尾迁 [153].wv[2]/[3])
+        # 1001 同构集成:固定句常量件恰 0(美术风格底座迁 [141].wv[1]/头尾迁 [153].wv[2]/[3])
         sconsts = [n["id"] for n in sg_nodes.values() if n["type"] == "StringConstant"]
         assert sconsts == [], \
             f"i2i 子图 StringConstant 应恰 0(1001 收编三自研件,固定句全迁参数面),得 {sconsts}"
@@ -3948,7 +3956,7 @@ class TestI2IContract:
         语义破坏+造环,§10.9 依赖环裁定在档)——t2i 的「装配全文喂 PE」(Q1=B+)
         在 i2i 不可搬运,择文器挪装配上游恰与原 [15] 开关位一致;[152] Select①
         择文(pe开=[27] PE抽取文/pe关=裸指令)→[141].主体句;[141] 装配全文=
-        择文+BASE([150])+锁层A(参数面),四路扇出 [142].prompt/[171].prompt/
+        择文+BASE([150])+美术风格底座(参数面),四路扇出 [142].prompt/[171].prompt/
         -20槽4 prompt/[153].装配全文;主图零 PE 件。"""
         graph = GRAPHS["i2i"]
         nodes, links = _nodes(graph), _links(graph)
@@ -3975,7 +3983,7 @@ class TestI2IContract:
             "[152].最终文本 应单线喂 [141].主体句(择文上位)"
         assert sg_links[60]["target_id"] == I2I_SG_ASM_ID, \
             "link60 落点应 [141] 装配全文件"
-        # ── [141] 装配全文件(锁层A迁参数面;1002 ⑭ BASE 连线槽前置)──
+        # ── [141] 装配全文件(美术风格底座迁参数面;1002 ⑭ BASE 连线槽前置)──
         asm = sg_nodes[I2I_SG_ASM_ID]
         assert asm["type"] == I2I_SG_ASM_CLASS, \
             f"[{I2I_SG_ASM_ID}] 应为 {I2I_SG_ASM_CLASS}(i2i 版唯一真源,不喂 PE 链)"
@@ -4032,13 +4040,13 @@ class TestI2IContract:
 
     def test_i2i_select_fixed_sentences_verbatim(self):
         """i2i 三自研件固定句参数逐字(1001 同构集成;照 t2i M-3 同款锚):
-        [141] 锁层A全文=库首节常量A 逐字;[152]/[153] 头/尾/W1 句=官方原文+库
+        [141] 锁层A全文=库首节美术风格底座常量 逐字;[152]/[153] 头/尾/W1 句=官方原文+库
         §一 0930 主候选句逐字(手术脚本三源对拍:术前 delimiter 实读+t2i 工作流值
         程序提取+my_nodes default,禁手敲)。[153] 恒 pe关=wv[0] False(纯包裹器)。"""
         graph = GRAPHS["i2i"]
         sg_nodes = _qi21_sg_nodes(graph)
         asm = sg_nodes[I2I_SG_ASM_ID]
-        # 1004 重锚:库首节逐字互锁废止(A4);锁层A=qi21/i2i 两件参数面横锁同值
+        # 1004 重锚:库首节逐字互锁废止(A4);美术风格底座=qi21/i2i 两件参数面横锁同值
         assert _widget(asm, I2I_SG_ASM_WV["锁层A全文"]) == _wf_lock_a(), \
             "i2i [4011] 锁层A全文参数 应=两件在档同值(1004 横锁;恒挂=装配公式第三段)"
         for sid in (I2I_SG_SEL1_ID, I2I_SG_SEL2_ID):
@@ -4107,22 +4115,22 @@ class TestI2IContract:
             assert _reach_has(reach, None, 400), \
                 "pe关 主图 [400](⑫ 前 [22])原始用户词应在执行集(直写选配臂真源=裸指令)"
             assert _reach_has(reach, asg["id"], I2I_SG_ASM_ID), \
-                "pe关 [141] 装配全文件应在执行集(直写路=指令+BASE+锁层A)"
+                "pe关 [141] 装配全文件应在执行集(直写路=指令+BASE+美术风格底座)"
         finally:
             host["widgets_values"][idx] = True
 
     def test_default_assembly_interlocks_library(self):
-        """装配↔05 库逐字互锁(1001 同构集成:锁层A自 [110] 常量件迁 [141] 参数面):
+        """装配↔05 库逐字互锁(1001 同构集成:美术风格底座自 [110] 常量件迁 [141] 参数面):
         pe关直写路装配全文=[22]指令(官方换装例句)+MyQi21DaojieBase 人物
-        base_text(逐字=05 库②层组合)+[141].锁层A全文参数(逐字=库首节常量A);
+        base_text(逐字=05 库②层组合)+[141].锁层A全文参数(逐字=库首节美术风格底座常量);
         pe开路=PE 抽取文替①层(运行时文本,静态不可逐字——同 0926 裁定1 口径,
         本断言走 pe关选配臂核验真源)。"""
         graph = GRAPHS["i2i"]
         sg_nodes = _qi21_sg_nodes(graph)
         qi21 = {e["zh"]: e for e in
                 json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]}
-        # 1004 重锚:数据↔库②层逐字互锁废止(A4 库降级+正负拆开瘦身);锁层A↔库
-        # 同废——改锁 两件横锁+三段自洽组合(指令+人物 positive_text+锁层A参数面)
+        # 1004 重锚:数据↔库②层逐字互锁废止(A4 库降级+正负拆开瘦身);美术风格底座↔库
+        # 同废——改锁 两件横锁+三段自洽组合(指令+人物 positive_text+美术风格底座参数面)
         assert _widget(sg_nodes[I2I_SG_ASM_ID], I2I_SG_ASM_WV["锁层A全文"]) == _wf_lock_a(), \
             "i2i [4011] 锁层A全文参数 应=两件在档同值(1004 横锁)"
         assembled = "\n".join([
@@ -4131,7 +4139,7 @@ class TestI2IContract:
             _widget(sg_nodes[I2I_SG_ASM_ID], I2I_SG_ASM_WV["锁层A全文"])])
         want = "\n".join([I2I_B_SEG, qi21["人物"]["positive_text"], _wf_lock_a()])
         assert assembled == want, \
-            "pe关直写路装配全文三段组合应自洽(1004 重锚:指令+人物positive_text+锁层A)"
+            "pe关直写路装配全文三段组合应自洽(1004 重锚:指令+人物positive_text+美术风格底座)"
 
     def test_lora_slot_present_and_bypassed(self):
         """0929 S3 收装:LoRA/支路/选择件/seed 全居加速子图([190] 宿主,id 沿用

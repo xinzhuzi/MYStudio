@@ -33,8 +33,8 @@
  * [1001 S8 适配(Trellis 10-01-qi21-assembly-blueprint S8 L2-2 步骤10)]
  *   子图名锚 includes("装配")→includes("提示词类型优化")(Part-A S1 改名);S6/S6b
  *   随 Q1=B+ 换语义:[140].prompt=装配器 MyQi21PromptAssembly「装配全文」输出直喂
- *   (主体句+BASE+锁层A),种子文 widget 清空退役(摆设)——旧「程序化改种子=前缀+
- *   主体句」硬闸机制失效,新硬闸=装配器参数面锁层A逐字对拍+排队图 40:140.prompt
+ *   (主体句+BASE+美术风格底座),种子文 widget 清空退役(摆设)——旧「程序化改种子=前缀+
+ *   主体句」硬闸机制失效,新硬闸=装配器参数面美术风格底座逐字对拍+排队图 40:140.prompt
  *   链化判据(1001 装机红修:API 排队图不内联连线文本,prompt=引用 [装配器,0]——
  *   判 PE←装配器口0 直喂且构词三段在场,旧「字面含双特征头」恒 false;1005 退役:
  *   管线重序后PE只吃主体句,判据改 PE开关口0,见 [1005] 块);panel40
@@ -62,7 +62,7 @@
  *   「prompt=装配器口0直喂」判据整体退役(10-05 实弹 FAIL 实锤:引用非装配器装配
  *   全文口 6:4012:0→MyQi21PESwitch),新判据=①PE.prompt 引用PE开关口0;②正向主体句
  *   源含头18字;③构词三段改到装配器侧(BASE←型底座 MyQi21DaojieBase 口0 link#312+
- *   锁层A字面逐字=装机真源,739 字实拍对拍;旧「含头+>1000」魔数按 1001 时代 1174 字
+ *   美术风格底座字面逐字=装机真源,739 字实拍对拍;旧「含头+>1000」魔数按 1001 时代 1174 字
  *   旧内容标定随重序废)。S6b captureOurShot peChain 判别同锚改 PE开关口0——
  *   1005 重锚:管线重序后PE只吃主体句。
  */
@@ -123,7 +123,7 @@ function parseTruth() {
   const host208 = g.nodes.find((n) => String(n.type) === String(accSg.id)); // 加速宿主(同法)
   const ksDirect = accSg.nodes.find((n) => n.type === "KSampler" && n.widgets_values?.[2] === 40);
   const peNode = asmSg.nodes.find((n) => n.type === "QwenImage21_T2IPromptRewrite");
-  const asmNode = asmSg.nodes.find((n) => n.type === "MyQi21PromptAssembly"); // 1001 S8 装配全文件(锁层A 参数面真源)
+  const asmNode = asmSg.nodes.find((n) => n.type === "MyQi21PromptAssembly"); // 1001 S8 装配全文件(美术风格底座 参数面真源)
   const save = g.nodes.find((n) => n.type === "SaveImage");
   const subjNode = g.nodes.find((n) => n.type === "PrimitiveStringMultiline"); // 主体句(大轮后 [400];主图唯一)
   if (!host40 || !host208 || !ksDirect || !peNode || !asmNode || !save || !subjNode) {
@@ -143,13 +143,13 @@ function parseTruth() {
   // PE.prompt=PE开关「PE路主体句」口0直喂连线(子图 link#304 4012:0→4013:1),
   // PE开关.主体句←正向主体句边界(link#302 -10:0→4012:0),种子文 widget 清空退役
   // (摆设)——链化判据(D5 peFedAssembly):排队图 prompt=引用PE开关口0+正向主体句源
-  // 含头 18 字+装配器侧构词(BASE←型底座口0 link#312+锁层A 字面逐字=装机真源,
+  // 含头 18 字+装配器侧构词(BASE←型底座口0 link#312+美术风格底座 字面逐字=装机真源,
   // 防裸主体句回退);零硬编码
   const peSeed = peNode.widgets_values?.[0] || "";
   const subj24 = String(subjNode.widgets_values?.[0] || "");
   const lockA = String((asmNode.widgets_values || []).find((v) => typeof v === "string" && v.length > 500) || "");
   const subjHead = subj24.slice(0, 18); // 主体句头 18 字
-  const lockAHead = lockA.slice(0, 18); // 锁层A 首段头 18 字
+  const lockAHead = lockA.slice(0, 18); // 美术风格底座 首段头 18 字
   // D4 装机/仓库双哈希头(12 位;仓库缺失=并行在改或未打包,软提醒不设门)
   const sha12 = (p) => { try { return createHash("sha256").update(readFileSync(p)).digest("hex").slice(0, 12); } catch { return null; } };
   return {
@@ -312,7 +312,7 @@ const pngMagic = (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] =
  * ②主体句来源:PE开关.主体句 上游=正向主体句边界路径(JSON link#302 -10:0→4012:0;
  * 排队图把子图 -10 边界内联为根级主体句件,实拍 6:4012.主体句=["400",0])→解析件
  * value 含主体句头18字;③构词三段改到装配器侧:BASE 引用型底座 MyQi21DaojieBase 口0
- * (JSON link#312 4010:0→4011:0)+锁层A字面逐字=装机真源(旧「含首段头且>1000字」魔数
+ * (JSON link#312 4010:0→4011:0)+美术风格底座字面逐字=装机真源(旧「含首段头且>1000字」魔数
  * 按 1001 时代 1174 字内容标定,重序后内容重写真值 739 字、10-05 实拍逐字相等,魔数门废)。
  */
 function peFedAssembly(prompt, keys, truth, domain) {
@@ -333,7 +333,7 @@ function peFedAssembly(prompt, keys, truth, domain) {
   const baseOk = !!baseNode && baseNode.class_type === "MyQi21DaojieBase" && String(baseRef[1]) === "0";
   const lockA = String(asm?.inputs?.锁层A全文 || "");
   const lockOk = lockA === truth.lockA; // 1005 重锚:逐字=装机真源;旧「含头+>1000」魔数按 1001 时代 1174 字内容标定,重序后真值 739 字会健康假 FAIL,已废
-  return { pe, ok: subjOk && baseOk && lockOk, why: `链=PE←PE开关${ref[0]}:0✓ 主体句源含头=${subjOk}/装配器${asmKey || "键缺"} BASE←型底座=${baseOk}/锁层A ${lockA.length} 字逐字=${lockOk}` };
+  return { pe, ok: subjOk && baseOk && lockOk, why: `链=PE←PE开关${ref[0]}:0✓ 主体句源含头=${subjOk}/装配器${asmKey || "键缺"} BASE←型底座=${baseOk}/美术风格底座 ${lockA.length} 字逐字=${lockOk}` };
 }
 
 /**
@@ -684,7 +684,7 @@ async function s6Generate(main, engineBase, truth) {
     check(`S6 排队图:速度档=${truth.speedMode}`, sel.length > 0 && prompt[sel[0]]?.inputs?.mode === truth.speedMode,
       `mode=${sel.length ? prompt[sel[0]].inputs.mode : "无"}`);
     // 1005 重锚:管线重序后PE只吃主体句(D5)——排队图 PE.prompt=引用 PE开关口0
-    // (PE路主体句直喂),正向主体句源含头+装配器侧构词三段(BASE←型底座+锁层A字面)
+    // (PE路主体句直喂),正向主体句源含头+装配器侧构词三段(BASE←型底座+美术风格底座字面)
     const fed = peFedAssembly(prompt, keys, truth, truth.asmDomain);
     check("S6 排队图:PE 改写器在链(装配域,prompt=PE开关口0直喂+正向主体句源+装配器构词三段在场)", fed.ok,
       fed.pe.length ? `key=${fed.pe.join(",")} ${fed.why}` : "无");
@@ -755,7 +755,7 @@ async function s6Generate(main, engineBase, truth) {
 // ②真出图,排队图服务器端硬闸 装配域:4013.prompt=PE开关口0直喂+正向主体句源+装配器
 // 构词三段(D5)。入图走程序化 setGraph(S3-gate 已证形态);内件按 TYPE 寻址(子图内 id 装载可重编号)。
 async function s6bPeFedShot(main, engineBase, truth) {
-  step("S6b", `主体句进 PE 硬闸(Q1=B+;装配器锁层A ${truth.lockA.length}字对拍+排队图 PE 链化判据)`);
+  step("S6b", `主体句进 PE 硬闸(Q1=B+;装配器美术风格底座 ${truth.lockA.length}字对拍+排队图 PE 链化判据)`);
   // ① 入装配子图(程序化;≤10 行注入纪律:存根图→按 TYPE 找宿主→setGraph 入图)
   const enteredRaw = await wv(main, `(() => {
     const c = window.app.canvas;

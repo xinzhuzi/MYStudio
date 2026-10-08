@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // canvas_deploy.mjs — 画布/节点改动的唯一交付命令(1007 判图役五连修定谳)。
-// 把 node-graph 技能 §6「唯一交付管线」固化成代码:自动判类型→cp 热覆盖→生效动作
+// 把 node-graph 技能调用集 INVOCATION.md「唯一交付管线」固化成代码:自动判类型→cp 热覆盖→生效动作
 // (引擎重启/画布重载/页面重载)→活机读数(**读渲染源**)→PASS/FAIL,exit code=verdict。
 // 用法:
 //   node canvas_deploy.mjs <文件路径...>            # 部署+生效+验证

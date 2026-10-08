@@ -42,7 +42,7 @@ class MyQi21PromptPreview:
                 # 1007深夜二轮 用户令:双显示位=正/负各自成框(单「预览显示」
                 # 合并框=「多余的渲染控件」退役)。显示位=py 端 optional
                 # multiline(DOMWidgetImpl/comfy-multiline-input,全画布唯一被
-                # 证实可靠的渲染路径,详 SKILL §5 1b)。前端 onExecuted 按 name
+                # 证实可靠的渲染路径,详优化集 OPTIMIZATION.md 布局④ 1b([401] py-DOM 同构破案全录))。前端 onExecuted 按 name
                 # 把 ui.positive/ui.negative 分别写进本二框;纯显示位,无需手填。
                 "正向终稿": ("STRING", {
                     "multiline": True, "default": "",

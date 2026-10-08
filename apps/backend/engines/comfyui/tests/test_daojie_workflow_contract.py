@@ -134,14 +134,22 @@ class TestDaojieBasesSources:
         """1004 Phase A 废止注记:旧 daojie_bases.json positive 与 0918 md 围栏
         逐字互锁(唯一双写对)——1004 正负拆开+统一立绘底座重写后数据瘦身,
         0918 md 降级设计记录(05 库头部声明同款口径),逐字互锁废止;改锁
-        1004 结构锚:人物系六型=统一「主体的单人立绘」底座开头(design §一
-        钦定),道具型=定式句保留,场景/概念=空镜/气氛开幅。"""
-        renwu_xi = {"人物", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分"}
+        1004 结构锚:人物系=「主体的单人立绘」底座开头(design §一 钦定),
+        道具型=定式句保留,场景/概念=空镜/气氛开幅。1008 S3 三型差异化重锚:
+        分镜剧情图退出统一立绘锁(4fa15e9 素材+㉗ 重写=单格叙事帧开头,叙事
+        画面取景自由、可多人;断言分层职责,不冻结 1004 压平旧文案——与
+        test_qwen21_workflow_contract.py:3143 同口径)。"""
+        renwu_xi = {"人物", "美宣", "多视图", "高清人脸", "表情差分"}
         for name, entry in BASES_BY_NAME.items():
             pt = entry["positive_text"]
             if name in renwu_xi:
                 assert pt.startswith("主体的单人立绘"), \
-                    f"底座「{name}」应=统一立绘底座开头(1004 design §一),得 {pt[:12]!r}"
+                    f"底座「{name}」应=立绘底座开头(1004 design §一),得 {pt[:12]!r}"
+            elif name == "分镜剧情图":
+                assert pt.startswith("一幅单格叙事画面"), \
+                    f"底座「分镜剧情图」应=单格叙事帧开头(1008 S3 三型差异化),得 {pt[:12]!r}"
+                assert "头身比" not in pt, \
+                    "底座「分镜剧情图」不锚头身比(1002 ㉒ 型格差异;1008 S3 随差异化恢复)"
             elif name == "道具":
                 assert "尺寸标注设定图" in pt, "底座「道具」应保留定式句(1002 Q2 特例)"
             elif name == "场景":

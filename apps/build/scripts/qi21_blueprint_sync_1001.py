@@ -39,11 +39,11 @@
     qi21 件 9 值形,头部 4 空串=装配全文/负面词直写/PE出文/PE负面四连线槽占位;
     i2i/edit 件仍 7 值旧形——头/尾/W1 在 4/5/6,锚随 i2i/edit 推广役再分 target 化)
   多目标节点面(1001 i2i/edit 批):
-    Assembly 恰 1 件→刷锁层A;0 件(edit 无装配层)→跳过并注记;>1 件 fail-closed;
+    Assembly 恰 1 件→刷美术风格底座;0 件(edit 无装配层)→跳过并注记;>1 件 fail-closed;
     Select ≥1 件→全刷头/尾/W1(i2i 两件:[152] 择文器+[153] 透明包裹器,同参数面);
     0 件 fail-closed。
   纪律:提取未命中/多重命中→中文报错 exit 2(fail-closed 绝不猜);全一致=零写入
-  (幂等);落盘后重读回逐字断言。节点 Python 侧 default(_LOCK_A/_RGBA_HEAD 等)不在
+  (幂等);落盘后重读回逐字断言。节点 Python 侧 default(_STYLE_BASE/_RGBA_HEAD 等)不在
   本通道——改库后须同批过账节点代码并更新 sha16 锚(两件 docstring 有注)。
 """
 import argparse
@@ -104,7 +104,7 @@ def extract_fixed_sentences():
                         f"fail-closed 拒刷——请核对 {LIB05.name} 对应节书写形态")
         return hits[0]
 
-    lock_a = one(r"\*\*常量 A·基础[^*]*\*\*:\s*\n\n```text\n(.*?)\n```",
+    lock_a = one(r"\*\*美术风格底座常量·基础[^*]*\*\*:\s*\n\n```text\n(.*?)\n```",
                  "锁层A全文(§二 常量 A·基础 text 块)", re.S)
     i = text.find("三生成器 RGBA 头尾句改官方逐字")
     if i < 0:
@@ -194,7 +194,7 @@ def refresh_from_library(check_only, tags):
         asm = _find_nodes(sg, "MyQi21PromptAssembly")
         if asm:
             assert asm[0]["widgets_values"][ASM_LOCKA_WV_IDX] == sent["锁层A全文"], \
-                f"{p['path']} 锁层A 回读不逐字"
+                f"{p['path']} 美术风格底座 回读不逐字"
         for sel in _find_nodes(sg, "MyQi21PromptSelect"):
             assert sel["widgets_values"][6:9] == [sent["RGBA官方头句"], sent["RGBA官方尾句"], sent["W1收束句"]], \
                 f"{p['path']} 头尾/W1 回读不逐字"

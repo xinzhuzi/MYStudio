@@ -6,9 +6,9 @@
 
 1004 集中化令随迁:数据真源=daojie_ink_guofeng/json/qi21_bases.json
 (types[] 九型+自由;原本目录 daojie_bases.json 退役删件,平铺 list→dict
-外壳,字段 positive/negative→positive_text/negative_text;锁层A=lock_layer
-正负双出)。装配语义=正向三层换行拼装(型底座→锁层A→主体句)+负向三层
-合并(锁层A+型负面+用户负向,复用 my_styles._merge_negative;旧「底座在前
+外壳,字段 positive/negative→positive_text/negative_text;美术风格底座=art_style_base
+正负双出)。装配语义=正向三层换行拼装(型底座→美术风格底座→主体句)+负向三层
+合并(美术风格底座+型负面+用户负向,复用 my_styles._merge_negative;旧「底座在前
 零分隔符直拼」口径废止留痕)。九型负面基线=中文「，」token(1004 中文负面
 役,旧「纯英文逗号 token」断言与现实相反,废止留痕)。
 
@@ -47,7 +47,7 @@ EXPECTED_OPTIONS = [
 @pytest.fixture(autouse=True)
 def _reset_bases_cache():
     """测试间清模块级缓存,免 monkeypatch 改 _BASES_JSON 后读到旧缓存
-    (1004 正负拆开:锁层缓存同清,防上一测试的真源 lock_layer 泄漏)。"""
+    (1004 正负拆开:美术风格底座缓存同清,防上一测试的真源 art_style_base 泄漏)。"""
     my_daojie_base._bases_cache.update(mtime=None, entries=None)
     my_daojie_base._lock_cache.update(mtime=None, data=None)
     yield
@@ -103,13 +103,13 @@ def test_combo_nine_options_in_json_order_with_pinned_default():
     assert MyDaojieBase.FUNCTION == "run"
 
 
-# ── 装配语义(1004 正负拆开):正向=型底座→锁层A→主体句三层换行拼装 ──
+# ── 装配语义(1004 正负拆开):正向=型底座→美术风格底座→主体句三层换行拼装 ──
 def test_run_assembles_base_first_then_subject_verbatim():
     renwu = next(e for e in _bases_entries() if e["zh"] == "人物")
-    lock_pos = my_daojie_base._load_lock_layer()["positive"]
+    lock_pos = my_daojie_base._load_art_style_base()["positive"]
     pos, _neg, _aspect, _mp, _base, _w, _h = MyDaojieBase().run(
         "人物", positive="  一位女修士，青年金丹期。 ")
-    # 型底座在前、锁层A居中、主体句 strip 后殿后,三层换行拼装
+    # 型底座在前、美术风格底座居中、主体句 strip 后殿后,三层换行拼装
     # (旧「底座在前零分隔符直拼」口径已随 1004 正负拆开废止留痕)
     assert pos == "\n".join(
         [renwu["positive_text"], lock_pos, "一位女修士，青年金丹期。"])
@@ -117,11 +117,11 @@ def test_run_assembles_base_first_then_subject_verbatim():
 
 def test_run_empty_subject_is_identity_pure_base():
     scene = next(e for e in _bases_entries() if e["zh"] == "场景")
-    lock_pos = my_daojie_base._load_lock_layer()["positive"]
+    lock_pos = my_daojie_base._load_art_style_base()["positive"]
     pos, neg, aspect, mp, base_out, w_out, h_out = MyDaojieBase().run("场景")
     assert base_out == "场景"  # 09-19 第五出=型直通
-    assert pos == "\n".join([scene["positive_text"], lock_pos])  # 留空=底座+锁层
-    assert pos.endswith("。")  # 锁层A正向句号自足收尾
+    assert pos == "\n".join([scene["positive_text"], lock_pos])  # 留空=底座+美术风格底座
+    assert pos.endswith("。")  # 美术风格底座正向句号自足收尾
     assert aspect == "16:9 (Widescreen)" and mp == 4.2  # 分辨率两出随型
     pos2, _n2, _a2, _m2, _b2, _w, _h = MyDaojieBase().run("场景", positive=None, negative=None)
     assert pos2 == pos
@@ -136,7 +136,7 @@ def test_run_all_options_produce_nonempty_outputs():
         assert pos and "细墨线" in pos
         assert not pos.startswith("现代修仙游戏")
         assert pos.endswith("。")
-        # 1004 中文负面役:九型负面基线=中文「，」token,锁层A负面同并入
+        # 1004 中文负面役:九型负面基线=中文「，」token,美术风格底座负面同并入
         assert neg and "模糊" in neg
         # 09-18 分辨率两出:九型 aspect 一律官方枚举串;mp 道具/高清人脸 1.0
         # (09-19 裁定出 1024×1024,节点口径 1.0 MP 精确命中)、其余一律 4.2
@@ -144,14 +144,14 @@ def test_run_all_options_produce_nonempty_outputs():
         assert mp == (1.0 if name in ("道具", "高清人脸") else 4.2)
 
 
-# ── 负向(1004 正负拆开):锁层A+型负面+用户负向三层合并去重 ──
+# ── 负向(1004 正负拆开):美术风格底座+型负面+用户负向三层合并去重 ──
 def test_run_negative_merges_and_dedupes_tokens():
-    """负向=锁层A负面→型负面→用户负向,复用 my_styles._merge_negative 整
+    """负向=美术风格底座负面→型负面→用户负向,复用 my_styles._merge_negative 整
     token 去重(中文基线「，」不切分=整串单 token,跨层整串相等才去重——
-    保守纪律同旧;层序=锁层殿前、用户殿后,旧「用户段在前」口径废止留痕)。"""
+    保守纪律同旧;层序=美术风格底座殿前、用户殿后,旧「用户段在前」口径废止留痕)。"""
     from engines.comfyui.my_nodes.nodes.my_styles import _merge_negative
     renwu = next(e for e in _bases_entries() if e["zh"] == "人物")
-    lock_neg = my_daojie_base._load_lock_layer()["negative"]
+    lock_neg = my_daojie_base._load_art_style_base()["negative"]
     _, neg, _, _, _b, _w, _h = MyDaojieBase().run("人物", negative="text")
     assert neg == _merge_negative(
         lock_neg, _merge_negative(renwu["negative_text"], "text"))
@@ -173,7 +173,7 @@ def test_merge_negative_reused_from_my_styles():
 # ── 热改:mtime 失效(json 文案改=下次 run 即新文)───────────
 def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     # 1004 集中化 schema:dict 外壳 types[];字段 positive_text/negative_text
-    # (lock_layer 缺席=锁层两出为空串,正负装配降级为纯型底座面)
+    # (art_style_base 缺席=美术风格底座两出为空串,正负装配降级为纯型底座面)
     fake = tmp_path / "qi21_bases.json"
     fake.write_text(json.dumps({"types": [
         {"key": "测试型", "zh": "测试型", "purpose": "p",
@@ -269,8 +269,9 @@ def test_v3_fields_present_for_all_nine_with_shape():
         zh = e["zh"]
         for field in ("lora_recipe", "steps_hint", "i2i_routes", "postprocess"):
             assert field in e, (zh, field)
-        # 老字段仍在(v3 增量迁移的零改动面;1004 换名后的正负双字段)
-        for field in ("key", "purpose", "aspect_ratio", "megapixels",
+        # 老字段仍在(v3 增量迁移的零改动面;1004 换名后的正负双字段;
+        # 1008 R 批删 types[].key 冗余双键(九型 key≡zh 同值),断言随源重锚)
+        for field in ("purpose", "aspect_ratio", "megapixels",
                       "positive_text", "negative_text"):
             assert field in e, (zh, field)
         assert isinstance(e["lora_recipe"], list) and e["lora_recipe"], zh
@@ -371,7 +372,7 @@ def test_v3_recipe_reader_helpers_and_fallback(tmp_path, monkeypatch):
     r[0]["weight"] = 9.9
     assert my_daojie_base.lora_recipe_of("场景")[0]["weight"] != 9.9
     # 缺省回退:旧版 json(无 v3 字段)→ 空表+默认步数档,run 行为零变化
-    # (1004 schema:dict 外壳 types[]+positive_text;lock_layer 缺席=锁层空)
+    # (1004 schema:dict 外壳 types[]+positive_text;art_style_base 缺席=美术风格底座空)
     fake = tmp_path / "qi21_bases.json"
     fake.write_text(json.dumps({"types": [
         {"key": "旧型", "zh": "旧型", "purpose": "p",
