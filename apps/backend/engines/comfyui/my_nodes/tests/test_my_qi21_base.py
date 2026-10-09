@@ -22,7 +22,7 @@ BASE=真源家 positive_text 逐字(①槽与美术风格底座常量 不在 BAS
 例外与 BASE 相反)/
 W/H 与 K2 MyDaojieBase 同型同参输出一比一(1004 集中化:两件同源直读
 真源家,0927 Q21 多视图分档随 sidecar 提取链退役,多视图回 canon 合板
-override 直出——1008 快出档缩编后=2448×816,旧 3072×1024 入 git 史;
+override 直出——1008 快出档缩编后=2448×1632,旧 3072×1024 入 git 史;
 公式=MP 按 1024² 计、边长取整 8 倍数;自由型
 1:1/1.0MP 兜底 1024×1024)/
 rgba_default 四型(道具/多视图/高清人脸/表情差分)=true 其余五型 false
@@ -202,7 +202,7 @@ def test_width_height_match_k2_same_type_and_params():
         _p, _neg, aspect, mp, _bn, k_w, k_h = MyDaojieBase().run(zh)
         # 1004 集中化:两件同源直读真源家 qi21_bases.json,十档全型一比一
         # (0927 Q21 多视图分档 3:4 分张/退役 override 随 sidecar 提取链退役,
-        # 多视图回 canon 合板口径 override 直出,1008 缩编后=2448×816)
+        # 多视图回 canon 合板口径 override 直出,1008 缩编后=2448×1632)
         assert (w, h) == (k_w, k_h), zh  # 同型同参(aspect/MP/override 同 canon)
         entry = my_qi21_base._entry(zh)
         if entry.get("resolution_override") is None:
@@ -216,12 +216,12 @@ def test_width_height_match_k2_same_type_and_params():
 def test_width_height_reference_table():
     """十型对照表(型→宽×高;防 K2 侧公式漂移时静默跟漂的独立钉)。
     自由型(1001 P1)=1:1 (Square)/1.0MP 兜底 1024×1024(design §2.1);
-    多视图=canon override 2448×816 直出(0927 Q21 分档退役,见上)。
+    多视图=canon override 2448×1632 直出(0927 Q21 分档退役,见上)。
     1008 快出档缩编:六型 4.2→1.5MP、多视图 4.2→1.8MP(用户令 1-2MP
     快出+后放大;4.2 旧档宽高表入 git 史)。"""
     expect = {
         "人物": (1088, 1448), "场景": (1672, 944), "道具": (1024, 1024),
-        "美宣": (1912, 824), "人物多视图": (2448, 816), "高清人脸": (1024, 1024),
+        "美宣": (1912, 824), "人物多视图": (2448, 1632), "高清人脸": (1024, 1024),
         "分镜剧情图": (1672, 944), "表情差分": (1256, 1256),
         "概念气氛图": (1672, 944), "自由": (1024, 1024)}
     for zh, (w, h) in expect.items():

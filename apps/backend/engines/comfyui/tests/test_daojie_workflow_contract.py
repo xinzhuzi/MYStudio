@@ -143,7 +143,7 @@ class TestDaojieBasesSources:
         for name, entry in BASES_BY_NAME.items():
             pt = entry["positive_text"]
             # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
-            _OPEN = {"人物多视图": "同一角色的三视图设定图", "高清人脸": "同一角色的面部特写素材",
+            _OPEN = {"人物多视图": "同一角色的六视图设定图", "高清人脸": "同一角色的面部特写素材",
                      "表情差分": "同一角色的九格表情对比表"}
             if name in _OPEN:
                 assert pt.startswith(_OPEN[name]), \
