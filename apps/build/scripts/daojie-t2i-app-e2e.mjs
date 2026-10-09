@@ -122,8 +122,8 @@ function parseTruth() {
   const host40 = g.nodes.find((n) => String(n.type) === String(asmSg.id)); // 装配宿主(主图 type=子图 uuid)
   const host208 = g.nodes.find((n) => String(n.type) === String(accSg.id)); // 加速宿主(同法)
   const ksDirect = accSg.nodes.find((n) => n.type === "KSampler" && n.widgets_values?.[2] === 40);
-  const peNode = asmSg.nodes.find((n) => n.type === "QwenImage21_T2IPromptRewrite");
-  const asmNode = asmSg.nodes.find((n) => n.type === "MyQi21PromptAssembly"); // 1001 S8 装配全文件(美术风格底座 参数面真源)
+  const peNode = asmSg.nodes.find((n) => n.type === "MyQi21ApiPE"); // 1009 重锚:4013 ApiPE(官方 QwenImage21_T2IPromptRewrite 1006 起退役)
+  const asmNode = asmSg.nodes.find((n) => n.type === "MyQi21美术风格底座"); // 1009 重锚:美术风格底座 参数面真源=4032 四件+协议文(独立 MyQi21PromptAssembly 已出 t2i 线,装配内置进 ApiPE)
   const save = g.nodes.find((n) => n.type === "SaveImage");
   const subjNode = g.nodes.find((n) => n.type === "PrimitiveStringMultiline"); // 主体句(大轮后 [400];主图唯一)
   if (!host40 || !host208 || !ksDirect || !peNode || !asmNode || !save || !subjNode) {
@@ -139,15 +139,12 @@ function parseTruth() {
     return (sg.inputs || []).filter((i) => ["COMBO", "BOOLEAN", "INT", "STRING", "FLOAT"].includes(i.type))
       .map((i) => i.name).filter((nm) => !linked.has(nm));
   };
-  // D1 PE 喂法真值(1005 重锚:管线重序后PE只吃主体句,1002 大轮后编号=[4013]):
-  // PE.prompt=PE开关「PE路主体句」口0直喂连线(子图 link#304 4012:0→4013:1),
-  // PE开关.主体句←正向主体句边界(link#302 -10:0→4012:0),种子文 widget 清空退役
-  // (摆设)——链化判据(D5 peFedAssembly):排队图 prompt=引用PE开关口0+正向主体句源
-  // 含头 18 字+装配器侧构词(BASE←型底座口0 link#312+美术风格底座 字面逐字=装机真源,
-  // 防裸主体句回退);零硬编码
-  const peSeed = peNode.widgets_values?.[0] || "";
+  // D1 PE 喂法真值(1005 重锚;1009 拓扑再锚:PE=[4013] MyQi21ApiPE 装配内置,
+  // 底座真源=[4032] 四段协议文由其主口喂 4013 美术风格底座-正向;
+  // ApiPE 无种子控件(种子住加速宿主面板/采样器)——peSeed 退役删除):
+  // 链化判据(D5 peFedAssembly)见 S6b 段(旧拓扑锚,候实弹重锚警示在彼处)
   const subj24 = String(subjNode.widgets_values?.[0] || "");
-  const lockA = String((asmNode.widgets_values || []).find((v) => typeof v === "string" && v.length > 500) || "");
+  const lockA = String((asmNode.widgets_values || []).find((v) => typeof v === "string" && v.length > 500) || ""); // 4032 五槽中唯一>500字=协议文 wv[4]
   const subjHead = subj24.slice(0, 18); // 主体句头 18 字
   const lockAHead = lockA.slice(0, 18); // 美术风格底座 首段头 18 字
   // D4 装机/仓库双哈希头(12 位;仓库缺失=并行在改或未打包,软提醒不设门)
@@ -158,7 +155,7 @@ function parseTruth() {
     panel40: hostPanel(asmSg, host40), panel208: hostPanel(accSg, host208),
     speedMode: host208.widgets_values?.[0], seedDefault: host208.widgets_values?.[1],
     ksSteps: ksDirect.widgets_values?.[2],
-    peSeed, savePrefix: save.widgets_values?.[0] || "",
+    savePrefix: save.widgets_values?.[0] || "",
     subj24, lockA, subjHead, lockAHead,
     // 排队图子图内键按「宿主域前缀+class_type」动态寻址(anchors §F;域前缀自真源派生)
     asmDomain: `${host40.id}:`, accDomain: `${host208.id}:`,
@@ -326,6 +323,9 @@ function peFedAssembly(prompt, keys, truth, domain) {
   const subj = sw.inputs?.主体句;
   const subjNode = Array.isArray(subj) ? prompt[String(subj[0])] : null;
   const subjOk = !!subjNode && String(subjNode.inputs?.value || "").includes(truth.subjHead);
+  // ⚠ 1009 拓扑警示:本函数排队图判据仍锚旧拓扑(独立 MyQi21PromptAssembly+锁层A全文
+  // 输入)——t2i 现行=ApiPE 装配内置+[4032] 协议文喂底座口;非 SKIP_GEN 全实弹前须重锚
+  // (SKIP_GEN=1 时 S6/S6b 连跳不经过此处;勿在无实弹收据下盲改判据)
   const asmKey = keys.find((k) => k.startsWith(domain) && prompt[k]?.class_type === "MyQi21PromptAssembly");
   const asm = asmKey ? prompt[asmKey] : null;
   const baseRef = asm?.inputs?.BASE;
@@ -953,7 +953,7 @@ async function main() {
       task: "09-30-daojie-t2i-e2e-pt2",
       cdpPort: CDP_PORT, engineBase,
       truth: { rootCount: truth.rootCount, panel40: truth.panel40, panel208: truth.panel208, speedMode: truth.speedMode, seedDefault: truth.seedDefault, ksSteps: truth.ksSteps, savePrefix: truth.savePrefix,
-        peSeedWidget: truth.peSeed, subj24Head: truth.subj24.slice(0, 60), lockALen: truth.lockA.length, subjHead: truth.subjHead, lockAHead: truth.lockAHead,
+        subj24Head: truth.subj24.slice(0, 60), lockALen: truth.lockA.length, subjHead: truth.subjHead, lockAHead: truth.lockAHead,
         instT2iSha: truth.instSha, repoT2iSha: truth.repoSha },
       evidenceDir: OUT_DIR, tmpDir: TMP,
       consoleErrorCount: consoleErrors.length,
