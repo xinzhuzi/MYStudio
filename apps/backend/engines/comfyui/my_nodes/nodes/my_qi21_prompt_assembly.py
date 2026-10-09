@@ -175,10 +175,11 @@ def _type_is_transparent(base_text: str) -> bool:
 
 
 def _style_combo_transparent() -> str:
-    """透明型底座组合=风格工艺件+透明承载件(1008晚三件拆分;缺件回退 positive 全文)。"""
+    """透明型底座组合=仅风格工艺件(1008 用户架构令:透明语义零入 PE——头尾/承载
+    全部由 [4014] 程序化包裹,AI 模型碰不到透明语句;缺件回退 positive 全文)。"""
     d = _load_art_style_base()
-    if d.get("positive_style_text") and d.get("rgba_text"):
-        return d["positive_style_text"] + d["rgba_text"]
+    if d.get("positive_style_text"):
+        return d["positive_style_text"]
     return d["positive"]
 
 # widget default 面=import 时刻求值一次(同 my_qi21_prompt_select._RGBA_HEAD 家法:

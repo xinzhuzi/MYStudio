@@ -128,7 +128,7 @@ def test_protocol_transparent_base_segment_excludes_ground():
     p = mod._parse_bases_protocol(_PROTO)
     seg_t = mod._proto_base_segment(p, True)
     seg_f = mod._proto_base_segment(p, False)
-    assert seg_t == _STYLE + _RGBA, "透明组合=风格段+透明承载段(同装配器拼接口径)"
+    assert seg_t == _STYLE, "透明组合=仅风格段(1008架构令:透明语义零入PE,由[4014]程序化包裹)"
     assert "平涂" not in seg_t and "底色：浅净哑光" not in seg_t, "底色/背景词不得入透明组合"
     assert seg_f == _STYLE + _GROUND, "带背景组合=风格段+底色段"
     # 透明开+协议接线+PE 不可达:回退极简公式不动(_rgba_lean_pos 热读真源,与协议等价)

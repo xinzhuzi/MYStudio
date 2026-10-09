@@ -372,10 +372,13 @@ def _parse_bases_protocol(text: str | None) -> dict | None:
 
 
 def _proto_base_segment(proto: dict, transparent: bool) -> str:
-    """协议底座段(与装配器 _style_combo_transparent 同口径直接拼接):
-    透明开=风格段+透明承载段(零底色/背景命令进模型);关=风格段+底色段。"""
-    second = proto["rgba"] if transparent else proto["ground"]
-    return (proto["style"] or "") + (second or "")
+    """协议底座段(与装配器 _style_combo_transparent 同口径直接拼接)。
+
+    1008 用户架构令:透明语义零入 PE——透明开=仅风格段(承载/头尾全由
+    [4014] 程序化包裹,AI 改不坏);关=风格段+底色段。"""
+    if transparent:
+        return (proto["style"] or "")
+    return (proto["style"] or "") + (proto["ground"] or "")
 
 
 def _hot_fallbacks() -> tuple[str, str, str]:
@@ -749,11 +752,12 @@ class MyQi21ApiPE:
         # 底座全文(带背景版)透明路不采信,热读真源组合;缺拆分件旧库回退全文。
         # (1009:协议模式在上方已按段拼装,热读组合只服务 legacy 无标记线)
         elif 透明模式:
+            # 1008 用户架构令:透明语义零入 PE——输入只挂风格工艺件,
+            # 头尾/承载全由 [4014] 程序化包裹(官方句,AI 改不坏)。
             _asb = (_load_bases_node().get("art_style_base") or {})
             _st = str(_asb.get("positive_style_text") or "").strip()
-            _rt = str(_asb.get("rgba_text") or "").strip()
-            if _st and _rt:
-                style = _st + _rt
+            if _st:
+                style = _st
             else:
                 style = wired_style or hot_style
         else:
