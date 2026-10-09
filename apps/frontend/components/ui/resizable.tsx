@@ -10,14 +10,40 @@
 // ②尺寸语义变化:v2 数字=百分比,v4 数字=像素/无单位字符串=百分比;消费面 24 处
 //   defaultSize/minSize、10 处 maxSize 全为数字,包装层统一转字符串保百分比语义
 // ③PanelResizeHandle→Separator(自带 aria-orientation,垂直态样式钩随之改向);
-//   v2 的 autoSaveId 布局持久化在 v4 无直替(改走 defaultLayout+onLayoutChange 自管,
-//   属特性重实现非编译修),本层剥除防其泄漏为未知 DOM 属性——分栏记忆退化记账 B3 残留
-import { Group, Panel, Separator } from "react-resizable-panels";
+//   v2 的 autoSaveId 布局持久化 v4 无内建直替——本层 1010 重实现(v2 等价):
+//   首渲染从 localStorage 复原为 defaultLayout,onLayoutChanged 时以
+//   meta.requestedLayout(库文档推荐存储值)落盘;Layout 按面板 id 寻址,
+//   启用持久化的组内面板须带稳定 id(消费面目前仅 ArtifactCenter)
+import { useCallback, useState } from "react";
+import {
+  Group,
+  Panel,
+  Separator,
+  type Layout,
+  type LayoutChangedMeta,
+} from "react-resizable-panels";
 
 import { cn } from "../../lib/utils";
 
 const toPercentSize = (size: number | string | undefined) =>
   typeof size === "number" ? String(size) : size;
+
+const savedLayoutKey = (autoSaveId: string) => `manying:panel-layout:${autoSaveId}`;
+
+const readSavedLayout = (autoSaveId: string | undefined): Layout | undefined => {
+  if (!autoSaveId || typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(savedLayoutKey(autoSaveId));
+    if (!raw) return undefined;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Layout;
+    }
+  } catch {
+    // 损坏存档弃用,回退 defaultSize
+  }
+  return undefined;
+};
 
 type ResizablePanelGroupProps = Omit<
   React.ComponentProps<typeof Group>,
@@ -30,20 +56,49 @@ type ResizablePanelGroupProps = Omit<
 const ResizablePanelGroup = ({
   className,
   direction,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- v2 遗留 prop,v4 已废,剥除防 DOM 泄漏
   autoSaveId,
+  defaultLayout,
+  onLayoutChanged,
   ...props
-}: ResizablePanelGroupProps) => (
-  <Group
-    orientation={direction}
-    data-orientation={direction}
-    className={cn(
-      "flex h-full w-full data-[orientation=vertical]:flex-col",
-      className
-    )}
-    {...props}
-  />
-);
+}: ResizablePanelGroupProps) => {
+  // 初值仅首渲染读一次(记忆复原);此后每次布局变化即时落盘
+  const [restoredLayout] = useState(() => readSavedLayout(autoSaveId));
+  const persistLayout = useCallback(
+    (layout: Layout, meta: LayoutChangedMeta) => {
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            savedLayoutKey(autoSaveId as string),
+            JSON.stringify(meta.requestedLayout ?? layout),
+          );
+        } catch {
+          // 隐私模式等写失败:仅弃存,不影响交互
+        }
+      }
+    },
+    [autoSaveId],
+  );
+  return (
+    <Group
+      orientation={direction}
+      data-orientation={direction}
+      className={cn(
+        "flex h-full w-full data-[orientation=vertical]:flex-col",
+        className
+      )}
+      defaultLayout={restoredLayout ?? defaultLayout}
+      onLayoutChanged={
+        autoSaveId
+          ? (layout, meta) => {
+              persistLayout(layout, meta);
+              onLayoutChanged?.(layout, meta);
+            }
+          : onLayoutChanged
+      }
+      {...props}
+    />
+  );
+};
 
 type ResizablePanelProps = Omit<
   React.ComponentProps<typeof Panel>,

@@ -543,7 +543,7 @@ export function ArtifactCenter({
           <div className="flex h-full min-h-0">
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-w-0 h-full" autoSaveId="artifact-center-left">
             {/* Left Column - project/local-file/chapter/stage tree */}
-            <ResizablePanel defaultSize={22} minSize={18} maxSize={50} className="bg-panel">
+            <ResizablePanel id="artifact-nav" defaultSize={22} minSize={18} maxSize={50} className="bg-panel">
               <aside className="h-full flex flex-col min-h-0">
                 <div className="shrink-0 border-b px-3 h-[60px] flex items-center">
                   <div className="flex items-center gap-2 text-sm font-medium">
@@ -576,7 +576,7 @@ export function ArtifactCenter({
             <ResizableHandle withHandle />
 
             {/* Center Table */}
-            <ResizablePanel defaultSize={78} minSize={50} className="min-w-0">
+            <ResizablePanel id="artifact-main" defaultSize={78} minSize={50} className="min-w-0">
               <main className="h-full flex flex-col min-w-0 min-h-0">
               <div className="flex items-center gap-2 border-b px-3 shrink-0 h-[60px]">
                 <FilterBar

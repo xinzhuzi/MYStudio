@@ -40,5 +40,5 @@ max_depth = 1
 
 # Local addition: firecrawl MCP server (project-scoped).
 [mcp_servers.firecrawl]
-type = "http"
+# type = "http"  # Codex 0.160.1: unsupported field mcp_servers.*.type,挡项目层严格加载;留值供参考(1010 修复)
 url = "https://mcp.firecrawl.dev/v2/mcp"
