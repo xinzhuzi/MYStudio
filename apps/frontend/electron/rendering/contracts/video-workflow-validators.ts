@@ -28,7 +28,7 @@ export const HYPERFRAMES_DECORATIVE_TEMPLATE_IDS = [
 function isValidOverlayTemplateId(templateId: string): boolean {
   return templateId.startsWith("hy:") || HYPERFRAMES_DECORATIVE_TEMPLATE_IDS.includes(templateId as typeof HYPERFRAMES_DECORATIVE_TEMPLATE_IDS[number]);
 }
-const PLUGIN_IDS: readonly VideoWorkflowPluginId[] = ["remotion", "video-use", "hyperframes", "seedance-prompt"];
+const PLUGIN_IDS: readonly VideoWorkflowPluginId[] = ["remotion", "video-use", "hyperframes", "video-shotcraft", "seedance-prompt"];
 
 function issue(path: string, message: string): VideoWorkflowValidationIssue {
   return { path, message };

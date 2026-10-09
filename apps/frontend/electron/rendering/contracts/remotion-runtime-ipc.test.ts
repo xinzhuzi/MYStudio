@@ -56,13 +56,13 @@ describe("validateRemotionRuntimeStatusReply", () => {
     expect(
       validateRemotionRuntimeStatusReply({
         state: "ready",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
       }).success,
     ).toBe(true);
     expect(
       validateRemotionRuntimeStatusReply({
         state: "installing",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
       }).success,
     ).toBe(false);
   });
@@ -74,14 +74,14 @@ describe("validateRemotionRuntimeDownloadProgressEvent", () => {
       validateRemotionRuntimeDownloadProgressEvent({
         phase: "downloading",
         ratio: 0.4,
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
       }).success,
     ).toBe(true);
     expect(
       validateRemotionRuntimeDownloadProgressEvent({
         phase: "downloading",
         ratio: 1.5,
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
       }).success,
     ).toBe(false);
   });

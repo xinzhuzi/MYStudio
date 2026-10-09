@@ -5,8 +5,12 @@ import path from "node:path";
 import { promisify } from "node:util";
 import {
   HYPERFRAMES_NPM_VERSION,
+  VIDEO_SHOTCRAFT_ANCHOR_SHA256,
+  VIDEO_SHOTCRAFT_SOURCE_COMMIT,
+  VIDEO_SHOTCRAFT_SOURCE_URL,
   buildSharedToolchainEnv,
   buildHyperFramesProfileMarker,
+  buildVideoShotcraftProfileMarker,
   buildVideoUseProfileMarker,
   resolveVideoWorkflowRuntimePaths,
   sha256File,
@@ -15,11 +19,11 @@ import {
 } from "./video-workflow-runtime";
 
 export const VIDEO_USE_TARBALL_URL =
-  "https://github.com/browser-use/video-use/archive/92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66.tar.gz";
-export const VIDEO_USE_SOURCE_COMMIT = "92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66";
+  "https://github.com/browser-use/video-use/archive/43cfc566833548093455c9d4a46bd69913b7e552.tar.gz";
+export const VIDEO_USE_SOURCE_COMMIT = "43cfc566833548093455c9d4a46bd69913b7e552";
 export const VIDEO_USE_SOURCE_URL = "https://github.com/browser-use/video-use";
 export const VIDEO_USE_HELPER_SHA256 = {
-  "helpers/render.py": "bef2d6b47659c1d734b47556403276d05f0585e72d4b2d1da159c22b4cad69ed",
+  "helpers/render.py": "6bbde45ad5929c7c94fa068996f81e0c44b55a9c9dedcf716fc24c071a5c8dd7",
   "helpers/grade.py": "f5df58e81f31c95a621ffba5973fd866f6662fc481a36ebd37a2e68eb81220c2",
   "helpers/timeline_view.py": "69aee88e4204f86127740cca9de6a6eaa75a558df1bb07745dd62f69a3c2e9cf",
   "helpers/pack_transcripts.py": "f9e419def5f0a014d5e1fd16fdad801013ae068854c1d474c3492297e2304f4b",
@@ -29,6 +33,8 @@ export const NPM_VERSION = "10.9.2";
 export const NPM_TARBALL_URL = `https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz`;
 export const NPM_SHA256 = "5cd1e5ab971ea6333f910bc2d50700167c5ef4e66da279b2a3efc874c6b116e4";
 export const HYPERFRAMES_PACKAGE = `hyperframes@${HYPERFRAMES_NPM_VERSION}`;
+export const VIDEO_SHOTCRAFT_TARBALL_URL =
+  `https://github.com/Vincentwei1021/video-shotcraft/archive/${VIDEO_SHOTCRAFT_SOURCE_COMMIT}.tar.gz`;
 
 /** Direct dependencies declared by the pinned upstream pyproject.toml. */
 export const VIDEO_USE_LOCK_CONTENT = `# MYStudio video-use profile; derived from upstream pyproject.toml at ${VIDEO_USE_SOURCE_COMMIT}
@@ -53,7 +59,7 @@ export interface VideoWorkflowRuntimeManagerOps {
   hashFile?: (filePath: string) => string;
 }
 
-export type RuntimePluginId = "video-use" | "hyperframes";
+export type RuntimePluginId = "video-use" | "hyperframes" | "video-shotcraft";
 
 export type RuntimeActionResult = {
   success: boolean;
@@ -68,8 +74,10 @@ export interface VideoWorkflowRuntimeManager {
   rollback: (pluginId: RuntimePluginId) => Promise<RuntimeActionResult>;
   prepareVideoUse: () => Promise<VideoWorkflowRuntimePaths>;
   prepareHyperFrames: () => Promise<VideoWorkflowRuntimePaths>;
+  prepareVideoShotcraft: () => Promise<VideoWorkflowRuntimePaths>;
   rollbackVideoUse: () => Promise<void>;
   rollbackHyperFrames: () => Promise<void>;
+  rollbackVideoShotcraft: () => Promise<void>;
 }
 
 const execFileAsync = promisify(execFile);
@@ -187,6 +195,18 @@ function verifyVideoUseHelpers(upstreamRoot: string, hashFile: (filePath: string
     if (!isFile(helperPath)) throw new Error(`固定 video-use helper 不存在: ${relativePath}`);
     if (hashFile(helperPath) !== expectedHash) throw new Error(`video-use helper SHA-256 不匹配: ${relativePath}`);
   }
+}
+
+function writeVideoShotcraftManifest(contentRoot: string): void {
+  const manifestPath = path.join(contentRoot, "mystudio-video-shotcraft-manifest.json");
+  fs.writeFileSync(manifestPath, `${JSON.stringify({
+    schemaVersion: 1,
+    sourceUrl: VIDEO_SHOTCRAFT_SOURCE_URL,
+    sourceCommit: VIDEO_SHOTCRAFT_SOURCE_COMMIT,
+    anchorSha256: VIDEO_SHOTCRAFT_ANCHOR_SHA256,
+    generatedBy: "MYStudio video-workflow-runtime-manager",
+    generatedAt: Date.now(),
+  }, null, 2)}\n`, "utf8");
 }
 
 function restorePrevious(targetPath: string): void {
@@ -333,8 +353,45 @@ export function createVideoWorkflowRuntimeManager(
     }
   };
 
+  const prepareVideoShotcraft = async (): Promise<VideoWorkflowRuntimePaths> => {
+    const stagingPath = `${paths.videoShotcraftProfileDir}.staging-${randomSuffix()}`;
+    const archivePath = path.join(stagingPath, "library.tar.gz");
+    const extractPath = path.join(stagingPath, "extract");
+    try {
+      fs.mkdirSync(stagingPath, { recursive: true });
+      await ops.download(VIDEO_SHOTCRAFT_TARBALL_URL, archivePath);
+      await ops.extract(archivePath, extractPath);
+      const sourceRoot = findArchiveRoot(extractPath, "SKILL.md");
+      const contentRoot = path.join(stagingPath, "content");
+      fs.cpSync(sourceRoot, contentRoot, { recursive: true });
+      const anchorSha256: Record<string, string> = {};
+      for (const [relativePath, expectedHash] of Object.entries(VIDEO_SHOTCRAFT_ANCHOR_SHA256)) {
+        const anchorPath = path.join(contentRoot, relativePath);
+        if (!isFile(anchorPath)) throw new Error(`Video ShotCraft 归档缺少锚文件: ${relativePath}`);
+        const actualHash = hashFile(anchorPath);
+        if (actualHash !== expectedHash) throw new Error(`Video ShotCraft 内容锚 SHA-256 不匹配: ${relativePath}`);
+        anchorSha256[relativePath] = actualHash;
+      }
+      writeVideoShotcraftManifest(contentRoot);
+      removeOwnPath(extractPath);
+      removeOwnPath(archivePath);
+      const previousPath = promoteStaging(paths.videoShotcraftProfileDir, stagingPath);
+      try {
+        writeProfileMarker(paths.videoShotcraftMarkerPath, buildVideoShotcraftProfileMarker(paths, anchorSha256));
+      } catch (error) {
+        restorePromotedTarget(paths.videoShotcraftProfileDir, previousPath);
+        throw error;
+      }
+      return paths;
+    } catch (error) {
+      removeOwnPath(stagingPath);
+      throw error;
+    }
+  };
+
   const rollbackVideoUse = async (): Promise<void> => restorePrevious(paths.videoUseProfileDir);
   const rollbackHyperFrames = async (): Promise<void> => restorePrevious(paths.hyperFramesProfileDir);
+  const rollbackVideoShotcraft = async (): Promise<void> => restorePrevious(paths.videoShotcraftProfileDir);
 
   const action = (fn: () => Promise<VideoWorkflowRuntimePaths>) => async (): Promise<RuntimeActionResult> => {
     try {
@@ -352,14 +409,22 @@ export function createVideoWorkflowRuntimeManager(
     }
   };
 
+  const runtimePlugins: Record<RuntimePluginId, { apply: () => Promise<VideoWorkflowRuntimePaths>; rollback: () => Promise<void> }> = {
+    "video-use": { apply: prepareVideoUse, rollback: rollbackVideoUse },
+    hyperframes: { apply: prepareHyperFrames, rollback: rollbackHyperFrames },
+    "video-shotcraft": { apply: prepareVideoShotcraft, rollback: rollbackVideoShotcraft },
+  };
+
   return {
-    prepare: (pluginId) => pluginId === "video-use" ? action(prepareVideoUse)() : action(prepareHyperFrames)(),
-    update: (pluginId) => pluginId === "video-use" ? action(prepareVideoUse)() : action(prepareHyperFrames)(),
-    repair: (pluginId) => pluginId === "video-use" ? action(prepareVideoUse)() : action(prepareHyperFrames)(),
-    rollback: (pluginId) => pluginId === "video-use" ? rollbackAction(rollbackVideoUse)() : rollbackAction(rollbackHyperFrames)(),
+    prepare: (pluginId) => action(runtimePlugins[pluginId].apply)(),
+    update: (pluginId) => action(runtimePlugins[pluginId].apply)(),
+    repair: (pluginId) => action(runtimePlugins[pluginId].apply)(),
+    rollback: (pluginId) => rollbackAction(runtimePlugins[pluginId].rollback)(),
     prepareVideoUse,
     prepareHyperFrames,
+    prepareVideoShotcraft,
     rollbackVideoUse,
     rollbackHyperFrames,
+    rollbackVideoShotcraft,
   };
 }

@@ -6,11 +6,19 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export const VIDEO_USE_SOURCE_COMMIT = "92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66" as const;
-export const HYPERFRAMES_SOURCE_COMMIT = "12fd6d9087fab1347f8737c34901e3db61e4dfee" as const;
-export const HYPERFRAMES_NPM_VERSION = "0.7.109" as const;
+export const VIDEO_USE_SOURCE_COMMIT = "43cfc566833548093455c9d4a46bd69913b7e552" as const;
+export const HYPERFRAMES_SOURCE_COMMIT = "3aa68869f7d4cec8b37cdfcb9cd539389b63abed" as const;
+export const HYPERFRAMES_NPM_VERSION = "0.8.143" as const;
 export const VIDEO_USE_PROFILE_ID = "video-use-managed-python-v1" as const;
 export const HYPERFRAMES_PROFILE_ID = "hyperframes-electron-node-v1" as const;
+export const VIDEO_SHOTCRAFT_SOURCE_COMMIT = "5ddbf521038b0a7accfb6dc1e0a9eb29c67277ab" as const;
+export const VIDEO_SHOTCRAFT_SOURCE_URL = "https://github.com/Vincentwei1021/video-shotcraft" as const;
+export const VIDEO_SHOTCRAFT_PROFILE_ID = "video-shotcraft-library-v1" as const;
+/** 固定 commit 内容锚:下载后逐文件 SHA-256 比对,防传输损坏与上游漂移(升版随 commit 一起换)。 */
+export const VIDEO_SHOTCRAFT_ANCHOR_SHA256 = {
+  "SKILL.md": "12696ad78212f9036cbb76bd46be305094686db64d9cf72f69a6e650eba3ebbc",
+  "gallery/api/library.json": "ee26285c40774272d7782f6d8ff28a8f7b559f13cdf6f5641eac1463417190e4",
+} as const;
 
 export interface VideoWorkflowRuntimePaths {
   storageBasePath: string;
@@ -25,6 +33,9 @@ export interface VideoWorkflowRuntimePaths {
   hyperFramesMarkerPath: string;
   hyperFramesCliPath: string;
   hyperFramesBrowserPath: string;
+  videoShotcraftProfileDir: string;
+  videoShotcraftContentDir: string;
+  videoShotcraftMarkerPath: string;
   ffmpegExecutable: string;
   ffprobeExecutable: string;
 }
@@ -84,12 +95,33 @@ export interface HyperFramesProfileMarkerV1 {
   verifiedAt: number;
 }
 
+export interface VideoShotcraftProfileMarkerV1 {
+  schemaVersion: 1;
+  profileId: typeof VIDEO_SHOTCRAFT_PROFILE_ID;
+  sourceCommit: typeof VIDEO_SHOTCRAFT_SOURCE_COMMIT;
+  contentRoot: string;
+  anchorSha256: Record<string, string>;
+  createdAt: number;
+  verifiedAt: number;
+}
+
 const HYPERFRAMES_OPTIONAL_DOCTOR_CHECKS = new Set([
   "whisper-cpp",
   "TTS (Kokoro)",
   "BGM (MusicGen)",
   "Docker",
   "Docker running",
+  // 0.8.x doctor 新增的环境/硬件/可选集成检查(2026-10-10 实跑 0.8.143 取名):
+  // 均非 overlay 渲染链路门禁,失败不挡 ready,但保持 fail-closed 于未知未来新名。
+  "CPU",
+  "Memory",
+  "Disk",
+  "Frames cache",
+  "Archive extractor",
+  "Settings lock",
+  "Environment",
+  "onnxruntime-node",
+  "@google/genai",
 ]);
 const HYPERFRAMES_REQUIRED_DOCTOR_CHECKS = new Set([
   "Version",
@@ -256,6 +288,7 @@ export function resolveVideoWorkflowRuntimePaths(
   const hyperFramesCliPath = path.join(hyperFramesProfileDir, "node_modules", "hyperframes", "bin", "hyperframes.mjs");
   const videoUseProfileDir = path.join(pythonRuntimeDir, "profiles", "video-use");
   const videoUseUpstreamRoot = path.join(videoUseProfileDir, "upstream");
+  const videoShotcraftProfileDir = path.join(storageBasePath, "video-shotcraft-profile");
   return {
     storageBasePath,
     pythonRuntimeDir,
@@ -269,6 +302,9 @@ export function resolveVideoWorkflowRuntimePaths(
     hyperFramesMarkerPath: path.join(hyperFramesProfileDir, "profile.json"),
     hyperFramesCliPath,
     hyperFramesBrowserPath: resolveSharedExecutable("HYPERFRAMES_BROWSER_PATH", "PRODUCER_HEADLESS_SHELL_PATH"),
+    videoShotcraftProfileDir,
+    videoShotcraftContentDir: path.join(videoShotcraftProfileDir, "content"),
+    videoShotcraftMarkerPath: path.join(videoShotcraftProfileDir, "profile.json"),
     ffmpegExecutable: resolveSharedExecutable("MYSTUDIO_FFMPEG_PATH"),
     ffprobeExecutable: resolveSharedExecutable("MYSTUDIO_FFPROBE_PATH"),
   };
@@ -657,8 +693,66 @@ export function buildHyperFramesProfileMarker(
   };
 }
 
+export function buildVideoShotcraftProfileMarker(
+  paths: VideoWorkflowRuntimePaths,
+  anchorSha256: Record<string, string>,
+  now = Date.now(),
+): VideoShotcraftProfileMarkerV1 {
+  for (const hash of Object.values(anchorSha256)) {
+    if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error("Video ShotCraft anchor SHA-256 无效");
+  }
+  return {
+    schemaVersion: 1,
+    profileId: VIDEO_SHOTCRAFT_PROFILE_ID,
+    sourceCommit: VIDEO_SHOTCRAFT_SOURCE_COMMIT,
+    contentRoot: paths.videoShotcraftContentDir,
+    anchorSha256,
+    createdAt: now,
+    verifiedAt: now,
+  };
+}
+
 export function sha256File(filePath: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+export interface VideoShotcraftLibraryProbeResult {
+  state: "ready" | "needs-runtime" | "update-available" | "blocked";
+  message?: string;
+}
+
+/** video-shotcraft 是纯内容库(镜头配方卡+Remotion 参考实现),不依赖共享工具链,只验 marker 与内容锚。 */
+export function probeVideoShotcraftLibrary(
+  paths: VideoWorkflowRuntimePaths,
+  deps: { fileExists?: (filePath: string) => boolean; hashFile?: (filePath: string) => string } = {},
+): VideoShotcraftLibraryProbeResult {
+  const fileExists = deps.fileExists ?? fs.existsSync;
+  const hashFile = deps.hashFile ?? sha256File;
+  const contentRoot = paths.videoShotcraftContentDir;
+  if (!fileExists(paths.videoShotcraftMarkerPath) || !fileExists(path.join(contentRoot, "SKILL.md"))) {
+    return { state: "needs-runtime", message: "未检测到 Video ShotCraft 知识库内容，可点击「准备」下载" };
+  }
+  const profile = readJsonFile(paths.videoShotcraftMarkerPath);
+  if (!profile
+    || profile.schemaVersion !== 1
+    || profile.profileId !== VIDEO_SHOTCRAFT_PROFILE_ID
+    || typeof profile.sourceCommit !== "string"
+    || profile.contentRoot !== contentRoot
+    || typeof profile.anchorSha256 !== "object"
+    || profile.anchorSha256 === null
+    || Array.isArray(profile.anchorSha256)) {
+    return { state: "blocked", message: "Video ShotCraft profile marker 与内容目录不一致，可执行「修复」重新下载" };
+  }
+  for (const [relativePath, expectedHash] of Object.entries(VIDEO_SHOTCRAFT_ANCHOR_SHA256)) {
+    const anchorPath = path.join(contentRoot, relativePath);
+    if (!fileExists(anchorPath) || hashFile(anchorPath) !== expectedHash) {
+      return { state: "blocked", message: `Video ShotCraft 内容校验失败: ${relativePath}，可执行「修复」重新下载` };
+    }
+  }
+  if (profile.sourceCommit !== VIDEO_SHOTCRAFT_SOURCE_COMMIT) {
+    return { state: "update-available", message: `Video ShotCraft 可更新到应用锁定版本 ${VIDEO_SHOTCRAFT_SOURCE_COMMIT.slice(0, 7)}` };
+  }
+  return { state: "ready" };
 }
 
 function readJsonFile(filePath: string): Record<string, unknown> | undefined {
@@ -672,7 +766,7 @@ function readJsonFile(filePath: string): Record<string, unknown> | undefined {
   }
 }
 
-export function writeProfileMarker(filePath: string, marker: VideoUseProfileMarkerV1 | HyperFramesProfileMarkerV1): void {
+export function writeProfileMarker(filePath: string, marker: VideoUseProfileMarkerV1 | HyperFramesProfileMarkerV1 | VideoShotcraftProfileMarkerV1): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const temporaryPath = `${filePath}.${process.pid}.tmp`;
   fs.writeFileSync(temporaryPath, `${JSON.stringify(marker, null, 2)}\n`, "utf8");

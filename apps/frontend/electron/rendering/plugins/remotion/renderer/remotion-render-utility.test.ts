@@ -38,7 +38,7 @@ const input = {
   plan: { jobId: "job-1" },
   bundlePath: "/tmp/bundle",
   outputPath: "/tmp/output.mp4",
-  remotionVersion: "4.0.533",
+  remotionVersion: "4.0.534",
   mediaUrlByClipId: {},
 } as unknown as RemotionRenderUtilityInput;
 
@@ -59,7 +59,7 @@ describe("RemotionRenderUtilitySupervisor", () => {
     const supervisor = new RemotionRenderUtilitySupervisor({
       workerPath: "/app/remotion-render-worker.cjs",
       cwd: "/runtime/remotion-runtime",
-      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.533" }, executablePath: "/runtime/headless-shell" }),
+      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.534" }, executablePath: "/runtime/headless-shell" }),
       fork: (_modulePath, _args, options) => {
         forkCount += 1;
         forkOptions = options;
@@ -94,7 +94,7 @@ describe("RemotionRenderUtilitySupervisor", () => {
         maxActiveProbes = Math.max(maxActiveProbes, activeProbes);
         await new Promise((resolve) => setTimeout(resolve, 5));
         activeProbes -= 1;
-        return { status: { state: "ready" as const, remotionVersion: "4.0.533" }, executablePath: "/runtime/headless-shell" };
+        return { status: { state: "ready" as const, remotionVersion: "4.0.534" }, executablePath: "/runtime/headless-shell" };
       },
       fork: () => children[forkIndex++]!,
       cancelGracePeriodMs: 100,
@@ -124,7 +124,7 @@ describe("RemotionRenderUtilitySupervisor", () => {
     const child = new FakeUtilityProcess();
     const supervisor = new RemotionRenderUtilitySupervisor({
       workerPath: "/app/remotion-render-worker.cjs",
-      probeBrowser: async () => ({ status: { state: "not-installed", remotionVersion: "4.0.533" } }),
+      probeBrowser: async () => ({ status: { state: "not-installed", remotionVersion: "4.0.534" } }),
       fork: () => child,
       emitProgress: () => undefined,
     });
@@ -133,7 +133,7 @@ describe("RemotionRenderUtilitySupervisor", () => {
 
     const ready = new RemotionRenderUtilitySupervisor({
       workerPath: "/app/remotion-render-worker.cjs",
-      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.533" }, executablePath: "/runtime/headless-shell" }),
+      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.534" }, executablePath: "/runtime/headless-shell" }),
       fork: () => child,
       cancelGracePeriodMs: 10,
       emitProgress: () => undefined,
@@ -157,7 +157,7 @@ describe("RemotionRenderUtilitySupervisor", () => {
       probeBrowser: async () => {
         probeStarted = true;
         await probeGate;
-        return { status: { state: "ready", remotionVersion: "4.0.533" }, executablePath: "/runtime/headless-shell" };
+        return { status: { state: "ready", remotionVersion: "4.0.534" }, executablePath: "/runtime/headless-shell" };
       },
       fork: () => child,
       emitProgress: () => undefined,
@@ -176,7 +176,7 @@ describe("RemotionRenderUtilitySupervisor", () => {
     child.postError = new Error("render IPC closed");
     const supervisor = new RemotionRenderUtilitySupervisor({
       workerPath: "/app/remotion-render-worker.cjs",
-      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.533" }, executablePath: "/runtime/headless-shell" }),
+      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.534" }, executablePath: "/runtime/headless-shell" }),
       fork: () => child,
       emitProgress: () => undefined,
     });
@@ -194,7 +194,7 @@ describe("RemotionRenderUtilitySupervisor", () => {
     const child = new FakeUtilityProcess();
     const supervisor = new RemotionRenderUtilitySupervisor({
       workerPath: "/app/remotion-render-worker.cjs",
-      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.533" }, executablePath: "/runtime/headless-shell" }),
+      probeBrowser: async () => ({ status: { state: "ready", remotionVersion: "4.0.534" }, executablePath: "/runtime/headless-shell" }),
       fork: () => child,
       emitProgress: () => undefined,
     });

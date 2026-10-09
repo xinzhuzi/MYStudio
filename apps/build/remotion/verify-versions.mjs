@@ -160,7 +160,7 @@ function uniqueMatches(text, pattern) {
   return [...new Set([...text.matchAll(pattern)].map((match) => match[1]))];
 }
 
-/** packages 段的锁定键:remotion@4.0.533 / '@remotion/media@4.0.533'(peer 变体取 @ 前版本)。 */
+/** packages 段的锁定键:remotion@4.0.534 / '@remotion/media@4.0.534'(peer 变体取 @ 前版本)。 */
 function lockedPackageEntries(text) {
   const entries = [];
   for (const match of text.matchAll(/^\s{2}'?((?:@remotion\/[a-z0-9-]+|remotion|mediabunny))@(\d[^:\s'(]*)/gm)) {

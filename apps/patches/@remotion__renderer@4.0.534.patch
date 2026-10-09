@@ -1,8 +1,8 @@
 diff --git a/dist/esm/index.mjs b/dist/esm/index.mjs
-index 33c66eae2c931f2a27b269fe5da90b2074a8b5a1..995d9fc35df6c8d2e18c9a6cdf5d8a5e976b2a56 100644
+index 6566e2b90b01860b08ed686f2ac4a405eb5395d2..ba1976e786e7a0b49e83eba051f4845316b0db6b 100644
 --- a/dist/esm/index.mjs
 +++ b/dist/esm/index.mjs
-@@ -18099,7 +18099,7 @@ var prepareServer = async ({
+@@ -18169,7 +18169,7 @@ var prepareServer = async ({
        }
        return close();
      },

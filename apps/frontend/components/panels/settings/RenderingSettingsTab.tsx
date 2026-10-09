@@ -114,6 +114,7 @@ const PLUGIN_DEFINITIONS: Array<{ id: VideoWorkflowPluginId; title: string; desc
   { id: "remotion", title: "Remotion", description: "正式的 Composition、Studio 与章节渲染路径。" },
   { id: "hyperframes", title: "HyperFrames", description: "时间线确认后的透明动效 overlay；无动效也会记录 no-op artifact。" },
   { id: "video-use", title: "video-use", description: "原文对齐、EDL、字幕时间轴、调色、preview 与自评。" },
+  { id: "video-shotcraft", title: "Video ShotCraft", description: "镜头配方卡知识库（152 卡 + Remotion 参考实现 + 制作方法论，Apache-2.0）；供镜头动效决策与人工查阅，不进入执行门禁。" },
   { id: "seedance-prompt", title: "Seedance Prompt Skill", description: "仅提供 Seedance 提示词能力，不进入视频执行门禁。" },
 ];
 

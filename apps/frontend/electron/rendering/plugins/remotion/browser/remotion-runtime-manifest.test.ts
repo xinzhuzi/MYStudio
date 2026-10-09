@@ -6,7 +6,7 @@ import {
   resolveRemotionRuntimeManifestPath,
 } from "./remotion-runtime-manifest";
 
-const VERSION = "4.0.533";
+const VERSION = "4.0.534";
 const USER_DATA = "/home/user/.config/MYStudio";
 
 describe("buildRemotionRuntimeManifest", () => {

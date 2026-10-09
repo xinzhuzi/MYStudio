@@ -32,14 +32,16 @@ import { setProjectLocationResolver } from "../../storage/storage-paths";
 
 function createManager() {
   return {
-    prepare: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
-    update: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
-    repair: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
-    rollback: vi.fn(async (_pluginId: "video-use" | "hyperframes"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
+    prepare: vi.fn(async (_pluginId: "video-use" | "hyperframes" | "video-shotcraft"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
+    update: vi.fn(async (_pluginId: "video-use" | "hyperframes" | "video-shotcraft"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
+    repair: vi.fn(async (_pluginId: "video-use" | "hyperframes" | "video-shotcraft"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
+    rollback: vi.fn(async (_pluginId: "video-use" | "hyperframes" | "video-shotcraft"): Promise<{ success: boolean; message?: string }> => ({ success: true })),
     prepareVideoUse: vi.fn(),
     prepareHyperFrames: vi.fn(),
+    prepareVideoShotcraft: vi.fn(),
     rollbackVideoUse: vi.fn(),
     rollbackHyperFrames: vi.fn(),
+    rollbackVideoShotcraft: vi.fn(),
   };
 }
 
@@ -88,6 +90,7 @@ describe("video workflow runtime IPC actions", () => {
         expect.objectContaining({ pluginId: "remotion", runtimeState: "update-available" }),
         expect.objectContaining({ pluginId: "video-use", runtimeState: "update-available" }),
         expect.objectContaining({ pluginId: "hyperframes", runtimeState: "update-available" }),
+        expect.objectContaining({ pluginId: "video-shotcraft", runtimeState: "needs-runtime" }),
         expect.objectContaining({ pluginId: "seedance-prompt", runtimeState: "deferred" }),
       ],
     });
@@ -112,6 +115,33 @@ describe("video workflow runtime IPC actions", () => {
     const reply = await handler?.({}, { pluginId: "video-use" });
     expect(manager.prepare).toHaveBeenCalledWith("video-use");
     expect(reply).toMatchObject({ success: true, checkedAt: 123 });
+    registration.dispose();
+  });
+
+  it("routes video-shotcraft prepare through the runtime manager and verifies the library probe", async () => {
+    const manager = createManager();
+    const registration = registerVideoWorkflowIpcHandlers({
+      getStorageBasePath: () => "/tmp/mystudio-ipc-test",
+      appVersion: "0.0.1",
+      remotionVersion: "4.0.0",
+      probeRemotion: async () => ({ state: "ready", remotionVersion: "4.0.0" }),
+      probeVideoUse: async () => ({ state: "ready", message: "video-use ok", runtime: {} as never }),
+      probeHyperFrames: async () => ({ state: "ready", message: "HyperFrames ok", runtime: {} as never }),
+      probeVideoShotcraft: () => ({ state: "ready" }),
+      runtimeManager: manager,
+      now: () => 123,
+    });
+
+    const handler = handlers.get(VIDEO_WORKFLOW_PREPARE_CHANNEL);
+    const reply = await handler?.({}, { pluginId: "video-shotcraft" });
+    expect(manager.prepare).toHaveBeenCalledWith("video-shotcraft");
+    expect(reply).toMatchObject({
+      success: true,
+      checkedAt: 123,
+      plugins: expect.arrayContaining([
+        expect.objectContaining({ pluginId: "video-shotcraft", runtimeState: "ready", displayName: "Video ShotCraft", license: "Apache-2.0" }),
+      ]),
+    });
     registration.dispose();
   });
 

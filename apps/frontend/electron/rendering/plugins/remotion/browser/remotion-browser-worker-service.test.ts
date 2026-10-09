@@ -9,7 +9,7 @@ import {
 } from "./remotion-browser-worker-service";
 import type { RemotionBrowserWorkerEvent } from "./remotion-browser-worker-protocol";
 
-const VERSION = "4.0.533";
+const VERSION = "4.0.534";
 const EXECUTABLE = process.execPath;
 
 function command(action: "status" | "download") {

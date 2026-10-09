@@ -17,7 +17,7 @@ import { analyzeRenderedAudioWindows, hashFileSha256, probeRenderedMedia, assert
 import { resolveRemotionRuntimeDir } from "../timeline/storage-paths";
 
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
-const remotionVersion = "4.0.533";
+const remotionVersion = "4.0.534";
 
 export interface ShotSmokeReport {
   ok: true;

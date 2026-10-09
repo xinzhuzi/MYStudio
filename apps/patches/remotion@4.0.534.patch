@@ -11,10 +11,10 @@ index b2616a34744f3994c35632f17c361107ee318c71..04480781366125adb8d3eaf3e9b6a503
  };
  exports.getOffthreadVideoSource = getOffthreadVideoSource;
 diff --git a/dist/esm/index.mjs b/dist/esm/index.mjs
-index 441c59c7f77c872fc68975314491116617b5a068..a7c756a03b3ca0125fcfad970a937e9977748cbf 100644
+index 7a137152c631b913d8e5aba873d3860450c400d2..32865399da2d67555fc428afc257fe34564e1f2c 100644
 --- a/dist/esm/index.mjs
 +++ b/dist/esm/index.mjs
-@@ -14106,7 +14106,7 @@ var getOffthreadVideoSource = ({
+@@ -14286,7 +14286,7 @@ var getOffthreadVideoSource = ({
    currentTime,
    toneMapped
  }) => {
@@ -24,10 +24,10 @@ index 441c59c7f77c872fc68975314491116617b5a068..a7c756a03b3ca0125fcfad970a937e99
  
  // src/video/OffthreadVideoForRendering.tsx
 diff --git a/dist/esm/no-react.mjs b/dist/esm/no-react.mjs
-index 7615713a7cc5fe6e7cbaa7afde2c0c8cb54eaee9..2e635843407d4767caf5dbf2c3b5934313bddd6c 100644
+index 74d2850340ca03e2395eda5532dce30bd1e509b3..0e01dc31064a429781ed82dde221099c4e20a121 100644
 --- a/dist/esm/no-react.mjs
 +++ b/dist/esm/no-react.mjs
-@@ -2440,7 +2440,7 @@ var getOffthreadVideoSource = ({
+@@ -2516,7 +2516,7 @@ var getOffthreadVideoSource = ({
    currentTime,
    toneMapped
  }) => {

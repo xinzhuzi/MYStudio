@@ -74,7 +74,7 @@ describe("RenderingSettingsTab", () => {
 
   it("keeps Remotion controls together before HyperFrames, video-use and Seedance Prompt Skill", async () => {
     const checkedAt = 1_700_000_000_000;
-    const plugins = (["remotion", "hyperframes", "video-use", "seedance-prompt"] as const).map((pluginId) => ({
+    const plugins = (["remotion", "hyperframes", "video-use", "video-shotcraft", "seedance-prompt"] as const).map((pluginId) => ({
       schemaVersion: 1 as const,
       pluginId,
       displayName: pluginId,
@@ -119,6 +119,7 @@ describe("RenderingSettingsTab", () => {
       "Remotion Headless Shell",
       "HyperFrames",
       "video-use",
+      "Video ShotCraft",
       "Seedance Prompt Skill",
     ]);
   });
@@ -228,7 +229,7 @@ describe("RenderingSettingsTab", () => {
 
   it("enables only the plugin whose automatic check reports an update", async () => {
     const checkedAt = 1_700_000_000_000;
-    const pluginStatus = (pluginId: "remotion" | "video-use" | "hyperframes" | "seedance-prompt", runtimeState: "ready" | "update-available" | "deferred") => ({
+    const pluginStatus = (pluginId: "remotion" | "video-use" | "hyperframes" | "video-shotcraft" | "seedance-prompt", runtimeState: "ready" | "update-available" | "deferred") => ({
       schemaVersion: 1 as const,
       pluginId,
       displayName: pluginId,
@@ -248,6 +249,7 @@ describe("RenderingSettingsTab", () => {
         pluginStatus("remotion", "ready"),
         pluginStatus("video-use", "update-available"),
         pluginStatus("hyperframes", "ready"),
+        pluginStatus("video-shotcraft", "ready"),
         pluginStatus("seedance-prompt", "deferred"),
       ],
     };

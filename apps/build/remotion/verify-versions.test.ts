@@ -21,7 +21,7 @@ describe("verifyRemotionVersions", () => {
   it("accepts the installed MYStudio Remotion dependency set", () => {
     expect(verifyRemotionVersions()).toMatchObject({
       success: true,
-      expectedRemotionVersion: "4.0.533",
+      expectedRemotionVersion: "4.0.534",
       expectedMediabunnyVersion: "1.56.1",
       errors: [],
     });
@@ -32,14 +32,14 @@ describe("verifyRemotionVersions", () => {
     const manifestPath = path.join(root, "package.json");
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     manifest.dependencies["@remotion/player"] = "4.0.498";
-    manifest.dependencies["@remotion/transitions"] = "4.0.533";
+    manifest.dependencies["@remotion/transitions"] = "4.0.534";
     writeJson(manifestPath, manifest);
 
     const result = verifyRemotionVersions({ root });
 
     expect(result.success).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([
-      "dependencies.@remotion/player 必须精确等于 4.0.533",
+      "dependencies.@remotion/player 必须精确等于 4.0.534",
       "dependencies.@remotion/player 版本漂移: 4.0.498",
       "dependencies 禁止安装 @remotion/transitions",
     ]));
@@ -65,7 +65,7 @@ describe("verifyRemotionVersions", () => {
     const root = fixtureRoot();
     fs.appendFileSync(
       path.join(root, "pnpm-lock.yaml"),
-      "  '@remotion/transitions@4.0.533':\n    resolution: {integrity: x}\n",
+      "  '@remotion/transitions@4.0.534':\n    resolution: {integrity: x}\n",
     );
     const result = verifyRemotionVersions({ root });
     expect(result.errors).toContain("pnpm-lock 禁止锁定 @remotion/transitions");
@@ -96,7 +96,7 @@ describe("verifyRemotionVersions", () => {
 function fixtureRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-remotion-versions-"));
   temporaryRoots.push(root);
-  const version = "4.0.533";
+  const version = "4.0.534";
   const mediaVersion = "1.56.1";
   const manifest = {
     dependencies: { mediabunny: mediaVersion },

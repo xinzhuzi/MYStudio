@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { RenderInternals } from "@remotion/renderer";
 
-export const SUPPORTED_REMOTION_STUDIO_VERSION = "4.0.533";
+export const SUPPORTED_REMOTION_STUDIO_VERSION = "4.0.534";
 const LOOPBACK_PORT_CONFIG = Object.freeze({
   host: "127.0.0.1",
   hostsToTry: ["127.0.0.1"],

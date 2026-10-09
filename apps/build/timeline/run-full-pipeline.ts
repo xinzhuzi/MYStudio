@@ -78,7 +78,7 @@ import {
 } from "../remotion/render-smoke-evidence";
 import { buildFullPipelineRunEvidence } from "./full-pipeline-run-evidence";
 
-const remotionVersion = "4.0.533";
+const remotionVersion = "4.0.534";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
 
 // ─── Storage & path helpers ──────────────────────────────────────────────

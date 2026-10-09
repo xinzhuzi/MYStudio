@@ -31,7 +31,7 @@ function status(overrides: Partial<Record<VideoWorkflowPluginId, VideoWorkflowPl
   return {
     schemaVersion: 1,
     checkedAt,
-    plugins: (["remotion", "video-use", "hyperframes", "seedance-prompt"] as const).map((pluginId) => plugin(pluginId, overrides[pluginId] ?? "ready")),
+    plugins: (["remotion", "video-use", "hyperframes", "video-shotcraft", "seedance-prompt"] as const).map((pluginId) => plugin(pluginId, overrides[pluginId] ?? "ready")),
   };
 }
 

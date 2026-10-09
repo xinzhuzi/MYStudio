@@ -6,6 +6,7 @@ import {
   HYPERFRAMES_PACKAGE,
   NPM_SHA256,
   NPM_TARBALL_URL,
+  VIDEO_SHOTCRAFT_TARBALL_URL,
   VIDEO_USE_HELPER_SHA256,
   VIDEO_USE_LOCK_CONTENT,
   VIDEO_USE_TARBALL_URL,
@@ -14,6 +15,7 @@ import {
   type VideoWorkflowRuntimeManagerOps,
 } from "./video-workflow-runtime-manager";
 import {
+  VIDEO_SHOTCRAFT_ANCHOR_SHA256 as VIDEO_SHOTCRAFT_ANCHORS,
   resolveVideoWorkflowRuntimePaths,
 } from "./video-workflow-runtime";
 
@@ -60,6 +62,16 @@ function createHarness(): Harness {
       }
       return;
     }
+    if (path.basename(archivePath) === "library.tar.gz") {
+      // video-shotcraft: 归档含 wrapper 目录,根下有 SKILL.md 与 gallery/api/library.json
+      const contentRoot = path.join(destinationPath, "video-shotcraft-commit");
+      for (const relativePath of Object.keys(VIDEO_SHOTCRAFT_ANCHORS)) {
+        const filePath = path.join(contentRoot, relativePath);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, `content of ${relativePath}`, "utf8");
+      }
+      return;
+    }
     // npm tarball: create package/ with bin/npm-cli.js
     const npmRoot = path.join(destinationPath, "package");
     fs.mkdirSync(path.join(npmRoot, "bin"), { recursive: true });
@@ -98,6 +110,8 @@ function createHarness(): Harness {
     if (filePath.endsWith("npm.tgz")) return NPM_SHA256;
     const helper = Object.entries(VIDEO_USE_HELPER_SHA256).find(([relativePath]) => filePath.endsWith(relativePath));
     if (helper) return hashFailure ? "bad-helper-hash" : helper[1];
+    const anchor = Object.entries(VIDEO_SHOTCRAFT_ANCHORS).find(([relativePath]) => filePath.endsWith(relativePath));
+    if (anchor) return hashFailure ? "bad-anchor-hash" : anchor[1];
     return "a".repeat(64);
   };
 
@@ -216,6 +230,30 @@ describe("video workflow runtime manager", () => {
     for (const run of hyperframesRuns) {
       expect(run.env?.ELECTRON_RUN_AS_NODE).toBe("1");
     }
+    fs.rmSync(harness.root, { recursive: true, force: true });
+  });
+
+  it("installs the video-shotcraft library content with anchor verification and a profile marker", async () => {
+    const harness = createHarness();
+    await harness.manager.prepareVideoShotcraft();
+
+    expect(harness.downloads).toEqual([VIDEO_SHOTCRAFT_TARBALL_URL]);
+    expect(fs.existsSync(path.join(harness.paths.videoShotcraftContentDir, "SKILL.md"))).toBe(true);
+    expect(fs.existsSync(path.join(harness.paths.videoShotcraftContentDir, "gallery", "api", "library.json"))).toBe(true);
+    expect(fs.existsSync(path.join(harness.paths.videoShotcraftContentDir, "mystudio-video-shotcraft-manifest.json"))).toBe(true);
+    expect(fs.existsSync(harness.paths.videoShotcraftMarkerPath)).toBe(true);
+    fs.rmSync(harness.root, { recursive: true, force: true });
+  });
+
+  it("rejects a video-shotcraft anchor hash mismatch without replacing the existing profile", async () => {
+    const harness = createHarness();
+    fs.mkdirSync(harness.paths.videoShotcraftProfileDir, { recursive: true });
+    fs.writeFileSync(path.join(harness.paths.videoShotcraftProfileDir, "old.txt"), "old", "utf8");
+    harness.setHashFailure(true);
+
+    await expect(harness.manager.prepareVideoShotcraft()).rejects.toThrow("内容锚 SHA-256");
+    expect(fs.readFileSync(path.join(harness.paths.videoShotcraftProfileDir, "old.txt"), "utf8")).toBe("old");
+    expect(fs.existsSync(harness.paths.videoShotcraftMarkerPath)).toBe(false);
     fs.rmSync(harness.root, { recursive: true, force: true });
   });
 

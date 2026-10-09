@@ -290,7 +290,7 @@ export interface HyperFramesOverlayArtifactV1 {
   generatedAt: number;
 }
 
-export type VideoWorkflowPluginId = "remotion" | "video-use" | "hyperframes" | "seedance-prompt";
+export type VideoWorkflowPluginId = "remotion" | "video-use" | "hyperframes" | "video-shotcraft" | "seedance-prompt";
 export type VideoWorkflowPluginRuntimeState =
   | "ready"
   | "needs-runtime"

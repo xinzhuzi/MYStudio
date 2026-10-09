@@ -8,7 +8,7 @@ const command = {
   schemaVersion: 1,
   requestId: "request-1",
   action: "status",
-  remotionVersion: "4.0.533",
+  remotionVersion: "4.0.534",
 };
 
 describe("validateRemotionBrowserWorkerCommand", () => {
@@ -28,7 +28,7 @@ describe("validateRemotionBrowserWorkerEvent", () => {
     const base = {
       kind: "result",
       requestId: "request-1",
-      status: { state: "ready", remotionVersion: "4.0.533" },
+      status: { state: "ready", remotionVersion: "4.0.534" },
     };
     expect(validateRemotionBrowserWorkerEvent({ ...base, executablePath: "/runtime/headless-shell" }).success).toBe(true);
     expect(validateRemotionBrowserWorkerEvent(base).success).toBe(false);
@@ -39,7 +39,7 @@ describe("validateRemotionBrowserWorkerEvent", () => {
     expect(validateRemotionBrowserWorkerEvent({
       kind: "progress",
       requestId: "request-1",
-      progress: { phase: "downloading", ratio: Number.NaN, remotionVersion: "4.0.533" },
+      progress: { phase: "downloading", ratio: Number.NaN, remotionVersion: "4.0.534" },
     }).success).toBe(false);
     expect(validateRemotionBrowserWorkerEvent({
       kind: "error",

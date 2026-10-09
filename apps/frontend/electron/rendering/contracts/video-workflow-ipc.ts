@@ -181,7 +181,7 @@ export function validateVideoWorkflowPluginActionRequest(
     return { success: false, issues: [{ path: "$", message: "插件操作请求必须是对象" }] };
   }
   const pluginId = (value as { pluginId?: unknown }).pluginId;
-  if (!["remotion", "video-use", "hyperframes", "seedance-prompt"].includes(String(pluginId))) {
+  if (!["remotion", "video-use", "hyperframes", "video-shotcraft", "seedance-prompt"].includes(String(pluginId))) {
     return { success: false, issues: [{ path: "$.pluginId", message: "插件 ID 无效" }] };
   }
   const keys = Object.keys(value);

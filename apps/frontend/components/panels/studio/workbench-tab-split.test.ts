@@ -30,7 +30,7 @@ function job(
     bundleContentHash: "b".repeat(64),
     renderSettingsHash: "c".repeat(64),
     templateVersion: "1.0.0",
-    remotionVersion: "4.0.533",
+    remotionVersion: "4.0.534",
     status,
     attempt: 1,
     progress: status === "succeeded" ? 1 : 0,

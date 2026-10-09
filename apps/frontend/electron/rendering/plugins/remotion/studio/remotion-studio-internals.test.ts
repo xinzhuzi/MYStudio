@@ -12,11 +12,11 @@ import {
 
 describe("Remotion Studio internal guards", () => {
   it("pins all Remotion internals to the supported version", () => {
-    expect(SUPPORTED_REMOTION_STUDIO_VERSION).toBe("4.0.533");
+    expect(SUPPORTED_REMOTION_STUDIO_VERSION).toBe("4.0.534");
     expect(readRemotionStudioVersions()).toEqual({
-      remotion: "4.0.533",
-      renderer: "4.0.533",
-      studioServer: "4.0.533",
+      remotion: "4.0.534",
+      renderer: "4.0.534",
+      studioServer: "4.0.534",
     });
     expect(() => assertSupportedRemotionStudioInternals()).not.toThrow();
   });

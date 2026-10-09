@@ -153,7 +153,7 @@ function validBundle(): Record<string, unknown> {
     schemaVersion: 2,
     templateId: "mystudio-remotion-v1",
     templateVersion: "1.0.0",
-    remotionVersion: "4.0.533",
+    remotionVersion: "4.0.534",
     compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
     compositionId: "DaojieTimeline",
     contentHash: SHA,
@@ -199,7 +199,7 @@ function validReport(): Record<string, unknown> {
     renderer: {
       requested: "remotion",
       actual: "remotion",
-      version: "4.0.533",
+      version: "4.0.534",
       bundleVersion: SHA,
     },
     compositionId: "StoryboardShot",

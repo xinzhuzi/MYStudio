@@ -12,7 +12,7 @@ from . import __version__
 from .adapter import VideoUseAdapterError, run_pinned_adapter
 from .alignment import AlignmentError
 
-UPSTREAM_COMMIT = "92c2b34e44c205cbc2acae7f6ca7c1c219d5dd66"
+UPSTREAM_COMMIT = "43cfc566833548093455c9d4a46bd69913b7e552"
 UPSTREAM_SOURCE_URL = "https://github.com/browser-use/video-use"
 UPSTREAM_MANIFEST_NAME = "mystudio-video-use-manifest.json"
 REQUIRED_HELPERS = (

@@ -164,7 +164,7 @@ export function useRemotionRuntimeSettings() {
     setIsLoading(true);
     setError(undefined);
     setVerificationMessage("正在下载官方 Headless Shell，请稍候...");
-    setProgress({ phase: "starting", ratio: 0, remotionVersion: status?.remotionVersion ?? "4.0.533" });
+    setProgress({ phase: "starting", ratio: 0, remotionVersion: status?.remotionVersion ?? "4.0.534" });
     try {
       const next = await bridge.download();
       applyStatus(next);

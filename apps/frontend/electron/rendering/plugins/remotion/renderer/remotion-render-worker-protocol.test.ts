@@ -9,7 +9,7 @@ const input = {
   bundlePath: "/tmp/bundle",
   outputPath: "/tmp/output.mp4",
   browserExecutable: "/tmp/headless-shell",
-  remotionVersion: "4.0.533",
+  remotionVersion: "4.0.534",
   mediaUrlByClipId: {},
 };
 
@@ -31,7 +31,7 @@ describe("Remotion render worker protocol", () => {
         bundlePath: "/tmp/bundle",
         outputPath: "/tmp/output.mp4",
         browserExecutable: "/tmp/headless-shell",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
       },
     })).toMatchObject({ success: true });
     expect(validateRemotionRenderWorkerCommand({
@@ -46,7 +46,7 @@ describe("Remotion render worker protocol", () => {
         bundlePath: "/tmp/bundle",
         outputPath: "/tmp/chapter.mp4",
         browserExecutable: "/tmp/headless-shell",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
       },
     })).toMatchObject({ success: true });
   });
@@ -64,7 +64,7 @@ describe("Remotion render worker protocol", () => {
         bundlePath: "/tmp/bundle",
         outputPath: "/tmp/scene.mp4",
         browserExecutable: "/tmp/headless-shell",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
         frameRange: [12, 240],
       },
     })).toMatchObject({ success: true });
@@ -83,7 +83,7 @@ describe("Remotion render worker protocol", () => {
         bundlePath: "/tmp/bundle",
         outputPath: "/tmp/scene.mp4",
         browserExecutable: "/tmp/headless-shell",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
       },
     };
     expect(validateRemotionRenderWorkerCommand({ ...base, input: { ...base.input, frameRange: [240, 12] } })).toMatchObject({ success: false });
@@ -106,7 +106,7 @@ describe("Remotion render worker protocol", () => {
         bundlePath: "/tmp/bundle",
         outputPath: "/tmp/shot.mp4",
         browserExecutable: "/tmp/headless-shell",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
         frameRange: [0, 10],
       },
     } as never)).toMatchObject({ success: false });

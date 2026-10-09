@@ -10,7 +10,7 @@ import {
 
 const runtime: RemotionWorkspaceRuntimeInfo = {
   templateVersion: "1.0.0",
-  remotionVersion: "4.0.533",
+  remotionVersion: "4.0.534",
   bundleContentHash: "a".repeat(64),
   defaultRenderSettings: {
     width: 1080,
@@ -142,7 +142,7 @@ describe("Remotion workspace storage", () => {
   });
 
   it("migrates a legacy double-suffix manifest into the canonical key on ensure", async () => {
-    const legacyManifest = `{"schemaVersion":1,"projectId":"project-a","workspaceId":"workspace-project-a","templateId":"mystudio-remotion-v1","templateVersion":"1.0.0","remotionVersion":"4.0.533","bundleContentHash":"${"a".repeat(64)}","compositionIds":["StoryboardShot","ChapterVideo"],"defaultRenderSettings":${JSON.stringify(runtime.defaultRenderSettings)},"createdAt":1,"updatedAt":1}\n`;
+    const legacyManifest = `{"schemaVersion":1,"projectId":"project-a","workspaceId":"workspace-project-a","templateId":"mystudio-remotion-v1","templateVersion":"1.0.0","remotionVersion":"4.0.534","bundleContentHash":"${"a".repeat(64)}","compositionIds":["StoryboardShot","ChapterVideo"],"defaultRenderSettings":${JSON.stringify(runtime.defaultRenderSettings)},"createdAt":1,"updatedAt":1}\n`;
     const legacy = new Map([[legacyRemotionWorkspaceStorageKey("project-a"), legacyManifest]]);
     const removed: string[] = [];
     const { storage, writes } = memoryStorage(legacy);
@@ -171,7 +171,7 @@ describe("Remotion workspace storage", () => {
   it("syncRemotionWorkspaceProductionProfile migrates the legacy key before updating", async () => {
     const legacy = new Map([[
       legacyRemotionWorkspaceStorageKey("project-a"),
-      `{"schemaVersion":1,"projectId":"project-a","workspaceId":"workspace-project-a","templateId":"mystudio-remotion-v1","templateVersion":"1.0.0","remotionVersion":"4.0.533","bundleContentHash":"${"a".repeat(64)}","compositionIds":["StoryboardShot","ChapterVideo"],"defaultRenderSettings":${JSON.stringify(runtime.defaultRenderSettings)},"createdAt":1,"updatedAt":1}\n`,
+      `{"schemaVersion":1,"projectId":"project-a","workspaceId":"workspace-project-a","templateId":"mystudio-remotion-v1","templateVersion":"1.0.0","remotionVersion":"4.0.534","bundleContentHash":"${"a".repeat(64)}","compositionIds":["StoryboardShot","ChapterVideo"],"defaultRenderSettings":${JSON.stringify(runtime.defaultRenderSettings)},"createdAt":1,"updatedAt":1}\n`,
     ]]);
     const { storage, writes } = memoryStorage(legacy);
     const profile = buildRemotionProductionProfile({ platformSpec: "16:9" });

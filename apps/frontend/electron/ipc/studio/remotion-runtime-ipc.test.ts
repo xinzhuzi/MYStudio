@@ -104,7 +104,7 @@ function getHandler(channel: string): IpcHandler {
 function register(userDataDir: string, bundlePath?: string) {
   return registerRemotionRuntimeIpcHandlers({
     userDataDir,
-    remotionVersion: "4.0.533",
+    remotionVersion: "4.0.534",
     workerPath: "/app/remotion-browser-worker.cjs",
     bundlePath,
   });
@@ -145,7 +145,7 @@ describe("registerRemotionRuntimeIpcHandlers", () => {
     statusChild.reply({
       kind: "result",
       requestId: statusRequest.requestId,
-      status: { state: "not-installed", remotionVersion: "4.0.533" },
+      status: { state: "not-installed", remotionVersion: "4.0.534" },
     });
     await expect(statusPromise).resolves.toMatchObject({ state: "not-installed" });
 
@@ -155,17 +155,17 @@ describe("registerRemotionRuntimeIpcHandlers", () => {
     const starting = {
       phase: "starting",
       ratio: 0,
-      remotionVersion: "4.0.533",
+      remotionVersion: "4.0.534",
     };
     const progress = {
       phase: "downloading",
       ratio: 0.5,
-      remotionVersion: "4.0.533",
+      remotionVersion: "4.0.534",
     };
     const completed = {
       phase: "completed",
       ratio: 1,
-      remotionVersion: "4.0.533",
+      remotionVersion: "4.0.534",
     };
     downloadChild.reply({ kind: "progress", requestId: downloadRequest.requestId, progress: starting });
     downloadChild.reply({ kind: "progress", requestId: downloadRequest.requestId, progress });
@@ -175,8 +175,8 @@ describe("registerRemotionRuntimeIpcHandlers", () => {
       requestId: downloadRequest.requestId,
       status: {
         state: "ready",
-        remotionVersion: "4.0.533",
-        preparedForRemotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
+        preparedForRemotionVersion: "4.0.534",
       },
       executablePath: "/tmp/headless-shell",
     });
@@ -209,7 +209,7 @@ describe("registerRemotionRuntimeIpcHandlers", () => {
       schemaVersion: 2,
       templateId: "mystudio-remotion-v1",
       templateVersion: "1.0.0",
-      remotionVersion: "4.0.533",
+      remotionVersion: "4.0.534",
       compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
       compositionId: "DaojieTimeline",
       contentHash: "a".repeat(64),
@@ -221,7 +221,7 @@ describe("registerRemotionRuntimeIpcHandlers", () => {
         schemaVersion: 1,
         templateId: "mystudio-remotion-v1",
         templateVersion: "1.0.0",
-        remotionVersion: "4.0.533",
+        remotionVersion: "4.0.534",
         bundleContentHash: "a".repeat(64),
         compositionIds: ["StoryboardShot", "ChapterVideo", "DaojieTimeline"],
       });

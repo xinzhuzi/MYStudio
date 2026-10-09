@@ -10,7 +10,7 @@ import {
   type RemotionBrowserProbeAdapter,
 } from "./remotion-browser-controller";
 
-const VERSION = "4.0.533";
+const VERSION = "4.0.534";
 const EXECUTABLE = process.execPath;
 
 function memoryStore(initial?: string): PreparedVersionStore & { value?: string } {

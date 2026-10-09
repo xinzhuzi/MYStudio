@@ -21,11 +21,11 @@ afterEach(() => {
 
 describe("Remotion upgrade governance", () => {
   it("accepts only exact 4.x targets", () => {
-    expect(() => validateUpgradeTarget("4.0.533", "4.0.500")).not.toThrow();
-    expect(() => validateUpgradeTarget("4.0.533", "5.0.0")).toThrow(
-      "拒绝跨大版本升级 4.0.533 -> 5.0.0；请新建 Trellis 迁移任务",
+    expect(() => validateUpgradeTarget("4.0.534", "4.0.500")).not.toThrow();
+    expect(() => validateUpgradeTarget("4.0.534", "5.0.0")).toThrow(
+      "拒绝跨大版本升级 4.0.534 -> 5.0.0；请新建 Trellis 迁移任务",
     );
-    expect(() => validateUpgradeTarget("4.0.533", "latest")).toThrow(
+    expect(() => validateUpgradeTarget("4.0.534", "latest")).toThrow(
       "Remotion 升级目标必须是精确 semver",
     );
   });
@@ -33,7 +33,7 @@ describe("Remotion upgrade governance", () => {
   it("preserves dependency specs outside the Remotion upgrade set", () => {
     const before = {
       dependencies: {
-        remotion: "4.0.533",
+        remotion: "4.0.534",
         mediabunny: "1.56.1",
         zod: "^4.3.5",
       },

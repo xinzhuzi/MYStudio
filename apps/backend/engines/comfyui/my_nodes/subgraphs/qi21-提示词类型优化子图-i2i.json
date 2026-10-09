@@ -43,6 +43,21 @@
           "link": null
         },
         {
+          "name": "image_3",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image_4",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "image_5",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
           "name": "指令",
           "type": "STRING",
           "widget": {
@@ -121,7 +136,7 @@
         "state": {
           "lastGroupId": 4,
           "lastNodeId": 4012,
-          "lastLinkId": 200,
+          "lastLinkId": 216,
           "lastRerouteId": 2
         },
         "revision": 1,
@@ -199,6 +214,45 @@
             "pos": [
               1070,
               110
+            ]
+          },
+          {
+            "id": "c4d5e6f7-0011-4a11-9e11-d47c9e21a011",
+            "name": "image_3",
+            "type": "IMAGE",
+            "linkIds": [
+              211,
+              214
+            ],
+            "pos": [
+              1090,
+              130
+            ]
+          },
+          {
+            "id": "c4d5e6f7-0012-4a12-9e12-d47c9e21a012",
+            "name": "image_4",
+            "type": "IMAGE",
+            "linkIds": [
+              212,
+              215
+            ],
+            "pos": [
+              1110,
+              150
+            ]
+          },
+          {
+            "id": "c4d5e6f7-0013-4a13-9e13-d47c9e21a013",
+            "name": "image_5",
+            "type": "IMAGE",
+            "linkIds": [
+              213,
+              216
+            ],
+            "pos": [
+              1130,
+              170
             ]
           },
           {
@@ -431,6 +485,24 @@
                 "type": "IMAGE",
                 "shape": 7,
                 "link": 6
+              },
+              {
+                "name": "images.image_3",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 214
+              },
+              {
+                "name": "images.image_4",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 215
+              },
+              {
+                "name": "images.image_5",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 216
               },
               {
                 "name": "prompt",
@@ -698,6 +770,24 @@
                 "type": "IMAGE",
                 "shape": 7,
                 "link": 47
+              },
+              {
+                "name": "images.image2",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 211
+              },
+              {
+                "name": "images.image3",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 212
+              },
+              {
+                "name": "images.image4",
+                "type": "IMAGE",
+                "shape": 7,
+                "link": 213
               }
             ],
             "outputs": [
@@ -1523,7 +1613,7 @@
           {
             "id": 10,
             "origin_id": -10,
-            "origin_slot": 5,
+            "origin_slot": 8,
             "target_id": 4010,
             "target_slot": 0,
             "type": "COMBO"
@@ -1531,7 +1621,7 @@
           {
             "id": 11,
             "origin_id": -10,
-            "origin_slot": 7,
+            "origin_slot": 10,
             "target_id": 180,
             "target_slot": 0,
             "type": "COMBO"
@@ -1541,7 +1631,7 @@
             "origin_id": 153,
             "origin_slot": 0,
             "target_id": 4015,
-            "target_slot": 4,
+            "target_slot": 7,
             "type": "STRING"
           },
           {
@@ -1619,7 +1709,7 @@
           {
             "id": 42,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 7,
             "target_id": 24,
             "target_slot": 1,
             "type": "STRING"
@@ -1715,7 +1805,7 @@
           {
             "id": 62,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 7,
             "target_id": 4014,
             "target_slot": 0,
             "type": "STRING"
@@ -1755,10 +1845,58 @@
           {
             "id": 200,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 9,
             "target_id": 4012,
             "target_slot": 0,
             "type": "BOOLEAN"
+          },
+          {
+            "id": 211,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 25,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 214,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 4015,
+            "target_slot": 4,
+            "type": "IMAGE"
+          },
+          {
+            "id": 212,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 25,
+            "target_slot": 3,
+            "type": "IMAGE"
+          },
+          {
+            "id": 215,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 4015,
+            "target_slot": 5,
+            "type": "IMAGE"
+          },
+          {
+            "id": 213,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 25,
+            "target_slot": 4,
+            "type": "IMAGE"
+          },
+          {
+            "id": 216,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 4015,
+            "target_slot": 6,
+            "type": "IMAGE"
           }
         ],
         "extra": {

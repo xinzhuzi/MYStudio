@@ -39,10 +39,12 @@ import {
 import {
   HYPERFRAMES_NPM_VERSION,
   HYPERFRAMES_SOURCE_COMMIT,
- 
+  VIDEO_SHOTCRAFT_SOURCE_COMMIT,
   VIDEO_USE_SOURCE_COMMIT,
+  probeVideoShotcraftLibrary,
   probeVideoWorkflowRuntime,
   resolveVideoWorkflowRuntimePaths,
+  type VideoShotcraftLibraryProbeResult,
   type VideoWorkflowRuntimeProbeResult,
 } from "@rendering/plugins/video-workflow/video-workflow-runtime";
 import type {
@@ -63,6 +65,7 @@ export interface RegisterVideoWorkflowIpcOptions {
   prepareRemotion?: () => Promise<RemotionBrowserStatus>;
   probeVideoUse?: () => Promise<VideoUseProbeResult>;
   probeHyperFrames?: () => Promise<HyperFramesProbeResult>;
+  probeVideoShotcraft?: () => VideoShotcraftLibraryProbeResult;
   prepareVideoUseModel?: () => Promise<{ success: boolean; error?: string }>;
   runtimeManager?: VideoWorkflowRuntimeManager;
   reviewVideoUse?: (request: VideoWorkflowReviewRequestV1) => Promise<VideoWorkflowReviewReplyV1>;
@@ -80,8 +83,25 @@ const sourceUrls = {
   remotion: "https://github.com/remotion-dev/remotion",
   "video-use": "https://github.com/browser-use/video-use",
   hyperframes: "https://github.com/heygen-com/hyperframes",
+  "video-shotcraft": "https://github.com/Vincentwei1021/video-shotcraft",
   "seedance-prompt": "https://github.com/songguoxs/seedance-prompt-skill",
 } as const;
+
+const displayNames: Record<VideoWorkflowPluginId, string> = {
+  remotion: "Remotion",
+  "video-use": "video-use",
+  hyperframes: "HyperFrames",
+  "video-shotcraft": "Video ShotCraft",
+  "seedance-prompt": "Seedance Prompt Skill",
+};
+
+const licenses: Record<VideoWorkflowPluginId, string> = {
+  remotion: "MIT",
+  "video-use": "MIT",
+  hyperframes: "MIT",
+  "video-shotcraft": "Apache-2.0",
+  "seedance-prompt": "MIT (上游声明以仓库为准)",
+};
 
 function pluginStatus(
   pluginId: VideoWorkflowPluginId,
@@ -98,10 +118,10 @@ function pluginStatus(
   return {
     schemaVersion: 1,
     pluginId,
-    displayName: pluginId === "video-use" ? "video-use" : pluginId === "hyperframes" ? "HyperFrames" : pluginId === "seedance-prompt" ? "Seedance Prompt Skill" : "Remotion",
+    displayName: displayNames[pluginId],
     sourceUrl: sourceUrls[pluginId],
     sourceCommit,
-    license: pluginId === "seedance-prompt" ? "MIT (上游声明以仓库为准)" : "MIT",
+    license: licenses[pluginId],
     appVersion,
     pluginVersion,
     runtimeState,
@@ -128,6 +148,7 @@ export function registerVideoWorkflowIpcHandlers({
   prepareRemotion,
   probeVideoUse,
   probeHyperFrames,
+  probeVideoShotcraft,
   prepareVideoUseModel,
   runtimeManager,
   reviewVideoUse,
@@ -136,6 +157,8 @@ export function registerVideoWorkflowIpcHandlers({
   buildVideoUseChapterRun,
   now = Date.now,
 }: RegisterVideoWorkflowIpcOptions): VideoWorkflowIpcHandle {
+  const probeShotcraftLibrary = (): VideoShotcraftLibraryProbeResult =>
+    probeVideoShotcraft?.() ?? probeVideoShotcraftLibrary(resolveVideoWorkflowRuntimePaths(getStorageBasePath()));
   const buildStatus = async (): Promise<VideoWorkflowStatusReplyV1> => {
     const checkedAt = now();
     const paths = resolveVideoWorkflowRuntimePaths(getStorageBasePath());
@@ -149,6 +172,7 @@ export function registerVideoWorkflowIpcHandlers({
       probeVideoUse?.().catch((error) => ({ state: "error" as const, message: error instanceof Error ? error.message : String(error), runtime } as VideoUseProbeResult)),
       probeHyperFrames?.().catch((error) => ({ state: "error" as const, message: error instanceof Error ? error.message : String(error), runtime } as HyperFramesProbeResult)),
     ]);
+    const videoShotcraft = probeShotcraftLibrary();
     const remotionState: VideoWorkflowPluginStatusV1["runtimeState"] = remotion.state === "ready"
       ? "ready"
       : remotion.state === "update-required"
@@ -169,6 +193,7 @@ export function registerVideoWorkflowIpcHandlers({
         pluginStatus("remotion", appVersion, remotionVersion, "bundled-app", remotionState, checkedAt, { browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, remotion.message),
         pluginStatus("video-use", appVersion, VIDEO_USE_SOURCE_COMMIT, VIDEO_USE_SOURCE_COMMIT, videoUse ? (videoUse.runtime.state === "update-available" ? "update-available" : videoUse.state === "ready" ? "ready" : videoUse.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, dependencies, videoUse?.message ?? runtime.message, { runtimePath: paths.pythonExecutable, profilePath: paths.videoUseMarkerPath, ffmpegPath: paths.ffmpegExecutable, ffprobePath: paths.ffprobeExecutable }, videoUse?.code),
         pluginStatus("hyperframes", appVersion, HYPERFRAMES_NPM_VERSION, HYPERFRAMES_SOURCE_COMMIT, hyperFrames ? (hyperFrames.runtime.state === "update-available" ? "update-available" : hyperFrames.state === "ready" ? "ready" : hyperFrames.state === "blocked" ? "blocked" : "error") : runtimeStateToPluginState(runtime), checkedAt, { node: dependencies.node, browser: remotionState, ffmpeg: dependencies.ffmpeg, ffprobe: dependencies.ffprobe }, hyperFrames?.message ?? runtime.message, { runtimePath: paths.electronExecutable, profilePath: paths.hyperFramesMarkerPath, ffmpegPath: paths.ffmpegExecutable, ffprobePath: paths.ffprobeExecutable }),
+        pluginStatus("video-shotcraft", appVersion, VIDEO_SHOTCRAFT_SOURCE_COMMIT, VIDEO_SHOTCRAFT_SOURCE_COMMIT, videoShotcraft.state, checkedAt, {}, videoShotcraft.message, { runtimePath: paths.videoShotcraftContentDir, profilePath: paths.videoShotcraftMarkerPath }),
         pluginStatus("seedance-prompt", appVersion, "deferred", "deferred", "deferred", checkedAt, {}, "本轮仅保留提示词来源，不进入执行门禁"),
       ],
     };
@@ -180,7 +205,11 @@ export function registerVideoWorkflowIpcHandlers({
     let actionMessage: string | undefined;
     let success = false;
     const verifyPlugin = async (pluginId: RuntimePluginId): Promise<void> => {
-      const probe = pluginId === "video-use" ? await probeVideoUse?.() : await probeHyperFrames?.();
+      const probe = pluginId === "video-use"
+        ? await probeVideoUse?.()
+        : pluginId === "hyperframes"
+          ? await probeHyperFrames?.()
+          : probeShotcraftLibrary();
       if (probe && probe.state !== "ready") {
         success = false;
         actionMessage = probe.message;
@@ -225,6 +254,8 @@ export function registerVideoWorkflowIpcHandlers({
       await applyRuntimeAction("video-use");
     } else if (request.pluginId === "hyperframes" && runtimeManager) {
       await applyRuntimeAction("hyperframes");
+    } else if (request.pluginId === "video-shotcraft" && runtimeManager) {
+      await applyRuntimeAction("video-shotcraft");
     } else if (request.pluginId === "video-use" && (action === "prepare" || action === "repair") && probeVideoUse) {
       const result = await probeVideoUse();
       success = result.state === "ready";
