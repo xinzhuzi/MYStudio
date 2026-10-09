@@ -64,7 +64,7 @@ MyQi21PromptAssembly = assembly.MyQi21PromptAssembly
 # 与真源家正负拆开瘦身版(739 字)不同文,锚随真源迁)
 _DEFAULT_ANCHORS = {
     "主体句": "afd9e6f562e3e606",       # 原 顶层 [24] 主体句例文
-    "锁层A全文": "a61f1e32a12f2ee9",    # 1009固层无物化终轮重锚(用户令「山水之类的都要改,不能描绘具体的物」:DNA「山水构图与留白→构图与留白」;型文/冷存bg字段B句「铺陈山水空间：淡墨远山、青灰近石、青绿草木、赭黄土各成整块色面→以少量整块大色面铺陈」×6;人物山脊句「仅保留山脊轮廓与剪影→仅存最简轮廓层次」)    # qi21_bases.json art_style_base.positive_text(前值 815ef590=锁层无物化轮)
+    "锁层A全文": "32810fbcf46c69df",    # 1009固层无物化终轮重锚(用户令「山水之类的都要改,不能描绘具体的物」:DNA「山水构图与留白→构图与留白」;型文/冷存bg字段B句「铺陈山水空间：淡墨远山、青灰近石、青绿草木、赭黄土各成整块色面→以少量整块大色面铺陈」×6;人物山脊句「仅保留山脊轮廓与剪影→仅存最简轮廓层次」)    # qi21_bases.json art_style_base.positive_text(前值 815ef590=锁层无物化轮)
 }
 
 
@@ -82,7 +82,7 @@ def _lock_neg() -> str:
 def test_1_assembled_full_text_verbatim_single_output():
     node = MyQi21PromptAssembly()
     result = node.assemble(主体句="主体句例", BASE="底座例", 锁层A全文="美术风格底座例")
-    expected = "主体句例\n底座例\n美术风格底座例"
+    expected = "主体句:主体句例\n类型句:底座例\n美术风格底座例"
     # 1005 案B:口1 负面词=merge(BASE负面, 美术风格底座负面现读);BASE负面 缺键
     # =merge("", lock)=裸美术风格底座负面(全角逗号清单=整段一 token,归一并=原文)
     assert result == (expected, _lock_neg()), \
@@ -108,7 +108,7 @@ def test_1_assembled_full_text_verbatim_single_output():
 def test_2_base_unwired_degrades_to_two_segments():
     node = MyQi21PromptAssembly()
     result = node.assemble(主体句="主体句例", 锁层A全文="美术风格底座例")  # BASE 缺键
-    assert result == ("主体句例\n美术风格底座例", _lock_neg()), \
+    assert result == ("主体句:主体句例\n美术风格底座例", _lock_neg()), \
         f"BASE 未接线应降级=主体句+换行+美术风格底座 两段拼(optional 缺键不炸),得 {result!r}"
 
 
@@ -150,7 +150,7 @@ def test_tooltips_present_plain_language():
 def test_4_base_empty_string_degrades_to_two_segments(capsys):
     node = MyQi21PromptAssembly()
     result = node.assemble(主体句="主体句例", BASE="", 锁层A全文="美术风格底座例")
-    assert result == ("主体句例\n美术风格底座例", _lock_neg()), \
+    assert result == ("主体句:主体句例\n美术风格底座例", _lock_neg()), \
         f"BASE=''(接线但空串)应与 None 同款降级=主体句+换行+美术风格底座 两段拼" \
         f"(BASE 空即无底座层),得 {result!r}"
     out = capsys.readouterr().out
@@ -161,7 +161,7 @@ def test_4_base_empty_string_degrades_to_two_segments(capsys):
 def test_5_base_whitespace_string_degrades_to_two_segments(capsys):
     node = MyQi21PromptAssembly()
     result = node.assemble(主体句="主体句例", BASE="  ", 锁层A全文="美术风格底座例")
-    assert result == ("主体句例\n美术风格底座例", _lock_neg()), \
+    assert result == ("主体句:主体句例\n美术风格底座例", _lock_neg()), \
         f"BASE='  '(纯空白)应与 None 同款降级=两段拼,得 {result!r}"
     out = capsys.readouterr().out
     assert "[MyQi21PromptAssembly]" in out and "两段拼" in out, \
@@ -182,7 +182,7 @@ def test_6_free_type_empty_base_two_segments_neutral_warning(capsys):
         "包路径/直载两形态 default 同源(真源家现读)"
     result = node.assemble(主体句="主体句例", BASE="", 锁层A全文=lock_a)
     out = result[0]
-    assert result == (f"主体句例\n{lock_a}",
+    assert result == (f"主体句:主体句例\n{lock_a}",
                       json.loads(Path(assembly._BASES_FILE).read_text(
                           encoding="utf-8"))["art_style_base"]["negative_text"]), \
         f"自由型空 BASE 应两段拼=主体句+换行+美术风格底座(逐字),得 {out[:50]!r}…"
@@ -190,8 +190,8 @@ def test_6_free_type_empty_base_two_segments_neutral_warning(capsys):
     ml = "锁A行1\n锁A行2"
     out_ml = node.assemble(主体句="主体句例", BASE="", 锁层A全文=ml)[0]
     lines = out_ml.split("\n")
-    assert lines[0] == "主体句例"          # 首行=主体句
-    assert lines == ["主体句例", "锁A行1", "锁A行2"], \
+    assert lines[0] == "主体句:主体句例"          # 首行=主体句(1009标签)
+    assert lines == ["主体句:主体句例", "锁A行1", "锁A行2"], \
         "美术风格底座 内换行应原样保留(两段拼≠两行;实现误用 \\n\\n 拼段即红)"
     assert out_ml.endswith(ml)             # 尾段=美术风格底座 逐字
     # 中性化双关警告(design §2.2):自由型正常态+非自由型请检查连线

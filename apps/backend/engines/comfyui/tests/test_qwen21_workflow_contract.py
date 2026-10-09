@@ -290,6 +290,7 @@ T2I = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-t2i.json"
 QI21 = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qi21-道劫-t2i.json"
 EDIT = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-edit.json"
 I2I = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-i2i.json"
+IMG2IMG = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-img2img.json"  # 1009 用户新令:严格经典图生图
 K2_DIR = _IMG_DIR / "K2图像"
 PROMPT_LIB = _REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 # 1004 Phase A 起 daojie_bases.json 退役删件(字段合并进 qi21_bases.json 集中地);
@@ -301,7 +302,7 @@ def _canon_types() -> list[dict]:
     """canon 九型条目(qi21_bases.json types 前 9;自由档=第 10 条不入 canon)。"""
     return json.loads(BASES_JSON.read_text(encoding="utf-8"))["types"][:9]
 
-WORKFLOWS = {"t2i": T2I, "edit": EDIT, "qi21": QI21, "i2i": I2I}
+WORKFLOWS = {"t2i": T2I, "edit": EDIT, "qi21": QI21, "i2i": I2I, "img2img": IMG2IMG}
 GRAPHS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in WORKFLOWS.items()}
 
 # 2026-10-01 B4 吸收件(独立于 WORKFLOWS 四键:遍历类不动,专件专锚)
@@ -670,9 +671,10 @@ MODE_VIGGLE = next(m for m, s in SPEED_MODES if s == "latent_viggle")
 # edit 默认档=MODE_FUNACC(PE 默认本就开=文件原值),危险组合改述「关PE×FunAcc」。
 EDIT_DEFAULT_MODE = MODE_FUNACC
 # 三件默认档分域表(单一真源;1008 用户新令:道劫 t2i 本件默认改 viggle 路线,
-# 实例五处+Note 文案随令,py 侧 DEFAULT_MODE 出厂首项不动)——
+# 实例五处+Note 文案随令;1009 用户新令:i2i 本件同改 viggle——py 侧
+# DEFAULT_MODE 出厂首项不动)——
 # test_three_files_default_mode_consistent / test_accel_panel_controls_present_0929 共用
-DEFAULT_MODE_OF = {"qi21": MODE_VIGGLE, "i2i": DEFAULT_MODE, "edit": EDIT_DEFAULT_MODE}
+DEFAULT_MODE_OF = {"qi21": MODE_VIGGLE, "i2i": MODE_VIGGLE, "edit": EDIT_DEFAULT_MODE}
 # 0929 并行化 Note 加速区段共用 tokens(三件 Note 均含;文案真源=三生成器 NOTE 段;
 # 0929 S3 收装轮随双子图文案刷新)
 PARALLEL_NOTE_CORE_TOKENS = (
@@ -692,7 +694,8 @@ QI21_PARALLEL_NOTE_TOKENS = (
 # 仅支路采样器 [189] 带 id;宿主 [190])
 I2I_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, "MyQi21SpeedSelect", "[7]", "[7012]",
-    "首项=默认=「0 · Fun-Acc 4步」", "seed 单源", "零摆设值", "复用铁则", "分线直入",
+    "首项=「0 · Fun-Acc 4步」=全局出厂默认", "本件默认=「2 · viggle」",
+    "seed 单源", "零摆设值", "复用铁则", "分线直入",
     "单参考正源", "崩纯黑", "唯一色=1", "positive_single", "[173]", "零改动",
     "速度档位", "加速子图",
 )
@@ -994,8 +997,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
       宿主输入=host_inputs(连线槽+widget 型槽,i2i/edit 全列形态/t2i 仅连线槽
       形态);面板双控件=速度档位+seed(widgets_values 与子图 widgets[] 双写同值,
       宿主=权威值源,widgets_values_named 具名镜像);默认档=default_mode
-      (分域:qi21=MODE_VIGGLE(1008 用户新令,本件默认改 viggle)/i2i=DEFAULT_MODE
-      (1002 ⑱ 出厂首项 Fun-Acc)/edit=EDIT_DEFAULT_MODE(1003 翻案 Fun-Acc,PE 开));
+      (分域:qi21=MODE_VIGGLE(1008 用户新令,本件默认改 viggle)/i2i=MODE_VIGGLE
+      (1009 用户新令,本件默认改 viggle)/edit=EDIT_DEFAULT_MODE(1003 翻案 Fun-Acc,PE 开));
     - 子图内恰 6 件=三支路(直出 KSampler40/LoRA1.0→viggle/T8)+seed 单源
       +选择件;选择件 wv=[default_mode] 且 mode←-10 速度档位槽(面板外露);
       T8 无负面槽/model=-10 model 槽边界直连(绝不吃 LoRA)/positive=加速支路
@@ -1256,7 +1259,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     # 零真重复(0929 复用铁则,三域分域)
     _assert_no_true_duplicates(graph, name)
     # 懒执行三档干跑(作用域遍历;1002 R2 起默认态=default_mode:三档支路成员
-    # 表驱动——t2i 默认态=viggle(1008 令)/i2i=首项 Fun-Acc/edit=Fun-Acc(1003 翻案,PE 开))
+    # 表驱动——t2i 默认态=viggle(1008 令)/i2i=viggle(1009 令)/edit=Fun-Acc(1003 翻案,PE 开))
     _mode_members = {MODE_FUNACC: (t8_id,), MODE_VIGGLE: (lora_id, ks_viggle),
                      MODE_DIRECT: (ks_direct,)}
     _all_accel = (ks_direct, ks_viggle, lora_id, t8_id)
@@ -1497,7 +1500,7 @@ class TestSpeedSelectContract0929:
     def test_accel_panel_controls_present_0929(self):
         """宿主面板双控件在位(D5 推荐案落地,回退案未启用):「速度档位」COMBO
         (闭集单源=自研件 SPEED_MODES import 互锁;默认档分域——qi21=viggle
-        (1008 令)/i2i=首项 Fun-Acc(1002 ⑱)/edit=Fun-Acc(1003 翻案,PE 开))
+        (1008 令)/i2i=viggle(1009 令)/edit=Fun-Acc(1003 翻案,PE 开))
         +「seed」INT
         (默认 0;子图内 seed 单源 value 经 -10 槽外露);widgets_values 与子图
         widgets[] 双写同值+具名镜像(宿主=权威值源);控件型边界槽在子图 -10 IO
@@ -1590,8 +1593,8 @@ class TestSpeedSelectContract0929:
     def test_three_files_default_mode_consistent(self):
         """三件各自宿主=选择件同值(AC):加速子图内选择件 widgets_values 与宿主
         面板首控(权威值源)同值——默认档分域:qi21=MODE_VIGGLE(1008 用户新令,
-        本件默认改 viggle)/i2i=DEFAULT_MODE(1002 ⑱ 首项 Fun-Acc)/edit=
-        EDIT_DEFAULT_MODE(1003 翻案 Fun-Acc,PE 开);任一件面板漂移即红。"""
+        本件默认改 viggle)/i2i=MODE_VIGGLE(1009 用户新令,本件默认改 viggle)/
+        edit=EDIT_DEFAULT_MODE(1003 翻案 Fun-Acc,PE 开);任一件面板漂移即红。"""
         _DMODE_OF = DEFAULT_MODE_OF
         for name in ("qi21", "i2i", "edit"):
             xsg = _xsg(GRAPHS[name])
@@ -3081,7 +3084,8 @@ class TestQi21SubgraphContract:
             lora_class="ViggleTurboLora",  # 1008「完整发挥」:官方未合并加载(拒 bf16 合并丢 30%)
             panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板三控
             # 1008 用户新令:道劫本件默认档改 viggle 路线(实例五处+Note 文案随令;
-            # py 侧 DEFAULT_MODE 出厂首项不动,i2i 与新实例出生缺省仍 Fun-Acc)
+            # py 侧 DEFAULT_MODE 出厂首项不动,新实例出生缺省仍 Fun-Acc——
+            # 1009 i2i 本件亦随令改 viggle,见 i2i 条目)
             default_mode=MODE_VIGGLE,
             banned_main_types=("easy compare",),
             gone_main_ids=(QI21_LORA_PB_ID, QI21_LORA_SW_ID, 177, 178, 179,
@@ -4362,6 +4366,9 @@ class TestI2IContract:
                          ("negative", True, False), ("positive_single", True, False),
                          ("latent", True, False), ("速度档位", False, True), ("seed", False, True)],
             te1_asg=I2I_SG_TE1,
+            # 1009 用户新令:i2i 本件默认档改 viggle 路线(实例四处+Note 三段随令;
+            # py 侧 DEFAULT_MODE 出厂首项不动,新实例出生缺省仍 Fun-Acc)
+            default_mode=MODE_VIGGLE,
             banned_main_types=("easy compare", "KSampler", "LoraLoaderModelOnly",
                                T8_CLASS, SPEED_SELECT_CLASS, "PrimitiveInt"),
             # 旧注入式件 id 锚(0929 并行化拆除):171-174/183-185 已随 0928 PE 迁
@@ -4687,6 +4694,98 @@ def _links_pid(graph: dict, nid: int) -> int:
     return n["inputs"][0]["link"]
 
 
+# ── 6h. qi21-道劫-img2img 契约(1009 用户令:严格经典图生图「0.5~0.7 大结构保留,
+# 细节大幅重画(同构图精修、改细节)」区间取中 dn=0.6;pose-edit 先例=扁平自持
+# 零子图;与 i2i(满噪参考图编辑)范式分野互斥——本件恒 40 步直出无加速档,低
+# denoise × 满噪蒸馏件有效步数坍缩故 turbo 族全禁;生成器 qi21_img2img_build_1009.py)──
+class TestQi21Img2ImgContract:
+    WF = GRAPHS["img2img"]
+
+    def _n(self, nid: int) -> dict:
+        ns = [n for n in self.WF["nodes"] if n["id"] == nid]
+        assert len(ns) == 1, f"[{nid}] 应恰 1"
+        return ns[0]
+
+    def _src_of(self, nid: int, slot_name: str) -> tuple:
+        links = {l[0]: l for l in self.WF["links"]}
+        i = next(i for i in self._n(nid)["inputs"] if i["name"] == slot_name)
+        assert i["link"] is not None, f"[{nid}].{slot_name} 应接线"
+        l = links[i["link"]]
+        return (l[1], l[2])
+
+    def test_flat_census_and_banned_types(self):
+        """扁平零子图+15 件 census+满噪蒸馏/选择机构全禁(低 denoise 互斥,Note 载明)。"""
+        assert self.WF["definitions"]["subgraphs"] == [], "本件应扁平零子图(pose-edit 先例)"
+        from collections import Counter
+        c = Counter(n["type"] for n in self.WF["nodes"])
+        want = Counter({
+            "UNETLoader": 1, "CLIPLoader": 1, "VAELoader": 1, "LoadImage": 1,
+            "ImageScaleToTotalPixels": 1, "PrimitiveStringMultiline": 1,
+            "MyQi21DaojieBase": 1, "MyQi21PromptAssembly": 1, "easy showAnything": 1,
+            "TextEncodeQwenImage21": 1, "QwenImage21Cache": 1, "KSampler": 1,
+            "VAEDecode": 1, "SaveImage": 1, "MarkdownNote": 1,
+        })
+        assert c == want, f"census 漂移(应恰 15 件):{dict(c)}"
+        for banned in ("LoraLoaderModelOnly", "MyQi21SpeedSelect", "EmptyLatentImage",
+                       "ComfySwitchNode", "SplitSigmas", "SamplerCustomAdvanced"):
+            assert banned not in c, f"禁件在场:{banned}"
+        assert not any(t.startswith("T8QwenImage21") for t in c), "Fun-Acc T8 禁件在场"
+
+    def test_sampler_anchor_dn06(self):
+        """[7]=40 步/cfg1/euler/simple/denoise 0.6(用户令区间取中;面板=widget 直调)。"""
+        w = self._n(7)["widgets_values"]
+        assert self._n(7)["type"] == "KSampler"
+        assert (w[2], w[3], w[4], w[5], w[6]) == (40, 1, "euler", "simple", 0.6), \
+            f"[7] 应=40步/cfg1/euler/simple/dn0.6,得 {w}"
+
+    def test_latent_from_te_image1(self):
+        """latent 直取 [4015] TE.latent(=image_1 过 VAE 的画布 latent,画幅随底图)——
+        经典图生图的底图位;无 EmptyLatent/无 Switch 已由 census 禁件锁。"""
+        assert self._src_of(7, "latent_image") == (4015, 2), \
+            "latent 应直取 [4015].latent(image_1 画布 latent)"
+        assert self._src_of(7, "positive") == (4015, 0) and self._src_of(7, "negative") == (4015, 1)
+        assert self._src_of(7, "model") == (9, 0), "model 应经 [9] QwenImage21Cache"
+
+    def test_te_single_reference_and_negative_wired(self):
+        """image_1=底图(预缩后);image_2 恰空接(Autogrow min0 单参考);装配负面词
+        真接 negative_prompt(i2i 空置位本件接通;cfg=1 下数学不参与=官方路径口径)。"""
+        te = self._n(4015)
+        assert te["widgets_values"][2] == 0, "TE resolution 应=0(不重采样)"
+        ins = {i["name"]: i for i in te["inputs"]}
+        assert ins["images.image_2"]["link"] is None, "image_2 应恰空接"
+        assert self._src_of(4015, "clip") == (2, 0)
+        assert self._src_of(4015, "vae") == (3, 0)
+        assert self._src_of(4015, "images.image_1") == (16, 0), "image_1 应=预缩后底图"
+        assert self._src_of(4015, "prompt") == (4011, 0), "prompt 应=装配全文"
+        assert self._src_of(4015, "negative_prompt") == (4011, 1), \
+            "negative_prompt 应=装配负面词(负面真接线)"
+
+    def test_assembly_truth_interlock(self):
+        """装配三段(指令+BASE+锁层A):锁层A=qi21_bases.json 真源热读互锁(1004 集中化令);
+        BASE←[4010] 型底座;主体句←[400] 精修指令;[28] 装配预览在链。"""
+        asm = self._n(4011)
+        truth = json.loads(BASES_JSON.read_text(encoding="utf-8"))["art_style_base"]["positive_text"]
+        assert asm["widgets_values"][1] == truth, "锁层A全文应=qi21_bases.json 真源(热读互锁)"
+        assert self._src_of(4011, "BASE") == (4010, 0)
+        assert self._src_of(4011, "主体句") == (400, 0)
+        assert "构图" in asm["widgets_values"][0], "主体句默认应=描述性精修指令(非编辑指令)"
+        assert self._src_of(28, "anything") == (4011, 0), "[28] 装配预览应挂装配全文"
+
+    def test_loaders_save_and_preset(self):
+        assert self._n(1)["widgets_values"][0] == "qwen_image_2.1_bf16.safetensors"
+        assert self._n(2)["widgets_values"][0] == "qwen3vl_8b_bf16_heretic.safetensors"
+        assert self._n(3)["widgets_values"][0] == "qwen_image_2.1_vae_bf16.safetensors"
+        assert self._n(8)["widgets_values"] == ["QI21道劫精修_"], "保存前缀应=QI21道劫精修_"
+        assert self._n(16)["widgets_values"][1] == 1.5, "画布预缩应=1.5MP(同 i2i)"
+
+    def test_note_documents_paradigm(self):
+        """Note 要点锁:范式分野/denoise 档位表/加速档禁因/负面真接/真源口径。"""
+        note = self._n(402)["widgets_values"][0]
+        for tok in ("同构图精修", "0.5~0.7", "0.6", "满噪蒸馏", "image_2", "negative_prompt",
+                    "cfg=1", "qi21_bases.json", "viggle", "参考图编辑", "qi21_img2img_build_1009.py"):
+            assert tok in note, f"Note 缺要点:{tok!r}"
+
+
 class TestCountAnchor:
     def test_qwen21_dir_exactly_seventeen(self):
         files = sorted(p.name for p in (_IMG_DIR / "Q2-1图像").rglob("*.json"))
@@ -4696,6 +4795,7 @@ class TestCountAnchor:
             "image_qwen_image_2_1_t2i.json",
             "qi21-edit.json",
             "qi21-道劫-i2i.json",
+            "qi21-道劫-img2img.json",
             "qi21-道劫-t2i.json",
             "qwen21-daotu-rgba-t2i.json",
             "qwen21-multiref-edit.json",
@@ -4710,7 +4810,7 @@ class TestCountAnchor:
             "社区-全能图片编辑-官方PE.json",
             "社区-全能文生图-官方PE.json",
             "社区-编辑生图整合-TE.json",
-        ], f"Q2-1图像 应恰 19 件(10 自研+5 官方模板+4 社区模板;1008 用户令 Viggle 官方两件入库 17→19,前账:10-02 自研扩批五件 12→17),得 {files}"
+        ], f"Q2-1图像 应恰 20 件(11 自研+5 官方模板+4 社区模板;1009 用户新令 qi21-道劫-img2img 入库 19→20,前账:1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。

@@ -1,0 +1,978 @@
+{
+  "id": "qi21-daojie-img2img-1009",
+  "revision": 0,
+  "last_node_id": 4020,
+  "last_link_id": 17,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        1140,
+        1700
+      ],
+      "size": [
+        340,
+        84
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ],
+      "title": "[1] UNET加载"
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        1540,
+        1900
+      ],
+      "size": [
+        360,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip_name"
+          },
+          "link": null
+        },
+        {
+          "name": "type",
+          "type": "COMBO",
+          "widget": {
+            "name": "type"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "shape": 7,
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_8b_bf16_heretic.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "title": "[2] 主TE·CLIPLoader"
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        1540,
+        2200
+      ],
+      "size": [
+        340,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            4,
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ],
+      "title": "[3] VAE加载"
+    },
+    {
+      "id": 5,
+      "type": "VAEDecode",
+      "pos": [
+        3520,
+        1180
+      ],
+      "size": [
+        240,
+        50
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 15
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "title": "[5] VAEDecode"
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        2980,
+        1000
+      ],
+      "size": [
+        330,
+        262
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 12
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "title": "[7] 精修采样·KSampler(40步·dn0.6)",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        40,
+        1,
+        "euler",
+        "simple",
+        0.6
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "control_after_generate": "fixed",
+        "steps": 25,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 8,
+      "type": "SaveImage",
+      "pos": [
+        3980,
+        1000
+      ],
+      "size": [
+        380,
+        330
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 17
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "QI21道劫精修_"
+      ],
+      "title": "[8] SaveImage"
+    },
+    {
+      "id": 9,
+      "type": "QwenImage21Cache",
+      "pos": [
+        2560,
+        1900
+      ],
+      "size": [
+        320,
+        100
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "title": "[9] 模型缓存·QwenImage21Cache",
+      "properties": {
+        "Node name for S&R": "QwenImage21Cache",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "auto",
+        "default"
+      ],
+      "widgets_values_named": {
+        "device": "auto",
+        "dtype": "default"
+      }
+    },
+    {
+      "id": 10,
+      "type": "LoadImage",
+      "pos": [
+        820,
+        120
+      ],
+      "size": [
+        340,
+        420
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        },
+        {
+          "name": "upload",
+          "type": "IMAGEUPLOAD",
+          "widget": {
+            "name": "upload"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "portrait_model_denim.png",
+        "image"
+      ],
+      "title": "[10] 底图·LoadImage"
+    },
+    {
+      "id": 16,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        1440,
+        240
+      ],
+      "size": [
+        330,
+        130
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "upscale_method",
+          "type": "COMBO",
+          "widget": {
+            "name": "upscale_method"
+          },
+          "link": null
+        },
+        {
+          "name": "megapixels",
+          "type": "FLOAT",
+          "widget": {
+            "name": "megapixels"
+          },
+          "link": null
+        },
+        {
+          "name": "resolution_steps",
+          "type": "INT",
+          "widget": {
+            "name": "resolution_steps"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleToTotalPixels"
+      },
+      "widgets_values": [
+        "lanczos",
+        1.5,
+        32
+      ],
+      "title": "[16] 画布预缩·Scale"
+    },
+    {
+      "id": 28,
+      "type": "easy showAnything",
+      "pos": [
+        1980,
+        1280
+      ],
+      "size": [
+        480,
+        230
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "输入任何",
+          "name": "anything",
+          "shape": 7,
+          "type": "*",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "*",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "easy showAnything"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "title": "[28] 装配预览·showAnything"
+    },
+    {
+      "id": 400,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        820,
+        640
+      ],
+      "size": [
+        340,
+        180
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "保持图1的构图、人物姿态与画面内容不变,按道劫画风整幅精修:重画细节纹理与质感,提升线描与设色完成度,不增删画面元素"
+      ],
+      "title": "[400] 精修指令·主体句"
+    },
+    {
+      "id": 402,
+      "type": "MarkdownNote",
+      "pos": [
+        80,
+        80
+      ],
+      "size": [
+        640,
+        880
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 道劫·图生图(严格经典 img2img)·用法速查\n\n**定位:同构图精修/改细节**——底图给骨架、文字给皮:denoise<1 部分重噪,输出\n**构图与姿态从底图继承**,提示词只换质感细节。与 `qi21-道劫-i2i`(参考图编辑,\n满噪 denoise=1.0,构图由文字重排)是两种范式,勿混用:改内容/换装/多参考走\ni2i 或 multiref;**保构图换细节走本件**。\n\n### 三步用法\n1. [10] 换底图(人物/场景/既有成图均可);\n2. [4010] 选型(十选一,默认①人物;型文底座照常参与,画面结构仍以底图为准);\n3. [400] 写精修指令(描述性,默认例句可直接跑)→ 队列。\n\n### denoise 档位([7] KSampler 末位 widget,默认 0.6)\n| 档位 | 效果 |\n|---|---|\n| 0.2~0.4 | 几乎不动构图,只换质感/风格 |\n| **0.5~0.7(默认 0.6)** | **大结构保留,细节大幅重画(同构图精修/改细节)** |\n| →1.0 | 逼近重画,构图渐不听底图(即退化回 i2i 范式) |\n\n### 采样与加速分野\n- [7] 恒 **40 步直出**(cfg1/euler/simple/seed fixed 0,道劫完整档官方区间)。\n- **本件无加速档,有意为之**:Fun-Acc 4 步/viggle 6 步=满噪蒸馏件,低 denoise\n  下有效步数坍缩(4×0.6≈2.4 步)必崩——要加速走 i2i(其 viggle 默认=1009 令)。\n- 负向:[4011] 装配负面词(型负面+锁层负面合并)真接 TE.negative_prompt;\n  **cfg=1 下数学不参与采样**(官方路径口径,同 i2i),抬 cfg 即激活。\n\n### 画幅与参考\n- 画幅随底图:[16] 预缩 1.5MP→TE resolution=0 不重采样,输出=底图(预缩后)比例。\n- [4015] image_2 槽**留空=合法**(TE images=Autogrow min0);要第二参考走 i2i。\n- PE 扩写不在本件(直写;PE-I2I 走 i2i);RGBA 透明不在本件(走 i2i)。\n\n### 装配与真源\n- 装配全文=[400] 精修指令+BASE+[4011] 锁层A 三段换行拼合;[28] 装配预览可看全文。\n- 锁层A=qi21_bases.json art_style_base.positive_text 唯一真源热读互锁\n  (1004 集中化令);型文同源。改词先改真源再同步本件卡文。\n\n### 维护\n- 生成脚本 `apps/build/scripts/qi21_img2img_build_1009.py`(幂等,重跑字节稳定);\n  契约=TestQi21Img2ImgContract+计数锚(清单台账同步 `docs/comfyui-kb/漫影工作流清单.md`)。\n- 与 i2i 的分野表:i2i=图给素材文字重排(满噪)/本件=图给骨架文字换皮(降噪)。"
+      ],
+      "title": "[402] 道劫图生图·用法速查"
+    },
+    {
+      "id": 4010,
+      "type": "MyQi21DaojieBase",
+      "title": "[4010] 底座十选一·自研",
+      "pos": [
+        820,
+        900
+      ],
+      "size": [
+        420,
+        200
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "base",
+          "type": "COMBO",
+          "widget": {
+            "name": "base"
+          },
+          "link": null
+        },
+        {
+          "name": "透明覆盖",
+          "type": "BOOLEAN",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BASE",
+          "type": "STRING",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "WIDTH",
+          "type": "INT",
+          "links": [],
+          "slot_index": 1
+        },
+        {
+          "name": "HEIGHT",
+          "type": "INT",
+          "links": [],
+          "slot_index": 2
+        },
+        {
+          "name": "负面词",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 3
+        },
+        {
+          "name": "透明值",
+          "type": "BOOLEAN",
+          "links": [],
+          "slot_index": 4
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MyQi21DaojieBase"
+      },
+      "widgets_values": [
+        "人物",
+        false
+      ]
+    },
+    {
+      "id": 4011,
+      "type": "MyQi21PromptAssembly",
+      "title": "[4011] 底料拼合·自研",
+      "pos": [
+        1480,
+        760
+      ],
+      "size": [
+        520,
+        420
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "BASE",
+          "type": "STRING",
+          "shape": 7,
+          "link": 7
+        },
+        {
+          "name": "主体句",
+          "type": "STRING",
+          "widget": {
+            "name": "主体句"
+          },
+          "link": 8
+        },
+        {
+          "name": "锁层A全文",
+          "type": "STRING",
+          "widget": {
+            "name": "锁层A全文"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "装配全文",
+          "type": "STRING",
+          "links": [
+            5,
+            9
+          ]
+        },
+        {
+          "name": "负面词",
+          "type": "STRING",
+          "links": [
+            6
+          ],
+          "slot_index": 1
+        }
+      ],
+      "widgets_values": [
+        "保持图1的构图、人物姿态与画面内容不变,按道劫画风整幅精修:重画细节纹理与质感,提升线描与设色完成度,不增删画面元素",
+        "风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统绘画审美 DNA（工笔、白描、连环画、传统色、构图与留白）经现代游戏美术设计重组：第一眼是现代游戏，第二眼见中国传统绘画底蕴，第三眼线条、色彩、留白、构图来源可辨；把中国传统绘画的视觉规则重新组织为现代游戏美术。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续彩线描/丝线描（iron-wire outlines）勾勒主体，薄透矿物色分染/罩染施于主体与关键部位，柔和均匀平光照明，干净空灵，清晰视觉焦点。工笔线条质量：连续彩线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，彩线带手绘笔性。线描优先工笔结构：主体轮廓、结构衔接与细节处以连续的工笔线描保持清晰可读。主体与关键部位用白描/彩线描加薄透矿物罩染、单次轻分染建模；画面中主体与物件的衔接结构清晰合理。成片质量：主体达到生产级细节清晰度，线描锐利自然；主体及关键部位的颜料层纯净均匀，罩染通透细腻。默认表面须保持干净精致：只用纯净罩染。\n底色：浅净哑光平涂底的完成度，背景与留白以整块大色面铺陈（各色面成整块，边界稳定，色相分明不互混），保证可读性；冷暖有别。画面保持干净平滑：色彩落在平涂色场上，大面积色面均匀连续。保持浅净平涂底面在层间呼吸。浅净哑光底在非主体区域的每层色罩下保持可见；彩线与主体固有的深色如实保持深色，与浅净底相接处边界干净。环境按空间距离递减细节密度。生产级资产质量指焦点主体可读性、非焦点区域低频干净、画面层级分明。细节层级：视觉焦点区域最高细节密度，线描清晰锐利。辅助区域按视觉权重递减细节，以概括形体和大色面为主，不堆积细碎纹理。"
+      ],
+      "properties": {
+        "Node name for S&R": "MyQi21PromptAssembly"
+      }
+    },
+    {
+      "id": 4015,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        2100,
+        300
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 3
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7,
+          "link": 4
+        },
+        {
+          "name": "images.image_2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": 5
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "negative_prompt"
+          },
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            13
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "",
+        "",
+        0
+      ],
+      "title": "[4015] 主编码·TextEncode"
+    }
+  ],
+  "links": [
+    [
+      1,
+      10,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      4015,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      16,
+      0,
+      4015,
+      1,
+      "IMAGE"
+    ],
+    [
+      4,
+      3,
+      0,
+      4015,
+      2,
+      "VAE"
+    ],
+    [
+      5,
+      4011,
+      0,
+      4015,
+      4,
+      "STRING"
+    ],
+    [
+      6,
+      4011,
+      1,
+      4015,
+      5,
+      "STRING"
+    ],
+    [
+      7,
+      4010,
+      0,
+      4011,
+      0,
+      "STRING"
+    ],
+    [
+      8,
+      400,
+      0,
+      4011,
+      1,
+      "STRING"
+    ],
+    [
+      9,
+      4011,
+      0,
+      28,
+      0,
+      "STRING"
+    ],
+    [
+      10,
+      1,
+      0,
+      9,
+      0,
+      "MODEL"
+    ],
+    [
+      11,
+      9,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      4015,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      13,
+      4015,
+      1,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      4015,
+      2,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      15,
+      7,
+      0,
+      5,
+      0,
+      "LATENT"
+    ],
+    [
+      16,
+      3,
+      0,
+      5,
+      1,
+      "VAE"
+    ],
+    [
+      17,
+      5,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "道劫·①底图·装配(指令+底座+拼合+预览)",
+      "bounding": [
+        780,
+        60,
+        1250,
+        1530
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Qwen-Image-2.1 ②加载器(bf16 实配)",
+      "bounding": [
+        1100,
+        1620,
+        900,
+        660
+      ],
+      "color": "#a1309b",
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "道劫·③图生图主链(单参考TE→Cache→40步采样dn0.6→解码→保存)",
+      "bounding": [
+        2040,
+        240,
+        2340,
+        1900
+      ],
+      "color": "#88A",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "definitions": {
+    "subgraphs": []
+  },
+  "version": 0.4
+}

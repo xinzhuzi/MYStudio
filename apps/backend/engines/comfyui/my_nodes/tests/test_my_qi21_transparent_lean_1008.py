@@ -32,7 +32,7 @@ def test_transparent_passthrough_is_lean_formula():
     assert pos.endswith("The image has alpha channel and the background is transparent.")
     assert "青铜剑" in pos and "云雷纹" in pos, "主体句必须原样夹入"
     assert "彩线描" in pos and "工笔线条质量" in pos, "底座风格工艺托底应随行(1008晚三件拆分)"
-    for bad in ("平涂", "山水", "底色：浅净哑光", "大色面", "多色相铺陈", "美术风格底座", "细密分染"):
+    for bad in ("平涂", "山水", "底色：浅净哑光", "大色面", "多色相铺陈", "旧段名·风格底座：现代", "细密分染"):
         assert bad not in pos, f"背景词泄漏: {bad}"
     assert tm is True and w == 1024 and h == 1024
     assert "透视变形" in neg, "负向=三源合并不受影响"
@@ -41,7 +41,7 @@ def test_transparent_passthrough_is_lean_formula():
 def test_opaque_passthrough_unchanged_full_assembly():
     """透明关:透传行为不变(富装配三层,主体句开头)——修复只作用于透明开。"""
     pos, neg, tm, _w, _h = _fire(False)
-    assert pos.startswith("一柄传承千年的青铜剑"), "透明关=富装配直出(主体句打头)"
+    assert pos.startswith("主体句:一柄传承千年的青铜剑"), "透明关=富装配直出(主体句打头,1009标签)"
     assert "平涂" in pos and "风格底座" in pos, "透明关=底座照挂"
     assert tm is False
 
@@ -68,7 +68,7 @@ def test_lean_carries_type_rgba_positive_framing():
     assert "器物设定图" in pos, "rgba_positive 格式锁应随行"
     assert "背景透明" in pos
     assert "彩线描" in pos and "罩染通透细腻" in pos, "底座rgba_text风格托底应随行(1008晚用户令拆分)"
-    for bad in ("薄透罩染轻敷", "多色相铺陈", "平涂", "美术风格底座", "底色：浅净哑光", "大色面"):
+    for bad in ("薄透罩染轻敷", "多色相铺陈", "平涂", "旧段名·风格底座：现代", "底色：浅净哑光", "大色面"):
         assert bad not in pos, f"绘画/背景词泄漏: {bad}"
 
 

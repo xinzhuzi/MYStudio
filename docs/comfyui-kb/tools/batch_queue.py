@@ -152,26 +152,116 @@ def _widget_slot_names(class_info: dict, connected: set[str]) -> list[str]:
     return [name for name in order if name not in connected]
 
 
+def _fits(spec, v) -> bool:
+    """槽位 schema 收编判定(COMBO 成员/INT/FLOAT/BOOLEAN/STRING 类型)。"""
+    t = spec[0] if isinstance(spec, list) else spec
+    if isinstance(t, list):
+        return v in t
+    if t == "INT":
+        return isinstance(v, int) and not isinstance(v, bool)
+    if t == "FLOAT":
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+    if t == "BOOLEAN":
+        return isinstance(v, bool)
+    if t == "STRING":
+        return isinstance(v, str)
+    return True
+
+
+def _is_display_slot(spec) -> bool:
+    """JS 回填展示框槽指纹:STRING 且 tooltip 明示「回填/无需手填」(零控件真源
+    出口节点 [4030]/[4031]/[4032] 的展示框族)。画布从不提交它们,函数签名多数
+    不收([4032] 四段协议=1009 实证 TypeError),转换器同样省略——真值=节点热读。"""
+    if not isinstance(spec, list) or len(spec) < 2 or spec[0] != "STRING":
+        return False
+    tip = spec[1].get("tooltip", "") if isinstance(spec[1], dict) else ""
+    return "回填" in tip or "无需手填" in tip
+
+
+def _spec_map(class_info: dict) -> dict:
+    m = {}
+    for sec in ("required", "optional"):
+        m.update(class_info.get("input", {}).get(sec, {}))
+    return m
+
+
+def _map_widgets(node: dict, cls: str, class_info: dict, link_inputs: dict,
+                 report: list, nid) -> dict:
+    """widget 槽映射(1009 双槽仲裁三态)。
+    路线一:命名槽全键且全部 schema 合规→整用——位置槽会被连线喂走的旧控件值
+      错位(实证 [7010] KSampler seed 连线后 wv 首位仍留旧值,steps 错吃 0);
+    路线二:位置槽优先+逐键类型仲裁——命名槽在历史节点上是旧版异构残影
+      ([4013] ApiPE temperature=1/top_p、[7011] strength_model 即是,命名槽说谎),
+      位置值不合 schema 且命名槽同键合规才让位([4010] 位置序≠INPUT_TYPES 序,
+      命名槽反而是对的)。展示框槽(_is_display_slot)未连线一律不提交。"""
+    spec_all = _spec_map(class_info)
+    widget_names = _widget_slot_names(class_info, set(link_inputs))
+    named = node.get("widgets_values_named") or {}
+    positional = list(node.get("widgets_values") or [])
+    if widget_names and all(n in named and _fits(spec_all[n], named[n]) for n in widget_names):
+        return {n: named[n] for n in widget_names if not _is_display_slot(spec_all[n])}
+    inputs: dict = {}
+    vi = 0
+    for name in widget_names:
+        spec = spec_all.get(name)
+        v = None
+        if vi < len(positional):
+            v = positional[vi]
+            vi += 1
+            if (name in ("seed", "noise_seed", "value") and vi < len(positional)
+                    and isinstance(positional[vi], str) and positional[vi] in SEED_CONTROLS):
+                vi += 1  # control_after_generate 紧随 seed 类槽的固定位,一并消费
+        if v is None or (spec is not None and not _fits(spec, v)):
+            if name in named and (spec is None or _fits(spec, named[name])):
+                v = named[name]
+            elif v is None:
+                report.append(f"!! node={nid} {cls} widget 槽 {name} 无值(widgets_values 长度不足)")
+                continue
+        if name not in link_inputs and _is_display_slot(spec):
+            continue  # 展示框槽:画布不提交,转换器同样省略
+        inputs[name] = v
+    if vi < len(positional):
+        report.append(f"note node={nid} {cls} widgets_values 残余 {positional[vi:]!r}")
+    return inputs
+
+
 def graph_to_prompt(wf: dict, object_info: dict):
     """UI 工作流 → API prompt(graphToPrompt 等价;object_info 定 widget 槽序)。
 
-    返回 (prompt, report);report 为诊断行(skip=摘除/note=残余/!!=硬伤),
-    硬伤行主语节点用 `node=<id>` 标注,供闭包内复核(裁掉支路上的硬伤不算数)。
+    1009 扩三能(用户令「就跑 qi21-道劫-t2i.json 工作流」):子图实例展开
+    (definitions.subgraphs——接口槽→宿主连线或实例提升控件值,内部节点以
+    「实例id.内部id」落 API 图)、Reroute 递归穿透、双槽仲裁+展示框槽省略
+    (见 _map_widgets)。返回 (prompt, report);report 诊断行口径不变
+    (skip=摘除/note=残余/!!=硬伤),硬伤行主语节点用 `node=<id>` 标注。
     """
+    defs = {sg["id"]: sg for sg in wf.get("definitions", {}).get("subgraphs", [])}
     nodes = {n["id"]: n for n in wf.get("nodes", [])}
     links = {l[0]: l for l in wf.get("links", [])}  # id -> [id, from, slot, to, toslot, type]
     prompt: dict = {}
     report: list[str] = []
-    for nid, node in nodes.items():
-        cls = node.get("type", "")
+    providers: dict[tuple, list] = {}  # (实例id, 实例输出槽) -> [展开后节点id, 槽]
+
+    def resolve_source(src_id, slot):
+        """宿主连线源解析:Reroute 递归穿透/子图实例输出经 providers/普通节点直通。"""
+        node = nodes.get(src_id)
+        if node is None:
+            return None
+        if node.get("type") == "Reroute":
+            lid = (node.get("inputs") or [{}])[0].get("link")
+            if lid is None or lid not in links:
+                return None
+            return resolve_source(links[lid][1], links[lid][2])
+        if node.get("type") in defs:
+            return providers.get((src_id, slot))
+        return [str(src_id), slot]
+
+    def convert_plain(node: dict) -> None:
+        nid, cls = node["id"], node.get("type", "")
         if cls in SKIP_TYPES:
-            continue
-        if node.get("mode") in MUTED_MODES:
-            report.append(f"skip node={nid} mode={node['mode']} {cls}")
-            continue
+            return
         if cls not in object_info:
             report.append(f"!! node={nid} {cls} 不在 object_info(引擎未装该节点?)")
-            continue
+            return
         link_inputs: dict = {}
         for slot in node.get("inputs") or []:
             lid = slot.get("link")
@@ -187,32 +277,81 @@ def graph_to_prompt(wf: dict, object_info: dict):
                     f"!! node={nid} slot={slot.get('name')} 由已摘除节点 node={src}({src_node.get('type')}) 供源"
                 )
                 continue
-            link_inputs[slot["name"]] = [str(src), links[lid][2]]
-        widget_names = _widget_slot_names(object_info[cls], set(link_inputs))
-        named = node.get("widgets_values_named") or {}
-        positional = list(node.get("widgets_values") or [])
-        inputs = dict(link_inputs)
-        vi = 0
-        for name in widget_names:
-            if name in named:
-                inputs[name] = named[name]
+            value = resolve_source(src, links[lid][2])
+            if value is None:
+                report.append(f"!! node={nid} slot={slot.get('name')} 连线源 node={src} 解析失败")
                 continue
-            if vi >= len(positional):
-                report.append(f"!! node={nid} {cls} widget 槽 {name} 无值(widgets_values 长度不足)")
-                continue
-            value = positional[vi]
-            vi += 1
-            if (
-                name in ("seed", "noise_seed")
-                and vi < len(positional)
-                and isinstance(positional[vi], str)
-                and positional[vi] in SEED_CONTROLS
-            ):
-                vi += 1  # control_after_generate 紧随 seed 的固定位,一并消费
-            inputs[name] = value
-        if vi < len(positional):
-            report.append(f"note node={nid} {cls} widgets_values 残余 {positional[vi:]!r}")
+            link_inputs[slot["name"]] = value
+        inputs = _map_widgets(node, cls, object_info[cls], link_inputs, report, nid)
+        inputs.update(link_inputs)
         prompt[str(nid)] = {"class_type": cls, "inputs": inputs}
+
+    def expand_instance(node: dict) -> None:
+        nid = node["id"]
+        sg = defs[node["type"]]
+        # 接口槽来源:宿主连线优先(按名对位实例 inputs),否则实例提升控件值队列
+        wq = list(node.get("widgets_values") or [])
+        iface_src: dict[int, object] = {}
+        inst_inputs = {i["name"]: i for i in (node.get("inputs") or [])}
+        for k, spec in enumerate(sg.get("inputs") or []):
+            entry = inst_inputs.get(spec.get("name"))
+            if entry is not None and entry.get("link") is not None and entry["link"] in links:
+                l = links[entry["link"]]
+                iface_src[k] = resolve_source(l[1], l[2])
+            else:
+                if not wq:
+                    report.append(f"!! node={nid} 子图接口槽 {spec.get('name')} 无连线且控件值耗尽")
+                    continue
+                iface_src[k] = wq.pop(0)
+        dlinks = sg.get("links", [])
+        for l in dlinks:
+            if l.get("target_id") == -20:
+                providers[(nid, l["target_slot"])] = [f"{nid}.{l['origin_id']}", l["origin_slot"]]
+        for inner in sg.get("nodes", []):
+            icls = inner.get("type", "")
+            if icls in SKIP_TYPES or inner.get("mode") in MUTED_MODES:
+                report.append(f"skip 子图[{nid}] 内部 node={inner['id']} {icls}")
+                continue
+            if icls not in object_info:
+                report.append(f"!! node={nid}.{inner['id']} {icls} 不在 object_info(引擎未装该节点?)")
+                continue
+            link_inputs: dict = {}
+            for slot in inner.get("inputs") or []:
+                lid = slot.get("link")
+                if lid is None:
+                    continue
+                dl = next((x for x in dlinks if x["id"] == lid), None)
+                if dl is None:
+                    continue
+                if dl["origin_id"] == -10:
+                    src = iface_src.get(dl["origin_slot"])
+                    if src is None:
+                        report.append(f"!! node={nid}.{inner['id']} slot={slot.get('name')} 接口槽 {dl['origin_slot']} 无源")
+                        continue
+                    link_inputs[slot["name"]] = src
+                elif dl["origin_id"] != -20:
+                    link_inputs[slot["name"]] = [f"{nid}.{dl['origin_id']}", dl["origin_slot"]]
+            inputs = _map_widgets(inner, icls, object_info[icls], link_inputs, report, f"{nid}.{inner['id']}")
+            inputs.update(link_inputs)
+            prompt[f"{nid}.{inner['id']}"] = {"class_type": icls, "inputs": inputs}
+
+    # 两遍式:先展开全部子图实例(providers 填满,宿主连线消费实例输出才可解析),
+    # 再转普通宿主节点(纯前端原件 Reroute 只穿透不落图)
+    plain: list[dict] = []
+    for node in nodes.values():
+        if node.get("type") in SKIP_TYPES:
+            continue
+        if node.get("mode") in MUTED_MODES:
+            report.append(f"skip node={node['id']} mode={node['mode']} {node.get('type')}")
+            continue
+        if node.get("type") in defs:
+            expand_instance(node)
+        elif node.get("type") == "Reroute":
+            continue  # 纯中继,穿透在 resolve_source 处理
+        else:
+            plain.append(node)
+    for node in plain:
+        convert_plain(node)
     return prompt, report
 
 

@@ -49,7 +49,7 @@ def test_passthrough_when_service_unreachable():
                        **{"美术风格底座-正向": None, "美术风格底座-负向": None}, 色卡=None, 类型句负向="模糊", api_url="http://127.0.0.1:9",
                        model="x", temperature=0.7, max_tokens=256, timeout_sec=10)
     pos, neg = got["result"][0], got["result"][1]
-    assert pos.startswith("测试主体句原样透传\nBASE层\n风格底座"), \
+    assert pos.startswith("主体句:测试主体句原样透传\n类型句:BASE层\n美术风格底座"), \
         f"不可达应输出自装配三层正稿(恒有输出),得头40={pos[:40]!r}"
     assert "模糊" in neg and "水印" in neg, \
         f"降级负向=型负面+美术风格底座负面+外部负向 三源合并,得头60={neg[:60]!r}"

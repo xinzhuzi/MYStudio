@@ -364,8 +364,8 @@ class TestRewriteRetry(unittest.TestCase):
         self.assertIn("拒收", log)
         self.assertIn("回退", log)
         self.assertEqual(out["ui"]["api_pe_status"][0], "拒收回退:自检违例未清,透传装配正稿")
-        self.assertTrue(out["result"][0].startswith(SUBJ),
-                        "拒收=回退已装配 direct 正稿(主体句领衔三层)")
+        self.assertTrue(out["result"][0].startswith("主体句:" + SUBJ),
+                        "拒收=回退已装配 direct 正稿(主体句领衔三层,1009标签)")
         self.assertEqual(out["result"][1], self._expected_neg(),
                          "回退路负向=同一确定性结果(首稿/重试/回退三路同值)")
 
@@ -383,7 +383,7 @@ class TestRewriteRetry(unittest.TestCase):
         out, log = self._run(fake_urlopen)
         self.assertIn("拒收", log)
         self.assertIn("重试稿解析失败", log)
-        self.assertTrue(out["result"][0].startswith(SUBJ))
+        self.assertTrue(out["result"][0].startswith("主体句:" + SUBJ))
 
     def test_retry_request_failure_rejects(self):
         """首稿违例+补发请求失败=拒收回退(旧=保留第一稿,2008 终裁改拒收)。"""
@@ -400,7 +400,7 @@ class TestRewriteRetry(unittest.TestCase):
         self.assertEqual(calls["n"], 2)
         self.assertIn("拒收", log)
         self.assertIn("补发失败", log)
-        self.assertTrue(out["result"][0].startswith(SUBJ))
+        self.assertTrue(out["result"][0].startswith("主体句:" + SUBJ))
         self.assertEqual(out["result"][1], self._expected_neg())
 
     def test_first_draft_parse_failure_passthrough(self):
@@ -414,7 +414,7 @@ class TestRewriteRetry(unittest.TestCase):
         out, log = self._run(fake_urlopen)
         self.assertEqual(calls["n"], 1, "解析失败不触发自检补发")
         self.assertIn("解析失败", log)
-        self.assertTrue(out["result"][0].startswith(SUBJ))
+        self.assertTrue(out["result"][0].startswith("主体句:" + SUBJ))
         self.assertEqual(out["result"][1], self._expected_neg())
         self.assertTrue(out["ui"]["api_pe_status"][0].startswith("透传"))
 
@@ -451,7 +451,7 @@ class TestRewriteRetry(unittest.TestCase):
         self.assertIn("正负撞词:水印", log, "拒收前违例点名须含撞词项")
         self.assertIn("拒收:重试稿仍有", log)
         self.assertIn("引擎 history 可查本行", log)
-        self.assertTrue(out["result"][0].startswith(SUBJ))
+        self.assertTrue(out["result"][0].startswith("主体句:" + SUBJ))
         self.assertEqual(out["result"][1], self._expected_neg())
 
 

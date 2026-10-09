@@ -25,7 +25,18 @@ from pathlib import Path
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 DOC = REPO / "docs/prompts/道劫_九型主体句示例.md"
-ENGINE = "http://127.0.0.1:17001"
+
+
+def engine_base() -> str:
+    """引擎口=manifest.json engine.port 现查(零硬编码;端口随引擎重启会变,17001 只是现值)。"""
+    manifest = Path.home() / "Library/Application Support/漫影工作室/comfyui/manifest.json"
+    port = json.loads(manifest.read_text(encoding="utf-8")).get("engine", {}).get("port")
+    if not isinstance(port, int):
+        raise SystemExit(f"manifest.json 无 engine.port: {manifest}")
+    return f"http://127.0.0.1:{port}"
+
+
+ENGINE = engine_base()
 
 
 def obj_info(cls):
@@ -68,7 +79,11 @@ def main():
     subj = args.subject
     if subj is None:
         t = DOC.read_text(encoding="utf-8")
-        m = re.search(rf"## \d+\. .*{re.escape(args.type)}[^\n]*\n```\n(.*?)\n```", t, re.S)
+        # 节名允许别名(人物多视图↔多视图);节头与首个代码围栏间可有说明文字。
+        # 节头匹配必须钉死单行([^\n] 禁跨行):re.S 下贪婪 .* 会从本节节头一路吞到
+        # 后文别节标题里的同名字样(如§2「无人物」)再取围栏→主体句跨节错配(1009 两犯)。
+        alias = {"人物多视图": "多视图"}.get(args.type, args.type)
+        m = re.search(rf"## \d+\. [^\n]*?{re.escape(alias)}[^\n]*\n.*?```[a-z]*\n(.*?)\n```", t, re.S)
         if not m:
             sys.exit(f"示例库未找到型「{args.type}」条目")
         subj = m.group(1).strip()
@@ -192,7 +207,37 @@ def main():
     out = Path(args.out) if args.out else REPO / "apps/output/bgscope-r3-9types" / f"{args.type}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     urllib.request.urlretrieve(f"{ENGINE}/view?filename={urllib.parse.quote(fn)}&type=output", out)
-    # 装配文快照(从history取[401]预览载荷=终稿真值)
+    # 装配文快照(从history取[401]双显示框载荷=终稿真值;1009 用户令「提示词一律正文完整贴出」)
+    # history形状=outputs[node]即ui本体(positive/negative顶层直挂,无'ui'套层;1007/1009两度实证,
+    # 54655b49实跑定谳)。顶层键优先,ui套层仅作旧形状兜底。
+    ent = hist.get(pid, {})
+    ui = None
+    for nid, o in ent.get("outputs", {}).items():
+        if not isinstance(o, dict):
+            continue
+        if "positive" in o or "negative" in o:
+            ui = (nid, o)
+            break
+        cand = o.get("ui")
+        if isinstance(cand, dict) and ("positive" in cand or "negative" in cand):
+            ui = (nid, cand)
+            break
+
+    def _join(v):
+        return "".join(v) if isinstance(v, list) else str(v or "")
+
+    if ui:
+        pos_final, neg_final = _join(ui[1].get("positive")), _join(ui[1].get("negative"))
+        snap = out.with_suffix(".装配文.txt")
+        snap.write_text(
+            f"# 型={args.type} seed={seed} 档={speed} 产物={fn}\n"
+            f"═══ 主体句(入图) ═══\n{subj}\n\n"
+            f"═══ [401] 正向终稿 ═══\n{pos_final}\n\n"
+            f"═══ [401] 负向终稿 ═══\n{neg_final}\n",
+            encoding="utf-8")
+        print(f"装配文快照 → {snap}")
+    else:
+        print("警告:history 无 [401] 正负终稿载荷,未落装配文快照")
     print(f"DONE {fn} ({time.time()-t0:.0f}s) → {out} [seed={seed}]")
 
 

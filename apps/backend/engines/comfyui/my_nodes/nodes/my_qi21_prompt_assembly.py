@@ -290,5 +290,6 @@ class MyQi21PromptAssembly:
                   "(自由型无型底座层);非自由型请检查连线:把 [150] "
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
-            return (f"{主体句}\n{锁层A全文}", negative)
-        return (f"{主体句}\n{base_out}\n{style_out}", negative)
+            # 1009 用户令:段前加标签(类型句:/主体句:)——模型对段角色的显式信号
+            return (f"主体句:{主体句}\n{锁层A全文}", negative)
+        return (f"主体句:{主体句}\n类型句:{base_out}\n{style_out}", negative)

@@ -762,7 +762,7 @@ class MyQi21ApiPE:
                 style = wired_style or hot_style
         else:
             style = wired_style or hot_style
-        direct = f"{subj}\n{base}\n{style}".strip() if base else f"{subj}\n{style}".strip()
+        direct = f"主体句:{subj}\n类型句:{base}\n{style}".strip() if base else f"主体句:{subj}\n{style}".strip()
         if not subj:
             print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+风格两段")
         # 负面三源(型负面+美术风格底座负面热读+外部负向)去重合并——终稿负向唯一真源

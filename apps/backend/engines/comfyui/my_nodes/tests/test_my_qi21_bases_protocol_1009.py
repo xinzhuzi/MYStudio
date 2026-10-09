@@ -111,7 +111,7 @@ def test_protocol_opaque_direct_is_style_plus_ground():
     proto_neg_wired = "旧连线负向词,不该出现"
     pos, neg, tm, w, h = _fire(False, _PROTO, neg_wired=proto_neg_wired,
                                extra_neg="丙外部负面")
-    assert pos == f"{_SUBJ}\n{_TYPE_POS}\n{_STYLE}{_GROUND}", "带背景组合=风格段+底色段逐字节"
+    assert pos == f"主体句:{_SUBJ}\n类型句:{_TYPE_POS}\n{_STYLE}{_GROUND}", "带背景组合=风格段+底色段逐字节(1009段标签)"
     assert "【" not in pos, "标记不得泄入装配文"
     proto_toks = [t.strip() for t in _NEG.replace("，", ",").split(",") if t.strip()]
     toks = neg.split(", ")
@@ -145,7 +145,7 @@ def test_legacy_fulltext_no_marker_unchanged():
     """非协议(值存在但无标记,如 i2i 旧线):现行全文行为一字不变。"""
     fulltext = str(_ASB["positive_text"]).strip()
     pos, neg, tm, _w, _h = _fire(False, fulltext, neg_wired="旧线负向", extra_neg=None)
-    assert pos == f"{_SUBJ}\n{_TYPE_POS}\n{fulltext}", "legacy 全文直拼一字不变"
+    assert pos == f"主体句:{_SUBJ}\n类型句:{_TYPE_POS}\n{fulltext}", "legacy 全文直拼(1009段标签)"
     assert "【风格工艺件】" not in pos
     assert neg.startswith("甲型负面, 旧线负向"), "legacy 负向仍走连线位+热读兜底合并"
     assert tm is False

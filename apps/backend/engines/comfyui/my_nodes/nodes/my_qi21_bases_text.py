@@ -239,8 +239,9 @@ def _make_section_node(section: str, display: str, negative: bool = False,
         OUTPUT_NODE = True
 
         def output(self, 内容: str = "", 负向词表: str = "",
-                   风格工艺件: str = "", 底色背景件: str = "", 透明承载件: str = ""):
-            _ = 内容, 负向词表, 风格工艺件, 底色背景件, 透明承载件  # 展示框值不参与计算
+                   风格工艺件: str = "", 底色背景件: str = "", 透明承载件: str = "",
+                   四段协议: str = ""):
+            _ = 内容, 负向词表, 风格工艺件, 底色背景件, 透明承载件, 四段协议  # 展示框值不参与计算
             text = _section_text(section)
             if not text:
                 print(f"[漫影 {display}] 「{section}」节为空——请检查 qi21_bases.json")

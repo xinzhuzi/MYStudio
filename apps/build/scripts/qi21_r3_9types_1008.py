@@ -15,12 +15,21 @@ seed 每型钉死=2008+型序号(§1..§9);SaveImage 前缀 QI21_R3_<型>。
 单发引擎报错不炸批次:记录原文继续下一型(该型判 fail 由判图侧落账)。
 """
 import json
+import os
 import re
 import sys
 import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+# 1009 用户令「必须跑 qi21-道劫-t2i.json 工作流,不要瞎搞自己的设计;每次生图换种子」:
+# 本驱动=手搓 API 图+seed 钉死公式(2008+序),双违规,就此停用。
+if os.environ.get("QI21_LEGACY_R3") != "1":
+    raise SystemExit(
+        "已停用(1009 用户令):生图必须走 qi21-道劫-t2i.json 工作流本体且每次随机种子。\n"
+        "改用: python3 apps/build/scripts/qi21_t2i_workflow_fire.py --type <型名>\n"
+        "(九型逐发各跑一次,seed 缺省即随机;确需考古复跑本驱动: QI21_LEGACY_R3=1)")
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 sys.path.insert(0, str(REPO / "apps/backend"))
@@ -39,6 +48,10 @@ TYPE_ORDER = list(NINE_ORDER)
 BASE_ZH = {"多视图": "人物多视图"}
 SEED_BASE = 2008
 T8_MODEL = "Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors"
+# 1009 用户令「加速方式要使用 viggle 加速方式」:产线改 viggle 9步满血双段
+# (接线蓝本=qi21-道劫-t2i [7]加速子图 viggle 档:7011 LoRA+7020 σ表+7021 split@7 双段)
+VIGGLE_LORA = "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors"
+SIGMA_TABLE = "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333"
 PER_FIRE_TIMEOUT = 1500  # 单发轮询上限(秒);FunAcc 产线约 3 分/发
 
 
@@ -112,14 +125,27 @@ def fire_one(zh: str, seed: int, pos: str, neg: str, w: int, h: int,
         "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "qwen_image_2.1_bf16.safetensors", "weight_dtype": "default"}},
         "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen3vl_8b_bf16_heretic.safetensors", "type": "qwen_image", "device": "default"}},
         "3": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen_image_2.1_vae_bf16.safetensors"}},
-        # FunAcc 默认档产线接线(abfire 同款):T8 一体采样 MODEL+正向+latent→LATENT
-        "7013": {"class_type": "T8QwenImage21FunAccPDD4Step",
-                 "inputs": {"model": ["1", 0], "positive": ["4015", 0], "latent_image": ["4", 0],
-                            "model_file": T8_MODEL, "seed": seed}},
+        # viggle 9步满血双段(段A=7步turbo LoRA,段B=2步底模摘LoRA+DisableNoise续采)
+        "7011": {"class_type": "ViggleTurboLora",
+                 "inputs": {"model": ["1", 0], "lora_name": VIGGLE_LORA, "strength": 1.0}},
+        "7020": {"class_type": "ViggleTurboSigmas",
+                 "inputs": {"latent": ["4", 0], "nodes": SIGMA_TABLE}},
+        "7021": {"class_type": "SplitSigmas", "inputs": {"sigmas": ["7020", 0], "step": 7}},
+        "7018": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
+        "7017": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed, "control": "fixed"}},
+        "7019": {"class_type": "BasicGuider", "inputs": {"model": ["7011", 0], "conditioning": ["4015", 0]}},
+        "7012": {"class_type": "SamplerCustomAdvanced",
+                 "inputs": {"noise": ["7017", 0], "guider": ["7019", 0], "sampler": ["7018", 0],
+                            "sigmas": ["7021", 0], "latent_image": ["4", 0]}},
+        "7023": {"class_type": "DisableNoise", "inputs": {}},
+        "7022": {"class_type": "BasicGuider", "inputs": {"model": ["1", 0], "conditioning": ["4015", 0]}},
+        "7024": {"class_type": "SamplerCustomAdvanced",
+                 "inputs": {"noise": ["7023", 0], "guider": ["7022", 0], "sampler": ["7018", 0],
+                            "sigmas": ["7021", 1], "latent_image": ["7012", 0]}},
         "4015": {"class_type": "TextEncodeQwenImage21",
                  "inputs": {"prompt": pos, "negative_prompt": neg, "resolution": 1024, "clip": ["2", 0]}},
         "4": {"class_type": "EmptyLatentImage", "inputs": {"width": int(w), "height": int(h), "batch_size": 1}},
-        "5": {"class_type": "VAEDecode", "inputs": {"samples": ["7013", 0], "vae": ["3", 0]}},
+        "5": {"class_type": "VAEDecode", "inputs": {"samples": ["7024", 0], "vae": ["3", 0]}},
         "8": {"class_type": "SaveImage", "inputs": {"images": ["5", 0], "filename_prefix": f"QI21_R3_{zh}"}},
     }
     try:
