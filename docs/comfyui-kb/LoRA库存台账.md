@@ -41,7 +41,7 @@
 | 26 | Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors(根) | 346 MB | 3 | Q2-1 道劫三件 t2i/i2i/edit 各 [7] 加速子图内 [7013] T8QwenImage21FunAccPDD4Step model_file 直载(10-08 起仅 i2i 速度选择器现选「0 · Fun-Acc 4步」档,t2i 本件默认已改「2 · viggle」[7013] 转待命支路;pose-edit [13] 卡文提及不计) | 09-26 装机落盘;10-03 补登(345,632,904 B;4步 PDD 蒸馏件——需配 T8 专用采样节点 4步/cfg1/无负面词,TE 须 Qwen3-VL 8B 系) | **keep**(Q2-1 道劫线 FunAcc4步加速件,面板 fileNote 同口径) | ☐ |
 
 | 27 | dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors(根) | 1.95 GB | 2 | 单镜视频[41] LoraLoaderModelOnly ×1.0(wv+named 双轨;10-04 换档落地) | 10-03 DMAD 战役(s6-win);10-04 补登(1,956,172,424 B,sha256 前缀 ab92f1c7,10-03 实算/10-04 复算一致;HF ZhengmingYu/DMAD full_critic 4step rank-128 经 apps/build/scripts/dmad_lora_convert_1003.py 转制融合 qkv/bf16) | **keep**(单镜视频线默认档——1003 A/B 对拍赢+1004 预授权采用;配方/对拍/回滚详见 docs/comfyui-kb/DMAD-4步LoRA转制与单镜线换档-1003.md) | ☐ |
-| 28 | qwen2.1-detail-fix-2.0.safetensors(根) | 55 MB | 0 | 无产线引用(第三臂实验库存) | 10-08 入库(e-n-v-y Fix v2.0,rank8,ComfyUI 原生 key+gate_up 融合命名;对症底模 gpt-image 瑕疵/细节散乱,官方配方 20步 cfg3-4 与 FunAcc/viggle 不同轨,叠加速件属未验证组合,候 A/B 小批低强度试;同族 Opinionated 版按裁定不装=会改构图) | **keep**(第三臂备弹) | ☐ |
+| 28 | qwen2.1-detail-fix-2.0.safetensors(根) | 55 MB | 2 | ①qi21-道劫-t2i [7026] LoraLoaderModelOnly ×1.0→[7010] 直出40步支路(官方域);②[7027] ×0.5→[7011] viggle 段A 实验臂(1009 用户令「也挂 viggle 看效果」,旁路即回纯官方链) | 10-08 入库(e-n-v-y Fix v2.0,rank8,ComfyUI 原生 key+gate_up 融合命名;对症底模 gpt-image 瑕疵/细节散乱/手;**官方工作流口径(10-09 查实):LoraLoaderModelOnly×1.0,20步 cfg3.5,采样器 res_2m_nc+调度 bong_tangent(引擎均缺,直出档保 euler/simple),真负向含手部词;viggle 叠加=未验证组合(蒸馏轨×20步标定),0.5 起步候扫参**;同族 Opinionated 版按裁定不装=会改构图) | **keep**(qi21 双挂:直出在役+viggle 实验) | ☐ |
 
 **kill 候选小计 4 件(#12/#13/#19/#20,约 1.3 GB)——全部只是建议,勾选前零动作。**
 

@@ -37,7 +37,10 @@ def test_three_sections_hotread():
     assert not _re.search(r"[a-z]{3,8}\.\d{2}", 色卡), "渲染面不得含 ma_id(paper.01 等)"
     assert not _re.search(r"#[0-9A-Fa-f]{6}\b", 色卡), "渲染面不得含 hex"
     assert "编号" in 色卡 and "中文名" in 色卡, "用法应立编号禁令"
-    assert "满幅场景与概念气氛型不落宣纸白大面积基底" in 色卡, "base 职责应带满幅清退(治四角纸白)"
+    # 1009 用户裁定:base 职责=通用肯定式单态,禁分型分支/否定式
+    base_line = next(l for l in 色卡.splitlines() if l.strip().startswith("base:"))
+    assert base_line.strip().startswith("base: 大面积浅淡稳定衬底色面"), base_line
+    assert "不落" not in base_line and "不留" not in base_line and "满幅" not in base_line
     assert len(风格) > 300, "风格底座应=美术风格底座全文量级"
 
 

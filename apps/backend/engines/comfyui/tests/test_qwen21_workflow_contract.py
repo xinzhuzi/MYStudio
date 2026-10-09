@@ -599,6 +599,10 @@ QI21_VIG_CHAIN = {"noise": 7017, "select": 7018, "guider": 7019, "sigmas": 7020,
                   "split": 7021, "guider_base": 7022, "noise_off": 7023,
                   "sampler_b": 7024}  # 段B euler 复用 [7018] 扇出(0929 零真重复铁则,7025 退役)
 VIGGLE_OFFICIAL_SIGMAS = "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25"
+# 1009 用户令:qi21 直出支路挂 e-n-v-y Fix v2.0(官方域=全步数+cfg>1+真负向;
+# 官方工作流口径:LoraLoaderModelOnly×1.0,20步cfg3.5;挂件不改直出档既有参数)
+QI21_FIX_LORA_ID = 7026
+FIX_LORA_FILE = "qwen2.1-detail-fix-2.0.safetensors"
 QI21_T8, I2I_T8, EDIT_T8 = 7013, 7013, 7013  # 1002 ⑫:三件 T8 支路统一 [7013]
 QI21_XHOST_ID, QI21_XSEL_ID = 7, 7015      # 1002 ⑫:宿主 [208]→[7]/选择件 [214]→[7015]
 I2I_XHOST_ID, I2I_XSEL_ID = 7, 7015
@@ -988,6 +992,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                            lora_class: str = "LoraLoaderModelOnly",
                            viggle_chain: dict | None = None,
                            panel_extra: tuple = (),
+                           direct_lora: int | None = None,
+                           vig_fix_lora: int | None = None,
                            banned_main_types: tuple = (), gone_main_ids: tuple = ()):
     """0929 S3 收装轮·加速子图三件同构契约(prd 问题④/design D3/D4/D5;
     research/s3-qi21-*.md 三档;生成器自查谓词=契约单源,条款以生成器 verify 口径):
@@ -1063,6 +1069,12 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                    t8_id: T8_CLASS, seed_id: "PrimitiveInt"}
     if note_id is not None:
         want_census[note_id] = "Note"
+    if direct_lora is not None:
+        # 1009 用户令:qi21 直出支路挂 Fix v2.0 官方域件(LoraLoaderModelOnly×1.0)
+        want_census[direct_lora] = "LoraLoaderModelOnly"
+    if vig_fix_lora is not None:
+        # 1009 用户令:qi21 viggle 段A 实验臂(Fix v2.0 ×0.5 并权重→ViggleTurboLora 骑上层)
+        want_census[vig_fix_lora] = "LoraLoaderModelOnly"
     if viggle_chain:
         want_census.update({viggle_chain["noise"]: "RandomNoise",
                             viggle_chain["select"]: "KSamplerSelect",
@@ -1114,8 +1126,10 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     # 支路采样器×2(steps 面板=生效值;seed 单源;cfg=ks_cfgs 直出/viggle 分档;
     # 1004:qi21 直出支路 cfg4=负向真实生效,viggle 蒸馏件恒 1;i2i/edit 恒 1/1)
     _vig_is_chain = viggle_chain is not None
+    # 1009:qi21 直出支路 model 源=[7026] Fix v2.0 挂件(官方域),非边界直连
+    _direct_model = (-10, b_idx["model"]) if direct_lora is None else (direct_lora, 0)
     _ks_entries = [
-        ((ks_direct, STEPS_DIRECT, (-10, b_idx["model"]), pos_direct), ks_cfgs[0])
+        ((ks_direct, STEPS_DIRECT, _direct_model, pos_direct), ks_cfgs[0])
     ] + (
         [] if _vig_is_chain else
         [((ks_viggle, STEPS_VIGGLE, (lora_id, 0), pos_accel), ks_cfgs[1])])
@@ -1228,8 +1242,22 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     assert _widget(lora, 1) == 1.0, \
         f"{name}: LoRA strength 应 1.0(1002 衔接批㉔ 用户令「定在 1.0 否则失去意义」,推翻 0925 探针 0.8)"
     _lm = i_links[next(i["link"] for i in lora["inputs"] if i["name"] == "model")]
-    assert (_lm["origin_id"], _lm["origin_slot"]) == (-10, b_idx["model"]), \
-        f"{name}: [{lora_id}].model 应接 -10 model 槽(base 直连臂)"
+    # 1009:viggle 臂可前插 Fix 实验挂件(vig_fix_lora),否则边界 base 直连
+    _vig_model_want = (vig_fix_lora, 0) if vig_fix_lora is not None else (-10, b_idx["model"])
+    assert (_lm["origin_id"], _lm["origin_slot"]) == _vig_model_want, \
+        f"{name}: [{lora_id}].model 上游应 {_vig_model_want}(base 直连臂/Fix 实验前插)"
+    if vig_fix_lora is not None:
+        _vf = i_nodes[vig_fix_lora]
+        assert _widget(_vf, 0) == FIX_LORA_FILE, \
+            f"{name}: [{vig_fix_lora}] 应={FIX_LORA_FILE!r}(1009 viggle 实验臂)"
+        assert 0 < _widget(_vf, 1) <= 1.0, \
+            f"{name}: [{vig_fix_lora}] 实验强度应 (0,1](0.5 起步,官方 1.0=20步域)"
+        _vm = i_links[next(i["link"] for i in _vf["inputs"] if i["name"] == "model")]
+        assert (_vm["origin_id"], _vm["origin_slot"]) == (-10, b_idx["model"]), \
+            f"{name}: [{vig_fix_lora}].model 应接边界 base(链头)"
+        _vf_fans = _vf["outputs"][0]["links"] or []
+        assert len(_vf_fans) == 1 and i_links[_vf_fans[0]]["target_id"] == lora_id, \
+            f"{name}: [{vig_fix_lora}] 输出应只喂 [{lora_id}](实验臂单点,旁路即回官方链)"
     lora_fans = sorted(lora["outputs"][0]["links"] or [])
     _lora_feed = viggle_chain["guider"] if viggle_chain else ks_viggle
     assert len(lora_fans) == 1 and i_links[lora_fans[0]]["target_id"] == _lora_feed, \
@@ -3085,6 +3113,8 @@ class TestQi21SubgraphContract:
             viggle_class="SamplerCustomAdvanced", viggle_chain=QI21_VIG_CHAIN,  # 1008 官方参数化
             lora_class="ViggleTurboLora",  # 1008「完整发挥」:官方未合并加载(拒 bf16 合并丢 30%)
             panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板三控
+            direct_lora=QI21_FIX_LORA_ID,  # 1009:直出支路挂 Fix v2.0(官方域,7026→7010)
+            vig_fix_lora=7027,             # 1009:viggle 段A 实验臂(Fix v2.0×0.5→7011,用户令试效果)
             # 1008 用户新令:道劫本件默认档改 viggle 路线(实例五处+Note 文案随令;
             # py 侧 DEFAULT_MODE 出厂首项不动,新实例出生缺省仍 Fun-Acc——
             # 1009 i2i 本件亦随令改 viggle,见 i2i 条目)
@@ -3092,6 +3122,15 @@ class TestQi21SubgraphContract:
             banned_main_types=("easy compare",),
             gone_main_ids=(QI21_LORA_PB_ID, QI21_LORA_SW_ID, 177, 178, 179,
                            193, 194, 195, 196, 197, QI21_RR_POS_B_ID))
+        # 1009 Fix v2.0 官方域挂件:文件/强度/扇出锚(e-n-v-y 官方工作流口径
+        # LoraLoaderModelOnly×1.0;只喂直出支路,不碰 viggle 蒸馏链)
+        _fx = _sg_nodes(_xsg(graph))[QI21_FIX_LORA_ID]
+        assert _widget(_fx, 0) == FIX_LORA_FILE and _widget(_fx, 1) == 1.0, \
+            f"qi21: [{QI21_FIX_LORA_ID}] 应={FIX_LORA_FILE!r} ×1.0(1009 官方域挂件)"
+        _fx_fans = _fx["outputs"][0]["links"] or []
+        assert len(_fx_fans) == 1 and \
+            _sg_links(_xsg(graph))[_fx_fans[0]]["target_id"] == QI21_SAMPLER_ID, \
+            f"qi21: [{QI21_FIX_LORA_ID}] 输出应只喂 [{QI21_SAMPLER_ID}] 直出采样器"
         # TE-Speed 槽不加(3c 死):主图节点类型白名单(宿主节点 type=子图 uuid 豁免)
         sg_ids = {sg["id"] for sg in _sgs(graph)}
         whitelist = {
@@ -3360,9 +3399,9 @@ class TestQi21SubgraphContract:
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
         # 1006 七轮:[4011] 退役——美术风格底座 唯一在档位=qi21_bases.json art_style_base(热读)
         lock_a = _wf_lock_a()
-        assert lock_a.startswith("风格底座：") and "线描优先工笔结构" in lock_a \
-            and "成片质量" in lock_a, \
-            "美术风格底座 真源(qi21_bases.json)应保有 风格底座/线描优先/成片质量 三段骨架"
+        assert lock_a.startswith("美术风格底座：") and "线描优先工笔结构" in lock_a \
+            and "罩染通透" in lock_a, \
+            "美术风格底座 真源(qi21_bases.json)应保有 风格底座/线描优先/罩染通透 三段骨架(1009 删质量词「成片质量」)"
         assert QI21_SG_ASM_ID not in _qi21_sg_nodes(GRAPHS["qi21"]), \
             "[4011] 应已退役(1006 七轮:三层装配内置 [4013] AI扩写)"
 

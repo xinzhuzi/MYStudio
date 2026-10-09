@@ -131,11 +131,14 @@ def test_protocol_transparent_base_segment_excludes_ground():
     assert seg_t == _STYLE, "透明组合=仅风格段(1008架构令:透明语义零入PE,由[4014]程序化包裹)"
     assert "平涂" not in seg_t and "底色：浅净哑光" not in seg_t, "底色/背景词不得入透明组合"
     assert seg_f == _STYLE + _GROUND, "带背景组合=风格段+底色段"
-    # 透明开+协议接线+PE 不可达:回退极简公式不动(_rgba_lean_pos 热读真源,与协议等价)
+    # 透明开+协议接线+PE 不可达:回退极简公式不动(_rgba_lean_pos 热读真源,与协议等价;
+    # 1009晚修形态:主体句打头+透明承载件英文尾,零自带头尾)
     pos, neg, tm, _w, _h = _fire(True, _PROTO)
-    assert pos.startswith("This is an RGBA image with transparency.")
-    assert pos.endswith("The image has alpha channel and the background is transparent.")
+    assert pos.startswith(_SUBJ), "回退=极简公式1009晚修形态(主体句打头,零自带头)"
+    assert pos.endswith("isolated on pure transparency."), "透明承载件收尾"
     assert "连续线描" in pos, "极简公式风格托底应随行(协议模式不改变回退公式)"
+    assert "This is an RGBA image" not in pos and "背景透明" not in pos, \
+        "零自带头尾+中文透明声明句级剥除(1009晚修)"
     assert tm is True
 
 
@@ -152,10 +155,12 @@ def test_legacy_fulltext_no_marker_unchanged():
 
 
 def test_legacy_transparent_hot_combo_still_works():
-    """legacy 透明开(无标记):热读组合照旧兜底,回退=极简公式(1008 行为不回退)。"""
+    """legacy 透明开(无标记):热读组合照旧兜底,回退=极简公式(1009晚修形态)。"""
     fulltext = str(_ASB["positive_text"]).strip()
     pos, _neg, tm, _w, _h = _fire(True, fulltext)
-    assert pos.startswith("This is an RGBA image") and tm is True
+    assert pos.startswith(_SUBJ) and tm is True, "回退=极简公式(主体句打头,2008英文头已退役)"
+    assert "This is an RGBA image" not in pos and "背景透明" not in pos, \
+        "零自带头尾+中文透明声明句级剥除(1009晚修,与协议路同单源)"
 
 
 # ── ⑤两处卡文快照逐字节锚(值变必重对,技能纪律) ─────────────────────

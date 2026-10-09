@@ -45,5 +45,10 @@ def test_truth_rules_in_place():
     usage = bases["color_lexicon"]["usage"]
     assert "ma_id" in usage and "中文名" in usage and "噪音" in usage
     base_role = bases["color_lexicon"]["roles"]["base"]
-    assert "满幅场景与概念气氛型不落宣纸白大面积基底" in base_role
+    # 1009 用户裁定:职责表=通用肯定式单态,禁分型分支与否定式(满幅底色分家归型层满幅令+冲裁序)
+    assert base_role.startswith("大面积浅淡稳定衬底色面")
+    assert "不落" not in base_role and "不留" not in base_role and "；" not in base_role
+    assert "满幅" not in base_role and "立绘" not in base_role, "职责表不得分型分支"
     assert "paper.01" not in base_role, "职责句自身不得夹带编号"
+    # 教材第 7 条:肯定式视觉语言(禁否定判词/评语)
+    assert "肯定式视觉语言" in bases["expand_instruction"]["system_prompt_zh"]

@@ -738,6 +738,36 @@ def _balanced_json(text: str) -> dict | None:
     return None
 
 
+def _envelope_from_reasoning(reasoning: str) -> dict | None:
+    """思考尾信封恢复(1009 Mac 27B MLX 路由定谳:该服务全部输出落
+    reasoning_content、content 恒空):与正文路同链修边后取对象——
+    ①_balanced_json 直取;②代码围栏剥除+丢 {/{" 补回;③键值正则按 JSON
+    转义律直取(串内裸换行为该路由实弹非法细节:json 严格模式拒收,正则
+    [^"\\] 天然容之,取串后再补转义解出;尾缺 } 也活)。取不出返 None。"""
+    tail = reasoning[-4000:]
+    obj = _balanced_json(tail)
+    if isinstance(obj, dict) and isinstance(obj.get("rewritten_prompt"), str) \
+            and obj["rewritten_prompt"].strip():
+        return obj
+    t = tail.strip()
+    if t.startswith("```"):
+        t = t.strip("`").strip()
+        if t.startswith("json"):
+            t = t[4:].strip()
+    if re.match(r'rewritten_prompt"\s*:', t):
+        t = '{"' + t
+    elif '"rewritten_prompt"' in t and not t.startswith("{"):
+        t = "{" + t
+    m = re.search(r'"?rewritten_prompt"?\s*:\s*"((?:[^"\\]|\\.)*)"', t)
+    if m:
+        try:
+            return {"rewritten_prompt": json.loads(
+                '"' + m.group(1).replace("\r", "\\r").replace("\n", "\\n") + '"')}
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
 class MyQi21ApiPE:
     """漫影 API扩写PE:LM Studio(默认 Windows 远程 9B)按真源教材终炼装配全文(十入全上下文)。"""
 
@@ -1065,19 +1095,26 @@ class MyQi21ApiPE:
         # 1006 三轮实弹:上下文变大后思考链可吃光预算致正文空——空正文且
         # 有思考=重试一次(预算翻倍+硬指令直接出 JSON);再空=从思考尾剥 JSON 兜底
         if not content.strip() and reasoning:
-            print(f"[漫影 API扩写PE] 正文空(思考链吃了 {len(reasoning)} 字)——加预算重试一次")
-            payload2 = dict(payload)
-            payload2["max_tokens"] = min(int(max_tokens) * 2, 24000)  # 32k窗固化后旧帽13000过时;云端思考另吃预算须放宽
-            payload2["messages"] = payload["messages"][:-1] + [
-                {"role": "user",
-                 "content": payload["messages"][-1]["content"] + "\n直接输出最终 JSON 结果,不要再思考。"}]
-            try:
-                resp2 = _post(payload2)
-                msg2 = (resp2.get("choices") or [{}])[0].get("message", {})
-                if (msg2.get("content") or "").strip():
-                    content, msg = msg2["content"], msg2
-            except Exception as exc:
-                print(f"[漫影 API扩写PE] 重试失败({exc})——走思考链剥离兜底")
+            # 1009 Mac 27B MLX(回落二级)路由定谳:该服务全部输出落 reasoning_content、
+            # content 恒空(与预算无关,reasoning_effort=none 亦不改道)——思考尾已含可恢复
+            # 信封时直接走下方剥取路径,不烧加预算重试(实弹:重试只会原样复刻同形态)。
+            _early = _envelope_from_reasoning(reasoning)
+            if _early is not None:
+                print(f"[漫影 API扩写PE] 正文空但思考尾含完整信封({len(reasoning)}字)——免重试直接采用")
+            else:
+                print(f"[漫影 API扩写PE] 正文空(思考链吃了 {len(reasoning)} 字)——加预算重试一次")
+                payload2 = dict(payload)
+                payload2["max_tokens"] = min(int(max_tokens) * 2, 24000)  # 32k窗固化后旧帽13000过时;云端思考另吃预算须放宽
+                payload2["messages"] = payload["messages"][:-1] + [
+                    {"role": "user",
+                     "content": payload["messages"][-1]["content"] + "\n直接输出最终 JSON 结果,不要再思考。"}]
+                try:
+                    resp2 = _post(payload2)
+                    msg2 = (resp2.get("choices") or [{}])[0].get("message", {})
+                    if (msg2.get("content") or "").strip():
+                        content, msg = msg2["content"], msg2
+                except Exception as exc:
+                    print(f"[漫影 API扩写PE] 重试失败({exc})——走思考链剥离兜底")
         obj = None
         _raw = content.strip()
         # 1008 画布实弹加固(9B格式抖动两例在案:丢开括号/带markdown围栏):
@@ -1092,7 +1129,9 @@ class MyQi21ApiPE:
         # 引擎日志同日五发同指纹)——补回 {" 两字符。
         if re.match(r'rewritten_prompt"\s*:', _raw):
             _raw = '{"' + _raw
-        obj = _balanced_json(_raw) or _balanced_json(reasoning[-4000:])
+        # 1009:reasoning 尾走同链恢复(Mac 27B 路由:答案在思考通道,偶带
+        # _balanced_json 啃不动的非法 JSON 细节,正则末路补最后一道)
+        obj = _balanced_json(_raw) or _envelope_from_reasoning(reasoning)
         if obj is None:
             # 1009 末路修边:对象拼不回时,按 JSON 字符串转义律直取键值原文
             # (只取模型自己写的字符串不改义;尾缺 } 也活)。
@@ -1133,7 +1172,7 @@ class MyQi21ApiPE:
                     _m3 = (resp3.get("choices") or [{}])[0].get("message", {})
                     _c3 = (_m3.get("content") or "").strip()
                     _r3 = str(_m3.get("reasoning_content") or "")
-                    _o3 = _balanced_json(_c3) or _balanced_json(_r3[-4000:])
+                    _o3 = _balanced_json(_c3) or _envelope_from_reasoning(_r3)
                     _p3 = _o3.get("rewritten_prompt") if _o3 else None
                     _check_interrupt()  # 1008:拒收回退前查打断
                     if not (isinstance(_p3, str) and _p3.strip()):

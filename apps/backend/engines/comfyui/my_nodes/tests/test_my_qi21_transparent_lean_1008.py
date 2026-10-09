@@ -1,11 +1,15 @@
 # Copyright (c) 2026 MYStudio
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
-"""透明极简回退回归锁(1008 R3九型实弹定谳后的修复锁)。
+"""透明极简回退回归锁(1008 R3九型实弹定谳后的修复锁;1009晚修形态重锚)。
 
 R3定谳:富装配17句画背景命令以6.7~8.3:1兵力比淹没透明指令(道具全透
 4.98%/三型0.00%,同seed四连复现)——透明开时,PE失败的一切回退稿必须=
-极简公式(head_en+主体句+tail_en;0927d实测90.34%透明),不得放行富装配。
-回归锁:谁把回退改回直接透传富装配,这里红。
+极简公式,不得放行富装配。回归锁:谁把回退改回直接透传富装配,这里红。
+
+1009晚修(用户令「修」,10-09层冲突治理 a124896e 收口单源)后公式形态:
+主体句 + 型文rgba_positive(句级剥中文透明声明) + 风格工艺件(positive_
+style_text) + 透明承载件(rgba_text英文尾),零自带头尾——官方头尾由
+[4014]FinalOutput统一包裹各一次(治双头双尾),透明语义全英文承载。
 """
 
 from engines.comfyui.my_nodes.nodes import my_qi21_api_pe as mod
@@ -26,12 +30,16 @@ def _fire(transparent: bool):
 
 
 def test_transparent_passthrough_is_lean_formula():
-    """透明开+PE不可达:回退稿=极简公式(头英句+主体句+尾英句),零底座/型文绘画词。"""
+    """透明开+PE不可达:回退稿=极简公式(1009晚修形态:主体句打头+透明承载件英文尾,零自带头尾)。"""
     pos, neg, tm, w, h = _fire(True)
-    assert pos.startswith("This is an RGBA image with transparency.")
-    assert pos.endswith("The image has alpha channel and the background is transparent.")
+    assert pos.startswith(_SUBJ), "极简公式主体句打头(1009晚修②:零自带头,头尾归[4014]统一包裹)"
+    assert pos.endswith("isolated on pure transparency."), "透明承载件(rgba_text)英文尾收尾"
+    assert "This is an RGBA image" not in pos and "The image has alpha channel" not in pos, \
+        "官方头尾句不得自带(治lean自带+4014再包=双头双尾叠加)"
     assert "青铜剑" in pos and "云雷纹" in pos, "主体句必须原样夹入"
     assert "连续线描" in pos and "工笔线条质量" in pos, "底座风格工艺托底应随行(1008晚三件拆分)"
+    for bad in ("背景透明", "透明通道"):
+        assert bad not in pos, f"中文透明声明应句级剥除(1009晚修①,透明语义全英文承载): {bad}"
     for bad in ("平涂", "山水", "底色：浅净哑光", "大色面", "多色相铺陈", "旧段名·风格底座：现代", "细密分染"):
         assert bad not in pos, f"背景词泄漏: {bad}"
     assert tm is True and w == 1024 and h == 1024
@@ -46,10 +54,18 @@ def test_opaque_passthrough_unchanged_full_assembly():
     assert tm is False
 
 
-def test_lean_uses_truth_source_head_tail():
-    """极简公式头尾取 rgba 真源节热读(head_en/tail_en),非硬编码。"""
-    assert mod._rgba_lean_pos(_SUBJ).startswith("This is an RGBA image")
-    assert "the background is transparent" in mod._rgba_lean_pos(_SUBJ)  # 1008 官方尾句词序
+def test_lean_zero_own_head_tail():
+    """极简公式零自带头尾,各部件热读真源(非硬编码)。
+
+    1009晚修②:官方头尾(head_en/tail_en)退役出本路,由[4014]FinalOutput
+    统一包裹各一次;本路只拼主体句+风格工艺件+透明承载件真源现值。
+    """
+    s = mod._rgba_lean_pos(_SUBJ)
+    assert s.startswith(_SUBJ), "主体句打头(零自带头)"
+    assert "This is an RGBA image" not in s and "The image has alpha channel" not in s, \
+        "官方头尾句不得自带(2008→1009晚修:零自带头尾)"
+    assert "isolated on pure transparency" in s, "透明承载件=真源rgba_text热读"
+    assert "连续线描" in s and "工笔线条质量" in s, "风格工艺件=真源positive_style_text热读"
 
 
 def test_lean_carries_type_rgba_positive_framing():
@@ -66,8 +82,9 @@ def test_lean_carries_type_rgba_positive_framing():
     prop = next(t for t in types if t["zh"] == "道具")
     pos = mod._rgba_lean_pos(_SUBJ, prop["positive_text"])
     assert "器物设定图" in pos, "rgba_positive 格式锁应随行"
-    assert "背景透明" in pos
-    assert "连续线描" in pos and "罩染通透细腻" in pos, "底座rgba_text风格托底应随行(1008晚用户令拆分)"
+    assert "背景透明" not in pos and "透明通道" not in pos, \
+        "rgba_positive自带中文透明声明句级剥除(1009晚修①,透明语义全英文承载)"
+    assert "连续线描" in pos and "罩染通透细腻" in pos, "风格工艺件(positive_style_text)托底应随行(1008晚用户令拆分)"
     for bad in ("薄透罩染轻敷", "多色相铺陈", "平涂", "旧段名·风格底座：现代", "底色：浅净哑光", "大色面"):
         assert bad not in pos, f"绘画/背景词泄漏: {bad}"
 
