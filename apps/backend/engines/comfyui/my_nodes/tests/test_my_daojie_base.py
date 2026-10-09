@@ -132,8 +132,8 @@ def test_run_all_options_produce_nonempty_outputs():
         pos, neg, aspect, mp, base_out, _w, _h = MyDaojieBase().run(name)
         assert base_out == name  # 09-19 第五出=型直通(驱动按型 LoRA)
         # 09-22 v4:九型同一套可见画法,句号自足收尾;不再以资产定性句开头
-        # (道具型 ② 无「均匀柔光/平涂」措辞,画法锚收窄为细墨线)
-        assert pos and "细墨线" in pos
+        # (道具型 ② 无「均匀柔光/平涂」措辞,画法锚收窄为细彩线)
+        assert pos and "细彩线" in pos
         assert not pos.startswith("现代修仙游戏")
         assert pos.endswith("。")
         # 1004 中文负面役:九型负面基线=中文「，」token,美术风格底座负面同并入
@@ -231,7 +231,7 @@ def test_renwu_new_framing_after_v22_switch():
     assert not renwu.startswith(head), "人物型回潮旧 §一 主干开头"
     assert not renwu.endswith(tail), "人物型回潮旧 §一 结尾句收尾"
     # 1004 重建:②层措辞「线随结构时粗时细」(旧锚「线有粗细变化」措辞退役)
-    for kw in ("单人立绘", "全身入画", "细墨线勾勒", "线随结构时粗时细"):
+    for kw in ("单人立绘", "全身入画", "细彩线勾勒", "线随结构时粗时细"):
         assert kw in renwu, f"人物型增量段缺 v5 画法关键词 {kw}"
     # v5「禁物象词」口径随 1004 集中化部分退役留痕:positive_text=②+锁B+④+
     # 衣物完整性拼合,锁B 行自带衣褶词汇;骨相/眉眼/发丝/衣色仍禁(未入锁B)

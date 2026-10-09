@@ -273,7 +273,14 @@ class MyQi21PromptAssembly:
         # 底座段换「风格工艺件+透明承载件」组合(零底色/背景命令);带背景型/匹配不到
         # =锁层A全文原样(positive_text 字节不变,六型行为零变)。缺拆分件的旧库
         # 回退 positive 全文(_style_combo_transparent 内兜底),产线恒有输出。
-        style_out = _style_combo_transparent() if _type_is_transparent(BASE) else 锁层A全文
+        # 1008 用户令「用英文拼接」:透明路=官方英文头尾承载全部透明语义;
+        # 型文内中文透明声明行(图为带透明通道…背景透明)不再重复拼入。
+        if _type_is_transparent(BASE):
+            base_out = "\n".join(l for l in BASE.split("\n")
+                                 if "带透明通道" not in l and "背景透明" not in l)
+            style_out = _style_combo_transparent()
+        else:
+            base_out, style_out = BASE, 锁层A全文
         if not (BASE or "").strip():
             # 1001 用户测试批 P1 中性化:自由型(BASE 空串)此为正常态;非自由型
             # BASE 空=缺整个型底座层,请检查连线——双关文案,逻辑零改(design §2.2)
@@ -283,4 +290,4 @@ class MyQi21PromptAssembly:
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
             return (f"{主体句}\n{锁层A全文}", negative)
-        return (f"{主体句}\n{BASE}\n{style_out}", negative)
+        return (f"{主体句}\n{base_out}\n{style_out}", negative)

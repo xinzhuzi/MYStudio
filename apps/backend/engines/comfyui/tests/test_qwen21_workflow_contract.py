@@ -371,8 +371,8 @@ EDIT_RR_V_A_ID, EDIT_RR_V_B_ID = 28, 29
 # research/12 答A必改1 所记「短式=正字」系误记,如实注)
 RGBA_HEAD = "This is an RGBA format image with transparency."
 RGBA_TAIL = "The image has an alpha channel and a transparent background."
-RGBA_HEAD_ZH = "这是一张带有透明度的RGBA图像。"
-RGBA_TAIL_ZH = "该图像具有alpha通道,背景是透明的。"
+RGBA_HEAD_ZH = "This is an RGBA image with transparency."  # 1008 用户令全英文(=head_en 官方句)
+RGBA_TAIL_ZH = "The image has alpha channel and the background is transparent."
 
 # KSampler widgets_values 序:[seed, control, steps, cfg, sampler, scheduler, denoise]
 K_SAMPLER_WV = {"seed": 0, "steps": 2, "cfg": 3, "sampler": 4, "scheduler": 5, "denoise": 6}
@@ -4494,9 +4494,9 @@ class TestI2IContract:
         assert sel2["type"] == I2I_SG_SEL_CLASS, \
             f"[{I2I_SG_SEL2_ID}] 应为 {I2I_SG_SEL_CLASS} 透明包裹器②"
         assert _widget(sel2, QI21_SG_SEL_WV["RGBA官方头句"]) == RGBA_HEAD_ZH, \
-            "[153] RGBA官方头句参数 非 canon 中文现值逐字(1008 重锚:这是一张带有透明度的RGBA图像。)"
+            "[153] RGBA官方头句参数 非 canon 现值逐字(1008 全英文令:官方句)"
         assert _widget(sel2, QI21_SG_SEL_WV["RGBA官方尾句"]) == RGBA_TAIL_ZH, \
-            "[153] RGBA官方尾句参数 非 canon 中文现值逐字(1008 重锚:该图像具有alpha通道,背景是透明的。)"
+            "[153] RGBA官方尾句参数 非 canon 现值逐字(1008 全英文令:官方句)"
         asm_l = sg_links[next(i["link"] for i in sel2["inputs"] if i["name"] == "装配全文")]
         assert (asm_l["origin_id"], asm_l["origin_slot"]) == (I2I_SG_ASM_ID, 0), \
             "[153].装配全文 应接 [141].装配全文(透明包裹真源,≡原[162].string_b)"

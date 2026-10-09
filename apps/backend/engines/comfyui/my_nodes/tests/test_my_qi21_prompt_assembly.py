@@ -64,7 +64,7 @@ MyQi21PromptAssembly = assembly.MyQi21PromptAssembly
 # 与真源家正负拆开瘦身版(739 字)不同文,锚随真源迁)
 _DEFAULT_ANCHORS = {
     "主体句": "afd9e6f562e3e606",       # 原 顶层 [24] 主体句例文
-    "锁层A全文": "b9beb4391708ee60",    # 1008晚二轮底座句消歧后重锚(背景与留白主语限定)    # qi21_bases.json art_style_base.positive_text(1008 删词刀第三轮后重锚:成片质量句限定人物+四型远景句低对比淡墨色面)
+    "锁层A全文": "b86273b59be3a2e6",    # 1009固层无物化终轮重锚(用户令「山水之类的都要改,不能描绘具体的物」:DNA「山水构图与留白→构图与留白」;型文/冷存bg字段B句「铺陈山水空间：淡墨远山、青灰近石、青绿草木、赭黄土各成整块色面→以少量整块大色面铺陈」×6;人物山脊句「仅保留山脊轮廓与剪影→仅存最简轮廓层次」)    # qi21_bases.json art_style_base.positive_text(前值 815ef590=锁层无物化轮)
 }
 
 

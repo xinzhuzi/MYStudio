@@ -78,7 +78,7 @@ def test_assembly_splits_style_for_transparent_types():
     node = asm.MyQi21PromptAssembly()
     bt_prop, _, _, neg_prop, _ = my_qi21_base.MyQi21DaojieBase().run("道具")
     pos, _neg = node.assemble(BASE=bt_prop, BASE负面=neg_prop, 主体句=_SUBJ)
-    assert "彩线描" in pos and "纯净透明" in pos, "透明型应携带风格工艺件+透明承载件"
+    assert "彩线描" in pos and "pure transparency" in pos, "透明型应携带风格工艺件+透明承载件(英文,1008全英文令)"
     for bad in ("平涂", "底色：浅净哑光", "大色面"):
         assert bad not in pos, f"透明型装配泄漏背景词: {bad}"
     bt_rw, _, _, neg_rw, _ = my_qi21_base.MyQi21DaojieBase().run("人物")
