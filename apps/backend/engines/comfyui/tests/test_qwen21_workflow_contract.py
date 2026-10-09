@@ -3281,8 +3281,8 @@ class TestQi21SubgraphContract:
             assert 0.5 <= e["megapixels"] <= 8.0, \
                 f"qi21_bases.json「{e['zh']}」megapixels 数值域异常,得 {e['megapixels']}"
         mv = next(e for e in qi21 if e["zh"] == "人物多视图")
-        assert (mv["aspect_ratio"], mv["megapixels"]) == ("3:4 (Portrait Standard)", 1.8), \
-            "qi21_bases.json「人物多视图」画幅档应=Q2.1侧公式档 3:4/1.8(1008 快出档缩编)"
+        assert (mv["aspect_ratio"], mv["megapixels"]) == ("1:1 (Square)", 1.8), \
+            "qi21_bases.json「人物多视图」画幅档应=四视图两行两列方形 1:1/1.8(1009 用户令,旧3:4入史)"
         assert mv.get("resolution_override") == [1632, 1632], \
             "qi21_bases.json「人物多视图」override 应=四视图两行两列 [1632,1632](1009 用户令,旧六格2448×1632)"
         # 1004 正负拆开硬口径:positive_text=正向描述文体,禁令句(禁止/不得/
