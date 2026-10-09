@@ -189,8 +189,12 @@ class MyQi21FinalOutput:
             direct = ""
         else:
             direct = 正向提示词
-        transparent_mid = direct + " " + _TAIL
+        # 1008 官方逐字化(用户令查官方写法):透明包裹=官方英文头尾两句
+        # (rgba.head_en/tail_en 热读,QwenLM官方原句);中文自造头尾/W1收束句
+        # 退役(六句堆叠=抠图感/贴片感来源;官方模式=两句append,中间纯画面描述)。
         if 透明模式:
-            return (f"{_RGBA_HEAD} {transparent_mid} {_RGBA_TAIL}",
-                    direct_neg)
+            rgba = (_load_bases_data().get("rgba") or {})
+            head = str(rgba.get("head_en") or _RGBA_HEAD)
+            tail = str(rgba.get("tail_en") or _RGBA_TAIL)
+            return (f"{head} {direct} {tail}", direct_neg)
         return (direct, direct_neg)

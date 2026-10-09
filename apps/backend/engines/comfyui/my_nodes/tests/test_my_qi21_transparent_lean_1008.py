@@ -28,10 +28,10 @@ def _fire(transparent: bool):
 def test_transparent_passthrough_is_lean_formula():
     """透明开+PE不可达:回退稿=极简公式(头英句+主体句+尾英句),零底座/型文绘画词。"""
     pos, neg, tm, w, h = _fire(True)
-    assert pos.startswith("This is an RGBA format image with transparency.")
-    assert pos.endswith("The image has an alpha channel and a transparent background.")
+    assert pos.startswith("This is an RGBA image with transparency.")
+    assert pos.endswith("The image has alpha channel and the background is transparent.")
     assert "青铜剑" in pos and "云雷纹" in pos, "主体句必须原样夹入"
-    assert "铁线描" in pos and "工笔线条质量" in pos, "底座风格工艺托底应随行(1008晚三件拆分)"
+    assert "彩线描" in pos and "工笔线条质量" in pos, "底座风格工艺托底应随行(1008晚三件拆分)"
     for bad in ("平涂", "山水", "底色：浅净哑光", "大色面", "多色相铺陈", "美术风格底座", "细密分染"):
         assert bad not in pos, f"背景词泄漏: {bad}"
     assert tm is True and w == 1024 and h == 1024
@@ -48,8 +48,8 @@ def test_opaque_passthrough_unchanged_full_assembly():
 
 def test_lean_uses_truth_source_head_tail():
     """极简公式头尾取 rgba 真源节热读(head_en/tail_en),非硬编码。"""
-    assert mod._rgba_lean_pos(_SUBJ).startswith("This is an RGBA format image")
-    assert "transparent background" in mod._rgba_lean_pos(_SUBJ)
+    assert mod._rgba_lean_pos(_SUBJ).startswith("This is an RGBA image")
+    assert "the background is transparent" in mod._rgba_lean_pos(_SUBJ)  # 1008 官方尾句词序
 
 
 def test_lean_carries_type_rgba_positive_framing():
@@ -67,7 +67,7 @@ def test_lean_carries_type_rgba_positive_framing():
     pos = mod._rgba_lean_pos(_SUBJ, prop["positive_text"])
     assert "器物设定图" in pos, "rgba_positive 格式锁应随行"
     assert "背景透明" in pos
-    assert "铁线描" in pos and "罩染通透细腻" in pos, "底座rgba_text风格托底应随行(1008晚用户令拆分)"
+    assert "彩线描" in pos and "罩染通透细腻" in pos, "底座rgba_text风格托底应随行(1008晚用户令拆分)"
     for bad in ("薄透罩染轻敷", "多色相铺陈", "平涂", "美术风格底座", "底色：浅净哑光", "大色面"):
         assert bad not in pos, f"绘画/背景词泄漏: {bad}"
 
@@ -78,7 +78,7 @@ def test_assembly_splits_style_for_transparent_types():
     node = asm.MyQi21PromptAssembly()
     bt_prop, _, _, neg_prop, _ = my_qi21_base.MyQi21DaojieBase().run("道具")
     pos, _neg = node.assemble(BASE=bt_prop, BASE负面=neg_prop, 主体句=_SUBJ)
-    assert "铁线描" in pos and "纯净透明" in pos, "透明型应携带风格工艺件+透明承载件"
+    assert "彩线描" in pos and "纯净透明" in pos, "透明型应携带风格工艺件+透明承载件"
     for bad in ("平涂", "底色：浅净哑光", "大色面"):
         assert bad not in pos, f"透明型装配泄漏背景词: {bad}"
     bt_rw, _, _, neg_rw, _ = my_qi21_base.MyQi21DaojieBase().run("人物")
