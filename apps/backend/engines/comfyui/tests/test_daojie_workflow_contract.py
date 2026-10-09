@@ -174,7 +174,7 @@ class TestDaojieBasesSources:
         assert not renwu.startswith("现代修仙"), "人物型回潮 v2.2 句首定性句"
         assert not renwu.startswith(MD_HEAD), "人物型回潮旧 §一 主干开头"
         assert not renwu.endswith(MD_TAIL), "人物型回潮旧 §一 尾句收尾"
-        for kw in ("单人立绘", "取景范围完整呈现", "细彩线勾勒", "线随结构时粗时细"):  # 1009 并行轮
+        for kw in ("单人立绘", "取景范围完整呈现", "细线勾勒", "线随结构时粗时细"):  # 1009 并行轮
             assert kw in renwu, f"人物型缺 v5 画法关键词 {kw}(1004 统一底座措辞)"
         # 物象词禁令域=首行画法行(1004 统一底座含 四锁段截短版=衣褶/衣物/
         # 头发/鞋靴 段头自带物象名=合法;与 qwen21 契约 split("\n")[0] 同口径)

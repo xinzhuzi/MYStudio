@@ -3304,7 +3304,7 @@ class TestQi21SubgraphContract:
                 f"qi21_bases.json「{e['zh']}」negative_text 缺基线负面词(模糊/水印)"
         # 美化版锚词抽验(人物型):纯画法骨
         renwu = qi21[0]["positive_text"]
-        for kw in ("细彩线", "线随结构", "低对比色面"):  # 1008 删词刀第三轮:远景句「淡墨晕染」退役为「低对比淡墨色面」,锚随源重锚(前锚 1008 A+B清偿立)
+        for kw in ("细线", "线随结构", "低对比色面"):  # 1009 去彩锚随源(细彩线→细线);前锚 1008 删词刀第三轮「淡墨晕染」退役
             assert kw in renwu, f"qi21_bases.json 人物 positive_text 缺美化版锚词 {kw}"
         for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
             assert bad not in renwu.split("\n")[0], f"人物②层残留物象词 {bad}(纯画法零物象骨)"
@@ -4695,9 +4695,10 @@ def _links_pid(graph: dict, nid: int) -> int:
 
 
 # ── 6h. qi21-道劫-img2img 契约(1009 用户令:严格经典图生图「0.5~0.7 大结构保留,
-# 细节大幅重画(同构图精修、改细节)」区间取中 dn=0.6;pose-edit 先例=扁平自持
-# 零子图;与 i2i(满噪参考图编辑)范式分野互斥——本件恒 40 步直出无加速档,低
-# denoise × 满噪蒸馏件有效步数坍缩故 turbo 族全禁;生成器 qi21_img2img_build_1009.py)──
+# 细节大幅重画(同构图精修、改细节)」区间取中 dn=0.6 + 追令「加速方式用 viggle」
+# =模型链挂 v0.3 6step r256 LoRA+KSampler 6 步;pose-edit 先例=扁平自持零子图;
+# 与 i2i(满噪参考图编辑)范式分野——denoise<1=低噪尾段起步,off-distribution
+# 警示入 Note;生成器 qi21_img2img_build_1009.py+布局求解产物 layout json)──
 class TestQi21Img2ImgContract:
     WF = GRAPHS["img2img"]
 
@@ -4723,20 +4724,31 @@ class TestQi21Img2ImgContract:
             "ImageScaleToTotalPixels": 1, "PrimitiveStringMultiline": 1,
             "MyQi21DaojieBase": 1, "MyQi21PromptAssembly": 1, "easy showAnything": 1,
             "TextEncodeQwenImage21": 1, "QwenImage21Cache": 1, "KSampler": 1,
-            "VAEDecode": 1, "SaveImage": 1, "MarkdownNote": 1,
+            "LoraLoaderModelOnly": 1, "VAEDecode": 1, "SaveImage": 1, "MarkdownNote": 1,
         })
-        assert c == want, f"census 漂移(应恰 15 件):{dict(c)}"
-        for banned in ("LoraLoaderModelOnly", "MyQi21SpeedSelect", "EmptyLatentImage",
+        assert c == want, f"census 漂移(应恰 16 件):{dict(c)}"
+        for banned in ("MyQi21SpeedSelect", "EmptyLatentImage",
                        "ComfySwitchNode", "SplitSigmas", "SamplerCustomAdvanced"):
             assert banned not in c, f"禁件在场:{banned}"
         assert not any(t.startswith("T8QwenImage21") for t in c), "Fun-Acc T8 禁件在场"
 
-    def test_sampler_anchor_dn06(self):
-        """[7]=40 步/cfg1/euler/simple/denoise 0.6(用户令区间取中;面板=widget 直调)。"""
+    def test_sampler_anchor_viggle6_dn06(self):
+        """[7]=viggle 6 步/cfg1/euler/simple/denoise 0.6(1009 追令 viggle 加速;
+        dn<1 语义=低噪尾段起步,警示入 Note;面板=widget 直调)。"""
         w = self._n(7)["widgets_values"]
         assert self._n(7)["type"] == "KSampler"
-        assert (w[2], w[3], w[4], w[5], w[6]) == (40, 1, "euler", "simple", 0.6), \
-            f"[7] 应=40步/cfg1/euler/simple/dn0.6,得 {w}"
+        assert (w[2], w[3], w[4], w[5], w[6]) == (6, 1, "euler", "simple", 0.6), \
+            f"[7] 应=viggle6步/cfg1/euler/simple/dn0.6,得 {w}"
+
+    def test_viggle_lora_chain(self):
+        """模型链 [1]→[9]Cache→[7011]viggle LoRA→[7];LoRA=v0.3 6step r256 官方件
+        strength 1.0(同 i2i viggle 支路口径,1002 衔接批㉔)。"""
+        lw = self._n(7011)["widgets_values"]
+        assert self._n(7011)["type"] == "LoraLoaderModelOnly"
+        assert lw[0] == "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors" \
+            and lw[1] == 1.0, f"[7011] viggle LoRA 锚漂移:{lw!r}"
+        assert self._src_of(7011, "model") == (9, 0), "LoRA 应接 Cache 之后"
+        assert self._src_of(9, "model") == (1, 0)
 
     def test_latent_from_te_image1(self):
         """latent 直取 [4015] TE.latent(=image_1 过 VAE 的画布 latent,画幅随底图)——
@@ -4744,7 +4756,7 @@ class TestQi21Img2ImgContract:
         assert self._src_of(7, "latent_image") == (4015, 2), \
             "latent 应直取 [4015].latent(image_1 画布 latent)"
         assert self._src_of(7, "positive") == (4015, 0) and self._src_of(7, "negative") == (4015, 1)
-        assert self._src_of(7, "model") == (9, 0), "model 应经 [9] QwenImage21Cache"
+        assert self._src_of(7, "model") == (7011, 0), "model 应经 [7011] viggle LoRA"
 
     def test_te_single_reference_and_negative_wired(self):
         """image_1=底图(预缩后);image_2 恰空接(Autogrow min0 单参考);装配负面词
@@ -4781,8 +4793,10 @@ class TestQi21Img2ImgContract:
     def test_note_documents_paradigm(self):
         """Note 要点锁:范式分野/denoise 档位表/加速档禁因/负面真接/真源口径。"""
         note = self._n(402)["widgets_values"][0]
-        for tok in ("同构图精修", "0.5~0.7", "0.6", "满噪蒸馏", "image_2", "negative_prompt",
-                    "cfg=1", "qi21_bases.json", "viggle", "参考图编辑", "qi21_img2img_build_1009.py"):
+        for tok in ("同构图精修", "0.5~0.7", "0.6", "off-distribution", "低噪尾段",
+                    "image_2", "negative_prompt", "cfg=1", "qi21_bases.json",
+                    "viggle-turbo-v0.3-6step", "strength 1.0", "参考图编辑",
+                    "qi21_img2img_build_1009.py"):
             assert tok in note, f"Note 缺要点:{tok!r}"
 
 

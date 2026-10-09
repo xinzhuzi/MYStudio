@@ -167,7 +167,7 @@ def test_base_text_verbatim_from_lib_for_all_nine():
 def test_run_all_options_produce_nonempty_outputs():
     for zh in _canon_order():
         base_text, w, h, neg_text, _t = MyQi21DaojieBase().run(zh)
-        assert base_text and ("细彩线" in base_text or "运笔" in base_text)
+        assert base_text and ("细线" in base_text or "线随结构" in base_text)  # 1009 去彩锚随源
         assert isinstance(w, int) and isinstance(h, int) and w > 0 and h > 0
         assert neg_text, zh  # 1005 案B:第五出型负面十档非空
     # 自由型:BASE 空串(正常态),W/H 兜底 1:1 (Square)/1.0MP=1024×1024

@@ -135,7 +135,7 @@ def test_protocol_transparent_base_segment_excludes_ground():
     pos, neg, tm, _w, _h = _fire(True, _PROTO)
     assert pos.startswith("This is an RGBA image with transparency.")
     assert pos.endswith("The image has alpha channel and the background is transparent.")
-    assert "彩线描" in pos, "极简公式风格托底应随行(协议模式不改变回退公式)"
+    assert "连续线描" in pos, "极简公式风格托底应随行(协议模式不改变回退公式)"
     assert tm is True
 
 

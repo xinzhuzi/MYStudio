@@ -17,9 +17,10 @@
 
 四改造令落地对照(对话四点):①denoise=0.6 默认(档位 0.5~0.7,面板即 KSampler
 widget 直调);②latent=TE 内置 image_1 VAE latent(画布随底图,零额外接线);
-③恒 40 步直出无加速档(FunAcc4步/viggle6步=满噪蒸馏件,低 denoise 有效步数
-坍缩必崩——与 i2i 三档互斥分野);④提示词=描述性精修指令(非 <image1>/<image2>
-编辑指令),型文底座照常参与。
+③加速=viggle(1009 用户令「加速方式要使用 viggle」:模型链挂 v0.3 6step r256
+LoRA strength 1.0+KSampler 6 步;denoise<1 语义=取更长调度低噪尾段起步,
+off-distribution 警示与逃生口入 Note);④提示词=描述性精修指令(非
+<image1>/<image2> 编辑指令),型文底座照常参与。
 
 模板来源:节点对象逐件拷自 qi21-道劫-i2i.json(装配三件自其 [6] 子图提升为
 顶层,链路重排)与 qwen21-pose-edit.json(Cache/KSampler);asm 锁层A全文=
@@ -42,8 +43,8 @@ POSE = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qwen21-pose-edit.json"
 OUT = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json"
 TRUTH = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 
-DN = 0.6          # 用户令 0.5~0.7 区间取中
-STEPS = 40        # 道劫产线完整档(官方区间 40-50,同 i2i 直出支路)
+DN = 0.6          # 用户令 0.5~0.7 区间取中(低噪尾段起步)
+STEPS = 6         # viggle 官方荐档(1009 用户令:viggle 加速;同 i2i viggle 支路)
 SAVE_PREFIX = "QI21道劫精修_"
 INSTRUCTION = ("保持图1的构图、人物姿态与画面内容不变,按道劫画风整幅精修:"
                "重画细节纹理与质感,提升线描与设色完成度,不增删画面元素")
@@ -67,10 +68,16 @@ i2i 或 multiref;**保构图换细节走本件**。
 | **0.5~0.7(默认 0.6)** | **大结构保留,细节大幅重画(同构图精修/改细节)** |
 | →1.0 | 逼近重画,构图渐不听底图(即退化回 i2i 范式) |
 
-### 采样与加速分野
-- [7] 恒 **40 步直出**(cfg1/euler/simple/seed fixed 0,道劫完整档官方区间)。
-- **本件无加速档,有意为之**:Fun-Acc 4 步/viggle 6 步=满噪蒸馏件,低 denoise
-  下有效步数坍缩(4×0.6≈2.4 步)必崩——要加速走 i2i(其 viggle 默认=1009 令)。
+### 采样与加速(viggle;1009 用户令)
+- 模型链 [1]UNET→[9]Cache→[7011]viggle LoRA→[7]KSampler;LoRA=
+  **Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256**(同 i2i viggle 支路官方件,
+  strength 1.0=1002 衔接批㉔口径)。
+- [7] = **6 步/cfg1/euler/simple/seed fixed 0/denoise 0.6**(viggle 荐档 6 步×
+  用户令 dn0.5~0.7 取中)。
+- **denoise<1 调度语义**:KSampler 取更长调度的**低噪尾段**(6步×dn0.6≈10 步表
+  末 6 档),从 ~60% 噪位起步往回画——结构由底图 latent 锚定,不靠满噪重排。
+- 诚实警示:viggle 蒸馏件按满噪 6 步轨迹训练,低噪尾段起步属 off-distribution;
+  画质异常先试:①[7] 抬 steps(8~10)②denoise 回 1.0(退回 i2i 编辑范式)③改走 i2i。
 - 负向:[4011] 装配负面词(型负面+锁层负面合并)真接 TE.negative_prompt;
   **cfg=1 下数学不参与采样**(官方路径口径,同 i2i),抬 cfg 即激活。
 
@@ -151,7 +158,12 @@ def main() -> None:
     n4015["inputs"].append({"name": "negative_prompt", "type": "STRING",
                             "widget": {"name": "negative_prompt"}, "link": None})
     take(top(pose, 9), 9, "[9] 模型缓存·QwenImage21Cache", [2560, 1900])
-    n7 = take(top(pose, 10), 7, f"[7] 精修采样·KSampler({STEPS}步·dn{DN})", [2980, 1000])
+    sgacc = [x for x in i2i["definitions"]["subgraphs"] if x["name"] == "道劫·加速子图"][0]
+    lora_tpl = [n for n in sgacc["nodes"] if n["id"] == 7011][0]
+    assert lora_tpl["widgets_values"][0].startswith("Qwen-Image-2.1-viggle-turbo-v0.3-6step"), \
+        f"viggle LoRA 件名漂移:{lora_tpl['widgets_values']!r}"
+    take(lora_tpl, 7011, "[7011] viggle LoRA·加速(1009 令)", [2560, 2160])
+    n7 = take(top(pose, 10), 7, f"[7] 精修采样·KSampler(viggle{STEPS}步·dn{DN})", [2980, 1000])
     n7["widgets_values"] = [0, "fixed", STEPS, 1, "euler", "simple", DN]
     take(top(i2i, 5), 5, "[5] VAEDecode", [3520, 1180])
     n8 = take(top(i2i, 8), 8, "[8] SaveImage", [3980, 1000])
@@ -174,7 +186,8 @@ def main() -> None:
         (400, 0, 4011, 1, "STRING"),
         (4011, 0, 28, 0, "STRING"),   # 链型标=源类型(showAnything 目标为通配,同 i2i link21 口径)
         (1, 0, 9, 0, "MODEL"),
-        (9, 0, 7, 0, "MODEL"),
+        (9, 0, 7011, 0, "MODEL"),
+        (7011, 0, 7, 0, "MODEL"),
         (4015, 0, 7, 1, "CONDITIONING"),
         (4015, 1, 7, 2, "CONDITIONING"),
         (4015, 2, 7, 3, "LATENT"),
@@ -192,10 +205,24 @@ def main() -> None:
         fi.setdefault("links", []).append(lid)
         links.append([lid, f, fs, t, ts, ty])
 
+    # 布局覆盖(求解器产物;q21_img2img_layout_1009.json 存在则覆盖手排坐标,幂等)
+    LAYOUT = Path(__file__).parent / "qi21_img2img_layout_1009.json"
+    if LAYOUT.exists():
+        ov = json.loads(LAYOUT.read_text(encoding="utf-8"))
+        for nid, pos in ov.items():
+            N[int(nid)]["pos"] = list(pos)
+
+    def bbox_of(members: list[int], pad: int = 60) -> list[int]:
+        xs0 = min(N[m]["pos"][0] for m in members)
+        ys0 = min(N[m]["pos"][1] for m in members)
+        xs1 = max(N[m]["pos"][0] + int(N[m].get("size", [340, 200])[0]) for m in members)
+        ys1 = max(N[m]["pos"][1] + int(N[m].get("size", [340, 200])[1]) for m in members)
+        return [xs0 - pad, ys0 - pad - 40, xs1 - xs0 + 2 * pad, ys1 - ys0 + 2 * pad + 40]
+
     groups = [
-        {"id": 1, "title": "道劫·①底图·装配(指令+底座+拼合+预览)", "bounding": [780, 60, 1250, 1530], "color": "#3f789e", "flags": {}},
-        {"id": 2, "title": "Qwen-Image-2.1 ②加载器(bf16 实配)", "bounding": [1100, 1620, 900, 660], "color": "#a1309b", "flags": {}},
-        {"id": 3, "title": "道劫·③图生图主链(单参考TE→Cache→40步采样dn0.6→解码→保存)", "bounding": [2040, 240, 2340, 1900], "color": "#88A", "flags": {}},
+        {"id": 1, "title": "道劫·①底图·装配(指令+底座+拼合+预览)", "bounding": bbox_of([10, 16, 400, 4010, 4011, 28]), "color": "#3f789e", "flags": {}},
+        {"id": 2, "title": "Qwen-Image-2.1 ②加载器(bf16 实配)", "bounding": bbox_of([1, 2, 3]), "color": "#a1309b", "flags": {}},
+        {"id": 3, "title": "道劫·③图生图主链(单参考TE→Cache→viggle LoRA→6步采样dn0.6→解码→保存)", "bounding": bbox_of([9, 7011, 4015, 7, 5, 8]), "color": "#88A", "flags": {}},
     ]
 
     doc = {"id": "qi21-daojie-img2img-1009", "revision": 0, "last_node_id": 4020,
@@ -205,8 +232,8 @@ def main() -> None:
 
     # ── 自验(fail-closed)──
     ids = {n["id"] for n in doc["nodes"]}
-    assert len(ids) == len(doc["nodes"]) == 15, f"节点应恰 15,得 {len(doc['nodes'])}"
-    banned = ("LoraLoaderModelOnly", "MyQi21SpeedSelect", "EmptyLatentImage",
+    assert len(ids) == len(doc["nodes"]) == 16, f"节点应恰 16,得 {len(doc['nodes'])}"
+    banned = ("MyQi21SpeedSelect", "EmptyLatentImage",
               "ComfySwitchNode", "SplitSigmas", "SamplerCustomAdvanced")
     for n in doc["nodes"]:
         if n["type"].startswith("T8QwenImage21") or n["type"] in banned:
@@ -224,7 +251,7 @@ def main() -> None:
             die(f"链 {l[0]} 源槽 links 缺登记")
         if fo["type"] != ty or (ti["type"] != ty and ti["type"] != "*"):
             die(f"链 {l[0]} 类型不匹配:{fo['type']}→{ti['type']}({ty})")
-    must_wired = {4015: ["clip", "images.image_1", "vae", "prompt", "negative_prompt"],
+    must_wired = {7011: ["model", "lora"], 4015: ["clip", "images.image_1", "vae", "prompt", "negative_prompt"],
                   4011: ["BASE", "主体句"], 7: ["model", "positive", "negative", "latent_image"],
                   5: ["samples", "vae"], 8: ["images"], 16: ["image"], 9: ["model"], 28: ["anything"]}
     for nid, names in must_wired.items():
@@ -236,16 +263,29 @@ def main() -> None:
         die("image_2 应恰空接(单参考;Autogrow min0)")
     ks = N[7]["widgets_values"]
     assert ks[2] == STEPS and ks[3] == 1 and ks[6] == DN, f"KSampler 锚漂移:{ks}"
+    lw = N[7011]["widgets_values"]
+    assert lw[0].startswith("Qwen-Image-2.1-viggle-turbo-v0.3-6step") and lw[1] == 1.0, \
+        f"viggle LoRA 锚漂移:{lw!r}"
     assert N[4011]["widgets_values"][1] == truth, "锁层A全文≠qi21_bases.json 真源"
     assert N[4015]["widgets_values"][2] == 0, "TE resolution 应=0(不重采样)"
     assert N[8]["widgets_values"] == [SAVE_PREFIX]
-    for tok in ("0.5~0.7", "同构图精修", "满噪蒸馏", "negative_prompt", "image_2", "qi21_bases.json", "viggle"):
+    gs = doc["groups"]
+    strict_layout = LAYOUT.exists()   # 终排(求解器覆盖已回灌)才开组框硬门;手排草稿轮豁免
+    for a in range(len(gs)):
+        if not strict_layout:
+            break
+        for b in range(a + 1, len(gs)):
+            ga, gb = gs[a]["bounding"], gs[b]["bounding"]
+            if ga[0] < gb[0]+gb[2] and ga[0]+ga[2] > gb[0] and ga[1] < gb[1]+gb[3] and ga[1]+ga[3] > gb[1]:
+                die(f"组框重叠:{gs[a]['title'][:12]}×{gs[b]['title'][:12]}")
+    for tok in ("0.5~0.7", "同构图精修", "off-distribution", "低噪尾段", "negative_prompt",
+                "image_2", "qi21_bases.json", "viggle-turbo-v0.3-6step", "strength 1.0"):
         if tok not in NOTE:
             die(f"Note 缺要点 token:{tok}")
 
     OUT.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"PASS 建件完成:{OUT.name}")
-    print(f"     节点 15/链 {len(links)}/组框 3;denoise={DN} steps={STEPS};锁层A==真源(热读)")
+    print(f"     节点 16/链 {len(links)}/组框 3;denoise={DN} steps={STEPS} viggle;锁层A==真源(热读)")
 
 
 if __name__ == "__main__":

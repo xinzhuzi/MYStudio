@@ -75,7 +75,7 @@ class TestPrompts(unittest.TestCase):
     def test_instruction_meaningful(self):
         ins = self.nodes[13]["widgets_values"][0]
         self.assertTrue(ins, "[13] 修手指令不得为空")
-        for word in ("墨线", "指节", "指缝"):
+        for word in ("彩线", "指节", "指缝"):  # 1009 K2 词族清理锚随源:墨线→彩线
             self.assertIn(word, ins, f"[13] 修手指令须含 {word}")
 
     def test_positive_dirty_words_absent(self):

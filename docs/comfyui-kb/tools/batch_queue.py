@@ -55,6 +55,18 @@ monitor_h3.py 均无头),已移除,对齐目录惯例。
   python3 batch_queue.py stop   --ledger mybatch.ndjson [--interrupt-running]
   python3 batch_queue.py --self-test   # 纯逻辑断言,零 IO 零引擎
 
+1009 起=跑真工作流 qi21-道劫-t2i.json 的唯一正器(用户令「就跑 qi21-道劫-t2i.json
+工作流,重复脚本集中到 1 个」):转换器已扩三能(子图实例展开/Reroute 递归穿透/
+双槽仲裁+展示框槽省略),旋钮全走 --set。示例(场景型单发,种子每发换新):
+  python3 batch_queue.py run \\
+      --workflow "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json" \\
+      --var-node 7.7014 --var-field value --var-values random \\
+      --set 6.4010.base=场景 \\
+      --set 400.value=@主体句.txt \\
+      --prefix-node 8 --prefix-base QI21_t2i_场景 \\
+      --ledger 场景.ndjson --shot-timeout 1800
+  (速度档/σ表/PE 接线/画幅=工作流文件自身值,零覆盖;展开节点 id=实例id.内部id)
+
 分层纪律:纯逻辑(转换/克隆/闭包/拍计划/台账/停队集合/指纹)零 IO 可直测
 (--self-test 只碰这一层);网络与文件读写收在 IO 层与 CLI。零三方依赖,
 系统 python3 可跑。
@@ -195,6 +207,7 @@ def _map_widgets(node: dict, cls: str, class_info: dict, link_inputs: dict,
       位置值不合 schema 且命名槽同键合规才让位([4010] 位置序≠INPUT_TYPES 序,
       命名槽反而是对的)。展示框槽(_is_display_slot)未连线一律不提交。"""
     spec_all = _spec_map(class_info)
+    required_names = set(class_info.get("input", {}).get("required", {}))
     widget_names = _widget_slot_names(class_info, set(link_inputs))
     named = node.get("widgets_values_named") or {}
     positional = list(node.get("widgets_values") or [])
@@ -211,14 +224,15 @@ def _map_widgets(node: dict, cls: str, class_info: dict, link_inputs: dict,
             if (name in ("seed", "noise_seed", "value") and vi < len(positional)
                     and isinstance(positional[vi], str) and positional[vi] in SEED_CONTROLS):
                 vi += 1  # control_after_generate 紧随 seed 类槽的固定位,一并消费
+        if name not in link_inputs and _is_display_slot(spec):
+            continue  # 展示框槽:位置值已消费(保对位)但不提交,画布亦不提交
         if v is None or (spec is not None and not _fits(spec, v)):
             if name in named and (spec is None or _fits(spec, named[name])):
                 v = named[name]
             elif v is None:
-                report.append(f"!! node={nid} {cls} widget 槽 {name} 无值(widgets_values 长度不足)")
-                continue
-        if name not in link_inputs and _is_display_slot(spec):
-            continue  # 展示框槽:画布不提交,转换器同样省略
+                if name in required_names:
+                    report.append(f"!! node={nid} {cls} widget 槽 {name} 无值(widgets_values 长度不足)")
+                continue  # optional 无值=省略走引擎缺省(如 [4015] vae);必填才硬伤
         inputs[name] = v
     if vi < len(positional):
         report.append(f"note node={nid} {cls} widgets_values 残余 {positional[vi:]!r}")
@@ -727,6 +741,25 @@ def cmd_run(args) -> int:
             print(f"[batch-queue] {prefix_err}")
             return 2
 
+    # 1009 --set 旋钮覆盖(可重复;node.field=value 或 =@文件路径读全文;
+    # 预检同 var/prefix 同规,常量跨拍写在基图=deepClone 前一次落位)
+    for spec in args.set or []:
+        left, _, raw = spec.partition("=")
+        parts = left.split(".")
+        if len(parts) < 2:
+            print(f"[batch-queue] --set {spec!r} 应为 node.field=value")
+            return 2
+        set_node, set_field = ".".join(parts[:-1]), parts[-1]  # 展开 id 含点(6.4010),字段名=末段
+        if raw.startswith("@"):
+            raw = Path(raw[1:]).read_text(encoding="utf-8").rstrip("\n")
+        set_err = field_target_error(line_prompt, set_node, set_field, "set")
+        if set_err:
+            print(f"[batch-queue] {set_err} (--set {spec!r})")
+            return 2
+        cur = line_prompt[str(set_node)]["inputs"][set_field]
+        set_shot_variable(line_prompt, set_node, set_field,
+                          raw if isinstance(cur, str) else coerce_like(cur, raw))
+
     values = args.var_values
     total = len(values)
     ledger = Path(args.ledger) if args.ledger else Path.cwd() / (Path(args.workflow).stem + ".ndjson")
@@ -775,7 +808,11 @@ def cmd_run(args) -> int:
                 shot = next(it, None)
                 if shot is None:
                     break
-                value = coerce_like(existing, values[shot - 1])
+                raw_value = values[shot - 1]
+                if raw_value == "random" and isinstance(existing, int) and not isinstance(existing, bool):
+                    value = random.randrange(0, 2**31 - 1)  # 用户令 1009:种子每发换新
+                else:
+                    value = coerce_like(existing, raw_value)
                 prefix = unique_prefix(args.prefix_base, shot)
                 prompt = deep_clone(line_prompt)
                 set_shot_variable(prompt, args.var_node, args.var_field, value)
@@ -1028,6 +1065,51 @@ def self_test() -> int:
     feed_lines = [l for l in report_broken if l.startswith("!!") and "node=11" in l and "node=8" in l]
     check("断源硬伤报告(消费者由已摘除节点供源)", len(feed_lines) == 1)
 
+    # 5b) 1009 三能:子图展开/Reroute 穿透/展示框槽省略(双槽仲裁以真工作流
+    #     qi21-道劫-t2i.json 实弹验证,夹具覆盖机械部分)
+    oi_sg = {
+        "ModelLoader": {"input": {"required": {"name": ["STRING", {}]}}},
+        "Inner": {"input": {"required": {"model": ["MODEL"], "steps": ["INT"]},
+                            "optional": {"mode": ["BOOLEAN", {}],
+                                         "四段协议": ["STRING", {"tooltip": "执行后 JS 回填,无需手填/连线"}]}}},
+        "Sink": {"input": {"required": {"x": ["MODEL"]}}},
+    }
+    sg_def = {
+        "id": "sg-a", "name": "子",
+        "nodes": [{"id": 20, "type": "Inner", "widgets_values": [33],
+                   "widgets_values_named": {"steps": 33},
+                   "inputs": [{"name": "model", "link": 1}, {"name": "mode", "link": 2}]},
+                  {"id": 21, "type": "Note", "widgets_values": ["注"]}],
+        "links": [
+            {"id": 1, "origin_id": -10, "origin_slot": 0, "target_id": 20, "target_slot": 0, "type": "MODEL"},
+            {"id": 2, "origin_id": -10, "origin_slot": 1, "target_id": 20, "target_slot": 1, "type": "BOOLEAN"},
+            {"id": 3, "origin_id": 20, "origin_slot": 0, "target_id": -20, "target_slot": 0, "type": "MODEL"},
+        ],
+        "inputs": [{"name": "model", "type": "MODEL"}, {"name": "mode", "type": "BOOLEAN"}],
+        "outputs": [{"name": "y", "type": "MODEL"}],
+    }
+    wf_sg = {
+        "nodes": [
+            {"id": 1, "type": "ModelLoader", "widgets_values": ["m.safetensors"]},
+            {"id": 2, "type": "Reroute", "inputs": [{"name": "Reroute", "link": 3}]},
+            {"id": 3, "type": "sg-a", "widgets_values": [True],
+             "inputs": [{"name": "model", "type": "MODEL", "link": 4}],
+             "outputs": [{"name": "y", "type": "MODEL", "links": [5]}]},
+            {"id": 9, "type": "Sink", "inputs": [{"name": "x", "link": 5}]},
+        ],
+        "links": [[3, 1, 0, 2, 0, "MODEL"], [4, 2, 0, 3, 0, "MODEL"], [5, 3, 0, 9, 0, "MODEL"]],
+        "definitions": {"subgraphs": [sg_def]},
+    }
+    prompt_sg, report_sg = graph_to_prompt(wf_sg, oi_sg)
+    check("子图展开=内部节点前缀落图+Note摘除", set(prompt_sg) == {"1", "3.20", "9"})
+    check("子图接口=宿主连线(Reroute 穿透)喂内部槽",
+          prompt_sg["3.20"]["inputs"]["model"] == ["1", 0])
+    check("子图提升控件值进槽", prompt_sg["3.20"]["inputs"]["mode"] is True)
+    check("展示框槽省略(JS回填指纹)", "四段协议" not in prompt_sg["3.20"]["inputs"])
+    check("Reroute 纯穿透不落图+实例输出经 providers 解析",
+          "2" not in prompt_sg and prompt_sg["9"]["inputs"]["x"] == ["3.20", 0])
+    check("子图内 Note 摘除留痕", any(l.startswith("skip") and "node=21" in l for l in report_sg))
+
     # 6) 硬伤按闭包过滤
     lines = [
         "skip node=8 mode=4 PreviewImage",
@@ -1186,7 +1268,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--workflow", required=True, help="UI 工作流 JSON 路径(只读)")
     run.add_argument("--var-node", required=True, help="拍变量节点 id(如 seed 所在 KSampler)")
     run.add_argument("--var-field", required=True, help="拍变量输入槽名(如 seed)")
-    run.add_argument("--var-values", nargs="+", required=True, help="逐拍取值(拍数=值数;类型按槽位现值收编)")
+    run.add_argument("--var-values", nargs="+", required=True, help="逐拍取值(拍数=值数;类型按槽位现值收编;random=每拍新随机整数(用户令 1009:种子每发换新))")
+    run.add_argument("--set", action="append", default=[], metavar="NODE.FIELD=VALUE",
+                     help="旋钮覆盖(可重复;value=@路径=读文件全文;预检同 --var-*;1009 立:型选择/主体句等常量跨拍覆盖)")
     run.add_argument("--prefix-node", help="防覆盖前缀节点 id(指到 SaveImage 才改前缀)")
     run.add_argument("--prefix-field", default="filename_prefix", help="前缀槽名(默认 filename_prefix)")
     run.add_argument("--prefix-base", default="batch", help="前缀基名(每拍 <base>_<拍号:04d>)")

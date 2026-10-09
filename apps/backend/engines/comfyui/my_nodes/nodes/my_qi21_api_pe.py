@@ -312,22 +312,22 @@ def _context_materials() -> tuple[str, str]:
 
 
 def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
-    """透明路回退极简公式(1008 R3九型实弹定谳):头英句+主体句+该型rgba_positive+底座rgba_text托底+尾英句。
+    """透明路回退极简公式(1008 R3九型实弹定谳;1009晚修:零自带头尾+剥中文透明句)。
 
     依据:富装配17句画背景命令以6.7~8.3:1兵力比淹没透明指令(道具全透
     4.98%/多视图·高清人脸·表情差分0.00%,同seed四连逐字节复现;0927d
     剂量-响应同构)。配方=0927d探针实测定谳(英文公式短文直塞90.34%透明;
-    专用件 qwen21-daotu-rgba-t2i 同款),头尾取 rgba 真源节热读;
+    专用件 qwen21-daotu-rgba-t2i 同款);
     rgba_positive=该型透明路格式锁(纯框架零绘画词),按型文逐字匹配取用;
     rgba_text=底座风格托底(1008 用户令拆分:画法工艺子集随行托风格,
     底色/平涂/背景语言仍排除——1008晚二轮实证纯主体句无托底=风格漂成普通渲染)。
+    1009晚修(用户令「修」,实弹 A案补色首弹收据实证双头双尾+中文透明句残留):
+    ①透明语义全英文承载(2008架构令)——rgba_positive 自带的中文透明声明句
+    (「图为带透明通道…背景透明」)句级剥除,不再入正文;
+    ②官方头尾(head_en/tail_en)由 [4014] FinalOutput 统一包裹各一次,
+    本回退路零自带头尾(治 lean 自带+4014 再包=双头双尾叠加)。
     """
     bases = _load_bases_node()
-    rgba = (bases.get("rgba") or {})
-    head = str(rgba.get("head_en") or "").strip() or \
-        "This is an RGBA format image with transparency."
-    tail = str(rgba.get("tail_en") or "").strip() or \
-        "The image has an alpha channel and a transparent background."
     body = (subj or "").strip()
     extra = ""
     if (type_pos or "").strip():
@@ -335,12 +335,17 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
             if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
                 extra = str(t.get("rgba_positive") or "").strip()
                 break
+    # 1009晚修①:句级剥除中文透明声明(rgba_positive 为单段多句,行级滤不够)
+    extra = "".join(
+        s for s in re.split(r"(?<=[。])", extra)
+        if "带透明通道" not in s and "背景透明" not in s
+    ).strip()
     style_backing = str((bases.get("art_style_base") or {}).get("positive_style_text") or "").strip()
     carry = str((bases.get("art_style_base") or {}).get("rgba_text") or "").strip()
     parts = [p for p in (body, extra, style_backing, carry) if p]
     if not parts:
         parts = ["A single game asset, clean flat cutout, centered, isolated on a transparent background."]
-    return f"{head} {' '.join(parts)} {tail}"
+    return " ".join(parts)
 
 
 # ── 1009 单线四段协议(用户令「1条线分4段,透明与背景分开,[4013]拼装更方便」)──
@@ -429,11 +434,12 @@ def _env_spans(subj: str) -> list[tuple[int, int]]:
 _PUNCT = "，。；、,.;:!！？？"
 
 
-def _subject_colors(subj: str, transparent: bool = False) -> list[str]:
-    """从主体句提取色词候选(确定性三源):
-    ①color_lexicon 在用词 ②palette-canon 42 色名 ③模式提取(X色/X+色字)。
+def _subject_color_clusters(subj: str, transparent: bool = False) -> list[list[str]]:
+    """从主体句提取色词候选簇(确定性三源):
+    ①color_lexicon 在用词 ②palette-canon 42 色名 ③模式提取(X色/X+色字/色字+X)。
     只取在主体句中实际出现的——这些是核心规则4的逐字禁换对象。
-    跨度贪心去重叠:长词优先("阶下青灰"取"青灰"弃"下青",防边界误报)。"""
+    重叠候选并簇(跨词边界两侧同簇);返回簇列表,簇内序=词典源优先→非色字最少
+    →最长→最前(簇首=代表,展示/报违例名用)。"""
     import re as _re
     _cs = set("白红青金墨灰绿蓝褐黑黄紫银玉")
     # (start, end, word, prio):词典源=0 优先于 模式源=1
@@ -454,28 +460,52 @@ def _subject_colors(subj: str, transparent: bool = False) -> list[str]:
         while start >= 0:
             spans.append((start, start + len(w), w, 0))
             start = subj.find(w, start + 1)
-    # 前瞻扫描取全重叠候选(finditer 非重叠会吞字:"缠灰"会吃掉"灰银"的"灰")
+    # 前瞻扫描取全重叠候选(两侧都产真词也产垃圾:月白/暗红/鎏金=前随真词,
+    # 灰绳/黑革/黄铜=后随真词;缠灰/侧黑/修玄色=前随垃圾,白腰/红剑=后随垃圾)。
     for m2 in _re.finditer(r"(?=([一-龥]{1,2}色))", subj):
         g = m2.group(1)
         spans.append((m2.start(), m2.start() + len(g), g, 1))
     for m2 in _re.finditer(r"(?=([一-龥][白红青金墨灰绿蓝褐黑黄紫银玉]))", subj):
         g = m2.group(1)
         spans.append((m2.start(), m2.start() + len(g), g, 1))
-    kept: list[tuple[int, int, str, int]] = []
-    for s, e, w, pr in sorted(spans, key=lambda x: (-(x[1] - x[0]),
-                                                    sum(c not in _cs for c in x[2]),
-                                                    x[3], x[0])):
-        if any(s < ke and e > ks for ks, ke, _, _ in kept):
-            continue
-        # 透明开:与环境词同小句紧邻(间隔≤4字且无标点)的色词随环境合法删,不检
+    for m2 in _re.finditer(r"(?=([白红青金墨灰绿蓝褐黑黄紫银玉][一-龥]))", subj):
+        g = m2.group(1)
+        spans.append((m2.start(), m2.start() + len(g), g, 1))
+    # 1009 聚簇重写(9B探针定谳):旧「逐 span 逐字在场」检在跨词边界碎片上必散架
+    # (修玄色/侧黑/缠灰——色词本体玄色/黑革/灰绳都在,合法改写把相邻字拆开,
+    # 零违例门把好稿拒了=近期实弹全透传真凶)。重叠候选并簇;簇代表序=非色字
+    # 最少(度量集含「色」:X色尾字是构词不是噪音,防「青玉」压「青玉色」;垃圾
+    # 边字修/缠/侧全非色字,天然沉底)→最长→词典源→最前;在场检改**簇内任一
+    # 命中即过**(月白簇={月白,白腰}改写保任一形态都过);独行簇(黑鲨)仍拦
+    # 「黑色鲨鱼皮」类真色词改写=教材规则4本义,交补发治。
+    _metric = _cs | {"色"}
+    _key = lambda x: (sum(c not in _metric for c in x[2]), -(x[1] - x[0]), x[3], x[0])
+    clusters: list[list[tuple[int, int, str, int]]] = []
+    _max_e = -1
+    for sp in sorted(spans, key=lambda x: (x[0], x[1])):
+        if clusters and sp[0] < _max_e:
+            clusters[-1].append(sp)
+        else:
+            clusters.append([sp])
+        _max_e = max(_max_e, sp[1])
+    out: list[list[str]] = []
+    for cl in clusters:
+        cl.sort(key=_key)
+        s, e = cl[0][0], max(x[1] for x in cl)
+        # 透明开:与环境词同小句紧邻(间隔≤4字且无标点)的色簇随环境合法删,不检
         if transparent and any(
                 max(s - ee, es - e, 0) <= 4
                 and not any(ch in _PUNCT
                             for ch in subj[min(e, es):max(s, ee)])
                 for es, ee in _env_spans(subj)):
             continue
-        kept.append((s, e, w, pr))
-    return [w for _, _, w, _ in sorted(kept)]
+        out.append([x[2] for x in cl])
+    return out
+
+
+def _subject_colors(subj: str, transparent: bool = False) -> list[str]:
+    """簇代表列表(展示/教学用);在场检请用 _subject_color_clusters(任一命中)。"""
+    return [cl[0] for cl in _subject_color_clusters(subj, transparent)]
 
 
 def _subject_stages(subj: str) -> list[str]:
@@ -580,9 +610,11 @@ def _self_check(pos: str, neg_tokens: list[str],
         for tok in _ENV_TOKENS:
             if tok in subj and tok not in pos_c:
                 v.append(f"环境丢:{tok}")
-    for c in _subject_colors(subj, bool(transparent)):
-        if c not in pos_c:
-            v.append(f"色词丢:{c}")
+    # 1009 聚簇任一命中:跨词边界两侧同簇(月白/白腰),合法改写保任一形态都过;
+    # 整簇缺席=真丢色,violation 名=簇代表。
+    for cl in _subject_color_clusters(subj, bool(transparent)):
+        if not any(m in pos_c for m in cl):
+            v.append(f"色词丢:{cl[0]}")
     for st in _subject_stages(subj):
         if st not in pos_c:
             v.append(f"境界丢:{st}")
@@ -794,9 +826,10 @@ class MyQi21ApiPE:
         # 1008 透明极简回退(R3九型实弹定谳):富装配17句画背景命令以6.7~8.3:1
         # 兵力比淹没透明指令(道具全透4.98%/三型0.00%,同seed四连逐字节复现;
         # 0927d剂量-响应同构)——透明开时,PE失败/拒收/解析失败的一切回退稿
-        # 不再放行富装配,改走极简公式(head_en+主体句+tail_en;0927d实测
-        # 90.34%透明,专用件qwen21-daotu-rgba-t2i同款)。PE成功稿不受影响
-        # (自带环境句剥离+六检+教材透明逻辑);[4014]中文包裹照旧叠加。
+        # 不再放行富装配,改走极简公式(主体句+rgba_positive剥中文透明句+风格
+        # 托底;0927d实测90.34%透明,专用件qwen21-daotu-rgba-t2i同款)。PE成功稿
+        # 不受影响(自带环境句剥离+六检+教材透明逻辑);[4014]英文头尾统一包裹
+        # (1009晚修:回退路零自带头尾,治双头双尾叠加)。
         fallback_pos = _rgba_lean_pos(subj, base) if 透明模式 else direct
         ctx = ["--- 画面上下文(色卡用词与画风基调参考) ---"]
         if style:
@@ -902,6 +935,23 @@ class MyQi21ApiPE:
                 payload["reasoning_effort"] = "none"
             else:
                 payload.pop("reasoning_effort", None)
+            # 1009 用户令「按建议做」:本地 LM Studio 挂 json_schema 语法硬约束——
+            # 答文信封(丢{/围栏/键名漂移)从概率事件变物理不可能(采样器级语法锁,
+            # 同机实弹对照:诱导破坏也被摁住;流式兼容,10-12s/发)。云端 anthropic
+            # 口不认 OpenAI response_format 字段故仅本地挂;语法锁只管信封,内容
+            # (色词逐字/部件零丢失)仍归教材+机器自检门管。
+            if _https:
+                payload.pop("response_format", None)
+            else:
+                payload["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {"name": "pe_rewrite", "strict": True, "schema": {
+                        "type": "object",
+                        "properties": {"rewritten_prompt": {"type": "string"}},
+                        "required": ["rewritten_prompt"],
+                        "additionalProperties": False,
+                    }},
+                }
             if not _alive(_u):
                 print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
                       "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查-1007.md)")
@@ -926,6 +976,19 @@ class MyQi21ApiPE:
                     _detail = _he.read()[:160].decode("utf-8", "ignore")
                 except Exception:
                     pass
+                # 1009:旧本地服务不识 json_schema(400 点名 response_format)→
+                # 摘约束同目标重发一次,不弃该服务(恒有输出优先)
+                if _he.code == 400 and "response_format" in _detail and "response_format" in payload:
+                    payload.pop("response_format", None)
+                    try:
+                        _r2 = _post(payload)
+                        _msg0 = (_r2.get("choices") or [{}])[0].get("message", {})
+                        if (_msg0.get("content") or "").strip() or (_msg0.get("reasoning_content") or "").strip():
+                            resp = _r2
+                            served = _m
+                            break
+                    except Exception as _exc2:
+                        print(f"[漫影 API扩写PE] 摘response_format重发仍挂({_exc2})")
                 print(f"[漫影 API扩写PE] {_u}({_m}) HTTP {_he.code}: {_detail[:120]}")
                 _errs.append(f"{_m}:HTTP {_he.code} {_detail[:80]}")
                 continue
@@ -979,7 +1042,20 @@ class MyQi21ApiPE:
                 _raw = _raw[4:].strip()
         if '"rewritten_prompt"' in _raw and not _raw.lstrip().startswith("{"):
             _raw = "{" + _raw.lstrip()
+        # 1009 实弹第三例:连 `{` 带键左引号一并丢(正文以 rewritten_prompt": 直起,
+        # 引擎日志同日五发同指纹)——补回 {" 两字符。
+        if re.match(r'rewritten_prompt"\s*:', _raw):
+            _raw = '{"' + _raw
         obj = _balanced_json(_raw) or _balanced_json(reasoning[-4000:])
+        if obj is None:
+            # 1009 末路修边:对象拼不回时,按 JSON 字符串转义律直取键值原文
+            # (只取模型自己写的字符串不改义;尾缺 } 也活)。
+            m = re.search(r'"?rewritten_prompt"?\s*:\s*"((?:[^"\\]|\\.)*)"', _raw)
+            if m:
+                try:
+                    obj = {"rewritten_prompt": json.loads('"' + m.group(1) + '"')}
+                except (ValueError, TypeError):
+                    obj = None
         pos = obj.get("rewritten_prompt") if obj else None
         if isinstance(pos, str) and pos.strip():
             # 模型负向键(negative_prompt)一律不采信(1008 解耦):终稿负向恒=neg_out
