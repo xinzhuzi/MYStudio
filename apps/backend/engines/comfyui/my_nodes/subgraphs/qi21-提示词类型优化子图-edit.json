@@ -975,9 +975,9 @@
               "",
               true,
               false,
-              "这是一张带有透明度的RGBA图像。",
-              "该图像具有alpha通道,背景是透明的。",
-              "主体呈现为干净的平面剪裁,单一独立素材完整保持在画幅内,四周被空白透明度包围,轮廓至边缘清晰完整不断裂。"
+              "This is an RGBA image with transparency.",
+              "The image has alpha channel and the background is transparent.",
+              "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
             ],
             "properties": {
               "Node name for S&R": "MyQi21PromptSelect"
