@@ -75,6 +75,17 @@ except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
     _styles_spec.loader.exec_module(_styles_mod)
     _merge_negative = _styles_mod._merge_negative
 
+# 透明声明句级剔除单源(10-09-qi21-prompt-layer-conflict P6;同上双路导入)
+try:
+    from ._qi21_rgba_text import strip_rgba_decl
+except ImportError:  # pragma: no cover - 直载形态(单测)走此腿
+    import importlib.util as _ilu
+    _rgba_spec = _ilu.spec_from_file_location(
+        "qi21_rgba_text_peer_load", Path(__file__).resolve().parent / "_qi21_rgba_text.py")
+    _rgba_mod = _ilu.module_from_spec(_rgba_spec)
+    _rgba_spec.loader.exec_module(_rgba_mod)
+    strip_rgba_decl = _rgba_mod.strip_rgba_decl
+
 # ── 主体句例文+美术风格底座 default(1001 t2i 工作流值逐字迁入,脚本注入禁手敲;──
 # ── sha256 前16位对拍锚=[24]主体句 afd9e6f562e3e606 / [110]美术风格底座 ──
 # ── eac9a808aa8f7232;美术风格底座改值走 05 库「从库刷参数」Q3 通道同批过账并更──
@@ -276,9 +287,9 @@ class MyQi21PromptAssembly:
         # 回退 positive 全文(_style_combo_transparent 内兜底),产线恒有输出。
         # 1008 用户令「用英文拼接」:透明路=官方英文头尾承载全部透明语义;
         # 型文内中文透明声明行(图为带透明通道…背景透明)不再重复拼入。
+        # 10-09 P6:行级滤改句级剔除(道具 L0 正文与声明同行,行级滤整行吞没正文)
         if _type_is_transparent(BASE):
-            base_out = "\n".join(l for l in BASE.split("\n")
-                                 if "带透明通道" not in l and "背景透明" not in l)
+            base_out = strip_rgba_decl(BASE)
             style_out = _style_combo_transparent()
         else:
             base_out, style_out = BASE, 锁层A全文

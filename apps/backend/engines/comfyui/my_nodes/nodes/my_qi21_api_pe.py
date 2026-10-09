@@ -75,6 +75,18 @@ def _check_interrupt():
 from pathlib import Path
 from typing import Any
 
+# 透明声明句级剔除单源(10-09-qi21-prompt-layer-conflict;装配器同款双路导入:
+# 包上下文相对导入,sys.path 直载/importlib 直载形态回落同目录直载)
+try:
+    from ._qi21_rgba_text import strip_rgba_decl
+except ImportError:  # pragma: no cover - 直载形态走此腿
+    import importlib.util as _ilu
+    _rgba_spec = _ilu.spec_from_file_location(
+        "qi21_rgba_text_peer_load", Path(__file__).resolve().parent / "_qi21_rgba_text.py")
+    _rgba_mod = _ilu.module_from_spec(_rgba_spec)
+    _rgba_spec.loader.exec_module(_rgba_mod)
+    strip_rgba_decl = _rgba_mod.strip_rgba_decl
+
 
 # 1008 用户令「不能异步调用?」:urlopen 放后台线程,主线程每 5 秒查打断
 import threading
@@ -335,11 +347,9 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
             if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
                 extra = str(t.get("rgba_positive") or "").strip()
                 break
-    # 1009晚修①:句级剥除中文透明声明(rgba_positive 为单段多句,行级滤不够)
-    extra = "".join(
-        s for s in re.split(r"(?<=[。])", extra)
-        if "带透明通道" not in s and "背景透明" not in s
-    ).strip()
+    # 1009晚修①:句级剥除中文透明声明(rgba_positive 为单段多句,行级滤不够;
+    # 10-09 层冲突治理:口径收归 _qi21_rgba_text 单源,单段时逐字节同旧式)
+    extra = strip_rgba_decl(extra).strip()
     style_backing = str((bases.get("art_style_base") or {}).get("positive_style_text") or "").strip()
     carry = str((bases.get("art_style_base") or {}).get("rgba_text") or "").strip()
     parts = [p for p in (body, extra, style_backing, carry) if p]
@@ -827,7 +837,10 @@ class MyQi21ApiPE:
                 style = wired_style or hot_style
         else:
             style = wired_style or hot_style
-        direct = f"主体句:{subj}\n类型句:{base}\n{style}".strip() if base else f"主体句:{subj}\n{style}".strip()
+        # 10-09 层冲突治理 P5:透明开时型文自带的中文透明声明句不入 PE 输入
+        # (透明语义全英文承载,[4014] 包裹);原始 base 仍传 _rgba_lean_pos 作逐字匹配键
+        base_pe = strip_rgba_decl(base).strip() if (透明模式 and base) else base
+        direct = f"主体句:{subj}\n类型句:{base_pe}\n{style}".strip() if base_pe else f"主体句:{subj}\n{style}".strip()
         if not subj:
             print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+风格两段")
         # 负面三源(型负面+美术风格底座负面热读+外部负向)去重合并——终稿负向唯一真源
