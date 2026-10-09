@@ -8,8 +8,8 @@
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        1140,
-        1700
+        180,
+        3880
       ],
       "size": [
         340,
@@ -58,8 +58,8 @@
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        1540,
-        1900
+        180,
+        5040
       ],
       "size": [
         360,
@@ -118,8 +118,8 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        1540,
-        2200
+        240,
+        6110
       ],
       "size": [
         340,
@@ -160,8 +160,8 @@
       "id": 5,
       "type": "VAEDecode",
       "pos": [
-        3520,
-        1180
+        7830,
+        2110
       ],
       "size": [
         240,
@@ -200,8 +200,8 @@
       "id": 7,
       "type": "KSampler",
       "pos": [
-        2980,
-        1000
+        5870,
+        1690
       ],
       "size": [
         330,
@@ -273,8 +273,8 @@
       "id": 8,
       "type": "SaveImage",
       "pos": [
-        3980,
-        1000
+        9720,
+        1680
       ],
       "size": [
         380,
@@ -303,8 +303,8 @@
       "id": 9,
       "type": "QwenImage21Cache",
       "pos": [
-        2560,
-        1900
+        2090,
+        1170
       ],
       "size": [
         320,
@@ -351,8 +351,8 @@
       "id": 10,
       "type": "LoadImage",
       "pos": [
-        820,
-        120
+        240,
+        960
       ],
       "size": [
         340,
@@ -406,8 +406,8 @@
       "id": 16,
       "type": "ImageScaleToTotalPixels",
       "pos": [
-        1440,
-        240
+        2090,
+        1410
       ],
       "size": [
         330,
@@ -470,8 +470,8 @@
       "id": 28,
       "type": "easy showAnything",
       "pos": [
-        1980,
-        1280
+        4000,
+        3580
       ],
       "size": [
         480,
@@ -508,8 +508,8 @@
       "id": 400,
       "type": "PrimitiveStringMultiline",
       "pos": [
-        820,
-        640
+        180,
+        4140
       ],
       "size": [
         340,
@@ -563,7 +563,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "## 道劫·图生图(严格经典 img2img)·用法速查\n\n**定位:同构图精修/改细节**——底图给骨架、文字给皮:denoise<1 部分重噪,输出\n**构图与姿态从底图继承**,提示词只换质感细节。与 `qi21-道劫-i2i`(参考图编辑,\n满噪 denoise=1.0,构图由文字重排)是两种范式,勿混用:改内容/换装/多参考走\ni2i 或 multiref;**保构图换细节走本件**。\n\n### 三步用法\n1. [10] 换底图(人物/场景/既有成图均可);\n2. [4010] 选型(十选一,默认①人物;型文底座照常参与,画面结构仍以底图为准);\n3. [400] 写精修指令(描述性,默认例句可直接跑)→ 队列。\n\n### denoise 档位([7] KSampler 末位 widget,默认 0.6)\n| 档位 | 效果 |\n|---|---|\n| 0.2~0.4 | 几乎不动构图,只换质感/风格 |\n| **0.5~0.7(默认 0.6)** | **大结构保留,细节大幅重画(同构图精修/改细节)** |\n| →1.0 | 逼近重画,构图渐不听底图(即退化回 i2i 范式) |\n\n### 采样与加速(viggle;1009 用户令)\n- 模型链 [1]UNET→[9]Cache→[7011]viggle LoRA→[7]KSampler;LoRA=\n  **Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256**(同 i2i viggle 支路官方件,\n  strength 1.0=1002 衔接批㉔口径)。\n- [7] = **6 步/cfg1/euler/simple/seed fixed 0/denoise 0.6**(viggle 荐档 6 步×\n  用户令 dn0.5~0.7 取中)。\n- **denoise<1 调度语义**:KSampler 取更长调度的**低噪尾段**(6步×dn0.6≈10 步表\n  末 6 档),从 ~60% 噪位起步往回画——结构由底图 latent 锚定,不靠满噪重排。\n- 诚实警示:viggle 蒸馏件按满噪 6 步轨迹训练,低噪尾段起步属 off-distribution;\n  画质异常先试:①[7] 抬 steps(8~10)②denoise 回 1.0(退回 i2i 编辑范式)③改走 i2i。\n- 负向:[4011] 装配负面词(型负面+锁层负面合并)真接 TE.negative_prompt;\n  **cfg=1 下数学不参与采样**(官方路径口径,同 i2i),抬 cfg 即激活。\n\n### 画幅与参考\n- 画幅随底图:[16] 预缩 1.5MP→TE resolution=0 不重采样,输出=底图(预缩后)比例。\n- [4015] image_2 槽**留空=合法**(TE images=Autogrow min0);要第二参考走 i2i。\n- PE 扩写不在本件(直写;PE-I2I 走 i2i);RGBA 透明不在本件(走 i2i)。\n\n### 装配与真源\n- 装配全文=[400] 精修指令+BASE+[4011] 锁层A 三段换行拼合;[28] 装配预览可看全文。\n- 锁层A=qi21_bases.json art_style_base.positive_text 唯一真源热读互锁\n  (1004 集中化令);型文同源。改词先改真源再同步本件卡文。\n\n### 维护\n- 生成脚本 `apps/build/scripts/qi21_img2img_build_1009.py`(幂等,重跑字节稳定);\n  契约=TestQi21Img2ImgContract+计数锚(清单台账同步 `docs/comfyui-kb/漫影工作流清单.md`)。\n- 与 i2i 的分野表:i2i=图给素材文字重排(满噪)/本件=图给骨架文字换皮(降噪)。"
+        "## 道劫·图生图(严格经典 img2img)·用法速查\n\n**定位:同构图精修/改细节**——底图给骨架、文字给皮:denoise<1 部分重噪,输出\n**构图与姿态从底图继承**,提示词只换质感细节。与 `qi21-道劫-i2i`(参考图编辑,\n满噪 denoise=1.0,构图由文字重排)是两种范式,勿混用:改内容/换装/多参考走\ni2i 或 multiref;**保构图换细节走本件**。\n\n### 三步用法\n1. [10] 换底图(人物/场景/既有成图均可);\n2. [4010] 选型(十选一,默认①人物;型文底座照常参与,画面结构仍以底图为准);\n3. [400] 写精修指令(描述性,默认例句可直接跑)→ 队列。\n\n### denoise 档位([7] KSampler 末位 widget,默认 0.6)\n| 档位 | 效果 |\n|---|---|\n| 0.2~0.4 | 几乎不动构图,只换质感/风格 |\n| **0.5~0.7(默认 0.6)** | **大结构保留,细节大幅重画(同构图精修/改细节)** |\n| →1.0 | 逼近重画,构图渐不听底图(即退化回 i2i 范式) |\n\n### 采样与加速(viggle;1009 用户令)\n- 模型链 [1]UNET→[9]Cache→[7011]viggle LoRA→[7]KSampler;LoRA=\n  **Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256**(同 i2i viggle 支路官方件,\n  strength 1.0=1002 衔接批㉔口径)。\n- [7] = **6 步/cfg1/euler/simple/seed fixed 0/denoise 0.6**(viggle 荐档 6 步×\n  用户令 dn0.5~0.7 取中)。\n- **denoise<1 调度语义**:KSampler 取更长调度的**低噪尾段**(6步×dn0.6≈10 步表\n  末 6 档),从 ~60% 噪位起步往回画——结构由底图 latent 锚定,不靠满噪重排。\n- 诚实警示:viggle 蒸馏件按满噪 6 步轨迹训练,低噪尾段起步属 off-distribution;\n  画质异常先试:①[7] 抬 steps(8~10)②denoise 回 1.0(退回 i2i 编辑范式)③改走 i2i。\n- 负向:[4011] 装配负面词(型负面+锁层负面合并)真接 TE.negative_prompt;\n  **cfg=1 下数学不参与采样**(官方路径口径,同 i2i),抬 cfg 即激活。\n\n### 画幅与参考\n- 画幅随底图:[16] 预缩 1.5MP→TE resolution=0 不重采样,输出=底图(预缩后)比例。\n- [4015] image_2 槽**留空=合法**(TE images=Autogrow min0);要第二参考走 i2i。\n- PE 扩写不在本件(直写;PE-I2I 走 i2i);RGBA 透明不在本件(走 i2i)。\n\n### 装配与真源\n- 装配全文=[400] 精修指令+BASE+[4011] 锁层A 三段换行拼合;[28] 装配预览可看全文。\n- 锁层A=qi21_bases.json art_style_base.positive_text 唯一真源热读互锁\n  (1004 集中化令);型文同源。改词先改真源再同步本件卡文。\n\n### 维护\n- **本件零组框**(1009 裁定:两阶段退火布局求解产物,自由态;非基线件无组框契约)。\n- 生成脚本 `apps/build/scripts/qi21_img2img_build_1009.py`(幂等,重跑字节稳定);\n  契约=TestQi21Img2ImgContract+计数锚(清单台账同步 `docs/comfyui-kb/漫影工作流清单.md`)。\n- 与 i2i 的分野表:i2i=图给素材文字重排(满噪)/本件=图给骨架文字换皮(降噪)。"
       ],
       "title": "[402] 道劫图生图·用法速查"
     },
@@ -572,8 +572,8 @@
       "type": "MyQi21DaojieBase",
       "title": "[4010] 底座十选一·自研",
       "pos": [
-        820,
-        900
+        200,
+        2910
       ],
       "size": [
         420,
@@ -644,8 +644,8 @@
       "type": "MyQi21PromptAssembly",
       "title": "[4011] 底料拼合·自研",
       "pos": [
-        1480,
-        760
+        2420,
+        3820
       ],
       "size": [
         520,
@@ -708,8 +708,8 @@
       "id": 4015,
       "type": "TextEncodeQwenImage21",
       "pos": [
-        2100,
-        300
+        4000,
+        1960
       ],
       "size": [
         420,
@@ -796,8 +796,8 @@
       "id": 7011,
       "type": "LoraLoaderModelOnly",
       "pos": [
-        2560,
-        2160
+        3150,
+        1550
       ],
       "size": [
         340,
@@ -994,44 +994,7 @@
       "IMAGE"
     ]
   ],
-  "groups": [
-    {
-      "id": 1,
-      "title": "道劫·①底图·装配(指令+底座+拼合+预览)",
-      "bounding": [
-        760,
-        20,
-        1760,
-        1550
-      ],
-      "color": "#3f789e",
-      "flags": {}
-    },
-    {
-      "id": 2,
-      "title": "Qwen-Image-2.1 ②加载器(bf16 实配)",
-      "bounding": [
-        1080,
-        1600,
-        880,
-        720
-      ],
-      "color": "#a1309b",
-      "flags": {}
-    },
-    {
-      "id": 3,
-      "title": "道劫·③图生图主链(单参考TE→Cache→viggle LoRA→6步采样dn0.6→解码→保存)",
-      "bounding": [
-        2040,
-        200,
-        2380,
-        2150
-      ],
-      "color": "#88A",
-      "flags": {}
-    }
-  ],
+  "groups": [],
   "config": {},
   "extra": {},
   "definitions": {

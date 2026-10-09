@@ -30,7 +30,14 @@ def test_three_sections_hotread():
         "教材应 2500+ 字(八步法+选题逻辑)"
     assert "项目色卡全库" not in 教材, "色库数据已迁[4031],教材不得内嵌(1007 用户令)"
     assert "42色" in 色卡 or "42 色" in 色卡, "色卡应含42色全库"
-    assert "★在用" in 色卡 and "hex=" in 色卡 and "五职责" in 色卡, "色卡应在用标记+hex+五职责"
+    # 1009 用户抓「blue.02 这些词出图模型认吗」:渲染面零 ma_id/hex(住 json 供人工对表),
+    # 在用标记+五职责保留,用法带编号禁令,base 职责带满幅清退
+    import re as _re
+    assert "★在用" in 色卡 and "五职责" in 色卡, "色卡应在用标记+五职责"
+    assert not _re.search(r"[a-z]{3,8}\.\d{2}", 色卡), "渲染面不得含 ma_id(paper.01 等)"
+    assert not _re.search(r"#[0-9A-Fa-f]{6}\b", 色卡), "渲染面不得含 hex"
+    assert "编号" in 色卡 and "中文名" in 色卡, "用法应立编号禁令"
+    assert "满幅场景与概念气氛型不落宣纸白大面积基底" in 色卡, "base 职责应带满幅清退(治四角纸白)"
     assert len(风格) > 300, "风格底座应=美术风格底座全文量级"
 
 

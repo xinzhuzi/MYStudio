@@ -121,7 +121,8 @@ class TestSubjectColors(unittest.TestCase):
         self.assertIn("★在用", colors)
         self.assertIn("碧玉", colors)      # canon玉石组(非在用,考全库)
         self.assertIn("冲突裁决序", colors)
-        self.assertGreater(len(colors), 800)
+        # 1009 ID/hex 剥除后清单合法缩短(内容完整性由上三行断言把守)
+        self.assertGreater(len(colors), 600)
 
 
     def test_env_paren_notes_stripped(self):

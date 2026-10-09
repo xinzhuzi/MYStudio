@@ -302,7 +302,9 @@ def _canon_types() -> list[dict]:
     """canon 九型条目(qi21_bases.json types 前 9;自由档=第 10 条不入 canon)。"""
     return json.loads(BASES_JSON.read_text(encoding="utf-8"))["types"][:9]
 
-WORKFLOWS = {"t2i": T2I, "edit": EDIT, "qi21": QI21, "i2i": I2I, "img2img": IMG2IMG}
+# img2img 不入 WORKFLOWS(1009,同 10-01 B4 吸收件口径:遍历类不动,专件专锚)——
+# 遗留类按道劫三件子图形态遍历 GRAPHS,扁平件入册即误伤;TestQi21Img2ImgContract 直读文件
+WORKFLOWS = {"t2i": T2I, "edit": EDIT, "qi21": QI21, "i2i": I2I}
 GRAPHS = {name: json.loads(path.read_text(encoding="utf-8")) for name, path in WORKFLOWS.items()}
 
 # 2026-10-01 B4 吸收件(独立于 WORKFLOWS 四键:遍历类不动,专件专锚)
@@ -327,7 +329,7 @@ PE_PARAMS = [1.0, 0.95, 20, 1.5, 16256, 42]  # [1:7](手改态起尾带 control_
 # (api_url/model/temperature/max_tokens/timeout_sec;教材=qi21_bases.json
 # expand_instruction 节热读,节点内补 /no_think+肯定式纪律;服务不在=透传)
 QI21_PE_CLASS = "MyQi21ApiPE"
-PE_API_PARAMS = ["http://192.168.0.101:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive", 0.7, 12000, 600, "关闭", "", ""]  # 1008 全量改造:第6位=thinking_effort 控件值回填快照(1007 bbeeecac 入py未回写,finding 清偿;默认关闭)  # 1007夜 a2af54f2 用户终裁「不用Mac本机接,恒Windows LM Studio 9B」:api_url/model 双值收单值(Mac 127.0.0.1 端点+27B 型号名退役,锚随真源重立);末两位=两只展示框位  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
+PE_API_PARAMS = ["http://192.168.0.101:1234,http://127.0.0.1:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx", 0.7, 12000, 600, "关闭", "", ""]  # 1009 用户令「按建议做」:api_url/model 恢复双值——Windows 9B 主路在前,Mac 本机 27B MLX 回落在后(单点挂=裸透传脏图之治;1007夜 a2af54f2 单值收缴就此翻案,手术=qi21_t2i_pe_localfallback_1009.py)  # 1008 全量改造:第6位=thinking_effort 控件值回填快照(1007 bbeeecac 入py未回写,finding 清偿;默认关闭);末两位=两只展示框位  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
 
 # PE-I2I(edit 件)契约:0923-r16 换核心(comfy-core TextGenerate+RegexExtract,
 # 去 benjiyaya 依赖;design §13/research/13 官方免插件链照抄;真源=幂等生成器
@@ -4700,7 +4702,7 @@ def _links_pid(graph: dict, nid: int) -> int:
 # 与 i2i(满噪参考图编辑)范式分野——denoise<1=低噪尾段起步,off-distribution
 # 警示入 Note;生成器 qi21_img2img_build_1009.py+布局求解产物 layout json)──
 class TestQi21Img2ImgContract:
-    WF = GRAPHS["img2img"]
+    WF = json.loads(IMG2IMG.read_text(encoding="utf-8"))  # 直读文件,不入共享 GRAPHS 表(B4 口径)
 
     def _n(self, nid: int) -> dict:
         ns = [n for n in self.WF["nodes"] if n["id"] == nid]

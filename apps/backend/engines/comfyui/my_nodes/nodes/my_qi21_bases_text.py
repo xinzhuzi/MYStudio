@@ -104,12 +104,12 @@ def _section_text(section: str) -> str:
         for rk, rv in (cl.get("roles") or {}).items():
             if isinstance(rv, str) and rk != "note":
                 L.append(f"  {rk}: {rv}")
-        # 在用 10 词
+        # 在用 10 词(1009 用户抓「blue.02 这些词出图模型认吗」:ma_id/hex 只住 json
+        # 供人工对表,不印给 PE——9B 会把内部编号括注抄进终稿,编码器不识=噪音)
         L.append(f"\n═ ★在用色卡({len(IN_USE)}词,优先选) ═")
         for i, (word, ent) in enumerate(sorted(cl.get("entries", {}).items()), 1):
             if isinstance(ent, dict):
-                L.append(f"  {i}. {word}({ent.get('ma_id','')}) hex={ent.get('hex','')} "
-                         f"| {ent.get('usage_hint','')} | 在用:{'/'.join(ent.get('in_use', []))}")
+                L.append(f"  {i}. {word} | {ent.get('usage_hint','')} | 在用:{'/'.join(ent.get('in_use', []))}")
         # 42 色全库(读 palette-canon.json)
         canon_p = _BASES_JSON.parent.parent / "ma_sync" / "palette-canon.json"
         try:
@@ -125,7 +125,7 @@ def _section_text(section: str) -> str:
                 L.append(f"\n【{gname}系】")
                 for c in by_group[gid]:
                     tag = " ★在用" if c.get("name") in IN_USE else ""
-                    L.append(f"  {c['colorId']} {c['name']} #{c['hex']} — {c.get('mediumRole','')};适合:{c.get('suitable','')}{tag}")
+                    L.append(f"  {c['name']} — {c.get('mediumRole','')};适合:{c.get('suitable','')}{tag}")
         except Exception as exc:
             L.append(f"\n(备选42色库读取失败:{exc})")
         return "\n".join(L)

@@ -92,6 +92,7 @@ i2i 或 multiref;**保构图换细节走本件**。
   (1004 集中化令);型文同源。改词先改真源再同步本件卡文。
 
 ### 维护
+- **本件零组框**(1009 裁定:两阶段退火布局求解产物,自由态;非基线件无组框契约)。
 - 生成脚本 `apps/build/scripts/qi21_img2img_build_1009.py`(幂等,重跑字节稳定);
   契约=TestQi21Img2ImgContract+计数锚(清单台账同步 `docs/comfyui-kb/漫影工作流清单.md`)。
 - 与 i2i 的分野表:i2i=图给素材文字重排(满噪)/本件=图给骨架文字换皮(降噪)。"""
@@ -212,18 +213,10 @@ def main() -> None:
         for nid, pos in ov.items():
             N[int(nid)]["pos"] = list(pos)
 
-    def bbox_of(members: list[int], pad: int = 60) -> list[int]:
-        xs0 = min(N[m]["pos"][0] for m in members)
-        ys0 = min(N[m]["pos"][1] for m in members)
-        xs1 = max(N[m]["pos"][0] + int(N[m].get("size", [340, 200])[0]) for m in members)
-        ys1 = max(N[m]["pos"][1] + int(N[m].get("size", [340, 200])[1]) for m in members)
-        return [xs0 - pad, ys0 - pad - 40, xs1 - xs0 + 2 * pad, ys1 - ys0 + 2 * pad + 40]
-
-    groups = [
-        {"id": 1, "title": "道劫·①底图·装配(指令+底座+拼合+预览)", "bounding": bbox_of([10, 16, 400, 4010, 4011, 28]), "color": "#3f789e", "flags": {}},
-        {"id": 2, "title": "Qwen-Image-2.1 ②加载器(bf16 实配)", "bounding": bbox_of([1, 2, 3]), "color": "#a1309b", "flags": {}},
-        {"id": 3, "title": "道劫·③图生图主链(单参考TE→Cache→viggle LoRA→6步采样dn0.6→解码→保存)", "bounding": bbox_of([9, 7011, 4015, 7, 5, 8]), "color": "#88A", "flags": {}},
-    ]
+    # 组框:本件零组框(裁定 1009)——求解器布局中 [16]/[9] 同列相邻、装载器列与
+    # 指令槽交错,任意分组切割必然组框互叠;布局硬检查(遮挡/重叠/间距/左向/负区)
+    # 全绿为实义,非基线件无组框契约(pose-edit 先例有组框,本件豁免并在 Note 载明)
+    groups = []
 
     doc = {"id": "qi21-daojie-img2img-1009", "revision": 0, "last_node_id": 4020,
            "last_link_id": len(links), "nodes": [N[k] for k in sorted(N)],
@@ -269,15 +262,6 @@ def main() -> None:
     assert N[4011]["widgets_values"][1] == truth, "锁层A全文≠qi21_bases.json 真源"
     assert N[4015]["widgets_values"][2] == 0, "TE resolution 应=0(不重采样)"
     assert N[8]["widgets_values"] == [SAVE_PREFIX]
-    gs = doc["groups"]
-    strict_layout = LAYOUT.exists()   # 终排(求解器覆盖已回灌)才开组框硬门;手排草稿轮豁免
-    for a in range(len(gs)):
-        if not strict_layout:
-            break
-        for b in range(a + 1, len(gs)):
-            ga, gb = gs[a]["bounding"], gs[b]["bounding"]
-            if ga[0] < gb[0]+gb[2] and ga[0]+ga[2] > gb[0] and ga[1] < gb[1]+gb[3] and ga[1]+ga[3] > gb[1]:
-                die(f"组框重叠:{gs[a]['title'][:12]}×{gs[b]['title'][:12]}")
     for tok in ("0.5~0.7", "同构图精修", "off-distribution", "低噪尾段", "negative_prompt",
                 "image_2", "qi21_bases.json", "viggle-turbo-v0.3-6step", "strength 1.0"):
         if tok not in NOTE:
@@ -285,7 +269,7 @@ def main() -> None:
 
     OUT.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"PASS 建件完成:{OUT.name}")
-    print(f"     节点 16/链 {len(links)}/组框 3;denoise={DN} steps={STEPS} viggle;锁层A==真源(热读)")
+    print(f"     节点 16/链 {len(links)}/组框 0(裁定);denoise={DN} steps={STEPS} viggle;锁层A==真源(热读)")
 
 
 if __name__ == "__main__":

@@ -19,16 +19,18 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/daojie_bases.json"
+# 1009 修:旧 K2 侧 my_nodes/nodes/daojie_bases.json 已随 1004 真源集中化并入
+# daojie_ink_guofeng 家(qi21_bases.json),旧路径 FileNotFoundError=预检门失效。
+BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 DOC = REPO / "docs/prompts/道劫_九型主体句示例.md"
 MIN_BLOCK = 10
 
 
 def base_positive(name: str) -> str:
     d = json.loads(BASES.read_text(encoding="utf-8"))
-    for e in d:
+    for e in d["types"]:
         if name in (e.get("zh", "") + e.get("key", "") + e.get("purpose", "")):
-            return e["positive"]
+            return e["positive_text"]
     raise SystemExit(f"未找到型 {name}")
 
 

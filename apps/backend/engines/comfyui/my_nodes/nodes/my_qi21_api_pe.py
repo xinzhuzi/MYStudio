@@ -292,7 +292,7 @@ def _context_materials() -> tuple[str, str]:
              "色词必须落到实物载体(部件/材质/布面),禁落光效;禁裸色词(色+材质)",
              "冲突裁决序(高>低): " + " > ".join(cl.get("conflict_order", []))]
     for i, (word, ent) in enumerate(sorted((cl.get("entries") or {}).items()), 1):
-            lines.append(f"  ★在用{i}. {word}({ent.get('ma_id','')}):{ent.get('usage_hint','')}")
+            lines.append(f"  ★在用{i}. {word}:{ent.get('usage_hint','')}")
     try:
         canon = json.loads((_BASES_JSON.parent.parent / "ma_sync" / "palette-canon.json")
                            .read_text(encoding="utf-8"))
@@ -526,6 +526,39 @@ def _strip_env_parens(pos: str) -> str:
         inner = m.group(0)
         return "" if any(t in inner for t in _META_TOKENS + _ENV_TOKENS) else inner
     return _re.sub(r"（[^（）]*）|\([^()]*\)", _drop, pos)
+
+
+def _strip_artifacts(pos: str) -> str:
+    """出文残渣保守剥除(1009晚修,修后首弹实弹收据实证):
+
+    Windows 9B 偶把 JSON 皮与自我修补注释写进 rewritten_prompt 值内部
+    (收据形态:「…技法。”}**}  <!-- 注意:JSON末尾多了一个 } ,需修正为 {」)
+    ——全角引号 ” 骗过 _balanced_json 的字符串状态机,整体仍是合法 JSON,
+    解析层无责;剥除归出文卫生层。中文画面正文零合法 <!-- 与尾随花括号,
+    只剥 HTML 注释(闭合+尾部未闭合)与串尾 JSON 皮残渣块,保守不动中段。"""
+    out = re.sub(r"<!--.*?-->", " ", pos, flags=re.S)
+    out = re.sub(r"<!--.*$", " ", out, flags=re.S)
+    if out.rstrip().endswith(("}", "*", "”", '"', "’", "'", "】")):
+        out = re.sub(r"[\u201c\u201d\u2018\u2019\"'\]】]?\s*\}[\}\*\s\u201c\u201d\"'\]】]*$",
+                      " ", out.rstrip())
+    return out.strip()
+
+
+_COLOR_CODE_PARENS = re.compile(r"\s*[（(]\s*[a-z]{3,8}\.\d{2}\s*[)）]")
+_COLOR_CODE_BARE = re.compile(r"\b[a-z]{3,8}\.\d{2}\b")
+_COLOR_HEX = re.compile(r"#[0-9A-Fa-f]{6}\b")
+
+
+def _strip_color_codes(pos: str) -> str:
+    """词典编号(paper.01/blue.02 等 ma_id)与 hex 硬剥(1009 用户抓「这些词出图模型认吗」)。
+
+    9B 改写会把色卡里的内部编号括注进终稿(收据实证「赭石(red.04)」「宣纸白系
+    (paper.01 宣纸白)」)——文本编码器不识编号与色值,纯噪音;卡文侧已立禁令+
+    渲染侧已剥展示,本滤=末路兜底,三重防线。中文正文零合法 ma_id/hex 形态。"""
+    out = _COLOR_CODE_PARENS.sub("", pos)
+    out = _COLOR_CODE_BARE.sub("", out)
+    out = _COLOR_HEX.sub("", out)
+    return re.sub(r"[ \t]{2,}", " ", out).strip()
 
 
 def _strip_env_sentences(pos: str, subj: str) -> str:
@@ -1060,6 +1093,9 @@ class MyQi21ApiPE:
         if isinstance(pos, str) and pos.strip():
             # 模型负向键(negative_prompt)一律不采信(1008 解耦):终稿负向恒=neg_out
             pos_s = pos.strip()
+            # 1009晚修:出文残渣剥除(JSON 皮/自我修补注释,9B 偶写进值内)——
+            # 先剥残渣再进环境句剥离与六检,两路(透明/非透明)统一过。
+            pos_s = _strip_color_codes(_strip_artifacts(pos_s))
             if 透明模式:
                 pos_s = _strip_env_parens(_strip_env_sentences(pos_s, subj))
             # 零违例接收门(1008 用户令):自检任一违例=不合格稿——首稿零违例直收;
