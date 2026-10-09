@@ -3267,7 +3267,7 @@ class TestQi21SubgraphContract:
         # 画幅档:官方 ResolutionSelector 枚举 8 档逐字串 + MP 数值域;多视图=
         # Q2.1侧公式档 3:4/1.8(1008 快出档缩编,用户令 1-2MP 快出+后放大;
         # 0927 旧档 3:4/4.2 退役入 git 史)。override 双口径如实记:K2 侧件
-        # (my_daojie_base)消费 override=2448×1632 合板直出(旧 3072×1024),
+        # (my_daojie_base)消费 override=1632×1632 四视图直出(旧六格2448×1632),
         # Q2.1 侧件
         # (my_qi21_base)不消费 override(消费面忽略)=分张产线口径,两件各取
         # 所需共享同一数据集(1004 集中地后 K2/Q2.1 单文件双口径)
@@ -3283,8 +3283,8 @@ class TestQi21SubgraphContract:
         mv = next(e for e in qi21 if e["zh"] == "人物多视图")
         assert (mv["aspect_ratio"], mv["megapixels"]) == ("3:4 (Portrait Standard)", 1.8), \
             "qi21_bases.json「人物多视图」画幅档应=Q2.1侧公式档 3:4/1.8(1008 快出档缩编)"
-        assert mv.get("resolution_override") == [2448, 1632], \
-            "qi21_bases.json「人物多视图」override 应=K2 侧合板值 [2448,816] 在档(Q2.1 消费面忽略)"
+        assert mv.get("resolution_override") == [1632, 1632], \
+            "qi21_bases.json「人物多视图」override 应=四视图两行两列 [1632,1632](1009 用户令,旧六格2448×1632)"
         # 1004 正负拆开硬口径:positive_text=正向描述文体,禁令句(禁止/不得/
         # 默认禁止)应拆入 negative_text,正向残留即红
         for e in qi21[:9]:
@@ -3319,7 +3319,7 @@ class TestQi21SubgraphContract:
         # 不锚」同批退役;断言分层职责,不冻结 1004 压平旧文案)
         renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
         # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
-        _OPEN = {"人物多视图": "同一角色的六视图设定图", "高清人脸": "同一角色的面部特写素材",
+        _OPEN = {"人物多视图": "同一角色的四视图设定图", "高清人脸": "同一角色的面部特写素材",
                  "表情差分": "同一角色的九格表情对比表"}
         for e in qi21[:9]:
             if e["zh"] in _OPEN:
