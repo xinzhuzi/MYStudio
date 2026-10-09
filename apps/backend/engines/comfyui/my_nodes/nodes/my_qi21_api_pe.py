@@ -481,6 +481,14 @@ def _subject_color_clusters(subj: str, transparent: bool = False) -> list[list[s
     for m2 in _re.finditer(r"(?=([白红青金墨灰绿蓝褐黑黄紫银玉][一-龥]))", subj):
         g = m2.group(1)
         spans.append((m2.start(), m2.start() + len(g), g, 1))
+    # 1010 假红三犯停用(用户令「都做」):模式源候选的边字为 的/了/多/全/发/夜/景/物/彩
+    # =非色词——「静坐**的**白发老僧」切出**的白**/「**发**色乌黑」切出**发色**/
+    # 「**多**色相并陈」「**全**色相并陈」切出**多色/全色**(实弹三发假红拒收
+    # →补发解析失败→全透传的元凶;C12 断言假红家族第三犯)。词典源(旧金/月白
+    # 在册)不受此滤;真模式色(乌黑/暖金/暗红)边字不在停用集,照常存活。
+    _junk_edge = set("的了多全发夜景物彩图与温调相")
+    spans = [sp for sp in spans
+             if sp[3] == 0 or not (sp[2][0] in _junk_edge or sp[2][-1] in _junk_edge)]
     # 1009 聚簇重写(9B探针定谳):旧「逐 span 逐字在场」检在跨词边界碎片上必散架
     # (修玄色/侧黑/缠灰——色词本体玄色/黑革/灰绳都在,合法改写把相邻字拆开,
     # 零违例门把好稿拒了=近期实弹全透传真凶)。重叠候选并簇;簇代表序=非色字
@@ -736,6 +744,41 @@ def _balanced_json(text: str) -> dict | None:
                         break
         start = text.find("{", start + 1)
     return None
+
+
+def _parse_envelope(content: str, reasoning: str) -> dict | None:
+    """正文→rewritten_prompt 信封解析链(围栏/缺{/缺{"/平衡/思考剥/末路正则)。
+    1010 拆函数(主链+救回目标+补发重试三路复用)+末路二阶:严格正则断在值内
+    第一个未转义引号就弃稿——改贪心到全文末引号直取键值原文(仅 \" 与 \\
+    反转义),治「前导空白+缺{+值内未转义引号」三合一形态(实弹:5436字完整
+    改写稿被扔,正文头' "rewritten_prompt": …'即此形态)。"""
+    _raw = content.strip()
+    if _raw.startswith("```"):
+        _raw = _raw.strip("`").strip()
+        if _raw.startswith("json"):
+            _raw = _raw[4:].strip()
+    if '"rewritten_prompt"' in _raw and not _raw.lstrip().startswith("{"):
+        _raw = "{" + _raw.lstrip()
+    if re.match(r'rewritten_prompt"\s*:', _raw):
+        _raw = '{"' + _raw
+    obj = _balanced_json(_raw) or _envelope_from_reasoning(reasoning)
+    if obj is None:
+        m = re.search(r'"?rewritten_prompt"?\s*:\s*"((?:[^"\\]|\\.)*)"', _raw)
+        if m:
+            try:
+                obj = {"rewritten_prompt": json.loads('"' + m.group(1) + '"')}
+            except (ValueError, TypeError):
+                obj = None
+    if obj is None:
+        m2 = re.search(r'"?rewritten_prompt"?\s*:\s*"(.*)"', _raw, re.S)
+        if m2 is None:  # 值尾连闭合引号也丢——取到文末,剥尾杂(}"/空白)
+            m2 = re.search(r'"?rewritten_prompt"?\s*:\s*"(.*)\s*$', _raw, re.S)
+        if m2:
+            _v = m2.group(1).rstrip('"}` ').strip()
+            _v = _v.replace('\\"', '"').replace("\\\\", "\\")
+            if _v.strip():
+                obj = {"rewritten_prompt": _v}
+    return obj
 
 
 def _envelope_from_reasoning(reasoning: str) -> dict | None:
@@ -1000,6 +1043,7 @@ class MyQi21ApiPE:
         t0 = time.time()
         resp = None
         served = ""
+        used_idx = -1  # 1010:内容层失败救回要知道已耗掉哪个目标
         _errs: list[str] = []  # 逐目标失败详情(云端失败要明示原因,1007 用户令)
         for _i in range(len(urls)):
             _u, _m = pair(_i)
@@ -1045,6 +1089,7 @@ class MyQi21ApiPE:
                     continue
                 resp = _r
                 served = _m + ("(云端)" if _https else "")
+                used_idx = _i
                 break  # 首个有内容的用
             except urllib.error.HTTPError as _he:
                 _detail = ""
@@ -1085,6 +1130,72 @@ class MyQi21ApiPE:
             return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                            "api_pe_status": [_status]},
                     "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+
+        def _salvage_next_model(reason: str):
+            """1010 用户令「都做」:内容层失败也换下一模型。
+            旧路=网络层失败(探活/HTTP/超时/空)才换目标;内容层失败(机检违例/
+            解析失败)同模型补发一次后直接回退装配——其余目标从未被问到
+            (实弹:Win9B 机检假红拒收,Mac 27B 活着载着零调用,分镜案)。
+            每余位一发:零违例才收,不再二轮补发(补发在主目标已做过)。"""
+            nonlocal url
+            for _j in range(used_idx + 1, len(urls)):
+                _u2, _m2 = pair(_j)
+                try:
+                    if not _alive(_u2):
+                        print(f"[漫影 API扩写PE] 救回: {_u2} 探活不通——下一个")
+                        continue
+                    url = _chat_url(_u2)
+                except Exception:
+                    continue
+                payload["model"] = _m2
+                try:
+                    _r2 = _post(payload)
+                except urllib.error.HTTPError as _he2:
+                    _d2 = ""
+                    try:
+                        _d2 = _he2.read()[:160].decode("utf-8", "ignore")
+                    except Exception:
+                        pass
+                    if _he2.code == 400 and "response_format" in _d2 and "response_format" in payload:
+                        payload.pop("response_format", None)
+                        try:
+                            _r2 = _post(payload)
+                        except Exception as _e2:
+                            print(f"[漫影 API扩写PE] 救回目标 {_u2}({_m2}) 失败({_e2})——下一个")
+                            continue
+                    else:
+                        print(f"[漫影 API扩写PE] 救回目标 {_u2}({_m2}) HTTP {_he2.code}——下一个")
+                        continue
+                except Exception as exc:
+                    print(f"[漫影 API扩写PE] 救回目标 {_u2}({_m2}) 失败({exc})——下一个")
+                    continue
+                _m2m = (_r2.get("choices") or [{}])[0].get("message", {})
+                _c2 = (_m2m.get("content") or "").strip()
+                _r2r = str(_m2m.get("reasoning_content") or "")
+                if not _c2 and not _r2r:
+                    print(f"[漫影 API扩写PE] 救回目标 {_m2} 返回空——下一个")
+                    continue
+                _o2 = _parse_envelope(_c2, _r2r)
+                _p2 = _o2.get("rewritten_prompt") if _o2 else None
+                if not (isinstance(_p2, str) and _p2.strip()):
+                    print(f"[漫影 API扩写PE] 救回目标 {_m2} 稿无信封——下一个")
+                    continue
+                _p2s = _strip_color_codes(_strip_artifacts(_p2.strip()))
+                if 透明模式:
+                    _p2s = _strip_env_parens(_strip_env_sentences(_p2s, subj))
+                _v2 = _self_check(_p2s, neg_tokens, bool(透明模式), subj)
+                if _v2:
+                    print(f"[漫影 API扩写PE] 救回目标 {_m2} 稿 {len(_v2)} 项违例"
+                          f"({';'.join(_v2[:4])})——不收,下一个")
+                    continue
+                print(f"[漫影 API扩写PE] {reason}→救回:下一模型 {_m2} 零违例采用({len(_p2s)}字)")
+                print(f"[漫影 API扩写PE] 终稿头120: {_p2s[:120]!r}")
+                print(f"[漫影 API扩写PE] 终稿尾60: {_p2s[-60:]!r}")
+                return {"ui": {"api_pe_pos": [_p2s], "api_pe_neg": [neg_out],
+                               "api_pe_status": [f"AI扩写OK:{_m2}(内容层救回)"]},
+                        "result": (_p2s, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
+            return None
+
         try:
             _check_interrupt()  # 1008:LLM 响应后查打断(重试/自检前)
             msg = (resp.get("choices") or [{}])[0].get("message", {})
@@ -1115,32 +1226,7 @@ class MyQi21ApiPE:
                         content, msg = msg2["content"], msg2
                 except Exception as exc:
                     print(f"[漫影 API扩写PE] 重试失败({exc})——走思考链剥离兜底")
-        obj = None
-        _raw = content.strip()
-        # 1008 画布实弹加固(9B格式抖动两例在案:丢开括号/带markdown围栏):
-        # 剥代码围栏;有 rewritten_prompt 键但缺开括号时补 { ——只修边不修义。
-        if _raw.startswith("```"):
-            _raw = _raw.strip("`").strip()
-            if _raw.startswith("json"):
-                _raw = _raw[4:].strip()
-        if '"rewritten_prompt"' in _raw and not _raw.lstrip().startswith("{"):
-            _raw = "{" + _raw.lstrip()
-        # 1009 实弹第三例:连 `{` 带键左引号一并丢(正文以 rewritten_prompt": 直起,
-        # 引擎日志同日五发同指纹)——补回 {" 两字符。
-        if re.match(r'rewritten_prompt"\s*:', _raw):
-            _raw = '{"' + _raw
-        # 1009:reasoning 尾走同链恢复(Mac 27B 路由:答案在思考通道,偶带
-        # _balanced_json 啃不动的非法 JSON 细节,正则末路补最后一道)
-        obj = _balanced_json(_raw) or _envelope_from_reasoning(reasoning)
-        if obj is None:
-            # 1009 末路修边:对象拼不回时,按 JSON 字符串转义律直取键值原文
-            # (只取模型自己写的字符串不改义;尾缺 } 也活)。
-            m = re.search(r'"?rewritten_prompt"?\s*:\s*"((?:[^"\\]|\\.)*)"', _raw)
-            if m:
-                try:
-                    obj = {"rewritten_prompt": json.loads('"' + m.group(1) + '"')}
-                except (ValueError, TypeError):
-                    obj = None
+        obj = _parse_envelope(content, reasoning)
         pos = obj.get("rewritten_prompt") if obj else None
         if isinstance(pos, str) and pos.strip():
             # 模型负向键(negative_prompt)一律不采信(1008 解耦):终稿负向恒=neg_out
@@ -1172,7 +1258,7 @@ class MyQi21ApiPE:
                     _m3 = (resp3.get("choices") or [{}])[0].get("message", {})
                     _c3 = (_m3.get("content") or "").strip()
                     _r3 = str(_m3.get("reasoning_content") or "")
-                    _o3 = _balanced_json(_c3) or _envelope_from_reasoning(_r3)
+                    _o3 = _parse_envelope(_c3, _r3)
                     _p3 = _o3.get("rewritten_prompt") if _o3 else None
                     _check_interrupt()  # 1008:拒收回退前查打断
                     if not (isinstance(_p3, str) and _p3.strip()):
@@ -1180,6 +1266,9 @@ class MyQi21ApiPE:
                               f"——模型稿全部拒收,回退装配正稿(fallback_pos {len(fallback_pos)}字+"
                               f"三源确定性负向 {len(neg_out)}字);引擎 history 可查本行")
                         print(f"[漫影 API扩写PE] 回退文头100: {fallback_pos[:100]!r}")
+                        _sal = _salvage_next_model("拒收(重试解析失败)")
+                        if _sal is not None:
+                            return _sal
                         return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:重试解析失败,透传装配正稿"]},
                                 "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1193,6 +1282,9 @@ class MyQi21ApiPE:
                               f"(fallback_pos {len(fallback_pos)}字+三源确定性负向 {len(neg_out)}字);"
                               f"引擎 history 可查本行")
                         print(f"[漫影 API扩写PE] 回退文头100: {fallback_pos[:100]!r}")
+                        _sal = _salvage_next_model("拒收(自检违例未清)")
+                        if _sal is not None:
+                            return _sal
                         return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:自检违例未清,透传装配正稿"]},
                                 "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1203,6 +1295,9 @@ class MyQi21ApiPE:
                           f"——模型稿全部拒收,回退装配正稿(fallback_pos {len(fallback_pos)}字+"
                           f"三源确定性负向 {len(neg_out)}字);引擎 history 可查本行")
                     print(f"[漫影 API扩写PE] 回退文头100: {fallback_pos[:100]!r}")
+                    _sal = _salvage_next_model("拒收(补发失败)")
+                    if _sal is not None:
+                        return _sal
                     return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                    "api_pe_status": ["拒收回退:补发失败,透传装配正稿"]},
                             "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1220,6 +1315,9 @@ class MyQi21ApiPE:
                     "result": (pos_s, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         print(f"[漫影 API扩写PE] 答文无 rewritten_prompt(解析失败)——透传原文;"
               f"正文{len(content)}字/思考{len(reasoning)}字,正文头200:{content[:200]!r}")
+        _sal = _salvage_next_model("解析失败")
+        if _sal is not None:
+            return _sal
         return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                        "api_pe_status": ["透传:答文解析失败"]},
                 "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
