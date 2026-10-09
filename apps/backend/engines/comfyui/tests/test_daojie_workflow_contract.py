@@ -143,8 +143,8 @@ class TestDaojieBasesSources:
         for name, entry in BASES_BY_NAME.items():
             pt = entry["positive_text"]
             # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
-            _OPEN = {"人物多视图": "同一角色的四视图设定图", "高清人脸": "同一角色的面部特写素材",
-                     "表情差分": "同一角色的九格表情对比表"}
+            _OPEN = {"人物多视图": "同一角色的四视图设定图", "高清人脸": "单一角色的正面头肩特写素材",
+                     "表情差分": "同一角色的九宫格脸部表情差分表", "美宣": "主体的叙事美宣画面"}
             if name in _OPEN:
                 assert pt.startswith(_OPEN[name]), \
                     f"底座「{name}」应={_OPEN[name]}开头(1008 用户令),得 {pt[:12]!r}"
@@ -174,7 +174,7 @@ class TestDaojieBasesSources:
         assert not renwu.startswith("现代修仙"), "人物型回潮 v2.2 句首定性句"
         assert not renwu.startswith(MD_HEAD), "人物型回潮旧 §一 主干开头"
         assert not renwu.endswith(MD_TAIL), "人物型回潮旧 §一 尾句收尾"
-        for kw in ("单人立绘", "全身入画", "细彩线勾勒", "线随结构时粗时细"):
+        for kw in ("单人立绘", "取景范围完整呈现", "细彩线勾勒", "线随结构时粗时细"):  # 1009 并行轮
             assert kw in renwu, f"人物型缺 v5 画法关键词 {kw}(1004 统一底座措辞)"
         # 物象词禁令域=首行画法行(1004 统一底座含 四锁段截短版=衣褶/衣物/
         # 头发/鞋靴 段头自带物象名=合法;与 qwen21 契约 split("\n")[0] 同口径)

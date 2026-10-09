@@ -152,7 +152,7 @@ def test_base_text_verbatim_from_lib_for_all_nine():
         assert neg_text == entry["negative_text"], zh  # 型负面出口(案B:去死数据)
         lines = base_text.split("\n")
         # 1008晚透明句加入:三透明型(人物多视图/高清人脸/表情差分)型文+透明声明行=6行
-        assert len(lines) == (6 if zh in {"人物多视图", "高清人脸", "表情差分"} else (5 if zh in RENWU_XI else 2)), zh
+        assert len(lines) == (6 if zh in {"人物多视图"} else (4 if zh in {"高清人脸", "表情差分"} else (5 if zh in RENWU_XI else 2))), zh  # 1009 并行轮:人脸/表情=4行脸专属版
         assert lines[0].endswith("。")  # ②层美化版底座句号自足收尾
         # ①槽与美术风格底座常量 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
         assert not base_text.startswith("⟨①:")
@@ -274,7 +274,7 @@ def test_data_file_schema():
             continue
         assert bt  # 九型底座文本非空
         # 1004 增衣物完整性锁:人物系 7 行(②+锁B四行+④+完整性),非人物系 2 行
-        assert len(bt.split("\n")) == (6 if zh in {"人物多视图", "高清人脸", "表情差分"} else (5 if zh in RENWU_XI else 2)), zh  # 1008晚透明句加入:三透明型+1行
+        assert len(bt.split("\n")) == (6 if zh in {"人物多视图"} else (4 if zh in {"高清人脸", "表情差分"} else (5 if zh in RENWU_XI else 2))), zh  # 1008晚透明句加入:三透明型+1行
         assert e["aspect_ratio"] in ASPECTS, (zh, e["aspect_ratio"])  # 官方枚举串
         mp = e["megapixels"]
         assert (isinstance(mp, (int, float)) and not isinstance(mp, bool)

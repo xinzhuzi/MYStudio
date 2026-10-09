@@ -231,7 +231,7 @@ def test_renwu_new_framing_after_v22_switch():
     assert not renwu.startswith(head), "人物型回潮旧 §一 主干开头"
     assert not renwu.endswith(tail), "人物型回潮旧 §一 结尾句收尾"
     # 1004 重建:②层措辞「线随结构时粗时细」(旧锚「线有粗细变化」措辞退役)
-    for kw in ("单人立绘", "全身入画", "细彩线勾勒", "线随结构时粗时细"):
+    for kw in ("单人立绘", "取景范围完整呈现", "细彩线勾勒", "线随结构时粗时细"):  # 1009 并行轮:全身入画→弹性取景
         assert kw in renwu, f"人物型增量段缺 v5 画法关键词 {kw}"
     # v5「禁物象词」口径随 1004 集中化部分退役留痕:positive_text=②+锁B+④+
     # 衣物完整性拼合,锁B 行自带衣褶词汇;骨相/眉眼/发丝/衣色仍禁(未入锁B)
