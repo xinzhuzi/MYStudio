@@ -45,6 +45,14 @@ pillow
 numpy
 `;
 
+/** lock 包名集合(pip 名口径);pip check 门只对它们 fail-closed。 */
+const VIDEO_USE_LOCK_PACKAGES = ["requests", "librosa", "matplotlib", "pillow", "numpy"] as const;
+
+/** pip 包名归一:大小写与 -/_ 分隔差异折叠(opencv-python vs opencv_python)。 */
+function normalizePipPackageName(value: string): string {
+  return value.toLowerCase().replace(/[-_]/g, "");
+}
+
 type CommandOptions = {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
@@ -264,9 +272,28 @@ export function createVideoWorkflowRuntimeManager(
       await runVerified("pip install 验证", paths.pythonExecutable, [
         "-m", "pip", "install", "--disable-pip-version-check", "--no-input", "--requirement", lockPath,
       ], { cwd: upstreamRoot, env: verificationEnv });
-      await runVerified("pip check 验证", paths.pythonExecutable, [
-        "-m", "pip", "check", "--disable-pip-version-check",
-      ], { cwd: upstreamRoot, env: verificationEnv });
+      // pip check 是全环境体检,共享 managed Python 里其它域(如 VL 侧 mlx-vlm)
+      // 的依赖欠账会连坐本门(2026-10-10 装机实弹:mlx-vlm 缺 opencv-python/
+      // mlx-audio 版本低,把 video-use 更新误杀回滚)。只对 lock 包 fail-closed,
+      // 外部域告警记日志放行——各域各修各账。
+      try {
+        await ops.run(paths.pythonExecutable, [
+          "-m", "pip", "check", "--disable-pip-version-check",
+        ], { cwd: upstreamRoot, env: verificationEnv });
+      } catch (error) {
+        const detail = [
+          (error as { stdout?: string }).stdout ?? "",
+          (error as { stderr?: string }).stderr ?? "",
+          error instanceof Error ? error.message : String(error),
+        ].join("\n");
+        const offending = detail.split("\n").filter((line) => VIDEO_USE_LOCK_PACKAGES.some(
+          (lockPackage) => normalizePipPackageName(line).includes(normalizePipPackageName(lockPackage)),
+        ));
+        if (offending.length > 0) {
+          throw new Error(`pip check 验证失败(涉及 video-use lock 依赖):\n${offending.join("\n")}`);
+        }
+        console.warn(`[VideoWorkflow] pip check: 共享环境存在与 video-use 无关的依赖告警,放行:\n${detail.trim()}`);
+      }
       await runVerified("video-use 依赖导入验证", paths.pythonExecutable, [
         "-c", "import librosa, matplotlib, PIL, numpy",
       ], { cwd: upstreamRoot, env: verificationEnv });

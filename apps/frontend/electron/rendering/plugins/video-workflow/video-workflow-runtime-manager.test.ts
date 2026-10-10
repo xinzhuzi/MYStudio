@@ -27,6 +27,7 @@ type Harness = {
   runs: Array<{ file: string; args: string[]; env?: NodeJS.ProcessEnv }>;
   setRunFailure: (value: "pip-install" | "pip-check" | "import-smoke" | null) => void;
   setHashFailure: (value: boolean) => void;
+  setPipCheckConflicts: (lines: string[] | null) => void;
 };
 
 function createHarness(): Harness {
@@ -44,6 +45,7 @@ function createHarness(): Harness {
   const runs: Array<{ file: string; args: string[]; env?: NodeJS.ProcessEnv }> = [];
   let runFailure: "pip-install" | "pip-check" | "import-smoke" | null = null;
   let hashFailure = false;
+  let pipCheckConflicts: string[] | null = null;
 
   const download: VideoWorkflowRuntimeManagerOps["download"] = async (url, destinationPath) => {
     downloads.push(url);
@@ -89,6 +91,12 @@ function createHarness(): Harness {
           ? "import-smoke"
           : null;
     if (commandKind && commandKind === runFailure) throw new Error(`${commandKind} failed in test`);
+    if (commandKind === "pip-check" && pipCheckConflicts) {
+      // 模拟 execFile 非零退出:输出挂在 error.stdout(pip check 的告警行走 stdout)
+      throw Object.assign(new Error(`Command failed: ${file} -m pip check --disable-pip-version-check`), {
+        stdout: pipCheckConflicts.join("\n"),
+      });
+    }
     if (args[0] === "--version") {
       return { stdout: file === electronExecutable ? "v24.17.0" : "Python 3.12.7", stderr: "" };
     }
@@ -128,6 +136,7 @@ function createHarness(): Harness {
     runs,
     setRunFailure: (value) => { runFailure = value; },
     setHashFailure: (value) => { hashFailure = value; },
+    setPipCheckConflicts: (lines) => { pipCheckConflicts = lines; },
   };
 }
 
@@ -179,12 +188,38 @@ describe("video workflow runtime manager", () => {
 
     await expect(harness.manager.prepareVideoUse()).rejects.toThrow("pip install 验证失败");
     expect(fs.readFileSync(path.join(harness.paths.videoUseProfileDir, "old.txt"), "utf8")).toBe("old");
-    expect(fs.existsSync(`${harness.paths.videoUseProfileDir}.previous`)).toBe(false);
+    expect(fs.existsSync(harness.paths.videoUseMarkerPath)).toBe(false);
+    fs.rmSync(harness.root, { recursive: true, force: true });
+  });
+
+  it("pip check 的外部域依赖欠账不阻塞 video-use(共享环境连坐修复 10-10)", async () => {
+    const harness = createHarness();
+    // 装机实弹真实报错:mlx-vlm(VL 侧,非 video-use 依赖)的两行欠账
+    harness.setPipCheckConflicts([
+      "mlx-vlm 0.6.17 requires opencv-python, which is not installed.",
+      "mlx-vlm 0.6.17 has requirement mlx-audio>=0.4.3, but you have mlx-audio 0.4.1.",
+    ]);
+
+    await harness.manager.prepareVideoUse();
+    expect(fs.existsSync(harness.paths.videoUseMarkerPath)).toBe(true);
+    fs.rmSync(harness.root, { recursive: true, force: true });
+  });
+
+  it("pip check 涉及 lock 依赖时仍 fail-closed 且保旧档", async () => {
+    const harness = createHarness();
+    fs.mkdirSync(harness.paths.videoUseProfileDir, { recursive: true });
+    fs.writeFileSync(path.join(harness.paths.videoUseProfileDir, "old.txt"), "old", "utf8");
+    harness.setPipCheckConflicts([
+      "librosa 0.11.0 requires numpy>=2.0, but you have numpy 1.26.0.",
+    ]);
+
+    await expect(harness.manager.prepareVideoUse()).rejects.toThrow("pip check 验证失败");
+    expect(fs.readFileSync(path.join(harness.paths.videoUseProfileDir, "old.txt"), "utf8")).toBe("old");
+    expect(fs.existsSync(harness.paths.videoUseMarkerPath)).toBe(false);
     fs.rmSync(harness.root, { recursive: true, force: true });
   });
 
   it.each([
-    ["pip-check" as const, "pip check 验证失败"],
     ["import-smoke" as const, "video-use 依赖导入验证失败"],
   ])("keeps the previous profile when %s fails", async (failure, expectedMessage) => {
     const harness = createHarness();
