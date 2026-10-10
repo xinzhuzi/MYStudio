@@ -65,7 +65,7 @@ The GPU does not have enough VRAM to hold the model weights, intermediate tensor
    - `--cache-none` caches nothing (lowest RAM/VRAM); combine with `--novram`
    - `--reserve-vram N` reserves N GB so the GPU stops spilling into slow shared VRAM (Windows); typical `2` to `4`
    - `--disable-smart-memory` forces offload to RAM when a run gets stuck or OOMs intermittently
-   - Full matrix and recipes: [`comfyui-launch-flags`](../comfyui-launch-flags/SKILL.md)
+   - Full matrix and recipes: `comfyui-launch-flags`(未随本仓收录,上游=ComfyUI cli_args.py)
 4. Free VRAM between generations. ComfyUI should auto-manage, but restarting clears leaked memory
 5. Use tiled VAE decoding. For high-resolution images, tile the VAE decode step
    - Node: `VAEDecodeTiled` instead of `VAEDecode`
@@ -486,7 +486,7 @@ list_local_models({ action: "list", model_type: "controlnet" })    # Installed C
 
 | Error Message (partial) | Most Likely Fix |
 |--------------------------|----------------|
-| `CUDA out of memory` | Reduce resolution, use FP8 model; VRAM ladder `--lowvram` → `--novram --cache-none` → `--reserve-vram N` ([launch flags](../comfyui-launch-flags/SKILL.md)) |
+| `CUDA out of memory` | Reduce resolution, use FP8 model; VRAM ladder `--lowvram` → `--novram --cache-none` → `--reserve-vram N` (launch flags, upstream cli_args.py) |
 | `Expected all tensors on same device` | Update custom node, restart ComfyUI |
 | `Cannot find node class` | Install the node pack, restart ComfyUI |
 | `Input contains NaN` | Lower CFG, use FP32 VAE, remove LoRAs |
