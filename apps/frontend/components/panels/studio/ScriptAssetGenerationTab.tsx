@@ -193,7 +193,7 @@ export function ScriptAssetGenerationTab({
   }, [hasAnyRows]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background/90">
+    <div className="flex min-h-0 flex-col bg-background/90">
       <div className="border-b border-border/70 bg-panel/80 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -271,7 +271,7 @@ export function ScriptAssetGenerationTab({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="max-h-[560px] min-h-0 overflow-auto p-4">
         {currentRows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             暂无{typeLabel(activeType)}资产，请先在「{emptyExtractStageLabel}」完成实体提取。

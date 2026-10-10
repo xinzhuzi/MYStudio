@@ -3,6 +3,32 @@ import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { AssetDerivationPreview } from "./previews/asset-derivation-preview";
 
+/** 页面级分区壳:三个区块共用同一头部样式,版式一致、高度自适应 */
+function SectionShell({
+  title,
+  description,
+  children,
+}: {
+  /** 缺省=无壳头(内容组件自带头部,如资产生成) */
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-border/70">
+      {title ? (
+        <div className="border-b border-border/70 bg-panel/80 px-4 py-3">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {description ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
 export function ScriptAssetManagementTab({
   novelChapters,
   agentWorkData,
@@ -34,25 +60,22 @@ export function ScriptAssetManagementTab({
 }) {
   return (
     <div className="flex min-h-0 flex-col gap-4 pb-5">
-      <section className="min-h-0">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold">资产提取</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              先从当前剧本提取角色、场景、道具，并同步检查资产库状态。
-            </p>
-          </div>
+      <SectionShell
+        title="资产提取"
+        description="先从当前剧本提取角色、场景、道具，并同步检查资产库状态。"
+      >
+        <div className="bg-background/90 p-3">
+          <AssetsTab
+            novelChapters={novelChapters}
+            agentWorkData={agentWorkData}
+            entityExtractions={entityExtractions}
+            extractAssets={extractAssets}
+            updateExtraction={updateExtraction}
+          />
         </div>
-        <AssetsTab
-          novelChapters={novelChapters}
-          agentWorkData={agentWorkData}
-          entityExtractions={entityExtractions}
-          extractAssets={extractAssets}
-          updateExtraction={updateExtraction}
-        />
-      </section>
+      </SectionShell>
 
-      <section className="min-h-[520px] overflow-hidden rounded-lg border border-border/70">
+      <SectionShell>
         <ScriptAssetGenerationTab
           title="资产生成"
           description="承接本阶段已提取的角色、场景、道具，手动推进提示词、图片资产、衍生资产和角色参考音频。"
@@ -61,17 +84,14 @@ export function ScriptAssetManagementTab({
           scriptPlanCount={scriptPlanCount}
           hasSeriesBible={hasSeriesBible}
         />
-      </section>
+      </SectionShell>
 
       {derivationNode?.assetGroups?.length ? (
-        <section className="overflow-hidden rounded-lg border border-border/70">
-          <div className="border-b border-border/70 px-4 py-3">
-            <h3 className="text-sm font-semibold text-foreground">衍生资产链</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              源资产 → AI 生成变体;点击衍生卡进入图像工作流精修(指针卡裁定后从画布移入此面板)。
-            </p>
-          </div>
-          <div className="max-h-[800px] overflow-y-auto p-4">
+        <SectionShell
+          title="衍生资产链"
+          description="源资产 → AI 生成变体;点击衍生卡进入图像工作流精修(指针卡裁定后从画布移入此面板)。"
+        >
+          <div className="max-h-[800px] overflow-y-auto bg-background/90 p-4">
             <AssetDerivationPreview
               node={derivationNode}
               onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
@@ -79,7 +99,7 @@ export function ScriptAssetManagementTab({
               sourceStageLabel="剧本资产管理"
             />
           </div>
-        </section>
+        </SectionShell>
       ) : null}
     </div>
   );

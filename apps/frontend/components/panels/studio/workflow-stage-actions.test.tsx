@@ -1363,9 +1363,9 @@ describe("workflow stage action surfaces", () => {
       />,
     );
 
-    expect(screen.getByText("角色：")).toBeTruthy();
-    expect(screen.getByText("场景：")).toBeTruthy();
-    expect(screen.getByText("道具：")).toBeTruthy();
+    expect(screen.getByText("角色")).toBeTruthy();  // 1010 布局改版:标签去冒号独立成列
+    expect(screen.getByText("场景")).toBeTruthy();
+    expect(screen.getByText("道具")).toBeTruthy();
     expect(screen.getByText("独孤剑尘")).toBeTruthy();
     expect(screen.getByText("道口镇")).toBeTruthy();
     expect(screen.getByText("断剑")).toBeTruthy();
