@@ -4,13 +4,22 @@ import {
   SHOT_FX_MOTION_PRESETS,
   SHOT_FX_MOTION_ROTATION,
   buildShotFxEditingEffects,
+  enforceVscMotionQuota,
   isShotFxMotionId,
+  keywordShotFxMotion,
   mergeShotFxEditingEffects,
   resolveRuleShotFxMotion,
   ruleTransitionOut,
+  type LegacyMotionId,
   type ShotFxPlanClipLike,
   type ShotFxStoryboardInput,
 } from "./shot-fx-decisions";
+import { isVscMotionId } from "./vsc-recipes";
+
+/** legacy 18 值清单(锐度纪律回归锁辖 legacy 单图运镜;vsc 卡片曲线有自己的域)。 */
+const LEGACY_MOTION_IDS = Object.keys(SHOT_FX_MOTION_PRESETS).filter(
+  (id) => !isVscMotionId(id),
+) as LegacyMotionId[];
 
 function clip(index: number, storyboardId: string): ShotFxPlanClipLike {
   return {
@@ -31,17 +40,18 @@ function effectOf(effects: EditingEffect[], effectId: string, clipId: string): E
   return effects.find((effect) => effect.effectId === effectId && effect.targetClipId === clipId);
 }
 
-describe("SHOT_FX_MOTION_PRESETS 锐度纪律", () => {
-  it("所有配方 fromScale ≥ 1.0（裁切不出边）", () => {
-    for (const recipe of Object.values(SHOT_FX_MOTION_PRESETS)) {
-      expect(recipe.panZoom.fromScale).toBeGreaterThanOrEqual(1.0);
+describe("SHOT_FX_MOTION_PRESETS 锐度纪律（legacy 18 回归锁;vsc 卡片曲线域另测）", () => {
+  it("legacy 配方 fromScale ≥ 1.0（裁切不出边）", () => {
+    expect(LEGACY_MOTION_IDS).toHaveLength(18);
+    for (const id of LEGACY_MOTION_IDS) {
+      expect(SHOT_FX_MOTION_PRESETS[id].panZoom.fromScale).toBeGreaterThanOrEqual(1.0);
     }
   });
 
-  it("常规配方 toScale ≤ 1.08，punch 上限 1.12", () => {
-    for (const [id, recipe] of Object.entries(SHOT_FX_MOTION_PRESETS)) {
+  it("legacy 常规配方 toScale ≤ 1.08，punch 上限 1.12（vsc 域=卡片默认值,不辖）", () => {
+    for (const id of LEGACY_MOTION_IDS) {
       const cap = id === "punch-in" ? 1.12 : 1.08;
-      expect(recipe.panZoom.toScale).toBeLessThanOrEqual(cap);
+      expect(SHOT_FX_MOTION_PRESETS[id].panZoom.toScale).toBeLessThanOrEqual(cap);
     }
   });
 
@@ -366,5 +376,132 @@ describe("氛围层效果(08-19 multilayer Child2)", () => {
     const atmo = second.effects.filter((effect) => effect.effectId === "atmosphere");
     expect(atmo).toHaveLength(1);
     expect(atmo[0]!.params.template).toBe("atmo:snow");
+  });
+});
+
+describe("vsc:* 运镜扩容（10-10 批B,D1/D2/D4）", () => {
+  it("闭集=legacy 18 + vsc 7;vsc camera 五卡 render=component,depth 两卡=layeredDepth 且带层系数", () => {
+    expect(Object.keys(SHOT_FX_MOTION_PRESETS)).toHaveLength(25);
+    const vscIds = Object.keys(SHOT_FX_MOTION_PRESETS).filter(isVscMotionId);
+    expect(vscIds).toHaveLength(7);
+    for (const id of vscIds) {
+      const recipe = SHOT_FX_MOTION_PRESETS[id];
+      expect(recipe.fx).toEqual({});
+      expect(recipe.ambient).toBeNull();
+      if (id === "vsc:parallax-glide" || id === "vsc:dolly-zoom") {
+        expect(recipe.vsc?.render).toBe("layeredDepth");
+        expect(recipe.vsc?.layers).toBeDefined();
+      } else {
+        expect(recipe.vsc?.render).toBe("component");
+        expect(recipe.vsc?.layers).toBeUndefined();
+      }
+    }
+  });
+
+  it("视差滑轨层系数=0.35/0.7/1.4 梯度+背景 blur2/降饱和0.92/opacity0.85+前景 blur3", () => {
+    const layers = SHOT_FX_MOTION_PRESETS["vsc:parallax-glide"].vsc!.layers!;
+    expect(layers.background.panZoomDamp).toBe(0.35);
+    expect(layers.background.blurFromPx).toBe(2);
+    expect(layers.background.saturate).toBe(0.92);
+    expect(layers.background.opacity).toBe(0.85);
+    expect(layers.subject.panZoomDamp).toBe(0.7);
+    // 主阅读层必须高清无锚:subject 类型上无 blur/降饱和键(类型级保证)
+    expect(Object.keys(layers.subject)).toEqual(["panZoomDamp"]);
+    expect(layers.foreground?.panZoomDamp).toBe(1.4);
+    expect(layers.foreground?.blurFromPx).toBe(3);
+  });
+
+  it("伪dolly-zoom=主体钉死(damp0)+背景膨胀驱动 1→2.25+blur 0→3.5 渐深", () => {
+    const preset = SHOT_FX_MOTION_PRESETS["vsc:dolly-zoom"];
+    expect(preset.panZoom.fromScale).toBe(1.0);
+    expect(preset.panZoom.toScale).toBe(2.25);
+    const layers = preset.vsc!.layers!;
+    expect(layers.subject.panZoomDamp).toBe(0);
+    expect(layers.background.panZoomDamp).toBe(1);
+    expect(layers.background.blurFromPx).toBe(0);
+    expect(layers.background.blurToPx).toBe(3.5);
+  });
+
+  it("camera 五卡=组件接管:效果只产 vscMotion(recipe id),panZoom/grain 不产(D4 参数烧死)", () => {
+    const { effects, counts } = buildShotFxEditingEffects({
+      planClips: [clip(0, "shot-001")],
+      storyboards: [{ id: "shot-001", shotFx: { motion: "vsc:dutch-roll-to-level", source: "ai" } }],
+    });
+    const vsc = effectOf(effects, "vscMotion", "clip-1");
+    expect(vsc?.params).toEqual({ recipe: "vsc:dutch-roll-to-level" });
+    expect(effectOf(effects, "panZoom", "clip-1")).toBeUndefined();
+    expect(effectOf(effects, "grain", "clip-1")).toBeUndefined(); // 组件整体接管,伴生特效不叠加
+    expect(effectOf(effects, "grade", "clip-1")).toBeUndefined();
+    expect(counts.vsc).toBe(1);
+    expect(counts.motion).toBe(0);
+  });
+
+  it("depth 两卡=panZoom 驱动照发+vscMotion id,伴生特效(颗粒)照常(panZoom 家族)", () => {
+    const { effects, counts } = buildShotFxEditingEffects({
+      planClips: [clip(0, "shot-001")],
+      storyboards: [{ id: "shot-001", shotFx: { motion: "vsc:parallax-glide", source: "ai" } }],
+    });
+    const panZoom = effectOf(effects, "panZoom", "clip-1");
+    expect(panZoom?.params.scaleFrom).toBe(1.04);
+    expect(panZoom?.params.scaleTo).toBe(1.1);
+    expect(effectOf(effects, "vscMotion", "clip-1")?.params).toEqual({ recipe: "vsc:parallax-glide" });
+    expect(effectOf(effects, "grain", "clip-1")).toBeDefined();
+    expect(counts.vsc).toBe(1);
+    expect(counts.motion).toBe(1);
+  });
+
+  it("章级配额守卫:dolly-zoom 第二镜回落镜序轮换(emit 侧),crash-zoom 第三镜回落", () => {
+    const storyboards: ShotFxStoryboardInput[] = [
+      { id: "shot-001", shotFx: { motion: "vsc:dolly-zoom", source: "ai" } },
+      { id: "shot-002", shotFx: { motion: "vsc:dolly-zoom", source: "ai" } },
+      { id: "shot-003", shotFx: { motion: "vsc:crash-zoom-punch", source: "ai" } },
+      { id: "shot-004", shotFx: { motion: "vsc:crash-zoom-punch", source: "ai" } },
+      { id: "shot-005", shotFx: { motion: "vsc:crash-zoom-punch", source: "ai" } },
+    ];
+    const { effects } = buildShotFxEditingEffects(buildInput(storyboards));
+    const recipes = effects
+      .filter((effect) => effect.effectId === "vscMotion")
+      .map((effect) => effect.params.recipe);
+    expect(recipes).toEqual([
+      "vsc:dolly-zoom", // 第 1 个 dolly 保留
+      // 第 2 镜 dolly 超配额→轮换(index=1→pull-out,无 vscMotion 条目)
+      "vsc:crash-zoom-punch", // crash 第 1 个
+      "vsc:crash-zoom-punch", // crash 第 2 个
+      // 第 5 镜 crash 超配额→轮换(index=4→tilt-down)
+    ]);
+    // 超配额镜回落 legacy 轮换运镜(照常 panZoom+grain)
+    expect(effectOf(effects, "panZoom", "clip-2")?.params.scaleFrom).toBe(SHOT_FX_MOTION_PRESETS["pull-out"].panZoom.fromScale);
+    expect(effectOf(effects, "panZoom", "clip-5")?.params.scaleFrom).toBe(SHOT_FX_MOTION_PRESETS["tilt-down"].panZoom.fromScale);
+  });
+
+  it("enforceVscMotionQuota(select 级共用):按镜头顺序保留前 N,超额回落轮换且确定性", () => {
+    const motions = {
+      s1: "vsc:dolly-zoom",
+      s2: "vsc:dolly-zoom",
+      s3: "push-in",
+    } as Record<string, ReturnType<typeof resolveRuleShotFxMotion>>;
+    const ordered = enforceVscMotionQuota(motions, ["s1", "s2", "s3"]);
+    expect(ordered.s1).toBe("vsc:dolly-zoom");
+    expect(ordered.s2).toBe("pull-out"); // index=1 轮换位
+    expect(ordered.s3).toBe("push-in"); // legacy 永不受配额影响(D2)
+    // 同输入同输出(确定性)
+    expect(enforceVscMotionQuota(motions, ["s1", "s2", "s3"])).toEqual(ordered);
+  });
+
+  it("关键词兜底表扩:俯冲/天旋地转/斜/纵深/蓄力/孤身/点名 命中对应 vsc 配方;legacy 词优先级不变", () => {
+    expect(keywordShotFxMotion("无人机俯冲而下", 0)).toBe("vsc:drone-dive-landing");
+    expect(keywordShotFxMotion("他只觉天旋地转", 0)).toBe("vsc:dolly-zoom");
+    expect(keywordShotFxMotion("画面倾斜的世界", 0)).toBe("vsc:dutch-roll-to-level");
+    expect(keywordShotFxMotion("镜头纵深滑轨横移", 0)).toBe("vsc:parallax-glide");
+    expect(keywordShotFxMotion("他蓄力待发", 0)).toBe("vsc:slow-push-in");
+    expect(keywordShotFxMotion("孤身立于荒原", 0)).toBe("vsc:pull-back-isolation");
+    expect(keywordShotFxMotion("长老点名直取要害", 0)).toBe("vsc:crash-zoom-punch");
+    // legacy 命中永不改判(D2):动作词仍走 punch-in 而非 vsc crash-zoom
+    expect(keywordShotFxMotion("一剑劈下点名", 0)).toBe("punch-in");
+    expect(keywordShotFxMotion("庭院里喝茶", 0)).toBeUndefined();
+  });
+
+  it("vsc 关键词不进镜序轮换(同 hold:仅 AI/关键词可选)", () => {
+    expect(SHOT_FX_MOTION_ROTATION.every((id) => !isVscMotionId(id))).toBe(true);
   });
 });

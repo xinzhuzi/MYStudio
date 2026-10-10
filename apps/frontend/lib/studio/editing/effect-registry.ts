@@ -4,6 +4,7 @@ import type {
 } from "@/types/editing";
 import { CINEMATIC_LUT_IDS } from "../remotion/cinematic-luts";
 import { ATMOSPHERE_TEMPLATES } from "../remotion/atmosphere-templates";
+import { VSC_MOTION_IDS } from "../remotion/vsc-recipes";
 import { COMPOSITION_TRANSITION_EFFECTS } from "@/electron/rendering/plugins/remotion/composition/timing";
 
 // 转场闭集全量对齐 composition/timing（单一事实源：08-20 真跑二连暴露逐个补齐
@@ -36,6 +37,8 @@ const BASE_EFFECT_IDS = [
   // 在应用内队列路径对未注册 id 报「未知效果 ID」拒渲染(standalone 不跑此闸故未早暴)。
   "grade",
   "ambient",
+  // vsc:* 镜头配方(10-10 批B):recipe 枚举=vsc-recipes 闭集单源(接线断言守护)。
+  "vscMotion",
 ] as const satisfies readonly EditingEffectId[];
 
 export const EDITING_EFFECT_IDS: readonly EditingEffectId[] = [
@@ -132,6 +135,12 @@ const EFFECT_DEFINITIONS: readonly EditingEffectDefinition[] = [
     numberParameter("ampRot", 0.2, 0, 1),
     numberParameter("freq", 0.25, 0.1, 0.8),
     numberParameter("phase", 0, 0, 1),
+  ]),
+  // vsc:* 镜头配方(10-10 批B):params 只带 recipe id(D4 参数烧死卡片默认值,
+  // 无任何可调参数——白名单外的键被 validateEffectParams 拒,fail-closed);
+  // 章级配额校验在 contracts/vsc-motion-contract.ts(枚举此处,配额彼处)。
+  definition("vscMotion", "motion", "full", [
+    enumParameter("recipe", VSC_MOTION_IDS[0]!, [...VSC_MOTION_IDS]),
   ]),
   // timing 转场闭集动态补全：基线 7 种已显式定义，其余（gl:* shader 转场）
   // 统一 transition/full/空参数（shader 私有参数走 composition 端 defaultUniforms）。

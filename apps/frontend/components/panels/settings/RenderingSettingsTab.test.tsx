@@ -116,6 +116,9 @@ describe("RenderingSettingsTab", () => {
       "章节色调（导演定调）",
       "氛围层",
       "字幕音效",
+      "章头墨线开篇",
+      "章尾砂化凝聚",
+      "节拍切点吸附",
       "Remotion Headless Shell",
       "HyperFrames",
       "video-use",
@@ -136,6 +139,51 @@ describe("RenderingSettingsTab", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: /思源宋体/ }));
     expect(useStudioStore.getState().workflowConfig.subtitleFont).toBe("noto-serif-sc");
+  });
+
+  it("10-10 批D:章级三开关默认关;开启即写入 workflowConfig,关闭即清字段", async () => {
+    useStudioStore.setState((state) => ({
+      workflowConfig: {
+        ...state.workflowConfig,
+        chapterOpening: undefined,
+        chapterOutro: undefined,
+        beatSnapEnabled: undefined,
+      },
+    }));
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "章头墨线开篇" })).toBeTruthy());
+
+    // 默认全关(开关 unchecked,文案输入行未挂载)。
+    expect(screen.getByRole("switch", { name: "节拍切点吸附" }).getAttribute("aria-checked")).toBe("false");
+    expect(screen.queryByRole("textbox", { name: "章头字标" })).toBeNull();
+
+    // 节拍切点吸附:开启→workflowConfig.beatSnapEnabled=true;再关→undefined。
+    fireEvent.click(screen.getByRole("switch", { name: "节拍切点吸附" }));
+    expect(useStudioStore.getState().workflowConfig.beatSnapEnabled).toBe(true);
+    fireEvent.click(screen.getByRole("switch", { name: "节拍切点吸附" }));
+    expect(useStudioStore.getState().workflowConfig.beatSnapEnabled).toBe(false);
+
+    // 章头开篇:开关开→挂载文案输入;写入字标即落 workflowConfig.chapterOpening。
+    fireEvent.click(screen.getByRole("switch", { name: "章头墨线开篇" }));
+    const wordmark = screen.getByRole("textbox", { name: "章头字标" });
+    fireEvent.change(wordmark, { target: { value: "道劫" } });
+    expect(useStudioStore.getState().workflowConfig.chapterOpening?.wordmark).toBe("道劫");
+    fireEvent.change(screen.getByRole("textbox", { name: "章头副标" }), { target: { value: "第一卷" } });
+    expect(useStudioStore.getState().workflowConfig.chapterOpening?.kicker).toBe("第一卷");
+    // 关闭开关→整段清除。
+    fireEvent.click(screen.getByRole("switch", { name: "章头墨线开篇" }));
+    expect(useStudioStore.getState().workflowConfig.chapterOpening).toBeUndefined();
+
+    // 章尾:开关开→短标/整行句输入;关闭→清除。
+    fireEvent.click(screen.getByRole("switch", { name: "章尾砂化凝聚" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "章尾短标" }), { target: { value: "道劫" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "章尾整行句式" }), { target: { value: "{ 道劫 · 本章完 }" } });
+    expect(useStudioStore.getState().workflowConfig.chapterOutro).toEqual({
+      shortMark: "道劫",
+      tagline: "{ 道劫 · 本章完 }",
+    });
+    fireEvent.click(screen.getByRole("switch", { name: "章尾砂化凝聚" }));
+    expect(useStudioStore.getState().workflowConfig.chapterOutro).toBeUndefined();
   });
 
   it("钉死调色卡与本章主导阵营温感反向时提示压色风险;同向/未钉死不提示(08-28 色彩衔接)", async () => {

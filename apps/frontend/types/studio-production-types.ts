@@ -199,6 +199,25 @@ export interface StudioWorkflowConfig {
    * 一键成片/章节投影创建时注入 renderSettings.subtitleSfxEnabled。
    */
   subtitleSfxEnabled?: boolean;
+  /**
+   * 章头开篇段（10-10 批D 章级能力）：存在=启用 vsc:brand-ink-open 墨线开篇
+   * （wordmark=章头字标/作品名,kicker=可选副标）。wordmark 非空才注入
+   * （缺字段=默认关）。按项目持久化；章节投影创建时注入
+   * renderSettings.chapterOpening。
+   */
+  chapterOpening?: { wordmark: string; kicker?: string };
+  /**
+   * 章尾段（批D）：存在=启用 vsc:grain-dissolve 文字砂化凝聚（tagline=整行
+   * 句式,shortMark=凝聚短标,两者须指同一对象）。shortMark/tagline 非空才
+   * 注入。按项目持久化；章节投影创建时注入 renderSettings.chapterOutro。
+   */
+  chapterOutro?: { tagline: string; shortMark: string };
+  /**
+   * 节拍切点吸附（批D,决议 D5 只做切点吸附）：镜头切点向 BGM 节拍吸附
+   * （只经转场重叠通道,硬切不动;BGM 无 beats 恒不激活）。默认 false。
+   * 按项目持久化；章节投影创建时注入 renderSettings.beatSnapEnabled。
+   */
+  beatSnapEnabled?: boolean;
   /** 当前所处的工作流阶段（tab value），随项目保存，下次进入自动恢复 */
   workflowStage?: string;
   projectType?: string;

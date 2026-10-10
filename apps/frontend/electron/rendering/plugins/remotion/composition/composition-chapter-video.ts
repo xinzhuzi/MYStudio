@@ -78,7 +78,15 @@ export function buildChapterVideoCompositionProps(
   const sourceValidation = inspectChapterVideoSource(input);
   if (!sourceValidation.success) return sourceValidation;
 
-  const base = buildCompositionProps(input.plan, input.mediaUrlByClipId, input.lutUrlById, input.layerUrlByClipId);
+  const base = buildCompositionProps(
+    input.plan,
+    input.mediaUrlByClipId,
+    input.lutUrlById,
+    input.layerUrlByClipId,
+    // 节拍切点吸附(批D):章级开关住 renderSettings.beatSnapEnabled(默认关),
+    // 激活需本输入同时给出 beats(BGM 能量峰)——两条件缺一=零吸附。
+    input.beatTimesUs ? { beatTimesUs: input.beatTimesUs } : undefined,
+  );
   // 章节共享音频的 chapterStartUs 在编辑(音频)时间轴上,而合成帧网格是转场
   // 重叠压缩后的布局轴(与字幕 layoutShiftFrames 同源)。经"所属镜头锚点"
   // 映射:owner 布局起点 + 镜内偏移;跨边界时长按起终点映射差取值。
@@ -155,10 +163,31 @@ export function buildChapterVideoCompositionProps(
       plan: input.plan,
       sfxUrlById: input.sfxUrlById,
       categoryByStoryboardId: input.sfxCategoryByStoryboardId ?? {},
+      // 与主网格同款 beats(吸附激活时字幕 sfx 与烧录字幕同网格)。
+      ...(input.beatTimesUs ? { beatTimesUs: input.beatTimesUs } : {}),
     }));
   }
   const overlayClips = projectHyperFramesOverlay(input.hyperFramesOverlay, base.durationInFrames, base.fps);
   const suppressedCueIds = authorityValidation.suppressedCueIds;
+  // 章级配方段(批D):renderSettings.chapterOpening/chapterOutro(workflowConfig
+  // 注入)→ composition props;id 钉死首批配方常量(闭集见 recipes/,props
+  // 校验 fail-closed)。outro tagline 缺省由注入层给全文,此处不造句。
+  const chapterOpening = input.plan.renderSettings.chapterOpening
+    ? {
+      recipeId: "vsc:brand-ink-open" as const,
+      wordmark: input.plan.renderSettings.chapterOpening.wordmark,
+      ...(input.plan.renderSettings.chapterOpening.kicker
+        ? { kicker: input.plan.renderSettings.chapterOpening.kicker }
+        : {}),
+    }
+    : undefined;
+  const chapterOutro = input.plan.renderSettings.chapterOutro
+    ? {
+      recipeId: "vsc:grain-dissolve" as const,
+      tagline: input.plan.renderSettings.chapterOutro.tagline,
+      shortMark: input.plan.renderSettings.chapterOutro.shortMark,
+    }
+    : undefined;
   const props: ChapterVideoCompositionProps = {
     ...base,
     target: "chapter",
@@ -169,6 +198,8 @@ export function buildChapterVideoCompositionProps(
     visualClips: base.visualClips.map((clip) => ({ ...clip, muted: false })),
     subtitles: base.subtitles.filter((cue) => !suppressedCueIds.has(cue.cueId)),
     audioClips,
+    ...(chapterOpening ? { chapterOpening } : {}),
+    ...(chapterOutro ? { chapterOutro } : {}),
     ...(input.customFontFaces?.length ? { customFonts: input.customFontFaces } : {}),
     ...(overlayClips.length > 0 ? { overlayClips } : {}),
   };

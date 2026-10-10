@@ -1,7 +1,10 @@
-import type { CompositionAudioClipProps, CompositionEnvelopePoint, CompositionFade, CompositionPanZoom, CompositionProps, CompositionTransform } from "./composition-props";
+import type { CompositionAudioClipProps, CompositionEnvelopePoint, CompositionFade, CompositionPanZoom, CompositionProps, CompositionTransform, CompositionVscCameraRecipeId } from "./composition-props";
 import { layoutVisualTimeline, usToFrames } from "./timing";
+import { snapVisualTimelineToBeats } from "./beat-snap";
 import type { CompositionVisualFx } from "./visual-fx";
 import { isCinematicLutId } from "@/lib/studio/remotion/cinematic-luts";
+import { isVscMotionId, VSC_RECIPES } from "@/lib/studio/remotion/vsc-recipes";
+import { SHOT_FX_MOTION_PRESETS, type ShotFxVscLayerCoefficients } from "@/lib/studio/remotion/shot-fx-decisions";
 import { SUBTITLE_SFX_DURATION_FRAMES, SUBTITLE_SFX_OFFSET_FRAMES, SUBTITLE_SFX_VOLUME, subtitleSfxAssetFor } from "@/lib/studio/remotion/subtitle-sfx";
 import type { EditingEffect, TimelineRenderClip, TimelineRenderPlan } from "@/types/editing";
 import { overlaps } from "./composition-chapter-video";
@@ -36,22 +39,38 @@ export function deriveSubtitleSfxClips(input: {
   plan: TimelineRenderPlan;
   sfxUrlById: Readonly<Record<string, string>>;
   categoryByStoryboardId: Readonly<Record<string, string>>;
+  /** 节拍切点吸附(批D):与章 props 同款 beats——吸附激活时字幕 sfx 落点与
+   * 烧录字幕同网格(owner 锚点一致),不传则按未吸附布局(逐镜路径无 beats)。 */
+  beatTimesUs?: readonly number[];
 }): Array<CompositionAudioClipProps & { renderScope: "chapter" }> {
   const fps = input.plan.renderSettings.fps;
   const visualClips = input.plan.clips
     .filter((clip) => clip.trackKind === "video" || clip.trackKind === "image")
     .sort(compareTimelineClips);
+  const transitionInputs = input.plan.transitions.map((transition) => ({
+    fromClipId: transition.fromClipId,
+    toClipId: transition.toClipId,
+    effectId: transition.effectId,
+    durationUs: transition.durationUs,
+  }));
   const visualTiming = layoutVisualTimeline(
     visualClips.map((clip) => ({ clipId: clip.id, durationUs: clip.durationUs })),
-    input.plan.transitions.map((transition) => ({
-      fromClipId: transition.fromClipId,
-      toClipId: transition.toClipId,
-      effectId: transition.effectId,
-      durationUs: transition.durationUs,
-    })),
+    transitionInputs,
     fps,
   );
-  const timingById = new Map(visualTiming.clips.map((timing) => [timing.clipId, timing]));
+  const beatSnapActive = input.plan.renderSettings.beatSnapEnabled === true
+    && input.beatTimesUs !== undefined
+    && input.beatTimesUs.length > 0;
+  const snappedClips = beatSnapActive
+    ? snapVisualTimelineToBeats(visualTiming.clips, transitionInputs, input.beatTimesUs!, fps)
+    : visualTiming.clips;
+  const timingById = new Map(snappedClips.map((timing) => [timing.clipId, timing]));
+  // 吸附改变总时长(重叠增减)——sfx 落点钳制必须用吸附后的网格末帧(与
+  // buildCompositionProps 的 timelineDurationInFrames 同口径),否则吸附缩短
+  // 全片时 sfx 可越出 composition 时长被 props 校验拒。
+  const timelineDurationInFrames = beatSnapActive && snappedClips.length > 0
+    ? Math.max(1, snappedClips[snappedClips.length - 1]!.from + snappedClips[snappedClips.length - 1]!.durationInFrames)
+    : visualTiming.durationInFrames;
   const cueClips = input.plan.clips
     .filter((clip) => clip.trackKind === "text" && typeof clip.source.text === "string")
     .sort(compareTimelineClips);
@@ -77,7 +96,7 @@ export function deriveSubtitleSfxClips(input: {
     const from = Math.max(0, usToFrames(cue.startUs, fps) - layoutShiftFrames + SUBTITLE_SFX_OFFSET_FRAMES);
     const durationInFrames = Math.min(
       SUBTITLE_SFX_DURATION_FRAMES,
-      Math.max(0, visualTiming.durationInFrames - from),
+      Math.max(0, timelineDurationInFrames - from),
     );
     if (durationInFrames <= 0) continue;
     scoredByShotId.add(storyboardId);
@@ -222,6 +241,37 @@ export const VISUAL_FX_EFFECT_IDS: ReadonlySet<string> = new Set([
   "speedSilhouette",
   "godRays",
 ]);
+
+/**
+ * vscMotion 效果 → CompositionVisualClipProps 投影(10-10 批B):
+ * - camera 五卡 → { vsc: { id } }:组件整体接管渲染,调用方须抑制 panZoom
+ *   (配方自带相机曲线,叠加=双重变换);
+ * - depth 两卡 → { vscDepthLayers }:层系数配方(0.35/0.7/1.4 梯度+blur/降饱和锚),
+ *   由 layerStackForClip 施加进 layerStack;panZoom 驱动照常保留。
+ * 层系数单源=SHOT_FX_MOTION_PRESETS[recipe].vsc.layers(决策/渲染同表防漂移)。
+ * fail-closed:未知 recipe id 渲染前拒(与 props 校验双闸;此处兜住直写数据)。
+ */
+export function vscMotionForClip(
+  effect: Pick<EditingEffect, "params"> | undefined,
+  clipId: string,
+): {
+  vsc?: { id: CompositionVscCameraRecipeId };
+  vscDepthLayers?: ShotFxVscLayerCoefficients;
+} {
+  if (!effect) return {};
+  const recipe = (effect.params as { recipe?: unknown } | undefined)?.recipe;
+  if (!isVscMotionId(recipe)) {
+    throw new Error(`镜 ${clipId} 的 vscMotion recipe 不在 vsc:* 闭集: ${String(recipe)}`);
+  }
+  if (VSC_RECIPES[recipe].render === "component") {
+    return { vsc: { id: recipe as CompositionVscCameraRecipeId } };
+  }
+  const layers = SHOT_FX_MOTION_PRESETS[recipe].vsc?.layers;
+  if (!layers) {
+    throw new Error(`镜 ${clipId} 的 vscMotion depth 配方缺少层系数档案: ${recipe}`);
+  }
+  return { vscDepthLayers: layers };
+}
 
 /**
  * 把同一片段的多个 fx 效果合并为 CompositionVisualFx。

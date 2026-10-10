@@ -7,7 +7,10 @@ import type {
 
 const remotionMocks = vi.hoisted(() => ({ registerRoot: vi.fn() }));
 
-vi.mock("remotion", () => ({
+vi.mock("remotion", async (importOriginal) => ({
+  // vsc 配方组件进了 entry import 图(10-10 批B):vsc-helpers 模块级吃真
+  // Easing——保留实际实现,只覆盖 React 侧边界(同 RemotionComposition.test 式)。
+  ...(await importOriginal<typeof import("remotion")>()),
   registerRoot: remotionMocks.registerRoot,
   Composition: () => null,
   AbsoluteFill: () => null,
@@ -145,6 +148,44 @@ describe("fixed composition entry", () => {
       height: 1280,
       props: chapterProps,
     });
+  });
+
+  it("10-10 批D:章级配方段扩展 composition 总时长(开篇 104f+正片+章尾 60f),props 网格不变", async () => {
+    const withSegments = await entry.calculateChapterVideoMetadata(metadataArgs({
+      ...chapterProps,
+      chapterOpening: { recipeId: "vsc:brand-ink-open", wordmark: "道劫" },
+      chapterOutro: { recipeId: "vsc:grain-dissolve", tagline: "{ 道劫 · 本章完 }", shortMark: "道劫" },
+    } as ChapterVideoCompositionProps, entry.CHAPTER_VIDEO_COMPOSITION_ID));
+    // 104 + 240 + 60 = 404;props.durationInFrames 仍是正片 240(校验网格不变)。
+    expect(withSegments.durationInFrames).toBe(404);
+    expect(withSegments.props?.durationInFrames).toBe(240);
+
+    const openingOnly = await entry.calculateChapterVideoMetadata(metadataArgs({
+      ...chapterProps,
+      chapterOpening: { recipeId: "vsc:brand-ink-open", wordmark: "道劫" },
+    } as ChapterVideoCompositionProps, entry.CHAPTER_VIDEO_COMPOSITION_ID));
+    expect(openingOnly.durationInFrames).toBe(344);
+
+    // 缺省(默认关):总时长=正片,无章段。
+    expect((await entry.calculateChapterVideoMetadata(metadataArgs(
+      chapterProps,
+      entry.CHAPTER_VIDEO_COMPOSITION_ID,
+    ))).durationInFrames).toBe(240);
+  });
+
+  it("10-10 批D:未知章级配方 id 在 metadata 边界 fail-closed(渲染前拒)", () => {
+    expect(() => entry.calculateChapterVideoMetadata(metadataArgs({
+      ...chapterProps,
+      chapterOpening: { recipeId: "vsc:bogus-open", wordmark: "道劫" },
+    } as unknown as ChapterVideoCompositionProps, entry.CHAPTER_VIDEO_COMPOSITION_ID))).toThrow("开篇配方不在闭集");
+    expect(() => entry.calculateChapterVideoMetadata(metadataArgs({
+      ...chapterProps,
+      chapterOutro: { recipeId: "vsc:bogus-outro", tagline: "x", shortMark: "y" },
+    } as unknown as ChapterVideoCompositionProps, entry.CHAPTER_VIDEO_COMPOSITION_ID))).toThrow("章尾配方不在闭集");
+    expect(() => entry.calculateChapterVideoMetadata(metadataArgs({
+      ...chapterProps,
+      chapterOpening: { recipeId: "vsc:brand-ink-open", wordmark: "" },
+    } as unknown as ChapterVideoCompositionProps, entry.CHAPTER_VIDEO_COMPOSITION_ID))).toThrow("wordmark");
   });
 
   it("rejects cross-scope audio and non-video chapter sources", () => {

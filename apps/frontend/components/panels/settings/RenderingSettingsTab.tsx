@@ -11,6 +11,7 @@ import "lxgw-wenkai-webfont/lxgwwenkai-regular.css";
 import { Button } from "@/components/ui/button";
 import { HyperFramesRegistrySection } from "./HyperFramesRegistrySection";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -635,6 +636,126 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                           aria-label="字幕音效"
                           checked={workflowConfig.subtitleSfxEnabled === true}
                           onCheckedChange={(next) => setWorkflowConfig({ subtitleSfxEnabled: next })}
+                        />
+                      </div>
+
+                      {/* 章头章尾（10-10 批D 章级能力）：vsc 章级配方段，默认关 */}
+                      <div className="space-y-3 border-t border-border pt-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <h5 className="font-medium text-foreground flex items-center gap-2">
+                              <Film className="h-4 w-4" aria-hidden="true" />
+                              章头墨线开篇
+                            </h5>
+                            <p className="mt-1 text-xs text-muted-foreground">正片前加约 3.5 秒水墨开篇（墨线准星描画→字标逐字压印→副标打字机→静止消散）；字标留空则不启用。对新发起的章节渲染生效。</p>
+                          </div>
+                          <Switch
+                            aria-label="章头墨线开篇"
+                            checked={Boolean(workflowConfig.chapterOpening?.wordmark?.trim())}
+                            onCheckedChange={(next) => setWorkflowConfig({
+                              chapterOpening: next
+                                ? { wordmark: workflowConfig.chapterOpening?.wordmark ?? "", kicker: workflowConfig.chapterOpening?.kicker }
+                                : undefined,
+                            })}
+                          />
+                        </div>
+                        {workflowConfig.chapterOpening ? (
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <label className="grid gap-1.5 text-xs text-muted-foreground">
+                              字标（作品名，留空则不注入）
+                              <Input
+                                value={workflowConfig.chapterOpening.wordmark ?? ""}
+                                placeholder="例：道劫"
+                                aria-label="章头字标"
+                                onChange={(event) => setWorkflowConfig({
+                                  chapterOpening: {
+                                    wordmark: event.target.value,
+                                    ...(workflowConfig.chapterOpening?.kicker ? { kicker: workflowConfig.chapterOpening.kicker } : {}),
+                                  },
+                                })}
+                              />
+                            </label>
+                            <label className="grid gap-1.5 text-xs text-muted-foreground">
+                              副标（可选，小字打字机行）
+                              <Input
+                                value={workflowConfig.chapterOpening.kicker ?? ""}
+                                placeholder="例：第一卷 · 风起云涌"
+                                aria-label="章头副标"
+                                onChange={(event) => setWorkflowConfig({
+                                  chapterOpening: {
+                                    wordmark: workflowConfig.chapterOpening?.wordmark ?? "",
+                                    kicker: event.target.value,
+                                  },
+                                })}
+                              />
+                            </label>
+                          </div>
+                        ) : null}
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+                          <div className="min-w-0">
+                            <h5 className="font-medium text-foreground">章尾砂化凝聚</h5>
+                            <p className="mt-1 text-xs text-muted-foreground">正片后加约 2 秒章尾（整行字爆裂成颗粒噪点后凝聚成发光短标）；短标与整行句须指同一对象，留空则不启用。</p>
+                          </div>
+                          <Switch
+                            aria-label="章尾砂化凝聚"
+                            checked={Boolean(workflowConfig.chapterOutro?.shortMark?.trim())}
+                            onCheckedChange={(next) => setWorkflowConfig({
+                              chapterOutro: next
+                                ? {
+                                  shortMark: workflowConfig.chapterOutro?.shortMark ?? "",
+                                  tagline: workflowConfig.chapterOutro?.tagline ?? "",
+                                }
+                                : undefined,
+                            })}
+                          />
+                        </div>
+                        {workflowConfig.chapterOutro ? (
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <label className="grid gap-1.5 text-xs text-muted-foreground">
+                              凝聚短标（建议 ≤6 字，留空则不注入）
+                              <Input
+                                value={workflowConfig.chapterOutro.shortMark ?? ""}
+                                placeholder="例：道劫"
+                                aria-label="章尾短标"
+                                onChange={(event) => setWorkflowConfig({
+                                  chapterOutro: {
+                                    shortMark: event.target.value,
+                                    tagline: workflowConfig.chapterOutro?.tagline ?? "",
+                                  },
+                                })}
+                              />
+                            </label>
+                            <label className="grid gap-1.5 text-xs text-muted-foreground">
+                              整行句式（砂化前的一句话）
+                              <Input
+                                value={workflowConfig.chapterOutro.tagline ?? ""}
+                                placeholder="例：{ 道劫 · 本章完 }"
+                                aria-label="章尾整行句式"
+                                onChange={(event) => setWorkflowConfig({
+                                  chapterOutro: {
+                                    shortMark: workflowConfig.chapterOutro?.shortMark ?? "",
+                                    tagline: event.target.value,
+                                  },
+                                })}
+                              />
+                            </label>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* 节拍切点吸附（10-10 批D，决议 D5）：BGM 有节拍才激活 */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                        <div className="min-w-0">
+                          <h5 className="font-medium text-foreground flex items-center gap-2">
+                            <Volume2 className="h-4 w-4" aria-hidden="true" />
+                            节拍切点吸附
+                          </h5>
+                          <p className="mt-1 text-xs text-muted-foreground">带转场的镜头切点向 BGM 节拍（能量峰）吸附，每镜内容时长不变（硬切不动）；默认关闭，且 BGM 无节拍时恒不生效。对新发起的章节渲染生效。</p>
+                        </div>
+                        <Switch
+                          aria-label="节拍切点吸附"
+                          checked={workflowConfig.beatSnapEnabled === true}
+                          onCheckedChange={(next) => setWorkflowConfig({ beatSnapEnabled: next })}
                         />
                       </div>
 

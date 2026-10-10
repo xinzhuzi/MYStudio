@@ -17,6 +17,10 @@ import { ATMOSPHERE_TEMPLATES } from "../../../../../lib/studio/remotion/atmosph
 // 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
 // 共享注册表必须相对导入。
 import { isKnownSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";
+// vsc camera 五卡闭集(id 常量真源=recipes/ 组件文件;fail-closed 见下)。
+import { isVscCameraRecipeId } from "./recipes/vsc-camera-recipes";
+// vsc 章级配方闭集(10-10 批D:开篇/章尾;fail-closed 同上)。
+import { isVscChapterOpeningRecipeId, isVscChapterOutroRecipeId } from "./recipes/chapter-vsc-recipes";
 
 const VISUAL_KINDS = ["image", "video"] as const;
 const VISUAL_FITS = ["cover", "contain"] as const;
@@ -131,10 +135,42 @@ export function validateChapterVideoCompositionProps(
       }
     });
   }
+  validateChapterSegments(value, issues);
   validateAudioScope(value.audioClips, "chapter", issues);
   return issues.length > 0
     ? { success: false, issues }
     : { success: true, value: value as unknown as ChapterVideoCompositionProps };
+}
+
+// vsc 章级配方段(10-10 批D):recipeId 闭集+文案非空 fail-closed(未知 id
+// 渲染前拒,spec §3;分发端 ChapterOpeningRecipe/ChapterOutroRecipe 是第二闸)。
+function validateChapterSegments(value: Record<string, unknown>, issues: Issue[]): void {
+  if (value.chapterOpening !== undefined) {
+    const opening = value.chapterOpening;
+    if (!isRecord(opening)) {
+      issues.push({ path: "chapterOpening", message: "chapterOpening 必须是对象" });
+      return;
+    }
+    if (!isVscChapterOpeningRecipeId(opening.recipeId)) {
+      issues.push({ path: "chapterOpening.recipeId", message: `开篇配方不在闭集: ${String(opening.recipeId)}` });
+    }
+    requireNonEmptyString(opening.wordmark, "chapterOpening.wordmark", issues);
+    if (opening.kicker !== undefined && typeof opening.kicker !== "string") {
+      issues.push({ path: "chapterOpening.kicker", message: "kicker 必须是字符串" });
+    }
+  }
+  if (value.chapterOutro !== undefined) {
+    const outro = value.chapterOutro;
+    if (!isRecord(outro)) {
+      issues.push({ path: "chapterOutro", message: "chapterOutro 必须是对象" });
+      return;
+    }
+    if (!isVscChapterOutroRecipeId(outro.recipeId)) {
+      issues.push({ path: "chapterOutro.recipeId", message: `章尾配方不在闭集: ${String(outro.recipeId)}` });
+    }
+    requireNonEmptyString(outro.tagline, "chapterOutro.tagline", issues);
+    requireNonEmptyString(outro.shortMark, "chapterOutro.shortMark", issues);
+  }
 }
 
 function validateTargetIdentity(value: Record<string, unknown>, issues: Issue[]): void {
@@ -193,10 +229,32 @@ function validateVisualClip(clip: unknown, path: string, issues: Issue[]): void 
   requirePositiveInteger(clip.durationInFrames, `${path}.durationInFrames`, issues);
   validateTransform(clip.transform, `${path}.transform`, issues);
   if (clip.fit !== undefined) requireEnum(clip.fit, VISUAL_FITS, `${path}.fit`, issues);
+  validateVsc(clip, path, issues);
   validateGrade(clip.grade, `${path}.grade`, issues);
   validateAmbient(clip.ambient, `${path}.ambient`, issues);
   validateLayerFields(clip, path, issues);
   validateOptionalClipFields(clip, path, issues);
+}
+
+// vsc camera 配方(10-10 批B):id ∈ 五卡闭集 fail-closed(未知 id 拒渲染,spec §3;
+// 渲染端 VscCameraRecipeClip 是最后一闸);与 cinematic/layers/layerStack 互斥
+// (整体接管型分支不得同现,静默优先级=隐性丢效果)。
+function validateVsc(clip: Record<string, unknown>, path: string, issues: Issue[]): void {
+  const vsc = clip.vsc;
+  if (vsc === undefined) return;
+  if (!isRecord(vsc)) {
+    issues.push({ path: `${path}.vsc`, message: "vsc 必须是对象" });
+    return;
+  }
+  if (!isVscCameraRecipeId(vsc.id)) {
+    issues.push({ path: `${path}.vsc.id`, message: `vsc.id 不在 camera 配方闭集: ${String(vsc.id)}` });
+  }
+  if (clip.cinematic !== undefined) {
+    issues.push({ path: `${path}.vsc`, message: "vsc 与 cinematic 互斥,不得同现" });
+  }
+  if (clip.layers !== undefined || clip.layerStack !== undefined) {
+    issues.push({ path: `${path}.vsc`, message: "vsc 与 layers/layerStack 互斥,不得同现" });
+  }
 }
 
 // ambient(环境动画):类型 5 枚举+数值域(与 ambientForClip 钳制域一致);
@@ -272,6 +330,24 @@ function validateLayerSpec(layer: unknown, path: string, issues: Issue[]): void 
   if (layer.panZoomDamp !== undefined
     && (!isFiniteNumber(layer.panZoomDamp) || layer.panZoomDamp < 0 || layer.panZoomDamp > 2)) {
     issues.push({ path: `${path}.panZoomDamp`, message: "panZoomDamp 必须位于 0..2" });
+  }
+  // vsc depth 层锚(10-10 批B):blur 0..24px(与 chroma/blur 数值域同量级)、
+  // saturate 0..2;形状 fail-closed。
+  if (layer.depthAnchor !== undefined) {
+    if (!isRecord(layer.depthAnchor)) {
+      issues.push({ path: `${path}.depthAnchor`, message: "depthAnchor 必须是对象" });
+    } else {
+      for (const key of ["blurFromPx", "blurToPx"] as const) {
+        const blur = layer.depthAnchor[key];
+        if (blur !== undefined && (!isFiniteNumber(blur) || blur < 0 || blur > 24)) {
+          issues.push({ path: `${path}.depthAnchor.${key}`, message: `${key} 必须位于 0..24` });
+        }
+      }
+      const saturate = layer.depthAnchor.saturate;
+      if (saturate !== undefined && (!isFiniteNumber(saturate) || saturate < 0 || saturate > 2)) {
+        issues.push({ path: `${path}.depthAnchor.saturate`, message: "saturate 必须位于 0..2" });
+      }
+    }
   }
   if (layer.opacity !== undefined
     && (!isFiniteNumber(layer.opacity) || layer.opacity < 0 || layer.opacity > 1)) {
@@ -490,6 +566,19 @@ function validatePanZoom(value: unknown, path: string, issues: Issue[]): void {
   }
   if (value.easing !== undefined && value.easing !== "cubic" && value.easing !== "spring") {
     issues.push({ path: `${path}.easing`, message: "easing 必须是 cubic 或 spring" });
+  }
+  // 旋转通道(10-10 vsc 配方接入):可选;存在时必须是 {fromDeg,toDeg} 有限数
+  // (度数不设区间——dutch-roll 可为负、roll 可过 360,fail-closed 只锁形状)。
+  if (value.rotate !== undefined) {
+    if (!isRecord(value.rotate)) {
+      issues.push({ path: `${path}.rotate`, message: "rotate 必须是对象" });
+    } else {
+      for (const key of ["fromDeg", "toDeg"]) {
+        if (!isFiniteNumber(value.rotate[key])) {
+          issues.push({ path: `${path}.rotate.${key}`, message: `${key} 必须是有限数值` });
+        }
+      }
+    }
   }
 }
 

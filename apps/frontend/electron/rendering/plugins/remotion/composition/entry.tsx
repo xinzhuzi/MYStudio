@@ -16,10 +16,11 @@ import {
   validateStoryboardShotCompositionProps,
   type CompositionValidationResult,
 } from "./composition-props-validation";
+import { chapterRecipeDurationFrames } from "./recipes/chapter-vsc-recipes";
 import {
   CHAPTER_VIDEO_COMPOSITION_ID,
   LEGACY_TIMELINE_COMPATIBILITY_COMPOSITION_ID,
- 
+
   STORYBOARD_SHOT_COMPOSITION_ID,
 } from "./composition-id";
 
@@ -80,7 +81,22 @@ export const calculateStoryboardShotMetadata: CalculateMetadataFunction<Storyboa
   = ({ props }) => targetMetadata(assertValid(validateStoryboardShotCompositionProps(props)));
 
 export const calculateChapterVideoMetadata: CalculateMetadataFunction<ChapterVideoCompositionProps>
-  = ({ props }) => targetMetadata(assertValid(validateChapterVideoCompositionProps(props)));
+  = ({ props }) => {
+    const validated = assertValid(validateChapterVideoCompositionProps(props));
+    // 章级配方段(10-10 批D):composition 总时长=开篇段+正片+章尾段;
+    // props.durationInFrames 仍是正片内容帧网格(校验边界不变),段帧数
+    // 单一真源=chapterRecipeDurationFrames(TargetCompositions 同源消费)。
+    const chapterSegmentFrames =
+      (validated.chapterOpening ? chapterRecipeDurationFrames(validated.chapterOpening.recipeId) : 0)
+      + (validated.chapterOutro ? chapterRecipeDurationFrames(validated.chapterOutro.recipeId) : 0);
+    return {
+      durationInFrames: validated.durationInFrames + chapterSegmentFrames,
+      fps: validated.fps,
+      width: validated.width,
+      height: validated.height,
+      props: validated,
+    };
+  };
 
 export function RemotionRoot(): React.ReactElement {
   return (

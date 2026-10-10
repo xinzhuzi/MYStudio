@@ -364,6 +364,10 @@ export function useChapterAutoVideoActions({
                   shotId: storyboard.id,
                   description: String(storyboard.videoDesc ?? storyboard.prompt ?? ""),
                   dialogue: String(storyboard.ttsSpokenText ?? ""),
+                  // 分镜域运镜词(10-10 批C camera-move-bridge):shotSemantics.cameraMove
+                  // (分镜表「运镜」列并入)→确定性映射为 motion 初始建议,AI 可覆盖;
+                  // 旧协议无语义 JSON/未定运镜时缺省,零影响。
+                  cameraMove: storyboard.shotSemantics?.cameraMove || undefined,
                   // 逐镜配色锚(08-28 两套色彩系统衔接):阵营色方向供 LUT 选卡同向,
                   // 数据未预热/旧镜无语义时为空串→省略,prompt 零变化。
                   colorMood: buildShotColorMoodLine(

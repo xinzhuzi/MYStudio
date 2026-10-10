@@ -232,6 +232,12 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
    */
   shotFx?: {
     motion: ShotFxMotionId;
+    /**
+     * vsc 配方参数预留字段(10-10 批B,决议 D4):键域=vsc-recipes.ts 各配方
+     * params 声明。首批不接 AI 不接 UI 也不校验——配方参数烧死卡片默认值,
+     * 本字段仅预留用户级微调位(读写两侧首批均不消费,接线路后续批)。
+     */
+    motionParams?: Record<string, number | string>;
     addons?: ShotFxAddonId[];
     grade?: { lutId: string; blend: number };
     atmosphere?: AtmosphereTemplateId[];

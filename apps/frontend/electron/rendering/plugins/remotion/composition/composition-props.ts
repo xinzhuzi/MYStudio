@@ -30,6 +30,12 @@ export interface CompositionPanZoom {
   originX: number;
   originY: number;
   easing?: "cubic" | "spring";
+  /**
+   * 旋转通道（度,可选;10-10 vsc 配方接入）:与 scale 同曲线从 fromDeg 插到
+   * toDeg。缺省 = 无旋转——旧 motion 逐帧不变（回归锁在 pan-zoom.test.ts）。
+   * dutch-roll/tilt-reveal 等 vsc:* 配方的驱动通道。
+   */
+  rotate?: { fromDeg: number; toDeg: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +122,54 @@ export interface CompositionFade {
 }
 
 // ---------------------------------------------------------------------------
+// vsc:* camera recipes (10-10 video-shotcraft graft, batch B)
+// ---------------------------------------------------------------------------
+
+/**
+ * vsc camera 配方 id 闭集(camera 五卡;id 常量真源=recipes/ 五组件文件,
+ * 本 union 与组件常量的同步由测试守护——transition-enum-sync.test.ts 同款纪律)。
+ * depth 两卡(parallax-glide/dolly-zoom)不进本字段:它们走 panZoom 驱动+
+ * layerStack 层系数通道(CompositionLayerSpec.panZoomDamp/depthAnchor)。
+ */
+export type CompositionVscCameraRecipeId =
+  | "vsc:crash-zoom-punch"
+  | "vsc:dutch-roll-to-level"
+  | "vsc:slow-push-in"
+  | "vsc:pull-back-isolation"
+  | "vsc:drone-dive-landing";
+
+// ---------------------------------------------------------------------------
+// vsc 章级配方(10-10 批D:开篇/章尾段;design §5)
+// ---------------------------------------------------------------------------
+
+/**
+ * 章头开篇段(批D):墨线开篇——存在时 ChapterVideo 在正片前渲染
+ * vsc:brand-ink-open 段(104f),全章内容整体后移。id 闭集=组件常量
+ * (recipes/brand-ink-open.tsx;同步由测试守护),文案经 workflowConfig
+ * .chapterOpening 注入 renderSettings 后由章 props 构建器投影。
+ */
+export interface CompositionChapterOpening {
+  recipeId: "vsc:brand-ink-open";
+  /** 章头字标(作品名;非空,props 校验 fail-closed)。 */
+  wordmark: string;
+  /** 副标(可选;缺省 kicker 行整体隐藏)。 */
+  kicker?: string;
+}
+
+/**
+ * 章尾段(批D):文字砂化凝聚——存在时 ChapterVideo 在正片后渲染
+ * vsc:grain-dissolve 段(60f)。tagline 与 shortMark 须指同一对象
+ * (卡片已知坑:两行 text 指不同对象=叙事断裂)。
+ */
+export interface CompositionChapterOutro {
+  recipeId: "vsc:grain-dissolve";
+  /** 整行句式(砂化解体前的「一句话」;非空)。 */
+  tagline: string;
+  /** 凝聚终字标(短标,建议 ≤6 字符;与 tagline 指同一对象)。 */
+  shortMark: string;
+}
+
+// ---------------------------------------------------------------------------
 // Visual clips
 // ---------------------------------------------------------------------------
 
@@ -150,6 +204,13 @@ export interface CompositionLayerSpec {
   role: CompositionLayerRole;
   /** panZoom 折减(围绕 1.0 收敛,0..2):1=吃满,<1 懒、>1 灵;缺省按 role(bd 0.6/subject 1/foreground 1.15/atmosphere 0)。 */
   panZoomDamp?: number;
+  /**
+   * vsc depth 层锚(10-10 批B,parallax-glide/dolly-zoom):前后景 blur/降饱和
+   * 锚——没有锚的层间位移读作「贴片乱飞」(depth-layer-moves 卡)。blur 沿
+   * clip 时长从 fromPx 插到 toPx(与 panZoom 同 eased 进度);saturate 恒定
+   * (1=原饱和)。主体/主阅读层不配锚(观众在读它,必须高清)。
+   */
+  depthAnchor?: { blurFromPx?: number; blurToPx?: number; saturate?: number };
   ambient?: import("./pan-zoom").CompositionAmbient;
   drift?: CompositionLayerDrift;
   blendMode?: CompositionLayerBlendMode;
@@ -179,6 +240,12 @@ export interface CompositionVisualClipProps {
   cinematicImageSrc?: string;
   /** 镜头级 2D 特效（shake/glow/grain/chroma），合成层注入。 */
   fx?: import("./visual-fx").CompositionVisualFx;
+  /**
+   * vsc camera 配方(10-10 批B):存在时该片段由 recipes/ 组件整体接管渲染
+   * (panZoom/ambient/fx/grade 不叠加,与 cinematic 分支同纪律);id 闭集=
+   * CompositionVscCameraRecipeId,未知 id 在 props 校验与分发两处 fail-closed。
+   */
+  vsc?: { id: CompositionVscCameraRecipeId };
   /** 成片调色（08-18-haldclut-grade）：LUT 闭集见 cinematic-luts.ts；lutSrc 为
    * media-bridge URL（build 侧由 lutUrlById 注入）。渲染期由 GLGradeMedia 上屏。 */
   grade?: { lutId: string; lutSrc?: string; blend: number; blendPulse?: { amp: number; freq: number; phase?: number } };
@@ -298,4 +365,12 @@ export type ChapterVideoCompositionProps = CompositionProps
     editingProjectId: string;
     editingRevision: number;
     audioClips: Array<CompositionAudioClipProps & { renderScope: "chapter" }>;
+    /**
+     * 章头开篇段(10-10 批D,章级开关默认关):存在时正片整体后移
+     * chapterRecipeDurationFrames(recipeId) 帧;时长扩展在
+     * entry.tsx calculateChapterVideoMetadata(单一真源)。
+     */
+    chapterOpening?: CompositionChapterOpening;
+    /** 章尾段(批D):存在时正片后附加章尾段。 */
+    chapterOutro?: CompositionChapterOutro;
   };

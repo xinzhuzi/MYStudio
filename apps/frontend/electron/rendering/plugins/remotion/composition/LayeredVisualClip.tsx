@@ -9,7 +9,7 @@
 import { AbsoluteFill, Img, OffthreadVideo, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from "remotion";
 import { GLGradeMedia } from "./GLGradeMedia";
 import { AtmosphereTemplateLayer, layerPanZoomDamp } from "./atmosphere-layers";
-import { ambientAtFrame, panZoomAtFrame } from "./pan-zoom";
+import { ambientAtFrame, panZoomAtFrame, panZoomProgressAtFrame } from "./pan-zoom";
 import {
   fxChromaLayerStyle,
   fxFilter,
@@ -114,6 +114,9 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
   // glow 的 brightness/saturate 提亮作用于容器;叠层在全部层之上。
   const shake = props.fx ? fxShakeOffset(frame, props.fx) : undefined;
   const containerFilter = props.fx ? fxFilter(props.fx) : undefined;
+  // vsc depth 层锚进度(10-10 批B):blur 沿 clip 时长与 panZoom 同 eased 进度
+  // 插值(dolly-zoom 背景膨胀 0→3.5px 渐深);无 panZoom 驱动时锚取静态 fromPx。
+  const depthProgress = panZoomProgressAtFrame(frame, props.durationInFrames, props.panZoom, fps);
   return (
     <AbsoluteFill
       style={{
@@ -175,6 +178,15 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
         const useGradeMedia = Boolean(props.grade?.lutSrc) && isRendering && layer.src;
         const ambientScale = ambient && ambient.deltaScale !== 0 ? 1 + ambient.deltaScale : 1;
         const ambientRot = ambient && ambient.deltaRot !== 0 ? ambient.deltaRot : 0;
+        // vsc depth 层锚(10-10 批B):blur(fromPx→toPx×进度)+降饱和——层间关系
+        // 读作「景深」;主体/主阅读层不带锚(投影端保证,此处纯消费)。
+        const anchor = layer.depthAnchor;
+        const blurPx = anchor && (anchor.blurFromPx !== undefined || anchor.blurToPx !== undefined)
+          ? (anchor.blurFromPx ?? 0) + ((anchor.blurToPx ?? anchor.blurFromPx ?? 0) - (anchor.blurFromPx ?? 0)) * depthProgress
+          : undefined;
+        const layerFilter = blurPx !== undefined || anchor?.saturate !== undefined
+          ? `${blurPx !== undefined ? `blur(${blurPx.toFixed(3)}px)` : ""}${blurPx !== undefined && anchor?.saturate !== undefined ? " " : ""}${anchor?.saturate !== undefined ? `saturate(${anchor.saturate})` : ""}`.trim()
+          : undefined;
         return (
           <AbsoluteFill
             key={index}
@@ -187,6 +199,7 @@ function StackedLayersClip(props: Required<Pick<LayeredVisualClipProps, "layerSt
               top: `${((ambient?.offsetY ?? 0) + driftY).toFixed(3)}%`,
               ...(layer.blendMode && layer.blendMode !== "normal" ? { mixBlendMode: layer.blendMode } : {}),
               ...(layer.opacity !== undefined ? { opacity: layer.opacity } : {}),
+              ...(layerFilter ? { filter: layerFilter } : {}),
             }}
           >
             {layer.src ? (

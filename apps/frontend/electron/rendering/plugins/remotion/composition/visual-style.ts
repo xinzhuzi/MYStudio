@@ -11,15 +11,18 @@ import type { PanZoomTransform } from "./pan-zoom";
 // Compose the transform string. Order matches how the editing preview applies
 // it: translate, then panZoom scale, then base scale, then rotate. panZoom origin
 // drives transform-origin so the zoom pivots around the same point as FFmpeg.
+// The panZoom rotate channel (10-10 vsc 接入) folds into the same rotate term:
+// 未声明时 rotateDeg=0,round(x+0)≡round(x)——旧 motion 的样式串逐字节不变。
 export function buildVisualStyle(
   transform: CompositionTransform,
   panZoom?: PanZoomTransform,
 ): CSSProperties {
   const panScale = panZoom ? panZoom.scale : 1;
+  const panRotate = panZoom ? panZoom.rotateDeg : 0;
   const parts = [
     `translate(${round(transform.x)}px, ${round(transform.y)}px)`,
     `scale(${round(transform.scaleX * panScale)}, ${round(transform.scaleY * panScale)})`,
-    `rotate(${round(transform.rotation)}deg)`,
+    `rotate(${round(transform.rotation + panRotate)}deg)`,
   ];
   const style: CSSProperties = {
     transform: parts.join(" "),

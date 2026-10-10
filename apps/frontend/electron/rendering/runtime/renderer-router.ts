@@ -18,6 +18,10 @@ const REMOTION_SUPPORTED_EFFECT_IDS = [
   "ambient",
   // 程序化氛围层(08-19 multilayer-composition Child1):layerStack template 实例化。
   "atmosphere",
+  // vsc:* 镜头配方(10-10 批B,video-shotcraft 嫁接):camera 五卡组件直渲
+  // + depth 两卡层系数,均由固定 bundle 的 composition 渲染(能力矩阵真源
+  // composition/recipes/vsc-camera-recipes.tsx;Player 同路径无近似)。
+  "vscMotion",
 ] as const;
 
 interface TimelineRendererRoutingPlan {

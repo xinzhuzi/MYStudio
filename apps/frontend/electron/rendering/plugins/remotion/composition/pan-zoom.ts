@@ -17,6 +17,11 @@ export interface PanZoomTransform {
   // FFmpeg x='(iw-iw/zoom)*originX' intent: 0 = left/top, 0.5 = center, 1 = right/bottom.
   originX: number;
   originY: number;
+  /**
+   * 旋转通道（度,10-10 vsc 配方接入）:与 scale 同一条缓动曲线从 fromDeg 插到
+   * toDeg;无 rotate 声明时恒为 0——旧 motion 的 scale/origin 输出逐帧不变。
+   */
+  rotateDeg: number;
 }
 
 // Ease-in-out cubic, curve-equivalent to Remotion's Easing.inOut(Easing.cubic)
@@ -126,19 +131,51 @@ export function panZoomAtFrame(
   if (!Number.isInteger(durationInFrames) || durationInFrames <= 0) {
     throw new Error(`panZoom 时长必须是正整数帧: ${durationInFrames}`);
   }
-  const span = durationInFrames - 1;
-  // easing 缺省 = cubic：与历史行为逐帧一致；spring 时 Remotion 原生采样（含过冲）。
-  const easedProgress = span <= 0
-    ? 0
-    : panZoom.easing === "spring"
-      ? spring({ frame, fps, config: PAN_ZOOM_SPRING_CONFIG, durationInFrames: span })
-      : easeInOutCubic(Math.min(1, Math.max(0, frame / span)));
+  const easedProgress = easedPanZoomProgress(frame, durationInFrames, panZoom, fps);
   const scale = panZoom.fromScale + (panZoom.toScale - panZoom.fromScale) * easedProgress;
+  // 旋转通道与 scale 共用同一 easedProgress(同一手势感);缺省 0,向后兼容。
+  const rotateDeg = panZoom.rotate
+    ? panZoom.rotate.fromDeg + (panZoom.rotate.toDeg - panZoom.rotate.fromDeg) * easedProgress
+    : 0;
   return {
     scale,
     originX: clampUnit(panZoom.originX),
     originY: clampUnit(panZoom.originY),
+    rotateDeg,
   };
+}
+
+/**
+ * panZoom 的 eased 进度(10-10 批B,vsc depth 层锚消费):与 panZoomAtFrame 同一
+ * 缓动采样(cubic/spring 同路径),钳制 0..1(spring 过冲不入层锚——blur 单调渐深
+ * 才符合「渐变」语义)。无 panZoom 时恒 0。
+ */
+export function panZoomProgressAtFrame(
+  frame: number,
+  durationInFrames: number,
+  panZoom: CompositionPanZoom | undefined,
+  fps = 30,
+): number {
+  if (!panZoom) return 0;
+  if (!Number.isInteger(durationInFrames) || durationInFrames <= 0) return 0;
+  return Math.min(1, Math.max(0, easedPanZoomProgress(frame, durationInFrames, panZoom, fps)));
+}
+
+// 缓动采样单源(span<=0 钳 0;spring 时 Remotion 原生采样含过冲,panZoomAtFrame
+// 原样消费,progress 帮手钳 0..1)。
+function easedPanZoomProgress(
+  frame: number,
+  durationInFrames: number,
+  panZoom: CompositionPanZoom,
+  fps: number,
+): number {
+  const span = durationInFrames - 1;
+  // easing 缺省 = cubic：与历史行为逐帧一致；spring 时 Remotion 原生采样（含过冲）。
+  return span <= 0
+    ? 0
+    : panZoom.easing === "spring"
+      ? spring({ frame, fps, config: PAN_ZOOM_SPRING_CONFIG, durationInFrames: span })
+      : easeInOutCubic(Math.min(1, Math.max(0, frame / span)));
 }
 
 function clampUnit(value: number): number {

@@ -53,6 +53,10 @@ export type EditingEffectId =
   // 程序化氛围层(08-19 multilayer-composition Child1 注册,Child2 决策链消费):
   // 雾带/光尘等 template 实例化进 layerStack。
   | "atmosphere"
+  // vsc:* 镜头配方(10-10 批B,video-shotcraft 嫁接):params 只带 recipe id
+  // (闭集真源 lib/studio/remotion/vsc-recipes.ts;D4 参数烧死卡片默认值);
+  // 渲染端 buildCompositionProps 投影进 CompositionVisualClipProps.vsc/层系数。
+  | "vscMotion"
   // gl:* 转场收录白名单（08-18-gl-transitions Step C 全量 123;权威=composition/gl-transition-registry.ts,孪生对拍守护)——EditingEffectId 为 Extract 源 union,
   // 转场闭集由此派生进 EditingTransition.effectId。
   | "gl:AdvancedMosaic"
@@ -493,6 +497,23 @@ export interface EditingRenderSettings {
    * transitionSfxEnabled（转场≠音效）严格分离——本开关只管字幕句语义派生。
    */
   subtitleSfxEnabled?: boolean;
+  /**
+   * 章头开篇段（10-10 批D 章级能力）：存在=启用 vsc:brand-ink-open 墨线开篇
+   * （104f），正片整体后移。wordmark=章头字标（作品名）；经 workflowConfig
+   * .chapterOpening 注入（兄弟=chapterGrade 惯例）。缺省=无开篇（默认关）。
+   */
+  chapterOpening?: { wordmark: string; kicker?: string };
+  /**
+   * 章尾段（批D）：存在=启用 vsc:grain-dissolve 文字砂化凝聚（60f）。
+   * tagline 与 shortMark 须指同一对象（卡片已知坑）。缺省=无章尾（默认关）。
+   */
+  chapterOutro?: { tagline: string; shortMark: string };
+  /**
+   * 节拍切点吸附开关（批D，决议 D5）：镜头切点向 BGM 节拍（beatTimesUs 能量
+   * 峰）吸附,只经转场重叠通道平移（硬切不动）；默认 false,且 BGM 无 beats
+   * 时恒不激活（章 props 构建器双条件闸）。
+   */
+  beatSnapEnabled?: boolean;
   loudnessLufs: number;
   truePeakDbtp: number;
   audioDucking?: EditingAudioDuckingSettings;

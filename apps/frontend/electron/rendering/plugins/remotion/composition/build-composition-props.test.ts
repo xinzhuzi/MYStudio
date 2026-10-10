@@ -17,6 +17,13 @@ import {
   readableSubtitleCues,
   validateSubtitleAuthorityForTimeline,
 } from "./build-composition-props";
+import { validateCompositionProps } from "./composition-props-validation";
+import { SHOT_FX_MOTION_PRESETS } from "@/lib/studio/remotion/shot-fx-decisions";
+
+const DEPTH_PRESETS = {
+  "vsc:parallax-glide": SHOT_FX_MOTION_PRESETS["vsc:parallax-glide"].panZoom,
+  "vsc:dolly-zoom": SHOT_FX_MOTION_PRESETS["vsc:dolly-zoom"].panZoom,
+} as const;
 
 const token = "a".repeat(64);
 const mediaUrl = `http://127.0.0.1:43123/${token}/shot`;
@@ -1260,5 +1267,247 @@ describe("氛围-only 栈垫底渲染(08-20 修:视频镜不丢本体)", () => {
     expect(clip.layerStack!.every((layer) => layer.role === "atmosphere" && !layer.src)).toBe(true);
     // src 保留(垫底媒体位),不会被 layerStack 覆盖掉语义
     expect(clip.src).toBe(mediaUrl);
+  });
+});
+
+describe("vscMotion 效果投影（10-10 批B,camera 五卡组件接管 / depth 两卡层系数）", () => {
+  const vscEffect = (recipe: string) => ({
+    id: `effect-shot-fx-vsc-${recipe}`,
+    effectId: "vscMotion" as const,
+    targetClipId: "visual-shot-001",
+    startUs: 0,
+    durationUs: 2_000_000,
+    params: { recipe },
+    enabled: true,
+  });
+
+  // 深度配方两效果对=决策层 buildShotFxEditingEffects 的真实产出
+  // (panZoom 驱动 + vscMotion id;投影端不凭空造 panZoom)。
+  const depthEffects = (recipe: "vsc:parallax-glide" | "vsc:dolly-zoom") => {
+    const preset = DEPTH_PRESETS[recipe];
+    return [
+      {
+        id: "effect-shot-fx-panzoom-visual-shot-001",
+        effectId: "panZoom" as const,
+        targetClipId: "visual-shot-001",
+        startUs: 0,
+        durationUs: 2_000_000,
+        params: { scaleFrom: preset.fromScale, scaleTo: preset.toScale, x: preset.originX, y: preset.originY },
+        enabled: true,
+      },
+      vscEffect(recipe),
+    ];
+  };
+
+  it("camera 五卡→clip.vsc 投影,panZoom 抑制(组件自带相机曲线,叠加=双重变换)", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.effects.push({
+      id: "fx-pan",
+      effectId: "panZoom",
+      targetClipId: "visual-shot-001",
+      startUs: 0,
+      durationUs: 2_000_000,
+      params: { scaleFrom: 1, scaleTo: 1.05, x: 0.5, y: 0.5 },
+      enabled: true,
+    });
+    plan.effects.push(vscEffect("vsc:dutch-roll-to-level"));
+    const props = buildCompositionProps(plan, { "visual-shot-001": mediaUrl });
+    const clip = props.visualClips[0]!;
+    expect(clip.vsc).toEqual({ id: "vsc:dutch-roll-to-level" });
+    expect(clip.panZoom).toBeUndefined();
+  });
+
+  it("camera 投影过 props 校验闸;未知 id fail-closed(校验+分发双闸)", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.effects.push(vscEffect("vsc:slow-push-in"));
+    const props = buildCompositionProps(plan, { "visual-shot-001": mediaUrl });
+    expect(validateCompositionProps(props).success).toBe(true);
+
+    const bogus = chapterPlan(makeCurrentSlot(), "shot-001", "storyboardVideo");
+    bogus.effects.push(vscEffect("vsc:bogus"));
+    expect(() => buildCompositionProps(bogus, { "visual-shot-001": mediaUrl }))
+      .toThrow("不在 vsc:* 闭集");
+  });
+
+  it("depth 两卡:panZoom 驱动保留 + 分层源施加层系数(视差滑轨 0.35/0.7+锚)", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "videoCandidate");
+    // 深度拆层二元组只对静帧片段生效(layerStackForClip 语义)——把 fixture 镜转静帧。
+    plan.clips[0]!.trackKind = "image";
+    (plan.clips[0]!.source as { kind: string }).kind = "storyboardImage";
+    const layerUrlByClipId = {
+      "visual-shot-001": {
+        backgroundSrc: `http://127.0.0.1:1/${token}/bg.png`,
+        subjectSrc: `http://127.0.0.1:1/${token}/subj.png`,
+        parallax: 0.5,
+      },
+    };
+    plan.effects.push(...depthEffects("vsc:parallax-glide"));
+    const props = buildCompositionProps(plan, { "visual-shot-001": mediaUrl }, undefined, layerUrlByClipId);
+    const clip = props.visualClips[0]!;
+    expect(clip.vsc).toBeUndefined(); // depth 不进 vsc 字段
+    expect(clip.panZoom?.fromScale).toBeCloseTo(1.04, 10);
+    expect(clip.panZoom?.toScale).toBeCloseTo(1.1, 10);
+    const [bg, subject] = clip.layerStack!;
+    expect(bg?.panZoomDamp).toBe(0.35); // 覆盖旧 damp(1-0.4·parallax=0.8)
+    expect(bg?.depthAnchor).toEqual({ blurFromPx: 2, blurToPx: 2, saturate: 0.92 });
+    expect(bg?.opacity).toBe(0.85);
+    expect(subject?.panZoomDamp).toBe(0.7);
+    expect(subject?.depthAnchor).toBeUndefined(); // 主阅读层高清无锚
+  });
+
+  it("depth 伪dolly-zoom:主体层钉死(damp 0)+背景膨胀满驱+blur 0→3.5", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "videoCandidate");
+    plan.clips[0]!.trackKind = "image";
+    (plan.clips[0]!.source as { kind: string }).kind = "storyboardImage";
+    const layerUrlByClipId = {
+      "visual-shot-001": {
+        backgroundSrc: `http://127.0.0.1:1/${token}/bg.png`,
+        subjectSrc: `http://127.0.0.1:1/${token}/subj.png`,
+      },
+    };
+    plan.effects.push(...depthEffects("vsc:dolly-zoom"));
+    const props = buildCompositionProps(plan, { "visual-shot-001": mediaUrl }, undefined, layerUrlByClipId);
+    const clip = props.visualClips[0]!;
+    expect(clip.panZoom?.toScale).toBeCloseTo(2.25, 10);
+    const [bg, subject] = clip.layerStack!;
+    expect(bg?.panZoomDamp).toBe(1); // 背景吃满膨胀驱动
+    expect(bg?.depthAnchor).toEqual({ blurFromPx: 0, blurToPx: 3.5 });
+    expect(subject?.panZoomDamp).toBe(0); // 主体钉死=纹丝不动
+  });
+
+  it("depth 无分层源=驱动单图近似(无 layerStack,panZoom 照发)", () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.effects.push(...depthEffects("vsc:parallax-glide"));
+    const props = buildCompositionProps(plan, { "visual-shot-001": mediaUrl });
+    const clip = props.visualClips[0]!;
+    expect(clip.layerStack).toBeUndefined();
+    expect(clip.panZoom?.fromScale).toBeCloseTo(1.04, 10);
+  });
+});
+
+describe("章级配方段与节拍切点吸附(10-10 批D)", () => {
+  it("renderSettings.chapterOpening/chapterOutro → 章级 props 段投影,过校验闸", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    plan.renderSettings = {
+      ...plan.renderSettings,
+      chapterOpening: { wordmark: "道劫", kicker: "第一卷 · 风起云涌" },
+      chapterOutro: { tagline: "{ 道劫 · 本章完 }", shortMark: "道劫" },
+    };
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.value.chapterOpening).toEqual({
+      recipeId: "vsc:brand-ink-open",
+      wordmark: "道劫",
+      kicker: "第一卷 · 风起云涌",
+    });
+    expect(result.value.chapterOutro).toEqual({
+      recipeId: "vsc:grain-dissolve",
+      tagline: "{ 道劫 · 本章完 }",
+      shortMark: "道劫",
+    });
+    // 段不改变正片帧网格(240 帧=2s@30fps 的 2s fixture 是 60;此处单镜 2s=60)。
+    expect(result.value.durationInFrames).toBe(60);
+    expect(validateCompositionProps(result.value).success).toBe(true);
+  });
+
+  it("缺省(默认关):无章级段,正片 props 与批D 前逐字节同形", async () => {
+    const slot = makeCurrentSlot();
+    const plan = chapterPlan(slot, "shot-001", "storyboardVideo");
+    const chapterManifest = await manifestForPlan(plan);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [slot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.value.chapterOpening).toBeUndefined();
+    expect(result.value.chapterOutro).toBeUndefined();
+  });
+
+  it("beatSnap 双条件闸:开关开+有 beats 才吸附;缺任一=原网格逐字节不变", async () => {
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const beat20Us = Math.round((20 / 30) * 1_000_000); // 帧率 30,节拍=帧 20
+    const build = async (beatSnapEnabled: boolean, beats?: number[]) => {
+      const plan = twoShotPlan(firstSlot, secondSlot);
+      plan.renderSettings = { ...plan.renderSettings, beatSnapEnabled };
+      const chapterManifest = await manifestForPlan(plan);
+      chapterManifest.requiredShotIds = ["shot-001", "shot-002"];
+      chapterManifest.shots = [
+        { ...chapterManifest.shots[0]!, audioBindings: [] },
+        { ...chapterManifest.shots[0]!, shotId: "shot-002", storyboardId: "shot-002", index: 1, audioBindings: [] },
+      ];
+      return buildChapterVideoCompositionProps({
+        plan,
+        currentShotSlots: [firstSlot, secondSlot],
+        chapterManifest,
+        mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+        mediaUrlByBindingId: {},
+        ...(beats ? { beatTimesUs: beats } : {}),
+      });
+    };
+    // 未开开关:b 入点 24(fade overlap 6)。
+    const off = await build(false, [beat20Us]);
+    expect(off.success).toBe(true);
+    if (off.success) expect(off.value.visualClips[1]!.from).toBe(24);
+    // 开了开关但 BGM 无 beats:恒不激活(24 不动)。
+    const noBeats = await build(true, undefined);
+    expect(noBeats.success).toBe(true);
+    if (noBeats.success) expect(noBeats.value.visualClips[1]!.from).toBe(24);
+    // 双条件齐:b 入点吸附到帧 20(overlap 6→10),每镜时长不变。
+    const snapped = await build(true, [beat20Us]);
+    expect(snapped.success).toBe(true);
+    if (!snapped.success) return;
+    expect(snapped.value.visualClips.map((clip) => [clip.from, clip.durationInFrames]))
+      .toEqual([[0, 30], [20, 30]]);
+    expect(snapped.value.durationInFrames).toBe(50);
+    // 转场重叠重算自新网格(fromEnd−toFrom=10),校验一致性闸绿。
+    expect(snapped.value.transitions[0]!.overlapFrames).toBe(10);
+    expect(validateCompositionProps(snapped.value).success).toBe(true);
+  });
+
+  it("吸附后字幕 cue 跟随 owner 锚点(镜 002 的 cue 与镜同帧平移 24→20)", async () => {
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const plan = twoShotPlan(firstSlot, secondSlot);
+    plan.renderSettings = { ...plan.renderSettings, beatSnapEnabled: true };
+    plan.clips.push(textPlanClip("cue-owned-by-002", "shot-002", 1_000_000, 500_000));
+    const chapterManifest = await manifestForPlan(plan);
+    chapterManifest.requiredShotIds = ["shot-001", "shot-002"];
+    chapterManifest.shots = [
+      { ...chapterManifest.shots[0]!, audioBindings: [] },
+      { ...chapterManifest.shots[0]!, shotId: "shot-002", storyboardId: "shot-002", index: 1, audioBindings: [] },
+    ];
+    const beat20Us = Math.round((20 / 30) * 1_000_000);
+    const result = buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, secondSlot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+      beatTimesUs: [beat20Us],
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const cue = result.value.subtitles.find((entry) => entry.cueId === "cue-owned-by-002");
+    // 未吸附:cue.from=24(音频轴 30−shift6);吸附后 owner 平移→cue.from=20。
+    expect(cue?.from).toBe(20);
   });
 });

@@ -7,7 +7,9 @@ const sequenceLog = vi.hoisted(() => ({
   items: [] as Array<{ from?: number; durationInFrames?: number; layout?: string }>,
 }));
 
-vi.mock("remotion", () => ({
+vi.mock("remotion", async (importOriginal) => ({
+  // vsc 配方曲线吃真 Easing/interpolate(10-10 批B):只 mock React 侧边界。
+  ...(await importOriginal<typeof import("remotion")>()),
   AbsoluteFill: ({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) => (
     <div style={style}>{children}</div>
   ),
@@ -149,5 +151,23 @@ describe("RemotionComposition", () => {
     const subtitleZ = (cue.parentElement as HTMLElement | null)?.closest<HTMLElement>("div[style*='z-index']");
     const subtitleZIndex = Number(subtitleZ?.style.zIndex);
     expect(subtitleZIndex).toBeGreaterThan(overlayZIndex);
+  });
+});
+
+describe("vsc camera 配方分支（10-10 批B）", () => {
+  it("clip.vsc 存在时片段由配方组件接管(不再走 VisualClip/LayeredVisualClip)", () => {
+    const props = composition();
+    props.visualClips[0] = {
+      ...props.visualClips[0]!,
+      vsc: { id: "vsc:slow-push-in" },
+    };
+    const { container } = render(<RemotionComposition {...props} />);
+    // slow-push-in 配方组件的内容层在帧 2 带 scale(≈1.00004,quad 加速曲线起点);
+    // 无 panZoom 的 VisualClip 不产 scale 变换——scale 在=配方接管。
+    const scaled = Array.from(container.querySelectorAll("div")).find((node) =>
+      String((node as HTMLElement).style?.transform ?? "").includes("scale("),
+    );
+    expect(scaled).toBeDefined();
+    expect(String((scaled as HTMLElement).style.transform)).not.toContain("2.2");
   });
 });

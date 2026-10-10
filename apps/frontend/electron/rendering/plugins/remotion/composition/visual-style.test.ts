@@ -39,9 +39,18 @@ describe("buildVisualStyle", () => {
       scale: 1.2,
       originX: 0.5,
       originY: 0.25,
+      rotateDeg: 0,
     });
     expect(style.transform).toBe("translate(0px, 0px) scale(1.2, 1.2) rotate(0deg)");
     expect(style.transformOrigin).toBe("50% 25%");
+  });
+
+  it("folds the panZoom rotate channel into the rotate term (vsc dutch-roll 通道)", () => {
+    const style = buildVisualStyle(
+      { ...identity, rotation: -5 },
+      { scale: 1.0, originX: 0.5, originY: 0.5, rotateDeg: 12.5 },
+    );
+    expect(style.transform).toBe("translate(0px, 0px) scale(1, 1) rotate(7.5deg)");
   });
 
   it("clamps opacity into [0, 1]", () => {

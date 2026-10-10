@@ -15,6 +15,7 @@
 
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
+  enforceVscMotionQuota,
   isShotFxAddonId,
   isShotFxMotionId,
   resolveRuleShotFxMotion,
@@ -22,6 +23,7 @@ import {
   type ShotFxAddonId,
   type ShotFxMotionId,
 } from "./shot-fx-decisions";
+import { cameraMoveToMotionId } from "./camera-move-bridge";
 import { CINEMATIC_LUTS, isCinematicLutId } from "./cinematic-luts";
 import { ATMOSPHERE_TEMPLATES, isAtmosphereTemplateId, type AtmosphereTemplateId } from "./atmosphere-templates";
 import { registryTemplatesByTag, isHyperframesRegistryTemplate } from "./hyperframes-registry-templates";
@@ -49,9 +51,19 @@ export interface ShotFxAiShotInput {
    * 提供给 LUT 选卡保持与生图配色同向;缺省省略(旧调用方/未预热时零变化)。
    */
   colorMood?: string;
+  /**
+   * 分镜域校准运镜词(10-10 批C camera-move-bridge):来源=shotSemantics.cameraMove
+   * (分镜表「运镜」列;校准 17 枚举如 zoom-in/dolly-in,或中文原词)。
+   * 经 camera-move-bridge 确定性映射为渲染域 motion id 作**初始建议**——
+   * 进 prompt 供 AI 参考、AI 漏选时补位、heuristic 兜底时优先于关键词;
+   * AI 显式选择永远胜出(建议性非硬门,design §2.3)。
+   * 缺省/未映射值零影响(旧调用方与中文原词走原链路)。
+   */
+  cameraMove?: string;
 }
 
-const MOTION_GUIDE: ReadonlyArray<{ id: ShotFxMotionId; when: string }> = [
+/** 运镜指南单源(导出=vsc-recipes 接线断言的消费点守护;AI prompt 从本表渲染)。 */
+export const MOTION_GUIDE: ReadonlyArray<{ id: ShotFxMotionId; when: string }> = [
   { id: "push-in", when: "情绪聚焦、对白紧张、揭示关键主体、特写推进" },
   { id: "pull-out", when: "揭示全景、段落收尾、情绪释放、开场 establishing" },
   { id: "pan-right", when: "主体向右调度、横向跟随、右向展开信息" },
@@ -71,6 +83,15 @@ const MOTION_GUIDE: ReadonlyArray<{ id: ShotFxMotionId; when: string }> = [
   { id: "sway", when: "风中摇摆——树木、旗帜、布料、花草、户外自然场景" },
   { id: "pulse", when: "变焦脉动——紧张蓄力、心跳感、神秘氛围的推拉交替" },
   { id: "flow", when: "无向漫游——缓慢多轴漂移、时间流逝、回忆闪回" },
+  // ── vsc:* 运镜(10-10 批B,video-shotcraft 嫁接;与 legacy 同池等权混排=决议 D2,
+  //    按镜头语义与能量选;注册表真源 vsc-recipes.ts) ──
+  { id: "vsc:crash-zoom-punch", when: "急推点名——全景一拍推到目标特写(过冲回弹/撞停震屏);全章至多 2 次" },
+  { id: "vsc:dutch-roll-to-level", when: "斜角滚正——剧情转折/纠偏镜:整帧斜角悬着,关键台词起一拍滚正" },
+  { id: "vsc:slow-push-in", when: "慢推压迫——宣言/爆发前蓄力:前 2 秒几乎不可察的匀加速推近+暗角渐深" },
+  { id: "vsc:parallax-glide", when: "视差滑轨——分层镜的质感横移:背景懒/前景掠过(层系数 0.35/0.7/1.4)" },
+  { id: "vsc:dolly-zoom", when: "伪 dolly-zoom——戏剧性蓄力:主体钉死全世界压来;全章至多 1 次,适合分层/人物特写镜" },
+  { id: "vsc:pull-back-isolation", when: "拉远孤立收束——段落终了的「只剩它」:特写缓缓拉成大远景,背景沉黑主体留光" },
+  { id: "vsc:drone-dive-landing", when: "无人机俯冲入题——大场面/章头定场:上帝视角一头扎进主体特写" },
 ];
 
 const ADDON_GUIDE: ReadonlyArray<{ id: ShotFxAddonId; when: string }> = [
@@ -135,6 +156,13 @@ ${REGISTRY_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n")}
         `   对白: ${s.dialogue || "(无)"}`,
       ];
       if (s.colorMood?.trim()) lines.push(`   配色锚: ${s.colorMood.trim()}`);
+      // 分镜运镜初始建议(10-10 批C):已映射=附确定性建议 id 供 AI 参考/覆盖;
+      // 未映射(中文原词/留空枚举)=仅透出原词,运镜意图仍对 AI 可见。
+      const cameraMove = s.cameraMove?.trim();
+      if (cameraMove) {
+        const suggestion = cameraMoveToMotionId(cameraMove);
+        lines.push(`   分镜运镜: ${cameraMove}${suggestion ? `（初始建议 ${suggestion}，可按镜头语义覆盖）` : ""}`);
+      }
       return lines.join("\n");
     })
     .join("\n");
@@ -162,13 +190,14 @@ ${sfxGuide}
 ${list}
 
 要求：
-1. 结合画面描述与对白情绪设计最贴合的组合；运镜与特效要互相成全（如 tilt-up+glow-warm 显巍峨神性、pan-left+shake-soft 显慌乱横移、hold 无特效作爆点前蓄力）
+1. 结合画面描述与对白情绪设计最贴合的组合；运镜与特效要互相成全（如 tilt-up+glow-warm 显巍峨神性、pan-left+shake-soft 显慌乱横移、hold 无特效作爆点前蓄力）；分镜列表带「分镜运镜」时尊重其运镜意图（括号内为确定性初始建议），镜头语义强烈冲突时可覆盖
 2. **防疲劳纪律（最重要）**：相邻镜头避免完全相同的组合；连续同类情绪时用运镜方向/特效强度做微变化；关键爆点前后可用 hold 做节奏对比；一章之内组合分布要有层次（主打组合+点缀组合），不要全片刷同一配方
 3. **转场纪律**：非 cut 转场是稀缺修辞——一章之内非 cut 边界占比不超过三分之一；ink-bleed 与 dream-warp 全章至多各一次；相邻边界避免同桶连用
-4. 风格整体性：组合要贴合本片题材气质（仙侠/热血/悬疑等），形成可辨识的镜头风格
-5. 同种特效只选一个档位（shake-soft 与 shake-hard 互斥，glow-warm 与 glow-dim 互斥）
-6. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "grade": {"lutId": "...", "blend": 0.2~0.9}, "atmosphere": ["模板id", ...], ${registryFieldSpec}"transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；grade/atmosphere 无须时整个字段省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
-7. 不要输出任何解释文字`;
+4. **vsc 配方配额（硬约束，超选会被丢弃回落轮换）**：vsc:dolly-zoom 全章至多 1 次；vsc:crash-zoom-punch 全章至多 2 次；vsc:* 与普通运镜同池等权按镜头语义选，同为稀缺修辞——一章 vsc 镜总数保持克制（约四分之一以内），只在语义强烈匹配时选
+5. 风格整体性：组合要贴合本片题材气质（仙侠/热血/悬疑等），形成可辨识的镜头风格
+6. 同种特效只选一个档位（shake-soft 与 shake-hard 互斥，glow-warm 与 glow-dim 互斥）
+7. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "grade": {"lutId": "...", "blend": 0.2~0.9}, "atmosphere": ["模板id", ...], ${registryFieldSpec}"transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；grade/atmosphere 无须时整个字段省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
+8. 不要输出任何解释文字`;
 }
 
 /** 解析 AI 返回的 JSON（容忍 markdown 代码块/前后杂文），校验每个条目。 */
@@ -277,7 +306,11 @@ export function heuristicShotFxMotions(shots: ShotFxAiShotInput[]): {
   const sfxCategories: Record<string, SubtitleSfxCategoryId> = {};
   shots.forEach((shot, index) => {
     const text = `${shot.description}\n${shot.dialogue}`;
-    motions[shot.shotId] = resolveRuleShotFxMotion(text, index);
+    // cameraMove 桥(10-10 批C)优先于关键词/轮换:分镜域已定的运镜词是比
+    // 画面文本关键词更强的信号;未映射(缺省/中文原词/留空枚举)零影响,
+    // 走原链路(legacy 关键词命中永不改判的 D2 纪律不受扰动)。
+    motions[shot.shotId] = cameraMoveToMotionId(shot.cameraMove)
+      ?? resolveRuleShotFxMotion(text, index);
     // 转场规则兜底只产出 blackout/impact-frame 两档稀缺修辞，其余交回硬切。
     const next = shots[index + 1];
     if (next) {
@@ -339,11 +372,30 @@ export async function selectShotFxMotions(
     if (!result.success || !result.text) throw new Error(result.error || "AI 调用失败");
     const parsed = parseShotFxMotionResponse(result.text, shotIds);
     if (Object.keys(parsed.motions).length === 0) throw new Error("AI 未返回有效镜头表现");
-    return { ...parsed, registries: parsed.registries ?? {}, source: "ai" };
+    // cameraMove 桥补位(10-10 批C):AI 漏选/非法值被丢弃的镜用分镜域运镜词的
+    // 确定性映射兜底——分镜已定的运镜自动落渲染,不再回落镜序轮换丢意图。
+    // AI 显式条目永远胜出(展开在后=建议性非硬门);桥输出全 legacy id,
+    // 配额守卫对其为透传。
+    const bridged: Record<string, ShotFxMotionId> = {};
+    for (const shot of shots) {
+      if (parsed.motions[shot.shotId]) continue;
+      const mapped = cameraMoveToMotionId(shot.cameraMove);
+      if (mapped) bridged[shot.shotId] = mapped;
+    }
+    // vsc 章级配额守卫(10-10 批B):AI 超选的 vsc 运镜按镜头顺序保留前 N 个,
+    // 超额回落镜序轮换——shotFx 数据与渲染效果保持一致(渲染侧同守卫双闸)。
+    const motions = enforceVscMotionQuota(
+      { ...bridged, ...parsed.motions },
+      shots.map((s) => s.shotId),
+    );
+    return { ...parsed, motions, registries: parsed.registries ?? {}, source: "ai" };
   } catch {
     // 启发式兜底不配 grade（AI 选型是增强而非必选；默认 LUT 刷满全片会破坏视觉基线）。
+    const heuristic = heuristicShotFxMotions(shots);
     return {
-      ...heuristicShotFxMotions(shots),
+      ...heuristic,
+      // 关键词兜底可命中 vsc 配方(俯冲/斜角/纵深等),配额守卫同 AI 路径。
+      motions: enforceVscMotionQuota(heuristic.motions, shots.map((s) => s.shotId)),
       addons: {},
       grades: {},
       registries: {},

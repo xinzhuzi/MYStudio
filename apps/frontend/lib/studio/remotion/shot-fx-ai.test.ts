@@ -270,3 +270,141 @@ describe("atmosphere 氛围层解析(08-19 multilayer Child2)", () => {
     expect(promptEmpty).not.toContain("配色锚:");
   });
 });
+
+describe("vsc:* 运镜指南与配额（10-10 批B,D2/D3/D4）", () => {
+  it("干跑:AI 返回 vsc: id 时 selectShotFxMotions 原样选出（AI 摄影指导能选 vsc）", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "vsc:drone-dive-landing"}, {"shotId": "s2", "motion": "vsc:dutch-roll-to-level"}, {"shotId": "s3", "motion": "push-in"}]}',
+    });
+    const result = await selectShotFxMotions(SHOTS);
+    expect(result.source).toBe("ai");
+    expect(result.motions).toEqual({
+      s1: "vsc:drone-dive-landing",
+      s2: "vsc:dutch-roll-to-level",
+      s3: "push-in",
+    });
+  });
+
+  it("指南含全部 7 个 vsc 运镜条目与配额文案（dolly ≤1 / crash ≤2）", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "push-in"}, {"shotId": "s2", "motion": "drift"}, {"shotId": "s3", "motion": "tilt-up"}]}',
+    });
+    await selectShotFxMotions(SHOTS);
+    const prompt = (textMock.mock.calls[0]?.[0] as { messages?: Array<{ content: string }> })?.messages?.[1]?.content ?? "";
+    for (const id of [
+      "vsc:crash-zoom-punch",
+      "vsc:dutch-roll-to-level",
+      "vsc:slow-push-in",
+      "vsc:parallax-glide",
+      "vsc:dolly-zoom",
+      "vsc:pull-back-isolation",
+      "vsc:drone-dive-landing",
+    ]) {
+      expect(prompt).toContain(`- ${id}:`);
+    }
+    expect(prompt).toContain("vsc:dolly-zoom 全章至多 1 次");
+    expect(prompt).toContain("vsc:crash-zoom-punch 全章至多 2 次");
+  });
+
+  it("token 量级断言:指南扩容后 prompt 仍与既有量级同阶（≤12k 字符）", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "push-in"}, {"shotId": "s2", "motion": "drift"}, {"shotId": "s3", "motion": "tilt-up"}]}',
+    });
+    await selectShotFxMotions(SHOTS);
+    const prompt = (textMock.mock.calls[0]?.[0] as { messages?: Array<{ content: string }> })?.messages?.[1]?.content ?? "";
+    expect(prompt.length).toBeGreaterThan(0);
+    expect(prompt.length).toBeLessThan(12_000);
+  });
+
+  it("配额守卫（select 级）:AI 超选 dolly-zoom 时按镜头顺序保留首个,超额回落轮换", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "vsc:dolly-zoom"}, {"shotId": "s2", "motion": "vsc:dolly-zoom"}, {"shotId": "s3", "motion": "vsc:dolly-zoom"}]}',
+    });
+    const result = await selectShotFxMotions(SHOTS);
+    expect(result.source).toBe("ai");
+    expect(result.motions.s1).toBe("vsc:dolly-zoom");
+    expect(result.motions.s2).toBe(SHOT_FX_MOTION_ROTATION_AT(1)); // pull-out
+    expect(result.motions.s3).toBe(SHOT_FX_MOTION_ROTATION_AT(2)); // pan-right
+  });
+
+  it("闭集外 vsc id 解析丢弃（vsc:bogus 不是运镜）", () => {
+    const parsed = parseShotFxMotionResponse(
+      '{"shots": [{"shotId": "s1", "motion": "vsc:bogus"}, {"shotId": "s2", "motion": "vsc:slow-push-in"}]}',
+      new Set(["s1", "s2"]),
+    );
+    expect(parsed.motions).toEqual({ s2: "vsc:slow-push-in" });
+  });
+
+  it("heuristic 关键词可命中 vsc（俯冲→drone-dive;drone 无配额故两镜都保留）", async () => {
+    textMock.mockResolvedValue({ success: false, error: "未配置 AI" });
+    const shots = [
+      { shotId: "d1", description: "镜头自云端俯冲而下", dialogue: "" },
+      { shotId: "d2", description: "又一镜俯冲扑近", dialogue: "" },
+    ];
+    const result = await selectShotFxMotions(shots);
+    expect(result.source).toBe("heuristic");
+    expect(result.motions.d1).toBe("vsc:drone-dive-landing");
+    expect(result.motions.d2).toBe("vsc:drone-dive-landing"); // drone 无配额,两镜都保留
+  });
+});
+
+describe("cameraMove 桥接线（10-10 批C,design §2.3:建议性非硬门,AI 摄影指导可覆盖）", () => {
+  it("AI 显式选择胜出:cameraMove=zoom-in 建议 push-in,AI 选 drift 则 drift", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "drift"}]}',
+    });
+    const result = await selectShotFxMotions([
+      { shotId: "s1", description: "庭院喝茶", dialogue: "", cameraMove: "zoom-in" },
+    ]);
+    expect(result.source).toBe("ai");
+    expect(result.motions.s1).toBe("drift");
+  });
+
+  it("AI 漏选的镜用桥建议补位(不再丢分镜运镜意图);无 cameraMove 的漏选镜仍缺省", async () => {
+    // AI 只返回 s1;s2 带 cameraMove=zoom-in→桥补位 push-in;s3 无 cameraMove→不补
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "tilt-up"}]}',
+    });
+    const result = await selectShotFxMotions([
+      { shotId: "s1", description: "庭院喝茶", dialogue: "" },
+      { shotId: "s2", description: "夜探宗门", dialogue: "", cameraMove: "zoom-in" },
+      { shotId: "s3", description: "远山淡影", dialogue: "" },
+    ]);
+    expect(result.source).toBe("ai");
+    expect(result.motions).toEqual({ s1: "tilt-up", s2: "push-in" });
+  });
+
+  it("AI 失败回落 heuristic 时桥建议优先于关键词(分镜域运镜词是更强信号)", async () => {
+    textMock.mockResolvedValue({ success: false, error: "未配置 AI" });
+    const result = await selectShotFxMotions([
+      { shotId: "s1", description: "剑光劈落，轰鸣炸开", dialogue: "", cameraMove: "zoom-out" },
+    ]);
+    expect(result.source).toBe("heuristic");
+    expect(result.motions.s1).toBe("pull-out");
+  });
+
+  it("prompt 注入分镜运镜行:已映射附初始建议与覆盖口径;未映射仅透出原词;无 cameraMove 不加行", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "hold"}]}',
+    });
+    await selectShotFxMotions([
+      { shotId: "s1", description: "码头对峙", dialogue: "且慢。", cameraMove: "zoom-in" },
+      { shotId: "s2", description: "夜探宗门", dialogue: "", cameraMove: "orbit" },
+      { shotId: "s3", description: "远山淡影", dialogue: "" },
+    ]);
+    const prompt = (textMock.mock.calls[0]?.[0] as { messages?: Array<{ content: string }> })?.messages?.[1]?.content ?? "";
+    expect(prompt).toContain("分镜运镜: zoom-in（初始建议 push-in，可按镜头语义覆盖）");
+    expect(prompt).toContain("分镜运镜: orbit"); // 留空枚举:原词透出,不带建议
+    expect(prompt).not.toContain("分镜运镜: orbit（");
+    expect(prompt.split("分镜运镜:").length - 1).toBe(2); // s3 无 cameraMove 不加行
+    // 覆盖口径进要求段(建议性非硬门)
+    expect(prompt).toContain("分镜列表带「分镜运镜」时尊重其运镜意图");
+  });
+});

@@ -14,7 +14,7 @@ describe("editing effect registry", () => {
       "cut", "fade", "crossfade", "flash", "blackout", "impact-frame", "ink-bleed",
       "panZoom", "shake", "glitch", "chromaticAberration", "blur", "glow", "grain",
       "speed", "afterimage", "speedSilhouette", "godRays", "onTwos", "gradePulse",
-      "atmosphere", "grade", "ambient",
+      "atmosphere", "grade", "ambient", "vscMotion",
     ];
     // 基线在前保持稳定顺序，其后为 timing 转场闭集减基线（顺序同 timing）。
     expect(EDITING_EFFECT_IDS).toEqual([

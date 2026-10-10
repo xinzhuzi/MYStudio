@@ -1,8 +1,8 @@
 // 2D 镜头表现（共享单源）：CLI 全管线与 App 一键成片共用，
 // 保证两条入口产出一致。
-// 模型 = 运镜(13) × 特效插件(可组合)：AI 每镜选 1 个运镜 + 0~2 个量化特效
-// 插件（自由组合防观看疲劳、成套风格）；未显式配置特效时按运镜配方的
-// 默认特效兜底。特效插件强度内置（registry 数值域），不可越界配置。
+// 模型 = 运镜(18 legacy + 7 vsc:*) × 特效插件(可组合)：AI 每镜选 1 个运镜
+// + 0~2 个量化特效插件（自由组合防观看疲劳、成套风格）；未显式配置特效时
+// 按运镜配方的默认特效兜底。特效插件强度内置（registry 数值域），不可越界配置。
 // 产出契约形状的 EditingEffect[]（panZoom/shake/glow/grain/chromaticAberration），
 // 经 plan.effects 正门进入合成（build-composition-props 消费），章节渲染身份哈希
 // 含 plan.effects → 镜头表现变化自动触发缓存失效。不再做渲染时直注。
@@ -10,12 +10,23 @@
 // 关键词命中（映射到成套配方）> 镜序轮换 7 基础运镜。
 // 锐度纪律：源图已上采样到合成分辨率，panZoom 再放大即二次软化——
 // 常规镜缩放上限 1.08，动作 punch 上限 1.12，颗粒 0.035。
+//
+// vsc:* 扩容(10-10 批B,决议 D1/D2/D3/D4):
+// - 运镜闭集 = LegacyMotionId(18,永不退役,存量工程逐字节兼容) ∪ VscMotionId(7,
+//   video-shotcraft 嫁接,注册表真源 vsc-recipes.ts);两类同池等权混排(D2)。
+// - vsc camera 五卡经 vscMotion 效果只带 recipe id(D4 参数烧死卡片默认值),
+//   组件整体接管渲染,伴生 fx/grain/grade 不叠加(与 cinematic 分支同纪律);
+//   depth 两卡(parallax-glide/dolly-zoom)=LayeredVisualClip 层系数配方:
+//   panZoom 驱动照发+vscMotion id,分层镜由投影端施加层系数。
+// - 章级配额(dolly-zoom ≤1、crash-zoom ≤2)在此守卫:超额 vsc 回落镜序轮换。
 
 import { isCinematicLutId } from "./cinematic-luts";
 import { isAtmosphereTemplateId } from "./atmosphere-templates";
+import { isVscMotionId, vscRecipeQuota, type VscMotionId } from "./vsc-recipes";
 import type { EditingEffect } from "@/types/editing";
 
-export type ShotFxMotionId =
+/** legacy 18 值闭集(2026-08 起冻结:旧值不动永不退役,D2)。 */
+export type LegacyMotionId =
   | "push-in"
   | "pull-out"
   | "pan-right"
@@ -36,6 +47,9 @@ export type ShotFxMotionId =
   | "pulse"     // 脉动:推拉交替,呼吸变焦
   | "flow"      // 流动:多轴慢移,无方向感漫游
 ;
+
+/** 运镜闭集(10-10 批B 扩容,D2):legacy 18 与 vsc 7 同池等权,legacy 永不退役。 */
+export type ShotFxMotionId = LegacyMotionId | VscMotionId;
 
 /** 可组合特效插件 ID（量化档位，强度内置不可配置）。 */
 export type ShotFxAddonId =
@@ -84,16 +98,43 @@ export interface ShotFxAmbient {
   phase: number;
 }
 
+/** vsc depth 层系数配方(depth-layer-moves 卡转写;LayeredVisualClip 消费):
+ *  同一条 panZoom 驱动 × 各层系数=视差;blur/降饱和锚让层间关系读作「景深」
+ *  (卡片:没有锚读作"贴片乱飞";主阅读层/主体必须高清无 blur)。 */
+export interface ShotFxVscLayerCoefficients {
+  /** 背景层(层栈 role=background):系数围绕 1.0 收敛,1=吃满驱动。 */
+  background: { panZoomDamp: number; blurFromPx?: number; blurToPx?: number; saturate?: number; opacity?: number };
+  /** 主体层(role=subject):dolly-zoom 钉死=0(不参与任何变换)。 */
+  subject: { panZoomDamp: number };
+  /** 前景层(role=foreground;无前景分层的镜自然缺省)。 */
+  foreground?: { panZoomDamp: number; blurFromPx?: number; blurToPx?: number };
+}
+
 export interface ShotFxRecipe {
   panZoom: ShotFxPanZoom;
   fx: ShotFxRecipeFx;
   /** 环境动画(叠加在 panZoom 之上的周期运动;null=无) */
   ambient: ShotFxAmbient | null;
+  /**
+   * vsc:* 运镜(10-10 批B):
+   * - render="component"(camera 五卡):组件整体接管渲染——本条 panZoom/fx/ambient
+   *   仅作卡片曲线的档案值,决策层不发射 panZoom 效果,伴生特效不叠加
+   *   (与 cinematic 分支同纪律;参数烧死卡片默认值=决议 D4)。
+   * - render="layeredDepth"(depth 两卡):panZoom 驱动照常发射,层系数由投影端
+   *   施加进 layerStack(无分层源的镜=驱动单图近似,系数自然不生效)。
+   */
+  vsc?: {
+    render: "component" | "layeredDepth";
+    layers?: ShotFxVscLayerCoefficients;
+  };
 }
 
 /** 镜头表现配方表（唯一权威来源，含缩放纪律上限）。
  * 前七项为无特效基础运镜（轮换用）；后六项为带默认特效的成套配方
  * （未显式配置特效插件时的兜底）；hold 为锁帧节奏对比（仅 AI 可选）。
+ * vsc:* 七项(10-10 批B):camera 五卡 panZoom=卡片曲线档案值(不发射,组件直渲);
+ * depth 两卡 panZoom=驱动曲线(照常发射)。锐度纪律(≤1.08/1.12)只辖 legacy 18,
+ * vsc 卡片曲线有自己的域(如 dolly 膨胀 1→2.25)——闭集校验单测按域分治。
  */
 export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecipe>> = {
   "push-in": {
@@ -197,6 +238,78 @@ export const SHOT_FX_MOTION_PRESETS: Readonly<Record<ShotFxMotionId, ShotFxRecip
     fx: {},
     ambient: { type: "flow", ampX: 0.008, ampY: 0.006, ampScale: 0.003, ampRot: 0.15, freq: 0.1, phase: 0 },
   },
+  // ── vsc:* 七档(10-10 批B,video-shotcraft 嫁接;注册表真源 vsc-recipes.ts) ──
+  // camera 五卡:组件直渲,vscMotion 效果只带 recipe id(D4);panZoom 字段为卡片
+  // 曲线档案值(不发射),fx/ambient 恒空(震屏/暗角等在组件曲线内)。
+  "vsc:crash-zoom-punch": {
+    // 急推点名:6f 1→2.6,rebound 过冲回弹 5.8%(impact 款震屏 14px 在组件内)。
+    panZoom: { fromScale: 1.0, toScale: 2.6, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: null,
+    vsc: { render: "component" },
+  },
+  "vsc:dutch-roll-to-level": {
+    // 斜角滚正:-10° 悬置(漂移 ±0.8°/2px)→ 14f 冲过 0 过冲 +1.2° → 10f 收 0。
+    panZoom: { fromScale: 1.15, toScale: 1.08, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: null,
+    vsc: { render: "component" },
+  },
+  "vsc:slow-push-in": {
+    // 慢推压迫:120f 匀加速(Easing.in quad)1.00→1.14,暗角 0→0.5 同曲线渐深。
+    panZoom: { fromScale: 1.0, toScale: 1.14, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: null,
+    vsc: { render: "component" },
+  },
+  "vsc:pull-back-isolation": {
+    // 拉远孤立(单镜版):2.2 特写 → 110f out(cubic) → 0.62 大远景孤悬;
+    // 背景 60–110f 沉黑、主体光晕 60–100f 淡入(全在组件内)。
+    panZoom: { fromScale: 2.2, toScale: 0.62, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: null,
+    vsc: { render: "component" },
+  },
+  "vsc:drone-dive-landing": {
+    // 无人机俯冲:20f 悬停(rotateX 72°/0.42 全景)→ 25f in(cubic) 82% 行程
+    // → 20f out(poly5) 气垫 → 1.35 特写;全场 motion-blur(220/9)。
+    panZoom: { fromScale: 0.42, toScale: 1.35, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: null,
+    vsc: { render: "component" },
+  },
+  // depth 两卡:LayeredVisualClip 层系数配方——panZoom 驱动照常发射,层 damp
+  // 梯度+blur/降饱和锚由投影端施加(depth-layer-moves 卡参数表转写)。
+  "vsc:parallax-glide": {
+    // 视差滑轨:同一驱动 × 层系数 0.35/0.7/1.4;背景退成环境(blur 2px+降饱和
+    // 0.92+opacity 0.85),主阅读层无锚,前景掠过镜头(blur 3px)。
+    panZoom: { fromScale: 1.04, toScale: 1.1, originX: 0.68, originY: 0.5 },
+    fx: {},
+    ambient: null,
+    vsc: {
+      render: "layeredDepth",
+      layers: {
+        background: { panZoomDamp: 0.35, blurFromPx: 2, blurToPx: 2, saturate: 0.92, opacity: 0.85 },
+        subject: { panZoomDamp: 0.7 },
+        foreground: { panZoomDamp: 1.4, blurFromPx: 3, blurToPx: 3 },
+      },
+    },
+  },
+  "vsc:dolly-zoom": {
+    // 伪 dolly-zoom:主体层钉死(damp 0=纹丝不动),背景层膨胀 1→2.25
+    // + blur 0→3.5px 渐深;无分层源的镜退化为驱动单图近似(全幅 2.25)。
+    // 章级配额 ≤1(vsc-recipes quota;决策守卫+contracts 校验器双闸)。
+    panZoom: { fromScale: 1.0, toScale: 2.25, originX: 0.5, originY: 0.5 },
+    fx: {},
+    ambient: null,
+    vsc: {
+      render: "layeredDepth",
+      layers: {
+        background: { panZoomDamp: 1, blurFromPx: 0, blurToPx: 3.5 },
+        subject: { panZoomDamp: 0 },
+      },
+    },
+  },
 };
 
 /** 特效插件表（量化档位 → 契约效果与参数；同种效果互斥，取首个）。 */
@@ -262,10 +375,38 @@ export interface ShotFxPlanClipLike {
 
 export interface ShotFxResult {
   effects: EditingEffect[];
-  counts: { motion: number; shake: number; glow: number; chroma: number };
+  counts: { motion: number; vsc: number; shake: number; glow: number; chroma: number };
 }
 
-/** 关键词命中的成套配方（动作>追逐>灵光>暗涌；退场仅偶数镜启用与历史行为一致）。 */
+/**
+ * vsc 章级配额守卫(select 级共用):按镜头顺序保留前 quota 个同名 vsc 运镜,
+ * 超额者回落镜序轮换(确定性,与 clipIndex 对齐渲染侧规则)。legacy 永不配额(D2)。
+ * AI 路径与 heuristic 路径共用,保证 shotFx 数据与渲染效果一致(不出现
+ * 数据写 dolly、效果落轮换的分裂)。
+ */
+export function enforceVscMotionQuota(
+  motions: Record<string, ShotFxMotionId>,
+  orderedShotIds: readonly string[],
+): Record<string, ShotFxMotionId> {
+  const usage = new Map<VscMotionId, number>();
+  const out: Record<string, ShotFxMotionId> = { ...motions };
+  orderedShotIds.forEach((shotId, index) => {
+    const motion = out[shotId];
+    if (!motion || !isVscMotionId(motion)) return;
+    const quota = vscRecipeQuota(motion);
+    const used = usage.get(motion) ?? 0;
+    if (quota !== undefined && used >= quota) {
+      out[shotId] = SHOT_FX_MOTION_ROTATION[index % SHOT_FX_MOTION_ROTATION.length];
+      return;
+    }
+    usage.set(motion, used + 1);
+  });
+  return out;
+}
+
+/** 关键词命中的成套配方（动作>追逐>灵光>暗涌；退场仅偶数镜启用与历史行为一致；
+ * vsc 关键词(10-10 批B)排在 legacy 之后——legacy 命中永不改判(D2 存量兼容),
+ * vsc 词与 legacy 词表零重叠,只接 legacy 覆盖不到的镜头语义）。 */
 export function keywordShotFxMotion(
   text: string,
   clipIndex: number,
@@ -280,6 +421,14 @@ export function keywordShotFxMotion(
   if (isDark) return "gloom-pull";
   const isLeave = /退|远|离|别|消失/.test(text);
   if (isLeave && clipIndex % 2 === 0) return "leave-pull";
+  // ── vsc:* 关键词兜底(10-10 批B;词表与 legacy 零重叠,确定性同级) ──
+  if (/俯冲|俯瞰|扎下|俯扑/.test(text)) return "vsc:drone-dive-landing";
+  if (/天旋地转|眩晕|世界崩塌|压来/.test(text)) return "vsc:dolly-zoom";
+  if (/斜|倾覆|歪/.test(text)) return "vsc:dutch-roll-to-level";
+  if (/纵深|景深|滑轨/.test(text)) return "vsc:parallax-glide";
+  if (/蓄力|压迫|凝重|窒/.test(text)) return "vsc:slow-push-in";
+  if (/孤身|孤悬|只剩|形单/.test(text)) return "vsc:pull-back-isolation";
+  if (/点名|盯住|锁向/.test(text)) return "vsc:crash-zoom-punch";
   return undefined;
 }
 
@@ -340,7 +489,10 @@ export function buildShotFxEditingEffects(input: {
 }): ShotFxResult {
   const storyboardById = new Map(input.storyboards.map((storyboard) => [storyboard.id, storyboard]));
   const effects: EditingEffect[] = [];
-  const counts = { motion: 0, shake: 0, glow: 0, chroma: 0 };
+  const counts = { motion: 0, vsc: 0, shake: 0, glow: 0, chroma: 0 };
+  // vsc 章级配额(决策侧守卫;contracts 校验器 fail-closed 二闸):
+  // dolly-zoom ≤1、crash-zoom ≤2(vsc-recipes quota 真源)。
+  const vscUsage = new Map<VscMotionId, number>();
 
   let visualIndex = 0;
   for (const clip of input.planClips) {
@@ -352,8 +504,21 @@ export function buildShotFxEditingEffects(input: {
       ? `${String(storyboard.prompt ?? "")}\n${String(storyboard.line ?? "")}`
       : "";
     const aiHint = storyboard?.shotFx?.motion;
-    const motionId = isShotFxMotionId(aiHint) ? aiHint : resolveRuleShotFxMotion(text, visualIndex);
+    const requested = isShotFxMotionId(aiHint) ? aiHint : resolveRuleShotFxMotion(text, visualIndex);
+    // 配额超额的 vsc 运镜回落镜序轮换(AI/关键词/直写数据三来源同守卫)。
+    let motionId: ShotFxMotionId = requested;
+    if (isVscMotionId(requested)) {
+      const quota = vscRecipeQuota(requested);
+      const used = vscUsage.get(requested) ?? 0;
+      if (quota !== undefined && used >= quota) {
+        motionId = SHOT_FX_MOTION_ROTATION[visualIndex % SHOT_FX_MOTION_ROTATION.length];
+      } else {
+        vscUsage.set(requested, used + 1);
+      }
+    }
     const recipe = SHOT_FX_MOTION_PRESETS[motionId];
+    const vscCamera = recipe.vsc?.render === "component";
+    const vscDepth = recipe.vsc?.render === "layeredDepth";
 
     const pushEffect = (
       suffix: string,
@@ -371,6 +536,17 @@ export function buildShotFxEditingEffects(input: {
       });
     };
 
+    // vsc camera 五卡(10-10 批B):组件整体接管渲染(D3 直写 shotFx 自动决策链)。
+    // vscMotion 效果只带 recipe id(D4 参数烧死);panZoom/fx/grain/grade/atmosphere/
+    // ambient 一律不叠加——配方自带完整相机处理(与 cinematic 分支同纪律,
+    // 决策与渲染两侧一致,不存在"注册表说支持、渲染静默丢"的伴生特效)。
+    if (vscCamera) {
+      pushEffect("vsc", "vscMotion", { recipe: motionId });
+      counts.vsc += 1;
+      visualIndex += 1;
+      continue;
+    }
+
     pushEffect("panzoom", "panZoom", {
       scaleFrom: recipe.panZoom.fromScale,
       scaleTo: recipe.panZoom.toScale,
@@ -380,6 +556,14 @@ export function buildShotFxEditingEffects(input: {
       ...(recipe.panZoom.easing ? { easing: recipe.panZoom.easing } : {}),
     });
     counts.motion += 1;
+
+    // depth 两卡(10-10 批B):panZoom 驱动照发,vscMotion id 让投影端识别配方
+    // 并把层系数(0.35/0.7/1.4 梯度+blur/降饱和锚)施加进 layerStack;
+    // 无分层源的镜=驱动单图近似。伴生特效(颗粒/调色/氛围)照常(panZoom 家族)。
+    if (vscDepth) {
+      pushEffect("vsc", "vscMotion", { recipe: motionId });
+      counts.vsc += 1;
+    }
 
     // 颗粒全局质感常驻（独立于配方与插件）。
     pushEffect("grain", "grain", { amount: 0.035 });

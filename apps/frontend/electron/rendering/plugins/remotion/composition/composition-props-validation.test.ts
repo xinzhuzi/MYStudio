@@ -290,6 +290,51 @@ describe("validateCompositionProps", () => {
     if (!result.success) expect(result.issues.some((issue) => issue.path === "visualClips")).toBe(true);
   });
 
+  it("10-10 批D:chapterOpening/chapterOutro 合法形状放行", () => {
+    const props = {
+      ...validProps(),
+      target: "chapter" as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      editingProjectId: "editing-001",
+      editingRevision: 1,
+      visualClips: [{ ...validProps().visualClips[0], kind: "video" as const }],
+      transitions: [],
+      audioClips: [],
+      chapterOpening: { recipeId: "vsc:brand-ink-open", wordmark: "道劫", kicker: "第一卷" },
+      chapterOutro: { recipeId: "vsc:grain-dissolve", tagline: "{ 道劫 · 本章完 }", shortMark: "道劫" },
+    };
+    const result = validateChapterVideoCompositionProps(props);
+    expect(result.success).toBe(true);
+  });
+
+  it("10-10 批D:章级配方段 fail-closed(未知 id/空文案/非对象)", () => {
+    const base = {
+      ...validProps(),
+      target: "chapter" as const,
+      projectId: "project-a",
+      chapterId: "chapter-001",
+      editingProjectId: "editing-001",
+      editingRevision: 1,
+      visualClips: [{ ...validProps().visualClips[0], kind: "video" as const }],
+    };
+    const expectIssue = (patch: Record<string, unknown>, path: string) => {
+      const result = validateChapterVideoCompositionProps({ ...base, ...patch });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.issues.some((issue) => issue.path === path)).toBe(true);
+      }
+    };
+    expectIssue({ chapterOpening: { recipeId: "vsc:bogus", wordmark: "x" } }, "chapterOpening.recipeId");
+    expectIssue({ chapterOpening: { recipeId: "vsc:brand-ink-open", wordmark: "" } }, "chapterOpening.wordmark");
+    expectIssue({ chapterOpening: { recipeId: "vsc:brand-ink-open", wordmark: "x", kicker: 7 } }, "chapterOpening.kicker");
+    expectIssue({ chapterOpening: "on" }, "chapterOpening");
+    expectIssue({ chapterOutro: { recipeId: "vsc:bogus", tagline: "x", shortMark: "y" } }, "chapterOutro.recipeId");
+    expectIssue({ chapterOutro: { recipeId: "vsc:grain-dissolve", tagline: "", shortMark: "y" } }, "chapterOutro.tagline");
+    expectIssue({ chapterOutro: { recipeId: "vsc:grain-dissolve", tagline: "x", shortMark: " " } }, "chapterOutro.shortMark");
+    expectIssue({ chapterOutro: [] }, "chapterOutro");
+  });
+
   it("rejects zero target revisions", () => {
     const props = {
       ...validProps(),
@@ -430,5 +475,100 @@ describe("layerStack 校验(08-19 multilayer Child1)", () => {
     const props = validProps();
     props.visualClips[0].ambient = { type: "breathe", ampX: 0, ampY: 0.01, ampScale: 0.008, ampRot: 0, freq: 0.3, phase: 0.5 };
     expect(validateCompositionProps(props).success).toBe(true);
+  });
+});
+
+describe("vsc camera 配方字段（10-10 批B,闭集 fail-closed + 分支互斥）", () => {
+  it("闭集内 id 通过", () => {
+    const props = validProps();
+    props.visualClips[0].vsc = { id: "vsc:crash-zoom-punch" };
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(true);
+  });
+
+  it("闭集外 id 拒(depth 两卡的 id 也不进 vsc 字段——它们走层系数通道)", () => {
+    const props = validProps();
+    props.visualClips[0].vsc = { id: "vsc:dolly-zoom" as never }; // depth id 故意误用 vsc 字段
+    const result = validateCompositionProps(props);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues[0]?.message).toContain("不在 camera 配方闭集");
+  });
+
+  it("未知 id 拒(拼写漂移在 props 边界拦截)", () => {
+    const props = validProps();
+    props.visualClips[0].vsc = { id: "vsc:bogus" as never }; // 闭集外拼写漂移
+    expect(validateCompositionProps(props).success).toBe(false);
+  });
+
+  it("vsc 与 cinematic / layers / layerStack 互斥(整体接管分支不得同现)", () => {
+    const withLayerStack = validProps();
+    withLayerStack.visualClips[0].vsc = { id: "vsc:slow-push-in" };
+    withLayerStack.visualClips[0].layerStack = [{ role: "background", src: withLayerStack.visualClips[0].src }];
+    const stacked = validateCompositionProps(withLayerStack);
+    expect(stacked.success).toBe(false);
+    if (stacked.success) return;
+    expect(stacked.issues.some((issue) => issue.message.includes("互斥"))).toBe(true);
+
+    const withCinematic = validProps();
+    withCinematic.visualClips[0].vsc = { id: "vsc:slow-push-in" };
+    withCinematic.visualClips[0].cinematic = {
+      preset: "cinematic-dolly-in",
+      depthMapSrc: "http://127.0.0.1:1/x",
+      cameraDistance: 5,
+      cameraHeight: 0,
+      dofFocusDistance: 5,
+      dofAperture: 0,
+      motionBlurSamples: 0,
+      parallaxStrength: 1,
+      bloomIntensity: 0,
+      vignetteDarkness: 0,
+      chromaticAberration: 0,
+    };
+    expect(validateCompositionProps(withCinematic).success).toBe(false);
+  });
+
+  it("vsc 非对象拒", () => {
+    const props = validProps();
+    (props.visualClips[0] as { vsc?: unknown }).vsc = "vsc:slow-push-in";
+    expect(validateCompositionProps(props).success).toBe(false);
+  });
+});
+
+describe("vsc depth 层锚（10-10 批B,depthAnchor 形状/数值域 fail-closed）", () => {
+  it("合法锚通过(blur 0..24,saturate 0..2)", () => {
+    const props = validProps();
+    props.visualClips[0].layerStack = [
+      {
+        role: "background",
+        src: props.visualClips[0].src,
+        panZoomDamp: 0.35,
+        depthAnchor: { blurFromPx: 0, blurToPx: 3.5 },
+      },
+    ];
+    expect(validateCompositionProps(props).success).toBe(true);
+  });
+
+  it("blur 越界(>24)拒、saturate 越界拒、depthAnchor 非对象拒", () => {
+    const overBlur = validProps();
+    overBlur.visualClips[0].layerStack = [
+      { role: "background", src: overBlur.visualClips[0].src, depthAnchor: { blurToPx: 30 } },
+    ];
+    const blurResult = validateCompositionProps(overBlur);
+    expect(blurResult.success).toBe(false);
+    if (blurResult.success) return;
+    expect(blurResult.issues[0]?.message).toContain("blurToPx");
+
+    const overSaturate = validProps();
+    overSaturate.visualClips[0].layerStack = [
+      { role: "background", src: overSaturate.visualClips[0].src, depthAnchor: { saturate: 3 } },
+    ];
+    expect(validateCompositionProps(overSaturate).success).toBe(false);
+
+    const notRecord = validProps();
+    notRecord.visualClips[0].layerStack = [
+      { role: "background", src: notRecord.visualClips[0].src, depthAnchor: "blur" as unknown as never },
+    ];
+    expect(validateCompositionProps(notRecord).success).toBe(false);
   });
 });

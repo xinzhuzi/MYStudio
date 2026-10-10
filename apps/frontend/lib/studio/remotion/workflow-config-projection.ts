@@ -20,6 +20,10 @@ export interface WorkflowConfigProjectionInput {
   subtitleSfxEnabled?: unknown;
   atmosphereMode?: unknown;
   subtitleFont?: unknown;
+  /** 章级配方段（10-10 批D）：开篇/章尾文案与节拍切点吸附开关。 */
+  chapterOpening?: { wordmark?: unknown; kicker?: unknown };
+  chapterOutro?: { tagline?: unknown; shortMark?: unknown };
+  beatSnapEnabled?: unknown;
 }
 
 /** 把 workflowConfig 的渲染定调字段注水进 renderSettings，返回新对象。
@@ -48,6 +52,34 @@ export function applyWorkflowConfigToRenderSettings<T extends EditingRenderSetti
   }
   if (typeof workflowConfig.subtitleFont === "string" && isKnownSubtitleFontId(workflowConfig.subtitleFont)) {
     next = { ...next, subtitleFont: workflowConfig.subtitleFont };
+  }
+  // 章级配方段（批D）：wordmark/tagline/shortMark 非空字符串才注入（空文案
+  // = 开关无效,fail-open 到 plan 原值——渲染一个空字标没有意义）;kicker
+  // 可选字符串。beatSnapEnabled 仅布尔。
+  if (typeof workflowConfig.chapterOpening?.wordmark === "string" && workflowConfig.chapterOpening.wordmark.trim()) {
+    const kicker = workflowConfig.chapterOpening.kicker;
+    next = {
+      ...next,
+      chapterOpening: {
+        wordmark: workflowConfig.chapterOpening.wordmark,
+        ...(typeof kicker === "string" && kicker.trim() ? { kicker } : {}),
+      },
+    };
+  }
+  if (
+    typeof workflowConfig.chapterOutro?.tagline === "string" && workflowConfig.chapterOutro.tagline.trim()
+    && typeof workflowConfig.chapterOutro?.shortMark === "string" && workflowConfig.chapterOutro.shortMark.trim()
+  ) {
+    next = {
+      ...next,
+      chapterOutro: {
+        tagline: workflowConfig.chapterOutro.tagline,
+        shortMark: workflowConfig.chapterOutro.shortMark,
+      },
+    };
+  }
+  if (typeof workflowConfig.beatSnapEnabled === "boolean") {
+    next = { ...next, beatSnapEnabled: workflowConfig.beatSnapEnabled };
   }
   return next;
 }

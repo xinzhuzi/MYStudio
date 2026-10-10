@@ -909,3 +909,40 @@ function validRenderRecord(project: EditingProjectV1): TimelineRenderRecord {
     },
   };
 }
+
+describe("vscMotion 契约正门接线（10-10 批B,contracts/vsc-motion-contract）", () => {
+  const vscEffect = (recipe: string, id = `effect-shot-fx-vsc-${recipe}`) => ({
+    id,
+    effectId: "vscMotion" as const,
+    targetClipId: "clip-1",
+    startUs: 0,
+    durationUs: 1_000_000,
+    params: { recipe },
+    enabled: true,
+  });
+
+  it("合法 vscMotion 效果过闸(camera/depth 都认)", () => {
+    const plan = validRenderPlan(validProject());
+    plan.effects.push(vscEffect("vsc:slow-push-in"));
+    expect(validateTimelineRenderPlan(plan).success).toBe(true);
+  });
+
+  it("未知 recipe id 整计划拒(fail-closed,渲染前拦)", () => {
+    const plan = validRenderPlan(validProject());
+    plan.effects.push(vscEffect("vsc:bogus"));
+    const result = validateTimelineRenderPlan(plan);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues.some((issue) => issue.code === "vsc.effect.recipe_unknown")).toBe(true);
+  });
+
+  it("章级配额超限整计划拒(dolly 第 2 次)", () => {
+    const plan = validRenderPlan(validProject());
+    plan.effects.push(vscEffect("vsc:dolly-zoom"));
+    plan.effects.push(vscEffect("vsc:dolly-zoom", "effect-shot-fx-vsc-dolly-2"));
+    const result = validateTimelineRenderPlan(plan);
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.issues.some((issue) => issue.code === "vsc.effect.quota_exceeded")).toBe(true);
+  });
+});

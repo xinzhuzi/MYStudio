@@ -2,6 +2,7 @@ import type { AutoEditingRun, EditingValidationIssue, EditingValidationResult, T
 import { validateEditingProject, validateSourceEvidence, validateRenderSettings, validateClipSource, validateTransform, validateEnvelope, validateSubtitleMetadata, validateTransitions, validateEffects, TRACK_KINDS } from "./validation-project";
 import type { EffectTargetInfo } from "./validation-shared";
 import { validateTimelineAudioPostProcessEvidence, validateTimelineRendererEvidence } from "@rendering/contracts/timeline-renderer";
+import { validateVscMotionEffects } from "@rendering/contracts/vsc-motion-contract";
 import { arrayValue, booleanValue, enumValue, exactOne, isRecord, issue, nonNegativeInteger, optionalNonNegativeInteger, optionalString, positiveFinite, positiveInteger, positiveTime, rangedNumber, requiredString, addUniqueId, scanForbiddenRenderKeys } from "./validation-shared";
 /**
  * 时间线校验族——autoEditingRun 与 timelineRenderPlan/Record。
@@ -175,6 +176,16 @@ export function validateTimelineRenderPlan(
     issues,
     "$.effects",
   );
+  // vscMotion 契约二闸(10-10 批B):recipe 闭集/params 键域/章级配额 fail-closed
+  // (决策侧配额守卫是第一闸;此闸拦直写数据与手改计划)。
+  const vscContract = validateVscMotionEffects(
+    Array.isArray(value.effects) ? (value.effects as Array<Record<string, unknown>>) : undefined,
+  );
+  if (!vscContract.success) {
+    vscContract.issues.forEach((contractIssue) => {
+      issue(issues, contractIssue.code, contractIssue.path, contractIssue.message);
+    });
+  }
 
   return issues.length > 0
     ? { success: false, issues }

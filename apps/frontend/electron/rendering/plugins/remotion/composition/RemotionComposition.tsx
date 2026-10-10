@@ -13,6 +13,7 @@ import type {
 import { SilentAudioTrack } from "./SilentAudioTrack";
 import { SubtitleTrack } from "./SubtitleTrack";
 import { transitionStyleAtFrame } from "./transition-style";
+import { VscCameraRecipeClip } from "./recipes/vsc-camera-recipes";
 import { VisualClip } from "./VisualClip";
 
 /** Shared composition mounted by both Player and the fixed bundle. */
@@ -122,7 +123,19 @@ function TransitionedVisualClip({
           : {}),
       }}
     >
-      {clip.cinematic ? (
+      {/* vsc camera 配方(10-10 批B):组件整体接管该片段(与 cinematic 分支
+          同纪律——panZoom/fx/grade/层栈不叠加);depth 两卡不走此分支
+          (panZoom+layerStack 层系数通道,落在下方 Layered/VisualClip)。 */}
+      {clip.vsc ? (
+        <VscCameraRecipeClip
+          vsc={clip.vsc}
+          src={clip.src}
+          kind={clip.kind}
+          trimStartFrames={clip.trimStartFrames}
+          playbackRate={clip.playbackRate}
+          muted={clip.muted}
+        />
+      ) : clip.cinematic ? (
         <CinematicVisualClip {...clip} />
       ) : clip.layerStack?.length ? (
         <LayeredVisualClip

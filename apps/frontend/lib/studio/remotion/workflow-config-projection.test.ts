@@ -52,4 +52,41 @@ describe("applyWorkflowConfigToRenderSettings", () => {
     expect(applyWorkflowConfigToRenderSettings(BASE, { subtitleFont: "no-such-font" }).subtitleFont).toBeUndefined();
     expect(applyWorkflowConfigToRenderSettings(BASE, { subtitleFont: 123 }).subtitleFont).toBeUndefined();
   });
+
+  it("10-10 批D:chapterOpening 注入(非空 wordmark;可选 kicker,空白 kicker 剥离)", () => {
+    expect(applyWorkflowConfigToRenderSettings(BASE, {
+      chapterOpening: { wordmark: "道劫", kicker: "第一卷 · 风起云涌" },
+    }).chapterOpening).toEqual({ wordmark: "道劫", kicker: "第一卷 · 风起云涌" });
+    expect(applyWorkflowConfigToRenderSettings(BASE, {
+      chapterOpening: { wordmark: "道劫", kicker: "   " },
+    }).chapterOpening).toEqual({ wordmark: "道劫" });
+  });
+
+  it("10-10 批D:chapterOpening 空文案/非字符串=不注入(默认关,fail-open 到 plan 原值)", () => {
+    expect(applyWorkflowConfigToRenderSettings(BASE, { chapterOpening: { wordmark: "" } }).chapterOpening).toBeUndefined();
+    expect(applyWorkflowConfigToRenderSettings(BASE, { chapterOpening: { wordmark: "   " } }).chapterOpening).toBeUndefined();
+    expect(applyWorkflowConfigToRenderSettings(BASE, { chapterOpening: { wordmark: 42 } }).chapterOpening).toBeUndefined();
+  });
+
+  it("10-10 批D:chapterOutro 注入(tagline+shortMark 双非空才注入;任一空=不注入)", () => {
+    expect(applyWorkflowConfigToRenderSettings(BASE, {
+      chapterOutro: { tagline: "{ 道劫 · 本章完 }", shortMark: "道劫" },
+    }).chapterOutro).toEqual({ tagline: "{ 道劫 · 本章完 }", shortMark: "道劫" });
+    expect(applyWorkflowConfigToRenderSettings(BASE, {
+      chapterOutro: { tagline: "", shortMark: "道劫" },
+    }).chapterOutro).toBeUndefined();
+    expect(applyWorkflowConfigToRenderSettings(BASE, {
+      chapterOutro: { tagline: "x", shortMark: " " },
+    }).chapterOutro).toBeUndefined();
+    expect(applyWorkflowConfigToRenderSettings(BASE, {
+      chapterOutro: { shortMark: "道劫" } as never,
+    }).chapterOutro).toBeUndefined();
+  });
+
+  it("10-10 批D:beatSnapEnabled 仅布尔注入(默认关=缺省不注入)", () => {
+    expect(applyWorkflowConfigToRenderSettings(BASE, { beatSnapEnabled: true }).beatSnapEnabled).toBe(true);
+    expect(applyWorkflowConfigToRenderSettings(BASE, { beatSnapEnabled: false }).beatSnapEnabled).toBe(false);
+    expect(applyWorkflowConfigToRenderSettings(BASE, { beatSnapEnabled: "true" }).beatSnapEnabled).toBeUndefined();
+    expect(applyWorkflowConfigToRenderSettings(BASE, {}).beatSnapEnabled).toBeUndefined();
+  });
 });

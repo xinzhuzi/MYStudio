@@ -108,3 +108,66 @@ describe("LayeredVisualClip 氛围-only 栈（08-21 fx/panZoom 透传修复）",
     expect(styles.some((s) => s.includes("brightness") || s.includes("hsla"))).toBe(false);
   });
 });
+
+describe("vsc depth 层锚渲染（10-10 批B,parallax-glide/dolly-zoom 层系数消费）", () => {
+  it("背景层 blur+saturate 滤镜按进度插值,主体层无锚(高清)", () => {
+    const stack: CompositionLayerSpec[] = [
+      { role: "background", src: "http://127.0.0.1:1/bg.png", panZoomDamp: 0.35, opacity: 0.85, depthAnchor: { blurFromPx: 2, blurToPx: 2, saturate: 0.92 } },
+      { role: "subject", src: "http://127.0.0.1:1/subj.png", panZoomDamp: 0.7 },
+    ];
+    currentFrame.value = 30; // 90f 中点:cubic 进度 0.5
+    const { container } = render(
+      <LayeredVisualClip
+        layerStack={stack}
+        durationInFrames={90}
+        panZoom={{ fromScale: 1.04, toScale: 1.1, originX: 0.68, originY: 0.5 }}
+      />,
+    );
+    const layers = container.querySelectorAll('[data-testid="absolute-fill"]');
+    const bgStyle = JSON.parse(layers[1]?.getAttribute("data-style") ?? "{}");
+    expect(bgStyle.filter).toBe("blur(2.000px) saturate(0.92)");
+    expect(bgStyle.opacity).toBe(0.85);
+    const subjectStyle = JSON.parse(layers[2]?.getAttribute("data-style") ?? "{}");
+    expect(subjectStyle.filter).toBeUndefined();
+  });
+
+  it("dolly 背景膨胀 blur 0→3.5 渐深(帧 0=0px,末帧=3.5px);主体 damp 0 恒 scale 1", () => {
+    const stack: CompositionLayerSpec[] = [
+      { role: "background", src: "http://127.0.0.1:1/bg.png", panZoomDamp: 1, depthAnchor: { blurFromPx: 0, blurToPx: 3.5 } },
+      { role: "subject", src: "http://127.0.0.1:1/subj.png", panZoomDamp: 0 },
+    ];
+    const pan = { fromScale: 1, toScale: 2.25, originX: 0.5, originY: 0.5 };
+    currentFrame.value = 0;
+    const first = render(
+      <LayeredVisualClip layerStack={stack} durationInFrames={90} panZoom={pan} />,
+    );
+    const firstLayers = first.container.querySelectorAll('[data-testid="absolute-fill"]');
+    expect(JSON.parse(firstLayers[1]?.getAttribute("data-style") ?? "{}").filter).toBe("blur(0.000px)");
+    cleanup();
+
+    currentFrame.value = 89;
+    const last = render(
+      <LayeredVisualClip layerStack={stack} durationInFrames={90} panZoom={pan} />,
+    );
+    const lastLayers = last.container.querySelectorAll('[data-testid="absolute-fill"]');
+    const bgTransform = JSON.parse(lastLayers[1]?.getAttribute("data-style") ?? "{}").transform;
+    expect(bgTransform).toContain("scale(2.2"); // 背景吃满膨胀(89/89≈1, cubic→2.25)
+    const subjectTransform = JSON.parse(lastLayers[2]?.getAttribute("data-style") ?? "{}").transform;
+    expect(subjectTransform).toContain("scale(1.0"); // damp 0:钉死 1→1,不随背景膨胀
+  });
+
+  it("无锚层不产生 filter 键(存量 layerStack 逐字节不变)", () => {
+    const { container } = render(
+      <LayeredVisualClip
+        layerStack={atmoStack}
+        durationInFrames={90}
+        baseSrc="http://127.0.0.1:1/base.mp4"
+        baseKind="video"
+      />,
+    );
+    const layers = container.querySelectorAll('[data-testid="absolute-fill"]');
+    for (const layer of layers) {
+      expect(JSON.parse(layer.getAttribute("data-style") ?? "{}").filter).toBeUndefined();
+    }
+  });
+});
