@@ -44,7 +44,7 @@ import {
 } from "./OverviewFields";
 import { OVERVIEW_WORKFLOW_GUIDE } from "./workflow-guide";
 import { OVERVIEW_STAGE_GUIDE } from "./stage-guide";
-import { AuthorPreferenceDialog } from "./AuthorPreferenceDialog";
+import { DirectorPreferenceDialog } from "./DirectorPreferenceDialog";
 import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import { OverviewAiFill } from "./OverviewAiFill";
 
@@ -146,7 +146,7 @@ const { setActiveTab } = useMediaPanelStore();
   const meta: SeriesMeta | null = scriptProject?.seriesMeta || null;
   const episodes: EpisodeRawScript[] = scriptProject?.episodeRawScripts || [];
 
-  // 作者偏好（应用级口味卡）编辑入口
+  // 导演偏好（应用级口味卡）编辑入口
   const [prefOpen, setPrefOpen] = useState(false);
 
   const update = useCallback(
@@ -208,7 +208,7 @@ const { setActiveTab } = useMediaPanelStore();
               {/* 应用级偏好入口不依赖项目元数据——无 seriesMeta 的项目同样可编辑 */}
               <Button variant="outline" size="sm" onClick={() => setPrefOpen(true)}>
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                作者偏好
+                导演偏好
               </Button>
             </div>
             <div className="mt-2">
@@ -232,7 +232,7 @@ const { setActiveTab } = useMediaPanelStore();
         </div>
         </div>
         </ScrollArea>
-        <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
+        <DirectorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
       </div>
     );
   }
@@ -298,7 +298,7 @@ const { setActiveTab } = useMediaPanelStore();
                 />
                 <Button variant="outline" size="sm" onClick={() => setPrefOpen(true)}>
                   <SlidersHorizontal className="h-3.5 w-3.5" />
-                  作者偏好
+                  导演偏好
                 </Button>
               </div>
             </div>
@@ -549,7 +549,7 @@ const { setActiveTab } = useMediaPanelStore();
           </section>
         </div>
       </ScrollArea>
-      <AuthorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
+      <DirectorPreferenceDialog open={prefOpen} onOpenChange={setPrefOpen} />
     </div>
   );
 }

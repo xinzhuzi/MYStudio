@@ -71,13 +71,14 @@ describe("studio storyboard table messages", () => {
     expect(messages.system).not.toContain("视觉手册 · 分镜表风格约束");
   });
 
-  it("includes the H3 duration budget guard (09-14 upstream alignment)", () => {
+  it("includes the H3 duration budget guard (2026-10-10 3-min cap + 8~15s long-shot ruling)", () => {
     const messages = buildStoryboardTableMessages({
       episodeId: "chapter-001",
       scriptText: "第一场：夜，矿场。",
     });
     expect(messages.system).toContain("时长预算（H3 视频线）");
-    expect(messages.system).toContain("5–8 秒");
+    expect(messages.system).toContain("每镜基准 8~15 秒");
+    expect(messages.system).toContain("≤3 分钟");
     expect(messages.system).toContain("17k+5");
   });
 

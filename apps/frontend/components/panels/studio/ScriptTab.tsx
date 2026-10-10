@@ -34,7 +34,7 @@ export function ScriptTab(props: {
     options?: { useReviewFeedback?: boolean },
   ) => void;
   runReview: (stage: ReviewableStage, chapter: NovelChapter) => void;
-  /** 「AI提示词」预览源:返回与实际发送(未编辑时)一致的完整 user 消息(含作者偏好/原著圣经);缺省回退本地构建。 */
+  /** 「AI提示词」预览源:返回与实际发送(未编辑时)一致的完整 user 消息(含导演偏好/原著圣经);缺省回退本地构建。 */
   previewStageUserMessage?: (
     stage: ScriptStageKey,
     chapter: NovelChapter,
@@ -119,7 +119,7 @@ export function ScriptTab(props: {
     return () => clearInterval(id);
   }, [isStreaming]);
 
-  // 完整提示词预览(hook 侧构建,含作者偏好/原著圣经/档案检索/项目记忆):所见即所发。
+  // 完整提示词预览(hook 侧构建,含导演偏好/原著圣经/档案检索/项目记忆):所见即所发。
   // null=加载中;""=构建失败,回退本地标准构建展示。
   const [livePrompt, setLivePrompt] = useState<string | null>(null);
   useEffect(() => {
@@ -174,7 +174,7 @@ export function ScriptTab(props: {
   const promptSource = userDraft ?? basePrompt;
   const memoryMarkers = [
     promptSource.includes("原著圣经") ? "原著圣经" : "",
-    promptSource.includes("作者偏好") ? "作者偏好" : "",
+    promptSource.includes("导演偏好") ? "导演偏好" : "",
     promptSource.includes("原著档案检索") ? "原著档案(按需)" : "",
     promptSource.includes("项目记忆") ? "项目记忆" : "",
   ]

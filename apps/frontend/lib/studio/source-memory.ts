@@ -13,7 +13,7 @@ import {
   readResidentBible,
   ResidentMemoryTooLargeError,
 } from "./source-bible";
-import { formatAuthorPreferenceContext, readAuthorPreference } from "./author-preference";
+import { formatDirectorPreferenceContext, readDirectorPreference } from "./director-preference";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import type {
   SourceMemoryBuildReply,
@@ -405,7 +405,7 @@ export async function readSourceMemoryActionContext(input: {
   archiveQuery: string;
   archiveLimit?: number;
 }): Promise<SourceMemoryActionContext> {
-  const preferenceContext = formatAuthorPreferenceContext(await readAuthorPreference());
+  const preferenceContext = formatDirectorPreferenceContext(await readDirectorPreference());
   let residentBible: string;
   try {
     residentBible = await readResidentBible({

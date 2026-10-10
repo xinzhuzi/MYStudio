@@ -391,7 +391,7 @@ describe("检索门面（L3）", () => {
     expect(result.success && result.context).not.toContain("原著档案检索");
   });
 
-  it("作者偏好排在合并块最前：偏好→圣经→档案；空偏好零痕迹", async () => {
+  it("导演偏好排在合并块最前：偏好→圣经→档案；空偏好零痕迹", async () => {
     installResidentMemory("# 原著圣经\n\n## 一句话主线\n主线\n");
     (window as unknown as { sourceMemory?: unknown }).sourceMemory = {
       search: vi.fn(async () => ({
@@ -412,16 +412,16 @@ describe("检索门面（L3）", () => {
       })),
     };
     (window as unknown as { fileStorage?: unknown }).fileStorage = {
-      getItem: async (key: string) => (key === "author-preference.md" ? "# 作者偏好\n\n## 改编口味\n快节奏\n" : null),
+      getItem: async (key: string) => (key === "director-preference.md" ? "# 导演偏好\n\n## 改编原则\n- 快节奏\n" : null),
     };
     const combined = await readBibleWithArchiveContext({
       projectId: "p1",
       archiveQuery: "晏燎",
     });
-    expect(combined!.indexOf("# 作者偏好（改编口味")).toBeGreaterThanOrEqual(0);
-    expect(combined!.indexOf("原著圣经（最高优先级")).toBeGreaterThan(combined!.indexOf("# 作者偏好（改编口味"));
+    expect(combined!.indexOf("# 导演偏好（导演决策原则")).toBeGreaterThanOrEqual(0);
+    expect(combined!.indexOf("原著圣经（最高优先级")).toBeGreaterThan(combined!.indexOf("# 导演偏好（导演决策原则"));
     expect(combined!.indexOf("## 原著档案检索")).toBeGreaterThan(combined!.indexOf("原著圣经（最高优先级"));
-    expect(combined!.match(/# 作者偏好/g)).toHaveLength(1);
+    expect(combined!.match(/# 导演偏好/g)).toHaveLength(1);
 
     // 空偏好 → 与无偏好基线逐字节一致（零痕迹）
     (window as unknown as { fileStorage?: unknown }).fileStorage = {
@@ -431,6 +431,6 @@ describe("检索门面（L3）", () => {
       projectId: "p1",
       archiveQuery: "晏燎",
     });
-    expect(baseline).not.toContain("作者偏好");
+    expect(baseline).not.toContain("导演偏好");
   });
 });

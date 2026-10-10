@@ -336,7 +336,7 @@ export function useProductionPlanningActions({
       });
 
       try {
-        // 流式生成:8 分钟集分镜表输出量大(4~6 分钟),非流式撞网关 524(~2 分钟切断);
+        // 流式生成:整集分镜表输出量大(可达数分钟),非流式撞网关 524(~2 分钟切断);
         // 与导演规划同走 textStream 保活(2026-08-22 实证:非流式 127s 必 524)
         const result = await aiManager.textStream(
           {

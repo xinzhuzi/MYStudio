@@ -157,12 +157,12 @@ describe("OverviewPanel", () => {
   it("opens the author preference editor from the overview header and saves via app-level storage", async () => {
     render(<OverviewPanel />);
 
-    const entry = screen.getByRole("button", { name: /作者偏好/ });
+    const entry = screen.getByRole("button", { name: /导演偏好/ });
     expect(entry).toBeTruthy();
 
     const setItem = vi.fn(async () => true);
     (window as unknown as { fileStorage?: unknown }).fileStorage = {
-      getItem: async () => "# 作者偏好\n\n## 改编口味\n快节奏\n",
+      getItem: async () => "# 导演偏好\n\n## 改编口味\n快节奏\n",
       setItem,
     };
     fireEvent.click(entry);
@@ -170,7 +170,7 @@ describe("OverviewPanel", () => {
     expect(await screen.findByText(/全应用生效/)).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: /^保存$/ }));
     await waitFor(() =>
-      expect(setItem).toHaveBeenCalledWith("author-preference.md", expect.stringContaining("改编口味")),
+      expect(setItem).toHaveBeenCalledWith("director-preference.md", expect.stringContaining("改编口味")),
     );
     delete (window as unknown as { fileStorage?: unknown }).fileStorage;
   });
@@ -252,7 +252,7 @@ describe("OverviewPanel", () => {
   it("AI 填充：跳过问答生成 → 预览 → 确认写入 updateSeriesMeta（手填 genre 不被覆盖）", async () => {
     // 素材只认记忆库(08-18 裁定:概览不引入章节内容,剧本正文不作素材)
     (window as unknown as { fileStorage?: unknown }).fileStorage = {
-      getItem: async () => "# 作者偏好\n\n## 改编口味\n快节奏强钩子\n",
+      getItem: async () => "# 导演偏好\n\n## 改编口味\n快节奏强钩子\n",
       setItem: vi.fn(async () => true),
     };
     render(<OverviewPanel />);
@@ -285,7 +285,7 @@ describe("OverviewPanel", () => {
     render(<OverviewPanel />);
 
     expect(screen.getByText(/项目入口/)).toBeTruthy();
-    const entry = screen.getByRole("button", { name: /作者偏好/ });
+    const entry = screen.getByRole("button", { name: /导演偏好/ });
     fireEvent.click(entry);
 
     (window as unknown as { fileStorage?: unknown }).fileStorage = {

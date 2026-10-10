@@ -46,7 +46,7 @@ export function OverviewAiFill(props: {
   meta: SeriesMeta;
   onApply: (updates: Partial<SeriesMeta>) => void;
   buildContext: () => Promise<string | undefined>;
-  /** 提示里的「写入作者偏好」跳转 */
+  /** 提示里的「写入导演偏好」跳转 */
   onOpenPreference?: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -202,7 +202,7 @@ export function OverviewAiFill(props: {
               </RadioGroup>
             </div>
             <p className="text-xs text-muted-foreground">
-              常用口味可写入「作者偏好」长期生效。
+              常用口味可写入「导演偏好」长期生效。
               {props.onOpenPreference && (
                 <Button variant="link" size="sm" className="h-auto p-0 ml-1 text-xs" onClick={props.onOpenPreference}>
                   去设置

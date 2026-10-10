@@ -102,7 +102,7 @@ export function buildStoryboardTableNode(ctx: ProductionFlowBuildContext): Produ
         targetStage: "storyboard",
         disabled: ctx.input.scriptPlans.length === 0,
         promptPlaceholder:
-          "给分镜表补充要求，例如：每镜约 5 秒、台词不丢、道具和角色资产必须进入镜头。",
+          "给分镜表补充要求，例如：每镜 8~15 秒、台词不丢、道具和角色资产必须进入镜头。",
       },
     ],
     targetStage: "storyboard",

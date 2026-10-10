@@ -162,7 +162,7 @@ export function useScriptStageActions({
     });
   };
 
-  /** 组装某阶段完整消息(作者偏好+原著圣经+档案检索+项目记忆全注入);供生成与预览共用。 */
+  /** 组装某阶段完整消息(导演偏好+原著圣经+档案检索+项目记忆全注入);供生成与预览共用。 */
   const buildStageMessagesFull = useCallback(
     async (
       stage: ScriptStageKey,

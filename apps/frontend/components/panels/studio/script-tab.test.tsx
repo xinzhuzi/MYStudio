@@ -137,11 +137,11 @@ describe("ScriptTab", () => {
     );
 
     expect(source).toContain("previewStageUserMessage");
-    // 未编辑时不再把 ScriptTab 本地构建当 override 传下去,hook 的完整构建(含作者偏好/原著圣经)生效
+    // 未编辑时不再把 ScriptTab 本地构建当 override 传下去,hook 的完整构建(含导演偏好/原著圣经)生效
     expect(source).not.toContain("userDraft ?? standardMessages.user");
     expect(source).toContain("chapter,\n                        userDraft,");
     expect(source).toContain("原著圣经");
-    expect(source).toContain("作者偏好");
+    expect(source).toContain("导演偏好");
     expect(source).toContain("livePrompt");
   });
 

@@ -45,16 +45,17 @@ export function ManualsTab(props: {
           </div>
           <div className="shrink-0 space-y-1">
             <Label className="text-xs text-muted-foreground">
-              单集参考时长（分钟）
+              单集参考时长（分钟，上限 3）
             </Label>
             <Input
               type="number"
               min={1}
+              max={3}
               value={props.workflowConfig.episodeDurationMin ?? 3}
               onChange={(e) =>
                 props.setWorkflowConfig({
                   episodeDurationMin: e.target.value
-                    ? Number(e.target.value)
+                    ? Math.min(3, Number(e.target.value))
                     : undefined,
                 })
               }

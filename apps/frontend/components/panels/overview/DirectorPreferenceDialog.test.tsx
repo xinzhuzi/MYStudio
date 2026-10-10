@@ -16,19 +16,19 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: {
     text: vi.fn(async () => ({
       success: true,
-      text: "## 改编口味\n快节奏强钩子，单集结尾必留悬念\n\n## 叙事偏好\n多用对白推进，旁白只做转场\n\n## 口味雷点\n不要回忆杀开场",
+      text: "改编口味: 快节奏强钩子，单集结尾必留悬念\n§\n叙事偏好: 多用对白推进，旁白只做转场\n§\n口味雷点: 不要回忆杀开场",
     })),
   },
 }));
 
-import { AuthorPreferenceDialog } from "./AuthorPreferenceDialog";
+import { DirectorPreferenceDialog } from "./DirectorPreferenceDialog";
 
 const mocks = vi.hoisted(() => ({
   getItem: vi.fn(async () => null),
   setItem: vi.fn(async () => true),
 }));
 
-describe("AuthorPreferenceDialog AI 起草", () => {
+describe("DirectorPreferenceDialog AI 起草", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (window as unknown as { fileStorage?: unknown }).fileStorage = {
@@ -43,7 +43,7 @@ describe("AuthorPreferenceDialog AI 起草", () => {
   });
 
   it("AI 生成（跳过问答）→ 草稿进编辑器 → 手动保存才落盘", async () => {
-    render(<AuthorPreferenceDialog open onOpenChange={() => {}} />);
+    render(<DirectorPreferenceDialog open onOpenChange={() => {}} />);
 
     // 编辑器先载入模板
     await waitFor(() =>
@@ -59,7 +59,7 @@ describe("AuthorPreferenceDialog AI 起草", () => {
     // 草稿进编辑器（AI 不直接落盘）
     await waitFor(() => {
       const editor = screen.getByTestId("pref-editor") as HTMLTextAreaElement;
-      expect(editor.value).toContain("# 作者偏好");
+      expect(editor.value).toContain("# 导演偏好");
       expect(editor.value).toContain("快节奏强钩子");
     });
     expect(mocks.setItem).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe("AuthorPreferenceDialog AI 起草", () => {
     fireEvent.click(await screen.findByRole("button", { name: /^保存$/ }));
     await waitFor(() =>
       expect(mocks.setItem).toHaveBeenCalledWith(
-        "author-preference.md",
+        "director-preference.md",
         expect.stringContaining("快节奏强钩子"),
       ),
     );
@@ -75,7 +75,7 @@ describe("AuthorPreferenceDialog AI 起草", () => {
 
   it("问答作答路径：选项进入生成上下文（经 aiManager 消息断言）", async () => {
     const { aiManager } = await import("@/lib/ai/ai-manager");
-    render(<AuthorPreferenceDialog open onOpenChange={() => {}} />);
+    render(<DirectorPreferenceDialog open onOpenChange={() => {}} />);
     await waitFor(() => expect(screen.getByTestId("pref-editor")).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: /AI 生成/ }));
