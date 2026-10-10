@@ -48,7 +48,7 @@ describe("parseOverviewFillResponse", () => {
     expect(result.fields.logline).toBe("少年逆袭");
     expect(result.fields.themes).toEqual(["复仇", "权谋", "x"]);
     expect(result.fields.keyItems).toEqual([{ name: "断剑", desc: "旧物" }]);
-    expect(result.fields.factions).toEqual([{ name: "万劫圣宗", members: ["玄清子"] }]);
+    expect(result.fields.factions).toEqual([{ name: "万劫圣宗", members: [] }]);
     expect(result.fields.unknown).toBeUndefined();
   });
 

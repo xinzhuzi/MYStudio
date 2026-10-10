@@ -288,7 +288,7 @@ const { setActiveTab } = useMediaPanelStore();
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground">
                   {episodes.length} 集 · {meta.characters.length} 角色 ·{" "}
-                  {meta.factions?.length || 0} 阵营 · {meta.keyItems?.length || 0} 物品
+                  {meta.factions?.length || 0} 背景势力 · {meta.keyItems?.length || 0} 物品
                 </span>
                 <OverviewAiFill
                   meta={meta}
@@ -488,14 +488,14 @@ const { setActiveTab } = useMediaPanelStore();
                 </Button>
               </SectionCard>
 
-              {/* 阵营 */}
+              {/* 背景势力(阵营) */}
               <SectionCard
                 icon={Shield}
-                title={`阵营 (${meta.factions?.length || 0})`}
+                title={`背景势力(阵营) (${meta.factions?.length || 0})`}
               >
                 {!meta.factions?.length ? (
                   <p className="text-xs text-muted-foreground italic">
-                    暂无阵营数据（AI 校准后自动填充）
+                    暂无背景势力数据
                   </p>
                 ) : (
                   <div className="space-y-2">

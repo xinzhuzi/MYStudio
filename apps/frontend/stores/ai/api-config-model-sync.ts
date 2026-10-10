@@ -17,7 +17,7 @@ interface SyncProviderModelsDependencies {
 export async function syncProviderModels(
   provider: IProvider | undefined,
   dependencies: SyncProviderModelsDependencies,
-): Promise<{ success: boolean; count: number; error?: string }> {
+): Promise<{ success: boolean; count: number; removed?: number; error?: string }> {
   if (!provider) return { success: false, count: 0, error: "供应商不存在" };
   const keys = parseApiKeys(provider.apiKey);
   if (keys.length === 0) return { success: false, count: 0, error: "请先配置 API Key" };
@@ -102,7 +102,10 @@ export async function syncProviderModels(
       }
     } else {
       const modelsUrl = /\/v\d+$/.test(baseUrl) ? `${baseUrl}/models` : `${baseUrl}/v1/models`;
-      let anySuccess = false;
+      // 1010 用户裁定:同步以服务器目录为准(替换式)——不在目录中的已配置模型随同步移除,
+      // 防止失效模型长期滞留列表(功能绑定可选到死模型)。替换具有破坏性,必须拿到全部 Key 的
+      // 目录才动手:任一 Key 失败/目录为空即整体取消且不动列表,防止误删仅由该 Key 分组提供的模型。
+      const failedKeyNumbers: number[] = [];
       let lastError = "";
       for (let index = 0; index < keys.length; index++) {
         try {
@@ -116,12 +119,17 @@ export async function syncProviderModels(
           if (!response.ok) {
             lastError = `key#${index + 1} API 返回 ${response.status}`;
             console.warn(`[APIConfig] ${lastError}`);
+            failedKeyNumbers.push(index + 1);
             continue;
           }
           const json = await response.json() as { data?: Array<{ id: string; supported_endpoint_types?: string[] } | string> } | Array<{ id: string; supported_endpoint_types?: string[] } | string>;
           const models = Array.isArray(json) ? json : json.data;
-          if (!Array.isArray(models) || models.length === 0) continue;
-          anySuccess = true;
+          if (!Array.isArray(models) || models.length === 0) {
+            lastError = `key#${index + 1} 目录为空`;
+            console.warn(`[APIConfig] ${lastError}`);
+            failedKeyNumbers.push(index + 1);
+            continue;
+          }
           for (const model of models) {
             const id = typeof model === "string" ? model : model.id;
             if (id) allModelIds.add(id);
@@ -132,21 +140,24 @@ export async function syncProviderModels(
         } catch (error) {
           lastError = `key#${index + 1} 网络请求失败`;
           console.warn(`[APIConfig] ${lastError}:`, error);
+          failedKeyNumbers.push(index + 1);
         }
       }
-      if (!anySuccess) return { success: false, count: 0, error: lastError || "API 返回异常" };
-      // 目录 ≠ 可用性:job/chat 等通道可服务目录外模型,已配置模型一律保留;全部 Key 的目录并集并入列表
-      const mergedModelIds = Array.from(new Set([...configuredModelIds, ...Array.from(allModelIds)]));
-      const missing = configuredModelIds.filter((model) => !allModelIds.has(model));
-      if (missing.length > 0) {
-        console.warn(`[APIConfig] 以下已配置模型不在供应商目录中(仍保留): ${missing.join(", ")}`);
+      if (failedKeyNumbers.length > 0) {
+        const failedKeys = failedKeyNumbers.map((keyNumber) => `key#${keyNumber}`).join("、");
+        return { success: false, count: 0, error: `${failedKeys} 目录获取失败(${lastError}),已取消同步以免误删` };
+      }
+      const modelIds = Array.from(allModelIds);
+      const removedModels = configuredModelIds.filter((model) => !allModelIds.has(model));
+      if (removedModels.length > 0) {
+        console.warn(`[APIConfig] 以下已配置模型不在供应商目录中,已随同步移除: ${removedModels.join(", ")}`);
       }
       const endpointTypes = Object.fromEntries(
-        mergedModelIds.filter((model) => metadata.modelEndpointTypes[model]).map((model) => [model, metadata.modelEndpointTypes[model]]),
+        modelIds.filter((model) => metadata.modelEndpointTypes[model]).map((model) => [model, metadata.modelEndpointTypes[model]]),
       );
       if (Object.keys(endpointTypes).length > 0) dependencies.applyEndpointTypes(endpointTypes);
-      dependencies.updateProvider({ ...provider, model: mergedModelIds });
-      return { success: true, count: mergedModelIds.length };
+      dependencies.updateProvider({ ...provider, model: modelIds });
+      return { success: true, count: modelIds.length, removed: removedModels.length };
     }
 
     const modelIds = Array.from(allModelIds);

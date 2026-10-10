@@ -105,7 +105,7 @@ export interface APIConfigActions {
   removeProvider: (id: string) => void;
   getProviderByPlatform: (platform: string) => IProvider | undefined;
   getProviderById: (id: string) => IProvider | undefined;
-  syncProviderModels: (providerId: string) => Promise<{ success: boolean; count: number; error?: string }>;
+  syncProviderModels: (providerId: string) => Promise<{ success: boolean; count: number; removed?: number; error?: string }>;
 
   // Toonflow-style workflow model deployment config
   setAgentUseMode: (mode: AgentUseMode) => void;

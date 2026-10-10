@@ -39,7 +39,7 @@ export const OVERVIEW_FILL_FIELD_LABELS: Record<string, string> = {
   themes: "主题",
   geography: "地理设定",
   keyItems: "关键物品",
-  factions: "阵营",
+  factions: "背景势力(阵营)",
 };
 
 /** characters 不进 AI 填充：ScriptCharacter 结构复杂（身份/外貌/口癖等），
@@ -83,7 +83,7 @@ export function buildOverviewFillMessages(input: {
     `"themes"（主题标签，字符串数组，≤${THEMES_MAX}个，每个2-6字）`,
     `"geography"（地理设定，对象数组 {name,desc}，≤${ENTITY_LIST_MAX}个）`,
     `"keyItems"（关键物品，对象数组 {name,desc}，≤${ENTITY_LIST_MAX}个）`,
-    `"factions"（阵营，对象数组 {name,members:人名数组}，≤${ENTITY_LIST_MAX}个）`,
+    `"factions"（背景势力(阵营)，对象数组 {name}，≤${ENTITY_LIST_MAX}个；只给势力名，严禁输出成员人名——人名归角色区）`,
   ].join("；");
   const system = [
     "你是剧集制片助理，依据原著素材为「项目概览」元数据提字段建议。",
@@ -154,14 +154,12 @@ export function parseOverviewFillResponse(text: string): { ok: true; fields: Rec
   }
   if (Array.isArray(rec.factions)) {
     const factions = rec.factions
-      .map((item) => {
+      .map((item): Faction | null => {
         if (!item || typeof item !== "object") return null;
         const r = item as Record<string, unknown>;
         if (typeof r.name !== "string" || !r.name.trim()) return null;
-        const members = Array.isArray(r.members)
-          ? r.members.filter((m): m is string => typeof m === "string" && !!m.trim()).slice(0, 20)
-          : [];
-        return { name: r.name.trim().slice(0, 40), members } satisfies Faction;
+        // 阵营只录名字：人名归角色区，members 恒空（模型硬塞也丢弃）
+        return { name: r.name.trim().slice(0, 40), members: [] };
       })
       .filter((x): x is Faction => x !== null)
       .slice(0, ENTITY_LIST_MAX);

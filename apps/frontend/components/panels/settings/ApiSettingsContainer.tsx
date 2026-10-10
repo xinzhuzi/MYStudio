@@ -177,7 +177,8 @@ export function ApiSettingsContainer() {
     try {
       const result = await syncProviderModels(provider.id);
       if (result.success) {
-        toast.success(`${automatic ? "已自动同步" : "已同步"} ${result.count} 个模型`);
+        const removedNote = result.removed ? `，移除 ${result.removed} 个失效模型` : "";
+        toast.success(`${automatic ? "已自动同步" : "已同步"} ${result.count} 个模型${removedNote}`);
       } else if (result.error) {
         toast.error(`模型同步失败: ${result.error}`);
       }

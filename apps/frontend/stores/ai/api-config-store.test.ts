@@ -216,7 +216,7 @@ describe("useAPIConfigStore unified model configuration", () => {
     });
   });
 
-  it("merges the upstream catalog into configured models on sync", async () => {
+  it("replaces the model list with the server catalog on sync", async () => {
     useAPIConfigStore.setState({
       providers: [{
         id: "provider-1",
@@ -237,7 +237,7 @@ describe("useAPIConfigStore unified model configuration", () => {
 
     const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
 
-    expect(result).toEqual({ success: true, count: 3 });
+    expect(result).toEqual({ success: true, count: 3, removed: 0 });
     expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "gpt-5.4", "sora-2"]);
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-image-2"]).toEqual(["image-generation"]);
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-5.4"]).toBeUndefined();
@@ -264,7 +264,7 @@ describe("useAPIConfigStore unified model configuration", () => {
 
     const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
 
-    expect(result).toEqual({ success: true, count: 4 });
+    expect(result).toEqual({ success: true, count: 4, removed: 0 });
     expect(useAPIConfigStore.getState().providers[0].model).toEqual([
       "gpt-5.6-terra",
       "codex-auto-review",
@@ -293,13 +293,13 @@ describe("useAPIConfigStore unified model configuration", () => {
 
     const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
 
-    expect(result).toEqual({ success: true, count: 2 });
+    expect(result).toEqual({ success: true, count: 2, removed: 0 });
     expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "gpt-5.4"]);
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-image-2"]).toEqual(["image-generation"]);
     expect(useAPIConfigStore.getState().modelEndpointTypes["gpt-5.4"]).toBeUndefined();
   });
 
-  it("keeps configured models absent from the catalog while merging new entries", async () => {
+  it("removes configured models absent from the catalog on sync (1010 ruling: server catalog wins)", async () => {
     useAPIConfigStore.setState({
       providers: [{
         id: "provider-1",
@@ -317,9 +317,65 @@ describe("useAPIConfigStore unified model configuration", () => {
 
     const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
 
-    expect(result).toMatchObject({ success: true, count: 3 });
-    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "private-image-model", "unrelated-model"]);
+    expect(result).toEqual({ success: true, count: 2, removed: 1 });
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2", "unrelated-model"]);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("private-image-model"));
+    warnSpy.mockRestore();
+  });
+
+  it("cancels sync without mutation when any key catalog fails", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "provider-1",
+        platform: "custom",
+        name: "Image Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-key-ok, sk-key-broken",
+        model: ["gpt-image-2"],
+      }],
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const authorization = String((init?.headers as Record<string, string>)?.Authorization ?? "");
+      if (authorization.includes("sk-key-broken")) {
+        return new Response("upstream error", { status: 503 });
+      }
+      return new Response(JSON.stringify({ data: [{ id: "gpt-image-2" }, { id: "gpt-5.4" }] }), { status: 200 });
+    });
+
+    const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("key#2");
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2"]);
+    warnSpy.mockRestore();
+  });
+
+  it("cancels sync when a key returns an empty catalog", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "provider-1",
+        platform: "custom",
+        name: "Image Relay",
+        baseUrl: "https://relay.example.com/v1",
+        apiKey: "sk-key-ok, sk-key-empty",
+        model: ["gpt-image-2"],
+      }],
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const authorization = String((init?.headers as Record<string, string>)?.Authorization ?? "");
+      const catalog = authorization.includes("sk-key-empty")
+        ? { data: [] }
+        : { data: [{ id: "gpt-image-2" }] };
+      return new Response(JSON.stringify(catalog), { status: 200 });
+    });
+
+    const result = await useAPIConfigStore.getState().syncProviderModels("provider-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("key#2");
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["gpt-image-2"]);
     warnSpy.mockRestore();
   });
 
