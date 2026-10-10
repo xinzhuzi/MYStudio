@@ -37,6 +37,7 @@ export function useScriptStageActions({
   manualCatalog,
   projectName,
   novelChapterCount,
+  novelChapters,
   agentWorkData,
   saveAgentWorkData,
 }: {
@@ -44,6 +45,8 @@ export function useScriptStageActions({
   manualCatalog: StudioManualCatalog;
   projectName: string;
   novelChapterCount: number;
+  /** 章节列表（按顺序）：剧本阶段取前一章最新剧本作上一集衔接注入 */
+  novelChapters?: readonly NovelChapter[];
   agentWorkData: AgentWorkData[];
   saveAgentWorkData: StudioStore["saveAgentWorkData"];
 }) {
@@ -197,6 +200,13 @@ export function useScriptStageActions({
       if (!memory.success) {
         return { ok: false, error: memory.error };
       }
+      const chapterIndex = novelChapters?.findIndex((item) => item.id === chapter.id) ?? -1;
+      const previousChapter =
+        chapterIndex > 0 && novelChapters ? novelChapters[chapterIndex - 1] : undefined;
+      const previousEpisodeScript =
+        stage === "scriptDraft" && previousChapter
+          ? latestScriptStage("scriptDraft", previousChapter.id)
+          : undefined;
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
         directorContext: scriptDirectorContext,
@@ -204,6 +214,7 @@ export function useScriptStageActions({
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText ?? "",
         eventState: chapter.eventState,
+        previousEpisodeScript: previousEpisodeScript || undefined,
         eventMemoryContext,
         skeleton,
         strategy,
@@ -213,7 +224,7 @@ export function useScriptStageActions({
       });
       return { ok: true, system: built.system, user: built.user };
     },
-    [latestScriptStage, scriptStyleSummary, scriptDirectorContext],
+    [latestScriptStage, scriptStyleSummary, scriptDirectorContext, novelChapters],
   );
 
   /** 「AI提示词」页预览:与实际发送(未编辑时)完全一致的完整 user 消息;失败返回 null 静默回退。 */

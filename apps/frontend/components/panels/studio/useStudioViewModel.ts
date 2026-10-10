@@ -273,6 +273,7 @@ export function useStudioViewModel() {
     manualCatalog,
     projectName,
     novelChapterCount: novelChapters.length,
+    novelChapters,
     agentWorkData,
     saveAgentWorkData,
   });

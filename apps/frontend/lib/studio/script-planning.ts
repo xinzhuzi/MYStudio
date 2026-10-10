@@ -21,6 +21,8 @@ export interface ScriptStageContext {
   skeleton?: string;
   strategy?: string;
   scriptDraft?: string;
+  /** 上一集（前一章）剧本：剧本阶段衔接剧情与角色状态用；未生成时省略 */
+  previousEpisodeScript?: string;
   /** 上一轮审核报告：阶段若存在则带上「上一版产出+审核意见」进入修订模式（对齐 ToonFlow 审核→修复闭环） */
   reviewFeedback?: string;
   /** 修订模式下的「上一版本阶段产出」 */
@@ -92,6 +94,11 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
   if (ctx.eventMemoryContext) lines.push(ctx.eventMemoryContext);
   if (stage !== "storySkeleton" && ctx.skeleton) lines.push(`故事骨架：\n${ctx.skeleton}`);
   if (stage === "scriptDraft" && ctx.strategy) lines.push(`改编策略：\n${ctx.strategy}`);
+  if (stage === "scriptDraft" && ctx.previousEpisodeScript) {
+    lines.push(
+      `## 上一集剧本（仅用于衔接：承接其时间线与角色状态，禁止复述或改写其内容）\n${ctx.previousEpisodeScript}`,
+    );
+  }
   lines.push(`## 本章正文（重点原文）\n\n${toMarkdownQuote(ctx.chapterText)}`);
   if (ctx.reviewFeedback) {
     if (ctx.previousOutput) lines.push(`## 上一版${SCRIPT_STAGE_LABEL[stage]}（在此基础上修订，保留已合格内容）\n${ctx.previousOutput}`);

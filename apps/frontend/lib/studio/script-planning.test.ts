@@ -53,6 +53,24 @@ describe("studio script-planning 逐章编剧链（Markdown）", () => {
     expect(draft.user).toContain("改编B");
     expect(draft.user).toContain("正文内容");
 
+    const cont = buildStageMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      skeleton: "骨架A",
+      strategy: "策略B",
+      previousEpisodeScript: "上一集剧本Z",
+    });
+    expect(cont.user).toContain("上一集剧本（仅用于衔接");
+    expect(cont.user).toContain("上一集剧本Z");
+    // 非剧本阶段不得注入上一集剧本
+    const adaptNoPrev = buildStageMessages("adaptationStrategy", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      skeleton: "骨架A",
+      previousEpisodeScript: "上一集剧本Z",
+    });
+    expect(adaptNoPrev.user).not.toContain("上一集剧本Z");
+
     const revise = buildStageMessages("scriptDraft", {
       chapterTitle: "第1章",
       chapterText: "正文",
