@@ -1196,9 +1196,12 @@ class EngineManager:
         # 自研节点包随装(懒加载防循环:plugin_manager 顶层引本模块)
         from . import plugin_manager as _pm
         my_sync = _pm.sync_my_nodes()
+        # 1010 第三方节点种子同批随装(引擎家重建后 viggle-turbo 等无退路件复位)
+        seeds_sync = _pm.sync_seeded_custom_nodes()
         jobs.update(job_id, result={
             "version": tag, "port": port, "torch": torch_version,
             "myNodes": my_sync,
+            "customNodeSeeds": seeds_sync,
             "message": f"ComfyUI 引擎 {tag} 安装完成,点「准备运行时」启动服务",
         })
 
@@ -1473,6 +1476,13 @@ class EngineManager:
                     _pm.sync_daojie_data()
             except Exception as exc:  # noqa: BLE001 — 数据位补同步失败不拦启动
                 print(f"[image-sidecar] comfy-engine: 道劫数据位补同步失败({exc}),启动继续", flush=True)
+            # 1010 第三方节点种子链同款:无上游仓库的本地件(viggle-turbo)
+            # 引擎家重建即蒸发,spawn 前漂移补投;失败不拦启动(同上款容错)。
+            try:
+                if _pm.seeded_custom_nodes_drifted():
+                    _pm.sync_seeded_custom_nodes()
+            except Exception as exc:  # noqa: BLE001 — 种子补同步失败不拦启动
+                print(f"[image-sidecar] comfy-engine: 第三方节点种子补同步失败({exc}),启动继续", flush=True)
             if already_running:
                 # 0929 深审 R1 快路径枚举窗:自管引擎活着≠全机唯一——旧快路径
                 # 提前 return 永不到达下方主枚举,外部会话此时再拉一台自家实例
@@ -2019,6 +2029,7 @@ class EngineManager:
             jobs.update(job_id, progress=50, step="my", message="同步自研节点包…")
             from . import plugin_manager as _pm
             _pm.sync_my_nodes()
+            _pm.sync_seeded_custom_nodes()  # 1010 第三方节点种子同批补投
             jobs.update(job_id, progress=55, step="restart", message="重启引擎…")
             self.restart(progress=lambda pct, msg: jobs.update(job_id, progress=55 + pct * 25 // 100, message=msg))
 

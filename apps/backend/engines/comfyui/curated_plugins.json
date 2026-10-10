@@ -402,6 +402,36 @@
         "FreeVideoLoRAStack",
         "FreeVideoFrames"
       ]
+    },
+    {
+      "id": "ComfyUI-Fisher-Pose",
+      "name": "Fisher-Pose 无限姿势",
+      "desc_zh": "Qwen-Image-2.1 无限姿势+无限视角(支持双人)插件:3D 人偶摆姿势驱动出图。Mac 可装可注册,固定姿势链可跑(官方工作流 pose_json 内置人偶参考图,零交互);任意新姿势需浏览器机位与姿态编辑器(WebGL);换机位分支需 TripoSplat 等六模型(本机未装,不可跑);82MB MakeHuman 人体包随插件走。",
+      "category": "Qwen-Image-2.1 图像",
+      "repo": "https://github.com/Work-Fisher/ComfyUI-Fisher-Pose",
+      "verified_license": "unknown(仓库主 LICENSE GitHub API spdx=NOASSERTION,2026-10-10 实查;web/vnccs 代码 MIT、MakeHuman 包 CC0,见其 README)",
+      "provides": [
+        "FisherPoseStudio",
+        "FisherQwenPose",
+        "FisherQwen21GGUFCLIP",
+        "FisherQwenFreePose",
+        "FisherPoseImage",
+        "FisherAnyAngleCamera",
+        "FisherAnyAngleEncode",
+        "FisherPoseResult",
+        "FisherShot"
+      ],
+      "pin": {
+        "commit": "c1d9e65f100eaf69e26100ff5460d3895c25cba9",
+        "anchors_sha256": {
+          "__init__.py": "95b61c19de42aefbf9170c0dd8790c02c0c13467cfcb92af9dbb2aaf5aa103a6",
+          "env_check.py": "fc317515601904f29ac03b2b8f925c81b6b6ebeab14a475c140ba4c96cc1eb6c",
+          "free_pose.py": "ce2a74183c39fc081c8c784da41ae5a03b43c599b069eb6cbd5b3d39caa9a3ce",
+          "pose_reference.py": "ae6bee81e07d5dd029572a613118c5bd359542601025f3b263d9f3058d190821",
+          "fisher_anyangle.py": "53d6c24e80c941434e7aa2fa97d828932eac5d8869bea4e272c7d316a43b64c4",
+          "web/fisher_pose.js": "d0f951f86cfa54142ebad658e3a5b6de3de10c77d4f2d58a658aa0f205b92ecc"
+        }
+      }
     }
   ]
 }

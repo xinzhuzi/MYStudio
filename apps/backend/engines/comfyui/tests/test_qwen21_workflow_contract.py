@@ -329,7 +329,7 @@ PE_PARAMS = [1.0, 0.95, 20, 1.5, 16256, 42]  # [1:7](手改态起尾带 control_
 # (api_url/model/temperature/max_tokens/timeout_sec;教材=qi21_bases.json
 # expand_instruction 节热读,节点内补 /no_think+肯定式纪律;服务不在=透传)
 QI21_PE_CLASS = "MyQi21ApiPE"
-PE_API_PARAMS = ["http://192.168.0.101:1234,http://127.0.0.1:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-uncensored-mlx", 0.7, 12000, 600, "关闭", "", ""]  # 1009 用户令「按建议做」:api_url/model 恢复双值——Windows 9B 主路在前,Mac 本机 27B MLX 回落在后(单点挂=裸透传脏图之治;1007夜 a2af54f2 单值收缴就此翻案,手术=qi21_t2i_pe_localfallback_1009.py)  # 1008 全量改造:第6位=thinking_effort 控件值回填快照(1007 bbeeecac 入py未回写,finding 清偿;默认关闭);末两位=两只展示框位  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
+PE_API_PARAMS = ["http://192.168.0.101:1234,http://127.0.0.1:1234", "qwen3.5-9b-uncensored-hauhaucs-aggressive,qwen3.8-27b-coder390", 0.7, 12000, 600, "关闭", "", ""]  # 1009 用户令「按建议做」:api_url/model 恢复双值——Windows 9B 主路在前,Mac 本机 27B MLX 回落在后(单点挂=裸透传脏图之治;1007夜 a2af54f2 单值收缴就此翻案,手术=qi21_t2i_pe_localfallback_1009.py)  # 1008 全量改造:第6位=thinking_effort 控件值回填快照(1007 bbeeecac 入py未回写,finding 清偿;默认关闭);末两位=两只展示框位  # 1006 批C:正/负向展示框转外部直连槽,不再占 widget 位(7值形→5值形)
 
 # PE-I2I(edit 件)契约:0923-r16 换核心(comfy-core TextGenerate+RegexExtract,
 # 去 benjiyaya 依赖;design §13/research/13 官方免插件链照抄;真源=幂等生成器
@@ -475,13 +475,13 @@ I2I_SAMPLER_ID, I2I_CACHE_ID = 7010, 9
 I2I_PE_SW_ID = 15                 # PE-I2I 指令开关(0928 迁入 [40] 子图)
 I2I_PE_CLIP_ID = 4019  # 1002 ⑬:迁入装配子图               # PE 专属 TE(主图加载器行,经宿主 pe_clip 槽一进线)
 I2I_PE_A_ID, I2I_PE_C_ID, I2I_PE_FMT_ID = 21, 23, 24   # chatml a/c 段+拼装(子图)
-I2I_SG_SLOT_PE_EN = 9    # 宿主面板「PE启用?」槽位(1002 ㉑ 立6;1010 五图插槽4-6 后移9)
+I2I_SG_SLOT_PE_EN = 7    # 宿主面板「PE启用?」槽位(1002 ㉑ 立6;1010 三图插槽4 后移7)
 I2I_PSM_B_ID = 400                 # 原始用户词/指令(①层唯一手写位,主图)
 I2I_BATCH_ID, I2I_TG_ID, I2I_RX_ID = 25, 4013, 27
-I2I_SCALE_IDS = (16, 17, 18, 26, 28)  # 输入图预缩(画布 1.5MP/参考 1.0MP;1010 五参考
-                                      # 扩展:后三对参考预缩 1.0MP,与占位 LoadImage 成对旁路;
-                                      # id 避子图域 21/23/24/25/27=主图∩子图∅ 契约)
-I2I_REF5_LOAD_IDS = (12, 13, 14)  # 1010 五参考扩展:占位 LoadImage(mode 4 旁路,用前解旁路选图)
+I2I_SCALE_IDS = (16, 17, 18)  # 输入图预缩(画布 1.5MP/参考 1.0MP;1010 三参考扩展:
+                              # 第三对参考预缩 1.0MP,与占位 LoadImage 成对旁路;
+                              # id 避子图域 21/23/24/25/27=主图∩子图∅ 契约)
+I2I_REF3_LOAD_IDS = (12,)  # 1010 三参考扩展(5→3 收口=viggle 官方 1-3 张口径):占位 LoadImage(mode 4 旁路)
 I2I_LATENT_PB_ID, I2I_EL_ID, I2I_LATENT_SW_ID = 19, 4, 20
 I2I_LORA_PB_ID, I2I_LORA_ID, I2I_LORA_SW_ID = 30, 7011, 32  # ⑫:LoRA [31]→[7011]
 # 1001 同构集成轮锚(手术脚本 qi21_integration_surgery_i2i_1001.py map §5.1 同表;
@@ -3350,7 +3350,7 @@ class TestQi21SubgraphContract:
                 f"qi21_bases.json「{e['zh']}」negative_text 缺基线负面词(模糊/水印)"
         # 美化版锚词抽验(人物型):纯画法骨
         renwu = qi21[0]["positive_text"]
-        for kw in ("细线", "线随结构", "低对比色面"):  # 1009 去彩锚随源(细彩线→细线);前锚 1008 删词刀第三轮「淡墨晕染」退役
+        for kw in ("细线", "线随结构", "成片色面"):  # 1010 多彩升档锚随源(低对比色面→色彩分明的成片色面);1009 去彩锚随源(细彩线→细线);前锚 1008 删词刀第三轮「淡墨晕染」退役
             assert kw in renwu, f"qi21_bases.json 人物 positive_text 缺美化版锚词 {kw}"
         for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
             assert bad not in renwu.split("\n")[0], f"人物②层残留物象词 {bad}(纯画法零物象骨)"
@@ -4135,26 +4135,26 @@ class TestI2IContract:
         assert sel["type"] == "MyQi21RgbaSelect" and sel["widgets_values"] == ["自动"], \
             f"[{I2I_SG_RGBA_SEL}] 应为 MyQi21RgbaSelect 且 mode 默认=自动(1001 ① 文案轮首项)"
         m_cl = _qi21_sg_links(graph)[sel["inputs"][0]["link"]]
-        assert m_cl["origin_id"] == -10 and m_cl["origin_slot"] == 10 and m_cl["type"] == "COMBO", \
-            "[180].mode 应接 -10 槽10(RGBA透明;1002 ㉑ 后移+1010 五图插槽4-6 再后移)"
+        assert m_cl["origin_id"] == -10 and m_cl["origin_slot"] == 8 and m_cl["type"] == "COMBO", \
+            "[180].mode 应接 -10 槽8(RGBA透明;1002 ㉑ 后移+1010 三图插槽4 再后移)"
         _rh = _qi21_sg_links(graph)[sel["inputs"][1]["link"]]
         assert _rh["origin_id"] == I2I_SG_BASE_ID and _rh["origin_slot"] == 4, \
             "[180].rgba_hint 上游应 [4010].透明值(1002 迁槽3;1008 五出化迁槽4)"
         assert sorted(sel["outputs"][0]["links"] or []) == [67], \
             "[180].rgba_on 应单扇出(67→[153].透明模式;10-02 单口化:39/58 双闸门" \
             "+64 [4014].透明模式 占位随双编码+双闸门塌缩退役,透明边界唯一驻 [153])"
-        _io6 = sg["inputs"][9]
+        _io6 = sg["inputs"][7]
         assert _io6["name"] == "PE启用?" and _io6["type"] == "BOOLEAN", \
-            "i2i 子图 -10 槽9 应=「PE启用?」BOOLEAN(1002 ㉑ 立6;1010 五图插槽后移9);" \
-            "RGBA透明 三态=槽10"
+            "i2i 子图 -10 槽7 应=「PE启用?」BOOLEAN(1002 ㉑ 立6;1010 三图插槽后移7);" \
+            "RGBA透明 三态=槽8"
         bases = [n for n in sg_nodes.values() if n["type"] == "MyQi21DaojieBase"]
         assert len(bases) == 1 and bases[0]["id"] == I2I_SG_BASE_ID, \
             "子图应恰 1 个 MyQi21DaojieBase[150]"
         assert bases[0]["widgets_values"] == ["人物", False], \
             "[4010] combo 默认应=人物+透明覆盖 False(⑯;1008 起五出件)"
         bl = _qi21_sg_links(graph)[bases[0]["inputs"][0]["link"]]
-        assert bl["origin_id"] == -10 and bl["origin_slot"] == 8 and bl["type"] == "COMBO", \
-            "[150].base 应接 -10 槽8(宿主面板「型选择」COMBO 一处切换;1010 五图插槽后移8)"
+        assert bl["origin_id"] == -10 and bl["origin_slot"] == 6 and bl["type"] == "COMBO", \
+            "[150].base 应接 -10 槽6(宿主面板「型选择」COMBO 一处切换;1010 三图插槽后移6)"
         # 1008 结构债清偿(主会话「做」令):实例补五出对齐类 RETURN_NAMES
         # (旧四出+rgba_hint 连线#55 钉槽3=STRING→BOOLEAN 失配,引擎按类校验
         # =提交期拒单/前端掉线;现负面词@3/透明值@4,连线迁槽4)
@@ -4201,8 +4201,8 @@ class TestI2IContract:
         nodes, links = _nodes(graph), _links(graph)
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
         host = nodes[I2I_HOST_ID]
-        assert host["inputs"][7]["name"] == "指令", "宿主 inputs[7] 应为指令槽(1010 五图插槽4-6 后移)"
-        directive_link = links[host["inputs"][7]["link"]]
+        assert host["inputs"][5]["name"] == "指令", "宿主 inputs[5] 应为指令槽(1010 三图插槽4 后移)"
+        directive_link = links[host["inputs"][5]["link"]]
         # 1010 指令线经 [33] 总线拐(消与三图槽进线末段交叉):溯源过拐到真源
         if directive_link[1] == 33:
             directive_link = links[
@@ -4217,9 +4217,9 @@ class TestI2IContract:
         assert (pe_l["origin_id"], pe_l["origin_slot"]) == (4012, 0), \
             "[4014].pe开关 应接 [4012]『PE启用?』扇出(1002 ㉑;槽序⑭ 后=inputs[2])"
         asm_l = sg_links[next(i["link"] for i in sel1["inputs"] if i["name"] == "装配全文")]
-        assert (asm_l["origin_id"], asm_l["origin_slot"]) == (-10, 7), \
-            "[152].装配全文槽 应接 -10 槽7 裸指令(pe关=直写臂真源;PE 链吃裸指令铁则;" \
-            "1010 五图插槽4-6 后移7)"
+        assert (asm_l["origin_id"], asm_l["origin_slot"]) == (-10, 5), \
+            "[152].装配全文槽 应接 -10 槽5 裸指令(pe关=直写臂真源;PE 链吃裸指令铁则;" \
+            "1010 三图插槽4 后移5)"
         pe_out_l = sg_links[next(i["link"] for i in sel1["inputs"] if i["name"] == "PE出文")]
         assert pe_out_l["origin_id"] == I2I_RX_ID, \
             f"[152].PE出文 应接 [{I2I_RX_ID}] RegexExtract(lazy;pe开=PE 看图改写)"
@@ -4249,8 +4249,8 @@ class TestI2IContract:
             f".进编码文本,prompt 预览出口改接 [153]=预览实况),得 {fan}"
         fan_sel2 = sorted((sg_links[l]["target_id"], sg_links[l]["target_slot"])
                           for l in sg_nodes[I2I_SG_SEL2_ID]["outputs"][0]["links"] or [])
-        assert fan_sel2 == sorted([(I2I_SG_TE, 7), (I2I_SG_TE1, 3), (-20, 4)]), \
-            f"[153].进编码文本 应三路扇出([4015].prompt(1010 五图插槽后移7)/[171].prompt/" \
+        assert fan_sel2 == sorted([(I2I_SG_TE, 5), (I2I_SG_TE1, 3), (-20, 4)]), \
+            f"[153].进编码文本 应三路扇出([4015].prompt(1010 三图插槽后移5)/[171].prompt/" \
             f"IO槽4 prompt=实况),得 {fan_sel2}"
         # W2 反转(0928 PE 迁子图轮):主图零 PE 链件;[12] PE 专属TE经 pe_clip 一进线
         for banned in ("TextGenerate", "StringFormat", "RegexExtract", "BatchImagesNode"):
@@ -4485,7 +4485,7 @@ class TestI2IContract:
         """edit 骨架保留:①双通道(BatchImagesNode 合批全部预缩图喂 TextGenerate.image
         =PE 看全图;子图双编码器 images.image_1/2 吃选定图且 RGBA 路同样接双图);
         ②latent 双路(宿主.latent→[20].on_false 跟随 image_1/[18] 空潜 on_true,
-        KSampler.latent_image 上游=[20]);③预缩 1.5/1.0MP+官方示例双图+三占位旁路(1010 五槽)。"""
+        KSampler.latent_image 上游=[20]);③预缩 1.5/1.0MP+官方示例双图+第三槽占位旁路(1010 三槽收口)。"""
         graph = GRAPHS["i2i"]
         nodes, links = _nodes(graph), _links(graph)
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
@@ -4495,23 +4495,24 @@ class TestI2IContract:
         wired = [i for i in batch[0]["inputs"] if i.get("link")]
         slots = {sg_links[i["link"]]["origin_slot"] for i in wired
                  if sg_links[i["link"]]["origin_id"] == -10}
-        assert slots == {2, 3, 4, 5, 6}, \
-            "合批上游应为 -10 槽2-6 五图边界(预缩图经宿主,PE 看全图;1010 五参考扩展," \
+        assert slots == {2, 3, 4}, \
+            "合批上游应为 -10 槽2-4 三图边界(预缩图经宿主,PE 看全图;1010 三参考扩展," \
             "旁路槽照接线、执行图自动缺席)"
         tg = sg_nodes[I2I_TG_ID]
         assert sg_links[next(i["link"] for i in tg["inputs"] if i["name"] == "image")]["origin_id"] \
             == I2I_BATCH_ID, "TextGenerate.image 上游应 BatchImagesNode(子图内)"
         host = nodes[I2I_HOST_ID]
-        for slot, want in zip((2, 3, 4, 5, 6), I2I_SCALE_IDS):
+        for slot, want in zip((2, 3, 4), I2I_SCALE_IDS):
             assert links[host["inputs"][slot]["link"]][1] == want, \
                 f"宿主 image 槽{slot} 上游应预缩件[{want}]"
-        # 10-02 主编码双图→1010 五图;单图编码=[171] 仅 image_1(单参考正源,0928 黑图修复
-        # 语义不动:两加速档仍走 positive_single,五参考全效=直出40步档+PE 看图)
-        for enc_id, want_n in ((I2I_SG_TE, 5), (I2I_SG_TE1, 1)):
+        # 10-02 主编码双图→1010 三图(viggle 官方 1-3 张口径收口);单图编码=[171] 仅
+        # image_1(单参考正源,0928 黑图修复语义不动:两加速档仍走 positive_single,
+        # 三参考全效=直出40步档+PE 看图)
+        for enc_id, want_n in ((I2I_SG_TE, 3), (I2I_SG_TE1, 1)):
             enc = sg_nodes[enc_id]
             imgs = [i for i in enc["inputs"] if i["name"].startswith("images.")]
             assert len(imgs) == want_n and all(i.get("link") for i in imgs), \
-                f"[{enc_id}] 图槽数应 {want_n} 且全接(主编码五图/单图编码单参考)"
+                f"[{enc_id}] 图槽数应 {want_n} 且全接(主编码三图/单图编码单参考)"
             assert _widget(enc, TE_WV["resolution"]) == 0, \
                 f"[{enc_id}] resolution 应 0(不重采样,画幅随输入图)"
         scales = {n["id"]: n for n in _by_type(graph, "ImageScaleToTotalPixels")}
@@ -4519,17 +4520,17 @@ class TestI2IContract:
             f"预缩件 id 应 {list(I2I_SCALE_IDS)},得 {sorted(scales)}"
         assert scales[I2I_SCALE_IDS[0]]["widgets_values"][1] == 1.5, "画布预缩应 1.5MP"
         assert all(scales[i]["widgets_values"][1] == 1.0 for i in I2I_SCALE_IDS[1:]), \
-            "参考预缩应全 1.0MP(含 1010 后三对)"
+            "参考预缩应全 1.0MP(含 1010 第三对)"
         load_imgs = _by_type(graph, "LoadImage")
         assert sorted(_widget(n, 0) for n in load_imgs) == \
-            ["", "", "", "clothing_light_blue_denim_shirt.png", "portrait_model_denim.png"], \
-            "i2i 应预填官方示例双图+三占位空图(1010 五参考扩展)"
-        assert sorted(n["id"] for n in load_imgs if n["mode"] == 4) == list(I2I_REF5_LOAD_IDS), \
-            f"参考图3-5 占位 LoadImage 应默认旁路(mode 4;默认行为=双参考不变),得 " \
+            ["", "clothing_light_blue_denim_shirt.png", "portrait_model_denim.png"], \
+            "i2i 应预填官方示例双图+一占位空图(1010 三参考扩展)"
+        assert sorted(n["id"] for n in load_imgs if n["mode"] == 4) == list(I2I_REF3_LOAD_IDS), \
+            f"参考图3 占位 LoadImage 应默认旁路(mode 4;默认行为=双参考不变),得 " \
             f"{[(n['id'], n['mode']) for n in load_imgs]}"
         assert all(n["mode"] == 4 for n in _by_type(graph, "ImageScaleToTotalPixels")
                    if n["id"] in I2I_SCALE_IDS[2:]), \
-            "参考预缩3-5 应与占位 LoadImage 成对旁路(单旁路 LoadImage 会因必填 image 缺失被拒)"
+            "参考预缩[18] 应与占位 LoadImage 成对旁路(单旁路 LoadImage 会因必填 image 缺失被拒)"
         lsw = nodes[I2I_LATENT_SW_ID]
         assert lsw["outputs"][0]["type"] == "LATENT" and lsw["widgets_values"][0] is False, \
             "[20] 应为 LATENT 开关且默认 false"
@@ -4883,13 +4884,15 @@ class TestCountAnchor:
             "qwen21-t2i-seedvr2.json",
             "qwen21-t2i.json",
             "qwen21-titlecard-t2i.json",
+            "官方-fisher-pose-无限姿势.json",
             "官方-viggle-turbo-v0.3-merged-t2i.json",
             "官方-viggle-turbo-v0.3-t2i.json",
             "社区-skill姿态图放大-扩展整合.json",
             "社区-全能图片编辑-官方PE.json",
             "社区-全能文生图-官方PE.json",
             "社区-编辑生图整合-TE.json",
-        ], f"Q2-1图像 应恰 20 件(11 自研+5 官方模板+4 社区模板;1009 用户新令 qi21-道劫-img2img 入库 19→20,前账:1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
+            "道劫-摆姿-fisher.json",
+        ], f"Q2-1图像 应恰 22 件(12 自研+3 官方模板+3 官方参照+4 社区;1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。

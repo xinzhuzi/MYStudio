@@ -1,0 +1,577 @@
+{
+  "id": "b7e2f4a1-1010-4d9c-8a2f-daojiefisher01",
+  "revision": 0,
+  "last_node_id": 10,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        60,
+        300
+      ],
+      "size": [
+        340,
+        84
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[1] 底模·UNETLoader",
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "localized_name": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "CLIPLoader",
+      "pos": [
+        60,
+        480
+      ],
+      "size": [
+        360,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[3] 主TE·CLIPLoader",
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "widgets_values": [
+        "qwen3vl_8b_bf16_heretic.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "VAELoader",
+      "pos": [
+        60,
+        680
+      ],
+      "size": [
+        340,
+        60
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[4] VAE·VAELoader",
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            5,
+            12
+          ]
+        }
+      ],
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        480,
+        300
+      ],
+      "size": [
+        315,
+        130
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[2] VNCCS 姿势LoRA×1",
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [
+        {
+          "localized_name": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "模型",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "widgets_values": [
+        "VNCCS_QI2_PoseStudioV1.1.safetensors",
+        1
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "pos": [
+        480,
+        640
+      ],
+      "size": [
+        340,
+        380
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[5] 人物立绘=image2(必填)",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "widgets_values": [
+        "daojie_char_1007.png",
+        "image"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "FisherQwenFreePose",
+      "pos": [
+        900,
+        380
+      ],
+      "size": [
+        400,
+        420
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[6] 摆姿势·编辑器(双击进)",
+      "properties": {
+        "Node name for S&R": "FisherQwenFreePose",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [
+        {
+          "localized_name": "CLIP",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 4
+        },
+        {
+          "localized_name": "VAE",
+          "name": "vae",
+          "type": "VAE",
+          "link": 5
+        },
+        {
+          "localized_name": "人物图",
+          "name": "reference_image",
+          "type": "IMAGE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "正向",
+          "name": "正向",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        },
+        {
+          "localized_name": "负向",
+          "name": "负向",
+          "type": "CONDITIONING",
+          "links": [
+            8
+          ]
+        },
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "widgets_values": [
+        1024,
+        1024,
+        1024,
+        "Use the exact colors, costume, hairstyle and materials of the person in image2. image1 is a gray mannequin for pose only — ignore its gray color and material everywhere.\n【人物色彩锚·替换为本角色】青玉色道袍，月白腰带，长发半束素银发簪；乌木剑鞘，白玉剑格，暗红剑穗。\n【场景句·替换为主体句场景段】身后成排朱红残旗在晨风中飘动，赭石城墙被战火映成暖金色，青灰魔雾里透出石青与青绿的法术流光，旧金色天光自云隙垂落。\n传统色较高强度多色相并陈，色彩饱满分明，背景色面连续铺到画框边缘。",
+        "{}"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        1380,
+        380
+      ],
+      "size": [
+        330,
+        260
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[7] 25步 cfg1·官方参",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [
+        {
+          "localized_name": "模型",
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        },
+        {
+          "localized_name": "正面条件",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "localized_name": "负面条件",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 8
+        },
+        {
+          "localized_name": "Latent图像",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "Latent",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "widgets_values": [
+        0,
+        "fixed",
+        25,
+        1,
+        "euler",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        1770,
+        380
+      ],
+      "size": [
+        210,
+        50
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[8] 解码",
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [
+        {
+          "localized_name": "Latent",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        },
+        {
+          "localized_name": "VAE",
+          "name": "vae",
+          "type": "VAE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "图像",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        2030,
+        380
+      ],
+      "size": [
+        340,
+        400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[9] 存图",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [
+        {
+          "localized_name": "图像",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [],
+      "widgets_values": [
+        "道劫-摆姿/"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "MarkdownNote",
+      "pos": [
+        60,
+        40
+      ],
+      "size": [
+        620,
+        460
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "[10] 使用说明·配方",
+      "properties": {
+        "Node name for S&R": "MarkdownNote",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "inputs": [],
+      "outputs": [],
+      "widgets_values": [
+        "## 道劫 · 摆姿产线(Fisher-Pose 官方参·1010 实证版)\n\n**用法**:双击 [6] Fisher 编辑器摆人偶姿势(image1)→[5] 上传人物立绘(image2)→[6] extra_prompt 按四件套模板替换【人物色彩锚】【场景句】两段→Queue。\n\n**四件套锚配方(1010 同seed七发实证,缺一层出一层病)**:\n①人物归属句:colors/costume/hairstyle from image2(英)\n②image1 封禁句:gray mannequin for pose only, ignore its gray color(英)\n③人物色彩锚:色卡词逐件给色(中)\n④彩色场景句:直接贴美宣主体句的场景段——**背景颜色来自场景句,不照抄立绘的宣纸白**(F发教训)\n⑤浓度句:传统色较高强度多色相并陈\n\n**已验边界**:cfg=1.0 官方参即可(文字锚够强);持械规范站姿一次成型;非常规姿势(举臂类)带文字锚不跟人偶→文字栏清空出姿势图再上色(二段法);\nimage2 请用高清大图立绘(低对比小图→外观保真弱);多视角支路模型未装不建。\n\n**实测基线**(seed 518817361/25步/1024):全域饱和度141.5/有彩92%,五场景元素全落地,人物五色全锁——对照档案 apps/output/fisher-pose-test/。"
+      ]
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "origin_id": 1,
+      "origin_slot": 0,
+      "target_id": 2,
+      "target_slot": 0,
+      "type": "MODEL"
+    },
+    {
+      "id": 2,
+      "origin_id": 2,
+      "origin_slot": 0,
+      "target_id": 7,
+      "target_slot": 0,
+      "type": "MODEL"
+    },
+    {
+      "id": 4,
+      "origin_id": 3,
+      "origin_slot": 0,
+      "target_id": 6,
+      "target_slot": 0,
+      "type": "CLIP"
+    },
+    {
+      "id": 5,
+      "origin_id": 4,
+      "origin_slot": 0,
+      "target_id": 6,
+      "target_slot": 1,
+      "type": "VAE"
+    },
+    {
+      "id": 6,
+      "origin_id": 5,
+      "origin_slot": 0,
+      "target_id": 6,
+      "target_slot": 2,
+      "type": "IMAGE"
+    },
+    {
+      "id": 7,
+      "origin_id": 6,
+      "origin_slot": 0,
+      "target_id": 7,
+      "target_slot": 1,
+      "type": "CONDITIONING"
+    },
+    {
+      "id": 8,
+      "origin_id": 6,
+      "origin_slot": 1,
+      "target_id": 7,
+      "target_slot": 2,
+      "type": "CONDITIONING"
+    },
+    {
+      "id": 9,
+      "origin_id": 6,
+      "origin_slot": 2,
+      "target_id": 7,
+      "target_slot": 3,
+      "type": "LATENT"
+    },
+    {
+      "id": 10,
+      "origin_id": 7,
+      "origin_slot": 0,
+      "target_id": 8,
+      "target_slot": 0,
+      "type": "LATENT"
+    },
+    {
+      "id": 11,
+      "origin_id": 8,
+      "origin_slot": 0,
+      "target_id": 9,
+      "target_slot": 0,
+      "type": "IMAGE"
+    },
+    {
+      "id": 12,
+      "origin_id": 4,
+      "origin_slot": 0,
+      "target_id": 8,
+      "target_slot": 1,
+      "type": "VAE"
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "道劫·摆姿产线(官方参·1010实证:image1人偶=姿势/image2立绘=外观/四件套锚=颜色场景)",
+      "bounding": [
+        40,
+        250,
+        2360,
+        860
+      ],
+      "color": "#4d9e6a",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "format_version": 0
+}

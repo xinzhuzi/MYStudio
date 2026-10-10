@@ -65,7 +65,7 @@ def _rewrite(monkeypatch, opener):
         正向提示词=_SUBJ, 类型句正向=None, 负向提示词=None,
         画幅宽=1024, 画幅高=1024, 透明模式=False,
         系统提示词="只输出JSON", 色卡="",
-        api_url="http://127.0.0.1:1234", model="qwen3.8-27b-uncensored-mlx",
+        api_url="http://127.0.0.1:1234", model="qwen3.8-27b-coder390",
         temperature=0.7, max_tokens=12000, timeout_sec=30, thinking_effort="关闭")
 
 
@@ -80,7 +80,7 @@ def test_reasoning_envelope_skips_retry_1009(monkeypatch, capsys):
         f"思考尾含完整信封应免重试(恰1发POST),实发 {len(opener.post_bodies)}"
     assert "免重试直接采用" in out and "加预算重试一次" not in out
     assert got["result"][0] == _LONG, "终稿应=思考尾信封正文(剥取路),非回退装配文"
-    assert got["ui"]["api_pe_status"][0].startswith("AI扩写OK:qwen3.8-27b-uncensored-mlx")
+    assert got["ui"]["api_pe_status"][0].startswith("AI扩写OK:qwen3.8-27b-coder390")
 
 
 def test_reasoning_without_envelope_keeps_retry_1009(monkeypatch, capsys):

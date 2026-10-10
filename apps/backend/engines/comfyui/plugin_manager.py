@@ -902,11 +902,15 @@ def _update_plugin_job(job_id: str, plugin_id: str) -> None:
 
 # -- 体检:缺失/漂移/孤儿 ------------------------------------------------
 def _is_managed_nodes_dir(name: str) -> bool:
-    """自研节点包与非插件目录:my-nodes(含旧名 manying-nodes)由同步链管理、
-    __pycache__ 是字节码缓存——它们不是插件,不进孤儿判定也不可被「清理多余」
-    删除(09-19 根修:clean_orphan 误删 my-nodes 会当场打掉自研节点,直到下次
-    装/更链才补回;doctor 也恒报 __pycache__ 噪音)。"""
-    return name in (MY_DIR, LEGACY_MY_DIR, "__pycache__")
+    """自研节点包与同步链管理的第三方件、非插件目录:my-nodes(含旧名
+    manying-nodes)与 custom_node_seeds 在册件(1010:viggle-turbo 等无上游
+    仓库的本地件)由种子链管理、__pycache__ 是字节码缓存——它们不是市场态
+    插件,不进孤儿判定也不可被「清理多余」删除(09-19 根修:clean_orphan
+    误删 my-nodes 会当场打掉自研节点,直到下次装/更链才补回;doctor 也恒报
+    __pycache__ 噪音;1010 种子件同款防线——无台账无 .git,不豁免即被体检
+    误报孤儿+清理当场误删)。"""
+    return (name in (MY_DIR, LEGACY_MY_DIR, "__pycache__")
+            or name in seeded_custom_node_names())
 
 
 def doctor() -> dict:
@@ -1654,6 +1658,94 @@ def my_nodes_drifted() -> bool:
         return sig
 
     return _sig(source) != _sig(target)
+
+
+# ── 第三方 custom_nodes 种子位(1010 立:viggle-turbo 无退路件上打包种子)──
+# 背景:第三方节点原先只活在引擎家 custom_nodes——my-nodes/道劫数据各有
+# 种子链,curated 在册件可从市场按 repo 重装,而「无上游仓库的本地手写件」
+# (viggle-turbo:Qwen-Image-2.1 蒸馏 LoRA 采样件,纯本地两 .py)引擎家重建
+# (新机/换机/引擎家删除重装)即蒸发且无任何退路。机制照 my_nodes 样子:
+# 种子随 backend 平铺打包(electron-builder extraResources from: backend →
+# Resources/backend),引擎 spawn 前漂移检测→tmp 原子换入硬拷补投;种子=真源
+# (引擎家侧改动下次拉起归一,与 my_nodes 同语义)。种子件无台账无 .git,
+# 须豁免孤儿判定(见 _is_managed_nodes_dir),否则体检误报+「清理多余」误删。
+
+CUSTOM_NODE_SEEDS_DIR = "custom_node_seeds"
+
+
+def custom_node_seeds_dir() -> Path:
+    """种子源码位:plugin_manager.py 邻位 custom_node_seeds/(随包平铺)。"""
+    return Path(__file__).resolve().parent / CUSTOM_NODE_SEEDS_DIR
+
+
+def seeded_custom_node_names() -> list[str]:
+    """在册种子件名(种子家下含 __init__.py 的子目录;种子家缺席=空表)。"""
+    root = custom_node_seeds_dir()
+    if not root.is_dir():
+        return []
+    return sorted(p.name for p in root.iterdir()
+                  if p.is_dir() and (p / "__init__.py").is_file())
+
+
+def sync_seeded_custom_nodes() -> dict:
+    """种子家各件 → custom_nodes/<件名>(tmp 原子换入;幂等;逐件独立)。
+
+    单件失败不连坐其它件(failed 如实报);种子家整体缺席=空转不报错
+    (老包覆盖装新引擎家等边缘态不拦链)。与 sync_my_nodes 同拷入口径:
+    __pycache__/*.pyc/.DS_Store 不进引擎。
+    """
+    synced, failed = [], []
+    root = custom_node_seeds_dir()
+    nodes = cm.custom_nodes_dir()
+    for name in seeded_custom_node_names():
+        source = root / name
+        target = nodes / name
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            tmp = target.parent / (name + ".tmp")
+            if tmp.exists():
+                shutil.rmtree(tmp)
+            shutil.copytree(source, tmp,
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"))
+            if target.exists():
+                shutil.rmtree(target)
+            tmp.rename(target)
+            synced.append(name)
+        except OSError as exc:
+            failed.append({"plugin": name, "error": str(exc)})
+    return {"synced": synced, "failed": failed, "source": str(root),
+            "targets": [str(nodes / n) for n in synced]}
+
+
+def seeded_custom_nodes_drifted() -> bool:
+    """任一种子件与引擎运行位内容是否漂移(spawn 前补同步判据)。
+
+    与 my_nodes_drifted 同口径:md5 逐件签名,缓存字节不计(引擎运行后
+    custom_nodes 里会生成 __pycache__,计它=恒漂移白拷);种子家整体缺席
+    =False 不拦启动(种子补投交给 sync 报错,这里不拦)。
+    """
+    import hashlib
+
+    root = custom_node_seeds_dir()
+    if not root.is_dir():
+        return False
+
+    def _sig(p: Path) -> dict:
+        sig = {}
+        for f in sorted(p.rglob("*")):
+            if (f.is_file() and "__pycache__" not in f.parts
+                    and f.suffix not in (".pyc", ".DS_Store")):
+                sig[str(f.relative_to(p))] = hashlib.md5(f.read_bytes()).hexdigest()
+        return sig
+
+    nodes = cm.custom_nodes_dir()
+    for name in seeded_custom_node_names():
+        target = nodes / name
+        if not (target / "__init__.py").is_file():
+            return True
+        if _sig(root / name) != _sig(target):
+            return True
+    return False
 
 
 # ── 道劫数据位(1004 design §十六 Step1:真源 json/ 家→随包种子→引擎家)──

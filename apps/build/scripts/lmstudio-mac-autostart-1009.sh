@@ -31,7 +31,7 @@ cat > "$PLIST" <<EOF
   <array>
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>LMS="\$HOME/.lmstudio/bin/lms"; "\$LMS" server status >/dev/null 2>&1 || "\$LMS" server start --port 1234; sleep 3; "\$LMS" load qwen3.8-27b-uncensored-mlx -c 32768 --gpu max --ttl 31536000 >/dev/null 2>&1 || true; echo "[agent] done \$(date '+%F %T')"</string>
+    <string>LMS="\$HOME/.lmstudio/bin/lms"; "\$LMS" server status >/dev/null 2>&1 || "\$LMS" server start --port 1234; sleep 3; "\$LMS" load qwen3.8-27b-coder390 -c 32768 --gpu max --ttl 31536000 >/dev/null 2>&1 || true; echo "[agent] done \$(date '+%F %T')"</string>
   </array>
   <key>RunAtLoad</key><true/>
   <key>StandardOutPath</key><string>$LOG</string>
