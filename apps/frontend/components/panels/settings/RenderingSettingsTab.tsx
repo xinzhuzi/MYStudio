@@ -112,9 +112,9 @@ const RENDERER_OPTIONS = [
 ];
 
 const PLUGIN_DEFINITIONS: Array<{ id: VideoWorkflowPluginId; title: string; description: string }> = [
-  { id: "remotion", title: "Remotion", description: "正式的 Composition、Studio 与章节渲染路径。" },
-  { id: "hyperframes", title: "HyperFrames", description: "时间线确认后的透明动效 overlay；无动效也会记录 no-op artifact。" },
-  { id: "video-use", title: "video-use", description: "原文对齐、EDL、字幕时间轴、调色、preview 与自评。" },
+  { id: "remotion", title: "Remotion", description: "最后一步:正式的 Composition、Studio 与章节视频渲染;浏览器运行时在下方 Headless Shell 区准备。" },
+  { id: "hyperframes", title: "HyperFrames", description: "第二步(时间线确认后):生成透明动效 overlay,无动效也会记录 no-op artifact;复用 Electron 内置 Node,无需额外下载。" },
+  { id: "video-use", title: "video-use", description: "第一步:原文对齐、EDL、字幕时间轴、调色、preview 与自评;复用本地配置页的 Python 3.12。" },
   { id: "video-shotcraft", title: "Video ShotCraft", description: "镜头配方卡知识库（152 卡 + Remotion 参考实现 + 制作方法论，Apache-2.0）；供镜头动效决策与人工查阅，不进入执行门禁。" },
   { id: "seedance-prompt", title: "Seedance Prompt Skill", description: "仅提供 Seedance 提示词能力，不进入视频执行门禁。" },
 ];
@@ -248,16 +248,6 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
         )}
 
         <div className={embedded ? "space-y-4" : "p-6 border border-border rounded-xl bg-card space-y-4"}>
-          {/* 工作流说明 */}
-          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
-            <h4 className="font-semibold text-foreground">视频工作流运行说明</h4>
-            <div className="space-y-1.5 text-sm leading-6 text-muted-foreground">
-              <p><span className="font-medium text-foreground">共享运行时</span>：video-use 复用本地配置页已准备的 Python 3.12，HyperFrames 复用 Electron 内置 Node（无需额外下载），FFmpeg / ffprobe 由系统提供，所有插件共享同一组。</p>
-              <p><span className="font-medium text-foreground">执行顺序</span>：video-use 先完成原文对齐、EDL 编辑、字幕时间轴、调色、预览渲染与自评；用户确认时间线后，准备 HyperFrames 生成透明动效 overlay（无动效也会写入 no-op 记录）；最后由 Remotion 负责正式 Composition 与章节视频渲染。</p>
-              <p><span className="font-medium text-foreground">失败处理</span>：任一阶段失败都会阻塞后续流程并在 UI 中提示，可点击「准备」或「修复」重试，无需重启应用。</p>
-            </div>
-          </div>
-
           {/* 硬件加速渲染（D3）：开关只影响渲染调用参数，不进 plan/缓存哈希。 */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-4">
             <div>
@@ -275,7 +265,7 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h4 className="font-semibold text-foreground">插件运行时</h4>
-              <p className="text-xs text-muted-foreground mt-1">点击「准备当前工作流」一键准备所有插件，或单独准备某个插件。</p>
+              <p className="text-xs text-muted-foreground mt-1">点击「准备当前工作流」一键准备所有插件，或单独准备某个插件。任一插件失败会阻塞后续流程，在对应插件卡内点「准备」或「修复」重试即可，无需重启应用。</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => void plugins.refresh()} disabled={plugins.isBusy}>
