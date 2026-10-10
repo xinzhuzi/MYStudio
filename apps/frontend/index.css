@@ -526,6 +526,13 @@
     font-family: var(--font-serif);
     letter-spacing: 0.02em;
   }
+  /* md 预览区标题(1010):全局衬线标题栈的拉丁实际落到 Georgia=老式下降数字,
+     「第1章」的 1 只有小写高度不像数字——预览标题改「宋体 CJK + Times 拉丁」,
+     数字为正常站立衬线形态,与标题衬线气质一致 */
+  .md-preview h1, .md-preview h2, .md-preview h3,
+  .md-preview h4, .md-preview h5, .md-preview h6 {
+    font-family: "Songti SC", "Source Han Serif SC", "Source Han Serif CN", STSong, "Times New Roman", Georgia, serif;
+  }
   .timecode-mono,
   .shot-id-mono,
   .metadata-mono,
