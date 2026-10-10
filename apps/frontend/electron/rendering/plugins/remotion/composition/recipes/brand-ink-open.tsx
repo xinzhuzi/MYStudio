@@ -17,11 +17,11 @@
 
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import "@fontsource/noto-serif-sc/900.css";
+import { BRAND_INK_OPEN_DURATION, VSC_BRAND_INK_OPEN_ID } from "./chapter-vsc-registry";
 
-/** 全链命名锚(design §1.4:vsc: 前缀+卡名 kebab-case,注册表/校验器同一名字)。 */
-export const VSC_BRAND_INK_OPEN_ID = "vsc:brand-ink-open";
-/** 开篇定稿时长(帧,@30fps≈3.5s;入口 metadata 扩章长按此常量)。 */
-export const BRAND_INK_OPEN_DURATION = 104;
+// 常量真源已迁 chapter-vsc-registry.ts(纯数据,主进程图可安全 import);
+// 此处再导出保既有消费方(入口/Player/测试)不改。
+export { BRAND_INK_OPEN_DURATION, VSC_BRAND_INK_OPEN_ID };
 
 const SERIF = '"Noto Serif SC", ui-serif, Georgia, serif';
 const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";

@@ -17,10 +17,11 @@ import { ATMOSPHERE_TEMPLATES } from "../../../../../lib/studio/remotion/atmosph
 // 固定 bundle 走 @remotion/bundler(webpack),不解析 vite 的 @/ 别名——
 // 共享注册表必须相对导入。
 import { isKnownSubtitleFontId } from "../../../../../lib/studio/remotion/subtitle-fonts";
-// vsc camera 五卡闭集(id 常量真源=recipes/ 组件文件;fail-closed 见下)。
-import { isVscCameraRecipeId } from "./recipes/vsc-camera-recipes";
+// vsc camera 五卡闭集(fail-closed 见下)。主图纯度纪律:只 import 纯注册表,
+// 禁 import recipes/*.tsx(组件带 remotion/CSS 依赖,进主图即启动死,10-10 事故)。
+import { isVscCameraRecipeId } from "./recipes/vsc-camera-registry";
 // vsc 章级配方闭集(10-10 批D:开篇/章尾;fail-closed 同上)。
-import { isVscChapterOpeningRecipeId, isVscChapterOutroRecipeId } from "./recipes/chapter-vsc-recipes";
+import { isVscChapterOpeningRecipeId, isVscChapterOutroRecipeId } from "./recipes/chapter-vsc-registry";
 
 const VISUAL_KINDS = ["image", "video"] as const;
 const VISUAL_FITS = ["cover", "contain"] as const;

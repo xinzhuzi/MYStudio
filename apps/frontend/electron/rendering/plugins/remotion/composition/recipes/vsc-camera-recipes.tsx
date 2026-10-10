@@ -37,19 +37,11 @@ import {
   VSC_DRONE_DIVE_LANDING_ID,
   type DroneDiveLandingProps,
 } from "./drone-dive-landing";
+import { isVscCameraRecipeId, VSC_CAMERA_RECIPE_IDS } from "./vsc-camera-registry";
 
-/** camera 五卡 id 闭集(id 常量真源=各组件文件,此处只聚合不另造字符串)。 */
-export const VSC_CAMERA_RECIPE_IDS: readonly CompositionVscCameraRecipeId[] = [
-  VSC_CRASH_ZOOM_PUNCH_ID,
-  VSC_DUTCH_ROLL_TO_LEVEL_ID,
-  VSC_SLOW_PUSH_IN_ID,
-  VSC_PULL_BACK_ISOLATION_ID,
-  VSC_DRONE_DIVE_LANDING_ID,
-];
-
-export function isVscCameraRecipeId(value: unknown): value is CompositionVscCameraRecipeId {
-  return typeof value === "string" && (VSC_CAMERA_RECIPE_IDS as readonly string[]).includes(value);
-}
+// id 闭集/守卫真源已迁 vsc-camera-registry.ts(纯数据,主进程图安全 import);
+// 此处再导出保既有消费方(校验器/测试/renderer-router)不改。
+export { isVscCameraRecipeId, VSC_CAMERA_RECIPE_IDS };
 
 /** 五组件 props 的公共媒体子集(各组件自带配方参数,烧死卡片默认值=D4)。 */
 type VscRecipeComponentProps = CrashZoomPunchProps &

@@ -18,11 +18,11 @@
 //   无随机无时钟;帧级采样 grainDissolveSampleAtFrame 供测试烧金样。
 
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { GRAIN_DISSOLVE_DURATION, VSC_GRAIN_DISSOLVE_ID } from "./chapter-vsc-registry";
 
-/** 全链命名锚(design §1.4:vsc: 前缀+卡名 kebab-case)。 */
-export const VSC_GRAIN_DISSOLVE_ID = "vsc:grain-dissolve";
-/** 章尾定稿时长(帧,@30fps=2s;入口 metadata 扩章长按此常量)。 */
-export const GRAIN_DISSOLVE_DURATION = 60;
+// 常量真源已迁 chapter-vsc-registry.ts(纯数据,主进程图可安全 import);
+// 此处再导出保既有消费方不改。
+export { GRAIN_DISSOLVE_DURATION, VSC_GRAIN_DISSOLVE_ID };
 
 const BG = "#0a0a0c";
 

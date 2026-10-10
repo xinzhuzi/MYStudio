@@ -20,11 +20,17 @@
 // (effect-registry 枚举 + contracts fail-closed)、渲染(composition 分发),
 // 由 vsc-recipes.test.ts 的接线断言守护。
 
-import { VSC_CRASH_ZOOM_PUNCH_ID } from "@/electron/rendering/plugins/remotion/composition/recipes/crash-zoom-punch";
-import { VSC_DUTCH_ROLL_TO_LEVEL_ID } from "@/electron/rendering/plugins/remotion/composition/recipes/dutch-roll-to-level";
-import { VSC_SLOW_PUSH_IN_ID } from "@/electron/rendering/plugins/remotion/composition/recipes/slow-push-in";
-import { VSC_PULL_BACK_ISOLATION_ID } from "@/electron/rendering/plugins/remotion/composition/recipes/pull-back-isolation";
-import { VSC_DRONE_DIVE_LANDING_ID } from "@/electron/rendering/plugins/remotion/composition/recipes/drone-dive-landing";
+// id 常量取自纯注册表 vsc-camera-registry(相对导入,固定 bundle 的 webpack
+// 不解析 @/ 别名)。**禁直接 import recipes/*.tsx 组件文件**:组件合法携带
+// remotion/@remotion/motion-blur/CSS 依赖,经本表会污染 preload 与主进程图
+// (2026-10-10 装机"module not found: remotion"preload 装载失败事故根因)。
+import {
+  VSC_CRASH_ZOOM_PUNCH_ID,
+  VSC_DUTCH_ROLL_TO_LEVEL_ID,
+  VSC_SLOW_PUSH_IN_ID,
+  VSC_PULL_BACK_ISOLATION_ID,
+  VSC_DRONE_DIVE_LANDING_ID,
+} from "../../../electron/rendering/plugins/remotion/composition/recipes/vsc-camera-registry";
 
 /** depth 两卡无组件文件,本注册表即其 id 唯一真源(命名同 vsc: 前缀铁律)。 */
 export const VSC_PARALLAX_GLIDE_ID = "vsc:parallax-glide";
