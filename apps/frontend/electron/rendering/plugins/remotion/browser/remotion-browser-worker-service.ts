@@ -57,7 +57,9 @@ export interface RemotionBrowserWorkerService {
 }
 
 const PREPARED_VERSION_STATE_FILE = "browser-state.json";
-const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000;
+// 慢网默认(2026-10-10 实测 360KB/s:Chromium 157 headless shell ~110MB 需 ~5.2min,
+// 旧默认 120s 必超时中断)。仍可经 MYSTUDIO_REMOTION_BROWSER_DOWNLOAD_TIMEOUT_MS 覆盖。
+const DEFAULT_DOWNLOAD_TIMEOUT_MS = 600_000;
 
 export function createPreparedVersionFileStore(runtimeDir: string): PreparedVersionStore {
   if (!path.isAbsolute(runtimeDir)) {
