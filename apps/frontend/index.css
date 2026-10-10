@@ -529,6 +529,11 @@
   .dashboard-project-card h3 {
     font-family: var(--font-serif);
     letter-spacing: 0.02em;
+    /* 1010 终修:--font-serif 首名 Cormorant Garamond 经 renderer/index.html 的
+       Google Fonts link 实际在载(此前误注「未加载」),其默认数字=老式下降形
+       (「第1章」的 1 仅 x 字高,canvas 墨迹 11.6/30px=41% 实测);lining-nums
+       令数字站立(墨迹 62→102 实测),字母保留 Cormorant 优雅,中文仍落宋体系 */
+    font-variant-numeric: lining-nums;
   }
   .timecode-mono,
   .shot-id-mono,
