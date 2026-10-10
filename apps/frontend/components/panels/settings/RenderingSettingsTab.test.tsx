@@ -274,6 +274,52 @@ describe("RenderingSettingsTab", () => {
     await waitFor(() => expect(update).toHaveBeenCalledWith({ pluginId: "video-use" }));
   });
 
+  it("折叠态仍可从标题行内联更新(10-10 状态可见处动作可达,默认全折叠不埋按钮)", async () => {
+    window.localStorage.removeItem("mystudio.settings.rendering.collapsedModules");
+    const checkedAt = 1_700_000_000_000;
+    const status = (pluginId: "remotion" | "video-use" | "hyperframes" | "video-shotcraft" | "seedance-prompt", runtimeState: "ready" | "update-available" | "deferred") => ({
+      schemaVersion: 1 as const,
+      pluginId,
+      displayName: pluginId,
+      sourceUrl: `https://example.test/${pluginId}`,
+      sourceCommit: "test",
+      license: "MIT",
+      appVersion: "test",
+      pluginVersion: "test",
+      runtimeState,
+      dependencies: {},
+      checkedAt,
+    });
+    const update = vi.fn(async () => ({ schemaVersion: 1 as const, checkedAt, success: true }));
+    Object.defineProperty(window, "videoWorkflowPlugins", {
+      configurable: true,
+      value: {
+        status: vi.fn(async () => ({
+          schemaVersion: 1 as const,
+          checkedAt,
+          plugins: [
+            status("remotion", "ready"),
+            status("video-use", "update-available"),
+            status("hyperframes", "ready"),
+            status("video-shotcraft", "ready"),
+            status("seedance-prompt", "deferred"),
+          ],
+        })),
+        prepare: vi.fn(),
+        update,
+        repair: vi.fn(),
+        rollback: vi.fn(),
+      },
+    });
+
+    render(<RenderingSettingsTab />);
+    await waitFor(() => expect(screen.getByText("有可用更新")).toBeTruthy());
+    // 折叠态:底部按钮组未挂载,精确名「更新」的按钮应为零——唯一入口是标题行内联钮
+    expect(screen.queryAllByRole("button", { name: "更新" })).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "video-use 更新" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith({ pluginId: "video-use" }));
+  });
+
   it("exposes an explicit manual download action", async () => {
     const download = window.remotionRuntime?.download;
     render(<RenderingSettingsTab />);

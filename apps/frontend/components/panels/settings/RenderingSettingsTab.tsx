@@ -350,6 +350,11 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
               const updateAvailable = plugin?.runtimeState === "update-available";
               const busy = plugins.busyAction?.pluginId === definition.id;
               const open = !collapsedModules.has(`plugin-${definition.id}`);
+              const runUpdate = async () => {
+                const reply = await plugins.update(definition.id);
+                if (reply?.success) toast.success(`${definition.title} 更新完成`);
+                else if (reply && !reply.success) toast.error(`${definition.title} 更新失败: ${reply.message ?? "未知错误"}`);
+              };
               return (
                 <Collapsible
                   key={definition.id}
@@ -358,13 +363,28 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                   className="rounded-lg border border-border p-4 space-y-3"
                   aria-labelledby={`video-plugin-${definition.id}`}
                 >
-                  <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 text-left">
-                    <h4 id={`video-plugin-${definition.id}`} className="font-medium text-foreground">{definition.title}</h4>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{statusText(plugin)}</span>
-                      {moduleChevron(`plugin-${definition.id}`)}
-                    </div>
-                  </CollapsibleTrigger>
+                  {/* 有可用更新时标题行内联「更新」——状态可见处动作即可达(折叠态也一键更新,卡片默认全折叠不埋按钮) */}
+                  <div className="flex items-center gap-2">
+                    <CollapsibleTrigger className="flex-1 flex items-center justify-between gap-3 text-left">
+                      <h4 id={`video-plugin-${definition.id}`} className="font-medium text-foreground">{definition.title}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{statusText(plugin)}</span>
+                        {moduleChevron(`plugin-${definition.id}`)}
+                      </div>
+                    </CollapsibleTrigger>
+                    {updateAvailable && !deferred ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void runUpdate()}
+                        disabled={plugins.isBusy}
+                        aria-label={`${definition.title} 更新`}
+                      >
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
+                        更新
+                      </Button>
+                    ) : null}
+                  </div>
                   <CollapsibleContent>
                   <p className="text-xs leading-5 text-muted-foreground">{definition.description}</p>
                   {plugin?.message ? (
@@ -656,12 +676,8 @@ export function RenderingSettingsTab({ embedded = false }: RenderingSettingsTabP
                       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
                       {definition.id === "hyperframes" && plugin?.runtimeState === "needs-runtime" ? "下载并准备" : "准备"}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={async () => {
-                      const reply = await plugins.update(definition.id);
-                      if (reply?.success) toast.success(`${definition.title} 更新完成`);
-                      else if (reply && !reply.success) toast.error(`${definition.title} 更新失败: ${reply.message ?? "未知错误"}`);
-                    }} disabled={deferred || !updateAvailable || plugins.isBusy}>
-                      <RefreshCw className="h-4 w-4" /> 更新
+                    <Button size="sm" variant="ghost" onClick={() => void runUpdate()} disabled={deferred || !updateAvailable || plugins.isBusy}>
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" /> 更新
                     </Button>
                     <Button size="sm" variant="ghost" onClick={async () => {
                       const reply = await plugins.repair(definition.id);
