@@ -73,7 +73,7 @@ describe("migrateAPIConfigState", () => {
       expect.objectContaining({ id: DEFAULT_LOCAL_IMAGE_PROVIDER_ID }),
       expect.objectContaining({ id: DEFAULT_LOCAL_TTS_PROVIDER_ID }),
     ]);
-    expect(result.modelEndpointTypes?.["qwen-image-edit-2511"]).toEqual(["image-generation"]);
+    expect(result.modelEndpointTypes?.["qwen-image-2-1"]).toEqual(["image-generation"]);
     expect(result.featureBindings?.script_analysis).toEqual(["openai:m"]);
   });
 

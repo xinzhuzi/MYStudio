@@ -64,8 +64,9 @@ export const LOCAL_IMAGE_BASE_URL = "http://127.0.0.1:17595";
  * local-image-token;占位串不再被服务端接受),真令牌不落本 store。
  */
 export const LOCAL_IMAGE_API_KEY = "manying-local-image";
-export const LOCAL_IMAGE_MODELS = ["flux2-klein-9b", "krea2-turbo", "z-image-turbo", "qwen-image-edit-2511", "comfyui-bridge"] as const;
-export const DEFAULT_LOCAL_IMAGE_MODEL = "krea2-turbo";
+// 1010 用户裁定:本地渠道清场,只留 Q2.1(道劫产线工作流直跑)
+export const LOCAL_IMAGE_MODELS = ["qwen-image-2-1"] as const;
+export const DEFAULT_LOCAL_IMAGE_MODEL = "qwen-image-2-1";
 
 export function createDefaultLocalImageProvider(): IProvider {
   return {
@@ -84,8 +85,18 @@ export function createDefaultLocalImageProvider(): IProvider {
 
 export function ensureDefaultLocalImageProvider(providers: IProvider[] | undefined | null): IProvider[] {
   const existing = providers || [];
-  if (existing.some((provider) => provider.id === DEFAULT_LOCAL_IMAGE_PROVIDER_ID)) {
-    return existing;
+  const current = existing.find((provider) => provider.id === DEFAULT_LOCAL_IMAGE_PROVIDER_ID);
+  if (current) {
+    // 存量收口(1010 用户裁定:只留 qwen-image-2-1):补缺失+清退役,一次迁移到位;
+    // 用户其余字段(Key/Base URL 等)不动
+    const retired = current.model.filter((model) => !(LOCAL_IMAGE_MODELS as readonly string[]).includes(model));
+    const missing = LOCAL_IMAGE_MODELS.filter((model) => !current.model.includes(model));
+    if (retired.length === 0 && missing.length === 0) return existing;
+    return existing.map((provider) => (
+      provider.id === DEFAULT_LOCAL_IMAGE_PROVIDER_ID
+        ? { ...provider, model: [...LOCAL_IMAGE_MODELS] }
+        : provider
+    ));
   }
   return [createDefaultLocalImageProvider(), ...existing];
 }

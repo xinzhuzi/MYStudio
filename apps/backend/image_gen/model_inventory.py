@@ -18,7 +18,7 @@ from engines.image_engine.model_cache import (
     flux2_small_pieces_status,
     krea2_small_pieces_status,
 )
-from engines.image_engine import comfyui_bridge
+from engines.image_engine import comfyui_bridge, qwen21
 
 
 def build_model_status() -> list[dict]:
@@ -31,6 +31,7 @@ def build_model_status() -> list[dict]:
         flux2_pointed = layout == "flux2-pointed"
         krea2_pointed = layout == "krea2-pointed"
         bridge_service = layout == "comfyui-bridge"
+        qwen21_service = layout == "qwen21-viggle"
         is_pointed = pointed or z_pointed or flux2_pointed or krea2_pointed
 
         if pointed:
@@ -48,6 +49,9 @@ def build_model_status() -> list[dict]:
         elif bridge_service:
             resolved = comfyui_bridge.resolve_big_files()
             small_ready = comfyui_bridge.small_pieces_status()["ready"]
+        elif qwen21_service:
+            resolved = qwen21.resolve_big_files()
+            small_ready = qwen21.small_pieces_status()["ready"]
         else:
             resolved = None
             small_ready = None
@@ -57,7 +61,7 @@ def build_model_status() -> list[dict]:
             "label": spec["label"],
             "downloaded": cached is not None,
             "sizeMb": cached["size_mb"] if cached else None,
-            "repoId": "ComfyUI 服务(本机)" if bridge_service else ("ComfyUI 指向 / 完整下载 + 官方仓小件" if is_pointed else spec["repo_id"]),
+            "repoId": "ComfyUI 服务(本机)" if bridge_service or qwen21_service else ("ComfyUI 指向 / 完整下载 + 官方仓小件" if is_pointed else spec["repo_id"]),
             "cacheDir": cached["cache_dir"] if cached else None,
             "pointed": is_pointed,
             "bigFilesSource": resolved["source"] if resolved else None,

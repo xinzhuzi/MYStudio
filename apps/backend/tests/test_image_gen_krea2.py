@@ -80,8 +80,9 @@ class UseLoraPassthroughTest(unittest.TestCase):
 
 
 class DefaultEngineTest(unittest.TestCase):
-    def test_default_image_model_is_krea2(self) -> None:
-        self.assertEqual(model_cache.DEFAULT_IMAGE_MODEL, "krea2-turbo")
+    def test_default_image_model_is_qwen21(self) -> None:
+        # 1010 用户裁定:本地渠道收口=Q2.1 道劫产线(旧主力 Krea2 让位,krea2 引擎保留)
+        self.assertEqual(model_cache.DEFAULT_IMAGE_MODEL, "qwen-image-2-1")
 
 
 class DistillLoraInventoryTest(unittest.TestCase):

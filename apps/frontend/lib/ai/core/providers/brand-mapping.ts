@@ -21,7 +21,7 @@ export const BRAND_REGISTRY: Record<string, BrandInfo> = {
   anthropic:    { displayName: 'Anthropic',            color: '#D97757' },
   google:       { displayName: 'Google',               color: '#4285F4' },
   deepseek:     { displayName: 'DeepSeek',             color: '#4D6BFE' },
-  zhipu:        { displayName: 'ChatGLM (智谱)',        color: '#3485FF' },
+  zhipu:        { displayName: 'GLM (智谱)',            color: '#1F63EC' },
   doubao:       { displayName: 'Doubao (豆包)',         color: '#A569FF' },
   kling:        { displayName: 'Kling (可灵)',          color: '#04A6F0' },
   midjourney:   { displayName: 'Midjourney',           color: '#000000' },

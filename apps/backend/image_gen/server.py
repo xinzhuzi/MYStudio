@@ -303,6 +303,7 @@ class Handler(BaseHTTPRequestHandler):
                 reference_images_b64=reference_images_b64 or None,
                 use_lora=use_lora,
                 template=(payload.get("template") if isinstance(payload.get("template"), str) else None),
+                base_type=(payload.get("base_type") if isinstance(payload.get("base_type"), str) else None),
                 checkpoint=(payload.get("checkpoint") if isinstance(payload.get("checkpoint"), str) else None),
                 loras=(
                     payload.get("loras")
@@ -390,6 +391,27 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         layout = spec.get("layout", "")
+        if layout == "qwen21-viggle":
+            from engines.image_engine import qwen21
+
+            if not qwen21.resolve_big_files():
+                self._send_error_json(
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                    "ComfyUI 没在运行，请先打开它再试",
+                    "bridge-unreachable",
+                )
+                return
+            template_status = qwen21.small_pieces_status()
+            if not template_status["ready"]:
+                self._send_error_json(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    f"Qwen-Image-2.1 工作流模板不可用: {', '.join(template_status['missing'])}",
+                    "bridge-template-missing",
+                )
+                return
+            _set_progress(model_name, status="complete", progress=100, current=0, total=0)
+            self._send_json({"message": "Qwen-Image-2.1 使用已运行的 ComfyUI 服务，无需下载"})
+            return
         if layout == "comfyui-bridge":
             from engines.image_engine import comfyui_bridge
 

@@ -15,6 +15,7 @@ from . import flux2 as _flux2
 from . import z_image as _z_image
 from . import qwen as _qwen
 from . import comfyui_bridge as _comfyui_bridge
+from . import qwen21 as _qwen21
 
 # ── 别名 ──
 LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
@@ -22,8 +23,8 @@ LEGACY_IMAGE_MODEL_ALIASES: dict[str, str] = {
     "flux-schnell": _qwen.MODEL_NAME,
 }
 
-# 默认引擎(server 缺 model 时的兜底;主力 T2I=Krea2)
-DEFAULT_IMAGE_MODEL = _krea2.MODEL_NAME
+# 默认引擎(server 缺 model 时的兜底;1010 用户裁定本地渠道收口=Q2.1 道劫产线)
+DEFAULT_IMAGE_MODEL = _qwen21.MODEL_NAME
 
 # ── 公共类型 ──
 class ImageModelSpec(TypedDict):
@@ -115,6 +116,7 @@ IMAGE_MODELS: dict[str, PointedImageModelSpec] = {
     _z_image.MODEL_NAME: _z_image.SPEC,
     _qwen.MODEL_NAME: _qwen.SPEC,
     _comfyui_bridge.MODEL_NAME: _comfyui_bridge.SPEC,
+    _qwen21.MODEL_NAME: _qwen21.SPEC,
 }
 
 # ── 引擎分派 ──
@@ -124,6 +126,7 @@ _ENGINE_BY_LAYOUT = {
     "z-image-pointed": _z_image,
     "qwen-pointed": _qwen,
     "comfyui-bridge": _comfyui_bridge,
+    "qwen21-viggle": _qwen21,
 }
 
 def find_cached_image_model_for_spec(spec: ImageModelSpec) -> CachedImageModel | None:

@@ -696,7 +696,7 @@ describe("默认生图模型兜底(09-12 生图路由设置)", () => {
   });
 
   it("节点显式模型最优先,不被设置默认覆盖", () => {
-    expect(buildImageWorkflowGenerationRequest(bareGraph("krea2-turbo"), "gen-1").model).toBe("krea2-turbo");
+    expect(buildImageWorkflowGenerationRequest(bareGraph("qwen-image-2-1"), "gen-1").model).toBe("qwen-image-2-1");
   });
 
   it("设置空串=跟随渠道链(请求 model 为 undefined,现状行为)", () => {
@@ -735,13 +735,13 @@ describe("默认生图模型兜底(09-12 生图路由设置)", () => {
     expect(bgPrompt?.model).toBe("gpt-image-2");
   });
 
-  it("Q3a 豁免:本地模型无需渠道配置(krea2 常驻 sidecar)", () => {
+  it("Q3a 豁免:本地模型无需渠道配置(qwen-image-2-1 常驻 sidecar,1010 渠道清场后本地独苗)", () => {
     useAppSettingsStore.setState({
       imageGenerationSettings: {
         ...useAppSettingsStore.getState().imageGenerationSettings,
-        defaultImageModel: "krea2-turbo",
+        defaultImageModel: "qwen-image-2-1",
       },
     });
-    expect(buildImageWorkflowGenerationRequest(bareGraph(), "gen-1").model).toBe("krea2-turbo");
+    expect(buildImageWorkflowGenerationRequest(bareGraph(), "gen-1").model).toBe("qwen-image-2-1");
   });
 });

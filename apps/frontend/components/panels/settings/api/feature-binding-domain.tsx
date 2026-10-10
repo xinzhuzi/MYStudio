@@ -58,6 +58,13 @@ const VISION_TEXT_MARKERS = [
 const MODEL_CAPABILITIES: Record<string, ModelCapability[]> = {
   "glm-4.7": ["text", "function_calling"],
   "glm-4.6v": ["text", "vision"],
+  "glm-5.3": ["text", "vision"],
+  "glm-5.3-flash": ["text", "vision"],
+  "gpt-6.1-sol": ["text", "vision"],
+  "evomap-deepseek-v4-flash": ["text", "vision"],
+  "agnes-2.5-flash": ["text", "vision"],
+  "grok-4.6": ["text", "vision"],
+  "moonshotai/kimi-k3": ["text", "vision"],
   "deepseek-v3": ["text"],
   "deepseek-v3.2": ["text"],
   "deepseek-r1": ["text", "reasoning"],

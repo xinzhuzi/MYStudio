@@ -7,6 +7,6 @@ krea2/flux2/z_image/qwen=本地模型栈;comfyui_bridge=生图经 ComfyUI 引擎
 09-09 演进:原 image_gen/engines/ → providers/(ba94435 消歧)→ 本位
 engines/image_engine/(二次裁定:底层模型引擎统一入域)。
 """
-from . import krea2, flux2, z_image, qwen, comfyui_bridge
+from . import krea2, flux2, z_image, qwen, comfyui_bridge, qwen21
 
-ALL_ENGINES = (krea2, flux2, z_image, qwen, comfyui_bridge)
+ALL_ENGINES = (krea2, flux2, z_image, qwen, comfyui_bridge, qwen21)

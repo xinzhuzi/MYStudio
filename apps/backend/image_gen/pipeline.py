@@ -25,6 +25,7 @@ from engines.image_engine import flux2 as _flux2
 from engines.image_engine import z_image as _z_image
 from engines.image_engine import qwen as _qwen
 from engines.image_engine import comfyui_bridge as _comfyui_bridge
+from engines.image_engine import qwen21 as _qwen21
 
 _lock = threading.Lock()
 # 生成互斥的排队上限(秒):拿不到锁时排队等待,超时按「正忙」拒绝
@@ -70,6 +71,7 @@ _ENGINE_BY_LAYOUT = {
     "z-image-pointed": _z_image,
     "qwen-pointed": _qwen,
     "comfyui-bridge": _comfyui_bridge,
+    "qwen21-viggle": _qwen21,
 }
 
 
@@ -278,6 +280,7 @@ def generate_image(
     strength: float = 0.6,
     use_lora: bool = False,
     template: str | None = None,
+    base_type: str | None = None,
     checkpoint: str | None = None,
     loras: "list[dict] | None" = None,
 ) -> str:
@@ -326,6 +329,9 @@ def generate_image(
     if template is not None:
         # ComfyUI 桥模板点名(09-05 无衣物·指令编辑节点)
         ctx["template"] = template
+    if base_type is not None:
+        # qwen21 道劫装配子图型选择(1010:型随调用方,缺省=画布现值)
+        ctx["base_type"] = base_type
     if checkpoint is not None:
         # 09-11 漫影专属生图:主模型文件名注入(manying_t2i 的 model_file 绑定)
         ctx["checkpoint"] = checkpoint

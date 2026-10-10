@@ -66,6 +66,7 @@ export function FeatureBindingPanel() {
     providers,
     modelTypes,
     modelTags,
+    featureBindings,
     setFeatureBindings,
     toggleFeatureBinding,
     getFeatureBindings,
@@ -124,7 +125,10 @@ export function FeatureBindingPanel() {
   // 计算已配置的功能数（至少有一个有效绑定）
   const configuredCount = useMemo(() => {
     return FEATURE_CONFIGS.filter((feature) => {
-      const bindings = getFeatureBindings(feature.key);
+      // 直接读 featureBindings(而非 getFeatureActions 间接读):值进依赖,
+      // 只勾绑定不动供应商时计数器才会跟着刷新(1010 陈旧缓存修复)
+      const rawBindings = featureBindings?.[feature.key];
+      const bindings = typeof rawBindings === "string" ? [rawBindings] : (rawBindings ?? []);
       if (bindings.length === 0) return false;
       
       // 检查是否至少有一个有效的绑定
@@ -136,7 +140,7 @@ export function FeatureBindingPanel() {
         return Boolean(option?.configured);
       });
     }).length;
-  }, [optionsByFeature, getFeatureBindings]);
+  }, [optionsByFeature, featureBindings]);
 
   // 切换单个模型的选中状态
   const handleToggleBinding = (feature: FeatureMeta, optionKey: string) => {

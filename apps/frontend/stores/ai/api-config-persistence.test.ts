@@ -9,7 +9,7 @@ import {
 describe("API config persistence contract", () => {
   it("keeps the stable key and version", () => {
     expect(API_CONFIG_STORAGE_KEY).toBe("opencut-api-config");
-    expect(API_CONFIG_PERSIST_VERSION).toBe(18);
+    expect(API_CONFIG_PERSIST_VERSION).toBe(19);
   });
 
   it("persists only the established state fields", () => {

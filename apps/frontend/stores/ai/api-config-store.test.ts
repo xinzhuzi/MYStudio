@@ -676,7 +676,7 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
     };
     const seed = JSON.stringify({
       v: 2,
-      cipher: fakeEncode(JSON.stringify({ state: seedState, version: 18 })),
+      cipher: fakeEncode(JSON.stringify({ state: seedState, version: 19 })),
     });
     localStorage.setItem("opencut-api-config", seed);
 
@@ -738,7 +738,7 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
       expect(plaintext).toContain("sk-c1-存量键");
     }
     const decrypted = decryptDisk();
-    expect(decrypted.version).toBe(18);
+    expect(decrypted.version).toBe(19);
     expect(decrypted.state.apiKeys).toEqual({ openai: "sk-c1-存量legacy" });
     await vi.waitFor(() => {
       // 每拍新鲜解密:钩子第二写可能仍在途,轮询直到盘上密文=内存全量态
@@ -754,15 +754,15 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
     const { persist: persistToy } = await import("zustand/middleware");
     const { createJSONStorage } = await import("zustand/middleware");
     const { createSecureLocalStorage } = await import("@/lib/storage/secure-local-storage");
-    const toyKey = "c1-toy-version18-plain";
-    const toySeed = JSON.stringify({ state: { marker: 7 }, version: 18 });
+    const toyKey = "c1-toy-version19-plain";
+    const toySeed = JSON.stringify({ state: { marker: 7 }, version: 19 });
     localStorage.setItem(toyKey, toySeed);
     const toyStore = createToy(
       persistToy(
         () => ({ marker: 1 }),
         {
           name: toyKey,
-          version: 18,
+          version: 19,
           storage: createJSONStorage(() => createSecureLocalStorage(toyKey)),
           skipHydration: true,
         },
@@ -774,7 +774,7 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
     localStorage.removeItem(toyKey);
 
     // Leg B(接通钩子):真实 api-config store(钩子在 persist 配置里)——
-    // version 18 匹配无 migrate 回写,盘上 v2 只能来自 §4.3 钩子
+    // version 19 匹配无 migrate 回写,盘上 v2 只能来自 §4.3 钩子
     const seed = JSON.stringify({
       state: {
         apiKeys: { openai: "sk-c1-降级盘键" },

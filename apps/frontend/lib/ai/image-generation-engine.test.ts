@@ -105,11 +105,11 @@ describe("generateImage", () => {
         name: "本地图片生成",
         baseUrl: "http://127.0.0.1:17595",
         apiKey: "manying-local-image",
-        model: ["krea2-turbo"],
+        model: ["qwen-image-2-1"],
         capabilities: ["image_generation"],
       }],
-      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
-      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+      featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"] },
     } as never);
     useAppSettingsStore.getState().setImageGenerationSettings({ localImageLoraEnabled: true });
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
@@ -121,7 +121,7 @@ describe("generateImage", () => {
 
     const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
     const requestBody = JSON.parse(String(genCall?.[1]?.body));
-    expect(requestBody.model).toBe("krea2-turbo");
+    expect(requestBody.model).toBe("qwen-image-2-1");
     expect(requestBody.use_lora).toBe(true);
   });
 
@@ -146,11 +146,11 @@ describe("generateImage", () => {
         name: "本地图片生成",
         baseUrl: "http://127.0.0.1:17595",
         apiKey: "manying-local-image",
-        model: ["krea2-turbo"],
+        model: ["qwen-image-2-1"],
         capabilities: ["image_generation"],
       }],
-      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
-      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+      featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"] },
     } as never);
     // 全局专业流开关关闭——画布 NSFW破限节点链的显式注入必须存活
     useAppSettingsStore.getState().setImageGenerationSettings({ localImageLoraEnabled: false });
@@ -163,7 +163,7 @@ describe("generateImage", () => {
 
     const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
     const requestBody = JSON.parse(String(genCall?.[1]?.body));
-    expect(requestBody.model).toBe("krea2-turbo");
+    expect(requestBody.model).toBe("qwen-image-2-1");
     expect(requestBody.use_lora).toBe(true);
   });
 
@@ -496,7 +496,7 @@ describe("generateImage 模型归属路由", () => {
     name: "本地图片生成",
     baseUrl: "http://127.0.0.1:17595",
     apiKey: "manying-local-image",
-    model: ["krea2-turbo"],
+    model: ["qwen-image-2-1"],
     capabilities: ["image_generation"],
   };
   const cloudProvider = {
@@ -525,10 +525,10 @@ describe("generateImage 模型归属路由", () => {
     useAPIConfigStore.setState({
       providers: [cloudProvider, localProvider],
       featureBindings: {
-        freedom_image: ["mikoto:gpt-image-2", "manying-local-image:krea2-turbo"],
+        freedom_image: ["mikoto:gpt-image-2", "manying-local-image:qwen-image-2-1"],
         character_generation: ["mikoto:gpt-image-2"],
       },
-      modelEndpointTypes: { "krea2-turbo": ["image-generation"], "gpt-image-2": ["openai"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"], "gpt-image-2": ["openai"] },
     } as never);
     const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
       if (String(url).includes("17595")) return okLocal();
@@ -536,21 +536,21 @@ describe("generateImage 模型归属路由", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateImage({ prompt: "本地模型归本地", model: "krea2-turbo" });
+    const result = await generateImage({ prompt: "本地模型归本地", model: "qwen-image-2-1" });
 
     expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
     expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
     const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
     expect(genCall).toBeTruthy();
     const requestBody = JSON.parse(String(genCall?.[1]?.body));
-    expect(requestBody.model).toBe("krea2-turbo");
+    expect(requestBody.model).toBe("qwen-image-2-1");
   }, 20000);
 
   it("本地模型在零绑定下也直接走本地 provider(选中本地即意图本地)", async () => {
     useAPIConfigStore.setState({
       providers: [cloudProvider, localProvider],
       featureBindings: { freedom_image: ["mikoto:gpt-image-2"] },
-      modelEndpointTypes: { "krea2-turbo": ["image-generation"], "gpt-image-2": ["openai"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"], "gpt-image-2": ["openai"] },
     } as never);
     const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
       if (String(url).includes("17595")) return okLocal();
@@ -558,7 +558,7 @@ describe("generateImage 模型归属路由", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateImage({ prompt: "零绑定也走本地", model: "krea2-turbo" });
+    const result = await generateImage({ prompt: "零绑定也走本地", model: "qwen-image-2-1" });
 
     expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
     expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
@@ -568,10 +568,10 @@ describe("generateImage 模型归属路由", () => {
     useAPIConfigStore.setState({
       providers: [cloudProvider, localProvider],
       featureBindings: {
-        freedom_image: ["mikoto:gpt-image-2", "manying-local-image:krea2-turbo"],
+        freedom_image: ["mikoto:gpt-image-2", "manying-local-image:qwen-image-2-1"],
         character_generation: ["mikoto:gpt-image-2"],
       },
-      modelEndpointTypes: { "krea2-turbo": ["image-generation"], "gpt-image-2": ["openai"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"], "gpt-image-2": ["openai"] },
     } as never);
     const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
       if (String(url).includes("17595")) {
@@ -581,7 +581,7 @@ describe("generateImage 模型归属路由", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const error: unknown = await generateImage({ prompt: "本地失败不烧云端", model: "krea2-turbo" }).catch((err: unknown) => err);
+    const error: unknown = await generateImage({ prompt: "本地失败不烧云端", model: "qwen-image-2-1" }).catch((err: unknown) => err);
     const message = error instanceof Error ? error.message : String(error);
     expect(message).toContain("本地图片生成失败");
     expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
@@ -622,8 +622,8 @@ describe("generateImage 模型归属路由", () => {
   it("本地通道图片请求超时放宽到 15 分钟(实测 1024² 推理 186s > 默认 180s)", async () => {
     useAPIConfigStore.setState({
       providers: [localProvider],
-      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
-      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+      featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"] },
     } as never);
     const imageRequest = vi.fn(async (_payload: { url: string; timeoutMs?: number }) => ({
       status: 200,
@@ -633,7 +633,7 @@ describe("generateImage 模型归属路由", () => {
     }));
     vi.stubGlobal("window", { electronAPI: { imageRequest } });
 
-    const result = await generateImage({ prompt: "本地超时豁免", model: "krea2-turbo", persistMedia: false });
+    const result = await generateImage({ prompt: "本地超时豁免", model: "qwen-image-2-1", persistMedia: false });
 
     expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
     expect(imageRequest).toHaveBeenCalled();
@@ -646,7 +646,7 @@ describe("generateImage 模型归属路由", () => {
     useAPIConfigStore.setState({
       providers: [cloudProvider],
       featureBindings: { freedom_image: ["mikoto:gpt-image-2"] },
-      modelEndpointTypes: { "gpt-image-2": ["openai"], "krea2-turbo": ["image-generation"] },
+      modelEndpointTypes: { "gpt-image-2": ["openai"], "qwen-image-2-1": ["image-generation"] },
     } as never);
     const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
       if (String(url).includes("17595")) return okLocal();
@@ -654,7 +654,7 @@ describe("generateImage 模型归属路由", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await generateImage({ prompt: "洗掉也能本地", model: "krea2-turbo" });
+    const result = await generateImage({ prompt: "洗掉也能本地", model: "qwen-image-2-1" });
 
     expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
     expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
@@ -663,8 +663,8 @@ describe("generateImage 模型归属路由", () => {
   it("sidecar 缺席时生成前自动拉起(health 失败→prepare 自愈→生成成功)", async () => {
     useAPIConfigStore.setState({
       providers: [localProvider],
-      featureBindings: { freedom_image: ["manying-local-image:krea2-turbo"] },
-      modelEndpointTypes: { "krea2-turbo": ["image-generation"] },
+      featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"] },
     } as never);
     let healthProbed = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string | URL) => {
@@ -679,7 +679,7 @@ describe("generateImage 模型归属路由", () => {
     const prepare = vi.fn(async () => ({ success: true }));
     vi.stubGlobal("window", { imageGenRuntime: { prepare } });
 
-    const result = await generateImage({ prompt: "缺席自愈", model: "krea2-turbo" });
+    const result = await generateImage({ prompt: "缺席自愈", model: "qwen-image-2-1" });
 
     expect(result.url).toBe("data:image/png;base64,bG9jYWw=");
     expect(healthProbed).toBeGreaterThanOrEqual(1);

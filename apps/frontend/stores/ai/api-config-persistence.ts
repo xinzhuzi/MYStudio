@@ -5,7 +5,9 @@ import type { APIConfigState } from "./api-config-store-types";
 export const API_CONFIG_STORAGE_KEY = "opencut-api-config";
 // 0924 C1 专项:v17→v18 无 state schema 变更(密文格式变化在存储层吸收,
 // migrateAPIConfigState 既有链零改);升版使旧明文盘走 migrate 自动回写路径。
-export const API_CONFIG_PERSIST_VERSION = 18;
+// 1010 v18→v19:本地图片渠道扩容(qwen-image-2-1)——升版触发一次性 migrate,
+// ensureDefaultLocalImageProvider 给存量本地供应商补新模型(v12→v13 清缓存分支不受影响)。
+export const API_CONFIG_PERSIST_VERSION = 19;
 
 const fallbackAPIConfigStorage: StateStorage = {
   getItem: () => null,
