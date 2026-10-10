@@ -669,5 +669,5 @@ bundle 缺失、manifest 无效或版本漂移，先运行该命令，再重新�
 - 时间线 renderer、Remotion 版本/浏览器、媒体桥、bundle 或 evidence 变化：同步 `SETTINGS_PANEL_OPERATIONS.md`、`WORKFLOW_GUIDE.md`、`WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md`、`EXPORT_GUIDE.md`、`PACKAGING_AND_SMOKE_TESTING.md`、`TROUBLESHOOTING.md` 与 `.trellis/spec/frontend/timeline-rendering.md`。
 - TTS/Python 行为变更：同步 `PYTHON_TTS_SETUP.md`、`voicebox-voice-cloning-flow.md`、`apps/backend/README.md`。
 - 存储 key 或迁移逻辑变更：同步 `STORAGE_AND_DATA.md` 和 `ASSET_LIBRARY_GUIDE.md`。
-- 打包脚本或安装路径变更：同步 `PACKAGING_AND_SMOKE_TESTING.md` 和 `docs/融合/部署打包与工程化手册.md`。
+- 打包脚本或安装路径变更：同步 `PACKAGING_AND_SMOKE_TESTING.md` 和 `docs/融合/档案/部署打包与工程化手册.md`。
 - UI 外观/主题变更：同步 `APPEARANCE_THEMES.md`。

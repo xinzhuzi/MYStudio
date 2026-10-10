@@ -2,7 +2,7 @@
 
 > 历史研究/交接记录（2026-09-20 适用范围复核）：保留文件名和文内日期对应的判断、未决项与实验结果，未重新执行原实验。旧路径、外部项目能力和当时任务状态仅供追溯；现行操作查[工作流教程](../workflow/WORKFLOW_GUIDE.md)、[开发架构](../engineering/DEVELOPER_ARCHITECTURE.md)。
 
-> 前置阅读:[H3 漫剧产线生态调查](./H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md)(生态全貌与来源)。
+> 前置阅读:[H3 漫剧产线生态调查](archive/H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md)(生态全貌与来源)。
 > 本文=把调查对照漫影**代码实况**后的吸收裁定建议;标【待拍板】的项需用户点头才动。
 > 实况核验(2026-09-14,rg 全库):分镜表行已含镜号/场景/描述/景别/运镜/时长+台词/声音/关联资产(`storyboard-pipeline-comfy.ts:326`);Remotion shot 已有 TTS/sfx 状态、音频绑定指纹、重复混音风险检测(`workflow-node-model-schema.ts:132`);视频生成路由为云端 provider(`lib/ai/video-generator-routing.ts`)。
 > **09-14 晚间更正**:本文早间曾记「官方提示词格式产线零接线」——当日 05:45-05:54 并行会话已落地 `h3-shot-prompt.ts`(I2V 三字段 builder)+`h3-shot-template.json` 单镜模板,该结论过时,下表与 P0-1 已按新实况修正。同日按用户裁定执行「超分不进工作流」:模板已摘浅空间放大两段式与 SeedVR2,改单段直出(详见 KB 分镜图生成与超分指引)。

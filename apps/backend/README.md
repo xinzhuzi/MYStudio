@@ -8,14 +8,13 @@
 
 ```text
 apps/backend/
-  # 域1:底层引擎层(09-09 统一;两形态:进程内推理引擎 + 托管实例引擎;磁盘 9 包)
+  # 域1:底层引擎层(09-09 统一;两形态:进程内推理引擎 + 托管实例引擎;磁盘 7 包)
   engines/tts_engine/       # TTS 推理(Kokoro/Qwen3-TTS:engine 族+catalog+model_cache)
   engines/image_engine/     # 生图五模型栈(krea2/flux2/z_image/qwen/comfyui_bridge)
-                            #   +model_cache+workflows/(K2 四模板)
+                            #   +model_cache
   engines/audio_engine/  engines/sfx_engine/    # generate.py(自 worker 原样切片)+model_cache
-  engines/upscale_engine/  engines/vlm_engine/
+  engines/vlm_engine/
   engines/video_qc_engine/  # DOVER 架构+打分+license
-  engines/depth_engine/     # 预留位(2026-10-04 磁盘核验:目录暂空,git 未跟踪)
   engines/comfyui/          # ComfyUI 托管实例:manifest/engine_manager/plugin_manager/execute
   # 域2:模态服务包(纯服务面:HTTP/CLI spawn 面/编排/存储;模型底层全在 engines/)
   tts/                      # TTS 服务面:server/main/routes/storage/runtime_state

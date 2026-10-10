@@ -58,7 +58,7 @@
   - **不在**：Qwen GGUF/TE、Z-Image、FLUX.2 全部大件、upscale anime、一切 controlnet。应用缓存（`~/Library/Application Support/漫影工作室/model/imagegen`）五个仓小件齐全但**无任何 GGUF 大件**。
 - **custom_nodes 26 个**：comfyui-krea2edit、ComfyUI-Krea2T-Enhancer、ConditioningKrea2Rebalance、GGUF、Easy-Use、rgthree 等；2 个当前导入失败（LayerStyle、LTXVideo）。
 - **24 个现成工作流**：`K2图像/` 6 个（含 NSFW 专业流、文生图简版）、`H3视频/` 14 个（含官方 API 格式版）。
-- **仓库内零 ComfyUI API 调用代码**（8188//prompt//history/websocket 全无命中）；唯一先例是历史草案 `docs/融合/模板系统与ComfyUI集成方案.md`（2026-05，文首已标注不改变现行主链）。
+- **仓库内零 ComfyUI API 调用代码**（8188//prompt//history/websocket 全无命中）；唯一先例是历史草案 `docs/融合/档案/模板系统与ComfyUI集成方案.md`（2026-05，文首已标注不改变现行主链）。
 
 ### 1.4 在途工作（本计划必须避让）
 
@@ -177,4 +177,4 @@
 - 就绪口径与回退：`image-gen-runtime-controller.ts:347-380`。
 - ComfyUI 实况：`~/Project/ComfyUI/config.json`（installState/basePath/hasGeneratedSuccessfully）、代码仓 `comfyui_version.py`=0.33.0、日志端口 8000、`user/default/workflows/`（K2图像 6 个/H3视频 14 个）。
 - 应用缓存实测（08-31 晚）：`~/Library/Application Support/漫影工作室/model/imagegen/` 五仓小件在、无 GGUF 大件。
-- 历史草案：`docs/融合/模板系统与ComfyUI集成方案.md`（2026-05，明确标注为历史候选设计）。
+- 历史草案：`docs/融合/档案/模板系统与ComfyUI集成方案.md`（2026-05，明确标注为历史候选设计）。

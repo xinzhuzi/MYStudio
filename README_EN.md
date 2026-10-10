@@ -84,7 +84,7 @@ The current documentation is maintained under [docs/README.en.md](docs/README.en
 - **Node.js** >= 22.12.0 (Electron 44 hard requirement; CI uses Node 22)
 - **pnpm** >= 10 (enabled via corepack; aligned with CI and the `apps/patches` remotion patches)
 - Cloud AI mode (image/video/LLM via cloud APIs + local Remotion rendering) runs on any common desktop configuration.
-- Local AI mode requires a local GPU: Apple Silicon on macOS (MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only; Music3 bf16 requires 48 GB+ unified memory), or an NVIDIA CUDA GPU on Windows for local TTS. The managed ComfyUI engine and local models are downloaded on demand — image-generation weights can reach tens of GB.
+- Local AI mode requires a local GPU: Apple Silicon on macOS (MLX-based capabilities such as local full-song generation and VLM review are Apple-Silicon-only; full-song generation now runs as a YuE2 workflow on the ComfyUI canvas — the legacy Music3 bf16 was retired on 09-20, and its historical requirement of 48 GB+ unified memory with a 44 GB hard gate is kept for the record), or an NVIDIA CUDA GPU on Windows for local TTS. The managed ComfyUI engine and local models are downloaded on demand — image-generation weights can reach tens of GB.
 
 ### Install & Run
 

@@ -116,9 +116,9 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [Novel Import and Script Planning Operations](workflow/WORKFLOW_NOVEL_SCRIPT_OPERATIONS.md) | Chinese reference for manual selection, chapter import, event analysis, staged script generation, review, and repair |
 | [Script Asset and Generation Operations](workflow/WORKFLOW_ASSET_GENERATION_OPERATIONS.md) | Chinese reference for script asset extraction, asset matching, prompt polishing, missing asset generation, and role voice entry points |
 | [Storyboard and Editing Operations](workflow/WORKFLOW_STORYBOARD_EDITING_OPERATIONS.md) | Current 15-column storyboard protocol, chapter review gates, and native Remotion workbench; the old two-column editor is labeled as historical |
-| [Assist Workbench Guide](panels/ASSIST_WORKBENCH_GUIDE.md) | ⚠️ Outdated (2026-09): the five assist studios were retired in the 2026-09-10 fullscreen-ComfyUI merge; the entry is now "Local Models" (ComfyUI canvas + TTS booth + quick image generation) |
-| [Assist Workbench Operations](panels/ASSIST_WORKBENCH_OPERATIONS.md) | ⚠️ Outdated — retired with the five assist studios |
-| [Assist Workbench Parameter Reference](panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | ⚠️ Outdated — superseded by the ComfyUI parameter cheat sheet |
+| [Assist Workbench Guide](panels/档案/ASSIST_WORKBENCH_GUIDE.md) | ⚠️ Outdated (2026-09): the five assist studios were retired in the 2026-09-10 fullscreen-ComfyUI merge; the entry is now "Local Models" (ComfyUI canvas + TTS booth + quick image generation) |
+| [Assist Workbench Operations](panels/档案/ASSIST_WORKBENCH_OPERATIONS.md) | ⚠️ Outdated — retired with the five assist studios |
+| [Assist Workbench Parameter Reference](panels/档案/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | ⚠️ Outdated — superseded by the ComfyUI parameter cheat sheet |
 | [ComfyUI Knowledge Base](comfyui-kb/参数速查.md) | Current source of truth for local generation pipelines (K2 image / H3 video): sampling parameters, customization code map, runbooks (Chinese) |
 | [Media Outputs Operations](panels/MEDIA_OUTPUTS_OPERATIONS.md) | Chinese guide for media upload, folders, context menus, export, and director shortcuts |
 | [Export Operations](panels/EXPORT_OPERATIONS.md) | Chinese guide for export source selection, sequence strip, progress display, disabled states, and secondary cards |
@@ -136,7 +136,7 @@ Most detailed guides are currently maintained in Chinese. Use these entry points
 | [Asset Library](assets/ASSET_LIBRARY_GUIDE.md) | Roles, scenes, props, audio assets, styles, and storage |
 | [Asset Import and Management](assets/ASSET_IMPORT_AND_MANAGEMENT.md) | Add roles/scenes/props, batch manage assets, edit detail data, manage multiple images, and transcribe audio samples |
 | [Asset Detail Operations](assets/ASSET_DETAIL_OPERATIONS.md) | Chinese guide for asset preview, image actions, prompt polish, one-click generation, audio transcription, role voices, and deletion |
-| [Props Library Operations](assets/PROPS_LIBRARY_OPERATIONS.md) | Chinese guide for local prop folders, folder create/rename/delete, and prop move/rename/delete behavior |
+| [Props Library Operations](assets/档案/PROPS_LIBRARY_OPERATIONS.md) | Chinese guide for local prop folders, folder create/rename/delete, and prop move/rename/delete behavior |
 | [Voice Assignment](assets/ASSET_AUDIO_ASSIGNMENT.md) | Assign asset audio samples to roles for local voice cloning |
 | [Role Audio Assignment Reference](assets/ROLE_AUDIO_ASSIGNMENT_REFERENCE.md) | Chinese reference for role voice dialog fields, automatic matching rules, AI semantic matching, preview playback, and transcription failures |
 | [MCP Services](settings/MCP_SERVICES_GUIDE.md) | Register services, test connections, and import/export JSON configuration |

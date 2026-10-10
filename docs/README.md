@@ -44,7 +44,7 @@
 | [资产库使用与存储](./assets/ASSET_LIBRARY_GUIDE.md) | 角色、场景、道具、音频资产的入口、详情、SQLite 存储和迁移边界 |
 | [资产导入与管理](./assets/ASSET_IMPORT_AND_MANAGEMENT.md) | 添加角色/场景/道具、批量删除、多图管理、音频说话内容和道具目录 |
 | [资产详情弹窗操作手册](./assets/ASSET_DETAIL_OPERATIONS.md) | 资产详情预览、图片操作、提示词润色、一键生成、音频转写、角色音色和删除 |
-| [道具目录操作手册](./assets/PROPS_LIBRARY_OPERATIONS.md) | 本地道具目录、新建/重命名/删除文件夹、移动/重命名/删除道具 |
+| [道具目录操作手册](assets/档案/PROPS_LIBRARY_OPERATIONS.md) | 本地道具目录、新建/重命名/删除文件夹、移动/重命名/删除道具 |
 | [视觉风格管理](./assets/VISUAL_STYLE_MANAGEMENT.md) | 默认风格、我的风格、视觉手册编辑和 AI 提取风格词 |
 | [视觉手册编辑器操作手册](./assets/VISUAL_MANUAL_EDITOR_OPERATIONS.md) | 视觉手册 Markdown 模块、参考图、打开目录、预览和保存行为 |
 | [角色生成与衣橱](./assets/CHARACTER_GENERATION_GUIDE.md) | 内部角色生成、三视图、AI 校准信息和造型变体 |
@@ -77,9 +77,9 @@
 | [技能编辑](./panels/SKILLS_EDITOR_GUIDE.md) | 查看、编辑、新增、删除和恢复项目 Markdown 技能文件 |
 | [技能编辑操作手册](./panels/SKILLS_EDITOR_OPERATIONS.md) | 技能页按钮状态、文件状态、新增路径、删除和恢复边界 |
 | [本地模型页（ComfyUI 工作区）](./panels/LOCAL_MODELS_GUIDE.md) | 全屏 ComfyUI 画布、TTS 配音室与漫影生图（悬浮球导航、媒体资产回流） |
-| [辅助工作台](./panels/ASSIST_WORKBENCH_GUIDE.md) | 【已过时 2026-09-13】五子工作台已于 09-10 全屏 ComfyUI 合一退役；现入口=主导航「本地模型」（ComfyUI 画布 + TTS 配音室 + 漫影生图） |
-| [辅助工作台操作手册](./panels/ASSIST_WORKBENCH_OPERATIONS.md) | 【已过时】随五子工作台退役，仅作历史参考 |
-| [辅助工作台参数参考](./panels/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | 【已过时】参数口径已被 [ComfyUI 参数速查](./comfyui-kb/参数速查.md) 取代 |
+| [辅助工作台](panels/档案/ASSIST_WORKBENCH_GUIDE.md) | 【已过时 2026-09-13】五子工作台已于 09-10 全屏 ComfyUI 合一退役；现入口=主导航「本地模型」（ComfyUI 画布 + TTS 配音室 + 漫影生图） |
+| [辅助工作台操作手册](panels/档案/ASSIST_WORKBENCH_OPERATIONS.md) | 【已过时】随五子工作台退役，仅作历史参考 |
+| [辅助工作台参数参考](panels/档案/ASSIST_WORKBENCH_PARAMETER_REFERENCE.md) | 【已过时】参数口径已被 [ComfyUI 参数速查](./comfyui-kb/参数速查.md) 取代 |
 | [产物管理](./panels/MEDIA_OUTPUTS_GUIDE.md) | 上传、整理、预览、导出图片/视频/音频产物 |
 | [产物页操作手册](./panels/MEDIA_OUTPUTS_OPERATIONS.md) | 上传、文件夹、视图、排序、右键菜单、导出和导演入口 |
 | [成片与导出](./panels/EXPORT_GUIDE.md) | 查看渲染状态、选择文件夹导出和逐个下载素材 |
@@ -140,6 +140,17 @@
 | [分镜图生成与超分指引](./comfyui-kb/分镜图生成与超分指引.md) | 分镜×H3 配套：分镜图写法要点、一镜张数策略（默认首帧1张/尾帧条件档/九宫格抽卡）、超分结论（输入侧不做、权重替代分辨率）与质量杠杆四件事 |
 | [分镜×H3 视频产线](./comfyui-kb/分镜H3视频产线.md) | 单镜 5s 真动态视频产线：素材到成片链（H3→Remotion shots→video-use 审阅→用户确认/HyperFrames→章节渲染）、17k+5 帧数网格、分辨率/音频裁定、漫影自研单镜工作流、实弹账本（21m07s/5.167s/124 帧）与坑清单 |
 | [定制代码地图](./comfyui-kb/定制代码地图.md) | 四层定制代码位置、生效路径（要不要打包）与坑清单（改 ComfyUI 相关功能前先读） |
+| [工作流落位规范](./comfyui-kb/工作流落位规范.md) | 工作流 JSON 全机唯一落位口径(仓库真源/引擎家用户区/快照区各归其位)与放错发现机制;审计工具 workflow_placement_audit.py 按此机检(09-21 立规矩) |
+| [子图工作流工程契约](./comfyui-kb/子图工作流工程契约.md) | 手写或脚本生成 definitions.subgraphs 工作流 JSON 的工程铁律(边界连线必须写 inputs[].linkIds/outputs[].linkIds 等;09-21 KSampler 缺连根修实战沉淀) |
+| [子图宿主面板排查](./comfyui-kb/子图宿主面板排查.md) | 子图宿主节点输入点不渲染/错名/widget 丢失的宿主槽渲染机制与根因链(10-05 定谳;改子图相关 UI/工作流前必读) |
+| [画布布局规范-0928](./comfyui-kb/画布布局规范-0928.md) | 工作流画布排版优先级序:线不交叉>线不遮节点>恒向右>est 零重叠等,组框美观为观感服务、可被消交叉打破(0928 立宪) |
+| [跨镜连续性规范-0928](./comfyui-kb/跨镜连续性规范-0928.md) | 逐镜可机检的跨镜状态记录总则(状态显式化/每镜自交代物理事实;外部课程方法论自研改写+漫影产线对照落点,0928) |
+| [插件链故障台账](./comfyui-kb/插件链故障台账.md) | 设置→本地配置→ComfyUI 更新页插件装/更/卸链 13 个叠加 bug 的五层故障模型、防线与收口纪律(动这条链前必读,09-19 实弹) |
+| [LMStudio-Windows远程排查-1007](./comfyui-kb/LMStudio-Windows远程排查-1007.md) | qi21 [4013] AI扩写依赖的 Windows 侧 LM Studio 远程服务排障:30 秒症状指纹分流+四层卡点;1007 定谳=程序级防火墙 Block 假死,服务从没死 |
+| [LoRA库存台账](./comfyui-kb/LoRA库存台账.md) | 装机 LoRA 库存决策表真源(实体/引用计数/断链判定/处置两步制);最近核账 10-10:Krea2 系 21 件整体迁外置卷、#24 consistency 迁 Qwen 卷 |
+| [K2工笔负面清单](./comfyui-kb/K2工笔负面清单.md) | 工笔对拍战役缺陷真源(09-16~17 同 seed 消融实证:布纹底/构图居中等根因与对应杠杆),后续提示词/负向/工作流修缮以此为准 |
+| [Q2-1致噪词黑名单-0925](./comfyui-kb/Q2-1致噪词黑名单-0925.md) | Qwen-Image-2.1 全线致噪词禁用清单(整幅纹理语主犯等,0925 十五臂消融+flatMAD 计量实证);起草或审校任何 Q2-1 提示词前先过本清单 |
+| [K2服饰LoRA调研_0919](./comfyui-kb/K2服饰LoRA调研_0919.md) | 中国风服饰能力路线矩阵(按路线组合非物件罗列)与本地盘点结论:K2 原生可用服饰资产 3 件+成熟换装工作流配方 1 套(09-19) |
 
 > 用户操作见 [ComfyUI 引擎指南](./settings/COMFYUI_ENGINE_GUIDE.md)与[本地模型页](./panels/LOCAL_MODELS_GUIDE.md)；开发运维再查定制代码地图。
 
@@ -153,28 +164,29 @@
 
 | 文档 | 用途 |
 |---|---|
-| [电影级 3D 纵深视频制作手册](./guides/CINEMATIC_PLAYBOOK.md) | 2026-08 实验性 3D 玩法记录；现行素材与渲染入口以完整视频链路为准 |
+| [电影级 3D 纵深视频制作手册](guides/档案/CINEMATIC_PLAYBOOK.md) | 2026-08 实验性 3D 玩法记录；现行素材与渲染入口以完整视频链路为准 |
 | [本地模型降本指南](./guides/LOCAL_MODEL_COST_REDUCTION.md) | 零 API 费用的本地模型生成策略 |
 
 ## 技术调查（research/）
 
 | 文档 | 用途 |
 |---|---|
-| [视频效果升级交接提示词](./research/EFFECT_UPGRADE_PROMPT_2026-08-18.md) | 08-18 效果升级任务的裁定增补与执行入口（执行以 Trellis 任务为准） |
-| [效果缺口攻坚交接 08-19](./research/EFFECT_GAPS_HANDOFF_2026-08-19.md) | 效果链遗留三缺口（转场决策层、章节统一色调、音效随字幕）的执行交接 |
-| [图层分离探索交接 08-19](./research/LAYER_SEPARATION_HANDOFF_2026-08-19.md) | AI 图片分层动画（背景/角色/特效分层）技术探索交接 |
-| [Agent 检索能力建设计划 v2 08-21](./research/UNIFIED_SEARCH_PLAN_2026-08-21.md) | AI 搜索本地全源+网络的路由方案与落地记录 |
-| [本地生图架构路线计划 08-31](./research/LOCAL_IMAGE_GEN_ARCHITECTURE_PLAN_2026-08-31.md) | 本地生图架构深读与路线选择（自研 sidecar vs ComfyUI） |
-| [H3 漫剧产线生态调查 09-14](./research/H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md) | AI 视频方式全景、H3 技能/提示词生态、GitHub 高星漫剧管线、B 站四学派产线落实分析与漫影落点（含 License 红线表） |
+| [视频效果升级交接提示词](research/archive/EFFECT_UPGRADE_PROMPT_2026-08-18.md) | 08-18 效果升级任务的裁定增补与执行入口（执行以 Trellis 任务为准） |
+| [效果缺口攻坚交接 08-19](research/archive/EFFECT_GAPS_HANDOFF_2026-08-19.md) | 效果链遗留三缺口（转场决策层、章节统一色调、音效随字幕）的执行交接 |
+| [图层分离探索交接 08-19](research/archive/LAYER_SEPARATION_HANDOFF_2026-08-19.md) | AI 图片分层动画（背景/角色/特效分层）技术探索交接 |
+| [Agent 检索能力建设计划 v2 08-21](research/archive/UNIFIED_SEARCH_PLAN_2026-08-21.md) | AI 搜索本地全源+网络的路由方案与落地记录 |
+| [本地生图架构路线计划 08-31](research/archive/LOCAL_IMAGE_GEN_ARCHITECTURE_PLAN_2026-08-31.md) | 本地生图架构深读与路线选择（自研 sidecar vs ComfyUI） |
+| [H3 漫剧产线生态调查 09-14](research/archive/H3_COMIC_DRAMA_ECOSYSTEM_RESEARCH_2026-09-14.md) | AI 视频方式全景、H3 技能/提示词生态、GitHub 高星漫剧管线、B 站四学派产线落实分析与漫影落点（含 License 红线表） |
 | [H3 生态吸收分析 09-14](./research/H3_ABSORPTION_ANALYSIS_2026-09-14.md) | 生态调查对照漫影代码实况后的吸收裁定建议：P0 四件（提示词接线/素材调度/组装器/桥视频选型）对齐分镜×H3 三件待开工，P1/P2 分级与不吸收清单 |
-| [产线五法吸收分析 09-28](./research/PIPELINE_METHODS_ABSORPTION_ANALYSIS_2026-09-28.md) | 外部影视产线课程包方法对照漫影现状整理的五项提案（四级时长链/台词容量预算/静图可动性预检/成稿剧本接管/跨层版本纪律）——全部提案待拍板，未动生产代码 |
-| [references.missing 编译阻断升格评估 09-29](./research/REFERENCES_MISSING_COMPILE_GATE_EVALUATION_2026-09-29.md) | 跨镜连续性规范 §七P6 落档评估:references.missing 不升编译阻断、维持审计报告项(只评估,零代码改动) |
+| [产线五法吸收分析 09-28](./research/PIPELINE_METHODS_ABSORPTION_ANALYSIS_2026-09-28.md) | 外部影视产线课程包方法对照漫影现状整理的五项提案（四级时长链/台词容量预算/静图可动性预检/成稿剧本接管/跨层版本纪律）——五项提案已全部落地（cb9b3a9+2b420c5 两提交，09-29 状态回写），本文留档 |
+| [references.missing 编译阻断升格评估 09-29](research/archive/REFERENCES_MISSING_COMPILE_GATE_EVALUATION_2026-09-29.md) | 跨镜连续性规范 §七P6 落档评估:references.missing 不升编译阻断、维持审计报告项(只评估,零代码改动) |
+| [video-shotcraft 镜头配方卡选卡映射 10-10](./research/VIDEOSHOTCRAFT_CARD_MAPPING_2026-10-10.md) | 上游 video-shotcraft(Apache-2.0 固定 commit)157 卡/209 样式对漫影分镜静图语境的适用性普查与逐卡细读(A 直接适配/B 章级净新增/C 暂缓三线判定);首批 7 档已拍板(10-10 决议 D1,批A–D 已落工作树,§3–§8 为批E 六类补读) |
 
 ## 本地引擎专题（local/）
 
 | 文档 | 用途 |
 |---|---|
-| [MiniMax H3 本地运行执行计划](./local/minimax-h3-local-setup-plan.md) | 2026-08-22 独立 Comfy Desktop 部署历史；现行 H3 已接入托管引擎，见产线知识库 |
+| [MiniMax H3 本地运行执行计划](local/档案/minimax-h3-local-setup-plan.md) | 2026-08-22 独立 Comfy Desktop 部署历史；现行 H3 已接入托管引擎，见产线知识库 |
 
 已定案调查存档于 [research/archive/](./research/archive/)：[静态图→3D 动态技术全景](./research/archive/CINEMATIC_3D_TECH_LANDSCAPE.md)（3D 路线 2026-08-14 已否决转 2D）、[img2threejs 探索报告](./research/archive/IMG2THREEJS_EXPLORATION.md)（2026-08-16 用户决策排除）。
 
@@ -187,19 +199,19 @@
 | [融合规划文档索引](./融合/README.md) | 融合目录的阅读顺序和分类导航 |
 | [小说到成片统一工作流计划](./融合/小说到成片·统一工作流计划.md) | 融合设计与历史阶段划分；当前操作查 workflow/ |
 | [数据模型与接口规范](./融合/数据模型与接口规范.md) | 2026-05 起草的目标数据模型；字段契约以当前 types 与 schema 为准 |
-| [部署打包与工程化手册](./融合/部署打包与工程化手册.md) | 2026-08 部署基线和后续规划；当前发布查 engineering/ |
+| [部署打包与工程化手册](融合/档案/部署打包与工程化手册.md) | 2026-08 部署基线和后续规划；当前发布查 engineering/ |
 | [四个视频 Skill 与 MYStudio 融合研究](./融合/参考/四个视频Skill与MYStudio融合研究.md) | Remotion 主链、HyperFrames/video-use sidecar、Seedance Prompt Skill、两套 Python、共享 FFmpeg 与 UI-first 边界 |
 | [四个视频 Skill 版本更新与升级方案](./融合/参考/四个视频Skill与MYStudio版本更新与升级方案.md) | 四个组件的版本锁定、候选验证、UI/后台更新、证据、激活与回滚方案 |
 | [错误处理与测试策略](./融合/错误处理与测试策略.md) | 运行时错误、回归测试、打包 smoke 和故障处理 |
-| [工作流全链路追溯矩阵](./融合/MYStudio_Toonflow_工作流全链路追溯矩阵.md) | MYStudio / Toonflow 工作流节点、输入输出和验证证据追溯 |
-| [工作流缺口与分目标推进计划](./融合/MYStudio_Toonflow_工作流缺口与分目标推进计划.md) | 2026-07 Toonflow 对照缺口与六目标推进记录；不作当前开放任务列表 |
-| [Toonflow 分镜差异审计](./融合/Toonflow_MYStudio_分镜差异审计.md) | 分镜来源、资产顺序、图片生成、回写和视觉结果差异 |
+| [工作流全链路追溯矩阵](融合/档案/MYStudio_Toonflow_工作流全链路追溯矩阵.md) | MYStudio / Toonflow 工作流节点、输入输出和验证证据追溯 |
+| [工作流缺口与分目标推进计划](融合/档案/MYStudio_Toonflow_工作流缺口与分目标推进计划.md) | 2026-07 Toonflow 对照缺口与六目标推进记录；不作当前开放任务列表 |
+| [Toonflow 分镜差异审计](融合/档案/Toonflow_MYStudio_分镜差异审计.md) | 分镜来源、资产顺序、图片生成、回写和视觉结果差异 |
 | [ToonFlow 剧情产物生成技术调查](./融合/ToonFlow_剧情产物生成_技术调查.md) | Toonflow 资产提示词、图片生成和 ProductionAgent 参考 |
 | [MoYin 资产生成技术调查](./融合/MoYin_资产生成_技术调查.md) | MoYin 资产生成、服务路由和批处理参考 |
-| [配置中心升级与供应商能力方案](./融合/配置中心升级与供应商能力方案.md) | 服务商能力、健康检查、Feature Router 和 vendor 边界 |
-| [模板系统与 ComfyUI 集成方案](./融合/模板系统与ComfyUI集成方案.md) | 模板、ComfyUI、资源覆盖和批量生成方向 |
-| [FFmpeg + AI 开源漫剧短视频自动化计划](./融合/FFmpeg_AI开源漫剧短视频自动化计划.md) | 本地 FFmpeg、字幕、TTS、素材和短视频自动化方向 |
-| [第一章自动成片与多角色口播 Trellis 计划](./融合/第一章自动成片与多角色口播Trellis计划.md) | 第一章自动成片链路、多角色口播和 Trellis 推进计划 |
+| [配置中心升级与供应商能力方案](融合/档案/配置中心升级与供应商能力方案.md) | 服务商能力、健康检查、Feature Router 和 vendor 边界 |
+| [模板系统与 ComfyUI 集成方案](融合/档案/模板系统与ComfyUI集成方案.md) | 模板、ComfyUI、资源覆盖和批量生成方向 |
+| [FFmpeg + AI 开源漫剧短视频自动化计划](融合/档案/FFmpeg_AI开源漫剧短视频自动化计划.md) | 本地 FFmpeg、字幕、TTS、素材和短视频自动化方向 |
+| [第一章自动成片与多角色口播 Trellis 计划](融合/档案/第一章自动成片与多角色口播Trellis计划.md) | 第一章自动成片链路、多角色口播和 Trellis 推进计划 |
 | [外部参考资料](./融合/参考/) | Seedance 2.0 Skill OS 等外部仓库参考资料（非 MYStudio 官方文档） |
 
 ## 相关入口
