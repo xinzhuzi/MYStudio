@@ -62,9 +62,11 @@
   --radius-sm: calc(var(--radius) - 4px);
 
   /* Font Families */
-  /* 1010:Georgia 撤出标题衬线栈(其数字=老式下降形,「第1章」的 1 只有小写高度
-     不像数字);Times New Roman 数字站立,古典气质与 Cormorant 意图最近 */
-  --font-serif: "Cormorant Garamond", "Noto Serif SC", "Times New Roman", "Nimbus Roman No9 L", "Songti SC", "Source Han Serif SC", "Source Han Serif CN", STSong, "AR PL New Sung", "AR PL PR New Sung", serif;
+  /* 1010 二勘:拉丁衬线必须排在 CJK 衬线之前——设置页(RenderingSettingsTab)把
+     @fontsource 全量 Noto Serif SC 900 注册进 UI 后,若它排在前面,标题的数字/拉丁
+     全被 CJK 字体的拉丁字形拦截(「第1章」的 1 变形);Times New Roman 数字站立,
+     排最前(仅次于未加载的 Cormorant),CJK 依序落到 Noto Serif SC/宋体 */
+  --font-serif: "Cormorant Garamond", "Times New Roman", "Nimbus Roman No9 L", "Noto Serif SC", "Songti SC", "Source Han Serif SC", "Source Han Serif CN", STSong, "AR PL New Sung", "AR PL PR New Sung", serif;
   --font-mono: "JetBrains Mono", Courier, monospace;
 }
 
