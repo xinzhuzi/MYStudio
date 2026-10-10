@@ -1074,7 +1074,7 @@ class MyQi21ApiPE:
                 }
             if not _alive(_u):
                 print(f"[漫影 API扩写PE] {_u} 探活不通(3s)——跳过"
-                      "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查-1007.md)")
+                      "(服务不在或防火墙拦;排查:docs/comfyui-kb/LMStudio-Windows远程排查.md)")
                 _errs.append(f"{_m}:探活不通")
                 continue
             url = _chat_url(_u)

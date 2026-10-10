@@ -20,7 +20,7 @@ generate_chapter001_continuity_sample.py:33)。
   (无时间戳,重建重写逐字节一致)。
 
 依据:docs/research/PIPELINE_METHODS_ABSORPTION_ANALYSIS_2026-09-28.md 提案五
-「落点提案/验收口径」;docs/comfyui-kb/跨镜连续性规范-0928.md §六。
+「落点提案/验收口径」;docs/comfyui-kb/跨镜连续性规范.md §六。
 """
 
 from __future__ import annotations

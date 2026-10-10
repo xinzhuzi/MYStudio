@@ -6,7 +6,7 @@
 ``downstreamExpiry``=「已过期-禁止使用」——不删除、不自动重写旧产物,清除只能
 经下一次人工确认的推广(语义照分镜 stale 三件套「显式标记+人工确认」形态,
 源=docs/research/PIPELINE_METHODS_ABSORPTION_ANALYSIS_2026-09-28.md 提案五
-与 docs/comfyui-kb/跨镜连续性规范-0928.md §六)。下游产物清单真源
+与 docs/comfyui-kb/跨镜连续性规范.md §六)。下游产物清单真源
 =分镜上的既有引用字段(mediaRef kind=video/audioRef/ttsJob/prompt+videoDesc),
 未记录的产物绝不标(零误伤)。资产批准推广(promote_chapter001_continuity_approvals)
 不是分镜版本确认,不产生本标记。

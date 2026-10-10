@@ -2,7 +2,7 @@
 
 > **项目根目录**: `~/Project/Github/MYStudio`
 >
-> **本文件为权威版**(2026-08-21 起):由 MA 项目 search-sop 融合 MYStudio 实际结构而成,并新增「仓库外本地热路径」与「网络搜索路由」两节;`.trellis/spec/guides/search-sop-guide.md` 为历史版本,内容以本文件为准。
+> **本文件为权威版**(2026-08-21 起):由 MA 项目 search-sop 融合 MYStudio 实际结构而成,并新增「仓库外本地热路径」与「网络搜索路由」两节;`.trellis/spec/guides/search-sop-guide.md` 历史指针页已于 2026-10-10 清退(零活引用,内容从来以本文件为准)。
 >
 > ## 🚨 两大陷阱 (执行搜索前必读)
 >

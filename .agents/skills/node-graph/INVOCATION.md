@@ -43,7 +43,7 @@
 | ComfyUI 内核/旧 React Flow/undo/持久化/错误语义 | 同上 §6-§10 |
 | 本项目画布架构/桥/工作流库/迁移 | 同上第二部分 §13-§20 |
 | 「改 X 去哪」/不可协商裁定/历史坑 | 同上第三/四/五部分 |
-| 布局优先级序与交叉治理(立宪) | `docs/comfyui-kb/画布布局规范-0928.md` |
+| 布局优先级序与交叉治理(立宪) | `docs/comfyui-kb/画布布局规范.md` |
 | 宿主面板不渲染/槽错名/widget 丢失/六同步清单/缓存路径全图 | `docs/comfyui-kb/子图宿主面板排查.md` |
 | 子图 linkIds 症状三连/装载机理/收装惯例/蓝图件 | `docs/comfyui-kb/子图工作流工程契约.md` |
 | 工作流构建/连线/类型/Subgraph/参数化 | `.agents/skills/comfyui/SKILL.md` 的「Compose a NEW workflow from pieces」「Workflow JSON」「Subgraphs」章 |

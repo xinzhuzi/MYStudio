@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { findPromptAnaphora, PROMPT_ANAPHORA_TERMS } from "./prompt-anaphora";
 
 // 规范 §三禁指代词清单(18 词)——测试自持抄录自
-// docs/comfyui-kb/跨镜连续性规范-0928.md:89,不复用实现导出的常量,
+// docs/comfyui-kb/跨镜连续性规范.md:89,不复用实现导出的常量,
 // 防"实现漏词 + 测试同漏"的自证绿。
 const SPEC_TERMS = [
   "上一镜",

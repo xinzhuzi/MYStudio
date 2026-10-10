@@ -30,7 +30,7 @@
 本工具只读不写:永不修改生产 store、不读 provider 凭据、不调用网络;对账报告
 以 JSON 打印(advisory,同 lint_chapter001_dialogue_capacity 形态)。
 
-依据:docs/comfyui-kb/跨镜连续性规范-0928.md §五(:121-137)+§七P4(:183-187)。
+依据:docs/comfyui-kb/跨镜连续性规范.md §五(:121-137)+§七P4(:183-187)。
 """
 
 from __future__ import annotations

@@ -31,7 +31,7 @@
 # 4) LM Studio 程序级 Block 防火墙规则(授权弹窗被取消时 Windows 自动生成)
 #    压过端口级放行(Block>Allow)→ 外部 1234 超时"假死"(服务其实活着,1007 定谳)
 #    → doctor 已点名;Windows 看门狗计划任务 LMStudio-Watchdog(每 5 分钟)自动禁用
-#      +自愈服务/装载;详见 docs/comfyui-kb/LMStudio-Windows远程排查-1007.md
+#      +自愈服务/装载;详见 docs/comfyui-kb/LMStudio-Windows远程排查.md
 # 备份: http-server-config.json 原件 = 同名+.bak-lan-1006
 #
 # 模型档案(Windows 侧, lms ls 实查 1006/1007):
