@@ -89,7 +89,12 @@ export function registerProtocolHandlers({
     // 运行时(Electron/undici)接受任意 ArrayBufferView;DOM lib 的 BodyInit
     // 泛型只认 ArrayBuffer 载体,此处视图直传,绝不做逐字节拷贝。
     new Response((await readFile(filePath)) as unknown as BodyInit, {
-      headers: { "Content-Type": getProtocolMimeType(filePath) },
+      headers: {
+        "Content-Type": getProtocolMimeType(filePath),
+        // 1010:本机媒体协议响应补 ACAO——渲染层 fetch→blob 复用(参考图缩略等
+        // canvas 链)不再被 CORS 拦;内容为本机内容寻址文件,无跨站暴露面
+        "Access-Control-Allow-Origin": "*",
+      },
     });
 
   protocol.handle("local-image", async (request) => {

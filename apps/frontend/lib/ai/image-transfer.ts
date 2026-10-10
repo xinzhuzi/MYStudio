@@ -47,8 +47,26 @@ export function assertImageTransferPayloadSize(dataUrl: string): number {
   return byteCount;
 }
 
+// 1010:自定义本机协议图(asset-file:// 等)直载进 <img> 再画 canvas 会污染画布,
+// toDataURL 抛 SecurityError(角色资产再生成带参考图链全灭实锤)。先 fetch→blob→
+// objectURL(同源,画布干净);fetch 不通(协议未注册/离线)回落旧行为直载。
+const UNTAINTED_FETCH_SCHEMES = /^(asset-file|local-image|project-file|toonflow-asset):/i;
+
+async function toUntaintedImageSrc(source: string): Promise<string> {
+  if (typeof fetch === 'undefined' || !UNTAINTED_FETCH_SCHEMES.test(source)) return source;
+  try {
+    const response = await fetch(source);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) throw new Error(`非图片响应:${blob.type}`);
+    return URL.createObjectURL(blob);
+  } catch {
+    return source;
+  }
+}
+
 export const loadBrowserReferenceImageRaster: ReferenceImageRasterLoader = (source) => (
-  new Promise((resolve, reject) => {
+  (async () => new Promise<ReferenceImageRaster>((resolve, reject) => {
     if (typeof Image === 'undefined' || typeof document === 'undefined') {
       reject(new Error('当前运行时不支持参考图缩略处理'));
       return;
@@ -64,7 +82,7 @@ export const loadBrowserReferenceImageRaster: ReferenceImageRasterLoader = (sour
       resolve({
         width: sourceWidth,
         height: sourceHeight,
-        renderJpeg: (maxEdge, quality) => {
+        renderJpeg: (maxEdge: number, quality: number) => {
           const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight));
           const width = Math.max(1, Math.round(sourceWidth * scale));
           const height = Math.max(1, Math.round(sourceHeight * scale));
@@ -85,12 +103,14 @@ export const loadBrowserReferenceImageRaster: ReferenceImageRasterLoader = (sour
       });
     };
     image.onerror = () => reject(new Error('参考图无法解码'));
-    try {
-      image.src = source;
-    } catch {
-      reject(new Error('参考图无法解码'));
-    }
-  })
+    void toUntaintedImageSrc(source).then((src) => {
+      try {
+        image.src = src;
+      } catch {
+        reject(new Error('参考图无法解码'));
+      }
+    });
+  }))()
 );
 
 export async function prepareReferenceImageForTransfer(
