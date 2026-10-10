@@ -31,6 +31,7 @@ assets:get-by-name
 assets:import-from-toonflow
 assets:list
 assets:read-image-data-url
+assets:read-url-data-url
 assets:remove-image
 assets:rename-image
 assets:replace-image

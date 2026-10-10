@@ -53,16 +53,34 @@ export function assertImageTransferPayloadSize(dataUrl: string): number {
 const UNTAINTED_FETCH_SCHEMES = /^(asset-file|local-image|project-file|toonflow-asset):/i;
 
 async function toUntaintedImageSrc(source: string): Promise<string> {
-  if (typeof fetch === 'undefined' || !UNTAINTED_FETCH_SCHEMES.test(source)) return source;
+  if (!UNTAINTED_FETCH_SCHEMES.test(source)) return source;
+  // ①file:// 源下 fetch 自定义协议被 CORS 拦(装机实弹「Failed to fetch」)——
+  //   走 studioAssets 桥:URL→本地路径→主进程读字节→data:(data: 永不染画布)
+  const studioAssets = (globalThis as { studioAssets?: {
+    readUrlDataUrl?: (url: string) => Promise<string | null>;
+  } }).studioAssets;
   try {
-    const response = await fetch(source);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const blob = await response.blob();
-    if (!blob.type.startsWith('image/')) throw new Error(`非图片响应:${blob.type}`);
-    return URL.createObjectURL(blob);
+    if (studioAssets?.readUrlDataUrl) {
+      const dataUrl = await studioAssets.readUrlDataUrl(source);
+      if (dataUrl) return dataUrl;
+    }
   } catch {
-    return source;
+    // 落到 ②
   }
+  // ②fetch→blob(同源化;协议带 ACAO 且非 file:// 源时可用)
+  if (typeof fetch !== 'undefined') {
+    try {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw new Error(`非图片响应:${blob.type}`);
+      return URL.createObjectURL(blob);
+    } catch {
+      // 落到 ③
+    }
+  }
+  // ③回落直载(旧行为:画布可能被污染,toDataURL 抛错即本轮修复前形态)
+  return source;
 }
 
 export const loadBrowserReferenceImageRaster: ReferenceImageRasterLoader = (source) => (

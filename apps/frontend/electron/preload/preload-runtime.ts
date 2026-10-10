@@ -346,6 +346,7 @@ contextBridge.exposeInMainWorld('studioAssets', {
   batchMatch: (payload: { type: string; names: string[] }) => ipcRenderer.invoke('assets:batch-match', payload),
   readImageDataUrl: (id: string) => ipcRenderer.invoke('assets:read-image-data-url', id),
   resolveFileUrl: (url: string) => ipcRenderer.invoke('assets:resolve-file-url', url),
+  readUrlDataUrl: (url: string) => ipcRenderer.invoke('assets:read-url-data-url', url),
 })
 
 contextBridge.exposeInMainWorld('ttsRuntime', {

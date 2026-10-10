@@ -127,6 +127,24 @@ export function registerAssetLibraryIpcHandlers({
   ipcMain.handle("assets:read-image-data-url", async (_event, id: string) => (
     runAssetDiagnostics("read-image-data-url", { id }, () => assetsStorage.readAssetImageDataUrl(id))
   ));
+  // 1010:asset-file:// → data: URL(参考图缩略等 canvas 链用;file:// 源下
+  // fetch/直载都会污染画布,唯一干净路=主进程读字节回 data:)
+  ipcMain.handle("assets:read-url-data-url", (_event, url: string) => {
+    try {
+      const absolute = resolveAssetFilePath(
+        nodePath.join(getStorageBasePath(), "assets"),
+        String(url ?? ""),
+      );
+      if (!nodeFs.existsSync(absolute)) return null;
+      const data = nodeFs.readFileSync(absolute);
+      const ext = nodePath.extname(absolute).toLowerCase();
+      const mime = ext === ".jpg" || ext === ".jpeg" ? "image/jpeg"
+        : ext === ".webp" ? "image/webp" : ext === ".gif" ? "image/gif" : "image/png";
+      return `data:${mime};base64,${data.toString("base64")}`;
+    } catch {
+      return null;
+    }
+  });
   // asset-file:// 虚拟引用 → 受管绝对路径(瞬态解析,供 TTS Python 后端等
   // 只吃真实路径的消费边界;store 持久化形态恒为虚拟——08-24 路径裁定)
   ipcMain.handle("assets:resolve-file-url", (_event, url: string) => {
