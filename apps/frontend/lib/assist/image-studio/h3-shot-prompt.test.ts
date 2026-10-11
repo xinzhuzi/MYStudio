@@ -1,6 +1,79 @@
 import { describe, expect, it } from "vitest";
 
-import { buildShotH3Prompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, mapH3CameraMove, verifyPlannedTextVerbatim } from "./h3-shot-prompt";
+import {
+  buildShotH3Prompt,
+  buildShotH3RefPrompt,
+  dialogueAudioPolicy,
+  extractPlannedDialogueTexts,
+  externalNarratorSpokenText,
+  mapH3CameraMove,
+  splitDialogueLines,
+  verifyPlannedTextVerbatim,
+} from "./h3-shot-prompt";
+
+describe("统一旁白判定源拆行", () => {
+  it("混合行:角色/旁白各归各", () => {
+    const split = splitDialogueLines("林昭：你来。\n旁白：风起。");
+    expect(split.character.map((l) => l.text)).toEqual(["你来。"]);
+    expect(split.narrator.map((l) => l.text)).toEqual(["风起。"]);
+  });
+  it("无冒号整行=旁白(对齐 chapter-voiceover 口径)", () => {
+    expect(splitDialogueLines("风起云涌").narrator).toHaveLength(1);
+    expect(splitDialogueLines("风起云涌").character).toHaveLength(0);
+  });
+  it("解说/vo/画外音=旁白", () => {
+    for (const line of ["解说：大战将起", "vo：低语", "画外音：风声"]) {
+      expect(splitDialogueLines(line).narrator).toHaveLength(1);
+    }
+  });
+});
+
+describe("dialogueAudioPolicy", () => {
+  it("有角色行→full;纯旁白/无冒号/空→ambient", () => {
+    expect(dialogueAudioPolicy("林昭：你来。\n旁白：风起。")).toBe("full");
+    expect(dialogueAudioPolicy("旁白：风起。")).toBe("ambient");
+    expect(dialogueAudioPolicy("风起云涌")).toBe("ambient");
+    expect(dialogueAudioPolicy(undefined)).toBe("ambient");
+  });
+  // AC R3a 字面:宽集旁白前缀在 policy 直测也要落(此前只在 splitDialogueLines 侧锁,派生链断时拦不住)
+  it("解说/vo/画外音=旁白→ambient(AC 字面直测)", () => {
+    for (const line of ["解说：大战将起", "vo：低语", "画外音：风声"]) {
+      expect(dialogueAudioPolicy(line)).toBe("ambient");
+    }
+  });
+});
+
+describe("externalNarratorSpokenText", () => {
+  it("混合行=旁白行正文;纯对白=空;纯旁白=原样", () => {
+    expect(externalNarratorSpokenText("林昭：你来。\n旁白：风起。", "全文")).toBe("风起。");
+    expect(externalNarratorSpokenText("林昭：你来。", "你来。")).toBe("");
+    expect(externalNarratorSpokenText("旁白：风起。", "风起。")).toBe("风起。");
+  });
+});
+
+describe("full 政策只注角色行 + 音色锚(D1)", () => {
+  const lines = "林昭：你来。\n旁白：风起。";
+  it("prompt 含角色 says,不含 narrator voiceover", () => {
+    const r = buildShotH3Prompt({ videoDesc: "对峙", lines, durationSec: 6 }, "full");
+    expect(r.prompt).toContain("林昭 (S1) says");
+    expect(r.prompt).not.toContain("off-screen voiceover");
+  });
+  it("voiceMood 在场时 says 行含音色锚,缺省时无锚(D1)", () => {
+    const withMood = buildShotH3Prompt({ videoDesc: "对峙", lines, durationSec: 6, voiceMood: "克制" }, "full");
+    expect(withMood.prompt).toContain("says in a 克制 tone");
+    const noMood = buildShotH3Prompt({ videoDesc: "对峙", lines, durationSec: 6 }, "full");
+    expect(noMood.prompt).not.toContain("says in a");
+  });
+  it("自检门计划清单=角色行(旁白行不进清单)", () => {
+    expect(extractPlannedDialogueTexts(lines)).toEqual(["你来。"]);
+    const r = buildShotH3Prompt({ videoDesc: "对峙", lines, durationSec: 6 }, "full");
+    expect(verifyPlannedTextVerbatim(r.prompt, ["你来。"]).ok).toBe(true);
+  });
+  it("纯旁白镜 ambient 回归锁:lips stay closed", () => {
+    const r = buildShotH3Prompt({ videoDesc: "远景", lines: "旁白：风起。", durationSec: 6 }, "ambient");
+    expect(r.prompt).toContain("lips stay closed");
+  });
+});
 
 describe("buildShotH3Prompt", () => {
   it.each([
@@ -50,7 +123,7 @@ describe("buildShotH3Prompt", () => {
     expect(result.prompt).not.toContain("<d>");
   });
 
-  it("renders full-policy dialogue with speaker and narrator wording", () => {
+  it("renders full-policy dialogue with character lines only (10-11 口径:旁白归外挂 TTS)", () => {
     const result = buildShotH3Prompt({
       videoDesc: "Two people wait in a doorway.",
       lines: "甲：先走。\n旁白：雨声盖过脚步。\n乙: 我知道。",
@@ -58,8 +131,9 @@ describe("buildShotH3Prompt", () => {
     }, "full");
 
     expect(result.prompt).toContain("甲 (S1) says: <d>[Chinese] 先走。</d>");
-    expect(result.prompt).toContain("The narrator (S2) says in an off-screen voiceover: <d>[Chinese] 雨声盖过脚步。</d> and no lips move on screen.");
-    expect(result.prompt).toContain("乙 (S3) says: <d>[Chinese] 我知道。</d>");
+    expect(result.prompt).toContain("乙 (S2) says: <d>[Chinese] 我知道。</d>");
+    expect(result.prompt).not.toContain("off-screen voiceover");
+    expect(result.prompt).not.toContain("雨声盖过脚步");
   });
 
   it("keeps bare policy to minimal ambience", () => {
@@ -139,10 +213,10 @@ describe("verifyPlannedTextVerbatim (文案逐字自检门,参考_文案逐字�
 });
 
 describe("extractPlannedDialogueTexts (计划清单与注入同源)", () => {
-  it("取每条台词正文(角色前缀剥离),与 renderDialogue 注入口径一致", () => {
+  it("只取角色行正文(10-11 口径:旁白/无冒号行归外挂 TTS,不进清单)", () => {
     expect(extractPlannedDialogueTexts("甲：先走。\n旁白：雨声盖过脚步。\n乙: 我知道。"))
-      .toEqual(["先走。", "雨声盖过脚步。", "我知道。"]);
-    expect(extractPlannedDialogueTexts("无冒号整条即正文")).toEqual(["无冒号整条即正文"]);
+      .toEqual(["先走。", "我知道。"]);
+    expect(extractPlannedDialogueTexts("无冒号整条即旁白")).toEqual([]);
     expect(extractPlannedDialogueTexts("")).toEqual([]);
     expect(extractPlannedDialogueTexts(undefined)).toEqual([]);
   });

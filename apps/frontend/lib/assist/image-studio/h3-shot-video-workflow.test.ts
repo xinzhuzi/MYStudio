@@ -181,6 +181,19 @@ describe("buildShotH3RefWorkflow (09-14-h3-ref2va-line)", () => {
   });
 });
 
+describe("voiceMood 音色锚透传 (10-11 D1,主会话已授权最小透传)", () => {
+  it.each([
+    ["I2V", buildShotH3Workflow],
+    ["Ref2VA", (input: Parameters<typeof buildShotH3Workflow>[0]) => buildShotH3RefWorkflow({ ...input, refs: [] })],
+  ] as const)("%s 透传 voiceMood 到 prompt says 行;缺省无锚", (_name, build) => {
+    const shot = makeShot({ lines: "甲：先走。" });
+    const withMood = build({ shot, chapterId: "chapter-001", chapterLabel: "第一章", policy: "full", voiceMood: "克制" });
+    expect(String(nodeWidgets(withMood.ui, 14)[0])).toContain("says in a 克制 tone");
+    const noMood = build({ shot, chapterId: "chapter-001", chapterLabel: "第一章", policy: "full" });
+    expect(String(nodeWidgets(noMood.ui, 14)[0])).not.toContain("says in a");
+  });
+});
+
 describe("文案逐字自检门接线 (参考_文案逐字自检门.md §一,10-01-a7)", () => {
   const linedShot = () => makeShot({ lines: "甲：先走。\n旁白：雨声盖过脚步。", index: 3 });
 
@@ -208,7 +221,9 @@ describe("文案逐字自检门接线 (参考_文案逐字自检门.md §一,10-
     try {
       const { buildShotH3Workflow: buildMocked, buildShotH3RefWorkflow: buildRefMocked } = await import("./h3-shot-video-workflow");
       const input = { shot: linedShot(), chapterId: "chapter-001", chapterLabel: "第一章", policy: "full" as const };
-      expect(() => buildMocked(input)).toThrow(/文案逐字自检未通过.*S03.*「先走。」「雨声盖过脚步。」/);
+      // 10-11 口径:计划清单=角色行 only(旁白行归外挂 TTS 不入清单),缺席指名只含角色行
+      expect(() => buildMocked(input)).toThrow(/文案逐字自检未通过.*S03.*「先走。」/);
+      expect(() => buildMocked(input)).not.toThrow(/雨声盖过脚步/);
       expect(() => buildRefMocked({ ...input, refs: [] })).toThrow(/文案逐字自检未通过/);
     } finally {
       vi.doUnmock("./h3-shot-prompt");

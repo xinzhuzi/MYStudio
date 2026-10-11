@@ -39,6 +39,10 @@ export interface ShotH3WorkflowInput {
   /** Project captured by the host before any upload or generation await. */
   originProjectId?: string;
   policy?: H3AudioPolicy;
+  /** 10-11 D1 音色锚(主会话授权最小透传):dispatch 直通 storyboard.emotion,
+   *  传给 buildShotH3Prompt/RefPrompt 渲染 "says in a ${voiceMood} tone";
+   *  缺省省略(=无锚现状)。 */
+  voiceMood?: string;
   imageName?: string;
 }
 
@@ -139,6 +143,7 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
     lines: shot.lines,
     sound: shot.sound,
     durationSec,
+    voiceMood: input.voiceMood,
   }, policy);
   assertPlannedTextVerbatimGate(shot, policy, prompt.prompt);
   const label = shotLabel(shot.index);
@@ -217,6 +222,7 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
     storyboardPictureIndex: 1,
     characters,
     scene,
+    voiceMood: input.voiceMood,
   }, policy);
   assertPlannedTextVerbatimGate(shot, policy, prompt.prompt);
   const label = shotLabel(shot.index);

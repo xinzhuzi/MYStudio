@@ -115,6 +115,9 @@ function defaultApplyVideoToStoryboard(
     // B1(09-29):时长一律过共享守卫;换片后未知时长清空旧值——旧片的实测时长
     // 不得冒充新片(残留会挡掉「探测失败静默降级名义时长」,排轨按假真源走)。
     h3DurationUs: normalizeH3DurationUs(h3DurationUs),
+    // 10-11 音频分工 R3c:回写同步落音频政策(供 mediaRef 分支语义/混音分档/
+    // 诊断;非 full 一律窄化 ambient)。候选侧 meta.policy 一直有,此为分镜字段。
+    h3AudioPolicy: policy === "full" ? "full" : "ambient",
   });
   store.addVideoCandidate({
     id: `h3-${storyboard.id}-${candidateNumber}`,

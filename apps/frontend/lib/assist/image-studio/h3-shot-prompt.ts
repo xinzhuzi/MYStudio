@@ -1,3 +1,5 @@
+import { isNarratorSpeaker, normalizeTtsSpokenText } from "@/lib/studio/chapter-voiceover";
+
 export type H3AudioPolicy = "ambient" | "full" | "bare";
 
 export interface H3PromptInput {
@@ -6,6 +8,10 @@ export interface H3PromptInput {
   cameraMove?: string;
   shotSize?: string;
   lines?: string;
+  /** D1 音色锚(10-11 音频分工):full 政策 says 行渲染为
+   * "says in a ${voiceMood} tone";缺省省略(=现状无锚)。dispatch 直通
+   * storyboard.emotion;实弹证明 H3 无视音色指令即撤(无害试错)。 */
+  voiceMood?: string;
   sound?: string;
   durationSec: number;
 }
@@ -35,11 +41,49 @@ export function verifyPlannedTextVerbatim(prompt: string, plannedTexts: string[]
   return { ok: missing.length === 0, missing };
 }
 
+/** 台词行(10-11 音频分工统一判定源拆行)。 */
+export interface DialogueLine {
+  speaker: string;
+  text: string;
+}
+
+/** 统一旁白判定源拆行:台词列 lines 是唯一真源,角色/旁白归属在此单点裁决
+ * (design.md 技术设计二)。口径=chapter-voiceover 宽集(旁白/vo/画外音/解说)
+ * + 无冒号整行=旁白;角色行=有冒号且说话人非旁白标签。 */
+export function splitDialogueLines(lines?: string): {
+  character: DialogueLine[];
+  narrator: DialogueLine[];
+} {
+  const character: DialogueLine[] = [];
+  const narrator: DialogueLine[] = [];
+  for (const line of parseDialogueLines(lines)) {
+    if (line.narrator) narrator.push({ speaker: line.speaker, text: line.text });
+    else character.push({ speaker: line.speaker, text: line.text });
+  }
+  return { character, narrator };
+}
+
+/** 逐镜音频政策(10-11 音频分工 R3a):有角色行→"full"(台词烧镜内+口型),
+ * 否则"ambient"(音效床,lips stay closed)。纯函数,dispatch 逐镜注入。 */
+export function dialogueAudioPolicy(lines?: string): "full" | "ambient" {
+  return splitDialogueLines(lines).character.length > 0 ? "full" : "ambient";
+}
+
+/** 外挂 TTS 合成文本(派生不存储,R3b):full 镜=旁白行正文按
+ * normalizeTtsSpokenText 同规整拼接(纯对白镜=空串=零外挂音频);
+ * 非 full 镜=原样返回 fullSpokenText(ttsSpokenText 恒全文,三消费面零波及)。 */
+export function externalNarratorSpokenText(lines: string | undefined, fullSpokenText: string): string {
+  const split = splitDialogueLines(lines);
+  if (split.character.length === 0) return fullSpokenText;
+  return normalizeTtsSpokenText(split.narrator.map((line) => line.text).join("\n"));
+}
+
 /** 计划文案清单来源(台词列):与 renderDialogue 同一解析(单一解析源,
- * 防清单与注入的传导断点)——取每条台词的正文(「角色：正文」的正文,
- * 无冒号整条即正文);屏幕可见文字字段将来入模型时同权追加进清单。 */
+ * 防清单与注入的传导断点)——只取角色行正文(10-11 口径:full 政策 prompt
+ * 只注角色行,旁白行归外挂 TTS 不入清单);屏幕可见文字字段将来入模型时
+ * 同权追加进清单。 */
 export function extractPlannedDialogueTexts(lines?: string): string[] {
-  return parseDialogueLines(lines).map((line) => line.text);
+  return splitDialogueLines(lines).character.map((line) => line.text);
 }
 
 const FIXED_I2V_LINE = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.";
@@ -76,26 +120,28 @@ function parseDialogueLines(lines?: string): Array<{ speaker: string; text: stri
     .filter(Boolean)
     .map((line) => {
       const match = /^([^：:]+)[：:](.+)$/.exec(line);
-      if (!match) return { speaker: "", text: line, narrator: false };
+      if (!match) return { speaker: "", text: line, narrator: true };
       const speaker = match[1].trim();
-      return { speaker, text: match[2].trim(), narrator: speaker === "旁白" };
+      // 10-11 统一判定源:无冒号整行=旁白 + 旁白标签宽集(旁白/vo/画外音/解说),
+      // 与 chapter-voiceover.isNarratorSpeaker 同口径。
+      return { speaker, text: match[2].trim(), narrator: speaker === "" || isNarratorSpeaker(speaker) };
     });
 }
 
-function renderDialogue(lines: string | undefined, seconds: number): string {
-  const parsed = parseDialogueLines(lines);
-  if (parsed.length === 0) return "";
+function renderDialogue(lines: string | undefined, seconds: number, voiceMood?: string): string {
+  // 10-11 音频分工:full 政策只注角色行(旁白归外挂 TTS,不进 prompt)。
+  const character = splitDialogueLines(lines).character;
+  if (character.length === 0) return "";
   const speakerIds = new Map<string, number>();
   let nextSpeakerId = 1;
-  const rendered = parsed.map((line) => {
-    const key = line.narrator ? "旁白" : line.speaker || `S${nextSpeakerId}`;
+  const mood = voiceMood?.trim();
+  const rendered = character.map((line) => {
+    const key = line.speaker || `S${nextSpeakerId}`;
     if (!speakerIds.has(key)) speakerIds.set(key, nextSpeakerId++);
     const speakerId = speakerIds.get(key)!;
-    if (line.narrator) {
-      return `The narrator (S${speakerId}) says in an off-screen voiceover: <d>[Chinese] ${line.text}</d> and no lips move on screen.`;
-    }
     const speaker = line.speaker || "The speaker";
-    return `${speaker} (S${speakerId}) says: <d>[Chinese] ${line.text}</d>`;
+    const moodAnchor = mood ? ` in a ${mood} tone` : "";
+    return `${speaker} (S${speakerId}) says${moodAnchor}: <d>[Chinese] ${line.text}</d>`;
   });
   const eventSeconds = Math.max(0, Math.ceil(seconds * 0.4));
   return `${rendered.join(" ")} At 00:${String(eventSeconds).padStart(2, "0")}.000.`;
@@ -105,7 +151,7 @@ function formatDescription(input: H3PromptInput, policy: H3AudioPolicy, seconds:
   const parts = [input.shotSize?.trim(), input.videoDesc.trim(), input.action?.trim()].filter(Boolean);
   const camera = mapH3CameraMove(input.cameraMove);
   if (camera) parts.push(`The camera uses a ${camera}.`);
-  const dialogue = policy === "full" ? renderDialogue(input.lines, seconds) : "";
+  const dialogue = policy === "full" ? renderDialogue(input.lines, seconds, input.voiceMood) : "";
   if (dialogue) parts.push(dialogue);
   else parts.push("No dialogue in this clip; the characters' lips stay closed.");
   parts.push(`At 00:${String(Math.max(0, Math.ceil(seconds * 0.4))).padStart(2, "0")}.000, the described action is visible.`);

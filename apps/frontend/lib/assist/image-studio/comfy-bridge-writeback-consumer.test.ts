@@ -679,6 +679,30 @@ describe("consumeComfyBridgeWritebacks", () => {
     expect(shot?.h3DurationUs).toBe(5_166_666);
   });
 
+  it.each([
+    ["full", "full"],
+    ["ambient", "ambient"],
+  ])("默认落账路径(真实 store):policy=%s → h3AudioPolicy 落分镜为 %s (10-11 R3c)", async (policy, expected) => {
+    const { client } = makeClient([{
+      id: 81,
+      videoB64: "aGk=",
+      shotTarget: "S01",
+      meta: { kind: "video", subfolder: "video/漫影/ep-1/sb-a", policy },
+    }]);
+    useStudioStore.setState({ storyboards: [...STORYBOARDS] });
+    const { deps } = makeDeps({
+      client,
+      applyVideoToStoryboard: undefined, // 走 defaultApplyVideoToStoryboard 真实落账
+      writeProjectBinary: async () => ({ success: true, url: `project-file://project-1/remotion/outputs/shots/ep-1/sb-a/h3/${policy}_v1_81.mp4` }),
+      probeVideoDuration: async () => 5_166_666,
+    });
+
+    await consumeComfyBridgeWritebacks(deps);
+
+    const shot = useStudioStore.getState().storyboards.find((item) => item.id === "sb-a");
+    expect(shot?.h3AudioPolicy).toBe(expected);
+  });
+
   it.each([0, -1, 5.5, Number.NaN])(
     "默认落账路径(真实 store):假 probe 非法值 %p → 不写垃圾时长且旧值不得冒充新片",
     async (probeResult) => {

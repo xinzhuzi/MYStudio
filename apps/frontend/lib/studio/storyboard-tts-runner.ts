@@ -1,5 +1,6 @@
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
+import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
 import {
   ensureBackendVoiceProfile,
   cancelGeneration,
@@ -33,6 +34,16 @@ import {
 import { validateRemotionShotAudioBindingV2 } from "./remotion/remotion-manifest-validation";
 
 export const DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS = 3;
+
+/** 10-11 R3b(判据收紧):本镜合成文本。H3 镜(mediaRef video=烧录音频在位)
+ * =外挂旁白派生值(角色台词烧在镜内);静图产线镜=全文照旧——外挂 TTS 是
+ * 其唯一音频来源,拆行会丢角色台词(R4 静图产线全链现状不动)。指纹与 submit
+ * 同源:静图镜指纹回到全文口径,存量复用不破。 */
+function ttsSpokenTextForGeneration(storyboard: StoryboardItem): string {
+  const fullSpokenText = storyboard.ttsSpokenText ?? "";
+  if (storyboard.mediaRef?.kind !== "video") return fullSpokenText.trim();
+  return externalNarratorSpokenText(storyboard.lines, fullSpokenText).trim();
+}
 
 export class StoryboardTtsCanceledError extends Error {
   constructor() {
@@ -151,7 +162,9 @@ export async function createStoryboardTtsInputFingerprint(input: {
     chapterId: input.chapterId,
     shotId: input.storyboard.id,
     shotRevision,
-    text: input.storyboard.ttsSpokenText?.trim() ?? "",
+    // 10-11 R3b 派生不存储:指纹锚「实际合成什么」——与 submit 同源
+    // (H3 镜=旁白派生文本;静图镜=全文,存量复用不破)。
+    text: ttsSpokenTextForGeneration(input.storyboard),
     emotion: input.storyboard.emotion?.trim() ?? null,
     voiceStyle: input.storyboard.voiceStyle?.trim() ?? null,
     speakerId: input.storyboard.speakerId ?? "",
@@ -320,7 +333,10 @@ export async function runStoryboardTtsGeneration({
         } else {
           throwIfCanceled(isCanceled);
           const generation = await dependencies.submit({
-            text: storyboard.ttsSpokenText.trim(),
+            // 10-11 R3b:合成文本与指纹同源(H3 镜=旁白派生值;静图产线镜=
+            // 全文,R4 回归锁)。纯对白 H3 镜由 chapter-auto-video 前置守卫
+            // 跳过,不触达本提交。
+            text: ttsSpokenTextForGeneration(storyboard),
             profileId: profile.id,
             engine: profile.defaultEngine,
             modelSize: profile.defaultModelSize,

@@ -144,6 +144,42 @@ describe("storyboard TTS runner", () => {
     );
   });
 
+  it("submits derived narrator text only for H3-video shots; still-image shots keep full spoken text (10-11 R3b/R4)", async () => {
+    // H3 镜(烧录音频在位,mediaRef video):合成文本=旁白行正文,角色台词烧在镜内
+    const h3Deps = dependencies();
+    await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        lines: "林昭：你来。\n旁白：风起。",
+        ttsSpokenText: "你来。风起。",
+        mediaRef: { kind: "video", path: "project-file://project-a/h3/sb-1.mp4" },
+      },
+      profile,
+      dependencies: h3Deps,
+    });
+    expect(h3Deps.submit).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "风起。" }),
+    );
+
+    // 静图产线镜(无 H3 烧录音频):全文照旧——外挂 TTS 是唯一音频来源,
+    // 拆行会丢角色台词(R4 静图产线全链现状不动)
+    const stillDeps = dependencies();
+    await runStoryboardTtsGeneration({
+      ...scope,
+      storyboard: {
+        ...storyboard,
+        lines: "林昭：你来。\n旁白：风起。",
+        ttsSpokenText: "你来。风起。",
+      },
+      profile,
+      dependencies: stillDeps,
+    });
+    expect(stillDeps.submit).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "你来。风起。" }),
+    );
+  });
+
   it("blocks unreadable fixed audio and mock generation before writeback", async () => {
     const unreadable = dependencies({
       resolveReferenceAudioPath: vi.fn(async () => null),

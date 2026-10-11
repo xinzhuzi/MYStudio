@@ -445,7 +445,7 @@ describe("useChapterAutoVideoActions", () => {
     });
     vi.mocked(runChapterAutoVideo).mockImplementationOnce(async (input) => {
       expect(input.projectId).toBe("project-1");
-      expect(input.dependencies.ttsConcurrency).toBe(2);
+      expect(input.dependencies.ttsConcurrency).toBe(1); // 10-11 D7:生成类串行铁律辖 TTS
       const generated = await input.dependencies.generateAudio(
         item,
         { id: "profile-1" } as VoiceProfile,

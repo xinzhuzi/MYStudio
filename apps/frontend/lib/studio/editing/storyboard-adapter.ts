@@ -15,6 +15,7 @@ import type {
 } from "@/types/studio";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import { validateRemotionCurrentSlot as validateCurrentSlot } from "@/lib/studio/remotion/remotion-slot-validation";
+import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
 import { validateEditingProject } from "./validation";
 import { resolveSubtitleAuthority, type SubtitleAuthorityIssue } from "../video-workflow/subtitle-authority";
 import type { SubtitleAuthority } from "@/types/editing";
@@ -102,6 +103,9 @@ interface StoryboardTiming {
 interface VisualSelection {
   source: EditingClipSource;
   trimStartUs: number;
+  /** 10-11 音频分工 R3c:H3 来源镜自带烧录音频(ambient=音效床/full=语音+
+   *  音效),成片侧解除静音出声;静图/其他 provider 维持旧行为。 */
+  unmute: boolean;
 }
 
 export function buildStoryboardEditingProject(
@@ -197,7 +201,15 @@ export function buildStoryboardEditingProject(
     if (selection) visualSelectionByStoryboardId.set(storyboard.id, selection);
     else missingVisualStoryboardIds.push(storyboard.id);
 
-    if (!remotionOnly && subtitleText(storyboard) && !isAudioRef(storyboard.audioRef)) {
+    // 10-11 R3c preflight 豁免:纯对白镜(外挂旁白派生文本=空)没有也不需要
+    // 外挂 TTS audioRef(角色台词烧在 H3 镜内),不进 missing;需要外挂旁白的
+    // 镜(audioRef 缺席但派生文本非空)仍照旧拦。
+    if (
+      !remotionOnly
+      && subtitleText(storyboard)
+      && !isAudioRef(storyboard.audioRef)
+      && externalNarratorSpokenText(storyboard.lines, storyboard.ttsSpokenText ?? "").trim()
+    ) {
       missingAudioStoryboardIds.push(storyboard.id);
     }
   }
@@ -259,8 +271,10 @@ export function buildStoryboardEditingProject(
       durationUs: timing.durationUs,
       trimStartUs: visual.trimStartUs,
       speed: 1,
-      volume: remotionOnly ? 1 : 0,
-      muted: !remotionOnly,
+      // 10-11 R3c:remotionOnly 逐镜产物(烧录 TTS)与 H3 来源镜出声;
+      // 其余(静图/非 h3-comfyui 候选)维持旧行为静音(旁白走 voice 轨)。
+      volume: visual.unmute || remotionOnly ? 1 : 0,
+      muted: !(visual.unmute || remotionOnly),
     });
 
     if (!remotionOnly && isAudioRef(storyboard.audioRef)) {
@@ -466,6 +480,9 @@ function selectVisualSource(
         },
       },
       trimStartUs: 0,
+      // Remotion 逐镜产物(静图产线,烧录 TTS)——放音由 remotionOnly 旗承担,
+      // 此处非 H3 来源。
+      unmute: false,
     };
   }
   if (track && candidate?.filePath) {
@@ -483,6 +500,8 @@ function selectVisualSource(
         },
       },
       trimStartUs: candidateTrimStartUs,
+      // 10-11 R3c:仅 H3 线候选自带烧录音频出声;其他 provider 维持旧行为静音。
+      unmute: candidate.provider === "h3-comfyui",
     };
   }
   if (storyboard.mediaRef?.kind === "video" && storyboard.mediaRef.path) {
@@ -493,6 +512,8 @@ function selectVisualSource(
         evidence: storyboardEvidence(storyboard),
       },
       trimStartUs: 0,
+      // 10-11 R3c:mediaRef video=H3 回写直落片(自带音频),出声。
+      unmute: true,
     };
   }
   if (storyboard.mediaRef?.kind === "image" && storyboard.mediaRef.path) {
@@ -503,6 +524,7 @@ function selectVisualSource(
         evidence: storyboardEvidence(storyboard),
       },
       trimStartUs: 0,
+      unmute: false,
     };
   }
   return null;

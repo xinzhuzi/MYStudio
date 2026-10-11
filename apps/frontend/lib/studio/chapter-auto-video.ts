@@ -9,6 +9,22 @@ import type {
   RemotionShotAudioBindingV2,
 } from "@/types/remotion-workspace";
 import { assertVisualContinuityApproved } from "./visual-continuity";
+import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
+
+/** 10-11 音频分工判据:H3 烧录音频在位(mediaRef video=H3 回写直落片,
+ * 与 storyboard-adapter selectVisualSource 的 mediaRef-video 分支同源)。
+ * 拆行/跳过语义只对 H3 镜合法——静图产线镜的外挂 TTS 是唯一音频来源。 */
+function hasH3BakedAudio(storyboard: StoryboardItem): boolean {
+  return storyboard.mediaRef?.kind === "video";
+}
+
+/** 10-11 R3b(派生不存储):本镜外挂合成文本。H3 镜=旁白行派生(角色台词
+ * 烧在镜内);静图产线镜=全文照旧(R4 静图产线全链现状不动)。 */
+function externalNarratorText(storyboard: StoryboardItem): string {
+  const fullSpokenText = storyboard.ttsSpokenText ?? "";
+  if (!hasH3BakedAudio(storyboard)) return fullSpokenText.trim();
+  return externalNarratorSpokenText(storyboard.lines, fullSpokenText).trim();
+}
 
 export type ChapterAutoVideoStage =
   | "idle"
@@ -214,6 +230,10 @@ export async function prepareChapterMedia({
       ttsErrors[storyboard.id] = "逐镜 TTS 已取消";
       return;
     }
+    // 10-11 R3b:纯对白 H3 镜(烧录音频在位+外挂旁白文本=空)跳过 TTS——
+    // 角色台词烧在 H3 镜内,runner 空文本抛错永不触达;静图产线镜不跳过
+    // (外挂 TTS 是其唯一音频来源,R4 回归锁)。
+    if (hasH3BakedAudio(storyboard) && !externalNarratorText(storyboard)) return;
     const profile = profiles[storyboard.speakerId!];
     try {
       const generated = await dependencies.generateAudio(storyboard, profile);
@@ -244,6 +264,10 @@ export async function prepareChapterMedia({
   }
   for (const storyboard of storyboards) {
     if (ttsErrors[storyboard.id]) continue;
+    // 10-11 R3b:跳过外挂 TTS 的纯对白 H3 镜同样跳过回写校验——它们按设计
+    // 没有 canonical voice binding,不得因此进 blocked 计数;静图产线镜
+    // 照旧全量校验(有 binding 才是完整链)。
+    if (hasH3BakedAudio(storyboard) && !externalNarratorText(storyboard)) continue;
     const bindingError = await validateCanonicalVoiceWriteback(
       projectId,
       episodeId,

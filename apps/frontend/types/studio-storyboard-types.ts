@@ -179,6 +179,10 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   audioMix?: "h3-baked" | "tts-stack" | "mixed";
   /** H3 落片经 ffprobe 实测的时长，单位微秒。 */
   h3DurationUs?: number;
+  /** 10-11 音频分工 R3c:H3 派发时该镜的音频政策(回写侧落值;缺省 ambient,
+   *  旧数据零迁移)。供 mediaRef 分支语义/未来混音分档与诊断;adapter 放音
+   *  判据不依赖它(provider+mediaRef kind 判定)。 */
+  h3AudioPolicy?: "full" | "ambient";
   /** 关键帧序列(一镜多图)。undefined=单图时代数据,等价 [mediaRef] 单帧;
    *  写入唯一走 setStoryboardKeyframes(首帧镜像 I1 由其保证) */
   keyframes?: StoryboardKeyframe[];

@@ -506,6 +506,59 @@ describe("chapter auto video orchestration", () => {
     expect(run.dependencies.writeStoryboardAudio).not.toHaveBeenCalled();
   });
 
+  it("skips external TTS only for dialogue-only H3 shots; still-image shots keep full TTS (10-11 R3b/R4)", async () => {
+    const run = createDependencies({ storyboardCount: 3 });
+    const base = run.dependencies.loadStoryboards;
+    // sb-2=纯对白 H3 镜(烧录音频在位,mediaRef video)→跳过外挂 TTS;
+    // sb-3=纯对白静图镜(无 H3 音频,外挂 TTS=唯一音频来源)→不跳过(R4 回归锁)
+    run.dependencies.loadStoryboards = () => base().map((item) => {
+      if (item.id === "sb-2") {
+        const h3Shot = {
+          ...item,
+          lines: "林昭：你来。",
+          ttsSpokenText: "你来。",
+          mediaRef: { kind: "video" as const, path: "/h3-sb-2.mp4" },
+        };
+        return {
+          ...h3Shot,
+          // 工厂默认 review 证据锚静图路径;换 H3 视频后按新画面重签审核
+          visualReview: approvedVisualReview({
+            reviewedAt: 1,
+            evidencePaths: ["/h3-sb-2.mp4"],
+            sceneChecks: [{ sceneVersionId: "dock:main", passed: true }],
+            propChecks: [],
+            transitionChecks: [{ previousStoryboardId: "sb-1", passed: true }],
+            textWatermarkCheck: { passed: true },
+            inputFingerprint: visualReviewInputFingerprint(h3Shot),
+          }),
+        };
+      }
+      if (item.id === "sb-3") {
+        return { ...item, lines: "林昭：你来。", ttsSpokenText: "你来。" };
+      }
+      return item;
+    });
+
+    const result = await prepareChapterMedia({
+      projectId: "project-1",
+      episodeId: "chapter-001",
+      dependencies: run.dependencies,
+    });
+
+    // sb-1(旁白静图)+sb-3(纯对白静图)照常 TTS;仅 H3 镜 sb-2 跳过
+    expect(run.dependencies.generateAudio).toHaveBeenCalledTimes(2);
+    expect(run.dependencies.generateAudio).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sb-2" }),
+      expect.anything(),
+    );
+    expect(run.dependencies.generateAudio).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sb-3" }),
+      expect.anything(),
+    );
+    expect(result.blockedShotIds).toEqual([]);
+    expect(result.ttsErrors).toEqual({});
+  });
+
   it("isolates generated audio that cannot be resolved after TTS writeback", async () => {
     const run = createDependencies();
     run.dependencies.resolveMediaPath = vi.fn(async (path) => (

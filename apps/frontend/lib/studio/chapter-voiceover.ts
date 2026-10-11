@@ -219,7 +219,9 @@ function buildNarration(description: string) {
   };
 }
 
-function normalizeTtsSpokenText(line: string) {
+/** 10-11 音频分工:导出复用——外挂旁白拆行(externalNarratorSpokenText)与
+ * 本文件共用同一规整口径(剥离 markdown 记号/舞台指示括注/折叠空白)。 */
+export function normalizeTtsSpokenText(line: string) {
   return line
     .replace(/[`*_#]/g, "")
     .replace(/[\[【][^\]】]*(?:动作|画面|音效|字幕|提示)[^\]】]*[\]】]/g, "")

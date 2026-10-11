@@ -306,7 +306,7 @@ export function useChapterAutoVideoActions({
             }
             return getTtsRuntimeBridge()?.resolveReferenceAudioPath(mediaPath) ?? null;
           },
-          ttsConcurrency: 2,
+          ttsConcurrency: 1, // 10-11 D7:生成类串行铁律辖 TTS(批B 落地)
           isTtsCanceled: (storyboardId) => ttsCancellation.isCanceled(storyboardId),
           generateAudio: async (storyboard, profile) => {
             let shotProfile = profile;

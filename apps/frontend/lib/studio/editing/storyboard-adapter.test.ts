@@ -303,6 +303,82 @@ describe("storyboard editing adapter", () => {
     });
     expect(validateEditingProject(result.project).success).toBe(true);
   });
+
+  it("unmutes H3-line visual clips (videoCandidate h3-comfyui / mediaRef video) and keeps others muted (10-11 R3c)", () => {
+    const mainVisual = (clips: Array<{ trackId: string }>) =>
+      clips.filter((clip) => clip.trackId === "editing-1-main-visual");
+
+    // ① videoCandidate + provider=h3-comfyui → 资产出声(ambient=音效床/full=语音+音效)
+    const h3Shot = storyboard(1, {
+      lines: "林昭：你来。",
+      ttsSpokenText: "你来。",
+      audioRef: undefined,
+    });
+    const h3Candidate: VideoCandidate = { ...candidate("candidate-h3"), provider: "h3-comfyui" };
+    const h3Result = buildStoryboardEditingProject({
+      ...baseInput([h3Shot]),
+      productionTracks: [track([h3Shot], "candidate-h3")],
+      videoCandidates: [h3Candidate],
+    });
+    expect(h3Result.success).toBe(true);
+    if (h3Result.success) {
+      expect(mainVisual(h3Result.project.clips)).toHaveLength(1);
+      expect(mainVisual(h3Result.project.clips)[0]).toMatchObject({
+        volume: 1,
+        muted: false,
+      });
+    }
+
+    // ② 纯对白镜(外挂旁白文本=空、无 audioRef)不进 missingAudioStoryboardIds
+    expect(h3Result).not.toMatchObject({ missingAudioStoryboardIds: ["sb-1"] });
+
+    // ③ 非 h3-comfyui provider 候选 → 旧行为静音(回归锁)
+    const otherShot = storyboard(2);
+    const otherResult = buildStoryboardEditingProject({
+      ...baseInput([otherShot]),
+      productionTracks: [track([otherShot], "candidate-other")],
+      videoCandidates: [{ ...candidate("candidate-other"), provider: "model-placeholder" }],
+    });
+    expect(otherResult.success).toBe(true);
+    if (otherResult.success) {
+      expect(mainVisual(otherResult.project.clips)[0]).toMatchObject({
+        volume: 0,
+        muted: true,
+      });
+    }
+
+    // ④ mediaRef video(无候选)→ 出声
+    const mediaVideoShot = storyboard(3, { mediaRef: { kind: "video", path: "/shot-3.mp4" } });
+    const mediaVideoResult = buildStoryboardEditingProject({
+      ...baseInput([mediaVideoShot]),
+    });
+    expect(mediaVideoResult.success).toBe(true);
+    if (mediaVideoResult.success) {
+      expect(mainVisual(mediaVideoResult.project.clips)[0]).toMatchObject({
+        volume: 1,
+        muted: false,
+      });
+    }
+  });
+
+  // AC R3d 命名回归锁:混合行镜(H3-full)的字幕仍取全文 ttsSpokenText——
+  // 派生不存储纪律下 ttsSpokenText 恒全文,若误接 externalNarratorSpokenText 派生值,
+  // 此处字幕会缩成旁白行,测试红(既有间接锁只盖 ambient 单行场景,拦不住 full 混合行回归)。
+  it("mixed-line shot subtitles stay full ttsSpokenText (10-11 R3d 回归锁)", () => {
+    const mixedShot = storyboard(4, {
+      lines: "林昭：你来。\n旁白：风起。",
+      ttsSpokenText: "你来。旁白：风起。",
+    });
+    const result = buildStoryboardEditingProject({ ...baseInput([mixedShot]) });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const subtitles = result.project.clips.filter((clip) => clip.trackId === "editing-1-subtitles");
+      expect(subtitles).toHaveLength(1);
+      expect(subtitles[0]).toMatchObject({
+        source: { kind: "text", text: "你来。旁白：风起。" },
+      });
+    }
+  });
 });
 
 describe("legacy SimpleTimeline migration", () => {
