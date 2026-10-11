@@ -482,7 +482,8 @@ declare global {
       testModel: (payload: ModelTestRequest) => Promise<ModelTestResult>;
       textCompletion: (payload: TextCompletionRequest) => Promise<TextCompletionResult>;
       imageRequest: (payload: ImageRequestPayload) => Promise<ImageRequestResult>;
-      textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string) => void) => Promise<TextCompletionResult>;
+      // 1011 thinking 进流:onChunk 第二参 kind 区分正文/思考增量
+      textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>;
     };
     appUpdater?: {
       getCurrentVersion: () => Promise<string>;

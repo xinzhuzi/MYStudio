@@ -48,8 +48,6 @@ const initialState: StudioConfigState = {
   vendors: [defaultVendor],
   bindings: [
     { key: "scriptAgent", modelId: "openai-compatible-relay:text" },
-    { key: "storySkeletonAgent", modelId: "openai-compatible-relay:text" },
-    { key: "adaptationStrategyAgent", modelId: "openai-compatible-relay:text" },
     { key: "storyboardImage", modelId: "openai-compatible-relay:video" },
     { key: "videoTrack", modelId: "openai-compatible-relay:video" },
     { key: "tts", modelId: "openai-compatible-relay:text" },

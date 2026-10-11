@@ -147,10 +147,6 @@ export async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
     ],
     agentWorkData: [
       work("eventAnalysis", "事件分析完成：成功 1 章，失败 0 章。", chapterId, now),
-      work("storySkeleton", "故事骨架：矿场觉醒、断剑牵引、逃出生天。", chapterId, now),
-      work("storySkeletonReview", "故事骨架审核：通过，事件因果完整。", chapterId, now),
-      work("adaptationStrategy", "改编策略：压缩背景，强化动作和悬念。", chapterId, now),
-      work("adaptationStrategyReview", "改编策略审核：通过，3 分钟节奏可执行。", chapterId, now),
       work("scriptDraft", "## S01\n独孤剑尘睁眼，尘土和铁链声压下来。", chapterId, now),
       work("scriptDraftReview", "剧本审核：通过，镜头动作和台词齐全。", chapterId, now),
       work("storyboardTable", "|镜头|画面|台词|\n|1|水墨矿场醒来|他在尘土里醒来。|", chapterId, now),
@@ -158,8 +154,6 @@ export async function seedCompleteWorkflow(): Promise<WorkflowSmokeResult> {
     ],
     agentRuns: [
       run("eventAnalysis", "script", "smoke-event-analysis", now),
-      run("storySkeleton", "script", "smoke-storySkeleton", now),
-      run("adaptationStrategy", "script", "smoke-adaptationStrategy", now),
       run("scriptDraft", "script", "smoke-scriptDraft", now),
       run("entityExtraction", "assets", "smoke-entity-1", now),
       run("directorPlan", "scriptPlan", "smoke-plan-1", now),

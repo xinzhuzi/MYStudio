@@ -6,7 +6,19 @@ import type {
 } from "@/types/studio";
 
 export const STUDIO_WORKFLOW_STORAGE_KEY = "studio-workflow-store";
-export const STUDIO_WORKFLOW_PERSIST_VERSION = 10;
+export const STUDIO_WORKFLOW_PERSIST_VERSION = 11;
+
+/**
+ * B+ 收口终清(v11,1011):旧段键(storySkeleton/adaptationStrategy 及其 Review)
+ * 的存量 agentWorkData 条目在迁移期滤除——UI 归档位已拆、类型联合已收,
+ * 留在盘上只占分片体积。其他键原样保留。
+ */
+const LEGACY_SCRIPT_STAGE_WORK_KEYS = new Set([
+  "storySkeleton",
+  "storySkeletonReview",
+  "adaptationStrategy",
+  "adaptationStrategyReview",
+]);
 
 type PersistedStudioWorkflowState = {
   entityExtractions?: unknown[];
@@ -186,6 +198,12 @@ export function migrateStudioWorkflowState(persistedState: unknown): unknown {
     eventGraph: state.eventGraph ?? [],
     projectMemoryRecords: state.projectMemoryRecords ?? [],
     sceneSegments: state.sceneSegments ?? [],
+    agentWorkData: Array.isArray(state.agentWorkData)
+      ? state.agentWorkData.filter((item) => {
+          const key = (item as { key?: unknown })?.key;
+          return typeof key !== "string" || !LEGACY_SCRIPT_STAGE_WORK_KEYS.has(key);
+        })
+      : state.agentWorkData,
     workflowConfig: normalizeWorkflowConfig(state.workflowConfig),
   };
 }

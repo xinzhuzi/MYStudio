@@ -52,10 +52,6 @@ export function buildWorkflowSmokeStageEvidenceText({
   }
   if (stageId === "script") {
     return [
-      `storySkeleton=${countNonEmptyWorkItems(studio.agentWorkData, "storySkeleton")}`,
-      `storySkeletonReview=${countNonEmptyWorkItems(studio.agentWorkData, "storySkeletonReview")}`,
-      `adaptationStrategy=${countNonEmptyWorkItems(studio.agentWorkData, "adaptationStrategy")}`,
-      `adaptationStrategyReview=${countNonEmptyWorkItems(studio.agentWorkData, "adaptationStrategyReview")}`,
       `scriptDraft=${countNonEmptyWorkItems(studio.agentWorkData, "scriptDraft")}`,
       `scriptDraftReview=${countNonEmptyWorkItems(studio.agentWorkData, "scriptDraftReview")}`,
     ].join("; ");

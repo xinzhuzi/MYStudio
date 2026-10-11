@@ -45,7 +45,7 @@ store/
 | `chapters/<章>/novel-chapters-*.json` | 小说导入 | 章节正文与事件摘要 |
 | `chapters/<章>/entity-extractions-*.json` | 小说导入 | 实体提取结果（人物/地点/物品） |
 | `chapters/<章>/script-plans-*.json` | 剧本生产 | 剧本计划（场次与情节结构） |
-| `chapters/<章>/agent-work-data-*.json` | 剧本生产 | AI 阶段产物留档（事件分析/故事骨架/改编策略） |
+| `chapters/<章>/agent-work-data-*.json` | 剧本生产 | AI 阶段产物留档（事件分析/剧本(含规划)与审核报告） |
 | `assets-versions-*.json` | 剧本资产管理 | 连续性资产版本（角色/场景/道具基准图与审批链） |
 | `chapters/<章>/storyboards-*.json` | 分镜视频生成 | 分镜表（逐镜提示词/音频绑定/审查状态） |
 | `chapters/<章>/media-tasks-*.json` | 分镜视频生成 | 生图/TTS/视频任务台账 |

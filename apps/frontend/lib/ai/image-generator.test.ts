@@ -15,6 +15,8 @@ import {
   normalizeResponseUrl,
   toDataImageUrl,
 } from "./image-response";
+import { setLocalImageTokenForTests } from "@/lib/assist/image-studio/local-image-token";
+import { IMAGE_SUBMIT_TIMEOUT_MS, LOCAL_IMAGE_SUBMIT_TIMEOUT_MS, imageSubmitTimeoutForProvider } from "./image-generator-shared";
 
 describe("image response normalization", () => {
   it("normalizes direct URLs across provider response shapes", () => {
@@ -724,6 +726,117 @@ describe("generateCharacterImage", () => {
   });
 });
 
+describe("feature 口本地通道令牌注入(1011 断点A)", () => {
+  const localImageProvider = {
+    id: "manying-local-image",
+    platform: "manying-local-image",
+    name: "本地图片生成",
+    baseUrl: "http://127.0.0.1:17595",
+    apiKey: "manying-local-image",
+    model: ["qwen-image-2-1"],
+    capabilities: ["image_generation"],
+  };
+
+  function configureLocalImageProvider() {
+    useAPIConfigStore.setState({
+      providers: [localImageProvider],
+      featureBindings: {
+        character_generation: ["manying-local-image:qwen-image-2-1"],
+      },
+      modelEndpointTypes: {
+        "qwen-image-2-1": ["image-generation"],
+      },
+    } as never);
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    resetFeatureRoundRobin();
+    useAppSettingsStore.getState().setImageGenerationSettings({
+      defaultAspectRatio: "16:9",
+      defaultResolution: "2K",
+      compatibilityRetryEnabled: true,
+      compatibilityRetryAspectRatio: "1:1",
+      compatibilityRetryResolution: "1K",
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setLocalImageTokenForTests(null);
+  });
+
+  it("本地通道请求携带装机随机真令牌,不再发占位 key(mock 桥)", async () => {
+    configureLocalImageProvider();
+    // mock 桥:模拟 imageGenRuntime.localImageToken IPC 返回装机随机 UUID
+    setLocalImageTokenForTests(() => "uuid-token-from-bridge");
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      data: [{ b64_json: "bG9jYWw=", output_format: "png" }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateCharacterImage({
+      prompt: "资产生图走本地通道",
+      aspectRatio: "1:1",
+    });
+
+    expect(result.imageUrl).toBe("data:image/png;base64,bG9jYWw=");
+    // 1011 sidecar 自愈进 feature 口后,本地链会先打一发 /health 探活——
+    // 按 URL 定位生图调用(引擎测试同款约定),并锁全部流量不出本地口
+    expect(fetchMock.mock.calls.every(([url]) => String(url).includes("17595"))).toBe(true);
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    expect(genCall).toBeTruthy();
+    const [url, init] = genCall!;
+    // T2 装机实弹形态:POST 127.0.0.1:17595/v1/images/generations
+    expect(String(url)).toBe("http://127.0.0.1:17595/v1/images/generations");
+    const requestBody = JSON.parse(String(init?.body));
+    expect(requestBody.model).toBe("qwen-image-2-1");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer uuid-token-from-bridge");
+    expect(headers.Authorization).not.toContain("manying-local-image");
+  });
+
+  it("桥缺席(非 Electron)保留占位 key,fail-closed 语义不回退", async () => {
+    configureLocalImageProvider();
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      data: [{ b64_json: "bG9jYWw=", output_format: "png" }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateCharacterImage({ prompt: "无桥保留占位", aspectRatio: "1:1" });
+
+    // /health 探活之外的生图调用仍持占位 key(探活不带鉴权,不在断言列)
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    const headers = genCall?.[1]?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer manying-local-image");
+  });
+
+  it("云端绑定不受本地令牌替换影响", async () => {
+    useAPIConfigStore.setState({
+      providers: [provider],
+      featureBindings: {
+        character_generation: ["fanren:gpt-image-2"],
+      },
+      modelEndpointTypes: {
+        "gpt-image-2": ["openai"],
+      },
+    } as never);
+    setLocalImageTokenForTests(() => "uuid-token-from-bridge");
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateCharacterImage({ prompt: "云端不受影响", aspectRatio: "16:9" });
+
+    expect(result.imageUrl).toBe("data:image/png;base64,aGVsbG8=");
+    // SDK 通道头是小写 authorization(与既有 key 轮转用例同款取法)
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    const auth = headers.Authorization ?? headers.authorization;
+    expect(auth).toBe("Bearer sk-test");
+  });
+});
+
 describe("daojie ma-gongbi-v1 exact/raw provider transport", () => {
   const daojieProviderPrompt = "人物题材正文。风格底座（硬）：中国水彩水墨工笔画。\nAvoid: 水印、视觉噪点";
 
@@ -961,5 +1074,27 @@ describe("pollTaskStatus contract", () => {
     } finally {
       useAPIConfigStore.setState({ modelEndpointTypes: previousEndpointTypes } as never);
     }
+  });
+});
+
+describe("imageSubmitTimeoutForProvider (1011 断点C:本地通道提交超时豁免)", () => {
+  it("本地 platform 口径豁免 900s", () => {
+    expect(imageSubmitTimeoutForProvider({ platform: "manying-local-image", baseUrl: "http://127.0.0.1:17595" })).toBe(900_000);
+  });
+
+  it("本地 baseUrl 口径(带尾斜杠/空白)同样豁免", () => {
+    expect(imageSubmitTimeoutForProvider({ platform: "custom", baseUrl: "http://127.0.0.1:17595/" })).toBe(900_000);
+    expect(imageSubmitTimeoutForProvider({ platform: undefined, baseUrl: "  http://127.0.0.1:17595//  " })).toBe(900_000);
+  });
+
+  it("云端与其他/缺省维持 180s", () => {
+    expect(imageSubmitTimeoutForProvider({ platform: "openai", baseUrl: "https://api.openai.com" })).toBe(180_000);
+    expect(imageSubmitTimeoutForProvider(undefined)).toBe(180_000);
+    expect(imageSubmitTimeoutForProvider(null)).toBe(180_000);
+  });
+
+  it("导出常量口径:云端 180s / 本地 900s(对齐自由口本地链)", () => {
+    expect(IMAGE_SUBMIT_TIMEOUT_MS).toBe(180_000);
+    expect(LOCAL_IMAGE_SUBMIT_TIMEOUT_MS).toBe(900_000);
   });
 });

@@ -39,9 +39,9 @@ import {
   createDefaultLocalImageProvider,
   isLocalImageProvider,
 } from '@/stores/ai/api-config-provider-helpers';
-import { getLocalImageToken } from '@/lib/assist/image-studio/local-image-token';
 import { getAIConfigStore } from '@/lib/ai/config/store-adapter';
-import { getProviderKeyManager, parseApiKeys, ApiKeyManager } from '@/lib/ai/core';
+import { getProviderKeyManager, parseApiKeys } from '@/lib/ai/core';
+import { applyLocalImageTokenToConfigs } from '@/lib/ai/local-image-auth';
 import { AI_FEATURES } from '@/lib/ai/feature-definitions';
 import { getImageSizeLabel } from '@/lib/ai/image-size-presets';
 import {
@@ -318,22 +318,10 @@ export async function generateImage(
   // 本地生成前自愈:sidecar 缺席/僵尸时自动拉起(用户期望「打开软件直接生图」)
   if (chainConfigs.some((cfg) => isLocalImageProvider(cfg.provider))) {
     await ensureLocalImageSidecarRunning(operationId);
-    // 装机随机令牌替换(0924):本地 provider 的 apiKey 只是非空占位(见
-    // api-config-provider-helpers),真实令牌每装机随机、经 imageGenRuntime
-    // 桥按需取、不落 localStorage。keyManager 换成单键真令牌管理器——
-    // 请求侧按 getCurrentKey()||apiKey 取值,不换管理器会被占位键盖掉;
-    // 单键即无换 key 轮转,与本地链 skipFreedomRetry 语义一致。取不到令牌
-    // (非 Electron/桥缺席)保留占位,由 sidecar fail-closed 兜底。
-    const localImageTokenValue = await getLocalImageToken();
-    if (localImageTokenValue) {
-      for (const cfg of chainConfigs) {
-        if (isLocalImageProvider(cfg.provider)) {
-          cfg.apiKey = localImageTokenValue;
-          cfg.allApiKeys = [localImageTokenValue];
-          cfg.keyManager = new ApiKeyManager(localImageTokenValue);
-        }
-      }
-    }
+    // 装机随机令牌替换(0924;1011 断点A 提升共享):替换逻辑唯一实现住在
+    // local-image-auth,与 feature 资产口(image-generator-core)共用同一套,
+    // 语义详注见该模块
+    await applyLocalImageTokenToConfigs(chainConfigs);
   }
 
   let lastError: Error | null = null;

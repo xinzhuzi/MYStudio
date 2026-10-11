@@ -248,7 +248,8 @@ export async function compileDaojieStoryboardFramePrompt(
   // 计入总门后正文可用窗口仅 ~112 字符——低于 warningBelow 300,自相矛盾死锁
   // (实弹: 正文 540+固定负面 680=1230 全拒,批量 24 镜秒败)。按团队裁定
   // 「帧负面 686 固定段不计门」,帧门=正文 >max 拒/<warningBelow 警;
-  // 资产轨(compileDaojiePrompt)保持 provider-visible 总长口径不变。
+  // 资产轨(compileDaojiePrompt)2026-10-11(断点B)同构根修:作业负面与通用负面
+  // 合并段同样不计正文 800 预算,门=正文(题材+配色+底座+轨道+成片/参考锁)。
   const positiveChars = moduleLengths["storyboard.frame"]!;
   if (positiveChars > DAOJIE_RUNTIME_CONTRACT.length.max) {
     throw new DaojiePromptContractError("length_exceeded", positiveChars, {
@@ -465,8 +466,20 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
         : DAOJIE_RUNTIME_CONTRACT.modules[moduleId].singletonKey,
     chars: moduleLengths[moduleId],
   }));
-  if (length.status === "over_limit") {
-    throw new DaojiePromptContractError("length_exceeded", length.totalChars, { totalChars: length.totalChars, moduleLengths });
+  // 资产门只算正文(2026-10-11 断点B 根修): 负面是「负面唯一所有者」的传输层产物,
+  // 计入 800 总门后正文预算被负面独占——装机实弹(T2 diagnostics 2026-10-11):
+  // 主体 330 + 合并负面 1032 = 总 1715 全拒。按团队裁定「负向模块不计主体 800 预算」,
+  // 与分镜帧门(2026-08-25)同构: 门=正文(题材+配色+底座+轨道+成片/参考锁)
+  // >max 拒/<warningBelow 警;负面照实入 moduleLengths/moduleAudit 供审计,
+  // totalChars 仍为 provider-visible 全长(err.input 沿用总长,调用方日志口径不变)。
+  const positiveChars = length.positiveChars;
+  if (positiveChars > DAOJIE_RUNTIME_CONTRACT.length.max) {
+    throw new DaojiePromptContractError("length_exceeded", length.totalChars, {
+      totalChars: length.totalChars,
+      positiveChars,
+      moduleLengths,
+      gate: "asset.positive",
+    });
   }
   return {
     track: runtimeTrack,
@@ -478,7 +491,7 @@ export async function compileDaojiePrompt(input: DaojiePromptInput): Promise<Com
     moduleLengths,
     moduleAudit,
     totalChars: length.totalChars,
-    status: length.status === "warning" ? "warning" : "ok",
+    status: positiveChars < DAOJIE_RUNTIME_CONTRACT.length.warningBelow ? "warning" : "ok",
     contractVersion: DAOJIE_RUNTIME_CONTRACT.contractVersion,
     contractSha256: await getVerifiedContractSha256(),
   };

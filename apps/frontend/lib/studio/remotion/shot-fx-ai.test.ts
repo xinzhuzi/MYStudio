@@ -1,3 +1,4 @@
+import { enforceVideoFormMotionGuard, retireVideoFormCreativeLayers } from "./shot-fx-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   heuristicShotFxMotions,
@@ -406,5 +407,70 @@ describe("cameraMove 桥接线（10-10 批C,design §2.3:建议性非硬门,AI �
     expect(prompt.split("分镜运镜:").length - 1).toBe(2); // s3 无 cameraMove 不加行
     // 覆盖口径进要求段(建议性非硬门)
     expect(prompt).toContain("分镜列表带「分镜运镜」时尊重其运镜意图");
+  });
+});
+
+describe("enforceVideoFormMotionGuard(1011 双产线把关)", () => {
+  it("video 镜的强运镜被改写 hold,环境微动放行", () => {
+    const shots = [
+      { shotId: "s-video", description: "", dialogue: "", visualForm: "video" as const },
+      { shotId: "s-video-safe", description: "", dialogue: "", visualForm: "video" as const },
+      { shotId: "s-image", description: "", dialogue: "", visualForm: "image" as const },
+      { shotId: "s-unknown", description: "", dialogue: "" },
+    ];
+    const guarded = enforceVideoFormMotionGuard(
+      {
+        "s-video": "punch-in",
+        "s-video-safe": "drift",
+        "s-image": "punch-in",
+        "s-unknown": "vsc:crash-zoom-punch",
+      },
+      shots,
+    );
+    expect(guarded["s-video"]).toBe("hold");
+    expect(guarded["s-video-safe"]).toBe("drift");
+    expect(guarded["s-image"]).toBe("punch-in");
+    expect(guarded["s-unknown"]).toBe("vsc:crash-zoom-punch");
+  });
+
+  it("video 镜未入选(AI 漏选且桥未映射)时不制造条目", () => {
+    const shots = [{ shotId: "s1", description: "", dialogue: "", visualForm: "video" as const }];
+    const guarded = enforceVideoFormMotionGuard({}, shots);
+    expect(guarded).toEqual({});
+  });
+});
+
+describe("retireVideoFormCreativeLayers(1011 做2:H3 主线创作层选择侧退役)", () => {
+  it("video 镜的 grade/addons/atmospheres/registries 被退役,motion/transition/sfx 保留", () => {
+    const shots = [
+      { shotId: "s-video", description: "", dialogue: "", visualForm: "video" as const },
+      { shotId: "s-image", description: "", dialogue: "", visualForm: "image" as const },
+    ];
+    const retired = retireVideoFormCreativeLayers(
+      {
+        motions: { "s-video": "hold", "s-image": "push-in" },
+        addons: { "s-video": ["shake-soft"], "s-image": ["glow-warm"] },
+        grades: { "s-video": { lutId: "cn-azure", blend: 0.1 }, "s-image": { lutId: "cn-ink", blend: 0.1 } },
+        atmospheres: { "s-video": ["mist-band"], "s-image": ["gauze-mist"] },
+        transitions: { "s-video": "cut", "s-image": "dissolve-soft" },
+        sfxCategories: { "s-video": "impact", "s-image": "whoosh" },
+        registries: { "s-video": "hy:some", "s-image": "hy:other" },
+        source: "ai" as const,
+      },
+      shots,
+    );
+    expect(retired.grades).toEqual({ "s-image": { lutId: "cn-ink", blend: 0.1 } });
+    expect(retired.addons).toEqual({ "s-image": ["glow-warm"] });
+    expect(retired.atmospheres).toEqual({ "s-image": ["gauze-mist"] });
+    expect(retired.registries).toEqual({ "s-image": "hy:other" });
+    expect(retired.motions).toEqual({ "s-video": "hold", "s-image": "push-in" });
+    expect(retired.transitions).toEqual({ "s-video": "cut", "s-image": "dissolve-soft" });
+    expect(retired.sfxCategories).toEqual({ "s-video": "impact", "s-image": "whoosh" });
+  });
+
+  it("无 video 镜时原样返回(零开销短路)", () => {
+    const selection = { grades: { a: { lutId: "x" } } };
+    const same = retireVideoFormCreativeLayers(selection, [{ shotId: "a", description: "", dialogue: "" }]);
+    expect(same).toBe(selection);
   });
 });

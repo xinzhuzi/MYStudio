@@ -10,8 +10,6 @@ import { toast } from "sonner";
 
 export const STUDIO_MODEL_BINDING_LABELS: Record<ModelBinding["key"], string> = {
   scriptAgent: "剧本总控",
-  storySkeletonAgent: "故事骨架",
-  adaptationStrategyAgent: "改编策略",
   storyboardImage: "分镜图片",
   videoTrack: "视频片段",
   tts: "TTS",

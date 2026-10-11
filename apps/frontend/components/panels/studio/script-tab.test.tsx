@@ -1,9 +1,19 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { ScriptTab } from "./ScriptTab";
 import { ScriptOutputPanel } from "./ScriptOutputPanel";
+
+// MdPreview/MdEditor 在 jsdom 里不可靠,用最小替身(值展示)
+vi.mock("md-editor-rt", () => ({
+  MdPreview: ({ modelValue }: { modelValue: string }) => (
+    <div data-testid="md-preview">{modelValue}</div>
+  ),
+  MdEditor: ({ modelValue }: { modelValue: string }) => (
+    <div data-testid="md-editor">{modelValue}</div>
+  ),
+}));
 
 (globalThis as any).ResizeObserver ??= class {
   observe() {}
@@ -181,5 +191,99 @@ describe("ScriptTab", () => {
     expect(reviewPanel).not.toContain("<ScriptOutputPanel");
     expect(reviewPanel).toContain("props.runReview(");
     expect(reviewPanel).toContain('target: "review"');
+  });
+
+
+  // 1011 thinking 进流:流式思考预览区——思考期弱化展示,正文开始后折叠,空思考零占位
+  it("renders the streaming thinking preview above the output while the body has not started", () => {
+    const chapter = {
+      id: "ch-think",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-think", text: "", thinking: "先想清楚章节主线……" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+
+    expect(screen.getByText("AI 思考中…")).toBeTruthy();
+    expect(screen.getByText("先想清楚章节主线……")).toBeTruthy();
+  });
+
+  it("collapses the thinking preview once body text starts and keeps it expandable", () => {
+    const chapter = {
+      id: "ch-think2",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-think2", text: "# 剧本\n\n正文增量", thinking: "思考完毕" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+
+    // 正文已开始:思考区折叠为入口(带字数),内容不再直接可见
+    expect(screen.getByRole("button", { name: /AI 思考过程（4 字）/ })).toBeTruthy();
+    expect(screen.queryByText("思考完毕")).toBeNull();
+
+    // 手动展开后可回看
+    fireEvent.click(screen.getByRole("button", { name: /AI 思考过程/ }));
+    expect(screen.getByText("思考完毕")).toBeTruthy();
+  });
+
+  it("keeps zero footprint for the thinking preview when no thinking has arrived", () => {
+    const chapter = {
+      id: "ch-think3",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-think3", text: "" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+
+    expect(screen.queryByText("AI 思考中…")).toBeNull();
+    expect(screen.queryByText(/AI 思考过程/)).toBeNull();
   });
 });

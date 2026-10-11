@@ -28,7 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import type { IProvider, ModelCapability } from "@/lib/ai/core";
+import type { IProvider, ModelCapability, ProviderApiProtocol } from "@/lib/ai/core";
+import {
+  PROVIDER_API_PROTOCOL_OPTIONS,
+  getProviderApiProtocolBlockReason,
+} from "@/lib/ai/core";
 import { TTS_MODEL_GROUPS } from "@/lib/tts/model-catalog";
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/client";
 
@@ -156,7 +160,7 @@ export const API_PROVIDER_PRESETS: Array<{
     platform: "custom",
     name: "自定义",
     baseUrl: "",
-    description: "自定义 OpenAI 兼容 API 供应商，模型可留空，保存后自动同步",
+    description: "自定义 API 供应商，协议无法从平台名推断，保存时必须声明接口协议",
     services: [],
     models: [],
   },
@@ -180,6 +184,8 @@ export function AddProviderDialog({
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
+  // 1011 断点D(apiProtocol 配置期必填):custom 平台协议无法从平台名推断 → 必填下拉
+  const [apiProtocol, setApiProtocol] = useState<ProviderApiProtocol | "">("");
 
   // Get selected preset
   const selectedPreset = API_PROVIDER_PRESETS.find((p) => p.platform === platform);
@@ -194,11 +200,14 @@ export function AddProviderDialog({
       setBaseUrl("");
       setApiKey("");
       setModel("");
+      setApiProtocol("");
     }
   }, [open]);
 
   // Auto-fill when platform changes
   useEffect(() => {
+    // 切换平台时清掉上一个平台遗留的协议选择,防具名平台误存 custom 期协议
+    setApiProtocol("");
     if (selectedPreset && !isCustom) {
       setName(selectedPreset.name);
       setBaseUrl(selectedPreset.baseUrl);
@@ -222,6 +231,15 @@ export function AddProviderDialog({
       toast.error("自定义平台需要输入 Base URL");
       return;
     }
+    // 1011:custom 平台未声明协议 → 拦保存,提示语说清按 OpenAI 兼容兜底的后果
+    const protocolBlockReason = getProviderApiProtocolBlockReason({
+      platform,
+      apiProtocol: apiProtocol || undefined,
+    });
+    if (protocolBlockReason) {
+      toast.error(protocolBlockReason);
+      return;
+    }
     if (!apiKeyOptional && !apiKey.trim()) {
       toast.error("请输入 API Key");
       return;
@@ -229,10 +247,10 @@ export function AddProviderDialog({
 
     // 保存该平台的所有预设模型，确保 provider.model 不为空
     const presetModels = selectedPreset?.models || [];
-    const modelArray = presetModels.length > 0 
-      ? presetModels 
+    const modelArray = presetModels.length > 0
+      ? presetModels
       : (model ? [model] : []);
-    
+
     onSubmit({
       platform,
       name: name.trim(),
@@ -240,7 +258,8 @@ export function AddProviderDialog({
       apiKey: apiKey.trim(),
       model: modelArray,
       capabilities: selectedPreset?.capabilities,
-      apiProtocol: selectedPreset?.apiProtocol,
+      // custom 平台用表单必填选择的协议;具名平台沿用预设声明(未声明的由平台推断表兜底)
+      apiProtocol: isCustom ? (apiProtocol || undefined) : selectedPreset?.apiProtocol,
     });
 
     onOpenChange(false);
@@ -287,6 +306,28 @@ export function AddProviderDialog({
               placeholder="供应商名称"
             />
           </div>
+
+          {/* API Protocol (custom 平台必填:协议无法从平台名推断,1011) */}
+          {isCustom && (
+            <div className="space-y-2 md:col-span-2">
+              <Label>接口协议(必填)</Label>
+              <Select value={apiProtocol} onValueChange={(value) => setApiProtocol(value as ProviderApiProtocol)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="选择接口协议" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVIDER_API_PROTOCOL_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                自定义平台无法从平台名推断协议;不声明将按 OpenAI 兼容兜底,可能打错协议口导致模型调用空返回
+              </p>
+            </div>
+          )}
 
           {/* Base URL (only for custom or editable) */}
           {(isCustom || platform) && (

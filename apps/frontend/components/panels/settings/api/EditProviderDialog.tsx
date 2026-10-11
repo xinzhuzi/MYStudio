@@ -20,8 +20,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import type { IProvider } from "@/lib/ai/core";
+import type { IProvider, ProviderApiProtocol } from "@/lib/ai/core";
+import {
+  PROVIDER_API_PROTOCOL_OPTIONS,
+  getProviderApiProtocolBlockReason,
+} from "@/lib/ai/core";
 import { getApiKeyCount } from "@/lib/ai/core";
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/client";
 
@@ -42,6 +53,12 @@ export function EditProviderDialog({
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
+  // 1011 断点D(apiProtocol 配置期必填):custom 平台编辑时协议必填——存量未声明
+  // 协议的条目(列表页带警示徽标)须在本次编辑补声明后才能保存
+  const [apiProtocol, setApiProtocol] = useState<ProviderApiProtocol | "">("");
+
+  // custom 平台协议无法从平台名推断;具名平台由平台推断表兜底,不展示该字段
+  const isCustomPlatform = provider?.platform === "custom";
 
   // Initialize form when provider changes
   useEffect(() => {
@@ -51,6 +68,7 @@ export function EditProviderDialog({
       setApiKey(provider.apiKey);
       // 加载已有模型
       setModel(provider.model?.join(', ') || '');
+      setApiProtocol(provider.apiProtocol ?? "");
     }
   }, [provider]);
 
@@ -59,6 +77,15 @@ export function EditProviderDialog({
 
     if (!name.trim()) {
       toast.error("请输入名称");
+      return;
+    }
+    // 1011:custom 平台未声明协议 → 拦保存,提示语说清按 OpenAI 兼容兜底的后果
+    const protocolBlockReason = getProviderApiProtocolBlockReason({
+      platform: provider.platform,
+      apiProtocol: apiProtocol || undefined,
+    });
+    if (protocolBlockReason) {
+      toast.error(protocolBlockReason);
       return;
     }
 
@@ -74,6 +101,8 @@ export function EditProviderDialog({
       baseUrl: baseUrl.trim(),
       apiKey: apiKey.trim(),
       model: models,
+      // custom 平台存表单必填选择的协议;具名平台保留原声明(可能为 undefined,推断表兜底)
+      apiProtocol: isCustomPlatform ? (apiProtocol || undefined) : provider.apiProtocol,
     });
 
     onOpenChange(false);
@@ -96,6 +125,28 @@ export function EditProviderDialog({
             <Label className="text-muted-foreground">平台</Label>
             <Input value={provider?.platform || ""} disabled className="bg-muted" />
           </div>
+
+          {/* API Protocol (custom 平台必填:协议无法从平台名推断,1011) */}
+          {isCustomPlatform && (
+            <div className="space-y-2">
+              <Label>接口协议(必填)</Label>
+              <Select value={apiProtocol} onValueChange={(value) => setApiProtocol(value as ProviderApiProtocol)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="选择接口协议" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROVIDER_API_PROTOCOL_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                自定义平台无法从平台名推断协议;不声明将按 OpenAI 兼容兜底,可能打错协议口导致模型调用空返回
+              </p>
+            </div>
+          )}
 
           {/* Name */}
           <div className="space-y-2">

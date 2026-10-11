@@ -5,6 +5,8 @@ import { CREATIVE_SCRIPT_BASE_PROMPT, STORYBOARD_STRUCTURE_PROMPT } from "./scri
 export interface ScriptGenerationOptions {
   apiKey: string;
   provider: string;
+  /** 供应商声明的接口协议(1011 复审#3 补):透传 SDK 路由;缺省维持平台名路由 */
+  apiProtocol?: 'openai-compatible' | 'anthropic-compatible' | 'gemini-compatible';
   baseUrl: string;
   model: string;
   language?: string;

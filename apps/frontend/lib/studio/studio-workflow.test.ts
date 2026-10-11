@@ -133,7 +133,7 @@ describe("Manying Studio workflow core", () => {
       agentWorkData: [
         {
           id: "work-1",
-          key: "storySkeleton",
+          key: "scriptDraft",
           data: "第一集围绕账册缺页展开。",
           createdAt: 1710000000000,
           updatedAt: 1710000000000,
@@ -150,7 +150,7 @@ describe("Manying Studio workflow core", () => {
   it("uses Daojie manuals from the stored skill catalog in the skill context package", () => {
     const context = buildSkillContextPackage({
       projectName: "道劫",
-      taskKey: "storySkeleton",
+      taskKey: "scriptDraft",
       chapters: [],
       agentWorkData: [],
       createdAt: 1710000000000,
@@ -179,7 +179,7 @@ describe("Manying Studio workflow core", () => {
   it("builds skill context packages from stored manual catalogs when provided", () => {
     const context = buildSkillContextPackage({
       projectName: "道劫",
-      taskKey: "storySkeleton",
+      taskKey: "scriptDraft",
       chapters: [],
       agentWorkData: [],
       createdAt: 1710000000000,

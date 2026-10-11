@@ -328,7 +328,9 @@ describe("main process startup", () => {
     expect(existsSync(frontendStudioManualsSeed), frontendStudioManualsSeed).toBe(true);
     expect(existsSync(path.join(appsRootFromSource, "src", "assets", "studio-manuals"))).toBe(false);
     expect(
-      existsSync(path.join(frontendStudioManualsSeed, "script_execution_skeleton.md")),
+      // 1011 门禁修(主线授权一行):eda5fde1 手册结构重整删 script_execution_skeleton.md 留重写版
+      // script_execution_script.md,未同步本期望名→提交级既有红;期望名对齐现存种子文件。
+      existsSync(path.join(frontendStudioManualsSeed, "script_execution_script.md")),
       "bundled agent skill seed markdown",
     ).toBe(true);
   });

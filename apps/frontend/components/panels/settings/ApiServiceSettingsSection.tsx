@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
-import { Key, Loader2, Pencil, RefreshCw, Search, Settings, X } from "lucide-react";
+import { AlertTriangle, Key, Loader2, Pencil, RefreshCw, Search, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { parseApiKeys } from "@/lib/ai/core";
+import {
+  getProviderApiProtocolBlockReason,
+  getProviderApiProtocolLabel,
+  parseApiKeys,
+  resolveProviderApiProtocol,
+} from "@/lib/ai/core";
 import { resolveThinkingEnabled } from "@/lib/ai/thinking-mode";
 import { useAPIConfigStore, type IProvider } from "@/stores/ai/api-config-store";
 import {
@@ -84,15 +89,23 @@ export function ApiServiceSettingsSection({
             </div>
             <div className="rounded-lg border border-border bg-muted/20 p-3">
               <div className="text-xs text-muted-foreground">接口协议</div>
-              <div className="mt-1 text-xs text-foreground">
-                {provider.apiProtocol === "anthropic-compatible"
-                  ? "Anthropic 兼容"
-                  : provider.apiProtocol === "openai-compatible"
-                    ? "OpenAI 兼容"
-                    : provider.apiProtocol === "gemini-compatible"
-                      ? "Gemini 兼容"
-                      : "待测试"}
-              </div>
+              {/* 1011 断点D:协议展示收敛到 resolveProviderApiProtocol 单一推断源;
+                  custom 平台未声明 → 警示徽标(点击跳编辑补声明),具名平台按推断表展示 */}
+              {getProviderApiProtocolBlockReason(provider) ? (
+                <button
+                  type="button"
+                  onClick={() => onEdit(provider)}
+                  title="点击补声明接口协议"
+                  className="mt-1 inline-flex items-center gap-1 rounded-md border border-warning/25 bg-warning/10 px-1.5 py-0.5 text-left text-[11px] leading-4 text-warning transition-colors hover:bg-warning/20 "
+                >
+                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                  协议未声明·按 OpenAI 兼容兜底
+                </button>
+              ) : (
+                <div className="mt-1 text-xs text-foreground">
+                  {getProviderApiProtocolLabel(resolveProviderApiProtocol(provider))}
+                </div>
+              )}
             </div>
             <div className="rounded-lg border border-border bg-muted/20 p-3">
               <div className="text-xs text-muted-foreground">API Key</div>

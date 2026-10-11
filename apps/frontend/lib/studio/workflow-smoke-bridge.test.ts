@@ -98,8 +98,8 @@ describe("workflow smoke bridge isolation", () => {
         { eventTaskState: "failed" },
       ],
       agentWorkData: [
-        { key: "storySkeleton", data: "ready" },
-        { key: "storySkeleton", data: " " },
+        { key: "scriptDraft", data: "ready" },
+        { key: "scriptDraft", data: " " },
         { key: "scriptDraftReview", data: "reviewed" },
       ],
       entityExtractions: [
@@ -121,7 +121,7 @@ describe("workflow smoke bridge isolation", () => {
       voiceLines: { "1": {} },
     };
 
-    expect(countNonEmptyWorkItems(studio.agentWorkData as never, "storySkeleton")).toBe(1);
+    expect(countNonEmptyWorkItems(studio.agentWorkData as never, "scriptDraft")).toBe(1);
     expect(
       buildWorkflowSmokeStageEvidenceText({
         stageId: "manuals",
@@ -314,8 +314,6 @@ describe("workflow smoke bridge isolation", () => {
     expect(results.map((result) => result?.stageId)).toEqual(stageIds);
     expect(results.every((result) => result?.ready)).toBe(true);
     expect(results[0]?.evidenceText).toContain("visualManualId");
-    expect(results[2]?.evidenceText).toContain("storySkeletonReview=1");
-    expect(results[2]?.evidenceText).toContain("adaptationStrategyReview=1");
     expect(results[2]?.evidenceText).toContain("scriptDraftReview=1");
     expect(results.at(-1)?.progress).toBe(100);
     expect(results.at(-1)?.checks).toMatchObject({
@@ -507,8 +505,6 @@ describe("workflow smoke bridge isolation", () => {
     });
     expect(studio.agentWorkData).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: "storySkeletonReview" }),
-        expect.objectContaining({ key: "adaptationStrategyReview" }),
         expect.objectContaining({ key: "scriptDraftReview" }),
       ]),
     );

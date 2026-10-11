@@ -16,13 +16,11 @@ import {
 } from '@/lib/storage/secure-local-storage';
  
 import type { ProviderId } from '@/lib/ai/core';
-import { 
- 
- 
-  generateId, 
+import {
+  generateId,
   parseApiKeys,
   maskApiKey as maskKey,
- 
+  getProviderApiProtocolBlockReason,
 } from '@/lib/ai/core';
 import { injectDiscoveryCache, type DiscoveredModelLimits } from '@/lib/ai/model-registry';
 import {
@@ -56,7 +54,7 @@ import {
  
 } from './api-config-provider-helpers';
 import { createAPIConfigImageHostActions } from './api-config-image-host-actions';
-import { createAPIConfigProviderActions } from './api-config-provider-actions';
+import { createAPIConfigProviderActions, type APIConfigProviderActions } from './api-config-provider-actions';
 import { createAPIConfigFeatureBindingActions } from './api-config-feature-binding-actions';
 import { createAPIConfigAgentActions } from './api-config-agent-actions';
 import { migrateAPIConfigState } from './api-config-migration';
@@ -163,6 +161,24 @@ const initialState: APIConfigState = {
   modelThinkingOverrides: {},
 };
 
+// 1011 断点D(apiProtocol 配置期必填):custom 平台新供应商入库前强校验——未声明
+// 协议直接抛错拦存,「platform=custom + 协议未声明 → 运行时按 OpenAI 兼容兜底 →
+// 打错协议口 → 流秒回空」(1011 根因)自此无法再入库。updateProvider 不设此闸:
+// 存量 custom 供应商(不做数据迁移,设置页以警示徽标提示)的模型同步/密钥轮换等
+// 程序化路径会原样重存,硬抛会断存量链路;编辑保存路径由表单必填校验拦(EditProviderDialog)。
+function guardCustomProviderApiProtocolOnAdd(
+  actions: APIConfigProviderActions,
+): APIConfigProviderActions {
+  return {
+    ...actions,
+    addProvider: (providerData) => {
+      const blockReason = getProviderApiProtocolBlockReason(providerData);
+      if (blockReason) throw new Error(blockReason);
+      return actions.addProvider(providerData);
+    },
+  };
+}
+
 // ==================== Store ====================
 
 export const useAPIConfigStore = create<APIConfigStore>()(
@@ -175,10 +191,10 @@ export const useAPIConfigStore = create<APIConfigStore>()(
 
       // ==================== Provider Management (v2) ====================
 
-      ...createAPIConfigProviderActions(set, get, {
+      ...guardCustomProviderApiProtocolOnAdd(createAPIConfigProviderActions(set, get, {
         generateId,
         normalizeAgentDeployments,
-      }),
+      })),
       // ==================== Feature Binding Management (Multi-Select) ====================
 
       ...createAPIConfigFeatureBindingActions(set, get),

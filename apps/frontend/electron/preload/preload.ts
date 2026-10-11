@@ -205,10 +205,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testModel: (payload: ModelTestRequest): Promise<ModelTestResult> => ipcRenderer.invoke('api-model-test', payload),
   textCompletion: (payload: TextCompletionRequest): Promise<TextCompletionResult> => ipcRenderer.invoke('api-text-completion', payload),
   imageRequest: (payload: ImageRequestPayload): Promise<ImageRequestResult> => ipcRenderer.invoke('api-image-request', payload),
-  textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string) => void): Promise<TextCompletionResult> => {
+  // 1011 thinking 进流:onChunk 扩为 (delta, kind)——kind='text' 正文增量,'thinking' 思考增量;
+  // 主进程事件信封同步改 {kind, delta},监听侧拆包转发。
+  textCompletionStream: (payload: TextCompletionRequest, onChunk: (delta: string, kind: 'text' | 'thinking') => void): Promise<TextCompletionResult> => {
     const streamId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
     const channel = `api-text-stream:${streamId}`
-    const listener = (_event: IpcRendererEvent, delta: string) => onChunk(delta)
+    const listener = (_event: IpcRendererEvent, envelope: { kind: 'text' | 'thinking'; delta: string }) => onChunk(envelope.delta, envelope.kind)
     ipcRenderer.on(channel, listener)
     return ipcRenderer.invoke('api-text-completion-stream', { payload, streamId }).finally(() => {
       ipcRenderer.removeListener(channel, listener)

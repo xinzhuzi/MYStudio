@@ -32,6 +32,14 @@ import { toast } from "sonner";
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;
 
+/**
+ * 剧本阶段(B+ 单次生成,全上下文注入)流式整体预算。
+ * 装机实弹(10-11 GLM):39k 级 prompt 走 HTTP 回退一次性生成可超 300s——流式 IPC
+ * 缺省 300s 会把回退腿掐死在 AbortError;此处按「非流式最坏 300s+」量级给 600s,
+ * 穿透 aiManager.textStream → 主进程 SDK 流式 + HTTP 回退共享预算。
+ */
+export const SCRIPT_STAGE_STREAM_TIMEOUT_MS = 600_000;
+
 export function useScriptStageActions({
   workflowConfig,
   manualCatalog,
@@ -94,10 +102,13 @@ export function useScriptStageActions({
     [agentWorkData],
   );
 
+  // 1011 thinking 进流:scriptStreaming 增设 thinking 增量位——思考单独累积不混正文,
+  // 完成后随状态清零整体丢弃(零持久化,saveAgentWorkData 只落 result.text)。
   const [scriptStreaming, setScriptStreaming] = useState<{
     key: AgentWorkKey;
     scopeId: string;
     text: string;
+    thinking?: string;
   } | null>(null);
 
   const runScriptStage = useCallback(
@@ -115,24 +126,41 @@ export function useScriptStageActions({
         key: opts.stageKey,
         scopeId: opts.scopeId,
         text: "",
+        thinking: "",
       });
-      const result = await aiManager.textStream(
-        {
-          binding: { agent: opts.agentKey },
-          maxTokens: 32000,
-          messages: [
-            { role: "system", content: opts.messages.system },
-            { role: "user", content: opts.messages.user },
-          ],
-        },
-        (delta) =>
-          setScriptStreaming((s) =>
-            s && s.key === opts.stageKey && s.scopeId === opts.scopeId
-              ? { ...s, text: s.text + delta }
-              : s,
-          ),
-      );
-      setScriptStreaming(null);
+      // 1011 欠账⑤:textStream 顶层 reject(流式 IPC 异常等)时下方清零不可达,scriptStreaming
+      // 永卡非 null——ScriptTab 生成/审核按钮(scriptStreaming!==null 即禁用)永久禁用无恢复
+      // 入口。try/finally 兜底保证流态必回落;异常本身不吞仍向上抛(拒绝语义与修前一致)。
+      // 生成与审核(handleStageReview)同走本流,一处修复两路受益。
+      let result: Awaited<ReturnType<typeof aiManager.textStream>>;
+      try {
+        result = await aiManager.textStream(
+          {
+            binding: { agent: opts.agentKey },
+            maxTokens: 32000,
+            timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
+            messages: [
+              { role: "system", content: opts.messages.system },
+              { role: "user", content: opts.messages.user },
+            ],
+          },
+          (delta, kind) =>
+            setScriptStreaming((s) =>
+              s && s.key === opts.stageKey && s.scopeId === opts.scopeId
+                ? kind === "thinking"
+                  ? { ...s, thinking: (s.thinking ?? "") + delta }
+                  : { ...s, text: s.text + delta }
+                : s,
+            ),
+        );
+      } catch (error) {
+        // 1011 用户令「解决其他的问题」:顶层异常原本只上抛(console 可见、UI 无感),
+        // 现按既有失败口径弹 toast——异常仍上抛保持拒绝语义,但用户必得提示。
+        toast.error(error instanceof Error ? error.message : `${opts.label}生成异常,请重试`);
+        throw error;
+      } finally {
+        setScriptStreaming(null);
+      }
       if (!result.success || !result.text) {
         toast.error(result.error || `${opts.label}生成失败`);
         return;

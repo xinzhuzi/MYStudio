@@ -121,8 +121,6 @@ export interface VendorConfig {
 export interface ModelBinding {
   key:
     | "scriptAgent"
-    | "storySkeletonAgent"
-    | "adaptationStrategyAgent"
     | "storyboardImage"
     | "videoTrack"
     | "tts"

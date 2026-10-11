@@ -5,6 +5,10 @@ import { createOperationId } from "@/lib/diagnostics/logger";
 import { observedFetch } from "@/lib/diagnostics/network";
 import { fetchRemoteImageDataUrl } from "@/lib/media/remote-image-fetch";
 import { corsFetch } from "@/lib/network/cors-fetch";
+import {
+  DEFAULT_LOCAL_IMAGE_PROVIDER_ID,
+  LOCAL_IMAGE_BASE_URL,
+} from "@/stores/ai/api-config-provider-helpers";
 
 /**
  * 生图共享底座——参数/结果类型、通道错误工具、URL 落地转换。file-size-reduction P1 拆出,体逐字保留。
@@ -29,6 +33,24 @@ export interface ImageGenerationResult {
 
 export type ImageGenerationFeature = 'character_generation' | 'scene_generation' | 'prop_generation';
 export const IMAGE_SUBMIT_TIMEOUT_MS = 180_000;
+/**
+ * 本地 Q2.1 通道的提交超时豁免(1011 断点C):本地 sidecar 同步跑全管线
+ * (t2i+SeedVR2 2K)实测 3.5-4.5min,180s 提交超时会中途 abort 并连带
+ * sidecar 取消引擎作业(2K 精修被掐);对齐自由口 generateImage 本地链 900s。
+ */
+export const LOCAL_IMAGE_SUBMIT_TIMEOUT_MS = 900_000;
+
+/** 按 provider 判定提交超时:本地通道(platform 或 baseUrl 口径,同 isLocalImageProvider)豁免 900s,其余维持 180s。 */
+export function imageSubmitTimeoutForProvider(
+  provider?: { platform?: string; baseUrl?: string } | null,
+): number {
+  if (!provider) return IMAGE_SUBMIT_TIMEOUT_MS;
+  if (provider.platform === DEFAULT_LOCAL_IMAGE_PROVIDER_ID) return LOCAL_IMAGE_SUBMIT_TIMEOUT_MS;
+  if ((provider.baseUrl || '').trim().replace(/\/+$/, '') === LOCAL_IMAGE_BASE_URL) {
+    return LOCAL_IMAGE_SUBMIT_TIMEOUT_MS;
+  }
+  return IMAGE_SUBMIT_TIMEOUT_MS;
+}
 
 export function isMikotoImageProvider(baseUrl: string): boolean {
   try {

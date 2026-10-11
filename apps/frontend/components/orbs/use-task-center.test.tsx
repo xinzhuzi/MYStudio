@@ -93,7 +93,8 @@ describe("useTaskCenter(逐条域:media/agent)", () => {
     } as never);
     const { result } = renderHook(() => useTaskCenter());
     const agent = result.current.tasks.find((task) => task.id === "agent:run-1");
-    expect(agent?.label).toContain("剧本草稿");
+    // B+ 收口单口径:scriptDraft 标签=「剧本(含规划)」(对齐 SCRIPT_STAGE_LABEL)
+    expect(agent?.label).toContain("剧本(含规划)");
     expect(agent?.label).toContain("第一章");
     expect(agent?.status).toBe("running");
   });

@@ -112,7 +112,8 @@ const STAGE_DEFS = [
   {
     id: "script",
     label: "剧本生产阶段",
-    actionLabel: "生成故事骨架、改编策略和结构化剧本",
+    // B+ 单次生成:三段(故事骨架/改编策略/剧本草稿)收口为「剧本(含规划)」单口径
+    actionLabel: "生成剧本(含规划)",
   },
   {
     id: "assets",
@@ -227,20 +228,12 @@ export function buildWorkflowReadiness(
     },
     script: {
       ready: scriptReady,
+      // B+ 单次生成单口径:就绪只看剧本(含规划)(scriptDraft),
+      // 旧段(故事骨架/改编策略)存量数据只读归档于剧本页,不再进就绪导引
       completed: [
-        countWork(input.agentWorkData, "storySkeleton") ? "已生成故事骨架" : "",
-        countWork(input.agentWorkData, "adaptationStrategy")
-          ? "已生成改编策略"
-          : "",
         scriptDraftCount ? "当前剧本已就绪" : "",
       ].filter(Boolean),
-      missing: [
-        countWork(input.agentWorkData, "storySkeleton") ? "" : "生成故事骨架",
-        countWork(input.agentWorkData, "adaptationStrategy")
-          ? ""
-          : "生成改编策略",
-        scriptDraftCount ? "" : "生成剧本草稿",
-      ].filter(Boolean),
+      missing: [scriptDraftCount ? "" : "生成剧本(含规划)"].filter(Boolean),
     },
     assets: {
       ready: assetReady,

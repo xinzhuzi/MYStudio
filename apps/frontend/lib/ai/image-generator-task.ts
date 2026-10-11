@@ -9,7 +9,7 @@ import { logEvent } from "@/lib/diagnostics/logger";
 import { observedFetch } from "@/lib/diagnostics/network";
 import { retryOperation } from "@/lib/utils/retry";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import { IMAGE_SUBMIT_TIMEOUT_MS, isMikotoImageProvider } from "./image-generator-shared";
+import { IMAGE_SUBMIT_TIMEOUT_MS, imageSubmitTimeoutForProvider, isMikotoImageProvider } from "./image-generator-shared";
 
 /**
  * 生图任务通道——images/generations 异步任务提交与作业任务。file-size-reduction P1 拆出,体逐字保留。
@@ -39,6 +39,9 @@ export async function submitImageTask(
   const usesDefaultImagesEndpoint = imagePaths.submit === DEFAULT_IMAGE_ENDPOINT.submit;
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
   const mikotoPaidBoundary = isMikotoImageProvider(baseUrl);
+  // 1011 断点C:本地 Q2.1 同步全管线 3.5-4.5min,180s 提交超时会中途 abort 并连带
+  // sidecar 取消引擎作业;本地通道豁免 900s(对齐自由口本地链),云端维持 180s。
+  const submitTimeoutMs = imageSubmitTimeoutForProvider(provider);
   const builtRequest = usesDefaultImagesEndpoint
     ? buildOpenAIImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt, promptPolicy })
     : buildProviderExtensionImageRequestBody({ model, prompt, aspectRatio, resolution, referenceImages, negativePrompt, promptPolicy });
@@ -67,7 +70,7 @@ export async function submitImageTask(
       referenceImages,
       operationId,
       endpointFamily: 'images-generations',
-      timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+      timeoutMs: submitTimeoutMs,
       maxRetries: mikotoPaidBoundary ? 0 : 2,
     });
     // 多 key 轮转(2026-08-22):同一 provider 配多把 key 时,标准通道失败(如分组无渠道 503)
@@ -107,7 +110,7 @@ export async function submitImageTask(
           referenceImages,
           operationId,
           endpointFamily: 'images-generations',
-          timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+          timeoutMs: submitTimeoutMs,
           maxRetries: 2,
         });
         if (sdkResult.success && sdkResult.imageUrl) break;
@@ -156,7 +159,7 @@ export async function submitImageTask(
         referenceImages,
         operationId,
         endpointFamily: 'images-generations',
-        timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+        timeoutMs: submitTimeoutMs,
         maxRetries: 0,
       });
       if (compatibilityResult.success && compatibilityResult.imageUrl) {
@@ -200,7 +203,7 @@ export async function submitImageTask(
     const data = await retryOperation(async () => {
       // 每次重试独立创建 AbortController，避免共享 controller 在重试时已超时
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), IMAGE_SUBMIT_TIMEOUT_MS);
+      const timeoutId = setTimeout(() => controller.abort(), submitTimeoutMs);
 
       // 每次重试动态取当前 key（利用 keyManager rotate 后的新 key）
       const currentApiKey = keyManager?.getCurrentKey?.() || apiKey;
@@ -219,7 +222,7 @@ export async function submitImageTask(
           operationId,
           endpointFamily: 'images-generations',
           model,
-          timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+          timeoutMs: submitTimeoutMs,
           templateName: builtRequest.templateName,
         });
 
@@ -293,11 +296,11 @@ export async function submitImageTask(
     }
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
-        throw new Error(`图片生成请求超时(${Math.round(IMAGE_SUBMIT_TIMEOUT_MS / 1000)}s),可重试或稍后再试`);
+        throw new Error(`图片生成请求超时(${Math.round(submitTimeoutMs / 1000)}s),可重试或稍后再试`);
       }
       throw createDescribedFetchError(error, {
         timeoutLabel: '图片生成请求',
-        timeoutMs: IMAGE_SUBMIT_TIMEOUT_MS,
+        timeoutMs: submitTimeoutMs,
         endpoint: `${getRootBaseUrl(baseUrl)}${imagePaths.submit}`,
       });
     }

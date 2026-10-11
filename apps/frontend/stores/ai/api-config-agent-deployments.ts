@@ -11,8 +11,6 @@ export type AgentDeploymentKey =
   | 'eventAnalysisAgent'
   | 'scriptAgent'
   | 'scriptAgent:supervisionAgent'
-  | 'scriptAgent:storySkeletonAgent'
-  | 'scriptAgent:adaptationStrategyAgent'
   | 'scriptAgent:scriptAgent'
   | 'productionAgent:decisionAgent'
   | 'productionAgent:supervisionAgent'
@@ -22,8 +20,6 @@ export type AgentDeploymentKey =
   | 'productionAgent:storyboardGenAgent'
   | 'productionAgent:storyboardPanelAgent'
   | 'productionAgent:storyboardTableAgent'
-  | 'storySkeletonAgent'
-  | 'adaptationStrategyAgent'
   | 'scriptDraft'
   | 'entityExtraction'
   | 'storyboardImage'
@@ -108,20 +104,6 @@ export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
     maxOutputTokens: 4096,
   },
   {
-    key: 'scriptAgent:storySkeletonAgent',
-    name: '故事骨架Agent',
-    desc: '负责从小说章节、事件摘要和项目设定整理故事骨架',
-    temperature: 0.6,
-    maxOutputTokens: 4096,
-  },
-  {
-    key: 'scriptAgent:adaptationStrategyAgent',
-    name: '改编策略Agent',
-    desc: '负责将小说内容转成漫剧/短剧改编策略',
-    temperature: 0.7,
-    maxOutputTokens: 4096,
-  },
-  {
     key: 'scriptAgent:scriptAgent',
     name: '剧本执行Agent',
     desc: '负责分场剧本、对白和镜头文字草稿生成',
@@ -192,20 +174,6 @@ export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
     maxOutputTokens: 4096,
   },
   {
-    key: 'storySkeletonAgent',
-    name: '故事骨架兼容入口',
-    desc: '兼容旧版绑定；新流程优先使用策划编剧下的故事骨架Agent',
-    temperature: 0.6,
-    maxOutputTokens: 4096,
-  },
-  {
-    key: 'adaptationStrategyAgent',
-    name: '改编策略兼容入口',
-    desc: '兼容旧版绑定；新流程优先使用策划编剧下的改编策略Agent',
-    temperature: 0.7,
-    maxOutputTokens: 4096,
-  },
-  {
     key: 'scriptDraft',
     name: '剧本草稿兼容入口',
     desc: '兼容旧版绑定；新流程优先使用策划编剧下的剧本执行Agent',
@@ -256,12 +224,8 @@ export const API_AGENT_DEPLOYMENT_GROUPS: AgentDeploymentGroup[] = [
     desc: '对应 Toonflow 剧本 Agent 的决策、执行和监督链路',
     keys: [
       'scriptAgent',
-      'scriptAgent:storySkeletonAgent',
-      'scriptAgent:adaptationStrategyAgent',
       'scriptAgent:scriptAgent',
       'scriptAgent:supervisionAgent',
-      'storySkeletonAgent',
-      'adaptationStrategyAgent',
       'scriptDraft',
       'entityExtraction',
     ],
@@ -294,8 +258,6 @@ const AGENT_DEPLOYMENT_MODEL_TYPES: Record<AgentDeploymentKey, ProviderAdapterMo
   eventAnalysisAgent: 'text',
   scriptAgent: 'text',
   'scriptAgent:supervisionAgent': 'text',
-  'scriptAgent:storySkeletonAgent': 'text',
-  'scriptAgent:adaptationStrategyAgent': 'text',
   'scriptAgent:scriptAgent': 'text',
   'productionAgent:decisionAgent': 'text',
   'productionAgent:supervisionAgent': 'text',
@@ -305,8 +267,6 @@ const AGENT_DEPLOYMENT_MODEL_TYPES: Record<AgentDeploymentKey, ProviderAdapterMo
   'productionAgent:storyboardGenAgent': 'text',
   'productionAgent:storyboardPanelAgent': 'text',
   'productionAgent:storyboardTableAgent': 'text',
-  storySkeletonAgent: 'text',
-  adaptationStrategyAgent: 'text',
   scriptDraft: 'text',
   entityExtraction: 'text',
   storyboardImage: 'image',

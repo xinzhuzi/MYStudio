@@ -79,9 +79,10 @@ const MEDIA_KIND_LABELS: Record<MediaGenerationTaskKind, string> = {
 
 const AGENT_KEY_LABELS: Record<string, string> = {
   eventAnalysis: "事件分析",
-  storySkeleton: "故事骨架",
-  adaptationStrategy: "改编策略",
-  scriptDraft: "剧本草稿",
+  // B+ 收口单口径:scriptDraft=「剧本(含规划)」(对齐 SCRIPT_STAGE_LABEL);
+  // 旧段 key(storySkeleton/adaptationStrategy)已删阶段不再挂标签,
+  // 存量/冒烟遗留 run 走 inputSummary 兜底展示
+  scriptDraft: "剧本(含规划)",
   productionPlan: "制作计划",
   directorPlan: "导演计划",
   deriveAssets: "衍生资产",

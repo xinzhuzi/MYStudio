@@ -6,7 +6,11 @@
 import { getAIConfigStore, type AgentDeploymentKey } from "@/lib/ai/config/store-adapter";
 import type { AIFeature } from "@/lib/ai/feature-definitions";
 import type { IProvider } from "@/lib/ai/core";
-import type { TextCompletionMessage } from "@/lib/ai/text-completion";
+import type {
+  TextCompletionMessage,
+  TextCompletionStopReason,
+  TextCompletionUsage,
+} from "@/lib/ai/text-completion";
 import {
   generateCharacterImage,
   generatePropImage,
@@ -54,6 +58,10 @@ export interface AITextResult {
   success: boolean;
   text?: string;
   error?: string;
+  // 1011 欠账③:主进程结构化终态(stopReason/usage)原先在 text/textStream 返回处被收窄丢弃,
+  // 渲染层零消费方可取——此处放宽为可选透传,IPC 与 HTTP 回退腿带回多少透多少,缺省腿不填。
+  stopReason?: TextCompletionStopReason;
+  usage?: TextCompletionUsage;
 }
 
 /** 统一绑定解析：Agent → getResolvedAgentModel；Feature → feature-router（含多模型轮询/key 轮换/兼容旧配置）。 */
@@ -84,14 +92,17 @@ async function text(req: AITextRequest): Promise<AITextResult> {
     maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
     timeoutMs: req.timeoutMs,
   });
-  return { success: result.success, text: result.text, error: result.error };
+  // 欠账③:stopReason/usage 透传(原收窄丢弃,见 AITextResult 注释);非流式回退腿共用本返回。
+  return { success: result.success, text: result.text, error: result.error, stopReason: result.stopReason, usage: result.usage };
 }
+/** 流式增量种类(1011 thinking 进流):text=正文增量,thinking=思考增量(思考型模型思考期反馈)。 */
+export type AITextStreamChunkKind = "text" | "thinking";
 
-/** 流式文本：增量经 onChunk 回调；环境不支持流式时回退一次性并整段回调一次。 */
-async function textStream(req: AITextRequest, onChunk: (delta: string) => void): Promise<AITextResult> {
+/** 流式文本：增量经 onChunk(delta, kind) 回调;环境不支持流式时回退一次性并整段回调一次。 */
+async function textStream(req: AITextRequest, onChunk: (delta: string, kind: AITextStreamChunkKind) => void): Promise<AITextResult> {
   if (!window.electronAPI?.textCompletionStream) {
     const fallback = await text(req);
-    if (fallback.success && fallback.text) onChunk(fallback.text);
+    if (fallback.success && fallback.text) onChunk(fallback.text, "text");
     return fallback;
   }
   const resolved = resolveOrFallback(req.binding, req.fallbackToUniversal !== false);
@@ -102,8 +113,12 @@ async function textStream(req: AITextRequest, onChunk: (delta: string) => void):
     messages: req.messages,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
     maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
+    // 流式 IPC 整体预算（SDK 流式+HTTP 回退共享）；缺省主进程走 300s。
+    // B+ 剧本长输出若不传，回退一次性 39k 级 prompt 实弹可超 300s（10-11 GLM 超时根因之一）。
+    timeoutMs: req.timeoutMs,
   }, onChunk);
-  return { success: result.success, text: result.text, error: result.error };
+  // 欠账③:流式终态 stopReason/usage 透传(SDK stream.finishReason/usage 与 HTTP 回退分类同源)。
+  return { success: result.success, text: result.text, error: result.error, stopReason: result.stopReason, usage: result.usage };
 }
 
 /** 图像生成（角色/场景/道具）：委托 image-generator（内部按功能绑定解析）；出错抛异常，返回 {imageUrl,taskId?}。 */

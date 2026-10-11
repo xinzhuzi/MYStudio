@@ -65,9 +65,11 @@ describe("studio workflow readiness", () => {
       status: "ready",
       completed: ["已导入 1 章原文", "1 章已完成事件分析"],
     });
+    // B+ 收口单口径锁:剧本阶段 missing 只列「生成剧本(含规划)」一项,
+    // 不再出现已删阶段(故事骨架/改编策略)导引
     expect(
       readiness.stages.find((stage) => stage.id === "script")?.missing,
-    ).toContain("生成剧本草稿");
+    ).toEqual(["生成剧本(含规划)"]);
     expect(readiness.stages.map((stage) => stage.label)).toEqual([
       "风格与导演",
       "小说导入",

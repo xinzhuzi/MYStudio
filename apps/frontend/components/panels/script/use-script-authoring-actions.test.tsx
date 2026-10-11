@@ -56,6 +56,7 @@ describe("useScriptAuthoringActions", () => {
   it("generates an idea and reuses the full import workflow", async () => {
     vi.mocked(aiManager.featureConfig).mockReturnValue({
       allApiKeys: ["k"], platform: "openai", baseUrl: "https://api.test", models: ["model-1"],
+      provider: { apiProtocol: undefined },
     } as never);
     vi.mocked(generateScriptFromIdea).mockResolvedValue("生成的剧本");
     const { result, callbacks } = renderActions();
@@ -67,6 +68,7 @@ describe("useScriptAuthoringActions", () => {
   it("parses structure and streams reindexed shots", async () => {
     vi.mocked(aiManager.featureConfig).mockReturnValue({
       allApiKeys: ["k"], platform: "openai", baseUrl: "https://api.test", models: ["model-1"],
+      provider: { apiProtocol: undefined },
     } as never);
     const data = {
       title: "道劫",

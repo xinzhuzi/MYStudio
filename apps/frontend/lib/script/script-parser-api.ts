@@ -22,6 +22,8 @@ export interface ParseOptions {
   sceneCount?: number; // 限制场景数量（用于预告片等）
   shotCount?: number; // 每场景分镜数提示（传递给后续 shot generation）
   keyManager?: ApiKeyManager; // Optional: use existing key manager for rotation
+  /** 供应商声明的接口协议(1011 复审#3 补):有值时 SDK 路由按协议走(anthropic/gemini 防线在此腿生效);缺省维持平台名路由,行为不变 */
+  apiProtocol?: 'openai-compatible' | 'anthropic-compatible' | 'gemini-compatible';
   temperature?: number; // 自定义温度，默认 0.7
   maxTokens?: number; // 自定义最大输出 token 数，默认 4096
   /** 关闭推理模型深度思考（智谱 GLM-4.7/4.5 等），避免 reasoning 耗尽 token */
@@ -131,7 +133,7 @@ export async function callChatAPI(
     if (currentKey) {
       const platform = provider === 'openai' ? 'openai-compatible' : (provider || 'openai-compatible');
       const sdkModel = getLanguageModel(
-        { baseUrl: normalizedBaseUrl, apiKey: currentKey, platform, name: provider || 'default' },
+        { baseUrl: normalizedBaseUrl, apiKey: currentKey, platform, name: provider || 'default', apiProtocol: options.apiProtocol },
         model,
       );
       const result = await generateText({

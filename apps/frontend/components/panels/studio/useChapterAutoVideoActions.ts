@@ -368,6 +368,11 @@ export function useChapterAutoVideoActions({
                   // (分镜表「运镜」列并入)→确定性映射为 motion 初始建议,AI 可覆盖;
                   // 旧协议无语义 JSON/未定运镜时缺省,零影响。
                   cameraMove: storyboard.shotSemantics?.cameraMove || undefined,
+                  // 1011 双产线把关:H3 视频 mediaRef 自带运镜,只许静止/环境微动,
+                  // 禁叠 2D 推拉摇移(选择器确定性守卫兜底);未定形态缺省=全池
+                  visualForm: storyboard.mediaRef?.kind === "video"
+                    ? "video"
+                    : storyboard.mediaRef?.kind === "image" ? "image" : undefined,
                   // 逐镜配色锚(08-28 两套色彩系统衔接):阵营色方向供 LUT 选卡同向,
                   // 数据未预热/旧镜无语义时为空串→省略,prompt 零变化。
                   colorMood: buildShotColorMoodLine(

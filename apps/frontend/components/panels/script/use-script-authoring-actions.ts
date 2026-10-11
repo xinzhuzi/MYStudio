@@ -76,6 +76,7 @@ export function useScriptAuthoringActions({
         {
           apiKey: featureConfig.allApiKeys.join(","),
           provider: featureConfig.platform === "zhipu" ? "zhipu" : "openai",
+          apiProtocol: featureConfig.provider.apiProtocol,
           baseUrl,
           model,
           targetDuration,
@@ -122,6 +123,7 @@ export function useScriptAuthoringActions({
       const generatedScript = await generateScriptFromIdea(idea, {
         apiKey: featureConfig.allApiKeys.join(","),
         provider: featureConfig.platform === "zhipu" ? "zhipu" : "openai",
+        apiProtocol: featureConfig.provider.apiProtocol,
         baseUrl,
         model,
         language,
@@ -164,6 +166,7 @@ export function useScriptAuthoringActions({
       const result = await parseScript(rawScript, {
         apiKey: featureConfig.allApiKeys.join(","),
         provider: featureConfig.platform === "zhipu" ? "zhipu" : "openai",
+        apiProtocol: featureConfig.provider.apiProtocol,
         baseUrl,
         model,
         language,

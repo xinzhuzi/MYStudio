@@ -35,7 +35,33 @@ export interface ProviderInstanceParams {
   baseUrl?: string;
   apiKey: string;
   platform: string;
+  /** 供应商协议声明（IProvider.apiProtocol）：anthropic-compatible 时无论 platform 为何都走 createAnthropic。 */
+  apiProtocol?: IProvider["apiProtocol"];
   name?: string;  fetch?: typeof fetch;
+}
+
+/**
+ * Anthropic SDK baseURL 归一：去尾斜杠；无 /vN 版本尾则补 /v1。
+ * 与 HTTP 回退层 model-test.ts buildOpenAICompatibleEndpoint 同规——
+ * @ai-sdk/anthropic 只对精确等于 https://api.anthropic.com 的 baseURL 自补 /v1，
+ * 其它口（如 bigmodel 的 https://open.bigmodel.cn/api/anthropic）不补会拼出
+ * .../api/anthropic/messages（bigmodel 回 200 包 404 JSON，10-11 实弹）。
+ */
+export function normalizeAnthropicSdkBaseUrl(baseUrl: string): string {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  return normalized && !/\/v\d+$/.test(normalized) ? `${normalized}/v1` : normalized;
+}
+
+/**
+ * Gemini SDK baseURL 归一(1011 欠账②):去尾斜杠;无 /vN[alpha|beta] 版本尾则补 /v1beta。
+ * @ai-sdk/google 4.0.93 对自定义 baseURL 只做裸拼接 `${baseURL}/models/${model}:generateContent`
+ * (dist 实读,不做版本段补全;HTTP 回退层 model-test.ts buildGeminiCompatibleEndpoint 同规)——
+ * 代理口不带 /v1beta 会拼出 .../models/... 直接 404;官方默认前缀
+ * https://generativelanguage.googleapis.com/v1beta(GoogleProviderSettings.baseURL 注释原文)。
+ */
+export function normalizeGeminiSdkBaseUrl(baseUrl: string): string {
+  const normalized = baseUrl.replace(/\/+$/, "");
+  return normalized && !/\/v\d+(?:alpha|beta)?$/.test(normalized) ? `${normalized}/v1beta` : normalized;
 }
 
 // 按 platform 创建对应的 AI SDK Provider 实例
@@ -50,6 +76,30 @@ export function createProviderInstance(params: ProviderInstanceParams) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fetchOption = params.fetch ? { fetch: params.fetch as any } : {};
 
+  // GLM(bigmodel anthropic 口)防线：apiProtocol 声明 anthropic-compatible 的供应商，
+  // 无论 platform 是什么都按 Anthropic 协议走 SDK——否则 platform="custom" 落
+  // createOpenAICompatible，把 OpenAI 协议 POST 到 anthropic 专用口（bigmodel 回
+  // 200 包 JSON 错误），SDK 只吐 error part 被上层丢弃成「流秒回空」（10-11 根因）。
+  if (params.apiProtocol === "anthropic-compatible" || platform === "anthropic-compatible") {
+    return createAnthropic({
+      baseURL: normalizeAnthropicSdkBaseUrl(safeBaseURL) || undefined,
+      apiKey,
+      ...fetchOption,
+    });
+  }
+
+  // Gemini 防线(1011 欠账②):apiProtocol 声明 gemini-compatible 的供应商(如
+  // platform="custom" 的 gemini 代理口)此前落 createOpenAICompatible,把 OpenAI 协议
+  // 打到 gemini 专用口——与上方 anthropic 防线同款病,同款修:统一走
+  // createGoogleGenerativeAI(GoogleProviderSettings.baseURL 官方支持代理前缀)。
+  if (params.apiProtocol === "gemini-compatible" || platform === "gemini-compatible") {
+    return createGoogleGenerativeAI({
+      baseURL: normalizeGeminiSdkBaseUrl(safeBaseURL) || undefined,
+      apiKey,
+      ...fetchOption,
+    });
+  }
+
   switch (platform) {
     case "openai":
       return createOpenAI({ baseURL: safeBaseURL || undefined, apiKey, ...fetchOption });
@@ -62,15 +112,8 @@ export function createProviderInstance(params: ProviderInstanceParams) {
         ...fetchOption,
       });
 
-    case "anthropic-compatible":
-      return createAnthropic({ baseURL: safeBaseURL || undefined, apiKey, ...fetchOption });
-
-    case "gemini-compatible":
-      return createGoogleGenerativeAI({
-        baseURL: safeBaseURL,
-        apiKey,
-        ...fetchOption,
-      });
+    // anthropic-compatible 统一由函数开头的 anthropic 防线处理（含 baseURL 归一）
+    // gemini-compatible 统一由函数开头的 gemini 防线处理（含 /v1beta baseURL 归一）
 
     case "deepseek":
       return createDeepSeek({ baseURL: safeBaseURL || undefined, apiKey, ...fetchOption });
@@ -102,9 +145,24 @@ export function createProviderInstance(params: ProviderInstanceParams) {
   }
 }
 
+/**
+ * 把 messages 数组里的 system 消息提为顶层 system 参数。
+ * ai@7 的 standardizePrompt 默认 allowSystemInMessages=false,拒收 messages 内的
+ * system role(AI_InvalidPromptError,1011 装机实弹钉死)——system 放顶层是
+ * anthropic 协议原生位置,两代 SDK 均兼容;多条 system 以双换行拼接。
+ */
+export function splitSystemMessages(
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+): { system?: string; messages: Array<{ role: "user" | "assistant"; content: string }> } {
+  const systemParts = messages.filter((m) => m.role === "system").map((m) => m.content);
+  const rest = messages.filter((m) => m.role !== "system") as Array<{ role: "user" | "assistant"; content: string }>;
+  const system = systemParts.filter(Boolean).join("\n\n");
+  return system ? { system, messages: rest } : { messages: rest };
+}
+
 // 从 provider 信息获取 AI SDK LanguageModel 实例
 export function getLanguageModel(
-  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name">,
+  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name" | "apiProtocol">,
   modelName: string,
 ) {
   const instance = createProviderInstance(provider);
@@ -119,7 +177,7 @@ export function getLanguageModel(
 
 // 统一文本生成（非流式）
 export async function sdkGenerateText(options: {
-  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name">;
+  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name" | "apiProtocol">;
   model: string;
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   temperature?: number;
@@ -136,9 +194,11 @@ export async function sdkGenerateText(options: {
   );
   try {
     const model = getLanguageModel(options.provider, options.model);
+    const { system, messages } = splitSystemMessages(options.messages);
     const result = await generateText({
       model,
-      messages: options.messages,
+      ...(system && { system }),
+      messages,
       ...(options.temperature != null && { temperature: options.temperature }),
       ...(options.maxTokens != null && { maxOutputTokens: options.maxTokens }),
       ...(options.providerOptions && { providerOptions: options.providerOptions }),
@@ -164,7 +224,7 @@ export async function sdkGenerateText(options: {
 
 // 统一文本生成（流式），返回 fullStream 供调用方消费
 export async function sdkStreamText(options: {
-  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name">;
+  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name" | "apiProtocol">;
   model: string;
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   temperature?: number;
@@ -172,9 +232,11 @@ export async function sdkStreamText(options: {
   abortSignal?: AbortSignal;
 }) {
   const model = getLanguageModel(options.provider, options.model);
+  const { system, messages } = splitSystemMessages(options.messages);
   const result = streamText({
     model,
-    messages: options.messages,
+    ...(system && { system }),
+    messages,
     ...(options.temperature != null && { temperature: options.temperature }),
     ...(options.maxTokens != null && { maxOutputTokens: options.maxTokens }),
     ...(options.abortSignal && { abortSignal: options.abortSignal }),
@@ -393,7 +455,7 @@ export function extractImageGenerationResult(data: unknown): ImageGenerationResu
 }
 
 export function getImageModel(
-  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name">,
+  provider: Pick<IProvider, "baseUrl" | "apiKey" | "platform" | "name" | "apiProtocol">,
   modelName: string,
   fetcher?: typeof fetch,
 ) {

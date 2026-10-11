@@ -25,12 +25,14 @@ type TextCompletionPayload = {
   messages: TextCompletionMessage[];
   temperature: number;
   maxTokens: number;
+  timeoutMs?: number;
 };
 
 type TextCompletionFn = (payload: TextCompletionPayload) => Promise<TextCompletionResult>;
+// 1011 thinking 进流:onChunk 扩为 (delta, kind)——text=正文增量,thinking=思考增量
 type TextCompletionStreamFn = (
   payload: TextCompletionPayload,
-  onChunk: (delta: string) => void,
+  onChunk: (delta: string, kind: "text" | "thinking") => void,
 ) => Promise<TextCompletionResult>;
 
 type TestElectronAPI = {
@@ -219,29 +221,51 @@ describe("aiManager.text", () => {
       maxTokens: 1234,
     });
   });
+
+  // 1011 欠账③回归锁:主进程结构化终态不在渲染层门面收窄丢弃——stopReason/usage 必须透传给调用方。
+  it("透传主进程结构化终态 stopReason/usage(text 腿)", async () => {
+    useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
+      success: true,
+      text: "ok",
+      stopReason: "length",
+      usage: { inputTokens: 11, outputTokens: 22 },
+    });
+    setTestWindow({ textCompletion });
+
+    const result = await aiManager.text({ binding: { feature: "chat" }, messages });
+
+    expect(result).toEqual({
+      success: true,
+      text: "ok",
+      error: undefined,
+      stopReason: "length",
+      usage: { inputTokens: 11, outputTokens: 22 },
+    });
+  });
 });
 
 describe("aiManager.textStream", () => {
   it("uses streaming IPC and forwards chunks", async () => {
     useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
     const textCompletionStream = vi.fn<
-      (payload: TextCompletionPayload, onChunk: (delta: string) => void) => Promise<TextCompletionResult>
+      (payload: TextCompletionPayload, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>
     >()
       .mockImplementation(async (_payload, onChunk) => {
-        onChunk("he");
-        onChunk("llo");
+        onChunk("he", "text");
+        onChunk("llo", "text");
         return { success: true, text: "hello" };
       });
     setTestWindow({ textCompletionStream });
-    const chunks: string[] = [];
+    const chunks: Array<[string, "text" | "thinking"]> = [];
 
     const result = await aiManager.textStream(
       { binding: { feature: "chat" }, messages },
-      (delta) => chunks.push(delta),
+      (delta, kind) => chunks.push([delta, kind]),
     );
 
     expect(result).toEqual({ success: true, text: "hello", error: undefined });
-    expect(chunks).toEqual(["he", "llo"]);
+    expect(chunks).toEqual([["he", "text"], ["llo", "text"]]);
     expect(textCompletionStream).toHaveBeenCalledTimes(1);
     expect(textCompletionStream.mock.calls[0]?.[0]).toMatchObject({
       provider: { id: "p1" },
@@ -249,6 +273,71 @@ describe("aiManager.textStream", () => {
       temperature: 0.6,
       maxTokens: 32000,
     });
+  });
+
+  // 1011 欠账③回归锁:流式终态(SDK finishReason/usage 与 HTTP 回退分类)同样透传,不收窄。
+  it("透传流式结构化终态 stopReason/usage(textStream 腿)", async () => {
+    useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
+    const textCompletionStream = vi.fn<
+      (payload: TextCompletionPayload, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>
+    >().mockImplementation(async (_payload, onChunk) => {
+      onChunk("he", "text");
+      return { success: true, text: "he", stopReason: "stop", usage: { inputTokens: 3, outputTokens: 2 } };
+    });
+    setTestWindow({ textCompletionStream });
+
+    const result = await aiManager.textStream(
+      { binding: { feature: "chat" }, messages },
+      () => undefined,
+    );
+
+    expect(result).toEqual({
+      success: true,
+      text: "he",
+      error: undefined,
+      stopReason: "stop",
+      usage: { inputTokens: 3, outputTokens: 2 },
+    });
+  });
+
+  it("forwards thinking chunks with their kind without mixing them into text (1011 thinking 进流)", async () => {
+    useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
+    const textCompletionStream = vi.fn<
+      (payload: TextCompletionPayload, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>
+    >()
+      .mockImplementation(async (_payload, onChunk) => {
+        onChunk("思考A", "thinking");
+        onChunk("思考B", "thinking");
+        onChunk("正文", "text");
+        return { success: true, text: "正文" };
+      });
+    setTestWindow({ textCompletionStream });
+    const chunks: Array<[string, "text" | "thinking"]> = [];
+
+    const result = await aiManager.textStream(
+      { binding: { feature: "chat" }, messages },
+      (delta, kind) => chunks.push([delta, kind]),
+    );
+
+    // kind 原样透传:渲染层可分流 thinking 与 text;终态 text 不含思考增量
+    expect(chunks).toEqual([["思考A", "thinking"], ["思考B", "thinking"], ["正文", "text"]]);
+    expect(result).toEqual({ success: true, text: "正文", error: undefined });
+  });
+
+  it("forwards timeoutMs to the streaming IPC payload (B+ 长输出超时兜底)", async () => {
+    useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
+    const textCompletionStream = vi.fn<
+      (payload: TextCompletionPayload, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>
+    >()
+      .mockResolvedValue({ success: true, text: "ok" });
+    setTestWindow({ textCompletionStream });
+
+    await aiManager.textStream(
+      { binding: { feature: "chat" }, messages, timeoutMs: 600_000 },
+      () => undefined,
+    );
+
+    expect(textCompletionStream.mock.calls[0]?.[0]).toMatchObject({ timeoutMs: 600_000 });
   });
 
   it("falls back to text completion and emits the full text once when streaming IPC is missing", async () => {
@@ -277,10 +366,10 @@ describe("aiManager.textStream", () => {
       ],
     } as never);
     const textCompletionStream = vi.fn<
-      (payload: TextCompletionPayload, onChunk: (delta: string) => void) => Promise<TextCompletionResult>
+      (payload: TextCompletionPayload, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>
     >()
       .mockImplementation(async (_payload, onChunk) => {
-        onChunk("uni");
+        onChunk("uni", "text");
         return { success: true, text: "universal" };
       });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -309,11 +398,11 @@ describe("aiManager.textStream", () => {
   it("preserves streamed chunks when the streaming IPC reports failure", async () => {
     useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
     const textCompletionStream = vi.fn<
-      (payload: TextCompletionPayload, onChunk: (delta: string) => void) => Promise<TextCompletionResult>
+      (payload: TextCompletionPayload, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>
     >()
       .mockImplementation(async (_payload, onChunk) => {
-        onChunk("partial-1");
-        onChunk("partial-2");
+        onChunk("partial-1", "text");
+        onChunk("partial-2", "text");
         return { success: false, text: "partial", error: "provider failed" };
       });
     setTestWindow({ textCompletionStream });

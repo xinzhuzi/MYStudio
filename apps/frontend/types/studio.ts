@@ -10,10 +10,10 @@ export interface StudioSourceIdentity {
   revision?: number;
 }
 
+// 1011 终清:B+ 收口前的旧段键(storySkeleton/adaptationStrategy 及其 Review)已从联合
+// 移除;存量数据由持久层迁移(STUDIO_WORKFLOW_PERSIST_VERSION v11)滤除,不再有读取方。
 export type AgentWorkKey =
   | "eventAnalysis"
-  | "storySkeleton"
-  | "adaptationStrategy"
   | "scriptDraft"
   | "productionPlan"
   | "directorPlan"
@@ -23,8 +23,6 @@ export type AgentWorkKey =
   | "storyboardPanel"
   | "storyboardImage"
   | "supervisionReport"
-  | "storySkeletonReview"
-  | "adaptationStrategyReview"
   | "scriptDraftReview"
   | "entityExtraction"
   | "episodeOutline"

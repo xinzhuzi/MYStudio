@@ -259,9 +259,32 @@ describe("Daojie provider-visible length policy", () => {
       expect(error).toEqual(expect.objectContaining<Partial<DaojiePromptContractError>>({ code: "length_exceeded" }));
       expect((error as DaojiePromptContractError).details).toEqual(expect.objectContaining({
         totalChars: expect.any(Number),
+        positiveChars: expect.any(Number),
         moduleLengths: expect.objectContaining({ "subject.body": 500 }),
+        gate: "asset.positive",
       }));
     }
+  });
+
+  it("accepts the live-fire deadlock shape: 主体 330 + 合并负面 1032 = 总 1715 (断点B 回归锁)", async () => {
+    // 装机实弹(T2 diagnostics 2026-10-11): prop 轨 prop.06 配色,主体 330、
+    // 作业负面+通用负面合并后 1032,provider-visible 总 1715>800 被误拒。
+    // 断点B 根修口径:负面不计正文 800 预算,该形态必须放行。
+    const compiled = await compileDaojiePrompt({
+      runtimeTrack: "prop",
+      subjectBody: "x".repeat(330),
+      negativeTerms: "n".repeat(875),
+      paletteSchemeId: "prop.06",
+    });
+    expect(compiled.moduleLengths["subject.body"]).toBe(330);
+    // 作业负面 875(单词条) + ", " + 通用负面合并 155 = 1032,与装机实弹逐字同构
+    expect(compiled.moduleLengths["negative.universal"]).toBe(1032);
+    expect(compiled.totalChars).toBe(1715);
+    expect(compiled.status).toBe("ok");
+    const positiveChars = compiled.moduleIds
+      .filter((moduleId) => moduleId !== "negative.universal")
+      .reduce((sum, moduleId) => sum + (compiled.moduleLengths[moduleId] ?? 0), 0);
+    expect(positiveChars).toBeLessThanOrEqual(800);
   });
 
   it("uses Python-equivalent Unicode code-point counts and owns the only Avoid label", async () => {
@@ -277,9 +300,10 @@ describe("Daojie provider-visible length policy", () => {
     });
     expect(compiled.providerPrompt.match(/Avoid:/g)).toHaveLength(1);
     expect(compiled.negative).toContain("自定义缺陷");
-    // status 必须由完整 provider-visible 文本决定，而非只看 positive。
+    // 断点B(2026-10-11)后资产门与帧门同构:status 由正文(positive)决定,负面不计门——
+    // 正文 299<300 警,即便 provider-visible 全长(含负面)已过 300。
     expect(compiled.positive.length).toBeLessThan(300);
-    expect(compiled.status).toBe("ok");
+    expect(compiled.status).toBe("warning");
   });
 });
 

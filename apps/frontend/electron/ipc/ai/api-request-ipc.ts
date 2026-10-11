@@ -14,6 +14,8 @@ import {
   runTextCompletionStreamRequest,
   type TextCompletionRequest,
   type TextCompletionResult,
+  type TextCompletionStopReason,
+  type TextCompletionUsage,
 } from "../../../lib/ai/text-completion";
 import { sdkGenerateText, sdkStreamText } from "../../../lib/ai/ai-sdk-bridge";
 import type { ImageRequestPayload, ImageRequestResult } from "../../../types/api-image-request";
@@ -38,6 +40,23 @@ function requestInputUrl(input: RequestInfo | URL): string {
 
 function validateHttpRequestUrl(rawUrl: string) {
   return assertSafeOutboundRequestUrl(rawUrl);
+}
+
+/**
+ * ai@7 finishReason(ai FinishReason: 'stop'|'length'|'content-filter'|'tool-calls'|'error'|'other')
+ * → TextCompletionStopReason 归一(1011 结构化终态):枚举外的 content-filter/tool-calls/other
+ * 走降级语义 stop——上层按「自然结束」处理;真实截断/错误仍有 length/error 可辨。
+ */
+function mapSdkFinishReason(reason: string | undefined): TextCompletionStopReason {
+  if (reason === "length" || reason === "error") return reason;
+  return "stop";
+}
+
+/** ai@7 LanguageModelUsage(inputTokens/outputTokens 可为 undefined)→ 结构化用量;两值皆缺返回 undefined 不硬造。 */
+function mapSdkUsage(usage: { inputTokens?: number; outputTokens?: number } | undefined): TextCompletionUsage | undefined {
+  const { inputTokens, outputTokens } = usage ?? {};
+  if (typeof inputTokens !== "number" && typeof outputTokens !== "number") return undefined;
+  return { inputTokens: inputTokens ?? 0, outputTokens: outputTokens ?? 0 };
 }
 
 /**
@@ -271,6 +290,7 @@ export function registerApiRequestIpcHandlers({
             apiKey: provider.apiKey,
             platform: provider.platform,
             name: provider.name,
+            apiProtocol: provider.apiProtocol,
           },
           model: textModel,
           messages: payload.messages,
@@ -284,10 +304,26 @@ export function registerApiRequestIpcHandlers({
             category: "ai",
             operationId,
             message: "Text completion completed through AI SDK",
-            context: { providerName: provider.name, model: textModel },
+            context: { providerName: provider.name, model: textModel, stopReason: "stop" },
           });
-          return { success: true, text: result.text };
+          // sdkGenerateText 桥不透出 finishReason/usage,非流式 SDK 成功路终态降级填 stop(1011)。
+          return { success: true, text: result.text, stopReason: "stop" };
         }
+        // SDK 非异常失败（错误已被 sdkGenerateText 捕获转 {success:false}）此前零留痕，
+        // 回退 HTTP 后无从归因（10-11 GLM 根因隐形 4 天的同款哑弹）；此处补记失败原因。
+        writeDiagnosticsLog({
+          level: "warn",
+          category: "ai",
+          operationId,
+          message: "AI SDK text completion failed, falling back to HTTP",
+          context: {
+            providerName: provider.name,
+            model: textModel,
+            error: result.error,
+            networkFailure: result.networkFailure,
+            timeoutFailure: result.timeoutFailure,
+          },
+        });
       } catch (error) {
         writeDiagnosticsLog({
           level: "warn",
@@ -312,6 +348,7 @@ export function registerApiRequestIpcHandlers({
         success: false,
         error: `文本模型调用总超时 (${Math.round(textTimeoutMs / 1000)}s),HTTP 回退未再尝试`,
         elapsedMs: Date.now() - textStartedAt,
+        stopReason: "timeout",
       };
     }
     const result = await runTextCompletionRequest(payload, createDiagnosticsFetch({
@@ -332,6 +369,7 @@ export function registerApiRequestIpcHandlers({
         protocol: result.protocol,
         elapsedMs: result.elapsedMs,
         error: result.error,
+        stopReason: result.stopReason,
       },
     });
     return result;
@@ -358,17 +396,37 @@ export function registerApiRequestIpcHandlers({
     const streamStartedAt = Date.now();
     const streamBudgetMs = args.payload.timeoutMs ?? 300_000;
     const provider = args.payload.provider;
+    // 1011 thinking 进流:渲染层流通道改结构化信封 {kind:'text'|'thinking', delta}——
+    // text-delta→text,reasoning-delta→thinking(ai@7 fullStream 两种 part 的字段名都是 text,
+    // 见 node_modules/ai/dist/index.d.ts TextStreamTextDeltaPart/TextStreamReasoningDeltaPart)。
+    // 首个思考/首个正文计时(相对 streamStartedAt)供完成诊断归因「思考期等了多久」。
+    let firstThinkingMs: number | undefined;
+    let firstTextMs: number | undefined;
+    const sendStreamChunk = (kind: "text" | "thinking", delta: string) => {
+      if (event.sender.isDestroyed()) return;
+      if (kind === "thinking" && firstThinkingMs === undefined) firstThinkingMs = Date.now() - streamStartedAt;
+      if (kind === "text" && firstTextMs === undefined) firstTextMs = Date.now() - streamStartedAt;
+      event.sender.send(`api-text-stream:${args.streamId}`, { kind, delta });
+    };
+    // SDK 腿落空(异常/空文本)走 HTTP 回退的路标:预算中止→timeout,异常→error(1011 结构化终态)。
+    let sdkFallbackStopReason: TextCompletionStopReason | undefined;
     if (provider.platform && provider.apiKey) {
+      // SDK 流式此前无任何超时,上游挂住时 IPC 永不返回;这里给整体预算内的中止信号。
+      // (声明在 try 外:catch 里要读 signal.aborted 判 timeout 路标)
+      const sdkStreamController = new AbortController();
       try {
         const textModel = args.payload.model || provider.model?.[0] || "";
-        // SDK 流式此前无任何超时,上游挂住时 IPC 永不返回;这里给整体预算内的中止信号。
-        const sdkStreamController = new AbortController();
         const sdkStreamTimer = setTimeout(
           () => sdkStreamController.abort(new DOMException("流式调用超时,回退一次性请求", "TimeoutError")),
           streamBudgetMs,
         );
         let stream: Awaited<ReturnType<typeof sdkStreamText>>;
         let fullText = "";
+        // 1011 复审修:ai@7 的中止以流内 {type:'abort'; reason?} part 收尾而非抛错
+        // (见 node_modules/ai/dist/index.d.ts TextStreamAbortPart)——for-await 会正常走完,
+        // fullText 非空照进成功路,此前无分支静默丢弃→截断正文被误报自然结束保存。
+        let streamAbortSeen = false;
+        let streamAbortReason: string | undefined;
         try {
           stream = await sdkStreamText({
             provider: {
@@ -376,6 +434,7 @@ export function registerApiRequestIpcHandlers({
               apiKey: provider.apiKey,
               platform: provider.platform,
               name: provider.name,
+              apiProtocol: provider.apiProtocol,
             },
             model: textModel,
             messages: args.payload.messages,
@@ -386,46 +445,123 @@ export function registerApiRequestIpcHandlers({
           for await (const chunk of stream.fullStream) {
             if (chunk.type === "text-delta") {
               fullText += chunk.text;
-              if (!event.sender.isDestroyed()) {
-                event.sender.send(`api-text-stream:${args.streamId}`, chunk.text);
-              }
+              sendStreamChunk("text", chunk.text);
+            } else if (chunk.type === "reasoning-delta") {
+              // 1011 thinking 进流:思考增量原样转发渲染层(glm-5.3 思考期数分钟,不上屏=UI 干等);
+              // 只转发不进 fullText——终态 text 恒为正文,思考不落盘。
+              sendStreamChunk("thinking", chunk.text);
+            } else if (chunk.type === "error") {
+              // AI SDK 的 error part 此前被静默丢弃→fullText 空→「流秒回空」哑弹
+              // （10-11 GLM 根因隐形 4 天正是此处无留痕）；务必落诊断日志再走回退。
+              const streamError = chunk.error instanceof Error ? chunk.error : undefined;
+              writeDiagnosticsLog({
+                level: "error",
+                category: "ai",
+                operationId,
+                message: "AI SDK text stream errored part",
+                context: {
+                  streamId: args.streamId,
+                  textLength: fullText.length,
+                  errorName: streamError?.name,
+                  errorMessage: streamError?.message ?? String(chunk.error),
+                },
+              });
+            } else if (chunk.type === "abort") {
+              // 1011 复审修:预算中止打断流的收尾 part,只记不发——终态在成功路口判,
+              // 拒绝把「带部分正文的截断」当自然结束。
+              streamAbortSeen = true;
+              streamAbortReason = chunk.reason;
             }
           }
         } finally {
           clearTimeout(sdkStreamTimer);
         }
         if (fullText.trim()) {
+          if (streamAbortSeen || sdkStreamController.signal.aborted) {
+            // 1011 复审修:中止打断已有正文——截断文本不得当自然结束保存,也不再走 HTTP
+            // 回退(正文已上屏,回退一次性会整段重发造成 UI 双份)。自家预算中止→timeout;
+            // 外来中止→aborted('aborted' 枚举的首个生产点)。
+            const stopReason: TextCompletionStopReason = sdkStreamController.signal.aborted ? "timeout" : "aborted";
+            writeDiagnosticsLog({
+              level: "error",
+              category: "ai",
+              operationId,
+              message: "AI SDK text stream aborted mid-text",
+              context: {
+                streamId: args.streamId,
+                textLength: fullText.length,
+                firstThinkingMs,
+                firstTextMs,
+                stopReason,
+                abortReason: streamAbortReason,
+              },
+            });
+            return {
+              success: false,
+              error: stopReason === "timeout"
+                ? `流式调用超时(${Math.round(streamBudgetMs / 1000)}s),正文被截断(${fullText.length} 字),已丢弃未保存`
+                : `AI SDK 流式被中止,正文被截断(${fullText.length} 字),已丢弃未保存`,
+              stopReason,
+            };
+          }
+          // 结构化终态(1011):ai@7 streamText 的 finishReason/usage 是 awaitable PromiseLike,
+          // 流消费完后取真实值;error part 已被吞或上游没给时取不到→降级 stop。
+          let stopReason: TextCompletionStopReason = "stop";
+          let usage: TextCompletionUsage | undefined;
+          try {
+            stopReason = mapSdkFinishReason(await stream.finishReason);
+            usage = mapSdkUsage(await stream.usage);
+          } catch {
+            // 取不到真实终态(流异常收尾时 Promise 可能 reject):降级 stop,不阻断返回
+          }
           writeDiagnosticsLog({
             level: "info",
             category: "ai",
             operationId,
             message: "Text completion stream completed through AI SDK",
-            context: { streamId: args.streamId, textLength: fullText.length },
+            context: {
+              streamId: args.streamId,
+              textLength: fullText.length,
+              firstThinkingMs,
+              firstTextMs,
+              stopReason,
+              usage,
+            },
           });
-          return { success: true, text: fullText };
+          return { success: true, text: fullText, stopReason, usage };
         }
+        sdkFallbackStopReason = sdkStreamController.signal.aborted
+          ? "timeout"
+          : streamAbortSeen ? "aborted" : undefined;
         writeDiagnosticsLog({
           level: "warn",
           category: "ai",
           operationId,
           message: "AI SDK text stream returned empty, falling back to HTTP",
-          context: { streamId: args.streamId, textLength: fullText.length },
+          context: {
+            streamId: args.streamId,
+            textLength: fullText.length,
+            firstThinkingMs,
+            firstTextMs,
+            stopReason: sdkFallbackStopReason,
+          },
         });
       } catch (error) {
+        sdkFallbackStopReason = sdkStreamController.signal.aborted ? "timeout" : "error";
         writeDiagnosticsLog({
           level: "warn",
           category: "ai",
           operationId,
           message: "AI SDK text stream failed, falling back to HTTP",
-          context: { streamId: args.streamId },
+          context: { streamId: args.streamId, firstThinkingMs, firstTextMs, stopReason: sdkFallbackStopReason },
           error,
         });
       }
     }
     // 回退只吃整体预算的剩余部分(SDK 流式阶段已消耗的计入)
     const streamRemainingMs = streamBudgetMs - (Date.now() - streamStartedAt);
-    const result = await runTextCompletionStreamRequest(args.payload, (delta) => {
-      if (!event.sender.isDestroyed()) event.sender.send(`api-text-stream:${args.streamId}`, delta);
+    const fallbackResult = await runTextCompletionStreamRequest(args.payload, (delta, kind) => {
+      sendStreamChunk(kind, delta);
     }, createDiagnosticsFetch({
       operationId,
       endpointFamily: "text-completion-stream",
@@ -434,6 +570,11 @@ export function registerApiRequestIpcHandlers({
       model: args.payload.model,
       timeoutMs: Math.max(1000, streamRemainingMs),
     }), Math.max(1000, streamRemainingMs));
+    // 回退腿终态(1011):HTTP 路自填优先;没填时按 SDK 落空路标兜底,再不行按成败兜 stop/error。
+    const result: TextCompletionResult = {
+      ...fallbackResult,
+      stopReason: fallbackResult.stopReason ?? sdkFallbackStopReason ?? (fallbackResult.success ? "stop" : "error"),
+    };
     writeDiagnosticsLog({
       level: result.success ? "info" : "error",
       category: "ipc",
@@ -445,6 +586,9 @@ export function registerApiRequestIpcHandlers({
         elapsedMs: result.elapsedMs,
         error: result.error,
         streamId: args.streamId,
+        firstThinkingMs,
+        firstTextMs,
+        stopReason: result.stopReason,
       },
     });
     return result;

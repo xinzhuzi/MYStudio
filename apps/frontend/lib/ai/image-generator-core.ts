@@ -4,6 +4,8 @@ import { resolveImageApiFormat } from "@/lib/ai/core";
 import { getFeatureConfig, getFeatureNotConfiguredMessage } from "@/lib/ai/feature-router";
 import { createDescribedFetchError } from "@/lib/ai/fetch-error";
 import { isAmbiguousPaidImageError } from "@/lib/ai/image-generation-errors";
+import { ensureLocalImageSidecarRunning } from "@/lib/ai/image-generation-engine";
+import { applyLocalImageTokenToConfigs } from "@/lib/ai/local-image-auth";
 import { buildEndpoint, getImageAttemptConfigs } from "@/lib/ai/image-generator-helpers";
 import { buildChatCompletionsImageRequest, extractChatCompletionsImageUrl, parseChatCompletionsImageResponseText } from "@/lib/ai/image-request-adapter";
 import { pollTaskStatus as pollTaskStatusImpl } from "@/lib/ai/image-task-poller";
@@ -12,6 +14,7 @@ import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import { observedFetch } from "@/lib/diagnostics/network";
 import { retryOperation } from "@/lib/utils/retry";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
+import { isLocalImageProvider } from "@/stores/ai/api-config-provider-helpers";
 import { pollTaskStatus, submitViaKlingImages } from "./image-generator-grid";
 import { ImageGenerationFeature, ImageGenerationParams, ImageGenerationResult, isAuthStatusError } from "./image-generator-shared";
 import { submitImageJobTask, submitImageTask } from "./image-generator-task";
@@ -34,6 +37,14 @@ export async function generateImage(
   }
 
   const attemptConfigs = getImageAttemptConfigs(feature, selectedConfig);
+  // 本地链两件套,与自由生图口同款(1011):①sidecar 自愈——缺席/僵尸时自动
+  // 拉起,否则资产口直接连接拒绝,用户期望「打开软件直接生图」;②装机随机
+  // 令牌替换(断点A)——占位 apiKey 会被 sidecar 17595 以 403 拒。替换逻辑唯一
+  // 实现住在 local-image-auth,禁再复制第二套。
+  if (attemptConfigs.some((cfg) => isLocalImageProvider(cfg.provider))) {
+    await ensureLocalImageSidecarRunning(operationId);
+  }
+  await applyLocalImageTokenToConfigs(attemptConfigs);
   const imageSettings = useAppSettingsStore.getState().imageGenerationSettings;
   const aspectRatio = params.aspectRatio || imageSettings.defaultAspectRatio;
   const resolution = params.resolution || imageSettings.defaultResolution;

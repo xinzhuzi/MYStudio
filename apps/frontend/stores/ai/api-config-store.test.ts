@@ -17,6 +17,10 @@ import {
   type AgentDeploymentConfig,
 } from "./api-config-agent-deployments";
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/constants";
+import {
+  getProviderApiProtocolBlockReason,
+  resolveProviderApiProtocol,
+} from "@/lib/ai/core";
 
 describe("useAPIConfigStore unified model configuration", () => {
   afterEach(() => {
@@ -49,8 +53,6 @@ describe("useAPIConfigStore unified model configuration", () => {
       "eventAnalysisAgent",
       "entityExtraction",
       "scriptAgent",
-      "scriptAgent:storySkeletonAgent",
-      "scriptAgent:adaptationStrategyAgent",
       "scriptAgent:scriptAgent",
       "scriptAgent:supervisionAgent",
       "productionAgent:decisionAgent",
@@ -61,8 +63,6 @@ describe("useAPIConfigStore unified model configuration", () => {
       "productionAgent:deriveAssetsAgent",
       "productionAgent:generateAssetsAgent",
       "productionAgent:supervisionAgent",
-      "storySkeletonAgent",
-      "adaptationStrategyAgent",
       "scriptDraft",
       "storyboardImage",
       "videoTrack",
@@ -86,18 +86,20 @@ describe("useAPIConfigStore unified model configuration", () => {
 
   it("declares the required model type for each agent deployment", () => {
     expect(getAgentDeploymentModelType("eventAnalysisAgent")).toBe("text");
-    expect(getAgentDeploymentModelType("scriptAgent:storySkeletonAgent")).toBe("text");
+    expect(getAgentDeploymentModelType("scriptAgent:supervisionAgent")).toBe("text");
     expect(getAgentDeploymentModelType("productionAgent:storyboardTableAgent")).toBe("text");
     expect(getAgentDeploymentModelType("storyboardImage")).toBe("image");
     expect(getAgentDeploymentModelType("videoTrack")).toBe("video");
     expect(getAgentDeploymentModelType("tts")).toBe("tts");
   });
 
-  it("tolerates persisted deployments carrying removed dead keys (10-11 G3: episodeOutline / scriptAgent:decisionAgent)", () => {
+  it("tolerates persisted deployments carrying removed dead keys (10-11 G3: episodeOutline / scriptAgent:decisionAgent; 10-11 T1: storySkeletonAgent / adaptationStrategyAgent)", () => {
     const persisted = [
       ...createDefaultAgentDeployments(),
       { key: "episodeOutline", name: "分集细纲Agent", desc: "死件存量" },
       { key: "scriptAgent:decisionAgent", name: "剧本决策Agent", desc: "死件存量" },
+      { key: "storySkeletonAgent", name: "故事骨架兼容入口", desc: "死配置存量" },
+      { key: "adaptationStrategyAgent", name: "改编策略兼容入口", desc: "死配置存量" },
     ] as AgentDeploymentConfig[];
     const normalized = normalizeAgentDeployments(persisted);
     // 持久化数据无类型约束:运行时键域宽于 AgentDeploymentKey,按 string 比较
@@ -105,8 +107,11 @@ describe("useAPIConfigStore unified model configuration", () => {
     // 存量记录不崩不清:归一后作为 extras 保留(设置页「其他」组承接),默认表不再生成两键
     expect(normalizedKeys).toContain("episodeOutline");
     expect(normalizedKeys).toContain("scriptAgent:decisionAgent");
-    expect(normalizedKeys).toHaveLength(API_AGENT_DEPLOYMENT_DEFAULTS.length + 2);
+    expect(normalizedKeys).toContain("storySkeletonAgent");
+    expect(normalizedKeys).toContain("adaptationStrategyAgent");
+    expect(normalizedKeys).toHaveLength(API_AGENT_DEPLOYMENT_DEFAULTS.length + 4);
     expect(normalizedKeys.filter((key) => key === "episodeOutline")).toHaveLength(1);
+    expect(normalizedKeys.filter((key) => key === "storySkeletonAgent")).toHaveLength(1);
   });
 
   it("resolves task bindings from the unified API provider store", () => {
@@ -444,6 +449,82 @@ describe("useAPIConfigStore unified model configuration", () => {
   });
 });
 
+// ── 1011 断点D(apiProtocol 配置期必填):custom 平台保存校验路径 + 推断单一源 ──
+describe("custom 平台 apiProtocol 配置期必填(1011)", () => {
+  const customProviderData = {
+    platform: "custom",
+    name: "GLM 自定义口",
+    baseUrl: "https://open.bigmodel.cn/api/anthropic",
+    apiKey: "sk-glm",
+    model: ["glm-5.1"],
+  };
+
+  beforeEach(() => {
+    useAPIConfigStore.setState({ providers: [] });
+  });
+
+  it("addProvider 拦未声明协议的 custom 供应商并保持不入库", () => {
+    expect(() => useAPIConfigStore.getState().addProvider(customProviderData))
+      .toThrow(/OpenAI 兼容兜底/);
+    expect(useAPIConfigStore.getState().providers).toHaveLength(0);
+  });
+
+  it("addProvider 收声明协议的 custom 供应商", () => {
+    const added = useAPIConfigStore.getState().addProvider({
+      ...customProviderData,
+      apiProtocol: "anthropic-compatible",
+    });
+
+    expect(added.apiProtocol).toBe("anthropic-compatible");
+    expect(useAPIConfigStore.getState().providers).toHaveLength(1);
+    // 用后即清,防污染其他用例
+    useAPIConfigStore.getState().removeProvider(added.id);
+  });
+
+  it("updateProvider 放行存量未声明 custom 供应商(模型同步/密钥轮换等程序化重存不断链)", () => {
+    // 存量条目模拟:不走 addProvider 闸,直接 setState(不做存量数据迁移,见设置页警示徽标)
+    const legacy = { ...customProviderData, id: "provider-legacy" };
+    useAPIConfigStore.setState({ providers: [legacy] });
+
+    expect(() => useAPIConfigStore.getState().updateProvider({
+      ...legacy,
+      model: ["glm-5.1", "glm-5.1-air"],
+    })).not.toThrow();
+    expect(useAPIConfigStore.getState().providers[0].model).toEqual(["glm-5.1", "glm-5.1-air"]);
+  });
+
+  it("getProviderApiProtocolBlockReason 只拦 custom 未声明,具名平台与已声明放行", () => {
+    expect(getProviderApiProtocolBlockReason({ platform: "custom", apiProtocol: undefined }))
+      .toMatch(/OpenAI 兼容兜底/);
+    expect(getProviderApiProtocolBlockReason({ platform: "custom", apiProtocol: "anthropic-compatible" })).toBeNull();
+    // 具名平台协议可从平台名推断 → 不拦
+    expect(getProviderApiProtocolBlockReason({ platform: "openai", apiProtocol: undefined })).toBeNull();
+    expect(getProviderApiProtocolBlockReason({ platform: "anthropic-compatible", apiProtocol: undefined })).toBeNull();
+  });
+
+  it("resolveProviderApiProtocol:显式声明优先 → 平台推断表 → openai-compatible 兜底", () => {
+    // 显式字段优先(即使与平台推断相反——显式声明即用户裁定)
+    expect(resolveProviderApiProtocol({ platform: "custom", apiProtocol: "anthropic-compatible" }))
+      .toBe("anthropic-compatible");
+    expect(resolveProviderApiProtocol({ platform: "openai", apiProtocol: "gemini-compatible" }))
+      .toBe("gemini-compatible");
+    // 平台推断表:具名平台锁定协议形态
+    expect(resolveProviderApiProtocol({ platform: "anthropic-compatible", apiProtocol: undefined }))
+      .toBe("anthropic-compatible");
+    expect(resolveProviderApiProtocol({ platform: "gemini-compatible", apiProtocol: undefined }))
+      .toBe("gemini-compatible");
+    expect(resolveProviderApiProtocol({ platform: "deepseek", apiProtocol: undefined }))
+      .toBe("openai-compatible");
+    expect(resolveProviderApiProtocol({ platform: "tts-compatible", apiProtocol: undefined }))
+      .toBe("openai-compatible");
+    // custom 及未知平台 → 'openai-compatible' 兜底(与运行时 createProviderInstance 同形)
+    expect(resolveProviderApiProtocol({ platform: "custom", apiProtocol: undefined }))
+      .toBe("openai-compatible");
+    expect(resolveProviderApiProtocol({ platform: "never-seen-platform", apiProtocol: undefined }))
+      .toBe("openai-compatible");
+  });
+});
+
 describe("per-model thinking-mode overrides", () => {
   beforeEach(() => {
     useAPIConfigStore.setState({ modelThinkingOverrides: {} });
@@ -612,6 +693,8 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
       baseUrl: "https://relay.example.com/v1",
       apiKey: "sk-c1-旧键",
       model: ["m"],
+      // 1011 断点D:custom 平台 addProvider 已加配置期必填闸,存量式具此字段
+      apiProtocol: "openai-compatible",
     });
     await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
     useAPIConfigStore.getState().updateProvider({ ...added, apiKey: "sk-c1-新键" });
@@ -632,6 +715,7 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
       baseUrl: "https://relay.example.com/v1",
       apiKey: "sk-c1-随删",
       model: ["m"],
+      apiProtocol: "openai-compatible",
     });
     await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
     useAPIConfigStore.getState().removeProvider(added.id);
@@ -651,6 +735,7 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
       baseUrl: "https://relay.example.com/v1",
       apiKey: "sk-c1-供应商键",
       model: ["m"],
+      apiProtocol: "openai-compatible",
     });
     await vi.waitFor(() => expect(readDiskRaw()).toContain('"v":2'));
     useAPIConfigStore.getState().clearAllApiKeys();

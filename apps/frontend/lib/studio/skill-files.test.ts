@@ -8,7 +8,7 @@ describe("studio skill file index", () => {
 
     expect(files.length).toBeGreaterThan(140);
     expect([...categories].sort()).toEqual(["agent", "director", "production", "visual"]);
-    expect(files.map((file) => file.relativePath)).toContain("agent_skills/script_execution_skeleton.md");
+    expect(files.map((file) => file.relativePath)).toContain("agent_skills/script_execution_script.md");
     expect(files.map((file) => file.relativePath)).toContain("art_skills/2D_chinese_guofeng/README.md");
     expect(files.map((file) => file.relativePath)).toContain("art_skills/2d_ghibli/README.md");
     expect(files.map((file) => file.relativePath)).not.toContain("art_skills/daojie_ink_guofeng/README.md");
@@ -17,14 +17,14 @@ describe("studio skill file index", () => {
   });
 
   it("classifies root agent skills into the agent_skills directory", () => {
-    const file = getStudioSkillFile("agent_skills/script_execution_skeleton.md");
+    const file = getStudioSkillFile("agent_skills/script_execution_script.md");
 
     expect(file).toMatchObject({
       category: "agent",
-      relativePath: "agent_skills/script_execution_skeleton.md",
+      relativePath: "agent_skills/script_execution_script.md",
       directory: "agent_skills",
     });
-    expect(file?.relativePath).not.toBe("script_execution_skeleton.md");
+    expect(file?.relativePath).not.toBe("script_execution_script.md");
   });
 
   it("classifies nested skill files and keeps safe relative paths", () => {

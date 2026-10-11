@@ -60,6 +60,72 @@ export interface ShotFxAiShotInput {
    * 缺省/未映射值零影响(旧调用方与中文原词走原链路)。
    */
   cameraMove?: string;
+  /**
+   * 本镜成片素材形态(1011 双产线把关):"video"=H3 视频候选/mediaRef 视频直落片——
+   * 自带镜头运动,2D 只许静止/环境微动,叠推拉摇移=双重运镜;"image"=静图/remotion 槽,
+   * 全运镜池可用。缺省(形态未定/旧调用方)=全池,行为不变。
+   */
+  visualForm?: "video" | "image";
+}
+
+/**
+ * 视频素材镜的安全 2D 运镜闭集(1011 把关):静止+环境微动。
+ * H3 视频自带运镜,push/pull/pan/tilt/punch/chase/vsc:* 等一切推拉摇移
+ * 叠上去都是双重运镜——确定性守卫把违规选择改写为 hold。
+ */
+export const VIDEO_FORM_SAFE_MOTION_IDS: ReadonlySet<string> = new Set([
+  "hold",
+  "drift",
+  "breathe",
+  "sway",
+  "float",
+  "flow",
+]);
+
+/**
+ * 选择侧退役(1011 做2,H3 主线色彩/逐镜创作层退役定谳):video 镜丢弃
+ * grade/addons/atmosphere/registryOverlay——渲染侧 isAssemblyOnlyClip 门
+ * 本就零自动创作层(10-11 分工:创作全前置,Remotion 只做装配),选择侧不再
+ * 产出死数据。保留:motion(经守卫锁安全闭集)/transitionOut(镜间装配,
+ * boundary-intent 层视频边界也消费)/sfx(字幕音效层)。
+ */
+export function retireVideoFormCreativeLayers<T extends { grades?: unknown; addons?: unknown; atmospheres?: unknown; registries?: unknown }>(
+  selection: T,
+  shots: ShotFxAiShotInput[],
+): T {
+  if (!shots.some((shot) => shot.visualForm === "video")) return selection;
+  const videoIds = new Set(shots.filter((shot) => shot.visualForm === "video").map((shot) => shot.shotId));
+  const stripRecord = <V>(record: Record<string, V> | undefined): Record<string, V> | undefined => {
+    if (!record) return record;
+    const next: Record<string, V> = {};
+    for (const [id, value] of Object.entries(record)) {
+      if (!videoIds.has(id)) next[id] = value;
+    }
+    return next;
+  };
+  return {
+    ...selection,
+    grades: stripRecord(selection.grades as Record<string, unknown> | undefined) as T["grades"],
+    addons: stripRecord(selection.addons as Record<string, unknown> | undefined) as T["addons"],
+    atmospheres: stripRecord(selection.atmospheres as Record<string, unknown> | undefined) as T["atmospheres"],
+    registries: stripRecord(selection.registries as Record<string, unknown> | undefined) as T["registries"],
+  };
+}
+
+/** 素材形态守卫:video 镜的 motion 不在安全闭集→改写 hold;其余形态原样。 */
+export function enforceVideoFormMotionGuard(
+  motions: Record<string, ShotFxMotionId>,
+  shots: ShotFxAiShotInput[],
+): Record<string, ShotFxMotionId> {
+  const guarded: Record<string, ShotFxMotionId> = { ...motions };
+  for (const shot of shots) {
+    if (shot.visualForm !== "video") continue;
+    const chosen = guarded[shot.shotId];
+    if (chosen !== undefined && !VIDEO_FORM_SAFE_MOTION_IDS.has(chosen)) {
+      guarded[shot.shotId] = "hold";
+    }
+  }
+  return guarded;
 }
 
 /** 运镜指南单源(导出=vsc-recipes 接线断言的消费点守护;AI prompt 从本表渲染)。 */
@@ -162,6 +228,10 @@ ${REGISTRY_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n")}
       if (cameraMove) {
         const suggestion = cameraMoveToMotionId(cameraMove);
         lines.push(`   分镜运镜: ${cameraMove}${suggestion ? `（初始建议 ${suggestion}，可按镜头语义覆盖）` : ""}`);
+      }
+      // 1011 双产线把关:视频素材镜透出形态约束(确定性守卫兜底,prompt 是软引导)
+      if (s.visualForm === "video") {
+        lines.push("   素材形态: H3视频(自带运镜)——只可选 hold 或环境微动(drift/breathe/sway/float/flow),禁一切推拉摇移(会双重运镜)");
       }
       return lines.join("\n");
     })
@@ -384,18 +454,27 @@ export async function selectShotFxMotions(
     }
     // vsc 章级配额守卫(10-10 批B):AI 超选的 vsc 运镜按镜头顺序保留前 N 个,
     // 超额回落镜序轮换——shotFx 数据与渲染效果保持一致(渲染侧同守卫双闸)。
-    const motions = enforceVscMotionQuota(
-      { ...bridged, ...parsed.motions },
-      shots.map((s) => s.shotId),
+    const motions = enforceVideoFormMotionGuard(
+      enforceVscMotionQuota(
+        { ...bridged, ...parsed.motions },
+        shots.map((s) => s.shotId),
+      ),
+      shots,
     );
-    return { ...parsed, motions, registries: parsed.registries ?? {}, source: "ai" };
+    return retireVideoFormCreativeLayers(
+      { ...parsed, motions, registries: parsed.registries ?? {}, source: "ai" as const },
+      shots,
+    );
   } catch {
     // 启发式兜底不配 grade（AI 选型是增强而非必选；默认 LUT 刷满全片会破坏视觉基线）。
     const heuristic = heuristicShotFxMotions(shots);
     return {
       ...heuristic,
       // 关键词兜底可命中 vsc 配方(俯冲/斜角/纵深等),配额守卫同 AI 路径。
-      motions: enforceVscMotionQuota(heuristic.motions, shots.map((s) => s.shotId)),
+      motions: enforceVideoFormMotionGuard(
+        enforceVscMotionQuota(heuristic.motions, shots.map((s) => s.shotId)),
+        shots,
+      ),
       addons: {},
       grades: {},
       registries: {},

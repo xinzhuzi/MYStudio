@@ -11,7 +11,24 @@ import type { ImageWorkflowGraph } from "@/types/studio";
 describe("studio workflow persistence contract", () => {
   it("keeps the stable storage key and version", () => {
     expect(STUDIO_WORKFLOW_STORAGE_KEY).toBe("studio-workflow-store");
-    expect(STUDIO_WORKFLOW_PERSIST_VERSION).toBe(10);
+    expect(STUDIO_WORKFLOW_PERSIST_VERSION).toBe(11);
+  });
+
+  it("v11 滤除 B+ 收口前旧段键的存量 agentWorkData(1011 终清),其余键原样保留", () => {
+    const migrated = migrateStudioWorkflowState({
+      agentWorkData: [
+        { id: "w1", key: "storySkeleton", data: "旧骨架", episodeId: "ch-1" },
+        { id: "w2", key: "adaptationStrategyReview", data: "旧策略审核", episodeId: "ch-1" },
+        { id: "w3", key: "scriptDraft", data: "剧本正文", episodeId: "ch-1" },
+        { id: "w4", key: "eventAnalysis", data: "事件", episodeId: "ch-1" },
+        { id: "w5", key: "storyboardTable", data: "分镜表", episodeId: "ch-1" },
+      ],
+    }) as { agentWorkData: Array<{ key: string }> };
+    expect(migrated.agentWorkData.map((item) => item.key)).toEqual([
+      "scriptDraft",
+      "eventAnalysis",
+      "storyboardTable",
+    ]);
   });
 
   it("normalizes legacy manual ids without changing other config", () => {

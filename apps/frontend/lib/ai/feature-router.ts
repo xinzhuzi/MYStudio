@@ -272,7 +272,7 @@ export async function callFeatureAPI(
   try {
     const apiKey = config.keyManager.getCurrentKey() || config.apiKey;
     const result = await sdkGenerateText({
-      provider: { baseUrl, apiKey, platform: config.platform, name: config.provider.name },
+      provider: { baseUrl, apiKey, platform: config.platform, name: config.provider.name, apiProtocol: config.provider.apiProtocol },
       model,
       messages: [
         ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
@@ -364,6 +364,23 @@ export function getAllFeatureStatuses(): Array<{
  * 功能绑定的多模态 chat 调用（文本+图片），含 key 轮换/重试。
  * 调用方自行构建 messages（content 可含 image_url）与解析返回；返回 message content 字符串。
  */
+function extractMultimodalText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter(
+        (part): part is { type: 'text'; text: string } =>
+          typeof part === 'object' &&
+          part !== null &&
+          (part as { type?: unknown }).type === 'text' &&
+          typeof (part as { text?: unknown }).text === 'string',
+      )
+      .map((part) => part.text)
+      .join('');
+  }
+  return '';
+}
+
 export async function callFeatureMultimodalAPI(
   feature: AIFeature,
   messages: Array<{ role: string; content: unknown }>,
@@ -383,17 +400,28 @@ export async function callFeatureMultimodalAPI(
   try {
     const apiKey = config.keyManager.getCurrentKey() || config.apiKey;
     const sdkModel = getLanguageModel(
-      { baseUrl, apiKey, platform: config.platform, name: config.provider.name },
+      { baseUrl, apiKey, platform: config.platform, name: config.provider.name, apiProtocol: config.provider.apiProtocol },
       model,
     );
-    // 将 MYStudio 消息格式转为 AI SDK 格式
-    const sdkMessages = messages.map((m) => ({
-      role: m.role as 'system' | 'user' | 'assistant',
+    // 将 MYStudio 消息格式转为 AI SDK 格式;system 消息提为顶层参数——ai@7
+    // standardizePrompt 默认拒收 messages 内 system role,留在数组里会让 SDK
+    // 路径抛 AI_InvalidPromptError 静默回退 HTTP(style-extractor/reverse-prompt/
+    // ChapterQc 三个调用方均首条 system)。
+    const systemText = messages
+      .filter((m) => m.role === 'system')
+      .map((m) => extractMultimodalText(m.content))
+      .filter(Boolean)
+      .join('\n\n');
+    const sdkMessages = messages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      content: m.content as any,
-    }));
+        content: m.content as any,
+      }));
     const result = await generateText({
       model: sdkModel,
+      ...(systemText && { system: systemText }),
       messages: sdkMessages,
       ...(opts?.temperature != null && { temperature: opts.temperature }),
       ...(opts?.signal && { abortSignal: opts.signal }),

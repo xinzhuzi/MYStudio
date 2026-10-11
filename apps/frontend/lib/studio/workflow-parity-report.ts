@@ -455,7 +455,7 @@ function buildNodeReports(
     (item) => item.characters.length || item.scenes.length || item.props.length,
   );
   const scriptRun = hasSuccessfulRun(agentRuns, ["scriptDraft"]);
-  const scriptPlanRun = hasSuccessfulRun(agentRuns, ["directorPlan", "storySkeleton", "adaptationStrategy"]);
+  const scriptPlanRun = hasSuccessfulRun(agentRuns, ["directorPlan"]);
   const assetsRun = hasSuccessfulRun(agentRuns, ["entityExtraction", "deriveAssets", "generateAssets"]);
   const storyboardTableRun = hasSuccessfulRun(agentRuns, ["storyboardTable"]);
   const storyboardRun = hasSuccessfulRun(agentRuns, ["storyboardImage", "storyboardPanel"]);

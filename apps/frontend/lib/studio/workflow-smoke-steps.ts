@@ -89,16 +89,10 @@ export function applyScriptStep(now: number) {
   applyNovelStep(now);
   useStudioStore.setState((state) => ({
     agentWorkData: upsertWorks(state.agentWorkData, [
-      work("storySkeleton", "## 故事骨架\n矿场觉醒、断剑牵引、逃出生天。", SMOKE_CHAPTER_ID, now),
-      work("storySkeletonReview", "## 故事骨架审核\n通过：事件因果完整，无需返修。", SMOKE_CHAPTER_ID, now),
-      work("adaptationStrategy", "## 改编策略\n压缩背景，强化动作和悬念。", SMOKE_CHAPTER_ID, now),
-      work("adaptationStrategyReview", "## 改编策略审核\n通过：节奏压缩符合 3 分钟规格。", SMOKE_CHAPTER_ID, now),
       work("scriptDraft", "## S01\n独孤剑尘睁眼，尘土和铁链声压下来。", SMOKE_CHAPTER_ID, now),
       work("scriptDraftReview", "## 剧本审核\n通过：台词、动作、情绪递进完整。", SMOKE_CHAPTER_ID, now),
     ]),
     agentRuns: upsertRuns(state.agentRuns, [
-      run("storySkeleton", "script", "smoke-storySkeleton", now),
-      run("adaptationStrategy", "script", "smoke-adaptationStrategy", now),
       run("scriptDraft", "script", "smoke-scriptDraft", now),
     ]),
   }));

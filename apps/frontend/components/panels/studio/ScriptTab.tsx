@@ -16,9 +16,10 @@ import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useThemeStore } from "@/stores/app/theme-store";
 import type { AgentWorkKey, NovelChapter } from "@/types/studio";
-import { ClipboardList, Edit3, WandSparkles } from "lucide-react";
+import { BrainCircuit, ClipboardList, Edit3, WandSparkles } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
 
 
@@ -44,7 +45,8 @@ export function ScriptTab(props: {
   manualContext: string;
   directorContext: string;
   styleSummary: string;
-  scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string } | null;
+  // 1011 thinking 进流:thinking 增量随流状态透出,渲染层思考预览区消费
+  scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string; thinking?: string } | null;
 }) {
   // B+ 单次生成:三段卡收口为一段——「剧本(含规划)」,规划已溶解进单次剧本生成
   const SCRIPT_STAGES: ScriptStageKey[] = ["scriptDraft"];
@@ -95,6 +97,21 @@ export function ScriptTab(props: {
     props.scriptStreaming.scopeId === (chapter?.id ?? "")
       ? props.scriptStreaming.text
       : null;
+  const reviewIsStreaming = reviewStreaming !== null;
+  // 1011 thinking 进流:思考增量预览源——与正文/审核同 key+scope 匹配才显示,空串零占位
+  const streamingThinking =
+    props.scriptStreaming &&
+    props.scriptStreaming.key === activeStage &&
+    props.scriptStreaming.scopeId === (chapter?.id ?? "")
+      ? props.scriptStreaming.thinking ?? ""
+      : null;
+  const reviewThinking =
+    props.scriptStreaming &&
+    reviewKey &&
+    props.scriptStreaming.key === reviewKey &&
+    props.scriptStreaming.scopeId === (chapter?.id ?? "")
+      ? props.scriptStreaming.thinking ?? ""
+      : null;
   const streamRef = useRef("");
   streamRef.current = streamingText ?? "";
   const [liveMd, setLiveMd] = useState("");
@@ -110,6 +127,13 @@ export function ScriptTab(props: {
     );
     return () => clearInterval(id);
   }, [isStreaming]);
+  // 思考预览区展开态(1011):思考期展开由渲染处 open={!textStarted} 强制真,与本位无关;
+  // 本位只存「用户手动展开」位且默认折叠——正文首增量到达后折叠为入口,可手动再展开;
+  // 新一轮流式(生成或审核)开始时重置回折叠(其后思考期的展开由强制真接管)。
+  const [thinkingExpanded, setThinkingExpanded] = useState(false);
+  useEffect(() => {
+    setThinkingExpanded(false);
+  }, [isStreaming, reviewIsStreaming]);
 
   // 完整提示词预览(hook 侧构建,含导演偏好/原著圣经/档案检索/项目记忆):所见即所发。
   // null=加载中;""=构建失败,回退本地标准构建展示。
@@ -218,6 +242,32 @@ export function ScriptTab(props: {
         language="zh-CN"
       />
     </div>
+  );
+  // 1011 thinking 进流:思考预览区——输出区上方、弱化样式(muted/小字号/限高可滚动);
+  // 正文开始后折叠为入口(thinkingExpanded 手动再展开);thinking 空时调用侧不渲染(零占位)。
+  const renderThinkingPreview = (thinking: string, textStarted: boolean) => (
+    <Collapsible
+      open={!textStarted || thinkingExpanded}
+      onOpenChange={(open) => {
+        if (textStarted) setThinkingExpanded(open);
+      }}
+      className="shrink-0 rounded-md border border-border/60 bg-muted/20 px-3 py-2"
+    >
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center gap-1.5 text-xs text-muted-foreground select-none"
+        >
+          <BrainCircuit className="h-3.5 w-3.5 shrink-0" />
+          {textStarted ? `AI 思考过程（${thinking.length} 字）` : "AI 思考中…"}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-1 max-h-[160px] overflow-y-auto whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground/85">
+          {thinking}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 
   return (
@@ -365,6 +415,9 @@ export function ScriptTab(props: {
                     AI审核生成
                   </Button>
                 </div>
+                {streamingThinking
+                  ? renderThinkingPreview(streamingThinking, Boolean(streamingText))
+                  : null}
                 {renderMarkdownPreview(generatedMarkdown, "flex-1")}
               </div>
             ) : null}
@@ -395,6 +448,9 @@ export function ScriptTab(props: {
                     {reviewStreaming !== null ? "审核中..." : "审核"}
                   </Button>
                 </div>
+                {reviewThinking
+                  ? renderThinkingPreview(reviewThinking, Boolean(reviewStreaming))
+                  : null}
                 {renderMarkdownPreview(reviewMarkdown, "flex-1")}
               </div>
             ) : null}

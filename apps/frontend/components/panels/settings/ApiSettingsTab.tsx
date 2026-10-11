@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Coins, Key, Link2, Plus, Shield, Trash2, Workflow } from "lucide-react";
+import { AlertTriangle, Coins, Key, Link2, Plus, Shield, Trash2, Workflow } from "lucide-react";
 import { FeatureBindingPanel } from "./api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useAPIConfigStore, type IProvider } from "@/stores/ai/api-config-store";
 import { API_CONFIG_STORAGE_KEY } from "@/stores/ai/api-config-persistence";
+import { getProviderApiProtocolBlockReason } from "@/lib/ai/core";
 import { AgentSettingsSection } from "./AgentSettingsSection";
 import { ApiServiceSettingsSection } from "./ApiServiceSettingsSection";
 import { CostEstimateSettingsSection } from "./CostEstimateSettingsSection";
@@ -124,40 +125,58 @@ export function ApiSettingsTab({
               <div className="rounded-xl border border-border bg-card p-2">
                 <div className="px-2 pb-2 text-xs font-medium text-muted-foreground">供应商</div>
                 <div className="space-y-1">
-                  {providers.map((provider) => (
+                  {providers.map((provider) => {
+                    // 1011 断点D:存量 custom 平台且缺 apiProtocol 的条目挂警示徽标
+                    // (不做存量数据迁移,点击徽标跳编辑补声明;推断/校验单一来源在 lib/ai/core)
+                    const protocolBlockReason = getProviderApiProtocolBlockReason(provider);
+                    return (
                     <div
                       key={provider.id}
                       className={cn(
-                        "group flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors",
+                        "group flex w-full flex-col gap-1 rounded-md px-2 py-2 text-sm transition-colors",
                         selectedProvider?.id === provider.id ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                       )}
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedProviderId(provider.id);
-                          setActiveSection("service");
-                        }}
-                        className="min-w-0 flex-1 text-left rounded-md"
-                      >
-                        <span className="block truncate">{getProviderDisplayName(provider)}</span>
-                        <span className="text-xs text-muted-foreground">{provider.model.length} 个模型</span>
-                      </button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 shrink-0 text-muted-foreground opacity-70 hover:text-destructive md:opacity-0 md:group-hover:opacity-100"
-                        title="删除供应商"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDelete(provider);
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex w-full items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedProviderId(provider.id);
+                            setActiveSection("service");
+                          }}
+                          className="min-w-0 flex-1 text-left rounded-md"
+                        >
+                          <span className="block truncate">{getProviderDisplayName(provider)}</span>
+                          <span className="text-xs text-muted-foreground">{provider.model.length} 个模型</span>
+                        </button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground opacity-70 hover:text-destructive md:opacity-0 md:group-hover:opacity-100"
+                          title="删除供应商"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDelete(provider);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      {protocolBlockReason && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(provider)}
+                          title={protocolBlockReason}
+                          className="flex w-full items-center gap-1 rounded-md border border-warning/25 bg-warning/10 px-2 py-1 text-left text-[11px] leading-4 text-warning transition-colors hover:bg-warning/20 "
+                        >
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          <span className="truncate">协议未声明·按 OpenAI 兼容兜底</span>
+                        </button>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

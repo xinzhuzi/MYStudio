@@ -134,7 +134,9 @@ export function buildOpenAICompatibleEndpoint(baseUrl: string, path: string): st
 
 export function buildGeminiCompatibleEndpoint(baseUrl: string, model: string): string {
   const normalized = baseUrl.replace(/\/+$/, "");
-  const versioned = /\/v\d+(beta)?$/.test(normalized) ? normalized : `${normalized}/v1beta`;
+  // 1011 对拍修正:与 SDK 侧 normalizeGeminiSdkBaseUrl 同规,/vNalpha 版本段也认——
+  // 否则 alpha 代理口会被拼出 …/v1alpha/v1beta/models/… 坏口
+  const versioned = /\/v\d+(?:alpha|beta)?$/.test(normalized) ? normalized : `${normalized}/v1beta`;
   return `${versioned}/models/${encodeURIComponent(model)}:generateContent`;
 }
 
