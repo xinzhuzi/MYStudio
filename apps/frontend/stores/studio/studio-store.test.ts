@@ -164,7 +164,8 @@ describe("studio workflow store", () => {
       expect(state.mediaTasks).toEqual(persistedState.mediaTasks);
       expect(state.eventGraph).toEqual(persistedState.eventGraph);
       expect(state.projectMemoryRecords).toEqual(persistedState.projectMemoryRecords);
-      expect(state.workflowConfig).toEqual(persistedState.workflowConfig);
+      // episodeDurationMin 水合钳制:存量 7 超上限 3,merge 期归一为 3
+      expect(state.workflowConfig).toEqual({ autoAnalyzeEventsOnImport: true, episodeDurationMin: 3 });
       expect(state.addMaterial).toBe(actions.addMaterial);
       expect(state.setWorkflowConfig).toBe(actions.setWorkflowConfig);
       expect(state.resetStudioWorkflow).toBe(actions.resetStudioWorkflow);

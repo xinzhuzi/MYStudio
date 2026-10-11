@@ -35,6 +35,11 @@ import {
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;
 
+/** 事件分析在途标记：同一时刻只跑一批，重复点击并入在途批次（loading 提示常驻不重弹、不并发）。 */
+let novelEventAnalysisInFlight = false;
+/** 全批次共用一条提示：loading 逐章刷进度 → 完成时原地收口为成功/失败汇总。 */
+const NOVEL_EVENT_ANALYSIS_TOAST_ID = "novel-event-analysis";
+
 export function useNovelPipelineActions({
   activeProjectId,
   projectName,
@@ -51,6 +56,8 @@ export function useNovelPipelineActions({
   const handleNovelEventAnalysis = useCallback(
     async (chapters: NovelChapter[]) => {
       if (!chapters.length) return;
+      // 防重入：在途批次的 loading 提示还在顶部常驻，重复点击直接并入，不另起一批
+      if (novelEventAnalysisInFlight) return;
       if (!window.electronAPI?.textCompletion) {
         toast.error("当前环境不支持模型调用");
         return;
@@ -66,105 +73,123 @@ export function useNovelPipelineActions({
         return;
       }
 
-      let successCount = 0;
-      let failedCount = 0;
-      let warningChapterCount = 0;
-      // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
-      const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);
-      const memory = await readSourceMemoryActionContext({
-        projectId: activeProjectId,
-        archiveQuery: sortedChapters
-          .map((chapter) => `${chapter.title} ${chapter.eventSummary ?? ""}`)
-          .join(" ")
-          .slice(0, 200),
-        archiveLimit: 4,
-      });
-      if (!memory.success) {
-        toast.error(memory.error);
-        return;
-      }
-      const bibleCharacters = parseBibleCharacters(memory.residentMemory ?? "");
-      // 项目角色库已登记名(含 notes 别名,如「监工赵四/赵四」)=经实体提取确认的
-      // 工作角色(NPC 在内),不按圣经误写报警
-      const knownCharacterNames = new Set<string>();
-      for (const character of useCharacterLibraryStore.getState().characters) {
-        knownCharacterNames.add(character.name.trim());
-        const aliasNote = (character.notes ?? "").replace(/^别名[：:]/, "").trim();
-        for (const alias of parseAssetNames(aliasNote, "").allNames) {
-          if (alias && alias !== "未命名素材") knownCharacterNames.add(alias.trim());
+      novelEventAnalysisInFlight = true;
+      try {
+        let successCount = 0;
+        let failedCount = 0;
+        let warningChapterCount = 0;
+        // 按 index 排序后滚动注入上一章事件行；调用方传入乱序选择时仍保持章节顺序。
+        const sortedChapters = [...chapters].sort((left, right) => left.index - right.index);
+        toast.loading(`AI 正在分析（0/${sortedChapters.length}）`, {
+          id: NOVEL_EVENT_ANALYSIS_TOAST_ID,
+        });
+        const memory = await readSourceMemoryActionContext({
+          projectId: activeProjectId,
+          archiveQuery: sortedChapters
+            .map((chapter) => `${chapter.title} ${chapter.eventSummary ?? ""}`)
+            .join(" ")
+            .slice(0, 200),
+          archiveLimit: 4,
+        });
+        if (!memory.success) {
+          toast.error(memory.error, { id: NOVEL_EVENT_ANALYSIS_TOAST_ID });
+          return;
         }
-      }
-      let prevEventLine: string | undefined;
-      for (const chapter of sortedChapters) {
-        updateNovelChapter(chapter.id, {
-          eventTaskState: "running",
-          eventErrorReason: undefined,
-        });
-        const messages = buildNovelEventAnalysisMessages(chapter, {
-          bibleContext: memory.context,
-          prevEventContext: prevEventLine,
-        });
-        try {
-          const result = await aiManager.text({
-            binding: { agent: "eventAnalysisAgent" },
-            messages: [
-              { role: "system", content: messages.system },
-              { role: "user", content: messages.user },
-            ],
-            temperature: 0.2,
-            maxTokens: 1024,
-          });
-          if (!result.success || !result.text) {
-            throw new Error(result.error || "事件分析失败");
+        const bibleCharacters = parseBibleCharacters(memory.residentMemory ?? "");
+        // 项目角色库已登记名(含 notes 别名,如「监工赵四/赵四」)=经实体提取确认的
+        // 工作角色(NPC 在内),不按圣经误写报警
+        const knownCharacterNames = new Set<string>();
+        for (const character of useCharacterLibraryStore.getState().characters) {
+          knownCharacterNames.add(character.name.trim());
+          const aliasNote = (character.notes ?? "").replace(/^别名[：:]/, "").trim();
+          for (const alias of parseAssetNames(aliasNote, "").allNames) {
+            if (alias && alias !== "未命名素材") knownCharacterNames.add(alias.trim());
           }
-          const analysis = parseNovelEventAnalysisLine(result.text, {
-            sourceId: chapter.sourceId ?? chapter.id,
-            revision: chapter.revision ?? 1,
-          });
-          const nameWarnings = validateCharactersAgainstBible(
-            analysis.characters,
-            bibleCharacters,
-            knownCharacterNames,
+        }
+        let prevEventLine: string | undefined;
+        for (const [chapterIndex, chapter] of sortedChapters.entries()) {
+          toast.loading(
+            `AI 正在分析（${chapterIndex + 1}/${sortedChapters.length}）：${chapter.title}`,
+            { id: NOVEL_EVENT_ANALYSIS_TOAST_ID },
           );
-          if (nameWarnings.length) warningChapterCount += 1;
           updateNovelChapter(chapter.id, {
-            eventTaskState: "success",
-            eventAnalysis: analysis,
-            eventSummary: formatNovelEventSummary(analysis),
-            eventState: formatNovelEventState(analysis),
-            eventRawOutput: result.text,
+            eventTaskState: "running",
             eventErrorReason: undefined,
-            eventNameWarnings: nameWarnings.length ? nameWarnings : undefined,
           });
-          prevEventLine = analysis.rawLine;
-          successCount += 1;
-        } catch (error) {
-          failedCount += 1;
-          updateNovelChapter(chapter.id, {
-            eventTaskState: "failed",
-            eventErrorReason:
-              error instanceof Error ? error.message : String(error),
-            eventNameWarnings: undefined,
+          const messages = buildNovelEventAnalysisMessages(chapter, {
+            bibleContext: memory.context,
+            prevEventContext: prevEventLine,
+          });
+          try {
+            const result = await aiManager.text({
+              binding: { agent: "eventAnalysisAgent" },
+              messages: [
+                { role: "system", content: messages.system },
+                { role: "user", content: messages.user },
+              ],
+              temperature: 0.2,
+              maxTokens: 1024,
+            });
+            if (!result.success || !result.text) {
+              throw new Error(result.error || "事件分析失败");
+            }
+            const analysis = parseNovelEventAnalysisLine(result.text, {
+              sourceId: chapter.sourceId ?? chapter.id,
+              revision: chapter.revision ?? 1,
+            });
+            const nameWarnings = validateCharactersAgainstBible(
+              analysis.characters,
+              bibleCharacters,
+              knownCharacterNames,
+            );
+            if (nameWarnings.length) warningChapterCount += 1;
+            updateNovelChapter(chapter.id, {
+              eventTaskState: "success",
+              eventAnalysis: analysis,
+              eventSummary: formatNovelEventSummary(analysis),
+              eventState: formatNovelEventState(analysis),
+              eventRawOutput: result.text,
+              eventErrorReason: undefined,
+              eventNameWarnings: nameWarnings.length ? nameWarnings : undefined,
+            });
+            prevEventLine = analysis.rawLine;
+            successCount += 1;
+          } catch (error) {
+            failedCount += 1;
+            updateNovelChapter(chapter.id, {
+              eventTaskState: "failed",
+              eventErrorReason:
+                error instanceof Error ? error.message : String(error),
+              eventNameWarnings: undefined,
+            });
+          }
+        }
+
+        // 单一收口：成功/失败/人名校验警告全部汇入同一条提示，不另弹
+        const warningDescription = warningChapterCount
+          ? `原著圣经人物校验：${warningChapterCount} 章出现疑似误写人名（与圣经登记名差一字），请检查事件摘要列的警告标记`
+          : undefined;
+        const summary = `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章。`;
+        saveAgentWorkData(
+          "eventAnalysis",
+          summary,
+          // 汇总记录归属到本批首章，而不是写死 episode-1——产物盘点按
+          // episodeId 分章，写死会在章节树里分裂出第二个“第 1 章”桶。
+          chapters[0]?.id,
+        );
+        if (failedCount) {
+          toast.error(summary, {
+            id: NOVEL_EVENT_ANALYSIS_TOAST_ID,
+            description: warningDescription,
+          });
+        } else {
+          toast.success(`事件分析完成，共 ${successCount} 章`, {
+            id: NOVEL_EVENT_ANALYSIS_TOAST_ID,
+            description: warningDescription,
           });
         }
-      }
-
-      if (warningChapterCount) {
-        toast.warning(
-          `原著圣经人物校验：${warningChapterCount} 章出现疑似误写人名（与圣经登记名差一字），请检查事件摘要列的警告标记`,
-        );
-      }
-      saveAgentWorkData(
-        "eventAnalysis",
-        `事件分析完成：成功 ${successCount} 章，失败 ${failedCount} 章。`,
-        // 汇总记录归属到本批首章，而不是写死 episode-1——产物盘点按
-        // episodeId 分章，写死会在章节树里分裂出第二个“第 1 章”桶。
-        chapters[0]?.id,
-      );
-      if (failedCount) {
-        toast.error(`事件分析完成，失败 ${failedCount} 章`);
-      } else {
-        toast.success(`事件分析完成，共 ${successCount} 章`);
+      } finally {
+        novelEventAnalysisInFlight = false;
       }
     },
     [activeProjectId, saveAgentWorkData, updateNovelChapter],

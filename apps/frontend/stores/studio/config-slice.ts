@@ -6,6 +6,12 @@
  */
 import type { StudioWorkflowConfig } from "@/types/studio";
 
+/** 单集参考时长上限 3 分钟（下限 1）：一切写入与水合在此归一；非法值归 undefined（渲染默认 3）。 */
+export function clampEpisodeDurationMin(v: unknown): number | undefined {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 1 ? Math.min(3, Math.round(n)) : undefined;
+}
+
 /** Config slice 契约。 */
 export interface ConfigSlice {
   workflowConfig: StudioWorkflowConfig;
@@ -25,10 +31,16 @@ type SetFn = (
 export function createConfigSliceActions(set: SetFn) {
   return {
     setWorkflowConfig: (updates: Partial<StudioWorkflowConfig>): void => {
+      const normalized = { ...updates };
+      if ("episodeDurationMin" in normalized) {
+        normalized.episodeDurationMin = clampEpisodeDurationMin(
+          normalized.episodeDurationMin,
+        );
+      }
       set((state) => ({
         workflowConfig: {
           ...state.workflowConfig,
-          ...updates,
+          ...normalized,
         },
       }));
     },

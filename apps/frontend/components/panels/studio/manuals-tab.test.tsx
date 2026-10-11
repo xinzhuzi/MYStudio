@@ -46,6 +46,7 @@ describe("ManualsTab", () => {
         workflowConfig={{
           visualManualId: "ink",
           directorManualId: "narrative",
+          episodeDurationMin: 8,
         }}
         setWorkflowConfig={vi.fn()}
         manualCatalog={{
@@ -56,7 +57,10 @@ describe("ManualsTab", () => {
     );
 
     expect(screen.getByText("项目配置")).toBeTruthy();
-    expect(screen.getByText("单集参考时长（分钟）")).toBeTruthy();
+    expect(screen.getByText("单集参考时长（分钟，上限 3）")).toBeTruthy();
+    // 存量超限值(8)显示层即钳制为 3
+    const durationInput = screen.getByPlaceholderText("例如 3") as HTMLInputElement;
+    expect(durationInput.value).toBe("3");
     expect(screen.getByText("视觉手册（画风）")).toBeTruthy();
     expect(screen.getByText("导演手册")).toBeTruthy();
     expect(screen.getByText("水墨国风")).toBeTruthy();

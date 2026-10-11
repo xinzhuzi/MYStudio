@@ -9,6 +9,11 @@ import { BookMarked, Check, Edit3, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ManualEditDialog } from "./ManualEditDialog";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
+import { clampEpisodeDurationMin } from "@/stores/studio/config-slice";
+
+/** 显示层默认 3 分钟；非法/缺省值回落默认。 */
+const displayEpisodeDurationMin = (v: number | undefined | null): number =>
+  clampEpisodeDurationMin(v) ?? 3;
 
 export function ManualsTab(props: {
   workflowConfig: StudioWorkflowConfig;
@@ -51,7 +56,7 @@ export function ManualsTab(props: {
               type="number"
               min={1}
               max={3}
-              value={props.workflowConfig.episodeDurationMin ?? 3}
+              value={displayEpisodeDurationMin(props.workflowConfig.episodeDurationMin)}
               onChange={(e) =>
                 props.setWorkflowConfig({
                   episodeDurationMin: e.target.value
@@ -59,6 +64,12 @@ export function ManualsTab(props: {
                     : undefined,
                 })
               }
+              onBlur={(e) => {
+                // 钳回原值时 React 不重写 DOM（3→3 视为无变化），失焦手动回填钳制值
+                e.currentTarget.value = String(
+                  displayEpisodeDurationMin(Number(e.currentTarget.value)),
+                );
+              }}
               className="h-8"
               placeholder="例如 3"
             />

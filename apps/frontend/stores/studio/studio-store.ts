@@ -12,7 +12,7 @@ import {
 import { createMaterialSliceActions } from "./material-slice";
 import { createRunTaskSliceActions } from "./run-task-slice";
 import { createImageWorkflowSliceActions } from "./image-workflow-slice";
-import { createConfigSliceActions } from "./config-slice";
+import { createConfigSliceActions, clampEpisodeDurationMin } from "./config-slice";
 import { createNovelSliceActions } from "./novel-slice";
 import { createMemorySliceActions } from "./memory-slice";
 import { createEntitySliceActions } from "./entity-slice";
@@ -605,9 +605,21 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const persisted = persistedState && typeof persistedState === "object"
           ? persistedState as Partial<StudioWorkflowState>
           : {};
+        // 存量钳制：单集参考时长上限 3 分钟，老版本写过的超限值（如 8）水合即归一
+        const persistedConfig = persisted.workflowConfig;
         return {
           ...currentState,
           ...persisted,
+          ...(persistedConfig
+            ? {
+                workflowConfig: {
+                  ...persistedConfig,
+                  ...("episodeDurationMin" in persistedConfig
+                    ? { episodeDurationMin: clampEpisodeDurationMin(persistedConfig.episodeDurationMin) }
+                    : {}),
+                },
+              }
+            : {}),
           imageWorkflows: filterPersistedImageWorkflows(persisted.imageWorkflows),
         };
       },
