@@ -5,6 +5,7 @@ import {
   SHOT_FX_MOTION_ROTATION,
   buildShotFxEditingEffects,
   enforceVscMotionQuota,
+  isAssemblyOnlyClip,
   isShotFxMotionId,
   keywordShotFxMotion,
   mergeShotFxEditingEffects,
@@ -27,7 +28,10 @@ function clip(index: number, storyboardId: string): ShotFxPlanClipLike {
     trackKind: "image",
     startUs: index * 1_000_000,
     durationUs: 1_000_000,
-    source: { evidence: { storyboardId } },
+    // 素材形态门(10-11):夹具对齐 TimelineRenderClip 真身(source.kind 必填恒在场,
+    // 两调用方均传 plan.clips 全量);本 helper 辖下的既有用例全测静图产线决策行为,
+    // 挂 storyboardImage 走创作链,行为与门前逐项一致。
+    source: { kind: "storyboardImage", evidence: { storyboardId } },
   };
 }
 
@@ -503,5 +507,166 @@ describe("vsc:* 运镜扩容（10-10 批B,D1/D2/D4）", () => {
 
   it("vsc 关键词不进镜序轮换(同 hold:仅 AI/关键词可选)", () => {
     expect(SHOT_FX_MOTION_ROTATION.every((id) => !isVscMotionId(id))).toBe(true);
+  });
+});
+
+/** 素材形态门用 clip 构造(带 source.kind,贴近 TimelineRenderClip 真身)。 */
+function clipWith(
+  index: number,
+  source: ShotFxPlanClipLike["source"],
+  trackKind: string = "video",
+): ShotFxPlanClipLike {
+  return {
+    id: `clip-${index + 1}`,
+    trackKind,
+    startUs: index * 1_000_000,
+    durationUs: 1_000_000,
+    source,
+  };
+}
+
+describe("isAssemblyOnlyClip 素材形态判定表(10-11 H3 主线分工;design 判定表逐行)", () => {
+  it("videoCandidate → assembly-only(production track = H3 线)", () => {
+    expect(
+      isAssemblyOnlyClip(clipWith(0, { kind: "videoCandidate", evidence: { storyboardId: "s1" } })),
+    ).toBe(true);
+  });
+
+  it("storyboardImage → 创作链(静图产线)", () => {
+    expect(
+      isAssemblyOnlyClip(clipWith(0, { kind: "storyboardImage", evidence: { storyboardId: "s1" } }, "image")),
+    ).toBe(false);
+  });
+
+  it("storyboardVideo + remotionJobId → 创作链(Remotion 逐镜队列产物,静图+运镜已烘)", () => {
+    expect(
+      isAssemblyOnlyClip(
+        clipWith(0, { kind: "storyboardVideo", evidence: { storyboardId: "s1", remotionJobId: "job-1" } }),
+      ),
+    ).toBe(false);
+  });
+
+  it("storyboardVideo 无 remotionJobId → assembly-only(mediaRef 视频=已有真实运动)", () => {
+    expect(
+      isAssemblyOnlyClip(clipWith(0, { kind: "storyboardVideo", evidence: { storyboardId: "s1" } })),
+    ).toBe(true);
+  });
+
+  it("未知/未识别 kind → assembly-only(未知视频素材按真实视频保守处理)", () => {
+    expect(isAssemblyOnlyClip(clipWith(0, { kind: "asset", evidence: { storyboardId: "s1" } }))).toBe(true);
+    expect(isAssemblyOnlyClip(clipWith(0, { kind: "mystery-kind", evidence: { storyboardId: "s1" } }))).toBe(true);
+  });
+
+  it("无 source → assembly-only(无法溯源=保守跳过自动创作层)", () => {
+    expect(isAssemblyOnlyClip(clipWith(0, undefined))).toBe(true);
+  });
+});
+
+describe("buildShotFxEditingEffects 素材形态门(10-11 H3 主线分工:Remotion 收敛纯装配)", () => {
+  it("用例A 混合章:H3(videoCandidate)镜零 effect-shot-fx- 前缀条目,静图镜 panzoom+grain 照发", () => {
+    const { effects } = buildShotFxEditingEffects({
+      planClips: [
+        // H3 镜带 AI 显式 vsc 运镜 hint——即使 AI 选了运镜也不发(门辖自动层)
+        clipWith(0, { kind: "videoCandidate", evidence: { storyboardId: "sb-h3" } }),
+        clipWith(1, { kind: "storyboardImage", evidence: { storyboardId: "sb-still" } }, "image"),
+      ],
+      storyboards: [
+        { id: "sb-h3", prompt: "对峙", shotFx: { motion: "vsc:slow-push-in", source: "ai" } },
+        { id: "sb-still", prompt: "庭院里喝茶", shotFx: { motion: "push-in", source: "ai" } },
+      ],
+    });
+    // H3 镜:零自动创作层(panZoom/vscMotion/grade/atmosphere/grain 全零)
+    expect(effects.filter((effect) => effect.targetClipId === "clip-1")).toHaveLength(0);
+    expect(
+      effects.filter((effect) => effect.targetClipId === "clip-1" && effect.id.startsWith("effect-shot-fx-")),
+    ).toHaveLength(0);
+    // 静图镜:创作链不变(panzoom + grain 照发)
+    expect(effectOf(effects, "panZoom", "clip-2")).toBeDefined();
+    expect(effectOf(effects, "grain", "clip-2")).toBeDefined();
+  });
+
+  it("用例B 静图产线回归锁:remotionSlot 产物(storyboardVideo+remotionJobId)创作链逐项保留", () => {
+    const { effects } = buildShotFxEditingEffects({
+      planClips: [
+        clipWith(0, { kind: "storyboardImage", evidence: { storyboardId: "sb-1" } }, "image"),
+        clipWith(1, { kind: "storyboardVideo", evidence: { storyboardId: "sb-2", remotionJobId: "job-1" } }),
+      ],
+      storyboards: [
+        { id: "sb-1", prompt: "庭院里喝茶", shotFx: { motion: "push-in", source: "ai" } },
+        { id: "sb-2", prompt: "庭院里喝茶", shotFx: { motion: "vsc:slow-push-in", source: "ai" } },
+      ],
+    });
+    // 静图镜:legacy 运镜 panZoom+grain(现行为)
+    expect(effectOf(effects, "panZoom", "clip-1")).toBeDefined();
+    expect(effectOf(effects, "grain", "clip-1")).toBeDefined();
+    // remotionSlot 产物镜:vsc camera 卡照走 vscMotion(现行为,panZoom/grain 不叠加)
+    expect(effectOf(effects, "vscMotion", "clip-2")?.params).toEqual({ recipe: "vsc:slow-push-in" });
+    expect(effectOf(effects, "panZoom", "clip-2")).toBeUndefined();
+    expect(effectOf(effects, "grain", "clip-2")).toBeUndefined();
+  });
+
+  it("用例C chapterGrade 过门:全 H3 镜章节零 grade;对照全静图镜章节 grade 照发(现行回归锁)", () => {
+    const chapterGrade = { lutId: "cn-daiqing", blend: 0.4 };
+    const h3 = buildShotFxEditingEffects({
+      planClips: [clipWith(0, { kind: "videoCandidate", evidence: { storyboardId: "sb-1" } })],
+      storyboards: [{ id: "sb-1", prompt: "对峙" }],
+      chapterGrade,
+    });
+    expect(h3.effects.filter((effect) => effect.effectId === "grade")).toHaveLength(0);
+    expect(h3.effects.filter((effect) => effect.targetClipId === "clip-1")).toHaveLength(0);
+
+    const still = buildShotFxEditingEffects({
+      planClips: [clipWith(0, { kind: "storyboardImage", evidence: { storyboardId: "sb-1" } }, "image")],
+      storyboards: [{ id: "sb-1", prompt: "对峙" }],
+      chapterGrade,
+    });
+    const grades = still.effects.filter((effect) => effect.effectId === "grade");
+    expect(grades).toHaveLength(1);
+    expect(grades[0]?.params).toEqual({ lutId: "cn-daiqing", blend: 0.4 });
+  });
+
+  it("用例D 轮换指数隔离:H3 镜不占轮换坑,两侧静图镜轮换连续", () => {
+    const { effects } = buildShotFxEditingEffects({
+      planClips: [
+        clipWith(0, { kind: "storyboardImage", evidence: { storyboardId: "sb-1" } }, "image"),
+        clipWith(1, { kind: "videoCandidate", evidence: { storyboardId: "sb-2" } }),
+        clipWith(2, { kind: "storyboardImage", evidence: { storyboardId: "sb-3" } }, "image"),
+      ],
+      storyboards: [
+        { id: "sb-1", prompt: "庭院里喝茶" },
+        { id: "sb-2", prompt: "庭院里喝茶" },
+        { id: "sb-3", prompt: "庭院里喝茶" },
+      ],
+    });
+    // 第 1 静图镜 = 轮换 index 0 = push-in
+    expect(effectOf(effects, "panZoom", "clip-1")?.params.scaleFrom).toBe(
+      SHOT_FX_MOTION_PRESETS["push-in"].panZoom.fromScale,
+    );
+    // H3 镜夹中间不占坑 → 第 2 静图镜 = 轮换 index 1 = pull-out(非 index 2 的 pan-right)
+    expect(effectOf(effects, "panZoom", "clip-3")?.params.scaleFrom).toBe(
+      SHOT_FX_MOTION_PRESETS["pull-out"].panZoom.fromScale,
+    );
+    // H3 镜自身零产出
+    expect(effects.filter((effect) => effect.targetClipId === "clip-2")).toHaveLength(0);
+  });
+
+  it("用例E 人工效果不受门辖:无 effect-shot-fx- 前缀的手工 panZoom 挂 H3 镜,merge 后保留", () => {
+    const manualPanZoom: EditingEffect = {
+      id: "effect-manual-pan-clip-1",
+      effectId: "panZoom",
+      targetClipId: "clip-1",
+      startUs: 0,
+      durationUs: 1_000_000,
+      params: { scaleFrom: 1, scaleTo: 1.06, x: 0.5, y: 0.5 },
+      enabled: true,
+    };
+    const merged = mergeShotFxEditingEffects([manualPanZoom], {
+      planClips: [clipWith(0, { kind: "videoCandidate", evidence: { storyboardId: "sb-1" } })],
+      storyboards: [{ id: "sb-1", prompt: "对峙" }],
+    });
+    // 门只停 AI/规则自动注入层;人工效果(无前缀)照旧保留
+    expect(merged.effects.find((effect) => effect.id === "effect-manual-pan-clip-1")).toBeDefined();
+    // 同镜零自动产出(唯一 panZoom = 人工那条)
+    expect(merged.effects.filter((effect) => effect.effectId === "panZoom")).toHaveLength(1);
   });
 });

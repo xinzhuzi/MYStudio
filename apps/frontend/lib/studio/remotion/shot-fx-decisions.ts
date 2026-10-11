@@ -370,7 +370,33 @@ export interface ShotFxPlanClipLike {
   trackKind: string;
   startUs: number;
   durationUs: number;
-  source?: { evidence?: { storyboardId?: string } };
+  source?: {
+    /** 素材来源(TimelineRenderClip.source.kind 全量在场,纯拓宽向后兼容)。 */
+    kind?: string;
+    evidence?: { storyboardId?: string; remotionJobId?: string };
+  };
+}
+
+/**
+ * 素材形态门(10-11 H3 主线分工):H3/真实视频镜只吃装配层,静图产线镜吃完整创作链。
+ * 判定表(design 真源,实现与测试逐行对齐):
+ * - videoCandidate            → assembly-only(production track = H3 线)
+ * - storyboardImage           → 创作链(静图产线)
+ * - storyboardVideo+remotionJobId → 创作链(Remotion 逐镜队列产物,静图+运镜已烘)
+ * - storyboardVideo 无证据     → assembly-only(mediaRef 视频=已有真实运动)
+ * - 其他/未识别 kind / 无 source → assembly-only(未知素材按真实视频保守处理,fail-closed)
+ */
+export function isAssemblyOnlyClip(clip: ShotFxPlanClipLike): boolean {
+  switch (clip.source?.kind) {
+    case "storyboardImage":
+      return false;
+    case "storyboardVideo":
+      return !clip.source.evidence?.remotionJobId;
+    case "videoCandidate":
+      return true;
+    default:
+      return true;
+  }
 }
 
 export interface ShotFxResult {
@@ -499,6 +525,11 @@ export function buildShotFxEditingEffects(input: {
     if (clip.trackKind !== "video" && clip.trackKind !== "image") continue;
     const storyboardId = clip.source?.evidence?.storyboardId;
     if (!storyboardId) continue;
+    // 素材形态门(10-11 H3 主线分工:创作全前置,Remotion 只做装配):H3/真实视频镜
+    // 零自动创作层(panZoom/vscMotion/grade/atmosphere/grain 全停,含 chapterGrade
+    // 钉死分支——门在其之前短路);轮换指数不推进(节奏只服务静图产线镜序);
+    // vsc 配额不消耗。人工效果不受门辖(merge 前缀纪律照旧)。
+    if (isAssemblyOnlyClip(clip)) continue;
     const storyboard = storyboardById.get(storyboardId);
     const text = storyboard
       ? `${String(storyboard.prompt ?? "")}\n${String(storyboard.line ?? "")}`
