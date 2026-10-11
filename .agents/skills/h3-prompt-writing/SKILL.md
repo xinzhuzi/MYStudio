@@ -41,6 +41,17 @@ Read `references/ref-en.txt` for label rules, retention analysis, and complete e
 - Describe each shot by composition, subjects, environment, actions, camera, sound, and the exact point where referenced content appears.
 - Avoid plot summaries, unresolved reference labels, and timing that does not match the requested duration.
 - Every final prompt must stand alone without its surrounding context: never rely on words like "the previous shot", "continues", "same as above", "still", or "as before"; expand every physical state into a complete, self-contained description.
+
+## Manying Pipeline Audio Policy (2026-10-11 division of labour)
+
+When the app assembles the prompt (`apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`), the audio policy is derived per shot instead of hand-picked:
+
+- **Policy:** `dialogueAudioPolicy(lines)` — at least one character line → `full`; narrator-only or no lines → `ambient` (sound bed, "lips stay closed"). Dispatch (`ComfyCanvasStudio`) injects it per shot.
+- **Character/narrator split, one source:** `splitDialogueLines(lines)` — narrator = broad label set (旁白/vo/画外音/解说 via `chapter-voiceover.isNarratorSpeaker`) plus any colon-less whole line; everything else with a colon is a character line.
+- **Character lines only under `full`:** the dialogue passage injects character `says` lines only; narrator lines go to the external TTS narrator track and never enter the H3 prompt (the off-screen voiceover phrasing is retired on this pipeline). The verbatim self-check gate's planned list = character-line texts only (see `docs/comfyui-kb/参考_文案逐字自检门.md`).
+- **Voice-timbre anchor (D1):** a character line renders `says in a <voiceMood> tone:` with `voiceMood` passed straight from `storyboard.emotion` at dispatch; omit the phrase when the mood is empty. Hand-written prompts may use the same anchor for cross-shot voice consistency.
+- **External narrator text:** TTS synthesis text for a shot = `externalNarratorSpokenText(lines, ttsSpokenText ?? "")` — mixed-line shots yield the normalized narrator body (pure-dialogue shots yield `""` and skip TTS entirely); non-`full` shots keep the full text unchanged.
+
 ## Tips for Better Results
 - Always match the total duration of the description to the requested video length (5–15 seconds; matches the trained range, see `docs/comfyui-kb/参数速查.md` H3 section and `references/direct-zh.md`).
 - Keep reference labels consistent (e.g. `<Picture 1>`, `<Video 1>`, `<Audio 1>`) across every section.

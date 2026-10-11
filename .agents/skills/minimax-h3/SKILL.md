@@ -88,6 +88,18 @@ Without `<d>` the model is never told the exact words and improvises phonetics. 
 `says in an off-screen voiceover` plus a statement that the lips stay closed. Use `<scenetrans>` when a line
 crosses a cut, `<cutoff>` when speech is truncated by the end. On-screen text goes in double quotes, verbatim.
 
+**Manying pipeline ruling (2026-10-11): narrator lines never enter the H3 prompt.** The app derives the audio
+policy per shot — `dialogueAudioPolicy(lines)` in `apps/frontend/lib/assist/image-studio/h3-shot-prompt.ts`:
+any character line → `full`, otherwise `ambient` (sound bed, "lips stay closed"). Under `full` the dialogue
+passage injects **character lines only**; narrator lines (broad label set 旁白/vo/画外音/解说 via
+`chapter-voiceover.isNarratorSpeaker`, plus any colon-less whole line — the unified narrator predicate) belong
+to the external TTS narrator track, so the off-screen voiceover phrasing above is retired on this pipeline.
+Each character `says` line may carry a voice-timbre anchor — `林昭 (S1) says in a 克制 tone:
+<d>[Chinese] 你来。</d>` — with the mood passed straight from `storyboard.emotion` at dispatch (D1 anchor for
+cross-shot voice consistency; omit the phrase when empty). The verbatim self-check gate's planned list is the
+character-line texts only, enforced under `full` by `assertPlannedTextVerbatimGate`
+(`h3-shot-video-workflow.ts`).
+
 ## Camera is a controlled vocabulary
 
 Motion type plus amplitude plus speed, and medium amplitude at normal speed is the default you simply omit:
