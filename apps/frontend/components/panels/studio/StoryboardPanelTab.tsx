@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Play, Square } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Play, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { VideoPreviewModal } from "@/components/ui/media-preview-modal";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,9 @@ import type {
   StoryboardBatchGenerationState,
   StoryboardBatchResumeInfo,
 } from "./image-workflow/use-storyboard-batch-generation";
+import type { StoryboardBindingRunView } from "./storyboard-asset-binding";
+import type { ChapterPipelineRunView } from "./chapter-pipeline";
+import { ChapterAcceptanceBanner } from "./ChapterAcceptanceBanner";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   ShotImageCompareDialog,
@@ -39,6 +42,8 @@ export function StoryboardPanelTab({
   batch,
   upscale,
   chapterAutoVideo,
+  assetBinding,
+  pipeline,
 }: {
   storyboards: StoryboardItem[];
   onOpenImageWorkflow: (context: ImageWorkflowOpenContext) => void;
@@ -65,6 +70,23 @@ export function StoryboardPanelTab({
     running: boolean;
     run: () => void;
     openFinal?: () => void;
+  };
+  /** 分镜素材自动绑定(10-11 批4):按钮+例外清单,挂载点 useStoryboardAssetBinding 注入 */
+  assetBinding?: {
+    running: boolean;
+    run?: StoryboardBindingRunView;
+    start: () => void;
+    retryShot: (storyboardId: string) => void;
+    clear: () => void;
+  };
+  /** 章级流水线(10-11 批5):手动触发按钮+章验收卡横幅,挂载点 useChapterPipelineOrchestrator 注入 */
+  pipeline?: {
+    running: boolean;
+    run?: ChapterPipelineRunView;
+    /** 批6 实况 stale 下游任务数(剧本变更即时)。 */
+    staleCount: number;
+    start: () => void;
+    goToAssets?: () => void;
   };
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
@@ -190,6 +212,30 @@ export function StoryboardPanelTab({
               </Button>
             )
           ) : null}
+          {pipeline ? (
+            <Button
+              size="sm"
+              variant="outline"
+              data-storyboard-panel-pipeline
+              disabled={pipeline.running}
+              onClick={pipeline.start}
+              title="串 本章资产生成→衍生闭环→分镜绑定 后台跑完出章验收卡；已成产物幂等跳过，可从断点续跑"
+            >
+              {pipeline.running ? "章流水线中…" : "章流水线"}
+            </Button>
+          ) : null}
+          {assetBinding ? (
+            <Button
+              size="sm"
+              variant="outline"
+              data-storyboard-panel-bind
+              disabled={assetBinding.running || ordered.length === 0}
+              onClick={assetBinding.start}
+              title="按引用资产名匹配章资产清单，命中唯一自动绑为关键帧首帧；多义/零命中/缺图进例外清单"
+            >
+              {assetBinding.running ? "素材绑定中…" : "自动绑定素材"}
+            </Button>
+          ) : null}
           <span className="text-sm text-muted-foreground">
             {ordered.length ? `${ordered.length} 个分镜 · ${withImage} 个画面` : "尚无分镜,请先生成分镜表"}
           </span>
@@ -239,6 +285,84 @@ export function StoryboardPanelTab({
           ) : null
         ) : null}
       </div>
+
+      {pipeline ? (
+        <ChapterAcceptanceBanner
+          run={pipeline.run}
+          staleCount={pipeline.staleCount}
+          onRunPipeline={pipeline.start}
+          onGoToAssets={pipeline.goToAssets}
+        />
+      ) : null}
+
+      {assetBinding?.run ? (
+        <div
+          className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-panel/60 px-3 py-2 text-xs"
+          data-storyboard-binding-strip
+        >
+          {assetBinding.running ? (
+            <span className="inline-flex items-center gap-1.5 text-primary">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              素材绑定中 {assetBinding.run.progress.done}/{assetBinding.run.progress.total}
+              {assetBinding.run.progress.currentShot ? ` · ${assetBinding.run.progress.currentShot}` : ""}
+            </span>
+          ) : assetBinding.run.report ? (
+            <span className="min-w-0 flex-1">
+              <span className="font-medium text-foreground">
+                {`素材绑定：绑 ${assetBinding.run.report.boundCount}/${assetBinding.run.report.total} · 分镜就绪 ${assetBinding.run.report.readyAfter}`}
+                {assetBinding.run.report.fillTriggered ? "（已触发补图）" : ""}
+              </span>
+              {assetBinding.run.report.exceptions.length ? (
+                <span className="ml-2 text-destructive/90">
+                  {`例外 ${assetBinding.run.report.exceptions.length}：${assetBinding.run.report.exceptions
+                    .map((row) => `S${String(row.shotIndex).padStart(2, "0")} ${row.statusLabel}`)
+                    .join("、")}`}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+          {!assetBinding.running ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 text-muted-foreground"
+              aria-label="关闭素材绑定报表"
+              onClick={assetBinding.clear}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {assetBinding?.run?.report?.exceptions.length && !assetBinding.running ? (
+        <div className="mt-1 space-y-1" data-storyboard-binding-exceptions>
+          {assetBinding.run.report.exceptions.map((row) => (
+            <div
+              key={row.storyboardId}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5 text-xs"
+            >
+              <div className="min-w-0 flex-1">
+                <span className="font-medium text-foreground">{`S${String(row.shotIndex).padStart(2, "0")}`}</span>
+                <span className="ml-2 text-muted-foreground">{row.statusLabel}</span>
+                <span className="ml-2 text-destructive/90">{row.detail}</span>
+                {row.candidates?.length ? (
+                  <span className="ml-2 text-muted-foreground">{`候选：${row.candidates.join("、")}`}</span>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => assetBinding.retryShot(row.storyboardId)}
+              >
+                重试
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {ordered.length ? (
         <div

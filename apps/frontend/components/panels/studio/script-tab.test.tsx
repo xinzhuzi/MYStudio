@@ -45,7 +45,7 @@ describe("ScriptTab", () => {
   it("renders generated script output status in the extracted output panel", () => {
     render(
       <ScriptOutputPanel
-        activeStage="storySkeleton"
+        activeStage="scriptDraft"
         hasGeneratedOutput={true}
         hasPrereq={true}
         output="## 测试输出"

@@ -277,7 +277,16 @@ export function buildStoryboardEditingProject(
       muted: !(visual.unmute || remotionOnly),
     });
 
-    if (!remotionOnly && isAudioRef(storyboard.audioRef)) {
+    // 10-11 S16 双音边界:外挂旁白文本非空才建 voice clip(与 TTS 跳过判据
+    // 同源,chapter-auto-video 前置守卫)。纯对白 H3 烧轨镜历史一键成片挂的
+    // 旧全文 TTS audioRef 可能还留在分镜上,TTS 重跑被跳过但 clip 只看
+    // audioRef 在场会把旧全文音频照铺轨 → 角色台词双音;派生文本空=零外挂
+    // 音频,直接不建。混合镜旁白文本非空会重跑 TTS 覆盖 audioRef,照常铺。
+    if (
+      !remotionOnly
+      && isAudioRef(storyboard.audioRef)
+      && externalNarratorSpokenText(storyboard.lines, storyboard.ttsSpokenText ?? "").trim()
+    ) {
       voiceClips.push({
         id: `voice-${storyboard.id}`,
         trackId: voiceTrackId,

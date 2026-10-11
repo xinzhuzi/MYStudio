@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -17,10 +17,14 @@ import {
   Loader2,
   Mic2,
   RefreshCw,
+  RotateCw,
+  X,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { eventBus } from "@/lib/events/event-bus";
+import { formatCny } from "@/lib/studio/script-asset-cost";
 import { AssetGenerationRow } from "./ScriptAssetGenerationRow";
 import {
   ASSET_TYPES,
@@ -30,6 +34,21 @@ import {
   typeLabel,
   type AssetGenerationType,
 } from "./script-asset-generation-model";
+import {
+  assetRowsFromBatch,
+  formatDurationMs,
+  retryScriptAssetBatchRow,
+  runChapterScriptAssetGeneration,
+  useScriptAssetBatchStore,
+  type ScriptAssetBatchRowOutcome,
+} from "./script-asset-batch";
+import {
+  retryDerivedChainRow,
+  retryFailedDerivedChainEntries,
+  runDerivedAssetChain,
+  useDerivedChainStore,
+  type DerivedChainRowOutcome,
+} from "./derived-asset-chain";
 import { useScriptAssetGenerationActions } from "./useScriptAssetGenerationActions";
 import { useScriptAssetGenerationData } from "./useScriptAssetGenerationData";
 import { getRoleVoiceSpeakerIds, resolveRoleVoiceBinding } from "./script-asset-voice-binding";
@@ -59,7 +78,6 @@ export function ScriptAssetGenerationTab({
     currentRows,
     entityExtractions,
     rows,
-    scriptPlans,
     stats,
     visualManualId,
   } = useScriptAssetGenerationData(activeType);
@@ -120,7 +138,6 @@ export function ScriptAssetGenerationTab({
     setAssetDialogOpen,
     notFoundAsset,
     setNotFoundAsset,
-    handleDeriveAssets,
     handleAutoAssignAudio,
     handleOpenAsset,
     handleGenerateSingle,
@@ -131,9 +148,7 @@ export function ScriptAssetGenerationTab({
     visualManualId,
     currentRows: currentRowsWithStoredAssets,
     activeProjectId,
-    scriptPlans,
     productionEpisodeId,
-    entityExtractions,
     onAssetStored: (row, asset) => {
       setStoredAssetOverrides((current) => ({
         ...current,
@@ -141,6 +156,127 @@ export function ScriptAssetGenerationTab({
       }));
     },
   });
+
+  // ── 一键生成编排(批2):本章批次行 + 批次态订阅 + 失败行重试 ──────────────
+  const chapterBatch = useMemo(
+    () => entityExtractions.find((item) => item.episodeId === productionEpisodeId),
+    [entityExtractions, productionEpisodeId],
+  );
+  const chapterRows = useMemo(
+    () => (chapterBatch ? assetRowsFromBatch(chapterBatch, activeProjectId) : []),
+    // rows 由 data hook 随三库/提取批次重算,借其变更触发本章行重算
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chapterBatch, activeProjectId, rows],
+  );
+  const batchRun = useScriptAssetBatchStore(
+    (state) => state.runsByChapter[productionEpisodeId],
+  );
+  const clearBatchRun = useScriptAssetBatchStore((state) => state.clearRun);
+  const batchRunning = batchRun?.status === "running";
+  const [retryingTargetId, setRetryingTargetId] = useState<string | null>(null);
+
+  const handleRunChapterAssets = useCallback(async () => {
+    await runChapterScriptAssetGeneration({
+      chapterId: productionEpisodeId,
+      projectId: activeProjectId,
+      visualManualId,
+    });
+  }, [activeProjectId, productionEpisodeId, visualManualId]);
+
+  const handleRetryBatchRow = useCallback(
+    async (row: ScriptAssetBatchRowOutcome) => {
+      if (batchRunning) {
+        toast.info("本章一键生成进行中，等待批次结束后再重试单行");
+        return;
+      }
+      setRetryingTargetId(row.targetId);
+      try {
+        await retryScriptAssetBatchRow({
+          chapterId: productionEpisodeId,
+          projectId: activeProjectId,
+          visualManualId,
+          type: row.type,
+          name: row.name,
+        });
+      } finally {
+        setRetryingTargetId(null);
+      }
+    },
+    [activeProjectId, batchRunning, productionEpisodeId, visualManualId],
+  );
+
+  const actionableRows = useMemo(
+    () =>
+      (batchRun?.report?.rows ?? []).filter(
+        (row) => row.status === "failed" || row.status === "blocked",
+      ),
+    [batchRun],
+  );
+
+  // ── 衍生链闭环(批3):「落地衍生资产」全链状态 + 例外清单 ──────────────────
+  const derivedRun = useDerivedChainStore(
+    (state) => state.runsByChapter[productionEpisodeId],
+  );
+  const clearDerivedRun = useDerivedChainStore((state) => state.clearRun);
+  const derivedRunning = derivedRun?.status === "running";
+  const [retryingDerivedKey, setRetryingDerivedKey] = useState<string | null>(null);
+  const [retryingDerivedAll, setRetryingDerivedAll] = useState(false);
+
+  const handleRunDerivedChain = useCallback(async () => {
+    await runDerivedAssetChain({
+      chapterId: productionEpisodeId,
+      projectId: activeProjectId,
+      visualManualId,
+    });
+  }, [activeProjectId, productionEpisodeId, visualManualId]);
+
+  const handleRetryDerivedRow = useCallback(
+    async (row: DerivedChainRowOutcome) => {
+      if (derivedRunning) {
+        toast.info("衍生链进行中，等待批次结束后再重试单条");
+        return;
+      }
+      setRetryingDerivedKey(row.key);
+      try {
+        await retryDerivedChainRow({
+          chapterId: productionEpisodeId,
+          projectId: activeProjectId,
+          visualManualId,
+          parentName: row.parentName,
+          state: row.state,
+        });
+      } finally {
+        setRetryingDerivedKey(null);
+      }
+    },
+    [activeProjectId, derivedRunning, productionEpisodeId, visualManualId],
+  );
+
+  const handleRetryDerivedAll = useCallback(async () => {
+    if (derivedRunning) return;
+    setRetryingDerivedAll(true);
+    try {
+      await retryFailedDerivedChainEntries({
+        chapterId: productionEpisodeId,
+        projectId: activeProjectId,
+        visualManualId,
+      });
+    } finally {
+      setRetryingDerivedAll(false);
+    }
+  }, [activeProjectId, derivedRunning, productionEpisodeId, visualManualId]);
+
+  const derivedExceptionRows = useMemo(
+    () =>
+      (derivedRun?.report?.rows ?? []).filter(
+        (row) =>
+          row.status === "failed" ||
+          row.status === "parent-failed" ||
+          row.status === "blocked" ||
+          row.status === "unmatched",
+      ),
+    [derivedRun],
+  );
 
   // 重新识别:对当前全部实体行重跑资产库匹配,覆盖/清理本地绑定(资产库手动改名/合并后无需重启)
   const handleRefreshAssetMatches = async (options?: { silent?: boolean }) => {
@@ -213,6 +349,21 @@ export function ScriptAssetGenerationTab({
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               size="sm"
+              variant="paid"
+              disabled={chapterRows.length === 0 || batchRunning}
+              onClick={() => void handleRunChapterAssets()}
+            >
+              {batchRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4" />
+              )}
+              {batchRunning
+                ? `一键生成中 ${batchRun?.progress.done ?? 0}/${batchRun?.progress.total ?? 0}`
+                : "本章资产一键生成"}
+            </Button>
+            <Button
+              size="sm"
               variant="secondary"
               disabled={isRefreshingMatches || (rows.character.length + rows.scene.length + rows.prop.length) === 0}
               onClick={() => void handleRefreshAssetMatches()}
@@ -220,13 +371,213 @@ export function ScriptAssetGenerationTab({
               <RefreshCw className={isRefreshingMatches ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
               重新识别
             </Button>
-            <Button size="sm" variant="secondary" disabled={scriptPlanCount === 0} onClick={handleDeriveAssets}>
-              <Boxes className="h-4 w-4" />
-              落地衍生资产
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={scriptPlanCount === 0 || derivedRunning}
+              onClick={() => void handleRunDerivedChain()}
+            >
+              {derivedRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Boxes className="h-4 w-4" />
+              )}
+              {derivedRunning
+                ? `衍生链中 ${derivedRun?.progress.done ?? 0}/${derivedRun?.progress.total ?? 0}`
+                : "落地衍生资产"}
             </Button>
           </div>
         </div>
       </div>
+
+      {batchRun ? (
+        <div className="border-b border-border/70 bg-panel/60 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {batchRunning ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span className="text-primary">
+                    一键生成中 {batchRun.progress.done}/{batchRun.progress.total}
+                    {batchRun.progress.currentName ? `：${batchRun.progress.currentName}` : ""}
+                  </span>
+                </>
+              ) : batchRun.report ? (
+                <>
+                  <span className="font-medium text-foreground">
+                    {`本章资产生成：成 ${batchRun.report.successCount} · 失 ${batchRun.report.failedCount}` +
+                      (batchRun.report.skippedCount ? ` · 跳 ${batchRun.report.skippedCount}` : "") +
+                      (batchRun.report.blockedCount ? ` · 护栏拦截 ${batchRun.report.blockedCount}` : "")}
+                  </span>
+                  {batchRun.report.channelCounts.length ? (
+                    <Badge variant="outline">
+                      {`渠道 ${batchRun.report.channelCounts.map((c) => `${c.label}×${c.count}`).join(" · ")}`}
+                    </Badge>
+                  ) : null}
+                  <Badge variant="outline">{`耗时 ${formatDurationMs(batchRun.report.durationMs)}`}</Badge>
+                  <Badge variant="outline">
+                    {`成本 ${formatCny(batchRun.report.spentCny)}／预估 ${formatCny(batchRun.report.estimatedCny)}（上限 ${formatCny(batchRun.report.capCny)}）`}
+                  </Badge>
+                  {batchRun.report.unpricedCount ? (
+                    <Badge variant="destructive">
+                      {`${batchRun.report.unpricedCount} 张未估价云端通道（按 ¥0 计）`}
+                    </Badge>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+            {!batchRunning ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 text-muted-foreground"
+                aria-label="关闭本章生成报表"
+                onClick={() => clearBatchRun(productionEpisodeId)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+          </div>
+
+          {!batchRunning && actionableRows.length ? (
+            <div className="mt-2 space-y-1">
+              {actionableRows.map((row) => (
+                <div
+                  key={row.targetId}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5 text-xs"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-foreground">{row.name}</span>
+                    <span className="ml-2 text-muted-foreground">{row.statusLabel}</span>
+                    {row.errorReason ? (
+                      <span className="ml-2 text-destructive/90">{row.errorReason}</span>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={retryingTargetId === row.targetId}
+                    onClick={() => void handleRetryBatchRow(row)}
+                  >
+                    {retryingTargetId === row.targetId ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCw className="h-3.5 w-3.5" />
+                    )}
+                    重试
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {derivedRun ? (
+        <div className="border-b border-border/70 bg-panel/60 px-4 py-3" data-derived-chain-strip>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              {derivedRunning ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span className="text-primary">
+                    衍生链中 {derivedRun.progress.done}/{derivedRun.progress.total}
+                    {derivedRun.progress.currentName ? `：${derivedRun.progress.currentName}` : ""}
+                  </span>
+                </>
+              ) : derivedRun.report ? (
+                <>
+                  <span className="font-medium text-foreground">
+                    {`衍生链：成 ${derivedRun.report.successCount} · 失 ${derivedRun.report.failedCount}` +
+                      (derivedRun.report.skippedCount ? ` · 跳 ${derivedRun.report.skippedCount}` : "") +
+                      (derivedRun.report.blockedCount ? ` · 护栏拦截 ${derivedRun.report.blockedCount}` : "") +
+                      (derivedRun.report.unmatchedCount ? ` · 未匹配 ${derivedRun.report.unmatchedCount}` : "")}
+                  </span>
+                  <Badge variant="outline">{`落地 ${derivedRun.report.landedCount} 条 · 补父图 ${derivedRun.report.parentGeneratedCount} 张`}</Badge>
+                  {derivedRun.report.alreadyCompleteCount ? (
+                    <Badge variant="outline">{`已成跳过 ${derivedRun.report.alreadyCompleteCount}`}</Badge>
+                  ) : null}
+                  {derivedRun.report.channelCounts.length ? (
+                    <Badge variant="outline">
+                      {`渠道 ${derivedRun.report.channelCounts.map((c) => `${c.label}×${c.count}`).join(" · ")}`}
+                    </Badge>
+                  ) : null}
+                  <Badge variant="outline">
+                    {`本章累计 ${formatCny(derivedRun.report.spentCny)}（上限 ${formatCny(derivedRun.report.capCny)}）`}
+                  </Badge>
+                </>
+              ) : null}
+            </div>
+            {!derivedRunning ? (
+              <div className="flex items-center gap-1">
+                {derivedExceptionRows.length ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={retryingDerivedAll}
+                    onClick={() => void handleRetryDerivedAll()}
+                  >
+                    {retryingDerivedAll ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCw className="h-3.5 w-3.5" />
+                    )}
+                    统一重试({derivedExceptionRows.length})
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 text-muted-foreground"
+                  aria-label="关闭衍生链报表"
+                  onClick={() => clearDerivedRun(productionEpisodeId)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          {!derivedRunning && derivedExceptionRows.length ? (
+            <div className="mt-2 space-y-1">
+              {derivedExceptionRows.map((row) => (
+                <div
+                  key={row.key}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-background/60 px-2.5 py-1.5 text-xs"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-foreground">{`${row.parentName}·${row.state}`}</span>
+                    <span className="ml-2 text-muted-foreground">{row.statusLabel}</span>
+                    {row.errorReason ? (
+                      <span className="ml-2 text-destructive/90">{row.errorReason}</span>
+                    ) : null}
+                  </div>
+                  {row.status !== "unmatched" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={retryingDerivedKey === row.key || retryingDerivedAll}
+                      onClick={() => void handleRetryDerivedRow(row)}
+                    >
+                      {retryingDerivedKey === row.key ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCw className="h-3.5 w-3.5" />
+                      )}
+                      重试
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-1 border-b border-border/70 bg-panel px-3 py-2">
         {ASSET_TYPES.map(({ key, label, Icon }) => (

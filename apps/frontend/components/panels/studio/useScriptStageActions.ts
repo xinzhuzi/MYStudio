@@ -102,10 +102,7 @@ export function useScriptStageActions({
 
   const runScriptStage = useCallback(
     async (opts: {
-      agentKey:
-        | "storySkeletonAgent"
-        | "adaptationStrategyAgent"
-        | "scriptDraft";
+      agentKey: "scriptDraft";
       messages: { system: string; user: string };
       stageKey: AgentWorkKey;
       scopeId: string;
@@ -175,8 +172,6 @@ export function useScriptStageActions({
       | { ok: true; system: string; user: string }
       | { ok: false; error: string }
     > => {
-      const skeleton = latestScriptStage("storySkeleton", chapter.id);
-      const strategy = latestScriptStage("adaptationStrategy", chapter.id);
       const scriptDraft = latestScriptStage("scriptDraft", chapter.id);
       const reviewKey = SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage];
       const review = reviewKey ? latestScriptStage(reviewKey, chapter.id) : "";
@@ -216,8 +211,6 @@ export function useScriptStageActions({
         eventState: chapter.eventState,
         previousEpisodeScript: previousEpisodeScript || undefined,
         eventMemoryContext,
-        skeleton,
-        strategy,
         scriptDraft,
         reviewFeedback: useReviewFeedback && hasReviewIssues(review) ? review : undefined,
         previousOutput: latestScriptStage(stage, chapter.id),
@@ -247,28 +240,14 @@ export function useScriptStageActions({
       userOverride?: string,
       options?: { useReviewFeedback?: boolean },
     ) => {
-      const skeleton = latestScriptStage("storySkeleton", chapter.id);
-      const strategy = latestScriptStage("adaptationStrategy", chapter.id);
-      if (stage === "adaptationStrategy" && !skeleton) {
-        toast.error("请先生成故事骨架");
-        return;
-      }
-      if (stage === "scriptDraft" && (!skeleton || !strategy)) {
-        toast.error("请先生成故事骨架与改编策略");
-        return;
-      }
+      // B+ 单次生成：剧本(含规划)无前置阶段门禁——方法文档按本章判定自动注入(buildStageMessages 内)
       const built = await buildStageMessagesFull(stage, chapter, options);
       if (!built.ok) {
         toast.error(built.error);
         return;
       }
       return runScriptStage({
-        agentKey:
-          stage === "storySkeleton"
-            ? "storySkeletonAgent"
-            : stage === "adaptationStrategy"
-              ? "adaptationStrategyAgent"
-              : "scriptDraft",
+        agentKey: "scriptDraft",
         messages: { system: built.system, user: userOverride || built.user },
         stageKey: stage,
         scopeId: chapter.id,
@@ -305,9 +284,7 @@ export function useScriptStageActions({
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText ?? "",
         eventState: chapter.eventState,
-        skeleton: latestScriptStage("storySkeleton", chapter.id),
-        strategy: latestScriptStage("adaptationStrategy", chapter.id),
-        scriptDraft: latestScriptStage("scriptDraft", chapter.id),
+        scriptDraft: target,
       });
       return runScriptStage({
         agentKey: "scriptDraft",

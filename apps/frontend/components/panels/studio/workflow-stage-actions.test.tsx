@@ -399,7 +399,7 @@ describe("workflow stage action surfaces", () => {
     }));
     (window as any).projectFiles = { readText };
     (window as any).sourceMemory = { search };
-    aiManagerMocks.textStream.mockResolvedValue({ success: true, text: "<storySkeleton>骨架结果</storySkeleton>" });
+    aiManagerMocks.textStream.mockResolvedValue({ success: true, text: "# 道劫 EP01：雨夜\n\n## 剧情梗概\n\n正文" });
     const chapter = {
       id: "chapter-001",
       index: 1,
@@ -409,10 +409,10 @@ describe("workflow stage action surfaces", () => {
       importedAt: 1,
     };
     const agentWorkData = [{
-      id: "skeleton-1",
-      key: "storySkeleton" as const,
+      id: "draft-1",
+      key: "scriptDraft" as const,
       episodeId: chapter.id,
-      data: "已有故事骨架",
+      data: "已有剧本",
       createdAt: 1,
       updatedAt: 1,
     }];
@@ -426,8 +426,8 @@ describe("workflow stage action surfaces", () => {
     }));
 
     await act(async () => {
-      await result.current.handleScriptStage("storySkeleton", chapter);
-      await result.current.handleStageReview("storySkeleton", chapter);
+      await result.current.handleScriptStage("scriptDraft", chapter);
+      await result.current.handleStageReview("scriptDraft", chapter);
     });
 
     expect(readText).toHaveBeenCalledTimes(2);

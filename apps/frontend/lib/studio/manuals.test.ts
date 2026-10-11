@@ -196,10 +196,15 @@ describe("studio manual presets", () => {
     expect(agentExports.getAgentSkillPreset).toBeTypeOf("function");
 
     const agentSkills = agentExports.listAgentSkillPresets?.() ?? [];
-    expect(agentSkills.map((item) => item.id)).toContain("script_execution_skeleton");
+    expect(agentSkills.map((item) => item.id)).toContain("script_execution_script");
     expect(agentSkills.map((item) => item.id)).toContain("production_execution_storyboard_table");
+    // B+ 收口:骨架/策略文档已删(职能迁入 method_* 方法文档),不得复活
+    expect(agentSkills.map((item) => item.id)).not.toContain("script_execution_skeleton");
+    expect(agentSkills.map((item) => item.id)).not.toContain("script_execution_adaptation");
+    expect(agentSkills.map((item) => item.id)).toContain("method_story_development");
+    expect(agentSkills.map((item) => item.id)).toContain("method_screen_adaptation");
 
-    expect(agentExports.getAgentSkillPreset?.("script_execution_skeleton")).toMatchObject({
+    expect(agentExports.getAgentSkillPreset?.("script_execution_script")).toMatchObject({
       kind: "script",
       source: "toonflow-runtime",
     });
@@ -211,8 +216,6 @@ describe("studio manual presets", () => {
       getAgentSkillPreset?: (id: string) => { content: string } | null;
     };
     const markdownSkillIds = [
-      "script_execution_skeleton",
-      "script_execution_adaptation",
       "script_execution_script",
     ];
 
@@ -220,7 +223,8 @@ describe("studio manual presets", () => {
       const content = agentExports.getAgentSkillPreset?.(id)?.content ?? "";
       expect(content, id).not.toMatch(/<storySkeleton>|<adaptationStrategy>|<scriptItem|<scriptPlan>|<storyboardTable>/);
       expect(content, id).not.toContain("自动继续");
-      expect(content, id).toContain("一次性输出全部");
+      // 单次输出契约锚:三件 skill 措辞各异(script 为「一次性输出完整本集剧本」),共含「一次性输出」
+      expect(content, id).toContain("一次性输出");
     }
 
     expect(

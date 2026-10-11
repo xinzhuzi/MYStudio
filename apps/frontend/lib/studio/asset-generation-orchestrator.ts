@@ -92,6 +92,11 @@ export async function generateAsset(
   onProgress?: (progress: AssetGenerationProgress) => void,
 ): Promise<AssetGenerationProgress> {
   let polishResult: PolishResult | undefined;
+  // 失败必须可见(1010 道具装机实弹:云端回落生成完成后保存段静默死,诊断 jsonl 终点
+  // 停在「completed via fallback channel」,无落盘/无 DB 行/无失败事件)。stage 随阶段
+  // 推进,catch 里据此落 error 事件并把保存段失败标进回传 error,禁静默。
+  const operationId = createOperationId("asset-generation");
+  let stage: "polishing" | "generating" | "saving" | "updating-store" = "polishing";
   try {
     // Phase 1: 提示词润色
     let prompt: string;
@@ -210,6 +215,7 @@ export async function generateAsset(
     }
 
     // Phase 2: 图片生成
+    stage = "generating";
     onProgress?.({
       phase: "generating",
       message: `正在生成 ${task.name} 的图片...`,
@@ -243,6 +249,7 @@ export async function generateAsset(
     }
 
     // Phase 3: 保存到本地
+    stage = "saving";
     onProgress?.({
       phase: "saving",
       message: `正在保存 ${task.name} 的图片...`,
@@ -267,6 +274,7 @@ export async function generateAsset(
     });
 
     // Phase 4: 更新 Store
+    stage = "updating-store";
     updateStoreWithResult(task.assetId, task.assetType, {
       polishResult,
       imageLocalPath: localPath,
@@ -280,9 +288,34 @@ export async function generateAsset(
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    // 失败落诊断 error 事件(禁静默):任何阶段的异常都要在 jsonl 留痕,
+    // 尤其是生成已完成后的保存段——否则诊断终点停在生成完成事件,排障无抓手
+    void logEvent({
+      level: "error",
+      category: "asset",
+      operationId,
+      message: "Asset generation failed",
+      context: {
+        stage,
+        assetType: task.assetType,
+        assetName: task.name,
+        isDerivative: task.isDerivative,
+        projectId: task.projectId ?? null,
+        chapterId: task.chapterId ?? null,
+      },
+      error: err,
+    });
+    // 保存段失败带前缀回传:调用方 toast 直接可读「图片保存失败: <原因>」,
+    // 与生成阶段失败区分(图已生成但没落盘 vs 根本没生成出来)
+    const error =
+      stage === "saving"
+        ? `图片保存失败: ${message}`
+        : stage === "updating-store"
+          ? `图片已保存，但更新资产状态失败: ${message}`
+          : message;
     return {
       phase: "failed",
-      error: message,
+      error,
       polishResult,
     };
   }

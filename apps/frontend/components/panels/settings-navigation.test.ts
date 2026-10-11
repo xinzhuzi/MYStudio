@@ -67,6 +67,8 @@ describe("SettingsPanel navigation", () => {
       "模型服务",
       "模型映射",
       "Agent 配置",
+      // 10-11 pipeline-human-node-automation 批2:成本估价(生图单价+单章上限,一键生成护栏)
+      "成本估价",
     ]);
   });
 

@@ -400,7 +400,14 @@ export async function saveGeneratedAssetImage({
     if (isDerivative) {
       throw new Error("衍生资产图片必须保存到当前项目");
     }
-    return saveImageToLocal(source, category, `${assetName}-${Date.now()}`);
+    const savedPath = await saveImageToLocal(source, category, `${assetName}-${Date.now()}`);
+    // saveImageToLocal 失败时 fail-open 原样返回云端/内联 URL(1010 道具装机实弹病灶:
+    // 生成「成功」、盘上无文件、无 DB 行、无失败日志)。此处必须 fail-closed——
+    // 未落到本地介质的地址一律按保存失败上抛,由 generateAsset 落诊断事件+回传调用方
+    if (/^(https?:|data:|blob:)/i.test(savedPath)) {
+      throw new Error(`本地图片保存失败：图片未落盘（保存通道返回了未持久化地址 ${savedPath.slice(0, 48)}…）`);
+    }
+    return savedPath;
   }
   const projectFiles = getProjectFilesBridge();
   if (projectId && projectFiles?.saveImage) {

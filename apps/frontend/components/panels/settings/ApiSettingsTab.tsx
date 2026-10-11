@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Key, Link2, Plus, Shield, Trash2, Workflow } from "lucide-react";
+import { Coins, Key, Link2, Plus, Shield, Trash2, Workflow } from "lucide-react";
 import { FeatureBindingPanel } from "./api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,6 +8,7 @@ import { useAPIConfigStore, type IProvider } from "@/stores/ai/api-config-store"
 import { API_CONFIG_STORAGE_KEY } from "@/stores/ai/api-config-persistence";
 import { AgentSettingsSection } from "./AgentSettingsSection";
 import { ApiServiceSettingsSection } from "./ApiServiceSettingsSection";
+import { CostEstimateSettingsSection } from "./CostEstimateSettingsSection";
 import { SecureVaultBanner } from "./SecureVaultBanner";
 import { getProviderDisplayName } from "./settings-model-utils";
 
@@ -15,6 +16,7 @@ export const API_MANAGER_SECTIONS = [
   { value: "service", label: "模型服务", desc: "供应商、API Key、Base URL、模型列表与测试" },
   { value: "mapping", label: "模型映射", desc: "按文本、图片、视频、TTS、视觉能力绑定模型" },
   { value: "agents", label: "Agent 配置", desc: "工作流逻辑任务到模型的部署关系" },
+  { value: "cost", label: "成本估价", desc: "生图通道单价（元/张）与单章成本上限（一键生成护栏）" },
 ] as const;
 
 type ApiManagerSectionId = typeof API_MANAGER_SECTIONS[number]["value"];
@@ -35,6 +37,7 @@ interface ApiSettingsTabProps {
 function SectionIcon({ value }: { value: ApiManagerSectionId }) {
   if (value === "service") return <Key className="h-4 w-4" />;
   if (value === "mapping") return <Link2 className="h-4 w-4" />;
+  if (value === "cost") return <Coins className="h-4 w-4" />;
   return <Workflow className="h-4 w-4" />;
 }
 
@@ -163,6 +166,7 @@ export function ApiSettingsTab({
           <div className="min-w-0 space-y-6">
             {activeSection === "mapping" && <FeatureBindingPanel />}
             {activeSection === "agents" && <AgentSettingsSection />}
+            {activeSection === "cost" && <CostEstimateSettingsSection />}
             {activeSection === "service" && (
               <ApiServiceSettingsSection
                 provider={selectedProvider}

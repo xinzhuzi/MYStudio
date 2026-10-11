@@ -12,6 +12,10 @@ import {
   validateProviderAdapterCodeText,
 } from "./api-config-store";
 import { partializeAPIConfigState } from "./api-config-persistence";
+import {
+  normalizeAgentDeployments,
+  type AgentDeploymentConfig,
+} from "./api-config-agent-deployments";
 import { LOCAL_TTS_BASE_URL } from "@/lib/tts/constants";
 
 describe("useAPIConfigStore unified model configuration", () => {
@@ -44,9 +48,7 @@ describe("useAPIConfigStore unified model configuration", () => {
       "universalAi",
       "eventAnalysisAgent",
       "entityExtraction",
-      "episodeOutline",
       "scriptAgent",
-      "scriptAgent:decisionAgent",
       "scriptAgent:storySkeletonAgent",
       "scriptAgent:adaptationStrategyAgent",
       "scriptAgent:scriptAgent",
@@ -89,6 +91,22 @@ describe("useAPIConfigStore unified model configuration", () => {
     expect(getAgentDeploymentModelType("storyboardImage")).toBe("image");
     expect(getAgentDeploymentModelType("videoTrack")).toBe("video");
     expect(getAgentDeploymentModelType("tts")).toBe("tts");
+  });
+
+  it("tolerates persisted deployments carrying removed dead keys (10-11 G3: episodeOutline / scriptAgent:decisionAgent)", () => {
+    const persisted = [
+      ...createDefaultAgentDeployments(),
+      { key: "episodeOutline", name: "分集细纲Agent", desc: "死件存量" },
+      { key: "scriptAgent:decisionAgent", name: "剧本决策Agent", desc: "死件存量" },
+    ] as AgentDeploymentConfig[];
+    const normalized = normalizeAgentDeployments(persisted);
+    // 持久化数据无类型约束:运行时键域宽于 AgentDeploymentKey,按 string 比较
+    const normalizedKeys: string[] = normalized.map((item) => item.key);
+    // 存量记录不崩不清:归一后作为 extras 保留(设置页「其他」组承接),默认表不再生成两键
+    expect(normalizedKeys).toContain("episodeOutline");
+    expect(normalizedKeys).toContain("scriptAgent:decisionAgent");
+    expect(normalizedKeys).toHaveLength(API_AGENT_DEPLOYMENT_DEFAULTS.length + 2);
+    expect(normalizedKeys.filter((key) => key === "episodeOutline")).toHaveLength(1);
   });
 
   it("resolves task bindings from the unified API provider store", () => {

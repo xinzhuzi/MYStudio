@@ -11,7 +11,7 @@
 // 重放,transform/opacity only,motion-reduce 全静);无任务不挂载(R1 零回归)。
 
 import { motion, useReducedMotion } from "motion/react";
-import { CheckCircle2, CircleDashed, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, CircleDashed, Loader2, TriangleAlert, XCircle } from "lucide-react";
 import { OrbSection, type OrbSectionProps } from "./OrbSection";
 import type { OrbTaskView } from "./use-task-center";
 
@@ -52,6 +52,16 @@ function TaskRow({ task, onJump }: { task: OrbTaskView; onJump?: (tab: string) =
           </span>
         ) : null}
       </span>
+      {task.stale ? (
+        <span
+          className="inline-flex shrink-0 items-center gap-0.5 text-[10px] text-warning"
+          data-orb-task-stale={task.id}
+          title="上游剧本已变更，该产物基于旧剧本生成，请重跑章流水线"
+        >
+          <TriangleAlert className="h-3 w-3" aria-hidden />
+          过期
+        </span>
+      ) : null}
     </>
   );
 
@@ -80,15 +90,18 @@ function TaskRow({ task, onJump }: { task: OrbTaskView; onJump?: (tab: string) =
 export function OrbTasksSection({
   active,
   recent,
+  stale = [],
   open,
   onToggle,
   onJump,
 }: Pick<OrbSectionProps, "open" | "onToggle"> & {
   active: OrbTaskView[];
   recent: OrbTaskView[];
+  /** 批6 已过期下游任务(章剧本变更的终态产物,黄标提示重跑)。 */
+  stale?: OrbTaskView[];
   onJump?: (tab: string) => void;
 }) {
-  if (active.length === 0 && recent.length === 0) return null;
+  if (active.length === 0 && recent.length === 0 && stale.length === 0) return null;
   const visibleActive = active.slice(0, MAX_VISIBLE_ACTIVE);
   const overflow = active.length - visibleActive.length;
   return (
@@ -98,6 +111,16 @@ export function OrbTasksSection({
       ))}
       {overflow > 0 ? (
         <p className="px-2 py-1 text-[11px] text-muted-foreground">+{overflow} 项进行中</p>
+      ) : null}
+      {stale.length > 0 ? (
+        <div className="mt-1 border-t border-border/60 pt-1" data-orb-task-stale-list>
+          <p className="px-2 py-1 text-[11px] text-warning">
+            {`已过期 ${stale.length} 项（剧本已变更，请重跑章流水线）`}
+          </p>
+          {stale.slice(0, MAX_VISIBLE_ACTIVE).map((task) => (
+            <TaskRow key={task.id} task={task} onJump={onJump} />
+          ))}
+        </div>
       ) : null}
       {recent.length > 0 ? (
         <div className="mt-1 border-t border-border/60 pt-1" data-orb-task-recent>

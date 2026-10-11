@@ -56,7 +56,7 @@ export function AppOrb() {
   const setActiveStudio = useFreedomStore((state) => state.setActiveStudio);
   const recentTabs = useRecentTabs();
   // 任务中心(09-12):后台任务态上球——徽章+面板分区+完成提醒(零 toast)
-  const { tasks: activeTasks, recent: recentTasks, bumpTick } = useTaskCenter();
+  const { tasks: activeTasks, recent: recentTasks, staleTasks, bumpTick } = useTaskCenter();
   const taskBadge = (
     <OrbTaskBadge count={activeTasks.length} bumpTick={bumpTick} />
   );
@@ -218,10 +218,11 @@ export function AppOrb() {
                 onToggle={() => setSections((s) => ({ ...s, local: !s.local }))}
               />
             ) : null}
-            {activeTasks.length > 0 || recentTasks.length > 0 ? (
+            {activeTasks.length > 0 || recentTasks.length > 0 || staleTasks.length > 0 ? (
               <OrbTasksSection
                 active={activeTasks}
                 recent={recentTasks}
+                stale={staleTasks}
                 open={sections.tasks}
                 onToggle={() => setSections((s) => ({ ...s, tasks: !s.tasks }))}
                 onJump={(tab) => {

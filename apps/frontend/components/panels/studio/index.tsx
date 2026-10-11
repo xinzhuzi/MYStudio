@@ -12,6 +12,8 @@ import { useState } from "react";
 import { NodeDocViewer } from "./NodeDocViewer";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
+import { useStoryboardAssetBinding } from "./use-storyboard-asset-binding";
+import { useChapterPipelineOrchestrator } from "./useChapterPipelineOrchestrator";
 
 export function StudioView() {
   const viewModel = useStudioViewModel();
@@ -23,6 +25,15 @@ export function StudioView() {
   const storyboardBatch = useStoryboardBatchGeneration({
     storyboards: viewModel.chapterStoryboards,
     projectName: viewModel.projectName,
+  });
+  // 分镜素材自动绑定(10-11 批4):面板按钮+例外清单注入
+  const storyboardAssetBinding = useStoryboardAssetBinding(viewModel.chapterStoryboards);
+  // 章级流水线(10-11 批5):串资产→衍生→绑定;挂载即重启重算(断点续跑);
+  // 触发=事件分析完成(本章)或手动;章验收卡横幅落分镜面板
+  const chapterPipeline = useChapterPipelineOrchestrator({
+    chapterId: viewModel.productionEpisodeId,
+    projectId: viewModel.projectId,
+    visualManualId: viewModel.workflowConfig.visualManualId,
   });
   // 漫影侧栏制作动作宿主侧(09-11 旧画布功能迁移收口):运行中防重入
   const sidebarActions = {
@@ -185,6 +196,14 @@ export function StudioView() {
                 onOpenImageWorkflow={viewModel.openAssetImageWorkflow}
                 onBackToCanvas={() => viewModel.handleStageChange("storyboard")}
                 batch={storyboardBatch}
+                assetBinding={storyboardAssetBinding}
+                pipeline={{
+                  running: chapterPipeline.running,
+                  run: chapterPipeline.run,
+                  staleCount: chapterPipeline.staleTasks.length,
+                  start: chapterPipeline.start,
+                  goToAssets: () => viewModel.handleStageChange("assets"),
+                }}
                 chapterAutoVideo={{
                   status: viewModel.chapterAutoVideoStatus,
                   running: viewModel.chapterAutoVideoRunning,

@@ -345,7 +345,7 @@ describe("asset-generation-orchestrator", () => {
 
     expect(result).toMatchObject({
       phase: "failed",
-      error: "项目目录不可写",
+      error: "图片保存失败: 项目目录不可写",
     });
     expect(saveImage).toHaveBeenCalledOnce();
     expect(saveImageToLocal).not.toHaveBeenCalled();
@@ -362,7 +362,7 @@ describe("asset-generation-orchestrator", () => {
 
     expect(result).toMatchObject({
       phase: "failed",
-      error: "projectFiles.saveImage IPC rejected",
+      error: "图片保存失败: projectFiles.saveImage IPC rejected",
     });
     expect(saveImage).toHaveBeenCalledOnce();
     expect(saveImageToLocal).not.toHaveBeenCalled();
@@ -374,7 +374,7 @@ describe("asset-generation-orchestrator", () => {
 
     expect(result).toMatchObject({
       phase: "failed",
-      error: "当前环境不支持项目内资产图片保存",
+      error: "图片保存失败: 当前环境不支持项目内资产图片保存",
     });
     expect(saveImageToLocal).not.toHaveBeenCalled();
     expect(usePropsLibraryStore.getState().getPropById("prop-1")?.imageUrl).toBe("");
@@ -392,11 +392,59 @@ describe("asset-generation-orchestrator", () => {
 
     expect(result).toMatchObject({
       phase: "failed",
-      error: "衍生资产图片必须保存到当前项目",
+      error: "图片保存失败: 衍生资产图片必须保存到当前项目",
     });
     expect(saveImageToLocal).not.toHaveBeenCalled();
     const prop = usePropsLibraryStore.getState().getPropById("prop-1");
     expect(prop?.imageUrl).toBe("");
+  });
+
+  it("云端 URL 已返回但保存抛错时,失败必须落诊断 error 事件(禁静默,1010 道具保存段静默死)", async () => {
+    const saveImage = vi.fn().mockRejectedValue(new Error("写入项目目录失败"));
+    (window as any).projectFiles = { saveImage };
+
+    const result = await generateAsset(projectPropGenerationTask());
+
+    expect(result.phase).toBe("failed");
+    expect(result.error).toContain("图片保存失败");
+    expect(result.error).toContain("写入项目目录失败");
+    const failureLog = vi.mocked(logEvent).mock.calls.find(
+      ([entry]) => entry.message === "Asset generation failed",
+    );
+    expect(failureLog?.[0].level).toBe("error");
+    expect(failureLog?.[0].category).toBe("asset");
+    expect(failureLog?.[0].context).toMatchObject({
+      stage: "saving",
+      assetName: "断剑",
+      assetType: "prop",
+      projectId: "dao-project",
+    });
+    expect(failureLog?.[0].error).toBeInstanceOf(Error);
+    expect(usePropsLibraryStore.getState().getPropById("prop-1")?.imageUrl).toBe("");
+  });
+
+  it("saveImageToLocal fail-open 原样吐回云端 URL 时必须转失败,不得伪 done(无落盘病灶)", async () => {
+    vi.mocked(saveImageToLocal).mockResolvedValueOnce("https://example.com/prop.png");
+
+    const result = await generateAsset({
+      assetId: "prop-1",
+      assetType: "prop",
+      name: "断剑",
+      description: "一柄断裂的古剑",
+      isDerivative: false,
+      visualManualId: "ink",
+    });
+
+    expect(result.phase).toBe("failed");
+    expect(result.error).toContain("图片保存失败");
+    expect(result.error).toContain("未落盘");
+    expect(saveImageToLocal).toHaveBeenCalledOnce();
+    const failureLog = vi.mocked(logEvent).mock.calls.find(
+      ([entry]) => entry.message === "Asset generation failed",
+    );
+    expect(failureLog?.[0].level).toBe("error");
+    expect(failureLog?.[0].context).toMatchObject({ stage: "saving" });
+    expect(usePropsLibraryStore.getState().getPropById("prop-1")?.imageUrl).toBe("");
   });
 
   it("reuses asset-library file URLs without rewriting them as local media paths", () => {

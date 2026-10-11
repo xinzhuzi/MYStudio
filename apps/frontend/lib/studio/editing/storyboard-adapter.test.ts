@@ -379,6 +379,70 @@ describe("storyboard editing adapter", () => {
       });
     }
   });
+
+  // 10-11 S16 双音边界(时序洞):纯对白镜历史跑过一键成片则旧全文 TTS
+  // audioRef 挂在分镜上;H3 视频生成后重渲,TTS 被跳过(外挂文本空)但
+  // voice clip 只看 audioRef 在场,旧全文音频照铺轨 → 角色台词双音
+  // (H3 烧轨+旧外挂各一遍)。修法=建 clip 前加「外挂旁白文本非空」判据
+  // (externalNarratorSpokenText,与 TTS 跳过判据同源)。
+  it("drops the stale voice clip on an H3 baked pure-dialogue shot even when audioRef lingers (10-11 S16)", () => {
+    const shot = storyboard(5, {
+      mediaRef: { kind: "video", path: "/h3-baked.mp4" },
+      lines: "林昭：你来。",
+      ttsSpokenText: "你来。",
+      audioRef: { kind: "audio", path: "/stale-full-tts.wav" },
+    });
+    const result = buildStoryboardEditingProject({ ...baseInput([shot]) });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    // H3 烧轨纯对白镜:外挂旁白文本=空 → editing-1-voice 轨零条
+    expect(
+      result.project.clips.filter((clip) => clip.trackId === "editing-1-voice"),
+    ).toHaveLength(0);
+    expect(result.project.clips.some((clip) => clip.source.kind === "audio")).toBe(false);
+    expect(result.project.tracks.map((track) => track.kind)).toEqual(["video", "text"]);
+  });
+
+  it("keeps the voice clip for a static-image shot with audioRef present (10-11 S16 回归锁)", () => {
+    const shot = storyboard(6, {
+      mediaRef: { kind: "image", path: "/shot-6.png" },
+      lines: "旁白：风起。",
+      ttsSpokenText: "风起。",
+      audioRef: { kind: "audio", path: "/voice-6.wav" },
+    });
+    const result = buildStoryboardEditingProject({ ...baseInput([shot]) });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const voiceClips = result.project.clips.filter(
+      (clip) => clip.trackId === "editing-1-voice",
+    );
+    expect(voiceClips).toHaveLength(1);
+    expect(voiceClips[0]).toMatchObject({
+      source: { kind: "audio", path: "/voice-6.wav" },
+    });
+  });
+
+  it("keeps the voice clip for an H3 baked mixed shot (narrator text reruns TTS, 10-11 S16)", () => {
+    const shot = storyboard(7, {
+      mediaRef: { kind: "video", path: "/h3-mixed.mp4" },
+      lines: "林昭：你来。\n旁白：风起。",
+      ttsSpokenText: "你来。旁白：风起。",
+      audioRef: { kind: "audio", path: "/voice-7.wav" },
+    });
+    const result = buildStoryboardEditingProject({ ...baseInput([shot]) });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const voiceClips = result.project.clips.filter(
+      (clip) => clip.trackId === "editing-1-voice",
+    );
+    expect(voiceClips).toHaveLength(1);
+    expect(voiceClips[0]).toMatchObject({
+      source: { kind: "audio", path: "/voice-7.wav" },
+    });
+  });
 });
 
 describe("legacy SimpleTimeline migration", () => {

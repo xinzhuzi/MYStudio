@@ -3,8 +3,11 @@
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 
 // 悬浮球任务中心(09-12 Trellis 09-12-orb-task-center):球=全应用进出口枢纽,
-// 后台任务态是缺失出口。本 hook 纯订阅派生五类任务源,零写回、零 toast:
-// - media/agent: studio-store run-task-slice 台账(mediaTasks/agentRuns,逐条视图);
+// 后台任务态是缺失出口。本 hook 纯订阅派生任务源,零写回、零 toast:
+// - media/agent: studio-store run-task-slice 台账(mediaTasks/agentRuns,逐条视图;
+//   media 侧带批6 stale 派生黄标——章剧本指纹漂移的已终态下游任务标过期);
+// - pipeline(10-11 批5):章流水线编排态(chapter-pipeline store,活跃一条+
+//   running→done 迁移推「章验收卡终态收据」——双落位之一,另一落位=分镜面板横幅);
 // - remotion: 主进程渲染队列全局订阅(use-remotion-global-tasks,逐条视图);
 // - tts/director/sclass: 生成中聚合计数(域内折叠一条,不逐条刷屏);
 // 完成提醒=状态迁移 diff(hook 内 prev map/计数 refs),migration 即 bump+recent,
@@ -17,6 +20,14 @@ import { useDirectorStore } from "@/stores/director/director-store";
 import { useSClassStore } from "@/stores/sclass/sclass-store";
 import type { Tab } from "@/stores/navigation/media-panel-store";
 import type { MediaGenerationTaskKind } from "@/types/studio-production-types";
+import {
+  chapterAcceptanceSummary,
+  useChapterPipelineStore,
+} from "@/components/panels/studio/chapter-pipeline";
+import {
+  collectStaleDownstreamTasks,
+  useChapterUpstreamStore,
+} from "@/components/panels/studio/chapter-pipeline-stale";
 import { useRemotionGlobalTasks } from "./use-remotion-global-tasks";
 
 export type OrbTaskStatus = "queued" | "running" | "success" | "failed";
@@ -24,6 +35,7 @@ export type OrbTaskSource =
   | "remotion"
   | "media"
   | "agent"
+  | "pipeline"
   | "tts"
   | "director"
   | "sclass";
@@ -37,6 +49,8 @@ export interface OrbTaskView {
   progress?: number;
   targetTab?: Tab;
   errorReason?: string;
+  /** 批6 失效传播黄标:上游剧本已变更,该已终态任务产物基于旧剧本(禁静默用旧)。 */
+  stale?: boolean;
 }
 
 export interface OrbTaskCenter {
@@ -44,6 +58,8 @@ export interface OrbTaskCenter {
   tasks: OrbTaskView[];
   /** 本会话内新近终态(新在前,上限 5)——完成提醒的数据面。 */
   recent: OrbTaskView[];
+  /** 批6 已过期下游任务(章剧本指纹漂移的终态媒体任务,黄标清单)。 */
+  staleTasks: OrbTaskView[];
   /** 每次终态迁移 +1:徽章闪动动画以 key 重放。 */
   bumpTick: number;
 }
@@ -54,6 +70,7 @@ const RECENT_MAX = 5;
 const MEDIA_KIND_LABELS: Record<MediaGenerationTaskKind, string> = {
   storyboardImage: "分镜图生成",
   derivedAssetImage: "衍生图生成",
+  scriptAsset: "资产生成",
   ttsAudio: "配音生成",
   modelVideo: "视频生成",
   ffmpegTrack: "音轨合成",
@@ -89,6 +106,31 @@ export function useTaskCenter(): OrbTaskCenter {
 
   // 视图保留全状态(终态也要在场,迁移 diff 才能看到"上一帧活跃→这一帧终态");
   // 活跃汇总处再过滤。
+  // 批6 stale 黄标数据面:剧本指纹输入切片+发车台账订阅,漂移章的已终态
+  // 下游任务即时标过期(派生视图,零写回)。
+  const agentWorkData = useStudioStore((s) => s.agentWorkData);
+  const novelChapters = useStudioStore((s) => s.novelChapters);
+  const scriptPlans = useStudioStore((s) => s.scriptPlans);
+  const upstreamByChapter = useChapterUpstreamStore((s) => s.byChapter);
+  const staleMediaTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!mediaTasks.length) return ids;
+    const driftedChapters = new Set<string>();
+    for (const task of mediaTasks) {
+      if (!task.episodeId || driftedChapters.has(task.episodeId)) continue;
+      driftedChapters.add(task.episodeId);
+      for (const stale of collectStaleDownstreamTasks({
+        chapterId: task.episodeId,
+        mediaTasks,
+        snapshot: { agentWorkData, novelChapters, scriptPlans },
+        ledger: upstreamByChapter,
+      })) {
+        ids.add(stale.taskId);
+      }
+    }
+    return ids;
+  }, [mediaTasks, agentWorkData, novelChapters, scriptPlans, upstreamByChapter]);
+
   const mediaViews = useMemo<OrbTaskView[]>(
     () =>
       mediaTasks
@@ -106,8 +148,9 @@ export function useTaskCenter(): OrbTaskCenter {
           status: task.status as OrbTaskStatus,
           targetTab: "studio" as const,
           errorReason: task.errorReason,
+          stale: staleMediaTaskIds.has(task.id) || undefined,
         })),
-    [mediaTasks],
+    [mediaTasks, staleMediaTaskIds],
   );
 
   const agentViews = useMemo<OrbTaskView[]>(
@@ -131,6 +174,33 @@ export function useTaskCenter(): OrbTaskCenter {
           errorReason: run.errorReason,
         })),
     [agentRuns],
+  );
+
+  // ── pipeline(批5): 章流水线编排态(每章一条活跃;进度=步骤粒度) ─────────
+  const pipelineRuns = useChapterPipelineStore((s) => s.runsByChapter);
+  const pipelineViews = useMemo<OrbTaskView[]>(
+    () =>
+      Object.values(pipelineRuns)
+        .filter((run) => run.status === "running")
+        .map((run) => {
+          const settledSteps = run.steps.filter(
+            (step) => step.status !== "pending" && step.status !== "running",
+          ).length;
+          const current = run.steps.find((step) => step.status === "running");
+          return {
+            id: `pipeline:${run.chapterId}`,
+            source: "pipeline" as const,
+            label: current
+              ? `章流水线 · ${current.label}`
+              : settledSteps >= run.steps.length
+                ? "章流水线 · 收口中"
+                : "章流水线",
+            status: "running" as const,
+            progress: run.steps.length ? settledSteps / run.steps.length : undefined,
+            targetTab: "studio" as const,
+          };
+        }),
+    [pipelineRuns],
   );
 
   // ── remotion: 主进程队列全局订阅(逐条) ─────────────────────────────
@@ -241,6 +311,37 @@ export function useTaskCenter(): OrbTaskCenter {
     [remotionViews, mediaViews, agentViews],
   );
 
+  // pipeline 域完成收据(批5 双落位之一):running→done 迁移推「章验收卡」
+  // 终态收据(资产/衍生/分镜绑定汇总;失败项/过期项入 errorReason 可读层)。
+  const prevPipelineStatusRef = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    const prev = prevPipelineStatusRef.current;
+    for (const run of Object.values(pipelineRuns)) {
+      const previous = prev.get(run.chapterId);
+      if (previous === "running" && run.status === "done" && run.card) {
+        const card = run.card;
+        const failedCount = card.assets.failed + card.derived.failed;
+        pushRecent({
+          source: "pipeline",
+          label: chapterAcceptanceSummary(card),
+          status: failedCount > 0 ? "failed" : "success",
+          errorReason:
+            failedCount > 0
+              ? [
+                  ...card.assets.failedNames,
+                  ...card.derived.failedNames,
+                ].join("、") || undefined
+              : card.staleCount
+                ? `另有 ${card.staleCount} 项产物基于旧剧本已标过期`
+                : undefined,
+        });
+      }
+    }
+    prevPipelineStatusRef.current = new Map(
+      Object.values(pipelineRuns).map((run) => [run.chapterId, run.status]),
+    );
+  }, [pipelineRuns]);
+
   useEffect(() => {
     // 逐条域:queued/running → success/failed 迁移即提醒
     const prevMap = prevEntryStatusRef.current;
@@ -305,17 +406,25 @@ export function useTaskCenter(): OrbTaskCenter {
       remotionViews.length === 0 &&
       mediaViews.length === 0 &&
       agentViews.length === 0 &&
+      pipelineViews.length === 0 &&
       countViews.length === 0
     ) {
       return EMPTY_TASKS;
     }
     return [
+      ...pipelineViews.filter((view) => isActive(view.status)),
       ...remotionViews.filter((view) => isActive(view.status)),
       ...mediaViews.filter((view) => isActive(view.status)),
       ...agentViews.filter((view) => isActive(view.status)),
       ...countViews,
     ];
-  }, [remotionViews, mediaViews, agentViews, countDomains]);
+  }, [remotionViews, mediaViews, agentViews, pipelineViews, countDomains]);
 
-  return { tasks, recent, bumpTick };
+  // ── 批6 已过期清单(黄标数据面):漂移章的终态媒体任务(禁静默用旧) ──────
+  const staleTasks = useMemo(
+    () => mediaViews.filter((view) => view.stale),
+    [mediaViews],
+  );
+
+  return { tasks, recent, staleTasks, bumpTick };
 }

@@ -54,9 +54,14 @@ export interface SceneSegmentRecord extends StudioSourceIdentity {
   createdAt: number;
 }
 
+/**
+ * 媒体生成任务 kind。scriptAsset(10-11 人肉节点自动化批1)= 剧本资产生成
+ * (润色→生图→保存→入库 桥接链,targetId={type}:{name} 资产键,一资产一任务)。
+ */
 export type MediaGenerationTaskKind =
   | "storyboardImage"
   | "derivedAssetImage"
+  | "scriptAsset"
   | "ttsAudio"
   | "modelVideo"
   | "ffmpegTrack"

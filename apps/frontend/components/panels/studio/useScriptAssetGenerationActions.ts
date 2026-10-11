@@ -5,11 +5,6 @@ import {
   planFixedRoleVoices,
 } from "@/components/panels/assets/role-audio-auto-assign";
 import {
-  buildEntityResolver,
-  createMystudioDerivedSinks,
-  syncDerivedAssets,
-} from "@/lib/studio/derived-asset-sync";
-import {
   generateAsset,
 } from "@/lib/studio/asset-generation-orchestrator";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -20,12 +15,10 @@ import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
 import { eventBus } from "@/lib/events/event-bus";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
-import type { EntityExtractionResult, ScriptPlan } from "@/types/studio";
 import type { StudioAssetSummary, StudioAssetKind } from "@/types/studio-assets";
 import { toast } from "sonner";
 import {
   assetLibraryRowKey,
-  findPlanForEpisode,
   getRowDescription,
   getRowImage,
   getRowPrompt,
@@ -45,18 +38,14 @@ export function useScriptAssetGenerationActions({
   visualManualId,
   currentRows,
   activeProjectId,
-  scriptPlans,
   productionEpisodeId,
-  entityExtractions,
   onAssetStored,
 }: {
   activeType: AssetGenerationType;
   visualManualId: string | undefined;
   currentRows: AssetRow[];
   activeProjectId: string | null;
-  scriptPlans: ScriptPlan[];
   productionEpisodeId: string;
-  entityExtractions: EntityExtractionResult[];
   onAssetStored?: (row: AssetRow, asset: StudioAssetSummary) => void;
 }) {
   const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
@@ -75,47 +64,8 @@ export function useScriptAssetGenerationActions({
   const createVoiceProfile = useTtsStore((state) => state.createVoiceProfile);
   const bindSpeaker = useTtsStore((state) => state.bindSpeaker);
 
-  const handleDeriveAssets = useCallback(() => {
-    const projectId = activeProjectId;
-    if (!projectId) {
-      toast.error("未选择项目，无法落地衍生资产");
-      return;
-    }
-    const plan = findPlanForEpisode(scriptPlans, productionEpisodeId);
-    if (!plan) {
-      toast.error("尚无导演规划：请先到「分镜视频生成」完成导演规划节点");
-      return;
-    }
-    const batch =
-      entityExtractions.find((item) => item.episodeId === plan.episodeId) ??
-      entityExtractions[0];
-    if (!batch) {
-      toast.error("尚无实体库：请先在「剧本资产管理」完成资产提取");
-      return;
-    }
-
-    const resolver = buildEntityResolver(
-      batch.characters.map((item) => ({
-        id: item.characterId,
-        name: item.name,
-        aliases: item.aliases,
-      })),
-      batch.scenes.map((item) => ({ id: item.sceneId, name: item.name })),
-      batch.props.map((item) => ({ id: item.assetId, name: item.name })),
-    );
-    const { summary } = syncDerivedAssets(plan.derivedAssetPlan, {
-      projectId,
-      resolver,
-      ...createMystudioDerivedSinks(),
-    });
-    if (summary.skipped) {
-      toast.warning(
-        `衍生资产落地 ${summary.created} 条，跳过 ${summary.skipped} 条（父资产未匹配）`,
-      );
-    } else {
-      toast.success(`衍生资产已落地 ${summary.created} 条`);
-    }
-  }, [activeProjectId, entityExtractions, productionEpisodeId, scriptPlans]);
+  // 「落地衍生资产」全链(落地→父图→衍生图)已迁 derived-asset-chain(批3):
+  // 本 hook 不再持有该动作;资产生成区按钮直连 runDerivedAssetChain。
 
   /** 资产名全部分隔符别名解析后,收集项目内所有匹配的角色库条目 speaker 键(共享资产拆开也接得住)。 */
   const collectLinkedSpeakerIds = useCallback(
@@ -381,7 +331,6 @@ export function useScriptAssetGenerationActions({
     setAssetDialogOpen,
     notFoundAsset,
     setNotFoundAsset,
-    handleDeriveAssets,
     handleOpenAsset,
     handleGenerateSingle,
     handleAutoAssignAudio,
@@ -423,7 +372,12 @@ async function storeRowInAssetLibrary(
   return created ? { status: "created", asset: created } : null;
 }
 
-function ensureLocalAssetForRow(
+/**
+ * 行落地本地资产:缺本地行时建(角色/场景/道具三库,项目内同名先复用)。
+ * 批2 一键编排(script-asset-batch)按批1 契约复用本函数——
+ * scriptAsset 任务要求 row.asset 已落地才可入队生成。
+ */
+export function ensureLocalAssetForRow(
   row: AssetRow,
   {
     activeProjectId,

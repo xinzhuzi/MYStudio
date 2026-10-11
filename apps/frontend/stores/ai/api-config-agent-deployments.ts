@@ -10,7 +10,6 @@ export type AgentDeploymentKey =
   | 'universalAi'
   | 'eventAnalysisAgent'
   | 'scriptAgent'
-  | 'scriptAgent:decisionAgent'
   | 'scriptAgent:supervisionAgent'
   | 'scriptAgent:storySkeletonAgent'
   | 'scriptAgent:adaptationStrategyAgent'
@@ -27,7 +26,6 @@ export type AgentDeploymentKey =
   | 'adaptationStrategyAgent'
   | 'scriptDraft'
   | 'entityExtraction'
-  | 'episodeOutline'
   | 'storyboardImage'
   | 'videoTrack'
   | 'tts';
@@ -103,25 +101,11 @@ export const API_AGENT_DEPLOYMENT_DEFAULTS: AgentDeploymentConfig[] = [
     maxOutputTokens: 2048,
   },
   {
-    key: 'episodeOutline',
-    name: '分集细纲Agent',
-    desc: '负责把骨架+改编策略逐集落到每场 beat，降低骨架→剧本跨度',
-    temperature: 0.5,
-    maxOutputTokens: 4096,
-  },
-  {
     key: 'scriptAgent',
     name: '剧本Agent',
     desc: '负责剧本总控、任务拆解和对话式策划',
     temperature: 0.7,
     maxOutputTokens: 4096,
-  },
-  {
-    key: 'scriptAgent:decisionAgent',
-    name: '剧本决策Agent',
-    desc: '负责判断剧本阶段下一步执行骨架、策略、草稿或监督',
-    temperature: 0.2,
-    maxOutputTokens: 2048,
   },
   {
     key: 'scriptAgent:storySkeletonAgent',
@@ -272,7 +256,6 @@ export const API_AGENT_DEPLOYMENT_GROUPS: AgentDeploymentGroup[] = [
     desc: '对应 Toonflow 剧本 Agent 的决策、执行和监督链路',
     keys: [
       'scriptAgent',
-      'scriptAgent:decisionAgent',
       'scriptAgent:storySkeletonAgent',
       'scriptAgent:adaptationStrategyAgent',
       'scriptAgent:scriptAgent',
@@ -281,7 +264,6 @@ export const API_AGENT_DEPLOYMENT_GROUPS: AgentDeploymentGroup[] = [
       'adaptationStrategyAgent',
       'scriptDraft',
       'entityExtraction',
-      'episodeOutline',
     ],
   },
   {
@@ -311,7 +293,6 @@ const AGENT_DEPLOYMENT_MODEL_TYPES: Record<AgentDeploymentKey, ProviderAdapterMo
   universalAi: 'text',
   eventAnalysisAgent: 'text',
   scriptAgent: 'text',
-  'scriptAgent:decisionAgent': 'text',
   'scriptAgent:supervisionAgent': 'text',
   'scriptAgent:storySkeletonAgent': 'text',
   'scriptAgent:adaptationStrategyAgent': 'text',
@@ -328,7 +309,6 @@ const AGENT_DEPLOYMENT_MODEL_TYPES: Record<AgentDeploymentKey, ProviderAdapterMo
   adaptationStrategyAgent: 'text',
   scriptDraft: 'text',
   entityExtraction: 'text',
-  episodeOutline: 'text',
   storyboardImage: 'image',
   videoTrack: 'video',
   tts: 'tts',

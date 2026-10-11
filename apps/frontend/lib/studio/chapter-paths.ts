@@ -5,6 +5,7 @@
 //   workflow-images/<workflowId>/<file>                      自由/资产工作流(无章节)
 //   workflow-images/assets/<chapterId>/<assetType>/<file>    章节独占衍生资产
 //   workflow-images/assets/<assetType>/<file>                基类共享资产
+//   workflow-images/<chapterId>/bindings/<storyboardId>/<file> 分镜资产绑定媒体(10-11 批4)
 //   video-use/<chapterId>/r<rev>/                            主进程 owner: video-workflow-artifact-store
 //   remotion/{audio,chapters,outputs,jobs,evidence}/<chapterId>/  主进程 owner: remotion-*-service / remotion-current-paths
 //   novel/chapters/<chapterId>.md                            owner: lib/studio/novel
@@ -51,4 +52,17 @@ export function assetImageRelativePath(
   // filename 视为调用方已预清洗的合成名,直通不重洗(重洗会把超长组合名截断)
   const chapterScope = scope.chapterId && scope.isDerivative ? `${safePathSegment(scope.chapterId)}/` : "";
   return `workflow-images/assets/${chapterScope}${safePathSegment(assetType)}/${filename}`;
+}
+
+/**
+ * 分镜资产绑定媒体路径(10-11 pipeline-human-node-automation 批4):资产图复制进
+ * 章节媒体库的落位——章节作用域 bindings 子树,按分镜 id 分目录。绑定不是引用
+ * 资产库原文件(资产图被替换/清理不得静默变更分镜画面),故一律复制成章内受管副本。
+ */
+export function storyboardBindingRelativePath(
+  chapterId: string,
+  storyboardId: string,
+  filename: string,
+) {
+  return `workflow-images/${safePathSegment(chapterId)}/bindings/${safePathSegment(storyboardId)}/${safePathSegment(filename)}`;
 }

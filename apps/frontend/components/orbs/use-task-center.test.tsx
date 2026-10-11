@@ -9,14 +9,18 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import { useDirectorStore } from "@/stores/director/director-store";
 import { useSClassStore } from "@/stores/sclass/sclass-store";
+import { useChapterPipelineStore } from "@/components/panels/studio/chapter-pipeline";
+import { useChapterUpstreamStore } from "@/components/panels/studio/chapter-pipeline-stale";
 
 afterEach(() => {
   cleanup();
   delete (window as { remotionQueue?: unknown }).remotionQueue;
-  useStudioStore.setState({ mediaTasks: [], agentRuns: [] });
+  useStudioStore.setState({ mediaTasks: [], agentRuns: [], agentWorkData: [], novelChapters: [] });
   useTtsStore.setState({ projects: {} } as never);
   useDirectorStore.setState({ sceneProgress: new Map() } as never);
   useSClassStore.setState({ projects: {} } as never);
+  useChapterPipelineStore.setState({ runsByChapter: {}, zombieReconciled: false });
+  useChapterUpstreamStore.setState({ byChapter: {} });
 });
 
 function seedMediaTask(
@@ -272,5 +276,114 @@ describe("useTaskCenter(计数域:tts/director/sclass 聚合)", () => {
     const sclass = result.current.tasks.find((task) => task.source === "sclass");
     expect(sclass?.label).toBe("S级视频生成 · 2 镜头");
     expect(sclass?.progress).toBeCloseTo(0.4, 5);
+  });
+});
+
+describe("useTaskCenter(pipeline 域:10-11 批5 章流水线+批6 黄标)", () => {
+  it("章流水线运行中进活跃(步骤粒度进度);完成推「章验收卡」终态收据", async () => {
+    const { result } = renderHook(() => useTaskCenter());
+    act(() => {
+      useChapterPipelineStore.setState({
+        runsByChapter: {
+          "chapter-001": {
+            chapterId: "chapter-001",
+            status: "running",
+            steps: [
+              { key: "assets", label: "资产生成", status: "done" },
+              { key: "derived", label: "衍生闭环", status: "running" },
+              { key: "storyboardBinding", label: "分镜绑定", status: "pending" },
+            ],
+          },
+        },
+      });
+    });
+    const active = result.current.tasks.find((task) => task.source === "pipeline");
+    expect(active?.id).toBe("pipeline:chapter-001");
+    expect(active?.label).toBe("章流水线 · 衍生闭环");
+    expect(active?.progress).toBeCloseTo(1 / 3, 5);
+
+    await act(async () => {
+      useChapterPipelineStore.setState({
+        runsByChapter: {
+          "chapter-001": {
+            chapterId: "chapter-001",
+            status: "done",
+            steps: [],
+            card: {
+              chapterId: "chapter-001",
+              generatedAt: 1,
+              recomputed: false,
+              assets: { total: 3, success: 2, failed: 1, failedNames: ["prop:青盐鞭"] },
+              derived: { total: 1, success: 1, failed: 0, failedNames: [] },
+              storyboard: { totalShots: 6, ready: 6, unbound: 0, exceptions: 0 },
+              staleCount: 0,
+              staleSampleTargetIds: [],
+            },
+          },
+        },
+      });
+    });
+    // 活跃离场;recent 出「章验收卡」终态收据(双落位之一),失败态带名单
+    expect(result.current.tasks.find((task) => task.source === "pipeline")).toBeUndefined();
+    const receipt = result.current.recent.find((entry) => entry.source === "pipeline");
+    expect(receipt?.status).toBe("failed");
+    expect(receipt?.label).toContain("资产 2/3");
+    expect(receipt?.label).toContain("分镜 6/6");
+    expect(receipt?.errorReason).toBe("prop:青盐鞭");
+  });
+
+  it("全绿的章流水线收据=success(无 errorReason)", async () => {
+    const { result } = renderHook(() => useTaskCenter());
+    act(() => {
+      useChapterPipelineStore.setState({
+        runsByChapter: {
+          "chapter-001": { chapterId: "chapter-001", status: "running", steps: [] },
+        },
+      });
+    });
+    await act(async () => {
+      useChapterPipelineStore.setState({
+        runsByChapter: {
+          "chapter-001": {
+            chapterId: "chapter-001",
+            status: "done",
+            steps: [],
+            card: {
+              chapterId: "chapter-001",
+              generatedAt: 1,
+              recomputed: false,
+              assets: { total: 3, success: 3, failed: 0, failedNames: [] },
+              derived: { total: 1, success: 1, failed: 0, failedNames: [] },
+              storyboard: { totalShots: 6, ready: 6, unbound: 0, exceptions: 0 },
+              staleCount: 0,
+              staleSampleTargetIds: [],
+            },
+          },
+        },
+      });
+    });
+    const receipt = result.current.recent.find((entry) => entry.source === "pipeline");
+    expect(receipt?.status).toBe("success");
+    expect(receipt?.errorReason).toBeUndefined();
+  });
+
+  it("批6 黄标:剧本指纹漂移章的终态下游任务进 staleTasks;未漂移/在途不进", () => {
+    // 发车指纹=空剧本(与现势不一致即漂移);台账有戳才判
+    useChapterUpstreamStore.setState({
+      byChapter: { "chapter-001": { scriptFingerprint: "fp-dispatch-old", recordedAt: 1 } },
+    });
+    useStudioStore.setState({
+      agentWorkData: [
+        { id: "work-1", key: "scriptDraft", episodeId: "chapter-001", data: "重生成后的新剧本", createdAt: 1, updatedAt: 1 },
+      ] as never,
+      mediaTasks: [
+        { ...seedMediaTask({ id: "stale-1", kind: "scriptAsset", status: "success" }), episodeId: "chapter-001" },
+        { ...seedMediaTask({ id: "fresh-run", kind: "scriptAsset", status: "running" }), episodeId: "chapter-001" },
+        { ...seedMediaTask({ id: "other-kind", kind: "ttsAudio", status: "success" }), episodeId: "chapter-001" },
+      ] as never,
+    });
+    const { result } = renderHook(() => useTaskCenter());
+    expect(result.current.staleTasks.map((task) => task.id)).toEqual(["media:stale-1"]);
+    expect(result.current.staleTasks[0]!.stale).toBe(true);
   });
 });

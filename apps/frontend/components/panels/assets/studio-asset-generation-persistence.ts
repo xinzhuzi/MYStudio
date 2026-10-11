@@ -1,6 +1,7 @@
 import type { PolishResult } from "@/lib/ai/prompt-polisher";
 import { getImageStorageBridge } from "@/lib/bridge/image-storage";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 
 export async function persistGeneratedAssetPromptToLibrary(
   assetId: string,
@@ -32,17 +33,71 @@ export async function saveGeneratedAssetImageToLibrary(
     return false;
   }
 
-  const sourceFilePath = await materializeGeneratedImageForAssetLibrary(assetId, imagePath);
+  // 写回资产库失败禁静默(1010 保存段静默死勘误延伸):任何失败/异常都落诊断
+  // error 事件留痕;返回 false 交由调用方给出可见提示(已生成但未写回主图)
+  const operationId = createOperationId("asset-save-to-library");
+  let sourceFilePath: string | null = null;
+  try {
+    sourceFilePath = await materializeGeneratedImageForAssetLibrary(assetId, imagePath);
+  } catch (error) {
+    void logEvent({
+      level: "error",
+      category: "asset",
+      operationId,
+      message: "Generated asset image materialization failed",
+      context: { assetId, imagePathKind: describeImagePathKind(imagePath) },
+      error,
+    });
+    await persistGeneratedAssetPromptToLibrary(assetId, polishResult);
+    return false;
+  }
+  if (!sourceFilePath) {
+    void logEvent({
+      level: "error",
+      category: "asset",
+      operationId,
+      message: "Generated asset image materialization returned no local file",
+      context: { assetId, imagePathKind: describeImagePathKind(imagePath) },
+    });
+    await persistGeneratedAssetPromptToLibrary(assetId, polishResult);
+    return false;
+  }
+
   let imageSaved = false;
   const studioAssets = getStudioAssetsBridge();
   if (sourceFilePath && studioAssets) {
-    const result = await studioAssets.replaceImage({ assetId, sourceFilePath });
-    imageSaved = Boolean(result);
+    try {
+      const result = await studioAssets.replaceImage({ assetId, sourceFilePath });
+      imageSaved = Boolean(result);
+    } catch (error) {
+      void logEvent({
+        level: "error",
+        category: "asset",
+        operationId,
+        message: "Generated asset image library write-back failed",
+        context: { assetId },
+        error,
+      });
+      imageSaved = false;
+    }
+  }
+  if (!imageSaved) {
+    void logEvent({
+      level: "error",
+      category: "asset",
+      operationId,
+      message: "Generated asset image was not written back to library",
+      context: { assetId, sourceFilePath },
+    });
   }
 
   await persistGeneratedAssetPromptToLibrary(assetId, polishResult);
 
   return imageSaved;
+}
+
+function describeImagePathKind(imagePath: string) {
+  return imagePath.includes("://") ? imagePath.split("://")[0] : "path";
 }
 
 async function materializeGeneratedImageForAssetLibrary(assetId: string, imagePath: string) {

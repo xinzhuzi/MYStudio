@@ -16,6 +16,10 @@ export interface EntitySlice {
   entityExtractions: EntityExtractionResult[];
   scriptPlans: ScriptPlan[];
   seriesBible: SeriesBible | null;
+  /**
+   * @deprecated 分集细纲阶段已死件清除(10-11 G3:episodeOutline 部署键与技能文档已删,
+   * 零 UI 消费)。字段与存量数据保留,读写口(saveEpisodeOutline)留一年后再删。
+   */
   episodeOutlines: EpisodeOutline[];
   saveEntityExtraction: (result: EntityExtractionResult) => void;
   saveScriptPlan: (plan: ScriptPlan) => void;
@@ -28,6 +32,7 @@ interface EntitySliceStore {
   entityExtractions: EntityExtractionResult[];
   scriptPlans: ScriptPlan[];
   seriesBible: SeriesBible | null;
+  /** @deprecated 见 EntitySlice.episodeOutlines(10-11 G3 死件清除,存量数据面保留一年)。 */
   episodeOutlines: EpisodeOutline[];
 }
 

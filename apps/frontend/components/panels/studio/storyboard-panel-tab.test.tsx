@@ -144,3 +144,99 @@ describe("StoryboardPanelTab(全量分镜面板)", () => {
     expect(screen.queryByRole("button", { name: /分镜生图/ })).toBeNull();
   });
 });
+
+describe("StoryboardPanelTab·分镜素材自动绑定(10-11 批4)", () => {
+  it("自动绑定素材按钮:注入 assetBinding 才渲染,点击调 start", () => {
+    const start = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot({ id: "sb-1" })]}
+        onOpenImageWorkflow={vi.fn()}
+        assetBinding={{ running: false, start, retryShot: vi.fn(), clear: vi.fn() }}
+      />,
+    );
+    const button = screen.getByRole("button", { name: /自动绑定素材/ });
+    expect(button).toBeTruthy();
+    fireEvent.click(button);
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it("未注入 assetBinding 时不渲染绑定按钮(默认行为零变化)", () => {
+    render(
+      <StoryboardPanelTab storyboards={[shot({ id: "sb-1" })]} onOpenImageWorkflow={vi.fn()} />,
+    );
+    expect(screen.queryByRole("button", { name: /自动绑定素材/ })).toBeNull();
+  });
+
+  it("绑定运行中:进度行可见+按钮禁用", () => {
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot({ id: "sb-1" })]}
+        onOpenImageWorkflow={vi.fn()}
+        assetBinding={{
+          running: true,
+          run: {
+            chapterId: "chapter-001",
+            status: "running",
+            progress: { done: 1, total: 3, currentShot: "S02" },
+          },
+          start: vi.fn(),
+          retryShot: vi.fn(),
+          clear: vi.fn(),
+        }}
+      />,
+    );
+    expect(screen.getByText(/素材绑定中 1\/3 · S02/)).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: /素材绑定中/ }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it("跑完报表+例外清单:就绪计数/例外行可点重试/关闭清报表", () => {
+    const retryShot = vi.fn();
+    const clear = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot({ id: "sb-1" }), shot({ id: "sb-2", index: 2 })]}
+        onOpenImageWorkflow={vi.fn()}
+        assetBinding={{
+          running: false,
+          run: {
+            chapterId: "chapter-001",
+            status: "done",
+            progress: { done: 2, total: 2, currentShot: "" },
+            report: {
+              chapterId: "chapter-001",
+              finishedAt: Date.now(),
+              total: 2,
+              boundCount: 1,
+              readyBefore: 0,
+              readyAfter: 1,
+              fillTriggered: true,
+              exceptions: [
+                {
+                  storyboardId: "sb-2",
+                  shotIndex: 2,
+                  status: "ambiguous",
+                  statusLabel: "匹配多义",
+                  detail: "S02 命中多个场景资产，请人工拣选",
+                  candidates: ["夜市街口", "夜市街口西"],
+                },
+              ],
+            },
+          },
+          start: vi.fn(),
+          retryShot,
+          clear,
+        }}
+      />,
+    );
+    expect(screen.getByText(/绑 1\/2 · 分镜就绪 1（已触发补图）/)).toBeTruthy();
+    expect(screen.getByText(/例外 1：S02 匹配多义/)).toBeTruthy();
+    expect(screen.getByText(/候选：夜市街口、夜市街口西/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /重试/ }));
+    expect(retryShot).toHaveBeenCalledWith("sb-2");
+    fireEvent.click(screen.getByRole("button", { name: "关闭素材绑定报表" }));
+    expect(clear).toHaveBeenCalledTimes(1);
+  });
+});

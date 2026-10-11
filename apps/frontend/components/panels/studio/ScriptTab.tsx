@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import {
   buildStageMessages,
   SCRIPT_STAGE_REVIEW_KEY,
+  describeChapterModeAnnotation,
   extractPartialContent,
   getStageSkillContent,
   hasReviewIssues,
@@ -45,20 +46,13 @@ export function ScriptTab(props: {
   styleSummary: string;
   scriptStreaming: { key: AgentWorkKey; scopeId: string; text: string } | null;
 }) {
-  const SCRIPT_STAGES: ScriptStageKey[] = [
-    "storySkeleton",
-    "adaptationStrategy",
-    "scriptDraft",
-  ];
-  const PREREQ: Partial<Record<ScriptStageKey, ScriptStageKey>> = {
-    adaptationStrategy: "storySkeleton",
-    scriptDraft: "adaptationStrategy",
-  };
+  // B+ 单次生成:三段卡收口为一段——「剧本(含规划)」,规划已溶解进单次剧本生成
+  const SCRIPT_STAGES: ScriptStageKey[] = ["scriptDraft"];
 
   const [chapterId, setChapterId] = useState(props.novelChapters[0]?.id ?? "");
   const theme = useThemeStore((state) => state.theme);
   const [activeStage, setActiveStage] =
-    useState<ScriptStageKey>("storySkeleton");
+    useState<ScriptStageKey>("scriptDraft");
   const [editor, setEditor] = useState<{
     target: "output" | "context" | "review";
     value: string;
@@ -85,8 +79,6 @@ export function ScriptTab(props: {
   const reviewKey = SCRIPT_STAGE_REVIEW_KEY[activeStage as ReviewableStage];
   const reviewData = reviewKey ? stageData(reviewKey)?.data : undefined;
   const reviseMode = hasReviewIssues(reviewData);
-  const prereq = PREREQ[activeStage];
-  const hasPrereq = !prereq || Boolean(stageData(prereq));
 
 
   const streamingText =
@@ -125,7 +117,7 @@ export function ScriptTab(props: {
   useEffect(() => {
     let alive = true;
     setLivePrompt(null);
-    if (!chapter || !hasPrereq || !props.previewStageUserMessage) return;
+    if (!chapter || !props.previewStageUserMessage) return;
     props
       .previewStageUserMessage(activeStage, chapter, {
         useReviewFeedback: reviseMode,
@@ -140,7 +132,7 @@ export function ScriptTab(props: {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStage, chapter?.id, reviseMode, hasPrereq, props.agentWorkData, props.previewStageUserMessage]);
+  }, [activeStage, chapter?.id, reviseMode, props.agentWorkData, props.previewStageUserMessage]);
   if (!props.novelChapters.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
@@ -157,8 +149,6 @@ export function ScriptTab(props: {
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText ?? "",
         eventState: chapter.eventState,
-        skeleton: stageData("storySkeleton")?.data,
-        strategy: stageData("adaptationStrategy")?.data,
         scriptDraft: stageData("scriptDraft")?.data,
         previousOutput: output,
       })
@@ -172,6 +162,10 @@ export function ScriptTab(props: {
         : standardMessages.user
       : livePrompt || standardMessages.user;
   const promptSource = userDraft ?? basePrompt;
+  // G12 本章判定只读标注:自动按章数据形态判定(小说改编/原创/已定稿),只读不可改——判定错了修章数据,不修判定器
+  const chapterModeNote = chapter
+    ? describeChapterModeAnnotation(chapter, Boolean(stageData("scriptDraft")?.data))
+    : "";
   const memoryMarkers = [
     promptSource.includes("原著圣经") ? "原著圣经" : "",
     promptSource.includes("导演偏好") ? "导演偏好" : "",
@@ -183,17 +177,9 @@ export function ScriptTab(props: {
   const sentSummary = [
     "项目信息",
     memoryMarkers,
-    activeStage === "adaptationStrategy" || activeStage === "scriptDraft"
-      ? "导演手法"
-      : "",
+    "导演手法",
     chapter ? `章节：${chapter.title}` : "",
     chapter?.eventState ? "事件分析" : "",
-    activeStage !== "storySkeleton" && stageData("storySkeleton")
-      ? "故事骨架"
-      : "",
-    activeStage === "scriptDraft" && stageData("adaptationStrategy")
-      ? "改编策略"
-      : "",
     reviseMode ? "审核意见(修订模式)" : "",
     "本章正文",
   ]
@@ -213,14 +199,7 @@ export function ScriptTab(props: {
   const generatedMarkdown =
     streamingText !== null
       ? liveMd || `# ${SCRIPT_STAGE_LABEL[activeStage]}\n\n生成中...`
-      : output ||
-        `# ${SCRIPT_STAGE_LABEL[activeStage]}\n\n${
-          hasPrereq
-            ? "暂无生成内容。"
-            : prereq
-              ? `请先完成「${SCRIPT_STAGE_LABEL[prereq]}」。`
-              : "暂无生成内容。"
-        }`;
+      : output || `# ${SCRIPT_STAGE_LABEL[activeStage]}\n\n暂无生成内容。`;
   const reviewMarkdown =
     reviewStreaming !== null
       ? extractPartialContent(reviewStreaming) || "# 审核结果\n\n审核中..."
@@ -316,8 +295,10 @@ export function ScriptTab(props: {
             ) : null}
             {activeControl === "prompt" ? (
               <div className="flex h-full w-full flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-muted-foreground">含：{sentSummary}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-muted-foreground">
+                    {chapterModeNote ? `${chapterModeNote} · 含：${sentSummary}` : `含：${sentSummary}`}
+                  </p>
                   <Button
                     size="sm"
                     variant="secondary"
@@ -351,7 +332,7 @@ export function ScriptTab(props: {
                   <Button
                     size="sm"
                     variant="paid"
-                    disabled={!chapter || !hasPrereq || props.scriptStreaming !== null}
+                    disabled={!chapter || props.scriptStreaming !== null}
                     onClick={() =>
                       chapter &&
                       props.runStage(
@@ -370,7 +351,6 @@ export function ScriptTab(props: {
                     variant="paid"
                     disabled={
                       !chapter ||
-                      !hasPrereq ||
                       !reviewData ||
                       props.scriptStreaming !== null
                     }
