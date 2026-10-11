@@ -277,15 +277,18 @@ export function buildStoryboardEditingProject(
       muted: !(visual.unmute || remotionOnly),
     });
 
-    // 10-11 S16 双音边界:外挂旁白文本非空才建 voice clip(与 TTS 跳过判据
-    // 同源,chapter-auto-video 前置守卫)。纯对白 H3 烧轨镜历史一键成片挂的
-    // 旧全文 TTS audioRef 可能还留在分镜上,TTS 重跑被跳过但 clip 只看
-    // audioRef 在场会把旧全文音频照铺轨 → 角色台词双音;派生文本空=零外挂
-    // 音频,直接不建。混合镜旁白文本非空会重跑 TTS 覆盖 audioRef,照常铺。
+    // 10-11 S16 双音边界(媒体门判据,与 TTS 跳过严格同源):仅 H3 烧轨镜
+    // (hasH3BakedAudio=mediaRef video,chapter-auto-video.ts:17-27 与
+    // storyboard-tts-runner.ts:42-49 同门)才要求外挂旁白文本非空——纯对白
+    // 烧轨镜历史一键成片挂的旧全文 TTS audioRef 会与烧轨台词双音,不建。
+    // 静图产线镜 TTS 判据同门恒全文不跳过(外挂=唯一音频源),audioRef 在场
+    // 即铺,纯对白形态不误杀(F1 回归锁);混合烧轨镜旁白文本非空照常铺。
+    const hasH3BakedAudio = storyboard.mediaRef?.kind === "video";
     if (
       !remotionOnly
       && isAudioRef(storyboard.audioRef)
-      && externalNarratorSpokenText(storyboard.lines, storyboard.ttsSpokenText ?? "").trim()
+      && (!hasH3BakedAudio
+        || externalNarratorSpokenText(storyboard.lines, storyboard.ttsSpokenText ?? "").trim())
     ) {
       voiceClips.push({
         id: `voice-${storyboard.id}`,

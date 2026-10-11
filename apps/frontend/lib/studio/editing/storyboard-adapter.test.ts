@@ -443,6 +443,32 @@ describe("storyboard editing adapter", () => {
       source: { kind: "audio", path: "/voice-7.wav" },
     });
   });
+
+  // F1 回归锁(静图+角色行形态):TTS 拆行/跳过判据带媒体门——
+  // hasH3BakedAudio=mediaRef video 才走 externalNarratorSpokenText 派生
+  // (chapter-auto-video.ts:17-27 与 storyboard-tts-runner.ts:42-49 同门),
+  // 静图产线镜外挂 TTS 是唯一音频来源、恒全文不跳过,audioRef 恒新鲜,
+  // 纯对白形态也必须铺轨——voice clip 判据若缺媒体门会把派生空误当零外挂,
+  // 静图纯对白镜哑片(洞实证于 10-11 S16 修复轮复盘)。
+  it("keeps the voice clip for a static-image pure-dialogue shot with audioRef present (10-11 S16 F1 回归锁)", () => {
+    const shot = storyboard(8, {
+      mediaRef: { kind: "image", path: "/shot-8.png" },
+      lines: "林昭：你来。",
+      ttsSpokenText: "你来。",
+      audioRef: { kind: "audio", path: "/voice-8.wav" },
+    });
+    const result = buildStoryboardEditingProject({ ...baseInput([shot]) });
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const voiceClips = result.project.clips.filter(
+      (clip) => clip.trackId === "editing-1-voice",
+    );
+    expect(voiceClips).toHaveLength(1);
+    expect(voiceClips[0]).toMatchObject({
+      source: { kind: "audio", path: "/voice-8.wav" },
+    });
+  });
 });
 
 describe("legacy SimpleTimeline migration", () => {
