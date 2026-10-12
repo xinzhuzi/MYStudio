@@ -254,6 +254,74 @@ describe("useScriptStageActions stage review self-check metrics", () => {
   });
 });
 
+describe("useScriptStageActions review freshness (F3)", () => {
+  beforeEach(() => {
+    textStreamMock.mockReset();
+    saveAgentWorkDataMock.mockReset();
+    textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
+  });
+
+  function renderWithWorkData(agentWorkData: unknown[]) {
+    return renderHook(() =>
+      useScriptStageActions({
+        workflowConfig: {} as never,
+        manualCatalog: {} as never,
+        projectName: "测试项目",
+        novelChapterCount: 1,
+        novelChapters: [chapter],
+        agentWorkData: agentWorkData as never,
+        saveAgentWorkData: saveAgentWorkDataMock as never,
+      }),
+    );
+  }
+
+  const userMessageOf = () => {
+    const request = textStreamMock.mock.calls[0]?.[0] as {
+      messages: { role: string; content: string }[];
+    };
+    return request.messages.find((m) => m.role === "user")?.content ?? "";
+  };
+
+  // F3:审核早于最新剧本(针对上一版的旧审核)→ 即便 useReviewFeedback:true 也不注入审核意见,
+  // 修订 toast 旗标同口径不成立——与 ScriptTab reviseMode 共用 isReviewFresh,不两处各写
+  it("does not inject stale review feedback even when useReviewFeedback is true", async () => {
+    const { result } = renderWithWorkData([
+      { id: "w1", key: "scriptDraft", episodeId: "ch1", data: "# 新版剧本", createdAt: 200, updatedAt: 200 },
+      { id: "w2", key: "scriptDraftReview", episodeId: "ch1", data: "🔴 台词超长", createdAt: 100, updatedAt: 100 },
+    ]);
+
+    await act(async () => {
+      await result.current.handleScriptStage("scriptDraft", chapter, undefined, { useReviewFeedback: true });
+    });
+
+    const userMessage = userMessageOf();
+    expect(userMessage).not.toContain("🔴 台词超长");
+    expect(userMessage).not.toContain("审核意见（逐条修复以下问题");
+    expect(userMessage).not.toContain("在此基础上修订");
+    const { toast } = await import("sonner");
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("剧本(含规划)已生成");
+  });
+
+  it("injects the fresh review with the previous script and flags the revision toast", async () => {
+    const { result } = renderWithWorkData([
+      { id: "w1", key: "scriptDraft", episodeId: "ch1", data: "# 当前剧本", createdAt: 200, updatedAt: 200 },
+      { id: "w2", key: "scriptDraftReview", episodeId: "ch1", data: "🔴 台词超长", createdAt: 300, updatedAt: 300 },
+    ]);
+
+    await act(async () => {
+      await result.current.handleScriptStage("scriptDraft", chapter, undefined, { useReviewFeedback: true });
+    });
+
+    const userMessage = userMessageOf();
+    expect(userMessage).toContain("🔴 台词超长");
+    expect(userMessage).toContain("审核意见（逐条修复以下问题");
+    expect(userMessage).toContain("在此基础上修订");
+    expect(userMessage).toContain("# 当前剧本");
+    const { toast } = await import("sonner");
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("已按审核修订「剧本(含规划)」，请重新审核确认");
+  });
+});
+
 describe("useScriptStageActions stream failure recovery", () => {
   beforeEach(() => {
     textStreamMock.mockReset();

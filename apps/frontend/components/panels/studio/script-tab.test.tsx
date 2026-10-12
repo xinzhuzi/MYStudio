@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { ScriptTab } from "./ScriptTab";
 import { ScriptOutputPanel } from "./ScriptOutputPanel";
@@ -374,8 +374,9 @@ describe("ScriptTab", () => {
     expect(screen.getByText(/自检通过/)).toBeTruthy();
   });
 
-  // R1/G8:标注第二参=reviseMode(是否带审核反馈修订)——已有剧本但无审核问题 → 仍标小说改编
-  it("labels the chapter mode by reviseMode, not by the existence of a script draft", () => {
+  // R1/G8→F3 迁移:预览/标注/摘要统一按「一键生成=非修订」口径——标注不再随审核态变化,
+  // 已有剧本(无论有无审核问题)恒标小说改编;修订入口只剩「AI审核生成」按钮(判定走 reviseMode)
+  it("labels the chapter mode from chapter data regardless of review state (F3 non-revision footing)", () => {
     const chapter = {
       id: "ch-mode",
       index: 1,
@@ -404,7 +405,7 @@ describe("ScriptTab", () => {
     expect(screen.getByText(/本章判定：小说改编 → 已注入改编方法文档/)).toBeTruthy();
     expect(screen.queryByText(/修订模式/)).toBeNull();
 
-    // 有审核问题(🔴)→ reviseMode=true → 修订态标注(父 I4)
+    // 有审核问题(🔴,且晚于剧本=新鲜)→ 预览口径仍非修订:标注恒改编态(F3)
     rerender(
       <ScriptTab
         novelChapters={[chapter]}
@@ -421,6 +422,116 @@ describe("ScriptTab", () => {
         scriptStreaming={null}
       />,
     );
-    expect(screen.getByText(/本章判定：修订模式 → 按审核意见修订，未注入方法文档/)).toBeTruthy();
+    expect(screen.getByText(/本章判定：小说改编 → 已注入改编方法文档/)).toBeTruthy();
+    expect(screen.queryByText(/修订模式/)).toBeNull();
+  });
+
+  // F3:预览与实发一致——「一键生成」固定非修订,预览/摘要同口径;「AI审核生成」是唯一修订入口
+  it("previews the prompt on the non-revision footing even when fresh review issues exist (F3)", async () => {
+    const chapter = {
+      id: "ch-f3-fresh",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+    const previewMock = vi.fn(async () => null);
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[
+          { id: "w1", key: "scriptDraft", episodeId: "ch-f3-fresh", data: "# 已有剧本", createdAt: 100, updatedAt: 100 },
+          { id: "w2", key: "scriptDraftReview", episodeId: "ch-f3-fresh", data: "🔴 台词超长", createdAt: 200, updatedAt: 200 },
+        ]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        previewStageUserMessage={previewMock}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    // 预览:按「一键生成」口径组装(useReviewFeedback=false),不因有审核问题切修订态
+    await waitFor(() =>
+      expect(previewMock).toHaveBeenCalledWith("scriptDraft", chapter, { useReviewFeedback: false }),
+    );
+    expect(previewMock).not.toHaveBeenCalledWith("scriptDraft", chapter, { useReviewFeedback: true });
+    // 标注/摘要:仍为改编态,不带「审核意见(修订模式)」
+    expect(screen.getByText(/本章判定：小说改编 → 已注入改编方法文档/)).toBeTruthy();
+    expect(screen.queryByText(/修订模式/)).toBeNull();
+
+    // 「AI审核生成」入口可用(新鲜审核+未修复问题)
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+    const aiReviewButton = screen.getByRole("button", { name: "AI审核生成" }) as HTMLButtonElement;
+    expect(aiReviewButton.disabled).toBe(false);
+  });
+
+  // F3:审核早于最新剧本(重新生成后的旧审核)→「AI审核生成」不带审核意见——入口禁用
+  it("disables AI审核生成 when the review predates the latest script draft (F3)", () => {
+    const chapter = {
+      id: "ch-f3-stale",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[
+          { id: "w1", key: "scriptDraft", episodeId: "ch-f3-stale", data: "# 新版剧本", createdAt: 300, updatedAt: 300 },
+          { id: "w2", key: "scriptDraftReview", episodeId: "ch-f3-stale", data: "🔴 台词超长", createdAt: 100, updatedAt: 100 },
+        ]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+    const aiReviewButton = screen.getByRole("button", { name: "AI审核生成" }) as HTMLButtonElement;
+    expect(aiReviewButton.disabled).toBe(true);
+  });
+
+  // F3:只读提示行——「AI审核生成」行为自释(语义 token,勿硬编码色)
+  it("shows the read-only hint that AI审核生成 attaches the previous script and review (F3)", () => {
+    const chapter = {
+      id: "ch-f3-hint",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+    // 无审核态:禁用原因自释(可用态文案「AI审核生成时将附带…」由审核用例覆盖)
+    expect(
+      screen.getByText("AI审核生成需针对当前版本且含未修复问题的审核(重跑「审核」后可用)"),
+    ).toBeTruthy();
   });
 });

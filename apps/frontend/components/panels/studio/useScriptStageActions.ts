@@ -3,7 +3,7 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildStageMessages,
   buildStageReviewMessages,
-  hasReviewIssues,
+  hasFreshReviewIssues,
   parseStageOutput,
   SCRIPT_STAGE_LABEL,
   SCRIPT_STAGE_REVIEW_KEY,
@@ -99,13 +99,19 @@ export function useScriptStageActions({
     [workflowConfig, manualCatalog],
   );
 
-  const latestScriptStage = useCallback(
+  /** 最新阶段条目(整条,含 createdAt)——F3 审核时效判定需要条目时间戳。 */
+  const latestScriptStageEntry = useCallback(
     (key: AgentWorkKey, scopeId: string) =>
       [...agentWorkData]
         .reverse()
-        .find((item) => item.key === key && item.episodeId === scopeId)?.data ??
-      "",
+        .find((item) => item.key === key && item.episodeId === scopeId),
     [agentWorkData],
+  );
+
+  const latestScriptStage = useCallback(
+    (key: AgentWorkKey, scopeId: string) =>
+      latestScriptStageEntry(key, scopeId)?.data ?? "",
+    [latestScriptStageEntry],
   );
 
   // 1011 thinking 进流:scriptStreaming 增设 thinking 增量位——思考单独累积不混正文,
@@ -208,7 +214,12 @@ export function useScriptStageActions({
     > => {
       const scriptDraft = latestScriptStage("scriptDraft", chapter.id);
       const reviewKey = SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage];
-      const review = reviewKey ? latestScriptStage(reviewKey, chapter.id) : "";
+      // F3 审核时效:审核条目须晚于最新剧本条目才算「针对当前版本」——
+      // isReviewFresh 与 ScriptTab reviseMode 同一共享判定,不两处各写
+      const reviewEntry = reviewKey
+        ? latestScriptStageEntry(reviewKey, chapter.id)
+        : undefined;
+      const review = reviewEntry?.data ?? "";
       const useReviewFeedback = options?.useReviewFeedback;
       const store = useStudioStore.getState();
       const projectId = useProjectStore.getState().activeProjectId ?? "studio-current-project";
@@ -246,12 +257,16 @@ export function useScriptStageActions({
         previousEpisodeScript: previousEpisodeScript || undefined,
         eventMemoryContext,
         scriptDraft,
-        reviewFeedback: useReviewFeedback && hasReviewIssues(review) ? review : undefined,
+        reviewFeedback:
+          useReviewFeedback &&
+          hasFreshReviewIssues(reviewEntry, latestScriptStageEntry(stage, chapter.id))
+            ? review
+            : undefined,
         previousOutput: latestScriptStage(stage, chapter.id),
       });
       return { ok: true, system: built.system, user: built.user };
     },
-    [latestScriptStage, scriptStyleSummary, scriptDirectorContext, novelChapters],
+    [latestScriptStageEntry, latestScriptStage, scriptStyleSummary, scriptDirectorContext, novelChapters],
   );
 
   /** 「AI提示词」页预览:与实际发送(未编辑时)完全一致的完整 user 消息;失败返回 null 静默回退。 */
@@ -280,6 +295,11 @@ export function useScriptStageActions({
         toast.error(built.error);
         return;
       }
+      // F3:修订文案旗标与注入判定同口径——审核含未修复问题 且 晚于最新剧本(isReviewFresh 共享)
+      const reviewKey = SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage];
+      const reviewEntry = reviewKey
+        ? latestScriptStageEntry(reviewKey, chapter.id)
+        : undefined;
       return runScriptStage({
         agentKey: "scriptDraft",
         messages: { system: built.system, user: userOverride || built.user },
@@ -288,14 +308,12 @@ export function useScriptStageActions({
         label: SCRIPT_STAGE_LABEL[stage],
         revised:
           options?.useReviewFeedback &&
-          hasReviewIssues(
-            latestScriptStage(SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage], chapter.id) ?? "",
-          ),
+          hasFreshReviewIssues(reviewEntry, latestScriptStageEntry(stage, chapter.id)),
         sourceId: chapter.sourceId ?? chapter.id,
         revision: chapter.revision ?? 1,
       });
     },
-    [runScriptStage, latestScriptStage, buildStageMessagesFull],
+    [runScriptStage, latestScriptStageEntry, buildStageMessagesFull],
   );
 
   const handleStageReview = useCallback(

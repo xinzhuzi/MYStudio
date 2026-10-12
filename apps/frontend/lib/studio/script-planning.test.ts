@@ -5,6 +5,7 @@ import {
   describeChapterModeAnnotation,
   determineChapterMode,
   extractPartialContent,
+  isReviewFresh,
   METHOD_DOCS,
   parseStageOutput,
 } from "./script-planning";
@@ -181,10 +182,10 @@ describe("determineChapterMode 本章判定三态（B+ 方法文档按需注入�
     expect(determineChapterMode({ sourceText: "   \n " }, false)).toBe("original");
     expect(determineChapterMode({}, false)).toBe("original");
     expect(determineChapterMode({ sourceText: "晏燎雨夜入城。" }, true)).toBe("finalized");
-    // 四象限第四角:原文判空优先于修订判定——无/空白原文即便 isRevision=true 也判原创
-    // (没有可修订的原文,「修订」标记不改变原创注入故事开发方法文档)
-    expect(determineChapterMode({}, true)).toBe("original");
-    expect(determineChapterMode({ sourceText: "   \n " }, true)).toBe("original");
+    // 四象限第四角(F5 用户裁定 10-12):修订优先于判空——原创章带审核反馈同样判定稿
+    // (手册判定表「按审核意见修订→不注入」无章型限定;原创内容随【上一版剧本】注入修订)
+    expect(determineChapterMode({}, true)).toBe("finalized");
+    expect(determineChapterMode({ sourceText: "   \n " }, true)).toBe("finalized");
   });
 
   it("注入矩阵：改编→改编方法 / 原创→故事开发方法 / 定稿→零注入，每次 ≤1 份且位于 system 段 skill 之后 --- 分隔", () => {
@@ -251,6 +252,22 @@ describe("determineChapterMode 本章判定三态（B+ 方法文档按需注入�
     expect(describeChapterModeAnnotation({ sourceText: "晏燎雨夜入城。" }, true)).toBe(
       "本章判定：修订模式 → 按审核意见修订，未注入方法文档",
     );
+  });
+});
+
+describe("isReviewFresh 审核时效（F3）", () => {
+  it("审核晚于最新剧本才新鲜；早于/同刻/条目缺失/createdAt 非数均不新鲜", () => {
+    expect(isReviewFresh({ createdAt: 200 }, { createdAt: 100 })).toBe(true);
+    // 重新生成剧本后,针对上一版的旧审核不新鲜
+    expect(isReviewFresh({ createdAt: 100 }, { createdAt: 200 })).toBe(false);
+    // 同刻不算严格晚于——保守判不新鲜
+    expect(isReviewFresh({ createdAt: 100 }, { createdAt: 100 })).toBe(false);
+    // 任一条目缺失 → 无法证明审核针对当前版本
+    expect(isReviewFresh(undefined, { createdAt: 100 })).toBe(false);
+    expect(isReviewFresh({ createdAt: 200 }, undefined)).toBe(false);
+    // createdAt 非数(脏数据)不新鲜
+    expect(isReviewFresh({ createdAt: 200 }, {})).toBe(false);
+    expect(isReviewFresh({}, { createdAt: 100 })).toBe(false);
   });
 });
 

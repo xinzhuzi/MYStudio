@@ -2828,7 +2828,8 @@ describe("workflow stage action surfaces", () => {
     expect(hookSource).not.toContain("buildStudioManualContext(");
     expect(hookSource).toContain("useReviewFeedback?: boolean");
     expect(hookSource).toContain("options?.useReviewFeedback");
-    expect(hookSource).toContain("reviewFeedback: useReviewFeedback && hasReviewIssues(review) ? review : undefined");
+    // F3:修订注入/旗标须过审核时效(isReviewFresh 共享函数,与 ScriptTab reviseMode 同口径,不两处各写)
+    expect(hookSource).toContain("isReviewFresh");
   });
 
   it("does not wire the legacy production renderer into the workflow", () => {

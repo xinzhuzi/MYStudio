@@ -62,16 +62,17 @@ export type ChapterScriptMode = "novel_adaptation" | "original" | "finalized";
 
 /**
  * 按章数据形态判定生成模式(判定错了修章数据 sourceText,不修判定器——G12):
- * - 无本章原文 → 原创(注故事开发方法)
- * - 有原文且带审核反馈修订 → 定稿(零注入;修订=带审核反馈,R1/G8)
+ * - 带审核反馈修订 → 定稿(零注入;修订=带审核反馈,R1/G8/F5 用户裁定 10-12:不限章型——原创章修订同样走修订路径)
+ * - 无本章原文(非修订) → 原创(注故事开发方法)
  * - 有原文非修订(含已有剧本的普通重生成) → 小说改编(注改编方法)
  */
 export function determineChapterMode(
   chapter: { sourceText?: string; eventState?: string },
   isRevision: boolean,
 ): ChapterScriptMode {
-  if (!chapter.sourceText?.trim()) return "original";
+  // F5:修订优先于判空——手册判定表「按审核意见修订(带审核反馈)→ 不注入」无章型限定,对齐之
   if (isRevision) return "finalized";
+  if (!chapter.sourceText?.trim()) return "original";
   return "novel_adaptation";
 }
 
@@ -109,6 +110,31 @@ export function getStageSkillContent(stage: ScriptStageKey): string {
 /** 审核报告是否含待修复问题（问题清单用 🔴/🟡/⚪ 标注严重程度，审核通过的项不出现）。 */
 export function hasReviewIssues(report?: string): boolean {
   return !!report && /🔴|🟡|⚪/.test(report);
+}
+
+/**
+ * F3 审核时效：审核条目 createdAt 须严格晚于最新 scriptDraft 条目 createdAt，
+ * 才算「针对当前版本的审核」——重新生成剧本后，针对上一版的旧审核不再驱动修订判定。
+ * ScriptTab 的 reviseMode 与 useScriptStageActions 的修订注入/文案旗标共用本函数，不两处各写。
+ * 任一条目缺失或 createdAt 非数一律判不新鲜（无法证明审核针对当前版本，保守不修订）。
+ */
+export function isReviewFresh(
+  reviewEntry?: { createdAt?: number } | null,
+  latestScriptEntry?: { createdAt?: number } | null,
+): boolean {
+  if (!reviewEntry || !latestScriptEntry) return false;
+  const reviewAt = reviewEntry.createdAt;
+  const scriptAt = latestScriptEntry.createdAt;
+  if (typeof reviewAt !== "number" || typeof scriptAt !== "number") return false;
+  return reviewAt > scriptAt;
+}
+
+/** 「针对当前版本的修订审核」完整判定=含未修复问题 且 晚于最新剧本(收拢三处手写组合,防漏改重演 F3 类不一致)。 */
+export function hasFreshReviewIssues(
+  reviewEntry?: { data?: string; createdAt?: number } | null,
+  latestScriptEntry?: { createdAt?: number } | null,
+): boolean {
+  return hasReviewIssues(reviewEntry?.data) && isReviewFresh(reviewEntry, latestScriptEntry);
 }
 
 function toMarkdownQuote(content: string): string {

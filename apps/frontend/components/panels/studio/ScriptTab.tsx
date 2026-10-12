@@ -8,7 +8,7 @@ import {
   describeChapterModeAnnotation,
   extractPartialContent,
   getStageSkillContent,
-  hasReviewIssues,
+  hasFreshReviewIssues,
   SCRIPT_STAGE_LABEL,
   type ScriptStageKey,
   type ReviewableStage,
@@ -80,8 +80,11 @@ export function ScriptTab(props: {
       : undefined;
 
   const reviewKey = SCRIPT_STAGE_REVIEW_KEY[activeStage as ReviewableStage];
-  const reviewData = reviewKey ? stageData(reviewKey)?.data : undefined;
-  const reviseMode = hasReviewIssues(reviewData);
+  const reviewEntry = reviewKey ? stageData(reviewKey) : undefined;
+  const reviewData = reviewEntry?.data;
+  // F3 修订判定=共享完整判定(审核含未修复问题 且 晚于最新剧本);仅用于「AI审核生成」入口可用性——
+  // 预览/标注/摘要已统一按「一键生成=非修订」口径(G38 前半句作废,10-12 用户裁定)
+  const reviseMode = hasFreshReviewIssues(reviewEntry, stageData("scriptDraft"));
 
 
   const streamingText =
@@ -145,7 +148,8 @@ export function ScriptTab(props: {
     if (!chapter || !props.previewStageUserMessage) return;
     props
       .previewStageUserMessage(activeStage, chapter, {
-        useReviewFeedback: reviseMode,
+        // F3:预览与实发一致——「一键生成」固定非修订,预览同口径(唯一修订入口=「AI审核生成」按钮)
+        useReviewFeedback: false,
       })
       .then((text) => {
         if (alive) setLivePrompt(text ?? "");
@@ -157,7 +161,7 @@ export function ScriptTab(props: {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStage, chapter?.id, reviseMode, props.agentWorkData, props.previewStageUserMessage]);
+  }, [activeStage, chapter?.id, props.agentWorkData, props.previewStageUserMessage]);
   // R4/G9:剧本确定性自检指标(只读展示,不阻断保存不自动重跑)——与审核注入同源
   // (analyzeScriptDraft);时长/画幅兜底从 styleSummary 解析(画幅真源=剧本头部自述,函数内解析)。
   // 须在下方早退之前调用(hooks 顺序恒定)。
@@ -200,10 +204,10 @@ export function ScriptTab(props: {
         : standardMessages.user
       : livePrompt || standardMessages.user;
   const promptSource = userDraft ?? basePrompt;
-  // G12 本章判定只读标注:按章数据形态判定(小说改编/原创/修订模式),只读不可改——判定错了修章数据,不修判定器
-  // R1/G8:第二参=reviseMode(是否带审核反馈修订)——已有剧本的普通重生成仍标小说改编
+  // G12 本章判定只读标注:按章数据形态判定(小说改编/原创),只读不可改——判定错了修章数据,不修判定器
+  // F3:标注统一按「一键生成=非修订」口径——已有剧本(含带审核)恒标改编态;修订入口只剩「AI审核生成」
   const chapterModeNote = chapter
-    ? describeChapterModeAnnotation(chapter, reviseMode)
+    ? describeChapterModeAnnotation(chapter, false)
     : "";
   const memoryMarkers = [
     promptSource.includes("原著圣经") ? "原著圣经" : "",
@@ -219,7 +223,8 @@ export function ScriptTab(props: {
     "导演手法",
     chapter ? `章节：${chapter.title}` : "",
     chapter?.eventState ? "事件分析" : "",
-    reviseMode ? "审核意见(修订模式)" : "",
+    // F3:摘要随预览走「一键生成=非修订」口径——不再列「审核意见(修订模式)」;
+    // 「AI审核生成」的附带内容由其旁只读提示行自释
     "本章正文",
   ]
     .filter(Boolean)
@@ -434,9 +439,11 @@ export function ScriptTab(props: {
                   <Button
                     size="sm"
                     variant="paid"
+                    // F3:仅当「针对当前版本的审核含未修复问题」(reviseMode)时可用——
+                    // 旧审核(早于最新剧本)不驱动修订,入口禁用即不实发
                     disabled={
                       !chapter ||
-                      !reviewData ||
+                      !reviseMode ||
                       props.scriptStreaming !== null
                     }
                     onClick={() =>
@@ -449,6 +456,12 @@ export function ScriptTab(props: {
                     <WandSparkles className="h-4 w-4" />
                     AI审核生成
                   </Button>
+                  {/* F3 只读提示:双态自释(禁用原因与附带内容),语义 token */}
+                  <span className="text-[10px] leading-none text-muted-foreground">
+                    {reviseMode
+                      ? "AI审核生成时将附带上一版剧本与审核意见"
+                      : "AI审核生成需针对当前版本且含未修复问题的审核(重跑「审核」后可用)"}
+                  </span>
                 </div>
                 {streamingThinking
                   ? renderThinkingPreview(streamingThinking, Boolean(streamingText))
