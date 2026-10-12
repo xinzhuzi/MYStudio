@@ -30,14 +30,14 @@ describe("studio series bible build", () => {
     expect(bible.stylePositioning).toBe("高级国风武侠短剧");
   });
 
-  it("defaults aspect ratio to vertical 9:16 when platformSpec missing", () => {
+  it("defaults aspect ratio to 16:9 横屏 when platformSpec missing (G36)", () => {
     const bible = buildSeriesBible({
       projectId: "p",
       characters: [],
       scenes: [],
       config: {},
     });
-    expect(bible.aspectRatio).toBe("9:16");
+    expect(bible.aspectRatio).toBe("16:9");
     expect(bible.characterLocks).toEqual([]);
     expect(bible.sceneLocks).toEqual([]);
   });
@@ -54,14 +54,14 @@ describe("studio series bible summary", () => {
       sceneLocks: ["客栈大堂"],
       visualManualId: "daojie_ink_guofeng",
       directorManualId: "Daojie_xianxia",
-      aspectRatio: "9:16",
+      aspectRatio: "16:9",
       stylePositioning: "高级国风武侠短剧",
     });
 
     expect(summary).toContain("剧集圣经");
     expect(summary).toContain("玄色长袍束发冷面");
     expect(summary).toContain("客栈大堂");
-    expect(summary).toContain("9:16");
+    expect(summary).toContain("16:9");
     expect(summary).toContain("高级国风武侠短剧");
   });
 

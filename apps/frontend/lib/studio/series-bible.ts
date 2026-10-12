@@ -24,8 +24,8 @@ export interface BuildSeriesBibleInput {
   };
 }
 
-/** 竖屏短剧默认画幅（§全局规范）。platformSpec 缺省时回退。 */
-const DEFAULT_ASPECT_RATIO = "9:16";
+/** 默认画幅(G36 用户裁定 10-12:全链必须 16:9 横屏)。platformSpec 缺省时回退。 */
+const DEFAULT_ASPECT_RATIO = "16:9";
 
 /**
  * 构建剧集圣经：一处锁定角色外貌+音色 / 场景 / 画风手册 / 画幅 / 风格定位，
