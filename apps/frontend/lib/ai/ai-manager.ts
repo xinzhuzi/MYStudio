@@ -71,7 +71,10 @@ export function resolve(binding: AIBinding): ResolvedModel | null {
   if ("agent" in binding) {
     const r = getAIConfigStore().getResolvedAgentModel(binding.agent);
     if (!r) return null;
-    return { provider: r.provider, model: r.model, temperature: r.deployment.temperature, maxTokens: r.deployment.maxOutputTokens };
+    // 1013 烤问收口:不再回传 deployment.maxOutputTokens——部署对象沿袭 API_AGENT_DEPLOYMENT_DEFAULTS
+    // 自带小额默认(导演规划 4096 等),旧合并式 Math.max(部署值,请求值)||兜底 下小值恒赢、64K 单一真源
+    // 永不生效(实弹:75cd03cf 后导演规划仍实发 4096 被思考独占零正文)。max_tokens 统一走 maxTokensFloor。
+    return { provider: r.provider, model: r.model, temperature: r.deployment.temperature };
   }
   const cfg = getFeatureConfig(binding.feature);
   if (!cfg) return null;
@@ -99,7 +102,7 @@ async function text(req: AITextRequest): Promise<AITextResult> {
     messages: req.messages,
     disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
-    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || maxTokensFloor(resolved.provider),
+    maxTokens: Math.max(req.maxTokens ?? 0, maxTokensFloor(resolved.provider)), // 64K 硬地板:显式请求值只能抬高(宁大勿小),部署级小值不再参战
     timeoutMs: req.timeoutMs,
   });
   // 欠账③:stopReason/usage 透传(原收窄丢弃,见 AITextResult 注释);非流式回退腿共用本返回。
@@ -123,7 +126,7 @@ async function textStream(req: AITextRequest, onChunk: (delta: string, kind: AIT
     messages: req.messages,
     disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
-    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || maxTokensFloor(resolved.provider),
+    maxTokens: Math.max(req.maxTokens ?? 0, maxTokensFloor(resolved.provider)), // 64K 硬地板:显式请求值只能抬高(宁大勿小),部署级小值不再参战
     // 流式 IPC 整体预算（SDK 流式+HTTP 回退共享）；缺省主进程走 300s。
     // B+ 剧本长输出若不传，回退一次性 39k 级 prompt 实弹可超 300s（10-11 GLM 超时根因之一）。
     timeoutMs: req.timeoutMs,

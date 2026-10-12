@@ -63,7 +63,7 @@ afterEach(() => {
 });
 
 describe("aiManager.resolve", () => {
-  it("Agent 绑定解析为 provider/model + 温度/maxTokens", () => {
+  it("Agent 绑定解析为 provider/model + 温度;部署级 maxOutputTokens 不再回传(1013 烤问:小额默认击穿 64K 单一真源)", () => {
     useAPIConfigStore.setState({
       agentDeployments: [
         { key: "scriptDraft", name: "", desc: "", modelId: "m1", vendorId: "p1", temperature: 0.7, maxOutputTokens: 1234 },
@@ -73,7 +73,7 @@ describe("aiManager.resolve", () => {
     expect(r?.provider.id).toBe("p1");
     expect(r?.model).toBe("m1");
     expect(r?.temperature).toBe(0.7);
-    expect(r?.maxTokens).toBe(1234);
+    expect(r?.maxTokens).toBeUndefined();
   });
 
   it("Feature 绑定解析 vendorId:model", () => {
@@ -189,14 +189,14 @@ describe("aiManager.text", () => {
         provider: { id: "p1" },
         model: "m1",
         temperature: 0.7,
-        maxTokens: 1234,
+        maxTokens: 65536, // 1013:部署级 1234 不再参战,64K 地板生效
       });
     } finally {
       warnSpy.mockRestore();
     }
   });
 
-  it("prefers resolved agent temperature and max tokens over request defaults", async () => {
+  it("prefers resolved agent temperature; max_tokens floors to 64K(部署小额与请求小额都被地板抬升)", async () => {
     useAPIConfigStore.setState({
       agentDeployments: [
         { key: "scriptDraft", name: "", desc: "", modelId: "m1", vendorId: "p1", temperature: 0.7, maxOutputTokens: 1234 },
@@ -218,7 +218,7 @@ describe("aiManager.text", () => {
     expect(textCompletion.mock.calls[0]?.[0]).toMatchObject({
       model: "m1",
       temperature: 0.7,
-      maxTokens: 1234,
+      maxTokens: 65536, // 1013:部署 1234 与请求 456 均低于地板,抬到 64K
     });
   });
 
@@ -388,7 +388,7 @@ describe("aiManager.textStream", () => {
         provider: { id: "p1" },
         model: "m1",
         temperature: 0.7,
-        maxTokens: 1234,
+        maxTokens: 65536, // 1013:64K 地板,部署级 1234 不再参战
       });
     } finally {
       warnSpy.mockRestore();
