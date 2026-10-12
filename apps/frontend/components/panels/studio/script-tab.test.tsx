@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { ScriptTab } from "./ScriptTab";
-import { ScriptOutputPanel } from "./ScriptOutputPanel";
 
 // MdPreview/MdEditor 在 jsdom 里不可靠,用最小替身(值展示)
 vi.mock("md-editor-rt", () => ({
@@ -52,26 +51,6 @@ describe("ScriptTab", () => {
     ).toBeTruthy();
   });
 
-  it("renders generated script output status in the extracted output panel", () => {
-    render(
-      <ScriptOutputPanel
-        activeStage="scriptDraft"
-        hasGeneratedOutput={true}
-        hasPrereq={true}
-        output="## 测试输出"
-        streamingText={null}
-        liveMd=""
-        reviewStreaming={null}
-        reviewData={undefined}
-        reviseMode={false}
-        onEditOutput={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("输出结果")).toBeTruthy();
-    expect(screen.getByText("已生成")).toBeTruthy();
-  });
-
   it("provides script sub-stage tabs inline in the tab body (header actions retired)", () => {
     const source = readFileSync(
       "frontend/components/panels/studio/ScriptTab.tsx",
@@ -88,17 +67,9 @@ describe("ScriptTab", () => {
       "frontend/components/panels/studio/ScriptTab.tsx",
       "utf8",
     );
-    const outputPanelSource = readFileSync(
-      "frontend/components/panels/studio/ScriptOutputPanel.tsx",
-      "utf8",
-    );
-
     expect(tabSource).toContain("useThemeStore");
     expect(tabSource).toContain("theme={theme}");
     expect(tabSource).not.toContain('theme="dark"');
-    expect(outputPanelSource).toContain("useThemeStore");
-    expect(outputPanelSource).toContain("theme={theme}");
-    expect(outputPanelSource).not.toContain('theme="dark"');
   });
 
   it("lays out script stage controls as horizontal buttons with one full-width detail panel", () => {
@@ -172,7 +143,6 @@ describe("ScriptTab", () => {
     expect(generatePanel).toContain("useReviewFeedback: false");
     // G38 一键生成自释锁:aria-label 须含可见文本「一键生成」(WCAG 2.5.3)+ 不走修订自释
     expect(generatePanel).toContain('aria-label="一键生成：按改编模式重新生成(不走修订)"');
-    expect(generatePanel).not.toContain("<ScriptOutputPanel");
     expect(generatePanel).toContain("props.runStage(");
     expect(generatePanel).toContain('target: "output"');
     // R6:自检指标框随被度量草稿迁入一键生成页(prompt 页不再持有)
@@ -192,7 +162,6 @@ describe("ScriptTab", () => {
 
     expect(source).toContain("reviewMarkdown");
     expect(reviewPanel).toContain("renderMarkdownPreview(reviewMarkdown");
-    expect(reviewPanel).not.toContain("<ScriptOutputPanel");
     expect(reviewPanel).toContain("props.runReview(");
     expect(reviewPanel).toContain('target: "review"');
   });
