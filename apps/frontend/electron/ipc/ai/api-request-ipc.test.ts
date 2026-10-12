@@ -357,3 +357,36 @@ describe("registerApiRequestIpcHandlers", () => {
     expect(runTextCompletionRequestMock).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe("api-text-completion disableThinking(1013 提取空文本修)", () => {
+  const provider = {
+    id: "p1",
+    platform: "custom",
+    name: "GLM",
+    baseUrl: "https://open.bigmodel.cn/api/anthropic",
+    apiKey: "sk-test",
+    apiProtocol: "anthropic-compatible",
+  };
+
+  it("载荷带 disableThinking → sdkGenerateText 收 anthropic thinking:disabled;不带则零注入", async () => {
+    registerApiRequestIpcHandlers({ createOperationId: () => "op", writeDiagnosticsLog: vi.fn() });
+    sdkGenerateTextMock.mockResolvedValue({ success: true, text: "ok" });
+
+    await handlers.get("api-text-completion")?.(null, {
+      provider, model: "glm-5.3", messages: [{ role: "user", content: "x" }], disableThinking: true,
+    });
+    expect(sdkGenerateTextMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        providerOptions: { anthropic: { thinking: { type: "disabled" } } },
+      }),
+    );
+
+    await handlers.get("api-text-completion")?.(null, {
+      provider, model: "glm-5.3", messages: [{ role: "user", content: "x" }],
+    });
+    expect(sdkGenerateTextMock).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ providerOptions: expect.anything() }),
+    );
+  });
+});

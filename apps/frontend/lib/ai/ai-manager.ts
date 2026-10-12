@@ -52,6 +52,8 @@ export interface AITextRequest {
   fallbackToUniversal?: boolean;
   /** 整体调用超时（穿透到主进程 SDK/HTTP 两层）；缺省走各层默认 */
   timeoutMs?: number;
+  /** 关闭思考型模型深度思考(1013 提取空文本修;结构化任务用,SDK/HTTP 两层同注) */
+  disableThinking?: boolean;
 }
 
 export interface AITextResult {
@@ -88,6 +90,7 @@ async function text(req: AITextRequest): Promise<AITextResult> {
     provider: resolved.provider,
     model: resolved.model,
     messages: req.messages,
+    disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
     maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
     timeoutMs: req.timeoutMs,
@@ -111,6 +114,7 @@ async function textStream(req: AITextRequest, onChunk: (delta: string, kind: AIT
     provider: resolved.provider,
     model: resolved.model,
     messages: req.messages,
+    disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
     maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
     // 流式 IPC 整体预算（SDK 流式+HTTP 回退共享）；缺省主进程走 300s。

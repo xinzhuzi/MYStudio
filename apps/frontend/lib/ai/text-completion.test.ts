@@ -564,3 +564,42 @@ describe("text completion stream (SSE)", () => {
     expect(endpoint).toBe("https://anthropic-relay.example.com/v1/messages");
   });
 });
+
+
+describe("disableThinking 载荷(1013 提取空文本修)", () => {
+  // 运行时协议路由:custom 平台钉 openai 腿;声明 anthropic-compatible 走 anthropic 腿——
+  // 两 provider 各断各自存活腿的 body 注入
+  const openAiLegProvider = {
+    id: "p1", platform: "custom", name: "GLM",
+    baseUrl: "https://x.example/v1", apiKey: "sk-x", model: ["glm-5.3"],
+  };
+  const anthropicLegProvider = {
+    ...openAiLegProvider,
+    id: "p2",
+    apiProtocol: "anthropic-compatible" as const,
+  };
+
+  it("disableThinking=true → 存活腿 body 注 thinking:disabled;缺省零注入", () => {
+    for (const provider of [openAiLegProvider, anthropicLegProvider]) {
+      const withOff = prepareTextCompletionRequest({
+        provider, model: "glm-5.3",
+        messages: [{ role: "user", content: "x" }],
+        disableThinking: true,
+      });
+      if (!withOff.success) throw new Error("prepare failed");
+      expect(withOff.attempts.length).toBeGreaterThanOrEqual(1);
+      for (const attempt of withOff.attempts) {
+        expect((attempt.body as Record<string, unknown>).thinking).toEqual({ type: "disabled" });
+      }
+
+      const without = prepareTextCompletionRequest({
+        provider, model: "glm-5.3",
+        messages: [{ role: "user", content: "x" }],
+      });
+      if (!without.success) throw new Error("prepare failed");
+      for (const attempt of without.attempts) {
+        expect((attempt.body as Record<string, unknown>).thinking).toBeUndefined();
+      }
+    }
+  });
+});

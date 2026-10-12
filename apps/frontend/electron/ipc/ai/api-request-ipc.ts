@@ -297,6 +297,11 @@ export function registerApiRequestIpcHandlers({
           temperature: payload.temperature,
           maxTokens: payload.maxTokens,
           timeoutMs: textTimeoutMs,
+          // 1013 提取空文本修:思考型关思考(anthropic 协议式;openai 兼容适配器
+          // 忽略未知 providerOptions 键,同传无害,HTTP 回退腿由 body 注同款)
+          ...(payload.disableThinking
+            ? { providerOptions: { anthropic: { thinking: { type: "disabled" } } } }
+            : {}),
         });
         if (result.success) {
           writeDiagnosticsLog({

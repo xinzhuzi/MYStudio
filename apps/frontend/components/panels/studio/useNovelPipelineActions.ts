@@ -3,9 +3,16 @@ import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildEntityExtractionMessages,
   dedupeEntities,
+  parseAliasesFromNotes,
   parseEntityExtraction,
   type KnownEntity,
 } from "@/lib/studio/entity-extraction";
+import {
+  diffScriptEntityHints,
+  extractScriptEntityHints,
+  formatHintGapList,
+} from "@/lib/studio/script-entity-hints";
+import { logEvent } from "@/lib/diagnostics/logger";
 import {
   createMystudioSinks,
   syncExtractedEntities,
@@ -129,7 +136,10 @@ export function useNovelPipelineActions({
                 { role: "user", content: messages.user },
               ],
               temperature: 0.2,
-              maxTokens: 1024,
+              // 1013 修:max_tokens ≥16384 铁律(旧 1024)+结构化任务关思考
+              // (思考型会把输出吞进思考通道,正文空返)
+              maxTokens: 16384,
+              disableThinking: true,
             });
             if (!result.success || !result.text) {
               throw new Error(result.error || "事件分析失败");
@@ -259,9 +269,9 @@ export function useNovelPipelineActions({
             id: c.id,
             kind: "character" as const,
             name: c.name,
-            aliases:
-              ((c as unknown as Record<string, unknown>).aliases as string[]) ??
-              [],
+            // 库角色别名真源在 notes 首行「别名：…」(entity-sync 写入侧),守门解析
+            // 打通「监工赵四↔赵四」类匹配(1013 修 RC-4;不读不存在的 c.aliases 字段)
+            aliases: parseAliasesFromNotes(c.notes),
           })),
         ...libScenes
           .filter(
@@ -274,7 +284,8 @@ export function useNovelPipelineActions({
             id: s.id,
             kind: "scene" as const,
             name: s.name,
-            aliases: [],
+            // 场景库别名同走 notes 守门解析(「悦来客栈↔客栈」类匹配);props 无 notes 通道保持 []
+            aliases: parseAliasesFromNotes(s.notes),
           })),
         ...libProps
           .filter(
@@ -300,11 +311,14 @@ export function useNovelPipelineActions({
         toast.error(memory.error);
         return;
       }
+      // 剧本自报实体清单(确定性兜底):机械抽取注入 prompt 供模型逐项判定;非场次格式(小说体)为双空,注入块自动省略
+      const scriptHints = extractScriptEntityHints(scriptText);
       const messages = buildEntityExtractionMessages({
         episodeId: targetEpisodeId,
         scriptText,
         knownEntities,
         bibleContext: memory.context,
+        scriptHints,
       });
       try {
         const result = await aiManager.text({
@@ -314,7 +328,10 @@ export function useNovelPipelineActions({
             { role: "user", content: messages.user },
           ],
           temperature: 0.2,
-          maxTokens: 2048,
+          // 1013 修:max_tokens ≥16384 铁律(旧 2048)+结构化任务关思考——
+          // glm-5.3 思考型非流式在 2048 下把输出全吞进思考通道,正文空返
+          maxTokens: 16384,
+          disableThinking: true,
         });
         if (!result.success || !result.text) {
           throw new Error(result.error || "实体提取失败");
@@ -347,10 +364,37 @@ export function useNovelPipelineActions({
         });
 
         const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
-        if (parsed.errors.length) {
+        const completionBase = parsed.errors.length
+          ? `资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`
+          : `资产提取完成：${detail}`;
+
+        // 确定性落差告警(1013 修):机械清单与实际输出 diff,漏了必可见;不自动写库(防误判)。
+        // hints 双空数组(非场次格式/空文本)时 diff 恒双空,自然走原收口
+        const diff = diffScriptEntityHints(scriptHints, parsed.entities);
+        const gapParts: string[] = [];
+        if (diff.missingCharacters.length) {
+          gapParts.push(`角色缺：${formatHintGapList(diff.missingCharacters)}`);
+        }
+        if (diff.missingScenes.length) {
+          gapParts.push(`场景缺：${formatHintGapList(diff.missingScenes)}`);
+        }
+        if (gapParts.length) {
           toast.warning(
-            `资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`,
+            `${completionBase}；以下剧本人物行具名者/场次地点未见于提取结果——${gapParts.join("；")}（可能是有意略过的群演，也可能是漏提；未自动补录，请按剧本人物行/场次标题核对）`,
           );
+          void logEvent({
+            level: "warn",
+            category: "workflow",
+            message: "entityExtraction.hints.missing",
+            context: {
+              episodeId: targetEpisodeId,
+              missingCharacters: diff.missingCharacters,
+              missingScenes: diff.missingScenes,
+              parseErrors: parsed.errors,
+            },
+          });
+        } else if (parsed.errors.length) {
+          toast.warning(completionBase);
         } else {
           toast.success(`资产提取完成：${detail}`);
         }

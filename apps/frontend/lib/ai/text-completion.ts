@@ -20,6 +20,12 @@ export interface TextCompletionRequest {
   maxTokens?: number;
   /** 整体调用超时，穿透 SDK 与 HTTP 回退两层；缺省各层走自己的默认。 */
   timeoutMs?: number;
+  /**
+   * 关闭思考型模型深度思考(1013 提取空文本修):结构化任务(实体提取/事件分析)
+   * 不需要思考——glm-5.3 思考型非流式+小额 maxTokens 会把输出全吞进思考通道,
+   * 正文空返。SDK 路按 anthropic 协议注 thinking:disabled,HTTP 腿注 body 同款。
+   */
+  disableThinking?: boolean;
 }
 
 export interface TextCompletionAttempt {
@@ -111,6 +117,7 @@ export function prepareTextCompletionRequest(payload: TextCompletionRequest): Pr
     messages,
     temperature: payload.temperature,
     maxTokens: payload.maxTokens ?? 2048,
+    disableThinking: payload.disableThinking,
   });
 
   const protocol = resolveRuntimeTextProtocol(payload.provider);
@@ -264,6 +271,7 @@ function buildAnthropicTextAttempt(input: {
   messages: TextCompletionMessage[];
   temperature?: number;
   maxTokens: number;
+  thinkingOff?: Record<string, unknown>;
 }): TextCompletionAttempt {
   const system = input.messages
     .filter((message) => message.role === "system")
@@ -285,6 +293,7 @@ function buildAnthropicTextAttempt(input: {
       max_tokens: input.maxTokens,
       temperature: input.temperature ?? 0.2,
       messages: normalizeAnthropicMessages(nonSystemMessages),
+      ...(input.thinkingOff ?? {}),
     },
   };
 }
@@ -296,7 +305,10 @@ function buildTextCompletionAttempts(input: {
   messages: TextCompletionMessage[];
   temperature?: number;
   maxTokens: number;
+  disableThinking?: boolean;
 }): TextCompletionAttempt[] {
+  // zhipu GLM 与 Anthropic 两式同形:{thinking:{type:'disabled'}}(1013)
+  const thinkingOff = input.disableThinking ? { thinking: { type: "disabled" } } : undefined;
   const system = input.messages
     .filter((message) => message.role === "system")
     .map((message) => message.content)
@@ -316,9 +328,10 @@ function buildTextCompletionAttempts(input: {
         messages: input.messages,
         max_tokens: input.maxTokens,
         temperature: input.temperature ?? 0.2,
+        ...(thinkingOff ?? {}),
       },
     },
-    buildAnthropicTextAttempt(input),
+    buildAnthropicTextAttempt({ ...input, thinkingOff }),
     {
       protocol: "gemini-compatible",
       label: "Gemini 兼容",

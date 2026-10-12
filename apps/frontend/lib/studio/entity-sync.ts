@@ -117,8 +117,12 @@ export function syncExtractedEntities(
         characters.push({ characterId, name: entity.name, aliases: entity.aliases, note: entity.note });
         created += 1;
       } else {
+        // 并集别名非空才下发 notes:updateCharacter 是 {...char,...updates} 浅展开,
+        // 无条件发 notes:undefined 会抹掉库内既有别名备注(1013 修:新手册把已知实体
+        // 输出一行变成主流量,merged 更新的抹库自毁循环不再可回避)
+        const notesValue = notesFromAliases(entity.aliases);
         characterSink.updateCharacter(entity.id, {
-          notes: notesFromAliases(entity.aliases),
+          ...(notesValue ? { notes: notesValue } : {}),
           status: "linked",
           linkedEpisodeId: episodeId,
         });

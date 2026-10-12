@@ -129,6 +129,47 @@ describe("studio entity sync bridge", () => {
     expect(summary.merged).toBe(1); // 小明
   });
 
+  it("does not clobber library notes when the merged alias union is empty (1013 修)", () => {
+    // merged 且并集别名为空 → updateCharacter 的 updates 不含 notes 键:
+    // updateCharacter 是 {...char,...updates} 浅展开,发 notes:undefined 会抹掉库内既有备注
+    const entities: DedupedEntity[] = [
+      { id: "char-001", isNew: false, kind: "character", name: "小明", aliases: [], episodeIds: ["ep1"] },
+    ];
+    const { characterSink, sceneSink, calls } = makeSinks();
+
+    syncExtractedEntities(
+      { episodeId: "ep1", entities, projectId: "proj-1", projectName: "测试项目" },
+      { characterSink, sceneSink },
+    );
+
+    expect(calls.updateCharacter).toHaveLength(1);
+    expect(Object.keys(calls.updateCharacter[0]!.updates)).not.toContain("notes");
+    expect(calls.updateCharacter[0]!.updates.status).toBe("linked");
+    expect(calls.updateCharacter[0]!.updates.linkedEpisodeId).toBe("ep1");
+  });
+
+  it("overwrites notes with the union aliases when the merged alias union is non-empty", () => {
+    const entities: DedupedEntity[] = [
+      {
+        id: "char-001",
+        isNew: false,
+        kind: "character",
+        name: "赵四",
+        aliases: ["赵四", "监工", "监工老爷"],
+        episodeIds: ["ep1"],
+      },
+    ];
+    const { characterSink, sceneSink, calls } = makeSinks();
+
+    syncExtractedEntities(
+      { episodeId: "ep1", entities, projectId: "proj-1", projectName: "测试项目" },
+      { characterSink, sceneSink },
+    );
+
+    expect(calls.updateCharacter).toHaveLength(1);
+    expect(calls.updateCharacter[0]!.updates.notes).toBe("别名：赵四、监工、监工老爷");
+  });
+
   it("keeps workflow entity sync project-scoped and does not write the independent asset library", () => {
     window.studioAssets = {
       getByName: vi.fn(),
