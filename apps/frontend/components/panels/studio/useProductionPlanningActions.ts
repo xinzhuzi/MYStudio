@@ -171,8 +171,8 @@ export function useProductionPlanningActions({
           temperature: 0.4,
           // 1013 实弹定谳:GLM 思考型经 anthropic 口思考计入 max_tokens,4096 会被思考独占→正文零字节
           // 「模型响应中缺少文本内容」5 连败(useProductionPlanningActions 结构性阻塞);按用户常设令
-          // 「显式 max_tokens 一律 ≥16384,截断比浪费贵」提到 16384(服务端另有 8192 输出帽,此值只拆自缚)
-          maxTokens: 16384,
+          // 「显式 max_tokens 一律 ≥16384,截断比浪费贵」按 1013 升级令提到 200000(服务端另有 8192 输出帽,此值只拆自缚)
+          maxTokens: 200000,
         }, () => undefined);
         if (!result.success || !result.text) {
           throw new Error(result.error || "导演规划失败");
@@ -198,8 +198,8 @@ export function useProductionPlanningActions({
               },
             ],
             temperature: 0.25,
-            // 同上(1013):修复腿与初生成同陷阱,6144→16384 对齐常设令
-            maxTokens: 16384,
+            // 同上(1013):修复腿与初生成同陷阱,6144→200000 对齐 1013 升级常设令(云端 200K)
+            maxTokens: 200000,
           }, () => undefined);
           if (!repairResult.success || !repairResult.text) {
             await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
@@ -352,8 +352,8 @@ export function useProductionPlanningActions({
               { role: "user", content: userContent },
             ],
             temperature: 0.35,
-            // 同上(1013):分镜表整集输出量大,8192→16384 对齐常设令;实测 E1 后单集镜头行可达 28+
-            maxTokens: 16384,
+            // 同上(1013):分镜表整集输出量大,8192→200000 对齐 1013 升级常设令(云端 200K);实测 E1 后单集镜头行可达 28+
+            maxTokens: 200000,
           },
           () => {},
         );

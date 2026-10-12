@@ -164,7 +164,7 @@ describe("aiManager.text", () => {
       model: "m1",
       messages,
       temperature: 0.6,
-      maxTokens: 32000,
+      maxTokens: 200000, // 1013 升级令:云端兜底 200K(本地 65536)
     });
   });
 
@@ -271,7 +271,7 @@ describe("aiManager.textStream", () => {
       provider: { id: "p1" },
       model: "m1",
       temperature: 0.6,
-      maxTokens: 32000,
+      maxTokens: 200000, // 1013 升级令:云端兜底 200K(本地 65536)
     });
   });
 

@@ -82,6 +82,12 @@ function resolveOrFallback(binding: AIBinding, fallback: boolean): ResolvedModel
   return resolve(binding) ?? (fallback ? resolve({ agent: "universalAi" }) : null);
 }
 
+/** 用户常设令(1013 升级版):max_tokens 兜底——云端一律 200000、本地(localhost)65536;截断比浪费贵。 */
+function maxTokensFloor(provider: IProvider): number {
+  const local = /localhost|127\.0\.0\.1|\[::1\]/.test(provider?.baseUrl ?? "");
+  return local ? 65536 : 200000;
+}
+
 async function text(req: AITextRequest): Promise<AITextResult> {
   if (!window.electronAPI?.textCompletion) return { success: false, error: "当前环境不支持模型调用" };
   const resolved = resolveOrFallback(req.binding, req.fallbackToUniversal !== false);
@@ -92,7 +98,7 @@ async function text(req: AITextRequest): Promise<AITextResult> {
     messages: req.messages,
     disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
-    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
+    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || maxTokensFloor(resolved.provider),
     timeoutMs: req.timeoutMs,
   });
   // 欠账③:stopReason/usage 透传(原收窄丢弃,见 AITextResult 注释);非流式回退腿共用本返回。
@@ -116,7 +122,7 @@ async function textStream(req: AITextRequest, onChunk: (delta: string, kind: AIT
     messages: req.messages,
     disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
-    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || 32000,
+    maxTokens: Math.max(resolved.maxTokens ?? 0, req.maxTokens ?? 0) || maxTokensFloor(resolved.provider),
     // 流式 IPC 整体预算（SDK 流式+HTTP 回退共享）；缺省主进程走 300s。
     // B+ 剧本长输出若不传，回退一次性 39k 级 prompt 实弹可超 300s（10-11 GLM 超时根因之一）。
     timeoutMs: req.timeoutMs,
