@@ -18,7 +18,8 @@ export interface ScriptStageContext {
   chapterText: string;
   eventState?: string;
   eventMemoryContext?: string;
-  /** 本章既有剧本：供本章判定（有定稿=零方法文档注入）与审核主体使用 */
+  /** 本章既有剧本：仅供审核主体使用（审核消息的剧本主体）；本章判定已改走 reviewFeedback
+   *  （R1/G8：仅「带审核反馈的修订」判 finalized），不再以「有剧本」判定稿 */
   scriptDraft?: string;
   /** 上一集（前一章）剧本：剧本阶段衔接剧情与角色状态用；未生成时省略 */
   previousEpisodeScript?: string;
@@ -30,6 +31,11 @@ export interface ScriptStageContext {
   projectMemoryContext?: string;
   /** 原著圣经注入块（formatSourceBibleContext 产出）；空圣经时省略，零影响。 */
   originalBibleContext?: string;
+  /** 剧本确定性自检指标（analyzeScriptDraft+formatScriptDraftMetrics 产出，父 I5 标题）；审核阶段注入 user 段剧本主体之后，空/缺省零注入。 */
+  selfCheckMetrics?: string;
+  /** 题材剧本规则节（buildScriptManualContext 产物，自带父 I3 标题）；G33 审核阶段注入
+   *  user 段审核主体之后、自检指标之前，空/缺省零注入（与生成侧 directorContext 同源不同位）。 */
+  directorNarrative?: string;
 }
 
 /** 各阶段对应的 skill 手册（作 system，模仿 ToonFlow）。 */
@@ -57,15 +63,15 @@ export type ChapterScriptMode = "novel_adaptation" | "original" | "finalized";
 /**
  * 按章数据形态判定生成模式(判定错了修章数据 sourceText,不修判定器——G12):
  * - 无本章原文 → 原创(注故事开发方法)
- * - 有原文且已有定稿剧本 → 定稿(零注入;重生成走用户显式)
- * - 有原文无剧本 → 小说改编(注改编方法)
+ * - 有原文且带审核反馈修订 → 定稿(零注入;修订=带审核反馈,R1/G8)
+ * - 有原文非修订(含已有剧本的普通重生成) → 小说改编(注改编方法)
  */
 export function determineChapterMode(
   chapter: { sourceText?: string; eventState?: string },
-  hasExistingScript: boolean,
+  isRevision: boolean,
 ): ChapterScriptMode {
   if (!chapter.sourceText?.trim()) return "original";
-  if (hasExistingScript) return "finalized";
+  if (isRevision) return "finalized";
   return "novel_adaptation";
 }
 
@@ -79,15 +85,15 @@ export const METHOD_DOCS: Record<ChapterScriptMode, string | null> = {
 /** G12 预览页只读判定标注:「本章判定:小说改编 → 已注入改编方法文档」——只读,判定错修章数据不修判定器。 */
 export function describeChapterModeAnnotation(
   chapter: { sourceText?: string },
-  hasExistingScript: boolean,
+  isRevision: boolean,
 ): string {
-  switch (determineChapterMode(chapter, hasExistingScript)) {
+  switch (determineChapterMode(chapter, isRevision)) {
     case "novel_adaptation":
       return "本章判定：小说改编 → 已注入改编方法文档";
     case "original":
       return "本章判定：原创 → 已注入故事开发方法文档";
     case "finalized":
-      return "本章判定：已有定稿剧本 → 未注入方法文档";
+      return "本章判定：修订模式 → 按审核意见修订，未注入方法文档";
   }
 }
 
@@ -116,12 +122,13 @@ function toMarkdownQuote(content: string): string {
 export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContext): ScriptStageMessages {
   const skill = getAgentSkillPreset(SCRIPT_STAGE_SKILL[stage])?.content ?? "";
   // B+ 单次生成:剧本阶段按本章判定注入 ≤1 份方法文档(系统段 skill 之后,--- 分隔;定稿零注入)
+  // R1/G8:仅「带审核反馈的修订」判 finalized——有原文的普通重生成仍注改编方法文档
   const methodDocId =
     stage === "scriptDraft"
       ? METHOD_DOCS[
           determineChapterMode(
             { sourceText: ctx.chapterText, eventState: ctx.eventState },
-            Boolean(ctx.scriptDraft),
+            Boolean(ctx.reviewFeedback),
           )
         ]
       : null;
@@ -130,8 +137,10 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
   const lines: string[] = [];
   if (ctx.manualContext) lines.push(ctx.manualContext);
   if (ctx.originalBibleContext) lines.push(ctx.originalBibleContext);
+  // R2/G12:剧本阶段手册上下文只注所选导演包 script_narrative(buildScriptManualContext 产出,
+  // 标题=父 I3 由该函数自带),此处原样推入——不再包「导演手法参考」标题、无 README/视觉手册
   if (ctx.directorContext) {
-    lines.push(`## 导演手法参考（按画风/导演手册）\n${ctx.directorContext}`);
+    lines.push(ctx.directorContext);
   }
   lines.push(`## 本集信息（1 章 = 1 集）\n章节：${ctx.chapterTitle}`);
   if (ctx.eventState) lines.push(`本章事件分析：\n${ctx.eventState}`);
@@ -166,6 +175,11 @@ export function buildStageReviewMessages(_stage: ReviewableStage, ctx: ScriptSta
     lines.push(`本章正文（删减合理性对照，小说改编章适用）：\n\n${toMarkdownQuote(ctx.chapterText)}`);
   }
   lines.push(`剧本（审核主体）：\n${ctx.scriptDraft ?? ""}`);
+  // G33:题材剧本规则节(buildScriptManualContext 产物,节标题同父 I3 形态由其自带)
+  // 紧随审核主体、先于自检指标注入;缺省零注入
+  if (ctx.directorNarrative) lines.push(ctx.directorNarrative);
+  // R4/G9:确定性自检指标紧随审核主体——审核以其数值为准,不自行计数(v3 审核手册同口径)
+  if (ctx.selfCheckMetrics) lines.push(ctx.selfCheckMetrics);
   lines.push(
     "请执行「剧本审核」：以上方【剧本】为审核主体（新格式：头部三行+剧情梗概+场次正文+改编追踪表[如为小说改编章]），对照【本章事件分析】与【本章正文】，审核对象已随文提供、无需调用工具，按输出格式返回审核报告。",
   );

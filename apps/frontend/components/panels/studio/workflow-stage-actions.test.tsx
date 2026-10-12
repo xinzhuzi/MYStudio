@@ -360,11 +360,12 @@ describe("workflow stage action surfaces", () => {
     }));
     (window as any).projectFiles = { readText };
     (window as any).sourceMemory = { search };
+    const saveEntityExtraction = vi.fn();
     const { result } = renderHook(() => useNovelPipelineActions({
       activeProjectId: "dao-project",
       projectName: "道劫",
       saveAgentWorkData: vi.fn(),
-      saveEntityExtraction: vi.fn(),
+      saveEntityExtraction,
       updateNovelChapter: vi.fn(),
     }));
 
@@ -377,6 +378,17 @@ describe("workflow stage action surfaces", () => {
     const user = String(aiManagerMocks.text.mock.calls[0]?.[0]?.messages?.[1]?.content);
     expect(user.match(/## 原著档案检索/g)).toHaveLength(1);
     expect(user.indexOf("## 原著档案检索")).toBeLessThan(user.indexOf("已知实体"));
+    // 提取盖戳契约锁(1011 用户令/1012 评审补):落库实参的 scriptFingerprint 必须=
+    // scriptPlanSourceFingerprint(与导演规划/章流水线发车指纹同公式零新造,types 注释契约);
+    // 公式或 scriptText 源漂移(消费侧每次新提取即误报过期)此处必红——对照组=导演规划侧同款断言
+    expect(saveEntityExtraction).toHaveBeenCalledTimes(1);
+    const savedExtraction = saveEntityExtraction.mock.calls[0]?.[0] as { scriptFingerprint?: string };
+    expect(savedExtraction?.scriptFingerprint).toBe(
+      scriptPlanSourceFingerprint(
+        "chapter-001",
+        resolveScriptTextForEpisode(useStudioStore.getState(), "chapter-001"),
+      ),
+    );
   });
 
   it("剧本生成与审核各自现读/检索一次并复用单块上下文", async () => {
@@ -2810,7 +2822,7 @@ describe("workflow stage action surfaces", () => {
     expect(hookSource).toContain("handleScriptStage");
     expect(hookSource).toContain("handleStageReview");
     expect(hookSource).toContain("scriptStreaming");
-    expect(hookSource).toContain("buildStudioManualContext");
+    expect(hookSource).toContain("buildScriptManualContext");
     expect(hookSource).toContain("useReviewFeedback?: boolean");
     expect(hookSource).toContain("options?.useReviewFeedback");
     expect(hookSource).toContain("reviewFeedback: useReviewFeedback && hasReviewIssues(review) ? review : undefined");

@@ -63,6 +63,8 @@ const directorModuleKeys = [
   "README",
   "director_planning_narrative",
   "director_storyboard_table_narrative",
+  // R2/父 I1/I2:剧本级规则模块(包根,与 README 同级);v3 建文件,此处登记键——影响 moduleCount
+  "script_narrative",
 ] as const;
 
 const productionModuleKeys = [
@@ -105,6 +107,22 @@ export function buildStudioManualContext(
 
 export function getManualModuleText(kind: StudioManualKind, id: string | undefined | null, moduleKey: string): string {
   return getStudioManualPreset(kind, id)?.modules[moduleKey] ?? "";
+}
+
+/**
+ * 剧本阶段的手册上下文(R2/G11–G14):只返回所选导演包的 script_narrative(剧本级规则),
+ * 不注 README/视觉手册/规划文档(G12);全文不截断(题材包自含篇幅约束,不走 4000 字摘要);
+ * 未选导演包或模块缺失(存储副本无该文件) → 返回 ""(G14 容忍缺失,零注入)。
+ * 标题=父 I3:`## 题材剧本规则（<包名>）`,由本函数自带(调用方原样推入 user 段)。
+ */
+export function buildScriptManualContext(
+  config: Partial<StudioWorkflowConfig>,
+  catalog: StudioManualCatalog = {},
+): string {
+  const directorManual = resolveStudioManualPreset("director", config.directorManualId, catalog);
+  const body = directorManual?.modules.script_narrative?.trim() ?? "";
+  if (!body || !directorManual) return "";
+  return `## 题材剧本规则（${directorManual.name}）\n${body}`;
 }
 
 /**
@@ -311,6 +329,8 @@ function findDirectorModuleRelativePath(key: string) {
     README: "README.md",
     director_planning_narrative: "driector_skills/director_planning_narrative.md",
     director_storyboard_table_narrative: "driector_skills/director_storyboard_table_narrative.md",
+    // R2/父 I1:剧本级规则住包根(与 README 同级)
+    script_narrative: "script_narrative.md",
   };
   return mapping[key];
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as manuals from "./manuals";
 import {
+  buildScriptManualContext,
   buildStoryboardTableManualContext,
   buildStudioManualContext,
   EXTENDED_DIRECTOR_MANUAL_SEED_ID,
@@ -60,7 +61,8 @@ describe("studio manual presets", () => {
     expect(directorManual).toMatchObject({
       id: "Daojie_xianxia",
       source: "toonflow-runtime",
-      moduleCount: 3,
+      // Phase 3(父 I2 定序):v3 已建 script_narrative.md 且此处登记键 → 道劫 3→4
+      moduleCount: 4,
       imageCount: 0,
       basePresetId: "Xianxia_fantasy",
     });
@@ -117,6 +119,61 @@ describe("studio manual presets", () => {
 
   it("returns empty storyboard-table manual context when no manual is selected", () => {
     expect(buildStoryboardTableManualContext({})).toBe("");
+  });
+
+  it("buildScriptManualContext(R2/G12)：题材包含 script_narrative → 题材剧本规则节全文不截断;缺省/未选 → 空串", () => {
+    const longBody = `${"道劫剧本级规则正文。"}`.repeat(500); // 5000 字 > 4000,验证不截断(G12)
+    const withNarrative = buildStudioManualsFromSkillFiles("director", [
+      {
+        relativePath: "story_skills/Daojie_xianxia/README.md",
+        content: "# 本地道劫导演手册\n\n本地导演说明",
+      },
+      {
+        relativePath: "story_skills/Daojie_xianxia/script_narrative.md",
+        content: longBody,
+      },
+      {
+        relativePath: "story_skills/Daojie_xianxia/driector_skills/director_planning_narrative.md",
+        content: "下游阶段文档,不应进入剧本上下文",
+      },
+    ]);
+
+    const context = buildScriptManualContext(
+      { directorManualId: EXTENDED_DIRECTOR_MANUAL_SEED_ID },
+      { director: withNarrative },
+    );
+
+    expect(context).toContain("## 题材剧本规则（本地道劫导演手册）");
+    expect(context).toContain(longBody); // 全文不截断(buildManualSummary 的 4000 字截断不适用)
+    expect(context).not.toContain("# 视觉手册");
+    expect(context).not.toContain("# 导演手册");
+    expect(context).not.toContain("下游阶段文档"); // 只注 script_narrative,README/规划文档不进(G12)
+    // G12 核心失败通道负向锁:README 正文不得泄入(父 G12 根因=道劫 README.md:77 音乐方向
+    // 漏入剧本头部 E6)——「本地导演说明」为夹具 README 正文独有串;包名「本地道劫导演手册」
+    // 经节标题合法出现,不可作负向串
+    expect(context).not.toContain("本地导演说明");
+
+    // 种子真源同验(判别串对种子有效:道劫 README 3 处「三族灵气」,其 script_narrative 0 处):
+    // 若 buildScriptManualContext 回退为注 README,真包上下文将带入 README 正文
+    const seeded = buildScriptManualContext({ directorManualId: EXTENDED_DIRECTOR_MANUAL_SEED_ID });
+    expect(seeded).toContain("## 题材剧本规则（道劫");
+    expect(seeded).not.toContain("三族灵气");
+
+    // 存储副本缺 script_narrative 文件 → 模块空 → 返回 ""(G14 容忍缺失)
+    const withoutNarrative = buildStudioManualsFromSkillFiles("director", [
+      {
+        relativePath: "story_skills/Daojie_xianxia/README.md",
+        content: "# 本地道劫导演手册\n\n本地导演说明",
+      },
+    ]);
+    expect(
+      buildScriptManualContext(
+        { directorManualId: EXTENDED_DIRECTOR_MANUAL_SEED_ID },
+        { director: withoutNarrative },
+      ),
+    ).toBe("");
+    // 未选导演包 → ""
+    expect(buildScriptManualContext({})).toBe("");
   });
 
   it("injects Daojie manual context from the stored skill catalog", () => {

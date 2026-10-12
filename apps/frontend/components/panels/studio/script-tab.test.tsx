@@ -286,4 +286,139 @@ describe("ScriptTab", () => {
     expect(screen.queryByText("AI 思考中…")).toBeNull();
     expect(screen.queryByText(/AI 思考过程/)).toBeNull();
   });
+
+  // R4/G9:AI提示词页只读展示确定性自检指标 flags(有超标列条目;全达标显示「自检通过」)
+  it("renders the deterministic self-check flags for the generated script draft", () => {
+    const chapter = {
+      id: "ch-check",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+    const draft = [
+      "# 测试 EP01：x",
+      "# 范围与目标：x | 时长：3分钟",
+      "# 已确定要求：x/16:9横屏/x",
+      "",
+      "1-1 场 晨/外", // 缺 ·约N秒 → flag
+      "人物：甲",
+      "",
+      "△动作。",
+      "OS（甲）：甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌", // 21 字 > 20 → 超长句 flag
+    ].join("\n");
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[
+          { id: "w1", key: "scriptDraft", episodeId: "ch-check", data: draft, createdAt: 1, updatedAt: 1 },
+        ]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    expect(screen.getByText(/缺·约N秒标注/)).toBeTruthy();
+    expect(screen.getByText(/超长句 1 条/)).toBeTruthy();
+    expect(screen.queryByText(/自检通过/)).toBeNull();
+  });
+
+  it("renders 自检通过 when the script draft has no flagged metrics", () => {
+    const chapter = {
+      id: "ch-pass",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+    const draft = [
+      "# 测试 EP01：x",
+      "# 范围与目标：x | 时长：1分钟",
+      "# 已确定要求：x/16:9横屏/x",
+      "",
+      "1-1 场 晨/外 ·约60秒",
+      "人物：甲",
+      "",
+      "△动作。",
+      "甲：你来啦！",
+    ].join("\n");
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[
+          { id: "w1", key: "scriptDraft", episodeId: "ch-pass", data: draft, createdAt: 1, updatedAt: 1 },
+        ]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary="## 项目信息\n单集参考时长：1分钟\n目标画幅：16:9"
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    expect(screen.getByText(/自检通过/)).toBeTruthy();
+  });
+
+  // R1/G8:标注第二参=reviseMode(是否带审核反馈修订)——已有剧本但无审核问题 → 仍标小说改编
+  it("labels the chapter mode by reviseMode, not by the existence of a script draft", () => {
+    const chapter = {
+      id: "ch-mode",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    const { rerender } = render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[
+          { id: "w1", key: "scriptDraft", episodeId: "ch-mode", data: "# 已有剧本", createdAt: 1, updatedAt: 1 },
+        ]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+    expect(screen.getByText(/本章判定：小说改编 → 已注入改编方法文档/)).toBeTruthy();
+    expect(screen.queryByText(/修订模式/)).toBeNull();
+
+    // 有审核问题(🔴)→ reviseMode=true → 修订态标注(父 I4)
+    rerender(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[
+          { id: "w1", key: "scriptDraft", episodeId: "ch-mode", data: "# 已有剧本", createdAt: 1, updatedAt: 1 },
+          { id: "w2", key: "scriptDraftReview", episodeId: "ch-mode", data: "🔴 台词超长", createdAt: 2, updatedAt: 2 },
+        ]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+    expect(screen.getByText(/本章判定：修订模式 → 按审核意见修订，未注入方法文档/)).toBeTruthy();
+  });
 });

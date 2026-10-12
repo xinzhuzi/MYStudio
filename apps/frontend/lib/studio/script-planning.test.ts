@@ -62,6 +62,25 @@ describe("studio script-planning 逐章编剧链（Markdown，B+ 单次生成）
     expect(revise.user).toContain("逐条修复");
   });
 
+  it("directorContext 原样推入(R2/G12)：题材剧本规则节自带标题,不再包「导演手法参考」,无视觉手册节", () => {
+    const m = buildStageMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      directorContext: "## 题材剧本规则（道劫·水墨国风修仙）\n旁白腔与三色灵气语汇正文",
+    });
+    expect(m.user).toContain("## 题材剧本规则（道劫·水墨国风修仙）");
+    expect(m.user).toContain("旁白腔与三色灵气语汇正文");
+    expect(m.user).not.toContain("导演手法参考");
+    expect(m.user).not.toContain("# 视觉手册");
+
+    const none = buildStageMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+    });
+    expect(none.user).not.toContain("导演手法参考");
+    expect(none.user).not.toContain("# 视觉手册");
+  });
+
   it("审核消息：单主体=新格式剧本，对照事件分析与本章正文，无骨架/策略对照位", () => {
     const scriptReview = buildStageReviewMessages("scriptDraft", {
       chapterTitle: "第1章",
@@ -75,6 +94,56 @@ describe("studio script-planning 逐章编剧链（Markdown，B+ 单次生成）
     expect(scriptReview.user).toContain("本章正文（删减合理性对照");
     expect(scriptReview.user).not.toContain("故事骨架");
     expect(scriptReview.user).not.toContain("改编策略");
+  });
+
+  it("selfCheckMetrics 注入(R4/父 I5)：带指标 → user 在剧本主体后附自检指标节；不带 → 不含", () => {
+    const withMetrics = buildStageReviewMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      scriptDraft: "剧本C",
+      selfCheckMetrics: "## 自检指标（代码计算，以此为准）\n- 场秒合计：30s（目标 120s，允许 ±10s）",
+    });
+    expect(withMetrics.user).toContain("## 自检指标（代码计算，以此为准）");
+    expect(withMetrics.user).toContain("场秒合计：30s");
+    // 锚存在性:indexOf 落空返回 -1 会使 toBeGreaterThan(-1) 恒真——先锁锚串确实存在
+    expect(withMetrics.user).toContain("剧本（审核主体）");
+    expect(withMetrics.user.indexOf("## 自检指标（代码计算，以此为准）")).toBeGreaterThan(
+      withMetrics.user.indexOf("剧本（审核主体）"),
+    );
+
+    const withoutMetrics = buildStageReviewMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      scriptDraft: "剧本C",
+    });
+    expect(withoutMetrics.user).not.toContain("## 自检指标（代码计算，以此为准）");
+  });
+
+  it("directorNarrative 注入(G33)：题材剧本规则节位于审核主体之后、自检指标之前;缺省不注入", () => {
+    const withNarrative = buildStageReviewMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      scriptDraft: "剧本C",
+      directorNarrative: "## 题材剧本规则（道劫·水墨国风修仙）\n旁白腔与三色灵气语汇正文",
+      selfCheckMetrics: "## 自检指标（代码计算，以此为准）\n- 场秒合计：30s",
+    });
+    expect(withNarrative.user).toContain("## 题材剧本规则（道劫·水墨国风修仙）");
+    expect(withNarrative.user).toContain("旁白腔与三色灵气语汇正文");
+    // 次序:审核主体 < 题材剧本规则节 < 自检指标(锚存在性先行,防 indexOf 落空假绿)
+    expect(withNarrative.user).toContain("剧本（审核主体）");
+    expect(withNarrative.user.indexOf("## 题材剧本规则（道劫·水墨国风修仙）")).toBeGreaterThan(
+      withNarrative.user.indexOf("剧本（审核主体）"),
+    );
+    expect(withNarrative.user.indexOf("## 题材剧本规则（道劫·水墨国风修仙）")).toBeLessThan(
+      withNarrative.user.indexOf("## 自检指标（代码计算，以此为准）"),
+    );
+
+    const withoutNarrative = buildStageReviewMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "正文",
+      scriptDraft: "剧本C",
+    });
+    expect(withoutNarrative.user).not.toContain("## 题材剧本规则");
   });
 
   it("原著圣经注入：位于 manualContext 之后；未提供时零影响", () => {
@@ -107,11 +176,15 @@ describe("studio script-planning 逐章编剧链（Markdown，B+ 单次生成）
 });
 
 describe("determineChapterMode 本章判定三态（B+ 方法文档按需注入）", () => {
-  it("三态判定：有原文无剧本=小说改编 / 无原文=原创 / 有原文有剧本=定稿", () => {
+  it("三态判定(R1/G8 修订语义)：有原文非修订=小说改编 / 无原文=原创 / 带审核反馈修订=定稿", () => {
     expect(determineChapterMode({ sourceText: "晏燎雨夜入城。" }, false)).toBe("novel_adaptation");
     expect(determineChapterMode({ sourceText: "   \n " }, false)).toBe("original");
     expect(determineChapterMode({}, false)).toBe("original");
     expect(determineChapterMode({ sourceText: "晏燎雨夜入城。" }, true)).toBe("finalized");
+    // 四象限第四角:原文判空优先于修订判定——无/空白原文即便 isRevision=true 也判原创
+    // (没有可修订的原文,「修订」标记不改变原创注入故事开发方法文档)
+    expect(determineChapterMode({}, true)).toBe("original");
+    expect(determineChapterMode({ sourceText: "   \n " }, true)).toBe("original");
   });
 
   it("注入矩阵：改编→改编方法 / 原创→故事开发方法 / 定稿→零注入，每次 ≤1 份且位于 system 段 skill 之后 --- 分隔", () => {
@@ -144,10 +217,18 @@ describe("determineChapterMode 本章判定三态（B+ 方法文档按需注入�
     const finalized = buildStageMessages("scriptDraft", {
       chapterTitle: "第1章",
       chapterText: "晏燎雨夜入城。",
-      scriptDraft: "# 已有定稿剧本",
+      reviewFeedback: "🔴 台词超长，需修订",
     });
     expect(finalized.system).not.toContain("剧本改编方法：小说转短剧的取舍思考");
     expect(finalized.system).not.toContain("故事开发方法：单集定位与结构思考");
+
+    // R1/G8:有原文+已有剧本+无审核反馈(普通重生成)→ 仍判小说改编,注入改编方法文档
+    const regenerate = buildStageMessages("scriptDraft", {
+      chapterTitle: "第1章",
+      chapterText: "晏燎雨夜入城。",
+      scriptDraft: "# 已有定稿剧本",
+    });
+    expect(regenerate.system).toContain("剧本改编方法：小说转短剧的取舍思考");
   });
 
   it("非剧本生成阶段（审核）不注入方法文档", () => {
@@ -166,8 +247,9 @@ describe("determineChapterMode 本章判定三态（B+ 方法文档按需注入�
     expect(describeChapterModeAnnotation({ sourceText: "" }, false)).toBe(
       "本章判定：原创 → 已注入故事开发方法文档",
     );
+    // R1/父 I4:修订态标注——第二参语义=「是否带审核反馈修订」
     expect(describeChapterModeAnnotation({ sourceText: "晏燎雨夜入城。" }, true)).toBe(
-      "本章判定：已有定稿剧本 → 未注入方法文档",
+      "本章判定：修订模式 → 按审核意见修订，未注入方法文档",
     );
   });
 });

@@ -12,7 +12,11 @@ import {
 } from "@/lib/studio/script-planning";
 import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import {
-  buildStudioManualContext,
+  analyzeScriptDraft,
+  formatScriptDraftMetrics,
+} from "@/lib/studio/script-draft-metrics";
+import {
+  buildScriptManualContext,
   type StudioManualCatalog,
 } from "@/lib/studio/manuals";
 import {
@@ -88,8 +92,10 @@ export function useScriptStageActions({
     novelChapterCount,
   ]);
 
+  // R2/G11–G14:剧本阶段手册上下文=所选导演包 script_narrative(父 I3 标题自带,全文不截断);
+  // buildStudioManualContext 另两调用方(导演规划阶段)不动
   const scriptDirectorContext = useMemo(
-    () => buildStudioManualContext(workflowConfig, manualCatalog),
+    () => buildScriptManualContext(workflowConfig, manualCatalog),
     [workflowConfig, manualCatalog],
   );
 
@@ -308,11 +314,26 @@ export function useScriptStageActions({
       }
       const built = buildStageReviewMessages(stage, {
         manualContext: scriptStyleSummary,
+        // G33:审核侧同注题材剧本规则节——复用生成侧同一 memo 产物(scriptDirectorContext),
+        // 注入位在审核主体之后、自检指标之前(buildStageReviewMessages 内)
+        directorNarrative: scriptDirectorContext,
         originalBibleContext: memory.context,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText ?? "",
         eventState: chapter.eventState,
         scriptDraft: target,
+        // R4/G9:审核前对审核主体算确定性自检指标(父 I5 节随 user 注入,审核以其数值为准);
+        // 画幅真源=剧本头部自述(script-draft-metrics 内解析),opts 仅兜底
+        ...(stage === "scriptDraft"
+          ? {
+              selfCheckMetrics: formatScriptDraftMetrics(
+                analyzeScriptDraft(target, {
+                  durationMin: workflowConfig.episodeDurationMin ?? 3,
+                  aspectRatio: workflowConfig.platformSpec || "16:9",
+                }),
+              ),
+            }
+          : {}),
       });
       return runScriptStage({
         agentKey: "scriptDraft",
@@ -324,7 +345,7 @@ export function useScriptStageActions({
         revision: chapter.revision ?? 1,
       });
     },
-    [runScriptStage, latestScriptStage, scriptStyleSummary],
+    [runScriptStage, latestScriptStage, scriptStyleSummary, scriptDirectorContext, workflowConfig],
   );
 
   return {

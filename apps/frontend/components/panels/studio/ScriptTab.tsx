@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { analyzeScriptDraft } from "@/lib/studio/script-draft-metrics";
 import {
   buildStageMessages,
   SCRIPT_STAGE_REVIEW_KEY,
@@ -157,6 +158,19 @@ export function ScriptTab(props: {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStage, chapter?.id, reviseMode, props.agentWorkData, props.previewStageUserMessage]);
+  // R4/G9:剧本确定性自检指标(只读展示,不阻断保存不自动重跑)——与审核注入同源
+  // (analyzeScriptDraft);时长/画幅兜底从 styleSummary 解析(画幅真源=剧本头部自述,函数内解析)。
+  // 须在下方早退之前调用(hooks 顺序恒定)。
+  const scriptDraftData = stageData("scriptDraft")?.data ?? "";
+  const selfCheckMetrics = useMemo(() => {
+    if (!scriptDraftData.trim()) return null;
+    const durationMatch = /单集参考时长：(\d+(?:\.\d+)?)分钟/.exec(props.styleSummary);
+    const aspectMatch = /目标画幅：(16:9|9:16)/.exec(props.styleSummary);
+    return analyzeScriptDraft(scriptDraftData, {
+      durationMin: durationMatch ? Number(durationMatch[1]) : undefined,
+      aspectRatio: aspectMatch ? aspectMatch[1] : undefined,
+    });
+  }, [scriptDraftData, props.styleSummary]);
   if (!props.novelChapters.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
@@ -186,9 +200,10 @@ export function ScriptTab(props: {
         : standardMessages.user
       : livePrompt || standardMessages.user;
   const promptSource = userDraft ?? basePrompt;
-  // G12 本章判定只读标注:自动按章数据形态判定(小说改编/原创/已定稿),只读不可改——判定错了修章数据,不修判定器
+  // G12 本章判定只读标注:按章数据形态判定(小说改编/原创/修订模式),只读不可改——判定错了修章数据,不修判定器
+  // R1/G8:第二参=reviseMode(是否带审核反馈修订)——已有剧本的普通重生成仍标小说改编
   const chapterModeNote = chapter
-    ? describeChapterModeAnnotation(chapter, Boolean(stageData("scriptDraft")?.data))
+    ? describeChapterModeAnnotation(chapter, reviseMode)
     : "";
   const memoryMarkers = [
     promptSource.includes("原著圣经") ? "原著圣经" : "",
@@ -364,6 +379,21 @@ export function ScriptTab(props: {
                     可编辑
                   </Button>
                 </div>
+                {selfCheckMetrics ? (
+                  <div
+                    data-testid="script-self-check"
+                    className="shrink-0 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground"
+                  >
+                    <span className="select-none">自检指标（代码计算）：{selfCheckMetrics.flags.length ? "以下项超标——" : "自检通过"}</span>
+                    {selfCheckMetrics.flags.length ? (
+                      <ul className="mt-1 list-inside list-disc">
+                        {selfCheckMetrics.flags.map((flag) => (
+                          <li key={flag}>{flag}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : null}
                 {renderMarkdownPreview(promptMarkdown, "flex-1")}
               </div>
             ) : null}

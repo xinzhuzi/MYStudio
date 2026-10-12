@@ -39,6 +39,8 @@ vi.mock("@/lib/studio/source-memory", () => ({
 
 vi.mock("@/lib/studio/manuals", () => ({
   buildStudioManualContext: vi.fn(() => "MANUAL"),
+  // R2:剧本阶段改用 buildScriptManualContext(只注 script_narrative,父 I3 标题)
+  buildScriptManualContext: vi.fn(() => "## 题材剧本规则（测试道劫）\nSCRIPT-NARRATIVE"),
   getAgentSkillPreset: vi.fn(() => ({ content: "SKILL" })),
 }));
 
@@ -110,6 +112,17 @@ describe("useScriptStageActions runScriptStage timeout", () => {
       maxTokens: 32000,
       timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
     });
+    // R2/父 I3 行为锁:题材剧本规则节(script_narrative)必须送达 AI 请求——mock 的
+    // buildScriptManualContext 产物经 hook memo(:scriptDirectorContext)→ buildStageMessages
+    // 接线;若丢线(如误用 buildStudioManualContext/漏传 directorContext)此处必红
+    const request = textStreamMock.mock.calls[0]?.[0] as {
+      messages: { role: string; content: string }[];
+    };
+    const userMessage = request.messages.find((m) => m.role === "user")?.content ?? "";
+    expect(userMessage).toContain("## 题材剧本规则（测试道劫）");
+    expect(userMessage).toContain("SCRIPT-NARRATIVE");
+    expect(userMessage).not.toContain("# 视觉手册");
+    expect(userMessage).not.toContain("# 导演手册");
     expect(SCRIPT_STAGE_STREAM_TIMEOUT_MS).toBeGreaterThanOrEqual(600_000);
     expect(saveAgentWorkDataMock).toHaveBeenCalledTimes(1);
   });
@@ -157,6 +170,77 @@ describe("useScriptStageActions runScriptStage timeout", () => {
     const savedData = saveAgentWorkDataMock.mock.calls[0]?.[1] as unknown as string;
     expect(savedData).toContain("正文增量");
     expect(savedData).not.toContain("先想清楚主线");
+  });
+});
+
+describe("useScriptStageActions stage review self-check metrics", () => {
+  beforeEach(() => {
+    textStreamMock.mockReset();
+    saveAgentWorkDataMock.mockReset();
+    textStreamMock.mockResolvedValue({ success: true, text: "审核报告" });
+  });
+
+  // R4/G9 回归锁:审核 prompt 必带确定性自检指标节(父 I5)——审核以其数值为准,不自行计数
+  it("injects the self-check metrics section into the review user message", async () => {
+    const scriptData = [
+      "# 测试 EP01：x",
+      "# 范围与目标：x | 时长：3分钟",
+      "# 已确定要求：x/16:9横屏/x",
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "△动作。",
+      "甲：好。",
+    ].join("\n");
+    const { result } = renderHook(() =>
+      useScriptStageActions({
+        workflowConfig: {} as never,
+        manualCatalog: {} as never,
+        projectName: "测试项目",
+        novelChapterCount: 1,
+        novelChapters: [chapter],
+        agentWorkData: [
+          {
+            id: "w1",
+            key: "scriptDraft",
+            episodeId: "ch1",
+            data: scriptData,
+            createdAt: 1,
+            updatedAt: 1,
+          } as never,
+        ],
+        saveAgentWorkData: saveAgentWorkDataMock as never,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleStageReview("scriptDraft", chapter);
+    });
+
+    expect(textStreamMock).toHaveBeenCalledTimes(1);
+    const request = textStreamMock.mock.calls[0]?.[0] as {
+      messages: { role: string; content: string }[];
+    };
+    const userMessage = request.messages.find((m) => m.role === "user")?.content ?? "";
+    expect(userMessage).toContain("## 自检指标（代码计算，以此为准）");
+    // 锚存在性:indexOf 落空返回 -1 会使 toBeGreaterThan(-1) 恒真——先锁锚串确实存在
+    expect(userMessage).toContain("剧本（审核主体）");
+    expect(userMessage.indexOf("## 自检指标（代码计算，以此为准）")).toBeGreaterThan(
+      userMessage.indexOf("剧本（审核主体）"),
+    );
+    expect(userMessage).toContain("场秒合计：30s");
+    // G33 行为锁:审核 user 同注题材剧本规则节——mock 的 buildScriptManualContext 产物经
+    // hook memo(scriptDirectorContext)→ handleStageReview directorNarrative 接线;若丢线此处必红。
+    // 次序:审核主体 < 题材剧本规则节 < 自检指标
+    expect(userMessage).toContain("## 题材剧本规则（测试道劫）");
+    expect(userMessage).toContain("SCRIPT-NARRATIVE");
+    expect(userMessage.indexOf("## 题材剧本规则（测试道劫）")).toBeGreaterThan(
+      userMessage.indexOf("剧本（审核主体）"),
+    );
+    expect(userMessage.indexOf("## 题材剧本规则（测试道劫）")).toBeLessThan(
+      userMessage.indexOf("## 自检指标（代码计算，以此为准）"),
+    );
   });
 });
 
