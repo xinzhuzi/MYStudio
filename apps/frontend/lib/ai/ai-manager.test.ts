@@ -164,7 +164,7 @@ describe("aiManager.text", () => {
       model: "m1",
       messages,
       temperature: 0.6,
-      maxTokens: 131072, // 1013 终版:云端兜底=服务端帽最大 131072(本地 65536)
+      maxTokens: 65536, // 1013 终裁:最大输出 64K 统一(云端=本地)
     });
   });
 
@@ -271,7 +271,7 @@ describe("aiManager.textStream", () => {
       provider: { id: "p1" },
       model: "m1",
       temperature: 0.6,
-      maxTokens: 131072, // 1013 终版:云端兜底=服务端帽最大 131072(本地 65536)
+      maxTokens: 65536, // 1013 终裁:最大输出 64K 统一(云端=本地)
     });
   });
 

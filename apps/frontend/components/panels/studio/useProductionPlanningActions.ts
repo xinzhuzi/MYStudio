@@ -171,7 +171,7 @@ export function useProductionPlanningActions({
           temperature: 0.4,
           // 1013 实弹定谳:GLM 思考型经 anthropic 口思考计入 max_tokens,4096 会被思考独占→正文零字节
           // 「模型响应中缺少文本内容」5 连败(useProductionPlanningActions 结构性阻塞);按用户常设令
-          // maxTokens 不显式传——统一走 ai-manager maxTokensFloor(1013 终版:云端 131072/本地 65536 单一真源)
+          // maxTokens 不显式传——统一走 ai-manager maxTokensFloor(1013 终裁:最大输出 64K 单一真源)
         }, () => undefined);
         if (!result.success || !result.text) {
           throw new Error(result.error || "导演规划失败");

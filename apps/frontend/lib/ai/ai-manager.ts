@@ -82,13 +82,11 @@ function resolveOrFallback(binding: AIBinding, fallback: boolean): ResolvedModel
   return resolve(binding) ?? (fallback ? resolve({ agent: "universalAi" }) : null);
 }
 
-/** 用户常设令(1013 终版):max_tokens 兜底单一真源——给到服务端允许的最大,截断比浪费贵。
- * 实测(1013 装机实弹):bigmodel anthropic 口参数硬校验帽 [1,131072],200000 秒拒(code 1210);
- * 旧「8192 输出帽」理论被推翻。云端=131072(该口最大),本地(localhost)=65536。
+/** 用户常设令(1013 终裁):max_tokens 兜底单一真源——最大输出 64K,截断比浪费贵。
+ * 演进史:8192 旧帽→16384→200K(被 anthropic 口参数校验拒,code 1210)→131072(服务端声明区间上界)→用户终裁 65536(实测最大输出 64K,云端本地统一)。云端与本地统一 65536。
  * 显式调用位点一律不传 maxTokens,统一走本兜底(配置一次)。 */
-function maxTokensFloor(provider: IProvider): number {
-  const local = /localhost|127\.0\.0\.1|\[::1\]/.test(provider?.baseUrl ?? "");
-  return local ? 65536 : 131072;
+function maxTokensFloor(_provider: IProvider): number {
+  return 65536;
 }
 
 async function text(req: AITextRequest): Promise<AITextResult> {
