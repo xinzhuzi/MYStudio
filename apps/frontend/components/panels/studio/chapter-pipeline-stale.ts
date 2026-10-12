@@ -68,27 +68,39 @@ export function currentScriptFingerprintSnapshot(): ScriptFingerprintSnapshot {
 export interface ChapterUpstreamRecord {
   /** 章流水线发车时的剧本指纹(scriptPlanSourceFingerprint 口径)。 */
   scriptFingerprint: string;
+  /**
+   * 发车时提取批次盖戳(EntityExtractionResult.scriptFingerprint;无批次/无戳=undefined)。
+   * 与 scriptFingerprint 不等 ⇒ 发车时提取集已落后于剧本(资产步按旧提取集烧图),
+   * 事后可查——发车指纹台账原本只记现势剧本指纹,对该错位结构性失明(G34 盲区收口)。
+   */
+  extractionFingerprint?: string;
   recordedAt: number;
 }
 
 interface ChapterUpstreamState {
   byChapter: Record<string, ChapterUpstreamRecord>;
   /** 章流水线发车时盖戳(批5 编排入口调用;同指纹重复盖戳幂等)。 */
-  recordDispatch: (chapterId: string, scriptFingerprint: string) => void;
+  recordDispatch: (chapterId: string, scriptFingerprint: string, extractionFingerprint?: string) => void;
 }
 
 export const useChapterUpstreamStore = create<ChapterUpstreamState>()(
   persist(
     (set) => ({
       byChapter: {},
-      recordDispatch: (chapterId, scriptFingerprint) =>
+      recordDispatch: (chapterId, scriptFingerprint, extractionFingerprint) =>
         set((state) => {
           const existing = state.byChapter[chapterId];
-          if (existing && existing.scriptFingerprint === scriptFingerprint) return state;
+          if (
+            existing &&
+            existing.scriptFingerprint === scriptFingerprint &&
+            existing.extractionFingerprint === extractionFingerprint
+          ) {
+            return state;
+          }
           return {
             byChapter: {
               ...state.byChapter,
-              [chapterId]: { scriptFingerprint, recordedAt: Date.now() },
+              [chapterId]: { scriptFingerprint, extractionFingerprint, recordedAt: Date.now() },
             },
           };
         }),
@@ -112,8 +124,10 @@ export const useChapterUpstreamStore = create<ChapterUpstreamState>()(
               typeof record === "object" &&
               typeof (record as { scriptFingerprint?: unknown }).scriptFingerprint === "string"
             ) {
+              const extractionRaw = (record as { extractionFingerprint?: unknown }).extractionFingerprint;
               byChapter[chapterId] = {
                 scriptFingerprint: (record as { scriptFingerprint: string }).scriptFingerprint,
+                extractionFingerprint: typeof extractionRaw === "string" ? extractionRaw : undefined,
                 recordedAt:
                   typeof (record as { recordedAt?: unknown }).recordedAt === "number"
                     ? (record as { recordedAt: number }).recordedAt
@@ -156,6 +170,17 @@ export function chapterUpstreamDrifted(input: {
   const record = input.ledger[input.chapterId];
   if (!record) return false;
   return computeChapterScriptFingerprint(input.chapterId, input.snapshot) !== record.scriptFingerprint;
+}
+
+/**
+ * 发车时提取集是否落后于剧本(台账留痕派生,供验收卡/审计事后查询)。
+ * undefined=台账缺或批次无戳(无法判定),false=同戳,false 之外的 true=错位。
+ */
+export function extractionStaleAtDispatch(
+  record: ChapterUpstreamRecord | undefined,
+): boolean | undefined {
+  if (!record?.extractionFingerprint) return undefined;
+  return record.extractionFingerprint !== record.scriptFingerprint;
 }
 
 /**

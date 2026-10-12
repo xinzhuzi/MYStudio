@@ -490,13 +490,23 @@ export async function runChapterPipeline(
     return buildChapterAcceptanceCard(chapterId);
   }
 
-  // 批6 发车盖戳:本章下游任务在此剧本指纹下发车;此后剧本变更→stale 派生可见
+  // 批6 发车盖戳:本章下游任务在此剧本指纹下发车;此后剧本变更→stale 派生可见。
+  // 提取批次戳同笔留痕(错位事后可查)+ 发车时错位即提示(G34 同款:提示后继续,不阻断)
+  const dispatchScriptFingerprint = computeChapterScriptFingerprint(
+    chapterId,
+    currentScriptFingerprintSnapshot(),
+  );
+  const extractionFingerprint = useStudioStore
+    .getState()
+    .entityExtractions.find((item) => item.episodeId === chapterId)?.scriptFingerprint;
   useChapterUpstreamStore
     .getState()
-    .recordDispatch(
-      chapterId,
-      computeChapterScriptFingerprint(chapterId, currentScriptFingerprintSnapshot()),
+    .recordDispatch(chapterId, dispatchScriptFingerprint, extractionFingerprint);
+  if (extractionFingerprint && extractionFingerprint !== dispatchScriptFingerprint) {
+    toast.warning(
+      "剧本在提取后已更新：本章流水线资产步将按旧提取集生成，建议先重新提取资产",
     );
+  }
 
   const runners = { ...DEFAULT_STEP_RUNNERS, ...input.steps };
   const toastId = `chapter-pipeline:${chapterId}`;

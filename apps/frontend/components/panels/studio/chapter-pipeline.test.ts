@@ -496,4 +496,56 @@ describe("批6 失效传播:发车盖戳→剧本变更→stale 派生", () => {
     stale = collectStaleDownstreamTasksFromStore(CHAPTER_ID);
     expect(stale).toEqual([]);
   });
+
+  it("发车时提取批次戳落后于剧本 → 台账留痕 extractionFingerprint + toast.warning 提示(不阻断)", async () => {
+    vi.mocked(toast.warning).mockClear();
+    useStudioStore.setState({
+      agentWorkData: [
+        { key: "scriptDraft", episodeId: CHAPTER_ID, data: "新剧本:晏燎夜市救难", updatedAt: 2 },
+      ] as never,
+      entityExtractions: [
+        {
+          episodeId: CHAPTER_ID,
+          scriptFingerprint: "fp-of-old-extraction",
+          characters: [],
+          scenes: [],
+          props: [],
+        },
+      ] as never,
+    });
+    await runChapterPipeline({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+      gate: FAST_GATE,
+      steps: { assets: async () => ({}), derived: async () => null, storyboardBinding: async () => null },
+    });
+    const ledger = useChapterUpstreamStore.getState().byChapter[CHAPTER_ID];
+    // 留痕:批次戳原样入台账(事后可查,派生助手可判)
+    expect(ledger?.extractionFingerprint).toBe("fp-of-old-extraction");
+    expect(ledger?.scriptFingerprint).not.toBe("fp-of-old-extraction");
+    // 提示:与一键生成/失败重试同款守卫语义(提示后继续,流水线未被阻断)
+    expect(toast.warning).toHaveBeenCalledWith(
+      "剧本在提取后已更新：本章流水线资产步将按旧提取集生成，建议先重新提取资产",
+    );
+  });
+
+  it("发车时提取批次戳与剧本一致 → 无提示;批次无戳 → 台账留 undefined 且无提示", async () => {
+    vi.mocked(toast.warning).mockClear();
+    // 无戳批次(存量数据):留 undefined,不提示
+    useStudioStore.setState({
+      entityExtractions: [
+        { episodeId: CHAPTER_ID, characters: [], scenes: [], props: [] },
+      ] as never,
+    });
+    await runChapterPipeline({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+      gate: FAST_GATE,
+      steps: { assets: async () => ({}), derived: async () => null, storyboardBinding: async () => null },
+    });
+    expect(useChapterUpstreamStore.getState().byChapter[CHAPTER_ID]?.extractionFingerprint).toBeUndefined();
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
 });
