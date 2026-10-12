@@ -209,7 +209,6 @@ async function callPromptPolishModel(input: {
       binding: input.binding,
       messages,
       temperature: 0.7,
-      maxTokens: 2048,
       fallbackToUniversal: false,
     });
   }
@@ -219,7 +218,6 @@ async function callPromptPolishModel(input: {
     try {
       const text = await aiManager.featureText(feature, input.systemPrompt, input.userPrompt, {
         temperature: 0.7,
-        maxTokens: 2048,
         disableThinking: true,
       });
       if (text.trim()) {
@@ -235,7 +233,6 @@ async function callPromptPolishModel(input: {
     binding: { agent: "universalAi" },
     messages,
     temperature: 0.7,
-    maxTokens: 2048,
     fallbackToUniversal: false,
   });
 
@@ -492,7 +489,6 @@ export async function selectDaojiePaletteSchemeForAsset(input: {
     try {
       const text = await aiManager.featureText(feature, systemPrompt, userPrompt, {
         temperature: 0,
-        maxTokens: 256,
         disableThinking: true,
       });
       const decision = parseDaojiePaletteSelectionResponse(text, maTrack);

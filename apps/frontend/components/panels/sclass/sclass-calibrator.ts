@@ -125,7 +125,6 @@ calibratedPrompt 必须覆盖全部 ${scenes.length} 个镜头，保持镜头编
   // ---- 调用 LLM ----
   const raw = await aiManager.featureText('script_analysis', systemPrompt, userPrompt, {
     temperature: 0.3, // 低温度确保稳定输出
-    maxTokens: 4096,
   });
 
   // ---- 解析 JSON ----

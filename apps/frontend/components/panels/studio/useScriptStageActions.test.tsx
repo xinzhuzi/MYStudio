@@ -111,7 +111,6 @@ describe("useScriptStageActions runScriptStage timeout", () => {
     expect(textStreamMock).toHaveBeenCalledTimes(1);
     expect(textStreamMock.mock.calls[0]?.[0]).toMatchObject({
       binding: { agent: "scriptDraft" },
-      maxTokens: 32000,
       timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
     });
     // R2/父 I3 行为锁:题材剧本规则节(script_narrative)必须送达 AI 请求——mock 的

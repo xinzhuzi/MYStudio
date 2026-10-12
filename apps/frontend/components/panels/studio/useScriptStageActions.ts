@@ -149,7 +149,6 @@ export function useScriptStageActions({
         result = await aiManager.textStream(
           {
             binding: { agent: opts.agentKey },
-            maxTokens: 32000,
             timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
             messages: [
               { role: "system", content: opts.messages.system },

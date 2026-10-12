@@ -341,7 +341,6 @@ ${batchDialogues.slice(0, 100).join('\n')}
       estimateItemOutputTokens: () => 200,
       apiOptions: {
         temperature: 0,
-        maxTokens: 16384,
       },
     });
     

@@ -407,7 +407,7 @@ ${sourceText}
 ${shotDescriptions}`;
   
   // 统一从服务映射获取配置（单个分镜校准用更大 token 预算）
-  const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt, { maxTokens: 16384 });
+  const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt);
   
   return parseShotCalibrationResponse(result);
 }

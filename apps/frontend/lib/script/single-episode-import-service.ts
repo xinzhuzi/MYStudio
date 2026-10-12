@@ -124,7 +124,7 @@ ${background?.era ? `时代：${background.era}` : ""}
   const user = `第${episodeIndex}集内容：\n${episode.rawContent.slice(0, 800)}`;
 
   try {
-    const result = await aiManager.featureText("script_analysis", system, user, { temperature: 0.3, maxTokens: 512 });
+    const result = await aiManager.featureText("script_analysis", system, user, { temperature: 0.3 });
     if (!result) return;
     const jsonMatch = result.replace(/```json\n?/g, "").replace(/```\n?/g, "").match(/\{[\s\S]*\}/);
     if (!jsonMatch) return;

@@ -121,7 +121,6 @@ export function NovelSourceMemoryDialog(props: {
               { role: "user", content: messages.user },
             ],
             temperature: 0.2,
-            maxTokens: 4096,
             // 抽取要快速失败：通道不通时 2 分钟内给出结论，不空磨重试
             timeoutMs: 120_000,
           });

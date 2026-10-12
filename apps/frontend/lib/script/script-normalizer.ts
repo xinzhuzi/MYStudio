@@ -265,7 +265,6 @@ export async function analyzeScriptStructureWithAI(text: string): Promise<Script
         }
         result = await aiManager.featureText('script_analysis', systemPrompt, analysisText, {
           temperature: 0.1,
-          maxTokens: 1024,
         });
         break; // 成功则跳出重试循环
       } catch (e) {

@@ -178,7 +178,6 @@ export async function selectCinematicPresets(
         { role: "user", content: buildPrompt(shots) },
       ],
       temperature: 0.3,
-      maxTokens: 4096,
     });
     if (!result.success || !result.text) throw new Error(result.error || "AI 调用失败");
     const parsed = parseCinematicPresetResponse(result.text, shotIds);

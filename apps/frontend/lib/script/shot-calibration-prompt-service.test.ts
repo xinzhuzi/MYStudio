@@ -54,8 +54,7 @@ describe("callAIForShotCalibration", () => {
       "script_analysis",
       expect.stringContaining("剧名：《道劫》"),
       expect.stringContaining("【⭐ 主场景（绝对不可更改）】: 雨夜城门"),
-      { maxTokens: 16384 },
-    );
+    ); // 1013:maxTokens 显式位点已删,统一走 ai-manager 64K 地板(单一真源)
     expect(featureText.mock.calls[0]?.[2]).toContain("谢乘风在雨中抬头望向城门");
     expect(parseShotCalibrationResponse).toHaveBeenCalledWith('{"shots":{}}');
     expect(result).toEqual({ "shot-1": { visualDescription: "雨夜城门" } });

@@ -291,7 +291,6 @@ ${c.name}（${c.importance === 'protagonist' ? '主角' : '重要配角'}）
     
     try {
       const result = await aiManager.featureText('script_analysis', systemPrompt, userPrompt, {
-        maxTokens: 4096, // 单角色输出 4096 足够
       });
       
       // 解析单角色 JSON

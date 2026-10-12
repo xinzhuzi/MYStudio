@@ -544,7 +544,6 @@ async function matchRoleAudioWithAi(request: RoleAudioAiMatchRequest) {
       },
     ],
     temperature: 0.2,
-    maxTokens: 1000,
     fallbackToUniversal: false,
   });
   if (!result.success || !result.text) return null;

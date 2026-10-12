@@ -437,7 +437,6 @@ export async function selectShotFxMotions(
         { role: "user", content: buildPrompt(shots, { registryAvailable }) },
       ],
       temperature: 0.3,
-      maxTokens: 4096,
     });
     if (!result.success || !result.text) throw new Error(result.error || "AI 调用失败");
     const parsed = parseShotFxMotionResponse(result.text, shotIds);

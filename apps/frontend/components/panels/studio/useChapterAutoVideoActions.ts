@@ -254,7 +254,6 @@ export function useChapterAutoVideoActions({
                           { role: "user", content: buildRoleAudioAiMatchPrompt(request) },
                         ],
                         temperature: 0.2,
-                        maxTokens: 512,
                       });
                       if (!result.success || !result.text) return null;
                       return parseRoleAudioAiMatchResult(result.text);

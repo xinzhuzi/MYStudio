@@ -85,7 +85,6 @@ export function OverviewAiFill(props: {
                 { role: "user", content: messages.user },
               ],
               temperature: 0.4,
-              maxTokens: 2048,
               fallbackToUniversal: false,
             });
             if (!reply.success || !reply.text) throw new Error(reply.error || "AI 返回失败");

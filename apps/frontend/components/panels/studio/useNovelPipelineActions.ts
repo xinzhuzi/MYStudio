@@ -172,7 +172,6 @@ export function useNovelPipelineActions({
               temperature: 0.2,
               // 1013 修:max_tokens ≥16384 铁律(旧 1024)+结构化任务关思考
               // (思考型会把输出吞进思考通道,正文空返)
-              maxTokens: 16384,
               disableThinking: true,
             });
             if (!result.success || !result.text) {
@@ -364,7 +363,6 @@ export function useNovelPipelineActions({
           temperature: 0.2,
           // 1013 修:max_tokens ≥16384 铁律(旧 2048)+结构化任务关思考——
           // glm-5.3 思考型非流式在 2048 下把输出全吞进思考通道,正文空返
-          maxTokens: 16384,
           disableThinking: true,
         });
         if (!result.success || !result.text) {

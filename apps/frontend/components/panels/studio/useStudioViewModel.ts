@@ -213,7 +213,6 @@ export function useStudioViewModel() {
         { role: "user", content: messages.user },
       ],
       temperature: 0.4,
-      maxTokens: 4096,
     });
     if (!result.success || !result.text) {
       throw new Error(result.error || "原著圣经生成失败");
