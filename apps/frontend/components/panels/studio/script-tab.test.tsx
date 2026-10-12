@@ -170,6 +170,8 @@ describe("ScriptTab", () => {
     expect(generatePanel).toContain("AI审核生成");
     expect(generatePanel).toContain("useReviewFeedback: true");
     expect(generatePanel).toContain("useReviewFeedback: false");
+    // G38 一键生成自释锁:aria-label 须含可见文本「一键生成」(WCAG 2.5.3)+ 不走修订自释
+    expect(generatePanel).toContain('aria-label="一键生成：按改编模式重新生成(不走修订)"');
     expect(generatePanel).not.toContain("<ScriptOutputPanel");
     expect(generatePanel).toContain("props.runStage(");
     expect(generatePanel).toContain('target: "output"');
