@@ -10,9 +10,9 @@ export interface ScriptStageMessages {
 }
 
 export interface ScriptStageContext {
-  /** 项目信息/画风/导演手册上下文（buildStudioManualContext 产出），对齐 ToonFlow 的项目信息注入 */
+  /** hook 的 scriptStyleSummary memo 产出(项目信息摘要行) */
   manualContext?: string;
-  /** 导演手册正文（色调/镜头/情绪/构图指导），剧本阶段注入，对齐 ToonFlow read_skill_file */
+  /** 题材剧本规则节正文(buildScriptManualContext 产出,自带『## 题材剧本规则（包名）』标题,父 I3;不再收旧导演手册) */
   directorContext?: string;
   chapterTitle: string;
   chapterText: string;
@@ -56,7 +56,7 @@ export const SCRIPT_STAGE_REVIEW_KEY = {
 
 export type ReviewableStage = keyof typeof SCRIPT_STAGE_REVIEW_KEY;
 
-// ── 本章判定（B+ 单次生成：方法文档按需注入,G4 自动三态判定） ─────────────
+// ── 本章判定（B+ 单次生成：方法文档按需注入,自动三态判定,父 I4/G8 修订语义） ─────
 /** 章节数据形态三态:决定剧本生成时注入哪份方法文档(每次 ≤1 份;定稿零注入)。 */
 export type ChapterScriptMode = "novel_adaptation" | "original" | "finalized";
 
@@ -82,7 +82,7 @@ export const METHOD_DOCS: Record<ChapterScriptMode, string | null> = {
   finalized: null,
 };
 
-/** G12 预览页只读判定标注:「本章判定:小说改编 → 已注入改编方法文档」——只读,判定错修章数据不修判定器。 */
+/** 预览页只读判定标注:「本章判定:小说改编 → 已注入改编方法文档」——只读,判定错修章数据不修判定器。 */
 export function describeChapterModeAnnotation(
   chapter: { sourceText?: string },
   isRevision: boolean,
@@ -151,7 +151,10 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
       `## 上一集剧本（仅用于衔接：承接其时间线与角色状态，禁止复述或改写其内容）\n${ctx.previousEpisodeScript}`,
     );
   }
-  lines.push(`## 本章正文（重点原文）\n\n${toMarkdownQuote(ctx.chapterText)}`);
+  // 原创章无原文:跳过该节(与 :174 审核侧 trim 守卫同款,不注入空标题+空引用)
+  if (ctx.chapterText.trim()) {
+    lines.push(`## 本章正文（重点原文）\n\n${toMarkdownQuote(ctx.chapterText)}`);
+  }
   if (ctx.reviewFeedback) {
     if (ctx.previousOutput) lines.push(`## 上一版${SCRIPT_STAGE_LABEL[stage]}（在此基础上修订，保留已合格内容）\n${ctx.previousOutput}`);
     lines.push(`## 审核意见（逐条修复以下问题，不要重写已合格部分）\n${ctx.reviewFeedback}`);
@@ -181,7 +184,7 @@ export function buildStageReviewMessages(_stage: ReviewableStage, ctx: ScriptSta
   // R4/G9:确定性自检指标紧随审核主体——审核以其数值为准,不自行计数(v3 审核手册同口径)
   if (ctx.selfCheckMetrics) lines.push(ctx.selfCheckMetrics);
   lines.push(
-    "请执行「剧本审核」：以上方【剧本】为审核主体（新格式：头部三行+剧情梗概+场次正文+改编追踪表[如为小说改编章]），对照【本章事件分析】与【本章正文】，审核对象已随文提供、无需调用工具，按输出格式返回审核报告。",
+    "请执行「剧本审核」：以上方【剧本】为审核主体（新格式：头部三行+剧情梗概+场次正文+改编追踪表[如为小说改编章]），对照【本章事件分析】与【本章正文（如注入；原创章无此节）】，审核对象已随文提供、无需调用工具，按输出格式返回审核报告。",
   );
   return { system, user: lines.join("\n\n") };
 }

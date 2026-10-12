@@ -153,11 +153,17 @@ describe("studio manual presets", () => {
     // 经节标题合法出现,不可作负向串
     expect(context).not.toContain("本地导演说明");
 
-    // 种子真源同验(判别串对种子有效:道劫 README 3 处「三族灵气」,其 script_narrative 0 处):
-    // 若 buildScriptManualContext 回退为注 README,真包上下文将带入 README 正文
+    // 种子真源同验:产出必须包含种子 script_narrative 模块全文——若 buildScriptManualContext
+    // 回退为注 README,产出不含 narrative 全文,此处必红。旧负向串「三族灵气」(道劫 README
+    // 3 处/其 script_narrative 0 处)与 script_narrative 同题材语汇同域,真包措辞演进会假失败,
+    // 故换模块全文等价锁(种子文件为打包资产不可加串,等价锁零语汇巧合且锁力更强);
+    // 空串会使 toContain 恒真,先锁锚存在
+    const seededNarrative =
+      getStudioManualPreset("director", EXTENDED_DIRECTOR_MANUAL_SEED_ID)?.modules.script_narrative?.trim() ?? "";
+    expect(seededNarrative.length).toBeGreaterThan(0);
     const seeded = buildScriptManualContext({ directorManualId: EXTENDED_DIRECTOR_MANUAL_SEED_ID });
     expect(seeded).toContain("## 题材剧本规则（道劫");
-    expect(seeded).not.toContain("三族灵气");
+    expect(seeded).toContain(seededNarrative);
 
     // 存储副本缺 script_narrative 文件 → 模块空 → 返回 ""(G14 容忍缺失)
     const withoutNarrative = buildStudioManualsFromSkillFiles("director", [
@@ -202,7 +208,9 @@ describe("studio manual presets", () => {
     const visualManuals = buildStudioManualsFromSkillFiles("visual", [
       {
         relativePath: "art_skills/daojie_ink_guofeng/README.md",
-        content: "# 水墨国风修仙\n\n三族灵气",
+        // 「未选注入探针串」为夹具 README 正文独有串(参照「本地导演说明」模式),
+        // 与种子/题材语汇零共享——负向判别不随真包措辞演进漂移
+        content: "# 水墨国风修仙\n\n未选注入探针串",
       },
     ]);
     const context = buildStudioManualContext({}, {
@@ -212,7 +220,7 @@ describe("studio manual presets", () => {
     expect(context).toContain("# 视觉手册\n未选择");
     expect(context).toContain("# 导演手册\n未选择");
     expect(context).not.toContain("水墨国风修仙");
-    expect(context).not.toContain("三族灵气");
+    expect(context).not.toContain("未选注入探针串");
   });
 
   it("builds workflow manuals from stored skill files without falling back to bundled modules", () => {

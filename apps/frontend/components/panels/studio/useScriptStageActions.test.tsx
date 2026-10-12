@@ -62,6 +62,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { SCRIPT_STAGE_STREAM_TIMEOUT_MS, useScriptStageActions } from "./useScriptStageActions";
 import { ScriptTab } from "./ScriptTab";
+import { buildStudioManualContext } from "@/lib/studio/manuals";
 import type { NovelChapter } from "@/types/studio";
 
 const chapter = {
@@ -94,6 +95,7 @@ describe("useScriptStageActions runScriptStage timeout", () => {
   beforeEach(() => {
     textStreamMock.mockReset();
     saveAgentWorkDataMock.mockReset();
+    vi.mocked(buildStudioManualContext).mockClear();
     textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
   });
 
@@ -121,8 +123,13 @@ describe("useScriptStageActions runScriptStage timeout", () => {
     const userMessage = request.messages.find((m) => m.role === "user")?.content ?? "";
     expect(userMessage).toContain("## 题材剧本规则（测试道劫）");
     expect(userMessage).toContain("SCRIPT-NARRATIVE");
-    expect(userMessage).not.toContain("# 视觉手册");
-    expect(userMessage).not.toContain("# 导演手册");
+    // R2 真锁:旧全量上下文函数在生成路径被调=回归(会带回「# 视觉手册/# 导演手册」
+    // 全量注入)——直接锁 mock 缺席,替代旧 not.toContain 标题串的恒真负向断言
+    expect(vi.mocked(buildStudioManualContext)).not.toHaveBeenCalled();
+    // styleSummary 生产格式行为锁:hook 的 scriptStyleSummary memo(:74/:78)经
+    // manualContext 注入 user 段,画幅/单集时长格式行必须送达生成请求
+    expect(userMessage).toContain("目标画幅：");
+    expect(userMessage).toContain("单集参考时长：");
     expect(SCRIPT_STAGE_STREAM_TIMEOUT_MS).toBeGreaterThanOrEqual(600_000);
     expect(saveAgentWorkDataMock).toHaveBeenCalledTimes(1);
   });
@@ -130,8 +137,10 @@ describe("useScriptStageActions runScriptStage timeout", () => {
   it("accumulates thinking increments separately and never persists them (1011 thinking 进流)", async () => {
     // 思考增量单独累积进 scriptStreaming.thinking,不混入 text;完成后状态清零,
     // saveAgentWorkData 只落正文——思考零持久化。
+    // 任务四选一:采「增强」——resolve 值带 thinking 字段,额外锁住「即便 result 对象
+    // 携带思考,落库也只取 result.text」;若实现改读 result.thinking/整体序列化落库必红。
     let capturedOnChunk: ((delta: string, kind: "text" | "thinking") => void) | undefined;
-    let resolveStream: ((value: { success: boolean; text: string }) => void) | undefined;
+    let resolveStream: ((value: { success: boolean; text: string; thinking?: string }) => void) | undefined;
     textStreamMock.mockImplementation(
       (_req: unknown, onChunk: (delta: string, kind: "text" | "thinking") => void) => {
         capturedOnChunk = onChunk;
@@ -160,7 +169,8 @@ describe("useScriptStageActions runScriptStage timeout", () => {
     });
 
     await act(async () => {
-      resolveStream?.({ success: true, text: "# 剧本\n\n正文增量" });
+      // 增强:result 本体也带 thinking 字段——落库侧不得取它(只落 result.text)
+      resolveStream?.({ success: true, text: "# 剧本\n\n正文增量", thinking: "先想清楚主线。" });
       await stagePromise;
     });
 
@@ -296,12 +306,15 @@ describe("useScriptStageActions stream failure recovery", () => {
     };
     render(<Harness />);
 
-    // 切进「一键生成」面板(控制页签),再点面板内同名运行按钮(第二个)
-    fireEvent.click(screen.getAllByRole("button", { name: "一键生成" })[0]);
-    fireEvent.click(screen.getAllByRole("button", { name: "一键生成" })[1]);
+    // 切进「一键生成」面板(控制页签),再点面板内同名运行按钮(第二个)。
+    // G38 自释 aria-label 含可见文本「一键生成」(WCAG 2.5.3),故按正则匹配
+    fireEvent.click(screen.getAllByRole("button", { name: /一键生成/ })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /一键生成/ })[1]);
 
-    // 流挂起期间:按钮转「生成中...」且禁用(scriptStreaming 非 null)
-    const busyButton = await screen.findByRole("button", { name: "生成中..." });
+    // 流挂起期间:按钮禁用且可访问名仍含「一键生成」(aria-label 恒定,scriptStreaming 非 null);
+    // 流式态下控制入口可能卸载,取末位匹配(=生成按钮)
+    const busyButtons = await screen.findAllByRole("button", { name: /一键生成/ });
+    const busyButton = busyButtons[busyButtons.length - 1];
     expect((busyButton as HTMLButtonElement).disabled).toBe(true);
     expect(latestActions!.scriptStreaming).toMatchObject({ key: "scriptDraft", scopeId: "ch1" });
 
@@ -316,13 +329,14 @@ describe("useScriptStageActions stream failure recovery", () => {
     const { toast } = await import("sonner");
     expect(vi.mocked(toast.error)).toHaveBeenCalledWith("流式 IPC 通道异常");
 
-    // 按钮恢复「一键生成」且不再禁用——可再点
-    const recoveredButtons = screen.getAllByRole("button", { name: "一键生成" });
-    expect((recoveredButtons[1] as HTMLButtonElement).disabled).toBe(false);
+    // 按钮恢复(可访问名恒含「一键生成」)且不再禁用——可再点(取末位匹配=生成按钮)
+    const recoveredButtons = screen.getAllByRole("button", { name: /一键生成/ });
+    const recoveredButton = recoveredButtons[recoveredButtons.length - 1];
+    expect((recoveredButton as HTMLButtonElement).disabled).toBe(false);
 
     // 真再点一次:第二轮流正常发起并成功落库(第一轮 reject 不落库)
     textStreamMock.mockResolvedValueOnce({ success: true, text: "二次生成产出" });
-    fireEvent.click(recoveredButtons[1]);
+    fireEvent.click(recoveredButton);
     await act(async () => {
       await capturedRun.catch(() => {});
     });

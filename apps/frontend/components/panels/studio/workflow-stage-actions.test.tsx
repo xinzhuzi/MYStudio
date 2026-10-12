@@ -2823,6 +2823,9 @@ describe("workflow stage action surfaces", () => {
     expect(hookSource).toContain("handleStageReview");
     expect(hookSource).toContain("scriptStreaming");
     expect(hookSource).toContain("buildScriptManualContext");
+    // R2 缺席锁:旧全量上下文函数不得在剧本 hook 中被调用(hook 源内仅有裸词注释提及
+    // 「buildStudioManualContext 另两调用方」,故锁调用形而非裸名,免注释误伤)
+    expect(hookSource).not.toContain("buildStudioManualContext(");
     expect(hookSource).toContain("useReviewFeedback?: boolean");
     expect(hookSource).toContain("options?.useReviewFeedback");
     expect(hookSource).toContain("reviewFeedback: useReviewFeedback && hasReviewIssues(review) ? review : undefined");

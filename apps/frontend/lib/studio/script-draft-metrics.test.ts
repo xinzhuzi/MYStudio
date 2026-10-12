@@ -49,8 +49,28 @@ describe("analyzeScriptDraft 解析口径(D2)", () => {
     const m = analyzeScriptDraft(FIXTURE_16_9, { durationMin: 2 });
     expect(m.scenes).toHaveLength(2);
     expect(m.scenes[0]).toMatchObject({ id: "1-1", title: "码头 晨/外", seconds: null, beats: 2 });
-    expect(m.scenes[1]).toMatchObject({ id: "1-2", seconds: 30, beats: 1 });
+    expect(m.scenes[1]).toMatchObject({ id: "1-2", title: "室内 夜/内", seconds: 30, beats: 1 });
     expect(m.flags).toContain("场 1-1 缺·约N秒标注");
+  });
+
+  it("裸场号兼容(10-12 装机实弹:glm-5.3 用裸数字「2」…「6」):「2 码头 晨/外 ·约30秒」识别为场 2", () => {
+    const fixture = [
+      "# 已确定要求：x/16:9/y",
+      "",
+      "2 码头 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "△动作。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.scenes).toHaveLength(1);
+    expect(m.scenes[0]).toMatchObject({ id: "2", title: "码头 晨/外", seconds: 30, beats: 1 });
+    // 仅 ·约N秒 锚(无「/」)的裸数字形态同样识别;缺锚普通行不误吞为场头
+    const anchored = analyzeScriptDraft("# 已确定要求：x/16:9/y\n\n3 山道 ·约45秒\n人物：甲\n", { durationMin: 1 });
+    expect(anchored.scenes[0]).toMatchObject({ id: "3", seconds: 45 });
+    const noAnchor = analyzeScriptDraft("# 已确定要求：x/16:9/y\n\n3 个小时后他回来了。\n甲：好。\n", { durationMin: 1 });
+    expect(noAnchor.scenes).toHaveLength(0);
   });
 
   it("语音行:同行内容;V.S.（旁白…）计 OS;人物：行跳过;字数去标点空白", () => {
@@ -112,18 +132,39 @@ describe("analyzeScriptDraft 解析口径(D2)", () => {
     expect(m.overlongLines).toHaveLength(0);
   });
 
-  it("场秒合计与目标 ±10s 对账;·约 全缺(无对账值)不误报总时长超标", () => {
+  it("续行停扫:空内容语音行的下一行是语音/SFX 行形态即停,该行留给主循环独立解析(不整行吞并)", () => {
+    // 「甲：」空内容,下一行「乙：好。」是语音行 → 停;乙行按乙解析 → 对白仅「好」1 字
+    const f1 = ["# 已确定要求：x/16:9/y", "", "1-1 场 晨/外 ·约30秒", "人物：甲 乙", "", "甲：", "乙：好。"].join("\n");
+    const m1 = analyzeScriptDraft(f1, { durationMin: 1 });
+    expect(m1.dialogueChars).toBe(1);
+
+    // 「OS（甲，克制）：」空内容,下一行 SFX 行形态 → 停:osChars=0 且 SFX 配方不入语音账
+    const f2 = ["# 已确定要求：x/16:9/y", "", "1-1 场 晨/外 ·约30秒", "OS（甲，克制）：", "SFX（惊）：配方"].join("\n");
+    const m2 = analyzeScriptDraft(f2, { durationMin: 1 });
+    expect(m2.osChars).toBe(0);
+    expect(m2.dialogueChars).toBe(0);
+    expect(m2.overlongLines).toHaveLength(0);
+  });
+
+  it("场秒合计对账口径(10-12 迁移):存在缺标注场只报逐场缺标注,全部有秒才对账总时长", () => {
     const m = analyzeScriptDraft(FIXTURE_16_9, { durationMin: 2 });
-    // 仅 1-2 有秒数:合计 30s vs 目标 120s,偏离 90s > 10s → flag
+    // 旧「部分有秒即对账」口径废止:1-1 缺标注 → 不再报「合计 30s 偏离 120s」总偏差 flag
     expect(m.totalSeconds).toBe(30);
     expect(m.targetSeconds).toBe(120);
-    expect(m.flags.some((f) => f.includes("场秒合计") && f.includes("30"))).toBe(true);
+    expect(m.flags.some((f) => f.includes("场秒合计"))).toBe(false);
+    expect(m.flags).toContain("场 1-1 缺·约N秒标注");
 
     const allMissing = FIXTURE_16_9.replace(" ·约30秒", "");
     const m2 = analyzeScriptDraft(allMissing, { durationMin: 2 });
     expect(m2.scenes.every((s) => s.seconds === null)).toBe(true);
     expect(m2.flags.some((f) => f.includes("场秒合计"))).toBe(false);
     expect(m2.flags.filter((f) => f.includes("缺·约N秒"))).toHaveLength(2);
+
+    // 全部有秒才对账:1-1 ·约10秒 + 1-2 ·约30秒 = 40s vs 目标 120s → 偏离 flag
+    const allPresent = FIXTURE_16_9.replace("**1-1 码头 晨/外**", "**1-1 码头 晨/外 ·约10秒**");
+    const m3 = analyzeScriptDraft(allPresent, { durationMin: 2 });
+    expect(m3.scenes.every((s) => s.seconds !== null)).toBe(true);
+    expect(m3.flags.some((f) => f.includes("场秒合计") && f.includes("40"))).toBe(true);
   });
 
   it("△ 预算:beatLimit=⌊target/10⌋(G26 单值),超限入 flags", () => {
@@ -296,14 +337,37 @@ describe("formatScriptDraftMetrics(父 I5 标题)", () => {
     const text = formatScriptDraftMetrics(m);
     const lines = text.split("\n");
     expect(lines[0]).toBe("## 自检指标（代码计算，以此为准）");
-    expect(text).toContain("场秒合计：30s");
-    expect(text).toContain("目标 120s");
+    // 本夹具场 1-1 缺·约 → 展示层与新对账口径一致:不对账,不挂 ±10s 数字对账行
+    expect(text).toContain("场秒对账：1 个场缺·约N秒标注，总时长不对账");
+    expect(text).not.toContain("允许 ±10s");
     expect(text).toContain("△ 3");
     expect(text).toContain("上限 12");
     expect(text).toContain("OS 占比");
     expect(text).toContain("缺·约N秒标注");
     expect(text).not.toContain("undefined");
     expect(text).not.toContain("NaN");
+  });
+
+  it("全部有秒才输出数字对账行;裸场号防误吞收口径——叙述行不入场、留作续行内容", () => {
+    const all = analyzeScriptDraft(
+      "# 已确定要求：x/16:9/y\n\n1-1 场 晨/外 ·约30秒\n人物：甲\n\n1-2 场 夜/内 ·约30秒\n\n甲：好。\n",
+      { durationMin: 1 },
+    );
+    expect(formatScriptDraftMetrics(all)).toContain("场秒合计：60s");
+    // 「3 年后/开春，河雾照旧。」含「/」但行末带正文 → 不吞为幻影场,作 OS 续行内容保留
+    const phantom = analyzeScriptDraft(
+      "# 已确定要求：x/16:9/y\n\n1-1 场 晨/外 ·约60秒\n人物：甲\n\nOS（旁白）：\n3 年后/开春，河雾照旧。\n",
+      { durationMin: 1 },
+    );
+    expect(phantom.scenes).toHaveLength(1);
+    expect(phantom.osChars).toBe(9); // 「3年后开春河雾照旧」9 字(行首数字计入句本体)
+    expect(phantom.flags).not.toContain("场 3 缺·约N秒标注");
+    // 裸数字紧凑形态(装机实弹 glm-5.3 实况)仍识别
+    const bare = analyzeScriptDraft(
+      "# 已确定要求：x/16:9/y\n\n2 码头 晨/外 ·约30秒\n人物：甲\n\n甲：好。\n",
+      { durationMin: 1 },
+    );
+    expect(bare.scenes[0]).toMatchObject({ id: "2", seconds: 30 });
   });
 
   it("全达标时结论行=「自检通过」,无 flags 字样", () => {
