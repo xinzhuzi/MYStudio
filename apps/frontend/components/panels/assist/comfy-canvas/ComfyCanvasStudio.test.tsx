@@ -946,7 +946,11 @@ describe("buildOverviewOpenScript(工作流阶段自动打开分镜总览 09-10;
     // 09-12 单实例协议:扩展提供的全局助手优先(绑定库文件+复用既有签)
     // 09-14 manying→my:双锚(新 __myOpenWorkflow 优先,旧 __manyingOpenWorkflow 兜底)
     expect(script).toContain("window.__myOpenWorkflow || window.__manyingOpenWorkflow");
-    expect(script).toContain("void opener(payload)");
+    // 1013 Draft.v2 幽灵根修:opener 返回值接管,kept-modified(Q1a 保用户修改
+    // 短路)时转 __myStagePatch 属性级热补丁——不整图重载不碰用户布局
+    expect(script).toContain("Promise.resolve(opener(payload)).then");
+    expect(script).toContain('result.mode === "kept-modified"');
+    expect(script).toContain("window.__myStagePatch(payload.graph)");
     // 助手缺席(旧引擎)先等几拍再带名直载兜底:name=库内相对全路径
     // (loadGraphData 第4参语义;裸文件名落 workflows 根层命中不了库条目)
     expect(script).toContain('app.loadGraphData(payload.graph, true, true, payload.name)');

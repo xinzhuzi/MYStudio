@@ -467,6 +467,36 @@ function syncSizeFor(el) {
   }
 }
 
+// ── B2.5 stage 属性热补丁(1013 Draft.v2 幽灵根修):宿主 5s 保鲜链 force 重注入
+// 会被 open-workflow Q1a「已开+未保存修改→kept-modified 不重载」短路(用户裁定
+// 保画布修改),画布开着时剧本/规划/分镜表落库→节点预览永停开屏快照,自动保存
+// 再把陈旧图固化成 Draft 真源。宿主脚本在 opener 返回 kept-modified 时改调本
+// 助手:按 stage key 属性级 patch+原位重渲染,不整图重载不碰用户布局;载荷
+// JSON 等价即跳写(5s 轮询幂等)。──
+window.__myStagePatch = (graph) => {
+  const app = window.app;
+  const nodes = app?.graph?._nodes;
+  if (!Array.isArray(nodes) || !graph || !Array.isArray(graph.nodes)) return { ok: false, patched: 0 };
+  const byKey = new Map();
+  for (const live of nodes) {
+    const key = live?.properties?.myStage?.key ?? live?.properties?.manyingStage?.key;
+    if (key && !byKey.has(key)) byKey.set(key, live);
+  }
+  let patched = 0;
+  for (const src of graph.nodes) {
+    const payload = src?.properties?.myStage;
+    const key = payload?.key;
+    if (!key) continue;
+    const live = byKey.get(key);
+    if (!live) continue;
+    const current = live.properties.myStage ?? live.properties.manyingStage;
+    if (current && JSON.stringify(current) === JSON.stringify(payload)) continue;
+    live.properties.myStage = payload;
+    try { renderDomBody(live); patched += 1; } catch (error) { /* 单节点失败不阻断 */ }
+  }
+  return { ok: true, patched };
+};
+
 // ── B2 队列实时轮询(单例):桥 /comfy/bridge/storyboards 的 queue 快照 →
 // 逐镜 [data-shot-idx] 行原位重填 .ms-live 徽章;画布不在场=空转(仅查询)。──
 function installQueuePoller() {

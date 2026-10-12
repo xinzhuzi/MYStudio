@@ -92,7 +92,17 @@ export function buildOverviewOpenScript(
         // (装机新 asar × 引擎家尚未重同步旧 JS 的窗口)。
         const opener = window.__myOpenWorkflow || window.__manyingOpenWorkflow;
         if (typeof opener === "function") {
-          void opener(payload);
+          // 1013 Draft.v2 幽灵根修:Q1a 刷新策略在主线签已开+未保存修改(画布
+          // 自动保存的陈旧态)时 kept-modified 短路不重载——用户画布修改保住了,
+          // 但宿主数据演进也被同一守卫挡死(剧本落库后节点预览永停开屏快照)。
+          // 短路时转引擎侧属性级热补丁 __myStagePatch:按 stage key 原位 patch
+          // +重渲染,不整图重载不碰用户布局;旧引擎无该助手=维持原行为。
+          Promise.resolve(opener(payload)).then(function (result) {
+            if (result && result.mode === "kept-modified"
+              && typeof window.__myStagePatch === "function") {
+              try { window.__myStagePatch(payload.graph); } catch (e2) { /* 补丁失败=维持陈旧,不炸 */ }
+            }
+          }).catch(function () { /* opener 异常=维持原行为 */ });
           return;
         }
         if (attempt < 20) { setTimeout(function () { tryLoad(attempt + 1); }, 300); return; }
