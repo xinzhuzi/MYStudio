@@ -37,12 +37,6 @@
       "reason": "下拉列表行(菜单项),macOS 菜单高亮为通栏方角,刻意不圆"
     },
     {
-      "path": "components/panels/studio/ScriptTab.tsx",
-      "rule": "R7",
-      "severity": "warn",
-      "reason": "下划线 tab 条(border-b 指示器),tab 语义刻意方角"
-    },
-    {
       "path": "components/ui/sidebar.tsx",
       "rule": "R1",
       "severity": "warn",

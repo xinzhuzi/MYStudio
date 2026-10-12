@@ -271,7 +271,7 @@ export function ScriptTab(props: {
       <CollapsibleTrigger asChild>
         <button
           type="button"
-          className="flex w-full items-center gap-1.5 text-xs text-muted-foreground select-none"
+          className="flex w-full items-center gap-1.5 rounded-md text-xs text-muted-foreground select-none"
         >
           <BrainCircuit className="h-3.5 w-3.5 shrink-0" />
           {textStarted ? `AI 思考过程（${thinking.length} 字）` : "AI 思考中…"}
