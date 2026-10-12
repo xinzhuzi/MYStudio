@@ -13,6 +13,10 @@ import { usePropsLibraryStore, type PropItem } from "@/stores/library/props-libr
 import { useSceneStore, type Scene } from "@/stores/library/scene-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { EntityExtractionResult, StoryboardItem } from "@/types/studio";
+import {
+  computeChapterScriptFingerprint,
+  currentScriptFingerprintSnapshot,
+} from "./chapter-pipeline-stale";
 import type { AssetRow } from "./script-asset-generation-model";
 import {
   bindAssetImageAsKeyframe,
@@ -541,6 +545,94 @@ describe("章级编排:runStoryboardAssetBinding", () => {
         scenes: [
           { ...bareAsset, referenceImage: "local-image://scenes/fixed-temple.png" },
         ],
+        folders: [],
+        currentFolderId: null,
+      });
+      return null;
+    });
+
+    const report = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+      triggerAssetFill: fill,
+    });
+
+    expect(fill).toHaveBeenCalledOnce();
+    expect(report?.fillTriggered).toBe(true);
+    expect(report?.boundCount).toBe(1);
+    const shot = useStudioStore.getState().storyboards.find((item) => item.index === 1);
+    expect(shot?.mediaRef?.path).toContain("bindings");
+  });
+
+  it("G37/R7 补图过期门:批次盖戳≠现势剧本指纹→该行 failed「提取集过期」落账,fill 不发(不烧图)、不阻断其余行", async () => {
+    mockProjectBridge();
+    const { row: bareScene } = bareSceneRow();
+    seedChapter({
+      shots: [
+        makeShot({ index: 1, associateAssetsNames: ["破庙"] }),
+        makeShot({ index: 2, associateAssetsNames: ["夜市街口"] }),
+      ],
+      rows: [bareScene, SCENE_ROW],
+    });
+    // 批次盖戳按「提取时的旧剧本」真算(scriptPlanSourceFingerprint 同公式,
+    // 防有戳即拦的退化假阳);现势 store 无 scriptDraft → 现势指纹≠旧戳=stale
+    const oldStamp = computeChapterScriptFingerprint(CHAPTER_ID, {
+      agentWorkData: [
+        { key: "scriptDraft", episodeId: CHAPTER_ID, data: "# 提取时的旧剧本正文", updatedAt: 1 },
+      ],
+      novelChapters: [],
+      scriptPlans: [],
+    });
+    useStudioStore.setState({
+      entityExtractions: [
+        { ...useStudioStore.getState().entityExtractions[0]!, scriptFingerprint: oldStamp },
+      ],
+    });
+    const fill = vi.fn(async () => null);
+
+    const report = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+      triggerAssetFill: fill,
+    });
+
+    // 不烧图:fill 一次都不发,报表也认定未触发补图
+    expect(fill).not.toHaveBeenCalled();
+    expect(report?.fillTriggered).toBe(false);
+    // stale 行 failed 落账:镜像既有失败模式(detail 带原因+命中资产锚)
+    const stale = report?.exceptions.find((row) => row.status === "failed");
+    expect(stale?.detail).toContain("提取集过期，请先重新提取资产");
+    expect(stale?.matchedAssetName).toBe("破庙");
+    // 不阻断其余行:S2 有图行照常绑成
+    expect(report?.boundCount).toBe(1);
+    const s2 = useStudioStore.getState().storyboards.find((item) => item.index === 2);
+    expect(s2?.mediaRef?.path).toContain("bindings");
+  });
+
+  it("G37/R7 补图过期门:批次盖戳=现势指纹(刚提取)→照常触发 fill 补图", async () => {
+    mockProjectBridge();
+    const { row: bareScene, asset: bareAsset } = bareSceneRow();
+    seedChapter({
+      shots: [makeShot({ index: 1, associateAssetsNames: ["破庙"] })],
+      rows: [bareScene],
+    });
+    // 盖戳=现势指纹(fresh):门禁放行,fill 照发
+    useStudioStore.setState({
+      entityExtractions: [
+        {
+          ...useStudioStore.getState().entityExtractions[0]!,
+          scriptFingerprint: computeChapterScriptFingerprint(
+            CHAPTER_ID,
+            currentScriptFingerprintSnapshot(),
+          ),
+        },
+      ],
+    });
+    const fill = vi.fn(async () => {
+      useSceneStore.setState({
+        scenes: [{ ...bareAsset, referenceImage: "local-image://scenes/fixed-temple.png" }],
         folders: [],
         currentFolderId: null,
       });

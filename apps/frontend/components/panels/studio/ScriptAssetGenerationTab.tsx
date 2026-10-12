@@ -57,6 +57,14 @@ import { getRoleVoiceSpeakerIds, resolveRoleVoiceBinding } from "./script-asset-
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 
+/**
+ * 提取集过期行动提示(G34:提示后继续,不阻断):一键生成/失败行重试两处
+ * handler 与 UI 测试断言共用同一常量——文案只在落地一处,防两处漂移后
+ * 测试断言仍绿(假阳)。
+ */
+export const EXTRACTION_STALE_HINT =
+  "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」";
+
 export function ScriptAssetGenerationTab({
   title = "资产生成",
   description = "承接本阶段已提取的角色、场景、道具，推进提示词、图片资产、衍生资产和角色参考音频。",
@@ -198,9 +206,7 @@ export function ScriptAssetGenerationTab({
 
   const handleRunChapterAssets = useCallback(async () => {
     if (extractionStale) {
-      toast.warning(
-        "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」",
-      );
+      toast.warning(EXTRACTION_STALE_HINT);
     }
     await runChapterScriptAssetGeneration({
       chapterId: productionEpisodeId,
@@ -211,11 +217,9 @@ export function ScriptAssetGenerationTab({
 
   const handleRetryBatchRow = useCallback(
     async (row: ScriptAssetBatchRowOutcome) => {
-      // G34/R6:失败行重试与一键生成同款过期守卫(提示后继续,不阻断)
+      // G34:失败行重试与一键生成同款过期守卫(提示后继续,不阻断)
       if (extractionStale) {
-        toast.warning(
-          "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」",
-        );
+        toast.warning(EXTRACTION_STALE_HINT);
       }
       if (batchRunning) {
         toast.info("本章一键生成进行中，等待批次结束后再重试单行");

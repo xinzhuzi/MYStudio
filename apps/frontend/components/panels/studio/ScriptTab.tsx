@@ -412,6 +412,8 @@ export function ScriptTab(props: {
                   <Button
                     size="sm"
                     variant="paid"
+                    aria-label="一键生成：按改编模式重新生成(不走修订)"
+                    title="按改编模式重新生成(不走修订)"
                     disabled={!chapter || props.scriptStreaming !== null}
                     onClick={() =>
                       chapter &&
@@ -426,6 +428,9 @@ export function ScriptTab(props: {
                     <WandSparkles className="h-4 w-4" />
                     {streamingText !== null ? "生成中..." : "一键生成"}
                   </Button>
+                  <span className="text-[10px] leading-none text-muted-foreground" aria-hidden="true">
+                    不走修订
+                  </span>
                   <Button
                     size="sm"
                     variant="paid"

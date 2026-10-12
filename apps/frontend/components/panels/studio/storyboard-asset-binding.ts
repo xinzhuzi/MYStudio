@@ -26,6 +26,7 @@ import { storyboardBindingRelativePath, safePathSegment } from "@/lib/studio/cha
 import { saveImageToLocal } from "@/lib/media/image-storage";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem, StoryboardKeyframe } from "@/types/studio";
+import { computeChapterScriptFingerprint, currentScriptFingerprintSnapshot } from "./chapter-pipeline-stale";
 import { nameMatches } from "./asset-matching";
 import {
   buildChapterAssetRows,
@@ -369,6 +370,23 @@ function buildCharacterAliases(chapterId: string): Record<string, string[]> {
   return aliases;
 }
 
+/**
+ * 提取集是否落后于现势剧本(G37/R7 补图过期门):比对提取批次盖戳
+ * (EntityExtractionResult.scriptFingerprint)与现势剧本指纹
+ * (computeChapterScriptFingerprint 同口径,scriptPlanSourceFingerprint
+ * 零新造)。存量批次无戳=不比对(恒 fresh,兼容 G34 资产侧三处守卫同款口径)。
+ */
+function extractionBatchStale(chapterId: string): boolean {
+  const batch = useStudioStore
+    .getState()
+    .entityExtractions.find((item) => item.episodeId === chapterId);
+  if (!batch?.scriptFingerprint) return false;
+  return (
+    computeChapterScriptFingerprint(chapterId, currentScriptFingerprintSnapshot()) !==
+    batch.scriptFingerprint
+  );
+}
+
 /** 单镜匹配+绑定;缺图时先触发批2 补图再绑(fill 回调注入,默认真实批2)。 */
 async function bindShotWithMatch(input: {
   shot: StoryboardItem;
@@ -420,6 +438,26 @@ async function bindShotWithMatch(input: {
   if (match.status === "missing-image") {
     // 缺图=先触发批2 补图再绑(PRD R3);补完重读行现势复配
     if (input.allowFill && chain.visualManualId && chain.projectId) {
+      // G37/R7 补图过期门:fill 触发前比对提取批次盖戳 vs 现势剧本指纹
+      // (computeChapterScriptFingerprint 同口径)。错位=按旧提取集补图=静默烧图
+      // ——该行以 failed+原因落账(镜像绑定失败模式),fill 不发(不烧图)、
+      // 直接返回不阻断其余行;存量批次无戳=不比对(extractionBatchStale 恒 false)
+      if (extractionBatchStale(chain.chapterId)) {
+        return {
+          storyboardId: shot.id,
+          shotIndex: shot.index,
+          bound: false,
+          exception: {
+            storyboardId: shot.id,
+            shotIndex: shot.index,
+            status: "failed",
+            statusLabel: EXCEPTION_STATUS_LABELS.failed,
+            detail: "提取集过期，请先重新提取资产",
+            matchedAssetName: match.row.name,
+            matchedAssetType: match.row.type,
+          },
+        };
+      }
       input.fillTriggered();
       const fill = chain.triggerAssetFill ?? runChapterScriptAssetGeneration;
       try {

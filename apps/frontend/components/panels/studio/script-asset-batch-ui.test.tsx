@@ -226,11 +226,17 @@ describe("本章资产一键生成 UI", () => {
     expect(await screen.findByText("提取已过期·剧本已更新")).toBeTruthy();
 
     // 发车前提示(行动时守卫,1011 用户令补):stale 场景点击一键生成 → toast.warning
-    // 防静默烧图(徽标只是被动展示;1012 评审补——此前标题声称覆盖但零断言)
+    // 防静默烧图(徽标只是被动展示;1012 评审补——此前标题声称覆盖但零断言)。
+    // 断言用硬编码文案锁内容(常量仅供组件侧防两处漂移,测试侧引用常量=同义反复)
     fireEvent.click(screen.getByRole("button", { name: /本章资产一键生成/ }));
     expect(toast.warning).toHaveBeenCalledWith(
       "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」",
     );
+    // 提示后继续不阻断(G34 契约):批次照常发车走完(2 行全成)
+    await waitFor(() => {
+      expect(screen.getByText(/成 2 · 失 0/)).toBeTruthy();
+    });
+    expect(orchestratorMocks.generateAsset).toHaveBeenCalledTimes(2);
 
     // 行2 无戳(存量批次)= 静默不比对,无徽标
     cleanup();
@@ -343,6 +349,47 @@ describe("本章资产一键生成 UI", () => {
       expect.stringContaining("断臂散修"),
       expect.anything(),
     );
+  });
+
+  it("失败行重试过期守卫(G34):stale 场景点击失败行重试→toast.warning 用共享常量提示(提示后继续不阻断)", async () => {
+    // fixture 同失败清单用例:首跑 1 败 1 成,失败行入清单
+    orchestratorMocks.generateAsset.mockImplementationOnce(async () => {
+      throw new Error("Failed to fetch");
+    });
+    renderTab();
+
+    fireEvent.click(screen.getByRole("button", { name: /本章资产一键生成/ }));
+    await waitFor(() => {
+      expect(screen.getByText(/成 1 · 失 1/)).toBeTruthy();
+    });
+
+    // 跑完后再把批次盖旧戳(盖戳按提取时旧剧本真算;现势无 scriptDraft→漂移=stale)
+    vi.mocked(toast.warning).mockClear();
+    const oldStamp = computeChapterScriptFingerprint(CHAPTER_ID, {
+      agentWorkData: [
+        { key: "scriptDraft", episodeId: CHAPTER_ID, data: "# 提取时的旧剧本正文", updatedAt: 1 },
+      ],
+      novelChapters: [],
+      scriptPlans: [],
+    });
+    useStudioStore.setState({
+      entityExtractions: [
+        { ...useStudioStore.getState().entityExtractions[0]!, scriptFingerprint: oldStamp },
+      ],
+    });
+    // 徽标亮=组件已感知 stale(extractionStale 翻真)再点重试
+    expect(await screen.findByText("提取已过期·剧本已更新")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /重试/ }));
+    // 守卫提示被调:硬编码文案锁内容(与一键生成同款,防常量漂移后断言假绿)
+    expect(toast.warning).toHaveBeenCalledWith(
+      "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」",
+    );
+    // 提示后继续不阻断:重试照发,失败行翻绿
+    await waitFor(() => {
+      expect(screen.getByText(/成 2 · 失 0/)).toBeTruthy();
+    });
+    expect(orchestratorMocks.generateAsset).toHaveBeenCalledTimes(3);
   });
 
   it("护栏拦截行入清单并带原因;关闭按钮清掉报表卡", async () => {

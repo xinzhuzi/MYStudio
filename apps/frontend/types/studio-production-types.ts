@@ -720,8 +720,9 @@ export interface EntityExtractionResult extends StudioSourceIdentity {
    * 提取。存量批次无此字段=静默不比对(兼容同 08-27 口径)。
    * G34 范围(1012):一键生成、失败行重试、章流水线发车三处守卫(toast.warning
    * 提示后继续,不阻断;流水线另在发车指纹台账留 extractionFingerprint 戳,
-   * 提取集落后于剧本错位事后可查);分镜自动补图路径留白,候产品裁定是否
-   * 纳入同款比对。
+   * 提取集落后于剧本错位事后可查);G37/R7 分镜自动补图已纳入同款比对(fill
+   * 触发前比对本戳,错位行 failed+原因「提取集过期」落账,不烧图不阻断其余行)
+   * ——G34 留白清零。
    */
   scriptFingerprint?: string;
   characters: {
