@@ -178,7 +178,8 @@ describe("analyzeScriptDraft 解析口径(D2)", () => {
     const over = `# 已确定要求：x/16:9/y\n\n1-1 场 晨/外 ·约30秒\n人物：甲\n\n${beats}\n`;
     const mOver = analyzeScriptDraft(over, { durationMin: 2 });
     expect(mOver.beats).toBe(13);
-    expect(mOver.flags.some((f) => f.includes("△ 13") && f.includes("12"))).toBe(true);
+    // G44 文案人话化:计数口径不变,flag 串改「镜头」(旧 △ 夹具=向后兼容锁,断言 beats 数不变)
+    expect(mOver.flags).toContain("镜头 13 个超上限 12（每镜头按 10 秒预算）");
   });
 
   it("OS 占比 >40% 入 flags;语音字数超 150字/分钟 上限入 flags(恰 150 等值不报)", () => {
@@ -340,8 +341,11 @@ describe("formatScriptDraftMetrics(父 I5 标题)", () => {
     // 本夹具场 1-1 缺·约 → 展示层与新对账口径一致:不对账,不挂 ±10s 数字对账行
     expect(text).toContain("场秒对账：1 个场缺·约N秒标注，总时长不对账");
     expect(text).not.toContain("允许 ±10s");
-    expect(text).toContain("△ 3");
-    expect(text).toContain("上限 12");
+    // G44 文案人话化:视觉预算/场摘要改「镜头/镜」,本夹具输出不再含 △ 字样
+    expect(text).toContain("视觉预算：镜头 3 个（上限 12，每镜头按 10 秒预算）");
+    expect(text).toContain("·镜2·"); // 场 1-1 两个 △ → 场摘要 ·镜N·
+    expect(text).toContain("·镜1·"); // 场 1-2 一个 △
+    expect(text).not.toContain("△");
     expect(text).toContain("OS 占比");
     expect(text).toContain("缺·约N秒标注");
     expect(text).not.toContain("undefined");
@@ -459,8 +463,8 @@ describe("F4 逐场对账(手册「九、时长与视觉预算」:△数×10s �
       `甲：${"一".repeat(20)}`,
     ].join("\n");
     const m = analyzeScriptDraft(fixture, { durationMin: 1 });
-    // 4△×10s=40 > 20+10=30 → △ 超场;60 字 > ⌊20×2.5⌋=50 → 语音超场
-    expect(m.flags).toContain("场 1-1 △ 4 个×10s 超本场 20s+10");
+    // 4△×10s=40 > 20+10=30 → 镜头超场(G44 文案:△→镜头);60 字 > ⌊20×2.5⌋=50 → 语音超场
+    expect(m.flags).toContain("场 1-1 镜头 4 个×10s 超本场 20s+10");
     expect(m.flags).toContain("场 1-1 语音 60 字超本场上限 50");
   });
 
@@ -529,5 +533,118 @@ describe("F6 场号格式漂移(N-M 与裸数字混用 → flag)", () => {
       { durationMin: 1 },
     );
     expect(allBare.flags).not.toContain("场号格式不一致(N-M 与裸数字混用)");
+  });
+});
+
+// G44 双格式节拍识别:`镜头N：` 人话格式为手册现行,`△` 为存量兼容(禁删——用户项目库存量
+// 剧本全是 △,机检不能瞎)。向后兼容锁=本文件既有 △ 用例(FIXTURE_16_9 主夹具 beats=3、
+// 「△ 预算」beats=13、「△ 恰等于 beatLimit」beats=12、F4 4△ 逐场对账)全保留,计数断言不变。
+describe("G44 双格式节拍识别(镜头N： 与 △ 并存,合计入 beats 与场内 beats)", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+
+  it("新格式:镜头N： 行计一拍(全集与场内),序号后空格/全半角冒号均可;镜头行本身不是语音", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "镜头1：码头晨光，众人扛包。",
+      "镜头 2：铁链声里，甲抬头。",
+      "镜头3:乙望向远岸。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.beats).toBe(3);
+    expect(m.scenes[0]?.beats).toBe(3);
+    // 行内容不入场语音账(名字「镜头N」不得误计为对白),语音仅「甲：好」1 字
+    expect(m.dialogueChars).toBe(1);
+  });
+
+  it("转场括注形态(手册明教):镜头N（方式）：计一拍,括注与描述不入语音账(复审实锤收口)", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "镜头1：码头晨光，众人扛包。",
+      "镜头2（叠化）：雪夜闪回，墨色漫过山门。",
+      "镜头3(切):乙望向远岸。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.beats).toBe(3);
+    expect(m.scenes[0]?.beats).toBe(3);
+    // 括注行整行不得落 VOICE_LINE_RE 计为「镜头2」的台词——语音仅「好」1 字
+    expect(m.dialogueChars).toBe(1);
+    expect(m.overlongLines).toHaveLength(0); // 镜头描述(可>20字)不是台词,不报超长
+  });
+
+  it("F2 同款门控:场外(## 改编追踪 之后)镜头行不计拍——人话前缀场外暴露面大于 △", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "镜头1：码头晨光。",
+      "## 改编追踪",
+      "镜头1：此镜头为新增画面说明。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.beats).toBe(1);
+    expect(m.scenes[0]?.beats).toBe(1);
+  });
+
+  it("格式漂移路径输出零 △:无场次文本的 flag 文案已人话化(复审漏网收口)", () => {
+    const m = analyzeScriptDraft("完全不是剧本的乱文本\n第二行", { durationMin: 1 });
+    const text = formatScriptDraftMetrics(m);
+    expect(text).toContain("未识别到场次段落");
+    expect(text).not.toContain("△");
+  });
+
+  it("防误吞:纯数字行、无冒号的「镜头 N」叙述行、追踪表格行不是镜头", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "12",
+      "镜头 1 删了半拍。",
+      "| 1 | 镜头1：码头 | 压缩 |",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.beats).toBe(0);
+    expect(m.dialogueChars).toBe(1);
+  });
+
+  it("混合格式:同剧本 △ 与 镜头N： 混用正常合计(全集/场内/逐场对账 flag 均按合计拍数)", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约20秒",
+      "人物：甲",
+      "",
+      "△动作。",
+      "镜头1：晨光扫过船头。",
+      "△又一拍。",
+      "镜头 2：乙入场。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.beats).toBe(4); // 2△ + 2镜头
+    expect(m.scenes[0]?.beats).toBe(4);
+    // 4 拍×10s=40 > 20+10=30 → 逐场 flag 按合计拍数报
+    expect(m.flags).toContain("场 1-1 镜头 4 个×10s 超本场 20s+10");
+  });
+
+  it("续行停扫:空内容语音行的下一行是镜头行即停,镜头行不被吞为语音续行", () => {
+    const fixture = [HEAD, "", "1-1 场 晨/外 ·约30秒", "人物：甲", "", "甲：", "镜头1：码头晨光。"].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.beats).toBe(1);
+    expect(m.dialogueChars).toBe(0); // 「镜头1：码头晨光。」不得被当作甲的台词续行
   });
 });

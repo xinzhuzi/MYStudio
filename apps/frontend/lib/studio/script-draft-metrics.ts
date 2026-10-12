@@ -6,20 +6,23 @@
  * - 单集参考时长 ±10 秒;各场秒数合计对账同一口径(手册【输出格式规范】「九、时长与视觉预算」节;
  *   v3 已由「八、时长控制」改名合并,「约束」节同指引——锚节标题以抗挪行)
  * - 配音总量(台词+OS)≤ 150 字/分钟;OS/旁白占比 ≤ 40%
- * - △ 上限 = ⌊时长秒 ÷ 10⌋(G26 单值:每 △ 按 10 秒预算;题材包只收紧不放宽)
- *   (G35 留白:题材包〔script_narrative〕可声明更严 △ 预算——道劫/甜宠当前两包均未声明,
+ * - 镜头上限 = ⌊时长秒 ÷ 10⌋(G26 单值:每镜头按 10 秒预算;题材包只收紧不放宽)
+ *   (G35 留白:题材包〔script_narrative〕可声明更严镜头预算——道劫/甜宠当前两包均未声明,
  *   代码不预建输入口,待包侧真声明后再接线收紧)
  * - 单句(对白/OS)≤ 20 字@16:9 / ≤ 15 字@9:16(G7)
  * 解析口径(父 D2,取自 out/b-plus-script-ch1*.md 实样结构):
  * - 每行去 `**` 与首尾空白后匹配;场头 `{场号} {场景名} {时间}/{光线} ·约{N}秒`
  *   (裸数字场号兼容,10-12 装机实弹:须含「/」特征或 ·约N秒 锚,防误吞普通行)
+ * - 镜头行(G44 双格式):`△` 开头(存量兼容,禁删)或 `镜头N：` 开头(人话格式,手册现行)
+ *   均计一拍入 beats 与场内 beats;「镜头」前缀+数字序号+冒号才认——纯数字行、
+ *   无冒号的追踪表/叙述行不误吞
  * - 语音行 `名[（括注）][：:]内容`;`V.S.（旁白…）` 计 OS;`人物：` 行不计对白
  * - 语音内容在同行;同行为空则取下一非空非标记行为续行(冒号后换行形态),
  *   下一行若为语音/SFX 行形态即停——该行留给主循环独立解析,不整行吞并
  * - 在场内状态(F2):命中场头置真,遇任意 # 开头行置假——仅场内计语音与超长句,
- *   首场前梗概与改编追踪区的「名：内容」行不误算为台词;△ 计数口径不变(场外无 △)
+ *   首场前梗概与改编追踪区的「名：内容」行不误算为台词;镜头计数口径不变(△/镜头N： 同规)
  * - 场秒对账:存在缺标注场只报逐场缺标注,全部场有秒才对账总时长(10-12 口径)
- * - 逐场对账(F4,手册「九、时长与视觉预算」节):本场 △ 数×10 秒 ≤ 本场秒数+10、
+ * - 逐场对账(F4,手册「九、时长与视觉预算」节):本场镜头数(△/镜头N： 合计)×10 秒 ≤ 本场秒数+10、
  *   本场语音字数 ≤ ⌊本场秒数×2.5⌋(按 150 字/分钟),超即入 flags;缺秒场不判
  * - 场号 N-M 与裸数字混用(同剧本内)→ flag「场号格式不一致」(F6,手册场头要求 {场号})
  * - 超长句按句本体计量:行内「| 环境音/音效」注释列不计入字数(G25)
@@ -60,14 +63,19 @@ export interface ScriptDraftMetrics {
 const SCENE_HEADER_RE = /^(\d+(?:-\d+)?)\s+(.+)$/;
 const SCENE_SECONDS_RE = /·约(\d+)秒/;
 const SFX_LINE_RE = /^SFX\s*[（:：]/;
+// G44 双格式镜头行:`△` 开头(存量兼容,禁删——用户项目库存量剧本全是 △)或
+// `镜头N：` 开头(人话格式,手册现行)均计一拍;数字后允许转场括注(手册明教
+// 「镜头3（叠化）：雪夜闪回」,全/半角括号皆认)。「镜头」前缀+数字序号+冒号才认——
+// 纯数字行、无冒号的追踪表/叙述行(如「镜头 1 删了半拍。」)不误吞。
+const SHOT_LINE_RE = /^(?:△|镜头\s*\d+\s*(?:[（(][^）)]*[）)])?\s*[：:])/;
 // 名字类须排除全角「（」:否则贪婪吞掉括注(如「V.S.（旁白，冷）」整段成名)
 const VOICE_LINE_RE = /^([^：:\s（]{1,20})(（[^）]*）)?[：:](.*)$/;
 const ASPECT_HEADER_RE = /^#\s*已确定要求[：:]/;
 const STRIP_FOR_COUNT_RE = /[\p{P}\p{S}\s]/gu;
 
 /** 逐场对账阈值(手册「九、时长与视觉预算」节·每场对账条款,父 I6 锚节标题不锚行号):
- *  本场 △ 数×10 秒 ≤ 本场秒数+10;本场语音字数 ≤ ⌊本场秒数×2.5⌋(按 150 字/分钟)。 */
-const SCENE_BEAT_SECONDS = 10; // 每 △ 按 10 秒预算(与全集 △ 上限同源)
+ *  本场镜头数×10 秒 ≤ 本场秒数+10;本场语音字数 ≤ ⌊本场秒数×2.5⌋(按 150 字/分钟)。 */
+const SCENE_BEAT_SECONDS = 10; // 每镜头按 10 秒预算(与全集镜头上限同源;G44 双格式:镜头N： 人话格式为手册现行,△ 为存量兼容)
 const SCENE_SECONDS_SLACK = 10; // 本场秒数容差 +10
 const SCENE_VOICE_CHARS_PER_SECOND = 2.5; // 150 字/分钟 ÷ 60 秒
 
@@ -91,10 +99,10 @@ function matchSceneHeader(line: string): RegExpExecArray | null {
   return m;
 }
 
-/** 续行判定:语音行内容为空时,取下一非空且非标记(△/场头/人物行/分隔线/标题)的行。 */
+/** 续行判定:语音行内容为空时,取下一非空且非标记(镜头行 △/镜头N：/场头/人物行/分隔线/标题)的行。 */
 function isMarkerLine(line: string): boolean {
   return (
-    line.startsWith("△") ||
+    SHOT_LINE_RE.test(line) ||
     matchSceneHeader(line) !== null ||
     /^人物[：:]/.test(line) ||
     line === "---" ||
@@ -170,9 +178,15 @@ export function analyzeScriptDraft(
       continue;
     }
 
-    if (line.startsWith("△")) {
-      beats++;
-      if (current) current.beats++;
+    // G44 双格式镜头行:△(存量兼容)与 镜头N：(人话格式,含转场括注形态)均计一拍;
+    // 须在语音判定之前 continue——否则「镜头1：内容」会按 VOICE_LINE_RE 误计为「镜头1」的台词。
+    // 与语音行同受 F2 在场内门控:场外(梗概/改编追踪区)镜头行不计——人话前缀是普通
+    // 中文词组,场外暴露面大于专用符号 △
+    if (SHOT_LINE_RE.test(line)) {
+      if (inScene) {
+        beats++;
+        if (current) current.beats++;
+      }
       continue;
     }
 
@@ -213,7 +227,7 @@ export function analyzeScriptDraft(
     if (s.seconds === null) continue;
     if (s.beats * SCENE_BEAT_SECONDS > s.seconds + SCENE_SECONDS_SLACK) {
       flags.push(
-        `场 ${s.id} △ ${s.beats} 个×10s 超本场 ${s.seconds}s+${SCENE_SECONDS_SLACK}`,
+        `场 ${s.id} 镜头 ${s.beats} 个×10s 超本场 ${s.seconds}s+${SCENE_SECONDS_SLACK}`,
       );
     }
     const sceneVoiceLimit = Math.floor(s.seconds * SCENE_VOICE_CHARS_PER_SECOND);
@@ -226,7 +240,7 @@ export function analyzeScriptDraft(
     flags.push("场号格式不一致(N-M 与裸数字混用)");
   }
   if (scenes.length === 0) {
-    flags.push("未识别到场次段落（格式漂移，场秒/△ 对账不可用）");
+    flags.push("未识别到场次段落（格式漂移，场秒/镜头对账不可用）");
   } else if (scenes.every((s) => s.seconds !== null)) {
     // 对账口径(10-12):存在缺标注场只报逐场缺标注,全部有秒才对账总时长(旧「部分有秒即对账」废止)
     if (Math.abs(totalSeconds - targetSeconds) > 10) {
@@ -234,7 +248,7 @@ export function analyzeScriptDraft(
     }
   }
   if (beats > beatLimit) {
-    flags.push(`△ ${beats} 个超上限 ${beatLimit}（每 △ 按 10 秒预算）`);
+    flags.push(`镜头 ${beats} 个超上限 ${beatLimit}（每镜头按 10 秒预算）`);
   }
   const voiceChars = dialogueChars + osChars;
   if (voiceChars > voiceCharLimit) {
@@ -271,7 +285,7 @@ export function formatScriptDraftMetrics(m: ScriptDraftMetrics): string {
   const osPct = voiceChars > 0 ? `${(m.osRatio * 100).toFixed(1)}%` : "0%";
   const sceneSummary =
     m.scenes
-      .map((s) => `${s.id} ${s.seconds === null ? "缺·约" : `${s.seconds}s`}·△${s.beats}·语音${s.voiceChars}`)
+      .map((s) => `${s.id} ${s.seconds === null ? "缺·约" : `${s.seconds}s`}·镜${s.beats}·语音${s.voiceChars}`)
       .join("；") || "未识别到场次";
   const missingSeconds = m.scenes.filter((s) => s.seconds === null).length;
   const lines = [
@@ -279,7 +293,7 @@ export function formatScriptDraftMetrics(m: ScriptDraftMetrics): string {
     missingSeconds > 0
       ? `- 场秒对账：${missingSeconds} 个场缺·约N秒标注，总时长不对账（缺标注场不计入合计，先补齐标注）`
       : `- 场秒合计：${m.totalSeconds}s（目标 ${m.targetSeconds}s，允许 ±10s）`,
-    `- 视觉预算：△ ${m.beats} 个（上限 ${m.beatLimit}，每 △ 按 10 秒预算）`,
+    `- 视觉预算：镜头 ${m.beats} 个（上限 ${m.beatLimit}，每镜头按 10 秒预算）`,
     `- 语音字数：对白 ${m.dialogueChars} + OS ${m.osChars} = ${voiceChars} 字（上限 ${m.voiceCharLimit}；OS 占比 ${osPct}，上限 40%）`,
     `- 单句长度：上限 ${m.lineLimit} 字，超长 ${m.overlongLines.length} 条`,
     `- 场次：${sceneSummary}`,
