@@ -224,9 +224,13 @@ export function ScriptTab(props: {
     memoryMarkers,
     props.directorContext ? "题材剧本规则" : "",
     chapter ? `章节：${chapter.title}` : "",
-    chapter?.eventState ? "事件分析" : "",
     // F3:摘要随预览走「一键生成=非修订」口径——不再列「审核意见(修订模式)」;
     // 「AI审核生成」的附带内容由其旁只读提示行自释
+    chapter?.eventState ? "事件分析" : "",
+    // 复审 low 收口(实含清单补全):「上一集剧本」按实含列出——实发链 useScriptStageActions
+    // 取前一章最新 scriptDraft 注入「## 上一集剧本」节(script-planning.ts previousEpisodeScript
+    // 非空守卫);摘要守卫与 memoryMarkers 同款(promptSource includes 节标题)
+    promptSource.includes("## 上一集剧本") ? "上一集剧本" : "",
     chapter?.sourceText?.trim() ? "本章正文" : "",
   ]
     .filter(Boolean)

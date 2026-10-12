@@ -565,6 +565,11 @@ describe("ScriptTab", () => {
     expect(summary).not.toContain("本章正文");
     expect(summary).not.toContain("题材剧本规则");
     expect(summary).not.toContain("导演手法");
+    // #6:空 config(manualContext="")实发零注入「## 项目信息」节,摘要不虚列「项目信息」
+    // ——防 sentSummary 的 manualContext 条件守卫回退(恒列)无红灯
+    expect(summary).not.toContain("项目信息");
+    // 无 previewStageUserMessage(本地回退构建)不含「## 上一集剧本」节,摘要不虚列
+    expect(summary).not.toContain("上一集剧本");
     // 摘要行其余项不受影响:章节条目仍在
     expect(summary).toContain("章节：第一章");
   });
@@ -600,5 +605,53 @@ describe("ScriptTab", () => {
     expect(summary).toContain("题材剧本规则");
     expect(summary).toContain("项目信息");
     expect(summary).not.toContain("导演手法");
+  });
+
+  // R4 收口(复审 low + 实含清单补全):「上一集剧本」条目按实含列出——实发链
+  // useScriptStageActions 取前一章最新 scriptDraft 注入「## 上一集剧本」节
+  // (script-planning.ts previousEpisodeScript 非空守卫);摘要守卫与 memoryMarkers
+  // 同款(promptSource includes 节标题)。此处 mock previewStageUserMessage 返回
+  // 含该节的完整 user 消息(与 hook 完整构建产出的节格式一致),锁摘要不漏列。
+  it("lists 上一集剧本 in the sent summary when the live prompt contains the previous episode section (R4)", async () => {
+    const chapters = [
+      {
+        id: "ch-r4-prev-ep1",
+        index: 1,
+        title: "第一章",
+        sourceText: "前集正文……",
+        importedAt: 1,
+      },
+      {
+        id: "ch-r4-prev-ep2",
+        index: 2,
+        title: "第二章",
+        sourceText: "本章正文……",
+        importedAt: 2,
+      },
+    ];
+
+    render(
+      <ScriptTab
+        novelChapters={chapters}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+        previewStageUserMessage={async () =>
+          "## 本集信息（1 章 = 1 集）\n章节：第二章\n\n## 上一集剧本（仅用于衔接：承接其时间线与角色状态，禁止复述或改写其内容）\n前集剧本正文……"
+        }
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    await waitFor(() => {
+      const summary = screen.getByText(/含：/).textContent ?? "";
+      expect(summary).toContain("上一集剧本");
+    });
   });
 });
