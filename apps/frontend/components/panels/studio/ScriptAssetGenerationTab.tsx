@@ -26,6 +26,8 @@ import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { eventBus } from "@/lib/events/event-bus";
 import { formatCny } from "@/lib/studio/script-asset-cost";
 import { AssetGenerationRow } from "./ScriptAssetGenerationRow";
+import { computeChapterScriptFingerprint } from "./chapter-pipeline-stale";
+import { useStudioStore } from "@/stores/studio/studio-store";
 import {
   ASSET_TYPES,
   assetLibraryRowKey,
@@ -162,6 +164,25 @@ export function ScriptAssetGenerationTab({
     () => entityExtractions.find((item) => item.episodeId === productionEpisodeId),
     [entityExtractions, productionEpisodeId],
   );
+  // 提取集过期判定(1011 用户令补:剧本重写后旧提取集静默烧图):提取批次盖戳
+  // vs 现势剧本指纹(scriptPlanSourceFingerprint 同公式零新造);存量无戳=不比对。
+  // 三切片各取稳定数组引用(勿用对象选择器——每次渲染新对象会触发 zustand 重渲环);
+  // 快照对象在 memo 体内构造——外置字面量每渲染新引用,既打挂本 memo 的变更检测
+  // 又触发 exhaustive-deps 173 报错(1012 评审修)
+  const agentWorkDataFp = useStudioStore((state) => state.agentWorkData);
+  const novelChaptersFp = useStudioStore((state) => state.novelChapters);
+  const scriptPlansFp = useStudioStore((state) => state.scriptPlans);
+  const extractionStale = useMemo(() => {
+    if (!chapterBatch?.scriptFingerprint) return false;
+    return (
+      computeChapterScriptFingerprint(productionEpisodeId, {
+        agentWorkData: agentWorkDataFp,
+        novelChapters: novelChaptersFp,
+        scriptPlans: scriptPlansFp,
+      }) !== chapterBatch.scriptFingerprint
+    );
+  }, [chapterBatch, productionEpisodeId, agentWorkDataFp, novelChaptersFp, scriptPlansFp]);
+
   const chapterRows = useMemo(
     () => (chapterBatch ? assetRowsFromBatch(chapterBatch, activeProjectId) : []),
     // rows 由 data hook 随三库/提取批次重算,借其变更触发本章行重算
@@ -176,15 +197,26 @@ export function ScriptAssetGenerationTab({
   const [retryingTargetId, setRetryingTargetId] = useState<string | null>(null);
 
   const handleRunChapterAssets = useCallback(async () => {
+    if (extractionStale) {
+      toast.warning(
+        "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」",
+      );
+    }
     await runChapterScriptAssetGeneration({
       chapterId: productionEpisodeId,
       projectId: activeProjectId,
       visualManualId,
     });
-  }, [activeProjectId, productionEpisodeId, visualManualId]);
+  }, [activeProjectId, productionEpisodeId, visualManualId, extractionStale]);
 
   const handleRetryBatchRow = useCallback(
     async (row: ScriptAssetBatchRowOutcome) => {
+      // G34/R6:失败行重试与一键生成同款过期守卫(提示后继续,不阻断)
+      if (extractionStale) {
+        toast.warning(
+          "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」",
+        );
+      }
       if (batchRunning) {
         toast.info("本章一键生成进行中，等待批次结束后再重试单行");
         return;
@@ -202,7 +234,7 @@ export function ScriptAssetGenerationTab({
         setRetryingTargetId(null);
       }
     },
-    [activeProjectId, batchRunning, productionEpisodeId, visualManualId],
+    [activeProjectId, batchRunning, extractionStale, productionEpisodeId, visualManualId],
   );
 
   const actionableRows = useMemo(
@@ -347,6 +379,11 @@ export function ScriptAssetGenerationTab({
             </p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
+            {extractionStale ? (
+              <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning">
+                提取已过期·剧本已更新
+              </Badge>
+            ) : null}
             <Button
               size="sm"
               variant="paid"

@@ -22,6 +22,10 @@ import { useScriptAssetCostStore } from "@/stores/studio/script-asset-cost-store
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { useScriptAssetBatchStore } from "./script-asset-batch";
 import {
+  computeChapterScriptFingerprint,
+  currentScriptFingerprintSnapshot,
+} from "./chapter-pipeline-stale";
+import {
   retryDerivedChainRow,
   retryFailedDerivedChainEntries,
   runDerivedAssetChain,
@@ -184,6 +188,113 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("本章资产一键生成 UI", () => {
+  it("提取集过期门(1011 用户令补):真值表三行——盖戳(真算)漂移→徽标亮+发车提示;无戳不比对;盖戳=现势→不亮不误报", async () => {
+    seed();
+    // 行1 现势剧本(scriptDraft)与批次盖戳不同 → 过期;盖戳用真实公式产出
+    // (scriptPlanSourceFingerprint 同公式,对提取时旧剧本真算——防「有戳即亮」退化假阳)
+    const oldStamp = computeChapterScriptFingerprint(CHAPTER_ID, {
+      agentWorkData: [
+        {
+          key: "scriptDraft",
+          episodeId: CHAPTER_ID,
+          data: "# 提取时的旧剧本正文",
+          updatedAt: 1,
+        },
+      ],
+      novelChapters: [],
+      scriptPlans: [],
+    });
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "w-script-1",
+          key: "scriptDraft",
+          episodeId: CHAPTER_ID,
+          data: "# 新版剧本正文(重写后)",
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      entityExtractions: [
+        {
+          ...useStudioStore.getState().entityExtractions[0]!,
+          scriptFingerprint: oldStamp,
+        },
+      ],
+    });
+    renderTab();
+    expect(await screen.findByText("提取已过期·剧本已更新")).toBeTruthy();
+
+    // 发车前提示(行动时守卫,1011 用户令补):stale 场景点击一键生成 → toast.warning
+    // 防静默烧图(徽标只是被动展示;1012 评审补——此前标题声称覆盖但零断言)
+    fireEvent.click(screen.getByRole("button", { name: /本章资产一键生成/ }));
+    expect(toast.warning).toHaveBeenCalledWith(
+      "剧本在提取后已更新：本次将按旧提取集生成，建议先在本页点「重新提取资产」",
+    );
+
+    // 行2 无戳(存量批次)= 静默不比对,无徽标
+    cleanup();
+    seed();
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "w-script-2",
+          key: "scriptDraft",
+          episodeId: CHAPTER_ID,
+          data: "# 剧本",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /本章资产一键生成/ })).toBeTruthy();
+    });
+    expect(screen.queryByText("提取已过期·剧本已更新")).toBeNull();
+    // 负向:无戳存量批次发车不误报(无 toast.warning)
+    vi.mocked(toast.warning).mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /本章资产一键生成/ }));
+    expect(toast.warning).not.toHaveBeenCalled();
+
+    // 行3(1012 评审补)盖戳=现势指纹(刚提取完)→ 无徽标、发车不弹——若组件比对退化成
+    // 「有戳即亮」(Boolean(stamp)),行1 仍亮、行2 仍不亮,唯本行必红
+    cleanup();
+    seed();
+    useStudioStore.setState({
+      agentWorkData: [
+        {
+          id: "w-script-3",
+          key: "scriptDraft",
+          episodeId: CHAPTER_ID,
+          data: "# 剧本(提取时与现势一致)",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+    const currentStamp = computeChapterScriptFingerprint(
+      CHAPTER_ID,
+      currentScriptFingerprintSnapshot(),
+    );
+    useStudioStore.setState({
+      entityExtractions: [
+        {
+          ...useStudioStore.getState().entityExtractions[0]!,
+          scriptFingerprint: currentStamp,
+        },
+      ],
+    });
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /本章资产一键生成/ })).toBeTruthy();
+    });
+    expect(screen.queryByText("提取已过期·剧本已更新")).toBeNull();
+    vi.mocked(toast.warning).mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /本章资产一键生成/ }));
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+
   it("头部按钮入口:点击整批跑,跑完报表卡(成/渠道/成本)+断言全过", async () => {
     renderTab();
 

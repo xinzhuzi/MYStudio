@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import {
   resolveProductionEpisodeId,
   resolveScriptTextForEpisode,
+  scriptPlanSourceFingerprint,
 } from "./workflow-helpers";
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;
@@ -341,6 +342,8 @@ export function useNovelPipelineActions({
           ...batch,
           sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
           revision: chapterIdentity?.revision ?? 1,
+          // 提取盖戳(1011):一键生成前与现势剧本指纹比对,剧本重写后提示先重新提取
+          scriptFingerprint: scriptPlanSourceFingerprint(targetEpisodeId, scriptText),
         });
 
         const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;

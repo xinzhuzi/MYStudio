@@ -713,6 +713,17 @@ export interface StorySkeleton {
 export interface EntityExtractionResult extends StudioSourceIdentity {
   id: string;
   episodeId: string;
+  /**
+   * 提取时对「该章剧本正文」盖的戳(1011 用户令补:剧本重写后旧提取集静默复用
+   * =一键生成按旧实体集烧图)。口径=scriptPlanSourceFingerprint(零新造,与
+   * 导演规划/章流水线发车指纹同公式);资产一键生成前比对,漂移=提示先重新
+   * 提取。存量批次无此字段=静默不比对(兼容同 08-27 口径)。
+   * G34 范围(1012):一键生成、失败行重试、章流水线发车三处守卫(toast.warning
+   * 提示后继续,不阻断;流水线另在发车指纹台账留 extractionFingerprint 戳,
+   * 提取集落后于剧本错位事后可查);分镜自动补图路径留白,候产品裁定是否
+   * 纳入同款比对。
+   */
+  scriptFingerprint?: string;
   characters: {
     characterId: string;
     name: string;
