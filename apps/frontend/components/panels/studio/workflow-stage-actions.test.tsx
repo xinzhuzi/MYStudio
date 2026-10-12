@@ -1339,7 +1339,7 @@ describe("workflow stage action surfaces", () => {
     expect(screen.queryByTitle("资产库已有，尚未生成图片")).toBeNull();
   });
 
-  it("renders extracted script assets from the split AssetsTab module", () => {
+  it("renders extracted script assets from the split AssetsTab module", async () => {
     render(
       <AssetsTab
         novelChapters={[
@@ -1356,7 +1356,7 @@ describe("workflow stage action surfaces", () => {
             id: "work-script",
             key: "scriptDraft",
             episodeId: "chapter-001",
-            data: "第一章剧本",
+            data: "# 道劫 EP01\n\n## 剧情梗概\n\n镜头1：码头晨雾。\n晏燎：断剑归元。",
             createdAt: 1,
             updatedAt: 1,
           },
@@ -1382,6 +1382,16 @@ describe("workflow stage action surfaces", () => {
     expect(screen.getByText("道口镇")).toBeTruthy();
     expect(screen.getByText("断剑")).toBeTruthy();
     expect(screen.getByText("剧本内容")).toBeTruthy();
+
+    // 剧本弹窗:近全屏 + Markdown 渲染(# 行成 h1 标题,非字面井号文本)
+    fireEvent.click(screen.getByText("剧本内容"));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "道劫 EP01" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "剧情梗概" })).toBeTruthy();
+    // 段内单换行须保留(镜头行/台词行连续单行是剧本格式契约,合并即变一坨)
+    const paragraph = screen.getByText(/码头晨雾/);
+    expect(paragraph.textContent).toContain("镜头1：码头晨雾。\n晏燎：断剑归元。");
   });
 
   it("does not initialize the independent asset library while rendering workflow extraction assets", async () => {

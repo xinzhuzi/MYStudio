@@ -1,4 +1,7 @@
 import { useState } from "react";
+import type { Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +15,34 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Boxes, ChevronDown, FileText, WandSparkles } from "lucide-react";
+
+// 剧本是场次标题+镜头行+台词行的连续单行结构(场与场之间才空行),
+// CommonMark 会把段内单换行合并成空格,p 需 whitespace-pre-line 保住行断
+const scriptMarkdownComponents: Components = {
+  h1: ({ children }) => <h1 className="mb-5 text-2xl font-semibold">{children}</h1>,
+  h2: ({ children }) => <h2 className="mb-3 mt-8 text-xl font-semibold">{children}</h2>,
+  h3: ({ children }) => <h3 className="mb-2 mt-6 text-lg font-semibold">{children}</h3>,
+  p: ({ children }) => (
+    <p className="mb-4 whitespace-pre-line leading-7 text-foreground/90">{children}</p>
+  ),
+  ul: ({ children }) => <ul className="mb-4 list-disc space-y-1 pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-4 list-decimal space-y-1 pl-5">{children}</ol>,
+  blockquote: ({ children }) => (
+    <blockquote className="mb-4 border-l-2 pl-4 text-muted-foreground">{children}</blockquote>
+  ),
+  code: ({ children }) => (
+    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">{children}</code>
+  ),
+  pre: ({ children }) => (
+    <pre className="mb-4 overflow-auto rounded-md bg-muted p-3 text-xs leading-5">{children}</pre>
+  ),
+  table: ({ children }) => (
+    <table className="mb-4 w-full border-collapse text-left text-sm">{children}</table>
+  ),
+  th: ({ children }) => <th className="border px-2 py-1 font-semibold">{children}</th>,
+  td: ({ children }) => <td className="border px-2 py-1 align-top">{children}</td>,
+  hr: () => <hr className="my-6 border-border" />,
+};
 
 export type AssetType = "character" | "scene" | "prop";
 export type AssetStatus = "missing" | "exists" | "made";
@@ -210,8 +241,8 @@ export function AssetsBatchCard({
       )}
 
       <Dialog open={scriptDialogOpen} onOpenChange={setScriptDialogOpen}>
-        <DialogContent className="max-h-[80vh] w-[min(760px,92vw)]">
-          <DialogHeader>
+        <DialogContent className="flex h-[calc(100vh-48px)] w-[calc(100vw-48px)] max-w-none flex-col p-0">
+          <DialogHeader className="border-b border-border px-7 py-5">
             <DialogTitle className="truncate">
               剧本内容 · {chapter.index}. {chapter.title}
             </DialogTitle>
@@ -219,10 +250,21 @@ export function AssetsBatchCard({
               {script ? "本章剧本全文（只读）" : "本章暂无剧本"}
             </DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 overflow-y-auto">
-            <pre className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-              {script || "本章暂无剧本：请先在「剧本生产阶段」生成本章剧本。"}
-            </pre>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-5xl px-7 py-6 text-base">
+              {script ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={scriptMarkdownComponents}
+                >
+                  {script}
+                </ReactMarkdown>
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  本章暂无剧本：请先在「剧本生产阶段」生成本章剧本。
+                </p>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -18,6 +18,10 @@ describe("AssetsTab split boundaries", () => {
     expect(cardSource).toContain("export function AssetsBatchCard");
     expect(cardSource).toContain("创建缺失资产");
     expect(cardSource).toContain("剧本内容");
+    // 剧本弹窗:近全屏 + Markdown 渲染(1013 用户裁定:禁 pre 裸贴源码/禁 760px 小窗)
+    expect(cardSource).toContain("ReactMarkdown");
+    expect(cardSource).toContain("h-[calc(100vh-48px)]");
+    expect(cardSource).not.toContain("w-[min(760px,92vw)]");
   });
 
   it("does not eagerly list the independent asset library outside explicit management mode", () => {
