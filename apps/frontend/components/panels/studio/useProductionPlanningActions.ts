@@ -84,6 +84,8 @@ export function useProductionPlanningActions({
       const manualContext = buildStudioManualContext(
         store.workflowConfig,
         manualCatalog,
+        // G39(10-12 第8轮):导演规划阶段手册上下文全量注入,不截 4000 字
+        { moduleCharCap: 0 },
       );
       const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
       const projectMemoryContext = formatProjectMemoryContext(retrieveProjectMemory({

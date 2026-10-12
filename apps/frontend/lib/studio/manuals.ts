@@ -89,19 +89,30 @@ export function getStudioManualPreset(kind: StudioManualKind, id: string | undef
   return listStudioManualPresets(kind).find((item) => item.id === id) ?? null;
 }
 
+export interface BuildStudioManualContextOptions {
+  /**
+   * 模块注入字数帽(G39/G15,10-12 第8轮「都做完」):缺省 4000=现状摘要口径;
+   * ≤0=不截断全量注入(导演规划阶段两调用方传 0,22KB 规划文档不再截 4000 字)。
+   * 其余调用方缺省不传 → 行为零变化(G11 口径不动)。
+   */
+  moduleCharCap?: number;
+}
+
 export function buildStudioManualContext(
   config: Partial<StudioWorkflowConfig>,
   catalog: StudioManualCatalog = {},
+  opts: BuildStudioManualContextOptions = {},
 ): string {
+  const moduleCharCap = opts.moduleCharCap ?? 4000;
   const visualManual = resolveStudioManualPreset("visual", config.visualManualId, catalog);
   const directorManual = resolveStudioManualPreset("director", config.directorManualId, catalog);
 
   return [
     "# 视觉手册",
-    visualManual ? buildManualSummary(visualManual, ["README", "prefix", "director_planning_style", "art_storyboard_video"]) : "未选择",
+    visualManual ? buildManualSummary(visualManual, ["README", "prefix", "director_planning_style", "art_storyboard_video"], moduleCharCap) : "未选择",
     "",
     "# 导演手册",
-    directorManual ? buildManualSummary(directorManual, ["README", "director_planning_narrative", "director_storyboard_table_narrative"]) : "未选择",
+    directorManual ? buildManualSummary(directorManual, ["README", "director_planning_narrative", "director_storyboard_table_narrative"], moduleCharCap) : "未选择",
   ].join("\n");
 }
 
@@ -387,12 +398,13 @@ function getBasePresetId(id: string) {
   return undefined;
 }
 
-function buildManualSummary(manual: StudioManualPreset, keys: string[]) {
+function buildManualSummary(manual: StudioManualPreset, keys: string[], charCap = 4000) {
   return [
     `## ${manual.name}`,
     ...keys
       .map((key) => manual.modules[key]?.trim())
       .filter(Boolean)
-      .map((value) => value.slice(0, 4000)),
+      // G39:charCap≤0=不截断全量注入;缺省 4000=现状(buildStoryboardTableManualContext 等口径不变)
+      .map((value) => (charCap > 0 ? value.slice(0, charCap) : value)),
   ].join("\n\n");
 }

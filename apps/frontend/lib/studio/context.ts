@@ -51,7 +51,8 @@ export function buildSkillContextPackage(input: BuildSkillContextPackageInput): 
       "模型执行: disabled",
       "",
       ...(seriesBibleBlock ? [seriesBibleBlock, ""] : []),
-      buildStudioManualContext(input.workflowConfig ?? {}, input.manualCatalog),
+      // G39(10-12 第8轮):导演规划阶段手册上下文全量注入,不截 4000 字
+      buildStudioManualContext(input.workflowConfig ?? {}, input.manualCatalog, { moduleCharCap: 0 }),
       "",
       "# 小说上下文",
       chapterBlocks.join("\n\n") || "无",

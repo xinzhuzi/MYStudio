@@ -251,6 +251,41 @@ describe("studio manual presets", () => {
     expect(context).not.toContain("三族灵气");
   });
 
+  it("G39：moduleCharCap≤0 → 超帽模块全量注入;缺省仍截 4000(口径零变化)", () => {
+    // 夹具:规划叙事模块 5400 字(>4000 帽),尾部唯一标记=截断痕判别串(周期串会使尾部串
+    // 在帽内重演,故以唯一尾标判截断,免假失败)
+    const longBody = `${"导演规划叙事正文。".repeat(600)}【全量注入尾部标记】`;
+    expect(longBody.length).toBeGreaterThan(4000);
+    const tailMarker = "【全量注入尾部标记】";
+    const directorManuals = buildStudioManualsFromSkillFiles("director", [
+      {
+        relativePath: "story_skills/Daojie_xianxia/README.md",
+        content: "# 本地全量注入手册",
+      },
+      {
+        relativePath: "story_skills/Daojie_xianxia/driector_skills/director_planning_narrative.md",
+        content: longBody,
+      },
+    ]);
+    const config = { directorManualId: EXTENDED_DIRECTOR_MANUAL_SEED_ID };
+
+    // a) cap=0:全文注入——模块整段原文在场(长度等于原文),帽外尾标在场=未截断
+    const full = buildStudioManualContext(config, { director: directorManuals }, { moduleCharCap: 0 });
+    expect(full).toContain("## 本地全量注入手册");
+    expect(full).toContain(longBody);
+    expect(full).toContain(tailMarker);
+    // cap<0 同义(≤0 皆全量)
+    expect(
+      buildStudioManualContext(config, { director: directorManuals }, { moduleCharCap: -1 }),
+    ).toContain(tailMarker);
+
+    // b) 缺省(不传 opts):仍截 4000——帽内前缀恰在场,帽外尾标(截断痕)消失,全文不在场
+    const capped = buildStudioManualContext(config, { director: directorManuals });
+    expect(capped).toContain(longBody.slice(0, 4000));
+    expect(capped).not.toContain(tailMarker);
+    expect(capped).not.toContain(longBody);
+  });
+
   it("loads root Toonflow agent skill presets", () => {
     const agentExports = manuals as typeof manuals & {
       listAgentSkillPresets?: () => Array<{ id: string; kind: string; content: string; source: string }>;

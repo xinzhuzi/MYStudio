@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { textStreamMock, saveAgentWorkDataMock } = vi.hoisted(() => ({
@@ -312,10 +312,15 @@ describe("useScriptStageActions stream failure recovery", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /一键生成/ })[1]);
 
     // 流挂起期间:按钮禁用且可访问名仍含「一键生成」(aria-label 恒定,scriptStreaming 非 null);
-    // 流式态下控制入口可能卸载,取末位匹配(=生成按钮)
-    const busyButtons = await screen.findAllByRole("button", { name: /一键生成/ });
-    const busyButton = busyButtons[busyButtons.length - 1];
-    expect((busyButton as HTMLButtonElement).disabled).toBe(true);
+    // 流式态下控制入口可能卸载,取末位匹配(=生成按钮)。
+    // 竞态消解:置流态前有微任务链(handleStageMessagesFull→readBibleContext 异步),
+    // findAllByRole 只等元素存在不等禁用——高负载下立即断言会抢在 setScriptStreaming 前
+    // 假红(10-12 门禁实发一次);改 waitFor 轮询到禁用,锁语义不变(挂起期必禁用)。
+    const busyButton = () => {
+      const buttons = screen.getAllByRole("button", { name: /一键生成/ });
+      return buttons[buttons.length - 1] as HTMLButtonElement;
+    };
+    await waitFor(() => expect(busyButton().disabled).toBe(true));
     expect(latestActions!.scriptStreaming).toMatchObject({ key: "scriptDraft", scopeId: "ch1" });
 
     // 顶层 reject:异常仍向上抛(不吞),但 finally 兜底把流态打回 null
