@@ -16,7 +16,12 @@
  * - 语音行 `名[（括注）][：:]内容`;`V.S.（旁白…）` 计 OS;`人物：` 行不计对白
  * - 语音内容在同行;同行为空则取下一非空非标记行为续行(冒号后换行形态),
  *   下一行若为语音/SFX 行形态即停——该行留给主循环独立解析,不整行吞并
+ * - 在场内状态(F2):命中场头置真,遇任意 # 开头行置假——仅场内计语音与超长句,
+ *   首场前梗概与改编追踪区的「名：内容」行不误算为台词;△ 计数口径不变(场外无 △)
  * - 场秒对账:存在缺标注场只报逐场缺标注,全部场有秒才对账总时长(10-12 口径)
+ * - 逐场对账(F4,手册「九、时长与视觉预算」节):本场 △ 数×10 秒 ≤ 本场秒数+10、
+ *   本场语音字数 ≤ ⌊本场秒数×2.5⌋(按 150 字/分钟),超即入 flags;缺秒场不判
+ * - 场号 N-M 与裸数字混用(同剧本内)→ flag「场号格式不一致」(F6,手册场头要求 {场号})
  * - 超长句按句本体计量:行内「| 环境音/音效」注释列不计入字数(G25)
  * - 画幅真源 = 剧本头部第三行自述(父 I7/I8:只按「已确定要求：」前缀 + `16:9`/`9:16`
  *   子串匹配,不匹配枚举全集);opts.aspectRatio 仅兜底
@@ -59,6 +64,12 @@ const SFX_LINE_RE = /^SFX\s*[（:：]/;
 const VOICE_LINE_RE = /^([^：:\s（]{1,20})(（[^）]*）)?[：:](.*)$/;
 const ASPECT_HEADER_RE = /^#\s*已确定要求[：:]/;
 const STRIP_FOR_COUNT_RE = /[\p{P}\p{S}\s]/gu;
+
+/** 逐场对账阈值(手册「九、时长与视觉预算」节·每场对账条款,父 I6 锚节标题不锚行号):
+ *  本场 △ 数×10 秒 ≤ 本场秒数+10;本场语音字数 ≤ ⌊本场秒数×2.5⌋(按 150 字/分钟)。 */
+const SCENE_BEAT_SECONDS = 10; // 每 △ 按 10 秒预算(与全集 △ 上限同源)
+const SCENE_SECONDS_SLACK = 10; // 本场秒数容差 +10
+const SCENE_VOICE_CHARS_PER_SECOND = 2.5; // 150 字/分钟 ÷ 60 秒
 
 /** 行内注释列(「| 环境音/音效」等)剥离后按句本体计字数(G25)。 */
 function countChars(content: string): number {
@@ -127,12 +138,20 @@ export function analyzeScriptDraft(
   let dialogueChars = 0;
   let osChars = 0;
   let current: ScriptDraftMetricsScene | null = null;
+  // 在场内状态(F2):命中场头置真;遇任意 # 开头行置假——仅场内计语音与超长句
+  let inScene = false;
+  // 场号形态(F6):N-M 与裸数字混用即 flag
+  let hasRangeSceneId = false;
+  let hasBareSceneId = false;
 
   for (let i = 0; i < cleaned.length; i++) {
     const line = cleaned[i]!;
 
     const sceneMatch = matchSceneHeader(line);
     if (sceneMatch) {
+      inScene = true;
+      if (sceneMatch[1]!.includes("-")) hasRangeSceneId = true;
+      else hasBareSceneId = true;
       const secondsMatch = SCENE_SECONDS_RE.exec(line);
       current = {
         id: sceneMatch[1]!,
@@ -146,6 +165,11 @@ export function analyzeScriptDraft(
       continue;
     }
 
+    if (line.startsWith("#")) {
+      inScene = false; // Markdown 标题行(## 剧情梗概 / ## 改编追踪 等)即出场
+      continue;
+    }
+
     if (line.startsWith("△")) {
       beats++;
       if (current) current.beats++;
@@ -154,6 +178,7 @@ export function analyzeScriptDraft(
 
     const voiceMatch = VOICE_LINE_RE.exec(line);
     if (!voiceMatch) continue;
+    if (!inScene) continue; // 场外「名：内容」行(梗概/改编追踪区)不计语音与超长句(F2)
     const name = voiceMatch[1]!;
     if (name === "人物") continue; // 人物表行不计对白(父 D2)
     if (name === "SFX") continue; // SFX 音效配方行非语音(手册 §三 音效意图;语音=台词+OS,G20),不入对白/OS/超长句
@@ -183,6 +208,23 @@ export function analyzeScriptDraft(
   }
 
   const totalSeconds = scenes.reduce((sum, s) => sum + (s.seconds ?? 0), 0);
+  // 逐场对账(F4,手册「九、时长与视觉预算」节):秒数已知的场逐项核对,缺秒场不判
+  for (const s of scenes) {
+    if (s.seconds === null) continue;
+    if (s.beats * SCENE_BEAT_SECONDS > s.seconds + SCENE_SECONDS_SLACK) {
+      flags.push(
+        `场 ${s.id} △ ${s.beats} 个×10s 超本场 ${s.seconds}s+${SCENE_SECONDS_SLACK}`,
+      );
+    }
+    const sceneVoiceLimit = Math.floor(s.seconds * SCENE_VOICE_CHARS_PER_SECOND);
+    if (s.voiceChars > sceneVoiceLimit) {
+      flags.push(`场 ${s.id} 语音 ${s.voiceChars} 字超本场上限 ${sceneVoiceLimit}`);
+    }
+  }
+  // 场号格式漂移(F6):同剧本内 N-M 与裸数字混用
+  if (hasRangeSceneId && hasBareSceneId) {
+    flags.push("场号格式不一致(N-M 与裸数字混用)");
+  }
   if (scenes.length === 0) {
     flags.push("未识别到场次段落（格式漂移，场秒/△ 对账不可用）");
   } else if (scenes.every((s) => s.seconds !== null)) {

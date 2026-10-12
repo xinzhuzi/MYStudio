@@ -388,3 +388,146 @@ describe("formatScriptDraftMetrics(父 I5 标题)", () => {
     expect(text).toContain("自检通过");
   });
 });
+
+describe("F2 场外语音不计(在场内状态:命中场头置真,遇 # 开头行置假)", () => {
+  it("首场之前的梗概「名：内容」行不计对白不报超长;## 改编追踪之后的「删减理由：…」「新增：无」不计", () => {
+    const fixture = [
+      "# 测试 EP01：x",
+      "# 范围与目标：x | 时长：1分钟",
+      "# 已确定要求：x/16:9横屏/x",
+      "",
+      "## 剧情梗概",
+      "",
+      // 场外梗概行:句本体 22 字 > 20 上限,修复前误计对白并误报超长句
+      "晏燎：一个呼吸暗合天地的少年，在夜课上被独孤剑尘察觉。",
+      "",
+      "1-1 码头 晨/外 ·约60秒",
+      "人物：甲",
+      "",
+      "甲：好。",
+      "",
+      "## 改编追踪",
+      "",
+      "删减理由：矿奴装船细节压缩为转场带过。",
+      "新增：无",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    // 场内仅「甲：好。」1 字;梗概行与追踪区两行均不计对白/不入场语音字数
+    expect(m.dialogueChars).toBe(1);
+    expect(m.osChars).toBe(0);
+    expect(m.overlongLines).toHaveLength(0);
+    expect(m.flags.some((f) => f.includes("超长句"))).toBe(false);
+    expect(m.scenes[0]?.voiceChars).toBe(1);
+  });
+
+  it("场内语音照常计入;# 行出场后遇新场头重新入场,语音归属新场", () => {
+    const fixture = [
+      "1-1 码头 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "甲：场内句。",
+      "## 改编追踪",
+      "删减理由：x。",
+      "1-2 室内 夜/内 ·约30秒",
+      "人物：乙",
+      "",
+      "乙：回来。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    // 「场内句」3 字 + 「回来」2 字;中间「删减理由：x。」不计
+    expect(m.dialogueChars).toBe(5);
+    expect(m.scenes[0]?.voiceChars).toBe(3);
+    expect(m.scenes[1]?.voiceChars).toBe(2);
+  });
+});
+
+describe("F4 逐场对账(手册「九、时长与视觉预算」:△数×10s ≤ 场秒+10;语音字数 ≤ ⌊场秒×2.5⌋)", () => {
+  it("1 场 ·约20秒 + 4△ + 60 字台词 → △ 与语音两条 flag 均出现", () => {
+    const fixture = [
+      "# 已确定要求：x/16:9/y",
+      "",
+      "1-1 场 晨/外 ·约20秒",
+      "人物：甲",
+      "",
+      "△动作一。",
+      "△动作二。",
+      "△动作三。",
+      "△动作四。",
+      // 3 行 × 20 字 = 60 字,每行恰 20 字不触超长句
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    // 4△×10s=40 > 20+10=30 → △ 超场;60 字 > ⌊20×2.5⌋=50 → 语音超场
+    expect(m.flags).toContain("场 1-1 △ 4 个×10s 超本场 20s+10");
+    expect(m.flags).toContain("场 1-1 语音 60 字超本场上限 50");
+  });
+
+  it("缺秒场不判;等值边界(n×10 = s+10、字数恰 = ⌊s×2.5⌋)不报", () => {
+    // 缺 ·约N秒 的场塞 5△+60 字(若误判即两条 flag)→ 只报缺标注,不判逐场对账
+    const missing = [
+      "# 已确定要求：x/16:9/y",
+      "",
+      "1-2 场 夜/内",
+      "人物：甲",
+      "",
+      ...Array.from({ length: 5 }, (_, i) => `△动作${i}。`),
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
+    ].join("\n");
+    const mMissing = analyzeScriptDraft(missing, { durationMin: 1 });
+    expect(mMissing.flags).toContain("场 1-2 缺·约N秒标注");
+    expect(mMissing.flags.some((f) => f.includes("超本场"))).toBe(false);
+
+    // ·约30秒 + 4△(4×10=40 = 30+10 等值) + 75 字(恰 = ⌊30×2.5⌋) → 均不报
+    const equal = [
+      "# 已确定要求：x/16:9/y",
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      ...Array.from({ length: 4 }, (_, i) => `△动作${i}。`),
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(15)}`,
+    ].join("\n");
+    const mEqual = analyzeScriptDraft(equal, { durationMin: 1 });
+    expect(mEqual.flags.some((f) => f.includes("超本场"))).toBe(false);
+  });
+});
+
+describe("F6 场号格式漂移(N-M 与裸数字混用 → flag)", () => {
+  it("同一剧本内 1-1 与裸 2 混用 → flag「场号格式不一致(N-M 与裸数字混用)」", () => {
+    const fixture = [
+      "# 已确定要求：x/16:9/y",
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "甲：好。",
+      "",
+      "2 场 夜/内 ·约30秒",
+      "人物：乙",
+      "",
+      "乙：行。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags).toContain("场号格式不一致(N-M 与裸数字混用)");
+  });
+
+  it("单一形态(全 N-M 或全裸数字)不报", () => {
+    const allRange = analyzeScriptDraft(
+      "# 已确定要求：x/16:9/y\n\n1-1 场 晨/外 ·约30秒\n人物：甲\n\n甲：好。\n\n1-2 场 夜/内 ·约30秒\n",
+      { durationMin: 1 },
+    );
+    expect(allRange.flags).not.toContain("场号格式不一致(N-M 与裸数字混用)");
+    const allBare = analyzeScriptDraft(
+      "# 已确定要求：x/16:9/y\n\n2 场 晨/外 ·约30秒\n人物：甲\n\n甲：好。\n\n3 场 夜/内 ·约30秒\n",
+      { durationMin: 1 },
+    );
+    expect(allBare.flags).not.toContain("场号格式不一致(N-M 与裸数字混用)");
+  });
+});
