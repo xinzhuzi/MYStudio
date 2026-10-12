@@ -15,6 +15,7 @@ import {
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { SCRIPT_STAGE_STREAM_TIMEOUT_MS } from "./useScriptStageActions";
 import {
   buildStoryboardTableManualContext,
   buildStudioManualContext,
@@ -169,6 +170,8 @@ export function useProductionPlanningActions({
             { role: "user", content: userContent },
           ],
           temperature: 0.4,
+          // 1013 实弹:64K 地板后 glm-5.3 导演规划 思考4.2min+正文6212字@5min 被默认300s掐断(正文已流仍弃);对齐剧本阶段 600s 总预算
+          timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
           // 1013 实弹定谳:GLM 思考型经 anthropic 口思考计入 max_tokens,4096 会被思考独占→正文零字节
           // 「模型响应中缺少文本内容」5 连败(useProductionPlanningActions 结构性阻塞);按用户常设令
           // maxTokens 不显式传——统一走 ai-manager maxTokensFloor(1013 终裁:最大输出 64K 单一真源)
@@ -197,6 +200,7 @@ export function useProductionPlanningActions({
               },
             ],
             temperature: 0.25,
+            timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
             // 同上:maxTokens 走 ai-manager 统一兜底
             // 同上:maxTokens 走 ai-manager 统一兜底
           }, () => undefined);
@@ -351,6 +355,7 @@ export function useProductionPlanningActions({
               { role: "user", content: userContent },
             ],
             temperature: 0.35,
+            timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
             // 同上:maxTokens 走 ai-manager 统一兜底
           },
           () => {},
