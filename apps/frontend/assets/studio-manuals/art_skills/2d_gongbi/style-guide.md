@@ -1304,7 +1304,7 @@ How the traditional material feels
 # 31. 快速复制区
 # 31. Quick Copy Section
 
-> **K2 用户注意**：下列锚点中的 `fine rice paper texture` 在 Krea2 上=脏底先验，替换为「暖米色，细洁素净」（详见 §11 警示框）。
+> **K2 用户注意**：下列锚点中的 `fine rice paper texture` 在 Krea2 上=脏底先验，替换为「暖米色，细洁素净」（详见第11节警示框）。
 
 ## 通用风格锚点｜Universal Style Anchor
 
