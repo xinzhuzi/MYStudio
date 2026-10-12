@@ -925,11 +925,11 @@ describe("workflow stage action surfaces", () => {
       ],
       (id) =>
         id === "char-parent"
-          ? { kind: "character", id }
+          ? { kind: "character", id, name: id }
           : id === "scene-parent"
-          ? { kind: "scene", id }
+          ? { kind: "scene", id, name: id }
           : id === "prop-parent"
-            ? { kind: "prop", id }
+            ? { kind: "prop", id, name: id }
             : null,
       EXTENDED_VISUAL_MANUAL_SEED_ID,
       "dao-project",

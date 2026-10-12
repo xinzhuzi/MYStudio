@@ -27,7 +27,7 @@ import { saveImageToLocal } from "@/lib/media/image-storage";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem, StoryboardKeyframe } from "@/types/studio";
 import { computeChapterScriptFingerprint, currentScriptFingerprintSnapshot } from "./chapter-pipeline-stale";
-import { nameMatches } from "./asset-matching";
+import { nameMatches, normalizeAssetText } from "./asset-matching";
 import {
   buildChapterAssetRows,
   runChapterScriptAssetGeneration,
@@ -37,13 +37,35 @@ import { getRowImage, type AssetGenerationType, type AssetRow } from "./script-a
 // ── 匹配(纯函数) ───────────────────────────────────────────────────────────
 
 export type StoryboardBindingMatch =
-  | { status: "unique"; row: AssetRow; image: string }
+  | { status: "unique"; row: AssetRow; image: string; unmatchedNames: string[] }
   | { status: "ambiguous"; type: AssetGenerationType; candidateNames: string[] }
   | { status: "missing-image"; row: AssetRow }
   | { status: "no-match" };
 
 /** 匹配类型优先级:场景在前(建立镜头语感),角色次之,道具兜底。 */
 const MATCH_TYPE_ORDER: readonly AssetGenerationType[] = ["scene", "character", "prop"];
+
+/**
+ * 1013 修 RC-6②:非精确命中名收集——names 中归一化后不等于任何行(全类型,
+ * 角色行含 characterAliases 别名)的 name/别名归一值者;零命中与仅包含/模糊
+ * 命中都算。精确命中自实现归一全等,不依赖 nameMatches(后者含包含语义)。
+ */
+function collectUnmatchedBindingNames(input: {
+  names: string[];
+  rows: AssetRow[];
+  characterAliases?: Record<string, string[]>;
+}): string[] {
+  const exactKeys = new Set<string>();
+  for (const row of input.rows) {
+    exactKeys.add(normalizeAssetText(row.name));
+    if (row.type === "character") {
+      for (const alias of input.characterAliases?.[row.name] ?? []) {
+        exactKeys.add(normalizeAssetText(alias));
+      }
+    }
+  }
+  return input.names.filter((name) => !exactKeys.has(normalizeAssetText(name)));
+}
 
 /**
  * 单镜匹配:shot.associateAssetsNames 逐名对章资产行做 名+别名+模糊 匹配
@@ -76,7 +98,18 @@ export function matchStoryboardBindingAsset(input: {
     }
     if (hits.length === 1) {
       const image = getRowImage(hits[0]);
-      if (image) return { status: "unique", row: hits[0], image };
+      if (image) {
+        return {
+          status: "unique",
+          row: hits[0],
+          image,
+          unmatchedNames: collectUnmatchedBindingNames({
+            names,
+            rows: input.rows,
+            characterAliases: input.characterAliases,
+          }),
+        };
+      }
       return { status: "missing-image", row: hits[0] };
     }
   }
@@ -206,7 +239,8 @@ export type StoryboardBindingExceptionStatus =
   | "ambiguous"
   | "no-match"
   | "missing-image"
-  | "failed";
+  | "failed"
+  | "partial-match";
 
 export interface StoryboardBindingExceptionRow {
   storyboardId: string;
@@ -338,6 +372,7 @@ const EXCEPTION_STATUS_LABELS: Record<StoryboardBindingExceptionStatus, string> 
   "no-match": "零命中",
   "missing-image": "缺图",
   failed: "绑定失败",
+  "partial-match": "部分命中（已兜底）",
 };
 
 // ── 章级编排 ───────────────────────────────────────────────────────────────
@@ -490,7 +525,12 @@ async function bindShotWithMatch(input: {
       characterAliases,
     });
     if (freshMatch.status === "unique") {
-      return bindUniqueMatch({ shot, match: freshMatch, chain });
+      return bindUniqueMatch({
+        shot,
+        match: freshMatch,
+        chain,
+        unmatchedNames: freshMatch.unmatchedNames,
+      });
     }
     const canFill = Boolean(chain.visualManualId && chain.projectId);
     return {
@@ -526,13 +566,15 @@ async function bindShotWithMatch(input: {
     };
   }
 
-  return bindUniqueMatch({ shot, match, chain });
+  return bindUniqueMatch({ shot, match, chain, unmatchedNames: match.unmatchedNames });
 }
 
 async function bindUniqueMatch(input: {
   shot: StoryboardItem;
   match: Extract<StoryboardBindingMatch, { status: "unique" }>;
   chain: RunStoryboardBindingInput;
+  /** 1013 修 RC-6④:非精确命中名(可选)——非空=绑定成立但仍需例外披露。 */
+  unmatchedNames?: string[];
 }): Promise<ShotBindingOutcome> {
   const { shot, match, chain } = input;
   const result = await bindAssetImageAsKeyframe({
@@ -552,6 +594,24 @@ async function bindUniqueMatch(input: {
         status: "failed",
         statusLabel: EXCEPTION_STATUS_LABELS.failed,
         detail: result.reason,
+        matchedAssetName: match.row.name,
+        matchedAssetType: match.row.type,
+      },
+    };
+  }
+  if (input.unmatchedNames?.length) {
+    // 1013 修 RC-6④:兜底绑定成立但引用未精确命中——同收 partial-match 例外行
+    // (披露不静默;boundCount 计入、章卡「需人工」计数排除,见 chapter-pipeline)
+    return {
+      storyboardId: shot.id,
+      shotIndex: shot.index,
+      bound: true,
+      exception: {
+        storyboardId: shot.id,
+        shotIndex: shot.index,
+        status: "partial-match",
+        statusLabel: EXCEPTION_STATUS_LABELS["partial-match"],
+        detail: `引用（${input.unmatchedNames.join("、")}）未精确命中章资产行，已用「${match.row.name}」兜底绑定`,
         matchedAssetName: match.row.name,
         matchedAssetType: match.row.type,
       },
@@ -716,6 +776,17 @@ export async function retryStoryboardBindingShot(input: {
     fillTriggered: () => undefined,
   });
   if (outcome.bound) {
+    if (outcome.exception) {
+      // 1013 修 RC-6⑤:兜底重绑成功但仍有非精确命中——partial 行回写保留
+      // (披露不摘除),与首跑同款例外清单形态
+      useStoryboardBindingStore.getState().patchExceptionRow(
+        input.chapterId,
+        input.storyboardId,
+        { ...outcome.exception, storyboardId: input.storyboardId, shotIndex: shot.index },
+      );
+      toast.warning(`${label} 重绑成功（兜底）：${outcome.exception.detail}`, { id: toastId });
+      return;
+    }
     // 例外行摘除+就绪度随 store 订阅自动更新(绑定的 mediaRef 已落账)
     useStoryboardBindingStore.getState().removeExceptionRow(input.chapterId, input.storyboardId);
     toast.success(`${label} 重绑成功`, { id: toastId });

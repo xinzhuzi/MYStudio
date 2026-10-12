@@ -23,7 +23,7 @@ import {
 import { useChapterUpstreamStore, collectStaleDownstreamTasksFromStore } from "./chapter-pipeline-stale";
 import { useScriptAssetBatchStore } from "./script-asset-batch";
 import { useDerivedChainStore } from "./derived-asset-chain";
-import { useStoryboardBindingStore } from "./storyboard-asset-binding";
+import { useStoryboardBindingStore, type StoryboardBindingExceptionRow } from "./storyboard-asset-binding";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -374,6 +374,64 @@ describe("章验收卡聚合(每 target 最新态;重启重算不编造)", () =>
     // 零分镜(流水线还没产分镜)≠全绿——横幅语义是「分镜就绪」
     useStudioStore.setState({ storyboards: [] as never });
     expect(chapterAcceptanceAllGreen(buildChapterAcceptanceCard(CHAPTER_ID))).toBe(false);
+  });
+
+  it("1013 修 RC-6⑥:partial-match(已兜底)不计入需人工例外数——兜底披露不阻断全绿", () => {
+    useStudioStore.setState({
+      mediaTasks: [
+        mediaTask({ kind: "scriptAsset", targetId: "character:x", status: "success" }),
+      ] as never,
+      storyboards: [makeShot({ index: 1, bound: true }), makeShot({ index: 2, bound: true })] as never,
+    });
+    const partialRow = {
+      storyboardId: "sb-1",
+      shotIndex: 1,
+      status: "partial-match",
+      statusLabel: "部分命中（已兜底）",
+      detail: "引用（独孤剑尘）未精确命中章资产行，已用「年轻苦力」兜底绑定",
+    } as const;
+    const seedExceptions = (exceptions: StoryboardBindingExceptionRow[]) =>
+      useStoryboardBindingStore.setState((state) => ({
+        runsByChapter: {
+          ...state.runsByChapter,
+          [CHAPTER_ID]: {
+            chapterId: CHAPTER_ID,
+            status: "done",
+            progress: { done: 2, total: 2, currentShot: "" },
+            report: {
+              chapterId: CHAPTER_ID,
+              finishedAt: 1,
+              total: 2,
+              boundCount: 2,
+              readyBefore: 0,
+              readyAfter: 2,
+              fillTriggered: false,
+              exceptions,
+            },
+          },
+        },
+      }));
+
+    // 仅 partial(兜底披露)→ 需人工例外数 0,全绿不被兜底披露阻断
+    seedExceptions([partialRow]);
+    const onlyPartial = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(onlyPartial.storyboard.exceptions).toBe(0);
+    expect(chapterAcceptanceAllGreen(onlyPartial)).toBe(true);
+
+    // partial + 需人工行(ambiguous)混排 → 计数=需人工数(1),全绿消失
+    seedExceptions([
+      partialRow,
+      {
+        storyboardId: "sb-2",
+        shotIndex: 2,
+        status: "ambiguous",
+        statusLabel: "匹配多义",
+        detail: "命中多个角色资产，请人工拣选",
+      },
+    ]);
+    const mixed = buildChapterAcceptanceCard(CHAPTER_ID);
+    expect(mixed.storyboard.exceptions).toBe(1);
+    expect(chapterAcceptanceAllGreen(mixed)).toBe(false);
   });
 });
 

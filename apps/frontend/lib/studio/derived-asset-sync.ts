@@ -36,7 +36,7 @@ export interface DerivedPropSink {
 
 export type EntityResolver = (
   name: string,
-) => { kind: "character" | "scene" | "prop"; id: string } | null;
+) => { kind: "character" | "scene" | "prop"; id: string; name: string } | null;
 
 export interface SyncDerivedAssetsDeps {
   projectId: string;
@@ -84,9 +84,12 @@ export function syncDerivedAssets(
 
     if (target.kind === "scene") {
       // scene: 角度/时段/天候/破坏 衍生统一落为视角变体场景行
+      // 1013 修 RC-7③:行名/location 用解析实体的规范名(复合名 parentAssetId
+      // 降级命中时前段=规范名,两段式同长形态;幂等键 parentSceneId/viewpointName
+      // 不依赖行名)
       const sceneId = sceneSink.addScene({
-        name: `${item.parentAssetId}·${item.state}`,
-        location: item.parentAssetId,
+        name: `${target.name}·${item.state}`,
+        location: target.name,
         time: "",
         atmosphere: "",
         projectId,
@@ -107,7 +110,8 @@ export function syncDerivedAssets(
     }
 
     const propId = propSink.addProp({
-      name: `${item.parentAssetId}·${item.state}`,
+      // 1013 修 RC-7③:同场景行——行名前段用规范名而非原始复合名
+      name: `${target.name}·${item.state}`,
       projectId,
       description: item.reason,
       visualPrompt: `${item.state}：${item.reason}`.trim(),
@@ -135,21 +139,51 @@ export function buildEntityResolver(
   scenes: { id: string; name: string }[],
   props: { id: string; name: string }[] = [],
 ): EntityResolver {
-  const map = new Map<string, { kind: "character" | "scene" | "prop"; id: string }>();
+  const map = new Map<
+    string,
+    { kind: "character" | "scene" | "prop"; id: string; name: string }
+  >();
+  const put = (
+    key: string,
+    value: { kind: "character" | "scene" | "prop"; id: string; name: string },
+  ) => {
+    const normalized = key.trim().toLowerCase();
+    if (normalized) map.set(normalized, value);
+  };
   for (const c of characters) {
-    map.set(c.name, { kind: "character", id: c.id });
-    map.set(c.id, { kind: "character", id: c.id });
-    for (const alias of c.aliases ?? []) map.set(alias, { kind: "character", id: c.id });
+    const value = { kind: "character" as const, id: c.id, name: c.name };
+    put(c.name, value);
+    put(c.id, value);
+    for (const alias of c.aliases ?? []) put(alias, value);
   }
   for (const s of scenes) {
-    map.set(s.name, { kind: "scene", id: s.id });
-    map.set(s.id, { kind: "scene", id: s.id });
+    const value = { kind: "scene" as const, id: s.id, name: s.name };
+    put(s.name, value);
+    put(s.id, value);
   }
   for (const p of props) {
-    map.set(p.name, { kind: "prop", id: p.id });
-    map.set(p.id, { kind: "prop", id: p.id });
+    const value = { kind: "prop" as const, id: p.id, name: p.name };
+    put(p.name, value);
+    put(p.id, value);
   }
-  return (name) => map.get(name) ?? null;
+  // 1013 修 RC-7:存量 derivedAssetPlan 的 parentAssetId 是「名·状态」复合名
+  // (如「独孤剑尘·灰衫逃亡状态」)——整名精确未中时取首个「·」前段降级匹配;
+  // 前段须精确等于某键才命中(「灰白碎灵石·测灵状态」前段≠碎灵石不中,
+  // 「旧背囊」无实体不中),防误匹配。
+  const resolveKey = (name: string): string | null => {
+    const whole = name.trim().toLowerCase();
+    if (map.has(whole)) return whole;
+    const dotIndex = name.indexOf("·");
+    if (dotIndex > 0) {
+      const head = name.slice(0, dotIndex).trim().toLowerCase();
+      if (head && map.has(head)) return head;
+    }
+    return null;
+  };
+  return (name) => {
+    const key = resolveKey(name);
+    return key ? (map.get(key) ?? null) : null;
+  };
 }
 
 /** 真实 MYStudio store 适配 sink。 */

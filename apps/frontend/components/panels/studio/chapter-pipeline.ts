@@ -150,7 +150,7 @@ export interface ChapterAcceptanceCard {
     totalShots: number;
     ready: number;
     unbound: number;
-    /** 绑定例外清单条数(多义/零命中/缺图/绑定失败)。 */
+    /** 绑定例外清单条数(多义/零命中/缺图/绑定失败;部分命中已兜底不计)。 */
     exceptions: number;
   };
   /** 批6:上游剧本已变更,已终态下游任务数(禁静默用旧)。 */
@@ -198,8 +198,11 @@ export function buildChapterAcceptanceCard(
   );
   const shots = state.storyboards.filter((item) => item.episodeId === chapterId);
   const ready = shots.filter((shot) => storyboardHasVisual(shot)).length;
-  const exceptions =
-    useStoryboardBindingStore.getState().runsByChapter[chapterId]?.report?.exceptions.length ?? 0;
+  // 1013 修 RC-6⑥:partial-match(已兜底绑定)是披露行不是需人工行——章卡
+  // 「exceptions」口径=需人工处理的例外数,兜底披露不阻断全绿
+  const exceptionRows =
+    useStoryboardBindingStore.getState().runsByChapter[chapterId]?.report?.exceptions ?? [];
+  const exceptions = exceptionRows.filter((row) => row.status !== "partial-match").length;
   const stale = collectStaleDownstreamTasksFromStore(chapterId);
   // 成本=批2 报表 + 批3 报表(批3 的 spentCny 已剔除批2 基线);重启后报表
   // 不在(非持久),不编造——undefined

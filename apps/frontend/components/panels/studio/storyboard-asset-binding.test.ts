@@ -150,6 +150,28 @@ function boundImageRef(path: string): StoryboardItem["mediaRef"] {
   return { kind: "image", path };
 }
 
+// ── 1013 修 RC-6 fixtures:兜底绑定+非精确命中例外 ──────────────────────────
+const YOUNG_LABORER_ROW: AssetRow = {
+  type: "character",
+  id: "char-young",
+  name: "年轻苦力",
+  asset: characterAsset({ id: "char-young", name: "年轻苦力" }),
+};
+
+const INN_ROW: AssetRow = {
+  type: "scene",
+  id: "scene-inn",
+  name: "悦来客栈",
+  asset: sceneAsset({ id: "scene-inn", name: "悦来客栈", location: "悦来客栈" }),
+};
+
+const FOREMAN_ROW: AssetRow = {
+  type: "character",
+  id: "char-foreman",
+  name: "监工赵四",
+  asset: characterAsset({ id: "char-foreman", name: "监工赵四" }),
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   delete (window as unknown as Record<string, unknown>).projectFiles;
@@ -245,6 +267,49 @@ describe("匹配(纯规则):asset-matching 名+别名+模糊", () => {
     expect(
       matchStoryboardBindingAsset({ names: ["不存在的资产"], rows }).status,
     ).toBe("no-match");
+  });
+});
+
+describe("1013 修 RC-6:unique 分支非精确命中名(unmatchedNames)", () => {
+  it("①全精确命中→unmatchedNames=[]", () => {
+    const match = matchStoryboardBindingAsset({
+      names: ["悦来客栈", "监工赵四"],
+      rows: [FOREMAN_ROW, INN_ROW],
+      characterAliases: { 监工赵四: ["赵四"] },
+    });
+    expect(match.status).toBe("unique");
+    if (match.status === "unique") {
+      expect(match.unmatchedNames).toEqual([]);
+      expect(match.row.type).toBe("scene");
+    }
+  });
+
+  it("②零命中名(独孤剑尘)+别名包含命中名(老苦力⊃苦力)→unique 且两者均入 unmatchedNames", () => {
+    const match = matchStoryboardBindingAsset({
+      names: ["独孤剑尘", "老苦力"],
+      rows: [YOUNG_LABORER_ROW],
+      characterAliases: { 年轻苦力: ["苦力"] },
+    });
+    expect(match.status).toBe("unique");
+    if (match.status === "unique") {
+      expect(match.row.name).toBe("年轻苦力");
+      expect(match.unmatchedNames).toEqual(["独孤剑尘", "老苦力"]);
+    }
+  });
+
+  it("③names=[客栈]:悦来客栈 包含命中(场景在前)+监工赵四别名层不再恒命中→unique 且 unmatchedNames=[客栈]", () => {
+    // 修复前:别名「赵四」是主名「监工赵四」子串→任意名字(含客栈)恒命中
+    // 监工赵四→批次贫瘠时每镜错绑兜底;修复后仅悦来客栈 包含命中
+    const match = matchStoryboardBindingAsset({
+      names: ["客栈"],
+      rows: [FOREMAN_ROW, INN_ROW],
+      characterAliases: { 监工赵四: ["赵四"] },
+    });
+    expect(match.status).toBe("unique");
+    if (match.status === "unique") {
+      expect(match.row.name).toBe("悦来客栈");
+      expect(match.unmatchedNames).toEqual(["客栈"]);
+    }
   });
 });
 
@@ -765,5 +830,67 @@ describe("章级编排:runStoryboardAssetBinding", () => {
 
     expect(second).toBeNull();
     expect(toast.info).toHaveBeenCalledWith(expect.stringContaining("已并入在途批次"));
+  });
+
+  it("④1013 修 RC-6:兜底绑定=boundCount 计入 + partial-match 例外披露(不再静默)", async () => {
+    mockProjectBridge();
+    seedChapter({
+      shots: [makeShot({ index: 1, associateAssetsNames: ["独孤剑尘", "老苦力"] })],
+      rows: [YOUNG_LABORER_ROW],
+      aliases: { 年轻苦力: ["苦力"] },
+    });
+
+    const report = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+    });
+
+    // 绑定真实落账(兜底也是绑定)
+    expect(report?.boundCount).toBe(1);
+    const shot = useStudioStore.getState().storyboards.find((item) => item.index === 1);
+    expect(shot?.mediaRef?.path).toContain("bindings");
+    // 同时落 partial-match 例外行(披露不静默)
+    expect(report?.exceptions).toHaveLength(1);
+    expect(report?.exceptions[0]).toMatchObject({
+      status: "partial-match",
+      statusLabel: "部分命中（已兜底）",
+      matchedAssetName: "年轻苦力",
+      matchedAssetType: "character",
+    });
+    expect(report?.exceptions[0]?.detail).toContain("独孤剑尘、老苦力");
+    expect(report?.exceptions[0]?.detail).toContain("已用「年轻苦力」兜底绑定");
+  });
+
+  it("⑤1013 修 RC-6:partial 行重试成功仍 partial→patchExceptionRow 保留(不摘除)", async () => {
+    mockProjectBridge();
+    seedChapter({
+      shots: [makeShot({ index: 1, associateAssetsNames: ["独孤剑尘", "老苦力"] })],
+      rows: [YOUNG_LABORER_ROW],
+      aliases: { 年轻苦力: ["苦力"] },
+    });
+
+    const first = await runStoryboardAssetBinding({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+    });
+    expect(first?.exceptions[0]?.status).toBe("partial-match");
+
+    await retryStoryboardBindingShot({
+      chapterId: CHAPTER_ID,
+      projectId: PROJECT_ID,
+      visualManualId: "ink",
+      storyboardId: "sb-chapter-001-001",
+    });
+
+    // 仍 partial:例外行 patch 保留(披露不摘除),不因重绑成功而清掉
+    const report = useStoryboardBindingStore.getState().runsByChapter[CHAPTER_ID]?.report;
+    expect(report?.exceptions).toHaveLength(1);
+    expect(report?.exceptions[0]?.status).toBe("partial-match");
+    expect(toast.warning).toHaveBeenCalledWith(
+      expect.stringContaining("重绑成功（兜底）"),
+      expect.objectContaining({ id: expect.stringContaining("storyboard-binding-retry") }),
+    );
   });
 });

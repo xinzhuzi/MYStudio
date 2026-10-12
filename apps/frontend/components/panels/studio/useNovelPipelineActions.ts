@@ -12,7 +12,7 @@ import {
   extractScriptEntityHints,
   formatHintGapList,
 } from "@/lib/studio/script-entity-hints";
-import { logEvent } from "@/lib/diagnostics/logger";
+import { captureError, logEvent } from "@/lib/diagnostics/logger";
 import {
   createMystudioSinks,
   syncExtractedEntities,
@@ -47,6 +47,40 @@ type StudioStore = ReturnType<typeof useStudioStore.getState>;
 let novelEventAnalysisInFlight = false;
 /** 全批次共用一条提示：loading 逐章刷进度 → 完成时原地收口为成功/失败汇总。 */
 const NOVEL_EVENT_ANALYSIS_TOAST_ID = "novel-event-analysis";
+
+// ── 1013 修 RC-9:模型原始输出分段落盘 helper(诊断专用) ────────────────────
+// 按行边界累积 ≤1000 字/段(单行超限独占一段),段数上限 20(20×1000≈2 万字
+// 覆盖典型提取输出,防 diagnostics jsonl 随提取次数膨胀无界;超出丢弃尾部,
+// rawOutputLength 留全量可判截断)。每段 ≤1000 字 < sanitize MAX_STRING_LENGTH
+// =1024;键名避开 PROMPT_KEY_PATTERN(prompt|messages|content|referenceText)。
+const DIAGNOSTIC_CHUNK_CHAR_LIMIT = 1000;
+const DIAGNOSTIC_CHUNK_MAX = 20;
+
+function chunkTextForDiagnostics(text: string): string[] {
+  const chunks: string[] = [];
+  let current = "";
+  for (const line of text.split("\n")) {
+    if (chunks.length >= DIAGNOSTIC_CHUNK_MAX) return chunks;
+    if (line.length >= DIAGNOSTIC_CHUNK_CHAR_LIMIT) {
+      // 单行超限:独占一段(先冲刷在累积中的段)
+      if (current) {
+        chunks.push(current);
+        current = "";
+      }
+      chunks.push(line);
+      continue;
+    }
+    const withLine = current ? `${current}\n${line}` : line;
+    if (withLine.length > DIAGNOSTIC_CHUNK_CHAR_LIMIT) {
+      chunks.push(current);
+      current = line;
+    } else {
+      current = withLine;
+    }
+  }
+  if (current && chunks.length < DIAGNOSTIC_CHUNK_MAX) chunks.push(current);
+  return chunks;
+}
 
 export function useNovelPipelineActions({
   activeProjectId,
@@ -338,6 +372,25 @@ export function useNovelPipelineActions({
         }
 
         const parsed = parseEntityExtraction(result.text, targetEpisodeId);
+        // 1013 修 RC-9:模型原始输出+解析错误持久化 diagnostics jsonl——排障
+        // 不再靠 toast 间接推断;键名避开 PROMPT_KEY_PATTERN(prompt|messages|
+        // content|referenceText),每段 ≤1000 字过 sanitize 不被摘要
+        void logEvent({
+          level: parsed.errors.length ? "warn" : "info",
+          category: "workflow",
+          message: "entityExtraction.modelOutput",
+          context: {
+            episodeId: targetEpisodeId,
+            rawOutputLength: result.text.length,
+            rawOutputChunks: chunkTextForDiagnostics(result.text),
+            parseErrors: parsed.errors,
+            extractedCounts: {
+              character: parsed.entities.filter((entity) => entity.kind === "character").length,
+              scene: parsed.entities.filter((entity) => entity.kind === "scene").length,
+              prop: parsed.entities.filter((entity) => entity.kind === "prop").length,
+            },
+          },
+        });
         const { entities } = dedupeEntities(parsed.entities, knownEntities);
         if (!entities.length) {
           toast.error("未解析出任何实体，请检查模型输出格式");
@@ -399,6 +452,14 @@ export function useNovelPipelineActions({
           toast.success(`资产提取完成：${detail}`);
         }
       } catch (error) {
+        // 1013 修 RC-9:提取失败连错误本体落 diagnostics(含模型调用层异常)
+        void logEvent({
+          level: "error",
+          category: "workflow",
+          message: "entityExtraction.failed",
+          context: { episodeId: targetEpisodeId },
+          error: captureError(error),
+        });
         toast.error(error instanceof Error ? error.message : String(error));
       }
     },

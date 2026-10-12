@@ -13,7 +13,7 @@ export type AssetMatchingCenterItem = {
 export const normalizeAssetText = (s: string) =>
   s.replace(/[\s\u3000·•\-—\-\(\)（）\[\]【】]/g, "").toLowerCase();
 
-/** 检查提取名是否匹配资产库名（精确 or 规范化 or 包含） */
+/** 检查提取名是否匹配资产库名（精确 or 规范化 or 包含）；别名层=提取名 vs 别名，不与库名互比 */
 export const nameMatches = (
   extractedName: string,
   libName: string,
@@ -24,8 +24,11 @@ export const nameMatches = (
   if (en === ln) return true;
   if (en.includes(ln) || ln.includes(en)) return true;
   for (const alias of aliases) {
+    // 1013 修 RC-6①:旧实现比较 an vs ln(别名 vs 库名),提取名 en 完全不参与
+    // ——某别名是库名子串时(监工赵四[赵四]/掌柜[钱掌柜])该行对所有名字恒命中,
+    // 批次贫瘠时变成每镜兜底错绑;修为 en 参与比较(别名层=提取名对别名)
     const an = normalizeAssetText(alias);
-    if (an === ln || an.includes(ln) || ln.includes(an)) return true;
+    if (en === an || en.includes(an) || an.includes(en)) return true;
   }
   return false;
 };
