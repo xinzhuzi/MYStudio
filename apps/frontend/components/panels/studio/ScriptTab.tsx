@@ -218,14 +218,16 @@ export function ScriptTab(props: {
     .filter(Boolean)
     .join(" · ");
   const sentSummary = [
-    "项目信息",
+    // R4:摘要按实含列出——守卫与实发 buildStageMessages 同款(manualContext/directorContext 空零注入、
+    // 原创章无 sourceText 零注入「本章正文」);导演条目标签对齐实发节标题「题材剧本规则」(R2/G12 改制后)
+    props.manualContext ? "项目信息" : "",
     memoryMarkers,
-    "导演手法",
+    props.directorContext ? "题材剧本规则" : "",
     chapter ? `章节：${chapter.title}` : "",
     chapter?.eventState ? "事件分析" : "",
     // F3:摘要随预览走「一键生成=非修订」口径——不再列「审核意见(修订模式)」;
     // 「AI审核生成」的附带内容由其旁只读提示行自释
-    "本章正文",
+    chapter?.sourceText?.trim() ? "本章正文" : "",
   ]
     .filter(Boolean)
     .join(" · ");

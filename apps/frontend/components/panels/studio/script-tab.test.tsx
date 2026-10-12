@@ -534,4 +534,71 @@ describe("ScriptTab", () => {
       screen.getByText("AI审核生成需针对当前版本且含未修复问题的审核(重跑「审核」后可用)"),
     ).toBeTruthy();
   });
+
+  // R4:摘要按实含列出——原创章(无 sourceText)实发零注入「本章正文」(script-planning.ts trim 守卫),
+  // 未选导演包(directorContext="")实发零注入导演条目;摘要行不虚列(旧实现恒列属账实不符)
+  it("omits 本章正文 and the director entry from the sent summary for an original chapter without a director package (R4)", () => {
+    const chapter = {
+      id: "ch-r4-original",
+      index: 1,
+      title: "第一章",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    const summary = screen.getByText(/含：/).textContent ?? "";
+    expect(summary).not.toContain("本章正文");
+    expect(summary).not.toContain("题材剧本规则");
+    expect(summary).not.toContain("导演手法");
+    // 摘要行其余项不受影响:章节条目仍在
+    expect(summary).toContain("章节：第一章");
+  });
+
+  // R4:小说改编章 + 已选导演包 → 摘要列「本章正文」与「题材剧本规则」(标签对齐实发节标题,弃「导演手法」)
+  it("lists 本章正文 and 题材剧本规则 in the sent summary for an adaptation chapter with a director package (R4)", () => {
+    const chapter = {
+      id: "ch-r4-adapt",
+      index: 1,
+      title: "第二章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext="## 项目信息\n单集参考时长：1分钟"
+        directorContext="## 题材剧本规则（测试道劫包）\n- 旁白腔规则"
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    const summary = screen.getByText(/含：/).textContent ?? "";
+    expect(summary).toContain("本章正文");
+    expect(summary).toContain("题材剧本规则");
+    expect(summary).toContain("项目信息");
+    expect(summary).not.toContain("导演手法");
+  });
 });
