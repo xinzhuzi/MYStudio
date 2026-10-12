@@ -162,9 +162,9 @@ export function ScriptTab(props: {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStage, chapter?.id, props.agentWorkData, props.previewStageUserMessage]);
-  // R4/G9:剧本确定性自检指标(只读展示,不阻断保存不自动重跑)——与审核注入同源
-  // (analyzeScriptDraft);时长/画幅兜底从 styleSummary 解析(画幅真源=剧本头部自述,函数内解析)。
-  // 须在下方早退之前调用(hooks 顺序恒定)。
+  // R4/G9:剧本确定性自检指标(一键生成(产出)页只读展示,与被度量草稿同屏;流式期隐藏防旧稿
+  // 指标误导;不阻断保存不自动重跑)——与审核注入同源(analyzeScriptDraft);时长/画幅兜底从
+  // styleSummary 解析(画幅真源=剧本头部自述,函数内解析)。须在下方早退之前调用(hooks 恒序)。
   const scriptDraftData = stageData("scriptDraft")?.data ?? "";
   const selfCheckMetrics = useMemo(() => {
     if (!scriptDraftData.trim()) return null;
@@ -390,21 +390,6 @@ export function ScriptTab(props: {
                     可编辑
                   </Button>
                 </div>
-                {selfCheckMetrics ? (
-                  <div
-                    data-testid="script-self-check"
-                    className="shrink-0 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground"
-                  >
-                    <span className="select-none">自检指标（代码计算）：{selfCheckMetrics.flags.length ? "以下项超标——" : "自检通过"}</span>
-                    {selfCheckMetrics.flags.length ? (
-                      <ul className="mt-1 list-inside list-disc">
-                        {selfCheckMetrics.flags.map((flag) => (
-                          <li key={flag}>{flag}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                ) : null}
                 {renderMarkdownPreview(promptMarkdown, "flex-1")}
               </div>
             ) : null}
@@ -469,6 +454,22 @@ export function ScriptTab(props: {
                       : "AI审核生成需针对当前版本且含未修复问题的审核(重跑「审核」后可用)"}
                   </span>
                 </div>
+                {/* R6:自检指标框迁入产出页——与被度量草稿同屏(所见即所发);流式期隐藏防旧稿指标误导 */}
+                {selfCheckMetrics && !isStreaming ? (
+                  <div
+                    data-testid="script-self-check"
+                    className="shrink-0 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground"
+                  >
+                    <span className="select-none">自检指标（代码计算，仅供 AI 审核参考）：{selfCheckMetrics.flags.length ? "以下项超标——" : "自检通过"}</span>
+                    {selfCheckMetrics.flags.length ? (
+                      <ul className="mt-1 list-inside list-disc">
+                        {selfCheckMetrics.flags.map((flag) => (
+                          <li key={flag}>{flag}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ) : null}
                 {streamingThinking
                   ? renderThinkingPreview(streamingThinking, Boolean(streamingText))
                   : null}

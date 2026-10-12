@@ -155,7 +155,7 @@ describe("ScriptTab", () => {
     expect(source).toContain("livePrompt");
   });
 
-  it("shows only generated stage content in the generate panel", () => {
+  it("shows generated stage content with self-check metrics in the generate panel", () => {
     const source = readFileSync(
       "frontend/components/panels/studio/ScriptTab.tsx",
       "utf8",
@@ -175,6 +175,8 @@ describe("ScriptTab", () => {
     expect(generatePanel).not.toContain("<ScriptOutputPanel");
     expect(generatePanel).toContain("props.runStage(");
     expect(generatePanel).toContain('target: "output"');
+    // R6:自检指标框随被度量草稿迁入一键生成页(prompt 页不再持有)
+    expect(generatePanel).toContain("script-self-check");
     expect(source).toContain('activeControl === "review"');
   });
 
@@ -289,7 +291,8 @@ describe("ScriptTab", () => {
     expect(screen.queryByText(/AI 思考过程/)).toBeNull();
   });
 
-  // R4/G9:AI提示词页只读展示确定性自检指标 flags(有超标列条目;全达标显示「自检通过」)
+  // R4/G9:一键生成页只读展示确定性自检指标 flags(有超标列条目;全达标显示「自检通过」)
+  // R6(10-13):随被度量草稿迁至一键生成页,与产出同屏
   it("renders the deterministic self-check flags for the generated script draft", () => {
     const chapter = {
       id: "ch-check",
@@ -326,7 +329,7 @@ describe("ScriptTab", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
 
     expect(screen.getByText(/缺·约N秒标注/)).toBeTruthy();
     expect(screen.getByText(/超长句 1 条/)).toBeTruthy();
@@ -369,9 +372,42 @@ describe("ScriptTab", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
 
     expect(screen.getByText(/自检通过/)).toBeTruthy();
+  });
+
+  // R6:流式守卫——生成中(store 旧稿仍在,自检指标非 null)不得展示旧稿指标误导;
+  // 一键生成页流式期 script-self-check 零占位,流结束(isStreaming=false)后恢复
+  it("hides the self-check metrics on the generate panel while streaming (R6)", () => {
+    const chapter = {
+      id: "ch-r6-stream",
+      index: 1,
+      title: "第一章",
+      sourceText: "正文……",
+      importedAt: 1,
+    };
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[
+          // 旧稿仍在 store:selfCheckMetrics 非 null——无守卫时旧稿指标会照常渲染
+          { id: "w1", key: "scriptDraft", episodeId: "ch-r6-stream", data: "# 已有旧稿", createdAt: 1, updatedAt: 1 },
+        ]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-r6-stream", text: "# 新稿增量" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+
+    expect(screen.queryByTestId("script-self-check")).toBeNull();
   });
 
   // R1/G8→F3 迁移:预览/标注/摘要统一按「一键生成=非修订」口径——标注不再随审核态变化,
