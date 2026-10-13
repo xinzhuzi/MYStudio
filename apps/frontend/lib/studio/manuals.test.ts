@@ -8,6 +8,7 @@ import {
   EXTENDED_VISUAL_MANUAL_SEED_ID,
   DEFAULT_DIRECTOR_MANUAL_ID,
   DEFAULT_VISUAL_MANUAL_ID,
+  getAgentSkillPreset,
   getStudioManualPreset,
   buildStudioManualsFromSkillFiles,
   listStudioManualPresets,
@@ -119,6 +120,52 @@ describe("studio manual presets", () => {
 
   it("returns empty storyboard-table manual context when no manual is selected", () => {
     expect(buildStoryboardTableManualContext({})).toBe("");
+  });
+
+  it("H3(10-14 裁定)：分镜上下文缺省全量不截断——>4000 字 narrative/prefix 模块尾标在场(现缺省 cap 4000 → RED)", () => {
+    // G39 同款尾标判截法:周期串会使尾部串在帽内重演,故以唯一尾标判「未被截断」。
+    // 基线现状:buildStoryboardTableManualContext 未传 cap → buildManualSummary 缺省 4000
+    // (manuals.ts:401),道劫 narrative 17945 字等被截;10-14 裁定=该函数缺省全量(design §4,
+    // 量级依据=规划阶段两调用方已传 0 全量注入),两处 buildManualSummary(prefix/style 与
+    // narrative)同此。RED 判据:两侧尾标均不在场。
+    const longPrefix = `${"视觉风格锚词正文。".repeat(600)}【视觉侧全量尾部标记】`;
+    const longNarrative = `${"分镜叙事技法正文。".repeat(600)}【导演侧全量尾部标记】`;
+    expect(longPrefix.length).toBeGreaterThan(4000);
+    expect(longNarrative.length).toBeGreaterThan(4000);
+    const visualManuals = buildStudioManualsFromSkillFiles("visual", [
+      {
+        relativePath: "art_skills/daojie_ink_guofeng/README.md",
+        content: "# 本地视觉手册",
+      },
+      {
+        relativePath: "art_skills/daojie_ink_guofeng/prefix.md",
+        content: longPrefix,
+      },
+    ]);
+    const directorManuals = buildStudioManualsFromSkillFiles("director", [
+      {
+        relativePath: "story_skills/Daojie_xianxia/README.md",
+        content: "# 本地导演手册",
+      },
+      {
+        relativePath: "story_skills/Daojie_xianxia/driector_skills/director_storyboard_table_narrative.md",
+        content: longNarrative,
+      },
+    ]);
+
+    const context = buildStoryboardTableManualContext({
+      visualManualId: EXTENDED_VISUAL_MANUAL_SEED_ID,
+      directorManualId: EXTENDED_DIRECTOR_MANUAL_SEED_ID,
+    }, {
+      visual: visualManuals,
+      director: directorManuals,
+    });
+
+    expect(context).toContain("【视觉侧全量尾部标记】");
+    expect(context).toContain("【导演侧全量尾部标记】");
+    // 尾标在场 ⇒ 模块整段原文在场(同一函数产出,零截断等价)
+    expect(context).toContain(longPrefix);
+    expect(context).toContain(longNarrative);
   });
 
   it("buildScriptManualContext(R2/G12)：题材包含 script_narrative → 题材剧本规则节全文不截断;缺省/未选 → 空串", () => {
@@ -343,5 +390,43 @@ describe("studio manual presets", () => {
       agentExports.getAgentSkillPreset?.("production_execution_storyboard_table")
         ?.content,
     ).toContain("引用资产ID");
+  });
+});
+
+// ── riderA(D1 手册,10-13-audit4-downstream):⑥示例区 N-M 决策行锁 ──────────────
+// 手册 :66 明许「Sc1、Sc2 或 Sc 1-1」双编号,但 :154 结构化示例区只示例单数写法
+// ——「:66 允许 / :154 只示例单数」诱导模型产 ⑥ 全单数(解析侧 D1 已认 N-M)。
+// 本锁要求示例区补 N-M 复合场号决策行,且风格词必须取词表内词(手册 :160)。
+// RED:现手册无 N-M 决策行示例。改手册属 MANUALS 文件,本轮 RED 只落锁不动文件。
+describe("riderA · 导演规划手册⑥示例区 N-M 决策行锁", () => {
+  const STYLE_VOCAB = [
+    "水墨晕染",
+    "灵气色彩",
+    "境界跃迁",
+    "四季流转",
+    "剑痕",
+    "血祭",
+    "梦境",
+    "空镜呼吸",
+    "同场景硬切",
+  ];
+
+  it("⑥ 结构化示例区含 Sc N-M 复合场号决策行,风格词取词表内词", () => {
+    const content = getAgentSkillPreset("production_execution_director_plan")?.content ?? "";
+    const nmLines = [
+      ...content.matchAll(
+        /-\s*Sc\s*\d+\s*[-－—–]\s*\d+\s*(?:→|->)\s*Sc\s*\d+\s*[-－—–]\s*\d+\s*[:：]\s*风格词\s*[:：=]\s*([^；;\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g,
+      ),
+    ];
+    expect(
+      nmLines.length,
+      "⑥ 示例区应含形如「- Sc 1-1 → Sc 1-2：风格词=…；氛围词=…」的 N-M 决策行(手册 :66 明许双编号,:154 示例区须同步)",
+    ).toBeGreaterThan(0);
+    for (const line of nmLines) {
+      expect(
+        STYLE_VOCAB,
+        `示例行风格词须取词表内词:${line[0]}`,
+      ).toContain((line[1] ?? "").trim());
+    }
   });
 });

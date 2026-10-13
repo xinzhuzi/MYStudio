@@ -2,6 +2,8 @@ import type { AgentWorkKey, ScriptPlan } from "@/types/studio";
 
 type WorkflowStoreSnapshot = {
   agentWorkData: Array<{
+    /** D2/D5 sourceScript 戳记需要条目身份;快照为结构类型,存疑缺省。 */
+    id?: string;
     key: AgentWorkKey;
     episodeId?: string;
     data: string;
@@ -9,6 +11,11 @@ type WorkflowStoreSnapshot = {
   }>;
   novelChapters: Array<{ id: string; sourceText?: string }>;
   scriptPlans: Array<{ episodeId: string }>;
+  /**
+   * D6(10-13-audit4-downstream,design §2):当前章真源(studio-store,由
+   * 10-13-audit4-gen-chain G1 接活)。无草稿时章定位回落到它,不再猜 novelChapters[0]。
+   */
+  activeChapterId?: string | null;
 };
 
 /** 把导演规划 ScriptPlan 关键维度压成分镜表的节奏/情绪基准文本。 */
@@ -66,6 +73,42 @@ export function latestAgentWork(
   );
 }
 
+/**
+ * 最新剧本草稿条目(D7 单源,10-13-audit4-downstream design §3):按 updatedAt
+ * 取最新,数组序不再参与语义。此前「数组序 reverse().find」与 latestAgentWork 的
+ * updatedAt 排序双口径各自为政,两者在「数组序 ≠ updatedAt 序」时各说各话。
+ * 平局(updatedAt 相等)取数组序靠后者——与旧 reverse().find 逐位一致,除双口径
+ * bug 本身外零行为漂移。
+ */
+export function latestScriptDraftEntry(
+  store: WorkflowStoreSnapshot,
+  episodeId?: string,
+): WorkflowStoreSnapshot["agentWorkData"][number] | undefined {
+  let best: WorkflowStoreSnapshot["agentWorkData"][number] | undefined;
+  for (const item of store.agentWorkData) {
+    if (item.key !== "scriptDraft") continue;
+    if (episodeId ? item.episodeId !== episodeId : !item.episodeId) continue;
+    if (!best || item.updatedAt > best.updatedAt) best = item;
+  }
+  return best;
+}
+
+/**
+ * 章定位安全变体(D6 配套):渲染/订阅比对等无法「报错」的路径用本函数——
+ * 不可定位时返 null,由调用方显式回落(如 "episode-1" 哨兵)或判空中止;
+ * 动作链(规划/分镜/提取)仍用严格版,让不可定位现形为错误而非静默猜章。
+ */
+export function tryResolveProductionEpisodeId(
+  store: WorkflowStoreSnapshot,
+  episodeId = "episode-1",
+): string | null {
+  try {
+    return resolveProductionEpisodeId(store, episodeId);
+  } catch {
+    return null;
+  }
+}
+
 export function resolveProductionEpisodeId(
   store: WorkflowStoreSnapshot,
   episodeId = "episode-1",
@@ -75,13 +118,17 @@ export function resolveProductionEpisodeId(
     (item) => item.key === "scriptDraft" && item.episodeId === episodeId,
   );
   if (hasLegacyDraft) return episodeId;
-  return (
-    [...store.agentWorkData]
-      .reverse()
-      .find((item) => item.key === "scriptDraft" && item.episodeId)
-      ?.episodeId ??
-    store.novelChapters[0]?.id ??
-    episodeId
+  // D7:最新草稿按 updatedAt(单源 latestScriptDraftEntry),不再按数组序猜。
+  const latestDraft = latestScriptDraftEntry(store);
+  if (latestDraft?.episodeId) return latestDraft.episodeId;
+  // D6(design §2):无草稿不回落第 1 章——多章项目里 novelChapters[0] 是猜测,
+  // 会拿到错章的章身份;改用当前章真源(activeChapterId,G1 接活),皆空=报错。
+  const activeChapterId = store.activeChapterId;
+  if (typeof activeChapterId === "string" && activeChapterId.trim()) {
+    return activeChapterId;
+  }
+  throw new Error(
+    "无法定位剧本章：既无剧本草稿，也未设置当前章（activeChapterId）——请先导入/选择章节或保存剧本草稿",
   );
 }
 
@@ -90,17 +137,12 @@ export function resolveScriptTextForEpisode(
   episodeId: string,
 ): string {
   return (
-    [...store.agentWorkData]
-      .reverse()
-      .find(
-        (item) => item.key === "scriptDraft" && item.episodeId === episodeId,
-      )?.data ??
+    // D7:同一章内最新草稿按 updatedAt 取(单源),不再按数组序。
+    latestScriptDraftEntry(store, episodeId)?.data ??
     store.novelChapters.find((chapter) => chapter.id === episodeId)
       ?.sourceText ??
     (episodeId === "episode-1"
-      ? [...store.agentWorkData]
-          .reverse()
-          .find((item) => item.key === "scriptDraft")?.data
+      ? latestScriptDraftEntry(store)?.data
       : undefined) ??
     store.novelChapters.map((chapter) => chapter.sourceText ?? "").join("\n\n")
   );

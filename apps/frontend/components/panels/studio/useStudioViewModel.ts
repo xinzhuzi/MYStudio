@@ -15,7 +15,7 @@ import {
 } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { subscribeRemotionShotRenderRequest } from "@/lib/studio/remotion-shot-render-request";
 import type { ImageWorkflowOpenContext } from "@/types/studio";
-import { resolveProductionEpisodeId, resolveScriptTextForEpisode, scriptPlanSourceFingerprint } from "./workflow-helpers";
+import { resolveScriptTextForEpisode, scriptPlanSourceFingerprint, tryResolveProductionEpisodeId } from "./workflow-helpers";
 import { useChapterStoryboards } from "./use-chapter-storyboards";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 import { useProductionFlowModel } from "./useProductionFlowModel";
@@ -95,9 +95,11 @@ export function useStudioViewModel() {
   // shows a valid project name rather than a mismatched placeholder. See task #12.
   const projectName = activeProject?.name ?? "漫影工作室项目";
 
-  const productionEpisodeId = resolveProductionEpisodeId(
+  // D6(10-13-audit4-downstream):严格版章定位不可定位时抛错(动作链用);
+  // 渲染面无「报错」出口,安全变体+哨兵回落——空项目沿用 episode-1,过滤结果恒空。
+  const productionEpisodeId = tryResolveProductionEpisodeId(
     useStudioStore.getState(),
-  );
+  ) ?? "episode-1";
   // 本章分镜唯一口径:与 ImageWorkflowCanvas 共用 useChapterStoryboards(08-30 收敛)
   const chapterStoryboards = useChapterStoryboards();
   const directorPlan = scriptPlans.find(

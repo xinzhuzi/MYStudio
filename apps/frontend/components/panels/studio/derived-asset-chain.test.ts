@@ -429,6 +429,24 @@ describe("衍生链闭环:全链", () => {
     expect(derivedTasks()).toHaveLength(3);
   });
 
+  // D4 汇总提示(10-13-audit4-downstream,复审 mustFix):design §2 明文
+  // 「改计数+汇总提示(『N 项派生资产未匹配到目标,已跳过:…』)」——例外清单行
+  // (:414 用例锁)之外,发车点必须落带明细的用户可见提示,不再只有计数。
+  it("D4 汇总提示:发车 toast 带「N 项未匹配到目标,已跳过:明细」(计数+明细,不静默)", async () => {
+    seedAll({
+      derivedPlan: [
+        ...DERIVED_PLAN,
+        { parentAssetId: "不存在的资产", state: "幻影", reason: "实体库无此行" },
+      ],
+    });
+
+    await runChain();
+
+    expect(toast.warning).toHaveBeenCalledWith(
+      expect.stringMatching(/1 项派生资产未匹配到目标，已跳过：不存在的资产·幻影/),
+    );
+  });
+
   it("幂等/断点续跑:已有图的衍生不重跑(生图贵)", async () => {
     const first = await runChain();
     expect(first?.successCount).toBe(3);

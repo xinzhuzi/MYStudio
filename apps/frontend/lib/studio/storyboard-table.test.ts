@@ -22,13 +22,55 @@ describe("buildStoryboardTableMessages · 资产清单注入", () => {
   });
 });
 
+describe("H2/H8 语速唯一口径与纯视觉兼容(10-14 裁定,四审D manual-alignment)", () => {
+  // H2 裁定①:语速唯一口径=4 字/秒。现缺省 3(storyboard-table.ts:74)→ RED;
+  // 慢速提示(SLOW_EMOTION_HINTS)按 design §3 保留,仍须返回 2(本在即绿,登记维持锁)。
+  it("T1 缺省语速=4字/秒(平静/无情绪不降档);慢速类保持 2", () => {
+    expect(resolveSpeed("")).toBe(4);
+    expect(resolveSpeed("平静对白")).toBe(4);
+    expect(resolveSpeed("悲伤低语")).toBe(2);
+  });
+
+  // H2 裁定①:fallback 与缺省同源。现 fallback 3(:79)→ "这一句台词整整有十个字哦"12 字
+  // 算出 ceil(12/3)+1=5 → RED;裁定后 fallback 4:ceil(12/4)+1=4。
+  it("T2 computeDurationSec 的 speed<=0 fallback=4(与缺省语速同一口径)", () => {
+    const text = "这一句台词整整有十个字哦"; // 12 字
+    expect(computeDurationSec(text, 0)).toBe(4);
+  });
+
+  // H8 三处同批(design §6):guard 第 2 条改「无台词」兼容——旁白照录、纯视觉镜写
+  // `无台词`,废除「不要留空或写无台词」强制旁白旧口径(现 :87 在场 → RED)。
+  // 「无台词」子串正向断言新旧文本均满足(现文本借「…写无台词」满足),登记为绿锁。
+  it("T3 guard 兼容无台词:允许纯视觉镜写『无台词』,禁止再强制旁白填充", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "第一场：夜，矿场。",
+    });
+    expect(messages.system).toContain("无台词");
+    expect(messages.system).not.toContain("不要留空或写无台词");
+  });
+
+  // 裁定②保留锁(design §3,不改文本只加锁):3 分钟上限与 8~15s 单镜基准硬编码
+  // 在 guard(:89)内,任何 H2/H8 改动不得漂移。本在即绿,登记。
+  it("T3b 裁定②保留锁:guard 含 ≤3 分钟 / 8~15 秒 / 2~4 句(10-10 裁定文本零改)", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "第一场：夜，矿场。",
+    });
+    expect(messages.system).toContain("≤3 分钟");
+    expect(messages.system).toContain("8~15 秒");
+    expect(messages.system).toContain("2~4 句");
+  });
+});
+
 describe("studio storyboard duration math", () => {
   it("resolves speech speed by emotion and computes duration with margin", () => {
+    // 10-14 裁定(H2 语速唯一口径):缺省 4 字/秒;快档分支已删(愤怒类并入缺省 4);慢速类保持 2。
     expect(resolveSpeed("愤怒轻蔑")).toBe(4);
-    expect(resolveSpeed("正常陈述")).toBe(3);
+    expect(resolveSpeed("正常陈述")).toBe(4);
     expect(resolveSpeed("悲伤绝望")).toBe(2);
     expect(resolveSpeed("低语虚弱")).toBe(2);
-    expect(resolveSpeed("")).toBe(3); // default normal
+    expect(resolveSpeed("")).toBe(4); // default normal (4字/秒)
 
     // 12 chars at 正常(3/s) = 4s, + 1s margin = 5s
     expect(computeDurationSec("这是一句十二个字的台词内容", 3)).toBe(
@@ -500,3 +542,29 @@ describe("studio storyboard table messages", () => {
   });
 });
 
+
+// ── 批3 D5(10-13-audit4-downstream,裁定⑤):分镜条目带来源剧本指纹 ──────────────
+// design §3 D5:分镜条目(sourceScript 条目 id+updatedAt,与 G3 reviewTarget 同形
+// 态)随 toStoryboardItems 写入条目可选字段——下游(chapter-pipeline-stale 分镜层
+// 过期判定/软标)据此识别「这批分镜基于哪一版剧本」。旧数据无该字段=回落现行为。
+// RED:现 ToStoryboardItemsOptions 无 sourceScript,选项被忽略 → 条目无指纹。
+it("D5: toStoryboardItems 接受 sourceScript(来源剧本条目 id+updatedAt)并落到每个分镜条目", () => {
+  const md = [
+    "## 场1：金水河码头",
+    "| 1 | 河雾压低 | 4.2秒 | 远景 | 缓推 | 旁白：河雾压低。 | 水声 |",
+    "| 2 | 火印亮起 | 4.8秒 | 近景 | 静止 | 旁白：火印亮起。 | 风声 |",
+  ].join("\n");
+  const { rows, errors } = parseStoryboardTable(md, "chapter-001");
+  expect(errors).toHaveLength(0);
+  const options = {
+    unknownSpeaker: "narrator" as const,
+    sourceScript: { entryId: "work-draft-001", updatedAt: 42 },
+  } as unknown as Parameters<typeof toStoryboardItems>[4];
+  const items = toStoryboardItems(rows, "chapter-001", [], { sourceId: "source-001", revision: 1 }, options);
+  expect(items).toHaveLength(2);
+  // RED 期断言收窄:sourceScript 为批3 GREEN 将新增的条目可选字段(裁定⑤),
+  // StoryboardItem 类型尚无该键——不收窄则 tsc 先红,盖过行为红因。
+  for (const item of items as Array<{ sourceScript?: { entryId: string; updatedAt: number } }>) {
+    expect(item.sourceScript).toEqual({ entryId: "work-draft-001", updatedAt: 42 });
+  }
+});

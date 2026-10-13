@@ -749,6 +749,13 @@ export interface ScriptPlan extends StudioSourceIdentity {
    * 值不一致 → 面板提示「预划已过期」。存量 plan 无此字段 = 静默不比对。
    */
   scriptFingerprint?: string;
+  /**
+   * 来源剧本条目指纹(10-13-audit4-downstream D2,裁定⑤):导演规划落库时记
+   * 所据 scriptDraft 条目的 id+updatedAt,与 G3 reviewTarget 同一形态、零存储
+   * 桶新增。分镜表门禁据此识别「规划所基于的剧本版本」;存量 plan 无此字段 =
+   * 回落现行为(不提示)。
+   */
+  sourceScript?: { entryId: string; updatedAt: number };
   theme: string;
   visualStyle: string;
   narrativeRhythm: string;

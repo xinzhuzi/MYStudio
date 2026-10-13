@@ -170,6 +170,13 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   index: number;
   trackKey: string;
   trackId: string;
+  /**
+   * 来源剧本条目指纹(10-13-audit4-downstream D5,裁定⑤):分镜表产出时记所据
+   * scriptDraft 条目的 id+updatedAt(与 G3 reviewTarget 同一形态,零存储桶新增)。
+   * chapter-pipeline-stale 的分镜层过期判定据此软标「剧本已改,分镜基于旧剧本」;
+   * 存量条目无此字段 = 回落现行为(不标过期)。
+   */
+  sourceScript?: { entryId: string; updatedAt: number };
   duration: number;
   prompt: string;
   videoDesc: string;

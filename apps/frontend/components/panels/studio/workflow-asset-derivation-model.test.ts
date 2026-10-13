@@ -78,7 +78,11 @@ describe("buildAssetDerivationModel planStale(二期 R1 预划剧本锚比对)",
     expect(summary.planStale).toBeFalsy();
   });
 
-  it("空 ⑦ 清单(planned=0)即使指纹漂移也不报", () => {
+  // D2(10-13-audit4-downstream,裁定④⑤)GREEN:本用例原锁「planned=0 即使指纹
+  // 漂移也不报」——那正是被拆掉的 planned>0 前置(design §3:过期判定只看指纹,
+  // 不随派生资产匹配数浮动)。按新语义改写(设计变更,非断言弱化;RED 轮
+  // workflow-asset-derivation-model.test.ts 曾以新断言先红,本用例即其收编)。
+  it("D2: 空 ⑦ 清单(planned=0)指纹漂移 → 仍报过期(过期判定只看指纹,不随 planned 浮动)", () => {
     const emptyPlan: ScriptPlan = {
       ...planWithFingerprint("old-fp"),
       derivedAssetPlan: [],
@@ -90,7 +94,7 @@ describe("buildAssetDerivationModel planStale(二期 R1 预划剧本锚比对)",
       { currentScriptFingerprint: currentFingerprint },
     );
     expect(summary.planned).toBe(0);
-    expect(summary.planStale).toBeFalsy();
+    expect(summary.planStale).toBe(true);
   });
 
   it("换章指纹不同章 → 以传入的当前章指纹为准比对", () => {

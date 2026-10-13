@@ -63,20 +63,19 @@ export interface ParseStoryboardTableOptions {
   requireShotSemantics?: boolean;
 }
 
-/** §3.2 语速表：愤怒~4字/秒，正常~3字/秒，悲伤/低语/虚弱~2字/秒，缺省按正常。 */
-const FAST_EMOTION_HINTS = ["愤怒", "激动", "急促", "亢奋", "暴怒", "嘶吼", "怒"];
+/** 语速唯一口径（10-14 裁定，四审D H2）：缺省 4 字/秒；悲伤/低语/虚弱类 2 字/秒。与分镜表手册铁律 5（「4字/秒」）、
+ *  剧本手册「配音总量」条款（≤4字/秒）同一表述；原快档分支已删——其返回值 4 与新缺省全同，纯冗余。 */
 const SLOW_EMOTION_HINTS = ["悲伤", "绝望", "低语", "虚弱", "哽咽", "无力", "气若游丝", "垂死"];
 
 export function resolveSpeed(emotion: string): number {
   const text = emotion ?? "";
-  if (FAST_EMOTION_HINTS.some((hint) => text.includes(hint))) return 4;
   if (SLOW_EMOTION_HINTS.some((hint) => text.includes(hint))) return 2;
-  return 3;
+  return 4;
 }
 
 /** §3.2 时长精算：duration ≥ 字数 ÷ 语速（向上取整）+ 1s 余量。纯公式，语料由调用方负责抽取。 */
 export function computeDurationSec(text: string, speed: number): number {
-  const safeSpeed = speed > 0 ? speed : 3;
+  const safeSpeed = speed > 0 ? speed : 4;
   return Math.ceil((text ?? "").length / safeSpeed) + 1;
 }
 
@@ -84,7 +83,7 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
   const skill = getAgentSkillPreset("production_execution_storyboard_table")?.content ?? "storyboardTable";
   const voiceoverGuard = [
     "分镜配音硬约束：每条分镜必须填写台词/旁白字段，作为后续配音、TTS 和角色音色绑定的输入。",
-    "角色台词保留 `角色名：台词内容`，无角色台词时必须写 `旁白：解说内容`，不要留空或写无台词。",
+    "角色台词保留 `角色名：台词内容`；旁白/OS/VO 照剧本原文写 `旁白：内容`（逐字照录，不另造旁白）；本场确无任何语音的纯视觉镜写 `无台词`（纯视觉段连续 ≤15 秒），禁止为凑字段编造旁白。",
     "分镜序号铁律：全表分镜序号从 1 起全局连续递增（1..N），不得按场/按片段重置编号（2026-08-22 实证：逐场重编号会被解析整表拒绝）。",
     "时长预算（H3 视频线）：单集总时长 ≤3 分钟；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词与动作必须写足该时长的内容量，禁 2–3 秒空镜过场（2026-10-10 裁定）。",
   ].join("\n");
@@ -222,6 +221,13 @@ export interface ToStoryboardItemsOptions {
   unknownSpeaker?: "narrator";
   /** 兜底发生时的通知钩子（每镜至多一次），调用方可聚合为 warning 展示。 */
   onSpeakerFallback?: (storyboardId: string, speaker: string) => void;
+  /**
+   * D5(裁定⑤,10-13-audit4-downstream 批3):来源剧本指纹(所据 scriptDraft 条目 id+updatedAt,
+   * 与 G3 reviewTarget 同形态)。提供时随本批写入每个分镜条目可选字段 `sourceScript`,
+   * 下游 chapter-pipeline-stale 分镜层过期判定据此软标「剧本已改,分镜基于旧剧本」;
+   * 未传/存量条目=不落字段,回落现行为(零回归)。
+   */
+  sourceScript?: { entryId: string; updatedAt: number };
 }
 
 export function toStoryboardItems(
@@ -290,6 +296,8 @@ export function toStoryboardItems(
       shotSemantics: row.shotSemantics
         ? { ...row.shotSemantics, shotSize: row.shotSize || row.shotSemantics.shotSize, cameraMove: row.cameraMove || row.shotSemantics.cameraMove }
         : row.shotSemantics,
+      // D5(裁定⑤):来源剧本指纹逐镜落条目可选字段;未传=不落字段(存量回落现行为)
+      ...(options.sourceScript ? { sourceScript: options.sourceScript } : {}),
     };
   });
 }

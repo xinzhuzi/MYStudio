@@ -21,7 +21,7 @@ import { useMediaPanelStore, tabs as TAB_LABELS, type Tab } from "@/stores/navig
 import { useFreedomStore, type StudioMode } from "@/stores/assist/freedom-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useWorkflowReadiness, resolveVisibleWorkflowStage } from "@/components/panels/studio/workflow-stage";
-import { resolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
+import { tryResolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
 import type { WorkflowReadiness } from "@/lib/studio/workflow-readiness";
 import { cn } from "@/lib/utils";
 import { OrbShell } from "./OrbShell";
@@ -83,7 +83,8 @@ export function AppOrb() {
     storyboards,
     productionTracks,
     videoCandidates,
-    episodeId: resolveProductionEpisodeId(useStudioStore.getState()),
+    // D6:orb 壳渲染面无报错出口——安全变体+哨兵回落(空项目 readiness 按无草稿判)。
+    episodeId: tryResolveProductionEpisodeId(useStudioStore.getState()) ?? "episode-1",
   });
 
   // 分区开合=上下文默认起步;视图切换即重置到新视图的默认

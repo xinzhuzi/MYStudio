@@ -184,6 +184,27 @@ export function extractionStaleAtDispatch(
 }
 
 /**
+ * 分镜层过期判定(10-13-audit4-downstream D5,裁定④⑤):分镜条目所记来源剧本
+ * 指纹(StoryboardItem.sourceScript = 所据 scriptDraft 条目 id+updatedAt,与 G3
+ * reviewTarget 同形态)对比现势最新草稿条目。
+ * - undefined = 条目无指纹(存量旧数据)或现势无草稿条目(无法判定)→ 回落现行为,
+ *   不标过期(漏报优于误报,同上方台账口径);
+ * - false = 条目 id+updatedAt 与现势草稿一致(分镜基于当前剧本);
+ * - true = 剧本已改(条目任一标识不等)→ 软标「剧本已改,分镜基于旧剧本」,
+ *   提示可显式继续,不阻断(裁定④:软提示不硬拦)。
+ */
+export function storyboardSourceStale(input: {
+  sourceScript?: { entryId: string; updatedAt: number };
+  latestScriptEntry?: { id: string; updatedAt: number } | null;
+}): boolean | undefined {
+  if (!input.sourceScript || !input.latestScriptEntry) return undefined;
+  return (
+    input.sourceScript.entryId !== input.latestScriptEntry.id
+    || input.sourceScript.updatedAt !== input.latestScriptEntry.updatedAt
+  );
+}
+
+/**
  * 收集本章 stale 下游任务(纯函数):上游漂移时,该章已终态的下游任务全 stale。
  * 供章验收卡/orb 黄标/横幅消费;不写回任务台账。
  */

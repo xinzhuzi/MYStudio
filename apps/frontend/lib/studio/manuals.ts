@@ -145,20 +145,27 @@ export function buildScriptManualContext(
 export function buildStoryboardTableManualContext(
   config: Partial<StudioWorkflowConfig>,
   catalog: StudioManualCatalog = {},
+  opts: BuildStudioManualContextOptions = {},
 ): string {
+  // H3(10-14 裁定,四审D):分镜上下文缺省全量不截断(moduleCharCap≤0=全量,G39 语义)——
+  // 道劫 director_storyboard_table_narrative 17945 字此前被缺省 4000 截掉 §6-§10 关键节。
+  // 量级依据:规划阶段两调用方今天已对同一导演包 narrative(22407 字)传 0 全量注入,分镜侧
+  // 全量后系统段与规划侧同数量级,远低于上下文帽;生产调用方(useProductionPlanningActions)不传
+  // opts → 自动全量,调用方零改。
+  const moduleCharCap = opts.moduleCharCap ?? 0;
   const visualManual = resolveStudioManualPreset("visual", config.visualManualId, catalog);
   const directorManual = resolveStudioManualPreset("director", config.directorManualId, catalog);
   const sections: string[] = [];
   if (visualManual) {
     sections.push([
       "# 视觉手册 · 分镜表风格约束",
-      buildManualSummary(visualManual, ["prefix", "director_storyboard_table_style"]),
+      buildManualSummary(visualManual, ["prefix", "director_storyboard_table_style"], moduleCharCap),
     ].join("\n"));
   }
   if (directorManual) {
     sections.push([
       "# 导演手册 · 分镜表叙事技法",
-      buildManualSummary(directorManual, ["director_storyboard_table_narrative"]),
+      buildManualSummary(directorManual, ["director_storyboard_table_narrative"], moduleCharCap),
     ].join("\n"));
   }
   return sections.join("\n\n");

@@ -174,9 +174,11 @@ export function buildAssetDerivationModel(
   // 08-27 二期 R1 预划剧本锚比对:本章 plan 盖过指纹且与当前剧本正文指纹
   // 不一致 → planStale(预划已过期,只提示不重跑)。存量 plan 无指纹、或调用
   // 方未传当前指纹 → 不设(静默,漏报优于误报)。
+  // D2(10-13-audit4-downstream,裁定④⑤):去掉 `planned>0` 前置——过期判定
+  // 只看指纹,不随派生资产匹配数浮动;⑦ 为空/派生未匹配不再吞掉「剧本已改」
+  // 的事实,指纹不符即走软提示通道。
   summary.planStale =
     options?.currentScriptFingerprint !== undefined
-    && summary.planned > 0
     && scriptPlans.some(
       (plan) =>
         plan.scriptFingerprint !== undefined

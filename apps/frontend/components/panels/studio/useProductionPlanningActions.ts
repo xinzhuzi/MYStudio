@@ -15,6 +15,7 @@ import {
   toStoryboardItems,
 } from "@/lib/studio/storyboard-table";
 import { aiManager } from "@/lib/ai/ai-manager";
+import { hasReviewIssues, isReviewFresh } from "@/lib/studio/script-planning";
 import { SCRIPT_STAGE_STREAM_TIMEOUT_MS } from "./useScriptStageActions";
 import {
   buildStoryboardTableManualContext,
@@ -38,6 +39,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { toast } from "sonner";
 import {
   formatScriptPlanContext,
+  latestScriptDraftEntry,
   resolveProductionEpisodeId,
   resolveScriptPlanEpisodeId,
   resolveScriptTextForEpisode,
@@ -81,13 +83,25 @@ export function useProductionPlanningActions({
         toast.error("没有可规划的剧本：请先保存剧本草稿或导入小说正文");
         return;
       }
+      // D4(10-13-audit4-downstream,design §2):导演规划门禁补「本章资产已提取」——
+      // 无提取的章规划出来的 ⑦ 预划没有真实资产可锚,下游派生/分镜全线空转;拦下并
+      // 指路,不静默放行。异常经 handleProductionNodeAction 整体 catch 现形为 toast。
+      if (!store.entityExtractions.some((item) => item.episodeId === targetEpisodeId)) {
+        toast.error("本章无资产提取结果：请先执行资产提取，再生成导演规划");
+        return;
+      }
 
-      const manualContext = buildStudioManualContext(
-        store.workflowConfig,
-        manualCatalog,
-        // G39(10-12 第8轮):导演规划阶段手册上下文全量注入,不截 4000 字
-        { moduleCharCap: 0 },
-      );
+      // riderB(H5/G36 全链 16:9):规划装配链此前零画幅信息(手册旧竖屏表述无从
+      // 校正);对齐剧本阶段既有文案(useScriptStageActions.ts:74「目标画幅」)。
+      const manualContext = [
+        buildStudioManualContext(
+          store.workflowConfig,
+          manualCatalog,
+          // G39(10-12 第8轮):导演规划阶段手册上下文全量注入,不截 4000 字
+          { moduleCharCap: 0 },
+        ),
+        `目标画幅：${store.workflowConfig.platformSpec || "16:9"}`,
+      ].join("\n");
       const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
       const projectMemoryContext = formatProjectMemoryContext(retrieveProjectMemory({
         records: buildProjectMemoryRecords({
@@ -230,6 +244,10 @@ export function useProductionPlanningActions({
         // manual/user 指令)。初跑与重跑同走本调用点,重跑后新指纹落库,
         // 面板「预划已过期」提示自然消失。不改 writeDirectorPlan 签名。
         const planScriptFingerprint = scriptPlanSourceFingerprint(targetEpisodeId, scriptText);
+        // D2(裁定⑤,10-13-audit4-downstream):同点记来源剧本条目指纹(条目
+        // id+updatedAt,与 G3 reviewTarget 同形态)——分镜表门禁据此识别「规划
+        // 所基于的剧本版本」,改剧本后旧规划出分镜表走软提示。
+        const planSourceScriptEntry = latestScriptDraftEntry(store, targetEpisodeId);
         const writeResult = tools.writeDirectorPlan({
           text: finalText,
           episodeId: targetEpisodeId,
@@ -242,6 +260,9 @@ export function useProductionPlanningActions({
             saveScriptPlan({
               ...plan,
               scriptFingerprint: planScriptFingerprint,
+              ...(planSourceScriptEntry?.id
+                ? { sourceScript: { entryId: planSourceScriptEntry.id, updatedAt: planSourceScriptEntry.updatedAt } }
+                : {}),
             }),
         });
         if (!writeResult.approved || !writeResult.plan) {
@@ -312,6 +333,34 @@ export function useProductionPlanningActions({
         return;
       }
 
+      // D3(10-13-audit4-downstream,design §2):资产清单不再跨章回退——本章无
+      // 提取就明示先提取并中止,不把别章资产冒充本章在册清单喂给模型
+      // (原 buildAssetsInventory 的 `?? store.entityExtractions[0]` 回退已删)。
+      const latestDraftEntry = latestScriptDraftEntry(store, targetEpisodeId);
+      if (!store.entityExtractions.some((item) => item.episodeId === targetEpisodeId)) {
+        toast.error("本章无资产提取结果：请先执行资产提取，再生成分镜表");
+        return;
+      }
+      // D2(裁定④⑤):既有「尚无导演规划」硬门之后叠过期软提示——plan 落库时
+      // 盖过剧本指纹且与当前剧本不符 = 剧本已改,提示重审/重规划但可显式继续,
+      // 不拦截;旧数据无指纹不提示(回落现行为)。
+      if (
+        plan.scriptFingerprint !== undefined
+        && plan.scriptFingerprint !== scriptPlanSourceFingerprint(targetEpisodeId, scriptText)
+      ) {
+        toast.warning("剧本已更新：当前导演规划基于旧版剧本，建议重审/重规划后再生成分镜表；本次继续生成");
+      }
+      // D7(裁定④):下游不强制审核通过——入口对「未审/审不过」剧本软警示后继续。
+      const reviewEntry = store.agentWorkData
+        .filter((item) => item.key === "scriptDraftReview" && item.episodeId === targetEpisodeId)
+        .slice()
+        .sort((left, right) => right.updatedAt - left.updatedAt)[0];
+      if (!isReviewFresh(reviewEntry, latestDraftEntry)) {
+        toast.warning("本章剧本尚未通过审核（未审或审核已过期）：建议先完成剧本审核再生成分镜表；本次继续生成");
+      } else if (hasReviewIssues(reviewEntry?.data)) {
+        toast.warning("本章剧本审核未通过（存在未修复问题）：建议先修订剧本再生成分镜表；本次继续生成");
+      }
+
       const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
       const memory = await readSourceMemoryActionContext({
         projectId,
@@ -325,7 +374,11 @@ export function useProductionPlanningActions({
         episodeId: targetEpisodeId,
         scriptText,
         scriptPlanContext: formatScriptPlanContext(plan),
-        manualContext: buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
+        // riderB(H5/G36):分镜表装配链同注目标画幅(对齐 useScriptStageActions.ts:74 文案)
+        manualContext: [
+          buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
+          `目标画幅：${store.workflowConfig.platformSpec || "16:9"}`,
+        ].filter(Boolean).join("\n"),
         bibleContext: memory.context,
         assetsInventory: buildAssetsInventory(store, targetEpisodeId),
       });
@@ -391,6 +444,11 @@ export function useProductionPlanningActions({
             onSpeakerFallback: (storyboardId, speaker) => {
               speakerFallbacks.push(`${storyboardId} ${speaker}`);
             },
+            // D5(裁定⑤):本批分镜记来源剧本条目指纹,chapter-pipeline-stale
+            // 分镜层过期判定据此软标;无草稿条目(不可能,入口已保剧本非空)不落。
+            ...(latestDraftEntry?.id
+              ? { sourceScript: { entryId: latestDraftEntry.id, updatedAt: latestDraftEntry.updatedAt } }
+              : {}),
           },
         );
         workflowStore.replaceStoryboardsForEpisode(targetEpisodeId, items);
@@ -580,16 +638,24 @@ export function collectDerivedAssetGenerationTasks(
   characterVariationTasks: CharacterVariationGenerationTask[];
   storeTasks: AssetGenerationTask[];
   total: number;
+  /** D4(design §2):resolver 匹配不到的计划条目明细——原 `if (!target) continue`
+   * 静默丢,现计数+明细上报,调用方汇总提示「N 项派生资产未匹配到目标」。 */
+  unmatched: Array<{ parentAssetId: string; state: string }>;
 } {
   const characters = useCharacterLibraryStore.getState().characters;
   const scenes = useSceneStore.getState().scenes;
   const props = usePropsLibraryStore.getState().items;
   const characterVariationTasks: CharacterVariationGenerationTask[] = [];
   const storeTasks: AssetGenerationTask[] = [];
+  const unmatched: Array<{ parentAssetId: string; state: string }> = [];
 
   for (const item of plan) {
     const target = resolver(item.parentAssetId);
-    if (!target) continue;
+    if (!target) {
+      // D4:不再静默丢——留痕上报。
+      unmatched.push({ parentAssetId: item.parentAssetId, state: item.state });
+      continue;
+    }
 
     if (target.kind === "character") {
       const character = characters.find((current) => current.id === target.id);
@@ -686,6 +752,7 @@ export function collectDerivedAssetGenerationTasks(
     characterVariationTasks,
     storeTasks,
     total: characterVariationTasks.length + storeTasks.length,
+    unmatched,
   };
 }
 
@@ -698,9 +765,10 @@ function buildAssetsInventory(
   store: StudioStore,
   episodeId: string,
 ): string {
-  const batch =
-    store.entityExtractions.find((item) => item.episodeId === episodeId) ??
-    store.entityExtractions[0];
+  // D3(10-13-audit4-downstream):删 `?? store.entityExtractions[0]` 跨章回退——
+  // 别章资产冒充本章在册清单会让模型引用不存在的本章资产;调用方已加「本章无
+  // 提取 → 提示先提取并中止」门禁,此处只认本章批次。
+  const batch = store.entityExtractions.find((item) => item.episodeId === episodeId);
   if (!batch) return "";
   const lines: string[] = [];
   const roles = batch.characters.flatMap((item) => [item.name, ...item.aliases]).filter(Boolean);

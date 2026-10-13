@@ -487,9 +487,26 @@ export async function runDerivedAssetChain(
     ),
   };
   const ordered = buildOrderedChainEntries(plan.derivedAssetPlan, resolver, chain);
-  const unmatchedItems = plan.derivedAssetPlan.filter(
-    (item) => !resolver(item.parentAssetId),
+  // D4(10-13-audit4-downstream,复审 mustFix):未匹配条目单源取自
+  // collectDerivedAssetGenerationTasks 的 unmatched——与单条收集路径同一判定,
+  // 不再此处重推同一谓词;并发落 design §2 明文汇总提示(计数+明细),例外清单
+  // 行(:516)照旧逐条落账,不阻断其余条目。
+  const { unmatched: unmatchedItems } = collectDerivedAssetGenerationTasks(
+    plan.derivedAssetPlan,
+    resolver,
+    input.visualManualId,
+    projectId,
+    chapterId,
   );
+  if (unmatchedItems.length) {
+    const skippedNames = unmatchedItems
+      .map((item) => `${item.parentAssetId}·${item.state}`)
+      .slice(0, 2)
+      .join("、");
+    toast.warning(
+      `${unmatchedItems.length} 项派生资产未匹配到目标，已跳过：${skippedNames}${unmatchedItems.length > 2 ? "等" : ""}（已进例外清单，补资产提取后可重试）`,
+    );
+  }
 
   const costState = useScriptAssetCostStore.getState();
   const capCny = costState.chapterCapCny;

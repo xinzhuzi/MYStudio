@@ -136,3 +136,75 @@ describe("stale 收集(collectStaleDownstreamTasks)", () => {
     expect(stale).toEqual([]);
   });
 });
+
+// ── 批3 D5(10-13-audit4-downstream,裁定⑤):分镜层过期判定 ─────────────────────
+// design §3 D5:分镜条目同记 sourceScript 指纹(条目 id+updatedAt,与 G3 reviewTarget
+// 同形态);chapter-pipeline-stale.ts 覆盖分镜层过期判定——无指纹=不标过期(回落现
+// 行为),有指纹且 updatedAt 不等=标过期+软提示可继续。
+//
+// GREEN API(design §3 定稿形态,本组用例以动态 import 探测,避免静态导入缺失
+// 导出把既有用例整文件带红):storyboardSourceStale(input) → boolean | undefined
+//   - undefined = 无 sourceScript(旧数据)或无法判定 → 回落,不标过期
+//   - false     = 条目 id+updatedAt 与现势草稿一致
+//   - true      = 剧本已改,分镜基于旧剧本(软标,不硬拦)
+
+interface StoryboardSourceStaleFn {
+  (input: {
+    sourceScript?: { entryId: string; updatedAt: number };
+    latestScriptEntry?: { id: string; updatedAt: number } | null;
+  }): boolean | undefined;
+}
+
+async function loadStoryboardSourceStale(): Promise<StoryboardSourceStaleFn | undefined> {
+  const mod = (await import("./chapter-pipeline-stale")) as Record<string, unknown>;
+  return typeof mod.storyboardSourceStale === "function"
+    ? (mod.storyboardSourceStale as StoryboardSourceStaleFn)
+    : undefined;
+}
+
+describe("D5 · chapter-pipeline-stale 覆盖分镜层过期(storyboardSourceStale)", () => {
+  it("导出存在(RED:现实现无此导出)", async () => {
+    expect(await loadStoryboardSourceStale()).toBeTypeOf("function");
+  });
+
+  it("旧数据无指纹(条目无 sourceScript)→ undefined,不标过期(回落现行为)", async () => {
+    const storyboardSourceStale = await loadStoryboardSourceStale();
+    expect(
+      storyboardSourceStale?.({
+        latestScriptEntry: { id: "draft-1", updatedAt: 1 },
+      }),
+    ).toBeUndefined();
+    expect(
+      storyboardSourceStale?.({
+        sourceScript: undefined,
+        latestScriptEntry: { id: "draft-1", updatedAt: 1 },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("有指纹且条目 id+updatedAt 与现势草稿一致 → false(未过期)", async () => {
+    const storyboardSourceStale = await loadStoryboardSourceStale();
+    expect(
+      storyboardSourceStale?.({
+        sourceScript: { entryId: "draft-1", updatedAt: 7 },
+        latestScriptEntry: { id: "draft-1", updatedAt: 7 },
+      }),
+    ).toBe(false);
+  });
+
+  it("有指纹但剧本已改(id 或 updatedAt 不等)→ true(软标过期)", async () => {
+    const storyboardSourceStale = await loadStoryboardSourceStale();
+    expect(
+      storyboardSourceStale?.({
+        sourceScript: { entryId: "draft-1", updatedAt: 7 },
+        latestScriptEntry: { id: "draft-1", updatedAt: 9 },
+      }),
+    ).toBe(true);
+    expect(
+      storyboardSourceStale?.({
+        sourceScript: { entryId: "draft-1", updatedAt: 7 },
+        latestScriptEntry: { id: "draft-2", updatedAt: 7 },
+      }),
+    ).toBe(true);
+  });
+});

@@ -477,6 +477,8 @@ describe("workflow stage action surfaces", () => {
         derivedAssetPlan: [],
       }],
       novelChapters: [],
+      // D4/D3 门禁(GREEN 起):动作前须有本章提取批次
+      entityExtractions: [{ id: "ext-001", episodeId: "chapter-001", characters: [], scenes: [], props: [] }],
     });
     installTextCompletionRuntime();
     const readText = vi.fn(async () => ({ success: true, text: "# 原著圣经\n\n## 一句话主线\n晏燎创建万劫圣宗。\n" }));
@@ -572,6 +574,8 @@ describe("workflow stage action surfaces", () => {
       ],
       novelChapters: [],
       scriptPlans: [],
+      // D4 门禁(GREEN 起):规划动作前须有本章提取批次
+      entityExtractions: [{ id: "ext-001", episodeId: "chapter-001", characters: [], scenes: [], props: [] }],
     });
 
     const { result } = renderHook(() =>
@@ -643,6 +647,8 @@ describe("workflow stage action surfaces", () => {
       ],
       novelChapters: [],
       scriptPlans: [],
+      // D4 门禁(GREEN 起):规划动作前须有本章提取批次
+      entityExtractions: [{ id: "ext-001", episodeId: "chapter-001", characters: [], scenes: [], props: [] }],
     });
 
     const { result } = renderHook(() =>
@@ -724,6 +730,8 @@ describe("workflow stage action surfaces", () => {
         },
       ],
       novelChapters: [],
+      // D4 门禁(GREEN 起):规划动作前须有本章提取批次
+      entityExtractions: [{ id: "ext-001", episodeId: "chapter-001", characters: [], scenes: [], props: [] }],
       scriptPlans: [],
       sourceBible: "# 原著圣经\n\n## 一句话主线\n晏燎创建万劫圣宗。\n\n## 主要人物\n- 晏燎：剑主\n",
     });
@@ -779,6 +787,8 @@ describe("workflow stage action surfaces", () => {
       ],
       novelChapters: [],
       scriptPlans: [],
+      // D4 门禁(GREEN 起):规划动作前须有本章提取批次
+      entityExtractions: [{ id: "ext-001", episodeId: "chapter-001", characters: [], scenes: [], props: [] }],
     });
 
     const { result } = renderHook(() =>

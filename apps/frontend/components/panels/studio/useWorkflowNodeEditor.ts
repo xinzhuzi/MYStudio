@@ -187,9 +187,14 @@ export function useWorkflowNodeEditor({
 
   const openNodeEditor = useCallback(
     (nodeId: ProductionFlowNodeId) => {
-      setWorkflowNodeJsonMode(null);
-      setEditingWorkflowNodeId(nodeId);
-      setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId, null));
+      // D6:章定位不可定位时严格版抛错——节点编辑是动作面,现形为 toast 而非静默猜章。
+      try {
+        setWorkflowNodeJsonMode(null);
+        setEditingWorkflowNodeId(nodeId);
+        setWorkflowNodeDraft(buildWorkflowNodeDraft(nodeId, null));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
+      }
     },
     [buildWorkflowNodeDraft],
   );
@@ -204,7 +209,14 @@ export function useWorkflowNodeEditor({
 
       // Validate episode data resolvable before setting draft state
       const store = useStudioStore.getState();
-      const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+      // D6:严格版不可定位抛错 → toast 现形(动作面不静默猜章)
+      let episodeId: string;
+      try {
+        episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
+        return;
+      }
       if (!episodeId) {
         toast.error("无效的章节数据");
         return;
@@ -230,7 +242,14 @@ export function useWorkflowNodeEditor({
       return;
     }
     const store = useStudioStore.getState();
-    const episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+    // D6:严格版不可定位抛错 → toast 现形(动作面不静默猜章)
+    let episodeId: string;
+    try {
+      episodeId = resolveProductionEpisodeId(store, productionEpisodeId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+      return;
+    }
     const chapterIdentity = store.novelChapters.find((chapter) => chapter.id === episodeId);
     const sourceIdentity = {
       sourceId: chapterIdentity?.sourceId ?? episodeId,
