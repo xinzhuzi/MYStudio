@@ -170,13 +170,23 @@ export function buildEntityResolver(
   // (如「独孤剑尘·灰衫逃亡状态」)——整名精确未中时取首个「·」前段降级匹配;
   // 前段须精确等于某键才命中(「灰白碎灵石·测灵状态」前段≠碎灵石不中,
   // 「旧背囊」无实体不中),防误匹配。
+  // 1013 裁定补:整名/前段先剥尾部全/半角括注(「碎灵石(基础道具)」→「碎灵石」)
+  // 再精确——剥后仍须等于某键,互含放宽被「灰白碎灵石⊃碎灵石」反例否决(不放开);
+  // 倒序变体(「断剑归元」vs「归元断剑」)机械无解,归 prompt 侧生成规范名。
+  const TRAILING_PARENTHETICAL_RE = /(?:[（(][^（）()]*[）)])+$/;
   const resolveKey = (name: string): string | null => {
-    const whole = name.trim().toLowerCase();
-    if (map.has(whole)) return whole;
+    const candidates: string[] = [];
+    const push = (raw: string) => {
+      const trimmed = raw.trim().toLowerCase();
+      if (trimmed) candidates.push(trimmed);
+      const stripped = trimmed.replace(TRAILING_PARENTHETICAL_RE, "").trim();
+      if (stripped && stripped !== trimmed) candidates.push(stripped);
+    };
+    push(name);
     const dotIndex = name.indexOf("·");
-    if (dotIndex > 0) {
-      const head = name.slice(0, dotIndex).trim().toLowerCase();
-      if (head && map.has(head)) return head;
+    if (dotIndex > 0) push(name.slice(0, dotIndex));
+    for (const key of candidates) {
+      if (map.has(key)) return key;
     }
     return null;
   };

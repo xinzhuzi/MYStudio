@@ -143,6 +143,41 @@ describe("1013 修 RC-7:「名·状态」复合名降级匹配 + 规范名行名
     expect(compositeResolver("灰白碎灵石·测灵状态")).toBeNull();
   });
 
+  it("1013 裁定补:尾部全/半角括注剥除后精确命中(碎灵石(基础道具)→碎灵石)", () => {
+    const parenResolver = buildEntityResolver(
+      [],
+      [],
+      [{ id: "prop-sls", name: "碎灵石" }],
+    );
+    expect(parenResolver("碎灵石（基础道具）")).toEqual({
+      kind: "prop",
+      id: "prop-sls",
+      name: "碎灵石",
+    });
+    expect(parenResolver("碎灵石(基础道具)")).toEqual({
+      kind: "prop",
+      id: "prop-sls",
+      name: "碎灵石",
+    });
+    // 复合名+括注:前段剥括注后命中
+    expect(parenResolver("碎灵石(基础道具)·测灵状态")).toEqual({
+      kind: "prop",
+      id: "prop-sls",
+      name: "碎灵石",
+    });
+  });
+
+  it("1013 裁定钉板:倒序/近似变体仍不中(互含放宽被反例否决,归 prompt 侧)", () => {
+    // 装机实弹未匹配3 之二:断剑归元(倒序)与客栈柴房(近似)机械无解——锁死防后人放宽
+    const orderResolver = buildEntityResolver(
+      [],
+      [{ id: "scene-yuelai", name: "悦来客栈" }],
+      [{ id: "prop-guiyuan", name: "归元断剑" }],
+    );
+    expect(orderResolver("断剑归元·余温态")).toBeNull();
+    expect(orderResolver("客栈柴房·夜")).toBeNull();
+  });
+
   it("降级命中时行名组装=规范名+state 两段式全长,parentId 指真实父", () => {
     const { characterSink, sceneSink, propSink, calls } = makeSinks();
     const { created, summary } = syncDerivedAssets(

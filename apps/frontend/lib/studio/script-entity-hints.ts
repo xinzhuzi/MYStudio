@@ -19,6 +19,10 @@ export interface ScriptEntityHints {
 export interface ScriptEntityHintDiff {
   missingCharacters: string[];
   missingScenes: string[];
+  /** 提取输出里名字与别名列都对不上剧本自报清单的角色(疑似多提;1013 装机「丫头」复发补) */
+  extraCharacters: string[];
+  /** 同上,场景(防幻觉地点/泛化场景顶替);清单为空(非场次格式)时恒空 */
+  extraScenes: string[];
 }
 
 /** 场次标题尾部时间/内外锚(「金水河码头 夜/外」的「 夜/外」);无空格变体整吞剥空后回退未剥 title。 */
@@ -86,7 +90,7 @@ function hintCoveredBy(names: string[], hint: string): boolean {
   return false;
 }
 
-/** 机械清单与实际提取输出的落差(漏了必可见);hints 双空数组时结果恒双空。 */
+/** 机械清单与实际提取输出的落差(漏了必可见,1013 负向补:多提也可见);hints 双空数组时结果恒四空。 */
 export function diffScriptEntityHints(
   hints: ScriptEntityHints,
   extracted: ExtractedEntity[],
@@ -95,9 +99,25 @@ export function diffScriptEntityHints(
     extracted
       .filter((entity) => entity.kind === kind)
       .flatMap((entity) => [entity.name, ...entity.aliases]);
+  // 负向:实体名与别名全对不上自报清单=疑似多提(叙述性泛指路人/幻觉地点)。
+  // 对应清单为空(小说体/空文本)时按 kind 独立跳过——没有机械基准就不判多,防全量误报。
+  // 已知盲区(拷问官 1013 钉板,机械清单边界):①互含变体静默——清单有名「丫头」时模型撰
+  // 「丫头甲」因互含≥2字判覆盖;②借名夹带双盲——name 杂物+别名塞清单名(如 神秘少女[赵四])
+  // 在 missing/extra 两向皆静默,需 prompt/dedupe 层下轮处置。
+  const extraOf = (kind: EntityKind): string[] => {
+    const declared = kind === "character" ? hints.characters : hints.scenes;
+    if (!declared.length) return [];
+    const extras = extracted
+      .filter((entity) => entity.kind === kind)
+      .filter((entity) => ![entity.name, ...entity.aliases].some((value) => hintCoveredBy(declared, value)))
+      .map((entity) => entity.name);
+    return uniqueByNormalizedName(extras);
+  };
   return {
     missingCharacters: hints.characters.filter((hint) => !hintCoveredBy(namesOf("character"), hint)),
     missingScenes: hints.scenes.filter((hint) => !hintCoveredBy(namesOf("scene"), hint)),
+    extraCharacters: extraOf("character"),
+    extraScenes: extraOf("scene"),
   };
 }
 

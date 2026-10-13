@@ -176,6 +176,8 @@ describe("diffScriptEntityHints", () => {
     expect(diffScriptEntityHints(hints, full)).toEqual({
       missingCharacters: [],
       missingScenes: [],
+      extraCharacters: [],
+      extraScenes: [],
     });
   });
 
@@ -186,6 +188,109 @@ describe("diffScriptEntityHints", () => {
     ];
     const diff = diffScriptEntityHints({ characters: ["晏燎"], scenes: [] }, extracted);
     expect(diff.missingCharacters).toEqual(["晏燎"]);
+  });
+
+  it("flags 丫头 (装机复发) as extra: name and alias both miss the cast list", () => {
+    // 1013 装机实弹:模型自撰「丫头(别名:小丫头)」行,人物行无她、零台词——负向断言抓出
+    const extracted: ExtractedEntity[] = [
+      ...hints.characters.map(
+        (name): ExtractedEntity => ({ kind: "character", name, aliases: [], episodeIds: ["ep1"] }),
+      ),
+      { kind: "character", name: "丫头", aliases: ["小丫头"], episodeIds: ["ep1"] },
+    ];
+    const diff = diffScriptEntityHints(hints, extracted);
+    expect(diff.extraCharacters).toEqual(["丫头"]);
+    expect(diff.missingCharacters).toEqual([]);
+  });
+
+  it("passes merged rows both directions: 断臂散修(别名:铁山) and 铁山(别名:断臂散修)", () => {
+    const byName: ExtractedEntity[] = [
+      { kind: "character", name: "断臂散修", aliases: ["铁山"], episodeIds: ["ep1"] },
+    ];
+    const byAlias: ExtractedEntity[] = [
+      { kind: "character", name: "铁山", aliases: ["断臂散修"], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints(hints, byName).extraCharacters).toEqual([]);
+    expect(diffScriptEntityHints(hints, byAlias).extraCharacters).toEqual([]);
+  });
+
+  it("enforces scene alias discipline: 悦来客栈 must carry 客栈最里间 as alias to pass", () => {
+    // 钉b①要求场次标题全称写别名列——合规行过,裸清单名不写别名的行按疑似多提亮出
+    const compliant: ExtractedEntity[] = [
+      { kind: "scene", name: "悦来客栈", aliases: ["客栈最里间"], episodeIds: ["ep1"] },
+    ];
+    const sloppy: ExtractedEntity[] = [
+      { kind: "scene", name: "悦来客栈", aliases: [], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints(hints, compliant).extraScenes).toEqual([]);
+    expect(diffScriptEntityHints(hints, sloppy).extraScenes).toEqual(["悦来客栈"]);
+  });
+
+  it("flags hallucinated/泛化 scenes (道口镇街巷) not present in any scene header", () => {
+    const extracted: ExtractedEntity[] = [
+      ...hints.scenes.map(
+        (name): ExtractedEntity => ({ kind: "scene", name, aliases: [], episodeIds: ["ep1"] }),
+      ),
+      { kind: "scene", name: "道口镇街巷", aliases: [], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints(hints, extracted).extraScenes).toEqual(["道口镇街巷"]);
+  });
+
+  it("never flags props (no mechanical declaration source) and stays silent without a cast list", () => {
+    // 道具无机械基准(判据归提示词钉),小说体(清单空)不判多防全量误报
+    const props: ExtractedEntity[] = [
+      { kind: "prop", name: "竹筹", aliases: [], episodeIds: ["ep1"] },
+      { kind: "prop", name: "灵矿藤筐", aliases: [], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints(hints, props).extraCharacters).toEqual([]);
+    expect(diffScriptEntityHints(hints, props).extraScenes).toEqual([]);
+    const novelDiff = diffScriptEntityHints({ characters: [], scenes: [] }, [
+      { kind: "character", name: "丫头", aliases: ["小丫头"], episodeIds: ["ep1"] },
+    ]);
+    expect(novelDiff.extraCharacters).toEqual([]);
+  });
+
+  it("documents intended signal: compliant mention-only rows (台词说话人漏写人物行/已故亲属单列) also light up", () => {
+    // 拷问官 A1 钉板:亮灯+人裁是设计行为,不是 bug——锁死防后人误「修」。
+    // 手册允许提及型单列(entity_extractor.md §三)与说话人必列(:43),机械清单只认人物行,
+    // 两者会被亮「角色多」;用户按 toast 提示对照剧本核对即可。
+    const speakers: ExtractedEntity[] = [
+      { kind: "character", name: "酒客乙", aliases: [], episodeIds: ["ep1"] },
+    ];
+    const mentioned: ExtractedEntity[] = [
+      { kind: "character", name: "林父", aliases: [], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints(hints, speakers).extraCharacters).toEqual(["酒客乙"]);
+    expect(diffScriptEntityHints(hints, mentioned).extraCharacters).toEqual(["林父"]);
+  });
+
+  it("documents known blind spot: containment variants of a declared name stay silent", () => {
+    // 拷问官 A2 钉板:清单有名「丫头」时,模型撰互含变体「丫头甲」因互含≥2字判覆盖——
+    // 与 missing 方向同 matcher 的对称宽松,装机复发形态(清单无名)不在此盲区
+    const declared: ExtractedEntity[] = [
+      { kind: "character", name: "丫头甲", aliases: ["小丫头"], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints({ characters: ["丫头"], scenes: [] }, declared).extraCharacters).toEqual([]);
+  });
+
+  it("guards per-kind on half-empty hints (scenes declared, cast list absent)", () => {
+    // 拷问官 C4 钉板:半空清单只关对应方向的负向,另一方向照常工作
+    const halfHints = { characters: [] as string[], scenes: ["客栈最里间"] };
+    const extracted: ExtractedEntity[] = [
+      { kind: "character", name: "丫头", aliases: [], episodeIds: ["ep1"] },
+      { kind: "scene", name: "道口镇街巷", aliases: [], episodeIds: ["ep1"] },
+    ];
+    const diff = diffScriptEntityHints(halfHints, extracted);
+    expect(diff.extraCharacters).toEqual([]);
+    expect(diff.extraScenes).toEqual(["道口镇街巷"]);
+  });
+
+  it("dedupes extra names (two fabricated 丫头 rows report once)", () => {
+    const dupes: ExtractedEntity[] = [
+      { kind: "character", name: "丫头", aliases: [], episodeIds: ["ep1"] },
+      { kind: "character", name: "丫头", aliases: ["小丫头"], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints(hints, dupes).extraCharacters).toEqual(["丫头"]);
   });
 });
 

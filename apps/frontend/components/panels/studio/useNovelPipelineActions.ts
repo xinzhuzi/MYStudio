@@ -419,8 +419,9 @@ export function useNovelPipelineActions({
           ? `资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`
           : `资产提取完成：${detail}`;
 
-        // 确定性落差告警(1013 修):机械清单与实际输出 diff,漏了必可见;不自动写库(防误判)。
-        // hints 双空数组(非场次格式/空文本)时 diff 恒双空,自然走原收口
+        // 确定性落差告警(1013 修):机械清单与实际输出 diff,漏了必可见;1013 负向补:多提也可见
+        // (装机「丫头」复发=模型自撰行静默过闸)。不自动增删(防误判)。hints 双空数组(非场次
+        // 格式/空文本)时 diff 恒四空,自然走原收口
         const diff = diffScriptEntityHints(scriptHints, parsed.entities);
         const gapParts: string[] = [];
         if (diff.missingCharacters.length) {
@@ -429,10 +430,14 @@ export function useNovelPipelineActions({
         if (diff.missingScenes.length) {
           gapParts.push(`场景缺：${formatHintGapList(diff.missingScenes)}`);
         }
-        if (gapParts.length) {
-          toast.warning(
-            `${completionBase}；以下剧本人物行具名者/场次地点未见于提取结果——${gapParts.join("；")}（可能是有意略过的群演，也可能是漏提；未自动补录，请按剧本人物行/场次标题核对）`,
-          );
+        if (diff.extraCharacters.length) {
+          gapParts.push(`角色多：${formatHintGapList(diff.extraCharacters)}`);
+        }
+        if (diff.extraScenes.length) {
+          gapParts.push(`场景多：${formatHintGapList(diff.extraScenes)}`);
+        }
+        // 缺/多分键落日志(拷问官 C1):只多不缺时不打双空载荷的 missing 键
+        if (diff.missingCharacters.length || diff.missingScenes.length) {
           void logEvent({
             level: "warn",
             category: "workflow",
@@ -444,6 +449,24 @@ export function useNovelPipelineActions({
               parseErrors: parsed.errors,
             },
           });
+        }
+        if (diff.extraCharacters.length || diff.extraScenes.length) {
+          void logEvent({
+            level: "warn",
+            category: "workflow",
+            message: "entityExtraction.hints.extra",
+            context: {
+              episodeId: targetEpisodeId,
+              extraCharacters: diff.extraCharacters,
+              extraScenes: diff.extraScenes,
+              parseErrors: parsed.errors,
+            },
+          });
+        }
+        if (gapParts.length) {
+          toast.warning(
+            `${completionBase}；剧本自报清单与提取结果存在落差——${gapParts.join("；")}（缺项可能是群演或漏提；多项是不在人物行/场次标题里的名字——含叙述性泛指与幻觉，也可能是台词说话人未列入人物行、或提及型合规单列；未自动增删，请对照剧本核对）`,
+          );
         } else if (parsed.errors.length) {
           toast.warning(completionBase);
         } else {
