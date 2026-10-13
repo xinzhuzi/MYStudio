@@ -431,22 +431,42 @@ export function useProductionPlanningActions({
       targetStage: string;
       userInstruction?: string;
     }) => {
-      if (action.id === "generate-director-plan") {
-        await handleDirectorPlan(
-          productionEpisodeId,
-          action.userInstruction ?? "",
+      // livefire9 实锤:画布节点动作经 index.tsx `void` 派发,async 链上未捕获异常
+      // 会被无声吞掉(导演规划两次静默失败零指纹)。此处统一兜底:异常必须现形
+      // 为 toast+console,禁止环节动作无声死亡。
+      try {
+        if (action.id === "generate-director-plan") {
+          await handleDirectorPlan(
+            productionEpisodeId,
+            action.userInstruction ?? "",
+          );
+          return;
+        }
+        if (action.id === "generate-storyboard-table") {
+          await handleStoryboardTable(
+            productionEpisodeId,
+            action.userInstruction ?? "",
+          );
+          return;
+        }
+        if (action.id === "rebuild-workbench-tracks") {
+          handleRebuildWorkbenchTracks();
+          return;
+        }
+      } catch (error) {
+        console.error("[handleProductionNodeAction]", action.id, error);
+        // App 日志留痕(livefire9 取证盲区:装机 console 无人订阅,toast 一闪
+        // 即逝)——diagnostics 恒落盘,事后可取证「哪个环节动作在何处抛了什么」。
+        await logEvent({
+          level: "error",
+          category: "workflow",
+          message: "productionNodeAction.failed",
+          context: { actionId: action.id, targetStage: action.targetStage },
+          error: captureError(error),
+        });
+        toast.error(
+          `环节动作失败(${action.id}):${error instanceof Error ? error.message : String(error)}`,
         );
-        return;
-      }
-      if (action.id === "generate-storyboard-table") {
-        await handleStoryboardTable(
-          productionEpisodeId,
-          action.userInstruction ?? "",
-        );
-        return;
-      }
-      if (action.id === "rebuild-workbench-tracks") {
-        handleRebuildWorkbenchTracks();
         return;
       }
       handleStageChange(action.targetStage);
