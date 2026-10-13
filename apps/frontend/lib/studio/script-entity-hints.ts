@@ -23,6 +23,11 @@ export interface ScriptEntityHintDiff {
   extraCharacters: string[];
   /** 同上,场景(防幻觉地点/泛化场景顶替);清单为空(非场次格式)时恒空 */
   extraScenes: string[];
+  /** 1013 钉板两盲区的机械防线(软告警,不自动删):
+   *  借名夹带=name 对不上清单、但别名归一后精确等于清单某名(神秘少女[赵四]形态);
+   *  互含变体=name 与清单某名互含但不相等、别名也无精确命中(清单「晏燎」 vs 输出「晏燎甲」)。 */
+  suspectBorrowedNames: string[];
+  suspectVariantNames: string[];
 }
 
 /** 场次标题尾部时间/内外锚(「金水河码头 夜/外」的「 夜/外」);无空格变体整吞剥空后回退未剥 title。 */
@@ -113,11 +118,53 @@ export function diffScriptEntityHints(
       .map((entity) => entity.name);
     return uniqueByNormalizedName(extras);
   };
+  // 1013 钉板两盲区的机械防线(角色域;场景清单名常为泛称互含面太大,不设变体判定):
+  // ①借名夹带:name 不命中清单(连互含都不算)但别名归一后「精确等于」清单某名——
+  //   合法归并的 name 本身命中清单,不会进入此分支;精确等(非互含)防「沈青岚[沈·青岚]」类
+  //   假别名误伤。
+  // ②互含变体:name 与清单某名互含但归一不等,且别名无精确=清单名——「晏燎甲」亮灯人裁;
+  //   合法归并(赵四/监工赵四)双向精确或别名精确命中,不受影响。
+  const suspectBorrowedOf = (): string[] => {
+    if (!hints.characters.length) return [];
+    const declaredKeys = new Set(hints.characters.map(normalizeName).filter(Boolean));
+    return uniqueByNormalizedName(
+      extracted
+        .filter((entity) => entity.kind === "character")
+        .filter((entity) => {
+          const nameKey = normalizeName(entity.name);
+          return Boolean(nameKey) && !declaredKeys.has(nameKey) &&
+            !hints.characters.some((hint) => hintCoveredBy([hint], entity.name));
+        })
+        .filter((entity) => (entity.aliases ?? []).some((alias) => declaredKeys.has(normalizeName(alias))))
+        .map((entity) => entity.name),
+    );
+  };
+  const suspectVariantOf = (): string[] => {
+    if (!hints.characters.length) return [];
+    const declaredKeys = new Set(hints.characters.map(normalizeName).filter(Boolean));
+    return uniqueByNormalizedName(
+      extracted
+        .filter((entity) => entity.kind === "character")
+        .filter((entity) => {
+          const nameKey = normalizeName(entity.name);
+          if (!nameKey || declaredKeys.has(nameKey)) return false;
+          if ((entity.aliases ?? []).some((alias) => declaredKeys.has(normalizeName(alias)))) return false;
+          return hints.characters.some((hint) => {
+            const hintKey = normalizeName(hint);
+            return hintKey.length >= 2 && nameKey !== hintKey &&
+              (nameKey.includes(hintKey) || hintKey.includes(nameKey));
+          });
+        })
+        .map((entity) => entity.name),
+    );
+  };
   return {
     missingCharacters: hints.characters.filter((hint) => !hintCoveredBy(namesOf("character"), hint)),
     missingScenes: hints.scenes.filter((hint) => !hintCoveredBy(namesOf("scene"), hint)),
     extraCharacters: extraOf("character"),
     extraScenes: extraOf("scene"),
+    suspectBorrowedNames: suspectBorrowedOf(),
+    suspectVariantNames: suspectVariantOf(),
   };
 }
 

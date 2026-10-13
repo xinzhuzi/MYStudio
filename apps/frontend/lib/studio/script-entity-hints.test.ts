@@ -178,6 +178,8 @@ describe("diffScriptEntityHints", () => {
       missingScenes: [],
       extraCharacters: [],
       extraScenes: [],
+      suspectBorrowedNames: [],
+      suspectVariantNames: [],
     });
   });
 
@@ -291,6 +293,30 @@ describe("diffScriptEntityHints", () => {
       { kind: "character", name: "丫头", aliases: ["小丫头"], episodeIds: ["ep1"] },
     ];
     expect(diffScriptEntityHints(hints, dupes).extraCharacters).toEqual(["丫头"]);
+  });
+
+  it("1013 防线①:借名夹带亮灯(神秘少女[赵四]),合法归并不误伤", () => {
+    // name 杂物+别名精确=清单名 → suspectBorrowedNames;合法归并(name=赵四)不触发
+    const borrowed: ExtractedEntity[] = [
+      { kind: "character", name: "神秘少女", aliases: ["赵四"], episodeIds: ["ep1"] },
+    ];
+    const legal: ExtractedEntity[] = [
+      { kind: "character", name: "赵四", aliases: ["监工赵四"], episodeIds: ["ep1"] },
+    ];
+    const diff = diffScriptEntityHints(hints, borrowed);
+    expect(diff.suspectBorrowedNames).toEqual(["神秘少女"]);
+    expect(diffScriptEntityHints(hints, legal).suspectBorrowedNames).toEqual([]);
+  });
+
+  it("1013 防线②:互含变体亮灯(晏燎甲),别名精确命中则豁免", () => {
+    const variant: ExtractedEntity[] = [
+      { kind: "character", name: "晏燎甲", aliases: [], episodeIds: ["ep1"] },
+    ];
+    const withExactAlias: ExtractedEntity[] = [
+      { kind: "character", name: "晏燎儿", aliases: ["晏燎"], episodeIds: ["ep1"] },
+    ];
+    expect(diffScriptEntityHints(hints, variant).suspectVariantNames).toEqual(["晏燎甲"]);
+    expect(diffScriptEntityHints(hints, withExactAlias).suspectVariantNames).toEqual([]);
   });
 });
 

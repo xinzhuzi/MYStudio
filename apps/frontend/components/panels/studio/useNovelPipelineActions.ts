@@ -241,247 +241,279 @@ export function useNovelPipelineActions({
 
   const handleEntityExtraction = useCallback(
     async (episodeId = "episode-1") => {
-      if (!window.electronAPI?.textCompletion) {
-        toast.error("当前环境不支持模型调用");
-        return;
-      }
-
-      const store = useStudioStore.getState();
-      const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
-      const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
-      if (!scriptText.trim()) {
-        toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
-        return;
-      }
-
-      const libChars = useCharacterLibraryStore
-        .getState()
-        .characters.filter(
-          (item) => !activeProjectId || item.projectId === activeProjectId,
-        );
-      const libScenes = useSceneStore
-        .getState()
-        .scenes.filter(
-          (item) => !activeProjectId || item.projectId === activeProjectId,
-        );
-      const libProps = usePropsLibraryStore
-        .getState()
-        .items.filter(
-          (item) => !activeProjectId || item.projectId === activeProjectId,
-        );
-
-      const knownEntities: KnownEntity[] = [
-        ...store.entityExtractions.flatMap((batch) => [
-          ...batch.characters.map((item) => ({
-            id: item.characterId,
-            kind: "character" as const,
-            name: item.name,
-            aliases: item.aliases,
-          })),
-          ...batch.scenes.map((item) => ({
-            id: item.sceneId,
-            kind: "scene" as const,
-            name: item.name,
-            aliases: [],
-          })),
-          ...batch.props.map((item) => ({
-            id: item.assetId,
-            kind: "prop" as const,
-            name: item.name,
-            aliases: [],
-          })),
-        ]),
-        ...libChars
-          .filter(
-            (c) =>
-              !store.entityExtractions.some((b) =>
-                b.characters.some((bc) => bc.characterId === c.id),
-              ),
-          )
-          .map((c) => ({
-            id: c.id,
-            kind: "character" as const,
-            name: c.name,
-            // 库角色别名真源在 notes 首行「别名：…」(entity-sync 写入侧),守门解析
-            // 打通「监工赵四↔赵四」类匹配(1013 修 RC-4;不读不存在的 c.aliases 字段)
-            aliases: parseAliasesFromNotes(c.notes),
-          })),
-        ...libScenes
-          .filter(
-            (s) =>
-              !store.entityExtractions.some((b) =>
-                b.scenes.some((bs) => bs.sceneId === s.id),
-              ),
-          )
-          .map((s) => ({
-            id: s.id,
-            kind: "scene" as const,
-            name: s.name,
-            // 场景库别名同走 notes 守门解析(「悦来客栈↔客栈」类匹配);props 无 notes 通道保持 []
-            aliases: parseAliasesFromNotes(s.notes),
-          })),
-        ...libProps
-          .filter(
-            (p) =>
-              !store.entityExtractions.some((b) =>
-                b.props.some((bp) => bp.assetId === p.id),
-              ),
-          )
-          .map((p) => ({
-            id: p.id,
-            kind: "prop" as const,
-            name: p.name,
-            aliases: [],
-          })),
-      ];
-
-      const memory = await readSourceMemoryActionContext({
-        projectId: activeProjectId,
-        archiveQuery: scriptText.slice(0, 200),
-        archiveLimit: 4,
-      });
-      if (!memory.success) {
-        toast.error(memory.error);
-        return;
-      }
-      // 剧本自报实体清单(确定性兜底):机械抽取注入 prompt 供模型逐项判定;非场次格式(小说体)为双空,注入块自动省略
-      const scriptHints = extractScriptEntityHints(scriptText);
-      const messages = buildEntityExtractionMessages({
-        episodeId: targetEpisodeId,
-        scriptText,
-        knownEntities,
-        bibleContext: memory.context,
-        scriptHints,
-      });
+      // 1013 备忘落地(仿 d7a74a51 防线):本 handler 经 index.tsx:104
+      // `void` 派发,体内既有 try/catch 只覆盖模型调用段,前置装配段(环境
+      // 检查→store 读取→实体清单→源记忆桥→prompt 构造)零 catch,任何
+      // throw 都会穿透 void 派发静默死亡。此处整体兜底:异常必须现形为
+      // toast+console+diagnostics,禁止资产提取无声死亡;体内既有 catch
+      // 先行接管模型调用段(不上抛),本外层 catch 只接穿越者,不会双重弹错。
       try {
-        const result = await aiManager.text({
-          binding: { agent: "entityExtraction" },
-          messages: [
-            { role: "system", content: messages.system },
-            { role: "user", content: messages.user },
-          ],
-          temperature: 0.2,
-          // 1013 修:max_tokens ≥16384 铁律(旧 2048)+结构化任务关思考——
-          // glm-5.3 思考型非流式在 2048 下把输出全吞进思考通道,正文空返
-          disableThinking: true,
-        });
-        if (!result.success || !result.text) {
-          throw new Error(result.error || "实体提取失败");
-        }
-
-        const parsed = parseEntityExtraction(result.text, targetEpisodeId);
-        // 1013 修 RC-9:模型原始输出+解析错误持久化 diagnostics jsonl——排障
-        // 不再靠 toast 间接推断;键名避开 PROMPT_KEY_PATTERN(prompt|messages|
-        // content|referenceText),每段 ≤1000 字过 sanitize 不被摘要
-        void logEvent({
-          level: parsed.errors.length ? "warn" : "info",
-          category: "workflow",
-          message: "entityExtraction.modelOutput",
-          context: {
-            episodeId: targetEpisodeId,
-            rawOutputLength: result.text.length,
-            rawOutputChunks: chunkTextForDiagnostics(result.text),
-            parseErrors: parsed.errors,
-            extractedCounts: {
-              character: parsed.entities.filter((entity) => entity.kind === "character").length,
-              scene: parsed.entities.filter((entity) => entity.kind === "scene").length,
-              prop: parsed.entities.filter((entity) => entity.kind === "prop").length,
-            },
-          },
-        });
-        const { entities } = dedupeEntities(parsed.entities, knownEntities);
-        if (!entities.length) {
-          toast.error("未解析出任何实体，请检查模型输出格式");
+        if (!window.electronAPI?.textCompletion) {
+          toast.error("当前环境不支持模型调用");
           return;
         }
 
-        const sinks = createMystudioSinks();
-        const { result: batch } = syncExtractedEntities(
-          {
-            episodeId: targetEpisodeId,
-            entities,
-            projectId: activeProjectId ?? "",
-            projectName,
-          },
-          sinks,
-        );
-        const chapterIdentity = store.novelChapters.find((chapter) => chapter.id === targetEpisodeId);
-        saveEntityExtraction({
-          ...batch,
-          sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
-          revision: chapterIdentity?.revision ?? 1,
-          // 提取盖戳(1011):一键生成前与现势剧本指纹比对,剧本重写后提示先重新提取
-          scriptFingerprint: scriptPlanSourceFingerprint(targetEpisodeId, scriptText),
-        });
+        const store = useStudioStore.getState();
+        const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
+        const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
+        if (!scriptText.trim()) {
+          toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
+          return;
+        }
 
-        const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
-        const completionBase = parsed.errors.length
-          ? `资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`
-          : `资产提取完成：${detail}`;
-
-        // 确定性落差告警(1013 修):机械清单与实际输出 diff,漏了必可见;1013 负向补:多提也可见
-        // (装机「丫头」复发=模型自撰行静默过闸)。不自动增删(防误判)。hints 双空数组(非场次
-        // 格式/空文本)时 diff 恒四空,自然走原收口
-        const diff = diffScriptEntityHints(scriptHints, parsed.entities);
-        const gapParts: string[] = [];
-        if (diff.missingCharacters.length) {
-          gapParts.push(`角色缺：${formatHintGapList(diff.missingCharacters)}`);
-        }
-        if (diff.missingScenes.length) {
-          gapParts.push(`场景缺：${formatHintGapList(diff.missingScenes)}`);
-        }
-        if (diff.extraCharacters.length) {
-          gapParts.push(`角色多：${formatHintGapList(diff.extraCharacters)}`);
-        }
-        if (diff.extraScenes.length) {
-          gapParts.push(`场景多：${formatHintGapList(diff.extraScenes)}`);
-        }
-        // 缺/多分键落日志(拷问官 C1):只多不缺时不打双空载荷的 missing 键
-        if (diff.missingCharacters.length || diff.missingScenes.length) {
-          void logEvent({
-            level: "warn",
-            category: "workflow",
-            message: "entityExtraction.hints.missing",
-            context: {
-              episodeId: targetEpisodeId,
-              missingCharacters: diff.missingCharacters,
-              missingScenes: diff.missingScenes,
-              parseErrors: parsed.errors,
-            },
-          });
-        }
-        if (diff.extraCharacters.length || diff.extraScenes.length) {
-          void logEvent({
-            level: "warn",
-            category: "workflow",
-            message: "entityExtraction.hints.extra",
-            context: {
-              episodeId: targetEpisodeId,
-              extraCharacters: diff.extraCharacters,
-              extraScenes: diff.extraScenes,
-              parseErrors: parsed.errors,
-            },
-          });
-        }
-        if (gapParts.length) {
-          toast.warning(
-            `${completionBase}；剧本自报清单与提取结果存在落差——${gapParts.join("；")}（缺项可能是群演或漏提；多项是不在人物行/场次标题里的名字——含叙述性泛指与幻觉，也可能是台词说话人未列入人物行、或提及型合规单列；未自动增删，请对照剧本核对）`,
+        const libChars = useCharacterLibraryStore
+          .getState()
+          .characters.filter(
+            (item) => !activeProjectId || item.projectId === activeProjectId,
           );
-        } else if (parsed.errors.length) {
-          toast.warning(completionBase);
-        } else {
-          toast.success(`资产提取完成：${detail}`);
+        const libScenes = useSceneStore
+          .getState()
+          .scenes.filter(
+            (item) => !activeProjectId || item.projectId === activeProjectId,
+          );
+        const libProps = usePropsLibraryStore
+          .getState()
+          .items.filter(
+            (item) => !activeProjectId || item.projectId === activeProjectId,
+          );
+
+        const knownEntities: KnownEntity[] = [
+          ...store.entityExtractions.flatMap((batch) => [
+            ...batch.characters.map((item) => ({
+              id: item.characterId,
+              kind: "character" as const,
+              name: item.name,
+              aliases: item.aliases,
+            })),
+            ...batch.scenes.map((item) => ({
+              id: item.sceneId,
+              kind: "scene" as const,
+              name: item.name,
+              aliases: [],
+            })),
+            ...batch.props.map((item) => ({
+              id: item.assetId,
+              kind: "prop" as const,
+              name: item.name,
+              aliases: [],
+            })),
+          ]),
+          ...libChars
+            .filter(
+              (c) =>
+                !store.entityExtractions.some((b) =>
+                  b.characters.some((bc) => bc.characterId === c.id),
+                ),
+            )
+            .map((c) => ({
+              id: c.id,
+              kind: "character" as const,
+              name: c.name,
+              // 库角色别名真源在 notes 首行「别名：…」(entity-sync 写入侧),守门解析
+              // 打通「监工赵四↔赵四」类匹配(1013 修 RC-4;不读不存在的 c.aliases 字段)
+              aliases: parseAliasesFromNotes(c.notes),
+            })),
+          ...libScenes
+            .filter(
+              (s) =>
+                !store.entityExtractions.some((b) =>
+                  b.scenes.some((bs) => bs.sceneId === s.id),
+                ),
+            )
+            .map((s) => ({
+              id: s.id,
+              kind: "scene" as const,
+              name: s.name,
+              // 场景库别名同走 notes 守门解析(「悦来客栈↔客栈」类匹配);props 无 notes 通道保持 []
+              aliases: parseAliasesFromNotes(s.notes),
+            })),
+          ...libProps
+            .filter(
+              (p) =>
+                !store.entityExtractions.some((b) =>
+                  b.props.some((bp) => bp.assetId === p.id),
+                ),
+            )
+            .map((p) => ({
+              id: p.id,
+              kind: "prop" as const,
+              name: p.name,
+              aliases: [],
+            })),
+        ];
+
+        const memory = await readSourceMemoryActionContext({
+          projectId: activeProjectId,
+          archiveQuery: scriptText.slice(0, 200),
+          archiveLimit: 4,
+        });
+        if (!memory.success) {
+          toast.error(memory.error);
+          return;
+        }
+        // 剧本自报实体清单(确定性兜底):机械抽取注入 prompt 供模型逐项判定;非场次格式(小说体)为双空,注入块自动省略
+        const scriptHints = extractScriptEntityHints(scriptText);
+        const messages = buildEntityExtractionMessages({
+          episodeId: targetEpisodeId,
+          scriptText,
+          knownEntities,
+          bibleContext: memory.context,
+          scriptHints,
+        });
+        try {
+          const result = await aiManager.text({
+            binding: { agent: "entityExtraction" },
+            messages: [
+              { role: "system", content: messages.system },
+              { role: "user", content: messages.user },
+            ],
+            temperature: 0.2,
+            // 1013 修:max_tokens ≥16384 铁律(旧 2048)+结构化任务关思考——
+            // glm-5.3 思考型非流式在 2048 下把输出全吞进思考通道,正文空返
+            disableThinking: true,
+          });
+          if (!result.success || !result.text) {
+            throw new Error(result.error || "实体提取失败");
+          }
+
+          const parsed = parseEntityExtraction(result.text, targetEpisodeId);
+          // 1013 修 RC-9:模型原始输出+解析错误持久化 diagnostics jsonl——排障
+          // 不再靠 toast 间接推断;键名避开 PROMPT_KEY_PATTERN(prompt|messages|
+          // content|referenceText),每段 ≤1000 字过 sanitize 不被摘要
+          void logEvent({
+            level: parsed.errors.length ? "warn" : "info",
+            category: "workflow",
+            message: "entityExtraction.modelOutput",
+            context: {
+              episodeId: targetEpisodeId,
+              rawOutputLength: result.text.length,
+              rawOutputChunks: chunkTextForDiagnostics(result.text),
+              parseErrors: parsed.errors,
+              extractedCounts: {
+                character: parsed.entities.filter((entity) => entity.kind === "character").length,
+                scene: parsed.entities.filter((entity) => entity.kind === "scene").length,
+                prop: parsed.entities.filter((entity) => entity.kind === "prop").length,
+              },
+            },
+          });
+          const { entities } = dedupeEntities(parsed.entities, knownEntities);
+          if (!entities.length) {
+            toast.error("未解析出任何实体，请检查模型输出格式");
+            return;
+          }
+
+          const sinks = createMystudioSinks();
+          const { result: batch } = syncExtractedEntities(
+            {
+              episodeId: targetEpisodeId,
+              entities,
+              projectId: activeProjectId ?? "",
+              projectName,
+            },
+            sinks,
+          );
+          const chapterIdentity = store.novelChapters.find((chapter) => chapter.id === targetEpisodeId);
+          saveEntityExtraction({
+            ...batch,
+            sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
+            revision: chapterIdentity?.revision ?? 1,
+            // 提取盖戳(1011):一键生成前与现势剧本指纹比对,剧本重写后提示先重新提取
+            scriptFingerprint: scriptPlanSourceFingerprint(targetEpisodeId, scriptText),
+          });
+
+          const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
+          const completionBase = parsed.errors.length
+            ? `资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`
+            : `资产提取完成：${detail}`;
+
+          // 确定性落差告警(1013 修):机械清单与实际输出 diff,漏了必可见;1013 负向补:多提也可见
+          // (装机「丫头」复发=模型自撰行静默过闸)。不自动增删(防误判)。hints 双空数组(非场次
+          // 格式/空文本)时 diff 恒四空,自然走原收口
+          const diff = diffScriptEntityHints(scriptHints, parsed.entities);
+          const gapParts: string[] = [];
+          if (diff.missingCharacters.length) {
+            gapParts.push(`角色缺：${formatHintGapList(diff.missingCharacters)}`);
+          }
+          if (diff.missingScenes.length) {
+            gapParts.push(`场景缺：${formatHintGapList(diff.missingScenes)}`);
+          }
+          if (diff.extraCharacters.length) {
+            gapParts.push(`角色多：${formatHintGapList(diff.extraCharacters)}`);
+          }
+          if (diff.extraScenes.length) {
+            gapParts.push(`场景多：${formatHintGapList(diff.extraScenes)}`);
+          }
+          // 1013 钉板两盲区的机械防线亮灯(软告警,不自动删;人裁后走库清理)
+          if (diff.suspectBorrowedNames.length) {
+            gapParts.push(`疑似借名：${formatHintGapList(diff.suspectBorrowedNames)}`);
+          }
+          if (diff.suspectVariantNames.length) {
+            gapParts.push(`疑似变体：${formatHintGapList(diff.suspectVariantNames)}`);
+          }
+          // 缺/多分键落日志(拷问官 C1):只多不缺时不打双空载荷的 missing 键
+          if (diff.missingCharacters.length || diff.missingScenes.length) {
+            void logEvent({
+              level: "warn",
+              category: "workflow",
+              message: "entityExtraction.hints.missing",
+              context: {
+                episodeId: targetEpisodeId,
+                missingCharacters: diff.missingCharacters,
+                missingScenes: diff.missingScenes,
+                parseErrors: parsed.errors,
+              },
+            });
+          }
+          if (diff.extraCharacters.length || diff.extraScenes.length || diff.suspectBorrowedNames.length || diff.suspectVariantNames.length) {
+            void logEvent({
+              level: "warn",
+              category: "workflow",
+              message: "entityExtraction.hints.extra",
+              context: {
+                episodeId: targetEpisodeId,
+                extraCharacters: diff.extraCharacters,
+                extraScenes: diff.extraScenes,
+                suspectBorrowedNames: diff.suspectBorrowedNames,
+                suspectVariantNames: diff.suspectVariantNames,
+                parseErrors: parsed.errors,
+              },
+            });
+          }
+          if (gapParts.length) {
+            toast.warning(
+              `${completionBase}；剧本自报清单与提取结果存在落差——${gapParts.join("；")}（缺项可能是群演或漏提；多项是不在人物行/场次标题里的名字——含叙述性泛指与幻觉，也可能是台词说话人未列入人物行、或提及型合规单列；未自动增删，请对照剧本核对）`,
+            );
+          } else if (parsed.errors.length) {
+            toast.warning(completionBase);
+          } else {
+            toast.success(`资产提取完成：${detail}`);
+          }
+        } catch (error) {
+          // 1013 修 RC-9:提取失败连错误本体落 diagnostics(含模型调用层异常)
+          void logEvent({
+            level: "error",
+            category: "workflow",
+            message: "entityExtraction.failed",
+            context: { episodeId: targetEpisodeId },
+            error: captureError(error),
+          });
+          toast.error(error instanceof Error ? error.message : String(error));
         }
       } catch (error) {
-        // 1013 修 RC-9:提取失败连错误本体落 diagnostics(含模型调用层异常)
-        void logEvent({
+        console.error("[handleEntityExtraction]", episodeId, error);
+        // App 日志留痕(装机取证盲区:console 无人订阅、toast 一闪即逝)
+        // ——与体内既有「entityExtraction.failed」(模型调用段)区分,本
+        // 事件=穿越 handler 自身兜底的异常,恒落盘事后可取证。
+        await logEvent({
           level: "error",
           category: "workflow",
-          message: "entityExtraction.failed",
-          context: { episodeId: targetEpisodeId },
+          message: "entityExtraction.dispatchFailed",
+          context: { episodeId },
           error: captureError(error),
         });
-        toast.error(error instanceof Error ? error.message : String(error));
+        toast.error(
+          `资产提取失败(${episodeId}):${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     },
     [activeProjectId, projectName, saveEntityExtraction],
