@@ -105,6 +105,12 @@ describe("createProviderInstance anthropic routing", () => {
     expect(firstUsableApiKey("k1, k2\nk3")).toBe("k1");
     expect(firstUsableApiKey(undefined)).toBeUndefined();
   });
+
+  it("1013:全角分隔符串取首把 key——整串进 Bearer 会炸 Headers 非 ISO-8859-1(装机 gpt-image 主通道根因)", () => {
+    expect(firstUsableApiKey("k1，k2")).toBe("k1");
+    expect(firstUsableApiKey("k1、k2；k3")).toBe("k1");
+    expect(firstUsableApiKey("k1，")).toBe("k1");
+  });
 });
 
 // 1011 复审补(欠账②):gemini-compatible 协议路由防线——此前 apiProtocol 声明

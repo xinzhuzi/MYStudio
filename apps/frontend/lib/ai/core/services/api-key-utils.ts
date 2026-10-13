@@ -14,10 +14,13 @@ export function generateId(): string {
 /**
  * Parse API keys from a string (comma or newline separated)
  */
+// 1013:分隔符收编全角(，、；;)——中文输入法下录入的多 key 串切不开时,
+// 整串(含全角字符)进 Bearer 头会在 Headers.set 抛「非 ISO-8859-1」(装机
+// 实弹 mikoto 构造期炸/凡人缝合串 403 无权的双重根因)。
 export function parseApiKeys(apiKey: string): string[] {
   if (!apiKey) return [];
   return apiKey
-    .split(/[,\n]/)
+    .split(/[,，、\n\r;；]/)
     .map(k => k.trim())
     .filter(k => k.length > 0);
 }

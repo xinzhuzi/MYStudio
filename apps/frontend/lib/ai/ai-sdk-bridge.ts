@@ -25,9 +25,11 @@ import { assertImageTransferPayloadSize } from "./image-transfer";
 export { resolveGptImageSize, validateGptImageSize } from "./image-size-presets";
 
 /** 多 key 串（"k1,k2" / 换行分隔）取首把可用 key；单 key 原样返回。 */
+// 1013:分隔符收编全角(，、；;)——全角逗号串切不开会整串进 Bearer,
+// Headers.set 抛「非 ISO-8859-1」打崩云端 gpt-image 主通道(与 parseApiKeys 同步)。
 export function firstUsableApiKey(raw: string | undefined): string | undefined {
   if (!raw) return raw;
-  const first = raw.split(/[,\n\r]/).map((part) => part.trim()).filter(Boolean)[0];
+  const first = raw.split(/[,，、\n\r;；]/).map((part) => part.trim()).filter(Boolean)[0];
   return first ?? raw;
 }
 
