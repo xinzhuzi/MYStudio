@@ -63,10 +63,10 @@ describe("compileActiveDaojieStoryboardFramePrompt", () => {
     expect(String(okLog?.[0].context?.contractSha256)).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("超 800 在网络前以可读错误拒绝", async () => {
+  it("超 1600 在网络前以可读错误拒绝", async () => {
     await warmExtendedManualStyleTokens(DAOJIE_MANUAL);
 
-    await expect(compileActiveDaojieStoryboardFramePrompt("长".repeat(900))).rejects.toThrow("800");
+    await expect(compileActiveDaojieStoryboardFramePrompt("长".repeat(1601))).rejects.toThrow("1600");
     const warnLog = vi.mocked(logEvent).mock.calls.find(([e]) => e.message.includes("rejected before provider"));
     expect(warnLog?.[0].level).toBe("warn");
   });

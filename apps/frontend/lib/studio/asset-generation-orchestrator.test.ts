@@ -633,7 +633,7 @@ describe("asset-generation-orchestrator", () => {
       expect(params.prompt).toContain("签名");
     });
 
-    it("超 800 字符在网络前 fail-closed,不触发 provider 请求", async () => {
+    it("超 1600 字符在网络前 fail-closed,不触发 provider 请求", async () => {
       const result = await generateAsset({
         assetId: "prop-1",
         assetType: "prop",
@@ -642,17 +642,17 @@ describe("asset-generation-orchestrator", () => {
         isDerivative: false,
         visualManualId: "daojie_ink_guofeng",
         skipPolish: true,
-        existingPrompt: "长".repeat(700),
+        existingPrompt: "长".repeat(1601),
       });
 
       expect(result.phase).toBe("failed");
-      expect(result.error).toContain("800");
+      expect(result.error).toContain("1600");
       expect(aiManager.image).not.toHaveBeenCalled();
       const rejectLog = vi.mocked(logEvent).mock.calls.find(
         ([entry]) => entry.message.includes("rejected before provider"),
       );
       expect(rejectLog?.[0].level).toBe("warn");
-      expect(rejectLog?.[0].context?.totalChars).toBeGreaterThan(800);
+      expect(rejectLog?.[0].context?.totalChars).toBeGreaterThan(1600);
     });
 
     it("参考图条件锁:有参考图追加降噪锁,无参考图不追加", async () => {

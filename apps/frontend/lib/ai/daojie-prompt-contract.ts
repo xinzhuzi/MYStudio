@@ -47,7 +47,7 @@ export interface DaojieRuntimeContract {
   /** 负面词条连接符,对齐 MA merge_universal_negative 的 ", ".join。 */
   negativeSeparator: ", ";
   avoidSeparator: "\nAvoid: ";
-  length: { warningBelow: 300; min: 300; max: 800 };
+  length: { warningBelow: 300; min: 300; max: 1600 };
   modules: Record<string, DaojieContractModule>;
 }
 
@@ -139,7 +139,7 @@ export function validateDaojieRuntimeContract(value: unknown): DaojieRuntimeCont
   ) {
     throw invalidContract(value, "separators");
   }
-  if (!isRecord(value.length) || value.length.warningBelow !== 300 || value.length.min !== 300 || value.length.max !== 800) {
+  if (!isRecord(value.length) || value.length.warningBelow !== 300 || value.length.min !== 300 || value.length.max !== 1600) {
     throw invalidContract(value, "length");
   }
   if (!isRecord(value.modules)) throw invalidContract(value, "modules");
@@ -215,14 +215,14 @@ export interface DaojieStoryboardFramePromptInput {
   /**
    * 分镜帧负面(手册 storyboard-frame-negative 块等)。提供时它即本作业负面唯一所有者
    * (去重后直接使用,不再叠加通用负面——手册帧负面已是 ma-gongbi-v1 对齐的五类全集,
-   * 叠加违反负面唯一所有者且必然超 800 门);未提供时回退合同通用负面。
+   * 叠加违反负面唯一所有者且双占长度预算);未提供时回退合同通用负面。
    */
   negativeTerms?: string | readonly string[];
 }
 
 /**
  * 分镜帧 ma-gongbi-v1 传输编译:不套静态资产七段、不追加轨道锁,
- * 只共享唯一 Avoid 段、负面唯一所有者、300-800 长度门与合同指纹,产物以 raw 策略直传 provider。
+ * 只共享唯一 Avoid 段、负面唯一所有者、300-1600 长度门与合同指纹,产物以 raw 策略直传 provider。
  */
 export async function compileDaojieStoryboardFramePrompt(
   input: DaojieStoryboardFramePromptInput,

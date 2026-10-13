@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "a89acbf5e2575362a6c4006ecdb2bdae1379bff716d567fd43ee3c2fc6bbc2fa",
+  "contractSha256": "88bd58dff6980da5d4b731d3ae1874459e258f679493d46d49d388ae98fc41f1",
   "syncedAt": "2026-09-18",
   "maSources": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "path": "scripts/prompting/length_policy.py",
-      "sha256": "cddf7aa11a47fad87a188461bcda7e0a7056e19fb39fec4e4a682250ce0c0a86",
+      "sha256": "be52a6c685405990c9892d0ffda7e69afc3125a22019ffe2e4793629d6e9a32a",
       "responsibility": "provider-visible 长度与 Avoid 分隔符"
     },
     {
@@ -78,7 +78,7 @@
   "length": {
     "warningBelow": 300,
     "min": 300,
-    "max": 800
+    "max": 1600
   },
   "modules": {
     "palette.source-facts-only": {

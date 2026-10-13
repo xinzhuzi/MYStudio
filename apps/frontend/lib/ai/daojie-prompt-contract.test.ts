@@ -83,11 +83,12 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
   it("ships a bounded, source-fingerprinted machine contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
-      // 锚随源(1009):b4107de1 自指纹回写后的现值,与 daojie-ma-sync-check.py 现算同源
-      "a89acbf5e2575362a6c4006ecdb2bdae1379bff716d567fd43ee3c2fc6bbc2fa",
+      // 锚随源(1013):length.max 800→1600(用户裁定翻倍)+maSources length_policy.py
+      // sha 重锁(MA 侧同改)自指纹回写后的现值,与 daojie-ma-sync-check.py 现算同源
+      "88bd58dff6980da5d4b731d3ae1874459e258f679493d46d49d388ae98fc41f1",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
-    expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 800 });
+    expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 1600 });
     expect(DAOJIE_RUNTIME_CONTRACT.maSources.length).toBeGreaterThanOrEqual(3);
     expect(DAOJIE_RUNTIME_CONTRACT.moduleOrder).toEqual([
       "subject.body",
@@ -245,22 +246,24 @@ describe("Daojie provider-visible length policy", () => {
     [299, "warning", true],
     [300, "ok", true],
     [800, "ok", true],
-    [801, "over_limit", false],
+    [801, "ok", true],
+    [1600, "ok", true],
+    [1601, "over_limit", false],
   ] as const)("counts the full prompt at %i characters", (total, status, ok) => {
     const result = evaluateDaojiePromptLength("x".repeat(total - "\nAvoid: ".length - 1), "x");
     expect(result).toMatchObject({ totalChars: total, status, ok });
   });
 
-  it("fails closed from the composer when required content is over 800", async () => {
+  it("fails closed from the composer when required content is over 1600", async () => {
     try {
-      await compileDaojiePrompt({ runtimeTrack: "prop", subjectBody: "x".repeat(500) });
-      throw new Error("expected the required prompt to exceed the provider limit");
+      await compileDaojiePrompt({ runtimeTrack: "prop", subjectBody: "x".repeat(1601) });
+      throw new Error("expected the required prompt to exceed the contract limit");
     } catch (error) {
       expect(error).toEqual(expect.objectContaining<Partial<DaojiePromptContractError>>({ code: "length_exceeded" }));
       expect((error as DaojiePromptContractError).details).toEqual(expect.objectContaining({
         totalChars: expect.any(Number),
         positiveChars: expect.any(Number),
-        moduleLengths: expect.objectContaining({ "subject.body": 500 }),
+        moduleLengths: expect.objectContaining({ "subject.body": 1601 }),
         gate: "asset.positive",
       }));
     }
@@ -319,7 +322,7 @@ describe("Daojie storyboard frame transport compile", () => {
     expect(compiled.positive).not.toContain("TRACK=");
     expect(compiled.moduleIds).toEqual(["storyboard.frame", "negative.universal"]);
     expect(compiled.providerPrompt.match(/Avoid:/g)).toHaveLength(1);
-    // 负面唯一所有者:提供帧负面时不再叠加通用负面(避免双占与必然超 800)
+    // 负面唯一所有者:提供帧负面时不再叠加通用负面(避免双占与顶爆长度预算)
     expect(compiled.negative).toContain("watermark");
     expect(compiled.negative).not.toContain("压缩伪影");
     // 未提供帧负面时回退合同通用负面
@@ -332,16 +335,18 @@ describe("Daojie storyboard frame transport compile", () => {
     [299, "warning"],
     [300, "ok"],
     [800, "ok"],
+    [1600, "ok"],
   ] as const)("gates a %i-character storyboard 正文(frame negative excluded) as %s", async (positiveChars, status) => {
-    // 帧门只算正文(固定帧负面 680/686 不计门,2026-08-25 死锁根修)
+    // 帧门只算正文(固定帧负面 680/686 不计门,2026-08-25 死锁根修);
+    // 801-1600 自 2026-10-13 上限翻倍后放行,800/1600 双边界今皆 ok
     const positive = "x".repeat(positiveChars);
     await expect(
       compileDaojieStoryboardFramePrompt({ positive, negativeTerms: "n" }),
     ).resolves.toMatchObject({ status, providerPrompt: `${positive}\nAvoid: n` });
   });
 
-  it("fails closed at 801 storyboard 正文 characters before the network", async () => {
-    const positive = "x".repeat(801);
+  it("fails closed at 1601 storyboard 正文 characters before the network", async () => {
+    const positive = "x".repeat(1601);
     await expect(
       compileDaojieStoryboardFramePrompt({ positive, negativeTerms: "n" }),
     ).rejects.toThrowError(expect.objectContaining({ code: "length_exceeded" }));

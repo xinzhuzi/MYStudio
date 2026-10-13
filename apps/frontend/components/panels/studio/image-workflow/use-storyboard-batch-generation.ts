@@ -520,7 +520,7 @@ async function generateOneShot(
   // 生成前预检(不烧配额,08-24 装配门禁链收口): ①file:// 参考探活——经资产桥
   // 轻读一次(读完即弃,不驻留 data: 防 OOM),断链(资产改名/文件损坏)在装配后
   // 秒级可见,而非生成中「参考图无法解码」烧一次等待;②长度门前置——正文超
-  // 800 直接拒,提示精炼而非让编译器在网络前才拦
+  // 1600 直接拒,提示精炼而非让编译器在网络前才拦
   const assetBridge = getStudioAssetsBridge();
   for (const node of graph.nodes) {
     if (node.type !== "reference") continue;
@@ -533,8 +533,8 @@ async function generateOneShot(
     }
   }
   const promptLength = graph.nodes.find((node) => node.type === "prompt")?.prompt?.length ?? 0;
-  if (promptLength > 800) {
-    throw new Error(`提示词 ${promptLength} 字符超 800 正文门,需精炼后再生成`);
+  if (promptLength > 1600) {
+    throw new Error(`提示词 ${promptLength} 字符超 1600 正文门,需精炼后再生成`);
   }
   const { imageUrl, vlmArtifact } = await generateWithVlmReview(graph, targetNodeId, shot, {
     addMaterial: useStudioStore.getState().addMaterial,

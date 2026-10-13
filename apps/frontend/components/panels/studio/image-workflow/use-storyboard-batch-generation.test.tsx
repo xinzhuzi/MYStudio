@@ -471,7 +471,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     resetStore([shot({ id: "sb-1", index: 1 })]);
     const longGraph = createBareStoryboardGraph("sb-1", "wf-bare");
     for (const n of longGraph.nodes as never as Array<{ type?: string; prompt?: string }>) {
-      if (n.type === "prompt") n.prompt = "长".repeat(850);
+      if (n.type === "prompt") n.prompt = "长".repeat(1650);
     }
     useStudioStore.setState({ imageWorkflows: [longGraph] });
     resolvedReferences.value = [];
@@ -483,7 +483,7 @@ describe("useStoryboardBatchGeneration(一键生图串行批量)", () => {
     await waitFor(() => expect(result.current.state.running).toBe(false), { timeout: 8000 });
 
     expect(generateImageMock).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("800"), expect.anything());
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("1600"), expect.anything());
   });
 });
 

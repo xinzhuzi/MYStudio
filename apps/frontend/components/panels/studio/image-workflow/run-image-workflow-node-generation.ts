@@ -30,9 +30,10 @@ import {
 } from "./image-workflow-file-utils";
 
 /**
- * 编译形态冗余段剥离(800 门死锁解除): 只剥 request 组装层为「自由画布可读
- * 提示词」内嵌的参考锚点段——编译链的参考约束走 @图N+图本体+帧负面,这些段
- * 在该形态下纯冗余且必然撑爆 800 门。非编译链(enhanced)不受影响。
+ * 编译形态冗余段剥离(旧 800 门死锁解除,08-24;门上限现为 1600): 只剥 request
+ * 组装层为「自由画布可读提示词」内嵌的参考锚点段——编译链的参考约束走
+ * @图N+图本体+帧负面,这些段在该形态下纯冗余(旧 800 门时代必然撑爆)。
+ * 非编译链(enhanced)不受影响。
  */
 function stripCompiledFrameRedundantSections(prompt: string): string {
   return prompt
@@ -123,10 +124,10 @@ export async function runImageWorkflowNodeGeneration(
   const styledPrompt = graph.target.kind === "storyboard"
     ? withActiveVisualManualStoryboardStyleTokens(request.prompt)
     : request.prompt;
-  // 道劫手册:分镜帧最终正文经 ma-gongbi-v1 编译(唯一 Avoid+负面唯一所有者+800 门)后
+  // 道劫手册:分镜帧最终正文经 ma-gongbi-v1 编译(唯一 Avoid+负面唯一所有者+1600 门)后
   // 以 raw 策略直传;非道劫(或非分镜)保持既有 enhanced 传输与分离负面。
-  // 800 门死锁解除(08-24 实证): request 组装层内嵌的【资产圣经】【多视图身份锁】
-  // 锚点段(~800+ 字符)会把任何正文顶爆 800 门(203 正文+锚点=1277 仍拒)。编译形
+  // 旧 800 门死锁解除(08-24 实证): request 组装层内嵌的【资产圣经】【多视图身份锁】
+  // 锚点段(~800+ 字符)在旧 800 门下会把任何正文顶爆(203 正文+锚点=1277 仍拒)。编译形
   // 态下参考约束已由 @图N 标记+参考图本体+帧负面承担,锚点段冗余——进编译前剥离
   // (S08 直连同款口径实证: 无锚点段+@图N+4 参考图=形象六项全对)。
   const compiledFrame = graph.target.kind === "storyboard"

@@ -158,7 +158,7 @@ export async function polishAssetPrompt(
     const parsed = parsePolishResult(result.text);
     if (isDaojieManual) {
       // 道劫:LLM 只拥有题材正文;不做通用 clean/denoise 追加,
-      // 自动层、唯一 Avoid 与 300-800 长度门由 daojie-prompt-contract 在生成前统一编译。
+      // 自动层、唯一 Avoid 与 300-1600 长度门由 daojie-prompt-contract 在生成前统一编译。
       const subjectBody = sanitizeExtendedManualPrompt(parsed.prompt);
       // AI 自动选配三轨配色方案(42 色卡/每轨 8 方案);失败降级规则预筛,再降级 source-facts-only
       const schemeId = await selectDaojiePaletteSchemeForAsset({ assetType, name, description, subjectBody });

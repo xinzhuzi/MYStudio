@@ -95,7 +95,7 @@ export function createStoryboardSingleImageGenerator(
         imageError: null,
       });
       const request = await options.prepareRequest({ scene, model, promptToUse });
-      // 道劫手册:最终正文+手册帧负面经 ma-gongbi-v1 编译(唯一 Avoid+800 门)后 raw 直传;
+      // 道劫手册:最终正文+手册帧负面经 ma-gongbi-v1 编译(唯一 Avoid+1600 门)后 raw 直传;
       // 非道劫保持既有 enhanced 传输。
       const compiledFrame = await compileActiveDaojieStoryboardFramePrompt(request.prompt);
       const apiResult = await aiManager.imageGrid({

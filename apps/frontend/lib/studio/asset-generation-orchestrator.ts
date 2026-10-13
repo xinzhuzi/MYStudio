@@ -130,7 +130,7 @@ export async function generateAsset(
     }
 
     // Phase 1.5: 道劫 ma-gongbi-v1 确定性编译边界。
-    // 题材正文(润色产物或已有提示词)统一进入编译器装配自动层/唯一 Avoid/300-800 长度门,
+    // 题材正文(润色产物或已有提示词)统一进入编译器装配自动层/唯一 Avoid/300-1600 长度门,
     // 编译产物 providerPrompt 以 raw 策略直传 provider,禁止 normalize 再追加。
     if (task.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID) {
       // 已有提示词直出链同口径清洗:润色路径产出的正文已过 sanitize,
@@ -193,7 +193,7 @@ export async function generateAsset(
             level: "warn",
             category: "ai",
             operationId: daoOpId,
-            message: "Daojie asset prompt rejected before provider (over 800)",
+            message: "Daojie asset prompt rejected before provider (over 1600)",
             context: { track: task.assetType, totalChars: err.input, moduleLengths: err.details.moduleLengths },
           });
         }
@@ -203,7 +203,7 @@ export async function generateAsset(
         if (err instanceof DaojiePromptContractError && err.code === "length_exceeded") {
           return {
             phase: "failed",
-            error: `道劫提示词超出 800 字符 provider 上限（实际 ${err.input} 字符），已拒绝生成；请重新润色或精简题材正文`,
+            error: `道劫提示词超出契约上限（1600 字符，实际 ${err.input} 字符），已拒绝生成；请重新润色或精简题材正文`,
             polishResult,
           };
         }

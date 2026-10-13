@@ -164,7 +164,7 @@ export function useDirectorQuadGridController({
         includeDialogueBoxConstraint: true,
       });
       const gridPrompt = buildPromptWithIdentityLock(baseGridPrompt, scene, model, hasCharacterRefs);
-      // 道劫手册:宫格最终正文经 ma-gongbi-v1 分镜帧编译(唯一 Avoid+800 门)后 raw 直传
+      // 道劫手册:宫格最终正文经 ma-gongbi-v1 分镜帧编译(唯一 Avoid+1600 门)后 raw 直传
       const compiledGridPrompt = await compileActiveDaojieStoryboardFramePrompt(gridPrompt);
 
       const optimizedRefs = optimizeReferenceImagesForModel(model, [

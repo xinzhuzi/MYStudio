@@ -238,8 +238,8 @@ export function getActiveVisualManualStoryboardStyleGuide(): string {
 /**
  * 道劫分镜帧传输编译:当前手册为道劫时,把分镜链已装配正文与手册帧负面编译为
  * ma-gongbi-v1 raw providerPrompt(唯一 Avoid;帧负面块存在时它是负面唯一所有者,
- * 未预热时回退合同通用负面;300-800 长度门);非道劫返回 null(保持既有 enhanced 传输)。
- * 超 800 在网络前以可读错误拒绝。
+ * 未预热时回退合同通用负面;300-1600 长度门);非道劫返回 null(保持既有 enhanced 传输)。
+ * 超 1600 在网络前以可读错误拒绝。
  */
 export async function compileActiveDaojieStoryboardFramePrompt(
   positive: string,
@@ -275,10 +275,10 @@ export async function compileActiveDaojieStoryboardFramePrompt(
         level: "warn",
         category: "ai",
         operationId,
-        message: "Daojie storyboard frame rejected before provider (over 800)",
+        message: "Daojie storyboard frame rejected before provider (over 1600)",
         context: { totalChars: err.input, moduleLengths: err.details.moduleLengths },
       });
-      throw new Error(`道劫提示词超出 800 字符 provider 上限（实际 ${err.input} 字符），已拒绝生成`);
+      throw new Error(`道劫提示词超出契约上限（1600 字符，实际 ${err.input} 字符），已拒绝生成`);
     }
     throw err;
   }

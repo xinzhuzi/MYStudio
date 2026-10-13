@@ -35,6 +35,8 @@
     { "totalChars": 299, "status": "warning", "ok": true },
     { "totalChars": 300, "status": "ok", "ok": true },
     { "totalChars": 800, "status": "ok", "ok": true },
-    { "totalChars": 801, "status": "over_limit", "ok": false }
+    { "totalChars": 801, "status": "ok", "ok": true },
+    { "totalChars": 1600, "status": "ok", "ok": true },
+    { "totalChars": 1601, "status": "over_limit", "ok": false }
   ]
 }
