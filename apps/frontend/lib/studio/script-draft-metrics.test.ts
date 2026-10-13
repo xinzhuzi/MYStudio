@@ -80,7 +80,7 @@ describe("analyzeScriptDraft 解析口径(D2)", () => {
     // OS:V.S.（旁白，冷）续行「旁白句一。」→4 字;OS（甲，克制）句本体「内心一句话」→5 字
     expect(m.osChars).toBe(9);
     // 人物：行不计对白
-    expect(m.voiceCharLimit).toBe(300);
+    expect(m.voiceCharLimit).toBe(480);
   });
 
   it("G25:超长句按句本体计量,行内「| 环境音」注释列不计入字数", () => {
@@ -189,15 +189,16 @@ describe("analyzeScriptDraft 解析口径(D2)", () => {
     expect(m.flags.some((f) => f.includes("OS 占比"))).toBe(true);
     expect(m.flags.some((f) => f.includes("语音字数"))).toBe(false);
 
-    // 1 分钟 → 语音上限 150 字:每行 10 字(9×「十」+数字),15 行恰 150 不报、16 行 160 报
+    // 1 分钟 → 语音上限 240 字(4 字/秒,10-14 裁定①;旧 150 断言属缺陷断言随 H2 移交闭环):
+    // 每行 10 字(9×「十」+数字),24 行恰 240 不报、25 行 250 报
     const lines = (n: number) =>
       Array.from({ length: n }, (_, i) => `甲：${"十".repeat(9)}${i % 10}`).join("\n");
     const head = "# 已确定要求：x/16:9/y\n\n1-1 场 晨/外 ·约60秒\n人物：甲\n\n";
-    const atLimit = analyzeScriptDraft(`${head}${lines(15)}\n`, { durationMin: 1 });
-    expect(atLimit.voiceCharLimit).toBe(150);
+    const atLimit = analyzeScriptDraft(`${head}${lines(24)}\n`, { durationMin: 1 });
+    expect(atLimit.voiceCharLimit).toBe(240);
     expect(atLimit.flags.some((f) => f.includes("语音字数"))).toBe(false);
-    const overLimit = analyzeScriptDraft(`${head}${lines(16)}\n`, { durationMin: 1 });
-    expect(overLimit.flags.some((f) => f.includes("语音字数") && f.includes("150"))).toBe(true);
+    const overLimit = analyzeScriptDraft(`${head}${lines(25)}\n`, { durationMin: 1 });
+    expect(overLimit.flags.some((f) => f.includes("语音字数") && f.includes("4 字/秒"))).toBe(true);
   });
 
   it("父 I8:画幅真源=头部第三行自述,16:9→单句上限 20 字", () => {
@@ -445,7 +446,7 @@ describe("F2 场外语音不计(在场内状态:命中场头置真,遇 # 开头�
   });
 });
 
-describe("F4 逐场对账(手册「九、时长与视觉预算」:△数×10s ≤ 场秒+10;语音字数 ≤ ⌊场秒×2.5⌋)", () => {
+describe("F4 逐场对账(手册「九、时长与视觉预算」:△数×10s ≤ 场秒+10;语音字数 ≤ ⌊场秒×4⌋)", () => {
   it("1 场 ·约20秒 + 4△ + 60 字台词 → △ 与语音两条 flag 均出现", () => {
     const fixture = [
       "# 已确定要求：x/16:9/y",
@@ -457,18 +458,20 @@ describe("F4 逐场对账(手册「九、时长与视觉预算」:△数×10s �
       "△动作二。",
       "△动作三。",
       "△动作四。",
-      // 3 行 × 20 字 = 60 字,每行恰 20 字不触超长句
+      // 5 行 × 20 字 = 100 字,每行恰 20 字不触超长句
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
       `甲：${"一".repeat(20)}`,
       `甲：${"一".repeat(20)}`,
       `甲：${"一".repeat(20)}`,
     ].join("\n");
     const m = analyzeScriptDraft(fixture, { durationMin: 1 });
-    // 4△×10s=40 > 20+10=30 → 镜头超场(G44 文案:△→镜头);60 字 > ⌊20×2.5⌋=50 → 语音超场
+    // 4△×10s=40 > 20+10=30 → 镜头超场(G44 文案:△→镜头);100 字 > ⌊20×4⌋=80 → 语音超场
     expect(m.flags).toContain("场 1-1 镜头 4 个×10s 超本场 20s+10");
-    expect(m.flags).toContain("场 1-1 语音 60 字超本场上限 50");
+    expect(m.flags).toContain("场 1-1 语音 100 字超本场上限 80");
   });
 
-  it("缺秒场不判;等值边界(n×10 = s+10、字数恰 = ⌊s×2.5⌋)不报", () => {
+  it("缺秒场不判;等值边界(n×10 = s+10、字数恰 = ⌊s×4⌋)不报", () => {
     // 缺 ·约N秒 的场塞 5△+60 字(若误判即两条 flag)→ 只报缺标注,不判逐场对账
     const missing = [
       "# 已确定要求：x/16:9/y",
@@ -485,7 +488,7 @@ describe("F4 逐场对账(手册「九、时长与视觉预算」:△数×10s �
     expect(mMissing.flags).toContain("场 1-2 缺·约N秒标注");
     expect(mMissing.flags.some((f) => f.includes("超本场"))).toBe(false);
 
-    // ·约30秒 + 4△(4×10=40 = 30+10 等值) + 75 字(恰 = ⌊30×2.5⌋) → 均不报
+    // ·约30秒 + 4△(4×10=40 = 30+10 等值) + 120 字(恰 = ⌊30×4⌋) → 均不报
     const equal = [
       "# 已确定要求：x/16:9/y",
       "",
@@ -496,7 +499,9 @@ describe("F4 逐场对账(手册「九、时长与视觉预算」:△数×10s �
       `甲：${"一".repeat(20)}`,
       `甲：${"一".repeat(20)}`,
       `甲：${"一".repeat(20)}`,
-      `甲：${"一".repeat(15)}`,
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(20)}`,
     ].join("\n");
     const mEqual = analyzeScriptDraft(equal, { durationMin: 1 });
     expect(mEqual.flags.some((f) => f.includes("超本场"))).toBe(false);
@@ -646,5 +651,410 @@ describe("G44 双格式节拍识别(镜头N： 与 △ 并存,合计入 beats �
     const m = analyzeScriptDraft(fixture, { durationMin: 1 });
     expect(m.beats).toBe(1);
     expect(m.dialogueChars).toBe(0); // 「镜头1：码头晨光。」不得被当作甲的台词续行
+  });
+});
+
+// ============================================================================
+// 四审B(A4-M1..M6)RED 用例矩阵(.trellis/tasks/10-13-audit4-metrics-parser
+// implement.md 批1-批5;design.md §1-§6)。全部合成夹具,不拷小说原文。
+// 约定:每条 RED 断言按「修复后行为」书写,当前实现必红,红因在各 it 内钉死;
+// 「绿-now 回归锁」=当前即绿、修复后必须保持的护栏断言(防修复越界,design §7)。
+// ============================================================================
+
+describe("M1 多行语音计至下一结构行(design §2;根因 :203-210 吞一行即 break)", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+
+  it("多行累加:空内容 OS 后的内容行逐行计入,遇空段停——红=现只吞首行(osChars 48≠66)", () => {
+    // 形状等价锚(design §7.3):两续行 OS、首行 48 字,绿判=全额累计 48+18=66
+    // (prd 验收锚「场 1-1 OS 计 66 字」的形状等价回归,恒等式不可复现见 design F11)
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约60秒",
+      "人物：甲",
+      "",
+      "OS（甲，克制）：",
+      "一".repeat(48),
+      "一".repeat(18),
+      "",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.osChars).toBe(48 + 18); // 红:当前=48(吞首行即 break)
+    expect(m.dialogueChars).toBe(1); // 锁:空段后「甲：好。」独立解析
+    expect(m.scenes[0]?.voiceChars).toBe(48 + 18 + 1);
+    // 超长句逐行判(design §2):48 字行超 20 报 1 条,18 字行不报——锁修复后不变
+    expect(m.overlongLines).toHaveLength(1);
+    expect(m.overlongLines[0]?.chars).toBe(48);
+  });
+
+  it("一般化:对白「甲：」空内容同样多行累加(单代码路径,OS 是动机案例非特例)——红=现只吞首行", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "甲：",
+      "一".repeat(12),
+      "一".repeat(8),
+      "",
+      "乙：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.dialogueChars).toBe(12 + 8 + 1); // 红:当前=13(只吞首行 12+乙「好」1)
+  });
+
+  it("停扫:空段即停——空内容语音行与内容之间隔空行即不算——红=现跳过空行继续吞(:204 continue)", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "甲：",
+      "",
+      "第一段落内容。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.dialogueChars).toBe(0); // 红:当前=6(空行被跳过后吞了内容行)
+  });
+
+  it("绿-now 停扫回归锁:续行遇语音行/SFX 行/镜头行即停,修复累加后必须保持(既有 :135-147/:644-649 的多行版)", () => {
+    // 语音行停:甲吞 6 字后遇「乙：好。」停,乙行独立解析
+    const f1 = [HEAD, "", "1-1 场 晨/外 ·约30秒", "人物：甲", "", "甲：", "第一段落内容。", "乙：好。"].join("\n");
+    const m1 = analyzeScriptDraft(f1, { durationMin: 1 });
+    expect(m1.dialogueChars).toBe(6 + 1);
+    // SFX 行停:OS 吞 5 字后遇 SFX 配方行停,配方不入账
+    const f2 = [HEAD, "", "1-1 场 晨/外 ·约30秒", "OS（甲，克制）：", "旁白第一行。", "SFX（惊）：配方"].join("\n");
+    const m2 = analyzeScriptDraft(f2, { durationMin: 1 });
+    expect(m2.osChars).toBe(5);
+    expect(m2.dialogueChars).toBe(0);
+    // 镜头行停:甲吞 4 字后遇「镜头1：」停,镜头行计拍不入语音账
+    const f3 = [HEAD, "", "1-1 场 晨/外 ·约30秒", "人物：甲", "", "甲：", "续行内容。", "镜头1：码头晨光。"].join("\n");
+    const m3 = analyzeScriptDraft(f3, { durationMin: 1 });
+    expect(m3.dialogueChars).toBe(4);
+    expect(m3.beats).toBe(1);
+  });
+
+  it("超长句逐行判:两续行各恰 20 字不报超长(累计 40 计入)——红=osChars 40≠20;超长=0 为锁", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约60秒",
+      "OS（甲，克制）：",
+      "一".repeat(20),
+      "一".repeat(20),
+      "",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.osChars).toBe(40); // 红:当前=20
+    expect(m.overlongLines).toHaveLength(0); // 逐行判:两行各自 20≤20 不超——绿-now 锁
+  });
+
+  it("绿-now 锁:单条续行 21 字报 1 条(修复只加长吞入侧,不改单行超长判定)", () => {
+    const fixture = [HEAD, "", "1-1 场 晨/外 ·约30秒", "OS（甲，克制）：", "一".repeat(21)].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.osChars).toBe(21);
+    expect(m.overlongLines).toHaveLength(1);
+  });
+});
+
+describe("M2 说话人组净化:叙述冒号行不入语音(design §3;livefire8 锚 F2/F12)", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+
+  it("名含中文句读(，)→非语音——红=现整行计对白(名组不排中文标点,:72)", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "他看向窗外，压低了声音说道：来吧。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.dialogueChars).toBe(0); // 红:当前=2(「他看向窗外，压低了声音说道」过名组)
+    expect(m.scenes[0]?.voiceChars).toBe(0);
+    expect(m.overlongLines).toHaveLength(0);
+  });
+
+  it("超长无标点叙述名(13 字>VOICE_NAME_MAX 10)→非语音——红=现计对白(单测长度网)", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "月光穿过百叶窗落在旧沙发上：来吧。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.dialogueChars).toBe(0); // 红:当前=2(13 字名过现 {1,20} 名组)
+    expect(m.overlongLines).toHaveLength(0);
+  });
+
+  it("livefire8 形态:真台词 35 字+叙述行 138 字——红=语音 173 超本场上限 112 假阳性;绿=语音 35 无告警", () => {
+    // design F12 锚:叙述冒号行剔除后语音≈35(<60)且「语音…超本场上限」flag 消失
+    const fixture = [
+      HEAD,
+      "",
+      "1-4 场 夜/内 ·约45秒",
+      "人物：甲",
+      "",
+      `甲：${"一".repeat(20)}`,
+      `甲：${"一".repeat(15)}`,
+      `他看向窗外，压低了声音说道：${"一".repeat(138)}`,
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.scenes[0]?.voiceChars).toBe(35); // 红:当前=173(35+138)
+    expect(m.flags.some((f) => f.includes("语音") && f.includes("超本场上限"))).toBe(false); // 红:当前有「场 1-4 语音 173 字超本场上限 112」
+  });
+
+  it("绿-now 锁:间隔号「·」类名不被句读集误伤(沈·青岚形态,design §3 保留 ·)", () => {
+    const fixture = [HEAD, "", "1-1 场 晨/外 ·约30秒", "人物：沈·青岚", "", "沈·青岚：好。"].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.dialogueChars).toBe(1);
+  });
+});
+
+describe("M3 时长容错两文案(design §4:parseSceneSeconds 单源,缺文案串不变 §7.1)", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+  const mk = (tail: string) => [HEAD, "", `1-1 码头 晨/外 ${tail}`, "人物：甲", "", "甲：好。"].join("\n");
+
+  it.each([
+    ["分隔符后空格", "· 约40秒"],
+    ["内部空格", "·约 40 秒"],
+    ["Ns 形态", "40s"],
+    ["分:秒 形态", "0:40"],
+    ["• 分隔符", "•约40秒"],
+  ])("可解析写法(%s)→ seconds=40 且 title 剥净——红=现报「缺·约N秒标注」", (_label, tail) => {
+    const m = analyzeScriptDraft(mk(tail), { durationMin: 1 });
+    expect(m.scenes[0]?.seconds).toBe(40); // 红:当前=null(SCENE_SECONDS_RE 只认 ·约N秒 单形态)
+    expect(m.flags).not.toContain("场 1-1 缺·约N秒标注"); // 红:当前含
+    expect(m.scenes[0]?.title).toBe("码头 晨/外"); // 红:当前时长原文未剥净
+  });
+
+  it("不认的写法如实报「时长写法不识别」而非「缺时长」——红=现误报缺标注(implement.md 批3)", () => {
+    const m = analyzeScriptDraft(mk("·约一分钟"), { durationMin: 1 });
+    expect(m.flags).toContain("场 1-1 时长写法不识别：约一分钟"); // 红:当前无此文案
+    expect(m.flags).not.toContain("场 1-1 缺·约N秒标注"); // 红:当前误报缺
+    expect(m.scenes[0]?.seconds).toBeNull(); // 绿-now 锁:不识别→seconds 仍 null
+  });
+});
+
+describe("M4 场头容错与幻影场(design §4)", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+  const NO_SCENE_FLAG = "未识别到场次段落（格式漂移，场秒/镜头对账不可用）";
+
+  it("「## 1-1 …」前缀容错——红=现按 Markdown 标题丢弃,零场", () => {
+    const fixture = [HEAD, "", "## 1-1 码头 晨/外 ·约30秒", "人物：甲", "", "△动作。", "甲：好。"].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.scenes).toHaveLength(1); // 红:当前=0
+    expect(m.scenes[0]).toMatchObject({ id: "1-1", title: "码头 晨/外", seconds: 30 }); // 红:前缀须剥净
+    expect(m.flags).not.toContain(NO_SCENE_FLAG); // 红:当前含
+  });
+
+  it("全角连字符「1－1」识别且 id 归一半角——红=现整行漏识;锁:归一后不误报「场号格式不一致」", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1－1 码头 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "甲：好。",
+      "",
+      "1-2 场 夜/内 ·约30秒",
+      "人物：乙",
+      "",
+      "乙：行。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.scenes).toHaveLength(2); // 红:当前=1(1－1 行漏识)
+    expect(m.scenes[0]).toMatchObject({ id: "1-1", seconds: 30 }); // 红:id 归一半角
+    expect(m.flags).not.toContain("场号格式不一致(N-M 与裸数字混用)"); // 锁:两场均 N-M 不误报(现绿;防「归一不彻底按裸数字计」的半吊子修复)
+  });
+
+  it("场内 N-M 裸叙述行「3-5 年前…」不生幻影场——红=现恒识别(:96 无尾锚)并误挂缺标注", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 河岸 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "△河雾未散。",
+      "3-5 年前，这里的渡口还在。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.scenes).toHaveLength(1); // 红:当前=2(幻影场「3-5」)
+    expect(m.flags).not.toContain("场 3-5 缺·约N秒标注"); // 红:当前误挂
+    expect(m.scenes[0]?.voiceChars).toBe(1); // 红:当前「甲：好。」被记进幻影场 3-5
+  });
+
+  it("无尾锚 N-M 场头「1-9 闲笔」拒绝——红=现幻影场;绿=零场并入「未识别到场次」", () => {
+    const m = analyzeScriptDraft([HEAD, "", "1-9 闲笔"].join("\n"), { durationMin: 1 });
+    expect(m.scenes).toHaveLength(0); // 红:当前=1
+    expect(m.flags).toContain(NO_SCENE_FLAG); // 红:当前无
+    expect(m.flags).not.toContain("场 1-9 缺·约N秒标注"); // 红:当前误挂
+  });
+});
+
+describe("M5 语音行变体与标签排除(design §5)", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+  const mk = (line: string) => [HEAD, "", "1-1 场 晨/外 ·约30秒", "人物：甲", "", line].join("\n");
+
+  it("半角括号「OS(甲)：」→ OS——红=现名组吞「OS(甲)」计对白(名组只排全角（)", () => {
+    const m = analyzeScriptDraft(mk("OS(甲)：内心一句话。"), { durationMin: 1 });
+    expect(m.osChars).toBe(5); // 红:当前=0
+    expect(m.dialogueChars).toBe(0); // 红:当前=5
+  });
+
+  it("「V.S（旁白，冷）：」(无尾点)→ OS——红=现 name「V.S」≠「V.S.」计对白", () => {
+    const m = analyzeScriptDraft(mk("V.S（旁白，冷）：风声掠过塔檐。"), { durationMin: 1 });
+    expect(m.osChars).toBe(6); // 红:当前=0
+    expect(m.dialogueChars).toBe(0); // 红:当前=6
+  });
+
+  it("「VO（旁白）：」画外音=OS——红=现计对白", () => {
+    const m = analyzeScriptDraft(mk("VO（旁白）：雾气漫过河面。"), { durationMin: 1 });
+    expect(m.osChars).toBe(6); // 红:当前=0
+    expect(m.dialogueChars).toBe(0); // 红:当前=6
+  });
+
+  it("「VO(甲)：」半角括注→ OS——红=现名组吞「VO(甲)」计对白", () => {
+    const m = analyzeScriptDraft(mk("VO(甲)：脚步声近了。"), { durationMin: 1 });
+    expect(m.osChars).toBe(5); // 红:当前=0
+    expect(m.dialogueChars).toBe(0); // 红:当前=5
+  });
+
+  it("冒号前空格「甲 ：好。」→ 计对白——红=现名组含 \\s 整行漏计", () => {
+    const m = analyzeScriptDraft(mk("甲 ：好。"), { durationMin: 1 });
+    expect(m.dialogueChars).toBe(1); // 红:当前=0
+  });
+
+  it("「字幕：…」标签排除(不计台词)——红=现计对白", () => {
+    const m = analyzeScriptDraft(mk("字幕：开场黑屏。"), { durationMin: 1 });
+    expect(m.dialogueChars).toBe(0); // 红:当前=4
+    expect(m.beats).toBe(0);
+  });
+
+  it("「镜头一：…」中文数字镜头行排除(不计台词亦不计拍)——红=现计对白", () => {
+    const m = analyzeScriptDraft(mk("镜头一：晨光初现。"), { durationMin: 1 });
+    expect(m.dialogueChars).toBe(0); // 红:当前=4
+    expect(m.beats).toBe(0); // 绿-now 锁:中文数字本就不过 SHOT_LINE_RE,修复后仍不给漂移格式发拍数信用
+  });
+
+  it("绿-now 双形态保持锁:「V.S（甲，随意）：」恒计对白(手册 :257,design §5 原样保持)", () => {
+    const m = analyzeScriptDraft(mk("V.S（甲，随意）：师傅说明年还能翻倍。"), { durationMin: 1 });
+    expect(m.dialogueChars).toBe(9);
+    expect(m.osChars).toBe(0);
+  });
+});
+
+describe("M6 画幅+镜号+三手册规则警告级(design §6;裁定=警告级 flags)", () => {
+  const HEAD = "# 已确定要求：x/16:9/y";
+
+  it("画幅:全角冒号「9：16」识别为竖屏——红=现回落 16:9(lineLimit 20,:119-127 无归一)", () => {
+    const fixture = ["# 已确定要求：x/9：16竖屏/x", "", "1-1 场 晨/外 ·约30秒", "人物：甲", "", `甲：${"一".repeat(16)}`].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.lineLimit).toBe(15); // 红:当前=20
+    expect(m.overlongLines).toHaveLength(1); // 红:当前=0(16 字@20 不超)
+  });
+
+  it("画幅:同线双画幅取首个出现位置——红=现「非9:16」子串抢先命中误判竖屏", () => {
+    const fixture = ["# 已确定要求：横屏16:9（非9:16）", "", "1-1 场 晨/外 ·约30秒", "人物：甲", "", `甲：${"一".repeat(16)}`].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.lineLimit).toBe(20); // 红:当前=15
+    expect(m.overlongLines).toHaveLength(0); // 红:当前=1(16 字@15 误报超长)
+  });
+
+  it("镜号重复:场内 1/2/2 → 「场 1-1 镜号 2 重复」——红=现计拍从不校验号(F7)", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约60秒",
+      "人物：甲",
+      "",
+      "镜头1：晨雾未散。",
+      "镜头 2：甲走近渡口。",
+      "镜头2：乙从船头回头。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags).toContain("场 1-1 镜号 2 重复"); // 红:当前无
+    expect(m.beats).toBe(3); // 绿-now 锁:拍数照计
+    expect(m.flags.some((f) => f.includes("镜号跳号"))).toBe(false); // 绿-now 锁:1..max 无缺号
+  });
+
+  it("镜号跳号:场内 1/2/4 → 「场 1-1 镜号跳号：缺 3」——红=现从不校验号", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约60秒",
+      "人物：甲",
+      "",
+      "镜头1：晨雾未散。",
+      "镜头 2：甲走近渡口。",
+      "镜头4：乙从船头回头。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags).toContain("场 1-1 镜号跳号：缺 3"); // 红:当前无
+    expect(m.beats).toBe(3);
+    expect(m.flags.some((f) => f.includes("重复"))).toBe(false); // 无重复号
+  });
+
+  it("绿-now 锁:镜号每场从 1 重计(F7 手册锚)——跨场重起「镜头1」不报", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约30秒",
+      "人物：甲",
+      "",
+      "镜头1：晨雾未散。",
+      "甲：好。",
+      "",
+      "1-2 场 夜/内 ·约30秒",
+      "人物：乙",
+      "",
+      "镜头1：灯火摇曳。",
+      "乙：行。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags.some((f) => f.includes("镜号"))).toBe(false);
+  });
+
+  it("警告级规则①:场内 OS 连续 3 段(无对白间隔)→「警告」flag——红=现无此规则(F8 手册「九、时长与视觉预算」)", () => {
+    const fixture = [
+      HEAD,
+      "",
+      "1-1 场 晨/外 ·约60秒",
+      "人物：甲",
+      "",
+      "OS（旁白）：一段。",
+      "OS（旁白）：二段。",
+      "OS（旁白）：三段。",
+      "甲：好。",
+    ].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags).toContain("「警告」场 1-1 OS 连续 3 段（手册：不连续超过 2 段）"); // 红:当前无
+  });
+
+  it("警告级规则②:场秒 70 超出场景段落 20-60s →「警告」flag——红=现无此规则(70s 本身零 flag)", () => {
+    const fixture = [HEAD, "", "1-1 场 晨/外 ·约70秒", "人物：甲", "", "△动作。", "甲：好。"].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags).toContain("「警告」场 1-1 秒数 70s 超出场景段落 20-60s"); // 红:当前无(durationMin=1 时 70 vs 60 恰 ±10 不触场秒合计)
+  });
+
+  it("警告级规则③:纯视觉段 2 拍≈20s 超过 15 秒 →「警告」flag——红=现无此规则", () => {
+    const fixture = [HEAD, "", "1-1 场 晨/外 ·约60秒", "人物：甲", "", "△第一拍。", "△第二拍。", "甲：好。"].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags).toContain("「警告」场 1-1 纯视觉段 2 拍≈20s 超过 15 秒"); // 红:当前无
+  });
+
+  it("绿-now 锁:全达标夹具(60s∈[20,60]/有对白/无 OS/纯视觉连拍≤1)过三新规则仍零 flags(design §7.2)", () => {
+    const fixture = [HEAD, "", "1-1 场 晨/外 ·约60秒", "人物：甲", "", "△动作。", "甲：你来啦！"].join("\n");
+    const m = analyzeScriptDraft(fixture, { durationMin: 1 });
+    expect(m.flags).toHaveLength(0);
+    expect(m.flags.filter((f) => f.startsWith("「警告」"))).toHaveLength(0);
   });
 });
