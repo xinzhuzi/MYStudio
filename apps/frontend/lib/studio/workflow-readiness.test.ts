@@ -111,6 +111,97 @@ describe("studio workflow readiness", () => {
     });
   });
 
+  it("产线态(已有剧本)只按活动章判事件分析——全本规模不恒显缺口(4125 章场景)", () => {
+    const many = Array.from({ length: 120 }, (_, i) =>
+      i === 0
+        ? analyzedChapter("chapter-1", 1, "第一章")
+        : {
+            id: `chapter-${i + 1}`,
+            index: i + 1,
+            title: `第${i + 1}章`,
+            sourceText: "未分析正文",
+            importedAt: 1,
+          },
+    );
+    const readiness = buildWorkflowReadiness({
+      workflowConfig: readyManuals(),
+      novelChapters: many,
+      agentWorkData: [{ id: "w1", key: "scriptDraft", data: "稿", createdAt: 1, updatedAt: 1 } as never],
+      entityExtractions: [],
+      scriptPlans: [],
+      seriesBible: null,
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      episodeId: "chapter-1",
+    });
+
+    const novelStage = readiness.stages.find((stage) => stage.id === "novel");
+    expect(novelStage?.missing).not.toContain("完成事件分析");
+    expect(novelStage?.missing).not.toContain("完成当前章事件分析");
+    expect(novelStage?.completed).toContain("1 章已完成事件分析");
+  });
+
+  it("产线态但活动章未分析 → 缺口点名当前章", () => {
+    const readiness = buildWorkflowReadiness({
+      workflowConfig: readyManuals(),
+      novelChapters: [
+        analyzedChapter("chapter-1", 1, "第一章"),
+        {
+          id: "chapter-2",
+          index: 2,
+          title: "第二章",
+          sourceText: "未分析正文",
+          importedAt: 1,
+        },
+      ],
+      agentWorkData: [{ id: "w1", key: "scriptDraft", data: "稿", createdAt: 1, updatedAt: 1 } as never],
+      entityExtractions: [],
+      scriptPlans: [],
+      seriesBible: null,
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      episodeId: "chapter-2",
+    });
+
+    expect(
+      readiness.stages.find((stage) => stage.id === "novel"),
+    ).toMatchObject({
+      missing: ["完成当前章事件分析"],
+    });
+  });
+
+  it("产线态但活动章不在章列表 → 回退全库门(保守)", () => {
+    const readiness = buildWorkflowReadiness({
+      workflowConfig: readyManuals(),
+      novelChapters: [
+        analyzedChapter("chapter-1", 1, "第一章"),
+        {
+          id: "chapter-2",
+          index: 2,
+          title: "第二章",
+          sourceText: "未分析正文",
+          importedAt: 1,
+        },
+      ],
+      agentWorkData: [{ id: "w1", key: "scriptDraft", data: "稿", createdAt: 1, updatedAt: 1 } as never],
+      entityExtractions: [],
+      scriptPlans: [],
+      seriesBible: null,
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      episodeId: "chapter-404",
+    });
+
+    expect(
+      readiness.stages.find((stage) => stage.id === "novel"),
+    ).toMatchObject({
+      missing: ["完成事件分析"],
+    });
+  });
+
   it("turns script output into an executable asset extraction action", () => {
     const readiness = buildWorkflowReadiness({
       workflowConfig: readyManuals(),

@@ -141,18 +141,27 @@ export function buildWorkflowReadiness(
     input.workflowConfig.directorManualId,
   );
   const novelReady = input.novelChapters.length > 0;
-  const analyzedNovelCount = input.novelChapters.filter((chapter) =>
+  const isChapterAnalyzed = (chapter: NovelChapter) =>
     Boolean(
       chapter.eventState?.trim() ||
       chapter.eventAnalysis ||
       chapter.eventRawOutput?.trim() ||
       chapter.eventTaskState === "success",
-    ),
-  ).length;
+    );
+  const analyzedNovelCount = input.novelChapters.filter(isChapterAnalyzed).length;
+  const scriptDraftCount = countWork(input.agentWorkData, "scriptDraft");
+  // 事件分析门(全本规模防恒显缺口,LiveFire8 装机实弹误读实证):
+  // 产线未开工(零剧本)时维持全库门引导逐章分析;一旦产线开工(scriptDraft>0),
+  // 事件分析是逐章按需动作,门只看活动章(episodeId);活动章不在列表时保守回退全库门。
+  const activeNovelChapter = input.episodeId
+    ? input.novelChapters.find((chapter) => chapter.id === input.episodeId)
+    : undefined;
+  const productionBegun = scriptDraftCount > 0;
   const novelAnalysisReady =
     input.novelChapters.length > 0 &&
-    analyzedNovelCount >= input.novelChapters.length;
-  const scriptDraftCount = countWork(input.agentWorkData, "scriptDraft");
+    (productionBegun && activeNovelChapter
+      ? isChapterAnalyzed(activeNovelChapter)
+      : analyzedNovelCount >= input.novelChapters.length);
   const scriptReady = scriptDraftCount > 0;
   const assetReady = input.entityExtractions.some(
     (batch) =>
@@ -223,7 +232,11 @@ export function buildWorkflowReadiness(
       ].filter(Boolean),
       missing: [
         novelReady ? "" : "导入小说原文",
-        novelAnalysisReady ? "" : "完成事件分析",
+        novelAnalysisReady
+          ? ""
+          : productionBegun && activeNovelChapter
+            ? "完成当前章事件分析"
+            : "完成事件分析",
       ].filter(Boolean),
     },
     script: {
