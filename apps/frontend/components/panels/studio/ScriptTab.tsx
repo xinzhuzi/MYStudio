@@ -5,6 +5,7 @@ import { analyzeScriptDraft } from "@/lib/studio/script-draft-metrics";
 import {
   buildStageMessages,
   SCRIPT_STAGE_REVIEW_KEY,
+  SCRIPT_STAGE_PROMPT_PLACEHOLDER,
   describeChapterModeAnnotation,
   extractPartialContent,
   getStageSkillContent,
@@ -206,10 +207,16 @@ export function ScriptTab(props: {
   const basePrompt =
     livePrompt === null
       ? props.previewStageUserMessage
-        ? "（正在组装提示词…）"
+        ? SCRIPT_STAGE_PROMPT_PLACEHOLDER
         : standardMessages.user
       : livePrompt || standardMessages.user;
   const promptSource = userDraft ?? basePrompt;
+  // G5:完整产物未就绪防线——接了 hook 预览但 livePrompt 尚未就绪(组装中 null,或组装
+  // 失败 "" 回退本地降级版 standardMessages.user,缺圣经/档案检索/项目记忆/上一集)时,
+  // promptSource 不是 hook 完整组装产物,「可编辑」禁用+title 自释,防占位串/本地降级版
+  // 经编辑器固化成 userDraft 实发(PRD G5 全语义,复审 mustFix 10-14)
+  const promptNotReady =
+    !!props.previewStageUserMessage && (livePrompt === null || livePrompt === "");
   // G12 本章判定只读标注:按章数据形态判定(小说改编/原创),只读不可改——判定错了修章数据,不修判定器
   // F3:标注统一按「一键生成=非修订」口径——已有剧本(含带审核)恒标改编态;修订入口只剩「AI审核生成」
   const chapterModeNote = chapter
@@ -389,6 +396,12 @@ export function ScriptTab(props: {
                     size="sm"
                     variant="secondary"
                     className="shrink-0"
+                    disabled={promptNotReady}
+                    title={
+                      promptNotReady
+                        ? "完整提示词未就绪（组装中或组装失败回退本地降级版），暂不可编辑"
+                        : undefined
+                    }
                     onClick={() =>
                       setEditor({
                         target: "context",
@@ -553,7 +566,15 @@ export function ScriptTab(props: {
                     revision: chapter.revision ?? 1,
                   });
               } else {
-                setUserDraft(editor.value);
+                // G5 防线二:占位串/本地降级版(standardMessages.user=完整组装失败回退产物,
+                // PRD G5「或本地降级版」)都不固化为 userDraft(编辑器在未就绪窗口打开的残留场景);
+                // 实发边界由 useScriptStageActions 的占位串守卫再兜一层
+                if (
+                  editor.value !== SCRIPT_STAGE_PROMPT_PLACEHOLDER &&
+                  editor.value !== standardMessages.user
+                ) {
+                  setUserDraft(editor.value);
+                }
               }
               setEditor(null);
             }}

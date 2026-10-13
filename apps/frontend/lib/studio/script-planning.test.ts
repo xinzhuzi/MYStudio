@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildStageMessages,
@@ -5,6 +7,7 @@ import {
   describeChapterModeAnnotation,
   determineChapterMode,
   extractPartialContent,
+  hasFreshReviewIssues,
   isReviewFresh,
   METHOD_DOCS,
   parseStageOutput,
@@ -285,5 +288,72 @@ describe("extractPartialContent 流式直通", () => {
   it("剥离 think：闭合整段删除，未闭合隐藏其后", () => {
     expect(extractPartialContent("<think>推理</think># 标题")).toBe("# 标题");
     expect(extractPartialContent("<think>还在想")).toBe("");
+  });
+});
+
+// G3(批3 RED,裁定⑤ 10-14,10-13-audit4-gen-chain):isReviewFresh 版本比对优先——
+// 审核条目带 reviewTarget 指纹(被审剧本条目 id+updatedAt)时按版本比对;无指纹回落
+// createdAt 时间比较(script-planning.ts:121-129 现实现=纯时间比较,存量行为逐位不变)。
+// 场景钉板:审核 v1(w1/100)流式期间保存 v2(w2/150),审核完成落库 createdAt=200——
+// 现实现 200>150 误判「针对当前版本」;G3 要求 v2 判「未审」。
+// 注:入参以 as never 过宽——现签名只收 { createdAt? },G3 需条目 id/updatedAt/reviewTarget。
+describe("isReviewFresh 版本比对(G3·裁定⑤)", () => {
+  it("指纹 entryId 不匹配 → 不新鲜(v2 判未审),即便审核 createdAt 晚于剧本", () => {
+    const review = {
+      data: "🔴 台词超长",
+      createdAt: 200,
+      reviewTarget: { entryId: "w1", updatedAt: 100 },
+    } as never;
+    const v2 = { id: "w2", data: "# v2 剧本", createdAt: 150, updatedAt: 150 } as never;
+    expect(isReviewFresh(review, v2)).toBe(false);
+    // 共享判定收口:hasFreshReviewIssues 同步判 false(reviseMode/修订注入/旗标三处共用)
+    expect(hasFreshReviewIssues(review, v2)).toBe(false);
+  });
+
+  it("指纹 updatedAt 不匹配(同条目被改) → 不新鲜", () => {
+    const review = {
+      data: "🔴",
+      createdAt: 200,
+      reviewTarget: { entryId: "w1", updatedAt: 100 },
+    } as never;
+    const edited = { id: "w1", data: "# v1 被改", createdAt: 100, updatedAt: 150 } as never;
+    expect(isReviewFresh(review, edited)).toBe(false);
+  });
+
+  it("指纹齐备且相等 → 新鲜(版本比对优先于 createdAt 先后)", () => {
+    const review = {
+      data: "🔴",
+      createdAt: 200,
+      reviewTarget: { entryId: "w1", updatedAt: 100 },
+    } as never;
+    const v1 = { id: "w1", data: "# v1", createdAt: 100, updatedAt: 100 } as never;
+    expect(isReviewFresh(review, v1)).toBe(true);
+  });
+
+  it("旧数据无 reviewTarget 指纹 → 回落 createdAt 时间比较(存量行为逐位不变)", () => {
+    expect(
+      isReviewFresh({ createdAt: 200 } as never, { id: "w1", createdAt: 100, updatedAt: 100 } as never),
+    ).toBe(true);
+    expect(
+      isReviewFresh({ createdAt: 100 } as never, { id: "w2", createdAt: 150, updatedAt: 150 } as never),
+    ).toBe(false);
+  });
+});
+
+// H9 rider2(RED):剧本手册自查清单「资产包」残称——现值 rg 钉在
+// frontend/assets/studio-manuals/script_execution_script.md:341-342
+// (`- [ ] 角色外貌描写符合资产包（如已注入）`/`- [ ] 场景描写符合资产包（如已注入）`);
+// 该链路的注入真源早已是【原著圣经】(source-bible.ts:81,审核手册 script_agent_supervision.md:127
+// 同用【原著圣经】称谓)。锁新值=改写为【原著圣经】称谓;正向断言防以删行凑绿。
+describe("script_execution_script 手册残称(H9 rider2)", () => {
+  const manual = readFileSync(
+    join(process.cwd(), "frontend/assets/studio-manuals/script_execution_script.md"),
+    "utf8",
+  );
+
+  it("自查清单不残留旧「资产包」称谓;角色/场景项对齐现注入真源【原著圣经】", () => {
+    expect(manual).not.toContain("资产包");
+    expect(manual).toContain("- [ ] 角色外貌描写符合【原著圣经】（如已注入）");
+    expect(manual).toContain("- [ ] 场景描写符合【原著圣经】（如已注入）");
   });
 });

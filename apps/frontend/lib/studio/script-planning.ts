@@ -1,5 +1,5 @@
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
-import type { AgentWorkKey } from "@/types/studio";
+import type { AgentWorkKey, StudioReviewTarget } from "@/types/studio";
 
 /** 逐章编剧链（1 章 = 1 集，B+ 单次生成）：剧本(含规划) → 审核。 */
 export type ScriptStageKey = "scriptDraft" | "supervisionReport";
@@ -36,6 +36,12 @@ export interface ScriptStageContext {
   /** 题材剧本规则节（buildScriptManualContext 产物，自带父 I3 标题）；G33 审核阶段注入
    *  user 段审核主体之后、自检指标之前，空/缺省零注入（与生成侧 directorContext 同源不同位）。 */
   directorNarrative?: string;
+  /** H9 集序:本集在章序中的 1 基序号(集序 k)——原创章方法文档(method_story_development.md:13
+   *  「按总集数 N 确定本集坐标」)的运行前提,须随请求注入且不得被 episodeCount 设置门控;
+   *  缺省(无章序列表)零注入。 */
+  episodeOrdinal?: number;
+  /** H9 集序:总集数 N(1 章 = 1 集,取章序列表长度),与 episodeOrdinal 成对注入。 */
+  episodeTotal?: number;
 }
 
 /** 各阶段对应的 skill 手册（作 system，模仿 ToonFlow）。 */
@@ -48,6 +54,13 @@ export const SCRIPT_STAGE_LABEL: Record<ScriptStageKey, string> = {
   scriptDraft: "剧本(含规划)",
   supervisionReport: "审核",
 };
+
+/**
+ * G5:组装期占位串(ScriptTab livePrompt===null 且接了 hook 预览时的 promptSource 文案)。
+ * 单源导出供两侧防线共用:①ScriptTab「可编辑」禁用+title 自释与 userDraft 保存守卫;
+ * ②useScriptStageActions 实发边界拒绝该字面串作为 userOverride(防固化进请求)。
+ */
+export const SCRIPT_STAGE_PROMPT_PLACEHOLDER = "（正在组装提示词…）";
 
 /** 可独立审核的生成阶段 → 其审核结果存储 key。 */
 export const SCRIPT_STAGE_REVIEW_KEY = {
@@ -113,26 +126,37 @@ export function hasReviewIssues(report?: string): boolean {
 }
 
 /**
- * F3 审核时效：审核条目 createdAt 须严格晚于最新 scriptDraft 条目 createdAt，
- * 才算「针对当前版本的审核」——重新生成剧本后，针对上一版的旧审核不再驱动修订判定。
- * ScriptTab 的 reviseMode 与 useScriptStageActions 的修订注入/文案旗标共用本函数，不两处各写。
- * 任一条目缺失或 createdAt 非数一律判不新鲜（无法证明审核针对当前版本，保守不修订）。
+ * F3 审核时效(G3·裁定⑤ 10-14 改制):版本比对优先——审核条目带 reviewTarget 指纹(被审剧本
+ * 条目 id+updatedAt,审核发起时点捕获,runScriptStage 落库时随 identity 附着)时,指纹与最新
+ * 剧本条目 id+updatedAt 双等=「针对当前版本」;任一不等=过期(v2 判「未审」,审核 v1 流式期间
+ * 保存 v2 的时间窗口不再被 createdAt 先后误判)。旧数据无指纹(reviewTarget 缺失)→ 回落
+ * createdAt 严格晚于比较,存量审核条目行为逐位不变。
+ * ScriptTab 的 reviseMode 与 useScriptStageActions 的修订注入/文案旗标共用本函数,不两处各写。
+ * 任一条目缺失或(回落态)createdAt 非数一律判不新鲜(无法证明审核针对当前版本,保守不修订)。
  */
 export function isReviewFresh(
-  reviewEntry?: { createdAt?: number } | null,
-  latestScriptEntry?: { createdAt?: number } | null,
+  reviewEntry?: { createdAt?: number; reviewTarget?: StudioReviewTarget | null } | null,
+  latestScriptEntry?: { id?: string; createdAt?: number; updatedAt?: number } | null,
 ): boolean {
   if (!reviewEntry || !latestScriptEntry) return false;
+  const reviewTarget = reviewEntry.reviewTarget;
+  if (reviewTarget) {
+    // 裁定⑤:两侧指纹齐备 → 版本比对优先于 createdAt 先后
+    return (
+      latestScriptEntry.id === reviewTarget.entryId &&
+      latestScriptEntry.updatedAt === reviewTarget.updatedAt
+    );
+  }
   const reviewAt = reviewEntry.createdAt;
   const scriptAt = latestScriptEntry.createdAt;
   if (typeof reviewAt !== "number" || typeof scriptAt !== "number") return false;
   return reviewAt > scriptAt;
 }
 
-/** 「针对当前版本的修订审核」完整判定=含未修复问题 且 晚于最新剧本(收拢三处手写组合,防漏改重演 F3 类不一致)。 */
+/** 「针对当前版本的修订审核」完整判定=含未修复问题 且 针对当前版本(收拢三处手写组合,防漏改重演 F3 类不一致)。 */
 export function hasFreshReviewIssues(
-  reviewEntry?: { data?: string; createdAt?: number } | null,
-  latestScriptEntry?: { createdAt?: number } | null,
+  reviewEntry?: { data?: string; createdAt?: number; reviewTarget?: StudioReviewTarget | null } | null,
+  latestScriptEntry?: { id?: string; createdAt?: number; updatedAt?: number } | null,
 ): boolean {
   return hasReviewIssues(reviewEntry?.data) && isReviewFresh(reviewEntry, latestScriptEntry);
 }
@@ -168,7 +192,12 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
   if (ctx.directorContext) {
     lines.push(ctx.directorContext);
   }
-  lines.push(`## 本集信息（1 章 = 1 集）\n章节：${ctx.chapterTitle}`);
+  // H9 集序:序号行紧随章节行,仅两侧齐备时注入(缺省零注入,不破既有快照口径)
+  const episodeOrdinalLine =
+    ctx.episodeOrdinal !== undefined && ctx.episodeTotal !== undefined
+      ? `\n本集序号：${ctx.episodeOrdinal}/${ctx.episodeTotal}`
+      : "";
+  lines.push(`## 本集信息（1 章 = 1 集）\n章节：${ctx.chapterTitle}${episodeOrdinalLine}`);
   if (ctx.eventState) lines.push(`本章事件分析：\n${ctx.eventState}`);
   if (ctx.projectMemoryContext) lines.push(ctx.projectMemoryContext);
   if (ctx.eventMemoryContext) lines.push(ctx.eventMemoryContext);

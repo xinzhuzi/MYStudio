@@ -57,6 +57,9 @@ export function createAgentWorkSliceActions(set: SetFn, get: GetFn) {
         data,
         sourceId: identity?.sourceId,
         revision: identity?.revision,
+        // G3(裁定⑤):审核条目随 identity 附着被审剧本条目指纹(id+updatedAt),
+        // isReviewFresh 版本比对的真源;生成/手工条目不带该字段,零影响
+        reviewTarget: identity?.reviewTarget,
         createdAt: now,
         updatedAt: now,
       };

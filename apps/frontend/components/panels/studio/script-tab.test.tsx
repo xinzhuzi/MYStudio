@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, act } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { ScriptTab } from "./ScriptTab";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -710,5 +710,122 @@ describe("章选择装载接线(G1)", () => {
     expect(screen.getByText(/本章判定：小说改编/)).toBeTruthy();
     const summary = screen.getByText(/含：/).textContent ?? "";
     expect(summary).toContain("本章正文");
+  });
+});
+
+// G5(批2 RED,10-13-audit4-gen-chain):组装期占位串防线——livePrompt===null(组装中)时
+// 「AI提示词」页「可编辑」禁用+title 自释,防「（正在组装提示词…）」被固化成 userDraft
+// (ScriptTab.tsx:207-211 占位串进 promptSource → :392-397 可编辑无守卫直开编辑器);
+// 组装完成后恢复可用(守卫只覆盖组装窗口,不得恒禁用)。
+describe("组装期占位串防线(G5)", () => {
+  const chapter = { id: "ch-g5", index: 1, title: "第一章", sourceText: "正文……", importedAt: 1 };
+
+  it("livePrompt===null(组装中)时「可编辑」禁用+title 自释;组装完成恢复可用", async () => {
+    let resolvePreview: ((text: string | null) => void) | undefined;
+    const previewMock = vi.fn(
+      () =>
+        new Promise<string | null>((resolve) => {
+          resolvePreview = resolve;
+        }),
+    );
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        previewStageUserMessage={previewMock}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+    const editButton = () => screen.getByRole("button", { name: "可编辑" }) as HTMLButtonElement;
+
+    // 组装中:禁用 + title 自释(现实现无 disabled → 红)
+    expect(editButton().disabled).toBe(true);
+    expect(editButton().title).toContain("组装");
+
+    // 组装完成:恢复可用(非恒禁用)
+    await act(async () => {
+      resolvePreview?.("# 完整提示词");
+    });
+    await waitFor(() => expect(editButton().disabled).toBe(false));
+  });
+
+  // mustFix(10-14 复审):PRD G5 另一半「本地降级版」——livePrompt===""(hook 完整构建失败,
+  // previewStageUserMessage 返 null → setLivePrompt(""))时 basePrompt 回退 standardMessages.user
+  // (本地 buildStageMessages 降级产物,缺圣经/档案检索/项目记忆/上一集),守卫若只认占位串,
+  // 降级版经编辑器固化成 userDraft 实发。
+  it("G5:组装失败(livePrompt===\"\"回退本地降级版)时「可编辑」同样禁用", async () => {
+    const chapter = { id: "ch-g5-fail", index: 1, title: "第一章", sourceText: "正文……", importedAt: 1 };
+    // 完整构建失败:previewStageUserMessage 返 null → ScriptTab setLivePrompt("")
+    const previewMock = vi.fn(async () => null);
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={vi.fn()}
+        runReview={vi.fn()}
+        previewStageUserMessage={previewMock}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    await waitFor(() => expect(previewMock).toHaveBeenCalled());
+    const editButton = screen.getByRole("button", { name: "可编辑" }) as HTMLButtonElement;
+    expect(editButton.disabled).toBe(true);
+    expect(editButton.title).toContain("组装");
+  });
+
+  // mustFix(10-14 复审)防线二:本地降级版(standardMessages.user)不得固化为 userDraft——
+  // 无 hook 回退窗口打开编辑器原样保存 → 一键生成不得把降级版作 userOverride 实发
+  it("G5:保存编辑器里的本地降级版(standardMessages.user 原样)不固化成 userDraft 实发", async () => {
+    const chapter = { id: "ch-g5-save", index: 1, title: "第一章", sourceText: "正文……", importedAt: 1 };
+    const runStageMock = vi.fn();
+
+    render(
+      <ScriptTab
+        novelChapters={[chapter]}
+        agentWorkData={[]}
+        saveAgentWorkData={vi.fn()}
+        runStage={runStageMock}
+        runReview={vi.fn()}
+        manualContext=""
+        directorContext=""
+        styleSummary=""
+        scriptStreaming={null}
+      />,
+    );
+
+    // 无 hook 回退窗口:basePrompt=standardMessages.user,「可编辑」可用,直开即降级版
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+    fireEvent.click(screen.getByRole("button", { name: "可编辑" }));
+    // 编辑器直存未改的降级版(ScriptEditorDialog 保存钮,portal 内容)
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // 同阶段切控制页签(userDraft 只按 chapterId/activeStage 清,控制页签切换不清)→ 一键生成
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "一键生成：按改编模式重新生成(不走修订)" }),
+    );
+
+    expect(runStageMock).toHaveBeenCalledTimes(1);
+    // 降级版不得作 userOverride 实发:第三参须 undefined(回落 hook 完整组装产物)
+    expect(runStageMock).toHaveBeenCalledWith("scriptDraft", chapter, undefined, {
+      useReviewFeedback: false,
+    });
   });
 });

@@ -72,6 +72,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { SCRIPT_STAGE_STREAM_TIMEOUT_MS, useScriptStageActions } from "./useScriptStageActions";
 import { ScriptTab } from "./ScriptTab";
 import { buildStudioManualContext } from "@/lib/studio/manuals";
+import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import type { NovelChapter } from "@/types/studio";
 
 const chapter = {
@@ -426,5 +427,226 @@ describe("useScriptStageActions stream failure recovery", () => {
     expect(saveAgentWorkDataMock).toHaveBeenCalledTimes(1);
     const savedData = saveAgentWorkDataMock.mock.calls[0]?.[1] as unknown as string;
     expect(savedData).toContain("二次生成产出");
+  });
+});
+
+// ── 批2/批3 + riders RED(10-13-audit4-gen-chain,10-14;只写测试,不改生产码)──────────
+// 红因钉板(读码坐标,10-14 现值):
+// G2:互斥槽置位在 runScriptStage 体内(useScriptStageActions.ts:137),晚于 buildStageMessagesFull
+//    的 await(handleScriptStage :292 / handleStageReview :325 的 readBibleContext)——组装期第二击
+//    不受阻,两路都进 textStream。
+// G4:runScriptStage 只看 result.text 原文(:175)判空,<think> 未闭合截断时 parseStageOutput
+//    返回空串(script-planning.ts:219-227)照样落库,上一版被空串遮蔽。
+// G5:userOverride 直通 messages.user(:304),字面占位串「（正在组装提示词…）」可被固化为实发内容。
+// rider1(H9 集序):scriptStyleSummary 仅 episodeCount 设置时注「集数」(:75-77),本集序号(k/N)
+//    恒缺位;而 method_story_development.md:13 要求「按总集数 N 确定本集坐标」。
+const renderActionsWithWorkData = (agentWorkData: unknown[]) =>
+  renderHook(() =>
+    useScriptStageActions({
+      workflowConfig: {} as never,
+      manualCatalog: {} as never,
+      projectName: "测试项目",
+      novelChapterCount: 1,
+      novelChapters: [chapter],
+      agentWorkData: agentWorkData as never,
+      saveAgentWorkData: saveAgentWorkDataMock as never,
+    }),
+  );
+
+const lastUserMessage = () => {
+  const request = textStreamMock.mock.calls[0]?.[0] as {
+    messages: { role: string; content: string }[];
+  };
+  return request.messages.find((m) => m.role === "user")?.content ?? "";
+};
+
+describe("useScriptStageActions 组装期并发锁(G2)", () => {
+  const sourceMemoryMock = () => vi.mocked(readSourceMemoryActionContext);
+
+  beforeEach(() => {
+    textStreamMock.mockReset();
+    saveAgentWorkDataMock.mockReset();
+    textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
+    sourceMemoryMock().mockReset();
+    // archiveStatus 为真类型必填字段(source-memory.ts:357-360),mock 值与出厂 mock(:37)对齐补齐
+    sourceMemoryMock().mockResolvedValue({ success: true, context: "BIBLE", archiveStatus: "available" });
+  });
+
+  it("组装期连点两击生成只发一路请求,锁在点击当下同步置位(早于任何 await)", async () => {
+    // 慢速组装:档案检索挂起 → 首击停在 buildStageMessagesFull 的 await,未到 runScriptStage
+    let releaseAssembly: (() => void) | undefined;
+    sourceMemoryMock().mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseAssembly = () => resolve({ success: true, context: "BIBLE", archiveStatus: "available" });
+        }),
+    );
+    const { result } = renderActions();
+
+    let firstRun: Promise<unknown> = Promise.resolve();
+    let secondRun: Promise<unknown> = Promise.resolve();
+    act(() => {
+      firstRun = result.current.handleScriptStage("scriptDraft", chapter);
+      // 第二击落在首击组装期(档案检索挂起中)
+      secondRun = result.current.handleScriptStage("scriptDraft", chapter);
+    });
+
+    // 锁位置(裁定:点击当下同步置位,早于任何 await):首击发起后流槽必须已被占位——
+    // 现实现要等组装完成才在 runScriptStage 里置位(:137),此处先红
+    expect(result.current.scriptStreaming).not.toBeNull();
+
+    releaseAssembly?.();
+    await act(async () => {
+      await Promise.allSettled([firstRun, secondRun]);
+    });
+    // 单路:组装期第二击必须被拒,全程只 1 路 AI 请求(现实现两路都放行 → 红)
+    expect(textStreamMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("组装期生成+审核交叉同锁互斥:审核不得并发第二路", async () => {
+    let releaseAssembly: (() => void) | undefined;
+    sourceMemoryMock().mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseAssembly = () => resolve({ success: true, context: "BIBLE", archiveStatus: "available" });
+        }),
+    );
+    // 审核前置:须有既有剧本,否则审核入口早退(「请先生成」),测不到并发面
+    const { result } = renderActionsWithWorkData([
+      { id: "w1", key: "scriptDraft", episodeId: "ch1", data: "# v1 剧本", createdAt: 100, updatedAt: 100 },
+    ]);
+
+    let generateRun: Promise<unknown> = Promise.resolve();
+    let reviewRun: Promise<unknown> = Promise.resolve();
+    act(() => {
+      generateRun = result.current.handleScriptStage("scriptDraft", chapter);
+      // 交叉:生成仍在组装期(挂起),审核同步发起
+      reviewRun = result.current.handleStageReview("scriptDraft", chapter);
+    });
+
+    // 同一把锁:交叉发起后流槽已被生成占位(审核须被拒)
+    expect(result.current.scriptStreaming).not.toBeNull();
+
+    releaseAssembly?.();
+    await act(async () => {
+      await Promise.allSettled([generateRun, reviewRun]);
+    });
+    // 生成+审核交叉同锁:全程只 1 路 AI 请求(现实现两路都放行 → 红)
+    expect(textStreamMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useScriptStageActions 空输出不落库(G4)", () => {
+  beforeEach(async () => {
+    textStreamMock.mockReset();
+    saveAgentWorkDataMock.mockReset();
+    // toast mock 为模块级单例,调用记录跨用例累积——清零后本用例的「不再弹成功 toast」才可断言
+    const { toast } = await import("sonner");
+    vi.mocked(toast.error).mockClear();
+    vi.mocked(toast.success).mockClear();
+  });
+
+  it("<think> 未闭合截断致解析为空 → 不落库、最新版仍上一版、提示截断+原文诊断", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      textStreamMock.mockResolvedValue({ success: true, text: "<think>推理未闭合直到输出戛然而止" });
+      const { result } = renderActionsWithWorkData([
+        { id: "w1", key: "scriptDraft", episodeId: "ch1", data: "# 上一版剧本v1", createdAt: 100, updatedAt: 100 },
+      ]);
+
+      await act(async () => {
+        await result.current.handleScriptStage("scriptDraft", chapter);
+      });
+
+      // 空解析不落库:saveAgentWorkData 零调用 → w1 仍是最新版(不被空串遮蔽)
+      // (现实现 :175 只看原文非空,parseStageOutput 空串照样落库 → 红)
+      expect(saveAgentWorkDataMock).not.toHaveBeenCalled();
+      // 原始文本留诊断位(console.error)
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy.mock.calls.map((call) => call.join(" ")).join("\n")).toContain("<think>");
+      // 提示截断(PRD G4 口径「输出被截断/为空」),且不再弹成功 toast
+      const { toast } = await import("sonner");
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith(expect.stringContaining("输出被截断"));
+      expect(vi.mocked(toast.success)).not.toHaveBeenCalled();
+      // G2 联动(设计 §2:先解锁再提示,防锁死)——空输出路径结束后流槽必须已释放
+      expect(result.current.scriptStreaming).toBeNull();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+});
+
+describe("useScriptStageActions 占位串守卫(G5)", () => {
+  beforeEach(() => {
+    textStreamMock.mockReset();
+    saveAgentWorkDataMock.mockReset();
+    textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
+  });
+
+  it("字面占位串「（正在组装提示词…）」不得作为 userOverride 实发,须回落完整组装产物", async () => {
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.handleScriptStage("scriptDraft", chapter, "（正在组装提示词…）");
+    });
+
+    expect(textStreamMock).toHaveBeenCalledTimes(1);
+    const userMessage = lastUserMessage();
+    // 现实现 userOverride 直通(:304 userOverride || built.user)→ 实发即占位串 → 红;
+    // 守卫后回落 built.user(完整组装产物,含本集信息节)
+    expect(userMessage).not.toContain("（正在组装提示词…）");
+    expect(userMessage).toContain("## 本集信息（1 章 = 1 集）");
+  });
+});
+
+describe("原创章集序注入(H9 rider1)", () => {
+  beforeEach(() => {
+    textStreamMock.mockReset();
+    saveAgentWorkDataMock.mockReset();
+    textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
+  });
+
+  it("原创章生成请求注入集序「本集序号：k/N」,不依赖 workflowConfig.episodeCount 设置", async () => {
+    const originalCh1 = {
+      id: "ch-ord-1",
+      index: 1,
+      title: "第一章",
+      eventSummary: "",
+      eventState: "",
+      sourceId: "src1",
+      revision: 1,
+      importedAt: 1,
+    } as unknown as NovelChapter;
+    const originalCh2 = {
+      id: "ch-ord-2",
+      index: 2,
+      title: "第二章",
+      eventSummary: "",
+      eventState: "",
+      sourceId: "src2",
+      revision: 1,
+      importedAt: 2,
+    } as unknown as NovelChapter;
+    const { result } = renderHook(() =>
+      useScriptStageActions({
+        // workflowConfig 空形:episodeCount 不设——集序注入不得被该开关门控(H9 缺陷本体)
+        workflowConfig: {} as never,
+        manualCatalog: {} as never,
+        projectName: "测试项目",
+        novelChapterCount: 2,
+        novelChapters: [originalCh1, originalCh2],
+        agentWorkData: [],
+        saveAgentWorkData: saveAgentWorkDataMock as never,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleScriptStage("scriptDraft", originalCh2);
+    });
+
+    expect(textStreamMock).toHaveBeenCalledTimes(1);
+    // method_story_development.md:13「按总集数 N 确定本集坐标」——原创章方法文档运行所需的本集
+    // 坐标(k/N)必须随请求注入;现实现恒缺位 → 红
+    expect(lastUserMessage()).toContain("本集序号：2/2");
   });
 });

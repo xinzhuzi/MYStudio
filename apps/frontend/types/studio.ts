@@ -8,6 +8,18 @@ export type CharacterReferenceViewType = "front" | "side" | "back" | "three-quar
 export interface StudioSourceIdentity {
   sourceId?: string;
   revision?: number;
+  /**
+   * G3(裁定⑤ 10-14):审核条目对被审剧本条目的版本指纹——审核发起时点捕获最新 scriptDraft
+   * 条目的 id+updatedAt,经 runScriptStage 落库时附着在审核条目上;isReviewFresh 以此做版本
+   * 比对(无指纹回落 createdAt 时间比较)。只增可选字段,零存储桶新增,保存签名不动。
+   */
+  reviewTarget?: StudioReviewTarget;
+}
+
+/** G3(裁定⑤):被审条目版本指纹(条目 id + 落库时 updatedAt),与 D2/D5 sourceScript 标识同形态。 */
+export interface StudioReviewTarget {
+  entryId: string;
+  updatedAt: number;
 }
 
 // 1011 终清:B+ 收口前的旧段键(storySkeleton/adaptationStrategy 及其 Review)已从联合

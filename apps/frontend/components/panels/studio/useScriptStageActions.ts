@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildStageMessages,
@@ -6,6 +6,7 @@ import {
   hasFreshReviewIssues,
   parseStageOutput,
   SCRIPT_STAGE_LABEL,
+  SCRIPT_STAGE_PROMPT_PLACEHOLDER,
   SCRIPT_STAGE_REVIEW_KEY,
   type ReviewableStage,
   type ScriptStageKey,
@@ -30,6 +31,7 @@ import type {
   AgentWorkData,
   AgentWorkKey,
   NovelChapter,
+  StudioReviewTarget,
   StudioWorkflowConfig,
 } from "@/types/studio";
 import { toast } from "sonner";
@@ -123,6 +125,33 @@ export function useScriptStageActions({
     thinking?: string;
   } | null>(null);
 
+  // G2:互斥锁的同步面——ref 保证「点击当下」跨调用立即可见(setState 批处理异步不可靠),
+  // scriptStreaming state 仅作 UI 投影;生成与审核共用同一槽位语义(互斥)。
+  const scriptStreamSlotRef = useRef<{ stageKey: AgentWorkKey; scopeId: string } | null>(null);
+
+  /** G2:点击当下同步占槽(早于 buildStageMessagesFull 的任何 await);已被占=拒绝(返回 false)。 */
+  const acquireStreamSlot = useCallback(
+    (stageKey: AgentWorkKey, scopeId: string): boolean => {
+      if (scriptStreamSlotRef.current) return false;
+      scriptStreamSlotRef.current = { stageKey, scopeId };
+      setScriptStreaming({ key: stageKey, scopeId, text: "", thinking: "" });
+      return true;
+    },
+    [],
+  );
+
+  /** G2:释放槽位(幂等;按 stageKey+scopeId 认领,陈旧释放不会误清新一轮)。 */
+  const releaseStreamSlot = useCallback((stageKey: AgentWorkKey, scopeId: string) => {
+    if (
+      scriptStreamSlotRef.current?.stageKey !== stageKey ||
+      scriptStreamSlotRef.current?.scopeId !== scopeId
+    ) {
+      return;
+    }
+    scriptStreamSlotRef.current = null;
+    setScriptStreaming(null);
+  }, []);
+
   const runScriptStage = useCallback(
     async (opts: {
       agentKey: "scriptDraft";
@@ -133,13 +162,11 @@ export function useScriptStageActions({
       revised?: boolean;
       sourceId?: string;
       revision?: number;
+      /** G3:审核条目附着被审剧本条目指纹(审核发起时点捕获),isReviewFresh 版本比对真源 */
+      reviewTarget?: StudioReviewTarget;
     }) => {
-      setScriptStreaming({
-        key: opts.stageKey,
-        scopeId: opts.scopeId,
-        text: "",
-        thinking: "",
-      });
+      // G2:槽位已由 handleScriptStage/handleStageReview 入口同步占位,此处不再置位——
+      // 仅负责流结束后释放(finally)。
       // 1011 欠账⑤:textStream 顶层 reject(流式 IPC 异常等)时下方清零不可达,scriptStreaming
       // 永卡非 null——ScriptTab 生成/审核按钮(scriptStreaming!==null 即禁用)永久禁用无恢复
       // 入口。try/finally 兜底保证流态必回落;异常本身不吞仍向上抛(拒绝语义与修前一致)。
@@ -170,17 +197,34 @@ export function useScriptStageActions({
         toast.error(error instanceof Error ? error.message : `${opts.label}生成异常,请重试`);
         throw error;
       } finally {
-        setScriptStreaming(null);
+        // G2 锁序:先解锁再走后续 toast/落库分支,防任何分支把锁带进坟墓
+        releaseStreamSlot(opts.stageKey, opts.scopeId);
       }
       if (!result.success || !result.text) {
         toast.error(result.error || `${opts.label}生成失败`);
         return;
       }
+      // G4:空解析不落库——<think> 未闭合截断等致 parseStageOutput trim 后为空时,
+      // 原文非空但正文为零字符,落库会把上一版遮蔽成空串。此处不落库保上一版,
+      // 原始文本留 console 诊断位,并按失败口径提示(先解锁后提示,finally 已释放)。
+      const parsed = parseStageOutput(result.text);
+      if (!parsed) {
+        console.error(
+          `[script-stage] ${opts.label} 输出解析为空(疑似被截断),已保留上一版。原始文本:`,
+          result.text,
+        );
+        toast.error(`${opts.label}输出被截断/为空，已保留上一版`);
+        return;
+      }
       saveAgentWorkData(
         opts.stageKey,
-        parseStageOutput(result.text),
+        parsed,
         opts.scopeId,
-        { sourceId: opts.sourceId ?? opts.scopeId, revision: opts.revision ?? 1 },
+        {
+          sourceId: opts.sourceId ?? opts.scopeId,
+          revision: opts.revision ?? 1,
+          reviewTarget: opts.reviewTarget,
+        },
       );
       toast.success(
         opts.revised
@@ -188,7 +232,7 @@ export function useScriptStageActions({
           : `${opts.label}已生成`,
       );
     },
-    [saveAgentWorkData],
+    [saveAgentWorkData, releaseStreamSlot],
   );
 
   // 常驻圣经块 + 原著档案检索合一（用户裁定：每条消息常驻块只有一个，检索追加其后；
@@ -262,6 +306,11 @@ export function useScriptStageActions({
             ? review
             : undefined,
         previousOutput: latestScriptStage(stage, chapter.id),
+        // H9 集序:1 基章序/总集数随请求注入(原创章方法文档定位本集坐标的运行前提),
+        // 不被 workflowConfig.episodeCount 门控;无章序列表时缺省零注入
+        episodeOrdinal:
+          chapterIndex >= 0 && novelChapters ? chapterIndex + 1 : undefined,
+        episodeTotal: novelChapters?.length,
       });
       return { ok: true, system: built.system, user: built.user };
     },
@@ -288,81 +337,116 @@ export function useScriptStageActions({
       userOverride?: string,
       options?: { useReviewFeedback?: boolean },
     ) => {
-      // B+ 单次生成：剧本(含规划)无前置阶段门禁——方法文档按本章判定自动注入(buildStageMessages 内)
-      const built = await buildStageMessagesFull(stage, chapter, options);
-      if (!built.ok) {
-        toast.error(built.error);
+      // G2:互斥锁在点击当下同步置位(早于 buildStageMessagesFull 的任何 await)——组装期
+      // 第二击/生成+审核交叉在此被拒,全程只放行一路;锁面=ref(同步可见),state 仅 UI 投影。
+      if (!acquireStreamSlot(stage, chapter.id)) {
+        toast.error(`「${SCRIPT_STAGE_LABEL[stage]}」正在生成/审核中，请等待完成后再试`);
         return;
       }
-      // F3:修订文案旗标与注入判定同口径——审核含未修复问题 且 晚于最新剧本(isReviewFresh 共享)
-      const reviewKey = SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage];
-      const reviewEntry = reviewKey
-        ? latestScriptStageEntry(reviewKey, chapter.id)
-        : undefined;
-      return runScriptStage({
-        agentKey: "scriptDraft",
-        messages: { system: built.system, user: userOverride || built.user },
-        stageKey: stage,
-        scopeId: chapter.id,
-        label: SCRIPT_STAGE_LABEL[stage],
-        revised:
-          options?.useReviewFeedback &&
-          hasFreshReviewIssues(reviewEntry, latestScriptStageEntry(stage, chapter.id)),
-        sourceId: chapter.sourceId ?? chapter.id,
-        revision: chapter.revision ?? 1,
-      });
+      try {
+        // B+ 单次生成：剧本(含规划)无前置阶段门禁——方法文档按本章判定自动注入(buildStageMessages 内)
+        const built = await buildStageMessagesFull(stage, chapter, options);
+        if (!built.ok) {
+          toast.error(built.error);
+          return;
+        }
+        // F3:修订文案旗标与注入判定同口径——审核含未修复问题 且 晚于最新剧本(isReviewFresh 共享)
+        const reviewKey = SCRIPT_STAGE_REVIEW_KEY[stage as ReviewableStage];
+        const reviewEntry = reviewKey
+          ? latestScriptStageEntry(reviewKey, chapter.id)
+          : undefined;
+        // G5:实发边界拒绝字面占位串——组装期占位串即便漏进 userDraft(编辑器残留等),
+        // 也不得固化为 userOverride,回落完整组装产物
+        const effectiveOverride =
+          userOverride && userOverride !== SCRIPT_STAGE_PROMPT_PLACEHOLDER
+            ? userOverride
+            : undefined;
+        return await runScriptStage({
+          agentKey: "scriptDraft",
+          messages: { system: built.system, user: effectiveOverride || built.user },
+          stageKey: stage,
+          scopeId: chapter.id,
+          label: SCRIPT_STAGE_LABEL[stage],
+          revised:
+            options?.useReviewFeedback &&
+            hasFreshReviewIssues(reviewEntry, latestScriptStageEntry(stage, chapter.id)),
+          sourceId: chapter.sourceId ?? chapter.id,
+          revision: chapter.revision ?? 1,
+        });
+      } finally {
+        // G2:组装段早退(构建失败/异常)也必须释放;成功路径已被 runScriptStage 的
+        // finally 先行释放,此处幂等兜底
+        releaseStreamSlot(stage, chapter.id);
+      }
     },
-    [runScriptStage, latestScriptStageEntry, buildStageMessagesFull],
+    [runScriptStage, latestScriptStageEntry, buildStageMessagesFull, acquireStreamSlot, releaseStreamSlot],
   );
 
   const handleStageReview = useCallback(
     async (stage: ReviewableStage, chapter: NovelChapter) => {
-      const target = latestScriptStage(stage, chapter.id);
-      if (!target) {
-        toast.error(`请先生成${SCRIPT_STAGE_LABEL[stage]}`);
+      const reviewStageKey = SCRIPT_STAGE_REVIEW_KEY[stage];
+      // G2:与生成共用同一互斥槽,点击当下同步占位——组装期交叉点击在此被拒
+      if (!acquireStreamSlot(reviewStageKey, chapter.id)) {
+        toast.error(`「${SCRIPT_STAGE_LABEL[stage]}审核」正在生成/审核中，请等待完成后再试`);
         return;
       }
-      const memory = await readBibleContext(
-        `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
-      );
-      if (!memory.success) {
-        toast.error(memory.error);
-        return;
+      try {
+        // G3:被审剧本条目在审核发起时点捕获(此后至落库前保存的新版本不改变指纹)——
+        // 「审核 v1 流式期间保存 v2」时指纹仍指 v1,落库后 v2 判「未审」
+        const targetEntry = latestScriptStageEntry(stage, chapter.id);
+        const target = targetEntry?.data ?? "";
+        if (!target) {
+          toast.error(`请先生成${SCRIPT_STAGE_LABEL[stage]}`);
+          return;
+        }
+        const memory = await readBibleContext(
+          `${chapter.title} ${chapter.eventSummary ?? ""} ${chapter.eventState ?? ""}`,
+        );
+        if (!memory.success) {
+          toast.error(memory.error);
+          return;
+        }
+        const built = buildStageReviewMessages(stage, {
+          manualContext: scriptStyleSummary,
+          // G33:审核侧同注题材剧本规则节——复用生成侧同一 memo 产物(scriptDirectorContext),
+          // 注入位在审核主体之后、自检指标之前(buildStageReviewMessages 内)
+          directorNarrative: scriptDirectorContext,
+          originalBibleContext: memory.context,
+          chapterTitle: chapter.title,
+          chapterText: chapter.sourceText ?? "",
+          eventState: chapter.eventState,
+          scriptDraft: target,
+          // R4/G9:审核前对审核主体算确定性自检指标(父 I5 节随 user 注入,审核以其数值为准);
+          // 画幅真源=剧本头部自述(script-draft-metrics 内解析),opts 仅兜底
+          ...(stage === "scriptDraft"
+            ? {
+                selfCheckMetrics: formatScriptDraftMetrics(
+                  analyzeScriptDraft(target, {
+                    durationMin: workflowConfig.episodeDurationMin ?? 3,
+                    aspectRatio: workflowConfig.platformSpec || "16:9",
+                  }),
+                ),
+              }
+            : {}),
+        });
+        return await runScriptStage({
+          agentKey: "scriptDraft",
+          messages: { system: built.system, user: built.user },
+          stageKey: reviewStageKey,
+          scopeId: chapter.id,
+          label: `${SCRIPT_STAGE_LABEL[stage]}审核`,
+          sourceId: chapter.sourceId ?? chapter.id,
+          revision: chapter.revision ?? 1,
+          reviewTarget: targetEntry
+            ? { entryId: targetEntry.id, updatedAt: targetEntry.updatedAt }
+            : undefined,
+        });
+      } finally {
+        // G2:同 handleScriptStage——早退/异常路径幂等兜底释放
+        releaseStreamSlot(reviewStageKey, chapter.id);
       }
-      const built = buildStageReviewMessages(stage, {
-        manualContext: scriptStyleSummary,
-        // G33:审核侧同注题材剧本规则节——复用生成侧同一 memo 产物(scriptDirectorContext),
-        // 注入位在审核主体之后、自检指标之前(buildStageReviewMessages 内)
-        directorNarrative: scriptDirectorContext,
-        originalBibleContext: memory.context,
-        chapterTitle: chapter.title,
-        chapterText: chapter.sourceText ?? "",
-        eventState: chapter.eventState,
-        scriptDraft: target,
-        // R4/G9:审核前对审核主体算确定性自检指标(父 I5 节随 user 注入,审核以其数值为准);
-        // 画幅真源=剧本头部自述(script-draft-metrics 内解析),opts 仅兜底
-        ...(stage === "scriptDraft"
-          ? {
-              selfCheckMetrics: formatScriptDraftMetrics(
-                analyzeScriptDraft(target, {
-                  durationMin: workflowConfig.episodeDurationMin ?? 3,
-                  aspectRatio: workflowConfig.platformSpec || "16:9",
-                }),
-              ),
-            }
-          : {}),
-      });
-      return runScriptStage({
-        agentKey: "scriptDraft",
-        messages: { system: built.system, user: built.user },
-        stageKey: SCRIPT_STAGE_REVIEW_KEY[stage],
-        scopeId: chapter.id,
-        label: `${SCRIPT_STAGE_LABEL[stage]}审核`,
-        sourceId: chapter.sourceId ?? chapter.id,
-        revision: chapter.revision ?? 1,
-      });
     },
-    [runScriptStage, latestScriptStage, scriptStyleSummary, scriptDirectorContext, workflowConfig],
+    [runScriptStage, latestScriptStageEntry, scriptStyleSummary, scriptDirectorContext, workflowConfig, acquireStreamSlot, releaseStreamSlot],
   );
 
   return {
