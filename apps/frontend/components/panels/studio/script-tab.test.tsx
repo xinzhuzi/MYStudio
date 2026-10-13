@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { ScriptTab } from "./ScriptTab";
+import { useStudioStore } from "@/stores/studio/studio-store";
 
 // MdPreview/MdEditor 在 jsdom 里不可靠,用最小替身(值展示)
 vi.mock("md-editor-rt", () => ({
@@ -658,5 +659,56 @@ describe("ScriptTab", () => {
       const summary = screen.getByText(/含：/).textContent ?? "";
       expect(summary).toContain("上一集剧本");
     });
+  });
+});
+
+// G1(批1步骤3 RED,10-13-audit4-gen-chain):章选择装载接线——
+// T1 下拉 change → store.switchChapter 派发 + activeChapterId 翻转后下拉跟随
+// T5 判定回归(livefire9 形态):store 锚定章(ch2 带 sourceText=装载后态)→ 预览标改编 + 摘要含本章正文
+describe("章选择装载接线(G1)", () => {
+  // 前章=轻索引形态(窗口化瘦身后无 sourceText),目标章=装载后带正文的完整章
+  const ch1Light = { id: "ch1", index: 1, title: "第一章", importedAt: 1 };
+  const ch2Full = { id: "ch2", index: 2, title: "第二章", sourceText: "本章正文", importedAt: 2 };
+
+  const makeProps = () => ({
+    agentWorkData: [],
+    saveAgentWorkData: vi.fn(),
+    runStage: vi.fn(),
+    runReview: vi.fn(),
+    manualContext: "",
+    directorContext: "",
+    styleSummary: "",
+    scriptStreaming: null,
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // 重置 store 章锚,防测试间污染(既有用例均在 activeChapterId=null 下跑)
+    useStudioStore.setState({ activeChapterId: null });
+  });
+
+  it("T1 下拉 change 派发 useStudioStore.switchChapter,store 锚翻转后下拉跟随", () => {
+    const switchSpy = vi.spyOn(useStudioStore.getState(), "switchChapter");
+    const props = { novelChapters: [ch1Light, ch2Full], ...makeProps() };
+    const { rerender } = render(<ScriptTab {...props} />);
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "ch2" } });
+    expect(switchSpy).toHaveBeenCalledWith("ch2");
+
+    // 装载完成的等价观察态:activeChapterId 翻转后重渲,下拉选值跟随 store 真源
+    useStudioStore.setState({ activeChapterId: "ch2" });
+    rerender(<ScriptTab {...props} />);
+    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("ch2");
+  });
+
+  it("T5 store 锚定章(ch2 带 sourceText)时「AI提示词」页标「本章判定：小说改编…」且摘要含「本章正文」", () => {
+    useStudioStore.setState({ activeChapterId: "ch2" });
+    render(<ScriptTab novelChapters={[ch1Light, ch2Full]} {...makeProps()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "AI提示词" }));
+
+    expect(screen.getByText(/本章判定：小说改编/)).toBeTruthy();
+    const summary = screen.getByText(/含：/).textContent ?? "";
+    expect(summary).toContain("本章正文");
   });
 });

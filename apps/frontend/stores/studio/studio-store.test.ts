@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addReferenceImageNode,
   addGeneratedImageNode,
   createImageWorkflowGraph,
   setGeneratedImageResult,
 } from "@/lib/studio/image-workflow";
+import { useProjectStore } from "@/stores/project/project-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
-import type { ContinuityAssetVersion, NovelChapter, StoryboardItem } from "@/types/studio";
+import type { AgentWorkData, ContinuityAssetVersion, NovelChapter, StoryboardItem } from "@/types/studio";
 import { useStudioStore } from "./studio-store";
 import {
   approvedVisualReview,
@@ -17,6 +18,19 @@ import {
   visualContinuityFingerprint,
   visualReviewInputFingerprint,
 } from "@/lib/studio/visual-continuity";
+
+// G1(批1步骤1 RED,10-13-audit4-gen-chain):switchChapter 章工作区装载接线——
+// 装载器 mock 按 (pid,id) 返回夹具;模块其余导出(分片持久化/共享域判定)保持真身,
+// 既有用例的持久化与 mergeWindow 路径零变化
+const loadStudioChapterWorkspaceMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/storage/project-storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/storage/project-storage")>();
+  return {
+    ...actual,
+    loadStudioChapterWorkspace: loadStudioChapterWorkspaceMock,
+  };
+});
 
 afterEach(() => {
   useStudioStore.getState().resetStudioWorkflow();
@@ -1447,5 +1461,118 @@ describe("scene segment registration (Remotion chapter-scene)", () => {
     useStudioStore.getState().registerSceneSegment(baseRecord);
     useStudioStore.getState().removeSceneSegment(baseRecord.id);
     expect(useStudioStore.getState().sceneSegments).toHaveLength(0);
+  });
+});
+
+// G1(批1步骤1 RED,10-13-audit4-gen-chain):switchChapter 章工作区装载——
+// T2 装载还原(主体) / T3 前章并入(design §1.3,RED 核心:上一集剧本原料保活) /
+// T4 切章竞速(switchSeq 守卫,含前章装载段同守卫)
+describe("switchChapter 章工作区装载(G1)", () => {
+  const pid = "proj-g1";
+  const ch1Full: NovelChapter = { id: "ch1", index: 1, title: "第1章 雨夜", sourceText: "前集正文", importedAt: 1 };
+  const ch2Full: NovelChapter = { id: "ch2", index: 2, title: "第2章 塾馆", sourceText: "本章正文", importedAt: 2 };
+  // 轻索引项(窗口化后非激活章形态:无 sourceText,切章时装载)
+  const ch2Light: NovelChapter = { id: "ch2", index: 2, title: "第2章 塾馆", importedAt: 2 };
+  const ch3Light: NovelChapter = { id: "ch3", index: 3, title: "第3章 荒祠", importedAt: 3 };
+  const ch1Draft: AgentWorkData = {
+    id: "w-ch1-draft",
+    key: "scriptDraft",
+    episodeId: "ch1",
+    data: "# 第1章剧本",
+    createdAt: 1,
+    updatedAt: 1,
+  };
+  const ch2Draft: AgentWorkData = {
+    id: "w-ch2-draft",
+    key: "scriptDraft",
+    episodeId: "ch2",
+    data: "# 第2章剧本",
+    createdAt: 2,
+    updatedAt: 2,
+  };
+  const chapterWorkspaces: Record<string, { novelChapter: unknown; domains: Record<string, unknown[]> }> = {
+    [`${pid}/ch1`]: { novelChapter: ch1Full, domains: { agentWorkData: [ch1Draft] } },
+    [`${pid}/ch2`]: { novelChapter: ch2Full, domains: { agentWorkData: [ch2Draft] } },
+  };
+  let originalPid: string | null = null;
+
+  beforeEach(() => {
+    originalPid = useProjectStore.getState().activeProjectId;
+    // 章锚 pid 固定,装载器按 (pid,id) 取夹具;无夹具的章(如 ch3)返回 null=回退索引条目(F6 语义)
+    useProjectStore.setState({ activeProjectId: pid });
+    loadStudioChapterWorkspaceMock.mockImplementation((p: string, chapterId: string) =>
+      Promise.resolve(chapterWorkspaces[`${p}/${chapterId}`] ?? null),
+    );
+  });
+
+  afterEach(() => {
+    loadStudioChapterWorkspaceMock.mockReset();
+    useProjectStore.setState({ activeProjectId: originalPid });
+  });
+
+  function presetTwoChapterWindow() {
+    // 现实装载前态:ch1 为激活章(内存含其 scriptDraft),ch2 为轻索引
+    useStudioStore.setState({
+      novelChapters: [ch1Full, ch2Light],
+      activeChapterId: "ch1",
+      agentWorkData: [ch1Draft],
+    });
+  }
+
+  it("T2 装载还原:switchChapter(ch2) 后目标章 sourceText/agentWorkData 入窗,前章瘦身", async () => {
+    presetTwoChapterWindow();
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    expect(loadStudioChapterWorkspaceMock).toHaveBeenCalledWith(pid, "ch2");
+    const state = useStudioStore.getState();
+    expect(state.activeChapterId).toBe("ch2");
+    expect(state.novelChapters.find((chapter) => chapter.id === "ch2")?.sourceText).toBe("本章正文");
+    expect(state.novelChapters.find((chapter) => chapter.id === "ch1")?.sourceText).toBeUndefined();
+    expect(state.agentWorkData.some((item) => item.id === "w-ch2-draft")).toBe(true);
+  });
+
+  it("T3 前章并入:切到 ch2 后 agentWorkData 仍含 ch1 的 scriptDraft(上一集剧本原料)", async () => {
+    presetTwoChapterWindow();
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    const state = useStudioStore.getState();
+    expect(
+      state.agentWorkData.some((item) => item.episodeId === "ch1" && item.key === "scriptDraft"),
+    ).toBe(true);
+  });
+
+  it("T4 竞速守卫:装载 await 期间二次切章,先发装载不回写(switchSeq)", async () => {
+    // 先发装载(ch2)悬停在 await;竞速者(ch3,null 装载)先完成翻转。
+    // defer 只挂首次 ch2 装载:竞速者的前章并入段(G1 §1.3,ch3 的前一章=ch2)也会调
+    // 装载器,不能同样悬死
+    let deferCh2Load = true;
+    let releaseFirstLoad!: (value: { novelChapter: unknown; domains: Record<string, unknown[]> } | null) => void;
+    loadStudioChapterWorkspaceMock.mockImplementation((p: string, chapterId: string) => {
+      if (chapterId === "ch2" && deferCh2Load) {
+        deferCh2Load = false;
+        return new Promise((resolve) => {
+          releaseFirstLoad = resolve;
+        });
+      }
+      return Promise.resolve(chapterWorkspaces[`${p}/${chapterId}`] ?? null);
+    });
+    useStudioStore.setState({
+      novelChapters: [ch1Full, ch2Light, ch3Light],
+      activeChapterId: "ch1",
+      agentWorkData: [ch1Draft],
+    });
+
+    const firstSwitch = useStudioStore.getState().switchChapter("ch2");
+    await useStudioStore.getState().switchChapter("ch3");
+    expect(useStudioStore.getState().activeChapterId).toBe("ch3");
+
+    releaseFirstLoad(chapterWorkspaces[`${pid}/ch2`]!);
+    await firstSwitch;
+
+    const state = useStudioStore.getState();
+    expect(state.activeChapterId).toBe("ch3");
+    expect(state.novelChapters.find((chapter) => chapter.id === "ch2")?.sourceText).toBeUndefined();
   });
 });

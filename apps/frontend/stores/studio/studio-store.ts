@@ -294,8 +294,26 @@ export const useStudioStore = create<StudioWorkflowStore>()(
             console.warn("[StudioStore] 章节工作区装载失败，回退索引条目:", error);
           }
         }
-        // await 期间又有切章发起:本次装载已过期,不得回写
+        // G1 前章并入(design §1.3):agentWorkData 按章归属,切到第 N 章会把第 N-1 章
+        // scriptDraft 逐出内存(F4),「上一集剧本」原料断链;用同一装载器二次装载目标章的
+        // 前一章,仅并入其 agentWorkData(其余域不取,内存增量=前章工作区一小块);
+        // 失败/无分片静默跳过(该节实发链本有非空守卫,缺失=不注入)。前章条目下次切章按
+        // episodeId 归属照常逐出;保存按条目 episodeId 归前章分片,无错写风险(F9)。
+        let previousLoaded: Awaited<ReturnType<typeof loadStudioChapterWorkspace>> = null;
+        if (pid) {
+          const targetIndex = current.novelChapters.findIndex((chapter) => chapter.id === chapterId);
+          const previousChapter = targetIndex > 0 ? current.novelChapters[targetIndex - 1] : undefined;
+          if (previousChapter) {
+            try {
+              previousLoaded = await loadStudioChapterWorkspace(pid, previousChapter.id);
+            } catch {
+              // 前章装载失败静默跳过:缺失=不注入上一集剧本节(design §1.3)
+            }
+          }
+        }
+        // await 期间又有切章发起:本次装载已过期,不得回写(目标章+前章装载段均受此守卫)
         if (switchSeq !== studioChapterSwitchSeq) return;
+        const previousAgentWorkData = previousLoaded?.domains.agentWorkData;
         const activeChapter = (loaded?.novelChapter as NovelChapter | undefined)
           ?? current.novelChapters.find((chapter) => chapter.id === chapterId);
         if (!activeChapter) return;
@@ -323,7 +341,10 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           productionTracks: mergeWindow("productionTracks", loaded?.domains.productionTracks) as ProductionTrack[],
           videoCandidates: mergeWindow("videoCandidates", loaded?.domains.videoCandidates) as VideoCandidate[],
           sceneSegments: mergeWindow("sceneSegments", loaded?.domains.sceneSegments) as SceneSegmentRecord[],
-          agentWorkData: mergeWindow("agentWorkData", loaded?.domains.agentWorkData) as AgentWorkData[],
+          agentWorkData: [
+            ...mergeWindow("agentWorkData", loaded?.domains.agentWorkData),
+            ...(Array.isArray(previousAgentWorkData) ? previousAgentWorkData : []),
+          ] as AgentWorkData[],
           imageWorkflows: mergeWindow("imageWorkflows", loaded?.domains.imageWorkflows) as ImageWorkflowGraph[],
         });
         get().rebuildTracks();

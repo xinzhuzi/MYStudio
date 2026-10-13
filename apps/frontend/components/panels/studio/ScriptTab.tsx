@@ -52,7 +52,10 @@ export function ScriptTab(props: {
   // B+ 单次生成:三段卡收口为一段——「剧本(含规划)」,规划已溶解进单次剧本生成
   const SCRIPT_STAGES: ScriptStageKey[] = ["scriptDraft"];
 
-  const [chapterId, setChapterId] = useState(props.novelChapters[0]?.id ?? "");
+  // G1 章选择真源迁移(design §1.1):本地 chapterId state 退役,单一真源=store.activeChapterId
+  // (switchChapter 装载完成后才原子翻转,UI 选中的章恒为已装载章);空/不在 novelChapters 时
+  // 回退第一本(与现行初始化行为等价)
+  const activeChapterId = useStudioStore((state) => state.activeChapterId);
   const theme = useThemeStore((state) => state.theme);
   const [activeStage, setActiveStage] =
     useState<ScriptStageKey>("scriptDraft");
@@ -64,14 +67,17 @@ export function ScriptTab(props: {
     "event" | "skill" | "prompt" | "generate" | "review"
   >("event");
   const [userDraft, setUserDraft] = useState<string | undefined>(undefined);
+  // G1:章按 store 锚定派生(activeChapterId 为空/不在 novelChapters 时回退第一本);
+  // 派生章 id 供编辑器/草稿复位 effect 依赖(从本地 state 换源,语义不变:切章清空)
+  const chapter =
+    props.novelChapters.find((item) => item.id === activeChapterId) ??
+    props.novelChapters[0];
+  const chapterId = chapter?.id ?? "";
   useEffect(() => {
     setEditor(null);
     setUserDraft(undefined);
   }, [chapterId, activeStage]);
 
-  const chapter =
-    props.novelChapters.find((item) => item.id === chapterId) ??
-    props.novelChapters[0];
   const stageData = (key: AgentWorkKey) =>
     chapter
       ? [...props.agentWorkData]
@@ -323,8 +329,12 @@ export function ScriptTab(props: {
         <Label className="text-sm">章节（1 章 = 1 集）</Label>
         <select
           className="h-8 min-w-[260px] rounded-md border border-foreground/[0.12] bg-transparent px-3 text-sm text-foreground/85"
-          value={chapterId || props.novelChapters[0]?.id || ""}
-          onChange={(event) => setChapterId(event.target.value)}
+          value={chapterId}
+          onChange={(event) => {
+            // G1:切章走 store 装载器(目标章工作区 sourceText/agentWorkData 装载完成后
+            // 才原子翻转 activeChapterId),不再只写本地 state
+            void useStudioStore.getState().switchChapter(event.target.value);
+          }}
         >
           {props.novelChapters.map((item) => (
             <option key={item.id} value={item.id}>

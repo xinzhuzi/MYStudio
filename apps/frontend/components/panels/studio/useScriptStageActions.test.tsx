@@ -50,9 +50,18 @@ vi.mock("@/lib/studio/project-memory", () => ({
   formatProjectMemoryContext: vi.fn(() => ""),
 }));
 
-vi.mock("@/stores/studio/studio-store", () => ({
-  useStudioStore: { getState: () => ({ novelChapters: [], entityExtractions: {}, seriesBible: null }) },
-}));
+vi.mock("@/stores/studio/studio-store", () => {
+  // G1:ScriptTab 渲染期以选择器形态订阅 activeChapterId——mock 须可调用(getState 之外
+  // 补 hook 调用形态,纯对象会在渲染期炸「useStudioStore is not a function」);
+  // mockState 无 activeChapterId → ScriptTab 回退首章,与该文件既有断言口径一致
+  const mockState = { novelChapters: [], entityExtractions: {}, seriesBible: null };
+  return {
+    useStudioStore: Object.assign(
+      (selector?: (state: typeof mockState) => unknown) => (selector ? selector(mockState) : mockState),
+      { getState: () => mockState },
+    ),
+  };
+});
 
 vi.mock("@/stores/project/project-store", () => ({
   useProjectStore: { getState: () => ({ activeProjectId: "p1" }) },
