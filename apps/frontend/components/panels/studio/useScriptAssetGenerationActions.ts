@@ -22,6 +22,7 @@ import {
   getRowDescription,
   getRowImage,
   getRowPrompt,
+  synthesizeAssetSummaryFromRow,
   toGenerationTask,
   toRuntimeAssetType,
   type AssetGenerationType,
@@ -107,6 +108,15 @@ export function useScriptAssetGenerationActions({
       if (asset) {
         setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(asset, row));
         setSelectedAsset(asset);
+        setAssetDialogOpen(true);
+        return;
+      }
+      // 同源兜底(2026-10-13):App 家库两查均无此行时,用项目库资产合成只读摘要打开,
+      // 与卡片缩略图同源,不再落「资产未找到」死胡同;无图可显仍走未找到流程。
+      const synthesized = row.asset ? synthesizeAssetSummaryFromRow(row) : null;
+      if (synthesized) {
+        setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(synthesized, row));
+        setSelectedAsset(synthesized);
         setAssetDialogOpen(true);
         return;
       }

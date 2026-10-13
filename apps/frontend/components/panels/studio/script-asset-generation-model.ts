@@ -113,6 +113,41 @@ export function getRowPrompt(row: AssetRow) {
   return row.asset?.visualPrompt || row.assetLibrary?.prompt;
 }
 
+/** App 家资产库两查均落空时,用项目库资产合成只读 StudioAssetSummary 兜底打开详情
+ *  (2026-10-13 同源修复:卡片缩略图与弹窗主图自此同源;id 加 local- 前缀,弹窗内
+ *  get(id) 查不到即保持合成初始图,不触发库内编辑回写)。无图可显示时返回 null。 */
+export function synthesizeAssetSummaryFromRow(row: AssetRow): StudioAssetSummary | null {
+  let mainImage = "";
+  let description: string | undefined;
+  let prompt: string | undefined;
+  if (row.type === "character") {
+    mainImage = row.asset?.thumbnailUrl || row.asset?.views?.[0]?.imageUrl || "";
+    description = row.asset?.description;
+    prompt = row.asset?.visualTraits;
+  } else if (row.type === "scene") {
+    mainImage = row.asset?.referenceImage || row.asset?.referenceImageBase64 || "";
+    // Scene 无 description 字段(类型真身:location/time/atmosphere)——氛围为主、地点兜底
+    description = row.asset?.atmosphere || row.asset?.location;
+    prompt = row.asset?.visualPrompt;
+  } else {
+    mainImage = row.asset?.imageUrl || "";
+    description = row.asset?.description;
+    prompt = row.asset?.visualPrompt;
+  }
+  if (!mainImage) return null;
+  return {
+    id: `local-${row.id}`,
+    source: "manying-local",
+    type: toRuntimeAssetType(row.type),
+    name: row.name,
+    description,
+    prompt,
+    thumbnailUrl: mainImage,
+    previewUrl: mainImage,
+    filePath: mainImage,
+  };
+}
+
 export function getRowReferenceImages(row: AssetRow) {
   if (row.type === "character") return row.asset?.referenceImages;
   if (row.type === "scene") {
