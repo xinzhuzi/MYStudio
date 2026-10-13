@@ -234,7 +234,7 @@ export function auditDirectorPlanStructure(output: string): DirectorPlanAuditRes
   // alone renders as all hard cuts. Require at least one structured line so
   // every generated plan feeds the video-use transition decision layer.
   if (sections["⑥"]?.trim() && parseDirectorPlanBoundaryIntents(sections["⑥"]).length === 0) {
-    issues.push("第⑥段缺少结构化转场决策行（需形如“- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗”或“- 镜5 → 镜6：…”的机器可读行）");
+    issues.push("第⑥段缺少结构化转场决策行（需形如“- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗”或“- Sc 1-1 → Sc 1-2：…”（场号 N-M 复合写法）或“- 镜5 → 镜6：…”的机器可读行）");
   }
 
   return {
@@ -379,8 +379,15 @@ export interface DirectorPlanBoundaryIntent {
   toShotIndex?: number;
 }
 
+// 场号组接受复合写法 `Sc N-M`（手册 production_execution_director_plan.md:66 明许，与 ④ 场头
+// 正则 :171 的 N-M 接受面对齐）；连字符集 [-－—–] 含半角/全角(U+FF0D)/em/en dash，两侧 \s*
+// 容 `1 -1`/`1- 1` 空格噪声。数字映射 = 尾数 M ?? 主数 N（`Sc 1-1`→1、`Sc 1-2`→2）：
+// 场级匹配下游键 `scene-(\d+)`（boundary-intent-assembly.ts:68）无现役构造点——现行分镜
+// trackKey 实为 `{ep}-{index}`——尾数选择无活消费方约束；且尾数保序数可区分（取首数会把
+// 1-1/1-2 折成同场，当场内边界处理 = 语义反转），若未来 trackKey 归一为 scene-N 序数则尾数
+// 即该序数，前向兼容。纯 `Sc1` 写法主数即尾数缺席时回退，行为与旧正则逐位一致。
 const SCENE_BOUNDARY_INTENT_PATTERN =
-  /-?\s*Sc\s*(\d+)\s*(?:→|->)\s*Sc\s*(\d+)\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
+  /-?\s*Sc\s*(\d+)(?:\s*[-－—–]\s*(\d+))?\s*(?:→|->)\s*Sc\s*(\d+)(?:\s*[-－—–]\s*(\d+))?\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
 const SHOT_BOUNDARY_INTENT_PATTERN =
   /-?\s*镜\s*(\d+)\s*(?:→|->)\s*镜\s*(\d+)\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
 
@@ -397,13 +404,13 @@ export function parseDirectorPlanBoundaryIntents(
   if (!transitionsText) return [];
   const intents: DirectorPlanBoundaryIntent[] = [];
   for (const match of transitionsText.matchAll(SCENE_BOUNDARY_INTENT_PATTERN)) {
-    const styleWord = match[3]?.trim() ?? "";
+    const styleWord = match[5]?.trim() ?? "";
     if (!styleWord) continue;
     intents.push({
-      fromScene: Number(match[1]),
-      toScene: Number(match[2]),
+      fromScene: Number(match[2] ?? match[1]),
+      toScene: Number(match[4] ?? match[3]),
       styleWord,
-      moodWord: match[4]?.trim() ?? "",
+      moodWord: match[6]?.trim() ?? "",
     });
   }
   for (const match of transitionsText.matchAll(SHOT_BOUNDARY_INTENT_PATTERN)) {
