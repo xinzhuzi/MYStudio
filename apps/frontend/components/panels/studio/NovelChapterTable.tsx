@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +13,9 @@ import {
 } from "@/components/ui/table";
 import type { NovelChapter } from "@/types/studio";
 import { AlertTriangle, Edit3, Trash2 } from "lucide-react";
+
+/** 全本规模(4125 章)下一次性 map 全量行会拖垮渲染与 DOM 内存,窗口化分批渲染。 */
+const VISIBLE_BATCH = 100;
 
 export function NovelChapterTable({
   chapters,
@@ -32,6 +36,15 @@ export function NovelChapterTable({
   onToggleAllVisible: (checked: boolean) => void;
   onToggleChapter: (id: string, checked: boolean) => void;
 }) {
+  const [visibleCount, setVisibleCount] = useState(VISIBLE_BATCH);
+  // 搜索过滤/数据集变化时重置窗口,避免停留在深页看不到新结果
+  useEffect(() => {
+    setVisibleCount(VISIBLE_BATCH);
+  }, [chapters]);
+  const visibleChapters = useMemo(
+    () => (chapters.length <= visibleCount ? chapters : chapters.slice(0, visibleCount)),
+    [chapters, visibleCount],
+  );
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-panel/40">
       <Table>
@@ -55,7 +68,7 @@ export function NovelChapterTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {chapters.map((chapter) => (
+          {visibleChapters.map((chapter) => (
             <TableRow
               key={chapter.id}
               data-state={selectedIds.has(chapter.id) ? "selected" : undefined}
@@ -155,6 +168,22 @@ export function NovelChapterTable({
                 className="h-40 text-center text-sm text-muted-foreground"
               >
                 {emptyState}
+              </TableCell>
+            </TableRow>
+          )}
+          {chapters.length > visibleCount && (
+            <TableRow>
+              <TableCell colSpan={8} className="py-3 text-center text-xs text-muted-foreground">
+                <div className="flex items-center justify-center gap-3">
+                  <span>已显示 {visibleCount} / 共 {chapters.length} 章</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setVisibleCount((count) => count + VISIBLE_BATCH)}
+                  >
+                    加载更多
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           )}

@@ -226,4 +226,33 @@ describe("NovelChapterTable", () => {
     await waitFor(() => expect(screen.getByText("疑似圣经人物误写")).toBeTruthy());
     expect(screen.getByText("神秘老者")).toBeTruthy();
   });
+
+  it("超大章数时窗口化渲染:默认只渲染首批,「加载更多」扩窗(全本 4125 章场景)", () => {
+    const many = Array.from({ length: 250 }, (_, i) => ({
+      ...chapter,
+      id: `c${i + 1}`,
+      index: i + 1,
+      title: `第${i + 1}章 窗口化测试`,
+    }));
+    render(
+      <NovelChapterTable
+        chapters={many}
+        selectedIds={new Set()}
+        allVisibleSelected={false}
+        emptyState={null}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        onToggleAllVisible={vi.fn()}
+        onToggleChapter={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("第1章 窗口化测试")).toBeTruthy();
+    expect(screen.queryByText("第101章 窗口化测试")).toBeNull();
+    expect(screen.getByText("已显示 100 / 共 250 章")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
+    expect(screen.getByText("第101章 窗口化测试")).toBeTruthy();
+    expect(screen.getByText("已显示 200 / 共 250 章")).toBeTruthy();
+  });
 });
