@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { handlers, assetStorageMocks, blessedPaths } = vi.hoisted(() => ({
+const { handlers, assetStorageMocks, blessedPaths, resolverMock } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   blessedPaths: new Set<string>(),
+  resolverMock: vi.fn(),
   assetStorageMocks: {
     addAsset: vi.fn(),
     addAssetImage: vi.fn(),
@@ -24,6 +25,19 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => handlers.set(channel, handler)) },
 }));
 vi.mock("../../storage/studio-assets-storage", () => assetStorageMocks);
+// 1013 Tainted canvas 修复锁:read-url-data-url 桥双协议收编——装机实弹中
+// project-file:// 参考图进旧桥被 parseAssetFileUrl(仅认 asset-file)返 null,
+// 回落直载染画布,衍生行参考图缩略 toDataURL 全灭。fs/解析器打桩(既有 9 测不碰二者)。
+vi.mock("node:fs", () => ({
+  default: {
+    existsSync: (p: string) => p === "/resolved/target.png",
+    readFileSync: () => Buffer.from("fake-png-bytes"),
+  },
+}));
+vi.mock("../../storage/storage-paths", () => ({
+  resolveProjectOrAssetFileUrl: resolverMock,
+  resolveAssetFilePath: vi.fn(),
+}));
 
 import { dialog } from "electron";
 import { registerAssetLibraryIpcHandlers } from "./asset-library-ipc";
@@ -184,5 +198,29 @@ describe("registerAssetLibraryIpcHandlers", () => {
 
     expect(assetStorageMocks.addAssetImage).toHaveBeenCalledTimes(1);
     expect(assetStorageMocks.replaceAssetMainImage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("assets:read-url-data-url 双协议桥(1013 Tainted canvas 修复锁)", () => {
+  it("project-file:// 经双协议解析器命中 → 返回 data URL(主进程读字节的干净路,不染画布)", async () => {
+    resolverMock.mockReturnValueOnce("/resolved/target.png");
+    registerHandlers();
+    const result = await getHandler("assets:read-url-data-url")(null, "project-file://p1/assets/character/a.png");
+    expect(result).toMatch(/^data:image\/png;base64,/);
+    expect(resolverMock).toHaveBeenCalledWith("/data", "/data/assets", "project-file://p1/assets/character/a.png");
+  });
+
+  it("解析出的文件缺席 → 返回 null(渲染层走回落链,不抛错)", () => {
+    resolverMock.mockReturnValueOnce("/resolved/missing.png");
+    registerHandlers();
+    expect(getHandler("assets:read-url-data-url")(null, "project-file://p1/none.png")).toBeNull();
+  });
+
+  it("非法协议(解析器抛错) → 捕获返 null(旧行为不变)", () => {
+    resolverMock.mockImplementationOnce(() => {
+      throw new Error("Invalid project file URL");
+    });
+    registerHandlers();
+    expect(getHandler("assets:read-url-data-url")(null, "weird://x")).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ import nodePath from "node:path";
 import * as assetsStorage from "../../storage/studio-assets-storage";
 import { getAssetImagePickerDefaultPath } from "../../media/asset-image-picker";
 import { listStudioRuntimeAssets } from "../../storage/studio-runtime-assets";
-import { resolveAssetFilePath } from "../../storage/storage-paths";
+import { resolveAssetFilePath, resolveProjectOrAssetFileUrl } from "../../storage/storage-paths";
 import type { DiagnosticsLogEntryInput } from "../../../types/diagnostics";
 
 type RegisterAssetLibraryIpcHandlersContext = {
@@ -129,9 +129,13 @@ export function registerAssetLibraryIpcHandlers({
   ));
   // 1010:asset-file:// → data: URL(参考图缩略等 canvas 链用;file:// 源下
   // fetch/直载都会污染画布,唯一干净路=主进程读字节回 data:)
+  // 1013 扩 project-file://:装机实弹 Tainted canvas——project-file 进本桥被
+  // parseAssetFileUrl(仅认 asset-file)返 null→回落直载染画布,衍生行参考图
+  // 缩略全灭;换 09-09 双协议解析器 resolveProjectOrAssetFileUrl 同构收编。
   ipcMain.handle("assets:read-url-data-url", (_event, url: string) => {
     try {
-      const absolute = resolveAssetFilePath(
+      const absolute = resolveProjectOrAssetFileUrl(
+        getStorageBasePath(),
         nodePath.join(getStorageBasePath(), "assets"),
         String(url ?? ""),
       );
