@@ -464,4 +464,6 @@ class TestSeedInputSamples1003:
         from engines.comfyui.engine_manager import seed_engine_input_samples
         src = Path(__file__).resolve().parents[1] / "input_seed"
         names = {p.name for p in src.iterdir()} if src.is_dir() else set()
-        assert names == {"daojie-char-1003.png", "daojie-ref-1003.png"}, names
+        # 1014 透明锚:transparent_ref.png 随手术批入 repo input_seed(双引擎家已同字节)
+        assert names == {"daojie-char-1003.png", "daojie-ref-1003.png",
+                         "transparent_ref.png"}, names
