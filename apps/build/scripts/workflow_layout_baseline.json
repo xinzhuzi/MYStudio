@@ -1,55 +1,55 @@
 {
-  "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
-  "head": "b4107de1",
-  "rebuiltAt": "2026-10-07T21:56:34",
-  "files": {
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
-      "scopes": {
-        "main": {
-          "crossings": 19,
-          "occlusion": 8
-        },
-        "sub:[6] 文本提示词类型优化子图": {
-          "crossings": 7,
-          "occlusion": 0
-        },
-        "sub:道劫·加速子图": {
-          "crossings": 0,
-          "occlusion": 0
-        }
-      }
+ "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
+ "head": "b4107de1",
+ "rebuiltAt": "2026-10-14 手工记账:i2i viggle 官方化拓扑重建(14件链,排布随 t2i 实证态; t2i 同域=12)",
+ "files": {
+  "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
+   "scopes": {
+    "main": {
+     "crossings": 19,
+     "occlusion": 8
     },
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
-      "scopes": {
-        "main": {
-          "crossings": 17,
-          "occlusion": 4
-        },
-        "sub:[6] 文本提示词类型优化子图": {
-          "crossings": 6,
-          "occlusion": 0
-        },
-        "sub:道劫·加速子图": {
-          "crossings": 0,
-          "occlusion": 0
-        }
-      }
+    "sub:[6] 文本提示词类型优化子图": {
+     "crossings": 7,
+     "occlusion": 0
     },
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
-      "scopes": {
-        "main": {
-          "crossings": 10,
-          "occlusion": 1
-        },
-        "sub:[6] 文本提示词类型优化子图": {
-          "crossings": 4,
-          "occlusion": 2
-        },
-        "sub:道劫·加速子图": {
-          "crossings": 0,
-          "occlusion": 0
-        }
-      }
+    "sub:道劫·加速子图": {
+     "crossings": 11,
+     "occlusion": 0
     }
+   }
+  },
+  "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
+   "scopes": {
+    "main": {
+     "crossings": 17,
+     "occlusion": 4
+    },
+    "sub:[6] 文本提示词类型优化子图": {
+     "crossings": 6,
+     "occlusion": 0
+    },
+    "sub:道劫·加速子图": {
+     "crossings": 0,
+     "occlusion": 0
+    }
+   }
+  },
+  "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
+   "scopes": {
+    "main": {
+     "crossings": 10,
+     "occlusion": 1
+    },
+    "sub:[6] 文本提示词类型优化子图": {
+     "crossings": 4,
+     "occlusion": 2
+    },
+    "sub:道劫·加速子图": {
+     "crossings": 0,
+     "occlusion": 0
+    }
+   }
   }
+ }
 }
