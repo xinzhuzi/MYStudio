@@ -61,6 +61,8 @@ SG_NAME_PREFIX = "[6] 文本提示词类型优化子图"
 SG_UUID_TAG = "d47c9e21"          # 子图定义 uuid 段(spec 口径,现算不写死全值)
 SHA_WF = "d7a35f3bb3d0394f"       # 术前字节锚(本会话实锚;副本拦停验证同值)
 SHA_BP = "2dafd1ecae58fda1"
+# T3 画幅按型纯指引(随本脚本幂等 pass 写入):T2 落盘后/T3 前工作流字节锚
+SHA_WF_T2DONE = "94bc1ce6d31671cc"
 
 ANCHOR_LINK = 218                 # 根/子图两命名空间各一条 218(双侧独立发号)
 ANCHOR_UUID = "c4d5e6f7-0012-4a12-9e12-d47c9e21a012"
@@ -88,6 +90,27 @@ NOTE_SECTION = """### 透明参考锚配方(viggle 专用;1014)
 
 ASSET_NAME = "transparent_ref.png"
 ASSET_MD5_PREFIX = "5f99edae"
+
+# ── T3 画幅按型=A 纯指引(零结构,[402] 纯文本追加)──────────────────
+# 数值=qi21_bases.json types[].megapixels 本会话实锚(人物/场景/美宣/分镜/
+# 表情/概念=1.5,多视图=1.8,道具/高清人脸/自由=1.0;json 内 4.2 零命中,
+# 「美宣 4.2」纠偏不采,4.2 仅存 05库历史台账按台账不改写)。
+T3_NOTE_BULLET = (
+    "\n- **画幅按型指引(1014 T3;纯指引零结构,主路=输出画幅双路 [19])**:"
+    "「1 · 原生出图」档迭代预算足,可开 [19](true)走 [4] 空潜自定义画幅至型"
+    " canon MP(qi21_bases.json types[].megapixels 现值:人物 1.5/场景 1.5/"
+    "美宣 1.5/分镜剧情图 1.5/表情差分 1.5/概念气氛图 1.5/人物多视图 1.8;"
+    "道具/高清人脸/自由=1.0)(1.5/1.8MP 空潜组合暂无实弹收据,首用建议单张"
+    "试跑;自定义尺寸须贴近 image_1 比例,否则编辑漂移)。画布预缩 [16] 与参考"
+    "预缩 [17][18] 恒 1.0MP 勿动(1014 定谳:1.5MP 超 viggle σ稳定区,契约硬锚"
+    "在册),加速两档(viggle/Fun-Acc)画幅恒 1.0 勿动,2K 交付走 SeedVR2 尾档。"
+    "主路理由:改 [16] 与 1014 定谳句+契约 1.0MP 结构锚+生成器三重锚定自相矛盾"
+    "且被重跑打回(audit 用户区门对整文件 md5,改 [19]/[16] 同样分叉,不构成"
+    "区分理由)。归属说明:用户态编辑保存后用户区副本分叉属设计内,audit 漂移"
+    "按归属记录勿回灌仓库。"
+)
+T3_TOKENS = ("画幅按型指引", "暂无实弹收据,首用建议单张试跑")
+T3_NOTE_ANCHOR = "画幅随输入图,不随型"
 
 
 def fail(msg, code=2):
@@ -207,13 +230,11 @@ def pre_assert(wf_path: Path, bp_path: Path, wf_doc: dict, bp_doc: dict,
     return sg, bp_sg
 
 
-# ── 幂等判别:全术后=exit 3;部分术后=fail ─────────────────────────────
-def idempotent_or_partial(wf_doc: dict, bp_doc: dict):
+# ── 幂等判别:T2 全形态清单(状态机共用)────────────────────────────────
+def t2_full_form_ok(wf_doc: dict, bp_doc: dict):
     sg = find_sg(wf_doc)
-    if "透明锚" not in [i["name"] for i in sg["inputs"]]:
-        return False
-    ok = []
     bp_sg = find_sg(bp_doc)
+    ok = []
     ok.append([i["name"] for i in bp_sg["inputs"]] == POST_SG_INPUTS)
     ok.append(sg["state"]["lastLinkId"] == ANCHOR_LINK
               and bp_sg["state"]["lastLinkId"] == ANCHOR_LINK)
@@ -226,10 +247,31 @@ def idempotent_or_partial(wf_doc: dict, bp_doc: dict):
     ok.append(li is not None and li["type"] == "LoadImage" and li["mode"] == 4
               and [o["name"] for o in li["outputs"]] == ["IMAGE", "MASK"])
     ok.append(wf_doc["last_link_id"] >= ANCHOR_LINK)
-    if all(ok):
-        print("[anchor1014] 双侧已全术后形态,幂等拦停(零写入)")
-        sys.exit(3)
-    fail(f"部分术后形态(单侧/半套,手术中断禁续):{ok}")
+    return ok
+
+
+def note_text(doc: dict) -> str:
+    return next(n for n in doc["nodes"]
+                if n["type"] == "MarkdownNote")["widgets_values"][0]
+
+
+# ── T3 画幅按型纯指引([402] 纯文本追加,零结构)────────────────────────
+def t3_note_pass(doc: dict) -> bool:
+    """「画幅随输入图,不随型」句后追加按型指引 bullet。已全在=返回 False。"""
+    txt = note_text(doc)
+    if all(t in txt for t in T3_TOKENS):
+        return False
+    if any(t in txt for t in T3_TOKENS):
+        fail("[402] T3 token 半套在场(部分写入拦停)")
+    i = txt.find(T3_NOTE_ANCHOR)
+    if i < 0:
+        fail(f"[402] 缺插入锚句「{T3_NOTE_ANCHOR}」")
+    eol = txt.find("\n", i)
+    if eol < 0:
+        fail("[402] 插入锚句行尾未找到")
+    note = next(n for n in doc["nodes"] if n["type"] == "MarkdownNote")
+    note["widgets_values"][0] = txt[:eol] + T3_NOTE_BULLET + txt[eol:]
+    return True
 
 
 # ── 资产 ⑪:canonical+双家幂等 ─────────────────────────────────────────
@@ -324,7 +366,8 @@ def coherence(doc, label, host_expected=True):
             fail(f"[{label}] 根线 {ANCHOR_LINK} 形态不符")
         note = next(n for n in doc["nodes"] if n["type"] == "MarkdownNote")
         txt = note["widgets_values"][0]
-        for tok in ("透明参考锚", ASSET_NAME, "anchor-probe"):
+        for tok in ("透明参考锚", ASSET_NAME, "anchor-probe",
+                    "画幅随输入图,不随型", *T3_TOKENS):   # T3 纯指引存在性
             if tok not in txt:
                 fail(f"[{label}] [402] 缺 token:{tok!r}")
     else:
@@ -393,6 +436,15 @@ def coherence(doc, label, host_expected=True):
         fail(f"[{label}] sg.lastLinkId 应 {ANCHOR_LINK},得 {sg['state']['lastLinkId']}")
 
 
+def write_and_verify(p: Path, doc: dict, is_wf: bool, bak_tag: str):
+    bak = p.with_suffix(p.suffix + bak_tag)
+    bak.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+    p.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
+    reread = load(p)
+    coherence(reread, f"回读:{p.name}", host_expected=is_wf)
+    print(f"[anchor1014] 落盘+回读终验绿:{p.name}(备份 {bak.name})")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--wf", type=Path, default=WF, help="工作流路径(副本拦停验证用)")
@@ -407,65 +459,85 @@ def main():
     sg, bp_sg = find_sg(wf_doc), find_sg(bp_doc)
     if sg["id"] != bp_sg["id"]:
         fail("工作流/蓝图子图 id 不一致")
-    # 序:幂等判别先于 sha/结构术前断言——复跑时文件已术后态,字节必变,
-    # sha 先行会把幂等拦停误杀成 exit 2;先认全术后形态(exit 3)再严检术前。
-    idempotent_or_partial(wf_doc, bp_doc)
-    pre_assert(wf_path, bp_path, wf_doc, bp_doc, sg, bp_sg)
-    print("[anchor1014] 术前断言全绿(sha/槽序/线形/水位/uuid/模板/镜像/定义相等)")
+    t2_done = "透明锚" in [i["name"] for i in sg["inputs"]]
+    t3_done = all(t in note_text(wf_doc) for t in T3_TOKENS)
 
-    if not args.skip_asset:
-        ensure_asset()
+    if t2_done and t3_done:
+        ok = t2_full_form_ok(wf_doc, bp_doc)
+        if all(ok):
+            print("[anchor1014] 双侧已全术后形态(T2+T3),幂等拦停(零写入)")
+            sys.exit(3)
+        fail(f"部分术后形态(单侧/半套,手术中断禁续):{ok}")
 
-    # ── 根图手术(工作流侧)──
-    root = {n["id"]: n for n in wf_doc["nodes"]}
-    host = root[6]
-    tpl = root[12]
-    # ⑤ 宿主插槽 ⑥ 根线 ⑦ [505] 模板件
-    host["inputs"].append({"name": "透明锚", "type": "IMAGE", "link": ANCHOR_LINK})
-    li = copy.deepcopy(tpl)
-    li.update(id=LOAD505_ID, pos=[2500, 3000], mode=4,
-              widgets_values=[ASSET_NAME, "image"], title="[505] 透明参考锚",
-              order=max(n.get("order", 0) for n in wf_doc["nodes"]) + 1)
-    li["inputs"] = copy.deepcopy(tpl["inputs"])   # 双 widget 槽沿模板
-    li["outputs"] = [{"name": "IMAGE", "type": "IMAGE", "links": [ANCHOR_LINK]},
-                     {"name": "MASK", "type": "MASK", "links": None}]
-    wf_doc["nodes"].append(li)
-    wf_doc["links"].append([ANCHOR_LINK, LOAD505_ID, 0, 6, 9, "IMAGE"])
-    # ⑧ 水位:根线号;last_node_id 保持 7024(禁回写小值)
-    wf_doc["last_link_id"] = max(ANCHOR_LINK, max(l[0] for l in wf_doc["links"]))
-    if wf_doc["last_node_id"] < max(7024, LOAD505_ID):
-        fail(f"根 last_node_id {wf_doc['last_node_id']} < max(7024,505),禁回写小值")
-    # ⑨ [402] 小节插入(RGBA 句式节后、下一节头前)
-    note = next(n for n in wf_doc["nodes"] if n["type"] == "MarkdownNote")
-    txt = note["widgets_values"][0]
-    i0 = txt.find(NOTE_ANCHOR)
-    i1 = txt.find("\n### ", i0)
-    if i1 < 0:
-        fail("[402] 句式节后未找到下一节头,插入点不明")
-    note["widgets_values"][0] = txt[:i1 + 1] + NOTE_SECTION + txt[i1 + 1:]
+    if not t2_done:
+        # ── 全新术前态:T2+T3 组合刀 ──
+        # 序:sha/结构术前断言在此(幂等已由状态机排除,复跑术后态走上面分支,
+        # sha 先行不会误杀 exit 3)。
+        pre_assert(wf_path, bp_path, wf_doc, bp_doc, sg, bp_sg)
+        print("[anchor1014] 术前断言全绿(sha/槽序/线形/水位/uuid/模板/镜像/定义相等)")
+        if not args.skip_asset:
+            ensure_asset()
 
-    # ── 子图手术(工作流+蓝图同刀 ⑩)──
-    surgery_subgraph(sg, "工作流")
-    surgery_subgraph(bp_sg, "蓝图")
-    bp_doc["nodes"][0]["inputs"].append({"name": "透明锚", "type": "IMAGE", "link": None})
+        # 根图手术(工作流侧)
+        root = {n["id"]: n for n in wf_doc["nodes"]}
+        host = root[6]
+        tpl = root[12]
+        # ⑤ 宿主插槽 ⑥ 根线 ⑦ [505] 模板件
+        host["inputs"].append({"name": "透明锚", "type": "IMAGE", "link": ANCHOR_LINK})
+        li = copy.deepcopy(tpl)
+        li.update(id=LOAD505_ID, pos=[2500, 3000], mode=4,
+                  widgets_values=[ASSET_NAME, "image"], title="[505] 透明参考锚",
+                  order=max(n.get("order", 0) for n in wf_doc["nodes"]) + 1)
+        li["inputs"] = copy.deepcopy(tpl["inputs"])   # 双 widget 槽沿模板
+        li["outputs"] = [{"name": "IMAGE", "type": "IMAGE", "links": [ANCHOR_LINK]},
+                         {"name": "MASK", "type": "MASK", "links": None}]
+        wf_doc["nodes"].append(li)
+        wf_doc["links"].append([ANCHOR_LINK, LOAD505_ID, 0, 6, 9, "IMAGE"])
+        # ⑧ 水位:根线号;last_node_id 保持 7024(禁回写小值)
+        wf_doc["last_link_id"] = max(ANCHOR_LINK, max(l[0] for l in wf_doc["links"]))
+        if wf_doc["last_node_id"] < max(7024, LOAD505_ID):
+            fail(f"根 last_node_id {wf_doc['last_node_id']} < max(7024,505),禁回写小值")
+        # ⑨ [402] 小节插入(RGBA 句式节后、下一节头前)
+        note = next(n for n in wf_doc["nodes"] if n["type"] == "MarkdownNote")
+        txt = note["widgets_values"][0]
+        i0 = txt.find(NOTE_ANCHOR)
+        i1 = txt.find("\n### ", i0)
+        if i1 < 0:
+            fail("[402] 句式节后未找到下一节头,插入点不明")
+        note["widgets_values"][0] = txt[:i1 + 1] + NOTE_SECTION + txt[i1 + 1:]
 
-    # ── 内存终验 ──
+        # 子图手术(工作流+蓝图同刀 ⑩)
+        surgery_subgraph(sg, "工作流")
+        surgery_subgraph(bp_sg, "蓝图")
+        bp_doc["nodes"][0]["inputs"].append({"name": "透明锚", "type": "IMAGE", "link": None})
+        # T3 画幅按型纯指引(同批写入)
+        t3_note_pass(wf_doc)
+
+        # 内存终验
+        coherence(wf_doc, "工作流")
+        coherence(bp_doc, "蓝图", host_expected=False)
+        if (json.dumps(sg, sort_keys=True, ensure_ascii=False)
+                != json.dumps(bp_sg, sort_keys=True, ensure_ascii=False)):
+            fail("术后定义不等(wf sg vs bp sg canonical)")
+        write_and_verify(wf_path, wf_doc, True, ".bak-1014")
+        write_and_verify(bp_path, bp_doc, False, ".bak-1014")
+        print("[anchor1014] 手术完成(T2+T3):透明锚边界第 10 槽/[171].images.image_2/"
+              "线 35 迁槽/根域 [505] 双槽模板 mode4/水位 218×3/[402] 配方小节+画幅按型"
+              "指引/蓝图双侧同刀,全部落盘。")
+        return
+
+    # ── T2 已落、T3 待补:仅文本 pass(工作流单侧,蓝图零触碰)──
+    ok = t2_full_form_ok(wf_doc, bp_doc)
+    if not all(ok):
+        fail(f"T2 部分术后形态(手术中断禁续):{ok}")
+    if sha16(wf_path) != SHA_WF_T2DONE:
+        fail(f"T3 前置字节锚不符:sha256[:16]={sha16(wf_path)} 预期 {SHA_WF_T2DONE}"
+             f"(现场漂移或已被他役改写,禁为过门放宽)")
+    t3_note_pass(wf_doc)
     coherence(wf_doc, "工作流")
-    coherence(bp_doc, "蓝图", host_expected=False)
-    if (json.dumps(sg, sort_keys=True, ensure_ascii=False)
-            != json.dumps(bp_sg, sort_keys=True, ensure_ascii=False)):
-        fail("术后定义不等(wf sg vs bp sg canonical)")
-
-    # ── 落盘+.bak+回读二次 coherence(⑫)──
-    for p, doc, is_wf in ((wf_path, wf_doc, True), (bp_path, bp_doc, False)):
-        bak = p.with_suffix(p.suffix + ".bak-1014")
-        bak.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
-        p.write_text(json.dumps(doc, ensure_ascii=False, indent=2), encoding="utf-8")
-        reread = load(p)
-        coherence(reread, f"回读:{p.name}", host_expected=is_wf)
-        print(f"[anchor1014] 落盘+回读终验绿:{p.name}(备份 {bak.name})")
-    print("[anchor1014] 手术完成:透明锚边界第 10 槽/[171].images.image_2/线 35 迁槽/"
-          "根域 [505] 双槽模板 mode4/水位 218×3/[402] 配方小节/蓝图双侧同刀,全部落盘。")
+    write_and_verify(wf_path, wf_doc, True, ".bak-1014t3")
+    print("[anchor1014] T3 文本 pass 完成:画幅按型指引(主路 [19] 双路+证据等级句+"
+          "归属说明)入 [402],零结构,蓝图零触碰。")
 
 
 if __name__ == "__main__":
