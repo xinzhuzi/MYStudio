@@ -39,14 +39,15 @@ vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal)
   return { ...actual, createHttpComfyWorkflowLibraryTransport: () => ({ importFiles: importFilesMock, content: templateContentMock }) };
 });
 
-// studio-store mock:autoOpen 注入路径需要 storyboards>0(链工作流载荷);
-// 其余用例保持空分镜(注入跳过)语义
+// studio-store mock:autoOpen 注入路径(10-15 P2 后有/零分镜均注入——零分镜=
+// 空表引导载荷);其余用例 autoOpenOverview 未开,注入仍跳过
 const storeState = vi.hoisted(() => ({
   storyboards: [] as unknown[],
   novelChapters: [] as unknown[],
   scriptPlans: [] as unknown[],
   entityExtractions: [] as unknown[],
   productionTracks: [] as unknown[],
+  activeChapterId: undefined as string | undefined, // D6 后章身份真源
   // resolveProductionEpisodeId 读 agentWorkData(缺字段会抛错被 tick 吞掉)
   agentWorkData: [] as unknown[],
 }));
@@ -74,9 +75,11 @@ afterEach(() => {
   vi.restoreAllMocks();
   storeState.storyboards = [];
   storeState.novelChapters = [];
+  storeState.activeChapterId = undefined; // D6 后章身份真源=activeChapterId(夹具同步建模)
   storeState.scriptPlans = [];
   storeState.entityExtractions = [];
   storeState.productionTracks = [];
+  storeState.activeChapterId = undefined;
   projectState.activeProjectId = "project-a";
   projectListeners.clear();
   studioListeners.clear();
@@ -666,9 +669,11 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     render(<ComfyCanvasStudio sidebarActions={{ onGenerateImages: generate, onGenerateVideos: vi.fn() }} />);
     await waitFor(() => expect(list).toHaveBeenCalled());
     storeState.novelChapters = [{ id: "chapter-b" }];
+    storeState.activeChapterId = "chapter-b"; // D6 后章身份真源=activeChapterId(夹具同步建模)
     studioListeners.forEach((listener) => listener(storeState));
     if (returnToOriginal) {
       storeState.novelChapters = [];
+      storeState.activeChapterId = undefined; // D6 后章身份真源=activeChapterId(夹具同步建模)
       studioListeners.forEach((listener) => listener(storeState));
     }
     await act(async () => { release(); });
@@ -720,6 +725,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       },
     ] as unknown[];
     storeState.novelChapters = [{ id: "chapter-001", title: "第一章 雨夜" }];
+    storeState.activeChapterId = "chapter-001"; // D6 后章身份真源=activeChapterId(夹具同步建模)
     const uploaded: string[] = [];
     // 门闩:挂载首轮 tick 的微任务链会先于 spy 挂载跑完打开脚本——把动作
     // 释放挪到 executeJavaScript spy 就位之后,消除竞态
@@ -737,9 +743,11 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
         uploaded.push(name);
         if (switchDuringUpload === "chapter" || switchDuringUpload === "chapter-roundtrip") {
           storeState.novelChapters = [{ id: "chapter-002" }];
+          storeState.activeChapterId = "chapter-002"; // D6 后章身份真源=activeChapterId(夹具同步建模)
           studioListeners.forEach((listener) => listener(storeState));
           if (switchDuringUpload === "chapter-roundtrip") {
             storeState.novelChapters = [{ id: "chapter-001" }];
+            storeState.activeChapterId = "chapter-001"; // D6 后章身份真源=activeChapterId(夹具同步建模)
             studioListeners.forEach((listener) => listener(storeState));
           }
         } else if (switchDuringUpload) {
@@ -794,6 +802,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     };
     storeState.storyboards = [localShot, { ...localShot, id: "shot-b", episodeId: "chapter-b" }];
     storeState.novelChapters = [{ id: "chapter-a" }];
+    storeState.activeChapterId = "chapter-a"; // D6 后章身份真源=activeChapterId(夹具同步建模)
     let release!: () => void;
     const gate = new Promise<void>((resolve) => { release = resolve; });
     const upload = vi.fn(async (name: string) => ({ accepted: true, name }));
@@ -830,6 +839,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
   it.each(["project", "chapter"])("主线模板等待期间 %s 来回切换不注入旧工作流", async (scope) => {
     storeState.storyboards = [{ id: "sb-a", index: 1, episodeId: "chapter-a" }];
     storeState.novelChapters = [{ id: "chapter-a" }];
+    storeState.activeChapterId = "chapter-a"; // D6 后章身份真源=activeChapterId(夹具同步建模)
     let release!: (template: string) => void;
     const gate = new Promise<string>((resolve) => { release = resolve; });
     templateContentMock.mockImplementationOnce(() => gate);
@@ -851,8 +861,10 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       projectListeners.forEach((listener) => listener(projectState));
     } else {
       storeState.novelChapters = [{ id: "chapter-b" }];
+      storeState.activeChapterId = "chapter-b"; // D6 后章身份真源=activeChapterId(夹具同步建模)
       studioListeners.forEach((listener) => listener(storeState));
       storeState.novelChapters = [{ id: "chapter-a" }];
+      storeState.activeChapterId = "chapter-a"; // D6 后章身份真源=activeChapterId(夹具同步建模)
       studioListeners.forEach((listener) => listener(storeState));
     }
     await act(async () => { release('{"nodes":[{"id":1,"type":"MyStage"}]}'); });
@@ -861,6 +873,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
 
   it.each(["project", "chapter"])("队列快照等待期间 %s 来回切换不推送旧侧栏快照", async (scope) => {
     storeState.novelChapters = [{ id: "chapter-a" }];
+    storeState.activeChapterId = "chapter-a"; // D6 后章身份真源=activeChapterId(夹具同步建模)
     let release!: (value: { jobs: [] }) => void;
     const gate = new Promise<{ jobs: [] }>((resolve) => { release = resolve; });
     const get = vi.fn(() => gate);
@@ -876,8 +889,10 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       projectListeners.forEach((listener) => listener(projectState));
     } else {
       storeState.novelChapters = [{ id: "chapter-b" }];
+      storeState.activeChapterId = "chapter-b"; // D6 后章身份真源=activeChapterId(夹具同步建模)
       studioListeners.forEach((listener) => listener(storeState));
       storeState.novelChapters = [{ id: "chapter-a" }];
+      storeState.activeChapterId = "chapter-a"; // D6 后章身份真源=activeChapterId(夹具同步建模)
       studioListeners.forEach((listener) => listener(storeState));
     }
     await act(async () => { release({ jobs: [] }); });
@@ -889,6 +904,7 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
       { id: "sb-1", index: 1, episodeId: "chapter-001", videoDesc: "第1镜", mediaRef: { kind: "image", path: "/a.png" } },
     ] as unknown[];
     storeState.novelChapters = [{ id: "c1" }];
+    storeState.activeChapterId = "c1"; // D6 后章身份真源=activeChapterId(夹具同步建模)
     (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
       installed: true,
       state: "ready",
@@ -925,6 +941,48 @@ describe("ComfyCanvasStudio(辅助面板第六 tab)", () => {
     // 09-12 stage-node-content-parity:富内容载荷随链工作流注入(自绘消费)
     expect(payload).toContain("myStage");
     expect(payload).toContain("剧本内容");
+  });
+
+  it("autoOpen+空章(零分镜):仍注入七环节链工作流,载荷空表引导文案(空章画布 P2)", async () => {
+    // 空章镜像例(正例 :902 同款夹具、storyboards 清空):两道门刀(219 早退+
+    // 355 storyboards>0 条件)摘除后,空章也应走完装载链——载荷全 ?? [] 防御、
+    // buildStageSummaries 空表引导文案,P1 数据腿(3673cc08)已修,门齐开即闭环
+    storeState.storyboards = [];
+    storeState.novelChapters = [{ id: "c1" }];
+    storeState.activeChapterId = "c1"; // D6 后章身份真源=activeChapterId(夹具同步建模)
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: true,
+      state: "ready",
+      serviceRunning: true,
+      port: 17006,
+    });
+    render(<ComfyCanvasStudio autoOpenOverview />);
+    const webview = (await waitFor(() => {
+      const el = document.querySelector("[data-comfy-canvas-webview]") as
+        (HTMLElement & { executeJavaScript?: (code: string) => Promise<unknown> }) | null;
+      if (!el) throw new Error("webview 未挂");
+      return el;
+    }, { timeout: 3000 }))!;
+    const scripts: string[] = [];
+    webview.executeJavaScript = (code: string) => {
+      scripts.push(code);
+      return Promise.resolve(undefined);
+    };
+    webview.dispatchEvent(new Event("dom-ready"));
+    // 与正例同构:local 默认模块 2 段 + 链工作流载荷 1 段
+    const payload = await waitFor(() => {
+      if (scripts.length < 3) throw new Error("链工作流载荷未注入");
+      return scripts[2];
+    }, { timeout: 3000 });
+    // 空章仍产出完整七环节链骨架(模板 7 锚点,载荷降档不缺环节)
+    expect(payload).toContain('"type":"MyStage"');
+    expect((payload.match(/MyStage/g) || []).length).toBeGreaterThanOrEqual(7);
+    expect(payload).toContain("分镜工作流.json");
+    // 空表引导文案(buildStageSummaries 空态分支):分镜表/分镜面板待生成引导
+    expect(payload).toContain("待生成分镜表");
+    expect(payload).toContain("待生成分镜");
+    // 章存在:剧本环节仍报已导入,不误报"还没有导入小说原文"
+    expect(payload).toContain("已导入 1 章原文");
   });
 });
 
