@@ -46,6 +46,15 @@ type StudioStore = ReturnType<typeof useStudioStore.getState>;
  */
 export const SCRIPT_STAGE_STREAM_TIMEOUT_MS = 600_000;
 
+/**
+ * S7 分镜表流式整体预算(10-14 livefire17 ch002 定谳):分镜表期望总时长 690-1215s
+ * (正文 5862 字,乐观/悲观吞吐两支),600s 档=人为墙(实弹 600s 流式停摆即降级链)。
+ * 1200s=判定性预算非充分预算:停摆超时可判「载荷问题」,不承诺再给时间必成。
+ * 仅分镜表调用点(useProductionPlanningActions handleStoryboardTable)使用;
+ * S2 剧本阶段与导演规划侧维持 600s 档不动。
+ */
+export const STORYBOARD_TABLE_STREAM_TIMEOUT_MS = 1_200_000;
+
 export function useScriptStageActions({
   workflowConfig,
   manualCatalog,

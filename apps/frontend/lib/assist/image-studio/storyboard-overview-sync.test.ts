@@ -108,10 +108,12 @@ describe("syncStoryboardOverviewToLibrary(09-10 批9:图片带)", () => {
     expect(second.imported).toHaveLength(0); // 指纹未变,不再导入
   });
 
-  it("空分镜表直接短路", async () => {
-    const { imported } = makeDeps();
-    await expect(syncStoryboardOverviewToLibrary({})).resolves.toBe(false);
-    expect(imported).toHaveLength(0);
+  it("空分镜表=零缩略仍交付载荷回 true(10-14 livefire17 P1:空章语义,宿主重注入门放行)", async () => {
+    const buildPayloads = vi.fn(() => [] as StageNodePayload[]);
+    const { deps, uploads } = makeDeps();
+    await expect(syncStoryboardOverviewToLibrary({ ...deps, buildPayloads })).resolves.toBe(true);
+    expect(buildPayloads).toHaveBeenCalledTimes(1); // 载荷交付(buildStageNodePayloadFromState 全 ?? [] 防御,status=empty)
+    expect(uploads).toHaveLength(0); // 零缩略:uploadShotPreviews([]) 零循环
   });
 
   it("09-12 真跑根修:冷引擎期上传失败不钉死——就绪失效指纹后整轮重传", async () => {

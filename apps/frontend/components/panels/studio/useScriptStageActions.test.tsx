@@ -69,7 +69,7 @@ vi.mock("@/stores/project/project-store", () => ({
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
-import { SCRIPT_STAGE_STREAM_TIMEOUT_MS, useScriptStageActions } from "./useScriptStageActions";
+import { SCRIPT_STAGE_STREAM_TIMEOUT_MS, STORYBOARD_TABLE_STREAM_TIMEOUT_MS, useScriptStageActions } from "./useScriptStageActions";
 import { ScriptTab } from "./ScriptTab";
 import { buildStudioManualContext } from "@/lib/studio/manuals";
 import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
@@ -140,6 +140,8 @@ describe("useScriptStageActions runScriptStage timeout", () => {
     expect(userMessage).toContain("目标画幅：");
     expect(userMessage).toContain("单集参考时长：");
     expect(SCRIPT_STAGE_STREAM_TIMEOUT_MS).toBeGreaterThanOrEqual(600_000);
+    // S7 载荷缓解(10-14 livefire17):分镜表流式预算常量锁(ch002 定谳 1200s=判定性预算)
+    expect(STORYBOARD_TABLE_STREAM_TIMEOUT_MS).toBe(1_200_000);
     expect(saveAgentWorkDataMock).toHaveBeenCalledTimes(1);
   });
 

@@ -341,6 +341,9 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           productionTracks: mergeWindow("productionTracks", loaded?.domains.productionTracks) as ProductionTrack[],
           videoCandidates: mergeWindow("videoCandidates", loaded?.domains.videoCandidates) as VideoCandidate[],
           sceneSegments: mergeWindow("sceneSegments", loaded?.domains.sceneSegments) as SceneSegmentRecord[],
+          // 10-14 livefire17 D4:实体提取集随窗——章归属域(studio-workflow-shards.ts
+          // :97-100 chapterId??episodeId 直接归属)唯一漏网,合并集补齐后与分片规则一一对应
+          entityExtractions: mergeWindow("entityExtractions", loaded?.domains.entityExtractions) as EntityExtractionResult[],
           agentWorkData: [
             ...mergeWindow("agentWorkData", loaded?.domains.agentWorkData),
             ...(Array.isArray(previousAgentWorkData) ? previousAgentWorkData : []),

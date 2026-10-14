@@ -392,6 +392,9 @@ describe("批3 D2 · 分镜表门禁:规划指纹过期=软提示可继续(裁�
 
     expect(toast.warning).not.toHaveBeenCalledWith(expect.stringMatching(/剧本已更新/));
     expect(aiManager.textStream).toHaveBeenCalled();
+    // S7 载荷缓解(10-14 livefire17):分镜表流式整体预算单独 1200s(ch002 定谳:
+    // 期望总时长 690-1215s,600s 档=人为墙;1200s=判定性预算非充分预算)
+    expect(vi.mocked(aiManager.textStream).mock.calls[0]?.[0]?.timeoutMs).toBe(1_200_000);
   });
 
   it("D2: 导演规划落库带来源剧本指纹 sourceScript(条目 id+updatedAt,裁定⑤)", async () => {

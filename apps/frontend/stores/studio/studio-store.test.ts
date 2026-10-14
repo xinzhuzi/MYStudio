@@ -10,7 +10,7 @@ import { useProjectStore } from "@/stores/project/project-store";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
-import type { AgentWorkData, ContinuityAssetVersion, NovelChapter, StoryboardItem } from "@/types/studio";
+import type { AgentWorkData, ContinuityAssetVersion, EntityExtractionResult, NovelChapter, StoryboardItem } from "@/types/studio";
 import { useStudioStore } from "./studio-store";
 import {
   approvedVisualReview,
@@ -1490,9 +1490,15 @@ describe("switchChapter 章工作区装载(G1)", () => {
     createdAt: 2,
     updatedAt: 2,
   };
+  // T5(10-14 livefire17 D4):实体提取集随窗——章归属域唯一漏网(合并集九域缺它,
+  // studio-workflow-shards.ts:97-100 分片写侧已切章)。episodeId 空串=不过
+  // SAFE_CHAPTER_KEY_RE=无章归属共享条目,切章保留。
+  const ch1Ext: EntityExtractionResult = { id: "ext-ch1", episodeId: "ch1", characters: [], scenes: [], props: [] };
+  const ch2Ext: EntityExtractionResult = { id: "ext-ch2", episodeId: "ch2", characters: [], scenes: [], props: [] };
+  const sharedExt: EntityExtractionResult = { id: "ext-shared", episodeId: "", characters: [], scenes: [], props: [] };
   const chapterWorkspaces: Record<string, { novelChapter: unknown; domains: Record<string, unknown[]> }> = {
-    [`${pid}/ch1`]: { novelChapter: ch1Full, domains: { agentWorkData: [ch1Draft] } },
-    [`${pid}/ch2`]: { novelChapter: ch2Full, domains: { agentWorkData: [ch2Draft] } },
+    [`${pid}/ch1`]: { novelChapter: ch1Full, domains: { agentWorkData: [ch1Draft], entityExtractions: [ch1Ext] } },
+    [`${pid}/ch2`]: { novelChapter: ch2Full, domains: { agentWorkData: [ch2Draft], entityExtractions: [ch2Ext] } },
   };
   let originalPid: string | null = null;
 
@@ -1516,6 +1522,7 @@ describe("switchChapter 章工作区装载(G1)", () => {
       novelChapters: [ch1Full, ch2Light],
       activeChapterId: "ch1",
       agentWorkData: [ch1Draft],
+      entityExtractions: [ch1Ext, sharedExt],
     });
   }
 
@@ -1541,6 +1548,17 @@ describe("switchChapter 章工作区装载(G1)", () => {
     expect(
       state.agentWorkData.some((item) => item.episodeId === "ch1" && item.key === "scriptDraft"),
     ).toBe(true);
+  });
+
+  it("T5 实体提取集随窗:切章后并入本章 entityExtractions,前章条目逐出,共享条目保留(10-14 livefire17 D4)", async () => {
+    presetTwoChapterWindow();
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    const state = useStudioStore.getState();
+    expect(state.entityExtractions.some((item) => item.id === "ext-ch2")).toBe(true);
+    expect(state.entityExtractions.some((item) => item.id === "ext-ch1")).toBe(false);
+    expect(state.entityExtractions.some((item) => item.id === "ext-shared")).toBe(true);
   });
 
   it("T4 竞速守卫:装载 await 期间二次切章,先发装载不回写(switchSeq)", async () => {

@@ -16,7 +16,7 @@ import {
 } from "@/lib/studio/storyboard-table";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { hasReviewIssues, isReviewFresh } from "@/lib/studio/script-planning";
-import { SCRIPT_STAGE_STREAM_TIMEOUT_MS } from "./useScriptStageActions";
+import { SCRIPT_STAGE_STREAM_TIMEOUT_MS, STORYBOARD_TABLE_STREAM_TIMEOUT_MS } from "./useScriptStageActions";
 import {
   buildStoryboardTableManualContext,
   buildStudioManualContext,
@@ -408,7 +408,9 @@ export function useProductionPlanningActions({
               { role: "user", content: userContent },
             ],
             temperature: 0.35,
-            timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
+            // 10-14 livefire17 ch002 定谳:分镜表单独 1200s 判定性预算(期望总时长
+            // 690-1215s,600s=人为墙);导演规划侧(上方 :188/:217)维持 600s 档不动
+            timeoutMs: STORYBOARD_TABLE_STREAM_TIMEOUT_MS,
             // 同上:maxTokens 走 ai-manager 统一兜底
           },
           () => {},

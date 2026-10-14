@@ -134,7 +134,10 @@ export async function ensureStageAssetCoversUploaded(
 export async function syncStoryboardOverviewToLibrary(deps: OverviewSyncDeps = {}): Promise<boolean> {
   const state = useStudioStore.getState();
   const storyboards = state.storyboards;
-  if (storyboards.length === 0) return false;
+  // 10-14 livefire17 P1:空章不再整腿早退——空表=零缩略(uploadShotPreviews([])
+  // 本就零循环)仍照走指纹/载荷交付(buildStageNodePayloadFromState 全 ?? [] 防御,
+  // 空章产出 status=empty 环节载荷)/记账并回 true,宿主 5s tick 重注入门据此放行,
+  // S7 等动作按钮在空章可达。
   // 指纹=分镜内容+各环节计数(链工作流摘要随章节/规划/资产演进也要保鲜)
   const fingerprint = JSON.stringify([
     WORKFLOW_SCHEMA_STAMP,
