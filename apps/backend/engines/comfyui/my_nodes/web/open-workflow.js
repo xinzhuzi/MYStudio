@@ -7,6 +7,8 @@
  * window.__myOpenWorkflow 锚=ComfyCanvasStudio 探测助手契约。
  */
 
+import { resolveOpenWorkflowDecision, resolveEntryBinding } from "./open-workflow-decision.mjs";
+
 const MY_STORE_BASE = "workflows/";
 
 function cloneGraph(graph) {
@@ -85,9 +87,24 @@ async function openWorkflowSingleInstance({ name, graph }) {
     try { await svc.openWorkflow(active); } catch (error) { /* 已活跃:幂等 */ }
     return { ok: true, mode: "kept-modified" };
   }
-  // 库里没有该文件但同名临时签已活跃 → 内容已是我们的,不重开
-  // (字符串分支对活跃同名签仍可能叠号,直接短路)
-  if (!entry && active && matcher(active)) return { ok: true, mode: "named-active" };
+  // 短路判定收进纯函数 resolveOpenWorkflowDecision(四审E组 L3,design §1.2 案A):
+  // · kept-modified 已由上方 Q1a 分支返回,此处 decision 不会是该值;
+  // · 名匹配且路径同(内容锚即本库路径)→ 维持旧短路 named-active 不重开;
+  // · 名匹配但路径异(章翻转死点:每章同名临时签,活跃签=上一章,entry=null)
+  //   且未过 kept-modified 门 → 不再短路,refresh-active:本次 graph 装进当前
+  //   活跃签(loadGraphData 替换画布内容,不开新签——原短路「重复 open 恒一签」
+  //   的防叠号语义保留),死点消除:每次 open 恒装载本次 graph,画布恒本章内容。
+  const decision = resolveOpenWorkflowDecision({
+    hasEntry: !!entry,
+    activeMatchesMainline: !!(active && matcher(active)),
+    activeIsModified: !!(active && active.isModified),
+    samePath: !!(active && active.path === libraryPath),
+  });
+  if (decision === "named-active") return { ok: true, mode: "named-active" };
+  if (decision === "refresh-active") {
+    await app2.loadGraphData(cloneGraph(graph), true, true, name);
+    return { ok: true, mode: "named-active-refreshed" };
+  }
   // 清带号残留与同名旧临时签(非活跃;活跃的由上面短路或下一轮收敛)
   await closeStaleWorkflows(svc, matcher);
   if (entry) {
@@ -101,12 +118,22 @@ async function openWorkflowSingleInstance({ name, graph }) {
       entry = null; // 文件读失败(刚被删等)→按兜底图走
     }
     if (entry) {
-      const content = entry.activeState || graph;
+      // L3b(mustFix 复审 1014)临时条目伪库条目形态:宿主每章同名(named-temp
+      // 落地签被 deployed store 注册进索引,getWorkflowByPath 会捞到),
+      // entry.load 对临时签原地早退不读盘,content 取 entry.activeState=上章旧图
+      // →画布恒上章。binding 见 open-workflow-decision.mjs:临时条目 content=
+      // 本次 graph(与 named-temp 兜底同源)、mode=named-temp-refreshed;
+      // 库条目维持 entry.activeState+library-bound 语义零动。
+      const binding = resolveEntryBinding({
+        entryIsTemporary: !!entry.isTemporary,
+        entryContent: entry.activeState,
+        graph,
+      });
       await svc.openWorkflow(entry); // 未开→注册+激活;已开→激活;活跃→早退(路径注册=单实例)
-      await app2.loadGraphData(cloneGraph(content), true, true, entry); // 实例分支:零临时签
+      await app2.loadGraphData(cloneGraph(binding.content), true, true, entry); // 实例分支:零临时签
       try { entry.changeTracker?.updateModified(); } catch (error) { /* 装载后重评:消程序化装载的假「未保存」点 */ }
       await cleanupLegacyUnsavedTabs(); // 主线接管活跃位后,再清一轮旧 Unsaved
-      return { ok: true, mode: "library-bound" };
+      return { ok: true, mode: binding.mode };
     }
   }
   await app2.loadGraphData(cloneGraph(graph), true, true, name);
