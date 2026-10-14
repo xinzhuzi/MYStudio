@@ -1604,6 +1604,61 @@ describe("switchChapter 章工作区装载(G1)", () => {
     expect(state.activeChapterId).toBe("ch3");
     expect(state.novelChapters.find((chapter) => chapter.id === "ch2")?.sourceText).toBeUndefined();
   });
+
+  // D1(10-15 livefire18 腿3①):装载成功但文丢预警——R2 fail-closed 只盖「装载抛错」,
+  // 不盖「装载成功但正文空」(盘上分片丢文/瘦身形态):切章后激活章 sourceText 空,
+  // 而装载前内存同章仍有正文 → G1 类静默丢文,ScriptTab 会把章误判「原创」照常组装。
+  // 预警走 diagnosticsLog(warn),logEvent 全 try/catch 永不炸产线。
+  it("D1 装载成功但文丢:盘上章正文空而内存同章非空 → chapterSwitch.sourceTextLost(warn)", async () => {
+    const ch2WithText: NovelChapter = { id: "ch2", index: 2, title: "第2章 塾馆", sourceText: "内存正文", importedAt: 2 };
+    const ch2OnDiskLost: NovelChapter = { id: "ch2", index: 2, title: "第2章 塾馆", sourceText: "   ", importedAt: 2 };
+    const writes: Array<Record<string, unknown>> = [];
+    const write = vi.fn(async (entry: Record<string, unknown>) => { writes.push(entry); });
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = { write };
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      chapterId === "ch2"
+        ? Promise.resolve({ novelChapter: ch2OnDiskLost, domains: {} })
+        : Promise.resolve(null),
+    );
+    useStudioStore.setState({
+      novelChapters: [ch1Full, ch2WithText, ch3Light],
+      activeChapterId: "ch1",
+    });
+    try {
+      await useStudioStore.getState().switchChapter("ch2");
+
+      expect(useStudioStore.getState().activeChapterId).toBe("ch2");
+      expect(writes).toHaveLength(1);
+      expect(writes[0]!.level).toBe("warn");
+      expect(writes[0]!.operationId).toBe("chapterSwitch.sourceTextLost");
+      expect((writes[0]!.context as Record<string, unknown>).chapterId).toBe("ch2");
+    } finally {
+      delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    }
+  });
+
+  it("D1 对照:正文合法为空(内存与盘上都空)不预警——新建空章不误报", async () => {
+    const ch2Blank: NovelChapter = { id: "ch2", index: 2, title: "第2章 空章", importedAt: 2 };
+    const write = vi.fn(async () => undefined);
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = { write };
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      chapterId === "ch2"
+        ? Promise.resolve({ novelChapter: ch2Blank, domains: {} })
+        : Promise.resolve(null),
+    );
+    useStudioStore.setState({
+      novelChapters: [ch1Full, ch2Blank, ch3Light],
+      activeChapterId: "ch1",
+    });
+    try {
+      await useStudioStore.getState().switchChapter("ch2");
+
+      expect(useStudioStore.getState().activeChapterId).toBe("ch2");
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    }
+  });
 });
 
 // ── A批(10-14-audit4-residuals)R2/R3 ──────────────────────────────────────
@@ -1773,5 +1828,66 @@ describe("switchChapter 装载失败与装载期写入(A批 R2/R3)", () => {
 
     expect(roundTripped).toBeTruthy();
     expect(roundTripped?.reviewTarget).toEqual({ entryId: draftId, updatedAt: draftEntry!.updatedAt });
+  });
+});
+
+// ── P3(10-15 livefire18)读侧去重(B 止泵源)─────────────────────────────────
+// 机制:unattributed 条目(episodeId 空/悬空→chapterKeyOf=null)落根层 shared 桶,
+// mergeWindow shared 分支保留内存侧副本且不做 id 去重 → 每次切章该 id ×2,保存忠实
+// 落盘循环放大(活体:videoCandidates 7id×128/imageWorkflows 14id×128)。修法:shared
+// 分支并入既有 loadedIds 去重——id 已在盘上装载集者以盘上为准,内存副本不再双份。
+describe("switchChapter 重复行压实(P3 读侧去重)", () => {
+  const pid = "proj-p3";
+  const ch1: NovelChapter = { id: "c1", index: 1, title: "第一章", sourceText: "一", importedAt: 1 };
+  const ch2: NovelChapter = { id: "c2", index: 2, title: "第二章", sourceText: "二", importedAt: 2 };
+  const sharedRow: EntityExtractionResult = { id: "ext-shared", episodeId: "", characters: [], scenes: [], props: [] };
+  const ch2Row: EntityExtractionResult = { id: "ext-c2", episodeId: "c2", characters: [], scenes: [], props: [] };
+  const ch1Row: EntityExtractionResult = { id: "ext-c1", episodeId: "c1", characters: [], scenes: [], props: [] };
+
+  beforeEach(() => {
+    useProjectStore.setState({ activeProjectId: pid });
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      Promise.resolve(
+        chapterId === "c1"
+          ? { novelChapter: ch1, domains: { entityExtractions: [ch1Row, sharedRow] } }
+          : chapterId === "c2"
+            ? { novelChapter: ch2, domains: { entityExtractions: [ch2Row, sharedRow] } }
+            : null,
+      ),
+    );
+  });
+
+  afterEach(() => {
+    loadStudioChapterWorkspaceMock.mockReset();
+    useProjectStore.setState({ activeProjectId: null });
+  });
+
+  it("切章后 shared 条目恰一行(盘上为准,不与内存副本双份)", async () => {
+    useStudioStore.setState({
+      novelChapters: [ch1, ch2],
+      activeChapterId: "c1",
+      entityExtractions: [ch1Row, sharedRow],
+    });
+
+    await useStudioStore.getState().switchChapter("c2");
+
+    const sharedRows = useStudioStore.getState().entityExtractions.filter((item) => item.id === "ext-shared");
+    expect(sharedRows).toHaveLength(1);
+  });
+
+  it("连续两次切章 unattributed 行数不增(泵源掐断)", async () => {
+    useStudioStore.setState({
+      novelChapters: [ch1, ch2],
+      activeChapterId: "c1",
+      entityExtractions: [ch1Row, sharedRow],
+    });
+
+    await useStudioStore.getState().switchChapter("c2");
+    const afterFirst = useStudioStore.getState().entityExtractions.filter((item) => item.episodeId === "").length;
+    await useStudioStore.getState().switchChapter("c1");
+    const afterSecond = useStudioStore.getState().entityExtractions.filter((item) => item.episodeId === "").length;
+
+    expect(afterFirst).toBe(1);
+    expect(afterSecond).toBe(1);
   });
 });

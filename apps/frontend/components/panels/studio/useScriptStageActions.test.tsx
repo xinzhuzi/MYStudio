@@ -2,10 +2,19 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { textStreamMock, saveAgentWorkDataMock } = vi.hoisted(() => ({
+const { textStreamMock, saveAgentWorkDataMock, loadWorkspaceMock } = vi.hoisted(() => ({
   textStreamMock: vi.fn(),
   saveAgentWorkDataMock: vi.fn(),
+  loadWorkspaceMock: vi.fn(),
 }));
+
+vi.mock("@/lib/storage/project-storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/storage/project-storage")>();
+  return {
+    ...actual,
+    loadStudioChapterWorkspace: loadWorkspaceMock,
+  };
+});
 
 vi.mock("@/lib/ai/ai-manager", () => ({
   aiManager: { textStream: textStreamMock },
@@ -743,5 +752,110 @@ describe("useScriptStageActions 章内最新稿按 updatedAt 单口径(C批 R12 
     const userMessage = lastUserMessage();
     expect(userMessage).toContain("剧本（审核主体）：\n# 新版本章剧本");
     expect(userMessage).not.toContain("# 旧版本章剧本");
+  });
+});
+
+// ── 腿3②(LF14 §7.3,10-15 livefire18)────────────────────────────────────────
+// 启动自动恢复态(持久化回放)不走 switchChapter→前章 agentWorkData 不在内存→
+// 「上一集剧本」节缺失仍开(切章路径 G1 前章并入只盖切章)。登记为装载器 diagnostics:
+// 持久化层有前章稿=真缺节(warn);持久化也无=前章从未生成剧本(合法缺节,debug 观察窗)。
+describe("useScriptStageActions 上一集剧本缺节诊断(LF14 §7.3 腿3②)", () => {
+  const prevCh = {
+    id: "ch-prev",
+    index: 1,
+    title: "第一章",
+    sourceText: "前章正文",
+    eventSummary: "",
+    eventState: "",
+    importedAt: 1,
+  } as unknown as NovelChapter;
+  const activeCh = {
+    id: "ch-active",
+    index: 2,
+    title: "第二章",
+    sourceText: "本章正文",
+    eventSummary: "",
+    eventState: "",
+    importedAt: 2,
+  } as unknown as NovelChapter;
+  const persistedPrevDraft = {
+    id: "w-prev",
+    key: "scriptDraft" as const,
+    episodeId: "ch-prev",
+    data: "前章盘上剧本",
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  function installDiagnostics() {
+    const write = vi.fn(async () => undefined);
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = { write };
+    return write;
+  }
+
+  function previousEpisodeMissingWrites(write: ReturnType<typeof vi.fn>) {
+    return (write.mock.calls as Array<[Record<string, unknown>]>)
+      .map(([entry]) => entry)
+      .filter((entry) => entry.level === "warn" && entry.operationId === "scriptStage.previousEpisodeMissing");
+  }
+
+  beforeEach(() => {
+    loadWorkspaceMock.mockReset();
+  });
+
+  it("恢复态缺节且持久化层有前章稿 → warn(scriptStage.previousEpisodeMissing)", async () => {
+    loadWorkspaceMock.mockImplementation(async (_pid: string, chapterId: string) =>
+      chapterId === "ch-prev"
+        ? { novelChapter: prevCh, domains: { agentWorkData: [persistedPrevDraft] } }
+        : null,
+    );
+    const write = installDiagnostics();
+    const { result } = renderHook(() =>
+      useScriptStageActions({
+        workflowConfig: {} as never,
+        manualCatalog: {} as never,
+        projectName: "测试项目",
+        novelChapterCount: 2,
+        novelChapters: [prevCh, activeCh],
+        agentWorkData: [],
+        saveAgentWorkData: saveAgentWorkDataMock as never,
+      }),
+    );
+    try {
+      await act(async () => {
+        await result.current.previewStageUserMessage("scriptDraft", activeCh);
+      });
+
+      const warns = previousEpisodeMissingWrites(write);
+      expect(warns).toHaveLength(1);
+      expect((warns[0]!.context as Record<string, unknown>).previousChapterId).toBe("ch-prev");
+    } finally {
+      delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    }
+  });
+
+  it("对照:前章从未生成剧本(持久化也无) → 不出 warn(合法缺节)", async () => {
+    loadWorkspaceMock.mockResolvedValue(null);
+    const write = installDiagnostics();
+    const { result } = renderHook(() =>
+      useScriptStageActions({
+        workflowConfig: {} as never,
+        manualCatalog: {} as never,
+        projectName: "测试项目",
+        novelChapterCount: 2,
+        novelChapters: [prevCh, activeCh],
+        agentWorkData: [],
+        saveAgentWorkData: saveAgentWorkDataMock as never,
+      }),
+    );
+    try {
+      await act(async () => {
+        await result.current.previewStageUserMessage("scriptDraft", activeCh);
+      });
+
+      expect(previousEpisodeMissingWrites(write)).toHaveLength(0);
+    } finally {
+      delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    }
   });
 });

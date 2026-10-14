@@ -308,6 +308,33 @@ function closeBatch(
 }
 
 /**
+ * P3 写侧压实（10-15 livefire18）：章归属数组域按条目 id 去重，keep-last——追加语义
+ * 「后者新」与合并 concat 顺序一致，重复 id 只保留数组末次出现位置（其余删除、原序
+ * 不变）。策略钉死：现有活体数据逐 id 逐字节相同（纯拷贝，keep-first/last 均无损），
+ * 若日後出现「同 id 异容」，此处保末位=最新写入，与切章/保存的追加时序一致。
+ * 只挡章归属数组域（含其根层 shared 桶——chapterKeyOf=null 的条目也走本分支）；
+ * 非章节数组域与 novelChapters 索引不受影响。
+ */
+function dedupeArrayItemsByIdKeepLast(items: unknown[]): unknown[] {
+  const idOf = (item: unknown) =>
+    item && typeof item === "object" && "id" in item
+      ? (item as { id?: unknown }).id
+      : undefined;
+  const lastIndexOf = new Map<unknown, number>();
+  items.forEach((item, index) => {
+    const id = idOf(item);
+    if (id === undefined) return;
+    lastIndexOf.set(id, index);
+  });
+  if (lastIndexOf.size === 0) return items;
+  return items.filter((item, index) => {
+    const id = idOf(item);
+    if (id === undefined) return true;
+    return lastIndexOf.get(id) === index;
+  });
+}
+
+/**
  * 把 zustand persist 的完整落盘串（`{"state":{...},"version":N}`）拆成
  * manifest + 分片文件集。输入不是合法信封时抛 StudioWorkflowShardPlanError，
  * 调用方应回退旧单文件写，绝不静默丢数据。
@@ -425,11 +452,13 @@ export function planStudioWorkflowShards(
       const plannableItems = key === "novelChapters"
         ? items.filter(isFullNovelChapter)
         : items;
+      // P3 写侧压实:章归属数组域按 id 去重 keep-last(周期全量自愈时清存量重复行)
+      const dedupedItems = dedupeArrayItemsByIdKeepLast(plannableItems);
       let index = 0;
-      while (index < plannableItems.length) {
-        const chapterKey = chapterRule.chapterKeyOf(plannableItems[index], attribution);
+      while (index < dedupedItems.length) {
+        const chapterKey = chapterRule.chapterKeyOf(dedupedItems[index], attribution);
         let end = index + 1;
-        while (end < plannableItems.length && chapterRule.chapterKeyOf(plannableItems[end], attribution) === chapterKey) {
+        while (end < dedupedItems.length && chapterRule.chapterKeyOf(dedupedItems[end], attribution) === chapterKey) {
           end += 1;
         }
         let shard: Batch | null = null;
@@ -443,7 +472,7 @@ export function planStudioWorkflowShards(
           return shard;
         };
         for (let position = index; position < end; position += 1) {
-          const raw = plannableItems[position];
+          const raw = dedupedItems[position];
           const itemPart = raw && typeof raw === "object" ? serializeItem(raw as object) : `      ${reindentJson(JSON.stringify(raw, null, 2), 6)}`;
           if (!shard) openShard();
           const projected = batchTotalBytes(shard!, version, itemPart);

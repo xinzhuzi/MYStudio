@@ -13,6 +13,8 @@ import {
 } from "@/lib/studio/script-planning";
 import { latestAgentWorkEntry } from "./workflow-helpers";
 import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
+import { logEvent } from "@/lib/diagnostics/logger";
+import { loadStudioChapterWorkspace } from "@/lib/storage/project-storage";
 import {
   analyzeScriptDraft,
   formatScriptDraftMetrics,
@@ -302,6 +304,32 @@ export function useScriptStageActions({
         stage === "scriptDraft" && previousChapter
           ? latestScriptStage("scriptDraft", previousChapter.id)
           : undefined;
+      // 腿3②（LF14 §7.3）：启动自动恢复态（持久化回放）不走 switchChapter，前章
+      // agentWorkData 不在内存 →「上一集剧本」节缺失仍开（切章路径的前章并入只盖
+      // 切章）。仅落诊断不改装配语义：持久化层有前章稿=真缺节（warn）；持久化也无
+      // =前章从未生成剧本（合法缺节，debug 观察窗取证）。logEvent 全 try/catch 永不炸产线。
+      if (stage === "scriptDraft" && previousChapter && !previousEpisodeScript) {
+        let persistedPreviousScript = "";
+        try {
+          const previousWorkspace = await loadStudioChapterWorkspace(projectId, previousChapter.id);
+          persistedPreviousScript = latestAgentWorkEntry(
+            ((previousWorkspace?.domains.agentWorkData ?? []) as unknown) as AgentWorkData[],
+            "scriptDraft",
+            previousChapter.id,
+          )?.data ?? "";
+        } catch {
+          // 持久化不可查（读链损坏/无项目）→ 观察窗降 debug，不拦截组装
+        }
+        void logEvent({
+          level: persistedPreviousScript ? "warn" : "debug",
+          category: "workflow",
+          operationId: "scriptStage.previousEpisodeMissing",
+          message: persistedPreviousScript
+            ? "上一集剧本节缺失：持久化层有前章稿但未注入（恢复态）"
+            : "上一集剧本节缺失：前章无剧本（合法缺节观察窗）",
+          context: { chapterId: chapter.id, previousChapterId: previousChapter.id },
+        });
+      }
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
         directorContext: scriptDirectorContext,

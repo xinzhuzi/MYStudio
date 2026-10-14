@@ -487,4 +487,41 @@ describe("createStudioWorkflowShardedStorage", () => {
     };
     expect(manifestAfter.shards.some((name) => name.startsWith("image-workflows"))).toBe(true);
   });
+
+  // P3(10-15 livefire18)写侧压实(A 清存量):章归属数组域按条目 id 去重 keep-last
+  // (追加语义「后者新」),借既有每-50-保存强制全量自愈(fullSaveEvery=3 加速)把
+  // 切章泵入的存量重复行压回唯一——全程 App 自身持久化管线,零外部触碰 store。
+  it("P3 写侧压实:章归属数组域重复 id 借周期全量自愈压回唯一(keep-last)", async () => {
+    const live: Record<string, unknown> = {
+      novelChapters: [{ id: "chapter-001", title: "第一章", sourceText: "正".repeat(100) }],
+      // videoCandidates 病灶形态:trackId 悬空 → 恒落根层 shared 桶,切章泵入 ×N
+      videoCandidates: [
+        { id: "vc-1", trackId: "", createdAt: 1 },
+        { id: "vc-1", trackId: "", createdAt: 1 },
+        { id: "vc-1", trackId: "", createdAt: 1 },
+        { id: "vc-2", trackId: "", createdAt: 2 },
+      ],
+      // 章归属域重复:同 id 三份,keep-last=保末位(后者新)
+      storyboards: [
+        { id: "sb-1", episodeId: "chapter-001", index: 1, prompt: "旧版" },
+        { id: "sb-1", episodeId: "chapter-001", index: 1, prompt: "旧版" },
+        { id: "sb-1", episodeId: "chapter-001", index: 1, prompt: "新版" },
+      ],
+    };
+    const compacting = createStudioWorkflowShardedStorage("studio-workflow-store", {
+      getLiveState: () => live,
+      fullSaveEvery: 3,
+    });
+    const value = () => JSON.stringify({ state: live, version: 10 });
+
+    await compacting.setItem("studio-workflow-store", value());
+    await compacting.setItem("studio-workflow-store", value());
+    await compacting.setItem("studio-workflow-store", value()); // 第 3 次=周期全量自愈
+
+    const restored = await compacting.getItem("studio-workflow-store");
+    const state = (JSON.parse(restored!) as { state: Record<string, unknown> }).state;
+    expect((state.storyboards as Array<{ id: string }>).map((item) => item.id)).toEqual(["sb-1"]);
+    expect((state.storyboards as Array<{ prompt: string }>)[0]!.prompt).toBe("新版");
+    expect((state.videoCandidates as Array<{ id: string }>).map((item) => item.id)).toEqual(["vc-1", "vc-2"]);
+  });
 });

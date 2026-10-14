@@ -9,6 +9,7 @@ import {
   chapterKeyOfDomainItem,
 } from "@/lib/storage/studio-workflow-shards";
 import { toast } from "sonner";
+import { logEvent } from "@/lib/diagnostics/logger";
 import { useProjectStore } from "@/stores/project/project-store";
 import {
   createImageWorkflowGraph,
@@ -345,6 +346,28 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         const activeChapter = (loaded?.novelChapter as NovelChapter | undefined)
           ?? latest.novelChapters.find((chapter) => chapter.id === chapterId);
         if (!activeChapter) return;
+        // D1（livefire18 腿3①）：装载成功但文丢预警——R2 fail-closed 只盖「装载抛错」，
+        // 这里盖「装载成功但正文空」：激活章定谳后 sourceText 空/blank，而装载前
+        // （盘上分片章或内存同章，任一侧）仍有非 blank 正文 → G1 类静默丢文（章会被
+        // 误判「原创」照常组装）。仅落诊断 warn 不改装载语义；logEvent 全 try/catch
+        // 永不炸产线。两侧取值按「trim 非空才有效」——空白串不得短路掉另一侧。
+        const diskChapter = loaded?.novelChapter as NovelChapter | undefined;
+        const diskSourceText = typeof diskChapter?.sourceText === "string" && diskChapter.sourceText.trim()
+          ? diskChapter.sourceText
+          : "";
+        const memorySourceText = latest.novelChapters.find((chapter) => chapter.id === chapterId)?.sourceText;
+        const sourceTextBeforeSwitch =
+          diskSourceText
+          || (typeof memorySourceText === "string" && memorySourceText.trim() ? memorySourceText : "");
+        if (!activeChapter.sourceText?.trim() && sourceTextBeforeSwitch) {
+          void logEvent({
+            level: "warn",
+            category: "storage",
+            operationId: "chapterSwitch.sourceTextLost",
+            message: "章节工作区装载成功但正文缺失（装载前同章仍有正文）",
+            context: { chapterId, projectId: pid },
+          });
+        }
         const mergeWindow = (key: keyof StudioWorkflowState, loadedItems: unknown) => {
           const latestItems = latest[key] as unknown[];
           const chapterKeyOf = (item: unknown) =>
@@ -352,13 +375,23 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           if (!Array.isArray(loadedItems)) {
             return latestItems.filter((item) => chapterKeyOf(item) === null);
           }
-          const shared = latestItems.filter((item) => chapterKeyOf(item) === null);
-          // 装载期对目标章的新写入（分片读像里没有的条目）一并保留，按 id 去重防双份
+          // P3（10-15 livefire18）读侧去重：loadedIds 提前构建，shared 分支并入同一
+          // 去重——id 已在盘上装载集的 shared（unattributed）条目以盘上为准，内存副本
+          // 不再双份，掐断切章泵源（活体：videoCandidates 7id×128 / imageWorkflows
+          // 14id×128，每次切章该 id ×2 忠实落盘循环放大）。loaded 数组内部的存量重复
+          // 由写侧压实（planStudioWorkflowShards 按 id 压实）借每-50-保存全量自愈清淤。
+          const itemIdOf = (item: unknown) => (item as { id?: unknown })?.id ?? null;
           const loadedIds = new Set(
-            loadedItems.map((item) => (item as { id?: unknown })?.id ?? null),
+            loadedItems.map((item) => itemIdOf(item)),
           );
+          const shared = latestItems.filter((item) => {
+            if (chapterKeyOf(item) !== null) return false;
+            const itemId = itemIdOf(item);
+            return itemId === null || !loadedIds.has(itemId);
+          });
+          // 装载期对目标章的新写入（分片读像里没有的条目）一并保留，按 id 去重防双份
           const midLoadTargetWrites = latestItems.filter((item) => {
-            const itemId = (item as { id?: unknown })?.id ?? null;
+            const itemId = itemIdOf(item);
             if (itemId !== null && loadedIds.has(itemId)) return false;
             return chapterKeyOf(item) === chapterId;
           });
