@@ -34,7 +34,16 @@ describe("Layout 首屏挂球(09-14 全程可见)", () => {
     // 分支正确性:Dashboard 本体在场(而非项目内分支)
     expect(screen.getByTestId("dashboard-stub")).not.toBeNull();
     // 球在场(lazy 挂载,异步等真身;data 钩子与 aria 面孔来自 AppOrb)
-    const orb = await screen.findByRole("button", { name: /导航：/ });
+    // 1014 门禁关账:eda5fde1(10-11 comfyui融合)把 chapter-pipeline /
+    // chapter-pipeline-stale 拽进 orbs 懒加载模块图,VT(vite-node)下 chunk
+    // 装载耗时破 findByRole 默认 1s 窗(bisect 665 commits 首坏=eda5fde1;
+    // 探针实测 import 落定 ~2.8s、本用例球 ~1.1s 挂上,timeout 8s 即绿)——
+    // 只放宽等待窗,断言零改。
+    const orb = await screen.findByRole(
+      "button",
+      { name: /导航：/ },
+      { timeout: 8000 },
+    );
     expect(orb.getAttribute("data-workflow-orb")).not.toBeNull();
   });
 });
