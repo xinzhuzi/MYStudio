@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { homedir, tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { inspectPackagedRemotionApp } from '../remotion/verify-packaged-remotion.mjs';
+import { probeRunningInstances, resolvePrekillMode } from '../smoke/smoke-process-lifecycle.mjs';
 
 // 1003 死守卫:本脚本会关闭既有实例并启动 漫影App 做装机验收(stopInstalledAppIfRunning/
 // verifyRealOpen/ smoke:desktop 子链)。无用户亲手解锁,任何人不许跑;本检查必须发生在
@@ -30,6 +31,11 @@ const ownsUserDataDir = !userDataDirFromEnv;
 const debugPort = process.env.MYSTUDIO_SMOKE_DEBUG_PORT || '9363';
 const smokeCommandLabel = 'npm run smoke:desktop';
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === '1';
+// 10-15 R20(audit4-residuals):prekill 三态对齐 f5166c75——默认=探测实例在即
+// 中止不盲杀;SKIP=跳过不杀;FORCE=旧盲杀显式口。SKIP 优先于 FORCE。
+// 注:build-mac.sh 以 MYSTUDIO_SMOKE_SKIP_PREKILL=0 走默认态——装机链遇实例在跑
+// 将中止并给指引(不再盲杀用户在驾实例);自动化清僵尸显式 MYSTUDIO_SMOKE_PREKILL_FORCE=1。
+const prekillForce = process.env.MYSTUDIO_SMOKE_PREKILL_FORCE === '1';
 
 function sha256(filePath) {
   return createHash('sha256').update(readFileSync(filePath)).digest('hex');
@@ -61,10 +67,28 @@ function sleepSync(seconds) {
 }
 
 function stopInstalledAppIfRunning() {
-  if (skipPrekill) {
+  const prekillMode = resolvePrekillMode({ skipPrekill, prekillForce });
+  if (prekillMode === 'skip') {
     console.log('Skipping pre-run MYStudio instance cleanup');
     return;
   }
+  // 10-15 R20 三态守卫(f5166c75 对齐):默认=pgrep 探测实例在即中止,不再盲杀
+  // 用户在驾实例(残留冒烟僵尸与用户实例不可区分,保守按实例在)。
+  if (prekillMode === 'guard') {
+    if (probeRunningInstances().length > 0) {
+      console.error(
+        '[install-smoke] 检测到漫影工作室实例正在运行,已中止(prekill 不再默认盲杀)。'
+        + '请关闭 App 后重跑;若确认是残留冒烟僵尸,可设 '
+        + 'MYSTUDIO_SMOKE_SKIP_PREKILL=1 跳过 prekill,或 '
+        + 'MYSTUDIO_SMOKE_PREKILL_FORCE=1 显式清理。',
+      );
+      process.exit(1);
+    }
+    console.log('No running MYStudio instance detected; proceeding without prekill');
+    return;
+  }
+  // FORCE=旧盲杀语义显式口:以下 legacy 清理逐字保留(build-scripts.test.ts 锁
+  // prekillBody 须含 image_gen.main/killSingletonLockHolder)。
   runOptional('osascript', [
     '-e',
     'tell application id "com.my.manying-studio" to quit',
@@ -221,7 +245,16 @@ function verifyRealOpen() {
   while (findInstalledAppPid() && Date.now() < quitDeadline) {
     sleepSync(0.5);
   }
-  runOptional('pkill', ['-f', '漫影工作室.app/Contents']);
+  // 10-15 R20(audit4-residuals):优雅退出后的兜底收尾改「自起 PID 精收」——
+  // 本实例是本函数经 open 拉起并验活的(pid),TERM→KILL 只对该 pid 下刀,
+  // 不再 pkill 名字盲杀(防误伤验活窗口期用户另开的实例)。风格同
+  // killSingletonLockHolder(kill → 宽限 → kill -9)。
+  if (findInstalledAppPid()) {
+    runOptional('kill', ['-TERM', String(pid)]);
+    sleepSync(2);
+    runOptional('kill', ['-9', String(pid)]);
+    console.log(`[open-verify] precisely terminated the verified instance pid=${pid}`);
+  }
 }
 
 if (!existsSync(packagedAsar)) {

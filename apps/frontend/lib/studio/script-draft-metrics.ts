@@ -5,7 +5,9 @@
  * 阈值单一真源 = 通用剧本手册条款(父 I6,代码常量注释回指节标题,不锚行号):
  * - 单集参考时长 ±10 秒;各场秒数合计对账同一口径(手册【输出格式规范】「九、时长与视觉预算」节;
  *   v3 已由「八、时长控制」改名合并,「约束」节同指引——锚节标题以抗挪行)
- * - 配音总量(台词+OS)≤ 4 字/秒(240 字/分钟);OS/旁白占比 ≤ 40%
+ * - 配音总量(台词+OS)超标判定按区间上限 4 字/秒(R15/Q1 10-14 晚裁定:语速=2.5~4 字/秒区间,
+ *   上限=超标判定端、下限 2.5=时长估算保守端,全链无题材豁免;旧「道劫 150 字/分例外」单口径
+ *   表述废止);OS/旁白占比 ≤ 40%
  * - 镜头上限 = ⌊时长秒 ÷ 10⌋(G26 单值:每镜头按 10 秒预算;题材包只收紧不放宽)
  *   (G35 留白:题材包〔script_narrative〕可声明更严镜头预算——道劫/甜宠当前两包均未声明,
  *   代码不预建输入口,待包侧真声明后再接线收紧)
@@ -36,7 +38,7 @@
  *   首场前梗概与改编追踪区的「名：内容」行不误算为台词;镜头计数口径不变(△/镜头N： 同规)
  * - 场秒对账:存在缺标注场只报逐场缺标注,全部场有秒才对账总时长(10-12 口径)
  * - 逐场对账(F4,手册「九、时长与视觉预算」节):本场镜头数(△/镜头N： 合计)×10 秒 ≤ 本场秒数+10、
- *   本场语音字数 ≤ ⌊本场秒数×4⌋(按 4 字/秒),超即入 flags;缺秒场不判
+ *   本场语音字数 ≤ ⌊本场秒数×4⌋(按区间上限 4 字/秒=R15/Q1 判定端),超即入 flags;缺秒场不判
  * - 三条手册规则(四审B M6,10-14 裁定=警告级 flags,不改接口不拆数组):OS 连续不超 2 段/
  *   场景段落 20-60 秒/纯画面段落最长 15 秒,超出以「警告」前缀入 flags,缺秒场不判秒数带
  * - 场号 N-M 与裸数字混用(同剧本内)→ flag「场号格式不一致」(F6,手册场头要求 {场号})
@@ -67,7 +69,8 @@ export interface ScriptDraftMetrics {
   osChars: number;
   /** os/(dialogue+os);无语音时 0 */
   osRatio: number;
-  /** durationMin × 240(4 字/秒,手册条款;道劫包 150 字/分属题材豁免,由其手册注入块声明) */
+  /** durationMin × 240(区间上限 4 字/秒=VOICE_CPS_MAX,R15/Q1 超标判定端;时长估算另走
+   *  2.5~4 区间,保守端 2.5 只进估算面不进 flags 面) */
   voiceCharLimit: number;
   overlongLines: { scene: string; text: string; chars: number }[];
   /** 16:9 → 20 字;9:16 → 15 字(G7) */
@@ -84,10 +87,18 @@ const ASPECT_HEADER_RE = /^#\s*已确定要求[：:]/;
 const STRIP_FOR_COUNT_RE = /[\p{P}\p{S}\s]/gu;
 
 /** 逐场对账阈值(手册「九、时长与视觉预算」节·每场对账条款,父 I6 锚节标题不锚行号):
- *  本场镜头数×10 秒 ≤ 本场秒数+10;本场语音字数 ≤ ⌊本场秒数×4⌋(按 4 字/秒)。 */
+ *  本场镜头数×10 秒 ≤ 本场秒数+10;本场语音字数 ≤ ⌊本场秒数×4⌋(按区间上限 4 字/秒=R15/Q1 判定端)。 */
 const SCENE_BEAT_SECONDS = 10; // 每镜头按 10 秒预算(与全集镜头上限同源;G44 双格式:镜头N： 人话格式为手册现行,△ 为存量兼容)
 const SCENE_SECONDS_SLACK = 10; // 本场秒数容差 +10
-const SCENE_VOICE_CHARS_PER_SECOND = 4; // 4 字/秒(10-14 裁定①唯一口径;道劫包 150 字/分=题材豁免,见其手册注入块)
+
+// R15(四审残项 H2 残留,Q1 10-14 晚裁定):语速区间单源家——本文件 export,storyboard-table.ts
+// (D 批)import 消费,禁两处各自定义(否则再造双口径,正是 364d0d67 H2 要杀的病)。
+// 超标判定用 MAX(语音字数 > 秒数×4 报超);时长估算用 MIN..MAX 区间/保守端 MIN。
+// 手册统一「2.5~4 字/秒」,无题材豁免(旧「道劫 150 字/分例外」与「裁定①唯一口径=4」单口径
+// 表述反向修订,属本批授权面)。
+export const VOICE_CPS_MIN = 2.5;
+export const VOICE_CPS_MAX = 4;
+const SCENE_VOICE_CHARS_PER_SECOND = VOICE_CPS_MAX; // 逐场对账按区间上限(Q1:超标判定用 MAX)
 // 三条手册规则阈值(四审B M6,同节「时长与视觉预算」:OS 连续不超 2 段/场景段落 20-60 秒/
 // 纯画面段落最长 15 秒;10-14 裁定=入自检「警告」级 flags)
 const SCENE_SECONDS_RANGE_MIN = 20;
@@ -127,17 +138,25 @@ const VOICE_LABEL_RE = /^(?:字幕|镜头[一二三四五六七八九十百]+)$/
 // 半角 ( 使「OS(甲)：」漏归 OS)、中文句读与全角引号(叙述行「他…说道：来吧」不误计语音);
 // 保留间隔号 ·(「沈·青岚」类名)与半角 .(「V.S.」依赖)。上限 10 字(VOICE_NAME_MAX):
 // 超长名=叙述,静默跳过不 flag(现役最长具名「宗门弟子甲」5 字;livefire8 的 15 字
-// 叙述名被长度网兜住,句读名被句读网兜住)。
+// 叙述名被长度网兜住,句读名被句读网兜住)。名与括注间空格容错(R9:「OS （甲）：」全角
+// 空格形态仍归 OS,与「甲 ：好。」冒号前空格同族容错)。
 const VOICE_LINE_RE =
-  /^([^：:\s（(，,。!！?？、;；…—「」『』“”]{1,10})([（(][^）)]*[）)])?\s*[：:](.*)$/;
+  /^([^：:\s（(，,。!！?？、;；…—「」『』“”]{1,10})\s*([（(][^）)]*[）)])?\s*[：:](.*)$/;
 
-/** 四审B M3 时长单源:·约N秒(分隔符容 ·/./•、内部空格任意)/约 N 秒/Ns(s 大小写均认,
- *  后随须为行尾/空白/标点防误吞英文词)/分:秒(全半角冒号)。秒数提取、场头尾锚、
+/** 四审B M3 时长单源(R8 扩,prd Q3 裁定):·约N秒(分隔符容 ·/./•、内部空格任意,「左右」后缀
+ *  随 matchedText 一并剥除防标题残渣)/约 Ns(R8:「约」随剥)/`(40s)` 括注(R8:片段非空=可解析,
+ *  全半角括号)/`N分N秒`(Q3:1分40秒=100s,先于裸 N分/N秒 防部分匹配)/N:秒(全半角冒号)/
+ *  裸 Ns/N分/N秒(Q3 裸写法族,行尾锚防行中「3 分队」类误吞)。秒数提取、场头尾锚、
  *  title 剥除三处同消费,防 M3 与 M4 分叉。 */
 const SCENE_SECONDS_FORMS: { re: RegExp; toSeconds: (m: RegExpExecArray) => number }[] = [
-  { re: /(?:[·.•]\s*)?约\s*(\d+)\s*秒/, toSeconds: (m) => Number(m[1]) },
-  { re: /(\d+)\s*s(?=$|[\s·，。、;；!！?？])/i, toSeconds: (m) => Number(m[1]) },
+  { re: /(?:[·.•]\s*)?约\s*(\d+)\s*秒(?:\s*左右)?/, toSeconds: (m) => Number(m[1]) },
+  { re: /(?:[·.•]\s*)?约\s*(\d+)\s*s(?:\s*左右)?(?=$|[\s·，。、;；!！?？])/i, toSeconds: (m) => Number(m[1]) },
+  { re: /[（(]\s*(\d+)\s*s\s*[）)]/i, toSeconds: (m) => Number(m[1]) },
+  { re: /(\d+)\s*分\s*(\d+)\s*秒(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) * 60 + Number(m[2]) },
   { re: /(\d+)\s*[：:]\s*(\d+)/, toSeconds: (m) => Number(m[1]) * 60 + Number(m[2]) },
+  { re: /(\d+)\s*s(?:\s*左右)?(?=$|[\s·，。、;；!！?？])/i, toSeconds: (m) => Number(m[1]) },
+  { re: /(\d+)\s*分(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) * 60 },
+  { re: /(\d+)\s*秒(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) },
 ];
 
 function parseSceneSeconds(line: string): { seconds: number; matchedText: string } | null {
@@ -162,14 +181,23 @@ function extractUnparsedDuration(line: string): string {
  *  且其后无正文——「3 年后/开春，河雾照旧。」这类叙述行不吞(10-12 复审收口径),留作续行内容。 */
 const BARE_SCENE_END_RE = /(?:\s[^/\s，。！？；、：]{1,6}\/[^/\s，。！？；、：]{1,6}|\s*·约\d+秒)\s*$/;
 
-/** 场头尾部锚(四审B M4③:N-M 与裸数字同过锚):词/词 | 时长 token(容错形态,经
- *  parseSceneSeconds)|「场」字锚(如「1-2 场 夜/内」)——「3-5 年前」「1-9 闲笔」类
- *  无锚叙述行不生幻影场。 */
+// R7(四审残项,prd P0 M4):时长尾锚须「整行场头形态」——场号+时长紧邻行尾、行内无叙述句读;
+// 叙述句中段的 N秒/N分 只是叙述成分不成场(prd 反例:「3-5 年前，他等了 40 秒。」「3 年后，
+// 又过了 5 分钟。」,旧锚 DURATIONISH 认行中 token 即成幻影场)。真·场头的时长 token 紧邻
+// 行尾(TRAILING_DURATION_RE,覆盖 ·约N秒±左右/Ns/(Ns)/N分N秒/N分/N:秒 与不识别写法·约一分钟)。
+const NARRATIVE_CLAUSE_RE = /[，。！？；、…]/;
+// 行尾时长 token:秒/分/s 核心容尾随 钟(「·约一分钟」不识别写法)/)(「(40s)」括注)与「左右」;
+// N:秒 形态单列。行中段 token(「等了 40 秒。」)被 NARRATIVE_CLAUSE_RE 与 $ 联手排除。
+const TRAILING_DURATION_RE = /(?:[·.•]\s*)?约?\s*(?:\S{0,8}(?:秒|分|s)[钟）)]?(?:\s*左右)?|\d+\s*[：:]\s*\d+)\s*$/i;
+
+/** 场头尾部锚(四审B M4③ + R7):N-M 与裸数字同过锚;「场」字锚与 词/词 锚原样保持,
+ *  时长锚收口为整行场头形态(R7,见 NARRATIVE_CLAUSE_RE/TRAILING_DURATION_RE 注)——
+ *  「3-5 年前」「1-9 闲笔」类无锚叙述行不生幻影场。 */
 function hasSceneTailAnchor(line: string): boolean {
-  if (parseSceneSeconds(line) !== null) return true;
-  if (DURATIONISH_TOKEN_RE.test(line)) return true; // 时长意图 token(含不识别写法,如「·约一分钟」)亦可锚
   if (/\s场(?:\s|$)/.test(line)) return true;
-  return BARE_SCENE_END_RE.test(line);
+  if (BARE_SCENE_END_RE.test(line)) return true;
+  if (NARRATIVE_CLAUSE_RE.test(line)) return false; // R7:叙述句读在场,时长 token 只当叙述成分
+  return TRAILING_DURATION_RE.test(line); // R7:时长 token 紧邻行尾(可解析与不识别写法均认)
 }
 
 interface SceneHeaderMatch {
@@ -326,6 +354,18 @@ export function analyzeScriptDraft(
       continue;
     }
 
+    // R10(四审残项 M6):纯视觉计时被 SFX 打断——音效在场即非「纯画面」,打断处结算游标
+    // (与语音打断同式:结算→清零;场收尾 endScene 仍兜底尾部残段)。SFX 行本身不计拍不入语音账。
+    if (kind === "sfx") {
+      if (current && silentBeats * SCENE_BEAT_SECONDS > PURE_VISUAL_LIMIT_SECONDS) {
+        flags.push(
+          `「警告」场 ${current.id} 纯视觉段 ${silentBeats} 拍≈${silentBeats * SCENE_BEAT_SECONDS}s 超过 ${PURE_VISUAL_LIMIT_SECONDS} 秒`,
+        );
+      }
+      silentBeats = 0;
+      continue;
+    }
+
     if (kind !== "voice") continue; // sfx/cast/separator/blank/text:不入账、不破游标外的状态
 
     if (!inScene) continue; // 场外「名：内容」行(梗概/改编追踪区)不计语音与超长句(F2)
@@ -335,14 +375,18 @@ export function analyzeScriptDraft(
     if (name === "人物") continue; // 人物表行不计对白(父 D2;带空格变体兜底)
     if (name === "SFX") continue; // SFX 音效配方行非语音(手册 §三 音效意图;语音=台词+OS,G20)
     if (VOICE_LABEL_RE.test(name)) continue; // 四审B M5:字幕/镜头一： 标签排除,不计台词不计拍
+    if (name.endsWith("道")) continue; // R9:无标点短叙述(「他冷冷道：」说话动词尾)非语音,静默跳过(M2 同式)
 
     const parenthetical = voiceMatch[2]?.slice(1, -1) ?? "";
-    // 四审B M5 OS 归类扩:OS(括注任意)∪ VO/V.O.(画外音与 OS 同义)→OS;
-    // V.S(带/不带尾点)仅括注以「旁白」起→OS,其余括注=画外对白计对白(手册双形态原样保持)
+    // 四审B M5 OS 归类扩 + R9:OS(大小写变体含小写 os)/VO/V.O.(画外音与 OS 同义)→OS;
+    // 裸「旁白：」无括注直接计 OS(R9,M5 残项);V.S(带/不带尾点)仅括注以「旁白」起→OS,
+    // 其余括注=画外对白计对白(手册双形态原样保持)
     const isOS =
       name === "OS" ||
+      name === "os" ||
       name === "VO" ||
       name === "V.O." ||
+      name === "旁白" ||
       ((name === "V.S" || name === "V.S.") && parenthetical.startsWith("旁白"));
 
     // 单行入账:计字数、归 OS/对白与场语音、逐行判超长(G25 注释列剥离;四审B M1 逐行判)
@@ -400,9 +444,12 @@ export function analyzeScriptDraft(
       if (c > 1) flags.push(`场 ${s.id} 镜号 ${n} 重复`);
     }
     const max = nums.reduce((acc, n) => Math.max(acc, n), 0);
+    // R10(四审残项 M6):跳号合并为一条提示(「缺 3、4」),不再逐号刷屏;单缺号形态不变(「缺 3」)
+    const missing: number[] = [];
     for (let n = 1; n <= max; n++) {
-      if (!counts.has(n)) flags.push(`场 ${s.id} 镜号跳号：缺 ${n}`);
+      if (!counts.has(n)) missing.push(n);
     }
+    if (missing.length > 0) flags.push(`场 ${s.id} 镜号跳号：缺 ${missing.join("、")}`);
   }
 
   const totalSeconds = scenes.reduce((sum, s) => sum + (s.seconds ?? 0), 0);
@@ -440,7 +487,7 @@ export function analyzeScriptDraft(
   }
   const voiceChars = dialogueChars + osChars;
   if (voiceChars > voiceCharLimit) {
-    flags.push(`语音字数 ${voiceChars} 超上限 ${voiceCharLimit}（4 字/秒）`);
+    flags.push(`语音字数 ${voiceChars} 超上限 ${voiceCharLimit}（区间上限 4 字/秒）`);
   }
   const osRatio = voiceChars > 0 ? osChars / voiceChars : 0;
   if (osRatio > 0.4) {

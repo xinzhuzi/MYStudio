@@ -294,6 +294,10 @@ export function parseDirectorPlan(
     warnings.push(`分场景意图含光影词，已剔除：${sceneLighting.join("、")}`);
   }
 
+  // R11(D1 残项):⑥ 决策行变体写法(U+2010/加粗/逗号分隔等)不再静默跳过,
+  // 逐行点名进 warnings——随 writeDirectorPlan 的 warnings 面走既有 toast。
+  warnings.push(...collectBoundaryIntentWarnings(sections["⑥"]));
+
   const derivedAssetPlan = parseDerivedAssetTable(sections["⑦"] ?? "");
 
   const plan: ScriptPlan = {
@@ -381,11 +385,16 @@ export interface DirectorPlanBoundaryIntent {
 
 // 场号组接受复合写法 `Sc N-M`（手册 production_execution_director_plan.md:66 明许，与 ④ 场头
 // 正则 :171 的 N-M 接受面对齐）；连字符集 [-－—–] 含半角/全角(U+FF0D)/em/en dash，两侧 \s*
-// 容 `1 -1`/`1- 1` 空格噪声。数字映射 = 尾数 M ?? 主数 N（`Sc 1-1`→1、`Sc 1-2`→2）：
-// 场级匹配下游键 `scene-(\d+)`（boundary-intent-assembly.ts:68）无现役构造点——现行分镜
-// trackKey 实为 `{ep}-{index}`——尾数选择无活消费方约束；且尾数保序数可区分（取首数会把
-// 1-1/1-2 折成同场，当场内边界处理 = 语义反转），若未来 trackKey 归一为 scene-N 序数则尾数
-// 即该序数，前向兼容。纯 `Sc1` 写法主数即尾数缺席时回退，行为与旧正则逐位一致。
+// 容 `1 -1`/`1- 1` 空格噪声。数字映射（R11 撞号防护,10-14-audit4-residuals）：
+// - 同主场组（两侧主数相等且带尾数）按尾数——`Sc 1-1`→1、`Sc 1-2`→2,场内边界保序数可区分
+//   （取首数会把 1-1/1-2 折成同场=语义反转）;
+// - 跨主场组（主数不等,如 `Sc 1-2 → Sc 2-1`）或混合写法（`Sc 2 → Sc 3-1`）按**主数**——
+//   旧「尾数 ?? 主数」把跨组边界映射成 2→1(方向反转+与 Sc 2→Sc 1 撞号),组号不同的
+//   尾数不可比。场级匹配下游键 `scene-(\d+)`（boundary-intent-assembly.ts:68）无现役
+//   构造点——现行分镜 trackKey 实为 `{ep}-{index}`;若未来 trackKey 归一为 scene-N 序数,
+//   同组尾数即该序数、跨组主数即组序数,前向兼容。纯 `Sc1` 写法主数即全部,行为与旧
+//   正则逐位一致。连字符集外的 U+2010 等变体不在此放行——由 parseDirectorPlan 的
+//   「写法不识别」warning 显式发声(R11:不静默),不静默吞。
 const SCENE_BOUNDARY_INTENT_PATTERN =
   /-?\s*Sc\s*(\d+)(?:\s*[-－—–]\s*(\d+))?\s*(?:→|->)\s*Sc\s*(\d+)(?:\s*[-－—–]\s*(\d+))?\s*[:：]\s*风格词\s*[:：=]\s*([^;；\n]+?)\s*[;；]\s*氛围词\s*[:：=]\s*([^\n]+)/g;
 const SHOT_BOUNDARY_INTENT_PATTERN =
@@ -395,8 +404,11 @@ const SHOT_BOUNDARY_INTENT_PATTERN =
  * Parse the structured boundary decision lines from a director plan ⑥
  * section (`- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗` or the intra-scene
  * shot variant `- 镜6 → 镜7：风格词=…；氛围词=…`). Malformed lines are
- * skipped silently — the free-text strategy stays authoritative for humans,
- * and unparseable plans simply keep today's hard-cut behavior.
+ * skipped here — the free-text strategy stays authoritative for humans,
+ * and unparseable plans simply keep today's hard-cut behavior; the
+ *「写法不识别」visibility for skipped variant lines is
+ * collectBoundaryIntentWarnings (R11: warning 不静默), wired into
+ * parseDirectorPlan.warnings.
  */
 export function parseDirectorPlanBoundaryIntents(
   transitionsText: string | undefined,
@@ -406,9 +418,15 @@ export function parseDirectorPlanBoundaryIntents(
   for (const match of transitionsText.matchAll(SCENE_BOUNDARY_INTENT_PATTERN)) {
     const styleWord = match[5]?.trim() ?? "";
     if (!styleWord) continue;
+    // R11 撞号防护:同主场组(两侧主数相等且带尾数)按尾数=场内边界;跨组/混合
+    // 按主数=组间边界(尾数跨组不可比,旧映射 `Sc 1-2→Sc 2-1` 得 2→1 方向反转)。
+    const fromMain = Number(match[1]);
+    const toMain = Number(match[3]);
+    const sameGroup =
+      match[2] !== undefined && match[4] !== undefined && fromMain === toMain;
     intents.push({
-      fromScene: Number(match[2] ?? match[1]),
-      toScene: Number(match[4] ?? match[3]),
+      fromScene: sameGroup ? Number(match[2]) : fromMain,
+      toScene: sameGroup ? Number(match[4]) : toMain,
       styleWord,
       moodWord: match[6]?.trim() ?? "",
     });
@@ -424,6 +442,38 @@ export function parseDirectorPlanBoundaryIntents(
     });
   }
   return intents;
+}
+
+/**
+ * ⑥ 决策行「写法不识别」warning(R11/D1 残项,10-14-audit4-residuals):
+ * 含风格词+氛围词(=模型有意输出机器可读决策行)却未被结构化模式命中的行——
+ * U+2010 连字符、markdown 加粗包裹、风格词/氛围词以逗号相接等变体——旧实现
+ * 静默跳过,人无从知晓决策未被采纳(下游回落硬切);现逐行点名进 warnings,
+ * 随 parseDirectorPlan.warnings 走既有 toast 面。纯散文行(无风格词/氛围词)
+ * 不算候选,镜级行由 SHOT 模式正常消化,均不误报。
+ */
+/** 探针=非全局克隆(从 .source 派生,语法单源):.test() 不读不写 lastIndex,
+ * 根治 blocking 复审所指「/g 命中分支 continue 跳过复位→下一条合法决策行从
+ * match-end 偏移起步假阴→误报写法不识别」的污染窗(多决策行常见形态逐条误报)。
+ * canonical /g 模式保持原样——matchAll 消费方(audit :236/boundary-intent-assembly)
+ * 依赖其全局旗标且 matchAll 克隆正则,两不干扰。 */
+const SCENE_BOUNDARY_PROBE = new RegExp(SCENE_BOUNDARY_INTENT_PATTERN.source);
+const SHOT_BOUNDARY_PROBE = new RegExp(SHOT_BOUNDARY_INTENT_PATTERN.source);
+
+function collectBoundaryIntentWarnings(transitionsText: string | undefined): string[] {
+  if (!transitionsText) return [];
+  const warnings: string[] = [];
+  for (const rawLine of transitionsText.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line.includes("风格词") || !line.includes("氛围词")) continue;
+    if (SCENE_BOUNDARY_PROBE.test(line) || SHOT_BOUNDARY_PROBE.test(line)) {
+      continue;
+    }
+    warnings.push(
+      `第⑥段转场决策行写法不识别（已按散文策略处理，未进转场决策）：${line.slice(0, 60)}`,
+    );
+  }
+  return warnings;
 }
 
 function extractToonflowSection(body: string, title: string, stopTitles: string[]): string {

@@ -529,3 +529,135 @@ describe("⑥复合场号 Sc N-M(D1)", () => {
     expect(audit.issues.join("\n")).not.toContain("结构化转场决策行");
   });
 });
+
+// ── C 批 R11(10-14-audit4-residuals,D1 残项)──────────────────────────────────
+// ① ⑥ 中「含风格词+氛围词却未被结构化解析」的行(U+2010 连字符/加粗包裹/逗号分隔)
+// 现被静默跳过 → 须产 warning 不静默;② 尾数映射跨主场组撞号(Sc 1-2→Sc 2-1 得
+// 2→1,方向反转)→ 跨组按主数映射,同组保留尾数(场内边界语义不回归)。
+
+describe("R11 · ⑥ 决策行变体写法 warning 不静默(D1 残项)", () => {
+  function planWithSix(sixLines: string[]): string {
+    return [
+      "<scriptPlan>",
+      "## ① 主题立意与叙事核心",
+      "核心主题：落魄剑修在道口镇看见穷苦少年的命数，情感主线从码头压迫到塾馆微光，形成压迫、微燃、倒计时三层递进，离场感受苍凉而紧迫，意难平。",
+      "## ⑥ 转场与视觉连续性",
+      ...sixLines,
+      "</scriptPlan>",
+    ].join("\n");
+  }
+
+  it("U+2010 连字符变体 → warning 含原行(现实现静默跳过,必红)", () => {
+    const { warnings } = parseDirectorPlan(
+      planWithSix(["- Sc 1‐2 → Sc 1‐3：风格词=水墨晕染；氛围词=战斗"]),
+      "chapter-002",
+    );
+    expect(
+      warnings.some((item) => item.includes("写法不识别") && item.includes("Sc 1‐2")),
+    ).toBe(true);
+  });
+
+  it("加粗包裹变体 → warning 含原行(现实现静默跳过,必红)", () => {
+    const { warnings } = parseDirectorPlan(
+      planWithSix(["- **Sc 1 → Sc 2**：风格词=水墨晕染；氛围词=战斗"]),
+      "chapter-002",
+    );
+    expect(
+      warnings.some((item) => item.includes("写法不识别") && item.includes("**Sc 1 → Sc 2**")),
+    ).toBe(true);
+  });
+
+  it("逗号分隔变体(风格词与氛围词以逗号相接)→ warning 含原行(现实现静默跳过,必红)", () => {
+    const { warnings } = parseDirectorPlan(
+      planWithSix(["- Sc 1 → Sc 2：风格词=水墨晕染，氛围词=战斗"]),
+      "chapter-002",
+    );
+    expect(
+      warnings.some((item) => item.includes("写法不识别") && item.includes("风格词=水墨晕染")),
+    ).toBe(true);
+  });
+
+  it("兼容锁:结构化行正常解析、纯散文行、镜级行都不产写法 warning", () => {
+    const { warnings } = parseDirectorPlan(
+      planWithSix([
+        "- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗",
+        "场间用叠化过渡，具体视情绪而定。",
+        "- 镜5 → 镜6：风格词=血祭；氛围词=阴谋",
+      ]),
+      "chapter-002",
+    );
+    expect(warnings.filter((item) => item.includes("写法不识别"))).toEqual([]);
+  });
+});
+
+describe("R11 · 尾数映射跨主场组撞号防护(D1 残项)", () => {
+  it("跨组 Sc 1-2 → Sc 2-1 按主数映射 1→2(现实现尾数 2→1 方向反转,必红)", () => {
+    const intents = parseDirectorPlanBoundaryIntents(
+      "- Sc 1-2 → Sc 2-1：风格词=水墨晕染；氛围词=战斗",
+    );
+    expect(intents).toEqual([
+      { fromScene: 1, toScene: 2, styleWord: "水墨晕染", moodWord: "战斗" },
+    ]);
+  });
+
+  it("混合写法 Sc 2 → Sc 3-1 按主数映射 2→3(现实现 2→1,必红)", () => {
+    const intents = parseDirectorPlanBoundaryIntents(
+      "- Sc 2 → Sc 3-1：风格词=血祭；氛围词=阴谋",
+    );
+    expect(intents).toEqual([
+      { fromScene: 2, toScene: 3, styleWord: "血祭", moodWord: "阴谋" },
+    ]);
+  });
+
+  it("兼容锁:同主场组 N-M 仍按尾数(场内边界语义不回归);纯 Sc N 按主数", () => {
+    expect(
+      parseDirectorPlanBoundaryIntents("- Sc 1-2 → Sc 1-3：风格词=a；氛围词=b"),
+    ).toEqual([{ fromScene: 2, toScene: 3, styleWord: "a", moodWord: "b" }]);
+    expect(
+      parseDirectorPlanBoundaryIntents("- Sc 4 → Sc 5：风格词=a；氛围词=b"),
+    ).toEqual([{ fromScene: 4, toScene: 5, styleWord: "a", moodWord: "b" }]);
+  });
+});
+
+describe("R11 blocking 修复 · 多条合法决策行连续时无 lastIndex 污染误报", () => {
+  // /g 全局正则 .test() 命中即推进 lastIndex;命中分支 continue 未复位时,下一条
+  // 合法决策行从上一条 match-end 偏移起步→假阴→误推「写法不识别」。夹具=四条
+  // 全合法决策行连续(场级×3+镜级),恰落旧实现的污染窗(旧兼容锁夹具的散文行
+  // 不过 includes 门、镜行 SCENE 失败自动归零,恰好绕开此窗)。
+  function planWithSix(sixLines: string[]): string {
+    return [
+      "<scriptPlan>",
+      "## ① 主题立意与叙事核心",
+      "核心主题：落魄剑修在道口镇看见穷苦少年的命数，情感主线从码头压迫到塾馆微光，形成压迫、微燃、倒计时三层递进，离场感受苍凉而紧迫，意难平。",
+      "## ⑥ 转场与视觉连续性",
+      ...sixLines,
+      "</scriptPlan>",
+    ].join("\n");
+  }
+
+  it("四条全合法决策行连续(场×3+镜)→ 零写法误报(现实现 lastIndex 污染,必红)", () => {
+    const { warnings } = parseDirectorPlan(
+      planWithSix([
+        "- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗",
+        "- Sc 2 → Sc 3：风格词=硬切；氛围词=紧张",
+        "- Sc 3 → Sc 4：风格词=剑痕；氛围词=天道",
+        "- 镜6 → 镜7：风格词=血祭；氛围词=阴谋",
+      ]),
+      "chapter-002",
+    );
+    expect(warnings.filter((item) => item.includes("写法不识别"))).toEqual([]);
+  });
+
+  it("跨调用防污染:上一轮 parse 留下的 lastIndex 不泄漏到下一轮首行(非全局探针后恒绿)", () => {
+    // 先跑一轮含变体行(走 warning 分支)再跑全合法轮,首轮不得污染次轮
+    parseDirectorPlan(
+      planWithSix(["- Sc 1 → Sc 2：风格词=水墨晕染，氛围词=战斗"]),
+      "chapter-002",
+    );
+    const second = parseDirectorPlan(
+      planWithSix(["- Sc 1 → Sc 2：风格词=水墨晕染；氛围词=战斗"]),
+      "chapter-002",
+    );
+    expect(second.warnings.filter((item) => item.includes("写法不识别"))).toEqual([]);
+  });
+});

@@ -7,6 +7,7 @@ import {
   serializeStoryboardTable,
   toStoryboardItems,
 } from "./storyboard-table";
+import { VOICE_CPS_MIN } from "./script-draft-metrics";
 
 describe("buildStoryboardTableMessages · 资产清单注入", () => {
   it("includes the assets inventory block so the 资产真实 red line can be satisfied without tools", () => {
@@ -23,19 +24,20 @@ describe("buildStoryboardTableMessages · 资产清单注入", () => {
 });
 
 describe("H2/H8 语速唯一口径与纯视觉兼容(10-14 裁定,四审D manual-alignment)", () => {
-  // H2 裁定①:语速唯一口径=4 字/秒。现缺省 3(storyboard-table.ts:74)→ RED;
-  // 慢速提示(SLOW_EMOTION_HINTS)按 design §3 保留,仍须返回 2(本在即绿,登记维持锁)。
-  it("T1 缺省语速=4字/秒(平静/无情绪不降档);慢速类保持 2", () => {
-    expect(resolveSpeed("")).toBe(4);
-    expect(resolveSpeed("平静对白")).toBe(4);
+  // Q1 区间口径(10-14 晚裁定,取代「唯一=4」单口径):resolveSpeed 服务时长估算面,缺省取区间
+  // 保守端 VOICE_CPS_MIN=2.5(script-draft-metrics 单源家导出,D 批 import 消费禁本地自定义);
+  // 慢速提示(SLOW_EMOTION_HINTS)分档 2 保留(本在即绿,登记维持锁)。
+  it("T1 缺省语速=区间保守端 2.5(VOICE_CPS_MIN,平静/无情绪不升档);慢速类保持 2", () => {
+    expect(resolveSpeed("")).toBe(VOICE_CPS_MIN);
+    expect(resolveSpeed("平静对白")).toBe(VOICE_CPS_MIN);
     expect(resolveSpeed("悲伤低语")).toBe(2);
   });
 
-  // H2 裁定①:fallback 与缺省同源。现 fallback 3(:79)→ "这一句台词整整有十个字哦"12 字
-  // 算出 ceil(12/3)+1=5 → RED;裁定后 fallback 4:ceil(12/4)+1=4。
-  it("T2 computeDurationSec 的 speed<=0 fallback=4(与缺省语速同一口径)", () => {
+  // Q1 区间口径:fallback 与缺省同源(同取保守端 VOICE_CPS_MIN)。「这一句台词整整有十个字哦」12 字
+  // → ceil(12/2.5)+1 = ceil(4.8)+1 = 6(旧缺省 4 时为 4;估时变长=保守端方向,只严不松)。
+  it("T2 computeDurationSec 的 speed<=0 fallback=区间保守端 2.5(与缺省语速同一口径)", () => {
     const text = "这一句台词整整有十个字哦"; // 12 字
-    expect(computeDurationSec(text, 0)).toBe(4);
+    expect(computeDurationSec(text, 0)).toBe(Math.ceil(text.length / VOICE_CPS_MIN) + 1);
   });
 
   // H8 三处同批(design §6):guard 第 2 条改「无台词」兼容——旁白照录、纯视觉镜写
@@ -61,16 +63,29 @@ describe("H2/H8 语速唯一口径与纯视觉兼容(10-14 裁定,四审D manual
     expect(messages.system).toContain("8~15 秒");
     expect(messages.system).toContain("2~4 句");
   });
+
+  // R17(10-14-audit4-residuals D 批):配音硬约束首条(guard 第 1 条)与次条对齐——强制填写的
+  // 是「台词字段」的合法三态(台词/旁白逐字照录|纯视觉镜「无台词」)。旧措辞「每条分镜必须填写
+  // 台词/旁白字段」只认两态,会倒逼纯视觉镜为凑字段编旁白——正是次条明令禁止的行为;分镜表手册
+  // :142 示例「旁白：西瓜…」即被该措辞带出来的编造旁白实例(T5⑩ 同批修)。
+  it("T3c 配音硬约束首条与次条一致:纯视觉镜合法态=「无台词」,不再倒逼编旁白(R17)", () => {
+    const messages = buildStoryboardTableMessages({
+      episodeId: "chapter-001",
+      scriptText: "第一场：夜，矿场。",
+    });
+    expect(messages.system).toContain("「无台词」");
+    expect(messages.system).not.toContain("必须填写台词/旁白字段");
+  });
 });
 
 describe("studio storyboard duration math", () => {
   it("resolves speech speed by emotion and computes duration with margin", () => {
-    // 10-14 裁定(H2 语速唯一口径):缺省 4 字/秒;快档分支已删(愤怒类并入缺省 4);慢速类保持 2。
-    expect(resolveSpeed("愤怒轻蔑")).toBe(4);
-    expect(resolveSpeed("正常陈述")).toBe(4);
+    // Q1 区间口径(10-14 晚裁定):缺省=区间保守端 VOICE_CPS_MIN=2.5;慢速类保持 2。
+    expect(resolveSpeed("愤怒轻蔑")).toBe(VOICE_CPS_MIN);
+    expect(resolveSpeed("正常陈述")).toBe(VOICE_CPS_MIN);
     expect(resolveSpeed("悲伤绝望")).toBe(2);
     expect(resolveSpeed("低语虚弱")).toBe(2);
-    expect(resolveSpeed("")).toBe(4); // default normal (4字/秒)
+    expect(resolveSpeed("")).toBe(VOICE_CPS_MIN); // default normal (区间保守端 2.5)
 
     // 12 chars at 正常(3/s) = 4s, + 1s margin = 5s
     expect(computeDurationSec("这是一句十二个字的台词内容", 3)).toBe(

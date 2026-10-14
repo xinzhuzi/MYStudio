@@ -9,6 +9,7 @@ import { eventBus } from "@/lib/events/event-bus";
 import { toast } from "sonner";
 import { AssetsBatchCard, type AssetType } from "./AssetsBatchCard";
 import { assetRecordMatches, nameMatches } from "./asset-matching";
+import { latestAgentWorkEntry } from "./workflow-helpers";
 
 export function AssetsTab(props: {
   mode?: "extract" | "manage";
@@ -361,9 +362,10 @@ export function AssetsTab(props: {
         const batch = props.entityExtractions.find(
           (b) => b.episodeId === ch.id,
         );
-        const script = [...props.agentWorkData]
-          .reverse()
-          .find((w) => w.key === "scriptDraft" && w.episodeId === ch.id)?.data;
+        // R12(10-14-audit4-residuals):本章剧本取最新草稿走单源 latestAgentWorkEntry
+        // (按 updatedAt),数组序不再参与语义——旧 reverse().find 是双口径病根。
+        const script =
+          latestAgentWorkEntry(props.agentWorkData, "scriptDraft", ch.id)?.data;
         const open = !collapsed.has(ch.id);
         return (
           <AssetsBatchCard

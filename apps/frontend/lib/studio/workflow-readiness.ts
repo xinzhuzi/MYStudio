@@ -12,6 +12,7 @@ import type {
 import type { ProjectVoiceBinding, SceneVoiceLine } from "@/types/tts";
 import type { EditingProjectV1, TimelineRenderRecord } from "@/types/editing";
 import { validateTimelineRenderRecord } from "@/lib/studio/editing/validation";
+import { latestAgentWorkEntry } from "@/components/panels/studio/workflow-helpers";
 
 export type WorkflowStageStatus = "ready" | "active" | "blocked";
 
@@ -442,10 +443,13 @@ function capabilityMeta(
   return enabled ? { enabled: true } : { enabled: false, disabledReason };
 }
 
+/**
+ * R12(10-14-audit4-residuals):资产提取目标章=updatedAt 最新草稿的章——委托
+ * workflow-helpers 单源选择器 latestAgentWorkEntry,数组序不再参与语义
+ * (旧 `[...items].reverse().find` 在数组序 ≠ updatedAt 序时拿到旧章)。
+ */
 function findScriptTarget(items: AgentWorkData[]) {
-  return [...items]
-    .reverse()
-    .find((item) => item.key === "scriptDraft" && item.episodeId)?.episodeId;
+  return latestAgentWorkEntry(items, "scriptDraft")?.episodeId;
 }
 
 export function resolveWorkflowTimelineEvidence(

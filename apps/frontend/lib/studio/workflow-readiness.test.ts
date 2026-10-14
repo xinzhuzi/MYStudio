@@ -867,6 +867,84 @@ describe("studio workflow readiness", () => {
   });
 });
 
+// ── C 批 R12(10-14-audit4-residuals):资产提取目标取 updatedAt 最新草稿的章 ────
+// findScriptTarget 现实现 `[...items].reverse().find(key==="scriptDraft")` 按数组序
+// 取——数组序 ≠ updatedAt 序时拿到旧章。收敛到 workflow-helpers 单源选择器。
+
+describe("R12 · 资产提取目标章按 updatedAt 最新草稿(不按数组序)", () => {
+  it("数组序靠后 ≠ updatedAt 最新 → targetId 取 updatedAt 最新的章(现实现必红)", () => {
+    const readiness = buildWorkflowReadiness({
+      workflowConfig: readyManuals(),
+      novelChapters: [
+        analyzedChapter("chapter-1", 1, "第一章"),
+        analyzedChapter("chapter-2", 2, "第二章"),
+      ],
+      agentWorkData: [
+        // 数组序:updatedAt 最新的 chapter-2 在前,旧草稿 chapter-1 垫后——
+        // 旧 reverse().find 取数组序最后一条=chapter-1(错),updatedAt 口径=chapter-2。
+        {
+          id: "w-array-early-new",
+          key: "scriptDraft",
+          episodeId: "chapter-2",
+          data: "数组序靠前 updatedAt 新",
+          createdAt: 1,
+          updatedAt: 200,
+        },
+        {
+          id: "w-array-late-old",
+          key: "scriptDraft",
+          episodeId: "chapter-1",
+          data: "数组序靠后 updatedAt 旧",
+          createdAt: 1,
+          updatedAt: 100,
+        },
+      ],
+      entityExtractions: [],
+      scriptPlans: [],
+      seriesBible: null,
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+      capabilities: { textCompletion: true, studioRenderer: false },
+    });
+
+    expect(readiness.nextStageId).toBe("assets");
+    expect(readiness.nextAction).toMatchObject({
+      kind: "run-entity-extraction",
+      stageId: "assets",
+      targetId: "chapter-2",
+    });
+  });
+
+  it("兼容锁:数组序与 updatedAt 序一致时 targetId 与现行为逐位一致", () => {
+    const readiness = buildWorkflowReadiness({
+      workflowConfig: readyManuals(),
+      novelChapters: [analyzedChapter("chapter-1", 1, "第一章")],
+      agentWorkData: [
+        {
+          id: "work-1",
+          key: "scriptDraft",
+          episodeId: "chapter-1",
+          data: "## S01",
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      entityExtractions: [],
+      scriptPlans: [],
+      seriesBible: null,
+      storyboards: [],
+      productionTracks: [],
+      videoCandidates: [],
+    });
+
+    expect(readiness.nextAction).toMatchObject({
+      kind: "run-entity-extraction",
+      targetId: "chapter-1",
+    });
+  });
+});
+
 function readyManuals(): StudioWorkflowConfig {
   return {
     visualManualId: "visual-1",

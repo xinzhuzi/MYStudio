@@ -13,7 +13,12 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
-import { terminateSpawnedApp } from "./smoke-process-lifecycle.mjs";
+import {
+  diffSelfStartedPids,
+  probeRunningInstances,
+  terminateSpawnedApp,
+  terminatePidsPrecisely,
+} from "./smoke-process-lifecycle.mjs";
 import {
   shouldFallbackToLaunchServices,
   spawnSmokeApp,
@@ -212,18 +217,19 @@ function runOptional(command, args) {
   });
 }
 
-function stopExistingMYStudioInstances({ enforce = false } = {}) {
+function stopExistingMYStudioInstances() {
   if (skipPrekill) {
     console.log("[smoke] skipping pre-run MYStudio instance cleanup");
     return;
   }
-  // 10-14 四审L4 三态(design §2):默认=pgrep 探测实例在即中止报错,不再盲杀
+  // 10-14 四审L4 三态(f5166c75):默认=pgrep 探测实例在即中止报错,不再盲杀
   // 用户在驾实例;残留冒烟僵尸与用户实例不可区分,一律保守按实例在。探测时点
   // (主入口 prekill,冒烟自身实例未出生)无误报自己,pgrep 也永不匹配自身。
-  // enforce=true 仅用于冒烟收尾清理 launch-services 残留(见尾部 finally 调用点):
-  // 该路径现行即盲杀,保持不动——若默认守卫在此生效,pgrep 必命中刚拉起的残留
-  // 实例,会把已通过的冒烟 exit(1)(违 design §5「不改变 smoke 通过路径」)。
-  if (!enforce && !prekillForce) {
+  // 10-15 R20(audit4-residuals):原 enforce=true 收尾盲杀路径已删除——冒烟
+  // 收尾改「自起 PID 精收」(见尾部 finally:launch 前快照差集=自起实例,
+  // TERM→KILL 精确收;探测/盲杀都不再适用于该点,pgrep 在收尾必命中自己拉起
+  // 的实例,守卫失效;盲杀会误伤冒烟期间用户新开的实例)。
+  if (!prekillForce) {
     const probe = spawnSync("pgrep", ["-f", "漫影工作室.app"], {
       cwd: process.cwd(),
       env: process.env,
@@ -243,6 +249,7 @@ function stopExistingMYStudioInstances({ enforce = false } = {}) {
     );
     return;
   }
+  // FORCE=旧盲杀语义显式口(自动化清僵尸用):以下 legacy 清理逐字保留。
   if (process.platform === "darwin") {
     runOptional("osascript", [
       "-e",
@@ -3211,7 +3218,18 @@ const smokeAppArgs = [
   `--remote-debugging-port=${debugPort}`,
   `--user-data-dir=${userDataDir}`,
 ];
-let activeLaunch = spawnSmokeApp({
+// 10-15 R20:launch-services 模式下 app 由 LaunchServices 拉起,child=open(1)
+// 非真身(真身 pid 不可直得)。每次 spawn 前对实例 pid 快照,收尾用
+// 「现存在 − 快照差集」识别自起实例精确收(禁 pkill 名字盲杀)。direct 模式
+// 自身就是子进程,terminateSpawnedApp 本就按 child.pid 精收,快照仅冗余无害。
+let selfStartedBaselinePids = [];
+function spawnSmokeAppWithBaseline(opts) {
+  selfStartedBaselinePids = [
+    ...new Set([...selfStartedBaselinePids, ...probeRunningInstances()]),
+  ];
+  return spawnSmokeApp(opts);
+}
+let activeLaunch = spawnSmokeAppWithBaseline({
   appBin,
   args: smokeAppArgs,
   cwd: process.cwd(),
@@ -3246,7 +3264,7 @@ try {
       "[smoke] direct Electron launch aborted before page startup; retrying through macOS LaunchServices",
     );
     await terminateSpawnedApp(child, { detached: keepSmokeAppOpen, logPrefix: "[smoke]" });
-    activeLaunch = spawnSmokeApp({
+    activeLaunch = spawnSmokeAppWithBaseline({
       appBin,
       args: smokeAppArgs,
       cwd: process.cwd(),
@@ -3365,9 +3383,25 @@ try {
         logPrefix: "[smoke]",
       });
       if (activeLaunch.launchMode === "launch-services") {
-        // 冒烟收尾清自身 launch-services 残留:现行即盲杀,走 enforce 保持不动
-        // (默认三态守卫只作用主入口 prekill,防把已通过的冒烟 exit(1))。
-        stopExistingMYStudioInstances({ enforce: true });
+        // 10-15 R20(audit4-residuals):收尾清自身 launch-services 残留改「自起
+        // PID 精收」——launch 前快照差集=本次冒烟拉起的实例,TERM→KILL 精确收;
+        // 不再 pkill 名字盲杀(原 enforce 路径已删,防误伤冒烟期间用户新开的实例)。
+        // SKIP_PREKILL 语义保持旧路径行为(跳过,不杀)。
+        if (skipPrekill) {
+          console.log("[smoke] skipping self-started instance cleanup (SKIP_PREKILL)");
+        } else {
+          const selfStartedPids = diffSelfStartedPids(
+            selfStartedBaselinePids,
+            probeRunningInstances(),
+          );
+          if (selfStartedPids.length > 0) {
+            await terminatePidsPrecisely(selfStartedPids, { logPrefix: "[smoke]" });
+          } else {
+            console.warn(
+              "[smoke] launch-services 自起实例未捕获(收尾不盲杀,如见残留请人工核:pgrep -f 漫影工作室.app)",
+            );
+          }
+        }
       }
     }
     rmSync(SMOKE_VIDEO_PATH, { force: true });

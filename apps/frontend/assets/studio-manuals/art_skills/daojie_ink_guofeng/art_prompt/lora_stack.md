@@ -13,7 +13,7 @@ metaData: art_skills
 | DNA 层 | 件 | 状态 | 实验区间(历史起点) |
 |---|---|---|---|
 | 主视觉锚(水墨+漆艺描金) | **Krea2-水墨武侠漆艺鎏金_v1**(Civitai 2937345,已入库 `Krea2-画风/`) | ✅ 已库 | 0.8~1.0 |
-| 三国人物/卡面构图 | 【krea2】三国杀卡面 War of the Three Kingdoms style(2888563;魔搭训练,无触发词,er_sde simple 8步,竖屏 1322×1763) | 候选待下 | 0.5~0.8 |
+| 三国人物/卡面构图 | 【krea2】三国杀卡面 War of the Three Kingdoms style(2888563;魔搭训练,无触发词,er_sde simple 8步,1322×1763) | 候选待下 | 0.5~0.8 |
 | 战场水墨气韵 | Dynamic Ink Wash Sumi-e(2804071,509dl★72,无触发词;复杂提示词加 "painting"/"monochrome") | 候选待下 | 0.4~0.6 |
 | 风格化水墨(备选) | Stylized Ink Wash(2914236,273dl★51,无触发词) | 备选 | 0.4~0.6 |
 | 千本山画师风(备选) | Qianben Shan(2744456,419dl★56;触发词强化显著) | 备选 | 0.5 |

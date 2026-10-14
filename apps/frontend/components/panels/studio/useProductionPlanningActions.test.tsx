@@ -506,3 +506,75 @@ describe("riderB · 规划/分镜代理上下文注入目标画幅(platformSpec,
     expect(capturedMessageText()).toContain("目标画幅：16:9");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// C 批(10-14-audit4-residuals):R12 D2 门读 sourceScript + R13 无资产硬拦锁
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("R12 · D2 门禁读 sourceScript(裁定⑤),正文哈希只作旧数据回落", () => {
+  it("D2: plan 带 sourceScript 指向旧条目 → 即便正文哈希同势也过期提示(现实现只比哈希,必红)", async () => {
+    stubAgentRunLifecycle();
+    useStudioStore.setState({
+      scriptPlans: [
+        {
+          ...planForChapter(),
+          // 哈希与现势正文一致(单独比哈希判「新」),但 sourceScript 指向已不在的旧条目
+          scriptFingerprint: scriptPlanSourceFingerprint("chapter-002", "第二章剧本正文"),
+          sourceScript: { entryId: "work-draft-old", updatedAt: 1 },
+        },
+      ],
+    });
+    vi.mocked(aiManager.textStream).mockResolvedValue({ success: false, error: "capture-stop" });
+    const { result } = renderPlanningActions();
+
+    await act(async () => {
+      await result.current.handleStoryboardTable("chapter-002", "");
+    });
+
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringMatching(/剧本已更新/));
+    expect(aiManager.textStream).toHaveBeenCalled();
+  });
+
+  it("D2: sourceScript 与现势草稿一致 → 即便哈希字段过期也不提示(sourceScript 为准,现实现必红)", async () => {
+    stubAgentRunLifecycle();
+    useStudioStore.setState({
+      scriptPlans: [
+        {
+          ...planForChapter(),
+          // 哈希是旧正文(单独比哈希判「过期」),但 sourceScript 与 beforeEach 草稿逐位一致
+          scriptFingerprint: scriptPlanSourceFingerprint("chapter-002", "旧版剧本正文"),
+          sourceScript: { entryId: "work-draft-002", updatedAt: 1 },
+        },
+      ],
+    });
+    vi.mocked(aiManager.textStream).mockResolvedValue({ success: false, error: "capture-stop" });
+    const { result } = renderPlanningActions();
+
+    await act(async () => {
+      await result.current.handleStoryboardTable("chapter-002", "");
+    });
+
+    expect(toast.warning).not.toHaveBeenCalledWith(expect.stringMatching(/剧本已更新/));
+    expect(aiManager.textStream).toHaveBeenCalled();
+  });
+});
+
+describe("R13(Q4) · 无资产=硬拦锁(裁定 Q4「按裁定不改」,防回退)", () => {
+  it("导演规划与分镜表两入口本章无提取 → toast.error 硬拦且不调模型(现状直绿,突变验证防回退)", async () => {
+    stubAgentRunLifecycle();
+    useStudioStore.setState({ entityExtractions: [] });
+    vi.mocked(aiManager.textStream).mockResolvedValue({ success: true, text: "不应到达模型" });
+    const { result } = renderPlanningActions();
+
+    await act(async () => {
+      await result.current.handleDirectorPlan("chapter-002", "");
+    });
+    await act(async () => {
+      await result.current.handleStoryboardTable("chapter-002", "");
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/本章无资产提取结果/));
+    expect(toast.error).toHaveBeenCalledTimes(2);
+    expect(aiManager.textStream).not.toHaveBeenCalled();
+  });
+});

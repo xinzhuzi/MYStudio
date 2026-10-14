@@ -61,6 +61,12 @@ if (page) {
 } else {
   let running = false;
   try { execFileSync("pgrep", ["-f", "漫影工作室.app/Contents"], { stdio: "ignore" }); running = true; } catch {}
+  // 10-15 R20(audit4-residuals)登记不修:本入口已是三态守卫形态——默认
+  // pgrep 探测实例在即 ABORT(exit 3,不盲杀用户在驾实例),--force-relaunch=
+  // 旧盲杀语义显式口(FORCE 等价),下方清理仅在该显式口后或零实例空跑时执行;
+  // 引擎 pkill 按家路径限定(app 托管引擎域),非全域盲杀。语义与 f5166c75
+  // 三态(MYSTUDIO_SMOKE_PREKILL_FORCE/SKIP_PREKILL)同构,仅开关形态不同
+  // (CLI flag vs env),零改码只登记。
   if (running && !flag("force-relaunch")) {
     console.error("ABORT: 应用在运行但 CDP 不可达(疑似用户正常使用中)。确认重启实例请加 --force-relaunch。");
     process.exit(3);

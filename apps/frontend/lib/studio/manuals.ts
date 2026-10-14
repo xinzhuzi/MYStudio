@@ -411,7 +411,9 @@ function buildManualSummary(manual: StudioManualPreset, keys: string[], charCap 
     ...keys
       .map((key) => manual.modules[key]?.trim())
       .filter(Boolean)
-      // G39:charCap≤0=不截断全量注入;缺省 4000=现状(buildStoryboardTableManualContext 等口径不变)
+      // G39:charCap≤0=不截断全量注入;缺省 4000=规划摘要口径(buildStudioManualContext,G11);
+      // 分镜表上下文自 H3(10-14 裁定)起缺省 0=全量(buildStoryboardTableManualContext 传值覆盖,
+      // 本参数缺省仅兜底——两调用方均显式传值,勿再据此行推断「分镜侧仍截 4000」)
       .map((value) => (charCap > 0 ? value.slice(0, charCap) : value)),
   ].join("\n\n");
 }

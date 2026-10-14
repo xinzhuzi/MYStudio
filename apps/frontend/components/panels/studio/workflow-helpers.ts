@@ -74,23 +74,39 @@ export function latestAgentWork(
 }
 
 /**
- * 最新剧本草稿条目(D7 单源,10-13-audit4-downstream design §3):按 updatedAt
- * 取最新,数组序不再参与语义。此前「数组序 reverse().find」与 latestAgentWork 的
- * updatedAt 排序双口径各自为政,两者在「数组序 ≠ updatedAt 序」时各说各话。
+ * 最新条目单源选择器(D7 收口,C 批 R12/10-14-audit4-residuals):按 updatedAt
+ * 取最新,数组序不再参与语义。此前剧本侧四处「数组序 reverse().find」与本函数
+ * (及 latestAgentWork 的 updatedAt 排序)多口径各自为政,在「数组序 ≠ updatedAt
+ * 序」时各说各话——ScriptTab 之外的三处(useScriptStageActions.latestScriptStage
+ * Entry、AssetsTab 本章剧本、workflow-readiness.findScriptTarget)全部收敛到此。
  * 平局(updatedAt 相等)取数组序靠后者——与旧 reverse().find 逐位一致,除双口径
  * bug 本身外零行为漂移。
+ */
+export function latestAgentWorkEntry(
+  items: WorkflowStoreSnapshot["agentWorkData"],
+  key: AgentWorkKey,
+  episodeId?: string,
+): WorkflowStoreSnapshot["agentWorkData"][number] | undefined {
+  let best: WorkflowStoreSnapshot["agentWorkData"][number] | undefined;
+  for (const item of items) {
+    if (item.key !== key) continue;
+    if (episodeId ? item.episodeId !== episodeId : !item.episodeId) continue;
+    // >=:平局取数组序靠后——与旧 reverse().find 真逐位一致(原 latestScriptDraft
+    // Entry 用 > 在平局保靠前,与其自身注释相悖,此处一并校正)。
+    if (!best || item.updatedAt >= best.updatedAt) best = item;
+  }
+  return best;
+}
+
+/**
+ * 最新剧本草稿条目(D7 单源,10-13-audit4-downstream design §3):委托
+ * latestAgentWorkEntry,本函数保留作 scriptDraft 语义的具名入口。
  */
 export function latestScriptDraftEntry(
   store: WorkflowStoreSnapshot,
   episodeId?: string,
 ): WorkflowStoreSnapshot["agentWorkData"][number] | undefined {
-  let best: WorkflowStoreSnapshot["agentWorkData"][number] | undefined;
-  for (const item of store.agentWorkData) {
-    if (item.key !== "scriptDraft") continue;
-    if (episodeId ? item.episodeId !== episodeId : !item.episodeId) continue;
-    if (!best || item.updatedAt > best.updatedAt) best = item;
-  }
-  return best;
+  return latestAgentWorkEntry(store.agentWorkData, "scriptDraft", episodeId);
 }
 
 /**
@@ -144,7 +160,12 @@ export function resolveScriptTextForEpisode(
     (episodeId === "episode-1"
       ? latestScriptDraftEntry(store)?.data
       : undefined) ??
-    store.novelChapters.map((chapter) => chapter.sourceText ?? "").join("\n\n")
+    // R14(10-14-audit4-residuals,D6 残项):无草稿且本章无正文时**不拼全书**——
+    // 旧回落 `novelChapters.map(sourceText).join("\n\n")` 把别章正文冒充本章剧本,
+    // 导演规划/提取/分镜全链拿混合正文;空串让调用方的「没有可规划的剧本」守卫
+    // 正常发声(useProductionPlanningActions:82/:323、useNovelPipelineActions:259),
+    // 指纹面(chapter-pipeline-stale:52 ?? "")同得确定性空正文。
+    ""
   );
 }
 

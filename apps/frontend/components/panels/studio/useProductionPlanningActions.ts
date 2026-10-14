@@ -46,6 +46,7 @@ import {
   scriptPlanSourceFingerprint,
   stableRunFingerprint,
 } from "./workflow-helpers";
+import { storyboardSourceStale } from "./chapter-pipeline-stale";
  
 import type { ScriptPlan } from "@/types/studio";
 
@@ -341,13 +342,23 @@ export function useProductionPlanningActions({
         toast.error("本章无资产提取结果：请先执行资产提取，再生成分镜表");
         return;
       }
-      // D2(裁定④⑤):既有「尚无导演规划」硬门之后叠过期软提示——plan 落库时
-      // 盖过剧本指纹且与当前剧本不符 = 剧本已改,提示重审/重规划但可显式继续,
-      // 不拦截;旧数据无指纹不提示(回落现行为)。
-      if (
-        plan.scriptFingerprint !== undefined
-        && plan.scriptFingerprint !== scriptPlanSourceFingerprint(targetEpisodeId, scriptText)
-      ) {
+      // D2(裁定④⑤+R12 收口,10-14-audit4-residuals):既有「尚无导演规划」硬门
+      // 之后叠过期软提示。判定优先读落库 sourceScript(条目 id+updatedAt,裁定⑤
+      // 同款StoryboardItem.sourceScript 形态)与现势最新草稿条目比对——复用 D5
+      // 同款 storyboardSourceStale(单源,禁两处各写一套 id+updatedAt 比对);
+      // 旧数据(无 sourceScript 戳/现势无草稿条目=undefined)回落正文哈希比对。
+      const sourceScriptStale = storyboardSourceStale({
+        sourceScript: plan.sourceScript,
+        latestScriptEntry: latestDraftEntry?.id
+          ? { id: latestDraftEntry.id, updatedAt: latestDraftEntry.updatedAt }
+          : undefined,
+      });
+      const planStale =
+        sourceScriptStale !== undefined
+          ? sourceScriptStale
+          : plan.scriptFingerprint !== undefined
+            && plan.scriptFingerprint !== scriptPlanSourceFingerprint(targetEpisodeId, scriptText);
+      if (planStale) {
         toast.warning("剧本已更新：当前导演规划基于旧版剧本，建议重审/重规划后再生成分镜表；本次继续生成");
       }
       // D7(裁定④):下游不强制审核通过——入口对「未审/审不过」剧本软警示后继续。

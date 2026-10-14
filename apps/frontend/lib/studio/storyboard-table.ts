@@ -1,5 +1,6 @@
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import { detectLightingTerms, stripLightingTerms } from "@/lib/studio/director-plan";
+import { VOICE_CPS_MIN } from "@/lib/studio/script-draft-metrics";
 import {
   buildStoryboardVoiceoverItem,
   isNarratorSpeaker,
@@ -63,26 +64,30 @@ export interface ParseStoryboardTableOptions {
   requireShotSemantics?: boolean;
 }
 
-/** 语速唯一口径（10-14 裁定，四审D H2）：缺省 4 字/秒；悲伤/低语/虚弱类 2 字/秒。与分镜表手册铁律 5（「4字/秒」）、
- *  剧本手册「配音总量」条款（≤4字/秒）同一表述；原快档分支已删——其返回值 4 与新缺省全同，纯冗余。 */
+/** 语速口径（10-14 晚 Q1 裁定：全链统一区间 2.5~4 字/秒——超标判定用上限 4、时长估算取保守端 2.5，
+ *  道劫「题材豁免」已废，见分镜表手册铁律 5/剧本手册配音总量条款的区间表述）：本函数服务时长估算面
+ *  （toStoryboardItems 回落算时），缺省取区间保守端 VOICE_CPS_MIN=2.5（单源家=script-draft-metrics
+ *  导出，本处 import 消费，禁本地自定义再造双口径）；慢速情绪分档 2 保留（低于保守端的情绪档，
+ *  与技法手册语速表慢速两行同源）。 */
 const SLOW_EMOTION_HINTS = ["悲伤", "绝望", "低语", "虚弱", "哽咽", "无力", "气若游丝", "垂死"];
 
 export function resolveSpeed(emotion: string): number {
   const text = emotion ?? "";
   if (SLOW_EMOTION_HINTS.some((hint) => text.includes(hint))) return 2;
-  return 4;
+  return VOICE_CPS_MIN;
 }
 
-/** §3.2 时长精算：duration ≥ 字数 ÷ 语速（向上取整）+ 1s 余量。纯公式，语料由调用方负责抽取。 */
+/** §3.2 时长精算：duration ≥ 字数 ÷ 语速（向上取整）+ 1s 余量。纯公式，语料由调用方负责抽取。
+ *  speed<=0 回落同取区间保守端 VOICE_CPS_MIN（与缺省语速同一口径，Q1）。 */
 export function computeDurationSec(text: string, speed: number): number {
-  const safeSpeed = speed > 0 ? speed : 4;
+  const safeSpeed = speed > 0 ? speed : VOICE_CPS_MIN;
   return Math.ceil((text ?? "").length / safeSpeed) + 1;
 }
 
 export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): StoryboardTableMessages {
   const skill = getAgentSkillPreset("production_execution_storyboard_table")?.content ?? "storyboardTable";
   const voiceoverGuard = [
-    "分镜配音硬约束：每条分镜必须填写台词/旁白字段，作为后续配音、TTS 和角色音色绑定的输入。",
+    "分镜配音硬约束：每条分镜必须填写台词字段——台词/旁白照剧本逐字照录，本场纯视觉镜写「无台词」（禁止为凑字段编造旁白，细则见下条）——作为后续配音、TTS 和角色音色绑定的输入。",
     "角色台词保留 `角色名：台词内容`；旁白/OS/VO 照剧本原文写 `旁白：内容`（逐字照录，不另造旁白）；本场确无任何语音的纯视觉镜写 `无台词`（纯视觉段连续 ≤15 秒），禁止为凑字段编造旁白。",
     "分镜序号铁律：全表分镜序号从 1 起全局连续递增（1..N），不得按场/按片段重置编号（2026-08-22 实证：逐场重编号会被解析整表拒绝）。",
     "时长预算（H3 视频线）：单集总时长 ≤3 分钟；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词与动作必须写足该时长的内容量，禁 2–3 秒空镜过场（2026-10-10 裁定）。",

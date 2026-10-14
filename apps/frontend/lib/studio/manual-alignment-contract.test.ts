@@ -6,9 +6,11 @@ import { describe, expect, it } from "vitest";
  * 四审D·手册↔注入口径对齐文案契约(10-13-audit4-manual-alignment,TDD RED 先行)。
  *
  * 锁「手册真源文案」本体(node:fs 直读 assets,仿 daojie-manual-contract.test.ts 模式),
- * 覆盖 design.md §9-T5 ①-⑧:H1 分镜表手册对齐规划①-⑦、H2 语速唯一口径 4 字/秒、
+ * 覆盖 design.md §9-T5 ①-⑧:H1 分镜表手册对齐规划①-⑦、H2 语速区间口径(10-14 晚 Q1 裁定:
+ * 全链统一 2.5~4 字/秒区间——超标判定用上限 4、时长估算取保守端 2.5,道劫「题材豁免」废除)、
  * H4 场头槽位唯一定义、H5 竖屏→16:9、H6 旧格式清理、H7 台词精简阶段限定化、
- * H8 旁白排除三处同批、H9 手册类杂项;⑧=design §8 六族旧词 allowlist 扫描(AC#2 机器化)。
+ * H8 旁白排除三处同批、H9 手册类杂项;⑧=design §8 六族旧词 allowlist 扫描(AC#2 机器化);
+ * ⑨-⑬=10-14-audit4-residuals D 批增量(R15 区间化逐点/R16 画幅参数化/R17 示例例/R18 残引)。
  *
  * RED 期约定:断言按 design §2-§7 的 GREEN 目标文本写;现文本未改 → 各用例按「指定红因」失败。
  */
@@ -37,7 +39,7 @@ const PLAN_BLOCK_LABELS = [
 ] as const;
 
 describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
-  itFile("T5① storyboard_table.md 对齐规划①-⑦+16:9+4字/秒,旧三块/竖屏/$ 出场人物/【BGM】/get_flowData 清零(H1/H5/H6/H9)", () => {
+  itFile("T5① storyboard_table.md 对齐规划①-⑦+16:9+语速区间,旧三块/竖屏/$ 出场人物/【BGM】/get_flowData 清零(H1/H5/H6/H9/R15)", () => {
     const content = readManual("production_execution_storyboard_table.md");
     // H1:第 2 步对齐对象=注入摘要的七块(F2,formatScriptPlanContext 逐字标签)
     for (const label of PLAN_BLOCK_LABELS) {
@@ -45,18 +47,19 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
     }
     // H5(G36 全链 16:9)::14/:16 两处竖屏表述改 16:9
     expect(content, "分镜表手册缺 16:9(H5:竖屏表述未改)").toContain("16:9");
-    // 裁定②维持锁:4 字/秒口径零改(F17 含道劫题材收紧举例一并维持)
-    expect(content, "分镜表手册缺「4字/秒」(裁定②维持项,不应漂移)").toContain("4字/秒");
+    // Q1 区间口径锁(10-14 晚裁定,取代「唯一=4」单口径):铁律 5 台词时间分配按区间书写
+    expect(content, "分镜表手册缺「2.5~4 字/秒」区间表述(R15:仍按单口径)").toContain("2.5~4 字/秒");
     // H1/H5/H6/H9 负向:六族旧词在本文件清零
     for (const legacy of ["分场汇总表", "逐场注意事项", "场间过渡", "竖屏", "$ 出场人物", "【BGM】", "get_flowData"]) {
       expect(content, `分镜表手册残留旧词「${legacy}」`).not.toContain(legacy);
     }
   });
 
-  itFile("T5② script_execution_script.md:4字/秒+{时间}/{内外}+无台词桥+场头唯一定义;150字/分/{时间}/{光线}/资产包 清零(H2/H4/H8/H9)", () => {
+  itFile("T5② script_execution_script.md:语速区间判定句+{时间}/{内外}+无台词桥+场头唯一定义;150字/分/{时间}/{光线}/资产包 清零(H2/H4/H8/H9/R15)", () => {
     const content = readManual("script_execution_script.md");
-    // H2 裁定①::327「×2.5(按 150字/分钟)」→「×4(按 4字/秒)」;:329「≤150字/分钟」→「≤4字/秒」
-    expect(content, "剧本手册缺「4字/秒」(H2:仍按 150字/分 旧口径)").toContain("4字/秒");
+    // Q1 区间口径::327 场对账(判定面)改「区间上限 4 字/秒」;:329 配音总量带区间表述(R15)
+    expect(content, "剧本手册缺「区间上限 4 字/秒」判定句(R15:仍按单口径 4字/秒)").toContain("区间上限 4 字/秒");
+    expect(content, "剧本手册缺「2.5~4 字/秒」区间表述(R15)").toContain("2.5~4 字/秒");
     // H4::204/:236(注::223 同块第二示例同改)第三槽 {时间}/{光线} → {时间}/{内外}+唯一定义注
     expect(content, "剧本手册缺「{时间}/{内外}」(H4:模板第三槽仍写光线)").toContain("{时间}/{内外}");
     expect(content, "剧本手册缺「场头格式唯一定义」注(H4)").toContain("场头格式唯一定义");
@@ -156,14 +159,14 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
         allowed: ["production_execution_director_plan.md"],
       },
       {
-        // 族2 竖屏:剧本/审核手册为【项目信息】目标画幅条件分支(9:16 仍合法可选);
-        // lora_stack.md:16 为 Lora 分辨率描述(异义,且 art_skills 为禁改域)
+        // 族2 竖屏:剧本/审核手册为【项目信息】目标画幅条件分支(9:16 仍合法可选,Q2 裁定);
+        // lora_stack.md:16 原豁免已随 10-15 Phase 0 去除「竖屏」字样——条目随之撤销,
+        // 道劫美术包再現竖屏即判非豁免命中(Q2「道劫美术包零竖屏」的机器锁)
         label: "竖屏",
         pattern: /竖屏/,
         allowed: [
           "script_execution_script.md",
           "script_agent_supervision.md",
-          "art_skills/daojie_ink_guofeng/art_prompt/lora_stack.md",
         ],
       },
       {
@@ -185,14 +188,12 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
         allowed: ["script_execution_script.md", "script_agent_supervision.md"],
       },
       {
-        // 族6 150字:分镜表手册:24=裁定②维持的题材收紧举例;README:11=道劫人读文档(H3 已并入注入文件,
-        // 本体零改);道劫分镜表 narrative=H3 并入块的同一内容落地处(design §4 逐字文本自带
-        // 「150 字/分钟≈2.5 字/秒」,与 :24/README:11 同为「道劫题材收紧基准」豁免类,通用缺省 4 字/秒
-        // 已在块内显式声明,不构成口径漂移)
+        // 族6 150字(Q1 区间化后收窄):分镜表手册:24 的道劫豁免举例已随 R15 删除——该文件条目
+        // 撤销(再現 150 字口径即判非豁免命中);README:11 与道劫 narrative:90 保留的「150 字/分钟」
+        // 数值=区间 2.5~4 字/秒的保守端表述(非豁免机制,Q1 裁定「数值可留=保守端」)
         label: "150字/150 字",
         pattern: /150字|150 字/,
         allowed: [
-          "production_execution_storyboard_table.md",
           "story_skills/Daojie_xianxia/README.md",
           "story_skills/Daojie_xianxia/driector_skills/director_storyboard_table_narrative.md",
         ],
@@ -208,6 +209,103 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
       }
     }
     expect(problems, "六族旧词扫描存在非豁免命中(旧词未清零)").toEqual([]);
+  });
+
+  // ── 10-14-audit4-residuals D 批增量(R15/R16/R17/R18) ─────────────────────────
+
+  // R15/Q1 语速区间口径逐手册落点(design R15(d) 清单,行号 10-15 实证):
+  // 判定面(超标判定线)=区间上限 4 字/秒;估算面=2.5~4 区间、保守端 2.5;道劫豁免措辞全链清零。
+  itFile("T5⑨ R15/Q1 语速区间化:判定面=上限4/估算面=2.5~4(保守端2.5),道劫例外措辞清零", () => {
+    // 判定类(design (a)):剧本手册 :327 场对账 / :329 配音总量;剧本审核手册 :118
+    const script = readManual("script_execution_script.md");
+    expect(script, "剧本手册缺「区间上限 4 字/秒」判定句(:327)").toContain("区间上限 4 字/秒");
+    expect(script, "剧本手册 :329 缺区间表述").toContain("2.5~4 字/秒");
+    const scriptSupervision = readManual("script_agent_supervision.md");
+    expect(scriptSupervision, "剧本审核手册 :118 缺区间上限判定句").toContain("超标判定线");
+    expect(scriptSupervision, "剧本审核手册 :118 缺区间表述").toContain("2.5~4 字/秒");
+    // 估算类(design (d)):制作审核手册 :156/:254;技法手册 :165/:166
+    const prodSupervision = readManual("production_agent_supervision.md");
+    expect(prodSupervision, "制作审核手册估算句未区间化(:156/:254)").toContain("2.5~4 字/秒");
+    expect(prodSupervision, "制作审核手册缺「保守端 2.5」").toContain("保守端 2.5");
+    // 负向锚用「（~4 字/秒」带括号形态:裸「~4 字/秒」是区间「2.5~4 字/秒」的子串,不可作负向
+    expect(prodSupervision, "制作审核手册残留「（~4 字/秒」旧单点口径").not.toContain("（~4 字/秒");
+    const techniques = readManual("production_skills/storyboard_table_techniques.md");
+    expect(techniques, "技法手册语速表未区间化(:165/:166)").toContain("2.5~4 字/秒");
+    expect(techniques, "技法手册残留「| ~3 字/秒」单点口径(:166)").not.toContain("| ~3 字/秒");
+    expect(techniques, "技法手册残留「| ~4 字/秒」单点口径(:165)").not.toContain("| ~4 字/秒");
+    // 分镜表手册:豁免机制本体删(:24)+估时长句区间化(:98)
+    const storyboardTable = readManual("production_execution_storyboard_table.md");
+    expect(storyboardTable, "分镜表手册缺区间表述(:24/:98)").toContain("2.5~4 字/秒");
+    expect(storyboardTable, "分镜表手册缺「保守端 2.5」").toContain("保守端 2.5");
+    expect(storyboardTable, "分镜表手册残留语速豁免机制本体(:24「另有语速基准…按手册执行」)").not.toContain("另有语速基准");
+    expect(storyboardTable, "分镜表手册残留道劫豁免举例(:24,全文件应零道劫)").not.toContain("道劫");
+    // 道劫两处(design (d)):narrative :90 豁免措辞删改保守端;README :11 数值可留标保守端
+    const narrative = readManual(
+      "story_skills/Daojie_xianxia/driector_skills/director_storyboard_table_narrative.md",
+    );
+    expect(narrative, "道劫叙事残留豁免措辞「本包按此执行」(:90)").not.toContain("本包按此执行");
+    expect(narrative, "道劫叙事残留「通用缺省 4 字/秒」旧口径指针(:90)").not.toContain("通用缺省 4 字/秒");
+    expect(narrative, "道劫叙事缺「保守端」合区间表述(:90)").toContain("保守端");
+    const daojieReadme = readManual("story_skills/Daojie_xianxia/README.md");
+    expect(daojieReadme, "道劫 README 缺「保守端」表述(:11)").toContain("保守端");
+    expect(daojieReadme, "道劫 README 缺区间表述(:11)").toContain("2.5~4 字/秒");
+  });
+
+  // R17(design 分镜表手册 :142):示例行编造旁白删除(与 storyboard-table.ts guard「禁止为凑字段
+  // 编造旁白」同一律),纯视觉镜示范「无台词」;时长 5s 与 8~15s 单镜基准(2026-10-10 裁定)不合。
+  itFile("T5⑩ R17 分镜表手册示例:纯视觉镜写「无台词」不编造旁白,时长合 8~15s(:142)", () => {
+    const content = readManual("production_execution_storyboard_table.md");
+    expect(content, "分镜表手册示例残留编造旁白「旁白：西瓜…」(:142)").not.toContain(
+      "旁白：西瓜在林志强脚边砸裂",
+    );
+    expect(content, "分镜表手册示例缺「| 无台词 |」纯视觉示范(:142)").toContain("| 无台词 |");
+    expect(content, "分镜表手册示例时长仍为 5s(不合 8~15s 单镜基准)").not.toContain(
+      "西瓜筐] | 5 | 近景",
+    );
+    expect(content, "分镜表手册示例时长未落 8~15s 基准").toContain("西瓜筐] | 8 | 近景");
+  });
+
+  // R18/H9:get_flowData 工具层已退役(全仓代码零定义,storyboard-table.ts:26「本调用链无
+  // get_flowData 工具」2026-08-22 实证),三手册残引改注入表述(T5① 已覆盖分镜表手册)。
+  itFile("T5⑪ R18 get_flowData 残引清零:derive_assets/storyboard_gen/storyboard_panel 三手册", () => {
+    for (const rel of [
+      "production_execution_derive_assets.md",
+      "production_execution_storyboard_gen.md",
+      "production_execution_storyboard_panel.md",
+    ]) {
+      expect(readManual(rel), `${rel} 残留 get_flowData 残引(工具层已退役,数据随消息注入)`).not.toContain(
+        "get_flowData",
+      );
+    }
+  });
+
+  // R18/H4:entity_extractor 场次标题模板与单源(script_execution_script.md:236 场头唯一定义,
+  // 无粗体)对齐——「(粗体行)」特称与 `**…**` 模板撤销。
+  itFile("T5⑫ R18 entity_extractor 场次标题模板与场头唯一定义同式(去粗体行特称)", () => {
+    const content = readManual("entity_extractor.md");
+    expect(content, "提取手册残留「粗体行」特称(与场头唯一定义单源不一致)").not.toContain("粗体行");
+    expect(content, "提取手册场次标题模板残留粗体标记(单源无粗体)").not.toContain("**{场号}");
+  });
+
+  // R16/Q2(保绿锁,直绿):画幅=【项目信息】参数——两剧本手册参数化措辞在场;道劫导演/美术包
+  // 零竖屏/9:16(2026-10-15 rg 实证零命中,lora_stack.md「竖屏」二字已随 Phase 0 去除)。
+  itFile("T5⑬ R16/Q2 画幅=【项目信息】参数:参数化措辞在场+道劫包零竖屏/9:16", () => {
+    const script = readManual("script_execution_script.md");
+    expect(script, "剧本手册缺「构图符合【项目信息】的目标画幅」参数化措辞(:40)").toContain(
+      "构图符合【项目信息】的目标画幅",
+    );
+    expect(script, "剧本手册缺「画幅适配（按【项目信息】目标画幅）」参数化节(:277)").toContain(
+      "画幅适配（按【项目信息】目标画幅）",
+    );
+    const supervision = readManual("script_agent_supervision.md");
+    expect(supervision, "剧本审核手册缺「取自【项目信息】」画幅参数措辞(:86)").toContain("取自【项目信息】");
+    const daojieFiles = listManualMarkdownFiles().filter(
+      (file) => file.startsWith("story_skills/Daojie_xianxia/") || file.startsWith("art_skills/daojie_ink_guofeng/"),
+    );
+    expect(daojieFiles.length, "道劫导演/美术包未枚举到任何 md").toBeGreaterThan(0);
+    for (const file of daojieFiles) {
+      expect(readManual(file), `道劫包文件残留竖屏/9:16(Q2):${file}`).not.toMatch(/竖屏|9:16/);
+    }
   });
 });
 

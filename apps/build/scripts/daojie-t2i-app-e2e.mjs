@@ -99,6 +99,10 @@ const SKIP_GEN = process.env.SKIP_GEN === "1" || process.argv.includes("--skip-g
 const SKIP_PE = process.env.SKIP_PE === "1" || process.argv.includes("--skip-pe"); // 只跳 S6b(SKIP_GEN=1 时两拍连跳,S6b 无独立成活路径)
 const KEEP_APP = process.env.KEEP_APP === "1";
 const CDP_PORT_ENV = Number(process.env.CDP_PORT || 0);
+// 10-15 R20(audit4-residuals):prekill 三态对齐 f5166c75——默认=探测实例在即
+// 中止不盲杀;SKIP=跳过不杀;FORCE=旧盲杀显式口。SKIP 优先于 FORCE。
+const SKIP_PREKILL = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
+const PREKILL_FORCE = process.env.MYSTUDIO_SMOKE_PREKILL_FORCE === "1";
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const step = (id, title) => log(`──── ${id} ${title} ────`);
@@ -165,6 +169,28 @@ function parseTruth() {
 
 function prekillApp() {
   const cp = require("node:child_process");
+  // 10-15 R20 三态守卫(f5166c75 对齐):本函数只许用于 S0 开跑前(杀既存实例,
+  // 无自起 pid 可言)。默认=pgrep 探测实例在即中止,不再盲杀用户在驾实例;
+  // SKIP=跳过不杀;FORCE=旧盲杀显式口(legacy 清理逐字保留)。收摊/错误路径的
+  // 自起实例清理由 stopSelfStartedApp 按 pid 精收,不得再走本函数。
+  if (SKIP_PREKILL) {
+    log("prekill 跳过(MYSTUDIO_SMOKE_SKIP_PREKILL=1)");
+    return;
+  }
+  if (!PREKILL_FORCE) {
+    let running = false;
+    try { cp.execFileSync("pgrep", ["-f", "漫影工作室.app/Contents"], { stdio: "ignore" }); running = true; } catch {}
+    if (running) {
+      console.error(
+        "prekill 已中止:检测到漫影工作室实例正在运行(疑似用户在驾,prekill 不再默认盲杀)。"
+        + "请关闭 App 后重跑;若确认是残留冒烟僵尸,可设 "
+        + "MYSTUDIO_SMOKE_SKIP_PREKILL=1 跳过 prekill,或 MYSTUDIO_SMOKE_PREKILL_FORCE=1 显式清理。",
+      );
+      process.exit(3);
+    }
+    log("prekill: 未检测到实例在跑,跳过清理");
+    return;
+  }
   // 照 smoke-desktop.mjs stopExistingMYStudioInstances 官方惯例(0915 模板原样)
   const steps = [
     ["osascript", ["-e", `tell application id "${APP_BUNDLE_ID}" to quit`]],
@@ -176,6 +202,54 @@ function prekillApp() {
   ];
   for (const [cmd, args] of steps) {
     try { cp.execFileSync(cmd, args, { stdio: "ignore" }); } catch { /* 可选步骤 */ }
+  }
+}
+
+// 10-15 R20:自起实例精收——S1 自己 spawn 的 appProc 按pid TERM→宽限→KILL;
+// 引擎口按「端口→监听 pid」精收(S0 已验口空闲,口上监听者即本轮自起引擎或其
+// 孤儿)。不再 prekill 全家名字盲杀;口是否真 down 仍由 S7 probeFree 把关。
+async function stopSelfStartedApp(engineBase) {
+  const enginePort = engineBase
+    ? Number(String(engineBase).split(":").pop()) || 0
+    : 0;
+  const pid = appProc?.pid;
+  if (!pid) {
+    log("收摊:无自起应用进程,跳过精收");
+    return;
+  }
+  const killPid = (p, signal) => {
+    try { process.kill(p, signal); } catch { /* 已退 */ }
+  };
+  killPid(pid, "SIGTERM");
+  const cap = Date.now() + 5_000;
+  while (Date.now() < cap) {
+    try { process.kill(pid, 0); } catch { break; }
+    await sleep(200);
+  }
+  try { process.kill(pid, 0); killPid(pid, "SIGKILL"); } catch { /* 已退 */ }
+  log(`收摊:自起应用实例 pid=${pid} 已精收(TERM→宽限→KILL 兜底)`);
+  if (enginePort) {
+    try {
+      const cp = require("node:child_process");
+      const out = cp.execFileSync(
+        "lsof",
+        ["-ti", `tcp:${enginePort}`, "-sTCP:LISTEN"],
+        { encoding: "utf8" },
+      );
+      const enginePids = out.split("\n")
+        .map((line) => Number(line.trim()))
+        .filter((n) => Number.isInteger(n) && n > 1);
+      for (const ep of enginePids) {
+        killPid(ep, "SIGTERM");
+      }
+      if (enginePids.length > 0) {
+        await sleep(1_500);
+        for (const ep of enginePids) {
+          try { process.kill(ep, 0); killPid(ep, "SIGKILL"); } catch { /* 已退 */ }
+        }
+        log(`收摊:引擎口 ${enginePort} 监听 pid=[${enginePids.join(",")}] 已精收`);
+      }
+    } catch { /* 口已无监听者(主进程 TERM 后引擎随退),正常 */ }
   }
 }
 
@@ -884,12 +958,14 @@ async function s6bPeFedShot(main, engineBase, truth) {
 
 // ═══════════ S7 收摊+报告 ═══════════
 async function s7Cleanup(engineBase) {
-  step("S7", "收摊(干完即停:prekill 自拉全家+双口验 down)+报告");
+  step("S7", "收摊(干完即停:自起实例按 pid 精收+双口验 down)+报告");
   if (KEEP_APP) {
-    check("S7 收摊(KEEP_APP=1 保留应用)", true, "跳过 prekill 与口验");
+    check("S7 收摊(KEEP_APP=1 保留应用)", true, "跳过精收与口验");
     return;
   }
-  prekillApp();
+  // 10-15 R20:收摊只精收自起实例(S1 自己 spawn 的 appProc+本轮引擎口监听者),
+  // 不再 prekill 全家名字盲杀(误伤面=冒烟期间用户在驾实例)。
+  await stopSelfStartedApp(engineBase);
   await sleep(3000);
   // 慢退出容忍:口验最多再等 10s(进程 teardown 有先后)
   const probeFree = async (port) => {
@@ -972,8 +1048,9 @@ async function main() {
   }
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error("E2E 失败:", e.message);
-  if (!KEEP_APP) prekillApp();
+  // 10-15 R20:错误路径同样只精收自起实例,不再 prekill 全家名字盲杀
+  if (!KEEP_APP) await stopSelfStartedApp(null);
   process.exit(1);
 });
