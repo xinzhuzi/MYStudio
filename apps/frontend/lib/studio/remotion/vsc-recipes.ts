@@ -242,3 +242,9 @@ export function isVscMotionId(value: unknown): value is VscMotionId {
 export function vscRecipeQuota(id: VscMotionId): number | undefined {
   return VSC_RECIPES[id].quota?.perChapter;
 }
+
+/** 卡片典型时长折算(微秒,按字段注记 @30fps)。时长门(决策/选择两侧)与
+ *  配额查询(vscRecipeQuota)同款共用——注册表字段由此成为决策依据而非死档案。 */
+export function vscRecipeTypicalDurationUs(id: VscMotionId): number {
+  return Math.round((VSC_RECIPES[id].typicalDurationFrames / 30) * 1_000_000);
+}

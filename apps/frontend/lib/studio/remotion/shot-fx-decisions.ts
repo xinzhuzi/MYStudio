@@ -22,7 +22,7 @@
 
 import { isCinematicLutId } from "./cinematic-luts";
 import { isAtmosphereTemplateId } from "./atmosphere-templates";
-import { isVscMotionId, vscRecipeQuota, type VscMotionId } from "./vsc-recipes";
+import { isVscMotionId, vscRecipeQuota, vscRecipeTypicalDurationUs, type VscMotionId } from "./vsc-recipes";
 import type { EditingEffect } from "@/types/editing";
 
 /** legacy 18 值闭集(2026-08 起冻结:旧值不动永不退役,D2)。 */
@@ -430,6 +430,28 @@ export function enforceVscMotionQuota(
   return out;
 }
 
+/**
+ * vsc 时长门(select 级共用,10-14):镜短于配方典型时长(vsc-recipes @30fps 折算
+ * 微秒单源)的 vsc 选择回落镜序轮换——渲染侧决策门(buildShotFxEditingEffects)的
+ * 镜像双闸,保证 shotFx 数据与渲染效果一致(不出现数据写 vsc、效果落轮换的分裂)。
+ * durationUs 缺省(旧调用方/测试)=门透传零影响(向后兼容边界)。
+ */
+export function enforceVscDurationGuard(
+  motions: Record<string, ShotFxMotionId>,
+  shots: ReadonlyArray<{ shotId: string; durationUs?: number }>,
+): Record<string, ShotFxMotionId> {
+  const out: Record<string, ShotFxMotionId> = { ...motions };
+  shots.forEach((shot, index) => {
+    if (shot.durationUs === undefined) return;
+    const motion = out[shot.shotId];
+    if (!motion || !isVscMotionId(motion)) return;
+    if (shot.durationUs < vscRecipeTypicalDurationUs(motion)) {
+      out[shot.shotId] = SHOT_FX_MOTION_ROTATION[index % SHOT_FX_MOTION_ROTATION.length];
+    }
+  });
+  return out;
+}
+
 /** 关键词命中的成套配方（动作>追逐>灵光>暗涌；退场仅偶数镜启用与历史行为一致；
  * vsc 关键词(10-10 批B)排在 legacy 之后——legacy 命中永不改判(D2 存量兼容),
  * vsc 词与 legacy 词表零重叠,只接 legacy 覆盖不到的镜头语义）。 */
@@ -450,7 +472,10 @@ export function keywordShotFxMotion(
   // ── vsc:* 关键词兜底(10-10 批B;词表与 legacy 零重叠,确定性同级) ──
   if (/俯冲|俯瞰|扎下|俯扑/.test(text)) return "vsc:drone-dive-landing";
   if (/天旋地转|眩晕|世界崩塌|压来/.test(text)) return "vsc:dolly-zoom";
-  if (/斜|倾覆|歪/.test(text)) return "vsc:dutch-roll-to-level";
+  // 10-14 收窄:三单字(斜/倾覆/歪)把斜坡/斜照/歪头/歪打正着全吸进 dutch(误伤);
+  // 改双字强信号=画面姿态词(倾斜/歪斜)+原强词(倾覆)+构图术语(斜角),与词块
+  // 其余行双字/多字口径一致。
+  if (/倾斜|倾覆|歪斜|斜角/.test(text)) return "vsc:dutch-roll-to-level";
   if (/纵深|景深|滑轨/.test(text)) return "vsc:parallax-glide";
   if (/蓄力|压迫|凝重|窒/.test(text)) return "vsc:slow-push-in";
   if (/孤身|孤悬|只剩|形单/.test(text)) return "vsc:pull-back-isolation";
@@ -536,12 +561,16 @@ export function buildShotFxEditingEffects(input: {
       : "";
     const aiHint = storyboard?.shotFx?.motion;
     const requested = isShotFxMotionId(aiHint) ? aiHint : resolveRuleShotFxMotion(text, visualIndex);
-    // 配额超额的 vsc 运镜回落镜序轮换(AI/关键词/直写数据三来源同守卫)。
+    // 配额超额/时长不足的 vsc 运镜回落镜序轮换(AI/关键词/直写数据三来源同守卫)。
+    // 时长门(10-14):镜短于配方典型时长(vsc-recipes @30fps 折算 us 单源)时,卡片
+    // 曲线会被渲染 Sequence 按镜长截断(长配方截短镜=造型崩)——确定性回落,与配额
+    // 超额同纪律(不报错不阻塞、超时不消耗 vscUsage)。
     let motionId: ShotFxMotionId = requested;
     if (isVscMotionId(requested)) {
       const quota = vscRecipeQuota(requested);
       const used = vscUsage.get(requested) ?? 0;
-      if (quota !== undefined && used >= quota) {
+      const tooShort = clip.durationUs < vscRecipeTypicalDurationUs(requested);
+      if ((quota !== undefined && used >= quota) || tooShort) {
         motionId = SHOT_FX_MOTION_ROTATION[visualIndex % SHOT_FX_MOTION_ROTATION.length];
       } else {
         vscUsage.set(requested, used + 1);

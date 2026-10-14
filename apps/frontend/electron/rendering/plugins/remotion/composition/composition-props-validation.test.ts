@@ -528,6 +528,29 @@ describe("vsc camera 配方字段（10-10 批B,闭集 fail-closed + 分支互斥
     expect(validateCompositionProps(withCinematic).success).toBe(false);
   });
 
+  it("vsc 与 fx / grade / frameStep 互斥(10-14 投影校验:手改伴生特效不得照穿,composition-shot 无条件投影的缺口在 props 边界补齐)", () => {
+    // 形状照抄本文件既有合法用例:fx=visual-fx 合法域(:881 shake amplitudePx 6)、
+    // grade=合法 lutId+lutSrc+blend(lutSrc 缺省会被 grade 独立校验拦截,与互斥无关)、
+    // frameStep=onTwos 投影的 number 形状(composition-props.ts:253)。
+    const combos: Array<{ label: string; patch: Record<string, unknown> }> = [
+      { label: "fx", patch: { fx: { shake: { amplitudePx: 6 } } } },
+      { label: "grade", patch: { grade: { lutId: "film-teal-orange", lutSrc: "http://127.0.0.1:1/tok/l.png", blend: 0.1 } } },
+      { label: "frameStep", patch: { frameStep: 2 } },
+    ];
+    for (const combo of combos) {
+      const props = validProps();
+      props.visualClips[0].vsc = { id: "vsc:slow-push-in" };
+      Object.assign(props.visualClips[0] as unknown as Record<string, unknown>, combo.patch);
+      const result = validateCompositionProps(props);
+      expect(result.success, combo.label).toBe(false);
+      if (result.success) continue;
+      expect(
+        result.issues.some((issue) => issue.message.includes("互斥")),
+        `${combo.label} 应报互斥 issue`,
+      ).toBe(true);
+    }
+  });
+
   it("vsc 非对象拒", () => {
     const props = validProps();
     (props.visualClips[0] as { vsc?: unknown }).vsc = "vsc:slow-push-in";

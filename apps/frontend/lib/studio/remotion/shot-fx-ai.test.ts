@@ -351,6 +351,41 @@ describe("vsc:* 运镜指南与配额（10-10 批B,D2/D3/D4）", () => {
     expect(result.motions.d1).toBe("vsc:drone-dive-landing");
     expect(result.motions.d2).toBe("vsc:drone-dive-landing"); // drone 无配额,两镜都保留
   });
+
+  it("T-D1d 选择侧时长门(heuristic 路径):短镜(1s)的 vsc 命中被轮换回落(10-14)", async () => {
+    textMock.mockResolvedValue({ success: false, error: "未配置 AI" });
+    const result = await selectShotFxMotions([
+      { shotId: "s1", description: "他蓄力待发", dialogue: "", durationUs: 1_000_000 },
+    ]);
+    expect(result.source).toBe("heuristic");
+    expect(result.motions.s1).toBe("push-in"); // 轮换 index 0,非 vsc:slow-push-in
+  });
+
+  it("T-D1e 选择侧时长门(AI 路径):AI 干跑选 vsc:dolly-zoom + 短镜(1s)→ 落轮换(10-14)", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "vsc:dolly-zoom"}]}',
+    });
+    const result = await selectShotFxMotions([
+      { shotId: "s1", description: "庭院喝茶", dialogue: "", durationUs: 1_000_000 },
+    ]);
+    expect(result.source).toBe("ai");
+    expect(result.motions.s1).toBe("push-in"); // 轮换 index 0,非 vsc:dolly-zoom
+  });
+
+  it("T-D1f prompt 条件行:带 durationUs 透出「时长:」秒数;缺省镜不加行(10-14 软引导)", async () => {
+    textMock.mockResolvedValue({
+      success: true,
+      text: '{"shots": [{"shotId": "s1", "motion": "hold"}]}',
+    });
+    await selectShotFxMotions([
+      { shotId: "s1", description: "码头对峙", dialogue: "且慢。", durationUs: 3_500_000 },
+      { shotId: "s2", description: "夜探宗门", dialogue: "" },
+    ]);
+    const prompt = (textMock.mock.calls[0]?.[0] as { messages?: Array<{ content: string }> })?.messages?.[1]?.content ?? "";
+    expect(prompt).toContain("时长: 3.5s");
+    expect(prompt.split("时长:").length - 1).toBe(1); // s2 无 durationUs 不加行
+  });
 });
 
 describe("cameraMove 桥接线（10-10 批C,design §2.3:建议性非硬门,AI 摄影指导可覆盖）", () => {

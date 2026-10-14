@@ -15,6 +15,7 @@
 
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
+  enforceVscDurationGuard,
   enforceVscMotionQuota,
   isShotFxAddonId,
   isShotFxMotionId,
@@ -66,6 +67,12 @@ export interface ShotFxAiShotInput {
    * 全运镜池可用。缺省(形态未定/旧调用方)=全池,行为不变。
    */
   visualForm?: "video" | "image";
+  /**
+   * 镜头时长(微秒,10-14 vsc 时长门):镜短于配方典型时长(vsc-recipes @30fps 折算
+   * 单源)时,选择侧确定性守卫把该 vsc 选择回落镜序轮换(渲染侧决策门同款双闸);
+   * prompt 侧软引导透出「时长」行。缺省(旧调用方/测试)=门透传零影响。
+   */
+  durationUs?: number;
 }
 
 /**
@@ -233,6 +240,10 @@ ${REGISTRY_GUIDE.map((g) => `- ${g.id}: ${g.when}`).join("\n")}
       if (s.visualForm === "video") {
         lines.push("   素材形态: H3视频(自带运镜)——只可选 hold 或环境微动(drift/breathe/sway/float/flow),禁一切推拉摇移(会双重运镜)");
       }
+      // 镜头时长(10-14 vsc 时长门,软引导):确定性守卫是硬门,prompt 供 AI 参考
+      if (s.durationUs !== undefined) {
+        lines.push(`   时长: ${(s.durationUs / 1_000_000).toFixed(1)}s`);
+      }
       return lines.join("\n");
     })
     .join("\n");
@@ -263,7 +274,7 @@ ${list}
 1. 结合画面描述与对白情绪设计最贴合的组合；运镜与特效要互相成全（如 tilt-up+glow-warm 显巍峨神性、pan-left+shake-soft 显慌乱横移、hold 无特效作爆点前蓄力）；分镜列表带「分镜运镜」时尊重其运镜意图（括号内为确定性初始建议），镜头语义强烈冲突时可覆盖
 2. **防疲劳纪律（最重要）**：相邻镜头避免完全相同的组合；连续同类情绪时用运镜方向/特效强度做微变化；关键爆点前后可用 hold 做节奏对比；一章之内组合分布要有层次（主打组合+点缀组合），不要全片刷同一配方
 3. **转场纪律**：非 cut 转场是稀缺修辞——一章之内非 cut 边界占比不超过三分之一；ink-bleed 与 dream-warp 全章至多各一次；相邻边界避免同桶连用
-4. **vsc 配方配额（硬约束，超选会被丢弃回落轮换）**：vsc:dolly-zoom 全章至多 1 次；vsc:crash-zoom-punch 全章至多 2 次；vsc:* 与普通运镜同池等权按镜头语义选，同为稀缺修辞——一章 vsc 镜总数保持克制（约四分之一以内），只在语义强烈匹配时选
+4. **vsc 配方配额（硬约束，超选会被丢弃回落轮换）**：vsc:dolly-zoom 全章至多 1 次；vsc:crash-zoom-punch 全章至多 2 次；vsc:* 与普通运镜同池等权按镜头语义选，同为稀缺修辞——一章 vsc 镜总数保持克制（约四分之一以内），只在语义强烈匹配时选；逐镜列表带「时长」时，镜头时长短于该配方典型时长的镜不要选它（成片会被截断）
 5. 风格整体性：组合要贴合本片题材气质（仙侠/热血/悬疑等），形成可辨识的镜头风格
 6. 同种特效只选一个档位（shake-soft 与 shake-hard 互斥，glow-warm 与 glow-dim 互斥）
 7. 只输出 JSON，格式：{"shots": [{"shotId": "...", "motion": "...", "fx": ["插件id", ...], "grade": {"lutId": "...", "blend": 0.2~0.9}, "atmosphere": ["模板id", ...], ${registryFieldSpec}"transitionOut": "转场桶id或cut", "sfx": "音效类别id"}]}；不需要特效插件的镜头 fx 给空数组或省略；grade/atmosphere 无须时整个字段省略；transitionOut 为 cut 时可省略；无声学事件 sfx 省略
@@ -451,12 +462,16 @@ export async function selectShotFxMotions(
       const mapped = cameraMoveToMotionId(shot.cameraMove);
       if (mapped) bridged[shot.shotId] = mapped;
     }
-    // vsc 章级配额守卫(10-10 批B):AI 超选的 vsc 运镜按镜头顺序保留前 N 个,
-    // 超额回落镜序轮换——shotFx 数据与渲染效果保持一致(渲染侧同守卫双闸)。
+    // vsc 章级配额+时长双守卫(10-10 批B/10-14 时长门):AI 超选的 vsc 运镜按镜头
+    // 顺序保留前 N 个,镜短于配方典型时长的 vsc 选择回落镜序轮换——shotFx 数据与
+    // 渲染效果保持一致(渲染侧决策门同款双闸)。先配额后时长,两者回落产物均 legacy。
     const motions = enforceVideoFormMotionGuard(
-      enforceVscMotionQuota(
-        { ...bridged, ...parsed.motions },
-        shots.map((s) => s.shotId),
+      enforceVscDurationGuard(
+        enforceVscMotionQuota(
+          { ...bridged, ...parsed.motions },
+          shots.map((s) => s.shotId),
+        ),
+        shots,
       ),
       shots,
     );
@@ -469,9 +484,12 @@ export async function selectShotFxMotions(
     const heuristic = heuristicShotFxMotions(shots);
     return {
       ...heuristic,
-      // 关键词兜底可命中 vsc 配方(俯冲/斜角/纵深等),配额守卫同 AI 路径。
+      // 关键词兜底可命中 vsc 配方(俯冲/斜角/纵深等),配额+时长双守卫同 AI 路径。
       motions: enforceVideoFormMotionGuard(
-        enforceVscMotionQuota(heuristic.motions, shots.map((s) => s.shotId)),
+        enforceVscDurationGuard(
+          enforceVscMotionQuota(heuristic.motions, shots.map((s) => s.shotId)),
+          shots,
+        ),
         shots,
       ),
       addons: {},

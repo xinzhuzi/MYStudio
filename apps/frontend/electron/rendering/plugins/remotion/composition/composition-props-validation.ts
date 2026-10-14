@@ -256,6 +256,18 @@ function validateVsc(clip: Record<string, unknown>, path: string, issues: Issue[
   if (clip.layers !== undefined || clip.layerStack !== undefined) {
     issues.push({ path: `${path}.vsc`, message: "vsc 与 layers/layerStack 互斥,不得同现" });
   }
+  // 10-14 投影校验补口:composition-shot 投影层对 fx/grade/frameStep 无条件透出
+  // (该文件无校验),手改 plan.effects 的 vsc+伴生特效会照穿到渲染端且被 vsc 分支
+  // 静默忽略(隐性丢效果)——props 边界 fail-closed 补齐,形态同上两骨架。
+  if (clip.fx !== undefined) {
+    issues.push({ path: `${path}.vsc`, message: "vsc 与 fx 互斥,不得同现" });
+  }
+  if (clip.grade !== undefined) {
+    issues.push({ path: `${path}.vsc`, message: "vsc 与 grade 互斥,不得同现" });
+  }
+  if (clip.frameStep !== undefined) {
+    issues.push({ path: `${path}.vsc`, message: "vsc 与 frameStep 互斥,不得同现" });
+  }
 }
 
 // ambient(环境动画):类型 5 枚举+数值域(与 ambientForClip 钳制域一致);

@@ -10,6 +10,7 @@ import {
   VSC_RECIPES,
   isVscMotionId,
   vscRecipeQuota,
+  vscRecipeTypicalDurationUs,
 } from "./vsc-recipes";
 import { SHOT_FX_MOTION_PRESETS } from "./shot-fx-decisions";
 import { MOTION_GUIDE } from "./shot-fx-ai";
@@ -35,6 +36,22 @@ describe("VSC_RECIPES 注册表不变量", () => {
     expect(vscRecipeQuota(VSC_DOLLY_ZOOM_ID)).toBe(1);
     expect(vscRecipeQuota(VSC_CRASH_ZOOM_PUNCH_ID)).toBe(2);
     expect(vscRecipeQuota(VSC_PARALLAX_GLIDE_ID)).toBeUndefined();
+  });
+
+  it("典型时长查询(10-14 时长门共用):typicalDurationFrames @30fps 折算微秒,Math.round 口径", () => {
+    expect(vscRecipeTypicalDurationUs("vsc:crash-zoom-punch")).toBe(1_466_667);
+    expect(vscRecipeTypicalDurationUs("vsc:dutch-roll-to-level")).toBe(3_133_333);
+    expect(vscRecipeTypicalDurationUs("vsc:slow-push-in")).toBe(4_000_000);
+    expect(vscRecipeTypicalDurationUs("vsc:pull-back-isolation")).toBe(3_666_667);
+    expect(vscRecipeTypicalDurationUs("vsc:drone-dive-landing")).toBe(2_166_667);
+    expect(vscRecipeTypicalDurationUs("vsc:parallax-glide")).toBe(4_500_000);
+    expect(vscRecipeTypicalDurationUs("vsc:dolly-zoom")).toBe(3_500_000);
+    // 注册表字段由此成为决策依据(防 camera-dictionary 死代码复辙的接线断言)
+    for (const id of VSC_MOTION_IDS) {
+      expect(vscRecipeTypicalDurationUs(id)).toBe(
+        Math.round((VSC_RECIPES[id].typicalDurationFrames / 30) * 1_000_000),
+      );
+    }
   });
 
   it("camera 五卡 impl 指向 recipes/ 组件文件,depth 两卡指向层系数通道", () => {

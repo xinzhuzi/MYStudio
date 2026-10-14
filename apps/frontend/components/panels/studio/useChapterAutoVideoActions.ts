@@ -372,6 +372,9 @@ export function useChapterAutoVideoActions({
                   visualForm: storyboard.mediaRef?.kind === "video"
                     ? "video"
                     : storyboard.mediaRef?.kind === "image" ? "image" : undefined,
+                  // 镜头时长(10-14 vsc 时长门):与决策层时长源(remotion-shot-plan-builder
+                  // 同式)保证选择侧与决策侧看到同一条时长
+                  durationUs: Math.round((storyboard.durationTarget ?? storyboard.duration) * 1_000_000),
                   // 逐镜配色锚(08-28 两套色彩系统衔接):阵营色方向供 LUT 选卡同向,
                   // 数据未预热/旧镜无语义时为空串→省略,prompt 零变化。
                   colorMood: buildShotColorMoodLine(

@@ -22,12 +22,12 @@ const LEGACY_MOTION_IDS = Object.keys(SHOT_FX_MOTION_PRESETS).filter(
   (id) => !isVscMotionId(id),
 ) as LegacyMotionId[];
 
-function clip(index: number, storyboardId: string): ShotFxPlanClipLike {
+function clip(index: number, storyboardId: string, durationUs = 1_000_000): ShotFxPlanClipLike {
   return {
     id: `clip-${index + 1}`,
     trackKind: "image",
     startUs: index * 1_000_000,
-    durationUs: 1_000_000,
+    durationUs,
     // 素材形态门(10-11):夹具对齐 TimelineRenderClip 真身(source.kind 必填恒在场,
     // 两调用方均传 plan.clips 全量);本 helper 辖下的既有用例全测静图产线决策行为,
     // 挂 storyboardImage 走创作链,行为与门前逐项一致。
@@ -35,8 +35,12 @@ function clip(index: number, storyboardId: string): ShotFxPlanClipLike {
   };
 }
 
-function buildInput(storyboards: ShotFxStoryboardInput[], clipCount = storyboards.length) {
-  const planClips = storyboards.map((storyboard, index) => clip(index, storyboard.id));
+function buildInput(
+  storyboards: ShotFxStoryboardInput[],
+  clipCount = storyboards.length,
+  durationUs = 1_000_000,
+) {
+  const planClips = storyboards.map((storyboard, index) => clip(index, storyboard.id, durationUs));
   return { planClips: planClips.slice(0, clipCount), storyboards };
 }
 
@@ -428,7 +432,7 @@ describe("vsc:* 运镜扩容（10-10 批B,D1/D2/D4）", () => {
 
   it("camera 五卡=组件接管:效果只产 vscMotion(recipe id),panZoom/grain 不产(D4 参数烧死)", () => {
     const { effects, counts } = buildShotFxEditingEffects({
-      planClips: [clip(0, "shot-001")],
+      planClips: [clip(0, "shot-001", 5_000_000)],
       storyboards: [{ id: "shot-001", shotFx: { motion: "vsc:dutch-roll-to-level", source: "ai" } }],
     });
     const vsc = effectOf(effects, "vscMotion", "clip-1");
@@ -442,7 +446,7 @@ describe("vsc:* 运镜扩容（10-10 批B,D1/D2/D4）", () => {
 
   it("depth 两卡=panZoom 驱动照发+vscMotion id,伴生特效(颗粒)照常(panZoom 家族)", () => {
     const { effects, counts } = buildShotFxEditingEffects({
-      planClips: [clip(0, "shot-001")],
+      planClips: [clip(0, "shot-001", 5_000_000)],
       storyboards: [{ id: "shot-001", shotFx: { motion: "vsc:parallax-glide", source: "ai" } }],
     });
     const panZoom = effectOf(effects, "panZoom", "clip-1");
@@ -462,7 +466,7 @@ describe("vsc:* 运镜扩容（10-10 批B,D1/D2/D4）", () => {
       { id: "shot-004", shotFx: { motion: "vsc:crash-zoom-punch", source: "ai" } },
       { id: "shot-005", shotFx: { motion: "vsc:crash-zoom-punch", source: "ai" } },
     ];
-    const { effects } = buildShotFxEditingEffects(buildInput(storyboards));
+    const { effects } = buildShotFxEditingEffects(buildInput(storyboards, storyboards.length, 5_000_000));
     const recipes = effects
       .filter((effect) => effect.effectId === "vscMotion")
       .map((effect) => effect.params.recipe);
@@ -508,6 +512,53 @@ describe("vsc:* 运镜扩容（10-10 批B,D1/D2/D4）", () => {
   it("vsc 关键词不进镜序轮换(同 hold:仅 AI/关键词可选)", () => {
     expect(SHOT_FX_MOTION_ROTATION.every((id) => !isVscMotionId(id))).toBe(true);
   });
+
+  it("dutch 词表收窄(10-14):单字 斜/歪 及其粘着词退出(误伤修复,RED 基线=全命中 dutch)", () => {
+    expect(keywordShotFxMotion("山道斜坡上他停下脚步", 0)).toBeUndefined();
+    expect(keywordShotFxMotion("夕阳斜照", 0)).toBeUndefined();
+    expect(keywordShotFxMotion("他歪打正着", 0)).toBeUndefined();
+    expect(keywordShotFxMotion("歪着头看镜头", 0)).toBeUndefined();
+  });
+
+  it("dutch 强信号保留(10-14):双字画面姿态词/倾覆/斜角仍命中(正样本不回归)", () => {
+    expect(keywordShotFxMotion("画面倾斜构图", 0)).toBe("vsc:dutch-roll-to-level");
+    expect(keywordShotFxMotion("倾覆的船只", 0)).toBe("vsc:dutch-roll-to-level");
+    expect(keywordShotFxMotion("镜头歪斜", 0)).toBe("vsc:dutch-roll-to-level");
+    expect(keywordShotFxMotion("荷兰角斜角构图", 0)).toBe("vsc:dutch-roll-to-level");
+  });
+});
+
+describe("vsc 时长门(10-14:短镜拒长配方,曲线被 Sequence 截断的前置拦截)", () => {
+  it("T-D1a 短镜(1s)拒慢推(典型 4s):vscMotion 不产、panZoom 落镜序轮换 push-in、counts.vsc=0", () => {
+    const { effects, counts } = buildShotFxEditingEffects({
+      planClips: [clip(0, "shot-001", 1_000_000)],
+      storyboards: [{ id: "shot-001", shotFx: { motion: "vsc:slow-push-in", source: "ai" } }],
+    });
+    expect(effectOf(effects, "vscMotion", "clip-1")).toBeUndefined();
+    const panZoom = effectOf(effects, "panZoom", "clip-1");
+    expect(panZoom).toBeDefined();
+    expect(panZoom?.params.scaleFrom).toBe(SHOT_FX_MOTION_PRESETS["push-in"].panZoom.fromScale);
+    expect(counts.vsc).toBe(0);
+  });
+
+  it("T-D1b 边界内过闸:durationUs=4s(=120f 恰达典型)→ vscMotion 照产(不误伤够长镜)", () => {
+    const { effects, counts } = buildShotFxEditingEffects({
+      planClips: [clip(0, "shot-001", 4_000_000)],
+      storyboards: [{ id: "shot-001", shotFx: { motion: "vsc:slow-push-in", source: "ai" } }],
+    });
+    expect(effectOf(effects, "vscMotion", "clip-1")?.params).toEqual({ recipe: "vsc:slow-push-in" });
+    expect(counts.vsc).toBe(1);
+  });
+
+  it("T-D1c depth 卡同门:vsc:parallax-glide(典型 135f≈4.5s)短镜 1s → vscMotion 不产、panZoom 驱动保留", () => {
+    const { effects, counts } = buildShotFxEditingEffects({
+      planClips: [clip(0, "shot-001", 1_000_000)],
+      storyboards: [{ id: "shot-001", shotFx: { motion: "vsc:parallax-glide", source: "ai" } }],
+    });
+    expect(effectOf(effects, "vscMotion", "clip-1")).toBeUndefined();
+    expect(effectOf(effects, "panZoom", "clip-1")).toBeDefined();
+    expect(counts.vsc).toBe(0);
+  });
 });
 
 /** 素材形态门用 clip 构造(带 source.kind,贴近 TimelineRenderClip 真身)。 */
@@ -515,12 +566,13 @@ function clipWith(
   index: number,
   source: ShotFxPlanClipLike["source"],
   trackKind: string = "video",
+  durationUs = 1_000_000,
 ): ShotFxPlanClipLike {
   return {
     id: `clip-${index + 1}`,
     trackKind,
     startUs: index * 1_000_000,
-    durationUs: 1_000_000,
+    durationUs,
     source,
   };
 }
@@ -589,7 +641,7 @@ describe("buildShotFxEditingEffects 素材形态门(10-11 H3 主线分工:Remoti
     const { effects } = buildShotFxEditingEffects({
       planClips: [
         clipWith(0, { kind: "storyboardImage", evidence: { storyboardId: "sb-1" } }, "image"),
-        clipWith(1, { kind: "storyboardVideo", evidence: { storyboardId: "sb-2", remotionJobId: "job-1" } }),
+        clipWith(1, { kind: "storyboardVideo", evidence: { storyboardId: "sb-2", remotionJobId: "job-1" } }, "video", 5_000_000),
       ],
       storyboards: [
         { id: "sb-1", prompt: "庭院里喝茶", shotFx: { motion: "push-in", source: "ai" } },
