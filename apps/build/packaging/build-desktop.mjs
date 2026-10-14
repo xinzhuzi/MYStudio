@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifyFixedRemotionBundle } from '../remotion/bundle-preflight.mjs';
@@ -66,23 +66,51 @@ const env = {
   ELECTRON_BUILDER_CACHE: electronBuilderCacheDir,
 };
 
-function run(command, args) {
+// 稳定大件(vite 构建/electron-builder)日志量大——默认落盘捕获,成功报一行摘要,
+// 失败才打尾部+日志路径;MYSTUDIO_BUILD_VERBOSE=1 恢复直通(1014 用户令:稳定模块防日志刷屏)。
+const buildVerbose = process.env.MYSTUDIO_BUILD_VERBOSE === '1';
+const buildLogDir = resolve(releaseDir, 'build-logs');
+
+function run(command, args, { logLabel } = {}) {
+  const quiet = !!logLabel && !buildVerbose;
+  let logPath = null;
+  let logFd = null;
+  const stdio = quiet
+    ? (function () {
+        mkdirSync(buildLogDir, { recursive: true });
+        logPath = resolve(buildLogDir, `${logLabel}-${buildStamp}.log`);
+        logFd = openSync(logPath, 'a');
+        return ['ignore', logFd, logFd];
+      })()
+    : 'inherit';
   const result = spawnSync(
     process.platform === 'win32' ? 'cmd.exe' : command,
     process.platform === 'win32' ? ['/d', '/s', '/c', [command, ...args].join(' ')] : args,
     {
       cwd: projectRoot,
       env,
-      stdio: 'inherit',
+      stdio,
     },
   );
+  if (logFd !== null) {
+    closeSync(logFd);
+  }
 
   if (result.error) {
     throw result.error;
   }
 
   if ((result.status ?? 1) !== 0) {
+    if (logPath) {
+      console.error(`[${logLabel}] 失败(exit ${result.status}),日志:${logPath}`);
+      console.error(`---- ${logLabel} 日志尾部 ----`);
+      console.error(readFileSync(logPath, 'utf8').split('\n').slice(-40).join('\n'));
+      console.error(`---- 日志尾部结束(全量:${logPath}) ----`);
+    }
     process.exit(result.status ?? 1);
+  }
+  if (logPath) {
+    console.log(`[${logLabel}] 完成(exit 0,日志:${logPath})`);
   }
 }
 
@@ -184,13 +212,17 @@ function buildForArch(arch) {
   const stagingBuildOutputDir = resolveStagingBuildOutputDir(arch);
   const finalBuildOutputDir = resolveFinalBuildOutputDir(arch);
 
-  run('npx', [
-    'electron-builder',
-    ...resolveBuilderArgs(arch),
-    '--config',
-    desktopBuilderConfigPath,
-    `-c.directories.output=${stagingBuildOutputDir}`,
-  ]);
+  run(
+    'npx',
+    [
+      'electron-builder',
+      ...resolveBuilderArgs(arch),
+      '--config',
+      desktopBuilderConfigPath,
+      `-c.directories.output=${stagingBuildOutputDir}`,
+    ],
+    { logLabel: 'electron-builder' },
+  );
   finalizeBuildOutput(stagingBuildOutputDir, finalBuildOutputDir);
 }
 
@@ -265,7 +297,7 @@ if (buildTarget === 'win') {
     process.exit(1);
   }
 }
-run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'frontend', 'config', 'electron-vite.config.ts')]);
+run('npx', ['electron-vite', 'build', '--config', resolve(projectRoot, 'frontend', 'config', 'electron-vite.config.ts')], { logLabel: 'electron-vite-build' });
 
 for (const arch of buildArchs) {
   buildForArch(arch);
