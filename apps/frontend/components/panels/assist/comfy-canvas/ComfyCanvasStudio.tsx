@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useComfyEngineSettings } from "@/components/panels/settings/comfy-engine/useComfyEngineSettings";
 import { getComfyEngineClient, type ComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
-import { resolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
+import { tryResolveProductionEpisodeId } from "@/components/panels/studio/workflow-helpers";
 import { consumeComfyBridgeWritebacks, parseShotTarget } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { consumeComfyBridgeActions } from "@/lib/assist/image-studio/comfy-bridge-action-consumer";
 import { createHttpComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
@@ -216,8 +216,10 @@ async function openStageWorkflowIntoCanvas(
   const originProjectId = useProjectStore.getState().activeProjectId;
   if (!originProjectId) return;
   const state = useStudioStore.getState();
-  if (state.storyboards.length === 0) return;
-  const originEpisodeId = resolveProductionEpisodeId(state);
+  // 10-15 P2 空章开门:零分镜不再整链早退——载荷 buildStageNodePayloadFromState
+  // 全 ?? [] 防御、buildStageSummaries 空表引导文案,空章注入七环节骨架引导;
+  // 与 P1 保鲜链空章放行(storyboard-overview-sync 10-14)同口径,门齐开即闭环
+  const originEpisodeId = tryResolveProductionEpisodeId(state) ?? "episode-1"; // D6:画布注入面用安全变体,不可定位走哨兵(下方 scopeChanged 守卫兜底)
   // v4 内容全量:优先老画布节点模型映射(技能/资产卡/队列进度/渲染器链);
   // 无模型(测试/异常)回落 store 快照构建
   const flowNodes = stageFlowNodesRef.current;
@@ -229,7 +231,7 @@ async function openStageWorkflowIntoCanvas(
     if (next.activeProjectId !== originProjectId) scopeChanged = true;
   });
   const unsubscribeStudio = useStudioStore.subscribe((next) => {
-    if (resolveProductionEpisodeId(next) !== originEpisodeId) scopeChanged = true;
+    if ((tryResolveProductionEpisodeId(next) ?? "episode-1") !== originEpisodeId) scopeChanged = true;
   });
   try {
     await ensureStageAssetCoversUploaded(payloads);
@@ -241,7 +243,7 @@ async function openStageWorkflowIntoCanvas(
       .catch(() => null);
     if (template === null || scopeChanged || !node.isConnected
       || useProjectStore.getState().activeProjectId !== originProjectId
-      || resolveProductionEpisodeId(useStudioStore.getState()) !== originEpisodeId) return;
+      || (tryResolveProductionEpisodeId(useStudioStore.getState()) ?? "episode-1") !== originEpisodeId) return;
     const graph = applyStageInjections(template, injections);
     await node.executeJavaScript?.(
       buildOverviewOpenScript(graph, MAINLINE_TAB_NAME, force ? { force: true } : undefined),
@@ -261,7 +263,7 @@ async function openShotVideoWorkflowIntoCanvas(
   const originProjectId = useProjectStore.getState().activeProjectId;
   if (!originProjectId) throw new Error("请先打开回写目标项目");
   const state = useStudioStore.getState();
-  const originEpisodeId = resolveProductionEpisodeId(state);
+  const originEpisodeId = tryResolveProductionEpisodeId(state) ?? "episode-1"; // D6:画布注入面用安全变体,不可定位走哨兵(下方 scopeChanged 守卫兜底)
   const chapterShots = state.storyboards.filter((item) => item.episodeId === originEpisodeId);
   const storyboardId = parseShotTarget(note, chapterShots);
   const shot = storyboardId ? chapterShots.find((item) => item.id === storyboardId) : undefined;
@@ -350,9 +352,11 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
           node.executeJavaScript?.(buildSignInCloakScript())?.catch(() => undefined);
           node.executeJavaScript?.(buildCanvasFitScript())?.catch(() => undefined);
             // 工作流阶段:进入即展示分镜流程链工作流(旧画布迁移 09-11)——
-            // 七环节链+分镜网格一张图;空分镜跳过;脚本内自带一次性守卫。
+            // 七环节链+分镜网格一张图;脚本内自带一次性守卫。
             // 09-12:封面转换改 async(上传引擎 input 后改写),在途锁防双事件并发
-            if (autoOpenRef.current && useStudioStore.getState().storyboards.length > 0 && !node.__autoOpenInFlight) {
+            // 10-15 P2 空章开门:零分镜不再跳过(空表=零缩略仍 autoOpen,
+            // 引导文案见 buildStageSummaries 空态分支)
+            if (autoOpenRef.current && !node.__autoOpenInFlight) {
               node.__autoOpenInFlight = true;
               void openStageWorkflowIntoCanvas(node, stageFlowNodesRef).finally(() => {
                 node.__autoOpenInFlight = false;
@@ -430,13 +434,13 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
       if (inFlight || stopped) return;
       inFlight = true;
       const actionProjectId = useProjectStore.getState().activeProjectId;
-      const actionEpisodeId = resolveProductionEpisodeId(useStudioStore.getState());
+      const actionEpisodeId = tryResolveProductionEpisodeId(useStudioStore.getState()) ?? "episode-1"; // D6:tick 起点在 try 外,必须零抛
       let projectChanged = false;
       const unsubscribe = useProjectStore.subscribe((state) => {
         if (state.activeProjectId !== actionProjectId) projectChanged = true;
       });
       const unsubscribeStudio = useStudioStore.subscribe((state) => {
-        if (resolveProductionEpisodeId(state) !== actionEpisodeId) projectChanged = true;
+        if ((tryResolveProductionEpisodeId(state) ?? "episode-1") !== actionEpisodeId) projectChanged = true;
       });
       try {
         // 业务侧栏数据面(阶段2 批3):快照与收件箱同 tick 掻/拉。
@@ -447,11 +451,11 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
         const storyboards = studioState.storyboards;
         // 09-12 B2:同跳附带渲染队列实时快照(window.remotionQueue 投影→
         // 桥→画布 stage-node 轮询同端点活更徽章;不经保鲜链重写库文件)。
-        const episodeId = resolveProductionEpisodeId(studioState);
+        const episodeId = tryResolveProductionEpisodeId(studioState) ?? "episode-1";
         await (async () => {
           const queue = await readRenderQueueSnapshot(episodeId, storyboards);
           if (stopped || projectChanged || (useProjectStore.getState().activeProjectId ?? undefined) !== originProjectId
-            || resolveProductionEpisodeId(useStudioStore.getState()) !== episodeId) return;
+            || (tryResolveProductionEpisodeId(useStudioStore.getState()) ?? "episode-1") !== episodeId) return;
           await client?.pushBridgeStoryboards(
             storyboards.map((item) => ({
               id: item.id,
@@ -485,7 +489,7 @@ export function ComfyCanvasStudio({ autoOpenOverview = false, myScope, sidebarAc
         // 制作动作通道(09-11 旧画布功能迁移收口):消费侧栏提交的批量动作
         await consumeSidebarActions(actionProjectId, actionEpisodeId, () => !stopped && !projectChanged
           && useProjectStore.getState().activeProjectId === actionProjectId
-          && resolveProductionEpisodeId(useStudioStore.getState()) === actionEpisodeId);
+          && (tryResolveProductionEpisodeId(useStudioStore.getState()) ?? "episode-1") === actionEpisodeId);
       } catch {
         // 消费器内部已吞错并通知;此处兜底静默(轮询面不弹窗轰炸)
       } finally {
