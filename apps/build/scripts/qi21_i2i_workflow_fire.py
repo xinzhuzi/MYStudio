@@ -23,6 +23,7 @@
 import argparse
 import json
 import random
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -355,38 +356,36 @@ def structural_equivalence(wf, g, enable_ref3, enable_anchor, images, tier=""):
     return len(want), edges
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--instruction", required=True)
-    ap.add_argument("--type", default="人物")
-    ap.add_argument("--subject", default=None,
-                    help="主体句直给(缺省=官方换装例句语义下仍用 [400] 注入指令;此参仅改 [4011] 主体句位)")
-    ap.add_argument("--rgba", default=None, choices=("自动", "true", "false"),
-                    help="覆写面板「RGBA透明」三态(缺省=工作流现值;探针用)")
-    ap.add_argument("--canvas-mp", type=float, default=None,
-                    help="覆写 [16] 画布预缩 megapixels(缺省=工作流现值 1.5;官方 viggle 编辑甜点≈1.0)")
-    ap.add_argument("--ref1", default="yanliao_yuanying_front.png")
-    ap.add_argument("--ref2", default="clothing_light_blue_denim_shirt.png")
-    ap.add_argument("--ref3", default=None)
-    ap.add_argument("--enable-ref3", action="store_true")
-    ap.add_argument("--enable-anchor", action="store_true",
-                    help="解旁路 [505] 透明锚=模拟用户 Ctrl+B,仅 viggle 档语义")
-    ap.add_argument("--tier", default=None, help="缺省=工作流宿主现值")
-    ap.add_argument("--bypass-upscale", action="store_true",
-                    help="旁路⑤SeedVR2放大组(=工作流文档化 Ctrl+B 操作,只出[8]直出图)")
-    ap.add_argument("--no-pe", action="store_true",
-                    help="PE启用?=false(=面板开关,直写选配臂文档态;探针提速用)")
-    ap.add_argument("--cond-single", action="store_true",
-                    help="诊断探针:viggle 段A/B conditioning 改接 positive_single([171] 单参考)")
-    ap.add_argument("--seg6", action="store_true",
-                    help="诊断探针:官方6步单段(σ表6点直连,摘段B/切分;鉴别段B是否alpha归零触发点)")
-    ap.add_argument("--legacy6", action="store_true",
-                    help="诊断探针:旧式 KSampler(simple 6步+合并式 LoRA)+双参考正源(E5:色彩修复归因)")
-    ap.add_argument("--seed", type=int, default=None)
-    ap.add_argument("--out", default=None)
-    ap.add_argument("--dry-run", action="store_true")
-    args = ap.parse_args()
+def judge_png(p, nonblack_min=0.01, alpha_max_gate=5):
+    """img_stat_1014.py :19/:23 同式数值判据(单源,9 型扫与自测共用):
+    判黑=非黑<nonblack_min 或(alpha_max_gate>0 且 alpha.amax<=alpha_max_gate)。
+    返回 dict(ok/nonblack/amin/amax/verdict)。"""
+    import numpy as np
+    from PIL import Image
+    a = np.asarray(Image.open(p).convert("RGBA"))
+    rgb = a[..., :3].astype(float)
+    nonblack = float((rgb.mean(axis=2) > 10).mean())
+    alpha = a[..., 3]
+    amin, amax = int(alpha.min()), int(alpha.max())
+    if nonblack < nonblack_min:
+        ok, verdict = False, f"纯黑屏(非黑={nonblack:.4f}<{nonblack_min})"
+    elif alpha_max_gate and amax <= alpha_max_gate:
+        ok, verdict = False, f"全透明(alpha {amin}-{amax},amax<={alpha_max_gate})"
+    else:
+        ok, verdict = True, f"非黑={nonblack:.2f} alpha={amin}-{amax}"
+    return {"ok": ok, "nonblack": nonblack, "amin": amin, "amax": amax, "verdict": verdict}
 
+
+def _fresh_seed(used):
+    """重抽 fresh random,禁复用已用(判黑/超时)种子。"""
+    while True:
+        s = random.randint(1, 2**31 - 1)
+        if s not in used:
+            return s
+
+
+def build_graph(args, seed):
+    """展平+结构等价校验(测试缝:可整体替换)。返回 (tier, fl.g)。"""
     wf = json.loads(WF.read_text(encoding="utf-8"))
     root = {n["id"]: n for n in wf["nodes"]}
     host6, host7 = root[6], root[7]
@@ -413,7 +412,6 @@ def main():
     if args.tier:
         host7_wv[0] = args.tier
     tier = host7_wv[0]
-    seed = args.seed if args.seed is not None else random.randint(1, 2**31 - 1)
     host7_wv[1] = seed
     # 旁路占位对 [12]/[18] 的宿主 widget 缺席(其值随节点 widgets_values 走,可直改)
     if args.enable_ref3 and args.ref3 and 12 in root:
@@ -466,38 +464,48 @@ def main():
                                         tier=tier)
         print(f"[fire] 结构等价校验 PASS: 节点 {nn}↔{len(fl.g)} 活连线边 {ne} 全对上(工作流本体,零自建)")
     print(f"[fire] 展平节点数={len(fl.g)}: {sorted(fl.g.keys())}")
-    if args.dry_run:
-        print(json.dumps(fl.g, ensure_ascii=False, indent=1)[:4000])
-        return
-    req = urllib.request.Request(f"{ENGINE}/prompt",
-                                 data=json.dumps({"prompt": fl.g, "client_id": "i2i-workflow-fire"}).encode(),
-                                 headers={"Content-Type": "application/json"})
+    return tier, fl.g
+
+
+def submit(graph):
+    """POST /prompt(测试缝)。"""
+    req = urllib.request.Request(
+        f"{ENGINE}/prompt",
+        data=json.dumps({"prompt": graph, "client_id": "i2i-workflow-fire"}).encode(),
+        headers={"Content-Type": "application/json"})
     try:
-        pid = json.load(urllib.request.urlopen(req, timeout=30))["prompt_id"]
+        return json.load(urllib.request.urlopen(req, timeout=30))["prompt_id"]
     except urllib.error.HTTPError as e:
-        sys_exit = f"400: {e.read().decode()[:800]}"
-        raise SystemExit(sys_exit)
-    print(f"queued {pid}")
+        raise SystemExit(f"400: {e.read().decode()[:800]}")
+
+
+def poll_products(pid, poll_timeout=1500, interval=10):
+    """/history 轮询至有图;超时返回 None(verdict=timeout,不再 assert 崩);
+    轮询瞬断(并行看门狗回收窗口)不即崩,续轮到有界超时。"""
     t0 = time.time()
-    outs = None
-    while time.time() - t0 < 1500:
-        time.sleep(10)
-        with urllib.request.urlopen(f"{ENGINE}/history/{pid}", timeout=15) as r:
-            hist = json.load(r)
+    while time.time() - t0 < poll_timeout:
+        time.sleep(interval)
+        try:
+            with urllib.request.urlopen(f"{ENGINE}/history/{pid}", timeout=15) as r:
+                hist = json.load(r)
+        except Exception:
+            continue
         if pid in hist:
             outs = hist[pid].get("outputs", {})
             if any("images" in o for o in outs.values()):
-                break
-    assert outs, "超时无产物"
-    outdir = Path(args.out) if args.out else REPO / "apps/output/i2i-fire-1013"
-    outdir.mkdir(parents=True, exist_ok=True)
+                return outs
+    return None
+
+
+def download(outs, outdir):
+    """产物下载(测试缝),返回图片路径列。"""
     got = []
     for nid, o in sorted(outs.items()):
         for img in o.get("images", []):
             p = outdir / img["filename"]
             urllib.request.urlretrieve(
                 f"{ENGINE}/view?filename={urllib.parse.quote(img['filename'])}&type={img.get('type','output')}", p)
-            got.append((nid, p))
+            got.append(p)
             print(f"  image <- node {nid}: {p}")
         if "text" in o:
             txt = o["text"]
@@ -505,13 +513,132 @@ def main():
             snap = outdir / f"prompt_preview_{nid}.txt"
             snap.write_text(txt, encoding="utf-8")
             print(f"  text  <- node {nid}: {snap}({len(txt)}字)")
+    return got
+
+
+def fire_once(args, seed):
+    """单发(测试缝):展平→发车→轮询下载→判黑。判黑对象=该发下载全部 PNG,
+    任一判黑即整发判黑(废件全移 <out>/guard-rejected/,通过件原位)。
+    轮询超时显式归类 verdict=timeout(不再 assert 崩)。
+    返回 (status, files):status ∈ pass/black/timeout。"""
+    outdir = Path(args.out) if args.out else REPO / "apps/output/i2i-fire-1013"
+    outdir.mkdir(parents=True, exist_ok=True)
+    tier, graph = build_graph(args, seed)
+    pid = submit(graph)
+    print(f"queued {pid}")
+    outs = poll_products(pid)
+    if outs is None:
+        return "timeout", []
+    files = download(outs, outdir)
     meta = outdir / f"meta_{pid}.json"
     meta.write_text(json.dumps({"seed": seed, "tier": tier, "type": args.type,
                                 "instruction": args.instruction, "ref1": args.ref1,
                                 "ref2": args.ref2, "ref3": args.ref3 if args.enable_ref3 else None,
-                                "graph_keys": sorted(fl.g.keys())}, ensure_ascii=False, indent=1),
+                                "graph_keys": sorted(graph.keys())}, ensure_ascii=False, indent=1),
                     encoding="utf-8")
-    print(f"DONE ({time.time()-t0:.0f}s) [seed={seed} 档={tier}] meta→{meta}")
+    verdicts, black = [], False
+    for p in files:
+        j = judge_png(p, args.guard_nonblack, args.guard_alpha_max)
+        verdicts.append(f"{p.name}: {j['verdict']}")
+        black |= not j["ok"]
+    for v in verdicts:
+        print(f"  [judge] {v}")
+    if black:
+        rej = outdir / "guard-rejected"
+        rej.mkdir(parents=True, exist_ok=True)
+        for p in files:
+            p.rename(rej / f"seed{seed}_{p.name}")
+        print(f"[fire] 判黑:整发 {len(files)} 件移 {rej}")
+        return "black", []
+    return "pass", files
+
+
+def run_guard(args, outdir):
+    """guard 主循环(可测):--guard 关=单发;开=总发≤guard_max+1。
+    黑/超时两形态同计数面有界重抽(重抽恒 fresh random 禁复用判黑种子,
+    盲抽不放量);meta_guard.json(attempts+终局)落 outdir。返回退出码。"""
+    guard_max = args.guard_max if args.guard else 0
+    attempts, seeds = [], []
+    final = "pass"
+    for attempt in range(guard_max + 1):
+        seed = args.seed if (attempt == 0 and args.seed is not None) else _fresh_seed(seeds)
+        seeds.append(seed)
+        status, _files = fire_once(args, seed)
+        attempts.append({"attempt": attempt, "seed": seed, "status": status})
+        print(f"[fire] guard attempt{attempt}/{guard_max} seed={seed} → {status}")
+        if status == "pass":
+            final = "pass"
+            break
+        final = status
+    meta = {"guard": bool(args.guard), "guard_max": guard_max,
+            "guard_nonblack": args.guard_nonblack, "guard_alpha_max": args.guard_alpha_max,
+            "attempts": attempts, "final": final,
+            "seed_policy": "首发可 --seed 固定;判黑/超时重抽恒 fresh random 禁复用判黑种子(黑/超时两形态同规)"}
+    (outdir / "meta_guard.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1),
+                                            encoding="utf-8")
+    if final != "pass":
+        print(f"[fire] guard 耗尽 exit 1:终局={final}"
+              + ("(超时非黑,盲抽不放量)" if final == "timeout" else "(判黑,盲抽不放量)"))
+        return 1
+    print(f"[fire] guard 通过:attempts={len(attempts)} 终局=pass")
+    return 0
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--instruction", required=True)
+    ap.add_argument("--type", default="人物")
+    ap.add_argument("--subject", default=None,
+                    help="主体句直给(缺省=官方换装例句语义下仍用 [400] 注入指令;此参仅改 [4011] 主体句位)")
+    ap.add_argument("--rgba", default=None, choices=("自动", "true", "false"),
+                    help="覆写面板「RGBA透明」三态(缺省=工作流现值;探针用)")
+    ap.add_argument("--canvas-mp", type=float, default=None,
+                    help="覆写 [16] 画布预缩 megapixels(缺省=工作流现值 1.0;1014 定谳 viggle 稳定区,勿升 1.5)")
+    ap.add_argument("--ref1", default="yanliao_yuanying_front.png")
+    ap.add_argument("--ref2", default="clothing_light_blue_denim_shirt.png")
+    ap.add_argument("--ref3", default=None)
+    ap.add_argument("--enable-ref3", action="store_true")
+    ap.add_argument("--enable-anchor", action="store_true",
+                    help="解旁路 [505] 透明锚=模拟用户 Ctrl+B,仅 viggle 档语义")
+    ap.add_argument("--guard", action="store_true",
+                    help="判黑/超时有界重试闸:总发≤guard_max+1;重抽恒 fresh random(--seed 仅首发,黑/超时两形态同规);"
+                         "判黑=img_stat_1014 同式(该发任一 PNG 非黑<--guard-nonblack 或 alpha.amax<=--guard-alpha-max 即整发判黑),"
+                         "废件移 <out>/guard-rejected/,耗尽 exit 1(超时非黑/判黑两终局)")
+    ap.add_argument("--guard-max", type=int, default=2,
+                    help="重试上限 N(缺省 2,总发≤N+1;仅 --guard 生效)")
+    ap.add_argument("--guard-nonblack", type=float, default=0.01,
+                    help="非黑门(缺省 0.01=img_stat_1014.py:19 同式)")
+    ap.add_argument("--guard-alpha-max", type=int, default=5,
+                    help="alpha.amax 门(缺省 5=img_stat_1014.py:23 同式;0=关)")
+    ap.add_argument("--tier", default=None, help="缺省=工作流宿主现值")
+    ap.add_argument("--bypass-upscale", action="store_true",
+                    help="旁路⑤SeedVR2放大组(=工作流文档化 Ctrl+B 操作,只出[8]直出图)")
+    ap.add_argument("--no-pe", action="store_true",
+                    help="PE启用?=false(=面板开关,直写选配臂文档态;探针提速用)")
+    ap.add_argument("--cond-single", action="store_true",
+                    help="诊断探针:viggle 段A/B conditioning 改接 positive_single([171] 单参考)")
+    ap.add_argument("--seg6", action="store_true",
+                    help="诊断探针:官方6步单段(σ表6点直连,摘段B/切分;鉴别段B是否alpha归零触发点)")
+    ap.add_argument("--legacy6", action="store_true",
+                    help="诊断探针:旧式 KSampler(simple 6步+合并式 LoRA)+双参考正源(E5:色彩修复归因)")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="首发固定种子;判黑/超时重抽恒 fresh random 禁复用判黑种子(黑/超时两形态同规)")
+    ap.add_argument("--out", default=None)
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
+
+    if args.dry_run:
+        seed = args.seed if args.seed is not None else random.randint(1, 2**31 - 1)
+        _tier, graph = build_graph(args, seed)
+        print(json.dumps(graph, ensure_ascii=False, indent=1)[:4000])
+        return
+    outdir = Path(args.out) if args.out else REPO / "apps/output/i2i-fire-1013"
+    outdir.mkdir(parents=True, exist_ok=True)
+    t0 = time.time()
+    code = run_guard(args, outdir)
+    if code == 0:
+        print(f"DONE ({time.time() - t0:.0f}s)")
+    sys.exit(code)
 
 
 if __name__ == "__main__":

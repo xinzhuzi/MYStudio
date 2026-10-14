@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""qi21-道劫-i2i 九型语义分型测试(2026-10-14 深夜;首轮扫缺陷修复)。
+"""qi21-道劫-i2i 九型语义分型测试(2026-10-14 深夜;首轮扫缺陷修复;1014 T5 guard 下沉)。
 
 首轮缺陷(用户斥「你不知道切换类型吗」):9 型共用一条换袍指令+同一画布=只测了
 型底座文本层,没测各型渲染语义(9 张输出长得差不多)。本轮=**每型专属指令**
 (直写档 PE 关,指令=型主体句按 i2i 语义适配),逐型发车+机器判据(非黑/透明门)+
 云端视觉分型验收(另程)。画幅随输入图=i2i 设计语义,画布恒晏燎元婴正视图。
+T5 起:黑屏重试闸下沉发车器(--guard 黑/超时双形态有界重抽),外层两发换种子
+循环退役;判据单源=fire.judge_png(img_stat_1014 同式);本扫自留 alpha 终判门。
 """
 import json
 import subprocess
@@ -13,12 +15,9 @@ import time
 import urllib.request
 from pathlib import Path
 
-import numpy as np
-from PIL import Image
-
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 FIRE = REPO / "apps/build/scripts/qi21_i2i_workflow_fire.py"
-OUT = REPO / "apps/output/i2i-fire-1013/sweep9-semantic"
+OUT = REPO / "apps/output/i2i-fire-1014/sweep9-semantic"
 
 DOC_PATH = REPO / "docs/prompts/道劫_九型主体句示例.md"
 # 每型: 引导前缀——人物系指认 <image1> 身份;非人物三型(场景/道具/概念气氛图)
@@ -48,10 +47,12 @@ def subject_of(typ):
 
 
 def judge(png):
-    a = np.asarray(Image.open(png).convert("RGBA"))
-    nonblack = (a[..., :3].mean(axis=2) > 10).mean()
-    amin, amax = int(a[..., 3].min()), int(a[..., 3].max())
-    return nonblack, amin, amax
+    """判据单源=fire.judge_png(img_stat_1014.py :19/:23 同式,import 纯模块加载零引擎)。"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("i2i_fire_guarded", str(FIRE))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.judge_png(png)
 
 
 def engine_up():
@@ -83,36 +84,52 @@ def ensure_engine():
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    summary = {}
     for typ, lead in TYPES.items():
         if not ensure_engine():
             print(f"[sem] {typ}: FAIL 引擎不可用(拉起超时)", flush=True)
+            summary[typ] = "FAIL 引擎不可用"
             continue
         subj = subject_of(typ)
         instr = f"{lead}{subj}" if lead else subj
         d = OUT / typ
-        ok = False
-        for attempt in (1, 2):
-            r = subprocess.run(
-                [sys.executable, str(FIRE), "--instruction", instr,
-                 "--type", COMBO.get(typ, typ),
-                 "--ref1", "yanliao_yuanying_front.png", "--ref2", "yanliao_heti_front.png",
-                 "--no-pe", "--bypass-upscale", "--out", str(d)],
-                capture_output=True, text=True, timeout=1800)
-            imgs = sorted(d.glob("QI21*.png")) if d.exists() else []
-            if not imgs:
-                print(f"[sem] {typ}: FAIL 无产物 {r.stderr[-120:]}", flush=True)
-                break
-            nonblack, amin, amax = judge(imgs[-1])
-            alpha_ok = (amax <= 10 or amin <= 10) if typ in ALPHA_TYPES else amin >= 200
-            if nonblack >= 0.5 and alpha_ok:
-                print(f"[sem] {typ}: PASS 非黑={nonblack:.2f} alpha={amin}-{amax} "
-                      f"({'带透' if typ in ALPHA_TYPES else '实体'})", flush=True)
-                ok = True
-                break
-            print(f"[sem] {typ}: BAD(attempt{attempt}) 非黑={nonblack:.2f} alpha={amin}-{amax},换种子重试", flush=True)
-        if not ok and imgs:
-            print(f"[sem] {typ}: 终判 BAD(两发皆黑,入深查清单)", flush=True)
+        d.mkdir(parents=True, exist_ok=True)
+        for stale in d.glob("QI21*.png"):   # 每型发车前清残留(glob 只认当发产物)
+            stale.unlink()
+        # 黑屏重试闸下沉发车器(--guard 黑/超时双形态有界重抽,重抽 fresh random
+        # 禁复用判黑种子),外层两发换种子循环退役;judge 门=guard 后本扫 alpha 终判
+        r = subprocess.run(
+            [sys.executable, str(FIRE), "--instruction", instr,
+             "--type", COMBO.get(typ, typ),
+             "--ref1", "yanliao_yuanying_front.png", "--ref2", "yanliao_heti_front.png",
+             "--no-pe", "--bypass-upscale", "--guard", "--guard-max", "2",
+             "--out", str(d)],
+            capture_output=True, text=True, timeout=5400)
+        if r.returncode != 0:   # guard 耗尽 exit 1(判黑/超时终局),记 FAIL 不进 glob
+            tail = (r.stdout + r.stderr).strip().replace("\n", " | ")[-160:]
+            print(f"[sem] {typ}: FAIL guard exit1({tail})", flush=True)
+            summary[typ] = "FAIL guard 耗尽(判黑/超时)"
+            continue
+        imgs = sorted(d.glob("QI21*.png")) if d.exists() else []
+        if not imgs:
+            print(f"[sem] {typ}: FAIL 无产物", flush=True)
+            summary[typ] = "FAIL 无产物"
+            continue
+        j = judge(imgs[-1])
+        nonblack, amin, amax = j["nonblack"], j["amin"], j["amax"]
+        alpha_ok = (amax <= 10 or amin <= 10) if typ in ALPHA_TYPES else amin >= 200
+        if nonblack >= 0.5 and alpha_ok:
+            verdict = (f"PASS 非黑={nonblack:.2f} alpha={amin}-{amax} "
+                       f"({'带透' if typ in ALPHA_TYPES else '实体'})")
+            print(f"[sem] {typ}: {verdict}", flush=True)
+            summary[typ] = verdict
+        else:
+            verdict = f"BAD 非黑={nonblack:.2f} alpha={amin}-{amax}(guard 过但语义/alpha 终判门未过,入深查清单)"
+            print(f"[sem] {typ}: {verdict}", flush=True)
+            summary[typ] = verdict
     print(f"[sem] 完成 → {OUT}")
+    for typ, v in summary.items():
+        print(f"[sem] 总结 {typ}: {v}")
 
 
 if __name__ == "__main__":
