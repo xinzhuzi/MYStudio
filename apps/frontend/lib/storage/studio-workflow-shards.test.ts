@@ -258,6 +258,22 @@ describe("planStudioWorkflowShards", () => {
       }
     }
   });
+
+  it("P3-A idOf 守卫:id:null 条目不去重不吞并(与读侧 itemIdOf ?? null 语义对齐)", () => {
+    // livefire18 深度 review 遗留(理论边界,产线无 id:null 写点):写侧压实若把
+    // null 当 Map 键,同键条目互相吞并=静默丢行;对齐读侧(itemIdOf ?.id ?? null,
+    // null-id 条目永不参与去重)后 null/undefined 一律按「无 id」保留原序全量落盘。
+    const state = buildRichState();
+    state.storyboards = [
+      { id: null, episodeId: "chapter-001", index: 90, prompt: "无 id 甲" },
+      { id: null, episodeId: "chapter-001", index: 91, prompt: "无 id 乙" },
+      { id: "sb-1", episodeId: "chapter-001", index: 1, prompt: "有 id 条目" },
+    ] as unknown as typeof state.storyboards;
+    const { merged } = roundTrip(envelopeOf(state));
+    expect(
+      (merged.state.storyboards as Array<{ prompt: string }>).map((item) => item.prompt),
+    ).toEqual(["无 id 甲", "无 id 乙", "有 id 条目"]);
+  });
 });
 
 describe("md5Utf8", () => {

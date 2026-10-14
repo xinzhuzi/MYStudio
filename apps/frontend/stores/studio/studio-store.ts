@@ -348,9 +348,14 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         if (!activeChapter) return;
         // D1（livefire18 腿3①）：装载成功但文丢预警——R2 fail-closed 只盖「装载抛错」，
         // 这里盖「装载成功但正文空」：激活章定谳后 sourceText 空/blank，而装载前
-        // （盘上分片章或内存同章，任一侧）仍有非 blank 正文 → G1 类静默丢文（章会被
-        // 误判「原创」照常组装）。仅落诊断 warn 不改装载语义；logEvent 全 try/catch
-        // 永不炸产线。两侧取值按「trim 非空才有效」——空白串不得短路掉另一侧。
+        // 内存同章仍有非 blank 正文 → G1 类静默丢文（章会被误判「原创」照常组装）。
+        // 盘上侧（diskSourceText）为防御性冗余而非独立触发侧（livefire18 深度
+        // review 定谳）：activeChapter 优先取盘上章条目，盘上非 blank 即无丢文、
+        // 预警首句已假 ⇒ 盘上侧恒只在「无 pid/盘上缺条目」时为空串，判定侧实际
+        // 恒为内存同章；保留取值仅为与内存侧对称的纵深防御。仅落诊断 warn 不改
+        // 装载语义；logEvent 全 try/catch 永不炸产线。两侧取值均按「trim 非空才
+        // 有效」——空白串不得短路掉另一侧（负例专测：studio-store.test.ts
+        // 「D1 负例:空白串不算正文」）。
         const diskChapter = loaded?.novelChapter as NovelChapter | undefined;
         const diskSourceText = typeof diskChapter?.sourceText === "string" && diskChapter.sourceText.trim()
           ? diskChapter.sourceText

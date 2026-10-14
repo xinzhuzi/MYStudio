@@ -313,7 +313,9 @@ function closeBatch(
  * 不变）。策略钉死：现有活体数据逐 id 逐字节相同（纯拷贝，keep-first/last 均无损），
  * 若日後出现「同 id 异容」，此处保末位=最新写入，与切章/保存的追加时序一致。
  * 只挡章归属数组域（含其根层 shared 桶——chapterKeyOf=null 的条目也走本分支）；
- * 非章节数组域与 novelChapters 索引不受影响。
+ * 非章节数组域与 novelChapters 索引不受影响。id:null/undefined 一律按「无 id」
+ * 不参与压实（与读侧 mergeWindow itemIdOf `?.id ?? null` 语义对齐——null 不作
+ * Map 键，同键条目互不吞并；产线现无 id:null 写点，守卫只封理论边界）。
  */
 function dedupeArrayItemsByIdKeepLast(items: unknown[]): unknown[] {
   const idOf = (item: unknown) =>
@@ -323,13 +325,13 @@ function dedupeArrayItemsByIdKeepLast(items: unknown[]): unknown[] {
   const lastIndexOf = new Map<unknown, number>();
   items.forEach((item, index) => {
     const id = idOf(item);
-    if (id === undefined) return;
+    if (id == null) return;
     lastIndexOf.set(id, index);
   });
   if (lastIndexOf.size === 0) return items;
   return items.filter((item, index) => {
     const id = idOf(item);
-    if (id === undefined) return true;
+    if (id == null) return true;
     return lastIndexOf.get(id) === index;
   });
 }

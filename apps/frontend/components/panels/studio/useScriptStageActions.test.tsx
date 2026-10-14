@@ -858,4 +858,39 @@ describe("useScriptStageActions 上一集剧本缺节诊断(LF14 §7.3 腿3②)"
       delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
     }
   });
+
+  it("对照:持久化层不可查(loadStudioChapterWorkspace reject) → 降 debug 不拦截组装", async () => {
+    // livefire18 深度 review 遗留④:读链损坏/无项目=观察窗降 debug(合法缺节),
+    // reject 必须被 catch 吞掉——既不出 warn,也不得让装配链跟着炸(preview 照常回串)。
+    loadWorkspaceMock.mockRejectedValue(new Error("持久化读链损坏"));
+    const write = installDiagnostics();
+    const { result } = renderHook(() =>
+      useScriptStageActions({
+        workflowConfig: {} as never,
+        manualCatalog: {} as never,
+        projectName: "测试项目",
+        novelChapterCount: 2,
+        novelChapters: [prevCh, activeCh],
+        agentWorkData: [],
+        saveAgentWorkData: saveAgentWorkDataMock as never,
+      }),
+    );
+    let previewed: string | null = null;
+    try {
+      await act(async () => {
+        previewed = await result.current.previewStageUserMessage("scriptDraft", activeCh);
+      });
+
+      expect(previousEpisodeMissingWrites(write)).toHaveLength(0);
+      const debugs = (write.mock.calls as unknown as Array<[Record<string, unknown>]>)
+        .map(([entry]) => entry)
+        .filter((entry) => entry.level === "debug" && entry.operationId === "scriptStage.previousEpisodeMissing");
+      expect(debugs).toHaveLength(1);
+      expect(debugs[0]!.message).toContain("前章无剧本");
+      // reject 被吞:组装不被拦截,preview 照常产出 user 消息
+      expect(typeof previewed).toBe("string");
+    } finally {
+      delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    }
+  });
 });

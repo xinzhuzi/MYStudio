@@ -1659,6 +1659,33 @@ describe("switchChapter 章工作区装载(G1)", () => {
       delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
     }
   });
+
+  it("D1 负例:空白串不算正文(内存与盘上均 blank 串)不预警——trim 守卫钉死", async () => {
+    // livefire18 深度 review 遗留②:上方对照例只盖 sourceText undefined,不盖
+    // blank 串——若任一侧取值守卫被简化成 || "",空白串会被当正文顶替判定→
+    // 假预警。本负例钉死:两侧空白串均不得短路/顶替另一侧,双侧 blank=合法空章。
+    const ch2MemoryBlank: NovelChapter = { id: "ch2", index: 2, title: "第2章 空章", sourceText: "   ", importedAt: 2 };
+    const ch2DiskBlank: NovelChapter = { id: "ch2", index: 2, title: "第2章 空章", sourceText: " \n\t ", importedAt: 2 };
+    const write = vi.fn(async () => undefined);
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = { write };
+    loadStudioChapterWorkspaceMock.mockImplementation((_p: string, chapterId: string) =>
+      chapterId === "ch2"
+        ? Promise.resolve({ novelChapter: ch2DiskBlank, domains: {} })
+        : Promise.resolve(null),
+    );
+    useStudioStore.setState({
+      novelChapters: [ch1Full, ch2MemoryBlank, ch3Light],
+      activeChapterId: "ch1",
+    });
+    try {
+      await useStudioStore.getState().switchChapter("ch2");
+
+      expect(useStudioStore.getState().activeChapterId).toBe("ch2");
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+    }
+  });
 });
 
 // ── A批(10-14-audit4-residuals)R2/R3 ──────────────────────────────────────
