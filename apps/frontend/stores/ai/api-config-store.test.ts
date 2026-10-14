@@ -899,3 +899,91 @@ describe("useAPIConfigStore safeStorage persistence (C1)", () => {
     });
   });
 });
+
+// ── 四审E组 L5(裁定 a,10-14):简易模式尊重逐代理绑定——语义矩阵三锁(design §2.5)──
+// 语义矩阵(design.md:64):①simple+文本+exact 有效→exact(变,原=universal,RED 锁);
+// ②simple+文本+exact 空/禁用→universal(不变,回落层——禁用槽不得被启用);
+// ③advanced→exact(不变,防误伤);universalAi 自身→exact(不变,既有用例面)。
+// 既有回落用例(:132-144 scriptDraft 空槽→universal)零改保绿。
+// 禁改面(design §2.5):migrateStudioBindings;advanced 路径;非文本 Agent 分支。
+describe("L5 简易模式尊重逐代理绑定(四审E组,裁定 a)", () => {
+  beforeEach(() => {
+    useAPIConfigStore.setState({
+      providers: [
+        {
+          id: "provider-1",
+          platform: "custom",
+          name: "OpenAI 兼容中转站",
+          baseUrl: "https://relay.example.com/v1",
+          apiKey: "sk-test",
+          model: ["gpt-4o-mini", "glm-5.1"],
+          capabilities: ["text", "image_generation", "video_generation"],
+        },
+      ],
+      agentUseMode: "advanced",
+      agentDeployments: createDefaultAgentDeployments(),
+      providerAdapterCodes: [],
+      studioBindingsMigrated: false,
+    });
+  });
+
+  it("①核心(RED):simple+universal 已设+scriptAgent 显式绑定→解析到 scriptAgent(简易模式不再忽略逐代理绑定)", () => {
+    useAPIConfigStore.getState().setAgentDeployment({
+      key: "universalAi",
+      modelId: "glm-5.1",
+      vendorId: "provider-1",
+    });
+    useAPIConfigStore.getState().setAgentDeployment({
+      key: "scriptAgent",
+      modelId: "gpt-4o-mini",
+      vendorId: "provider-1",
+    });
+    useAPIConfigStore.getState().setAgentUseMode("simple");
+
+    const resolved = useAPIConfigStore.getState().getResolvedAgentModel("scriptAgent");
+
+    // 四审 L5 原文:简易模式忽略逐代理绑定(api-config-agent-actions.ts:60-62 现无条件取 universal)
+    expect(resolved?.deployment.key).toBe("scriptAgent");
+    expect(resolved?.model).toBe("gpt-4o-mini");
+    expect(resolved?.provider.id).toBe("provider-1");
+  });
+
+  it("②禁用回落锁:simple+scriptAgent 绑定但 disabled→回落 universalAi(语义矩阵行2:禁用槽不启用)", () => {
+    useAPIConfigStore.getState().setAgentDeployment({
+      key: "universalAi",
+      modelId: "glm-5.1",
+      vendorId: "provider-1",
+    });
+    useAPIConfigStore.getState().setAgentDeployment({
+      key: "scriptAgent",
+      modelId: "gpt-4o-mini",
+      vendorId: "provider-1",
+      disabled: true,
+    });
+    useAPIConfigStore.getState().setAgentUseMode("simple");
+
+    const resolved = useAPIConfigStore.getState().getResolvedAgentModel("scriptAgent");
+
+    expect(resolved?.deployment.key).toBe("universalAi");
+    expect(resolved?.model).toBe("glm-5.1");
+  });
+
+  it("③语义矩阵锁:advanced+同绑定→scriptAgent(advanced 路径行为零改,design §2.5 禁改项)", () => {
+    useAPIConfigStore.getState().setAgentDeployment({
+      key: "universalAi",
+      modelId: "glm-5.1",
+      vendorId: "provider-1",
+    });
+    useAPIConfigStore.getState().setAgentDeployment({
+      key: "scriptAgent",
+      modelId: "gpt-4o-mini",
+      vendorId: "provider-1",
+    });
+    useAPIConfigStore.getState().setAgentUseMode("advanced");
+
+    const resolved = useAPIConfigStore.getState().getResolvedAgentModel("scriptAgent");
+
+    expect(resolved?.deployment.key).toBe("scriptAgent");
+    expect(resolved?.model).toBe("gpt-4o-mini");
+  });
+});

@@ -57,7 +57,11 @@ export function createAPIConfigAgentActions(
       const universal = deployments.find((item) => item.key === "universalAi");
       const exact = deployments.find((item) => item.key === key);
       const canUseTextFallback = getAgentDeploymentModelType(key) === "text";
-      const deployment = state.agentUseMode === "simple" && key !== "universalAi" && canUseTextFallback && universal?.modelId && !universal.disabled
+      // 四审E组 L5(裁定 a,10-14):simple 模式尊重逐代理绑定——exact 槽有效(modelId 非空且未 disabled)
+      // 用 exact;空/禁用维持 universal 回落(回落层)。非文本 Agent(canUseTextFallback=false)
+      // 与 universalAi 自身路径逐位不动(design §2.5 禁改面)。
+      const exactUsable = !!exact && !exact.disabled && !!exact.modelId;
+      const deployment = state.agentUseMode === "simple" && key !== "universalAi" && canUseTextFallback && !exactUsable && universal?.modelId && !universal.disabled
         ? universal
         : exact;
       if (!deployment || deployment.disabled || !deployment.modelId) return null;
