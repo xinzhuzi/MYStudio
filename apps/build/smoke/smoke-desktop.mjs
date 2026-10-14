@@ -102,6 +102,9 @@ const REMOTION_EXPORT_TIMEOUT_MS = Number(
 const remotionPreparedVersionFixture =
   process.env.MYSTUDIO_SMOKE_REMOTION_PREPARED_VERSION;
 const skipPrekill = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
+// 10-14 四审L4 三态定稿(design §2):SKIP=跳过不杀(现行语义)、FORCE=旧盲杀
+// (僵尸清理显式口)、默认=探测实例在即中止不盲杀。SKIP 优先于 FORCE。
+const prekillForce = process.env.MYSTUDIO_SMOKE_PREKILL_FORCE === "1";
 const foregroundSmoke = process.env.MYSTUDIO_SMOKE_FOREGROUND === "1";
 const smokeMode = foregroundSmoke ? "visible" : "background";
 const keepSmokeAppOpen = process.env.MYSTUDIO_SMOKE_KEEP_OPEN === "1";
@@ -209,9 +212,35 @@ function runOptional(command, args) {
   });
 }
 
-function stopExistingMYStudioInstances() {
+function stopExistingMYStudioInstances({ enforce = false } = {}) {
   if (skipPrekill) {
     console.log("[smoke] skipping pre-run MYStudio instance cleanup");
+    return;
+  }
+  // 10-14 四审L4 三态(design §2):默认=pgrep 探测实例在即中止报错,不再盲杀
+  // 用户在驾实例;残留冒烟僵尸与用户实例不可区分,一律保守按实例在。探测时点
+  // (主入口 prekill,冒烟自身实例未出生)无误报自己,pgrep 也永不匹配自身。
+  // enforce=true 仅用于冒烟收尾清理 launch-services 残留(见尾部 finally 调用点):
+  // 该路径现行即盲杀,保持不动——若默认守卫在此生效,pgrep 必命中刚拉起的残留
+  // 实例,会把已通过的冒烟 exit(1)(违 design §5「不改变 smoke 通过路径」)。
+  if (!enforce && !prekillForce) {
+    const probe = spawnSync("pgrep", ["-f", "漫影工作室.app"], {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: "utf8",
+    });
+    if (probe.status === 0) {
+      console.error(
+        "[smoke] 检测到漫影工作室实例正在运行,已中止(prekill 不再默认盲杀)。"
+        + "请关闭 App 后重跑;若确认是残留冒烟僵尸,可设 "
+        + "MYSTUDIO_SMOKE_SKIP_PREKILL=1 跳过 prekill,或 "
+        + "MYSTUDIO_SMOKE_PREKILL_FORCE=1 显式清理。",
+      );
+      process.exit(1);
+    }
+    console.log(
+      "[smoke] no running MYStudio instance detected; proceeding without prekill",
+    );
     return;
   }
   if (process.platform === "darwin") {
@@ -3336,7 +3365,9 @@ try {
         logPrefix: "[smoke]",
       });
       if (activeLaunch.launchMode === "launch-services") {
-        stopExistingMYStudioInstances();
+        // 冒烟收尾清自身 launch-services 残留:现行即盲杀,走 enforce 保持不动
+        // (默认三态守卫只作用主入口 prekill,防把已通过的冒烟 exit(1))。
+        stopExistingMYStudioInstances({ enforce: true });
       }
     }
     rmSync(SMOKE_VIDEO_PATH, { force: true });
