@@ -11,11 +11,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useStudioStore } from "@/stores/studio/studio-store";
+import type { StoryboardItem } from "@/types/studio";
 import {
   collectStaleDownstreamTasks,
+  storyboardSourceStale,
   useChapterUpstreamStore,
   type StaleMediaTaskView,
 } from "./chapter-pipeline-stale";
+import { latestScriptDraftEntry } from "./workflow-helpers";
 import {
   recomputeChapterPipelineAggregate,
   runChapterPipeline,
@@ -28,11 +31,14 @@ export function useChapterPipelineOrchestrator({
   chapterId,
   projectId,
   visualManualId,
+  storyboards,
 }: {
   chapterId: string;
   /** 视图模型口径是 activeProject?.id(string|undefined),null/undefined 归一为 null。 */
   projectId: string | null | undefined;
   visualManualId: string | undefined;
+  /** 本章分镜(D-5 stale 消费方):viewModel.chapterStoryboards 已按章过滤,memo 内不再过滤。 */
+  storyboards?: StoryboardItem[];
 }) {
   const run = useChapterPipelineStore((state) =>
     chapterId ? state.runsByChapter[chapterId] : undefined,
@@ -96,6 +102,25 @@ export function useChapterPipelineOrchestrator({
     [chapterId, mediaTasks, agentWorkData, novelChapters, scriptPlans, upstreamByChapter],
   );
 
+  // ── D5 stale 消费方(10-14 四审收尾):分镜条目 sourceScript vs 现势草稿 ──
+  // 单 memo 双产物:latestScriptEntry 若在 memo 外派生,每次渲染新对象引用会把
+  // staleSourceScriptCount 的 memo 依赖打穿,故收窄与计数同 memo、依赖五项齐全。
+  const { staleSourceScriptCount } = useMemo(() => {
+    const latestDraftEntry = chapterId
+      ? latestScriptDraftEntry({ agentWorkData, novelChapters, scriptPlans }, chapterId)
+      : undefined;
+    // id 存疑缺省(workflow-helpers.ts:5-6):无 id 的草稿条目按「无现势」回落,
+    // fail-open(漏报优于误报);直传会 TS2322,cast 会把 id=undefined 变恒真误报。
+    const latestScriptEntry = latestDraftEntry?.id
+      ? { id: latestDraftEntry.id, updatedAt: latestDraftEntry.updatedAt }
+      : undefined;
+    const staleSourceScriptCount = (storyboards ?? []).filter(
+      (item) =>
+        storyboardSourceStale({ sourceScript: item.sourceScript, latestScriptEntry }) === true,
+    ).length;
+    return { latestScriptEntry, staleSourceScriptCount };
+  }, [agentWorkData, novelChapters, scriptPlans, chapterId, storyboards]);
+
   return {
     chapterId,
     run,
@@ -104,6 +129,7 @@ export function useChapterPipelineOrchestrator({
     start,
     clear,
     staleTasks,
+    staleSourceScriptCount,
   } satisfies {
     chapterId: string;
     run: ChapterPipelineRunView | undefined;
@@ -112,5 +138,6 @@ export function useChapterPipelineOrchestrator({
     start: () => void;
     clear: () => void;
     staleTasks: StaleMediaTaskView[];
+    staleSourceScriptCount: number;
   };
 }

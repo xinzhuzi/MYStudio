@@ -4,7 +4,7 @@ import { FixedVoiceTarget, RoleAudioAiMatchRequest, RoleAudioAiMatchResult, Role
 import { aiManager } from "@/lib/ai/ai-manager";
 import { ChapterAutoVideoStatus, ChapterTtsCancellationController, runChapterAutoVideo } from "@/lib/studio/chapter-auto-video";
 import { buildVideoWorkflowChapterRunRequest } from "@/lib/studio/video-workflow/chapter-run-request";
-import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
+import { buildRemotionShotPlans, storyboardEffectiveDurationUs } from "@/lib/studio/remotion/remotion-shot-plan-builder";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
 import { DEFAULT_SUBTITLE_FONT_ID } from "@/lib/studio/remotion/subtitle-fonts";
 import { createReadyShotJob } from "@/lib/studio/remotion/remotion-job-factory";
@@ -372,9 +372,10 @@ export function useChapterAutoVideoActions({
                   visualForm: storyboard.mediaRef?.kind === "video"
                     ? "video"
                     : storyboard.mediaRef?.kind === "image" ? "image" : undefined,
-                  // 镜头时长(10-14 vsc 时长门):与决策层时长源(remotion-shot-plan-builder
-                  // 同式)保证选择侧与决策侧看到同一条时长
-                  durationUs: Math.round((storyboard.durationTarget ?? storyboard.duration) * 1_000_000),
+                  // 镜头时长(10-14 vsc 时长门→10-14 D-1 单源化):storyboardEffectiveDurationUs
+                  // 与决策层(remotion-shot-plan-builder 成片镜长)同函数同值——voice 超画面时
+                  // 选择侧同样看到含旁白尾的有效时长,消除保守误拒。
+                  durationUs: storyboardEffectiveDurationUs(storyboard),
                   // 逐镜配色锚(08-28 两套色彩系统衔接):阵营色方向供 LUT 选卡同向,
                   // 数据未预热/旧镜无语义时为空串→省略,prompt 零变化。
                   colorMood: buildShotColorMoodLine(

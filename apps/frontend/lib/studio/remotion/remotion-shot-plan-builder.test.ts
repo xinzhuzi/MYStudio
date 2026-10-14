@@ -417,3 +417,41 @@ describe("buildRemotionShotPlans", () => {
     }
   });
 });
+
+describe("storyboardEffectiveDurationUs(D-1 单源:决策/选择两侧同一条时长)", () => {
+  // 动态 import 探测锁:新增导出前静态 import 会 TS2305 全文件带红,探测锁让
+  // 失败落在「expected function, got undefined」正确原因上(与 D5 探测锁同款)。
+  const load = async () =>
+    (await import("./remotion-shot-plan-builder")).storyboardEffectiveDurationUs;
+
+  it("导出存在(RED:现实现无此导出)", async () => {
+    expect(await load()).toBeTypeOf("function");
+  });
+
+  it("requested 主导:durationTarget 优先于 duration;floor 1", async () => {
+    const fn = await load();
+    expect(fn({ duration: 2 })).toBe(2_000_000);
+    expect(fn({ duration: 3, durationTarget: 2 })).toBe(2_000_000);
+    expect(fn({ duration: 0 })).toBe(1);
+  });
+
+  it("audioEnd 兜底:非 voice binding 端点超画面→取端点,无 +400ms 尾", async () => {
+    const fn = await load();
+    const sfx = await makeShotAudioBindingV2({ role: "sfx", shotId: "shot-sfx-1", durationUs: 2_500_000 });
+    expect(fn({ duration: 2, shotAudioBindings: [sfx] })).toBe(2_500_000);
+  });
+
+  it("voice 尾:voice 端点 +400ms;多 binding 取最大端点", async () => {
+    const fn = await load();
+    const voice = await makeShotAudioBindingV2({ role: "voice", shotId: "shot-voice-1", durationUs: 3_500_000 });
+    expect(fn({ duration: 2, shotAudioBindings: [voice] })).toBe(3_900_000);
+    const short = await makeShotAudioBindingV2({ role: "sfx", shotId: "shot-sfx-2", durationUs: 1_000_000 });
+    expect(fn({ duration: 2, shotAudioBindings: [voice, short] })).toBe(3_900_000);
+  });
+
+  it("与成片镜长等价:duration 1s + voice 1.5s@0 → 1_900_000(voice-tail 锁同值,AC3)", async () => {
+    const fn = await load();
+    const voice = await makeShotAudioBindingV2({ role: "voice", shotId: "shot-tail-1", durationUs: 1_500_000 });
+    expect(fn({ duration: 1, shotAudioBindings: [voice] })).toBe(1_900_000);
+  });
+});

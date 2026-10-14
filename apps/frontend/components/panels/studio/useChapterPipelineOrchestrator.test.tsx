@@ -151,3 +151,71 @@ describe("useChapterPipelineOrchestrator(触发与重启重算)", () => {
     expect(result.current.staleTasks.map((item) => item.taskId)).toEqual(["t1"]);
   });
 });
+
+describe("staleSourceScriptCount(D-5 派生锁:分镜条目 sourceScript vs 现势草稿)", () => {
+  // 断言用类型拓宽读法(防 RED 期 TS 卡红因):现实现无此键 → got undefined,
+  // 红因=消费方缺失,正确。
+  const readCount = (current: unknown): number | undefined =>
+    (current as { staleSourceScriptCount?: number }).staleSourceScriptCount;
+
+  function renderWithStoryboards(
+    storyboards: Array<Record<string, unknown>>,
+    agentWorkData: Array<Record<string, unknown>>,
+  ) {
+    useStudioStore.setState({ agentWorkData: agentWorkData as never });
+    return renderHook(() =>
+      useChapterPipelineOrchestrator({
+        chapterId: CHAPTER_ID,
+        projectId: "proj-1",
+        visualManualId: undefined,
+        storyboards: storyboards as never,
+      }),
+    );
+  }
+
+  it("stale 镜计数:条目指纹落后现势草稿 → 1", () => {
+    const { result } = renderWithStoryboards(
+      [{ id: "sb-1", sourceScript: { entryId: "draft-1", updatedAt: 7 } }],
+      [{ id: "draft-2", key: "scriptDraft", episodeId: CHAPTER_ID, data: "新剧本", updatedAt: 9 }],
+    );
+    expect(readCount(result.current)).toBe(1);
+  });
+
+  it("条目无 sourceScript(存量旧数据)不计数 → 0", () => {
+    const { result } = renderWithStoryboards(
+      [{ id: "sb-1" }],
+      [{ id: "draft-2", key: "scriptDraft", episodeId: CHAPTER_ID, data: "新剧本", updatedAt: 9 }],
+    );
+    expect(readCount(result.current)).toBe(0);
+  });
+
+  it("条目与现势草稿一致不计数 → 0", () => {
+    const { result } = renderWithStoryboards(
+      [{ id: "sb-1", sourceScript: { entryId: "draft-2", updatedAt: 9 } }],
+      [{ id: "draft-2", key: "scriptDraft", episodeId: CHAPTER_ID, data: "新剧本", updatedAt: 9 }],
+    );
+    expect(readCount(result.current)).toBe(0);
+  });
+
+  it("多镜聚合:2 stale + 1 fresh → 2", () => {
+    const { result } = renderWithStoryboards(
+      [
+        { id: "sb-1", sourceScript: { entryId: "draft-1", updatedAt: 7 } },
+        { id: "sb-2", sourceScript: { entryId: "draft-1", updatedAt: 7 } },
+        { id: "sb-3", sourceScript: { entryId: "draft-2", updatedAt: 9 } },
+      ],
+      [{ id: "draft-2", key: "scriptDraft", episodeId: CHAPTER_ID, data: "新剧本", updatedAt: 9 }],
+    );
+    expect(readCount(result.current)).toBe(2);
+  });
+
+  it("无 id 草稿条目 → 0(grill (b) fail-open 锁:直传/cast 会误报 stale)", () => {
+    // 夹具形态与既有 staleTasks 用例 :146 无 id 条目同款;实现须收窄回落
+    // 「无现势」→ 判定 undefined → 不计数。
+    const { result } = renderWithStoryboards(
+      [{ id: "sb-1", sourceScript: { entryId: "draft-1", updatedAt: 7 } }],
+      [{ key: "scriptDraft", episodeId: CHAPTER_ID, data: "无 id 条目", updatedAt: 9 }],
+    );
+    expect(readCount(result.current)).toBe(0);
+  });
+});

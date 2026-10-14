@@ -12,6 +12,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import type { StoryboardItem } from "@/types/studio";
 import type { RemotionShotAudioBindingV2 } from "@/types/remotion-workspace";
 import type { VoiceProfile } from "@/types/tts";
+import { selectShotFxMotions } from "@/lib/studio/remotion/shot-fx-ai";
 import { useChapterAutoVideoActions } from "./useChapterAutoVideoActions";
 
 vi.mock("sonner", () => ({
@@ -28,6 +29,13 @@ vi.mock("@/lib/studio/chapter-auto-video", async () => {
   >("@/lib/studio/chapter-auto-video");
   return { ...actual, runChapterAutoVideo: vi.fn() };
 });
+
+// D-1 喂点行为锁:部分 mock 保真其余导出(importOriginal),只替 selectShotFxMotions
+// 以捕获喂点入参——断言的是喂给时长门的值,非选择器行为本身。
+vi.mock("@/lib/studio/remotion/shot-fx-ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/studio/remotion/shot-fx-ai")>()),
+  selectShotFxMotions: vi.fn(),
+}));
 
 vi.mock("@/lib/studio/storyboard-tts-runner", () => ({
   runStoryboardTtsGeneration: vi.fn(),
@@ -632,6 +640,56 @@ describe("useChapterAutoVideoActions", () => {
 
     expect(openPath).toHaveBeenCalledWith("/tmp/chapter-001-final.mp4");
     expect(toast.error).toHaveBeenCalledWith("open failed");
+  });
+
+  it("feeds selectShotFxMotions the decision-side effective duration (D-1 单源)", async () => {
+    const item = {
+      id: "sb-chapter-001-001",
+      episodeId: "chapter-001",
+      index: 1,
+      trackKey: "001",
+      trackId: "",
+      duration: 2,
+      prompt: "雨夜码头",
+      videoDesc: "镜头推进",
+      assetIds: [],
+      state: "ready",
+      durationTarget: 2,
+      shotAudioBindings: [{ ...makeShotAudioBinding("voice"), durationUs: 3_500_000 }],
+    } as StoryboardItem;
+    vi.mocked(selectShotFxMotions).mockResolvedValue({
+      motions: {},
+      addons: {},
+      grades: {},
+      atmospheres: {},
+      transitions: {},
+      sfxCategories: {},
+      registries: {},
+      source: "empty",
+    });
+    vi.mocked(runChapterAutoVideo).mockImplementationOnce(async ({ dependencies }) => {
+      // 镜头表现选择在入队链最前,后续 runtime/queue bridge 缺失的报错与本锁无关
+      await dependencies
+        .enqueueRemotionShots({ projectId: "project-1", chapterId: "chapter-001", storyboards: [item] })
+        .catch(() => undefined);
+      return { storyboards: 1 };
+    });
+    const { result } = renderHook(() =>
+      useChapterAutoVideoActions({
+        activeProjectId: "project-1",
+        productionEpisodeId: "chapter-001",
+        handleProductionNodeAction: vi.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleRunChapterAutoVideo();
+    });
+
+    expect(selectShotFxMotions).toHaveBeenCalledOnce();
+    const shotsArg = vi.mocked(selectShotFxMotions).mock.calls[0][0];
+    // voice 3.5s 超画面 2s → 决策侧成片镜长=3.5s+400ms 尾=3.9s;喂裸 requested=2s 即缺口本体
+    expect(shotsArg.find((s) => s.shotId === item.id)?.durationUs).toBe(3_900_000);
   });
 });
 

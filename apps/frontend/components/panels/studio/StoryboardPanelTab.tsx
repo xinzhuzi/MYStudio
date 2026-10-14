@@ -85,8 +85,12 @@ export function StoryboardPanelTab({
     run?: ChapterPipelineRunView;
     /** 批6 实况 stale 下游任务数(剧本变更即时)。 */
     staleCount: number;
+    /** 批6 D5 实况派生:分镜条目 sourceScript vs 现势草稿,过期镜数。 */
+    staleSourceScriptCount: number;
     start: () => void;
     goToAssets?: () => void;
+    /** 分镜表再生成入口(D-5 修复回路):章流水线清不了 sourceScript 计数,必须走这里。 */
+    regenerateStoryboardTable?: () => void;
   };
 }) {
   const ordered = storyboards.slice().sort((a, b) => a.index - b.index);
@@ -290,8 +294,10 @@ export function StoryboardPanelTab({
         <ChapterAcceptanceBanner
           run={pipeline.run}
           staleCount={pipeline.staleCount}
+          staleSourceScriptCount={pipeline.staleSourceScriptCount}
           onRunPipeline={pipeline.start}
           onGoToAssets={pipeline.goToAssets}
+          onRegenerateStoryboardTable={pipeline.regenerateStoryboardTable}
         />
       ) : null}
 

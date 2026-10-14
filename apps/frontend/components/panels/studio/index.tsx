@@ -34,6 +34,7 @@ export function StudioView() {
     chapterId: viewModel.productionEpisodeId,
     projectId: viewModel.projectId,
     visualManualId: viewModel.workflowConfig.visualManualId,
+    storyboards: viewModel.chapterStoryboards,
   });
   // 漫影侧栏制作动作宿主侧(09-11 旧画布功能迁移收口):运行中防重入
   const sidebarActions = {
@@ -201,8 +202,19 @@ export function StudioView() {
                   running: chapterPipeline.running,
                   run: chapterPipeline.run,
                   staleCount: chapterPipeline.staleTasks.length,
+                  staleSourceScriptCount: chapterPipeline.staleSourceScriptCount,
                   start: chapterPipeline.start,
                   goToAssets: () => viewModel.handleStageChange("assets"),
+                  // D-5 修复回路:sourceScript 只在分镜表生成流盖章(章流水线三步
+                  // 零写点),分镜源过期的修复动作=分镜表再生成入口,同侧栏动作同链。
+                  regenerateStoryboardTable: () => {
+                    void viewModel.handleProductionNodeAction({
+                      id: "generate-storyboard-table",
+                      label: "生成分镜表",
+                      targetStage: "storyboard",
+                      userInstruction: "",
+                    });
+                  },
                 }}
                 chapterAutoVideo={{
                   status: viewModel.chapterAutoVideoStatus,

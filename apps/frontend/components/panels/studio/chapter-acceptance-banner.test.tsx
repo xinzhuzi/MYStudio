@@ -143,3 +143,77 @@ describe("ChapterAcceptanceBanner(分镜面板顶部横幅)", () => {
     expect(container.querySelector("[data-acceptance-run-pipeline]")).toBeNull();
   });
 });
+
+describe("ChapterAcceptanceBanner·source-stale(D-5 消费方呈现)", () => {
+  function allGreenCardFixture() {
+    useStudioStore.setState({
+      mediaTasks: [
+        { id: "a", kind: "scriptAsset", status: "success", targetId: "character:x", episodeId: CHAPTER_ID, createdAt: 1, updatedAt: 1 },
+        { id: "b", kind: "derivedAssetImage", status: "success", targetId: "derived:x:y", episodeId: CHAPTER_ID, createdAt: 1, updatedAt: 1 },
+      ] as never,
+      storyboards: [
+        {
+          id: "sb-1", episodeId: CHAPTER_ID, index: 1, trackKey: "k", trackId: "", duration: 5,
+          prompt: "p", videoDesc: "", assetIds: [], associateAssetsNames: [],
+          mediaRef: { kind: "image", path: "local-image://s1.png" }, keyframes: [], state: "idle",
+        },
+      ] as never,
+    });
+    return buildChapterAcceptanceCard(CHAPTER_ID);
+  }
+
+  it("无卡、stale=0、源过期 2 → source-stale 软横幅+同位分镜表再生成按钮(非章流水线,修复回路闭合)", () => {
+    const onRunPipeline = vi.fn();
+    const onRegenerateStoryboardTable = vi.fn();
+    const { container } = render(
+      <ChapterAcceptanceBanner
+        run={undefined}
+        staleCount={0}
+        staleSourceScriptCount={2}
+        onRunPipeline={onRunPipeline}
+        onRegenerateStoryboardTable={onRegenerateStoryboardTable}
+      />,
+    );
+    expect(container.querySelector("[data-chapter-acceptance-banner='source-stale']")).not.toBeNull();
+    expect(screen.getByText(/2 镜基于旧剧本/)).toBeTruthy();
+    // 修复回路锁:sourceScript 只在分镜表生成流盖章,章流水线三步零 sourceScript
+    // 写点——本态动作必须指向分镜表再生成,不得再发章流水线(清不了此计数)。
+    const regen = container.querySelector("[data-acceptance-regenerate-storyboard-table]");
+    expect(regen).not.toBeNull();
+    fireEvent.click(regen!);
+    expect(onRegenerateStoryboardTable).toHaveBeenCalledTimes(1);
+    expect(onRunPipeline).not.toHaveBeenCalled();
+    expect(container.querySelector("[data-acceptance-run-pipeline]")).toBeNull();
+  });
+
+  it("有卡全绿+源过期 → 全绿消失被阻止,banner 保持 actionable+摘要行+再生成动作", () => {
+    const card = allGreenCardFixture();
+    const onRegenerateStoryboardTable = vi.fn();
+    const { container } = render(
+      <ChapterAcceptanceBanner
+        run={runView({ card })}
+        staleCount={0}
+        staleSourceScriptCount={2}
+        onRunPipeline={() => undefined}
+        onRegenerateStoryboardTable={onRegenerateStoryboardTable}
+      />,
+    );
+    const banner = container.querySelector("[data-chapter-acceptance-banner='actionable']");
+    expect(banner).not.toBeNull();
+    expect(screen.getByText(/分镜源过期 2 镜/)).toBeTruthy();
+    // 旧文案承诺「可重跑章流水线刷新」清不了此计数,禁止回归
+    expect(screen.queryByText(/可重跑章流水线刷新/)).toBeNull();
+    const regen = container.querySelector("[data-acceptance-regenerate-storyboard-table]");
+    expect(regen).not.toBeNull();
+    fireEvent.click(regen!);
+    expect(onRegenerateStoryboardTable).toHaveBeenCalledTimes(1);
+  });
+
+  it("缺省零漂移:全绿卡不传新 prop → 横幅照旧消失(新闸不误吞)", () => {
+    const card = allGreenCardFixture();
+    const { container } = render(
+      <ChapterAcceptanceBanner run={runView({ card })} onRunPipeline={() => undefined} />,
+    );
+    expect(container.querySelector("[data-chapter-acceptance-banner]")).toBeNull();
+  });
+});

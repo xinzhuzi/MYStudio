@@ -146,6 +146,38 @@ function blockedShotIdsFromIssues(issues: ShotPlanIssue[], shotIds: string[]): s
   return blocked.size > 0 ? shotIds.filter((shotId) => blocked.has(shotId)) : [...shotIds];
 }
 
+/**
+ * 镜有效时长(微秒)单源(10-14 D-1 四审收尾):requested 镜长(durationTarget 优先,
+ * 回退 duration,秒→微秒 Math.round)与音频兜底(全 binding 端点最大;voice 端点
+ * 再 +400ms 尾)取最大,floor 1。决策层(buildShotDefinition 成片镜长)与选择层
+ * (selectShotFxMotions 喂点,vsc 时长门输入)共用本函数,禁两处各写各的。
+ * 单位全程微秒;@30fps 折算只发生在 vscRecipeTypicalDurationUs(vsc-recipes)单点。
+ */
+export function storyboardEffectiveDurationUs(
+  storyboard: Pick<StoryboardItem, "durationTarget" | "duration" | "shotAudioBindings">,
+): number {
+  const requestedDurationUs = Math.round(
+    (storyboard.durationTarget ?? storyboard.duration) * 1_000_000,
+  );
+  const audioBindings = storyboard.shotAudioBindings ?? [];
+  const audioEndUs = audioBindings.reduce(
+    (maximum, binding) => Math.max(maximum, binding.shotStartUs + binding.durationUs),
+    0,
+  );
+  const voiceEndUs = audioBindings
+    .filter((binding) => binding.role === "voice")
+    .reduce(
+      (maximum, binding) => Math.max(maximum, binding.shotStartUs + binding.durationUs),
+      0,
+    );
+  return Math.max(
+    1,
+    requestedDurationUs,
+    audioEndUs,
+    voiceEndUs > 0 ? voiceEndUs + 400_000 : 0,
+  );
+}
+
 function buildShotDefinition(
   projectId: string,
   storyboard: StoryboardItem,
@@ -161,26 +193,8 @@ function buildShotDefinition(
     "mediaRef",
   );
   if (!visualSource) return undefined;
-  const audioBindings = structuredClone(storyboard.shotAudioBindings ?? []);
-  const requestedDurationUs = Math.round(
-    (storyboard.durationTarget ?? storyboard.duration) * 1_000_000,
-  );
-  const audioEndUs = audioBindings.reduce(
-    (maximum, binding) => Math.max(maximum, binding.shotStartUs + binding.durationUs),
-    0,
-  );
-  const voiceEndUs = audioBindings
-    .filter((binding) => binding.role === "voice")
-    .reduce(
-      (maximum, binding) => Math.max(maximum, binding.shotStartUs + binding.durationUs),
-      0,
-    );
-  const durationUs = Math.max(
-    1,
-    requestedDurationUs,
-    audioEndUs,
-    voiceEndUs > 0 ? voiceEndUs + 400_000 : 0,
-  );
+  const audioBindings = structuredClone(storyboard.shotAudioBindings ?? []);   // 留原地:产物输出用,与判定无关
+  const durationUs = storyboardEffectiveDurationUs(storyboard);
   if (!Number.isSafeInteger(durationUs) || durationUs <= 0) {
     issues.push({ code: "shot-plan.duration", path: `shots.${storyboard.id}.duration`, message: "分镜时长必须是正数" });
     return undefined;
