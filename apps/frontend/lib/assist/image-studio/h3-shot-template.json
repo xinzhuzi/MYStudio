@@ -1700,11 +1700,11 @@
     "ver": "0.33.2"
    },
    "widgets_values": [
-    "minimax_h3_fl2v_turbo_4step_v1.1_768p_comfyui_resized_avg_rank_28_bf16.safetensors",
+    "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
     1
    ],
    "widgets_values_named": {
-    "lora_name": "minimax_h3_fl2v_turbo_4step_v1.1_768p_comfyui_resized_avg_rank_28_bf16.safetensors",
+    "lora_name": "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
     "strength_model": 1
    }
   },
