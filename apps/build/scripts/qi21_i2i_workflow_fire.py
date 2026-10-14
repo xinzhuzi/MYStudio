@@ -16,6 +16,7 @@
 用法:python3 qi21_i2i_workflow_fire.py --instruction "..." \
     [--ref1 yanliao_yuanying_front.png] [--ref2 clothing_light_blue_denim_shirt.png] \
     [--ref3 yanliao_heti_front.png(--enable-ref3 才接线)] \
+    [--enable-anchor(解旁路 [505] 透明锚,仅 viggle 档语义)] \
     [--tier "2 · viggle"|"1 · 原生出图"] [--type 人物] [--seed N(缺省随机)]
     [--out 路径] [--dry-run]
 """
@@ -121,6 +122,9 @@ class Flattener:
             for i in (12, 18):
                 if i in root:
                     live_root[i] = root[i]
+        if overrides.get("enable_anchor"):
+            if 505 in root:
+                live_root[505] = root[505]
 
         # 连线索引:宿主入线 dst_slot→src;宿主出线 src_slot→[dst]
         host_in, host_out = {}, {}
@@ -262,7 +266,7 @@ class Flattener:
                     self.g.pop(k, None)
 
 
-def structural_equivalence(wf, g, enable_ref3, images, tier=""):
+def structural_equivalence(wf, g, enable_ref3, enable_anchor, images, tier=""):
     """结构等价校验(工作流本体的机器自证):画布活节点集↔API 节点集、
     活连线集↔API 边集逐一断言;任何缺失/多出即 fail-closed。
     档位直通(画布懒执行的 headless 等价形)随 tier 口径计入期望集。"""
@@ -272,6 +276,8 @@ def structural_equivalence(wf, g, enable_ref3, images, tier=""):
             if n.get("mode", 0) == 0 and n["type"] not in SKIP_TYPES}
     if enable_ref3:
         live.update({i: root[i] for i in (12, 18) if i in root})
+    if enable_anchor:
+        live.update({i: root[i] for i in (505,) if i in root})
     # 期望节点集:活根(非宿主/非穿越)+ 两子图活内部(非穿越)
     want = set()
     for i, n in live.items():
@@ -363,6 +369,8 @@ def main():
     ap.add_argument("--ref2", default="clothing_light_blue_denim_shirt.png")
     ap.add_argument("--ref3", default=None)
     ap.add_argument("--enable-ref3", action="store_true")
+    ap.add_argument("--enable-anchor", action="store_true",
+                    help="解旁路 [505] 透明锚=模拟用户 Ctrl+B,仅 viggle 档语义")
     ap.add_argument("--tier", default=None, help="缺省=工作流宿主现值")
     ap.add_argument("--bypass-upscale", action="store_true",
                     help="旁路⑤SeedVR2放大组(=工作流文档化 Ctrl+B 操作,只出[8]直出图)")
@@ -416,6 +424,7 @@ def main():
     host6["widgets_values"] = host6_wv
     host7["widgets_values"] = host7_wv
     fl.flatten(tier, {"enable_ref3": args.enable_ref3,
+                      "enable_anchor": args.enable_anchor,
                       "images": {10: args.ref1, 11: args.ref2}})
     if args.cond_single:  # 诊断探针覆写(不落盘,仅本弹执行图)
         for k in ("7:7019", "7:7022"):
@@ -445,11 +454,14 @@ def main():
                 if isinstance(v, list) and v[0] == "7:7024":
                     v[0] = "7:7012"
 
-    print(f"[fire] 型={args.type} 档={tier} seed={seed} ref3={'on('+str(args.ref3)+')' if args.enable_ref3 else 'off(旁路)'}")
+    print(f"[fire] 型={args.type} 档={tier} seed={seed} ref3={'on('+str(args.ref3)+')' if args.enable_ref3 else 'off(旁路)'}"
+          f" anchor={'on' if args.enable_anchor else 'off(旁路)'}")
+    if args.enable_anchor and "viggle" not in tier:
+        print(f"[WARN] --enable-anchor 仅 viggle 档语义(透明锚进 [171] 单参考编码),当前档={tier}:不拦停,照常执行")
     if args.cond_single or args.seg6 or args.legacy6:
         print("[fire] 探针覆写在驾(--cond-single/--seg6):跳过结构等价校验(诊断专用,非工作流态)")
     else:
-        nn, ne = structural_equivalence(wf, fl.g, args.enable_ref3,
+        nn, ne = structural_equivalence(wf, fl.g, args.enable_ref3, args.enable_anchor,
                                         {10: args.ref1, 11: args.ref2, **({12: args.ref3} if args.enable_ref3 and args.ref3 else {})},
                                         tier=tier)
         print(f"[fire] 结构等价校验 PASS: 节点 {nn}↔{len(fl.g)} 活连线边 {ne} 全对上(工作流本体,零自建)")
