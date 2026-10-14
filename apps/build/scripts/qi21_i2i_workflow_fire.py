@@ -16,7 +16,7 @@
 用法:python3 qi21_i2i_workflow_fire.py --instruction "..." \
     [--ref1 yanliao_yuanying_front.png] [--ref2 clothing_light_blue_denim_shirt.png] \
     [--ref3 yanliao_heti_front.png(--enable-ref3 才接线)] \
-    [--tier "2 · viggle"|"1 · 直出40步"] [--type 人物] [--seed N(缺省随机)]
+    [--tier "2 · viggle"|"1 · 原生出图"] [--type 人物] [--seed N(缺省随机)]
     [--out 路径] [--dry-run]
 """
 import argparse

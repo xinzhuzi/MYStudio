@@ -101,7 +101,7 @@ MyQi21SpeedSelect,三生成器同笔改造):道劫三件加速区=**三条完整
 MyQi21SpeedSelect(三 latent 槽全 lazy,check_lazy_status 只拉起选中支路——未选
 支路零执行零加载);注入式开关农场全拆(t2i 10 件/i2i·edit 各 13 件:档位/比较/
 开关/常量,连 [30] 档位语义一并并入选择件 combo)。断言迁移(design §8 迁移表):
-默认档=选择件 combo 首项=直出40步(0929 拉齐重放裁定(用户 12:05);三件一致,与
+默认档=选择件 combo 首项=原生出图(0929 拉齐重放裁定(用户 12:05);三件一致,与
 my_nodes 节点件 DEFAULT_MODE import 互锁);T8 无负面槽/model=base 直连(绝不吃 viggle LoRA)/
 positive+latent 同源——保持;新增零真重复节点(0929 复用铁则:同 type+同上游集合+
 同 widgets 不得两件)、seed 单源三用(PrimitiveInt 扇出三采样器,T8 seed 输入化=
@@ -244,7 +244,7 @@ s3-qi21-edit.md 三档;生成器自查谓词=契约单源,全部条款以生成�
      支路机构全在内);宿主 id 沿用原选择件 id(t2i[208]/i2i[190]/edit[58],D3),
      子图内选择件新分配([214]/[192]/[59],规避同号展开形);懒执行语义保持
      (MyQi21SpeedSelect 三 latent 槽全 lazy,S0 探针 A 级实证子图环境生效)。
-  B. 宿主面板双控件=「速度档位」COMBO(首项=默认=直出40步,与节点件
+  B. 宿主面板双控件=「速度档位」COMBO(首项=默认=原生出图,与节点件
      SPEED_MODES import 互锁)+「seed」INT(默认 0 fixed;D5 推荐案落地,
      回退案未启用);widgets_values 与子图 widgets[] 双写同值(宿主=权威值源);
      三态 RGBA 控件(qi21/i2i 宿主面板「RGBA透明」=自动默认;1001 ① 改文案=自动/true/false)随 S2 ⑤机制批
@@ -457,7 +457,7 @@ QI21_RR_POS_B_ID = 203                      # [40].positive→T8 顶带拐点(�
 # 0929 用户手改回灌(生成器同表):子图两枚 Reroute 删了重加成新 id(位置/接线同位);
 # 宿主外露输入槽 8→4(四控件回面板);[30] 默认档 2→11 与 [179] 常量 6→359 两口径
 # 已随 0929 并行化轮([30]/[179] 拆除)终结——档位语义并入选择件 combo 首项
-# (0929 拉齐重放后首项=直出40步);204/205 两拐点随 Part-A S3B 删中继退役(锚废除)
+# (0929 拉齐重放后首项=原生出图);204/205 两拐点随 Part-A S3B 删中继退役(锚废除)
 # 1005 重锚:宿主恰 4 槽=正向主体句/负向主体句(纯连线槽)+型选择/PE启用?(widget
 # 面板控件);clip/vae 槽随 PE TE 迁子图 [4019]+编码器迁主图退役,外露连线槽=两主体句
 # 1006 批C 正名(grill Q2=改):外部槽 正向主体句/负向主体句→正向提示词/负向提示词
@@ -583,7 +583,7 @@ def _links(graph: dict) -> dict:
 
 
 # (_off_state_reach 随 0929 并行化轮退役:加速槽「关态」语义并入三档干跑——
-#  默认档=直出40步 即零 LoRA 态,断言移交 _assert_accel_subgraph)
+#  默认档=原生出图 即零 LoRA 态,断言移交 _assert_accel_subgraph)
 
 
 # ── 0929 加速区并行化轮(Trellis 09-29-qi21-acczone-parallel;方案 B=MyQi21SpeedSelect)──
@@ -670,9 +670,9 @@ SPEED_SLOT_OF = dict(SPEED_MODES)
 MODE_FUNACC = next(m for m, s in SPEED_MODES if s == "latent_funacc")
 MODE_DIRECT = next(m for m, s in SPEED_MODES if s == "latent_direct")
 MODE_VIGGLE = next(m for m, s in SPEED_MODES if s == "latent_viggle")
-# 1002 R2 修复轮(F3):edit 件默认档回退直出40步——Fun-Acc×edit 实弹两独立
+# 1002 R2 修复轮(F3):edit 件默认档回退原生出图——Fun-Acc×edit 实弹两独立
 # seed(3008/3009)均全透空白图(1.58M 像素全透 33KB,status=success 静默坏图;
-# 同拓扑 viggle seed3010/直出40步 seed3011 均绿)=Fun-Acc PDD 系 t2i 描述文
+# 同拓扑 viggle seed3010/原生出图 seed3011 均绿)=Fun-Acc PDD 系 t2i 描述文
 # 蒸馏头,对 edit 指令式改图文本分布外崩溃,档位结构性白图(节点/接线层不可
 # 修);⑱「i2i/edit 默认档同改 Fun-Acc」之 edit 推广就此回退(⑱ 用户原令只点
 # t2i=my_qi21_speed_select.py:32 引文;t2i/i2i 默认仍=DEFAULT_MODE,实弹绿:
@@ -712,7 +712,7 @@ I2I_PARALLEL_NOTE_TOKENS = (
     "速度档位", "加速子图",
 )
 # edit 件 Note 加速区段(0929 S3 收装;[58]=宿主/[59]=子图内选择件/[57]=seed;
-# 1002 R2 修复轮:默认档 token 改「本件默认=直出40步」+白图警示锁在场——F3
+# 1002 R2 修复轮:默认档 token 改「本件默认=原生出图」+白图警示锁在场——F3
 # Fun-Acc×edit 两 seed 全透空白,默认档回退,0 档保留可选但 Note 点名勿用)
 EDIT_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, "MyQi21SpeedSelect", "[7]", "[7015]", "[7012]", "[7014]",
@@ -1471,7 +1471,7 @@ class TestSpeedSelectContract0929:
         0929 拉齐重放裁定);档号随新序理顺=序位号 0/1/2,与槽名一一对应。
         行为面单测=my_nodes/tests/
         test_my_qi21_speed_select.py(三态/默认/懒裁剪/容错/报错文案),此处锁契约面。"""
-        assert [m for m, _s in SPEED_MODES] == ["0 · Fun-Acc 4步", "1 · 直出40步", "2 · viggle"]
+        assert [m for m, _s in SPEED_MODES] == ["0 · Fun-Acc 4步", "1 · 原生出图", "2 · viggle"]
         assert DEFAULT_MODE == SPEED_MODES[0][0]
         assert [s for _m, s in SPEED_MODES] == ["latent_funacc", "latent_direct", "latent_viggle"]
 
@@ -2200,7 +2200,7 @@ class TestEditContract:
     def test_lora_slot_present_and_bypassed(self):
         """0929 S3 收装:LoRA/支路/选择件/seed 全居加速子图([58] 宿主,[7]Cache
         MODEL 单线入/LATENT 单线出→[9]);注入式 MODEL/steps/latent 开关农场全拆;
-        默认档=直出40步 干跑零 LoRA(懒选择;1002 ⑱ 曾翻 Fun-Acc,R2 修复轮随 F3
+        默认档=原生出图 干跑零 LoRA(懒选择;1002 ⑱ 曾翻 Fun-Acc,R2 修复轮随 F3
         白图回退——Fun-Acc×edit 实弹两 seed 全透空白);T8 model=Cache 直连(经边界);
         0928 黑图修复正源分线:支路0=[6] 双参考(positive)/支路1·2=[43] 单参考
         (positive_single),正源分线经装配宿主边界直连加速宿主(link68/69);
@@ -2231,7 +2231,7 @@ class TestEditContract:
                          ("positive_single", True, False), ("negative", True, False),
                          ("latent", True, False), ("速度档位", False, True), ("seed", False, True)],
             te1_asg=EDIT_TE1,
-            # 1002 R2(F3):edit 默认档回退直出40步——Fun-Acc×edit 实弹两 seed 全透
+            # 1002 R2(F3):edit 默认档回退原生出图——Fun-Acc×edit 实弹两 seed 全透
             # 空白(viggle/直出同拓扑绿),默认态断言随回退档走(EDIT_DEFAULT_MODE)
             default_mode=EDIT_DEFAULT_MODE,
             banned_main_types=("easy compare", "KSampler", "LoraLoaderModelOnly",
@@ -3181,7 +3181,7 @@ class TestQi21SubgraphContract:
         # Phase D 钦定文案;负向仅档1 生效/档0 无负槽/档2 蒸馏件恒1)
         note = _sg_nodes(_xsg(graph))[QI21_ACC_NOTE_ID]
         txt = note["widgets_values"][0]
-        for tok in ("负向仅档1", "直出40步 cfg4", "档0 FunAcc 无负槽",
+        for tok in ("负向仅档1", "原生出图 cfg4", "档0 FunAcc 无负槽",
                     "蒸馏件 cfg恒1 负向无效"):
             assert tok in txt, \
                 f"[{QI21_ACC_NOTE_ID}] 负向生效档位 Note 缺要点 {tok!r}(1004 D6b 钦定文案)"
@@ -3799,7 +3799,7 @@ class TestQi21SubgraphContract:
                       "LoraLoaderModelOnly", LORA_FILE,
                       "[7013]", "[7012]", "[7014]", "[7]",
                       "shift_terminal=0.02", "TE-Speed",
-                      # 0929 并行化轮:三支路+单选择件+默认=直出40步(拉齐重放)+懒执行+seed 单源
+                      # 0929 并行化轮:三支路+单选择件+默认=原生出图(拉齐重放)+懒执行+seed 单源
                       *QI21_PARALLEL_NOTE_TOKENS,
                       # 0925 收窄轮要点(W1 组框+摆设值/pp 定档/W2 主画布);1004 D7
                       # 说明卡改写:旧「数学上不参与采样/官方同构/占位/
@@ -4412,7 +4412,7 @@ class TestI2IContract:
     def test_lora_slot_present_and_bypassed(self):
         """0929 S3 收装:LoRA/支路/选择件/seed 全居加速子图([190] 宿主,id 沿用
         原选择件;[7] Cache MODEL 出线进子图=D4「Cache 留主图①块」);注入式
-        MODEL/steps/latent/正源开关农场全拆(13 件);默认档=直出40步 干跑零
+        MODEL/steps/latent/正源开关农场全拆(13 件);默认档=原生出图 干跑零
         LoRA(懒选择);T8 model=Cache 直连(经边界);0928 黑图修复正源分线:
         支路0=宿主 positive(双参考,link71)/支路1·2=宿主 positive_single(单参考,
         link70)——正源分线经边界槽内聚,语义零改动;TE-Speed 槽不在本件
@@ -4535,7 +4535,7 @@ class TestI2IContract:
                 f"宿主 image 槽{slot} 上游应预缩件[{want}]"
         # 10-02 主编码双图→1010 三图(viggle 官方 1-3 张口径收口);单图编码=[171] 仅
         # image_1(单参考正源,0928 黑图修复语义不动:两加速档仍走 positive_single,
-        # 三参考全效=直出40步档+PE 看图)
+        # 三参考全效=原生出图档+PE 看图)
         for enc_id, want_n in ((I2I_SG_TE, 3), (I2I_SG_TE1, 1)):
             enc = sg_nodes[enc_id]
             imgs = [i for i in enc["inputs"] if i["name"].startswith("images.")]

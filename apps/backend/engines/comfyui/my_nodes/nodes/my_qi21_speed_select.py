@@ -4,7 +4,7 @@
 """漫影 qi21 加速档位选择(MyQi21SpeedSelect,0929 加速区并行化·方案 B 造件)。
 
 三档互斥加速支路在 LATENT 汇流处的单一选择点(任务 09-29-qi21-acczone-
-parallel design §2/§4):直出40步 / viggle / Fun-Acc 三条完整自足支路各自
+parallel design §2/§4):原生出图 / viggle / Fun-Acc 三条完整自足支路各自
 采样后,本节点按 mode 档位把选中支路的 latent 原样路由出去——替代 0929 前
 注入式开关农场(t2i 加速区 10 逻辑件→1 选择件;MODEL/steps 内聚各支路,
 面板值即生效值)。
@@ -49,7 +49,7 @@ from typing import Any
 # (契约测试锁码位防全角漂移)。
 SPEED_MODES: tuple[tuple[str, str], ...] = (
     ("0 · Fun-Acc 4步", "latent_funacc"),
-    ("1 · 直出40步", "latent_direct"),
+    ("1 · 原生出图", "latent_direct"),
     ("2 · viggle", "latent_viggle"),
 )
 
@@ -65,7 +65,7 @@ def slot_for_mode(mode: str) -> str | None:
 
 class MyQi21SpeedSelect:
     """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择(默认 Fun-Acc 4步,
-    1002 用户新令;0929-1001 期间曾默认直出40步=拉齐重放裁定,已被推翻)。
+    1002 用户新令;0929-1001 期间曾默认原生出图=拉齐重放裁定,已被推翻)。
 
     mode=combo 三选一(首项默认);三个 latent 槽全 optional 全 lazy——
     未选档未接线不报错、不进执行图;选中档未接线给中文报错;输出=选中

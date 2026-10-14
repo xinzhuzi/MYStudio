@@ -49,7 +49,7 @@ def test_combo_closed_set_first_item_is_default_funacc():
     assert isinstance(combo[0], list)
     # ⑱ 1002:FunAcc 提首=默认(推翻 0929 拉齐重放);档号前导数字随新序理顺
     # =序位号 0/1/2(旧 0=直出/2=Fun-Acc/1=viggle 系旧 [30] 档位号口径废止)
-    assert combo[0] == ["0 · Fun-Acc 4步", "1 · 直出40步", "2 · viggle"]
+    assert combo[0] == ["0 · Fun-Acc 4步", "1 · 原生出图", "2 · viggle"]
     assert combo[1]["default"] == "0 · Fun-Acc 4步"  # 首项=默认=Fun-Acc 4步
     assert DEFAULT_MODE == MODES[0] == "0 · Fun-Acc 4步"
     # 分隔符码位锁:U+00B7 中点(防誊写漂移成全角·/・——combo 列表即契约)
@@ -59,7 +59,7 @@ def test_combo_closed_set_first_item_is_default_funacc():
     assert [s for _m, s in SPEED_MODES] == ["latent_funacc", "latent_direct",
                                             "latent_viggle"]
     assert slot_for_mode("0 · Fun-Acc 4步") == "latent_funacc"
-    assert slot_for_mode("1 · 直出40步") == "latent_direct"
+    assert slot_for_mode("1 · 原生出图") == "latent_direct"
     assert slot_for_mode("2 · viggle") == "latent_viggle"
     assert slot_for_mode("不存在的档") is None
 
@@ -77,7 +77,7 @@ def test_output_shape_and_three_lazy_slots():
 # ── 三态选择:各档回各支路 ──────────────────────────────────
 @pytest.mark.parametrize("mode,branch", [
     ("0 · Fun-Acc 4步", _FUNACC),
-    ("1 · 直出40步", _DIRECT),
+    ("1 · 原生出图", _DIRECT),
     ("2 · viggle", _VIGGLE),
 ])
 def test_select_routes_each_mode_branch(mode, branch):
@@ -107,7 +107,7 @@ def test_check_lazy_status_requests_selected_wired_unevaluated():
     assert node.check_lazy_status("2 · viggle") is None
     # 未选档槽已接线未求值 → 一概不请求(未选支路不进执行图=懒裁剪本体)
     assert node.check_lazy_status(
-        "1 · 直出40步", latent_funacc=None, latent_viggle=None) is None
+        "1 · 原生出图", latent_funacc=None, latent_viggle=None) is None
     assert node.check_lazy_status(
         "0 · Fun-Acc 4步", latent_viggle=None, latent_direct=None) is None
     # mode 缺席/未知 → 不请求(select 兜底报错)
@@ -159,7 +159,7 @@ def test_selected_but_unwired_error_lists_wired_modes():
     node = MyQi21SpeedSelect()
     with pytest.raises(ValueError, match="已接线的档位:2 · viggle"):
         node.select("0 · Fun-Acc 4步", latent_viggle=_VIGGLE)  # 接错档=指路切档
-    with pytest.raises(ValueError, match="已接线的档位:1 · 直出40步、2 · viggle"):
+    with pytest.raises(ValueError, match="已接线的档位:1 · 原生出图、2 · viggle"):
         node.select("0 · Fun-Acc 4步", latent_direct=None,
                     latent_viggle=_VIGGLE)  # 缺键=未接线,None=已接线未求值,都算在册(清单纯按 SPEED_MODES 档序)
 
