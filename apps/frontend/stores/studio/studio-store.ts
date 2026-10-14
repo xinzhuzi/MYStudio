@@ -2,9 +2,13 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import {
   createStudioWorkflowShardedStorage,
-  isSharedDomainItem,
   loadStudioChapterWorkspace,
 } from "@/lib/storage/project-storage";
+import {
+  buildAttributionContextFromState,
+  chapterKeyOfDomainItem,
+} from "@/lib/storage/studio-workflow-shards";
+import { toast } from "sonner";
 import { useProjectStore } from "@/stores/project/project-store";
 import {
   createImageWorkflowGraph,
@@ -89,6 +93,8 @@ interface StudioWorkflowState {
   novelChapters: NovelChapter[];
   /** 窗口化 v1：激活章（工作区装载对象）；null/缺省=未窗口化（legacy 全量内存） */
   activeChapterId?: string | null;
+  /** A批 R1（10-14-audit4-residuals）：切章装载中标志——ScriptTab 据此禁用生成/审核/可编辑并显示装载中；瞬态位不落盘（persist partialize 剥除，防「杀进程于切章中」水合出恒禁用）。可选字段（同 activeChapterId 先例）：缺省=未在装载，存量全量构造点零涟漪 */
+  chapterSwitchLoading?: boolean;
   sourceBible: string;
   agentWorkData: AgentWorkData[];
   entityExtractions: EntityExtractionResult[];
@@ -210,6 +216,7 @@ const initialState: StudioWorkflowState = {
   materials: [],
   novelChapters: [],
   activeChapterId: null,
+  chapterSwitchLoading: false,
   sourceBible: "",
   agentWorkData: [],
   entityExtractions: [],
@@ -286,12 +293,25 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         if (!current.novelChapters.some((chapter) => chapter.id === chapterId)) return;
         if (current.activeChapterId === chapterId) return;
         const switchSeq = ++studioChapterSwitchSeq;
+        // R1（A批）：装载中标志——ScriptTab 据此禁用生成/审核/可编辑并显示装载中；
+        // 竞速下只有最新一次装载负责清位（finally 内 seq 校验），先发过期装载不清
+        set({ chapterSwitchLoading: true });
+        try {
         let loaded: Awaited<ReturnType<typeof loadStudioChapterWorkspace>> = null;
         if (pid) {
           try {
             loaded = await loadStudioChapterWorkspace(pid, chapterId);
           } catch (error) {
-            console.warn("[StudioStore] 章节工作区装载失败，回退索引条目:", error);
+            // R2（A批）：装载失败 fail-closed——不回退无正文索引条目（瘦身条目无
+            // sourceText 会被判「原创」照常组装），也不翻转激活章（保持在原章）；
+            // toast 明示错误。过期装载（期间又有切章）静默，由最新一次装载负责提示。
+            console.warn("[StudioStore] 章节工作区装载失败，保持在原章:", error);
+            if (switchSeq === studioChapterSwitchSeq) {
+              toast.error(
+                `章节工作区装载失败，已停留在原章：${error instanceof Error ? error.message : String(error)}`,
+              );
+            }
+            return;
           }
         }
         // G1 前章并入(design §1.3):agentWorkData 按章归属,切到第 N 章会把第 N-1 章
@@ -313,23 +333,40 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         }
         // await 期间又有切章发起:本次装载已过期,不得回写(目标章+前章装载段均受此守卫)
         if (switchSeq !== studioChapterSwitchSeq) return;
+        // R3（A批）：快照后移——state 快照（:285 的 current）早于两次 await，装载完成后
+        // 若仍按过期快照整体覆盖，装载期写入（在途流式落库/用户编辑旧章字段/对目标章的
+        // 中途保存）会被回滚。装载完成（且仍是最新一次切章）后取最新 state 按字段合并：
+        // 共享条目与章列表按最新读，装载期写入不丢。
+        const latest = get();
+        const latestAttributionContext = buildAttributionContextFromState(
+          latest as unknown as Record<string, unknown>,
+        );
         const previousAgentWorkData = previousLoaded?.domains.agentWorkData;
         const activeChapter = (loaded?.novelChapter as NovelChapter | undefined)
-          ?? current.novelChapters.find((chapter) => chapter.id === chapterId);
+          ?? latest.novelChapters.find((chapter) => chapter.id === chapterId);
         if (!activeChapter) return;
-        const attributionState = {
-          storyboards: current.storyboards,
-          productionTracks: current.productionTracks,
-        } as unknown as Record<string, unknown>;
         const mergeWindow = (key: keyof StudioWorkflowState, loadedItems: unknown) => {
-          const currentItems = current[key] as unknown[];
-          if (!Array.isArray(loadedItems)) return currentItems.filter((item) => isSharedDomainItem(key, item, attributionState));
-          const shared = currentItems.filter((item) => isSharedDomainItem(key, item, attributionState));
-          return [...shared, ...loadedItems];
+          const latestItems = latest[key] as unknown[];
+          const chapterKeyOf = (item: unknown) =>
+            chapterKeyOfDomainItem(key, item, latestAttributionContext);
+          if (!Array.isArray(loadedItems)) {
+            return latestItems.filter((item) => chapterKeyOf(item) === null);
+          }
+          const shared = latestItems.filter((item) => chapterKeyOf(item) === null);
+          // 装载期对目标章的新写入（分片读像里没有的条目）一并保留，按 id 去重防双份
+          const loadedIds = new Set(
+            loadedItems.map((item) => (item as { id?: unknown })?.id ?? null),
+          );
+          const midLoadTargetWrites = latestItems.filter((item) => {
+            const itemId = (item as { id?: unknown })?.id ?? null;
+            if (itemId !== null && loadedIds.has(itemId)) return false;
+            return chapterKeyOf(item) === chapterId;
+          });
+          return [...shared, ...loadedItems, ...midLoadTargetWrites];
         };
         set({
           activeChapterId: chapterId,
-          novelChapters: current.novelChapters.map((chapter) => (
+          novelChapters: latest.novelChapters.map((chapter) => (
             chapter.id === chapterId
               ? activeChapter
               : { ...chapter, sourceText: undefined }
@@ -351,6 +388,12 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           imageWorkflows: mergeWindow("imageWorkflows", loaded?.domains.imageWorkflows) as ImageWorkflowGraph[],
         });
         get().rebuildTracks();
+        } finally {
+          // R1：装载结束（完成/失败/过期早退）清装载中标志——竞速下仅最新一次装载清位
+          if (switchSeq === studioChapterSwitchSeq) {
+            set({ chapterSwitchLoading: false });
+          }
+        }
       },
       appendNovelText: novelSlice.appendNovelText,
       replaceNovelText: novelSlice.replaceNovelText,
@@ -624,6 +667,12 @@ export const useStudioStore = create<StudioWorkflowStore>()(
         isHydrated: (): boolean => useStudioStore.persist.hasHydrated(),
       })),
       version: STUDIO_WORKFLOW_PERSIST_VERSION,
+      // R1（A批）：chapterSwitchLoading 是瞬态位，不落盘——若持久化，「杀进程于切章中」
+      // 会在下次启动水合出 true，生成/审核/可编辑被恒禁用且无恢复入口
+      partialize: (state) => {
+        const { chapterSwitchLoading: _transientLoading, ...rest } = state;
+        return rest as StudioWorkflowStore;
+      },
       migrate: (persistedState) => migrateStudioWorkflowState(persistedState),
       merge: (persistedState, currentState) => {
         const persisted = persistedState && typeof persistedState === "object"

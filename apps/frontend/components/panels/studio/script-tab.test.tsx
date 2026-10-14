@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, act } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, act, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
+import type { ComponentProps } from "react";
 import { ScriptTab } from "./ScriptTab";
 import { useStudioStore } from "@/stores/studio/studio-store";
 
@@ -188,7 +189,7 @@ describe("ScriptTab", () => {
         manualContext=""
         directorContext=""
         styleSummary=""
-        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-think", text: "", thinking: "先想清楚章节主线……" }}
+        scriptStreaming={{ key: "scriptDraft" as const, scopeId: "ch-think", text: "", thinking: "先想清楚章节主线……" }}
       />,
     );
 
@@ -217,7 +218,7 @@ describe("ScriptTab", () => {
         manualContext=""
         directorContext=""
         styleSummary=""
-        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-think2", text: "# 剧本\n\n正文增量", thinking: "思考完毕" }}
+        scriptStreaming={{ key: "scriptDraft" as const, scopeId: "ch-think2", text: "# 剧本\n\n正文增量", thinking: "思考完毕" }}
       />,
     );
 
@@ -251,7 +252,7 @@ describe("ScriptTab", () => {
         manualContext=""
         directorContext=""
         styleSummary=""
-        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-think3", text: "" }}
+        scriptStreaming={{ key: "scriptDraft" as const, scopeId: "ch-think3", text: "" }}
       />,
     );
 
@@ -287,7 +288,7 @@ describe("ScriptTab", () => {
       <ScriptTab
         novelChapters={[chapter]}
         agentWorkData={[
-          { id: "w1", key: "scriptDraft", episodeId: "ch-check", data: draft, createdAt: 1, updatedAt: 1 },
+          { id: "w1", key: "scriptDraft" as const, episodeId: "ch-check", data: draft, createdAt: 1, updatedAt: 1 },
         ]}
         saveAgentWorkData={vi.fn()}
         runStage={vi.fn()}
@@ -330,7 +331,7 @@ describe("ScriptTab", () => {
       <ScriptTab
         novelChapters={[chapter]}
         agentWorkData={[
-          { id: "w1", key: "scriptDraft", episodeId: "ch-pass", data: draft, createdAt: 1, updatedAt: 1 },
+          { id: "w1", key: "scriptDraft" as const, episodeId: "ch-pass", data: draft, createdAt: 1, updatedAt: 1 },
         ]}
         saveAgentWorkData={vi.fn()}
         runStage={vi.fn()}
@@ -363,7 +364,7 @@ describe("ScriptTab", () => {
         novelChapters={[chapter]}
         agentWorkData={[
           // 旧稿仍在 store:selfCheckMetrics 非 null——无守卫时旧稿指标会照常渲染
-          { id: "w1", key: "scriptDraft", episodeId: "ch-r6-stream", data: "# 已有旧稿", createdAt: 1, updatedAt: 1 },
+          { id: "w1", key: "scriptDraft" as const, episodeId: "ch-r6-stream", data: "# 已有旧稿", createdAt: 1, updatedAt: 1 },
         ]}
         saveAgentWorkData={vi.fn()}
         runStage={vi.fn()}
@@ -371,7 +372,7 @@ describe("ScriptTab", () => {
         manualContext=""
         directorContext=""
         styleSummary=""
-        scriptStreaming={{ key: "scriptDraft", scopeId: "ch-r6-stream", text: "# 新稿增量" }}
+        scriptStreaming={{ key: "scriptDraft" as const, scopeId: "ch-r6-stream", text: "# 新稿增量" }}
       />,
     );
 
@@ -395,7 +396,7 @@ describe("ScriptTab", () => {
       <ScriptTab
         novelChapters={[chapter]}
         agentWorkData={[
-          { id: "w1", key: "scriptDraft", episodeId: "ch-mode", data: "# 已有剧本", createdAt: 1, updatedAt: 1 },
+          { id: "w1", key: "scriptDraft" as const, episodeId: "ch-mode", data: "# 已有剧本", createdAt: 1, updatedAt: 1 },
         ]}
         saveAgentWorkData={vi.fn()}
         runStage={vi.fn()}
@@ -416,8 +417,8 @@ describe("ScriptTab", () => {
       <ScriptTab
         novelChapters={[chapter]}
         agentWorkData={[
-          { id: "w1", key: "scriptDraft", episodeId: "ch-mode", data: "# 已有剧本", createdAt: 1, updatedAt: 1 },
-          { id: "w2", key: "scriptDraftReview", episodeId: "ch-mode", data: "🔴 台词超长", createdAt: 2, updatedAt: 2 },
+          { id: "w1", key: "scriptDraft" as const, episodeId: "ch-mode", data: "# 已有剧本", createdAt: 1, updatedAt: 1 },
+          { id: "w2", key: "scriptDraftReview" as const, episodeId: "ch-mode", data: "🔴 台词超长", createdAt: 2, updatedAt: 2 },
         ]}
         saveAgentWorkData={vi.fn()}
         runStage={vi.fn()}
@@ -447,8 +448,8 @@ describe("ScriptTab", () => {
       <ScriptTab
         novelChapters={[chapter]}
         agentWorkData={[
-          { id: "w1", key: "scriptDraft", episodeId: "ch-f3-fresh", data: "# 已有剧本", createdAt: 100, updatedAt: 100 },
-          { id: "w2", key: "scriptDraftReview", episodeId: "ch-f3-fresh", data: "🔴 台词超长", createdAt: 200, updatedAt: 200 },
+          { id: "w1", key: "scriptDraft" as const, episodeId: "ch-f3-fresh", data: "# 已有剧本", createdAt: 100, updatedAt: 100 },
+          { id: "w2", key: "scriptDraftReview" as const, episodeId: "ch-f3-fresh", data: "🔴 台词超长", createdAt: 200, updatedAt: 200 },
         ]}
         saveAgentWorkData={vi.fn()}
         runStage={vi.fn()}
@@ -492,8 +493,8 @@ describe("ScriptTab", () => {
       <ScriptTab
         novelChapters={[chapter]}
         agentWorkData={[
-          { id: "w1", key: "scriptDraft", episodeId: "ch-f3-stale", data: "# 新版剧本", createdAt: 300, updatedAt: 300 },
-          { id: "w2", key: "scriptDraftReview", episodeId: "ch-f3-stale", data: "🔴 台词超长", createdAt: 100, updatedAt: 100 },
+          { id: "w1", key: "scriptDraft" as const, episodeId: "ch-f3-stale", data: "# 新版剧本", createdAt: 300, updatedAt: 300 },
+          { id: "w2", key: "scriptDraftReview" as const, episodeId: "ch-f3-stale", data: "🔴 台词超长", createdAt: 100, updatedAt: 100 },
         ]}
         saveAgentWorkData={vi.fn()}
         runStage={vi.fn()}
@@ -827,5 +828,131 @@ describe("组装期占位串防线(G5)", () => {
     expect(runStageMock).toHaveBeenCalledWith("scriptDraft", chapter, undefined, {
       useReviewFeedback: false,
     });
+  });
+});
+
+// ── A批(10-14-audit4-residuals)R1/R5/R12 ─────────────────────────────────
+// R1:切章装载期间给出「装载中」状态并禁用生成/审核/可编辑(此前只看 scriptStreaming,
+//     装载窗口内旧章数据可被生成/编辑)。
+// R5:人工改审(审核结果编辑器保存)与 AI 审核同口径——saveAgentWorkData 附
+//     reviewTarget=被审剧本条目指纹(id+updatedAt),isReviewFresh 版本比对真源。
+// R12/D7:章内最新条目按 updatedAt 口径取(workflow-helpers latestScriptDraftEntry
+//     单源),不再按数组序 reverse().find。
+describe("切章装载中禁用与章内最新条目口径(A批 R1/R5/R12)", () => {
+  const chapter = { id: "ch-a", index: 1, title: "第一章", sourceText: "正文……", sourceId: "src-a", revision: 2, importedAt: 1 };
+  const draft = { id: "w-draft", key: "scriptDraft" as const, episodeId: "ch-a", data: "# 当前剧本", createdAt: 10, updatedAt: 100 };
+  const review = { id: "w-review", key: "scriptDraftReview" as const, episodeId: "ch-a", data: "# 旧审核", createdAt: 20, updatedAt: 200 };
+
+  type ScriptTabTestProps = ComponentProps<typeof ScriptTab>;
+  const makeProps = (overrides: Partial<ScriptTabTestProps> = {}): ScriptTabTestProps => ({
+    novelChapters: [chapter],
+    agentWorkData: [draft, review],
+    saveAgentWorkData: vi.fn(),
+    runStage: vi.fn(),
+    runReview: vi.fn(),
+    manualContext: "",
+    directorContext: "",
+    styleSummary: "",
+    scriptStreaming: null,
+    ...overrides,
+  });
+
+  const detailPanel = () =>
+    document.querySelector("section.script-stage-detail-panel") as HTMLElement;
+
+  afterEach(() => {
+    useStudioStore.setState({ activeChapterId: null });
+  });
+
+  it("R1 装载中:显示装载中状态,一键生成/审核/可编辑禁用", () => {
+    useStudioStore.setState({ activeChapterId: "ch-a", chapterSwitchLoading: true });
+    render(<ScriptTab {...makeProps()} />);
+
+    // 装载中状态可见(status live region)
+    expect(screen.getByTestId("chapter-switch-loading")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+    // 一键生成动作钮(aria-label 唯一)
+    const generateBtn = screen.getByRole(
+      "button",
+      { name: "一键生成：按改编模式重新生成(不走修订)" },
+    ) as HTMLButtonElement;
+    expect(generateBtn.disabled).toBe(true);
+    // 产出「可编辑」(装载前有产出=可用,装载窗口必须禁用)
+    const outputEdit = within(detailPanel()).getByRole("button", { name: "可编辑" }) as HTMLButtonElement;
+    expect(outputEdit.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "审核" }));
+    // 审核动作钮与控制页签同名——动作钮在 detail panel 内
+    const reviewBtn = within(detailPanel()).getByRole("button", { name: "审核" }) as HTMLButtonElement;
+    expect(reviewBtn.disabled).toBe(true);
+    const reviewEdit = within(detailPanel()).getByRole("button", { name: "可编辑" }) as HTMLButtonElement;
+    expect(reviewEdit.disabled).toBe(true);
+  });
+
+  it("R1 装载完成(标志位 false):同批按钮恢复可用,不恒禁用", () => {
+    useStudioStore.setState({ activeChapterId: "ch-a", chapterSwitchLoading: false });
+    render(<ScriptTab {...makeProps()} />);
+
+    expect(screen.queryByTestId("chapter-switch-loading")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+    const generateBtn = screen.getByRole(
+      "button",
+      { name: "一键生成：按改编模式重新生成(不走修订)" },
+    ) as HTMLButtonElement;
+    expect(generateBtn.disabled).toBe(false);
+    const outputEdit = within(detailPanel()).getByRole("button", { name: "可编辑" }) as HTMLButtonElement;
+    expect(outputEdit.disabled).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "审核" }));
+    const reviewBtn = within(detailPanel()).getByRole("button", { name: "审核" }) as HTMLButtonElement;
+    expect(reviewBtn.disabled).toBe(false);
+    const reviewEdit = within(detailPanel()).getByRole("button", { name: "可编辑" }) as HTMLButtonElement;
+    expect(reviewEdit.disabled).toBe(false);
+  });
+
+  it("R5 人工改审保存:saveAgentWorkData 附 reviewTarget=被审剧本条目 id+updatedAt", () => {
+    const saveMock = vi.fn();
+    useStudioStore.setState({ activeChapterId: "ch-a" });
+    render(<ScriptTab {...makeProps({ saveAgentWorkData: saveMock })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "审核" }));
+    fireEvent.click(within(detailPanel()).getByRole("button", { name: "可编辑" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    expect(saveMock).toHaveBeenCalledWith(
+      "scriptDraftReview",
+      "# 旧审核",
+      "ch-a",
+      expect.objectContaining({
+        sourceId: chapter.sourceId,
+        revision: chapter.revision,
+        reviewTarget: { entryId: "w-draft", updatedAt: 100 },
+      }),
+    );
+  });
+
+  it("R12/D7 产出与审核取章内最新条目按 updatedAt 口径,不按数组序", () => {
+    const newerDraft = { id: "w-new", key: "scriptDraft" as const, episodeId: "ch-a", data: "# 新稿正文", createdAt: 2, updatedAt: 200 };
+    const olderDraft = { id: "w-old", key: "scriptDraft" as const, episodeId: "ch-a", data: "# 旧稿正文", createdAt: 1, updatedAt: 100 };
+    const newerReview = { id: "r-new", key: "scriptDraftReview" as const, episodeId: "ch-a", data: "# 新审核", createdAt: 4, updatedAt: 400 };
+    const olderReview = { id: "r-old", key: "scriptDraftReview" as const, episodeId: "ch-a", data: "# 旧审核", createdAt: 3, updatedAt: 300 };
+    useStudioStore.setState({ activeChapterId: "ch-a" });
+    // 数组序:新条目在前、旧条目在后——reverse().find 会取旧条目(RED 本体)
+    render(
+      <ScriptTab
+        {...makeProps({ agentWorkData: [newerDraft, olderDraft, newerReview, olderReview] })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "一键生成" }));
+    const generateTexts = screen.getAllByTestId("md-preview").map((node) => node.textContent);
+    expect(generateTexts).toContain("# 新稿正文");
+
+    fireEvent.click(screen.getByRole("button", { name: "审核" }));
+    const reviewTexts = screen.getAllByTestId("md-preview").map((node) => node.textContent);
+    expect(reviewTexts).toContain("# 新审核");
   });
 });

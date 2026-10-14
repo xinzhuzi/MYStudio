@@ -536,6 +536,45 @@ describe("useScriptStageActions 组装期并发锁(G2)", () => {
     // 生成+审核交叉同锁:全程只 1 路 AI 请求(现实现两路都放行 → 红)
     expect(textStreamMock).toHaveBeenCalledTimes(1);
   });
+
+  // R4(10-14-audit4-residuals A批,保绿锁:8d280bdc finally 必释放已落=缺覆盖非缺行为,
+  // 直绿+突变验证):组装失败(档案检索失败)早退路径——不发 AI 请求、失败明示、
+  // 锁必释放(第二击立即可发起),防「组装失败把互斥锁带进坟墓」。
+  it("组装失败(档案检索失败)早退:不发请求+失败明示+锁必释放可立即再发起(R4)", async () => {
+    const { toast } = await import("sonner");
+    // toast mock 为模块级单例(G4 同款):清零后「无互斥拒绝 toast」断言只看本用例调用
+    vi.mocked(toast.error).mockClear();
+    // 组装失败:档案检索返回失败 → buildStageMessagesFull ok:false → 早退(不进 textStream)
+    vi.mocked(readSourceMemoryActionContext).mockResolvedValue({
+      success: false,
+      code: "resident-memory-too-large",
+      error: "档案检索失败",
+    });
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.handleScriptStage("scriptDraft", chapter);
+    });
+
+    // 早退不发 AI 请求 + 失败 toast 明示
+    expect(textStreamMock).not.toHaveBeenCalled();
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith("档案检索失败");
+
+    // 锁必释放实证:修复档案后第二击立即放行(锁未被首击早退带进坟墓)
+    vi.mocked(readSourceMemoryActionContext).mockResolvedValue({
+      success: true,
+      context: "BIBLE",
+      archiveStatus: "available",
+    });
+    await act(async () => {
+      await result.current.handleScriptStage("scriptDraft", chapter);
+    });
+    expect(textStreamMock).toHaveBeenCalledTimes(1);
+    // 无互斥拒绝 toast(锁若未释放,第二击会加弹「正在生成/审核中，请等待完成后再试」)
+    expect(vi.mocked(toast.error)).not.toHaveBeenCalledWith(
+      expect.stringContaining("正在生成/审核中"),
+    );
+  });
 });
 
 describe("useScriptStageActions 空输出不落库(G4)", () => {
@@ -650,5 +689,59 @@ describe("原创章集序注入(H9 rider1)", () => {
     // method_story_development.md:13「按总集数 N 确定本集坐标」——原创章方法文档运行所需的本集
     // 坐标(k/N)必须随请求注入;现实现恒缺位 → 红
     expect(lastUserMessage()).toContain("本集序号：2/2");
+  });
+});
+
+// ── C批 R12 拷问补刀(10-15):prd :19 点名 useScriptStageActions.ts:105-111 的
+// .reverse().find 未在 C 批落地(主代理 blocking 令本批补刀)——latestScriptStageEntry
+// 委托 workflow-helpers latestAgentWorkEntry 单源后,消费点 :267(本章稿)/:300(上一集稿)/
+// :405(审核主体)全部随之一口径;数组序≠updatedAt 序时不再拿旧稿。
+describe("useScriptStageActions 章内最新稿按 updatedAt 单口径(C批 R12 拷问补刀)", () => {
+  beforeEach(() => {
+    textStreamMock.mockReset();
+    saveAgentWorkDataMock.mockReset();
+    textStreamMock.mockResolvedValue({ success: true, text: "剧本产出" });
+  });
+
+  it("上一集剧本取前章最新稿按 updatedAt,不按数组序(R12)", async () => {
+    const prevChapter = { ...chapter, id: "ch0", index: 0 };
+    const targetChapter = { ...chapter, index: 1 };
+    // 数组序:新稿在前、旧稿在后——reverse().find 取旧稿(RED 本体)
+    const newerPrevDraft = { id: "w-prev-new", key: "scriptDraft" as const, episodeId: "ch0", data: "# 新版上一集剧本", createdAt: 2, updatedAt: 200 };
+    const olderPrevDraft = { id: "w-prev-old", key: "scriptDraft" as const, episodeId: "ch0", data: "# 旧版上一集剧本", createdAt: 1, updatedAt: 100 };
+    const { result } = renderHook(() =>
+      useScriptStageActions({
+        workflowConfig: {} as never,
+        manualCatalog: {} as never,
+        projectName: "测试项目",
+        novelChapterCount: 2,
+        novelChapters: [prevChapter, targetChapter],
+        agentWorkData: [newerPrevDraft, olderPrevDraft] as never,
+        saveAgentWorkData: saveAgentWorkDataMock as never,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.handleScriptStage("scriptDraft", targetChapter);
+    });
+
+    const userMessage = lastUserMessage();
+    expect(userMessage).toContain("## 上一集剧本");
+    expect(userMessage).toContain("# 新版上一集剧本");
+    expect(userMessage).not.toContain("# 旧版上一集剧本");
+  });
+
+  it("审核主体取本章最新稿按 updatedAt,不按数组序(R12)", async () => {
+    const newerDraft = { id: "w-new", key: "scriptDraft" as const, episodeId: "ch1", data: "# 新版本章剧本", createdAt: 2, updatedAt: 200 };
+    const olderDraft = { id: "w-old", key: "scriptDraft" as const, episodeId: "ch1", data: "# 旧版本章剧本", createdAt: 1, updatedAt: 100 };
+    const { result } = renderActionsWithWorkData([newerDraft, olderDraft]);
+
+    await act(async () => {
+      await result.current.handleStageReview("scriptDraft", chapter);
+    });
+
+    const userMessage = lastUserMessage();
+    expect(userMessage).toContain("剧本（审核主体）：\n# 新版本章剧本");
+    expect(userMessage).not.toContain("# 旧版本章剧本");
   });
 });

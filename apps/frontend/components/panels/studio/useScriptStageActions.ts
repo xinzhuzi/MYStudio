@@ -11,6 +11,7 @@ import {
   type ReviewableStage,
   type ScriptStageKey,
 } from "@/lib/studio/script-planning";
+import { latestAgentWorkEntry } from "./workflow-helpers";
 import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import {
   analyzeScriptDraft,
@@ -110,12 +111,14 @@ export function useScriptStageActions({
     [workflowConfig, manualCatalog],
   );
 
-  /** 最新阶段条目(整条,含 createdAt)——F3 审核时效判定需要条目时间戳。 */
+  /** 最新阶段条目(整条,含 createdAt)——F3 审核时效判定需要条目时间戳。
+   * R12/D7(C批拷问补刀 10-15):委托 workflow-helpers latestAgentWorkEntry 单源——
+   * 原本地 [...agentWorkData].reverse().find 数组序口径与 prd R12 剧本侧单口径相悖,
+   * 数组序≠updatedAt 序时本章稿(:267)/上一集稿(:300)/审核主体(:405)会拿旧稿;
+   * 平局取数组序靠后=与旧 reverse().find 真逐位一致,除双口径 bug 本身外零行为漂移。 */
   const latestScriptStageEntry = useCallback(
     (key: AgentWorkKey, scopeId: string) =>
-      [...agentWorkData]
-        .reverse()
-        .find((item) => item.key === key && item.episodeId === scopeId),
+      latestAgentWorkEntry(agentWorkData, key, scopeId),
     [agentWorkData],
   );
 
@@ -446,9 +449,12 @@ export function useScriptStageActions({
           label: `${SCRIPT_STAGE_LABEL[stage]}审核`,
           sourceId: chapter.sourceId ?? chapter.id,
           revision: chapter.revision ?? 1,
-          reviewTarget: targetEntry
-            ? { entryId: targetEntry.id, updatedAt: targetEntry.updatedAt }
-            : undefined,
+          // R12 拷问补刀随迁:latestAgentWorkEntry 快照形态 id 可选,无 id 不附着指纹
+          // (回落 createdAt 时间比较=旧数据语义,与 ScriptTab 人工改审保存同守卫)
+          reviewTarget:
+            targetEntry?.id && typeof targetEntry.updatedAt === "number"
+              ? { entryId: targetEntry.id, updatedAt: targetEntry.updatedAt }
+              : undefined,
         });
       } finally {
         // G2:同 handleScriptStage——早退/异常路径幂等兜底释放

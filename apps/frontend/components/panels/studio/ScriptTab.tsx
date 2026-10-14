@@ -23,6 +23,7 @@ import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
+import { latestAgentWorkEntry } from "./workflow-helpers";
 
 
 export function ScriptTab(props: {
@@ -57,6 +58,9 @@ export function ScriptTab(props: {
   // (switchChapter 装载完成后才原子翻转,UI 选中的章恒为已装载章);空/不在 novelChapters 时
   // 回退第一本(与现行初始化行为等价)
   const activeChapterId = useStudioStore((state) => state.activeChapterId);
+  // R1（A批）：切章装载中标志（store 瞬态位）——装载窗口内生成/审核/可编辑禁用+装载中
+  // 状态自释，防对尚未装载完成的工作区照旧章数据生成/编辑
+  const chapterSwitchLoading = useStudioStore((state) => state.chapterSwitchLoading);
   const theme = useThemeStore((state) => state.theme);
   const [activeStage, setActiveStage] =
     useState<ScriptStageKey>("scriptDraft");
@@ -79,11 +83,13 @@ export function ScriptTab(props: {
     setUserDraft(undefined);
   }, [chapterId, activeStage]);
 
+  // R12/D7（A批）：章内最新条目按 updatedAt 口径取，不再按数组序 reverse().find——
+  // 单源=workflow-helpers latestAgentWorkEntry（C 批 R12 落地的通用 per-key 选择器，
+  // prd R12 点名的 latestScriptDraftEntry 亦委托它）；scriptDraft 与 scriptDraftReview
+  // 同走一口径，数组序≠updatedAt 序时不再各说各话，平局取数组序靠后=与旧 reverse().find 真逐位一致。
   const stageData = (key: AgentWorkKey) =>
     chapter
-      ? [...props.agentWorkData]
-          .reverse()
-          .find((item) => item.key === key && item.episodeId === chapter.id)
+      ? latestAgentWorkEntry(props.agentWorkData, key, chapter.id)
       : undefined;
 
   const reviewKey = SCRIPT_STAGE_REVIEW_KEY[activeStage as ReviewableStage];
@@ -349,6 +355,16 @@ export function ScriptTab(props: {
             </option>
           ))}
         </select>
+        {/* R1（A批）：切章装载中状态自释（polite live region）——同窗口生成/审核/可编辑禁用 */}
+        {chapterSwitchLoading ? (
+          <span
+            data-testid="chapter-switch-loading"
+            role="status"
+            className="text-xs text-muted-foreground"
+          >
+            章节装载中…
+          </span>
+        ) : null}
       </div>
     </div>
           <div className="script-stage-control-tabs flex flex-wrap gap-2 border-b border-border pb-2">
@@ -396,11 +412,14 @@ export function ScriptTab(props: {
                     size="sm"
                     variant="secondary"
                     className="shrink-0"
-                    disabled={promptNotReady}
+                    // R1（A批）：装载窗口同禁（防对未装载完成的工作区编辑）
+                    disabled={promptNotReady || chapterSwitchLoading}
                     title={
-                      promptNotReady
-                        ? "完整提示词未就绪（组装中或组装失败回退本地降级版），暂不可编辑"
-                        : undefined
+                      chapterSwitchLoading
+                        ? "章节装载中，暂不可编辑"
+                        : promptNotReady
+                          ? "完整提示词未就绪（组装中或组装失败回退本地降级版），暂不可编辑"
+                          : undefined
                     }
                     onClick={() =>
                       setEditor({
@@ -422,7 +441,8 @@ export function ScriptTab(props: {
                   <Button
                     size="sm"
                     variant="secondary"
-                    disabled={!output}
+                    // R1（A批）：装载窗口同禁
+                    disabled={!output || chapterSwitchLoading}
                     onClick={() => setEditor({ target: "output", value: output })}
                   >
                     <Edit3 className="h-4 w-4" />
@@ -433,7 +453,8 @@ export function ScriptTab(props: {
                     variant="paid"
                     aria-label="一键生成：按改编模式重新生成(不走修订)"
                     title="按改编模式重新生成(不走修订)"
-                    disabled={!chapter || props.scriptStreaming !== null}
+                    // R1（A批）：装载窗口禁用（此前只看 scriptStreaming，切章装载期可照旧章数据生成）
+                    disabled={!chapter || props.scriptStreaming !== null || chapterSwitchLoading}
                     onClick={() =>
                       chapter &&
                       props.runStage(
@@ -455,10 +476,12 @@ export function ScriptTab(props: {
                     variant="paid"
                     // F3:仅当「针对当前版本的审核含未修复问题」(reviseMode)时可用——
                     // 旧审核(早于最新剧本)不驱动修订,入口禁用即不实发
+                    // R1（A批）：装载窗口同禁
                     disabled={
                       !chapter ||
                       !reviseMode ||
-                      props.scriptStreaming !== null
+                      props.scriptStreaming !== null ||
+                      chapterSwitchLoading
                     }
                     onClick={() =>
                       chapter &&
@@ -505,7 +528,8 @@ export function ScriptTab(props: {
                   <Button
                     size="sm"
                     variant="secondary"
-                    disabled={!reviewData}
+                    // R1（A批）：装载窗口同禁
+                    disabled={!reviewData || chapterSwitchLoading}
                     onClick={() =>
                       setEditor({ target: "review", value: reviewData ?? "" })
                     }
@@ -516,7 +540,8 @@ export function ScriptTab(props: {
                   <Button
                     size="sm"
                     variant="paid"
-                    disabled={!chapter || !output || props.scriptStreaming !== null}
+                    // R1（A批）：装载窗口禁用（此前只看 scriptStreaming）
+                    disabled={!chapter || !output || props.scriptStreaming !== null || chapterSwitchLoading}
                     onClick={() =>
                       chapter &&
                       props.runReview(activeStage as ReviewableStage, chapter)
@@ -560,11 +585,23 @@ export function ScriptTab(props: {
                     revision: chapter.revision ?? 1,
                   });
               } else if (editor.target === "review") {
-                if (chapter && reviewKey)
+                if (chapter && reviewKey) {
+                  // R5（G3 裁定⑤收口，A批）：人工改审与 AI 审核同口径——保存时点捕获
+                  // 被审剧本条目指纹（id+updatedAt），isReviewFresh 版本比对真源；
+                  // 无剧本条目不附着（回落 createdAt 时间比较=旧数据语义）
+                  const reviewTargetEntry = stageData("scriptDraft");
                   props.saveAgentWorkData(reviewKey, editor.value, chapter.id, {
                     sourceId: chapter.sourceId ?? chapter.id,
                     revision: chapter.revision ?? 1,
+                    reviewTarget:
+                      reviewTargetEntry?.id && typeof reviewTargetEntry.updatedAt === "number"
+                        ? {
+                            entryId: reviewTargetEntry.id,
+                            updatedAt: reviewTargetEntry.updatedAt,
+                          }
+                        : undefined,
                   });
+                }
               } else {
                 // G5 防线二:占位串/本地降级版(standardMessages.user=完整组装失败回退产物,
                 // PRD G5「或本地降级版」)都不固化为 userDraft(编辑器在未就绪窗口打开的残留场景);

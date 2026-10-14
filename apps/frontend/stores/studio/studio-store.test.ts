@@ -7,6 +7,10 @@ import {
   setGeneratedImageResult,
 } from "@/lib/studio/image-workflow";
 import { useProjectStore } from "@/stores/project/project-store";
+import {
+  mergeStudioWorkflowShards,
+  planStudioWorkflowShards,
+} from "@/lib/storage/studio-workflow-shards";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useSceneStore } from "@/stores/library/scene-store";
@@ -31,6 +35,13 @@ vi.mock("@/lib/storage/project-storage", async (importOriginal) => {
     loadStudioChapterWorkspace: loadStudioChapterWorkspaceMock,
   };
 });
+
+// A批(10-14-audit4-residuals)R2:装载失败 toast 断言用——sonner 全 mock,免 jsdom 渲染依赖
+const toastErrorMock = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: { error: toastErrorMock, success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}));
 
 afterEach(() => {
   useStudioStore.getState().resetStudioWorkflow();
@@ -1592,5 +1603,175 @@ describe("switchChapter 章工作区装载(G1)", () => {
     const state = useStudioStore.getState();
     expect(state.activeChapterId).toBe("ch3");
     expect(state.novelChapters.find((chapter) => chapter.id === "ch2")?.sourceText).toBeUndefined();
+  });
+});
+
+// ── A批(10-14-audit4-residuals)R2/R3 ──────────────────────────────────────
+// R2:装载失败不得静默回退无正文索引条目(会被误判「原创」照常组装)——fail-closed:
+// toast 明示+保持在原章。
+// R3:switchChapter 的 state 快照早于两次 await,装载完成后整体覆盖会把装载期写入
+// (旧章字段更新/目标章中途保存)回滚——改为装载完成后基于最新 state 按字段合并。
+describe("switchChapter 装载失败与装载期写入(A批 R2/R3)", () => {
+  const pid = "proj-r23";
+  const ch1Full: NovelChapter = { id: "ch1", index: 1, title: "第1章 雨夜", sourceText: "前集正文", importedAt: 1 };
+  const ch2Light: NovelChapter = { id: "ch2", index: 2, title: "第2章 塾馆", importedAt: 2 };
+  const ch2Full: NovelChapter = { id: "ch2", index: 2, title: "第2章 塾馆", sourceText: "本章正文", importedAt: 2 };
+  const ch2Draft: AgentWorkData = {
+    id: "w-ch2-draft",
+    key: "scriptDraft",
+    episodeId: "ch2",
+    data: "# 第2章剧本",
+    createdAt: 2,
+    updatedAt: 2,
+  };
+  const chapterWorkspaces: Record<string, { novelChapter: unknown; domains: Record<string, unknown[]> }> = {
+    [`${pid}/ch2`]: { novelChapter: ch2Full, domains: { agentWorkData: [ch2Draft] } },
+  };
+  let originalPid: string | null = null;
+
+  beforeEach(() => {
+    originalPid = useProjectStore.getState().activeProjectId;
+    useProjectStore.setState({ activeProjectId: pid });
+    loadStudioChapterWorkspaceMock.mockImplementation((p: string, chapterId: string) =>
+      Promise.resolve(chapterWorkspaces[`${p}/${chapterId}`] ?? null),
+    );
+    toastErrorMock.mockClear();
+  });
+
+  afterEach(() => {
+    loadStudioChapterWorkspaceMock.mockReset();
+    useProjectStore.setState({ activeProjectId: originalPid });
+  });
+
+  function presetWindow() {
+    // 现实装载前态:ch1 为激活章,ch2 为轻索引项(无正文)
+    useStudioStore.setState({
+      novelChapters: [ch1Full, ch2Light],
+      activeChapterId: "ch1",
+      agentWorkData: [],
+    });
+  }
+
+  it("R2 装载失败:toast 明示+保持在原章,不把无正文索引条目扶正成激活章", async () => {
+    presetWindow();
+    loadStudioChapterWorkspaceMock.mockImplementation(() =>
+      Promise.reject(new Error("分片库 I/O 失败")),
+    );
+
+    await useStudioStore.getState().switchChapter("ch2");
+
+    // 失败必 toast(明示错误,不静默 warn 后照常)
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining("章节工作区装载失败"),
+    );
+    // fail-closed:保持在原章(不得翻转激活章)
+    expect(useStudioStore.getState().activeChapterId).toBe("ch1");
+    // 不回退:ch2 仍是无正文轻索引条目,未被我扶正为激活工作区
+    expect(
+      useStudioStore.getState().novelChapters.find((chapter) => chapter.id === "ch2")?.sourceText,
+    ).toBeUndefined();
+  });
+
+  it("R3 装载期写入章列表:旧章字段更新不被过期快照回滚", async () => {
+    presetWindow();
+    // defer 只挂首次(目标章)装载:前章并入段(G1 §1.3)也调装载器,不能同样悬死(T4 同款)
+    let deferNextLoad = true;
+    let releaseLoad!: (value: { novelChapter: unknown; domains: Record<string, unknown[]> } | null) => void;
+    loadStudioChapterWorkspaceMock.mockImplementation((p: string, chapterId: string) => {
+      if (deferNextLoad) {
+        deferNextLoad = false;
+        return new Promise((resolve) => {
+          releaseLoad = resolve;
+        });
+      }
+      return Promise.resolve(chapterWorkspaces[`${p}/${chapterId}`] ?? null);
+    });
+
+    const switching = useStudioStore.getState().switchChapter("ch2");
+    // 装载悬停期写入:改旧章章名(novelChapters 域,非 sourceText)
+    useStudioStore.getState().updateNovelChapter("ch1", { title: "第1章 雨夜·改" });
+    releaseLoad(chapterWorkspaces[`${pid}/ch2`]!);
+    await switching;
+
+    const state = useStudioStore.getState();
+    // 切章本身照常完成
+    expect(state.activeChapterId).toBe("ch2");
+    expect(state.novelChapters.find((chapter) => chapter.id === "ch2")?.sourceText).toBe("本章正文");
+    // 装载期写入不丢:过期快照会把章名回滚成「第1章 雨夜」(RED 本体)
+    expect(state.novelChapters.find((chapter) => chapter.id === "ch1")?.title).toBe("第1章 雨夜·改");
+  });
+
+  it("R3 装载期写入目标章域:中途保存的 agentWorkData 条目不丢", async () => {
+    presetWindow();
+    // defer 只挂首次(目标章)装载:前章并入段也调装载器,不能同样悬死(T4 同款)
+    let deferNextLoad = true;
+    let releaseLoad!: (value: { novelChapter: unknown; domains: Record<string, unknown[]> } | null) => void;
+    loadStudioChapterWorkspaceMock.mockImplementation((p: string, chapterId: string) => {
+      if (deferNextLoad) {
+        deferNextLoad = false;
+        return new Promise((resolve) => {
+          releaseLoad = resolve;
+        });
+      }
+      return Promise.resolve(chapterWorkspaces[`${p}/${chapterId}`] ?? null);
+    });
+
+    const switching = useStudioStore.getState().switchChapter("ch2");
+    // 装载悬停期写入:对目标章 ch2 保存一条 scriptDraft(分片读像里没有的新条目)
+    const midLoadId = useStudioStore
+      .getState()
+      .saveAgentWorkData("scriptDraft", "# ch2 中途稿", "ch2");
+    releaseLoad(chapterWorkspaces[`${pid}/ch2`]!);
+    await switching;
+
+    const state = useStudioStore.getState();
+    expect(state.activeChapterId).toBe("ch2");
+    // 装载期写入不丢:整体覆盖(过期快照+分片读像)会把中途保存的条目挤掉(RED 本体)
+    expect(state.agentWorkData.some((item) => item.id === midLoadId)).toBe(true);
+    // 分片装载的既有条目照常入窗
+    expect(state.agentWorkData.some((item) => item.id === "w-ch2-draft")).toBe(true);
+  });
+
+  // R5 往返保留测试(保绿锁,拷问⑧:行为 G3 8d280bdc 已落=缺覆盖非缺行为,直绿+突变验证):
+  // 审核发起→slice 落库(reviewTarget 附着)→分片写→分片读,reviewTarget 必逐字保留——
+  // isReviewFresh 版本比对真源若在往返中丢失,审核时效判定静默回落时间比较(F3 类漂移)。
+  // 分片写/读用 setItem(:275 plan)与 loadStudioChapterWorkspace(:344 merge)同一对真身。
+  it("R5 往返锁:reviewTarget 经 slice 落库→分片写(plan)→分片读(merge)保留", () => {
+    useStudioStore.setState({
+      novelChapters: [ch1Full],
+      activeChapterId: "ch1",
+      agentWorkData: [],
+    });
+
+    // ① 被审剧本条目先落库(真实 slice,createdAt/updatedAt 由 slice 盖章)
+    const draftId = useStudioStore.getState().saveAgentWorkData("scriptDraft", "# 当前剧本", "ch1");
+    const draftEntry = useStudioStore
+      .getState()
+      .agentWorkData.find((item) => item.id === draftId);
+    expect(draftEntry).toBeTruthy();
+
+    // ② 人工改审保存:reviewTarget 附着被审剧本条目指纹(ScriptTab R5 修复腿同形态)
+    const reviewId = useStudioStore.getState().saveAgentWorkData(
+      "scriptDraftReview",
+      "# 人工改审意见",
+      "ch1",
+      {
+        sourceId: "ch1",
+        revision: 1,
+        reviewTarget: { entryId: draftId, updatedAt: draftEntry!.updatedAt },
+      },
+    );
+
+    // ③ 分片往返:zustand persist 信封(state+version,partialize 后形态)→ plan(写)→ merge(读)
+    const snapshot = JSON.parse(JSON.stringify(useStudioStore.getState())) as Record<string, unknown>;
+    const persistedJson = JSON.stringify({ state: snapshot, version: 11 });
+    const plan = planStudioWorkflowShards(persistedJson);
+    const merged = mergeStudioWorkflowShards(plan.files.map((file) => file.content));
+    const roundTripped = (merged.state.agentWorkData as AgentWorkData[]).find(
+      (item) => item.id === reviewId,
+    );
+
+    expect(roundTripped).toBeTruthy();
+    expect(roundTripped?.reviewTarget).toEqual({ entryId: draftId, updatedAt: draftEntry!.updatedAt });
   });
 });
