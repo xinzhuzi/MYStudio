@@ -451,6 +451,18 @@ def build_graph(args, seed):
             for v in e["inputs"].values():
                 if isinstance(v, list) and v[0] == "7:7024":
                     v[0] = "7:7012"
+    if args.empty_latent:  # 诊断探针覆写(不落盘,仅本弹执行图):[19]=true 走 [4] 空潜自定义画幅
+        ew, eh = args.empty_latent
+        # 发射前自检断言:双路接线必须原样(盘上契约锚 :4516/:4580 区的运行态镜像)
+        assert fl.g["20"]["inputs"]["switch"] == ["19", 0], \
+            f"[20].switch 应=[\"19\",0](画幅开关源 [19]),得 {fl.g['20']['inputs'].get('switch')}"
+        assert fl.g["20"]["inputs"]["on_true"] == ["4", 0], \
+            f"[20].on_true 应=[\"4\",0](EmptyLatentImage [4]),得 {fl.g['20']['inputs'].get('on_true')}"
+        fl.g["19"]["inputs"]["value"] = True
+        fl.g["4"]["inputs"]["width"] = ew
+        fl.g["4"]["inputs"]["height"] = eh
+        print(f"[fire] --empty-latent 探针在驾:[19].value=True [4].width/height={ew}×{eh}"
+              f"(仅本弹执行图,工作流零落盘)")
 
     print(f"[fire] 型={args.type} 档={tier} seed={seed} ref3={'on('+str(args.ref3)+')' if args.enable_ref3 else 'off(旁路)'}"
           f" anchor={'on' if args.enable_anchor else 'off(旁路)'}")
@@ -621,6 +633,9 @@ def main():
                     help="诊断探针:官方6步单段(σ表6点直连,摘段B/切分;鉴别段B是否alpha归零触发点)")
     ap.add_argument("--legacy6", action="store_true",
                     help="诊断探针:旧式 KSampler(simple 6步+合并式 LoRA)+双参考正源(E5:色彩修复归因)")
+    ap.add_argument("--empty-latent", nargs=2, type=int, default=None, metavar=("W", "H"),
+                    help="诊断探针:[19]=true 走 [4] 空潜自定义画幅 W×H(仅本弹执行图,工作流零落盘;"
+                         "契约锚 [19] 源默认 false/[20].on_true←[4] 盘上原样)")
     ap.add_argument("--seed", type=int, default=None,
                     help="首发固定种子;判黑/超时重抽恒 fresh random 禁复用判黑种子(黑/超时两形态同规)")
     ap.add_argument("--out", default=None)
