@@ -52,6 +52,7 @@ from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
 from . import bridge_settings_server as _bridge_settings_server
+from . import open_receipt_server as _open_receipt_server
 
 
 class MyPromptLegacy(MyPrompt):
@@ -113,6 +114,11 @@ _my_styles_server.install()
 # bridge 配置下发(0924 令牌随机化配套):漫影侧栏 web JS 经同源
 # /my_bridge/config 取装机随机令牌;install 同款自守卫纪律。
 _bridge_settings_server.install()
+
+# opener 收据通道(LF21 1015):画布 web JS 把 opener mode 结果 fire-and-
+# forget POST 给同源 /my_bridge/open_receipt;双层落盘 <comfy-home>/logs
+# JSONL + engine.log;install 同款自守卫纪律(失败绝不挡装载)。
+_open_receipt_server.install()
 
 NODE_CLASS_MAPPINGS = {
     "MyPrompt": MyPrompt,

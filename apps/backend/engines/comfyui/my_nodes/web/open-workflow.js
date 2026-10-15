@@ -8,6 +8,7 @@
  */
 
 import { resolveOpenWorkflowDecision, resolveEntryBinding } from "./open-workflow-decision.mjs";
+import { emitOpenReceipt } from "./open-receipt.mjs";
 
 const MY_STORE_BASE = "workflows/";
 
@@ -43,7 +44,7 @@ function mainlineTabMatcher(libraryPath) {
  * @param name 库内相对路径(含子目录与 .json)——兜底路径的命名与清扫锚点。
  * @param graph 库里还没有该文件时的兜底图内容(宿主生成器产物)。
  */
-async function openWorkflowSingleInstance({ name, graph }) {
+async function openWorkflowSingleInstanceInner({ name, graph }) {
   const app2 = window.app;
   const libraryPath = MY_STORE_BASE + name;
   const svc = app2?.extensionManager?.workflow;
@@ -138,6 +139,20 @@ async function openWorkflowSingleInstance({ name, graph }) {
   }
   await app2.loadGraphData(cloneGraph(graph), true, true, name);
   return { ok: true, mode: "named-temp" };
+}
+
+/** 1015 LF21 收据通道:await 内层→发射 mode 收据→原样 return。一处包裹
+ *  覆盖全部 7 个 mode 分支(含 no-app);fire-and-forget 同源 fetch 落引擎
+ *  侧 /my_bridge/open_receipt(双落盘 <comfy-home>/logs JSONL + engine.log,
+ *  见 open-receipt.mjs / open_receipt_server.py)。收据故障全吞(发射器
+ *  自身全容错),决策/装载语义零动;侧栏具名导入与宿主注入 window 锚
+ *  两条调用路都过本 wrapper。 */
+async function openWorkflowSingleInstance(args) {
+  const result = await openWorkflowSingleInstanceInner(args);
+  try {
+    emitOpenReceipt({ name: args?.name, mode: result?.mode, ok: result?.ok });
+  } catch (error) { /* 收据失败绝不咬打开主路 */ }
+  return result;
 }
 // ── 启动清扫器(09-15 协调档案:引擎 userdata 回写残留根治)─────────────
 // ComfyUI workflow store 的持久化索引(localStorage)残留旧主线索引时,标签
