@@ -1,7 +1,10 @@
 ---
 name: qwen-image-2-1-prompter
-description: Optimize, rewrite, and craft image generation and editing prompts tailored specifically for Alibaba's Qwen-Image-2.1 diffusion model. Use this skill whenever the user wants to generate images with Qwen 2.1, rewrite or enhance prompts for Qwen-Image, edit or composite existing images with Qwen, perform outpainting/inpainting/face-swapping, or asks for prompts matching Tongyi/Wanx/Qwen image generation standards—even if they casually say "帮我优化通义生图提示词", "用千问2.1出图", or "Qwen改图".
+description: Optimize, rewrite, and craft image generation and editing prompts tailored specifically for Alibaba's Qwen-Image-2.1 diffusion model. Use this skill whenever the user wants to generate images with Qwen 2.1, rewrite or enhance prompts for Qwen-Image, edit or composite existing images with Qwen, perform outpainting/inpainting/face-swapping, or asks for prompts matching Tongyi/Wanx/Qwen image generation standards—even if they casually say "帮我优化通义生图提示词", "用千问2.1出图", or "Qwen改图". 分流注:道劫(Daojie)十型主体句与图生图(i2i)指令写法=技能 `daojie-image-prompter`(真身=apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md);本技能管 Qwen-Image-2.1 通用线(非道劫底座)。
 ---
+
+
+> Daojie custom-chain override (2026-10-16): choose new asset / local edit / style transfer explicitly. Local edits use only operation and preservation instructions; style transfer adds the target drawing language. Source wear, blood, limb state and scene lighting take priority. Prompt length follows complexity; do not pad to the PE recipe. Use only viggle 9-step two-stage validation.
 
 # Qwen-Image-2.1 Prompt Optimizer
 
@@ -28,10 +31,10 @@ flowchart TD
 - **Trigger**: The user wants to generate a new image from scratch without reference images.
 - **Reference**: Read `references/t2i_rules.md` for the official 8-step framework and `references/cheat_sheet.md` for vocabulary.
 - **Golden Rules**:
-  1. **Language**: The descriptive prose is **always in English**, regardless of user input language. Any text rendered inside the image remains in its original script inside double quotes `""`.
+  1. **Language**: When reproducing the **official PE-T2I recipe**, descriptive prose is English. For direct prompts and the Daojie custom chain, follow the user language (Chinese is supported). Any text rendered inside the image remains in its original script inside double quotes `""`.
   2. **Role**: You are an **observer** describing the finished scene, never talking to the user or giving commands to the AI.
   3. **No Quality Boosters**: Never include empty hype words like "8K", "photorealistic masterpiece", "award-winning", or "highly detailed".
-  4. **Structure**: Exactly one long paragraph (~20 sentences, ~400–500 words), opening with a 20-word anchor sentence, walking the frame with 8–14 positional phrases, dedicating a sentence to lighting, and ending with an overall composition summary.
+  4. **Structure**: For the official PE-T2I recipe only: one long paragraph (~20 sentences, ~400–500 words), opening with a 20-word anchor sentence, walking the frame with 8–14 positional phrases, dedicating a sentence to lighting, and ending with an overall composition summary.
   5. **Aspect Ratio**: Stored in `wh_ratio` (`3:2`, `2:3`, `1:1`, `16:9`, `9:16`, etc.). Never write the ratio or pixel numbers into the prompt text itself.
 
 ### Mode 2: Image Edit & Multi-Image Compositing (Edit)

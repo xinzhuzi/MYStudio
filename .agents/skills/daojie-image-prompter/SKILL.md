@@ -1,0 +1,1 @@
+../../../apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md

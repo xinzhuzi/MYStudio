@@ -74,4 +74,7 @@ export const STUDIO_VISUAL_MANUAL_MODULES: StudioVisualManualModuleDefinition[] 
   { label: "分镜视频", value: "art_storyboard_video", relativePath: "art_prompt/art_storyboard_video.md" },
   { label: "技法-导演规划", value: "director_planning_style", relativePath: "driector_skills/director_planning_style.md" },
   { label: "技法-分镜表设计", value: "director_storyboard_table_style", relativePath: "driector_skills/director_storyboard_table_style.md" },
+  // 1016 收尾轮:道劫十型主体句手册(写法单一入口,兼 daojie-image-prompter 技能真身)入模块面——
+  // 表外文件在 App 模块 UI 不可见(readVisualManualModules 严格按本表读),故必须登记。
+  { label: "十型主体句", value: "art_subject_ten_types", relativePath: "art_prompt/art_subject_ten_types.md" },
 ];

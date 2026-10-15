@@ -57,6 +57,8 @@ const visualModuleKeys = [
   "art_storyboard_video",
   "director_planning_style",
   "director_storyboard_table_style",
+  // 1016 收尾轮:与 STUDIO_VISUAL_MANUAL_MODULES 同构登记(见 types/studio-visual-manual.ts)
+  "art_subject_ten_types",
 ] as const;
 
 const directorModuleKeys = [
@@ -338,6 +340,7 @@ function findVisualModuleRelativePath(key: string) {
     art_storyboard_video: "art_prompt/art_storyboard_video.md",
     director_planning_style: "driector_skills/director_planning_style.md",
     director_storyboard_table_style: "driector_skills/director_storyboard_table_style.md",
+    art_subject_ten_types: "art_prompt/art_subject_ten_types.md",
   };
   return mapping[key];
 }

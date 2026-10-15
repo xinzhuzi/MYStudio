@@ -58,8 +58,9 @@ i2i 或 multiref;**保构图换细节走本件**。
 
 ### 三步用法
 1. [10] 换底图(人物/场景/既有成图均可);
-2. [4010] 选型(十选一,默认①人物;型文底座照常参与,画面结构仍以底图为准);
+2. [4010] 选型(十一选一,默认①人物;型文底座照常参与,画面结构仍以底图为准);
 3. [400] 写精修指令(描述性,默认例句可直接跑)→ 队列。
+写法指路:精修指令=短句直写(不经 09 五段模板);写法总入口=仓库手册 `apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md`(§0.4 图生图两路分野;起草/改写亦唤技能 daojie-image-prompter)。
 
 ### denoise 档位([7] KSampler 末位 widget,默认 0.6)
 | 档位 | 效果 |
@@ -141,7 +142,7 @@ def main() -> None:
     take(top(i2i, 16), 16, "[16] 画布预缩·Scale", [1440, 240])
     n400 = take(top(i2i, 400), 400, "[400] 精修指令·主体句", [820, 640])
     n400["widgets_values"] = [INSTRUCTION]
-    n4010 = take(sg6(i2i, 4010), 4010, "[4010] 底座十选一·自研", [820, 900])
+    n4010 = take(sg6(i2i, 4010), 4010, "[4010] 底座十一选一·自研", [820, 900])
     n4011 = take(sg6(i2i, 4011), 4011, "[4011] 底料拼合·自研", [1480, 760])
     w = n4011["widgets_values"]
     assert isinstance(w, list) and len(w) == 2, f"asm wv 结构漂移:{w!r}"
