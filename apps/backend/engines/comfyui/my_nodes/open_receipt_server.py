@@ -34,6 +34,20 @@ _logs_dir = None
 RECEIPT_TAG = "[MY开单]"
 ROUTE_PATH = "/my_bridge/open_receipt"
 
+# 节流(LF23 用户令「opener 收据节流」):连续同款 (mode,name,ok=True) 收据=
+# 保鲜链 tick 语义(约 12 条/分钟),非信息——静默计数不落盘;mode/name 变化、
+# ok 非 True(失败/未知)恒落盘,信号永不丢;引擎重启天然清零(重启后首条恒落盘)。
+# suppressed 计数在下一条落盘收据兑现:JSONL "suppressed" 字段+stdout 行「节流×N」尾注。
+_last_receipt_key = None
+_suppressed_since = 0
+
+
+def _reset_throttle_state() -> None:
+    """复位节流状态(测试隔离用;生产勿调——引擎重启天然清零)。"""
+    global _last_receipt_key, _suppressed_since
+    _last_receipt_key = None
+    _suppressed_since = 0
+
 # 洪水闸:单字段截断上限(收据字段本就该短;防同源脚本灌日志)
 _MAX_MODE = 64
 _MAX_NAME = 512
@@ -90,11 +104,27 @@ def receipt_print_line(payload: dict) -> str:
     )
 
 
-def append_receipt(payload: dict, logs_dir=None):
+def append_receipt(payload: dict, logs_dir=None, throttle: bool = True):
     """收据落盘:stdout 行 + JSONL 追加(<logs>/open-receipts-YYYYMMDD.log)。
-    返回写入路径;任何失败静默 None(stdout 已留一份,绝不向上抛)。"""
+    节流(默认开):连续同款 (mode,name,ok=True) 静默计数不落盘;mode/name 变化
+    或 ok 非 True 恒落盘,落盘收据带 suppressed 计数字段(stdout 行带「节流×N」
+    尾注)。返回写入路径;节流静默返回 None;任何失败静默 None(stdout 已留一份,
+    绝不向上抛)。throttle=False 旁路(测试/运维直写)。"""
+    global _last_receipt_key, _suppressed_since
     try:
-        print(receipt_print_line(payload), flush=True)
+        key = (payload.get("mode"), payload.get("name"), payload.get("ok"))
+        if throttle and payload.get("ok") is True and key == _last_receipt_key:
+            _suppressed_since += 1
+            return None
+        suppressed = _suppressed_since
+        _suppressed_since = 0
+        _last_receipt_key = key
+        if suppressed:
+            payload = {**payload, "suppressed": suppressed}
+        line = receipt_print_line(payload)
+        if suppressed:
+            line += f" 节流×{suppressed}"
+        print(line, flush=True)
         from pathlib import Path
         d = Path(logs_dir) if logs_dir is not None else Path(_resolve_logs_dir())
         d.mkdir(parents=True, exist_ok=True)
