@@ -5,7 +5,7 @@
 
 源:apps/backend/engines/comfyui/workflows/3_声音/Yue2/yue2-bgm-纯音乐-lora版.json
   (UI 画布格式 nodes/links,09-20 实弹定稿的 LoRA 纯音乐构图)
-出:同目录 yue2-bgm-纯音乐-lora版.api.json
+出:同目录 yue2-bgm-纯音乐-lora版-api.json
   (本仓库桥模板 {schemaVersion:1, graph} 包装的 API 格式;unwrapComfyApiGraph
    直接解包执行,且 _is_bridge_template 会把它挡在画布侧栏外——画布打不开
    无 nodes 的文件,不进列表=不变相误置件)
@@ -42,7 +42,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 UI_WORKFLOW = REPO_ROOT / "apps/backend/engines/comfyui/workflows/3_声音/Yue2/yue2-bgm-纯音乐-lora版.json"
-API_WORKFLOW = UI_WORKFLOW.with_suffix("").with_name(UI_WORKFLOW.stem + ".api.json")
+API_WORKFLOW = UI_WORKFLOW.with_suffix("").with_name(UI_WORKFLOW.stem + "-api.json")
 
 # 前端专属/注释类节点:不进 API 图(PrimitiveNode 由消费方内联承接)
 FRONTEND_ONLY_TYPES = {"PrimitiveNode", "Note"}

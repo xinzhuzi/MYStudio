@@ -7,7 +7,7 @@
  * - 参考曲:项目内音频资产(studioAssets.list type=audio)→ asset-file:// 读址 →
  *   b64 → /comfy/execute 的 images 注入口 "30.audio"(LoadAudio;引擎 /upload/image
  *   对音频字节安全,落引擎家 input/ 后回写文件名——复用既有上传链,零新端点)。
- * - 记谱保旋律:库工作流 yue2-翻唱-记谱版.api.json 固化
+ * - 记谱保旋律:库工作流 yue2-翻唱-记谱版-api.json 固化
  *   SheetSage2AudioToABC(mode=melody)→ YuE2GenerateMusic(mode=melody 直喂 abc)
  *   的配对铁律,前端只注入 style/lyrics/参考曲,不碰 mode。
  * - 面板状态机:idle → loading-assets → ready(选参考曲/填新风格)→ generating →
@@ -21,7 +21,7 @@ import type { StudioAssetSummary } from "@/types/studio-assets";
 import { YUE2_BGM_LYRICS_IRON, flacDurationSecondsFromB64 } from "./bgm-batch";
 
 /** 库内 YuE2 翻唱记谱线 API 工作流(repo 源只读 id;桥模板格式,画布侧栏不可见)。 */
-export const YUE2_COVER_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-翻唱-记谱版.api.json";
+export const YUE2_COVER_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-翻唱-记谱版-api.json";
 /** 参考曲上传注入口:LoadAudio(节点 30).audio——引擎收音频字节落 input/ 后回写文件名。 */
 export const YUE2_COVER_AUDIO_INPUT_KEY = "30.audio";
 /** 音频长任务的执行/轮询上限(记谱+重渲同为分钟级,与 BGM 单发/抽卡同口径)。 */

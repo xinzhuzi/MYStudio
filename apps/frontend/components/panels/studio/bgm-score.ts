@@ -17,9 +17,9 @@ import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-im
 import type { ComfyExecuteJobReply, ComfyExecutePayload, ComfyExecuteProgress } from "@/lib/assist/image-studio/comfy-execute";
 
 /** 库内 ABC-only 出谱 API 工作流(repo 源只读 id;桥模板格式,画布侧栏不可见)。 */
-export const YUE2_ABC_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-出谱-abc版.api.json";
+export const YUE2_ABC_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-出谱-abc版-api.json";
 /** 按谱渲染复用的 BGM API 工作流(与单发/抽卡同源;注入点叠加 22.abc)。 */
-export const YUE2_BGM_RENDER_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版.api.json";
+export const YUE2_BGM_RENDER_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版-api.json";
 /** YuE2GenerateABC 节点号(yue2-出谱-abc版 图内;style/lyrics/seed 注入面)。 */
 export const YUE2_SCORE_ABC_NODE_ID = "23";
 /** YuE2GenerateMusic 直喂 abc 的注入键(BGM api 图内 22 号节点)。 */

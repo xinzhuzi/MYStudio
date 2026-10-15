@@ -59,7 +59,7 @@ import type { VideoUseDerivedInputPolicy, VideoUseStoryboardSourcePolicy } from 
 import { countCurrentShotSlots, formatFirstShotStatus, isCurrentChapterReady, resolveWorkbenchRemotionShotSlots, selectCurrentShotJobForStoryboard, summarizeSubtitleAuthority } from "./workbench-status";
 
 /** 库内 YuE2 BGM API 工作流(repo 源只读 id;桥模板格式,画布侧栏不可见)。 */
-const YUE2_BGM_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版.api.json";
+const YUE2_BGM_API_WORKFLOW_ID = "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版-api.json";
 /** 09-20 实弹定稿的纯音乐构图默认值(风格与歌词五标签铁律,照库工作流原值)。 */
 const YUE2_BGM_STYLE_DEFAULT = "guzheng and bamboo flute, serene traditional chinese instrumental, pentatonic, slow 65 bpm, cinematic ambience";
 

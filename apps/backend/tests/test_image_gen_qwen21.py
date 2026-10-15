@@ -14,7 +14,7 @@ from image_gen import pipeline
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_PATH = (
     REPO_ROOT
-    / "backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daojie-t2i.json"
+    / "backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
 )
 
 

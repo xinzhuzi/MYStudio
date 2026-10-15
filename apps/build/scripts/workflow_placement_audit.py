@@ -7,7 +7,7 @@
   3. 引擎家用户区零 MY- 前缀残留
   4. 引擎家 snapshots/workflow-backups 不存在或为空(分镜域零实体)
   5. 真源库树无 *.laid-out.json / 无 MY- 前缀件
-  6. *.api.json 桥格式件必须与同名 UI 件成对(孤立即脏)
+  6. *-api.json 桥格式件必须与 UI 件成对(别名对见 check6)
   7. docs/comfyui-kb 无旧命名参考目录(outfit_transfer_参考工作流 / 工作流备份)
   8. 仓库根零 *.png(会话截图垃圾)
 
@@ -69,13 +69,15 @@ def main() -> int:
     check(not laid, "真源无 .laid-out.json 中间件", "; ".join(laid[:5]))
     check(not my_prefix, "真源无 MY- 前缀件", "; ".join(my_prefix[:5]))
 
-    # 6. .api.json 成对
+    # 6. -api.json 成对(1015 改名役:.api.json→-api.json)
+    bridge_alias = {"qwen21-道劫-t2i-api.json": "qi21-道劫-t2i.json"}
     orphans = []
     for p in tree_jsons:
-        if p.name.endswith(".api.json"):
-            if not (p.parent / (p.name[: -len(".api.json")] + ".json")).exists():
+        if p.name.endswith("-api.json"):
+            companion = bridge_alias.get(p.name, p.name[:-len("-api.json")] + ".json")
+            if not (p.parent / companion).exists():
                 orphans.append(p.name)
-    check(not orphans, ".api.json 全成对(孤立即脏)", "; ".join(orphans[:5]))
+    check(not orphans, "-api.json 全成对(孤立即脏)", "; ".join(orphans[:5]))
 
     # 7. docs 参考区旧命名目录不复活
     stale_dirs = [d.name for d in KB.iterdir()

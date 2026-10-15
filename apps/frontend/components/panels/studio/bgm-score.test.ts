@@ -183,7 +183,7 @@ describe("generateBgmScore / renderBgmByScore(编排器·全 mock)", () => {
   it("按谱渲染:图剪掉孤岛 14/23(不重跑 LLM 出谱);注入只注 22.*;首音频产物回带;超时档 1200s", async () => {
     const execute = vi.fn().mockResolvedValue({ audios: [{ nodeId: "10", filename: "bgm.flac", b64: "QUJD" }] });
     const audio = await renderBgmByScore(
-      { workflowId: "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版.api.json", style: "guzheng", lyrics: "[intro]", abc: ABC_SAMPLE },
+      { workflowId: "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版-api.json", style: "guzheng", lyrics: "[intro]", abc: ABC_SAMPLE },
       { fetchWorkflowText: async () => renderWorkflowText(), execute },
     );
     expect(audio.filename).toBe("bgm.flac");

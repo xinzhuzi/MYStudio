@@ -1,6 +1,6 @@
 """Qwen-Image-2.1(qi21)文生图引擎模块——经自管 ComfyUI 引擎执行。
 
-复用 comfyui_bridge 的提交/轮询/取图机制,模板=qwen21_daojie_t2i
+复用 comfyui_bridge 的提交/轮询/取图机制,模板=qwen21_道劫_t2i_api
 (qi21-道劫-t2i.json 工作流本体按 fire 展平逻辑生成:装配子图[6] ApiPE 双链回落
 +加速子图[7] viggle 9步双段(detail-fix×0.5 在链)+SeedVR2 2K 超分双产物;生成器=
 apps/build/scripts/qwen21_bridge_template_build.py,型/档随画布现值)。
@@ -49,7 +49,7 @@ SPEC = {
     "layout": LAYOUT,
 }
 
-TEMPLATE_NAME = "qwen21_daojie_t2i"
+TEMPLATE_NAME = "qwen21_道劫_t2i_api"
 
 ASPECT_RATIOS = {
     "1:1": (1024, 1024), "16:9": (1152, 640), "9:16": (640, 1152),

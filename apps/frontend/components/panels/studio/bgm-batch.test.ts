@@ -164,7 +164,7 @@ describe("generateBgmBatch(编排器·引擎调用全 mock 不真跑)", () => {
     const persisted: Array<{ b64: string; filename: string }> = [];
     const states: BgmBatchState[] = [];
     const finalState = await generateBgmBatch(
-      { workflowId: "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版.api.json", style: " guzhheng-free ", lyrics: "  ", count: 2 },
+      { workflowId: "repo:3_声音/Yue2/yue2-bgm-纯音乐-lora版-api.json", style: " guzhheng-free ", lyrics: "  ", count: 2 },
       {
         fetchWorkflowText: async () => {
           events.push("fetch-workflow");

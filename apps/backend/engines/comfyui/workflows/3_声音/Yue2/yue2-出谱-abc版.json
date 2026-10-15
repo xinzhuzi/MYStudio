@@ -247,10 +247,10 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "ABC-only 出谱流(09-20):只出乐谱不出音频——YuE2GenerateABC 出 ABC 谱,PreviewAny(display 'Preview as Text')把谱文本经 ui.text 透传,漫影 BGM 面板「先出谱→改谱→按谱渲染」取 result.texts[0]。\n参数口径与 yue2-bgm-纯音乐-lora版 的 23 号节点完全同源(mode=full/seed=42/采样参数),歌词槽维持纯音乐五标签铁律;按谱渲染时回 BGM 工作流注入 22.abc(本流不接 YuE2GenerateMusic,不占 KSampler 显存)。\nAPI 执行面同目录 yue2-出谱-abc版.api.json(注入点 23.style/23.lyrics/23.seed)。"
+        "ABC-only 出谱流(09-20):只出乐谱不出音频——YuE2GenerateABC 出 ABC 谱,PreviewAny(display 'Preview as Text')把谱文本经 ui.text 透传,漫影 BGM 面板「先出谱→改谱→按谱渲染」取 result.texts[0]。\n参数口径与 yue2-bgm-纯音乐-lora版 的 23 号节点完全同源(mode=full/seed=42/采样参数),歌词槽维持纯音乐五标签铁律;按谱渲染时回 BGM 工作流注入 22.abc(本流不接 YuE2GenerateMusic,不占 KSampler 显存)。\nAPI 执行面同目录 yue2-出谱-abc版-api.json(注入点 23.style/23.lyrics/23.seed)。"
       ],
       "widgets_values_named": {
-        "text": "ABC-only 出谱流(09-20):只出乐谱不出音频——YuE2GenerateABC 出 ABC 谱,PreviewAny(display 'Preview as Text')把谱文本经 ui.text 透传,漫影 BGM 面板「先出谱→改谱→按谱渲染」取 result.texts[0]。\n参数口径与 yue2-bgm-纯音乐-lora版 的 23 号节点完全同源(mode=full/seed=42/采样参数),歌词槽维持纯音乐五标签铁律;按谱渲染时回 BGM 工作流注入 22.abc(本流不接 YuE2GenerateMusic,不占 KSampler 显存)。\nAPI 执行面同目录 yue2-出谱-abc版.api.json(注入点 23.style/23.lyrics/23.seed)。"
+        "text": "ABC-only 出谱流(09-20):只出乐谱不出音频——YuE2GenerateABC 出 ABC 谱,PreviewAny(display 'Preview as Text')把谱文本经 ui.text 透传,漫影 BGM 面板「先出谱→改谱→按谱渲染」取 result.texts[0]。\n参数口径与 yue2-bgm-纯音乐-lora版 的 23 号节点完全同源(mode=full/seed=42/采样参数),歌词槽维持纯音乐五标签铁律;按谱渲染时回 BGM 工作流注入 22.abc(本流不接 YuE2GenerateMusic,不占 KSampler 显存)。\nAPI 执行面同目录 yue2-出谱-abc版-api.json(注入点 23.style/23.lyrics/23.seed)。"
       },
       "color": "#432",
       "bgcolor": "#653"

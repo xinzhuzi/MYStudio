@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""qwen21-daojie-t2i 桥契约模板生成器(1010 二版)。
+"""qwen21-道劫-t2i-api 桥契约模板生成器(1010 二版)。
 
 用户令:渠道必须跑 qi21-道劫-t2i.json 工作流本体(「目前就是用它来跑才对」,
 工作流本体直跑宪法)。从该画布按 fire(qi21_t2i_workflow_fire,9c64dccd)的
@@ -30,7 +30,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 CANVAS = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-OUT = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daojie-t2i.json"
+OUT = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
 ENGINE = "http://127.0.0.1:17001"
 
 SG6 = "96937bbe-99d1-4f16-a06c-d86b57815d91"
@@ -180,7 +180,7 @@ def _widget_order(cls: str) -> list[str]:
 
 TEMPLATE = {
     "schemaVersion": 1,
-    "name": "qwen21_daojie_t2i",
+    "name": "qwen21_道劫_t2i_api",
     "comfyuiVersionMin": "0.3.45",
     "inputs": {
         "prompt": {"node": "400", "field": "value", "class_type": "PrimitiveStringMultiline"},

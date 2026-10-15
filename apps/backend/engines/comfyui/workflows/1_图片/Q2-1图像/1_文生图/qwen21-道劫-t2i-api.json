@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "qwen21_daojie_t2i",
+  "name": "qwen21_道劫_t2i_api",
   "comfyuiVersionMin": "0.3.45",
   "inputs": {
     "prompt": {
