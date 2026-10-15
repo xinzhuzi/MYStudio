@@ -816,8 +816,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            38,
-            201
+            219
           ]
         }
       ],
@@ -830,8 +829,8 @@
       "id": 8,
       "type": "SaveImage",
       "pos": [
-        8680,
-        1900
+        9900,
+        3300
       ],
       "size": [
         380,
@@ -844,7 +843,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 38
+          "link": 226
         }
       ],
       "outputs": [],
@@ -1509,7 +1508,7 @@
           "localized_name": "image",
           "name": "image",
           "type": "IMAGE",
-          "link": 201
+          "link": 227
         },
         {
           "localized_name": "dit",
@@ -1942,6 +1941,223 @@
         "image"
       ],
       "title": "[505] 透明参考锚"
+    },
+    {
+      "id": 506,
+      "type": "SplitImageWithAlpha",
+      "pos": [
+        8560,
+        3300
+      ],
+      "size": [
+        270,
+        86
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 219
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            220,
+            221
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            228,
+            225
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SplitImageWithAlpha"
+      },
+      "widgets_values": [],
+      "title": "[506] 洗底·拆Alpha"
+    },
+    {
+      "id": 510,
+      "type": "ThresholdMask",
+      "pos": [
+        8860,
+        3300
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 228
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            222
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ThresholdMask"
+      },
+      "widgets_values": [
+        0.996
+      ],
+      "title": "[510] 洗底·阈值门(α<0.004)"
+    },
+    {
+      "id": 507,
+      "type": "PorterDuffImageComposite",
+      "pos": [
+        9210,
+        3300
+      ],
+      "size": [
+        337,
+        246
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "IMAGE",
+          "link": 220
+        },
+        {
+          "name": "source_alpha",
+          "type": "MASK",
+          "link": 222
+        },
+        {
+          "name": "destination",
+          "type": "IMAGE",
+          "link": 221
+        },
+        {
+          "name": "destination_alpha",
+          "type": "MASK",
+          "link": 223
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            224
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PorterDuffImageComposite"
+      },
+      "widgets_values": [
+        "SRC"
+      ],
+      "title": "[507] 洗底·SRC紫底归零"
+    },
+    {
+      "id": 508,
+      "type": "SolidMask",
+      "pos": [
+        8860,
+        3520
+      ],
+      "size": [
+        315,
+        166
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            223
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SolidMask"
+      },
+      "widgets_values": [
+        0.0,
+        64,
+        64
+      ],
+      "title": "[508] 洗底·黑底0"
+    },
+    {
+      "id": 509,
+      "type": "JoinImageWithAlpha",
+      "pos": [
+        9580,
+        3300
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 224
+        },
+        {
+          "name": "alpha",
+          "type": "MASK",
+          "link": 225
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            226,
+            227
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JoinImageWithAlpha"
+      },
+      "widgets_values": [],
+      "title": "[509] 洗底·Alpha回拼"
     }
   ],
   "links": [
@@ -2122,22 +2338,6 @@
       "VAE"
     ],
     [
-      38,
-      5,
-      0,
-      8,
-      0,
-      "IMAGE"
-    ],
-    [
-      201,
-      5,
-      0,
-      503,
-      0,
-      "IMAGE"
-    ],
-    [
       202,
       501,
       0,
@@ -2191,6 +2391,86 @@
       0,
       6,
       9,
+      "IMAGE"
+    ],
+    [
+      219,
+      5,
+      0,
+      506,
+      0,
+      "IMAGE"
+    ],
+    [
+      220,
+      506,
+      0,
+      507,
+      0,
+      "IMAGE"
+    ],
+    [
+      221,
+      506,
+      0,
+      507,
+      2,
+      "IMAGE"
+    ],
+    [
+      228,
+      506,
+      1,
+      510,
+      0,
+      "MASK"
+    ],
+    [
+      222,
+      510,
+      0,
+      507,
+      1,
+      "MASK"
+    ],
+    [
+      223,
+      508,
+      0,
+      507,
+      3,
+      "MASK"
+    ],
+    [
+      224,
+      507,
+      0,
+      509,
+      0,
+      "IMAGE"
+    ],
+    [
+      225,
+      506,
+      1,
+      509,
+      1,
+      "MASK"
+    ],
+    [
+      226,
+      509,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      227,
+      509,
+      0,
+      503,
+      0,
       "IMAGE"
     ]
   ],
@@ -5209,5 +5489,5 @@
     ]
   },
   "last_node_id": 7024,
-  "last_link_id": 218
+  "last_link_id": 228
 }

@@ -533,6 +533,10 @@ I2I_NODE_TYPE_WHITELIST = {
     "RandomNoise", "DisableNoise", "ViggleTurboSigmas", "SplitSigmas",
     # 1002 衔接批㉕:SeedVR2 放大尾档四件组入册(主图输出区;SaveImage 已在册)
     "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
+    # 1015 紫底 P1 洗底链五件入册(core comfy_extras;根图 [5]→[506]拆α→
+    # [510]阈值门→[507]SRC×[508]0→[509]回拼→[8]/[503])
+    "SplitImageWithAlpha", "PorterDuffImageComposite", "JoinImageWithAlpha",
+    "SolidMask", "ThresholdMask",
 }
 # 人物系六型(库 §二:常量B 加挂型)
 PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
@@ -4735,6 +4739,11 @@ SVR2_DIT_FILE = "seedvr2_7b_sharp_fp8_e4m3fn.safetensors"
 SVR2_VAE_FILE = "ema_vae_fp16.safetensors"
 SVR2_SAVE_PREFIX = "MYStudio-2K"
 SVR2_GROUP_TITLE = "道劫·⑤SeedVR2放大尾档"
+# 1015 紫底 P1 洗底链(i2i 根图专属):[5]→[506]拆α→[510]阈值门(α<0.004)
+# →[507]SRC×[508]0→[509]回拼(原α直通)→[8]/[503] 双喂(手术脚本
+# qi21_i2i_alpha_wash_1015.py;阈值门=VAE α噪声底~1e-3≫SRC回除门1e-5+SaveImage
+# astype 截断 PNG-0 域实为 α<1/255 的双因子修订)
+I2I_WASH_SPLIT, I2I_WASH_PD, I2I_WASH_MASK, I2I_WASH_JOIN, I2I_WASH_TH = 506, 507, 508, 509, 510
 
 
 class TestSeedVR2TailContract1002:
@@ -4788,18 +4797,71 @@ class TestSeedVR2TailContract1002:
                 f"{name}: [{SVR2_UP}] resolution 应 2048(短边2K 档),得 {nodes[SVR2_UP]['widgets_values']}"
             assert nodes[SVR2_SAVE]["widgets_values"] == [SVR2_SAVE_PREFIX], \
                 f"{name}: [{SVR2_SAVE}] 前缀应 {SVR2_SAVE_PREFIX!r}"
-            # 接线:[5] 扇出双喂 + DiT/VAE→放大→存
-            out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
-            assert _links_pid(graph, 8) in out5 and _links_pid(graph, SVR2_UP) in out5, \
-                f"{name}: [5] 应扇出喂 [8] 直出存+[503] 放大路,得 {out5}"
-            assert _input_src(nodes, links, SVR2_UP, "image") == 5, \
-                f"{name}: [{SVR2_UP}].image 应接 [5] 解码直出图"
+            # 接线:DiT/VAE→放大→存 共通;[5] 下游按件分叉(1015 洗底链仅 i2i)
+            if name == "i2i":
+                # 1015 洗底链:[5]→[506]拆α→[507]SRC→[509]回拼→[8]/[503]
+                # (紫底 P1:alpha=0 区 RGB 洗底归零;[5] 不再直喂 [8]/[503])
+                l5 = [l[3] for l in graph["links"] if l[1] == 5]
+                assert l5 == [I2I_WASH_SPLIT], \
+                    f"i2i: [5] 应只喂洗底链首件 [{I2I_WASH_SPLIT}],得 {l5}"
+                assert _input_src(nodes, links, SVR2_UP, "image") == I2I_WASH_JOIN, \
+                    f"i2i: [{SVR2_UP}].image 应接 [{I2I_WASH_JOIN}] 洗底回拼图"
+            else:
+                out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
+                assert _links_pid(graph, 8) in out5 and _links_pid(graph, SVR2_UP) in out5, \
+                    f"{name}: [5] 应扇出喂 [8] 直出存+[503] 放大路,得 {out5}"
+                assert _input_src(nodes, links, SVR2_UP, "image") == 5, \
+                    f"{name}: [{SVR2_UP}].image 应接 [5] 解码直出图"
             assert _input_src(nodes, links, SVR2_UP, "dit") == SVR2_DIT, \
                 f"{name}: [{SVR2_UP}].dit 应接 [{SVR2_DIT}]"
             assert _input_src(nodes, links, SVR2_UP, "vae") == SVR2_VAE, \
                 f"{name}: [{SVR2_UP}].vae 应接 [{SVR2_VAE}]"
             assert _input_src(nodes, links, SVR2_SAVE, "images") == SVR2_UP, \
                 f"{name}: [{SVR2_SAVE}].images 应接 [{SVR2_UP}] 2K 产物"
+
+    def test_i2i_alpha_wash_chain_1015(self):
+        """1015 紫底 P1 洗底链(i2i 专属):VAEDecode 出图 alpha=0 区 RGB 含紫底
+        残留(1014 T7 收据紫底=洗底前态)——[5]→[506]SplitImageWithAlpha→
+        [510]ThresholdMask(0.996:α<0.004 判透明)→[507]PorterDuffImageComposite
+        (mode=显式 SRC × [508]SolidMask value=0)→[509]JoinImageWithAlpha→
+        [8]/[503] 双消费。阈值门为实弹双因子修订:①纯 SRC 回除门 1e-5 远低于
+        VAE α噪声底(首版实弹 87 万透明像素仅 0.254% 被洗=紫底原样);②SaveImage
+        astype(np.uint8) 截断(nodes.py :1707-1708)⇒ PNG-0 域实为 α<1/255≈
+        0.00392,0.998 档二轮仅洗 4%,0.996(α<0.004)全盖该域(附带代价=
+        α∈[0.00392,0.004) 的 PNG-1 不可见像素);阈值化后实体区与半透边缘带
+        逐位不变;Join 的 alpha 直取 [506] 原始 mask(α 通道零二值化),[507].MASK
+        出线弃用(阈值化 α 禁入);三件 mask 原生「1=透明」一致免 InvertMask;
+        [508] 64² 恒 0 靠引擎侧尺寸对齐放不超(常量 0 无污染);洗底件恒在⑤组框
+        外(整组旁路语义载体)。"""
+        graph = GRAPHS["i2i"]
+        nodes, links = _nodes(graph), _links(graph)
+        want_types = {I2I_WASH_SPLIT: "SplitImageWithAlpha",
+                      I2I_WASH_TH: "ThresholdMask",
+                      I2I_WASH_PD: "PorterDuffImageComposite",
+                      I2I_WASH_MASK: "SolidMask",
+                      I2I_WASH_JOIN: "JoinImageWithAlpha"}
+        for nid, typ in want_types.items():
+            assert nodes[nid]["type"] == typ, \
+                f"i2i: [{nid}] 应 {typ},得 {nodes[nid]['type']}"
+        assert _input_src(nodes, links, I2I_WASH_SPLIT, "image") == 5
+        assert _input_src(nodes, links, I2I_WASH_TH, "mask") == I2I_WASH_SPLIT
+        assert nodes[I2I_WASH_TH]["widgets_values"] == [0.996], \
+            f"阈值门应 0.996(α<0.004 洗底,盖 SaveImage 截断全 PNG-0 域),得 {nodes[I2I_WASH_TH]['widgets_values']}"
+        assert _input_src(nodes, links, I2I_WASH_PD, "source") == I2I_WASH_SPLIT
+        assert _input_src(nodes, links, I2I_WASH_PD, "source_alpha") == I2I_WASH_TH
+        assert _input_src(nodes, links, I2I_WASH_PD, "destination") == I2I_WASH_SPLIT
+        assert _input_src(nodes, links, I2I_WASH_PD, "destination_alpha") == I2I_WASH_MASK
+        assert nodes[I2I_WASH_PD]["widgets_values"] == ["SRC"], \
+            f"洗底合成 mode 应显式 SRC(默认 DST=静默无效),得 {nodes[I2I_WASH_PD]['widgets_values']}"
+        assert nodes[I2I_WASH_PD]["outputs"][1]["links"] in ([], None), \
+            "[507].MASK 出线应弃用(阈值化 α 禁入 Join)"
+        assert nodes[I2I_WASH_MASK]["widgets_values"][0] == 0, \
+            "SolidMask 应 value=0(黑底)"
+        assert _input_src(nodes, links, I2I_WASH_JOIN, "image") == I2I_WASH_PD
+        assert _input_src(nodes, links, I2I_WASH_JOIN, "alpha") == I2I_WASH_SPLIT, \
+            "[509].alpha 应直取 [506] 原 mask(α 通道零二值化)"
+        assert _input_src(nodes, links, 8, "images") == I2I_WASH_JOIN
+        assert _input_src(nodes, links, SVR2_UP, "image") == I2I_WASH_JOIN
 
     def test_comparer_t2i_only(self):
         graph = GRAPHS["qi21"]
