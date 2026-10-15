@@ -76,21 +76,48 @@ test("④ 无 svc 场景不进本判定:旧前端在判定点之前即 named-tem
   assert.strictEqual(decision, "proceed");
 });
 
-test("⑤ 防叠号语义:refresh-active 由外层 loadGraphData 进当前签,决策面永不携带开新签语义", () => {
+test("⑤ 防叠号语义(真锁,10-15 R19 改造):决策面=封闭集,全 16 输入组合无一溢出——任一新决策值入面即锁红,须人工审「不开新签」语义后入集", () => {
   // design §1.2 案A 钉意图:refresh-active 的实现=app2.loadGraphData(…)
   // 装进当前活跃签(不开新签)——原 :90 短路「重复 open 恒一签」的防叠号意图
-  // 保留。本用例锁:章翻转输入下,决策值(现行 named-active / GREEN 后
-  // refresh-active)均不得出现「开新签」类语义,否则 09-12 叠号回归。
-  const decision = resolveOpenWorkflowDecision({
-    hasEntry: false,
-    activeMatchesMainline: true,
-    activeIsModified: false,
-    samePath: false,
-  });
-  assert.ok(
-    !/open[-_]?new|new[-_]?tab/i.test(decision),
-    `决策不得含开新签类语义,实得:${decision}`,
-  );
+  // 保留。旧断言 `!/open[-_]?new|new[-_]?tab/i.test(decision)` 系恒真(复核账
+  // L3「测试⑤恒真,有效 6 条」):判定源只可能返回 :28-39 的四个字面量,正则
+  // 永不命中=永不断言失败,锁无齿。真锁改封闭集:决策值必须 ∈ KNOWN_DECISIONS
+  // (逐值人工审过均无「开新签」语义:kept-modified 保留用户态/named-active
+  // 同名短路不重开/refresh-active 装进当前签/proceed 交回外层 entry 装载或
+  // named-temp 兜底);全 16 布尔输入组合穷举,未来任何路径返回集外值(如
+  // open-new-tab 类)当场锁红。
+  const KNOWN_DECISIONS = [
+    "kept-modified",
+    "named-active",
+    "refresh-active",
+    "proceed",
+    // 1015 内容锚(甲案)按本锁既定人工通道审入:锚不符时同款 loadGraphData
+    // 装当前签,不开新签零叠号(mode 串 named-active-content-refreshed 见
+    // open-workflow.js 接线)。
+    "refresh-active-content",
+  ];
+  for (const hasEntry of [false, true]) {
+    for (const activeMatchesMainline of [false, true]) {
+      for (const activeIsModified of [false, true]) {
+        for (const samePath of [false, true]) {
+          const decision = resolveOpenWorkflowDecision({
+            hasEntry,
+            activeMatchesMainline,
+            activeIsModified,
+            samePath,
+          });
+          assert.ok(
+            KNOWN_DECISIONS.includes(decision),
+            `决策溢出封闭集:「${decision}」(输入 hasEntry=${hasEntry}`
+            + ` activeMatchesMainline=${activeMatchesMainline}`
+            + ` activeIsModified=${activeIsModified} samePath=${samePath})。`
+            + `防叠号锁:每个新决策值必须人工审「不开新签」语义后入集 `
+            + `[${KNOWN_DECISIONS.join("/")}]`,
+          );
+        }
+      }
+    }
+  }
 });
 
 test("⑥ mustFix·临时条目伪库条目(章翻转主死亡形态):entry.isTemporary → content=本次 graph,非上章 activeState,mode 不再谎报 library-bound", () => {

@@ -7,7 +7,7 @@
  * window.__myOpenWorkflow 锚=ComfyCanvasStudio 探测助手契约。
  */
 
-import { resolveOpenWorkflowDecision, resolveEntryBinding } from "./open-workflow-decision.mjs";
+import { resolveOpenWorkflowDecision, resolveEntryBinding, extractContentAnchor } from "./open-workflow-decision.mjs";
 import { emitOpenReceipt } from "./open-receipt.mjs";
 
 const MY_STORE_BASE = "workflows/";
@@ -95,13 +95,34 @@ async function openWorkflowSingleInstanceInner({ name, graph }) {
   //   且未过 kept-modified 门 → 不再短路,refresh-active:本次 graph 装进当前
   //   活跃签(loadGraphData 替换画布内容,不开新签——原短路「重复 open 恒一签」
   //   的防叠号语义保留),死点消除:每次 open 恒装载本次 graph,画布恒本章内容。
+  // 1015 内容锚(甲案):named-active 短路面的残余窗守门——同路径+库无条目时,
+  // 活跃签内容可能停在旧章(LF20 站5:ch003 空章态戳恒 chapter-002)。比锚:
+  // 活跃签 activeState 的章戳 vs 本次 graph 的章戳(extractContentAnchor),
+  // 两侧都有锚且不等 → contentAnchorMatch=false(交决策面破短路重注入);
+  // 任一侧无戳(静态库流 qi21 等/缺戳旧图)=null → fail-open 维持旧短路零波及。
+  // 全 try/catch,锚故障按 null 走,绝不咬打开主路。
+  let contentAnchorMatch = null;
+  try {
+    const activeAnchor = extractContentAnchor(active?.activeState ?? null);
+    const incomingAnchor = extractContentAnchor(graph ?? null);
+    if (activeAnchor !== null && incomingAnchor !== null) {
+      contentAnchorMatch = activeAnchor === incomingAnchor;
+    }
+  } catch (error) { contentAnchorMatch = null; /* 锚故障维持旧短路 */ }
   const decision = resolveOpenWorkflowDecision({
     hasEntry: !!entry,
     activeMatchesMainline: !!(active && matcher(active)),
     activeIsModified: !!(active && active.isModified),
     samePath: !!(active && active.path === libraryPath),
+    contentAnchorMatch,
   });
   if (decision === "named-active") return { ok: true, mode: "named-active" };
+  if (decision === "refresh-active-content") {
+    // 1015 甲案:同路径残余窗(签停旧章)——同款 loadGraphData 装当前签,不开新签
+    // 零叠号;注入图自带新章戳,盖戳无需引擎侧补动作,mode 串即收据见证。
+    await app2.loadGraphData(cloneGraph(graph), true, true, name);
+    return { ok: true, mode: "named-active-content-refreshed" };
+  }
   if (decision === "refresh-active") {
     await app2.loadGraphData(cloneGraph(graph), true, true, name);
     return { ok: true, mode: "named-active-refreshed" };
@@ -142,11 +163,12 @@ async function openWorkflowSingleInstanceInner({ name, graph }) {
 }
 
 /** 1015 LF21 收据通道:await 内层→发射 mode 收据→原样 return。一处包裹
- *  覆盖全部 7 个 mode 分支(含 no-app);fire-and-forget 同源 fetch 落引擎
- *  侧 /my_bridge/open_receipt(双落盘 <comfy-home>/logs JSONL + engine.log,
- *  见 open-receipt.mjs / open_receipt_server.py)。收据故障全吞(发射器
- *  自身全容错),决策/装载语义零动;侧栏具名导入与宿主注入 window 锚
- *  两条调用路都过本 wrapper。 */
+ *  覆盖全部 8 个 mode 分支(含 no-app;1015 甲案新增
+ *  named-active-content-refreshed=内容锚不符的同路径残余窗重注入)。fire-and-
+ *  forget 同源 fetch 落引擎侧 /my_bridge/open_receipt(双落盘 <comfy-home>/logs
+ *  JSONL + engine.log,见 open-receipt.mjs / open_receipt_server.py)。收据故障
+ *  全吞(发射器自身全容错),决策/装载语义零动;侧栏具名导入与宿主注入 window
+ *  锚两条调用路都过本 wrapper。 */
 async function openWorkflowSingleInstance(args) {
   const result = await openWorkflowSingleInstanceInner(args);
   try {

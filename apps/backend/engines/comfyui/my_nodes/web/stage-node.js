@@ -489,6 +489,20 @@ window.__myStagePatch = (graph) => {
     if (!key) continue;
     const live = byKey.get(key);
     if (!live) continue;
+    // 1013 livefire9/10 根因修复:kept-modified 短路下原逻辑只刷 myStage 载荷
+    // 不刷 myOrigin* 盖戳——节点卡显示新章内容而点击 postAction 仍带旧章戳,
+    // 宿主消费腿按章匹配静默跳过(ch002 规划两试零 toast 零 run)。盖戳随最新
+    // 注入图原位刷新(载荷未变也刷,零渲染成本),点击时读到的即当前章。
+    const nextProjectId = src?.properties?.myOriginProjectId ?? payload.originProjectId;
+    const nextEpisodeId = src?.properties?.myOriginEpisodeId ?? payload.originEpisodeId;
+    if (typeof nextProjectId === "string" && nextProjectId.trim()
+      && live.properties.myOriginProjectId !== nextProjectId) {
+      live.properties.myOriginProjectId = nextProjectId;
+    }
+    if (typeof nextEpisodeId === "string" && nextEpisodeId.trim()
+      && live.properties.myOriginEpisodeId !== nextEpisodeId) {
+      live.properties.myOriginEpisodeId = nextEpisodeId;
+    }
     const current = live.properties.myStage ?? live.properties.manyingStage;
     if (current && JSON.stringify(current) === JSON.stringify(payload)) continue;
     live.properties.myStage = payload;
