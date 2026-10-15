@@ -33,6 +33,14 @@ type CreateStorageManagerOptions = {
   };
 };
 
+/**
+ * 资产根 provider(1015 资产归域):资产库随项目位置表走,不再由统一存储
+ * basePath 派生。m1:setter 注入——main-paths.ts 实读序 storageManager(:22)
+ * 在前/projectLocationStore(:36-40) 在后,构造期引用即 TDZ,必须 setter 晚绑。
+ * provider 体内惰性求值(每次 getAssetsRoot 重新求值)。
+ */
+export type AssetRootProvider = () => string;
+
 type RootOptions = {
   ensure?: boolean;
 };
@@ -46,6 +54,11 @@ type RegisterStorageIpcHandlersOptions = {
 export function createStorageManager({ userDataPath, sessionDataPath = userDataPath, fileOps }: CreateStorageManagerOptions) {
   const storageConfigPath = path.join(userDataPath, "storage-config.json");
   let autoCleanInterval: NodeJS.Timeout | null = null;
+  // 1015 资产归域:资产根 provider(setter 晚绑,见 AssetRootProvider 注释)。
+  let assetRootProvider: AssetRootProvider | null = null;
+  const setAssetRootProvider = (provider: AssetRootProvider) => {
+    assetRootProvider = provider;
+  };
   const ensureDir = (dirPath: string) => {
     if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
   };
@@ -128,6 +141,13 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     return base;
   };
   const getAssetsRoot = ({ ensure = true }: RootOptions = {}) => {
+    // 1015 资产归域:provider 优先(资产库随项目位置表);provider 抛
+    // ASSET_HOME_ORPHANED 等异常态 → 原样上抛,绝不 mkdir 空库(根健康闸语义)。
+    if (assetRootProvider) {
+      const provided = assetRootProvider();
+      if (ensure) ensureDir(provided);
+      return provided;
+    }
     const base = path.join(getStorageBasePath(), "assets");
     if (ensure) ensureDir(base);
     return base;
@@ -336,8 +356,9 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
         if (unblessed) return unblessed;
         const target = normalizePath(dirPath);
         if (!fs.existsSync(target)) return { success: false, error: "目录不存在" };
-        if (!["projects", "media", "assets", "skills"].some((name) => fs.existsSync(path.join(target, name)))) {
-          return { success: false, error: "该目录不包含有效的数据（需要 projects/、media/、assets/ 或 skills/ 子目录）" };
+        // 1015 资产归域:assets 随项目位置表走,link 校验只认其余三件套。
+        if (!["projects", "media", "skills"].some((name) => fs.existsSync(path.join(target, name)))) {
+          return { success: false, error: "该目录不包含有效的数据（需要 projects/、media/ 或 skills/ 子目录）" };
         }
         updateBasePath(target);
         return { success: true, path: target };
@@ -358,17 +379,15 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
         if (conflictError && conflictError !== "路径相同") return { success: false, error: conflictError };
         const targetProjectsDir = path.join(target, "projects");
         const targetMediaDir = path.join(target, "media");
-        const targetAssetsDir = path.join(target, "assets");
         const targetSkillsDir = path.join(target, "skills");
         const currentProjectsDir = getProjectDataRoot({ ensure: false });
         const currentMediaDir = getMediaRoot({ ensure: false });
-        const currentAssetsDir = getAssetsRoot({ ensure: false });
         const currentSkillsDir = getSkillsRoot({ ensure: false });
         const targetBackup = path.join(os.tmpdir(), `mystudio-move-backup-${Date.now()}`);
         const targetState = new Map<string, { existed: boolean; nonEmpty: boolean }>();
         const configSnapshot = captureStorageConfig();
         try {
-          for (const destination of [targetProjectsDir, targetMediaDir, targetAssetsDir, targetSkillsDir]) {
+          for (const destination of [targetProjectsDir, targetMediaDir, targetSkillsDir]) {
             const existed = fs.existsSync(destination);
             const nonEmpty = existed && (await fs.promises.readdir(destination)).length > 0;
             targetState.set(destination, { existed, nonEmpty });
@@ -382,7 +401,6 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
         for (const [source, destination] of [
           [currentProjectsDir, targetProjectsDir],
           [currentMediaDir, targetMediaDir],
-          [currentAssetsDir, targetAssetsDir],
           [currentSkillsDir, targetSkillsDir],
         ] as const) {
           if (!fs.existsSync(source)) continue;
@@ -392,14 +410,14 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
           }
         }
         updateBasePath(target);
-        for (const currentDir of [currentProjectsDir, currentMediaDir, currentAssetsDir, currentSkillsDir]) {
+        for (const currentDir of [currentProjectsDir, currentMediaDir, currentSkillsDir]) {
           const insideUserData = samePath(userDataPath, currentDir) || isSubdirectory(userDataPath, currentDir);
           if (!insideUserData && fs.existsSync(currentDir)) await removeDir(currentDir);
         }
         await removeDir(targetBackup).catch(() => undefined);
         return { success: true, path: target };
         } catch (moveError) {
-          for (const destination of [targetProjectsDir, targetMediaDir, targetAssetsDir, targetSkillsDir]) {
+          for (const destination of [targetProjectsDir, targetMediaDir, targetSkillsDir]) {
             await removeDir(destination).catch(() => undefined);
             const backup = path.join(targetBackup, path.basename(destination));
             const state = targetState.get(destination);
@@ -425,7 +443,6 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
         if (containmentError(getStorageBasePath(), exportDir)) return { success: false, error: "导出目录不能位于当前存储路径内或与其重叠" };
         await copyDir(getProjectDataRoot(), path.join(exportDir, "projects"));
         await copyDir(getMediaRoot(), path.join(exportDir, "media"));
-        await copyDir(getAssetsRoot(), path.join(exportDir, "assets"));
         await copyDir(getSkillsRoot(), path.join(exportDir, "skills"));
         return { success: true, path: exportDir };
       } catch (error) {
@@ -449,21 +466,27 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
         if (sourceConflict) return sourceConflict === "路径相同"
           ? { success: true }
           : { success: false, error: "导入源不能位于当前存储路径内或与其重叠" };
+        // 1015 资产归域:资产库随项目位置表走,四件套去 assets——import 若再删/拷
+        // 项目域 assets/ 会制造双份真相或覆盖 MA 资产库;老导出包含 assets/ 只警示。
+        if (fs.existsSync(path.join(source, "assets"))) {
+          console.warn(
+            "[storage] 导入包含 assets/ 子目录:资产库已随项目位置管理,不再随统一存储导入,请人工核对该目录",
+            source,
+          );
+        }
         const sources = {
           projects: path.join(source, "projects"),
           media: path.join(source, "media"),
-          assets: path.join(source, "assets"),
           skills: path.join(source, "skills"),
         };
         const present = Object.fromEntries(Object.entries(sources).map(([key, value]) => [key, fs.existsSync(value)]));
-        if (!present.projects && !present.media && !present.assets && !present.skills) {
-          return { success: false, error: "源目录不包含有效数据（需要 projects/、media/、assets/ 或 skills/ 子目录）" };
+        if (!present.projects && !present.media && !present.skills) {
+          return { success: false, error: "源目录不包含有效数据（需要 projects/、media/ 或 skills/ 子目录）" };
         }
         const backupDir = path.join(os.tmpdir(), `mystudio-backup-${Date.now()}`);
         const targets = {
           projects: getProjectDataRoot({ ensure: false }),
           media: getMediaRoot({ ensure: false }),
-          assets: getAssetsRoot({ ensure: false }),
           skills: getSkillsRoot({ ensure: false }),
         };
         const targetState = new Map<string, { existed: boolean; nonEmpty: boolean }>();
@@ -662,6 +685,7 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
     getMediaRoot,
     getAssetsRoot,
     getSkillsRoot,
+    setAssetRootProvider,
     scheduleAutoClean,
     registerIpcHandlers,
   };

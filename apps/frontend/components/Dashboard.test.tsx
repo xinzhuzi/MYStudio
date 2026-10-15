@@ -441,6 +441,71 @@ describe("Dashboard project folder flows", () => {
     expect(mocks.projectStoreState.projects[0]?.id).toBe("p-ext");
   });
 
+  // ==================== B1 复审修复:资产知情守卫的渲染端闭环 ====================
+
+  it("asset guard: UNCONFIRMED 披露体量二级弹窗,「仍要删除」后带 confirmAssetDeletion 重删", async () => {
+    mocks.projectStoreState.projects = [
+      { id: "p-ext", name: "道劫", createdAt: 1, updatedAt: 2, location: "/gone/道劫" },
+    ];
+    mocks.remove
+      .mockResolvedValueOnce({
+        ok: false,
+        code: "ASSET_DELETION_UNCONFIRMED",
+        message: "项目文件夹内含资产库/TTS(12 个文件,约 34 MB),删除将一并清除,请确认",
+        assetFileCount: 12,
+        assetBytes: 34 * 1024 * 1024,
+      })
+      .mockResolvedValueOnce({ ok: true });
+
+    render(<Dashboard />);
+    deleteViaManagement("p-ext");
+
+    // 第一轮单参探测触发守卫;二级弹窗披露体量(文件数/MB/项目名)
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith("p-ext"));
+    await waitFor(() => expect(screen.getByText("确认删除资产库")).toBeTruthy());
+    expect(screen.getByText(/12 个文件/)).toBeTruthy();
+    expect(screen.getByText(/约 34 MB/)).toBeTruthy();
+    expect(screen.getByText("道劫")).toBeTruthy();
+    // 未确认前不删注册表、不重调
+    expect(mocks.projectStoreState.deleteProject).not.toHaveBeenCalled();
+    expect(mocks.remove).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "仍要删除" }));
+    await waitFor(() =>
+      expect(mocks.remove).toHaveBeenLastCalledWith("p-ext", { confirmAssetDeletion: true }),
+    );
+    await waitFor(() => expect(mocks.projectStoreState.deleteProject).toHaveBeenCalledWith("p-ext"));
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith("已删除 1 个项目"));
+  });
+
+  it("asset guard: 二级弹窗取消→不重删不注销,项目保持原样", async () => {
+    mocks.projectStoreState.projects = [
+      { id: "p-ext", name: "道劫", createdAt: 1, updatedAt: 2, location: "/gone/道劫" },
+    ];
+    mocks.remove.mockResolvedValueOnce({
+      ok: false,
+      code: "ASSET_DELETION_UNCONFIRMED",
+      message: "项目文件夹内含资产库/TTS(3 个文件,约 1 MB),删除将一并清除,请确认",
+      assetFileCount: 3,
+      assetBytes: 1024 * 1024,
+    });
+
+    render(<Dashboard />);
+    deleteViaManagement("p-ext");
+
+    await waitFor(() => expect(screen.getByText("确认删除资产库")).toBeTruthy());
+    // 一级批量弹窗在删除编排 await 挂起期间仍开放,两个「取消」并存——取 DOM
+    // 序第二个(DashboardDialogs JSX 序:批量确认弹窗在前,资产二级弹窗在后)。
+    fireEvent.click(screen.getAllByRole("button", { name: "取消" })[1]);
+
+    await waitFor(() => expect(screen.queryByText("确认删除资产库")).toBeNull());
+    expect(mocks.remove).toHaveBeenCalledTimes(1);
+    expect(mocks.remove).not.toHaveBeenCalledWith("p-ext", { confirmAssetDeletion: true });
+    expect(mocks.projectStoreState.deleteProject).not.toHaveBeenCalled();
+    expect(mocks.toastSuccess).not.toHaveBeenCalledWith("已删除 1 个项目");
+    expect(mocks.projectStoreState.projects[0]?.id).toBe("p-ext");
+  });
+
   it("非管理模式不提供任何删除入口,删除只存在于管理模式", () => {
     render(<Dashboard />);
     // dropdown 菜单在测试里直通渲染;⋯ 菜单已无「删除」项

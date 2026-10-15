@@ -104,7 +104,7 @@ describe("asset file safety", () => {
         "conn.commit()",
         "conn.close()",
       ].join("; "),
-      join(tempAssetRoot!, "assets", "assets.db"),
+      join(tempAssetRoot!, "assets.db"),
       asset.id,
     ]);
 
@@ -144,7 +144,7 @@ describe("asset file safety", () => {
         "conn.commit()",
         "conn.close()",
       ].join("; "),
-      join(tempAssetRoot!, "assets", "assets.db"),
+      join(tempAssetRoot!, "assets.db"),
       asset.id,
     ]);
     await waitForProcessOutput(lockProcess, "READY");

@@ -41,6 +41,7 @@ vi.mock("../../storage/storage-paths", () => ({
 
 import { dialog } from "electron";
 import { registerAssetLibraryIpcHandlers } from "./asset-library-ipc";
+import { resolveAssetFilePath } from "../../storage/storage-paths";
 
 const isSourcePathAllowed = (sourceFilePath: string) => (
   sourceFilePath.startsWith("/data/") || sourceFilePath.startsWith("/media/") || blessedPaths.has(sourceFilePath)
@@ -56,6 +57,7 @@ beforeEach(() => {
 function registerHandlers() {
   registerAssetLibraryIpcHandlers({
     getStorageBasePath: () => "/data",
+    getAssetsRoot: () => "/data/assets",
     getMediaRoot: () => "/media",
     createOperationId: (prefix) => `${prefix}-1`,
     writeDiagnosticsLog: vi.fn(),
@@ -64,9 +66,10 @@ function registerHandlers() {
   });
 }
 
-function registerHandlersWithStorageBase(getStorageBasePath: () => string) {
+function registerHandlersWithAssetRoots(roots: { storageBasePath?: () => string; assetsRoot?: () => string }) {
   registerAssetLibraryIpcHandlers({
-    getStorageBasePath,
+    getStorageBasePath: roots.storageBasePath ?? (() => "/data"),
+    getAssetsRoot: roots.assetsRoot ?? (() => "/data/assets"),
     getMediaRoot: () => "/media",
     createOperationId: (prefix) => `${prefix}-1`,
     writeDiagnosticsLog: vi.fn(),
@@ -92,18 +95,48 @@ describe("registerAssetLibraryIpcHandlers", () => {
     expect(assetStorageMocks.initAssetsStorage).not.toHaveBeenCalled();
   });
 
-  it("reinitializes asset storage when the unified storage root changes", async () => {
-    let storageBasePath = "/data";
-    registerHandlersWithStorageBase(() => storageBasePath);
+  it("reinitializes asset storage when the asset home root changes(1015:m-2 断言值随注入的 assets 根)", async () => {
+    let assetsRoot = "/data/assets";
+    registerHandlersWithAssetRoots({ assetsRoot: () => assetsRoot });
 
     await getHandler("assets:list")({}, { type: "role" });
     await getHandler("assets:list")({}, { type: "role" });
-    storageBasePath = "/new-data";
+    assetsRoot = "/Users/x/Project/IP/MA/assets";
     await getHandler("assets:list")({}, { type: "role" });
 
     expect(assetStorageMocks.initAssetsStorage).toHaveBeenCalledTimes(2);
-    expect(assetStorageMocks.initAssetsStorage).toHaveBeenNthCalledWith(1, "/data");
-    expect(assetStorageMocks.initAssetsStorage).toHaveBeenNthCalledWith(2, "/new-data");
+    expect(assetStorageMocks.initAssetsStorage).toHaveBeenNthCalledWith(1, "/data/assets");
+    expect(assetStorageMocks.initAssetsStorage).toHaveBeenNthCalledWith(2, "/Users/x/Project/IP/MA/assets");
+  });
+
+  it("【M9+M15 根健康闸】getAssetsRoot 抛 ASSET_HOME_ORPHANED → writeDiagnosticsLog(error)先于 throw+handler rejects+initAssetsStorage 不被调", async () => {
+    assetStorageMocks.initAssetsStorage.mockClear();
+    const writeDiagnosticsLog = vi.fn();
+    const calls: string[] = [];
+    registerAssetLibraryIpcHandlers({
+      getStorageBasePath: () => "/data",
+      getAssetsRoot: () => {
+        throw new Error("ASSET_HOME_ORPHANED:资产库位置失联(原位置:/Users/x/Project/IP/MA),请重新绑定项目文件夹");
+      },
+      getMediaRoot: () => "/media",
+      createOperationId: (prefix) => `${prefix}-1`,
+      writeDiagnosticsLog: (entry) => {
+        calls.push(`${entry.level}:${entry.message}`);
+        writeDiagnosticsLog(entry);
+      },
+      isSourcePathAllowed,
+      blessDialogPaths,
+    });
+
+    await expect(getHandler("assets:list")({}, { type: "role" })).rejects.toThrow(/ASSET_HOME_ORPHANED/);
+    expect(writeDiagnosticsLog).toHaveBeenCalledWith(expect.objectContaining({
+      level: "error",
+      category: "asset",
+    }));
+    // 留痕先于 rejection 可见:error 级留痕已发生且带 ORPHANED 消息
+    expect(calls.some((call) => call.startsWith("error:") && call.includes("ASSET_HOME_ORPHANED"))).toBe(true);
+    // 绝不空库重建
+    expect(assetStorageMocks.initAssetsStorage).not.toHaveBeenCalled();
   });
 
   it("returns null when the asset image picker is canceled", async () => {
@@ -222,5 +255,58 @@ describe("assets:read-url-data-url 双协议桥(1013 Tainted canvas 修复锁)",
     });
     registerHandlers();
     expect(getHandler("assets:read-url-data-url")(null, "weird://x")).toBeNull();
+  });
+});
+
+describe("assets:resolve-file-url 断链兜底(1015 补刀:断链可诊断)", () => {
+  it("asset-file:// 解析成功且文件在 → 返回绝对路径,零告警", async () => {
+    vi.mocked(resolveAssetFilePath).mockReturnValueOnce("/resolved/target.png");
+    registerHandlers();
+    const result = await getHandler("assets:resolve-file-url")(null, "asset-file://audio/ok.wav");
+    expect(result).toBe("/resolved/target.png");
+  });
+
+  it("asset-file:// 断链(文件缺席) → 返 null+writeDiagnosticsLog(warn)留痕;同 URL 会话级去重不刷屏", async () => {
+    vi.mocked(resolveAssetFilePath).mockReturnValue("/resolved/gone-1015-deepen-a.wav");
+    const writeDiagnosticsLog = vi.fn();
+    registerAssetLibraryIpcHandlers({
+      getStorageBasePath: () => "/data",
+      getAssetsRoot: () => "/data/assets",
+      getMediaRoot: () => "/media",
+      createOperationId: (prefix) => `${prefix}-1`,
+      writeDiagnosticsLog,
+      isSourcePathAllowed,
+      blessDialogPaths,
+    });
+    const handler = getHandler("assets:resolve-file-url");
+    expect(await handler(null, "asset-file://audio/gone-1015-deepen-a.wav")).toBeNull();
+    // 再来一次同 URL:去重,不新增告警
+    expect(await handler(null, "asset-file://audio/gone-1015-deepen-a.wav")).toBeNull();
+    const warns = writeDiagnosticsLog.mock.calls.filter(([entry]) => entry?.level === "warn");
+    expect(warns.length).toBe(1);
+    expect(JSON.stringify(warns[0])).toContain("asset-file://audio/gone-1015-deepen-a.wav");
+
+    // 另一条断链 URL:新告警(去重按 URL,不吞新信号)
+    vi.mocked(resolveAssetFilePath).mockReturnValue("/resolved/gone-1015-deepen-b.wav");
+    expect(await handler(null, "asset-file://audio/gone-1015-deepen-b.wav")).toBeNull();
+    expect(writeDiagnosticsLog.mock.calls.filter(([entry]) => entry?.level === "warn").length).toBe(2);
+  });
+
+  it("非 asset-file 协议(解析器抛错/其他) → 返 null,不写断链告警", async () => {
+    vi.mocked(resolveAssetFilePath).mockImplementationOnce(() => {
+      throw new Error("Invalid asset file url");
+    });
+    const writeDiagnosticsLog = vi.fn();
+    registerAssetLibraryIpcHandlers({
+      getStorageBasePath: () => "/data",
+      getAssetsRoot: () => "/data/assets",
+      getMediaRoot: () => "/media",
+      createOperationId: (prefix) => `${prefix}-1`,
+      writeDiagnosticsLog,
+      isSourcePathAllowed,
+      blessDialogPaths,
+    });
+    expect(await getHandler("assets:resolve-file-url")(null, "weird://x")).toBeNull();
+    expect(writeDiagnosticsLog).not.toHaveBeenCalled();
   });
 });

@@ -1,11 +1,13 @@
 import { app } from "electron";
 import { createStorageManager } from "../storage/storage-manager";
 import { createProjectLocationStore } from "../storage/project-locations";
+import { resolveAssetHomeRoot } from "../storage/asset-home";
 import {
   setProjectLocationResolver,
   resolveProjectRootPath,
   resolveProjectFileUrl,
   resolveLocalMediaPath,
+  resolveAssetFilePath,
 } from "../storage/storage-paths";
 import { ensureStudioSkillsSynced } from "../storage/studio-skills-storage";
 import { createImageSourceReader } from "../media/image-source";
@@ -38,6 +40,19 @@ export const projectLocationStore = createProjectLocationStore({
   getProjectsDataRoot: () => getProjectDataRoot({ ensure: false }),
 })
 setProjectLocationResolver(projectLocationStore.get)
+
+// 1015 资产归域:资产根 provider(m1 setter 晚绑——本处序在 projectLocationStore
+// 构造之后;storageManager 构造在文件头,构造期引用即 TDZ)。provider 体内惰性
+// 求值:每次 getAssetsRoot 按文件即真相重解析(marker/位置表/新根 db 三权排序)。
+// M-A:fallback=join(getStorageBasePath(),'assets')(与 storage-manager 旧语义
+// 逐字节等价——basePath 被用户设到外置盘的机器语义保持)。异常态
+// (ASSET_HOME_ORPHANED 等)上抛→getAssetsRoot 不 mkdir→根健康闸接管。
+storageManager.setAssetRootProvider(() => resolveAssetHomeRoot({
+  userDataPath: app.getPath('userData'),
+  locationStore: projectLocationStore.get,
+  allLocations: projectLocationStore.all,
+  fallback: () => path.join(getStorageBasePath(), 'assets'),
+}))
 
 // ==================== File Storage for App Data ====================
 export const getDataDir = () => {
@@ -166,12 +181,21 @@ export function pathsEquivalent(left: string, right: string): boolean {
 // 手输/持久化任意外部绝对路径;该链路只把音频字节发给 127.0.0.1 的本地
 // sidecar,不外发网络,风险远低于 openPath/图床上传,收紧会打断音色克隆
 // 核心流程。其余 IPC 仍走 resolveStudioSourcePath 的受管根守卫。
+// 1015 补刀:asset-file:// 分支——08-24 路径裁定后 tts profile.referenceAudioPath
+// 持久化虚拟 asset-file://(role-audio-auto-assign),分镜固定音色链经
+// tts-reference-audio-resolve 到此解析;缺本分支时虚拟 URL 原样漏回,tts-ipc
+// 的 isAbsolute 闸判 null →「固定音色文件不可读」假错(文件明明健康)。
+// 解析按当前资产根(1015 状态机:归域后=<项目根>/assets);根健康异常态
+// (ORPHANED 等)上抛,由 tts-ipc 的 catch→null→渲染层清晰报错接管。
 export function resolveReferenceAudioSourcePath(sourcePath: string) {
   if (sourcePath.startsWith('project-file://')) {
     return resolveProjectFileUrl(getDataDir(), sourcePath)
   }
   if (sourcePath.startsWith('local-image://')) {
     return resolveLocalMediaPath(getMediaRoot(), sourcePath)
+  }
+  if (sourcePath.startsWith('asset-file://')) {
+    return resolveAssetFilePath(getAssetsRoot(), sourcePath)
   }
   if (sourcePath.startsWith('file://')) return sourcePath.replace('file://', '')
   return sourcePath

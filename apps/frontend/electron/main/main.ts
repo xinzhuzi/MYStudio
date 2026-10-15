@@ -1,4 +1,4 @@
-import {bindRuntimeControllerRoots, getStorageBasePath, getMediaRoot, getSkillsRoot, getAssetsRoot, scheduleAutoClean} from "./main-paths";
+import {bindRuntimeControllerRoots, getStorageBasePath, getMediaRoot, getSkillsRoot, getAssetsRoot, projectLocationStore, scheduleAutoClean} from "./main-paths";
 import {blessedDialogPaths, getDataDir, isStudioSourcePathAllowed, projectRootFor, readImageSource} from "./main-paths";
 import {ensureStudioSkillsAvailableAtStartup, resolveReferenceAudioSourcePath, resolveStudioSourcePath} from "./main-paths";
 import {bindChapterProjectionRuntime, enqueueChapterSceneSegments, evaluateVideoWorkflowChapterGate, readEditingProjectSnapshot, readRemotionCurrentShotSlots} from "./main-chapter-projection";
@@ -21,6 +21,8 @@ import {app, dialog, protocol, session, utilityProcess} from 'electron'
 import path from 'node:path'
 import {configureSidecarLogCapture} from '../diagnostics/sidecar-log-capture'
 import {createTtsRuntimeController} from '../tts/tts-runtime'
+import {resolveTtsHomeRoot} from '../storage/asset-home'
+import {runAssetHomeMigration} from '../storage/asset-home-migration'
 import {
   isNonEmptyString,
 } from '../runtime/update-policy'
@@ -140,6 +142,14 @@ const ttsRuntimeController = createTtsRuntimeController({
   appRoot: process.env.APP_ROOT ?? path.join(__dirname, '../..'),
   userDataPath: app.getPath('userData'),
   storageBasePath: () => getStorageBasePath(),
+  // 1015 资产归域【B-2】:TTS 家基路径 provider(返回基路径级,探针式四态;
+  // 未迁/半态回落旧家基路径,归域后新根生效)
+  projectRootProvider: () => resolveTtsHomeRoot({
+    userDataPath: app.getPath('userData'),
+    locationStore: projectLocationStore.get,
+    allLocations: projectLocationStore.all,
+    legacyBasePath: () => getStorageBasePath(),
+  }),
   fetchJson: diagnosticsFetchJson,
   fetchBytes: diagnosticsFetchBytes,
 })
@@ -586,6 +596,7 @@ registerStudioRenderIpcHandlers({
 
 registerAssetLibraryIpcHandlers({
   getStorageBasePath,
+  getAssetsRoot,
   getMediaRoot,
   createOperationId: createDiagnosticsOperationId,
   writeDiagnosticsLog,
@@ -616,6 +627,15 @@ app.whenReady().then(async () => {
   }
   scheduleAutoClean()
   await stopLocalSidecars()
+  // 1015 资产归域:启动期一次性幂等迁移例程(sidecar 已停+renderer 未起=并发窗最小)。
+  // 失败不拦启动:仅『资产未提交(旧根 db 在场)』失败可回落旧根零损失;异常态
+  // (ORPHANED/多位置等)交根健康闸在资产 IPC 层拦截,绝不在此建库。
+  await runAssetHomeMigration({
+    userDataPath: app.getPath('userData'),
+    getStorageBasePath: () => getStorageBasePath(),
+    locationStore: projectLocationStore,
+    log: (message) => console.warn(`[asset-migration] ${message}`),
+  })
   // 云中继先于一切引擎拉起(节点侧常驻寻址;绑口失败不拦启动,云端节点会
   // 以「通道未接通」大白话显式报错)。
   void comfyCloudRelay.start().catch((error) => {

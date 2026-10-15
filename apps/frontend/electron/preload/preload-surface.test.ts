@@ -318,7 +318,8 @@ describe("preload IPC surface", () => {
     expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-prepare', projectId, parentDir, projectName)");
     expect(preloadSource).toContain("rename: (projectId: string, newName: string) =>");
     expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-rename', projectId, newName)");
-    expect(preloadSource).toContain("remove: (projectId: string) => ipcRenderer.invoke('project-folder-remove', projectId)");
+    expect(preloadSource).toContain("remove: (projectId: string, payload?: { confirmAssetDeletion?: boolean }) =>");
+    expect(preloadSource).toContain("ipcRenderer.invoke('project-folder-remove', projectId, payload)");
     expect(preloadSource).toContain("status: (projectId: string) => ipcRenderer.invoke('project-folder-status', projectId)");
     expect(electronTypesSource).toContain("projectFolder?: ProjectFolderBridge & ProjectFolderMoveImportBridge;");
   });

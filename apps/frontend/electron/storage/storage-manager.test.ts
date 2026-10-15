@@ -153,7 +153,7 @@ describe("createStorageManager", () => {
     await selectDirViaDialog("/empty");
     await expect(handlers.get("storage-link-data")?.(null, "/empty")).resolves.toEqual({
       success: false,
-      error: "该目录不包含有效的数据（需要 projects/、media/、assets/ 或 skills/ 子目录）",
+      error: "该目录不包含有效的数据（需要 projects/、media/ 或 skills/ 子目录）",
     });
   });
 
@@ -173,7 +173,7 @@ describe("createStorageManager", () => {
     });
   });
 
-  it("includes assets in move and export operations", async () => {
+  it("excludes assets from move and export operations(1015 资产归域:资产随位置表走,basePath 搬家不再搬 assets=防双份真相)", async () => {
     const manager = createStorageManager({ userDataPath: "/user-data" });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
 
@@ -187,15 +187,15 @@ describe("createStorageManager", () => {
       success: true,
       path: "/new-data",
     });
-    expect(cp).toHaveBeenCalledWith("/user-data/assets/entry", "/new-data/assets/entry", { recursive: true, force: true });
+    expect(cp).not.toHaveBeenCalledWith("/user-data/assets/entry", "/new-data/assets/entry", { recursive: true, force: true });
 
     cp.mockClear();
     await selectDirViaDialog("/backup");
     await expect(handlers.get("storage-export-data")?.(null, "/backup")).resolves.toMatchObject({ success: true });
-    expect(cp).toHaveBeenCalledWith("/new-data/assets", expect.stringMatching(/\/assets$/), { recursive: true, force: true });
+    expect(cp).not.toHaveBeenCalledWith("/user-data/assets", expect.stringMatching(/assets$/), { recursive: true, force: true });
   });
 
-  it("imports the assets category with the same category-level replacement flow", async () => {
+  it("leaves the assets library untouched by unified import(1015:纯 assets 包不再是有效导入源,项目域资产库零删零覆盖)", async () => {
     const manager = createStorageManager({ userDataPath: "/user-data" });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
 
@@ -205,9 +205,12 @@ describe("createStorageManager", () => {
     readdir.mockResolvedValue([]);
 
     await selectDirViaDialog("/incoming");
-    await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toEqual({ success: true });
-    expect(rm).toHaveBeenCalledWith("/user-data/assets", { recursive: true, force: true });
-    expect(cp).toHaveBeenCalledWith("/incoming/assets", "/user-data/assets", { recursive: true, force: true });
+    await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toEqual({
+      success: false,
+      error: "源目录不包含有效数据（需要 projects/、media/ 或 skills/ 子目录）",
+    });
+    expect(rm).not.toHaveBeenCalledWith("/user-data/assets", { recursive: true, force: true });
+    expect(cp).not.toHaveBeenCalledWith("/incoming/assets", "/user-data/assets", { recursive: true, force: true });
   });
 
   it("does not destroy data when a legacy import points at the active storage root", async () => {
@@ -234,14 +237,14 @@ describe("createStorageManager", () => {
       fileOps: { cp: copyFailure, remove },
     });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
-    existsSync.mockImplementation((candidate?: unknown) => candidate === "/incoming/assets");
+    existsSync.mockImplementation((candidate?: unknown) => candidate === "/incoming/projects");
     await selectDirViaDialog("/incoming");
 
     await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toMatchObject({
       success: false,
       error: expect.stringContaining("copy failed"),
     });
-    expect(remove).toHaveBeenCalledWith("/user-data/assets", { recursive: true, force: true });
+    expect(remove).toHaveBeenCalledWith("/user-data/projects", { recursive: true, force: true });
   });
 
   it("cleans an incomplete export when a later category copy fails", async () => {
@@ -328,5 +331,85 @@ describe("createStorageManager", () => {
     expect(showMessageBox).toHaveBeenCalledTimes(1);
     expect(rm).not.toHaveBeenCalled();
     expect(cp).not.toHaveBeenCalled();
+  });
+
+  describe("assetRootProvider(1015 资产归域)", () => {
+    beforeEach(() => {
+      handlers.clear();
+      existsSync.mockReset();
+      existsSync.mockReturnValue(false);
+      mkdirSync.mockReset();
+      readdir.mockReset();
+      readdir.mockResolvedValue([]);
+      rm.mockReset();
+      rm.mockResolvedValue(undefined);
+      cp.mockReset();
+      cp.mockResolvedValue(undefined);
+      readFileSync.mockReset();
+      readFileSync.mockReturnValue(undefined);
+      writeFileSync.mockReset();
+      writeFileSync.mockImplementation(() => undefined);
+      rmSync.mockReset();
+    });
+
+    it("①未设 provider → getAssetsRoot 旧语义逐字节等价 join(basePath,'assets')(M-A)", () => {
+      const manager = createStorageManager({ userDataPath: "/user-data" });
+      expect(manager.getAssetsRoot()).toBe("/user-data/assets");
+
+      readFileSync.mockReturnValue('{"basePath":"/ext"}');
+      existsSync.mockImplementation((candidate?: unknown) => candidate === "/user-data/storage-config.json");
+      const linked = createStorageManager({ userDataPath: "/user-data" });
+      expect(linked.getAssetsRoot()).toBe("/ext/assets");
+    });
+
+    it("②set 后 getAssetsRoot=provider 根,provider 惰性求值(每次调用重求值)", () => {
+      const manager = createStorageManager({ userDataPath: "/user-data" });
+      let projectRoot = "/Users/x/Project/IP/MA";
+      manager.setAssetRootProvider(() => `${projectRoot}/assets`);
+      expect(manager.getAssetsRoot()).toBe("/Users/x/Project/IP/MA/assets");
+      projectRoot = "/Users/x/Project/IP/MA2";
+      expect(manager.getAssetsRoot()).toBe("/Users/x/Project/IP/MA2/assets");
+    });
+
+    it("③provider 抛 ASSET_HOME_ORPHANED → getAssetsRoot 上抛且不 mkdir(绝不空库重建)", () => {
+      const manager = createStorageManager({ userDataPath: "/user-data" });
+      manager.setAssetRootProvider(() => {
+        throw new Error("ASSET_HOME_ORPHANED:资产库位置失联(原位置:/Users/x/Project/IP/MA),请重新绑定项目文件夹");
+      });
+      expect(() => manager.getAssetsRoot()).toThrow(/ASSET_HOME_ORPHANED/);
+      expect(mkdirSync).not.toHaveBeenCalled();
+    });
+
+    it("④storage-get-paths assetsPath=provider 根(其余根不受 provider 影响)", async () => {
+      const manager = createStorageManager({ userDataPath: "/user-data" });
+      manager.setAssetRootProvider(() => "/Users/x/Project/IP/MA/assets");
+      manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+
+      await expect(handlers.get("storage-get-paths")?.()).resolves.toMatchObject({
+        basePath: "/user-data",
+        assetsPath: "/Users/x/Project/IP/MA/assets",
+        projectPath: "/user-data/projects",
+      });
+    });
+
+    it("⑤import 源目录带 assets/ 子目录 → console.warn 提示不再并入,有效数据判定不看 assets", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      try {
+        const manager = createStorageManager({ userDataPath: "/user-data" });
+        manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+        existsSync.mockImplementation((candidate?: unknown) => (
+          candidate === "/incoming/projects" || candidate === "/incoming/assets"
+        ));
+        readdir.mockResolvedValue([]);
+
+        await selectDirViaDialog("/incoming");
+        await expect(handlers.get("storage-import-data")?.(null, "/incoming")).resolves.toEqual({ success: true });
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("assets"), expect.anything());
+        expect(rm).not.toHaveBeenCalledWith("/user-data/assets", { recursive: true, force: true });
+        expect(cp).not.toHaveBeenCalledWith("/incoming/assets", "/user-data/assets", { recursive: true, force: true });
+      } finally {
+        warn.mockRestore();
+      }
+    });
   });
 });

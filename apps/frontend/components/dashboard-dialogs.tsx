@@ -9,6 +9,7 @@ import { FolderInput } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import type { Project } from "@/stores/project/project-store";
+import type { AssetDeleteConfirmItem } from "@/components/dashboard-project-actions";
 import type { ProjectFolderMoveProgressEvent } from "@/types/electron";
 
 /** 注入的 state+回调契约(Dashboard.tsx 构造;原 props: any 是隐式 any 源头) */
@@ -31,12 +32,16 @@ export interface DashboardDialogsProps {
   batchDeleteConfirm: boolean;
   setBatchDeleteConfirm: Dispatch<SetStateAction<boolean>>;
   handleBatchDelete: () => Promise<void>;
+  /** B1 资产知情守卫二级确认:非 null 时弹披露体量的确认弹窗。 */
+  assetDeleteConfirmItems: AssetDeleteConfirmItem[] | null;
+  confirmAssetDeletion: () => void;
+  cancelAssetDeletion: () => void;
 }
 
 export function DashboardDialogs(props: DashboardDialogsProps) {
   const { renameDialogOpen, setRenameDialogOpen, renameValue, setRenameValue, handleRename,
-    movePhase, moveProgress, moveTarget, handleCancelMove, closeMoveDialog, handleMoveStart, MOVE_PHASE_LABELS, Progress, selectedIds, projects, 
-    batchDeleteConfirm, setBatchDeleteConfirm, handleBatchDelete } = props;
+    movePhase, moveProgress, moveTarget, handleCancelMove, closeMoveDialog, handleMoveStart, MOVE_PHASE_LABELS, Progress, selectedIds, projects,
+    batchDeleteConfirm, setBatchDeleteConfirm, handleBatchDelete, assetDeleteConfirmItems, confirmAssetDeletion, cancelAssetDeletion } = props;
 
   return (
     <>
@@ -158,6 +163,29 @@ export function DashboardDialogs(props: DashboardDialogsProps) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchDeleteConfirm(false)}>取消</Button>
             <Button variant="destructive" onClick={handleBatchDelete}>确认删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== Asset Delete Confirm Dialog(B1 资产知情守卫二级确认) ==================== */}
+      <Dialog open={assetDeleteConfirmItems !== null} onOpenChange={(open) => { if (!open) cancelAssetDeletion(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>确认删除资产库</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            以下项目文件夹内含资产库/TTS,删除项目将连同资产一并清除,此操作不可撤销:
+          </p>
+          <div className="space-y-1">
+            {(assetDeleteConfirmItems ?? []).map((item) => (
+              <p key={item.project.id} className="text-xs font-mono text-destructive">
+                {item.project.name} —— {item.assetFileCount} 个文件,约 {Math.round(item.assetBytes / 1024 / 1024)} MB
+              </p>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelAssetDeletion}>取消</Button>
+            <Button variant="destructive" onClick={confirmAssetDeletion}>仍要删除</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -32,7 +32,16 @@ export type ProjectFolderRenameResult =
 
 export type ProjectFolderRemoveResult =
   | { ok: true; removed: boolean; message?: string }
-  | { ok: false; message: string };
+  | { ok: false; message: string }
+  // 1015 资产归域:remove 的资产知情守卫——项目位置目录含资产库/TTS 时,
+  // 删除半径=MA 全域,必须显式二次确认;体量披露供 renderer 弹窗展示。
+  | {
+      ok: false;
+      code: "ASSET_DELETION_UNCONFIRMED";
+      message: string;
+      assetFileCount: number;
+      assetBytes: number;
+    };
 
 export type ProjectFolderStatusResult = { location?: string; exists: boolean };
 
@@ -74,7 +83,11 @@ export type ProjectFolderImportResult =
 export type ProjectFolderBridge = {
   prepare: (projectId: string, parentDir: string, projectName: string) => Promise<ProjectFolderPrepareResult>;
   rename: (projectId: string, newName: string) => Promise<ProjectFolderRenameResult>;
-  remove: (projectId: string) => Promise<ProjectFolderRemoveResult>;
+  remove: (
+    projectId: string,
+    /** 1015 资产知情守卫的二次确认载荷:含资产项目须 confirmAssetDeletion===true 方可删。 */
+    payload?: { confirmAssetDeletion?: boolean },
+  ) => Promise<ProjectFolderRemoveResult>;
   status: (projectId: string) => Promise<ProjectFolderStatusResult>;
   copyNovel: (sourceProjectId: string, targetProjectId: string) => Promise<ProjectFolderCopyNovelResult>;
   move: (projectId: string, projectName: string, targetParentDir: string) => Promise<ProjectFolderMoveResult>;
@@ -397,12 +410,47 @@ export function registerProjectFolderIpcHandlers({
     },
   );
 
-  ipcMain.handle("project-folder-remove", async (_event, projectId: string): Promise<ProjectFolderRemoveResult> => {
+  ipcMain.handle("project-folder-remove", async (_event, projectId: string, payload?: { confirmAssetDeletion?: boolean }): Promise<ProjectFolderRemoveResult> => {
     if (!isValidProjectId(projectId)) {
       return { ok: false, message: "项目 ID 无效" };
     }
     const location = locationStore.get(projectId);
     if (!location) return { ok: true, removed: false };
+    // 1015 资产归域守卫:<location>/assets 与 <location>/TTS 非空 → 删除半径=
+    // 全项目域(资产库+TTS+店),须 payload.confirmAssetDeletion===true 方可删。
+    const measureTree = (root: string): { count: number; bytes: number } => {
+      let count = 0;
+      let bytes = 0;
+      const visit = (dir: string) => {
+        for (const entry of fs.readdirSync(dir)) {
+          const full = path.join(dir, entry);
+          const stat = fs.statSync(full);
+          if (stat.isDirectory()) visit(full);
+          else {
+            count += 1;
+            bytes += stat.size;
+          }
+        }
+      };
+      visit(root);
+      return { count, bytes };
+    };
+    const assetRoots = [path.join(location, "assets"), path.join(location, "TTS")].filter((root) => fs.existsSync(root));
+    if (assetRoots.length > 0 && payload?.confirmAssetDeletion !== true) {
+      const totals = assetRoots.map(measureTree).reduce(
+        (sum, item) => ({ count: sum.count + item.count, bytes: sum.bytes + item.bytes }),
+        { count: 0, bytes: 0 },
+      );
+      if (totals.count > 0) {
+        return {
+          ok: false,
+          code: "ASSET_DELETION_UNCONFIRMED",
+          message: `项目文件夹内含资产库/TTS(${totals.count} 个文件,约 ${Math.round(totals.bytes / 1024 / 1024)} MB),删除将一并清除,请确认`,
+          assetFileCount: totals.count,
+          assetBytes: totals.bytes,
+        };
+      }
+    }
     try {
       if (fs.existsSync(location)) {
         await fs.promises.rm(location, { recursive: true, force: true });

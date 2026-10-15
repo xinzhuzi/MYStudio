@@ -292,6 +292,42 @@ describe("project-folder IPC handlers", () => {
     expect(fixture.store.get("pid-1")).toBeUndefined();
   });
 
+  // ===== 1015 资产归域:remove 资产知情守卫(M5+M15)=====
+  async function prepareProjectWithAssets(assetBytes: number) {
+    const parent = path.join(fixture.tmp, "parent");
+    fs.mkdirSync(parent);
+    await fixture.invoke("project-folder-prepare", "pid-1", parent, "带资产");
+    const location = path.join(parent, "带资产");
+    fs.mkdirSync(path.join(location, "assets", "files", "role"), { recursive: true });
+    fs.writeFileSync(path.join(location, "assets", "assets.db"), "db");
+    fs.writeFileSync(path.join(location, "assets", "files", "role", "a.png"), "x".repeat(assetBytes));
+    fs.mkdirSync(path.join(location, "TTS", "runtime"), { recursive: true });
+    fs.writeFileSync(path.join(location, "TTS", "runtime", "tts.sqlite"), "tts");
+    return { location };
+  }
+
+  it("remove refuses to delete a project home holding the asset library and TTS without explicit confirmation", async () => {
+    const { location } = await prepareProjectWithAssets(128);
+    const result = await fixture.invoke("project-folder-remove", "pid-1") as {
+      ok: boolean; code?: string; assetFileCount?: number; assetBytes?: number; message?: string;
+    };
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("ASSET_DELETION_UNCONFIRMED");
+    expect(result.assetFileCount).toBeGreaterThanOrEqual(3);
+    expect(result.assetBytes).toBeGreaterThanOrEqual(128);
+    // 目录原封不动
+    expect(fs.existsSync(location)).toBe(true);
+    expect(fixture.store.get("pid-1")).toBeTruthy();
+  });
+
+  it("remove proceeds after confirmAssetDeletion acknowledgement", async () => {
+    const { location } = await prepareProjectWithAssets(64);
+    const result = await fixture.invoke("project-folder-remove", "pid-1", { confirmAssetDeletion: true });
+    expect(result).toEqual({ ok: true, removed: true });
+    expect(fs.existsSync(location)).toBe(false);
+    expect(fixture.store.get("pid-1")).toBeUndefined();
+  });
+
   it("status reports the registered location and folder existence", async () => {
     expect(await fixture.invoke("project-folder-status", "unregistered")).toEqual({ exists: true });
 

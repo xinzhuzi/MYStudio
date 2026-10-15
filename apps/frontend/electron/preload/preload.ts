@@ -136,7 +136,10 @@ contextBridge.exposeInMainWorld('projectFolder', {
     ipcRenderer.invoke('project-folder-prepare', projectId, parentDir, projectName),
   rename: (projectId: string, newName: string) =>
     ipcRenderer.invoke('project-folder-rename', projectId, newName),
-  remove: (projectId: string) => ipcRenderer.invoke('project-folder-remove', projectId),
+  // 1015 资产知情守卫:第二参载荷透传(含资产项目须 confirmAssetDeletion===true,
+  // 单参调用=探测式删除,主进程回 ASSET_DELETION_UNCONFIRMED+体量披露)。
+  remove: (projectId: string, payload?: { confirmAssetDeletion?: boolean }) =>
+    ipcRenderer.invoke('project-folder-remove', projectId, payload),
   status: (projectId: string) => ipcRenderer.invoke('project-folder-status', projectId),
   copyNovel: (sourceProjectId: string, targetProjectId: string) =>
     ipcRenderer.invoke('project-folder-copy-novel', sourceProjectId, targetProjectId),

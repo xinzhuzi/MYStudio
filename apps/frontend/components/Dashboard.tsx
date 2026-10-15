@@ -201,7 +201,7 @@ export function Dashboard({
 
   // ==================== Create / Open ====================
 
-  const { handleOpenProject, handleSelectAll, handleBatchDelete, handleRename, openRenameDialog, toggleSelectionMode, toggleSelect, startHoldSelect, moveHoldSelect, cancelHoldSelect } = useDashboardProjectActions({
+  const { handleOpenProject, handleSelectAll, handleBatchDelete, handleRename, openRenameDialog, toggleSelectionMode, toggleSelect, startHoldSelect, moveHoldSelect, cancelHoldSelect, assetDeleteConfirmItems, confirmAssetDeletion, cancelAssetDeletion } = useDashboardProjectActions({
     projects, selectionMode, setSelectionMode, selectedIds, setSelectedIds,
     setBatchDeleteConfirm, setRenameDialogOpen, renameTarget, setRenameTarget,
     renameValue, setRenameValue, getProjectFolderBridge, deleteProject, renameProject, initializeRemotionWorkspace, setActiveTab, holdSelectTimerRef, holdSelectStartRef, holdSelectFiredRef, setHoldSelectProjectId,
@@ -605,6 +605,9 @@ export function Dashboard({
         MOVE_PHASE_LABELS={MOVE_PHASE_LABELS}
         batchDeleteConfirm={batchDeleteConfirm} setBatchDeleteConfirm={setBatchDeleteConfirm}
         handleBatchDelete={handleBatchDelete}
+        assetDeleteConfirmItems={assetDeleteConfirmItems}
+        confirmAssetDeletion={confirmAssetDeletion}
+        cancelAssetDeletion={cancelAssetDeletion}
       />
     </div>
   );

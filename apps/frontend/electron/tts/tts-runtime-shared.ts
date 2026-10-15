@@ -87,6 +87,14 @@ export interface TtsRuntimeControllerDeps {
   appRoot: string;
   userDataPath: string;
   storageBasePath?: string | (() => string);
+  /**
+   * 1015 资产归域【B-2 统一层级】:TTS 家基路径 provider(=resolveTtsHomeRoot,
+   * 返回基路径级——新态=项目根;旧态=旧统一存储基路径)。ttsRootDir=
+   * join(返回值,'TTS') 恰好一层;provider 不得自带 TTS 段(否则拼出
+   * MA/TTS/TTS,探针恒 miss→恒判未迁→旧家已清→两侧都无恒炸)。
+   * 未注入=现状 join(storageBasePath(),'TTS') 逐字节不变。
+   */
+  projectRootProvider?: () => string;
   huggingFaceHubDir?: string | (() => string);
   port?: number;
   host?: string;

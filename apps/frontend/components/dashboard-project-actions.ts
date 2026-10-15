@@ -2,7 +2,7 @@
  * Dashboard 项目操作钩子——打开项目/全选/批量删除/重命名。
  * Dashboard 三期拆出,体逐字保留;组件 state 经 ctx 注入。
  */
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject, Dispatch, SetStateAction } from "react";
 import type { Project } from "@/stores/project/project-store";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -12,6 +12,13 @@ import { SELECT_HOLD_MS, SELECT_HOLD_CANCEL_DISTANCE_PX } from "./Dashboard";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { toast } from "sonner";
 import { switchProject } from "@/lib/project/project-switcher";
+
+/** 资产知情守卫二级确认弹窗的披露项(主进程 ASSET_DELETION_UNCONFIRMED 回执体)。 */
+export interface AssetDeleteConfirmItem {
+  project: Project;
+  assetFileCount: number;
+  assetBytes: number;
+}
 
 /** 注入的组件 state/桥接件契约(Dashboard.tsx 构造;原 ctx: any 是 09-06 P0 的温床) */
 export interface DashboardProjectActionsCtx {
@@ -39,6 +46,25 @@ export interface DashboardProjectActionsCtx {
 
 export function useDashboardProjectActions(ctx: DashboardProjectActionsCtx) {
   const { projects, selectionMode, setSelectionMode, selectedIds, setSelectedIds, setBatchDeleteConfirm, setRenameDialogOpen, renameTarget, setRenameTarget, renameValue, setRenameValue, getProjectFolderBridge, initializeRemotionWorkspace, setActiveTab, holdSelectTimerRef, holdSelectStartRef, setHoldSelectProjectId, holdSelectFiredRef, deleteProject, renameProject } = ctx;
+
+  // ==================== 资产知情守卫二级确认(B1 复审修复) ====================
+  // 主进程 remove 对含资产项目回 ASSET_DELETION_UNCONFIRMED+体量披露;渲染端
+  // 弹二级确认(Dialog 由 DashboardDialogs 渲染),确认后带
+  // confirmAssetDeletion:true 重删——守卫由此获得消费端闭环。
+  const [assetDeleteConfirmItems, setAssetDeleteConfirmItems] = useState<AssetDeleteConfirmItem[] | null>(null);
+  const assetDeleteConfirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null);
+  const waitForAssetDeleteConfirm = useCallback((items: AssetDeleteConfirmItem[]): Promise<boolean> =>
+    new Promise((resolve) => {
+      assetDeleteConfirmResolverRef.current = resolve;
+      setAssetDeleteConfirmItems(items);
+    }), []);
+  const settleAssetDeleteConfirm = useCallback((confirmed: boolean) => {
+    setAssetDeleteConfirmItems(null);
+    assetDeleteConfirmResolverRef.current?.(confirmed);
+    assetDeleteConfirmResolverRef.current = null;
+  }, []);
+  const confirmAssetDeletion = useCallback(() => settleAssetDeleteConfirm(true), [settleAssetDeleteConfirm]);
+  const cancelAssetDeletion = useCallback(() => settleAssetDeleteConfirm(false), [settleAssetDeleteConfirm]);
 
   const handleOpenProject = async (projectId: string) => {
     if (selectionMode) return; // Don't open in selection mode
@@ -141,6 +167,9 @@ export function useDashboardProjectActions(ctx: DashboardProjectActionsCtx) {
   const deleteProjectsOrchestrated = useCallback(
     async (targets: Project[]): Promise<number> => {
       let removed = 0;
+      // B1:第一轮单参探测式删除;含资产项目主进程拒删(ASSET_DELETION_UNCONFIRMED
+      // +体量披露),收集后统一弹二级确认,确认后带 confirmAssetDeletion:true 重删。
+      const assetPending: AssetDeleteConfirmItem[] = [];
       for (const project of targets) {
         if (project.location) {
           const folderBridge = getProjectFolderBridge();
@@ -150,6 +179,14 @@ export function useDashboardProjectActions(ctx: DashboardProjectActionsCtx) {
           }
           const result = await folderBridge.remove(project.id);
           if (!result.ok) {
+            if ("code" in result && result.code === "ASSET_DELETION_UNCONFIRMED") {
+              assetPending.push({
+                project,
+                assetFileCount: result.assetFileCount,
+                assetBytes: result.assetBytes,
+              });
+              continue;
+            }
             toast.error(`删除「${project.name}」的文件夹失败`, { description: result.message });
             continue;
           }
@@ -157,9 +194,30 @@ export function useDashboardProjectActions(ctx: DashboardProjectActionsCtx) {
         deleteProject(project.id);
         removed += 1;
       }
+      if (assetPending.length > 0) {
+        const confirmed = await waitForAssetDeleteConfirm(assetPending);
+        if (confirmed) {
+          for (const item of assetPending) {
+            if (item.project.location) {
+              const folderBridge = getProjectFolderBridge();
+              if (!folderBridge) {
+                toast.error(`删除「${item.project.name}」需要桌面端环境`);
+                continue;
+              }
+              const result = await folderBridge.remove(item.project.id, { confirmAssetDeletion: true });
+              if (!result.ok) {
+                toast.error(`删除「${item.project.name}」的文件夹失败`, { description: result.message });
+                continue;
+              }
+            }
+            deleteProject(item.project.id);
+            removed += 1;
+          }
+        }
+      }
       return removed;
     },
-    [deleteProject, getProjectFolderBridge],
+    [deleteProject, getProjectFolderBridge, waitForAssetDeleteConfirm],
   );
 
   // ==================== Batch Delete ====================
@@ -228,5 +286,5 @@ export function useDashboardProjectActions(ctx: DashboardProjectActionsCtx) {
 
   // ==================== Duplicate ====================
 
-  return { handleOpenProject, handleSelectAll, handleBatchDelete, handleRename, openRenameDialog, toggleSelectionMode, toggleSelect, startHoldSelect, moveHoldSelect, cancelHoldSelect };
+  return { handleOpenProject, handleSelectAll, handleBatchDelete, handleRename, openRenameDialog, toggleSelectionMode, toggleSelect, startHoldSelect, moveHoldSelect, cancelHoldSelect, assetDeleteConfirmItems, confirmAssetDeletion, cancelAssetDeletion };
 }

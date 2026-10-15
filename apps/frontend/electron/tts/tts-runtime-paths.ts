@@ -9,7 +9,7 @@ import type { TtsRuntimeControllerDeps, RuntimeConfig } from "./tts-runtime-shar
 import { normalizeUserPath } from "./tts-runtime-shared";
 import { ttsModelCacheDir } from "@/electron/storage/model-dirs";
 
-export type TtsRuntimePathsDeps = Pick<TtsRuntimeControllerDeps, "storageBasePath" | "huggingFaceHubDir" | "userDataPath">;
+export type TtsRuntimePathsDeps = Pick<TtsRuntimeControllerDeps, "storageBasePath" | "huggingFaceHubDir" | "userDataPath" | "projectRootProvider">;
 export interface TtsRuntimePathsIo {
   readTextFile: (filePath: string) => string | null;
   writeTextFile: (filePath: string, text: string) => void;
@@ -30,13 +30,20 @@ export function createTtsRuntimePaths(deps: TtsRuntimePathsDeps, io: TtsRuntimeP
     if (typeof deps.huggingFaceHubDir === "function") return deps.huggingFaceHubDir();
     return deps.huggingFaceHubDir || path.join(os.homedir(), ".cache", "huggingface", "hub");
   };
-  const ttsRootDir = () => path.join(storageBasePath(), "TTS");
+  // 1015 资产归域【B-2/M7】:注入 projectRootProvider(=resolveTtsHomeRoot,基路径级)
+  // → ttsRootDir=join(返回值,'TTS');未注入=现状 join(storageBasePath(),'TTS') 逐字节不变。
+  const ttsRootDir = () => path.join(
+    deps.projectRootProvider ? deps.projectRootProvider() : storageBasePath(),
+    "TTS",
+  );
   const runtimeDataDir = () => path.join(ttsRootDir(), "runtime");
   const legacyRuntimeDir = path.join(deps.userDataPath, "tts-runtime");
   const legacyModelsDir = () => path.join(storageBasePath(), "tts-models");
-  const legacyDefaultModelsDir = () => path.join(ttsRootDir(), "models");
+  // 2026-08 前的默认模型缓存目录。m2:钉死 storageBasePath 派生(不随 ttsRootDir
+  // 漂移)——归域后旧家模型缓存目录名不可被 provider 根重写,退役探测只认旧家。
+  const legacyDefaultModelsDir = () => path.join(storageBasePath(), "TTS", "models");
   // 2026-08 前的默认模型缓存目录（<base>/TTS/model）；新布局统一收口到 <base>/model/<family>/
-  const legacyCacheModelsDir = () => path.join(ttsRootDir(), "model");
+  const legacyCacheModelsDir = () => path.join(storageBasePath(), "TTS", "model");
   const runtimePythonDir = () => path.join(storageBasePath(), "python");
   const runtimeArchiveDir = () => storageBasePath();
   const configPath = () => path.join(runtimeDataDir(), "config.json");

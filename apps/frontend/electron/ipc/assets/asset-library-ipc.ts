@@ -9,6 +9,8 @@ import type { DiagnosticsLogEntryInput } from "../../../types/diagnostics";
 
 type RegisterAssetLibraryIpcHandlersContext = {
   getStorageBasePath: () => string;
+  /** 1015 资产归域:资产根(=项目位置表解析的 <projectRoot>/assets);provider 抛 ASSET_HOME_ORPHANED 等异常态走根健康闸。 */
+  getAssetsRoot: () => string;
   getMediaRoot: () => string;
   createOperationId: (prefix: string) => string;
   writeDiagnosticsLog: (entry: DiagnosticsLogEntryInput) => void;
@@ -17,6 +19,9 @@ type RegisterAssetLibraryIpcHandlersContext = {
   /** 原生对话框选出的路径在此登记,短期作为合法素材源。 */
   blessDialogPaths: (paths: readonly string[]) => void;
 };
+
+/** 断链告警会话级去重(1015 补刀):同 URL 只 warn 一次,新 URL 不吞信号。 */
+const brokenAssetUrlWarned = new Set<string>();
 
 function summarizeDiagnosticsResult(result: unknown): unknown {
   if (Array.isArray(result)) return { count: result.length };
@@ -35,6 +40,7 @@ function summarizeDiagnosticsResult(result: unknown): unknown {
 
 export function registerAssetLibraryIpcHandlers({
   getStorageBasePath,
+  getAssetsRoot,
   getMediaRoot,
   createOperationId,
   writeDiagnosticsLog,
@@ -42,12 +48,27 @@ export function registerAssetLibraryIpcHandlers({
   blessDialogPaths,
 }: RegisterAssetLibraryIpcHandlersContext) {
   let assetDiagnosticsQueue: Promise<void> = Promise.resolve();
-  let readyStorageBasePath: string | null = null;
-  const ensureAssetsStorageReady = () => {
-    const storageBasePath = getStorageBasePath();
-    if (readyStorageBasePath === storageBasePath) return;
-    assetsStorage.initAssetsStorage(storageBasePath);
-    readyStorageBasePath = storageBasePath;
+  let readyAssetsRoot: string | null = null;
+  // 【M9+M15 根健康闸】getAssetsRoot 异常态(ASSET_HOME_ORPHANED 等)→
+  // 先 writeDiagnosticsLog(error)自带留痕,再原样 throw(handler rejects,
+  // assets:list 等直接透传结果的 handler 把 rejection 面板可见);
+  // 绝不调 initAssetsStorage(M1:静默 fallback=空库重建+受管根丢失双杀)。
+  const ensureAssetsStorageReady = (operationId: string) => {
+    let assetsRoot: string;
+    try {
+      assetsRoot = getAssetsRoot();
+    } catch (error) {
+      writeDiagnosticsLog({
+        level: "error",
+        category: "asset",
+        operationId,
+        message: `资产库根解析失败(状态机异常态):${error instanceof Error ? error.message : String(error)}`,
+      });
+      throw error;
+    }
+    if (readyAssetsRoot === assetsRoot) return;
+    assetsStorage.initAssetsStorage(assetsRoot);
+    readyAssetsRoot = assetsRoot;
   };
   const runAssetDiagnostics = async <T>(
     action: string,
@@ -60,7 +81,7 @@ export function registerAssetLibraryIpcHandlers({
     const queuedRun = previous.then(async () => {
       const startedAt = performance.now();
       const queuedMs = Math.round(startedAt - queuedAt);
-      ensureAssetsStorageReady();
+      ensureAssetsStorageReady(operationId);
       writeDiagnosticsLog({
         level: "debug",
         category: "asset",
@@ -136,7 +157,7 @@ export function registerAssetLibraryIpcHandlers({
     try {
       const absolute = resolveProjectOrAssetFileUrl(
         getStorageBasePath(),
-        nodePath.join(getStorageBasePath(), "assets"),
+        getAssetsRoot(),
         String(url ?? ""),
       );
       if (!nodeFs.existsSync(absolute)) return null;
@@ -150,14 +171,28 @@ export function registerAssetLibraryIpcHandlers({
     }
   });
   // asset-file:// 虚拟引用 → 受管绝对路径(瞬态解析,供 TTS Python 后端等
-  // 只吃真实路径的消费边界;store 持久化形态恒为虚拟——08-24 路径裁定)
+  // 只吃真实路径的消费边界;store 持久化形态恒为虚拟——08-24 路径裁定)。
+  // 1015 补刀【断链可诊断】:解析成功但文件缺席 → writeDiagnosticsLog(warn)
+  // 留痕(此前静默 null,断链只表现成下游「文件不可读」,主进程无据可查);
+  // 同 URL 会话级去重防刷屏(TTS 轮询链会重复解析同一引用)。
   ipcMain.handle("assets:resolve-file-url", (_event, url: string) => {
     try {
+      const raw = String(url ?? "");
       const absolute = resolveAssetFilePath(
-        nodePath.join(getStorageBasePath(), "assets"),
-        String(url ?? ""),
+        getAssetsRoot(),
+        raw,
       );
-      return nodeFs.existsSync(absolute) ? absolute : null;
+      if (nodeFs.existsSync(absolute)) return absolute;
+      if (raw.startsWith("asset-file://") && !brokenAssetUrlWarned.has(raw)) {
+        brokenAssetUrlWarned.add(raw);
+        writeDiagnosticsLog({
+          level: "warn",
+          category: "asset",
+          operationId: createOperationId("asset-resolve-file-url"),
+          message: `资产引用断链:虚拟 URL 解析成功但文件缺席(${raw} → ${absolute})`,
+        });
+      }
+      return null;
     } catch {
       return null;
     }
