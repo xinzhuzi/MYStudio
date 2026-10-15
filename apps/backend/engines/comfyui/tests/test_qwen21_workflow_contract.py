@@ -537,6 +537,8 @@ I2I_NODE_TYPE_WHITELIST = {
     # [510]阈值门→[507]SRC×[508]0→[509]回拼→[8]/[503])
     "SplitImageWithAlpha", "PorterDuffImageComposite", "JoinImageWithAlpha",
     "SolidMask", "ThresholdMask",
+    # 1015 画幅按型联动:[4018] 画幅建议器(九型宽高直通+手动成对优先)
+    "MyQi21WhSuggest",
 }
 # 人物系六型(库 §二:常量B 加挂型)
 PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
@@ -1629,7 +1631,8 @@ class TestSpeedSelectContract0929:
         want_seqs = {
             # 1006 四轮:qi21 四出(wh_ratio/PE启用? 随 AI扩写恒开退役;[4018] 恒九型)
             "qi21": ["positive", "negative", "width", "height"],
-            "i2i": ["positive", "negative", "latent", "positive_single", "prompt"],
+            "i2i": ["positive", "negative", "latent", "positive_single", "prompt",
+                    "画幅W", "画幅H"],  # 1015 画幅按型联动:两 INT 槽随批(prompt 仍居文本类末)
             "edit": ["positive", "negative", "latent", "positive_single"],
         }
         for name in ("qi21", "i2i", "edit"):
@@ -1644,8 +1647,12 @@ class TestSpeedSelectContract0929:
         if D10_PREVIEW_SLOT_LAST:   # S4 槽位批落地后翻 True(此处为翻转点,一次同批)
             for name, slot_name in (("i2i", "prompt"),):
                 outs = [o["name"] for o in _asg(GRAPHS[name])["outputs"]]
-                assert outs[-1] == slot_name, \
-                    f"{name}: D10 预览文本槽「{slot_name}」应=最末槽(节点最底),得 {outs}"
+                # 1015 画幅按型联动:prompt 后追加 画幅W/画幅H 两 INT 槽(非文本槽),
+                # D10 语义收窄=「prompt 应=文本类最末槽」(其后仅允非文本槽)
+                assert slot_name in outs and outs.index(slot_name) == len(outs) - 3, \
+                    f"{name}: D10 预览文本槽「{slot_name}」应=文本类最末(其后仅画幅W/H 两 INT 槽),得 {outs}"
+                assert outs[-2:] == ["画幅W", "画幅H"], \
+                    f"{name}: 尾两槽应=画幅W/画幅H(1015),得 {outs[-2:]}"
         # 1004:qi21「最终文本」槽随编码器迁出退役(预览改吃槽0 positive,断言在
         # test_subgraph_outputs_feed_sampler_latent_and_preview);edit 无预览槽=空真
 
@@ -2013,7 +2020,9 @@ class TestCanvasDiscipline:
         t2i 侧 de7149b 子图豁免集同款口径;qi21/t2i 主图保持逐线直断)。"""
         for name, graph in GRAPHS.items():
             nodes = _nodes(graph)
-            host_allowed: set[int] = set()   # 1003 甲案:i2i/edit 主图豁免集=恒空
+            # 1015 画幅按型联动:i2i 宿主画幅回送臂 [6]→[4](link229/230)为合法左向
+            # (宿主 outputs 追加画幅W/H,回送空潜宽高;形态=回送臂,非骨架倒流)
+            host_allowed: set[int] = {229, 230} if name == "i2i" else set()
             host_leftward: list[int] = []
             for link in graph["links"]:
                 origin, target = nodes[link[1]], nodes[link[3]]
@@ -2030,7 +2039,7 @@ class TestCanvasDiscipline:
                 assert set(host_leftward) == host_allowed, (
                     f"{name} 主图左向线集 {sorted(set(host_leftward))} ≠ 豁免集 "
                     f"{sorted(host_allowed)}(1003 甲案新标准:图像输入列=先导列,"
-                    f"骨架横向单向流,主图零左向线;扩容即红)"
+                    f"骨架横向单向流;1015:i2i 豁免集=画幅回送臂 229/230;扩容即红)"
                 )
             for sg in graph.get("definitions", {}).get("subgraphs", []):
                 if name == "edit":
@@ -4198,9 +4207,10 @@ class TestI2IContract:
         assert l55["origin_id"] == 4010 and l55["origin_slot"] == 4 \
             and l55["type"] == "BOOLEAN", \
             "rgba_hint 连线#55 应 [4010].槽4 透明值 BOOLEAN(1008 迁槽4=失配解除)"
-        assert not (bases[0]["outputs"][1].get("links") or []) \
-            and not (bases[0]["outputs"][2].get("links") or []), \
-            "[150] WIDTH/HEIGHT 本件不接(画幅随输入图,画幅联动行不移植)"
+        wh_l = _qi21_sg_links(graph)[bases[0]["outputs"][1]["links"][0]] if \
+            bases[0]["outputs"][1].get("links") else None
+        assert bases[0]["outputs"][1].get("links") and bases[0]["outputs"][2].get("links"), \
+            "[150] WIDTH/HEIGHT 应接 [4018] 九型宽高(1015 画幅按型联动;原「不移植」随用户令反转)"
         # 0928 PE 迁子图轮:RegexExtract 随 PE 链入子图(抓 rewritten_prompt)——
         # 禁入清单只剩画幅联动三件(i2i 画幅随输入图,联动行不移植)
         for banned in ("ComfyNumberConvert", "ComfyMathExpression"):
