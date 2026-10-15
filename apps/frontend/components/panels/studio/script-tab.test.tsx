@@ -22,6 +22,9 @@ vi.mock("md-editor-rt", () => ({
   disconnect() {}
 };
 
+// cmdk 首项选中/键盘导航的高亮 effect 调 scrollIntoView,jsdom 未实现该 API,补最小桩
+Element.prototype.scrollIntoView ??= function scrollIntoViewStub() {};
+
 (globalThis as any).matchMedia ??= () => ({
   matches: false,
   addEventListener() {},
@@ -664,7 +667,8 @@ describe("ScriptTab", () => {
 });
 
 // G1(批1步骤3 RED,10-13-audit4-gen-chain):章选择装载接线——
-// T1 下拉 change → store.switchChapter 派发 + activeChapterId 翻转后下拉跟随
+// T1′ 打开可搜索选择器点选章节 → store.switchChapter 派发 + activeChapterId 翻转后触发钮文案跟随
+// (1015 select→Popover+Command 换壳,T1 语义等价迁移:同一调用点同一形态)
 // T5 判定回归(livefire9 形态):store 锚定章(ch2 带 sourceText=装载后态)→ 预览标改编 + 摘要含本章正文
 describe("章选择装载接线(G1)", () => {
   // 前章=轻索引形态(窗口化瘦身后无 sourceText),目标章=装载后带正文的完整章
@@ -688,18 +692,24 @@ describe("章选择装载接线(G1)", () => {
     useStudioStore.setState({ activeChapterId: null });
   });
 
-  it("T1 下拉 change 派发 useStudioStore.switchChapter,store 锚翻转后下拉跟随", () => {
+  it("T1′ 打开选择器点选章节,派发 useStudioStore.switchChapter,store 锚翻转后触发钮文案跟随", async () => {
     const switchSpy = vi.spyOn(useStudioStore.getState(), "switchChapter");
     const props = { novelChapters: [ch1Light, ch2Full], ...makeProps() };
     const { rerender } = render(<ScriptTab {...props} />);
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "ch2" } });
+    fireEvent.click(screen.getByTestId("chapter-select-trigger"));
+    await waitFor(() =>
+      expect(screen.getByTestId("chapter-select-input")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "2. 第二章" }));
     expect(switchSpy).toHaveBeenCalledWith("ch2");
 
-    // 装载完成的等价观察态:activeChapterId 翻转后重渲,下拉选值跟随 store 真源
+    // 装载完成的等价观察态:activeChapterId 翻转后重渲,触发钮文案跟随 store 真源(等价旧受控 value 跟随)
     useStudioStore.setState({ activeChapterId: "ch2" });
     rerender(<ScriptTab {...props} />);
-    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("ch2");
+    expect(screen.getByTestId("chapter-select-trigger").textContent).toContain(
+      "2. 第二章",
+    );
   });
 
   it("T5 store 锚定章(ch2 带 sourceText)时「AI提示词」页标「本章判定：小说改编…」且摘要含「本章正文」", () => {
@@ -711,6 +721,149 @@ describe("章选择装载接线(G1)", () => {
     expect(screen.getByText(/本章判定：小说改编/)).toBeTruthy();
     const summary = screen.getByText(/含：/).textContent ?? "";
     expect(summary).toContain("本章正文");
+  });
+});
+
+// 1015 可搜索章节选择器:select(全本 4125 项原生 popup 无搜索,livefire13 收据实证不可操作)
+// → Popover+Command 组合。cmdk shouldFilter={false}(其内置过滤只对已渲染 Item 打分,与
+// cap 窗口化互斥)+自写子串过滤(序号或标题)+exact-index-first 置顶(搜「2000」第2000章必在
+// cap 内且第一)+cap=100(对齐 NovelChapterTable VISIBLE_BATCH=100 先例)。store 层零改。
+describe("章选择·可搜索选择器(搜索/直达/cap/装载中)", () => {
+  const makeProps = () => ({
+    agentWorkData: [],
+    saveAgentWorkData: vi.fn(),
+    runStage: vi.fn(),
+    runReview: vi.fn(),
+    manualContext: "",
+    directorContext: "",
+    styleSummary: "",
+    scriptStreaming: null,
+  });
+  const light = (i: number, title?: string) => ({
+    id: `c${i}`,
+    index: i,
+    title: title ?? `第${i}章`,
+    importedAt: i,
+  });
+
+  const openSelector = async () => {
+    fireEvent.click(screen.getByTestId("chapter-select-trigger"));
+    await waitFor(() =>
+      expect(screen.getByTestId("chapter-select-input")).toBeTruthy(),
+    );
+  };
+
+  afterEach(() => {
+    useStudioStore.setState({ activeChapterId: null, chapterSwitchLoading: false });
+  });
+
+  it("搜索「灵猫」按标题子串过滤出目标章,无关章不渲染;无匹配时显示空态", async () => {
+    render(
+      <ScriptTab
+        novelChapters={[
+          light(1, "第一章 开端"),
+          light(2, "第2章:暮色灵猫结替身"),
+          light(3, "第三章 尾声"),
+        ]}
+        {...makeProps()}
+      />,
+    );
+    await openSelector();
+
+    fireEvent.change(screen.getByTestId("chapter-select-input"), {
+      target: { value: "灵猫" },
+    });
+    expect(screen.getByTestId("chapter-option-c2")).toBeTruthy();
+    expect(screen.queryByTestId("chapter-option-c1")).toBeNull();
+    expect(screen.queryByTestId("chapter-option-c3")).toBeNull();
+
+    // 无匹配:空态占位在座,零 option
+    fireEvent.change(screen.getByTestId("chapter-select-input"), {
+      target: { value: "不存在的关键词" },
+    });
+    expect(screen.getByTestId("chapter-select-empty")).toBeTruthy();
+    expect(screen.queryByRole("option")).toBeNull();
+  });
+
+  it("全本规模(4125 章):空搜索 cap=100 只渲染首批;搜「2000」直达第2000章且 exact-index-first 置顶", async () => {
+    const many = Array.from({ length: 4125 }, (_, i) => light(i + 1));
+    // 干扰章:第1章标题也含「2000」——验证 exact-index(第2000章)优先于标题子串匹配
+    many[0] = light(1, "第2000话 特别篇");
+    render(<ScriptTab novelChapters={many} {...makeProps()} />);
+    await openSelector();
+
+    // cap:4125 章只渲染 100 个 option(未 cap 会全量渲染 4125 项拖垮渲染与 DOM 内存)
+    expect(screen.getAllByRole("option").length).toBe(100);
+    expect(screen.getByTestId("chapter-select-cap-hint").textContent).toContain(
+      "已显示 100 / 共 4125 个匹配",
+    );
+
+    fireEvent.change(screen.getByTestId("chapter-select-input"), {
+      target: { value: "2000" },
+    });
+    const options = screen.getAllByRole("option");
+    // 序号含「2000」=第2000章;标题含「2000」=第1章干扰项,共 2 项
+    expect(options.length).toBe(2);
+    expect(options[0].getAttribute("data-testid")).toBe("chapter-option-c2000");
+    expect(
+      options.some((o) => o.getAttribute("data-testid") === "chapter-option-c1"),
+    ).toBe(true);
+    expect(screen.queryByTestId("chapter-select-cap-hint")).toBeNull();
+  });
+
+  it("键盘路径:ArrowDown 移高亮后 Enter 派发 switchChapter(驱动快路径)", async () => {
+    const switchSpy = vi.spyOn(useStudioStore.getState(), "switchChapter");
+    render(
+      <ScriptTab
+        novelChapters={[light(1, "第一章"), light(2, "第二章"), light(3, "第三章")]}
+        {...makeProps()}
+      />,
+    );
+    await openSelector();
+
+    fireEvent.keyDown(screen.getByTestId("chapter-select-input"), { key: "ArrowDown" });
+    fireEvent.keyDown(screen.getByTestId("chapter-select-input"), { key: "Enter" });
+    // 首项默认高亮,ArrowDown 后=第2项(c2),Enter 派发其 onSelect
+    expect(switchSpy).toHaveBeenCalledWith("c2");
+  });
+
+  it("cap 提示随输入缩小:搜「24」只剩 13 个匹配,提示行消失", async () => {
+    const many = Array.from({ length: 250 }, (_, i) => light(i + 1));
+    render(<ScriptTab novelChapters={many} {...makeProps()} />);
+    await openSelector();
+
+    expect(screen.getByTestId("chapter-select-cap-hint").textContent).toContain(
+      "已显示 100 / 共 250 个匹配",
+    );
+
+    fireEvent.change(screen.getByTestId("chapter-select-input"), {
+      target: { value: "24" },
+    });
+    // 1..250 中十进制含「24」:24,124,224,240-249 = 13 个 → ≤cap,提示行消失
+    expect(screen.getAllByRole("option").length).toBe(13);
+    expect(screen.queryByTestId("chapter-select-cap-hint")).toBeNull();
+  });
+
+  it("装载中(chapterSwitchLoading)触发钮禁用+live region 在座;装载完成恢复可用", () => {
+    useStudioStore.setState({ activeChapterId: "c1", chapterSwitchLoading: true });
+    render(
+      <ScriptTab
+        novelChapters={[light(1, "第一章"), light(2, "第二章")]}
+        {...makeProps()}
+      />,
+    );
+
+    const trigger = screen.getByTestId("chapter-select-trigger") as HTMLButtonElement;
+    expect(trigger.disabled).toBe(true);
+    expect(screen.getByTestId("chapter-switch-loading")).toBeTruthy();
+
+    // 装载完成(store 清位,订阅自动重渲):恢复可用,不恒禁用(setState 须 act 包裹才会刷渲染)
+    act(() => {
+      useStudioStore.setState({ chapterSwitchLoading: false });
+    });
+    expect(
+      (screen.getByTestId("chapter-select-trigger") as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 });
 
