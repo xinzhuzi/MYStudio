@@ -56,7 +56,7 @@ class MyQi21RgbaSelect:
     """
 
     CATEGORY = "漫影"
-    DESCRIPTION = ("透明开关三态选择:自动按型默认(四型开/五型关,"
+    DESCRIPTION = ("透明开关三态选择:自动按型默认(四型开/其余型关,1015 十型口径,"
                    "信号接 MyQi21DaojieBase.透明值);true/false=手动权威覆盖")
 
     @classmethod

@@ -58,9 +58,10 @@ CANON_BASES = (REPO / "apps/frontend/assets/studio-manuals"
 SIDECAR_BASES = (REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
                  / "qi21_bases.json")
 
-# 人物系六型(positive_text 含锁B 增量四锁+衣物完整性行;1004 集中化后真源
-# =qi21_bases.json 自身,旧「05 库生成器 daojie_canon_lib.py 同表」提取链退役)
-RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分"}
+# 人物系七型(positive_text 含锁B 增量四锁+衣物完整性行;1004 集中化后真源
+# =qi21_bases.json 自身,旧「05 库生成器 daojie_canon_lib.py 同表」提取链退役;
+# 1015 设定卡入十型=人物系新丁,6 行型文同款)
+RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡"}
 
 # 0929 D6 rgba_default 四型(用户拍板:道具/多视图/高清人脸/表情差分默认开 RGBA,
 # 其余五型默认关)——独立钉(防提取器 RGBA_DEFAULT_TYPES 常量被静默改)
@@ -223,7 +224,8 @@ def test_width_height_reference_table():
         "人物": (1088, 1448), "场景": (1672, 944), "道具": (1024, 1024),
         "美宣": (1912, 824), "人物多视图": (1632, 1632), "高清人脸": (1024, 1024),
         "分镜剧情图": (1672, 944), "表情差分": (1256, 1256),
-        "概念气氛图": (1672, 944), "自由": (1024, 1024)}
+        "概念气氛图": (1672, 944), "设定卡": (1672, 944), "自由": (1024, 1024)}
+    # 1015 设定卡=16:9/1.5MP(native_px 同场景档宽高,公式路独立钉)
     for zh, (w, h) in expect.items():
         _b, w_out, h_out, _n, _t = MyQi21DaojieBase().run(zh)
         assert (w_out, h_out) == (w, h), (zh, w_out, h_out)
@@ -257,7 +259,7 @@ def test_data_file_schema():
     data = json.loads(my_qi21_base._BASES_JSON.read_text(encoding="utf-8"))
     assert isinstance(data, dict) and isinstance(data.get("types"), list)
     entries = data["types"]
-    assert len(entries) == 10  # 1001 P1:九型+自由
+    assert len(entries) == 11  # 1015 十型+自由(设定卡入列);1001 P1 旧口径=九型+自由十档
     assert [e["zh"] for e in entries] == _canon_order() + ["自由"]  # 自由末位
     for e in entries:
         zh = e["zh"]

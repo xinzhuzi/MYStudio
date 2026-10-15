@@ -323,6 +323,15 @@ BEAUTIFIED = {
         "近处轮廓清楚而细节少；底色浅净，少数焦点色可二到三色相，青绿、赭石、淡朱各安其位，受控饱和；"
         "均匀柔光，平涂的底。"
     ),
+    # 1015 设定卡入十型:②层美化版成文(05库 §三 设定卡-基础 围栏 L2 同文)
+    "设定卡": (
+        "同一角色的角色设定卡，一图多区排版：主视觉区为全身立绘，视图区为正面、侧面、背面三个全身视图横排并列，"
+        "特写区为面部特写与数格细节特写，底部为服饰与配器局部横排，卡面另留窄条档案区与色样区，"
+        "各分区边界清晰，排版疏朗有呼吸。同一角色身份贯穿全卡，脸型五官、发型发饰、服装配饰在各视图与各特写中逐格一致；"
+        "三个全身视图机位分别为正面平视、正九十度侧面平视与背面平视，取景与占比逐格一致。"
+        "细墨线勾勒人物轮廓与服饰结构，线随结构时粗时细；人物细节密度最高，全身立绘与面部特写是细节焦点。"
+        "背景为浅净平涂底，色面连续铺到卡面边缘，宣纸白仅作分区透气净空。"
+    ),
 }
 
 # ── ①主体句示例(例一优先取《道劫_九型主体句示例.md》原文;例二取甲案句或本库新写) ──
@@ -385,6 +394,12 @@ SUBJECTS = {
         "深山寒夜，一点灯火，孤寂而安宁的守候。",
         ("《道劫_九型主体句示例》§9 原文(0927 平涂区治理+反稀释轮·二轮:句尾总结句回调「全色相并陈，受控中等饱和」与中段一致,治一轮反稀释起效过度破 0.44 上限;0929 夜空锚轮:留白位明写「蓝灰夜空」色名,治 PE 夜空自由发挥深蓝破上沿)", "甲案①主体句(round5-jia 实拍句)"),
     ),
+    # 1015 设定卡入十型:主体句=身份段单段(视图分区语言归②层)
+    "设定卡": (
+        "青年刀修玄色劲装束袖束腰，长发高束马尾，腰侧黑革刀带悬一柄短刀，黑鲨皮鞘、黄铜刀格、缠灰绳刀柄，刀身完整收在鞘中。",
+        "蓝衫女修，月白长裙束靛蓝腰带，黑发绾单髻只插一支素银簪。",
+        ("《道劫_九型主体句示例》§10(1015 设定卡入列轮;身份段=§5 例一原样搬运纪律)", "本库新写(第二身份段示范:角色四件套按设定替换;卡面结构语言归②层)"),
+    ),
 }
 
 # ── 每型节内文案(适用场景一句 / 留白档 / 主体句规范) ──────────────────────
@@ -434,10 +449,15 @@ SECTION_PROSE = {
         liubai="很高(手册点名:山水/概念=很高)",
         spec="写情绪方向与少数焦点色(衣带、灯火、符纸),并按场景点名留白载体(天空/水面/雪地/雾气/烟霭/暗部择一);底色色相按情绪色指定(②层只锁浅净、对比低);不写人;若焦点载体必须是人(如衣带属人),建议临时加挂人物系增量四锁(手册全员锁口径;甲案基准装配未挂,主体=灯火)。",
     ),
+    "设定卡": dict(
+        scene="16:9 单图角色档案设定卡(1015 入十型;外部「角色设定卡Skill-5.4」吸收,排版语言入型文)",
+        liubai="中(推定:设定卡/立绘系归档——本库判断,非手册原文)",
+        spec="主体句=⟨身份段⟩单段(七段公式四件套+配器部件清单,同人物型纪律;第一章节人物=§5 主角身份段原样搬运纪律);视图与分区语言归②层,主体句不写卡面结构;跨区一致性锚=同身份段逐字+同 seed。档案区字段文字后期贴字(生成期负向已压乱码与英文);灵兽/武器特写等专项诉求走技能 daojie-charsheet-prompter。",
+    ),
 }
 
-# 人物系六型(③层加挂 §四.4-.7 四把全员锁);非人物系=场景/道具/概念气氛图
-RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分"}
+# 人物系七型(③层加挂 §四.4-.7 四把全员锁;1015 设定卡入列);非人物系=场景/道具/概念气氛图
+RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡"}  # 1015 设定卡入列:人物系七型
 
 # ④配色行·多彩版(0925 四令多彩轮):手册「精选方案示例」宣纸白领头的淡雅/青绿/旧金行
 # 从风格默认位退役为按图选配——④行改多彩行,**生成器侧映射**(手册 prefix.md 原文不动,
@@ -455,6 +475,7 @@ PALETTE_GROUP = {
     "人物": "人物", "场景": "场景", "道具": "道具", "美宣": "人物",
     "人物多视图": "人物", "高清人脸": "人物", "分镜剧情图": "人物",
     "表情差分": "人物", "概念气氛图": "场景",
+    "设定卡": "人物",  # 1015 人物系
 }
 PALETTE_PROV = {
     "人物": "0925 四令多彩轮:淡雅行退役,人物系七型统一多彩行(P2_PAL4 探针句)",
@@ -738,8 +759,8 @@ def extract_lock_sections(md: str) -> dict:
 
 
 def load_canon_types() -> list:
-    """1008 review-fix:型录/画幅真源=qi21_bases.json types[](十型含「自由");
-    本生成器 canon 九型=types[] 中有 BEAUTIFIED 成文者(「自由」=空底座选配型,不属九型装配)。"""
+    """1008 review-fix:型录/画幅真源=qi21_bases.json types[](1015 起十一型含「自由");
+    本生成器 canon 十型=types[] 中有 BEAUTIFIED 成文者(「自由」=空底座选配型,不属型装配)。"""
     data = json.loads(BASES.read_text(encoding="utf-8"))
     return [e for e in data["types"] if e.get("zh") in BEAUTIFIED]
 
@@ -908,7 +929,7 @@ def matrix_tables(zh_order: list, layers: dict) -> tuple[list, list]:
 def build_doc() -> str:
     bases_json = load_canon_types()
     zh_order = [e["zh"] for e in bases_json]
-    assert len(zh_order) == 9, f"canon 应九型,得 {len(zh_order)}"
+    assert len(zh_order) == 10, f"canon 应十型(1015 设定卡入列),得 {len(zh_order)}"
     md_prefix = PREFIX.read_text(encoding="utf-8")
     layers = build_layers(bases_json, md_prefix)
     rows18, rows8 = matrix_tables(zh_order, layers)
@@ -1148,8 +1169,8 @@ def check() -> int:
     errs = []
 
     zh_order = [e["zh"] for e in types]
-    if len(zh_order) != 9 or len(set(zh_order)) != len(zh_order):
-        errs.append(f"canon 九型计数/唯一性不符:得 {zh_order}")
+    if len(zh_order) != 10 or len(set(zh_order)) != len(zh_order):
+        errs.append(f"canon 十型计数/唯一性不符(1015 设定卡入列):得 {zh_order}")
     for e in data["types"]:
         if e.get("zh") not in BEAUTIFIED and e.get("positive_text"):
             errs.append(f"非 canon 型 {e.get('zh')!r} positive_text 应为空串(设计=空底座选配型)")
@@ -1167,13 +1188,13 @@ def check() -> int:
             or set(BEAUTIFIED) != set(PALETTE_GROUP):
         errs.append("镜像键集不一致: BEAUTIFIED/SUBJECTS/SECTION_PROSE/PALETTE_GROUP")
     if not RENWU_XI <= set(BEAUTIFIED):
-        errs.append("RENWU_XI 越出九型集合")
+        errs.append("RENWU_XI 越出十型集合")
     if not set(Q21_ASPECT_FORK) <= set(BEAUTIFIED):
-        errs.append("Q21_ASPECT_FORK 越出九型集合")
+        errs.append("Q21_ASPECT_FORK 越出十型集合")
     all_comp = {c[0]: c for c in [*COMPOSITION_CHAR, *COMPOSITION_PROP]}
     for zh, (cid, cname) in COMPOSITION_MOUNT.items():
         if zh not in BEAUTIFIED:
-            errs.append(f"挂载表型名越出九型: {zh}")
+            errs.append(f"挂载表型名越出十型: {zh}")
         if cid not in all_comp:
             errs.append(f"{zh}: 挂载款 {cid} 不在常量 C")
         elif all_comp[cid][1] != cname:
@@ -1188,7 +1209,7 @@ def check() -> int:
             print("  -", e)
         return 1
     print(f"✅ 守恒校验全绿(1004 集中化后口径,1008 review-fix 重定契约):真源 qi21_bases.json types[] "
-          f"canon 九型计数/型名/画幅字段齐;art_style_base 顶层键+正负双槽在场(1008 R 改名/1004 正负拆开后契约);"
+          f"canon 十型计数/型名/画幅字段齐(1015 设定卡入列);art_style_base 顶层键+正负双槽在场(1008 R 改名/1004 正负拆开后契约);"
           f"生成器内嵌镜像(BEAUTIFIED/SUBJECTS/SECTION_PROSE/常量 C 十款+挂载表)结构自洽;"
           f"四型②层镜像透明声明段在位(0929 硬约束)。(旧「05库↔生成器逐字对齐」已随 1004 集中化退役:"
           f"05库=设计记录,行级手术直改真源家。)")

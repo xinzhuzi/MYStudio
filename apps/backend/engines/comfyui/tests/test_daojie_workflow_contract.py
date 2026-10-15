@@ -31,13 +31,13 @@ _REPO = _TESTS_DIR.parents[4]  # tests → comfyui → engines → backend → a
 PROMPT_MD = _REPO / "docs" / "prompts" / "道劫_新提示词包_0917.md"
 BASES_MD = _REPO / "docs" / "prompts" / "道劫_底座节点_0918.md"
 # 1004 Phase A:daojie_bases.json 退役删件(字段合并进 qi21_bases.json 集中地);
-# 九型 canon=qi21_bases.json types 前 9 条(末位第 10 条=「自由」不入 canon);
+# canon=qi21_bases.json types 前 10 条(1015 设定卡入列九型→十型;末位「自由」不入 canon);
 # 字段 positive/negative → positive_text/negative_text(1004 正负拆开,负面中文化)
 BASES_JSON = _TESTS_DIR.parents[3] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"  # 1005 Step4:产品侧退役,直读真源家
 
-# 九型底座机器真源(1004 前=旧 daojie_bases.json 与 0918 md 围栏逐字互锁;1004
+# 道劫底座机器真源(1004 前=旧 daojie_bases.json 与 0918 md 围栏逐字互锁;1004
 # 正负拆开瘦身后 0918 md 降级设计记录,逐字互锁废止——数据面锚见 TestDaojieBasesSources)
-DAOJIE_BASES = json.loads(BASES_JSON.read_text(encoding="utf-8"))["types"][:9]
+DAOJIE_BASES = json.loads(BASES_JSON.read_text(encoding="utf-8"))["types"][:10]
 BASES_BY_NAME = {e["zh"]: e for e in DAOJIE_BASES}
 OPTIONS_ORDER = [e["zh"] for e in DAOJIE_BASES]
 
@@ -65,7 +65,7 @@ DIRTY_WORDS = ("工笔线描", "工笔白描", "写意泼墨", "xuan")
 POSITIVE_DIRTY = ("做旧", "泛黄", "纸纹")  # 纸纹脏污族:正向禁;负向列它们=合法内容
 
 # 多格同人型负向黑名单(09-18 评审问题1 处置:系统性防复犯)
-MULTI_PANEL_OPTIONS = ("人物多视图", "表情差分")  # 0927 改名轮:三视图→多视图
+MULTI_PANEL_OPTIONS = ("人物多视图", "表情差分", "设定卡")  # 0927 改名轮:三视图→多视图;1015 设定卡=多分区同人型入列
 # 09-24 债清算(全仓套件唯一容红清零):裸词 "duplicated" 退役——81ab725
 # 裁定21 六形态定界把「duplicated view, identical pose repeated」定为三视图
 # 负向有意文案(守护格子间视角/姿势差异化),与 09-18 立黑名单所防的「克隆
@@ -127,8 +127,8 @@ class TestDaojieBasesSources:
     def test_options_are_nine_in_design_order(self):
         assert OPTIONS_ORDER == [
             "人物", "场景", "道具", "美宣", "人物多视图",
-            "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"], \
-            "九型顺序=设计定序(json 条目序),不得重排"
+            "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡"], \
+            "十型顺序=设计定序(json 条目序;前九型不得重排,1015 设定卡=canon 末位新丁)"
 
     def test_json_positive_matches_0918_fences(self):
         """1004 Phase A 废止注记:旧 daojie_bases.json positive 与 0918 md 围栏
@@ -144,7 +144,8 @@ class TestDaojieBasesSources:
             pt = entry["positive_text"]
             # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
             _OPEN = {"人物多视图": "同一角色的四视图设定图", "高清人脸": "单一角色的正面头肩特写素材",
-                     "表情差分": "同一角色的九宫格脸部表情差分表", "美宣": "主体的叙事美宣画面"}
+                     "表情差分": "同一角色的九宫格脸部表情差分表", "美宣": "主体的叙事美宣画面",
+                     "设定卡": "同一角色的角色设定卡"}  # 1015 十型新丁:多区档案设定卡开头锁
             if name in _OPEN:
                 assert pt.startswith(_OPEN[name]), \
                     f"底座「{name}」应={_OPEN[name]}开头(1008 用户令),得 {pt[:12]!r}"

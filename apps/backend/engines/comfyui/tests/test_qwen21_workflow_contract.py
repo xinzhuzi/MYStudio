@@ -294,13 +294,13 @@ IMG2IMG = _IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-img2img.json"  
 K2_DIR = _IMG_DIR / "K2图像"
 PROMPT_LIB = _REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 # 1004 Phase A 起 daojie_bases.json 退役删件(字段合并进 qi21_bases.json 集中地);
-# canon 九型口径改读 qi21_bases.json types 前 9 条(末位第 10 条=「自由」,不入 canon)。
+# canon 口径改读 qi21_bases.json types 前 10 条(1015 设定卡入列九型→十型;末位「自由」不入 canon)。
 BASES_JSON = (_TESTS_DIR.parents[3] / "frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json")  # 1005 Step4:产品侧退役,测试直读真源家
 
 
 def _canon_types() -> list[dict]:
-    """canon 九型条目(qi21_bases.json types 前 9;自由档=第 10 条不入 canon)。"""
-    return json.loads(BASES_JSON.read_text(encoding="utf-8"))["types"][:9]
+    """canon 十型条目(qi21_bases.json types 前 10;1015 设定卡入列;自由档=末位不入 canon)。"""
+    return json.loads(BASES_JSON.read_text(encoding="utf-8"))["types"][:10]
 
 # img2img 不入 WORKFLOWS(1009,同 10-01 B4 吸收件口径:遍历类不动,专件专锚)——
 # 遗留类按道劫三件子图形态遍历 GRAPHS,扁平件入册即误伤;TestQi21Img2ImgContract 直读文件
@@ -540,8 +540,8 @@ I2I_NODE_TYPE_WHITELIST = {
     # 1015 画幅按型联动:[4018] 画幅建议器(九型宽高直通+手动成对优先)
     "MyQi21WhSuggest",
 }
-# 人物系六型(库 §二:常量B 加挂型)
-PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分")  # 0927 改名轮:三视图→多视图
+# 人物系七型(库 §二:常量B 加挂型;1015 设定卡入列)
+PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡")  # 0927 改名轮:三视图→多视图
 # ④配色行映射(库 §一映射表;1008 用户令主体化:人物→主体,透明三型=纯角色语言零色名)
 PRO_COLOR_MAP = {
     "人物": "主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
@@ -553,6 +553,7 @@ PRO_COLOR_MAP = {
     "分镜剧情图": "主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
     "表情差分": "主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
     "概念气氛图": "主体设色配比：主体明文主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
+    "设定卡": "主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
 }
 # 宿主面板 widget 型子图输入(1005 重锚:恰 2 控件=型选择/PE启用?;提示词正/负=
 # 纯连线槽,「透明/手动宽/手动高」随 1005 用户精简退役——透明自动跟型 rgba_default)
@@ -2339,7 +2340,7 @@ def _qi21_truth():
     constant_text=子图底座常量应有全文=②美化版底座(+常量B·人物系增量四锁)+④配色行。
     canon-json 逐字锚已废止(型名/顺序仍对齐 daojie_bases.json zh)。"""
     md = PROMPT_LIB.read_text(encoding="utf-8")
-    bases = _canon_types()   # 1004:daojie_bases.json 并入 qi21_bases.json types 前 9
+    bases = _canon_types()   # 1004:daojie_bases.json 并入 qi21_bases.json types 前 10(1015 十型)
     zh_order = [b["zh"] for b in bases]
     fences = re.findall(r"```text\n(.*?)\n```", md.split("## 三、")[0], re.S)
     # 1004 Phase A:美术风格底座常量 拆正负双围栏(fences[1]=正向全文/fences[2]=负面词,
@@ -2836,7 +2837,7 @@ def _qi21_truth():
     constant_text=子图底座常量应有全文=②美化版底座(+常量B·人物系增量四锁)+④配色行。
     canon-json 逐字锚已废止(型名/顺序仍对齐 daojie_bases.json zh)。"""
     md = PROMPT_LIB.read_text(encoding="utf-8")
-    bases = _canon_types()   # 1004:daojie_bases.json 并入 qi21_bases.json types 前 9
+    bases = _canon_types()   # 1004:daojie_bases.json 并入 qi21_bases.json types 前 10(1015 十型)
     zh_order = [b["zh"] for b in bases]
     fences = re.findall(r"```text\n(.*?)\n```", md.split("## 三、")[0], re.S)
     # 1004 Phase A:美术风格底座常量 拆正负双围栏(fences[1]=正向全文/fences[2]=负面词,
@@ -3340,10 +3341,10 @@ class TestQi21SubgraphContract:
         透明声明段+退役背景职责句零回潮。"""
         types, _ = _qi21_truth()
         qi21 = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
-        assert len(qi21) == 10, f"qi21_bases.json types 应十档(九型+自由),得 {len(qi21)}"
-        assert [e["zh"] for e in qi21[:9]] == [t[0] for t in types], \
-            "qi21_bases.json 前九档 型名/顺序应与 05 库同序(型录序=使用序)"
-        free = qi21[9]
+        assert len(qi21) == 11, f"qi21_bases.json types 应十一档(十型+自由,1015 设定卡入列),得 {len(qi21)}"
+        assert [e["zh"] for e in qi21[:10]] == [t[0] for t in types], \
+            "qi21_bases.json 前十档 型名/顺序应与 05 库同序(型录序=使用序)"
+        free = qi21[10]
         assert free["zh"] == "自由" and free["positive_text"] == "" \
             and free["aspect_ratio"] == "1:1 (Square)" and free["megapixels"] == 1.0 \
             and free.get("rgba_default") is False, \
@@ -3359,7 +3360,7 @@ class TestQi21SubgraphContract:
                     "3:4 (Portrait Standard)", "4:3 (Standard)",
                     "9:16 (Portrait Widescreen)", "16:9 (Widescreen)",
                     "21:9 (Ultrawide)"}
-        for e in qi21[:9]:
+        for e in qi21[:10]:
             assert e["aspect_ratio"] in _aspects, \
                 f"qi21_bases.json「{e['zh']}」aspect_ratio 应=官方枚举,得 {e['aspect_ratio']!r}"
             assert 0.5 <= e["megapixels"] <= 8.0, \
@@ -3371,14 +3372,14 @@ class TestQi21SubgraphContract:
             "qi21_bases.json「人物多视图」override 应=四视图两行两列 [1632,1632](1009 用户令,旧六格2448×1632)"
         # 1004 正负拆开硬口径:positive_text=正向描述文体,禁令句(禁止/不得/
         # 默认禁止)应拆入 negative_text,正向残留即红
-        for e in qi21[:9]:
+        for e in qi21[:10]:
             for w in ("禁止", "不得", "默认禁止"):
                 assert w not in e["positive_text"], \
                     f"qi21_bases.json「{e['zh']}」positive_text 残留禁令句 {w!r}(1004 正负拆开)"
             assert e["negative_text"], \
                 f"qi21_bases.json「{e['zh']}」negative_text 应非空(1004 中文负面)"
         # 中文负面词锚(1004:负面=中文逗号清单,头部基线四词)
-        for e in qi21[:9]:
+        for e in qi21[:10]:
             low = e["negative_text"]
             assert "模糊" in low and "水印" in low, \
                 f"qi21_bases.json「{e['zh']}」negative_text 缺基线负面词(模糊/水印)"
@@ -3404,8 +3405,9 @@ class TestQi21SubgraphContract:
         renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
         # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
         _OPEN = {"人物多视图": "同一角色的四视图设定图", "高清人脸": "单一角色的正面头肩特写素材",
-                 "表情差分": "同一角色的九宫格脸部表情差分表", "美宣": "主体的叙事美宣画面"}
-        for e in qi21[:9]:
+                 "表情差分": "同一角色的九宫格脸部表情差分表", "美宣": "主体的叙事美宣画面",
+                 "设定卡": "同一角色的角色设定卡"}  # 1015 十型新丁:多区档案设定卡开头锁
+        for e in qi21[:10]:
             if e["zh"] in _OPEN:
                 assert e["positive_text"].startswith(_OPEN[e["zh"]]), \
                     f"qi21_bases.json「{e['zh']}」应={_OPEN[e['zh']]}开头(1008 用户令)"
@@ -3854,7 +3856,7 @@ class TestQi21SubgraphContract:
         首行 ⟨①:…⟩ 槽、末行配色行;②层与 canon positive 不再逐字互锁(锚废止的负证);
         §六 演进与待裁定节在场(09-23 深检吸收轮立账)。"""
         md = PROMPT_LIB.read_text(encoding="utf-8")
-        bases = _canon_types()   # 1004:canon=qi21_bases.json types 前 9
+        bases = _canon_types()   # 1004:canon=qi21_bases.json types 前 10(1015 十型)
         zh_order = [b["zh"] for b in bases]
         headings = re.findall(r"^### (.+?)-基础\s*$", md, re.M)
         assert headings == zh_order, \
@@ -3876,8 +3878,8 @@ class TestQi21SubgraphContract:
             assert lines[-1] == PRO_COLOR_MAP[zh], f"{zh}: 末行应为④配色行"
             if lines[1] != canon_pos[zh]:
                 diff += 1
-        assert diff == 9, \
-            f"②层应为美化版成文(与 canon positive 逐字互锁已废止,九型均应有差异),diff={diff}"
+        assert diff == 10, \
+            f"②层应为美化版成文(与 canon positive 逐字互锁已废止,十型均应有差异;1015 设定卡随轮),diff={diff}"
         assert "## 六、演进与待裁定" in md, "库应含 §六 演进与待裁定(09-23 深检吸收轮立账)"
         assert "②③层放行显式禁句" in md, "库 §四.4 应含 ②③层放行显式禁句条款(09-23 深检吸收)"
 

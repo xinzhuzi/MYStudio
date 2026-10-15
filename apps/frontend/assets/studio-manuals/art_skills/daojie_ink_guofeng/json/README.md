@@ -1,5 +1,7 @@
 # json/ —— 道劫提示词资产唯一真源家
 
+> **2026-10-16 现行边界**：道劫自定义链使用中文，长度按任务复杂度，不套用官方 PE-T2I 的英文 400–500 词配方。共同底座只统一画法；设定图用漫射光，剧情图的明暗、光源、磨损、血痕和肢体状态服从来源事实。新建资产拼主体＋类型＋画法；局部编辑只拼操作与保留项；画风转换拼操作＋画法。布局只归类型层。仅运行 viggle 9 步双段，必要条件写入正向；固定 seed 仅用于对照，不保证身份一致。
+
 **家规:道劫风格的机读供给资产只住本目录,只有一份。**别处出现的同名文件一律是分发产物或历史记录。
 
 **MA 绑定铁律(1005 用户令:跨仓引用一律相对路径)**:本风格已与 MA 项目绑定(MA 侧家=`skills/art_skills/daojie_ink_guofeng/`,其 `ma_sync/`=同步契约快照)。**两仓任何文件互相引用只写各自仓内相对路径**(如 MYStudio `apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/`、MA `scripts/data/三轨选色配料.toml`),**禁 `/Users/...` 绝对路径**——MA 已历 Unity/MA→IP/MA 迁移,绝对路径即断的实证;仓位注入走参数/环境变量(`--ma-root`/`--repo-root`/`MA_IMAGEGEN_ROOT`/`MYSTUDIO_APPS_ROOT`),不落默认绝对值。色卡正典=`../ma_sync/palette-canon.json`(本仓相对,双侧 sha 一致)。
@@ -11,7 +13,7 @@
 | 概念(中文名) | 唯一机读键 | 画布/文档显示名 | 备注 |
 |---|---|---|---|
 | 美术风格底座 | `art_style_base` | 美术风格底座 | 1008 R 批由 `lock_layer` 原子改名;旧术语 锁层A/③通用锁层/常量A 就地退役(历史台账留史不改) |
-| 类型句(型底座) | `types[]` | 底座十选一 | 每型以 `zh` 为唯一选型键;旧冗余 `key` 字段 1008 R 批删除(九型 key≡zh 同值) |
+| 类型句(型底座) | `types[]` | 底座十一选一(1015 设定卡入列) | 每型以 `zh` 为唯一选型键;旧冗余 `key` 字段 1008 R 批删除(九型 key≡zh 同值) |
 | 主体句 | (无 json 键,每图手写) | 正向提示词 | 资产住 docs/prompts/道劫_九型主体句示例.md |
 | 扩写指令 | `expand_instruction` | [4030] 系统提示词 | 教材原文永不删改(08第11节) |
 | 分层契约 | `layer_contract`(内联)/`prompt_layering.json`(完整版) | — | 两者由设计互锁 |
@@ -27,11 +29,11 @@
 
 | 节 | 中文名 | 职责 | 消费方 | 改了会怎样 |
 |---|---|---|---|---|
-| `art_style_base` | 美术风格底座 | 全十档恒挂的画风锁(画种/线条/罩染/表面工艺/平光契约)+全局负面词 | 底座/装配/API扩写/真源文本预览四类节点,t2i/i2i 工作流,契约测试 | 每张道劫图的画风与全局负面即时随变(节点 mtime 热读);测试 sha 锚须同批重锚 |
+| `art_style_base` | 美术风格底座 | 全十一档恒挂的画风锁(1015)(画种/线条/罩染/成像工艺；照明按用途)+全局负面词 | 底座/装配/API扩写/真源文本预览四类节点,t2i/i2i 工作流,契约测试 | 每张道劫图的画风与全局负面即时随变(节点 mtime 热读);测试 sha 锚须同批重锚 |
 | `rgba` | RGBA透明包裹句 | 透明路头尾句(中英)与W1收束句 | 最终输出/选择器件;i2i/edit 英文路(`head_en`/`tail_en` **现役消费勿清**) | 透明型成图的包裹文字变化;英文头尾影响 i2i/edit 英文路 |
 | `expand_instruction` | 扩写指令 | AI 扩写的系统提示词教材(八步宪法原文)+语言规则替换表 | API扩写节点(送模型)、真源文本预览;ChinesePE(休眠件) | 模型扩写行为随变;教材=宪法原文,改动走 08第8节 八步 SOP+[4030] 双刷 |
 | `strip_lexicon` | 清筛词表 | PE 出文的词族剥离正则(en/zh/大小写不敏感) | 最终文本合成器(透明路剥离) | 透明路保留哪些词族随之变 |
-| `types` | 类型句(十档) | 九型+自由的型底座:见下字段表 | 底座十选一/API扩写/LoRA/画幅/透明默认各节点 | 换型即换构图格式锁/画幅/型级正负;`recipe_version` 标签只在对应型终审后才刷 |
+| `types` | 类型句(十一档) | 十型+自由的型底座(1015 设定卡入列九型→十型):见下字段表 | 底座十选一/API扩写/LoRA/画幅/透明默认各节点 | 换型即换构图格式锁/画幅/型级正负;`recipe_version` 标签只在对应型终审后才刷 |
 | `layer_contract` | 分层契约(内联) | 八段公式×三层职责分配的引擎侧精简版 | 契约测试/装配语义参照 | 三层职责裁决随之变;完整版 prompt_layering.json 须同笔互锁 |
 | `color_lexicon` | 色卡词典 | 在用词↔MA编号+hex 映射/五职责/冲突裁决序 | API扩写(色卡上下文)、真源文本预览[4031] | 模型可选色与主体句色锚纪律随变;**hex 禁入任何 prompt 正文** |
 
@@ -39,7 +41,7 @@
 
 | 字段 | 中文释义 |
 |---|---|
-| `zh` | 型名(中文)——下拉显示与**唯一选型键**;十档顺序=使用序 |
+| `zh` | 型名(中文)——下拉显示与**唯一选型键**;十一档顺序=使用序(1015) |
 | `aspect_ratio` | 画幅档——官方 ResolutionSelector 枚举值(如 `3:4 (Portrait Standard)`),缺档回退 1:1 |
 | `megapixels` | 百万像素档——分辨率基数(如 1.5;1008 快出档缩编,1-2MP 快出+后放大),与画幅档合算出宽高 |
 | `rgba_default` | 透明默认——该型默认是否走 RGBA 透明路(道具/多视图/高清人脸/表情差分四型 true) |
@@ -61,7 +63,7 @@
 ```mermaid
 graph TB
     subgraph qi21_bases.json["qi21_bases.json(真源)"]
-        A["art_style_base 美术风格底座<br/>(全图恒挂:画怎么画)"] --- B["types[] 类型句十档<br/>(选型定:图怎么构)"]
+        A["art_style_base 美术风格底座<br/>(全图恒挂:画怎么画)"] --- B["types[] 类型句十一档<br/>(选型定:图怎么构)"]
         B --- C["expand_instruction 扩写指令<br/>(AI 怎么炼)"]
     end
     subgraph 每张图
@@ -78,7 +80,7 @@ graph TB
 
 | 文件 | 角色 |
 |---|---|
-| `qi21_bases.json` | **生产真源**:美术风格底座(art_style_base)/九型+自由=10 条底座(types)/PE扩写指令/清筛词表/分层契约(layer_contract)/色卡词典(color_lexicon);types[] 每型含 K2 承接字段:lora_recipe/steps_hint/i2i_routes/postprocess/recipe_version(数据实存,配方矩阵文档为其投影) |
+| `qi21_bases.json` | **生产真源**:美术风格底座(art_style_base)/十型+自由=11 条底座(types;1015 设定卡入列)/PE扩写指令/清筛词表/分层契约(layer_contract)/色卡词典(color_lexicon);types[] 每型含 K2 承接字段:lora_recipe/steps_hint/i2i_routes/postprocess/recipe_version(数据实存,配方矩阵文档为其投影) |
 | `qi21_strip_lexicon.json` | Q2.1 清筛正则表(pattern;与 qi21_bases 内嵌 strip_lexicon 词表并存,非重复;留档件) |
 | `daojie_lora_stack.json` | K2 LoRA 栈序(14条) |
 | `daojie_loras.json` | K2 LoRA 台账(9条) |

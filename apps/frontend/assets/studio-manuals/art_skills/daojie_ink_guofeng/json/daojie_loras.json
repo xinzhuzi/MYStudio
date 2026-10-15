@@ -169,5 +169,24 @@
         "strength_model": 0.6
       }
     ]
+  },
+  {
+    "key": "设定卡",
+    "zh": "设定卡",
+    "note": "人物系资产(1015 设定卡入十型;同多视图三件)",
+    "loras": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "strength_model": 1.0
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "strength_model": 0.4
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "strength_model": 0.3
+      }
+    ]
   }
 ]
