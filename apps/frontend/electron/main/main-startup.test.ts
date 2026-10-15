@@ -113,12 +113,22 @@ describe("main process startup", () => {
       mainSource.indexOf("app.whenReady().then"),
       mainSource.indexOf("  registerProtocolHandlers({"),
     );
+    // 红线锚:whenReady 段不含 initAssetsStorage(迁移例程同受此约束,不 import assets-sqlite)
     expect(readyBlock).not.toContain("assetsStorage.initAssetsStorage");
     expect(mainSource).toContain("registerAssetLibraryIpcHandlers");
-    expect(assetLibraryIpcSource).toContain("const ensureAssetsStorageReady = () =>");
-    expect(assetLibraryIpcSource).toContain("const storageBasePath = getStorageBasePath()");
-    expect(assetLibraryIpcSource).toContain("assetsStorage.initAssetsStorage(storageBasePath)");
-    expect(assetLibraryIpcSource).toContain("ensureAssetsStorageReady()");
+    // 1015 资产归域:storage base 根→注入的 assets 根;启动期迁移例程在 whenReady 内 await
+    expect(assetLibraryIpcSource).toContain("const ensureAssetsStorageReady = (operationId: string) =>");
+    expect(assetLibraryIpcSource).toContain("assetsStorage.initAssetsStorage(assetsRoot)");
+    expect(readyBlock).toContain("await runAssetHomeMigration(");
+
+    // 【M15 根健康闸落点】异常态→writeDiagnosticsLog(error) 先于 throw(留痕在前)
+    const gateBlock = assetLibraryIpcSource.slice(
+      assetLibraryIpcSource.indexOf("const ensureAssetsStorageReady"),
+      assetLibraryIpcSource.indexOf("const runAssetDiagnostics"),
+    );
+    expect(gateBlock).toContain("level: \"error\"");
+    expect(gateBlock).toContain("资产库根解析失败");
+    expect(gateBlock.indexOf("writeDiagnosticsLog")).toBeLessThan(gateBlock.indexOf("throw error"));
   });
 
   it("keeps the window hidden on a dark background until the first render is ready", () => {

@@ -5,13 +5,17 @@ import { promisify } from "node:util";
 import { readAssetHomeMarker, writeAssetHomeMarker, ttsDbProbe, type AssetHomeIo } from "./asset-home";
 
 /**
- * 资产归域启动期一次性幂等迁移例程(1015:App 家资产库/TTS 归项目域)。
+ * 资产归域启动期一次性幂等迁移例程(1015:App 家资产库/TTS 归项目域;1016:
+ * 一段落点改项目根 store/assets 一次到位+旧家双源探测)。
  *
  * 纪律锚:
  * - fail-closed:预检任一不过=零提交+台账+回落旧根(旧根 db 在场零损失);
  * - 双提交点:资产域=rename assets.db(原子);TTS 域=rename tts.sqlite(最后);
- * - 文件即真相:重入判定全靠探针(新根 assets.db / join(base,'TTS','runtime',
- *   'tts.sqlite')),marker 只是缓存(B1 断电窗口靠全表探测自愈+补写);
+ * - 文件即真相:重入判定全靠探针(新根 store/assets/assets.db / join(base,'TTS',
+ *   'runtime','tts.sqlite')),marker 只是缓存(B1 断电窗口靠全表探测自愈+补写);
+ * - 旧家双源探测(1016):flat 形 join(base,'assets')(≤1015 机器)优先;
+ *   store 形 join(base,'store','assets')(本代新装机未绑项目期经新 fallback
+ *   写入)兜底;双源都有 db → fail-closed 不猜边;
  * - 红线:不 import assets-sqlite(避免其模块级 basePath 状态与 ensureDb 建库副作用);
  * - marker 恒 <userData>/asset-home.json(B-1,永不随数据迁移);
  * - 台账/备份恒 <projectRoot>/backups/asset-migration-<ts>/(根目录铁令,严禁塞 store/)。
@@ -82,7 +86,7 @@ function escapeSqlLiteral(value: string): string {
   return value.replace(/'/g, "''");
 }
 
-const defaultSqliteIo: MigrationSqliteIo = {
+export const defaultSqliteIo: MigrationSqliteIo = {
   async tableExists(dbPath, table) {
     try {
       const { stdout } = await execFileAsync(resolveSqlite3Cli(), [
@@ -114,6 +118,34 @@ const defaultSqliteIo: MigrationSqliteIo = {
     await execFileAsync(resolveSqlite3Cli(), [dbPath, statements.join("\n")], { maxBuffer: SQLITE_IO_MAX_BUFFER_BYTES });
   },
 };
+
+/** P4′ 公用:profiles 全列旧前缀→新前缀扫描改写(不猜 schema;幂等:已改写行不再命中)。一段/二段共用。 */
+export async function rewriteProfilePrefixColumns(
+  sqliteIo: Pick<MigrationSqliteIo, "tableExists" | "readTable" | "updateRows">,
+  existsSync: (filePath: string) => boolean,
+  dbPath: string,
+  prefixMappings: Array<[string, string]>,
+): Promise<void> {
+  if (!existsSync(dbPath)) return;
+  if (!(await sqliteIo.tableExists(dbPath, "profiles"))) return;
+  const rows = await sqliteIo.readTable(dbPath, "profiles");
+  const updates: Array<{ rowid: number; column: string; value: string | null }> = [];
+  for (const row of rows) {
+    const rowid = Number(row.__rowid__);
+    for (const [column, value] of Object.entries(row)) {
+      if (column === "__rowid__" || typeof value !== "string") continue;
+      let next = value;
+      for (const [from, to] of prefixMappings) {
+        if (next.startsWith(from)) {
+          next = `${to}${next.slice(from.length)}`;
+          break;
+        }
+      }
+      if (next !== value) updates.push({ rowid, column, value: next });
+    }
+  }
+  await sqliteIo.updateRows(dbPath, "profiles", updates);
+}
 
 export interface RunAssetHomeMigrationOptions {
   userDataPath: string;
@@ -148,9 +180,6 @@ function isKnownTopLevelResidue(name: string): boolean {
   );
 }
 
-/** M10 截断字符集:URL 后逐字符消费至终止集(空白/引号/反斜杠/?query/半角全角标点)。 */
-const STORE_REF_PATTERN = /asset-file:\/\/(role|scene|tool|clip|audio)\/([^\s"'\\?()[\]{},:;、；：，。？！“”‘’《》【】·—…]+)/g;
-
 type Ledger = {
   version: number;
   startedAt: number;
@@ -175,7 +204,10 @@ type Ledger = {
 
 class MigrationInterrupted extends Error {}
 
-function walkFiles(root: string, io: MigrationIo): string[] {
+/** M10 截断字符集(一段/二段共用):URL 后逐字符消费至终止集。 */
+export const STORE_REF_PATTERN = /asset-file:\/\/(role|scene|tool|clip|audio)\/([^\s"'\\?()[\]{},:;、；：，。？！“”‘’《》【】·—…]+)/g;
+
+export function walkFiles(root: string, io: MigrationIo): string[] {
   if (!io.existsSync(root)) return [];
   const out: string[] = [];
   const visit = (dir: string) => {
@@ -195,9 +227,14 @@ export async function runAssetHomeMigration(options: RunAssetHomeMigrationOption
   const log = options.log ?? ((message: string) => { console.warn(`[asset-migration] ${message}`); });
 
   const legacyBase = options.getStorageBasePath();
-  const legacyAssetsRoot = path.join(legacyBase, "assets");
+  // 1016 双源探测:旧家 flat 形(≤1015 机器,真实例=Windows 机)优先;store 形
+  // (本代新装机未绑项目期经新 fallback 写入)兜底;双源都有 db → fail-closed
+  // 不猜边(闭合 main-paths fallback 改形环)。
+  const legacyAssetsFlatRoot = path.join(legacyBase, "assets");
+  const legacyAssetsStoreRoot = path.join(legacyBase, "store", "assets");
+  const legacyAssetsFlatDb = path.join(legacyAssetsFlatRoot, "assets.db");
+  const legacyAssetsStoreDb = path.join(legacyAssetsStoreRoot, "assets.db");
   const legacyTtsRuntimeDir = path.join(legacyBase, "TTS", "runtime");
-  const legacyAssetDbPath = path.join(legacyAssetsRoot, "assets.db");
   const legacyTtsDbPath = ttsDbProbe(legacyBase);
 
   const locations = options.locationStore.all() ?? {};
@@ -211,8 +248,20 @@ export async function runAssetHomeMigration(options: RunAssetHomeMigrationOption
   if (!projectRoot) {
     return { status: "noop", ledgerDir: null, reason: "无外部项目位置,资产住统一存储旧根" };
   }
+  if (io.existsSync(legacyAssetsFlatDb) && io.existsSync(legacyAssetsStoreDb)) {
+    log(`异常态:旧家 flat 与 store 形资产库并存(${legacyAssetsFlatRoot} ; ${legacyAssetsStoreRoot})——fail-closed 不迁移不建库`);
+    return { status: "error", ledgerDir: null, reason: "旧家双形资产库并存,需人工按台账核对" };
+  }
+  // flat 目录在场即优先(不只看 db):P6 后断电半态 flat db 已迁走而 files 残留,
+  // 按 db 选根会误入 store 形致续迁/善后找不到残留。store 形仅在 flat 目录
+  // 整体缺位(新装机未绑项目期经新 fallback 写入)时命中。
+  const legacyAssetsRoot = io.existsSync(legacyAssetsFlatRoot) ? legacyAssetsFlatRoot : legacyAssetsStoreRoot;
+  const legacyAssetDbPath = path.join(legacyAssetsRoot, "assets.db");
 
-  const newAssetsRoot = path.join(projectRoot, "assets");
+  // 1016 二段:一段落点重定=项目根 store/assets(未跑过 1015 的机器一次到位,
+  // 不再产生 <root>/assets 中间态;P0/P2/P5/P6/P7/collectStoreRefs/resume/B3/
+  // 善后全由该变量派生机械随动)。
+  const newAssetsRoot = path.join(projectRoot, "store", "assets");
   const newAssetDbPath = path.join(newAssetsRoot, "assets.db");
   const newTtsRuntimeDir = path.join(projectRoot, "TTS", "runtime");
   const newTtsDbPath = ttsDbProbe(projectRoot);
@@ -344,29 +393,14 @@ export async function runAssetHomeMigration(options: RunAssetHomeMigrationOption
 
   const rewriteTtsDb = async (dbPath: string): Promise<void> => {
     // P4′:profiles 旧前缀→新前缀(通用列扫描,不猜 schema);generations 双前缀置 NULL。
+    // 1016 双映射(拷问1轮·major 补刀):资产前缀 flat/store 两形并列——双源命中
+    // store 形旧家时,指向旧家 store 形资产前缀的行同样改写,杜绝漏改断链且无台账。
     const prefixMappings: Array<[string, string]> = [
       [`${legacyTtsRuntimeDir}${path.sep}`, `${newTtsRuntimeDir}${path.sep}`],
-      [`${path.join(legacyBase, "assets", "files")}${path.sep}`, `${path.join(newAssetsRoot, "files")}${path.sep}`],
+      [`${legacyAssetsFlatRoot}${path.sep}files${path.sep}`, `${path.join(newAssetsRoot, "files")}${path.sep}`],
+      [`${legacyAssetsStoreRoot}${path.sep}files${path.sep}`, `${path.join(newAssetsRoot, "files")}${path.sep}`],
     ];
-    if (io.existsSync(dbPath) && await sqliteIo.tableExists(dbPath, "profiles")) {
-      const rows = await sqliteIo.readTable(dbPath, "profiles");
-      const updates: Array<{ rowid: number; column: string; value: string | null }> = [];
-      for (const row of rows) {
-        const rowid = Number(row.__rowid__);
-        for (const [column, value] of Object.entries(row)) {
-          if (column === "__rowid__" || typeof value !== "string") continue;
-          let next = value;
-          for (const [from, to] of prefixMappings) {
-            if (next.startsWith(from)) {
-              next = `${to}${next.slice(from.length)}`;
-              break;
-            }
-          }
-          if (next !== value) updates.push({ rowid, column, value: next });
-        }
-      }
-      await sqliteIo.updateRows(dbPath, "profiles", updates);
-    }
+    await rewriteProfilePrefixColumns(sqliteIo, io.existsSync, dbPath, prefixMappings);
     // generations 双前缀置 NULL(M4:两目录实测 0 文件全死,计数分列入台账)
     ledger.generations = { ttsRuntimeAudio: 0, legacyTtsRuntimeAudio: 0 };
     if (io.existsSync(dbPath) && await sqliteIo.tableExists(dbPath, "generations")) {
@@ -670,10 +704,11 @@ export async function runAssetHomeMigration(options: RunAssetHomeMigrationOption
 
       await phase("P7-write-marker", async () => {
         writeAssetHomeMarker(options.userDataPath, {
-          version: 1,
+          version: 2,
           projectId,
           lastKnownLocation: projectRoot,
           ttsMigrated: true,
+          assetsStoreMigrated: true,
           ledgerDir: ensureLedgerDir(),
         }, markerIo);
       });
@@ -733,10 +768,11 @@ export async function runAssetHomeMigration(options: RunAssetHomeMigrationOption
       await migrateTtsSegment(baselineIds);
       await phase("P7-write-marker", async () => {
         writeAssetHomeMarker(options.userDataPath, {
-          version: 1,
+          version: 2,
           projectId,
           lastKnownLocation: projectRoot,
           ttsMigrated: true,
+          assetsStoreMigrated: true,
           ledgerDir: marker?.ledgerDir ?? ensureLedgerDir(),
         }, markerIo);
       });
@@ -752,10 +788,11 @@ export async function runAssetHomeMigration(options: RunAssetHomeMigrationOption
       await migrateTtsSegment(baselineIds);
       await phase("P7-write-marker", async () => {
         writeAssetHomeMarker(options.userDataPath, {
-          version: 1,
+          version: 2,
           projectId,
           lastKnownLocation: projectRoot,
           ttsMigrated: true,
+          assetsStoreMigrated: true,
           ledgerDir: marker?.ledgerDir ?? ensureLedgerDir(),
         }, markerIo);
       });
@@ -770,10 +807,11 @@ export async function runAssetHomeMigration(options: RunAssetHomeMigrationOption
       await phase("P4-rewrite-tts-db", () => rewriteTtsDb(newTtsDbPath));
       await phase("P7-write-marker", async () => {
         writeAssetHomeMarker(options.userDataPath, {
-          version: 1,
+          version: 2,
           projectId,
           lastKnownLocation: projectRoot,
           ttsMigrated: true,
+          assetsStoreMigrated: true,
           ledgerDir: marker?.ledgerDir ?? ensureLedgerDir(),
         }, markerIo);
       });

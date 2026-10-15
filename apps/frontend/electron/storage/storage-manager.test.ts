@@ -65,7 +65,7 @@ describe("createStorageManager", () => {
       basePath: "/user-data",
       projectPath: "/user-data/projects",
       mediaPath: "/user-data/media",
-      assetsPath: "/user-data/assets",
+      assetsPath: "/user-data/store/assets",
       skillsPath: "/user-data/skills",
       pythonRuntimeDir: "/user-data/python",
       modelCacheDir: "/user-data/comfyui/models/TTS",
@@ -157,7 +157,7 @@ describe("createStorageManager", () => {
     });
   });
 
-  it("recognizes an existing assets library as unified storage data", async () => {
+  it("assets-only 目录不再是有效数据目录(1016 补刀:validate 与 link 对齐三件套——1015 起资产随位置表走,防『validate 通过但 link 拒绝』口径分裂)", async () => {
     const manager = createStorageManager({ userDataPath: "/user-data" });
     manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
 
@@ -165,8 +165,25 @@ describe("createStorageManager", () => {
     readdir.mockResolvedValue(["assets.db", "files"]);
 
     await expect(handlers.get("storage-validate-data-dir")?.(null, "/assets-only")).resolves.toEqual({
+      valid: false,
+      error: "该目录不包含有效的数据（需要 projects/、media/ 或 skills/ 子目录）",
+    });
+  });
+
+  it("assets/ 计数保留展示兼容:三件套在场的目录 assetCount 照常透出(老导出包含 assets/ 时计数可见)", async () => {
+    const manager = createStorageManager({ userDataPath: "/user-data" });
+    manager.registerIpcHandlers({ getStudioManualsSourceRoot: () => "/manuals" });
+
+    existsSync.mockImplementation((candidate?: unknown) => (
+      candidate === "/mixed" || candidate === "/mixed/projects" || candidate === "/mixed/assets"
+    ));
+    readdir.mockImplementation(async (candidate?: unknown) => (
+      candidate === "/mixed/projects" ? ["p.json"] : ["assets.db", "files"]
+    ));
+
+    await expect(handlers.get("storage-validate-data-dir")?.(null, "/mixed")).resolves.toEqual({
       valid: true,
-      projectCount: 0,
+      projectCount: 1,
       mediaCount: 0,
       skillCount: 0,
       assetCount: 2,
@@ -352,14 +369,14 @@ describe("createStorageManager", () => {
       rmSync.mockReset();
     });
 
-    it("①未设 provider → getAssetsRoot 旧语义逐字节等价 join(basePath,'assets')(M-A)", () => {
+    it("①未设 provider → getAssetsRoot 旧语义逐字节等价 join(basePath,'store','assets')(M-A 1016 改形)", () => {
       const manager = createStorageManager({ userDataPath: "/user-data" });
-      expect(manager.getAssetsRoot()).toBe("/user-data/assets");
+      expect(manager.getAssetsRoot()).toBe("/user-data/store/assets");
 
       readFileSync.mockReturnValue('{"basePath":"/ext"}');
       existsSync.mockImplementation((candidate?: unknown) => candidate === "/user-data/storage-config.json");
       const linked = createStorageManager({ userDataPath: "/user-data" });
-      expect(linked.getAssetsRoot()).toBe("/ext/assets");
+      expect(linked.getAssetsRoot()).toBe("/ext/store/assets");
     });
 
     it("②set 后 getAssetsRoot=provider 根,provider 惰性求值(每次调用重求值)", () => {

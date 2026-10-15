@@ -2,9 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
- * 资产/TTS 家解析状态机(1015 资产归域:App 家资产库迁项目域)。
+ * 资产/TTS 家解析状态机(1015 资产归域:App 家资产库迁项目域;1016 二段:项目根
+ * assets/ 归位 store/assets/)。
  *
- * 权威排序:新根 assets.db(真相)> 位置表(真源)> marker(缓存)。
+ * 权威排序:新根 store/assets/assets.db(真相)> 位置表(真源)> marker(缓存)。
+ * - 1016 起资产根=join(项目根,'store','assets'):探针/返回值均 store 形;marker
+ *   v2 增 assetsStoreMigrated 布尔(二段完成态;v1 缺字段=undefined≠true,二段例程
+ *   据此识别需迁移)。补写 marker 恒升 v2 不降版。
  * - marker 恒住 <userData>/asset-home.json(B-1:与位置表
  *   <userData>/project-locations.json 同住 userData,永不随数据迁移——放新根
  *   则位置表条目丢/损坏时读不到 marker→误判 fallback→旧根已被善后清空→空库
@@ -39,6 +43,8 @@ export interface AssetHomeMarker {
   projectId?: string;
   lastKnownLocation: string;
   ttsMigrated?: boolean;
+  /** 1016 二段:项目根 assets/ 已归位 store/assets/。v1 marker 缺此字段=undefined≠true。 */
+  assetsStoreMigrated?: boolean;
   ledgerDir?: string;
 }
 
@@ -80,6 +86,7 @@ export function readAssetHomeMarker(userDataPath: string, io: AssetHomeIo = defa
       projectId: typeof parsed.projectId === "string" ? parsed.projectId : undefined,
       lastKnownLocation: parsed.lastKnownLocation,
       ttsMigrated: parsed.ttsMigrated === true,
+      assetsStoreMigrated: parsed.assetsStoreMigrated === true,
       ledgerDir: typeof parsed.ledgerDir === "string" ? parsed.ledgerDir : undefined,
     };
   } catch {
@@ -139,7 +146,9 @@ function buildHomeContext(options: {
 }
 
 function assetDbProbe(projectRoot: string): string {
-  return path.join(projectRoot, "assets", "assets.db");
+  // 1016 二段:资产库真位=项目根 store/assets/assets.db(旧 flat 形由二段例程
+  // 启动期整树归位,解析面只认新形——旧形在场=迁移未完成的中间态)。
+  return path.join(projectRoot, "store", "assets", "assets.db");
 }
 
 /** 新根 TTS 探针(B-2:基路径级+'TTS'+'runtime'+'tts.sqlite',与旧家派生式同构)。 */
@@ -153,14 +162,25 @@ export interface ResolveAssetHomeOptions {
   locationStore: (projectId: string) => string | undefined;
   /** 位置表全量(注入 projectLocationStore.all);真源。 */
   allLocations: () => Record<string, string>;
-  /** M-A 求值式 fallback:=join(getStorageBasePath(),'assets')(与 storage-manager 现状逐字节等价)。 */
+  /** M-A 求值式 fallback:=join(getStorageBasePath(),'store','assets')(1016 改形,与 storage-manager/main-paths 注入保持逐字节等价)。 */
   fallback: () => string;
+  /**
+   * 1016 补刀·未绑项目回退:旧统一存储 flat 形资产根求值式(=join(base,'assets'),
+   * db 在场才非 null;注入方约定 flat 优先)。仅在 marker 缺+fallback 态消费——
+   * 未绑项目即用过资产库的 ≤1015 机器,资产住 flat 形;1016 fallback 改形后若无
+   * 此回退,该库静默失联(1015 行为回归)。绑定项目后由一段 legacy 双源探测
+   * (flat 优先)拾起归位 store/assets,闭环自愈。marker 在场时不参与(ORPHANED
+   * 恒 fail-closed,不给静默回退开后门)。
+   */
+  legacyFlatAssetsRoot?: () => string | null;
   io?: AssetHomeIo;
 }
 
 /**
- * 资产家解析:返回资产根(=项目根+'/assets')。
- * 状态机:①真未迁移态→fallback;②新根 db 在场→新根(+补 marker);
+ * 资产家解析:返回资产根(=项目根+'/store/assets',1016 二段归位后形态)。
+ * 状态机:①真未迁移态→fallback;①b 未绑项目+旧统一存储 flat 形库在场→回退
+ * flat 根(1016 补刀:1015 行为等价,防旧库静默失联;marker 在场恒不走此路);
+ * ②新根 store/assets db 在场→新根(+补 marker v2);
  * ③marker 在而位置表条目丢/新根 db 缺→ORPHANED;④位置表损坏→异常态;
  * ⑤fallback 态+旧根 db 缺失→软警示(M12)。
  */
@@ -180,17 +200,19 @@ export function resolveAssetHomeRoot(options: ResolveAssetHomeOptions): string {
   if (hits.length === 1) {
     const hit = hits[0];
     const projectId = Object.entries(options.allLocations() ?? {}).find(([, location]) => location === hit)?.[0];
-    // 补/续 marker:仅在缺 marker 或元数据需更新时写(保留既有 ttsMigrated 等字段)。
-    if (!marker || marker.lastKnownLocation !== hit || marker.projectId !== projectId) {
+    // 补/续 marker:仅在缺 marker/元数据需更新/v1 需升版时写(保留既有 ttsMigrated
+    // 等字段;探针即 store 形,命中=assetsStoreMigrated 语义恒 true;恒升 v2 不降版)。
+    if (!marker || marker.lastKnownLocation !== hit || marker.projectId !== projectId || marker.assetsStoreMigrated !== true) {
       writeAssetHomeMarker(userDataPath, {
-        version: 1,
+        version: 2,
         projectId,
         lastKnownLocation: hit,
         ttsMigrated: marker?.ttsMigrated === true,
+        assetsStoreMigrated: true,
         ledgerDir: marker?.ledgerDir,
       }, homeIo);
     }
-    return path.join(hit, "assets");
+    return path.join(hit, "store", "assets");
   }
 
   // ③marker 在而新根 db 缺(全表探测零命中)→ORPHANED,绝不静默 fallback(M1)。
@@ -202,7 +224,22 @@ export function resolveAssetHomeRoot(options: ResolveAssetHomeOptions): string {
     );
   }
 
-  // ①真未迁移态:位置表可读+无 marker+无新根 db → fallback(M-A 求值式)。
+  // ①真未迁移态:位置表可读+无 marker+无新根 db。
+  // ①b 1016 补刀:旧统一存储 flat 形库在场(未绑项目画像)→回退 flat 根(数据
+  // 可达性优先,1015 行为等价);不写 marker(未迁移语义——绑定项目后一段拾起)。
+  // warn 会话级去重(getAssetsRoot 每次求值,asset-file:// 高频解析防刷屏)。
+  if (options.legacyFlatAssetsRoot) {
+    const flatRoot = options.legacyFlatAssetsRoot();
+    if (flatRoot) {
+      if (!flatWarnedRoots.has(flatRoot)) {
+        flatWarnedRoots.add(flatRoot);
+        console.warn(
+          `[asset-home] 检测到旧统一存储资产库(flat 形,未绑定项目):${flatRoot}——本次会话按旧位服务;绑定项目后将自动归位 store/assets`,
+        );
+      }
+      return flatRoot;
+    }
+  }
   const fallbackRoot = fallback();
   // ⑤M12:fallback 态+旧根 db 缺失 → 软警示不拦(全新装机正常态也走这里;会话级去重防刷屏)。
   if (!homeIo.fileExists(path.join(fallbackRoot, "assets.db")) && !m12WarnedRoots.has(fallbackRoot)) {
@@ -215,6 +252,7 @@ export function resolveAssetHomeRoot(options: ResolveAssetHomeOptions): string {
 }
 
 const m12WarnedRoots = new Set<string>();
+const flatWarnedRoots = new Set<string>();
 
 export interface ResolveTtsHomeOptions {
   userDataPath: string;

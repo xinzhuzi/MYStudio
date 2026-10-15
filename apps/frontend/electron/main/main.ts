@@ -23,6 +23,7 @@ import {configureSidecarLogCapture} from '../diagnostics/sidecar-log-capture'
 import {createTtsRuntimeController} from '../tts/tts-runtime'
 import {resolveTtsHomeRoot} from '../storage/asset-home'
 import {runAssetHomeMigration} from '../storage/asset-home-migration'
+import {runAssetStoreMigration} from '../storage/asset-store-migration'
 import {
   isNonEmptyString,
 } from '../runtime/update-policy'
@@ -635,6 +636,17 @@ app.whenReady().then(async () => {
     getStorageBasePath: () => getStorageBasePath(),
     locationStore: projectLocationStore,
     log: (message) => console.warn(`[asset-migration] ${message}`),
+  })
+  // 1016 资产二段归位:项目根 assets/ → store/assets/(一段之后 renderer 前=同窗)。
+  // 失败不拦启动;因『失败不拦启动』,二段内部异常不会被根健康闸感知(根健康闸只拦
+  // resolveAssetHomeRoot 异常态)——一律台账留痕+console.warn+下轮幂等续跑。顺序无险:
+  // 一段中断在 P6 前→资产仍在 App 家,二段走 e 分支 noop;P6 后→资产已在 store/assets,
+  // 二段走 a 分支 heal。
+  await runAssetStoreMigration({
+    userDataPath: app.getPath('userData'),
+    getStorageBasePath: () => getStorageBasePath(),
+    locationStore: projectLocationStore,
+    log: (message) => console.warn(`[asset-store-migration] ${message}`),
   })
   // 云中继先于一切引擎拉起(节点侧常驻寻址;绑口失败不拦启动,云端节点会
   // 以「通道未接通」大白话显式报错)。

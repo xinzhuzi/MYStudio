@@ -66,10 +66,10 @@ interface AssetDbRow {
 let basePath: string = "";
 
 /**
- * 1015 资产归域:参数语义=assetsRoot(资产根本身,由 asset-library-ipc 传
- * getAssetsRoot() 解析结果;旧语义 storageBasePath 内含 join(…,'assets')
- * 派生已上移到调用方)。getAssetsDir 返回 basePath 本身;派生函数族不变,
- * studio-assets-storage 全部写入点(getFilesDir 等)零改。
+ * 1015 资产归域+1016 二段:参数语义=assetsRoot(资产根本身,由 asset-library-ipc
+ * 传 getAssetsRoot() 解析结果(=<项目根>/store/assets);旧语义 storageBasePath
+ * 内含 join(…,'assets') 派生已上移到调用方)。getAssetsDir 返回 basePath 本身;
+ * 派生函数族不变,studio-assets-storage 全部写入点(getFilesDir 等)零改。
  */
 export function initAssetsStorage(assetsRoot: string) {
   basePath = assetsRoot;

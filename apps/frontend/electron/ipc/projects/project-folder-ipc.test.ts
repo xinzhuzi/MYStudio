@@ -328,6 +328,38 @@ describe("project-folder IPC handlers", () => {
     expect(fixture.store.get("pid-1")).toBeUndefined();
   });
 
+  // ===== 1016 资产二段归位:remove 守卫三态探测(store/assets 新形在场也拦)=====
+  it("remove refuses when store/assets (1016 new form) holds the asset library — disclosure counts its files", async () => {
+    const parent = path.join(fixture.tmp, "parent");
+    fs.mkdirSync(parent);
+    await fixture.invoke("project-folder-prepare", "pid-1", parent, "新形资产");
+    const location = path.join(parent, "新形资产");
+    // 新形:store/assets 下挂库+文件;flat 形与 TTS 均不在场(TTS 无史机器画像)
+    fs.mkdirSync(path.join(location, "store", "assets", "files", "role"), { recursive: true });
+    fs.writeFileSync(path.join(location, "store", "assets", "assets.db"), "db");
+    fs.writeFileSync(path.join(location, "store", "assets", "files", "role", "a.png"), "x".repeat(256));
+
+    const result = await fixture.invoke("project-folder-remove", "pid-1") as {
+      ok: boolean; code?: string; assetFileCount?: number; message?: string;
+    };
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("ASSET_DELETION_UNCONFIRMED");
+    // 披露计数含 store/assets 内文件(修复『2 个文件』失真:真删的是库级体量)
+    expect(result.assetFileCount).toBe(2);
+    expect(fs.existsSync(location)).toBe(true);
+  });
+
+  it("remove disclosure totals files across store/assets + flat assets + TTS (tri-state probe)", async () => {
+    const { location } = await prepareProjectWithAssets(128);
+    // 追加 store 形资产文件:三态并存时披露须合并计数
+    fs.mkdirSync(path.join(location, "store", "assets", "files", "role"), { recursive: true });
+    fs.writeFileSync(path.join(location, "store", "assets", "files", "role", "b.png"), "y".repeat(64));
+
+    const result = await fixture.invoke("project-folder-remove", "pid-1") as { assetFileCount?: number };
+    expect(result.assetFileCount).toBe(4);
+    expect(fs.existsSync(location)).toBe(true);
+  });
+
   it("status reports the registered location and folder existence", async () => {
     expect(await fixture.invoke("project-folder-status", "unregistered")).toEqual({ exists: true });
 

@@ -679,8 +679,10 @@ describe("asset-generation-orchestrator", () => {
       });
 
       const [withoutRef, withRef] = vi.mocked(aiManager.image).mock.calls;
-      expect(withoutRef[0].prompt).not.toContain("参考图降噪");
-      expect(withRef[0].prompt).toContain("参考图降噪");
+      // 1016 锚同步:手册真源措辞已由「参考图降噪」改为「参考图处理」(并行在途
+      // runtime-contract.json 03:29 批),锚跟随真源;断言语义不变(有参考图才追加该锁)。
+      expect(withoutRef[0].prompt).not.toContain("参考图处理");
+      expect(withRef[0].prompt).toContain("参考图处理");
     });
 
     it("AI 选配方案随编译进入 provider 正文(具体矿物色可见)", async () => {

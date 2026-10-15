@@ -26,9 +26,11 @@ type Fixture = {
   /** 写位置表真源 <userData>/project-locations.json。 */
   writeLocationTable: (entries: Record<string, string> | "CORRUPT") => void;
   writeMarker: (marker: Record<string, unknown> | "CORRUPT") => void;
-  /** M-A 求值式 fallback:与 storage-manager.ts:130-134 现状逐字节等价的派生式。 */
+  /** M-A 求值式 fallback:与 main-paths.ts 注入形态逐字节等价的派生式(1016 起_store/assets)。 */
   fallback: () => string;
-  resolve: (overrides?: { allLocations?: () => Record<string, string> }) => string;
+  /** 旧统一存储 flat 形资产根求值式(db 在场才非 null;与 main-paths 注入约定一致:flat 优先)。 */
+  legacyFlatAssetsRoot: () => string | null;
+  resolve: (overrides?: { allLocations?: () => Record<string, string>; legacyFlatAssetsRoot?: () => string | null }) => string;
   resolveTts: (overrides?: { allLocations?: () => Record<string, string>; legacyBase?: () => string }) => string;
 };
 
@@ -57,17 +59,26 @@ function createFixture(): Fixture {
     fs.writeFileSync(filePath, JSON.stringify(marker), "utf-8");
   };
 
-  const fallback = () => path.join(legacyBase, "assets");
+  const fallback = () => path.join(legacyBase, "store", "assets");
+  // 旧统一存储 flat 形回退探针(与 main-paths 注入约定一致:flat 形 assets.db 在场才非 null)
+  const legacyFlatAssetsRoot = () => {
+    const flat = path.join(legacyBase, "assets");
+    return fs.existsSync(path.join(flat, "assets.db")) ? flat : null;
+  };
 
   const emptyLocations = (_projectId?: string): Record<string, string> => ({});
   const table = (overrides?: { allLocations?: (projectId?: string) => Record<string, string> }) => (
     (): Record<string, string> => (overrides?.allLocations ?? emptyLocations)()
   );
-  const resolve = (overrides?: { allLocations?: (projectId?: string) => Record<string, string> }) => resolveAssetHomeRoot({
+  const resolve = (overrides?: { allLocations?: (projectId?: string) => Record<string, string>; legacyFlatAssetsRoot?: () => string | null }) => resolveAssetHomeRoot({
     userDataPath: userData,
     locationStore: (projectId: string): string | undefined => table(overrides)()[projectId],
     allLocations: table(overrides),
     fallback,
+    // 传 { legacyFlatAssetsRoot: undefined } = 显式不注入(旧注入方兼容态)
+    legacyFlatAssetsRoot: overrides && "legacyFlatAssetsRoot" in overrides
+      ? overrides.legacyFlatAssetsRoot
+      : legacyFlatAssetsRoot,
   });
 
   const resolveTts = (overrides?: { allLocations?: (projectId?: string) => Record<string, string>; legacyBase?: () => string }) => resolveTtsHomeRoot({
@@ -77,12 +88,12 @@ function createFixture(): Fixture {
     legacyBasePath: overrides?.legacyBase ?? (() => legacyBase),
   });
 
-  return { tmp, userData, projectRoot, legacyBase, writeLocationTable, writeMarker, fallback, resolve, resolveTts };
+  return { tmp, userData, projectRoot, legacyBase, writeLocationTable, writeMarker, fallback, legacyFlatAssetsRoot, resolve, resolveTts };
 }
 
 function touchAssetDb(root: string) {
-  fs.mkdirSync(path.join(root, "assets"), { recursive: true });
-  fs.writeFileSync(path.join(root, "assets", "assets.db"), "db", "utf-8");
+  fs.mkdirSync(path.join(root, "store", "assets"), { recursive: true });
+  fs.writeFileSync(path.join(root, "store", "assets", "assets.db"), "db", "utf-8");
 }
 
 function touchTtsDb(root: string) {
@@ -93,7 +104,7 @@ function touchTtsDb(root: string) {
 describe("resolveAssetHomeRoot 状态机", () => {
   it("①真未迁移态(marker 无+新根无 db+位置表可读)→fallback=join(legacyBase,'assets') 求值式", () => {
     const fixture = createFixture();
-    expect(fixture.resolve()).toBe(path.join(fixture.legacyBase, "assets"));
+    expect(fixture.resolve()).toBe(path.join(fixture.legacyBase, "store", "assets"));
   });
 
   it("②资产已迁(新根 assets.db 在场+位置表注册)→返回 <projectRoot>/assets", () => {
@@ -101,7 +112,7 @@ describe("resolveAssetHomeRoot 状态机", () => {
     touchAssetDb(fixture.projectRoot);
     const all = () => ({ "pid-1": fixture.projectRoot });
     fixture.writeLocationTable({ "pid-1": fixture.projectRoot });
-    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "assets"));
+    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "store", "assets"));
   });
 
   it("③【M8】marker 损坏→按无处理→全表探测自愈+补写 marker(不抛异常态)", () => {
@@ -111,7 +122,7 @@ describe("resolveAssetHomeRoot 状态机", () => {
     fixture.writeMarker("CORRUPT");
 
     const all = () => ({ "pid-1": fixture.projectRoot });
-    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "assets"));
+    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "store", "assets"));
 
     // 自愈后 marker 已补写且可读
     const healed = readAssetHomeMarker(fixture.userData);
@@ -160,8 +171,8 @@ describe("resolveAssetHomeRoot 状态机", () => {
     expect(() => fixture.resolve({ allLocations: all })).toThrow(AssetHomeError);
 
     // 唯一命中(去掉 otherRoot 的 db)→自愈+补 marker
-    fs.rmSync(path.join(otherRoot, "assets", "assets.db"));
-    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "assets"));
+    fs.rmSync(path.join(otherRoot, "store", "assets", "assets.db"));
+    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "store", "assets"));
     expect(readAssetHomeMarker(fixture.userData)?.lastKnownLocation).toBe(fixture.projectRoot);
   });
 
@@ -174,7 +185,7 @@ describe("resolveAssetHomeRoot 状态机", () => {
     // 自愈补写后 marker 仍在 userData,而非资产树内
     const markerPath = assetHomeMarkerPath(fixture.userData);
     expect(fs.existsSync(markerPath)).toBe(true);
-    expect(markerPath.startsWith(path.join(fixture.projectRoot, "assets"))).toBe(false);
+    expect(markerPath.startsWith(path.join(fixture.projectRoot, "store", "assets"))).toBe(false);
     expect(readAssetHomeMarker(fixture.userData)?.lastKnownLocation).toBe(fixture.projectRoot);
   });
 
@@ -195,8 +206,63 @@ describe("resolveAssetHomeRoot 状态机", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     try {
       // legacyBase 下无 assets/assets.db → 旧根 db 缺失
-      expect(fixture.resolve()).toBe(path.join(fixture.legacyBase, "assets"));
+      expect(fixture.resolve()).toBe(path.join(fixture.legacyBase, "store", "assets"));
       expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("⑪【1016 补刀·未绑项目回退】旧统一存储 flat 形资产库在场(db 在场)+无 marker+位置表空→返回 flat 根不丢数据(1015 行为等价),绑定项目后由一段拾起", () => {
+    const fixture = createFixture();
+    // 画像:≤1015 时代未绑定项目即使用资产库,资产住旧统一存储 flat 形;
+    // 1016 fallback 改形(store/assets)后若不回退,该库静默失联。
+    const flat = path.join(fixture.legacyBase, "assets");
+    fs.mkdirSync(flat, { recursive: true });
+    fs.writeFileSync(path.join(flat, "assets.db"), "db", "utf-8");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      expect(fixture.resolve()).toBe(flat);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("旧统一存储资产库"));
+    } finally {
+      warn.mockRestore();
+    }
+    // 不写 marker(未迁移语义保持:绑定项目后一段 legacy 双源探测 flat 优先拾起)
+    expect(readAssetHomeMarker(fixture.userData)).toBeNull();
+  });
+
+  it("⑪b flat 回退不越权:marker 在场(曾绑定项目)时 flat 库不参与回退→ORPHANED 恒 fail-closed", () => {
+    const fixture = createFixture();
+    const flat = path.join(fixture.legacyBase, "assets");
+    fs.mkdirSync(flat, { recursive: true });
+    fs.writeFileSync(path.join(flat, "assets.db"), "db", "utf-8");
+    fixture.writeMarker({ version: 2, lastKnownLocation: fixture.projectRoot, ttsMigrated: true, assetsStoreMigrated: true });
+
+    expect(() => fixture.resolve({ allLocations: () => ({}) })).toThrow(/ASSET_HOME_ORPHANED|失联/);
+  });
+
+  it("⑪c flat 探针缺 db(目录在库不在)→不回退照走 fallback(M12 语义不变)", () => {
+    const fixture = createFixture();
+    fs.mkdirSync(path.join(fixture.legacyBase, "assets"), { recursive: true }); // 目录在、无 db
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      expect(fixture.resolve()).toBe(path.join(fixture.legacyBase, "store", "assets"));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("⑪d 未注入 legacyFlatAssetsRoot(旧注入方兼容)→行为与改前逐字节等价(纯 fallback)", () => {
+    const fixture = createFixture();
+    const flat = path.join(fixture.legacyBase, "assets");
+    fs.mkdirSync(flat, { recursive: true });
+    fs.writeFileSync(path.join(flat, "assets.db"), "db", "utf-8");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      expect(fixture.resolve({ legacyFlatAssetsRoot: undefined })).toBe(path.join(fixture.legacyBase, "store", "assets"));
     } finally {
       warn.mockRestore();
     }
@@ -261,7 +327,7 @@ describe("resolveTtsHomeRoot【B-2 统一层级】", () => {
     touchAssetDb(fixture.projectRoot);
     touchTtsDb(fixture.projectRoot);
     const all = () => ({ "pid-1": fixture.projectRoot });
-    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "assets"));
+    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "store", "assets"));
     expect(fixture.resolveTts({ allLocations: all })).toBe(fixture.projectRoot);
   });
 
@@ -278,5 +344,63 @@ describe("resolveTtsHomeRoot【B-2 统一层级】", () => {
     const fixture = createFixture();
     fixture.writeLocationTable("CORRUPT");
     expect(() => fixture.resolveTts({ allLocations: () => ({}) })).toThrow(AssetHomeError);
+  });
+});
+
+describe("AssetHomeMarker v2(1016 资产二段归位 store/assets)", () => {
+  it("T1a assetsStoreMigrated 解析往返:在场=true 读出,缺失=undefined≠true", () => {
+    const fixture = createFixture();
+    fixture.writeMarker({
+      version: 2,
+      projectId: "pid-1",
+      lastKnownLocation: fixture.projectRoot,
+      ttsMigrated: true,
+      assetsStoreMigrated: true,
+    });
+    expect(readAssetHomeMarker(fixture.userData)).toMatchObject({
+      version: 2,
+      ttsMigrated: true,
+      assetsStoreMigrated: true,
+    });
+
+    const v1 = createFixture();
+    v1.writeMarker({ version: 1, lastKnownLocation: v1.projectRoot, ttsMigrated: true });
+    const parsed = readAssetHomeMarker(v1.userData);
+    expect(parsed?.version).toBe(1);
+    expect(parsed?.assetsStoreMigrated).not.toBe(true);
+  });
+
+  it("T1b 探针命中态补写 marker:v1 升 v2+assetsStoreMigrated=true,不降版不丢 ttsMigrated", () => {
+    const fixture = createFixture();
+    touchAssetDb(fixture.projectRoot);
+    fixture.writeLocationTable({ "pid-1": fixture.projectRoot });
+    fixture.writeMarker({
+      version: 1,
+      projectId: "pid-1",
+      lastKnownLocation: fixture.projectRoot,
+      ttsMigrated: true,
+      ledgerDir: "/tmp/legacy-ledger",
+    });
+
+    const all = () => ({ "pid-1": fixture.projectRoot });
+    expect(fixture.resolve({ allLocations: all })).toBe(path.join(fixture.projectRoot, "store", "assets"));
+    expect(readAssetHomeMarker(fixture.userData)).toMatchObject({
+      version: 2,
+      projectId: "pid-1",
+      lastKnownLocation: fixture.projectRoot,
+      ttsMigrated: true,
+      assetsStoreMigrated: true,
+      ledgerDir: "/tmp/legacy-ledger",
+    });
+
+    // v2 marker 再次解析:补写条件不再触发降级(version 2 保持)
+    fixture.resolve({ allLocations: all });
+    expect(readAssetHomeMarker(fixture.userData)?.version).toBe(2);
+  });
+
+  it("T1c marker 损坏→null(M8 语义对 v2 同样成立)", () => {
+    const fixture = createFixture();
+    fixture.writeMarker("CORRUPT");
+    expect(readAssetHomeMarker(fixture.userData)).toBeNull();
   });
 });

@@ -1910,3 +1910,89 @@ describe("TTS runtime stale-marker offline self-healing", () => {
     }
   });
 });
+
+// ===== 1015 资产归域:projectRootProvider(B-2 统一层级/M7/m2/M13)=====
+import { createTtsRuntimePaths } from "./tts-runtime-paths";
+
+describe("createTtsRuntimePaths projectRootProvider(1015 资产归域)", () => {
+  const pathsIo = {
+    readTextFile: () => null as string | null,
+    writeTextFile: () => undefined,
+    ensureDir: () => undefined,
+    fileExists: () => false,
+  };
+
+  it("①注入 → ttsRootDir=join(provider(),'TTS') 基路径级拼合,无重复 TTS/TTS 段(B-2)", () => {
+    const paths = createTtsRuntimePaths(
+      {
+        userDataPath: "/user-data",
+        storageBasePath: () => "/legacy-base",
+        projectRootProvider: () => "/Users/x/Project/IP/MA",
+      },
+      pathsIo,
+    );
+    expect(paths.ttsRootDir()).toBe("/Users/x/Project/IP/MA/TTS");
+    expect(paths.ttsRootDir()).not.toContain(`TTS${path.sep}TTS`);
+    expect(paths.runtimeDataDir()).toBe("/Users/x/Project/IP/MA/TTS/runtime");
+    // 消费式探针与迁移例程 TTS 提交点路径逐字节相等
+    expect(path.join(paths.runtimeDataDir(), "tts.sqlite")).toBe(
+      path.join("/Users/x/Project/IP/MA", "TTS", "runtime", "tts.sqlite"),
+    );
+  });
+
+  it("②未注入 → join(storageBasePath(),'TTS') 现状逐字节不变", () => {
+    const paths = createTtsRuntimePaths(
+      { userDataPath: "/user-data", storageBasePath: () => "/project-storage" },
+      pathsIo,
+    );
+    expect(paths.ttsRootDir()).toBe("/project-storage/TTS");
+    expect(paths.runtimeDataDir()).toBe("/project-storage/TTS/runtime");
+  });
+
+  it("③【m2】legacy 两目录钉死 storageBasePath/TTS/{models,model}(不随 provider 漂移)", () => {
+    const paths = createTtsRuntimePaths(
+      {
+        userDataPath: "/user-data",
+        storageBasePath: () => "/legacy-base",
+        projectRootProvider: () => "/Users/x/Project/IP/MA",
+      },
+      pathsIo,
+    );
+    expect(paths.legacyDefaultModelsDir()).toBe("/legacy-base/TTS/models");
+    expect(paths.legacyCacheModelsDir()).toBe("/legacy-base/TTS/model");
+  });
+});
+
+describe("TTS controller projectRootProvider 半态消费链(1015 M13)", () => {
+  it("④provider 判旧家(新根 tts.sqlite 缺+旧家在的续迁半态)→ spawn 链 --data-dir 落旧家基路径", async () => {
+    const spawnProcess = vi.fn(() => ({ pid: 42, kill: vi.fn() }));
+    const controller = createTtsRuntimeController({
+      appRoot: "/repo",
+      userDataPath: "/user-data",
+      storageBasePath: () => "/project-storage",
+      // 模拟 resolveTtsHomeRoot 半态判定:返回旧统一存储基路径级(无 TTS 段,B-2)
+      projectRootProvider: () => "/project-storage",
+      fileExists: (filePath: string) => (
+        filePath.includes("tts/main.py")
+        || filePath === "/project-storage/python/bin/python3"
+      ),
+      ensureDir: vi.fn(),
+      readTextFile: (filePath: string) => (filePath.endsWith(".deps-hash") ? "ready" : null),
+      writeTextFile: vi.fn(),
+      runPython: mockPython312(),
+      spawnProcess,
+      fetchJson: vi.fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue({ ok: true }),
+    });
+
+    const result = await controller.start();
+    expect(result.success).toBe(true);
+    const spawnCall = spawnProcess.mock.calls[0] as unknown as [string, string[], { env: Record<string, string> }];
+    const dataDirIndex = spawnCall[1].indexOf("--data-dir");
+    expect(spawnCall[1][dataDirIndex + 1]).toBe("/project-storage/TTS/runtime");
+    expect(spawnCall[2].env).toMatchObject({
+      MANYING_TTS_DATA_DIR: "/project-storage/TTS/runtime",
+    });
+  });
+});

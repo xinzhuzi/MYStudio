@@ -148,7 +148,9 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
       if (ensure) ensureDir(provided);
       return provided;
     }
-    const base = path.join(getStorageBasePath(), "assets");
+    // 1016 二段改形:无 provider fallback=join(base,'store','assets'),与 main-paths
+    // 注入 fallback 保持逐字节等价(M-A 锁——basePath 外置盘机器语义保持)。
+    const base = path.join(getStorageBasePath(), "store", "assets");
     if (ensure) ensureDir(base);
     return base;
   };
@@ -315,8 +317,11 @@ export function createStorageManager({ userDataPath, sessionDataPath = userDataP
           })).length;
         }
         if (fs.existsSync(assetsDir)) assetCount = (await fs.promises.readdir(assetsDir)).length;
-        if (projectCount === 0 && mediaCount === 0 && skillCount === 0 && assetCount === 0) {
-          return { valid: false, error: "该目录不包含有效的数据（需要 projects/、media/、assets/ 或 skills/ 子目录）" };
+        // 1016 补刀:有效性判定与 storage-link-data 对齐三件套(1015 起资产随位置表
+        // 走,assets-only 目录 link 必拒——validate 不再独立放行防口径分裂);
+        // assetCount 仍计数透出(展示兼容:老导出包含 assets/ 时计数可见)。
+        if (projectCount === 0 && mediaCount === 0 && skillCount === 0) {
+          return { valid: false, error: "该目录不包含有效的数据（需要 projects/、media/ 或 skills/ 子目录）" };
         }
         return { valid: true, projectCount, mediaCount, skillCount, assetCount };
       } catch (error) {

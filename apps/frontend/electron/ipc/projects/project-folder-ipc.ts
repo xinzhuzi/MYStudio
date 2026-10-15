@@ -435,7 +435,14 @@ export function registerProjectFolderIpcHandlers({
       visit(root);
       return { count, bytes };
     };
-    const assetRoots = [path.join(location, "assets"), path.join(location, "TTS")].filter((root) => fs.existsSync(root));
+    // 1016 三态探测:store/assets(新形)+ assets(旧形,数据回滚/未迁机器)+ TTS。
+    // 真缺口修复:①披露计数失真——只探 [assets,TTS] 时 TTS 留守机器被告知
+    // 『2 个文件』实删库级体量;②TTS 无史机器(仅 assets)旧探法完全绕过闸。
+    const assetRoots = [
+      path.join(location, "store", "assets"),
+      path.join(location, "assets"),
+      path.join(location, "TTS"),
+    ].filter((root) => fs.existsSync(root));
     if (assetRoots.length > 0 && payload?.confirmAssetDeletion !== true) {
       const totals = assetRoots.map(measureTree).reduce(
         (sum, item) => ({ count: sum.count + item.count, bytes: sum.bytes + item.bytes }),

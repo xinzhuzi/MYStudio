@@ -44,14 +44,21 @@ setProjectLocationResolver(projectLocationStore.get)
 // 1015 资产归域:资产根 provider(m1 setter 晚绑——本处序在 projectLocationStore
 // 构造之后;storageManager 构造在文件头,构造期引用即 TDZ)。provider 体内惰性
 // 求值:每次 getAssetsRoot 按文件即真相重解析(marker/位置表/新根 db 三权排序)。
-// M-A:fallback=join(getStorageBasePath(),'assets')(与 storage-manager 旧语义
-// 逐字节等价——basePath 被用户设到外置盘的机器语义保持)。异常态
+// M-A:fallback=join(getStorageBasePath(),'store','assets')(1016 二段改形——
+// basePath 外置盘机器语义保持:仅尾段改 store/assets 等价形态)。异常态
 // (ASSET_HOME_ORPHANED 等)上抛→getAssetsRoot 不 mkdir→根健康闸接管。
+// ①b 1016 补刀·未绑项目回退:旧统一存储 flat 形库在场(db 在场才非 null)→
+// 回退 flat 根(≤1015 未绑项目即用资产库的机器,1016 改形后防静默失联);
+// 绑定项目后由一段 legacy 双源探测 flat 优先拾起,闭环自愈。
 storageManager.setAssetRootProvider(() => resolveAssetHomeRoot({
   userDataPath: app.getPath('userData'),
   locationStore: projectLocationStore.get,
   allLocations: projectLocationStore.all,
-  fallback: () => path.join(getStorageBasePath(), 'assets'),
+  fallback: () => path.join(getStorageBasePath(), 'store', 'assets'),
+  legacyFlatAssetsRoot: () => {
+    const flat = path.join(getStorageBasePath(), 'assets')
+    return fs.existsSync(path.join(flat, 'assets.db')) ? flat : null
+  },
 }))
 
 // ==================== File Storage for App Data ====================
@@ -185,7 +192,7 @@ export function pathsEquivalent(left: string, right: string): boolean {
 // 持久化虚拟 asset-file://(role-audio-auto-assign),分镜固定音色链经
 // tts-reference-audio-resolve 到此解析;缺本分支时虚拟 URL 原样漏回,tts-ipc
 // 的 isAbsolute 闸判 null →「固定音色文件不可读」假错(文件明明健康)。
-// 解析按当前资产根(1015 状态机:归域后=<项目根>/assets);根健康异常态
+// 解析按当前资产根(1016 二段归位后=<项目根>/store/assets);根健康异常态
 // (ORPHANED 等)上抛,由 tts-ipc 的 catch→null→渲染层清晰报错接管。
 export function resolveReferenceAudioSourcePath(sourcePath: string) {
   if (sourcePath.startsWith('project-file://')) {
