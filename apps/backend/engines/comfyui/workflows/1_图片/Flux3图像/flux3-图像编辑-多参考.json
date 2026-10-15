@@ -1,0 +1,787 @@
+{
+  "id": "51b27970-0036-4a63-8eb8-d2cf9ad07f4a",
+  "revision": 0,
+  "last_node_id": 32,
+  "last_link_id": 30,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        440,
+        90
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "models": [
+          {
+            "name": "flux3_image_klein_sd_int8_convrot.safetensors",
+            "url": "https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/diffusion_models/flux3_image_klein_sd_int8_convrot.safetensors",
+            "directory": "diffusion_models"
+          }
+        ]
+      },
+      "widgets_values": [
+        "flux3_image_klein_sd_int8_convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "flux3_image_klein_sd_int8_convrot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        40,
+        280
+      ],
+      "size": [
+        440,
+        120
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            43
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "models": [
+          {
+            "name": "qwen3vl_4b_int8_convrot.safetensors",
+            "url": "https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/text_encoders/qwen3vl_4b_int8_convrot.safetensors",
+            "directory": "text_encoders"
+          }
+        ]
+      },
+      "widgets_values": [
+        "qwen3vl_4b_int8_convrot.safetensors",
+        "flux3",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3vl_4b_int8_convrot.safetensors",
+        "type": "flux3",
+        "device": "default"
+      }
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        40,
+        500
+      ],
+      "size": [
+        450,
+        70
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            5,
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "models": [
+          {
+            "name": "flux2-vae.safetensors",
+            "url": "https://huggingface.co/black-forest-labs/flux-3-image-klein-comfy/resolve/main/vae/flux2-vae.safetensors",
+            "directory": "vae"
+          }
+        ]
+      },
+      "widgets_values": [
+        "flux2-vae.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "flux2-vae.safetensors"
+      }
+    },
+    {
+      "id": 4,
+      "type": "CLIPTextEncode",
+      "pos": [
+        740,
+        60
+      ],
+      "size": [
+        440,
+        410
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 43
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            44,
+            20
+          ]
+        }
+      ],
+      "title": "Positive Prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "Replace the earring with a single large openwork metal statement earring, one bold curved pendant, intricate hollow metal cutouts, layered metal wires, polished warm bronze finish, structured artistic shape, keep it attached to the correct ear position, match the character's existing lighting, shadows and skin tone, no pearls, no pearl beads, no scattered small beads."
+      ],
+      "widgets_values_named": {
+        "text": "Replace the earring with a single large openwork metal statement earring, one bold curved pendant, intricate hollow metal cutouts, layered metal wires, polished warm bronze finish, structured artistic shape, keep it attached to the correct ear position, match the character's existing lighting, shadows and skin tone, no pearls, no pearl beads, no scattered small beads."
+      },
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        2740,
+        60
+      ],
+      "size": [
+        340,
+        520
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 22
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 23
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        264888498296736,
+        "randomize",
+        16,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "widgets_values_named": {
+        "seed": 264888498296736,
+        "control_after_generate": "randomize",
+        "steps": 16,
+        "cfg": 1,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1
+      }
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        2740,
+        330
+      ],
+      "size": [
+        210,
+        50
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 4
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        2740,
+        560
+      ],
+      "size": [
+        530,
+        620
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "flux3/klein-edit"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "image_flux3_klein_distilled_image_edit"
+      }
+    },
+    {
+      "id": 10,
+      "type": "MarkdownNote",
+      "pos": [
+        0,
+        -820
+      ],
+      "size": [
+        920,
+        700
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Notes",
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "## FLUX.3 klein 图像编辑·多参考(蒸馏 int8 档)\n\n### 机制\n- 图输入即指令编辑:②组写「要改成什么」;③组参考图经④组 ReferenceMultiLatent 注入(多参考通道,可再挂 LoadImage 扩展参考张数)\n\n### 模型三件 / 来源门禁 / 精度显存 / 引擎版本\n- 同 `flux3-文生图.json`:三件文件名完全一致;官方仓 gated,取 ml-resources 无门禁镜像;int8 convrot 档;8GB 卡 offload 常态(首图分钟级);**ComfyUI ≥ v0.41.1**\n\n### 用法要点\n- 步数可试 4-16;蒸馏档 CFG=1\n- LoadImage 默认为官方示例图名,实弹时选实际输入图;官方示例图(可作首测输入):`https://raw.githubusercontent.com/Comfy-Org/workflow_templates/refs/heads/main/input/woman_gold_earring_teal_top_portrait.png`\n- 官方模板另有 CreateBoundingBoxes(框选精确编辑)与 EmptyFlux2LatentImage(自定义画幅)演示件,本件未含,可按需自加\n\n### 源流\n- 官方模板 `image_flux3_klein_distilled_image_edit`(Comfy-Org/workflow_templates,ComfyUI v0.41.1 伴版)平迁移改;组框/说明中文化;出图每次换随机种子(seed=randomize)"
+      ],
+      "widgets_values_named": {
+        "text": "## FLUX.3 image-small: editing\n\nSame files and sampler settings as text-to-image (50 steps, cfg 3.5, euler / simple).\n\n**References**: plug more input image to the `Set Reference Multi Latent` node, the first one is `<ref_image_0>` in the prompt, the next `<ref_image_1>`, and so on. Add every reference to **both** the positive and the negative, as the reference pipeline does.\n\n**Size**: the reference is scaled to ~1 MP here and the output latent takes its size. BFL's pipeline keeps references at native size (up to ~16 MP): raise the megapixels for more reference detail at a higher cost.\n\n**Prompting**: write a full caption of the result, with the edit folded in."
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 11,
+      "type": "LoadImage",
+      "pos": [
+        1440,
+        60
+      ],
+      "size": [
+        440,
+        500
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            29,
+            27
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "woman_gold_earring_teal_top_portrait.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "woman_gold_earring_teal_top_portrait.png",
+        "upload": "image"
+      }
+    },
+    {
+      "id": 17,
+      "type": "ReferenceMultiLatent",
+      "pos": [
+        2040,
+        120
+      ],
+      "size": [
+        280,
+        170
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 20
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 45
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 25
+        },
+        {
+          "name": "images.image0",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 27
+        },
+        {
+          "name": "images.image1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            22
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "empty_latent",
+          "type": "LATENT",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ReferenceMultiLatent"
+      },
+      "widgets_values": [
+        "resize",
+        1
+      ],
+      "widgets_values_named": {
+        "resolution": "resize",
+        "resolution.megapixels": 1
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 18,
+      "type": "ImageCompare",
+      "pos": [
+        3520,
+        560
+      ],
+      "size": [
+        510,
+        620
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 29
+        },
+        {
+          "name": "image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 30
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "ImageCompare"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 19,
+      "type": "MarkdownNote",
+      "pos": [
+        3960,
+        120
+      ],
+      "size": [
+        210,
+        90
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: Steps",
+      "properties": {},
+      "widgets_values": [
+        "步数可试 4-16;蒸馏档 CFG=1"
+      ],
+      "widgets_values_named": {
+        "text": "you can try 4-16 steps"
+      },
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 32,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        740,
+        400
+      ],
+      "size": [
+        210,
+        30
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 44
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            45
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut"
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      5,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      6,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
+      17,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      23,
+      17,
+      1,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      24,
+      17,
+      2,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      29,
+      11,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      30,
+      9,
+      0,
+      18,
+      1,
+      "IMAGE"
+    ],
+    [
+      43,
+      2,
+      0,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      44,
+      4,
+      0,
+      32,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      20,
+      4,
+      0,
+      17,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      45,
+      32,
+      0,
+      17,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      3,
+      0,
+      17,
+      2,
+      "VAE"
+    ],
+    [
+      27,
+      11,
+      0,
+      17,
+      3,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Flux3·①加载器",
+      "bounding": [
+        16,
+        36,
+        498,
+        558
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Flux3·②指令",
+      "bounding": [
+        716,
+        36,
+        488,
+        458
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Flux3·③参考图",
+      "bounding": [
+        1416,
+        36,
+        488,
+        548
+      ],
+      "color": "#4d9e6a",
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "Flux3·④多参考装配",
+      "bounding": [
+        2016,
+        96,
+        328,
+        218
+      ],
+      "color": "#8864a8",
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "Flux3·⑤采样输出",
+      "bounding": [
+        2716,
+        36,
+        1338,
+        1168
+      ],
+      "color": "#a88040",
+      "flags": {}
+    }
+  ],
+  "definitions": {
+    "subgraphs": []
+  },
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "frontendVersion": "1.53.10",
+    "ds": {}
+  },
+  "extensions": {
+    "seed_widgets": {
+      "7": 0
+    }
+  },
+  "version": 0.4,
+  "seed_widgets": {
+    "7": 0
+  }
+}
