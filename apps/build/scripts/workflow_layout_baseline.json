@@ -1,12 +1,12 @@
 {
  "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
  "head": "b4107de1",
- "rebuiltAt": "2026-10-14 手工记账:i2i viggle 官方化拓扑重建(14件链,排布随 t2i 实证态; t2i 同域=12)",
+ "rebuiltAt": "2026-10-15 手工记账:1015 画幅按型联动(本刀仅 229×230 一对平行回送线互交,不可免)+并行 T2 洗底链等前序提交存量并入",
  "files": {
   "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
    "scopes": {
     "main": {
-     "crossings": 19,
+     "crossings": 26,
      "occlusion": 8
     },
     "sub:[6] 文本提示词类型优化子图": {
