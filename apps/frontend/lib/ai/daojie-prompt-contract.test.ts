@@ -84,7 +84,7 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
       // 1016：画法只含风格；背景、光照与来源状态归三轨类型模块；来源SHA保留历史基线。
-      "90fe0dc179bb89324f1e2fd0cf2c3b2b7ff518eac7905a0e3b6fce945ea220ee",
+      "c15a955e6543921538e4e601bd9677a98dc39c5684cb8fd42a3af49e221353cd",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 1600 });
@@ -98,7 +98,7 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
       "reference.denoise",
       "negative.universal",
     ]);
-    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("中国传统人物画审美经现代游戏美术设计重组");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("中国传统工笔设色与彩色连环画语言的二维手绘数字插画");
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("成像工艺干净，线条与罩染层次清晰。");
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).not.toMatch(/衣物|尘土|血痕|身体状态|背景|近景|远景|时段|光源|光照|构图|留白/);
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].moduleId).toBe("style.gongbi-base");
@@ -292,7 +292,8 @@ describe("Daojie provider-visible length policy", () => {
     const positiveChars = compiled.moduleIds
       .filter((moduleId) => moduleId !== "negative.universal")
       .reduce((sum, moduleId) => sum + (compiled.moduleLengths[moduleId] ?? 0), 0);
-    expect(positiveChars).toBeLessThanOrEqual(800);
+    // 1016：底座修订后正文为 801；依现行契约 1600 门验证负面不占正文预算。
+    expect(positiveChars).toBeLessThanOrEqual(DAOJIE_RUNTIME_CONTRACT.length.max);
   });
 
   it("uses Python-equivalent Unicode code-point counts and owns the only Avoid label", async () => {

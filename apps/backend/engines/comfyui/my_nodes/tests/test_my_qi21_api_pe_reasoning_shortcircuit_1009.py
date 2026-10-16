@@ -66,7 +66,7 @@ def _rewrite(monkeypatch, opener):
         画幅宽=1024, 画幅高=1024, 透明模式=False,
         系统提示词="只输出JSON", 色卡="",
         api_url="http://127.0.0.1:1234", model="qwen3.8-27b-coder390",
-        temperature=0.7, max_tokens=12000, timeout_sec=30, thinking_effort="关闭")
+        temperature=0.7, max_tokens=12000, timeout_sec=30, thinking_effort="关闭", AI扩写开关=True)
 
 
 def test_reasoning_envelope_skips_retry_1009(monkeypatch, capsys):

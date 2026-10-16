@@ -6,6 +6,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 _NODE = Path(__file__).resolve().parents[1] / "nodes" / "my_qi21_api_pe.py"
 _spec = importlib.util.spec_from_file_location("my_qi21_api_pe_uut", _NODE)
 api_pe = importlib.util.module_from_spec(_spec)
@@ -49,7 +51,7 @@ def test_passthrough_when_service_unreachable():
     node = api_pe.MyQi21ApiPE()
     got = node.rewrite(正向提示词="测试主体句原样透传", 类型句正向="BASE层",
                        **{"美术风格底座-正向": None, "美术风格底座-负向": None}, 色卡=None, 类型句负向="模糊", api_url="http://127.0.0.1:9",
-                       model="x", temperature=0.7, max_tokens=256, timeout_sec=10)
+                       model="x", temperature=0.7, max_tokens=256, timeout_sec=10, AI扩写开关=True)
     pos, neg = got["result"][0], got["result"][1]
     assert pos.startswith("主体句:测试主体句原样透传\n类型句:BASE层\n美术风格底座"), \
         f"不可达应输出自装配三层正稿(恒有输出),得头40={pos[:40]!r}"
@@ -59,25 +61,32 @@ def test_passthrough_when_service_unreachable():
         "ui 载荷须与 result 同文(JS 展示框回填源)"
 
 
-def test_default_switch_off_skips_llm_and_returns_direct_assembly():
+@pytest.mark.parametrize('transparent', [False, True])
+def test_default_switch_off_skips_llm_and_returns_direct_assembly(monkeypatch, transparent):
     """缺省 PE 关闭：零模型请求直拼三层装配直出。
     探活器一旦被调即红——缺省关闭必须在任何网络动作之前返回。"""
     node = api_pe.MyQi21ApiPE()
     calls = []
+    def reject_http(*args, **kwargs):
+        raise AssertionError('default-off PE must not construct/send a model request')
+    monkeypatch.setattr(api_pe._LAN_OPENER, 'open', reject_http)
     orig_alive = api_pe._alive
     api_pe._alive = lambda u: calls.append(u) or True  # 探活被调=发了请求路径
     try:
         got = node.rewrite(正向提示词="玄衣少年立于山门", 类型句正向="国风少年底座句",
                            类型句负向="模糊", 画幅宽=832, 画幅高=1216,
-                           api_url="http://127.0.0.1:9")
+                           api_url="http://127.0.0.1:9", 透明模式=transparent)
     finally:
         api_pe._alive = orig_alive
     assert calls == [], f"开关关闭不得触发任何探活/请求,实测 {calls}"
     pos, neg, tr, w, h = got["result"]
-    assert pos.startswith("主体句:玄衣少年立于山门\n类型句:国风少年底座句\n"), \
-        f"直拼三层正稿(与透传同源同值),得头60={pos[:60]!r}"
+    if transparent:
+        assert pos == api_pe._rgba_lean_pos('玄衣少年立于山门', '国风少年底座句')
+    else:
+        assert pos.startswith("主体句:玄衣少年立于山门\n类型句:国风少年底座句\n"), \
+            f"直拼三层正稿(与透传同源同值),得头60={pos[:60]!r}"
     assert "模糊" in neg, "负向仍三源程序合并(型负面必在;底座负面随真源,勿锚具体词——并行域)"
-    assert (tr, w, h) == (False, 832, 1216), "透明/宽/高原样直出"
+    assert (tr, w, h) == (transparent, 832, 1216), "透明/宽/高原样直出"
     assert got["ui"]["api_pe_status"] == ["关闭:直拼三层装配(未请求模型)"], \
         "ui 状态须明示关闭直拼(JS 展示框可见)"
     assert got["ui"]["api_pe_pos"][0] == pos, "ui 载荷与 result 同文"

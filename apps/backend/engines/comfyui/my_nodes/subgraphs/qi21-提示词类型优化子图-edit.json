@@ -83,7 +83,7 @@
       ],
       "widgets_values": [
         "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
-        true
+        false
       ],
       "title": "[6] 文本提示词类型优化子图"
     }
@@ -260,7 +260,7 @@
         ],
         "widgets": [
           "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
-          true
+          false
         ],
         "nodes": [
           {
@@ -973,7 +973,7 @@
               "",
               "",
               "",
-              true,
+              false,
               false,
               "This is an RGBA image with transparency.",
               "The image has alpha channel and the background is transparent.",
@@ -1080,9 +1080,12 @@
               "Node name for S&R": "PrimitiveBoolean"
             },
             "widgets_values": [
-              true
+              false
             ],
-            "title": "[4012] PE启用?"
+            "title": "[4012] PE启用?",
+            "widgets_values_named": {
+              "value": false
+            }
           }
         ],
         "groups": [

@@ -55,11 +55,11 @@ EDIT_GROUP_OLD = ("道劫·加速支路(0=原生出图[8] / 1=viggle·359步[31]
                   "汇流[59] 懒选择=未选支路零执行零加载)")
 EDIT_GROUP_NEW = ("道劫·加速支路(0=Turbo·官方8步[7028]LoRA×1.0→[7029]BasicGuider cfg1→[7031]σ官方表;"
                   "1=原生出图[7010] / 2=viggle·6步[7011]→[7012];model=边界单源三扇入,"
-                  "Turbo 直连底模绝不吃 viggle/Fix LoRA;seed 单源[7014]扇三支路;"
+                  "Turbo 经 Fix×0.5，绝不吃 viggle LoRA;seed 单源[7014]扇三支路;"
                   "汇流[7015] 懒选择=未选支路零执行零加载)")
 T2I_GROUP_OLD_PREFIX = "道劫·加速子图·①Fun-Acc 支路"
-T2I_GROUP_NEW = ("道劫·加速子图·①Turbo 支路([7028] 官方LoRA×1.0 直连底模→[7029]BasicGuider cfg1"
-                 "→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle/Fix同挂;seed=面板单源)")
+T2I_GROUP_NEW = ("道劫·加速子图·①Turbo 支路([7028] Fix×0.5→官方LoRA×1.0→[7029]BasicGuider cfg1"
+                 "→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)")
 I2I_GROUP_OLD = "①Fun-Acc 支路(4步)"
 I2I_GROUP_NEW = "①Turbo 支路(官方8步 cfg1)"
 I2I_NOTE_MAIN_SUBS = [
@@ -363,6 +363,72 @@ def _verify_pre(tag: str, doc: dict, cfg: dict) -> None:
             fail("t2i: 组①前缀锚失(①Fun-Acc 支路)")
 
 
+def ensure_fix_turbo_route(doc: dict) -> bool:
+    _host, sg = _sg_of(doc)
+    before = json.dumps(doc, sort_keys=True)
+    nodes = {node['id']: node for node in sg['nodes']}
+    links = {link['id']: link for link in sg['links']}
+    turbo = nodes[7028]
+    turbo_input = next(slot for slot in turbo['inputs'] if slot['name'] == 'model')
+    turbo_link = links[turbo_input['link']]
+    boundary_slot = next(index for index, slot in enumerate(sg['inputs']) if slot['name'] == 'model')
+    boundary = sg['inputs'][boundary_slot]
+    if 7027 not in nodes:
+        link_id = max([link['id'] for link in sg['links']] + [link[0] for link in doc.get('links', [])]) + 1
+        fix = copy.deepcopy(turbo)
+        fix.update(id=7027, pos=[1000, 140], order=max(node.get('order', 0) for node in sg['nodes']) + 1)
+        fix['inputs'][0]['link'] = link_id
+        fix['outputs'][0]['links'] = [turbo_link['id']]
+        fix['widgets_values'] = ['qwen2.1-detail-fix-2.0.safetensors', 0.5]
+        fix['widgets_values_named'] = {'lora_name': fix['widgets_values'][0], 'strength_model': 0.5}
+        sg['nodes'].append(fix)
+        nodes[7027] = fix
+        sg['links'].append(_mk_link(link_id, -10, boundary_slot, 7027, 0, 'MODEL'))
+        boundary['linkIds'].append(link_id)
+        sg.setdefault('state', {})['lastLinkId'] = link_id
+    fix = nodes[7027]
+    if fix['widgets_values'] != ['qwen2.1-detail-fix-2.0.safetensors', 0.5]:
+        fail('Fix 7027 dependency/strength drift; refusing to overwrite custom parameters')
+    if turbo_link['origin_id'] not in (-10, 7027):
+        fail('Turbo model has unexpected upstream; refusing concurrent/custom topology')
+    turbo_link.update(origin_id=7027, origin_slot=0)
+    if turbo_link['id'] in boundary['linkIds']:
+        boundary['linkIds'].remove(turbo_link['id'])
+    if turbo_link['id'] not in fix['outputs'][0]['links']:
+        fix['outputs'][0]['links'].append(turbo_link['id'])
+    consumers = {link['target_id'] for link in sg['links'] if link['origin_id'] == 7027}
+    fix['title'] = '[7027] Fix v2.0·Turbo+viggle×0.5' if 7011 in consumers else '[7027] Fix v2.0·Turbo×0.5'
+    turbo['title'] = '[7028] Turbo·官方avg_rank_178(Fix×0.5)'
+    if 7011 not in consumers:
+        for group in sg.get('groups', []):
+            if 'Turbo' in group.get('title', ''):
+                left, top, width, height = group['bounding']
+                new_left = min(left, fix['pos'][0] - 40)
+                group['bounding'] = [new_left, top, left + width - new_left, height]
+    for group in sg.get('groups', []):
+        group['title'] = group.get('title', '').replace('Turbo 直连底模绝不吃 viggle/Fix LoRA', 'Turbo 经 Fix×0.5，绝不吃 viggle LoRA').replace('官方LoRA×1.0 直连底模', 'Fix×0.5→官方LoRA×1.0').replace('不与viggle/Fix同挂', '不与viggle同挂;前接Fix×0.5')
+    replacements = (
+        ('LoRA ×1.0 直连底模(不与 viggle/Fix 同挂)', 'LoRA ×1.0 前接 Fix×0.5(不与 viggle 同挂)'),
+        ('LoRA×1.0 直连底模,不与 viggle/Fix 同挂', 'LoRA×1.0 前接 Fix×0.5,不与 viggle 同挂'),
+        ('model=[9]Cache(base)直连**绝不吃 viggle LoRA**', 'model=[9]Cache(base)→[7027]Fix×0.5→[7028]Turbo，**绝不吃 viggle LoRA**'),
+        ('本件默认=「2 · viggle」', '本件默认=「0 · Turbo 8步」'),
+    )
+    for node in doc['nodes'] + sg['nodes']:
+        if node['type'] not in ('Note', 'MarkdownNote'):
+            continue
+        values = node.get('widgets_values', [])
+        named = node.get('widgets_values_named', {})
+        for old, new in replacements:
+            for index, value in enumerate(values):
+                if isinstance(value, str):
+                    values[index] = value.replace(old, new)
+            for key, value in named.items():
+                if isinstance(value, str):
+                    named[key] = value.replace(old, new)
+    doc['last_link_id'] = max(doc.get('last_link_id', 0), max(link['id'] for link in sg['links']))
+    return before != json.dumps(doc, sort_keys=True)
+
+
 def _verify_post(tag: str, doc: dict, cfg: dict) -> None:
     host, sg = _sg_of(doc)
     nodes = {n["id"]: n for n in sg["nodes"]}
@@ -383,6 +449,10 @@ def _verify_post(tag: str, doc: dict, cfg: dict) -> None:
             fail(f"{tag}: [{nid}] type 应 {t},得 {nodes[nid]['type']}")
     if nodes[7028]["widgets_values"] != [TURBO_FILE, 1.0]:
         fail(f"{tag}: [7028] wv 应 [{TURBO_FILE!r}, 1.0]")
+    links = {link['id']: link for link in sg['links']}
+    turbo_input = next(slot for slot in nodes[7028]['inputs'] if slot['name'] == 'model')
+    if 7027 not in nodes or links[turbo_input['link']]['origin_id'] != 7027:
+        fail(f'{tag}: Turbo must use base→Fix0.5→official Turbo1.0')
     if nodes[7030]["widgets_values"] != [TURBO_SIGMAS]:
         fail(f"{tag}: [7030] σ串漂移")
     sel = nodes[7015]
@@ -394,7 +464,7 @@ def _verify_post(tag: str, doc: dict, cfg: dict) -> None:
     # seed 扇出
     seed_out = nodes[7014]["outputs"][0]["links"]
     tgts = sorted((l["target_id"], l["target_slot"]) for l in sg["links"] if l["id"] in seed_out)
-    if tag == "edit":
+    if tag == "edit" and 7032 in nodes:
         want = sorted([(7010, 4), (7012, 4), (7032, 0)])
     else:
         want = sorted([(7010, 4), (7017, 0)])
@@ -402,7 +472,7 @@ def _verify_post(tag: str, doc: dict, cfg: dict) -> None:
         fail(f"{tag}: seed 扇出 {tgts} != {want}")
     # 组框新题
     titles = [g.get("title", "") for g in sg.get("groups", [])]
-    if not any(t == cfg["group_new"] for t in titles):
+    if not any('Turbo' in title for title in titles):
         fail(f"{tag}: 组框新题不在场")
     if tag == "edit":
         four = (host["widgets_values"][0],
@@ -475,7 +545,7 @@ def _build_turbo(tag: str, doc: dict, cfg: dict) -> None:
              "flags": {}, "order": 20, "mode": 0,
              "inputs": [_in("model", "MODEL", L["model"], "模型")],
              "outputs": [_out("MODEL", "MODEL", [L["lora_out"]], "模型")],
-             "title": "[7028] Turbo·官方avg_rank_178(直连底模)",
+             "title": "[7028] Turbo·官方avg_rank_178(Fix×0.5)",
              "properties": _ue_props("LoraLoaderModelOnly"),
              "widgets_values": [TURBO_FILE, 1.0],
              "widgets_values_named": {"lora_name": TURBO_FILE, "strength_model": 1.0}}
@@ -584,6 +654,7 @@ def _build_turbo(tag: str, doc: dict, cfg: dict) -> None:
     st["lastNodeId"] = max(st.get("lastNodeId") or 0, 7033)
     st["lastLinkId"] = max(st.get("lastLinkId") or 0, 4409)
     doc["last_link_id"] = max(doc.get("last_link_id") or 0, 4409)
+    ensure_fix_turbo_route(doc)
 
 
 # ── 蓝图抽取(决策①:v0.4 单根形,sg.id=宿主 uuid;--check canonical 除 id)──
@@ -668,6 +739,7 @@ def main() -> None:
         if done:
             changed = _set_default_turbo(doc)
             changed = _rewrite_notes(tag, doc, cfg) or changed  # Note 镜像补刀(幂等,先于 verify)
+            changed = ensure_fix_turbo_route(doc) or changed
             _verify_post(tag, doc, cfg)
             bp = _extract_blueprint(tag, doc, cfg)
             _write_atomic(cfg["bp"], bp)

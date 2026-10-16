@@ -86,7 +86,7 @@ def _pe_user_input(monkeypatch, type_text: str, transparent: bool) -> str:
     monkeypatch.setattr(pe, "_LAN_OPENER", rec)
     pe.MyQi21ApiPE().rewrite(正向提示词=_SUBJ, 类型句正向=type_text, 类型句负向="",
                              画幅宽=1024, 画幅高=1024, 透明模式=transparent,
-                             api_url=_DEAD_URL, timeout_sec=3)
+                             api_url=_DEAD_URL, timeout_sec=3, AI扩写开关=True)
     assert rec.user, "PE 请求未发出(拦截器未命中)"
     return rec.user[0]
 

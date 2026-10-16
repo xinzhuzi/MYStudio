@@ -37,6 +37,7 @@ from .nodes.my_qi21_subject_select import MyQi21SubjectSelect
 from .nodes.my_qi21_wh_suggest import MyQi21WhSuggest
 from .nodes.my_qi21_chinese_pe import MyQi21ChinesePE
 from .nodes.my_qi21_api_pe import MyQi21ApiPE
+from .nodes.my_flux3_daojie_adapter import MyFlux3DaojieAdapter
 from .nodes.my_qi21_bases_text import MyQi21BasesText, MyQi21系统提示词, MyQi21色卡, MyQi21美术风格底座
 from .nodes.my_image_grid_split import MyImageGridSplit
 from .nodes.my_video_frame_grab import MyVideoFrameGrab
@@ -145,6 +146,7 @@ NODE_CLASS_MAPPINGS = {
     "MyQi21WhSuggest": MyQi21WhSuggest,  # 1001 S8 R7 集成:画幅联动链 8合1(4.2MP·8倍数取整)
     "MyQi21ChinesePE": MyQi21ChinesePE,  # 1004 中文PE:drop-in替上游PE(系统指令内存patch中文规则+负向双出,磁盘零改)
     "MyQi21ApiPE": MyQi21ApiPE,  # 1006 API版PE:LM Studio本机大模型按真源教材扩写(服务不在=透传);三轮=六入全上下文+双口出
+    "MyFlux3DaojieAdapter": MyFlux3DaojieAdapter,
     "MyQi21BasesText": MyQi21BasesText,
     "MyQi21系统提示词": MyQi21系统提示词,
     "MyQi21色卡": MyQi21色卡,
@@ -193,6 +195,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MyQi21WhSuggest": "道劫·qi21画幅联动建议器",
     "MyQi21ChinesePE": "漫影 中文扩写PE",
     "MyQi21ApiPE": "漫影 API扩写PE",
+    "MyFlux3DaojieAdapter": "FLUX.3 道劫 RGB 适配",
     "MyQi21BasesText": "漫影 真源文本",
     "MyQi21系统提示词": "漫影 系统提示词",
     "MyQi21色卡": "漫影 色卡",

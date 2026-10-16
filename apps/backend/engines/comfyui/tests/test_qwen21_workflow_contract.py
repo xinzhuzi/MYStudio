@@ -1143,7 +1143,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                             viggle_chain["sampler_b"]: "SamplerCustomAdvanced"})
     # 1016turbo 官方臂 census(LoRA/Guider/Sigmas/SamplerCustom 四共件+edit 专属
     # 噪声/采样器两件——t2i/i2i 复用 viggle 臂 7017/7018 已入册不重复)
-    want_census.update({turbo_chain["lora"]: "LoraLoaderModelOnly",
+    want_census.update({7027: "LoraLoaderModelOnly", turbo_chain["lora"]: "LoraLoaderModelOnly",
                         turbo_chain["guider"]: "BasicGuider",
                         turbo_chain["sigmas"]: "ManualSigmas",
                         turbo_chain["sampler"]: "SamplerCustomAdvanced"})
@@ -1181,8 +1181,12 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     assert _t_lora["widgets_values"] == [TURBO_LORA_FILE, 1.0], \
         f"{name}: [{turbo_chain['lora']}] wv 应 [{TURBO_LORA_FILE!r}, 1.0],得 {_t_lora.get('widgets_values')}"
     _tlm = i_links[next(i["link"] for i in _t_lora["inputs"] if i["name"] == "model")]
-    assert (_tlm["origin_id"], _tlm["origin_slot"]) == (-10, b_idx["model"]), \
-        f"{name}: [{turbo_chain['lora']}].model 应接 -10 model 槽(边界直连=底模唯一挂件)"
+    assert (_tlm["origin_id"], _tlm["origin_slot"]) == (7027, 0), \
+        f"{name}: Turbo 必须接 Fix×0.5→官方 avg_rank_178×1.0"
+    fix = i_nodes[7027]
+    assert fix['widgets_values'] == [FIX_LORA_FILE, 0.5]
+    fix_input = i_links[next(slot['link'] for slot in fix['inputs'] if slot['name'] == 'model')]
+    assert (fix_input['origin_id'], fix_input['origin_slot']) == (-10, b_idx['model'])
     _t_guid = i_nodes[turbo_chain["guider"]]
     assert not any(i.get("name") == "negative" for i in _t_guid["inputs"]), \
         f"{name}: [{turbo_chain['guider']}] BasicGuider 无负口(cfg1 纯正向)"
@@ -1348,8 +1352,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         assert (_vm["origin_id"], _vm["origin_slot"]) == (-10, b_idx["model"]), \
             f"{name}: [{vig_fix_lora}].model 应接边界 base(链头)"
         _vf_fans = _vf["outputs"][0]["links"] or []
-        assert len(_vf_fans) == 1 and i_links[_vf_fans[0]]["target_id"] == lora_id, \
-            f"{name}: [{vig_fix_lora}] 输出应只喂 [{lora_id}](实验臂单点,旁路即回官方链)"
+        assert {i_links[link_id]['target_id'] for link_id in _vf_fans} == {lora_id, turbo_chain['lora']}, \
+            f"{name}: Fix×0.5 必须保留 viggle 扇出并同时接官方 Turbo"
     lora_fans = sorted(lora["outputs"][0]["links"] or [])
     _lora_feed = viggle_chain["guider"] if viggle_chain else ks_viggle
     assert len(lora_fans) == 1 and i_links[lora_fans[0]]["target_id"] == _lora_feed, \
@@ -1393,15 +1397,15 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     # (t2i/i2i 噪声/采样器)永不入 viggle 档 not-reach 面(viggle 执行链必含
     # 它们喂段A)——只入 _mode_members(双档成员)与 turbo reached 面;edit 的
     # 7032/7033 为 turbo 专属(viggle 塌缩形无共享件),入各 not-reach 面)
-    _turbo_members = tuple(turbo_chain[k] for k in ("lora", "guider", "sigmas", "sampler"))
+    _turbo_members = (7027,) + tuple(turbo_chain[k] for k in ("lora", "guider", "sigmas", "sampler"))
     _vig_noise_sel = ((viggle_chain or {}).get("noise"), (viggle_chain or {}).get("select"))
     _shared = tuple(dict.fromkeys(x for x in (turbo_chain.get("noise"), turbo_chain.get("select"))
                                   if x is not None and x in _vig_noise_sel))
-    _turbo_only = _turbo_members + tuple(
+    _turbo_only = tuple(member for member in _turbo_members if member != vig_fix_lora) + tuple(
         x for x in (turbo_chain.get("noise"), turbo_chain.get("select"))
         if x is not None and x not in _shared)
     _mode_members = {MODE_TURBO: _turbo_members + _shared,
-                     MODE_VIGGLE: (lora_id, ks_viggle) + _shared,
+                     MODE_VIGGLE: (lora_id, ks_viggle) + ((vig_fix_lora,) if vig_fix_lora is not None else ()) + _shared,
                      MODE_DIRECT: (ks_direct,)}
     _all_accel = tuple(dict.fromkeys(_mode_members[MODE_TURBO]
                                      + _mode_members[MODE_VIGGLE] + (ks_direct,)))
@@ -1710,7 +1714,7 @@ class TestSpeedSelectContract0929:
         edit_controls = ASSEMBLY_PANEL_CONTROLS["edit"]
         edit_host = _host_of(GRAPHS["edit"], _asg(GRAPHS["edit"]))
         assert edit_host["widgets_values"] == [
-            edit_host["widgets_values_named"]["指令"], True], \
+            edit_host["widgets_values_named"]["指令"], False], \
             "edit 装配宿主面板应=指令+PE启用? 两控(1002 ㉑;无型库/无 RGBA 机构)"
         assert edit_controls == ["指令", "PE启用?"], "edit 面板控件表应恰 指令+PE启用?"
 
@@ -2634,14 +2638,14 @@ class TestEditPEContract:
             "slot0 更名保原线=10-02 单口扇出语义不变)"
         assert sel["widgets_values"][:2] == ["", ""], \
             "PromptSelect wv 头部两占位应为空串(前端全序消费;1002 修复轮)"
-        assert sel["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
-            "pe开关默认必须 true(默认 PE 改写,0926 裁定1;关=直写按图选配)"
+        assert sel["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is False, \
+            "pe开关保存默认必须 False，直接复用原装配"
         assert sel["widgets_values"][QI21_SG_SEL_WV["透明模式"]] is False
         # pe开关=宿主面板唯一真源(-10槽5;widget 位保留=断线回落)
         pe_l = sg_links[next(i["link"] for i in sel["inputs"] if i["name"] == "pe开关")]
         assert (pe_l["origin_id"], pe_l["origin_slot"]) == (4012, 0), \
             "pe开关 应接 [4012]『PE启用?』PrimitiveBoolean 扇出(1002 ㉑;默认 true=0926 裁定1)"
-        assert _panel_value(graph, asg, "PE启用?") is True
+        assert _panel_value(graph, asg, "PE启用?") is False
         # PE出文←[27] 正则出文(lazy 槽;[27] 唯一消费者=本线)
         pe_out_l = sg_links[next(i["link"] for i in sel["inputs"] if i["name"] == "PE出文")]
         assert pe_out_l["origin_id"] == EDIT_RX_ID, \
@@ -3274,7 +3278,7 @@ class TestQi21SubgraphContract:
             # 1008 用户新令:道劫本件默认档改 viggle 路线(实例五处+Note 文案随令;
             # py 侧 DEFAULT_MODE 出厂首项不动,新实例出生缺省仍 Turbo 8步(1016turbo)——
             # 1009 i2i 本件亦随令改 viggle,见 i2i 条目)
-            default_mode=MODE_VIGGLE,
+            default_mode=MODE_TURBO,
             banned_main_types=("easy compare",),
             gone_main_ids=(QI21_LORA_PB_ID, QI21_LORA_SW_ID, 177, 178, 179,
                            193, 194, 195, 196, 197, QI21_RR_POS_B_ID))
@@ -3603,8 +3607,8 @@ class TestQi21SubgraphContract:
         pe = sg_nodes[QI21_SG_PE_RW]
         assert pe["type"] == QI21_PE_CLASS, \
             f"[{QI21_SG_PE_RW}] 应为 {QI21_PE_CLASS}(1006 API版PE换装,类名逐字,子图内)"
-        assert pe["widgets_values"] == PE_API_PARAMS[:6], \
-            f"PE API 参数漂移 {PE_API_PARAMS[:6]},得 {pe['widgets_values']}"
+        assert pe["widgets_values"] == PE_API_PARAMS[:6] + [False], \
+            f"PE API 参数应保留六配置并保存第七开关 False，得 {pe['widgets_values']}"
         # 1006 五轮:AI扩写=装配后终炼(所有提示词经过AI)——装配全文/负面词←[4011] 双出
         # 1006 六轮(问题5/7):[4010] 全五出直连——+画幅宽←.1(338)/画幅高←.2(339)
         # /型负面←.4(340);十二入全 forceInput 纯槽(问题6:带名连线点)
@@ -4349,8 +4353,8 @@ class TestI2IContract:
         for hi in host["inputs"]:
             assert hi["type"] == sg_in_names[hi["name"]]["type"], \
                 f"宿主槽 {hi['name']} 类型与子图边界槽不符"
-        assert host["widgets_values"] == [I2I_B_SEG, "人物", True, "自动"], \
-            "宿主 widgets_values 应=[例句, 人物, True(PE启用? 0926 默认开), 自动(D6 三态默认,1001 ①)]"
+        assert host["widgets_values"] == [I2I_B_SEG, "人物", False, "自动"], \
+            "宿主 widgets_values 应=[例句, 人物, False(PE 默认关闭), 自动(D6 三态默认,1001 ①)]"
         # 0929 S2 D6:i2i 型联动三态件([180];rgba_hint←[4010].透明值(1002 大轮迁);
         # rgba_on 四扇出 [144]/[173] 双镜像开关+[152]/[153] 透明模式占位)
         sel = sg_nodes[I2I_SG_RGBA_SEL]
@@ -4666,7 +4670,7 @@ class TestI2IContract:
             te1_asg=None,
             # 1009 用户新令:i2i 本件默认档改 viggle 路线(实例四处+Note 三段随令;
             # py 侧 DEFAULT_MODE 出厂首项不动,新实例出生缺省仍 Turbo 8步(1016turbo))
-            default_mode=MODE_VIGGLE,
+            default_mode=MODE_TURBO,
             banned_main_types=("easy compare", "KSampler", "LoraLoaderModelOnly",
                                SPEED_SELECT_CLASS, "PrimitiveInt"),
             # T8_CLASS 随 FunAcc 臂退役(1016turbo)出禁面——主图禁面不增官方
@@ -4713,8 +4717,8 @@ class TestI2IContract:
         sg_nodes = _qi21_sg_nodes(graph)
         sel1 = sg_nodes[I2I_SG_SEL1_ID]
         assert sel1["type"] == I2I_SG_SEL_CLASS and \
-            sel1["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is True, \
-            "[152] 择文合成器 pe开关默认应 true(默认 PE 改写,0926 裁定1)"
+            sel1["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is False, \
+            "[152] 择文合成器保存默认应 False，PE 关路直写"
         sel2 = sg_nodes[I2I_SG_SEL2_ID]
         assert sel2["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is False, \
             "[153] 透明包裹器 pe开关应恒 false(纯包裹=头句+装配全文+尾句)"

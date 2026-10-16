@@ -80,13 +80,13 @@
         }
       ],
       "widgets_values": [
-        "2 · viggle",
+        "0 · Turbo 8步",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "title": "[7] 加速子图",
       "widgets_values_named": {
-        "速度档位": "2 · viggle",
+        "速度档位": "0 · Turbo 8步",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -140,8 +140,7 @@
             "linkIds": [
               247,
               263,
-              283,
-              4400
+              283
             ],
             "pos": [
               -86,
@@ -253,7 +252,7 @@
           }
         ],
         "widgets": [
-          "2 · viggle",
+          "0 · Turbo 8步",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -587,10 +586,10 @@
               }
             },
             "widgets_values": [
-              "2 · viggle"
+              "0 · Turbo 8步"
             ],
             "widgets_values_named": {
-              "mode": "2 · viggle"
+              "mode": "0 · Turbo 8步"
             }
           },
           {
@@ -1041,11 +1040,12 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  284
+                  284,
+                  4400
                 ]
               }
             ],
-            "title": "[7027] Fix v2.0·viggle实验臂×0.5(官方1.0;可旁路)",
+            "title": "[7027] Fix v2.0·Turbo+viggle×0.5",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -1095,7 +1095,7 @@
                 ]
               }
             ],
-            "title": "[7028] Turbo·官方avg_rank_178(直连底模)",
+            "title": "[7028] Turbo·官方avg_rank_178(Fix×0.5)",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -1587,7 +1587,7 @@
           },
           {
             "id": 4400,
-            "origin_id": -10,
+            "origin_id": 7027,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,

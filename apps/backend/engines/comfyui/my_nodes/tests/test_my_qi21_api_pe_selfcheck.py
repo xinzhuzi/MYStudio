@@ -224,7 +224,7 @@ class TestRewriteRetry(unittest.TestCase):
               透明模式=False, 系统提示词="教材", 色卡="色卡材料",
               美术风格底座="风格", api_url="http://fake",
               model="fake-model", temperature=0.7, max_tokens=512,
-              timeout_sec=10)
+              timeout_sec=10, AI扩写开关=True)
 
     def _run(self, fake_urlopen, alive=True):
         buf = io.StringIO()

@@ -75,13 +75,13 @@
         }
       ],
       "widgets_values": [
-        "2 · viggle",
+        "0 · Turbo 8步",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "title": "[7] 加速子图",
       "widgets_values_named": {
-        "速度档位": "2 · viggle",
+        "速度档位": "0 · Turbo 8步",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -135,8 +135,7 @@
             "linkIds": [
               103,
               104,
-              4313,
-              4400
+              4313
             ],
             "pos": [
               -86,
@@ -237,7 +236,7 @@
           }
         ],
         "widgets": [
-          "2 · viggle",
+          "0 · Turbo 8步",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -432,10 +431,10 @@
               }
             },
             "widgets_values": [
-              "2 · viggle"
+              "0 · Turbo 8步"
             ],
             "widgets_values_named": {
-              "mode": "2 · viggle"
+              "mode": "0 · Turbo 8步"
             }
           },
           {
@@ -605,10 +604,10 @@
               }
             },
             "widgets_values": [
-              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 直连底模,不与 viggle/Fix 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。"
+              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 前接 Fix×0.5,不与 viggle 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。"
             ],
             "widgets_values_named": {
-              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 直连底模,不与 viggle/Fix 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。"
+              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 前接 Fix×0.5,不与 viggle 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。"
             },
             "color": "#432",
             "bgcolor": "#653"
@@ -1123,11 +1122,12 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  4323
+                  4323,
+                  4400
                 ]
               }
             ],
-            "title": "[7027] Fix v2.0·viggle实验臂×0.5(官方1.0;可旁路)",
+            "title": "[7027] Fix v2.0·Turbo+viggle×0.5",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -1177,7 +1177,7 @@
                 ]
               }
             ],
-            "title": "[7028] Turbo·官方avg_rank_178(直连底模)",
+            "title": "[7028] Turbo·官方avg_rank_178(Fix×0.5)",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -1367,7 +1367,7 @@
         "groups": [
           {
             "id": 91,
-            "title": "道劫·加速子图·①Turbo 支路([7028] 官方LoRA×1.0 直连底模→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle/Fix同挂;seed=面板单源)",
+            "title": "道劫·加速子图·①Turbo 支路([7028] Fix×0.5→官方LoRA×1.0→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)",
             "bounding": [
               1300,
               80,
@@ -1677,7 +1677,7 @@
           },
           {
             "id": 4400,
-            "origin_id": -10,
+            "origin_id": 7027,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,

@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "90fe0dc179bb89324f1e2fd0cf2c3b2b7ff518eac7905a0e3b6fce945ea220ee",
+  "contractSha256": "c15a955e6543921538e4e601bd9677a98dc39c5684cb8fd42a3af49e221353cd",
   "syncedAt": "2026-09-18",
   "maSources": [
     {
@@ -94,7 +94,7 @@
     },
     "style.gongbi-base": {
       "moduleId": "style.gongbi-base",
-      "text": "美术风格底座：中国传统人物画审美经现代游戏美术设计重组的二维数字绘画。融合工笔、白描与连环画的绘画语言；线条细稳连贯、粗细随结构与轻重富有节奏，保留手绘笔性；薄透矿物色分染与罩染，色彩浓淡、虚实边缘与笔触节奏相融；采用中国传统色体系，以丰富多彩的设色为主，多色相并陈且协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明，材质表现统一于绘画语言。成像工艺干净，线条与罩染层次清晰。",
+      "text": "美术风格底座：中国传统工笔设色与彩色连环画语言的二维手绘数字插画。白描式线条主导形体结构，轮廓线与内部结构线共同承担造型，线条细稳连贯、轻重富有节奏；色彩以清晰色面、分染与层层罩染塑形，明暗融入设色层次，笔触与边缘保留清楚的手绘笔性，材质统一于线描设色语言；采用中国传统色体系，以丰富多彩的设色为主，多色相并陈且协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明。成像工艺干净，线条与罩染层次清晰。",
       "required": true,
       "singletonKey": "gongbi_style_base",
       "source": {
@@ -220,7 +220,7 @@
       "style.gongbi-track.scene",
       "style.gongbi-track.prop"
     ],
-    "styleSourceSha256": "f5bb76b3acf17b917bd9f5d22da31ea030e0cfc167cd878bd13dcb548392f092",
+    "styleSourceSha256": "637bfaf7bc90ac46ccdad0edc2c8be1ce6cb4f21ef6eb2f890fb6d85daa8620b",
     "styleBoundary": "美术风格底座只定义绘画语言与成像工艺；背景、照明和来源状态规则归类型模块，具体事实归主体句。"
   }
 }
