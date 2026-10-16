@@ -37,6 +37,7 @@ describe("settings leaf tabs", () => {
           defaultResolution: "2K",
           autoDenoiseEnabled: false,
           localImageLoraEnabled: false,
+      localImageBaseType: "",
           compatibilityRetryEnabled: true,
           compatibilityRetryAspectRatio: "1:1",
           compatibilityRetryResolution: "1K",

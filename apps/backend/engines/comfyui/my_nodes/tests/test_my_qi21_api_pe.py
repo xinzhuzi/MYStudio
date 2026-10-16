@@ -28,8 +28,8 @@ def test_shape_matches_upstream_five_ports():
     # widgets_values 位序不漂移);上下文/正负/型/画幅全在 optional
     assert list(req) == ["api_url", "model", "temperature", "max_tokens", "timeout_sec", "thinking_effort", "AI扩写开关"], \
         f"required 应恰七配置槽(1007 增思考档位;1016 增 AI扩写开关,尾插保旧工作流位序),得 {list(req)}"
-    assert req["AI扩写开关"][0] == "BOOLEAN" and req["AI扩写开关"][1].get("default") is True, \
-        "AI扩写开关=BOOLEAN 默认开(1016 用户令:默认走 PE 扩写)"
+    assert req["AI扩写开关"][0] == "BOOLEAN" and req["AI扩写开关"][1].get("default") is False, \
+        "AI扩写开关=BOOLEAN 默认关，缺省直拼且不请求模型"
     opt = node.INPUT_TYPES()["optional"]
     # 1006 批C 七路直连:九入序=系统提示词/色卡/美术风格底座/型底座/正向提示词/
     # 负向提示词/透明模式(与两 json [4013] inputs 槽序互锁;型底座←[4010].0/
@@ -59,9 +59,9 @@ def test_passthrough_when_service_unreachable():
         "ui 载荷须与 result 同文(JS 展示框回填源)"
 
 
-def test_switch_off_skips_llm_and_returns_direct_assembly():
-    """1016 PE 开关:关=零模型请求直拼三层装配直出(用户令 UI 按钮默认开)。
-    探活器一旦被调即红——开关关闭必须在任何网络动作之前返回。"""
+def test_default_switch_off_skips_llm_and_returns_direct_assembly():
+    """缺省 PE 关闭：零模型请求直拼三层装配直出。
+    探活器一旦被调即红——缺省关闭必须在任何网络动作之前返回。"""
     node = api_pe.MyQi21ApiPE()
     calls = []
     orig_alive = api_pe._alive
@@ -69,7 +69,7 @@ def test_switch_off_skips_llm_and_returns_direct_assembly():
     try:
         got = node.rewrite(正向提示词="玄衣少年立于山门", 类型句正向="国风少年底座句",
                            类型句负向="模糊", 画幅宽=832, 画幅高=1216,
-                           api_url="http://127.0.0.1:9", AI扩写开关=False)
+                           api_url="http://127.0.0.1:9")
     finally:
         api_pe._alive = orig_alive
     assert calls == [], f"开关关闭不得触发任何探活/请求,实测 {calls}"

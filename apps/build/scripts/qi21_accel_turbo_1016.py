@@ -48,7 +48,7 @@ TURBO_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
 TURBO_SIGMAS = "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
 OLD_EDIT_MODE = "0 · Fun-Acc 4步"
 NEW_EDIT_MODE = "0 · Turbo 8步"
-HOST_WV_VIGGLE = "2 · viggle"
+DEFAULT_MODE = "0 · Turbo 8步"
 
 EDIT_GROUP_OLD = ("道劫·加速支路(0=原生出图[8] / 1=viggle·359步[31]→[56] / 2=Fun-Acc·4步[55];"
                   "model=[7]Cache 单源三扇入,T8 直连 base 绝不吃 LoRA;seed 单源[57]扇三支路;"
@@ -277,6 +277,40 @@ def _sg_of(doc: dict) -> tuple[dict, dict]:
     return host, sg
 
 
+def _set_default_turbo(doc: dict) -> bool:
+    """同步宿主、子图和选择件的速度默认；运行值只由这四个镜像承载。"""
+    host, sg = _sg_of(doc)
+    nodes = {n["id"]: n for n in sg["nodes"]}
+    sel = nodes[7015]
+    changed = False
+    for values in (host.get("widgets_values"), sg.get("widgets"), sel.get("widgets_values")):
+        if isinstance(values, list) and values and values[0] != DEFAULT_MODE:
+            values[0] = DEFAULT_MODE
+            changed = True
+    for values, key in ((host.get("widgets_values_named"), "速度档位"),
+                        (sel.get("widgets_values_named"), "mode")):
+        if isinstance(values, dict) and values.get(key) != DEFAULT_MODE:
+            values[key] = DEFAULT_MODE
+            changed = True
+    for node in doc["nodes"]:
+        if node.get("type") != "MarkdownNote":
+            continue
+        for field in ("widgets_values",):
+            values = node.get(field)
+            if isinstance(values, list) and values and isinstance(values[0], str):
+                updated = values[0].replace("本件默认=「2 · viggle」", "本件默认=「0 · Turbo 8步」")
+                if updated != values[0]:
+                    values[0] = updated
+                    changed = True
+        named = node.get("widgets_values_named")
+        if isinstance(named, dict) and isinstance(named.get("text"), str):
+            updated = named["text"].replace("本件默认=「2 · viggle」", "本件默认=「0 · Turbo 8步」")
+            if updated != named["text"]:
+                named["text"] = updated
+                changed = True
+    return changed
+
+
 def _b_idx(sg: dict) -> dict:
     return {i["name"]: k for k, i in enumerate(sg["inputs"])}
 
@@ -339,8 +373,8 @@ def _verify_post(tag: str, doc: dict, cfg: dict) -> None:
     for nid in (7028, 7029, 7030, 7031):
         if nid not in nodes:
             fail(f"{tag}: [{nid}] 缺席")
-    if tag == "edit" and (7032 not in nodes or 7033 not in nodes):
-        fail(f"{tag}: [7032]/[7033] 缺席")
+    if tag == "edit" and not ({7017, 7018} <= set(nodes)):
+        fail(f"{tag}: edit Turbo 共用 [7017]/[7018] 缺席")
     want_types = {7028: "LoraLoaderModelOnly", 7029: "BasicGuider",
                   7030: "ManualSigmas", 7031: "SamplerCustomAdvanced",
                   7032: "RandomNoise", 7033: "KSamplerSelect"}
@@ -378,8 +412,10 @@ def _verify_post(tag: str, doc: dict, cfg: dict) -> None:
         if four != (NEW_EDIT_MODE,) * 4:
             fail(f"{tag}: edit 四面 widget 非 {NEW_EDIT_MODE!r},得 {four!r}")
     else:
-        if host["widgets_values"][0] != HOST_WV_VIGGLE:
-            fail(f"{tag}: 宿主档位被误改")
+        four = (host["widgets_values"][0], host.get("widgets_values_named", {}).get("速度档位"),
+                sg.get("widgets", [None])[0], sel["widgets_values"][0])
+        if four != (DEFAULT_MODE,) * 4:
+            fail(f"{tag}: Turbo 默认四面漂移 {four!r}")
     blob = json.dumps(doc, ensure_ascii=False)
     if T8_CLASS in blob or FUNACC_FILE in blob:
         fail(f"{tag}: 术后全文件仍含 T8 类名/文件名残串(Note 镜像未清)")
@@ -630,7 +666,8 @@ def main() -> None:
             continue
         # ── 默认=手术 ──
         if done:
-            changed = _rewrite_notes(tag, doc, cfg)   # Note 镜像补刀(幂等,先于 verify)
+            changed = _set_default_turbo(doc)
+            changed = _rewrite_notes(tag, doc, cfg) or changed  # Note 镜像补刀(幂等,先于 verify)
             _verify_post(tag, doc, cfg)
             bp = _extract_blueprint(tag, doc, cfg)
             _write_atomic(cfg["bp"], bp)

@@ -557,6 +557,12 @@ async function generateViaImagesEndpoint(
     if (body.use_lora !== true && imageSettings.localImageLoraEnabled) {
       body.use_lora = true;
     }
+    // 1016 用户令(型选择):本地渠道注入道劫型(qwen21 桥模板 [6:4010] 型层,
+    // 十型真源=引擎家 qi21_bases.json;节点级 extraParams.base_type 优先;
+    // 空串=不指定,型层用模板画布现值;云端请求零影响)
+    if (!body.base_type && imageSettings.localImageBaseType) {
+      body.base_type = imageSettings.localImageBaseType;
+    }
   }
   if (usesDefaultImagesEndpoint && isGptImageModel(model) && provider) {
     const sdkResult = await sdkGenerateImage({

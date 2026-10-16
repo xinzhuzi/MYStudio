@@ -170,6 +170,13 @@ function configToDraft(server: McpServerConfig): DraftForm {
   };
 }
 
+// 1016 型选择(本地生图):道劫十型展示层枚举(真源=引擎家 qi21_bases.json;
+// 引擎侧 COMBO 校验拒非法值兜底)
+const LOCAL_IMAGE_BASE_TYPES = [
+  "人物", "场景", "道具", "美宣", "人物多视图", "高清人脸",
+  "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
+] as const;
+
 export function McpSettingsTab() {
   const { servers, addServer, updateServer, removeServer } = useMcpServersStore();
   const hasRuntime = typeof window !== "undefined" && Boolean(window.mcpRuntime);
@@ -185,6 +192,10 @@ export function McpSettingsTab() {
 
   const localImageLoraEnabled = useAppSettingsStore(
     (state) => state.imageGenerationSettings.localImageLoraEnabled,
+  );
+
+  const localImageBaseType = useAppSettingsStore(
+    (state) => state.imageGenerationSettings.localImageBaseType,
   );
 
   // 0924 安全收口 H4:登记的 stdio 命令清单推送主进程持久注册表——
@@ -373,6 +384,30 @@ export function McpSettingsTab() {
                   aria-label="专业流增强（本地）"
                 />
               </label>
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">道劫型选择（本地生图）</div>
+                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                  指定后本地 Qwen-Image-2.1 生图按该型拼接型文与型档画幅（十型真源=引擎 qi21_bases.json，非法值由引擎拒单兜底）；「不指定」沿用产线默认。仅本地引擎生效，云端不受影响。
+                </div>
+              </div>
+              <select
+                className="h-8 shrink-0 self-center rounded-md border border-border bg-background px-2 text-sm"
+                value={localImageBaseType}
+                onChange={(e) =>
+                  useAppSettingsStore
+                    .getState()
+                    .setImageGenerationSettings({ localImageBaseType: e.target.value })
+                }
+                aria-label="道劫型选择（本地）"
+                data-local-image-base-type-select
+              >
+                <option value="">不指定</option>
+                {LOCAL_IMAGE_BASE_TYPES.map((baseType) => (
+                  <option key={baseType} value={baseType}>{baseType}</option>
+                ))}
+              </select>
             </div>
           </div>
         </McpRow>

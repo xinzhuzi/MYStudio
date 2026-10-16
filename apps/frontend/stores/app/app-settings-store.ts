@@ -53,6 +53,8 @@ export interface ImageGenerationSettings {
   autoDenoiseEnabled: boolean;
   /** 本地生图专业流(LoRA)开关:开→本地 provider 请求带 use_lora(Krea2 挂 NSFW LoRA/桥走 NSFW 专业流)。缺省关——深审 A/B 实证对非该类画面有模糊/偏色副作用(D5 裁定)。 */
   localImageLoraEnabled: boolean;
+  // 1016 型选择(本地生图):道劫十型名;空串=不指定(产线默认)——云端零影响
+  localImageBaseType: string;
   compatibilityRetryEnabled: boolean;
   compatibilityRetryAspectRatio: ImageAspectRatio;
   compatibilityRetryResolution: ImageResolution;
@@ -111,6 +113,7 @@ const defaultState: AppSettingsState = {
     defaultImageModel: "",
     autoDenoiseEnabled: false,
     localImageLoraEnabled: false,
+    localImageBaseType: "",
     defaultAspectRatio: DEFAULT_IMAGE_ASPECT_RATIO,
     defaultResolution: DEFAULT_IMAGE_RESOLUTION,
     compatibilityRetryEnabled: true,

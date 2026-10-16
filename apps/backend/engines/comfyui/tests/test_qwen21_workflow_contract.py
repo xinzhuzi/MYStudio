@@ -632,7 +632,7 @@ FIX_LORA_FILE = "qwen2.1-detail-fix-2.0.safetensors"
 TURBO_CHAIN_COMMON = {"lora": 7028, "guider": 7029, "sigmas": 7030, "sampler": 7031}
 QI21_TURBO_CHAIN = {**TURBO_CHAIN_COMMON, "noise": 7017, "select": 7018}
 I2I_TURBO_CHAIN = {**TURBO_CHAIN_COMMON, "noise": 7017, "select": 7018}
-EDIT_TURBO_CHAIN = {**TURBO_CHAIN_COMMON, "noise": 7032, "select": 7033}
+EDIT_TURBO_CHAIN = {**TURBO_CHAIN_COMMON, "noise": 7017, "select": 7018}  # 1016edit9:并流共享(7032/7033 退役)
 QI21_XHOST_ID, QI21_XSEL_ID = 7, 7015      # 1002 ⑫:宿主 [208]→[7]/选择件 [214]→[7015]
 I2I_XHOST_ID, I2I_XSEL_ID = 7, 7015
 EDIT_XHOST_ID, EDIT_XSEL_ID = 7, 7015
@@ -712,7 +712,7 @@ EDIT_DEFAULT_MODE = MODE_TURBO
 # 实例五处+Note 文案随令;1009 用户新令:i2i 本件同改 viggle——py 侧
 # DEFAULT_MODE 出厂首项不动)——
 # test_three_files_default_mode_consistent / test_accel_panel_controls_present_0929 共用
-DEFAULT_MODE_OF = {"qi21": MODE_VIGGLE, "i2i": MODE_VIGGLE, "edit": EDIT_DEFAULT_MODE}
+DEFAULT_MODE_OF = {"qi21": MODE_TURBO, "i2i": MODE_TURBO, "edit": MODE_TURBO}
 # 0929 并行化 Note 加速区段共用 tokens(三件 Note 均含;文案真源=三生成器 NOTE 段;
 # 1016turbo 换臂:T8 类名/FUNACC_FILE/插件生态 token 随 FunAcc 臂退役出组)
 PARALLEL_NOTE_CORE_TOKENS = (
@@ -1056,7 +1056,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
       (1009 用户新令,本件默认改 viggle)/edit=EDIT_DEFAULT_MODE(1016turbo=MODE_TURBO
       官方臂承位;旧 1003 翻案 Fun-Acc 已退役留盘));
     - 机构 census=三支路(直出 KSampler40/LoRA1.0→viggle/官方 Turbo 臂 7028-7031,
-      edit 形自带 7032/7033;件数随形:t2i 20/i2i 18/edit 11)+seed 单源
+      1016edit9 后噪声/采样器并流共享(7032/7033 退役);件数随形:t2i 20/i2i 18/edit 17(1016edit9 双段换血后与 i2i 同构-Fix 实验臂))+seed 单源
       +选择件;选择件 wv=[default_mode] 且 mode←-10 速度档位槽(面板外露);
       Turbo 臂 BasicGuider 纯正向无 negative 口/model=-10 model 槽边界直连挂 [7028]
       turbo LoRA(绝不与 Fix/viggle LoRA 串联)/positive=加速支路
@@ -1666,7 +1666,7 @@ class TestSpeedSelectContract0929:
             host = _host_of(graph, xsg)
             dmode = DEFAULT_MODE_OF[name]
             # 1008 用户令:qi21 面板三控(σ表);1014 i2i viggle 官方化随批同款
-            _sigma_names = ("qi21", "i2i")
+            _sigma_names = ("qi21", "i2i", "edit")  # 1016edit9:edit 双段换血后 σ表同入面板
             _panel_wv = [dmode, 0] + (QI21_ACCEL_PANEL_DEFAULT if name in _sigma_names else [])
             assert host["widgets_values"] == _panel_wv, \
                 f"{name}: [{host['id']}] 面板应={_panel_wv!r},得 {host['widgets_values']}"
@@ -1864,8 +1864,8 @@ class TestSamplerContract:
                 assert not _by_type(graph, "KSampler"), \
                     f"{name}: 主图应零 KSampler(0929 S3:支路机构收进加速子图)"
                 samplers = [n for n in _xsg(graph)["nodes"] if n["type"] == "KSampler"]
-                # 1008 官方参数化(qi21)/1014 随批(i2i):viggle 支路=官方链(KSampler 仅直出)
-                if name in ("qi21", "i2i"):
+                # 1008 官方参数化(qi21)/1014 随批(i2i)/1016edit9 随批(edit):viggle 支路=官方链(KSampler 仅直出)
+                if name in ("qi21", "i2i", "edit"):
                     assert len(samplers) == 1, \
                         f"{name}: 加速子图内 KSampler 应恰 1 个(直出;viggle=官方链),得 {len(samplers)}"
                     # 1008 用户令:σ表已提升面板(默认=9点官方表=9步满血;官方件动态 shift)
@@ -2327,8 +2327,8 @@ class TestEditContract:
         for want in [  # D4 edit 列边界:主图骨架六线(三源→宿主,宿主→解码)
             (40, 9, 0, EDIT_XHOST_ID, 0, "MODEL"),        # [9]Cache.model → 宿主.model(⑫:7→9)
             (68, 6, 0, EDIT_XHOST_ID, 1, "CONDITIONING"),  # [6].positive → 宿主.positive
-            (69, 6, 3, EDIT_XHOST_ID, 2, "CONDITIONING"),  # [6].positive_single → 宿主.positive_single
-            (8, 6, 1, EDIT_XHOST_ID, 3, "CONDITIONING"),   # [6].negative → 宿主.negative
+            (69, 6, 3, EDIT_XHOST_ID, 3, "CONDITIONING"),  # [6].positive_single → 宿主.positive_single(1016edit9 序对齐)
+            (8, 6, 1, EDIT_XHOST_ID, 2, "CONDITIONING"),   # [6].negative → 宿主.negative(1016edit9 序对齐)
             (26, 20, 0, EDIT_XHOST_ID, 4, "LATENT"),       # [20] 画幅开关 → 宿主.latent
             (52, EDIT_XHOST_ID, 0, 5, 0, "LATENT"),        # 宿主.LATENT → [5].samples(⑫:9→5)
         ]:
@@ -2340,12 +2340,19 @@ class TestEditContract:
             turbo_chain=EDIT_TURBO_CHAIN, seed_id=EDIT_SEED_ID, save_id=8,
             model_src_id=9, latent_src_id=EDIT_LATENT_SW_ID,
             pos_direct="positive", pos_accel="positive_single",
+            # 1016edit9:viggle 臂整簇换血 9 步双段(自 i2i 蓝图;边界八槽+σ表;
+            # Fix×0.5 实验臂不入 edit;噪声/采样器并流共享 7017/7018)
             boundary_inputs=[("model", "MODEL"), ("positive", "CONDITIONING"),
-                             ("positive_single", "CONDITIONING"), ("negative", "CONDITIONING"),
-                             ("latent", "LATENT"), ("速度档位", "COMBO"), ("seed", "INT")],
+                             ("negative", "CONDITIONING"), ("positive_single", "CONDITIONING"),
+                             ("latent", "LATENT"), ("速度档位", "COMBO"), ("seed", "INT"),
+                             ("σ表", "STRING")],
             host_inputs=[("model", True, False), ("positive", True, False),
-                         ("positive_single", True, False), ("negative", True, False),
-                         ("latent", True, False), ("速度档位", False, True), ("seed", False, True)],
+                         ("negative", True, False), ("positive_single", True, False),
+                         ("latent", True, False), ("速度档位", False, True), ("seed", False, True),
+                         ("σ表", False, True)],
+            viggle_class="SamplerCustomAdvanced", viggle_chain=QI21_VIG_CHAIN,
+            lora_class="ViggleTurboLora",
+            panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),
             te1_asg=EDIT_TE1,
             # 1002 R2(F3):edit 默认档回退原生出图——Fun-Acc×edit 实弹两 seed 全透
             # 空白(viggle/直出同拓扑绿),默认态断言随回退档走(EDIT_DEFAULT_MODE)
@@ -2384,9 +2391,11 @@ class TestEditContract:
         for gone in (33, 34, 35):
             assert gone not in nodes, \
                 f"edit: 旧 steps 联动件 [{gone}] 应已拆除(0929 并行化)"
+        # 1016edit9:viggle 臂=SamplerCustomAdvanced 双段(非 KSampler)——子图内
+        # KSampler 仅直出一件
         assert sorted(n["widgets_values"][K_SAMPLER_WV["steps"]]
                       for n in _sg_nodes(_xsg(GRAPHS["edit"])).values()
-                      if n["type"] == "KSampler") == sorted([STEPS_DIRECT, STEPS_VIGGLE])
+                      if n["type"] == "KSampler") == [STEPS_DIRECT]
 
     def test_note_three_mode_accel_and_dependency_warning(self):
         """0929 S3 收装 Note 锚:加速子图=宿主 [58] 双击进入(三支路+viggle LoRA+
@@ -2807,9 +2816,11 @@ class TestEditSubgraphContract0929:
         TestEditContract::test_lora_slot_present_and_bypassed 锁,此处锁 IO 面。"""
         graph = GRAPHS["edit"]
         xsg = _xsg(graph)
+        # 1016edit9:整簇换血随 i2i 边界序(negative 居 positive_single 前)+σ表
         want = [("model", "MODEL"), ("positive", "CONDITIONING"),
-                ("positive_single", "CONDITIONING"), ("negative", "CONDITIONING"),
-                ("latent", "LATENT"), ("速度档位", "COMBO"), ("seed", "INT")]
+                ("negative", "CONDITIONING"), ("positive_single", "CONDITIONING"),
+                ("latent", "LATENT"), ("速度档位", "COMBO"), ("seed", "INT"),
+                ("σ表", "STRING")]
         assert [(i["name"], i["type"]) for i in xsg["inputs"]] == want, \
             f"edit 加速子图 -10 槽序应={want},得 {[(i['name'], i['type']) for i in xsg['inputs']]}"
         assert [(o["name"], o["type"]) for o in xsg["outputs"]] == [("latent", "LATENT")], \
@@ -5154,8 +5165,9 @@ class TestQi21Img2ImgContract:
         dn<1 语义=低噪尾段起步,警示入 Note;面板=widget 直调)。"""
         w = self._n(7)["widgets_values"]
         assert self._n(7)["type"] == "KSampler"
-        assert (w[2], w[3], w[4], w[5], w[6]) == (6, 1, "euler", "simple", 0.6), \
-            f"[7] 应=viggle6步/cfg1/euler/simple/dn0.6,得 {w}"
+        # 1016 用户令统一 viggle 恒 9 步(测试名留史防并行收据漂移;dn0.6 语义随 Note)
+        assert (w[2], w[3], w[4], w[5], w[6]) == (9, 1, "euler", "simple", 0.6), \
+            f"[7] 应=viggle9步/cfg1/euler/simple/dn0.6,得 {w}"
 
     def test_viggle_lora_chain(self):
         """模型链 [1]→[9]Cache→[7011]viggle LoRA→[7];LoRA=v0.3 6step r256 官方件

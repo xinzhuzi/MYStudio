@@ -138,6 +138,68 @@ describe("generateImage", () => {
     expect(requestBody.use_lora).toBeUndefined();
   });
 
+  it("injects base_type for the local image provider when the daojie base type is set (1016 型选择)", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "manying-local-image",
+        platform: "manying-local-image",
+        name: "本地图片生成",
+        baseUrl: "http://127.0.0.1:17595",
+        apiKey: "manying-local-image",
+        model: ["qwen-image-2-1"],
+        capabilities: ["image_generation"],
+      }],
+      featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"] },
+    } as never);
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageBaseType: "设定卡" });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateImage({ prompt: "晏燎设定卡" });
+
+    const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    const requestBody = JSON.parse(String(genCall?.[1]?.body));
+    expect(requestBody.base_type).toBe("设定卡");
+  });
+
+  it("keeps base_type off local requests when unset (1016 型选择)", async () => {
+    useAPIConfigStore.setState({
+      providers: [{
+        id: "manying-local-image",
+        platform: "manying-local-image",
+        name: "本地图片生成",
+        baseUrl: "http://127.0.0.1:17595",
+        apiKey: "manying-local-image",
+        model: ["qwen-image-2-1"],
+        capabilities: ["image_generation"],
+      }],
+      featureBindings: { freedom_image: ["manying-local-image:qwen-image-2-1"] },
+      modelEndpointTypes: { "qwen-image-2-1": ["image-generation"] },
+    } as never);
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageBaseType: "" });
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    await generateImage({ prompt: "本地未指定型" });
+    const localCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
+    expect(JSON.parse(String(localCall?.[1]?.body)).base_type).toBeUndefined();
+  });
+
+  it("keeps cloud requests free of base_type even when the daojie base type is set (1016 型选择)", async () => {
+    useAppSettingsStore.getState().setImageGenerationSettings({ localImageBaseType: "设定卡" });
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
+      data: [{ b64_json: "aGVsbG8=", output_format: "png" }],
+    }), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    await generateImage({ prompt: "云端不受影响" });
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(requestBody.base_type).toBeUndefined();
+  });
+
   it("node-level use_lora via extraParams survives when the global switch is off (09-07-nsfw-pro-node)", async () => {
     useAPIConfigStore.setState({
       providers: [{

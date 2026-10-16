@@ -14,6 +14,7 @@ const baseSettings: ImageGenerationSettings = {
   defaultResolution: "1K",
   autoDenoiseEnabled: false,
   localImageLoraEnabled: false,
+      localImageBaseType: "",
   compatibilityRetryEnabled: true,
   compatibilityRetryAspectRatio: "1:1",
   compatibilityRetryResolution: "1K",

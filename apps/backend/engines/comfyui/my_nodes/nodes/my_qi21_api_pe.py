@@ -845,7 +845,7 @@ class MyQi21ApiPE:
                                         "tooltip": "整发预算(冷首发+长文要留足;超时=透传不炸)"}),
                 "thinking_effort": (["关闭", "思考(xhigh)"], {"default": "关闭",
                                     "tooltip": "思考档位(1007 实弹):关闭=reasoning_effort none 硬关,确定性零思考 token,全链 ~40s 内含自检补发;思考(xhigh)=模型模板原生档(=不发参数,思考量随机 ~1200-4600 tok/发,全链 21s~300s+ 波动,1006 全程即此档);「低」档实测无衰减已移除"}),
-                "AI扩写开关": ("BOOLEAN", {"default": True,
+                "AI扩写开关": ("BOOLEAN", {"default": False,
                                     "tooltip": "1016 用户令(尾插保位序):开=走 LM Studio/云端模型扩写;关=完全不发模型请求,直接拼 美术风格底座+类型句+主体句 三层装配直出(与透传/回退同源同值;透明开时同走极简公式+格式锁)"}),
             },
             "optional": ctx,
@@ -870,7 +870,7 @@ class MyQi21ApiPE:
                 model: str = "qwen3.5-9b-uncensored-hauhaucs-aggressive", temperature: float = 0.7,
                 max_tokens: int = 12000, timeout_sec: int = 600,
                 thinking_effort: str = "关闭",
-                AI扩写开关: bool = True,
+                AI扩写开关: bool = False,
                 **kw):  # 1008 槽名带连字符(美术风格底座-正向/-负向)不能作形参,**kw 按键名取
         """十入全上下文→LM Studio 扩写→五口(正向/负向/透明/宽/高)。
 
