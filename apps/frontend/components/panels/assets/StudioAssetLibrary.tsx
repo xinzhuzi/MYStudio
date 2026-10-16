@@ -165,6 +165,11 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   runtimeItemsRef.current = runtimeItems;
 
   const loadAssets = useCallback(async (offset: number, mode: "replace" | "append", refresh = false) => {
+    // A cache hit is also a new query: invalidate older requests before any exit.
+    const requestId = ++requestIdRef.current;
+    setError("");
+    setIsLoading(false);
+    setIsLoadingMore(false);
     const studioAssets = getStudioAssetsBridge();
     if (!studioAssets?.list) {
       setError("当前环境不支持读取本地素材，请在 Electron 中打开");
@@ -182,9 +187,6 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       }
     }
 
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    setError("");
     if (mode === "replace") setIsLoading(true);
     else setIsLoadingMore(true);
 
@@ -208,6 +210,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
         assetCache[getCacheKey(type, search, category)] = { items: newItems, total: response.total, timestamp: Date.now() };
       }
     } catch (loadError) {
+      if (requestIdRef.current !== requestId) return;
       const message = loadError instanceof Error ? loadError.message : "读取素材失败";
       setError(message);
       toast.error(message);
@@ -220,6 +223,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   }, [search, type, category]);
 
   useEffect(() => {
+    setSelectedIds(new Set());
     // 有缓存时不清空，避免闪烁
     const cacheKey = getCacheKey(type, search, category);
     const cached = assetCache[cacheKey];
@@ -228,6 +232,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       setTotal(0);
     }
     void loadAssets(0, "replace");
+    return () => { requestIdRef.current += 1; };
 // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadAssets]);
 

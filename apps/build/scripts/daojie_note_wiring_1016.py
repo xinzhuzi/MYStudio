@@ -24,7 +24,7 @@ GEN = REPO / "apps/build/scripts/qi21_img2img_build_1009.py"
 MANUAL_REL = "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md"
 
 T2I_OLD_A = "(各型例句见库文档;"
-T2I_NEW_A = "(各型例句见 `docs/prompts/道劫_九型主体句示例.md`;"
+T2I_NEW_A = "(各型例句见 `docs/prompts/道劫_类型主体句示例.md`;"
 T2I_OLD_B = "(库文档主体句纪律五则)。"
 T2I_NEW_B = ("(`docs/prompts/Qwen-Image-2.1/07-主体句写作宪法.md` 主体句纪律五则)。"
              f"**写法总入口=仓库手册 `{MANUAL_REL}`**(十型骨架句式+单源指针;起草/改写亦唤技能 daojie-image-prompter)。")

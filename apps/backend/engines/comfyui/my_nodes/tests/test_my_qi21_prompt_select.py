@@ -47,6 +47,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 # 被测模块直载(禁 import my_nodes 包;__file__ 生效→词库路径解析同产线)
 _NODE_FILE = (Path(__file__).resolve().parents[1] / "nodes"
               / "my_qi21_prompt_select.py")
@@ -377,3 +379,38 @@ def test_11_case_b_negative_routing_matrix():
     got6 = node.compose(pe开关=True, 透明模式=False, 装配全文=_ASSEMBLED,
                         PE出文="P", 负面词直写="   ", PE负面=_PE_NEG)
     assert got6[1] == _PE_NEG, "纯空白直写应视同空(空档兜底)"
+
+
+@pytest.mark.parametrize("pe_text", ["", " ", "\t\r\n", "\u3000"])
+@pytest.mark.parametrize("transparent", [False, True])
+@pytest.mark.parametrize("pe_enabled", [True, None])
+def test_pe_on_rejects_blank_output(pe_text, transparent, pe_enabled):
+    with pytest.raises(ValueError) as error:
+        MyQi21PromptSelect().compose(
+            装配全文=_ASSEMBLED, PE出文=pe_text, pe开关=pe_enabled,
+            透明模式=transparent, 负面词直写=_DIRECT_NEG)
+    message = str(error.value)
+    assert "PE出文" in message and "提取失败" in message
+    assert "关闭 pe开关" in message and "检查" in message
+
+
+@pytest.mark.parametrize("pe_text", [None, "", " ", "\t\r\n", "\u3000"])
+@pytest.mark.parametrize("transparent", [False, True])
+def test_pe_off_ignores_blank_output(pe_text, transparent):
+    actual = MyQi21PromptSelect().compose(
+        装配全文=" 原始指令\n保留 ", PE出文=pe_text, PE负面=_PE_NEG,
+        pe开关=False, 透明模式=transparent, 负面词直写=_DIRECT_NEG,
+        RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
+    expected = "头句  原始指令\n保留  W1句 尾句" if transparent else " 原始指令\n保留 "
+    assert actual == (expected, _DIRECT_NEG)
+
+
+@pytest.mark.parametrize("transparent", [False, True])
+def test_pe_on_preserves_valid_output(transparent):
+    pe_text = " \t有效主体。\n型底座\n风格底座 \n"
+    actual = MyQi21PromptSelect().compose(
+        装配全文=_ASSEMBLED, PE出文=pe_text, PE负面=_PE_NEG,
+        pe开关=True, 透明模式=transparent, 负面词直写=_DIRECT_NEG,
+        RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
+    expected = "头句  \t有效主体。\n型底座\n风格底座 \n W1句 尾句" if transparent else pe_text
+    assert actual == (expected, _DIRECT_NEG)

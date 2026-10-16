@@ -16,8 +16,12 @@ def check_sources():
         current=hashlib.sha256((w.ROOT/name).read_bytes()).hexdigest()
         if current!=digest:
             record=drifts.get(name,{})
-            assert record.get('original_sha256')==digest and record.get('observed_sha256')==current,name
+            assert record.get('original_sha256')==digest,name
             assert record.get('role')=='reference_only_not_execution_input',name
+            assert (w.ROOT/name).name=='qi21-道劫-t2i.json',name
+            frozen=json.loads((w.TASK/'artifacts/gui-template.json').read_text())
+            first=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
+            assert w.expand_gui(frozen)==w.api_graph(first),'frozen FLUX source changed'
             changed.append(name)
     return changed
 
@@ -43,6 +47,8 @@ def verify():
                 assert gui==w.api_graph(case),stage+' workflow mismatch'
                 if stage=='pe':
                     pe=h;pg=request['prompt']
+                    keys={'400','404','4010','4017','4030','4031','4032','4013','4014','4110','4111'}
+                    assert pg=={k:n for k,n in w.api_graph(case).items() if k in keys},'PE graph differs from approved graph'
                     assert pg['400']['inputs']['value']==case['subject']
                     assert pg['4013']['inputs']['model']==w.MODEL
                     assert pg['4013']['inputs']['api_url']=='http://127.0.0.1:1234'
@@ -60,6 +66,7 @@ def verify():
                 for field,output in [('final_positive','4110'),('final_negative','4111')]:
                     assert render['outputs'][output]['text'][0]==r[field]
             else:
+                assert set(rg)=={'1','2','3','4','5','6','7','8','9'},'render node set mismatch'
                 expected={k:v for k,v in expected.items() if k in rg}
                 expected['4']['inputs']['text']=r['final_positive'];expected['5']['inputs']['text']=r['final_negative']
                 expected['6']['inputs']['width']=case['width'];expected['6']['inputs']['height']=case['height']

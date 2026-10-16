@@ -84,7 +84,7 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
       // 1016：画法只含风格；背景、光照与来源状态归三轨类型模块；来源SHA保留历史基线。
-      "c15a955e6543921538e4e601bd9677a98dc39c5684cb8fd42a3af49e221353cd",
+      "8525023e532f36f1a06aee2ba3f07111be603abe9d2db68d36e67e8c91bb00ee",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 1600 });
@@ -98,8 +98,8 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
       "reference.denoise",
       "negative.universal",
     ]);
-    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("中国传统工笔设色与彩色连环画语言的二维手绘数字插画");
-    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("成像工艺干净，线条与罩染层次清晰。");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("中国传统工笔设色（Gongbi painting）与白描线条（baimiao line drawing）主导");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("数字绘画表面洁净平整，线条与罩染层次清晰。");
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).not.toMatch(/衣物|尘土|血痕|身体状态|背景|近景|远景|时段|光源|光照|构图|留白/);
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].moduleId).toBe("style.gongbi-base");
     expect(DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text).toContain("压缩伪影");

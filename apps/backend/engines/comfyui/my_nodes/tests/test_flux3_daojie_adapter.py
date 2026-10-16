@@ -64,7 +64,7 @@ def test_adapter_projects_every_real_type_without_losing_its_distinguishing_layo
         "分镜剧情图": "一幅单格叙事画面",
         "表情差分": "九宫格脸部表情差分表",
         "概念气氛图": "以气氛为主的画面",
-        "设定卡": "卡面另留窄条档案区与色样区",
+        "设定卡": "固定六个图像区",
     }
     adapter = MyFlux3DaojieAdapter()
 

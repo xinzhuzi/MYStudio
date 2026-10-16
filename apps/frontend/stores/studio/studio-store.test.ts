@@ -200,6 +200,40 @@ describe("studio workflow store", () => {
     }
   });
 
+  it("水合收割上一会话中断的任务台账(1016 控制球僵尸徽章修复):上一会话 running/queued → failed,本会话在途保留", async () => {
+    const originalOptions = useStudioStore.persist.getOptions();
+    const persistedState = {
+      agentRuns: [
+        { id: "run-zombie", key: "directorPlan", phase: "plan", status: "running", inputSummary: "directorPlan:chapter-001:4600", startedAt: 1 },
+        { id: "run-live", key: "scriptDraft", phase: "draft", status: "running", inputSummary: "本会话在途", startedAt: Date.now() },
+      ],
+      mediaTasks: [
+        { id: "task-zombie", kind: "storyboardImage", targetId: "t", status: "queued", createdAt: 1, updatedAt: 1 },
+      ],
+    };
+    useStudioStore.persist.setOptions({
+      storage: {
+        getItem: vi.fn(async () => ({ state: persistedState, version: 9 })),
+        setItem: vi.fn(async () => undefined),
+        removeItem: vi.fn(async () => undefined),
+      },
+    });
+
+    try {
+      await expect(useStudioStore.persist.rehydrate()).resolves.toBeUndefined();
+      const state = useStudioStore.getState();
+      const zombie = state.agentRuns.find((run) => run.id === "run-zombie");
+      expect(zombie?.status).toBe("failed");
+      expect(zombie?.errorReason).toBe("应用重启，任务中断");
+      expect(typeof zombie?.finishedAt).toBe("number");
+      expect(state.agentRuns.find((run) => run.id === "run-live")?.status).toBe("running");
+      expect(state.mediaTasks.find((task) => task.id === "task-zombie")?.status).toBe("failed");
+    } finally {
+      useStudioStore.persist.setOptions(originalOptions);
+      useStudioStore.getState().resetStudioWorkflow();
+    }
+  });
+
   it("rejects transient image media during legacy and same-version hydration", async () => {
     const originalOptions = useStudioStore.persist.getOptions();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);

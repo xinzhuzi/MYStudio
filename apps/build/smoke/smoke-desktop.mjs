@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { PNG } from "pngjs";
+import { verifyAssetLibraryLayout } from "./asset-library-smoke.mjs";
 import {
   diffSelfStartedPids,
   probeRunningInstances,
@@ -1084,6 +1085,8 @@ async function inspectPage(pageTarget) {
 
     console.log("[smoke] checking asset voice flow");
     const assetVoiceFlow = await verifyAssetVoiceFlow(evaluate);
+    console.log("[smoke] checking asset geometry and queries");
+    assetVoiceFlow.layout = await verifyAssetLibraryLayout(evaluate, send);
 
     console.log("[smoke] checking script asset generation voice flow");
     const scriptAssetGenerationVoiceFlow =
@@ -2975,6 +2978,8 @@ function assertHealthy(
   }
   if (!assetVoiceFlow.clickedAssets)
     failures.push("assets route button not found for asset voice flow check");
+  if (!assetVoiceFlow.layout?.ok)
+    failures.push(...(assetVoiceFlow.layout?.failures || ["asset geometry check missing"]));
   if (!assetVoiceFlow.clickedRole)
     failures.push("role asset sidebar item not found");
   if (!assetVoiceFlow.hasRoleLibrary || !assetVoiceFlow.hasAutoAssignAudio) {

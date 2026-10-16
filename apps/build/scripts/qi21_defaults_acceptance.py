@@ -43,6 +43,8 @@ def link_errors(graph: dict) -> list[str]:
         links = [dict(zip(('id', 'origin_id', 'origin_slot', 'target_id', 'target_slot', 'type'), link)) for link in links]
     by_id = {link['id']: link for link in links}
     errors = []
+    if graph.get('7:7028', {}).get('inputs', {}).get('model') != ['7:7027', 0] or graph.get('7:7031', {}).get('inputs', {}).get('guider') != ['7:7029', 0]:
+        errors.append('receipt graph lacks actual Fix→Turbo→guider→sampler dependency')
     if len(by_id) != len(links):
         errors.append('duplicate link IDs')
     for link in links:
@@ -93,6 +95,9 @@ def audit_document(document: dict) -> list[str]:
                     errors.append('PrimitiveBoolean PE saved default is not False')
                 if node.get('widgets_values_named', {}).get('value', False) is not False:
                     errors.append('PrimitiveBoolean PE named default drift')
+                selector = nodes[4014]
+                if selector.get('widgets_values', [None] * 5)[4] is not False:
+                    errors.append('PE selection saved widget mirror drift')
             if node['type'] == 'MyQi21SpeedSelect':
                 if node.get('widgets_values') != [TURBO] or node.get('widgets_values_named', {}).get('mode') != TURBO:
                     errors.append('speed selector positional/named default drift')
@@ -131,6 +136,9 @@ def audit_document(document: dict) -> list[str]:
                 index = control_names.index('PE启用?')
                 if host['widgets_values'][index] is not False or subgraph['widgets'][index] is not False or named.get('PE启用?', False) is not False:
                     errors.append('PE host/subgraph/named saved default drift')
+            if any(node['type'] == 'MyQi21ApiPE' for node in subgraph['nodes']):
+                if host.get('widgets_values') != [host.get('widgets_values_named', {}).get('型选择')]:
+                    errors.append('t2i assembly host contains stale saved controls')
     return errors
 
 
@@ -276,9 +284,19 @@ def review_receipt(folder: Path) -> dict:
     if not isinstance(events, list):
         raise TypeError('receipt events must be a JSON array')
     verdict = judge_execution(graph, read_json(folder / 'history.json'), prompt_id, events)
-    images = [{'path': path.name, **inspect_png(path)} for path in sorted(folder.glob('*.png'))]
+    manifest = json.loads((folder / 'images.json').read_text(encoding='utf-8'))
+    images = []
+    for item in manifest:
+        path = (folder / item['path']).resolve()
+        if not path.is_relative_to(folder):
+            raise ValueError('image receipt escapes its evidence folder')
+        metrics = inspect_png(path)
+        returned = read_json(folder / 'history.json')[prompt_id].get('outputs', {}).get(item['node'], {}).get('images', [])
+        if item['metadata'] not in returned or item['sha256'] != metrics['sha256']:
+            verdict['errors'].append(f'image receipt identity/hash mismatch: {path.name}')
+        images.append({'path': path.name, **metrics})
     verdict.update(images=images, prompt_id=prompt_id, visual_review='pending human inspection')
-    verdict['ok'] = verdict['ok'] and bool(images) and all(image['ok'] for image in images)
+    verdict['ok'] = not verdict['errors'] and bool(images) and all(image['ok'] for image in images)
     write_json(folder / 'receipt-review.json', verdict)
     return verdict
 

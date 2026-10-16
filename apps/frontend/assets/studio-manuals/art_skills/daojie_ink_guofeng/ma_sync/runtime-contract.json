@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "c15a955e6543921538e4e601bd9677a98dc39c5684cb8fd42a3af49e221353cd",
+  "contractSha256": "8525023e532f36f1a06aee2ba3f07111be603abe9d2db68d36e67e8c91bb00ee",
   "syncedAt": "2026-09-18",
   "maSources": [
     {
@@ -94,7 +94,7 @@
     },
     "style.gongbi-base": {
       "moduleId": "style.gongbi-base",
-      "text": "美术风格底座：中国传统工笔设色与彩色连环画语言的二维手绘数字插画。白描式线条主导形体结构，轮廓线与内部结构线共同承担造型，线条细稳连贯、轻重富有节奏；色彩以清晰色面、分染与层层罩染塑形，明暗融入设色层次，笔触与边缘保留清楚的手绘笔性，材质统一于线描设色语言；采用中国传统色体系，以丰富多彩的设色为主，多色相并陈且协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明。成像工艺干净，线条与罩染层次清晰。",
+      "text": "美术风格底座：中国传统工笔设色（Gongbi painting）与白描线条（baimiao line drawing）主导的二维手绘数字游戏插画，融合彩色连环画（classic Chinese lianhuanhua comic）的概括造型，各种画法主次明确、协调统一。轮廓线与内部结构线共同承担造型，精细用笔（fine brushwork），线条细稳连贯、饱满有力，轻重、疏密富有节奏，形体概括凝练。清晰色面、分染与层层罩染共同塑形，色面边界明确平整，色相对比保持清晰，明暗融入固有色的浓淡与冷暖层次；采用协调统一的中国传统色体系，以丰富多彩的设色为主，多色相并陈且协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明，材质统一于线描设色语言。保留清楚的手绘笔性（hand-painted brushwork），全图细节密度高、笔笔可辨，轮廓与色面边界清晰锐利（crisp, sharp edges），数字绘画表面洁净平整（clean, flat digital finish），线条与罩染层次分明。",
       "required": true,
       "singletonKey": "gongbi_style_base",
       "source": {
@@ -220,7 +220,7 @@
       "style.gongbi-track.scene",
       "style.gongbi-track.prop"
     ],
-    "styleSourceSha256": "637bfaf7bc90ac46ccdad0edc2c8be1ce6cb4f21ef6eb2f890fb6d85daa8620b",
+    "styleSourceSha256": "795c0d6f04688753944ca09d43dbd73a2ef7a03ceaffd9243a9e4b006ea8a3e0",
     "styleBoundary": "美术风格底座只定义绘画语言与成像工艺；背景、照明和来源状态规则归类型模块，具体事实归主体句。"
   }
 }

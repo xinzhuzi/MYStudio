@@ -565,10 +565,12 @@
   /* 操作定位类光标白名单:方向 resize/十字精确定位/移动承载真实操作信息,保留系统样式;
      其余提示性光标(手型/grab/I-beam/放大镜等)一律统一为美化箭头(09-03 用户裁定全程统一)。
      写在两段通配之后,:root 前缀拉高特异性,同为 !important 时可稳定压回通配块。 */
-  :root .cursor-col-resize {
+  :root .cursor-col-resize,
+  :root [data-separator][aria-orientation="vertical"] {
     cursor: col-resize !important;
   }
-  :root .cursor-row-resize {
+  :root .cursor-row-resize,
+  :root [data-separator][aria-orientation="horizontal"] {
     cursor: row-resize !important;
   }
   :root .cursor-crosshair {

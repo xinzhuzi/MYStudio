@@ -639,7 +639,7 @@ def _pos_neg_clash(pos: str, neg_tokens: list[str]) -> list[str]:
 
 
 def _self_check(pos: str, neg_tokens: list[str],
-                transparent: bool, subj: str) -> list[str]:
+                transparent: bool, subj: str, type_pos: str = "") -> list[str]:
     """出稿机器自检(1006 B案立;1008 解耦终裁重构为零违例接收门清单)。
     六检全确定性:①透明开禁指令词/环境词残留 ②关模式环境词保留 ③主体句色词
     逐字在场 ④境界词 ⑤部件名词 ⑥正负撞词(_pos_neg_clash)。
@@ -648,6 +648,15 @@ def _self_check(pos: str, neg_tokens: list[str],
     锚点类(匾额等普通名词)无法确定性判定,仍不在此检。"""
     v: list[str] = []
     pos_c = _squash(pos)  # 空白归一:"软 3D"与"软3D"判同
+    # 设定卡首段为固定版式；首稿、补发和模型救回均须原样保留。
+    # 文本锁只保证入图指令，图片计数及机位仍须实际看图验收。
+    for entry in (_load_bases_node().get("types") or []):
+        if (entry.get("zh") == "设定卡"
+                and (entry.get("positive_text") or "").strip() == type_pos.strip()):
+            layout = type_pos.splitlines()[0].strip()
+            if layout and _squash(layout) not in pos_c:
+                v.append("设定卡版式丢失或改写:类型句首段须逐字保留")
+            break
     if transparent:
         for tok in _META_TOKENS + _ENV_TOKENS:
             if tok in pos:
@@ -950,6 +959,10 @@ class MyQi21ApiPE:
         if 画幅宽 and 画幅高:
             ctx.append(f"[画幅] {画幅宽}×{画幅高}(按此纵横比组织画面描述)")
         ctx.append(f"[透明] {'开:本图为透明素材图,勿虚构繁杂背景' if 透明模式 else '关:常规成图'}")
+        for entry in (_load_bases_node().get("types") or []):
+            if entry.get("zh") == "设定卡" and (entry.get("positive_text") or "").strip() == base:
+                ctx.append("[设定卡版式锁] 类型句首段逐字保留，仅润色人物描述，不增减图像区、视图、文字或色卡。")
+                break
         user_with_ctx = direct + "\n\n" + "\n".join(ctx)
         # 1007 用户令(开关=api_key 控件):填=云端(_CLOUD_URL/_CLOUD_MODEL 内置,
         # key=填的值),留空=本地(api_url/model 原样);云端失败→回落本地并明示原因
@@ -1177,7 +1190,7 @@ class MyQi21ApiPE:
                 _p2s = _strip_color_codes(_strip_artifacts(_p2.strip()))
                 if 透明模式:
                     _p2s = _strip_env_parens(_strip_env_sentences(_p2s, subj))
-                _v2 = _self_check(_p2s, neg_tokens, bool(透明模式), subj)
+                _v2 = _self_check(_p2s, neg_tokens, bool(透明模式), subj, type_pos=base)
                 if _v2:
                     print(f"[漫影 API扩写PE] 救回目标 {_m2} 稿 {len(_v2)} 项违例"
                           f"({';'.join(_v2[:4])})——不收,下一个")
@@ -1234,7 +1247,7 @@ class MyQi21ApiPE:
             # 违例=同模型补发一次(缺什么点什么),重试稿零违例才收;重试仍有违例/
             # 重试解析失败/补发请求失败=拒收模型稿,回退已装配 direct 正稿
             # (拒收可见性=节点 print 日志+引擎 history;零新画布口,恒有输出不炸产线)。
-            v1 = _self_check(pos_s, neg_tokens, bool(透明模式), subj)
+            v1 = _self_check(pos_s, neg_tokens, bool(透明模式), subj, type_pos=base)
             if v1:
                 _check_interrupt()  # 1008:补发前查打断
                 print(f"[漫影 API扩写PE] 机器自检 {len(v1)} 项违例({';'.join(v1[:6])}"
@@ -1268,7 +1281,7 @@ class MyQi21ApiPE:
                                 "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
                     _p3s = _strip_env_parens(_strip_env_sentences(
                         _p3.strip(), subj)) if 透明模式 else _p3.strip()
-                    v2 = _self_check(_p3s, neg_tokens, bool(透明模式), subj)
+                    v2 = _self_check(_p3s, neg_tokens, bool(透明模式), subj, type_pos=base)
                     if v2:
                         print(f"[漫影 API扩写PE] 拒收:重试稿仍有 {len(v2)} 项违例"
                               f"({';'.join(v2[:6])};首稿违例={';'.join(v1[:6])})"

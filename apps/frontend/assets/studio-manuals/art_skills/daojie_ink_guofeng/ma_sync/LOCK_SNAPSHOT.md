@@ -6,6 +6,8 @@
 
 > **1016 底座墨彩翻转**：正向句「铁线描细稳连贯，线宽与轻重提按富有节奏」→「线条细稳连贯、粗细随结构与轻重富有节奏」、「墨色浓淡」→「色彩浓淡」、「传统色体系」后补「多色相并陈」(用户令:底座要多彩,不要水墨拉力;1009 去彩裁定线层无彩,故用中性「线条」而非「彩线描」)。机读现值见 `../json/qi21_bases.json#art_style_base`。
 
+> **1016 底座多彩定稿(用户令版)**：删透明水彩/写意水墨融合语与渗化干湿句;补色面边界明确平整/色相对比保持清晰/线条饱满有力/细节密度高笔笔可辨/crisp sharp edges/clean flat digital finish;多彩主次句回补(1016 双令)。机读现值见 `../json/qi21_bases.json#art_style_base`。
+
 本目录是 MYStudio 道劫手册与 MA `ma-imagegen` 的同步锚点:
 
 - `lock-anchors.json` — 机器可读锚点对(manualAnchor↔maAnchor),契约测试 `lib/studio/daojie-manual-contract.test.ts` 据此校验:①手册硬锁节包含全部 manualAnchor(防手改漂移);②本机 MA 存在时,权威文件包含全部 maAnchor(防快照过期),MA 不存在自动跳过(CI 安全)。

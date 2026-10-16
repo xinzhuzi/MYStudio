@@ -3,6 +3,8 @@ import {
   assertImageWorkflowGraphMediaPersistable,
   migrateStudioWorkflowState,
   normalizeWorkflowConfig,
+  reapInterruptedTaskLedgers,
+  STUDIO_LEDGER_REAP_REASON,
   STUDIO_WORKFLOW_PERSIST_VERSION,
   STUDIO_WORKFLOW_STORAGE_KEY,
 } from "./studio-store-persistence";
@@ -209,5 +211,68 @@ describe("stale workflow purge (2026-08-30 旧数据清理裁定)", () => {
       imageWorkflows: [sb("sb-anywhere")],
     }) as { imageWorkflows: ImageWorkflowGraph[] };
     expect(migrated.imageWorkflows.map((item) => item.id)).toEqual(["flow-sb-anywhere"]);
+  });
+});
+
+describe("reapInterruptedTaskLedgers(水合收割上一会话中断任务,1016 控制球僵尸徽章修复)", () => {
+  const BOOT = 1_000_000;
+  const NOW = 2_000_000;
+
+  it("把上一会话卡死的 running/queued 台账改判 failed(中断原因+finishedAt),其余字段与终态条目保留", () => {
+    const agentRuns = [
+      { id: "run-zombie", key: "directorPlan", phase: "plan", status: "running", inputSummary: "directorPlan:chapter-001:4600", startedAt: BOOT - 5, checkpointRef: "cp-1" },
+      { id: "run-queued", key: "scriptDraft", phase: "draft", status: "queued", inputSummary: "s", startedAt: BOOT - 1 },
+      { id: "run-done", key: "eventAnalysis", phase: "p", status: "success", inputSummary: "s", startedAt: BOOT - 9 },
+    ];
+    const mediaTasks = [
+      { id: "task-zombie", kind: "storyboardImage", targetId: "t", status: "running", createdAt: BOOT - 5, updatedAt: BOOT - 5 },
+      { id: "task-queued", kind: "ttsAudio", targetId: "t", status: "queued", createdAt: BOOT - 3, updatedAt: BOOT - 3 },
+      { id: "task-failed", kind: "modelVideo", targetId: "t", status: "failed", createdAt: BOOT - 7, updatedAt: BOOT - 7, errorReason: "原文错误" },
+    ];
+    const result = reapInterruptedTaskLedgers({ agentRuns, mediaTasks, bootTime: BOOT, now: NOW });
+    expect(result.reapedCount).toBe(4);
+    expect(result.agentRuns?.[0]).toMatchObject({
+      id: "run-zombie",
+      status: "failed",
+      errorReason: STUDIO_LEDGER_REAP_REASON,
+      finishedAt: NOW,
+      checkpointRef: "cp-1",
+    });
+    expect(result.agentRuns?.[1]).toMatchObject({ status: "failed", errorReason: STUDIO_LEDGER_REAP_REASON });
+    expect(result.agentRuns?.[2].status).toBe("success");
+    expect(result.mediaTasks?.[0]).toMatchObject({ status: "failed", updatedAt: NOW, finishedAt: NOW });
+    expect(result.mediaTasks?.[1]).toMatchObject({ status: "failed" });
+    expect(result.mediaTasks?.[2]).toMatchObject({ status: "failed", errorReason: "原文错误" });
+  });
+
+  it("本会话在途任务(startedAt≥bootTime)不收割,零收割时原数组引用透传——切项目重水合零误伤", () => {
+    const agentRuns = [{ id: "run-live", key: "scriptDraft", phase: "p", status: "running", inputSummary: "s", startedAt: BOOT }];
+    const mediaTasks = [{ id: "task-live", kind: "ttsAudio", targetId: "t", status: "running", createdAt: BOOT, updatedAt: BOOT }];
+    const result = reapInterruptedTaskLedgers({ agentRuns, mediaTasks, bootTime: BOOT, now: NOW });
+    expect(result.reapedCount).toBe(0);
+    expect(result.agentRuns).toBe(agentRuns);
+    expect(result.mediaTasks).toBe(mediaTasks);
+  });
+
+  it("缺 startedAt/createdAt 的活跃条目按上一会话处理(老数据),非对象与终态条目原样透传", () => {
+    const legacy = [
+      { id: "run-legacy", key: "x", phase: "p", status: "running", inputSummary: "s" },
+      null,
+      { id: "run-ok", status: "success" },
+      { status: "running" },
+    ];
+    const result = reapInterruptedTaskLedgers({ agentRuns: legacy, bootTime: BOOT, now: NOW });
+    expect(result.reapedCount).toBe(1);
+    expect(result.agentRuns?.[0]).toMatchObject({ status: "failed", errorReason: STUDIO_LEDGER_REAP_REASON, finishedAt: NOW });
+    expect(result.agentRuns?.[1]).toBeNull();
+    expect(result.agentRuns?.[2]).toEqual({ id: "run-ok", status: "success" });
+    expect(result.agentRuns?.[3]).toEqual({ status: "running" });
+  });
+
+  it("未持久化的台账(undefined)原样返回 undefined", () => {
+    const result = reapInterruptedTaskLedgers({ bootTime: BOOT, now: NOW });
+    expect(result.agentRuns).toBeUndefined();
+    expect(result.mediaTasks).toBeUndefined();
+    expect(result.reapedCount).toBe(0);
   });
 });

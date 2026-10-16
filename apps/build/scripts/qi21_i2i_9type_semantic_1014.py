@@ -19,7 +19,7 @@ REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 FIRE = REPO / "apps/build/scripts/qi21_i2i_workflow_fire.py"
 OUT = REPO / "apps/output/i2i-fire-1014/sweep9-semantic"
 
-DOC_PATH = REPO / "docs/prompts/道劫_九型主体句示例.md"
+DOC_PATH = REPO / "docs/prompts/道劫_类型主体句示例.md"
 # 每型: 引导前缀——人物系指认 <image1> 身份;非人物三型(场景/道具/概念气氛图)
 # =「整体替换」引导(1014 定谳:纯空镜/器物句撞人像画布 conditioning=turbo 确定性黑,
 # 须显式声明画面整体替换,消指令-画布语义冲突)

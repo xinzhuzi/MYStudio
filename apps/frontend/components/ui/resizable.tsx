@@ -134,14 +134,14 @@ const ResizableHandle = ({
   <Separator
     className={cn(
       // Wider handle so it's easy to grab with the mouse
-      "relative flex w-2 items-center justify-center bg-border/50 hover:bg-primary/30 transition-colors",
+      "relative flex h-full w-2 shrink-0 items-center justify-center bg-border/50 hover:bg-primary/30 transition-colors",
       // Visible 1px divider line centered inside the handle
       "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border",
       // Vertical group handle styling(v4 Separator 自带 aria-orientation)
-      "aria-[orientation=vertical]:h-2 aria-[orientation=vertical]:w-full",
-      "aria-[orientation=vertical]:after:left-0 aria-[orientation=vertical]:after:top-1/2 aria-[orientation=vertical]:after:h-px aria-[orientation=vertical]:after:w-full aria-[orientation=vertical]:after:-translate-y-1/2 aria-[orientation=vertical]:after:translate-x-0",
+      "aria-[orientation=horizontal]:h-2 aria-[orientation=horizontal]:w-full",
+      "aria-[orientation=horizontal]:after:inset-y-auto aria-[orientation=horizontal]:after:left-0 aria-[orientation=horizontal]:after:top-1/2 aria-[orientation=horizontal]:after:h-px aria-[orientation=horizontal]:after:w-full aria-[orientation=horizontal]:after:-translate-y-1/2 aria-[orientation=horizontal]:after:translate-x-0",
       // Cursor
-      "cursor-col-resize aria-[orientation=vertical]:cursor-row-resize",
+      "cursor-col-resize aria-[orientation=horizontal]:cursor-row-resize",
       // Ensure handle stays clickable above panel content
       "z-20",
       className

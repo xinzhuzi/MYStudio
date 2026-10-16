@@ -36,6 +36,13 @@ def test_stale_named_selector_is_rejected():
     assert any('selector positional/named' in error for error in acceptance.audit_document(document))
 
 
+def test_i2i_pe_widget_mirror_drift_is_rejected():
+    document = acceptance.read_json(acceptance.canvas_paths()['i2i'])
+    selector = next(node for scope in document['definitions']['subgraphs'] for node in scope['nodes'] if node['id'] == 4014)
+    selector['widgets_values'][4] = True
+    assert any('PE selection saved widget' in error for error in acceptance.audit_document(document))
+
+
 def test_app_template_explicit_default_and_fix_chain():
     path = next((acceptance.COMFY / 'workflows').rglob('qwen21-道劫-t2i-api.json'))
     assert acceptance.audit_api(acceptance.read_json(path)['graph']) == []
@@ -136,8 +143,8 @@ def test_schema_missing_or_broken_link_rejected(schemas):
         builder.check_object_info(broken, schemas)
 
 
-def test_receipts_match_prompt_and_do_not_accept_cached_sampler():
-    graph = {'7:7031': {'class_type': 'SamplerCustomAdvanced', 'inputs': {}}}
+def test_receipts_match_prompt_and_do_not_accept_cached_sampler(schemas):
+    _, graph = acceptance.default_prompt(acceptance.canvas_paths()['edit'], schemas)
     history = {'own': {'status': {'status_str': 'success', 'completed': True}}}
     events = [{'type': 'execution_cached', 'data': {'prompt_id': 'own', 'nodes': ['7:7027', '7:7028']}},
               {'type': 'executing', 'data': {'prompt_id': 'other', 'node': '7:7031'}}]

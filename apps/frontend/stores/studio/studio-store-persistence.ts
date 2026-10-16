@@ -2,6 +2,8 @@ import { normalizeContinuityAssetVersion } from "@/lib/studio/visual-continuity"
 import type {
   ContinuityAssetVersion,
   ImageWorkflowGraph,
+  MediaGenerationTask,
+  StudioAgentRun,
   StudioWorkflowConfig,
 } from "@/types/studio";
 
@@ -219,5 +221,95 @@ export function normalizeWorkflowConfig(
     directorManualId: config?.directorManualId === "Xianxia_fantasy"
       ? undefined
       : config?.directorManualId,
+  };
+}
+
+/**
+ * 水合收割的中断原因(1016 控制球僵尸徽章修复):上一会话退出/崩溃时没走到
+ * 终态(finish/fail/cancel)的活跃台账,重启后没有任何在途 runner 会再为它们
+ * 落终态——不收割就永久占用悬浮球任务徽章(在案:10-13 directorPlan 僵尸
+ * run 挂「1」三天)。
+ */
+export const STUDIO_LEDGER_REAP_REASON = "应用重启，任务中断";
+
+/** 渲染进程本次会话的启动时刻(模块首载即定):水合回来的台账凡
+ * startedAt/createdAt 早于它,必然属于之前的会话(本会话在途的一律晚于它,
+ * 切项目触发的重水合零误伤)。 */
+export const STUDIO_RENDERER_BOOT_TIME = Date.now();
+
+function isInterruptedActiveEntry(
+  item: unknown,
+  timeKey: "startedAt" | "createdAt",
+  bootTime: number,
+): boolean {
+  if (!item || typeof item !== "object") return false;
+  const record = item as Record<string, unknown>;
+  if (typeof record.id !== "string") return false;
+  if (record.status !== "queued" && record.status !== "running") return false;
+  const startedAt = Number(record[timeKey]);
+  // 缺时间戳的老活跃条目按上一会话处理(startAgentRun/startMediaTask 恒写时间戳)
+  return Number.isFinite(startedAt) ? startedAt < bootTime : true;
+}
+
+export interface ReapInterruptedTaskLedgersInput {
+  agentRuns?: unknown;
+  mediaTasks?: unknown;
+  /** 会话启动时刻(传 STUDIO_RENDERER_BOOT_TIME);早于它的活跃条目才收割。 */
+  bootTime: number;
+  /** 测试注入的当前时刻;缺省 Date.now()。 */
+  now?: number;
+}
+
+export interface ReapInterruptedTaskLedgersResult {
+  agentRuns?: StudioAgentRun[];
+  mediaTasks?: MediaGenerationTask[];
+  reapedCount: number;
+}
+
+/**
+ * 水合期收割上一会话中断的任务台账:agentRuns/mediaTasks 里 status 为
+ * queued/running 且时间戳早于 bootTime 的条目改判 failed(STUDIO_LEDGER_REAP_REASON
+ * + finishedAt;mediaTasks 连带 updatedAt),其余字段逐字保留(checkpointRef
+ * 留给后续断点续跑)。终态条目、非对象/缺 id 的畸形条目、本会话在途条目一律
+ * 原样透传;整列表零收割时返回原数组引用(不触发无谓的重渲染与落盘)。
+ */
+export function reapInterruptedTaskLedgers(
+  input: ReapInterruptedTaskLedgersInput,
+): ReapInterruptedTaskLedgersResult {
+  const now = input.now ?? Date.now();
+  let reapedCount = 0;
+
+  const reapArray = (
+    // 入参来自持久化水合(input.agentRuns/mediaTasks 声明为 unknown),
+    // 数组性由下方 Array.isArray 守卫裁断,形参故取 unknown
+    items: unknown,
+    timeKey: "startedAt" | "createdAt",
+    extra: Record<string, unknown> | undefined,
+  ): StudioAgentRun[] | MediaGenerationTask[] | undefined => {
+    if (!Array.isArray(items)) return undefined;
+    let changed = false;
+    const next = items.map((item) => {
+      if (!isInterruptedActiveEntry(item, timeKey, input.bootTime)) return item;
+      changed = true;
+      reapedCount += 1;
+      return {
+        ...(item as Record<string, unknown>),
+        status: "failed",
+        errorReason: STUDIO_LEDGER_REAP_REASON,
+        finishedAt: now,
+        ...(extra ?? {}),
+      };
+    });
+    return (changed ? next : items) as StudioAgentRun[] | MediaGenerationTask[];
+  };
+
+  return {
+    agentRuns: reapArray(input.agentRuns, "startedAt", undefined) as
+      | StudioAgentRun[]
+      | undefined,
+    mediaTasks: reapArray(input.mediaTasks, "createdAt", { updatedAt: now }) as
+      | MediaGenerationTask[]
+      | undefined,
+    reapedCount,
   };
 }

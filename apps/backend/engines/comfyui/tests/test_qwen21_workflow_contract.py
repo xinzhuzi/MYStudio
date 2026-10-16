@@ -729,7 +729,7 @@ TURBO_NOTE_TOKENS = (
 QI21_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, *TURBO_NOTE_TOKENS,
     "MyQi21SpeedSelect", "[7]", "[7015]", "[7012]", "[7014]",
-    "首项=「0 · Turbo 8步」=全局出厂默认", "本件默认=「2 · viggle」", "seed 单源", "真实生效", "并行三支路",
+    "首项=「0 · Turbo 8步」=全局出厂默认", "本件默认=「0 · Turbo 8步」", "seed 单源", "真实生效", "并行三支路",
     "速度档位", "双子图",
 )
 # i2i 件 Note 加速区段(0929 S3 收装;i2i 家风=选择件/seed 以名示人不带 id 号,
@@ -737,7 +737,7 @@ QI21_PARALLEL_NOTE_TOKENS = (
 I2I_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, *TURBO_NOTE_TOKENS,
     "MyQi21SpeedSelect", "[7]", "[7012]",
-    "首项=「0 · Turbo 8步」=全局出厂默认", "本件默认=「2 · viggle」",
+    "首项=「0 · Turbo 8步」=全局出厂默认", "本件默认=「0 · Turbo 8步」",
     "seed 单源", "零摆设值", "复用铁则", "分线直入",
     "单参考正源", "崩纯黑", "唯一色=1", "positive_single", "[173]", "零改动",
     "速度档位", "加速子图",
@@ -1729,7 +1729,7 @@ class TestSpeedSelectContract0929:
         want_seqs = {
             # 1006 四轮:qi21 四出(wh_ratio/PE启用? 随 AI扩写恒开退役;[4018] 恒九型)
             "qi21": ["positive", "negative", "width", "height"],
-            "i2i": ["prompt", "画幅W", "画幅H"],
+            "i2i": ["prompt", "画幅W", "画幅H", "negative"],
             # 1015 编码器出子图役:positive/negative/latent/positive_single 四槽随
             # [4015]/[171] 迁主画布退役——子图收纯「提示词装配」,三出=终稿+画幅
             "edit": ["positive", "negative", "latent", "positive_single"],
@@ -1748,10 +1748,10 @@ class TestSpeedSelectContract0929:
                 outs = [o["name"] for o in _asg(GRAPHS[name])["outputs"]]
                 # 1015 画幅按型联动:prompt 后追加 画幅W/画幅H 两 INT 槽(非文本槽),
                 # D10 语义收窄=「prompt 应=文本类最末槽」(其后仅允非文本槽)
-                assert slot_name in outs and outs.index(slot_name) == len(outs) - 3, \
-                    f"{name}: D10 预览文本槽「{slot_name}」应=文本类最末(其后仅画幅W/H 两 INT 槽),得 {outs}"
-                assert outs[-2:] == ["画幅W", "画幅H"], \
-                    f"{name}: 尾两槽应=画幅W/画幅H(1015),得 {outs[-2:]}"
+                assert outs.index(slot_name) == 0 and outs[1:3] == ["画幅W", "画幅H"], \
+                    f"{name}: prompt/W/H 原槽序必须稳定，负向仅追加第四口，得 {outs}"
+                assert outs[3:] == ["negative"], \
+                    f"{name}: 第四槽必须为 negative，得 {outs[3:]}"
         # 1004:qi21「最终文本」槽随编码器迁出退役(预览改吃槽0 positive,断言在
         # test_subgraph_outputs_feed_sampler_latent_and_preview);edit 无预览槽=空真
 
@@ -4648,6 +4648,7 @@ class TestI2IContract:
             xsg_uuid=I2I_XSG_UUID, host_id=I2I_XHOST_ID, sel_id=I2I_XSEL_ID,
             ks_direct=I2I_SAMPLER_ID, ks_viggle=I2I_SAMPLER_VIG_ID,
             lora_id=I2I_LORA_ID, turbo_chain=I2I_TURBO_CHAIN, seed_id=I2I_SEED_ID,
+            note_id=7016,  # 1016 布局说明独立 Note；计算节点与连线保持不变
             save_id=8, model_src_id=I2I_CACHE_ID, latent_src_id=I2I_LATENT_SW_ID,
             pos_direct="positive", pos_accel="positive_single",
             # 1014 深夜定谳:五探针矩阵实证少步×多参考=黑(σ链/合并式双双落黑,0928 铁案
@@ -4685,8 +4686,8 @@ class TestI2IContract:
         # 2015 编码器出子图:宿主四条件出退役,双正源改根域 [4015]/[171] 直供加速
         # (真锚=上方接线表 link279/282;宿主收纯装配三出=prompt/画幅W/画幅H)
         host = _nodes(graph)[I2I_HOST_ID]
-        assert [o["name"] for o in host["outputs"]] == ["prompt", "画幅W", "画幅H"], \
-            "i2i 宿主输出应收纯装配三出(prompt/画幅W/画幅H;2015 编码器出子图)"
+        assert [o["name"] for o in host["outputs"]] == ["prompt", "画幅W", "画幅H", "negative"], \
+            "i2i 宿主保留 prompt/画幅W/画幅H 原槽并追加 negative"
         # TE-Speed 槽禁入:全图(主图+两子图)节点类型白名单(0929 S3 扩三域;
         # ComfySwitchNode 恒留册=装配 [15]/[144]/[173]+主图 [20] 在用)
         sg_ids = {sg["id"] for sg in _sgs(graph)}
@@ -4694,6 +4695,10 @@ class TestI2IContract:
             for n in [*graph["nodes"], *sg["nodes"]]:
                 if n.get("properties", {}).get("subgraph") in sg_ids:
                     continue  # 宿主节点 type=子图 uuid
+                if sg["id"] == I2I_XSG_UUID and n["id"] == 7016 and n["type"] == "Note":
+                    assert not n.get("inputs") and not n.get("outputs"), \
+                        "i2i 加速说明 Note7016 必须独立且不参与计算连线"
+                    continue
                 assert n["type"] in I2I_NODE_TYPE_WHITELIST, \
                     f"i2i 未知节点类型 {n['type']!r}(TE-Speed 槽禁入本件,R26.4 再补)"
 

@@ -7,7 +7,7 @@
 
 本脚本=发放/取用任一型主体句前的强制预检:
   1) 单型检查: --base 三视图 --subject "……"  → 列出与该型底座的重复块
-  2) 全量审计: --audit → 用《道劫_九型主体句示例》九句对照各自底座出欠账表
+  2) 全量审计: --audit → 用《道劫_类型主体句示例》九句对照各自底座出欠账表
 
 判定:与底座出现 ≥10 字公共子串 = 重复块(方向一致=加权冗余;措辞分歧=潜在
 冲突源),发放前须去重或明示接受。已净型(如道具)应恒零重复。
@@ -27,7 +27,7 @@ from my_qi21_api_pe import _ENV_TOKENS, _pos_neg_clash  # noqa: E402
 # 1009 修:旧 K2 侧 my_nodes/nodes/daojie_bases.json 已随 1004 真源集中化并入
 # daojie_ink_guofeng 家(qi21_bases.json),旧路径 FileNotFoundError=预检门失效。
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-DOC = REPO / "docs/prompts/道劫_九型主体句示例.md"
+DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 MIN_BLOCK = 10
 # 1009 主体句规范(10-09-qi21-prompt-layer-conflict D11):场景型 8–14 个方位短语
 SCENE_POSITIONS = (8, 14)

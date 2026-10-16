@@ -117,19 +117,19 @@
         "inputNode": {
           "id": -10,
           "bounding": [
-            -160,
-            -100,
+            80,
+            760,
             160,
-            1900
+            300
           ]
         },
         "outputNode": {
           "id": -20,
           "bounding": [
-            2820,
-            880,
-            320,
-            260
+            9000,
+            1760,
+            160,
+            180
           ]
         },
         "inputs": [
@@ -143,8 +143,8 @@
               283
             ],
             "pos": [
-              -86,
-              404
+              80,
+              800
             ]
           },
           {
@@ -155,8 +155,8 @@
               248
             ],
             "pos": [
-              -86,
-              424
+              80,
+              820
             ]
           },
           {
@@ -167,8 +167,8 @@
               249
             ],
             "pos": [
-              -86,
-              444
+              80,
+              840
             ]
           },
           {
@@ -181,8 +181,8 @@
               4401
             ],
             "pos": [
-              -86,
-              464
+              80,
+              860
             ]
           },
           {
@@ -196,8 +196,8 @@
               4402
             ],
             "pos": [
-              -86,
-              484
+              80,
+              880
             ]
           },
           {
@@ -208,8 +208,8 @@
               252
             ],
             "pos": [
-              -86,
-              504
+              80,
+              900
             ]
           },
           {
@@ -220,8 +220,8 @@
               12
             ],
             "pos": [
-              -86,
-              524
+              80,
+              920
             ]
           },
           {
@@ -232,8 +232,8 @@
               260
             ],
             "pos": [
-              -86,
-              544
+              80,
+              940
             ]
           }
         ],
@@ -246,8 +246,8 @@
               253
             ],
             "pos": [
-              2900,
-              980
+              9000,
+              1825
             ]
           }
         ],
@@ -261,8 +261,8 @@
             "id": 7011,
             "type": "ViggleTurboLora",
             "pos": [
-              800,
-              700
+              1900,
+              4400
             ],
             "size": [
               270,
@@ -311,8 +311,8 @@
             "id": 7012,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              1740,
-              700
+              4100,
+              4200
             ],
             "size": [
               330,
@@ -369,7 +369,7 @@
                 "links": []
               }
             ],
-            "title": "[7012] viggle官方6σ·SamplerCustom",
+            "title": "[7012] viggle前段7步",
             "properties": {
               "Node name for S&R": "SamplerCustomAdvanced",
               "ue_properties": {
@@ -383,8 +383,8 @@
             "id": 7010,
             "type": "KSampler",
             "pos": [
-              400,
-              1900
+              5100,
+              6500
             ],
             "size": [
               330,
@@ -470,8 +470,8 @@
             "id": 7014,
             "type": "PrimitiveInt",
             "pos": [
-              80,
-              400
+              300,
+              3600
             ],
             "size": [
               270,
@@ -524,8 +524,8 @@
             "id": 7015,
             "type": "MyQi21SpeedSelect",
             "pos": [
-              2760,
-              1150
+              8500,
+              2200
             ],
             "size": [
               360,
@@ -596,8 +596,8 @@
             "id": 7017,
             "type": "RandomNoise",
             "pos": [
-              870,
-              430
+              850,
+              1300
             ],
             "size": [
               270,
@@ -628,7 +628,7 @@
                 ]
               }
             ],
-            "title": "[7017] viggle噪声·RandomNoise",
+            "title": "[7017] 共享噪声",
             "properties": {
               "Node name for S&R": "RandomNoise",
               "cnr_id": "comfy-core",
@@ -651,8 +651,8 @@
             "id": 7018,
             "type": "KSamplerSelect",
             "pos": [
-              380,
-              1500
+              650,
+              2400
             ],
             "size": [
               270,
@@ -695,8 +695,8 @@
             "id": 7019,
             "type": "BasicGuider",
             "pos": [
-              1270,
-              700
+              2500,
+              3800
             ],
             "size": [
               270,
@@ -744,8 +744,8 @@
             "id": 7020,
             "type": "ViggleTurboSigmas",
             "pos": [
-              830,
-              1000
+              1900,
+              5500
             ],
             "size": [
               331.505712890625,
@@ -781,7 +781,7 @@
                 ]
               }
             ],
-            "title": "[7020] 官方6σ·ViggleTurboSigmas(动态shift)",
+            "title": "[7020] viggle动态9步σ",
             "properties": {
               "Node name for S&R": "ViggleTurboSigmas",
               "ue_properties": {
@@ -801,8 +801,8 @@
             "id": 7021,
             "type": "SplitSigmas",
             "pos": [
-              1360,
-              1050
+              2500,
+              4500
             ],
             "size": [
               270.036962890625,
@@ -858,8 +858,8 @@
             "id": 7022,
             "type": "BasicGuider",
             "pos": [
-              1430,
-              1700
+              3600,
+              3300
             ],
             "size": [
               309.3453125,
@@ -907,8 +907,8 @@
             "id": 7023,
             "type": "DisableNoise",
             "pos": [
-              500,
-              1700
+              5000,
+              2800
             ],
             "size": [
               281.3111328125,
@@ -943,8 +943,8 @@
             "id": 7024,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              2190,
-              1050
+              5500,
+              4400
             ],
             "size": [
               336.77109375,
@@ -1016,8 +1016,8 @@
             "id": 7027,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              400,
-              1300
+              700,
+              900
             ],
             "size": [
               270,
@@ -1045,7 +1045,7 @@
                 ]
               }
             ],
-            "title": "[7027] Fix v2.0·Turbo+viggle×0.5",
+            "title": "[7027] 共享Fix×0.5",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -1067,8 +1067,8 @@
             "id": 7028,
             "type": "LoraLoaderModelOnly",
             "pos": [
-              1340,
-              140
+              1900,
+              1000
             ],
             "size": [
               270,
@@ -1117,8 +1117,8 @@
             "id": 7029,
             "type": "BasicGuider",
             "pos": [
-              1650,
-              140
+              2500,
+              1000
             ],
             "size": [
               270,
@@ -1168,8 +1168,8 @@
             "id": 7030,
             "type": "ManualSigmas",
             "pos": [
-              1650,
-              260
+              3100,
+              1750
             ],
             "size": [
               270,
@@ -1210,8 +1210,8 @@
             "id": 7031,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              1970,
-              140
+              3700,
+              1200
             ],
             "size": [
               330,
@@ -1280,67 +1280,78 @@
             },
             "widgets_values": [],
             "widgets_values_named": {}
+          },
+          {
+            "id": 7016,
+            "type": "Note",
+            "pos": [
+              300,
+              80
+            ],
+            "size": [
+              1400,
+              500
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "properties": {},
+            "title": "[7016] 加速档位说明",
+            "widgets_values": [
+              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步"
+            ],
+            "widgets_values_named": {
+              "text": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步"
+            }
           }
         ],
         "groups": [
           {
             "id": 11,
-            "title": "①Turbo 支路(官方8步 cfg1)",
+            "title": "共享输入",
             "bounding": [
-              1300,
-              80,
-              1060,
-              320
+              270.0,
+              25.0,
+              1460.0,
+              3753.0
             ],
             "color": "#a1309b",
             "flags": {}
           },
           {
             "id": 12,
-            "title": "②viggle 9步双段",
+            "title": "Turbo 8步",
             "bounding": [
-              370,
-              425,
-              2180,
-              1400
+              1870.0,
+              945.0,
+              2190.0,
+              953.0
             ],
             "color": "#3f78d3",
             "flags": {}
           },
           {
             "id": 13,
-            "title": "③原生出图(40步)",
+            "title": "viggle/原生",
             "bounding": [
-              40,
-              1850,
-              720,
-              650
+              1870.0,
+              2745.0,
+              3997.0,
+              4179.0
             ],
             "color": "#88A",
             "flags": {}
           },
           {
             "id": 14,
-            "title": "④seed 单源",
+            "title": "档位选择",
             "bounding": [
-              40,
-              350,
-              320,
-              230
+              8470.0,
+              2145.0,
+              420.0,
+              285.0
             ],
             "color": "#a1309b",
-            "flags": {}
-          },
-          {
-            "id": 15,
-            "title": "⑤档位选择",
-            "bounding": [
-              2710,
-              1090,
-              480,
-              290
-            ],
-            "color": "#3f78d3",
             "flags": {}
           }
         ],

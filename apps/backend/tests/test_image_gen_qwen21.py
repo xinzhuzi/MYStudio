@@ -56,14 +56,18 @@ class Qwen21TemplateContractTests(unittest.TestCase):
         classes = {node["class_type"] for node in self.template["graph"].values()}
         self.assertIn("MyQi21ApiPE", classes)
         self.assertIn("MyQi21DaojieBase", classes)
-        self.assertIn("ViggleTurboSigmas", classes)
-        self.assertIn("SplitSigmas", classes)
+        self.assertIn("ManualSigmas", classes)
+        self.assertIn("SamplerCustomAdvanced", classes)
+        self.assertNotIn("ViggleTurboLora", classes)
+        self.assertNotIn("ViggleTurboSigmas", classes)
         self.assertIn("SeedVR2VideoUpscaler", classes)
         fix = self.template["graph"]["7:7027"]["inputs"]
         self.assertEqual(fix["lora_name"], "qwen2.1-detail-fix-2.0.safetensors")
         self.assertEqual(fix["strength_model"], 0.5)
         speed = self.template["graph"]["7:7015"]["inputs"]["mode"]
-        self.assertIn("viggle", speed)
+        self.assertEqual(speed, "0 · Turbo 8步")
+        self.assertEqual(self.template['graph']['7:7028']['inputs']['model'], ['7:7027', 0])
+        self.assertIs(self.template['graph']['6:4013']['inputs']['AI扩写开关'], False)
 
     def test_seed_single_source(self) -> None:
         # seed 单源=PrimitiveInt(7:7014) 扇出 RandomNoise;绑定必须指它
@@ -76,8 +80,9 @@ class Qwen21TemplateContractTests(unittest.TestCase):
         # 幽灵文件名回归锁(int8_convrot/r128 从未安装,见 1005 记忆)
         self.assertEqual(self.template["graph"]["1"]["inputs"]["unet_name"], "qwen_image_2.1_bf16.safetensors")
         self.assertEqual(self.template["graph"]["2"]["inputs"]["clip_name"], "qwen3vl_8b_bf16_heretic.safetensors")
-        lora = self.template["graph"]["7:7011"]["inputs"]["lora_name"]
-        self.assertIn("r256", lora)
+        lora = self.template["graph"]["7:7028"]["inputs"]["lora_name"]
+        self.assertEqual(lora, "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors")
+        self.assertEqual(self.template['graph']['7:7028']['inputs']['strength_model'], 1.0)
 
     def test_small_pieces_ready_when_template_loadable(self) -> None:
         status = qwen21.small_pieces_status()

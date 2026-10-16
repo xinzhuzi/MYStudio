@@ -24,7 +24,7 @@ from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-DOC = REPO / "docs/prompts/道劫_九型主体句示例.md"
+DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 # 1016turbo 官方臂常量(FunAcc 臂退役;LoRA 家=<引擎家>/models/loras,mystudio 映射)
 TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
 TURBO_SIGMAS = ("1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, "

@@ -39,7 +39,8 @@ import {
 import {
   filterPersistedImageWorkflows,
   migrateStudioWorkflowState,
- 
+  reapInterruptedTaskLedgers,
+  STUDIO_RENDERER_BOOT_TIME,
   STUDIO_WORKFLOW_PERSIST_VERSION,
   STUDIO_WORKFLOW_STORAGE_KEY,
 } from "./studio-store-persistence";
@@ -718,9 +719,28 @@ export const useStudioStore = create<StudioWorkflowStore>()(
           : {};
         // 存量钳制：单集参考时长上限 3 分钟，老版本写过的超限值（如 8）水合即归一
         const persistedConfig = persisted.workflowConfig;
+        // 水合收割(1016 控制球僵尸徽章修复):上一会话退出时卡在
+        // queued/running 的台账没有在途 runner 会再落终态,水合即改判
+        // failed(应用重启，任务中断),否则徽章计数永久挂死
+        const reapedLedgers = reapInterruptedTaskLedgers({
+          agentRuns: persisted.agentRuns,
+          mediaTasks: persisted.mediaTasks,
+          bootTime: STUDIO_RENDERER_BOOT_TIME,
+        });
+        if (reapedLedgers.reapedCount > 0) {
+          console.warn(
+            `[studio-workflow] 水合收割 ${reapedLedgers.reapedCount} 条上一会话中断的任务(queued/running → failed)`,
+          );
+        }
         return {
           ...currentState,
           ...persisted,
+          ...(reapedLedgers.agentRuns !== undefined
+            ? { agentRuns: reapedLedgers.agentRuns }
+            : {}),
+          ...(reapedLedgers.mediaTasks !== undefined
+            ? { mediaTasks: reapedLedgers.mediaTasks }
+            : {}),
           ...(persistedConfig
             ? {
                 workflowConfig: {

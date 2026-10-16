@@ -1,6 +1,10 @@
 # MiniMax H3 reference: weights, quants, acceleration, tooling
 
-Everything verified against the source repositories on **2026-08-06**. Sizes are read from the HuggingFace repo
+Everything verified against the source repositories on **2026-08-06**.
+**2026-10-15 addendum**: the fixed line now runs the lightx2v **v1.2** FL2V turbo LoRA (full-rank),
+swapped from the v1.1 rank-28 community resize — see the production-stack section below. The larryvrh
+and lightx2v-v0.1 paragraphs below are kept as historical context; version currency lives in the
+`docs/comfyui-kb/LoRA库存台账.md` ledger (rows #22 retired / #29 current). Sizes are read from the HuggingFace repo
 trees, node facts from the node code, not from summaries.
 
 ## What ships, and what does not
@@ -66,6 +70,35 @@ LoRA below key-matches a GGUF UNet at all, since it was converted for the pruned
 both "fits in VRAM" and "runs in 4 steps" may not be satisfiable on the same stack today. Other community authors publishing H3 quants: Merserk, DeepBeepMeep, Gluttony10,
 lilcheaty, tsolful, ethanfel. kijai publishes no H3 *weights* (checked all 73 of his HF repos), so credit for the
 official conversions belongs to Comfy-Org, but he **does** ship an H3 node inside KJNodes, see below.
+
+## In production now (2026-10-15): the fixed-line stack
+
+The production fixed line (`2_固定线/社区-480P生成-SolAttn加速-480P直出.json` and its 960P sibling) runs
+**four acceleration layers together**, all active (mode=0), sampler `simple`/euler at **8 steps** on the
+4-step-distilled LoRA (over-spec on purpose — quality choice; ModelTC's own spec recommends 4):
+
+1. `SolAttnPatch` (Sol-Attn, MPS build `ComfyUI-SolAttn-MPS`) — sparse-attention kernel;
+2. `MiniMaxH3BlockCacheT8` (T8 pack) — block caching across steps;
+3. `ModelPreviewOverrideKJ` + `vae_approx/taeh3.safetensors` — TAEH3 fast preview decode;
+4. turbo LoRA **`minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors`** (lightx2v, 1,956,193,000 B,
+   md5 4b60019912eca2ffc6f95441c582c3f7, strength 1.0) on the pruned bf16 base.
+
+**2026-10-15 swap record**: replaced `...v1.1_768p_comfyui_resized_avg_rank_28_bf16` (394 MB community
+rank-compressed derivative) across 6 files / 11 references (2 固定线, 3 社区模板 incl. TTS, and the
+frontend assembler template `h3-shot-template.json`). Old file + its HF cache metadata moved to
+`<engine-home>/模型备份.已升级-h3-2026-10-14/` (outside `models/` — ComfyUI's `folder_paths.py` os.walk
+would re-list backups inside the tree), manifest `h3_upgrade_1014.manifest.jsonl` (9 lines, md5s).
+Upgrade script: `apps/build/scripts/h3_upgrade_1014.py` (idempotent, resumable).
+
+**First live-fire (interrupted, half-receipt)**: v1.2 loaded cleanly (38.4 GB full load, zero validation /
+node errors), stack ran with Sol-Attn chaining + BlockCache logging, sampling at ~49.5 s/it at 480p when
+globally interrupted to yield the machine to parallel sessions. Full-clip receipt pending a quiet window.
+
+**Known latent issue (not introduced by the swap)**: the self-managed `extra_model_paths.yaml` has **no
+`vae_approx` mapping**, so `taeh3.safetensors` is invisible to `ModelPreviewOverrideKJ.tiny_vae` (options
+resolve to `['none']` only) — the fixed line fails validation as saved; canvas runs hit the same wall.
+Preview-only impact (output goes through the real VAEDecode). Proper fix belongs in the app-side yaml
+generator (one line, needs repack); bypass for API firing: set `tiny_vae="none"`.
 
 ## Turbo LoRA: four steps instead of twenty
 

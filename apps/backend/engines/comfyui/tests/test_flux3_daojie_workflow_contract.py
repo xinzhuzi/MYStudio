@@ -49,6 +49,7 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
         if name in drift:
             assert Path(name).name=='qi21-道劫-t2i.json'
             assert drift[name]['original_sha256']==digest
-            assert drift[name]['observed_sha256']==current
             assert drift[name]['role']=='reference_only_not_execution_input'
+            first=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
+            assert w.expand_gui(json.loads((w.TASK/'artifacts/gui-template.json').read_text()))==w.api_graph(first)
         else:assert current==digest,name

@@ -19,7 +19,7 @@ from PIL import Image
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 FIRE = REPO / "apps/build/scripts/qi21_i2i_workflow_fire.py"
-DOC = REPO / "docs/prompts/道劫_九型主体句示例.md"
+DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 OUT = REPO / "apps/output/i2i-fire-1013/sweep9"
 TYPES = ["人物", "场景", "道具", "美宣", "多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 # 引擎 COMBO 真名(多视图=「人物多视图」;1014 首扫实弹 400 教学)
