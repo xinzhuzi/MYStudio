@@ -18,6 +18,7 @@ from engines.comfyui.engine_manager import EngineOpError
 
 @pytest.fixture()
 def home(tmp_path, monkeypatch):
+    monkeypatch.delenv("MYSTUDIO_COMFYUI_BRIDGE_URL", raising=False)
     monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path / "comfyui"))
     cm._read_cache.clear()
     write = {"engine": {"version": "v0.34.6", "port": 17001}}
@@ -75,3 +76,30 @@ def test_upload_engine_unreachable_raises_plain_language(home):
     with patch("urllib.request.urlopen", side_effect=OSError("refused")):
         with pytest.raises(EngineOpError, match="引擎不可达"):
             uploads.upload_reference(base64.b64encode(b"x").decode(), "a.png")
+
+
+def test_upload_env_override_targets_remote_engine(tmp_path, monkeypatch):
+    # 云端引擎模式:MYSTUDIO_COMFYUI_BRIDGE_URL 覆写时不再要求本地引擎启动记录,
+    # 请求直发覆写地址(如 SSH 隧道口),尾斜杠被剥掉。
+    monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path / "comfyui"))
+    monkeypatch.setenv("MYSTUDIO_COMFYUI_BRIDGE_URL", "http://127.0.0.1:8188/")
+    cm._read_cache.clear()
+    captured = {}
+
+    def fake_urlopen(request, timeout=0):
+        captured["url"] = request.full_url
+        return _FakeResponse({"name": "a.png", "subfolder": "", "type": "input"})
+
+    with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        result = uploads.upload_reference(base64.b64encode(b"x").decode(), "a.png")
+
+    assert captured["url"] == "http://127.0.0.1:8188/upload/image?overwrite=true"
+    assert result["name"] == "a.png"
+
+
+def test_upload_without_port_and_override_still_guarded(tmp_path, monkeypatch):
+    monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path / "comfyui"))
+    monkeypatch.delenv("MYSTUDIO_COMFYUI_BRIDGE_URL", raising=False)
+    cm._read_cache.clear()
+    with pytest.raises(EngineOpError, match="引擎还没启动过"):
+        uploads.upload_reference(base64.b64encode(b"x").decode(), "a.png")

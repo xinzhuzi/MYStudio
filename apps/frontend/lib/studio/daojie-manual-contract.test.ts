@@ -103,12 +103,12 @@ describe("道劫手册契约", () => {
     expect(prefix).toMatch(/负面提示词|Negative Prompt 段/);
   });
 
-  itFile("四视图画幅为运行时支持的 21:9,四宫格为 1:1", () => {
+  itFile("四视图与四宫格画幅均为1:1，布局由类型层决定", () => {
     const character = readManual("art_prompt/art_character.md");
     const characterDerivative = readManual("art_prompt/art_character_derivative.md");
     const prop = readManual("art_prompt/art_prop.md");
-    expect(character).toContain("21:9");
-    expect(characterDerivative).toContain("21:9");
+    expect(character).toContain("1:1");
+    expect(characterDerivative).toContain("1:1");
     expect(character).not.toMatch(/[43]:1/);
     expect(characterDerivative).not.toMatch(/[43]:1/);
     expect(prop).toContain("1:1");
@@ -119,9 +119,9 @@ describe("道劫手册契约", () => {
     await warmExtendedManualStyleTokens(readManual("art_prompt/art_storyboard_video.md"));
     expect(EXTENDED_STORYBOARD_STYLE_TOKENS.length).toBeGreaterThanOrEqual(3);
     expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("ink wash");
-    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("smooth pale matte flat-wash ground");
+    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("ground and lighting consistent with the source scene and time");
     expect(getExtendedStoryboardStyleGuide()).toContain("工笔线描");
-    expect(getExtendedStoryboardStyleGuide()).toContain("浅净平涂底");
+    expect(getExtendedStoryboardStyleGuide()).toContain("底色、明暗、光源与时段服从场景事实");
   });
 
   itFile("风格锁:道劫先 sanitize 再追加 token,幂等;非道劫原样返回", async () => {
@@ -134,7 +134,7 @@ describe("道劫手册契约", () => {
     expect(locked).not.toContain("电影质感");
     expect(locked).not.toContain("宣纸质感");
     expect(locked).not.toContain("rice paper texture");
-    expect(locked).toContain("浅净平涂底");
+    expect(locked).toContain("底色与光照服从场景时段");
     expect(locked).toContain(EXTENDED_STORYBOARD_STYLE_TOKENS[0]);
     // 幂等:重复施加不重复追加
     expect(withVisualManualStoryboardStyleTokens(locked, "daojie_ink_guofeng")).toBe(locked);

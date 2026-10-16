@@ -1,6 +1,6 @@
 # Qwen-Image-2.1 Vocabulary & Parameter Cheat Sheet
 
-This cheat sheet provides quick vocabulary lookups for composing precise prompts matching Qwen-Image-2.1's semantic latent space.
+This cheat sheet is optional vocabulary for the official PE recipe, not mandatory prompt content or a model input contract. Daojie custom prompts use Chinese, source facts, the current layered rendering contract, and task-appropriate detail. Do not inject photographic, 3D, paper-texture, or lighting terms into Daojie by default.
 
 ---
 

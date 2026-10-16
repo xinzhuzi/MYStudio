@@ -15,9 +15,7 @@ def test_shape_single_output_with_combo():
     node = bt.MyQi21BasesText()
     assert node.RETURN_TYPES == ("STRING",) and node.RETURN_NAMES == ("文本",)
     req = node.INPUT_TYPES()["required"]["文本节"]
-    # 1008晚三件拆分:下拉三节→六节(+风格工艺件/底色背景件/透明承载件)
-    assert set(req[0]) == {"系统提示词", "色卡", "美术风格底座",
-                           "风格工艺件", "底色背景件", "透明承载件"}
+    assert tuple(req[0]) == ("系统提示词", "色卡", "美术风格底座")
 
 
 def test_three_sections_hotread():
@@ -41,7 +39,7 @@ def test_three_sections_hotread():
     base_line = next(l for l in 色卡.splitlines() if l.strip().startswith("base:"))
     assert base_line.strip().startswith("base: 大面积浅淡稳定衬底色面"), base_line
     assert "不落" not in base_line and "不留" not in base_line and "满幅" not in base_line
-    assert len(风格) > 300, "风格底座应=美术风格底座全文量级"
+    assert "线条细稳连贯" in 风格 and "成像工艺干净" in 风格, "美术语言与成像工艺应随真源热读"
 
 
 def test_unknown_section_falls_back_and_registered():

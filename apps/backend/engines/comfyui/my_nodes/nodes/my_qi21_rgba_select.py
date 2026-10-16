@@ -40,7 +40,7 @@ from typing import Any
 
 # 三态表:combo 顺序即画布下拉顺序,首项=默认=自动(1001 用户测试批 ① 改文案:
 # 自动/true/false;「自动」=D6 原「跟随型」语义零漂移,零分隔符零前导号——
-# 与 SPEED_MODES 的「0 · Fun-Acc 4步」不同,本件三态是语义档非编号档)。
+# 与 SPEED_MODES 的「0 · Turbo 8步」不同,本件三态是语义档非编号档)。
 RGBA_MODES: tuple[str, ...] = ("自动", "true", "false")
 
 MODES: list[str] = list(RGBA_MODES)

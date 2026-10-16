@@ -1,5 +1,11 @@
 # ma-gongbi-v1 锁快照(同步守护)
 
+> **2026-10-16 本地修订**：共同画法不再锁平光浅底，衣物与身体状态服从事实。`runtime-contract.json#localRevision` 和 `lock-anchors.json#localRevision` 记录本次差异；MA 来源 SHA、maAnchors 是继承基线，不表示本次与外部 MA 逐字一致。外部 MA 未改。
+
+> **同日底座职责纠正**：风格底座只保留传统绘画转译、美术语言与通用成像工艺；主体状态、背景、景别、构图、时段和照明移出底座。保留成像工艺句；风格节点仅两框展示，背景件、透明件和协议框退役。背景、照明与来源状态规则进入类型句，透明承载在 rgba 模块。机读现值见 `../json/qi21_bases.json#art_style_base`，历史 MA 来源与锚不改。
+
+> **1016 底座墨彩翻转**：正向句「铁线描细稳连贯，线宽与轻重提按富有节奏」→「线条细稳连贯、粗细随结构与轻重富有节奏」、「墨色浓淡」→「色彩浓淡」、「传统色体系」后补「多色相并陈」(用户令:底座要多彩,不要水墨拉力;1009 去彩裁定线层无彩,故用中性「线条」而非「彩线描」)。机读现值见 `../json/qi21_bases.json#art_style_base`。
+
 本目录是 MYStudio 道劫手册与 MA `ma-imagegen` 的同步锚点:
 
 - `lock-anchors.json` — 机器可读锚点对(manualAnchor↔maAnchor),契约测试 `lib/studio/daojie-manual-contract.test.ts` 据此校验:①手册硬锁节包含全部 manualAnchor(防手改漂移);②本机 MA 存在时,权威文件包含全部 maAnchor(防快照过期),MA 不存在自动跳过(CI 安全)。

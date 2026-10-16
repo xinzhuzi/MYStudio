@@ -1,13 +1,13 @@
 # Text-to-Image prompts
 
-Qwen-Image-2.1 accepts two prompt styles. Pick by scene complexity, not by taste.
+Qwen-Image-2.1 accepts compact and detailed prompts. Pick the detail level by scene complexity. Daojie custom prompts default to Chinese, preserve source facts, and have no minimum word count. The English format below applies only when reproducing the official PE-T2I recipe.
 
 ## When to use which style
 
 | Style | Shape | Use for |
 |---|---|---|
 | **Compact** | 1–3 fluent sentences | A single clear subject: a portrait, an object, a scene. Community testing on the same family measured *better* composition from 31 words than from 82 — extra clauses dilute priority. |
-| **Long observational** | One English paragraph, ~20 sentences / 300–500 words | Posters, layouts, UI mockups, infographics, storyboards, any scene with many elements or precise placement. This is the official PE-T2I style the Qwen team ships as its prompt rewriter. |
+| **Long observational** | One English paragraph, ~20 sentences / 400–500 words (official PE-T2I recipe only) | Posters, layouts, UI mockups, infographics, storyboards, any scene with many elements or precise placement. This is the official PE-T2I style the Qwen team ships as its prompt rewriter. |
 
 ## Compact style
 
@@ -50,4 +50,4 @@ Build it in eight steps:
 
 ## Integration with the official rewriter
 
-If the runtime includes the official prompt rewriter (`Qwen-Image-2.1-PE-T2I`), feed it the user's short request and use its output: a JSON `{"rewritten_prompt": …, "wh_ratio": …}`. The skill's long-form rules above mirror that rewriter, so a hand-written prompt following them is equivalent.
+If the runtime includes the official prompt rewriter (`Qwen-Image-2.1-PE-T2I`), feed it the user's short request and use its output: a JSON `{"rewritten_prompt": …, "wh_ratio": …}`. The long-form rules above describe that rewriter's recipe; following them manually does not establish equivalent model output. Daojie custom Chinese prompts use the project layering contract instead.

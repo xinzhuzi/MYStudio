@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import urllib.request
 import uuid
 
@@ -19,9 +20,16 @@ from . import manifest as cm
 from .engine_manager import EngineOpError
 
 
+def _engine_url() -> str:
+    # 引擎地址发现单源:comfyui_bridge.bridge_url(env 覆写 → manifest 端口 → 17598)
+    from engines.image_engine.comfyui_bridge import bridge_url
+
+    return bridge_url().rstrip("/")
+
+
 def upload_reference(image_b64: str, name: str, timeout: float = 30.0) -> dict:
     port = cm.recorded_port()
-    if not port:
+    if not port and not os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_URL"):
         raise EngineOpError("引擎还没启动过,先启动引擎再传参考图")
     try:
         raw = base64.b64decode(image_b64, validate=False)
@@ -39,7 +47,7 @@ def upload_reference(image_b64: str, name: str, timeout: float = 30.0) -> dict:
         f"--{boundary}--\r\n".encode(),
     ))
     request = urllib.request.Request(
-        f"http://127.0.0.1:{port}/upload/image?overwrite=true",
+        f"{_engine_url()}/upload/image?overwrite=true",
         data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
         method="POST",

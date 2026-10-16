@@ -12,7 +12,7 @@
       ],
       "size": [
         560,
-        480
+        520
       ],
       "flags": {},
       "order": 0,
@@ -83,6 +83,14 @@
           "name": "透明锚",
           "type": "IMAGE",
           "link": null
+        },
+        {
+          "name": "组装用途",
+          "type": "COMBO",
+          "widget": {
+            "name": "组装用途"
+          },
+          "link": null
         }
       ],
       "outputs": [
@@ -113,12 +121,20 @@
         }
       ],
       "widgets_values": [
-        "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
+        "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
         "人物",
         true,
-        "自动"
+        "自动",
+        "局部编辑"
       ],
-      "title": "[6] 文本提示词类型优化子图"
+      "title": "[6] 文本提示词类型优化子图",
+      "widgets_values_named": {
+        "指令": "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+        "型选择": "人物",
+        "PE启用?": true,
+        "RGBA透明": "自动",
+        "组装用途": "局部编辑"
+      }
     }
   ],
   "links": [],
@@ -131,7 +147,7 @@
         "state": {
           "lastGroupId": 4,
           "lastNodeId": 4012,
-          "lastLinkId": 218,
+          "lastLinkId": 212,
           "lastRerouteId": 2
         },
         "revision": 1,
@@ -159,38 +175,10 @@
         },
         "inputs": [
           {
-            "id": "c4d5e6f7-0001-4a01-9e01-d47c9e21a001",
-            "name": "clip",
-            "type": "CLIP",
-            "linkIds": [
-              1,
-              28
-            ],
-            "pos": [
-              6100,
-              580
-            ]
-          },
-          {
-            "id": "c4d5e6f7-0002-4a02-9e02-d47c9e21a002",
-            "name": "vae",
-            "type": "VAE",
-            "linkIds": [
-              3,
-              29
-            ],
-            "pos": [
-              6100,
-              600
-            ]
-          },
-          {
             "id": "c4d5e6f7-0003-4a03-9e03-d47c9e21a003",
             "name": "image_1",
             "type": "IMAGE",
             "linkIds": [
-              5,
-              30,
               46
             ],
             "pos": [
@@ -203,7 +191,6 @@
             "name": "image_2",
             "type": "IMAGE",
             "linkIds": [
-              6,
               47
             ],
             "pos": [
@@ -216,8 +203,7 @@
             "name": "image_3",
             "type": "IMAGE",
             "linkIds": [
-              211,
-              214
+              211
             ],
             "pos": [
               1090,
@@ -274,67 +260,19 @@
             ]
           },
           {
-            "id": "c4d5e6f7-0012-4a12-9e12-d47c9e21a012",
-            "name": "透明锚",
-            "type": "IMAGE",
+            "id": "ceb4cf4f-bb76-4a25-9aaf-008b0d2a2cd7",
+            "name": "组装用途",
+            "type": "COMBO",
             "linkIds": [
-              218
+              212
             ],
             "pos": [
-              1110,
-              150
+              2560,
+              2640
             ]
           }
         ],
         "outputs": [
-          {
-            "id": "e8f1a2b3-0001-4b01-8f01-d47c9e21b01",
-            "name": "positive",
-            "type": "CONDITIONING",
-            "linkIds": [
-              23
-            ],
-            "pos": [
-              7000,
-              580
-            ]
-          },
-          {
-            "id": "e8f1a2b3-0002-4b02-8f02-d47c9e21b02",
-            "name": "negative",
-            "type": "CONDITIONING",
-            "linkIds": [
-              24
-            ],
-            "pos": [
-              7000,
-              600
-            ]
-          },
-          {
-            "id": "e8f1a2b3-0004-4b04-8f04-d47c9e21b04",
-            "name": "latent",
-            "type": "LATENT",
-            "linkIds": [
-              26
-            ],
-            "pos": [
-              7000,
-              640
-            ]
-          },
-          {
-            "id": "e8f1a2b3-0005-4b05-8f05-d47c9e21b05",
-            "name": "positive_single",
-            "type": "CONDITIONING",
-            "linkIds": [
-              40
-            ],
-            "pos": [
-              7000,
-              1380
-            ]
-          },
           {
             "id": "e8f1a2b3-0003-4b03-8f03-d47c9e21b03",
             "name": "prompt",
@@ -349,10 +287,11 @@
           }
         ],
         "widgets": [
-          "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
+          "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
           "人物",
           true,
-          "自动"
+          "自动",
+          "局部编辑"
         ],
         "nodes": [
           {
@@ -430,92 +369,6 @@
             ]
           },
           {
-            "id": 4015,
-            "type": "TextEncodeQwenImage21",
-            "pos": [
-              6200,
-              640
-            ],
-            "size": [
-              420,
-              320
-            ],
-            "flags": {},
-            "order": 11,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "clip",
-                "type": "CLIP",
-                "link": 1
-              },
-              {
-                "name": "images.image_1",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 5
-              },
-              {
-                "name": "vae",
-                "type": "VAE",
-                "shape": 7,
-                "link": 3
-              },
-              {
-                "name": "images.image_2",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 6
-              },
-              {
-                "name": "images.image_3",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 214
-              },
-              {
-                "name": "prompt",
-                "type": "STRING",
-                "widget": {
-                  "name": "prompt"
-                },
-                "link": 20
-              }
-            ],
-            "outputs": [
-              {
-                "name": "positive",
-                "type": "CONDITIONING",
-                "links": [
-                  23
-                ]
-              },
-              {
-                "name": "negative",
-                "type": "CONDITIONING",
-                "links": [
-                  24
-                ]
-              },
-              {
-                "name": "latent",
-                "type": "LATENT",
-                "links": [
-                  26
-                ]
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "TextEncodeQwenImage21"
-            },
-            "widgets_values": [
-              "",
-              "",
-              0
-            ],
-            "title": "[4015] 主编码·TextEncode"
-          },
-          {
             "id": 180,
             "type": "MyQi21RgbaSelect",
             "title": "[180] RGBA透明选择·自研",
@@ -561,82 +414,6 @@
             "widgets_values": [
               "自动"
             ]
-          },
-          {
-            "id": 171,
-            "type": "TextEncodeQwenImage21",
-            "pos": [
-              6200,
-              1340
-            ],
-            "size": [
-              420,
-              320
-            ],
-            "flags": {},
-            "order": 12,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "clip",
-                "type": "CLIP",
-                "link": 28
-              },
-              {
-                "name": "images.image_1",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 30
-              },
-              {
-                "name": "vae",
-                "type": "VAE",
-                "shape": 7,
-                "link": 29
-              },
-              {
-                "name": "images.image_2",
-                "type": "IMAGE",
-                "shape": 7,
-                "link": 218
-              },
-              {
-                "name": "prompt",
-                "type": "STRING",
-                "widget": {
-                  "name": "prompt"
-                },
-                "link": 35
-              }
-            ],
-            "outputs": [
-              {
-                "name": "positive",
-                "type": "CONDITIONING",
-                "links": [
-                  40
-                ]
-              },
-              {
-                "name": "negative",
-                "type": "CONDITIONING",
-                "links": []
-              },
-              {
-                "name": "latent",
-                "type": "LATENT",
-                "links": []
-              }
-            ],
-            "properties": {
-              "Node name for S&R": "TextEncodeQwenImage21"
-            },
-            "widgets_values": [
-              "",
-              "",
-              0
-            ],
-            "title": "[171] 单图编码·TextEncode"
           },
           {
             "id": 23,
@@ -1250,6 +1027,14 @@
                   "name": "锁层A全文"
                 },
                 "link": null
+              },
+              {
+                "name": "组装用途",
+                "type": "COMBO",
+                "widget": {
+                  "name": "组装用途"
+                },
+                "link": 212
               }
             ],
             "outputs": [
@@ -1262,11 +1047,23 @@
               }
             ],
             "widgets_values": [
-              "Put the light blue denim shirt from <image2> on the character in <image1>, keep everything else unchanged",
-              "美术风格底座：现代修仙游戏的数字绘画资产（modern Chinese illustration）——中国传统绘画审美 DNA（工笔、白描、连环画、传统色、构图与留白）经现代游戏美术设计重组，线条、色彩、留白与构图可见中国传统绘画来源。媒介：现代数字绘画完成度的 2D 传统绘画语言——连续线描/丝线描（iron-wire outlines）勾勒主体，薄透矿物色分染/罩染施于主体与关键部位，柔和均匀平光照明，干净空灵，清晰视觉焦点。工笔线条质量：连续线描；曲线自然顺滑，直线笔直稳定；线宽连续且有节奏，转折、衔接与起收笔干净；细稳基调上转折处轻重提按，线条带手绘笔性。线描优先工笔结构：主体轮廓、结构衔接与细节处以连续的工笔线描保持清晰可读。主体与关键部位用白描/线描加薄透矿物罩染、单次轻分染建模；画面中主体与物件的衔接结构清晰合理，挂点、握位与接触面的几何明确可辨，物件与身体的位置关系准确，衔接处结构封闭完整。主体线描锐利自然；主体及关键部位的颜料层纯净均匀，罩染通透细腻。默认表面须保持干净精致：只用纯净罩染。\n底色：浅净哑光平涂底的完成度，背景与留白以整块大色面铺陈（各色面成整块，边界稳定，色相分明不互混），保证可读性；冷暖有别。画面保持干净平滑：色彩落在平涂色场上，大面积色面均匀连续。保持浅净平涂底面在层间呼吸。线条与主体固有的深色如实保持深色，与浅净底相接处边界干净。视觉焦点区域线描清晰锐利。"
+              "",
+              "",
+              "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+              "",
+              "美术风格底座：中国传统人物画审美经现代游戏美术设计重组的二维数字绘画。融合工笔、白描与连环画的绘画语言；线条细稳连贯、粗细随结构与轻重富有节奏，保留手绘笔性；薄透矿物色分染与罩染，色彩浓淡、虚实边缘与笔触节奏相融；采用中国传统色体系，以丰富多彩的设色为主，多色相并陈且协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明，材质表现统一于绘画语言。成像工艺干净，线条与罩染层次清晰。",
+              "局部编辑"
             ],
             "properties": {
               "Node name for S&R": "MyQi21PromptAssembly"
+            },
+            "widgets_values_named": {
+              "BASE": "",
+              "BASE负面": "",
+              "主体句": "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+              "主体句负面": "",
+              "锁层A全文": "美术风格底座：中国传统人物画审美经现代游戏美术设计重组的二维数字绘画。融合工笔、白描与连环画的绘画语言；线条细稳连贯、粗细随结构与轻重富有节奏，保留手绘笔性；薄透矿物色分染与罩染，色彩浓淡、虚实边缘与笔触节奏相融；采用中国传统色体系，以丰富多彩的设色为主，多色相并陈且协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明，材质表现统一于绘画语言。成像工艺干净，线条与罩染层次清晰。",
+              "组装用途": "局部编辑"
             }
           },
           {
@@ -1360,9 +1157,7 @@
                 "type": "STRING",
                 "slot_index": 0,
                 "links": [
-                  20,
-                  25,
-                  35
+                  25
                 ]
               },
               {
@@ -1514,69 +1309,13 @@
             ],
             "color": "#a1309b",
             "flags": {}
-          },
-          {
-            "id": 3,
-            "title": "双图编码线(带3上):[142]主编码/[143]透明编码(image_1+image_2)→[144]RGBA开关→positive",
-            "bounding": [
-              5350,
-              1480,
-              2480,
-              430
-            ],
-            "color": "#886",
-            "flags": {}
-          },
-          {
-            "id": 4,
-            "title": "单图编码线(带3下·黑图修复正源铁则):[171]/[172](仅image_1)→[173]→positive_single",
-            "bounding": [
-              5350,
-              2130,
-              2480,
-              430
-            ],
-            "color": "#3f789e",
-            "flags": {}
           }
         ],
         "links": [
           {
-            "id": 1,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 4015,
-            "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 3,
-            "origin_id": -10,
-            "origin_slot": 1,
-            "target_id": 4015,
-            "target_slot": 2,
-            "type": "VAE"
-          },
-          {
-            "id": 5,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 4015,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
-            "id": 6,
-            "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 4015,
-            "target_slot": 3,
-            "type": "IMAGE"
-          },
-          {
             "id": 10,
             "origin_id": -10,
-            "origin_slot": 6,
+            "origin_slot": 4,
             "target_id": 4010,
             "target_slot": 0,
             "type": "COMBO"
@@ -1584,95 +1323,23 @@
           {
             "id": 11,
             "origin_id": -10,
-            "origin_slot": 8,
+            "origin_slot": 6,
             "target_id": 180,
             "target_slot": 0,
             "type": "COMBO"
-          },
-          {
-            "id": 20,
-            "origin_id": 153,
-            "origin_slot": 0,
-            "target_id": 4015,
-            "target_slot": 5,
-            "type": "STRING"
-          },
-          {
-            "id": 23,
-            "origin_id": 4015,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 0,
-            "type": "CONDITIONING"
-          },
-          {
-            "id": 24,
-            "origin_id": 4015,
-            "origin_slot": 1,
-            "target_id": -20,
-            "target_slot": 1,
-            "type": "CONDITIONING"
           },
           {
             "id": 25,
             "origin_id": 153,
             "origin_slot": 0,
             "target_id": -20,
-            "target_slot": 4,
-            "type": "STRING"
-          },
-          {
-            "id": 26,
-            "origin_id": 4015,
-            "origin_slot": 2,
-            "target_id": -20,
-            "target_slot": 2,
-            "type": "LATENT"
-          },
-          {
-            "id": 28,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 171,
             "target_slot": 0,
-            "type": "CLIP"
-          },
-          {
-            "id": 29,
-            "origin_id": -10,
-            "origin_slot": 1,
-            "target_id": 171,
-            "target_slot": 2,
-            "type": "VAE"
-          },
-          {
-            "id": 30,
-            "origin_id": -10,
-            "origin_slot": 2,
-            "target_id": 171,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
-            "id": 35,
-            "origin_id": 153,
-            "origin_slot": 0,
-            "target_id": 171,
-            "target_slot": 4,
             "type": "STRING"
-          },
-          {
-            "id": 40,
-            "origin_id": 171,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 3,
-            "type": "CONDITIONING"
           },
           {
             "id": 42,
             "origin_id": -10,
-            "origin_slot": 5,
+            "origin_slot": 3,
             "target_id": 24,
             "target_slot": 1,
             "type": "STRING"
@@ -1688,7 +1355,7 @@
           {
             "id": 46,
             "origin_id": -10,
-            "origin_slot": 2,
+            "origin_slot": 0,
             "target_id": 25,
             "target_slot": 0,
             "type": "IMAGE"
@@ -1696,7 +1363,7 @@
           {
             "id": 47,
             "origin_id": -10,
-            "origin_slot": 3,
+            "origin_slot": 1,
             "target_id": 25,
             "target_slot": 1,
             "type": "IMAGE"
@@ -1768,7 +1435,7 @@
           {
             "id": 62,
             "origin_id": -10,
-            "origin_slot": 5,
+            "origin_slot": 3,
             "target_id": 4014,
             "target_slot": 0,
             "type": "STRING"
@@ -1808,7 +1475,7 @@
           {
             "id": 200,
             "origin_id": -10,
-            "origin_slot": 7,
+            "origin_slot": 5,
             "target_id": 4012,
             "target_slot": 0,
             "type": "BOOLEAN"
@@ -1816,26 +1483,18 @@
           {
             "id": 211,
             "origin_id": -10,
-            "origin_slot": 4,
+            "origin_slot": 2,
             "target_id": 25,
             "target_slot": 2,
             "type": "IMAGE"
           },
           {
-            "id": 214,
+            "id": 212,
             "origin_id": -10,
-            "origin_slot": 4,
-            "target_id": 4015,
-            "target_slot": 4,
-            "type": "IMAGE"
-          },
-          {
-            "id": 218,
-            "origin_id": -10,
-            "origin_slot": 9,
-            "target_id": 171,
+            "origin_slot": 7,
+            "target_id": 4011,
             "target_slot": 3,
-            "type": "IMAGE"
+            "type": "COMBO"
           }
         ],
         "extra": {

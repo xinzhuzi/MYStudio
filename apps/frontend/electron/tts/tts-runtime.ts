@@ -57,7 +57,7 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
     typeof process.resourcesPath === "string" ? path.join(process.resourcesPath, "backend") : "",
   ]);
 
-  const pathsApi = createTtsRuntimePaths(deps, { readTextFile, writeTextFile, ensureDir, fileExists });
+  const pathsApi = createTtsRuntimePaths(deps, { readTextFile, writeTextFile, ensureDir, fileExists, removeFile });
   const {
     runtimeDataDir,
     runtimePythonDir,
@@ -653,6 +653,9 @@ export function createTtsRuntimeController(deps: TtsRuntimeControllerDeps): TtsR
         }
       }
 
+      // 1016 配置拆位:整目录 rename 后 config 落 runtime 形旧位 → 先抬升 App 家
+      // (必须在 readConfig 前,否则读空 config 丢 controlToken 等既有字段)。
+      pathsApi.liftLegacyProjectConfig();
       const config = readConfig();
       const legacyModelPaths = [layout.legacyModelsDir, layout.legacyDefaultModelsDir, layout.legacyCacheModelsDir];
       const configuredModelCacheDir = config.modelCacheDir;

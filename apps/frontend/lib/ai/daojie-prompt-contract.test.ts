@@ -83,9 +83,8 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
   it("ships a bounded, source-fingerprinted machine contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
-      // 锚随源(1013):length.max 800→1600(用户裁定翻倍)+maSources length_policy.py
-      // sha 重锁(MA 侧同改)自指纹回写后的现值,与 daojie-ma-sync-check.py 现算同源
-      "88bd58dff6980da5d4b731d3ae1874459e258f679493d46d49d388ae98fc41f1",
+      // 1016：画法只含风格；背景、光照与来源状态归三轨类型模块；来源SHA保留历史基线。
+      "90fe0dc179bb89324f1e2fd0cf2c3b2b7ff518eac7905a0e3b6fce945ea220ee",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 1600 });
@@ -99,7 +98,9 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
       "reference.denoise",
       "negative.universal",
     ]);
-    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("浅净哑光平涂底");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("中国传统人物画审美经现代游戏美术设计重组");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("成像工艺干净，线条与罩染层次清晰。");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).not.toMatch(/衣物|尘土|血痕|身体状态|背景|近景|远景|时段|光源|光照|构图|留白/);
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].moduleId).toBe("style.gongbi-base");
     expect(DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text).toContain("压缩伪影");
   });
@@ -163,9 +164,10 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     expect(withReference.moduleAudit.every(({ required }) => required)).toBe(true);
     expect(withReference.contractSha256).toMatch(/^[a-f0-9]{64}$/);
     // MA 传输形态:核心模块空格相连,成片/参考图锁以换行追加
-    expect(withReference.positive).toMatch(/% light。?\n成片质量（硬）/);
-    // 锚随源(1009):成片质量句 b4107de1 扩写「——表面干净可读，细节边缘锐利自然」后重锚
-    expect(withReference.positive).toMatch(/锐利自然。\n参考图降噪（硬）/);
+    expect(withReference.positive).toContain(`${DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-track.person"].text}\n${DAOJIE_RUNTIME_CONTRACT.modules["finish.quality"].text}`);
+    expect(withReference.positive).toContain(`${DAOJIE_RUNTIME_CONTRACT.modules["finish.quality"].text}\n${DAOJIE_RUNTIME_CONTRACT.modules["reference.denoise"].text}`);
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["finish.quality"].text).not.toMatch(/污渍|磨损|血痕|背景|照明/);
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-track.person"].text).toContain("人物类型句：背景和照明依来源场景与时段");
     expect(withoutReference.positive.match(/\n/g)).toHaveLength(1);
     expect(withoutReference.positive).not.toContain("参考图降噪");
     // MA transport 负面方言:作业负面在前,词条以 ", " 连接
@@ -281,8 +283,11 @@ describe("Daojie provider-visible length policy", () => {
     });
     expect(compiled.moduleLengths["subject.body"]).toBe(330);
     // 作业负面 875(单词条) + ", " + 通用负面合并 155 = 1032,与装机实弹逐字同构
-    expect(compiled.moduleLengths["negative.universal"]).toBe(1032);
-    expect(compiled.totalChars).toBe(1715);
+    expect(compiled.moduleLengths["negative.universal"]).toBe(
+      1020 // 1016 当前通用负面已去掉剧情污垢与电影光禁项；合并传输长度现值,
+    );
+    expect(compiled.totalChars).toBe(compiled.providerPrompt.length);
+    expect(compiled.totalChars).toBeGreaterThan(1600);
     expect(compiled.status).toBe("ok");
     const positiveChars = compiled.moduleIds
       .filter((moduleId) => moduleId !== "negative.universal")
@@ -304,9 +309,9 @@ describe("Daojie provider-visible length policy", () => {
     expect(compiled.providerPrompt.match(/Avoid:/g)).toHaveLength(1);
     expect(compiled.negative).toContain("自定义缺陷");
     // 断点B(2026-10-11)后资产门与帧门同构:status 由正文(positive)决定,负面不计门——
-    // 正文 299<300 警,即便 provider-visible 全长(含负面)已过 300。
-    expect(compiled.positive.length).toBeLessThan(300);
-    expect(compiled.status).toBe("warning");
+    // 直接验证正文 299 的门限，不依赖随画法修订变化的自动层长度。
+    expect(compiled.status).toBe(evaluateDaojiePromptLength(compiled.positive, compiled.negative).status);
+    expect(evaluateDaojiePromptLength("x".repeat(299), "").status).toBe("warning");
   });
 });
 

@@ -65,7 +65,7 @@ RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情
 
 # 0929 D6 rgba_default 四型(用户拍板:道具/多视图/高清人脸/表情差分默认开 RGBA,
 # 其余五型默认关)——独立钉(防提取器 RGBA_DEFAULT_TYPES 常量被静默改)
-RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分"}
+RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分", "设定卡"}  # 1016 终审翻真:设定卡入列(透明底档案卡)
 
 # 透明声明句核锚=全串(防「透明头皮」光头禁令条款误判,S0 research/transparency-
 # fusion.md 注记;canon_lib TRANSPARENT_DECL 首段,表情差分变体尾同前缀)
@@ -152,8 +152,8 @@ def test_base_text_verbatim_from_lib_for_all_nine():
         assert base_text == entry["positive_text"], zh
         assert neg_text == entry["negative_text"], zh  # 型负面出口(案B:去死数据)
         lines = base_text.split("\n")
-        # 1008晚透明句加入:三透明型(人物多视图/高清人脸/表情差分)型文+透明声明行=6行
-        assert len(lines) == (7 if zh in {"人物多视图"} else (4 if zh in {"高清人脸", "表情差分"} else (6 if zh in RENWU_XI else 2))), zh  # 1009 并行轮:人脸/表情=4行脸专属版
+        # 类型句的规则可分段追加；句子完整性属于契约，固定换行数不属于契约。
+        assert all(line.strip() and line.endswith("。") for line in lines), zh
         assert lines[0].endswith("。")  # ②层美化版底座句号自足收尾
         # ①槽与美术风格底座常量 不在 BASE 内(工作流恒挂层承担;禁混:防 BASE 变整段装配)
         assert not base_text.startswith("⟨①:")
@@ -231,12 +231,13 @@ def test_width_height_reference_table():
         assert (w_out, h_out) == (w, h), (zh, w_out, h_out)
 
 
-# ── rgba_default:四型透明声明型 true 其余 false(0929 D6)─────────
-def test_rgba_default_four_types_true_rest_false():
-    """rgba_default(0929 画布治理批 D6,用户拍板四型):①布尔真源=json
+# ── rgba_default:五型透明声明型 true 其余 false(0929 D6;1016 设定卡终审翻真入列)─────────
+def test_rgba_default_five_types_true_rest_false():
+    """rgba_default(0929 画布治理批 D6 用户拍板四型;1016 设定卡实弹终审
+    「背景不是透明的」翻真入列=五型):①布尔真源=json
     rgba_default 字段(1004 重建后「②层透明声明句全串运行时判定」互锁退役
     留痕——真源家 positive_text 仅道具型保留声明句,声明句与布尔不再逐型
-    互锁;RGBA_DECL_ANCHOR 保留为道具型单点锚);②四型集合独立钉(防
+    互锁;RGBA_DECL_ANCHOR 保留为道具型单点锚);②五型集合独立钉(防
     RGBA_DEFAULT_TYPES 被静默改);③节点输出与 json 字段一致。"""
     daojv = next(e for e in _canon_types() if e["zh"] == "道具")
     assert RGBA_DECL_ANCHOR in daojv["positive_text"]  # 道具型声明句单点锚
@@ -275,8 +276,8 @@ def test_data_file_schema():
             assert e["megapixels"] == 1.0
             continue
         assert bt  # 九型底座文本非空
-        # 1004 增衣物完整性锁:人物系 7 行(②+锁B四行+④+完整性),非人物系 2 行
-        assert len(bt.split("\n")) == (7 if zh in {"人物多视图"} else (4 if zh in {"高清人脸", "表情差分"} else (6 if zh in RENWU_XI else 2))), zh  # 1008晚透明句加入:三透明型+1行
+        # 每段完整成句；背景、光照与来源状态规则由类型句承载。
+        assert all(line.strip() and line.endswith("。") for line in bt.split("\n")), zh
         assert e["aspect_ratio"] in ASPECTS, (zh, e["aspect_ratio"])  # 官方枚举串
         mp = e["megapixels"]
         assert (isinstance(mp, (int, float)) and not isinstance(mp, bool)

@@ -1,0 +1,1094 @@
+{
+  "revision": 1,
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "7b1f3a92-2b5c-4d3e-8f41-6c8d9e0f1a02",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        560,
+        520
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "properties": {
+        "subgraph": "7b1f3a92-2b5c-4d3e-8f41-6c8d9e0f1a02",
+        "previewExposures": []
+      },
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "positive_single",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "速度档位",
+          "type": "COMBO",
+          "widget": {
+            "name": "速度档位"
+          },
+          "link": null
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "widgets_values": [
+        "0 · Turbo 8步",
+        0
+      ],
+      "title": "[7] 加速子图",
+      "widgets_values_named": {
+        "速度档位": "0 · Turbo 8步",
+        "seed": 0
+      }
+    }
+  ],
+  "links": [],
+  "version": 0.4,
+  "info": {
+    "category": "漫影",
+    "name": "道劫·加速子图(edit)"
+  },
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "7b1f3a92-2b5c-4d3e-8f41-6c8d9e0f1a02",
+        "name": "道劫·加速子图",
+        "version": 1,
+        "revision": 0,
+        "state": {
+          "lastGroupId": 1,
+          "lastNodeId": 7033,
+          "lastLinkId": 4409,
+          "lastRerouteId": 0
+        },
+        "config": {
+          "defaultIOState": {}
+        },
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        },
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            -360,
+            -140,
+            160,
+            1000
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            3020,
+            800,
+            320,
+            200
+          ]
+        },
+        "inputs": [
+          {
+            "id": "a58d0001-0000-4000-8000-0000000000c1",
+            "name": "model",
+            "type": "MODEL",
+            "linkIds": [
+              1,
+              2,
+              4400
+            ],
+            "pos": [
+              -36,
+              480
+            ]
+          },
+          {
+            "id": "a58d0002-0000-4000-8000-0000000000c2",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "linkIds": [
+              4
+            ],
+            "pos": [
+              -36,
+              1560
+            ]
+          },
+          {
+            "id": "a58d0003-0000-4000-8000-0000000000c3",
+            "name": "positive_single",
+            "type": "CONDITIONING",
+            "linkIds": [
+              5,
+              4401
+            ],
+            "pos": [
+              -36,
+              600
+            ]
+          },
+          {
+            "id": "a58d0004-0000-4000-8000-0000000000c4",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7,
+              8
+            ],
+            "pos": [
+              -36,
+              760
+            ]
+          },
+          {
+            "id": "a58d0005-0000-4000-8000-0000000000c5",
+            "name": "latent",
+            "type": "LATENT",
+            "linkIds": [
+              9,
+              10,
+              4402
+            ],
+            "pos": [
+              -36,
+              1300
+            ]
+          },
+          {
+            "id": "a58d0006-0000-4000-8000-0000000000c6",
+            "name": "速度档位",
+            "type": "COMBO",
+            "linkIds": [
+              12
+            ],
+            "pos": [
+              2020,
+              860
+            ]
+          },
+          {
+            "id": "a58d0007-0000-4000-8000-0000000000c7",
+            "name": "seed",
+            "type": "INT",
+            "linkIds": [
+              13
+            ],
+            "pos": [
+              -36,
+              1270
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "b58d0001-0000-4000-8000-0000000000d1",
+            "name": "latent",
+            "type": "LATENT",
+            "linkIds": [
+              21
+            ],
+            "pos": [
+              2900,
+              980
+            ]
+          }
+        ],
+        "widgets": [
+          "0 · Turbo 8步",
+          0
+        ],
+        "nodes": [
+          {
+            "id": 7010,
+            "type": "KSampler",
+            "pos": [
+              1400,
+              1660
+            ],
+            "size": [
+              330,
+              260
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 1
+              },
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 4
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 7
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 9
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 15
+              },
+              {
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  18
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "KSampler"
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              40,
+              1,
+              "euler",
+              "simple",
+              1
+            ],
+            "title": "[7010] 原生出图·KSampler"
+          },
+          {
+            "id": 7011,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              800,
+              900
+            ],
+            "size": [
+              340,
+              130
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 2
+              },
+              {
+                "name": "lora_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "lora_name"
+                },
+                "link": null
+              },
+              {
+                "name": "strength_model",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "strength_model"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  14
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly"
+            },
+            "widgets_values": [
+              "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+              1.0
+            ],
+            "title": "[7011] viggle LoRA·LoraLoader"
+          },
+          {
+            "id": 7012,
+            "type": "KSampler",
+            "pos": [
+              1400,
+              900
+            ],
+            "size": [
+              330,
+              260
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 14
+              },
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 5
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 8
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 10
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 16
+              },
+              {
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  19
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "KSampler"
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              6,
+              1,
+              "euler",
+              "simple",
+              1
+            ],
+            "title": "[7012] viggle6步·KSampler"
+          },
+          {
+            "id": 7014,
+            "type": "PrimitiveInt",
+            "pos": [
+              80,
+              1300
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "INT",
+                "widget": {
+                  "name": "value"
+                },
+                "link": 13
+              }
+            ],
+            "outputs": [
+              {
+                "name": "INT",
+                "type": "INT",
+                "links": [
+                  15,
+                  16,
+                  4409
+                ]
+              }
+            ],
+            "properties": {
+              "cnr_id": "comfy-core",
+              "Node name for S&R": "PrimitiveInt"
+            },
+            "widgets_values": [
+              0,
+              "fixed"
+            ],
+            "widgets_values_named": {
+              "value": 0,
+              "fixed": "fixed"
+            },
+            "title": "[7014] seed单源·PrimitiveInt"
+          },
+          {
+            "id": 7015,
+            "type": "MyQi21SpeedSelect",
+            "title": "[7015] 出图速度选择·自研",
+            "pos": [
+              2100,
+              900
+            ],
+            "size": [
+              340,
+              170
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "mode",
+                "type": "COMBO",
+                "widget": {
+                  "name": "mode"
+                },
+                "link": 12
+              },
+              {
+                "name": "latent_turbo",
+                "type": "LATENT",
+                "link": 4408,
+                "localized_name": "latent_turbo"
+              },
+              {
+                "name": "latent_viggle",
+                "type": "LATENT",
+                "link": 19
+              },
+              {
+                "name": "latent_direct",
+                "type": "LATENT",
+                "link": 18
+              }
+            ],
+            "outputs": [
+              {
+                "name": "latent",
+                "type": "LATENT",
+                "links": [
+                  21
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "MyQi21SpeedSelect"
+            },
+            "widgets_values": [
+              "0 · Turbo 8步"
+            ]
+          },
+          {
+            "id": 7028,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              1340,
+              140
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 20,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 4400
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  4403
+                ]
+              }
+            ],
+            "title": "[7028] Turbo·官方avg_rank_178(直连底模)",
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+              1.0
+            ],
+            "widgets_values_named": {
+              "lora_name": "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+              "strength_model": 1.0
+            }
+          },
+          {
+            "id": 7029,
+            "type": "BasicGuider",
+            "pos": [
+              1650,
+              140
+            ],
+            "size": [
+              270,
+              110
+            ],
+            "flags": {},
+            "order": 21,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 4403
+              },
+              {
+                "name": "conditioning",
+                "type": "CONDITIONING",
+                "localized_name": "条件",
+                "link": 4401
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "引导",
+                "name": "GUIDER",
+                "type": "GUIDER",
+                "links": [
+                  4404
+                ]
+              }
+            ],
+            "title": "[7029] cfg1引导·BasicGuider(Turbo纯正向)",
+            "properties": {
+              "Node name for S&R": "BasicGuider",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              },
+              "cnr_id": "comfy-core"
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7030,
+            "type": "ManualSigmas",
+            "pos": [
+              1650,
+              260
+            ],
+            "size": [
+              270,
+              100
+            ],
+            "flags": {},
+            "order": 22,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+              {
+                "localized_name": "Sigmas",
+                "name": "SIGMAS",
+                "type": "SIGMAS",
+                "links": [
+                  4407
+                ]
+              }
+            ],
+            "title": "[7030] 官方8步σ·ManualSigmas",
+            "properties": {
+              "Node name for S&R": "ManualSigmas",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              },
+              "cnr_id": "comfy-core"
+            },
+            "widgets_values": [
+              "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+            ],
+            "widgets_values_named": {
+              "sigmas": "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+            }
+          },
+          {
+            "id": 7031,
+            "type": "SamplerCustomAdvanced",
+            "pos": [
+              1970,
+              140
+            ],
+            "size": [
+              330,
+              200
+            ],
+            "flags": {},
+            "order": 23,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "noise",
+                "type": "NOISE",
+                "localized_name": "噪声",
+                "link": 4405
+              },
+              {
+                "name": "guider",
+                "type": "GUIDER",
+                "localized_name": "引导",
+                "link": 4404
+              },
+              {
+                "name": "sampler",
+                "type": "SAMPLER",
+                "localized_name": "采样器",
+                "link": 4406
+              },
+              {
+                "name": "sigmas",
+                "type": "SIGMAS",
+                "localized_name": "Sigmas",
+                "link": 4407
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "localized_name": "Latent图像",
+                "link": 4402
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "输出",
+                "name": "output",
+                "type": "LATENT",
+                "links": [
+                  4408
+                ]
+              },
+              {
+                "localized_name": "去噪输出",
+                "name": "denoised_output",
+                "type": "LATENT",
+                "links": []
+              }
+            ],
+            "title": "[7031] Turbo8步·SamplerCustom",
+            "properties": {
+              "Node name for S&R": "SamplerCustomAdvanced",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              },
+              "cnr_id": "comfy-core"
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7032,
+            "type": "RandomNoise",
+            "pos": [
+              1000,
+              140
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 24,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "noise_seed",
+                "type": "INT",
+                "localized_name": "随机种子",
+                "widget": {
+                  "name": "noise_seed"
+                },
+                "link": 4409
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "噪声",
+                "name": "NOISE",
+                "type": "NOISE",
+                "links": [
+                  4405
+                ]
+              }
+            ],
+            "title": "[7032] Turbo噪声·RandomNoise",
+            "properties": {
+              "Node name for S&R": "RandomNoise",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              },
+              "cnr_id": "comfy-core"
+            },
+            "widgets_values": [
+              0,
+              "fixed"
+            ],
+            "widgets_values_named": {
+              "noise_seed": 0,
+              "control_after_generate": "fixed"
+            }
+          },
+          {
+            "id": 7033,
+            "type": "KSamplerSelect",
+            "pos": [
+              1000,
+              260
+            ],
+            "size": [
+              270,
+              60
+            ],
+            "flags": {},
+            "order": 25,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+              {
+                "localized_name": "采样器",
+                "name": "SAMPLER",
+                "type": "SAMPLER",
+                "links": [
+                  4406
+                ]
+              }
+            ],
+            "title": "[7033] euler·KSamplerSelect(Turbo)",
+            "properties": {
+              "Node name for S&R": "KSamplerSelect",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              },
+              "cnr_id": "comfy-core"
+            },
+            "widgets_values": [
+              "euler"
+            ],
+            "widgets_values_named": {
+              "sampler_name": "euler"
+            }
+          }
+        ],
+        "groups": [
+          {
+            "id": 1,
+            "title": "道劫·加速支路(0=Turbo·官方8步[7028]LoRA×1.0→[7029]BasicGuider cfg1→[7031]σ官方表;1=原生出图[7010] / 2=viggle·6步[7011]→[7012];model=边界单源三扇入,Turbo 直连底模绝不吃 viggle/Fix LoRA;seed 单源[7014]扇三支路;汇流[7015] 懒选择=未选支路零执行零加载)",
+            "bounding": [
+              40,
+              40,
+              2940,
+              2020
+            ],
+            "color": "#4d9e6a",
+            "flags": {}
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7010,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 2,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7011,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 4,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7010,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 5,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7012,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7010,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 8,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7012,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 9,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7010,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 10,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7012,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 12,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7015,
+            "target_slot": 0,
+            "type": "COMBO"
+          },
+          {
+            "id": 13,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 7014,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 14,
+            "origin_id": 7011,
+            "origin_slot": 0,
+            "target_id": 7012,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 15,
+            "origin_id": 7014,
+            "origin_slot": 0,
+            "target_id": 7010,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 16,
+            "origin_id": 7014,
+            "origin_slot": 0,
+            "target_id": 7012,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 18,
+            "origin_id": 7010,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 19,
+            "origin_id": 7012,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 2,
+            "type": "LATENT"
+          },
+          {
+            "id": 21,
+            "origin_id": 7015,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 4400,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7028,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 4401,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7029,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 4402,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7031,
+            "target_slot": 4,
+            "type": "LATENT"
+          },
+          {
+            "id": 4403,
+            "origin_id": 7028,
+            "origin_slot": 0,
+            "target_id": 7029,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 4404,
+            "origin_id": 7029,
+            "origin_slot": 0,
+            "target_id": 7031,
+            "target_slot": 1,
+            "type": "GUIDER"
+          },
+          {
+            "id": 4405,
+            "origin_id": 7032,
+            "origin_slot": 0,
+            "target_id": 7031,
+            "target_slot": 0,
+            "type": "NOISE"
+          },
+          {
+            "id": 4406,
+            "origin_id": 7033,
+            "origin_slot": 0,
+            "target_id": 7031,
+            "target_slot": 2,
+            "type": "SAMPLER"
+          },
+          {
+            "id": 4407,
+            "origin_id": 7030,
+            "origin_slot": 0,
+            "target_id": 7031,
+            "target_slot": 3,
+            "type": "SIGMAS"
+          },
+          {
+            "id": 4408,
+            "origin_id": 7031,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 1,
+            "type": "LATENT"
+          },
+          {
+            "id": 4409,
+            "origin_id": 7014,
+            "origin_slot": 0,
+            "target_id": 7032,
+            "target_slot": 0,
+            "type": "INT"
+          }
+        ],
+        "category": "漫影"
+      }
+    ]
+  }
+}

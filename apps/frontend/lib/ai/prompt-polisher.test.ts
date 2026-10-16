@@ -76,7 +76,7 @@ describe("polishAssetPrompt 输出格式契约(道劫)", () => {
     // 道劫清洗生效:cinematic/景深词被改写为水墨等效表达
     expect(result.prompt).not.toContain("cinematic lighting");
     expect(result.prompt).not.toContain("depth of field");
-    expect(result.prompt).toContain("even flat diffuse illumination");
+    expect(result.prompt).toContain("lighting consistent with source scene and time");
     // 手册严禁项经 Negative Prompt 标签激活
     expect(result.negativePrompt).toContain("photorealistic photography");
     expect(result.negativePrompt).toContain("extra characters");
@@ -273,5 +273,17 @@ describe("sanitizeExtendedManualPrompt 旧压色 token 升级(08-28 无色根修
     expect(sanitizeExtendedManualPrompt("muted cyan-green palette")).toBe(
       "muted yet visible mineral-color palette with soft cyan-green and vermilion accents",
     );
+  });
+});
+
+
+describe("道劫照明与剧情状态保留（1016）", () => {
+  it("清理旧光词时保留夜景、月光与战损事实", () => {
+    const result = sanitizeExtendedManualPrompt("夜街，月光从左照入，灰衫沾矿尘，袖口破损，左臂缺失，血痕可见，cinematic lighting");
+    for (const fact of ["夜街", "月光从左照入", "矿尘", "袖口破损", "左臂缺失", "血痕"]) expect(result).toContain(fact);
+    expect(result).toContain("lighting consistent with source scene and time");
+    expect(result).not.toContain("flat diffuse");
+    expect(result).not.toContain("浅净平涂底");
+    expect(sanitizeExtendedManualPrompt(result)).toBe(result);
   });
 });

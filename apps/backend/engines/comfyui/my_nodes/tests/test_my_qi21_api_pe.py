@@ -26,8 +26,10 @@ def test_shape_matches_upstream_five_ports():
     req = node.INPUT_TYPES()["required"]
     # 1006 七轮:装配内置——配置槽;1007 增 thinking_effort(尾插保旧工作流
     # widgets_values 位序不漂移);上下文/正负/型/画幅全在 optional
-    assert list(req) == ["api_url", "model", "temperature", "max_tokens", "timeout_sec", "thinking_effort"], \
-        f"required 应恰六配置槽(1007 增思考档位),得 {list(req)}"
+    assert list(req) == ["api_url", "model", "temperature", "max_tokens", "timeout_sec", "thinking_effort", "AI扩写开关"], \
+        f"required 应恰七配置槽(1007 增思考档位;1016 增 AI扩写开关,尾插保旧工作流位序),得 {list(req)}"
+    assert req["AI扩写开关"][0] == "BOOLEAN" and req["AI扩写开关"][1].get("default") is True, \
+        "AI扩写开关=BOOLEAN 默认开(1016 用户令:默认走 PE 扩写)"
     opt = node.INPUT_TYPES()["optional"]
     # 1006 批C 七路直连:九入序=系统提示词/色卡/美术风格底座/型底座/正向提示词/
     # 负向提示词/透明模式(与两 json [4013] inputs 槽序互锁;型底座←[4010].0/
@@ -55,6 +57,30 @@ def test_passthrough_when_service_unreachable():
         f"降级负向=型负面+美术风格底座负面+外部负向 三源合并,得头60={neg[:60]!r}"
     assert got["ui"]["api_pe_pos"][0] == pos and got["ui"]["api_pe_neg"][0] == neg, \
         "ui 载荷须与 result 同文(JS 展示框回填源)"
+
+
+def test_switch_off_skips_llm_and_returns_direct_assembly():
+    """1016 PE 开关:关=零模型请求直拼三层装配直出(用户令 UI 按钮默认开)。
+    探活器一旦被调即红——开关关闭必须在任何网络动作之前返回。"""
+    node = api_pe.MyQi21ApiPE()
+    calls = []
+    orig_alive = api_pe._alive
+    api_pe._alive = lambda u: calls.append(u) or True  # 探活被调=发了请求路径
+    try:
+        got = node.rewrite(正向提示词="玄衣少年立于山门", 类型句正向="国风少年底座句",
+                           类型句负向="模糊", 画幅宽=832, 画幅高=1216,
+                           api_url="http://127.0.0.1:9", AI扩写开关=False)
+    finally:
+        api_pe._alive = orig_alive
+    assert calls == [], f"开关关闭不得触发任何探活/请求,实测 {calls}"
+    pos, neg, tr, w, h = got["result"]
+    assert pos.startswith("主体句:玄衣少年立于山门\n类型句:国风少年底座句\n"), \
+        f"直拼三层正稿(与透传同源同值),得头60={pos[:60]!r}"
+    assert "模糊" in neg, "负向仍三源程序合并(型负面必在;底座负面随真源,勿锚具体词——并行域)"
+    assert (tr, w, h) == (False, 832, 1216), "透明/宽/高原样直出"
+    assert got["ui"]["api_pe_status"] == ["关闭:直拼三层装配(未请求模型)"], \
+        "ui 状态须明示关闭直拼(JS 展示框可见)"
+    assert got["ui"]["api_pe_pos"][0] == pos, "ui 载荷与 result 同文"
 
 
 def test_balanced_json_strips_noise():

@@ -180,7 +180,8 @@ describe("TTS runtime controller", () => {
       expect(fs.existsSync(legacyModelRepoDir)).toBe(false);
       expect(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "tts.sqlite"), "utf8")).toBe("sqlite-data");
       expect(fs.readFileSync(path.join(storageBasePath, "comfyui", "models", "TTS", "models--example--voice", "model.bin"), "utf8")).toBe("model-data");
-      expect(JSON.parse(fs.readFileSync(path.join(storageBasePath, "TTS", "runtime", "config.json"), "utf8")))
+      // 1016 配置拆位:config 真位=<base>/TTS/config.json(基础配置住 App 家)
+      expect(JSON.parse(fs.readFileSync(path.join(storageBasePath, "TTS", "config.json"), "utf8")))
         .toMatchObject({ modelCacheDir: path.join(storageBasePath, "comfyui", "models", "TTS"), controlToken: "existing-token" });
       expect(controller.getStorageLayout().migrationState).toBe("up-to-date");
     } finally {
@@ -193,7 +194,7 @@ describe("TTS runtime controller", () => {
     const userDataPath = path.join(root, "user-data");
     const storageBasePath = path.join(root, "storage");
     const legacyCacheDir = path.join(storageBasePath, "TTS", "model");
-    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "config.json"); // 1016 配置拆位:真位=App 家
     const modelName = "models--mlx-community--Qwen3-TTS-12Hz-1.7B-Base-bf16";
     try {
       fs.mkdirSync(path.join(legacyCacheDir, modelName), { recursive: true });
@@ -237,7 +238,7 @@ describe("TTS runtime controller", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "mystudio-tts-stale-override-"));
     const userDataPath = path.join(root, "user-data");
     const storageBasePath = path.join(root, "storage");
-    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "config.json"); // 1016 配置拆位:真位=App 家
     try {
       fs.mkdirSync(path.dirname(runtimeConfigPath), { recursive: true });
       // 统一脚本把 <base>/model/TTS 搬进 comfyui/models/TTS 后删除了老目录,
@@ -271,7 +272,7 @@ describe("TTS runtime controller", () => {
     const userDataPath = path.join(root, "user-data");
     const storageBasePath = path.join(root, "storage");
     const retiredDir = path.join(storageBasePath, "model", "TTS");
-    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "config.json"); // 1016 配置拆位:真位=App 家
     try {
       fs.mkdirSync(path.join(retiredDir, "models--example--voice"), { recursive: true });
       fs.mkdirSync(path.dirname(runtimeConfigPath), { recursive: true });
@@ -302,7 +303,7 @@ describe("TTS runtime controller", () => {
     const userDataPath = path.join(root, "user-data");
     const storageBasePath = path.join(root, "storage");
     const customDir = path.join(root, "external-tts-models");
-    const runtimeConfigPath = path.join(storageBasePath, "TTS", "runtime", "config.json");
+    const runtimeConfigPath = path.join(storageBasePath, "TTS", "config.json"); // 1016 配置拆位:真位=App 家
     try {
       fs.mkdirSync(path.dirname(runtimeConfigPath), { recursive: true });
       fs.writeFileSync(runtimeConfigPath, JSON.stringify({
@@ -1994,5 +1995,74 @@ describe("TTS controller projectRootProvider 半态消费链(1015 M13)", () => {
     expect(spawnCall[2].env).toMatchObject({
       MANYING_TTS_DATA_DIR: "/project-storage/TTS/runtime",
     });
+  });
+});
+
+// ============================================================================
+// 1016 TTS 配置拆位(用户裁定:音频数据随项目走,基础配置住 App 家):
+// configPath 改指 <storageBasePath>/TTS/config.json(机器级,零项目内容——
+// controlToken/pythonRuntimeDir 均装机元数据);启动期把被一段 B-2 误随项目
+// 搬走的 <项目>/TTS/runtime/config.json 回迁 App 家(幂等,App 家在场不覆盖)。
+// ============================================================================
+describe("createTtsRuntimePaths 配置拆位(1016:基础配置回 App 家)", () => {
+  const mkIo = (files: Record<string, string | null>) => {
+    const written: Record<string, string> = {};
+    const removed: string[] = [];
+    return {
+      io: {
+        readTextFile: (p: string) => files[p] ?? null,
+        writeTextFile: (p: string, t: string) => { written[p] = t; files[p] = t; },
+        ensureDir: () => undefined,
+        fileExists: (p: string) => typeof files[p] === "string",
+        removeFile: (p: string) => { removed.push(p); delete files[p]; },
+      },
+      written, removed,
+    };
+  };
+  const deps = (proj = true) => ({
+    userDataPath: "/user-data",
+    storageBasePath: () => "/legacy-base",
+    ...(proj ? { projectRootProvider: () => "/Users/x/Project/IP/MA" } : {}),
+  });
+
+  it("①configPath 恒指 App 家 <base>/TTS/config.json(不随 provider 走)", () => {
+    const { io } = mkIo({});
+    const paths = createTtsRuntimePaths(deps(), io);
+    expect(paths.configPath()).toBe("/legacy-base/TTS/config.json");
+  });
+
+  it("②回迁:项目 runtime config 在场+App 家缺 → 读到内容+写 App 家+删项目件", () => {
+    const legacy = "/Users/x/Project/IP/MA/TTS/runtime/config.json";
+    const home = "/legacy-base/TTS/config.json";
+    const { io, written, removed } = mkIo({ [legacy]: '{"controlToken":"tok-1"}' });
+    const paths = createTtsRuntimePaths(deps(), io);
+    expect(paths.readConfig().controlToken).toBe("tok-1");
+    expect(written[home]).toContain("tok-1");
+    expect(removed).toEqual([legacy]);
+  });
+
+  it("③App 家在场 → 项目残件不动不覆盖(幂等二跑)", () => {
+    const legacy = "/Users/x/Project/IP/MA/TTS/runtime/config.json";
+    const home = "/legacy-base/TTS/config.json";
+    const { io, written, removed } = mkIo({ [legacy]: '{"controlToken":"old"}', [home]: '{"controlToken":"new"}' });
+    const paths = createTtsRuntimePaths(deps(), io);
+    expect(paths.readConfig().controlToken).toBe("new");
+    expect(written[home]).toBeUndefined();
+    expect(removed).toEqual([]);
+  });
+
+  it("④双缺(全新装机)→ readConfig 空+首写落 App 家", () => {
+    const { io, written } = mkIo({});
+    const paths = createTtsRuntimePaths(deps(), io);
+    expect(paths.readConfig()).toEqual({});
+    const tok = paths.getControlToken();
+    expect(written["/legacy-base/TTS/config.json"]).toContain(tok);
+  });
+
+  it("⑤无 provider 现状机:ttsRootDir 仍 <base>/TTS → configPath 同位不双写", () => {
+    const { io } = mkIo({});
+    const paths = createTtsRuntimePaths(deps(false), io);
+    expect(paths.configPath()).toBe("/legacy-base/TTS/config.json");
+    expect(paths.runtimeDataDir()).toBe("/legacy-base/TTS/runtime");
   });
 });

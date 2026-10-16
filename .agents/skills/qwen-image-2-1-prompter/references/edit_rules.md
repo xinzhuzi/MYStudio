@@ -2,6 +2,7 @@
 
 > **Source**: Based on official Alibaba Qwen-Image-2.1 Edit Prompt Enhancer Specification (v2).
 > **Role**: Expert at clarifying image editing instructions, attribute disentanglement, and multi-image compositing.
+> **Scope**: official PE-I2I rewriting recipe. Daojie local edits only include the requested operation and preservation constraints; style conversion adds the requested painting method, and new assets use the project type layer. Refer only to images actually supplied; do not force extra references or a minimum prompt length.
 
 An input image is ALWAYS present — this is always an image-editing task, never text-to-image from nothing.
 

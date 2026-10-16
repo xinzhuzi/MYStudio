@@ -331,7 +331,7 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     剂量-响应同构)。配方=0927d探针实测定谳(英文公式短文直塞90.34%透明;
     专用件 qwen21-daotu-rgba-t2i 同款);
     rgba_positive=该型透明路格式锁(纯框架零绘画词),按型文逐字匹配取用;
-    rgba_text=底座风格托底(1008 用户令拆分:画法工艺子集随行托风格,
+    rgba.subject_isolation=透明输出承载(1008 用户令拆分:画法工艺子集随行托风格,
     底色/平涂/背景语言仍排除——1008晚二轮实证纯主体句无托底=风格漂成普通渲染)。
     1009晚修(用户令「修」,实弹 A案补色首弹收据实证双头双尾+中文透明句残留):
     ①透明语义全英文承载(2008架构令)——rgba_positive 自带的中文透明声明句
@@ -350,16 +350,16 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     # 1009晚修①:句级剥除中文透明声明(rgba_positive 为单段多句,行级滤不够;
     # 10-09 层冲突治理:口径收归 _qi21_rgba_text 单源,单段时逐字节同旧式)
     extra = strip_rgba_decl(extra).strip()
-    style_backing = str((bases.get("art_style_base") or {}).get("positive_style_text") or "").strip()
-    carry = str((bases.get("art_style_base") or {}).get("rgba_text") or "").strip()
+    style_backing = str((bases.get("art_style_base") or {}).get("positive_text") or "").strip()
+    carry = str((bases.get("rgba") or {}).get("subject_isolation") or "").strip()
     parts = [p for p in (body, extra, style_backing, carry) if p]
     if not parts:
         parts = ["A single game asset, clean flat cutout, centered, isolated on a transparent background."]
     return " ".join(parts)
 
 
-# ── 1009 单线四段协议(用户令「1条线分4段,透明与背景分开,[4013]拼装更方便」)──
-# 线上唯一载体=[4032] 主口「文本」,格式逐字定死(四段各占一行,段内=真源字段现值):
+# ── 旧四段存档只读兼容。新风格节点不再生成拆件协议。──
+# 历史存档格式(只提取 style/neg；ground/rgba 不再进入风格装配):
 #   【风格工艺件】{positive_style_text}
 #   【底色背景件】{positive_ground_text}
 #   【透明承载件】{rgba_text}
@@ -371,29 +371,25 @@ _PROTO_TAGS = ("【风格工艺件】", "【底色背景件】", "【透明承�
 def _parse_bases_protocol(text: str | None) -> dict | None:
     """四段协议解析:恰 4 段断言(每段去标记取正文)。
 
-    返回 {"style","ground","rgba","neg"};无标记=None(legacy 全文直通);
-    开头带标记但段数≠4(坏协议,现网唯一生产者 [4032] 不可能产)→响亮 print
-    后按 None 走 legacy 全文(恒有输出不炸产线,与本件容错哲学同款)。"""
+    返回 {"style","ground","rgba","neg"}；新节点只输出纯风格，不再生成协议。
+    无标记或旧协议不完整均返回 None；调用方识别残缺标记并回退真源画法，
+    不能把残缺旧协议作为全文放行。完整旧协议的 ground/rgba 也不再装配。"""
     t = (text or "").strip()
     if not t.startswith(_PROTO_TAGS[0]):
         return None
     segs = re.split("【风格工艺件】|【底色背景件】|【透明承载件】|【负向词表】", t)
     if len(segs) != 5 or segs[0].strip():
         print(f"[漫影 API扩写PE] 四段协议段数异常({len(segs) - 1}段,应恰4)——"
-              "按旧全文直通处理,请检查 [4032] 出文")
+              "仅回退真源画法,旧背景段不再装配")
         return None
     style, ground, rgba, neg = (s.strip() for s in segs[1:])
     return {"style": style, "ground": ground, "rgba": rgba, "neg": neg}
 
 
 def _proto_base_segment(proto: dict, transparent: bool) -> str:
-    """协议底座段(与装配器 _style_combo_transparent 同口径直接拼接)。
-
-    1008 用户架构令:透明语义零入 PE——透明开=仅风格段(承载/头尾全由
-    [4014] 程序化包裹,AI 改不坏);关=风格段+底色段。"""
-    if transparent:
-        return (proto["style"] or "")
-    return (proto["style"] or "") + (proto["ground"] or "")
+    """兼容旧协议只提取画法。背景、光照和状态规则始终来自类型句。"""
+    _ = transparent  # 旧调用签名兼容；画法不再因透明状态改变。
+    return proto.get("style") or ""
 
 
 def _hot_fallbacks() -> tuple[str, str, str]:
@@ -824,7 +820,7 @@ class MyQi21ApiPE:
         ctx = {
                 "系统提示词": ("STRING", {"forceInput": True, "tooltip": "连 [4030] 真源文本·系统提示词;不连=真源热读兜底"}),
                 "色卡": ("STRING", {"forceInput": True, "tooltip": "连 [4031] 真源文本·色卡;不连=真源热读兜底"}),
-                "美术风格底座-正向": ("STRING", {"forceInput": True, "tooltip": "连 [4032].0 美术风格底座·正向全文;不连=真源热读兜底"}),
+                "美术风格底座-正向": ("STRING", {"forceInput": True, "tooltip": "连 [4032].0 纯美术风格正文；背景、照明和状态规则来自类型句；不连则热读真源"}),
                 "美术风格底座-负向": ("STRING", {"forceInput": True, "tooltip": "连 [4032].1 美术风格底座·负向词表(终稿负向三源之一);不连=真源热读兜底"}),
                 "正向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写正向原文;锚点权重最高,润炼逐字保留其实体"}),
                 "负向提示词": ("STRING", {"forceInput": True, "tooltip": "外部手写负向原文;逐条并入 negative_prompt 不丢条目"}),
@@ -849,6 +845,8 @@ class MyQi21ApiPE:
                                         "tooltip": "整发预算(冷首发+长文要留足;超时=透传不炸)"}),
                 "thinking_effort": (["关闭", "思考(xhigh)"], {"default": "关闭",
                                     "tooltip": "思考档位(1007 实弹):关闭=reasoning_effort none 硬关,确定性零思考 token,全链 ~40s 内含自检补发;思考(xhigh)=模型模板原生档(=不发参数,思考量随机 ~1200-4600 tok/发,全链 21s~300s+ 波动,1006 全程即此档);「低」档实测无衰减已移除"}),
+                "AI扩写开关": ("BOOLEAN", {"default": True,
+                                    "tooltip": "1016 用户令(尾插保位序):开=走 LM Studio/云端模型扩写;关=完全不发模型请求,直接拼 美术风格底座+类型句+主体句 三层装配直出(与透传/回退同源同值;透明开时同走极简公式+格式锁)"}),
             },
             "optional": ctx,
         }
@@ -872,6 +870,7 @@ class MyQi21ApiPE:
                 model: str = "qwen3.5-9b-uncensored-hauhaucs-aggressive", temperature: float = 0.7,
                 max_tokens: int = 12000, timeout_sec: int = 600,
                 thinking_effort: str = "关闭",
+                AI扩写开关: bool = True,
                 **kw):  # 1008 槽名带连字符(美术风格底座-正向/-负向)不能作形参,**kw 按键名取
         """十入全上下文→LM Studio 扩写→五口(正向/负向/透明/宽/高)。
 
@@ -886,28 +885,15 @@ class MyQi21ApiPE:
         base = (类型句正向 or "").strip()
         _, _, hot_style = _hot_fallbacks()
         wired_style = (kw.get("美术风格底座-正向") or "").strip()
-        # 1009 单线四段协议:连线值以【风格工艺件】开头=协议模式——恰4段拆解后
-        # 按型拼底座段(透明开=风格+透明承载/关=风格+底色,透明与背景分开);
-        # 负向段替换 style_base_neg 连线位(型负在前负向段在后,合并次序照旧)。
-        # 非协议(值存在但无标记,如 i2i 旧线传全文)=现行全文行为一字不变。
+        # 新节点输出纯画法。旧四段存档仅消费画法与风格负向，背景件退役。
         proto = _parse_bases_protocol(wired_style)
         proto_neg: str | None = None
         if proto is not None:
             proto_neg = proto["neg"]
             style = _proto_base_segment(proto, bool(透明模式))
-        # 1008晚三件拆分(用户令):透明开的 PE 输入装配也换「风格工艺件+透明承载件」
-        # 组合(零底色/背景命令进模型,与回退极简公式同一拆分口径);连线槽的
-        # 底座全文(带背景版)透明路不采信,热读真源组合;缺拆分件旧库回退全文。
-        # (1009:协议模式在上方已按段拼装,热读组合只服务 legacy 无标记线)
-        elif 透明模式:
-            # 1008 用户架构令:透明语义零入 PE——输入只挂风格工艺件,
-            # 头尾/承载全由 [4014] 程序化包裹(官方句,AI 改不坏)。
-            _asb = (_load_bases_node().get("art_style_base") or {})
-            _st = str(_asb.get("positive_style_text") or "").strip()
-            if _st:
-                style = _st
-            else:
-                style = wired_style or hot_style
+        elif wired_style.startswith(_PROTO_TAGS[0]):
+            # 残缺旧协议不能按全文放行，否则背景与协议标签会重入正文。
+            style = hot_style
         else:
             style = wired_style or hot_style
         # 10-09 层冲突治理 P5:透明开时型文自带的中文透明声明句不入 PE 输入
@@ -950,6 +936,14 @@ class MyQi21ApiPE:
         # 不受影响(自带环境句剥离+六检+教材透明逻辑);[4014]英文头尾统一包裹
         # (1009晚修:回退路零自带头尾,治双头双尾叠加)。
         fallback_pos = _rgba_lean_pos(subj, base) if 透明模式 else direct
+        # 1016 用户令(PE 开关,默认开):关=完全不发模型请求,三层自装配(美术风格
+        # 底座+类型句+主体句)直出外部五口——与透传/回退同源同值(透明开同走极简
+        # 公式+格式锁),恒有输出不炸产线;ui 三载荷照发([401]/展示框可见直拼稿)
+        if not AI扩写开关:
+            print(f"[漫影 API扩写PE] 开关关闭:直拼三层装配直出({len(fallback_pos)}字),不发模型请求")
+            return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
+                           "api_pe_status": ["关闭:直拼三层装配(未请求模型)"]},
+                    "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
         ctx = ["--- 画面上下文(色卡用词与画风基调参考) ---"]
         if style:
             ctx.append("[正稿结构] 主体句\n型底座\n美术风格底座 三层(基底即上文)")

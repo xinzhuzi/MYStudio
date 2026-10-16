@@ -6,11 +6,13 @@
 展平逻辑生成桥契约模板,并吸收 fire 之后的新增结构:
 - detail-fix 双 LoRA:7027(×0.5)挂 viggle 段A(ViggleTurboLora 前),
   7026(×1.0)仅喂直出 KSampler 支路(未选=懒排除);段B(7022)用裸底模;
-- seed 单源=PrimitiveInt(7:7014),扇出 RandomNoise/KSampler/FunAcc(后两者未选);
+- seed 单源=PrimitiveInt(7:7014),扇出 RandomNoise/KSampler/Turbo 臂(后两者未选;
+  1016turbo 换臂,FunAcc 臂已退役留盘);
 - 双产物:SaveImage(8) 基础图 + SeedVR2 链(501/502/503→504 MYStudio-2K);
 - ApiPE 双链回落现值原样保留(Win9B→Mac27B coder390);
 - 型=画布现值(当前「人物」);档=画布现值(当前「2 · viggle」9步双段),
-  未选支路(FunAcc/直出)懒排除;σ表取宿主面板现值;
+  未选支路(Turbo/直出)懒排除(1016turbo 换臂;桥零再生成仍只构造 viggle 链,档位发车=fire 职责);
+  σ表取宿主面板现值;
 - 绑定:prompt→[400]主体句 / negative_prompt→[404] / seed→[7:7014];
   宽高不绑(九型画幅制,4018 手动=0 透传)。
 

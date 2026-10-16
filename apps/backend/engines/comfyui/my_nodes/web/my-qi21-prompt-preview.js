@@ -95,95 +95,83 @@ app.registerExtension({
     },
 });
 
-// 1006 批A:MyQi21BasesText(真源文本)节点上一只只读多行展示框「内容」——
-// onExecuted 把 ui.bases_text(双形态载荷:直挂或 output 内挂,同上兼容)落框;
-// 载荷缺位不清框(Q4 决议:会话内不丢)
-// 1008 用户令「美术风格底座为什么没有展示负提示词」:[4032] 加「负向词表」框
-// (ui.bases_text_negative 分键按名落框,同构 [401] 双框;钉只读+占位+钉高)。
+// 真源展示：美术风格底座只显示画法与风格负向。背景、光照与状态在类型句。
 app.registerExtension({
     name: "MY.qi21_bases_text_display",
     async nodeCreated(node) {
         if (node.comfyClass !== "MyQi21美术风格底座") return;
-        // 1008晚三件拆分:负向词表+三只拆分件框统一钉只读+占位(按名找,缺框跳过);
-        // 透明承载件仅21字,矮框(110px大框给它=布局浪费,用户截图病灶之一)
-        // 1009 单线四段协议:+「四段协议」框(UI 标记可见,线上传输全文≈千字,钉高充裕)
-        const PIN = { "负向词表": "110px", "风格工艺件": "110px", "底色背景件": "110px",
-                      "透明承载件": "48px", "四段协议": "150px" };
-        for (const nm of Object.keys(PIN)) {
-            const w = (node.widgets || []).find((x) => x.name === nm);
-            if (!w) continue;
-            const el = w.inputEl ?? w.element;
+        for (const name of ["美术风格", "负向词表"]) {
+            const w = (node.widgets || []).find(x => x.name === name);
+            const el = w?.inputEl ?? w?.element;
             if (!el) continue;
             el.readOnly = true;
             el.spellcheck = false;
-            el.placeholder = "跑一发后此处显示真源" + nm;
-            el.style.minHeight = PIN[nm];
+            el.placeholder = "真源" + name + "（执行后刷新）";
+            el.style.minHeight = "140px";
             el.style.overflow = "auto";
         }
-        // 1008晚用户令「布局需要宽大」:四只长文框,面板钉宽560×高640下限
-        // (onConfigure 期旧存档会以文件尺寸覆盖,nodeCreated 设的是新 placements
-        // 与下限;存量工作流尺寸由卡文同批布局落刀同步,见 t2i/子图 [4032] size)
-        // 1009 四段协议第五框:+120px→下限760(卡文 size 同批 560×620→560×760 落刀)
-        const need = [560, 760];
-        node.size = [Math.max(node.size?.[0] ?? 0, need[0]), Math.max(node.size?.[1] ?? 0, need[1])];
+        node.size = [Math.max(node.size?.[0] ?? 0, 560), 400];
         node.onResize?.(node.size);
     },
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (!["MyQi21BasesText","MyQi21系统提示词","MyQi21色卡","MyQi21美术风格底座"].includes(nodeData.name)) return;
+        if (!["MyQi21BasesText", "MyQi21系统提示词", "MyQi21色卡", "MyQi21美术风格底座"].includes(nodeData.name)) return;
+        const put = (node, name, value) => {
+            const w = (node.widgets || []).find(x => x.name === name);
+            if (!w) return;
+            w.value = String(value ?? "");
+            const el = w.inputEl ?? w.element;
+            if (el && el.value !== undefined) {
+                el.value = w.value;
+                el.dispatchEvent(new Event("input", {bubbles: true}));
+            }
+        };
+        const isStyle = nodeData.name === "MyQi21美术风格底座";
         const onExecuted = nodeType.prototype.onExecuted;
         nodeType.prototype.onExecuted = function (message) {
             onExecuted?.apply(this, arguments);
-            const payload = message && (message.output || message);
-            const arr = payload && payload.bases_text ? payload.bases_text
-                : message && message.bases_text ? message.bases_text : null;
-            if (arr) {
-                const w = (this.widgets || []).find((x) => x.name === "内容");
-                if (w) w.value = String(arr[0] ?? "");
-            }
-            // 1008:[4032] 负向词表+三只拆分件分键落框(双形态兼容,缺位不清框同 Q4)
-            const fillBox = (boxName, key) => {
-                const arr = payload && payload[key] ? payload[key]
-                    : message && message[key] ? message[key] : null;
-                if (!arr) return;
-                const bw = (this.widgets || []).find((x) => x.name === boxName);
-                if (!bw) return;
-                const text = String(arr[0] ?? "");
-                bw.value = text;
-                const el = bw.inputEl || bw.element;
-                if (el && el.value !== undefined) {
-                    el.value = text;
-                    el.dispatchEvent(new Event("input", { bubbles: true }));
-                }
+            const payload = message?.output?.merged || message?.merged || message?.output || message;
+            const fill = (name, key) => {
+                const values = payload?.[key] ?? message?.[key];
+                if (values) put(this, name, values[0]);
             };
-            fillBox("负向词表", "bases_text_negative");
-            fillBox("风格工艺件", "bases_text_style");
-            fillBox("底色背景件", "bases_text_ground");
-            fillBox("透明承载件", "bases_text_rgba");
-            // 1009 单线四段协议:UI 标记可见——线上传输的四段标记全文落「四段协议」框
-            fillBox("四段协议", "bases_text_protocol");
+            fill(isStyle ? "美术风格" : "内容", "bases_text");
+            if (isStyle) fill("负向词表", "bases_text_negative");
         };
-        // 1008晚错位守卫(用户截图病灶:旧两框草稿按位回填新四框=全文灌进风格件框/
-        // 负向灌进底色件框,挂到下次执行才自愈)——onConfigure 期按指纹检测错位,
-        // 三只拆分件框归空(onExecuted 跑一发即回填真源;负向框旧值本就正确,保留)。
         const onConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function (info) {
             onConfigure?.apply(this, arguments);
-            if (this.comfyClass !== "MyQi21美术风格底座") return;
-            const wStyle = (this.widgets || []).find((x) => x.name === "风格工艺件");
-            const wGround = (this.widgets || []).find((x) => x.name === "底色背景件");
-            if (!wStyle) return;
-            const stale = typeof wStyle.value === "string" &&
-                (wStyle.value.includes("透明承载：") || wStyle.value.includes("底色：浅净哑光")
-                 || wStyle.value.includes("图为带透明通道"));
-            const negInGround = typeof wGround?.value === "string" && wGround.value.includes("网文封面画风");
-            if (stale || negInGround) {
-                for (const nm of ["风格工艺件", "底色背景件", "透明承载件"]) {
-                    const w = (this.widgets || []).find((x) => x.name === nm);
-                    if (w) w.value = "";
+            if (!isStyle) {
+                // 旧通用节点的退役拆件下拉值改回风格节，不能再显示背景出口。
+                const section = (this.widgets || []).find(x => x.name === "文本节");
+                if (section && ["风格工艺件", "底色背景件", "透明承载件"].includes(section.value)) {
+                    put(this, "文本节", "美术风格底座");
+                    put(this, "内容", "");
                 }
-                console.info("[MY.qi21_bases_text_display] 检测到旧草稿按位错填,三只拆分件框已归空待回填");
+                return;
             }
+            // 旧5/4/2值快照仅为展示。按新schema真源默认值重填，绝不按旧位置沿用。
+            const migrated = info?.properties?.qi21StyleSchema !== 2;
+            for (const name of ["美术风格", "负向词表"]) {
+                const w = (this.widgets || []).find(x => x.name === name);
+                const value = migrated ? nodeData.input?.optional?.[name]?.[1]?.default : w?.value;
+                put(this, name, value);
+            }
+            this.properties = {...this.properties, qi21StyleSchema: 2};
+            this.size = [Math.max(this.size?.[0] ?? 0, 560), 400];
+            this.onResize?.(this.size);
         };
+        if (isStyle) {
+            const onSerialize = nodeType.prototype.onSerialize;
+            nodeType.prototype.onSerialize = function (info) {
+                onSerialize?.apply(this, arguments);
+                const names = ["美术风格", "负向词表"];
+                const named = Object.fromEntries(names.map(name => [name,
+                    String((this.widgets || []).find(x => x.name === name)?.value ?? "")]));
+                info.widgets_values = names.map(name => named[name]);
+                info.widgets_values_named = named;
+                info.properties = {...info.properties, qi21StyleSchema: 2};
+            };
+        }
     },
 });
 

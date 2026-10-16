@@ -4,9 +4,9 @@
 不做任何自建图——从工作流 GUI JSON **按其结构通用展平**成 API 格式发车
 (与画布 graphToPrompt 同语义):
 - 双子图([6] 提示词类型优化/[7] 加速)按定义就地展开,宿主边界穿越重连;
-- 旁路语义=画布同款:mode 4 节点剪除、其连线剪断(image_3 默认缺席;
-  --enable-ref3 = 模拟用户对 [12]+[18] 按 Ctrl+B 解旁路并选图);
-- Reroute 一律解析穿越([42]/[43]/[44]/[33] 总线拐);
+- 旁路语义=画布同款:mode 4 节点剪除、其连线剪断(image_2/3 默认缺席=1016 单参考默认;
+  --enable-ref3 = 模拟用户对 [12]+[18] 按 Ctrl+B 解旁路并选图;[11]+[17] 同手法暂无旗,走画布);
+- Reroute 一律解析穿越([42]/[43]/[44] 总线拐;[33] 1015 退役直连);
 - 档位选择=[7:7015] MyQi21SpeedSelect 的画布懒执行在 headless 无 lazy 请求方,
   故按档直通:winning 采样器输出直代 SpeedSelect 出线,未选支路剪除
   (与画布执行图等价);
@@ -17,7 +17,7 @@
     [--ref1 yanliao_yuanying_front.png] [--ref2 clothing_light_blue_denim_shirt.png] \
     [--ref3 yanliao_heti_front.png(--enable-ref3 才接线)] \
     [--enable-anchor(解旁路 [505] 透明锚,仅 viggle 档语义)] \
-    [--tier "2 · viggle"|"1 · 原生出图"] [--type 人物] [--seed N(缺省随机)]
+    [--tier "2 · viggle"|"1 · 原生出图"|"0 · Turbo 8步"(1016turbo 官方臂直通 7031)] [--type 人物] [--seed N(缺省随机)]
     [--out 路径] [--dry-run]
 """
 import argparse
@@ -249,8 +249,9 @@ class Flattener:
             # 档位直通:剪 SpeedSelect 与未选支路(画布懒执行的无 lazy 等价形)
             # 1014 官方化:viggle 出线=段B 7024(σ表+9步双段链 7011/7012/7017-7024)
             if hid == 7:
-                win = {"viggle": "7024", "fun": "7013"}.get(
-                    "viggle" if "viggle" in tier else ("fun" if "Fun" in tier else ""), "7010")
+                # 1016turbo:fun→Turbo 出线=7031(官方臂;噪声/采样器复用 7017/7018)
+                win = {"viggle": "7024", "Turbo": "7031"}.get(
+                    "viggle" if "viggle" in tier else ("Turbo" if "Turbo" in tier else ""), "7010")
                 sel_key = pfx + "7015"
                 win_key = pfx + win
                 for k, e in self.g.items():
@@ -259,10 +260,13 @@ class Flattener:
                             v[0] = win_key
                 chain = ("7011", "7012", "7017", "7018", "7019", "7020",
                          "7021", "7022", "7023", "7024")
+                tchain = ("7028", "7029", "7030", "7031")   # 1016turbo 官方臂四件
+                vig_only = ("7011", "7012", "7019", "7020",  # 7017/7018=两加速档共用
+                            "7021", "7022", "7023", "7024")
                 drop = {sel_key} | {pfx + x for x in (
-                    chain + ("7013",) if win == "7010" else
-                    ("7010", "7013") if win == "7024" else
-                    ("7010",) + chain)}
+                    chain + tchain if win == "7010" else
+                    ("7010",) + tchain if win == "7024" else
+                    ("7010",) + vig_only)}
                 for k in drop:
                     self.g.pop(k, None)
 
@@ -288,12 +292,13 @@ def structural_equivalence(wf, g, enable_ref3, enable_anchor, images, tier=""):
             win = "7010"
             keep_set = set()
             if accel:
-                win = {"viggle": "7024", "fun": "7013"}.get(
-                    "viggle" if "viggle" in tier else ("fun" if "Fun" in tier else ""), "7010")
+                win = {"viggle": "7024", "Turbo": "7031"}.get(
+                    "viggle" if "viggle" in tier else ("Turbo" if "Turbo" in tier else ""), "7010")
                 chain = {"7011", "7012", "7017", "7018", "7019", "7020",
                          "7021", "7022", "7023", "7024"}
+                tchain = {"7028", "7029", "7030", "7031"}   # 1016turbo 官方臂
                 keep_set = (chain | {"7014"}) if win == "7024" else \
-                    ({"7013", "7014"} if win == "7013" else {"7010", "7014"})
+                    (tchain | {"7017", "7018", "7014"}) if win == "7031" else {"7010", "7014"}
             for m in sg["nodes"]:
                 if m.get("mode", 0) == 0 and m["type"] not in SKIP_TYPES and m["type"] not in PASS_TYPES:
                     if accel and m["type"] == "MyQi21SpeedSelect":
@@ -330,12 +335,13 @@ def structural_equivalence(wf, g, enable_ref3, enable_anchor, images, tier=""):
         return str(nid), slot
     edges = 0
     # 剪枝节点集 = 加速域被直通替代的件(边循环同步跳过;1014 官方链)
-    win = {"viggle": "7024", "fun": "7013"}.get(
-        "viggle" if "viggle" in tier else ("fun" if "Fun" in tier else ""), "7010")
+    win = {"viggle": "7024", "Turbo": "7031"}.get(
+        "viggle" if "viggle" in tier else ("Turbo" if "Turbo" in tier else ""), "7010")
     chain = {"7011", "7012", "7017", "7018", "7019", "7020", "7021", "7022", "7023", "7024"}
+    tchain = {"7028", "7029", "7030", "7031"}   # 1016turbo 官方臂
     keep_set = (chain | {"7014"}) if win == "7024" else \
-        ({"7013", "7014"} if win == "7013" else {"7010", "7014"})
-    pruned = {f"7:{x}" for x in ("7015", "7010", "7011", "7012", "7013", *chain)} - \
+        (tchain | {"7017", "7018", "7014"}) if win == "7031" else {"7010", "7014"}
+    pruned = {f"7:{x}" for x in ("7015", "7010", "7011", "7012", *chain, *tchain)} - \
              {f"7:{x}" for x in keep_set}
     for l in wf["links"]:
         lid, s, ss, d, ds, ty = l
@@ -389,7 +395,7 @@ def build_graph(args, seed):
     wf = json.loads(WF.read_text(encoding="utf-8"))
     root = {n["id"]: n for n in wf["nodes"]}
     host6, host7 = root[6], root[7]
-    # 指令真源=[400](「指令」槽经 [33] 拐自 [400] 连线,连线优先于宿主面板值——
+    # 指令真源=[400](「指令」槽直连自 [400]([33] 拐 1015 退役),连线优先于宿主面板值——
     # 只写宿主 wv 不生效,1013 C弹实锤;两处同写保险)
     root[400]["widgets_values"] = [args.instruction]
     if args.subject:  # [4011] 主体句位(装配器 wv[0];九型扫用)

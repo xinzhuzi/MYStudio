@@ -15,6 +15,8 @@ export interface TtsRuntimePathsIo {
   writeTextFile: (filePath: string, text: string) => void;
   ensureDir: (dirPath: string) => void;
   fileExists: (filePath: string) => boolean;
+  /** 1016 配置拆位回迁用(可选注入);缺省=无删除能力,回迁降级为复制不删源。 */
+  removeFile?: (filePath: string) => void;
 }
 
 export type TtsRuntimePaths = ReturnType<typeof createTtsRuntimePaths>;
@@ -46,7 +48,26 @@ export function createTtsRuntimePaths(deps: TtsRuntimePathsDeps, io: TtsRuntimeP
   const legacyCacheModelsDir = () => path.join(storageBasePath(), "TTS", "model");
   const runtimePythonDir = () => path.join(storageBasePath(), "python");
   const runtimeArchiveDir = () => storageBasePath();
-  const configPath = () => path.join(runtimeDataDir(), "config.json");
+  // 1016 配置拆位(用户裁定:音频数据随项目走,基础配置住 App 家):config.json 全是
+  // 机器级元数据(controlToken/pythonRuntimeDir/安装态),恒住 <base>/TTS(机器存储
+  // 根),不随 projectRootProvider 漂移——项目拷走另一台机器,config 里 python 路径
+  // 与 token 不应跟着走。数据面(tts.sqlite/audio 池)仍随项目(runtimeDataDir)。
+  const configPath = () => path.join(storageBasePath(), "TTS", "config.json");
+  // 回迁:一段 B-2 曾把 config 整体随项目搬走 → <项目>/TTS/runtime/config.json。
+  // App 家缺+项目件在场 → 内容抬升回 App 家并删项目件(幂等;App 家在场不覆盖)。
+  const legacyProjectConfigPath = () => path.join(runtimeDataDir(), "config.json");
+  const liftLegacyProjectConfig = () => {
+    const home = configPath();
+    if (fileExists(home)) return;
+    const legacy = legacyProjectConfigPath();
+    if (!fileExists(legacy)) return;
+    const raw = readTextFile(legacy);
+    if (!raw) return;
+    ensureDir(path.dirname(home));
+    writeTextFile(home, raw);
+    io.removeFile?.(legacy);
+  };
+  liftLegacyProjectConfig();
   const defaultModelCacheDir = () => ttsModelCacheDir(storageBasePath());
 
   // 历代已退役的默认模型缓存目录(含 08-19 规范家 <base>/model/TTS,09-10 统一家迁
@@ -70,7 +91,7 @@ export function createTtsRuntimePaths(deps: TtsRuntimePathsDeps, io: TtsRuntimeP
   };
 
   const writeConfig = (config: RuntimeConfig) => {
-    ensureDir(runtimeDataDir());
+    ensureDir(path.dirname(configPath()));
     writeTextFile(configPath(), JSON.stringify(config, null, 2));
   };
 
@@ -99,7 +120,7 @@ export function createTtsRuntimePaths(deps: TtsRuntimePathsDeps, io: TtsRuntimeP
 
   const saveModelCacheDir = (dirPath: string) => {
     const modelCacheDir = dirPath.trim() ? normalizeUserPath(dirPath) : defaultModelCacheDir();
-    ensureDir(runtimeDataDir());
+    ensureDir(path.dirname(configPath()));
     ensureDir(modelCacheDir);
     const config = readConfig();
     writeConfig({ ...config, modelCacheDir });
@@ -107,7 +128,7 @@ export function createTtsRuntimePaths(deps: TtsRuntimePathsDeps, io: TtsRuntimeP
   };
 
   return {
-    storageBasePath, huggingFaceHubDir, ttsRootDir, runtimeDataDir, legacyRuntimeDir,
+    storageBasePath, huggingFaceHubDir, ttsRootDir, runtimeDataDir, legacyRuntimeDir, liftLegacyProjectConfig,
     legacyModelsDir, legacyDefaultModelsDir, legacyCacheModelsDir, runtimePythonDir,
     runtimeArchiveDir, configPath, defaultModelCacheDir, readConfig, writeConfig,
     getModelCacheDir, saveModelCacheDir, getControlToken,

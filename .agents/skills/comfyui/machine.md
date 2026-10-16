@@ -73,7 +73,8 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     v0.2.1-6step-lora-r256.safetensors` — 0924 换最新+清旧后唯一在库件;满血联动=[30] 一拨全配,
     开=LoRA 挂链+steps 自动 6,关=自动回 40)**〔Superseded 0929:注入式 LoRA 槽+开关农场架构已被
     三支路+选择件架构取代(direct-40 / viggle / Fun-Acc T8 各自完整支路 + MyQi21SpeedSelect 单点
-    懒选择);默认档现=Fun-Acc 4步(10-02 用户令),viggle 支路 steps=6、LoRA strength=1.0,见下
+    懒选择);默认档曾=Fun-Acc 4步(10-02 用户令;**1016turbo 换臂:官方 Turbo 8步 承提首位,
+    Fun-Acc 臂退役留盘**),viggle 支路 steps=6、LoRA strength=1.0,见下
     (10-02/10-03 现状) 条〕**; TE-Speed
     slot deliberately NOT in this piece (plugin absent = red node; R26.4 wiring round). Idempotent
     generator `apps/build/scripts/qi21_daojie_i2i_0924.py`; contract = TestI2IContract.
@@ -110,7 +111,11 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - (10-02/10-03) Q2-1 道劫线默认档现状:三件(t2i/i2i/edit)加速区=三支路+选择件(direct-40 /
     viggle / Fun-Acc T8)+MyQi21SpeedSelect 单点懒选择(0929/0930 收装为加速子图);**默认=Fun-Acc
     4步**(2026-10-02 用户令「qi21-道劫-t2i.json 默认是 Fun-Acc 加速,默认就要设置这个」,推翻 0929
-    拉齐重放的直出40默认;档序 0=Fun-Acc 4步/1=直出40步/2=viggle);viggle 支路 steps=6、LoRA
+    拉齐重放的直出40默认;档序 0=Fun-Acc 4步/1=直出40步/2=viggle)**〔1016turbo 勘正:Fun-Acc 臂
+    退役留盘(T8 插件+LoRA 文件均在库),档0 由官方 Turbo 8步 承位——[7028] LoRA avg_rank_178 ×1.0
+    直连底模→BasicGuider cfg1→SamplerCustomAdvanced+官方σ表(model_index sample_sigmas 逐字);
+    档序 0=Turbo 8步/1=原生出图/2=viggle;edit 默认=Turbo 8步(t2i/i2i 生产默认仍 viggle 零动)〕**;
+    viggle 支路 steps=6、LoRA
     strength=1.0(10-02 令);edit 于 10-03 手术切入 Fun-Acc+PE 开;三件 PE 开关现值均 on(t2i 自
     1001 起/edit 自 1003 起)。F3 白图例外=「PE关×FunAcc 组合域」问题,切直出40 即愈(非 Fun-Acc
     本身问题)。档位表真源=`my_nodes/nodes/my_qi21_speed_select.py` SPEED_MODES。

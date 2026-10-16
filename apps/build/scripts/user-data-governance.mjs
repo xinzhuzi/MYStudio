@@ -8,6 +8,9 @@ import { spawnSync } from 'node:child_process'
 const PROTECTED_ROOTS = new Map([
   ['storage-config.json', 'configuration'], ['projects', 'user-projects'], ['media', 'user-media'],
   ['assets', 'active-assets'], ['skills', 'skills'], ['python', 'python-runtime'],
+  // 1016 起未绑项目机器的 fallback 资产库落 <userData>/store/assets(应用托管
+  // 资产=用户不可重建创作内容,须入保护名单;与 store/ 内应用状态同顶层键)。
+  ['store', 'app-store-assets'],
   ['model', 'model-weights'],
   ['TTS', 'tts-runtime'], ['tts-models', 'legacy-models'], ['tts-runtime', 'legacy-tts-runtime'], ['remotion-runtime', 'remotion-runtime'],
   ['remotion-studio', 'remotion-studio'], ['logs', 'logs'], ['diagnostics', 'diagnostics'],

@@ -59,6 +59,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import os
+import re
 
 from typing import Any
 
@@ -139,33 +140,34 @@ _lock_cache: dict = {"mtime": None, "data": None}
 
 
 def _load_art_style_base() -> dict:
-    """qi21_bases.json art_style_base 现读(mtime 缓存):positive/negative+三件拆分件。"""
+    """只热读绘画语言与风格负向，不读取背景或透明承载字段。"""
     try:
         mtime = _BASES_FILE.stat().st_mtime
     except OSError:
         mtime = None
-    cache = _lock_cache
-    if cache["mtime"] == mtime and cache["data"] is not None:
-        return cache["data"]
-    if mtime is None:
-        data = {"positive": "", "negative": "",
-                "positive_style_text": "", "positive_ground_text": "", "rgba_text": ""}
-    else:
+    if _lock_cache["mtime"] == mtime and _lock_cache["data"] is not None:
+        return _lock_cache["data"]
+    data = {"positive": "", "negative": ""}
+    if mtime is not None:
         try:
             raw = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
-            ll = raw.get("art_style_base", {}) if isinstance(raw, dict) else {}
-            data = {"positive": ll.get("positive_text", ""),
-                    "negative": ll.get("negative_text", "")}
-            # 1008晚三件拆分(用户令):风格工艺件/底色背景件/透明承载件;缺字段=旧库
-            # 兼容回退(拆件面回退用 positive 全文,保产线恒有输出)
-            for k in ("positive_style_text", "positive_ground_text", "rgba_text"):
-                v = ll.get(k, "")
-                data[k] = v if isinstance(v, str) else ""
+            style = raw.get("art_style_base", {}) if isinstance(raw, dict) else {}
+            for key, field in (("positive", "positive_text"), ("negative", "negative_text")):
+                value = style.get(field, "")
+                data[key] = value if isinstance(value, str) else ""
         except (OSError, ValueError):
-            data = {"positive": "", "negative": "",
-                    "positive_style_text": "", "positive_ground_text": "", "rgba_text": ""}
-    cache["mtime"], cache["data"] = mtime, data
+            pass
+    _lock_cache.update(mtime=mtime, data=data)
     return data
+
+
+def _style_only(text: str) -> str:
+    """旧四段参数只取画法，缓存中的背景件不能恢复为风格。"""
+    value = (text or "").strip()
+    if value.startswith("【风格工艺件】"):
+        match = re.match(r"【风格工艺件】(.*?)(?=【(?:底色背景件|透明承载件|负向词表)】|\Z)", value, re.S)
+        return match.group(1).strip() if match else _load_art_style_base()["positive"]
+    return value
 
 
 def _type_is_transparent(base_text: str) -> bool:
@@ -186,12 +188,8 @@ def _type_is_transparent(base_text: str) -> bool:
 
 
 def _style_combo_transparent() -> str:
-    """透明型底座组合=仅风格工艺件(1008 用户架构令:透明语义零入 PE——头尾/承载
-    全部由 [4014] 程序化包裹,AI 模型碰不到透明语句;缺件回退 positive 全文)。"""
-    d = _load_art_style_base()
-    if d.get("positive_style_text"):
-        return d["positive_style_text"]
-    return d["positive"]
+    """透明型与其他类型共用纯画法；透明包装由最终输出层负责。"""
+    return _load_art_style_base()["positive"]
 
 # widget default 面=import 时刻求值一次(同 my_qi21_prompt_select._RGBA_HEAD 家法:
 # INPUT_TYPES 调用即现读,此处仅签名 default;美术风格底座正值不改语义);
@@ -200,7 +198,9 @@ _STYLE_BASE = _load_art_style_base()["positive"]
 
 
 class MyQi21PromptAssembly:
-    """漫影道劫 qi21 装配全文件:主体句+BASE+美术风格底座 三段换行拼合,装配全文真源
+    """漫影道劫 qi21 按用途装配。局部编辑仅输出编辑指令，画风转换追加画法。
+    以下三段与负面合并说明仅适用于默认的新建资产用途：
+    主体句+BASE+美术风格底座 三段换行拼合,装配全文真源
     +负面词合并出(1005 案B Phase I:负面词=merge(BASE负面, 美术风格底座负面现读))。
 
     装配全文(口0)=唯一真源文本:双喂 [140].prompt(PE 改写输入,Q1=B+)
@@ -211,9 +211,9 @@ class MyQi21PromptAssembly:
     """
 
     CATEGORY = "漫影"
-    DESCRIPTION = ("道劫装配全文件:装配全文=主体句+底座BASE+美术风格底座 三段换行"
-                   "拼合(真源,专喂 PE 改写与最终文本合成器);负面词=型负面+"
-                   "美术风格底座负面合并(1005 案B:型负面出口接通)")
+    DESCRIPTION = ("道劫按组装用途输出：新建资产=主体句+类型+画法；"
+                   "局部编辑=编辑指令；画风转换=指令+画法。"
+                   "旧调用默认新建资产；局部编辑不继承类型与全局负面。")
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
@@ -227,7 +227,7 @@ class MyQi21PromptAssembly:
             "required": {},
             "optional": {
                 # BASE:轻件直拉([150] 常驻执行图,非 lazy);未接线或空串=降级两段拼+警告
-                "BASE": ("STRING", {"tooltip": "所选型的底座画风文字,连「底座十选一"
+                "BASE": ("STRING", {"tooltip": "所选类型的布局、背景、照明与状态规则,连「底座十选一"
                                                "」的 BASE 输出;不连就只用主体句+美术风格底座"
                                                "两段拼"}),
                 "BASE负面": ("STRING", {"tooltip": "所选型自带的负面词清单,连「底座"
@@ -239,9 +239,11 @@ class MyQi21PromptAssembly:
                 "主体句负面": ("STRING", {"multiline": True, "default": "",
                                        "tooltip": "用户手写的主体句负面描述(如「不要出现xxx」);与型负面/美术风格底座负面合并"}),
                 "锁层A全文": ("STRING", {"multiline": True, "default": _STYLE_BASE,
-                                          "tooltip": "全九型通用的画风锁底长文(现代"
+                                          "tooltip": "新建资产/画风转换使用的共同画法(现代"
                                                      "修仙游戏数字绘画规范),改画风才"
                                                      "动它,一般不用改"}),
+                "组装用途": (["新建资产", "局部编辑", "画风转换"],
+                            {"default": "新建资产", "tooltip": "新建资产追加类型与画法；局部编辑仅保留编辑指令；画风转换只追加画法，保留原构图。"}),
             },
         }
 
@@ -253,7 +255,8 @@ class MyQi21PromptAssembly:
                  BASE负面: str | None = None,
                  主体句: str = _SUBJECT_EXAMPLE,
                  主体句负面: str | None = None,
-                 锁层A全文: str = _STYLE_BASE) -> tuple[str, str]:
+                 锁层A全文: str = _STYLE_BASE,
+                 组装用途: str = "新建资产") -> tuple[str, str]:
         """装配:装配全文=主体句+\\n+BASE+\\n+美术风格底座;负面词=merge(BASE负面,
         美术风格底座负面现读)(返回元组序=RETURN_NAMES 序)。
 
@@ -277,17 +280,23 @@ class MyQi21PromptAssembly:
         警告改双关文案「自由型正常态;非自由型请检查连线」——逻辑零改,
         仅文案去「意外断线」口吻(旧行为/旧两段拼语义不变,i2i/edit 零波及)。
         """
+        # 局部编辑不继承类型布局、统一打光或全局负向；保留参考图画法。
+        # 新参数可省略，旧工作流仍走既有新建资产路径。
+        if 组装用途 not in ("新建资产", "局部编辑", "画风转换"):
+            raise ValueError(f"未知组装用途: {组装用途}")
+        锁层A全文 = _style_only(锁层A全文)
+        if 组装用途 == "局部编辑":
+            return ((主体句 or "").strip(), (主体句负面 or "").strip())
+        if 组装用途 == "画风转换":
+            style = _style_combo_transparent() if _type_is_transparent(BASE) else 锁层A全文
+            return ("\n".join(p for p in ((主体句 or "").strip(), style.strip()) if p),
+                    (主体句负面 or "").strip())
         # 负面词(口1):merge 单源复用+美术风格底座负面 mtime 现读(两分支同值,先算)
         negative = _merge_negative(_merge_negative((BASE负面 or ""),
                                    _load_art_style_base()["negative"]),
                                   (主体句负面 or "").strip())
-        # 1008晚三件拆分(用户令):BASE 逐字匹配 types[] 命中 rgba_default 型=透明路,
-        # 底座段换「风格工艺件+透明承载件」组合(零底色/背景命令);带背景型/匹配不到
-        # =锁层A全文原样(positive_text 字节不变,六型行为零变)。缺拆分件的旧库
-        # 回退 positive 全文(_style_combo_transparent 内兜底),产线恒有输出。
-        # 1008 用户令「用英文拼接」:透明路=官方英文头尾承载全部透明语义;
-        # 型文内中文透明声明行(图为带透明通道…背景透明)不再重复拼入。
-        # 10-09 P6:行级滤改句级剔除(道具 L0 正文与声明同行,行级滤整行吞没正文)
+        # 类型句提供背景、光照与状态呈现规则；风格始终只有绘画语言。
+        # 透明类型的中文透明声明由最终输出层统一包装，不进入 PE。
         if _type_is_transparent(BASE):
             base_out = strip_rgba_decl(BASE)
             style_out = _style_combo_transparent()

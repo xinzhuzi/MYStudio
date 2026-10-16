@@ -5,7 +5,7 @@
 用户令:系统提示词/色卡/美术风格底座在子图里**必须是可见节点**,连线进 API版PE
 [4013]。本件=真源只读出口:下拉选节,从 qi21_bases.json 热读(mtime 失效缓存)
 输出 STRING——画布零复制(集中地令:提示词只有 json 一份),改 json 即时生效
-免重启,节点无需任何参数框。
+免重启；展示框只读，不参与计算。节点代码或展示结构更新仍需重载引擎与前端。
 
 三节:
   系统提示词   = expand_instruction.system_prompt_zh(扩写教材,3118字(v9))
@@ -55,7 +55,7 @@ def _daojie_data(fn: str) -> Path:
 
 _BASES_JSON = _daojie_data("qi21_bases.json")
 
-SECTIONS = ("系统提示词", "色卡", "美术风格底座", "风格工艺件", "底色背景件", "透明承载件")
+SECTIONS = ("系统提示词", "色卡", "美术风格底座")
 
 _cache: dict = {"mtime": None, "data": None}
 
@@ -84,13 +84,6 @@ def _section_text(section: str) -> str:
         return str(raw).strip() if isinstance(raw, str) else ""
     if section == "美术风格底座":
         raw = (data.get("art_style_base") or {}).get("positive_text")
-        return str(raw).strip() if isinstance(raw, str) else ""
-    # 1008晚三件拆分(用户令):风格工艺件/底色背景件/透明承载件——画布可见可连的拆分出口
-    if section in ("风格工艺件", "底色背景件", "透明承载件"):
-        _k = {"风格工艺件": "positive_style_text",
-              "底色背景件": "positive_ground_text",
-              "透明承载件": "rgba_text"}[section]
-        raw = (data.get("art_style_base") or {}).get(_k)
         return str(raw).strip() if isinstance(raw, str) else ""
     if section == "色卡":
         cl = data.get("color_lexicon") or {}
@@ -144,7 +137,7 @@ class MyQi21BasesText:
         return {
             "required": {
                 "文本节": (list(SECTIONS), {"default": "系统提示词",
-                                            "tooltip": "真源节:系统提示词=扩写教材/色卡=在用词表+落点纪律/美术风格底座=底座全文(带背景)/风格工艺件·底色背景件·透明承载件=底座三件拆分(1008:透明型=风格+透明承载,带背景型=风格+底色)"}),
+                                            "tooltip": "系统提示词=扩写教材；色卡=词表与落点纪律；美术风格底座=绘画语言与成像工艺。背景、照明和状态规则归类型句。"}),
             },
             # 1006 批A 展示槽(必 optional:required 会被 /prompt 验证层 400,在案)
             "optional": {
@@ -157,7 +150,7 @@ class MyQi21BasesText:
     RETURN_NAMES = ("文本",)
     FUNCTION = "output"
     # 1006 批A(问题1):OUTPUT_NODE+ui 载荷 bases_text——JS 把真源全文回填
-    # 「内容」展示框,画布上直接看 3118字(v9)教材/色卡词表/715字美术风格底座
+    # 「内容」展示框，显示当前真源教材、色卡或纯美术风格正文。
     OUTPUT_NODE = True
 
     def output(self, 文本节: str, 内容: str = "") -> dict:
@@ -171,22 +164,10 @@ class MyQi21BasesText:
 # ── 1006 九轮:三专用类(零控件零下拉,节点即出口;用户令「选择的控件不需要」)──
 def _make_section_node(section: str, display: str, negative: bool = False,
                        pieces: bool = False):
-    """造一个零控件真源出口类:无 INPUT_TYPES(无 widget/无下拉),仅一口 STRING 出。
+    """只读真源出口。风格节点仅显示画法与风格负向，保持正负双出口。
 
-    negative=True(1008 用户令「美术风格底座为什么没有展示负提示词」):加第二
-    展示框「负向词表」(optional multiline,JS 按名回填 ui.bases_text_negative)
-    ——照 [401] 正负双框同构(py-DOM 显示位,OPTIMIZATION 布局④ 1b 在案路径)。
-    pieces=True(1008晚二轮·用户令「展示4种类型」+复诊「重复了」):美术风格底座
-    =恰四展示框「风格工艺件/底色背景件/透明承载件/负向词表」(正向三件在前负向
-    殿后,同构 [401] 正负分族),「内容」全文框退役(全文=风格+底色逐字重复源);
-    JS 按名回填 bases_text_style/ground/rgba/negative;删框同批重对卡文
-    widgets_values(技能纪律)。
-    1009 单线四段协议(用户令「1条线分4段,透明与背景分开,[4013]拼装更方便」):
-    输出主口「文本」改发四段标记协议文(线上唯一载体,格式逐字定死:
-    【风格工艺件】/【底色背景件】/【透明承载件】/【负向词表】四段各占一行,段内
-    =真源对应字段现值);负向词表输出槽(第二口)照旧输出 negative(兼容旧消费);
-    加第五展示框「四段协议」(JS 按名回填 ui.bases_text_protocol=线上传输的标记
-    全文,UI 标记可见);真源缺拆分字段(旧库)响亮 print 回退=全文不加标记。
+    pieces 保留为工厂调用兼容参数；旧拆件展示值通过 **legacy 接收并忽略。
+    背景、光照、来源状态归类型句，透明包装归最终输出层。
     """
     class _SectionNode:
         CATEGORY = "漫影"
@@ -194,29 +175,16 @@ def _make_section_node(section: str, display: str, negative: bool = False,
 
         @classmethod
         def INPUT_TYPES(cls):
-            # 1008晚二轮(用户令「UI设计的不对,提示词重复了」):pieces 节点=恰四框
-            # (风格工艺件/底色背景件/透明承载件/负向词表),「内容」全文框退役
-            # ——全文=风格件+底色件逐字重复源,展示层不再双载;1009 单线四段协议:
-            # 输出主口改发四段标记协议文([4013] 按标记拆装),+「四段协议」展示框
-            # (UI 标记可见,追加在尾=旧四值存档按位零错位)。
             if pieces:
-                optional = {}
-                for nm, tip in (("风格工艺件", "十型恒挂的画法工艺段(透明型也托底)"),
-                                ("底色背景件", "带背景六型的底色/平涂/大色面段"),
-                                ("透明承载件", "透明型的透明承载段")):
-                    optional[nm] = ("STRING", {
-                        "multiline": True, "default": "",
-                        "tooltip": f"{tip}(执行后 JS 自动回填,无需手填/连线)"})
-                optional["负向词表"] = ("STRING", {
-                    "multiline": True, "default": "",
-                    "tooltip": "负向词表展示框(执行后 JS 自动回填真源负向,无需手填/连线)"})
-                # 1009 单线四段协议:UI 标记可见(用户令)——线上传输的四段标记全文
-                # (与主口「文本」同文;追加在尾=旧四值存档按位加载零错位)
-                optional["四段协议"] = ("STRING", {
-                    "multiline": True, "default": "",
-                    "tooltip": "线上传输的四段标记全文(【风格工艺件】/【底色背景件】/"
-                               "【透明承载件】/【负向词表】四段各占一行;执行后 JS 回填,无需手填/连线)"})
-                return {"required": {}, "optional": optional}
+                asb = _load_data().get("art_style_base") or {}
+                return {"required": {}, "optional": {
+                    "美术风格": ("STRING", {
+                        "multiline": True, "default": str(asb.get("positive_text") or ""),
+                        "tooltip": "只读画法与成像工艺；背景、照明和状态规则在类型句。"}),
+                    "负向词表": ("STRING", {
+                        "multiline": True, "default": str(asb.get("negative_text") or ""),
+                        "tooltip": "只读风格与成像工艺负向词；内容缺陷和背景约束在类型句。"}),
+                }}
             optional = {
                 "内容": ("STRING", {"multiline": True,
                                     "tooltip": f"{display}全文展示(JS 回填;预填=部署时快照"}),
@@ -239,9 +207,9 @@ def _make_section_node(section: str, display: str, negative: bool = False,
         OUTPUT_NODE = True
 
         def output(self, 内容: str = "", 负向词表: str = "",
-                   风格工艺件: str = "", 底色背景件: str = "", 透明承载件: str = "",
-                   四段协议: str = ""):
-            _ = 内容, 负向词表, 风格工艺件, 底色背景件, 透明承载件, 四段协议  # 展示框值不参与计算
+                   美术风格: str = "", **legacy):
+            # 所有展示快照均不参与计算，旧背景/透明/协议字段不会重新注入。
+            _ = 内容, 负向词表, 美术风格, legacy
             text = _section_text(section)
             if not text:
                 print(f"[漫影 {display}] 「{section}」节为空——请检查 qi21_bases.json")
@@ -249,31 +217,9 @@ def _make_section_node(section: str, display: str, negative: bool = False,
             neg = ""
             if negative:
                 raw = (_load_data().get("art_style_base") or {}).get("negative_text")
-                neg = str(raw).strip() if isinstance(raw, str) else ""
+                neg = raw.strip() if isinstance(raw, str) else ""
                 ui["bases_text_negative"] = [neg]
-            if pieces:
-                asb = _load_data().get("art_style_base") or {}
-                for key, field in (("bases_text_style", "positive_style_text"),
-                                   ("bases_text_ground", "positive_ground_text"),
-                                   ("bases_text_rgba", "rgba_text")):
-                    ui[key] = [str(asb.get(field) or "")]
-                # 1009 单线四段协议(用户令):主口=四段标记协议文(线上唯一载体,
-                # [4013] 按标记拆装;透明与背景分开);负向段取真源 negative_text
-                # 现值,第二口照旧原样出 neg(兼容旧消费)。
-                _st = str(asb.get("positive_style_text") or "").strip()
-                _gd = str(asb.get("positive_ground_text") or "").strip()
-                _rg = str(asb.get("rgba_text") or "").strip()
-                if _st and _gd and _rg:
-                    text = (f"【风格工艺件】{_st}\n【底色背景件】{_gd}\n"
-                            f"【透明承载件】{_rg}\n【负向词表】{neg}")
-                else:
-                    # 旧库回退:缺任一拆分件=全文不加标记(协议解析侧按无标记走 legacy)
-                    print(f"[漫影 {display}] 真源缺拆分字段(风格工艺件/底色背景件/"
-                          "透明承载件有缺)——主口回退全文不加四段标记,请同步 "
-                          "qi21_bases.json 三件拆分")
-                ui["bases_text"] = [text]
-                ui["bases_text_protocol"] = [text]
-            return {"ui": ui, "result": ((text,) if not negative else (text, neg))}
+            return {"ui": ui, "result": ((text, neg) if negative else (text,))}
 
     _SectionNode.__name__ = f"MyQi21{section.replace(' ', '')}"
     _SectionNode.__qualname__ = _SectionNode.__name__

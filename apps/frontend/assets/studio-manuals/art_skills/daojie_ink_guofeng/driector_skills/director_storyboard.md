@@ -61,18 +61,18 @@ metaData: director_skills
 |----------|-----------|
 | 修炼场景 | 灵雾缭绕、灵山仙境、灵气可视、青绿山水、水墨晕染 |
 | 宗门场景 | 灵石宫墙、飞檐斗拱、阵纹铺地、灵灯高悬、工笔线描 |
-| 洞府室内 | 灵石壁面、灵火通明、蒲团静室、灵纱帷幔、浅净平涂底 |
+| 洞府室内 | 灵石壁面、灵火通明、蒲团静室、灵纱帷幔、背景色相与明暗服从场景时段 |
 | 斗法场景 | 碎石裂地/劫云压顶/灵气激荡、冷色调、泼墨写意、飞白笔触 |
 | 大典庆典 | 灵灯/灵旗/祥云、朱红旧金、氛围庄严、工笔重彩 |
 | 冥界幽境 | 黄泉/忘川/幽冥之火、冷色浓墨、阴森压抑、水墨渲染 |
 
 ---
 
-## 固定风格锚定词（所有输出必须包含）
+## 风格词参考（仅需手工画法时使用，自动装配链不重复）
 
 **水墨国风锚定（必选）：**
 
-水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底
+水墨国风，修仙古韵，工笔线描，写意晕染，背景色相与明暗服从场景时段
 
 **人物质感（含人物镜头时必选）：**
 
@@ -98,15 +98,15 @@ metaData: director_skills
 模式A（中文）——画内文字场景（画面描述中含牌匾/对联/玉简等道具文字时）：
 水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字，牌匾/对联等场景道具上的文字清晰可辨
 
-模式B（英文）——默认：
-Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay
+模式B（英文）——英文调用方参考；Qwen 道劫自定义链默认中文：
+Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay
 
 模式B（英文）——画内文字场景：
-Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, smooth pale matte flat-wash ground, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay, legible text on in-scene props such as plaques and couplets
+Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay, legible text on in-scene props such as plaques and couplets
 
 **负向词模板（模式B 必须包含，置于提示词末尾）：**
 
-> ⚠️ Seedream（模式A）**不支持负向提示词**，负向词仅适用于模式B。模式A 通过正向词中的质感锚定和画质锁定来保证画面质量。
+> ⚠️ Seedream（模式A）**不支持负向提示词**；模式B 仅在采样器支持独立负向时使用下列参考词，Qwen viggle cfg≈1 不把负向当生效保障。模式A 通过正向词中的质感锚定和画质锁定来保证画面质量。
 
 模式B（英文）：
 no photorealistic, no realistic photography, no 3D render, no cel shading, no anime style, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no cartoon style, no subtitles, no captions, no watermark, no title overlay, no UI text
@@ -145,7 +145,7 @@ no photorealistic, no realistic photography, no 3D render, no cel shading, no an
 ### 示例输出A（模式A · Seedream）
 
 [Prompt]
-水墨国风，修仙古韵，工笔线描，写意晕染，浅净平涂底，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，手持灵剑凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，灵光如纸面散射，远景淡墨晕染，水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字。
+水墨国风，修仙古韵，工笔线描，写意晕染，背景色相与明暗服从场景时段，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，手持灵剑凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，灵光如纸面散射，远景淡墨晕染，水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字。
 Based on the reference image of 修仙少女，maintain consistent: face features, hairstyle, costume details. Generate a new scene: standing at cliff edge of spirit mountain, holding spirit sword. Keep visual style identical to reference.
 
 ### 示例输出B（模式B · Nanobanana）
@@ -165,7 +165,7 @@ Image [1]: 修仙少女 — 水墨国风造型，仙道服饰，工笔线描美�
 - Do NOT introduce cel shading, anime style or western fantasy elements
 </continuity_rules>
 <shot>
-Medium shot, xianxia girl in elegant dao robe standing at spirit mountain cliff edge, holding spirit sword, determined expression, resolute gaze, paper-scattered light, layered pale ink mist, ink-wash atmospheric perspective, gongbi line drawing with xieyi splash ink, Chinese ink-wash xianxia, traditional brushwork, smooth pale matte flat-wash ground, high detail, no subtitles, no captions, no watermark, no title overlay.
+Medium shot, xianxia girl in elegant dao robe standing at spirit mountain cliff edge, holding spirit sword, determined expression, resolute gaze, paper-scattered light, layered pale ink mist, ink-wash atmospheric perspective, gongbi line drawing with xieyi splash ink, Chinese ink-wash xianxia, traditional brushwork, ground color and lighting consistent with the scene and time, high detail, no subtitles, no captions, no watermark, no title overlay.
 </shot>
 <negative>
 no photorealistic, no realistic photography, no 3D render, no cel shading, no anime style, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no cartoon style, no subtitles, no captions, no watermark, no title overlay, no UI text

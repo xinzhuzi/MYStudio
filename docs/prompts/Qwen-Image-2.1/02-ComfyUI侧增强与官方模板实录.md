@@ -1,5 +1,7 @@
 # 02 · ComfyUI 侧增强与官方模板实录
 
+> **1016 范围勘正**：本文的英文 400–500 词、约 20 句与原生步数属于官方 PE-T2I 配方或历史材料，不是 Qwen-Image-2.1 的统一输入要求。道劫现行中文自定义链按 07–09 篇执行，生成只用 viggle 9 步双段。
+
 > **一句话结论**:在 ComfyUI 里,「提示词增强」是生成管线之外的可选外挂——官方两条模板不内嵌任何 PE 节点(实证零命中),自带的是两条按宪法手写的成品示范提示词;社区插件(benjiyaya/ComfyUI-Qwen-Image-2.1-Prompt-Enhancer)用原生 CLIPLoader 把 PE 9B 当文本编码器跑自回归改写,随包两份系统提示词与官方原文**逐字节一致**(本轮 diff/cmp/MD5 三重复验全过)。
 
 - 证据基准日:2026-09-23。
@@ -114,6 +116,14 @@ Keep the character and pose in <image1> unchanged, put this light blue denim shi
 ```
 
 两条的性质标注:均为**官方真源**,但是官方模板给「直生图 / 直编辑」预填的默认 prompt——**不是 PE 模型的产物**(模板里没有 PE 节点,见第 6 节)。五件套对位解剖见 01 篇第 8.4 节。
+
+> **1015 官方查新注(回写)**:本节为 09-23 基准日实录,留档不改写。1015 现场复核官方现行版(raw.githubusercontent.com 直连逐字节):
+> - **image_edit 模板默认 prompt 已换血**:378 字符标签长句 → **「Replace costumes for the character」**(34 字符,无标签、泛化短指令);配套双图(portrait_model_denim.png / clothing_light_blue_denim_shirt.png)未变。
+> - **Usage/Parameters Note 全新重写**:Size 节(native 2K/resolution=总像素预算非宽高/官方默认 1024/模板起点 0=不重采样/output follows image_1/custom_size 须贴近 image_1 否则 the edit can shift)+Reference images 节(至多 10 图/指令内 `<image1>`… 点名/image_1 is the edit target)+Parameters 节(**prompt: edit instruction, use `<image1>`…`<image10>`**/**negative_prompt: unused while cfg is 1**/cfg 官方路恒 1/官方管线 40-50 步 euler·模板起点 25·More advanced samplers need fewer steps)。
+> - **PE 默认关**:子图 ComfySwitchNode ×2 均 False(refine_prompt 默认关闭,「PE rewrites your instruction before the edit model sees it」为开启后行为)——与本仓 i2i 件 PE 默认开(0926 裁定1)是两条不同默认,本仓为产线自定。
+> - **t2i 模板默认 prompt 未变**(1718 字符 Greyscale 原句逐字仍在)。
+> - **官方双文体并存**:模板默认=短泛式(34 字符),而 QwenLM 主仓 README 示例(含 10-09 新发 Qwen-Image-2.1-Turbo 的编辑例)仍为长规格全指定文体——官方对指令详略不设唯一标准,道劫产线取长规格(确定性+装配层结构需求,见 09 篇 §二)。
+> - 模板库全量枚举受限(GitHub API 限流+HTML 截断 1000 件+zread 未索引),两件官方 qwen 模板经 README 新闻(更新至 10-09)指认+直连核验为现行全集已知件。
 
 ---
 

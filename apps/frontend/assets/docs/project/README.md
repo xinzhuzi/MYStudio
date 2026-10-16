@@ -9,8 +9,9 @@
 
 - 目录多为**懒创建**：新建项目时不会出现下面所有目录，每个目录随对应
   功能首次使用而出现——缺少某个目录只说明还没用到该功能，不是异常。
-- 应用状态（可由应用重建/迁移）与创作内容（您的数据）分开存放：
-  `store/` 是应用状态，其余目录是创作内容、**插件工作区**与备份。
+- 应用状态（可由应用重建/迁移）与创作内容（您的数据）分开存放：`store/`
+  是应用状态与应用托管的资产库（`store/assets/` 内是您入库的资产文件，属
+  创作内容，应用不可重建），其余目录是创作内容、**插件工作区**与备份。
 - 渲染/视频链路由三个插件承担，各占一个专属目录：**Remotion**（合成渲染，
   `remotion/`）、**video-use**（逐镜视频生成，`video-use/`）、**HyperFrames**
   （特效 overlay，`hyperframes/`）。
@@ -19,9 +20,9 @@
 
 | 目录 | 类别 | 作用 |
 |---|---|---|
-| `store/` | 应用状态 | 全部应用数据：各域 store（剧本/配音/角色/场景/道具/媒体/剪辑/导演等单文件 JSON）+ 工作流主数据分片目录 `store/studio-workflow/`（章节/分镜/任务，详见其内部 README.md） |
+| `store/` | 应用状态 | 全部应用数据：各域 store（剧本/配音/角色/场景/道具/媒体/剪辑/导演等单文件 JSON）+ 工作流主数据分片目录 `store/studio-workflow/`（章节/分镜/任务，详见其内部 README.md）+ `store/assets/` 资产文件库（创作内容，应用托管） |
 | `novel/` | 创作内容 | 小说域：`chapters/<章节ID>.md` 章节正文镜像；`source-memory/` 原著记忆库（MEMORY.md 常驻层 + 档案检索索引） |
-| `assets/` | 创作内容 | 资产文件库：角色/场景/道具参考图等入库资产文件 |
+| `store/assets/` | 创作内容（应用托管） | 资产文件库：角色/场景/道具参考图等入库资产文件（1016 起住 `store/` 内） |
 | `remotion/` | 插件工作区 | **Remotion 渲染插件**的专属目录：章节 manifest、渲染任务、证据与成片输出（audio/ chapters/ outputs/ jobs/ evidence/） |
 | `video-use/` | 插件工作区 | **video-use 视频生成插件**的审修工件：每章每修订一目录（`<章节>/r<修订>/`） |
 | `hyperframes/` | 插件工作区 | **HyperFrames 特效插件**的独立工作区：每章每修订一目录，存放 overlay 工件（`hyperframes-request/-overlay/-artifact`）；08-18 前曾寄居 video-use 修订目录，已迁移 |

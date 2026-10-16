@@ -17,7 +17,7 @@ import json, re, sqlite3, sys, glob
 from pathlib import Path
 
 STORE = Path.home() / "Project/IP/MA/store/studio-workflow"
-ASSETS = Path.home() / "Library/Application Support/漫影工作室/assets"
+ASSETS = Path.home() / "Project/IP/MA/store/assets"
 DATA_ROOT = Path.home() / "Library/Application Support/漫影工作室/projects"
 PREFIXES = ("监工", "管事", "老", "年轻", "小", "断臂")
 

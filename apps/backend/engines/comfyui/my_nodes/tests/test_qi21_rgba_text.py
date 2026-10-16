@@ -102,7 +102,7 @@ def test_pe_transparent_input_has_no_rgba_decl(monkeypatch):
 def test_pe_transparent_keeps_prop_body(monkeypatch):
     prop = _types()["道具"]["positive_text"]
     user = _pe_user_input(monkeypatch, prop, True)
-    assert "薄透罩染轻敷。" in user and "器物主体以正侧面平视图" in user
+    assert "薄透罩染轻敷。" in user and "器物可见范围完整入画并居中" in user
 
 
 def test_pe_opaque_input_type_text_verbatim(monkeypatch):
@@ -117,8 +117,8 @@ def test_lean_fallback_byte_identical_to_old_formula():
     asb = bases.get("art_style_base") or {}
     for t in _transparent_types():
         extra = _old_lean_extra(str(t.get("rgba_positive") or "").strip())
-        parts = [p for p in (_SUBJ, extra, str(asb.get("positive_style_text") or "").strip(),
-                             str(asb.get("rgba_text") or "").strip()) if p]
+        parts = [p for p in (_SUBJ, extra, str(asb.get("positive_text") or "").strip(),
+                             str((bases.get("rgba") or {}).get("subject_isolation") or "").strip()) if p]
         assert pe._rgba_lean_pos(_SUBJ, t["positive_text"]) == " ".join(parts), t["zh"]
 
 
@@ -137,7 +137,7 @@ def test_assembly_prop_keeps_l0_body_both_load_paths():
     direct_mod = _load("my_qi21_prompt_assembly")  # 单测家法直载腿(无包上下文)
     for mod in (asm, direct_mod):
         seg = _type_segment(mod, prop)
-        assert "器物主体以正侧面平视图" in seg and "薄透罩染轻敷。\n" in seg
+        assert "器物可见范围完整入画并居中" in seg and "薄透罩染轻敷。\n" in seg
 
 
 def test_assembly_transparent_type_segment_has_no_decl():

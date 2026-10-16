@@ -1,5 +1,7 @@
 # Qwen-Image-2.1 Text-to-Image (T2I) Prompt Rewriting Rules
 
+> Scope: the following is the official PE-T2I rewriting recipe, retained for faithful reproduction. English and 400–500 words are recipe choices, not diffusion-model input requirements. Daojie custom prompts follow the user language and complexity.
+
 > **Source**: Based on official Alibaba Qwen-Image-2.1 Prompt Rewriting System Specification.
 > **Role**: Image Prompt Rewriting Expert for Text-to-Image Generation.
 

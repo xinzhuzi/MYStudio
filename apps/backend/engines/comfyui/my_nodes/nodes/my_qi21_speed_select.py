@@ -4,7 +4,7 @@
 """漫影 qi21 加速档位选择(MyQi21SpeedSelect,0929 加速区并行化·方案 B 造件)。
 
 三档互斥加速支路在 LATENT 汇流处的单一选择点(任务 09-29-qi21-acczone-
-parallel design §2/§4):原生出图 / viggle / Fun-Acc 三条完整自足支路各自
+parallel design §2/§4):原生出图 / viggle / Turbo 三条完整自足支路各自
 采样后,本节点按 mode 档位把选中支路的 latent 原样路由出去——替代 0929 前
 注入式开关农场(t2i 加速区 10 逻辑件→1 选择件;MODEL/steps 内聚各支路,
 面板值即生效值)。
@@ -28,9 +28,10 @@ parallel design §2/§4):原生出图 / viggle / Fun-Acc 三条完整自足支�
   - 选中档未接线=select 内中文报错(先例=my_daojie_route.route 未接线
     文案):带档名+槽名+已接线档位清单,不猜不代选。
 
-档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=Fun-Acc 4步**(2026-10-02
-用户新令「qi21-道劫-t2i.json 默认是 Fun-Acc 加速,默认就要设置这个」推翻 0929
-拉齐重放裁定;历史账不改写,以此为准);档位字符串前导数字=档号,**随新序理顺
+档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=Turbo 8步**(1016turbo
+换臂:FunnyAcc→官方 Turbo LoRA(avg_rank_178)8步 cfg1,位置承 1002 用户令
+「qi21-道劫-t2i.json 默认是 Fun-Acc 加速,默认就要设置这个」的提首位——
+1002 令推翻 0929 拉齐重放裁定;历史账不改写,以此为准);档位字符串前导数字=档号,**随新序理顺
 =序位号(0/1/2)**(1002 前旧档号 0=直出/2=Fun-Acc/1=viggle 系旧 [30] 档位号
 口径,重排后理顺归零重编;旧→新字符串映射=research/slot-map.md)。combo
 列表即契约:/prompt
@@ -42,13 +43,13 @@ from __future__ import annotations
 
 from typing import Any
 
-# 档位表:combo 顺序即画布下拉顺序,首项=默认=Fun-Acc 4步(1002 用户新令,
-# 推翻 0929 拉齐重放;次序理由:Fun-Acc 主加速居首,直出居二,viggle 居三)。
+# 档位表:combo 顺序即画布下拉顺序,首项=默认=Turbo 8步(1016turbo 换臂承
+# 1002 提首位;次序理由:Turbo 主加速居首,直出居二,viggle 居三)。
 # 元组=(档位字符串, 选中时路由的 latent 槽名);档号内嵌字符串前导位=序位号
 # (0/1/2,1002 理顺:与新 combo 序一致);分隔符=U+00B7 中点
 # (契约测试锁码位防全角漂移)。
 SPEED_MODES: tuple[tuple[str, str], ...] = (
-    ("0 · Fun-Acc 4步", "latent_funacc"),
+    ("0 · Turbo 8步", "latent_turbo"),
     ("1 · 原生出图", "latent_direct"),
     ("2 · viggle", "latent_viggle"),
 )
@@ -64,8 +65,9 @@ def slot_for_mode(mode: str) -> str | None:
 
 
 class MyQi21SpeedSelect:
-    """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择(默认 Fun-Acc 4步,
-    1002 用户新令;0929-1001 期间曾默认原生出图=拉齐重放裁定,已被推翻)。
+    """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择(默认 Turbo 8步,
+    1016turbo 换臂承位;0929-1001 期间曾默认原生出图,1002-1016 曾默认
+    Fun-Acc 4步,均已翻篇)。
 
     mode=combo 三选一(首项默认);三个 latent 槽全 optional 全 lazy——
     未选档未接线不报错、不进执行图;选中档未接线给中文报错;输出=选中
@@ -82,7 +84,7 @@ class MyQi21SpeedSelect:
             # 全 optional 防未选档未接线报错;lazy=True=执行器对三槽默认不建
             # 强依赖,由 check_lazy_status 只拉起选中支路(未选支路零执行零加载)
             "optional": {
-                "latent_funacc": ("LATENT", {"lazy": True}),
+                "latent_turbo": ("LATENT", {"lazy": True}),
                 "latent_viggle": ("LATENT", {"lazy": True}),
                 "latent_direct": ("LATENT", {"lazy": True}),
             },

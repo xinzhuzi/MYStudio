@@ -5,9 +5,9 @@
 - 装配子图[6]:真节点逻辑(4010→4013 ApiPE(9B)→4014),型选择/主体句参数化;
 - 加速子图[7]:**默认档=宿主 widget 现值**(现=2·viggle 9步双段:RandomNoise→段A
   turboLoRA+ViggleTurboSigmas(SplitSigmas@7)→段B 底模+DisableNoise 续采);
-  未选支路(FunAcc/直出)懒排除——与画布执行图一致;
-- seed=**每次随机**(random.randint),透传到 7:7017 RandomNoise 与 7:7010/7013(懒分支
-  仍排除,seed 只落在活支路);
+  未选支路(Turbo 分支经 --turbo 覆写/直出)懒排除——与画布执行图一致;
+- seed=**每次随机**(random.randint),透传到 7:7017 RandomNoise 与 7:7010/Turbo 分支
+  (Turbo 臂噪声共用 7:7017;懒分支仍排除,seed 只落在活支路);
 - 4018 WhSuggest 手动宽高=0(透传型宽高)——工作流默认。
 
 用法:python3 qi21_t2i_workflow_fire.py --type 表情差分 [--subject-file xx.txt] [--seed N(缺省随机)] [--out xx.png]
@@ -25,6 +25,10 @@ from pathlib import Path
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 DOC = REPO / "docs/prompts/道劫_九型主体句示例.md"
+# 1016turbo 官方臂常量(FunAcc 臂退役;LoRA 家=<引擎家>/models/loras,mystudio 映射)
+TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
+TURBO_SIGMAS = ("1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, "
+                "0.704534, 0.414568, 0")  # 官方 model_index sample_sigmas+模板补终止0
 
 
 def engine_base() -> str:
@@ -69,6 +73,17 @@ def main():
     ap.add_argument("--subject", default=None, help="主体句全文;缺省=示例库该型§首例逐字")
     ap.add_argument("--seed", type=int, default=None, help="缺省=随机")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--upscale2k", action="store_true",
+                    help="展平 SeedVR2 放大尾档[501-504](短边2048=2K;1016 模糊治理;"
+                         "RGBA 四通道官方直通,透明型无损;widgets 全取工作流现值)")
+    ap.add_argument("--turbo", action="store_true",
+                    help="覆写速度档位为官方 Turbo 8步(1016turbo 换臂:官方 avg_rank_178 "
+                         "LoRA ×1.0 直连底模→BasicGuider cfg1→SamplerCustomAdvanced+官方σ表)")
+    ap.add_argument("--no-pe", dest="no_pe", action="store_true",
+                    help="PE 旁路:api_url 指向必拒连端口触发节点设计内透传回退"
+                         "(透明开→极简公式=主体句+rgba_positive 格式锁+风格托底;"
+                         "1016 设定卡役:PE 教材透明纪律误伤多区排版语言,分区语言"
+                         "经格式锁全量直进编码器;本地模式单点无兜底追加已核)")
     args = ap.parse_args()
 
     wf = json.loads(WF.read_text(encoding="utf-8"))
@@ -92,7 +107,7 @@ def main():
 
     host6 = root_nodes[6]          # 装配子图宿主(型选择 widget)
     host7 = root_nodes[7]          # 加速子图宿主(速度档位/seed/σ表 widget)
-    speed = host7["widgets_values"][0]
+    speed = "0 · Turbo 8步" if args.turbo else host7["widgets_values"][0]
     sigma_str = host7["widgets_values"][2] if len(host7["widgets_values"]) > 2 else ""
     print(f"[fire] 型={args.type} 档={speed} seed={seed}(随机)" if args.seed is None else f"[fire] 型={args.type} 档={speed} seed={seed}")
 
@@ -114,8 +129,11 @@ def main():
     for k in ("系统提示词", "色卡", "美术风格底座-正向", "美术风格底座-负向", "正向提示词", "负向提示词",
               "类型句正向", "类型句负向", "画幅宽", "画幅高", "透明模式"):
         pe_in.pop(k, None)
+    _api = pe_in.get("api_url", "http://192.168.0.101:1234")
+    if args.no_pe:
+        _api = "http://127.0.0.1:9"  # 必拒连端口:本地模式单点无兜底→设计内透传回退
     pe_in.update({
-        "api_url": pe_in.get("api_url", "http://192.168.0.101:1234"),
+        "api_url": _api,
         "model": pe_in.get("model", "qwen3.5-9b-uncensored-hauhaucs-aggressive"),
         "正向提示词": ["400", 0], "负向提示词": ["404", 0],
         "类型句正向": ["6:4010", 0], "类型句负向": ["6:4010", 3],
@@ -129,8 +147,12 @@ def main():
     g["6:4030"] = {"class_type": "MyQi21系统提示词", "inputs": {"内容": n4030["widgets_values"][0]}}
     g["6:4031"] = {"class_type": "MyQi21色卡", "inputs": {"内容": n4031["widgets_values"][0]}}
     g["6:4032"] = {"class_type": "MyQi21美术风格底座",
-                   "inputs": {"风格工艺件": n4032["widgets_values"][0], "底色背景件": n4032["widgets_values"][1],
-                              "透明承载件": n4032["widgets_values"][2], "负向词表": n4032["widgets_values"][3]}}
+                   "inputs": {"美术风格": n4032["widgets_values"][0],
+                              "负向词表": n4032["widgets_values"][1]}}
+    # 1016turbo 首发勘误:原四件名(风格工艺件/底色背景件/透明承载件/负向词表)系
+    # 旧协议 legacy 字段——现行类(pieces=True 形,my_qi21_bases_text.py INPUT_TYPES)
+    # 活体 object_info 仅 美术风格/负向词表 两口,工作流 JSON 4032 widgets_values 亦
+    # 两值;按活体三源对齐改两名,值仍取工作流现值。
 
     # ── 根图 ──
     g["1"] = {"class_type": "UNETLoader", "inputs": {"unet_name": root_nodes[1]["widgets_values"][0], "weight_dtype": "default"}}
@@ -169,11 +191,19 @@ def main():
                        "inputs": {"noise": ["7:7023", 0], "guider": ["7:7022", 0], "sampler": ["7:7018", 0],
                                   "sigmas": ["7:7021", 1], "latent_image": ["7:7012", 0]}}
         latent_src = ["7:7024", 0]
-    elif "Fun" in speed:
-        g["7:7013"] = {"class_type": "T8QwenImage21FunAccPDD4Step",
-                       "inputs": {"model": ["1", 0], "positive": ["4015", 0], "latent_image": ["4", 0],
-                                  "model_file": n7[7013]["widgets_values"][0], "seed": seed}}
-        latent_src = ["7:7013", 0]
+    elif "Turbo" in speed:
+        # 1016turbo 官方臂(照画布子图手术形展平;噪声/采样器与 viggle 分支同款自建)
+        g["7:7028"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "model": ["1", 0], "lora_name": TURBO_LORA_FILE, "strength_model": 1.0}}
+        g["7:7029"] = {"class_type": "BasicGuider", "inputs": {
+            "model": ["7:7028", 0], "conditioning": ["4015", 0]}}
+        g["7:7030"] = {"class_type": "ManualSigmas", "inputs": {"sigmas": TURBO_SIGMAS}}
+        g["7:7017"] = {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}}
+        g["7:7018"] = {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}}
+        g["7:7031"] = {"class_type": "SamplerCustomAdvanced", "inputs": {
+            "noise": ["7:7017", 0], "guider": ["7:7029", 0], "sampler": ["7:7018", 0],
+            "sigmas": ["7:7030", 0], "latent_image": ["4", 0]}}
+        latent_src = ["7:7031", 0]
     else:
         g["7:7010"] = {"class_type": "KSampler",
                        "inputs": {"seed": seed, "steps": 40, "cfg": 4.0, "sampler_name": "euler", "scheduler": "simple",
@@ -183,6 +213,33 @@ def main():
 
     g["5"] = {"class_type": "VAEDecode", "inputs": {"samples": latent_src, "vae": ["3", 0]}}
     g["8"] = {"class_type": "SaveImage", "inputs": {"images": ["5", 0], "filename_prefix": "QI21_t2i_wf"}}
+
+    # ── 尾档展平:SeedVR2 2K 放大(--upscale2k;widgets=工作流[501-504]现值,
+    #    入参名经 object_info 逐节点校验 1016;RGBA 直通官方声明)──
+    if args.upscale2k:
+        w501 = root_nodes[501]["widgets_values"]   # [model,device,blocks_to_swap,swap_io,offload,cache,attn]
+        w502 = root_nodes[502]["widgets_values"]   # [model,device,enc_tiled,enc_ts,enc_ov,dec_tiled,dec_ts,dec_ov,tile_debug,offload,cache]
+        w503 = root_nodes[503]["widgets_values"]   # [seed,"fixed",res,max_res,batch,uniform,color,temporal,prepend,in_noise,lat_noise,offload,debug]
+        g["501"] = {"class_type": "SeedVR2LoadDiTModel", "inputs": {
+            "model": w501[0], "device": w501[1], "blocks_to_swap": w501[2],
+            "swap_io_components": w501[3], "offload_device": w501[4],
+            "cache_model": w501[5], "attention_mode": w501[6]}}
+        g["502"] = {"class_type": "SeedVR2LoadVAEModel", "inputs": {
+            "model": w502[0], "device": w502[1], "encode_tiled": w502[2],
+            "encode_tile_size": w502[3], "encode_tile_overlap": w502[4],
+            "decode_tiled": w502[5], "decode_tile_size": w502[6],
+            "decode_tile_overlap": w502[7], "tile_debug": w502[8],
+            "offload_device": w502[9], "cache_model": w502[10]}}
+        g["503"] = {"class_type": "SeedVR2VideoUpscaler", "inputs": {
+            "image": ["5", 0], "dit": ["501", 0], "vae": ["502", 0],
+            "seed": w503[0], "resolution": w503[2], "max_resolution": w503[3],
+            "batch_size": w503[4], "uniform_batch_size": w503[5],
+            "color_correction": w503[6], "temporal_overlap": w503[7],
+            "prepend_frames": w503[8], "input_noise_scale": w503[9],
+            "latent_noise_scale": w503[10], "offload_device": w503[11],
+            "enable_debug": w503[12]}}
+        g["504"] = {"class_type": "SaveImage", "inputs": {"images": ["503", 0],
+                                                          "filename_prefix": root_nodes[504]["widgets_values"][0]}}
 
     req = urllib.request.Request(f"{ENGINE}/prompt",
                                  data=json.dumps({"prompt": g, "client_id": "t2i-workflow-fire"}).encode(),
@@ -194,15 +251,27 @@ def main():
     print(f"queued {pid}")
     t0 = time.time()
     fn = None
-    while time.time() - t0 < 900:
+    # 1016 实弹定谳:「1·原生出图」支路无缺陷——1015「无产物」=误判(40步人物图
+    # ~63s/it≈42min 超本窗,当时 ~9min 即判死);道具小图实测 8.6s/it×40≈7min。
+    # 窗口按档自适应:direct=2700s(45min 容 42min 全链),余档维持 900s。
+    poll_window = 2700 if "原生" in speed else 900
+    while time.time() - t0 < poll_window:
         time.sleep(8)
         with urllib.request.urlopen(f"{ENGINE}/history/{pid}", timeout=10) as r:
             hist = json.load(r)
         if pid in hist:
-            for _n, o in hist[pid].get("outputs", {}).items():
-                for img in o.get("images", []):
-                    fn = img["filename"]; break
-            if fn: break
+            fns = [img["filename"]
+                   for _n, o in hist[pid].get("outputs", {}).items()
+                   for img in o.get("images", [])]
+            if args.upscale2k:
+                # 原生件(QI21_t2i_wf*)先出,放大件(MYStudio-2K*)后出——等后者
+                two_k = [f for f in fns if not f.startswith("QI21_t2i_wf")]
+                if two_k:
+                    fn = two_k[0]
+                    break
+            elif fns:
+                fn = fns[0]
+                break
     assert fn, "无产物"
     out = Path(args.out) if args.out else REPO / "apps/output/bgscope-r3-9types" / f"{args.type}.png"
     out.parent.mkdir(parents=True, exist_ok=True)

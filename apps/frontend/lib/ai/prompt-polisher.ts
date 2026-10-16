@@ -552,7 +552,7 @@ function buildLocalFallbackPolishResult(input: {
     character: "single character concept art, clear face, full-body readable silhouette, costume and identity details",
     scene:
       input.visualManualId === EXTENDED_VISUAL_MANUAL_SEED_ID
-        ? "environment concept art, clear spatial layout, even flat diffuse illumination, pale ink atmospheric perspective"
+        ? "environment concept art, clear spatial layout, lighting consistent with source scene and time, ink atmospheric perspective"
         : "environment concept art, clear spatial layout, cinematic lighting, atmospheric depth",
     prop: "single prop concept art, isolated object, readable material, no hands, no characters",
   };
@@ -601,7 +601,7 @@ function extractVisualStyleAnchor(systemPrompt: string) {
 }
 
 const EXTENDED_MANUAL_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
-  [/\bcinematic\s+lighting\b/gi, "even flat diffuse illumination"],
+  [/\bcinematic\s+lighting\b/gi, "lighting consistent with source scene and time"],
   [/\bcinematic\s+composition\b/gi, "clear layered ink-wash composition"],
   [/\bcinematic\s+(?:quality|atmosphere|motion)\b/gi, "clean finished gongbi quality"],
   [/\bvolumetric\s+fog\b/gi, "layered pale ink mist"],
@@ -618,10 +618,10 @@ const EXTENDED_MANUAL_PROMPT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bclear\s+layered\s+ink-wash\s+composition\b/gi, "clear layered colored ink-wash composition with visible mineral pigments"],
   [/\bHDR\s+highlights?\b/gi, "soft paper-scattered light"],
   [/\bmirror(?:ed)?\s+wet\s+reflections?\b/gi, "controlled matte material"],
-  [/\b(?:rice|xuan)[- ]paper\s+texture\b/gi, "smooth pale matte flat-wash ground"],
-  [/宣纸质感/g, "浅净平涂底"],
-  [/宣纸肌理/g, "浅净平涂底"],
-  [/电影级(?:光影|布光|构图|质感|氛围)/g, "均匀平光与清楚分层"],
+  [/\b(?:rice|xuan)[- ]paper\s+texture\b/gi, "clean digital painting surface"],
+  [/宣纸质感/g, "清晰数字绘画工艺"],
+  [/宣纸肌理/g, "清晰数字绘画工艺"],
+  [/电影级(?:光影|布光|构图|质感|氛围)/g, "光照服从场景时段，画面层次清楚"],
   [/电影质感/g, "干净工笔成片质感"],
   [/电影构图/g, "清楚前中远景构图"],
   [/电影级体积雾/g, "淡墨雾层"],

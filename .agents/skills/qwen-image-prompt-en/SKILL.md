@@ -3,6 +3,9 @@ name: qwen-image-prompt-en
 description: Write and improve prompts for Qwen-Image-2.1, Alibaba's open-weight image generation and editing model. Use whenever the user wants to generate or edit images with Qwen-Image / Qwen-Image-2.1 / Qwen-Image-Edit, asks for help prompting any Qwen image model, needs readable text rendered inside an image (posters, signs, UI mockups, infographics), wants to combine several reference images into one, or asks about aspect ratios, styles, or camera settings for Qwen image generation — even when they are only choosing an image model for a text-heavy graphic and have not named the model yet.
 ---
 
+
+> Daojie (2026-10-16): new assets may combine subject, type and drawing style; local edits preserve the input style, layout and lighting unless explicitly changed. Style transfer adds drawing language while preserving source facts. The official PE length recipe does not impose a minimum length.
+
 # Qwen-Image-2.1 Prompt Guide
 
 Qwen-Image-2.1 (released 2026-09-20) is a 7B unified model: text-to-image generation, image editing, multi-reference compositing, transparent (RGBA) output, and best-in-class text rendering, at native 2K resolution. It is prompted with **fluent natural language**, not Stable Diffusion-style tag lists.
@@ -10,7 +13,7 @@ Qwen-Image-2.1 (released 2026-09-20) is a 7B unified model: text-to-image genera
 ## Core rules (always apply)
 
 1. **Natural sentences, never tag lists.** Qwen image models ignore SD-style tags and `(term:1.5)` weight syntax. Emphasize by description instead: "with vibrant, striking red hair".
-2. **Write descriptive prompts in English**, whatever language the user speaks. Only text that must appear *inside* the image keeps its original script (Japanese stays Japanese, Chinese stays Chinese).
+2. **Follow the requested language** for direct prompts; Chinese is supported. Use English when explicitly requested or reproducing the official PE-T2I recipe. Only text that must appear *inside* the image keeps its original script (Japanese stays Japanese, Chinese stays Chinese).
 3. **Front-load the subject.** The transformer weights early, concrete tokens heavily — subject first, then environment, style, composition, lighting.
 4. **Any string that must appear in the image goes in double quotes, verbatim.** `a neon sign that reads "GRAND OPENING"`. Case and punctuation are reproduced as written.
 5. **Edit prompts state the edit + a preserve clause.** "Change X to Y. Keep everything else unchanged." One logical edit per pass; chain small passes for big changes.
@@ -32,7 +35,7 @@ Qwen-Image-2.1 (released 2026-09-20) is a 7B unified model: text-to-image genera
 
 1. Identify the mode: **generate**, **edit**, or **composite**. If readable in-image text is involved, the text-rendering rules apply on top of the mode's rules.
 2. Read the matching reference file. Do not write from memory — the official style rules are detailed and counterintuitive in places (e.g. long observational paragraphs for layouts, preserve-clauses for edits).
-3. Draft the prompt in English. Check it against the core rules above.
+3. Draft the prompt in the requested language, with length matched to complexity. Check it against the core rules above.
 4. Choose the aspect ratio semantically (portrait subject → 2:3, presentation → 16:9, badge/icon → 1:1) and pass it as a parameter. Default 3:2 landscape / 2:3 portrait.
 5. If the user reports a failure (garbled text, wrong subject, drifted face), consult the failure-pattern table in `references/capabilities.md` before rewriting.
 

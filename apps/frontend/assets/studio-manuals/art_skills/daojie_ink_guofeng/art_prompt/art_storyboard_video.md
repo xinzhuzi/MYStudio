@@ -4,10 +4,10 @@
 
 | 模式 | 风格标签 |
 |------|----------|
-| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, smooth pale matte flat-wash ground, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth` |
-| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, smooth pale matte flat-wash ground, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout` |
-| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，浅净平涂底，墨色层次丰富，连环画叙事感，前中远景分明构图` |
-| **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，浅净平涂底，修仙题材，灵气流转，动态张力` |
+| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth` |
+| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout` |
+| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，底色与光照服从场景时段，墨色层次丰富，连环画叙事感，前中远景分明构图` |
+| **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，底色与光照服从场景时段，修仙题材，灵气流转，动态张力` |
 
 ## 连环画叙事层（09-18《三国望神州》DNA 并入；09-18 实证校正）
 
@@ -68,16 +68,16 @@
 
 ## 《道劫》成片主风格锁（ma-gongbi-v1 · 全文）
 
-> 与 MA `美术成片风格提示词模板库.md` 词级一致（快照见 ma_sync）。分镜帧/成片画面提示词按下方「成片模板速查」选用一个模板骨架后，主体/地点/动作/剧情替换为当前分镜内容。
+> 2026-10-16 依用户配色裁定作本地修订；MA 历史来源快照见 ma_sync，不再声明本段与外部逐字一致。分镜帧/成片画面提示词按下方「成片模板速查」选用一个模板骨架后，主体/地点/动作/剧情替换为当前分镜内容。
 
 ```text
-《道劫》默认主风格：工笔结构层用细密、稳定、清楚的墨线刻画脸、手、发丝、衣褶、器物轮廓和建筑边缘；写意气韵层用彩色矿物分染、罩染与克制泼墨处理山水、雾、灵气、远景和动作余韵。前中远景与空气透视清楚。按场景使用至多 2-3 个低饱和点缀色：石青、石绿、靛青、玉青、赭石、朱砂、矿物朱、旧金或血红形成连续可见色区。色量由来源事实决定；30%-70% 仅作人工观察与报告，不是生成硬门。指定一个明确自然光、窗光或灵光方向，照亮脸、手、关键道具与路径。画面清雅、细腻、透气、旧而不脏，但不得灰白化、黑白化、低饱和化或单一灰蓝化。默认不要多视图、资料卡、UI板、厚涂油画、照片写实、3D塑料、赛璐璐平涂、文字水印或伪字题跋。
+《道劫》默认主风格：工笔结构层用细密、稳定、清楚的墨线刻画脸、手、发丝、衣褶、器物轮廓和建筑边缘；写意气韵层用彩色矿物分染、罩染与克制泼墨处理山水、雾、灵气、远景和动作余韵。前中远景与空气透视清楚。以丰富多彩的传统设色为主，配色协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明。具体色相与数量依场景事实，色彩形成连续可见色区。色量由来源事实决定；30%-70% 仅作人工观察与报告，不是生成硬门。指定一个明确自然光、窗光或灵光方向，照亮脸、手、关键道具与路径。画面清雅、细腻、透气、旧而不脏，但不得灰白化、黑白化、低饱和化或单一灰蓝化。默认不要多视图、资料卡、UI板、厚涂油画、照片写实、3D塑料、赛璐璐平涂、文字水印或伪字题跋。
 ```
 
 ## 通用成片负面约束（全文，并入 Negative Prompt 段）
 
 ```text
-不要现代都市霓虹，不要西幻板甲，不要日式校园制服，不要赛博风主导，不要欧美厚涂奇幻，不要纯黑白滤镜，不要低清模糊，不要塑料感3D渲染，不要廉价网红脸，不要过度磨皮，不要大面积脏污，不要文字水印，不要logo，不要乱码，不要伪字题跋，不要错误肢体，不要多余手指，不要重复人物，不要拼贴感，不要把背景画成空泛山水。画面必须主体明确、线条干净、纸面透气、水墨为主、彩色点缀、古雅、有真实场景和动作。
+不要现代都市霓虹，不要西幻板甲，不要日式校园制服，不要赛博风主导，不要欧美厚涂奇幻，不要纯黑白滤镜，不要低清模糊，不要塑料感3D渲染，不要廉价网红脸，不要过度磨皮，不要大面积脏污，不要文字水印，不要logo，不要乱码，不要伪字题跋，不要错误肢体，不要多余手指，不要重复人物，不要拼贴感，不要把背景画成空泛山水。画面必须主体明确、线条干净、纸面透气、丰富设色为主、配色协调、主辅与点睛色主次分明、古雅、有真实场景和动作。
 ```
 
 ## 成片模板速查（按用途只选 1 个，骨架要点版）
@@ -126,7 +126,7 @@
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，smooth pale matte flat-wash ground，muted yet visible mineral-color palette with soft cyan-green and vermilion accents，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
+水墨国风修仙，Chinese ink wash xianxia，gongbi linework，ground and lighting consistent with the source scene and time，muted yet visible mineral-color palette with soft cyan-green and vermilion accents，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
 视频提示词必须补充镜头运动、主体运动、起承转合、淡墨空气透视变化、光影连续性和首尾帧一致性；补充 ink-wash motion, temporal continuity, stable composition, consistent subject identity。
 
 ### 反向规避提示词
@@ -151,15 +151,15 @@ flicker, jitter, morphing face, identity drift, inconsistent costume, warped han
 > 标记块缺失时不注入任何内容（fail-empty）。修改本节即全局生效。
 
 <!-- storyboard-image-style-tokens:start -->
-Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, smooth pale matte flat-wash ground
-工笔线描，写意晕染，浅净平涂底，墨色层次丰富，青绿朱砂赭石淡彩点缀
+Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time
+工笔线描，写意晕染，底色与光照服从场景时段，墨色层次丰富，青绿朱砂赭石淡彩点缀
 clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality
 <!-- storyboard-image-style-tokens:end -->
 
 <!-- storyboard-frame-negative:start -->
-photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, neon cyberpunk palette, three-point Hollywood lighting, heavy cinematic rim light, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, tattered clothing, ragged hems, monochrome, grayscale, black and white, ink-only lineart, washed-out colorless image
+photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, neon cyberpunk palette, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, monochrome, grayscale, black and white, ink-only lineart, washed-out colorless image
 <!-- storyboard-frame-negative:end -->
 
 <!-- storyboard-style-guide:start -->
-8. 画面洁净纪律：保持浅净平涂底，做旧止于淡灰晕染——禁止霉斑、污渍团块、泥点飞溅、灰蒙积垢；白衣与浅色区域保持干净底色，墙面至多轻微斑驳；纹理密度宁少勿多，保住工笔线描的清晰与画面通透。
+8. 画面工艺纪律：工笔线描与矿物罩染清晰，底色、明暗、光源与时段服从场景事实；来源中的尘土、污渍、血痕、破损与身体缺失如实呈现，不以清晰工艺为由洗净或补齐。
 <!-- storyboard-style-guide:end -->
