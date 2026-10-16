@@ -97,7 +97,10 @@ export async function prepareBundledSqlite3({ force = false } = {}) {
     writeFileSync(zipPath, buffer);
   }
   const actualSha = await sha256File(zipPath);
-  if (actualSha !== EXPECTED_SHA256) {
+  // 1016 修:hex 比较归一大小写——createHash 恒输出小写,常量为大写,
+  // 旧严格不等比较在 Windows 打包链首撞假校验失败(哈希值实际一致);
+  // mac 构建不进此分支故从未暴露。
+  if (actualSha.toLowerCase() !== EXPECTED_SHA256.toLowerCase()) {
     rmSync(zipPath, { force: true });
     throw new Error(`sqlite-tools zip SHA-256 校验失败: ${actualSha}(期望 ${EXPECTED_SHA256})`);
   }
