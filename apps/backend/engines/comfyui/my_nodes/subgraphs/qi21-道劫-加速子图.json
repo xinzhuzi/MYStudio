@@ -589,7 +589,7 @@
               0,
               "fixed",
               40,
-              4,
+              1,
               "euler",
               "simple",
               1
@@ -598,7 +598,7 @@
               "seed": 0,
               "control_after_generate": "fixed",
               "steps": 40,
-              "cfg": 4,
+              "cfg": 1,
               "sampler_name": "euler",
               "scheduler": "simple",
               "denoise": 1
