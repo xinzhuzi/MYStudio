@@ -98,6 +98,9 @@ def main():
                     help="覆写速度档位为官方 Turbo 8步(1016turbo 换臂:官方 avg_rank_178 "
                          "LoRA ×1.0 直连底模→BasicGuider cfg1→SamplerCustomAdvanced+官方σ表;"
                          "面板出厂默认=「自动 · 按型」(1017),本旗显式覆写优先生效)")
+    ap.add_argument("--native", action="store_true",
+                    help="覆写速度档位为「1 · 原生出图」(40步 cfg1 负向不参与采样;"
+                         "1017 概念图役令;与 --turbo 同层,先到先得勿同传)")
     ap.add_argument("--unwire-base", dest="unwire_base", action="store_true",
                     help="模拟 [4032] 旁路:底座两槽不接线(1017 裁定:缺席=底座离场)")
     ap.add_argument("--bare", action="store_true",
@@ -146,9 +149,10 @@ def main():
 
     host6 = root_nodes[6]          # 装配子图宿主(型选择 widget)
     host7 = root_nodes[7]          # 加速子图宿主(速度档位/seed/σ表 widget)
-    # 1017:不传 --turbo=尊重面板「自动 · 按型」出厂默认,按 --type 解析生效档;
-    # --turbo=显式覆写为「0 · Turbo 8步」优先生效(不经型名改写)
-    speed_panel = "0 · Turbo 8步" if args.turbo else host7["widgets_values"][0]
+    # 1017:不传 --turbo/--native=尊重面板「自动 · 按型」出厂默认,按 --type 解析生效档;
+    # --turbo/--native=显式覆写优先生效(不经型名改写;同传时 native 先到先得)
+    speed_panel = ("1 · 原生出图" if args.native
+                   else ("0 · Turbo 8步" if args.turbo else host7["widgets_values"][0]))
     speed = resolve_speed_mode(speed_panel, args.type)
     sigma_str = host7["widgets_values"][2] if len(host7["widgets_values"]) > 2 else ""
     print(f"[fire] 型={args.type} 档={speed_panel}→生效档={speed} seed={seed}(随机)" if args.seed is None else f"[fire] 型={args.type} 档={speed_panel}→生效档={speed} seed={seed}")
