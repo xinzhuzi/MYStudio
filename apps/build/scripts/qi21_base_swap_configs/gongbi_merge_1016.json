@@ -1,0 +1,93 @@
+{
+  "campaign": "1016 底座工笔重彩合稿",
+  "out_dir": "qi21-base-swap-merge-v2-1016",
+  "guards_positive_contain": [
+    "工笔重彩"
+  ],
+  "positive_old": "美术风格底座：中国工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导的二维手绘数字游戏插画，融合彩色连环画（classic Chinese lianhuanhua comic）的概括造型，各种画法主次明确、协调统一。轮廓线与内部结构线共同承担造型，精细用笔（fine brushwork），线条细稳连贯、饱满有力，轻重、疏密富有节奏，形体概括凝练。清晰色面、分染与层层罩染共同塑形，色面边界明确平整，色相对比保持清晰，明暗融入固有色的浓淡与冷暖层次；设色以丰富多彩的工笔重彩（rich gongbi coloration）为主，多色相并陈且协调统一，主色统领、辅色呼应、点睛色突出，色泽饱满鲜亮、明快莹润（bright, luminous color），如石色矿物颜料般鲜泽通透（vivid mineral-pigment colors），明度与色相对比清晰、层级分明，材质统一于线描设色语言。保留清楚的手绘笔性（hand-painted brushwork），全图细节密度高、笔笔可辨，轮廓与色面边界清晰锐利（crisp, sharp edges），数字绘画表面洁净平整（clean, flat digital finish），线条与罩染层次分明。",
+  "positive_new": "美术风格底座：中国工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导的二维手绘数字游戏插画，融合彩色连环画（classic Chinese lianhuanhua comic）的概括造型，各种画法主次明确、协调统一，造型概括凝练。轮廓线与内部结构线共同承担造型，勾线精微（fine brushwork），线条细劲流畅、饱满有力，起收自然，粗细、轻重与疏密富有节奏。清晰色面、细腻分染与层层罩染共同塑形，色面边界明确平整，色相对比保持清晰，明暗融入固有色的浓淡与冷暖层次，深浅色层各具色彩；设色以丰富多彩的工笔重彩（rich gongbi coloration）为主，多色相并陈、充分展开且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润（bright, luminous color），如石色矿物颜料般鲜泽通透（vivid mineral-pigment colors），明度、纯度与冷暖变化细腻清晰、层级分明，繁简有序，材质统一于线描设色语言。保留清楚的手绘笔性（hand-painted brushwork），用笔精微，疏密有致，全图细节密度高、笔笔可辨，轮廓与色面边界清晰锐利（crisp, sharp edges），数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。",
+  "prefix_count": 2,
+  "prompt_layering_pairs": [
+    [
+      "以丰富多彩的工笔重彩为主，色泽饱满鲜亮、明快莹润，主色统领、辅色呼应、点睛色突出，明度与色相对比清晰、层级分明；",
+      "以丰富多彩的工笔重彩为主，多色相并陈且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润，明度、纯度与冷暖变化细腻清晰、层级分明；",
+      1
+    ]
+  ],
+  "lock_anchor_pairs": [
+    [
+      "轮廓线与内部结构线共同承担造型，精细用笔（fine brushwork）",
+      "轮廓线与内部结构线共同承担造型，勾线精微（fine brushwork）",
+      1
+    ],
+    [
+      "数字绘画表面洁净平整（clean, flat digital finish），线条与罩染层次分明。",
+      "数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。",
+      1
+    ]
+  ],
+  "style_guide_swaps": [
+    {
+      "file": "style_guide/03_色彩体系.md",
+      "pairs": [
+        [
+          "以丰富多彩的工笔重彩为主，色泽饱满鲜亮、明快莹润，主色统领、辅色呼应、点睛色突出，明度与色相对比清晰、层级分明。",
+          "以丰富多彩的工笔重彩为主，多色相并陈且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润，明度、纯度与冷暖变化细腻清晰、层级分明。",
+          1
+        ],
+        [
+          "以丰富多彩的工笔重彩为主，色泽饱满鲜亮、明快莹润，主色统领、辅色呼应、点睛色突出，明度与色相对比清晰、层级分明；",
+          "以丰富多彩的工笔重彩为主，多色相并陈且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润，明度、纯度与冷暖变化细腻清晰、层级分明；",
+          1
+        ]
+      ]
+    }
+  ],
+  "extra_file_swaps": [
+    {
+      "file": "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/prefix.md",
+      "pairs": [
+        [
+          "以丰富多彩的工笔重彩为主，色泽饱满鲜亮、明快莹润，主色统领、辅色呼应、点睛色突出，明度与色相对比清晰、层级分明。具体色相与数量服从来源事实",
+          "以丰富多彩的工笔重彩为主，多色相并陈且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润，明度、纯度与冷暖变化细腻清晰、层级分明。具体色相与数量服从来源事实",
+          1
+        ],
+        [
+          "以丰富多彩的工笔重彩为主，色泽饱满鲜亮、明快莹润，主色统领、辅色呼应、点睛色突出，明度与色相对比清晰、层级分明，具体色相与数量跟随角色",
+          "以丰富多彩的工笔重彩为主，多色相并陈且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润，明度、纯度与冷暖变化细腻清晰、层级分明，具体色相与数量跟随角色",
+          1
+        ]
+      ]
+    }
+  ],
+  "wf_counts": {
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
+    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
+    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
+  },
+  "assembly_sha16_old": "05b2cd5eb8bb908d",
+  "boundary_pairs": [
+    [
+      "'线条细稳连贯'",
+      "'线条细劲流畅'",
+      1
+    ],
+    [
+      "'数字绘画表面洁净平整（clean, flat digital finish），线条与罩染层次分明。'",
+      "'数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。'",
+      1
+    ]
+  ],
+  "snapshot_note": "> **1016 底座工笔重彩合稿(用户稿线语言并入)**：吸收用户稿五项(勾线精微/起收自然/细劲流畅/繁简有序/纯度冷暖维+深浅色层各具色彩)；四把锁不动(硬边缘/明暗融入固有色/数字完成度三件/矿物色名词锚)；弃软边缘(色层衔接柔和/边缘随笔势)与当代国风清新词族。机读现值见 `../json/qi21_bases.json#art_style_base`。",
+  "residue_tokens": [
+    "线条细稳连贯",
+    "精细用笔",
+    "主色统领、辅色呼应、点睛色突出",
+    "明度与色相对比清晰",
+    "线条与罩染层次分明。",
+    "传统色体系"
+  ]
+}

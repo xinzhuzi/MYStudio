@@ -10,7 +10,7 @@
 // 选项: --push-canvas 强制 CDP loadGraphData(json 类型默认推)
 // 纪律:本脚本输出的 PASS/FAIL 即交付结论;agent 报「已生效」必须引用本脚本的活机读数。
 import { spawn, execSync } from "node:child_process";
-import { readFileSync, copyFileSync, statSync } from "node:fs";
+import { readFileSync, copyFileSync, statSync, openSync } from "node:fs";
 import { basename, join, dirname, resolve } from "node:path";
 
 const HOME = process.env.HOME;
@@ -104,19 +104,53 @@ async function waitEngine(timeoutMs = 180000) {
   return null;
 }
 async function restartEngine() {
+  // 双腿制(1017 治本):侧车腿优先(App 托管形态);引擎=App 子进程/独立 nohup 形态时
+  // 无 image_gen 侧车可唤,旧版此处直接 FAIL——落直拉腿(按口找 ComfyUI main.py
+  // SIGTERM+装机配方原命令行 nohup 等价重拉,cwd=IP家 comfyui 根,实测与运行中命令行逐字一致)。
   const sid = sh(`ps aux | grep '[i]mage_gen.main' | awk '{print $2}' | head -1`).trim();
-  if (!sid) { bad("引擎重启", "未找到 image_gen 侧车进程"); return null; }
-  const sport = (sh(`lsof -nP -a -iTCP -sTCP:LISTEN -p ${sid} 2>/dev/null`).match(/127\.0\.0\.1:(17\d{3})/) || [])[1];
-  const tok = sh(`ps eww ${sid} 2>/dev/null | tr ' ' '\\n' | grep '^MANYING_LOCAL_IMAGE_TOKEN=' | head -1 | cut -d= -f2`).trim();
-  if (!sport || !tok) { bad("引擎重启", "侧车口/令牌未取得"); return null; }
-  const old = enginePort();
-  if (old) execSync(`kill ${sh(`lsof -nP -iTCP:${old} -sTCP:LISTEN -t`).trim()} 2>/dev/null || true`);
-  const r = await (await fetch(`http://127.0.0.1:${sport}/comfy/engine/start`, {
-    method: "POST", headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" }, body: "{}",
-  })).json().catch(() => ({}));
-  if (!r.jobId) { bad("引擎重启", "engine/start 无 jobId: " + JSON.stringify(r).slice(0, 80)); return null; }
+  if (sid) {
+    const sport = (sh(`lsof -nP -a -iTCP -sTCP:LISTEN -p ${sid} 2>/dev/null`).match(/127\.0\.0\.1:(17\d{3})/) || [])[1];
+    const tok = sh(`ps eww ${sid} 2>/dev/null | tr ' ' '\\n' | grep '^MANYING_LOCAL_IMAGE_TOKEN=' | head -1 | cut -d= -f2`).trim();
+    if (sport && tok) {
+      const old = enginePort();
+      if (old) execSync(`kill ${sh(`lsof -nP -iTCP:${old} -sTCP:LISTEN -t`).trim()} 2>/dev/null || true`);
+      const r = await (await fetch(`http://127.0.0.1:${sport}/comfy/engine/start`, {
+        method: "POST", headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" }, body: "{}",
+      })).json().catch(() => ({}));
+      if (r.jobId) {
+        const p = await waitEngine();
+        p ? ok("引擎重启", `port=${p}(jobId=${r.jobId})`) : bad("引擎重启", "健康等待超时");
+        return p;
+      }
+      log(`NOTE  侧车 engine/start 无 jobId(${JSON.stringify(r).slice(0, 60)}),转直拉腿`);
+    } else log("NOTE  侧车口/令牌未取得,转直拉腿");
+  } else log("NOTE  无 image_gen 侧车(App 子进程/独立 nohup 形态),走直拉腿");
+  return restartEngineDirect();
+}
+async function restartEngineDirect() {
+  const ENGINE_ROOT = dirname(ENGINE_HOME); // venv/ 与 ComfyUI/ 同根(实测运行中引擎 cwd 即此)
+  const oldPort = enginePort() || "17001";
+  const pids = sh(`ps aux | grep '[C]omfyUI/main.py' | awk '{print $2}'`).trim().split(/\s+/).filter(Boolean);
+  if (pids.length) {
+    for (const pid of pids) execSync(`kill ${pid} 2>/dev/null || true`);
+    log(`SIGTERM ComfyUI pid=${pids.join(",")}(port=${oldPort})`);
+    for (let i = 0; i < 30; i++) {
+      if (!pids.some((p) => sh(`ps -p ${p} -o pid=`).trim())) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (pids.some((p) => sh(`ps -p ${p} -o pid=`).trim())) { bad("引擎重启", `直拉腿:旧进程 30s 未退(pid=${pids.join(",")}),不抢拉`); return null; }
+  } else log(`NOTE  端口 ${oldPort} 无 ComfyUI 进程(引擎未起),直接拉起`);
+  const logPath = join(ENGINE_ROOT, "comfyui-direct-restart.log");
+  const logFd = openSync(logPath, "a");
+  const child = spawn("./venv/bin/python", [
+    "./ComfyUI/main.py", "--listen", "127.0.0.1", "--port", "17001", "--enable-manager",
+    "--gpu-only", "--reserve-vram", "16", "--use-pytorch-cross-attention",
+    "--input-directory", "./input", "--output-directory", "./output",
+  ], { cwd: ENGINE_ROOT, detached: true, stdio: ["ignore", logFd, logFd] });
+  child.unref(); // detached+unref=nohup 等价:脱离父进程组,脚本退出后引擎常驻
+  log(`直拉腿启动 pid=${child.pid}(装机配方原命令行,port=17001,日志=${logPath})`);
   const p = await waitEngine();
-  p ? ok("引擎重启", `port=${p}(jobId=${r.jobId})`) : bad("引擎重启", "健康等待超时");
+  p ? ok("引擎重启", `直拉腿 port=${p}`) : bad("引擎重启", "直拉腿健康等待超时");
   return p;
 }
 async function cdpWebview() {

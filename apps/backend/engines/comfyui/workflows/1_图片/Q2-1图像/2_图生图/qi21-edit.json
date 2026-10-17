@@ -2485,7 +2485,7 @@
               247,
               263,
               4410,
-              4411
+              4400
             ],
             "pos": [
               -86,
@@ -3389,7 +3389,7 @@
                 ]
               }
             ],
-            "title": "[7028] Turbo·官方avg_rank_178(Fix×0.5)",
+            "title": "[7028] Turbo·官方avg_rank_178",
             "properties": {
               "Node name for S&R": "LoraLoaderModelOnly",
               "ue_properties": {
@@ -3574,56 +3574,6 @@
             },
             "widgets_values": [],
             "widgets_values_named": {}
-          },
-          {
-            "id": 7027,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              1000,
-              140
-            ],
-            "size": [
-              270,
-              130
-            ],
-            "flags": {},
-            "order": 24,
-            "mode": 0,
-            "inputs": [
-              {
-                "name": "model",
-                "type": "MODEL",
-                "localized_name": "模型",
-                "link": 4411
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "模型",
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  4400
-                ]
-              }
-            ],
-            "title": "[7027] Fix v2.0·Turbo×0.5",
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "qwen2.1-detail-fix-2.0.safetensors",
-              0.5
-            ],
-            "widgets_values_named": {
-              "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
-              "strength_model": 0.5
-            }
           }
         ],
         "groups": [
@@ -3915,7 +3865,7 @@
           },
           {
             "id": 4400,
-            "origin_id": 7027,
+            "origin_id": -10,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,
@@ -3990,14 +3940,6 @@
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 7011,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
-            "id": 4411,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 7027,
             "target_slot": 0,
             "type": "MODEL"
           }

@@ -88,7 +88,7 @@ rank-compressed derivative) across 6 files / 11 references (2 固定线, 3 社�
 frontend assembler template `h3-shot-template.json`). Old file + its HF cache metadata moved to
 `<engine-home>/模型备份.已升级-h3-2026-10-14/` (outside `models/` — ComfyUI's `folder_paths.py` os.walk
 would re-list backups inside the tree), manifest `h3_upgrade_1014.manifest.jsonl` (9 lines, md5s).
-Upgrade script: `apps/build/scripts/h3_upgrade_1014.py` (idempotent, resumable).
+Upgrade script: archived 2026-10-16 to `apps/build/scripts/retired/h3_upgrade_1014.py` (campaign closed; idempotent, resumable — recover via `git log --follow` if ever rerun).
 
 **First live-fire (interrupted, half-receipt)**: v1.2 loaded cleanly (38.4 GB full load, zero validation /
 node errors), stack ran with Sol-Attn chaining + BlockCache logging, sampling at ~49.5 s/it at 480p when

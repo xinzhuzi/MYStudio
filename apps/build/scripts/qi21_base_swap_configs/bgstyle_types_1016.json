@@ -1,0 +1,106 @@
+{
+  "campaign": "1016 型文背景工笔硬化五型+负向补刀",
+  "out_dir": "qi21-base-swap-bgstyle-1016",
+  "guards_positive_contain": [
+    "工笔重彩"
+  ],
+  "positive_old": "美术风格底座：中国工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导的二维手绘数字游戏插画，融合彩色连环画（classic Chinese lianhuanhua comic）的概括造型，各种画法主次明确、协调统一，造型概括凝练。轮廓线与内部结构线共同承担造型，勾线精微（fine brushwork），线条细劲流畅、饱满有力，起收自然，粗细、轻重与疏密富有节奏。清晰色面、细腻分染与层层罩染共同塑形，色面边界明确平整，色相对比保持清晰，明暗融入固有色的浓淡与冷暖层次，深浅色层各具色彩；设色以丰富多彩的工笔重彩（rich gongbi coloration）为主，多色相并陈、充分展开且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润（bright, luminous color），如石色矿物颜料般鲜泽通透（vivid mineral-pigment colors），明度、纯度与冷暖变化细腻清晰、层级分明，繁简有序，材质统一于线描设色语言。保留清楚的手绘笔性（hand-painted brushwork），用笔精微，疏密有致，全图细节密度高、笔笔可辨，轮廓与色面边界清晰锐利（crisp, sharp edges），数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。",
+  "positive_new": "美术风格底座：中国工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导的二维手绘数字游戏插画，融合彩色连环画（classic Chinese lianhuanhua comic）的概括造型，各种画法主次明确、协调统一，造型概括凝练。轮廓线与内部结构线共同承担造型，勾线精微（fine brushwork），线条细劲流畅、饱满有力，起收自然，粗细、轻重与疏密富有节奏。清晰色面、细腻分染与层层罩染共同塑形，色面边界明确平整，色相对比保持清晰，明暗融入固有色的浓淡与冷暖层次，深浅色层各具色彩；设色以丰富多彩的工笔重彩（rich gongbi coloration）为主，多色相并陈、充分展开且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润（bright, luminous color），如石色矿物颜料般鲜泽通透（vivid mineral-pigment colors），明度、纯度与冷暖变化细腻清晰、层级分明，繁简有序，材质统一于线描设色语言。保留清楚的手绘笔性（hand-painted brushwork），用笔精微，疏密有致，全图细节密度高、笔笔可辨，轮廓与色面边界清晰锐利（crisp, sharp edges），数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。",
+  "negative_pairs": [
+    [
+      "喷枪明暗法，软3D体积塑形",
+      "喷枪明暗法，空气透视，厚涂风景，柔光晕染，软3D体积塑形",
+      1
+    ]
+  ],
+  "source_pairs": [
+    [
+      "背景以概括形体和受控色面铺陈，近景边缘清楚，远景以低饱和色面退开，保留清晰色相层次",
+      "背景以工笔概括手法铺陈：近景物象细线勾形、边缘清楚，中景物象线描勾出形体，远景归纳为整块平整色面，色面边界清晰分明，层与层以色相与明度阶区分，云雾亦画为成片色面",
+      2
+    ],
+    [
+      "远景以色彩分明的成片色面退开，保留清晰色相层次",
+      "远景以色彩分明的整块平整色面退开，保留清晰色相层次",
+      1
+    ],
+    [
+      "远景以概括形体、低饱和成片色面退开，色相对比保持清晰与",
+      "远景以概括形体、低饱和整块平整色面退开，色面边界清晰分明，色相对比保持清晰与",
+      3
+    ],
+    [
+      "色彩分层晕染，色面交界清楚",
+      "色彩分层罩染，色面交界清楚整齐",
+      1
+    ],
+    [
+      "远景只留大形，交给色彩分明的成片色面，层层退远而色相保持清晰",
+      "远景只留大形，交给色彩分明的整块平整色面，层层退远而色相与边界保持清晰",
+      1
+    ],
+    [
+      "远景以色彩分明的成片色面退去，色相对比保持清晰",
+      "远景以色彩分明的整块平整色面退去，色面边界清晰，色相对比保持清晰",
+      1
+    ],
+    [
+      "远处交给色彩分明的成片色面，层层退远",
+      "远处交给色彩分明的整块平整色面，层层退远",
+      1
+    ],
+    [
+      "画面边缘渐次简化",
+      "画面边缘归纳为整块色面",
+      1
+    ],
+    [
+      "背景以色彩分明的成片色面整体退后",
+      "背景以色彩分明的整块平整色面整体退后",
+      1
+    ]
+  ],
+  "prefix_count": 2,
+  "wf_counts": {
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
+    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
+    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
+  },
+  "neg_wf_counts": {
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2
+  },
+  "extra_file_swaps": [
+    {
+      "file": "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md",
+      "pairs": [
+        [
+          "糖果饱和度",
+          "荧光色",
+          1
+        ],
+        [
+          "喷枪明暗法，软 3D 体积",
+          "喷枪明暗法，空气透视，厚涂风景，柔光晕染，软 3D 体积",
+          1
+        ],
+        [
+          "画面边缘渐次简化",
+          "画面边缘归纳为整块色面",
+          3
+        ]
+      ]
+    }
+  ],
+  "snapshot_note": "> **1016 型文背景工笔硬化(五型)+负向补刀**：带场景背景五型(人物/场景/美宣/分镜/概念)背景句硬化——成片色面→整块平整色面+色面边界清晰分明、晕染→罩染、渐次简化→归纳为整块色面、人物/美宣背景句升级工笔概括手法铺陈(近勾形/中线描/远整块色面/云雾亦成片色面)；负向加「空气透视，背景厚涂，柔光晕染」；05库三处随源。机读现值见 `../json/qi21_bases.json#types[]`。",
+  "residue_tokens": [
+    "受控色面",
+    "色彩分层晕染",
+    "渐次简化",
+    "低饱和成片色面退开"
+  ]
+}

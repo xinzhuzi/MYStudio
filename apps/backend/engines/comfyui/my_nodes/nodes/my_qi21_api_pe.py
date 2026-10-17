@@ -87,6 +87,17 @@ except ImportError:  # pragma: no cover - 直载形态走此腿
     _rgba_spec.loader.exec_module(_rgba_mod)
     strip_rgba_decl = _rgba_mod.strip_rgba_decl
 
+# 1017 运行时门禁单源(peer-load 同款家法):t2i 全路入口/出口硬门
+try:
+    from ._gongbi_gate import assert_prompt_gates
+except ImportError:  # pragma: no cover - 直载形态走此腿
+    import importlib.util as _glu
+    _gate_spec = _glu.spec_from_file_location(
+        "gongbi_gate_peer_load", Path(__file__).resolve().parent / "_gongbi_gate.py")
+    _gate_mod = _glu.module_from_spec(_gate_spec)
+    _gate_spec.loader.exec_module(_gate_mod)
+    assert_prompt_gates = _gate_mod.assert_prompt_gates
+
 
 # 1008 用户令「不能异步调用?」:urlopen 放后台线程,主线程每 5 秒查打断
 import threading
@@ -323,6 +334,36 @@ def _context_materials() -> tuple[str, str]:
     return style, colors
 
 
+def _resolve_card_conditionals(text: str, subj: str) -> str:
+    """设定卡条件预解析(1017 官方对拍役:条件句提前按主体解析成确定描述)。
+
+    型文=模板(「有则画/没有则留空」条件句照存);终稿按主体句事实落定——
+    官方语料全是确定指令,运行时条件句在装配层提前解析(用户令第2条)。
+    逐字匹配 fail-closed:原句缺席=不换(模板日后改句时退回模板句,无害)。
+    """
+    if not text or not subj:
+        return text
+    out = text
+    m = re.search(r"名号「([^」]{1,12})」", subj)
+    if m:
+        out = out.replace(
+            "标题栏中央放置角色名号，主体明确提供名号时逐字使用，未提供时标题栏留白仅存细线边饰；",
+            f"标题栏中央逐字放置角色名号「{m.group(1)}」；", 1)
+    if "劲装" in subj:
+        out = out.replace(
+            "服装袖型、衣长与裤裙形制服从主体，主体为劲装时呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体；",
+            "服装呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体句；", 1)
+    if ("收鞘" in subj) or ("收在鞘中" in subj):
+        out = out.replace(
+            "武器的收鞘、出鞘或残损状态服从主体事实；完整武器两端均入画，局部图与完整图对应同一件武器；来源为收鞘态时，完整图与所有局部图均保持收鞘态。各特写只呈现实际存在的部件；主体未提供武器、鞘或配饰装备时，对应槽位保留净空，格面留白。",
+            "完整武器两端均入画，局部图与完整图对应同一件武器，完整图与所有局部图均保持收鞘态；各特写只呈现实际存在的部件。", 1)
+    if not re.search(r"技能|术法|招式|功法|神通|绝学", subj):
+        out = out.replace(
+            "底部第四区为能力资料：主体明确提供技能或术法时，上格展示一幅该能力的独立效果，下格展示其关键形态或作用部位；主体未提供时，该区保留净空，仅标注“能力未设定”。来源明确带有灵兽时，另用独立附板展示完整兽形与兽类细节，附板独立排布；来源未带灵兽时，本板保持人物设定板内容。",
+            "底部第四区为能力资料：该区保留净空，仅标注“能力未设定”。", 1)
+    return out
+
+
 def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     """透明路回退极简公式(1008 R3九型实弹定谳;1009晚修:零自带头尾+剥中文透明句)。
 
@@ -342,17 +383,36 @@ def _rgba_lean_pos(subj: str, type_pos: str | None = None) -> str:
     bases = _load_bases_node()
     body = (subj or "").strip()
     extra = ""
+    _card_first = False
     if (type_pos or "").strip():
         for t in (bases.get("types") or []):
             if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
                 extra = str(t.get("rgba_positive") or "").strip()
+                _card_first = t.get("subject_first") is True
                 break
     # 1009晚修①:句级剥除中文透明声明(rgba_positive 为单段多句,行级滤不够;
     # 10-09 层冲突治理:口径收归 _qi21_rgba_text 单源,单段时逐字节同旧式)
     extra = strip_rgba_decl(extra).strip()
+    # 1017 条件预解析:设定卡旗型 rgba 载文同按主体落定(与 direct 路同语义)
+    if _card_first:
+        extra = _resolve_card_conditionals(extra, body)
+    # 1017 用户令「透明多视图,类型句也必须添加」:类型句(剥中文透明句后)进生效文
+    # ——版式/一致性语言直达编码器(官方同法:版式写在提示词里)。
+    # 范围=数据开关 lean_carry_type(现仅多视图):其余透明型维持 1008 隔离纪律
+    #(全型注入实弹红=道具「薄透罩染轻敷」绘画词泄漏进 lean,transparent_lean 抓现行)
+    type_layout = ""
+    if (type_pos or "").strip():
+        for t in (bases.get("types") or []):
+            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == type_pos.strip():
+                if t.get("lean_carry_type"):
+                    type_layout = strip_rgba_decl(type_pos).strip()
+                break
     style_backing = str((bases.get("art_style_base") or {}).get("positive_text") or "").strip()
     carry = str((bases.get("rgba") or {}).get("subject_isolation") or "").strip()
-    parts = [p for p in (body, extra, style_backing, carry) if p]
+    # 1017 十型验修(用户令「底座没写入?风格太写实」):底座虽在场但压队尾
+    # (透明长文型 92% 深度)被版式质量淹——style_backing 提前到主体句之后
+    # (与 direct 路「底座前置」同精神);透明包络不变(英文头尾/隔离句原位)
+    parts = [p for p in (body, style_backing, type_layout, extra, carry) if p]
     if not parts:
         parts = ["A single game asset, clean flat cutout, centered, isolated on a transparent background."]
     return " ".join(parts)
@@ -648,14 +708,16 @@ def _self_check(pos: str, neg_tokens: list[str],
     锚点类(匾额等普通名词)无法确定性判定,仍不在此检。"""
     v: list[str] = []
     pos_c = _squash(pos)  # 空白归一:"软 3D"与"软3D"判同
-    # 设定卡首段为固定版式；首稿、补发和模型救回均须原样保留。
+    # 设定卡完整类型句为固定版式；多段中的逐格细节、资料与专项区均须保留。
     # 文本锁只保证入图指令，图片计数及机位仍须实际看图验收。
+    # 1017 条件预解析:锁基准=按主体落定的确定稿(PE 输入已是解析文,模型忠实
+    # 回显解析稿;再比未解析 canon=真稿被永久拒收回退)。
     for entry in (_load_bases_node().get("types") or []):
         if (entry.get("zh") == "设定卡"
                 and (entry.get("positive_text") or "").strip() == type_pos.strip()):
-            layout = type_pos.splitlines()[0].strip()
-            if layout and _squash(layout) not in pos_c:
-                v.append("设定卡版式丢失或改写:类型句首段须逐字保留")
+            layout = _resolve_card_conditionals(type_pos.strip(), subj).strip()
+            if layout and "".join(layout.split()) not in "".join(pos.split()):
+                v.append("设定卡版式丢失或改写:完整类型句须逐字保留")
             break
     if transparent:
         for tok in _META_TOKENS + _ENV_TOKENS:
@@ -857,7 +919,10 @@ class MyQi21ApiPE:
                 "AI扩写开关": ("BOOLEAN", {"default": False,
                                     "tooltip": "1016 用户令(尾插保位序):开=走 LM Studio/云端模型扩写;关=完全不发模型请求,直接拼 美术风格底座+类型句+主体句 三层装配直出(与透传/回退同源同值;透明开时同走极简公式+格式锁)"}),
             },
-            "optional": ctx,
+            # 1016 实弹教训(8877575e 同族):required 槽 API 校验不吃签名默认值,
+            # 旧工作流不带此键=整图拒收——故入 optional(组装用途同款),缺键=并入兜底。
+            "optional": {**ctx, "底座档位": (["并入", "裸测"], {"default": "并入",
+                "tooltip": "1016 用户令「真关掉底座」:并入=默认三层;1017 裁定:[4032] 旁路/未接线=底座正负自动离场(无需动本档);并入=用接线值;裸测=接线在场时强制离场(A/B 用);透明开时的极简公式格式锁不受此档影响(透明承载必需)"})},
         }
 
     RETURN_TYPES = ("STRING", "STRING", "BOOLEAN", "INT", "INT")
@@ -880,6 +945,7 @@ class MyQi21ApiPE:
                 max_tokens: int = 12000, timeout_sec: int = 600,
                 thinking_effort: str = "关闭",
                 AI扩写开关: bool = False,
+                底座档位: str = "并入",
                 **kw):  # 1008 槽名带连字符(美术风格底座-正向/-负向)不能作形参,**kw 按键名取
         """十入全上下文→LM Studio 扩写→五口(正向/负向/透明/宽/高)。
 
@@ -888,11 +954,14 @@ class MyQi21ApiPE:
         (prompt原文, "")——PE关同效,不炸产线。
         """
         # 1006 七轮(用户令「AI挂了也从本节点做,恒有输出」):三层装配内置,
-        # 逐字复刻三层装配格式(主体句\nBASE\n美术风格底座;BASE 空=两段)——AI 输入
+        # 逐字复刻三层装配格式(美术风格底座\nBASE\n主体句,1017 反序令;BASE 空=两段)——AI 输入
         # 基底与降级正稿同源;AI 挂=本正稿直出,节点任何情况都有输出
         subj = (正向提示词 or "").strip()
         base = (类型句正向 or "").strip()
-        _, _, hot_style = _hot_fallbacks()
+        # 1017 运行时门禁(用户令:违规提示词产线报错,坏文到不了模型)
+        assert_prompt_gates(subj, is_subject=True, context="[主体句]")
+        # 1017 用户裁定(怒斥定谳):PE 尊重底座槽缺席——[4032] 旁路/未接线=底座层
+        # 离场;热读兜底(=硬塞)废止(范围=底座正负;教材/色卡兜底保留,非本令域)。
         wired_style = (kw.get("美术风格底座-正向") or "").strip()
         # 新节点输出纯画法。旧四段存档仅消费画法与风格负向，背景件退役。
         proto = _parse_bases_protocol(wired_style)
@@ -902,15 +971,36 @@ class MyQi21ApiPE:
             style = _proto_base_segment(proto, bool(透明模式))
         elif wired_style.startswith(_PROTO_TAGS[0]):
             # 残缺旧协议不能按全文放行，否则背景与协议标签会重入正文。
-            style = hot_style
+            # 1017 裁定随刀:不再热读兜底回塞,按不可用处理=无底座段。
+            style = ""
         else:
-            style = wired_style or hot_style
+            style = wired_style
+        # 1016 用户令「真关掉底座」(PE 侧):t2i 直写链三段拼装在本节点——裸测档
+        # 压过 wired 与热读兜底两路,底座正向段/负向源全离场(与装配节点同语义)。
+        if 底座档位 == "裸测":
+            style = ""
         # 10-09 层冲突治理 P5:透明开时型文自带的中文透明声明句不入 PE 输入
         # (透明语义全英文承载,[4014] 包裹);原始 base 仍传 _rgba_lean_pos 作逐字匹配键
         base_pe = strip_rgba_decl(base).strip() if (透明模式 and base) else base
-        direct = f"主体句:{subj}\n类型句:{base_pe}\n{style}".strip() if base_pe else f"主体句:{subj}\n{style}".strip()
+        # 1017 用户令:装配序反转——底座前置(前置具体词权重最大),主体句殿后
+        # 1017 设定卡主体锚役:型旗 subject_first 例外=主体句置首——近两千字
+        # 版式前置把身份锚淹成设定卡原型(实弹 0/5 服装/武器锚),官方 3.2.1/
+        # 3.3.1 语料人物描述在前、版式在后;润炼模式「结构照旧」随输入序镜像
+        subj_first = False
+        if base_pe:
+            for entry in (_load_bases_node().get("types") or []):
+                if isinstance(entry, dict) and (entry.get("positive_text") or "").strip() == base.strip():
+                    subj_first = entry.get("subject_first") is True
+                    break
+        if base_pe and subj_first:
+            # 条件预解析:确定描述进终稿(官方同法;模板句在真源,canon 不动)
+            direct = f"主体句:{subj}\n{style}\n类型句:{_resolve_card_conditionals(base_pe, subj)}".strip()
+        elif base_pe:
+            direct = f"{style}\n类型句:{base_pe}\n主体句:{subj}".strip()
+        else:
+            direct = f"{style}\n主体句:{subj}".strip()
         if not subj:
-            print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+风格两段")
+            print("[漫影 API扩写PE] 正向提示词未接线:主体句层缺席,装配=底座+类型句")
         # 负面三源(型负面+美术风格底座负面热读+外部负向)去重合并——终稿负向唯一真源
         # (程序构造不进模型,1008 解耦;挂=同值直出)
         # 1008 用户令:[4032].1 负向接线优先(可视化真源链),未连=真源热读兜底(同款)
@@ -919,12 +1009,9 @@ class MyQi21ApiPE:
             style_base_neg = proto_neg
         else:
             style_base_neg = (kw.get("美术风格底座-负向") or "").strip()
-        if not style_base_neg:
-            try:
-                style_base_neg = str((_load_bases_node().get("art_style_base") or {})
-                               .get("negative_text") or "").strip()
-            except Exception:
-                style_base_neg = ""
+        # 1017 裁定:负向同正立——槽缺席=底座负面离场,热读兜底废止(裸测档再强制清)。
+        if 底座档位 == "裸测":
+            style_base_neg = ""
         neg_tokens, seen = [], set()
         for src in (类型句负向, style_base_neg, 负向提示词):
             for tok in (x.strip() for x in re.split(r"[,，\n]", (src or "")) if x.strip()):
@@ -950,6 +1037,7 @@ class MyQi21ApiPE:
         # 公式+格式锁),恒有输出不炸产线;ui 三载荷照发([401]/展示框可见直拼稿)
         if not AI扩写开关:
             print(f"[漫影 API扩写PE] 开关关闭:直拼三层装配直出({len(fallback_pos)}字),不发模型请求")
+            assert_prompt_gates(fallback_pos, is_subject=False, context="[终稿]")
             return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                            "api_pe_status": ["关闭:直拼三层装配(未请求模型)"]},
                     "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -961,7 +1049,7 @@ class MyQi21ApiPE:
         ctx.append(f"[透明] {'开:本图为透明素材图,勿虚构繁杂背景' if 透明模式 else '关:常规成图'}")
         for entry in (_load_bases_node().get("types") or []):
             if entry.get("zh") == "设定卡" and (entry.get("positive_text") or "").strip() == base:
-                ctx.append("[设定卡版式锁] 类型句首段逐字保留，仅润色人物描述，不增减图像区、视图、文字或色卡。")
+                ctx.append("[设定卡版式锁] 完整类型句所有段落逐字保留，仅润色人物描述；不得省略或改写资料、色样、三视图、逐格细节与底部专项区，来源未提供的能力与物件不得补造。")
                 break
         user_with_ctx = direct + "\n\n" + "\n".join(ctx)
         # 1007 用户令(开关=api_key 控件):填=云端(_CLOUD_URL/_CLOUD_MODEL 内置,
@@ -1134,6 +1222,7 @@ class MyQi21ApiPE:
                 print(f"[漫影 API扩写PE] 全部 {len(urls)} 个 LM Studio 均不可达({_why})——"
                       f"本发透传自装配三层(恒有输出);请检查 LM Studio 服务")
                 _status = "透传:LM Studio 均不可达"
+            assert_prompt_gates(fallback_pos, is_subject=False, context="[终稿]")
             return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                            "api_pe_status": [_status]},
                     "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1198,6 +1287,7 @@ class MyQi21ApiPE:
                 print(f"[漫影 API扩写PE] {reason}→救回:下一模型 {_m2} 零违例采用({len(_p2s)}字)")
                 print(f"[漫影 API扩写PE] 终稿头120: {_p2s[:120]!r}")
                 print(f"[漫影 API扩写PE] 终稿尾60: {_p2s[-60:]!r}")
+                assert_prompt_gates(_p2s, is_subject=False, context="[终稿]")
                 return {"ui": {"api_pe_pos": [_p2s], "api_pe_neg": [neg_out],
                                "api_pe_status": [f"AI扩写OK:{_m2}(内容层救回)"]},
                         "result": (_p2s, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1276,6 +1366,7 @@ class MyQi21ApiPE:
                         _sal = _salvage_next_model("拒收(重试解析失败)")
                         if _sal is not None:
                             return _sal
+                        assert_prompt_gates(fallback_pos, is_subject=False, context="[终稿]")
                         return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:重试解析失败,透传装配正稿"]},
                                 "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1292,6 +1383,7 @@ class MyQi21ApiPE:
                         _sal = _salvage_next_model("拒收(自检违例未清)")
                         if _sal is not None:
                             return _sal
+                        assert_prompt_gates(fallback_pos, is_subject=False, context="[终稿]")
                         return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                        "api_pe_status": ["拒收回退:自检违例未清,透传装配正稿"]},
                                 "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1305,6 +1397,7 @@ class MyQi21ApiPE:
                     _sal = _salvage_next_model("拒收(补发失败)")
                     if _sal is not None:
                         return _sal
+                    assert_prompt_gates(fallback_pos, is_subject=False, context="[终稿]")
                     return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                                    "api_pe_status": ["拒收回退:补发失败,透传装配正稿"]},
                             "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1317,6 +1410,7 @@ class MyQi21ApiPE:
             _ok = f"AI扩写OK:{served}"
             if cloud_mode and not served.endswith("(云端)"):
                 _ok += "(云端失败→本地回落改写)"
+            assert_prompt_gates(pos_s, is_subject=False, context="[终稿]")
             return {"ui": {"api_pe_pos": [pos_s], "api_pe_neg": [neg_out],
                            "api_pe_status": [_ok]},
                     "result": (pos_s, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}
@@ -1325,6 +1419,7 @@ class MyQi21ApiPE:
         _sal = _salvage_next_model("解析失败")
         if _sal is not None:
             return _sal
+        assert_prompt_gates(fallback_pos, is_subject=False, context="[终稿]")
         return {"ui": {"api_pe_pos": [fallback_pos], "api_pe_neg": [neg_out],
                        "api_pe_status": ["透传:答文解析失败"]},
                 "result": (fallback_pos, neg_out, 透明模式, 画幅宽 or 0, 画幅高 or 0)}

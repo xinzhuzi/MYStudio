@@ -1,7 +1,7 @@
 {
   "revision": 1,
   "last_node_id": 1,
-  "last_link_id": 0,
+  "last_link_id": 4409,
   "nodes": [
     {
       "id": 1,
@@ -65,6 +65,11 @@
             "name": "σ表"
           },
           "link": null
+        },
+        {
+          "name": "型名",
+          "type": "STRING",
+          "link": null
         }
       ],
       "outputs": [
@@ -75,13 +80,13 @@
         }
       ],
       "widgets_values": [
-        "0 · Turbo 8步",
+        "自动 · 按型",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "title": "[7] 加速子图",
       "widgets_values_named": {
-        "速度档位": "0 · Turbo 8步",
+        "速度档位": "自动 · 按型",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -134,8 +139,9 @@
             "type": "MODEL",
             "linkIds": [
               103,
-              104,
-              4313
+              4313,
+              4323,
+              4400
             ],
             "pos": [
               104,
@@ -219,6 +225,18 @@
               104,
               544
             ]
+          },
+          {
+            "id": "e8c1d2f3-0008-4d08-9a08-e7b9d4a2a008",
+            "name": "型名",
+            "type": "STRING",
+            "linkIds": [
+              4409
+            ],
+            "pos": [
+              104,
+              564
+            ]
           }
         ],
         "outputs": [
@@ -236,7 +254,7 @@
           }
         ],
         "widgets": [
-          "0 · Turbo 8步",
+          "自动 · 按型",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -409,6 +427,13 @@
                   "name": "mode"
                 },
                 "link": 114
+              },
+              {
+                "localized_name": "型名",
+                "name": "型名",
+                "shape": 7,
+                "type": "STRING",
+                "link": 4409
               }
             ],
             "outputs": [
@@ -431,10 +456,10 @@
               }
             },
             "widgets_values": [
-              "0 · Turbo 8步"
+              "自动 · 按型"
             ],
             "widgets_values_named": {
-              "mode": "0 · Turbo 8步"
+              "mode": "自动 · 按型"
             }
           },
           {
@@ -1095,57 +1120,6 @@
             }
           },
           {
-            "id": 7027,
-            "type": "LoraLoaderModelOnly",
-            "pos": [
-              850,
-              500
-            ],
-            "size": [
-              270,
-              130
-            ],
-            "flags": {},
-            "order": 16,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "模型",
-                "name": "model",
-                "type": "MODEL",
-                "link": 104
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "模型",
-                "name": "MODEL",
-                "type": "MODEL",
-                "links": [
-                  4323,
-                  4400
-                ]
-              }
-            ],
-            "title": "[7027] 共用Fix",
-            "properties": {
-              "Node name for S&R": "LoraLoaderModelOnly",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              "qwen2.1-detail-fix-2.0.safetensors",
-              0.5
-            ],
-            "widgets_values_named": {
-              "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
-              "strength_model": 0.5
-            }
-          },
-          {
             "id": 7028,
             "type": "LoraLoaderModelOnly",
             "pos": [
@@ -1432,14 +1406,6 @@
             "type": "MODEL"
           },
           {
-            "id": 104,
-            "origin_id": -10,
-            "origin_slot": 0,
-            "target_id": 7027,
-            "target_slot": 0,
-            "type": "MODEL"
-          },
-          {
             "id": 106,
             "origin_id": -10,
             "origin_slot": 1,
@@ -1657,7 +1623,7 @@
           },
           {
             "id": 4323,
-            "origin_id": 7027,
+            "origin_id": -10,
             "origin_slot": 0,
             "target_id": 7011,
             "target_slot": 0,
@@ -1665,7 +1631,7 @@
           },
           {
             "id": 4400,
-            "origin_id": 7027,
+            "origin_id": -10,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,
@@ -1734,6 +1700,14 @@
             "target_id": 7015,
             "target_slot": 0,
             "type": "LATENT"
+          },
+          {
+            "id": 4409,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 7015,
+            "target_slot": 4,
+            "type": "STRING"
           }
         ],
         "extra": {

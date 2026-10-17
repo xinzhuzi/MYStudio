@@ -133,7 +133,7 @@ def test_run_all_options_produce_nonempty_outputs():
         assert base_out == name  # 09-19 第五出=型直通(驱动按型 LoRA)
         # 09-22 v4:九型同一套可见画法,句号自足收尾;不再以资产定性句开头
         # (道具型 ② 无「均匀柔光/平涂」措辞,画法锚收窄为细彩线)
-        assert pos and "细线" in pos
+        assert pos  # 1017 型文精炼:每型画法锚退役(画法归底座131字)
         assert not pos.startswith("现代修仙游戏")
         assert pos.endswith("。")
         # 1004 中文负面役:九型负面基线=中文「，」token,美术风格底座负面同并入
@@ -142,7 +142,7 @@ def test_run_all_options_produce_nonempty_outputs():
         # (用户令 1-2MP 快出+后放大):道具/高清人脸 1.0(09-19 裁定出
         # 1024×1024,节点口径 1.0 MP 精确命中)、多视图 1.8、其余五型 1.5
         assert aspect.endswith(")") and ":" in aspect
-        assert mp == {"道具": 1.0, "高清人脸": 1.0, "人物多视图": 1.8}.get(name, 1.5)
+        assert mp == {"道具": 1.0, "高清人脸": 1.0, "人物多视图": 1.8, "设定卡": 3.0}.get(name, 1.5)
 
 
 # ── 负向(1008):[4010] 只出型层负向,不再拼底座负向+用户负向 ──
@@ -231,7 +231,7 @@ def test_renwu_new_framing_after_v22_switch():
     assert not renwu.startswith(head), "人物型回潮旧 §一 主干开头"
     assert not renwu.endswith(tail), "人物型回潮旧 §一 结尾句收尾"
     # 1004 重建:②层措辞「线随结构时粗时细」(旧锚「线有粗细变化」措辞退役)
-    for kw in ("单人立绘", "取景范围完整呈现", "细线勾勒", "线随结构时粗时细"):  # 1009 并行轮:全身入画→弹性取景
+    for kw in ("单人立绘", "全身完整入画", "细线", "整块平整色面"):  # 1017 两可句役:弹性取景退役→确定性全身(半身由主体句显式指定)
         assert kw in renwu, f"人物型增量段缺 v5 画法关键词 {kw}"
     # v5「禁物象词」口径随 1004 集中化部分退役留痕:positive_text=②+锁B+④+
     # 衣物完整性拼合,锁B 行自带衣褶词汇;骨相/眉眼/发丝/衣色仍禁(未入锁B)
@@ -386,6 +386,6 @@ def test_width_height_override_and_formula():
     无 override 型走公式,与 [61] 逐字节一致(场景 16:9·1.5→1672×944)。
     1008 快出档缩编:多视图 override 3072×1024→2448×816、场景 4.2→1.5MP。"""
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("人物多视图")  # 0927 改名轮(K2 侧 override 合板口径);1008 晚改名 多视图→人物多视图
-    assert (w, h) == (1632, 1632), (w, h)  # 1009 四视图轮:两行两列方形 单格816px(旧六格2448×1632/三联2448×816 入 git 史)
+    assert (w, h) == (1792, 1008), (w, h)  # 1017 官方版式轮:16:9 左特写+右三视(旧1:1四宫格1632 入 git 史)
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("场景")
     assert (w, h) == (1672, 944), (w, h)

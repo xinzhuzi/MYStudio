@@ -9,7 +9,8 @@
 - Reroute 一律解析穿越([42]/[43]/[44] 总线拐;[33] 1015 退役直连);
 - 档位选择=[7:7015] MyQi21SpeedSelect 的画布懒执行在 headless 无 lazy 请求方,
   故按档直通:winning 采样器输出直代 SpeedSelect 出线,未选支路剪除
-  (与画布执行图等价);
+  (与画布执行图等价;1017 起面板出厂默认=「自动 · 按型」,展平前经
+  resolve_speed_mode 按 --type 解析生效档再直通);
 - seed=**每次随机**(random.randint;铁令),注入宿主「seed」面板槽现值位;
 - PE 改写=[4013] TextGenerate 本地 pe_i2i 检查点(全链零云端,API key 无涉)。
 
@@ -17,7 +18,7 @@
     [--ref1 yanliao_yuanying_front.png] [--ref2 clothing_light_blue_denim_shirt.png] \
     [--ref3 yanliao_heti_front.png(--enable-ref3 才接线)] \
     [--enable-anchor(解旁路 [505] 透明锚,仅 viggle 档语义)] \
-    [--tier "2 · viggle"|"1 · 原生出图"|"0 · Turbo 8步"(1016turbo 官方臂直通 7031)] [--type 人物] [--seed N(缺省随机)]
+    [--tier "自动 · 按型"|"2 · viggle"|"1 · 原生出图"|"0 · Turbo 8步"(1016turbo 官方臂直通 7031;自动档按 --type 路由)] [--type 人物] [--seed N(缺省随机)]
     [--out 路径] [--dry-run]
 """
 import argparse
@@ -63,9 +64,27 @@ PICKERS = {
                      "sampling_mode.temperature": 3, "sampling_mode.top_k": 4,
                      "sampling_mode.top_p": 5, "sampling_mode.min_p": 6,
                      "sampling_mode.repetition_penalty": 7, "sampling_mode.seed": 8,
-                     "sampling_mode.presence_penalty": 9, "thinking": 10,
-                     "use_default_template": 11, "mtp": 12},
+                     "sampling_mode.presence_penalty": 9, "sampling_mode.thinking": 10,
+                     "sampling_mode.use_default_template": 11, "sampling_mode.mtp": 12},
 }
+
+# 1017 增档令:面板首档=「自动 · 按型」(型名∈{设定卡,美宣}→原生出图,其余
+# 含空→Turbo);fire 侧镜像节点件 my_qi21_speed_select.resolve_slot 的路由表
+# (headless 直通形无 lazy 请求方,须在展平前解析成生效档再剪支路)
+AUTO_MODE = "自动 · 按型"
+AUTO_DIRECT_TYPES = ("设定卡", "美宣")
+
+
+def resolve_speed_mode(speed, type_name):
+    """面板档×型名→生效档(1017;与 my_qi21_speed_select.resolve_slot 同路由表)。
+
+    「自动 · 按型」按型名现算:型名∈{设定卡,美宣}→「1 · 原生出图」,其余
+    (含 None/空串)→「0 · Turbo 8步」(型名空=按 Turbo 缺省安全侧);手动档
+    与未知串原样返回(未知串交引擎 /prompt combo 闭集硬校验报 400,
+    fail-closed 不代选;--tier 显式给档不经型名改写)。"""
+    if speed == AUTO_MODE:
+        return "1 · 原生出图" if type_name in AUTO_DIRECT_TYPES else "0 · Turbo 8步"
+    return speed
 
 
 def widget_order(cls):
@@ -417,7 +436,12 @@ def build_graph(args, seed):
     host7_wv = list(host7["widgets_values"])
     if args.tier:
         host7_wv[0] = args.tier
-    tier = host7_wv[0]
+    # 1017:面板原档(--tier 覆写后)可为「自动 · 按型」——按 --type 解析生效档,
+    # 展平/结构等价校验/三处窗映射全按生效档走;面板原档记 build_graph.last_panel
+    # 供 meta 双值(guard 测试缝 fake 不设该属性=回落生效档)
+    tier_panel = host7_wv[0]
+    tier = resolve_speed_mode(tier_panel, args.type)
+    build_graph.last_panel = tier_panel
     host7_wv[1] = seed
     # 旁路占位对 [12]/[18] 的宿主 widget 缺席(其值随节点 widgets_values 走,可直改)
     if args.enable_ref3 and args.ref3 and 12 in root:
@@ -470,7 +494,7 @@ def build_graph(args, seed):
         print(f"[fire] --empty-latent 探针在驾:[19].value=True [4].width/height={ew}×{eh}"
               f"(仅本弹执行图,工作流零落盘)")
 
-    print(f"[fire] 型={args.type} 档={tier} seed={seed} ref3={'on('+str(args.ref3)+')' if args.enable_ref3 else 'off(旁路)'}"
+    print(f"[fire] 型={args.type} 档={tier_panel}→生效档={tier} seed={seed} ref3={'on('+str(args.ref3)+')' if args.enable_ref3 else 'off(旁路)'}"
           f" anchor={'on' if args.enable_anchor else 'off(旁路)'}")
     if args.enable_anchor and "viggle" not in tier:
         print(f"[WARN] --enable-anchor 仅 viggle 档语义(透明锚进 [171] 单参考编码),当前档={tier}:不拦停,照常执行")
@@ -549,7 +573,9 @@ def fire_once(args, seed):
         return "timeout", []
     files = download(outs, outdir)
     meta = outdir / f"meta_{pid}.json"
-    meta.write_text(json.dumps({"seed": seed, "tier": tier, "type": args.type,
+    meta.write_text(json.dumps({"seed": seed, "tier": tier,
+                                "tier_panel": getattr(build_graph, "last_panel", tier),
+                                "type": args.type,
                                 "instruction": args.instruction, "ref1": args.ref1,
                                 "ref2": args.ref2, "ref3": args.ref3 if args.enable_ref3 else None,
                                 "graph_keys": sorted(graph.keys())}, ensure_ascii=False, indent=1),

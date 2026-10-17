@@ -4,9 +4,11 @@
 """MyQi21SpeedSelect 契约测试(0929 加速区并行化·方案 B 自研件;与
 test_my_qi21_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 
-锁:注册面(双表+类目+无旧名别名)/combo 闭集(三档精确串+首项=默认=
-Turbo 8步 1016turbo 换臂官方 Turbo 承 1002 提首位+档号随新序理顺=序位号
-0/1/2+分隔符码位 U+00B7 防全角漂移)/三态选择各回各支路/
+锁:注册面(双表+类目+无旧名别名)/combo 闭集(1017 增档令:四档精确串,
+首项=默认=「自动 · 按型」——型名∈{设定卡,美宣}→原生出图,其余含空→
+Turbo;本令推翻 1002/1016「首项=Turbo 8步」口径,Turbo 居二承 1016turbo
+官方臂;档号随序理顺=序位号 0/1/2;分隔符码位 U+00B7 防全角漂移;自动档
+配 optional「型名」STRING 信号槽,非 lazy)/三态选择各回各支路/
 懒协议(三槽 lazy 声明+check_lazy_status 只请求「选中×已接线×未求值」槽,
 绝不请求未接线槽——引擎对未接线槽 make_input_strong_link 抛
 NodeInputError,graph.py:132-133)/未选档未接线容错(未选槽缺键或投
@@ -20,7 +22,7 @@ import pytest
 
 from engines.comfyui.my_nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 from engines.comfyui.my_nodes.nodes.my_qi21_speed_select import (
-    DEFAULT_MODE, MODES, SPEED_MODES, MyQi21SpeedSelect, slot_for_mode)
+    AUTO_MODE, DEFAULT_MODE, MODES, SPEED_MODES, MyQi21SpeedSelect, slot_for_mode)
 
 # 三档哨兵 latent(支路身份标记;LATENT 真身是 dict,同形)
 _TURBO = {"branch": "turbo"}
@@ -38,26 +40,35 @@ def test_registry_exposes_speed_select():
     assert "ManyingQi21SpeedSelect" not in NODE_CLASS_MAPPINGS
 
 
-# ── combo 闭集:三档精确串+首项=默认=Turbo 8步(1016turbo 换臂) ──────
+# ── combo 闭集:四档精确串+首项=默认=「自动 · 按型」(1017 增档令) ──────
 def test_combo_closed_set_first_item_is_default_turbo():
+    """测试名留史(1002-1016 首项=Turbo 口径;1017 增档令翻为「自动 · 按型」
+    承首,名不随改防并行收据漂移——同 test_sampler_anchor_viggle6_dn06 先例)。"""
     spec = MyQi21SpeedSelect.INPUT_TYPES()
     assert set(spec) == {"required", "optional"}
     assert set(spec["required"]) == {"mode"}
     assert set(spec["optional"]) == {"latent_turbo", "latent_viggle",
-                                     "latent_direct"}
+                                     "latent_direct", "型名"}
+    # 1017:型名=自动档信号槽(STRING 非 lazy,接底座件「型名」出;未接线/
+    # 留空=按 Turbo 缺省安全侧)
+    assert spec["optional"]["型名"][0] == "STRING"
+    assert not spec["optional"]["型名"][1].get("lazy")
     combo = spec["required"]["mode"]
     assert isinstance(combo[0], list)
-    # 1016turbo:FunAcc 臂退役,官方 Turbo 8步承 1002 提首位=默认;档号前导
-    # 数字随新序理顺=序位号 0/1/2(旧 0=直出/2=Fun-Acc/1=viggle 系旧档号废止)
-    assert combo[0] == ["0 · Turbo 8步", "1 · 原生出图", "2 · viggle"]
-    assert combo[1]["default"] == "0 · Turbo 8步"  # 首项=默认=Turbo 8步
-    assert DEFAULT_MODE == MODES[0] == "0 · Turbo 8步"
+    # 1017 增档:首项=默认=「自动 · 按型」(型名∈{设定卡,美宣}→原生出图,
+    # 其余含空→Turbo;推翻 1002/1016「首项=Turbo 8步」口径,历史账不改写);
+    # Turbo 居二承 1016turbo 官方臂,档号前导数字随新序理顺=序位号 0/1/2
+    assert combo[0] == ["自动 · 按型", "0 · Turbo 8步", "1 · 原生出图", "2 · viggle"]
+    assert combo[1]["default"] == "自动 · 按型"  # 首项=默认=自动 · 按型
+    assert DEFAULT_MODE == MODES[0] == "自动 · 按型" == AUTO_MODE
     # 分隔符码位锁:U+00B7 中点(防誊写漂移成全角·/・——combo 列表即契约)
     for mode in MODES:
         assert " \u00b7 " in mode, mode
-    # 档位↔槽名单源映射全覆盖(combo 序=默认优先,档号=序位号)
-    assert [s for _m, s in SPEED_MODES] == ["latent_turbo", "latent_direct",
+    # 档位↔槽名单源映射全覆盖(自动档无固有槽=位 None,实际槽按型名现算;
+    # 手动档 combo 序=默认优先,档号=序位号)
+    assert [s for _m, s in SPEED_MODES] == [None, "latent_turbo", "latent_direct",
                                             "latent_viggle"]
+    assert slot_for_mode("自动 · 按型") is None  # 自动档不经 slot_for_mode(按型名现算)
     assert slot_for_mode("0 · Turbo 8步") == "latent_turbo"
     assert slot_for_mode("1 · 原生出图") == "latent_direct"
     assert slot_for_mode("2 · viggle") == "latent_viggle"
@@ -116,9 +127,21 @@ def test_check_lazy_status_requests_selected_wired_unevaluated():
 
 
 def test_lazy_engine_protocol_matrix():
-    """全档×全接线态穷举:钩子请求名单恒⊆{选中档槽}且不含未接线槽。"""
+    """全档×全接线态穷举:钩子请求名单恒⊆{选中档槽}且不含未接线槽。
+    1017:自动档无固有槽(SPEED_MODES 槽位 None)——期望槽=按型名现算
+    (型名∈{设定卡,美宣}→latent_direct,其余含空/缺键→latent_turbo
+    缺省安全侧);型名维四态(缺键/空串/直出两型/其余型)只对自动档展开,
+    手动档忽略型名(直查固有槽,与 select 同源零漂移)。"""
     node = MyQi21SpeedSelect()
-    for mode, selected_slot in SPEED_MODES:
+    rows = []  # (mode, 期望选中槽, 型名 kwargs 值或哨兵__ABSENT__)
+    for mode, slot in SPEED_MODES:
+        if slot is None:   # 自动档:型名四态展开(缺键=未接线/空串/直出两型/其余型)
+            for tn in (..., "", "设定卡", "美宣", "人物"):
+                rows.append((mode, "latent_direct" if tn in ("设定卡", "美宣")
+                             else "latent_turbo", tn))
+        else:              # 手动档:固有槽,型名缺席(不投递)
+            rows.append((mode, slot, ...))
+    for mode, expected, tn in rows:
         for slot in ("latent_turbo", "latent_viggle", "latent_direct"):
             for presence in ("absent", "none", "valued"):
                 kwargs = {}
@@ -126,11 +149,13 @@ def test_lazy_engine_protocol_matrix():
                     kwargs[slot] = None
                 elif presence == "valued":
                     kwargs[slot] = {"branch": slot}
+                if tn is not ...:
+                    kwargs["型名"] = tn
                 need = node.check_lazy_status(mode, **kwargs)
                 if need is None:
                     continue
-                assert need == [selected_slot], (mode, slot, presence, need)
-                assert presence == "none", (mode, slot, presence)  # 只请求未求值槽
+                assert need == [expected], (mode, slot, presence, tn, need)
+                assert presence == "none", (mode, slot, presence, tn)  # 只请求未求值槽
 
 
 # ── 未选档未接线容错:select 不因未选槽缺席/None 报错 ──────────

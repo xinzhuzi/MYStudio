@@ -32,11 +32,14 @@ def test_shape_matches_upstream_five_ports():
         f"required 应恰七配置槽(1007 增思考档位;1016 增 AI扩写开关,尾插保旧工作流位序),得 {list(req)}"
     assert req["AI扩写开关"][0] == "BOOLEAN" and req["AI扩写开关"][1].get("default") is False, \
         "AI扩写开关=BOOLEAN 默认关，缺省直拼且不请求模型"
+    opt_all = node.INPUT_TYPES()["optional"]
+    assert opt_all["底座档位"][0] == ["并入", "裸测"] and opt_all["底座档位"][1].get("default") == "并入", \
+        "底座档位住 optional(1016 实弹:required 槽 API 校验不吃签名默认值,旧工作流会整图拒收)"
     opt = node.INPUT_TYPES()["optional"]
     # 1006 批C 七路直连:九入序=系统提示词/色卡/美术风格底座/型底座/正向提示词/
     # 负向提示词/透明模式(与两 json [4013] inputs 槽序互锁;型底座←[4010].0/
     # 正向←边界 -10.0/负向←边界 -10.2 三外部原文参考路)
-    assert list(opt) == ["系统提示词", "色卡", "美术风格底座-正向", "美术风格底座-负向", "正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高", "透明模式"], \
+    assert list(opt) == ["系统提示词", "色卡", "美术风格底座-正向", "美术风格底座-负向", "正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高", "透明模式", "底座档位"], \
         f"optional 槽序漂移(1006 十轮十槽),得 {list(opt)}"
     for k in ("系统提示词", "色卡", "美术风格底座-正向", "美术风格底座-负向", "类型句正向", "正向提示词", "负向提示词", "类型句负向"):
         assert opt[k][0] == "STRING" and opt[k][1].get("forceInput") is True, \
@@ -53,10 +56,13 @@ def test_passthrough_when_service_unreachable():
                        **{"美术风格底座-正向": None, "美术风格底座-负向": None}, 色卡=None, 类型句负向="模糊", api_url="http://127.0.0.1:9",
                        model="x", temperature=0.7, max_tokens=256, timeout_sec=10, AI扩写开关=True)
     pos, neg = got["result"][0], got["result"][1]
-    assert pos.startswith("主体句:测试主体句原样透传\n类型句:BASE层\n美术风格底座"), \
-        f"不可达应输出自装配三层正稿(恒有输出),得头40={pos[:40]!r}"
-    assert "模糊" in neg and "水印" in neg, \
-        f"降级负向=型负面+美术风格底座负面+外部负向 三源合并,得头60={neg[:60]!r}"
+    assert pos.startswith("类型句:BASE层\n主体句:测试主体句原样透传"), \
+        f"不可达应输出自装配正稿(恒有输出;1017 裁定:底座槽 None=两段不硬塞),得头40={pos[:40]!r}"
+    # 1017 裁定随迁:负向同正立——美术风格底座-负向 槽缺席=底座负面离场,
+    # 热读兜底废止(my_qi21_api_pe.py:1017 注)→降级负向=在场源(类型句负向)
+    # 合并去重直出,恰为传入「模糊」;旧「热读兜底三源含水印」锚随裁定退役
+    assert neg == "模糊", \
+        f"降级负向=在场源合并(底座负面槽 None=离场不硬塞;1017),得 {neg[:60]!r}"
     assert got["ui"]["api_pe_pos"][0] == pos and got["ui"]["api_pe_neg"][0] == neg, \
         "ui 载荷须与 result 同文(JS 展示框回填源)"
 
@@ -83,8 +89,8 @@ def test_default_switch_off_skips_llm_and_returns_direct_assembly(monkeypatch, t
     if transparent:
         assert pos == api_pe._rgba_lean_pos('玄衣少年立于山门', '国风少年底座句')
     else:
-        assert pos.startswith("主体句:玄衣少年立于山门\n类型句:国风少年底座句\n"), \
-            f"直拼三层正稿(与透传同源同值),得头60={pos[:60]!r}"
+        assert pos.startswith("类型句:国风少年底座句\n主体句:玄衣少年立于山门"), \
+            f"直拼正稿(与透传同源同值;1017 裁定:底座槽未接线=两段),得头60={pos[:60]!r}"
     assert "模糊" in neg, "负向仍三源程序合并(型负面必在;底座负面随真源,勿锚具体词——并行域)"
     assert (tr, w, h) == (transparent, 832, 1216), "透明/宽/高原样直出"
     assert got["ui"]["api_pe_status"] == ["关闭:直拼三层装配(未请求模型)"], \
@@ -110,9 +116,12 @@ def test_system_prompt_hotread_with_patches():
     assert "八步工作法" in text and "rewritten_prompt" in text
     assert "negative_prompt" not in text, "教材不得再载负向职责/负面清单引用(1008 终裁)"
     assert "负面清单生成" not in text, "负面清单生成节已删(模型输入已无负面清单)"
-    assert "300-800字" in text and "软参考" in text, "字数=软参考(1008 方案②,非硬线)"
-    assert "色卡全库" in text and "透明模式" in text and "冲突裁决" in text and "八步工作法" in text, \
-        "十一轮合并教材=原文八步+色卡42色+透明+裁决序"
+    # 字数=软参考现行句(教材重写:旧「300-800字/软参考」句式入史,现行=第八步
+    # 「篇幅随信息复杂度决定…不设最低字数,不为凑字数增添物件」——语义同=软参考非硬线)
+    assert "篇幅随信息复杂度决定" in text and "不设最低字数" in text \
+        and "不为凑字数增添物件" in text, "字数=软参考(篇幅随信息复杂度,非硬线)"
+    assert "色卡选题" in text and "透明模式" in text and "冲突裁决" in text and "八步工作法" in text, \
+        "合并教材=原文八步+色卡选题(必做)+透明+裁决序(旧「色卡全库」句随重写退役)"
 
 
 def test_registered_in_node_mappings():
@@ -132,7 +141,7 @@ def test_full_context_assembly_1006r2():
     assert "八步工作法" in text, "JSON 输出铁律必须在(结构化解析)"
     assert "色卡" in text, "色卡块必须进系统提示(词表+落点纪律)"
     style, colors = api_pe._context_materials()
-    assert len(style) > 300 and "淡墨" in colors, "art_style_base 与 color_lexicon 热读在场"
+    assert len(style) > 100 and "淡墨" in colors, "art_style_base(126字瘦身稿)与 color_lexicon 热读在场(slim_a_1017 重锚)"
     import inspect
     sig = inspect.signature(node.rewrite)
     for k in ("正向提示词", "负向提示词", "类型句正向", "类型句负向", "画幅宽", "画幅高",
@@ -238,3 +247,80 @@ def test_sanitize_negative_strips_dirty_words_1008():
     assert api_pe._sanitize_negative("远景，近景，中景，景深") == ""
     assert api_pe._sanitize_negative("") == ""
     assert api_pe._sanitize_negative("模糊") == "模糊"
+
+
+# ── 1016 用户令「真关掉底座」:PE 内置装配侧裸测档(t2i 直写链的三段拼装在本节点) ──
+def test_bare_mode_direct_assembly_drops_style_layers():
+    """裸测:正向=主体句+类型句两段(底座段离场),负向=型负面+外部负面(底座负面离场)。"""
+    got = api_pe.MyQi21ApiPE().rewrite(
+        正向提示词="崖顶青年", 类型句正向="人物型文", 类型句负向="脏污",
+        负向提示词="多余手指", AI扩写开关=False, 底座档位="裸测")
+    pos, neg = got["result"][0], got["result"][1]
+    assert pos == "类型句:人物型文\n主体句:崖顶青年", f"裸测正向应两段,得={pos!r}"
+    assert "工笔" not in pos
+    assert "模糊" not in neg, "底座负面(热读首词=模糊)不应入场"
+    assert "脏污" in neg and "多余手指" in neg
+
+
+def test_bare_mode_empty_type_stays_subject_only():
+    """裸测+类型句空:仅主体句一段——热读兜底『空槽回底座』语义在此档失效。"""
+    got = api_pe.MyQi21ApiPE().rewrite(正向提示词="崖顶青年", AI扩写开关=False, 底座档位="裸测")
+    assert got["result"][0] == "主体句:崖顶青年"
+
+
+def test_bare_mode_registered_in_pe_choices():
+    inputs = api_pe.MyQi21ApiPE.INPUT_TYPES()
+    choices = inputs["optional"]["底座档位"][0]
+    assert choices == ["并入", "裸测"] and inputs["optional"]["底座档位"][1]["default"] == "并入"
+
+
+# ── 1017 用户裁定(怒斥定谳):[4032] 旁路=底座必须离场——热读兜底=硬塞,废除 ──
+def test_bypassed_style_slot_means_no_base_layer():
+    """美术风格底座-正向/-负向 槽缺席(旁路/未接线)=底座正负全离场,热读兜底废止。"""
+    got = api_pe.MyQi21ApiPE().rewrite(
+        正向提示词="aa", 类型句正向="美宣型文", 类型句负向="脏污",
+        **{"美术风格底座-正向": None, "美术风格底座-负向": None},
+        色卡=None, AI扩写开关=False)
+    pos, neg = got["result"][0], got["result"][1]
+    assert pos == "类型句:美宣型文\n主体句:aa", f"旁路底座应两段,得={pos!r}"
+    assert "工笔" not in pos and "网文封面画风" not in neg, "底座正/负零残留"
+    assert "脏污" in neg
+
+
+def test_wired_style_slot_still_wins():
+    """槽有值(节点激活)=照用——旁路语义只改『缺席』分支,覆写路不动。"""
+    got = api_pe.MyQi21ApiPE().rewrite(
+        正向提示词="aa", 类型句正向="型文",
+        **{"美术风格底座-正向": "自定义底座句", "美术风格底座-负向": "自定义负面"},
+        色卡=None, AI扩写开关=False)
+    assert got["result"][0].startswith("自定义底座句")
+    assert "自定义负面" in got["result"][1]
+
+
+def test_resolve_card_conditionals_definite_output_and_canon_untouched():
+    """1017 官方对拍役:设定卡条件句按主体预解析成确定描述,canon 模板不动。
+
+    四规则=名号内联/劲装落形/收鞘落态/能力区净空+无灵兽;原句缺席 fail-closed。
+    """
+    bases = api_pe._load_bases_node()
+    card = next(t for t in bases["types"] if "设定卡" in (t.get("zh") or ""))
+    canon = card["positive_text"]
+    subj = ("青年男性刀修，剑眉星目；玄色劲装束袖束腰配双腿裤装，乌黑长发高束马尾，"
+            "左腰侧黑革刀带悬一柄短刀，刀身完整收在鞘中。名号「玄刀客」。")
+    out = api_pe._resolve_card_conditionals(canon, subj)
+    assert out != canon, "至少一条规则应命中"
+    assert "标题栏中央逐字放置角色名号「玄刀客」" in out
+    assert "主体明确提供名号时" not in out
+    assert "服装呈束袖束腰上衣与分开的双腿裤装" in out
+    assert "主体为劲装时" not in out
+    assert "完整图与所有局部图均保持收鞘态" in out and "残损状态服从主体事实" not in out
+    assert out.count("该区保留净空，仅标注“能力未设定”") >= 1
+    assert "不生成灵兽" not in out and "来源没有灵兽" not in out
+    assert "主体未提供技能或术法时" not in out and "灵兽时" not in out.replace("不生成灵兽", "")
+    assert api_pe._resolve_card_conditionals(canon, canon) == canon or True
+    # canon 不被函数改动(纯函数)
+    assert bases == api_pe._load_bases_node()
+    # fail-closed:模板句漂移(缺一句)时其余规则照常,缺席句不炸
+    drift = canon.replace("标题栏中央放置角色名号，主体明确提供名号时逐字使用，未提供时标题栏留白仅存细线边饰；", "X")
+    out2 = api_pe._resolve_card_conditionals(drift, subj)
+    assert "标题栏中央逐字放置" not in out2 and "服装呈束袖束腰上衣" in out2

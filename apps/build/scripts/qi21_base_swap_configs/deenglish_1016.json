@@ -1,0 +1,90 @@
+{
+  "campaign": "1016 底座英文括注全退役(用户令)",
+  "out_dir": "qi21-base-swap-deenglish-1016",
+  "guards_positive_contain": [
+    "工笔重彩"
+  ],
+  "positive_old": "美术风格底座：中国工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导的二维手绘数字游戏插画，融合彩色连环画（classic Chinese lianhuanhua comic）的概括造型，各种画法主次明确、协调统一，造型概括凝练。轮廓线与内部结构线共同承担造型，勾线精微（fine brushwork），线条细劲流畅、饱满有力，起收自然，粗细、轻重与疏密富有节奏。清晰色面、细腻分染与层层罩染共同塑形，色面边界明确平整，色相对比保持清晰，明暗融入固有色的浓淡与冷暖层次，深浅色层各具色彩；设色以丰富多彩的工笔重彩（rich gongbi coloration）为主，多色相并陈、充分展开且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润（bright, luminous color），如石色矿物颜料般鲜泽通透（vivid mineral-pigment colors），明度、纯度与冷暖变化细腻清晰、层级分明，繁简有序，材质统一于线描设色语言。保留清楚的手绘笔性（hand-painted brushwork），用笔精微，疏密有致，全图细节密度高、笔笔可辨，轮廓与色面边界清晰锐利（crisp, sharp edges），数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。",
+  "positive_new": "美术风格底座：中国工笔重彩与白描线条主导的二维手绘数字游戏插画，融合彩色连环画的概括造型，各种画法主次明确、协调统一，造型概括凝练。轮廓线与内部结构线共同承担造型，勾线精微，线条细劲流畅、饱满有力，起收自然，粗细、轻重与疏密富有节奏。清晰色面、细腻分染与层层罩染共同塑形，色面边界明确平整，色相对比保持清晰，明暗融入固有色的浓淡与冷暖层次，深浅色层各具色彩；设色以丰富多彩的工笔重彩为主，多色相并陈、充分展开且相互呼应，主色统领鲜明，辅色丰富呼应，点睛色凝练突出，色泽饱满鲜亮、明快莹润，如石色矿物颜料般鲜泽通透，明度、纯度与冷暖变化细腻清晰、层级分明，繁简有序，材质统一于线描设色语言。保留清楚的手绘笔性，用笔精微，疏密有致，全图细节密度高、笔笔可辨，轮廓与色面边界清晰锐利，数字绘画表面洁净平整，线描、色面与罩染层次分明，共同形成画面节奏。",
+  "prefix_count": 2,
+  "prompt_layering_pairs": [
+    [
+      "工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导二维手绘数字游戏插画；彩色连环画（classic Chinese lianhuanhua comic）负责概括造型",
+      "工笔重彩与白描线条主导二维手绘数字游戏插画；彩色连环画负责概括造型",
+      1
+    ]
+  ],
+  "lock_anchor_pairs": [
+    [
+      "中国工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导",
+      "中国工笔重彩与白描线条主导",
+      1
+    ],
+    [
+      "轮廓线与内部结构线共同承担造型，勾线精微（fine brushwork）",
+      "轮廓线与内部结构线共同承担造型，勾线精微",
+      1
+    ],
+    [
+      "数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。",
+      "数字绘画表面洁净平整，线描、色面与罩染层次分明，共同形成画面节奏。",
+      1
+    ]
+  ],
+  "wf_counts": {
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
+    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
+    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
+  },
+  "assembly_sha16_old": "7fe9b2334af97bad",
+  "boundary_pairs": [
+    [
+      "'线条细劲流畅',\n                 'Gongbi heavy-color painting', 'baimiao line drawing', 'classic Chinese lianhuanhua comic',\n                 'fine brushwork', 'hand-painted brushwork',\n                 '清晰色面'",
+      "'线条细劲流畅',\n                 '清晰色面'",
+      1
+    ],
+    [
+      "'细节密度高、笔笔可辨', 'crisp, sharp edges', 'clean, flat digital finish',\n                 '数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。']:",
+      "'细节密度高、笔笔可辨',\n                 '数字绘画表面洁净平整，线描、色面与罩染层次分明，共同形成画面节奏。']:",
+      1
+    ]
+  ],
+  "ts_frame_pairs": [
+    [
+      "toContain(\"中国工笔重彩（Gongbi heavy-color painting）与白描线条（baimiao line drawing）主导\")",
+      "toContain(\"中国工笔重彩与白描线条主导\")",
+      1
+    ],
+    [
+      "toContain(\"数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。\")",
+      "toContain(\"数字绘画表面洁净平整，线描、色面与罩染层次分明，共同形成画面节奏。\")",
+      1
+    ]
+  ],
+  "extra_file_swaps": [
+    {
+      "file": "apps/backend/engines/comfyui/my_nodes/tests/test_qi21_style_type_separation.py",
+      "pairs": [
+        [
+          "'数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。'",
+          "'数字绘画表面洁净平整，线描、色面与罩染层次分明，共同形成画面节奏。'",
+          1
+        ]
+      ]
+    }
+  ],
+  "snapshot_note": "> **1016 底座英文括注全退役(用户令,反向 1016晚中英配合裁定)**：十处（English）括注全删,底座纯中文;锚随源=装配sha16/边界词表英文行/separation尾句/TS双锚/锁锚三条/分层契约风格句。机读现值见 `../json/qi21_bases.json#art_style_base`。",
+  "residue_tokens": [
+    "Gongbi",
+    "baimiao",
+    "lianhuanhua",
+    "brushwork",
+    "sharp edges",
+    "digital finish",
+    "luminous",
+    "mineral-pigment"
+  ]
+}

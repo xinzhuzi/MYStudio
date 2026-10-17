@@ -2,10 +2,12 @@
 # Licensed under AGPL-3.0-or-later. See LICENSE for details.
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """道劫 qi21 底座节点:型底座下拉选(09-23 造件九型;1001 P1 起十档=九型+自由),
-五出 BASE/WIDTH/HEIGHT/负面词/透明值(RETURN_NAMES 实序:负面词=槽3、透明值=
-槽4 最末;1002 ⑯ 删「型名」出+大轮连带删 rgba_default 出:i2i [180].rgba_hint
-已迁「透明值」,三件全零消费;槽位迁移=research/slot-map.md;负面词=1005 案B
-Phase I 增出,旧注「追加最末」系当时四出时代口径,现行透明值居末)。
+六出 BASE/WIDTH/HEIGHT/负面词/透明值/型名(RETURN_NAMES 实序:负面词=槽3、
+透明值=槽4、型名=槽5 最末;1002 ⑯ 删「型名」出+大轮连带删 rgba_default 出:
+i2i [180].rgba_hint 已迁「透明值」,三件全零消费;1017 反转 ⑯ 型名半边——
+speed_select 新增「自动 · 按型」档按型路由需型名信号,尾加重加(rgba_default
+出维持删);槽位迁移=research/slot-map.md;负面词=1005 案B Phase I 增出,旧注
+「追加最末」系当时四出时代口径,现行型名居末)。
 
 仿 K2 件 MyDaojieBase(同包 my_daojie_base.py)的 combo 九选一+分辨率直出+
 磁盘热读三件套,为 qi21-道劫 工作流接线备件(接线属下一轮,本轮零碰工作流):
@@ -200,7 +202,9 @@ class MyQi21DaojieBase:
     兜底 1024×1024)+rgba_default(0929 D6 RGBA 型联动:四型透明声明型 true
     其余 false)+透明值(1001 P1 透明执行口:型≠自由?rgba_default:透明覆盖
     ——纯 BOOLEAN 跨子图边界)+负面词(1005 案B Phase I:=entry.negative_text
-    现读,型负面出口)五出(1002 ⑯ 删「型名」第四出:三件全零消费)。"""
+    现读,型负面出口)+型名(1017:run 入参 base 原值直通,供 speed_select
+    「自动 · 按型」档按型路由)六出(1002 ⑯ 删「型名」出由 1017 反转重加,
+    追加最末=存量五出槽序零漂移)。"""
 
     CATEGORY = "漫影"
 
@@ -238,9 +242,13 @@ class MyQi21DaojieBase:
     # ——rgba_default 布尔仍为件内中间量(透明值=型≠自由?rgba_default:
     # 透明覆盖 解析用),只是不再外露输出槽;
     # 负面词追加第五出(1005 案B Phase I,design §8.1 ①):=entry.negative_text
-    # 现读(与 BASE 同条目),追加最末=四出槽序零漂移(旧工作流不接=零波及)。
-    RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN")
-    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "负面词", "透明值")
+    # 现读(与 BASE 同条目),追加最末=四出槽序零漂移(旧工作流不接=零波及);
+    # 型名重加第六出(1017 反转 1002 ⑯ 在档:当时三件零消费故删,1017
+    # speed_select 增「自动 · 按型」档按型路由需型名信号故重加,历史账不改写)
+    # :=run 入参 base 原值直通,追加最末=存量五出槽序零漂移(旧工作流不接
+    # 第六出=零波及)。
+    RETURN_TYPES = ("STRING", "INT", "INT", "STRING", "BOOLEAN", "STRING")
+    RETURN_NAMES = ("BASE", "WIDTH", "HEIGHT", "负面词", "透明值", "型名")
     FUNCTION = "run"
 
     @classmethod
@@ -281,6 +289,7 @@ class MyQi21DaojieBase:
         # 1002 ⑯:「型名」直通出删除;1002 大轮连带:rgba_default 出收口删除
         # (i2i [180].rgba_hint 已迁「透明值」);
         # 1005 案B Phase I:负面词第五出=型负面现读(缺键回退空串=空负向合法态,
-        # 与 BASE 的 .get 默认同款纪律;返回元组序=RETURN_NAMES 五出序)
+        # 与 BASE 的 .get 默认同款纪律;返回元组序=RETURN_NAMES 出序);
+        # 1017:型名第六出尾加=base 入参原值直通(反转 1002 ⑯ 删令,注见上)
         return (entry.get("positive_text", ""), width, height,
-                entry.get("negative_text", ""), 透明值)
+                entry.get("negative_text", ""), 透明值, base)

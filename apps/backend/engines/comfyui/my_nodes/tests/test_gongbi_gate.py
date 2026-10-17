@@ -1,0 +1,113 @@
+# Copyright (c) 2025 hotflow2024
+# Licensed under AGPL-3.0-or-later. See LICENSE for details.
+"""运行时门禁测试(1017 用户令:产线常跑,违规提示词报错)。
+
+单源模块 _gongbi_gate + 两节点接线:PE=t2i 全路(入口主体句+出口终稿八点),
+Assembly=新建资产路(i2i 两落法纪律豁免)。"""
+import importlib.util
+from pathlib import Path
+import pytest
+
+_spec = importlib.util.spec_from_file_location(
+    "gongbi_gate", Path(__file__).resolve().parents[1] / "nodes/_gongbi_gate.py")
+gate = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(gate)
+
+GOOD = "青年男性刀修，玄色劲装束袖束腰配双腿裤装，乌黑长发高束马尾，左腰黑革刀带悬一柄短刀，刀身完整收在鞘中。"
+
+
+def test_clean_subject_passes():
+    assert gate.prompt_violations(GOOD, is_subject=True) == []
+    gate.assert_prompt_gates(GOOD, is_subject=True)
+
+
+@pytest.mark.parametrize("bad,word", [
+    ("人物特写，不能出现手部。", "不能"),
+    ("背景不见山石。", "不见"),
+    ("共九张脸，无第四行。", "无第"),
+    ("光照方向与色温一致。", "光照方向"),
+    ("取景为半身或全身。", "或全身"),
+    ("写实风格人物。", "写实"),
+    ("杰作，8K 超高清。", "8K"),
+    ("工笔重彩人物立绘。", "工笔"),
+])
+def test_toxins_raise(bad, word):
+    v = gate.prompt_violations(bad, is_subject=True)
+    assert v and word in v[0], v
+
+
+def test_verbatim_block_exempt():
+    s = GOOD + "【文字要求】画面中所有文字必须是以上明确指定的中文，逐字准确；不要生成任何未指定的多余文字。"
+    assert gate.prompt_violations(s, is_subject=True) == []
+
+
+def test_skin_warmth_not_optic():
+    assert gate.prompt_violations("青年刀修，肤色温润的浅麦色。", is_subject=True) == []
+
+
+def test_empty_passes():
+    gate.assert_prompt_gates("", is_subject=True)
+    gate.assert_prompt_gates(None, is_subject=False)
+
+
+def test_pe_node_rejects_toxic_subject():
+    spec = importlib.util.spec_from_file_location(
+        "api_pe_g", Path(__file__).resolve().parents[1] / "nodes/my_qi21_api_pe.py")
+    pe = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pe)
+    with pytest.raises(ValueError, match="道劫提示词门禁"):
+        pe.MyQi21ApiPE().rewrite(正向提示词="人物特写，不能出现手部。",
+                                 类型句正向="型文", AI扩写开关=False)
+
+
+def test_assembly_i2i_route_exempt():
+    spec = importlib.util.spec_from_file_location(
+        "asm_g", Path(__file__).resolve().parents[1] / "nodes/my_qi21_prompt_assembly.py")
+    asm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(asm)
+    # 局部编辑=i2i 路豁免:否定式两落法纪律在册
+    out = asm.MyQi21PromptAssembly().assemble(
+        BASE="", BASE负面="", 主体句="把红色外套改为蓝色，不要改动脸部。", 组装用途="局部编辑")
+    assert "不要" in out[0]
+    with pytest.raises(ValueError, match="道劫提示词门禁"):
+        asm.MyQi21PromptAssembly().assemble(
+            BASE="", BASE负面="", 主体句="把红色外套改为蓝色，不要改动脸部。", 组装用途="新建资产")
+
+
+def test_resolver_drift_lock_between_nodes():
+    """1017 复查锁:两节点各持 _resolve_card_conditionals 副本(零跨模块家法),
+    无锁则静默漂移——本锁用真源 canon+三类主体(带武器/极简/带技能)对拍逐字节相等。"""
+    import json as _json
+    base = Path(__file__).resolve().parents[3] / "daojie-data/qi21_bases.json"
+    if not base.exists():
+        base = Path(__file__).resolve().parents[6] / \
+            "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
+    import importlib.util as _ilu
+    def _mod(fn, nm):
+        sp = _ilu.spec_from_file_location(nm, fn)
+        m = _ilu.module_from_spec(sp); sp.loader.exec_module(m); return m
+    pe = _mod(Path(__file__).resolve().parents[1] / "nodes/my_qi21_api_pe.py", "pe_drift")
+    asm = _mod(Path(__file__).resolve().parents[1] / "nodes/my_qi21_prompt_assembly.py", "asm_drift")
+    card = next(t for t in _json.loads(base.read_text(encoding="utf-8"))["types"]
+                if t.get("zh") == "设定卡")["positive_text"]
+    for subj in ("青年男性刀修玄色劲装，腰侧短刀，刀身完整收在鞘中。名号「玄刀客」。",
+                 "少女青裙。",
+                 "老者持杖，掌握御剑术。"):
+        assert pe._resolve_card_conditionals(card, subj) == \
+               asm._resolve_card_conditionals(card, subj), subj[:12]
+
+
+def test_bare_route_and_ink_word_doctrine():
+    """1017 复查落锁:①无底座出图路=t2i 语义,主体句门必罩(复查补的洞);
+    ②水墨=条件毒药不进硬禁词(三国望神州方向合法),厚涂/赛璐璐恒毒保留。"""
+    import importlib.util as _ilu
+    def _mod(fn, nm):
+        sp = _ilu.spec_from_file_location(nm, fn)
+        m = _ilu.module_from_spec(sp); sp.loader.exec_module(m); return m
+    asm = _mod(Path(__file__).resolve().parents[1] / "nodes/my_qi21_prompt_assembly.py", "asm_bare")
+    with pytest.raises(ValueError, match="道劫提示词门禁"):
+        asm.MyQi21PromptAssembly().assemble(BASE="型文", BASE负面="",
+                                            主体句="人物特写，不能出现手部。", 组装用途="无底座出图")
+    gate = _mod(Path(__file__).resolve().parents[1] / "nodes/_gongbi_gate.py", "gate_ink")
+    assert gate.prompt_violations("水墨山水意境的人物。", is_subject=True) == []
+    assert any("厚涂" in v for v in gate.prompt_violations("厚涂质感人物。", is_subject=True))

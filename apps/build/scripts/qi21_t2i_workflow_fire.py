@@ -3,8 +3,9 @@
 
 不做任何自建图——从工作流 GUI JSON **按其结构展平**成 API 格式发车:
 - 装配子图[6]:真节点逻辑(4010→4013 ApiPE(9B)→4014),型选择/主体句参数化;
-- 加速子图[7]:**默认档=宿主 widget 现值**(现=2·viggle 9步双段:RandomNoise→段A
-  turboLoRA+ViggleTurboSigmas(SplitSigmas@7)→段B 底模+DisableNoise 续采);
+- 加速子图[7]:**默认档=宿主 widget 现值**(1017 起出厂=「自动 · 按型」:型名∈
+  {设定卡,美宣}→40步直出支路,其余含空→Turbo 官方 8步臂;fire 侧
+  resolve_speed_mode 按型解析生效档后选支路;--turbo=显式覆写优先生效);
   未选支路(Turbo 分支经 --turbo 覆写/直出)懒排除——与画布执行图一致;
 - seed=**每次随机**(random.randint),透传到 7:7017 RandomNoise 与 7:7010/Turbo 分支
   (Turbo 臂噪声共用 7:7017;懒分支仍排除,seed 只落在活支路);
@@ -29,6 +30,23 @@ DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
 TURBO_SIGMAS = ("1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, "
                 "0.704534, 0.414568, 0")  # 官方 model_index sample_sigmas+模板补终止0
+# 1017 增档令:面板首档=「自动 · 按型」(型名∈{设定卡,美宣}→原生出图,其余
+# 含空→Turbo);fire 侧镜像节点件 my_qi21_speed_select.resolve_slot 的路由表
+# (发车器读的是面板串,须在展平前解析成生效档再选支路——headless 无 lazy 方)
+AUTO_MODE = "自动 · 按型"
+AUTO_DIRECT_TYPES = ("设定卡", "美宣")
+
+
+def resolve_speed_mode(speed, type_name):
+    """面板档×型名→生效档(1017;与 my_qi21_speed_select.resolve_slot 同路由表)。
+
+    「自动 · 按型」按型名现算:型名∈{设定卡,美宣}→「1 · 原生出图」,其余
+    (含 None/空串)→「0 · Turbo 8步」(型名空=按 Turbo 缺省安全侧);手动档
+    与未知串原样返回(未知串交引擎 /prompt combo 闭集硬校验报 400,
+    fail-closed 不代选);--turbo 显式覆写已在取值处优先生效不经本函数改写。"""
+    if speed == AUTO_MODE:
+        return "1 · 原生出图" if type_name in AUTO_DIRECT_TYPES else "0 · Turbo 8步"
+    return speed
 
 
 def engine_base() -> str:
@@ -78,12 +96,24 @@ def main():
                          "RGBA 四通道官方直通,透明型无损;widgets 全取工作流现值)")
     ap.add_argument("--turbo", action="store_true",
                     help="覆写速度档位为官方 Turbo 8步(1016turbo 换臂:官方 avg_rank_178 "
-                         "LoRA ×1.0 直连底模→BasicGuider cfg1→SamplerCustomAdvanced+官方σ表)")
+                         "LoRA ×1.0 直连底模→BasicGuider cfg1→SamplerCustomAdvanced+官方σ表;"
+                         "面板出厂默认=「自动 · 按型」(1017),本旗显式覆写优先生效)")
+    ap.add_argument("--unwire-base", dest="unwire_base", action="store_true",
+                    help="模拟 [4032] 旁路:底座两槽不接线(1017 裁定:缺席=底座离场)")
+    ap.add_argument("--bare", action="store_true",
+                    help="底座档位=裸测:PE 内置装配出 主体句+类型句 两段(美术底座正/负离场,含热读兜底;1016 真关底座令)")
+    ap.add_argument("--pe", dest="pe", action="store_true",
+                    help="打开 [4013] AI扩写开关(工作流现值默认关=直拼三层装配;"
+                         "1017 官方对拍役:满词先关扩写对拍,短输入再比较扩写)")
     ap.add_argument("--no-pe", dest="no_pe", action="store_true",
                     help="PE 旁路:api_url 指向必拒连端口触发节点设计内透传回退"
                          "(透明开→极简公式=主体句+rgba_positive 格式锁+风格托底;"
                          "1016 设定卡役:PE 教材透明纪律误伤多区排版语言,分区语言"
                          "经格式锁全量直进编码器;本地模式单点无兜底追加已核)")
+    ap.add_argument("--base-file", dest="base_file", default=None,
+                    help="[4032] widget 展示值覆写(展示框可见;节点无视 widget 纯热读真源,"
+                         "故对终稿无直接作用——同图重发时兼作 ComfyUI 节点缓存破解;"
+                         "1017 A/B 实测:改终稿底座须换引擎侧 daojie-data/qi21_bases.json)")
     args = ap.parse_args()
 
     wf = json.loads(WF.read_text(encoding="utf-8"))
@@ -98,18 +128,30 @@ def main():
         # 节头匹配必须钉死单行([^\n] 禁跨行):re.S 下贪婪 .* 会从本节节头一路吞到
         # 后文别节标题里的同名字样(如§2「无人物」)再取围栏→主体句跨节错配(1009 两犯)。
         alias = {"人物多视图": "多视图"}.get(args.type, args.type)
-        m = re.search(rf"## \d+\. [^\n]*?{re.escape(alias)}[^\n]*\n.*?```[a-z]*\n(.*?)\n```", t, re.S)
+        # 收尾围栏不必换行前置(\n? 兼容「内容。```」粘行——1017 十型验实锤:粘行使
+        # 旧式 \n``` 匹配滑到后文围栏,主体句吞入文档注释跨节内容)
+        m = re.search(rf"## \d+\. [^\n]*?{re.escape(alias)}[^\n]*\n.*?```[a-z]*\n(.*?)\n?```", t, re.S)
         if not m:
             sys.exit(f"示例库未找到型「{args.type}」条目")
         subj = m.group(1).strip()
+        # 取句护栏(合规优先于进度:宁可拒发不可把文档当提示词):主体句禁含节头/
+        # 引用笔记/围栏残片,超长=抽取错位,fail-closed 报错退出
+        for marker in ("## ", "> ", "```"):
+            if marker in subj:
+                sys.exit(f"主体句抽取污染(含「{marker}」)——示例库该节围栏结构有误,先修 md")
+        if len(subj) > 800:
+            sys.exit(f"主体句超长({len(subj)}字)——疑似跨节错配,先修示例库围栏")
 
     seed = args.seed if args.seed is not None else random.randint(1, 2**31 - 1)
 
     host6 = root_nodes[6]          # 装配子图宿主(型选择 widget)
     host7 = root_nodes[7]          # 加速子图宿主(速度档位/seed/σ表 widget)
-    speed = "0 · Turbo 8步" if args.turbo else host7["widgets_values"][0]
+    # 1017:不传 --turbo=尊重面板「自动 · 按型」出厂默认,按 --type 解析生效档;
+    # --turbo=显式覆写为「0 · Turbo 8步」优先生效(不经型名改写)
+    speed_panel = "0 · Turbo 8步" if args.turbo else host7["widgets_values"][0]
+    speed = resolve_speed_mode(speed_panel, args.type)
     sigma_str = host7["widgets_values"][2] if len(host7["widgets_values"]) > 2 else ""
-    print(f"[fire] 型={args.type} 档={speed} seed={seed}(随机)" if args.seed is None else f"[fire] 型={args.type} 档={speed} seed={seed}")
+    print(f"[fire] 型={args.type} 档={speed_panel}→生效档={speed} seed={seed}(随机)" if args.seed is None else f"[fire] 型={args.type} 档={speed_panel}→生效档={speed} seed={seed}")
 
     # ── 展平:子图[6]装配 ──(节点 id 前缀 6:,与画布 API 形一致)
     sg6 = sgs[host6["type"]]
@@ -141,13 +183,24 @@ def main():
         "系统提示词": ["6:4030", 0], "色卡": ["6:4031", 0],
         "美术风格底座-正向": ["6:4032", 0], "美术风格底座-负向": ["6:4032", 1],
     })
+    if args.pe:
+        pe_in["AI扩写开关"] = True
+    if args.bare:
+        pe_in["底座档位"] = "裸测"
+    if args.unwire_base:
+        for k in ("美术风格底座-正向", "美术风格底座-负向"):
+            pe_in.pop(k, None)
     g["6:4013"] = {"class_type": "MyQi21ApiPE", "inputs": pe_in}
     g["6:4014"] = {"class_type": "MyQi21FinalOutput",
                    "inputs": {"正向提示词": ["6:4013", 0], "负向提示词": ["6:4013", 1], "透明模式": ["6:4013", 2]}}
     g["6:4030"] = {"class_type": "MyQi21系统提示词", "inputs": {"内容": n4030["widgets_values"][0]}}
     g["6:4031"] = {"class_type": "MyQi21色卡", "inputs": {"内容": n4031["widgets_values"][0]}}
+    base_pos = n4032["widgets_values"][0]
+    if args.base_file:
+        base_pos = Path(args.base_file).read_text(encoding="utf-8").strip()
+        print(f"[fire] 底座覆写 ← {args.base_file}({len(base_pos)}字)")
     g["6:4032"] = {"class_type": "MyQi21美术风格底座",
-                   "inputs": {"美术风格": n4032["widgets_values"][0],
+                   "inputs": {"美术风格": base_pos,
                               "负向词表": n4032["widgets_values"][1]}}
     # 1016turbo 首发勘误:原四件名(风格工艺件/底色背景件/透明承载件/负向词表)系
     # 旧协议 legacy 字段——现行类(pieces=True 形,my_qi21_bases_text.py INPUT_TYPES)
@@ -274,6 +327,10 @@ def main():
                 break
     assert fn, "无产物"
     out = Path(args.out) if args.out else REPO / "apps/output/bgscope-r3-9types" / f"{args.type}.png"
+    # --out 传目录时 urlretrieve 直写目录路径必 IsADirectoryError(1017 收尾役);
+    # 目录(现存,或尾斜杠声明的待建目录——Path 会剥尾斜杠须查原串)自动拼 型_种子.png
+    if args.out and (out.is_dir() or str(args.out).rstrip("/\\") != str(args.out)):
+        out = out / f"{args.type}_{seed}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     urllib.request.urlretrieve(f"{ENGINE}/view?filename={urllib.parse.quote(fn)}&type=output", out)
     # 装配文快照(从history取[401]双显示框载荷=终稿真值;1009 用户令「提示词一律正文完整贴出」)
@@ -299,7 +356,7 @@ def main():
         pos_final, neg_final = _join(ui[1].get("positive")), _join(ui[1].get("negative"))
         snap = out.with_suffix(".装配文.txt")
         snap.write_text(
-            f"# 型={args.type} seed={seed} 档={speed} 产物={fn}\n"
+            f"# 型={args.type} seed={seed} 档={speed_panel}→生效档={speed}(解析后) 产物={fn}\n"
             f"═══ 主体句(入图) ═══\n{subj}\n\n"
             f"═══ [401] 正向终稿 ═══\n{pos_final}\n\n"
             f"═══ [401] 负向终稿 ═══\n{neg_final}\n",

@@ -61,13 +61,14 @@ def test_legacy_ground_is_never_used_by_style_assembly(transparent):
 
 def test_plain_wired_style_and_negative_continue_to_work():
     pos,neg,*_=fire(False,STYLE)
-    assert pos == f'主体句:{SUBJ}\n类型句:{TYPE}\n{STYLE}'
+    assert pos == f'{STYLE}\n类型句:{TYPE}\n主体句:{SUBJ}'  # 1017 反序令
     assert neg.startswith('型级负向, 外接风格负向')
 
 
 def test_partial_legacy_protocol_uses_clean_hot_style():
+    # 1017 用户裁定随源:残缺旧协议=按不可用处理(无底座段),热读回塞废止
     pos,*_=fire(False,'【风格工艺件】旧画法\n【底色背景件】旧背景')
-    assert STYLE in pos and '旧背景' not in pos and '【' not in pos
+    assert '旧背景' not in pos and '【' not in pos and STYLE not in pos
 
 
 def test_production_style_snapshots_have_only_two_display_fields():

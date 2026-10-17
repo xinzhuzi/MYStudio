@@ -96,7 +96,7 @@ def test_pe_transparent_input_has_no_rgba_decl(monkeypatch):
         user = _pe_user_input(monkeypatch, t["positive_text"], True)
         for mk in _MARKERS:
             assert mk not in user, f"{t['zh']} PE 输入残留透明声明:{mk}"
-        assert user.startswith(f"主体句:{_SUBJ}\n类型句:"), t["zh"]
+        assert user.startswith("类型句:") and (f"主体句:{_SUBJ}") in user, t["zh"]  # 1017 反序令:类型句打头,主体句在场(PE 输入尾随上下文块,故用包含锚)
 
 
 def test_pe_transparent_keeps_prop_body(monkeypatch):
@@ -117,20 +117,24 @@ def test_lean_fallback_byte_identical_to_old_formula():
     asb = bases.get("art_style_base") or {}
     for t in _transparent_types():
         extra = _old_lean_extra(str(t.get("rgba_positive") or "").strip())
-        parts = [p for p in (_SUBJ, extra, str(asb.get("positive_text") or "").strip(),
+        # 1017 十型验修:style_backing 提前到主体句之后(底座队尾被版式质量淹,
+        # 用户令「风格太写实」);透明包络(头尾/隔离句)原位不动
+        parts = [p for p in (_SUBJ, str(asb.get("positive_text") or "").strip(), extra,
                              str((bases.get("rgba") or {}).get("subject_isolation") or "").strip()) if p]
+        if t.get("lean_carry_type"):  # 1017 用户令:透明多视图类型句进生效文(剥中文透明句)
+            parts.insert(2, pe.strip_rgba_decl(str(t["positive_text"])).strip())
         assert pe._rgba_lean_pos(_SUBJ, t["positive_text"]) == " ".join(parts), t["zh"]
 
 
 # ── P6:装配器透明路不吞道具 L0 正文 ─────────────────────────────────────
 
 def _type_segment(mod, base: str) -> str:
-    """装配全文=主体句:…\\n类型句:{base_out}\\n{风格工艺件},切出 base_out。"""
+    """装配全文=风格件+换行+类型句:{base_out}+换行+主体句(1017 反序令),切出 base_out。"""
     out = mod.MyQi21PromptAssembly().assemble(BASE=base, BASE负面="", 主体句=_SUBJ)[0]
-    head, style = f"主体句:{_SUBJ}\n类型句:", mod._style_combo_transparent()
-    assert out.startswith(head) and out.endswith("\n" + style)
-    return out[len(head):len(out) - len(style) - 1]
-
+    head = mod._style_combo_transparent() + "\n类型句:"
+    tail = "\n主体句:" + _SUBJ
+    assert out.startswith(head) and out.endswith(tail)
+    return out[len(head):len(out) - len(tail)]
 
 def test_assembly_prop_keeps_l0_body_both_load_paths():
     prop = _types()["道具"]["positive_text"]
@@ -152,4 +156,4 @@ def test_assembly_opaque_output_unchanged():
     scene = _types()["场景"]["positive_text"]
     lock = "锁层A全文·对拍"
     out = asm.MyQi21PromptAssembly().assemble(BASE=scene, BASE负面="", 主体句=_SUBJ, 锁层A全文=lock)[0]
-    assert out == f"主体句:{_SUBJ}\n类型句:{scene}\n{lock}"
+    assert out == f"{lock}\n类型句:{scene}\n主体句:{_SUBJ}"  # 1017 反序令

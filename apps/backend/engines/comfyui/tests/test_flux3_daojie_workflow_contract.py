@@ -34,7 +34,7 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case():
 def test_ten_cases_preserve_source_facts_and_native_dimensions():
     cases=json.loads((w.TASK/'artifacts/cases.json').read_text())
     assert [c['type'] for c in cases]==['人物','场景','道具','美宣','人物多视图','高清人脸','分镜剧情图','表情差分','概念气氛图','设定卡']
-    assert [(c['width'],c['height']) for c in cases]==[(1088,1440),(1664,944),(1024,1024),(1920,832),(1632,1632),(1024,1024),(1664,944),(1248,1248),(1664,944),(1664,944)]
+    assert [(c['width'],c['height']) for c in cases]==[(1088,1440),(1664,944),(1024,1024),(1920,832),(1792,1008),(1024,1024),(1664,944),(1248,1248),(1664,944),(1664,944)]
     assert len({c['seed'] for c in cases})==10
     for c in cases:
         assert c['subject'] and c['source_sha256']

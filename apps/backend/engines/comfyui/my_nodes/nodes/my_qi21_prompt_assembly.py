@@ -5,7 +5,7 @@
 形态=装配链上游件,implement.md S8 / design §10.4 / 主对话裁定 A)。
 
 道劫 t2i [40] 装配子图文本段集成的上游件(吞原 [130][131] 装配拼接①②+[110] 美术风格底座
-美术风格底座常量):装配全文=主体句+底座 BASE+美术风格底座 三段换行拼合,唯一真源文本。
+美术风格底座常量):装配全文=美术风格底座+底座 BASE+主体句 三段换行拼合(1017 反序令),唯一真源文本。
 
 1005 案B Phase I(design §8.1 ②,负面断路修复):新增 optional 连线槽「BASE负面」
 ← [150] MyQi21DaojieBase.负面词(第五出=型负面现读);负面词输出改
@@ -63,6 +63,17 @@ import re
 
 from typing import Any
 
+# 1017 运行时门禁单源(peer-load 同款家法);作用域=「新建资产」路
+# (i2i 局部编辑/画风转换豁免=09 篇否定式两落法纪律在册,候用户令扩展)
+try:
+    from ._gongbi_gate import assert_prompt_gates
+except ImportError:  # pragma: no cover - 直载形态走此腿
+    import importlib.util as _glu
+    _gate_spec = _glu.spec_from_file_location(
+        "gongbi_gate_peer_load", Path(__file__).resolve().parent / "_gongbi_gate.py")
+    _gate_mod = _glu.module_from_spec(_gate_spec)
+    _gate_spec.loader.exec_module(_gate_mod)
+    assert_prompt_gates = _gate_mod.assert_prompt_gates
 # merge 单源复用(K2 MyDaojieBase 同款防两处实现漂移纪律;design §8.1 ②):
 # 双路导入=本件单测家法 importlib 直载无包上下文,相对导入在该形态 ImportError
 # →同目录直载同一 my_styles.py(同函数对象级防漂移,非复制实现)。
@@ -187,6 +198,53 @@ def _type_is_transparent(base_text: str) -> bool:
     return False
 
 
+def _type_subject_first(base_text: str) -> bool:
+    """BASE 型文逐字匹配 types[] 判该型 subject_first 旗(1017 设定卡主体锚役)。
+
+    近两千字版式前置把主体句身份锚淹成设定卡原型(实弹 0/5 服装/武器锚命中);
+    旗=True 的型终稿主体句置首(官方 3.2.1/3.3.1 语料人物描述在前、版式在后)。
+    匹配不到=按 False(全局装配序仍=1017 用户令底座前置主体句殿后)。
+    """
+    try:
+        raw = json.loads(_BASES_FILE.read_text(encoding="utf-8"))
+        for t in raw.get("types") or []:
+            if isinstance(t, dict) and (t.get("positive_text") or "").strip() == (base_text or "").strip() \
+                    and t.get("subject_first") is True:
+                return True
+    except (OSError, ValueError):
+        pass
+    return False
+
+
+def _resolve_card_conditionals(base_text: str, subj_text: str) -> str:
+    """设定卡条件预解析(1017 官方对拍役;与 ApiPE 同款逐字匹配家法复制)。
+
+    型文=模板(条件句照存);终稿按主体句事实落定成确定描述。原句缺席=不换
+    (fail-closed,模板日后改句退回模板句)。与 PE 节点实现保持逐句同步。
+    """
+    if not base_text or not subj_text:
+        return base_text
+    out = base_text
+    m = re.search(r"名号「([^」]{1,12})」", subj_text)
+    if m:
+        out = out.replace(
+            "标题栏中央放置角色名号，主体明确提供名号时逐字使用，未提供时标题栏留白仅存细线边饰；",
+            f"标题栏中央逐字放置角色名号「{m.group(1)}」；", 1)
+    if "劲装" in subj_text:
+        out = out.replace(
+            "服装袖型、衣长与裤裙形制服从主体，主体为劲装时呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体；",
+            "服装呈束袖束腰上衣与分开的双腿裤装，武器长短和材质服从主体句；", 1)
+    if ("收鞘" in subj_text) or ("收在鞘中" in subj_text):
+        out = out.replace(
+            "武器的收鞘、出鞘或残损状态服从主体事实；完整武器两端均入画，局部图与完整图对应同一件武器；来源为收鞘态时，完整图与所有局部图均保持收鞘态。各特写只呈现实际存在的部件；主体未提供武器、鞘或配饰装备时，对应槽位保留净空，格面留白。",
+            "完整武器两端均入画，局部图与完整图对应同一件武器，完整图与所有局部图均保持收鞘态；各特写只呈现实际存在的部件。", 1)
+    if not re.search(r"技能|术法|招式|功法|神通|绝学", subj_text):
+        out = out.replace(
+            "底部第四区为能力资料：主体明确提供技能或术法时，上格展示一幅该能力的独立效果，下格展示其关键形态或作用部位；主体未提供时，该区保留净空，仅标注“能力未设定”。来源明确带有灵兽时，另用独立附板展示完整兽形与兽类细节，附板独立排布；来源未带灵兽时，本板保持人物设定板内容。",
+            "底部第四区为能力资料：该区保留净空，仅标注“能力未设定”。", 1)
+    return out
+
+
 def _style_combo_transparent() -> str:
     """透明型与其他类型共用纯画法；透明包装由最终输出层负责。"""
     return _load_art_style_base()["positive"]
@@ -242,8 +300,8 @@ class MyQi21PromptAssembly:
                                           "tooltip": "新建资产/画风转换使用的共同画法(现代"
                                                      "修仙游戏数字绘画规范),改画风才"
                                                      "动它,一般不用改"}),
-                "组装用途": (["新建资产", "局部编辑", "画风转换"],
-                            {"default": "新建资产", "tooltip": "新建资产追加类型与画法；局部编辑仅保留编辑指令；画风转换只追加画法，保留原构图。"}),
+                "组装用途": (["新建资产", "局部编辑", "画风转换", "无底座出图"],
+                            {"default": "新建资产", "tooltip": "新建资产追加类型与画法；局部编辑仅保留编辑指令；画风转换只追加画法，保留原构图；无底座出图=主体句+类型句两段(美术底座正/负全离场,裸测底座贡献用;底座热读兜底在此档失效)。"}),
             },
         }
 
@@ -282,8 +340,12 @@ class MyQi21PromptAssembly:
         """
         # 局部编辑不继承类型布局、统一打光或全局负向；保留参考图画法。
         # 新参数可省略，旧工作流仍走既有新建资产路径。
-        if 组装用途 not in ("新建资产", "局部编辑", "画风转换"):
+        if 组装用途 not in ("新建资产", "局部编辑", "画风转换", "无底座出图"):
             raise ValueError(f"未知组装用途: {组装用途}")
+        # 1017 运行时门禁:t2i 语义路(新建资产/无底座出图)主体句硬门;
+        # i2i 旧两落法纪律豁免(局部编辑/画风转换,候用户令扩展)
+        if 组装用途 in ("新建资产", "无底座出图"):
+            assert_prompt_gates((主体句 or "").strip(), is_subject=True, context=f"[主体句·{组装用途}]")
         锁层A全文 = _style_only(锁层A全文)
         if 组装用途 == "局部编辑":
             return ((主体句 or "").strip(), (主体句负面 or "").strip())
@@ -291,6 +353,18 @@ class MyQi21PromptAssembly:
             style = _style_combo_transparent() if _type_is_transparent(BASE) else 锁层A全文
             return ("\n".join(p for p in ((主体句 or "").strip(), style.strip()) if p),
                     (主体句负面 or "").strip())
+        # 1016 用户令「真关掉底座」:显式裸测档——美术底座正/负全离场,
+        # 含 mtime 热读兜底(此档压过 1001 S8 L-1 的「空 BASE 回落底座」语义);
+        # 类型层保留(裸测对象=底座贡献,非型规则);配 PE 关(默认)才是纯裸测。
+        if 组装用途 == "无底座出图":
+            negative_nb = _merge_negative((BASE负面 or ""), (主体句负面 or "").strip())
+            if not (BASE or "").strip():
+                _out_nb = (f"主体句:{主体句}", negative_nb)
+            else:
+                base_out_nb = strip_rgba_decl(BASE) if _type_is_transparent(BASE) else BASE
+                _out_nb = (f"类型句:{base_out_nb}\n主体句:{主体句}", negative_nb)
+            assert_prompt_gates(_out_nb[0], is_subject=False, context="[终稿·无底座出图]")
+            return _out_nb
         # 负面词(口1):merge 单源复用+美术风格底座负面 mtime 现读(两分支同值,先算)
         negative = _merge_negative(_merge_negative((BASE负面 or ""),
                                    _load_art_style_base()["negative"]),
@@ -311,5 +385,14 @@ class MyQi21PromptAssembly:
                   "MyQi21DaojieBase 的 BASE 输出连到本节点 BASE 输入,"
                   "已接线时请检查该连线是否被改动、[150] BASE 产文是否为空")
             # 1009 用户令:段前加标签(类型句:/主体句:)——模型对段角色的显式信号
-            return (f"主体句:{主体句}\n{锁层A全文}", negative)
-        return (f"主体句:{主体句}\n类型句:{base_out}\n{style_out}", negative)
+            return (f"{锁层A全文}\n主体句:{主体句}", negative)
+        # 1017 用户令:装配序反转——底座前置、主体句殿后(标签随内容走)
+        # 1017 设定卡主体锚役:型旗 subject_first 例外=主体句置首(身份锚优先);
+        # 条件预解析=确定描述进终稿(模板句在真源不动)
+        if _type_subject_first(BASE):
+            _out = (f"主体句:{主体句}\n{style_out}\n类型句:"
+                    f"{_resolve_card_conditionals(base_out, 主体句)}", negative)
+        else:
+            _out = (f"{style_out}\n类型句:{base_out}\n主体句:{主体句}", negative)
+        assert_prompt_gates(_out[0], is_subject=False, context="[终稿·新建资产]")
+        return _out
