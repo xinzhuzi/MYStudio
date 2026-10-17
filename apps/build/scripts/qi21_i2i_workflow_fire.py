@@ -150,7 +150,9 @@ class Flattener:
         host_in, host_out = {}, {}
         for l in wf["links"]:
             lid, s, ss, d, ds, ty = l
-            s_dead = s not in live_root
+            # 1017up4 旁路宿主直通:源=旁路宿主也入索引(resolve_root 按型直通溯链)
+            s_dead = s not in live_root and not (
+                s in root and root[s]["type"] in self.sgs)
             d_dead = d not in live_root
             if d in root and root[d]["type"] in self.sgs and not s_dead and not d_dead:
                 host_in.setdefault(d, {})[ds] = (s, ss, lid)
@@ -164,6 +166,15 @@ class Flattener:
                 l = next(l for l in wf["links"] if l[3] == nid)
                 nid, slot = l[1], l[2]
             if root[nid]["type"] in self.sgs:
+                # 1017up4 旁路宿主直通:mode4 宿主出槽→同型入槽,递归溯链
+                # (超分母线 A/B/C 默认旁路,D 宿主入水=[5]/[509] 直通——与画布
+                # graphToPrompt 旁路语义同款;S1 探针在案)
+                if root[nid].get("mode", 0) != 0:
+                    oty = root[nid]["outputs"][slot]["type"]
+                    inp = next((i for i in root[nid].get("inputs", [])
+                                if i.get("type") == oty and i.get("link") is not None), None)
+                    l0 = rlinks[inp["link"]]
+                    return resolve_root(l0[1], l0[2])
                 sg = self.sgs[root[nid]["type"]]
                 l = next(x for x in sg["links"] if x["target_id"] == -20 and x["target_slot"] == slot)
                 inner, slot = l["origin_id"], l["origin_slot"]

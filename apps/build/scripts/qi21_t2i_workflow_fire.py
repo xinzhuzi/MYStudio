@@ -270,6 +270,47 @@ def main():
     # ── 尾档展平:SeedVR2 2K 放大(--upscale2k;widgets=工作流[501-504]现值,
     #    入参名经 object_info 逐节点校验 1016;RGBA 直通官方声明)──
     if args.upscale2k:
+        # 1017up4 D 宿主过渡:root 无 501-504 展开段(超分四法收装后)→改走 D 宿主
+        # (503)内嵌定义展平,行为等价(入水仍 ["5",0];wv 全取子图现值)+退役告警。
+        if not (501 in root_nodes and 502 in root_nodes
+                and root_nodes[503].get("type") == "SeedVR2VideoUpscaler"):
+            print("[fire] --upscale2k 已退役(1017 超分四法收装):自动映射 --upscale d"
+                  "(D 宿主 SeedVR2 子图展平,行为等价)", file=sys.stderr)
+            sgD = sgs[root_nodes[503]["type"]]
+            dD = {n["id"]: n for n in sgD["nodes"]}
+            w501 = dD[501]["widgets_values"]
+            w502 = dD[502]["widgets_values"]
+            w7401 = dD[7401]["widgets_values"]
+            g["503:501"] = {"class_type": "SeedVR2LoadDiTModel", "inputs": {
+                "model": w501[0], "device": w501[1], "blocks_to_swap": w501[2],
+                "swap_io_components": w501[3], "offload_device": w501[4],
+                "cache_model": w501[5], "attention_mode": w501[6]}}
+            g["503:502"] = {"class_type": "SeedVR2LoadVAEModel", "inputs": {
+                "model": w502[0], "device": w502[1], "encode_tiled": w502[2],
+                "encode_tile_size": w502[3], "encode_tile_overlap": w502[4],
+                "decode_tiled": w502[5], "decode_tile_size": w502[6],
+                "decode_tile_overlap": w502[7], "tile_debug": w502[8],
+                "offload_device": w502[9], "cache_model": w502[10]}}
+            g["503:7402"] = {"class_type": "PrimitiveInt", "inputs": {"value": seed}}
+            g["503:7401"] = {"class_type": "SeedVR2VideoUpscaler", "inputs": {
+                "image": ["5", 0], "dit": ["503:501", 0], "vae": ["503:502", 0],
+                "seed": ["503:7402", 0], "resolution": w7401[2], "max_resolution": w7401[3],
+                "batch_size": w7401[4], "uniform_batch_size": w7401[5],
+                "color_correction": w7401[6], "temporal_overlap": w7401[7],
+                "prepend_frames": w7401[8], "input_noise_scale": w7401[9],
+                "latent_noise_scale": w7401[10], "offload_device": w7401[11],
+                "enable_debug": w7401[12]}}
+            g["504"] = {"class_type": "SaveImage", "inputs": {"images": ["503:7401", 0],
+                                                              "filename_prefix": root_nodes[504]["widgets_values"][0]}}
+            req = urllib.request.Request(f"{ENGINE}/prompt",
+                                         data=json.dumps({"prompt": g, "client_id": "t2i-workflow-fire"}).encode(),
+                                         headers={"Content-Type": "application/json"})
+            try:
+                pid = json.load(urllib.request.urlopen(req, timeout=30))["prompt_id"]
+            except urllib.error.HTTPError as e:
+                sys.exit(f"400: {e.read().decode()[:600]}")
+            _poll_upscale_tail(pid, seed, args, speed, speed_panel, subj)
+            return
         w501 = root_nodes[501]["widgets_values"]   # [model,device,blocks_to_swap,swap_io,offload,cache,attn]
         w502 = root_nodes[502]["widgets_values"]   # [model,device,enc_tiled,enc_ts,enc_ov,dec_tiled,dec_ts,dec_ov,tile_debug,offload,cache]
         w503 = root_nodes[503]["widgets_values"]   # [seed,"fixed",res,max_res,batch,uniform,color,temporal,prepend,in_noise,lat_noise,offload,debug]
@@ -302,6 +343,12 @@ def main():
     except urllib.error.HTTPError as e:
         sys.exit(f"400: {e.read().decode()[:600]}")
     print(f"queued {pid}")
+    _poll_upscale_tail(pid, seed, args, speed, speed_panel, subj)
+    return
+
+
+def _poll_upscale_tail(pid, seed, args, speed, speed_panel, subj):
+    """发车后轮询+产物取回(1017up4:过渡路径与旧路径共用;行为=原主循环)。"""
     t0 = time.time()
     fn = None
     # 1016 实弹定谳:「1·原生出图」支路无缺陷——1015「无产物」=误判(40步人物图

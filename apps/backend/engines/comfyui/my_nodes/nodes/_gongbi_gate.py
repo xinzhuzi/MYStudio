@@ -11,8 +11,11 @@
 规则与错题集十二~十四族同源;改规则三处同步(本模块+test_my_qi21_base 门禁
 +错题集 12 篇)。豁免:①【文字要求】/【字体】钦定原文块(用户逐字令,含
 「不要」「无错字」);②「未[指提供带]」装配逻辑条件词;③负向层(否定词合法家)。
-作用域:MyQi21ApiPE=t2i 全路;MyQi21PromptAssembly 仅「新建资产」路
-(i2i 局部编辑/画风转换豁免=09 篇否定式两落法纪律在册,候用户令扩展)。
+作用域:MyQi21ApiPE=t2i 全路;MyQi21PromptAssembly=「新建资产/无底座出图」
+全查+i2i 路(局部编辑/画风转换)否定式门(1017 用户令「4,开始做」扩展,
+09 篇两落法豁免退役——「去掉/摘掉」去除操作与肯定枚举本就不在禁词族,
+合法路零波及;光学/两可/写实等族仍豁免=i2i 换色写光理是 09 篇§四合法
+纪律,光理措辞与禁词零重叠)。
 """
 from __future__ import annotations
 
@@ -39,14 +42,18 @@ def _strip_verbatim(text: str) -> str:
     return _VERBATIM.sub("", text or "")
 
 
-def prompt_violations(text: str, *, is_subject: bool) -> list[str]:
+def prompt_violations(text: str, *, is_subject: bool, negation_only: bool = False) -> list[str]:
     """返回违规清单(空=过)。is_subject=主体句层(人写输入,多两组检查);
-    is_subject=False=终稿层(含 canon,只查毒词族,主体句专属组豁免)。"""
+    is_subject=False=终稿层(含 canon,只查毒词族,主体句专属组豁免);
+    negation_only=True=i2i 指令路(1017 用户令扩展:只查否定式族,余族豁免)。"""
     out: list[str] = []
     t = _strip_verbatim(text)
     m = _NEG.search(t)
     if m:
-        out.append(f"否定式「{m.group(0)}」——模型不吃否定词,改直陈(不画X→只画Y)")
+        out.append(f"否定式「{m.group(0)}」——模型不吃否定词,改直陈(不画X→只画Y)"
+                   ";i2i 合法落法=去除操作(「去掉颈间玉坠」动词领头锚定图内实存物)或肯定枚举(「仅旧布绳束发」)")
+    if negation_only:
+        return out
     m = _OPTIC.search(t)
     if m:
         out.append(f"技术光学词「{m.group(0)}」——改叙事光词(暮色/晨光),由型文转色面冷暖")
@@ -68,11 +75,12 @@ def prompt_violations(text: str, *, is_subject: bool) -> list[str]:
     return out
 
 
-def assert_prompt_gates(text: str, *, is_subject: bool, context: str = "") -> None:
+def assert_prompt_gates(text: str, *, is_subject: bool, context: str = "",
+                        negation_only: bool = False) -> None:
     """产线门:违规即 raise ValueError(ComfyUI 任务级报错)。空文本=未接线正常态,放行。"""
     if not (text or "").strip():
         return
-    violations = prompt_violations(text, is_subject=is_subject)
+    violations = prompt_violations(text, is_subject=is_subject, negation_only=negation_only)
     if violations:
         raise ValueError(
             f"[道劫提示词门禁]{context} " + ";".join(violations)

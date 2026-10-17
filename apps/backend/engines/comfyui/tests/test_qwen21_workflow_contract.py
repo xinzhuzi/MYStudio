@@ -549,6 +549,10 @@ I2I_NODE_TYPE_WHITELIST = {
     "SolidMask", "ThresholdMask",
     # 1015 画幅按型联动:[4018] 画幅建议器(九型宽高直通+手动成对优先)
     "MyQi21WhSuggest",
+    # 1017up4 超分四法子图内部件入册(A 潜空间二段/B 像素精修 tiled VAE 族+C USDU;
+    # 定义住 t2i/i2i 两件工作流,主图零实体;PrimitiveInt/ImageScaleToTotalPixels 已在册)
+    "LatentUpscale", "VAEEncodeTiled", "VAEDecodeTiled", "UpscaleModelLoader",
+    "ImageUpscaleWithModel", "UltimateSDUpscaleCustomSample",
 }
 # 人物系七型(库 §二:常量B 加挂型;1015 设定卡入列)
 PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡")  # 0927 改名轮:三视图→多视图
@@ -1664,40 +1668,45 @@ class TestSpeedSelectContract0929:
         assert hasattr(_speed_mod.MyQi21SpeedSelect, "check_lazy_status")
 
     def test_exactly_two_subgraphs_0929(self):
-        """三件恰两子图(0929 用户确认目标形态=②提示词子图+③加速子图,职责互斥;
-        prd 问题④验收口径):装配=[40] 道劫·装配子图(双击进入)(三件同名,D9
-        edit 装配段出生即子图化);加速=道劫·加速子图(uuid=生成器固定值幂等);
-        两宿主都在主图(properties.subgraph 挂钩)。id 作用域安全:主图∩加速=∅
-        三件(执行展开安全);qi21 已知撞号钉死(main∩装配={208}=宿主 id 沿用与
-        S2 内部件 W1[208] 并存、装配∩加速={206,207}=S2 Strip/W1 与加速
-        KSampler/seed,展开形 40:206 vs 208:206 互异,生成器 research §二在档)
-        ——已知集之外任何新撞号即红。"""
+        """子图计数锚(0929 立两子图;1017up4 超分四法役:t2i/i2i 扩 6 定义
+        =装配+加速+A/B/C/D 四宿主串联母线,edit 恒 2 不动)。职责互斥;
+        两宿主都在主图(properties.subgraph 挂钩)。id 作用域安全:主图∩各子图
+        =∅(执行展开安全;D 子图内 [501][502] 随迁=主图已删同号件,亦 ∅);
+        qi21 已知撞号钉死(main∩装配=∅(S8 起)、装配∩加速=∅(S8 起))
+        ——已知集之外任何新撞号即红;1017up4 增:主图∩{A,B,C,D} 两两与
+        装配/加速 全域 ∅(四法定义跨件复用同构,内部 71xx 段撞号合法不判)。"""
         for name in ("qi21", "i2i", "edit"):
             graph = GRAPHS[name]
             sgs = _sgs(graph)
-            assert len(sgs) == 2, \
-                f"{name}: 应恰 2 子图(②装配+③加速,0929 S3 两子图架构),得 {len(sgs)}"
+            want_n = 6 if name in ("qi21", "i2i") else 2   # 1017up4:四法只进 t2i/i2i
+            assert len(sgs) == want_n, \
+                f"{name}: 应恰 {want_n} 子图(1017up4:t2i/i2i=装配+加速+超分四法;edit 恒2),得 {len(sgs)}"
             names = sorted(sg["name"] for sg in sgs)
-            assert names == sorted([ASSEMBLY_SG_NAME_T2I, ACCEL_SG_NAME]), \
-                f"{name}: 子图 name 应=装配+加速对(1001 R2 三件统一「提示词类型优化子图」),得 {names}"
+            want_names = sorted([ASSEMBLY_SG_NAME_T2I, ACCEL_SG_NAME]
+                                + ([UP4[t]["name"] for t in "ABCD"]
+                                   if name in ("qi21", "i2i") else []))
+            assert names == want_names, \
+                f"{name}: 子图 name 集合漂移,得 {names}"
             hosts = [n for n in graph["nodes"]
                      if n.get("properties", {}).get("subgraph") in {sg["id"] for sg in sgs}]
-            assert len(hosts) == 2, \
-                f"{name}: 两子图应各恰 1 宿主(properties.subgraph 挂钩),得 {[h['id'] for h in hosts]}"
+            assert len(hosts) == want_n, \
+                f"{name}: 各子图应各恰 1 宿主(properties.subgraph 挂钩),得 {[h['id'] for h in hosts]}"
             # id 作用域(执行展开安全)
             mids = {n["id"] for n in graph["nodes"]}
-            a_ids = {n["id"] for n in _asg(graph)["nodes"]}
-            x_ids = {n["id"] for n in _xsg(graph)["nodes"]}
-            assert not (mids & x_ids), \
-                f"{name}: 主图∩加速子图 应=∅(执行展开安全),得 {sorted(mids & x_ids)}"
+            sg_ids = {sg["name"]: {n["id"] for n in sg["nodes"]} for sg in sgs}
+            assert not (mids & sg_ids[ACCEL_SG_NAME]), \
+                f"{name}: 主图∩加速子图 应=∅(执行展开安全),得 {sorted(mids & sg_ids[ACCEL_SG_NAME])}"
             want_ma = set()  # 1001 S8 集成轮:装配子图 W1[208] 随 22 件退役,历史撞号 {208} 消亡
-            assert mids & a_ids == want_ma, \
-                f"{name}: 主图∩装配子图 应={sorted(want_ma) or '∅'}(qi21 历史 {208} 撞号已随" \
-                f"S8 集成退役),得 {sorted(mids & a_ids)}"
+            assert mids & sg_ids[ASSEMBLY_SG_NAME_T2I] == want_ma, \
+                f"{name}: 主图∩装配子图 应={sorted(want_ma) or '∅'},得 {sorted(mids & sg_ids[ASSEMBLY_SG_NAME_T2I])}"
             want_ax = set()  # 1001 S8:装配子图 Strip/W1[206][207] 随 22 件退役,历史撞号消亡
-            assert a_ids & x_ids == want_ax, \
-                f"{name}: 装配∩加速 应={sorted(want_ax) or '∅'}(qi21 历史 {206,207} 撞号" \
-                f"已随 S8 集成退役),得 {sorted(a_ids & x_ids)}"
+            assert sg_ids[ASSEMBLY_SG_NAME_T2I] & sg_ids[ACCEL_SG_NAME] == want_ax, \
+                f"{name}: 装配∩加速 应={sorted(want_ax) or '∅'},得 {sorted(sg_ids[ASSEMBLY_SG_NAME_T2I] & sg_ids[ACCEL_SG_NAME])}"
+            # 1017up4:四法子图 ∩ 主图 = ∅(收装随迁件同号出清+新宿主不与内部撞号)
+            for t in "ABCD":
+                if UP4[t]["name"] in sg_ids:
+                    assert not (mids & sg_ids[UP4[t]["name"]]), \
+                        f"{name}: 主图∩{t}子图 应=∅,得 {sorted(mids & sg_ids[UP4[t]['name']])}"
 
     def test_accel_host_id_reuse_0929(self):
         """加速宿主 id 沿用(D3:原选择件原位改造,id 锚变动最小——t2i[208]/
@@ -2069,11 +2078,13 @@ class TestSamplerContract:
                 _vig_is_chain = any(
                     n["type"] == "SamplerCustomAdvanced" and n["id"] != 7031
                     for n in _xsg(graph)["nodes"])
-                want_cfgs = ([4] if _vig_is_chain else [1, 4]) if name == "qi21" else \
-                    ([1] if _vig_is_chain else [1, 1])
+                # cfg4→1(1017 随刀:cfg1 下负面不参与采样,1004 cfg4 负向生效旧口径
+                # 退役;三件直出支路现值恒 1,链形/平铺形同值)
+                want_cfgs = [1] if _vig_is_chain else [1, 1]
                 assert sorted(s["widgets_values"][K_SAMPLER_WV["cfg"]] for s in samplers) \
                     == want_cfgs, \
-                    f"{name}: 两支路 cfg 应={want_cfgs}(1004:qi21 [7010] cfg4 负向生效)," \
+                    f"{name}: 两支路 cfg 应={want_cfgs}(1017 随刀:原生档现值 cfg1," \
+                    f"负向不参与采样;1004 cfg4 旧口径退役)," \
                     f"得 {[s['widgets_values'][K_SAMPLER_WV['cfg']] for s in samplers]}"
             for s in samplers:
                 wv = s["widgets_values"]
@@ -2273,13 +2284,24 @@ class TestCanvasDiscipline:
                         if "提示词类型优化" in sg["name"]:
                             assert len(sg["groups"]) == 0, \
                                 f"qi21: 装配子图 groups 应恰 0(1006 四轮:PE 扩写组围栏退役),得 {len(sg['groups'])}"
-                        else:
+                        elif sg["name"] == ACCEL_SG_NAME:
                             # 1008 用户令:加速子图重新分组(推翻 1001 ③「不要分组」)
+                            # 1017up4:分组令域=加速子图(超分四法四定义=蓝图极简形
+                            # groups 恒空,施工回执钉死,不入本令)
                             assert sg["groups"], \
                                 f"qi21: 加速子图[{sg['name'][:8]}] 应分组(1008 令)"
                             for group in sg["groups"]:
                                 assert isinstance(group.get("id"), int), \
                                     f"qi21: 子图 group {group.get('title')!r} 缺 id 字段"
+                        else:
+                            # 1017up4 超分四法定义:groups 恰 0(蓝图极简形)
+                            assert sg["name"] in {UP4[t]["name"] for t in "ABCD"} and not sg["groups"], \
+                                f"qi21: 子图[{sg['name'][:12]}] groups 应恰 0(1017up4 蓝图极简形),得 {sg['groups']}"
+                        continue
+                    # 1017up4:超分四法定义(i2i 亦入)groups 恒空=蓝图极简形,不入分组令
+                    if sg["name"] in {UP4[t]["name"] for t in "ABCD"}:
+                        assert not sg["groups"], \
+                            f"{name}: 超分子图[{sg['name'][:12]}] groups 应恰 0(1017up4 蓝图极简形)"
                         continue
                     assert sg["groups"], f"{name}: 子图应有分组"
                     for group in sg["groups"]:
@@ -3243,11 +3265,14 @@ class TestQi21SubgraphContract:
         (linkIds 恒空+宿主同名槽在列;防意外半接线——悬空槽集合漂移即红)。"""
         graph = GRAPHS["qi21"]
         # 1004:编码器([4015]/[4015N])与画幅建议器([4018])迁出子图后无内部消费者
+        # (悬空例外域=装配子图专属;1017up4:超分四法定义的 vae 槽有真内部消费者,
+        # 走通用 linkIds 登记判据,不入悬空例外)
         DANGLING_INPUTS_OK = {"clip", "vae", "手动宽", "手动高"}
         for sg in _sgs(graph):
+            dangling_scope = "提示词类型优化" in sg["name"]
             i_links = _sg_links(sg)
             for slot, io in enumerate(sg["inputs"]):
-                if io["name"] in DANGLING_INPUTS_OK:
+                if dangling_scope and io["name"] in DANGLING_INPUTS_OK:
                     assert not io.get("linkIds"), \
                         f"[{sg['name']}] inputs[{slot}]({io['name']}) 应恒悬空" \
                         "(1004 迁出子图=零内部消费;若复接须重立锚)"
@@ -3454,7 +3479,8 @@ class TestQi21SubgraphContract:
                          ("negative", True, False), ("latent", True, False),
                          ("型名", True, False)],    # 1017:宿主 idx4 接根线 4410
             note_id=QI21_ACC_NOTE_ID,   # 1004 D6b:加速子图 [7016] 负向生效档位 Note
-            ks_cfgs=(4, 1),             # 1004 D6a:[7010] cfg4 负向真实生效;[7012] 恒 1
+            ks_cfgs=(1, 1),             # 1017 随刀 cfg4→1:原生档现值 cfg1(负向不参与
+                                        # 采样);1004 D6a cfg4 负向真实生效旧口径退役
             viggle_class="SamplerCustomAdvanced", viggle_chain=QI21_VIG_CHAIN,  # 1008 官方参数化
             lora_class="ViggleTurboLora",  # 1008「完整发挥」:官方未合并加载(拒 bf16 合并丢 30%)
             panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板三控
@@ -3502,13 +3528,14 @@ class TestQi21SubgraphContract:
                 f"0929 S3 后支路机构亦不入主图白名单)"
         # 1004 D6b 新锚:加速子图 [7016] 负向生效档位 Note 内容要点(implement
         # Phase D 钦定文案;负向仅档1 生效/档0 无负槽/档2 蒸馏件恒1;
-        # 1016turbo 换臂:档0 token 同笔改 Turbo 口径)
+        # 1016turbo 换臂:档0 token 同笔改 Turbo 口径;1017 随刀 cfg4→1:
+        # 档1 token 改「原生出图 cfg1·负向不参与采样」现口径)
         note = _sg_nodes(_xsg(graph))[QI21_ACC_NOTE_ID]
         txt = note["widgets_values"][0]
-        for tok in ("负向仅档1", "原生出图 cfg4", "cfg1 负向无口",
+        for tok in ("负向仅档1", "原生出图 cfg1", "负向不参与采样", "cfg1 负向无口",
                     "蒸馏件 cfg恒1 负向无效"):
             assert tok in txt, \
-                f"[{QI21_ACC_NOTE_ID}] 负向生效档位 Note 缺要点 {tok!r}(1004 D6b/1016turbo 钦定文案)"
+                f"[{QI21_ACC_NOTE_ID}] 负向生效档位 Note 缺要点 {tok!r}(1004 D6b/1016turbo/1017 随刀钦定文案)"
 
     def test_steps_panel_is_effective_value(self):
         """0929 并行化(R6):steps 联动机构拆除——步数回归各支路 KSampler widget
@@ -4146,7 +4173,10 @@ class TestQi21SubgraphContract:
                       # 1008 重锚(API版PE 卡片对账):官方件名保留在卡内退役注;
                       # 「中文负面/负面词直写/drop-in」随案B直写与官方件退役→
                       # 换 AI 精炼负向口径「负向终稿/直写兜底」
-                      "QwenImage21_T2IPromptRewrite", "[4015N]", "负向仅档1", "[7016]", "cfg4",
+                      # 1017 随刀 cfg4→1:「cfg4」token 换「cfg1 负向不参与采样」
+                      # 现口径(负面线说明节现句;1004 cfg4 旧口径退役)
+                      "QwenImage21_T2IPromptRewrite", "[4015N]", "负向仅档1", "[7016]",
+                      "cfg1 负向不参与采样",
                       "扩写TE", "expand_instruction", "负向终稿", "直写兜底",
                       "[4018]", "进编码正向",
                       # 0928 PE 迁子图轮:面板控件口径([180] 总闸退役)
@@ -4277,11 +4307,13 @@ class TestAccelBlueprintAnchors1016:
                                 for i in n.get("inputs", [])]}
                             if n.get("type") == "Note":
                                 # 说明文散文面出结构对比:[7016] 加速说明 Note 的散文
-                                # 随宿主侧役前行(1017 勘误句/布局标题块等),蓝图副本
-                                # 未经钦定通道重抽即滞后——结构在场性仍比(缺件/挪位
-                                # 即红),散文真值由宿主侧 token 锚(PARALLEL_NOTE_TOKENS
-                                # 族)另锁,不进本 canonical
+                                # 随宿主侧役前行(1017 勘误句/布局标题块/cfg4→1 随刀
+                                # 句等),蓝图副本未经钦定通道重抽即滞后——结构在场性
+                                # 仍比(缺件/挪位即红),散文真值由宿主侧 token 锚
+                                # (PARALLEL_NOTE_TOKENS 族+[7016] 档位卡 token)另锁,
+                                # 不进本 canonical;wvn.text=同文镜像字段同规
                                 nn["widgets_values"] = []
+                                nn["widgets_values_named"] = {}
                             return nn
                         out[k] = [_norm_node(n) for n in v]
                     else:
@@ -5148,11 +5180,18 @@ class TestI2IContract:
 
     def test_no_custom_titles_except_selfbuilt(self):
         """(第二域副本=TestI2IContract 域)标题铁律 1002 大轮重立:全节点带号
-        双名(⑤⑧+⑨补用户裁定推翻 0924-r8 核心零 title;i2i 空标题清欠)。"""
+        双名(⑤⑧+⑨补用户裁定推翻 0924-r8 核心零 title;i2i 空标题清欠)。
+        1017up4 例外如实锚:超分四法宿主([503]D/[511-513])title=蓝图镜像题名
+        (超分·A潜空间重采样 等,镜像三锚之一;一法一蓝图锚 t2i/i2i 两件,
+        题名不含宿主 id 故不带号——[7]/[6] 宿主带号系每件独立蓝图先例,不适用)。"""
         import re as _re
         graph = GRAPHS["i2i"]
         sg, xsg = _qi21_sg(graph), _xsg(graph)
         for n in [*graph["nodes"], *sg["nodes"], *xsg["nodes"]]:
+            if n.get("properties", {}).get("subgraph") in {s["id"] for s in _sgs(graph)} \
+                    and n["type"] in {s["id"] for s in _sgs(graph)
+                                      if s["name"] in {UP4[t]["name"] for t in "ABCD"}}:
+                continue  # 1017up4:超分四法宿主 title=镜像三锚(见 docstring)
             title = n.get("title")
             assert isinstance(title, str) and _re.match(r"^\[\d+\] ", title), \
                 f"i2i 节点 [{n['id']}]{n['type']} title 应带号双名,得 {title!r}"
@@ -5205,7 +5244,28 @@ SVR2_SAVE, SVR2_CMP = 504, 505                    # t2i 另有 [505] 对比件(�
 SVR2_DIT_FILE = "seedvr2_7b_sharp_fp8_e4m3fn.safetensors"
 SVR2_VAE_FILE = "ema_vae_fp16.safetensors"
 SVR2_SAVE_PREFIX = "MYStudio-2K"
-SVR2_GROUP_TITLE = "道劫·⑤SeedVR2放大尾档"
+# 1017up4 超分四法收装:⑤组框改名扩罩(罩 A/B/C/D 四宿主;[501][502][503 旧件]
+# 随迁入 D 子图定义,主图只剩宿主);旧题名留档防回退
+SVR2_GROUP_TITLE = "道劫·⑤超分四法尾档"
+SVR2_GROUP_TITLE_LEGACY = "道劫·⑤SeedVR2放大尾档"
+# 1017up4 四法定义/宿主锚(蓝图=施工员产物逐字引用;一法一蓝图锚 t2i/i2i 两件)
+UP4 = {
+    "A": {"name": "道劫·超分·潜空间重采样", "host": {"qi21": 506, "i2i": 511},
+          "wv": [0, 4, 2048, 2720, 0.35], "bp": "qi21-道劫-超分-潜空间重采样.json"},
+    "B": {"name": "道劫·超分·B像素精修", "host": {"qi21": 507, "i2i": 512},
+          "wv": [0, 4, 5.57, 0.30], "bp": "qi21-道劫-超分-像素精修.json"},
+    "C": {"name": "道劫·超分·USDU平铺", "host": {"qi21": 508, "i2i": 513},
+          "wv": [0, 12, 1.92, 0.20], "bp": "qi21-道劫-超分-USDU平铺.json"},
+    "D": {"name": "道劫·超分·SeedVR2", "host": {"qi21": 503, "i2i": 503},
+          "wv": [0, 2048], "bp": "qi21-道劫-超分-SeedVR2.json"},
+}
+UP4_TITLE = {k: {"A": "超分·A潜空间重采样", "B": "超分·B像素精修",
+                 "C": "超分·C USDU平铺", "D": "超分·D SeedVR2"}[k] for k in UP4}
+# 母线信号扇出槽(design §4;槽序=定义 inputs 序 image0/model1/pos2/neg3/vae4)
+UP4_BUS_SRC = {
+    "qi21": {"src": 5, "model": 4203, "pos": 4015, "neg": 4016, "neg_slot": 0, "vae": 4202},
+    "i2i": {"src": 509, "model": 9, "pos": 4015, "neg": 4015, "neg_slot": 1, "vae": 43},
+}
 # 1015 紫底 P1 洗底链(i2i 根图专属):[5]→[506]拆α→[510]阈值门(α<0.004)
 # →[507]SRC×[508]0→[509]回拼(原α直通)→[8]/[503] 双喂(手术脚本
 # qi21_i2i_alpha_wash_1015.py;阈值门=VAE α噪声底~1e-3≫SRC回除门1e-5+SaveImage
@@ -5214,11 +5274,13 @@ I2I_WASH_SPLIT, I2I_WASH_PD, I2I_WASH_MASK, I2I_WASH_JOIN, I2I_WASH_TH = 506, 50
 
 
 class TestSeedVR2TailContract1002:
-    """㉕ 尾档结构锚(t2i/i2i):[5] 解码扇出双喂(直出存 [8]+放大路 [503]);
-    四件组 census/接线/wv 逐字(DiT sharp 7B fp8/VAE ema/短边 2048=2K/存
-    MYStudio-2K);⑤组框罩四件=Ctrl+B 整组旁路语义载体(框选→只出 [8] 直出
-    图;[505] 对比件留组外=旁路态仍可预览);edit 零尾档(用户令只点 t2i+i2i)。
-    ㉖ 对比件锚(t2i 专属):image_a=[5] 直出/ image_b=[503] 2K,滑帘对比。"""
+    """㉕ 尾档结构锚(t2i/i2i;1017up4 收装形):[5]/[509] 解码扇出喂母线首段
+    (t2i [5] 扇出 [8]+[505]+A 宿主 [506];i2i [509]→[511]);四法=A/B/C/D 四宿主
+    串联母线 源→A→B→C→D([503] 原位收装)→[504](+t2i [505] 对比件);
+    DiT/VAE 逐字锚随迁 D 子图内 [501]/[502](wv 逐字不动),[503] 旧件让位=[7401]
+    (同值表,seed 位改 0 由 PrimitiveInt 单源喂);⑤组框改名「超分四法尾档」罩
+    四宿主=Ctrl+B 整组旁路语义载体;edit 零尾档(用户令只点 t2i+i2i)。
+    ㉖ 对比件锚(t2i 专属):image_a=[5] 直出/ image_b=[503 宿主] 2K,滑帘对比。"""
 
     def test_tail_group_present_and_bypass_semantics(self):
         for name in ("qi21", "i2i"):
@@ -5227,64 +5289,76 @@ class TestSeedVR2TailContract1002:
             grp = next((g for g in graph["groups"]
                         if g.get("title", "").startswith(SVR2_GROUP_TITLE)), None)
             assert grp is not None, \
-                f"{name}: 缺⑤放大尾档组框(锚={SVR2_GROUP_TITLE!r}…;Ctrl+B 整组旁路语义载体)"
+                f"{name}: 缺⑤超分四法尾档组框(锚={SVR2_GROUP_TITLE!r}…;Ctrl+B 整组旁路语义载体)"
+            assert not [g for g in graph["groups"]
+                        if g.get("title", "").startswith(SVR2_GROUP_TITLE_LEGACY)], \
+                f"{name}: 旧⑤题名 {SVR2_GROUP_TITLE_LEGACY!r} 残留(1017up4 改名回退哨兵)"
             gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
             gx1 = gx0 + grp["bounding"][2]
             gy1 = gy0 + grp["bounding"][3]
-            for nid in (SVR2_DIT, SVR2_VAE, SVR2_UP, SVR2_SAVE):
+            # 1017up4 罩集=A/B/C/D 四宿主+[504](+t2i [505]);[501][502] 随迁 D 子图
+            # 定义,主图零实体(子图内 groups 恒空=蓝图极简形)
+            cover = [UP4[t]["host"][name] for t in "ABCD"] + [SVR2_SAVE]
+            if name == "qi21":
+                cover.append(SVR2_CMP)
+            for nid in cover:
                 n = nodes[nid]
                 assert (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
                         and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1), \
                     f"{name}: ⑤组框未罩住 [{nid}](框选本组 Ctrl+B 语义成员)"
-            if name == "qi21":
-                cmp_n = nodes[SVR2_CMP]
-                inside = (gx0 <= cmp_n["pos"][0] and cmp_n["pos"][0] + cmp_n["size"][0] <= gx1
-                          and gy0 <= cmp_n["pos"][1] and cmp_n["pos"][1] + cmp_n["size"][1] <= gy1)
-                # 1003 手改标准:[505] 并入⑤组框(旧"组框外纯预览"裁定退役;
-                # 副作用=整组旁路时对比件随组旁路、b 侧 2K 预览不可用,已知接受)
-                assert inside, \
-                    "qi21: [505] 对比件应在⑤组框内(1003 手改标准:并入组框)"
 
     def test_tail_wiring_and_widgets(self):
         for name in ("qi21", "i2i"):
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
-            # 四件 census
-            want = {SVR2_DIT: "SeedVR2LoadDiTModel", SVR2_VAE: "SeedVR2LoadVAEModel",
-                    SVR2_UP: "SeedVR2VideoUpscaler", SVR2_SAVE: "SaveImage"}
-            for nid, typ in want.items():
-                assert nodes[nid]["type"] == typ, \
-                    f"{name}: [{nid}] 应 {typ},得 {nodes[nid]['type']}"
-            # wv 逐字(参数真源=qwen21-t2i-seedvr2.json 同款,放大=短边 2048=2K 档)
-            assert nodes[SVR2_DIT]["widgets_values"][0] == SVR2_DIT_FILE, \
-                f"{name}: [{SVR2_DIT}] 应 sharp 7B fp8 权重逐字"
-            assert nodes[SVR2_VAE]["widgets_values"][0] == SVR2_VAE_FILE, \
-                f"{name}: [{SVR2_VAE}] 应 ema_vae_fp16 逐字"
-            assert nodes[SVR2_UP]["widgets_values"][2] == 2048, \
-                f"{name}: [{SVR2_UP}] resolution 应 2048(短边2K 档),得 {nodes[SVR2_UP]['widgets_values']}"
+            # D 收装 census:主图=[503] 宿主;501/502/7401 在 D 子图内(wv 随迁逐字)
+            sgD = next(sg for sg in _sgs(graph) if sg["name"] == UP4["D"]["name"])
+            host = nodes[SVR2_UP]
+            assert host["type"] == sgD["id"] and \
+                host["properties"]["subgraph"] == sgD["id"], \
+                f"{name}: [{SVR2_UP}] 应=D 宿主(原位收装,id 沿用)"
+            assert host["widgets_values"] == UP4["D"]["wv"], \
+                f"{name}: D 宿主 widgets 应 [seed,目标短边]={UP4['D']['wv']}(seed 首位续真 seed_widgets['503']==0)"
+            dn = _sg_nodes(sgD)
+            assert dn[SVR2_DIT]["widgets_values"][0] == SVR2_DIT_FILE, \
+                f"{name}: D 子图 [501] 应 sharp 7B fp8 权重逐字(随迁不动)"
+            assert dn[SVR2_VAE]["widgets_values"][0] == SVR2_VAE_FILE, \
+                f"{name}: D 子图 [502] 应 ema_vae_fp16 逐字(随迁不动)"
+            assert dn[7401]["widgets_values"] == [0, "fixed", 2048, 4096, 1, False,
+                                                  "lab", 0, 0, 0, 0, "none", False], \
+                f"{name}: D 子图 [7401] wv 逐字(原 [503] 值表,seed 位改 0 由单源喂),得 {dn[7401]['widgets_values']}"
             assert nodes[SVR2_SAVE]["widgets_values"] == [SVR2_SAVE_PREFIX], \
                 f"{name}: [{SVR2_SAVE}] 前缀应 {SVR2_SAVE_PREFIX!r}"
-            # 接线:DiT/VAE→放大→存 共通;[5] 下游按件分叉(1015 洗底链仅 i2i)
-            if name == "i2i":
-                # 1015 洗底链:[5]→[506]拆α→[507]SRC→[509]回拼→[8]/[503]
-                # (紫底 P1:alpha=0 区 RGB 洗底归零;[5] 不再直喂 [8]/[503])
-                l5 = [l[3] for l in graph["links"] if l[1] == 5]
-                assert l5 == [I2I_WASH_SPLIT], \
-                    f"i2i: [5] 应只喂洗底链首件 [{I2I_WASH_SPLIT}],得 {l5}"
-                assert _input_src(nodes, links, SVR2_UP, "image") == I2I_WASH_JOIN, \
-                    f"i2i: [{SVR2_UP}].image 应接 [{I2I_WASH_JOIN}] 洗底回拼图"
-            else:
+            # 子图内接线:501:0→7401:1 / 502:0→7401:2(原根线 203/204 随迁形)
+            dl = _sg_links(sgD)
+            dit_l = [l for l in dl.values() if l["origin_id"] == SVR2_DIT]
+            vae_l = [l for l in dl.values() if l["origin_id"] == SVR2_VAE]
+            assert len(dit_l) == 1 and (dit_l[0]["target_id"], dit_l[0]["target_slot"]) == (7401, 1), \
+                f"{name}: D 子图 [501]:0 应只喂 [7401]:1(dit)"
+            assert len(vae_l) == 1 and (vae_l[0]["target_id"], vae_l[0]["target_slot"]) == (7401, 2), \
+                f"{name}: D 子图 [502]:0 应只喂 [7401]:2(vae)"
+            # 主图母线:t2i [5] 扇出=[8]/[505]/[506=A];i2i [509]→[511=A] 首段
+            # +末段 [513=C]:0→[503]:0;[503] 出扇出 [504](+t2i [505])不变
+            src = UP4_BUS_SRC[name]["src"]
+            chain = [src, UP4["A"]["host"][name], UP4["B"]["host"][name],
+                     UP4["C"]["host"][name], SVR2_UP]
+            for a, b in zip(chain, chain[1:]):
+                got = [l[0] for l in graph["links"] if l[1] == a and l[2] == 0
+                       and l[3] == b and l[4] == 0]
+                assert len(got) == 1, \
+                    f"{name}: 母线段 [{a}]:0→[{b}]:0 应恰一线(design §1 串联母线),得 {got}"
+            if name == "qi21":
                 out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
-                assert _links_pid(graph, 8) in out5 and _links_pid(graph, SVR2_UP) in out5, \
-                    f"{name}: [5] 应扇出喂 [8] 直出存+[503] 放大路,得 {out5}"
-                assert _input_src(nodes, links, SVR2_UP, "image") == 5, \
-                    f"{name}: [{SVR2_UP}].image 应接 [5] 解码直出图"
-            assert _input_src(nodes, links, SVR2_UP, "dit") == SVR2_DIT, \
-                f"{name}: [{SVR2_UP}].dit 应接 [{SVR2_DIT}]"
-            assert _input_src(nodes, links, SVR2_UP, "vae") == SVR2_VAE, \
-                f"{name}: [{SVR2_UP}].vae 应接 [{SVR2_VAE}]"
+                assert (_links_pid(graph, 8) in out5
+                        and _links_pid(graph, SVR2_CMP) in out5
+                        and _links_pid(graph, UP4["A"]["host"][name]) in out5), \
+                    f"qi21: [5] 应扇出 [8]+[505]+[506 A宿主](1017up4 不再直连 [503]),得 {out5}"
+            else:
+                l509 = [l[3] for l in graph["links"] if l[1] == I2I_WASH_JOIN]
+                assert l509 == [8, UP4["A"]["host"][name]], \
+                    f"i2i: [509] 应只扇出 [8]+[511 A宿主](洗底回拼=母线入水口),得 {l509}"
             assert _input_src(nodes, links, SVR2_SAVE, "images") == SVR2_UP, \
-                f"{name}: [{SVR2_SAVE}].images 应接 [{SVR2_UP}] 2K 产物"
+                f"{name}: [{SVR2_SAVE}].images 应接 [{SVR2_UP}] 宿主 2K 产物"
 
     def test_i2i_alpha_wash_chain_1015(self):
         """1015 紫底 P1 洗底链(i2i 专属):VAEDecode 出图 alpha=0 区 RGB 含紫底
@@ -5328,7 +5402,13 @@ class TestSeedVR2TailContract1002:
         assert _input_src(nodes, links, I2I_WASH_JOIN, "alpha") == I2I_WASH_SPLIT, \
             "[509].alpha 应直取 [506] 原 mask(α 通道零二值化)"
         assert _input_src(nodes, links, 8, "images") == I2I_WASH_JOIN
-        assert _input_src(nodes, links, SVR2_UP, "image") == I2I_WASH_JOIN
+        # 1017up4 母线(S1 探针 GREEN):[509] 不再直喂 [503]——首段 [509]→[511]
+        # (A 宿主),末段 [513]:0→[503]:0;A/B/C 默认旁路=直通,入水语义等价。
+        # (design §7 #2 原文「本测零改」与母线接线互斥,按 §1 架构裁决改此一行)
+        assert _input_src(nodes, links, UP4["A"]["host"]["i2i"], "image") == I2I_WASH_JOIN, \
+            "i2i: [511 A宿主].image 应接 [509] 洗底回拼图(母线入水口)"
+        assert _input_src(nodes, links, SVR2_UP, "image") == UP4["C"]["host"]["i2i"], \
+            "i2i: [503 D宿主].image 应接 [513 C宿主](母线末段)"
 
     def test_comparer_t2i_only(self):
         graph = GRAPHS["qi21"]
@@ -5367,6 +5447,210 @@ class TestSeedVR2TailContract1002:
                 f"{name}: 速查卡缺放大尾档分辨率适配指引行(㉕ 裁定文案)"
             assert "框选⑤组框 Ctrl+B" in text, \
                 f"{name}: 速查卡缺 Ctrl+B 整组旁路指引"
+
+
+# ── 6h. 超分四法宿主母线契约(1017up4 接线役;prd R1-R3;手术脚本
+# qi21_upscale_subgraph_1017.py=S2 唯一写点;S1 旁路直通探针 GREEN
+# 在案 research/s1-probe-result.md)──────────────────────────────────
+
+
+class TestUpscaleFourWays1017:
+    """四宿主串联母线锚(design §1):源([5]/[509])→A→B→C→D([503] 原位收装)
+    →[504](+t2i [505]);每件四信号扇出(MODEL/positive/negative/VAE);
+    **至多一激活不变量**(默认态:t2i 四宿主+[504]+[505] 全 4=零激活;
+    i2i 仅 D=0;用户换法=Ctrl+B 现法宿主+解除目标法,恰一激活——「至多一」
+    而非「恰一」,t2i 默认零激活不自红);seed 单源 PrimitiveInt(0,fixed)×4;
+    宿主 widgets=蓝图 sg.widgets 同序镜像;边界 IO linkIds 全登记(§零铁律)。"""
+
+    def test_four_hosts_present_with_mirror_widgets(self):
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            nodes = _nodes(graph)
+            for t in "ABCD":
+                sg = next(s for s in _sgs(graph) if s["name"] == UP4[t]["name"])
+                host = nodes[UP4[t]["host"][name]]
+                assert host["type"] == sg["id"] and \
+                    host["properties"]["subgraph"] == sg["id"], \
+                    f"{name}: {t} 宿主 [{host['id']}] 应挂钩定义"
+                assert host["title"] == UP4_TITLE[t], \
+                    f"{name}: {t} 宿主 title 应 {UP4_TITLE[t]!r}(镜像三锚),得 {host.get('title')!r}"
+                assert host["widgets_values"] == UP4[t]["wv"] == sg["widgets"], \
+                    f"{name}: {t} 宿主 widgets 应与蓝图同序镜像 {UP4[t]['wv']},得 {host['widgets_values']}"
+                # 槽序镜像:宿主 inputs 名序=定义 inputs 名序
+                assert [i["name"] for i in host["inputs"]] == [i["name"] for i in sg["inputs"]], \
+                    f"{name}: {t} 宿主槽序应镜像定义(design §2.1 边界声明序)"
+
+    def test_bus_topology_and_signals(self):
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            nodes, links = _nodes(graph), _links(graph)
+            spec = UP4_BUS_SRC[name]
+            chain = [spec["src"], UP4["A"]["host"][name], UP4["B"]["host"][name],
+                     UP4["C"]["host"][name], UP4["D"]["host"][name]]
+            for a, b in zip(chain, chain[1:]):
+                got = [l for l in graph["links"] if l[1] == a and l[2] == 0
+                       and l[3] == b and l[4] == 0 and l[5] == "IMAGE"]
+                assert len(got) == 1, \
+                    f"{name}: 母线 [{a}]:0→[{b}]:0 应恰一 IMAGE 线,得 {got}"
+            for t in "ABC":
+                hid = UP4[t]["host"][name]
+                for slot_src, ds, lty, ss in ((spec["model"], 1, "MODEL", 0),
+                                              (spec["pos"], 2, "CONDITIONING", 0),
+                                              (spec["neg"], 3, "CONDITIONING", spec["neg_slot"]),
+                                              (spec["vae"], 4, "VAE", 0)):
+                    assert any(l[1] == slot_src and l[2] == ss and l[3] == hid
+                               and l[4] == ds and l[5] == lty for l in graph["links"]), \
+                        f"{name}: [{hid}] 槽{ds}({lty}) 应接 [{slot_src}]:{ss}(design §4 扇出)"
+            # D 出扇出:[504](两件)+[505](t2i;对比件零改)
+            dl = nodes[UP4["D"]["host"][name]]["outputs"][0]["links"]
+            want = [205, 207] if name == "qi21" else [204]
+            assert sorted(dl) == sorted(want), \
+                f"{name}: D 宿主出扇出应 {want}(links 205/207·204 原样),得 {dl}"
+
+    def test_at_most_one_active_invariant_and_defaults(self):
+        """至多一激活不变量+默认态锚(design §7 #8:写成「恰一」会在 t2i 默认
+        零激活态自红,故上位断言=至多一;默认态另行钉死)。"""
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            nodes = _nodes(graph)
+            active = [t for t in "ABCD"
+                      if nodes[UP4[t]["host"][name]].get("mode", 0) == 0]
+            assert len(active) <= 1, \
+                f"{name}: 四宿主至多一激活(换法=Ctrl+B 现法+解除目标法),得激活 {active}"
+            if name == "qi21":
+                assert active == [], \
+                    f"qi21: 默认态=四宿主+[504]+[505] 全旁路(零激活,现状保持),得 {active}"
+                assert nodes[SVR2_SAVE]["mode"] == 4 and nodes[SVR2_CMP]["mode"] == 4, \
+                    "qi21: [504][505] 应默认 mode4(尾档整组旁路现状)"
+            else:
+                assert active == ["D"], \
+                    f"i2i: 默认态=仅 D 在役(A/B/C 旁路),得 {active}"
+                assert nodes[SVR2_SAVE]["mode"] == 0, "i2i: [504] 应在役(D 直出 2K 落盘)"
+
+    def test_seed_single_source_primitives_and_io_link_ids(self):
+        """seed 单源锚(design §7 #7):四定义内 PrimitiveInt(7101/7204/7302/7402)
+        [0,"fixed"] 由边界 seed 槽喂,扇出恰内部采样件;边界 IO linkIds 全登记
+        (§零铁律;widget 型槽同判——AGP 判据=test_subgraph_io_link_ids_registered)。"""
+        seed_ids = {"A": 7101, "B": 7204, "C": 7302, "D": 7402}
+        for name in ("qi21", "i2i"):
+            graph = GRAPHS[name]
+            for t in "ABCD":
+                sg = next(s for s in _sgs(graph) if s["name"] == UP4[t]["name"])
+                i_links = _sg_links(sg)
+                seed = _sg_nodes(sg)[seed_ids[t]]
+                assert seed["type"] == "PrimitiveInt" and \
+                    seed["widgets_values"][:2] == [0, "fixed"], \
+                    f"{name}/{t}: [{seed_ids[t]}] seed 单源应 0/fixed"
+                val_in = next(i for i in seed["inputs"] if i["name"] == "value")
+                seed_l = i_links[val_in["link"]]
+                assert seed_l["origin_id"] == -10 and \
+                    sg["inputs"][seed_l["origin_slot"]]["name"] == "seed", \
+                    f"{name}/{t}: seed 单源应吃边界 seed 槽(首位)"
+                for io in [*sg["inputs"], *sg["outputs"]]:
+                    assert io.get("linkIds"), \
+                        f"{name}/{t}: IO 槽 {io['name']} linkIds 应登记(§零铁律)"
+                    reg_in = {lid: i for i, s in enumerate(sg["inputs"])
+                              for lid in (s.get("linkIds") or [])}
+                    for lid in io["linkIds"]:
+                        if lid not in i_links:
+                            continue
+                        l = i_links[lid]
+                        if l["origin_id"] == -10:
+                            assert reg_in[lid] == l["origin_slot"], \
+                                f"{name}/{t}: 入口线 {lid} 登记槽位不一致"
+                        if l["target_id"] == -20:
+                            assert io in sg["outputs"], \
+                                f"{name}/{t}: 出口线 {lid} 应登记在 outputs"
+
+    def test_upscale_defs_identical_across_workflows(self):
+        """一法一蓝图锚两件:四定义在 t2i 与 i2i 逐字全等(canonical-除-id;
+        §3.5 统一 cfg=1/euler/simple 的直接收益——两件宿主 widgets 逐字相等)。"""
+        import copy as _copy
+
+        def canon(sg: dict) -> str:
+            sg = _copy.deepcopy(sg)
+            sg.pop("id", None)
+            sg.pop("state", None)
+            sg.setdefault("category", "漫影")
+            links = sorted(sg.get("links", []),
+                           key=lambda l: (l["origin_id"], l["origin_slot"], l["target_id"],
+                                          l["target_slot"], l["type"], l["id"]))
+            lid = {l["id"]: i for i, l in enumerate(links)}
+            sg["links"] = [{**l, "id": lid[l["id"]]} for l in links]
+            for io in ("inputs", "outputs"):
+                for s in sg.get(io, []):
+                    s["linkIds"] = sorted(lid.get(x, x) for x in (s.get("linkIds") or []))
+            for n in sg["nodes"]:
+                for i in n.get("inputs", []):
+                    if i.get("link") is not None:
+                        i["link"] = lid.get(i["link"], i["link"])
+            return json.dumps(sg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+        for t in "ABCD":
+            a = next(s for s in _sgs(GRAPHS["qi21"]) if s["name"] == UP4[t]["name"])
+            b = next(s for s in _sgs(GRAPHS["i2i"]) if s["name"] == UP4[t]["name"])
+            assert canon(a) == canon(b), \
+                f"{t}: 定义应 t2i/i2i 全同(§3.5 统一参数前提)"
+        for t in "ABCD":
+            wa = _nodes(GRAPHS["qi21"])[UP4[t]["host"]["qi21"]]["widgets_values"]
+            wb = _nodes(GRAPHS["i2i"])[UP4[t]["host"]["i2i"]]["widgets_values"]
+            assert wa == wb == UP4[t]["wv"], \
+                f"{t}: 两宿主 widgets 应逐字相等,得 {wa} vs {wb}"
+
+
+class TestUpscaleBlueprintAnchors1017:
+    """4 蓝图 × t2i/i2i 内嵌定义一致性(仿 TestAccelBlueprintAnchors1016):
+    canonical-除-id 全等(链接 id 按端点重编;state/last_link_id 出对比面;
+    蓝图 sg 恒带 category=漫影,宿主归一后对比)+蓝图根节点 widget/title/
+    uuid 指向=宿主面板镜像(镜像三锚)。蓝图真源=施工员产物(1017 接线役引用,
+    重抽通道=施工员生成器,勿手改)。"""
+
+    BP = {t: _TESTS_DIR.parent / "my_nodes/subgraphs" / UP4[t]["bp"] for t in "ABCD"}
+
+    def test_four_blueprints_match_hosts(self):
+        import copy as _copy
+        for t, bp_path in self.BP.items():
+            bp = json.loads(bp_path.read_text(encoding="utf-8"))
+            bp_sg = bp["definitions"]["subgraphs"][0]
+            assert bp_sg["name"] in {UP4[x]["name"] for x in "ABCD"} and \
+                bp_sg["category"] == "漫影", f"{t}: 蓝图 name/category 应漫影册"
+            for zh in ("qi21", "i2i"):
+                wf_sg = next(s for s in _sgs(GRAPHS[zh]) if s["name"] == bp_sg["name"])
+                wf_norm = _copy.deepcopy(wf_sg)
+                wf_norm["category"] = "漫影"
+                assert _canon_up4(wf_norm) == _canon_up4(bp_sg), \
+                    f"{zh}/{t}: 蓝图 ↔ 内嵌定义漂移(除 id 外应 canonical 全等)"
+                host = next(n for n in GRAPHS[zh]["nodes"]
+                            if n.get("properties", {}).get("subgraph") == wf_sg["id"])
+                assert bp["nodes"][0]["widgets_values"] == host.get("widgets_values"), \
+                    f"{zh}/{t}: 蓝图根节点 widget 应=宿主面板镜像"
+                assert bp["nodes"][0]["title"] == host.get("title"), \
+                    f"{zh}/{t}: 蓝图根节点 title 应=宿主 title(镜像三锚)"
+                assert bp["nodes"][0]["properties"]["subgraph"] == wf_sg["id"], \
+                    f"{zh}/{t}: 蓝图根节点应指本宿主定义 uuid"
+
+
+def _canon_up4(sg: dict) -> str:
+    """canonical 归一(除子图 id/state/last_link_id 外全等;链接 id 按端点
+    元组重编——嵌入沿用蓝图 id 属同轨常态,重编后仍逐项全等)。"""
+    import copy as _copy
+    sg = _copy.deepcopy(sg)
+    sg.pop("id", None)
+    sg.pop("state", None)
+    sg.pop("last_link_id", None)
+    links = sorted(sg.get("links", []),
+                   key=lambda l: (l["origin_id"], l["origin_slot"], l["target_id"],
+                                  l["target_slot"], l["type"], l["id"]))
+    lid = {l["id"]: i for i, l in enumerate(links)}
+    sg["links"] = [{**l, "id": lid[l["id"]]} for l in links]
+    for io in ("inputs", "outputs"):
+        for s in sg.get(io, []):
+            s["linkIds"] = sorted(lid.get(x, x) for x in (s.get("linkIds") or []))
+    for n in sg["nodes"]:
+        for i in n.get("inputs", []):
+            if i.get("link") is not None:
+                i["link"] = lid.get(i["link"], i["link"])
+    return json.dumps(sg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _input_src(nodes: dict, links: dict, nid: int, slot_name: str) -> int:

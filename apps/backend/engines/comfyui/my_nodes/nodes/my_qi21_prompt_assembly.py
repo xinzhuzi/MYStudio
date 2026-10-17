@@ -342,10 +342,14 @@ class MyQi21PromptAssembly:
         # 新参数可省略，旧工作流仍走既有新建资产路径。
         if 组装用途 not in ("新建资产", "局部编辑", "画风转换", "无底座出图"):
             raise ValueError(f"未知组装用途: {组装用途}")
-        # 1017 运行时门禁:t2i 语义路(新建资产/无底座出图)主体句硬门;
-        # i2i 旧两落法纪律豁免(局部编辑/画风转换,候用户令扩展)
+        # 1017 运行时门禁:t2i 语义路(新建资产/无底座出图)主体句全查;
+        # i2i 路(局部编辑/画风转换)否定式门(1017 用户令「4,开始做」扩展,
+        # 两落法豁免退役——「去掉/摘掉」去除操作与肯定枚举不在禁词族,零波及)
         if 组装用途 in ("新建资产", "无底座出图"):
             assert_prompt_gates((主体句 or "").strip(), is_subject=True, context=f"[主体句·{组装用途}]")
+        else:
+            assert_prompt_gates((主体句 or "").strip(), is_subject=True, negation_only=True,
+                                context=f"[指令·{组装用途}]")
         锁层A全文 = _style_only(锁层A全文)
         if 组装用途 == "局部编辑":
             return ((主体句 or "").strip(), (主体句负面 or "").strip())

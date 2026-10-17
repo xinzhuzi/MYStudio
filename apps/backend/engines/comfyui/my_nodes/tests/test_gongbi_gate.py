@@ -3,7 +3,9 @@
 """运行时门禁测试(1017 用户令:产线常跑,违规提示词报错)。
 
 单源模块 _gongbi_gate + 两节点接线:PE=t2i 全路(入口主体句+出口终稿八点),
-Assembly=新建资产路(i2i 两落法纪律豁免)。"""
+Assembly=新建资产路全查+i2i 路(局部编辑/画风转换)否定式门(1017 用户令
+「4,开始做」扩展,两落法豁免退役——「去掉/摘掉」去除操作与肯定枚举本就
+不在禁词族,合法路零波及)。"""
 import importlib.util
 from pathlib import Path
 import pytest
@@ -60,18 +62,23 @@ def test_pe_node_rejects_toxic_subject():
                                  类型句正向="型文", AI扩写开关=False)
 
 
-def test_assembly_i2i_route_exempt():
+def test_assembly_i2i_route_negation_gated():
     spec = importlib.util.spec_from_file_location(
         "asm_g", Path(__file__).resolve().parents[1] / "nodes/my_qi21_prompt_assembly.py")
     asm = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(asm)
-    # 局部编辑=i2i 路豁免:否定式两落法纪律在册
-    out = asm.MyQi21PromptAssembly().assemble(
-        BASE="", BASE负面="", 主体句="把红色外套改为蓝色，不要改动脸部。", 组装用途="局部编辑")
-    assert "不要" in out[0]
-    with pytest.raises(ValueError, match="道劫提示词门禁"):
+    # 1017 用户令「4,开始做」:i2i 否定式门接入,两落法豁免退役
+    with pytest.raises(ValueError, match="否定式"):
         asm.MyQi21PromptAssembly().assemble(
-            BASE="", BASE负面="", 主体句="把红色外套改为蓝色，不要改动脸部。", 组装用途="新建资产")
+            BASE="", BASE负面="", 主体句="把红色外套改为蓝色，不要改动脸部。", 组装用途="局部编辑")
+    with pytest.raises(ValueError, match="否定式"):
+        asm.MyQi21PromptAssembly().assemble(
+            BASE="", BASE负面="", 主体句="把画法转为淡彩长卷，不能改变构图。", 组装用途="画风转换")
+    # 合法两落法不受影响:去除操作(动词去掉,锚定图内实存物)+肯定枚举收尾
+    out = asm.MyQi21PromptAssembly().assemble(
+        BASE="", BASE负面="", 主体句="去掉颈间玉坠，双手空空，发间与腕上素净，其余未提及之处保持原样。",
+        组装用途="局部编辑")
+    assert "去掉颈间玉坠" in out[0]
 
 
 def test_resolver_drift_lock_between_nodes():

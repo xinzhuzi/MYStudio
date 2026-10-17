@@ -5,7 +5,7 @@
 > **一句话结论**:在 ComfyUI 里,「提示词增强」是生成管线之外的可选外挂——官方两条模板不内嵌任何 PE 节点(实证零命中),自带的是两条按宪法手写的成品示范提示词;社区插件(benjiyaya/ComfyUI-Qwen-Image-2.1-Prompt-Enhancer)用原生 CLIPLoader 把 PE 9B 当文本编码器跑自回归改写,随包两份系统提示词与官方原文**逐字节一致**(本轮 diff/cmp/MD5 三重复验全过)。
 
 - 证据基准日:2026-09-23。
-- 原文档案:`.trellis/tasks/09-23-qwen-image-21-research/research/`(下称 `research/`);插件三件 = `research/pe_plugin_/pe_plugin_prompt_rewrite_nodes.py`(下称 `nodes.py`)+ 随包两份系统提示词,`research/pe_node_readme.md` 为插件 README。
+- 原文档案:`.trellis/tasks/archive/2026-09/09-23-qwen-image-21-research/research/`(下称 `research/`);插件三件 = `research/pe_plugin_/pe_plugin_prompt_rewrite_nodes.py`(下称 `nodes.py`)+ 随包两份系统提示词,`research/pe_node_readme.md` 为插件 README。
 - 本文标注「本轮实测」的命令均在 2026-09-23 由本任务实际执行;官方 vLLM 参数口径实读自 `research/pe_prompt_rewrite_readme.md`(= 官方 prompt_rewrite README 存档)。
 
 ---

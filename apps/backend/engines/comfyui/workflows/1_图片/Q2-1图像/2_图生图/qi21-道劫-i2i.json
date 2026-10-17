@@ -1,8 +1,8 @@
 {
   "id": "8a14d6f0-52b9-4c7d-a3e8-6f1b2c3d4e5f",
   "revision": 0,
-  "last_node_id": 7033,
-  "last_link_id": 4413,
+  "last_node_id": 7402,
+  "last_link_id": 7463,
   "nodes": [
     {
       "id": 1,
@@ -546,7 +546,10 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            25
+            25,
+            7449,
+            7454,
+            7459
           ]
         }
       ],
@@ -1053,7 +1056,10 @@
           "name": "",
           "type": "VAE",
           "links": [
-            36
+            36,
+            7452,
+            7457,
+            7462
           ]
         }
       ],
@@ -1110,136 +1116,8 @@
       }
     },
     {
-      "id": 501,
-      "type": "SeedVR2LoadDiTModel",
-      "pos": [
-        11100,
-        2200
-      ],
-      "size": [
-        300,
-        254
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "torch_compile_args",
-          "shape": 7,
-          "type": "TORCH_COMPILE_ARGS",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "SEEDVR2_DIT",
-          "type": "SEEDVR2_DIT",
-          "slot_index": 0,
-          "links": [
-            202
-          ]
-        }
-      ],
-      "title": "[501] SeedVR2 DiT加载(sharp 7B fp8)",
-      "properties": {
-        "Node name for S&R": "SeedVR2LoadDiTModel",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
-        "mps",
-        0,
-        false,
-        "none",
-        false,
-        "sdpa"
-      ],
-      "widgets_values_named": {
-        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
-        "device": "mps",
-        "blocks_to_swap": 0,
-        "swap_io_components": false,
-        "offload_device": "none",
-        "cache_model": false,
-        "attention_mode": "sdpa"
-      }
-    },
-    {
-      "id": 502,
-      "type": "SeedVR2LoadVAEModel",
-      "pos": [
-        11100,
-        2750
-      ],
-      "size": [
-        300,
-        366
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "torch_compile_args",
-          "shape": 7,
-          "type": "TORCH_COMPILE_ARGS",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "SEEDVR2_VAE",
-          "type": "SEEDVR2_VAE",
-          "slot_index": 0,
-          "links": [
-            203
-          ]
-        }
-      ],
-      "title": "[502] SeedVR2 VAE加载(ema fp16)",
-      "properties": {
-        "Node name for S&R": "SeedVR2LoadVAEModel",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "ema_vae_fp16.safetensors",
-        "mps",
-        true,
-        512,
-        160,
-        true,
-        512,
-        160,
-        "false",
-        "none",
-        false
-      ],
-      "widgets_values_named": {
-        "model": "ema_vae_fp16.safetensors",
-        "device": "mps",
-        "encode_tiled": true,
-        "encode_tile_size": 512,
-        "encode_tile_overlap": 160,
-        "decode_tiled": true,
-        "decode_tile_size": 512,
-        "decode_tile_overlap": 160,
-        "tile_debug": "false",
-        "offload_device": "none",
-        "cache_model": false
-      }
-    },
-    {
       "id": 503,
-      "type": "SeedVR2VideoUpscaler",
+      "type": "f0a844a8-9bf5-4c71-8af5-f1c9f17c0324",
       "pos": [
         11800,
         1900
@@ -1255,22 +1133,28 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": 227
+          "link": 7463
         },
         {
-          "name": "dit",
-          "type": "SEEDVR2_DIT",
-          "link": 202
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
         },
         {
-          "name": "vae",
-          "type": "SEEDVR2_VAE",
-          "link": 203
+          "name": "目标短边",
+          "type": "INT",
+          "widget": {
+            "name": "目标短边"
+          },
+          "link": null
         }
       ],
       "outputs": [
         {
-          "name": "IMAGE",
+          "name": "image",
           "type": "IMAGE",
           "slot_index": 0,
           "links": [
@@ -1278,9 +1162,10 @@
           ]
         }
       ],
-      "title": "[503] SeedVR2放大(短边2048=2K档)",
+      "title": "超分·D SeedVR2",
       "properties": {
-        "Node name for S&R": "SeedVR2VideoUpscaler",
+        "subgraph": "f0a844a8-9bf5-4c71-8af5-f1c9f17c0324",
+        "previewExposures": [],
         "ue_properties": {
           "widget_ue_connectable": {},
           "version": "7.8",
@@ -1288,34 +1173,12 @@
         }
       },
       "widgets_values": [
-        1,
-        "fixed",
-        2048,
-        4096,
-        1,
-        false,
-        "lab",
         0,
-        0,
-        0,
-        0,
-        "none",
-        false
+        2048
       ],
       "widgets_values_named": {
-        "seed": 42,
-        "control_after_generate": "fixed",
-        "resolution": 2048,
-        "max_resolution": 4096,
-        "batch_size": 1,
-        "uniform_batch_size": false,
-        "color_correction": "lab",
-        "temporal_overlap": 0,
-        "prepend_frames": 0,
-        "input_noise_scale": 0,
-        "latent_noise_scale": 0,
-        "offload_device": "none",
-        "enable_debug": false
+        "seed": 0,
+        "目标短边": 2048
       }
     },
     {
@@ -1762,7 +1625,7 @@
           "type": "IMAGE",
           "links": [
             226,
-            227
+            7448
           ]
         }
       ],
@@ -1856,7 +1719,10 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            279
+            279,
+            7450,
+            7455,
+            7460
           ]
         },
         {
@@ -1864,7 +1730,10 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            280
+            280,
+            7451,
+            7456,
+            7461
           ]
         },
         {
@@ -2011,6 +1880,331 @@
         "negative_prompt": "",
         "resolution": 0
       }
+    },
+    {
+      "id": 511,
+      "type": "db69acb7-43d6-41c4-b4a8-2793e355c564",
+      "pos": [
+        11100,
+        1850
+      ],
+      "size": [
+        330,
+        420
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 7448
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 7449
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 7450
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7451
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7452
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "步数",
+          "type": "INT",
+          "widget": {
+            "name": "步数"
+          },
+          "link": null
+        },
+        {
+          "name": "目标宽",
+          "type": "INT",
+          "widget": {
+            "name": "目标宽"
+          },
+          "link": null
+        },
+        {
+          "name": "目标高",
+          "type": "INT",
+          "widget": {
+            "name": "目标高"
+          },
+          "link": null
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            7453
+          ]
+        }
+      ],
+      "title": "超分·A潜空间重采样",
+      "properties": {
+        "subgraph": "db69acb7-43d6-41c4-b4a8-2793e355c564",
+        "previewExposures": [],
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        0,
+        4,
+        2048,
+        2720,
+        0.35
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "步数": 4,
+        "目标宽": 2048,
+        "目标高": 2720,
+        "denoise": 0.35
+      }
+    },
+    {
+      "id": 512,
+      "type": "bde98f0d-bdc3-506c-8e4f-c3ff4782c3f5",
+      "pos": [
+        11460,
+        2300
+      ],
+      "size": [
+        330,
+        400
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 7453
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 7454
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 7455
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7456
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7457
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "步数",
+          "type": "INT",
+          "widget": {
+            "name": "步数"
+          },
+          "link": null
+        },
+        {
+          "name": "目标兆像素",
+          "type": "FLOAT",
+          "widget": {
+            "name": "目标兆像素"
+          },
+          "link": null
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            7458
+          ]
+        }
+      ],
+      "title": "超分·B像素精修",
+      "properties": {
+        "subgraph": "bde98f0d-bdc3-506c-8e4f-c3ff4782c3f5",
+        "previewExposures": [],
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        0,
+        4,
+        5.57,
+        0.3
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "步数": 4,
+        "目标兆像素": 5.57,
+        "denoise": 0.3
+      }
+    },
+    {
+      "id": 513,
+      "type": "ea928e1b-57a1-4c8a-b972-49698579e9d3",
+      "pos": [
+        11770,
+        2750
+      ],
+      "size": [
+        330,
+        400
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 7458
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 7459
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 7460
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7461
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 7462
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "步数",
+          "type": "INT",
+          "widget": {
+            "name": "步数"
+          },
+          "link": null
+        },
+        {
+          "name": "放大倍率",
+          "type": "FLOAT",
+          "widget": {
+            "name": "放大倍率"
+          },
+          "link": null
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            7463
+          ]
+        }
+      ],
+      "title": "超分·C USDU平铺",
+      "properties": {
+        "subgraph": "ea928e1b-57a1-4c8a-b972-49698579e9d3",
+        "previewExposures": [],
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        0,
+        12,
+        1.92,
+        0.2
+      ],
+      "widgets_values_named": {
+        "seed": 0,
+        "步数": 12,
+        "放大倍率": 1.92,
+        "denoise": 0.2
+      }
     }
   ],
   "links": [
@@ -2135,22 +2329,6 @@
       "VAE"
     ],
     [
-      202,
-      501,
-      0,
-      503,
-      1,
-      "SEEDVR2_DIT"
-    ],
-    [
-      203,
-      502,
-      0,
-      503,
-      2,
-      "SEEDVR2_VAE"
-    ],
-    [
       204,
       503,
       0,
@@ -2251,14 +2429,6 @@
       509,
       0,
       8,
-      0,
-      "IMAGE"
-    ],
-    [
-      227,
-      509,
-      0,
-      503,
       0,
       "IMAGE"
     ],
@@ -2421,6 +2591,134 @@
       7,
       5,
       "STRING"
+    ],
+    [
+      7448,
+      509,
+      0,
+      511,
+      0,
+      "IMAGE"
+    ],
+    [
+      7449,
+      9,
+      0,
+      511,
+      1,
+      "MODEL"
+    ],
+    [
+      7450,
+      4015,
+      0,
+      511,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7451,
+      4015,
+      1,
+      511,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      7452,
+      43,
+      0,
+      511,
+      4,
+      "VAE"
+    ],
+    [
+      7453,
+      511,
+      0,
+      512,
+      0,
+      "IMAGE"
+    ],
+    [
+      7454,
+      9,
+      0,
+      512,
+      1,
+      "MODEL"
+    ],
+    [
+      7455,
+      4015,
+      0,
+      512,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7456,
+      4015,
+      1,
+      512,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      7457,
+      43,
+      0,
+      512,
+      4,
+      "VAE"
+    ],
+    [
+      7458,
+      512,
+      0,
+      513,
+      0,
+      "IMAGE"
+    ],
+    [
+      7459,
+      9,
+      0,
+      513,
+      1,
+      "MODEL"
+    ],
+    [
+      7460,
+      4015,
+      0,
+      513,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      7461,
+      4015,
+      1,
+      513,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      7462,
+      43,
+      0,
+      513,
+      4,
+      "VAE"
+    ],
+    [
+      7463,
+      513,
+      0,
+      503,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [
@@ -2486,12 +2784,12 @@
     },
     {
       "id": 6,
-      "title": "道劫·⑤SeedVR2放大尾档·2K",
+      "title": "道劫·⑤超分四法尾档·2K",
       "bounding": [
-        11000,
-        1820,
-        2000,
-        1400
+        11060,
+        1810,
+        1860,
+        1380
       ],
       "color": "#a88040",
       "flags": {}
@@ -5540,6 +5838,2549 @@
           "ue_links": [],
           "links_added_by_ue": []
         }
+      },
+      {
+        "id": "f0a844a8-9bf5-4c71-8af5-f1c9f17c0324",
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 7402,
+          "lastLinkId": 7447,
+          "lastRerouteId": 0
+        },
+        "revision": 1,
+        "config": {
+          "defaultIOState": {}
+        },
+        "name": "道劫·超分·SeedVR2",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            80,
+            400,
+            128,
+            88
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            3800,
+            676,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "f0a844a8-0001-4c71-8af5-f1c9f17c0324",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7441
+            ],
+            "pos": [
+              104,
+              424
+            ]
+          },
+          {
+            "id": "f0a844a8-0002-4c71-8af5-f1c9f17c0324",
+            "name": "seed",
+            "type": "INT",
+            "linkIds": [
+              7442
+            ],
+            "pos": [
+              104,
+              444
+            ]
+          },
+          {
+            "id": "f0a844a8-0003-4c71-8af5-f1c9f17c0324",
+            "name": "目标短边",
+            "type": "INT",
+            "linkIds": [
+              7443
+            ],
+            "pos": [
+              104,
+              464
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "f0a844a8-1001-4c71-8af5-f1c9f17c0324",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7447
+            ],
+            "pos": [
+              3824,
+              700
+            ]
+          }
+        ],
+        "widgets": [
+          0,
+          2048
+        ],
+        "nodes": [
+          {
+            "id": 501,
+            "type": "SeedVR2LoadDiTModel",
+            "pos": [
+              1500,
+              500
+            ],
+            "size": [
+              300,
+              254
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "torch_compile_args",
+                "shape": 7,
+                "type": "TORCH_COMPILE_ARGS",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "SEEDVR2_DIT",
+                "type": "SEEDVR2_DIT",
+                "slot_index": 0,
+                "links": [
+                  7445
+                ]
+              }
+            ],
+            "title": "[501] SeedVR2 DiT加载(sharp 7B fp8)",
+            "properties": {
+              "Node name for S&R": "SeedVR2LoadDiTModel",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+              "mps",
+              0,
+              false,
+              "none",
+              false,
+              "sdpa"
+            ],
+            "widgets_values_named": {
+              "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+              "device": "mps",
+              "blocks_to_swap": 0,
+              "swap_io_components": false,
+              "offload_device": "none",
+              "cache_model": false,
+              "attention_mode": "sdpa"
+            }
+          },
+          {
+            "id": 502,
+            "type": "SeedVR2LoadVAEModel",
+            "pos": [
+              1500,
+              1000
+            ],
+            "size": [
+              300,
+              366
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "torch_compile_args",
+                "shape": 7,
+                "type": "TORCH_COMPILE_ARGS",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "SEEDVR2_VAE",
+                "type": "SEEDVR2_VAE",
+                "slot_index": 0,
+                "links": [
+                  7446
+                ]
+              }
+            ],
+            "title": "[502] SeedVR2 VAE加载(ema fp16)",
+            "properties": {
+              "Node name for S&R": "SeedVR2LoadVAEModel",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "ema_vae_fp16.safetensors",
+              "mps",
+              true,
+              512,
+              160,
+              true,
+              512,
+              160,
+              "false",
+              "none",
+              false
+            ],
+            "widgets_values_named": {
+              "model": "ema_vae_fp16.safetensors",
+              "device": "mps",
+              "encode_tiled": true,
+              "encode_tile_size": 512,
+              "encode_tile_overlap": 160,
+              "decode_tiled": true,
+              "decode_tile_size": 512,
+              "decode_tile_overlap": 160,
+              "tile_debug": "false",
+              "offload_device": "none",
+              "cache_model": false
+            }
+          },
+          {
+            "id": 7401,
+            "type": "SeedVR2VideoUpscaler",
+            "pos": [
+              3000,
+              700
+            ],
+            "size": [
+              360,
+              458
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "link": 7441
+              },
+              {
+                "name": "dit",
+                "type": "SEEDVR2_DIT",
+                "link": 7445
+              },
+              {
+                "name": "vae",
+                "type": "SEEDVR2_VAE",
+                "link": 7446
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 7444
+              },
+              {
+                "name": "resolution",
+                "type": "INT",
+                "widget": {
+                  "name": "resolution"
+                },
+                "link": 7443
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "slot_index": 0,
+                "links": [
+                  7447
+                ]
+              }
+            ],
+            "title": "[7401] SeedVR2放大(短边2048=2K档)",
+            "properties": {
+              "Node name for S&R": "SeedVR2VideoUpscaler",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              2048,
+              4096,
+              1,
+              false,
+              "lab",
+              0,
+              0,
+              0,
+              0,
+              "none",
+              false
+            ],
+            "widgets_values_named": {
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "resolution": 2048,
+              "max_resolution": 4096,
+              "batch_size": 1,
+              "uniform_batch_size": false,
+              "color_correction": "lab",
+              "temporal_overlap": 0,
+              "prepend_frames": 0,
+              "input_noise_scale": 0,
+              "latent_noise_scale": 0,
+              "offload_device": "none",
+              "enable_debug": false
+            }
+          },
+          {
+            "id": 7402,
+            "type": "PrimitiveInt",
+            "pos": [
+              300,
+              700
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "INT",
+                "widget": {
+                  "name": "value"
+                },
+                "link": 7442
+              }
+            ],
+            "outputs": [
+              {
+                "name": "INT",
+                "type": "INT",
+                "links": [
+                  7444
+                ]
+              }
+            ],
+            "title": "[7402] seed单源",
+            "properties": {
+              "Node name for S&R": "PrimitiveInt",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed"
+            ],
+            "widgets_values_named": {
+              "value": 0,
+              "fixed": "fixed"
+            }
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 7441,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7401,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7442,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7402,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 7443,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7401,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 7444,
+            "origin_id": 7402,
+            "origin_slot": 0,
+            "target_id": 7401,
+            "target_slot": 3,
+            "type": "INT"
+          },
+          {
+            "id": 7445,
+            "origin_id": 501,
+            "origin_slot": 0,
+            "target_id": 7401,
+            "target_slot": 1,
+            "type": "SEEDVR2_DIT"
+          },
+          {
+            "id": 7446,
+            "origin_id": 502,
+            "origin_slot": 0,
+            "target_id": 7401,
+            "target_slot": 2,
+            "type": "SEEDVR2_VAE"
+          },
+          {
+            "id": 7447,
+            "origin_id": 7401,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          }
+        ],
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        },
+        "category": "漫影"
+      },
+      {
+        "id": "db69acb7-43d6-41c4-b4a8-2793e355c564",
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 7105,
+          "lastLinkId": 7156,
+          "lastRerouteId": 0
+        },
+        "revision": 1,
+        "config": {
+          "defaultIOState": {}
+        },
+        "name": "道劫·超分·潜空间重采样",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            80,
+            400,
+            128,
+            228
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            4700,
+            500,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "3aa59bd6-73f3-4fbb-865b-e13639d5fa0f",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7141
+            ],
+            "pos": [
+              104,
+              424
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000001",
+            "name": "model",
+            "type": "MODEL",
+            "linkIds": [
+              7143
+            ],
+            "pos": [
+              104,
+              444
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000002",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7144
+            ],
+            "pos": [
+              104,
+              464
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000003",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7145
+            ],
+            "pos": [
+              104,
+              484
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000004",
+            "name": "vae",
+            "type": "VAE",
+            "linkIds": [
+              7146,
+              7147
+            ],
+            "pos": [
+              104,
+              504
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000005",
+            "name": "seed",
+            "type": "INT",
+            "linkIds": [
+              7142
+            ],
+            "pos": [
+              104,
+              524
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000006",
+            "name": "步数",
+            "type": "INT",
+            "linkIds": [
+              7153
+            ],
+            "pos": [
+              104,
+              544
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000007",
+            "name": "目标宽",
+            "type": "INT",
+            "linkIds": [
+              7151
+            ],
+            "pos": [
+              104,
+              564
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000008",
+            "name": "目标高",
+            "type": "INT",
+            "linkIds": [
+              7152
+            ],
+            "pos": [
+              104,
+              584
+            ]
+          },
+          {
+            "id": "a0000000-0000-4000-8000-000000000009",
+            "name": "denoise",
+            "type": "FLOAT",
+            "linkIds": [
+              7154
+            ],
+            "pos": [
+              104,
+              604
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "a0000000-0000-4000-8000-00000000000a",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7156
+            ],
+            "pos": [
+              4724,
+              524
+            ]
+          }
+        ],
+        "widgets": [
+          0,
+          4,
+          2048,
+          2720,
+          0.35
+        ],
+        "nodes": [
+          {
+            "id": 7101,
+            "type": "PrimitiveInt",
+            "pos": [
+              300,
+              700
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "INT",
+                "widget": {
+                  "name": "value"
+                },
+                "link": 7142
+              }
+            ],
+            "outputs": [
+              {
+                "name": "INT",
+                "type": "INT",
+                "slot_index": 0,
+                "links": [
+                  7148
+                ]
+              }
+            ],
+            "title": "[7101] seed单源",
+            "properties": {
+              "Node name for S&R": "PrimitiveInt",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed"
+            ],
+            "widgets_values_named": {
+              "value": 0,
+              "fixed": "fixed"
+            }
+          },
+          {
+            "id": 7102,
+            "type": "VAEEncodeTiled",
+            "pos": [
+              1500,
+              500
+            ],
+            "size": [
+              270,
+              190
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "pixels",
+                "type": "IMAGE",
+                "link": 7141
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "link": 7146
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "slot_index": 0,
+                "links": [
+                  7149
+                ]
+              }
+            ],
+            "title": "[7102] 分块编码入潜",
+            "properties": {
+              "Node name for S&R": "VAEEncodeTiled",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              512,
+              64,
+              64,
+              8
+            ],
+            "widgets_values_named": {
+              "tile_size": 512,
+              "overlap": 64,
+              "temporal_size": 64,
+              "temporal_overlap": 8
+            }
+          },
+          {
+            "id": 7103,
+            "type": "LatentUpscale",
+            "pos": [
+              2300,
+              500
+            ],
+            "size": [
+              315,
+              170
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "samples",
+                "type": "LATENT",
+                "link": 7149
+              },
+              {
+                "name": "width",
+                "type": "INT",
+                "widget": {
+                  "name": "width"
+                },
+                "link": 7151
+              },
+              {
+                "name": "height",
+                "type": "INT",
+                "widget": {
+                  "name": "height"
+                },
+                "link": 7152
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "slot_index": 0,
+                "links": [
+                  7150
+                ]
+              }
+            ],
+            "title": "[7103] 潜空间放大(bicubic·3:4型2K)",
+            "properties": {
+              "Node name for S&R": "LatentUpscale",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "bicubic",
+              2048,
+              2720,
+              "disabled"
+            ],
+            "widgets_values_named": {
+              "upscale_method": "bicubic",
+              "width": 2048,
+              "height": 2720,
+              "crop": "disabled"
+            }
+          },
+          {
+            "id": 7104,
+            "type": "KSampler",
+            "pos": [
+              3100,
+              500
+            ],
+            "size": [
+              315,
+              262
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7143
+              },
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 7144
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 7145
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 7150
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 7148
+              },
+              {
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": 7153
+              },
+              {
+                "name": "denoise",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "denoise"
+                },
+                "link": 7154
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "slot_index": 0,
+                "links": [
+                  7155
+                ]
+              }
+            ],
+            "title": "[7104] 二段精采(cfg1·低denoise)",
+            "properties": {
+              "Node name for S&R": "KSampler",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              4,
+              1,
+              "euler",
+              "simple",
+              0.35
+            ],
+            "widgets_values_named": {
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "steps": 4,
+              "cfg": 1,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "denoise": 0.35
+            }
+          },
+          {
+            "id": 7105,
+            "type": "VAEDecodeTiled",
+            "pos": [
+              3900,
+              500
+            ],
+            "size": [
+              270,
+              190
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "samples",
+                "type": "LATENT",
+                "link": 7155
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "link": 7147
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "slot_index": 0,
+                "links": [
+                  7156
+                ]
+              }
+            ],
+            "title": "[7105] 分块解码出图",
+            "properties": {
+              "Node name for S&R": "VAEDecodeTiled",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              512,
+              64,
+              64,
+              8
+            ],
+            "widgets_values_named": {
+              "tile_size": 512,
+              "overlap": 64,
+              "temporal_size": 64,
+              "temporal_overlap": 8
+            }
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 7141,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7102,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7142,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7101,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 7143,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7104,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7144,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7104,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7145,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7104,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7146,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7102,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 7147,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7105,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 7148,
+            "origin_id": 7101,
+            "origin_slot": 0,
+            "target_id": 7104,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 7149,
+            "origin_id": 7102,
+            "origin_slot": 0,
+            "target_id": 7103,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 7150,
+            "origin_id": 7103,
+            "origin_slot": 0,
+            "target_id": 7104,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 7151,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 7103,
+            "target_slot": 1,
+            "type": "INT"
+          },
+          {
+            "id": 7152,
+            "origin_id": -10,
+            "origin_slot": 8,
+            "target_id": 7103,
+            "target_slot": 2,
+            "type": "INT"
+          },
+          {
+            "id": 7153,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 7104,
+            "target_slot": 5,
+            "type": "INT"
+          },
+          {
+            "id": 7154,
+            "origin_id": -10,
+            "origin_slot": 9,
+            "target_id": 7104,
+            "target_slot": 6,
+            "type": "FLOAT"
+          },
+          {
+            "id": 7155,
+            "origin_id": 7104,
+            "origin_slot": 0,
+            "target_id": 7105,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 7156,
+            "origin_id": 7105,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          }
+        ],
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        },
+        "category": "漫影"
+      },
+      {
+        "id": "bde98f0d-bdc3-506c-8e4f-c3ff4782c3f5",
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 7207,
+          "lastLinkId": 7226,
+          "lastRerouteId": 0
+        },
+        "revision": 1,
+        "config": {
+          "defaultIOState": {}
+        },
+        "name": "道劫·超分·B像素精修",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            80,
+            400,
+            128,
+            188
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            2620,
+            260,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "feb547b9-3213-5b72-ad1d-af47e9cae3e1",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7211
+            ],
+            "pos": [
+              104,
+              424
+            ]
+          },
+          {
+            "id": "d3c8d823-540a-5f64-be20-2f27c02c8399",
+            "name": "model",
+            "type": "MODEL",
+            "linkIds": [
+              7217
+            ],
+            "pos": [
+              104,
+              444
+            ]
+          },
+          {
+            "id": "8e6f57b0-8eea-5446-ae7a-c800460ab988",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7218
+            ],
+            "pos": [
+              104,
+              464
+            ]
+          },
+          {
+            "id": "082e93cb-9efa-5ab7-bbe6-10906e2fba96",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7219
+            ],
+            "pos": [
+              104,
+              484
+            ]
+          },
+          {
+            "id": "663509be-b1b2-5db2-8b14-b955befc7b93",
+            "name": "vae",
+            "type": "VAE",
+            "linkIds": [
+              7216,
+              7225
+            ],
+            "pos": [
+              104,
+              504
+            ]
+          },
+          {
+            "id": "bda2efb7-eeca-5df9-983a-eaa2537d5aa3",
+            "name": "seed",
+            "type": "INT",
+            "linkIds": [
+              7214
+            ],
+            "pos": [
+              104,
+              524
+            ]
+          },
+          {
+            "id": "95d7dbe7-5b20-5d65-9e9c-4af123a50301",
+            "name": "步数",
+            "type": "INT",
+            "linkIds": [
+              7222
+            ],
+            "pos": [
+              104,
+              544
+            ]
+          },
+          {
+            "id": "0534e503-c666-5db4-ba38-7a1503efe7f9",
+            "name": "目标兆像素",
+            "type": "FLOAT",
+            "linkIds": [
+              7213
+            ],
+            "pos": [
+              104,
+              564
+            ]
+          },
+          {
+            "id": "f3a386cb-7af2-5353-8823-da0a24e898f2",
+            "name": "denoise",
+            "type": "FLOAT",
+            "linkIds": [
+              7223
+            ],
+            "pos": [
+              104,
+              584
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "7bbdb9fb-ff8e-5c98-b6cf-29d198c8c063",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7226
+            ],
+            "pos": [
+              2644,
+              284
+            ]
+          }
+        ],
+        "widgets": [
+          0,
+          4,
+          5.57,
+          0.3
+        ],
+        "nodes": [
+          {
+            "id": 7201,
+            "type": "UpscaleModelLoader",
+            "pos": [
+              220,
+              260
+            ],
+            "size": [
+              270,
+              100
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_name"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "UPSCALE_MODEL",
+                "type": "UPSCALE_MODEL",
+                "links": [
+                  7210
+                ]
+              }
+            ],
+            "title": "[7201] ESRGAN放大模型(anime6B)",
+            "properties": {
+              "Node name for S&R": "UpscaleModelLoader",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "RealESRGAN_x4plus_anime_6B.pth"
+            ],
+            "widgets_values_named": {
+              "model_name": "RealESRGAN_x4plus_anime_6B.pth"
+            }
+          },
+          {
+            "id": 7202,
+            "type": "ImageUpscaleWithModel",
+            "pos": [
+              620,
+              260
+            ],
+            "size": [
+              270,
+              80
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "upscale_model",
+                "type": "UPSCALE_MODEL",
+                "link": 7210
+              },
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "link": 7211
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  7212
+                ]
+              }
+            ],
+            "title": "[7202] ×4像素超分",
+            "properties": {
+              "Node name for S&R": "ImageUpscaleWithModel",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": null,
+            "widgets_values_named": null
+          },
+          {
+            "id": 7203,
+            "type": "ImageScaleToTotalPixels",
+            "pos": [
+              1020,
+              260
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "link": 7212
+              },
+              {
+                "name": "upscale_method",
+                "type": "COMBO",
+                "widget": {
+                  "name": "upscale_method"
+                },
+                "link": null
+              },
+              {
+                "name": "megapixels",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "megapixels"
+                },
+                "link": 7213
+              },
+              {
+                "name": "resolution_steps",
+                "type": "INT",
+                "widget": {
+                  "name": "resolution_steps"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  7215
+                ]
+              }
+            ],
+            "title": "[7203] 回缩·目标兆像素",
+            "properties": {
+              "Node name for S&R": "ImageScaleToTotalPixels",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "lanczos",
+              5.57,
+              32
+            ],
+            "widgets_values_named": {
+              "upscale_method": "lanczos",
+              "megapixels": 5.57,
+              "resolution_steps": 32
+            }
+          },
+          {
+            "id": 7204,
+            "type": "PrimitiveInt",
+            "pos": [
+              220,
+              620
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "value",
+                "type": "INT",
+                "widget": {
+                  "name": "value"
+                },
+                "link": 7214
+              }
+            ],
+            "outputs": [
+              {
+                "name": "INT",
+                "type": "INT",
+                "links": [
+                  7221
+                ]
+              }
+            ],
+            "title": "[7204] seed单源",
+            "properties": {
+              "Node name for S&R": "PrimitiveInt",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed"
+            ],
+            "widgets_values_named": {
+              "value": 0,
+              "fixed": "fixed"
+            }
+          },
+          {
+            "id": 7205,
+            "type": "VAEEncodeTiled",
+            "pos": [
+              1420,
+              260
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "pixels",
+                "type": "IMAGE",
+                "link": 7215
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "link": 7216
+              },
+              {
+                "name": "tile_size",
+                "type": "INT",
+                "widget": {
+                  "name": "tile_size"
+                },
+                "link": null
+              },
+              {
+                "name": "overlap",
+                "type": "INT",
+                "widget": {
+                  "name": "overlap"
+                },
+                "link": null
+              },
+              {
+                "name": "temporal_size",
+                "type": "INT",
+                "widget": {
+                  "name": "temporal_size"
+                },
+                "link": null
+              },
+              {
+                "name": "temporal_overlap",
+                "type": "INT",
+                "widget": {
+                  "name": "temporal_overlap"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  7220
+                ]
+              }
+            ],
+            "title": "[7205] 分块VAE编码",
+            "properties": {
+              "Node name for S&R": "VAEEncodeTiled",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              512,
+              64,
+              64,
+              8
+            ],
+            "widgets_values_named": {
+              "tile_size": 512,
+              "overlap": 64,
+              "temporal_size": 64,
+              "temporal_overlap": 8
+            }
+          },
+          {
+            "id": 7206,
+            "type": "KSampler",
+            "pos": [
+              1820,
+              260
+            ],
+            "size": [
+              302.31739744199706,
+              262
+            ],
+            "flags": {},
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7217
+              },
+              {
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 7218
+              },
+              {
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 7219
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 7220
+              },
+              {
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 7221
+              },
+              {
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": 7222
+              },
+              {
+                "name": "cfg",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg"
+                },
+                "link": null
+              },
+              {
+                "name": "sampler_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler_name"
+                },
+                "link": null
+              },
+              {
+                "name": "scheduler",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler"
+                },
+                "link": null
+              },
+              {
+                "name": "denoise",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "denoise"
+                },
+                "link": 7223
+              }
+            ],
+            "outputs": [
+              {
+                "name": "LATENT",
+                "type": "LATENT",
+                "links": [
+                  7224
+                ]
+              }
+            ],
+            "title": "[7206] 低denoise i2i精修",
+            "properties": {
+              "Node name for S&R": "KSampler",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed",
+              4,
+              1,
+              "euler",
+              "simple",
+              0.3
+            ],
+            "widgets_values_named": {
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "steps": 4,
+              "cfg": 1,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "denoise": 0.3
+            }
+          },
+          {
+            "id": 7207,
+            "type": "VAEDecodeTiled",
+            "pos": [
+              2220,
+              260
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "samples",
+                "type": "LATENT",
+                "link": 7224
+              },
+              {
+                "name": "vae",
+                "type": "VAE",
+                "link": 7225
+              },
+              {
+                "name": "tile_size",
+                "type": "INT",
+                "widget": {
+                  "name": "tile_size"
+                },
+                "link": null
+              },
+              {
+                "name": "overlap",
+                "type": "INT",
+                "widget": {
+                  "name": "overlap"
+                },
+                "link": null
+              },
+              {
+                "name": "temporal_size",
+                "type": "INT",
+                "widget": {
+                  "name": "temporal_size"
+                },
+                "link": null
+              },
+              {
+                "name": "temporal_overlap",
+                "type": "INT",
+                "widget": {
+                  "name": "temporal_overlap"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  7226
+                ]
+              }
+            ],
+            "title": "[7207] 分块VAE解码",
+            "properties": {
+              "Node name for S&R": "VAEDecodeTiled",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              512,
+              64,
+              64,
+              8
+            ],
+            "widgets_values_named": {
+              "tile_size": 512,
+              "overlap": 64,
+              "temporal_size": 64,
+              "temporal_overlap": 8
+            }
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 7210,
+            "origin_id": 7201,
+            "origin_slot": 0,
+            "target_id": 7202,
+            "target_slot": 0,
+            "type": "UPSCALE_MODEL"
+          },
+          {
+            "id": 7211,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7202,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7212,
+            "origin_id": 7202,
+            "origin_slot": 0,
+            "target_id": 7203,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7213,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 7203,
+            "target_slot": 2,
+            "type": "FLOAT"
+          },
+          {
+            "id": 7214,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7204,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 7215,
+            "origin_id": 7203,
+            "origin_slot": 0,
+            "target_id": 7205,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7216,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7205,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 7217,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7206,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7218,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7206,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7219,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7206,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7220,
+            "origin_id": 7205,
+            "origin_slot": 0,
+            "target_id": 7206,
+            "target_slot": 3,
+            "type": "LATENT"
+          },
+          {
+            "id": 7221,
+            "origin_id": 7204,
+            "origin_slot": 0,
+            "target_id": 7206,
+            "target_slot": 4,
+            "type": "INT"
+          },
+          {
+            "id": 7222,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 7206,
+            "target_slot": 5,
+            "type": "INT"
+          },
+          {
+            "id": 7223,
+            "origin_id": -10,
+            "origin_slot": 8,
+            "target_id": 7206,
+            "target_slot": 9,
+            "type": "FLOAT"
+          },
+          {
+            "id": 7224,
+            "origin_id": 7206,
+            "origin_slot": 0,
+            "target_id": 7207,
+            "target_slot": 0,
+            "type": "LATENT"
+          },
+          {
+            "id": 7225,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7207,
+            "target_slot": 1,
+            "type": "VAE"
+          },
+          {
+            "id": 7226,
+            "origin_id": 7207,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          }
+        ],
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        },
+        "category": "漫影"
+      },
+      {
+        "id": "ea928e1b-57a1-4c8a-b972-49698579e9d3",
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 7302,
+          "lastLinkId": 7320,
+          "lastRerouteId": 0
+        },
+        "revision": 1,
+        "config": {
+          "defaultIOState": {}
+        },
+        "name": "道劫·超分·USDU平铺",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            80,
+            400,
+            128,
+            208
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            1200,
+            400,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "ea928e1b-0001-4c01-8b01-496985790001",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7310
+            ],
+            "pos": [
+              104,
+              424
+            ]
+          },
+          {
+            "id": "ea928e1b-0002-4c02-8b02-496985790002",
+            "name": "model",
+            "type": "MODEL",
+            "linkIds": [
+              7311
+            ],
+            "pos": [
+              104,
+              444
+            ]
+          },
+          {
+            "id": "ea928e1b-0003-4c03-8b03-496985790003",
+            "name": "positive",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7312
+            ],
+            "pos": [
+              104,
+              464
+            ]
+          },
+          {
+            "id": "ea928e1b-0004-4c04-8b04-496985790004",
+            "name": "negative",
+            "type": "CONDITIONING",
+            "linkIds": [
+              7313
+            ],
+            "pos": [
+              104,
+              484
+            ]
+          },
+          {
+            "id": "ea928e1b-0005-4c05-8b05-496985790005",
+            "name": "vae",
+            "type": "VAE",
+            "linkIds": [
+              7314
+            ],
+            "pos": [
+              104,
+              504
+            ]
+          },
+          {
+            "id": "ea928e1b-0006-4c06-8b06-496985790006",
+            "name": "seed",
+            "type": "INT",
+            "linkIds": [
+              7315
+            ],
+            "pos": [
+              104,
+              524
+            ]
+          },
+          {
+            "id": "ea928e1b-0007-4c07-8b07-496985790007",
+            "name": "步数",
+            "type": "INT",
+            "linkIds": [
+              7317
+            ],
+            "pos": [
+              104,
+              544
+            ]
+          },
+          {
+            "id": "ea928e1b-0008-4c08-8b08-496985790008",
+            "name": "放大倍率",
+            "type": "FLOAT",
+            "linkIds": [
+              7318
+            ],
+            "pos": [
+              104,
+              564
+            ]
+          },
+          {
+            "id": "ea928e1b-0009-4c09-8b09-496985790009",
+            "name": "denoise",
+            "type": "FLOAT",
+            "linkIds": [
+              7319
+            ],
+            "pos": [
+              104,
+              584
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "ea928e1b-0101-4d01-9d01-496985790101",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7320
+            ],
+            "pos": [
+              1224,
+              424
+            ]
+          }
+        ],
+        "widgets": [
+          0,
+          12,
+          1.92,
+          0.2
+        ],
+        "nodes": [
+          {
+            "id": 7301,
+            "type": "UltimateSDUpscaleCustomSample",
+            "pos": [
+              700,
+              400
+            ],
+            "size": [
+              360,
+              640
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "link": 7310
+              },
+              {
+                "localized_name": "model",
+                "name": "model",
+                "type": "MODEL",
+                "link": 7311
+              },
+              {
+                "localized_name": "positive",
+                "name": "positive",
+                "type": "CONDITIONING",
+                "link": 7312
+              },
+              {
+                "localized_name": "negative",
+                "name": "negative",
+                "type": "CONDITIONING",
+                "link": 7313
+              },
+              {
+                "localized_name": "vae",
+                "name": "vae",
+                "type": "VAE",
+                "link": 7314
+              },
+              {
+                "localized_name": "upscale_by",
+                "name": "upscale_by",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "upscale_by"
+                },
+                "link": 7318
+              },
+              {
+                "localized_name": "seed",
+                "name": "seed",
+                "type": "INT",
+                "widget": {
+                  "name": "seed"
+                },
+                "link": 7316
+              },
+              {
+                "localized_name": "steps",
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": 7317
+              },
+              {
+                "localized_name": "cfg",
+                "name": "cfg",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampler_name",
+                "name": "sampler_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scheduler",
+                "name": "scheduler",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "denoise",
+                "name": "denoise",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "denoise"
+                },
+                "link": 7319
+              },
+              {
+                "localized_name": "mode_type",
+                "name": "mode_type",
+                "type": "COMBO",
+                "widget": {
+                  "name": "mode_type"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "tile_width",
+                "name": "tile_width",
+                "type": "INT",
+                "widget": {
+                  "name": "tile_width"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "tile_height",
+                "name": "tile_height",
+                "type": "INT",
+                "widget": {
+                  "name": "tile_height"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "mask_blur",
+                "name": "mask_blur",
+                "type": "INT",
+                "widget": {
+                  "name": "mask_blur"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "tile_padding",
+                "name": "tile_padding",
+                "type": "INT",
+                "widget": {
+                  "name": "tile_padding"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "seam_fix_mode",
+                "name": "seam_fix_mode",
+                "type": "COMBO",
+                "widget": {
+                  "name": "seam_fix_mode"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "seam_fix_denoise",
+                "name": "seam_fix_denoise",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "seam_fix_denoise"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "seam_fix_width",
+                "name": "seam_fix_width",
+                "type": "INT",
+                "widget": {
+                  "name": "seam_fix_width"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "seam_fix_mask_blur",
+                "name": "seam_fix_mask_blur",
+                "type": "INT",
+                "widget": {
+                  "name": "seam_fix_mask_blur"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "seam_fix_padding",
+                "name": "seam_fix_padding",
+                "type": "INT",
+                "widget": {
+                  "name": "seam_fix_padding"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "force_uniform_tiles",
+                "name": "force_uniform_tiles",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "force_uniform_tiles"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "tiled_decode",
+                "name": "tiled_decode",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "tiled_decode"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "batch_size",
+                "name": "batch_size",
+                "type": "INT",
+                "widget": {
+                  "name": "batch_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "upscale_model",
+                "name": "upscale_model",
+                "type": "UPSCALE_MODEL",
+                "link": null
+              },
+              {
+                "localized_name": "custom_sampler",
+                "name": "custom_sampler",
+                "type": "SAMPLER",
+                "link": null
+              },
+              {
+                "localized_name": "custom_sigmas",
+                "name": "custom_sigmas",
+                "type": "SIGMAS",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  7320
+                ]
+              }
+            ],
+            "title": "[7301] USDU平铺重绘(CustomSample·Lanczos缺省)",
+            "properties": {
+              "Node name for S&R": "UltimateSDUpscaleCustomSample",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              1.92,
+              0,
+              "fixed",
+              12,
+              1,
+              "euler",
+              "simple",
+              0.2,
+              "Linear",
+              512,
+              512,
+              8,
+              32,
+              "None",
+              1,
+              64,
+              8,
+              16,
+              true,
+              true,
+              1
+            ],
+            "widgets_values_named": {
+              "upscale_by": 1.92,
+              "seed": 0,
+              "control_after_generate": "fixed",
+              "steps": 12,
+              "cfg": 1,
+              "sampler_name": "euler",
+              "scheduler": "simple",
+              "denoise": 0.2,
+              "mode_type": "Linear",
+              "tile_width": 512,
+              "tile_height": 512,
+              "mask_blur": 8,
+              "tile_padding": 32,
+              "seam_fix_mode": "None",
+              "seam_fix_denoise": 1,
+              "seam_fix_width": 64,
+              "seam_fix_mask_blur": 8,
+              "seam_fix_padding": 16,
+              "force_uniform_tiles": true,
+              "tiled_decode": true,
+              "batch_size": 1
+            }
+          },
+          {
+            "id": 7302,
+            "type": "PrimitiveInt",
+            "pos": [
+              300,
+              400
+            ],
+            "size": [
+              270,
+              90
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "数值",
+                "name": "value",
+                "type": "INT",
+                "widget": {
+                  "name": "value"
+                },
+                "link": 7315
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "整数",
+                "name": "INT",
+                "type": "INT",
+                "links": [
+                  7316
+                ]
+              }
+            ],
+            "title": "[7302] seed单源",
+            "properties": {
+              "Node name for S&R": "PrimitiveInt",
+              "cnr_id": "comfy-core",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              "fixed"
+            ],
+            "widgets_values_named": {
+              "value": 0,
+              "fixed": "fixed"
+            }
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 7310,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7301,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7311,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7301,
+            "target_slot": 1,
+            "type": "MODEL"
+          },
+          {
+            "id": 7312,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7301,
+            "target_slot": 2,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7313,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7301,
+            "target_slot": 3,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7314,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7301,
+            "target_slot": 4,
+            "type": "VAE"
+          },
+          {
+            "id": 7315,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7302,
+            "target_slot": 0,
+            "type": "INT"
+          },
+          {
+            "id": 7316,
+            "origin_id": 7302,
+            "origin_slot": 0,
+            "target_id": 7301,
+            "target_slot": 6,
+            "type": "INT"
+          },
+          {
+            "id": 7317,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 7301,
+            "target_slot": 7,
+            "type": "INT"
+          },
+          {
+            "id": 7318,
+            "origin_id": -10,
+            "origin_slot": 7,
+            "target_id": 7301,
+            "target_slot": 5,
+            "type": "FLOAT"
+          },
+          {
+            "id": 7319,
+            "origin_id": -10,
+            "origin_slot": 8,
+            "target_id": 7301,
+            "target_slot": 11,
+            "type": "FLOAT"
+          },
+          {
+            "id": 7320,
+            "origin_id": 7301,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          }
+        ],
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        },
+        "category": "漫影"
       }
     ]
   },
