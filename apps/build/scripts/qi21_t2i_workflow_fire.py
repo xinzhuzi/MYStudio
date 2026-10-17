@@ -30,17 +30,17 @@ DOC = REPO / "docs/prompts/道劫_类型主体句示例.md"
 TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
 TURBO_SIGMAS = ("1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, "
                 "0.704534, 0.414568, 0")  # 官方 model_index sample_sigmas+模板补终止0
-# 1017 增档令:面板首档=「自动 · 按型」(型名∈{设定卡,美宣}→原生出图,其余
+# 1017 增档令:面板首档=「自动 · 按型」(型名∈{设定卡,美宣,概念气氛图}→原生出图,其余
 # 含空→Turbo);fire 侧镜像节点件 my_qi21_speed_select.resolve_slot 的路由表
 # (发车器读的是面板串,须在展平前解析成生效档再选支路——headless 无 lazy 方)
 AUTO_MODE = "自动 · 按型"
-AUTO_DIRECT_TYPES = ("设定卡", "美宣")
+AUTO_DIRECT_TYPES = ("设定卡", "美宣", "概念气氛图")
 
 
 def resolve_speed_mode(speed, type_name):
     """面板档×型名→生效档(1017;与 my_qi21_speed_select.resolve_slot 同路由表)。
 
-    「自动 · 按型」按型名现算:型名∈{设定卡,美宣}→「1 · 原生出图」,其余
+    「自动 · 按型」按型名现算:型名∈{设定卡,美宣,概念气氛图}→「1 · 原生出图」,其余
     (含 None/空串)→「0 · Turbo 8步」(型名空=按 Turbo 缺省安全侧);手动档
     与未知串原样返回(未知串交引擎 /prompt combo 闭集硬校验报 400,
     fail-closed 不代选);--turbo 显式覆写已在取值处优先生效不经本函数改写。"""

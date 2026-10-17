@@ -35,10 +35,11 @@ VIGGLE = "2 · viggle"
 MANUALS = (TURBO, DIRECT, VIGGLE)
 UNKNOWN = "9 · 乱档"
 
-# 全矩阵:自动档×型名六例 + 手动三串×三型 + 未知串
+# 全矩阵:自动档×型名七例 + 手动三串×三型 + 未知串
 CASES = [
     (AUTO, "设定卡", DIRECT),
     (AUTO, "美宣", DIRECT),
+    (AUTO, "概念气氛图", DIRECT),   # 1017 概念图役用户裁定入原生名单
     (AUTO, "人物", TURBO),
     (AUTO, "自由", TURBO),
     (AUTO, None, TURBO),
@@ -77,7 +78,7 @@ def test_auto_string_glyph_locked():
         assert fire.AUTO_MODE == "自动 · 按型"
         assert "·" in fire.AUTO_MODE and "\u00b7" == fire.AUTO_MODE[
             fire.AUTO_MODE.index("·")]
-        assert fire.AUTO_DIRECT_TYPES == ("设定卡", "美宣")
+        assert fire.AUTO_DIRECT_TYPES == ("设定卡", "美宣", "概念气氛图")
 
 
 def test_manual_and_unknown_passthrough_identity():

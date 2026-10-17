@@ -717,7 +717,7 @@ SPEED_SLOT_OF = dict(SPEED_MODES)
 MODE_TURBO = next(m for m, s in SPEED_MODES if s == "latent_turbo")
 MODE_DIRECT = next(m for m, s in SPEED_MODES if s == "latent_direct")
 MODE_VIGGLE = next(m for m, s in SPEED_MODES if s == "latent_viggle")
-# 1017 增档令(型名信号穿界):首项=默认=「自动 · 按型」——型名∈{设定卡,美宣}→
+# 1017 增档令(型名信号穿界):首项=默认=「自动 · 按型」——型名∈{设定卡,美宣,概念气氛图}→
 # 原生出图,其余含空→Turbo(路由表单一真源=节点件 resolve_slot;本令再推翻
 # 1002/1016「首项=Turbo 8步」口径,历史账不改写,以此为准)。自动档无固有槽
 # (SPEED_MODES 槽位记 None、_SLOT_OF 过滤),_reach_state/_assert_accel_subgraph
@@ -940,7 +940,7 @@ def _lazy_arm_slots(graph: dict, sg: dict | None, nodes: dict, links: dict,
 def _resolve_auto_mode(graph: dict, mode: str) -> str:
     """1017 自动档解析:「自动 · 按型」×装配宿主「型选择」面板现值→具体档串。
 
-    路由表单一真源=节点件 resolve_slot(型名∈{设定卡,美宣}→原生出图,其余
+    路由表单一真源=节点件 resolve_slot(型名∈{设定卡,美宣,概念气氛图}→原生出图,其余
     含空→Turbo;型名信号真源=装配宿主「型选择」面板值——[4010]「型名」出=
     base 入参原值直通,面板即信号)。非自动档原样返回,未知档交调用方
     assert(combo 闭集互锁)。_reach_state/_assert_accel_subgraph 共用本函数,
@@ -1467,7 +1467,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     _all_accel = tuple(dict.fromkeys(_mode_members[MODE_TURBO]
                                      + _mode_members[MODE_VIGGLE] + (ks_direct,)))
     # 1017:默认档可为「自动 · 按型」——先按装配宿主「型选择」面板现值解析成
-    # 具体档(型名∈{设定卡,美宣}→直出,其余含空→Turbo),成员表与默认干跑
+    # 具体档(型名∈{设定卡,美宣,概念气氛图}→直出,其余含空→Turbo),成员表与默认干跑
     # 都按生效档走(三档 override 干跑不动,仍直查 _mode_members)
     _dmode_eff = _resolve_auto_mode(graph, default_mode)
     dfun = _reach_state(graph, save_id, mode_override=_dmode_eff)
@@ -1967,7 +1967,7 @@ class TestTypeSignalAuto1017:
                     "qi21: Note 402 双字段应同文镜像(1017 手术 E 段)"
                 for tok in ("首项=「自动 · 按型」=全局出厂默认",
                             "本件默认=「自动 · 按型」",
-                            "型名∈{设定卡,美宣}→原生出图"):
+                            "型名∈{设定卡,美宣,概念气氛图}→原生出图"):
                     assert tok in wv0, f"qi21: Note 402 缺 1017 新档 token {tok!r}"
             else:
                 assert isinstance(text, str), "i2i: Note 402 应有长文字段 wvn.text"
@@ -3486,7 +3486,7 @@ class TestQi21SubgraphContract:
             panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板三控
             direct_lora=QI21_FIX_LORA_ID,  # 1009:直出支路挂 Fix v2.0(官方域,7026→7010)
             vig_fix_lora=None,             # 1016 用户令:共用Fix 实验臂结案拆除(1009 试效果→1016 定谳无用)
-            # 1017 增档令:道劫本件默认档=「自动 · 按型」(型名∈{设定卡,美宣}→
+            # 1017 增档令:道劫本件默认档=「自动 · 按型」(型名∈{设定卡,美宣,概念气氛图}→
             # 原生出图,其余含空→Turbo;1008/1009 viggle→1016turbo 提首两笔旧
             # 口径随令翻篇,历史账不改写;py 侧 DEFAULT_MODE 出厂首项同批翻 AUTO)
             default_mode=MODE_AUTO,

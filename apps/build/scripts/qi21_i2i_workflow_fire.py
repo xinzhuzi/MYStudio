@@ -11,7 +11,8 @@
   故按档直通:winning 采样器输出直代 SpeedSelect 出线,未选支路剪除
   (与画布执行图等价;1017 起面板出厂默认=「自动 · 按型」,展平前经
   resolve_speed_mode 按 --type 解析生效档再直通);
-- seed=**每次随机**(random.randint;铁令),注入宿主「seed」面板槽现值位;
+- seed=**每次随机**(random.randint;铁令),真注=flatten 后直写 7:7014/503:7402
+  (宿主「seed」面板槽写值对老式宿主[7]不生效——1017up4 复查定谳);
 - PE 改写=[4013] TextGenerate 本地 pe_i2i 检查点(全链零云端,API key 无涉)。
 
 用法:python3 qi21_i2i_workflow_fire.py --instruction "..." \
@@ -68,17 +69,17 @@ PICKERS = {
                      "sampling_mode.use_default_template": 11, "sampling_mode.mtp": 12},
 }
 
-# 1017 增档令:面板首档=「自动 · 按型」(型名∈{设定卡,美宣}→原生出图,其余
+# 1017 增档令:面板首档=「自动 · 按型」(型名∈{设定卡,美宣,概念气氛图}→原生出图,其余
 # 含空→Turbo);fire 侧镜像节点件 my_qi21_speed_select.resolve_slot 的路由表
 # (headless 直通形无 lazy 请求方,须在展平前解析成生效档再剪支路)
 AUTO_MODE = "自动 · 按型"
-AUTO_DIRECT_TYPES = ("设定卡", "美宣")
+AUTO_DIRECT_TYPES = ("设定卡", "美宣", "概念气氛图")
 
 
 def resolve_speed_mode(speed, type_name):
     """面板档×型名→生效档(1017;与 my_qi21_speed_select.resolve_slot 同路由表)。
 
-    「自动 · 按型」按型名现算:型名∈{设定卡,美宣}→「1 · 原生出图」,其余
+    「自动 · 按型」按型名现算:型名∈{设定卡,美宣,概念气氛图}→「1 · 原生出图」,其余
     (含 None/空串)→「0 · Turbo 8步」(型名空=按 Turbo 缺省安全侧);手动档
     与未知串原样返回(未知串交引擎 /prompt combo 闭集硬校验报 400,
     fail-closed 不代选;--tier 显式给档不经型名改写)。"""
@@ -453,7 +454,7 @@ def build_graph(args, seed):
     tier_panel = host7_wv[0]
     tier = resolve_speed_mode(tier_panel, args.type)
     build_graph.last_panel = tier_panel
-    host7_wv[1] = seed
+    host7_wv[1] = seed  # 此写对老式宿主[7]不生效,seed 真注=flatten 后直写 7:7014/503:7402(见下)
     # 旁路占位对 [12]/[18] 的宿主 widget 缺席(其值随节点 widgets_values 走,可直改)
     if args.enable_ref3 and args.ref3 and 12 in root:
         root[12]["widgets_values"][0] = args.ref3
@@ -465,6 +466,13 @@ def build_graph(args, seed):
     fl.flatten(tier, {"enable_ref3": args.enable_ref3,
                       "enable_anchor": args.enable_anchor,
                       "images": {10: args.ref1, 11: args.ref2}})
+    # 1017up4 复查红:i2i seed 直注——宿主[7]为老式无 widget 键(promoted 空),
+    # Flattener lit 直通不达,主链 7:7014 与 D 尾 503:7402 落回子图内恒 0
+    # (1016 收装起即如此=基线旧红;铁律「每次生图必随机种子」i2i 全链未达)。
+    # 手法与 t2i fire(:298 PrimitiveInt value=seed)同款:
+    for k in ("7:7014", "503:7402"):
+        if k in fl.g and fl.g[k]["class_type"] == "PrimitiveInt":
+            fl.g[k]["inputs"]["value"] = seed
     if args.cond_single:  # 诊断探针覆写(不落盘,仅本弹执行图)
         for k in ("7:7019", "7:7022"):
             fl.g[k]["inputs"]["conditioning"] = ["6:171", 0]

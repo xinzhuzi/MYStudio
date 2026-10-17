@@ -29,7 +29,7 @@ parallel design §2/§4):原生出图 / viggle / Turbo 三条完整自足支路�
     文案):带档名+槽名+已接线档位清单,不猜不代选。
 
 档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=「自动 · 按型」**(1017
-增档令:按型名自动路由——型名∈{设定卡,美宣}→原生出图,其余含空→Turbo;
+增档令:按型名自动路由——型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo(1017 概念图役用户裁定追加概念气氛图);
 本令再推翻 1002/1016「首项=Turbo 8步」口径,历史账不改写,以此为准;Turbo
 8步=1016turbo 换臂 FunnyAcc→官方 Turbo LoRA(avg_rank_178)8步 cfg1,承 1002
 用户令「qi21-道劫-t2i.json 默认是 Fun-Acc 加速,默认就要设置这个」的提首位
@@ -55,8 +55,9 @@ from typing import Any
 # 序位号(0/1/2,1002 理顺:与新 combo 序一致);分隔符=U+00B7 中点
 # (契约测试锁码位防全角漂移)。
 # 自动档(1017)路由表:型名∈_AUTO_DIRECT_TYPES→原生出图,其余(含空)→Turbo。
+# 1017 概念图役用户裁定:概念气氛图入原生名单(残殿细节锚需 40 步原生,Turbo 纹理弱化)。
 AUTO_MODE = "自动 · 按型"
-_AUTO_DIRECT_TYPES: tuple[str, ...] = ("设定卡", "美宣")
+_AUTO_DIRECT_TYPES: tuple[str, ...] = ("设定卡", "美宣", "概念气氛图")
 SPEED_MODES: tuple[tuple[str, str | None], ...] = (
     (AUTO_MODE, None),
     ("0 · Turbo 8步", "latent_turbo"),
@@ -79,7 +80,7 @@ def slot_for_mode(mode: str) -> str | None:
 def resolve_slot(mode: str | None, type_name: str | None = None) -> str | None:
     """档位×型名→选中槽名(1017 自动档路由单一真源)。
 
-    自动档按型名现算:型名∈_AUTO_DIRECT_TYPES(设定卡/美宣)→原生出图,
+    自动档按型名现算:型名∈_AUTO_DIRECT_TYPES(设定卡/美宣/概念气氛图)→原生出图,
     其余(含空串/缺省 None)→Turbo(型名空=按 Turbo 的缺省口径);手动档
     忽略型名直查 _SLOT_OF;未知档位返回 None(由调用方给明确报错)。
     check_lazy_status 与 select 共用本函数,保证两路槽求值零漂移。
@@ -91,7 +92,7 @@ def resolve_slot(mode: str | None, type_name: str | None = None) -> str | None:
 
 class MyQi21SpeedSelect:
     """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择(默认「自动 ·
-    按型」1017 增档:型名∈{设定卡,美宣}→原生出图,其余含空→Turbo;1002-1016
+    按型」1017 增档:型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo;1002-1016
     默认 Turbo 8步 由 1017 再翻篇;0929-1001 期间曾默认原生出图,1002-1016
     曾默认 Fun-Acc 4步,均已翻篇,历史账不改写)。
 
