@@ -19,7 +19,7 @@
 
 ## 布局策略全谱(核心章,完整自含)
 
-> 本章数字口径以 0928 立宪与 `apps/build/scripts/workflow_layout_baseline.json` 实况为准(三生成器 1001 起退役勿重跑,自查谓词降为史档);**易变棘轮基线现值不硬编码**,取现值走 `docs/comfyui-kb/画布布局规范.md` §三。
+> 本章数字口径以 0928 立宪与 `apps/build/scripts/workflow_layout_baseline.json` 实况为准(三生成器 1001 起退役勿重跑,自查谓词降为史档);**易变棘轮基线现值不硬编码**,取现值走 `docs/comfyui-kb/画布布局规范.md` §三。画布内人工提效工具(AlignLayout 类插件,未装候选,档=`docs/comfyui-kb/画布提效插件AlignLayout.md`)动生产件同样落基线重立纪律(其自动布局不内建线不交叉判据);AI 侧布局产出恒走 layout_check 审计口径,不用 UI 级对齐/自动布局;AlignLayout 的布局/美观操作已以非手动纯函数形态吸收入 ⑩(`tools/layout_polish.py`,守门双不增)。
 
 **生成器(⚠️ 1001 起退役勿重跑)**(本章与 ④⑥⑦ 反复依赖的概念,先定义)= `apps/build/scripts/` 下三个幂等 Python 脚本,0928 立宪时的生产工作流产地(直接执行=重建三件生产工作流 GUI JSON+跑自查谓词一体,谓词住各脚本 docstring 自查段)。**1001 起 0928 立宪 §三 明令退役勿重跑**——重跑=用旧拓扑覆盖手术链产物(t2i 件权威=手术脚本链);自查段降为史档可读勿执行。退役后现状口径:①**基线真源=`apps/build/scripts/workflow_layout_baseline.json` 单源**(audit/layout_check 口径);②生产件改动=带断言幂等手术脚本(fail-closed 不落盘)改仓库真源,改后 layout_check+契约测试双验;③名单速取(史档,免誊代号)=`grep -l "交叉不增封顶" apps/build/scripts/*.py` 恰命中三件(文件名带项目代号,按零 IP 词纪律本文不誊写)。基线账权威=0928 立宪文档 §三。
 
@@ -121,6 +121,34 @@
 - **列内 barycenter 重排**(artokun):同列节点 y 逼近其连线邻居的均值,属 ④ 手法序「挪位置」的具体化,先于垫 Reroute。
 - **组框 vs 子图 deliberate choice**(artokun):组框优先(轻量视觉带);2-3 节点的阶段不值得子图化,过度子图化伤可读性与打包交接——制衡「完整功能域收装子图」(收装判据不变:功能域完整才收,不为收而收)。
 - **禁擅自大重排**(VibeComfy off/suggest/candidate 治理):布局整理恒显式任务,不做功能编辑的搭车动作;与 1006「手术顺手清残留」不冲突(清残留=删已退役件遗骸,非重排)。
+
+### ⑩ AlignLayout 布局/连线域吸收(1018 v4;**源码实读,方法重实现零逐字拷贝**——上游 pixixai/ComfyUI-AlignLayout 无 LICENSE 文件,2026-10-18 三查)
+
+研读范围=repo@main(v1.6.5)`web/default/` **全域源码**(auto_layout/align/stretch/fast_link/replace/link_cut/select_same 全文+更新日志 1.0.6-1.6.5 全核;add/quick_node 菜单族/port_connect_menu 连接助手=UI 域通览未逐行)+`web/docs/` 设计文档;`web/nodes2/`=Nodes 2.0 Vue 适配同算法。研读副本用后即删(不入仓不装机);插件本体=未装候选(UI 手排域,档=`docs/comfyui-kb/画布提效插件AlignLayout.md`);**手动接线族(划线断开/连接助手/端口高亮/连线锁定/兼容查找)不吸收**。工具件=`tools/layout_polish.py` v4(12 组自测+生产件只读+t2i 实弹双域全绿;判据复用 layout_check,est 常量复用 workflow_layout)。
+
+**A. auto_layout.js 八法**(602 行核心,逐条代码级):
+1. **组=单元自底向上递归**:组按面积降序绑父子(小内组后绑=覆盖式成完美嵌套树);子集先排布→重算组框——minY 须含子节点 `pos[1]−titleHeight`(**标题栏画在 pos 上方**的坐标事实);组框=[minX−10, minY−titleHeight−10, +20, +titleHeight+20],下限 140×80。
+2. **块级外线收集**:节点→所属顶级块映射,布局只看块间外线(块内线不参与排序)。
+3. **孤岛 BFS**:块级连通分量互不干扰;按质心 y(或 x)排序+孤岛间距堆叠。
+4. **深度推导两档**:Source-Aligned=ASAP 正向迭代(`depth=max(来源depth)+1` 到 fixpoint);Sink-Aligned=ALAP 逆向反推+矩阵翻转(`maxDepth−depth` 保终点同列)。
+5. **悬空源右拉**:有下游且 `depth<minChildDepth−1` → 提到 `minChildDepth−1`(输出-only 节点吸附到消费端前一列,拒无效远堆)。
+6. **列对齐**:逆向模式**列右对齐**(列内各件 x=基准−自身宽→输入口缘整齐),正向左对齐。
+7. **列序混合排序(⑧1 槽序+⑨ barycenter 的合体,带具体参数)**:主键=相关节点最小 y,**y 差>10px 才分胜负**,次键=平均对向槽序(origin_slot/target_slot 均值);无线关系=自身 y+槽 0 兜底。→ 本仓 `column_order()`;t2i [6] 子图扇出 5 消费端实弹:10px 带内槽序决胜实拍([4015] y1820 排 [4015N] y1810 前=差恰 10 不分胜负→槽序 0.0<0.5)。
+8. **天际线游标**:列内自上而下,`cursor+titleHeight`=身体最小安全 y(标题不吃上层间距);**单关系节点对齐其唯一相关件 y**(不越安全线);推进=节点底边+行距;孤岛高只记底边(尾距不虚增)。
+
+坐标事实三证:标题栏在 pos 上方约 30px、不在 `size[1]` 内(⑨ artokun+VibeComfy 两证,本次第三证;本仓 est「标题 36+…」同判)。
+
+**B. stretch 语义**(stretch_plugin.js 代码级):单边拉伸=对侧缘固定;H-Max/V-Max=**居中保持**(`cx−maxW/2`,两侧对称扩张);Min Size=内容物理极限**只缩不放**(宽=DEFAULT_W 下限,高=est 原始公式——注意 `est_size` 对声明高取 max 只增不减,收缩档须用原始式,本仓 `_content_size()`);Default=宽 320 高自适应。
+
+**C. fast_link**(fast_link.js 全文代码级):**视觉列排序 0.8 阈值**(两件横向重叠>较窄者宽 80%=竖叠按 y,否则横排按 x,id 决胜——错位半叠布局的排序解)→ `visual_order()`;**评分梯**(`getConnectionScore` 奖励制,更新日志 1.0.8 由惩罚制改奖励制):-1 不兼容/1 任一侧通配/2 类型合而名异/**3 同名(大小写不敏感)**或 type_only 模式 → `connection_score()`;**连线创建三式**(1018 v4 随「连线这块」令吸收为数据层引擎):汇聚 `plan_fan_in`(每源输出本计划用一次)+广播 `plan_fan_out`(**共享占用集=智能分配**,先派未用输出,用尽**广播复用**已连输出)+链式 `plan_chain`(视觉序 1→2→3,**上环配平成功才推进**);**非强制绝不拆旧线只补空位**;`materialize_links()` 落真链表条目+inputs[].link/outputs[].links 同步。**选区内外清线语义**:internal=仅断两端皆选(选区<2 无操作);external=仅断恰一端选(单选=断全部;更新日志 1.0.8「暴力断开」口径)→ `strip_links()`(负端点=子图边界算选区外)。实弹(t2i):已接 clip 槽非强制跳过+真空可选槽 image_1 配平 score2+vae 无源落未配平——三态全对。
+
+**D. replace_node 四级迁移阶梯**(findBestInputSlot/OutputSlot 代码级):① name+type 全等 → ② 仅 name → ③ 唯一类型(**双方排除 "*"/"Any" 通配后恰一候选**)→ ④ 同序兜底(force 开=无条件同 index;关=仅当同位类型兼容,通配算兼容)→ -1 弃线;widget 值按 name+type 迁移;动态数组槽按 `(.*_)(\d+)` 尾名续编扩展。→ 本仓 `match_ports()`(数据层差异:①-③ 加新槽占用制防一槽双 mapping,④ forced 不受占用约束并如实标注 via)。
+
+**E. link_cut**:命中距 4px/渐亮 12px 屏幕像素不随缩放;快速划动不漏检的真底座=`pointermove` 的 `getCoalescedEvents()` 合并事件逐个回放(浏览器 PointerEvent API;工程借鉴档=KB 插件档 §五4);贝塞尔采样求交族=layout_check 24 点采样**独立印证**,不新增。
+
+**F. align 面板数学**(align_plugin.js 代码级):六式对齐=极值缘对齐(left/right/top/bottom→齐 min/max 缘)+**中心均值线**(h/v_center=各件中心的算术平均,非中位数)→ `align_edges()`(绘制口径盒,声明 size 优先);Stack 指定间距=**定隙紧凑堆叠**+**智能锚点 getAnchorNode**(主轴极值 5px 容差候选→副轴极值 5px→优先无入线起点件→id 最小兜底——锚的不是最左件而是工作流起点件)→ `distribute_row(gap=…, anchor="start")`(本仓增补 gap=None 等距保跨度档;分布副轴对齐三档已实现=distribute_row 的 align 参数,`pos_cross=锚件副轴起点+(锚件副轴尺寸−本件尺寸)×factor`,factor 0/½/1)。多类型端口判据(更新日志 1.5.0:类型判断统一走 ComfyUI 原生规则,支持通配/多类型/特殊端口)→ `match_ports` 按**类型集合交集**近似实现(`_types_compatible`)。
+
+**吸收函数面(v4,`tools/layout_polish.py`,16 函数)**:`align_edges`(六式对齐·中心均值线)/`distribute_row`(等距保跨度|定隙堆叠+智能锚点+副轴对齐三档)/`unify_widths`(同宽·居中保持)/`fit_min_size`(尺寸收敛只缩)/`find_free_slot`(防碰撞落位)/`sweep_dead_links`(悬空线+孤儿 Reroute)/`strip_links`(选区内外清线)/`match_ports`(换件端口阶梯·多类型交集兼容)/`column_order`(列序混合排序)/`connection_score`(端口评分梯)/`visual_order`(0.8 视觉列序)/`plan_fan_in`·`plan_fan_out`·`plan_chain`(连线创建三式)/`materialize_links`(计划落真线)/`guarded_polish`(美观双不增守门:layout_check 各 scope counts 一项不增否则弃;1018 实弹=t2i 行带 [401,8,4018] 等距化被拒,+1 交叉+1 线遮——④ 第 1/2 位对第 4/5 位的压制机器化)。**分工**:pos/size 纯美观类(align/distribute/unify/fit)须过守门;strip/match/plan*/materialize=**拓扑域手术引擎**无守门,由手术脚本断言+layout_check+契约测试把门(⑦)。生产件改动仍恒走手术脚本路线,CLI `--apply` 直写仅限临时图(生产路径须 `--allow-prod`);与 `docs/comfyui-kb/画布布局规范.md` §五(1018 补立)同口径镜像。
 - **对拍证据落盘**(VibeComfy):组框/摆位手术后,对拍结论(逐字节等价+只动 pos/groups)落证据文件,勿只在会话里口头绿。
 - **前端扩展 v2 API 指针(含勘正)**(artokun comfyui-frontend-extensions;涉认知集 COGNITION.md §1):该技能称 v2 扩展 API 已发布为 npm 包 `@comfyorg/extension-api`(defineNode/defineExtension/defineWidget、typed 事件、Disposable 句柄)——**2026-10-06 npm 三形状实查 404,该包名不存在**(@comfyorg 域现仅 litegraph/sdk 两包),勿按此包名引入;现行可靠路仍是 v1 `app.registerExtension`+`onExecuted` 形(本仓 my_nodes web JS 在用),v2 说法候上游真发布后再考。
 

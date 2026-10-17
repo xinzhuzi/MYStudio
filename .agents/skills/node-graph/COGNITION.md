@@ -54,6 +54,16 @@
 - **widget 槽三态**:`link:null`+widget 在场=字面值生效;`link` 有值+widget 在场=摆设值(面板值≠生效值);宿主提升槽=面板控件(实例值权威=宿主 `widgets_values`,定义级 `sg.widgets` 只是出生缺省)。
 - **「输入输出」三层各归各**:①节点槽级(输入/输出 port)②子图边界轨级(`sg.inputs`/`sg.outputs`,-10/-20)③输出节点级(OUTPUT_NODE;graphToPrompt 只保留可达输出节点的子图,见「执行链」)。
 
+**口语→工具函数(1018 grill Q3 补;「怎么做」与判据出处=优化集 OPTIMIZATION.md 布局策略 ⑩+调用集工具配方,本表只管路由,不在本件复制原理)**:
+
+- 「把这几个对齐」→ `align_edges`(六式:上下左右缘/中心均值线);
+- 「等距排一下/紧凑排」→ `distribute_row`(gap=None 等距保跨度|gap=数值定隙堆叠+智能锚点 anchor="start");
+- 「统一大小」→ `unify_widths`(同宽居中)+`fit_min_size`(oversized 只缩);
+- 「换个节点,线接过去」→ `match_ports`(四级迁移阶梯)+`materialize_links`(落真线);
+- 「这几个都连到那个/从那个分发」→ `plan_fan_in`(汇聚)/`plan_fan_out`(广播·智能分配)/`plan_chain`(链式);
+- 「断掉选区内的线/断外面的线」→ `strip_links`(internal/external);悬空死线清 → `sweep_dead_links`。
+- 一切 pos/size 类美观动作过 `guarded_polish` 守门(双不增);生产件落地恒走手术脚本路线(优化集 ⑦)。
+
 **两种格式,何时写哪种**:
 
 - **GUI 格式**(画布加载与「保存」产出):顶层 `nodes`+`links`+`groups`+`definitions`(子图)+发号器+视图状态;写它=给人打开看(桥/引擎侧栏)。本仓生产件真源=GUI 格式(生成器产出,引擎侧栏以 `repo:` id 只读合并消费)。

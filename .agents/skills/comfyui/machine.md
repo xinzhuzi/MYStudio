@@ -134,7 +134,8 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   window keeps its client-persisted tree (persistedWorkflows) AND the engine v2 API kept serving
   empty dir shells — both look like "workflows that can't be opened". Cure: page reload +
   `find <userdata>/workflows -mindepth 1 -type d -empty -delete`.
-- (09-21) **Node-graph / node knowledge lives IN THIS SKILL DIR (flat layout, files are all here)** —
+  - (10-18) 画布提效插件 **AlignLayout = 未装候选**(pixixai/ComfyUI-AlignLayout,GitHub main v1.6.5;人手接线/排版提效:对齐面板 Alt+A、快速连接 F 族、划线断开、连接助手+端口高亮、替换节点 Shift+R,Nodes 2.0 双适配)。速查全表+与生产布局基线的互动铁则=`docs/comfyui-kb/画布提效插件AlignLayout.md`。若装:落位 `<home>/ComfyUI/custom_nodes/`(家根层不加载)+`curated_plugins.json` 补行(license 实查=无 LICENSE 文件→unknown)+重启引擎;生产件坐标/替换仍恒走手术脚本与 layout_check 纪律。
+  - (09-21) **Node-graph / node knowledge lives IN THIS SKILL DIR (flat layout, files are all here)** —
   user verdict "节点图/node 认知完全没有" was a LOADING failure, not a missing-files failure. Any
   node question: read `NODE_LIBRARY/_INDEX.md` first (per-category map: core/loaders/samplers/
   conditioning-1/2/latent/image-1/2/advanced/video/audio/…, 183 curated entries), the 547-node master

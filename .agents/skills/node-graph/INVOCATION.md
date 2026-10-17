@@ -48,16 +48,16 @@
 | 子图 linkIds 症状三连/装载机理/收装惯例/蓝图件 | `docs/comfyui-kb/子图工作流工程契约.md` |
 | 工作流构建/连线/类型/Subgraph/参数化 | `.agents/skills/comfyui/SKILL.md` 的「Compose a NEW workflow from pieces」「Workflow JSON」「Subgraphs」章 |
 | 布局工具三函数 | `.agents/skills/comfyui/workflow_layout.py` |
-| 本地捆绑工具(排布+est 口径+立宪检查) | 本技能 `tools/workflow_layout.py`(归因副本)与 `tools/layout_check.py`(立宪口径检查器);配方见「工具调用配方」章 |
+| 本地捆绑工具(排布+est 口径+立宪检查+美观守门) | 本技能 `tools/workflow_layout.py`(归因副本)、`tools/layout_check.py`(立宪口径检查器)与 `tools/layout_polish.py`(AlignLayout 布局域吸收件,1018);配方见「工具调用配方」章 |
 | 孤儿节点/节点清单 | `.agents/skills/comfyui/tools/find_orphan_nodes.py` 与 `node_inventory.py` |
 | 契约测试锚(布局谓词的测试面) | `apps/backend/engines/comfyui/tests/`(如 test_qwen21_workflow_contract.py) |
 | 生产工作流生成器(**1001 起退役勿重跑**=史档)与基线真源 | `apps/build/scripts/`(生成器三件+`workflow_layout_baseline.json` 单源;账见 0928 立宪文档 §三) |
 
 > 路径失效时按文件名在 `docs/comfyui-kb/` 与 `.claude/knowledge/` 下重找(真源改名容错)。
 
-## 工具调用配方(本地 tools/ 两件;孤儿/清单两件仍驻 comfyui 技能)
+## 工具调用配方(本地 tools/ 三件;孤儿/清单两件仍驻 comfyui 技能)
 
-本技能 `tools/` 捆绑两件通用工具:`workflow_layout.py`(归因副本,上游 SlavaSexton/ComfyUI-Agent-Kit,Apache-2.0;上游更新时以 comfyui 技能原件为准重新拷贝)与 `layout_check.py`(本技能自有立宪检查器)。入参 `wf`=GUI 格式工作流 dict(顶层含 `nodes`/`links`,即 `json.load` 读文件的结果;不是文件路径):
+本技能 `tools/` 捆绑三件通用工具:`workflow_layout.py`(归因副本,上游 SlavaSexton/ComfyUI-Agent-Kit,Apache-2.0;上游更新时以 comfyui 技能原件为准重新拷贝)、`layout_check.py`(本技能自有立宪检查器)与 `layout_polish.py`(AlignLayout 布局域吸收件,1018,方法吸收零代码)。入参 `wf`=GUI 格式工作流 dict(顶层含 `nodes`/`links`,即 `json.load` 读文件的结果;不是文件路径):
 
 ```python
 import sys; sys.path.insert(0, "<repo>/.agents/skills/node-graph/tools")
@@ -77,6 +77,20 @@ python3 .agents/skills/node-graph/tools/layout_check.py 图.json            # �
 python3 .agents/skills/node-graph/tools/layout_check.py 图.json --json     # 机读违规明细
 python3 .agents/skills/node-graph/tools/layout_check.py --selftest         # 内嵌合成用例自测
 ```
+
+`tools/layout_polish.py`=AlignLayout 布局/连线域吸收件(**1018 v4,源码实读后方法重实现,上游无 LICENSE 零逐字拷贝**;规则=优化集 OPTIMIZATION.md ⑩;判据复用 layout_check,est 常量复用 workflow_layout):
+
+```bash
+python3 .agents/skills/node-graph/tools/layout_polish.py 图.json                              # 只读悬空线体检
+python3 .agents/skills/node-graph/tools/layout_polish.py 图.json --free-slot 1200,300,320,200  # 防碰撞落位 [--scope sub:加速]
+python3 .agents/skills/node-graph/tools/layout_polish.py 图.json --strip internal --ids 12,13  # 选区内外清线(只读报告)
+python3 .agents/skills/node-graph/tools/layout_polish.py --selftest                           # 12 组断言自测
+```
+
+- **美观类**(过守门):`align_edges`(六式对齐:极值缘/中心均值线)/`distribute_row`(等距保跨度 gap=None | 定隙堆叠 gap=数值+智能锚点 anchor="start" 优先起点件+副轴对齐 align=start/center/end)/`unify_widths`(同构同宽·居中保持 cx−maxW/2)/`fit_min_size`(尺寸收敛只缩,est 原始式)/`find_free_slot`(防碰撞插入落位)。
+- **手术引擎类**(拓扑域,无守门,由脚本断言+三件验把门):`sweep_dead_links`(死线+孤儿 Reroute+死引用清扫,幂等)/`strip_links`(选区内外清线:internal=两端皆选/external=恰一端,单选=全部)/`match_ports`(换件端口四级阶梯:name+type→name→唯一类型(双方排通配,多类型取交集)→同序兜底)/`column_order`(列序混合排序:min 相关节点 y 主键,>10px 带才分胜负,平均对向槽序次键)/**连线创建三式** `plan_fan_in`·`plan_fan_out`·`plan_chain`(评分梯 connection_score:-1/1通配/2类型合/3同名大小写不敏感;广播共享占用集=智能分配+用尽复用;链式上环成功才推进;非强制绝不拆旧线)+`materialize_links`(计划落真链表条目+inputs[].link/outputs[].links 同步)+`visual_order`(0.8 视觉列序)。
+- 守门用法(内存内,禁直改生产件):`guarded_polish(wf, lambda w: distribute_row(w, ids))`——应用前后 layout_check 各 scope counts 一项不增,否则弃;`--apply` 直写仅限临时图(生产路径须 `--allow-prod`,且恒走 ⑦ 手术脚本路线)。
+- **改本技能 `tools/` 或 `my_nodes/web/my_scope.js` 后必跑四件,四绿才算改完**(1018 grill Q2 裁定):`layout_polish.py --selftest`(12 组)+`layout_check.py --selftest`+`node backend/engines/comfyui/my_nodes/tests/my_scope_probe_1018.mjs`(jsdom 15 断言,apps/ 下跑)+`npx esbuild <改动 js> --loader:.js=js --format=esm >/dev/null`;仓库级世界门禁**不挂**本清单(门禁管产品红,技能工具件域不合流)。
 
 - 检查项=优化集 OPTIMIZATION.md ④ 判定口径全集(贝塞尔交叉/线遮节点/est 盒零重叠/est 间距/零负区/输出口最右/左向线——七项,与工具 `CHECK_KEYS` 一致);顶层=scope main,`definitions.subgraphs[]` 每个=独立 scope(`sub:<名>`);−10/−20 边界线在交叉与遮挡两口径同跳过。
 - **末行硬契约**:无论是否违规,最后一行恒打印 `LAYOUT_CHECK_JSON: {"scopes":[{"name":"main","crossings":N},...]}`——对拍脚本靠这行取数;`--json` 时各 scope 条目另含 `counts` 分项违规数明细。
