@@ -8,6 +8,7 @@
  */
 
 import type { StateStorage } from 'zustand/middleware';
+import { clearPersistenceFailure, persistWithStatus, reportPersistenceFailure } from './persistence-status';
 
 // Type declarations for the fileStorage API exposed by preload
 declare global {
@@ -93,107 +94,83 @@ const hasRichData = (jsonStr: string | null): boolean => {
   }
 };
 
+const unreadableKeys = new Set<string>();
+
+function sameStoredValue(left: string | null, right: string): boolean {
+  if (left === null) return false;
+  try { return JSON.stringify(JSON.parse(left)) === JSON.stringify(JSON.parse(right)); }
+  catch { return left === right; }
+}
+
+async function confirmedWrite(name: string, value: string): Promise<void> {
+  if (!await window.fileStorage!.setItem(name, value)) throw new Error(`文件保存失败：${name}`);
+}
+
+async function readElectronItem(name: string): Promise<string | null> {
+  const bridge = window.fileStorage!;
+  const fileData = await bridge.getItem(name);
+  const legacyName = getLegacyStorageKey(name);
+  const legacyFileData = fileData === null && legacyName ? await bridge.getItem(legacyName) : null;
+  const browser = getBrowserStorage();
+  const keys = legacyName ? [name, legacyName] : [name];
+  const locals = keys.map(key => ({ key, value: browser?.getItem(key) ?? null }));
+  const idbs = await Promise.all(keys.map(async key => ({ key, value: await getFromIndexedDB(key) })));
+  const local = locals.find(entry => hasRichData(entry.value)) ?? locals.find(entry => entry.value !== null);
+  const idb = idbs.find(entry => hasRichData(entry.value)) ?? idbs.find(entry => entry.value !== null);
+  const disk = fileData ?? legacyFileData;
+  const source = !hasRichData(disk) && hasRichData(local?.value ?? null) ? local!.value
+    : !hasRichData(disk) && hasRichData(idb?.value ?? null) ? idb!.value
+    : disk ?? local?.value ?? idb?.value ?? null;
+  if (source === null) return null;
+
+  // A legacy file is copied and verified before any source cleanup. Keeping the
+  // old file avoids destructive rename before readback confirmation.
+  if (fileData === null || !sameStoredValue(fileData, source)) {
+    try {
+      await persistWithStatus(name, async () => {
+        await confirmedWrite(name, source);
+        if (!sameStoredValue(await bridge.getItem(name), source)) throw new Error(`迁移回读不一致：${name}`);
+      });
+    } catch {
+      // Hydrate from the intact source; the visible failed save remains retryable.
+      return source;
+    }
+  }
+  // Only remove an equivalent browser source. Conflicting historical copies stay.
+  for (const entry of locals) {
+    if (entry.value !== null && sameStoredValue(browser?.getItem(entry.key) ?? null, source)) browser?.removeItem(entry.key);
+  }
+  for (const entry of idbs) {
+    if (entry.value !== null && sameStoredValue(await getFromIndexedDB(entry.key), source)) await removeFromIndexedDB(entry.key);
+  }
+  return source;
+}
+
 export const fileStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    if (isElectron()) {
-      try {
-        // Get data from all sources
-        const fileData = await window.fileStorage!.getItem(name);
-        const legacyName = getLegacyStorageKey(name);
-        const legacyFileData = !fileData && legacyName ? await window.fileStorage!.getItem(legacyName) : null;
-        const browserStorage = getBrowserStorage();
-        const localData = browserStorage?.getItem(name) ?? null;
-        const legacyLocalData = legacyName ? browserStorage?.getItem(legacyName) ?? null : null;
-        let idbData: string | null = null;
-        let legacyIdbData: string | null = null;
-        try {
-          idbData = await getFromIndexedDB(name);
-          legacyIdbData = legacyName ? await getFromIndexedDB(legacyName) : null;
-        } catch (e) {
-          // IndexedDB not available
-        }
-        
-        const resolvedFileData = fileData || legacyFileData;
-        const resolvedLocalData = localData || legacyLocalData;
-        const resolvedIdbData = idbData || legacyIdbData;
-
-        
-        // Determine which data source has the richest data
-        const fileHasData = hasRichData(resolvedFileData);
-        const localHasData = hasRichData(resolvedLocalData);
-        const idbHasData = hasRichData(resolvedIdbData);
-        
-        
-        // Priority: localStorage > IndexedDB > file (for migration)
-        // If localStorage or IndexedDB has richer data, migrate it
-        if (localHasData && !fileHasData) {
-          await window.fileStorage!.setItem(name, resolvedLocalData!);
-          browserStorage?.removeItem(name);
-          if (legacyName) browserStorage?.removeItem(legacyName);
-          return resolvedLocalData;
-        }
-        
-        if (idbHasData && !fileHasData && !localHasData) {
-          await window.fileStorage!.setItem(name, resolvedIdbData!);
-          await removeFromIndexedDB(name);
-          if (legacyName) await removeFromIndexedDB(legacyName);
-          return resolvedIdbData;
-        }
-        
-        // Clean up old data if file storage has the data
-        if (fileHasData) {
-          if (localData) {
-            browserStorage?.removeItem(name);
-          }
-          if (idbData) {
-            await removeFromIndexedDB(name);
-          }
-          if (legacyFileData && !fileData && legacyName) {
-            const renamed = await window.fileStorage!.renameItem?.(legacyName, name);
-            if (!renamed) await window.fileStorage!.setItem(name, legacyFileData);
-          }
-          return resolvedFileData;
-        }
-        
-        // Return whatever we have
-        return resolvedFileData || resolvedLocalData || resolvedIdbData || null;
-      } catch (error) {
-        console.error('File storage getItem error:', error);
-      }
-    }
-    // Fallback to localStorage (browser mode)
-    return getBrowserStorage()?.getItem(name) ?? null;
-  },
-
-  setItem: async (name: string, value: string): Promise<void> => {
-    if (isElectron()) {
-      try {
- 
-        await window.fileStorage!.setItem(name, value);
-        return;
-      } catch (error) {
-        console.error('[Storage] File storage setItem error:', error);
-      }
-    }
-    // Fallback to localStorage
     try {
-      getBrowserStorage()?.setItem(name, value);
+      const value = isElectron() ? await readElectronItem(name) : getBrowserStorage()?.getItem(name) ?? null;
+      unreadableKeys.delete(name);
+      // A migration write failure must remain visible even though source hydration succeeded.
+      clearPersistenceFailure(`read:${name}`);
+      return value;
     } catch (error) {
-      console.error('localStorage setItem error:', error);
+      unreadableKeys.add(name);
+      reportPersistenceFailure({ key: `read:${name}`, operation: 'read', message: `读取失败，已阻止覆盖：${name}` });
+      throw error;
     }
   },
-
-  removeItem: async (name: string): Promise<void> => {
+  setItem: (name: string, value: string): Promise<void> => persistWithStatus(name, async () => {
+    if (unreadableKeys.has(name)) throw new Error(`读取尚未恢复，已阻止覆盖：${name}`);
+    if (isElectron()) await confirmedWrite(name, value);
+    else getBrowserStorage()?.setItem(name, value);
+  }),
+  removeItem: (name: string): Promise<void> => persistWithStatus(name, async () => {
+    if (unreadableKeys.has(name)) throw new Error(`读取尚未恢复，已阻止移除：${name}`);
     if (isElectron()) {
-      try {
-        await window.fileStorage!.removeItem(name);
-        return;
-      } catch (error) {
-        console.error('File storage removeItem error:', error);
-      }
-    }
-    getBrowserStorage()?.removeItem(name);
-  },
+      if (!await window.fileStorage!.removeItem(name)) throw new Error(`文件移除失败：${name}`);
+    } else getBrowserStorage()?.removeItem(name);
+  }),
 };
 
 // Helper to get data from IndexedDB (for migration)

@@ -56,6 +56,7 @@ export function registerRemotionQueueIpcHandlers(
       jobs,
       currentShotSlots,
       concurrency: queue.getConcurrency(),
+      ...(queue.getPersistenceError() ? { persistenceError: queue.getPersistenceError() } : {}),
     };
   });
   ipcMain.handle(REMOTION_QUEUE_ENQUEUE_SHOT_CHANNEL, async (_event, payload: unknown) => {

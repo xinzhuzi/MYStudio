@@ -315,7 +315,9 @@ describe("createSplitStorage", () => {
       version: 3,
     });
 
-    await createTestStorage().setItem("mystudio-character-library", value);
+    const storage = createTestStorage();
+    await storage.getItem("mystudio-character-library");
+    await storage.setItem("mystudio-character-library", value);
 
     expect(JSON.parse(storageMocks.values.get("_p/p1/characters") ?? "").state.items).toEqual([
       { id: "current", projectId: "p1" },
@@ -359,4 +361,147 @@ describe("createSplitStorage", () => {
     expect(storageMocks.values.has("_p/p1/characters")).toBe(false);
     expect(storageMocks.values.get("_p/p2/characters")).toBe("p2-value");
   });
+});
+
+it('keeps shared bytes unchanged when sharing is disabled and persists empty loaded projects', async () => {
+  const split = (s: TestState, pid: string) => ({ projectData: { items: s.items.filter(i => i.projectId === pid) }, sharedData: { items: s.items.filter(i => !i.projectId) } });
+  const merge = (a: TestState | null, b: TestState | null) => ({ items: [...(b?.items ?? []), ...(a?.items ?? [])] });
+  const shared = JSON.stringify({ state: { items: [{ id: 'shared' }] } });
+  storageMocks.values.set('_shared/characters', shared);
+  storageMocks.values.set('_p/p1/characters', JSON.stringify({ state: { items: [] } }));
+  storageMocks.values.set('_p/p2/characters', JSON.stringify({ state: { items: [{ id: 'last', projectId: 'p2' }] } }));
+  storageMocks.resourceSharing.shareCharacters = false;
+  const off = createSplitStorage('characters', split, merge, 'shareCharacters');
+  await off.setItem('library', (await off.getItem('library'))!);
+  expect(storageMocks.values.get('_shared/characters')).toBe(shared);
+  storageMocks.resourceSharing.shareCharacters = true;
+  const on = createSplitStorage('characters', split, merge, 'shareCharacters');
+  const loaded = JSON.parse((await on.getItem('library'))!);
+  loaded.state.items = loaded.state.items.filter((i: TestItem) => i.projectId !== 'p2');
+  await on.setItem('library', JSON.stringify(loaded));
+  expect(JSON.parse((await on.getItem('library'))!).state.items.some((i: TestItem) => i.id === 'last')).toBe(false);
+});
+
+function scopeStorage() {
+  return createSplitStorage<TestState>('characters', (state, pid) => ({ projectData: { items: state.items.filter(i => i.projectId === pid) }, sharedData: { items: state.items.filter(i => !i.projectId) } }), (a, b) => ({ items: [...(b?.items ?? []), ...(a?.items ?? [])] }), 'shareCharacters');
+}
+it('shares concurrent startup reads after project hydration and permits saving the loaded result', async () => {
+  storageMocks.hydrated = false;
+  const storage = scopeStorage();
+  const first = storage.getItem('library');
+  const second = storage.getItem('library');
+  storageMocks.hydrated = true;
+  for (const finish of [...storageMocks.hydrationCallbacks]) finish();
+  const results = await Promise.all([first, second]);
+  expect(results[0]).toBe(results[1]);
+  expect(vi.mocked(fileStorage.getItem).mock.calls.filter(([key]) => key === '_p/p1/characters')).toHaveLength(1);
+  await expect(storage.setItem('library', results[0]!)).resolves.toBeUndefined();
+});
+
+it('rejects an older project read without invalidating a newer loaded scope', async () => {
+  const storage = scopeStorage();
+  let release!: () => void;
+  vi.mocked(fileStorage.getItem).mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { release = resolve; });
+    return JSON.stringify({ state: { items: [{ id: 'old', projectId: 'p1' }] } });
+  });
+  const oldRead = Promise.resolve(storage.getItem('library'));
+  const rejected = expect(oldRead).rejects.toThrow('变化');
+  storageMocks.projectState.activeProjectId = 'p2';
+  const loaded = await storage.getItem('library');
+  release();
+  await rejected;
+  await expect(storage.setItem('library', loaded!)).resolves.toBeUndefined();
+});
+it.each(['project recovery', 'sharing hydration'])('reloads the current scope once after %s changes it during the first read', async reason => {
+  storageMocks.values.set('_p/p1/characters', JSON.stringify({ state: { items: [{ id: 'one', projectId: 'p1' }] } }));
+  storageMocks.values.set('_p/p2/characters', JSON.stringify({ state: { items: [{ id: 'two', projectId: 'p2' }] } }));
+  storageMocks.values.set('_shared/characters', JSON.stringify({ state: { items: [{ id: 'global' }] } }));
+  const storage = scopeStorage();
+  vi.mocked(fileStorage.getItem).mockImplementationOnce(async key => {
+    if (reason === 'project recovery') storageMocks.projectState.activeProjectId = 'p2';
+    else storageMocks.resourceSharing.shareCharacters = false;
+    return storageMocks.values.get(key) ?? null;
+  });
+  const loaded = (await storage.getItem('library'))!;
+  if (reason === 'sharing hydration') expect(JSON.parse(loaded).state.items).toEqual([{ id: 'one', projectId: 'p1' }]);
+  await expect(storage.setItem('library', loaded)).resolves.toBeUndefined();
+  const currentKey = reason === 'project recovery' ? '_p/p2/characters' : '_p/p1/characters';
+  expect(fileStorage.setItem).toHaveBeenCalledWith(currentKey, expect.any(String));
+});
+it('bounds automatic scope reloads and still blocks saving an unstable scope', async () => {
+  storageMocks.resourceSharing.shareCharacters = false;
+  const storage = scopeStorage();
+  const changeScope = async () => {
+    storageMocks.projectState.activeProjectId = storageMocks.projectState.activeProjectId === 'p1' ? 'p2' : 'p1';
+    return JSON.stringify({ state: { items: [] } });
+  };
+  vi.mocked(fileStorage.getItem).mockImplementationOnce(changeScope).mockImplementationOnce(changeScope);
+  await expect(storage.getItem('library')).rejects.toThrow('变化');
+  expect(fileStorage.getItem).toHaveBeenCalledTimes(2);
+  await expect(storage.setItem('library', JSON.stringify({ state: { items: [] } }))).rejects.toThrow('范围');
+  expect(fileStorage.setItem).not.toHaveBeenCalled();
+});
+it('protects unreadable scopes while allowing loaded project saves', async () => {
+  storageMocks.values.set('_p/p1/characters', JSON.stringify({ state: { items: [{ id: 'own', projectId: 'p1' }] } }));
+  storageMocks.values.set('_p/p2/characters', '{corrupt');
+  storageMocks.values.set('_shared/characters', '{corrupt-shared');
+  const storage = scopeStorage();
+  const state = (await storage.getItem('library'))!;
+  await storage.setItem('library', state);
+  expect(storageMocks.values.get('_p/p2/characters')).toBe('{corrupt');
+  expect(storageMocks.values.get('_shared/characters')).toBe('{corrupt-shared');
+});
+it('rejects saves across project or sharing switches until scope is reloaded', async () => {
+  const storage = scopeStorage();
+  const value = (await storage.getItem('library'))!;
+  storageMocks.projectState.activeProjectId = 'p2';
+  await expect(storage.setItem('library', value)).rejects.toThrow('范围');
+  expect(fileStorage.setItem).not.toHaveBeenCalled();
+  storageMocks.projectState.activeProjectId = 'p1';
+  storageMocks.resourceSharing.shareCharacters = false;
+  await expect(storage.setItem('library', value)).rejects.toThrow('范围');
+  expect(fileStorage.setItem).not.toHaveBeenCalled();
+});
+it('loads visible shared resources even when a new project has no file', async () => {
+  storageMocks.values.set('_shared/characters', JSON.stringify({ state: { items: [{ id: 'global' }] } }));
+  const storage = scopeStorage();
+  const loaded = JSON.parse((await storage.getItem('library'))!);
+  expect(loaded.state.items).toEqual([{ id: 'global' }]);
+});
+it('propagates save failures without writing a legacy fallback', async () => {
+  const storage = scopeStorage();
+  const value = (await storage.getItem('library'))!;
+  vi.mocked(fileStorage.setItem).mockRejectedValueOnce(new Error('disk full'));
+  await expect(storage.setItem('library', value)).rejects.toThrow('disk full');
+  expect(fileStorage.setItem).not.toHaveBeenCalledWith('library', expect.anything());
+});
+
+it('loads and persists all visible projects from an intact legacy monolith', async () => {
+  const legacy = JSON.stringify({ state: { items: [{ id: 'own', projectId: 'p1' }, { id: 'other', projectId: 'p2' }, { id: 'shared' }] } });
+  storageMocks.values.set('library', legacy);
+  const storage = scopeStorage();
+  const value = (await storage.getItem('library'))!;
+  expect(JSON.parse(value).state.items.map((item: TestItem) => item.id).sort()).toEqual(['other', 'own', 'shared']);
+  await storage.setItem('library', value);
+  expect(JSON.parse(storageMocks.values.get('_p/p2/characters')!).state.items).toEqual([{ id: 'other', projectId: 'p2' }]);
+  expect(storageMocks.values.get('library')).toBe(legacy);
+});
+
+it('stops later target writes when project changes during an awaited save', async () => {
+  const shared = JSON.stringify({ state: { items: [{ id: 'shared' }] } });
+  storageMocks.values.set('_shared/characters', shared);
+  const storage = scopeStorage();
+  const value = (await storage.getItem('library'))!;
+  let release!: () => void;
+  vi.mocked(fileStorage.setItem).mockImplementationOnce(async () => {
+    await new Promise<void>(resolve => { release = resolve; });
+  });
+  const pending = storage.setItem('library', value);
+  await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+  storageMocks.projectState.activeProjectId = 'p2';
+  release();
+  await expect(pending).rejects.toThrow('范围');
+  expect(fileStorage.setItem).toHaveBeenCalledTimes(1);
+  expect(storageMocks.values.get('_shared/characters')).toBe(shared);
 });

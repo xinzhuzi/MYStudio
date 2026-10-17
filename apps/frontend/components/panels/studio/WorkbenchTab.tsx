@@ -726,8 +726,13 @@ export function WorkbenchTab(props: {
     if (!queue) return;
     setChapterAudioBusy(true);
     try {
-      if (action === "retry") await queue.retry(job.jobId);
-      else await queue.cancel(job.jobId);
+      if (action === "retry") {
+        const result = await queue.retry(job.jobId);
+        if (!result.accepted) throw new Error('message' in result ? result.message : `无法重试：${result.reason}`);
+      } else {
+        const result = await queue.cancel(job.jobId);
+        if (!result.success || !result.canceled) throw new Error(result.error ?? '取消未成功');
+      }
       setChapterAudioError(null);
     } catch (error) {
       setChapterAudioError(error instanceof Error ? error.message : String(error));
@@ -1359,6 +1364,7 @@ export function WorkbenchTab(props: {
         <div className="flex items-center justify-between gap-2">
           <span className="font-semibold">分镜音频状态与操作</span>
           <span className="text-muted-foreground">{queueScope.loading ? "读取队列…" : `${props.storyboards.length} 个分镜`}</span>
+          {queueScope.error && <p role="alert" className="text-destructive">{queueScope.error}</p>}
         </div>
         <p className="mt-1 text-muted-foreground">旁白配音与音效只进入对应的单镜 MP4；全章共享的背景音乐、环境声不会重复压进单镜。</p>
         <div className="mt-3 space-y-2">
@@ -1405,7 +1411,7 @@ export function WorkbenchTab(props: {
                   {job && (job.status === "failed" || job.status === "canceled" || job.status === "stale") ? (
                     <Button size="sm" variant="outline" disabled={chapterAudioBusy} onClick={() => { void handleShotQueueAction(job, "retry"); }}>重试分镜</Button>
                   ) : null}
-                  {job && (job.status === "queued" || job.status === "running") ? (
+                  {job && (job.status === "blocked" || job.status === "ready" || job.status === "queued" || job.status === "running") ? (
                     <Button size="sm" variant="outline" disabled={chapterAudioBusy} onClick={() => { void handleShotQueueAction(job, "cancel"); }}>取消分镜</Button>
                   ) : null}
                 </div>

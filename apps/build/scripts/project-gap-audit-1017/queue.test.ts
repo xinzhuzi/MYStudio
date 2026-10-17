@@ -181,7 +181,7 @@ function successChapterSlot(job: RemotionRenderJobV1): RemotionCurrentSlotV1 {
 
 
 describe("audit: queue failure reproduction", () => {
-  it("parallel commits reuse seq and journal-only recovery loses one job", async () => {
+  it("parallel commits use unique seq and journal-only recovery preserves both jobs", async () => {
     const events: RemotionQueueEventV1[]=[];
     const inputs=await Promise.all([makeInput(0),makeInput(1)]);
     const persistence={load:async()=>({snapshot:undefined,events}),append:async(e:RemotionQueueEventV1)=>{events.push(e);await Promise.resolve();},writeSnapshot:async()=>{}};
@@ -189,13 +189,13 @@ describe("audit: queue failure reproduction", () => {
     const queue=new RemotionRenderQueue({persistence,executor});
     await queue.init();
     await Promise.all(inputs.map(input=>(queue as any).commit(input)));
-    expect(events.map(e=>e.seq)).toEqual([1,1]);
+    expect(events.map(e=>e.seq)).toEqual([1,2]);
     const restored=new RemotionRenderQueue({persistence,executor});
     await restored.init();
-    expect(restored.getJobs({projectId:"project-a"})).toHaveLength(1);
+    expect(restored.getJobs({projectId:"project-a"})).toHaveLength(2);
     console.log("AUDIT queue-sequence",JSON.stringify({seq:events.map(e=>e.seq),before:2,after:restored.getJobs({projectId:"project-a"}).length}));
   });
-  it("blocked jobs cannot be canceled when no executor owns them", async () => {
+  it("blocked jobs cancel without an executor", async () => {
     const input=await makeInput();
     input.job={...input.job,status:"blocked",error:{code:"gate",message:"gate",stage:"S4"}};
     const persistence=new MemoryPersistence();
@@ -203,17 +203,17 @@ describe("audit: queue failure reproduction", () => {
     let calls=0;
     const queue=new RemotionRenderQueue({persistence,executor:{render:async()=>({success:false,jobId:input.job.jobId,canceled:false,error:"unused"}),cancel:jobId=>{calls++;return {success:false,jobId,canceled:false,error:"not running"};}}});
     await queue.init();
-    expect(queue.cancel(input.job.jobId).success).toBe(false);
-    expect(calls).toBe(1);
-    expect(queue.getJob(input.job.jobId)?.status).toBe("blocked");
+    expect((await queue.cancel(input.job.jobId)).success).toBe(true);
+    expect(calls).toBe(0);
+    expect(queue.getJob(input.job.jobId)?.status).toBe("canceled");
   });
 });
-it("audit: public parallel enqueue produces duplicate journal sequence",async()=>{
+it("audit: public parallel enqueue produces unique journal sequences",async()=>{
  const inputs=await Promise.all([makeInput(0),makeInput(1),makeInput(2)]);
  const events:RemotionQueueEventV1[]=[];
  const persistence={load:async()=>({snapshot:undefined,events:[]}),append:async(e:RemotionQueueEventV1)=>{await new Promise(r=>setTimeout(r,1));events.push(e);},writeSnapshot:async()=>{}};
  const queue=new RemotionRenderQueue({persistence,concurrency:3,executor:{render:async(plan)=>({success:false,jobId:inputs.find(i=>i.plan.shot.shotId===plan.shot.shotId)!.job.jobId,canceled:false,error:"audit fixture"}),cancel:jobId=>({success:false,jobId,canceled:false})}});
  await queue.init();await Promise.all(inputs.map(i=>queue.enqueueShot(i)));await queue.waitForIdle();
- expect(new Set(events.map(e=>e.seq)).size).toBeLessThan(events.length);
+ expect(new Set(events.map(e=>e.seq)).size).toBe(events.length);
  console.log("AUDIT public sequence",JSON.stringify(events.map(e=>e.seq)));
 });

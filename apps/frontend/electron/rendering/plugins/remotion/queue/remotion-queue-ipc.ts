@@ -39,6 +39,7 @@ export interface RemotionQueueScopeReply {
   currentShotSlots: RemotionCurrentSlotV1[];
   /** 队列并发槽数(硬件感知;面板标签展示)。缺省 1(旧 preload 兼容)。 */
   concurrency?: number;
+  persistenceError?: string;
 }
 
 export interface RemotionQueueEnqueueShotRequest {
@@ -109,6 +110,7 @@ export function decodeRemotionQueueScopeReply(value: unknown): RemotionQueueScop
     chapterId: value.chapterId,
     jobs,
     currentShotSlots,
+    ...(typeof value.persistenceError === "string" ? { persistenceError: value.persistenceError } : {}),
     ...(typeof value.concurrency === "number" && Number.isInteger(value.concurrency) && value.concurrency >= 1
       ? { concurrency: value.concurrency }
       : {}),

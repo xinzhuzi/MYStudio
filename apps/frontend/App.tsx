@@ -6,6 +6,7 @@ import { InteractionEffects } from "@/components/InteractionEffects";
 import { Layout } from "@/components/Layout";
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateDialog } from "@/components/UpdateDialog";
+import { PersistenceFailureBanner } from "@/components/PersistenceFailureBanner";
 import { COLOR_PRESETS, useThemeStore } from "@/stores/app/theme-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { startSpan } from "@/lib/diagnostics/logger";
@@ -142,6 +143,7 @@ function App() {
           }}
         />
         <Toaster richColors position="top-center" />
+        <PersistenceFailureBanner />
       </div>
     </InteractionEffects>
   );

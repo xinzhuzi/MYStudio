@@ -102,7 +102,7 @@ describe("RemotionStudioRenderQueueBridge", () => {
     expect(running && "progress" in running ? running.progress.value : undefined).toBe(0.25);
 
     bridge.queueMethods.cancelJob(native.id);
-    expect(cancelJob).toHaveBeenCalledWith("chapter-job-1");
+    await vi.waitFor(() => expect(cancelJob).toHaveBeenCalledWith("chapter-job-1"));
 
     setJob(remotionJob("succeeded", 1));
     expect(bridge.getRenderQueue()[0]?.status).toBe("done");

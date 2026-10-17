@@ -1,4 +1,4 @@
 {
   "probeDir": "/Users/zhengbingjin/Project/Github/MYStudio/apps/build/scripts/project-gap-audit-1017",
-  "note": "Isolated regression probes: passing assertions document current defects; no production changes."
+  "note": "Positive regression assertions after 2026-10-18 repair. Original defect probes and logs are retained in audit/backups-1018/probes."
 }

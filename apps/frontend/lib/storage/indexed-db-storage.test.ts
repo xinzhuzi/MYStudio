@@ -80,7 +80,7 @@ describe("fileStorage legacy MYStudio key migration", () => {
     await expect(recoverFromLegacy()).resolves.toBeUndefined();
   });
 
-  it("renames legacy root store files to mystudio names", async () => {
+  it("copies legacy root store files without removing the unconfirmed source", async () => {
     const legacyPayload = JSON.stringify({
       state: {
         projects: [
@@ -115,7 +115,8 @@ describe("fileStorage legacy MYStudio key migration", () => {
 
     expect(getItem).toHaveBeenCalledWith("mystudio-project-store");
     expect(getItem).toHaveBeenCalledWith("mo" + "yin-project-store");
-    expect(renameItem).toHaveBeenCalledWith("mo" + "yin-project-store", "mystudio-project-store");
+    expect(renameItem).not.toHaveBeenCalled();
+    expect(window.fileStorage!.setItem).toHaveBeenCalledWith("mystudio-project-store", legacyPayload);
   });
 
   it("does not migrate unknown legacy project keys", async () => {

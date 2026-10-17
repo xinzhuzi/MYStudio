@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => {
     mediaStore: createScopedStore("media"),
     characterStore: createScopedStore("character"),
     sceneStore: createScopedStore("scene"),
+    propsStore: createScopedStore("props"),
     simpleTimelineStore: createScopedStore("simple-timeline"),
     sclassStore: createScopedStore("sclass"),
     ttsStore: createScopedStore("tts"),
@@ -61,6 +62,9 @@ vi.mock("@/stores/library/character-library-store", () => ({
 }));
 vi.mock("@/stores/library/scene-store", () => ({
   useSceneStore: mocks.sceneStore,
+}));
+vi.mock("@/stores/library/props-library-store", () => ({
+  usePropsLibraryStore: mocks.propsStore,
 }));
 vi.mock("@/stores/editing/simple-timeline-store", () => ({
   useSimpleTimelineStore: mocks.simpleTimelineStore,
@@ -114,6 +118,8 @@ describe("switchProject", () => {
     await switchProject("project-2");
 
     expect(mocks.editingStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.propsStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.events.indexOf("props:rehydrate")).toBeGreaterThan(mocks.events.indexOf("project:route:project-2"));
     expect(
       mocks.editingStore.getState().setActiveProjectId,
     ).toHaveBeenCalledWith("project-2");
@@ -136,6 +142,7 @@ describe("switchProject", () => {
     await switchProject("project-1", { force: true });
 
     expect(mocks.scriptStore.persist.rehydrate).toHaveBeenCalledOnce();
+    expect(mocks.propsStore.persist.rehydrate).toHaveBeenCalledOnce();
     expect(mocks.editingStore.persist.rehydrate).toHaveBeenCalledOnce();
     expect(mocks.editingStore.getState().setActiveProjectId)
       .toHaveBeenCalledWith("project-1");

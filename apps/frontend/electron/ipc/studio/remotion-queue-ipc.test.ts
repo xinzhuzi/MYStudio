@@ -48,6 +48,7 @@ describe("Remotion queue IPC", () => {
       init: vi.fn(async () => undefined),
       getJobs: vi.fn(() => []),
       getConcurrency: vi.fn(() => 3),
+      getPersistenceError: vi.fn(() => undefined),
       enqueueShot: vi.fn(async () => ({ accepted: false, reason: "invalid", message: "invalid" })),
       retry: vi.fn(async (jobId: string) => ({ accepted: false, reason: "invalid", message: jobId })),
       cancel: vi.fn((jobId: string) => ({ success: true, jobId, canceled: true })),

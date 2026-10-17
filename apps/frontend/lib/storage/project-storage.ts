@@ -1,5 +1,6 @@
 import type { StateStorage } from "zustand/middleware";
 import { fileStorage } from "./indexed-db-storage";
+import { persistWithStatus, reportPersistenceFailure, clearPersistenceFailure } from "./persistence-status";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { STUDIO_WORKFLOW_SHARD_DIR, buildAttributionContextFromState, chapterKeyOfDomainItem, isFullNovelChapter, mergeStudioWorkflowShards, parseStudioWorkflowShardManifest } from "./studio-workflow-shards";
@@ -154,163 +155,145 @@ export function createSplitStorage<T = unknown>(
   mergeFn: MergeFn<T>,
   sharingKey?: 'shareCharacters' | 'shareScenes' | 'shareMedia',
 ): StateStorage {
+  type Scope = { pid: string; mode: string; projects: Map<string, T | null>; shared: boolean; sharedBase: T | null };
+  let scope: Scope | null = null;
+  let generation = 0;
+  let readInFlight: { name: string; pid: string; mode: string; promise: Promise<string | null> } | null = null;
+  const mode = () => sharingKey && getResourceSharing()[sharingKey] ? 'all' : 'own';
+  const decode = (raw: string) => {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') throw new Error(`资源文件格式无效：${storeName}`);
+    return { state: (parsed.state ?? parsed) as T, version: parsed.version ?? 0 };
+  };
+  // Other projects retain their own selection/settings; only resource arrays change.
+  const preserveMetadata = (next: T, previous: T | null): T => {
+    if (!previous) return next;
+    const arrays = Object.fromEntries(Object.entries(next as object).filter(([, value]) => Array.isArray(value)));
+    return { ...previous, ...arrays };
+  };
   return {
-    getItem: async (name: string): Promise<string | null> => {
-      // 等待 project-store 完成 rehydration
+    getItem: async function readItem(name: string, scopeRetries = 0): Promise<string | null> {
       if (!useProjectStore.persist.hasHydrated()) {
         await new Promise<void>((resolve) => {
-          const unsub = useProjectStore.persist.onFinishHydration(() => {
-            unsub();
-            resolve();
-          });
+          const unsub = useProjectStore.persist.onFinishHydration(() => { unsub(); resolve(); });
         });
       }
-
       const pid = getActiveProjectId();
-      
+      const currentMode = mode();
       if (!pid) {
-        console.warn(`[SplitStorage] No activeProjectId, falling back to legacy key: ${name}`);
+        ++generation;
+        scope = null;
+        readInFlight = null;
         return fileStorage.getItem(name);
       }
-
-      const projectKey = `_p/${pid}/${storeName}`;
-      const sharedKey = `_shared/${storeName}`;
-      
-      // Try to read current project's data
-      const projectRaw = await fileStorage.getItem(projectKey);
-      
-      // If project file doesn't exist, try legacy file (pre-migration)
-      if (!projectRaw) {
-        return fileStorage.getItem(name);
+      if (readInFlight?.name === name && readInFlight.pid === pid && readInFlight.mode === currentMode) {
+        return readInFlight.promise;
       }
-
-      // Check if cross-project sharing is enabled
-      let sharingEnabled = false;
-      if (sharingKey) {
-        const sharing = getResourceSharing();
-        sharingEnabled = sharing[sharingKey];
-      }
-
-      try {
-        const projectState = JSON.parse(projectRaw);
-        const projectPayload = projectState?.state ?? projectState;
-
-        if (sharingEnabled) {
-          // Cross-project sharing ON: load ALL projects' data + shared
-          const allPids = getAllProjectIds();
-          const otherPayloads: T[] = [];
-          
-          for (const otherPid of allPids) {
-            if (otherPid === pid) continue; // Current project already loaded
-            const otherKey = `_p/${otherPid}/${storeName}`;
+      const epoch = ++generation;
+      scope = null;
+      const promise = (async () => {
+        const loaded: Scope = { pid, mode: currentMode, projects: new Map(), shared: false, sharedBase: null };
+        try {
+          const raw = await fileStorage.getItem(`_p/${pid}/${storeName}`);
+          let current: T | null = null;
+          let legacyState: T | null = null;
+          let version = 0;
+          if (raw !== null) {
+            const decoded = decode(raw); current = decoded.state; version = decoded.version;
+          } else {
+            const legacy = await fileStorage.getItem(name);
+            if (legacy !== null) {
+              const decoded = decode(legacy); version = decoded.version;
+              legacyState = decoded.state;
+              current = splitFn(decoded.state, pid).projectData;
+              // Keep legacy shared data only when that scope is actually visible.
+              if (currentMode !== 'own') loaded.sharedBase = splitFn(decoded.state, pid).sharedData;
+            }
+          }
+          loaded.projects.set(pid, current);
+          let merged: T = mergeFn(null, null);
+          if (currentMode === 'all') {
+            for (const otherPid of getAllProjectIds()) {
+              if (otherPid === pid) continue;
+              try {
+                const otherRaw = await fileStorage.getItem(`_p/${otherPid}/${storeName}`);
+                const other = otherRaw === null ? (legacyState === null ? null : splitFn(legacyState, otherPid).projectData) : decode(otherRaw).state;
+                loaded.projects.set(otherPid, other);
+                clearPersistenceFailure(`split-read:${storeName}:${otherPid}`);
+                merged = mergeFn(other, merged);
+              } catch (error) {
+                reportPersistenceFailure({ key: `split-read:${storeName}:${otherPid}`, operation: 'read', message: `资源未加载，已保护原文件：${storeName}/${otherPid}（${String(error)}）` });
+              }
+            }
+          }
+          if (currentMode !== 'own') {
             try {
-              const otherRaw = await fileStorage.getItem(otherKey);
-              if (otherRaw) {
-                const otherParsed = JSON.parse(otherRaw);
-                otherPayloads.push(otherParsed?.state ?? otherParsed);
-              }
-            } catch {
-              // Skip corrupted project files
+              const sharedRaw = await fileStorage.getItem(`_shared/${storeName}`);
+              const shared = sharedRaw === null ? loaded.sharedBase : decode(sharedRaw).state;
+              loaded.sharedBase = shared; loaded.shared = true;
+              clearPersistenceFailure(`split-read:${storeName}:shared`);
+              // Preserve established ordering: shared, other projects, current.
+              merged = mergeFn(merged, shared);
+            } catch (error) {
+              reportPersistenceFailure({ key: `split-read:${storeName}:shared`, operation: 'read', message: `共享资源未加载，已保护原文件：${storeName}（${String(error)}）` });
             }
           }
-
-          // Load shared data (items without projectId)
-          let sharedPayload: T | null = null;
-          try {
-            const sharedRaw = await fileStorage.getItem(sharedKey);
-            if (sharedRaw) {
-              const sharedParsed = JSON.parse(sharedRaw);
-              sharedPayload = sharedParsed?.state ?? sharedParsed;
-            }
-          } catch {}
-
-          // Merge: shared → other projects → current project (last gets priority for currentFolderId etc.)
-          let merged: T = mergeFn(null, sharedPayload);
-          for (const pd of otherPayloads) {
-            merged = mergeFn(pd, merged);
+          merged = mergeFn(current, merged);
+          if (epoch !== generation || pid !== getActiveProjectId() || currentMode !== mode()) {
+            // Disk discovery/settings hydration can change the initial scope without
+            // issuing a newer store hydration. Read that scope once, never reuse
+            // the old payload or retry an explicitly superseded request.
+            if (epoch === generation && scopeRetries === 0) return readItem(name, 1);
+            throw new Error(`资源加载期间项目或共享设置已变化，请重新加载（${storeName}: request=${epoch}/${generation}, project=${pid}/${getActiveProjectId()}, sharing=${currentMode}/${mode()}）`);
           }
-          merged = mergeFn(projectPayload, merged);
-
-          return JSON.stringify({
-            state: merged,
-            version: projectState?.version ?? 0,
-          });
-        } else {
-          // Cross-project sharing OFF: only current project's data
-          return JSON.stringify({
-            state: projectPayload,
-            version: projectState?.version ?? 0,
-          });
+          scope = loaded;
+          clearPersistenceFailure(`split-read:${storeName}:${pid}`);
+          return JSON.stringify({ state: merged, version });
+        } catch (error) {
+          if (epoch === generation) reportPersistenceFailure({ key: `split-read:${storeName}:${pid}`, operation: 'read', message: `资源读取失败，已阻止覆盖：${storeName}/${pid}` });
+          throw error;
         }
-      } catch (error) {
-        console.error(`[SplitStorage] Failed to parse/merge ${storeName}:`, error);
-        return projectRaw;
-      }
-    },
-
-    setItem: async (name: string, value: string): Promise<void> => {
-      const pid = getActiveProjectId();
-      
-      if (!pid) {
-        await fileStorage.setItem(name, value);
-        return;
-      }
-
+      })();
+      const flight = { name, pid, mode: currentMode, promise };
+      readInFlight = flight;
       try {
-        const parsed = JSON.parse(value);
-        const state = parsed.state ?? parsed;
-        const version = parsed.version ?? 0;
-
-        // Collect ALL unique projectIds from the state.
-        // When sharing is ON, the store may contain items from other projects
-        // that were modified (e.g. adding a variation to a character from another project).
-        // We must write each project's data back to its own file.
-        const knownProjectIds = new Set(getAllProjectIds());
-        knownProjectIds.add(pid);
-        const allPids = new Set<string>([pid]);
-        for (const val of Object.values(state as Record<string, unknown>)) {
-          if (Array.isArray(val)) {
-            for (const item of val) {
-              const itemRecord = item && typeof item === 'object'
-                ? item as { projectId?: unknown }
-                : null;
-              if (itemRecord && isSafeProjectId(itemRecord.projectId) &&
-                  knownProjectIds.has(itemRecord.projectId)) {
-                allPids.add(itemRecord.projectId);
-              }
-            }
-          }
-        }
-
-        // Write each project's data to its respective file
-        for (const projectId of allPids) {
-          const { projectData } = splitFn(state as T, projectId);
-          const key = `_p/${projectId}/${storeName}`;
-          const payload = JSON.stringify({ state: projectData, version });
-          await fileStorage.setItem(key, payload);
-        }
-
-        // Write shared data (items without projectId)
-        const { sharedData } = splitFn(state as T, pid);
-        const sharedKey = `_shared/${storeName}`;
-        const sharedPayload = JSON.stringify({ state: sharedData, version });
-        await fileStorage.setItem(sharedKey, sharedPayload);
-        
-      } catch (error) {
-        console.error(`[SplitStorage] Failed to split ${storeName}, saving to legacy:`, error);
-        await fileStorage.setItem(name, value);
+        return await promise;
+      } finally {
+        if (readInFlight === flight) readInFlight = null;
       }
     },
-
+    setItem: (name: string, value: string): Promise<void> => {
+      const pid = getActiveProjectId();
+      const captured = scope;
+      const epoch = generation;
+      return persistWithStatus(`split:${storeName}`, async () => {
+        if (!pid) { await fileStorage.setItem(name, value); return; }
+        if (!captured || captured.pid !== pid || captured.mode !== mode() || epoch !== generation || captured !== scope || getActiveProjectId() !== pid) {
+          throw new Error(`资源范围已变化或尚未加载，已阻止保存：${storeName}`);
+        }
+        const { state, version } = decode(value);
+        const assertScope = () => {
+          if (captured !== scope || epoch !== generation || getActiveProjectId() !== pid || captured.mode !== mode()) {
+            throw new Error(`资源保存期间范围已变化，已停止后续写入：${storeName}`);
+          }
+        };
+        for (const [projectId, previous] of captured.projects) {
+          assertScope();
+          if (!getAllProjectIds().includes(projectId) && projectId !== pid) continue;
+          const { projectData } = splitFn(state, projectId);
+          const data = projectId === pid ? projectData : preserveMetadata(projectData, previous);
+          await fileStorage.setItem(`_p/${projectId}/${storeName}`, JSON.stringify({ state: data, version }));
+        }
+        if (captured.shared) {
+          assertScope();
+          const { sharedData } = splitFn(state, pid);
+          await fileStorage.setItem(`_shared/${storeName}`, JSON.stringify({ state: preserveMetadata(sharedData, captured.sharedBase), version }));
+        }
+      });
+    },
     removeItem: async (name: string): Promise<void> => {
       const pid = getActiveProjectId();
-      if (!pid) {
-        await fileStorage.removeItem(name);
-        return;
-      }
-      const projectKey = `_p/${pid}/${storeName}`;
-      await fileStorage.removeItem(projectKey);
-      // Note: shared data is NOT removed when a single project's data is removed
+      await fileStorage.removeItem(pid ? `_p/${pid}/${storeName}` : name);
     },
   };
 }

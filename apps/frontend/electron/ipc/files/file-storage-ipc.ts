@@ -58,10 +58,11 @@ export function registerFileStorageIpcHandlers({ getDataDir }: RegisterFileStora
   ipcMain.handle("file-storage-get", async (_event, key: string) => {
     try {
       const filePath = resolveDataFilePath(getDataDir(), key);
-      return fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : null;
+      return fs.readFileSync(filePath, "utf-8");
     } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null;
       console.error("Failed to read file storage:", error);
-      return null;
+      throw error;
     }
   });
   ipcMain.handle("file-storage-set", async (_event, key: string, value: string) => {

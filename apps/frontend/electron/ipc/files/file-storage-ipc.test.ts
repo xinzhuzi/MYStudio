@@ -45,6 +45,7 @@ describe("registerFileStorageIpcHandlers", () => {
     mocks.handlers.clear();
     vi.clearAllMocks();
     mocks.existsSync.mockReturnValue(false);
+    mocks.readFileSync.mockImplementation(() => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); });
     registerFileStorageIpcHandlers({ getDataDir: () => "/data" });
   });
 

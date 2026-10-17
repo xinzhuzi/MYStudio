@@ -549,10 +549,9 @@ I2I_NODE_TYPE_WHITELIST = {
     "SolidMask", "ThresholdMask",
     # 1015 画幅按型联动:[4018] 画幅建议器(九型宽高直通+手动成对优先)
     "MyQi21WhSuggest",
-    # 1017up4 超分四法子图内部件入册(A 潜空间二段/B 像素精修 tiled VAE 族+C USDU;
-    # 定义住 t2i/i2i 两件工作流,主图零实体;PrimitiveInt/ImageScaleToTotalPixels 已在册)
-    "LatentUpscale", "VAEEncodeTiled", "VAEDecodeTiled", "UpscaleModelLoader",
-    "ImageUpscaleWithModel", "UltimateSDUpscaleCustomSample",
+    # 超分子图内部件(1018 终版删 A/B/C:tiled VAE 族+ESRGAN/LatentUpscale/
+    # USDU 件全部出册随删,回潮即红;PrimitiveInt/ImageScaleToTotalPixels
+    # 已在册;D=SeedVR2 三件已册见上)
 }
 # 人物系七型(库 §二:常量B 加挂型;1015 设定卡入列)
 PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡")  # 0927 改名轮:三视图→多视图
@@ -1678,12 +1677,12 @@ class TestSpeedSelectContract0929:
         for name in ("qi21", "i2i", "edit"):
             graph = GRAPHS[name]
             sgs = _sgs(graph)
-            want_n = 6 if name in ("qi21", "i2i") else 2   # 1017up4:四法只进 t2i/i2i
+            want_n = 3 if name in ("qi21", "i2i") else 2   # 1017up4 四法→1018 删 A/C 余 B/D
             assert len(sgs) == want_n, \
-                f"{name}: 应恰 {want_n} 子图(1017up4:t2i/i2i=装配+加速+超分四法;edit 恒2),得 {len(sgs)}"
+                f"{name}: 应恰 {want_n} 子图(1018 终版:t2i/i2i=装配+加速+超分D 唯一;edit 恒2),得 {len(sgs)}"
             names = sorted(sg["name"] for sg in sgs)
             want_names = sorted([ASSEMBLY_SG_NAME_T2I, ACCEL_SG_NAME]
-                                + ([UP4[t]["name"] for t in "ABCD"]
+                                + ([UP4[t]["name"] for t in "D"]
                                    if name in ("qi21", "i2i") else []))
             assert names == want_names, \
                 f"{name}: 子图 name 集合漂移,得 {names}"
@@ -1703,7 +1702,7 @@ class TestSpeedSelectContract0929:
             assert sg_ids[ASSEMBLY_SG_NAME_T2I] & sg_ids[ACCEL_SG_NAME] == want_ax, \
                 f"{name}: 装配∩加速 应={sorted(want_ax) or '∅'},得 {sorted(sg_ids[ASSEMBLY_SG_NAME_T2I] & sg_ids[ACCEL_SG_NAME])}"
             # 1017up4:四法子图 ∩ 主图 = ∅(收装随迁件同号出清+新宿主不与内部撞号)
-            for t in "ABCD":
+            for t in "D":
                 if UP4[t]["name"] in sg_ids:
                     assert not (mids & sg_ids[UP4[t]["name"]]), \
                         f"{name}: 主图∩{t}子图 应=∅,得 {sorted(mids & sg_ids[UP4[t]['name']])}"
@@ -2295,11 +2294,11 @@ class TestCanvasDiscipline:
                                     f"qi21: 子图 group {group.get('title')!r} 缺 id 字段"
                         else:
                             # 1017up4 超分四法定义:groups 恰 0(蓝图极简形)
-                            assert sg["name"] in {UP4[t]["name"] for t in "ABCD"} and not sg["groups"], \
+                            assert sg["name"] in {UP4[t]["name"] for t in "D"} and not sg["groups"], \
                                 f"qi21: 子图[{sg['name'][:12]}] groups 应恰 0(1017up4 蓝图极简形),得 {sg['groups']}"
                         continue
                     # 1017up4:超分四法定义(i2i 亦入)groups 恒空=蓝图极简形,不入分组令
-                    if sg["name"] in {UP4[t]["name"] for t in "ABCD"}:
+                    if sg["name"] in {UP4[t]["name"] for t in "D"}:
                         assert not sg["groups"], \
                             f"{name}: 超分子图[{sg['name'][:12]}] groups 应恰 0(1017up4 蓝图极简形)"
                         continue
@@ -5190,7 +5189,7 @@ class TestI2IContract:
         for n in [*graph["nodes"], *sg["nodes"], *xsg["nodes"]]:
             if n.get("properties", {}).get("subgraph") in {s["id"] for s in _sgs(graph)} \
                     and n["type"] in {s["id"] for s in _sgs(graph)
-                                      if s["name"] in {UP4[t]["name"] for t in "ABCD"}}:
+                                      if s["name"] in {UP4[t]["name"] for t in "D"}}:
                 continue  # 1017up4:超分四法宿主 title=镜像三锚(见 docstring)
             title = n.get("title")
             assert isinstance(title, str) and _re.match(r"^\[\d+\] ", title), \
@@ -5246,21 +5245,15 @@ SVR2_VAE_FILE = "ema_vae_fp16.safetensors"
 SVR2_SAVE_PREFIX = "MYStudio-2K"
 # 1017up4 超分四法收装:⑤组框改名扩罩(罩 A/B/C/D 四宿主;[501][502][503 旧件]
 # 随迁入 D 子图定义,主图只剩宿主);旧题名留档防回退
-SVR2_GROUP_TITLE = "道劫·⑤超分四法尾档"
-SVR2_GROUP_TITLE_LEGACY = "道劫·⑤SeedVR2放大尾档"
+SVR2_GROUP_TITLE = "道劫·⑤超分尾档"   # 1018 删 A/C:四法→B/D 两法
+SVR2_GROUP_TITLE_LEGACIES = ("道劫·⑤SeedVR2放大尾档", "道劫·⑤超分四法尾档")
 # 1017up4 四法定义/宿主锚(蓝图=施工员产物逐字引用;一法一蓝图锚 t2i/i2i 两件)
 UP4 = {
-    "A": {"name": "道劫·超分·潜空间重采样", "host": {"qi21": 506, "i2i": 511},
-          "wv": [0, 4, 2048, 2720, 0.35], "bp": "qi21-道劫-超分-潜空间重采样.json"},
-    "B": {"name": "道劫·超分·B像素精修", "host": {"qi21": 507, "i2i": 512},
-          "wv": [0, 4, 5.57, 0.30], "bp": "qi21-道劫-超分-像素精修.json"},
-    "C": {"name": "道劫·超分·USDU平铺", "host": {"qi21": 508, "i2i": 513},
-          "wv": [0, 12, 1.92, 0.20], "bp": "qi21-道劫-超分-USDU平铺.json"},
+    # 1018 终版:A/B/C 三法全删(用户裁「只用 SeedVR2」),唯余 D
     "D": {"name": "道劫·超分·SeedVR2", "host": {"qi21": 503, "i2i": 503},
           "wv": [0, 2048], "bp": "qi21-道劫-超分-SeedVR2.json"},
 }
-UP4_TITLE = {k: {"A": "超分·A潜空间重采样", "B": "超分·B像素精修",
-                 "C": "超分·C USDU平铺", "D": "超分·D SeedVR2"}[k] for k in UP4}
+UP4_TITLE = {"D": "超分·D SeedVR2"}
 # 母线信号扇出槽(design §4;槽序=定义 inputs 序 image0/model1/pos2/neg3/vae4)
 UP4_BUS_SRC = {
     "qi21": {"src": 5, "model": 4203, "pos": 4015, "neg": 4016, "neg_slot": 0, "vae": 4202},
@@ -5289,16 +5282,17 @@ class TestSeedVR2TailContract1002:
             grp = next((g for g in graph["groups"]
                         if g.get("title", "").startswith(SVR2_GROUP_TITLE)), None)
             assert grp is not None, \
-                f"{name}: 缺⑤超分四法尾档组框(锚={SVR2_GROUP_TITLE!r}…;Ctrl+B 整组旁路语义载体)"
+                f"{name}: 缺⑤超分尾档组框(锚={SVR2_GROUP_TITLE!r}…;Ctrl+B 整组旁路语义载体)"
             assert not [g for g in graph["groups"]
-                        if g.get("title", "").startswith(SVR2_GROUP_TITLE_LEGACY)], \
-                f"{name}: 旧⑤题名 {SVR2_GROUP_TITLE_LEGACY!r} 残留(1017up4 改名回退哨兵)"
+                        if any(g.get("title", "").startswith(x)
+                               for x in SVR2_GROUP_TITLE_LEGACIES)], \
+                f"{name}: 旧⑤题名 {SVR2_GROUP_TITLE_LEGACIES} 残留(改名回退哨兵)"
             gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
             gx1 = gx0 + grp["bounding"][2]
             gy1 = gy0 + grp["bounding"][3]
             # 1017up4 罩集=A/B/C/D 四宿主+[504](+t2i [505]);[501][502] 随迁 D 子图
             # 定义,主图零实体(子图内 groups 恒空=蓝图极简形)
-            cover = [UP4[t]["host"][name] for t in "ABCD"] + [SVR2_SAVE]
+            cover = [UP4["D"]["host"][name], SVR2_SAVE]
             if name == "qi21":
                 cover.append(SVR2_CMP)
             for nid in cover:
@@ -5340,8 +5334,7 @@ class TestSeedVR2TailContract1002:
             # 主图母线:t2i [5] 扇出=[8]/[505]/[506=A];i2i [509]→[511=A] 首段
             # +末段 [513=C]:0→[503]:0;[503] 出扇出 [504](+t2i [505])不变
             src = UP4_BUS_SRC[name]["src"]
-            chain = [src, UP4["A"]["host"][name], UP4["B"]["host"][name],
-                     UP4["C"]["host"][name], SVR2_UP]
+            chain = [src, SVR2_UP]
             for a, b in zip(chain, chain[1:]):
                 got = [l[0] for l in graph["links"] if l[1] == a and l[2] == 0
                        and l[3] == b and l[4] == 0]
@@ -5351,12 +5344,12 @@ class TestSeedVR2TailContract1002:
                 out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
                 assert (_links_pid(graph, 8) in out5
                         and _links_pid(graph, SVR2_CMP) in out5
-                        and _links_pid(graph, UP4["A"]["host"][name]) in out5), \
-                    f"qi21: [5] 应扇出 [8]+[505]+[506 A宿主](1017up4 不再直连 [503]),得 {out5}"
+                        and _links_pid(graph, SVR2_UP) in out5), \
+                    f"qi21: [5] 应扇出 [8]+[505]+[503 D宿主](1018 终版 B 删直连),得 {out5}"
             else:
                 l509 = [l[3] for l in graph["links"] if l[1] == I2I_WASH_JOIN]
-                assert l509 == [8, UP4["A"]["host"][name]], \
-                    f"i2i: [509] 应只扇出 [8]+[511 A宿主](洗底回拼=母线入水口),得 {l509}"
+                assert l509 == [8, SVR2_UP], \
+                    f"i2i: [509] 应只扇出 [8]+[503 D宿主](1018 终版 B 删直连),得 {l509}"
             assert _input_src(nodes, links, SVR2_SAVE, "images") == SVR2_UP, \
                 f"{name}: [{SVR2_SAVE}].images 应接 [{SVR2_UP}] 宿主 2K 产物"
 
@@ -5405,10 +5398,8 @@ class TestSeedVR2TailContract1002:
         # 1017up4 母线(S1 探针 GREEN):[509] 不再直喂 [503]——首段 [509]→[511]
         # (A 宿主),末段 [513]:0→[503]:0;A/B/C 默认旁路=直通,入水语义等价。
         # (design §7 #2 原文「本测零改」与母线接线互斥,按 §1 架构裁决改此一行)
-        assert _input_src(nodes, links, UP4["A"]["host"]["i2i"], "image") == I2I_WASH_JOIN, \
-            "i2i: [511 A宿主].image 应接 [509] 洗底回拼图(母线入水口)"
-        assert _input_src(nodes, links, SVR2_UP, "image") == UP4["C"]["host"]["i2i"], \
-            "i2i: [503 D宿主].image 应接 [513 C宿主](母线末段)"
+        assert _input_src(nodes, links, SVR2_UP, "image") == I2I_WASH_JOIN, \
+            "i2i: [503 D宿主].image 应接 [509] 洗底回拼(1018 终版 B 删,母线直连)"
 
     def test_comparer_t2i_only(self):
         graph = GRAPHS["qi21"]
@@ -5466,7 +5457,7 @@ class TestUpscaleFourWays1017:
         for name in ("qi21", "i2i"):
             graph = GRAPHS[name]
             nodes = _nodes(graph)
-            for t in "ABCD":
+            for t in "D":
                 sg = next(s for s in _sgs(graph) if s["name"] == UP4[t]["name"])
                 host = nodes[UP4[t]["host"][name]]
                 assert host["type"] == sg["id"] and \
@@ -5485,22 +5476,13 @@ class TestUpscaleFourWays1017:
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
             spec = UP4_BUS_SRC[name]
-            chain = [spec["src"], UP4["A"]["host"][name], UP4["B"]["host"][name],
-                     UP4["C"]["host"][name], UP4["D"]["host"][name]]
+            chain = [spec["src"], UP4["D"]["host"][name]]
             for a, b in zip(chain, chain[1:]):
                 got = [l for l in graph["links"] if l[1] == a and l[2] == 0
                        and l[3] == b and l[4] == 0 and l[5] == "IMAGE"]
                 assert len(got) == 1, \
                     f"{name}: 母线 [{a}]:0→[{b}]:0 应恰一 IMAGE 线,得 {got}"
-            for t in "ABC":
-                hid = UP4[t]["host"][name]
-                for slot_src, ds, lty, ss in ((spec["model"], 1, "MODEL", 0),
-                                              (spec["pos"], 2, "CONDITIONING", 0),
-                                              (spec["neg"], 3, "CONDITIONING", spec["neg_slot"]),
-                                              (spec["vae"], 4, "VAE", 0)):
-                    assert any(l[1] == slot_src and l[2] == ss and l[3] == hid
-                               and l[4] == ds and l[5] == lty for l in graph["links"]), \
-                        f"{name}: [{hid}] 槽{ds}({lty}) 应接 [{slot_src}]:{ss}(design §4 扇出)"
+            # 1018 终版:B 删——model/pos/neg/vae 四槽扇出随宿主出册(回潮即红)
             # D 出扇出:[504](两件)+[505](t2i;对比件零改)
             dl = nodes[UP4["D"]["host"][name]]["outputs"][0]["links"]
             want = [205, 207] if name == "qi21" else [204]
@@ -5513,28 +5495,30 @@ class TestUpscaleFourWays1017:
         for name in ("qi21", "i2i"):
             graph = GRAPHS[name]
             nodes = _nodes(graph)
-            active = [t for t in "ABCD"
+            active = [t for t in "D"
                       if nodes[UP4[t]["host"][name]].get("mode", 0) == 0]
             assert len(active) <= 1, \
                 f"{name}: 四宿主至多一激活(换法=Ctrl+B 现法+解除目标法),得激活 {active}"
             if name == "qi21":
-                assert active == [], \
-                    f"qi21: 默认态=四宿主+[504]+[505] 全旁路(零激活,现状保持),得 {active}"
-                assert nodes[SVR2_SAVE]["mode"] == 4 and nodes[SVR2_CMP]["mode"] == 4, \
-                    "qi21: [504][505] 应默认 mode4(尾档整组旁路现状)"
+                # 1018 终版:B/A/C 全删(用户裁「只用 SeedVR2」)——D 宿主+[504]
+                # 在役为唯一默认;[505] 对比件仍旁路(可选)
+                assert active == ["D"], \
+                    f"qi21: 默认档=D SeedVR2(1018 终版),得 {active}"
+                assert nodes[SVR2_SAVE]["mode"] == 0 and nodes[SVR2_CMP]["mode"] == 4, \
+                    "qi21: [504] 应随 D 默认在役(2K 落盘),[505] 对比件应维持 mode4"
             else:
                 assert active == ["D"], \
-                    f"i2i: 默认态=仅 D 在役(A/B/C 旁路),得 {active}"
+                    f"i2i: 默认态=仅 D 在役(1018 终版唯一法),得 {active}"
                 assert nodes[SVR2_SAVE]["mode"] == 0, "i2i: [504] 应在役(D 直出 2K 落盘)"
 
     def test_seed_single_source_primitives_and_io_link_ids(self):
         """seed 单源锚(design §7 #7):四定义内 PrimitiveInt(7101/7204/7302/7402)
         [0,"fixed"] 由边界 seed 槽喂,扇出恰内部采样件;边界 IO linkIds 全登记
         (§零铁律;widget 型槽同判——AGP 判据=test_subgraph_io_link_ids_registered)。"""
-        seed_ids = {"A": 7101, "B": 7204, "C": 7302, "D": 7402}
+        seed_ids = {"D": 7402}   # 1018 终版:B(7204)/A(7101)/C(7302) 全删
         for name in ("qi21", "i2i"):
             graph = GRAPHS[name]
-            for t in "ABCD":
+            for t in "D":
                 sg = next(s for s in _sgs(graph) if s["name"] == UP4[t]["name"])
                 i_links = _sg_links(sg)
                 seed = _sg_nodes(sg)[seed_ids[t]]
@@ -5586,12 +5570,12 @@ class TestUpscaleFourWays1017:
                         i["link"] = lid.get(i["link"], i["link"])
             return json.dumps(sg, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
-        for t in "ABCD":
+        for t in "D":
             a = next(s for s in _sgs(GRAPHS["qi21"]) if s["name"] == UP4[t]["name"])
             b = next(s for s in _sgs(GRAPHS["i2i"]) if s["name"] == UP4[t]["name"])
             assert canon(a) == canon(b), \
                 f"{t}: 定义应 t2i/i2i 全同(§3.5 统一参数前提)"
-        for t in "ABCD":
+        for t in "D":
             wa = _nodes(GRAPHS["qi21"])[UP4[t]["host"]["qi21"]]["widgets_values"]
             wb = _nodes(GRAPHS["i2i"])[UP4[t]["host"]["i2i"]]["widgets_values"]
             assert wa == wb == UP4[t]["wv"], \
@@ -5605,14 +5589,14 @@ class TestUpscaleBlueprintAnchors1017:
     uuid 指向=宿主面板镜像(镜像三锚)。蓝图真源=施工员产物(1017 接线役引用,
     重抽通道=施工员生成器,勿手改)。"""
 
-    BP = {t: _TESTS_DIR.parent / "my_nodes/subgraphs" / UP4[t]["bp"] for t in "ABCD"}
+    BP = {t: _TESTS_DIR.parent / "my_nodes/subgraphs" / UP4[t]["bp"] for t in "D"}
 
     def test_four_blueprints_match_hosts(self):
         import copy as _copy
         for t, bp_path in self.BP.items():
             bp = json.loads(bp_path.read_text(encoding="utf-8"))
             bp_sg = bp["definitions"]["subgraphs"][0]
-            assert bp_sg["name"] in {UP4[x]["name"] for x in "ABCD"} and \
+            assert bp_sg["name"] in {UP4[x]["name"] for x in "D"} and \
                 bp_sg["category"] == "漫影", f"{t}: 蓝图 name/category 应漫影册"
             for zh in ("qi21", "i2i"):
                 wf_sg = next(s for s in _sgs(GRAPHS[zh]) if s["name"] == bp_sg["name"])

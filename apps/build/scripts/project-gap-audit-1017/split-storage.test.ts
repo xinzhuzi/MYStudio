@@ -93,19 +93,19 @@ const merge=(a:TestState|null,b:TestState|null)=>({items:[...(b?.items??[]),...(
 const make=()=>createSplitStorage<TestState>("characters",split,merge,"shareCharacters");
 const seed=(key:string,items:TestItem[])=>storageMocks.values.set(key,JSON.stringify({state:{items},version:1}));
 describe("audit: split storage data loss reproduction",()=>{
- it("saving while sharing is disabled clears existing shared resources",async()=>{
+ it("saving while sharing is disabled preserves existing shared resources",async()=>{
   storageMocks.resourceSharing.shareCharacters=false;
   seed("_p/p1/characters",[{id:"own",projectId:"p1"}]);seed("_shared/characters",[{id:"shared"}]);
   const storage=make(); const loaded=await storage.getItem("library");
   await storage.setItem("library",loaded!);
-  expect(JSON.parse(storageMocks.values.get("_shared/characters")!).state.items).toEqual([]);
+  expect(JSON.parse(storageMocks.values.get("_shared/characters")!).state.items).toEqual([{id:"shared"}]);
  });
- it("removing the last other-project item leaves its disk file unchanged",async()=>{
+ it("removing the last loaded other-project item remains deleted after reload",async()=>{
   seed("_p/p1/characters",[]);seed("_p/p2/characters",[{id:"last",projectId:"p2"}]);
   const storage=make();const loaded=JSON.parse((await storage.getItem("library"))!);
   expect(loaded.state.items).toHaveLength(1);
   loaded.state.items=[];await storage.setItem("library",JSON.stringify(loaded));
   const reloaded=JSON.parse((await storage.getItem("library"))!);
-  expect(reloaded.state.items.map((i:TestItem)=>i.id)).toEqual(["last"]);
+  expect(reloaded.state.items.map((i:TestItem)=>i.id)).toEqual([]);
  });
 });

@@ -30,21 +30,22 @@ describe("audit: read boundary and migration confirmation", () => {
     registerFileStorageIpcHandlers({ getDataDir: () => "/isolated-audit-data" });
   });
 
-  it("currently reports both a missing file and a failed read as null", async () => {
+  it("distinguishes missing files from read failures", async () => {
     const get = probe.handlers.get("file-storage-get")!;
     probe.existsSync.mockReturnValue(false);
+    probe.readFileSync.mockImplementationOnce(() => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); });
     const missing = await get({}, "audit-read");
-    expect(probe.readFileSync).not.toHaveBeenCalled();
+    expect(probe.readFileSync).toHaveBeenCalledOnce();
 
     probe.existsSync.mockReturnValue(true);
     probe.readFileSync.mockImplementation(() => {
       throw Object.assign(new Error("isolated permission failure"), { code: "EACCES" });
     });
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const unreadable = await get({}, "audit-read");
+    await expect(get({}, "audit-read")).rejects.toThrow("isolated permission failure");
 
     expect(missing).toBeNull();
-    expect(unreadable).toBeNull();
+    expect(probe.readFileSync).toHaveBeenCalledTimes(2);
     expect(errorLog).toHaveBeenCalledOnce();
   });
 

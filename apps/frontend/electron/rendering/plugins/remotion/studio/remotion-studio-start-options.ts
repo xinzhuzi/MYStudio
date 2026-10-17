@@ -49,7 +49,7 @@ export interface RemotionStudioRenderQueueBridgeOptions {
     studioJobId: string;
   }) => Promise<{ accepted: boolean; job?: RemotionRenderJobV1; message?: string }>;
   readonly getJob: (jobId: string) => RemotionRenderJobV1 | undefined;
-  readonly cancelJob: (jobId: string) => { success: boolean; canceled: boolean; error?: string };
+  readonly cancelJob: (jobId: string) => { success: boolean; canceled: boolean; error?: string } | Promise<{ success: boolean; canceled: boolean; error?: string }>;
 }
 
 /** Adapts Remotion Studio's native queue callbacks to MYStudio's durable queue. */
@@ -102,8 +102,11 @@ export class RemotionStudioRenderQueueBridge {
       const job = this.jobs.get(studioJobId);
       const remotionJobId = this.nativeToRemotion.get(studioJobId);
       if (!job || !remotionJobId) return;
-      const result = this.options.cancelJob(remotionJobId);
-      if (!result.success) markNativeJobFailed(job, result.error ?? "ChapterVideo render 取消失败");
+      void Promise.resolve().then(() => this.options.cancelJob(remotionJobId)).then((result) => {
+        if (!result.success) markNativeJobFailed(job, result.error ?? "ChapterVideo render 取消失败");
+      }).catch((error: unknown) => {
+        markNativeJobFailed(job, error instanceof Error ? error.message : String(error));
+      });
     },
     removeJob: (studioJobId) => {
       this.jobs.delete(studioJobId);

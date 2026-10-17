@@ -18,6 +18,7 @@ import { useDirectorStore } from '@/stores/director/director-store';
 import { useMediaStore } from '@/stores/media/media-store';
 import { useCharacterLibraryStore } from '@/stores/library/character-library-store';
 import { useSceneStore } from '@/stores/library/scene-store';
+import { usePropsLibraryStore } from '@/stores/library/props-library-store';
 import { useSimpleTimelineStore } from '@/stores/editing/simple-timeline-store';
 import { useSClassStore } from '@/stores/sclass/sclass-store';
 import { useTtsStore } from '@/stores/tts/tts-store';
@@ -116,6 +117,12 @@ export async function switchProject(
     await useSceneStore.persist.rehydrate();
   } catch (e) {
     console.warn('[ProjectSwitcher] Failed to rehydrate scene store:', e);
+  }
+
+  try {
+    await usePropsLibraryStore.persist.rehydrate();
+  } catch (e) {
+    console.warn('[ProjectSwitcher] Failed to rehydrate props library:', e);
   }
 
   try {

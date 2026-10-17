@@ -55,6 +55,7 @@ export function useRemotionQueueScope(
           loading: false,
           loaded: true,
           concurrency: scope.concurrency ?? 1,
+          ...(scope.persistenceError ? { error: scope.persistenceError } : {}),
         });
       } catch (error) {
         if (disposed || version !== requestVersion) return;

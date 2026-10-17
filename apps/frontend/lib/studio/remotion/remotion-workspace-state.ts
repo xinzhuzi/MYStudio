@@ -16,8 +16,8 @@ export const REMOTION_TERMINAL_STATUSES: ReadonlySet<RemotionStageStatus> = new 
 
 const REMOTION_TRANSITIONS: Record<RemotionStageStatus, ReadonlySet<RemotionStageStatus>> = {
   pending: new Set(["pending", "blocked", "ready", "stale"]),
-  blocked: new Set(["blocked", "ready", "failed", "stale"]),
-  ready: new Set(["ready", "queued", "blocked", "stale"]),
+  blocked: new Set(["blocked", "ready", "failed", "stale", "canceled"]),
+  ready: new Set(["ready", "queued", "blocked", "stale", "canceled"]),
   queued: new Set(["queued", "running", "canceled", "stale"]),
   running: new Set(["running", "succeeded", "failed", "canceled", "stale"]),
   succeeded: new Set(["succeeded", "stale"]),

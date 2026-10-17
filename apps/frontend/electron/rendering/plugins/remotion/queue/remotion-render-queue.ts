@@ -1,3 +1,4 @@
+import { canonicalJson } from "@/lib/studio/remotion/canonical-json";
 import type { RemotionShotPlanV1 } from "@/lib/studio/remotion/shot-plan";
 import type { TimelineRenderPlan } from "@/types/editing";
 import { validateRemotionShotPlan } from "@/lib/studio/remotion/shot-plan";
@@ -17,6 +18,13 @@ export class RemotionRenderQueue {
   private readonly listeners = new Set<(notification: RemotionQueueNotification) => void>();
   private readonly now: () => number;
   private initialized = false;
+  private initPromise?: Promise<void>;
+  private commitTail: Promise<unknown> = Promise.resolve();
+  private persistenceError?: string;
+  private readonly cancellationPending = new Set<string>();
+  private readonly suspendedJobIds = new Set<string>();
+  private readonly restoredEvents = new Map<number, string>();
+  private lastRestoredEventSeq?: number;
   private sequence = 0;
   private activeProjectId: string | undefined;
   private activeChapterId: string | undefined;
@@ -41,15 +49,33 @@ export class RemotionRenderQueue {
     return this.concurrencySlots;
   }
 
+  getPersistenceError(): string | undefined { return this.persistenceError; }
+
   async init(): Promise<void> {
+    if (this.initPromise) return this.initPromise;
     if (this.initialized) return;
-    const loaded = await this.options.persistence.load();
-    if (loaded.snapshot !== undefined) this.restoreSnapshot(loaded.snapshot);
-    for (const rawEvent of loaded.events) this.restoreEvent(rawEvent);
-    await this.validateRestoredItems();
-    this.initialized = true;
-    await this.recoverInterruptedJobs();
-    this.schedulePump();
+    const run = (async () => {
+      try {
+        const loaded = await this.options.persistence.load();
+        if (loaded.snapshot !== undefined) this.restoreSnapshot(loaded.snapshot);
+        for (const rawEvent of loaded.events) this.restoreEvent(rawEvent);
+        if (this.lastRestoredEventSeq !== undefined && this.lastRestoredEventSeq < this.sequence) {
+          throw new Error('Remotion queue 快照序号领先于现有事件日志');
+        }
+        await this.validateRestoredItems();
+        await this.recoverInterruptedJobs();
+        this.initialized = true;
+        this.schedulePump();
+      } catch (error) {
+        this.jobs.clear(); this.sequence = 0; this.restoredEvents.clear(); this.lastRestoredEventSeq = undefined;
+        this.activeProjectId = undefined; this.activeChapterId = undefined;
+        this.initialized = false;
+        throw new Error(`Remotion 队列恢复失败，已暂停全局自动渲染并保留原文件：${error instanceof Error ? error.message : String(error)}`);
+      }
+    })();
+    this.initPromise = run;
+    try { await run; }
+    finally { if (this.initPromise === run) this.initPromise = undefined; }
   }
 
   async enqueueShot(input: RemotionQueueShotInput): Promise<RemotionQueueEnqueueResult> {
@@ -87,7 +113,7 @@ export class RemotionRenderQueue {
       return invalid("新建队列 job 必须从 ready/blocked/stale/failed/canceled 开始");
     }
     const item: RemotionQueueShotInput = { kind: "shot", job: input.job, plan: input.plan };
-    await this.commit(item);
+    if (!await this.commit(item, [])) return this.duplicateEnqueue(input.job);
 
     this.schedulePump();
     return { accepted: true, job: input.job, reused: false };
@@ -138,13 +164,14 @@ export class RemotionRenderQueue {
       }
       job = asReady(job);
     }
-    await this.commit({
+    const committed = await this.commit({
       kind: "chapter",
       job,
       dependencyJobIds,
       ...(input.plan ? { plan: input.plan } : {}),
       ...(input.currentShotSlots ? { currentShotSlots: input.currentShotSlots } : {}),
-    });
+    }, []);
+    if (!committed) return this.duplicateEnqueue(input.job);
     if (job.status === "ready") this.schedulePump();
     return { accepted: true, job, reused: false };
   }
@@ -191,14 +218,15 @@ export class RemotionRenderQueue {
     } else {
       job = asReady(job);
     }
-    await this.commit({
+    const committed = await this.commit({
       kind: "chapter-scene",
       job,
       dependencyJobIds,
       plan: input.plan,
       currentShotSlots: input.currentShotSlots,
       sceneSegment: input.sceneSegment,
-    });
+    }, []);
+    if (!committed) return this.duplicateEnqueue(input.job);
     if (job.status === "ready") this.schedulePump();
     return { accepted: true, job, reused: false };
   }
@@ -214,6 +242,7 @@ export class RemotionRenderQueue {
       ? asReady(item.job)
       : transitionOrThrow(item.job, { status: "queued", at: this.now() });
     await this.commit({ ...item, job: next });
+    this.suspendedJobIds.delete(jobId);
     this.schedulePump();
     return { accepted: true, job: next, reused: false };
   }
@@ -231,18 +260,27 @@ export class RemotionRenderQueue {
     return true;
   }
 
-  cancel(jobId: string): { success: boolean; jobId: string; canceled: boolean; error?: string } {
-    const item = this.jobs.get(jobId);
-    if (!item) return { success: false, jobId, canceled: false, error: `未找到 Remotion job: ${jobId}` };
-    if (["succeeded", "failed", "canceled", "stale"].includes(item.job.status)) {
-      return { success: false, jobId, canceled: false, error: `Remotion job 不在可取消状态: ${item.job.status}` };
+  async cancel(jobId: string): Promise<{ success: boolean; jobId: string; canceled: boolean; error?: string }> {
+    this.cancellationPending.add(jobId);
+    try {
+      await this.init();
+      await this.commitTail;
+      const item = this.jobs.get(jobId);
+      if (!item) return { success: false, jobId, canceled: false, error: `未找到 Remotion job: ${jobId}` };
+      if (["succeeded", "failed", "canceled", "stale"].includes(item.job.status)) {
+        return { success: false, jobId, canceled: false, error: `Remotion job 不在可取消状态: ${item.job.status}` };
+      }
+      if (item.job.status !== 'running' || !this.activeJobIds.has(jobId)) {
+        await this.cancelQueued(item);
+        return { success: true, jobId, canceled: true };
+      }
+      const result = this.options.executor.cancel(jobId);
+      return result.success ? result : { ...result, error: result.error ?? 'Remotion job 取消失败' };
+    } catch (error) {
+      return { success: false, jobId, canceled: false, error: error instanceof Error ? error.message : String(error) };
+    } finally {
+      this.cancellationPending.delete(jobId);
     }
-    if (item.job.status === "ready" || item.job.status === "queued") {
-      void this.cancelQueued(item);
-      return { success: true, jobId, canceled: true };
-    }
-    const result = this.options.executor.cancel(jobId);
-    return result.success ? result : { ...result, error: result.error ?? "Remotion job 取消失败" };
   }
 
   getJobs(scope: { projectId: string; chapterId?: string }): RemotionRenderJobV1[] {
@@ -268,6 +306,7 @@ export class RemotionRenderQueue {
 
   async activateProject(toProjectId: string): Promise<RemotionQueueSwitchResult> {
     await this.init();
+    const run = this.commitTail.then(async () => {
     const decision = this.requestProjectSwitch(toProjectId);
     if (!decision.allowed) return decision;
     this.activeProjectId = toProjectId;
@@ -288,6 +327,9 @@ export class RemotionRenderQueue {
     await this.writeSnapshot();
     this.schedulePump();
     return decision;
+    });
+    this.commitTail = run.then(() => undefined, () => undefined);
+    return run;
   }
 
   subscribe(listener: (notification: RemotionQueueNotification) => void): () => void {
@@ -313,6 +355,7 @@ export class RemotionRenderQueue {
       && [...this.jobs.values()].some((item) => (item.kind === "shot" || item.kind === "chapter" || item.kind === "chapter-scene")
         && item.job.projectId === this.activeProjectId
         && targetChapterId(item.job.target) === this.activeChapterId
+        && !this.suspendedJobIds.has(item.job.jobId)
         && ["ready", "queued"].includes(item.job.status));
   }
 
@@ -347,7 +390,9 @@ export class RemotionRenderQueue {
         && item.job.projectId === this.activeProjectId
         && targetChapterId(item.job.target) === this.activeChapterId
         && ["ready", "queued"].includes(item.job.status)
-        && !this.reservedJobIds.has(item.job.jobId));
+        && !this.reservedJobIds.has(item.job.jobId)
+        && !this.suspendedJobIds.has(item.job.jobId)
+        && !this.cancellationPending.has(item.job.jobId));
       if (!next) return;
       this.reservedJobIds.add(next.job.jobId);
       void this.runJob(next).finally(() => {
@@ -365,10 +410,13 @@ export class RemotionRenderQueue {
   private async runJob(next: RemotionQueueStateItem): Promise<void> {
     let running: RemotionRenderJobV1 | undefined;
     try {
+      if (this.cancellationPending.has(next.job.jobId)) return;
       const queued = transitionOrThrow(next.job, { status: "queued", at: this.now() });
-      await this.commit({ ...next, job: queued });
+      if (!await this.commit({ ...next, job: queued }, ['ready', 'queued'])) return;
+      if (this.cancellationPending.has(next.job.jobId) || this.jobs.get(next.job.jobId)?.job.status === 'canceled') return;
       running = transitionOrThrow(queued, { status: "running", at: this.now() });
-      await this.commit({ ...next, job: running });
+      if (!await this.commit({ ...next, job: running }, ['queued'])) return;
+      if (this.cancellationPending.has(next.job.jobId) || this.jobs.get(next.job.jobId)?.job.status === 'canceled') return;
       this.activeJobIds.add(running.jobId);
       // 预留使命完成(防 drain 同步启动到 active 落位间的重复拾取):落 active
       // 即解除——否则与 active 双重计数,concurrency 槽实际只放行 ⌈N/2⌉ 个。
@@ -443,6 +491,11 @@ export class RemotionRenderQueue {
     } catch (error) {
       if (running) this.activeJobIds.delete(running.jobId);
       const item = this.jobs.get(next.job.jobId) ?? next;
+      // A disk failure must not cause an unbounded automatic dispatch loop.
+      // Keep durable state intact; cancellation followed by explicit retry can resume.
+      this.suspendedJobIds.add(item.job.jobId);
+      this.persistenceError = `队列状态保存失败，已暂停此任务自动调度；恢复存储后请取消并主动重试：${error instanceof Error ? error.message : String(error)}`;
+      this.emit(item.job);
       await this.fail(item, "queue-error", error instanceof Error ? error.message : String(error)).catch(() => undefined);
     }
   }
@@ -458,8 +511,12 @@ export class RemotionRenderQueue {
   }
 
   private async cancelQueued(item: RemotionQueueStateItem): Promise<void> {
+    const transitioned = transitionOrThrow({ ...item.job, attempt: Math.max(1, item.job.attempt) }, {
+      status: 'canceled', at: this.now(),
+      error: { code: 'user-canceled', message: '用户取消了 Remotion job', stage: item.kind === 'shot' ? 'S4' : 'S7' },
+    });
     const next: RemotionRenderJobV1 = {
-      ...item.job,
+      ...transitioned,
       status: "canceled",
       attempt: Math.max(1, item.job.attempt),
       progress: 0,
@@ -479,6 +536,8 @@ export class RemotionRenderQueue {
       (item.kind === "chapter" || item.kind === "chapter-scene")
       && item.job.projectId === projectId && targetChapterId(item.job.target) === chapterId);
     for (const chapter of chapters) {
+      // Terminal jobs stay terminal until explicit retry; dependency updates cannot resurrect them.
+      if (['canceled', 'failed', 'succeeded', 'stale'].includes(chapter.job.status)) continue;
       const dependencyStatus = this.getDependencyStatus(chapter.dependencyJobIds);
       let next = chapter.job;
       if (dependencyStatus.failedJobId) {
@@ -486,7 +545,7 @@ export class RemotionRenderQueue {
       } else if (dependencyStatus.allSucceeded) {
         if (next.status === "blocked") next = asReady(next);
       }
-      if (next !== chapter.job) await this.commit({ ...chapter, job: next });
+      if (next !== chapter.job) await this.commit({ ...chapter, job: next }, [chapter.job.status]);
     }
   }
 
@@ -535,34 +594,49 @@ export class RemotionRenderQueue {
     }
   }
 
-  private async commit(item: RemotionQueueStateItem): Promise<void> {
-    const event: RemotionQueueEventV1 = {
-      schemaVersion: QUEUE_SCHEMA_VERSION,
-      seq: this.sequence + 1,
-      at: this.now(),
-      projectId: item.job.projectId,
-      chapterId: targetChapterId(item.job.target),
-      jobId: item.job.jobId,
-      item,
-      ...(this.activeProjectId ? { activeProjectId: this.activeProjectId } : {}),
-      ...(this.activeChapterId ? { activeChapterId: this.activeChapterId } : {}),
-    };
-    await this.options.persistence.append(event);
-    this.sequence = event.seq;
-    this.jobs.set(item.job.jobId, item);
-    this.emit(item.job);
-    await this.writeSnapshot();
+  private duplicateEnqueue(job: RemotionRenderJobV1): RemotionQueueEnqueueResult {
+    const existing = this.jobs.get(job.jobId);
+    if (!existing || !sameJobIdentity(existing.job, job)) return invalid('重复 jobId 绑定了不同的 render identity');
+    return { accepted: false, job: existing.job, reason: existing.job.status === 'succeeded' ? 'already-succeeded' : 'duplicate-active' };
+  }
+
+  private commit(item: RemotionQueueStateItem, expectedStatuses?: readonly string[]): Promise<boolean> {
+    const run = this.commitTail.then(async () => {
+      const previous = this.jobs.get(item.job.jobId);
+      if (expectedStatuses?.length === 0 && previous) return false;
+      if (expectedStatuses?.length && (!previous || !expectedStatuses.includes(previous.job.status) || this.cancellationPending.has(item.job.jobId))) return false;
+      const event: RemotionQueueEventV1 = {
+        schemaVersion: QUEUE_SCHEMA_VERSION, seq: this.sequence + 1, at: this.now(),
+        projectId: item.job.projectId, chapterId: targetChapterId(item.job.target), jobId: item.job.jobId, item,
+        ...(this.activeProjectId ? { activeProjectId: this.activeProjectId } : {}),
+        ...(this.activeChapterId ? { activeChapterId: this.activeChapterId } : {}),
+      };
+      // Successful append is the durable commit point. A failed snapshot must
+      // never turn an already committed succeeded job into a rendering failure.
+      await this.options.persistence.append(event);
+      this.sequence = event.seq;
+      this.jobs.set(item.job.jobId, item);
+      await this.writeSnapshot();
+      this.emit(item.job);
+      return true;
+    });
+    this.commitTail = run.then(() => undefined, () => undefined);
+    return run;
   }
 
   private async writeSnapshot(): Promise<void> {
-    await this.options.persistence.writeSnapshot({
-      schemaVersion: QUEUE_SCHEMA_VERSION,
-      lastSeq: this.sequence,
-      ...(this.activeProjectId ? { activeProjectId: this.activeProjectId } : {}),
-      ...(this.activeChapterId ? { activeChapterId: this.activeChapterId } : {}),
-      jobs: [...this.jobs.values()],
-      updatedAt: this.now(),
-    });
+    try {
+      await this.options.persistence.writeSnapshot({
+        schemaVersion: QUEUE_SCHEMA_VERSION, lastSeq: this.sequence,
+        ...(this.activeProjectId ? { activeProjectId: this.activeProjectId } : {}),
+        ...(this.activeChapterId ? { activeChapterId: this.activeChapterId } : {}),
+        jobs: [...this.jobs.values()], updatedAt: this.now(),
+      });
+      this.persistenceError = undefined;
+    } catch (error) {
+      this.persistenceError = `事件日志已保存，队列快照保存失败，将在下次状态更新时重试：${error instanceof Error ? error.message : String(error)}`;
+      console.error('[remotion-queue]', this.persistenceError);
+    }
   }
 
   private emit(job: RemotionRenderJobV1): void {
@@ -573,7 +647,10 @@ export class RemotionRenderQueue {
       jobId: job.jobId,
       status: job.status,
     };
-    for (const listener of this.listeners) listener(notification);
+    for (const listener of this.listeners) {
+      try { listener(notification); }
+      catch (error) { console.error('[remotion-queue] notification failed:', error); }
+    }
   }
 
   private restoreSnapshot(value: unknown): void {
@@ -581,7 +658,7 @@ export class RemotionRenderQueue {
       throw new Error("Remotion queue snapshot 无效");
     }
     const lastSeq = value.lastSeq;
-    if (typeof lastSeq !== "number") throw new Error("Remotion queue snapshot lastSeq 无效");
+    if (typeof lastSeq !== "number" || lastSeq < 0) throw new Error("Remotion queue snapshot lastSeq 无效");
     this.sequence = lastSeq;
     this.activeProjectId = optionalString(value.activeProjectId);
     this.activeChapterId = optionalString(value.activeChapterId);
@@ -594,6 +671,12 @@ export class RemotionRenderQueue {
     if (value.schemaVersion !== QUEUE_SCHEMA_VERSION || !Number.isSafeInteger(seq) || typeof seq !== "number" || seq < 1) {
       throw new Error("Remotion queue event 无效或顺序不连续");
     }
+    const fingerprint = canonicalJson(JSON.parse(JSON.stringify(value)));
+    if (this.lastRestoredEventSeq !== undefined && seq !== this.lastRestoredEventSeq && seq !== this.lastRestoredEventSeq + 1) throw new Error('Remotion queue 历史序列不连续');
+    this.lastRestoredEventSeq = seq;
+    const seen = this.restoredEvents.get(seq);
+    if (seen !== undefined && seen !== fingerprint) throw new Error(`Remotion queue 历史序号冲突: ${seq}`);
+    this.restoredEvents.set(seq, fingerprint);
     if (seq <= this.sequence) return;
     if (seq !== this.sequence + 1) throw new Error("Remotion queue event 序列不连续");
     this.sequence = seq;
