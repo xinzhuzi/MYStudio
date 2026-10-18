@@ -29,6 +29,7 @@ import {
   type AssetRow,
 } from "./script-asset-generation-model";
 import { getAbsoluteImagePath } from "@/lib/media/image-storage";
+import { fetchFamilyImageEntries, type FamilyImageEntry } from "@/lib/studio/asset-family-images";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import type { TtsSpeakerId } from "@/types/tts";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
@@ -50,6 +51,9 @@ export function useScriptAssetGenerationActions({
   onAssetStored?: (row: AssetRow, asset: StudioAssetSummary) => void;
 }) {
   const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
+  // R4 族聚显(10-19-script-asset-corridor-blank):行打开时取该实体族全部生成图
+  // (batchMatch 同源候选全集,updatedAt 倒序)传入详情弹窗;undefined=桥缺席/失败。
+  const [selectedFamilyImages, setSelectedFamilyImages] = useState<FamilyImageEntry[] | undefined>(undefined);
   // 从角色行打开详情时,收集该资产全部别名对应的角色库条目 id(共享资产如「李先生;管事」
   // 拆开的两行都要接住音色):分配时对这些工作流 speaker 键统一双写
   const [selectedRowLinkedSpeakerIds, setSelectedRowLinkedSpeakerIds] = useState<TtsSpeakerId[]>([]);
@@ -88,11 +92,20 @@ export function useScriptAssetGenerationActions({
     [activeProjectId],
   );
 
+  /** 打开详情弹窗并异步取族聚显条目(键=行实体名,与本页 batchMatch 重识别同源)。 */
+  const openAssetDetailWithFamily = useCallback(async (asset: StudioAssetSummary, row: AssetRow) => {
+    setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(asset, row));
+    setSelectedAsset(asset);
+    setAssetDialogOpen(true);
+    setSelectedFamilyImages(undefined);
+    setSelectedFamilyImages(
+      await fetchFamilyImageEntries(getStudioAssetsBridge(), toRuntimeAssetType(row.type), row.name),
+    );
+  }, [collectLinkedSpeakerIds]);
+
   const handleOpenAsset = useCallback(async (row: AssetRow) => {
     if (row.assetLibrary) {
-      setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(row.assetLibrary, row));
-      setSelectedAsset(row.assetLibrary);
-      setAssetDialogOpen(true);
+      await openAssetDetailWithFamily(row.assetLibrary, row);
       return;
     }
     // 该行生成仍在后台进行:提示进度位置,不再弹「资产未找到」诱导重复提交
@@ -106,25 +119,21 @@ export function useScriptAssetGenerationActions({
         name: row.name,
       });
       if (asset) {
-        setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(asset, row));
-        setSelectedAsset(asset);
-        setAssetDialogOpen(true);
+        await openAssetDetailWithFamily(asset, row);
         return;
       }
       // 同源兜底(2026-10-13):App 家库两查均无此行时,用项目库资产合成只读摘要打开,
       // 与卡片缩略图同源,不再落「资产未找到」死胡同;无图可显仍走未找到流程。
       const synthesized = row.asset ? synthesizeAssetSummaryFromRow(row) : null;
       if (synthesized) {
-        setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(synthesized, row));
-        setSelectedAsset(synthesized);
-        setAssetDialogOpen(true);
+        await openAssetDetailWithFamily(synthesized, row);
         return;
       }
       setNotFoundAsset(row);
     } catch {
       toast.error("查询资产库失败");
     }
-  }, [collectLinkedSpeakerIds]);
+  }, [openAssetDetailWithFamily]);
 
   const handleStoreInAssetLibrary = useCallback(async (row: AssetRow) => {
     if (row.assetLibrary) return;
@@ -335,6 +344,7 @@ export function useScriptAssetGenerationActions({
     storingAssetKey,
     selectedAsset,
     setSelectedAsset,
+    selectedFamilyImages,
     selectedRowLinkedSpeakerIds,
     setSelectedRowLinkedSpeakerIds,
     assetDialogOpen,

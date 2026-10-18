@@ -363,7 +363,7 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).toContain("onCarouselApi={syncCarouselIndex}");
     expect(previewSource).toContain("setApi={onCarouselApi}");
     expect(carouselSource).toContain('api.selectedScrollSnap()');
-    expect(source).toContain("getAssetImageOpenTarget(images, currentIndex, detail)");
+    expect(source).toContain("getAssetImageOpenTarget(carouselImages, currentIndex, detail)");
   });
 });
 
@@ -382,7 +382,7 @@ describe("resolveAssetGenerationReferenceImage", () => {
 
   it("wires the reference into one-click asset generation", () => {
     const source = readDialogSources();
-    expect(source).toContain("resolveAssetGenerationReferenceImage(images, currentIndex)");
+    expect(source).toContain("resolveAssetGenerationReferenceImage(carouselImages, currentIndex)");
     expect(source).toContain("referenceImages: referenceImage ? [referenceImage] : undefined");
   });
 });
@@ -408,5 +408,37 @@ describe("resolveThreeTrackAssetType", () => {
     expect(source).toContain("resolveThreeTrackAssetType(asset.type)");
     expect(source).not.toContain('asset.type === "scene" ? "scene" as const : "prop" as const');
     expect(source).not.toContain(': "prop" as const\n        : "prop" as const');
+  });
+});
+
+describe("R4 族聚显(10-19-script-asset-corridor-blank D1+D3:键=batchMatch 同源候选全集,序=updatedAt 倒序,族聚仅显示层)", () => {
+  it("详情弹窗接受 familyImages 并以 mergeFamilyDisplayImages 派生轮播展示序", () => {
+    const source = readDialogSources();
+    expect(source).toContain("familyImages?: FamilyImageEntry[]");
+    expect(source).toContain("mergeFamilyDisplayImages(familyImages, images, asset?.id)");
+    expect(source).toContain("images={displayImages}");
+  });
+
+  it("轮播消费展示序:打开/参考图按 displayImages;增删仍只作用本行 images,跨行误删拒收", () => {
+    const source = readDialogSources();
+    expect(source).toContain("getAssetImageOpenTarget(carouselImages, currentIndex, detail)");
+    expect(source).toContain("resolveAssetGenerationReferenceImage(carouselImages, currentIndex)");
+    expect(source).toContain("const ownIndex = images.findIndex((item) => item.filePath === img.filePath)");
+    expect(source).toContain("mergeFamilyDisplayImages(familyImages, newImgs, asset?.id)");
+  });
+
+  it("预览面板按条目 removable 控制删除可见性(族兄弟只读条目不显示删除)", () => {
+    const previewSource = readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
+    expect(previewSource).toContain("isImageRemovable?: (image: AssetImage, index: number) => boolean");
+    expect(previewSource).toContain("isImageRemovable(image, index)");
+  });
+
+  it("剧本资产行打开详情即取族(键=行实体名,与本页 batchMatch 重识别同源),并透传弹窗", () => {
+    const actionsSource = readFileSync(new URL("../studio/useScriptAssetGenerationActions.ts", import.meta.url), "utf8");
+    expect(actionsSource).toContain(
+      "fetchFamilyImageEntries(getStudioAssetsBridge(), toRuntimeAssetType(row.type), row.name)",
+    );
+    const tabSource = readFileSync(new URL("../studio/ScriptAssetGenerationTab.tsx", import.meta.url), "utf8");
+    expect(tabSource).toContain("familyImages={selectedFamilyImages}");
   });
 });

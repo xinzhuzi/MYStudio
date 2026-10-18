@@ -142,6 +142,7 @@ export function ScriptAssetGenerationTab({
     isAutoAssigningAudio,
     selectedAsset,
     setSelectedAsset,
+    selectedFamilyImages,
     selectedRowLinkedSpeakerIds,
     setSelectedRowLinkedSpeakerIds,
     assetDialogOpen,
@@ -686,6 +687,7 @@ export function ScriptAssetGenerationTab({
       <StudioAssetDetailDialog
         asset={selectedAsset}
         linkedSpeakerIds={selectedRowLinkedSpeakerIds}
+        familyImages={selectedFamilyImages}
         open={assetDialogOpen}
         onOpenChange={(open) => {
           setAssetDialogOpen(open);

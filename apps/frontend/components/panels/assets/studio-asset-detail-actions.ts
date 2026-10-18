@@ -13,6 +13,11 @@ import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { polishAssetPrompt, type AssetType, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
+import {
+  findDisplayImageIndex,
+  mergeFamilyDisplayImages,
+  type FamilyImageEntry,
+} from "@/lib/studio/asset-family-images";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 
@@ -22,6 +27,10 @@ export function useStudioAssetDialogActions(ctx: {
   visualManualId: any;
   detail: any;
   images: AssetImage[];
+  /** R4 族聚显:轮播实际展示序(族兄弟只读条目并入);currentIndex 按此序计。 */
+  displayImages?: AssetImage[];
+  /** 行打开时取到的族条目(updatedAt 倒序);undefined=桥缺席/失败,回落本行图。 */
+  familyImages?: FamilyImageEntry[];
   currentIndex: any;
   draftName: any;
   draftDescription: any;
@@ -49,6 +58,8 @@ export function useStudioAssetDialogActions(ctx: {
     visualManualId,
     detail,
     images,
+    displayImages,
+    familyImages,
     currentIndex,
     draftName,
     draftDescription,
@@ -70,6 +81,8 @@ export function useStudioAssetDialogActions(ctx: {
     resolveAssetGenerationReferenceImage,
     resolveThreeTrackAssetType,
   } = ctx;
+  /** 展示序缺省回落本行图(资产库面板等无族聚显入口的调用方零行为变化)。 */
+  const carouselImages = displayImages ?? images;
 
   /** 润色当前资产的提示词 */
   const handlePolishPrompt = async () => {
@@ -197,8 +210,9 @@ export function useStudioAssetDialogActions(ctx: {
         setDraftPrompt(prompt);
         setFullAsset((current) => current ? { ...current, prompt } : current);
       };
-      // 以当前查看的设定图为参考再生成(身份一致性;道劫链据此加参考图降噪锁)
-      const referenceImage = resolveAssetGenerationReferenceImage(images, currentIndex);
+      // 以当前查看的设定图为参考再生成(身份一致性;道劫链据此加参考图降噪锁);
+      // 族聚显在驾时当前查看的可能是族兄弟图——同族同脸,同样可作参考
+      const referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
       const result = await generateAsset(
         {
           assetId: asset.id,
@@ -308,7 +322,7 @@ export function useStudioAssetDialogActions(ctx: {
   };
 
   const handleOpenSource = async () => {
-    const target = getAssetImageOpenTarget(images, currentIndex, detail);
+    const target = getAssetImageOpenTarget(carouselImages, currentIndex, detail);
     if (!target || !window.electronAPI?.openPath) {
       toast.error("没有可打开的本地路径");
       return;
@@ -379,7 +393,11 @@ export function useStudioAssetDialogActions(ctx: {
         newImgs.push(...lastResult.images);
         setFullAsset(lastResult);
         setImages(newImgs);
-        setCurrentIndex(newImgs.length - 1);
+        // R4 族聚显:展示序=族序+live 新图置顶——按新图 filePath 定位展示序高亮
+        const lastAddedFilePath = lastResult.images[lastResult.images.length - 1]?.filePath;
+        const nextDisplay = mergeFamilyDisplayImages(familyImages, newImgs, asset?.id);
+        const targetIndex = findDisplayImageIndex(nextDisplay, lastAddedFilePath);
+        setCurrentIndex(targetIndex >= 0 ? targetIndex : newImgs.length - 1);
         if (failedCount > 0) {
           toast.warning(`已添加 ${addedCount} 张图片，${failedCount} 张未添加`);
         } else {
@@ -422,12 +440,16 @@ export function useStudioAssetDialogActions(ctx: {
       return;
     }
     if (!getStudioAssetsBridge()?.removeImage) return;
+    // R4 族聚显:入参 idx 是展示序下标;增删只作用本行 images(按 filePath 定位)。
+    // 族兄弟只读条目删除钮已隐藏,此处本行未命中即拒——防跨行误删(族聚仅显示层)。
+    const ownIndex = images.findIndex((item) => item.filePath === img.filePath);
+    if (ownIndex === -1) return;
     try {
       const result = await getStudioAssetsBridge()!.removeImage({ assetId: asset.id, imageFilePath: img.filePath });
       if (result) {
-        const newImgs = images.filter((_, i) => i !== idx);
+        const newImgs = images.filter((_, i) => i !== ownIndex);
         setImages(newImgs);
-        setCurrentIndex(Math.min(currentIndex, newImgs.length - 1));
+        setCurrentIndex(Math.min(currentIndex, Math.max(carouselImages.length - 2, 0)));
         toast.success("已删除");
       } else {
         toast.error("删除失败");

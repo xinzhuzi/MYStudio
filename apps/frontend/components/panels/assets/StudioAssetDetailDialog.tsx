@@ -41,6 +41,11 @@ import type { TtsSpeakerId } from "@/types/tts";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import {
+  mergeFamilyDisplayImages,
+  type FamilyDisplayImageEntry,
+  type FamilyImageEntry,
+} from "@/lib/studio/asset-family-images";
 import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetOperationError } from "./studio-asset-detail-utils";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import { subscribeAssetCarouselIndex } from "./studio-asset-detail-carousel";
@@ -89,6 +94,7 @@ export function StudioAssetDetailDialog({
   linkedSpeakerIds,
   open,
   onOpenChange,
+  familyImages,
 }: {
   asset: StudioAssetSummary | null;
   /** 从工作流(剧本资产管理)角色行打开时传入全部匹配别名的工作流 speaker 键:
@@ -96,6 +102,10 @@ export function StudioAssetDetailDialog({
   linkedSpeakerIds?: TtsSpeakerId[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** R4 族聚显(10-19-script-asset-corridor-blank D1+D3):剧本资产行打开时传入
+   *  该实体族全部生成图(batchMatch 同源候选全集,updatedAt 倒序);轮播按族序
+   *  聚显,族兄弟条目只读。undefined=桥缺席/查询失败,回落本行单图(旧行为)。 */
+  familyImages?: FamilyImageEntry[];
 }) {
   const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
   const setActiveStudio = useFreedomStore((state) => state.setActiveStudio);
@@ -119,6 +129,12 @@ export function StudioAssetDetailDialog({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fullAsset, setFullAsset] = useState<StudioAssetSummary | null>(null);
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
+  // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
+  // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
+  const displayImages = useMemo<FamilyDisplayImageEntry[]>(
+    () => mergeFamilyDisplayImages(familyImages, images, asset?.id),
+    [familyImages, images, asset?.id],
+  );
   const regenerationPrompt = useMemo(() => buildAssetRegenerationPrompt(fullAsset || asset), [fullAsset, asset]);
   const syncCarouselIndex = useCallback((api: CarouselApi) => {
     subscribeAssetCarouselIndex(api, setCurrentIndex);
@@ -195,6 +211,8 @@ export function StudioAssetDetailDialog({
     visualManualId,
     detail: fullAsset || asset,
     images,
+    displayImages,
+    familyImages,
     currentIndex,
     draftName,
     draftDescription,
@@ -225,7 +243,7 @@ export function StudioAssetDetailDialog({
   const parsedDraftName = parseAssetNames(draftName || detail.name || asset.name);
   const spokenText = recognizedText ?? (draftDescription.trim() || "");
   const audioSrc = asset.previewUrl || asset.filePath || "";
-  const hasImagePreview = asset.type !== "audio" && images.length > 0;
+  const hasImagePreview = asset.type !== "audio" && displayImages.length > 0;
   // 三轨生图入口只对 role/scene/tool 开放;clip 等其余类型不展示、不触发(道劫合同 fail-closed)
   const isThreeTrackAsset = asset.type === "role" || asset.type === "scene" || asset.type === "tool";
   const roleSpeakerId = toRoleSpeakerId(asset.id);
@@ -251,7 +269,7 @@ export function StudioAssetDetailDialog({
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,420px)_1fr] gap-0 overflow-hidden">
           <StudioAssetDetailPreviewPane
             asset={asset}
-            images={images}
+            images={displayImages}
             currentIndex={currentIndex}
             spokenText={spokenText}
             audioSrc={audioSrc}
@@ -265,6 +283,10 @@ export function StudioAssetDetailDialog({
             onCopyPrompt={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}
             onOpenSource={handleOpenSource}
             onOpenFolder={handleOpenFolder}
+            isImageRemovable={(image) => {
+              const entry = displayImages.find((item) => item.filePath === image.filePath);
+              return entry ? entry.removable : true;
+            }}
           />
 
           {/* 右侧：表单 */}

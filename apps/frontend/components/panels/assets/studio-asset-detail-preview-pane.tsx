@@ -41,6 +41,8 @@ interface StudioAssetDetailPreviewPaneProps {
   onCopyPrompt: () => void | Promise<void>;
   onOpenSource: () => void | Promise<void>;
   onOpenFolder: () => void | Promise<void>;
+  /** R4 族聚显:条目级删除可见性(族兄弟只读条目不显示删除);缺省沿用旧 index/主图 规则。 */
+  isImageRemovable?: (image: AssetImage, index: number) => boolean;
 }
 
 export function StudioAssetDetailPreviewPane({
@@ -59,6 +61,7 @@ export function StudioAssetDetailPreviewPane({
   onCopyPrompt,
   onOpenSource,
   onOpenFolder,
+  isImageRemovable,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
 
@@ -120,7 +123,7 @@ export function StudioAssetDetailPreviewPane({
                     </div>
                     <div className="mt-2 flex items-center justify-between px-1">
                       <span className="truncate text-xs text-muted-foreground">{image.name}</span>
-                      {index > 0 || image.name !== "主图" ? (
+                      {(isImageRemovable ? isImageRemovable(image, index) : index > 0 || image.name !== "主图") ? (
                         <div className="flex gap-1">
                           <button
                             className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
