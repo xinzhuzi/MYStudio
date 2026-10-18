@@ -3727,7 +3727,8 @@ class TestQi21SubgraphContract:
         # 画幅档:官方 ResolutionSelector 枚举 8 档逐字串 + MP 数值域;多视图=
         # Q2.1侧公式档 3:4/1.8(1008 快出档缩编,用户令 1-2MP 快出+后放大;
         # 0927 旧档 3:4/4.2 退役入 git 史)。override 双口径如实记:K2 侧件
-        # (my_daojie_base)消费 override=1632×1632 四视图直出(旧六格2448×1632),
+        # (my_daojie_base)消费 override 直出 json 现值(多视图=1824×1024,
+        # 1017 左头肩+右三视图口径;更旧四宫格/六格方档已入 git 史),
         # Q2.1 侧件
         # (my_qi21_base)不消费 override(消费面忽略)=分张产线口径,两件各取
         # 所需共享同一数据集(1004 集中地后 K2/Q2.1 单文件双口径)
