@@ -2,7 +2,8 @@
 /**
  * 分镜工作流节点生图核心的道劫编译边界测试:
  * 单镜 hook 与面板批量串行 hook(5edd0ee)共用本核心,道劫分镜帧必须
- * 经 ma-gongbi-v1 编译(唯一 Avoid+1600 门)后以 raw 直传 generateImage。
+ * 经 ma-gongbi-v1 编译(1600 门)后以 raw 正向专用通道直传 generateImage
+ * (prompt 无 Avoid,负面走 negativePrompt 分离传输;providerPrompt 保留为云端传输形态)。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -72,7 +73,7 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
     resetExtendedManualContentCache();
   });
 
-  it("道劫手册:分镜帧编译为 raw providerPrompt(唯一 Avoid),负面不再分离传输", async () => {
+  it("道劫手册:分镜帧编译为 raw 正向专用通道(prompt 无 Avoid,负面走 negativePrompt 分离传输)", async () => {
     studioState.workflowConfig = { visualManualId: "daojie_ink_guofeng" };
     await warmExtendedManualStyleTokens(DAOJIE_MANUAL);
     const { aiManager } = await import("@/lib/ai/ai-manager");
@@ -87,11 +88,12 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
     expect(params.model).toBe("comfyui-bridge");
     expect(params.extraParams?.template).toBe("krea2_daojie_t2i"); // 无参考=道劫水墨 t2i
     expect(params.promptPolicy).toBe("raw");
-    expect(params.negativePrompt).toBeUndefined();
     expect(params.prompt).toContain("【画面】独孤剑尘立于金水河码头");
     expect(params.prompt).toContain("Chinese ink wash painting style");
-    expect(params.prompt.match(/Avoid:/g)).toHaveLength(1);
-    expect(params.prompt).toContain("watermark");
+    expect(params.prompt.match(/Avoid:/g)).toBeNull();
+    expect(params.negativePrompt).toContain("watermark");
+    expect(params.negativePrompt).toContain("low quality");
+    expect(params.negativePrompt).not.toContain("Avoid:");
   });
 
   it("非道劫手册:保持 enhanced 传输与分离负面", async () => {

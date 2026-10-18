@@ -240,6 +240,8 @@ export function getActiveVisualManualStoryboardStyleGuide(): string {
  * ma-gongbi-v1 raw providerPrompt(唯一 Avoid;帧负面块存在时它是负面唯一所有者,
  * 未预热时回退合同通用负面;300-1600 长度门);非道劫返回 null(保持既有 enhanced 传输)。
  * 超 1600 在网络前以可读错误拒绝。
+ * 传输通道(10-19):本地 cfg=1 桥路消费方(run-image-workflow-node-generation)取
+ * compiled.positive/negative 分离通道;providerPrompt 保留为云端传输形态(云端现状冻结)。
  */
 export async function compileActiveDaojieStoryboardFramePrompt(
   positive: string,

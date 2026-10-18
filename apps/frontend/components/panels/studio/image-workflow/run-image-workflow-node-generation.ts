@@ -126,6 +126,10 @@ export async function runImageWorkflowNodeGeneration(
     : request.prompt;
   // 道劫手册:分镜帧最终正文经 ma-gongbi-v1 编译(唯一 Avoid+负面唯一所有者+1600 门)后
   // 以 raw 策略直传;非道劫(或非分镜)保持既有 enhanced 传输与分离负面。
+  // 传输通道分流(10-19):本地 cfg=1 桥路(K2 桥/qwen-image-2-1 回落)取
+  // compiled.positive/negative 分离通道——krea2_daojie_t2i 模板无 negative 绑定
+  // +KSampler cfg=1.0,providerPrompt 的 Avoid 尾段会以正向 token 进 CLIP(反向污染);
+  // providerPrompt 保留为云端传输形态(云端消费方现状冻结,实弹候令)。
   // 旧 800 门死锁解除(08-24 实证): request 组装层内嵌的【资产圣经】【多视图身份锁】
   // 锚点段(~800+ 字符)在旧 800 门下会把任何正文顶爆(203 正文+锚点=1277 仍拒)。编译形
   // 态下参考约束已由 @图N 标记+参考图本体+帧负面承担,锚点段冗余——进编译前剥离
@@ -147,12 +151,12 @@ export async function runImageWorkflowNodeGeneration(
   const storyboardTemplate = referenceImages.length ? "krea2_edit_ref" : "krea2_daojie_t2i";
   let storyboardBridgeDown = false;
   const buildRequest = (transport?: "chat") => ({
-    prompt: compiledFrame?.providerPrompt ?? styledPrompt,
+    prompt: compiledFrame?.positive ?? styledPrompt,
     model: isStoryboard && !storyboardBridgeDown ? "comfyui-bridge" : (isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model),
     aspectRatio: request.aspectRatio,
     // 降载重试(09-15 P3 阶梯第三段):显式降档覆盖;缺省保持图内档位
     resolution: input.degradedResolution ?? request.resolution,
-    negativePrompt: compiledFrame ? undefined : request.negativePrompt,
+    negativePrompt: compiledFrame?.negative ?? request.negativePrompt,
     promptPolicy: (compiledFrame ? "raw" : undefined) as "raw" | undefined,
     referenceImages,
     // NSFW破限链(09-07):use_lora 经 extraParams 进请求体,引擎层与全局
@@ -250,8 +254,8 @@ export async function runImageWorkflowNodeGeneration(
     try {
       return await generateAndGate();
     } catch (error) {
-      // 桥回落:分镜桥路失败(引擎未跑/模板缺件/执行失败)→krea2-turbo
-      // sidecar 直生重试一次;非桥错误(一致性闸门/保存)原样上抛
+      // 桥回落:分镜桥路失败(引擎未跑/模板缺件/执行失败)→qwen-image-2-1
+      // (DEFAULT_LOCAL_IMAGE_MODEL)直生重试一次;非桥错误(一致性闸门/保存)原样上抛
       if (!isStoryboard || storyboardBridgeDown) throw error;
       const message = error instanceof Error ? error.message : String(error);
       if (!/comfyui|bridge|工作流|引擎/i.test(message)) throw error;
