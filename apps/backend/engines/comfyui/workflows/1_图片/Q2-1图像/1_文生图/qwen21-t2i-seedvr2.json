@@ -29,7 +29,7 @@
         }
       },
       "widgets_values": [
-        "## Qwen-Image-2.1 文生图 + SeedVR2 放大 · 一条龙(2026-10-02 入库)\n\n**定位**:替代「生成 → 另开放大件」两步走——t2i 直出 1024² 后串 SeedVR2 放大尾档,一次运行直接得 2K 成品。\n\n**权重(两套,均已家级装机)**\n\n- 生成段 bf16 三件套:`qwen_image_2.1_bf16.safetensors`(UNET)→ `QwenImage21Cache`(auto/default)加速 → 采样;`qwen3vl_8b_bf16_heretic.safetensors`(CLIPLoader type=qwen_image);`qwen_image_2.1_vae_bf16.safetensors`\n- 放大段(照 K2-SeedVR2修复 件实配):`seedvr2_7b_sharp_fp8_e4m3fn.safetensors` + `ema_vae_fp16.safetensors`,mps / sdpa / lab 校色。⚠️ 本机 MPS 实弹(10-02):svae 不分块编码会确定性崩引擎(两复现),已按「社区-视频文件直接超分-SeedVR2」实战值改 tiled 512/160(encode/decode 同参),tiled 后一条龙 104s 全绿\n\n**用法要点**\n\n1. 在 [5] 编码器写提示词(英文长句最佳);负向留空——cfg=1 时负向不参与采样。\n2. 生成段恒 **1024²·40步·cfg1·euler/simple**:分辨率走 [5] 编码器 resolution=1024,潜空由 [5] 的 latent 槽(槽2)直排 [6] KSampler(Qwen2.1 原生路径,vae 必接)。\n3. 放大段 [12] `resolution=2048`(短边目标)→ 1024² 输入即放大到 **2048×2048(2K 档)**,长宽比自动保持;调大直出分辨率时,放大结果按短边等比跟随。\n\n**放大段可整组旁路**:选中最右组框(标题已注明「可整组旁路」)按 `Ctrl+B`,全组旁路后只出 [8] 的 1024² 直出图;要 2K 成品时再 `Ctrl+B` 切回。\n\n**⚠️ 时间成本提示**:两段都是大模型推理——生成段 1024²·40 步本机(MPS)本就以分钟计;放大段再叠一段 SeedVR2 7B 级修复推理,总耗时更长。急出图先旁路放大段拿直出图,确认构图满意后再放行放大段。\n"
+        "## Qwen-Image-2.1 文生图 + SeedVR2 放大 · 一条龙(2026-10-02 入库)\n\n**定位**:替代「生成 → 另开放大件」两步走——t2i 直出 1024² 后串 SeedVR2 放大尾档,一次运行直接得 2K 成品。\n\n**权重(两套,均已家级装机)**\n\n- 生成段 bf16 三件套:`qwen_image_2.1_bf16.safetensors`(UNET)→ `QwenImage21Cache`(auto/default)加速 → 采样;`qwen3vl_8b_bf16_heretic.safetensors`(CLIPLoader type=qwen_image);`texture_fix_vae_for_qwen_image_2.1_bf16.safetensors`\n- 放大段(照 K2-SeedVR2修复 件实配):`seedvr2_7b_sharp_fp8_e4m3fn.safetensors` + `ema_vae_fp16.safetensors`,mps / sdpa / lab 校色。⚠️ 本机 MPS 实弹(10-02):svae 不分块编码会确定性崩引擎(两复现),已按「社区-视频文件直接超分-SeedVR2」实战值改 tiled 512/160(encode/decode 同参),tiled 后一条龙 104s 全绿\n\n**用法要点**\n\n1. 在 [5] 编码器写提示词(英文长句最佳);负向留空——cfg=1 时负向不参与采样。\n2. 生成段恒 **1024²·40步·cfg1·euler/simple**:分辨率走 [5] 编码器 resolution=1024,潜空由 [5] 的 latent 槽(槽2)直排 [6] KSampler(Qwen2.1 原生路径,vae 必接)。\n3. 放大段 [12] `resolution=2048`(短边目标)→ 1024² 输入即放大到 **2048×2048(2K 档)**,长宽比自动保持;调大直出分辨率时,放大结果按短边等比跟随。\n\n**放大段可整组旁路**:选中最右组框(标题已注明「可整组旁路」)按 `Ctrl+B`,全组旁路后只出 [8] 的 1024² 直出图;要 2K 成品时再 `Ctrl+B` 切回。\n\n**⚠️ 时间成本提示**:两段都是大模型推理——生成段 1024²·40 步本机(MPS)本就以分钟计;放大段再叠一段 SeedVR2 7B 级修复推理,总耗时更长。急出图先旁路放大段拿直出图,确认构图满意后再放行放大段。\n"
       ]
     },
     {
@@ -153,10 +153,10 @@
         }
       },
       "widgets_values": [
-        "qwen_image_2.1_vae_bf16.safetensors"
+        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
       ],
       "widgets_values_named": {
-        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+        "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
       }
     },
     {

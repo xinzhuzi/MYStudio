@@ -101,7 +101,7 @@
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
-        "qwen_image_2.1_vae_bf16.safetensors"
+        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
       ]
     },
     {
@@ -420,7 +420,7 @@
       "title": "[10] 说明卡·用途/文字写法/seed口径(2026-10-02)",
       "properties": {},
       "widgets_values": [
-        "## Qwen-Image-2.1 标题卡/封面排版 · 使用说明(2026-10-02 入库)\n\n**用途**:连环画章封面、分镜标题卡——吃 Qwen-Image-2.1 中文文字排版强项,一张直出带中文标题的成卡(默认示例:竖排主标题\"第柒章\"+\"剑冢\"+小字副题+水墨边框留白)。\n\n**链路(纯 t2i·40 步完整档,排版质量优先,不设加速支路)**\n\n- 权重三件套:UNET `qwen_image_2.1_bf16.safetensors` → [4] QwenImage21Cache(auto/default)→ 采样;TE `qwen3vl_8b_bf16_heretic.safetensors`([2] type=qwen_image);VAE `qwen_image_2.1_vae_bf16.safetensors`。\n- **出图尺寸 = [6] 编码器 resolution 槽(默认 2048=原生 2K 方图)**:[6] 的 latent 输出(槽2)直进 KSampler latent_image;无参考图输入时该 latent 尺寸=resolution×resolution(comfy_extras/nodes_qwen.py TextEncodeQwenImage21 现行为)。官方原生 2K 说明见 `0_官方模板/image_qwen_image_2_1_t2i.json` 的 Note: Usage;数值宜 32 的倍数。\n- 采样 40 步·cfg1·euler·simple·denoise1(cfg=1 时负向提示词不参与采样;[6] negative→KSampler negative 为官方同构占位)。\n\n**主体句(唯一手写位)**:[5] PrimitiveStringMultiline 外露。默认=示例章标题卡;道劫题材风格词借自 `my_nodes/nodes/qi21_bases.json` 人物型(运笔提按顿挫/墨色浓淡分明/传统色受控饱和/宣纸白留白/一块点题色),借得适度,整段可改。**改标题只改引号内的字**,结构句(竖排方位/字号/边框/留白)保持不动,版式最稳。\n\n**文字写法(官方口径,必守)**:画面里要出现的字,必须用**直双引号**包住、**单语**写——如 右列\"第柒章\",左列\"剑冢\";引号内保持原文原字形(中文就是中文,不转写不翻译),同一对引号内不得中英混排(混语=乱字高发)。要分行就拆成两个引号句分别说位置,不在引号内塞换行符;不打算被读清的字(远景招牌/密集小字)直接写\"模糊不可辨\",不要替它编字形。\n\n**seed 建议:换字不换版式**:seed 恒 424242·fixed。同 seed 只改引号内的字重跑,水墨边框/留白/构图基本不动而字已换——整卷章节封面版式一致靠这个。要大变版式才换 seed;小调优先只动主体句。\n\n**产出**:[9] 存图(前缀 MYStudio,落引擎 output 目录)。"
+        "## Qwen-Image-2.1 标题卡/封面排版 · 使用说明(2026-10-02 入库)\n\n**用途**:连环画章封面、分镜标题卡——吃 Qwen-Image-2.1 中文文字排版强项,一张直出带中文标题的成卡(默认示例:竖排主标题\"第柒章\"+\"剑冢\"+小字副题+水墨边框留白)。\n\n**链路(纯 t2i·40 步完整档,排版质量优先,不设加速支路)**\n\n- 权重三件套:UNET `qwen_image_2.1_bf16.safetensors` → [4] QwenImage21Cache(auto/default)→ 采样;TE `qwen3vl_8b_bf16_heretic.safetensors`([2] type=qwen_image);VAE `texture_fix_vae_for_qwen_image_2.1_bf16.safetensors`。\n- **出图尺寸 = [6] 编码器 resolution 槽(默认 2048=原生 2K 方图)**:[6] 的 latent 输出(槽2)直进 KSampler latent_image;无参考图输入时该 latent 尺寸=resolution×resolution(comfy_extras/nodes_qwen.py TextEncodeQwenImage21 现行为)。官方原生 2K 说明见 `0_官方模板/image_qwen_image_2_1_t2i.json` 的 Note: Usage;数值宜 32 的倍数。\n- 采样 40 步·cfg1·euler·simple·denoise1(cfg=1 时负向提示词不参与采样;[6] negative→KSampler negative 为官方同构占位)。\n\n**主体句(唯一手写位)**:[5] PrimitiveStringMultiline 外露。默认=示例章标题卡;道劫题材风格词借自 `my_nodes/nodes/qi21_bases.json` 人物型(运笔提按顿挫/墨色浓淡分明/传统色受控饱和/宣纸白留白/一块点题色),借得适度,整段可改。**改标题只改引号内的字**,结构句(竖排方位/字号/边框/留白)保持不动,版式最稳。\n\n**文字写法(官方口径,必守)**:画面里要出现的字,必须用**直双引号**包住、**单语**写——如 右列\"第柒章\",左列\"剑冢\";引号内保持原文原字形(中文就是中文,不转写不翻译),同一对引号内不得中英混排(混语=乱字高发)。要分行就拆成两个引号句分别说位置,不在引号内塞换行符;不打算被读清的字(远景招牌/密集小字)直接写\"模糊不可辨\",不要替它编字形。\n\n**seed 建议:换字不换版式**:seed 恒 424242·fixed。同 seed 只改引号内的字重跑,水墨边框/留白/构图基本不动而字已换——整卷章节封面版式一致靠这个。要大变版式才换 seed;小调优先只动主体句。\n\n**产出**:[9] 存图(前缀 MYStudio,落引擎 output 目录)。"
       ],
       "color": "#432",
       "bgcolor": "#653"

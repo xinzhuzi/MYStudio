@@ -201,7 +201,7 @@
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
-        "qwen_image_2.1_vae_bf16.safetensors"
+        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
       ]
     },
     {
@@ -696,7 +696,7 @@
         "Node name for S&R": "MarkdownNote"
       },
       "widgets_values": [
-        "## Qwen-Image-2.1 多参考拼装编辑 · 使用说明(2026-10-02)\n\n**用途**:角色设定表 / 换装 / 多资产拼装——把 `TextEncodeQwenImage21` 多参考\n能力一次用满(至多 **16 张**参考图;项目现役件只用到双参考)。\n\n### 参考图(②区,可增删)\n- **参考1·人物** `portrait_model_denim.png` = `<image1>`,**同时是编辑画布**(输出画布跟随 image_1)\n- **参考2·服装** `clothing_light_blue_denim_shirt.png` = `<image2>`(两张官方样例,引擎 input 已有)\n- **参考3·道具** = 占位空图——**跑前必须选你自己的道具图**,空图直跑会报错\n- 加参考 = 再拖一个 LoadImage,连到 TE 下一根 `images.image_N` 槽(名称即次序)\n\n### 多参考语义(指代写法)\n- prompt 里用 `<image1>` `<image2>` `<image3>` … 指代对应参考图\n- image_1 是编辑目标(人物/底图),其余是参考素材;指代词与连线次序一一对应\n- 上限 **16 图**(模型能力口径;引擎节点层 autogrow 不设硬限,官方模板 Note 标 10 为其子图外露脚数)\n\n### 关键参数\n- **resolution = 0**:各参考按原尺寸 32 对齐、不重采样(官方编辑模板同款);调大=按总像素预算统一缩放\n- **指令默认英文**:改图指令英文优先(官方模板同款英文句式);中文可用但有语义漂移风险\n  (一致性 LoRA 1001 实弹教训:中文指令+LoRA=纯黑图;本件无 LoRA,中文仍建议简单直给)\n- 采样 = **25 步官方编辑档** euler/simple **cfg=1** denoise=1;cfg=1 时 negative 无效(官方口径)\n- TE latent(槽2)直进 KSampler latent_image,无需 EmptyLatentImage/画幅开关\n\n### 权重三件套(引擎实配,①区)\n- UNET `qwen_image_2.1_bf16.safetensors` → `QwenImage21Cache(auto/default)` → 采样\n- CLIP `qwen3vl_8b_bf16_heretic.safetensors`(type=qwen_image)· VAE `qwen_image_2.1_vae_bf16.safetensors`(VAE 必接 TE,0930 实弹坑)\n"
+        "## Qwen-Image-2.1 多参考拼装编辑 · 使用说明(2026-10-02)\n\n**用途**:角色设定表 / 换装 / 多资产拼装——把 `TextEncodeQwenImage21` 多参考\n能力一次用满(至多 **16 张**参考图;项目现役件只用到双参考)。\n\n### 参考图(②区,可增删)\n- **参考1·人物** `portrait_model_denim.png` = `<image1>`,**同时是编辑画布**(输出画布跟随 image_1)\n- **参考2·服装** `clothing_light_blue_denim_shirt.png` = `<image2>`(两张官方样例,引擎 input 已有)\n- **参考3·道具** = 占位空图——**跑前必须选你自己的道具图**,空图直跑会报错\n- 加参考 = 再拖一个 LoadImage,连到 TE 下一根 `images.image_N` 槽(名称即次序)\n\n### 多参考语义(指代写法)\n- prompt 里用 `<image1>` `<image2>` `<image3>` … 指代对应参考图\n- image_1 是编辑目标(人物/底图),其余是参考素材;指代词与连线次序一一对应\n- 上限 **16 图**(模型能力口径;引擎节点层 autogrow 不设硬限,官方模板 Note 标 10 为其子图外露脚数)\n\n### 关键参数\n- **resolution = 0**:各参考按原尺寸 32 对齐、不重采样(官方编辑模板同款);调大=按总像素预算统一缩放\n- **指令默认英文**:改图指令英文优先(官方模板同款英文句式);中文可用但有语义漂移风险\n  (一致性 LoRA 1001 实弹教训:中文指令+LoRA=纯黑图;本件无 LoRA,中文仍建议简单直给)\n- 采样 = **25 步官方编辑档** euler/simple **cfg=1** denoise=1;cfg=1 时 negative 无效(官方口径)\n- TE latent(槽2)直进 KSampler latent_image,无需 EmptyLatentImage/画幅开关\n\n### 权重三件套(引擎实配,①区)\n- UNET `qwen_image_2.1_bf16.safetensors` → `QwenImage21Cache(auto/default)` → 采样\n- CLIP `qwen3vl_8b_bf16_heretic.safetensors`(type=qwen_image)· VAE `texture_fix_vae_for_qwen_image_2.1_bf16.safetensors`(VAE 必接 TE,0930 实弹坑)\n"
       ]
     }
   ],

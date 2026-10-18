@@ -315,8 +315,8 @@ SANLIAN = _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-sanlian-t2i.json"
 # 加载器三件套(bf16,MPS 主选;int8_convrot 是 CUDA 路线不用)
 UNET_FILE = "qwen_image_2.1_bf16.safetensors"
 CLIP_FILE = "qwen3vl_8b_bf16_heretic.safetensors"   # 0924 用户令 TE 换 Heretic 当主力(官方件保留引擎家作备胎)
-VAE_FILE = "qwen_image_2.1_vae_bf16.safetensors"
-TEXTURE_VAE_FILE = "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"  # 1016 A/B 实证(+44% 锐度/透明链完好):道劫 t2i(qi21)+i2i 切换;edit/官方模板保持原 VAE
+VAE_FILE = "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"  # 1018 用户令:全域单 VAE,原版 qwen_image_2.1_vae_bf16 退役删除
+TEXTURE_VAE_FILE = VAE_FILE  # 1018 全域切换后与 VAE_FILE 同值(兼容别名)
 
 # PE 改写组契约(1004 Phase C 换件:自建中文 PE MyQi21ChinesePE drop-in 替插件
 # QwenImage21_T2IPromptRewrite,连线槽名不变(prompt/clip);qi21 件已换件——
@@ -2026,8 +2026,8 @@ class TestLoaderTriple:
         for name, graph in GRAPHS.items():
             loaders = _by_type(graph, "VAELoader")
             assert len(loaders) == 1, f"{name}: VAELoader 应恰 1 个"
-            # 1016 texture-fix VAE 切换:qi21(道劫t2i)/i2i=新件;其余保持原 VAE
-            want = TEXTURE_VAE_FILE if name in ("qi21", "i2i") else VAE_FILE
+            # 1018 用户令:全域单 VAE(texture-fix);原版 qwen_image_2.1_vae_bf16 退役
+            want = VAE_FILE
             assert _widget(loaders[0], 0) == want, \
                 f"{name}: vae_name 应逐字 {want!r}"
 
@@ -5748,7 +5748,7 @@ class TestQi21Img2ImgContract:
     def test_loaders_save_and_preset(self):
         assert self._n(1)["widgets_values"][0] == "qwen_image_2.1_bf16.safetensors"
         assert self._n(2)["widgets_values"][0] == "qwen3vl_8b_bf16_heretic.safetensors"
-        assert self._n(3)["widgets_values"][0] == "qwen_image_2.1_vae_bf16.safetensors"
+        assert self._n(3)["widgets_values"][0] == "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"  # 1018 全域单 VAE
         assert self._n(8)["widgets_values"] == ["QI21道劫精修_"], "保存前缀应=QI21道劫精修_"
         assert self._n(16)["widgets_values"][1] == 1.5, "画布预缩应=1.5MP(同 i2i)"
 

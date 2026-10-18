@@ -119,7 +119,7 @@
         }
       ],
       "widgets_values": [
-        "qwen_image_2.1_vae_bf16.safetensors"
+        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
       ]
     },
     {
