@@ -116,7 +116,7 @@
     "label": "细节·细节滑杆",
     "group": "人物三件",
     "default_weight": 1.0,
-    "note": "九型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras daojie_loras.json 人物条目序),逐字节等价性前提",
+    "note": "十型全开(发丝/织纹细节);道具矩阵「●(轻)」未定数暂 1.0 对齐 by-type 先例;槽序 67→76→73=现链运行时序(MyDaojieLoras daojie_loras.json 人物条目序),逐字节等价性前提",
     "presets": {
       "人物": {
         "on": true,
@@ -226,7 +226,7 @@
     "label": "光影·Afterlight",
     "group": "质感",
     "default_weight": 0.8,
-    "note": "矩阵九型全 ○(09-19 消融裁定旁路=电影化主因);按需手开走专家模式",
+    "note": "矩阵十型全 ○(09-19 消融裁定旁路=电影化主因);按需手开走专家模式",
     "presets": {
       "人物": {
         "on": true,
@@ -336,7 +336,7 @@
     "label": "identity·编辑身份",
     "group": "画风其他",
     "default_weight": 1.0,
-    "note": "编辑系专用备选槽,不入矩阵常设列(跑 t2i 曾致丑=仅编辑流用);九型恒关",
+    "note": "编辑系专用备选槽,不入矩阵常设列(跑 t2i 曾致丑=仅编辑流用);十型恒关",
     "presets": {
       "人物": {
         "on": false,
@@ -391,7 +391,7 @@
     "label": "画风·暗笔刷",
     "group": "画风其他",
     "default_weight": 1.0,
-    "note": "默认关备选槽,不入矩阵常设列;启用须在主体句补触发词 monochrome ink wash style",
+    "note": "默认关备选槽,不入矩阵常设列;启用须在主体句补触发词 monochrome ink wash style(单色水墨重笔触=旧口径历史备选件,触发词为模型功能串保留原词)",
     "presets": {
       "人物": {
         "on": false,

@@ -49,10 +49,10 @@ metaData: director_skills
 
 | 情绪基调 | 光线类型 | 补充约束 |
 |----------|----------|----------|
-| 修炼悟道 | 散光漫射，灵气微光 | 青绿色调，远景淡墨晕染，水墨层次 |
+| 修炼悟道 | 散光漫射，灵气微光 | 青绿色调，远景归纳为整块平整色面层层退远，色层分明 |
 | 宗门盛典 | 暖光照明，灵光高光 | 朱红色调，旧金高光，层次分明 |
 | 日常修行 | 局部散光，柔和阴影 | 宣纸白色调，近景特写，清新氛围 |
-| 斗法肃杀 | 冷调阴影，硬光对比 | 靛蓝 + 浓墨，低饱和度，紧张氛围 |
+| 斗法肃杀 | 冷调阴影，硬光对比 | 靛蓝 + 浓墨，冷色相层级分明，紧张氛围 |
 | 月下悟道 | 月华照明，冷暖对比 | 靛蓝背景，灵光点缀，清冷意境 |
 
 ---
@@ -65,7 +65,7 @@ metaData: director_skills
 | 宗门场景 | 灵石宫墙、飞檐斗拱、阵纹铺地、灵灯高悬、工笔线描 |
 | 洞府室内 | 灵石壁面、灵火通明、蒲团静室、灵纱帷幔、背景色相与明暗服从场景时段 |
 | 斗法场景 | 碎石裂地/劫云压顶/灵气激荡、冷色调、泼墨写意、飞白笔触 |
-| 大典庆典 | 灵灯/灵旗/祥云、朱红旧金、氛围庄严、工笔重彩 |
+| 大典庆典 | 灵灯/灵旗/祥云、朱红旧金、氛围庄严、重彩设色 |
 | 冥界幽境 | 黄泉/忘川/幽冥之火、冷色浓墨、阴森压抑、水墨渲染 |
 
 ---
@@ -74,7 +74,7 @@ metaData: director_skills
 
 **水墨国风锚定（必选）：**
 
-水墨国风，修仙古韵，工笔线描，写意晕染，背景色相与明暗服从场景时段
+水墨国风，修仙古韵，工笔线描，平整分层色面，背景色相与明暗服从场景时段
 
 **人物质感（含人物镜头时必选）：**
 
@@ -95,23 +95,23 @@ metaData: director_skills
 **画质锁定词（所有输出必须包含，置于风格收尾之后）：**
 
 模式A（中文）——默认（画面无画内文字需求时）：
-水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字
+水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面无字幕、无水印、无标题叠字
 
 模式A（中文）——画内文字场景（画面描述中含牌匾/对联/玉简等道具文字时）：
-水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字，牌匾/对联等场景道具上的文字清晰可辨
+水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面无字幕、无水印、无标题叠字，牌匾/对联等场景道具上的文字清晰可辨
 
 模式B（英文）——英文调用方参考；Qwen 道劫自定义链默认中文：
-Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay
+Chinese ink-wash xianxia, gongbi line drawing, flat layered color fields, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay
 
 模式B（英文）——画内文字场景：
-Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay, legible text on in-scene props such as plaques and couplets
+Chinese ink-wash xianxia, gongbi line drawing, flat layered color fields, ground color and lighting consistent with the scene and time, clean finished gongbi quality, high detail, no subtitles, no captions, no watermark, no title overlay, legible text on in-scene props such as plaques and couplets
 
 **负向词模板（模式B 必须包含，置于提示词末尾）：**
 
 > ⚠️ Seedream（模式A）**不支持负向提示词**；模式B 仅在采样器支持独立负向时使用下列参考词，Qwen viggle cfg≈1 不把负向当生效保障。模式A 通过正向词中的质感锚定和画质锁定来保证画面质量。
 
 模式B（英文）：
-no photorealistic, no realistic photography, no 3D render, no cel shading, no anime style, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no cartoon style, no subtitles, no captions, no watermark, no title overlay, no UI text
+no photorealistic, no realistic photography, no 3D render, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no subtitles, no captions, no watermark, no title overlay, no UI text
 
 ---
 
@@ -128,7 +128,7 @@ no photorealistic, no realistic photography, no 3D render, no cel shading, no an
 - ❌ 色彩混乱/光影错误/透视错误
 - ❌ 现代建筑/现代服饰元素
 
-> 💡 **替代口径**：体积光用「灵光如纸面散射 / paper-scattered light」、景深虚化用「远景淡墨晕染 / pale ink atmospheric perspective」表达。镜头景深由 2.5D 渲染管线按深度图施加，提示词中禁用真实镜头虚化词（volumetric fog / depth of field 等）。
+> 💡 **替代口径**：体积光用「灵光以整片色面的冷暖倾向」表达、景深虚化用「远景归纳为整块平整色面、层层退远而边界清晰」表达。镜头景深由 2.5D 渲染管线按深度图施加，提示词中禁用真实镜头虚化词（volumetric fog / depth of field 等）。
 
 ---
 
@@ -147,7 +147,7 @@ no photorealistic, no realistic photography, no 3D render, no cel shading, no an
 ### 示例输出A（模式A · Seedream）
 
 [Prompt]
-水墨国风，修仙古韵，工笔线描，写意晕染，背景色相与明暗服从场景时段，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，手持灵剑凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，灵光如纸面散射，远景淡墨晕染，水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，写意晕染感，工笔成片质感，画面无字幕、无水印、无标题叠字。
+水墨国风，修仙古韵，工笔线描，平整分层色面，背景色相与明暗服从场景时段，水墨国风造型，工笔白描清晰，服饰细节精致，水墨光影层次丰富，中景构图，修仙少女站在灵山崖边，手持灵剑凌风而立，神情坚毅，眼神如炬，青绿山水背景，灵雾缭绕，旧金微光点缀，灵光以整片色面的冷暖倾向表达，远景归纳为整块平整色面层层退远，水墨国风成片质感，修仙古韵，传统水墨技法，工笔写意融合，水墨国风高清渲染，高细节，工笔线描，平整色面质感，工笔成片质感，画面无字幕、无水印、无标题叠字。
 Based on the reference image of 修仙少女，maintain consistent: face features, hairstyle, costume details. Generate a new scene: standing at cliff edge of spirit mountain, holding spirit sword. Keep visual style identical to reference.
 
 ### 示例输出B（模式B · Nanobanana）
@@ -164,13 +164,13 @@ Image [1]: 修仙少女 — 水墨国风造型，仙道服饰，工笔线描美�
 - Same outfit, hairstyle, face features across ALL shots
 - Same ink-wash style, gongbi line drawing rendering
 - Same scene lighting, Chinese ink-wash aesthetic
-- Do NOT introduce cel shading, anime style or western fantasy elements
+- Do NOT introduce western fantasy elements
 </continuity_rules>
 <shot>
 Medium shot, xianxia girl in elegant dao robe standing at spirit mountain cliff edge, holding spirit sword, determined expression, resolute gaze, paper-scattered light, layered pale ink mist, ink-wash atmospheric perspective, gongbi line drawing with xieyi splash ink, Chinese ink-wash xianxia, traditional brushwork, ground color and lighting consistent with the scene and time, high detail, no subtitles, no captions, no watermark, no title overlay.
 </shot>
 <negative>
-no photorealistic, no realistic photography, no 3D render, no cel shading, no anime style, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no cartoon style, no subtitles, no captions, no watermark, no title overlay, no UI text
+no photorealistic, no realistic photography, no 3D render, no low-poly, no rough modeling, no plastic texture, no harsh lines, no western fantasy, no cyberpunk, no sci-fi, no modern elements, no subtitles, no captions, no watermark, no title overlay, no UI text
 </negative>
 ```
 
@@ -185,7 +185,25 @@ no photorealistic, no realistic photography, no 3D render, no cel shading, no an
 | 羞涩 | 脸颊泛红，眼神躲闪 | 暖光侧射 + 腮红 |
 | 凌厉 | 神情冷峻，目光如剑 | 冷调阴影 + 硬光 |
 | 悟道 | 表情空灵，眼神深邃 | 灵光漫射 + 淡墨雾层 |
-| 忧伤 | 神情哀婉，眼神黯淡 | 冷调阴影 + 低对比 |
-| 疲惫 | 眼神朦胧，表情柔和 | 柔和光线 + 低对比 |
-| 入定 | 神情淡淡，目光内敛 | 纸面散射光 + 灵雾 |
+| 忧伤 | 神情哀婉，眼神黯淡 | 冷调阴影 + 色调收敛 |
+| 疲惫 | 眼神朦胧，表情柔和 | 柔和光线 + 明暗柔和 |
+| 入定 | 神情淡淡，目光内敛 | 柔和散光 + 灵雾 |
 | 期待 | 眼神发光，表情肃然 | 暖光侧射 + 高亮 |
+
+## 历史口径(1018 前)
+
+> 以下为 1018 底座转「国风二维动漫手绘插画」前的原句存档,行号为改前锚点;现行口径以本文上文为准。
+
+- (原 :52)「| 修炼悟道 | 散光漫射,灵气微光 | 青绿色调,远景淡墨晕染,水墨层次 |」——远景晕染必须句被术语映射(远景归纳为整块平整色面层层退远)取代(C24)。
+- (原 :55)「| 斗法肃杀 | 冷调阴影,硬光对比 | 靛蓝 + 浓墨,低饱和度,紧张氛围 |」——「低饱和度」基线被术语映射(冷色相层级分明)取代(C22)。
+- (原 :68)「| 大典庆典 | 灵灯/灵旗/祥云、朱红旧金、氛围庄严、工笔重彩 |」——「工笔重彩」统一画法指称改「重彩设色」(C21)。
+- (原 :77)「水墨国风,修仙古韵,工笔线描,写意晕染,背景色相与明暗服从场景时段」——「写意晕染」锚定词改「平整分层色面」(C24;示例 :150 内嵌同串一并随动)。
+- (原 :98,原 :101)「水墨国风高清渲染,高细节,工笔线描,写意晕染感,工笔成片质感,…」——「写意晕染感」画质锁词改「平整色面质感」(C24)。
+- (原 :104,原 :107)「Chinese ink-wash xianxia, gongbi line drawing, xieyi splash ink, …」——「xieyi splash ink」英文写意泼墨锚改「flat layered color fields」(C24)。
+- (原 :114,原 :173)「no photorealistic, … no cel shading, no anime style, … no cartoon style, …」——删除动漫/赛璐璐禁项(D2:新底座允许动漫式表达;保留 photorealistic 等真正反向)(C03)。
+- (原 :131)「体积光用「灵光如纸面散射 / paper-scattered light」、景深虚化用「远景淡墨晕染 / pale ink atmospheric perspective」表达」——纸面散射与远景晕染替代口径被术语映射取代(C24/C26)。
+- (原 :150)「…灵光如纸面散射,远景淡墨晕染,…写意晕染感,…」——示例句随 :77/:98/:131 锚定词随动(C24)。
+- (原 :167)「- Do NOT introduce cel shading, anime style or western fantasy elements」——删动漫/赛璐璐禁项,保留 western fantasy(C03/D2)。
+- (原 :188)「| 忧伤 | 神情哀婉,眼神黯淡 | 冷调阴影 + 低对比 |」——「低对比」被「色调收敛」取代(C22)。
+- (原 :189)「| 疲惫 | 眼神朦胧,表情柔和 | 柔和光线 + 低对比 |」——「低对比」被「明暗柔和」取代(C22)。
+- (原 :190)「| 入定 | 神情淡淡,目光内敛 | 纸面散射光 + 灵雾 |」——「纸面散射光」被术语映射(柔和散光;光色服从来源场景与时段)取代(C26)。

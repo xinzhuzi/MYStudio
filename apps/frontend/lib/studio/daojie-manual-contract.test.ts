@@ -118,7 +118,8 @@ describe("道劫手册契约", () => {
     const { warmExtendedManualStyleTokens } = await import("./visual-manual-style-tokens");
     await warmExtendedManualStyleTokens(readManual("art_prompt/art_storyboard_video.md"));
     expect(EXTENDED_STORYBOARD_STYLE_TOKENS.length).toBeGreaterThanOrEqual(3);
-    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("ink wash");
+    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("Chinese guofeng 2D anime hand-drawn illustration");
+    expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("fine colored line art, flat layered color fields");
     expect(EXTENDED_STORYBOARD_STYLE_TOKENS.join(" ")).toContain("ground and lighting consistent with the source scene and time");
     expect(getExtendedStoryboardStyleGuide()).toContain("工笔线描");
     expect(getExtendedStoryboardStyleGuide()).toContain("底色、明暗、光源与时段服从场景事实");
@@ -282,7 +283,7 @@ describe("成片模板库(art_storyboard_video)", () => {
     const manual = readManual("art_prompt/art_storyboard_video.md");
     expect(manual).toContain("《道劫》默认主风格");
     expect(manual).toContain("工笔结构层");
-    expect(manual).toContain("写意气韵层");
+    expect(manual).toContain("环境层用分层色面");
     expect(manual).toContain("通用成片负面");
     expect(manual).toContain("不要伪字题跋");
   });

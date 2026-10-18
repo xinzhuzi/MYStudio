@@ -6,10 +6,10 @@
 
 | 模式 | 风格标签 |
 |------|----------|
-| **通用多参模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth` |
-| **通用首尾帧模式（英文）** | `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout` |
-| **Seedance 2.0（中文）** | `水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，底色与光照服从场景时段，墨色层次丰富，连环画叙事感，前中远景分明构图` |
-| **Seedance 1.5（中文）** | `水墨国风，工笔线描，写意晕染，青绿淡彩，底色与光照服从场景时段，修仙题材，灵气流转，动态张力` |
+| **通用多参模式（英文）** | `Chinese guofeng 2D anime hand-drawn illustration, xianxia immortal cultivation, fine colored line art, flat layered color fields, bright yet harmonious mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered composition with visible mineral pigments, atmospheric depth` |
+| **通用首尾帧模式（英文）** | `Chinese guofeng 2D anime hand-drawn illustration, xianxia immortal cultivation, fine colored line art, flat layered color fields, bright yet harmonious mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout` |
+| **Seedance 2.0（中文）** | `国风二维动漫手绘插画修仙，细稳彩线勾形，平整分层色面，底色与光照服从场景时段，色彩明快层次丰富，连环画叙事感，前中后景分明构图` |
+| **Seedance 1.5（中文）** | `国风二维动漫手绘，细稳彩线勾形，平整分层色面，底色与光照服从场景时段，修仙题材，灵气流转，动态张力` |
 
 ## 连环画叙事层（09-18《三国望神州》DNA 并入；09-18 实证校正）
 
@@ -40,7 +40,7 @@
 | X2 | 失去结构的贴纸式色块/机械均一勾边 |
 | X3 | 高饱和荧光色/霓虹粒子特效 |
 | X4 | 现代/科幻/西方奇幻元素 |
-| X5 | 无质感的纯色平面背景 |
+| X5 | 无层次无结构的大面积单色空背景 |
 
 ## 3D 纵深构图（水墨版 · 2.5D 渲染管线必需）
 
@@ -50,9 +50,9 @@
 
 | 模式 | 水墨纵深标签 |
 |------|--------------|
-| **通用多参模式（英文）** | `clear layered composition with foreground, midground and background separation, overlapping ink-wash depth layers, distant mountains in pale ink wash, ink-wash atmospheric perspective, foreground framing elements like branches or eaves, deep focus with crisp gongbi linework throughout` |
+| **通用多参模式（英文）** | `clear layered composition with foreground, midground and background separation, overlapping flat color-field depth layers, distant mountains receding in pale flat color fields with clear boundaries, clean atmospheric perspective, foreground framing elements like branches or eaves, deep focus with crisp gongbi linework throughout` |
 | **通用首尾帧模式（英文）** | 同上 |
-| **Seedance 2.0（中文）** | `前中远景三层分明，近景枝叶或檐角入框，远山淡墨晕染，墨色近浓远淡，全画面笔意清晰` |
+| **Seedance 2.0（中文）** | `前中远景三层分明，近景枝叶或檐角入框，远山归纳为整块淡色面层层退远而边界清晰，近浓远淡，全画面笔意清晰` |
 | **Seedance 1.5（中文）** | `前中远三层构图，远山淡墨，近浓远淡，画面清晰` |
 
 ### 水墨纵深规则
@@ -65,7 +65,7 @@
 | DV4 | 大气透视 = 色彩近浓远淡 + 远景留白晕染；**主体工笔线条全程锐利**，禁止全图雾化（遵守通用画质禁用词） |
 | DV5 | **景别虚化覆盖**：进入 2.5D 管线的分镜，任何「背景虚化/浅景深/shallow depth of field」描述（含首尾帧风格标签中的 shallow depth of field）一律改写为「远景淡墨、全画面笔意清晰」— 景深由渲染阶段按深度图施加，源图虚化会毁掉深度边缘 |
 | DV6 | 主体轮廓以细线/留白与背景分离明确，避免主体融入背景色面 |
-| DV7 | 禁止：正面平面化构图、无层次的平涂背景、大面积无结构宣纸空白（留白须有形 — 云气/水面/远山轮廓）
+| DV7 | 禁止：正面平面化构图、无层次结构的空泛色背景、大面积无结构宣纸空白（留白须有形 — 云气/水面/远山轮廓）
 ---
 
 ## 《道劫》成片主风格锁（ma-gongbi-v1 · 全文）
@@ -73,13 +73,13 @@
 > 2026-10-16 依用户配色裁定作本地修订；MA 历史来源快照见 ma_sync，不再声明本段与外部逐字一致。分镜帧/成片画面提示词按下方「成片模板速查」选用一个模板骨架后，主体/地点/动作/剧情替换为当前分镜内容。
 
 ```text
-《道劫》默认主风格：国风二维动漫手绘插画，以概括造型、清晰发束与简洁明暗色块呈现人物，白描与工笔结构层用细密、稳定、清楚的墨线刻画脸、手、发丝、衣褶、器物轮廓和建筑边缘；环境层用分层色面、适量分染与罩染处理山水、雾、灵气、远景和动作余韵。前中远景与空气透视清楚。以丰富多彩的传统设色为主，配色协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明。具体色相与数量依场景事实，色彩形成连续可见色区。色量由来源事实决定；30%-70% 仅作人工观察与报告，不是生成硬门。指定一个明确自然光、窗光或灵光方向，照亮脸、手、关键道具与路径。画面明快协调、线色清楚、疏密有序，但不得灰白化、黑白化、低饱和化或单一灰蓝化。默认不要多视图、资料卡、UI板、厚涂油画、照片写实、3D塑料、赛璐璐平涂、文字水印或伪字题跋。
+《道劫》默认主风格：国风二维动漫手绘插画，以概括造型、清晰发束与简洁明暗色块呈现人物，白描与工笔结构层用细密、稳定、清楚的彩线刻画脸、手、发丝、衣褶、器物轮廓和建筑边缘；环境层用分层色面、适量分染与罩染处理山水、雾、灵气、远景和动作余韵。前中远景与空气透视清楚。以丰富多彩的传统设色为主，配色协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明。具体色相与数量依场景事实，色彩形成连续可见色区。色量由来源事实决定；30%-70% 仅作人工观察与报告，不是生成硬门。指定一个明确自然光、窗光或灵光方向，照亮脸、手、关键道具与路径。画面明快协调、线色清楚、疏密有序，但不得灰白化、黑白化、低饱和化或单一灰蓝化。默认不要多视图、资料卡、UI板、厚涂油画、照片写实、3D塑料、文字水印或伪字题跋。
 ```
 
 ## 通用成片负面约束（全文，并入 Negative Prompt 段）
 
 ```text
-不要现代都市霓虹，不要西幻板甲，不要日式校园制服，不要赛博风主导，不要欧美厚涂奇幻，不要纯黑白滤镜，不要低清模糊，不要塑料感3D渲染，不要廉价网红脸，不要过度磨皮，不要大面积脏污，不要文字水印，不要logo，不要乱码，不要伪字题跋，不要错误肢体，不要多余手指，不要重复人物，不要拼贴感，不要把背景画成空泛山水。画面必须主体明确、线条干净、纸面透气、丰富设色为主、配色协调、主辅与点睛色主次分明、古雅、有真实场景和动作。
+不要现代都市霓虹，不要西幻板甲，不要日式校园制服，不要赛博风主导，不要欧美厚涂奇幻，不要纯黑白滤镜，不要低清模糊，不要塑料感3D渲染，不要廉价网红脸，不要过度磨皮，不要大面积脏污，不要文字水印，不要logo，不要乱码，不要伪字题跋，不要错误肢体，不要多余手指，不要重复人物，不要拼贴感，不要把背景画成空泛山水。画面必须主体明确、线条干净、画面洁净、丰富设色为主、配色协调、主辅与点睛色主次分明、古雅、有真实场景和动作。
 ```
 
 ## 成片模板速查（按用途只选 1 个，骨架要点版）
@@ -120,7 +120,7 @@
 适用：孤独、顿悟、章节情绪图。要点：人物/背影/孤亭位于画面三分之一处；大面积留白表现天空水面雪地雾气，远景淡墨轻压；细节少轮廓准，颜色集中在衣带/灯火/符纸。画幅 16:9 或 21:9。
 
 ### 31. 水墨灵气特写
-适用：法术、灵气、抽象可叙事画面。要点：手掌/法器/符纸/剑锋与灵气属性互动；灵气用墨迹飞白淡彩光晕细符纹，颜色最多三种；主体清晰占中心，背景简化。画幅 1:1 或 16:9 特写。
+适用：法术、灵气、抽象可叙事画面。要点：手掌/法器/符纸/剑锋与灵气属性互动；灵气用墨迹飞白淡彩光晕细符纹，色彩明快协调；主体清晰占中心，背景简化。画幅 1:1 或 16:9 特写。
 
 ## 提示词质量增强
 
@@ -128,12 +128,12 @@
 
 ### 正向质量锚点
 
-水墨国风修仙，Chinese ink wash xianxia，gongbi linework，ground and lighting consistent with the source scene and time，muted yet visible mineral-color palette with soft cyan-green and vermilion accents，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。
+国风二维动漫手绘修仙，Chinese guofeng 2D anime xianxia，fine colored line art，ground and lighting consistent with the source scene and time，bright yet harmonious mineral-color palette with soft cyan-green and vermilion accents，flat layered color fields，spiritual aura as soft color glow，clear layered composition，clean finished image，readable detail。
 视频提示词必须补充镜头运动、主体运动、起承转合、淡墨空气透视变化、光影连续性和首尾帧一致性；补充 ink-wash motion, temporal continuity, stable composition, consistent subject identity。
 
 ### 反向规避提示词
 
-low quality, 3D render, CGI, photorealistic, cel-shaded anime, neon cyberpunk palette, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。
+low quality, 3D render, CGI, photorealistic, neon cyberpunk palette, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。
 flicker, jitter, morphing face, identity drift, inconsistent costume, warped hands, broken motion, sudden scene jump, overexposed effect, text, watermark, logo。
 
 ### 输出净化规则
@@ -153,15 +153,35 @@ flicker, jitter, morphing face, identity drift, inconsistent costume, warped han
 > 标记块缺失时不注入任何内容（fail-empty）。修改本节即全局生效。
 
 <!-- storyboard-image-style-tokens:start -->
-Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time
-工笔线描，写意晕染，底色与光照服从场景时段，墨色层次丰富，青绿朱砂赭石淡彩点缀
-clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality
+Chinese guofeng 2D anime hand-drawn illustration, xianxia immortal cultivation, fine colored line art, flat layered color fields, bright yet harmonious mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time
+细稳彩线勾形，平整分层色面，底色与光照服从场景时段，色彩明快层次丰富，青绿朱砂赭石矿物色点缀
+clear layered composition with flat color fields and visible mineral pigments, atmospheric depth, crisp gongbi linework throughout, clean finished quality
 <!-- storyboard-image-style-tokens:end -->
 
 <!-- storyboard-frame-negative:start -->
-photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, neon cyberpunk palette, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, monochrome, grayscale, black and white, ink-only lineart, washed-out colorless image
+photorealistic photography, 3D render, CGI, western oil painting, western fantasy, cyberpunk, sci-fi, neon cyberpunk palette, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, monochrome, grayscale, black and white, ink-only lineart, washed-out colorless image
 <!-- storyboard-frame-negative:end -->
 
 <!-- storyboard-style-guide:start -->
 8. 画面工艺纪律：工笔线描与矿物罩染清晰，底色、明暗、光源与时段服从场景事实；来源中的尘土、污渍、血痕、破损与身体缺失如实呈现，不以清晰工艺为由洗净或补齐。
 <!-- storyboard-style-guide:end -->
+
+## 历史口径(1018 前)
+
+> 本节为 D3 就地改写留档:原句逐字移入,`原 :NN` 为 1018 改写前行号;被取代裁定见父任务 `10-18-daojie-prompt-conflict-cleanup`(D1–D20)。本节内容不再生效,仅供追溯。
+
+- (原 :9) `| **通用多参模式（英文）** | Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth |` —— 被 D18 定稿 token 取代(ink wash→guofeng 2D anime hand-drawn;muted→bright yet harmonious;C02)。
+- (原 :10) `| **通用首尾帧模式（英文）** | Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time, clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout |` —— 被 D18 定稿 token 取代(C02)。
+- (原 :11) `| **Seedance 2.0（中文）** | 水墨国风修仙，工笔线描，写意泼墨，青绿淡彩，底色与光照服从场景时段，墨色层次丰富，连环画叙事感，前中后景分明构图 |` —— 被 D2 全产线统一 + 术语映射取代(写意泼墨→平整分层色面、墨色层次→色彩明快;C24)。
+- (原 :12) `| **Seedance 1.5（中文）** | 水墨国风，工笔线描，写意晕染，青绿淡彩，底色与光照服从场景时段，修仙题材，灵气流转，动态张力 |` —— 被 D2 全产线统一 + 术语映射取代(写意晕染句删除;C24 同表随动)。
+- (原 :43) `| X5 | 无质感的纯色平面背景 |` —— 被 D2 底座「平整分层色面」取代(禁项改指无层次无结构空背景,不禁平整色面本身;C25)。
+- (原 :53) `| **通用多参模式（英文）** | clear layered composition with foreground, midground and background separation, overlapping ink-wash depth layers, distant mountains in pale ink wash, ink-wash atmospheric perspective, foreground framing elements like branches or eaves, deep focus with crisp gongbi linework throughout |` —— 被 D2/D18 术语映射取代(远景=整块平整色面层层退远而边界清晰;C02)。
+- (原 :55) `| **Seedance 2.0（中文）** | 前中远景三层分明，近景枝叶或檐角入框，远山淡墨晕染，墨色近浓远淡，全画面笔意清晰 |` —— 被 D2/D18 术语映射取代(远山晕染→整块淡色面层层退远而边界清晰;C24 同表随动)。
+- (原 :68) `| DV7 | 禁止：正面平面化构图、无层次的平涂背景、大面积无结构宣纸空白（留白须有形 — 云气/水面/远山轮廓）` —— 「无层次的平涂背景」改为「无层次结构的空泛色背景」(平涂不再作禁项,与场景型「整面平整色面」对齐;C25/D2)。
+- (原 :76) `《道劫》默认主风格：国风二维动漫手绘插画，以概括造型、清晰发束与简洁明暗色块呈现人物，白描与工笔结构层用细密、稳定、清楚的墨线刻画脸、手、发丝、衣褶、器物轮廓和建筑边缘；环境层用分层色面、适量分染与罩染处理山水、雾、灵气、远景和动作余韵。前中远景与空气透视清楚。以丰富多彩的传统设色为主，配色协调统一，主色统领、辅色呼应、点睛色突出，饱和度与对比度受控且层级分明。具体色相与数量依场景事实，色彩形成连续可见色区。色量由来源事实决定；30%-70% 仅作人工观察与报告，不是生成硬门。指定一个明确自然光、窗光或灵光方向，照亮脸、手、关键道具与路径。画面明快协调、线色清楚、疏密有序，但不得灰白化、黑白化、低饱和化或单一灰蓝化。默认不要多视图、资料卡、UI板、厚涂油画、照片写实、3D塑料、赛璐璐平涂、文字水印或伪字题跋。` —— 「墨线」→「彩线」(D5 彩线为准)、删「赛璐璐平涂」禁项(D2 不把动漫/赛璐璐列为禁项);lock-anchors.json 成片主风格锁 manualAnchor 与 maAnchor 分置(C04/D12)。
+- (原 :82) `……不要把背景画成空泛山水。画面必须主体明确、线条干净、纸面透气、丰富设色为主、配色协调、主辅与点睛色主次分明、古雅、有真实场景和动作。` —— 「纸面透气」→「画面洁净」(D2 底座负向「纸面纹理」口径;lock-anchors.json 通用成片负面 manualAnchor 随动;C26/D12)。
+- (原 :123) `适用：法术、灵气、抽象可叙事画面。要点：手掌/法器/符纸/剑锋与灵气属性互动；灵气用墨迹飞白淡彩光晕细符纹，颜色最多三种；主体清晰占中心，背景简化。画幅 1:1 或 16:9 特写。` —— 「颜色最多三种」上限删除,改「色彩明快协调」(C27/D2 底座多彩口径)。
+- (原 :131) `水墨国风修仙，Chinese ink wash xianxia，gongbi linework，ground and lighting consistent with the source scene and time，muted yet visible mineral-color palette with soft cyan-green and vermilion accents，layered ink wash，spiritual aura as ink diffusion，clear layered composition，clean finished image，readable detail。` —— 被 D18 定稿 token 取代(C02;测试 :121 锚随动=D12)。
+- (原 :136) `low quality, 3D render, CGI, photorealistic, cel-shaded anime, neon cyberpunk palette, western fantasy, sci-fi, modern city, plastic texture, messy ink, bad anatomy, watermark, text, signature。` —— 删 `cel-shaded anime`(C05/D2:动漫不再作反向规避词)。
+- (原 :156-158) `Chinese ink wash painting style, xianxia immortal cultivation, traditional brushwork, muted yet visible mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time / 工笔线描，写意晕染，底色与光照服从场景时段，墨色层次丰富，青绿朱砂赭石淡彩点缀 / clear layered colored ink-wash composition with visible mineral pigments, atmospheric depth, crisp gongbi linework throughout, clean finished gongbi quality` —— 被 D18 定稿 token 取代(storyboard-image-style-tokens 注入块;C02/R2;色彩尾句保留——帧链无 qi21 底座兜色彩)。
+- (原 :162) `photorealistic photography, 3D render, CGI, cel shading, anime style, western oil painting, western fantasy, cyberpunk, sci-fi, neon cyberpunk palette, paper-wrinkle texture, crumpled-sheet folds, wave-like surface ripples, fiber streaks, pulp grain mesh, scanned-paper filter, yellowed aged sheet, full-frame paper texture, AI muddy noise, dirty texture, compression artifacts, oversharpening halos, low quality, blurry, messy ink, broken linework, bad anatomy, extra limbs, weapon passing through body, unstable stance, text, watermark, logo, subtitle, webtoon cover beauty portrait, idol poster, monochrome, grayscale, black and white, ink-only lineart, washed-out colorless image` —— 删 `cel shading, anime style`(经「Avoid:」拼接以正向 token 进 CLIP,属反向污染;C01/D11;photorealistic、paper-wrinkle、bad anatomy、watermark 保留——测试 :306 钉)。

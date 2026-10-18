@@ -55,3 +55,4 @@
 - 成片主风格锁摘录时省略 MA 原文中的「宣纸/绢本纤维、墨色渗透和矿物颜料颗粒可见」一句——该句与 restyle.py 底座(2026-07-26 用户确认禁纸纹赞美)冲突,以底座口径为准
 - 风格底座锁基底句 09-18 起单侧切为新中式展开式(「现代修仙游戏的数字绘画资产」+传统人物画 DNA 组件+现代游戏设计重组,v2.2《三国望神州》AI Visual Bible 用户令,源=docs/prompts/三国望神州.md 09-18 05:35 重下版):manualAnchor 已随 prefix.md 第四节.1 新文重抄,maAnchor 保留旧词「中国水彩水墨工笔画」——MA 侧 daojie_gongbi_restyle.py 未动,待其同步演化后重对(重对前先跑 `python3 apps/build/scripts/daojie-ma-sync-check.py --ma-root <MA 仓库根>` 出漂移报告)
 - 线条质量句 09-18 二次并入线描层(细稳基调上转折处轻重提按＋墨线带手绘笔性＋防机械勾边与矢量感;源=docs/prompts/三国望神州_线描.md v1.0 五字模型):manualAnchor 前半句「曲线自然顺滑，直线笔直稳定」未动,maAnchor 保留旧词待 MA 侧演化后重对(重对前先跑 daojie-ma-sync-check.py --ma-root)
+- **1018 动漫底座随源(有意差异)**:art_prompt/art_storyboard_video.md 主风格锁「墨线」→「彩线」(D5)、删「赛璐璐平涂」禁项(D2),通用成片负面「纸面透气」→「画面洁净」(C26);lock-anchors.json 成片主风格锁/通用成片负面 manualAnchor 已随新措辞,maAnchors 仍为 MA 侧墨线/水墨口径(历史来源基线,不声明逐字镜像)——MA 侧另由用户决定何时随动(2026-10-18 P0,父任务 10-18-daojie-prompt-conflict-cleanup D3/D12)

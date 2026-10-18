@@ -3624,7 +3624,7 @@ class TestQi21SubgraphContract:
     def test_qi21_base_node_present_and_combo_default(self):
         """[4010] MyQi21DaojieBase 在子图内:combo base 槽=widget 转输入接 -10 槽1
         (1005 重锚+1006 批C 正名:-10 槽序=0正向提示词/1型选择/2负向提示词,宿主面板
-        「型选择」COMBO 十选一=九型+自由);widgets 默认=人物;五出
+        「型选择」COMBO 十一选一=十型+自由);widgets 默认=人物;五出
         BASE/WIDTH/HEIGHT/透明值/负面词(2002 ⑯ 删「型名」第四出=三件零消费;
         1001 用户测试批 P1+P2;负面词=1005 案B Phase I 第五出):BASE 喂 [141]
         装配全文件.BASE;WIDTH/HEIGHT 原样直通子图
@@ -4229,7 +4229,7 @@ class TestQi21SubgraphContract:
             assert token in note, f"Note 缺子图版要点: {token!r}"
 
     def test_prompt_library_nine_types_anchor(self):
-        """库锚(②层=09-23 美化版):### 恰九型且与 daojie_bases.json zh 同序;
+        """库锚(②层=09-23 美化版):### 恰十型且与 daojie_bases.json zh 同序;
         每型装配全文围栏行数=10(人物系)/6(场景系),字符带 1400-2500
         (1002 头身比锚轮五型②层各+23 字,表情差分 2387→2410 破旧上界,随轮上调);
         首行 ⟨①:…⟩ 槽、末行配色行;②层与 canon positive 不再逐字互锁(锚废止的负证);
@@ -4239,7 +4239,7 @@ class TestQi21SubgraphContract:
         zh_order = [b["zh"] for b in bases]
         headings = re.findall(r"^### (.+?)-基础\s*$", md, re.M)
         assert headings == zh_order, \
-            f"库 ### 九型标题应与 canon(qi21_bases.json types 前9)zh 同序,得 {headings}"
+            f"库 ### 十型标题应与 canon(qi21_bases.json types 前 10)zh 同序,得 {headings}"
         canon_pos = {b["zh"]: b["positive_text"] for b in bases}
         diff = 0
         for zh in zh_order:
