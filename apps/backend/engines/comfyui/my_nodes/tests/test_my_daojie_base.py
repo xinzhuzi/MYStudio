@@ -386,6 +386,6 @@ def test_width_height_override_and_formula():
     无 override 型走公式,与 [61] 逐字节一致(场景 16:9·1.5→1672×944)。
     1008 快出档缩编:多视图 override 3072×1024→2448×816、场景 4.2→1.5MP。"""
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("人物多视图")  # 0927 改名轮(K2 侧 override 合板口径);1008 晚改名 多视图→人物多视图
-    assert (w, h) == (1792, 1008), (w, h)  # 1017 官方版式轮:16:9 左特写+右三视(旧1:1四宫格1632 入 git 史)
+    assert (w, h) == (1024, 576), (w, h)  # 1018 用户令 1K 封顶:override 随改(旧 1792×1008 入 git 史)
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("场景")
-    assert (w, h) == (1672, 944), (w, h)
+    assert (w, h) == (1024, 576), (w, h)  # 1018 令 1K 封顶

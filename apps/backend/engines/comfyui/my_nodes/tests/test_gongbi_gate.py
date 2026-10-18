@@ -32,10 +32,28 @@ def test_clean_subject_passes():
     ("写实风格人物。", "写实"),
     ("杰作，8K 超高清。", "8K"),
     ("工笔重彩人物立绘。", "工笔"),
+    # 1018 人械握姿+发色门禁
+    ("女修腰悬长剑，剑身完整收在鞘中，右手握住剑柄。", "握柄"),
+    ("道人佩刀，刀身完整收在鞘中，左手按在刀柄上端。", "握柄"),
+    ("青年握剑而立。", "握姿"),
+    ("女修长发半束，腰悬长剑。", "发色"),
 ])
 def test_toxins_raise(bad, word):
     v = gate.prompt_violations(bad, is_subject=True)
     assert v and word in v[0], v
+
+
+def test_weapon_grip_and_hair_color_pass():
+    ok_subjects = [
+        "女修乌黑长发半束，腰悬一柄乌木鞘长剑，剑身完整收在鞘中，全身仅此一柄长剑、始终挂定腰间，"
+        "右手握住剑鞘。",
+        "道人墨黑短发，双手扶在行囊肩带上。",  # 有发色;无握械词=零触发
+        "武者持剑迎击，剑光如虹。",  # 无鞘语境的持剑(战斗)但含「持剑」须细节?——含柄身/剑柄?否→应拒,移除本条
+    ]
+    # 第三条实为违例(持剑无部位细节),改为只测前两条
+    for s in ok_subjects[:2]:
+        v = gate.prompt_violations(s, is_subject=True)
+        assert v == [], (s, v)
 
 
 def test_verbatim_block_exempt():

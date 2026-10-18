@@ -2447,8 +2447,8 @@
         "revision": 1,
         "state": {
           "lastGroupId": 15,
-          "lastNodeId": 7033,
-          "lastLinkId": 4411,
+          "lastNodeId": 7034,
+          "lastLinkId": 4413,
           "lastRerouteId": 2
         },
         "config": {
@@ -2482,10 +2482,7 @@
             "name": "model",
             "type": "MODEL",
             "linkIds": [
-              247,
-              263,
-              4410,
-              4400
+              4413
             ],
             "pos": [
               -86,
@@ -3574,6 +3571,59 @@
             },
             "widgets_values": [],
             "widgets_values_named": {}
+          },
+          {
+            "id": 7034,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              80.0,
+              640.0
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 20,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 4413
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  247,
+                  263,
+                  4410,
+                  4400
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "qi21-mikkoani.safetensors",
+              1.0
+            ],
+            "widgets_values_named": {
+              "lora_name": "qi21-mikkoani.safetensors",
+              "strength_model": 1.0
+            },
+            "title": "[7034] 风格LoRA·mikkoani(×1.0)"
           }
         ],
         "groups": [
@@ -3615,12 +3665,12 @@
           },
           {
             "id": 14,
-            "title": "④seed 单源",
+            "title": "④共用控制(seed 单源 · 风格LoRA)",
             "bounding": [
-              40,
+              68,
               350,
-              320,
-              230
+              294,
+              450.0
             ],
             "color": "#a1309b",
             "flags": {}
@@ -3641,7 +3691,7 @@
         "links": [
           {
             "id": 247,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7010,
             "target_slot": 0,
@@ -3785,7 +3835,7 @@
           },
           {
             "id": 263,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7022,
             "target_slot": 0,
@@ -3865,7 +3915,7 @@
           },
           {
             "id": 4400,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,
@@ -3937,9 +3987,17 @@
           },
           {
             "id": 4410,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7011,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 4413,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7034,
             "target_slot": 0,
             "type": "MODEL"
           }
@@ -3947,6 +4005,6 @@
       }
     ]
   },
-  "last_node_id": 7033,
-  "last_link_id": 4411
+  "last_node_id": 7034,
+  "last_link_id": 4413
 }

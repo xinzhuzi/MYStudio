@@ -22,6 +22,7 @@ pycache 执行余温);判定权在人,工具只出证据。
 | 1014 misc | h3_upgrade_1014 / vl_judge_1014 | H3 v1.2 全量升级(幂等,manifest 留 `../backups/`)/VL 判图器(判图已改本机 Vision+像素指标) |
 | 1015 i2i 蓝图族 | qi21_i2i_encoders_out_1015 / qi21_i2i_note402_09spec_1015 / qi21_i2i_note_types_1015 / qi21_i2i_output_group_1015 / qi21_i2i_r33_relayout_1015 / qi21_i2i_sg6_relayout_1015 / qi21_i2i_title6_restore_1015 / qi21_i2i_wh_bytype_1015 / qi21_i2i_grouptitle_shorten_1015 | i2i 画布历次重排/编码器出子图/组框瘦身等,成果均在已提交工作流;清单.md 内手术史叙事保留原词 |
 | 1015 资产归 store | asset_land_1015.py | 资产归位役收据(役毕 Oct-15) |
+| 1017 超分四法役(1018 收口) | qi21_upscale_subgraph_1017 / qi21_upscale_B_blueprint_1017 | 四宿主串联母线施工 + B 像素超分蓝图(ESRGAN anime_6B);1018 用户终裁「超分唯一启用=SeedVR2」A/B/C 全删、B 亦停,产物唯余 `my_nodes/subgraphs/qi21-道劫-超分-SeedVR2.json`(契约测试注释中「S2 唯一写点」指名本件,考古用) |
 | 层冲突手术族 | qi21_layer_conflict_distribute / qi21_layer_conflict_snapshots / qi21_layer_conflict_splice / test_qi21_layer_conflict_splice | 型文层冲突拆分(脚本+测试成组,测试不入口禁清单) |
 
 ## 留守 notable(有引用/在途而未归档)

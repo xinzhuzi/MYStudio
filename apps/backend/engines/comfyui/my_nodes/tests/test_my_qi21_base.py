@@ -228,10 +228,12 @@ def test_width_height_reference_table():
     1008 快出档缩编:六型 4.2→1.5MP、多视图 4.2→1.8MP(用户令 1-2MP
     快出+后放大;4.2 旧档宽高表入 git 史)。"""
     expect = {
-        "人物": (1088, 1448), "场景": (1672, 944), "道具": (1024, 1024),
-        "美宣": (1912, 824), "人物多视图": (1792, 1008), "高清人脸": (1024, 1024),
-        "分镜剧情图": (1672, 944), "表情差分": (1256, 1256),
-        "概念气氛图": (1672, 944), "设定卡": (2712, 1160), "自由": (1024, 1024)}
+        "人物": (768, 1024), "场景": (1024, 576), "道具": (1024, 1024),
+        "美宣": (1024, 440), "人物多视图": (1024, 576), "高清人脸": (1024, 1024),
+        "分镜剧情图": (1024, 576), "表情差分": (1024, 1024),
+        "概念气氛图": (1024, 576), "设定卡": (1024, 440), "自由": (1024, 1024)}
+    # 1018 用户令:宽高硬上限 1K——公式封顶(native_px 同比缩进)+多视图 override 改
+    # [1024,576];旧 1.5MP 档宽高表入 git 史。
     # 1016 完整设定板=21:9/3MP，默认不透明；公式路独立钉。
     for zh, (w, h) in expect.items():
         _b, w_out, h_out, _n, _t, _tn = MyQi21DaojieBase().run(zh)
@@ -331,7 +333,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     # 非自由型透明值=rgba_default 型默认优先(1001 P1;覆盖缺省不改变九型行为)
     assert transparent is False
     # 缺分辨率字段:回退 1:1 (Square)/4.2(与 K2 单源)+控制台中文警告
-    assert (w, h) == native_px("1:1 (Square)", 4.2) == (2096, 2096)
+    assert (w, h) == native_px("1:1 (Square)", 4.2) == (1024, 1024)  # 1018 令 1K 封顶(旧 2096 入史)
     out = capsys.readouterr().out
     assert "缺 aspect_ratio 字段" in out and "缺 megapixels 字段" in out
     assert "缺 rgba_default 字段" in out

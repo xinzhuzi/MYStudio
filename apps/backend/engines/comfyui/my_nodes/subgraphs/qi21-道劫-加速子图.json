@@ -1,7 +1,7 @@
 {
   "revision": 1,
-  "last_node_id": 1,
-  "last_link_id": 4409,
+  "last_node_id": 7034,
+  "last_link_id": 4411,
   "nodes": [
     {
       "id": 1,
@@ -80,13 +80,13 @@
         }
       ],
       "widgets_values": [
-        "自动 · 按型",
+        "0 · Turbo 8步",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "title": "[7] 加速子图",
       "widgets_values_named": {
-        "速度档位": "自动 · 按型",
+        "速度档位": "0 · Turbo 8步",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -105,8 +105,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 6,
-          "lastNodeId": 7033,
-          "lastLinkId": 4409,
+          "lastNodeId": 7034,
+          "lastLinkId": 4411,
           "lastRerouteId": 10
         },
         "revision": 1,
@@ -138,10 +138,7 @@
             "name": "model",
             "type": "MODEL",
             "linkIds": [
-              103,
-              4313,
-              4323,
-              4400
+              4411
             ],
             "pos": [
               104,
@@ -254,7 +251,7 @@
           }
         ],
         "widgets": [
-          "自动 · 按型",
+          "0 · Turbo 8步",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -456,10 +453,10 @@
               }
             },
             "widgets_values": [
-              "自动 · 按型"
+              "0 · Turbo 8步"
             ],
             "widgets_values_named": {
-              "mode": "自动 · 按型"
+              "mode": "0 · Turbo 8步"
             }
           },
           {
@@ -629,10 +626,10 @@
               }
             },
             "widgets_values": [
-              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 前接 Fix×0.5,不与 viggle 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] Fix×0.5→官方LoRA×1.0→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler cfg4=负向真实生效档;官方配方=20步cfg3.5/官方采样器res_2m_nc+bong_tangent引擎缺,保euler/simple)\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)"
+              "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 前接 Fix×0.5,不与 viggle 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] Fix×0.5→官方LoRA×1.0→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler cfg4=负向真实生效档;官方配方=20步cfg3.5/官方采样器res_2m_nc+bong_tangent引擎缺,保euler/simple)\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)\n[7034] 风格LoRA·mikkoani ×1.0(1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)"
             ],
             "widgets_values_named": {
-              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 前接 Fix×0.5,不与 viggle 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] Fix×0.5→官方LoRA×1.0→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler cfg4=负向真实生效档;官方配方=20步cfg3.5/官方采样器res_2m_nc+bong_tangent引擎缺,保euler/simple)\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)"
+              "text": "道劫·加速子图=三支路并行加速档+seed 单源+档位选择单点汇流(宿主面板=速度档位/seed/σ表;未选支路懒执行零加载)。\n三支路:①档0 Turbo 官方8步 cfg1 负向无口=[7028 官方 avg_rank_178 LoRA×1.0 前接 Fix×0.5,不与 viggle 同挂]→[7029 BasicGuider cfg1 纯正向]→[7031 SamplerCustomAdvanced]+[7030 ManualSigmas 官方σ表];②档1 原生出图 cfg4=[7026 Fix v2.0 官方域挂件(e-n-v-y 标定=全步数+cfg>1+真负向,LoraLoaderModelOnly×1.0)]→[7010] KSampler,负向仅档1(原生出图 cfg4)生效;③档2 viggle v0.3 官方9步满血=[7027 Fix v2.0 实验臂×0.5(1009用户令试验,官方1.0/0.3扫参;旁路本件=回纯官方链)→]前7步 [7011 ViggleTurboLora 未合并]+[7012]段A,后2步 [7022]底模引导+[7024]段B(摘LoRA 底模收尾);[7021]按 step=7 切 [7020] 的9点动态shift σ表;蒸馏件 cfg恒1 负向无效。\n[7014] seed 单源(viggle/Turbo 共用 [7017] 噪声,直出另线);三支路汇 [7015] 单点出 LATENT。\nσ表面板贴表即换步数(9步=1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25 需配 [7021] step=7;6步单段=1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 且 [7021] step=5)。\n\n布局前标题说明（原文保留）：\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7014] seed单源·PrimitiveInt\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7026] Fix v2.0·官方域挂件(手/细节修复)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n道劫·加速子图·①Turbo 支路([7028] Fix×0.5→官方LoRA×1.0→[7029]BasicGuider cfg1→[7031] SamplerCustomAdvanced 8步官方σ([7030]ManualSigmas);不与viggle同挂;前接Fix×0.5;seed=面板单源)\n道劫·加速子图·②viggle v0.3 官方9步满血双段([7011]ViggleTurboLora 未合并→[7019]BasicGuider cfg1→[7012]段A采样(7步turbo)→[7024]段B采样(2步底模摘LoRA);[7021]SplitSigmas 7+2 切分/[7020]ViggleTurboSigmas 动态shift/[7017]noise/[7018]euler/[7023]零噪声续采;cfg恒1 负向无效)\n道劫·加速子图·③原生出图支路([7026]Fix v2.0 官方域挂件×1.0→[7010]KSampler cfg4=负向真实生效档;官方配方=20步cfg3.5/官方采样器res_2m_nc+bong_tangent引擎缺,保euler/simple)\n道劫·加速子图·④seed 单源([7014] PrimitiveInt 面板外露,三用扇出)\n道劫·加速子图·⑤档位选择([7015] MyQi21SpeedSelect 单点汇流出 LATENT)\n[7034] 风格LoRA·mikkoani ×1.0(1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)"
             },
             "color": "#432",
             "bgcolor": "#653"
@@ -1336,6 +1333,59 @@
             },
             "widgets_values": [],
             "widgets_values_named": {}
+          },
+          {
+            "id": 7034,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              870.0,
+              1910.0
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 20,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 4411
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  103,
+                  4313,
+                  4323,
+                  4400
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "qi21-mikkoani.safetensors",
+              1.0
+            ],
+            "widgets_values_named": {
+              "lora_name": "qi21-mikkoani.safetensors",
+              "strength_model": 1.0
+            },
+            "title": "[7034] 风格LoRA·mikkoani(×1.0)"
           }
         ],
         "groups": [
@@ -1380,9 +1430,9 @@
             "title": "④共用控制",
             "bounding": [
               270,
-              450,
-              880,
-              2328
+              1050,
+              900.0,
+              1670
             ],
             "color": "#6a4d8c",
             "flags": {}
@@ -1399,7 +1449,7 @@
           },
           {
             "id": 103,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7026,
             "target_slot": 0,
@@ -1559,7 +1609,7 @@
           },
           {
             "id": 4313,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7022,
             "target_slot": 0,
@@ -1623,7 +1673,7 @@
           },
           {
             "id": 4323,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7011,
             "target_slot": 0,
@@ -1631,7 +1681,7 @@
           },
           {
             "id": 4400,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,
@@ -1708,6 +1758,14 @@
             "target_id": 7015,
             "target_slot": 4,
             "type": "STRING"
+          },
+          {
+            "id": 4411,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7034,
+            "target_slot": 0,
+            "type": "MODEL"
           }
         ],
         "extra": {

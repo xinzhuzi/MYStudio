@@ -101,6 +101,8 @@ def main():
     ap.add_argument("--native", action="store_true",
                     help="覆写速度档位为「1 · 原生出图」(40步 cfg1 负向不参与采样;"
                          "1017 概念图役令;与 --turbo 同层,先到先得勿同传)")
+    ap.add_argument("--viggle", action="store_true",
+                    help="显式强制 viggle 双段臂(1018 Windows 对拍役:跨机同分支对照)")
     ap.add_argument("--unwire-base", dest="unwire_base", action="store_true",
                     help="模拟 [4032] 旁路:底座两槽不接线(1017 裁定:缺席=底座离场)")
     ap.add_argument("--bare", action="store_true",
@@ -152,7 +154,9 @@ def main():
     # 1017:不传 --turbo/--native=尊重面板「自动 · 按型」出厂默认,按 --type 解析生效档;
     # --turbo/--native=显式覆写优先生效(不经型名改写;同传时 native 先到先得)
     speed_panel = ("1 · 原生出图" if args.native
-                   else ("0 · Turbo 8步" if args.turbo else host7["widgets_values"][0]))
+                   else ("0 · Turbo 8步" if args.turbo
+                         else ("viggle · 双段(强制)" if args.viggle
+                               else host7["widgets_values"][0])))
     speed = resolve_speed_mode(speed_panel, args.type)
     sigma_str = host7["widgets_values"][2] if len(host7["widgets_values"]) > 2 else ""
     print(f"[fire] 型={args.type} 档={speed_panel}→生效档={speed} seed={seed}(随机)" if args.seed is None else f"[fire] 型={args.type} 档={speed_panel}→生效档={speed} seed={seed}")
@@ -230,10 +234,19 @@ def main():
     # ── 展平:子图[7]加速(按工作流现档) ──
     sg7 = sgs[host7["type"]]
     n7 = {n["id"]: n for n in sg7["nodes"]}
+    # 1018inkling:入口水墨风格 LoRA [7034]×0.3(画布现值热读;无 [7034] 时退底模直连)
+    n7034 = n7.get(7034)
+    if n7034 is not None and n7034.get("mode", 0) == 0:  # 1018inkbp:旁路态不进 API 图
+        g["7:7034"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+            "model": ["1", 0], "lora_name": n7034["widgets_values"][0],
+            "strength_model": n7034["widgets_values"][1]}}
+        base_model = ["7:7034", 0]
+    else:
+        base_model = ["1", 0]
     if "viggle" in speed:
         lora_name = n7[7011]["widgets_values"][0]
         split_step = n7[7021]["widgets_values"][0] if n7[7021].get("widgets_values") else 7
-        g["7:7011"] = {"class_type": "ViggleTurboLora", "inputs": {"model": ["1", 0], "lora_name": lora_name, "strength": 1.0}}
+        g["7:7011"] = {"class_type": "ViggleTurboLora", "inputs": {"model": base_model, "lora_name": lora_name, "strength": 1.0}}
         g["7:7017"] = {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}}
         g["7:7018"] = {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}}
         g["7:7019"] = {"class_type": "BasicGuider", "inputs": {"model": ["7:7011", 0], "conditioning": ["4015", 0]}}
@@ -242,7 +255,7 @@ def main():
         g["7:7012"] = {"class_type": "SamplerCustomAdvanced",
                        "inputs": {"noise": ["7:7017", 0], "guider": ["7:7019", 0], "sampler": ["7:7018", 0],
                                   "sigmas": ["7:7021", 0], "latent_image": ["4", 0]}}
-        g["7:7022"] = {"class_type": "BasicGuider", "inputs": {"model": ["1", 0], "conditioning": ["4015", 0]}}
+        g["7:7022"] = {"class_type": "BasicGuider", "inputs": {"model": base_model, "conditioning": ["4015", 0]}}
         g["7:7023"] = {"class_type": "DisableNoise", "inputs": {}}
         g["7:7024"] = {"class_type": "SamplerCustomAdvanced",
                        "inputs": {"noise": ["7:7023", 0], "guider": ["7:7022", 0], "sampler": ["7:7018", 0],
@@ -251,7 +264,7 @@ def main():
     elif "Turbo" in speed:
         # 1016turbo 官方臂(照画布子图手术形展平;噪声/采样器与 viggle 分支同款自建)
         g["7:7028"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
-            "model": ["1", 0], "lora_name": TURBO_LORA_FILE, "strength_model": 1.0}}
+            "model": base_model, "lora_name": TURBO_LORA_FILE, "strength_model": 1.0}}
         g["7:7029"] = {"class_type": "BasicGuider", "inputs": {
             "model": ["7:7028", 0], "conditioning": ["4015", 0]}}
         g["7:7030"] = {"class_type": "ManualSigmas", "inputs": {"sigmas": TURBO_SIGMAS}}
@@ -264,7 +277,7 @@ def main():
     else:
         g["7:7010"] = {"class_type": "KSampler",
                        "inputs": {"seed": seed, "steps": 40, "cfg": 4.0, "sampler_name": "euler", "scheduler": "simple",
-                                  "denoise": 1.0, "model": ["1", 0], "positive": ["4015", 0],
+                                  "denoise": 1.0, "model": base_model, "positive": ["4015", 0],
                                   "negative": ["4016", 0], "latent_image": ["4", 0]}}
         latent_src = ["7:7010", 0]
 

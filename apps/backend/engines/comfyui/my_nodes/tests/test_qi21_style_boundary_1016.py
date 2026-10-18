@@ -10,7 +10,7 @@ SOURCE = ROOT/'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng
 def test_style_keeps_visual_dna_and_craft_without_subject_or_layout_rules():
     base = json.loads(SOURCE.read_text())['art_style_base']
     text = base['positive_text']
-    for word in ['中国工笔重彩', '二维手绘', '工笔', '白描', '连环画', '线条细稳连贯',
+    for word in ['中国工笔淡彩', '二维手绘', '工笔', '白描', '连环画', '线条细稳连贯',
                  '平整分层的清晰色面', '色面边界清晰锐利', '矿物色质感鲜泽通透', '多色相并陈', '主次分明',
                  '繁密细节处笔触交代清楚',
                  '画面洁净平整']:

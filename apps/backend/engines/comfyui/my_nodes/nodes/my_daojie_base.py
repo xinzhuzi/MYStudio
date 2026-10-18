@@ -111,8 +111,13 @@ def native_px(aspect_label: str, megapixels: float, multiple: int = 8) -> tuple[
     wr, hr = ASPECTS.get(aspect_label, (1, 1))
     total = megapixels * 1024 * 1024
     scale = math.sqrt(total / (wr * hr))
-    return (round(wr * scale / multiple) * multiple,
+    w, h = (round(wr * scale / multiple) * multiple,
             round(hr * scale / multiple) * multiple)
+    # 1018 用户令:宽高硬上限 1K(1024)——超限同比缩进,边长落 8 倍数(向下取整)
+    if max(w, h) > 1024:
+        s = 1024 / max(w, h)
+        w, h = (round(w * s / multiple) * multiple, round(h * s / multiple) * multiple)
+    return (w, h)
 
 
 def _width_height_of(base: str, entry: dict, aspect: str, megapixels: float) -> tuple[int, int]:

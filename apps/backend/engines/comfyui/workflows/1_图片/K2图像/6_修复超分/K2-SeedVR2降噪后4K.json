@@ -765,7 +765,9 @@
           "localized_name": "图像",
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": null
+          "links": [
+            10
+          ]
         }
       ],
       "title": "去噪(轻档保线稿)",
@@ -789,101 +791,6 @@
       },
       "color": "#111111",
       "bgcolor": "#000000"
-    },
-    {
-      "id": 8,
-      "type": "UpscaleModelLoader",
-      "pos": [
-        1412.5721093749999,
-        77.13960937499996
-      ],
-      "size": [
-        380.65625,
-        101.03125
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "模型名称",
-          "name": "model_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "model_name"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "放大模型",
-          "name": "UPSCALE_MODEL",
-          "type": "UPSCALE_MODEL",
-          "links": null
-        }
-      ],
-      "title": "放大模型(anime6B)",
-      "properties": {
-        "Node name for S&R": "UpscaleModelLoader",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "RealESRGAN_x4plus_anime_6B.pth"
-      ],
-      "widgets_values_named": {
-        "model_name": "RealESRGAN_x4plus_anime_6B.pth"
-      }
-    },
-    {
-      "id": 9,
-      "type": "ImageUpscaleWithModel",
-      "pos": [
-        1900,
-        380
-      ],
-      "size": [
-        225,
-        54
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "放大模型",
-          "name": "upscale_model",
-          "type": "UPSCALE_MODEL",
-          "link": 9
-        },
-        {
-          "localized_name": "图像",
-          "name": "image",
-          "type": "IMAGE",
-          "link": 8
-        }
-      ],
-      "outputs": [
-        {
-          "localized_name": "图像",
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": null
-        }
-      ],
-      "title": "×4 放大",
-      "properties": {
-        "Node name for S&R": "ImageUpscaleWithModel",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      }
     },
     {
       "id": 10,
@@ -1005,24 +912,8 @@
       "IMAGE"
     ],
     [
-      8,
-      7,
-      0,
-      9,
-      1,
-      "IMAGE"
-    ],
-    [
-      9,
-      8,
-      0,
-      9,
-      0,
-      "UPSCALE_MODEL"
-    ],
-    [
       10,
-      9,
+      7,
       0,
       10,
       0,

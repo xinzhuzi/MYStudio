@@ -694,6 +694,11 @@ EDIT_TE1 = 4016  # 1002 ⑫:edit 单参考编码 [43]→[4016]
 # 1016turbo 官方臂常量(FunAcc 臂退役:FUNACC_FILE/T8_CLASS 死常量随之移除,
 # 历史账=git 与台账 #26「已退役留盘」)
 TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
+# 1018mikko 用户令「使用 mikkoani,默认打开」:加速子图入口单挂 mikkoani×1.0
+# (civitai 2470371 Qwen2.1 版;model 边界→[7034]→四扇出,三支路共吃;实测不惧蒸馏)
+STYLE_LORA_FILE = "qi21-mikkoani.safetensors"
+STYLE_LORA_STRENGTH = 1.0
+QI21_STYLE_LORA_ID = 7034
 TURBO_SIGMAS = ("1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, "
                 "0.704534, 0.414568, 0")  # 官方 model_index sample_sigmas+模板补终止0(9元素=8步)
 # 档位表真源=my_nodes 节点件 importlib 纯模块互锁(design §4:combo 列表即契约,
@@ -747,7 +752,7 @@ EDIT_DEFAULT_MODE = MODE_TURBO
 # ——推翻 1008/1009 viggle 与 1016turbo 提首两笔历史口径,历史账不改写;
 # edit 不入 1017 域=EDIT_DEFAULT_MODE 承位不动)——
 # test_three_files_default_mode_consistent / test_accel_panel_controls_present_0929 共用
-DEFAULT_MODE_OF = {"qi21": MODE_AUTO, "i2i": MODE_AUTO, "edit": EDIT_DEFAULT_MODE}
+DEFAULT_MODE_OF = {"qi21": MODE_TURBO, "i2i": MODE_TURBO, "edit": EDIT_DEFAULT_MODE}  # 1018 用户令:全件默认=Turbo
 # 0929 并行化 Note 加速区段共用 tokens(三件 Note 均含;文案真源=三生成器 NOTE 段;
 # 1016turbo 换臂:T8 类名/FUNACC_FILE/插件生态 token 随 FunAcc 臂退役出组)
 PARALLEL_NOTE_CORE_TOKENS = (
@@ -765,7 +770,7 @@ TURBO_NOTE_TOKENS = (
 QI21_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, *TURBO_NOTE_TOKENS,
     "MyQi21SpeedSelect", "[7]", "[7015]", "[7012]", "[7014]",
-    "首项=「自动 · 按型」=全局出厂默认", "本件默认=「自动 · 按型」", "seed 单源", "真实生效", "并行三支路",
+    "全局首项=「自动 · 按型」", "本件默认=「0 · Turbo 8步」", "seed 单源", "真实生效", "并行三支路",
     "速度档位", "双子图",
 )
 # i2i 件 Note 加速区段(0929 S3 收装;i2i 家风=选择件/seed 以名示人不带 id 号,
@@ -774,7 +779,7 @@ QI21_PARALLEL_NOTE_TOKENS = (
 I2I_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, *TURBO_NOTE_TOKENS,
     "MyQi21SpeedSelect", "[7]", "[7012]",
-    "首项=「自动 · 按型」=全局出厂默认=本件默认",
+    "全局首项=「自动 · 按型」,本件默认=「0 · Turbo 8步」",
     "seed 单源", "零摆设值", "复用铁则", "分线直入",
     "单参考正源", "崩纯黑", "唯一色=1", "positive_single", "[173]", "零改动",
     "速度档位", "加速子图",
@@ -1086,7 +1091,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                            pos_direct: str, pos_accel: str,
                            boundary_inputs: list, host_inputs: list,
                            te1_asg: int | None = None,
-                           default_mode: str = DEFAULT_MODE,
+                           default_mode: str = MODE_TURBO,  # 1018 用户令:全件默认=Turbo
                            note_id: int | None = None,
                            ks_cfgs: tuple = (1, 1),
                            viggle_class: str = "KSampler",
@@ -1096,6 +1101,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                            vig_pos_asg: int | None = None,  # 1014 i2i:viggle 档正源编码=主编码(懒干跑断言切换)
                            direct_lora: int | None = None,
                            vig_fix_lora: int | None = None,
+                           style_lora: int | None = None,  # 1018inkling:入口风格件 [7034]
                            banned_main_types: tuple = (), gone_main_ids: tuple = ()):
     """0929 S3 收装轮·加速子图三件同构契约(prd 问题④/design D3/D4/D5;
     research/s3-qi21-*.md 三档;生成器自查谓词=契约单源,条款以生成器 verify 口径):
@@ -1166,6 +1172,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
             f"{name}: 加速子图 outputs[{io['name']}] linkIds 为空(子图工程契约铁律)"
     # 面板双控件(D5 推荐案:速度档位+seed;值双写,宿主=权威值源)
     b_idx = {n: i for i, (n, _t) in enumerate(boundary_inputs)}
+    # 1018inkling:风格件在册时四臂「边界 base」=风格件出口;否则边界直连
+    _base_src = (style_lora, 0) if style_lora is not None else (-10, b_idx["model"])
     _panel_expect = [default_mode, 0] + list(panel_extra)
     assert host["widgets_values"] == _panel_expect, \
         f"{name}: [{host_id}] 面板 widgets_values 应={_panel_expect!r},得 {host['widgets_values']}"
@@ -1189,6 +1197,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     if vig_fix_lora is not None:
         # 1009 用户令:qi21 viggle 段A 实验臂(Fix v2.0 ×0.5 并权重→ViggleTurboLora 骑上层)
         want_census[vig_fix_lora] = "LoraLoaderModelOnly"
+    if style_lora is not None:
+        want_census[style_lora] = "LoraLoaderModelOnly"
     if viggle_chain:
         want_census.update({viggle_chain["noise"]: "RandomNoise",
                             viggle_chain["select"]: "KSamplerSelect",
@@ -1239,8 +1249,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     assert _t_lora["widgets_values"] == [TURBO_LORA_FILE, 1.0], \
         f"{name}: [{turbo_chain['lora']}] wv 应 [{TURBO_LORA_FILE!r}, 1.0],得 {_t_lora.get('widgets_values')}"
     _tlm = i_links[next(i["link"] for i in _t_lora["inputs"] if i["name"] == "model")]
-    assert (_tlm["origin_id"], _tlm["origin_slot"]) == (-10, b_idx['model']), \
-        f"{name}: Turbo 直连边界 base(1016 用户令:共用Fix 实验臂结案拆除)"
+    assert (_tlm["origin_id"], _tlm["origin_slot"]) == _base_src, \
+        f"{name}: Turbo 直连边界 base(1016 令;1018inkling 经风格件 [7034])"
     _t_guid = i_nodes[turbo_chain["guider"]]
     assert not any(i.get("name") == "negative" for i in _t_guid["inputs"]), \
         f"{name}: [{turbo_chain['guider']}] BasicGuider 无负口(cfg1 纯正向)"
@@ -1270,7 +1280,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     # 1004:qi21 直出支路 cfg4=负向真实生效,viggle 蒸馏件恒 1;i2i/edit 恒 1/1)
     _vig_is_chain = viggle_chain is not None
     # 1009:qi21 直出支路 model 源=[7026] Fix v2.0 挂件(官方域),非边界直连
-    _direct_model = (-10, b_idx["model"]) if direct_lora is None else (direct_lora, 0)
+    _direct_model = _base_src if direct_lora is None else (direct_lora, 0)
     _ks_entries = [
         ((ks_direct, STEPS_DIRECT, _direct_model, pos_direct), ks_cfgs[0])
     ] + (
@@ -1375,8 +1385,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         _gb = i_nodes[vc["guider_base"]]
         _gb_in = {i["name"]: i for i in _gb["inputs"]}
         _gbm = i_links[_gb_in["model"]["link"]]
-        assert (_gbm["origin_id"], _gbm["origin_slot"]) == (-10, b_idx["model"]), \
-            f"{name}: 段B 底模引导应接边界 base(绝不吃 LoRA=官方 disable_lora)"
+        assert (_gbm["origin_id"], _gbm["origin_slot"]) == _base_src, \
+            f"{name}: 段B 底模引导应接边界 base(绝不吃 viggle LoRA;1018inkling 经风格件)"
         assert i_links[_gb_in["conditioning"]["link"]]["origin_slot"] == b_idx[pos_accel], \
             f"{name}: 段B 条件应=加速支路正源"
         _sl_in = {i["name"]: i for i in i_nodes[sel_id]["inputs"]}
@@ -1393,7 +1403,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         f"{name}: LoRA strength 应 1.0(1002 衔接批㉔ 用户令「定在 1.0 否则失去意义」,推翻 0925 探针 0.8)"
     _lm = i_links[next(i["link"] for i in lora["inputs"] if i["name"] == "model")]
     # 1009:viggle 臂可前插 Fix 实验挂件(vig_fix_lora),否则边界 base 直连
-    _vig_model_want = (vig_fix_lora, 0) if vig_fix_lora is not None else (-10, b_idx["model"])
+    _vig_model_want = (vig_fix_lora, 0) if vig_fix_lora is not None else _base_src
     assert (_lm["origin_id"], _lm["origin_slot"]) == _vig_model_want, \
         f"{name}: [{lora_id}].model 上游应 {_vig_model_want}(base 直连臂/Fix 实验前插)"
     if vig_fix_lora is not None:
@@ -1403,8 +1413,8 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         assert 0 < _widget(_vf, 1) <= 1.0, \
             f"{name}: [{vig_fix_lora}] 实验强度应 (0,1](0.5 起步,官方 1.0=20步域)"
         _vm = i_links[next(i["link"] for i in _vf["inputs"] if i["name"] == "model")]
-        assert (_vm["origin_id"], _vm["origin_slot"]) == (-10, b_idx["model"]), \
-            f"{name}: [{vig_fix_lora}].model 应接边界 base(链头)"
+        assert (_vm["origin_id"], _vm["origin_slot"]) == _base_src, \
+            f"{name}: [{vig_fix_lora}].model 应接边界 base(链头;1018inkling 经风格件)"
         _vf_fans = _vf["outputs"][0]["links"] or []
         assert {i_links[link_id]['target_id'] for link_id in _vf_fans} == {lora_id, turbo_chain['lora']}, \
             f"{name}: Fix×0.5 必须保留 viggle 扇出并同时接官方 Turbo"
@@ -1412,6 +1422,28 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
     _lora_feed = viggle_chain["guider"] if viggle_chain else ks_viggle
     assert len(lora_fans) == 1 and i_links[lora_fans[0]]["target_id"] == _lora_feed, \
         f"{name}: [{lora_id}] 输出应扇出恰一线只喂 [{ks_viggle}](支路专属,单源不复用消歧)"
+    # 1018inkling 用户令:入口水墨风格 LoRA [7034]×0.3——链头=边界 model 槽唯一
+    # 消费者,扇出恰四线(Turbo/viggle或Fix/段B底模/原生臂);文件逐字+强度钉 0.3
+    if style_lora is not None:
+        _sl = i_nodes[style_lora]
+        assert _sl["type"] == "LoraLoaderModelOnly" and _sl.get("mode", 0) == 0, \
+            f"{name}: [{style_lora}] 应为激活态 LoraLoaderModelOnly(1018mikko 用户令「默认打开」;旁路=Ctrl+B 后回翻此锚)"
+        assert _sl["widgets_values"] == [STYLE_LORA_FILE, STYLE_LORA_STRENGTH], \
+            f"{name}: [{style_lora}] wv 应 [{STYLE_LORA_FILE!r}, {STYLE_LORA_STRENGTH}],得 {_sl.get('widgets_values')}"
+        _slm = i_links[next(i["link"] for i in _sl["inputs"] if i["name"] == "model")]
+        assert (_slm["origin_id"], _slm["origin_slot"]) == (-10, b_idx["model"]), \
+            f"{name}: [{style_lora}].model 应接 -10 model 槽(链头)"
+        _bml = sg["inputs"][b_idx["model"]]["linkIds"]
+        assert len(_bml) == 1 and i_links[_bml[0]]["target_id"] == style_lora, \
+            f"{name}: 边界 model 槽应唯一喂 [{style_lora}],得 {_bml}"
+        _sl_fans = [i_links[l]["target_id"] for l in (_sl["outputs"][0]["links"] or [])]
+        _want_fans = {turbo_chain["lora"],
+                      vig_fix_lora if vig_fix_lora is not None else lora_id,
+                      direct_lora if direct_lora is not None else ks_direct}
+        if viggle_chain:
+            _want_fans.add(viggle_chain["guider_base"])
+        assert len(_sl_fans) == len(_want_fans) and set(_sl_fans) == _want_fans, \
+            f"{name}: [{style_lora}] 扇出应恰 {sorted(_want_fans)},得 {sorted(_sl_fans)}"
     # seed 单源三用(value=面板「seed」外露;扇出恰三线)
     seed = i_nodes[seed_id]
     assert seed["widgets_values"][:2] == [0, "fixed"], \
@@ -1937,20 +1969,20 @@ class TestTypeSignalAuto1017:
                 f"{name}: 加速子图 -10 槽{b_slot} 应=「型名」linkIds=[{inner_lid}]"
 
     def test_default_gear_auto_four_way_widgets(self):
-        """四面 widget 默认=「自动 · 按型」(宿主 wv[0]/具名镜像/子图 widgets[0]/
-        选择件 wv[0];分域真源=DEFAULT_MODE_OF←节点件 SPEED_MODES 首项互锁)。"""
+        """四面 widget 默认=「0 · Turbo 8步」(宿主 wv[0]/具名镜像/子图 widgets[0]/
+        选择件 wv[0];1018 用户令:全件默认=Turbo;节点 combo 首项仍=自动·按型供手选)。"""
         for name in self.DOMAINS:
             graph = GRAPHS[name]
             xsg = _xsg(graph)
             host7 = _host_of(graph, xsg)
             sel = _sg_nodes(xsg)[self.XSELS[name]]
-            assert host7["widgets_values"][0] == MODE_AUTO and \
-                host7.get("widgets_values_named", {}).get("速度档位") == MODE_AUTO, \
-                f"{name}: 加速宿主面板「速度档位」应默认={MODE_AUTO!r}(1017 增档令)"
-            assert xsg["widgets"][0] == MODE_AUTO, \
-                f"{name}: 加速子图 widgets[0] 应={MODE_AUTO!r}(双写同值)"
-            assert sel["widgets_values"] == [MODE_AUTO], \
-                f"{name}: [{self.XSELS[name]}] 选择件 wv 应=[{MODE_AUTO!r}](combo 首项)"
+            assert host7["widgets_values"][0] == MODE_TURBO and \
+                host7.get("widgets_values_named", {}).get("速度档位") == MODE_TURBO, \
+                f"{name}: 加速宿主面板「速度档位」应默认={MODE_TURBO!r}(1018 用户令全件默认=Turbo)"
+            assert xsg["widgets"][0] == MODE_TURBO, \
+                f"{name}: 加速子图 widgets[0] 应={MODE_TURBO!r}(双写同值)"
+            assert sel["widgets_values"] == [MODE_TURBO], \
+                f"{name}: [{self.XSELS[name]}] 选择件 wv 应=[{MODE_TURBO!r}](1018 令本件默认)"
 
     def test_note_402_auto_gear_tokens(self):
         """Note 402 新档 token 在场(手术 E 段句级替换后):t2i 双字段
@@ -1964,14 +1996,14 @@ class TestTypeSignalAuto1017:
             if name == "qi21":
                 assert isinstance(text, str) and text == wv0, \
                     "qi21: Note 402 双字段应同文镜像(1017 手术 E 段)"
-                for tok in ("首项=「自动 · 按型」=全局出厂默认",
-                            "本件默认=「自动 · 按型」",
+                for tok in ("全局首项=「自动 · 按型」",
+                            "本件默认=「0 · Turbo 8步」",
                             "型名∈{设定卡,美宣,概念气氛图}→原生出图"):
                     assert tok in wv0, f"qi21: Note 402 缺 1017 新档 token {tok!r}"
             else:
                 assert isinstance(text, str), "i2i: Note 402 应有长文字段 wvn.text"
-                assert "首项=「自动 · 按型」=全局出厂默认" in text, \
-                    "i2i: Note 402 长文(wvn.text)缺 1017 首项 token"
+                assert "全局首项=「自动 · 按型」" in text, \
+                    "i2i: Note 402 长文(wvn.text)缺 1018 首项 token"
                 assert "默认「自动 · 按型」" in wv0, \
                     "i2i: Note 402 短卡缺 1017 默认档句"
 
@@ -2554,6 +2586,7 @@ class TestEditContract:
             lora_class="ViggleTurboLora",
             panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),
             te1_asg=EDIT_TE1,
+            style_lora=QI21_STYLE_LORA_ID,  # 1018inkling 用户令:入口水墨 LoRA [7034]×0.3 三支路共吃
             # 1002 R2(F3):edit 默认档回退原生出图——Fun-Acc×edit 实弹两 seed 全透
             # 空白(viggle/直出同拓扑绿),默认态断言随回退档走(EDIT_DEFAULT_MODE)
             default_mode=EDIT_DEFAULT_MODE,
@@ -3485,10 +3518,11 @@ class TestQi21SubgraphContract:
             panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 1008 面板三控
             direct_lora=QI21_FIX_LORA_ID,  # 1009:直出支路挂 Fix v2.0(官方域,7026→7010)
             vig_fix_lora=None,             # 1016 用户令:共用Fix 实验臂结案拆除(1009 试效果→1016 定谳无用)
+            style_lora=QI21_STYLE_LORA_ID, # 1018inkling 用户令:入口水墨 LoRA [7034]×0.3 三支路共吃
             # 1017 增档令:道劫本件默认档=「自动 · 按型」(型名∈{设定卡,美宣,概念气氛图}→
             # 原生出图,其余含空→Turbo;1008/1009 viggle→1016turbo 提首两笔旧
             # 口径随令翻篇,历史账不改写;py 侧 DEFAULT_MODE 出厂首项同批翻 AUTO)
-            default_mode=MODE_AUTO,
+            default_mode=MODE_TURBO,  # 1018 令
             banned_main_types=("easy compare",),
             gone_main_ids=(QI21_LORA_PB_ID, QI21_LORA_SW_ID, 177, 178, 179,
                            193, 194, 195, 196, 197, QI21_RR_POS_B_ID))
@@ -3709,8 +3743,8 @@ class TestQi21SubgraphContract:
         mv = next(e for e in qi21 if e["zh"] == "人物多视图")
         assert (mv["aspect_ratio"], mv["megapixels"]) == ("16:9 (Widescreen)", 1.8), \
             "qi21_bases.json「人物多视图」画幅档应=16:9横幅 1:1.8(1017 用户令,旧1:1四宫格入史)"
-        assert mv.get("resolution_override") == [1792, 1008], \
-            "qi21_bases.json「人物多视图」override 应=16:9 [1792,1008](1017 用户令,旧[1632,1632]四宫格入史)"
+        assert mv.get("resolution_override") == [1024, 576], \
+            "qi21_bases.json「人物多视图」override 应=16:9 [1024,576](1018 用户令 1K 封顶;旧[1792,1008]入史)"
         # 1004 正负拆开硬口径:positive_text=正向描述文体,禁令句(禁止/不得/
         # 默认禁止)应拆入 negative_text,正向残留即红
         for e in qi21[:10]:
@@ -3726,7 +3760,7 @@ class TestQi21SubgraphContract:
                 f"qi21_bases.json「{e['zh']}」negative_text 缺基线负面词(模糊/水印)"
         # 美化版锚词抽验(人物型):纯画法骨
         renwu = qi21[0]["positive_text"]
-        for kw in ("细线", "成片色面", "平整色面"):  # 1010 多彩升档锚随源(低对比色面→色彩分明的成片色面);1009 去彩锚随源(细彩线→细线);前锚 1008 删词刀第三轮「淡墨晕染」退役
+        for kw in ("细线", "矿物色质感鲜泽通透", "平整色面"):  # 1018typebg 底座化锚随源(锚改底座化核心词,不锚云雾句措辞——并行雾句迭代免误伤);1010 多彩升档锚随源(低对比色面→色彩分明的成片色面);1009 去彩锚随源(细彩线→细线);前锚 1008 删词刀第三轮「淡墨晕染」退役
             assert kw in renwu, f"qi21_bases.json 人物 positive_text 缺美化版锚词 {kw}"
         for bad in ("眉眼", "发丝", "衣褶如", "骨相"):
             assert bad not in renwu.split("\n")[0], f"人物②层残留物象词 {bad}(纯画法零物象骨)"
@@ -4947,13 +4981,14 @@ class TestI2IContract:
             viggle_class="SamplerCustomAdvanced", viggle_chain=QI21_VIG_CHAIN,  # 1014 官方化
             lora_class="ViggleTurboLora",
             vig_fix_lora=None,  # 1016 用户令:共用Fix 结案拆除(2016 转入的实验臂就此退役)
+            style_lora=QI21_STYLE_LORA_ID,  # 1018inkling 用户令:入口水墨 LoRA [7034]×0.3 三支路共吃
             panel_extra=tuple(QI21_ACCEL_PANEL_DEFAULT),  # 2014 面板三控件(σ表九点官方表)
             # 2015 编码器出子图:[171] 迁主画布,子图可达性 dry-run 不适用——
             # 正源分线真锚=上方根域接线表(link279 [4015] 多参考/link282 [171] 单参考)
             te1_asg=None,
             # 1017 增档令:i2i 本件默认档=「自动 · 按型」(1009 viggle→1016turbo
             # 提首两笔旧口径随令翻篇;py 侧 DEFAULT_MODE 出厂首项同批翻 AUTO)
-            default_mode=MODE_AUTO,
+            default_mode=MODE_TURBO,  # 1018 令
             banned_main_types=("easy compare", "KSampler", "LoraLoaderModelOnly",
                                SPEED_SELECT_CLASS, "PrimitiveInt"),
             # T8_CLASS 随 FunAcc 臂退役(1016turbo)出禁面——主图禁面不增官方
@@ -5500,16 +5535,17 @@ class TestUpscaleFourWays1017:
             assert len(active) <= 1, \
                 f"{name}: 四宿主至多一激活(换法=Ctrl+B 现法+解除目标法),得激活 {active}"
             if name == "qi21":
-                # 1018 终版:B/A/C 全删(用户裁「只用 SeedVR2」)——D 宿主+[504]
-                # 在役为唯一默认;[505] 对比件仍旁路(可选)
-                assert active == ["D"], \
-                    f"qi21: 默认档=D SeedVR2(1018 终版),得 {active}"
-                assert nodes[SVR2_SAVE]["mode"] == 0 and nodes[SVR2_CMP]["mode"] == 4, \
-                    "qi21: [504] 应随 D 默认在役(2K 落盘),[505] 对比件应维持 mode4"
+                # 1018 用户新令「⑤超分尾档·2K 默认不生效」:D 宿主+[504] 默认整组
+                # 旁路(⑤组框=Ctrl+B 语义载体;要 2K=框选 Ctrl+B);推翻同日早前
+                # 「D 在役为唯一默认」口径
+                assert active == [], \
+                    f"qi21: 默认=零激活(1018 尾档默认旁路令),得 {active}"
+                assert nodes[SVR2_SAVE]["mode"] == 4 and nodes[SVR2_CMP]["mode"] == 4, \
+                    "qi21: [504] 应随 ⑤ 组默认旁路(2K 落盘 Ctrl+B 开),[505] 对比件应维持 mode4"
             else:
-                assert active == ["D"], \
-                    f"i2i: 默认态=仅 D 在役(1018 终版唯一法),得 {active}"
-                assert nodes[SVR2_SAVE]["mode"] == 0, "i2i: [504] 应在役(D 直出 2K 落盘)"
+                assert active == [], \
+                    f"i2i: 默认=零激活(1018 尾档默认旁路令),得 {active}"
+                assert nodes[SVR2_SAVE]["mode"] == 4, "i2i: [504] 应随 ⑤ 组默认旁路"
 
     def test_seed_single_source_primitives_and_io_link_ids(self):
         """seed 单源锚(design §7 #7):四定义内 PrimitiveInt(7101/7204/7302/7402)

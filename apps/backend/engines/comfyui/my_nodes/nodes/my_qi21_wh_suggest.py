@@ -30,6 +30,14 @@ from __future__ import annotations
 from typing import Any
 
 
+def _cap_1k(w: int, h: int) -> tuple[int, int]:
+    """1018 用户令:宽高硬上限 1024——超限同比缩进(边长四舍五入 8 倍数)。"""
+    if max(w, h) <= 1024:
+        return (w, h)
+    s = 1024 / max(w, h)
+    return (round(w * s / 8) * 8, round(h * s / 8) * 8)
+
+
 class MyQi21WhSuggest:
     """漫影 qi21 画幅定值:手动宽高成对优先,否则九型/AI 宽高原样直通。
 
@@ -85,10 +93,10 @@ class MyQi21WhSuggest:
                 "画幅须宽高成对——要么两个都填(非 0),要么都留 0(=跟所选型"
                 "默认画幅);不猜不代选(不会替你补 0 或拿九型补另一边)")
         if mw > 0 and mh > 0:
-            return (mw, mh)
+            return _cap_1k(mw, mh)
         if 九型WIDTH is None or 九型HEIGHT is None:
             raise ValueError(
                 "[MyQi21WhSuggest] 画幅无值可用:手动宽高未填(0,0)且九型 "
                 "WIDTH/HEIGHT 槽未接线(至少其一无值)——请填手动宽高成对值,"
                 "或把 [6] 子图的 width/height 出口连到本节点对应槽;不猜不代选")
-        return (九型WIDTH, 九型HEIGHT)
+        return _cap_1k(九型WIDTH, 九型HEIGHT)

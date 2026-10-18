@@ -234,7 +234,9 @@ class Flattener:
                           if n.get("mode", 0) == 0 and n["type"] not in SKIP_TYPES}
 
             def inner_origin(nid, slot):
-                while sg_nodes[nid]["type"] in PASS_TYPES:
+                # 1018inkbp:Reroute 与旁路件(mode!=0)统一前穿到其输入
+                while nid in sg_nodes and (sg_nodes[nid]["type"] in PASS_TYPES
+                                           or sg_nodes[nid].get("mode", 0) != 0):
                     l = next(l for l in sg["links"] if l["target_id"] == nid)
                     nid, slot = l["origin_id"], l["origin_slot"]
                 return nid, slot
@@ -257,7 +259,13 @@ class Flattener:
                         ins[inp["name"]] = c[1]
                     else:
                         o, os_ = inner_origin(o, os_)
-                        ins[inp["name"]] = [pfx + str(o), os_]
+                        if o == -10:  # 1018inkbp:前穿抵边界=吃宿主入参
+                            c = cross_in(os_)
+                            if c is None:
+                                continue
+                            ins[inp["name"]] = c[1]
+                        else:
+                            ins[inp["name"]] = [pfx + str(o), os_]
                 self.emit(key, n["type"], ins)
 
             # 宿主出线回填:-20 线(target_id=-20,target_slot=S)→外部消费者
@@ -328,8 +336,8 @@ def structural_equivalence(wf, g, enable_ref3, enable_anchor, images, tier=""):
                 chain = {"7011", "7012", "7017", "7018", "7019", "7020",
                          "7021", "7022", "7023", "7024"}
                 tchain = {"7028", "7029", "7030", "7031"}   # 1016turbo 官方臂
-                keep_set = (chain | {"7014"}) if win == "7024" else \
-                    (tchain | {"7017", "7018", "7014"}) if win == "7031" else {"7010", "7014"}
+                keep_set = (chain | {"7014", "7034"}) if win == "7024" else \
+                    (tchain | {"7017", "7018", "7014", "7034"}) if win == "7031" else {"7010", "7014", "7034"}
             for m in sg["nodes"]:
                 if m.get("mode", 0) == 0 and m["type"] not in SKIP_TYPES and m["type"] not in PASS_TYPES:
                     if accel and m["type"] == "MyQi21SpeedSelect":
@@ -370,8 +378,9 @@ def structural_equivalence(wf, g, enable_ref3, enable_anchor, images, tier=""):
         "viggle" if "viggle" in tier else ("Turbo" if "Turbo" in tier else ""), "7010")
     chain = {"7011", "7012", "7017", "7018", "7019", "7020", "7021", "7022", "7023", "7024"}
     tchain = {"7028", "7029", "7030", "7031"}   # 1016turbo 官方臂
-    keep_set = (chain | {"7014"}) if win == "7024" else \
-        (tchain | {"7017", "7018", "7014"}) if win == "7031" else {"7010", "7014"}
+    keep_set = (chain | {"7014", "7034"}) if win == "7024" else \
+        (tchain | {"7017", "7018", "7014", "7034"}) if win == "7031" else {"7010", "7014", "7034"}
+    # 1018inkling:[7034] 入口风格件三档共吃(不随档剪枝)
     pruned = {f"7:{x}" for x in ("7015", "7010", "7011", "7012", *chain, *tchain)} - \
              {f"7:{x}" for x in keep_set}
     for l in wf["links"]:

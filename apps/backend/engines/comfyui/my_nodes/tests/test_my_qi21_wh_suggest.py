@@ -36,16 +36,16 @@ _W, _H = 1328, 1328
 def test_nine_type_passthrough_default_and_missing():
     node = MyQi21WhSuggest()
     # 显式 0(=跟型哨兵):九型原样
-    assert node.suggest(手动宽=0, 手动高=0, 九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
+    assert node.suggest(手动宽=0, 手动高=0, 九型WIDTH=_W, 九型HEIGHT=_H) == (1024, 1024)  # 1018 令:1K 封顶
     # 缺键(引擎对未接线 optional 不投递):九型原样
-    assert node.suggest(九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)
+    assert node.suggest(九型WIDTH=_W, 九型HEIGHT=_H) == (1024, 1024)  # 1018 令:1K 封顶
 
 
 # ── ② 手动宽高成对非 0 优先直出 ────────────────────────────────────────
 def test_manual_pair_takes_priority_over_nine_type():
     node = MyQi21WhSuggest()
     assert node.suggest(手动宽=2048, 手动高=1152,
-                        九型WIDTH=_W, 九型HEIGHT=_H) == (2048, 1152)
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (1024, 576)  # 1018 令:1K 封顶(2048×1152 同比缩)
 
 
 # ── ③ 半填中文报错(不猜不代选;半填先于九型缺判) ──────────────────────

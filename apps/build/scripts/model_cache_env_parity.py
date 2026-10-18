@@ -9,6 +9,8 @@
 import 包模块、对伪造缓存夹具调用公共函数,输出 JSON 快照;两份快照必须逐字节一致。
 09-09 引擎层统一:model_cache 已迁 engines/<x>_engine/(MOD_PATHS 映射探针落位);
 基线 JSON 不随搬迁重打——对拍通过=搬迁逐字节保行为。
+1018 收口:upscale/depth 两域已随 09-10 域退役(commit 5321d699/d4433b41)删除,
+场景与基线键同步出册(超分全量走 ComfyUI=SeedVR2 唯一)。
 """
 from __future__ import annotations
 
@@ -36,7 +38,7 @@ pkg = sys.argv[2]
 scenario = sys.argv[3]
 
 import importlib
-MOD_PATHS = {"tts": "engines.tts_engine", "depth_estimation": "engines.depth_engine", "upscale": "engines.upscale_engine", "video_qc": "engines.video_qc_engine", "audio": "engines.audio_engine", "sfx": "engines.sfx_engine"}
+MOD_PATHS = {"tts": "engines.tts_engine", "video_qc": "engines.video_qc_engine", "audio": "engines.audio_engine", "sfx": "engines.sfx_engine"}
 m = importlib.import_module(f"{MOD_PATHS.get(pkg, pkg)}.model_cache")
 
 def p(v):
@@ -60,13 +62,6 @@ if pkg == "tts":
     out["find_incomplete"] = p(m.find_cached_repo(("test/model",), cache_dirs=[hf2]))
     out["tok_ok"] = p(m.has_cached_repo_files("test/tok", ("tokenizer.json",), cache_dirs=[hf3]))
     out["tok_missing"] = p(m.has_cached_repo_files("test/model", ("tokenizer.json",), cache_dirs=[hf1]))
-elif pkg == "depth_estimation":
-    out["primary"] = p(m.primary_hf_cache_dir())
-    out["download_dir"] = p(m.download_hf_cache_dir())
-    out["cache_dirs"] = p(m.hf_cache_dirs())
-    out["repo_dir"] = p(m.repo_cache_dir("test/model", hf1))
-    out["find_hit"] = p(m.find_cached_depth_model(("test/model",)))
-    out["find_miss"] = p(m.find_cached_depth_model(("test/none",)))
 elif pkg in ("audio", "sfx"):
     find = m.find_cached_audio_model if pkg == "audio" else m.find_cached_sfx_model
     out["primary"] = p(m.primary_hf_cache_dir())
@@ -74,12 +69,6 @@ elif pkg in ("audio", "sfx"):
     out["repo_name"] = p(m.repo_cache_name("test/model"))
     out["repo_dir_default"] = p(m.repo_cache_dir("test/model"))
     out["find_complete"] = p(find(("test/model",)))
-elif pkg == "upscale":
-    out["primary"] = p(m.primary_model_dir())
-    out["candidates"] = p(m.model_candidate_dirs())
-    out["sha_of_pinned"] = m.file_sha256(pin1 / "dover_mobile.pth")
-    out["find_wrong_pin"] = p(m.find_cached_upscale_model("realesrgan-x4plus-anime-6b"))
-    out["verify_wrong_pin"] = p(m.verify_model_sha256("realesrgan-x4plus-anime-6b"))
 elif pkg == "video_qc":
     out["primary"] = p(m.primary_model_dir())
     out["candidates"] = p(m.model_candidate_dirs())
@@ -135,12 +124,6 @@ def collect() -> dict:
             ("tts", "voicebox", {"VOICEBOX_MODELS_DIR": str(tmp / "vb_cache")}),
             ("tts", "hf-hub", {"HF_HUB_CACHE": str(tmp / "hf_cache")}),
             ("tts", "hf-home", {"HF_HOME": str(tmp / "hf_home")}),
-            ("depth_estimation", "no-env", {}),
-            ("depth_estimation", "depth-dir", {"MYSTUDIO_DEPTH_MODEL_DIR": str(tmp / "d_cache")}),
-            ("depth_estimation", "hf-home", {"HF_HOME": str(tmp / "hf_home")}),
-            ("depth_estimation", "hf-hub-hit", {"HF_HUB_CACHE": str(tmp / "hf1")}),
-            ("upscale", "no-env", {}),
-            ("upscale", "upscale-dir", {"MYSTUDIO_UPSCALE_MODEL_DIR": str(fx["pin1"])}),
             ("audio", "no-env", {}),
             ("audio", "audio-dir", {"MYSTUDIO_AUDIO_MODEL_DIR": str(tmp / "a_cache")}),
             ("audio", "hf-home", {"HF_HOME": str(tmp / "hf_home")}),

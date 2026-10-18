@@ -37,6 +37,55 @@ _EMPTY_Q = ("masterpiece", "8K", "8k", "best quality", "超高清", "杰作", "�
 # (用户令要水墨时反转为正资产,三国望神州方向合法,硬禁会拦死该方向——1017 复查勘正)
 _STYLE_WORDS = ("工笔", "白描", "连环画", "厚涂", "赛璐璐", "photorealistic")
 
+# 1018 用户门禁令:人械同句握姿必须写清、人物发色必写(违者任务级拒收)
+_SHEATHED = ("收在鞘中", "挂定", "鞘", "佩刀", "佩剑", "悬一柄")
+_HILT_GRIP = re.compile(r"(握住|握着|扣住|按在|按住|轻按)[^。；]{0,10}(剑柄|刀柄|枪柄|柄身)")
+_GRIP_WEAPON = re.compile(r"(握|持|执)[^。；，,]{0,4}(剑|刀)")
+_GRIP_DETAIL = ("鞘身", "上端", "三分之一", "剑鞘", "刀鞘", "护手", "剑格", "鞘口", "中段", "柄身", "剑柄", "刀柄")
+_HAIR = re.compile(r"长发|短发|头发|束发|发髻|马尾|发丝|双髻|披发|发辫|鬓发|须发")
+_HAIR_COLOR = re.compile(
+    r"(?:乌黑|墨黑|玄色|漆黑|墨色|乌丝|银白|雪白|灰白|银灰|金黄|棕褐|赤红|紫黑|黑|白|银|灰|乌|墨)"
+    r"[^。；,，]{0,6}(?:长发|短发|头发|发髻|马尾|发丝|双髻|披发|发辫|辫|鬓|发)")
+
+
+def _weapon_grip_violations(t: str) -> list[str]:
+    out = []
+    if _HILT_GRIP.search(t) and any(m in t for m in _SHEATHED):
+        out.append("握柄（挂定未拔时手不得按/握剑柄——握柄＝拔剑预备式；改「虚握住挂定的剑鞘上端三分之一处，"
+                   "剑的重量仍由腰间剑绦承担」）")
+    if _GRIP_WEAPON.search(t) and not any(d in t for d in _GRIP_DETAIL):
+        out.append("握姿须写明接触部位与位置（如「虚握住挂定的剑鞘上端三分之一处，五指环拢鞘身」）")
+    return out
+
+
+
+# 1018 用户门禁令二:人物像衣色/配饰/鞋履必须描述清楚(按取景分档)
+_CLOTH = re.compile(r"衣|袍|装|裙|衫|服|裳")
+_CLOTH_COLOR = re.compile(
+    r"((?:白|黑|玄|青|红|紫|灰|褐|绿|黄|银|金|素|朱)(?:衣|袍|裙|衫|装|服|履|靴|鞋)"
+    r"|[一-龥]{1,4}色[一-龥]{0,3}(?:袍|衣|装|裙|衫|服|裳|带|绦|履|鞋|靴|巾|帽))")
+_FULLBODY = re.compile(r"全身(?!仅)|足底|从头到脚|双脚")
+_SHOE = re.compile(r"鞋|靴|履|屐|袜")
+_ACCESSORY = re.compile(r"簪|钗|环|镯|链|佩|囊|袋|带|绦|剑|刀|扇|伞|笛|珠|冠|巾|帽")
+_MAT_COLOR = re.compile(r"[一-龥]{0,3}色|乌黑|墨黑|漆黑|银白|雪白|灰白|乌发|黑革|黑鲨皮|黄铜|乌木|白玉|素银|旧金|灰银|银|金|铜|铁|玉|木|革|丝|布|绸|缎")
+
+
+def _outfit_violations(t: str) -> list[str]:
+    out = []
+    if _CLOTH.search(t) and not _CLOTH_COLOR.search(t):
+        out.append("衣色必写（服装描述必须带明确颜色，如「青玉色道袍」「玄色劲装」）")
+    if _FULLBODY.search(t) and not _SHOE.search(t):
+        out.append("全身像鞋履必写（如「足蹬青布道履」；半身/特写不受此条）")
+    if _ACCESSORY.search(t) and not (_MAT_COLOR.search(t) or _CLOTH_COLOR.search(t)):
+        out.append("配饰须写明颜色或材质（如「素银簪」「黑革带」「黄铜刀格」）")
+    return out
+
+def _hair_color_violation(t: str) -> str | None:
+    if _HAIR.search(t) and not _HAIR_COLOR.search(t):
+        return "发色必写（头发描述必须带明确颜色，如「乌黑长发」「墨黑短发」）"
+    return None
+
+
 
 def _strip_verbatim(text: str) -> str:
     return _VERBATIM.sub("", text or "")
@@ -72,6 +121,11 @@ def prompt_violations(text: str, *, is_subject: bool, negation_only: bool = Fals
             if b in t:
                 out.append(f"画风词「{b}」——风格归底座,主体句只写画什么")
                 break
+        out.extend(_weapon_grip_violations(t))
+        hv = _hair_color_violation(t)
+        if hv:
+            out.append(hv)
+        out.extend(_outfit_violations(t))
     return out
 
 

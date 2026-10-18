@@ -2,7 +2,7 @@
   "id": "8a14d6f0-52b9-4c7d-a3e8-6f1b2c3d4e5f",
   "revision": 0,
   "last_node_id": 7402,
-  "last_link_id": 7465,
+  "last_link_id": 7467,
   "nodes": [
     {
       "id": 1,
@@ -641,12 +641,12 @@
         }
       },
       "widgets_values": [
-        "自动 · 按型",
+        "0 · Turbo 8步",
         0,
         "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       ],
       "widgets_values_named": {
-        "速度档位": "自动 · 按型",
+        "速度档位": "0 · Turbo 8步",
         "seed": 0,
         "σ表": "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
       }
@@ -981,7 +981,7 @@
         "道劫图生图：先核对实际输入图数量；单图自然指称，多图用 <imageN> 分工。组装用途：局部编辑仅拼操作和保留项，画风转换加画法，新建资产加类型与画法。默认单图换上衣颜色；未使用参考槽保持旁路。默认「自动 · 按型」（型名∈{设定卡,美宣,概念气氛图}→原生出图，其余含空→Turbo 官方 8 步直挂）；仍可手动选择 viggle 9 步双段，失败不切慢档。规范：docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md；十型手册：apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/art_prompt/art_subject_ten_types.md。"
       ],
       "widgets_values_named": {
-        "text": "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+十档装配(九型+自由,1001 P1 起;自由=无型底座仍挂美术风格底座);i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫十档装配(九型+自由)的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[400] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [6] 装配子图「指令」槽;子图内 [4012]『PE启用?』开关(PrimitiveBoolean,1002 ㉑;宿主面板同名控件外露,扇出 [4014] 合成器;true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路),false=直写=指令原文进①层),改写输出经 [4014] 择文合成器①占 [4011] 底料拼合的主体句位——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[6] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+美术风格底座常量(③层,库首节全文,全十档恒挂;[4011] 参数面 715 字与 qi21_bases.json art_style_base.positive_text 逐字一致=1007 负向式清退版)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [401] 装配预览(接 [6] prompt 输出):显示将进编码的最终文本([153] 终稿:PE 开=①层已是改写文的装配全文;透明开=外加 RGBA 头句+W1 收束+尾句)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [6] 装配子图(双击进入;0929 S1 命名批:宿主补稳定短名,面板控件=指令/型选择/PE启用?([4012] 节点外露,1002 ㉑)/RGBA透明(RGBA透明=0929 S2 D6 三态 combo,原布尔开关退役)),面板「型选择」下拉十选一(默认①人物;1001 P1 起九型+自由):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图/自由(自由=无型底座,BASE 空串仍挂美术风格底座)——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n- **画幅按型指引(1014 T3;纯指引零结构,主路=输出画幅双路 [19])**:「1 · 原生出图」档迭代预算足,可开 [19](true)走 [4] 空潜自定义画幅至型 canon MP(qi21_bases.json types[].megapixels 现值:人物 1.5/场景 1.5/美宣 1.5/分镜剧情图 1.5/表情差分 1.5/概念气氛图 1.5/人物多视图 1.8;道具/高清人脸/自由=1.0)(1.5/1.8MP 空潜组合暂无实弹收据,首用建议单张试跑;自定义尺寸须贴近 image_1 比例,否则编辑漂移)。画布预缩 [16] 与参考预缩 [17][18] 恒 1.0MP 勿动(1014 定谳:1.5MP 超 viggle σ稳定区,契约硬锚在册),加速两档(viggle/Turbo)画幅恒 1.0 勿动,2K 交付走 SeedVR2 尾档。主路理由:改 [16] 与 1014 定谳句+契约 1.0MP 结构锚+生成器三重锚定自相矛盾且被重跑打回(audit 用户区门对整文件 md5,改 [19]/[16] 同样分叉,不构成区分理由)。归属说明:用户态编辑保存后用户区副本分叉属设计内,audit 漂移按归属记录勿回灌仓库。\n\n### 参考图三槽(1010 扩展+收口对齐 viggle 官方 1-3 张口径;官方示例双图须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- image_3 = [12] 占位空图,**默认旁路态(Ctrl+B)**——默认行为=双参考不变;要用第三张参考=选中 [12]+[18] 按 Ctrl+B 解旁路→选图→跑;旁路槽零进执行图,PE 合批与主编码自动只吃已解旁路的图(空文件名直跑会被 LoadImage 校验拒)。\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16);viggle 蒸馏档官方验证 1-3 张(1010 收口:本件实装三槽对齐),再多走原生出图手动加槽或换 qwen21-multiref-edit。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Turbo 支路 cfg1 负向无口。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);Turbo 8 步=[7030] 官方σ表;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,经加速子图宿主面板「seed」单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[6] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.0MP、参考图 1.0MP(1014 定谳:画布 1.5MP 超出 viggle σ动态 shift 稳定区,官方编辑甜点≈1MP——同种子对照实弹 1.5MP=4/4 纯黑、1.0MP=4/4 真图;2K 交付由⑤SeedVR2 尾档负责);控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([6] 子图内;[4012]『PE启用?』节点默认 PE 改写(1002 ㉑);关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [6] 子图内):[4019] PE CLIPLoader(1002 ⑬ 迁入子图,pe_clip 槽撤,直供 [4013]) → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [4013] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [4014] 择文合成器(pe开关←[4012]『PE启用?』扇出,1002 ㉑)→ 占 [4011] 底料拼合主体句位。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1..image_3 边界,预缩后;旁路槽自动缺席)喂 [4013].image;子图编码器只吃选定图。\n- [4013] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE启用?」(直写选配)时 PE 组不进执行图([4014] PE出文 lazy 槽×check_lazy_status 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·加速子图(0929 S3 收装批;1014 viggle 官方化:σ表+9步满血双段+正源回切;宿主 [7] 双击进入,面板=「速度档位」combo+「seed」+「σ表」)\n\n- **主图四块骨架**:①加载器([1][2][3]+[9]QwenImage21Cache+[42]MODEL 总线拐;PE-I2I 专属TE[4019] 住 [6] 装配子图内(1003 迁入))→②装配主链([6] 装配子图+空潜[4]+画幅开关[19][20])→③加速子图([7]:MODEL=[9]Cache 出线进子图/条件=[6] 双正源分线/latent=[20] 画幅开关后)→④输出([5]解码→[8]保存);LATENT 出来回 [5] 单点解码。\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Turbo 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 四选一处汇流(选择件居汇流点右侧;「自动 · 按型」档按型名现算路由)后单点解码;懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图;子图内懒执行=0929 S0 探针 A 级实证)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板三控件(面板值=生效值)**:「速度档位」combo 四选一(首项=「自动 · 按型」=全局出厂默认=本件默认,1017 增档令:按型名自动路由——[6] 装配子图「型名」出口→[7]「型名」入槽喂 [7015],型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo;推翻 1009/1016 Turbo 默认令;Turbo 居二/原生出图居三/viggle 居四)+「seed」number(默认 0;子图内 [7014] 单源扇出三采,一处改三支路同步)+「σ表」(1014 挂 ViggleTurboSigmas:九点官方表,动态 shift 按分辨率;t2i 1008 同款)。\n- **直出支路([7010],子图行3,combo「1 · 原生出图」)**:KSampler 40 步官方完整档,MODEL=[9]Cache(base)直连,positive=[6].positive 多参考官方路(1014 起 viggle 支路同源多参考/Turbo 仍单参考(1016turbo),见下节)。\n- **viggle 支路(1014 官方化=官方9步满血双段)**:[7011] ViggleTurboLora(旧 LoraLoaderModelOnly 合并式装载退役→官方未合并式 W x + B A x——拒 bf16 合并丢 30% 更新;name 预填 Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors,strength 1.0=1002 ㉔ 令)→[7020] ViggleTurboSigmas(σ表提升宿主面板,九点官方表,动态 shift 按分辨率——官方明言 base 配置 shift_terminal=0.02 伤末步/普通 simple 调度不匹配,旧「本仓未挂 sigma 表」欠账就此清偿,0928 纯黑与 1013 色彩衰减的主因)→[7021] SplitSigmas(step=7)切段:段A [7012] SamplerCustomAdvanced 7 步 turbo→段B [7024] 底模收尾 2 步(摘 LoRA+[7023]DisableNoise 续采);两段 conditioning=[6].positive_single 单参考正源(1014 定谳:五探针矩阵实证**少步蒸馏×多参考拼接=黑屏**(σ链/合并式 LoRA 双双落黑,alpha0),0928 铁案不翻、σ表无罪——σ链9步双段在单参考下出真图且金纹换袍成功(E3 实弹+云端视觉终审);多参考全效恒=原生出图档)。\n- **Turbo 支路([7028],子图行1,combo 次位档(1016turbo 换臂,1017 让首位于「自动 · 按型」))**:[7028] LoraLoaderModelOnly 官方 avg_rank_178 LoRA ×1.0 前接 Fix×0.5(不与 viggle 同挂)→[7029] BasicGuider cfg1 纯正向无负口→[7031] SamplerCustomAdvanced+8步官方σ表([7030] ManualSigmas);model=[9]Cache(base)→[7027]Fix×0.5→[7028]Turbo，**绝不吃 viggle LoRA**;[7029].conditioning=positive_single(单参考,0928 域);latent_image 与 [7010] 同源。旧 Fun-Acc 臂(28.8s 实测)随 T8 退役;Turbo 实弹速度待证。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt(子图行4)默认 0 fixed 单节点扇出 [7010]/[7017] 两采(Turbo 臂噪声共用 [7017];1014 viggle 改经 RandomNoise.noise_seed)——经宿主面板「seed」外露,面板值=生效值;消灭旧 [7010] widget 与旧加速臂 seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([9] Cache MODEL 一源三用/[6] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Turbo 档需官方 LoRA 文件 qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors 装机 models/loras/**;节点全为引擎核心件零插件依赖(T8 插件随 Fun-Acc 臂退役 1016turbo,文件留盘)——缺文件时降级=切「2 · viggle」或「1 · 原生出图」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(viggle 支路自足)/Turbo=官方8步采样(Turbo 支路自足,1016turbo)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档正源沿革(0928 黑图修复立「加速档单参考正源」;1014 viggle 翻案回切多参考)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑(FunAcc 时代实证)**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。**1014 翻案注**:该七拍判别是在未挂 σ 表的错误调度下得出的——σ表+9步双段挂上后 viggle 多参考当复验(1014 实弹收据在 apps/output/i2i-fire-1013/);Fun-Acc 仍单参考(T8 官方单参考设计)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码 [171] 单编码独挑(10-02 单口化:主路 [4016][4017]+单路 [172][173] 双编码+双开关塌缩,透明/非透明选择已在 [153] 合成器内前置,词源与行3 同源)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:直出支路 [7010].positive=宿主 positive(多参考至多三图=「1 · 原生出图」档官方路零改动,1010 三槽收口=viggle 官方 1-3 张口径)/viggle·Turbo 两加速档=宿主 positive_single(单参考;1014 定谳:少步×多参考=黑,双加速档恒单参考)——正源差异内聚进各支路(0929 S3 起正源经加速子图边界槽分线直入,语义零改动)。\n- [6] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);Turbo 档选中时行4 单参考编码 [171] 亦入链;viggle 档 1014 起走 [4015] 主编码多参考。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→0929 拉齐重放(用户 12:05 裁定)默认=原生出图等效→**1002 用户新令推翻拉齐重放:Fun-Acc 回 combo 首项(旧档串=台账 #26 判旧信号,活件不复制)**→**1009 用户新令:i2i 本件默认改「2 · viggle」(全局出厂首项不动)**(原生出图居二,viggle 居三);直出档的双参考语义零改动→**1014 用户令(色彩严查终局):viggle 官方化(σ表+9步双段)并正源回切 positive 多参考**。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;0929 S2 D6(1001 ① 改文案):[6] 面板「RGBA透明」三态=自动(默认,按型:道具/多视图/高清人脸/表情差分四型开,其余关)/true=强制开/false=强制关——旧「RGBA透明开关」布尔控件退役;型信号=MyQi21DaojieBase.透明值 槽(1002 ⑯ 起 rgba_default 出已删)喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出单扇出 [153] 透明包裹器(10-02 单口化:透明模式参与文本计算,双编码+双开关已塌缩);PE×透明结构性已融合=PE-I2I 改写指令①层不替换装配文,四型②层声明恒在)\n\n- **句式由 [153] 合成器内现拼**(10-04 中文化:头/尾/W1 真源=qi21_bases.json rgba 节热读,英文旧值备档 head_en/tail_en;1005 去重=中文声明二次插入已删;i2i 侧 [153] 恒 pe 关,正文=装配全文):\n  头句「这是一张带有透明度的RGBA图像。」+ 装配全文 + W1收束句「The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge.」+ 尾句「该图像具有alpha通道,背景是透明的。」\n- 旧英文头尾(This is an RGBA format image…/The image has an alpha channel…)与「中文同款」双写句式已随 10-04 中文化退役;[160][161][162][163] 为 1001 集成轮前旧节点号,现役拼装全在 [153] 一件内。\n- ✅ 结构债已清(1008 主会话「做」令):[4010] 实例补五出(负面词@槽3/透明值@槽4)+rgba_hint 连线#55 迁槽4(origin_slot 3→4)——STRING→BOOLEAN 失配解除,提交期拒单风险消除,透明自动恢复有效;[4014]/[153] widgets 同批对齐类九槽(负面词直写/PE负面 补位,pe开关/透明模式/头尾W1 各归位,类双口补第二出)。史注:曾为四出+槽3 失配(引擎按类校验=拒单或掉线,「恒真」不存在);实弹复验候下次 i2i 出图。\n\n### 透明参考锚配方(viggle 专用;1014)\n\n- **适用**:透明四型(道具/多视图/高清人脸/表情差分)×「2 · viggle」档;「1 · 原生出图」档与直出无需锚。\n- **操作**:选中 [505] 透明参考锚 按 Ctrl+B 解旁路(同 [12]/[18] 占位惯例;默认旁路=零进执行图,默认行为与无锚时完全一致)。\n- **锚规格**:固定 1024² 全透明 PNG(引擎 input 目录 transparent_ref.png;仓库真源 input_seed/)。机制依据=引擎本体 comfy_extras/nodes_qwen.py:170「the vision tower sees alpha over white, the vae keeps all four」(注意:同名 comfy_api_nodes/nodes_qwen.py 为另一内容,引用须带目录防索骥错件)。\n- **效果**:方向有益(同种子 A/B 配对 10 对:锚侧 10/10 过、无锚侧 0/10 全纯黑屏,道具型 viggle;收据=apps/output/i2i-fire-1014/anchor-probe/receipt.json)。统计局限如实注:样本量小+运行间非确定性耦合(1014 定谳),方向性信号非定谳。\n- **三型增补(1015 役任务④实弹;1015 裁定)**:人物多视图 6 对,A 锚侧 2/6 过(带透 2)、B 无锚侧 3/6 过(带透 3);表情差分 6 对,A 1/6 过(带透 1)、B 3/6 过(带透 3)——两型 A<B,不推荐透明锚;高清人脸 10 对,A 1/10 过(带透 1)、B 1/10 过(带透 1),A=B 中性降措辞。三型败因双侧同为全透明塌缩(α=[0,0],塌缩率 50-90%),定谳:透明锚增益仅实证于道具型(单物+大面积透明留白,10/10 vs 0/10),此类三型交付用「1 · 原生出图」档;统计口径=样本量小方向性信号非定谳(塌缩主导);收据=apps/output/i2i-fire-1014/anchor-probe/<型>/receipt.json(人物多视图/高清人脸/表情差分)。\n- **黑屏处置**:概率性塌缩,seed 面板改数重跑即愈(1014 用户令:不自动降档)。\n- **口径显式**:加速两档正源=positive_single 单内容参考,**透明锚非第二内容参考**(专属边界槽,不占 image_1..3 三参考槽);勿据沿革旧句回切多参考(0928 铁案:多参考进编码在少步档有黑屏风险)。\n### 输出画幅双路([19] 开关,默认 false=跟随输入图;1015 升级=按型画幅)\n\n- **false(默认)**:latent 取 [6] 子图编码器 latent,跟随 image_1(预缩后)比例——「画幅随输入图」i2i 主语义不变。\n- **true(按型画幅)**:[4] 空潜宽高改吃 [4018] 画幅建议器(九型WIDTH/HEIGHT←[4010].WIDTH/HEIGHT 闲置两出接通;手动宽/高成对优先,全 0=跟所选型默认)。[4010] 按型出画幅:人物 3:4@1.5MP=1056×1408/道具·自由 1:1@1.0MP=992×992/美宣 21:9/多视图 1:1@1.8MP=1328² 等(1015 用户令:自由型输出≈画幅随输入图等价,「自由这一列就是画幅随输入图」)。\n- 注意:按型画幅与 image_1 比例差过大时编辑漂移(旧警示继续有效);加速档(viggle)建议画幅贴近 1.0MP 稳定区。\n\n### SeedVR2 放大尾档(⑤组框·2K;1002 衔接批㉕)\n\n- [5] 解码图双喂:[8] 直出保存 + [503] SeedVR2 放大(短边 2048=2K 档)→[504] 存 MYStudio-2K 前缀;模型 [501] seedvr2_7b_sharp_fp8_e4m3fn + [502] ema_vae_fp16 已装机(models/SEEDVR2)。\n- **可整组旁路:框选⑤组框 Ctrl+B → 只出 [8] 直出图**(旁路态放大组零执行零落盘)。\n- **放大尾档适合 1MP 档(道具/人脸/自由),4.2MP≈纯插值建议旁路**(canon 十型实查·1008 对账:4.2MP 七型(表情差分已 1:1@4.2MP)短边 1376~2096 增益仅 ×1.1~1.3;1.0MP 三型(道具/高清人脸/自由)短边 1024 真增益 ×2.0)。\n\n### 分型档位指引(1014 九型语义扫定谳)\n\n- **加速档(viggle/Turbo)=画布轻编辑**:指令语义贴近画布(换装/换细节/人物系重绘)时又快又稳。\n- **指令语义大幅偏离画布时(空镜场景/单件器物/气氛图等「整体替换」类)建议「1 · 原生出图」档**:少步蒸馏对大偏离+透明留白有**高概率黑屏**(alpha0;1014 同种子复验定谳=概率性塌缩而非确定性——R1 同种子同图重跑出带透正体,塌缩与引擎 MPS 内存态/浮点累积序的运行间非确定性耦合,重跑或重启引擎可愈;原生出图迭代预算足,对全部九型稳)。\n- 非人物系主体句(场景/道具/概念气氛图)记得加「将 <image1> 的画面整体替换为…」引导,消人像画布语义冲突。\n- **加速档偶发黑屏(alpha0)的处置=换种子重跑**(1014 用户裁定:默认档 viggle 保持不变,不加重试闸不自动降档;黑屏=turbo 蒸馏固有噪声的概率性塌缩,非工作流故障;seed 在加速子图宿主面板,改一个数再跑)。\n\n### 提示词起草(1015 起以 09 篇为准)\n\n**i2i 指令(本件 [400] 槽)的起草/自检以 docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md 为准**(1015 立:官方 I2I 宪法×道劫纪律合并)——五段模板(操作+保真开场→变化项写实→保真段逐类点名+取景锁→去除项锚图实存物→「本次编辑仅针对X这一项」防泄漏收束句+「其余未提及之处保持原样」);段序两式并存(保真先行/变化先行均合法,操作段与保真段两段在场为硬约束);N≥2 必 <imageN> 标签、N=1 禁标签;身份指图不描字;全角标点;词典色名+浓度括注;底座内容禁双写(头身比·全身入画归②层);cfg=1 禁写负向;发放前必跑 daojie_subject_overlap.py --base <型> 预检。已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)为官方底本;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n**生成器已破,勿再重跑**:apps/build/scripts/qi21_daojie_i2i_0924.py(09-24 生,0930 S5 布局终排后停更)仍产 1002 前旧结构(内含 [15]/[130]/[172]/[173] 1001-1002 已替已删旧节点号,方括号 grep 实测命中 72 处;[4016]/[4017] 系 10-02 工作流侧旧号不在此生成器内,旧计 59 处复现不出已弃);本件现结构=1001 同构集成手术+1002 单口化手术(装配子图 15 节点 34 线)+1003 甲案布局役+1005/1007 文本役逐轮手术+1010 三参考扩展(qi21_i2i_ref5_1010.py+qi21_i2i_ref5to3_1010.py 收口)所得,重跑生成器会把上述轮次全部打回旧结构。改本件=走新手术脚本单点改+契约测试重锚(家规:动前五树指纹扫描),「幂等再生成」通道已不存在。\n\n\n**RGBA 透明句式(1008 全英文令,官方原句)**:`This is an RGBA image with transparency.` / `The image has alpha channel and the background is transparent.`"
+        "text": "## 道劫 · Qwen-Image-2.1 图生图(生修合一·编辑流骨架+十档装配(九型+自由,1001 P1 起;自由=无型底座仍挂美术风格底座);i2i 09-24)\n\n**机制纠正(09-24)**:Qwen-Image-2.1 生修合一,**无传统 img2img(denoise 重绘不存在)——图输入即指令编辑**。\n本件=edit 编辑骨架(PE-I2I 看图改写+多参考图双通道)+qi21 道劫十档装配(九型+自由)的合体;对标 K2 线 krea2-daojie-i2i.json 同域同式。\n\n### 指令×装配怎么拼(执行期定稿,05 库 §一四层装配口径)\n\n- **指令=改什么**(①主体句位):[400] 原始用户词=唯一手写位(默认=官方换装例句),直喂 [6] 装配子图「指令」槽;子图内 [4012]『PE启用?』开关(PrimitiveBoolean,1002 ㉑;宿主面板同名控件外露,扇出 [4014] 合成器;true=PE-I2I 看图改写=**默认 PE 改写**(0926 裁定1:多彩时代默认 PE 开路),false=直写=指令原文进①层),改写输出经 [4014] 择文合成器①占 [4011] 底料拼合的主体句位——**指令即主体**(0928 PE 迁子图轮:指令路径全程子图内)。\n- **装配=道劫画风约束**(②③层恒挂):[6] 子图把 指令 + MyQi21DaojieBase 当前型 BASE(②型底座+④配色行,逐字=05 库↔qi21_bases.json 互锁)+美术风格底座常量(③层,库首节全文,全十档恒挂;[4011] 参数面 715 字与 qi21_bases.json art_style_base.positive_text 逐字一致=1007 负向式清退版)按**换行分层**接成一段进编码;拼接次序照 05 库四层口径(①领头→②→③)。\n- 跑图前过目 [401] 装配预览(接 [6] prompt 输出):显示将进编码的最终文本([153] 终稿:PE 开=①层已是改写文的装配全文;透明开=外加 RGBA 头句+W1 收束+尾句)。\n- 装配全文过长挤压指令权重的风险(拼接次序/换行分层已按库口径;PE 开启时改写文与装配双写重复=同 09-22 三视图先例,可跑;嫌重复就关 PE 用直写)。\n\n### 怎么换型(一处切换)\n\n- 主画布点选 [6] 装配子图(双击进入;0929 S1 命名批:宿主补稳定短名,面板控件=指令/型选择/PE启用?([4012] 节点外露,1002 ㉑)/RGBA透明(RGBA透明=0929 S2 D6 三态 combo,原布尔开关退役)),面板「型选择」下拉十选一(默认①人物;1001 P1 起九型+自由):人物/场景/道具/美宣/多视图/高清人脸/分镜剧情图/表情差分/概念气氛图/自由(自由=无型底座,BASE 空串仍挂美术风格底座)——子图内 MyQi21DaojieBase 按选型出 BASE(真源=qi21_bases.json 磁盘热读,逐字=05 库)。\n- **画幅随输入图,不随型**(i2i 语义):MyQi21DaojieBase 的 WIDTH/HEIGHT 输出本件不接(画幅联动行不移植)——分辨率=TextEncode.resolution 0(不重采样,输出跟随 image_1 预缩后比例);要自定义画幅开 [19] 输出画幅双路。\n- **画幅按型指引(1014 T3;纯指引零结构,主路=输出画幅双路 [19])**:「1 · 原生出图」档迭代预算足,可开 [19](true)走 [4] 空潜自定义画幅至型 canon MP(qi21_bases.json types[].megapixels 现值:人物 1.5/场景 1.5/美宣 1.5/分镜剧情图 1.5/表情差分 1.5/概念气氛图 1.5/人物多视图 1.8;道具/高清人脸/自由=1.0)(1.5/1.8MP 空潜组合暂无实弹收据,首用建议单张试跑;自定义尺寸须贴近 image_1 比例,否则编辑漂移)。画布预缩 [16] 与参考预缩 [17][18] 恒 1.0MP 勿动(1014 定谳:1.5MP 超 viggle σ稳定区,契约硬锚在册),加速两档(viggle/Turbo)画幅恒 1.0 勿动,2K 交付走 SeedVR2 尾档。主路理由:改 [16] 与 1014 定谳句+契约 1.0MP 结构锚+生成器三重锚定自相矛盾且被重跑打回(audit 用户区门对整文件 md5,改 [19]/[16] 同样分叉,不构成区分理由)。归属说明:用户态编辑保存后用户区副本分叉属设计内,audit 漂移按归属记录勿回灌仓库。\n\n### 参考图三槽(1010 扩展+收口对齐 viggle 官方 1-3 张口径;官方示例双图须先放引擎 input 目录)\n\n- image_1 = portrait_model_denim.png(编辑画布/人物)\n- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)\n- image_3 = [12] 占位空图,**默认旁路态(Ctrl+B)**——默认行为=双参考不变;要用第三张参考=选中 [12]+[18] 按 Ctrl+B 解旁路→选图→跑;旁路槽零进执行图,PE 合批与主编码自动只吃已解旁路的图(空文件名直跑会被 LoadImage 校验拒)。\n- **参考图语法**:指令里用 `<image1>`..`<image10>` 点名;image_1=编辑目标画布,其余是参考;模型契约上限 10 图(节点槽 16);viggle 蒸馏档官方验证 1-3 张(1010 收口:本件实装三槽对齐),再多走原生出图手动加槽或换 qwen21-multiref-edit。\n\n### 参数圣经(官方模板 Note 要点)\n\n- **cfg 恒 1**(官方路径):负面提示词在 cfg=1 下**数学上不参与采样**——负面线保留接线为**官方同构占位**(不生效);要用负向须抬 cfg,非本产线口径;Turbo 支路 cfg1 负向无口。**步数回归各支路 KSampler 面板=真实生效值,零摆设值**(直出 40=道劫产线完整档,官方区间 40-50;viggle 6 步=1002 考据轮官方模型卡荐档(HuggingFace Viggle 官方卡:viggle-turbo v0.2.1 r256 荐 6 步/cfg 1.0/euler,官方配 BasicGuider+『Viggle Turbo Sigmas』sigma 表;本仓未挂 sigma 表沿用 simple 调度=已知偏差,画质异常先查此;旧 359 步系 TE-Speed 时代历史值);Turbo 8 步=[7030] 官方σ表;可直接手调)**;euler/simple/denoise 1.0;seed fixed 可复现(默认 0,经加速子图宿主面板「seed」单源扇出三支路,一处改三支路同步)。\n- **resolution 是总像素预算非宽高**:[6] 子图编码器取 **0=不重采样**(仅取整到 32 的倍数),输出尺寸跟随 image_1(预缩后)。\n- **输入图预缩**:加载后先 ImageScaleToTotalPixels(lanczos·32 倍数)——画布 1.0MP、参考图 1.0MP(1014 定谳:画布 1.5MP 超出 viggle σ动态 shift 稳定区,官方编辑甜点≈1MP——同种子对照实弹 1.5MP=4/4 纯黑、1.0MP=4/4 真图;2K 交付由⑤SeedVR2 尾档负责);控显存+稳输入尺寸。\n- **QwenImage21Cache(auto/default)**:KV 缓存挂 UNETLoader 后,内存吃紧可调(cpu/int8)。\n\n### PE-I2I 改写组([6] 子图内;[4012]『PE启用?』节点默认 PE 改写(1002 ㉑);关=直写按图选配;0926 裁定1;0928 PE 迁子图轮)\n\n- 链路(全在 [6] 子图内):[4019] PE CLIPLoader(1002 ⑬ 迁入子图,pe_clip 槽撤,直供 [4013]) → 三段 chatml 拼装([24] StringFormat {a}{b}{c}:a=[21] 官方 i2i 系统提示词/b=指令(宿主「指令」槽)/c=[23] assistant+`<think>` 预填)→ [4013] TextGenerate(comfy-core)→ [27] RegexExtract(抓 rewritten_prompt,dotall)→ [4014] 择文合成器(pe开关←[4012]『PE启用?』扇出,1002 ㉑)→ 占 [4011] 底料拼合主体句位。\n- **PE 看全部输入图(双通道)**:[25] BatchImagesNode(子图内)合批全部输入图(经 image_1..image_3 边界,预缩后;旁路槽自动缺席)喂 [4013].image;子图编码器只吃选定图。\n- [4013] 参数:use_default_template=false+thinking=false(`<think>` 预填是官方刻意设计,勿改);temp 0.7/topK 20/topP 0.95/minP 0.05/repPen 1.05/maxLength 8192/seed 42;presence_penalty=1.5 **已定档**(0925 拍板:A/B 四维 57.5 vs 55.0 略优,保留 1.5)。\n- 关「PE启用?」(直写选配)时 PE 组不进执行图([4014] PE出文 lazy 槽×check_lazy_status 懒执行,PE 模型不加载);默认开=PE 模型随首拍加载。\n- PE 权重:text_encoders/qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors(bf16 自转件;官方 int8_convrot 在 MPS 首矩阵乘即死,勿装)。\n\n### 加速区·加速子图(0929 S3 收装批;1014 viggle 官方化:σ表+9步满血双段+正源回切;宿主 [7] 双击进入,面板=「速度档位」combo+「seed」+「σ表」)\n\n- **主图四块骨架**:①加载器([1][2][3]+[9]QwenImage21Cache+[42]MODEL 总线拐;PE-I2I 专属TE[4019] 住 [6] 装配子图内(1003 迁入))→②装配主链([6] 装配子图+空潜[4]+画幅开关[19][20])→③加速子图([7]:MODEL=[9]Cache 出线进子图/条件=[6] 双正源分线/latent=[20] 画幅开关后)→④输出([5]解码→[8]保存);LATENT 出来回 [5] 单点解码。\n- **三支路并行+单选择**(0929 用户令「使用并行节点布局前面只有1个选择逻辑」):直出/viggle/Turbo 三条完整自足支路(各含自己的采样器与步数,MODEL/steps 内聚,零注入),在 MyQi21SpeedSelect 四选一处汇流(选择件居汇流点右侧;「自动 · 按型」档按型名现算路由)后单点解码;懒执行=check_lazy_status 只拉起选中档支路,未选中支路零执行零加载(整体不进执行图;子图内懒执行=0929 S0 探针 A 级实证)。默认档只是初始值,随时可切任何档;加速启停语义=用户手动权威。\n- **宿主面板三控件(面板值=生效值)**:「速度档位」combo 四选一(全局首项=「自动 · 按型」,本件默认=「0 · Turbo 8步」,1017 增档令:按型名自动路由——[6] 装配子图「型名」出口→[7]「型名」入槽喂 [7015],型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo;推翻 1009/1016 Turbo 默认令;Turbo 居二/原生出图居三/viggle 居四)+「seed」number(默认 0;子图内 [7014] 单源扇出三采,一处改三支路同步)+「σ表」(1014 挂 ViggleTurboSigmas:九点官方表,动态 shift 按分辨率;t2i 1008 同款)。\n- **直出支路([7010],子图行3,combo「1 · 原生出图」)**:KSampler 40 步官方完整档,MODEL=[9]Cache(base)直连,positive=[6].positive 多参考官方路(1014 起 viggle 支路同源多参考/Turbo 仍单参考(1016turbo),见下节)。\n- **viggle 支路(1014 官方化=官方9步满血双段)**:[7011] ViggleTurboLora(旧 LoraLoaderModelOnly 合并式装载退役→官方未合并式 W x + B A x——拒 bf16 合并丢 30% 更新;name 预填 Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors,strength 1.0=1002 ㉔ 令)→[7020] ViggleTurboSigmas(σ表提升宿主面板,九点官方表,动态 shift 按分辨率——官方明言 base 配置 shift_terminal=0.02 伤末步/普通 simple 调度不匹配,旧「本仓未挂 sigma 表」欠账就此清偿,0928 纯黑与 1013 色彩衰减的主因)→[7021] SplitSigmas(step=7)切段:段A [7012] SamplerCustomAdvanced 7 步 turbo→段B [7024] 底模收尾 2 步(摘 LoRA+[7023]DisableNoise 续采);两段 conditioning=[6].positive_single 单参考正源(1014 定谳:五探针矩阵实证**少步蒸馏×多参考拼接=黑屏**(σ链/合并式 LoRA 双双落黑,alpha0),0928 铁案不翻、σ表无罪——σ链9步双段在单参考下出真图且金纹换袍成功(E3 实弹+云端视觉终审);多参考全效恒=原生出图档)。\n- **Turbo 支路([7028],子图行1,combo 次位档(1016turbo 换臂,1017 让首位于「自动 · 按型」))**:[7028] LoraLoaderModelOnly 官方 avg_rank_178 LoRA ×1.0 前接 Fix×0.5(不与 viggle 同挂)→[7029] BasicGuider cfg1 纯正向无负口→[7031] SamplerCustomAdvanced+8步官方σ表([7030] ManualSigmas);model=[9]Cache(base)→[7027]Fix×0.5→[7028]Turbo，**绝不吃 viggle LoRA**;[7029].conditioning=positive_single(单参考,0928 域);latent_image 与 [7010] 同源。旧 Fun-Acc 臂(28.8s 实测)随 T8 退役;Turbo 实弹速度待证。TE 硬校验 4096 维,现产线 TE=qwen3vl_8b_bf16_heretic 已实测通过。\n- **seed 单源共享**:seed(三支路共享) PrimitiveInt(子图行4)默认 0 fixed 单节点扇出 [7010]/[7017] 两采(Turbo 臂噪声共用 [7017];1014 viggle 改经 RandomNoise.noise_seed)——经宿主面板「seed」外露,面板值=生效值;消灭旧 [7010] widget 与旧加速臂 seed 两处分离。\n- **复用铁则**(0929 用户令「不要重复出现1个节点,要进行复用」):共享源单节点扇出([9] Cache MODEL 一源三用/[6] 双正源分线/[20] 画幅开关 latent 一源三用/seed 一源三用),画布零真重复节点(同 type+同上游+同 widgets 不得两件;两 KSampler 步数与 model 上游均不同=并行支路本体,非真重复)。\n- **依赖警示:Turbo 档需官方 LoRA 文件 qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors 装机 models/loras/**;节点全为引擎核心件零插件依赖(T8 插件随 Fun-Acc 臂退役 1016turbo,文件留盘)——缺文件时降级=切「2 · viggle」或「1 · 原生出图」档。\n- 分工:PE=提示词优化(已在链)/LoRA=少步数加速(viggle 支路自足)/Turbo=官方8步采样(Turbo 支路自足,1016turbo)。\n- **TE-Speed 槽不在本件**(3c 试装已死归档:插件未装=画布红节点,D4 终审永不装)。\n\n### 加速档正源沿革(0928 黑图修复立「加速档单参考正源」;1014 viggle 翻案回切多参考)\n\n- **实测事实(0928 实弹判别,七拍闭环)**:编码器同时吃双参考图(image_1 画布 1.5MP+image_2 参考 1.0MP)时,**viggle 6 步与 Fun-Acc 4 步两档少步蒸馏采样一律崩纯黑(FunAcc 时代实证)**(引擎报 success、尺寸对、全图唯一色=1);40 步直出档不受影响。单参考(仅 image_1)两加速档全真——viggle 单参考 105s/Fun-Acc 单参考 120s 出真图(结构相关 r=0.872)。**1014 翻案注**:该七拍判别是在未挂 σ 表的错误调度下得出的——σ表+9步双段挂上后 viggle 多参考当复验(1014 实弹收据在 apps/output/i2i-fire-1013/);Fun-Acc 仍单参考(T8 官方单参考设计)。\n- **修复接线(0929 并行化后形,分线直入)**:子图行4 单参考编码 [171] 单编码独挑(10-02 单口化:主路 [4016][4017]+单路 [172][173] 双编码+双开关塌缩,透明/非透明选择已在 [153] 合成器内前置,词源与行3 同源)产出 positive_single;主图不再走 [185] 正源档位开关(随注入式机构拆除),改分线直入各支路:直出支路 [7010].positive=宿主 positive(多参考至多三图=「1 · 原生出图」档官方路零改动,1010 三槽收口=viggle 官方 1-3 张口径)/viggle·Turbo 两加速档=宿主 positive_single(单参考;1014 定谳:少步×多参考=黑,双加速档恒单参考)——正源差异内聚进各支路(0929 S3 起正源经加速子图边界槽分线直入,语义零改动)。\n- [6] 恒执行(负面/latent 仍由其供,画幅随 image_1 不变);Turbo 档选中时行4 单参考编码 [171] 亦入链;viggle 档 1014 起走 [4015] 主编码多参考。\n- 默认档沿革:0927 裁定 Fun-Acc 默认→0929 拉齐轮暂 11(等效直出)→0929 并行化轮恢复 Fun-Acc(选择件 combo 首项)→0929 拉齐重放(用户 12:05 裁定)默认=原生出图等效→**1002 用户新令推翻拉齐重放:Fun-Acc 回 combo 首项(旧档串=台账 #26 判旧信号,活件不复制)**→**1009 用户新令:i2i 本件默认改「2 · viggle」(全局出厂首项不动)**(原生出图居二,viggle 居三);直出档的双参考语义零改动→**1014 用户令(色彩严查终局):viggle 官方化(σ表+9步双段)并正源回切 positive 多参考**。\n\n### RGBA 透明图句式(存 PNG 才保 alpha;0929 S2 D6(1001 ① 改文案):[6] 面板「RGBA透明」三态=自动(默认,按型:道具/多视图/高清人脸/表情差分四型开,其余关)/true=强制开/false=强制关——旧「RGBA透明开关」布尔控件退役;型信号=MyQi21DaojieBase.透明值 槽(1002 ⑯ 起 rgba_default 出已删)喂 MyQi21RgbaSelect.rgba_hint,开关布尔=其输出单扇出 [153] 透明包裹器(10-02 单口化:透明模式参与文本计算,双编码+双开关已塌缩);PE×透明结构性已融合=PE-I2I 改写指令①层不替换装配文,四型②层声明恒在)\n\n- **句式由 [153] 合成器内现拼**(10-04 中文化:头/尾/W1 真源=qi21_bases.json rgba 节热读,英文旧值备档 head_en/tail_en;1005 去重=中文声明二次插入已删;i2i 侧 [153] 恒 pe 关,正文=装配全文):\n  头句「这是一张带有透明度的RGBA图像。」+ 装配全文 + W1收束句「The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge.」+ 尾句「该图像具有alpha通道,背景是透明的。」\n- 旧英文头尾(This is an RGBA format image…/The image has an alpha channel…)与「中文同款」双写句式已随 10-04 中文化退役;[160][161][162][163] 为 1001 集成轮前旧节点号,现役拼装全在 [153] 一件内。\n- ✅ 结构债已清(1008 主会话「做」令):[4010] 实例补五出(负面词@槽3/透明值@槽4)+rgba_hint 连线#55 迁槽4(origin_slot 3→4)——STRING→BOOLEAN 失配解除,提交期拒单风险消除,透明自动恢复有效;[4014]/[153] widgets 同批对齐类九槽(负面词直写/PE负面 补位,pe开关/透明模式/头尾W1 各归位,类双口补第二出)。史注:曾为四出+槽3 失配(引擎按类校验=拒单或掉线,「恒真」不存在);实弹复验候下次 i2i 出图。\n\n### 透明参考锚配方(viggle 专用;1014)\n\n- **适用**:透明四型(道具/多视图/高清人脸/表情差分)×「2 · viggle」档;「1 · 原生出图」档与直出无需锚。\n- **操作**:选中 [505] 透明参考锚 按 Ctrl+B 解旁路(同 [12]/[18] 占位惯例;默认旁路=零进执行图,默认行为与无锚时完全一致)。\n- **锚规格**:固定 1024² 全透明 PNG(引擎 input 目录 transparent_ref.png;仓库真源 input_seed/)。机制依据=引擎本体 comfy_extras/nodes_qwen.py:170「the vision tower sees alpha over white, the vae keeps all four」(注意:同名 comfy_api_nodes/nodes_qwen.py 为另一内容,引用须带目录防索骥错件)。\n- **效果**:方向有益(同种子 A/B 配对 10 对:锚侧 10/10 过、无锚侧 0/10 全纯黑屏,道具型 viggle;收据=apps/output/i2i-fire-1014/anchor-probe/receipt.json)。统计局限如实注:样本量小+运行间非确定性耦合(1014 定谳),方向性信号非定谳。\n- **三型增补(1015 役任务④实弹;1015 裁定)**:人物多视图 6 对,A 锚侧 2/6 过(带透 2)、B 无锚侧 3/6 过(带透 3);表情差分 6 对,A 1/6 过(带透 1)、B 3/6 过(带透 3)——两型 A<B,不推荐透明锚;高清人脸 10 对,A 1/10 过(带透 1)、B 1/10 过(带透 1),A=B 中性降措辞。三型败因双侧同为全透明塌缩(α=[0,0],塌缩率 50-90%),定谳:透明锚增益仅实证于道具型(单物+大面积透明留白,10/10 vs 0/10),此类三型交付用「1 · 原生出图」档;统计口径=样本量小方向性信号非定谳(塌缩主导);收据=apps/output/i2i-fire-1014/anchor-probe/<型>/receipt.json(人物多视图/高清人脸/表情差分)。\n- **黑屏处置**:概率性塌缩,seed 面板改数重跑即愈(1014 用户令:不自动降档)。\n- **口径显式**:加速两档正源=positive_single 单内容参考,**透明锚非第二内容参考**(专属边界槽,不占 image_1..3 三参考槽);勿据沿革旧句回切多参考(0928 铁案:多参考进编码在少步档有黑屏风险)。\n### 输出画幅双路([19] 开关,默认 false=跟随输入图;1015 升级=按型画幅)\n\n- **false(默认)**:latent 取 [6] 子图编码器 latent,跟随 image_1(预缩后)比例——「画幅随输入图」i2i 主语义不变。\n- **true(按型画幅)**:[4] 空潜宽高改吃 [4018] 画幅建议器(九型WIDTH/HEIGHT←[4010].WIDTH/HEIGHT 闲置两出接通;手动宽/高成对优先,全 0=跟所选型默认)。[4010] 按型出画幅:人物 3:4@1.5MP=1056×1408/道具·自由 1:1@1.0MP=992×992/美宣 21:9/多视图 1:1@1.8MP=1328² 等(1015 用户令:自由型输出≈画幅随输入图等价,「自由这一列就是画幅随输入图」)。\n- 注意:按型画幅与 image_1 比例差过大时编辑漂移(旧警示继续有效);加速档(viggle)建议画幅贴近 1.0MP 稳定区。\n\n### SeedVR2 放大尾档(⑤组框·2K;1002 衔接批㉕)\n\n- [5] 解码图双喂:[8] 直出保存 + [503] SeedVR2 放大(短边 2048=2K 档)→[504] 存 MYStudio-2K 前缀;模型 [501] seedvr2_7b_sharp_fp8_e4m3fn + [502] ema_vae_fp16 已装机(models/SEEDVR2)。\n- **可整组旁路:框选⑤组框 Ctrl+B → 只出 [8] 直出图**(旁路态放大组零执行零落盘)。\n- **放大尾档适合 1MP 档(道具/人脸/自由),4.2MP≈纯插值建议旁路**(canon 十型实查·1008 对账:4.2MP 七型(表情差分已 1:1@4.2MP)短边 1376~2096 增益仅 ×1.1~1.3;1.0MP 三型(道具/高清人脸/自由)短边 1024 真增益 ×2.0)。\n\n### 分型档位指引(1014 九型语义扫定谳)\n\n- **加速档(viggle/Turbo)=画布轻编辑**:指令语义贴近画布(换装/换细节/人物系重绘)时又快又稳。\n- **指令语义大幅偏离画布时(空镜场景/单件器物/气氛图等「整体替换」类)建议「1 · 原生出图」档**:少步蒸馏对大偏离+透明留白有**高概率黑屏**(alpha0;1014 同种子复验定谳=概率性塌缩而非确定性——R1 同种子同图重跑出带透正体,塌缩与引擎 MPS 内存态/浮点累积序的运行间非确定性耦合,重跑或重启引擎可愈;原生出图迭代预算足,对全部九型稳)。\n- 非人物系主体句(场景/道具/概念气氛图)记得加「将 <image1> 的画面整体替换为…」引导,消人像画布语义冲突。\n- **加速档偶发黑屏(alpha0)的处置=换种子重跑**(1014 用户裁定:默认档 viggle 保持不变,不加重试闸不自动降档;黑屏=turbo 蒸馏固有噪声的概率性塌缩,非工作流故障;seed 在加速子图宿主面板,改一个数再跑)。\n\n### 提示词起草(1015 起以 09 篇为准)\n\n**i2i 指令(本件 [400] 槽)的起草/自检以 docs/prompts/Qwen-Image-2.1/09-图生图指令写作规范.md 为准**(1015 立:官方 I2I 宪法×道劫纪律合并)——五段模板(操作+保真开场→变化项写实→保真段逐类点名+取景锁→去除项锚图实存物→「本次编辑仅针对X这一项」防泄漏收束句+「其余未提及之处保持原样」);段序两式并存(保真先行/变化先行均合法,操作段与保真段两段在场为硬约束);N≥2 必 <imageN> 标签、N=1 禁标签;身份指图不描字;全角标点;词典色名+浓度括注;底座内容禁双写(头身比·全身入画归②层);cfg=1 禁写负向;发放前必跑 daojie_subject_overlap.py --base <型> 预检。已装技能 **qwen-image-2-1-prompter**(官方 PE 宪法封装)为官方底本;道劫主体句纪律(只写主体与画面,不重复风格词/全角标点/质量词禁入)见 docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md。\n\n### 维护警示\n\n**生成器已破,勿再重跑**:apps/build/scripts/qi21_daojie_i2i_0924.py(09-24 生,0930 S5 布局终排后停更)仍产 1002 前旧结构(内含 [15]/[130]/[172]/[173] 1001-1002 已替已删旧节点号,方括号 grep 实测命中 72 处;[4016]/[4017] 系 10-02 工作流侧旧号不在此生成器内,旧计 59 处复现不出已弃);本件现结构=1001 同构集成手术+1002 单口化手术(装配子图 15 节点 34 线)+1003 甲案布局役+1005/1007 文本役逐轮手术+1010 三参考扩展(qi21_i2i_ref5_1010.py+qi21_i2i_ref5to3_1010.py 收口)所得,重跑生成器会把上述轮次全部打回旧结构。改本件=走新手术脚本单点改+契约测试重锚(家规:动前五树指纹扫描),「幂等再生成」通道已不存在。\n\n\n**RGBA 透明句式(1008 全英文令,官方原句)**:`This is an RGBA image with transparency.` / `The image has alpha channel and the background is transparent.`"
       },
       "color": "#432",
       "bgcolor": "#653"
@@ -1122,7 +1122,7 @@
       ],
       "flags": {},
       "order": 31,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "image",
@@ -1188,7 +1188,7 @@
       ],
       "flags": {},
       "order": 32,
-      "mode": 0,
+      "mode": 4,
       "inputs": [
         {
           "name": "images",
@@ -3276,7 +3276,7 @@
               "",
               "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
               "",
-              "美术风格底座：中式手绘，中国工笔重彩与白描线条的二维手绘游戏插画，带彩色连环画的概括造型感。细彩线勾勒轮廓与结构，线条细稳连贯；平整分层的清晰色面塑形，色面边界清晰锐利；矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中；画面洁净平整，繁密细节处笔触交代清楚。",
+              "美术风格底座：中式手绘，中国工笔淡彩与白描线条的二维手绘游戏插画，带彩色连环画的概括造型感。细彩线勾勒轮廓与结构，线条细稳连贯；平整分层的清晰色面塑形，色面边界清晰锐利；矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中；画面洁净平整，繁密细节处笔触交代清楚。",
               "局部编辑"
             ],
             "widgets_values_named": {
@@ -3284,7 +3284,7 @@
               "BASE负面": "",
               "主体句": "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
               "主体句负面": "",
-              "锁层A全文": "美术风格底座：中式手绘，中国工笔重彩与白描线条的二维手绘游戏插画，带彩色连环画的概括造型感。细彩线勾勒轮廓与结构，线条细稳连贯；平整分层的清晰色面塑形，色面边界清晰锐利；矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中；画面洁净平整，繁密细节处笔触交代清楚。",
+              "锁层A全文": "美术风格底座：中式手绘，中国工笔淡彩与白描线条的二维手绘游戏插画，带彩色连环画的概括造型感。细彩线勾勒轮廓与结构，线条细稳连贯；平整分层的清晰色面塑形，色面边界清晰锐利；矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中；画面洁净平整，繁密细节处笔触交代清楚。",
               "组装用途": "局部编辑"
             }
           },
@@ -3844,8 +3844,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 15,
-          "lastNodeId": 7033,
-          "lastLinkId": 4413,
+          "lastNodeId": 7034,
+          "lastLinkId": 7467,
           "lastRerouteId": 2
         },
         "revision": 1,
@@ -3877,10 +3877,7 @@
             "name": "model",
             "type": "MODEL",
             "linkIds": [
-              247,
-              263,
-              284,
-              4400
+              7467
             ],
             "pos": [
               80,
@@ -4004,7 +4001,7 @@
           }
         ],
         "widgets": [
-          "自动 · 按型",
+          "0 · Turbo 8步",
           0,
           "1.0, 0.975, 0.95, 0.925, 0.9, 0.875, 0.75, 0.5, 0.25"
         ],
@@ -4345,10 +4342,10 @@
               }
             },
             "widgets_values": [
-              "自动 · 按型"
+              "0 · Turbo 8步"
             ],
             "widgets_values_named": {
-              "mode": "自动 · 按型"
+              "mode": "0 · Turbo 8步"
             }
           },
           {
@@ -5006,11 +5003,64 @@
             "properties": {},
             "title": "[7016] 加速档位说明",
             "widgets_values": [
-              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步"
+              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×1.0(1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)"
             ],
             "widgets_values_named": {
-              "text": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步"
+              "text": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×1.0(1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)"
             }
+          },
+          {
+            "id": 7034,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              1350.0,
+              1350.0
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 20,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 7467
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  247,
+                  263,
+                  284,
+                  4400
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "qi21-mikkoani.safetensors",
+              1.0
+            ],
+            "widgets_values_named": {
+              "lora_name": "qi21-mikkoani.safetensors",
+              "strength_model": 1.0
+            },
+            "title": "[7034] 风格LoRA·mikkoani(×1.0)"
           }
         ],
         "groups": [
@@ -5018,10 +5068,10 @@
             "id": 11,
             "title": "共享输入",
             "bounding": [
-              270.0,
-              25.0,
-              1460.0,
-              3753.0
+              270,
+              30,
+              1460,
+              3690
             ],
             "color": "#a1309b",
             "flags": {}
@@ -5066,7 +5116,7 @@
         "links": [
           {
             "id": 247,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7010,
             "target_slot": 0,
@@ -5210,7 +5260,7 @@
           },
           {
             "id": 263,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7022,
             "target_slot": 0,
@@ -5290,7 +5340,7 @@
           },
           {
             "id": 284,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7011,
             "target_slot": 0,
@@ -5298,7 +5348,7 @@
           },
           {
             "id": 4400,
-            "origin_id": -10,
+            "origin_id": 7034,
             "origin_slot": 0,
             "target_id": 7028,
             "target_slot": 0,
@@ -5375,6 +5425,14 @@
             "target_id": 7015,
             "target_slot": 4,
             "type": "STRING"
+          },
+          {
+            "id": 7467,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7034,
+            "target_slot": 0,
+            "type": "MODEL"
           }
         ],
         "extra": {
