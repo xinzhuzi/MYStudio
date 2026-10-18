@@ -222,22 +222,20 @@ def test_width_height_match_k2_same_type_and_params():
 
 
 def test_width_height_reference_table():
-    """十型对照表(型→宽×高;防 K2 侧公式漂移时静默跟漂的独立钉)。
-    自由型(1001 P1)=1:1 (Square)/1.0MP 兜底 1024×1024(design §2.1);
-    多视图=canon override 2448×1632 直出(0927 Q21 分档退役,见上)。
-    1008 快出档缩编:六型 4.2→1.5MP、多视图 4.2→1.8MP(用户令 1-2MP
-    快出+后放大;4.2 旧档宽高表入 git 史)。"""
+    """1018 最新规格：四型精确16:9/2K，其余短边至少1024。"""
+    from engines.comfyui.my_nodes.nodes.my_qi21_wh_suggest import MyQi21WhSuggest
     expect = {
-        "人物": (768, 1024), "场景": (1024, 576), "道具": (1024, 1024),
-        "美宣": (1024, 440), "人物多视图": (1024, 576), "高清人脸": (1024, 1024),
-        "分镜剧情图": (1024, 576), "表情差分": (1024, 1024),
-        "概念气氛图": (1024, 576), "设定卡": (1024, 440), "自由": (1024, 1024)}
-    # 1018 用户令:宽高硬上限 1K——公式封顶(native_px 同比缩进)+多视图 override 改
-    # [1024,576];旧 1.5MP 档宽高表入 git 史。
-    # 1016 完整设定板=21:9/3MP，默认不透明；公式路独立钉。
-    for zh, (w, h) in expect.items():
-        _b, w_out, h_out, _n, _t, _tn = MyQi21DaojieBase().run(zh)
-        assert (w_out, h_out) == (w, h), (zh, w_out, h_out)
+        "人物": (1088, 1448), "场景": (2048, 1152), "道具": (1024, 1024),
+        "美宣": (2048, 1152), "人物多视图": (1824, 1024), "高清人脸": (1024, 1024),
+        "分镜剧情图": (2048, 1152), "表情差分": (1256, 1256),
+        "概念气氛图": (1824, 1024), "设定卡": (2048, 1152), "自由": (1024, 1024)}
+    for zh, expected in expect.items():
+        _b, w, h, _n, _t, _tn = MyQi21DaojieBase().run(zh)
+        assert (w, h) == expected, zh
+        assert min(w, h) >= 1024 and w % 8 == h % 8 == 0, zh
+        assert MyQi21WhSuggest().suggest(九型WIDTH=w, 九型HEIGHT=h) == expected, zh
+        if zh in {"场景", "美宣", "分镜剧情图", "设定卡"}:
+            assert w * 9 == h * 16, zh
 
 
 # ── rgba_default:五型透明声明型 true 其余 false(0929 D6;1016 设定卡终审翻真入列)─────────
@@ -333,7 +331,7 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
     # 非自由型透明值=rgba_default 型默认优先(1001 P1;覆盖缺省不改变九型行为)
     assert transparent is False
     # 缺分辨率字段:回退 1:1 (Square)/4.2(与 K2 单源)+控制台中文警告
-    assert (w, h) == native_px("1:1 (Square)", 4.2) == (1024, 1024)  # 1018 令 1K 封顶(旧 2096 入史)
+    assert (w, h) == native_px("1:1 (Square)", 4.2) == (2096, 2096)  # 无上限缩小，保留缺字段时的4.2MP兜底
     out = capsys.readouterr().out
     assert "缺 aspect_ratio 字段" in out and "缺 megapixels 字段" in out
     assert "缺 rgba_default 字段" in out
@@ -432,11 +430,11 @@ def test_gongbi_chengshi_vocabulary_locked_per_type_family():
     import json as _json
     data = _json.loads(CANON_BASES.read_text(encoding="utf-8"))
     types = {t.get("zh"): t.get("positive_text") or "" for t in data.get("types") or []}
-    TREE = ("勾线定形", "双勾填色")
+    TREE = ("细彩线定形", "双勾填色")
     for zh in ("场景", "概念气氛图", "人物", "美宣", "分镜剧情图"):
         assert any(m in types.get(zh, "") for m in TREE), f"{zh} 缺树石程式句"
     for zh in ("人物", "美宣", "分镜剧情图"):
-        assert "面部以细线勾勒" in types.get(zh, ""), f"{zh} 缺面部程式句"
+        assert "动漫式概括五官" in types.get(zh, ""), f"{zh} 缺面部程式句"
         assert "金属、皮革与木料均为平整色面" in types.get(zh, ""), f"{zh} 缺器物程式句"
     for zh in ("道具", "设定卡"):
         assert "平整色面" in types.get(zh, "") and "细线勾勒" in types.get(zh, ""), f"{zh} 缺器物程式句"

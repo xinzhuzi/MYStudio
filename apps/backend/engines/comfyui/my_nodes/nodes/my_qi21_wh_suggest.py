@@ -31,10 +31,12 @@ from typing import Any
 
 
 def _cap_1k(w: int, h: int) -> tuple[int, int]:
-    """1018 用户令:宽高硬上限 1024——超限同比缩进(边长四舍五入 8 倍数)。"""
-    if max(w, h) <= 1024:
+    """兼容旧调用名：现规则为短边至少1024，不再将大尺寸压回长边1K。"""
+    if w <= 0 or h <= 0:
+        raise ValueError("[MyQi21WhSuggest] 画幅宽高须为正整数")
+    if min(w, h) >= 1024:
         return (w, h)
-    s = 1024 / max(w, h)
+    s = 1024 / min(w, h)
     return (round(w * s / 8) * 8, round(h * s / 8) * 8)
 
 
@@ -69,12 +71,12 @@ class MyQi21WhSuggest:
                                    "step": 8,
                                    "tooltip": "自己填的画布宽;0=跟所选型"
                                               "默认,要填就和手动高一起填"
-                                              "(8 的倍数)"}),
+                                              "(8 的倍数，短边不足1024时同比补足)"}),
                 "手动高": ("INT", {"default": 0, "min": 0, "max": 8192,
                                    "step": 8,
                                    "tooltip": "自己填的画布高;0=跟所选型"
                                               "默认,要填就和手动宽一起填"
-                                              "(8 的倍数)"}),
+                                              "(8 的倍数，短边不足1024时同比补足)"}),
             },
         }
 

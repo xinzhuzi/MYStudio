@@ -10,13 +10,14 @@ SOURCE = ROOT/'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng
 def test_style_keeps_visual_dna_and_craft_without_subject_or_layout_rules():
     base = json.loads(SOURCE.read_text())['art_style_base']
     text = base['positive_text']
-    for word in ['中国工笔淡彩', '二维手绘', '工笔', '白描', '连环画', '线条细稳连贯',
-                 '平整分层的清晰色面', '色面边界清晰锐利', '矿物色质感鲜泽通透', '多色相并陈', '主次分明',
-                 '繁密细节处笔触交代清楚',
-                 '画面洁净平整']:
+    assert text.startswith('美术风格底座：国风二维动漫手绘插画。')
+    assert '赛璐璐' not in base['negative_text'] and '动漫' not in base['negative_text']
+    for word in ['二维动漫', '工笔', '白描', '连环画', '线条细稳连贯',
+                 '平整分层的清晰色面', '简洁明暗色块', '主色统领', '辅色呼应',
+                 '点睛色突出', '数字绘画表面洁净平整']:
         assert word in text, word
     for word in ['衣物', '尘土', '血痕', '身体状态', '来源事实', '背景', '近景',
-                 '远景', '时段', '光源', '光照', '构图', '留白']:
+                 '远景', '时段', '光源', '光照', '构图', '布局', '留白']:
         assert word not in text, word
     assert 'positive_style_text' not in base
     assert 'positive_ground_text' not in base

@@ -1,6 +1,6 @@
 {
   "contractVersion": "ma-gongbi-v1",
-  "contractSha256": "127a81ab2eb3db58036258c588886f0b4b0a40966edb963454068c7df57b9177",
+  "contractSha256": "7b92945ac2e029ea16cc953f635c008f165be704d8075105737d4016eff2d029",
   "syncedAt": "2026-09-18",
   "maSources": [
     {
@@ -94,7 +94,7 @@
     },
     "style.gongbi-base": {
       "moduleId": "style.gongbi-base",
-      "text": "美术风格底座：中式手绘，中国工笔淡彩与白描线条的二维手绘游戏插画，带彩色连环画的概括造型感。细彩线勾勒轮廓与结构，线条细稳连贯；平整分层的清晰色面塑形，色面边界清晰锐利；矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中；画面洁净平整，繁密细节处笔触交代清楚。",
+      "text": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
       "required": true,
       "singletonKey": "gongbi_style_base",
       "source": {
@@ -109,7 +109,7 @@
     },
     "style.gongbi-track.person": {
       "moduleId": "style.gongbi-track.person",
-      "text": "TRACK=person：优先 face/hair/hands/costume；~40% 工笔 + 30% key-art + 20% depth + 10% light。 人物类型句：背景和照明依来源场景与时段；衣物磨损、尘土、血痕和身体状态依来源事实保留。",
+      "text": "TRACK=person：优先 face/hair/hands/costume；动漫式五官概括、清晰发束与简洁分层明暗色块；脸型、年龄感与体型服从来源。 人物类型句：背景和照明依来源场景与时段；衣物磨损、尘土、血痕和身体状态依来源事实保留。",
       "required": true,
       "singletonKey": "gongbi_style_track",
       "requires": [
@@ -127,7 +127,7 @@
     },
     "style.gongbi-track.scene": {
       "moduleId": "style.gongbi-track.scene",
-      "text": "TRACK=scene: 场景为唯一视觉主角；原图已有的人物按原数量/位置/姿态/尺度保留为小型远中景叙事或尺度参照，不得肖像特写、居中海报化、前景英雄位或人物主导光线；原图无人不得新增人物；布局、比例与前中远景不变，只改工笔媒介。 结构线对齐不漂移。 场景类型句：光源方向、明暗和天气依来源场景与时段；建筑、地物的完好或破损状态依来源事实保留。",
+      "text": "TRACK=scene: 场景为唯一视觉主角；原图已有的人物按原数量/位置/姿态/尺度保留为小型远中景叙事或尺度参照，不得肖像特写、居中海报化、前景英雄位或人物主导光线；原图无人不得新增人物；布局、比例与前中远景不变，仅将画法转为同一国风二维动漫线描设色。 结构线对齐不漂移。 场景类型句：光源方向、明暗和天气依来源场景与时段；建筑、地物的完好或破损状态依来源事实保留。",
       "required": true,
       "singletonKey": "gongbi_style_track",
       "requires": [
@@ -145,7 +145,7 @@
     },
     "style.gongbi-track.prop": {
       "moduleId": "style.gongbi-track.prop",
-      "text": "TRACK=prop：单体 hero；material+silhouette 优先；~50% 工笔 + 30% material + 20% staging；禁止 portrait takeover 和器物 sheet-wrinkle。 器物类型句：背景与照明依来源用途；器物的断裂、缺损、磨损、积尘和血痕依来源事实保留。",
+      "text": "TRACK=prop：单体 hero；material+silhouette 优先；以动漫道具线描与清晰色面呈现材质；禁止 portrait takeover 和器物 sheet-wrinkle。 器物类型句：背景与照明依来源用途；器物的断裂、缺损、磨损、积尘和血痕依来源事实保留。",
       "required": true,
       "singletonKey": "gongbi_style_track",
       "requires": [
@@ -209,7 +209,7 @@
   },
   "transportLockSeparator": "\n",
   "localRevision": {
-    "updated": "2026-10-16",
+    "updated": "2026-10-18",
     "scope": "MYStudio 本地画法、参考图保留与质量模块修订；maSources 与 module.source 为继承基线，不声明与外部 MA 逐字一致。",
     "modules": [
       "style.gongbi-base",
@@ -220,7 +220,8 @@
       "style.gongbi-track.scene",
       "style.gongbi-track.prop"
     ],
-    "styleSourceSha256": "cfebd3f8113e40470ecd29d7e8608a77268d4e6f8ab91a4c3f062080764ddef7",
-    "styleBoundary": "美术风格底座只定义绘画语言与成像工艺；背景、照明和来源状态规则归类型模块，具体事实归主体句。"
+    "styleSourceSha256": "1206ba6407864030a884cd82361d99d8fd17cffc41091d9128380d4ad53402b3",
+    "styleBoundary": "美术风格底座只定义绘画语言与成像工艺；背景、照明和来源状态规则归类型模块，具体事实归主体句。",
+    "styleDirection": "国风二维动漫为主，白描、工笔与彩色连环画辅助；仅风格工艺，布局照明及来源状态归类型与主体。"
   }
 }

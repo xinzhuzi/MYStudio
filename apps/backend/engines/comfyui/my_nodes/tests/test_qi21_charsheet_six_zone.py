@@ -123,8 +123,9 @@ def test_card_rejects_loss_of_later_layout_paragraph(monkeypatch, transparent):
 
 def test_full_board_defaults_and_each_detail_position(card):
     assert card['rgba_default'] is False
-    assert card['aspect_ratio'] == '21:9 (Ultrawide)'
-    assert card['megapixels'] == 3.0
+    assert card['aspect_ratio'] == '16:9 (Widescreen)'
+    assert card['megapixels'] == 2.25
+    assert card['resolution_override'] == [2048, 1152]
     for text in ['完整横向角色设定板', '左栏下方为人物资料与配色方案',
                  '右栏第三行固定四格', '单眼与眉形特写', '腕部与袖口结构特写',
                  '底部第一区', '底部第二区', '底部第三区', '底部第四区']:

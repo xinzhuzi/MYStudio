@@ -3743,8 +3743,8 @@ class TestQi21SubgraphContract:
         mv = next(e for e in qi21 if e["zh"] == "人物多视图")
         assert (mv["aspect_ratio"], mv["megapixels"]) == ("16:9 (Widescreen)", 1.8), \
             "qi21_bases.json「人物多视图」画幅档应=16:9横幅 1:1.8(1017 用户令,旧1:1四宫格入史)"
-        assert mv.get("resolution_override") == [1024, 576], \
-            "qi21_bases.json「人物多视图」override 应=16:9 [1024,576](1018 用户令 1K 封顶;旧[1792,1008]入史)"
+        assert mv.get("resolution_override") == [1824, 1024], \
+            "qi21_bases.json「人物多视图」override 应短边至少1024：[1824,1024]"
         # 1004 正负拆开硬口径:positive_text=正向描述文体,禁令句(禁止/不得/
         # 默认禁止)应拆入 negative_text,正向残留即红
         for e in qi21[:10]:
@@ -3815,8 +3815,8 @@ class TestQi21SubgraphContract:
         sg_nodes, sg_links = _qi21_sg_nodes(graph), _qi21_sg_links(graph)
         # 1006 七轮:[4011] 退役——美术风格底座 唯一在档位=qi21_bases.json art_style_base(热读)
         lock_a = _wf_lock_a()
-        assert lock_a.startswith("美术风格底座：") and "细彩线勾勒" in lock_a \
-            and "矿物色质感鲜泽通透" in lock_a, \
+        assert lock_a.startswith("美术风格底座：") and "白描式线条塑形" in lock_a \
+            and "简洁明暗色块" in lock_a, \
             "美术风格底座 真源(qi21_bases.json)应保有 风格底座/线描优先/罩染通透 三段骨架(1009 删质量词「成片质量」)"
         assert QI21_SG_ASM_ID not in _qi21_sg_nodes(GRAPHS["qi21"]), \
             "[4011] 应已退役(1006 七轮:三层装配内置 [4013] AI扩写)"

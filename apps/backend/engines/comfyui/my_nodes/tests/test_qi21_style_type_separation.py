@@ -57,6 +57,7 @@ def test_all_ten_types_own_their_background_light_and_state_rules():
         assert '来源' in text, t['zh']
         assert '光' in text or '照明' in text, t['zh']
         assert '背景' in text or '环境' in text, t['zh']
-    assert '画面洁净平整，繁密细节处笔触交代清楚。' in data['art_style_base']['positive_text']
+    assert data['art_style_base']['positive_text'].startswith('美术风格底座：国风二维动漫手绘插画。')
+    assert '简洁明暗色块' in data['art_style_base']['positive_text']
     for word in ('多手指', '文字错误', '背景'):
         assert word not in data['art_style_base']['negative_text']

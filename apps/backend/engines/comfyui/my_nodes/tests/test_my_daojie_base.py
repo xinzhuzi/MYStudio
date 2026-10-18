@@ -122,7 +122,7 @@ def test_run_empty_subject_is_identity_pure_base():
     pos, neg, aspect, mp, base_out, w_out, h_out = MyDaojieBase().run("场景")
     assert base_out == "场景"
     assert pos == scene["positive_text"]  # 纯型层
-    assert aspect == "16:9 (Widescreen)" and mp == 1.5  # 1008 快出档缩编
+    assert aspect == "16:9 (Widescreen)" and mp == 2.25  # 1018 四型2K规格
     pos2, _n2, _a2, _m2, _b2, _w, _h = MyDaojieBase().run("场景", positive=None, negative=None)
     assert pos2 == pos
 
@@ -142,7 +142,8 @@ def test_run_all_options_produce_nonempty_outputs():
         # (用户令 1-2MP 快出+后放大):道具/高清人脸 1.0(09-19 裁定出
         # 1024×1024,节点口径 1.0 MP 精确命中)、多视图 1.8、其余五型 1.5
         assert aspect.endswith(")") and ":" in aspect
-        assert mp == {"道具": 1.0, "高清人脸": 1.0, "人物多视图": 1.8, "设定卡": 3.0}.get(name, 1.5)
+        assert mp == {"道具": 1.0, "高清人脸": 1.0, "人物多视图": 1.8,
+                      "场景": 2.25, "美宣": 2.25, "分镜剧情图": 2.25, "设定卡": 2.25}.get(name, 1.5)
 
 
 # ── 负向(1008):[4010] 只出型层负向,不再拼底座负向+用户负向 ──
@@ -234,8 +235,9 @@ def test_renwu_new_framing_after_v22_switch():
     for kw in ("单人立绘", "全身完整入画", "细线", "整块平整色面"):  # 1017 两可句役:弹性取景退役→确定性全身(半身由主体句显式指定)
         assert kw in renwu, f"人物型增量段缺 v5 画法关键词 {kw}"
     # v5「禁物象词」口径随 1004 集中化部分退役留痕:positive_text=②+锁B+④+
-    # 衣物完整性拼合,锁B 行自带衣褶词汇;骨相/眉眼/发丝/衣色仍禁(未入锁B)
-    for bad in ("骨相", "眉眼", "发丝", "衣色"):
+    # 衣物状态与动漫五官、发束应用归类型；具体身份色锚仍由主体提供。
+    assert "动漫式概括五官" in renwu and "清晰成组的发束" in renwu
+    for bad in ("骨相", "衣色"):
         assert bad not in renwu, f"人物型残留物象词 {bad}(v5 底座禁具体画面)"
 
 
@@ -386,6 +388,6 @@ def test_width_height_override_and_formula():
     无 override 型走公式,与 [61] 逐字节一致(场景 16:9·1.5→1672×944)。
     1008 快出档缩编:多视图 override 3072×1024→2448×816、场景 4.2→1.5MP。"""
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("人物多视图")  # 0927 改名轮(K2 侧 override 合板口径);1008 晚改名 多视图→人物多视图
-    assert (w, h) == (1024, 576), (w, h)  # 1018 用户令 1K 封顶:override 随改(旧 1792×1008 入 git 史)
+    assert (w, h) == (1824, 1024), (w, h)  # 1018 短边最低1024
     _p, _n, _a, _m, _b, w, h = MyDaojieBase().run("场景")
-    assert (w, h) == (1024, 576), (w, h)  # 1018 令 1K 封顶
+    assert (w, h) == (2048, 1152), (w, h)  # 1018 四型2K规格

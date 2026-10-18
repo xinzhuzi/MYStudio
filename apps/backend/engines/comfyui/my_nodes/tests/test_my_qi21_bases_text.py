@@ -39,7 +39,7 @@ def test_three_sections_hotread():
     base_line = next(l for l in 色卡.splitlines() if l.strip().startswith("base:"))
     assert base_line.strip().startswith("base: 大面积浅淡稳定衬底色面"), base_line
     assert "不落" not in base_line and "不留" not in base_line and "满幅" not in base_line
-    assert "线条细稳连贯" in 风格 and "画面洁净平整" in 风格, "美术语言与成像工艺应随真源热读"
+    assert "线条细稳连贯" in 风格 and "数字绘画表面洁净平整" in 风格, "美术语言与成像工艺应随真源热读"
 
 
 def test_unknown_section_falls_back_and_registered():

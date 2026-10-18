@@ -36,16 +36,16 @@ _W, _H = 1328, 1328
 def test_nine_type_passthrough_default_and_missing():
     node = MyQi21WhSuggest()
     # 显式 0(=跟型哨兵):九型原样
-    assert node.suggest(手动宽=0, 手动高=0, 九型WIDTH=_W, 九型HEIGHT=_H) == (1024, 1024)  # 1018 令:1K 封顶
+    assert node.suggest(手动宽=0, 手动高=0, 九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)  # 大尺寸原样通过
     # 缺键(引擎对未接线 optional 不投递):九型原样
-    assert node.suggest(九型WIDTH=_W, 九型HEIGHT=_H) == (1024, 1024)  # 1018 令:1K 封顶
+    assert node.suggest(九型WIDTH=_W, 九型HEIGHT=_H) == (_W, _H)  # 大尺寸原样通过
 
 
 # ── ② 手动宽高成对非 0 优先直出 ────────────────────────────────────────
 def test_manual_pair_takes_priority_over_nine_type():
     node = MyQi21WhSuggest()
     assert node.suggest(手动宽=2048, 手动高=1152,
-                        九型WIDTH=_W, 九型HEIGHT=_H) == (1024, 576)  # 1018 令:1K 封顶(2048×1152 同比缩)
+                        九型WIDTH=_W, 九型HEIGHT=_H) == (2048, 1152)  # 手动大尺寸原样通过
 
 
 # ── ③ 半填中文报错(不猜不代选;半填先于九型缺判) ──────────────────────
@@ -108,3 +108,24 @@ def test_tooltips_present_plain_language():
     for name, tip in tips.items():
         assert isinstance(tip, str) and tip.strip(), f"{name} 应有非空 tooltip(⑰),得 {tip!r}"
     assert "跟所选型" in tips["手动宽"] and "跟所选型" in tips["手动高"]
+
+
+@pytest.mark.parametrize("width,height,expected", [
+    (1024, 576, (1824, 1024)),
+    (768, 1024, (1024, 1368)),
+    (512, 512, (1024, 1024)),
+    (2048, 1152, (2048, 1152)),
+    (4096, 2304, (4096, 2304)),
+])
+def test_short_edge_floor_applies_to_manual_and_type_routes(width, height, expected):
+    node = MyQi21WhSuggest()
+    assert node.suggest(九型WIDTH=width, 九型HEIGHT=height) == expected
+    assert node.suggest(手动宽=width, 手动高=height) == expected
+    assert min(expected) >= 1024
+    assert abs(expected[0] / expected[1] - width / height) < 0.005
+
+
+@pytest.mark.parametrize("width,height", [(0, 0), (-8, 1024), (1024, 0)])
+def test_nonpositive_type_dimensions_raise_clear_error(width, height):
+    with pytest.raises(ValueError, match="宽高须为正整数"):
+        MyQi21WhSuggest().suggest(九型WIDTH=width, 九型HEIGHT=height)

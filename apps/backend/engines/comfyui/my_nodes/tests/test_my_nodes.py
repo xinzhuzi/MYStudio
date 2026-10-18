@@ -304,7 +304,8 @@ def test_daojie_base_resolution_outputs_nine_types():
         "9:16 (Portrait Widescreen)", "16:9 (Widescreen)", "21:9 (Ultrawide)",
     }
     expected_mp = {"道具": 1.0, "高清人脸": 1.0, "自由": 1.0,
-                   "人物多视图": 1.8, "设定卡": 3.0}.get  # 其余五型 1.5(缺省)
+                   "人物多视图": 1.8, "场景": 2.25, "美宣": 2.25,
+                   "分镜剧情图": 2.25, "设定卡": 2.25}.get  # 其余型按原MP预算
     for entry in bases:
         pos, neg, aspect, megapixels, base_out, _w, _h = node.run(entry["zh"])
         assert base_out == entry["zh"]  # 09-19 第五出=型直通(驱动按型 LoRA 供线)

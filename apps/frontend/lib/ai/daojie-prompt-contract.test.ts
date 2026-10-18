@@ -84,7 +84,7 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
     expect(DAOJIE_RUNTIME_CONTRACT.contractVersion).toBe("ma-gongbi-v1");
     expect(DAOJIE_RUNTIME_CONTRACT.contractSha256).toBe(
       // 1016：画法只含风格；背景、光照与来源状态归三轨类型模块；来源SHA保留历史基线。
-      "62c3195a32930835380eb32f9b616003dddf74b911f08ada1374eb1f1a2bf8fd",
+      "7b92945ac2e029ea16cc953f635c008f165be704d8075105737d4016eff2d029",
     );
     expect(DAOJIE_RUNTIME_CONTRACT.avoidSeparator).toBe("\nAvoid: ");
     expect(DAOJIE_RUNTIME_CONTRACT.length).toEqual({ warningBelow: 300, min: 300, max: 1600 });
@@ -98,8 +98,8 @@ describe("Daojie ma-gongbi-v1 runtime contract", () => {
       "reference.denoise",
       "negative.universal",
     ]);
-    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("中国工笔重彩与白描线条的二维手绘游戏插画");
-    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("画面洁净平整，繁密细节处笔触交代清楚。");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("国风二维动漫手绘插画");
+    expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).toContain("平整分层的清晰色面与简洁明暗色块塑形");
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].text).not.toMatch(/衣物|尘土|血痕|身体状态|背景|近景|远景|时段|光源|光照|构图|留白/);
     expect(DAOJIE_RUNTIME_CONTRACT.modules["style.gongbi-base"].moduleId).toBe("style.gongbi-base");
     expect(DAOJIE_RUNTIME_CONTRACT.modules["negative.universal"].text).toContain("压缩伪影");
