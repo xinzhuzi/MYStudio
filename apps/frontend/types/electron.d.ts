@@ -612,6 +612,8 @@ declare global {
       importFromToonflow: (payload: { type: string }) => Promise<{ success: boolean; imported: number }>;
       getByName: (payload: { type: string; name: string }) => Promise<StudioAssetSummary | null>;
       batchMatch: (payload: { type: string; names: string[] }) => Promise<Array<{ name: string; asset: StudioAssetSummary | null }>>;
+      /** R4 族聚显(10-19-script-asset-corridor-blank):batchMatch 同源候选全集,updatedAt 倒序。旧 preload 缺席时渲染层回落本行图。 */
+      listFamily?: (payload: { type: string; name: string }) => Promise<StudioAssetSummary[]>;
       readImageDataUrl: (id: string) => Promise<string | null>;
       resolveFileUrl: (url: string) => Promise<string | null>;
     };

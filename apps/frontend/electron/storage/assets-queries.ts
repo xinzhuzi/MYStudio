@@ -109,6 +109,22 @@ export async function batchMatchAssets(type: StudioAssetKind, names: string[]): 
   return result;
 }
 
+/** R4 角色族聚显聚合查询(10-19-script-asset-corridor-blank D1+D3):
+ * 聚合键=batchMatch 同源候选全集(buildAssetNameCandidateCondition 语义:
+ * name 精确/LIKE/remark LIKE,天然含别名件,不另造前缀规则防漏收);
+ * 排序=updatedAt 倒序(新图在前)。role/scene/tool 三类同口径,族聚仅显示层。
+ * updatedAt 恒为 ISO-8601 UTC 串(addAsset/update 族统一写入),字典序=时间序。 */
+export async function listAssetFamilyAssets(type: StudioAssetKind, name: string): Promise<StudioAssetSummary[]> {
+  const dbPath = getDbPath();
+  const trimmed = name.trim();
+  if (!trimmed) return [];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await runSqliteJson<any[]>(dbPath,
+    `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND ${buildAssetNameCandidateCondition(trimmed)} ORDER BY updatedAt DESC;`
+  );
+  return rows.map((row) => rowToSummary(row));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pickBestAssetNameMatch(rows: any[], name: string) {
   const matches = rows.filter((row) => assetNameMatchesQuery(row.name, name));

@@ -30,6 +30,7 @@ assets:get
 assets:get-by-name
 assets:import-from-toonflow
 assets:list
+assets:list-family
 assets:read-image-data-url
 assets:read-url-data-url
 assets:remove-image

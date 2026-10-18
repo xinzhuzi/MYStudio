@@ -13,6 +13,7 @@ const { handlers, assetStorageMocks, blessedPaths, resolverMock } = vi.hoisted((
     getAssetByName: vi.fn(),
     importFromToonflow: vi.fn(() => 0),
     initAssetsStorage: vi.fn(),
+    listAssetFamilyAssets: vi.fn(async () => []),
     listAssets: vi.fn(async () => []),
     removeAssetImage: vi.fn(),
     renameAssetImage: vi.fn(),
@@ -89,7 +90,7 @@ describe("registerAssetLibraryIpcHandlers", () => {
     registerHandlers();
     expect([...handlers.keys()].sort()).toEqual([
       "assets:add", "assets:add-image", "assets:batch-match", "assets:delete", "assets:get",
-      "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:read-image-data-url", "assets:read-url-data-url", "assets:remove-image", "assets:rename-image",
+      "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:list-family", "assets:read-image-data-url", "assets:read-url-data-url", "assets:remove-image", "assets:rename-image",
       "assets:replace-image", "assets:resolve-file-url", "assets:select-audio-file", "assets:select-image-file", "assets:select-image-files", "assets:update",
     ]);
     expect(assetStorageMocks.initAssetsStorage).not.toHaveBeenCalled();
@@ -178,6 +179,15 @@ describe("registerAssetLibraryIpcHandlers", () => {
     expect(dialog.showOpenDialog).toHaveBeenCalledWith(expect.objectContaining({
       properties: ["openFile", "multiSelections"],
     }));
+  });
+
+  it("assets:list-family 把 type/name 原样透传聚显查询并回传族数组(R4 族聚显)", async () => {
+    registerHandlers();
+    const familyRows: unknown[] = [{ id: "a1" }, { id: "a2" }];
+    assetStorageMocks.listAssetFamilyAssets.mockResolvedValueOnce(familyRows as never);
+
+    await expect(getHandler("assets:list-family")({}, { type: "role", name: "晏燎" })).resolves.toBe(familyRows);
+    expect(assetStorageMocks.listAssetFamilyAssets).toHaveBeenCalledWith("role", "晏燎");
   });
 
   it("returns an empty list when the multi-select picker is canceled", async () => {

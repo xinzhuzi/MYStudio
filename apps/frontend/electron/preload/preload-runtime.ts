@@ -344,6 +344,7 @@ contextBridge.exposeInMainWorld('studioAssets', {
   importFromToonflow: (payload: { type: string }) => ipcRenderer.invoke('assets:import-from-toonflow', payload),
   getByName: (payload: { type: string; name: string }) => ipcRenderer.invoke('assets:get-by-name', payload),
   batchMatch: (payload: { type: string; names: string[] }) => ipcRenderer.invoke('assets:batch-match', payload),
+  listFamily: (payload: { type: string; name: string }) => ipcRenderer.invoke('assets:list-family', payload),
   readImageDataUrl: (id: string) => ipcRenderer.invoke('assets:read-image-data-url', id),
   resolveFileUrl: (url: string) => ipcRenderer.invoke('assets:resolve-file-url', url),
   readUrlDataUrl: (url: string) => ipcRenderer.invoke('assets:read-url-data-url', url),

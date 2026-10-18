@@ -207,6 +207,13 @@ export function registerAssetLibraryIpcHandlers({
       return Array.from(map.entries()).map(([name, asset]) => ({ name, asset }));
     })
   ));
+  // R4 族聚显(10-19-script-asset-corridor-blank):剧本资产行详情按
+  // batchMatch 同源候选全集取族(updatedAt 倒序),只读聚合,不改写任何行。
+  ipcMain.handle("assets:list-family", async (_event, payload: { type: string; name: string }) => (
+    runAssetDiagnostics("list-family", payload, () => (
+      assetsStorage.listAssetFamilyAssets(payload.type as AssetKind, payload.name)
+    ))
+  ));
   ipcMain.handle("assets:update", async (_event, payload: { id: string; updates: Record<string, unknown> }) => (
     runAssetDiagnostics("update", { id: payload.id, updates: payload.updates }, () => (
       assetsStorage.updateAsset(payload.id, payload.updates as AssetUpdates)
