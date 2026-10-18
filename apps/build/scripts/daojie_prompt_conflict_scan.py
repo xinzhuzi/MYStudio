@@ -9,6 +9,8 @@
   - 历史区不计:「## 历史口径」标题至下一个同级/更高级标题之间;
     以及含「历史/仅供来源研究/旧口径/已废止」标注的行不计。
   - 行级白名单:已知台账/日期锚/迁移叙述行,逐条带理由;规则误报靠白名单行,不靠放宽正则。
+    稳健模式:机器槽名(九型WIDTH/九型HEIGHT 等 API 输入名)与历史/台账/日期锚行按
+    **内容正则**识别(勿依赖易漂移行号);现行口径散文一行不得进白名单。
   - 输出:现行区命中列表(file:line:rule)+ 汇总;--json;exit 0=零命中,exit 2=有命中
     (--rules-only 时 exit 2 仅由子任务所有权命中触发);exit 1=用法错误。
   - --tag <任意串>:仅用于输出标注,不改变行为。
@@ -194,6 +196,9 @@ def owner_of(rel_posix: str) -> str:
 # ------------------------------------------------ 行级白名单(误报/台账/日期锚)
 # 依据:research/audit-1018-conflicts.md C38 增补节 + L1 基线点验(Step 5)。
 # 误报一律加白名单行,不放宽正则。
+#
+# 稳健模式(L1 收口,P1 手术员上报):对机器槽名与历史/台账/日期锚行用
+# **内容正则**识别(勿依赖易漂移的行号);现行口径散文一行不得进白名单。
 
 LINE_WHITELIST: dict[str, dict[int, str]] = {
     f"{M_DIR}/README.md": {
@@ -220,6 +225,58 @@ LINE_WHITELIST: dict[str, dict[int, str]] = {
         17: "C22 误报:09-23 美化版台账行,括注引用《三国望神州》v2.2 词汇表,非本库现行条款",
     },
 }
+
+# 行级白名单·稳健模式:globs=None 表示全局;regex 命中即整行不计。
+# 依据:P1 手术员上报(paths 门 8 所有权文件残留 38 命中不可由 P1 修)+
+# L1 逐行复核原文(契约测试 22 行 + 预填图 16 行 + api 2 行,全部对上)。
+LINE_WHITELIST_PATTERNS = [
+    {
+        "globs": None,  # 全局:机器标识符(大写 ASCII 后缀)无现行散文误伤面
+        "regex": r"九型WIDTH|九型HEIGHT",
+        "reason": "机器槽名:MyQi21WhSuggest 节点 API 输入名"
+                  "(my_nodes/nodes/my_qi21_wh_suggest.py INPUT_TYPES/入参,my_qi21_api_pe.py tooltip 同引用;"
+                  "预填图与契约测试按槽名接线)。改名=连线/参数变更被 D4 禁止,节点源码不在子任务所有权;"
+                  "如需改名须另开任务(节点源码+三图+契约测试四点联动)",
+    },
+    {
+        "globs": (
+            "apps/backend/engines/comfyui/tests/*",
+            "apps/backend/engines/comfyui/my_nodes/tests/*",
+        ),
+        "regex": r"九型 ?W/H|九型W←|九型H←|九型宽高",
+        "reason": "九型WIDTH/HEIGHT 槽名简称的接线/画幅直通叙述(机器槽名语境,非型数指称)",
+    },
+    {
+        "globs": (
+            "apps/backend/engines/comfyui/tests/*",
+            "apps/backend/engines/comfyui/my_nodes/tests/*",
+        ),
+        "regex": (
+            r"DNA:ink wash|旧 pro 件|九型底座常量|九型装配移植|子图收窄=九型|契约同步三笔"
+            r"|九型→十型|三态件退役|恒九型|低对比色面→|for token in .*九型"
+        ),
+        "reason": "历史/台账/日期锚叙述行:docstring 沿革、1015 九型→十型迁移台账"
+                  "(同类=已白名单 json/README.md:42)、锚随源改名履历(低对比色面→色彩分明)、"
+                  "[4100] 说明卡 token 钉(说明卡非提示词字符串叶子,不在 D4 换血域)",
+    },
+]
+
+LINE_WHITELIST_PATTERNS_COMPILED = [
+    {**entry, "re": re.compile(entry["regex"])} for entry in LINE_WHITELIST_PATTERNS
+]
+
+
+def line_pattern_whitelisted(rel_posix: str, raw: str) -> bool:
+    """稳健模式白名单:globs=None 全局生效,否则按仓库相对路径 glob 圈定。"""
+    for pattern in LINE_WHITELIST_PATTERNS_COMPILED:
+        globs = pattern["globs"]
+        if globs is not None and not any(
+            fnmatch.fnmatch(rel_posix, g) for g in globs
+        ):
+            continue
+        if pattern["re"].search(raw):
+            return True
+    return False
 
 # ------------------------------------------------------------ 历史区识别(§7)
 
@@ -251,7 +308,9 @@ def scan_text(rel_posix: str, text: str, rules: list[dict]) -> list[dict]:
             continue  # 标注行不计
         wl = LINE_WHITELIST.get(rel_posix)
         if wl and lineno in wl:
-            continue  # 行级白名单不计
+            continue  # 行级白名单(行号锚)不计
+        if line_pattern_whitelisted(rel_posix, raw):
+            continue  # 行级白名单(稳健模式:槽名/台账行内容正则)不计
         for rule in rules:
             if re.search(rule["regex"], raw):
                 hits.append(

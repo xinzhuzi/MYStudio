@@ -216,7 +216,7 @@ export function withVisualManualStoryboardStyleTokens(
   if (!base || !isExtendedVisualManual(visualManualId)) return base;
   if (!EXTENDED_STORYBOARD_STYLE_TOKENS_SUFFIX) return base;
   const sanitized = sanitizeExtendedManualPrompt(base);
-  // 幂等锚取首 token 的首个逗号前片段(稳定风格锚词,如 "Chinese ink wash painting style"):
+  // 幂等锚取首 token 的首个逗号前片段(稳定风格锚词,如 "Chinese guofeng 2D anime hand-drawn illustration"):
   // token 全文可随手册演化改写,旧提示词节点仍按稳定锚判重,不会被追加双份 token(08-28 无色根修)。
   const styleAnchor = EXTENDED_STORYBOARD_STYLE_TOKENS[0]?.split(",")[0]?.trim();
   if (styleAnchor && sanitized.includes(styleAnchor)) return sanitized;

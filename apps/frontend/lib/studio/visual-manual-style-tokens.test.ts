@@ -15,7 +15,7 @@ import {
 
 const DAOJIE_MANUAL = [
   "<!-- storyboard-image-style-tokens:start -->",
-  "Chinese ink wash painting style, gongbi linework",
+  "Chinese guofeng 2D anime hand-drawn illustration, xianxia immortal cultivation, fine colored line art, flat layered color fields, bright yet harmonious mineral-color palette with soft cyan-green and vermilion accents, ground and lighting consistent with the source scene and time",
   "<!-- storyboard-image-style-tokens:end -->",
   "<!-- storyboard-frame-negative:start -->",
   "watermark, low quality",
