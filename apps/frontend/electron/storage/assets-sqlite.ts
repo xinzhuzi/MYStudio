@@ -169,6 +169,18 @@ export function sanitizeAssetFolderName(name: string) {
   return sanitizeAssetFolderNameDetailed(name).folderName;
 }
 
+/**
+ * 家夹键(10-19 用户终裁:一族一夹,「晏燎就晏燎一个文件夹」)——行名首个「_」前
+ * 的主体段做夹名;无下划线名(基行,如 晏燎)即本身。生成链命名约定
+ * `${角色名}_${阶段}_${视图}` 天然携带家前缀,故首段=归属实体;共享名资产
+ * (「李先生;管事」分号形态)不含下划线不受扰。首段空(如名以_开头)回落整名。
+ */
+export function assetFamilyFolderKey(name: string) {
+  const raw = String(name ?? "");
+  const head = raw.split("_")[0] ?? "";
+  return sanitizeAssetFolderName(head.trim() ? head : raw);
+}
+
 /** 缩略图生成队列：限制并发，避免一次性 spawn 数千个 sips 进程导致主进程卡死 */
 let thumbActive = 0;
 const thumbQueue: Array<() => void> = [];

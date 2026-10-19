@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import {
   getDbPath, getFilesDir, runSqliteExecSafe,
-  escapeSql, sanitizeAssetFolderName, usesAssetNameFolder,
+  escapeSql, assetFamilyFolderKey, usesAssetNameFolder,
 } from "./assets-sqlite";
 import { getAssetSync } from "./assets-queries";
 import { rowToSummary, runSqliteJsonSync, getThumbsDir, getAssetsDir } from "./assets-sqlite";
@@ -118,8 +118,8 @@ export function updateAsset(id: string, updates: Partial<{ name: string; descrip
     const currentRows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
     const current = currentRows[0] ?? null;
     if (current && typeof updates.name === "string" && updates.name !== current.name && usesAssetNameFolder(current.type)) {
-      const oldFolder = sanitizeAssetFolderName(String(current.name ?? ""));
-      const newFolder = sanitizeAssetFolderName(updates.name);
+      const oldFolder = assetFamilyFolderKey(String(current.name ?? ""));
+      const newFolder = assetFamilyFolderKey(updates.name);
       if (oldFolder !== newFolder) {
         const move = planRenameFolderMove(current, newFolder);
         if (move.filePath !== undefined) sets.push(`filePath='${escapeSql(move.filePath)}'`);
@@ -235,7 +235,7 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   const destName = `${safeName}_${Date.now()}${ext}`;
   // R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(name)>/,thumbs 同构;clip/audio 平铺
   const subDir = usesAssetNameFolder(asset.type)
-    ? `${asset.type}/${sanitizeAssetFolderName(asset.name ?? "")}`
+    ? `${asset.type}/${assetFamilyFolderKey(String(asset.name ?? ""))}`
     : asset.type;
   const destPath = path.join(getFilesDir(), subDir, destName);
   fs.copyFileSync(sourceFilePath, destPath);
@@ -273,7 +273,7 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
   const safeName = joinedName.replace(/[/\\:*?"<>|]/g, "_");
   // R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(name)>/;clip/audio 平铺
   const subDir = usesAssetNameFolder(asset.type)
-    ? `${asset.type}/${sanitizeAssetFolderName(asset.name ?? "")}`
+    ? `${asset.type}/${assetFamilyFolderKey(String(asset.name ?? ""))}`
     : asset.type;
   let destName = `${safeName}${ext}`;
   let destPath = path.join(getFilesDir(), subDir, destName);
@@ -437,7 +437,7 @@ function backfillAssetFromLocalInput(
 /** R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(assetName)>/,clip/audio 维持平铺。文件名承载唯一性不改。 */
 function copyAssetSourceFile(type: StudioAssetKind, id: string, sourceFile: string, assetName: string) {
   const ext = path.extname(sourceFile);
-  const subDir = usesAssetNameFolder(type) ? `${type}/${sanitizeAssetFolderName(assetName)}` : type;
+  const subDir = usesAssetNameFolder(type) ? `${type}/${assetFamilyFolderKey(assetName)}` : type;
   const destDir = path.join(getFilesDir(), subDir);
   fs.mkdirSync(destDir, { recursive: true });
   let destName = `${id}${ext}`;

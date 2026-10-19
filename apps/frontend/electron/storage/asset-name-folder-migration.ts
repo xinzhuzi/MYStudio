@@ -27,7 +27,7 @@ import {
  *   计数对账口径一致;raw 与 URL 编码双形态均识别)。
  */
 
-export const ASSET_NAME_FOLDERS_MARKER = "_name-folders-v1.json";
+export const ASSET_NAME_FOLDERS_MARKER = "_name-folders-v2.json";
 
 const defaultNameFolderIo: MigrationIo = {
   existsSync: (filePath) => fs.existsSync(filePath),
@@ -173,7 +173,7 @@ export interface AssetNameFolderMigrationResult {
 }
 
 type NameFolderLedger = {
-  version: 1;
+  version: 2;
   startedAt: number;
   finishedAt?: number;
   interrupted?: boolean;
@@ -198,11 +198,40 @@ type NameFolderLedger = {
 
 class NameFolderMigrationInterrupted extends Error {}
 
-/** 旧平铺形态:<type>/<file> 恰两段(首段=受管类型);三段及以上=已带名夹层不动。 */
-function isFlatAssetPath(relativePath: string, type: string): boolean {
-  if (typeof relativePath !== "string" || !relativePath) return false;
-  const segments = relativePath.split("/");
-  return segments.length === 2 && segments[0] === type && Boolean(segments[1]);
+/** 家段(首「_」前,空段回落整名)——10-19 用户终裁「一族一夹」:行名
+ * `${实体名}_${修饰…}` 首段=归属实体;基行(如 晏燎)无下划线即本身。 */
+function familyHead(name: string): string {
+  const raw = String(name ?? "");
+  const head = raw.split("_")[0] ?? "";
+  return head.trim() ? head : raw;
+}
+
+/** 剪空壳目录(家夹收敛后旧行名夹清空即删;自底向上 best-effort,非空留待下轮)。 */
+function pruneEmptyDirsUnder(root: string, io: MigrationIo): void {
+  let entries: string[];
+  try {
+    entries = io.readdirSync(root);
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    const child = path.join(root, name);
+    let isDir = false;
+    try {
+      isDir = io.statSync(child).isDirectory();
+    } catch {
+      continue;
+    }
+    if (!isDir) continue;
+    pruneEmptyDirsUnder(child, io);
+    try {
+      // Node rmSync 对目录恒需 recursive(空目录亦拒 EISDIR);删除前已核空,
+      // 启动期 Electron 单例锁保证无并发写入。
+      if (io.readdirSync(child).length === 0) io.rmSync(child, { recursive: true, force: true });
+    } catch {
+      // 非空或并发写入:留待下轮
+    }
+  }
 }
 
 function rowRelativePaths(row: Record<string, unknown>): string[] {
@@ -325,12 +354,12 @@ async function migrateAssetRoot(
   const noop = (reason: string): AssetNameFolderRootResult => ({ root: assetRoot, status: "noop", reason, ledgerDir: null, movedFiles: 0, rewrittenRefs: 0, anomalies: [] });
 
   // P0 前置:marker 在场=已迁;资产根/库缺=无事项。
-  if (io.existsSync(markerPath)) return noop("marker 在场,已迁");
+  if (io.existsSync(markerPath)) return noop("marker v2 在场,家夹已收敛");
   if (!io.existsSync(assetRoot)) return noop("资产根不存在");
   if (!io.existsSync(dbPath)) return noop("无 assets.db");
 
   const ledger: NameFolderLedger = {
-    version: 1,
+    version: 2,
     startedAt: io.now(),
     assetRoot,
     projectRoot,
@@ -404,11 +433,14 @@ async function migrateAssetRoot(
       for (const row of planRows) {
         const rowType = String(row.type ?? "");
         if (!usesAssetNameFolder(rowType)) continue;
-        const folderName = sanitizeAssetFolderNameDetailed(String(row.name ?? "")).folderName;
+        const folderName = sanitizeAssetFolderNameDetailed(familyHead(String(row.name ?? ""))).folderName;
+        const desiredDir = `${rowType}/${folderName}`;
         for (const rel of rowRelativePaths(row)) {
-          if (!isFlatAssetPath(rel, rowType)) continue;
-          const fileName = rel.slice(rel.indexOf("/") + 1);
-          const newRel = `${rowType}/${folderName}/${fileName}`;
+          if (!rel.startsWith(`${rowType}/`)) continue;
+          const slash = rel.lastIndexOf("/");
+          if (rel.slice(0, slash) === desiredDir) continue;
+          const fileName = rel.slice(slash + 1);
+          const newRel = `${desiredDir}/${fileName}`;
           if (newRel === rel) continue;
           const targets = relTargets.get(rel);
           if (targets) targets.add(newRel);
@@ -434,13 +466,13 @@ async function migrateAssetRoot(
         }, null, 2)}\n`,
       );
       io.writeFileSync(path.join(dir, "README.md"), [
-        "# 资产按名分夹迁移台账(10-19:files/<type>/ 平铺 → files/<type>/<安全名>/)",
+        "# 资产按家夹迁移台账(10-19 v2:files/<type>/ 任意旧形态 → files/<type>/<家键>/,一族一夹)",
         "",
         "## 人工数据回滚(强制顺序,一次做完,全程 App 退出)",
         `1. 退出 App;2. 按 move-map.json 反向逐文件 rename(files 与 thumbs 双树:`,
         "   value → key,目标在=跳过);3. 恢复 assets.db(本台账 assets.db.orig 覆盖);",
-        "4. 引用改写反向同表:studio-workflow 分片内 asset-file://<value> → asset-file://<key>",
-        "   (move-map.json 同一张表反向用);5. 删资产根 _name-folders-v1.json。",
+        "4. 引用改写反向同表:store 树 asset-file://<value> → asset-file://<key>",
+        "   (move-map.json 同一张表反向用);5. 删资产根 _name-folders-v2.json。",
         "- marker 删除后重跑即重新迁移判定(幂等闭环);",
         "- 异源同名冲突件(anomalies 留痕)从未被挪动,回滚无需处理;",
         "- 本台账 assets.db.orig 为 db 级最后兜底(永不删除)。",
@@ -458,13 +490,15 @@ async function migrateAssetRoot(
       for (const row of planRows) {
         const type = String(row.type ?? "");
         if (!usesAssetNameFolder(type)) continue;
-        const detail = sanitizeAssetFolderNameDetailed(String(row.name ?? ""));
+        const detail = sanitizeAssetFolderNameDetailed(familyHead(String(row.name ?? "")));
         if (detail.truncated) {
-          ledger.anomalies.push(`截断:资产 ${row.id} 名「${row.name}」→ 夹名「${detail.folderName}」(≤80字符/240字节)`);
+          ledger.anomalies.push(`截断:资产 ${row.id} 名「${row.name}」→ 家夹名「${detail.folderName}」(≤80字符/240字节)`);
         }
         for (const rel of rowRelativePaths(row)) {
-          if (!isFlatAssetPath(rel, type)) continue;
-          const fileName = rel.slice(rel.indexOf("/") + 1);
+          if (!rel.startsWith(`${type}/`)) continue;
+          const slash = rel.lastIndexOf("/");
+          if (rel.slice(0, slash) === `${type}/${detail.folderName}`) continue;
+          const fileName = rel.slice(slash + 1);
           const newRel = `${type}/${detail.folderName}/${fileName}`;
           if (newRel === rel) continue;
           // 多行共享平铺路径(目标分歧,P0 预检):不挪不 roll,与异源同名冲突同款
@@ -509,6 +543,10 @@ async function migrateAssetRoot(
       }
       // 挪动清单落台账(P2 后中断的回滚真源;先于 P3/P4 写)
       io.writeFileSync(path.join(ensureLedgerDir(), "move-map.json"), `${JSON.stringify(Object.fromEntries(mapping), null, 2)}\n`);
+      // 家夹收敛后旧行名夹清空即剪枝(空壳目录不留盘面)
+      for (const root of [filesRoot, thumbsRoot]) {
+        pruneEmptyDirsUnder(root, io);
+      }
       writeLedger();
     });
 
@@ -628,8 +666,11 @@ async function migrateAssetRoot(
 
     // ===== P6 marker:落资产根(与 assets.db 同层;核账已绿) =====
     await phase("P6-write-marker", async () => {
+      const legacyMarker = path.join(assetRoot, "_name-folders-v1.json");
+      if (io.existsSync(legacyMarker)) io.rmSync(legacyMarker, { recursive: true, force: true });
       io.writeFileSync(markerPath, `${JSON.stringify({
-        version: 1,
+        version: 2,
+        familyFolders: true,
         finishedAt: new Date(io.now()).toISOString(),
         ledgerDir: ensureLedgerDir(),
         movedFiles: files.moved,

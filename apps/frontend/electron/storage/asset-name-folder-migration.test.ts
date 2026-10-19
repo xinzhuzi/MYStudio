@@ -321,7 +321,7 @@ describe("runAssetNameFolderMigration 迁移状态机(design §5 P0-P6)", () => 
     expect(fs.existsSync(markerPath)).toBe(true);
     expect(fs.existsSync(path.join(fixture.assetRoot, "files", ASSET_NAME_FOLDERS_MARKER))).toBe(false);
     const marker = JSON.parse(fs.readFileSync(markerPath, "utf-8")) as { version: number };
-    expect(marker.version).toBe(1);
+    expect(marker.version).toBe(2);
 
     // 台账:db 原件+manifest+README+move-map 落项目根 backups(根目录铁令)
     expect(root.ledgerDir).toContain(path.join(fixture.projectRoot, "backups", "asset-name-folders-"));
@@ -334,6 +334,47 @@ describe("runAssetNameFolderMigration 迁移状态机(design §5 P0-P6)", () => 
     // 引用改写计数对账(P5 同款语义留台账)
     const ledger = fixture.ledgerOf(result);
     expect((ledger.refs as { rewritten: number }).rewritten).toBe(3);
+  });
+
+  it("v1 收敛轮:v1 marker 在场+行名夹驻留 → 族行并家+剪空壳+落 v2+清 v1 旧标(一族一夹,10-19 用户终裁)", async () => {
+    const rows: FixtureRow[] = [
+      { rowid: 1, id: "r1", type: "role", name: "晏燎", filePath: "role/晏燎/晏燎_主图.png" },
+      { rowid: 2, id: "r2", type: "role", name: "晏燎_练气期_三视图_v1", filePath: "role/晏燎_练气期_三视图_v1/晏燎_练气期_三视图_v1.png" },
+      { rowid: 3, id: "r3", type: "role", name: "独孤剑尘", filePath: "role/独孤剑尘/独孤剑尘_主图.png" },
+    ];
+    const fixture = createFixture(rows);
+    fs.writeFileSync(path.join(fixture.assetRoot, "_name-folders-v1.json"), '{"version":1}');
+    fixture.writeShards({
+      "image-workflows-shared-001-abc12345.json": [
+        "asset-file://role/晏燎_练气期_三视图_v1/晏燎_练气期_三视图_v1.png",
+      ],
+    });
+
+    const result = await fixture.run();
+    expect(result.status).toBe("migrated");
+
+    // 族行并家:行名夹件挪入 晏燎/ 家夹;基行与无关行原位不动
+    expect(fs.existsSync(path.join(fixture.assetRoot, "files", "role", "晏燎", "晏燎_练气期_三视图_v1.png"))).toBe(true);
+    expect(fs.existsSync(path.join(fixture.assetRoot, "files", "role", "晏燎", "晏燎_主图.png"))).toBe(true);
+    expect(fs.existsSync(path.join(fixture.assetRoot, "files", "role", "独孤剑尘", "独孤剑尘_主图.png"))).toBe(true);
+    // 空壳行名夹被剪枝(files 与 thumbs 双树)
+    expect(fs.existsSync(path.join(fixture.assetRoot, "files", "role", "晏燎_练气期_三视图_v1"))).toBe(false);
+    expect(fs.existsSync(path.join(fixture.assetRoot, "thumbs", "role", "晏燎_练气期_三视图_v1"))).toBe(false);
+    // thumbs 镜像同挪
+    expect(fs.existsSync(path.join(fixture.assetRoot, "thumbs", "role", "晏燎", "晏燎_练气期_三视图_v1.png"))).toBe(true);
+    // DB 改写到家键
+    const dbRows = fixture.dbs[fixture.dbPath]!.tables.assets!;
+    expect(dbRows.find((r) => r.id === "r2")!.filePath).toBe("role/晏燎/晏燎_练气期_三视图_v1.png");
+    expect(dbRows.find((r) => r.id === "r1")!.filePath).toBe("role/晏燎/晏燎_主图.png");
+    // 持久化引用随映射改写(解码态断言)
+    const shared = fs.readFileSync(fixture.sharedShard, "utf-8");
+    expect(decodeURIComponent(shared)).toContain("asset-file://role/晏燎/晏燎_练气期_三视图_v1.png");
+    // v2 marker 落资产根 + v1 旧标清除
+    expect(fs.existsSync(path.join(fixture.assetRoot, ASSET_NAME_FOLDERS_MARKER))).toBe(true);
+    expect(fs.existsSync(path.join(fixture.assetRoot, "_name-folders-v1.json"))).toBe(false);
+    // 二跑 no-op(家夹已收敛)
+    const again = await fixture.run();
+    expect(again.status).toBe("noop");
   });
 
   it("幂等:二跑 no-op 零台账", async () => {

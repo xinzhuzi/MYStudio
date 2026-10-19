@@ -640,16 +640,18 @@ describe("改名联动(R5:文件级挪动+DB 改写+thumbs 镜像+兄弟隔离+�
     expect(existsSync(join(assetRoot(), "files", asset.filePath!))).toBe(true);
   });
 
-  it("新旧名安全名相同(如 a/b → a_b)→ 跳过挪动只改名", () => {
+  it("新旧名家键相同(如 晏燎_1/2 → 晏燎_12)→ 跳过挪动只改名", () => {
     initProjectAssetsStorage();
     const source = join(assetRoot(), "tool.png");
     writeFileSync(source, "tool image");
-    const asset = addAsset({ type: "tool", name: "a/b", sourceFilePath: source });
+    const asset = addAsset({ type: "tool", name: "晏燎_1/2", sourceFilePath: source });
+    // 家键=首段「晏燎」;首文件名带原非法字符的整名安全形
+    expect(asset.filePath).toBe(`tool/晏燎/${(asset.filePath ?? "").split("/").pop()}`);
 
-    const updated = updateAsset(asset.id, { name: "a_b" });
+    const updated = updateAsset(asset.id, { name: "晏燎_12" });
 
-    expect(updated?.name).toBe("a_b");
-    expect(updated?.filePath).toBe(asset.filePath); // 安全名同为 a_b,零挪动
+    expect(updated?.name).toBe("晏燎_12");
+    expect(updated?.filePath).toBe(asset.filePath); // 家键同族,零挪动
     expect(existsSync(join(assetRoot(), "files", asset.filePath!))).toBe(true);
   });
 
