@@ -1,10 +1,16 @@
 /**
- * C2 全书提取控制面板(父任务 D14/D25;design §7)。
+ * C2 全书提取控制面板(父任务 D14/D25;design §7;10-20 用户令改版:详情弹窗形态)。
+ *
+ * 形态(10-20 用户裁定):不占资产提取卡内联位——头行只留一个入口按钮(状态+
+ * 运行摘要实时刷新),完整控制面板(起止章/五钮/进度/额度窗口/失败清单)住进
+ * 详情弹窗(独立 UI 面)。
  *
  * 订阅口径:组件不复制 runner 状态——单一真源=useAssetsBookExtractionStore,
  * 由 refresh() 轮询 C1 台账(store/extraction/extraction-run.json,每章落盘)+
  * 单例在飞标记(isEntityExtractionInFlight)推导面板状态;D25 重启收口在读取
  * 侧统一(不在飞时 running/quota_wait 一律视作 paused,由用户点「继续」)。
+ * 轮询挂在入口组件(弹窗关闭时也刷,头行摘要实时);表单草稿(起止章)在面板
+ * 内部,随弹窗关闭重置。
  *
  * 模型只读显示取 runner 实际 resolve 链(entityExtraction → universalAi,镜像
  * createRunnerDeps.getResolvedModel);额度窗口(R7)显示「等待额度重置至 HH:MM」;
@@ -16,18 +22,24 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 import {
   BookText,
-  ChevronDown,
   Pause,
   Play,
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { StatusPill, type StatusPillState } from "@/components/ui/status-pill";
-import { cn } from "@/lib/utils";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import {
@@ -293,7 +305,8 @@ const STATUS_VIEW: Record<
   done: { pill: "ready", label: "已完成" },
 };
 
-export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: number }) {
+/** 详情弹窗内的完整控制面板(起止章/五钮/进度/额度窗口/失败清单)。 */
+function AssetsBookExtractionPanel({ totalChapters }: { totalChapters: number }) {
   const status = useAssetsBookExtractionStore((state) => state.status);
   const ledgerModel = useAssetsBookExtractionStore((state) => state.model);
   const range = useAssetsBookExtractionStore((state) => state.range);
@@ -304,23 +317,12 @@ export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: num
   const lastError = useAssetsBookExtractionStore((state) => state.lastError);
   const start = useAssetsBookExtractionStore((state) => state.start);
   const pause = useAssetsBookExtractionStore((state) => state.pause);
-  const refresh = useAssetsBookExtractionStore((state) => state.refresh);
 
-  const projectId = useProjectStore((state) => state.activeProjectId);
   const projectName = useProjectStore((state) => state.activeProject?.name) ?? "漫影工作室项目";
+  const projectId = useProjectStore((state) => state.activeProjectId);
   const switchChapter = useStudioStore((state) => state.switchChapter);
 
-  // 轮询订阅:挂载即读一次(App 重启后恢复 paused 视图),运行期每 2s 刷
-  useEffect(() => {
-    void refresh(projectId ?? undefined);
-    const timer = window.setInterval(() => {
-      void refresh(projectId ?? undefined);
-    }, BOOK_REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [projectId, refresh]);
-
-  const [open, setOpen] = useState(true);
-  // 起止章为表单草稿(非 runner 状态);台账 range 优先用于继续/重试
+  // 起止章为表单草稿(非 runner 状态;随弹窗关闭重置);台账 range 优先用于继续/重试
   const [startDraft, setStartDraft] = useState("1");
   const [endDraft, setEndDraft] = useState(String(Math.max(1, totalChapters)));
 
@@ -349,163 +351,199 @@ export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: num
   const total = activeRange ? activeRange[1] - activeRange[0] + 1 : 0;
   const processed = counts.success + counts.failed + counts.skipped;
   const progressPct = total > 0 ? Math.round((processed / total) * 100) : 0;
-  const statusView = STATUS_VIEW[status];
 
   return (
-    <div className="rounded-xl border border-border bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-          className="flex min-w-0 items-center gap-2 rounded-md text-left"
-        >
-          <ChevronDown
-            className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="book-extraction-start">起始章</Label>
+          <Input
+            id="book-extraction-start"
+            type="number"
+            min={1}
+            max={totalChapters}
+            className="h-8 w-24 font-mono"
+            value={startDraft}
+            disabled={busy}
+            onChange={(event) => setStartDraft(event.target.value)}
           />
-          <BookText className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">全书提取</span>
-          <span className="text-xs text-muted-foreground">
-            逐章提取角色/场景/道具并入三库,断点续跑
-          </span>
-        </button>
-        <StatusPill state={statusView.pill} label={statusView.label} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="book-extraction-end">结束章</Label>
+          <Input
+            id="book-extraction-end"
+            type="number"
+            min={1}
+            max={totalChapters}
+            className="h-8 w-24 font-mono"
+            value={endDraft}
+            disabled={busy}
+            onChange={(event) => setEndDraft(event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>模型(只读)</Label>
+          <p className="flex h-8 items-center font-mono text-sm text-foreground/90">
+            {modelLabel ?? "未配置"}
+          </p>
+        </div>
       </div>
 
-      {open ? (
-        <div className="space-y-4 border-t border-border/70 px-4 py-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="book-extraction-start">起始章</Label>
-              <Input
-                id="book-extraction-start"
-                type="number"
-                min={1}
-                max={totalChapters}
-                className="h-8 w-24 font-mono"
-                value={startDraft}
-                disabled={busy}
-                onChange={(event) => setStartDraft(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="book-extraction-end">结束章</Label>
-              <Input
-                id="book-extraction-end"
-                type="number"
-                min={1}
-                max={totalChapters}
-                className="h-8 w-24 font-mono"
-                value={endDraft}
-                disabled={busy}
-                onChange={(event) => setEndDraft(event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>模型(只读)</Label>
-              <p className="flex h-8 items-center font-mono text-sm text-foreground/90">
-                {modelLabel ?? "未配置"}
-              </p>
-            </div>
-          </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          disabled={status !== "idle" || !draftRangeValid}
+          onClick={() => launch()}
+        >
+          <Play className="h-4 w-4" />
+          开始提取
+        </Button>
+        <Button size="sm" disabled={!busy} onClick={pause}>
+          <Pause className="h-4 w-4" />
+          暂停
+        </Button>
+        <Button size="sm" disabled={status !== "paused"} onClick={() => relaunch()}>
+          <Play className="h-4 w-4" />
+          继续
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={status !== "paused" && status !== "done"}
+          onClick={() => relaunch({ retryFailed: true })}
+        >
+          <RotateCcw className="h-4 w-4" />
+          仅重跑失败
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={status !== "paused" && status !== "done"}
+          onClick={() => relaunch({ forceNew: true })}
+        >
+          <RefreshCw className="h-4 w-4" />
+          强制重提
+        </Button>
+      </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              disabled={status !== "idle" || !draftRangeValid}
-              onClick={() => launch()}
-            >
-              <Play className="h-4 w-4" />
-              开始提取
-            </Button>
-            <Button size="sm" disabled={!busy} onClick={pause}>
-              <Pause className="h-4 w-4" />
-              暂停
-            </Button>
-            <Button size="sm" disabled={status !== "paused"} onClick={() => relaunch()}>
-              <Play className="h-4 w-4" />
-              继续
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={status !== "paused" && status !== "done"}
-              onClick={() => relaunch({ retryFailed: true })}
-            >
-              <RotateCcw className="h-4 w-4" />
-              仅重跑失败
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={status !== "paused" && status !== "done"}
-              onClick={() => relaunch({ forceNew: true })}
-            >
-              <RefreshCw className="h-4 w-4" />
-              强制重提
-            </Button>
+      {status !== "idle" ? (
+        <div className="space-y-2">
+          {/* ui/progress 包装层不把 value 透传给 Radix Root,aria-valuenow 需自带 */}
+          <Progress value={progressPct} aria-valuenow={progressPct} />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="text-success">成功 {counts.success}</span>
+            <span className="text-destructive/90">失败 {counts.failed}</span>
+            <span>跳过 {counts.skipped}</span>
+            <span>剩余 {counts.pending}</span>
+            {etaMs !== null ? (
+              <>
+                <span>预计剩余</span>
+                <span className="font-mono text-foreground/80">
+                  {formatEtaMs(etaMs)}
+                </span>
+              </>
+            ) : null}
           </div>
-
-          {status !== "idle" ? (
-            <div className="space-y-2">
-              {/* ui/progress 包装层不把 value 透传给 Radix Root,aria-valuenow 需自带 */}
-              <Progress value={progressPct} aria-valuenow={progressPct} />
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span className="text-success">成功 {counts.success}</span>
-                <span className="text-destructive/90">失败 {counts.failed}</span>
-                <span>跳过 {counts.skipped}</span>
-                <span>剩余 {counts.pending}</span>
-                {etaMs !== null ? (
-                  <>
-                    <span>预计剩余</span>
-                    <span className="font-mono text-foreground/80">
-                      {formatEtaMs(etaMs)}
-                    </span>
-                  </>
-                ) : null}
-              </div>
-              {status === "quota_wait" && resumeAt !== null ? (
-                <p className="rounded-lg border border-warning/25 bg-warning/[0.06] px-3 py-2 text-xs text-warning">
-                  等待额度重置至 {formatQuotaResetTime(resumeAt)}(到点自动续跑,不计失败)
-                </p>
-              ) : null}
-              {lastError ? (
-                <p className="text-xs text-destructive/90">{lastError}</p>
-              ) : null}
-            </div>
-          ) : lastError ? (
+          {status === "quota_wait" && resumeAt !== null ? (
+            <p className="rounded-lg border border-warning/25 bg-warning/[0.06] px-3 py-2 text-xs text-warning">
+              等待额度重置至 {formatQuotaResetTime(resumeAt)}(到点自动续跑,不计失败)
+            </p>
+          ) : null}
+          {lastError ? (
             <p className="text-xs text-destructive/90">{lastError}</p>
           ) : null}
+        </div>
+      ) : lastError ? (
+        <p className="text-xs text-destructive/90">{lastError}</p>
+      ) : null}
 
-          {failures.length ? (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-foreground/80">
-                失败清单(点击跳章,可在章内重试)
-              </p>
-              <div className="max-h-40 space-y-1 overflow-y-auto">
-                {failures.map((failure) => (
-                  <Button
-                    key={failure.chapterId}
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto w-full justify-start gap-2 px-2 py-1 text-left text-xs"
-                    onClick={() => {
-                      void switchChapter(failure.chapterId);
-                    }}
-                  >
-                    <span className="font-mono">
-                      第 {chapterNumberFromId(failure.chapterId)} 章
-                    </span>
-                    <span className="min-w-0 truncate text-muted-foreground">
-                      {failure.error}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+      {failures.length ? (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-foreground/80">
+            失败清单(点击跳章,可在章内重试)
+          </p>
+          <div className="max-h-40 space-y-1 overflow-y-auto">
+            {failures.map((failure) => (
+              <Button
+                key={failure.chapterId}
+                variant="ghost"
+                size="sm"
+                className="h-auto w-full justify-start gap-2 px-2 py-1 text-left text-xs"
+                onClick={() => {
+                  void switchChapter(failure.chapterId);
+                }}
+              >
+                <span className="font-mono">
+                  第 {chapterNumberFromId(failure.chapterId)} 章
+                </span>
+                <span className="min-w-0 truncate text-muted-foreground">
+                  {failure.error}
+                </span>
+              </Button>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 入口 + 详情弹窗(10-20 用户裁定):入口=资产提取卡头行按钮(状态与运行摘要
+ * 实时刷新,轮询挂本组件,弹窗关闭也不停);完整控制面板在弹窗内。
+ */
+export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: number }) {
+  const status = useAssetsBookExtractionStore((state) => state.status);
+  const counts = useAssetsBookExtractionStore((state) => state.counts);
+  const refresh = useAssetsBookExtractionStore((state) => state.refresh);
+  const projectId = useProjectStore((state) => state.activeProjectId);
+
+  // 轮询订阅:挂载即读一次(App 重启后恢复 paused 视图),运行期每 2s 刷——
+  // 挂入口组件,弹窗关闭时头行摘要仍实时
+  useEffect(() => {
+    void refresh(projectId ?? undefined);
+    const timer = window.setInterval(() => {
+      void refresh(projectId ?? undefined);
+    }, BOOK_REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [projectId, refresh]);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const statusView = STATUS_VIEW[status];
+  const busy = status === "running" || status === "quota_wait";
+
+  return (
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          data-testid="book-extraction-entry"
+          className="h-8 gap-2 px-3"
+        >
+          <BookText className="h-4 w-4 text-primary" />
+          <span>全书提取</span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {busy
+              ? `${statusView.label} · 成功 ${counts.success} · 剩余 ${counts.pending}`
+              : statusView.label}
+          </span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[680px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BookText className="h-4 w-4 text-primary" />
+            全书提取
+            <StatusPill state={statusView.pill} label={statusView.label} />
+          </DialogTitle>
+          <DialogDescription>
+            逐章提取角色/场景/道具并入三库,断点续跑
+          </DialogDescription>
+        </DialogHeader>
+        <AssetsBookExtractionPanel totalChapters={totalChapters} />
+      </DialogContent>
+    </Dialog>
   );
 }

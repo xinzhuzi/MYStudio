@@ -7,7 +7,7 @@
  * 额度窗口/ETA/失败清单跳章/单章按钮联动禁用。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const runnerMocks = vi.hoisted(() => ({
   runEntityExtraction: vi.fn(),
@@ -79,6 +79,14 @@ function expectButtons(expected: Record<ButtonKey, boolean>) {
       expected[key],
     );
   }
+}
+
+/** 10-20 改版:完整面板住进详情弹窗——点头行入口打开后再断言面板内容。 */
+async function openBookDialog() {
+  fireEvent.click(screen.getByTestId("book-extraction-entry"));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "开始提取" })).toBeTruthy(),
+  );
 }
 
 beforeEach(() => {
@@ -169,51 +177,81 @@ describe("格式化", () => {
   });
 });
 
-describe("AC1 按钮态随 runner 状态切换", () => {
-  it("idle:只有开始可用", () => {
+describe("10-20 改版:入口按钮 + 详情弹窗", () => {
+  it("弹窗默认关闭(面板控件不在文档);入口显示状态标签", () => {
     setStore({ status: "idle" });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    const entry = screen.getByTestId("book-extraction-entry");
+    expect(entry.textContent).toContain("全书提取");
+    expect(entry.textContent).toContain("未开始");
+    expect(screen.queryByRole("button", { name: "开始提取" })).toBeNull();
+  });
+
+  it("运行中入口摘要实时(状态 + 成功/剩余);点入口开弹窗,面板控件在座", async () => {
+    setStore({ status: "running", range: [1, 100], counts: COUNTS });
+    render(<AssetsBookExtractionCard totalChapters={100} />);
+    const entry = screen.getByTestId("book-extraction-entry");
+    expect(entry.textContent).toContain("运行中");
+    expect(entry.textContent).toContain("成功 3");
+    expect(entry.textContent).toContain("剩余 95");
+    await openBookDialog();
+    expect(screen.getByLabelText("起始章")).toBeTruthy();
+    expect(screen.getByText("glm-5.3")).toBeTruthy();
+  });
+});
+
+describe("AC1 按钮态随 runner 状态切换", () => {
+  it("idle:只有开始可用", async () => {
+    setStore({ status: "idle" });
+    render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     expectButtons({ start: false, pause: true, resume: true, retryFailed: true, forceNew: true });
   });
 
-  it("running:只有暂停可用", () => {
+  it("running:只有暂停可用", async () => {
     setStore({ status: "running", range: [1, 100], counts: COUNTS });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     expectButtons({ start: true, pause: false, resume: true, retryFailed: true, forceNew: true });
   });
 
-  it("paused:继续/仅重跑失败/强制重提可用", () => {
+  it("paused:继续/仅重跑失败/强制重提可用", async () => {
     setStore({ status: "paused", range: [1, 100], counts: COUNTS });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     expectButtons({ start: true, pause: true, resume: false, retryFailed: false, forceNew: false });
   });
 
-  it("done:仅重跑失败/强制重提可用", () => {
+  it("done:仅重跑失败/强制重提可用", async () => {
     setStore({
       status: "done",
       range: [1, 100],
       counts: { success: 100, failed: 0, skipped: 0, pending: 0 },
     });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     expectButtons({ start: true, pause: true, resume: true, retryFailed: false, forceNew: false });
   });
 
-  it("quota_wait:只有暂停可用", () => {
+  it("quota_wait:只有暂停可用", async () => {
     setStore({ status: "quota_wait", range: [1, 100], counts: COUNTS });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     expectButtons({ start: true, pause: false, resume: true, retryFailed: true, forceNew: true });
   });
 
-  it("起止章输入随运行锁定;模型只读显示实际 resolve 结果", () => {
+  it("起止章输入随运行锁定;模型只读显示实际 resolve 结果", async () => {
     setStore({ status: "running", range: [1, 100] });
     render(<AssetsBookExtractionCard totalChapters={4125} />);
+    await openBookDialog();
     expect((screen.getByLabelText("起始章") as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByLabelText("结束章") as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText("glm-5.3")).toBeTruthy();
   });
 
-  it("缺省起止章=1..totalChapters,模型回退当前 resolve 链结果", () => {
+  it("缺省起止章=1..totalChapters,模型回退当前 resolve 链结果", async () => {
     render(<AssetsBookExtractionCard totalChapters={4125} />);
+    await openBookDialog();
     expect((screen.getByLabelText("起始章") as HTMLInputElement).value).toBe("1");
     expect((screen.getByLabelText("结束章") as HTMLInputElement).value).toBe("4125");
     expect(screen.getByText("glm-5.3")).toBeTruthy();
@@ -221,9 +259,10 @@ describe("AC1 按钮态随 runner 状态切换", () => {
 });
 
 describe("AC2 进度/ETA/额度窗口展示", () => {
-  it("四计数+进度条+ETA 可见", () => {
+  it("四计数+进度条+ETA 可见", async () => {
     setStore({ status: "running", range: [1, 100], counts: COUNTS, etaMs: 90_000 });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     expect(screen.getByText("成功 3")).toBeTruthy();
     expect(screen.getByText("失败 1")).toBeTruthy();
     expect(screen.getByText("跳过 1")).toBeTruthy();
@@ -235,7 +274,7 @@ describe("AC2 进度/ETA/额度窗口展示", () => {
     expect(screen.getByText("2 分钟")).toBeTruthy();
   });
 
-  it("quota_wait 显示「等待额度重置至 HH:MM」", () => {
+  it("quota_wait 显示「等待额度重置至 HH:MM」", async () => {
     setStore({
       status: "quota_wait",
       range: [1, 100],
@@ -243,12 +282,13 @@ describe("AC2 进度/ETA/额度窗口展示", () => {
       resumeAt: Date.now() + 3_600_000,
     });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     expect(screen.getByText(/等待额度重置至 ([01]\d|2[0-3]):[0-5]\d/)).toBeTruthy();
   });
 });
 
 describe("AC3 失败清单点击跳章", () => {
-  it("失败项=章号+错误摘要,点击调 switchChapter", () => {
+  it("失败项=章号+错误摘要,点击调 switchChapter", async () => {
     const switchChapter = vi.fn().mockResolvedValue(undefined);
     useStudioStore.setState({ switchChapter } as never);
     setStore({
@@ -258,6 +298,7 @@ describe("AC3 失败清单点击跳章", () => {
       failures: [{ chapterId: "chapter-003", error: "请求超时" }],
     });
     render(<AssetsBookExtractionCard totalChapters={100} />);
+    await openBookDialog();
     fireEvent.click(screen.getByRole("button", { name: /第 3 章/ }));
     expect(switchChapter).toHaveBeenCalledWith("chapter-003");
     expect(screen.getByText(/请求超时/)).toBeTruthy();

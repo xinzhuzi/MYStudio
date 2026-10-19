@@ -9,20 +9,28 @@ import { AssetDerivationPreview } from "./previews/asset-derivation-preview";
 function SectionShell({
   title,
   description,
+  /** 头行右侧动作区(10-20 用户裁定:章节选择器/全书提取入口等与标题横向同行) */
+  actions,
   children,
 }: {
   /** 缺省=无壳头(内容组件自带头部,如资产生成) */
   title?: string;
   description?: string;
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="overflow-hidden rounded-lg border border-border/70">
       {title ? (
-        <div className="border-b border-border/70 bg-panel/80 px-4 py-3">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {description ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border/70 bg-panel/80 px-4 py-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+            {description ? (
+              <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+            ) : null}
+          </div>
+          {actions ? (
+            <div className="flex flex-wrap items-center gap-3">{actions}</div>
           ) : null}
         </div>
       ) : null}
@@ -76,15 +84,19 @@ export function ScriptAssetManagementTab({
       <SectionShell
         title="资产提取"
         description="先从当前剧本提取角色、场景、道具，并同步检查资产库状态。"
+        /* 10-20 用户裁定:「章节」选择器与「资产提取」标题横向同行(旧「标题说明
+           之后竖排」口径作废);全书提取撤出内联,入口按钮同在头行,详情弹窗承载 */
+        actions={
+          <>
+            {/* 章节切换选择器:全仓唯一一份,覆盖提取+生成两区——同页只挂一份
+                (AssetsTab 与生成区同 render 树,两处各挂=同屏 testid 撞车) */}
+            <ChapterSwitchSelect chapters={novelChapters} label="章节" />
+            {/* C2 全书提取(10-20 改版):头行入口按钮 + 详情弹窗 */}
+            <AssetsBookExtractionCard totalChapters={novelChapters.length} />
+          </>
+        }
       >
         <div className="bg-background/90 p-3">
-          {/* 章节切换选择器(10-19 用户裁定:放「资产提取」标题说明布局的后面、
-              章节卡列表之前;不再挂页面顶行):全仓唯一一份,覆盖提取+生成两区——
-              同页只挂一份(AssetsTab 与生成区同 render 树,两处各挂=同屏 testid 撞车) */}
-          <ChapterSwitchSelect chapters={novelChapters} label="章节" />
-          {/* C2 全书提取控制面板(父任务 D14):折叠区挂在章节选择器与单章列表
-              之间——起止章/进度/额度窗口/失败清单;运行中联动禁用下方单章提取按钮 */}
-          <AssetsBookExtractionCard totalChapters={novelChapters.length} />
           <AssetsTab
             novelChapters={novelChapters}
             agentWorkData={agentWorkData}
