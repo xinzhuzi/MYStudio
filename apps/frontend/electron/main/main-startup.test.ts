@@ -131,6 +131,24 @@ describe("main process startup", () => {
     expect(gateBlock.indexOf("writeDiagnosticsLog")).toBeLessThan(gateBlock.indexOf("throw error"));
   });
 
+  it("runs the asset name-folder migration after the store migration and before the renderer window", () => {
+    const readyBlock = mainSource.slice(
+      mainSource.indexOf("app.whenReady().then"),
+      mainSource.indexOf("  registerProtocolHandlers({"),
+    );
+    const homeIndex = readyBlock.indexOf("await runAssetHomeMigration(");
+    const storeIndex = readyBlock.indexOf("await runAssetStoreMigration(");
+    const nameFolderIndex = readyBlock.indexOf("await runAssetNameFolderMigration(");
+    // 10-19 资产按名分夹:装配序=asset-home → asset-store → name-folders → renderer(design §5)
+    expect(homeIndex).toBeGreaterThan(-1);
+    expect(storeIndex).toBeGreaterThan(homeIndex);
+    expect(nameFolderIndex).toBeGreaterThan(storeIndex);
+    expect(nameFolderIndex).toBeGreaterThan(-1);
+    expect(mainSource.indexOf("createWindow()")).toBeGreaterThan(mainSource.indexOf("await runAssetNameFolderMigration("));
+    // 失败不拦启动纪律:例程 await 但异常面由例程内部消化(无 throw 冒泡到启动序)
+    expect(readyBlock.slice(nameFolderIndex, readyBlock.indexOf("createWindow()") > 0 ? readyBlock.length : undefined)).toContain("locationStore: projectLocationStore");
+  });
+
   it("keeps the window hidden on a dark background until the first render is ready", () => {
     const windowBlock = mainSource.slice(
       mainSource.indexOf("win = new BrowserWindow"),

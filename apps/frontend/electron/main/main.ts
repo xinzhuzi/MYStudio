@@ -24,6 +24,7 @@ import {createTtsRuntimeController} from '../tts/tts-runtime'
 import {resolveTtsHomeRoot} from '../storage/asset-home'
 import {runAssetHomeMigration} from '../storage/asset-home-migration'
 import {runAssetStoreMigration} from '../storage/asset-store-migration'
+import {runAssetNameFolderMigration} from '../storage/asset-name-folder-migration'
 import {
   isNonEmptyString,
 } from '../runtime/update-policy'
@@ -647,6 +648,14 @@ app.whenReady().then(async () => {
     getStorageBasePath: () => getStorageBasePath(),
     locationStore: projectLocationStore,
     log: (message) => console.warn(`[asset-store-migration] ${message}`),
+  })
+  // 10-19 资产按名分夹:role/scene/tool 存量平铺文件迁入名夹(二段之后 renderer 前同窗)。
+  // 逐项目资产根独立相位机(marker 落资产根):核账不过不落 marker,下轮幂等续跑;
+  // 失败不拦启动(台账留痕+console.warn),不 import assets-sqlite 的库副作用。
+  await runAssetNameFolderMigration({
+    getStorageBasePath: () => getStorageBasePath(),
+    locationStore: projectLocationStore,
+    log: (message) => console.warn(`[asset-name-folders] ${message}`),
   })
   // 云中继先于一切引擎拉起(节点侧常驻寻址;绑口失败不拦启动,云端节点会
   // 以「通道未接通」大白话显式报错)。
