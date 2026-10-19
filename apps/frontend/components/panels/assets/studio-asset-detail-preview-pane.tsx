@@ -35,6 +35,8 @@ interface StudioAssetDetailPreviewPaneProps {
   audioSrc: string;
   Icon: LucideIcon;
   onCarouselApi: (api: CarouselApi) => void;
+  /** 10-19 用户令:点击轮播图开全屏缩放预览(MediaPreviewModal) */
+  onImageClick?: (index: number) => void;
   onTranscribe: () => void | Promise<void>;
   onRemoveImage: (image: AssetImage, index: number) => void | Promise<void>;
   onAddImage: () => void | Promise<void>;
@@ -66,6 +68,7 @@ export function StudioAssetDetailPreviewPane({
   audioSrc,
   Icon,
   onCarouselApi,
+  onImageClick,
   onTranscribe,
   onRemoveImage,
   onAddImage,
@@ -143,7 +146,12 @@ export function StudioAssetDetailPreviewPane({
               <CarouselContent>
                 {images.map((image, index) => (
                   <CarouselItem key={image.filePath || index}>
-                    <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-background">
+                    <div
+                      className="relative aspect-square overflow-hidden rounded-lg border border-border bg-background"
+                      onClick={() => onImageClick?.(index)}
+                      role={onImageClick ? "button" : undefined}
+                      style={onImageClick ? { cursor: "zoom-in" } : undefined}
+                    >
                       <img
                         src={image.url}
                         alt={image.name}

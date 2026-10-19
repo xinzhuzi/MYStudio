@@ -48,6 +48,7 @@ import {
 } from "@/lib/studio/asset-family-images";
 import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetOperationError } from "./studio-asset-detail-utils";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
+import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { subscribeAssetCarouselIndex } from "./studio-asset-detail-carousel";
 import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";
 
@@ -135,6 +136,8 @@ export function StudioAssetDetailDialog({
   // 10-19 删后即时刷新(用户报障):族兄弟删除成功后 familyImages prop 不归本弹窗所有,
   // 本地记已删路径并把它们从展示序滤掉;切资产即清(重开弹窗=族重取,天然一致)。
   const [removedFamilyPaths, setRemovedFamilyPaths] = useState<string[]>([]);
+  // 10-19 用户令:点击轮播图开全屏缩放预览(MediaPreviewModal,滚轮缩放/双击/拖拽/翻页)
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
   // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
   const displayImages = useMemo<FamilyDisplayImageEntry[]>(
@@ -288,6 +291,7 @@ export function StudioAssetDetailDialog({
             audioSrc={audioSrc}
             Icon={Icon}
             onCarouselApi={syncCarouselIndex}
+            onImageClick={setPreviewIndex}
             onTranscribe={handleTranscribe}
             onRemoveImage={async (image, index) => {
               // 10-19 删后即时刷新(用户报障):真删成功才过滤展示序(删失败不动);
@@ -496,6 +500,16 @@ export function StudioAssetDetailDialog({
         </div>
         </DialogContent>
       </Dialog>
+      {/* 10-19 用户令:全屏缩放预览——复用 MediaPreviewModal(滚轮缩放/双击/拖拽/批量翻页) */}
+      {previewIndex !== null && displayImages[previewIndex] && (
+        <ImagePreviewModal
+          imageUrl={displayImages[previewIndex]?.url ?? ""}
+          imageUrls={displayImages.map((img) => img.url ?? "").filter(Boolean)}
+          initialIndex={previewIndex}
+          isOpen={previewIndex !== null}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
       {asset.type === "role" && (
         <RoleVoiceAssignDialog
           character={{ id: asset.id, name: parsedDraftName.primaryName }}
