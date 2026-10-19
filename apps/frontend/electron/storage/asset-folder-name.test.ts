@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  assetDisplayName,
+  assetFamilyFolderKey,
   sanitizeAssetFolderName,
   sanitizeAssetFolderNameDetailed,
   usesAssetNameFolder,
@@ -101,5 +103,20 @@ describe("usesAssetNameFolder(R1 分夹域:role/scene/tool 走名夹,clip/audio 
     expect(usesAssetNameFolder("tool")).toBe(true);
     expect(usesAssetNameFolder("clip")).toBe(false);
     expect(usesAssetNameFolder("audio")).toBe(false);
+  });
+});
+
+describe("序号目录修正(10-19:前导数字/编码段跳过)", () => {
+  it("家键跳过前导纯数字段与目录编码段", () => {
+    expect(assetFamilyFolderKey("01_人皇苍_海报_清修人型版")).toBe("人皇苍");
+    expect(assetFamilyFolderKey("0002_R-3239_回元丹")).toBe("回元丹");
+    expect(assetFamilyFolderKey("0235_炼-235_玄符")).toBe("玄符");
+    expect(assetFamilyFolderKey("晏燎_练气期_三视图_v1")).toBe("晏燎");
+    expect(assetFamilyFolderKey("晏燎")).toBe("晏燎");
+  });
+  it("展示名剥前导序号段(文件名基)", () => {
+    expect(assetDisplayName("01_人皇苍_海报_清修人型版")).toBe("人皇苍_海报_清修人型版");
+    expect(assetDisplayName("0002_R-3239_回元丹")).toBe("R-3239_回元丹");
+    expect(assetDisplayName("晏燎")).toBe("晏燎");
   });
 });

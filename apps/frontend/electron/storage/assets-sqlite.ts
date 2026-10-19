@@ -176,9 +176,24 @@ export function sanitizeAssetFolderName(name: string) {
  * (「李先生;管事」分号形态)不含下划线不受扰。首段空(如名以_开头)回落整名。
  */
 export function assetFamilyFolderKey(name: string) {
-  const raw = String(name ?? "");
-  const head = raw.split("_")[0] ?? "";
-  return sanitizeAssetFolderName(head.trim() ? head : raw);
+  return sanitizeAssetFolderName(assetFamilyHead(name));
+}
+
+/** 家段(10-19 序号目录修正):跳过前导纯数字段(01/0002)与目录编码段
+ * (R-1234/炼-123/丹-303),取首个实体名段——「01_人皇苍_海报」家=人皇苍,
+ * 「0002_R-3239_回元丹」家=回元丹;全段皆序号/编码回落整名(audio 纯号名不建夹)。 */
+export function assetFamilyHead(name: string): string {
+  const segments = String(name ?? "").split("_");
+  const CODE = /^(\d+|[A-Za-z]{1,3}-\d+|[\u4e00-\u9fa5]{1,2}-\d+)$/;
+  for (const seg of segments) {
+    if (!CODE.test(seg)) return seg;
+  }
+  return String(name ?? "");
+}
+
+/** 展示名基(文件名用):剥前导纯数字序号段——「01_人皇苍_x」→「人皇苍_x」。 */
+export function assetDisplayName(name: string): string {
+  return String(name ?? "").replace(/^\d+_/, "") || String(name ?? "");
 }
 
 /** 缩略图生成队列：限制并发，避免一次性 spawn 数千个 sips 进程导致主进程卡死 */

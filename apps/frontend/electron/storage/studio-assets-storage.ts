@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import {
   getDbPath, getFilesDir, runSqliteExecSafe,
-  escapeSql, assetFamilyFolderKey, usesAssetNameFolder,
+  assetDisplayName, assetFamilyFolderKey, escapeSql, usesAssetNameFolder,
 } from "./assets-sqlite";
 import { getAssetSync } from "./assets-queries";
 import { rowToSummary, runSqliteJsonSync, getThumbsDir, getAssetsDir } from "./assets-sqlite";
@@ -231,7 +231,7 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   if (!rows.length) return null;
   const asset = rows[0];
   const ext = path.extname(sourceFilePath);
-  const safeName = `${asset.name}`.replace(/[/\\:*?"<>|]/g, "_");
+  const safeName = assetDisplayName(asset.name).replace(/[/\\:*?"<>|]/g, "_");
   const destName = `${safeName}_${Date.now()}${ext}`;
   // R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(name)>/,thumbs 同构;clip/audio 平铺
   const subDir = usesAssetNameFolder(asset.type)
@@ -266,10 +266,11 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
   // 用户令(10-19):多图文件名禁双名前缀——图名已以「资产名_」开头或等于资产名时
   // 不再重复拼接(历史双前缀件=旧缺陷残迹,盘面按 md5 分类另走 orphan 清理)。
   const trimmedImageName = `${imageName}`.trim();
+  const displayBase = assetDisplayName(asset.name);
   const joinedName =
     trimmedImageName === asset.name || trimmedImageName.startsWith(`${asset.name}_`)
-      ? trimmedImageName
-      : `${asset.name}_${trimmedImageName}`;
+      ? assetDisplayName(trimmedImageName)
+      : `${displayBase}_${trimmedImageName}`;
   const safeName = joinedName.replace(/[/\\:*?"<>|]/g, "_");
   // R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(name)>/;clip/audio 平铺
   const subDir = usesAssetNameFolder(asset.type)

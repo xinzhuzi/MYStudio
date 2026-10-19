@@ -27,7 +27,7 @@ import {
  *   计数对账口径一致;raw 与 URL 编码双形态均识别)。
  */
 
-export const ASSET_NAME_FOLDERS_MARKER = "_name-folders-v2.json";
+export const ASSET_NAME_FOLDERS_MARKER = "_name-folders-v3.json";
 
 const defaultNameFolderIo: MigrationIo = {
   existsSync: (filePath) => fs.existsSync(filePath),
@@ -173,7 +173,7 @@ export interface AssetNameFolderMigrationResult {
 }
 
 type NameFolderLedger = {
-  version: 2;
+  version: 3;
   startedAt: number;
   finishedAt?: number;
   interrupted?: boolean;
@@ -201,9 +201,14 @@ class NameFolderMigrationInterrupted extends Error {}
 /** 家段(首「_」前,空段回落整名)——10-19 用户终裁「一族一夹」:行名
  * `${实体名}_${修饰…}` 首段=归属实体;基行(如 晏燎)无下划线即本身。 */
 function familyHead(name: string): string {
-  const raw = String(name ?? "");
-  const head = raw.split("_")[0] ?? "";
-  return head.trim() ? head : raw;
+  // 10-19 序号目录修正:跳过前导纯数字段与目录编码段(R-1234/炼-123/丹-303),
+  // 与 assets-sqlite.assetFamilyHead 同款规则(避免循环依赖就地复刻)。
+  const segments = String(name ?? "").split("_");
+  const CODE = /^(\d+|[A-Za-z]{1,3}-\d+|[\u4e00-\u9fa5]{1,2}-\d+)$/;
+  for (const seg of segments) {
+    if (!CODE.test(seg)) return seg;
+  }
+  return String(name ?? "");
 }
 
 /** 剪空壳目录(家夹收敛后旧行名夹清空即删;自底向上 best-effort,非空留待下轮)。 */
@@ -354,12 +359,12 @@ async function migrateAssetRoot(
   const noop = (reason: string): AssetNameFolderRootResult => ({ root: assetRoot, status: "noop", reason, ledgerDir: null, movedFiles: 0, rewrittenRefs: 0, anomalies: [] });
 
   // P0 前置:marker 在场=已迁;资产根/库缺=无事项。
-  if (io.existsSync(markerPath)) return noop("marker v2 在场,家夹已收敛");
+  if (io.existsSync(markerPath)) return noop("marker v3 在场,家夹已收敛");
   if (!io.existsSync(assetRoot)) return noop("资产根不存在");
   if (!io.existsSync(dbPath)) return noop("无 assets.db");
 
   const ledger: NameFolderLedger = {
-    version: 2,
+    version: 3,
     startedAt: io.now(),
     assetRoot,
     projectRoot,
@@ -472,7 +477,7 @@ async function migrateAssetRoot(
         `1. 退出 App;2. 按 move-map.json 反向逐文件 rename(files 与 thumbs 双树:`,
         "   value → key,目标在=跳过);3. 恢复 assets.db(本台账 assets.db.orig 覆盖);",
         "4. 引用改写反向同表:store 树 asset-file://<value> → asset-file://<key>",
-        "   (move-map.json 同一张表反向用);5. 删资产根 _name-folders-v2.json。",
+        "   (move-map.json 同一张表反向用);5. 删资产根 _name-folders-v3.json。",
         "- marker 删除后重跑即重新迁移判定(幂等闭环);",
         "- 异源同名冲突件(anomalies 留痕)从未被挪动,回滚无需处理;",
         "- 本台账 assets.db.orig 为 db 级最后兜底(永不删除)。",
@@ -666,10 +671,12 @@ async function migrateAssetRoot(
 
     // ===== P6 marker:落资产根(与 assets.db 同层;核账已绿) =====
     await phase("P6-write-marker", async () => {
-      const legacyMarker = path.join(assetRoot, "_name-folders-v1.json");
+      for (const legacy of ["_name-folders-v1.json", "_name-folders-v2.json"]) {
+      const legacyMarker = path.join(assetRoot, legacy);
       if (io.existsSync(legacyMarker)) io.rmSync(legacyMarker, { recursive: true, force: true });
+      }
       io.writeFileSync(markerPath, `${JSON.stringify({
-        version: 2,
+        version: 3,
         familyFolders: true,
         finishedAt: new Date(io.now()).toISOString(),
         ledgerDir: ensureLedgerDir(),

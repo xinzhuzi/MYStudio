@@ -321,7 +321,7 @@ describe("runAssetNameFolderMigration 迁移状态机(design §5 P0-P6)", () => 
     expect(fs.existsSync(markerPath)).toBe(true);
     expect(fs.existsSync(path.join(fixture.assetRoot, "files", ASSET_NAME_FOLDERS_MARKER))).toBe(false);
     const marker = JSON.parse(fs.readFileSync(markerPath, "utf-8")) as { version: number };
-    expect(marker.version).toBe(2);
+    expect(marker.version).toBe(3);
 
     // 台账:db 原件+manifest+README+move-map 落项目根 backups(根目录铁令)
     expect(root.ledgerDir).toContain(path.join(fixture.projectRoot, "backups", "asset-name-folders-"));
