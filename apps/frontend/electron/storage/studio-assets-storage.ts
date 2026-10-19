@@ -260,28 +260,29 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   fs.mkdirSync(path.dirname(destPath), { recursive: true });
   fs.copyFileSync(sourceFilePath, destPath);
   const newFilePath = `${subDir}/${destName}`;
+  // 10-19 用户裁定「必须是并存」:换主图=旧主图收编进 images[] 作历史版本,
+  // 永不物理删除(图生图/一键生成/更换主图三路共用此函数,一处改全家受益);
+  // 旧主图文件与缩略图留在原位,由 images[] 引用——也根治了「行级指针与 images[]
+  // 断链」家族病(replace 只写行级不进 images[] 的旧设计)。
+  const prevImages: StoredAssetImage[] = JSON.parse(asset.images || "[]");
+  let archivedImages = prevImages;
+  if (asset.filePath && !prevImages.some((img) => img.filePath === asset.filePath)) {
+    let archiveName = `${assetDisplayName(asset.name)}·旧主图`;
+    let suffix = 2;
+    while (prevImages.some((img) => img.name === archiveName) || archivedImages.some((img) => img.name === archiveName)) {
+      archiveName = `${assetDisplayName(asset.name)}·旧主图${suffix}`;
+      suffix += 1;
+    }
+    archivedImages = [...prevImages, { name: archiveName, filePath: asset.filePath }];
+  }
   const thumbDir = path.join(getThumbsDir(), subDir);
   fs.mkdirSync(thumbDir, { recursive: true });
   execFile("sips", ["-z", "200", "200", destPath, "--out", path.join(thumbDir, destName)], () => {});
   const now = new Date().toISOString();
-  runSqliteExecSafe(dbPath, `UPDATE assets SET filePath='${escapeSql(newFilePath)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
-  if (asset.filePath) {
-    // F3(10-19 修复批):删旧主图前查无他行引用(迁移对多行共享平铺路径特意保
-    // 留;无条件删会物理删掉另一行仍指着的文件——审查发现#4)。
-    const shared = runSqliteJsonSync<Array<{ n: number }>>(
-      dbPath,
-      `SELECT count(*) AS n FROM assets WHERE id!='${escapeSql(assetId)}' AND (filePath='${escapeSql(asset.filePath)}' OR images LIKE '%${escapeSql(JSON.stringify(asset.filePath)).slice(1, -1)}%');`,
-    );
-    const sharedBy = shared[0]?.n ?? 0;
-    if (sharedBy > 0) {
-      console.warn(`[assets] 旧主图被 ${sharedBy} 行共享,保留不删:${asset.filePath}`);
-    } else {
-      const oldPath = resolveAssetManagedPath(getFilesDir(), asset.filePath);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      const oldThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
-      if (fs.existsSync(oldThumb)) fs.unlinkSync(oldThumb);
-    }
-  }
+  runSqliteExecSafe(
+    dbPath,
+    `UPDATE assets SET filePath='${escapeSql(newFilePath)}', images='${escapeSql(JSON.stringify(archivedImages))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`,
+  );
   return getAssetSync(assetId);
 }
 

@@ -162,7 +162,11 @@ describe("asset file safety", () => {
     expect(updated?.sourcePath).toBeTruthy();
     expect(updated?.sourcePath).not.toBe(oldStoredPath);
     expect(existsSync(updated!.sourcePath!)).toBe(true);
-    expect(existsSync(oldStoredPath)).toBe(false);
+    // 语义迁移(10-19 用户裁定「必须是并存」):旧主图收编 images[] 历史版本,文件保留不删
+    expect(existsSync(oldStoredPath)).toBe(true);
+    expect(updated?.images ?? []).toEqual(expect.arrayContaining([
+      expect.objectContaining({ filePath: asset.filePath }),
+    ]));
   });
 });
 
@@ -260,6 +264,55 @@ describe("资产名分夹落盘(R1:role/scene/tool 名夹层,clip/audio 平铺�
     expect(existsSync(join(tempAssetRoot!, "files", "role", "晏燎", basename(updated!.filePath!)))).toBe(true);
     // thumbs 镜像同构:缩略图目录与 files 同相对路径(mkdirSync 同步在场;sips 内容生成不阻塞断言)
     expect(existsSync(join(tempAssetRoot!, "thumbs", "role", "晏燎"))).toBe(true);
+  });
+
+  it("换主图=旧主图收编 images[] 作历史版本,永不物理删除(10-19 用户裁定:必须是并存)", () => {
+    initTempAssetsStorage();
+    const srcV1 = join(tempAssetRoot!, "coexist-v1.png");
+    const srcV2 = join(tempAssetRoot!, "coexist-v2.png");
+    const srcV3 = join(tempAssetRoot!, "coexist-v3.png");
+    writeFileSync(srcV1, "v1");
+    writeFileSync(srcV2, "v2");
+    writeFileSync(srcV3, "v3");
+    const asset = addAsset({ type: "role", name: "并存回归", sourceFilePath: srcV1 });
+    const v1Path = asset.filePath ?? "";
+
+    // 第一次换主图:v1 收编为「·旧主图」历史版本,文件仍在盘上
+    const after1 = replaceAssetMainImage(asset.id, srcV2);
+    expect(after1?.images ?? []).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "并存回归·旧主图", filePath: v1Path }),
+    ]));
+    expect(existsSync(join(getFilesDir(), v1Path))).toBe(true);
+
+    // 第二次换主图:v2 也收编,历史版本递增命名不撞名,新旧文件全在
+    const v2Path = after1?.filePath ?? "";
+    const after2 = replaceAssetMainImage(asset.id, srcV3);
+    const names = (after2?.images ?? []).map((i) => i.name);
+    expect(names).toContain("并存回归·旧主图");
+    expect(names).toContain("并存回归·旧主图2");
+    expect(existsSync(join(getFilesDir(), v1Path))).toBe(true);
+    expect(existsSync(join(getFilesDir(), v2Path))).toBe(true);
+    expect((after2?.images ?? []).length).toBe(2);
+  });
+
+  it("旧主图已在 images[](导入型资产)→ 换主图不重复收编", () => {
+    initTempAssetsStorage();
+    const srcA = join(tempAssetRoot!, "already-a.png");
+    const srcB = join(tempAssetRoot!, "already-b.png");
+    writeFileSync(srcA, "a");
+    writeFileSync(srcB, "b");
+    const asset = addAsset({ type: "role", name: "导入型回归", sourceFilePath: srcA });
+    // 真导入态:直写 db 把行级主图路径同步进 images[](同路径并存)
+    execFileSync("python3", [
+      "-c",
+      "import sqlite3, sys; con=sqlite3.connect(sys.argv[1]); con.execute(\"UPDATE assets SET images=? WHERE id=?\", (sys.argv[2], sys.argv[3])); con.commit()",
+      join(tempAssetRoot!, "assets.db"),
+      JSON.stringify([{ name: "导入即列", filePath: asset.filePath }]),
+      asset.id,
+    ]);
+    const after = replaceAssetMainImage(asset.id, srcB);
+    const entriesForOld = (after?.images ?? []).filter((i) => i.filePath === asset.filePath);
+    expect(entriesForOld.length).toBe(1);
   });
 
   it("addAssetImage 落 files/<type>/<安全名>/ 名夹层", () => {
