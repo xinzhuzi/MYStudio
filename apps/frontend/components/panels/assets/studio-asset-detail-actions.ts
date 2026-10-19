@@ -260,7 +260,7 @@ export function useStudioAssetDialogActions(ctx: {
         if (promptPersistPromise) {
           await promptPersistPromise;
         }
-        const savedToLibrary = await saveGeneratedAssetImageToLibrary(
+        const _savedToLibrary = await saveGeneratedAssetImageToLibrary(
           asset.id,
           result.imageLocalPath,
           result.polishResult,
@@ -276,15 +276,19 @@ export function useStudioAssetDialogActions(ctx: {
             setDraftSetting(updated.setting || "");
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
-              newImgs.push({ name: "主图", filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+              // 10-19 用户令:废「主图」名号——一键生成结果名 = 资产名_中文日期
+              const genNow = new Date();
+              const genDate = `${genNow.getFullYear()}年${String(genNow.getMonth() + 1).padStart(2, "0")}月${String(genNow.getDate()).padStart(2, "0")}日`;
+              newImgs.push({ name: `${asset.name}_${genDate}`, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
             }
             setImages(newImgs);
+            setCurrentIndex(0);
           }
         }
-        if (!savedToLibrary) {
+        if (!_savedToLibrary) {
           toast.warning(`「${asset.name}」图片已生成，但未能写回资产库主图`);
         } else {
           toast.success(`「${asset.name}」资产生成完成`);
@@ -361,6 +365,11 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error("没有可作参考的图片，请先生成或添加图片");
       return;
     }
+    // 10-19 用户令:废「主图」名号——图生图结果名 = 原图名_中文日期(如 晏燎_练气期_正视图_v1_2026年10月19日)
+    const inputImageName = carouselImages[currentIndex]?.name || asset.name;
+    const now = new Date();
+    const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
+    const resultImageName = `${inputImageName}_${dateSuffix}`;
     setI2iPhase("generating");
     setI2iMessage(`正在转换 ${asset.name} 的画风...`);
     try {
@@ -391,7 +400,7 @@ export function useStudioAssetDialogActions(ctx: {
           if (updated) {
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
-              newImgs.push({ name: "主图", filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
@@ -512,7 +521,10 @@ export function useStudioAssetDialogActions(ctx: {
       if (lastResult?.images) {
         const newImgs: AssetImage[] = [];
         if (lastResult.previewUrl || lastResult.thumbnailUrl) {
-          newImgs.push({ name: "主图", filePath: lastResult.filePath || "", url: lastResult.previewUrl || lastResult.thumbnailUrl });
+          // 10-19 用户令:废「主图」名号——主图位=资产名_中文日期
+          const addNow = new Date();
+          const addDate = `${addNow.getFullYear()}年${String(addNow.getMonth() + 1).padStart(2, "0")}月${String(addNow.getDate()).padStart(2, "0")}日`;
+          newImgs.push({ name: `${asset.name}_${addDate}`, filePath: lastResult.filePath || "", url: lastResult.previewUrl || lastResult.thumbnailUrl });
         }
         newImgs.push(...lastResult.images);
         setFullAsset(lastResult);
@@ -549,7 +561,7 @@ export function useStudioAssetDialogActions(ctx: {
         setImages(newImgs);
         setFullAsset((current) => current ? { ...current, ...result } : result);
         setCurrentIndex(0);
-        toast.success("主图已更换");
+        toast.success("已更换");
       } else {
         toast.error("更换失败");
       }
@@ -609,7 +621,8 @@ export function useStudioAssetDialogActions(ctx: {
 
  
   async (img: AssetImage, idx: number) => {
-    if (idx === 0 && img.name === "主图") return;
+    // 10-19 用户令:废「主图」名号——重命名不再有特殊守卫
+    void idx;
     if (!getStudioAssetsBridge()?.renameImage) return;
     const newName = await new Promise<string | null>((resolve) => {
       const input = document.createElement("input");

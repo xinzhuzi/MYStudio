@@ -267,10 +267,12 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   const prevImages: StoredAssetImage[] = JSON.parse(asset.images || "[]");
   let archivedImages = prevImages;
   if (asset.filePath && !prevImages.some((img) => img.filePath === asset.filePath)) {
-    let archiveName = `${assetDisplayName(asset.name)}·旧主图`;
+    // 10-19 用户追令:废「主图」名号——存档名=原文件名(去扩展名),不再造「·旧主图」
+    const oldBase = asset.filePath.split("/").pop()?.replace(/\.[^.]+$/, "") || assetDisplayName(asset.name);
+    let archiveName = oldBase;
     let suffix = 2;
     while (prevImages.some((img) => img.name === archiveName) || archivedImages.some((img) => img.name === archiveName)) {
-      archiveName = `${assetDisplayName(asset.name)}·旧主图${suffix}`;
+      archiveName = `${oldBase}_${suffix}`;
       suffix += 1;
     }
     archivedImages = [...prevImages, { name: archiveName, filePath: asset.filePath }];
