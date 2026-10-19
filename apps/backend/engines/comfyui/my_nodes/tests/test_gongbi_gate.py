@@ -72,6 +72,24 @@ def test_weapon_state_axis_1019():
     assert v and "握柄" in v[0], v
 
 
+def test_gender_anchor_conflict_1019():
+    """1019 用户裁定:性别恒定——角色词后接错配代词拒收;正确代词与双人分句场景过。"""
+    bad = [
+        "女修立于山门石阶，他右手虚握挂定的剑鞘上端三分之一处、五指环拢鞘身。",
+        "男修立于崖畔，她按住挂定的剑柄。",
+    ]
+    for s in bad:
+        v = gate.prompt_violations(s, is_subject=True)
+        assert any("性别锚冲突" in x for x in v), (s, v)
+    ok = [
+        "女修立于山门，她右手虚握挂定的剑鞘上端三分之一处、五指环拢鞘身。",
+        "她立于山门石阶最上一级；远处一名男子守着山门。",
+    ]
+    for s in ok:
+        v = gate.prompt_violations(s, is_subject=True)
+        assert not any("性别" in x for x in v), (s, v)
+
+
 def test_verbatim_block_exempt():
     s = GOOD + "【文字要求】画面中所有文字必须是以上明确指定的中文，逐字准确；不要生成任何未指定的多余文字。"
     assert gate.prompt_violations(s, is_subject=True) == []

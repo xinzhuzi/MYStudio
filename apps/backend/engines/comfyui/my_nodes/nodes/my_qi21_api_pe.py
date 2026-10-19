@@ -698,6 +698,11 @@ def _pos_neg_clash(pos: str, neg_tokens: list[str]) -> list[str]:
     return v
 
 
+# 1019 用户裁定「女性和男性必须保持一致」:性别恒定标记(接收门⑩性别保持;「他」负向前瞻防「其他」误判)
+_F_GENDER_MARK = re.compile(r"女修|女子|道姑|女冠|姑娘|少女|她")
+_M_GENDER_MARK = re.compile(r"男修|男子|公子|道人|(?<![其])他")
+
+
 def _self_check(pos: str, neg_tokens: list[str],
                 transparent: bool, subj: str, type_pos: str = "") -> list[str]:
     """出稿机器自检(1006 B案立;1008 解耦终裁重构为零违例接收门清单)。
@@ -705,7 +710,9 @@ def _self_check(pos: str, neg_tokens: list[str],
     逐字在场 ④境界词 ⑤部件名词 ⑥正负撞词(_pos_neg_clash)。
     「负向三源在场」检随解耦退役(其对象=模型负向稿,输出侧已不采信,终稿负向
     恒由源词程序构造=结构性不缺词)。违例清单非空=不合格稿,零违例才收;
-    锚点类(匾额等普通名词)无法确定性判定,仍不在此检。"""
+    锚点类(匾额等普通名词)无法确定性判定,仍不在此检。
+    1019 三补(00003双剑案+00005失控案+性别恒定令):⑧唯一性枚举保持
+    ⑨长度帽(失控档) ⑩性别保持(整体翻转拒收,部分保留=锚在不拦)。"""
     v: list[str] = []
     pos_c = _squash(pos)  # 空白归一:"软 3D"与"软3D"判同
     # 设定卡完整类型句为固定版式；多段中的逐格细节、资料与专项区均须保留。
@@ -744,6 +751,19 @@ def _self_check(pos: str, neg_tokens: list[str],
     # ⑦最短长度门(<300字=底座/型层被丢,拒收回退装配文保底)
     if len(pos.strip()) < 300:
         v.append(f"过短:{len(pos.strip())}字(<300,底座/型层疑似被丢)")
+    # ⑧唯一性枚举保持(1019:00003 案改写丢「仅此一柄」=双剑病通道)
+    if "仅此一柄" in subj and "仅此一柄" not in pos_c:
+        v.append("唯一性丢:仅此一柄(武器枚举被改丢=双剑病通道,1019)")
+    # ⑨长度帽(1019:00005 案 4265 字失控档,色卡连<br>回显进终稿;正常直拼/改写≤~2100)
+    if len(pos.strip()) > 2600:
+        v.append(f"过长:{len(pos.strip())}字(>2600,改写失控档)")
+    # ⑩性别保持(1019 用户裁定:主体句性别标记被整体翻转=拒收;部分保留=锚仍在,不拦)
+    f_in, m_in = _F_GENDER_MARK.search(subj), _M_GENDER_MARK.search(subj)
+    f_out, m_out = _F_GENDER_MARK.search(pos), _M_GENDER_MARK.search(pos)
+    if f_in and not m_in and m_out and not f_out:
+        v.append("性别翻转:主体句为女性标记,改写稿整体翻为男性指称(1019 用户裁定)")
+    elif m_in and not f_in and f_out and not m_out:
+        v.append("性别翻转:主体句为男性标记,改写稿整体翻为女性指称(1019 用户裁定)")
     return v
 
 

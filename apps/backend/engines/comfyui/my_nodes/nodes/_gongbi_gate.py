@@ -53,6 +53,21 @@ _HAIR_COLOR = re.compile(
     r"(?:玄色|墨色|乌黑|漆黑|银白|灰白|金黄|赤红|紫黑|黑|白|银|灰|棕|金|红|青|近黑)")
 
 
+# 1019 用户门禁令四:性别锚恒定(角色词后接错配代词拒收;30字窗口+句界阻断,双人分句场景不误伤)
+_GENDER_ANAPHORA = [
+    (re.compile(r"(女修|女子|道姑|女冠)[^。；]{0,30}(?<![其])他"), "女性角色词后接男性代词「他」"),
+    (re.compile(r"(男修|男子|公子|道人)[^。；]{0,30}她"), "男性角色词后接女性代词「她」"),
+]
+
+
+def _gender_conflict_violations(t: str) -> list[str]:
+    for pat, desc in _GENDER_ANAPHORA:
+        m = pat.search(t)
+        if m:
+            return [f"性别锚冲突（{desc}——女修恒「她」／男修恒「他」，性别恒定不得翻转混写，1019 用户裁定）"]
+    return []
+
+
 def _weapon_grip_violations(t: str) -> list[str]:
     out = []
     if _HILT_GRIP.search(t) and any(m in t for m in _SHEATHED) and not _DRAWN.search(t):
@@ -128,6 +143,7 @@ def prompt_violations(text: str, *, is_subject: bool, negation_only: bool = Fals
                 out.append(f"画风词「{b}」——风格归底座,主体句只写画什么")
                 break
         out.extend(_weapon_grip_violations(t))
+        out.extend(_gender_conflict_violations(t))
         hv = _hair_color_violation(t)
         if hv:
             out.append(hv)

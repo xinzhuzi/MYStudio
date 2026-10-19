@@ -473,3 +473,28 @@ class TestColorWiring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSelfCheck1019(unittest.TestCase):
+    """1019 用户裁定三补:唯一性枚举保持/长度帽/性别保持(00003 双剑案+00005 失控案+性别恒定令)。"""
+
+    def test_uniqueness_enumeration_kept(self):
+        subj = "长剑收在鞘中，全身仅此一柄长剑、始终挂定腰间。"
+        v = apipe._self_check(PADDING + "长剑收在鞘中，始终挂定腰间。", [], False, subj)
+        self.assertTrue(any("唯一性丢" in x for x in v), v)
+        v2 = apipe._self_check(PADDING + "长剑收在鞘中，全身仅此一柄长剑、始终挂定腰间。", [], False, subj)
+        self.assertFalse(any("唯一性丢" in x for x in v2), v2)
+
+    def test_length_cap_runaway(self):
+        v = apipe._self_check("填" * 3000, [], False, SUBJ)
+        self.assertTrue(any("过长" in x for x in v), v)
+
+    def test_gender_flip_rejected(self):
+        v = apipe._self_check(PADDING + "他立于山门，男装束袖。", [], False, SUBJ)
+        self.assertTrue(any("性别翻转" in x for x in v), v)
+        v2 = apipe._self_check(PADDING + "她立于山门，女修道袍。", [], False, SUBJ)
+        self.assertFalse(any("性别翻转" in x for x in v2), v2)
+
+
+if __name__ == "__main__":
+    unittest.main()
