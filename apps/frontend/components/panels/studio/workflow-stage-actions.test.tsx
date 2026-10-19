@@ -3324,6 +3324,24 @@ describe("资产页章选择接线", () => {
     );
   });
 
+  it("10-20 D34 横排布局锚:章节选择器与全书提取入口都在「资产提取」标题同一头行内(非正文竖排)", () => {
+    setupStores();
+    render(<ScriptAssetManagementTab {...makeManagementProps()} />);
+
+    // SectionShell 头行=section 首子元素(标题存在时);标题、章节选择器、
+    // 全书提取入口三者同栖头行;正文(AssetsTab 章卡)不在头行
+    const title = screen.getByText("资产提取", { selector: "h3" });
+    const section = title.closest("section");
+    expect(section).toBeTruthy();
+    const headerRow = section?.firstElementChild ?? null;
+    expect(headerRow).toBeTruthy();
+    expect(headerRow?.contains(title)).toBe(true);
+    expect(headerRow?.contains(screen.getByTestId("chapter-select-trigger"))).toBe(true);
+    expect(headerRow?.contains(screen.getByTestId("book-extraction-entry"))).toBe(true);
+    // 全书提取详情弹窗默认关闭:入口在座但面板控件不进文档
+    expect(screen.queryByRole("button", { name: "开始提取" })).toBeNull();
+  });
+
   it("点选章项派发 useStudioStore.switchChapter(装载器接管,UI 只做触发器)", async () => {
     setupStores();
     const switchSpy = vi
