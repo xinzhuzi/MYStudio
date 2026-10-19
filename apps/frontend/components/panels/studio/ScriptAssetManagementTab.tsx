@@ -1,4 +1,5 @@
 import { AssetsTab } from "./AssetsTab";
+import { AssetsBookExtractionCard } from "./AssetsBookExtractionCard";
 import { ChapterSwitchSelect } from "./ChapterSwitchSelect";
 import { ScriptAssetGenerationTab } from "./ScriptAssetGenerationTab";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -81,6 +82,9 @@ export function ScriptAssetManagementTab({
               章节卡列表之前;不再挂页面顶行):全仓唯一一份,覆盖提取+生成两区——
               同页只挂一份(AssetsTab 与生成区同 render 树,两处各挂=同屏 testid 撞车) */}
           <ChapterSwitchSelect chapters={novelChapters} label="章节" />
+          {/* C2 全书提取控制面板(父任务 D14):折叠区挂在章节选择器与单章列表
+              之间——起止章/进度/额度窗口/失败清单;运行中联动禁用下方单章提取按钮 */}
+          <AssetsBookExtractionCard totalChapters={novelChapters.length} />
           <AssetsTab
             novelChapters={novelChapters}
             agentWorkData={agentWorkData}

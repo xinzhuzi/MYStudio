@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Boxes, ChevronDown, FileText, WandSparkles } from "lucide-react";
+import { useAssetsBookExtractionStore } from "./AssetsBookExtractionCard";
 
 // 剧本是场次标题+镜头行+台词行的连续单行结构(场与场之间才空行),
 // CommonMark 会把段内单换行合并成空格,p 需 whitespace-pre-line 保住行断
@@ -107,6 +108,11 @@ export function AssetsBatchCard({
   getAssetStatus: (type: AssetType, name: string, note?: string) => AssetStatus;
 }) {
   const [scriptDialogOpen, setScriptDialogOpen] = useState(false);
+  // AC4/D12:全书提取在飞(running/quota_wait)时锁单章提取按钮——订阅面板
+  // 单一状态源,组件零本地复制;切章/查看等其余交互不受阻
+  const bookExtractionBusy = useAssetsBookExtractionStore(
+    (state) => state.status === "running" || state.status === "quota_wait",
+  );
   return (
     <Card className="rounded-lg">
       <CardHeader className="flex-row items-center justify-between gap-2 space-y-0 py-3">
@@ -150,7 +156,7 @@ export function AssetsBatchCard({
           ) : null}
           <Button
             size="sm"
-            disabled={!script || extractingId !== null}
+            disabled={!script || extractingId !== null || bookExtractionBusy}
             onClick={() => onRun(chapter.id)}
           >
             <Boxes className="h-4 w-4" />
