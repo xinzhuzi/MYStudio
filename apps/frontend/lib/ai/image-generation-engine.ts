@@ -485,6 +485,10 @@ async function _generateFreedomImageInner(
     return result;
   } catch (error) {
     if (!isImagesEndpointGatewayFailure(error)) throw error;
+    // 10-19 实弹勘误(晏燎画风转换 404 报障):本地 sidecar 无 /v1/chat/completions 路由,
+    // chat 回退只对云端有意义——本地链直抛原始错误(503「引擎未就绪」信息完整可懂,
+    // 降打 chat 只会把真因盖成 Route not found 404)
+    if (isLocalImageProvider(config.provider)) throw error;
     // 「200 非 JSON」是服务端稳定损坏(非瞬时故障),记指纹让后续请求跳过
     // images 端点;5xx/超时类瞬时故障不记,保留自愈机会
     if (/invalid json/i.test(error instanceof Error ? error.message : String(error))) {

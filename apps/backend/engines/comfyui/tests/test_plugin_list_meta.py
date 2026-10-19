@@ -124,8 +124,9 @@ class TestListPluginsEnrichment:
         assert row["state"] == "installed"  # 无最新版本缓存 → 不判可更新
 
         # 本地四件套按台账签名进了缓存文件,二次调用不重算
+        # (10-19 kjnodes 案:签名扩盘上 pyproject/requirements mtime/size,前缀=台账三段)
         cache = json.loads((fake_env / "plugin_meta_cache.json").read_text(encoding="utf-8"))
-        assert cache["local"]["ComfyUI-Demo"]["sig"] == "abc1234|1.0.0|1789000000"
+        assert cache["local"]["ComfyUI-Demo"]["sig"].startswith("abc1234|1.0.0|1789000000|")
         assert cache["local"]["ComfyUI-Demo"]["meta"]["license"] == "Apache-2.0"
 
     def test_stars_cache_fills_without_network_and_author_stays_local(self, fake_env):
@@ -177,6 +178,62 @@ class TestListPluginsEnrichment:
         merged = json.loads((fake_env / "plugin_meta_cache.json").read_text(encoding="utf-8"))
         assert merged["byRepo"]["https://github.com/someone/comfyui-demo"]["stars"] == 777  # 未被覆盖
         assert "ComfyUI-Demo" in merged["local"]
+
+    def test_disk_change_invalidates_local_meta_cache(self, fake_env, monkeypatch):
+        """10-19 kjnodes 案锚:本地四件套缓存必须被盘上变化击穿——
+        ① 旧三段式签名(前役缓存)自动失效重算(装机陈年 version=None 自愈);
+        ② 盘上 pyproject 更新(ComfyUI-Manager/手动 git,台账不动)→ 重算出新版。"""
+        import os
+
+        plugin = fake_env / "ComfyUI" / "custom_nodes" / "ComfyUI-Demo"
+        ledger = plugin_manager.cm.plugin_ledger()
+        ledger["ComfyUI-Demo"]["version"] = "672ba9e5"  # 台账坐标=裸 sha(回退展示的陈年态)
+
+        # ① 旧格式缓存(三段签名,version=None)→ 新签名不命中 → 重算
+        (fake_env / "plugin_meta_cache.json").write_text(json.dumps({
+            "local": {"ComfyUI-Demo": {
+                "sig": "abc1234|1.0.0|1789000000",
+                "meta": {"author": "陈年作者", "repo": None, "desc": "陈年描述",
+                         "license": "MIT", "version": None, "deps": ["old"]},
+            }}
+        }, ensure_ascii=False), encoding="utf-8")
+        row = list_plugins()[0]
+        assert row["version"] == "1.0.0"  # 盘上 pyproject 真值,非台账裸 sha 回退
+        assert row["desc"] == "Demo nodes for tests."
+
+        # ② 盘上 pyproject 升版(台账不动)→ mtime 锚击穿缓存 → 展示新版
+        (plugin / "pyproject.toml").write_text(
+            '[project]\nname = "comfyui-demo"\ndescription = "Demo nodes for tests."\n'
+            'version = "2.0.0"\nlicense = { file = "LICENSE" }\n',
+            encoding="utf-8",
+        )
+        os.utime(plugin / "pyproject.toml", ns=(10**9, 10**9))  # 显式位移 mtime 防同 ns
+        assert list_plugins()[0]["version"] == "2.0.0"
+
+    def test_git_probes_gated_on_own_dotgit(self, fake_env, monkeypatch):
+        """10-19 krea2 案锚:引擎本体是 git 克隆,无 .git 的插件目录里跑 git
+        remote/log 会解析到父仓库(把 comfyanonymous/ComfyUI 当成插件上游)。
+        git 探针必须以目录自身 .git 为闸——gitless 行不吃引擎身份。"""
+        plugin = fake_env / "ComfyUI" / "custom_nodes" / "ComfyUI-Demo"
+
+        def leaking_git(args, *rest, **kwargs):
+            if args[:2] == ["log", "-1"]:
+                return "Daxiong (Lin)"
+            if args[:3] == ["remote", "get-url", "origin"]:
+                return "https://github.com/comfyanonymous/ComfyUI"
+            return ""
+        monkeypatch.setattr(plugin_manager, "_git", leaking_git)
+
+        # ① 无 .git:探针被闸死,不吸收父仓库身份(repo 走台账真值)
+        row = list_plugins()[0]
+        assert row["author"] is None
+        assert row["repo"] == "https://github.com/someone/comfyui-demo"
+
+        # ② 有 .git:正常吸收自身 git 身份(清缓存强制重算)
+        (plugin / ".git").mkdir()
+        (fake_env / "plugin_meta_cache.json").unlink()
+        row = list_plugins()[0]
+        assert row["author"] == "Daxiong (Lin)"
 
     def test_updatable_verdict_sha_only(self, fake_env, monkeypatch):
         """10-19 帧插值案根修锚:「可更新」唯一判据=盘上真实 HEAD 与远端默认

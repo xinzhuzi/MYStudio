@@ -1084,19 +1084,25 @@ def _read_pyproject_meta(path: Path) -> tuple[str | None, str | None, str | None
 
 
 def _plugin_local_meta(plugin_dir: Path) -> dict:
-    """插件目录离线元数据:git 作者+仓库地址、pyproject、requirements、LICENSE。"""
+    """插件目录离线元数据:git 作者+仓库地址、pyproject、requirements、LICENSE。
+
+    git 探针以「目录自身有 .git」为闸(10-19 krea2 案根修:引擎本体是 ComfyUI
+    git 克隆,无 .git 的插件目录里跑 git remote/log 会解析到父仓库,把引擎
+    身份(comfyanonymous/ComfyUI)当成插件身份——repo 错指主仓脏数据的出生地)。
+    """
     meta: dict = {"author": None, "repo": None, "desc": None, "license": None,
                   "version": None, "deps": []}
-    try:
-        author = _git(["log", "-1", "--format=%an"], cwd=plugin_dir, timeout=5.0).strip()
-        meta["author"] = author or None
-    except Exception:
-        pass
-    try:
-        url = _git(["remote", "get-url", "origin"], cwd=plugin_dir, timeout=5.0).strip()
-        meta["repo"] = url or None
-    except Exception:
-        pass
+    if (plugin_dir / ".git").exists():
+        try:
+            author = _git(["log", "-1", "--format=%an"], cwd=plugin_dir, timeout=5.0).strip()
+            meta["author"] = author or None
+        except Exception:
+            pass
+        try:
+            url = _git(["remote", "get-url", "origin"], cwd=plugin_dir, timeout=5.0).strip()
+            meta["repo"] = url or None
+        except Exception:
+            pass
     pyproject = plugin_dir / "pyproject.toml"
     if pyproject.is_file():
         desc, spdx, version = _read_pyproject_meta(pyproject)
@@ -1284,9 +1290,22 @@ def list_plugins() -> list[dict]:
     for plugin_dir, entry in ledger.items():
         curated = curated_by_repo.get(entry.get("repo")) or {}
         dir_path = nodes_root / plugin_dir
-        # 本地四件套按台账签名缓存(commit/版本/装机时刻),变更才重算——避免
-        # 每次进设置页都跑 2×N 个 git 子进程。
-        sig = f'{entry.get("commit")}|{entry.get("version")}|{entry.get("installedAt")}'
+        # 本地四件套按台账签名缓存(commit/版本/装机时刻)+盘上元数据文件
+        # mtime/size,变更才重算——避免每次进设置页都跑 2×N 个 git 子进程。
+        # 盘上锚(10-19 kjnodes 案补):ComfyUI-Manager/手动 git 更新只动盘不
+        # 动台账,旧签名下 pyproject 版本/依赖/license 展示恒陈年(实弹:盘上
+        # pyproject 1.5.0 在,缓存 version=None 展示回退台账裸 sha 672ba9e5)。
+        # stat 两文件近零开销,盘一动即重算四件套。
+        def _file_sig(name: str) -> str:
+            try:
+                st = (dir_path / name).stat()
+                return f"{st.st_mtime_ns}:{st.st_size}"
+            except OSError:
+                return "-"
+        sig = (
+            f'{entry.get("commit")}|{entry.get("version")}|{entry.get("installedAt")}'
+            f'|{_file_sig("pyproject.toml")}|{_file_sig("requirements.txt")}'
+        )
         cached_local = local_cache.get(plugin_dir)
         if cached_local and cached_local.get("sig") == sig:
             local = cached_local["meta"]
