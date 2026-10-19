@@ -110,7 +110,7 @@ describe("buildAssetRegenerationPrompt", () => {
       filePath: "role/main.png",
     };
     const images = [
-      { name: "主图", filePath: "role/main.png", url: "file:///asset-files/role/main.png" },
+      { name: "老苦力", filePath: "role/main.png", url: "file:///asset-files/role/main.png" },
       { name: "姿态一", filePath: "role/pose-one.png", url: "file:///asset-files/role/pose-one.png" },
     ];
 
@@ -119,7 +119,7 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(getAssetImageOpenTarget(images, 1, asset)).toBe("role/pose-one.png");
     // 优先级②③:条目无 filePath → 资产 sourcePath → 资产 filePath
     const urlOnlyImages = [
-      { name: "主图", filePath: "", url: "asset-file://role/main.png" },
+      { name: "老苦力", filePath: "", url: "asset-file://role/main.png" },
     ];
     expect(getAssetImageOpenTarget(urlOnlyImages, 0, asset)).toBe("/asset-files/role/main.png");
     expect(getAssetImageOpenTarget(urlOnlyImages, 0, { ...asset, sourcePath: undefined })).toBe("role/main.png");
@@ -344,7 +344,7 @@ describe("buildAssetRegenerationPrompt", () => {
 
     expect(nextImages).toEqual([
       {
-        name: "主图",
+        name: "老苦力",
         filePath: "role/老苦力.png",
         url: "file:///asset-files/role/老苦力.png",
       },

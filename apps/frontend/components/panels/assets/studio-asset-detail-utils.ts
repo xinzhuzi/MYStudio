@@ -4,12 +4,15 @@ import { getPrimaryAssetName } from "@/lib/studio/asset-names";
 const MEDIA_EXT_PATTERN = /\.(mp3|wav|m4a|aac|flac|ogg|opus|png|jpe?g|webp|gif|mp4|mov|webm|mkv)$/i;
 
 export function updateImagesAfterReplacingMainImage(images: AssetImage[], updatedAsset: StudioAssetSummary): AssetImage[] {
+  // 10-19 用户令废「主图」名号:换图后名=文件名(去扩展名)
+  const mainBase = (updatedAsset.filePath || "").split("/").pop()?.replace(/\.[^.]+$/, "") || updatedAsset.name;
   const mainImage: AssetImage = {
-    name: "主图",
+    name: mainBase,
     filePath: updatedAsset.filePath || "",
     url: updatedAsset.previewUrl || updatedAsset.thumbnailUrl,
   };
-  const restImages = images[0]?.name === "主图" ? images.slice(1) : images;
+  // 旧首条若与新主图同路径则替换,否则保留(防重复)
+  const restImages = images[0]?.filePath === mainImage.filePath ? images.slice(1) : images;
   return [mainImage, ...restImages];
 }
 

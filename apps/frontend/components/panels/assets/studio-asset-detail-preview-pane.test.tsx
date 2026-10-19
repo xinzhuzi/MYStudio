@@ -127,7 +127,7 @@ describe("StudioAssetDetailPreviewPane", () => {
     const { props } = renderPane();
 
     fireEvent.click(screen.getByRole("button", { name: "添加图片" }));
-    fireEvent.click(screen.getByRole("button", { name: "更换主图" }));
+    fireEvent.click(screen.getByRole("button", { name: "更换图片" }));
     fireEvent.click(screen.getByRole("button", { name: "重新出图" }));
     fireEvent.click(screen.getByRole("button", { name: "复制出图提示词" }));
     fireEvent.click(screen.getByRole("button", { name: "查看图片" }));

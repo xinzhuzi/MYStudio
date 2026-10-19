@@ -164,7 +164,9 @@ export function StudioAssetDetailDialog({
     let cancelled = false;
     const initialImages: AssetImage[] = [];
     if (asset.previewUrl || asset.thumbnailUrl) {
-      initialImages.push({ name: "主图", filePath: asset.filePath || "", url: asset.previewUrl || asset.thumbnailUrl });
+      // 10-19 用户令废「主图」名号:初始加载名=文件名(去扩展名)
+      const mainBase = (asset.filePath || "").split("/").pop()?.replace(/\.[^.]+$/, "") || asset.name;
+      initialImages.push({ name: mainBase, filePath: asset.filePath || "", url: asset.previewUrl || asset.thumbnailUrl });
     }
     if (asset.images?.length) {
       initialImages.push(...asset.images);
@@ -188,7 +190,9 @@ export function StudioAssetDetailDialog({
         setDraftSetting(result.setting || "");
         const updatedImgs: AssetImage[] = [];
         if (result.previewUrl || result.thumbnailUrl) {
-          updatedImgs.push({ name: "主图", filePath: result.filePath || "", url: result.previewUrl || result.thumbnailUrl });
+          // 10-19 用户令废「主图」名号:刷新名=文件名(去扩展名)
+          const refreshBase = (result.filePath || "").split("/").pop()?.replace(/\.[^.]+$/, "") || asset.name;
+          updatedImgs.push({ name: refreshBase, filePath: result.filePath || "", url: result.previewUrl || result.thumbnailUrl });
         }
         if (result.images?.length) {
           updatedImgs.push(...result.images);

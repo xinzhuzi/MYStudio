@@ -212,7 +212,7 @@ export function StudioAssetDetailPreviewPane({
           </Button>
           <Button variant="outline" size="sm" className="mt-2 w-full" onClick={onReplaceImage}>
             <ImageIcon className="mr-2 h-3.5 w-3.5" />
-            更换主图
+            更换图片
           </Button>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
