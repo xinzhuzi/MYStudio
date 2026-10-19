@@ -6010,3 +6010,37 @@ def test_bridge_api_template_style_lora_1019():
             f"{rel}: 桥模板风格件 {inputs.get('lora_name')!r} ≠ {STYLE_LORA_FILE!r}"
         assert inputs.get("strength_model") == STYLE_LORA_STRENGTH, \
             f"{rel}: 桥模板强度 {inputs.get('strength_model')} ≠ {STYLE_LORA_STRENGTH}"
+
+
+def test_bridge_template_reflatten_equality_1019():
+    """1019 深查定谳入锁(用户令「必须深度查看与主工作流是否有区别…必须保持一致」):
+    桥契约模板恒=画布的忠实机器投影——用重展平脚本现机制把画布内存再展(零落盘),
+    须与盘上模板 graph 深度全等;t2i(force_upscale=True)/i2i(False)双路。
+    本锁红=画布动了模板没跟(1018-1019 mikkoani 漏挂同病根),正路=重跑
+    apps/build/scripts/qwen21_bridge_template_build.py --target <t2i|i2i>
+    (模板是生成物,永不手改);引擎节点面(input 签名)变更时须重取快照:
+    curl http://127.0.0.1:<manifest口>/object_info 取本锁涉类子集回写
+    tests/fixtures/qi21_object_info_snapshot.json(82KB 瘦身件,全量 6.4MB 不入仓)。"""
+    import sys as _sys
+    _scripts = _TESTS_DIR.parents[4] / "apps" / "build" / "scripts"
+    if str(_scripts) not in _sys.path:
+        _sys.path.insert(0, str(_scripts))  # flatten 内部 from qi21_i2i_workflow_fire import PICKERS
+    _spec = _ilu.spec_from_file_location(
+        "qwen21_bridge_template_build_peer", _scripts / "qwen21_bridge_template_build.py")
+    _mod = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    schemas = json.loads((_TESTS_DIR / "fixtures" / "qi21_object_info_snapshot.json")
+                         .read_text(encoding="utf-8"))
+    for canvas_path, out_path, force in (
+            (QI21, _IMG_DIR / "Q2-1图像" / "1_文生图" / "qwen21-道劫-t2i-api.json", True),
+            (_IMG_DIR / "Q2-1图像" / "2_图生图" / "qi21-道劫-i2i.json",
+             _IMG_DIR / "Q2-1图像" / "2_图生图" / "qwen21-道劫-i2i-api.json", False)):
+        graph, _meta = _mod.build_graph(schemas, json.loads(canvas_path.read_text(encoding="utf-8")),
+                                        force_upscale=force)
+        disk = json.loads(out_path.read_text(encoding="utf-8"))["graph"]
+        assert graph == disk, (
+            f"{out_path.name} 与画布内存重展平不一致——画布改动后须重跑 "
+            f"qwen21_bridge_template_build.py --target "
+            f"{'t2i' if force else 'i2i'} 再提交(模板是生成物永不手改);"
+            f"首个差异节点: "
+            f"{next((k for k in sorted(set(graph) | set(disk)) if graph.get(k) != disk.get(k)), '?')}")
