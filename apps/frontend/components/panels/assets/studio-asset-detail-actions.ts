@@ -7,12 +7,14 @@
 import { toast } from "sonner";
 import type { Dispatch, SetStateAction } from "react";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
+import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
 import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
 import { eventBus } from "@/lib/event-bus";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { polishAssetPrompt, type AssetType, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
+import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transfer";
 import {
   findDisplayImageIndex,
   mergeFamilyDisplayImages,
@@ -27,6 +29,8 @@ export function useStudioAssetDialogActions(ctx: {
   visualManualId: any;
   detail: any;
   images: AssetImage[];
+  /** 10-19 图生图·画风转换:当前 i2i 相位(在跑直返守卫)。 */
+  i2iPhase?: string | null;
   /** R4 族聚显:轮播实际展示序(族兄弟只读条目并入);currentIndex 按此序计。 */
   displayImages?: AssetImage[];
   /** 行打开时取到的族条目(updatedAt 倒序);undefined=桥缺席/失败,回落本行图。 */
@@ -47,6 +51,9 @@ export function useStudioAssetDialogActions(ctx: {
   setGeneratePhase: any;
   setGenerateMessage: any;
   setRecognizedText: any;
+  /** 10-19 图生图·画风转换:i2i 相位/文案注入(与一键生成同款状态机拆分)。 */
+  setI2iPhase: any;
+  setI2iMessage: any;
   setActiveStudio: any;
   setActiveTab: any;
   resolveAssetGenerationReferenceImage: any;
@@ -58,6 +65,7 @@ export function useStudioAssetDialogActions(ctx: {
     visualManualId,
     detail,
     images,
+    i2iPhase,
     displayImages,
     familyImages,
     currentIndex,
@@ -76,6 +84,8 @@ export function useStudioAssetDialogActions(ctx: {
     setGeneratePhase,
     setGenerateMessage,
     setRecognizedText,
+    setI2iPhase,
+    setI2iMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -301,6 +311,116 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
 
+  /** 图生图·画风转换(10-19):取轮播当前图作唯一参考,qwen-image-2-1 本地渠道整体转画风;
+   * 成功尾段镜像一键生成(写回资产库+asset:updated 广播+get 刷新轮播);相位 3s 自动清。 */
+  const handleImageToImageStyle = async () => {
+    // 诊断打点(10-19 用户令:图生图链路要日志)——operationId 由本层造,
+    // 贯通 service 四点(构造摘要/发起/成功/失败);守卫拒绝逐因留痕。
+    const operationId = createOperationId("asset-style-transfer");
+    void logEvent({
+      level: "info",
+      category: "asset",
+      operationId,
+      message: "Asset style transfer requested (image-to-image)",
+      context: { assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
+    });
+    if (i2iPhase) {
+      // 在跑直返(按钮已禁,双保险)
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset style transfer guard rejected (busy)",
+        context: { assetId: asset.id, i2iPhase },
+      });
+      return;
+    }
+    let assetType: AssetType;
+    try {
+      assetType = resolveThreeTrackAssetType(asset.type);
+    } catch {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset style transfer guard rejected (non-three-track)",
+        context: { assetId: asset.id, assetType: asset.type },
+      });
+      toast.error("该资产类型不支持画风转换（仅角色/场景/道具三轨）");
+      return;
+    }
+    const referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+    if (!referenceImage) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset style transfer guard rejected (no reference image)",
+        context: { assetId: asset.id, displayImageCount: carouselImages.length },
+      });
+      toast.error("没有可作参考的图片，请先生成或添加图片");
+      return;
+    }
+    setI2iPhase("generating");
+    setI2iMessage(`正在转换 ${asset.name} 的画风...`);
+    try {
+      const result = await generateAssetStyleTransferImage(
+        {
+          assetId: asset.id,
+          assetType,
+          assetName: asset.name,
+          referenceImage,
+          operationId,
+        },
+        (progress) => {
+          // 生成/保存两相位都保持 spinner;文案随进度推进
+          if (progress.phase === "generating" || progress.phase === "saving") {
+            setI2iPhase("generating");
+            if (progress.message) setI2iMessage(progress.message);
+          }
+        },
+      );
+      if (result.phase === "done") {
+        setI2iPhase("done");
+        setI2iMessage("画风转换完成！");
+        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath);
+        // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
+        eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        if (getStudioAssetsBridge()?.get) {
+          const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            const newImgs: AssetImage[] = [];
+            if (updated.previewUrl || updated.thumbnailUrl) {
+              newImgs.push({ name: "主图", filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+            }
+            if (updated.images?.length) {
+              newImgs.push(...updated.images);
+            }
+            setImages(newImgs);
+          }
+        }
+        if (!savedToLibrary) {
+          toast.warning(`「${asset.name}」画风转换图已生成，但未能写回资产库主图`);
+        } else {
+          toast.success(`「${asset.name}」画风转换完成`);
+        }
+      } else {
+        setI2iPhase("failed");
+        setI2iMessage(`画风转换失败: ${result.error || "未知错误"}`);
+        toast.error(`画风转换失败: ${result.error || "未知错误"}`);
+      }
+    } catch (err: unknown) {
+      setI2iPhase("failed");
+      setI2iMessage(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTimeout(() => {
+        setI2iPhase(null);
+        setI2iMessage("");
+      }, 3000);
+    }
+  };
+
   const handleRegenerate = async () => {
     // 空描述守卫沿用(无描述无出图意义);prompt 本身不预填——画布与资产库
     // 各走各的链路(09-10 全屏 ComfyUI 合一,旧预填+image:generated 回存已退役)。
@@ -435,10 +555,8 @@ export function useStudioAssetDialogActions(ctx: {
   };
 
   const handleRemoveImage = async (img: AssetImage, idx: number) => {
-    if (idx === 0 && img.name === "主图") {
-      toast.error("不能删除主图");
-      return;
-    }
+    // 10-19 用户裁定:主图亦可删——旧「不能删除主图」硬闸已撤;R4 族聚只读规则不变。
+    void idx; // 签名沿用 pane 的 (image, index) 契约;删除按 filePath 定位,不按下标
     if (!getStudioAssetsBridge()?.removeImage) return;
     // R4 族聚显:入参 idx 是展示序下标;增删只作用本行 images(按 filePath 定位)。
     // 族兄弟只读条目删除钮已隐藏,此处本行未命中即拒——防跨行误删(族聚仅显示层)。
@@ -530,8 +648,8 @@ export function useStudioAssetDialogActions(ctx: {
 
   return {
     handlePolishPrompt, handleSave, handleDelete, copyText,
-    handleOneClickGenerateAssetImage, handleRegenerate, handleOpenSource,
-    handleOpenFolder, handleAddImage, handleReplaceImage, handleRemoveImage,
-    handleTranscribe,
+    handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
+    handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
+    handleRemoveImage, handleTranscribe,
   };
 }

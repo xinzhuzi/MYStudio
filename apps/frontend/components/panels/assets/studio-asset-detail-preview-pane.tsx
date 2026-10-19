@@ -6,10 +6,12 @@ import {
   ExternalLink,
   FolderOpen,
   ImageIcon,
+  Loader2,
   Music2,
   Plus,
   Sparkles,
   Trash2,
+  Wand2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,10 +40,21 @@ interface StudioAssetDetailPreviewPaneProps {
   onAddImage: () => void | Promise<void>;
   onReplaceImage: () => void | Promise<void>;
   onRegenerate: () => void | Promise<void>;
+  /** 10-19 图生图·画风转换:取轮播当前图作唯一参考,qwen-image-2-1 本地渠道整体转画风。 */
+  onImageToImage?: () => void | Promise<void>;
+  /** 画风转换相位("generating"|"done"|"failed"|null);在跑时 Loader2+相位文案并禁点。 */
+  i2iPhase?: string | null;
+  /** 画风转换相位文案(运行态按钮 title 全文,如「正在转换 主角 的画风...」)。 */
+  i2iMessage?: string;
+  /** 一键生成相位(互斥:任一生成相位在跑即禁点)。 */
+  generatePhase?: string | null;
+  /** 三轨且有图才可转(role/scene/tool 且轮播非空);缺省 true 由装配方守门。 */
+  canImageToImage?: boolean;
   onCopyPrompt: () => void | Promise<void>;
   onOpenSource: () => void | Promise<void>;
   onOpenFolder: () => void | Promise<void>;
-  /** R4 族聚显:条目级删除可见性(族兄弟只读条目不显示删除);缺省沿用旧 index/主图 规则。 */
+  /** R4 族聚显:条目级删除可见性(族兄弟只读条目不显示删除);缺省恒可删
+   *  (10-19 用户裁定:主图亦可删——含首位主图)。 */
   isImageRemovable?: (image: AssetImage, index: number) => boolean;
 }
 
@@ -58,12 +71,30 @@ export function StudioAssetDetailPreviewPane({
   onAddImage,
   onReplaceImage,
   onRegenerate,
+  onImageToImage,
+  i2iPhase,
+  i2iMessage,
+  generatePhase,
+  canImageToImage = true,
   onCopyPrompt,
   onOpenSource,
   onOpenFolder,
   isImageRemovable,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
+  const imageToImageDisabled = !!i2iPhase || !!generatePhase || !canImageToImage;
+  const imageToImageTitle = !canImageToImage
+    ? "仅角色/场景/道具三轨且有图资产可转画风"
+    : generatePhase
+      ? "图片生成中，请稍候"
+      : i2iPhase
+        ? (i2iMessage || "正在转换画风，请稍候")
+        : undefined;
+  const i2iPhaseLabel = i2iPhase === "done"
+    ? "画风转换完成"
+    : i2iPhase === "failed"
+      ? "画风转换失败"
+      : "正在转换画风…";
 
   return (
     <div className="studio-asset-detail-preview border-r border-border bg-muted/90 p-4">
@@ -123,7 +154,8 @@ export function StudioAssetDetailPreviewPane({
                     </div>
                     <div className="mt-2 flex items-center justify-between px-1">
                       <span className="truncate text-xs text-muted-foreground">{image.name}</span>
-                      {(isImageRemovable ? isImageRemovable(image, index) : index > 0 || image.name !== "主图") ? (
+                      {/* 10-19 用户裁定:主图亦可删——缺省(未注入 isImageRemovable)恒显示删除钮 */}
+                      {(isImageRemovable ? isImageRemovable(image, index) : true) ? (
                         <div className="flex gap-1">
                           <button
                             className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
@@ -179,6 +211,20 @@ export function StudioAssetDetailPreviewPane({
             <Button variant="default" size="sm" onClick={onRegenerate}>
               <Sparkles className="mr-2 h-3.5 w-3.5" />
               重新出图
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onImageToImage}
+              disabled={imageToImageDisabled}
+              title={imageToImageTitle}
+            >
+              {i2iPhase ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Wand2 className="mr-2 h-3.5 w-3.5" />
+              )}
+              {i2iPhase ? i2iPhaseLabel : "图生图"}
             </Button>
             <Button variant="outline" size="sm" onClick={onCopyPrompt}>
               <Clipboard className="mr-2 h-3.5 w-3.5" />

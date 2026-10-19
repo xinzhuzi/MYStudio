@@ -65,17 +65,18 @@ export function mergeFamilyDisplayImages(
   const familyFilePaths = new Set(family?.map((entry) => entry.filePath) ?? undefined);
 
   const display: FamilyDisplayImageEntry[] = [];
-  // 1) live 新图置顶(可编辑;removable 沿用旧规则:首位「主图」不可删)
-  ownImages.forEach((image, ownIndex) => {
+  // 1) live 新图置顶(可编辑;10-19 用户裁定:主图亦可删——本行自有图一律 removable)
+  ownImages.forEach((image) => {
     if (familyFilePaths.has(image.filePath)) return;
     display.push({
       ...image,
       assetId: primaryAssetId ?? "",
       readOnly: false,
-      removable: !(ownIndex === 0 && image.name === "主图"),
+      removable: true,
     });
   });
-  // 2) 族序条目:本行命中 live → 用 live 版本(可编辑);族兄弟只读不可删
+  // 2) 族序条目:本行命中 live → 用 live 版本(可编辑,含主图,同 10-19 可删裁定);
+  //    族兄弟只读不可删
   for (const entry of family ?? []) {
     const live = ownByFilePath.get(entry.filePath);
     if (entry.assetId === primaryAssetId) {
@@ -84,7 +85,7 @@ export function mergeFamilyDisplayImages(
         ...live,
         assetId: entry.assetId,
         readOnly: false,
-        removable: !(live.name === "主图" && ownImages[0]?.name === "主图" && ownImages[0]?.filePath === live.filePath),
+        removable: true,
       });
       continue;
     }

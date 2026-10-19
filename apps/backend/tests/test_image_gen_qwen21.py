@@ -16,6 +16,14 @@ TEMPLATE_PATH = (
     REPO_ROOT
     / "backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
 )
+I2I_TEMPLATE_PATH = (
+    REPO_ROOT
+    / "backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
+)
+I2I_CANVAS_PATH = (
+    REPO_ROOT
+    / "backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+)
 
 
 class Qwen21RegistrationTests(unittest.TestCase):
@@ -26,9 +34,10 @@ class Qwen21RegistrationTests(unittest.TestCase):
         self.assertIn("qwen21-viggle", pipeline._ENGINE_BY_LAYOUT)
         self.assertIs(pipeline._ENGINE_BY_LAYOUT["qwen21-viggle"], qwen21)
 
-    def test_reference_images_rejected_upstream(self) -> None:
-        # 一期纯文生图:能力旗标必须为 False,让 generate_image 在就绪检查前就指路
-        self.assertFalse(qwen21.SUPPORTS_REFERENCE)
+    def test_reference_supported_flags(self) -> None:
+        # 10-19 图生图·画风转换(D3):单参考放开(SUPPORTS_REFERENCE=True 走 i2i 分流),
+        # 多参考仍关(恒单参考,--enable-ref3 语义不在本役)
+        self.assertTrue(qwen21.SUPPORTS_REFERENCE)
         self.assertFalse(qwen21.SUPPORTS_MULTI_REFERENCE)
 
 
@@ -111,6 +120,139 @@ class Qwen21TemplateContractTests(unittest.TestCase):
         }}}
         state, image = qwen21._prefer_upscaled_output(only_base, "pid")
         self.assertEqual(image["filename"], "base.png")
+
+
+class Qwen21I2iTemplateContractTests(unittest.TestCase):
+    """10-19 图生图·画风转换:i2i API 模板契约(由 build 脚本 --target i2i 从
+    qi21-道劫-i2i.json 展平生成;快照=画布现值锁——组装用途=局部编辑、Turbo 8步、
+    PE 关、SeedVR2 旁路,运行时才覆写组装用途=画风转换)。"""
+
+    def setUp(self) -> None:
+        self.template = json.loads(I2I_TEMPLATE_PATH.read_text(encoding="utf-8"))
+        self.graph = self.template["graph"]
+
+    def test_i2i_template_contract(self) -> None:
+        self.assertEqual(self.template["schemaVersion"], 1)
+        self.assertEqual(self.template["name"], "qwen21_道劫_i2i_api")
+        inputs = self.template["inputs"]
+        # 绑定指向活节点且 class 吻合:prompt→400 / seed→7:7014
+        prompt_binding = inputs["prompt"]
+        self.assertEqual((prompt_binding["node"], prompt_binding["field"]), ("400", "value"))
+        self.assertEqual(self.graph["400"]["class_type"], "PrimitiveStringMultiline")
+        seed_binding = inputs["seed"]
+        self.assertEqual((seed_binding["node"], seed_binding["field"]), ("7:7014", "value"))
+        self.assertEqual(self.graph["7:7014"]["class_type"], "PrimitiveInt")
+        # references→[10].image(LoadImage 恰 1 个=激活槽 [10])
+        references = inputs.get("references")
+        self.assertIsInstance(references, list)
+        self.assertEqual(len(references), 1)
+        ref = references[0]
+        self.assertEqual((ref["node"], ref["slot"], ref["field"]), ("10", 0, "image"))
+        self.assertEqual(ref["class_type"], "LoadImage")
+        load_images = sorted(key for key, node in self.graph.items() if node["class_type"] == "LoadImage")
+        self.assertEqual(load_images, ["10"])
+        self.assertIn("image", self.graph["10"]["inputs"])
+        # 旁路参考槽与 SeedVR2 双产物在模板缺席(现值快照:mode=4 剪除)
+        for absent in ("11", "12", "505", "503", "504"):
+            self.assertNotIn(absent, self.graph, absent)
+        # SaveImage [8] 在场(唯一产物口;504 缺席→_prefer_upscaled_output 自然回落 8)
+        self.assertEqual(self.graph["8"]["class_type"], "SaveImage")
+
+    def test_i2i_snapshot_locks_canvas_values(self) -> None:
+        # 组装用途快照=局部编辑(GUI 现值;运行时覆写画风转换)
+        self.assertEqual(self.graph["6:4011"]["inputs"]["组装用途"], "局部编辑")
+        # 档位快照=Turbo 8 步
+        self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "0 · Turbo 8步")
+        # PE 链在场且 pe开关 False(PE出文/PE负面 按 selected_graph 剪除)
+        self.assertIs(self.graph["6:4012"]["inputs"]["value"], False)
+        self.assertIn("6:4014", self.graph)
+        self.assertNotIn("PE出文", self.graph["6:4014"]["inputs"])
+        self.assertNotIn("PE负面", self.graph["6:4014"]["inputs"])
+        # seed 单源=PrimitiveInt(7:7014) 扇出 RandomNoise
+        self.assertEqual(self.graph["7:7017"]["inputs"]["noise_seed"], ["7:7014", 0])
+
+
+class Qwen21I2iGenerateTests(unittest.TestCase):
+    """10-19 图生图·画风转换:i2i 分流行为测(mock 上传/提交/取图)。"""
+
+    def _all_classes_available(self) -> frozenset[str]:
+        classes: set[str] = set()
+        for template in (qwen21.load_template(qwen21.TEMPLATE_NAME), qwen21.load_template(qwen21.TEMPLATE_NAME_I2I)):
+            classes.update(qwen21.graph_node_classes(template["graph"]))
+        return frozenset(classes)
+
+    def _run_generate(self, *, prompt_id: str = "p-run", **generate_kwargs: object) -> tuple[dict, object, object]:
+        """跑一次 generate 并捕获提交图/上传调用;返回 (submitted_graph, http_json, upload)。"""
+        submitted: dict = {}
+
+        def http_json(method: str, url: str, payload: dict | None = None, timeout: float = 2) -> dict:
+            if url.endswith("/prompt"):
+                submitted.update(payload["prompt"])
+                return {"prompt_id": prompt_id}
+            if "/history/" in url:
+                return {prompt_id: {"status": {"status_str": "success"}, "outputs": {
+                    "8": {"images": [{"filename": "out.png", "subfolder": "", "type": "output"}]},
+                }}}
+            raise AssertionError(url)
+
+        with patch.object(qwen21, "resolve_big_files", return_value={"comfyui_version": "0.41.2"}), patch.object(
+            qwen21, "_available_node_classes", return_value=self._all_classes_available()
+        ), patch.object(qwen21, "_http_json", side_effect=http_json) as http_mock, patch.object(
+            qwen21, "_upload_image", return_value={"name": "qwen21-i2i-uploaded.png"}
+        ) as upload_mock, patch.object(qwen21, "_fetch_bytes", return_value=b"i2i-png"), patch(
+            "engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+        ), patch("image_gen.pipeline.is_generation_cancelled", return_value=False):
+            qwen21.generate(**generate_kwargs)
+        return submitted, http_mock, upload_mock
+
+    def test_i2i_generate_overrides_assembly_purpose(self) -> None:
+        canvas_before = I2I_CANVAS_PATH.read_bytes()
+        graph_one, _, upload_one = self._run_generate(
+            prompt="画风转换指令甲", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=None,
+            reference_b64="aWlpcmVmaW9uZQ==",
+        )
+        self.assertEqual(graph_one["6:4011"]["inputs"]["组装用途"], "画风转换")
+        self.assertEqual(graph_one["10"]["inputs"]["image"], "qwen21-i2i-uploaded.png")
+        self.assertRegex(upload_one.call_args.args[2], r"^qwen21-i2i-[0-9a-f]{32}\.png$")
+        self.assertEqual(graph_one["400"]["inputs"]["value"], "画风转换指令甲")
+        # seed=None 时每次随机(fire 铁令):两次提交的 7:7014 不同
+        graph_two, _, _ = self._run_generate(
+            prompt="画风转换指令乙", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=None,
+            reference_b64="aWlpcmVmaW9uZQ==",
+        )
+        seed_one = graph_one["7:7014"]["inputs"]["value"]
+        seed_two = graph_two["7:7014"]["inputs"]["value"]
+        self.assertIsInstance(seed_one, int)
+        self.assertNotEqual(seed_one, seed_two)
+        self.assertTrue(1 <= seed_one <= 2**31 - 1 and 1 <= seed_two <= 2**31 - 1)
+        # GUI 本体文件未被改写
+        self.assertEqual(I2I_CANVAS_PATH.read_bytes(), canvas_before)
+
+    def test_i2i_rejects_multi_reference(self) -> None:
+        from image_gen.pipeline import PipelineError
+
+        with patch.object(qwen21, "resolve_big_files", return_value={"comfyui_version": "0.41.2"}), patch(
+            "engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+        ), patch("image_gen.pipeline.is_generation_cancelled", return_value=False):
+            with self.assertRaises(PipelineError) as caught:
+                qwen21.generate(
+                    "指令", "1:1", None, 8, None,
+                    reference_b64="c2Vjb25kcmVm",
+                    reference_images_b64=["cmVmMQ==", "cmVmMg=="],
+                )
+        self.assertEqual(caught.exception.code, "reference-unsupported")
+
+    def test_t2i_path_unchanged_without_reference(self) -> None:
+        # 回归锁:无参考图走原 t2i 路逐字节不变(t2i 模板实例化原样提交,不上传参考图)
+        submitted, _, upload_mock = self._run_generate(
+            prompt="t2i 回归", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+        )
+        upload_mock.assert_not_called()
+        expected = qwen21.instantiate_template(
+            qwen21.load_template(qwen21.TEMPLATE_NAME), "t2i 回归", None, 8, 42, "1:1", [],
+        )
+        self.assertEqual(submitted, expected)
+        self.assertNotIn("10", submitted)
 
 
 if __name__ == "__main__":

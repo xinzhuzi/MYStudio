@@ -73,6 +73,7 @@ function makeProps(overrides: Partial<PreviewPaneProps> = {}): PreviewPaneProps 
     onCopyPrompt: vi.fn(),
     onOpenSource: vi.fn(),
     onOpenFolder: vi.fn(),
+    onImageToImage: vi.fn(),
     ...overrides,
   };
 }
@@ -104,11 +105,22 @@ describe("StudioAssetDetailPreviewPane", () => {
 
     expect(screen.getByRole("img", { name: "主图" }).getAttribute("src")).toBe("media://main");
     expect(screen.getByRole("img", { name: "姿态一" }).getAttribute("src")).toBe("media://pose");
-    expect(screen.getAllByTitle("删除")).toHaveLength(1);
+    // 10-19 用户裁定:主图亦可删——缺省(未注入 isImageRemovable)两图都显示删除钮
+    expect(screen.getAllByTitle("删除")).toHaveLength(2);
 
-    fireEvent.click(screen.getByTitle("删除"));
+    fireEvent.click(screen.getAllByTitle("删除")[1]);
     expect(props.onRemoveImage).toHaveBeenCalledWith(props.images[1], 1);
+    fireEvent.click(screen.getAllByTitle("删除")[0]);
+    expect(props.onRemoveImage).toHaveBeenCalledWith(props.images[0], 0);
     await waitFor(() => expect(props.onCarouselApi).toHaveBeenCalled());
+  });
+
+  it("honors the injected isImageRemovable predicate for family read-only entries", () => {
+    renderPane({ isImageRemovable: (_image, index) => index !== 0 });
+
+    // 注入判定优先:第 0 条(族兄弟只读位)不显示删除钮,第 1 条显示
+    expect(screen.getAllByTitle("删除")).toHaveLength(1);
+    fireEvent.click(screen.getByTitle("删除"));
   });
 
   it("delegates every image operation without owning side effects", () => {
@@ -145,5 +157,52 @@ describe("StudioAssetDetailPreviewPane", () => {
 
     expect(screen.getByText("暂无口播词句")).toBeTruthy();
     expect(screen.getByText("暂无可播放的音频地址")).toBeTruthy();
+  });
+
+  it("renders the image-to-image button right after 重新出图 and delegates the dispatch", () => {
+    const { props } = renderPane();
+
+    const buttons = screen.getAllByRole("button");
+    const regenerateIndex = buttons.findIndex((button) => button.textContent?.includes("重新出图"));
+    const i2iIndex = buttons.findIndex((button) => button.textContent?.includes("图生图"));
+    expect(regenerateIndex).toBeGreaterThanOrEqual(0);
+    expect(i2iIndex).toBe(regenerateIndex + 1);
+
+    fireEvent.click(screen.getByRole("button", { name: /图生图/ }));
+    expect(props.onImageToImage).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the image-to-image entry entirely for audio assets", () => {
+    renderPane({ asset: asset({ type: "audio" }), images: [] });
+    expect(screen.queryByRole("button", { name: /图生图/ })).toBeNull();
+  });
+
+  it("disables image-to-image with a reason title when the asset cannot transfer (clip / no image)", () => {
+    renderPane({
+      asset: asset({ type: "clip", name: "片段一" }),
+      images: [],
+      canImageToImage: false,
+    });
+
+    const button = screen.getByRole("button", { name: /图生图/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("title")).toContain("角色/场景/道具");
+  });
+
+  it("shows the Loader2 spinner and phase text while the style transfer is running", () => {
+    renderPane({ i2iPhase: "generating" });
+
+    const button = screen.getByRole("button", { name: /正在转换画风/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.querySelector(".animate-spin")).toBeTruthy();
+    expect(screen.getByText("正在转换画风…")).toBeTruthy();
+  });
+
+  it("disables image-to-image while the one-click generation phase is running", () => {
+    renderPane({ generatePhase: "generating" });
+
+    const button = screen.getByRole("button", { name: /图生图/ }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("title")).toBeTruthy();
   });
 });

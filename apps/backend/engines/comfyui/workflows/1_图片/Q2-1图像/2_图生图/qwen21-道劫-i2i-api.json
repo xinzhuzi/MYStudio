@@ -1,0 +1,431 @@
+{
+  "schemaVersion": 1,
+  "name": "qwen21_道劫_i2i_api",
+  "comfyuiVersionMin": "0.3.45",
+  "inputs": {
+    "prompt": {
+      "node": "400",
+      "field": "value",
+      "class_type": "PrimitiveStringMultiline"
+    },
+    "seed": {
+      "node": "7:7014",
+      "field": "value",
+      "class_type": "PrimitiveInt"
+    },
+    "references": [
+      {
+        "node": "10",
+        "slot": 0,
+        "field": "image",
+        "class_type": "LoadImage"
+      }
+    ]
+  },
+  "graph": {
+    "1": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "qwen_image_2.1_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "2": {
+      "class_type": "CLIPLoader",
+      "inputs": {
+        "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
+        "type": "qwen_image",
+        "device": "default"
+      }
+    },
+    "3": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+      }
+    },
+    "10": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": "portrait_model_denim.png"
+      }
+    },
+    "16": {
+      "class_type": "ImageScaleToTotalPixels",
+      "inputs": {
+        "upscale_method": "lanczos",
+        "megapixels": 1,
+        "resolution_steps": 32,
+        "image": [
+          "10",
+          0
+        ]
+      }
+    },
+    "401": {
+      "class_type": "easy showAnything",
+      "inputs": {
+        "anything": [
+          "6:153",
+          0
+        ]
+      }
+    },
+    "9": {
+      "class_type": "QwenImage21Cache",
+      "inputs": {
+        "device": "auto",
+        "dtype": "default",
+        "model": [
+          "1",
+          0
+        ]
+      }
+    },
+    "5": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "7:7015",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      }
+    },
+    "8": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "filename_prefix": "QI21道劫图生图_",
+        "images": [
+          "509",
+          0
+        ]
+      }
+    },
+    "19": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": false
+      }
+    },
+    "20": {
+      "class_type": "ComfySwitchNode",
+      "inputs": {
+        "switch": [
+          "19",
+          0
+        ],
+        "on_false": [
+          "4015",
+          2
+        ]
+      }
+    },
+    "400": {
+      "class_type": "PrimitiveStringMultiline",
+      "inputs": {
+        "value": "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。"
+      }
+    },
+    "506": {
+      "class_type": "SplitImageWithAlpha",
+      "inputs": {
+        "image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "510": {
+      "class_type": "ThresholdMask",
+      "inputs": {
+        "value": 0.996,
+        "mask": [
+          "506",
+          1
+        ]
+      }
+    },
+    "507": {
+      "class_type": "PorterDuffImageComposite",
+      "inputs": {
+        "mode": "SRC",
+        "source": [
+          "506",
+          0
+        ],
+        "source_alpha": [
+          "510",
+          0
+        ],
+        "destination": [
+          "506",
+          0
+        ],
+        "destination_alpha": [
+          "508",
+          0
+        ]
+      }
+    },
+    "508": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 0,
+        "width": 64,
+        "height": 64
+      }
+    },
+    "509": {
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "image": [
+          "507",
+          0
+        ],
+        "alpha": [
+          "506",
+          1
+        ]
+      }
+    },
+    "4015": {
+      "class_type": "TextEncodeQwenImage21",
+      "inputs": {
+        "prompt": [
+          "6:153",
+          0
+        ],
+        "negative_prompt": [
+          "6:153",
+          1
+        ],
+        "resolution": 0,
+        "clip": [
+          "2",
+          0
+        ],
+        "images.image_1": [
+          "16",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      }
+    },
+    "171": {
+      "class_type": "TextEncodeQwenImage21",
+      "inputs": {
+        "prompt": [
+          "6:153",
+          0
+        ],
+        "negative_prompt": [
+          "6:153",
+          1
+        ],
+        "resolution": 0,
+        "clip": [
+          "2",
+          0
+        ],
+        "images.image_1": [
+          "16",
+          0
+        ],
+        "vae": [
+          "3",
+          0
+        ]
+      }
+    },
+    "6:4010": {
+      "class_type": "MyQi21DaojieBase",
+      "inputs": {
+        "base": "人物",
+        "透明覆盖": false
+      }
+    },
+    "6:180": {
+      "class_type": "MyQi21RgbaSelect",
+      "inputs": {
+        "mode": "自动",
+        "rgba_hint": [
+          "6:4010",
+          4
+        ]
+      }
+    },
+    "6:4014": {
+      "class_type": "MyQi21PromptSelect",
+      "inputs": {
+        "装配全文": [
+          "400",
+          0
+        ],
+        "负面词直写": "",
+        "pe开关": [
+          "6:4012",
+          0
+        ],
+        "透明模式": false,
+        "RGBA官方头句": "This is an RGBA image with transparency.",
+        "RGBA官方尾句": "The image has alpha channel and the background is transparent.",
+        "W1收束句": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
+      }
+    },
+    "6:4011": {
+      "class_type": "MyQi21PromptAssembly",
+      "inputs": {
+        "BASE": [
+          "6:4010",
+          0
+        ],
+        "BASE负面": [
+          "6:4010",
+          3
+        ],
+        "主体句": [
+          "6:4014",
+          0
+        ],
+        "主体句负面": "",
+        "锁层A全文": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+        "组装用途": "局部编辑"
+      }
+    },
+    "6:153": {
+      "class_type": "MyQi21PromptSelect",
+      "inputs": {
+        "装配全文": [
+          "6:4011",
+          0
+        ],
+        "负面词直写": [
+          "6:4011",
+          1
+        ],
+        "pe开关": false,
+        "透明模式": [
+          "6:180",
+          0
+        ],
+        "RGBA官方头句": "This is an RGBA image with transparency.",
+        "RGBA官方尾句": "The image has alpha channel and the background is transparent.",
+        "W1收束句": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
+      }
+    },
+    "6:4012": {
+      "class_type": "PrimitiveBoolean",
+      "inputs": {
+        "value": false
+      }
+    },
+    "7:7014": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "7:7015": {
+      "class_type": "MyQi21SpeedSelect",
+      "inputs": {
+        "mode": "0 · Turbo 8步",
+        "latent_turbo": [
+          "7:7031",
+          0
+        ],
+        "型名": [
+          "6:4010",
+          5
+        ]
+      }
+    },
+    "7:7017": {
+      "class_type": "RandomNoise",
+      "inputs": {
+        "noise_seed": [
+          "7:7014",
+          0
+        ]
+      }
+    },
+    "7:7018": {
+      "class_type": "KSamplerSelect",
+      "inputs": {
+        "sampler_name": "euler"
+      }
+    },
+    "7:7028": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+        "strength_model": 1.0,
+        "model": [
+          "7:7034",
+          0
+        ]
+      }
+    },
+    "7:7029": {
+      "class_type": "BasicGuider",
+      "inputs": {
+        "model": [
+          "7:7028",
+          0
+        ],
+        "conditioning": [
+          "171",
+          0
+        ]
+      }
+    },
+    "7:7030": {
+      "class_type": "ManualSigmas",
+      "inputs": {
+        "sigmas": "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+      }
+    },
+    "7:7031": {
+      "class_type": "SamplerCustomAdvanced",
+      "inputs": {
+        "noise": [
+          "7:7017",
+          0
+        ],
+        "guider": [
+          "7:7029",
+          0
+        ],
+        "sampler": [
+          "7:7018",
+          0
+        ],
+        "sigmas": [
+          "7:7030",
+          0
+        ],
+        "latent_image": [
+          "20",
+          0
+        ]
+      }
+    },
+    "7:7034": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "qi21-mikkoani.safetensors",
+        "strength_model": 1.0,
+        "model": [
+          "9",
+          0
+        ]
+      }
+    }
+  }
+}

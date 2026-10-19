@@ -117,6 +117,9 @@ export function StudioAssetDetailDialog({
   const [isPolishingPrompt, setIsPolishingPrompt] = useState(false);
   const [generatePhase, setGeneratePhase] = useState<"polishing" | "generating" | "saving" | "done" | "failed" | null>(null);
   const [generateMessage, setGenerateMessage] = useState("");
+  // 10-19 图生图·画风转换:i2i 相位状态机(与一键生成同款拆分;两路互斥)
+  const [i2iPhase, setI2iPhase] = useState<"generating" | "done" | "failed" | null>(null);
+  const [i2iMessage, setI2iMessage] = useState("");
   const [voiceAssignOpen, setVoiceAssignOpen] = useState(false);
 
   // 获取当前项目的视觉手册 ID
@@ -202,15 +205,16 @@ export function StudioAssetDetailDialog({
   // stable even while the dialog is closed or clearing its selection.
   const {
     handlePolishPrompt, handleSave, handleDelete, copyText,
-    handleOneClickGenerateAssetImage, handleRegenerate, handleOpenSource,
-    handleOpenFolder, handleAddImage, handleReplaceImage, handleRemoveImage,
-    handleTranscribe,
+    handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
+    handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
+    handleRemoveImage, handleTranscribe,
   } = useStudioAssetDialogActions({
     asset,
     onOpenChange,
     visualManualId,
     detail: fullAsset || asset,
     images,
+    i2iPhase,
     displayImages,
     familyImages,
     currentIndex,
@@ -229,6 +233,8 @@ export function StudioAssetDetailDialog({
     setGeneratePhase,
     setGenerateMessage,
     setRecognizedText,
+    setI2iPhase,
+    setI2iMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -246,6 +252,8 @@ export function StudioAssetDetailDialog({
   const hasImagePreview = asset.type !== "audio" && displayImages.length > 0;
   // 三轨生图入口只对 role/scene/tool 开放;clip 等其余类型不展示、不触发(道劫合同 fail-closed)
   const isThreeTrackAsset = asset.type === "role" || asset.type === "scene" || asset.type === "tool";
+  // 10-19 图生图·画风转换:三轨且有图才可转(clip/audio/无图禁用)
+  const canImageToImage = isThreeTrackAsset && displayImages.length > 0;
   const roleSpeakerId = toRoleSpeakerId(asset.id);
   const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
   const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
@@ -280,6 +288,11 @@ export function StudioAssetDetailDialog({
             onAddImage={handleAddImage}
             onReplaceImage={handleReplaceImage}
             onRegenerate={handleRegenerate}
+            onImageToImage={handleImageToImageStyle}
+            i2iPhase={i2iPhase}
+            i2iMessage={i2iMessage}
+            generatePhase={generatePhase}
+            canImageToImage={canImageToImage}
             onCopyPrompt={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}
             onOpenSource={handleOpenSource}
             onOpenFolder={handleOpenFolder}
@@ -410,7 +423,7 @@ export function StudioAssetDetailDialog({
                           size="sm"
                           className="h-6 gap-1 text-[11px]"
                           onClick={handleOneClickGenerateAssetImage}
-                          disabled={!!generatePhase || !visualManualId}
+                          disabled={!!generatePhase || !!i2iPhase || !visualManualId}
                         >
                           {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                           {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}

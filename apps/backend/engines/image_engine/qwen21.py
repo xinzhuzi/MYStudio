@@ -1,16 +1,19 @@
-"""Qwen-Image-2.1(qi21)文生图引擎模块——经自管 ComfyUI 引擎执行。
+"""Qwen-Image-2.1(qi21)文生图/图生图引擎模块——经自管 ComfyUI 引擎执行。
 
 复用 comfyui_bridge 的提交/轮询/取图机制,模板=qwen21_道劫_t2i_api
 (qi21-道劫-t2i.json 工作流本体按 fire 展平逻辑生成:装配子图[6] ApiPE 双链回落
 +加速子图[7] viggle 9步双段(detail-fix×0.5 在链)+SeedVR2 2K 超分双产物;生成器=
 apps/build/scripts/qwen21_bridge_template_build.py,型/档随画布现值)。
-纯文生图(1010 渠道清场裁定:comfyui-bridge 已退役出渠道表)。
+10-19 图生图·画风转换:带参考图走 qwen21_道劫_i2i_api(qi21-道劫-i2i.json 展平,
+单参考 [10];快照=画布现值,运行时覆写 6:4011 组装用途=画风转换——底座由装配层
+自动追加;seed 每次随机,fire 铁令);无参考走原 t2i 路(逐字节不变)。
 """
 from __future__ import annotations
 
 import base64
 import math
 import os
+import random
 import time
 import uuid
 from pathlib import Path
@@ -24,6 +27,7 @@ from .comfyui_bridge import (
     _history_output,
     _http_json,
     _pipeline_error,
+    _upload_image,
     _warn_if_version_below_min,
     bridge_url,
     curated_node_class_packs,
@@ -35,7 +39,7 @@ from .comfyui_bridge import (
 
 MODEL_NAME = "qwen-image-2-1"
 LAYOUT = "qwen21-viggle"
-SUPPORTS_REFERENCE = False
+SUPPORTS_REFERENCE = True
 SUPPORTS_MULTI_REFERENCE = False
 
 SPEC = {
@@ -45,11 +49,13 @@ SPEC = {
     "size_mb": 0,
     "license": "本机 ComfyUI 配置",
     "steps": 6,
-    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:viggle 9步双段+SeedVR2 2K 超分)",
+    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:viggle 9步双段+SeedVR2 2K 超分;图生图=画风转换)",
     "layout": LAYOUT,
 }
 
 TEMPLATE_NAME = "qwen21_道劫_t2i_api"
+TEMPLATE_NAME_I2I = "qwen21_道劫_i2i_api"
+ASSEMBLY_PURPOSE_STYLE_TRANSFER = "画风转换"
 
 ASPECT_RATIOS = {
     "1:1": (1024, 1024), "16:9": (1152, 640), "9:16": (640, 1152),
@@ -134,15 +140,42 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     stats = resolve_big_files()
     if not stats:
         raise _pipeline_error("bridge-unreachable", "ComfyUI 没在运行，请先打开它再试")
-    if reference_b64 or ctx.get("reference_images_b64"):
-        raise _pipeline_error(
-            "reference-unsupported",
-            "Qwen-Image-2.1 本地渠道为文生图产线(道劫工作流);带参考图请切换云端图像模型。",
-        )
-    template = load_template(TEMPLATE_NAME)
-    _warn_if_version_below_min(stats, template)
-    graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, [])
-    apply_base_type(graph, ctx.get("base_type"))
+    # 参考图分族(与 comfyui_bridge 同款约定):ctx 显式列表优先,否则单张 positional
+    references = list(ctx.get("reference_images_b64") or ([] if not reference_b64 else [reference_b64]))
+    if references:
+        # 10-19 图生图·画风转换(D3/D4):恒单参考;模板快照=画布现值,仅运行时
+        # 覆写组装用途=画风转换(底座由装配层追加);seed 每次随机(fire 铁令)
+        if len(references) > 1:
+            raise _pipeline_error(
+                "reference-unsupported",
+                "Qwen-Image-2.1 本地渠道图生图仅支持单参考图(画风转换)。",
+            )
+        template = load_template(TEMPLATE_NAME_I2I)
+        _warn_if_version_below_min(stats, template)
+        check_cancelled()
+        upload_name = _upload_image(
+            f"{bridge_url()}/upload/image",
+            references[0],
+            f"qwen21-i2i-{uuid.uuid4().hex}.png",
+        ).get("name")
+        if not isinstance(upload_name, str) or not upload_name:
+            raise _pipeline_error("bridge-execution-failed", "ComfyUI 未返回参考图文件名")
+        seed = seed if seed is not None else random.randint(1, 2**31 - 1)
+        # 负面不传(cfg=1;模板无 negative_prompt 绑定,显式 None 表态)
+        graph = instantiate_template(template, prompt, None, steps, seed, aspect_ratio, [upload_name])
+        assembly = graph.get("6:4011")
+        if not isinstance(assembly, dict) or "组装用途" not in assembly.get("inputs", {}):
+            # fail-closed 防模板文件手术漂移(快照重构须重跑 build --target i2i)
+            raise _pipeline_error(
+                "bridge-template-missing",
+                f"i2i 模板缺组装节点 6:4011: {TEMPLATE_NAME_I2I}",
+            )
+        assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_STYLE_TRANSFER
+    else:
+        template = load_template(TEMPLATE_NAME)
+        _warn_if_version_below_min(stats, template)
+        graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, [])
+        apply_base_type(graph, ctx.get("base_type"))
     message = missing_nodes_message(
         [cls for cls in graph_node_classes(graph) if cls not in _available_node_classes()],
         curated_node_class_packs(),

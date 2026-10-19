@@ -18,7 +18,14 @@ export function getAssetImageOpenTarget(
   currentIndex: number,
   asset: StudioAssetSummary | null,
 ) {
-  return images[currentIndex]?.url || asset?.sourcePath || asset?.filePath || "";
+  // 10-19 用户报障修复:「查看图片」报不存在——openPath 要的是磁盘路径,而 url 是
+  // 运行时预览地址(previewUrl/thumbnailUrl 装配,常见 asset-file:///file:// 等协议
+  // 头),拿它开文件必失败。优先级=当前图 filePath(族聚兄弟条目天然自带各自磁盘
+  // 路径)→ 资产 sourcePath → 资产 filePath;url 仅作末位兜底且仅当自身形如磁盘
+  // 路径(以 / 开头)才可用,否则返回空串走「没有可打开的本地路径」toast。
+  const entry = images[currentIndex];
+  const diskLikeUrl = entry?.url?.startsWith("/") ? entry.url : "";
+  return entry?.filePath || asset?.sourcePath || asset?.filePath || diskLikeUrl || "";
 }
 
 export function getAssetDisplayName(asset: StudioAssetSummary | null) {

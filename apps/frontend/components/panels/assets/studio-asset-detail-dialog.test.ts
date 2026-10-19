@@ -100,7 +100,7 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).toContain("副名字");
   });
 
-  it("opens the image currently selected in the asset carousel", () => {
+  it("opens the image currently selected in the asset carousel by disk path (10-19 报障修复:filePath 优先)", () => {
     const asset: StudioAssetSummary = {
       id: "asset-role-3",
       source: "manying-local",
@@ -114,8 +114,21 @@ describe("buildAssetRegenerationPrompt", () => {
       { name: "姿态一", filePath: "role/pose-one.png", url: "file:///asset-files/role/pose-one.png" },
     ];
 
-    expect(getAssetImageOpenTarget(images, 0, asset)).toBe("file:///asset-files/role/main.png");
-    expect(getAssetImageOpenTarget(images, 1, asset)).toBe("file:///asset-files/role/pose-one.png");
+    // 优先级①:当前图 filePath(磁盘路径;协议头 url 不再当选)
+    expect(getAssetImageOpenTarget(images, 0, asset)).toBe("role/main.png");
+    expect(getAssetImageOpenTarget(images, 1, asset)).toBe("role/pose-one.png");
+    // 优先级②③:条目无 filePath → 资产 sourcePath → 资产 filePath
+    const urlOnlyImages = [
+      { name: "主图", filePath: "", url: "asset-file://role/main.png" },
+    ];
+    expect(getAssetImageOpenTarget(urlOnlyImages, 0, asset)).toBe("/asset-files/role/main.png");
+    expect(getAssetImageOpenTarget(urlOnlyImages, 0, { ...asset, sourcePath: undefined })).toBe("role/main.png");
+    // 末位兜底:无任何 filePath 时,url 仅当形如磁盘路径(以 / 开头)才可用;
+    // 协议头 url 一律空串(走「没有可打开的本地路径」toast)
+    const bare: StudioAssetSummary = { id: "x", source: "manying-local", type: "role", name: "裸" };
+    expect(getAssetImageOpenTarget([{ name: "a", filePath: "", url: "/abs/path.png" }], 0, bare)).toBe("/abs/path.png");
+    expect(getAssetImageOpenTarget(urlOnlyImages, 0, bare)).toBe("");
+    expect(getAssetImageOpenTarget([], 0, bare)).toBe("");
   });
 
   it("keeps a real spoken description ahead of the file path", () => {
@@ -412,6 +425,7 @@ describe("resolveThreeTrackAssetType", () => {
 });
 
 describe("R4 族聚显(10-19-script-asset-corridor-blank D1+D3:键=batchMatch 同源候选全集,序=updatedAt 倒序,族聚仅显示层)", () => {
+
   it("详情弹窗接受 familyImages 并以 mergeFamilyDisplayImages 派生轮播展示序", () => {
     const source = readDialogSources();
     expect(source).toContain("familyImages?: FamilyImageEntry[]");
@@ -440,5 +454,51 @@ describe("R4 族聚显(10-19-script-asset-corridor-blank D1+D3:键=batchMatch �
     );
     const tabSource = readFileSync(new URL("../studio/ScriptAssetGenerationTab.tsx", import.meta.url), "utf8");
     expect(tabSource).toContain("familyImages={selectedFamilyImages}");
+  });
+});
+
+describe("图生图·画风转换(10-19-daojie-ui-i2i-style-convert:i2iPhase 状态装配+一键生成互斥+派发链)", () => {
+  it("弹窗装配 i2iPhase/i2iMessage 状态并按三轨+有图推导 canImageToImage", () => {
+    const source = readDialogSources();
+    expect(source).toContain("const [i2iPhase, setI2iPhase]");
+    expect(source).toContain("const [i2iMessage, setI2iMessage]");
+    expect(source).toContain("const canImageToImage = isThreeTrackAsset && displayImages.length > 0");
+  });
+
+  it("预览面板接上派发与相位(i2iPhase/generatePhase/canImageToImage/onImageToImage)", () => {
+    const source = readDialogSources();
+    expect(source).toContain("onImageToImage={handleImageToImageStyle}");
+    expect(source).toContain("i2iPhase={i2iPhase}");
+    expect(source).toContain("generatePhase={generatePhase}");
+    expect(source).toContain("canImageToImage={canImageToImage}");
+  });
+
+  it("一键生成按钮与图生图互斥(!!i2iPhase 禁用)", () => {
+    const source = readDialogSources();
+    expect(source).toContain("disabled={!!generatePhase || !!i2iPhase || !visualManualId}");
+  });
+
+  it("handleImageToImageStyle 走画风转换 service 并复刻一键生成尾段(写回+广播+刷新+3s 自动清)", () => {
+    const source = readDialogSources();
+    // 守卫链:三轨 fail-closed + 轮播当前图作参考
+    expect(source).toContain("handleImageToImageStyle");
+    expect(source).toContain("generateAssetStyleTransferImage");
+    expect(source).toContain("resolveAssetGenerationReferenceImage(carouselImages, currentIndex)");
+    // 成功尾段镜像一键生成:写回资产库 + asset:updated 广播 + get 刷新轮播
+    expect(source).toContain("saveGeneratedAssetImageToLibrary");
+    expect(source).toContain('eventBus.emit("asset:updated"');
+    expect(source).toContain('getStudioAssetsBridge()!.get(asset.id)');
+    // 相位 3s 自动清
+    expect(source).toMatch(/setI2iPhase\(null\)/);
+  });
+
+  it("handleImageToImageStyle 按本层惯例打点:operationId 自造贯通 service,守卫拒绝逐因留痕(10-19 用户令)", () => {
+    const source = readDialogSources();
+    expect(source).toContain('createOperationId("asset-style-transfer")');
+    expect(source).toContain('operationId,');
+    expect(source).toContain("Asset style transfer requested (image-to-image)");
+    expect(source).toContain("Asset style transfer guard rejected (busy)");
+    expect(source).toContain("Asset style transfer guard rejected (non-three-track)");
+    expect(source).toContain("Asset style transfer guard rejected (no reference image)");
   });
 });

@@ -70,10 +70,10 @@ describe("buildFamilyImageEntries", () => {
 describe("mergeFamilyDisplayImages", () => {
   const ownMain: AssetImage = { name: "主图", filePath: "role/晏燎.png", url: "asset-file://role/晏燎.png" };
 
-  it("family 未提供(undefined) → 仅本行图,全可编辑(旧弹窗行为不变)", () => {
+  it("family 未提供(undefined) → 仅本行图,全可编辑(旧弹窗行为不变;主图亦可删=10-19 裁定)", () => {
     const display = mergeFamilyDisplayImages(undefined, [ownMain], "b");
     expect(display.map((entry) => entry.filePath)).toEqual(["role/晏燎.png"]);
-    expect(display[0]).toMatchObject({ readOnly: false, removable: false });
+    expect(display[0]).toMatchObject({ readOnly: false, removable: true });
   });
 
   it("稳态:展示=族序(updatedAt 倒序),本行条目可编辑、族兄弟只读", () => {
@@ -90,11 +90,11 @@ describe("mergeFamilyDisplayImages", () => {
     ]);
     expect(display[0]?.readOnly).toBe(true);
     expect(display[1]?.readOnly).toBe(false);
-    // 本行主图沿用 live 条目(名字保持「主图」),且不可删(与旧 index0 主图规则同义)
-    expect(display[1]).toMatchObject({ name: "主图", removable: false });
+    // 本行主图沿用 live 条目(名字保持「主图」),可删(10-19 用户裁定:主图亦可删)
+    expect(display[1]).toMatchObject({ name: "主图", removable: true });
   });
 
-  it("本行多图在族序原位展示,附加图可删;族兄弟附加图只读", () => {
+  it("本行多图在族序原位展示,本行图全可删(含主图);族兄弟附加图只读", () => {
     const ownImages: AssetImage[] = [
       ownMain,
       { name: "变体一", filePath: "role/晏燎_变体一.png", url: "asset-file://role/晏燎_变体一.png" },
@@ -118,7 +118,7 @@ describe("mergeFamilyDisplayImages", () => {
       "role/晏燎_旧.png",
     ]);
     expect(display.map((entry) => entry.readOnly)).toEqual([false, false, true]);
-    expect(display.map((entry) => entry.removable)).toEqual([false, true, false]);
+    expect(display.map((entry) => entry.removable)).toEqual([true, true, false]);
   });
 
   it("换主图后:新主图置顶(可编辑),族列表中被换掉的旧主图过滤", () => {

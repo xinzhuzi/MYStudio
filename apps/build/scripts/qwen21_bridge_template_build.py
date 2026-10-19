@@ -22,6 +22,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 CANVAS = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 OUT = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
+CANVAS_I2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+OUT_I2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 ENGINE = None
 
 SG6 = "96937bbe-99d1-4f16-a06c-d86b57815d91"
@@ -173,16 +175,25 @@ def selected_graph(graph: dict, outputs: list[str]) -> dict:
     return {key: node for key, node in graph.items() if key in reached}
 
 
-def build_graph(info: dict | None = None, workflow: dict | None = None) -> tuple[dict, dict]:
-    """Keep the App's established dual outputs even when the GUI upscale group is bypassed."""
+def build_graph(info: dict | None = None, workflow: dict | None = None, force_upscale: bool = True) -> tuple[dict, dict]:
+    """Keep the App's established dual outputs even when the GUI upscale group is bypassed.
+
+    force_upscale=False(10-19 i2i):保持画布现值——SeedVR2 宿主[503]/SaveImage[504]
+    旁路即旁路,单产物走 SaveImage[8](引擎侧 _prefer_upscaled_output 自然回落 8)。"""
     source = workflow if workflow is not None else json.loads(CANVAS.read_text(encoding='utf-8'))
     saved_workflow: dict = json.loads(json.dumps(source))
-    for node in saved_workflow['nodes']:
-        if node['id'] in (501, 502, 503, 504):
-            node['mode'] = 0
+    if force_upscale:
+        for node in saved_workflow['nodes']:
+            if node['id'] in (501, 502, 503, 504):
+                node['mode'] = 0
     graph = flatten_canvas(saved_workflow, info if info is not None else object_info())
     root = {node['id']: node for node in saved_workflow['nodes']}
-    return graph, {'型': root[6]['widgets_values_named']['型选择'], '档': root[7]['widgets_values_named']['速度档位']}
+    meta = {
+        '型': root[6]['widgets_values_named']['型选择'],
+        '档': root[7]['widgets_values_named']['速度档位'],
+        '组装用途': root[6]['widgets_values_named'].get('组装用途'),
+    }
+    return graph, meta
 
 
 def _widgetize(node: dict) -> dict:
@@ -248,6 +259,25 @@ TEMPLATE = {
     },
 }
 
+# 10-19 图生图·画风转换:qi21-道劫-i2i.json 展平模板。快照=画布现值
+# (组装用途=局部编辑/型=人物/Turbo 8步/PE 关/SeedVR2 旁路);运行时由
+# qwen21.generate 覆写 6:4011 组装用途=画风转换并绑 [10].image 为上传参考图名。
+TEMPLATE_I2I = {
+    "schemaVersion": 1,
+    "name": "qwen21_道劫_i2i_api",
+    "comfyuiVersionMin": "0.3.45",
+    "inputs": {
+        "prompt": {"node": "400", "field": "value", "class_type": "PrimitiveStringMultiline"},
+        "seed": {"node": "7:7014", "field": "value", "class_type": "PrimitiveInt"},
+        "references": [{"node": "10", "slot": 0, "field": "image", "class_type": "LoadImage"}],
+    },
+}
+
+TARGETS = {
+    't2i': {'canvas': CANVAS, 'out': OUT, 'template': TEMPLATE, 'force_upscale': True},
+    'i2i': {'canvas': CANVAS_I2I, 'out': OUT_I2I, 'template': TEMPLATE_I2I, 'force_upscale': False},
+}
+
 
 def check_object_info(graph: dict, schemas: dict | None = None) -> None:
     schemas = schemas if schemas is not None else object_info()
@@ -310,19 +340,24 @@ def validate_live(graph: dict) -> None:
 def main() -> None:
     global ENGINE
     ap = argparse.ArgumentParser()
+    ap.add_argument('--target', choices=sorted(TARGETS), default='t2i',
+                    help='t2i(缺省,零变化)/i2i(图生图·画风转换模板)')
     ap.add_argument("--validate", action="store_true", help="生成后直发引擎实弹验图")
     ap.add_argument('--object-info', type=Path, help='offline object_info JSON snapshot')
     args = ap.parse_args()
-    source_bytes = CANVAS.read_bytes()
-    previous_template = OUT.read_bytes() if OUT.exists() else None
+    target = TARGETS[args.target]
+    canvas: Path = target['canvas']
+    out: Path = target['out']
+    source_bytes = canvas.read_bytes()
+    previous_template = out.read_bytes() if out.exists() else None
     schemas = object_info(args.object_info)
-    graph, meta = build_graph(schemas, json.loads(source_bytes))
+    graph, meta = build_graph(schemas, json.loads(source_bytes), force_upscale=target['force_upscale'])
     check_object_info(graph, schemas)
-    template = {**TEMPLATE, "graph": graph}
-    if CANVAS.read_bytes() != source_bytes or (OUT.read_bytes() if OUT.exists() else None) != previous_template:
+    template = {**target['template'], "graph": graph}
+    if canvas.read_bytes() != source_bytes or (out.read_bytes() if out.exists() else None) != previous_template:
         raise SystemExit('canvas/template changed during generation; refusing concurrent overwrite')
-    OUT.write_text(json.dumps(template, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"[qwen21-tpl] 模板已写入 {OUT.relative_to(REPO)}")
+    out.write_text(json.dumps(template, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"[qwen21-tpl] 模板已写入 {out.relative_to(REPO)}")
     print(f"[qwen21-tpl] 画布现态: {json.dumps(meta, ensure_ascii=False)}")
     if args.validate:
         ENGINE = engine_base()
