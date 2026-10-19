@@ -193,7 +193,7 @@
      0
     ],
     "prompt": [
-     "38",
+     "18",
      0
     ],
     "grounding_px": 0,
@@ -226,16 +226,6 @@
     "max_ref_images": 1.0,
     "strength": 1.0,
     "fit": "fit"
-   }
-  },
-  "38": {
-   "class_type": "easy stylesSelector",
-   "inputs": {
-    "positive": [
-     "18",
-     0
-    ],
-    "styles": "krea2_397styles-painting_绘画"
    }
   },
   "18": {
