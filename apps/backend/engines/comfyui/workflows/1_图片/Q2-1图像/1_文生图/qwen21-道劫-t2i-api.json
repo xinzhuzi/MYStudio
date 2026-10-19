@@ -99,69 +99,12 @@
         ]
       }
     },
-    "501": {
-      "class_type": "SeedVR2LoadDiTModel",
-      "inputs": {
-        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
-        "device": "mps",
-        "blocks_to_swap": 0,
-        "swap_io_components": false,
-        "offload_device": "none",
-        "cache_model": false,
-        "attention_mode": "sdpa"
-      }
-    },
-    "502": {
-      "class_type": "SeedVR2LoadVAEModel",
-      "inputs": {
-        "model": "ema_vae_fp16.safetensors",
-        "device": "mps",
-        "encode_tiled": true,
-        "encode_tile_size": 512,
-        "encode_tile_overlap": 160,
-        "decode_tiled": true,
-        "decode_tile_size": 512,
-        "decode_tile_overlap": 160,
-        "tile_debug": "false",
-        "offload_device": "none",
-        "cache_model": false
-      }
-    },
-    "503": {
-      "class_type": "SeedVR2VideoUpscaler",
-      "inputs": {
-        "seed": 42,
-        "resolution": 2048,
-        "max_resolution": 4096,
-        "batch_size": 1,
-        "uniform_batch_size": false,
-        "color_correction": "lab",
-        "temporal_overlap": 0,
-        "prepend_frames": 0,
-        "input_noise_scale": 0,
-        "latent_noise_scale": 0,
-        "offload_device": "none",
-        "enable_debug": false,
-        "image": [
-          "5",
-          0
-        ],
-        "dit": [
-          "501",
-          0
-        ],
-        "vae": [
-          "502",
-          0
-        ]
-      }
-    },
     "504": {
       "class_type": "SaveImage",
       "inputs": {
         "filename_prefix": "MYStudio-2K",
         "images": [
-          "503",
+          "503:7401",
           0
         ]
       }
@@ -219,6 +162,7 @@
         "timeout_sec": 600,
         "thinking_effort": "关闭",
         "AI扩写开关": false,
+        "底座档位": "并入",
         "系统提示词": [
           "6:4030",
           0
@@ -308,6 +252,10 @@
         "latent_turbo": [
           "7:7031",
           0
+        ],
+        "型名": [
+          "6:4010",
+          5
         ]
       }
     },
@@ -332,24 +280,13 @@
         "sampler_name": "euler"
       }
     },
-    "7:7027": {
-      "class_type": "LoraLoaderModelOnly",
-      "inputs": {
-        "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
-        "strength_model": 0.5,
-        "model": [
-          "1",
-          0
-        ]
-      }
-    },
     "7:7028": {
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
         "strength_model": 1.0,
         "model": [
-          "7:7027",
+          "7:7034",
           0
         ]
       }
@@ -396,6 +333,83 @@
           "4",
           0
         ]
+      }
+    },
+    "7:7034": {
+      "class_type": "LoraLoaderModelOnly",
+      "inputs": {
+        "lora_name": "qi21-mikkoani.safetensors",
+        "strength_model": 0.8,
+        "model": [
+          "1",
+          0
+        ]
+      }
+    },
+    "503:501": {
+      "class_type": "SeedVR2LoadDiTModel",
+      "inputs": {
+        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "device": "mps",
+        "blocks_to_swap": 0,
+        "swap_io_components": false,
+        "offload_device": "none",
+        "cache_model": false,
+        "attention_mode": "sdpa"
+      }
+    },
+    "503:502": {
+      "class_type": "SeedVR2LoadVAEModel",
+      "inputs": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "mps",
+        "encode_tiled": true,
+        "encode_tile_size": 512,
+        "encode_tile_overlap": 160,
+        "decode_tiled": true,
+        "decode_tile_size": 512,
+        "decode_tile_overlap": 160,
+        "tile_debug": "false",
+        "offload_device": "none",
+        "cache_model": false
+      }
+    },
+    "503:7401": {
+      "class_type": "SeedVR2VideoUpscaler",
+      "inputs": {
+        "seed": [
+          "503:7402",
+          0
+        ],
+        "resolution": 2048,
+        "max_resolution": 4096,
+        "batch_size": 1,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 0,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "none",
+        "enable_debug": false,
+        "image": [
+          "5",
+          0
+        ],
+        "dit": [
+          "503:501",
+          0
+        ],
+        "vae": [
+          "503:502",
+          0
+        ]
+      }
+    },
+    "503:7402": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 0
       }
     }
   }

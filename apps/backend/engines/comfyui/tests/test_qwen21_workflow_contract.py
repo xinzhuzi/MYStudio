@@ -5992,3 +5992,21 @@ def test_daojie_data_prefers_truth_home(monkeypatch):
     got = my_qi21_base._daojie_data("qi21_bases.json")
     assert got == truth, f"dev 环境应解析到真源家 {truth},得 {got}"
     assert got.is_file(), f"真源家文件应存在: {got}"
+
+
+def test_bridge_api_template_style_lora_1019():
+    """1019 t2i 桥重展平挂 mikkoani(用户令「按照建议挂」):两桥契约模板 graph[7:7034]
+    锁 = STYLE_LORA_FILE × STYLE_LORA_STRENGTH(与六件画布/蓝图同值)。
+    缘起:t2i 桥在 1018 挂载役只圈六件时漏了桥模板,跨战役静默缺位至 1019;重展平
+    正路 = apps/build/scripts/qwen21_bridge_template_build.py --target t2i(型/档随画布现值)。"""
+    for rel in ("1_文生图/qwen21-道劫-t2i-api.json",
+                "2_图生图/qwen21-道劫-i2i-api.json"):
+        doc = json.loads((_IMG_DIR / "Q2-1图像" / rel).read_text(encoding="utf-8"))
+        node = doc["graph"].get("7:7034")
+        assert node is not None and node.get("class_type") == "LoraLoaderModelOnly", \
+            f"{rel}: graph[7:7034] 应 LoraLoaderModelOnly,得 {node and node.get('class_type')}"
+        inputs = node["inputs"]
+        assert inputs.get("lora_name") == STYLE_LORA_FILE, \
+            f"{rel}: 桥模板风格件 {inputs.get('lora_name')!r} ≠ {STYLE_LORA_FILE!r}"
+        assert inputs.get("strength_model") == STYLE_LORA_STRENGTH, \
+            f"{rel}: 桥模板强度 {inputs.get('strength_model')} ≠ {STYLE_LORA_STRENGTH}"
