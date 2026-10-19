@@ -56,6 +56,22 @@ def test_weapon_grip_and_hair_color_pass():
         assert v == [], (s, v)
 
 
+def test_weapon_state_axis_1019():
+    """1019 用户裁定(暂定):持械判定主轴=武器在不在鞘里(剑/刀/枪同例)。
+    已脱鞘+空鞘在画+握柄=正;坐姿桌上按鞘=正;在鞘证据+握柄且无脱鞘证据=拒。"""
+    ok = [
+        "长剑已然出鞘，空剑鞘仍系于腰间，他右手握住剑柄，五指收拢。",
+        "长刀已然出鞘，空刀鞘仍悬于腰侧，她右手握住刀柄，虎口扣柄。",
+        "她端坐案前，长剑连鞘平放桌上，右手按住剑鞘。",
+        "她端坐案前，长刀连鞘平放桌上，右手按住刀鞘。",
+    ]
+    for s in ok:
+        v = gate._weapon_grip_violations(s)
+        assert v == [], (s, v)
+    v = gate._weapon_grip_violations("女修腰悬一柄乌木鞘长剑，剑身完整收在鞘中，右手按住剑柄。")
+    assert v and "握柄" in v[0], v
+
+
 def test_verbatim_block_exempt():
     s = GOOD + "【文字要求】画面中所有文字必须是以上明确指定的中文，逐字准确；不要生成任何未指定的多余文字。"
     assert gate.prompt_violations(s, is_subject=True) == []

@@ -38,7 +38,10 @@ _EMPTY_Q = ("masterpiece", "8K", "8k", "best quality", "超高清", "杰作", "�
 _STYLE_WORDS = ("工笔", "白描", "连环画", "厚涂", "赛璐璐", "photorealistic")
 
 # 1018 用户门禁令:人械同句握姿必须写清、人物发色必写(违者任务级拒收)
-_SHEATHED = ("收在鞘中", "挂定", "鞘", "佩刀", "佩剑", "悬一柄")
+# 1019 用户裁定(暂定):判定主轴=武器在不在鞘里(剑/刀/枪同例)——在鞘证据收窄(去裸「鞘」字:
+# 鞘在画面≠剑在鞘中,空鞘仍在画的正确拔剑场景曾被误杀),另立脱鞘证据豁免
+_SHEATHED = ("收在鞘中", "鞘中", "连鞘", "挂定", "悬一柄", "佩刀", "佩剑")
+_DRAWN = re.compile(r"出鞘|离鞘|脱鞘|空鞘|拔剑|拔刀|拔枪|抽剑|抽刀|归鞘|还鞘|收回鞘")
 _HILT_GRIP = re.compile(r"(握住|握着|扣住|按在|按住|轻按)[^。；]{0,10}(剑柄|刀柄|枪柄|柄身)")
 _GRIP_WEAPON = re.compile(r"(握|持|执)[^。；，,]{0,4}(剑|刀)")
 _GRIP_DETAIL = ("鞘身", "上端", "三分之一", "四分之一", "剑鞘", "刀鞘", "护手", "剑格", "鞘口", "中段", "柄身", "剑柄", "刀柄")
@@ -52,9 +55,9 @@ _HAIR_COLOR = re.compile(
 
 def _weapon_grip_violations(t: str) -> list[str]:
     out = []
-    if _HILT_GRIP.search(t) and any(m in t for m in _SHEATHED):
-        out.append("握柄（挂定未拔时手不得按/握剑柄——握柄＝拔剑预备式；改「虚握挂定的剑鞘上端三分之一处、五指环拢鞘身，"
-                   "剑的重量仍由腰间剑绦承担」）")
+    if _HILT_GRIP.search(t) and any(m in t for m in _SHEATHED) and not _DRAWN.search(t):
+        out.append("握柄（武器未脱鞘时手不得按/握剑柄／刀柄——握柄＝拔剑预备式；改「虚握挂定的剑鞘／刀鞘上端三分之一处、"
+                   "五指环拢鞘身，重量仍由腰间绦承担」；剑已出鞘／空鞘在画场景不适用——1019 暂定）")
     if _GRIP_WEAPON.search(t) and not any(d in t for d in _GRIP_DETAIL):
         out.append("握姿须写明接触部位与位置（如「虚握挂定的剑鞘上端三分之一处、五指环拢鞘身」）")
     return out
