@@ -256,6 +256,8 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
     ? `${asset.type}/${assetFamilyFolderKey(String(asset.name ?? ""))}`
     : asset.type;
   const destPath = path.join(getFilesDir(), subDir, destName);
+  // L1 按需 mkdir 补刀(10-19):无图资产的行级夹此前不存在,copyFileSync 直接 ENOENT
+  fs.mkdirSync(path.dirname(destPath), { recursive: true });
   fs.copyFileSync(sourceFilePath, destPath);
   const newFilePath = `${subDir}/${destName}`;
   const thumbDir = path.join(getThumbsDir(), subDir);
@@ -332,7 +334,25 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
   const asset = rows[0];
   const images: StoredAssetImage[] = JSON.parse(asset.images || "[]");
   const idx = images.findIndex((img) => img.filePath === imageFilePath);
-  if (idx === -1) return null;
+  if (idx === -1) {
+    // 10-19 主图可删补刀:replaceAssetMainImage 只写行级 filePath 不入 images[],
+    // 生成/一键生成/图生图写回的主图在 images[] 删除路径上断链(旧「不能删主图」
+    // 闸挡着从未暴露)。回退:命中的是行级主图 → 清行级指针 + 删实体与缩略图,
+    // images[] 不动(与 images[] 命中路径同款无条件删盘语义一致)。
+    if (asset.filePath && asset.filePath === imageFilePath) {
+      const mainFile = resolveAssetManagedPath(getFilesDir(), asset.filePath);
+      if (fs.existsSync(mainFile)) fs.unlinkSync(mainFile);
+      const mainThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
+      if (fs.existsSync(mainThumb)) fs.unlinkSync(mainThumb);
+      const now = new Date().toISOString();
+      runSqliteExecSafe(
+        dbPath,
+        `UPDATE assets SET filePath='', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`,
+      );
+      return getAssetSync(assetId);
+    }
+    return null;
+  }
 
   const fullPath = resolveAssetManagedPath(getFilesDir(), imageFilePath);
   if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);

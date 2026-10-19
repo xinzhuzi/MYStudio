@@ -13,12 +13,13 @@ import {
   importFromToonflow,
   initAssetsStorage,
   listAssets,
+  removeAssetImage,
   replaceAssetMainImage,
   resolveAssetManagedPath,
   shouldCreateAssetThumbnail,
   updateAsset,
 } from "./studio-assets-storage";
-import { resolveSqliteCli } from "./assets-sqlite";
+import { getFilesDir, resolveSqliteCli } from "./assets-sqlite";
 import { getAssetSync } from "./assets-queries";
 
 let tempAssetRoot: string | undefined;
@@ -667,5 +668,27 @@ describe("改名联动(R5:文件级挪动+DB 改写+thumbs 镜像+兄弟隔离+�
     updateAsset(asset.id, { name: "晏燎·离火境" });
 
     expect(existsSync(stray)).toBe(true); // 文件级挪动:只动本行文件,遗留件不动
+  });
+});
+
+describe("removeAssetImage 行级主图回退删除(10-19 主图可删补刀)", () => {
+  it("replaceAssetMainImage 写回的主图(不在 images[])可删:清行级指针+删实体", () => {
+    initTempAssetsStorage();
+    const asset = addAsset({ type: "role", name: "主图回退删除回归" });
+    const src = join(tempAssetRoot!, "src-main.png");
+    writeFileSync(src, Buffer.from("89504e470d0a1a0a", "hex"));
+    const updated = replaceAssetMainImage(asset.id, src);
+    const mainPath = updated?.filePath ?? "";
+    expect(mainPath).not.toBe("");
+    const after = removeAssetImage(asset.id, mainPath);
+    expect(after).not.toBeNull();
+    expect(after?.filePath ?? "").toBe("");
+    expect(existsSync(join(getFilesDir(), mainPath))).toBe(false);
+  });
+
+  it("既不在 images[] 也非行级主图 → 仍返回 null(未命中语义不变)", () => {
+    initTempAssetsStorage();
+    const asset = addAsset({ type: "role", name: "未命中回归" });
+    expect(removeAssetImage(asset.id, "role/不存在/x.png")).toBeNull();
   });
 });
