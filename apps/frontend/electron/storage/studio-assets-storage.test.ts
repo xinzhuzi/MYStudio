@@ -276,6 +276,21 @@ describe("资产名分夹落盘(R1:role/scene/tool 名夹层,clip/audio 平铺�
     expect(existsSync(join(tempAssetRoot!, "files", "tool", "替死蛊", "替死蛊_变异.png"))).toBe(true);
   });
 
+  it("addAssetImage 图名已含资产名前缀时不重复拼接(禁双名前缀,10-19 用户令)", () => {
+    initTempAssetsStorage();
+    const mainSource = join(tempAssetRoot!, "main.png");
+    const detailSource = join(tempAssetRoot!, "detail.png");
+    writeFileSync(mainSource, "main image");
+    writeFileSync(detailSource, "detail image");
+    const asset = addAsset({ type: "role", name: "晏燎", sourceFilePath: mainSource });
+
+    const prefixed = addAssetImage(asset.id, "晏燎_化神期_海报_v1", detailSource);
+    expect(prefixed?.images?.[0]?.filePath).toBe("role/晏燎/晏燎_化神期_海报_v1.png");
+
+    const bare = addAssetImage(asset.id, "共主期_三视图_v1", detailSource);
+    expect(bare?.images?.[1]?.filePath).toBe("role/晏燎/晏燎_共主期_三视图_v1.png");
+  });
+
   it("clip/audio 落盘保持平铺无名夹层(回归锁)", () => {
     initTempAssetsStorage();
     const clipSource = join(tempAssetRoot!, "clip.mp4");
