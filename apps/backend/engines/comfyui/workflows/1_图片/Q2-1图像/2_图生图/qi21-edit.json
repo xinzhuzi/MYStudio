@@ -3617,13 +3617,13 @@
             },
             "widgets_values": [
               "qi21-mikkoani.safetensors",
-              1.0
+              0.8
             ],
             "widgets_values_named": {
               "lora_name": "qi21-mikkoani.safetensors",
-              "strength_model": 1.0
+              "strength_model": 0.8
             },
-            "title": "[7034] 风格LoRA·mikkoani(×1.0)"
+            "title": "[7034] 风格LoRA·mikkoani(×0.8)"
           }
         ],
         "groups": [

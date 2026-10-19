@@ -420,7 +420,7 @@
       "class_type": "LoraLoaderModelOnly",
       "inputs": {
         "lora_name": "qi21-mikkoani.safetensors",
-        "strength_model": 1.0,
+        "strength_model": 0.8,
         "model": [
           "9",
           0

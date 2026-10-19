@@ -694,10 +694,11 @@ EDIT_TE1 = 4016  # 1002 ⑫:edit 单参考编码 [43]→[4016]
 # 1016turbo 官方臂常量(FunAcc 臂退役:FUNACC_FILE/T8_CLASS 死常量随之移除,
 # 历史账=git 与台账 #26「已退役留盘」)
 TURBO_LORA_FILE = "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
-# 1018mikko 用户令「使用 mikkoani,默认打开」:加速子图入口单挂 mikkoani×1.0
+# 1018mikko 用户令「使用 mikkoani,默认打开」:加速子图入口单挂 mikkoani(原×1.0)
 # (civitai 2470371 Qwen2.1 版;model 边界→[7034]→四扇出,三支路共吃;实测不惧蒸馏)
+# 1019 用户令「改成默认 x0.8」:强度默认 1.0→0.8(六件+i2i桥模板同批,役=qi21_mikkoani_strength_1019.py)
 STYLE_LORA_FILE = "qi21-mikkoani.safetensors"
-STYLE_LORA_STRENGTH = 1.0
+STYLE_LORA_STRENGTH = 0.8
 QI21_STYLE_LORA_ID = 7034
 TURBO_SIGMAS = ("1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, "
                 "0.704534, 0.414568, 0")  # 官方 model_index sample_sigmas+模板补终止0(9元素=8步)
