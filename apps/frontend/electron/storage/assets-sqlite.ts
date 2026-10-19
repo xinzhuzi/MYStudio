@@ -116,6 +116,59 @@ export function shouldCreateAssetThumbnail(type: string) {
   return type !== "audio" && type !== "clip";
 }
 
+// === 资产名分夹(10-19-asset-name-folders) ===
+
+/** R1 分夹域:role/scene/tool 三类图片按资产名分夹;clip/audio 保持平铺(prd R1)。 */
+export function usesAssetNameFolder(type: string) {
+  return type === "role" || type === "scene" || type === "tool";
+}
+
+const ASSET_FOLDER_NAME_MAX_CHARS = 80;
+const ASSET_FOLDER_NAME_MAX_BYTES = 240;
+const WINDOWS_RESERVED_FOLDER_NAME = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+
+/** sanitizeAssetFolderName 明细结果:truncated 供迁移/改名链路落 anomalies 台账(design §2 第5条)。 */
+export interface AssetFolderNameSanitizeResult {
+  folderName: string;
+  truncated: boolean;
+}
+
+/**
+ * 资产名安全化为子文件夹名(单一真源,design §2):
+ * 1) trim;2) 非法字符 [/\\:*?"<>|]→_(沿用 :117/:145 先例)并去除控制字符;
+ * 3) 去首尾空格与点号(macOS 合法但 Windows 致命的尾点/尾空格形态);
+ * 4) Windows 保留名(大小写不敏感)尾缀 _;5) 截断至 ≤80 字符且 UTF-8 ≤240 字节(逐码点回退);
+ * 6) 空结果兜底「未命名」(生产 empty_name=0,纯防御)。
+ */
+export function sanitizeAssetFolderNameDetailed(name: string): AssetFolderNameSanitizeResult {
+  let value = String(name ?? "").trim();
+  // eslint-disable-next-line no-control-regex -- 夹名安全化必须剔除控制字符(先例 scene-segments.ts:271)
+  value = value.replace(/[/\\:*?"<>|]/g, "_").replace(/[\u0000-\u001f\u007f-\u009f]/g, "");
+  value = value.replace(/^[. ]+|[. ]+$/g, "");
+  if (WINDOWS_RESERVED_FOLDER_NAME.test(value)) value = `${value}_`;
+
+  let truncated = false;
+  const codePoints = Array.from(value);
+  let cut = codePoints.length;
+  while (
+    cut > 0 &&
+    (cut > ASSET_FOLDER_NAME_MAX_CHARS ||
+      Buffer.byteLength(codePoints.slice(0, cut).join(""), "utf8") > ASSET_FOLDER_NAME_MAX_BYTES)
+  ) {
+    truncated = true;
+    cut -= 1;
+  }
+  if (cut < codePoints.length) value = codePoints.slice(0, cut).join("");
+
+  if (!value) return { folderName: "未命名", truncated };
+  return { folderName: value, truncated };
+}
+
+/** 简式:写入点落盘用;明细/truncated 信号走 sanitizeAssetFolderNameDetailed。 */
+export function sanitizeAssetFolderName(name: string) {
+  return sanitizeAssetFolderNameDetailed(name).folderName;
+}
+
 /** 缩略图生成队列：限制并发，避免一次性 spawn 数千个 sips 进程导致主进程卡死 */
 let thumbActive = 0;
 const thumbQueue: Array<() => void> = [];

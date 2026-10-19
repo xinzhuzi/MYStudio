@@ -1,16 +1,104 @@
 import { execFile } from "node:child_process";
 import {
   getDbPath, getFilesDir, runSqliteExecSafe,
-  escapeSql,
+  escapeSql, sanitizeAssetFolderName, usesAssetNameFolder,
 } from "./assets-sqlite";
 import { getAssetSync } from "./assets-queries";
-import { rowToSummary, runSqliteJsonSync, getThumbsDir } from "./assets-sqlite";
+import { rowToSummary, runSqliteJsonSync, getThumbsDir, getAssetsDir } from "./assets-sqlite";
 import { pickBestAssetRow, hasStoredText } from "./assets-queries";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { StudioAssetKind, StudioAssetSummary } from "../../types/studio-assets";
 import { StoredAssetImage, resolveAssetManagedPath } from "./assets-sqlite";
+import {
+  rewriteAssetRefsInImageWorkflowShards,
+  type AssetFileRefMapping,
+} from "./asset-name-folder-migration";
+
+/**
+ * R5 改名联动(design §4):type∈三类 且新旧安全名不同 → 本行引用的全部文件
+ * (filePath 与 images[] 元素)逐文件挪入新名夹(files+thumbs 双树;非整夹 rename,
+ * 同名兄弟天然隔离);挪动映射并入既有 sets 单条 UPDATE;持久化 asset-file://
+ * 引用按映射定向改写(只扫 image-workflows 分片,manifest 在场索引)。
+ * 文件缺失不阻断(仅 console.warn);目标在场(异源件)不覆盖,DB 该文件保持旧路径。
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function planRenameFolderMove(row: any, newFolder: string): {
+  mapping: AssetFileRefMapping;
+  filePath?: string;
+  imagesJson?: string;
+} {
+  const type = String(row.type ?? "");
+  const mapping: AssetFileRefMapping = new Map();
+  const filesDir = getFilesDir();
+  const thumbsDir = getThumbsDir();
+  const relPaths: string[] = [];
+  if (typeof row.filePath === "string" && row.filePath) relPaths.push(row.filePath);
+  if (typeof row.images === "string" && row.images) {
+    try {
+      const parsed = JSON.parse(row.images);
+      if (Array.isArray(parsed)) {
+        for (const img of parsed) {
+          if (img && typeof img === "object" && typeof (img as { filePath?: unknown }).filePath === "string") {
+            relPaths.push((img as { filePath: string }).filePath);
+          }
+        }
+      }
+    } catch {}
+  }
+
+  let newFilePath: string | undefined;
+  for (const rel of relPaths) {
+    if (rel.split("/")[0] !== type) continue; // 域外/异态路径不动
+    const fileName = rel.slice(rel.lastIndexOf("/") + 1);
+    const targetRel = `${type}/${newFolder}/${fileName}`;
+    if (targetRel === rel) continue;
+    const src = path.join(filesDir, rel);
+    const dst = path.join(filesDir, targetRel);
+    const srcIn = fs.existsSync(src);
+    const dstIn = fs.existsSync(dst);
+    if (srcIn && dstIn) {
+      console.warn(`[assets] 改名挪动跳过(目标在场,防覆盖异源件):${rel} → ${targetRel}`);
+      continue; // DB 该文件保持旧路径
+    }
+    if (!srcIn && !dstIn) {
+      console.warn(`[assets] 改名挪动:文件缺失不阻断:${rel}`);
+    } else if (srcIn) {
+      fs.mkdirSync(path.dirname(dst), { recursive: true });
+      fs.renameSync(src, dst);
+    } // srcIn 缺+dstIn 在=上轮已挪(中断续跑),照常改写 DB
+    const thumbSrc = path.join(thumbsDir, rel);
+    const thumbDst = path.join(thumbsDir, targetRel);
+    if (fs.existsSync(thumbSrc) && !fs.existsSync(thumbDst)) {
+      fs.mkdirSync(path.dirname(thumbDst), { recursive: true });
+      fs.renameSync(thumbSrc, thumbDst);
+    }
+    mapping.set(rel, targetRel);
+    if (rel === row.filePath) newFilePath = targetRel;
+  }
+
+  let imagesJson: string | undefined;
+  if (typeof row.images === "string" && row.images) {
+    try {
+      const parsed = JSON.parse(row.images);
+      if (Array.isArray(parsed)) {
+        let changed = false;
+        for (const img of parsed) {
+          if (img && typeof img === "object" && typeof (img as { filePath?: unknown }).filePath === "string") {
+            const target = mapping.get((img as { filePath: string }).filePath);
+            if (target) {
+              (img as { filePath: string }).filePath = target;
+              changed = true;
+            }
+          }
+        }
+        if (changed) imagesJson = JSON.stringify(parsed);
+      }
+    } catch {}
+  }
+  return { mapping, filePath: newFilePath, imagesJson };
+}
 
 export function updateAsset(id: string, updates: Partial<{ name: string; description: string; prompt: string; setting: string; remark: string; tags: string[] }>): StudioAssetSummary | null {
   const dbPath = getDbPath();
@@ -22,8 +110,37 @@ export function updateAsset(id: string, updates: Partial<{ name: string; descrip
   if (updates.remark !== undefined) sets.push(`remark='${escapeSql(updates.remark)}'`);
   if (updates.tags !== undefined) sets.push(`tags='${escapeSql(JSON.stringify(updates.tags))}'`);
   if (!sets.length) return null;
+
+  // R5 改名联动:前置读行(旧名/类型/文件清单),挪动映射并入本条 UPDATE
+  let renameMapping: AssetFileRefMapping | null = null;
+  if (updates.name !== undefined) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const currentRows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
+    const current = currentRows[0] ?? null;
+    if (current && typeof updates.name === "string" && updates.name !== current.name && usesAssetNameFolder(current.type)) {
+      const oldFolder = sanitizeAssetFolderName(String(current.name ?? ""));
+      const newFolder = sanitizeAssetFolderName(updates.name);
+      if (oldFolder !== newFolder) {
+        const move = planRenameFolderMove(current, newFolder);
+        if (move.filePath !== undefined) sets.push(`filePath='${escapeSql(move.filePath)}'`);
+        if (move.imagesJson !== undefined) sets.push(`images='${escapeSql(move.imagesJson)}'`);
+        renameMapping = move.mapping;
+      }
+    }
+  }
+
   sets.push(`updatedAt='${new Date().toISOString()}'`);
   runSqliteExecSafe(dbPath, `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(id)}';`);
+
+  // 持久化引用定向改写(best-effort:失败不回滚改名,留痕续修)
+  if (renameMapping && renameMapping.size > 0) {
+    try {
+      const projectRoot = path.resolve(getAssetsDir(), "..", "..");
+      rewriteAssetRefsInImageWorkflowShards(projectRoot, renameMapping);
+    } catch (error) {
+      console.warn(`[assets] 改名后持久化引用改写失败(不影响改名结果):${String(error)}`);
+    }
+  }
 
   // 同步返回
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +186,7 @@ export function addAsset(input: {
   let filePath = "";
 
   if (input.sourceFilePath && fs.existsSync(input.sourceFilePath)) {
-    filePath = copyAssetSourceFile(input.type, id, input.sourceFilePath);
+    filePath = copyAssetSourceFile(input.type, id, input.sourceFilePath, input.name);
   }
 
   const tags = JSON.stringify(input.tags || []);
@@ -116,10 +233,14 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   const ext = path.extname(sourceFilePath);
   const safeName = `${asset.name}`.replace(/[/\\:*?"<>|]/g, "_");
   const destName = `${safeName}_${Date.now()}${ext}`;
-  const destPath = path.join(getFilesDir(), asset.type, destName);
+  // R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(name)>/,thumbs 同构;clip/audio 平铺
+  const subDir = usesAssetNameFolder(asset.type)
+    ? `${asset.type}/${sanitizeAssetFolderName(asset.name ?? "")}`
+    : asset.type;
+  const destPath = path.join(getFilesDir(), subDir, destName);
   fs.copyFileSync(sourceFilePath, destPath);
-  const newFilePath = `${asset.type}/${destName}`;
-  const thumbDir = path.join(getThumbsDir(), asset.type);
+  const newFilePath = `${subDir}/${destName}`;
+  const thumbDir = path.join(getThumbsDir(), subDir);
   fs.mkdirSync(thumbDir, { recursive: true });
   execFile("sips", ["-z", "200", "200", destPath, "--out", path.join(thumbDir, destName)], () => {});
   const now = new Date().toISOString();
@@ -143,15 +264,19 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
   const asset = rows[0];
   const ext = path.extname(sourceFilePath);
   const safeName = `${asset.name}_${imageName}`.replace(/[/\\:*?"<>|]/g, "_");
+  // R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(name)>/;clip/audio 平铺
+  const subDir = usesAssetNameFolder(asset.type)
+    ? `${asset.type}/${sanitizeAssetFolderName(asset.name ?? "")}`
+    : asset.type;
   let destName = `${safeName}${ext}`;
-  let destPath = path.join(getFilesDir(), asset.type, destName);
+  let destPath = path.join(getFilesDir(), subDir, destName);
   if (fs.existsSync(destPath)) {
     destName = `${safeName}_${Date.now()}${ext}`;
-    destPath = path.join(getFilesDir(), asset.type, destName);
+    destPath = path.join(getFilesDir(), subDir, destName);
   }
   fs.copyFileSync(sourceFilePath, destPath);
 
-  const relPath = `${asset.type}/${destName}`;
+  const relPath = `${subDir}/${destName}`;
   const images = JSON.parse(asset.images || "[]");
   images.push({ name: imageName, filePath: relPath });
   const now = new Date().toISOString();
@@ -220,7 +345,7 @@ export function importFromToonflow(toonflowItems: StudioAssetSummary[]): number 
     let filePath = "";
     const sourceFile = item.sourcePath;
     if (sourceFile && fs.existsSync(sourceFile)) {
-      filePath = copyAssetSourceFile(item.type, id, sourceFile);
+      filePath = copyAssetSourceFile(item.type, id, sourceFile, item.name);
     }
 
     runSqliteExecSafe(dbPath, `INSERT INTO assets (id,type,name,description,prompt,setting,remark,tags,filePath,images,source,createdAt,updatedAt) VALUES ('${escapeSql(id)}','${escapeSql(item.type)}','${escapeSql(item.name || "")}','${escapeSql(item.description || "")}','${escapeSql(item.prompt || "")}','${escapeSql(item.setting || "")}','${escapeSql(item.remark || "")}','${escapeSql(JSON.stringify(item.tags || []))}','${escapeSql(filePath)}','[]','manying-local','${now}','${now}');`);
@@ -249,7 +374,7 @@ function backfillAssetFromToonflow(row: any, item: StudioAssetSummary, now: stri
     sets.push(`tags='${escapeSql(JSON.stringify(item.tags))}'`);
   }
   if (!hasStoredText(row.filePath) && item.sourcePath && fs.existsSync(item.sourcePath)) {
-    const filePath = copyAssetSourceFile(row.type, row.id, item.sourcePath);
+    const filePath = copyAssetSourceFile(row.type, row.id, item.sourcePath, row.name ?? item.name);
     sets.push(`filePath='${escapeSql(filePath)}'`);
   }
 
@@ -292,7 +417,7 @@ function backfillAssetFromLocalInput(
     sets.push(`tags='${escapeSql(JSON.stringify(input.tags))}'`);
   }
   if (!hasStoredText(row.filePath) && input.sourceFilePath && fs.existsSync(input.sourceFilePath)) {
-    const filePath = copyAssetSourceFile(row.type, row.id, input.sourceFilePath);
+    const filePath = copyAssetSourceFile(row.type, row.id, input.sourceFilePath, row.name ?? input.name);
     sets.push(`filePath='${escapeSql(filePath)}'`);
   }
 
@@ -302,9 +427,11 @@ function backfillAssetFromLocalInput(
   return true;
 }
 
-function copyAssetSourceFile(type: StudioAssetKind, id: string, sourceFile: string) {
+/** R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(assetName)>/,clip/audio 维持平铺。文件名承载唯一性不改。 */
+function copyAssetSourceFile(type: StudioAssetKind, id: string, sourceFile: string, assetName: string) {
   const ext = path.extname(sourceFile);
-  const destDir = path.join(getFilesDir(), type);
+  const subDir = usesAssetNameFolder(type) ? `${type}/${sanitizeAssetFolderName(assetName)}` : type;
+  const destDir = path.join(getFilesDir(), subDir);
   fs.mkdirSync(destDir, { recursive: true });
   let destName = `${id}${ext}`;
   let destPath = path.join(destDir, destName);
@@ -313,7 +440,7 @@ function copyAssetSourceFile(type: StudioAssetKind, id: string, sourceFile: stri
     destPath = path.join(destDir, destName);
   }
   fs.copyFileSync(sourceFile, destPath);
-  return `${type}/${destName}`;
+  return `${subDir}/${destName}`;
 }
 
 function assetTagsCount(value: string | undefined) {
