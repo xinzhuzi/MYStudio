@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { analyzeScriptDraft } from "@/lib/studio/script-draft-metrics";
 import {
   buildStageMessages,
@@ -27,10 +17,11 @@ import { cn } from "@/lib/utils";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useThemeStore } from "@/stores/app/theme-store";
 import type { AgentWorkKey, NovelChapter } from "@/types/studio";
-import { BrainCircuit, ChevronsUpDown, ClipboardList, Edit3, WandSparkles } from "lucide-react";
+import { BrainCircuit, ClipboardList, Edit3, WandSparkles } from "lucide-react";
 import { MdPreview } from "md-editor-rt";
 import "md-editor-rt/lib/style.css";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChapterSwitchSelect } from "./ChapterSwitchSelect";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
 import { latestAgentWorkEntry } from "./workflow-helpers";
 
@@ -197,27 +188,6 @@ export function ScriptTab(props: {
       aspectRatio: aspectMatch ? aspectMatch[1] : undefined,
     });
   }, [scriptDraftData, props.styleSummary]);
-  // 1015 可搜索章节选择器:select(全本 4125 项原生 popup 无搜索)→ Popover+Command 组合。
-  // cmdk 必 shouldFilter={false}——其内置过滤只对「已渲染 Item」打分,与 cap 窗口化互斥;
-  // 自写子串过滤(序号或标题)+exact-index-first 置顶(搜「2000」第2000章必在 cap 内且第一)。
-  const [chapterSelectOpen, setChapterSelectOpen] = useState(false);
-  const [chapterSearch, setChapterSearch] = useState("");
-  // cap=100:对齐 NovelChapterTable.tsx VISIBLE_BATCH=100 先例(全本规模下一次性渲染全量行
-  // 会拖垮渲染与 DOM 内存);cap 外渲染提示行,继续输入缩小范围。cap 后 cmdk 恒见 ≤100 项。
-  const CHAPTER_SELECT_CAP = 100;
-  const filteredChapters = useMemo(() => {
-    const q = chapterSearch.trim().toLowerCase();
-    if (!q) return props.novelChapters;
-    const matched = props.novelChapters.filter(
-      (item) =>
-        String(item.index).includes(q) || item.title.toLowerCase().includes(q),
-    );
-    // exact-index-first:序号精确命中置顶(标题子串匹配的干扰项排后)
-    const exact = matched.filter((item) => String(item.index) === q);
-    const rest = matched.filter((item) => String(item.index) !== q);
-    return [...exact, ...rest];
-  }, [props.novelChapters, chapterSearch]);
-  const visibleChapters = filteredChapters.slice(0, CHAPTER_SELECT_CAP);
   if (!props.novelChapters.length) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
@@ -369,92 +339,13 @@ export function ScriptTab(props: {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-sm">章节（1 章 = 1 集）</Label>
-        {/* 1015 可搜索章节选择器(1015 设计:Popover+Command 组合,骨架对齐 phone-input.tsx 先例);
-            G1:onSelect 与旧 select onChange 同一调用点同一形态(void switchChapter,UI 只做触发器);
-            触发钮文案真源=chapter(自 activeChapterId 派生,装载完才原子翻转即自动跟随,等价旧受控 value);
-            R1 精神内增强:装载中 disabled(R1 禁用集六处按钮不变,store seq 守卫本就容忍装载中再切) */}
-        <Popover
-          open={chapterSelectOpen}
-          onOpenChange={(open) => {
-            setChapterSelectOpen(open);
-            // 每次打开重置搜索,列表回到 cap 首批
-            if (open) setChapterSearch("");
-          }}
-        >
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              data-testid="chapter-select-trigger"
-              aria-haspopup="listbox"
-              aria-label="章节（1 章 = 1 集）"
-              disabled={chapterSwitchLoading}
-              className="h-8 min-w-[260px] max-w-[360px] justify-between gap-2 px-3 text-sm font-normal text-foreground/85"
-            >
-              <span className="truncate">
-                {chapter ? `${chapter.index}. ${chapter.title}` : "选择章节"}
-              </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="start"
-            className="w-[320px] p-0"
-            data-testid="chapter-select-popover"
-          >
-            <Command shouldFilter={false}>
-              <CommandInput
-                data-testid="chapter-select-input"
-                placeholder="搜索章节（序号或标题）…"
-                value={chapterSearch}
-                onValueChange={setChapterSearch}
-              />
-              <CommandList data-testid="chapter-select-list">
-                <CommandGroup>
-                  {visibleChapters.map((item) => (
-                    <CommandItem
-                      key={item.id}
-                      data-testid={`chapter-option-${item.id}`}
-                      value={`${item.index}. ${item.title}`}
-                      onSelect={() => {
-                        setChapterSelectOpen(false);
-                        // G1:切章走 store 装载器(目标章工作区装载完成后才原子翻转
-                        // activeChapterId),不再只写本地 state;失败 fail-closed 留在原章
-                        void useStudioStore.getState().switchChapter(item.id);
-                      }}
-                    >
-                      {item.index}. {item.title}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-                {/* cmdk Empty 自带「零已渲染项才显」语义(shouldFilter=false 下 count=渲染项数) */}
-                <CommandEmpty data-testid="chapter-select-empty">
-                  无匹配章节
-                </CommandEmpty>
-                {filteredChapters.length > CHAPTER_SELECT_CAP ? (
-                  <div
-                    data-testid="chapter-select-cap-hint"
-                    className="border-t px-3 py-2 text-xs text-muted-foreground"
-                  >
-                    已显示 {CHAPTER_SELECT_CAP} / 共 {filteredChapters.length}{" "}
-                    个匹配，继续输入缩小范围
-                  </div>
-                ) : null}
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        {/* R1（A批）：切章装载中状态自释（polite live region）——同窗口生成/审核/可编辑禁用 */}
-        {chapterSwitchLoading ? (
-          <span
-            data-testid="chapter-switch-loading"
-            role="status"
-            className="text-xs text-muted-foreground"
-          >
-            章节装载中…
-          </span>
-        ) : null}
+        {/* 1015 可搜索章节选择器(10-19 外迁共享 ChapterSwitchSelect,全仓单源):G1 切章走
+            store 装载器,R1 装载窗口禁用+live region 由共享组件自带;行为测试锚经本组件
+            render 覆盖(script-tab.test 既有 describe),消费方禁止就地复制选择器 DOM */}
+        <ChapterSwitchSelect
+          chapters={props.novelChapters}
+          label="章节（1 章 = 1 集）"
+        />
       </div>
     </div>
           <div className="script-stage-control-tabs flex flex-wrap gap-2 border-b border-border pb-2">

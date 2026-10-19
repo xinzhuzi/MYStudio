@@ -181,6 +181,12 @@ export function ScriptAssetGenerationTab({
   const agentWorkDataFp = useStudioStore((state) => state.agentWorkData);
   const novelChaptersFp = useStudioStore((state) => state.novelChapters);
   const scriptPlansFp = useStudioStore((state) => state.scriptPlans);
+  // R1(照 ScriptTab 先例):切章装载中标志(store 瞬态位,只读订阅勿自造/持久化)——
+  // 装载窗口内禁用 7 处隐式章身份动作(页级四钮+行级三类重试),防对尚未装载完成的
+  // 工作区照旧章数据发动作;显式目标动作(提取卡/详情/放入库/未找到立即生成)不禁
+  const chapterSwitchLoading = useStudioStore(
+    (state) => state.chapterSwitchLoading,
+  );
   const extractionStale = useMemo(() => {
     if (!chapterBatch?.scriptFingerprint) return false;
     return (
@@ -355,15 +361,19 @@ export function ScriptAssetGenerationTab({
   };
 
   // 进入页面时静默重跑一次匹配:让「资产库已存在/放入资产库」状态跨页面切换保持正确,
-  // 而不是只靠手动点「重新识别」(本地 overrides 不持久,切走再回来必须重算)
+  // 而不是只靠手动点「重新识别」(本地 overrides 不持久,切走再回来必须重算)。
+  // 按章键控(10-19-asset-stage-chapter-select):门 key=productionEpisodeId(=资产页
+  // 选择器选中章),每章首次有行时静默 batchMatch 一次;切到新章后自动重匹配,切回
+  // 旧章不重跑(保持旧行为)。静默轮只查库不动资产库,不违「渲染提取视图不初始化
+  // 独立资产库」契约。
   const hasAnyRows = rows.character.length + rows.scene.length + rows.prop.length > 0;
-  const initialMatchDoneRef = useRef(false);
+  const initialMatchDoneRef = useRef<string | null>(null);
   useEffect(() => {
-    if (initialMatchDoneRef.current || !hasAnyRows) return;
-    initialMatchDoneRef.current = true;
+    if (initialMatchDoneRef.current === productionEpisodeId || !hasAnyRows) return;
+    initialMatchDoneRef.current = productionEpisodeId;
     void handleRefreshAssetMatches({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAnyRows]);
+  }, [hasAnyRows, productionEpisodeId]);
 
   return (
     <div className="flex min-h-0 flex-col bg-background/90">
@@ -392,7 +402,7 @@ export function ScriptAssetGenerationTab({
             <Button
               size="sm"
               variant="paid"
-              disabled={chapterRows.length === 0 || batchRunning}
+              disabled={chapterRows.length === 0 || batchRunning || chapterSwitchLoading}
               onClick={() => void handleRunChapterAssets()}
             >
               {batchRunning ? (
@@ -407,7 +417,7 @@ export function ScriptAssetGenerationTab({
             <Button
               size="sm"
               variant="secondary"
-              disabled={isRefreshingMatches || (rows.character.length + rows.scene.length + rows.prop.length) === 0}
+              disabled={isRefreshingMatches || (rows.character.length + rows.scene.length + rows.prop.length) === 0 || chapterSwitchLoading}
               onClick={() => void handleRefreshAssetMatches()}
             >
               <RefreshCw className={isRefreshingMatches ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
@@ -416,7 +426,7 @@ export function ScriptAssetGenerationTab({
             <Button
               size="sm"
               variant="secondary"
-              disabled={scriptPlanCount === 0 || derivedRunning}
+              disabled={scriptPlanCount === 0 || derivedRunning || chapterSwitchLoading}
               onClick={() => void handleRunDerivedChain()}
             >
               {derivedRunning ? (
@@ -500,7 +510,7 @@ export function ScriptAssetGenerationTab({
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={retryingTargetId === row.targetId}
+                    disabled={retryingTargetId === row.targetId || chapterSwitchLoading}
                     onClick={() => void handleRetryBatchRow(row)}
                   >
                     {retryingTargetId === row.targetId ? (
@@ -559,7 +569,7 @@ export function ScriptAssetGenerationTab({
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={retryingDerivedAll}
+                    disabled={retryingDerivedAll || chapterSwitchLoading}
                     onClick={() => void handleRetryDerivedAll()}
                   >
                     {retryingDerivedAll ? (
@@ -603,7 +613,7 @@ export function ScriptAssetGenerationTab({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={retryingDerivedKey === row.key || retryingDerivedAll}
+                      disabled={retryingDerivedKey === row.key || retryingDerivedAll || chapterSwitchLoading}
                       onClick={() => void handleRetryDerivedRow(row)}
                     >
                       {retryingDerivedKey === row.key ? (
@@ -651,7 +661,7 @@ export function ScriptAssetGenerationTab({
             type="button"
             size="sm"
             variant="outline"
-            disabled={isAutoAssigningAudio || mergedVoiceStats.total === 0}
+            disabled={isAutoAssigningAudio || mergedVoiceStats.total === 0 || chapterSwitchLoading}
             onClick={() => void handleAutoAssignAudio()}
           >
             {isAutoAssigningAudio ? (

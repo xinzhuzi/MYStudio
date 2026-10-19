@@ -72,6 +72,10 @@ vi.mock("@/lib/ai/ai-manager", () => ({
   removeEventListener() {},
 });
 
+// cmdk 首项选中/键盘导航的高亮 effect 调 scrollIntoView,jsdom 未实现该 API,
+// 补最小桩(照 script-tab.test 先例;本文件因资产页挂 ChapterSwitchSelect 弹窗而需要)
+Element.prototype.scrollIntoView ??= function scrollIntoViewStub() {};
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -3223,5 +3227,180 @@ describe("workflow view entries in stage switcher", () => {
     );
     expect(panelSource).toContain("OrbStagesSection");
     expect(panelSource).toContain("OrbGotoSection");
+  });
+});
+
+// 10-19-asset-stage-chapter-select:资产页章选择接线——页头共享选择器在座且唯一、点选派发
+// switchChapter、装载窗口禁用生成区隐式章身份动作、生成区章身份显式改锚「选择器选中章」
+// (assetChapterId,消除与『最新草稿优先』productionEpisodeId 的静默错章分叉)。
+// 选择器行为测试(过滤/cap/键盘/装载)不在此复制,仍由 script-tab.test 经同一组件实例覆盖。
+describe("资产页章选择接线", () => {
+  const ch1 = {
+    id: "chapter-001",
+    index: 1,
+    title: "第一章",
+    sourceText: "原文",
+    importedAt: 1,
+  };
+  const ch2 = {
+    id: "chapter-002",
+    index: 2,
+    title: "第二章",
+    sourceText: "原文二",
+    importedAt: 2,
+  };
+  const extractBatch1 = {
+    id: "extract-1",
+    episodeId: "chapter-001",
+    characters: [
+      { characterId: "char-1", name: "独孤剑尘", aliases: [], note: "冷静克制" },
+    ],
+    scenes: [],
+    props: [],
+  };
+
+  const setupStores = () => {
+    useStudioStore.getState().resetStudioWorkflow();
+    useStudioStore.setState({
+      activeChapterId: null,
+      chapterSwitchLoading: false,
+      entityExtractions: [extractBatch1],
+    });
+    useCharacterLibraryStore.getState().reset();
+    useProjectStore.setState({
+      activeProjectId: "default-project",
+      activeProject: {
+        id: "default-project",
+        name: "漫影工作室项目",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    useTtsStore.setState({
+      activeProjectId: "default-project",
+      projects: { "default-project": { bindings: {}, voiceLines: {} } },
+      voiceProfiles: {},
+    });
+  };
+
+  const makeManagementProps = () => ({
+    novelChapters: [ch1, ch2],
+    agentWorkData: [],
+    entityExtractions: [extractBatch1],
+    extractAssets: vi.fn(),
+    updateExtraction: vi.fn(),
+    productionEpisodeId: "chapter-001",
+    scriptPlanCount: 0,
+    hasSeriesBible: false,
+  });
+
+  afterEach(() => {
+    // 本 describe 的 switchChapter spy 须还原(spyOn 改写 store 实例方法,clearAllMocks 不复原)
+    vi.restoreAllMocks();
+    useStudioStore.setState({ activeChapterId: null, chapterSwitchLoading: false });
+  });
+
+  it("资产提取卡内挂共享章节选择器(标题说明布局之后):trigger 在座且页内唯一,缺省显示第一章", () => {
+    setupStores();
+    render(<ScriptAssetManagementTab {...makeManagementProps()} />);
+
+    expect(screen.getByTestId("chapter-select-trigger")).toBeTruthy();
+    expect(screen.getAllByTestId("chapter-select-trigger").length).toBe(1);
+    expect(screen.getByTestId("chapter-select-trigger").textContent).toContain(
+      "1. 第一章",
+    );
+  });
+
+  it("点选章项派发 useStudioStore.switchChapter(装载器接管,UI 只做触发器)", async () => {
+    setupStores();
+    const switchSpy = vi
+      .spyOn(useStudioStore.getState(), "switchChapter")
+      .mockImplementation(async () => {});
+    render(<ScriptAssetManagementTab {...makeManagementProps()} />);
+
+    fireEvent.click(screen.getByTestId("chapter-select-trigger"));
+    await waitFor(() =>
+      expect(screen.getByTestId("chapter-select-input")).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "2. 第二章" }));
+    expect(switchSpy).toHaveBeenCalledWith("chapter-002");
+  });
+
+  it("切章装载窗口(chapterSwitchLoading)一键生成/重新识别/落地衍生资产禁用+装载 live region 在座", () => {
+    setupStores();
+    render(
+      <ScriptAssetManagementTab
+        {...makeManagementProps()}
+        scriptPlanCount={1}
+      />,
+    );
+    const generateBtn = screen.getByRole("button", {
+      name: /本章资产一键生成/,
+    }) as HTMLButtonElement;
+    const rematchBtn = screen.getByRole("button", {
+      name: "重新识别",
+    }) as HTMLButtonElement;
+    const derivedBtn = screen.getByRole("button", {
+      name: "落地衍生资产",
+    }) as HTMLButtonElement;
+    // 装载前置基线:三钮可用(证明后述禁用可归因于装载窗口,而非既有禁用条件)
+    expect(generateBtn.disabled).toBe(false);
+    expect(rematchBtn.disabled).toBe(false);
+    expect(derivedBtn.disabled).toBe(false);
+
+    act(() => {
+      useStudioStore.setState({ chapterSwitchLoading: true });
+    });
+    expect(generateBtn.disabled).toBe(true);
+    expect(rematchBtn.disabled).toBe(true);
+    expect(derivedBtn.disabled).toBe(true);
+    // 共享选择器自带:触发钮禁用+装载 live region(行为细节由 script-tab.test 同组件实例覆盖)
+    expect(
+      (screen.getByTestId("chapter-select-trigger") as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(screen.getByTestId("chapter-switch-loading")).toBeTruthy();
+  });
+
+  it("章身份改锚:激活章切到无提取批的章后一键生成禁用(作用章=选择器选中章,非『最新草稿』回落)", () => {
+    setupStores();
+    render(<ScriptAssetManagementTab {...makeManagementProps()} />);
+    const generateBtn = screen.getByRole("button", {
+      name: /本章资产一键生成/,
+    }) as HTMLButtonElement;
+    // 基线:激活章缺省回退第一章(=productionEpisodeId prop 同章)→ 一键生成可用
+    expect(generateBtn.disabled).toBe(false);
+
+    // 切到第二章(无提取批):assetChapterId=chapter-002 → chapterBatch 无 → chapterRows
+    // 空 → 一键生成自动禁用。若仍走全局 productionEpisodeId(chapter-001)则恒可用——
+    // 禁用即证生成区作用章已改锚选择器选中章。
+    act(() => {
+      useStudioStore.setState({ activeChapterId: "chapter-002" });
+    });
+    expect(generateBtn.disabled).toBe(true);
+    expect(screen.getByTestId("chapter-select-trigger").textContent).toContain(
+      "2. 第二章",
+    );
+  });
+
+  it("源码守卫:管理页改锚 assetChapterId+激活章订阅+共享选择器单源(ScriptTab 外迁不就地复制)", () => {
+    const managementSource = readFileSync(
+      join(
+        process.cwd(),
+        "frontend/components/panels/studio/ScriptAssetManagementTab.tsx",
+      ),
+      "utf8",
+    );
+    expect(managementSource).toContain("<ChapterSwitchSelect");
+    expect(managementSource).toContain("productionEpisodeId={assetChapterId}");
+    expect(managementSource).toContain("state.activeChapterId");
+
+    const scriptTabSource = readFileSync(
+      join(process.cwd(), "frontend/components/panels/studio/ScriptTab.tsx"),
+      "utf8",
+    );
+    expect(scriptTabSource).toContain('from "./ChapterSwitchSelect"');
+    // 双口径禁回流:选择器 DOM 不许在 ScriptTab 就地复制(R12 纪律)
+    expect(scriptTabSource).not.toContain("chapter-select-trigger");
   });
 });
