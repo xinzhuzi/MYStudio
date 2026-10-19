@@ -397,6 +397,10 @@ export function useStudioAssetDialogActions(ctx: {
               newImgs.push(...updated.images);
             }
             setImages(newImgs);
+            // 10-19 用户报障「图生图后主图来回变」:完成即切到新主图(与更换主图同款
+            // setCurrentIndex(0));不归零 → 轮播 key 重挂在旧索引,叠加并存 images[]
+            // 增长位移 = 看到的一直是旧位置的内容而非新图
+            setCurrentIndex(0);
           }
         }
         if (!savedToLibrary) {
