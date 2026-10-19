@@ -3342,6 +3342,22 @@ describe("资产页章选择接线", () => {
     expect(screen.queryByRole("button", { name: "开始提取" })).toBeNull();
   });
 
+  it("10-20 单章铁律:资产提取卡只渲染选择器选中章单卡,切章后不与他章共存(数据不污染)", () => {
+    setupStores();
+    render(<ScriptAssetManagementTab {...makeManagementProps()} />);
+
+    // 缺省激活第一章 → 只有第一章卡在文档,第二章标题不出现(选择器也只显第一章)
+    expect(screen.getAllByText(/1\. 第一章/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/2\. 第二章/)).toBeNull();
+
+    // 切到第二章 → 只有第二章卡(选择器+单卡同显第二章),第一章标题彻底消失
+    act(() => {
+      useStudioStore.setState({ activeChapterId: "chapter-002" });
+    });
+    expect(screen.getAllByText(/2\. 第二章/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/1\. 第一章/)).toBeNull();
+  });
+
   it("点选章项派发 useStudioStore.switchChapter(装载器接管,UI 只做触发器)", async () => {
     setupStores();
     const switchSpy = vi

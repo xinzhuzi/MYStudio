@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useCharacterLibraryStore } from "@/stores/library/character-library-store";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -6,6 +6,7 @@ import { useSceneStore } from "@/stores/library/scene-store";
 import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { eventBus } from "@/lib/events/event-bus";
+import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import { toast } from "sonner";
 import { AssetsBatchCard, type AssetType } from "./AssetsBatchCard";
 import { assetRecordMatches, nameMatches } from "./asset-matching";
@@ -191,15 +192,36 @@ export function AssetsTab(props: {
     return hasImg ? "made" : "exists";
   };
 
-  const scriptChapters = useMemo(
-    () =>
-      props.novelChapters.filter((ch) =>
-        props.agentWorkData.some(
-          (w) => w.key === "scriptDraft" && w.episodeId === ch.id,
-        ),
-      ),
-    [props.novelChapters, props.agentWorkData],
-  );
+  // 10-20 用户铁律:提取视图只显示选择器选中章(=激活章)单卡,严禁多章共存/数据
+  // 污染——旧「列出所有有草稿的章」多卡列表作废(全书 4125 章有批后会爆炸)。
+  // 章身份与生成区同锚(activeChapterId,装载完成后原子翻转;空项目回退第一章)。
+  const activeChapterId = useStudioStore((s) => s.activeChapterId);
+  const selectedChapter =
+    props.novelChapters.find((ch) => ch.id === activeChapterId) ??
+    props.novelChapters[0];
+
+  // D22 口径落地:选中章无草稿时读漫剧剧本(novel/drama/chapter-NNN_漫剧.md)作
+  // 「剧本内容」与提取使能的真源——4123 个无草稿章可看可提,与全书 runner 同输入。
+  // 桥缺席/读取失败优雅回退(脚本面保持 undefined=旧禁用态);seq 防切章竞态串章。
+  const [dramaScript, setDramaScript] = useState<string | null>(null);
+  const selectedChapterId = selectedChapter?.id;
+  useEffect(() => {
+    setDramaScript(null);
+    if (!selectedChapterId || !activeProjectId) return;
+    const bridge = getProjectFilesBridge();
+    if (!bridge?.readText) return;
+    let seq = true;
+    const relativePath = `novel/drama/${selectedChapterId}_漫剧.md`;
+    bridge
+      .readText({ projectId: activeProjectId, relativePath })
+      .then((res) => {
+        if (seq && res.success && res.text) setDramaScript(res.text);
+      })
+      .catch(() => {});
+    return () => {
+      seq = false;
+    };
+  }, [selectedChapterId, activeProjectId]);
 
   const run = async (id: string) => {
     setExtractingId(id);
@@ -331,13 +353,19 @@ export function AssetsTab(props: {
     }
   };
 
-  if (!scriptChapters.length) {
+  if (!selectedChapter) {
     return (
       <div className="p-6 text-sm text-muted-foreground">
         还没有剧本：请先在「剧本生产阶段」生成各章剧本，再来管理资产（角色/场景/道具）。
       </div>
     );
   }
+
+  // R12(10-14-audit4-residuals):本章剧本取最新草稿走单源 latestAgentWorkEntry
+  // (按 updatedAt),数组序不再参与语义;无草稿回落漫剧剧本(D22,与 runner 同输入)。
+  const selectedScript =
+    latestAgentWorkEntry(props.agentWorkData, "scriptDraft", selectedChapter.id)
+      ?.data ?? (dramaScript ?? undefined);
 
   return (
     <div className="space-y-4">
@@ -358,45 +386,38 @@ export function AssetsTab(props: {
           </div>
         </div>
       ) : null}
-      {scriptChapters.map((ch) => {
-        const batch = props.entityExtractions.find(
-          (b) => b.episodeId === ch.id,
-        );
-        // R12(10-14-audit4-residuals):本章剧本取最新草稿走单源 latestAgentWorkEntry
-        // (按 updatedAt),数组序不再参与语义——旧 reverse().find 是双口径病根。
-        const script =
-          latestAgentWorkEntry(props.agentWorkData, "scriptDraft", ch.id)?.data;
-        const open = !collapsed.has(ch.id);
-        return (
-          <AssetsBatchCard
-            key={ch.id}
-            mode={mode}
-            chapter={ch}
-            batch={batch}
-            inWindow={useStudioStore.getState().activeChapterId === ch.id}
-            script={script}
-            open={open}
-            extractingId={extractingId}
-            adding={adding}
-            addValue={addValue}
-            onToggle={toggle}
-            onRun={run}
-            onCreateMissingAssets={createMissingAssets}
-            onRemoveAsset={removeAsset}
-            onSubmitAdd={submitAdd}
-            onStartAdd={(episodeId, type) => {
-              setAdding({ episodeId, type });
-              setAddValue("");
-            }}
-            onCancelAdd={() => {
-              setAdding(null);
-              setAddValue("");
-            }}
-            onAddValueChange={setAddValue}
-            getAssetStatus={getAssetStatus}
-          />
-        );
-      })}
+      {
+        // 10-20 单章铁律:只渲染选择器选中章的一张卡(旧多章 map 列表作废);
+        // 单卡恒为激活章(选中即装载完成),窗口外文案分支在此视图不可达
+      }
+      <AssetsBatchCard
+        mode={mode}
+        chapter={selectedChapter}
+        batch={props.entityExtractions.find(
+          (b) => b.episodeId === selectedChapter.id,
+        )}
+        inWindow
+        script={selectedScript}
+        open={!collapsed.has(selectedChapter.id)}
+        extractingId={extractingId}
+        adding={adding}
+        addValue={addValue}
+        onToggle={toggle}
+        onRun={run}
+        onCreateMissingAssets={createMissingAssets}
+        onRemoveAsset={removeAsset}
+        onSubmitAdd={submitAdd}
+        onStartAdd={(episodeId, type) => {
+          setAdding({ episodeId, type });
+          setAddValue("");
+        }}
+        onCancelAdd={() => {
+          setAdding(null);
+          setAddValue("");
+        }}
+        onAddValueChange={setAddValue}
+        getAssetStatus={getAssetStatus}
+      />
     </div>
   );
 }
