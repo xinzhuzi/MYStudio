@@ -1,11 +1,13 @@
 ---
 name: node-graph
-description: 节点图(node graph)与画布布局(canvas layout)技能——凡涉 ComfyUI 工作流构建或修改、画布布局、工作流布局、节点图搭建、连线交叉治理、线遮节点、横向排版、组框、负区、输出口位、workflow JSON 两种格式、连线与类型机制、多模式/加速档拓扑怎么搭(并行支路/节点复用/懒选择)的任务先读此技能。含拓扑结构策略章(0929:并行支路+单一选择点/单源扇出+零真重复/懒执行选择/注入式反模式;0930 补:完整功能域收装子图)、历次布局裁定系谱(09-19 横向铁律→0926 线不遮节点→0928 交叉立宪→0930 输出槽排布/节点命名/节奏常数)与布局策略全谱(①-⑧+⑨ 市面印证+⑩ AlignLayout 吸收:等距分布/同构同宽/防碰撞落位/换件端口迁移/选区内外清线/连线创建三式/美观双不增守门,工具件=tools/layout_polish 16 函数);本技能管图结构与布局,引擎驱动与生成归 comfyui 技能;1006 增「节点与工作流认知」章(节点解剖/object_info 真源/子图六同步与蓝图单向/宿主槽渲染/自研节点设计纪律——含**控件vs展示框退役分界:删下拉框≠删展示框,退役令只及控件**/工作流四副本与热覆盖/mermaid 展示/交付三道门)与「工作流 JSON 配置与逻辑」章(GUI/API 双格式逐字段解剖+graphToPrompt 执行链;1006 末轮术语对照补父图/宿主/连接状态/连接参数四条问法映射+嵌套单层口径全库扫描定谳)。Use for any node graph / canvas layout / workflow building or editing / crossing-and-group governance / topology-patterning / node details / subgraph host panel / workflow-cache-path / workflow JSON fields and execution chain — plus layout-aesthetics & wire-creation ops (align/distribute/size-unify, replace-node port migration, link strip, fan-in/out/chain wiring via tools/layout_polish) — task.
+description: 节点图(node graph)与画布布局(canvas layout)技能——凡涉 ComfyUI 工作流构建或修改、画布布局、工作流布局、节点图搭建、连线交叉治理、线遮节点、横向排版、组框、负区、输出口位、workflow JSON 两种格式、连线与类型机制、多模式/加速档拓扑怎么搭(并行支路/节点复用/懒选择)的任务先读此技能。含拓扑结构策略章、历次布局裁定系谱、布局策略全谱(①-⑩,工具件=tools/layout_polish 与 layout_check)、「节点与工作流认知」章(节点解剖/object_info 真源/子图六同步/宿主槽渲染/自研节点设计纪律/工作流四副本与热覆盖)与「工作流 JSON 配置与逻辑」章(GUI/API 双格式逐字段+graphToPrompt 执行链)——细节全在卫星件四件与本件正文。本技能管图结构与布局,引擎驱动与生成归 comfyui 技能。Use for any node graph / canvas layout / workflow building or editing / crossing-and-group governance / topology-patterning / node details / subgraph host panel / workflow-cache-path / workflow JSON fields and execution chain — plus layout-aesthetics & wire-creation ops (align/distribute/size-unify, replace-node port migration, link strip, fan-in/out/chain wiring) — task.
 metadata:
   type: reference
 ---
 
 # 节点图与画布布局(node graph / canvas layout)
+
+> 1019 description 裁短:原 1929 字节疑超宿主技能发现上限(对照=在列最长 1751),被裁的章级细节以正文「本技能文件集」表与卫星件为凭。
 
 本技能是**整合者**:地图(指路三真源)+纪律(优先级序)+速查层(脱离外部文件可用的最小操作集)。三真源(`.claude/knowledge/node-graph-architecture.md`、`docs/comfyui-kb/画布布局规范.md`、`.agents/skills/comfyui/`)仍是唯一权威;**任何冲突——包括布局策略章与 0928 立宪文档的冲突——一律真源胜,然后回改本技能**。「布局策略章完整自含」(0928 用户二令)的边界:指该章不依赖外部文件即可读全布局纪律,不指权威高于真源;优先级序的第一出处仍是 0928 立宪文档。
 

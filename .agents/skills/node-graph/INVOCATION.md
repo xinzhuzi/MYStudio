@@ -7,7 +7,7 @@
 
 1. **改仓库真源**(唯一编辑位;生产件=带断言手术脚本,fail-closed)。
 2. **契约测试(前置门,绿了才准进第 3 步)**:`pytest tests/test_qwen21_workflow_contract.py my_nodes/tests/ -q`——**零新增红;不绿=带伤部署,坏版本会流进用户画布被点运行(1007晚 实弹:reroute 手术 4304 slot 错,契约当场抓到,但部署已先行,用户窗口期执行被前端校验拒收=全节点零输出)**。既有红账如实注,零新增为准。
-3. **cp 热覆盖**(按类型):.py=仓库→装机 Resources→引擎家 custom_nodes 三方;工作流 JSON=仓库→装机→引擎缓存三方**+蓝图 subgraphs 双刷**+`qi21_blueprint_sync_1001.py --check`;JS=仓库→装机→引擎家两方。
+3. **cp 热覆盖**(按类型):.py=仓库→装机 Resources→引擎家 custom_nodes 三方;工作流 JSON=仓库→装机→引擎缓存三方**+蓝图 subgraphs 双刷**(蓝图↔画布一致性由契约测试 `pytest tests/test_qwen21_workflow_contract.py` 机器把门;1019 勘误:旧指针 `qi21_blueprint_sync_1001.py --check` 脚本已不存在勿寻);JS=仓库→装机→引擎家两方。
 4. **生效动作**(按类型,缺这步=用户看到的永远是旧的):.py→**重启引擎**(队列==0 硬门);工作流 JSON→**画布重载文件**(关签重开或 CDP `loadGraphData`——**reload 页面只恢复会话快照≠读盘**);JS→**页面重载**(no-cache 已根治缓存)。
 5. **活机读数**(无读数不得报「已生效」;只许说「盘上已改待载」):.py→`/object_info/<类>`+路由 curl;JSON→CDP `app.graph.serialize()` 读 definitions(根图恒 `app.graph`,`app.canvas.graph` 在子图视图=内层图);JS→CDP 验 DOM(`w.element/inputEl` 在场,数据层在场≠渲染在场)。探针姿势=App 带 `--remote-debugging-port=9225` 启动→`/json/list` 取 webview target→executeJavaScript。
 6. **报账**:生效声明+活机读数+测试结果,三件同报。
