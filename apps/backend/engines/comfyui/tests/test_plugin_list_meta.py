@@ -178,41 +178,71 @@ class TestListPluginsEnrichment:
         assert merged["byRepo"]["https://github.com/someone/comfyui-demo"]["stars"] == 777  # 未被覆盖
         assert "ComfyUI-Demo" in merged["local"]
 
-    def test_latest_version_cache_drives_updatable(self, fake_env, monkeypatch):
-        """最新版本三件套(09-10 晚补):tag 落后→updatable;tag 等值→不更;
-        无 release 仓库按 HEAD 提交漂移判 updatable。"""
+    def test_updatable_verdict_sha_only(self, fake_env, monkeypatch):
+        """10-19 帧插值案根修锚:「可更新」唯一判据=盘上真实 HEAD 与远端默认
+        分支 HEAD(latestSha)漂移——git pull 的机械真值,拉平即灭灯。release
+        tag 降级纯展示(生态仓 releases/latest 常为非语义 tag 或停更:帧插值
+        ="models"四坐标全等仍亮灯;本地比 tag 新也误报);gitless 无拉取通道
+        恒已装(kjnodes 等 repo 错指主仓的假灯);台账 commit 陈旧以盘上 HEAD
+        为准(ComfyUI-Manager/手动 git 更新不走台账,controlnet_aux 假灯)。"""
+        import shutil
+
         ledger = plugin_manager.cm.plugin_ledger()
+        plugin = fake_env / "ComfyUI" / "custom_nodes" / "ComfyUI-Demo"
+        (plugin / ".git").mkdir()
 
-        # ① tag 落后(本地 1.0.0 < tag 2.0.0)→ updatable,展示最新 tag
-        (fake_env / "plugin_meta_cache.json").write_text(json.dumps({
-            "byRepo": {"https://github.com/someone/comfyui-demo": {
-                "fetchedAt": 1789999999, "stars": 10, "latestTag": "2.0.0",
-            }}
-        }), encoding="utf-8")
-        row = list_plugins()[0]
-        assert row["state"] == "updatable"
-        assert row["latestVersion"] == "2.0.0"
-        assert row["version"] == "1.0.0"
+        def cache_with(latest_tag=None, latest_sha=None):
+            (fake_env / "plugin_meta_cache.json").write_text(json.dumps({
+                "byRepo": {"https://github.com/someone/comfyui-demo": {
+                    "fetchedAt": 1789999999, "stars": 10,
+                    "latestTag": latest_tag, "latestSha": latest_sha,
+                }}
+            }), encoding="utf-8")
 
-        # ② tag 等值(v 前缀归一)→ 不判可更新
-        (fake_env / "plugin_meta_cache.json").write_text(json.dumps({
-            "byRepo": {"https://github.com/someone/comfyui-demo": {
-                "fetchedAt": 1789999999, "stars": 10, "latestTag": "v1.0.0",
-            }}
-        }), encoding="utf-8")
+        def remote_head(sha):
+            """盘上 HEAD 桩:rev-parse 返回 sha;None=git 读不出(走 EngineOpError 路径)。"""
+            def fake_git(args, *rest, **kwargs):
+                if args[:2] == ["rev-parse", "HEAD"]:
+                    if sha is None:
+                        raise plugin_manager.EngineOpError("git broken")
+                    return sha
+                return ""
+            monkeypatch.setattr(plugin_manager, "_git", fake_git)
+
+        # ① 常态全绿:台账=远端 HEAD(零子进程快路);tag 语义更新但无拉取物
+        #    (作者没并分支)→ 已装(旧判据在此恒假灯)
+        ledger["ComfyUI-Demo"]["commit"] = "a" * 40
+        cache_with(latest_tag="2.0.0", latest_sha="a" * 40)
         assert list_plugins()[0]["state"] == "installed"
 
-        # ③ 无 release(latestSha 漂移)→ updatable,最新版本显示短 sha
-        ledger["ComfyUI-Demo"]["commit"] = "oldcommit0000000000000000000000000"
-        (fake_env / "plugin_meta_cache.json").write_text(json.dumps({
-            "byRepo": {"https://github.com/someone/comfyui-demo": {
-                "fetchedAt": 1789999999, "stars": 10,
-                "latestSha": "abc1234def567890abc1234def567890abc12345",
-            }}
-        }), encoding="utf-8")
+        # ② 帧插值案:台账陈旧+tag 非语义("models"),盘上 HEAD 已在远端 → 已装;
+        #    tag 仅供展示
+        ledger["ComfyUI-Demo"]["commit"] = "zzz"
+        cache_with(latest_tag="models", latest_sha="a" * 40)
+        remote_head("a" * 40)
+        row = list_plugins()[0]
+        assert row["state"] == "installed"
+        assert row["latestVersion"] == "models"
+
+        # ③ 真落后:盘上 HEAD ≠ 远端 HEAD → 可更新,最新版本展示短 sha
+        cache_with(latest_sha="b" * 40)
+        remote_head("c" * 40)
         row = list_plugins()[0]
         assert row["state"] == "updatable"
-        assert row["latestVersion"] == "abc1234"
+        assert row["latestVersion"] == "bbbbbbb"
+
+        # ④ 盘上 HEAD 读不出(git 坏)回退台账坐标仍落后 → 保守判可更新,
+        #    点更新走 pull 自愈或如实报错
+        remote_head(None)
+        assert list_plugins()[0]["state"] == "updatable"
+
+        # ⑤ gitless(kjnodes 案:repo 错指主仓、无拉取通道)→ 恒已装
+        shutil.rmtree(plugin / ".git")
+        cache_with(latest_sha="b" * 40)
+        monkeypatch.setattr(plugin_manager, "_git", lambda *args, **kwargs: "")
+        row = list_plugins()[0]
+        assert row["state"] == "installed"
+        assert row["gitless"] is True
 
     def test_curated_fields_win_and_ledger_deps_win(self, fake_env, monkeypatch):
         monkeypatch.setattr(

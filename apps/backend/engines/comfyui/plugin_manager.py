@@ -1156,11 +1156,6 @@ def _repo_owner_name(repo_key: str) -> str | None:
     return "/".join(parts[-2:])
 
 
-def _norm_version(value: str) -> str:
-    """版本串归一(剥 v 前缀/前导点/空白,小写)——tag 与本地版本比对口径。"""
-    return (value or "").strip().lstrip("vV.").strip().lower()
-
-
 def _github_json(owner_name: str, tail: str, timeout: float) -> dict | None:
     req = request.Request(
         f"https://api.github.com/repos/{owner_name}" + (f"/{tail}" if tail else ""),
@@ -1313,20 +1308,33 @@ def list_plugins() -> list[dict]:
                 registry_pending.append(str(repo))
         # 当前版本:pyproject 语义版优先,无则台账坐标(git 短 sha)
         current_version = local.get("version") or entry.get("version")
-        # 可更新:release tag 与本地版本归一化不等;无 release 仓库按默认分支
-        # HEAD 提交漂移判定。latestSha 供展示(短 sha)。
         latest_tag = reg.get("latestTag")
         latest_sha = reg.get("latestSha")
+        gitless = not (dir_path / ".git").exists()
+        # 可更新(10-19 帧插值案根修):唯一判据=盘上真实 HEAD 与远端默认分支
+        # HEAD(latestSha)的提交漂移——这正是「更新」钮的实际机制(git pull
+        # --ff-only 到分支头),拉平即灭灯,更新链 _mark_repo_latest 双保险。
+        # release tag 降级为纯展示:GitHub releases/latest 对大量生态仓是非
+        # 语义 tag(帧插值="models"、rgthree="v.1.0.0")或长期停更/与本仓
+        # 版本方案不可比,旧「tag≠本地语义版」比对造成「已更新仍恒可更新」
+        # 假灯(实弹:帧插值台账=盘上=缓存=远端四坐标全等仍亮灯),本地比
+        # tag 新(作者不打 release)也误报。gitless(Registry zip/裸目录)无
+        # 拉取通道,恒不判可更新(与 M4 置灰/400 守卫同口径;实弹:kjnodes/
+        # krea2-vl-instruction 等 3 条 repo 错指主仓,比对对象是别人家的版本)。
+        # 比对基=盘上 HEAD 而非台账 commit:经 ComfyUI-Manager/手动 git 更新
+        # 的目录台账不随动,陈年 commit 对远端恒差(实弹:controlnet_aux/
+        # spectrum 盘上已最新仍亮灯)。台账与远端相等时零子进程(常态全绿)。
         updatable = False
-        # tag 语义比对只对语义形态的本地版本生效(git 短 sha 不与 tag 硬比,防误报)
-        semantic_local = bool(current_version and re.match(r"^\d+(\.\d+)+", str(current_version)))
-        if (
-            latest_tag and semantic_local
-            and _norm_version(str(latest_tag)) != _norm_version(str(current_version))
-        ):
-            updatable = True
-        elif latest_sha and entry.get("commit") and str(entry["commit"]).lower() != str(latest_sha).lower():
-            updatable = True
+        if not gitless and latest_sha:
+            recorded = str(entry.get("commit") or "").lower()
+            if recorded != str(latest_sha).lower():
+                try:
+                    head = _git(["rev-parse", "HEAD"], cwd=dir_path, timeout=10.0).strip().lower() or None
+                except EngineOpError:
+                    head = None
+                base = head or recorded or None
+                updatable = bool(base and base != str(latest_sha).lower())
+        # tag 只供展示;无 tag 时展示短 sha(展示值不参与判定)
         latest_display = latest_tag or (str(latest_sha)[:7] if latest_sha else None)
         node_count = len(entry.get("nodes") or [])
         deps_map = entry.get("deps") or {}
@@ -1352,7 +1360,7 @@ def list_plugins() -> list[dict]:
             # (§七 G4:账本三类脏数据——viggle-turbo/my-nodes 不在册、kjnodes
             # 等 repo 错指主仓——按 repo/source 判都会误判)。前端按此标志置灰
             # 更新钮+tooltip(自研 my-nodes 文案区分);后端 400 保留防绕过。
-            "gitless": not (dir_path / ".git").exists(),
+            "gitless": gitless,
         })
     if local_dirty:
         # 09-11 P3:save 前锁内重读合并——旧实现用进入函数时的旧快照整写,

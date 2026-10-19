@@ -206,7 +206,9 @@ export interface ComfyPluginInfo {
   nodeCount: number | null;
   /** GitHub 星标(09-10 裁定:替代下载量;后台缓存补,null 前端整行不显示)。 */
   stars?: number | null;
-  /** 最新版本(GitHub release tag/短 sha);与当前版本不等 → state=updatable。 */
+  /** 最新版本(GitHub release tag/短 sha),纯展示不参与判定;可更新判据=盘上
+   * HEAD 与远端默认分支 HEAD 漂移(10-19 帧插值案根修:release tag 常非语义
+   * 或停更,旧「≠当前版本」比对造成已更新仍恒「可更新」假灯)。 */
   latestVersion?: string | null;
   /** 台账安装来源(pip=venv 直装,不可经目录再装;其余为目录四源)。 */
   source?: "curated" | "registry" | "git" | "local" | "pip";
