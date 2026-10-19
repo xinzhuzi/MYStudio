@@ -90,7 +90,9 @@ export function mergeFamilyDisplayImages(
       continue;
     }
     if (live) continue; // 与本行同 filePath 的族条目已由 live 展示,防重
-    display.push({ ...entry, readOnly: true, removable: false });
+    // 10-19 用户追令:族聚显兄弟图亦「可见即可删」——readOnly 保留(编辑面不变),
+    // removable 放开;删除由 handler 按 entry.assetId 落到兄弟自己的行(删对行≠误删)
+    display.push({ ...entry, readOnly: true, removable: true });
   }
   return display;
 }

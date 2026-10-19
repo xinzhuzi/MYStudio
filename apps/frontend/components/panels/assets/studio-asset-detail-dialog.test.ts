@@ -441,10 +441,17 @@ describe("R4 族聚显(10-19-script-asset-corridor-blank D1+D3:键=batchMatch �
     expect(source).toContain("mergeFamilyDisplayImages(familyImages, newImgs, asset?.id)");
   });
 
-  it("预览面板按条目 removable 控制删除可见性(族兄弟只读条目不显示删除)", () => {
+  it("预览面板按条目 removable 控制删除可见性(10-19 追令:族兄弟图亦显示删除)", () => {
     const previewSource = readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");
     expect(previewSource).toContain("isImageRemovable?: (image: AssetImage, index: number) => boolean");
     expect(previewSource).toContain("isImageRemovable(image, index)");
+  });
+
+  it("族兄弟删除落到其所属资产行(10-19 追令:可见即可删=删对行,不按当前行误删)", () => {
+    const actionsSource = readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
+    expect(actionsSource).toContain("entry.filePath === img.filePath && entry.assetId !== asset.id");
+    expect(actionsSource).toContain("assetId: sibling.assetId");
+    expect(actionsSource).toContain("已删除(该图属于");
   });
 
   it("剧本资产行打开详情即取族(键=行实体名,与本页 batchMatch 重识别同源),并透传弹窗", () => {

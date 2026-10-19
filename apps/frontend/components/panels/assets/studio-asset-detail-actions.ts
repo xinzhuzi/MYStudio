@@ -555,13 +555,32 @@ export function useStudioAssetDialogActions(ctx: {
   };
 
   const handleRemoveImage = async (img: AssetImage, idx: number) => {
-    // 10-19 用户裁定:主图亦可删——旧「不能删除主图」硬闸已撤;R4 族聚只读规则不变。
+    // 10-19 用户裁定:主图亦可删 + 追令「可见即可删」(族聚显兄弟图同权)。
     void idx; // 签名沿用 pane 的 (image, index) 契约;删除按 filePath 定位,不按下标
     if (!getStudioAssetsBridge()?.removeImage) return;
-    // R4 族聚显:入参 idx 是展示序下标;增删只作用本行 images(按 filePath 定位)。
-    // 族兄弟只读条目删除钮已隐藏,此处本行未命中即拒——防跨行误删(族聚仅显示层)。
     const ownIndex = images.findIndex((item) => item.filePath === img.filePath);
-    if (ownIndex === -1) return;
+    if (ownIndex === -1) {
+      // 族兄弟条目:本行未命中 → 按 familyImages 找到它真正所属的行去删(删对行,
+      // 防「按当前行 id 删错资产」的旧跨行风险;非本行亦非已知族兄弟=展示层陈旧,静默拒)
+      const sibling = (familyImages ?? []).find(
+        (entry) => entry.filePath === img.filePath && entry.assetId !== asset.id,
+      );
+      if (!sibling) return;
+      try {
+        const result = await getStudioAssetsBridge()!.removeImage({
+          assetId: sibling.assetId,
+          imageFilePath: img.filePath,
+        });
+        if (result) {
+          toast.success(`已删除(该图属于「${sibling.name || sibling.assetId}」)`);
+        } else {
+          toast.error("删除失败");
+        }
+      } catch (error: unknown) {
+        toast.error(getAssetOperationError(error, "删除失败"));
+      }
+      return;
+    }
     try {
       const result = await getStudioAssetsBridge()!.removeImage({ assetId: asset.id, imageFilePath: img.filePath });
       if (result) {
