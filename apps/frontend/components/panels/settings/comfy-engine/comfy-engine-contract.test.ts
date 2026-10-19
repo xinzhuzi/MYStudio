@@ -9,6 +9,7 @@ import {
   filterComfyCatalogEntries,
   formatComfyEnginePillLabel,
   formatComfyPluginPillLabel,
+  gitlessUpdateTooltip,
   summarizeDoctorReport,
   type ComfyEngineJob,
   type ComfyEngineStatus,
@@ -162,6 +163,18 @@ describe("formatComfyPluginPillLabel 插件胶囊", () => {
     expect(formatComfyPluginPillLabel({ ...base, state: "updatable" })).toBe("可更新");
     expect(formatComfyPluginPillLabel({ ...base, state: "install-failed" })).toBe("安装失败");
     expect(formatComfyPluginPillLabel({ ...base, state: "installable" })).toBe("可安装");
+  });
+});
+
+describe("gitlessUpdateTooltip 无 git 插件置灰文案(10-19 M4)", () => {
+  it("自研节点包(含旧名)→ 自研同步文案", () => {
+    expect(gitlessUpdateTooltip("my-nodes")).toBe("自研同步,不适用更新");
+    expect(gitlessUpdateTooltip("manying-nodes")).toBe("自研同步,不适用更新");
+  });
+
+  it("其余 gitless(Registry zip/裸目录)→ 卸载重装文案", () => {
+    expect(gitlessUpdateTooltip("comfyui-kjnodes")).toBe("Registry/裸目录安装,请卸载后重装");
+    expect(gitlessUpdateTooltip("viggle-turbo")).toBe("Registry/裸目录安装,请卸载后重装");
   });
 });
 

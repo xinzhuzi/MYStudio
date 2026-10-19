@@ -675,6 +675,83 @@ describe("ComfyEngineSettingsSection 插件子区块", () => {
     expect(actions.updatePlugin).toHaveBeenCalledWith("ComfyUI-GGUF");
   });
 
+  it("gitless 置灰(10-19 M4):无 .git 插件更新钮禁用+tooltip;自研与 Registry 双文案;有 git 不受影响", () => {
+    scenario.plugins = [
+      {
+        // kjnodes 形态:账本在册、repo 错指主仓 → 胶囊可更新,但目录无 .git
+        id: "comfyui-kjnodes",
+        name: "KJ 节点集",
+        description: "Registry zip 装的无 git 插件",
+        license: "GPL-3.0",
+        state: "updatable",
+        version: "1.0",
+        deps: [],
+        author: null,
+        downloads: null,
+        category: null,
+        nodeCount: 4,
+        gitless: true,
+      },
+      {
+        // 自研形态:my-nodes 由同步链管理,gitless 是设计如此
+        id: "my-nodes",
+        name: "自研节点包",
+        description: "自研同步,不适用更新",
+        license: "MIT",
+        state: "updatable",
+        version: "1.0",
+        deps: [],
+        author: null,
+        downloads: null,
+        category: null,
+        nodeCount: 30,
+        gitless: true,
+      },
+      {
+        // 有 git 的可更新行:回归锚,按钮照常可点
+        id: "ComfyUI-GGUF",
+        name: "GGUF 量化支持",
+        description: "本地大模型量化加载",
+        license: "Apache-2.0",
+        state: "updatable",
+        version: "1.9.0",
+        deps: [],
+        author: null,
+        downloads: null,
+        category: null,
+        nodeCount: 8,
+        gitless: false,
+      },
+    ];
+    scenario.catalog = [];
+    render(<ComfyEngineSettingsSection embedded />);
+    openPluginBlock();
+
+    // 行展开是单槽(expandedId):逐行展开断言,展开下一行自动收起上一行
+    fireEvent.click(screen.getByText("KJ 节点集"));
+    const kjBtn = comfyEl("plugin-update", "comfyui-kjnodes") as HTMLButtonElement;
+    // gitless(Registry 形态):钮禁用 + 卸载重装文案 tooltip;点击不触发更新
+    expect(kjBtn.disabled).toBe(true);
+    expect(kjBtn.title).toBe("Registry/裸目录安装,请卸载后重装");
+    fireEvent.click(kjBtn);
+
+    fireEvent.click(screen.getByText("自研节点包"));
+    const myBtn = comfyEl("plugin-update", "my-nodes") as HTMLButtonElement;
+    // gitless(自研形态):钮禁用 + 自研同步文案 tooltip;点击不触发更新
+    expect(myBtn.disabled).toBe(true);
+    expect(myBtn.title).toBe("自研同步,不适用更新");
+    fireEvent.click(myBtn);
+    expect(actions.updatePlugin).not.toHaveBeenCalled();
+
+    // 有 git 行:钮可点、照常触发(回归:有 git 插件不受影响)
+    fireEvent.click(screen.getByText("GGUF 量化支持"));
+    const ggufBtn = comfyEl("plugin-update", "ComfyUI-GGUF") as HTMLButtonElement;
+    expect(ggufBtn.disabled).toBe(false);
+    fireEvent.click(ggufBtn);
+    expect(actions.updatePlugin).toHaveBeenCalledTimes(1);
+    expect(actions.updatePlugin).toHaveBeenCalledWith("ComfyUI-GGUF");
+  });
+
   it("卸载:引用扫描 → 「1 个工作流在用它」点名警告 → 确认才卸载", async () => {
     scenario.pluginUsage = { workflows: [{ id: "wf-1", name: "Krea2-NSFW专业流" }] };
     render(<ComfyEngineSettingsSection embedded />);

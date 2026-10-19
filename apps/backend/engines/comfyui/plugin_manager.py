@@ -1347,6 +1347,12 @@ def list_plugins() -> list[dict]:
             "source": entry.get("source"), "repo": repo,
             "nodeCount": node_count if node_count > 0 else None,
             "dirExists": dir_path.is_dir(),
+            # M4(10-19 §八 Q4):盘探 .git 存在性产出 gitless 标志(与
+            # update_plugin_job 的 400 守卫同口径)。判据必须走盘探不走账本
+            # (§七 G4:账本三类脏数据——viggle-turbo/my-nodes 不在册、kjnodes
+            # 等 repo 错指主仓——按 repo/source 判都会误判)。前端按此标志置灰
+            # 更新钮+tooltip(自研 my-nodes 文案区分);后端 400 保留防绕过。
+            "gitless": not (dir_path / ".git").exists(),
         })
     if local_dirty:
         # 09-11 P3:save 前锁内重读合并——旧实现用进入函数时的旧快照整写,

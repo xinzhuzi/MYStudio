@@ -222,6 +222,8 @@ interface SidecarPluginRow {
   /** 台账安装来源(pip=venv 直装运行时组件,前端据此给 ComfyUI-Manager 更新钮;
       09-19 根修:此前漏传,生产环境 pip 行的更新钮永远不出现,只有 mock 里有) */
   source?: ComfyPluginInfo["source"];
+  /** 目录里没有 .git(10-19 M4:后端盘探产出;前端置灰更新钮,旧 sidecar 不传=不置灰) */
+  gitless?: boolean | null;
 }
 
 interface SidecarCatalogReply {
@@ -411,6 +413,7 @@ export function mapPluginRow(raw: SidecarPluginRow): ComfyPluginInfo {
     nodeCount: raw.nodeCount ?? null,
     source: raw.source,
     repo: raw.repo ?? null,
+    gitless: raw.gitless ?? null,
   };
 }
 

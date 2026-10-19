@@ -18,6 +18,13 @@ EngineManager.start_sync 路径(manifest 参数/extra_model_paths/看门狗/崩�
 侧车经「收编孤儿」设计路径接管运行中引擎(本进程命令行无 image_gen.main,
 engine.lock 对真侧车=可接管,不阻塞)。死亡守护 nohup 拉起的引擎对 em 为
 孤儿态(可被真 App 收编),keeper 退出时 em.stop() 不误杀。
+
+1019 增 --no-death-watch 旗标(裁定 .trellis/tasks/10-19-engine-external-
+occupancy-recurring/prd.md §八 Q3②):死亡守护曾与插件更新「停引擎→重启」
+窗口竞速抢拉无令牌+相对 argv 引擎,致「端口仍由外部 ComfyUI 占用」误报复发
+(同档 §二 R2/§七 G5——1019 复发案)。带旗标=跳过 _death_watch,只保留
+ensure+驻留+SIGTERM 清理(门禁需要引擎时的推荐跑法,不抢跑);缺省行为
+不变(死亡守护照跑)。
 """
 from __future__ import annotations
 
@@ -53,6 +60,14 @@ RESPAWN_CMD = (
     "--input-directory ./input --output-directory ./output "
     "> ./comfyui_17001.log 2>&1 &"
 )
+
+
+def _parse_no_death_watch(argv: list[str]) -> bool:
+    """解析 --no-death-watch 旗标(1019 裁定 Q3②):在 argv 中即真。
+
+    本件唯一旗标;其余未知参数照旧忽略(历史行为:本件不认参数)。
+    """
+    return "--no-death-watch" in argv
 
 
 def _death_watch(em: EngineManager) -> None:
@@ -92,6 +107,7 @@ def _death_watch(em: EngineManager) -> None:
 
 
 def main() -> int:
+    no_death_watch = _parse_no_death_watch(sys.argv)
     em = EngineManager()
     print(f"[keeper] pid={__import__('os').getpid()} 起,ensure 引擎…", flush=True)
     healthy = False
@@ -121,13 +137,24 @@ def main() -> int:
 
     signal.signal(signal.SIGTERM, _term)
     signal.signal(signal.SIGINT, _term)
-    print(
-        f"[keeper] 引擎健康,驻留(口 {em._running_port})+死亡守护"
-        f"(口 {DEATH_PROBE_PORT} 每 {DEATH_PROBE_INTERVAL_S:.0f}s 探,连 {DEATH_FAIL_THRESHOLD} 败即拉);SIGTERM=优雅停",
-        flush=True,
-    )
+    if no_death_watch:
+        print(
+            f"[keeper] 引擎健康,驻留(口 {em._running_port});--no-death-watch:"
+            "死亡守护关(1019 裁定 Q3②,防与插件更新重启竞速抢拉);SIGTERM=优雅停",
+            flush=True,
+        )
+    else:
+        print(
+            f"[keeper] 引擎健康,驻留(口 {em._running_port})+死亡守护"
+            f"(口 {DEATH_PROBE_PORT} 每 {DEATH_PROBE_INTERVAL_S:.0f}s 探,连 {DEATH_FAIL_THRESHOLD} 败即拉);SIGTERM=优雅停",
+            flush=True,
+        )
     try:
-        _death_watch(em)
+        if no_death_watch:
+            while True:  # 仅驻留(看门狗「父进程须存活」约束仍需本进程在),不监死不抢拉
+                time.sleep(60)
+        else:
+            _death_watch(em)
     except SystemExit:
         pass
     finally:

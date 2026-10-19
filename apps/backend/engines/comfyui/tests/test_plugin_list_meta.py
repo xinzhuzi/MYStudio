@@ -89,6 +89,24 @@ def fake_env(tmp_path, monkeypatch):
     return home
 
 
+class TestGitlessFlag:
+    """M4(10-19 §八 Q4):list_plugins 盘探 custom_nodes/<dir>/.git 存在性产出 gitless 标志。
+
+    判据走盘探不走账本(PRD §七 G4 定谳:账本三类脏数据——条目缺失/散装
+    viggle-turbo 与自研 my-nodes 不在册、kjnodes 等 3 条 repo 错指主仓——
+    按 repo/source 判都会误判);与 update_plugin_job 的 400 守卫同口径。
+    前端按此标志置灰更新钮;后端 400 保留(防绕过)。
+    """
+
+    def test_dir_without_git_marks_gitless(self, fake_env):
+        # fake_env 的 ComfyUI-Demo 目录无 .git(Registry zip/裸目录形态)→ True
+        assert list_plugins()[0]["gitless"] is True
+
+    def test_dir_with_git_marks_not_gitless(self, fake_env):
+        (fake_env / "ComfyUI" / "custom_nodes" / "ComfyUI-Demo" / ".git").mkdir()
+        assert list_plugins()[0]["gitless"] is False
+
+
 class TestListPluginsEnrichment:
     def test_local_meta_fills_desc_license_deps_and_caches(self, fake_env):
         rows = list_plugins()

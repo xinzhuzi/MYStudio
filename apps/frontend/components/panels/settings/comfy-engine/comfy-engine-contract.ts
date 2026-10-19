@@ -212,6 +212,10 @@ export interface ComfyPluginInfo {
   source?: "curated" | "registry" | "git" | "local" | "pip";
   /** 仓库地址(目录孪生去重按仓库比对;台账无记录时 null)。 */
   repo?: string | null;
+  /** 目录里没有 .git(Registry zip/裸目录/自研同步形态;10-19 M4 §八 Q4:
+   *  后端盘探产出,前端据此置灰更新钮——点了只会撞后端 400「没有 git 历史
+   *  可拉取」)。null/undefined=有 git 或旧 sidecar 未传,不置灰。 */
+  gitless?: boolean | null;
 }
 
 export interface ComfyCatalogEntry {
@@ -506,6 +510,19 @@ export function formatComfyPluginPillLabel(plugin: ComfyPluginInfo): string {
     default:
       return "可安装";
   }
+}
+
+/** 自研节点包运行目录名(引擎侧 sync_my_nodes 硬拷目标,gitless 是设计如此;
+ *  含 09-14 改名前旧目录 manying-nodes)。 */
+const MY_NODES_DIR_NAMES = new Set(["my-nodes", "manying-nodes"]);
+
+/** gitless 插件更新钮置灰 tooltip(10-19 M4 §八 Q4 裁定双文案):
+ *  自研同步链管理的 my-nodes「自研同步,不适用更新」;其余(Registry zip/
+ *  裸目录散装件)「Registry/裸目录安装,请卸载后重装」。 */
+export function gitlessUpdateTooltip(id: string): string {
+  return MY_NODES_DIR_NAMES.has(id)
+    ? "自研同步,不适用更新"
+    : "Registry/裸目录安装,请卸载后重装";
 }
 
 /** 体检报告四档汇总(正常/缺失/漂移/孤儿)。 */

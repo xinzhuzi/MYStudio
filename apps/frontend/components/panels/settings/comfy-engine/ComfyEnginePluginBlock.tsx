@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import {
   filterComfyCatalogEntries,
   formatComfyPluginPillLabel,
+  gitlessUpdateTooltip,
   type ComfyPluginInfo,
   type ComfyPluginState,
 } from "./comfy-engine-contract";
@@ -80,6 +81,9 @@ type PluginRow = {
   ref: string;
   source: "curated" | "registry" | "git" | "local" | "pip";
   installed: boolean;
+  /** 目录无 .git(10-19 M4 §八 Q4):更新钮置灰+tooltip(自研/Registry 双文案);
+   *  有 git 或旧 sidecar 未传=false,不受影响。pip 行走 venv 升级链恒 false。 */
+  gitless: boolean;
 };
 
 function formatCount(count: number | null): string {
@@ -164,6 +168,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         ref: entry.ref,
         source: entry.source,
         installed: false,
+        gitless: false,
       }));
     const installedRows: PluginRow[] = visiblePlugins
       .filter((plugin) => plugin.state !== "installable")
@@ -184,6 +189,7 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
         ref: plugin.id,
         source: plugin.source ?? "curated",
         installed: true,
+        gitless: plugin.gitless === true,
       }));
     return [...installedRows, ...catalogRows];
   }, [engine.plugins, visibleEntries, visiblePlugins]);
@@ -432,7 +438,12 @@ export function ComfyEnginePluginBlock({ engine }: ComfyEnginePluginBlockProps) 
                           size="sm"
                           variant="outline"
                           className="h-7 px-2.5 text-[11px]"
-                          disabled={jobActive}
+                          disabled={jobActive || row.gitless}
+                          title={
+                            row.gitless
+                              ? gitlessUpdateTooltip(row.id)
+                              : undefined
+                          }
                           onClick={() => void engine.updatePlugin(row.id)}
                           data-comfy-plugin-update={row.id}
                         >

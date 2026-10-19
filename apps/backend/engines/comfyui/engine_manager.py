@@ -909,15 +909,139 @@ def _home_engine_markers() -> tuple[str, str]:
     判据来自当前账本 engineDir/venvDir(MYSTUDIO_COMFYUI_HOME/engineDir/
     venvDir 可覆写)——从旧目录拉起的实例(迁移后旧树残留)/symlink 路径
     变体不命中=已知限制(docs/comfyui-kb/定制代码地图.md 记档)。
+    1019 M1(§八 Q2):判据归一化——绝对形态照旧 + 相对形态(keeper/装机配方
+    ./venv/bin/<python*> ./ComfyUI/main.py 末段命中,命中后须过 G7 exe 二道门)。
+    标记对本身仍只出绝对双串(签名/调用面零变),归一化匹配见
+    _argv_matches_home_relative。
     """
     return str(cm.venv_python()), str(cm.engine_source_dir() / "main.py")
+
+
+def _argv_matches_home_relative(args: str, venv_py: str, main_py: str) -> bool:
+    """M1 相对形态判据(纯函数,单测直测):token 末段命中,双条件+顺序。
+
+    keeper 死亡守护/装机配方拉引擎用相对路径(2026-10-19 18:21:37 ps 实录:
+    /bin/sh -c cd … && nohup ./venv/bin/python ./ComfyUI/main.py …)——旧绝对
+    子串判据对它恒不命中=「确证无自家实例」的假确证。相对形态:argv 里有
+    token 以 …/<venv 目录>/bin/<python*> 收尾在前、…/<引擎目录>/main.py
+    收尾在后(镜像真实命令行顺序;双条件+顺序排除无关 python/巧合串接)。
+    相对命中仅是候选:别家同布局 ComfyUI 同样命中,须再过 G7 exe 二道门
+    (_pid_executable_in_home_venv)才当自家——全不可用时由调用方按现状
+    保守处理(视同不命中,§八 Q5)。
+    """
+    if not args:
+        return False
+    venv_tail = "/".join(venv_py.split("/")[-3:])        # venv/bin/python
+    main_tail = "/" + "/".join(main_py.split("/")[-2:])  # /ComfyUI/main.py
+    main_bare = main_tail.lstrip("/")                    # ComfyUI/main.py
+    python_re = re.compile(
+        r"(?:^|.*/)" + re.escape(venv_tail) + r"(\d+(\.\d+)*)?$")
+    seen_python = False
+    for token in args.split():
+        if python_re.search(token):
+            seen_python = True
+        elif seen_python and (token.endswith(main_tail) or token == main_bare):
+            return True
+    return False
+
+
+# ── G7 exe 二道门(§八 Q5):相对形态命中后校验可执行文件真实路径在本家 venv ──
+_DARWIN_LIBC = None
+_DARWIN_LIBC_TRIED = False
+
+
+def _pid_executable_path(pid: int) -> str | None:
+    """进程主可执行文件真实路径(三级兜底;全不可用=None)。
+
+    macOS proc_pidpath(ctypes 直调 libSystem,零子进程)→ POSIX
+    /proc/<pid>/exe readlink → lsof txt 记录(-F 机器可读模式,主可执行文件=
+    第一条 txt 记录,lsof 惯例;库 mmap 记录排其后=已知局限,本级已是末位
+    兜底)。venv 的 bin/python 常是 symlink 指向 base 解释器——proc_pidpath/
+    /proc/exe 给的是解析后的真实路径,门判定(_exe_path_in_home_venv)对
+    venv python 与候选路径两侧都 realpath 再比,天然对齐。pid 非法= None。
+    """
+    if pid <= 0:
+        return None
+    if sys.platform == "darwin":
+        global _DARWIN_LIBC, _DARWIN_LIBC_TRIED
+        if not _DARWIN_LIBC_TRIED:
+            _DARWIN_LIBC_TRIED = True
+            try:
+                import ctypes
+                _DARWIN_LIBC = ctypes.CDLL(None, use_errno=True)
+            except (OSError, ValueError):
+                _DARWIN_LIBC = None
+        libc = _DARWIN_LIBC
+        if libc is not None and hasattr(libc, "proc_pidpath"):
+            try:
+                import ctypes
+                buf = ctypes.create_string_buffer(4096)  # PROC_PIDPATHINFO_MAXSIZE
+                if libc.proc_pidpath(int(pid), buf, ctypes.sizeof(buf)) > 0:
+                    path = buf.value.decode("utf-8", "replace")
+                    if path:
+                        return path
+            except (OSError, ValueError, AttributeError):
+                pass
+    exe_link = f"/proc/{pid}/exe"
+    if os.path.exists(exe_link):
+        try:
+            target = os.readlink(exe_link)
+            if target:
+                # 内核对已替换解释器给 "path (deleted)" 后缀,剥掉再交门判定
+                return target.removesuffix(" (deleted)")
+        except OSError:
+            pass
+    try:
+        proc = subprocess.run(["lsof", "-pn", "-P", "-F", "fn", "-a", "-p", str(pid)],
+                              capture_output=True, text=True, timeout=5.0)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    want_name = False
+    for line in (proc.stdout or "").splitlines():
+        if line == "ftxt":
+            want_name = True
+        elif want_name and line.startswith("n/"):
+            return line[1:]
+    return None
+
+
+def _exe_path_in_home_venv(exe_path: str) -> bool:
+    """可执行文件路径是否在本家 venv 内(纯逻辑,单测直测)。
+
+    三式:①realpath 与 venv python 的 realpath 相等(symlink 布局——venv 的
+    bin/python 链到 base 解释器,exe 解析后的真实路径与之同指);②realpath
+    前缀=venv 目录 realpath(拷贝/硬链布局);空串/异常= False。
+    """
+    if not exe_path:
+        return False
+    venv_root = os.path.realpath(str(cm.venv_dir()))
+    venv_interpreter = os.path.realpath(str(cm.venv_python()))
+    try:
+        real = os.path.realpath(exe_path)
+    except (OSError, ValueError):
+        return False
+    return real == venv_interpreter or real.startswith(venv_root + os.sep)
+
+
+def _pid_executable_in_home_venv(pid: int) -> bool:
+    """G7 二道门总闸:相对形态候选 pid 的 exe 是否在本家 venv。
+
+    三级探针全不可用(=_pid_executable_path 返回 None)→ False:维持改动前
+    现状(相对形态视同不命中,保守不杀,§八 Q5)。
+    """
+    exe = _pid_executable_path(pid)
+    if exe is None:
+        return False
+    return _exe_path_in_home_venv(exe)
 
 
 def _engine_home_processes() -> list[dict] | None:
     """枚举「自家出身」的 ComfyUI 引擎进程(POSIX-only;不可用=None)。
 
-    双判据:argv 同时含 venv python 与源码 main.py 绝对路径——双条件排除
-    别家 ComfyUI/无关 python。三态口径(0929 深审 R1 根修):
+    判据(1019 M1 归一化):绝对形态照旧(argv 同时含 venv python 与源码
+    main.py 绝对路径=自证);相对形态(_argv_matches_home_relative)命中后
+    须过 G7 exe 二道门(exe 真实路径在本家 venv)——双条件+二道门排除
+    别家 ComfyUI(含同布局)/无关 python。三态口径(0929 深审 R1 根修):
     · list(含空表,ps 正常跑完)= 枚举结果,空表=全机**确证**无自家实例;
     · None(Windows 无 ps/工具缺失/超时/异常/ps 非零退出)= 枚举不可用——
       「看不见」≠「没有」,降级成空表会让 start_sync 在漂移实例旁盲启第二台
@@ -951,6 +1075,10 @@ def _engine_home_processes() -> list[dict] | None:
     found: list[dict] = []
     for pid, args in _parse_ps_pid_args(proc.stdout or ""):
         if venv_py in args and main_py in args:
+            # 绝对形态:argv 自带本家绝对路径=自证,无需二道门
+            found.append({"pid": pid, "port": _extract_port_from_args(args), "args": args})
+        elif _argv_matches_home_relative(args, venv_py, main_py) and _pid_executable_in_home_venv(pid):
+            # 相对形态(1019 M1):候选命中 + G7 exe 二道门过 → 自家
             found.append({"pid": pid, "port": _extract_port_from_args(args), "args": args})
     return found
 
@@ -960,12 +1088,18 @@ def _pid_is_home_engine(pid: int) -> bool:
 
     本会话实测外部会话的引擎 pid 不稳定(侦察期 29436→61399,已被重启),
     枚举→停旧之间 pid 可能被系统复用——查不到命令行=复核不过=不杀(保守)。
+    1019 M1 同步:绝对形态照旧直过;相对形态命中须过 G7 exe 二道门
+    (_pid_executable_in_home_venv;全不可用=保守不认)。
     """
     venv_py, main_py = _home_engine_markers()
     command = _pid_command(pid)
     if not command:
         return False
-    return venv_py in command and main_py in command
+    if venv_py in command and main_py in command:
+        return True
+    if _argv_matches_home_relative(command, venv_py, main_py):
+        return _pid_executable_in_home_venv(pid)
+    return False
 
 
 def _extra_home_instances(home_procs: list[dict] | None, own_pid: int | None) -> list[dict]:
@@ -1261,6 +1395,21 @@ class EngineManager:
             return None
         token = payload.get("bridgeToken") if isinstance(payload, dict) else None
         return token if isinstance(token, str) else None
+
+    def _engine_speaks_bridge(self, port: int) -> bool:
+        """端口引擎血统探针(1019 M2,§八 Q6/G3):/my_bridge/config 有 JSON dict
+        应答=漫影自家血统(该端点由漫影自研节点独有提供,真外部 ComfyUI 没有)。
+
+        判据=端点存在性,**不用令牌值**——_engine_bridge_token 对「端点不在(真
+        外部)」与「端点在但 token 字段缺失/非串」都返回 None,靠令牌值分不开
+        两类,按值判血统有误杀真外部进程的风险(G3);令牌空/失配仅作后续
+        「需带令牌重拉」的辅助信号。异常/非 dict 应答=端点不在,如实 False。
+        """
+        try:
+            payload = _get_json(f"{self.engine_url(port)}/my_bridge/config", timeout=3.0)
+        except (OSError, error.URLError, json.JSONDecodeError, EngineOpError):
+            return False
+        return isinstance(payload, dict)
 
     def _adopt_token_mismatch(self, port: int) -> bool:
         """收编令牌核验(0928 环b):引擎令牌≠本管理器此刻可注入的令牌才报真。
@@ -1576,8 +1725,31 @@ class EngineManager:
                             "(找不到或终止不了监听进程);请手动关闭该 ComfyUI 进程后重试,以免出现双引擎")
             elif port and self._orphan_is_comfyui(port):
                 if not allow_adoption:
-                    raise EngineOpError("端口仍由外部 ComfyUI 占用,无法确认其已重启;请先停止外部实例")
-                if self._adopt_token_mismatch(port):
+                    # 1019 M2(§八 Q6/G3):restart 深二级流对「枚举空表+端口被占」
+                    # 先探血统——端口引擎 /my_bridge/config 有 JSON dict 应答(漫影
+                    # 自研节点独有端点)=自家脱管引擎(未被 M1 归一化判据枚举到的
+                    # 第三种拉起形态兜底),走停旧自愈后落入正常 spawn(带令牌复活);
+                    # 令牌值仅辅助信号(不用令牌值判血统)。端点不在=真外部
+                    # ComfyUI → 维持原报错,不越权杀外部进程。
+                    if not self._engine_speaks_bridge(port):
+                        raise EngineOpError("端口仍由外部 ComfyUI 占用,无法确认其已重启;请先停止外部实例")
+                    if enumeration_failed:
+                        # 0929 R1 口径同源:枚举不可用时「看不清就动手=拒」——停旧后
+                        # 须 spawn 一台新引擎,而「全机无其它自家实例」此刻不可证
+                        # (半程自愈+潜在双引擎),如实报错,引擎原样留着由用户处置。
+                        raise EngineOpError(
+                            f"端口 {port} 引擎应答漫影桥端点(自家脱管实例),但本机"
+                            "进程枚举不可用(无 ps/超时/Windows),无法安全执行停旧"
+                            "自愈;请手动重启该 ComfyUI 实例,或恢复 ps 后重试")
+                    print(f"[image-sidecar] comfy-engine: 端口 {port} 的占用者应答漫影桥"
+                          "端点(自家脱管引擎)——自愈:停止旧实例并以正确令牌重启", flush=True)
+                    if progress:
+                        progress(10, "检测到未纳管的漫影引擎实例,自动停止旧实例并以正确配置重启(自愈)…")
+                    if not self._retire_orphan_engine(port):
+                        raise EngineOpError(
+                            f"端口 {port} 的漫影引擎实例无法停止(找不到或终止不了监听进程);"
+                            "请手动关闭该 ComfyUI 进程后重试,以免出现双引擎")
+                elif self._adopt_token_mismatch(port):
                     if enumeration_failed:
                         # 0929 深审 R1:枚举不可用时绝不执行停旧自愈——停旧后须
                         # spawn 一台新引擎,而「全机无其它自家实例」此刻不可证
