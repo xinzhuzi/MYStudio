@@ -53,10 +53,10 @@ _HAIR_COLOR = re.compile(
 def _weapon_grip_violations(t: str) -> list[str]:
     out = []
     if _HILT_GRIP.search(t) and any(m in t for m in _SHEATHED):
-        out.append("握柄（挂定未拔时手不得按/握剑柄——握柄＝拔剑预备式；改「虚握住挂定的剑鞘上端四分之一处，"
+        out.append("握柄（挂定未拔时手不得按/握剑柄——握柄＝拔剑预备式；改「虚握挂定的剑鞘上端三分之一处、五指环拢鞘身，"
                    "剑的重量仍由腰间剑绦承担」）")
     if _GRIP_WEAPON.search(t) and not any(d in t for d in _GRIP_DETAIL):
-        out.append("握姿须写明接触部位与位置（如「虚握住挂定的剑鞘上端四分之一处，五指环拢鞘身」）")
+        out.append("握姿须写明接触部位与位置（如「虚握挂定的剑鞘上端三分之一处、五指环拢鞘身」）")
     return out
 
 
