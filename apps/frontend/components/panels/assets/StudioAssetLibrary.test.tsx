@@ -3,26 +3,26 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioAssetSummary } from "@/types/studio-assets";
 import type { StudioAssetLibrary as Library } from "./StudioAssetLibrary";
-const mocks = vi.hoisted(() => ({ list: vi.fn(), toastError: vi.fn(), empty: [], action: vi.fn() }));
-vi.mock("@/lib/bridge/studio-assets", () => ({ getStudioAssetsBridge: () => ({ list: mocks.list }) }));
+const mocks = vi.hoisted(() => ({ list: vi.fn(), listFamily: vi.fn(), dialogProps: vi.fn(), toastError: vi.fn(), empty: [], action: vi.fn() }));
+vi.mock("@/lib/bridge/studio-assets", () => ({ getStudioAssetsBridge: () => ({ list: mocks.list, listFamily: mocks.listFamily }) }));
 vi.mock("sonner", () => ({ toast: { error: mocks.toastError } }));
 vi.mock("@/stores/library/props-library-store", () => ({ usePropsLibraryStore: (s: (v: unknown) => unknown) => s({ items: mocks.empty }) }));
 vi.mock("@/stores/studio/studio-store", () => ({ useStudioStore: (s: (v: unknown) => unknown) => s({ materials: mocks.empty, entityExtractions: mocks.empty }) }));
 vi.mock("@/stores/project/project-store", () => ({ useProjectStore: (s: (v: unknown) => unknown) => s({ activeProjectId: null }) }));
 vi.mock("@/stores/tts/tts-store", () => ({ useTtsStore: (s: (v: unknown) => unknown) => s({ setActiveProjectId: mocks.action, createVoiceProfile: mocks.action, bindSpeaker: mocks.action }) }));
 vi.mock("@/lib/ai/ai-manager", () => ({ aiManager: {} }));
-vi.mock("./StudioAssetDetailDialog", () => ({ StudioAssetDetailDialog: () => null }));
+vi.mock("./StudioAssetDetailDialog", () => ({ StudioAssetDetailDialog: (p: unknown) => { mocks.dialogProps(p); return null; } }));
 vi.mock("./AddAssetDialog", () => ({ AddAssetDialog: () => null }));
 vi.mock("./AssetGenerationBar", () => ({ AssetGenerationBar: () => null }));
 // Mock only the viewport-dependent grid; exercise the real query controller.
 vi.mock("./audio-grouped-grid", () => ({ AudioGroupedGrid: (p: {
  items: StudioAssetSummary[]; isLoading: boolean; isLoadingMore: boolean; error: string;
- selectedIds: Set<string>; onToggleSelect: (id: string) => void;
+ selectedIds: Set<string>; onToggleSelect: (id: string) => void; onOpen: (asset: StudioAssetSummary) => void;
  canLoadMore: boolean; onLoadMore: () => void; onRefresh: () => void;
 }) => <div>
  <output data-testid="status">{p.isLoading ? "loading" : p.isLoadingMore ? "appending" : "idle"}</output>
  <output data-testid="error">{p.error}</output><output data-testid="selected">{p.selectedIds.size}</output>
- {p.items.map(i => <button key={i.id} onClick={() => p.onToggleSelect(i.id)}>{i.name}</button>)}
+ {p.items.map(i => <span key={i.id}><button onClick={() => p.onToggleSelect(i.id)}>{i.name}</button><button data-testid={`open-${i.id}`} onClick={() => p.onOpen(i)}>open</button></span>)}
  {p.canLoadMore && <button onClick={p.onLoadMore}>next-page</button>}
  <button onClick={p.onRefresh}>refresh-query</button>
  </div> }));
@@ -83,5 +83,47 @@ describe("asset query lifecycle", () => {
   const old=deferred(); mocks.list.mockReturnValueOnce(old.promise);
   const view=render(<StudioAssetLibrary type="role" />); view.unmount();
   await act(async () => { old.reject(new Error("unmounted")); }); expect(mocks.toastError).not.toHaveBeenCalled();
+ });
+});
+
+describe("R4 扩面:卡片详情族聚显(资产库面板)", () => {
+ const fam = (id: string): StudioAssetSummary =>
+  ({ id, name: id, type: "role", source: "manying-local", previewUrl: `asset-file://role/${id}.png`, filePath: `role/${id}.png` });
+ const lastDialog = () => mocks.dialogProps.mock.calls[mocks.dialogProps.mock.calls.length - 1]?.[0] as
+  { asset?: StudioAssetSummary; familyImages?: Array<{ url?: string }> } | undefined;
+
+ it("opens a role card with family aggregation fetched by card name", async () => {
+  mocks.list.mockResolvedValueOnce(result("晏燎"));
+  mocks.listFamily.mockResolvedValueOnce([fam("晏燎"), fam("晏燎_练气期_三视图_v1"), fam("晏燎_共主期_海报_v1")]);
+  render(<StudioAssetLibrary type="role" />); await screen.findByText("晏燎");
+  fireEvent.click(screen.getByTestId("open-晏燎"));
+  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+  expect(mocks.listFamily).toHaveBeenCalledWith({ type: "role", name: "晏燎" });
+  expect(lastDialog()?.asset?.name).toBe("晏燎");
+  expect(lastDialog()?.familyImages?.map((e) => e.url)).toEqual([
+   "asset-file://role/晏燎.png", "asset-file://role/晏燎_练气期_三视图_v1.png", "asset-file://role/晏燎_共主期_海报_v1.png",
+  ]);
+ });
+
+ it("does not fetch family for non-aggregating kinds", async () => {
+  mocks.list.mockResolvedValueOnce({ items: [{ id: "audio-1", name: "旁白", type: "audio", source: "manying-local" }], total: 1 });
+  render(<StudioAssetLibrary type="audio" />); await screen.findByText("旁白");
+  fireEvent.click(screen.getByTestId("open-audio-1"));
+  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+  expect(mocks.listFamily).not.toHaveBeenCalled();
+  expect(lastDialog()?.familyImages).toBeUndefined();
+ });
+
+ it("discards a late family response after switching cards", async () => {
+  mocks.list.mockResolvedValueOnce(result("晏燎", "独孤剑尘"));
+  const slow = deferred() as unknown as { promise: Promise<StudioAssetSummary[]>; resolve: (v: StudioAssetSummary[]) => void };
+  mocks.listFamily.mockReturnValueOnce(slow.promise).mockResolvedValueOnce([fam("独孤剑尘")]);
+  render(<StudioAssetLibrary type="role" />); await screen.findByText("晏燎");
+  fireEvent.click(screen.getByTestId("open-晏燎"));
+  fireEvent.click(screen.getByTestId("open-独孤剑尘"));
+  await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+  await act(async () => { slow.resolve([fam("晏燎_旧图")]); });
+  expect(lastDialog()?.asset?.name).toBe("独孤剑尘");
+  expect(lastDialog()?.familyImages?.map((e) => e.url)).toEqual(["asset-file://role/独孤剑尘.png"]);
  });
 });

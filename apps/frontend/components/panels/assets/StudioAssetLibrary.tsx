@@ -27,6 +27,7 @@ import {
 } from "./role-audio-auto-assign";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
+import { fetchFamilyImageEntries, type FamilyImageEntry } from "@/lib/studio/asset-family-images";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import {
   resolveCanonicalSpeakerId,
@@ -82,6 +83,9 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<StudioAssetSummary | null>(null);
+  const [familyImages, setFamilyImages] = useState<FamilyImageEntry[] | undefined>(undefined);
+  // 族聚显请求序号:连点换卡时晚到的旧族图丢弃(链路排查清单#7 同款竞态,不复制旧缺陷)
+  const familyReqSeqRef = useRef(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [category, setCategory] = useState<string>(type === "tool" ? TOOL_CATEGORIES[0] : "");
@@ -100,6 +104,18 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 180);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
+
+  // R4 扩面(10-19 用户装机实测反馈):资产库卡片详情同口径族聚显——开卡即显单图,
+  // 族图异步补齐(role/scene/tool;audio/clip 不聚);查询失败静默回落单图,不阻断详情打开。
+  const handleOpenDetail = useCallback((asset: StudioAssetSummary) => {
+    const seq = ++familyReqSeqRef.current;
+    setFamilyImages(undefined);
+    setSelectedAsset(asset);
+    if (asset.type !== "role" && asset.type !== "scene" && asset.type !== "tool") return;
+    void fetchFamilyImageEntries(getStudioAssetsBridge(), asset.type, asset.name).then((entries) => {
+      if (familyReqSeqRef.current === seq) setFamilyImages(entries);
+    });
+  }, []);
 
   const localItems = useMemo(() => {
     const keyword = search.toLocaleLowerCase("zh-Hans-CN");
@@ -467,7 +483,7 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
           selectedIds={selectedIds}
           selectMode={selectMode}
           onToggleSelect={toggleSelect}
-          onOpen={setSelectedAsset}
+          onOpen={handleOpenDetail}
           canLoadMore={canLoadMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={() => loadAssets(runtimeItems.length, "append")}
@@ -476,9 +492,12 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
       </div>
       <StudioAssetDetailDialog
         asset={selectedAsset}
+        familyImages={familyImages}
         open={Boolean(selectedAsset)}
         onOpenChange={(open) => {
           if (!open) {
+            familyReqSeqRef.current += 1;
+            setFamilyImages(undefined);
             setSelectedAsset(null);
           }
         }}
