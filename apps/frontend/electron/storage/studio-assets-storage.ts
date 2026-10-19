@@ -332,22 +332,41 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
   if (!rows.length) return null;
 
   const asset = rows[0];
+  // 10-19 缩略图善后:主图被删后行级指针顺位晋 images[0](列表缩略图/预览均从行级
+  // filePath 派生,清空即落占位图标=用户报障);晋位图无缩略图则按 add/replace 同款
+  // sips 200×200 补一张。images[] 也空才真清空(资产回落文字壳)。
+  const promoteMainIfDeleted = (remaining: StoredAssetImage[], removedPath: string): string => {
+    if (asset.filePath && asset.filePath !== removedPath) return asset.filePath;
+    const next = remaining[0]?.filePath ?? "";
+    if (next) {
+      const thumb = resolveAssetManagedPath(getThumbsDir(), next);
+      if (!fs.existsSync(thumb)) {
+        const src = resolveAssetManagedPath(getFilesDir(), next);
+        if (fs.existsSync(src)) {
+          fs.mkdirSync(path.dirname(thumb), { recursive: true });
+          execFile("sips", ["-z", "200", "200", src, "--out", thumb], () => {});
+        }
+      }
+    }
+    return next;
+  };
   const images: StoredAssetImage[] = JSON.parse(asset.images || "[]");
   const idx = images.findIndex((img) => img.filePath === imageFilePath);
   if (idx === -1) {
     // 10-19 主图可删补刀:replaceAssetMainImage 只写行级 filePath 不入 images[],
     // 生成/一键生成/图生图写回的主图在 images[] 删除路径上断链(旧「不能删主图」
-    // 闸挡着从未暴露)。回退:命中的是行级主图 → 清行级指针 + 删实体与缩略图,
-    // images[] 不动(与 images[] 命中路径同款无条件删盘语义一致)。
+    // 闸挡着从未暴露)。回退:命中的是行级主图 → 删实体与缩略图,行级指针顺位
+    // 晋 images[0](有则顶图,无则清空回落文字壳),images[] 不动。
     if (asset.filePath && asset.filePath === imageFilePath) {
       const mainFile = resolveAssetManagedPath(getFilesDir(), asset.filePath);
       if (fs.existsSync(mainFile)) fs.unlinkSync(mainFile);
       const mainThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
       if (fs.existsSync(mainThumb)) fs.unlinkSync(mainThumb);
+      const promoted = promoteMainIfDeleted(images, imageFilePath);
       const now = new Date().toISOString();
       runSqliteExecSafe(
         dbPath,
-        `UPDATE assets SET filePath='', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`,
+        `UPDATE assets SET filePath='${escapeSql(promoted)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`,
       );
       return getAssetSync(assetId);
     }
@@ -358,8 +377,11 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
   if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
   images.splice(idx, 1);
 
+  // 10-19 缩略图善后(images[] 命中路径同款):被删的恰是行级主图时,行级指针
+  // 顺位晋剩余 images[0],防列表缩略图落占位/悬空指已删文件。
+  const promotedMain = promoteMainIfDeleted(images, imageFilePath);
   const now = new Date().toISOString();
-  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
+  runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(JSON.stringify(images))}', filePath='${escapeSql(promotedMain)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
   return getAssetSync(assetId);
 }
 

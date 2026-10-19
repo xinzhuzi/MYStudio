@@ -691,4 +691,34 @@ describe("removeAssetImage 行级主图回退删除(10-19 主图可删补刀)", 
     const asset = addAsset({ type: "role", name: "未命中回归" });
     expect(removeAssetImage(asset.id, "role/不存在/x.png")).toBeNull();
   });
+
+  it("删主图后行级指针顺位晋 images[0](缩略图不落占位,10-19 用户报障善后)", () => {
+    initTempAssetsStorage();
+    const srcA = join(tempAssetRoot!, "promote-a.png");
+    const srcB = join(tempAssetRoot!, "promote-b.png");
+    writeFileSync(srcA, Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c626001000000050001a5f645400000000049454e44ae426082", "hex"));
+    writeFileSync(srcB, Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c626001000000050001a5f645400000000049454e44ae426082", "hex"));
+    const asset = addAsset({ type: "role", name: "晋主回归", sourceFilePath: srcA });
+    const withB = addAssetImage(asset.id, "变体B", srcB);
+    // 断链态主图删除 → 行级应晋 images[0](=变体B),不再清空落占位
+    const after = removeAssetImage(asset.id, asset.filePath ?? "");
+    expect(after?.filePath ?? "").not.toBe("");
+    expect(after?.filePath).toBe(withB?.images?.[0]?.filePath);
+    expect(existsSync(join(getFilesDir(), after?.filePath ?? "/不存在"))).toBe(true);
+  });
+
+  it("images[] 命中路径删的恰是行级主图 → 同款顺位晋升(悬空指针善后)", () => {
+    initTempAssetsStorage();
+    const srcA = join(tempAssetRoot!, "promote2-a.png");
+    const srcB = join(tempAssetRoot!, "promote2-b.png");
+    writeFileSync(srcA, Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c626001000000050001a5f645400000000049454e44ae426082", "hex"));
+    writeFileSync(srcB, Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c626001000000050001a5f645400000000049454e44ae426082", "hex"));
+    const asset = addAsset({ type: "role", name: "晋主回归二", sourceFilePath: srcA });
+    const withB = addAssetImage(asset.id, "变体B2", srcB);
+    const bPath = withB?.images?.[0]?.filePath ?? "";
+    // 删 images[] 里的主图路径(images[] 命中路径)——行级同指它 → 晋变体B2
+    const after = removeAssetImage(asset.id, asset.filePath ?? "");
+    expect(after?.filePath).toBe(bPath);
+    expect((after?.images ?? []).some((i) => i.filePath === asset.filePath)).toBe(false);
+  });
 });
