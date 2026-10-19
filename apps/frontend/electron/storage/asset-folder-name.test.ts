@@ -120,3 +120,15 @@ describe("序号目录修正(10-19:前导数字/编码段跳过)", () => {
     expect(assetDisplayName("晏燎")).toBe("晏燎");
   });
 });
+
+describe("L2 截断序修正(10-19 修复批)", () => {
+  it("截断产物不再以尾点/尾空格收尾(Windows 形态截断后不复发)", () => {
+    const longDot = "甲".repeat(79) + ".png尾巴"; // 截在 80 字符处恰留尾点/尾串
+    const r1 = sanitizeAssetFolderNameDetailed(longDot);
+    expect(r1.folderName.endsWith(".")).toBe(false);
+    expect(r1.folderName.endsWith(" ")).toBe(false);
+    const longSpace = "乙".repeat(79) + " 尾巴";
+    const r2 = sanitizeAssetFolderNameDetailed(longSpace);
+    expect(r2.folderName.endsWith(" ")).toBe(false);
+  });
+});

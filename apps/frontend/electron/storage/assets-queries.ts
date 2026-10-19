@@ -122,7 +122,9 @@ export async function listAssetFamilyAssets(type: StudioAssetKind, name: string)
   const rows = await runSqliteJson<any[]>(dbPath,
     `SELECT * FROM assets WHERE type='${escapeSql(type)}' AND ${buildAssetNameCandidateCondition(trimmed)} ORDER BY updatedAt DESC;`
   );
-  return rows.map((row) => rowToSummary(row));
+  // L7(10-19 修复批):对齐 batchMatch 的 isUsableAssetRow 过滤(链路排查#6)——
+  // 不可用行(无主图无 images 的空壳)混入族轮播=无效位。
+  return rows.filter(isUsableAssetRow).map((row) => rowToSummary(row));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

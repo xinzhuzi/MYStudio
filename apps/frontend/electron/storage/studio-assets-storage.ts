@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import type { StudioAssetKind, StudioAssetSummary } from "../../types/studio-assets";
 import { StoredAssetImage, resolveAssetManagedPath } from "./assets-sqlite";
 import {
-  rewriteAssetRefsInImageWorkflowShards,
+  rewriteAssetRefsInStoreTree,
   type AssetFileRefMapping,
 } from "./asset-name-folder-migration";
 
@@ -28,7 +28,9 @@ function planRenameFolderMove(row: any, newFolder: string): {
   mapping: AssetFileRefMapping;
   filePath?: string;
   imagesJson?: string;
+  executedMoves: Array<[string, string]>;
 } {
+  const executedMoves: Array<[string, string]> = [];
   const type = String(row.type ?? "");
   const mapping: AssetFileRefMapping = new Map();
   const filesDir = getFilesDir();
@@ -67,12 +69,14 @@ function planRenameFolderMove(row: any, newFolder: string): {
     } else if (srcIn) {
       fs.mkdirSync(path.dirname(dst), { recursive: true });
       fs.renameSync(src, dst);
+      executedMoves.push([dst, src]);
     } // srcIn 缺+dstIn 在=上轮已挪(中断续跑),照常改写 DB
     const thumbSrc = path.join(thumbsDir, rel);
     const thumbDst = path.join(thumbsDir, targetRel);
     if (fs.existsSync(thumbSrc) && !fs.existsSync(thumbDst)) {
       fs.mkdirSync(path.dirname(thumbDst), { recursive: true });
       fs.renameSync(thumbSrc, thumbDst);
+      executedMoves.push([thumbDst, thumbSrc]);
     }
     mapping.set(rel, targetRel);
     if (rel === row.filePath) newFilePath = targetRel;
@@ -97,7 +101,7 @@ function planRenameFolderMove(row: any, newFolder: string): {
       }
     } catch {}
   }
-  return { mapping, filePath: newFilePath, imagesJson };
+  return { mapping, filePath: newFilePath, imagesJson, executedMoves };
 }
 
 export function updateAsset(id: string, updates: Partial<{ name: string; description: string; prompt: string; setting: string; remark: string; tags: string[] }>): StudioAssetSummary | null {
@@ -113,6 +117,7 @@ export function updateAsset(id: string, updates: Partial<{ name: string; descrip
 
   // R5 改名联动:前置读行(旧名/类型/文件清单),挪动映射并入本条 UPDATE
   let renameMapping: AssetFileRefMapping | null = null;
+  let renameMoves: Array<[string, string]> | null = null;
   if (updates.name !== undefined) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const currentRows = runSqliteJsonSync<any[]>(dbPath, `SELECT * FROM assets WHERE id='${escapeSql(id)}' LIMIT 1;`);
@@ -125,18 +130,31 @@ export function updateAsset(id: string, updates: Partial<{ name: string; descrip
         if (move.filePath !== undefined) sets.push(`filePath='${escapeSql(move.filePath)}'`);
         if (move.imagesJson !== undefined) sets.push(`images='${escapeSql(move.imagesJson)}'`);
         renameMapping = move.mapping;
+        renameMoves = move.executedMoves;
       }
     }
   }
 
   sets.push(`updatedAt='${new Date().toISOString()}'`);
-  runSqliteExecSafe(dbPath, `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(id)}';`);
+  // L1(10-19 修复批):UPDATE 失败回滚已挪文件(双树)再抛——收口「文件先挪/DB 后写」
+  // 崩溃窗(此前 UPDATE 抛错后盘新库旧断链无自愈)。
+  try {
+    runSqliteExecSafe(dbPath, `UPDATE assets SET ${sets.join(",")} WHERE id='${escapeSql(id)}';`);
+  } catch (error) {
+    for (const [from, to] of [...(renameMoves ?? [])].reverse()) {
+      try {
+        if (fs.existsSync(from) && !fs.existsSync(to)) fs.renameSync(from, to);
+      } catch { /* 回滚 best-effort */ }
+    }
+    throw error;
+  }
 
-  // 持久化引用定向改写(best-effort:失败不回滚改名,留痕续修)
+  // F1(10-19 修复批):持久化引用改写面=全 store 树(旧实现只扫 image-workflows
+  // 分片,characters.json 缩略/分镜 keyframes 的 asset-file:// 会静默断链)。
   if (renameMapping && renameMapping.size > 0) {
     try {
       const projectRoot = path.resolve(getAssetsDir(), "..", "..");
-      rewriteAssetRefsInImageWorkflowShards(projectRoot, renameMapping);
+      rewriteAssetRefsInStoreTree(projectRoot, renameMapping);
     } catch (error) {
       console.warn(`[assets] 改名后持久化引用改写失败(不影响改名结果):${String(error)}`);
     }
@@ -246,10 +264,21 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   const now = new Date().toISOString();
   runSqliteExecSafe(dbPath, `UPDATE assets SET filePath='${escapeSql(newFilePath)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);
   if (asset.filePath) {
-    const oldPath = resolveAssetManagedPath(getFilesDir(), asset.filePath);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-    const oldThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
-    if (fs.existsSync(oldThumb)) fs.unlinkSync(oldThumb);
+    // F3(10-19 修复批):删旧主图前查无他行引用(迁移对多行共享平铺路径特意保
+    // 留;无条件删会物理删掉另一行仍指着的文件——审查发现#4)。
+    const shared = runSqliteJsonSync<Array<{ n: number }>>(
+      dbPath,
+      `SELECT count(*) AS n FROM assets WHERE id!='${escapeSql(assetId)}' AND (filePath='${escapeSql(asset.filePath)}' OR images LIKE '%${escapeSql(JSON.stringify(asset.filePath)).slice(1, -1)}%');`,
+    );
+    const sharedBy = shared[0]?.n ?? 0;
+    if (sharedBy > 0) {
+      console.warn(`[assets] 旧主图被 ${sharedBy} 行共享,保留不删:${asset.filePath}`);
+    } else {
+      const oldPath = resolveAssetManagedPath(getFilesDir(), asset.filePath);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      const oldThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
+      if (fs.existsSync(oldThumb)) fs.unlinkSync(oldThumb);
+    }
   }
   return getAssetSync(assetId);
 }

@@ -187,7 +187,15 @@ export async function runScriptAssetMediaTask(
   let storeError: string | undefined;
   try {
     const existing = await bridge.getByName({ type: assetType, name: row.name });
-    if (!existing) {
+    if (existing) {
+      // F2(10-19 修复批):已有行换主图更新 DB(旧实现跳过入库=台账假绿,新生成图
+      // 只落 workflow-images/本地轻量库,DB 主图不动,族聚显看不到新图)。
+      const sourceFilePath = await resolveScriptAssetSourceFilePath(result.imageLocalPath);
+      if (sourceFilePath && bridge.replaceImage) {
+        await bridge.replaceImage({ assetId: existing.id, sourceFilePath });
+        eventBus.emit("asset:updated", { id: existing.id, type: existing.type });
+      }
+    } else {
       const fresh = readFreshScriptAssetRow(row);
       const description = getRowDescription(fresh) || row.note || row.name;
       const prompt =

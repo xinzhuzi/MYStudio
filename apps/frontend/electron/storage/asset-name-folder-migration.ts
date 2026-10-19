@@ -110,10 +110,54 @@ export function applyAssetFileRefRewrite(filePath: string, mapping: AssetFileRef
 }
 
 /**
- * R5 改名联动定向改写:只扫 studio-workflow 分片(manifest 在场索引;生产实证持久化
- * asset-file:// 引用只住 image-workflows 分片,design §4)。输入=本次挪动映射表。
+ * R5 改名联动定向改写(F1,10-19 修复批):扫全 store 树 .json/.jsonl(与迁移 P3
+ * 同扫描面)——characters.json 缩略/分镜 keyframes 等持久化 asset-file:// 同在
+ * 改写面;raw 与 URL 编码双形态由 applyAssetFileRefRewrite 处理。输入=挪动映射表。
  */
-export function rewriteAssetRefsInImageWorkflowShards(
+export function rewriteAssetRefsInStoreTree(
+  projectRoot: string,
+  mapping: AssetFileRefMapping,
+  io: RefRewriteIo & Pick<MigrationIo, "readdirSync" | "statSync"> = {
+    ...defaultRefRewriteIo,
+    readdirSync: (dirPath) => fs.readdirSync(dirPath),
+    statSync: (filePath) => fs.statSync(filePath),
+  },
+): number {
+  if (mapping.size === 0) return 0;
+  const storeDir = path.join(projectRoot, "store");
+  if (!io.existsSync(storeDir)) return 0;
+  let hits = 0;
+  const walk = (dir: string): void => {
+    let entries: string[];
+    try {
+      entries = io.readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name of entries) {
+      const full = path.join(dir, name);
+      let isDir = false;
+      try {
+        isDir = io.statSync(full).isDirectory();
+      } catch {
+        continue;
+      }
+      if (isDir) {
+        walk(full);
+        continue;
+      }
+      if (!/\.(json|jsonl)$/.test(name) || name.includes(".db")) continue;
+      hits += applyAssetFileRefRewrite(full, mapping, io);
+    }
+  };
+  walk(storeDir);
+  return hits;
+}
+
+/**
+ * R5 改名联动定向改写(旧实现,留档兼容):只扫 studio-workflow 分片。
+ */
+export function rewriteAssetRefsInImageWorkflowShardsLegacy(
   projectRoot: string,
   mapping: AssetFileRefMapping,
   io: RefRewriteIo = defaultRefRewriteIo,
@@ -306,7 +350,14 @@ function enumerateDefaultAssetRoots(
   }
   const internalProjects = path.join(getStorageBasePath(), "_p");
   if (io.existsSync(internalProjects)) {
-    for (const entry of io.readdirSync(internalProjects)) {
+    // L5(10-19 修复批):readdir 包兜底——裸抛会逃出逐根兜底中断启动序(无窗口假死)
+    let internalEntries: string[] = [];
+    try {
+      internalEntries = io.readdirSync(internalProjects);
+    } catch (error) {
+      console.warn(`[asset-name-folders] 内部项目枚举失败(跳过):${String(error)}`);
+    }
+    for (const entry of internalEntries) {
       const full = path.join(internalProjects, entry);
       try {
         if (io.statSync(full).isDirectory()) projectRoots.add(path.resolve(full));
@@ -612,9 +663,22 @@ async function migrateAssetRoot(
       }
       // 分批提交:默认 sqlite IO 单次 execFile 拼一条 argv(生产 7317 行≈MB 级逼近
       // macOS ARG_MAX),500 条/批防御 E2BIG;批间幂等可重入(P0 重建映射续跑)。
+      // L3(10-19 修复批):批失败(E2BIG/argv 溢出)自适应对半分批递归重试,
+      // 单条失败照常上抛——收口「固定批不可分割→迁移永久 interrupted 循环」。
+      const submit = async (batch: Array<{ rowid: number; column: string; value: string | null }>): Promise<void> => {
+        if (batch.length === 0) return;
+        try {
+          await sqliteIo.updateRows(dbPath, "assets", batch);
+        } catch (error) {
+          if (batch.length === 1) throw error;
+          const mid = Math.floor(batch.length / 2);
+          await submit(batch.slice(0, mid));
+          await submit(batch.slice(mid));
+        }
+      };
       const BATCH = 500;
       for (let index = 0; index < updates.length; index += BATCH) {
-        await sqliteIo.updateRows(dbPath, "assets", updates.slice(index, index + BATCH));
+        await submit(updates.slice(index, index + BATCH));
       }
     });
 

@@ -92,10 +92,12 @@ function mockProjectFilesBridge() {
 
 function mockStudioAssetsBridge(handlers: {
   getByName?: ReturnType<typeof vi.fn>;
+  replaceImage?: ReturnType<typeof vi.fn>;
   add?: ReturnType<typeof vi.fn>;
 }) {
   (window as unknown as Record<string, unknown>).studioAssets = {
     getByName: handlers.getByName ?? vi.fn(),
+    replaceImage: handlers.replaceImage,
     add: handlers.add ?? vi.fn(),
   };
 }
@@ -203,6 +205,21 @@ describe("scriptAsset 任务桥接:成功态", () => {
     const result = await runPromise;
     expect(result.status).toBe("success");
     expect(scriptAssetTasks()[0].checkpointRef).toBe("phase:done");
+  });
+
+  it("F2(10-19 修复批):库行已存在→换主图更新 DB(旧实现跳过入库=假绿)", async () => {
+    const existing = libraryAsset();
+    const replaceImage = vi.fn().mockResolvedValue({ ...existing, filePath: "role/锁灵链/new.png" });
+    const getByName = vi.fn().mockResolvedValue(existing); // 两次查询(入库前+断言)均命中既有行
+    const add = vi.fn();
+    mockStudioAssetsBridge({ getByName, add, replaceImage });
+
+    const result = await runPropTask();
+
+    expect(result.status).toBe("success");
+    expect(add).not.toHaveBeenCalled();          // 不重复建行
+    expect(replaceImage).toHaveBeenCalledTimes(1); // 但主图被换新
+    expect(replaceImage).toHaveBeenCalledWith({ assetId: existing.id, sourceFilePath: ABSOLUTE_SOURCE });
   });
 });
 

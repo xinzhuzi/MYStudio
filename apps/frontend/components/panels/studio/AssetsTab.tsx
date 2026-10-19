@@ -373,6 +373,7 @@ export function AssetsTab(props: {
             mode={mode}
             chapter={ch}
             batch={batch}
+            inWindow={useStudioStore.getState().activeChapterId === ch.id}
             script={script}
             open={open}
             extractingId={extractingId}

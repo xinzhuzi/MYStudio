@@ -75,11 +75,9 @@ export function initAssetsStorage(assetsRoot: string) {
   basePath = assetsRoot;
   const assetsDir = getAssetsDir();
   fs.mkdirSync(assetsDir, { recursive: true });
-  fs.mkdirSync(path.join(assetsDir, "files", "role"), { recursive: true });
-  fs.mkdirSync(path.join(assetsDir, "files", "scene"), { recursive: true });
-  fs.mkdirSync(path.join(assetsDir, "files", "tool"), { recursive: true });
-  fs.mkdirSync(path.join(assetsDir, "files", "clip"), { recursive: true });
-  fs.mkdirSync(path.join(assetsDir, "files", "audio"), { recursive: true });
+  // L11(10-19 修复批):五个类型目录不再预建——全部写入点按需 mkdir(名夹父目录
+  // 亦然),盘上不再留空置平铺目录;只保资产根与 files 根。
+  fs.mkdirSync(path.join(assetsDir, "files"), { recursive: true });
   ensureDb();
 }
 
@@ -159,6 +157,10 @@ export function sanitizeAssetFolderNameDetailed(name: string): AssetFolderNameSa
     cut -= 1;
   }
   if (cut < codePoints.length) value = codePoints.slice(0, cut).join("");
+  // L2(10-19 修复批):截断可能切在尾点/尾空格上,Windows 致命形态在截断后重新
+  // 出现——截断后重跑尾剥与保留名复查(审查发现#7 实锤复现 endsWithDot/endsWithSpace)。
+  value = value.replace(/^[. ]+|[. ]+$/g, "");
+  if (WINDOWS_RESERVED_FOLDER_NAME.test(value)) value = `${value}_`;
 
   if (!value) return { folderName: "未命名", truncated };
   return { folderName: value, truncated };

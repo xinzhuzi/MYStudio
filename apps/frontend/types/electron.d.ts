@@ -616,6 +616,8 @@ declare global {
       listFamily?: (payload: { type: string; name: string }) => Promise<StudioAssetSummary[]>;
       readImageDataUrl: (id: string) => Promise<string | null>;
       resolveFileUrl: (url: string) => Promise<string | null>;
+      /** asset-file://→data: URL(画布防污染链);L10(10-19 修复批)补声明:project-file 物化复用。 */
+      readUrlDataUrl: (url: string) => Promise<string | null>;
     };
     ttsRuntime?: {
       status: () => Promise<TtsRuntimeStatus>;

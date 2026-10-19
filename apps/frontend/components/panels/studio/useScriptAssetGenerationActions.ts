@@ -92,15 +92,18 @@ export function useScriptAssetGenerationActions({
     [activeProjectId],
   );
 
+  // L6(10-19 修复批):族取数竞态序号守卫(链路排查#7)——快速连开两行时先发
+  // 请求可能后到,晚到的旧族图覆盖新行弹窗(资产库侧同款守卫,两入口同构)。
+  const familyReqSeqRef = useRef(0);
   /** 打开详情弹窗并异步取族聚显条目(键=行实体名,与本页 batchMatch 重识别同源)。 */
   const openAssetDetailWithFamily = useCallback(async (asset: StudioAssetSummary, row: AssetRow) => {
+    const seq = ++familyReqSeqRef.current;
     setSelectedRowLinkedSpeakerIds(collectLinkedSpeakerIds(asset, row));
     setSelectedAsset(asset);
     setAssetDialogOpen(true);
     setSelectedFamilyImages(undefined);
-    setSelectedFamilyImages(
-      await fetchFamilyImageEntries(getStudioAssetsBridge(), toRuntimeAssetType(row.type), row.name),
-    );
+    const entries = await fetchFamilyImageEntries(getStudioAssetsBridge(), toRuntimeAssetType(row.type), row.name);
+    if (familyReqSeqRef.current === seq) setSelectedFamilyImages(entries);
   }, [collectLinkedSpeakerIds]);
 
   const handleOpenAsset = useCallback(async (row: AssetRow) => {
@@ -217,6 +220,32 @@ export function useScriptAssetGenerationActions({
         });
         if (result.phase !== "done") {
           toast.error(`「${row.name}」生成失败：${result.error ?? "未知错误"}`, { id: toastId });
+          return;
+        }
+        // L8(10-19 修复批):单行生成收尾与批链同口径——done 后自动入库/换主图
+        // (旧实现产物只落 workflow-images/本地轻量库,需手点「放入资产库」,与
+        // 批2「完成=库行+图落盘」定义分叉;链路排查#3)。
+        try {
+          const bridge = getStudioAssetsBridge();
+          const assetType = row.type === "prop" ? "tool" : row.type === "character" ? "role" : "scene";
+          if (bridge) {
+            const existing = await bridge.getByName({ type: assetType, name: row.name });
+            const filePath = result.imageLocalPath?.startsWith("/") ? result.imageLocalPath : undefined;
+            if (existing && filePath && bridge.replaceImage) {
+              await bridge.replaceImage({ assetId: existing.id, sourceFilePath: filePath });
+              eventBus.emit("asset:updated", { id: existing.id, type: existing.type });
+            } else if (!existing && filePath) {
+              const created = await bridge.add({
+                type: assetType,
+                name: row.name,
+                sourceFilePath: filePath,
+                description: row.note || row.name,
+              });
+              if (created) eventBus.emit("asset:updated", { id: created.id, type: created.type });
+            }
+          }
+        } catch (storeError) {
+          toast.warning(`「${row.name}」已生成,入库失败可手点「放入资产库」:${storeError instanceof Error ? storeError.message : String(storeError)}`, { id: toastId });
           return;
         }
         toast.success(`「${row.name}」资产生成成功`, { id: toastId });

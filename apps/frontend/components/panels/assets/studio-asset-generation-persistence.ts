@@ -117,6 +117,26 @@ async function materializeGeneratedImageForAssetLibrary(assetId: string, imagePa
     return imagePath;
   }
 
+  // L10(10-19 修复批):project-file:// 走 readUrlDataUrl 物化(链路排查#8——旧
+  // 实现无此分支,详情弹窗链一旦带 projectId 产物即走「未写回资产库主图」警告路)。
+  if (imagePath.startsWith("project-file://")) {
+    const bridge = getStudioAssetsBridge();
+    if (bridge?.readUrlDataUrl) {
+      const dataUrl = await bridge.readUrlDataUrl(imagePath);
+      if (dataUrl && bridge.saveMaterial) {
+        const base64 = dataUrl.split(",")[1] ?? "";
+        const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const bytes = binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength) as ArrayBuffer;
+        const result = await bridge.saveMaterial({
+          name: `${assetId}_generated_${Date.now()}.png`,
+          bytes,
+        });
+        return result.success ? result.filePath ?? result.localPath ?? null : null;
+      }
+    }
+    return null;
+  }
+
   if ((imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:")) && getStudioAssetsBridge()?.saveMaterial) {
     const response = await fetch(imagePath);
     const blob = await response.blob();

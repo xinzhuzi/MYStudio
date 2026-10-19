@@ -70,6 +70,7 @@ export function AssetsBatchCard({
   mode,
   chapter,
   batch,
+  inWindow,
   script,
   open,
   extractingId,
@@ -88,6 +89,8 @@ export function AssetsBatchCard({
   mode: "extract" | "manage";
   chapter: Chapter;
   batch?: AssetBatch;
+  /** L9(10-19 修复批):该章是否在窗口化装载窗内(=激活章)——窗外章提取态盘上不可见,示「切章可见」防误导 */
+  inWindow?: boolean;
   script?: string;
   open: boolean;
   extractingId: string | null;
@@ -176,7 +179,9 @@ export function AssetsBatchCard({
           {!batch ? (
             <p className="text-muted-foreground">
               {script
-                ? "尚未提取。点「提取资产」从本章剧本抽取角色/场景/道具。"
+                ? inWindow
+                  ? "尚未提取。点「提取资产」从本章剧本抽取角色/场景/道具。"
+                  : "本章提取状态切到该章后可见(窗口化装载只载激活章,盘上提取批次未丢)。"
                 : "本章暂无剧本，无法提取资产。"}
             </p>
           ) : (
