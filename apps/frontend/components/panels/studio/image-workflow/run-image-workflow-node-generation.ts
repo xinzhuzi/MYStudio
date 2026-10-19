@@ -126,9 +126,10 @@ export async function runImageWorkflowNodeGeneration(
     : request.prompt;
   // 道劫手册:分镜帧最终正文经 ma-gongbi-v1 编译(唯一 Avoid+负面唯一所有者+1600 门)后
   // 以 raw 策略直传;非道劫(或非分镜)保持既有 enhanced 传输与分离负面。
-  // 传输通道分流(10-19):本地 cfg=1 桥路(K2 桥/qwen-image-2-1 回落)取
-  // compiled.positive/negative 分离通道——krea2_daojie_t2i 模板无 negative 绑定
-  // +KSampler cfg=1.0,providerPrompt 的 Avoid 尾段会以正向 token 进 CLIP(反向污染);
+  // 传输通道分流(10-19):本地 cfg=1 引擎链(10-19 B 裁定:分镜原生 qwen-image-2-1,
+  // qi21 桥模板无 negative 绑定且负面在 cfg=1 下数学不参与采样)取
+  // compiled.positive/negative 分离通道——providerPrompt 的 Avoid 尾段若混入正向
+  // 会以正向 token 进编码器(反向污染);
   // providerPrompt 保留为云端传输形态(云端消费方现状冻结,实弹候令)。
   // 旧 800 门死锁解除(08-24 实证): request 组装层内嵌的【资产圣经】【多视图身份锁】
   // 锚点段(~800+ 字符)在旧 800 门下会把任何正文顶爆(203 正文+锚点=1277 仍拒)。编译形
@@ -143,16 +144,16 @@ export async function runImageWorkflowNodeGeneration(
     graph.target,
     useStudioStore.getState().storyboards,
   );
-  // 09-14 用户裁定:分镜生图走 ComfyUI 桥(K2 本地):
-  // 有参考图→krea2_edit_ref(参考一致性装配);无参考→krea2_daojie_t2i
-  // (道劫水墨定档文生图)。桥不可用(引擎未跑/缺插件)回落 krea2-turbo
-  // sidecar,批量链不断。自由/资产工作流保留节点自选模型。
+  // 10-19 用户裁定(B):分镜生图原生走 qwen-image-2-1(qi21-道劫-t2i,mikkoani×0.8)。
+  // 09-14 K2 桥路由就此退役——实弹定谳 K2 三模型(krea2_turbo/Engineer/HDR VAE)
+  // 自引擎装机以来全缺,K2 桥从未出过图,分镜帧实际一直由桥失败回落渲染成本路
+  // (10-19-daojie-krea2-style-align);现转正,K2 道劫模板转档案(件保留清单标注)。
+  // 参考图随请求透传(与既往回落形态一致);NSFW 破限 use_lora 在 qi21 侧静默忽略
+  // (同既往回落)。自由/资产工作流保留节点自选模型。
   const isStoryboard = graph.target.kind === "storyboard";
-  const storyboardTemplate = referenceImages.length ? "krea2_edit_ref" : "krea2_daojie_t2i";
-  let storyboardBridgeDown = false;
   const buildRequest = (transport?: "chat") => ({
     prompt: compiledFrame?.positive ?? styledPrompt,
-    model: isStoryboard && !storyboardBridgeDown ? "comfyui-bridge" : (isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model),
+    model: isStoryboard ? DEFAULT_LOCAL_IMAGE_MODEL : request.model,
     aspectRatio: request.aspectRatio,
     // 降载重试(09-15 P3 阶梯第三段):显式降档覆盖;缺省保持图内档位
     resolution: input.degradedResolution ?? request.resolution,
@@ -161,9 +162,7 @@ export async function runImageWorkflowNodeGeneration(
     referenceImages,
     // NSFW破限链(09-07):use_lora 经 extraParams 进请求体,引擎层与全局
     // 专业流开关或关系合并(ai-sdk-bridge Object.assign 透传)
-    extraParams: isStoryboard
-      ? { template: storyboardBridgeDown ? undefined : storyboardTemplate, ...(request.nsfwPro ? { use_lora: true } : {}) }
-      : (request.nsfwPro ? { use_lora: true } : undefined),
+    extraParams: request.nsfwPro ? { use_lora: true } : undefined,
     transport,
     // 分镜/工作流成图自存项目真源(projectFiles.saveImage),跳过媒体库副本双写
     persistMedia: false,
@@ -250,19 +249,8 @@ export async function runImageWorkflowNodeGeneration(
     }
     return outcome;
   };
-  let { generated: result, saved } = await (async () => {
-    try {
-      return await generateAndGate();
-    } catch (error) {
-      // 桥回落:分镜桥路失败(引擎未跑/模板缺件/执行失败)→qwen-image-2-1
-      // (DEFAULT_LOCAL_IMAGE_MODEL)直生重试一次;非桥错误(一致性闸门/保存)原样上抛
-      if (!isStoryboard || storyboardBridgeDown) throw error;
-      const message = error instanceof Error ? error.message : String(error);
-      if (!/comfyui|bridge|工作流|引擎/i.test(message)) throw error;
-      storyboardBridgeDown = true;
-      return await generateAndGate();
-    }
-  })();
+  // 10-19 B 裁定:分镜已原生 qi21,K2 桥回落重试整段退役(桥路不再被尝试)
+  let { generated: result, saved } = await generateAndGate();
   if ((!saved?.success || !saved.url) && /^https?:/i.test(result.url)) {
     // 08-24 结构修复:images 端点已成功(生成已计费)但远程 URL 下载失败
     // (晚高峰 CDN 504/网关过载)——旧路径直接抛错丢图。此处回退 chat 形态

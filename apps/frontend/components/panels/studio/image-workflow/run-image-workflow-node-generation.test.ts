@@ -84,9 +84,10 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
 
     expect(result.imageUrl).toBe("project-file://w/1.png");
     const params = vi.mocked(aiManager.generateImage).mock.calls[0][0];
-    // 09-14 用户裁定:分镜生图恒走本地 Krea2
-    expect(params.model).toBe("comfyui-bridge");
-    expect(params.extraParams?.template).toBe("krea2_daojie_t2i"); // 无参考=道劫水墨 t2i
+    // 10-19 用户裁定(B):分镜生图原生走 qwen-image-2-1(K2 桥路由退役)
+    expect(params.model).toBe("qwen-image-2-1");
+    expect(params.extraParams?.template).toBeUndefined(); // 不再点名桥模板
+    expect(aiManager.generateImage).toHaveBeenCalledTimes(1); // 单次直发,无桥回落重试
     expect(params.promptPolicy).toBe("raw");
     expect(params.prompt).toContain("【画面】独孤剑尘立于金水河码头");
     expect(params.prompt).toContain("Chinese ink wash painting style");
@@ -103,8 +104,8 @@ describe("runImageWorkflowNodeGeneration 道劫分镜编译边界", () => {
     await runImageWorkflowNodeGeneration(storyboardGraph, "gen-1", { addMaterial: () => "mat-1" });
 
     const params = vi.mocked(aiManager.generateImage).mock.calls[0][0];
-    expect(params.model).toBe("comfyui-bridge"); // 非道劫分镜同走桥
-    expect(params.extraParams?.template).toBe("krea2_daojie_t2i");
+    expect(params.model).toBe("qwen-image-2-1"); // 非道劫分镜同走本地 qi21(10-19 B)
+    expect(params.extraParams?.template).toBeUndefined();
     expect(params.promptPolicy).toBeUndefined();
     expect(params.negativePrompt).toBe("watermark");
     expect(params.prompt).not.toContain("Avoid:");
