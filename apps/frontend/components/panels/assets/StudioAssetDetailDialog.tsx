@@ -132,11 +132,15 @@ export function StudioAssetDetailDialog({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fullAsset, setFullAsset] = useState<StudioAssetSummary | null>(null);
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
+  // 10-19 删后即时刷新(用户报障):族兄弟删除成功后 familyImages prop 不归本弹窗所有,
+  // 本地记已删路径并把它们从展示序滤掉;切资产即清(重开弹窗=族重取,天然一致)。
+  const [removedFamilyPaths, setRemovedFamilyPaths] = useState<string[]>([]);
   // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
   // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
   const displayImages = useMemo<FamilyDisplayImageEntry[]>(
-    () => mergeFamilyDisplayImages(familyImages, images, asset?.id),
-    [familyImages, images, asset?.id],
+    () => mergeFamilyDisplayImages(familyImages, images, asset?.id)
+      .filter((entry) => !removedFamilyPaths.includes(entry.filePath)),
+    [familyImages, images, asset?.id, removedFamilyPaths],
   );
   const regenerationPrompt = useMemo(() => buildAssetRegenerationPrompt(fullAsset || asset), [fullAsset, asset]);
   const syncCarouselIndex = useCallback((api: CarouselApi) => {
@@ -150,6 +154,7 @@ export function StudioAssetDetailDialog({
       setCurrentIndex(0);
       setRecognizedText(null);
       setVoiceAssignOpen(false);
+      setRemovedFamilyPaths([]);
       return;
     }
 
@@ -284,7 +289,16 @@ export function StudioAssetDetailDialog({
             Icon={Icon}
             onCarouselApi={syncCarouselIndex}
             onTranscribe={handleTranscribe}
-            onRemoveImage={handleRemoveImage}
+            onRemoveImage={async (image, index) => {
+              // 10-19 删后即时刷新(用户报障):真删成功才过滤展示序(删失败不动);
+              // 索引随展示长度夹回,防删末图后轮播停越界位
+              const wasOwn = images.some((item) => item.filePath === image.filePath);
+              const ok = await handleRemoveImage(image, index);
+              if (ok && !wasOwn) {
+                setRemovedFamilyPaths((prev) => [...prev, image.filePath]);
+                setCurrentIndex((cur) => Math.min(cur, Math.max(displayImages.length - 2, 0)));
+              }
+            }}
             onAddImage={handleAddImage}
             onReplaceImage={handleReplaceImage}
             onRegenerate={handleRegenerate}

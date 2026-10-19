@@ -454,6 +454,16 @@ describe("R4 族聚显(10-19-script-asset-corridor-blank D1+D3:键=batchMatch �
     expect(actionsSource).toContain("已删除(该图属于");
   });
 
+  it("删后即时刷新(10-19 用户报障):真删成功才本地过滤展示序+发 asset:updated", () => {
+    const dialogSource = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
+    expect(dialogSource).toContain("removedFamilyPaths");
+    expect(dialogSource).toContain("setRemovedFamilyPaths((prev) => [...prev, image.filePath]");
+    expect(dialogSource).toContain("const ok = await handleRemoveImage(image, index)");
+    const actionsSource = readFileSync(new URL("./studio-asset-detail-actions.ts", import.meta.url), "utf8");
+    expect(actionsSource).toContain("eventBus.emit(\"asset:updated\", { id: sibling.assetId");
+    expect(actionsSource).toContain("eventBus.emit(\"asset:updated\", { id: asset.id");
+  });
+
   it("剧本资产行打开详情即取族(键=行实体名,与本页 batchMatch 重识别同源),并透传弹窗", () => {
     const actionsSource = readFileSync(new URL("../studio/useScriptAssetGenerationActions.ts", import.meta.url), "utf8");
     expect(actionsSource).toContain(

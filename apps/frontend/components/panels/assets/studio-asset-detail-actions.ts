@@ -554,10 +554,11 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
 
-  const handleRemoveImage = async (img: AssetImage, idx: number) => {
+  const handleRemoveImage = async (img: AssetImage, idx: number): Promise<boolean> => {
     // 10-19 用户裁定:主图亦可删 + 追令「可见即可删」(族聚显兄弟图同权)。
+    // 返回值=是否真删成功(供弹窗层同步过滤展示序,删后不刷新=用户报障)。
     void idx; // 签名沿用 pane 的 (image, index) 契约;删除按 filePath 定位,不按下标
-    if (!getStudioAssetsBridge()?.removeImage) return;
+    if (!getStudioAssetsBridge()?.removeImage) return false;
     const ownIndex = images.findIndex((item) => item.filePath === img.filePath);
     if (ownIndex === -1) {
       // 族兄弟条目:本行未命中 → 按 familyImages 找到它真正所属的行去删(删对行,
@@ -565,7 +566,7 @@ export function useStudioAssetDialogActions(ctx: {
       const sibling = (familyImages ?? []).find(
         (entry) => entry.filePath === img.filePath && entry.assetId !== asset.id,
       );
-      if (!sibling) return;
+      if (!sibling) return false;
       try {
         const result = await getStudioAssetsBridge()!.removeImage({
           assetId: sibling.assetId,
@@ -573,13 +574,16 @@ export function useStudioAssetDialogActions(ctx: {
         });
         if (result) {
           toast.success(`已删除(该图属于「${sibling.name || sibling.assetId}」)`);
-        } else {
-          toast.error("删除失败");
+          // 刷新链:列表页(AssetsTab 听 asset:updated 重载)+ 弹窗层据返回值过滤本轮播
+          eventBus.emit("asset:updated", { id: sibling.assetId, type: asset.type });
+          return true;
         }
+        toast.error("删除失败");
+        return false;
       } catch (error: unknown) {
         toast.error(getAssetOperationError(error, "删除失败"));
+        return false;
       }
-      return;
     }
     try {
       const result = await getStudioAssetsBridge()!.removeImage({ assetId: asset.id, imageFilePath: img.filePath });
@@ -588,11 +592,14 @@ export function useStudioAssetDialogActions(ctx: {
         setImages(newImgs);
         setCurrentIndex(Math.min(currentIndex, Math.max(carouselImages.length - 2, 0)));
         toast.success("已删除");
-      } else {
-        toast.error("删除失败");
+        eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        return true;
       }
+      toast.error("删除失败");
+      return false;
     } catch (error: unknown) {
       toast.error(getAssetOperationError(error, "删除失败"));
+      return false;
     }
   };
 
