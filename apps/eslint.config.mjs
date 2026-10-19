@@ -42,6 +42,22 @@ export default [
       '**/*.test.ts',
       '**/*.test.tsx',
       '**/__tests__/**',
+      // 例外再包含(1020 门禁返修):本任务门禁配方=「改动文件 + --max-warnings 0」,改动清单含
+      // test 文件,而上面全局忽略匹配它们 → ESLint 10 对每个显式传入的被忽略文件发
+      // "File ignored" warning → --max-warnings 0 即红。解法=对涉事 test 文件逐个否定再包含,
+      // 使其真正纳入 lint(内容须过规则);其余 800+ test 文件维持忽略,全仓 pre-commit
+      // (eslint .)口径零扩面。逐文件精确列出而非目录/通配模式,保证不把清单外既有 test 卷入。
+      // 后续任务若门禁再传新 test 文件撞同款红,循例在此追加。
+      '!frontend/components/panels/studio/AssetsBookExtractionCard.test.tsx',
+      '!frontend/components/panels/studio/useNovelPipelineActions.test.tsx',
+      '!frontend/components/panels/studio/workflow-stage-actions.test.tsx',
+      '!frontend/lib/ai/ai-manager.test.ts',
+      '!frontend/lib/studio/entity-appearances.test.ts',
+      '!frontend/lib/studio/entity-extraction-errors.test.ts',
+      '!frontend/lib/studio/entity-extraction-input.test.ts',
+      '!frontend/lib/studio/entity-extraction-ledger.test.ts',
+      '!frontend/lib/studio/entity-extraction-runner.test.ts',
+      '!frontend/lib/studio/entity-sync.test.ts',
     ],
   },
   // 外来预设统一收窄到 ts/tsx(预设自身无 files 键 = 全文件适用,会波及 js/mjs/cjs)
@@ -99,6 +115,17 @@ export default [
     files: ['build/**/*.ts'],
     rules: {
       'no-console': 'off',
+    },
+  },
+  // workflow-stage-actions.test.tsx(1020 门禁返修再包含,见 global ignores 例外段)存量 60 处
+  // no-explicit-any:全部是测试 mock 惯用法((window as any).electronAPI 挂桩、
+  // (globalThis as any).ResizeObserver 浏览器补桩、mock 回调参数),该文件自旧 ignorePatterns
+  // 时代起从未被 lint,属存量债而非本次引入——清偿另役,不阻塞门禁。该文件其余规则
+  // (react-hooks/no-console/no-unused-vars 等)照常生效。
+  {
+    files: ['frontend/components/panels/studio/workflow-stage-actions.test.tsx'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ];

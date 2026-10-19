@@ -8,6 +8,7 @@ import {
   syncExtractedEntities,
   type CharacterSink,
   type SceneSink,
+  type SyncExtractedEntity,
 } from "./entity-sync";
 import type { DedupedEntity } from "./entity-extraction";
 
@@ -112,7 +113,9 @@ describe("studio entity sync bridge", () => {
     expect(calls.addCharacter[0]?.linkedEpisodeId).toBe("ep1");
     expect(calls.addCharacter[0]?.folderId).toBe("char_folder_1");
     expect(calls.addCharacter[0]?.assetName).toBe("小红;红儿");
-    expect(calls.updateCharacter[0]?.updates.linkedEpisodeId).toBe("ep1");
+    // D11 随动(10-19 C1 Step 10):linkedEpisodeId 语义=firstChapterId,已入库实体
+    // 不再被最近章覆盖——update 载荷不再携带 linkedEpisodeId(旧断言 updates.linkedEpisodeId==="ep1"
+    // 锚的是「覆盖为最近章」旧语义,随动删除)。
 
     // scene created
     const cafe = result.scenes.find((s) => s.name === "咖啡厅");
@@ -145,7 +148,8 @@ describe("studio entity sync bridge", () => {
     expect(calls.updateCharacter).toHaveLength(1);
     expect(Object.keys(calls.updateCharacter[0]!.updates)).not.toContain("notes");
     expect(calls.updateCharacter[0]!.updates.status).toBe("linked");
-    expect(calls.updateCharacter[0]!.updates.linkedEpisodeId).toBe("ep1");
+    // D11 随动:同上,update 不再覆盖 linkedEpisodeId(旧断言 ==="ep1" 随动删除)
+    expect(Object.keys(calls.updateCharacter[0]!.updates)).not.toContain("linkedEpisodeId");
   });
 
   it("overwrites notes with the union aliases when the merged alias union is non-empty", () => {
@@ -201,5 +205,100 @@ describe("studio entity sync bridge", () => {
     expect(useCharacterLibraryStore.getState().characters[0]?.projectId).toBe("dao-project");
     expect(useSceneStore.getState().scenes[0]?.projectId).toBe("dao-project");
     expect(usePropsLibraryStore.getState().items[0]?.projectId).toBe("dao-project");
+  });
+
+  // ── 10-19 C1 Step 10:D11 linkedEpisodeId=firstChapterId + D10 晋升过滤 ──
+
+  it("D11:新增实体 linkedEpisodeId 取 firstEpisodeId(首次出场章),缺省回落本批 episodeId", () => {
+    const entities: SyncExtractedEntity[] = [
+      {
+        id: null,
+        isNew: true,
+        kind: "character",
+        name: "林晚",
+        aliases: [],
+        episodeIds: ["ep2"],
+        firstEpisodeId: "ep1",
+      },
+      {
+        id: null,
+        isNew: true,
+        kind: "character",
+        name: "无首章信息者",
+        aliases: [],
+        episodeIds: ["ep2"],
+      },
+    ];
+    const { characterSink, sceneSink, calls } = makeSinks();
+
+    syncExtractedEntities(
+      { episodeId: "ep2", entities, projectId: "proj-1", projectName: "测试项目" },
+      { characterSink, sceneSink },
+    );
+
+    expect(calls.addCharacter).toHaveLength(2);
+    expect(calls.addCharacter.find((input) => input.name === "林晚")).toMatchObject({
+      linkedEpisodeId: "ep1",
+    });
+    expect(calls.addCharacter.find((input) => input.name === "无首章信息者")).toMatchObject({
+      linkedEpisodeId: "ep2",
+    });
+  });
+
+  it("D10 晋升过滤:promoted=false 的角色/场景不入三库(确定性伪 id 留批),道具不写道具库", () => {
+    const entities: SyncExtractedEntity[] = [
+      {
+        id: null,
+        isNew: true,
+        kind: "character",
+        name: "林晚",
+        aliases: [],
+        episodeIds: ["ep1"],
+        promoted: false,
+      },
+      {
+        id: null,
+        isNew: true,
+        kind: "scene",
+        name: "山门",
+        aliases: [],
+        episodeIds: ["ep1"],
+        promoted: false,
+      },
+      {
+        id: null,
+        isNew: true,
+        kind: "prop",
+        name: "长剑",
+        aliases: [],
+        episodeIds: ["ep1"],
+        promoted: false,
+      },
+    ];
+    const { characterSink, sceneSink, calls } = makeSinks();
+    const addProp = vi.fn(() => "prop_new_1");
+
+    const { result, summary } = syncExtractedEntities(
+      { episodeId: "ep1", entities, projectId: "proj-1", projectName: "测试项目" },
+      { characterSink, sceneSink, propSink: { addProp } },
+    );
+
+    // 三库零写
+    expect(calls.addCharacter).toHaveLength(0);
+    expect(calls.updateCharacter).toHaveLength(0);
+    expect(calls.addScene).toHaveLength(0);
+    expect(calls.updateScene).toHaveLength(0);
+    expect(addProp).not.toHaveBeenCalled();
+    // 批内留痕:确定性伪 id(资产页按章展示不空)
+    expect(result.characters[0]).toMatchObject({
+      name: "林晚",
+      characterId: "char-ep1-1",
+      aliases: [],
+    });
+    expect(result.scenes[0]).toMatchObject({ name: "山门", sceneId: "scene-ep1-1" });
+    expect(result.props[0]).toMatchObject({ name: "长剑" });
+    expect(result.props[0]?.assetId).toMatch(/^prop-ep1-\d+$/);
+    // 计数:deferred 独立,不算 created/merged
+    expect(summary).toMatchObject({ created: 0, merged: 0, deferred: 3 });
   });
 });

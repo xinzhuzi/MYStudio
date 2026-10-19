@@ -54,6 +54,12 @@ export interface AITextRequest {
   timeoutMs?: number;
   /** 关闭思考型模型深度思考(1013 提取空文本修;结构化任务用,SDK/HTTP 两层同注) */
   disableThinking?: boolean;
+  /**
+   * 显式模型覆写(D20,10-19 轮3 已裁采纳):提供时覆写 binding 解析出的
+   * resolved.model;provider/密钥仍走 binding 解析(含回退链),覆写不绕过
+   * 绑定校验。用途=全书提取对比模式(glm-5.3-flash 旁路跑)等显式点名场景。
+   */
+  model?: string;
 }
 
 export interface AITextResult {
@@ -98,7 +104,7 @@ async function text(req: AITextRequest): Promise<AITextResult> {
   if (!resolved) return { success: false, error: "未配置可用模型，请到设置的云端AI绑定对应 Agent 或通用AI" };
   const result = await window.electronAPI.textCompletion({
     provider: resolved.provider,
-    model: resolved.model,
+    model: req.model ?? resolved.model, // D20:显式覆写只换 model,provider/密钥仍走 binding 解析
     messages: req.messages,
     disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,
@@ -122,7 +128,7 @@ async function textStream(req: AITextRequest, onChunk: (delta: string, kind: AIT
   if (!resolved) return { success: false, error: "未配置可用模型，请到设置的云端AI绑定对应 Agent 或通用AI" };
   const result = await window.electronAPI.textCompletionStream({
     provider: resolved.provider,
-    model: resolved.model,
+    model: req.model ?? resolved.model, // D20:显式覆写只换 model,provider/密钥仍走 binding 解析
     messages: req.messages,
     disableThinking: req.disableThinking,
     temperature: resolved.temperature ?? req.temperature ?? 0.6,

@@ -243,6 +243,71 @@ describe("aiManager.text", () => {
       usage: { inputTokens: 11, outputTokens: 22 },
     });
   });
+
+  // D20(10-19 轮3 已裁采纳):AITextRequest 增可选 model 覆写——对比模式
+  // (glm-5.3-flash 旁路跑)唯一前置。提供时覆写 resolved.model;provider/密钥
+  // 仍走 binding 解析(不因覆写绕过绑定与回退链)。
+  it("D20 model 覆写:提供时覆写 resolved.model,provider 仍走 binding 解析(text 腿)", async () => {
+    useAPIConfigStore.setState({
+      agentDeployments: [
+        { key: "entityExtraction", name: "", desc: "", modelId: "m1", vendorId: "p1", temperature: 0.7, maxOutputTokens: 1234 },
+      ],
+    } as never);
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
+      success: true,
+      text: "flash-ok",
+    });
+    setTestWindow({ textCompletion });
+
+    await aiManager.text({
+      binding: { agent: "entityExtraction" },
+      messages,
+      model: "glm-5.3-flash",
+    });
+
+    expect(textCompletion.mock.calls[0]?.[0]).toMatchObject({
+      provider: { id: "p1" },  // provider/密钥仍来自 binding 解析
+      model: "glm-5.3-flash",  // 仅 model 被覆写
+      temperature: 0.7,        // 部署温度等解析语义不受影响
+      maxTokens: 65536,
+    });
+  });
+
+  it("D20 model 覆写:绑定解析失败仍先报未配置错误(覆写不绕过 binding 解析)", async () => {
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    setTestWindow({ textCompletion });
+
+    try {
+      const result = await aiManager.text({
+        binding: { feature: "chat" },
+        messages,
+        model: "glm-5.3-flash",
+        fallbackToUniversal: false,
+      });
+
+      expect(result).toEqual({
+        success: false,
+        error: "未配置可用模型，请到设置的云端AI绑定对应 Agent 或通用AI",
+      });
+      expect(textCompletion).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("D20 model 覆写缺省 → 行为不变(仍用 binding 解析出的 model)", async () => {
+    useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
+    const textCompletion = vi.fn<(payload: TextCompletionPayload) => Promise<TextCompletionResult>>().mockResolvedValue({
+      success: true,
+      text: "ok",
+    });
+    setTestWindow({ textCompletion });
+
+    await aiManager.text({ binding: { feature: "chat" }, messages });
+
+    expect(textCompletion.mock.calls[0]?.[0]).toMatchObject({ model: "m1" });
+  });
 });
 
 describe("aiManager.textStream", () => {
@@ -338,6 +403,25 @@ describe("aiManager.textStream", () => {
     );
 
     expect(textCompletionStream.mock.calls[0]?.[0]).toMatchObject({ timeoutMs: 600_000 });
+  });
+
+  it("D20 model 覆写:textStream 腿同样生效(provider 仍走 binding)", async () => {
+    useAPIConfigStore.setState({ featureBindings: { chat: ["p1:m1"] } } as never);
+    const textCompletionStream = vi.fn<
+      (payload: TextCompletionPayload, onChunk: (delta: string, kind: "text" | "thinking") => void) => Promise<TextCompletionResult>
+    >()
+      .mockResolvedValue({ success: true, text: "ok" });
+    setTestWindow({ textCompletionStream });
+
+    await aiManager.textStream(
+      { binding: { feature: "chat" }, messages, model: "glm-5.3-flash" },
+      () => undefined,
+    );
+
+    expect(textCompletionStream.mock.calls[0]?.[0]).toMatchObject({
+      provider: { id: "p1" },
+      model: "glm-5.3-flash",
+    });
   });
 
   it("falls back to text completion and emits the full text once when streaming IPC is missing", async () => {

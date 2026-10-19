@@ -2919,7 +2919,20 @@ describe("workflow stage action surfaces", () => {
     expect(hookSource).toContain("handleNovelEventAnalysis");
     expect(hookSource).toContain("handleEntityExtraction");
     expect(hookSource).toContain("buildNovelEventAnalysisMessages");
-    expect(hookSource).toContain("buildEntityExtractionMessages");
+    // 10-19 C1 Step 7(D22)随动:提取消息构造/解析随共用管线下沉
+    // lib/studio/entity-extraction-runner.ts(单章与全书 runner 同一函数);
+    // hook 旧锚 buildEntityExtractionMessages 改锚管线调用 extractChapterEntities,
+    // 管线模块加正锚——所有权仍可追,index.tsx 负断言原样保留。
+    expect(hookSource).toContain("extractChapterEntities");
+    expect(hookSource).not.toContain("buildEntityExtractionMessages");
+    const runnerSource = readFileSync(
+      join(
+        process.cwd(),
+        "frontend/lib/studio/entity-extraction-runner.ts",
+      ),
+      "utf8",
+    );
+    expect(runnerSource).toContain("buildEntityExtractionMessages");
     expect(hookSource).toContain("createMystudioSinks");
   });
 

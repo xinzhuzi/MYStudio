@@ -15,6 +15,8 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
+import { useAPIConfigStore } from "@/stores/ai/api-config-store";
+import { readSourceMemoryActionContext } from "@/lib/studio/source-memory";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useNovelPipelineActions } from "./useNovelPipelineActions";
 
@@ -24,7 +26,7 @@ vi.mock("sonner", () => ({
 
 // 注入点:readSourceMemoryActionContext 位于 handler 体内既有 try(模型调用段)
 // 之前的前置装配段,此处 reject 会沿 await 链传到整体 catch(若防线缺席则直接
-// 穿透 void 派发)。
+// 穿透 void 派发)。默认=抛错(首个 describe 锚定防线);D22/R4 用例按需覆写实现。
 vi.mock("@/lib/studio/source-memory", () => ({
   readSourceMemoryActionContext: vi.fn(async () => {
     throw new Error("源记忆桥模拟失败");
@@ -67,6 +69,7 @@ afterEach(() => {
   vi.clearAllMocks();
   delete (window as unknown as { electronAPI?: unknown }).electronAPI;
   delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+  delete (window as unknown as { projectFiles?: unknown }).projectFiles;
   useStudioStore.setState(initialStudioState, true);
 });
 
@@ -118,5 +121,203 @@ describe("useNovelPipelineActions.handleEntityExtraction 吞异常防线", () =>
     expect(toast.error).not.toHaveBeenCalledWith(
       expect.stringMatching(/资产提取失败/),
     );
+  });
+});
+
+// ── 10-19 C1 Step 7/8:D22 输入统一 + R6/R4 失败日志真实文本 ────────────────
+
+const AI_PROVIDER = {
+  id: "p1",
+  platform: "openai-compatible",
+  name: "P1",
+  baseUrl: "https://x/v1",
+  apiKey: "k",
+  model: ["m1"],
+  apiProtocol: "openai-compatible",
+};
+
+function configureEntityExtractionBinding() {
+  useAPIConfigStore.setState({
+    providers: [AI_PROVIDER],
+    featureBindings: {},
+    agentUseMode: "advanced",
+    agentDeployments: [
+      {
+        key: "entityExtraction",
+        name: "",
+        desc: "",
+        modelId: "m1",
+        vendorId: "p1",
+        temperature: 0.7,
+        maxOutputTokens: 1234,
+      },
+    ],
+  } as never);
+}
+
+describe("useNovelPipelineActions.handleEntityExtraction · R6/R4 失败日志真实文本(throw 位深串化)", () => {
+  beforeEach(() => {
+    configureEntityExtractionBinding();
+    vi.mocked(readSourceMemoryActionContext).mockResolvedValue({
+      success: true,
+      context: undefined,
+    } as never);
+  });
+
+  afterEach(() => {
+    // 还原模块级默认实现(抛错),保护首个 describe 的防线用例
+    vi.mocked(readSourceMemoryActionContext).mockImplementation(async () => {
+      throw new Error("源记忆桥模拟失败");
+    });
+    useAPIConfigStore.setState({
+      providers: [],
+      featureBindings: {},
+      agentUseMode: "advanced",
+      agentDeployments: [],
+    } as never);
+  });
+
+  it("result.error 为对象 → toast/失败原因为可读 JSON,不再是 [object Object]", async () => {
+    const electronAPI = (window as unknown as { electronAPI?: Record<string, unknown> })
+      .electronAPI as { textCompletion: ReturnType<typeof vi.fn> };
+    electronAPI.textCompletion.mockResolvedValueOnce({
+      success: false,
+      error: { code: 1308, message: "已达到 5 小时的使用上限" },
+    });
+
+    const { result } = renderPipelineActions();
+    await act(async () => {
+      await result.current.handleEntityExtraction("chapter-002");
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('"code":1308'),
+    );
+    expect(JSON.stringify(vi.mocked(toast.error).mock.calls)).not.toContain("[object Object]");
+    // 体内既有 entityExtraction.failed 诊断事件照发(错误已可读)
+    expect(consoleError).not.toHaveBeenCalled(); // 非穿越者,不触发外层防线
+  });
+
+  it("result.error 为字符串 → 原文透出", async () => {
+    const electronAPI = (window as unknown as { electronAPI?: Record<string, unknown> })
+      .electronAPI as { textCompletion: ReturnType<typeof vi.fn> };
+    electronAPI.textCompletion.mockResolvedValueOnce({
+      success: false,
+      error: "模型服务字符串错误形态",
+    });
+
+    const { result } = renderPipelineActions();
+    await act(async () => {
+      await result.current.handleEntityExtraction("chapter-002");
+    });
+
+    expect(toast.error).toHaveBeenCalledWith("模型服务字符串错误形态");
+  });
+
+  it("result.error 为 Error 实例 → message 透出(不落 [object Object])", async () => {
+    const electronAPI = (window as unknown as { electronAPI?: Record<string, unknown> })
+      .electronAPI as { textCompletion: ReturnType<typeof vi.fn> };
+    electronAPI.textCompletion.mockResolvedValueOnce({
+      success: false,
+      error: new Error("模型实例错误形态"),
+    });
+
+    const { result } = renderPipelineActions();
+    await act(async () => {
+      await result.current.handleEntityExtraction("chapter-002");
+    });
+
+    expect(toast.error).toHaveBeenCalledWith("模型实例错误形态");
+    expect(JSON.stringify(vi.mocked(toast.error).mock.calls)).not.toContain("[object Object]");
+  });
+});
+
+describe("useNovelPipelineActions.handleEntityExtraction · D22 输入统一(scriptDraft > drama,不回落小说原文)", () => {
+  beforeEach(() => {
+    configureEntityExtractionBinding();
+    vi.mocked(readSourceMemoryActionContext).mockResolvedValue({
+      success: true,
+      context: undefined,
+    } as never);
+    // 无草稿章:仅小说正文在内存(旧口径会回落它),drama 走 projectFiles 桥
+    useStudioStore.setState({
+      ...initialStudioState,
+      novelChapters: [
+        {
+          id: "chapter-002",
+          index: 2,
+          title: "第二章",
+          importedAt: 1,
+          sourceText: "小说原文正文(旧回落源,新口径不得使用)",
+        },
+      ],
+      agentWorkData: [],
+    });
+    (window as unknown as { electronAPI?: unknown }).electronAPI = {
+      textCompletion: vi.fn().mockResolvedValue({
+        success: true,
+        text: "| character | 林晚 |  |  | 青衫剑修 |",
+      }),
+    };
+    // drama 读取走真源通道 window.projectFiles(lib/bridge/project-files.ts),
+    // 不在 electronAPI 上
+    (window as unknown as { projectFiles?: unknown }).projectFiles = {
+      readText: vi.fn().mockResolvedValue({
+        success: true,
+        text: "第2章 漫剧正文:人物:林晚",
+      }),
+    };
+  });
+
+  afterEach(() => {
+    vi.mocked(readSourceMemoryActionContext).mockImplementation(async () => {
+      throw new Error("源记忆桥模拟失败");
+    });
+    useAPIConfigStore.setState({
+      providers: [],
+      featureBindings: {},
+      agentUseMode: "advanced",
+      agentDeployments: [],
+    } as never);
+  });
+
+  it("无草稿 → 读 drama(补零路径),不回落小说原文;提取批落对章", async () => {
+    const { result } = renderPipelineActions();
+    await act(async () => {
+      await result.current.handleEntityExtraction("chapter-002");
+    });
+
+    const electronAPI = (window as unknown as { electronAPI?: Record<string, unknown> })
+      .electronAPI as { textCompletion: ReturnType<typeof vi.fn> };
+    const projectFiles = (window as unknown as { projectFiles?: Record<string, unknown> })
+      .projectFiles as { readText: ReturnType<typeof vi.fn> };
+    expect(projectFiles.readText).toHaveBeenCalledWith({
+      projectId: "project-1",
+      relativePath: "novel/drama/chapter-002_漫剧.md",
+    });
+    // 模型输入用的是 drama 正文,不是小说原文
+    const userContent = electronAPI.textCompletion.mock.calls[0]?.[0]?.messages?.[1]
+      ?.content as string;
+    expect(userContent).toContain("漫剧正文");
+    expect(userContent).not.toContain("旧回落源");
+    expect(toast.success).toHaveBeenCalled();
+  });
+
+  it("无草稿且 drama 不可得 → 明确报错(不再静默用小说原文)", async () => {
+    const projectFiles = (window as unknown as { projectFiles?: Record<string, unknown> })
+      .projectFiles as { readText: ReturnType<typeof vi.fn> };
+    projectFiles.readText.mockResolvedValue({ success: false, error: "ENOENT" });
+
+    const { result } = renderPipelineActions();
+    await act(async () => {
+      await result.current.handleEntityExtraction("chapter-002");
+    });
+
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("没有可提取的剧本"),
+    );
+    const electronApi = (window as unknown as { electronAPI?: Record<string, unknown> })
+      .electronAPI as { textCompletion: ReturnType<typeof vi.fn> };
+    expect(electronApi.textCompletion).not.toHaveBeenCalled();
   });
 });

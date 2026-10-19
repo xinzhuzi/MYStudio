@@ -1,22 +1,20 @@
 import { useCallback } from "react";
 import { aiManager } from "@/lib/ai/ai-manager";
-import {
-  buildEntityExtractionMessages,
-  dedupeEntities,
-  parseAliasesFromNotes,
-  parseEntityExtraction,
-  type KnownEntity,
-} from "@/lib/studio/entity-extraction";
-import {
-  diffScriptEntityHints,
-  extractScriptEntityHints,
-  formatHintGapList,
-} from "@/lib/studio/script-entity-hints";
+import { parseAliasesFromNotes, type KnownEntity } from "@/lib/studio/entity-extraction";
+import { formatHintGapList } from "@/lib/studio/script-entity-hints";
 import { captureError, logEvent } from "@/lib/diagnostics/logger";
 import {
   createMystudioSinks,
   syncExtractedEntities,
 } from "@/lib/studio/entity-sync";
+import { stringifyErrorText } from "@/lib/studio/entity-extraction-errors";
+import { resolveExtractionChapterInput } from "@/lib/studio/entity-extraction-input";
+import { chapterNumberFromId } from "@/lib/studio/entity-appearances";
+import {
+  createDefaultEntityModelCall,
+  createProjectReadDramaFile,
+  extractChapterEntities,
+} from "@/lib/studio/entity-extraction-runner";
 import {
   buildNovelEventAnalysisMessages,
   formatNovelEventState,
@@ -36,9 +34,8 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import type { NovelChapter } from "@/types/studio";
 import { toast } from "sonner";
 import {
+  latestScriptDraftEntry,
   resolveProductionEpisodeId,
-  resolveScriptTextForEpisode,
-  scriptPlanSourceFingerprint,
 } from "./workflow-helpers";
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;
@@ -48,39 +45,8 @@ let novelEventAnalysisInFlight = false;
 /** 全批次共用一条提示：loading 逐章刷进度 → 完成时原地收口为成功/失败汇总。 */
 const NOVEL_EVENT_ANALYSIS_TOAST_ID = "novel-event-analysis";
 
-// ── 1013 修 RC-9:模型原始输出分段落盘 helper(诊断专用) ────────────────────
-// 按行边界累积 ≤1000 字/段(单行超限独占一段),段数上限 20(20×1000≈2 万字
-// 覆盖典型提取输出,防 diagnostics jsonl 随提取次数膨胀无界;超出丢弃尾部,
-// rawOutputLength 留全量可判截断)。每段 ≤1000 字 < sanitize MAX_STRING_LENGTH
-// =1024;键名避开 PROMPT_KEY_PATTERN(prompt|messages|content|referenceText)。
-const DIAGNOSTIC_CHUNK_CHAR_LIMIT = 1000;
-const DIAGNOSTIC_CHUNK_MAX = 20;
-
-function chunkTextForDiagnostics(text: string): string[] {
-  const chunks: string[] = [];
-  let current = "";
-  for (const line of text.split("\n")) {
-    if (chunks.length >= DIAGNOSTIC_CHUNK_MAX) return chunks;
-    if (line.length >= DIAGNOSTIC_CHUNK_CHAR_LIMIT) {
-      // 单行超限:独占一段(先冲刷在累积中的段)
-      if (current) {
-        chunks.push(current);
-        current = "";
-      }
-      chunks.push(line);
-      continue;
-    }
-    const withLine = current ? `${current}\n${line}` : line;
-    if (withLine.length > DIAGNOSTIC_CHUNK_CHAR_LIMIT) {
-      chunks.push(current);
-      current = line;
-    } else {
-      current = withLine;
-    }
-  }
-  if (current && chunks.length < DIAGNOSTIC_CHUNK_MAX) chunks.push(current);
-  return chunks;
-}
+// ── 1013 修 RC-9:模型原始输出分段落盘 helper 已迁 lib/studio/entity-extraction-runner.ts
+// (10-19 C1 Step 7 管线化:单章与全书 runner 共用同一段落盘逻辑) ──────────────
 
 export function useNovelPipelineActions({
   activeProjectId,
@@ -255,11 +221,25 @@ export function useNovelPipelineActions({
 
         const store = useStudioStore.getState();
         const targetEpisodeId = resolveProductionEpisodeId(store, episodeId);
-        const scriptText = resolveScriptTextForEpisode(store, targetEpisodeId);
-        if (!scriptText.trim()) {
-          toast.error("没有可提取的剧本：请先保存剧本草稿或导入小说正文");
+
+        // D22(10-19 轮3 已裁采纳):单章输入口径与全书 runner 统一=scriptDraft >
+        // drama(chapter-NNN_漫剧.md),不再回落小说原文。解析走同一函数
+        // resolveExtractionChapterInput(与 entity-extraction-runner 共用);
+        // resolveScriptTextForEpisode 本体不动(导演规划/分镜等别处仍在用)。
+        const input = await resolveExtractionChapterInput({
+          chapterNumber: chapterNumberFromId(targetEpisodeId),
+          scriptDraft: latestScriptDraftEntry(store, targetEpisodeId)?.data ?? null,
+          readDramaFile: createProjectReadDramaFile(activeProjectId),
+        });
+        if (input.status !== "ok") {
+          toast.error(
+            input.status === "input_truncated"
+              ? "剧本文件过大被截断，无法提取"
+              : "没有可提取的剧本：请先保存剧本草稿或导入漫剧剧本（drama）",
+          );
           return;
         }
+        const scriptText = input.text;
 
         const libChars = useCharacterLibraryStore
           .getState()
@@ -351,56 +331,32 @@ export function useNovelPipelineActions({
           toast.error(memory.error);
           return;
         }
-        // 剧本自报实体清单(确定性兜底):机械抽取注入 prompt 供模型逐项判定;非场次格式(小说体)为双空,注入块自动省略
-        const scriptHints = extractScriptEntityHints(scriptText);
-        const messages = buildEntityExtractionMessages({
-          episodeId: targetEpisodeId,
-          scriptText,
-          knownEntities,
-          bibleContext: memory.context,
-          scriptHints,
-        });
         try {
-          const result = await aiManager.text({
-            binding: { agent: "entityExtraction" },
-            messages: [
-              { role: "system", content: messages.system },
-              { role: "user", content: messages.user },
-            ],
-            temperature: 0.2,
-            // 1013 修:max_tokens ≥16384 铁律(旧 2048)+结构化任务关思考——
-            // glm-5.3 思考型非流式在 2048 下把输出全吞进思考通道,正文空返
-            disableThinking: true,
+          // 共用管线(10-19 C1 Step 7):输入解析已前置,此处传预解析正文;
+          // 消息构造/模型调用/解析/dedupe 与全书 runner 同一函数。
+          const extraction = await extractChapterEntities({
+            episodeId: targetEpisodeId,
+            scriptText,
+            inputSource: input.source,
+            knownEntities,
+            bibleContext: memory.context,
+            modelCall: createDefaultEntityModelCall(),
           });
-          if (!result.success || !result.text) {
-            throw new Error(result.error || "实体提取失败");
+          if (extraction.status === "call_failed") {
+            // R6(轮3 附裁)修点=throw 位深串化:result.error 可能是对象/Error,
+            // 直接 new Error(对象) 会把 message 串化成 "[object Object]"——
+            // 装机实弹失败清单无原因的病根;stringifyErrorText 统一产出可读文本。
+            throw new Error(stringifyErrorText(extraction.error) || "实体提取失败");
           }
-
-          const parsed = parseEntityExtraction(result.text, targetEpisodeId);
-          // 1013 修 RC-9:模型原始输出+解析错误持久化 diagnostics jsonl——排障
-          // 不再靠 toast 间接推断;键名避开 PROMPT_KEY_PATTERN(prompt|messages|
-          // content|referenceText),每段 ≤1000 字过 sanitize 不被摘要
-          void logEvent({
-            level: parsed.errors.length ? "warn" : "info",
-            category: "workflow",
-            message: "entityExtraction.modelOutput",
-            context: {
-              episodeId: targetEpisodeId,
-              rawOutputLength: result.text.length,
-              rawOutputChunks: chunkTextForDiagnostics(result.text),
-              parseErrors: parsed.errors,
-              extractedCounts: {
-                character: parsed.entities.filter((entity) => entity.kind === "character").length,
-                scene: parsed.entities.filter((entity) => entity.kind === "scene").length,
-                prop: parsed.entities.filter((entity) => entity.kind === "prop").length,
-              },
-            },
-          });
-          const { entities } = dedupeEntities(parsed.entities, knownEntities);
-          if (!entities.length) {
+          if (extraction.status === "empty_parse") {
             toast.error("未解析出任何实体，请检查模型输出格式");
             return;
           }
+          if (extraction.status !== "success") {
+            // 预解析正文下 no_input/input_truncated 不可达(前置已判);兜底返回防吞
+            return;
+          }
+          const { entities, parseErrors, hintDiff, scriptFingerprint } = extraction;
 
           const sinks = createMystudioSinks();
           const { result: batch } = syncExtractedEntities(
@@ -418,18 +374,18 @@ export function useNovelPipelineActions({
             sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
             revision: chapterIdentity?.revision ?? 1,
             // 提取盖戳(1011):一键生成前与现势剧本指纹比对,剧本重写后提示先重新提取
-            scriptFingerprint: scriptPlanSourceFingerprint(targetEpisodeId, scriptText),
+            scriptFingerprint,
           });
 
           const detail = `角色 ${batch.characters.length} / 场景 ${batch.scenes.length} / 道具 ${batch.props.length}`;
-          const completionBase = parsed.errors.length
-            ? `资产提取完成（忽略非法行 ${parsed.errors.length}）：${detail}`
+          const completionBase = parseErrors.length
+            ? `资产提取完成（忽略非法行 ${parseErrors.length}）：${detail}`
             : `资产提取完成：${detail}`;
 
           // 确定性落差告警(1013 修):机械清单与实际输出 diff,漏了必可见;1013 负向补:多提也可见
           // (装机「丫头」复发=模型自撰行静默过闸)。不自动增删(防误判)。hints 双空数组(非场次
           // 格式/空文本)时 diff 恒四空,自然走原收口
-          const diff = diffScriptEntityHints(scriptHints, parsed.entities);
+          const diff = hintDiff;
           const gapParts: string[] = [];
           if (diff.missingCharacters.length) {
             gapParts.push(`角色缺：${formatHintGapList(diff.missingCharacters)}`);
@@ -460,7 +416,7 @@ export function useNovelPipelineActions({
                 episodeId: targetEpisodeId,
                 missingCharacters: diff.missingCharacters,
                 missingScenes: diff.missingScenes,
-                parseErrors: parsed.errors,
+                parseErrors,
               },
             });
           }
@@ -475,7 +431,7 @@ export function useNovelPipelineActions({
                 extraScenes: diff.extraScenes,
                 suspectBorrowedNames: diff.suspectBorrowedNames,
                 suspectVariantNames: diff.suspectVariantNames,
-                parseErrors: parsed.errors,
+                parseErrors,
               },
             });
           }
@@ -483,7 +439,7 @@ export function useNovelPipelineActions({
             toast.warning(
               `${completionBase}；剧本自报清单与提取结果存在落差——${gapParts.join("；")}（缺项可能是群演或漏提；多项是不在人物行/场次标题里的名字——含叙述性泛指与幻觉，也可能是台词说话人未列入人物行、或提及型合规单列；未自动增删，请对照剧本核对）`,
             );
-          } else if (parsed.errors.length) {
+          } else if (parseErrors.length) {
             toast.warning(completionBase);
           } else {
             toast.success(`资产提取完成：${detail}`);

@@ -49,9 +49,21 @@ export interface PropSink {
   }) => string;
 }
 
+/**
+ * 同步实体(D10/D11 扩展,10-19 C1 Step 10):
+ * - firstEpisodeId:首次出场章(真源=出场索引);入库时作为 linkedEpisodeId,
+ *   缺省回落本批 episodeId(单章路径无索引时的已知首章)。
+ * - promoted:显式 false=未晋升(D10)——不入三库,批内记确定性伪 id 留痕
+ *   (资产页按章展示不空,可后续手动晋升);缺省=入库(单章既有语义)。
+ */
+export interface SyncExtractedEntity extends DedupedEntity {
+  firstEpisodeId?: string;
+  promoted?: boolean;
+}
+
 export interface SyncExtractedEntitiesInput {
   episodeId: string;
-  entities: DedupedEntity[];
+  entities: SyncExtractedEntity[];
   projectId: string;
   projectName: string;
 }
@@ -65,6 +77,8 @@ export interface SyncSinks {
 export interface SyncSummary {
   created: number;
   merged: number;
+  /** D10:未晋升被挡在三库外的实体数(批内伪 id 留痕)。 */
+  deferred: number;
 }
 
 export interface SyncExtractedEntitiesOutput {
@@ -92,6 +106,9 @@ export function syncExtractedEntities(
   const props: EntityExtractionResult["props"] = [];
   let created = 0;
   let merged = 0;
+  let deferred = 0;
+  let pseudoCharSeq = 0;
+  let pseudoSceneSeq = 0;
 
   let charFolderId: string | null = null;
   let sceneFolderId: string | null = null;
@@ -101,6 +118,33 @@ export function syncExtractedEntities(
     (sceneFolderId ??= sceneSink.getOrCreateProjectFolder(projectId, projectName));
 
   for (const entity of entities) {
+    // D10 晋升过滤:未晋升不入三库(批内确定性伪 id 留痕,可后续手动晋升)
+    if (entity.promoted === false) {
+      if (isKind(entity, "character")) {
+        pseudoCharSeq += 1;
+        characters.push({
+          characterId: `char-${episodeId}-${pseudoCharSeq}`,
+          name: entity.name,
+          aliases: entity.aliases,
+          note: entity.note,
+        });
+      } else if (isKind(entity, "scene")) {
+        pseudoSceneSeq += 1;
+        scenes.push({
+          sceneId: `scene-${episodeId}-${pseudoSceneSeq}`,
+          name: entity.name,
+          note: entity.note,
+        });
+      } else {
+        props.push({ assetId: `prop-${episodeId}-${props.length + 1}`, name: entity.name, note: entity.note });
+      }
+      deferred += 1;
+      continue;
+    }
+
+    // D11:入库 linkedEpisodeId=首次出场章(缺省=本批章,即单章路径下的该章)
+    const linkedEpisodeId = entity.firstEpisodeId ?? episodeId;
+
     if (isKind(entity, "character")) {
       if (entity.isNew || !entity.id) {
         const characterId = characterSink.addCharacter({
@@ -111,7 +155,7 @@ export function syncExtractedEntities(
           folderId: ensureCharFolder(),
           notes: notesFromAliases(entity.aliases),
           status: "linked",
-          linkedEpisodeId: episodeId,
+          linkedEpisodeId,
           assetName: formatAssetName(entity.name, entity.aliases),
         });
         characters.push({ characterId, name: entity.name, aliases: entity.aliases, note: entity.note });
@@ -124,7 +168,8 @@ export function syncExtractedEntities(
         characterSink.updateCharacter(entity.id, {
           ...(notesValue ? { notes: notesValue } : {}),
           status: "linked",
-          linkedEpisodeId: episodeId,
+          // D11(10-19 C1 Step 10):不再覆盖 linkedEpisodeId——旧语义每批覆盖为
+          // 最近章,首次出场信息被冲掉;库内值保持首晋升时写入的 firstChapterId。
         });
         characters.push({ characterId: entity.id, name: entity.name, aliases: entity.aliases, note: entity.note });
         merged += 1;
@@ -143,7 +188,7 @@ export function syncExtractedEntities(
           folderId: ensureSceneFolder(),
           notes: entity.note ?? notesFromAliases(entity.aliases),
           status: "linked",
-          linkedEpisodeId: episodeId,
+          linkedEpisodeId,
           assetName: formatAssetName(entity.name, entity.aliases),
         });
         scenes.push({ sceneId, name: entity.name, note: entity.note });
@@ -151,7 +196,7 @@ export function syncExtractedEntities(
       } else {
         sceneSink.updateScene(entity.id, {
           status: "linked",
-          linkedEpisodeId: episodeId,
+          // D11:同角色,不再覆盖 linkedEpisodeId
         });
         scenes.push({ sceneId: entity.id, name: entity.name, note: entity.note });
         merged += 1;
@@ -185,7 +230,7 @@ export function syncExtractedEntities(
     props,
   };
 
-  return { result, summary: { created, merged } };
+  return { result, summary: { created, merged, deferred } };
 }
 
 /** Build sinks backed by the live MYStudio project stores. */
