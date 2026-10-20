@@ -212,6 +212,7 @@ export function buildAssetDerivationModel(
         prompt: media?.prompt,
         generationState: mediaPath ? "已完成" : "未生成",
         isDerived: false,
+        episodeId: asset.episodeId,
       },
       derived: derivedByParent.get(asset.id) ?? [],
       ...(unplannedByParent.has(asset.id)

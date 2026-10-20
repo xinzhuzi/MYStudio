@@ -34,6 +34,8 @@ export interface ProductionFlowAssetCard {
   sourceImagePath?: string;
   imageWorkflowId?: string;
   imageWorkflowTarget?: ImageWorkflowTarget;
+  /** 章归属(D42 单章铁律:衍生资产链按选择器选中章过滤);源实体提取批的 episodeId 透传 */
+  episodeId?: string;
   /**
    * 08-27 R1 衍生图过期标记:父资产图已更新,这张衍生图还是按旧版生成的。
    * 无父代锚的存量记录不设此字段(静默)。只提示,不自动删/重生。

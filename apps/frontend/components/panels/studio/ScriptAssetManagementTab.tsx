@@ -119,20 +119,31 @@ export function ScriptAssetManagementTab({
         />
       </SectionShell>
 
-      {derivationNode?.assetGroups?.length ? (
+      {derivationNode ? (
+        (() => {
+          // D42 单章铁律:衍生资产链按选择器选中章过滤(group.source.episodeId
+          // 透传自实体提取批);选中章无派生资产=整区隐藏,不与他章共存
+          const scopedGroups = (derivationNode.assetGroups ?? []).filter(
+            (g) => g.source.episodeId === assetChapterId,
+          );
+          if (!scopedGroups.length) return null;
+          const scopedNode = { ...derivationNode, assetGroups: scopedGroups };
+          return (
         <SectionShell
           title="衍生资产链"
           description="源资产 → AI 生成变体;点击衍生卡进入图像工作流精修(指针卡裁定后从画布移入此面板)。"
         >
           <div className="max-h-[800px] overflow-y-auto bg-background/90 p-4">
             <AssetDerivationPreview
-              node={derivationNode}
+              node={scopedNode}
               onOpenAssetImageWorkflow={onOpenAssetImageWorkflow}
               sourceStage="assets"
               sourceStageLabel="剧本资产管理"
             />
           </div>
         </SectionShell>
+          );
+        })()
       ) : null}
     </div>
   );
