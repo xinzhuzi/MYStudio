@@ -55,6 +55,8 @@ interface FileStorageBridgeForTest {
 
 type ProjectFilesBridgeForTest = {
   writeText: (key: string, value: string) => Promise<unknown>;
+  writeBinary: (payload: { projectId: string; relativePath: string; bytes: Uint8Array }) => Promise<unknown>;
+  deleteFile: (payload: { projectId: string; relativePath: string }) => Promise<unknown>;
   readText: (payload: { projectId: string; relativePath: string }) =>
     Promise<{ success?: boolean; text?: string } | null>;
 };
