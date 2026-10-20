@@ -317,22 +317,32 @@ export function createStudioWorkflowShardedStorage(
                 ?? (diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null);
               if (diskManifest) {
                 const listed = new Set(plan.manifest.shards);
-                // 激活章「缺则保留」守卫（10-20 ch1 整目录回收事件）：旧设计跳过
-                // 激活章的盘上分片名（假设窗口必重规划该章分片、让陈年 stamp 走
-                // 孤儿清理）。当保存发生在「激活章已翻转但其条目不在内存窗口」的
-                // 状态（切章装载竞态/CDP 直写 store/水合窗口期），该假设失效——
-                // manifest 丢失该章全部分片名 → 孤儿清理整目录回收 = 丢章数据。
-                // 修正：仅当 plan 已产出该章至少一个分片（窗口确有数据）时才跳过；
-                // plan 无该章任何分片时保留盘上分片名（读回自愈）。
-                const planChapterIds = new Set(
+                // 激活章「按域缺则保留」守卫(10-20 ch1 两轮回收事件根修,二阶):
+                // 旧设计跳过激活章全部盘上分片名(假设窗口必重规划该章;陈年 stamp
+                // 借此走孤儿清理)。两个失效面:①窗口全空(切章装载竞态/CDP 直写/
+                // 水合窗口期)→整章分片名丢失→整目录回收;②窗口半空(竞态窗口里
+                // 该章只有部分域在内存,如仅 image-workflows)→按章跳过仍丢其余域
+                // (08:54:51 实杀形态:29/31 件被清仅存 image-workflows)。
+                // 修正=域粒度:plan 为该章重规划了哪个域(slug),只跳该域的盘上
+                // 旧名;plan 没产出的域,其盘上分片名一律保留(读回自愈)。
+                const planChapterDomains = new Set(
                   plan.manifest.shards
                     .filter((name) => name.startsWith('chapters/'))
-                    .map((name) => name.split('/')[1]),
+                    .map((name) => {
+                      const parts = name.split('/');
+                      const slugMatch = /^(.*)-\d{3,}-[a-f0-9]{8}$/.exec((parts[2] ?? '').replace(/\.json$/, ''));
+                      return `${parts[1]}/${slugMatch?.[1] ?? parts[2] ?? ''}`;
+                    }),
                 );
                 for (const shardName of diskManifest.shards) {
                   if (!shardName.startsWith('chapters/')) continue;
-                  const shardChapter = shardName.split('/')[1];
-                  if (shardChapter === activeId && planChapterIds.has(shardChapter)) continue;
+                  const parts = shardName.split('/');
+                  const shardChapter = parts[1] ?? '';
+                  if (shardChapter === activeId) {
+                    const slugMatch = /^(.*)-\d{3,}-[a-f0-9]{8}$/.exec((parts[2] ?? '').replace(/\.json$/, ''));
+                    const domain = `${shardChapter}/${slugMatch?.[1] ?? parts[2] ?? ''}`;
+                    if (planChapterDomains.has(domain)) continue;
+                  }
                   if (listed.has(shardName)) continue;
                   plan.manifest.shards.push(shardName);
                   listed.add(shardName);

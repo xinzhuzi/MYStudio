@@ -431,6 +431,40 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(typeof ch1.sourceText).toBe("string");
   });
 
+  it("激活章窗口半空(仅部分域在内存)时保存:未重规划域的盘上分片名保留(08:54 二阶实杀形态)", async () => {
+    // 第一代:ch1 落盘 novel-chapters + storyboards 两域
+    const both = buildPersistedValue();
+    await storage.setItem("studio-workflow-store", both);
+
+    // 第二代:竞态窗口形态——ch1 的正文在(novel-chapters 域会重规划),但
+    // storyboards 已被窗口交换清空(plan 不会产出 ch1 storyboards 分片)
+    const halfHollow = JSON.parse(both) as {
+      state: {
+        novelChapters: Array<Record<string, unknown>>;
+        storyboards: Array<Record<string, unknown>>;
+        activeChapterId?: string;
+      };
+    };
+    halfHollow.state.activeChapterId = "chapter-001";
+    halfHollow.state.novelChapters = halfHollow.state.novelChapters.map((c) => (
+      c.id === "chapter-001" ? c : { id: c.id, title: c.title }
+    ));
+    halfHollow.state.storyboards = halfHollow.state.storyboards.filter((sb) => sb.episodeId !== "chapter-001");
+    await storage.setItem("studio-workflow-store", JSON.stringify(halfHollow));
+
+    // 期望(域粒度守卫):ch1 的 novel-chapters 新名在(plan 重规划),且
+    // storyboards 旧名仍被携带(未被按章粗粒度跳过)→ 文件存活、读回自愈
+    const manifest2 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    const ch1Shards = manifest2.shards.filter((n) => n.startsWith("chapters/chapter-001/"));
+    expect(ch1Shards.some((n) => n.includes("/novel-chapters-"))).toBe(true);
+    expect(ch1Shards.some((n) => n.includes("/storyboards-"))).toBe(true);
+    const sbFile = [...hoisted.files.keys()].find((k) => k.startsWith("_p/proj-1/studio-workflow/chapters/chapter-001/storyboards-"));
+    expect(sbFile).toBeTruthy();
+    const restored = await storage.getItem("studio-workflow-store");
+    const parsed = JSON.parse(restored!) as { state: { storyboards: Array<{ id: string; episodeId: string }> } };
+    expect(parsed.state.storyboards.some((sb) => sb.id === "sb-1" && sb.episodeId === "chapter-001")).toBe(true);
+  });
+
   it("空态覆写守卫：读链损坏（分片缺失）后的空工作区保存被拒；健康重置放行", async () => {
     const emptyValue = JSON.stringify({ state: { novelChapters: [], storyboards: [], mediaTasks: [] }, version: 10 });
     // 健康读链上的合法重置：空工作区保存放行（resetStudioWorkflow 流程）
