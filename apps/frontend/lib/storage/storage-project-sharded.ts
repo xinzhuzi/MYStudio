@@ -92,6 +92,9 @@ export function createStudioWorkflowShardedStorage(
   // 读链损坏标志：manifest 在场但分片缺失/损坏（getItem 已 throw）→ 本会话后续
   // 空工作区保存视为事故形态拒绝；健康读链上的合法重置（resetStudioWorkflow）不受影响
   let hydrationDamaged = false;
+  // 10-20 韧性:readMergedShards 遇悬空引用跳片不抛,但部分态水合仍须视作损坏
+  // (空态覆写守卫照拒盲写)——经此旗传递给 getItem
+  let pendingReadDamage = false;
   // 裸 process.env 在 dev 渲染层不存在（vite 不注入 process，生产构建期被整体替换）
   // → 适配器创建即抛 ReferenceError → zustand persist 静默失忆（dev 项目加载为空，
   // 2026-08-25 实证）。运行时探测，dev 缺 process 时走默认值。
@@ -116,13 +119,21 @@ export function createStudioWorkflowShardedStorage(
         return shardName.split('/')[1] === active;
       });
       const contents: string[] = [];
+      let missing = 0;
       for (const shardName of wanted) {
         const raw = await fileStorage.getItem(shardKeyForFile(pid, shardName));
         if (typeof raw !== 'string') {
-          throw new Error(`studio-workflow 分片缺失: ${shardName}`);
+          // 10-20 韧性定谳:悬空引用(名在 manifest、文件已亡)不再整链抛异常——
+          // 旧例 throw→getItem 回退旧单文件(null)→空水合→激活章白屏(用户实报)。
+          // 改跳过该碎片继续合并(部分态可用水合);损坏标记仍置位(空态覆写守卫
+          // 照拒盲写),且下一代保存的孤儿清理不再按名找回该死片。
+          missing += 1;
+          console.warn(`[StudioWorkflowShardedStorage] 分片缺失，跳过（部分态水合）: ${shardName}`);
+          continue;
         }
         contents.push(raw);
       }
+      if (missing > 0) pendingReadDamage = true;
       const merged = mergeStudioWorkflowShards(contents);
       const mergedChapters = merged.state.novelChapters;
       const novelChapters = manifest.chapterIndex.map((entry) => {
@@ -141,13 +152,17 @@ export function createStudioWorkflowShardedStorage(
       });
     }
     const contents: string[] = [];
+    let missingAll = 0;
     for (const shardName of manifest.shards) {
       const raw = await fileStorage.getItem(shardKeyForFile(pid, shardName));
       if (typeof raw !== 'string') {
-        throw new Error(`studio-workflow 分片缺失: ${shardName}`);
+        missingAll += 1;
+        console.warn(`[StudioWorkflowShardedStorage] 分片缺失，跳过（部分态水合）: ${shardName}`);
+        continue;
       }
       contents.push(raw);
     }
+    if (missingAll > 0) pendingReadDamage = true;
     const merged = mergeStudioWorkflowShards(contents);
     return JSON.stringify({ state: merged.state, version: manifest.version });
   };
@@ -173,11 +188,22 @@ export function createStudioWorkflowShardedStorage(
       try {
         const merged = await readMergedShards(pid);
         if (merged !== null) {
+          if (pendingReadDamage) {
+            // 有死片(悬空引用):损坏标记恒置位(空态覆写守卫照拒);水合内容优先级=
+            // 旧单文件全量快照 > 分片部分态(不半合并的旧契约在 legacy 在场时保留)
+            // > 绝不回 null(空水合=激活章白屏,10-20 用户实报)
+            pendingReadDamage = false;
+            hydrationDamaged = true;
+            const legacySnapshot = await fileStorage.getItem(`_p/${pid}/${storeName}`);
+            if (legacySnapshot) return legacySnapshot;
+            return merged;
+          }
           hydrationDamaged = false;
           return merged;
         }
       } catch (error) {
         hydrationDamaged = true;
+        pendingReadDamage = false;
         console.error('[StudioWorkflowShardedStorage] 分片读取失败，回退旧单文件:', error);
       }
 

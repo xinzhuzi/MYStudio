@@ -446,6 +446,27 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(true);
   });
 
+  it("10-20 悬空引用韧性:激活章有死片名时部分态水合(章列表+存活域在),空保存仍被拒", async () => {
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    const manifest = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[]; activeChapterId?: string };
+    // 杀掉激活章的一个分片文件,manifest 名悬空(10-20 ch2 事件形态)
+    const activeId = manifest.activeChapterId ?? "chapter-001";
+    const victim = manifest.shards.find((n) => n.startsWith(`chapters/${activeId}/`))!;
+    hoisted.files.delete(`_p/proj-1/studio-workflow/${victim.replace(/\.json$/, "")}`);
+    // 旧例:getItem 抛→回退旧单文件(null)→空水合;新例:跳片部分态水合
+    const restored = await storage.getItem("studio-workflow-store");
+    expect(restored).toBeTruthy();
+    const parsed = JSON.parse(restored!) as {
+      state: { novelChapters: Array<Record<string, unknown>>; activeChapterId: string; storyboards?: unknown[] };
+    };
+    // 章列表(chapterIndex)与激活章标记仍在=页面不白屏
+    expect(parsed.state.novelChapters.length).toBe(2);
+    expect(parsed.state.activeChapterId).toBe(activeId);
+    // 部分态水合仍视作损坏:空工作区覆写被拒(manifest 保住)
+    await storage.setItem("studio-workflow-store", JSON.stringify({ state: { novelChapters: [], storyboards: [], mediaTasks: [] }, version: 10 }));
+    expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(true);
+  });
+
   it("reads an empty-state manifest (zero shards) as an empty envelope", async () => {
     hoisted.files.set(
       "_p/proj-1/studio-workflow/manifest",
