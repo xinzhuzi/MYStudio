@@ -603,7 +603,7 @@ declare global {
       delete: (id: string) => Promise<boolean>;
       add: (payload: { type: string; name: string; sourceFilePath?: string; description?: string; prompt?: string; setting?: string }) => Promise<StudioAssetSummary | null>;
       addImage: (payload: { assetId: string; imageName: string; sourceFilePath: string }) => Promise<StudioAssetSummary | null>;
-      replaceImage: (payload: { assetId: string; sourceFilePath: string }) => Promise<StudioAssetSummary | null>;
+      replaceImage: (payload: { assetId: string; sourceFilePath: string; imageName?: string }) => Promise<StudioAssetSummary | null>;
       removeImage: (payload: { assetId: string; imageFilePath: string }) => Promise<StudioAssetSummary | null>;
       renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => Promise<StudioAssetSummary | null>;
       selectImageFile: () => Promise<string | null>;

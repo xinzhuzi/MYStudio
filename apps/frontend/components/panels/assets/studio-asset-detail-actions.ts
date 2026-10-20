@@ -260,10 +260,16 @@ export function useStudioAssetDialogActions(ctx: {
         if (promptPersistPromise) {
           await promptPersistPromise;
         }
+        // 10-19 用户令:废「主图」名号——一键生成结果名 = 资产名_中文日期
+        // (1020 落存储层:此名随 replace-image 透传,盘上文件名同款,禁时间戳)
+        const genNow = new Date();
+        const genDate = `${genNow.getFullYear()}年${String(genNow.getMonth() + 1).padStart(2, "0")}月${String(genNow.getDate()).padStart(2, "0")}日`;
+        const generatedImageName = `${asset.name}_${genDate}`;
         const _savedToLibrary = await saveGeneratedAssetImageToLibrary(
           asset.id,
           result.imageLocalPath,
           result.polishResult,
+          generatedImageName,
         );
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
@@ -276,10 +282,7 @@ export function useStudioAssetDialogActions(ctx: {
             setDraftSetting(updated.setting || "");
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
-              // 10-19 用户令:废「主图」名号——一键生成结果名 = 资产名_中文日期
-              const genNow = new Date();
-              const genDate = `${genNow.getFullYear()}年${String(genNow.getMonth() + 1).padStart(2, "0")}月${String(genNow.getDate()).padStart(2, "0")}日`;
-              newImgs.push({ name: `${asset.name}_${genDate}`, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+              newImgs.push({ name: generatedImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
@@ -392,7 +395,9 @@ export function useStudioAssetDialogActions(ctx: {
       if (result.phase === "done") {
         setI2iPhase("done");
         setI2iMessage("画风转换完成！");
-        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath);
+        // 1020 落存储层:resultImageName(原图名_中文日期)随 replace-image 透传,
+        // 盘上文件名与轮播显示名同源(旧链只改显示层,盘上恒时间戳=用户追报病根)
+        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {

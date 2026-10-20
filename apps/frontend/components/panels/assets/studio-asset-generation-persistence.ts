@@ -28,6 +28,7 @@ export async function saveGeneratedAssetImageToLibrary(
   assetId: string,
   imagePath?: string,
   polishResult?: PolishResult,
+  imageName?: string,
 ) {
   if (typeof window === "undefined" || !getStudioAssetsBridge() || !imagePath) {
     return false;
@@ -67,7 +68,7 @@ export async function saveGeneratedAssetImageToLibrary(
   const studioAssets = getStudioAssetsBridge();
   if (sourceFilePath && studioAssets) {
     try {
-      const result = await studioAssets.replaceImage({ assetId, sourceFilePath });
+      const result = await studioAssets.replaceImage({ assetId, sourceFilePath, imageName });
       imageSaved = Boolean(result);
     } catch (error) {
       void logEvent({

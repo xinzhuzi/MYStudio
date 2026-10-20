@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import {
   getDbPath, getFilesDir, runSqliteExecSafe,
-  assetDisplayName, assetFamilyFolderKey, escapeSql, usesAssetNameFolder,
+  assetDisplayName, assetFamilyFolderKey, escapeSql, formatChineseDateNow, usesAssetNameFolder,
 } from "./assets-sqlite";
 import { getAssetSync } from "./assets-queries";
 import { rowToSummary, runSqliteJsonSync, getThumbsDir, getAssetsDir } from "./assets-sqlite";
@@ -260,7 +260,7 @@ export function deleteAsset(id: string): boolean {
 // === 多图管理 ===
 
 /** 更换素材主图 */
-export function replaceAssetMainImage(assetId: string, sourceFilePath: string): StudioAssetSummary | null {
+export function replaceAssetMainImage(assetId: string, sourceFilePath: string, imageName?: string): StudioAssetSummary | null {
   if (!fs.existsSync(sourceFilePath)) return null;
   const dbPath = getDbPath();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -268,13 +268,29 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string): 
   if (!rows.length) return null;
   const asset = rows[0];
   const ext = path.extname(sourceFilePath);
-  const safeName = assetDisplayName(asset.name).replace(/[/\\:*?"<>|]/g, "_");
-  const destName = `${safeName}_${Date.now()}${ext}`;
+  // 1020 追令(10-19 命名裁定存储层绝根):换主图落盘名禁时间戳。调用方带名
+  // (图生图=原图名_中文日期/一键生成=资产名_中文日期)沿用 addAssetImage 同款
+  // 资产名前缀拼接(已含前缀不重拼);缺省=资产名_中文日期(更换主图/提取区
+  // 生成/媒体任务等不带名路);同名撞车 _2/_3 数字去重,对齐存档名去重式样。
+  const trimmedImageName = `${imageName ?? ""}`.trim();
+  const namingBase = trimmedImageName || formatChineseDateNow();
+  const joinedName =
+    namingBase === asset.name || namingBase.startsWith(`${asset.name}_`)
+      ? assetDisplayName(namingBase)
+      : `${assetDisplayName(asset.name)}_${namingBase}`;
+  const safeName = joinedName.replace(/[/\\:*?"<>|]/g, "_");
   // R1 名夹层:role/scene/tool 落 files/<type>/<sanitize(name)>/,thumbs 同构;clip/audio 平铺
   const subDir = usesAssetNameFolder(asset.type)
     ? `${asset.type}/${assetFamilyFolderKey(String(asset.name ?? ""))}`
     : asset.type;
-  const destPath = path.join(getFilesDir(), subDir, destName);
+  let destName = `${safeName}${ext}`;
+  let destPath = path.join(getFilesDir(), subDir, destName);
+  let collisionSuffix = 2;
+  while (fs.existsSync(destPath)) {
+    destName = `${safeName}_${collisionSuffix}${ext}`;
+    destPath = path.join(getFilesDir(), subDir, destName);
+    collisionSuffix += 1;
+  }
   // L1 按需 mkdir 补刀(10-19):无图资产的行级夹此前不存在,copyFileSync 直接 ENOENT
   fs.mkdirSync(path.dirname(destPath), { recursive: true });
   fs.copyFileSync(sourceFilePath, destPath);

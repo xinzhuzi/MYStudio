@@ -259,12 +259,45 @@ describe("资产名分夹落盘(R1:role/scene/tool 名夹层,clip/audio 平铺�
     writeFileSync(nextSource, "next image");
     const asset = addAsset({ type: "role", name: "晏燎", sourceFilePath: firstSource });
 
+    // 1020 追令(10-19 命名裁定存储层绝根):换主图落盘名禁时间戳,缺省=资产名_中文日期
     const updated = replaceAssetMainImage(asset.id, nextSource);
 
-    expect(updated?.filePath).toMatch(/^role\/晏燎\/晏燎_\d+\.png$/);
+    expect(updated?.filePath).toMatch(/^role\/晏燎\/晏燎_\d{4}年\d{2}月\d{2}日\.png$/);
     expect(existsSync(join(tempAssetRoot!, "files", "role", "晏燎", basename(updated!.filePath!)))).toBe(true);
     // thumbs 镜像同构:缩略图目录与 files 同相对路径(mkdirSync 同步在场;sips 内容生成不阻塞断言)
     expect(existsSync(join(tempAssetRoot!, "thumbs", "role", "晏燎"))).toBe(true);
+  });
+
+  it("replaceAssetMainImage 带 imageName 透传落盘(图生图=原图名_中文日期,10-19 裁定)", () => {
+    initTempAssetsStorage();
+    const src = join(tempAssetRoot!, "styled.png");
+    const seed = join(tempAssetRoot!, "seed.png");
+    writeFileSync(src, "styled");
+    writeFileSync(seed, "seed");
+    const asset = addAsset({ type: "role", name: "晏燎", sourceFilePath: seed });
+
+    // 已含资产名前缀 → 原样落盘(禁双前缀,同 addAssetImage 契约)
+    const updated = replaceAssetMainImage(asset.id, src, "晏燎_练气期_正视图_v1_2026年10月20日");
+    expect(updated?.filePath).toBe("role/晏燎/晏燎_练气期_正视图_v1_2026年10月20日.png");
+
+    // 不含前缀 → 自动拼资产名前缀
+    const updated2 = replaceAssetMainImage(asset.id, src, "特写");
+    expect(updated2?.filePath).toBe("role/晏燎/晏燎_特写.png");
+  });
+
+  it("replaceAssetMainImage 同名撞车数字后缀去重(禁时间戳回潮)", () => {
+    initTempAssetsStorage();
+    const src = join(tempAssetRoot!, "dup.png");
+    const seed = join(tempAssetRoot!, "seed2.png");
+    writeFileSync(src, "dup");
+    writeFileSync(seed, "seed2");
+    const asset = addAsset({ type: "role", name: "撞名回归", sourceFilePath: seed });
+
+    const first = replaceAssetMainImage(asset.id, src, "撞名回归_定妆图");
+    const second = replaceAssetMainImage(asset.id, src, "撞名回归_定妆图");
+
+    expect(first?.filePath).toBe("role/撞名回归/撞名回归_定妆图.png");
+    expect(second?.filePath).toBe("role/撞名回归/撞名回归_定妆图_2.png");
   });
 
   it("换主图=旧主图收编 images[] 作历史版本,永不物理删除(10-19 用户裁定:必须是并存)", () => {

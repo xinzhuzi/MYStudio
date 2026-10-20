@@ -198,6 +198,12 @@ export function assetDisplayName(name: string): string {
   return String(name ?? "").replace(/^\d+_/, "") || String(name ?? "");
 }
 
+/** 中文日期名(10-19 命名裁定):`xxxx年xx月xx日`,图生图/一键生成结果名后缀。 */
+export function formatChineseDateNow(): string {
+  const now = new Date();
+  return `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
+}
+
 /** 缩略图生成队列：限制并发，避免一次性 spawn 数千个 sips 进程导致主进程卡死 */
 let thumbActive = 0;
 const thumbQueue: Array<() => void> = [];

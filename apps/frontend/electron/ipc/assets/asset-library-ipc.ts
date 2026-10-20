@@ -241,12 +241,12 @@ export function registerAssetLibraryIpcHandlers({
     rejectIllegalSourcePath(payload.sourceFilePath);
     return assetsStorage.addAssetImage(payload.assetId, payload.imageName, payload.sourceFilePath);
   }));
-  ipcMain.handle("assets:replace-image", async (_event, payload: { assetId: string; sourceFilePath: string }) => (
-    runAssetDiagnostics("replace-image", payload, () => {
-      rejectIllegalSourcePath(payload.sourceFilePath);
-      return assetsStorage.replaceAssetMainImage(payload.assetId, payload.sourceFilePath);
-    })
-  ));
+  ipcMain.handle("assets:replace-image", async (_event, payload: {
+    assetId: string; sourceFilePath: string; imageName?: string;
+  }) => runAssetDiagnostics("replace-image", payload, () => {
+    rejectIllegalSourcePath(payload.sourceFilePath);
+    return assetsStorage.replaceAssetMainImage(payload.assetId, payload.sourceFilePath, payload.imageName);
+  }));
   ipcMain.handle("assets:remove-image", async (_event, payload: { assetId: string; imageFilePath: string }) => (
     runAssetDiagnostics("remove-image", payload, () => (
       assetsStorage.removeAssetImage(payload.assetId, payload.imageFilePath)
