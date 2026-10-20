@@ -10,6 +10,7 @@ import {
   Maximize2,
   Music2,
   Plus,
+  ScanFace,
   Sparkles,
   Trash2,
   Wand2,
@@ -53,6 +54,15 @@ interface StudioAssetDetailPreviewPaneProps {
   generatePhase?: string | null;
   /** 三轨且有图才可转(role/scene/tool 且轮播非空);缺省 true 由装配方守门。 */
   canImageToImage?: boolean;
+  /** 10-21 高清人脸(用户令:图生图/文生图两路都要);仅角色轨由装配方置真。 */
+  onFaceFromImage?: () => void | Promise<void>;
+  onFaceFromText?: () => void | Promise<void>;
+  /** 人脸生成相位(两路共用一套状态机;在跑时 Loader2+文案并禁点)。 */
+  facePhase?: string | null;
+  /** 人脸生成相位文案(运行态按钮 title 全文)。 */
+  faceMessage?: string;
+  /** 角色轨才显示人脸按钮;缺省 false(非角色零侵入)。 */
+  canFacePortrait?: boolean;
   onCopyPrompt: () => void | Promise<void>;
   onOpenSource: () => void | Promise<void>;
   onOpenFolder: () => void | Promise<void>;
@@ -80,25 +90,58 @@ export function StudioAssetDetailPreviewPane({
   i2iMessage,
   generatePhase,
   canImageToImage = true,
+  onFaceFromImage,
+  onFaceFromText,
+  facePhase,
+  faceMessage,
+  canFacePortrait = false,
   onCopyPrompt,
   onOpenSource,
   onOpenFolder,
   isImageRemovable,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
-  const imageToImageDisabled = !!i2iPhase || !!generatePhase || !canImageToImage;
+  // 10-21 高清人脸:与一键生成/画风转换互斥(任一生成相位在跑全禁)
+  const generationBusy = !!i2iPhase || !!generatePhase || !!facePhase;
+  const imageToImageDisabled = generationBusy || !canImageToImage;
   const imageToImageTitle = !canImageToImage
     ? "仅角色/场景/道具三轨且有图资产可转画风"
     : generatePhase
       ? "图片生成中，请稍候"
       : i2iPhase
         ? (i2iMessage || "正在转换画风，请稍候")
-        : undefined;
+        : facePhase
+          ? (faceMessage || "正在生成高清人脸，请稍候")
+          : undefined;
   const i2iPhaseLabel = i2iPhase === "done"
     ? "画风转换完成"
     : i2iPhase === "failed"
       ? "画风转换失败"
       : "正在转换画风…";
+  // 人脸·图生图:角色轨+有图;人脸·文生图:角色轨(无图亦可,描述锚身份)
+  const faceFromImageDisabled = generationBusy || images.length === 0;
+  const faceFromImageTitle = images.length === 0
+    ? "先有角色图片才能图生图生成人脸"
+    : generatePhase
+      ? "图片生成中，请稍候"
+      : i2iPhase
+        ? "正在转换画风，请稍候"
+        : facePhase
+          ? (faceMessage || "正在生成高清人脸，请稍候")
+          : undefined;
+  const faceFromTextDisabled = generationBusy;
+  const faceFromTextTitle = generatePhase
+    ? "图片生成中，请稍候"
+    : i2iPhase
+      ? "正在转换画风，请稍候"
+      : facePhase
+        ? (faceMessage || "正在生成高清人脸，请稍候")
+        : undefined;
+  const facePhaseLabel = facePhase === "done"
+    ? "人脸生成完成"
+    : facePhase === "failed"
+      ? "人脸生成失败"
+      : "人脸生成中…";
 
   return (
     <div className="studio-asset-detail-preview border-r border-border bg-muted/90 p-4">
@@ -158,7 +201,7 @@ export function StudioAssetDetailPreviewPane({
                       {onImageClick && (
                         <button
                           type="button"
-                          className="absolute right-1 top-1 z-[1] rounded bg-background/80 p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                          className="absolute right-1 top-1 z-[1] rounded-md bg-background/80 p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
                           onClick={(e) => {
                             e.stopPropagation();
                             onImageClick(index);
@@ -248,6 +291,38 @@ export function StudioAssetDetailPreviewPane({
               <Clipboard className="mr-2 h-3.5 w-3.5" />
               复制出图提示词
             </Button>
+            {canFacePortrait && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onFaceFromImage}
+                disabled={faceFromImageDisabled}
+                title={faceFromImageTitle}
+              >
+                {facePhase ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ScanFace className="mr-2 h-3.5 w-3.5" />
+                )}
+                {facePhase ? facePhaseLabel : "人脸·图生图"}
+              </Button>
+            )}
+            {canFacePortrait && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onFaceFromText}
+                disabled={faceFromTextDisabled}
+                title={faceFromTextTitle}
+              >
+                {facePhase ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ScanFace className="mr-2 h-3.5 w-3.5" />
+                )}
+                {facePhase ? facePhaseLabel : "人脸·文生图"}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={onOpenSource}>
               <ExternalLink className="mr-2 h-3.5 w-3.5" />
               查看图片

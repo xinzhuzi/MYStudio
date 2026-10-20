@@ -15,6 +15,7 @@ import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { polishAssetPrompt, type AssetType, type PolishResult } from "@/lib/ai/prompt-polisher";
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transfer";
+import { generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
 import {
   findDisplayImageIndex,
   mergeFamilyDisplayImages,
@@ -54,6 +55,10 @@ export function useStudioAssetDialogActions(ctx: {
   /** 10-19 图生图·画风转换:i2i 相位/文案注入(与一键生成同款状态机拆分)。 */
   setI2iPhase: any;
   setI2iMessage: any;
+  /** 10-21 高清人脸:人脸相位/文案注入(图生图/文生图两路共用一套状态机)。 */
+  facePhase?: string | null;
+  setFacePhase: any;
+  setFaceMessage: any;
   setActiveStudio: any;
   setActiveTab: any;
   resolveAssetGenerationReferenceImage: any;
@@ -86,6 +91,9 @@ export function useStudioAssetDialogActions(ctx: {
     setRecognizedText,
     setI2iPhase,
     setI2iMessage,
+    facePhase,
+    setFacePhase,
+    setFaceMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -439,6 +447,140 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
 
+  /** 10-21 高清人脸(用户令:人物弹窗图生图/文生图两路都要):镜像画风转换尾段
+   * (写回资产库+asset:updated 广播+get 刷新轮播+完成切新图);相位 3s 自动清。
+   * 图生图路=参考图锚身份+固定指令重构头肩特写;文生图路=描述作主体句+
+   * base_type=高清人脸型层(1:1 取景/排布/负面全由型承载)。 */
+  const runFacePortrait = async (mode: AssetFacePortraitMode) => {
+    const operationId = createOperationId("asset-face-portrait");
+    const modeLabel = mode === "image" ? "图生图" : "文生图";
+    void logEvent({
+      level: "info",
+      category: "asset",
+      operationId,
+      message: "Asset face portrait requested",
+      context: { mode, assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
+    });
+    if (facePhase) {
+      // 在跑直返(按钮已禁,双保险)
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset face portrait guard rejected (busy)",
+        context: { assetId: asset.id, facePhase },
+      });
+      return;
+    }
+    if (asset.type !== "role") {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset face portrait guard rejected (non-role)",
+        context: { assetId: asset.id, assetType: asset.type },
+      });
+      toast.error("高清人脸仅角色资产可用");
+      return;
+    }
+    let referenceImage: string | undefined;
+    if (mode === "image") {
+      referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+      if (!referenceImage) {
+        void logEvent({
+          level: "warn",
+          category: "asset",
+          operationId,
+          message: "Asset face portrait guard rejected (no reference image)",
+          context: { assetId: asset.id, displayImageCount: carouselImages.length },
+        });
+        toast.error("没有可作参考的图片，请先生成或添加图片");
+        return;
+      }
+    }
+    const subjectText = mode === "text"
+      ? (draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
+      : undefined;
+    if (mode === "text" && !subjectText) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset face portrait guard rejected (no subject text)",
+        context: { assetId: asset.id },
+      });
+      toast.error("没有可用于出图的描述或提示词");
+      return;
+    }
+    // 命名沿 10-19「废主图名号」令:图生图=原图名_人脸_中文日期;文生图=资产名_人脸_中文日期
+    const inputImageName = mode === "image" ? (carouselImages[currentIndex]?.name || asset.name) : asset.name;
+    const now = new Date();
+    const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
+    const resultImageName = `${inputImageName}_人脸_${dateSuffix}`;
+    setFacePhase("generating");
+    setFaceMessage(`正在生成 ${asset.name} 的高清人脸(${modeLabel})...`);
+    try {
+      const result = await generateAssetFacePortrait(
+        {
+          assetId: asset.id,
+          assetName: asset.name,
+          mode,
+          referenceImage,
+          subjectText,
+          operationId,
+        },
+        (progress) => {
+          if (progress.phase === "generating" || progress.phase === "saving") {
+            setFacePhase("generating");
+            if (progress.message) setFaceMessage(progress.message);
+          }
+        },
+      );
+      if (result.phase === "done") {
+        setFacePhase("done");
+        setFaceMessage("高清人脸生成完成！");
+        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
+        // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
+        eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        if (getStudioAssetsBridge()?.get) {
+          const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            const newImgs: AssetImage[] = [];
+            if (updated.previewUrl || updated.thumbnailUrl) {
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+            }
+            if (updated.images?.length) {
+              newImgs.push(...updated.images);
+            }
+            setImages(newImgs);
+            // 完成即切到新主图(与画风转换同款 setCurrentIndex(0))
+            setCurrentIndex(0);
+          }
+        }
+        if (!savedToLibrary) {
+          toast.warning(`「${asset.name}」高清人脸已生成，但未能写回资产库主图`);
+        } else {
+          toast.success(`「${asset.name}」高清人脸(${modeLabel})生成完成`);
+        }
+      } else {
+        setFacePhase("failed");
+        setFaceMessage(`高清人脸生成失败: ${result.error || "未知错误"}`);
+        toast.error(`高清人脸生成失败: ${result.error || "未知错误"}`);
+      }
+    } catch (err: unknown) {
+      setFacePhase("failed");
+      setFaceMessage(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTimeout(() => {
+        setFacePhase(null);
+        setFaceMessage("");
+      }, 3000);
+    }
+  };
+  const handleFacePortraitFromImage = () => runFacePortrait("image");
+  const handleFacePortraitFromText = () => runFacePortrait("text");
+
   const handleRegenerate = async () => {
     // 空描述守卫沿用(无描述无出图意义);prompt 本身不预填——画布与资产库
     // 各走各的链路(09-10 全屏 ComfyUI 合一,旧预填+image:generated 回存已退役)。
@@ -698,6 +840,6 @@ export function useStudioAssetDialogActions(ctx: {
     handlePolishPrompt, handleSave, handleDelete, copyText,
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
-    handleRemoveImage, handleTranscribe,
+    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText,
   };
 }

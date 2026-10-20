@@ -121,6 +121,9 @@ export function StudioAssetDetailDialog({
   // 10-19 图生图·画风转换:i2i 相位状态机(与一键生成同款拆分;两路互斥)
   const [i2iPhase, setI2iPhase] = useState<"generating" | "done" | "failed" | null>(null);
   const [i2iMessage, setI2iMessage] = useState("");
+  // 10-21 高清人脸:人脸相位状态机(图生图/文生图两路共用;与一键生成/画风转换互斥)
+  const [facePhase, setFacePhase] = useState<"generating" | "done" | "failed" | null>(null);
+  const [faceMessage, setFaceMessage] = useState("");
   const [voiceAssignOpen, setVoiceAssignOpen] = useState(false);
 
   // 获取当前项目的视觉手册 ID
@@ -229,7 +232,7 @@ export function StudioAssetDetailDialog({
     handlePolishPrompt, handleSave, handleDelete, copyText,
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
-    handleRemoveImage, handleTranscribe,
+    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText,
   } = useStudioAssetDialogActions({
     asset,
     onOpenChange,
@@ -257,6 +260,9 @@ export function StudioAssetDetailDialog({
     setRecognizedText,
     setI2iPhase,
     setI2iMessage,
+    facePhase,
+    setFacePhase,
+    setFaceMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -276,6 +282,8 @@ export function StudioAssetDetailDialog({
   const isThreeTrackAsset = asset.type === "role" || asset.type === "scene" || asset.type === "tool";
   // 10-19 图生图·画风转换:三轨且有图才可转(clip/audio/无图禁用)
   const canImageToImage = isThreeTrackAsset && displayImages.length > 0;
+  // 10-21 高清人脸:仅角色轨显示人脸按钮(图生图/文生图两路)
+  const canFacePortrait = asset.type === "role";
   const roleSpeakerId = toRoleSpeakerId(asset.id);
   const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
   const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
@@ -325,6 +333,11 @@ export function StudioAssetDetailDialog({
             i2iMessage={i2iMessage}
             generatePhase={generatePhase}
             canImageToImage={canImageToImage}
+            onFaceFromImage={handleFacePortraitFromImage}
+            onFaceFromText={handleFacePortraitFromText}
+            facePhase={facePhase}
+            faceMessage={faceMessage}
+            canFacePortrait={canFacePortrait}
             onCopyPrompt={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}
             onOpenSource={handleOpenSource}
             onOpenFolder={handleOpenFolder}
@@ -455,7 +468,7 @@ export function StudioAssetDetailDialog({
                           size="sm"
                           className="h-6 gap-1 text-[11px]"
                           onClick={handleOneClickGenerateAssetImage}
-                          disabled={!!generatePhase || !!i2iPhase || !visualManualId}
+                          disabled={!!generatePhase || !!i2iPhase || !!facePhase || !visualManualId}
                         >
                           {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                           {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}
