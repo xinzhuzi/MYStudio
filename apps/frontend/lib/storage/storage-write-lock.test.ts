@@ -13,11 +13,11 @@ function makeBridge() {
       const text = files.get(p);
       return text === undefined ? { success: false, error: "not found" } : { success: true, text };
     },
-    writeText: async (p, v) => {
-      files.set(p, v);
+    writeBinary: async ({ relativePath: p, bytes }: { projectId: string; relativePath: string; bytes: Uint8Array }) => {
+      files.set(p, new TextDecoder().decode(bytes));
       return { success: true };
     },
-    deleteText: async (p) => {
+    deleteFile: async ({ relativePath: p }: { projectId: string; relativePath: string }) => {
       files.delete(p);
       return { success: true };
     },
@@ -101,8 +101,8 @@ describe("心跳与竞速", () => {
   it("锁写入失败(桥异常)→拒写不持有", async () => {
     const broken: StorageLockBridge = {
       readText: async () => null,
-      writeText: async () => { throw new Error("disk full"); },
-      deleteText: async () => ({ success: true }),
+      writeBinary: async () => { throw new Error("disk full"); },
+      deleteFile: async () => ({ success: true }),
     };
     const lock = createStorageWriteLock(() => broken, { now });
     const v = await lock.ensure("proj-a");

@@ -23,11 +23,18 @@
  */
 
 /** 桥的最小面(结构性子集,与 Window["projectFiles"] 兼容) */
-/** 生产 projectFiles 桥面(readText=对象签名,types/electron.d.ts projectFiles 契约) */
+/**
+ * 生产 projectFiles 桥面(真项目根三件套,preload.ts:97 实测):
+ * - readText({projectId,relativePath}) 读真项目根 ✓
+ * - writeText(key,value) 位置参写的是 App 影子目录(~/Library/.../projects/)——
+ *   跨实例不可见,禁用于锁(10-20 D41 实弹勘误)
+ * - writeBinary({projectId,relativePath,bytes}) 写真项目根 ✓(探针实证 IP/MA)
+ * - deleteFile({projectId,relativePath}) 删真项目根 ✓
+ */
 export interface StorageLockBridge {
   readText: (payload: { projectId: string; relativePath: string }) => Promise<{ success?: boolean; text?: string; error?: string } | null>;
-  writeText: (relativePath: string, value: string) => Promise<{ success?: boolean; error?: string } | unknown>;
-  deleteText?: (key: string) => Promise<{ success?: boolean; error?: string } | unknown>;
+  writeBinary: (payload: { projectId: string; relativePath: string; bytes: Uint8Array }) => Promise<{ success?: boolean; error?: string } | unknown>;
+  deleteFile?: (payload: { projectId: string; relativePath: string }) => Promise<{ success?: boolean; error?: string } | unknown>;
 }
 
 export interface StorageWriteLockOptions {
@@ -88,19 +95,20 @@ export function createStorageWriteLock(
     }
   }
 
-  async function writeLockFile(bridge: StorageLockBridge, id: string): Promise<boolean> {
+  async function writeLockFile(bridge: StorageLockBridge, id: string, projectId: string): Promise<boolean> {
     try {
-      const res = await bridge.writeText(LOCK_RELATIVE_PATH, JSON.stringify({ id, ts: now() }));
+      const bytes = new TextEncoder().encode(JSON.stringify({ id, ts: now() }));
+      const res = await bridge.writeBinary({ projectId, relativePath: LOCK_RELATIVE_PATH, bytes });
       return !res || (res as { success?: boolean }).success !== false;
     } catch {
       return false;
     }
   }
 
-  function startHeartbeat(id: string, bridge: StorageLockBridge): HeldLock["timer"] {
+  function startHeartbeat(id: string, bridge: StorageLockBridge, projectId: string): HeldLock["timer"] {
     // 全局 setInterval(测试桥会整体替换 window 为裸对象,window.* 不可靠)
     const timer = setInterval(() => {
-      void writeLockFile(bridge, id);
+      void writeLockFile(bridge, id, projectId);
     }, beatMs);
     return timer;
   }
@@ -109,10 +117,11 @@ export function createStorageWriteLock(
     if (unloaded.size > 0 || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
     const handler = () => {
       // 善退尽力:删除锁文件(失败则由 staleMs 兜底)
-      for (const lock of held.values()) {
+      for (const [key, lock] of held) {
         try {
-          if (bridge.deleteText) void bridge.deleteText(LOCK_RELATIVE_PATH);
-          else void bridge.writeText(LOCK_RELATIVE_PATH, JSON.stringify({ id: lock.id, ts: 0 }));
+          const bytes = new TextEncoder().encode(JSON.stringify({ id: lock.id, ts: 0 }));
+          if (bridge.deleteFile) void bridge.deleteFile({ projectId: key, relativePath: LOCK_RELATIVE_PATH });
+          else void bridge.writeBinary({ projectId: key, relativePath: LOCK_RELATIVE_PATH, bytes });
         } catch {
           // 尽力而为,不阻塞卸载
         }
@@ -138,7 +147,7 @@ export function createStorageWriteLock(
       if (mine) {
         // 已持:超过一个心跳窗未刷则补刷(定时器之外的兜底)
         if (now() - mine.lastBeat >= beatMs) {
-          await writeLockFile(bridge, mine.id);
+          await writeLockFile(bridge, mine.id, projectKey);
           mine.lastBeat = now();
         }
         return { ok: true };
@@ -153,13 +162,13 @@ export function createStorageWriteLock(
         };
       }
       // 缺席/已释放/陈旧 → 取锁(写入我方即持有;写入失败=拒写)
-      // 注:不做写后回读验主——生产桥 read/write 键形不一致的历史面使其不可靠,
-      // 双接管竞速(两例同瞬间接管同一陈旧锁)留作已知窄窗,主防护=新鲜锁拒写。
+      // 注:不做写后回读验主——双接管竞速(两例同瞬间接管同一陈旧锁)留作
+      // 已知窄窗,主防护=新鲜锁拒写;读写均已走真项目根 writeBinary/readText。
       const id = randomToken();
-      if (!(await writeLockFile(bridge, id))) {
+      if (!(await writeLockFile(bridge, id, projectKey))) {
         return { ok: false, reason: "锁文件写入失败(桥异常);拒写" };
       }
-      const timer = startHeartbeat(id, bridge);
+      const timer = startHeartbeat(id, bridge, projectKey);
       held.set(projectKey, { id, timer, lastBeat: now() });
       ensureUnloadRelease(bridge);
       return { ok: true };
@@ -172,21 +181,22 @@ export function createStorageWriteLock(
       if (!mine) return;
       clearInterval(mine.timer);
       held.delete(projectKey);
-      if (bridge?.deleteText) {
-        try {
-          const res = await bridge.deleteText(LOCK_RELATIVE_PATH);
+      const releasePayload = { projectId: projectKey, relativePath: LOCK_RELATIVE_PATH };
+      try {
+        if (bridge?.deleteFile) {
+          const res = await bridge.deleteFile(releasePayload);
           if (!res || (res as { success?: boolean }).success === false) {
             // 删除失败退而标记释放(ts=0=任何实例可立即取)
-            await bridge.writeText(LOCK_RELATIVE_PATH, JSON.stringify({ id: mine.id, ts: 0 }));
+            await bridge.writeBinary({ ...releasePayload, bytes: new TextEncoder().encode(JSON.stringify({ id: mine.id, ts: 0 })) });
           }
           return;
-        } catch {
-          // fallthrough 到标记释放
         }
+      } catch {
+        // fallthrough 到标记释放
       }
       if (bridge) {
         try {
-          await bridge.writeText(LOCK_RELATIVE_PATH, JSON.stringify({ id: mine.id, ts: 0 }));
+          await bridge.writeBinary({ ...releasePayload, bytes: new TextEncoder().encode(JSON.stringify({ id: mine.id, ts: 0 })) });
         } catch {
           // 尽力而为;staleMs 兜底
         }

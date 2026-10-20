@@ -65,8 +65,18 @@ type WindowWithBridge = {
 function installWindowBridge() {
   (globalThis as unknown as WindowWithBridge).window = {
     projectFiles: {
+      // writeText(位置参)=App 影子目录语义(生产实测),测试里同样不落 _p/ 真根
       writeText: async (key: string, value: string) => {
         hoisted.files.set(key, value);
+        return { success: true };
+      },
+      // 真项目根三件套(D41 锁面):writeBinary/deleteFile 与 readText 同键形
+      writeBinary: async ({ projectId, relativePath, bytes }: { projectId: string; relativePath: string; bytes: Uint8Array }) => {
+        hoisted.files.set(`_p/${projectId}/${relativePath}`, new TextDecoder().decode(bytes));
+        return { success: true };
+      },
+      deleteFile: async ({ projectId, relativePath }: { projectId: string; relativePath: string }) => {
+        hoisted.files.delete(`_p/${projectId}/${relativePath}`);
         return { success: true };
       },
       readText: async ({ projectId, relativePath }: { projectId: string; relativePath: string }) => {
@@ -628,8 +638,8 @@ describe("createStudioWorkflowShardedStorage", () => {
         relativePath === lockKey
           ? { success: true, text: JSON.stringify({ id: "other-app-instance", ts: Date.now() }) }
           : null,
-      writeText: async () => ({ success: true }),
-      deleteText: async () => ({ success: true }),
+      writeBinary: async () => ({ success: true }),
+      deleteFile: async () => ({ success: true }),
     };
     (window as unknown as { projectFiles?: unknown }).projectFiles = projBridge;
     try {
