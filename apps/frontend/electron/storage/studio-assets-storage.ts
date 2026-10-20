@@ -12,9 +12,26 @@ import { randomUUID } from "node:crypto";
 import type { StudioAssetKind, StudioAssetSummary } from "../../types/studio-assets";
 import { StoredAssetImage, resolveAssetManagedPath } from "./assets-sqlite";
 import {
+  countAssetFileRefsInStoreTree,
   rewriteAssetRefsInStoreTree,
   type AssetFileRefMapping,
 } from "./asset-name-folder-migration";
+
+/**
+ * R6 删除守卫(10-20 独孤剑尘悬空案根修):物理删除前查持久化引用(与 R5 改名联动
+ * 同扫描面,store 全树 .json/.jsonl)。仍有引用的文件不物理删——留盘作孤儿(与迁移
+ * 孤儿平铺同哲学,DB 零行引用但盘在场可解析),仅 DB 层删除;console.warn 留痕。
+ */
+function assetFileHasPersistentRefs(rel: string): boolean {
+  if (!rel) return false;
+  const projectRoot = path.resolve(getAssetsDir(), "..", "..");
+  const refs = countAssetFileRefsInStoreTree(projectRoot, rel);
+  if (refs > 0) {
+    console.warn(`[assets] 文件仍有 ${refs} 处持久化引用,保盘不物理删(留孤儿):${rel}`);
+    return true;
+  }
+  return false;
+}
 
 /**
  * R5 改名联动(design §4):type∈三类 且新旧安全名不同 → 本行引用的全部文件
@@ -220,7 +237,8 @@ export function deleteAsset(id: string): boolean {
   if (!rows.length) return false;
 
   const row = rows[0];
-  if (row.filePath) {
+  // R6 删除守卫:被持久化引用的文件不物理删(保盘留孤儿),DB 行照删
+  if (row.filePath && !assetFileHasPersistentRefs(row.filePath)) {
     const fullPath = resolveAssetManagedPath(getFilesDir(), row.filePath);
     if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
     const thumbPath = resolveAssetManagedPath(getThumbsDir(), row.filePath);
@@ -229,6 +247,7 @@ export function deleteAsset(id: string): boolean {
   try {
     const images = JSON.parse(row.images || "[]");
     for (const img of images) {
+      if (typeof img.filePath === "string" && assetFileHasPersistentRefs(img.filePath)) continue;
       const imgPath = resolveAssetManagedPath(getFilesDir(), img.filePath);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
@@ -361,10 +380,13 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
     // 闸挡着从未暴露)。回退:命中的是行级主图 → 删实体与缩略图,行级指针顺位
     // 晋 images[0](有则顶图,无则清空回落文字壳),images[] 不动。
     if (asset.filePath && asset.filePath === imageFilePath) {
-      const mainFile = resolveAssetManagedPath(getFilesDir(), asset.filePath);
-      if (fs.existsSync(mainFile)) fs.unlinkSync(mainFile);
-      const mainThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
-      if (fs.existsSync(mainThumb)) fs.unlinkSync(mainThumb);
+      // R6 删除守卫:被引用时实体保盘(留孤儿),DB 层照删+顺位晋升不变
+      if (!assetFileHasPersistentRefs(asset.filePath)) {
+        const mainFile = resolveAssetManagedPath(getFilesDir(), asset.filePath);
+        if (fs.existsSync(mainFile)) fs.unlinkSync(mainFile);
+        const mainThumb = resolveAssetManagedPath(getThumbsDir(), asset.filePath);
+        if (fs.existsSync(mainThumb)) fs.unlinkSync(mainThumb);
+      }
       const promoted = promoteMainIfDeleted(images, imageFilePath);
       const now = new Date().toISOString();
       runSqliteExecSafe(
@@ -376,8 +398,11 @@ export function removeAssetImage(assetId: string, imageFilePath: string): Studio
     return null;
   }
 
-  const fullPath = resolveAssetManagedPath(getFilesDir(), imageFilePath);
-  if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+  // R6 删除守卫:被引用的 images[] 实体保盘,DB 条目照删
+  if (!assetFileHasPersistentRefs(imageFilePath)) {
+    const fullPath = resolveAssetManagedPath(getFilesDir(), imageFilePath);
+    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+  }
   images.splice(idx, 1);
 
   // 10-19 缩略图善后(images[] 命中路径同款):被删的恰是行级主图时,行级指针

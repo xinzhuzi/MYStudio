@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,6 +8,7 @@ import {
   addAssetImage,
   batchMatchAssets,
   buildAssetWhere,
+  deleteAsset,
   getAsset,
   getAssetByName,
   importFromToonflow,
@@ -277,19 +278,22 @@ describe("资产名分夹落盘(R1:role/scene/tool 名夹层,clip/audio 平铺�
     const asset = addAsset({ type: "role", name: "并存回归", sourceFilePath: srcV1 });
     const v1Path = asset.filePath ?? "";
 
-    // 第一次换主图:v1 收编为「·旧主图」历史版本,文件仍在盘上
+    // 第一次换主图:v1 收编为历史版本(存档名=原文件名基,6dd91185 废「主图」名号裁定),
+    // 文件仍在盘上
+    const v1Base = basename(v1Path).replace(/\.[^.]+$/, "");
     const after1 = replaceAssetMainImage(asset.id, srcV2);
     expect(after1?.images ?? []).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: "并存回归·旧主图", filePath: v1Path }),
+      expect.objectContaining({ name: v1Base, filePath: v1Path }),
     ]));
     expect(existsSync(join(getFilesDir(), v1Path))).toBe(true);
 
     // 第二次换主图:v2 也收编,历史版本递增命名不撞名,新旧文件全在
     const v2Path = after1?.filePath ?? "";
+    const v2Base = basename(v2Path).replace(/\.[^.]+$/, "");
     const after2 = replaceAssetMainImage(asset.id, srcV3);
     const names = (after2?.images ?? []).map((i) => i.name);
-    expect(names).toContain("并存回归·旧主图");
-    expect(names).toContain("并存回归·旧主图2");
+    expect(names).toContain(v1Base);
+    expect(names).toContain(v2Base);
     expect(existsSync(join(getFilesDir(), v1Path))).toBe(true);
     expect(existsSync(join(getFilesDir(), v2Path))).toBe(true);
     expect((after2?.images ?? []).length).toBe(2);
@@ -721,6 +725,85 @@ describe("改名联动(R5:文件级挪动+DB 改写+thumbs 镜像+兄弟隔离+�
     updateAsset(asset.id, { name: "晏燎·离火境" });
 
     expect(existsSync(stray)).toBe(true); // 文件级挪动:只动本行文件,遗留件不动
+  });
+
+  // === 删除守卫(R6,10-20 独孤剑尘悬空案:被持久化引用的文件不物理删,留孤儿+warn 留痕)===
+
+  it("删除守卫:主图被画布引用(编码态+query)→deleteAsset 仅删 DB 行,文件与缩略图保盘+warn 留痕", () => {
+    initProjectAssetsStorage();
+    const source = join(assetRoot(), "guard-hero.png");
+    writeFileSync(source, "guard hero");
+    const asset = addAsset({ type: "role", name: "守卫甲", sourceFilePath: source });
+    const rel = asset.filePath!;
+    const encodedRel = rel.split("/").map(encodeURIComponent).join("/");
+    writeImageWorkflowShards({ shared: [`asset-file://${encodedRel}?thumb=1`], chapter: [] });
+    const thumb = join(assetRoot(), "thumbs", rel);
+    mkdirSync(dirname(thumb), { recursive: true });
+    writeFileSync(thumb, "thumb-guard");
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(deleteAsset(asset.id)).toBe(true);
+      expect(getAssetSync(asset.id) ?? null).toBeNull(); // DB 行已删
+      expect(existsSync(join(assetRoot(), "files", rel))).toBe(true); // 文件保盘(孤儿)
+      expect(existsSync(thumb)).toBe(true); // 缩略图同保(?thumb=1 引用可达)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("保盘不物理删"));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("删除守卫:无引用→deleteAsset 照删文件不误伤(基线行为锁)", () => {
+    initProjectAssetsStorage();
+    const source = join(assetRoot(), "plain-hero.png");
+    writeFileSync(source, "plain hero");
+    const asset = addAsset({ type: "role", name: "守卫乙", sourceFilePath: source });
+    const rel = asset.filePath!;
+    writeImageWorkflowShards({ shared: ["asset-file://role/别家_1.png"], chapter: [] }); // 只引用别家
+
+    expect(deleteAsset(asset.id)).toBe(true);
+    expect(existsSync(join(assetRoot(), "files", rel))).toBe(false); // 无引用照删
+  });
+
+  it("删除守卫:主图可删补刀遇引用→文件保盘,行级指针仍按序清空/晋升(DB 层照删)", () => {
+    initProjectAssetsStorage();
+    const source = join(assetRoot(), "poke-main.png");
+    writeFileSync(source, "poke main");
+    const asset = addAsset({ type: "role", name: "守卫丙", sourceFilePath: source });
+    const rel = asset.filePath!;
+    writeImageWorkflowShards({ shared: [`asset-file://${rel}`], chapter: [] }); // raw 形态
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const after = removeAssetImage(asset.id, rel);
+      expect(after?.filePath ?? "").toBe(""); // 行级指针照清(无 images[] 可晋)
+      expect(existsSync(join(assetRoot(), "files", rel))).toBe(true); // 实体保盘
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("保盘不物理删"));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("删除守卫:images[] 条目删除遇引用→DB 条目照删,实体文件保盘", () => {
+    initProjectAssetsStorage();
+    const source = join(assetRoot(), "img-main.png");
+    const variant = join(assetRoot(), "img-variant.png");
+    writeFileSync(source, "img main");
+    writeFileSync(variant, "img variant");
+    const asset = addAsset({ type: "role", name: "守卫丁", sourceFilePath: source });
+    const withVariant = addAssetImage(asset.id, "变体", variant);
+    const variantRel = withVariant?.images?.[0]?.filePath ?? "";
+    expect(variantRel).not.toBe("");
+    writeImageWorkflowShards({ shared: [`asset-file://${variantRel}`], chapter: [] });
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const after = removeAssetImage(asset.id, variantRel);
+      expect((after?.images ?? []).some((i) => i.filePath === variantRel)).toBe(false); // DB 条目已删
+      expect(existsSync(join(assetRoot(), "files", variantRel))).toBe(true); // 实体保盘
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

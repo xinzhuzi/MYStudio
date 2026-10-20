@@ -155,6 +155,17 @@ export function rewriteAssetRefsInStoreTree(
 }
 
 /**
+ * R6 删除守卫(10-20 独孤剑尘悬空案):relPath 在 store 树持久化 asset-file:// 引用中的
+ * 出现次数(P0/P3 同扫描面;raw 与 URL 编码双形态,pattern 不含 query 天然剥离)。
+ * >0 = 画布分片/角色卡等仍引用该文件,删除路径须保盘(留孤儿)仅动 DB。
+ */
+export function countAssetFileRefsInStoreTree(projectRoot: string, relPath: string): number {
+  if (!relPath) return 0;
+  const scan = scanStoreRefs(path.join(projectRoot, "store"), defaultNameFolderIo);
+  return scan.refs.filter((r) => r.ref === relPath).length;
+}
+
+/**
  * R5 改名联动定向改写(旧实现,留档兼容):只扫 studio-workflow 分片。
  */
 export function rewriteAssetRefsInImageWorkflowShardsLegacy(
