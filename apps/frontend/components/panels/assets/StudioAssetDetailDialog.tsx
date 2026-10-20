@@ -150,6 +150,12 @@ export function StudioAssetDetailDialog({
     subscribeAssetCarouselIndex(api, setCurrentIndex);
   }, []);
 
+  // 10-19 双弹勘误:弹窗关(无论因)=预览关——previewIndex 不清零→下次开弹窗时
+  // open&&previewIndex 条件双真→Lightbox 与 Dialog 同时弹出
+  useEffect(() => {
+    if (!open) setPreviewIndex(null);
+  }, [open]);
+
   useEffect(() => {
     if (!asset) {
       setFullAsset(null);
@@ -158,8 +164,12 @@ export function StudioAssetDetailDialog({
       setRecognizedText(null);
       setVoiceAssignOpen(false);
       setRemovedFamilyPaths([]);
+      setPreviewIndex(null);
       return;
     }
+
+    // 切资产也清(同弹窗内换资产时 previewIndex 可能指向旧资产图序)
+    setPreviewIndex(null);
 
     let cancelled = false;
     const initialImages: AssetImage[] = [];
@@ -505,7 +515,8 @@ export function StudioAssetDetailDialog({
         </DialogContent>
       </Dialog>
       {/* 10-19 用户令:全屏缩放预览——复用 MediaPreviewModal(滚轮缩放/双击/拖拽/批量翻页) */}
-      {previewIndex !== null && displayImages[previewIndex] && (
+      {/* 弹窗关=预览关:previewIndex 不清零→Lightbox 全屏遮罩残留→堵住所有 UI 点击(10-19 实弹勘误) */}
+      {open && previewIndex !== null && displayImages[previewIndex] && (
         <ImagePreviewModal
           imageUrl={displayImages[previewIndex]?.url ?? ""}
           imageUrls={displayImages.map((img) => img.url ?? "").filter(Boolean)}

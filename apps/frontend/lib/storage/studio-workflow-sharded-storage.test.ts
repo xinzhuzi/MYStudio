@@ -40,7 +40,7 @@ vi.mock("@/stores/app/app-settings-store", () => ({
   },
 }));
 
-import { createStudioWorkflowShardedStorage } from "./project-storage";
+import { createStudioWorkflowShardedStorage, __resetModuleStorageWriteLockForTests } from "./project-storage";
 
 interface FileStorageBridgeForTest {
   getItem: (key: string) => Promise<string | null>;
@@ -431,8 +431,7 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect(typeof ch1.sourceText).toBe("string");
   });
 
-  it("激活章窗口半空(仅部分域在内存)时保存:未重规划域的盘上分片名保留(08:54 二阶实杀形态)", async () => {
-    // 第一代:ch1 落盘 novel-chapters + storyboards 两域
+  it("激活章窗口半空(仅部分域在内存)时保存:未重规划域的盘上分片名保留(08:54 二阶实杀形态)", async () => {    // 第一代:ch1 落盘 novel-chapters + storyboards 两域
     const both = buildPersistedValue();
     await storage.setItem("studio-workflow-store", both);
 
@@ -611,5 +610,38 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect((state.storyboards as Array<{ id: string }>).map((item) => item.id)).toEqual(["sb-1"]);
     expect((state.storyboards as Array<{ prompt: string }>)[0]!.prompt).toBe("新版");
     expect((state.videoCandidates as Array<{ id: string }>).map((item) => item.id)).toEqual(["vc-1", "vc-2"]);
+  });
+
+  it("D41 项目写锁:他例新鲜持锁→拒写留痕(分片/manifest 不动);无桥→放行旧行为", async () => {
+    // 隔离前置:清残留桥+复位模块锁(前序测试可能装桥/持锁)
+    delete (window as unknown as { projectFiles?: unknown }).projectFiles;
+    await __resetModuleStorageWriteLockForTests();
+
+    // 无桥环境:锁 fail-open,写正常落盘
+    await storage.setItem("studio-workflow-store", buildPersistedValue());
+    expect(hoisted.files.has("_p/proj-1/studio-workflow/manifest")).toBe(true);
+
+    // 装对象签名桥并预置他例新鲜锁:写被拒,manifest 内容不动
+    const lockKey = "store/.storage-write-lock.json";
+    const projBridge = {
+      readText: async ({ relativePath }: { projectId: string; relativePath: string }) =>
+        relativePath === lockKey
+          ? { success: true, text: JSON.stringify({ id: "other-app-instance", ts: Date.now() }) }
+          : null,
+      writeText: async () => ({ success: true }),
+      deleteText: async () => ({ success: true }),
+    };
+    (window as unknown as { projectFiles?: unknown }).projectFiles = projBridge;
+    try {
+      const manifestBefore = hoisted.files.get("_p/proj-1/studio-workflow/manifest");
+      const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      await storage.setItem("studio-workflow-store", buildPersistedValue());
+      expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("拒写"));
+      expect(hoisted.files.get("_p/proj-1/studio-workflow/manifest")).toBe(manifestBefore);
+      errSpy.mockRestore();
+    } finally {
+      delete (window as unknown as { projectFiles?: unknown }).projectFiles;
+      await __resetModuleStorageWriteLockForTests();
+    }
   });
 });

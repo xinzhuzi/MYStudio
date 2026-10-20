@@ -7,6 +7,7 @@ import {
   FolderOpen,
   ImageIcon,
   Loader2,
+  Maximize2,
   Music2,
   Plus,
   Sparkles,
@@ -146,12 +147,7 @@ export function StudioAssetDetailPreviewPane({
               <CarouselContent>
                 {images.map((image, index) => (
                   <CarouselItem key={image.filePath || index}>
-                    <div
-                      className="relative aspect-square overflow-hidden rounded-lg border border-border bg-background"
-                      onClick={() => onImageClick?.(index)}
-                      role={onImageClick ? "button" : undefined}
-                      style={onImageClick ? { cursor: "zoom-in" } : undefined}
-                    >
+                    <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-background">
                       <img
                         src={image.url}
                         alt={image.name}
@@ -159,6 +155,20 @@ export function StudioAssetDetailPreviewPane({
                         draggable={false}
                       />
                       <ResolutionBadge src={image.url} />
+                      {onImageClick && (
+                        <button
+                          type="button"
+                          className="absolute right-1 top-1 z-[1] rounded bg-background/80 p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onImageClick(index);
+                          }}
+                          title="全屏预览"
+                          aria-label={`全屏预览 ${image.name}`}
+                        >
+                          <Maximize2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                     <div className="mt-2 flex items-center justify-between px-1">
                       <span className="truncate text-xs text-muted-foreground">{image.name}</span>

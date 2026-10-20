@@ -340,4 +340,5 @@ export { isFullNovelChapter };
 
 
 export type { MergeFn, SplitFn } from "./storage-project-sharded";
+export { __resetModuleStorageWriteLockForTests } from "./storage-project-sharded";
 export { createStudioWorkflowShardedStorage, ensureBackupsReadme, ensureProjectRootReadme, ensureReadmeMatches, ensureStudioWorkflowReadme } from "./storage-project-sharded";

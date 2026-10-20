@@ -205,9 +205,14 @@ export function AssetsTab(props: {
   // 桥缺席/读取失败优雅回退(脚本面保持 undefined=旧禁用态);seq 防切章竞态串章。
   const [dramaScript, setDramaScript] = useState<string | null>(null);
   const selectedChapterId = selectedChapter?.id;
+  // 有草稿章不预读漫剧(D22 回落只在无草稿时才需要;省一次 IPC,且不干扰
+  // 源记忆 readText 恰 N 次类锚)
+  const selectedHasDraft = Boolean(
+    props.agentWorkData.some((w) => w.key === "scriptDraft" && w.episodeId === selectedChapterId),
+  );
   useEffect(() => {
     setDramaScript(null);
-    if (!selectedChapterId || !activeProjectId) return;
+    if (!selectedChapterId || !activeProjectId || selectedHasDraft) return;
     const bridge = getProjectFilesBridge();
     if (!bridge?.readText) return;
     let seq = true;
@@ -221,7 +226,7 @@ export function AssetsTab(props: {
     return () => {
       seq = false;
     };
-  }, [selectedChapterId, activeProjectId]);
+  }, [selectedChapterId, activeProjectId, selectedHasDraft]);
 
   const run = async (id: string) => {
     setExtractingId(id);

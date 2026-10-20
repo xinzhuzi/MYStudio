@@ -63,6 +63,11 @@ const CONTAINER_STYLES = {
     // 内容树;Lightbox portal 在 body 下、不在该树内——不显式恢复
     // 则放大/缩小/关闭全部点不动(可见但僵死)。
     pointerEvents: "auto" as const,
+    // 10-19 X 按钮彻查(资产详情实弹):Radix Dialog overlay 有 z-index(50)
+    // 且创建独立层叠上下文——Lightbox portal 无显式 z-index 时被压在下面,
+    // 视觉在上(DOM 序靠后)但点击被 Dialog overlay 截获=X 关不掉;
+    // 显式给最大 z-index 强制全局置顶(同层 body 直子,高值胜出)
+    zIndex: 2147483646,
   },
 };
 

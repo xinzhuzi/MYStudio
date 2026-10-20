@@ -276,7 +276,8 @@ describe("workflow stage action surfaces", () => {
       await result.current.handleNovelEventAnalysis(chapters);
     });
 
-    expect(readText).toHaveBeenCalledTimes(1);
+    const nonLockReads = readText.mock.calls.filter((c: unknown[]) => !String((c[0] as { relativePath?: string } | undefined)?.relativePath ?? "").includes("storage-write-lock")).length;
+    expect(nonLockReads).toBe(1); // D41 写锁读锁文件为合法旁路,不计入源记忆读取计数
     expect(search).toHaveBeenCalledTimes(1);
     expect(aiManagerMocks.text).toHaveBeenCalledTimes(2);
     for (const call of aiManagerMocks.text.mock.calls) {
@@ -377,7 +378,8 @@ describe("workflow stage action surfaces", () => {
       await result.current.handleEntityExtraction("chapter-001");
     });
 
-    expect(readText).toHaveBeenCalledTimes(1);
+    const nonLockReads = readText.mock.calls.filter((c: unknown[]) => !String((c[0] as { relativePath?: string } | undefined)?.relativePath ?? "").includes("storage-write-lock")).length;
+    expect(nonLockReads).toBe(1); // D41 写锁读锁文件为合法旁路,不计入源记忆读取计数
     expect(search).toHaveBeenCalledTimes(1);
     const user = String(aiManagerMocks.text.mock.calls[0]?.[0]?.messages?.[1]?.content);
     expect(user.match(/## 原著档案检索/g)).toHaveLength(1);
@@ -446,7 +448,8 @@ describe("workflow stage action surfaces", () => {
       await result.current.handleStageReview("scriptDraft", chapter);
     });
 
-    expect(readText).toHaveBeenCalledTimes(2);
+    const nonLockReads = readText.mock.calls.filter((c: unknown[]) => !String((c[0] as { relativePath?: string } | undefined)?.relativePath ?? "").includes("storage-write-lock")).length;
+    expect(nonLockReads).toBe(2); // D41 写锁读锁文件为合法旁路,不计入源记忆读取计数
     expect(search).toHaveBeenCalledTimes(2);
     expect(aiManagerMocks.textStream).toHaveBeenCalledTimes(2);
     for (const call of aiManagerMocks.textStream.mock.calls) {
@@ -517,7 +520,8 @@ describe("workflow stage action surfaces", () => {
       await result.current.handleStoryboardTable("chapter-001");
     });
 
-    expect(readText).toHaveBeenCalledTimes(1);
+    const nonLockReads = readText.mock.calls.filter((c: unknown[]) => !String((c[0] as { relativePath?: string } | undefined)?.relativePath ?? "").includes("storage-write-lock")).length;
+    expect(nonLockReads).toBe(1); // D41 写锁读锁文件为合法旁路,不计入源记忆读取计数
     expect(search).toHaveBeenCalledTimes(1);
     expect(search).toHaveBeenCalledWith("project-fallback", expect.any(String), 4);
     // 2026-08-22 分镜表改流式(textStream,防网关 524)——断言改到 textStream 首调
@@ -760,7 +764,8 @@ describe("workflow stage action surfaces", () => {
     });
 
     // 动作开始检索一次；不可用→零注入零阻断的模式在其它用例（无 sourceMemory 桥）隐式覆盖
-    expect(readText).toHaveBeenCalledTimes(1);
+    const nonLockReads = readText.mock.calls.filter((c: unknown[]) => !String((c[0] as { relativePath?: string } | undefined)?.relativePath ?? "").includes("storage-write-lock")).length;
+    expect(nonLockReads).toBe(1); // D41 写锁读锁文件为合法旁路,不计入源记忆读取计数
     expect(search).toHaveBeenCalledTimes(1);
     const system = String(aiManagerMocks.textStream.mock.calls[0]?.[0]?.messages?.[0]?.content);
     expect(system).toContain("原著圣经（最高优先级");

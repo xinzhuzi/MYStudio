@@ -4,6 +4,7 @@ import projectReadmeTemplate from '@/assets/docs/project/README.md?raw';
 import backupsReadmeTemplate from '@/assets/docs/backups/README.md?raw';
 import { fileStorage } from "./indexed-db-storage";
 import { STUDIO_WORKFLOW_SHARD_DIR, StudioWorkflowDomainGeneration, StudioWorkflowShardManifest, md5Utf8, mergeStudioWorkflowShards, parseStudioWorkflowShardManifest, planStudioWorkflowShards } from "./studio-workflow-shards";
+import { createStorageWriteLock, type StorageLockBridge } from "./storage-write-lock";
 import { useProjectStore } from "@/stores/project/project-store";
 import type { StateStorage } from "zustand/middleware";
 
@@ -12,6 +13,20 @@ import type { StateStorage } from "zustand/middleware";
  */
 function shardFileKeyPrefix(pid: string): string {
   return `_p/${pid}/${STUDIO_WORKFLOW_SHARD_DIR}`;
+}
+
+/**
+ * 项目写锁(D41 10-20 多实例互踩事故定谳):**进程级单例**——同进程所有适配器
+ * 实例=同一 App 实例语义,共享持锁状态/心跳(工厂级会造成同进程自相残杀)。
+ * 按项目分键;桥缺席自动 fail-open(单测环境旧行为不变);读路径零拦截。
+ */
+const moduleStorageWriteLock = createStorageWriteLock(
+  () => (typeof window !== "undefined" ? (window.projectFiles as unknown as StorageLockBridge | undefined) : undefined),
+);
+
+/** 测试隔离钩子:复位模块写锁持态(生产勿用) */
+export async function __resetModuleStorageWriteLockForTests(): Promise<void> {
+  await moduleStorageWriteLock.releaseAll();
 }
 
 function shardKeyForFile(pid: string, shardFileName: string): string {
@@ -233,6 +248,13 @@ export function createStudioWorkflowShardedStorage(
 
       await serializeWrite(async () => {
         let skipOrphanCleanup = false;
+        // 项目写锁守卫(D41):「持锁才写」fail-closed——他例新鲜锁→拒写留痕;
+        // 同进程所有适配器共享 moduleStorageWriteLock(进程=实例语义)
+        const lockVerdict = await moduleStorageWriteLock.ensure(pid);
+        if (!lockVerdict.ok) {
+          console.error(`[StudioWorkflowShardedStorage] 拒写:项目存储写锁被他人持有(${lockVerdict.reason ?? "未知"});本实例保持只读,防止多实例互踩分片库。关闭另一实例后最多 15s 自动接管。`);
+          return;
+        }
         // 水合竞态守卫（fail-closed）：store 尚未完成与磁盘对齐（启动/切项目的
         // rehydrate 窗口）时，任何覆写都是在盲写未知磁盘状态——空态+误建 free 图
         // 这类保存会把 manifest.chapterIndex/activeChapterId 写空（项目 UI 空壳）。
