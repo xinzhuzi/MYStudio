@@ -398,6 +398,39 @@ describe("createStudioWorkflowShardedStorage", () => {
     expect("sourceText" in ch2).toBe(false);
   });
 
+  it("激活章窗口为空时保存:盘上激活章分片名保留(10-20 ch1 整目录回收事件回归)", async () => {
+    // 第一代:两章全量落盘,激活章=chapter-001 带全量
+    const both = buildPersistedValue();
+    await storage.setItem("studio-workflow-store", both);
+    const manifest1 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    expect(manifest1.shards.some((n) => n.startsWith("chapters/chapter-001/"))).toBe(true);
+
+    // 第二代:事故形态——activeChapterId 仍指 chapter-001,但内存窗口为空(该章
+    // 无任何条目:切章装载竞态/CDP 直写/水合窗口期),novelChapters 全轻索引
+    const hollow = JSON.parse(both) as {
+      state: {
+        novelChapters: Array<Record<string, unknown>>;
+        storyboards: Array<Record<string, unknown>>;
+        activeChapterId?: string;
+      };
+    };
+    hollow.state.activeChapterId = "chapter-001";
+    hollow.state.novelChapters = hollow.state.novelChapters.map((c) => ({ id: c.id, title: c.title }));
+    hollow.state.storyboards = [];
+    await storage.setItem("studio-workflow-store", JSON.stringify(hollow));
+
+    // 期望:manifest 仍列 chapter-001 盘上分片名(缺则保留守卫),文件未被回收;
+    // 读回自愈——激活章全文从盘上分片回归窗口
+    const manifest2 = JSON.parse(hoisted.files.get("_p/proj-1/studio-workflow/manifest")!) as { shards: string[] };
+    expect(manifest2.shards.some((n) => n.startsWith("chapters/chapter-001/"))).toBe(true);
+    const ch1Files = [...hoisted.files.keys()].filter((k) => k.startsWith("_p/proj-1/studio-workflow/chapters/chapter-001/"));
+    expect(ch1Files.length).toBeGreaterThan(0);
+    const restored = await storage.getItem("studio-workflow-store");
+    const parsed = JSON.parse(restored!) as { state: { novelChapters: Array<Record<string, unknown>> } };
+    const ch1 = parsed.state.novelChapters.find((c) => c.id === "chapter-001")!;
+    expect(typeof ch1.sourceText).toBe("string");
+  });
+
   it("空态覆写守卫：读链损坏（分片缺失）后的空工作区保存被拒；健康重置放行", async () => {
     const emptyValue = JSON.stringify({ state: { novelChapters: [], storyboards: [], mediaTasks: [] }, version: 10 });
     // 健康读链上的合法重置：空工作区保存放行（resetStudioWorkflow 流程）

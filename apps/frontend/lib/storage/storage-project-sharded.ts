@@ -291,9 +291,22 @@ export function createStudioWorkflowShardedStorage(
                 ?? (diskManifestRaw ? parseStudioWorkflowShardManifest(diskManifestRaw) : null);
               if (diskManifest) {
                 const listed = new Set(plan.manifest.shards);
+                // 激活章「缺则保留」守卫（10-20 ch1 整目录回收事件）：旧设计跳过
+                // 激活章的盘上分片名（假设窗口必重规划该章分片、让陈年 stamp 走
+                // 孤儿清理）。当保存发生在「激活章已翻转但其条目不在内存窗口」的
+                // 状态（切章装载竞态/CDP 直写 store/水合窗口期），该假设失效——
+                // manifest 丢失该章全部分片名 → 孤儿清理整目录回收 = 丢章数据。
+                // 修正：仅当 plan 已产出该章至少一个分片（窗口确有数据）时才跳过；
+                // plan 无该章任何分片时保留盘上分片名（读回自愈）。
+                const planChapterIds = new Set(
+                  plan.manifest.shards
+                    .filter((name) => name.startsWith('chapters/'))
+                    .map((name) => name.split('/')[1]),
+                );
                 for (const shardName of diskManifest.shards) {
                   if (!shardName.startsWith('chapters/')) continue;
-                  if (shardName.split('/')[1] === activeId) continue;
+                  const shardChapter = shardName.split('/')[1];
+                  if (shardChapter === activeId && planChapterIds.has(shardChapter)) continue;
                   if (listed.has(shardName)) continue;
                   plan.manifest.shards.push(shardName);
                   listed.add(shardName);
@@ -405,6 +418,14 @@ export function createStudioWorkflowShardedStorage(
               for (const chapterId of await bridge.listDirs(chaptersPrefix)) {
                 const chapterPrefix = `${chaptersPrefix}/${chapterId}`;
                 if (!manifestedChapters.has(chapterId)) {
+                  // 10-20 ch1 事件可观测锚:仍在章索引里的章被整目录回收必须留痕
+                  // (正常仅发生在章被删除/数据治愈脚本清场;索引内的章走到这里
+                  // 多半上游 manifest 丢了该章分片名,日志即取证线索)
+                  const stillIndexed = Array.isArray(plan.manifest.chapterIndex)
+                    && plan.manifest.chapterIndex.some((entry) => (entry as { id?: unknown })?.id === chapterId);
+                  if (stillIndexed) {
+                    console.warn(`[StudioWorkflowShardedStorage] 整目录回收仍在章索引的章: ${chapterId}(如非预期请查归档抄录/上游写入)`);
+                  }
                   await bridge.removeDir?.(chapterPrefix);
                   continue;
                 }
