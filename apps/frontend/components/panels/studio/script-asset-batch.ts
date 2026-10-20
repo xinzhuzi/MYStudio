@@ -34,25 +34,92 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import type { EntityExtractionResult } from "@/types/studio";
 import { ensureLocalAssetForRow } from "./useScriptAssetGenerationActions";
 import { runScriptAssetMediaTask, scriptAssetTargetKey } from "./script-asset-media-task";
-import { getRowImage, uniqueByName, type AssetRow } from "./script-asset-generation-model";
+import {
+  getRowImage,
+  toRuntimeAssetType,
+  uniqueByName,
+  type AssetRow,
+} from "./script-asset-generation-model";
+import type { StudioAssetSummary } from "@/types/studio-assets";
 
 // ── 行收集:本章提取批次 → AssetRow(镜像 useScriptAssetGenerationData 口径,只取本章) ──
+
+/** 本章提取批次(找不到返回 null,调用方自行给「无可生成行」口径)。 */
+function findChapterBatch(chapterId: string): EntityExtractionResult | null {
+  return (
+    useStudioStore.getState().entityExtractions.find(
+      (item) => item.episodeId === chapterId,
+    ) ?? null
+  );
+}
 
 /** 本章提取批次全部行(角色→场景→道具,批内按名去重;asset 由三库按名回填)。 */
 export function buildChapterAssetRows(
   chapterId: string,
   projectId: string | null,
 ): AssetRow[] {
-  const batch = useStudioStore
-    .getState()
-    .entityExtractions.find((item) => item.episodeId === chapterId);
+  const batch = findChapterBatch(chapterId);
   if (!batch) return [];
   return assetRowsFromBatch(batch, projectId);
+}
+
+/** 批次三类实体在资产库(assets.db)的匹配结果:名字 → summary。 */
+export interface BatchDatabaseMatches {
+  character: Map<string, StudioAssetSummary>;
+  scene: Map<string, StudioAssetSummary>;
+  prop: Map<string, StudioAssetSummary>;
+}
+
+/**
+ * 资产库兜底预取(10-19 匹配大 bug 修):提取实体不只对本地轻量库匹配,再按类
+ * 批量问一次 assets.db(batchMatch:精确名/别名/remark 唯一命中语义),结果由
+ * assetRowsFromBatch 注入 row.assetLibrary——库里已有图的行在一键生成走
+ * skipped-existing(getRowImage 回落读 assetLibrary),不再重复生成烧钱。
+ * 桥不在/查询失败 = 三类空 Map(行为退化为现状,不炸生成链)。每类一次 IPC,
+ * 与名字数无关;不写资产库(渲染提取视图不初始化资产库契约不变)。
+ */
+export async function fetchBatchDatabaseMatches(
+  batch: EntityExtractionResult,
+): Promise<BatchDatabaseMatches> {
+  const empty = (): BatchDatabaseMatches => ({
+    character: new Map(),
+    scene: new Map(),
+    prop: new Map(),
+  });
+  const batchMatch = getStudioAssetsBridge()?.batchMatch;
+  if (!batchMatch) return empty();
+  const collect = (names: string[]) => [...new Set(names)].filter((name) => name.trim());
+  const queries: Array<{
+    key: keyof BatchDatabaseMatches;
+    type: AssetRow["type"];
+    names: string[];
+  }> = [
+    { key: "character", type: "character", names: collect(batch.characters.map((item) => item.name)) },
+    { key: "scene", type: "scene", names: collect(batch.scenes.map((item) => item.name)) },
+    { key: "prop", type: "prop", names: collect(batch.props.map((item) => item.name)) },
+  ];
+  const result = empty();
+  for (const query of queries) {
+    if (!query.names.length) continue;
+    try {
+      const entries = await batchMatch({
+        type: toRuntimeAssetType(query.type),
+        names: query.names,
+      });
+      for (const entry of entries) {
+        if (entry?.asset) result[query.key].set(entry.name, entry.asset);
+      }
+    } catch {
+      // 单类查询失败只影响该类兜底(本地库匹配照常);如实继续,不阻断生成编排
+    }
+  }
+  return result;
 }
 
 export function assetRowsFromBatch(
   batch: EntityExtractionResult,
   projectId: string | null,
+  dbMatches?: BatchDatabaseMatches,
 ): AssetRow[] {
   const characters = useCharacterLibraryStore.getState().characters;
   const scenes = useSceneStore.getState().scenes;
@@ -81,6 +148,9 @@ export function assetRowsFromBatch(
       name: item.name,
       note: item.note,
       asset: characterByName.get(item.name),
+      // 本地库 miss(或本地行无图)时挂资产库 summary:一键生成的已有图跳过
+      // 判定走 getRowImage→assetLibrary 回落,库里有图即 skipped-existing
+      assetLibrary: dbMatches?.character.get(item.name),
     });
   }
   for (const item of batch.scenes) {
@@ -90,6 +160,7 @@ export function assetRowsFromBatch(
       name: item.name,
       note: item.note,
       asset: sceneByName.get(item.name),
+      assetLibrary: dbMatches?.scene.get(item.name),
     });
   }
   for (const item of batch.props) {
@@ -99,6 +170,7 @@ export function assetRowsFromBatch(
       name: item.name,
       note: item.note,
       asset: propByName.get(item.name),
+      assetLibrary: dbMatches?.prop.get(item.name),
     });
   }
   return rows;
@@ -276,14 +348,6 @@ export async function runChapterScriptAssetGeneration(
   input: RunChapterScriptAssetsInput,
 ): Promise<ScriptAssetBatchReport | null> {
   const { chapterId, projectId } = input;
-  const batchStore = useScriptAssetBatchStore.getState();
-  const running = batchStore.runsByChapter[chapterId];
-  if (running?.status === "running") {
-    toast.info(
-      `本章一键生成进行中(${running.progress.done}/${running.progress.total}),已并入在途批次`,
-    );
-    return null;
-  }
   if (!input.visualManualId) {
     toast.error("请先在「风格与导演」中选择视觉手册");
     return null;
@@ -293,7 +357,26 @@ export async function runChapterScriptAssetGeneration(
     toast.error("资产库接口仅在桌面应用中可用，无法一键生成");
     return null;
   }
-  const rows = buildChapterAssetRows(chapterId, projectId);
+  const batch = findChapterBatch(chapterId);
+  if (!batch) {
+    toast.info("本章提取批次没有可生成的资产行");
+    return null;
+  }
+  // 资产库兜底(10-19 匹配大 bug 修):行匹配不只看本地轻量库,assets.db 命中的
+  // 实体注入 assetLibrary——库里已有图的行走 skipped-existing,不再重复烧钱。
+  // 预取必须置于防重入门之前:await 让出期间首批已同步推进到 startRun(守卫→行
+  // →startRun 全同步段),再点的调用按 FIFO 微任务序恢复时必见在途并入——
+  // 预取放在门后会让连点双发(门契约败坏,防重入既有测试钉的就是这个)
+  const dbMatches = await fetchBatchDatabaseMatches(batch);
+  const batchStore = useScriptAssetBatchStore.getState();
+  const running = batchStore.runsByChapter[chapterId];
+  if (running?.status === "running") {
+    toast.info(
+      `本章一键生成进行中(${running.progress.done}/${running.progress.total}),已并入在途批次`,
+    );
+    return null;
+  }
+  const rows = assetRowsFromBatch(batch, projectId, dbMatches);
   if (!rows.length) {
     toast.info("本章提取批次没有可生成的资产行");
     return null;
@@ -517,7 +600,10 @@ export async function retryScriptAssetBatchRow(input: RetryScriptAssetRowInput):
     toast.error("请先在「风格与导演」中选择视觉手册", { id: toastId });
     return;
   }
-  const rows = buildChapterAssetRows(chapterId, projectId);
+  const batch = findChapterBatch(chapterId);
+  const rows = batch
+    ? assetRowsFromBatch(batch, projectId, await fetchBatchDatabaseMatches(batch))
+    : [];
   const matched = rows.find((row) => row.type === input.type && row.name === input.name);
   if (!matched) {
     toast.error(`本章提取批次找不到资产行：${targetId}`, { id: toastId });

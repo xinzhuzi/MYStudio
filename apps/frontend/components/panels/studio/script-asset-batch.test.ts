@@ -19,8 +19,11 @@ import { usePropsLibraryStore } from "@/stores/library/props-library-store";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useScriptAssetCostStore } from "@/stores/studio/script-asset-cost-store";
 import type { EntityExtractionResult } from "@/types/studio";
+import type { StudioAssetSummary } from "@/types/studio-assets";
 import {
+  assetRowsFromBatch,
   buildChapterAssetRows,
+  fetchBatchDatabaseMatches,
   retryScriptAssetBatchRow,
   runChapterScriptAssetGeneration,
   useScriptAssetBatchStore,
@@ -134,7 +137,12 @@ function libraryAsset(name: string, filePath = `tool/${name}-asset.png`) {
   };
 }
 
-function mockBridges(options?: { missingAssetNames?: string[] }) {
+function mockBridges(options?: {
+  missingAssetNames?: string[];
+  /** batchMatch 返回的 {name, asset} 命中集(按类共享;缺省空=库零命中) */
+  dbMatches?: Array<{ name: string; asset: StudioAssetSummary }>;
+  dbMatchError?: Error;
+}) {
   const missing = new Set(options?.missingAssetNames ?? []);
   (window as unknown as Record<string, unknown>).projectFiles = {
     saveImage: vi.fn().mockResolvedValue({ success: true, url: GENERATED_URL, size: 1234 }),
@@ -145,6 +153,20 @@ function mockBridges(options?: { missingAssetNames?: string[] }) {
       missing.has(name) ? null : libraryAsset(name),
     ),
     add: vi.fn(async ({ name }: { name: string }) => libraryAsset(name)),
+    batchMatch: vi.fn(async () => {
+      if (options?.dbMatchError) throw options.dbMatchError;
+      return options?.dbMatches ?? [];
+    }),
+  };
+}
+
+function dbSummary(name: string, thumbnailUrl?: string): StudioAssetSummary {
+  return {
+    id: `db-${name}`,
+    source: "manying-local",
+    type: "tool",
+    name,
+    thumbnailUrl,
   };
 }
 
@@ -504,5 +526,106 @@ describe("行收集口径", () => {
     expect(computeScriptAssetInputFingerprint(character, "ink")).toBe(
       computeScriptAssetInputFingerprint(fresh, "ink"),
     );
+  });
+});
+
+describe("资产库兜底匹配(assets.db fallback,10-19 匹配大 bug 修)", () => {
+  it("assetRowsFromBatch 注入:本地库 miss+库命中 → assetLibrary 带 summary;本地命中行 asset 契约不动", () => {
+    seedAll();
+    const dbMatches = {
+      character: new Map([["监工赵四", dbSummary("监工赵四", "file:///db/zhao4.png")]]),
+      scene: new Map(),
+      prop: new Map(),
+    };
+    const batch: EntityExtractionResult = {
+      id: "extract-inject",
+      episodeId: CHAPTER_ID,
+      sourceId: "src-1",
+      revision: 1,
+      characters: [
+        { characterId: "char-duanbi", name: "断臂散修", aliases: [] },
+        { characterId: "char-zhao4", name: "监工赵四", aliases: [] },
+      ],
+      scenes: [],
+      props: [],
+    };
+    const rows = assetRowsFromBatch(batch, PROJECT_ID, dbMatches);
+    const miss = rows.find((row) => row.name === "监工赵四");
+    expect(miss?.asset).toBeUndefined(); // 本地轻量库查不到(大 bug 的病灶位)
+    expect(miss?.assetLibrary?.id).toBe("db-监工赵四");
+    expect(miss?.assetLibrary?.thumbnailUrl).toBe("file:///db/zhao4.png");
+    const hit = rows.find((row) => row.name === "断臂散修");
+    expect(hit?.asset?.id).toBe("char-duanbi");
+    expect(hit?.assetLibrary).toBeUndefined(); // 未命中不挂
+    const withLib = assetRowsFromBatch(batch, PROJECT_ID, {
+      character: new Map([["断臂散修", dbSummary("断臂散修", "file:///db/x.png")]]),
+      scene: new Map(),
+      prop: new Map(),
+    }).find((row) => row.name === "断臂散修");
+    expect(withLib?.assetLibrary?.id).toBe("db-断臂散修");
+    expect(withLib?.asset?.id).toBe("char-duanbi"); // 本地实体仍在场(toGenerationTask 契约不变)
+  });
+
+  it("fetchBatchDatabaseMatches:三类各一次 IPC,类型映射 character→role/prop→tool,空类不问", async () => {
+    seedAll();
+    mockBridges();
+    const matches = await fetchBatchDatabaseMatches(EXTRACTION_BATCH);
+    const batchMatch = (window as unknown as { studioAssets: { batchMatch: ReturnType<typeof vi.fn> } })
+      .studioAssets.batchMatch;
+    const calls = batchMatch.mock.calls as Array<[{ type: string; names: string[] }]>;
+    expect(calls.map(([payload]) => payload.type)).toEqual(["role", "tool"]); // scene 批为空不问
+    expect(calls[0][0].names).toEqual(["断臂散修"]);
+    expect(calls[1][0].names).toEqual(["青盐鞭", "锁灵链"]);
+    expect(matches.character.size + matches.scene.size + matches.prop.size).toBe(0);
+  });
+
+  it("fetchBatchDatabaseMatches:桥不在/查询抛错 → 空集退化(不炸生成链)", async () => {
+    seedAll();
+    delete (window as unknown as Record<string, unknown>).studioAssets;
+    const noBridge = await fetchBatchDatabaseMatches(EXTRACTION_BATCH);
+    expect(noBridge.character.size).toBe(0);
+    mockBridges({ dbMatchError: new Error("db locked") });
+    const errored = await fetchBatchDatabaseMatches(EXTRACTION_BATCH);
+    expect(errored.prop.size).toBe(0);
+  });
+
+  it("一键生成:库里已有图的实体(本地轻量库查不到)走 skipped-existing,不再派发烧钱", async () => {
+    // 监工赵四只在 assets.db(带图),本地轻量库查不到——旧实现必重生成
+    seedAll({ providers: [LOCAL_PROVIDER], bindings: localBindings() });
+    useStudioStore.setState({
+      entityExtractions: [
+        {
+          id: "extract-db",
+          episodeId: CHAPTER_ID,
+          sourceId: "src-1",
+          revision: 1,
+          characters: [
+            { characterId: "char-zhao4", name: "监工赵四", aliases: [] },
+            { characterId: "char-new", name: "新角色乙", aliases: [] },
+          ],
+          scenes: [],
+          props: [],
+        },
+      ],
+    });
+    mockBridges({
+      dbMatches: [{ name: "监工赵四", asset: dbSummary("监工赵四", "file:///db/zhao4.png") }],
+    });
+    const report = await runBatch();
+    expect(report).not.toBeNull();
+    expect(report?.rows.find((row) => row.name === "监工赵四")?.status).toBe("skipped-existing");
+    expect(report?.rows.find((row) => row.name === "新角色乙")?.status).toBe("success");
+    // 只有新角色乙真派发:监工赵四零任务入账
+    expect(
+      scriptAssetTasks().filter((task) => task.targetId === "character:监工赵四"),
+    ).toHaveLength(0);
+    expect(scriptAssetTasks()).toHaveLength(1);
+  });
+
+  it("兜底为空时行为与现状一致:无 batchMatch 命中 → 全部按本地库口径派发", async () => {
+    seedAll({ providers: [LOCAL_PROVIDER], bindings: localBindings() });
+    mockBridges();
+    const report = await runBatch();
+    expect(report?.rows.map((row) => row.status)).toEqual(["success", "success", "success"]);
   });
 });
