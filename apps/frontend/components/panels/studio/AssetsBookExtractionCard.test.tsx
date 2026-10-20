@@ -178,25 +178,34 @@ describe("格式化", () => {
 });
 
 describe("10-20 改版:入口按钮 + 详情弹窗", () => {
-  it("弹窗默认关闭(面板控件不在文档);入口显示状态标签", () => {
+  it("入口零状态词(10-20 用户令):任何状态下都只显「全书提取」,无 未开始/运行中/已暂停/等待额度/已完成/计数", () => {
     setStore({ status: "idle" });
+    const { unmount } = render(<AssetsBookExtractionCard totalChapters={100} />);
+    const idleEntry = screen.getByTestId("book-extraction-entry").textContent ?? "";
+    unmount();
+
+    setStore({ status: "running", range: [1, 100], counts: COUNTS });
     render(<AssetsBookExtractionCard totalChapters={100} />);
-    const entry = screen.getByTestId("book-extraction-entry");
-    expect(entry.textContent).toContain("全书提取");
-    expect(entry.textContent).toContain("未开始");
+    const runningEntry = screen.getByTestId("book-extraction-entry").textContent ?? "";
+
+    for (const entry of [idleEntry, runningEntry]) {
+      expect(entry).toContain("全书提取");
+      for (const word of ["未开始", "运行中", "已暂停", "等待额度", "已完成", "成功", "剩余"]) {
+        expect(entry, `入口不得出现状态词「${word}」`).not.toContain(word);
+      }
+    }
+    // 弹窗默认关闭:面板控件不在文档
     expect(screen.queryByRole("button", { name: "开始提取" })).toBeNull();
   });
 
-  it("运行中入口摘要实时(状态 + 成功/剩余);点入口开弹窗,面板控件在座", async () => {
+  it("点入口开弹窗,面板控件与运行数据在座(状态只活在弹窗内)", async () => {
     setStore({ status: "running", range: [1, 100], counts: COUNTS });
     render(<AssetsBookExtractionCard totalChapters={100} />);
-    const entry = screen.getByTestId("book-extraction-entry");
-    expect(entry.textContent).toContain("运行中");
-    expect(entry.textContent).toContain("成功 3");
-    expect(entry.textContent).toContain("剩余 95");
     await openBookDialog();
     expect(screen.getByLabelText("起始章")).toBeTruthy();
     expect(screen.getByText("glm-5.3")).toBeTruthy();
+    expect(screen.getByText("成功 3")).toBeTruthy();
+    expect(screen.getByText("剩余 95")).toBeTruthy();
   });
 });
 

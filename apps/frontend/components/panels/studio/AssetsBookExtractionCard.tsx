@@ -1,15 +1,17 @@
 /**
- * C2 全书提取控制面板(父任务 D14/D25;design §7;10-20 用户令改版:详情弹窗形态)。
+ * C2 全书提取控制面板(父任务 D14/D25;design §7;10-20 用户令两轮改版)。
  *
- * 形态(10-20 用户裁定):不占资产提取卡内联位——头行只留一个入口按钮(状态+
- * 运行摘要实时刷新),完整控制面板(起止章/五钮/进度/额度窗口/失败清单)住进
- * 详情弹窗(独立 UI 面)。
+ * 形态(10-20 用户裁定):不占资产提取卡内联位——头行只留一个入口按钮,
+ * 完整控制面板(起止章/五钮/进度/额度窗口/失败清单)住进详情弹窗(独立 UI 面)。
+ * **入口零状态词(10-20 用户令「不要有已暂停的状态,其他状态词也不应该出现」)**:
+ * 按钮恒显「全书提取」二字,不带 未开始/运行中/已暂停/等待额度/已完成 任何状态
+ * 标签与计数;运行状态只通过弹窗内的进度数字与按钮使能表达。
  *
  * 订阅口径:组件不复制 runner 状态——单一真源=useAssetsBookExtractionStore,
  * 由 refresh() 轮询 C1 台账(store/extraction/extraction-run.json,每章落盘)+
  * 单例在飞标记(isEntityExtractionInFlight)推导面板状态;D25 重启收口在读取
  * 侧统一(不在飞时 running/quota_wait 一律视作 paused,由用户点「继续」)。
- * 轮询挂在入口组件(弹窗关闭时也刷,头行摘要实时);表单草稿(起止章)在面板
+ * 轮询挂在入口组件(弹窗关闭时也刷);表单草稿(起止章)在面板
  * 内部,随弹窗关闭重置。
  *
  * 模型只读显示取 runner 实际 resolve 链(entityExtraction → universalAi,镜像
@@ -39,7 +41,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { StatusPill, type StatusPillState } from "@/components/ui/status-pill";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getProjectFilesBridge } from "@/lib/bridge/project-files";
 import {
@@ -294,17 +295,6 @@ export const useAssetsBookExtractionStore = create<AssetsBookExtractionState>()(
 
 // ── 组件 ────────────────────────────────────────────────────────────────────
 
-const STATUS_VIEW: Record<
-  BookExtractionStatus,
-  { pill: StatusPillState; label: string }
-> = {
-  idle: { pill: "unknown", label: "未开始" },
-  running: { pill: "checking", label: "运行中" },
-  paused: { pill: "unknown", label: "已暂停" },
-  quota_wait: { pill: "unknown", label: "等待额度" },
-  done: { pill: "ready", label: "已完成" },
-};
-
 /** 详情弹窗内的完整控制面板(起止章/五钮/进度/额度窗口/失败清单)。 */
 function AssetsBookExtractionPanel({ totalChapters }: { totalChapters: number }) {
   const status = useAssetsBookExtractionStore((state) => state.status);
@@ -489,17 +479,15 @@ function AssetsBookExtractionPanel({ totalChapters }: { totalChapters: number })
 }
 
 /**
- * 入口 + 详情弹窗(10-20 用户裁定):入口=资产提取卡头行按钮(状态与运行摘要
- * 实时刷新,轮询挂本组件,弹窗关闭也不停);完整控制面板在弹窗内。
+ * 入口 + 详情弹窗(10-20 用户裁定):入口=资产提取卡头行按钮,恒显「全书提取」
+ * 二字零状态词(轮询仍挂本组件保台账读取);完整控制面板在弹窗内。
  */
 export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: number }) {
-  const status = useAssetsBookExtractionStore((state) => state.status);
-  const counts = useAssetsBookExtractionStore((state) => state.counts);
   const refresh = useAssetsBookExtractionStore((state) => state.refresh);
   const projectId = useProjectStore((state) => state.activeProjectId);
 
-  // 轮询订阅:挂载即读一次(App 重启后恢复 paused 视图),运行期每 2s 刷——
-  // 挂入口组件,弹窗关闭时头行摘要仍实时
+  // 轮询订阅:挂载即读一次(App 重启后恢复暂停视图),运行期每 2s 刷——
+  // 挂入口组件,弹窗关闭时面板数据仍实时
   useEffect(() => {
     void refresh(projectId ?? undefined);
     const timer = window.setInterval(() => {
@@ -509,8 +497,6 @@ export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: num
   }, [projectId, refresh]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const statusView = STATUS_VIEW[status];
-  const busy = status === "running" || status === "quota_wait";
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -524,11 +510,6 @@ export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: num
         >
           <BookText className="h-4 w-4 text-primary" />
           <span>全书提取</span>
-          <span className="text-xs font-normal text-muted-foreground">
-            {busy
-              ? `${statusView.label} · 成功 ${counts.success} · 剩余 ${counts.pending}`
-              : statusView.label}
-          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[680px]">
@@ -536,7 +517,6 @@ export function AssetsBookExtractionCard({ totalChapters }: { totalChapters: num
           <DialogTitle className="flex items-center gap-2">
             <BookText className="h-4 w-4 text-primary" />
             全书提取
-            <StatusPill state={statusView.pill} label={statusView.label} />
           </DialogTitle>
           <DialogDescription>
             逐章提取角色/场景/道具并入三库,断点续跑
