@@ -131,13 +131,11 @@ export function registerProjectFileIpcHandlers({
       if (!fs.existsSync(fromPath)) {
         return { success: false, error: "源路径不存在" };
       }
-      if (fs.existsSync(toPath) && payload.replaceExisting === false) {
-        // 10-19 冲突修复:默认从「目标已存在则拒绝」改为「覆写」——提取台账的
-        // 原子写(tmp→move)和资产晋升入库都需要覆写已存在的目标;仅显式传
-        // replaceExisting:false 才拒绝(原 default reject 误伤所有未传参调用方)
+      if (fs.existsSync(toPath) && payload.replaceExisting !== true) {
+        // 缺省或 false 保持拒绝覆盖;仅 replaceExisting:true 显式启用普通文件原子替换。
         return { success: false, error: "目标路径已存在" };
       }
-      if (fs.existsSync(toPath)) {
+      if (payload.replaceExisting === true) {
         const source = fs.lstatSync(fromPath);
         const target = fs.lstatSync(toPath, { throwIfNoEntry: false });
         if (!source.isFile() || (target && !target.isFile())) {

@@ -12,13 +12,46 @@ _lock 下摘旧引用,守卫/启动线程照常 spawn+转正=「停止后引擎�
 from __future__ import annotations
 
 import json
+import subprocess
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 
 from engines.comfyui import engine_manager as em
 from engines.comfyui import manifest as cm
+
+
+@pytest.fixture(autouse=True)
+def _isolate_engine_side_effects(tmp_path, monkeypatch):
+    unexpected_calls = []
+
+    def forbid(operation):
+        def unexpected(*args, **kwargs):
+            unexpected_calls.append(operation)
+            pytest.fail(f"unregistered engine side effect: {operation}")
+        return unexpected
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.setenv("TMP", str(tmp_path))
+    monkeypatch.setenv("TEMP", str(tmp_path))
+    for name in ("Popen", "run", "call", "check_call", "check_output"):
+        monkeypatch.setattr(subprocess, name, forbid(f"subprocess.{name}"))
+    for name in ("_get_json", "urlopen_outbound", "_engine_home_processes",
+                 "_port_listener_pids", "_pid_alive", "_pid_command",
+                 "_signal_pid_group", "_terminate_pids", "_stop_engine_proc",
+                 "_spawn_engine_watchdog"):
+        monkeypatch.setattr(em, name, forbid(name))
+    monkeypatch.setattr(em.request, "urlopen", forbid("urllib.request.urlopen"))
+    monkeypatch.setattr(em.socket, "socket", forbid("socket.socket"))
+    monkeypatch.setattr(em.os, "kill", forbid("os.kill"))
+    monkeypatch.setattr(em.os, "killpg", forbid("os.killpg"), raising=False)
+    monkeypatch.setattr(em.bridge_contract, "resolve_bridge_token", forbid("resolve_bridge_token"))
+    yield
+    assert unexpected_calls == [], "unregistered side effects must not be swallowed"
 
 
 @pytest.fixture()
@@ -44,18 +77,42 @@ class FakeProc:
         return 0 if self.stopped else None
 
 
-def _stub_spawn_path(monkeypatch, mgr, popen):
+def _stub_spawn_path(monkeypatch, mgr, popen, *, bridge=False, token_mismatch=False):
     monkeypatch.setattr(em, "resolve_launch_port", lambda *a, **k: 17001)
     # 0929 动态续接:进程枚举=空(本文件测停止代数/竞态,popen 计数器是
     # spawn 次数度量器,真跑 ps 会经 subprocess.run 内部 Popen 污染计数)
     monkeypatch.setattr(em, "_engine_home_processes", lambda: [])
     monkeypatch.setattr(mgr, "_orphan_is_comfyui", lambda port: False)
-    monkeypatch.setattr(em.subprocess, "Popen", popen)
+    monkeypatch.setattr(mgr, "_engine_speaks_bridge", lambda port: bridge)
+    monkeypatch.setattr(mgr, "_adopt_token_mismatch", lambda port: token_mismatch)
+    monkeypatch.setattr(em.bridge_contract, "resolve_bridge_token", lambda: "stop-race-test-token")
+    subprocess_stub = SimpleNamespace(**vars(subprocess))
+    subprocess_stub.Popen = popen
+    monkeypatch.setattr(em, "subprocess", subprocess_stub)
     monkeypatch.setattr(em, "_spawn_engine_watchdog", lambda *a: None)
     monkeypatch.setattr(mgr, "is_healthy", lambda port=None, timeout=2.0: True)
     monkeypatch.setattr(mgr, "_enable_guard", lambda: None)
     monkeypatch.setattr(mgr, "node_count", lambda: 0)
     monkeypatch.setattr(em, "_write_extra_model_paths", lambda *a: None)
+
+
+def test_spawn_stub_does_not_replace_global_popen(home, monkeypatch):
+    mgr = em.EngineManager()
+    original_popen = subprocess.Popen
+    _stub_spawn_path(monkeypatch, mgr, lambda *args, **kwargs: FakeProc())
+    assert subprocess.Popen is original_popen
+
+
+@pytest.mark.parametrize("probe_name", ["_engine_speaks_bridge", "_adopt_token_mismatch"])
+def test_spawn_stub_pins_orphan_probes_without_http(home, monkeypatch, probe_name):
+    mgr = em.EngineManager()
+    _stub_spawn_path(monkeypatch, mgr, lambda *args, **kwargs: FakeProc())
+
+    def unexpected_http(*args, **kwargs):
+        pytest.fail("spawn stub must isolate bridge and token probes from HTTP")
+
+    monkeypatch.setattr(em, "_get_json", unexpected_http)
+    assert getattr(mgr, probe_name)(17001) is False
 
 
 def test_stop_during_startup_health_aborts_start(home, monkeypatch):
@@ -500,11 +557,71 @@ def test_start_rejects_health_response_when_process_dies(home, monkeypatch, fast
 
 def test_restart_does_not_claim_to_restart_adopted_external_process(home, monkeypatch):
     mgr = em.EngineManager()
-    spawned = []
-    _stub_spawn_path(monkeypatch, mgr, lambda *a, **k: spawned.append(True) or FakeProc())
+    spawned, retired, signals = [], [], []
+    _stub_spawn_path(monkeypatch, mgr, lambda *args, **kwargs: spawned.append(True) or FakeProc(),
+                     bridge=False, token_mismatch=False)
+    monkeypatch.setattr(mgr, "_orphan_is_comfyui", lambda _: True)
+    monkeypatch.setattr(mgr, "_retire_orphan_engine", lambda *args, **kwargs: retired.append(args) or False)
+    monkeypatch.setattr(em, "_signal_pid_group", lambda *args: signals.append(args))
+    monkeypatch.setattr(em.time, "sleep", lambda _: None)
+    assert mgr.start_sync()["adopted"] is True
+    assert mgr._proc is None
+    with pytest.raises(em.EngineOpError, match="接管|外部"):
+        mgr.restart()
+    assert retired == []
+    assert signals == []
+    assert spawned == []
+
+
+@pytest.mark.parametrize("enumeration, listeners, terminated, expected_error", [
+    ([], [424242], True, None),
+    (None, [424242], True, "枚举不可用"),
+    ([], [], True, "无法停止"),
+    ([], [424242], False, "无法停止"),
+])
+def test_restart_of_bridge_orphan_requires_safe_retirement(
+    home, monkeypatch, enumeration, listeners, terminated, expected_error,
+):
+    mgr = em.EngineManager()
+    events = []
+
+    def popen(*args, **kwargs):
+        events.append("spawn")
+        return FakeProc()
+
+    _stub_spawn_path(monkeypatch, mgr, popen, bridge=True, token_mismatch=False)
     monkeypatch.setattr(mgr, "_orphan_is_comfyui", lambda _: True)
     monkeypatch.setattr(em.time, "sleep", lambda _: None)
     assert mgr.start_sync()["adopted"] is True
-    with pytest.raises(em.EngineOpError, match="接管|外部"):
-        mgr.restart()
-    assert spawned == []
+    monkeypatch.setattr(em, "_engine_home_processes", lambda: enumeration)
+
+    def listener_pids(port):
+        assert port == 17001
+        events.append("listeners")
+        return listeners
+
+    def terminate_pids(pids):
+        assert pids == [424242]
+        events.append("retire")
+        return terminated
+
+    monkeypatch.setattr(em, "_port_listener_pids", listener_pids)
+    monkeypatch.setattr(em, "_terminate_pids", terminate_pids)
+    if expected_error is not None:
+        with pytest.raises(em.EngineOpError, match=expected_error):
+            mgr.restart()
+        expected_events = []
+        if enumeration is not None:
+            expected_events.append("listeners")
+            if listeners:
+                expected_events.append("retire")
+        assert events == expected_events
+        assert mgr._proc is None
+    else:
+        try:
+            assert mgr.restart()["running"] is True
+            assert events == ["listeners", "retire", "spawn"]
+            assert isinstance(mgr._proc, FakeProc)
+        finally:
+            if mgr._log_file is not None:
+                mgr._log_file.close()

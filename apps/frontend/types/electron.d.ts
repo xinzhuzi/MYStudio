@@ -346,7 +346,7 @@ declare global {
         size?: number;
         error?: string;
       }>;
-      move: (payload: { projectId: string; fromRelative: string; toRelative: string }) => Promise<{
+      move: (payload: { projectId: string; fromRelative: string; toRelative: string; replaceExisting?: boolean }) => Promise<{
         success: boolean;
         url?: string;
         error?: string;

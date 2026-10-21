@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   stat: vi.fn(async () => ({ size: 6 })),
   unlink: vi.fn(async () => undefined),
   renameSync: vi.fn(),
+  lstatSync: vi.fn((_target?: unknown, _options?: unknown): { isFile: () => boolean } => ({ isFile: () => true })),
   rm: vi.fn(async () => undefined),
 }));
 
@@ -32,6 +33,7 @@ vi.mock("node:fs", () => ({
       rm: mocks.rm,
     },
     renameSync: mocks.renameSync,
+    lstatSync: mocks.lstatSync,
   },
 }));
 
@@ -43,6 +45,7 @@ describe("registerProjectFileIpcHandlers", () => {
     mocks.handlers.clear();
     vi.clearAllMocks();
     mocks.existsSync.mockReturnValue(true);
+    mocks.lstatSync.mockReturnValue({ isFile: () => true });
     mocks.readFile.mockResolvedValue(Buffer.from("image"));
     registerProjectFileIpcHandlers({
       getDataDir: () => "/data",
@@ -168,6 +171,76 @@ describe("registerProjectFileIpcHandlers", () => {
       mimeType: "image/png",
       size: 5,
     });
+  });
+
+  it("atomically replaces existing regular files only with explicit opt-in", async () => {
+    const move = mocks.handlers.get("project-file-move")!;
+    const payload = {
+      projectId: "project-a",
+      fromRelative: "store/extraction/extraction-run.json.tmp",
+      toRelative: "store/extraction/extraction-run.json",
+    };
+
+    await expect(move({}, { ...payload, replaceExisting: false })).resolves.toMatchObject({
+      success: false, error: "目标路径已存在",
+    });
+    expect(mocks.renameSync).not.toHaveBeenCalled();
+    await expect(move({}, { ...payload, replaceExisting: true })).resolves.toMatchObject({ success: true });
+    expect(mocks.renameSync).toHaveBeenCalledWith(
+      "/data/_p/project-a/store/extraction/extraction-run.json.tmp",
+      "/data/_p/project-a/store/extraction/extraction-run.json",
+    );
+    expect(mocks.unlink).not.toHaveBeenCalled();
+    expect(mocks.rm).not.toHaveBeenCalled();
+  });
+
+  it.each(["source", "target"])("rejects a non-regular %s during replacement", async (nonRegular) => {
+    mocks.lstatSync.mockImplementation((target) => ({
+      isFile: () => nonRegular === "source" ? !String(target).endsWith(".tmp") : String(target).endsWith(".tmp"),
+    }));
+    await expect(mocks.handlers.get("project-file-move")!({}, {
+      projectId: "project-a",
+      fromRelative: "store/extraction/ledger.json.tmp",
+      toRelative: "store/extraction/ledger.json",
+      replaceExisting: true,
+    })).resolves.toMatchObject({ success: false });
+    expect(mocks.renameSync).not.toHaveBeenCalled();
+  });
+
+  it.each(["fromRelative", "toRelative"])("rejects replacement path escape in %s", async (field) => {
+    await expect(mocks.handlers.get("project-file-move")!({}, {
+      projectId: "project-a",
+      fromRelative: "store/extraction/ledger.json.tmp",
+      toRelative: "store/extraction/ledger.json",
+      replaceExisting: true,
+      [field]: "../../outside.json",
+    })).resolves.toMatchObject({ success: false });
+    expect(mocks.renameSync).not.toHaveBeenCalled();
+  });
+
+  it("rejects an opt-in directory source even when the target is absent", async () => {
+    mocks.existsSync.mockImplementation((target) => String(target).endsWith(".tmp"));
+    mocks.lstatSync.mockReturnValue({ isFile: () => false });
+    await expect(mocks.handlers.get("project-file-move")!({}, {
+      projectId: "project-a",
+      fromRelative: "store/extraction/ledger.json.tmp",
+      toRelative: "store/extraction/ledger.json",
+      replaceExisting: true,
+    })).resolves.toMatchObject({ success: false });
+    expect(mocks.renameSync).not.toHaveBeenCalled();
+  });
+
+  it("returns rename errors without deleting either file", async () => {
+    mocks.renameSync.mockImplementationOnce(() => { throw new Error("EACCES: rename denied"); });
+    await expect(mocks.handlers.get("project-file-move")!({}, {
+      projectId: "project-a",
+      fromRelative: "store/extraction/ledger.json.tmp",
+      toRelative: "store/extraction/ledger.json",
+      replaceExisting: true,
+    })).resolves.toMatchObject({ success: false, error: "EACCES: rename denied" });
+    expect(mocks.renameSync).toHaveBeenCalledTimes(1);
+    expect(mocks.unlink).not.toHaveBeenCalled();
+    expect(mocks.rm).not.toHaveBeenCalled();
   });
 });
 

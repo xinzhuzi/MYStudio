@@ -168,7 +168,7 @@ export interface ProjectFilesBridge {
     error?: string;
   }>;
   writeText: (key: string, value: string) => Promise<{ success: boolean; error?: string }>;
-  move: (payload: { projectId: string; fromRelative: string; toRelative: string }) => Promise<{
+  move: (payload: { projectId: string; fromRelative: string; toRelative: string; replaceExisting?: boolean }) => Promise<{
     success: boolean;
     error?: string;
   }>;
@@ -191,7 +191,7 @@ export function createElectronLedgerStorage(
       if (!result.success) throw new Error(result.error ?? `writeText failed: ${relativePath}`);
     },
     async move(fromRelative, toRelative) {
-      const result = await bridge.move({ projectId, fromRelative, toRelative });
+      const result = await bridge.move({ projectId, fromRelative, toRelative, replaceExisting: true });
       if (!result.success) throw new Error(result.error ?? `move failed: ${fromRelative}`);
     },
   };

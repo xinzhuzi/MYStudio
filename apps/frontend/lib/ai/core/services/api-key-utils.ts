@@ -17,15 +17,20 @@ export function generateId(): string {
 // 1013:分隔符收编全角(，、；;)——中文输入法下录入的多 key 串切不开时,
 // 整串(含全角字符)进 Bearer 头会在 Headers.set 抛「非 ISO-8859-1」(装机
 // 实弹 mikoto 构造期炸/凡人缝合串 403 无权的双重根因)。
-// 1021 补刀:分隔类再收编 空格/Tab/全角空格U+3000/零宽U+200B-200D/BOM——
-// 「sk-a sk-b」(半角空格)与「sk-a<全角空格>sk-b」式粘贴切不开,整串进 Bearer
-// 同样炸 Headers
-// (1020 装机实弹 fanren/mikoto/ikun 三渠道 4 行失败的根因);段内零宽不可
-// 见字符一并剥离(隐形粘贴污染),可见中文字符保留(注记属用户可见内容,留给
-// 401/掩码日志现形,不静默改写)。
+// 1021 补刀①:分隔类再收编 空格/Tab/全角空格U+3000——「sk-a sk-b」(半角空格)
+// 与「sk-a<全角空格>sk-b」式粘贴切不开,整串进 Bearer 同样炸 Headers
+// (1020 装机实弹 fanren/mikoto/ikun 三渠道 4 行失败的根因);段内零宽不可见
+// 字符一并剥离(隐形粘贴污染)。
+// 1021 补刀②(实弹反证后反转):段内含非可打印 ASCII 的段=无效 key,直接剔除——
+// 真实 API key 恒为 ASCII(0x21-0x7E);「sk-abc（备用）」式带中文注记的段整段
+// 进 Bearer 必炸 Headers.set(1020-21 两轮装机实弹 totalKeys=2 每段皆炸的实锤)。
+// 剔除后 key 轮换落到干净段,或干净地报「无可用 Key」指路设置——永不把垃圾段
+// 塞进请求头。
 const KEY_SEPARATORS = /[,，、\n\r\t;； \u3000]/;
 // eslint-disable-next-line no-misleading-character-class -- 零宽字符类本意即逐个精确匹配剥离(\u200c/\u200d 为 ZWJ/ZWNJ 本尊,非误导序列)
 const INVISIBLE_CHARS = /[\u200b\u200c\u200d\ufeff]/g;
+/** 可打印 ASCII 之外出现任何字符的 key 段视为无效(API key 恒 ASCII)。 */
+const NON_ASCII = /[^\x21-\x7e]/;
 
 export function parseApiKeys(apiKey: string): string[] {
   if (!apiKey) return [];
@@ -35,7 +40,7 @@ export function parseApiKeys(apiKey: string): string[] {
     .replace(INVISIBLE_CHARS, "")
     .split(KEY_SEPARATORS)
     .map(k => k.trim())
-    .filter(k => k.length > 0);
+    .filter(k => k.length > 0 && !NON_ASCII.test(k));
 }
 
 /**

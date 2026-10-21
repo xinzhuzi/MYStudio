@@ -139,6 +139,22 @@ describe("entity-appearances · 别名跨章归并闭合(AC13,「监工赵四↔
     expect(index["character:监工赵四"].chapterIds).toEqual(["chapter-001", "chapter-002"]);
   });
 
+  it("同一泛用别名被多实体共用时跨章不并条(10-20 修:别名↔别名禁止)", () => {
+    let index = mergeChapterAppearances({}, "chapter-001", [
+      rec("character", "绯樱", ["符音"]),
+      rec("character", "晏燎", ["符音"]),
+    ]);
+    expect(Object.keys(index).sort()).toEqual(["character:晏燎", "character:绯樱"]);
+
+    index = mergeChapterAppearances(index, "chapter-002", [
+      rec("character", "绯樱", ["符音"]),
+      rec("character", "晏燎", ["符音"]),
+    ]);
+    expect(Object.keys(index).sort()).toEqual(["character:晏燎", "character:绯樱"]);
+    expect(index["character:绯樱"].chapterIds).toEqual(["chapter-001", "chapter-002"]);
+    expect(index["character:晏燎"].chapterIds).toEqual(["chapter-001", "chapter-002"]);
+  });
+
   it("kind 隔离:同名不同 kind 不并(character:甲 ≠ prop:甲)", () => {
     let index = mergeChapterAppearances({}, "chapter-001", [rec("character", "甲")]);
     index = mergeChapterAppearances(index, "chapter-002", [rec("prop", "甲")]);

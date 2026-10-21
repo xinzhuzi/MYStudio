@@ -736,8 +736,9 @@ export interface EntityExtractionResult extends StudioSourceIdentity {
      */
     importance?: "protagonist" | "supporting" | "npc";
   }[];
-  scenes: { sceneId: string; name: string; note?: string }[];
-  props: { assetId: string; name: string; note?: string }[];
+  /** 10-20 补:场景/道具别名随批留痕(与角色同口径);存量分片无此字段=空。 */
+  scenes: { sceneId: string; name: string; aliases?: string[]; note?: string }[];
+  props: { assetId: string; name: string; aliases?: string[]; note?: string }[];
 }
 
 export interface ScriptPlan extends StudioSourceIdentity {

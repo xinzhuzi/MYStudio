@@ -85,36 +85,89 @@ function mergeImportance(
   return IMPORTANCE_RANK[incoming] > IMPORTANCE_RANK[current] ? incoming : current;
 }
 
-/** 与既有条目做 name/别名 归一交叉匹配(同 kind;dedupeEntities 同款匹配面)。 */
+/** 索引别名反查表(10-20 修:只提供「主名↔单一别名」匹配,别名↔别名一律不并)。 */
+export interface AppearanceLookup {
+  /** `kind:normAlias` → 声明该别名的条目键集合。 */
+  aliasOwners: Map<string, Set<string>>;
+}
+
+export function createAppearanceLookup(index: EntityAppearanceIndex): AppearanceLookup {
+  const aliasOwners = new Map<string, Set<string>>();
+  for (const [key, entry] of Object.entries(index)) {
+    for (const alias of entry.aliases) {
+      const token = normalizeName(alias);
+      if (!token) continue;
+      const aliasKey = `${entry.kind}:${token}`;
+      const owners = aliasOwners.get(aliasKey) ?? new Set<string>();
+      owners.add(key);
+      aliasOwners.set(aliasKey, owners);
+    }
+  }
+  return { aliasOwners };
+}
+
+function registerAliases(
+  lookup: AppearanceLookup,
+  key: string,
+  entry: EntityAppearanceEntry,
+): void {
+  for (const alias of entry.aliases) {
+    const token = normalizeName(alias);
+    if (!token) continue;
+    const aliasKey = `${entry.kind}:${token}`;
+    const owners = lookup.aliasOwners.get(aliasKey) ?? new Set<string>();
+    owners.add(key);
+    lookup.aliasOwners.set(aliasKey, owners);
+  }
+}
+
+/**
+ * 与既有条目做身份匹配(同 kind):主名=主名 → 主名=唯一别名 → 唯一未抢占别名=主名。
+ * 别名↔别名不匹配(旧实现同款交叉命中是跨章吞名源)。
+ */
 function findMatchingEntry(
   index: EntityAppearanceIndex,
   record: AppearanceRecordInput,
+  lookup: AppearanceLookup,
 ): string | null {
-  const recordKeys = new Set(
-    [record.name, ...record.aliases].map(normalizeName).filter(Boolean),
-  );
-  for (const [key, entry] of Object.entries(index)) {
-    if (entry.kind !== record.kind) continue;
-    const entryNames = [entry.name, ...entry.aliases].map(normalizeName);
-    if (entryNames.some((value) => recordKeys.has(value))) return key;
+  const nameToken = normalizeName(record.name);
+  if (!nameToken) return null;
+  const primaryKey = `${record.kind}:${nameToken}`;
+  if (index[primaryKey]) return primaryKey;
+
+  const nameOwners = lookup.aliasOwners.get(primaryKey);
+  if (nameOwners?.size === 1) return [...nameOwners][0]!;
+
+  const candidates = new Set<string>();
+  for (const alias of record.aliases) {
+    const token = normalizeName(alias);
+    if (!token) continue;
+    const key = `${record.kind}:${token}`;
+    if (!index[key]) continue;
+    // 该 token 同时被任何条目当别名 → 归属不清,不按它并条
+    const owners = lookup.aliasOwners.get(key);
+    if (owners && owners.size > 0) continue;
+    candidates.add(key);
   }
-  return null;
+  return candidates.size === 1 ? [...candidates][0]! : null;
 }
 
-/** 按 name/别名归一交叉匹配定位条目键(C1 集成 Step 9 增量导出:runner 晋升
- * 判定需要拿到合并后的索引条目;匹配面=findMatchingEntry 本体,零新语义)。 */
+/** 按身份匹配定位条目键(C1 集成 Step 9 增量导出:runner 晋升判定需要拿到
+ * 合并后的索引条目;lookup 可由调用方建一次复用,缺省现建)。 */
 export function findAppearanceEntryKey(
   index: EntityAppearanceIndex,
   record: AppearanceRecordInput,
+  lookup: AppearanceLookup = createAppearanceLookup(index),
 ): string | null {
-  return findMatchingEntry(index, record);
+  return findMatchingEntry(index, record, lookup);
 }
 
 /** 单章提取记录并入索引(幂等并集语义;不可变更新)。
  *
- * 匹配规则=同 kind 下 name/别名 归一交叉命中——第 2 章主名「监工赵四」、
- * 别名含「赵四」时命中第 1 章的「赵四」条目,并入同一条(AC13 闭合);
- * 反向形态(先「监工赵四」后「赵四」)同理由 entry.aliases 命中。
+ * 匹配规则=主名=主名、主名=唯一别名、唯一未抢占别名=主名——第 2 章主名
+ * 「监工赵四」、别名含「赵四」时命中第 1 章的「赵四」条目,并入同一条(AC13 闭合);
+ * 反向形态(先「监工赵四」后「赵四」)由 entry.aliases 命中。别名↔别名不匹配:
+ * 泛用别名被多实体共用时并条会吞掉后续主名(10-20 实杀)。
  */
 export function mergeChapterAppearances(
   index: EntityAppearanceIndex,
@@ -122,10 +175,11 @@ export function mergeChapterAppearances(
   records: AppearanceRecordInput[],
 ): EntityAppearanceIndex {
   const next: EntityAppearanceIndex = { ...index };
+  const lookup = createAppearanceLookup(next);
 
   for (const record of records) {
     if (!record.name.trim()) continue;
-    const matchKey = findMatchingEntry(next, record);
+    const matchKey = findMatchingEntry(next, record, lookup);
     const key = matchKey ?? appearanceKey(record.kind, record.name);
 
     const existing = next[key];
@@ -138,6 +192,7 @@ export function mergeChapterAppearances(
         firstChapterId: chapterId,
         chapterIds: [chapterId],
       };
+      registerAliases(lookup, key, next[key]!);
       continue;
     }
 
@@ -150,6 +205,7 @@ export function mergeChapterAppearances(
       firstChapterId: [existing.firstChapterId, ...chapterIds].sort(byChapterNumber)[0]!,
       chapterIds,
     };
+    registerAliases(lookup, key, next[key]!);
   }
 
   return next;

@@ -79,7 +79,7 @@ describe("studio entity sync bridge", () => {
     const entities: DedupedEntity[] = [
       { id: null, isNew: true, kind: "character", name: "小红", aliases: ["红儿"], episodeIds: ["ep1"] },
       { id: "char-001", isNew: false, kind: "character", name: "小明", aliases: [], episodeIds: ["ep1"] },
-      { id: null, isNew: true, kind: "scene", name: "咖啡厅", aliases: [], episodeIds: ["ep1"] },
+      { id: null, isNew: true, kind: "scene", name: "咖啡厅", aliases: ["咖啡馆"], episodeIds: ["ep1"] },
       { id: null, isNew: true, kind: "prop", name: "账册", aliases: ["旧账本"], episodeIds: ["ep1"] },
     ];
 
@@ -117,15 +117,17 @@ describe("studio entity sync bridge", () => {
     // 不再被最近章覆盖——update 载荷不再携带 linkedEpisodeId(旧断言 updates.linkedEpisodeId==="ep1"
     // 锚的是「覆盖为最近章」旧语义,随动删除)。
 
-    // scene created
+    // scene created; aliases persist in the batch record (10-20 修)
     const cafe = result.scenes.find((s) => s.name === "咖啡厅");
     expect(cafe?.sceneId).toBe("scene_new_1");
+    expect(cafe?.aliases).toEqual(["咖啡馆"]);
     expect(calls.addScene).toHaveLength(1);
     expect(calls.addScene[0]?.folderId).toBe("scene_folder_1");
 
-    // prop stays lightweight: no store call, deterministic assetId
+    // prop stays lightweight: no store call, deterministic assetId; aliases persist
     const ledger = result.props.find((p) => p.name === "账册");
     expect(ledger?.assetId).toBeTruthy();
+    expect(ledger?.aliases).toEqual(["旧账本"]);
 
     // counts
     expect(summary.created).toBe(3); // 小红 + 咖啡厅 + 账册
@@ -261,7 +263,7 @@ describe("studio entity sync bridge", () => {
         isNew: true,
         kind: "scene",
         name: "山门",
-        aliases: [],
+        aliases: ["山门旧址"],
         episodeIds: ["ep1"],
         promoted: false,
       },
@@ -270,7 +272,7 @@ describe("studio entity sync bridge", () => {
         isNew: true,
         kind: "prop",
         name: "长剑",
-        aliases: [],
+        aliases: ["青锋剑"],
         episodeIds: ["ep1"],
         promoted: false,
       },
@@ -295,8 +297,12 @@ describe("studio entity sync bridge", () => {
       characterId: "char-ep1-1",
       aliases: [],
     });
-    expect(result.scenes[0]).toMatchObject({ name: "山门", sceneId: "scene-ep1-1" });
-    expect(result.props[0]).toMatchObject({ name: "长剑" });
+    expect(result.scenes[0]).toMatchObject({
+      name: "山门",
+      sceneId: "scene-ep1-1",
+      aliases: ["山门旧址"],
+    });
+    expect(result.props[0]).toMatchObject({ name: "长剑", aliases: ["青锋剑"] });
     expect(result.props[0]?.assetId).toMatch(/^prop-ep1-\d+$/);
     // 计数:deferred 独立,不算 created/merged
     expect(summary).toMatchObject({ created: 0, merged: 0, deferred: 3 });

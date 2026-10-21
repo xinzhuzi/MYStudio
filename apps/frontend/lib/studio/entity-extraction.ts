@@ -172,40 +172,43 @@ export function parseAliasesFromNotes(notes?: string): string[] {
   );
 }
 
+/**
+ * 批内身份匹配(10-20 修):只认「主名↔主名」「主名↔单一别名」「单一别名↔主名」,
+ * 禁止别名↔别名。旧实现任一名/别名交叉命中即并,导致同一泛用别名(符音/妇人/OS)
+ * 把不同实体并成一条、后续实体主名消失;1438 章「绯樱/晏燎同挂符音」实杀。
+ * 歧义守卫:被多行共用的别名不参与匹配(反向形态「红儿→小红」仍由唯一别名命中)。
+ */
 export function dedupeEntities(
   extracted: ExtractedEntity[],
   known: KnownEntity[] = [],
 ): DedupeEntitiesResult {
   const merged: DedupedEntity[] = [];
+  const batchLookup = buildBatchLookup(extracted);
+  const knownLookup = buildKnownLookup(known);
 
   for (const item of extracted) {
-    const keys = entityKeys(item.kind, item.name, item.aliases);
-
-    const existing = merged.find(
-      (candidate) => candidate.kind === item.kind && shareKey(candidate, keys),
-    );
+    const existing = findBatchMatch(merged, item, batchLookup);
     if (existing) {
-      existing.aliases = uniqueList([...existing.aliases, ...item.aliases]);
+      existing.aliases = uniqueList([...existing.aliases, item.name, ...item.aliases]).filter(
+        (alias) => normalizeName(alias) !== normalizeName(existing.name),
+      );
       existing.episodeIds = uniqueList([...existing.episodeIds, ...item.episodeIds]);
       if (!existing.note && item.note) existing.note = item.note;
       continue;
     }
 
-    const knownMatch = known.find(
-      (candidate) =>
-        candidate.kind === item.kind &&
-        [candidate.name, ...candidate.aliases].some((value) => keys.has(normalizeName(value))),
-    );
-
+    const knownMatch = findKnownMatch(item, knownLookup);
+    // 1013 修:已知别名并进输出实体(跨轮匹配面),仅滤与库规范名同归一的冗余 token。
+    // 不按模型主名滤——模型名≠库名(赵四/监工赵四 主场景)时滤主名会断掉第二轮
+    // 闭合→重复建库;主名保留在别名列是跨轮匹配的必要信息(实跑验证闭合保持)。
+    // 10-20 加守门:被多个已知实体共用/本身是他人规范名的别名不回灌(苏无忌吞独孤类污染)。
+    const knownAliases = knownMatch ? safeKnownAliases(knownMatch, knownLookup) : [];
     merged.push({
       id: knownMatch?.id ?? null,
       isNew: !knownMatch,
       kind: item.kind,
       name: item.name,
-      // 1013 修:已知别名并进输出实体(跨轮匹配面),仅滤与库规范名同归一的冗余 token。
-      // 不按模型主名滤——模型名≠库名(赵四/监工赵四 主场景)时滤主名会断掉第二轮
-      // 闭合→重复建库;主名保留在别名列是跨轮匹配的必要信息(实跑验证闭合保持)
-      aliases: uniqueList([...item.aliases, ...(knownMatch?.aliases ?? [])]).filter(
+      aliases: uniqueList([...item.aliases, ...knownAliases]).filter(
         (alias) => !(knownMatch && normalizeName(alias) === normalizeName(knownMatch.name)),
       ),
       episodeIds: item.episodeIds,
@@ -216,15 +219,180 @@ export function dedupeEntities(
   return { entities: merged };
 }
 
-function entityKeys(_kind: EntityKind, name: string, aliases: string[]): Set<string> {
-  return new Set([name, ...aliases].map(normalizeName).filter(Boolean));
+interface BatchLookup {
+  /** `kind:normAlias` → 声明该别名的行主键集合(行主键=`kind:normName`)。 */
+  aliasOwners: Map<string, Set<string>>;
 }
 
-function shareKey(entity: DedupedEntity, keys: Set<string>): boolean {
-  for (const key of [entity.name, ...entity.aliases].map(normalizeName)) {
-    if (keys.has(key)) return true;
+function rowKey(item: ExtractedEntity): string {
+  return `${item.kind}:${normalizeName(item.name)}`;
+}
+
+function buildBatchLookup(extracted: ExtractedEntity[]): BatchLookup {
+  const aliasOwners = new Map<string, Set<string>>();
+  for (const item of extracted) {
+    const owner = rowKey(item);
+    for (const alias of item.aliases) {
+      const token = normalizeName(alias);
+      if (!token) continue;
+      const key = `${item.kind}:${token}`;
+      const owners = aliasOwners.get(key) ?? new Set<string>();
+      owners.add(owner);
+      aliasOwners.set(key, owners);
+    }
   }
-  return false;
+  return { aliasOwners };
+}
+
+/** 主名命中别名时:除本行外只有候选条目声明该别名(=唯一归属,可并)。 */
+function isUnambiguousAlias(
+  item: ExtractedEntity,
+  token: string,
+  lookup: BatchLookup,
+): boolean {
+  const owners = lookup.aliasOwners.get(`${item.kind}:${token}`);
+  if (!owners) return false;
+  const self = rowKey(item);
+  let foreign = 0;
+  for (const owner of owners) if (owner !== self) foreign += 1;
+  return foreign === 1;
+}
+
+/** 入别名命中主名时:除本行外无其他行把该 token 当别名(=未被抢占,可并)。 */
+function isUnclaimedAlias(
+  item: ExtractedEntity,
+  token: string,
+  lookup: BatchLookup,
+): boolean {
+  const owners = lookup.aliasOwners.get(`${item.kind}:${token}`);
+  if (!owners) return true;
+  const self = rowKey(item);
+  for (const owner of owners) if (owner !== self) return false;
+  return true;
+}
+
+function findBatchMatch(
+  merged: DedupedEntity[],
+  item: ExtractedEntity,
+  lookup: BatchLookup,
+): DedupedEntity | undefined {
+  const nameToken = normalizeName(item.name);
+  if (!nameToken) return undefined;
+
+  const sameKind = merged.filter((candidate) => candidate.kind === item.kind);
+  const nameMatch = sameKind.find((candidate) => normalizeName(candidate.name) === nameToken);
+  if (nameMatch) return nameMatch;
+
+  if (isUnambiguousAlias(item, nameToken, lookup)) {
+    const aliasMatches = sameKind.filter((candidate) =>
+      candidate.aliases.some((alias) => normalizeName(alias) === nameToken),
+    );
+    if (aliasMatches.length === 1) return aliasMatches[0];
+  }
+
+  const aliasTokens = new Set(item.aliases.map(normalizeName).filter(Boolean));
+  if (!aliasTokens.size) return undefined;
+  const primaryMatches = sameKind.filter(
+    (candidate) =>
+      aliasTokens.has(normalizeName(candidate.name)) &&
+      isUnclaimedAlias(item, normalizeName(candidate.name), lookup),
+  );
+  return primaryMatches.length === 1 ? primaryMatches[0] : undefined;
+}
+
+interface KnownLookup {
+  byKey: Map<string, KnownEntity>;
+  /** `kind:normName` → 同规范名的已知条目(库重复条目可能多条)。 */
+  canonical: Map<string, KnownEntity[]>;
+  /** `kind:normAlias` → 声明该别名的已知条目键集合。 */
+  aliasOwners: Map<string, Set<string>>;
+}
+
+function knownEntityKey(entity: KnownEntity): string {
+  return entity.id ? `id:${entity.id}` : `${entity.kind}:${normalizeName(entity.name)}`;
+}
+
+function buildKnownLookup(known: KnownEntity[]): KnownLookup {
+  const byKey = new Map<string, KnownEntity>();
+  const canonical = new Map<string, KnownEntity[]>();
+  const aliasOwners = new Map<string, Set<string>>();
+
+  for (const entity of known) {
+    const nameToken = normalizeName(entity.name);
+    if (!nameToken) continue;
+    const key = knownEntityKey(entity);
+    if (!byKey.has(key)) byKey.set(key, entity);
+
+    const nameKey = `${entity.kind}:${nameToken}`;
+    const sameName = canonical.get(nameKey) ?? [];
+    sameName.push(entity);
+    canonical.set(nameKey, sameName);
+
+    for (const alias of entity.aliases) {
+      const aliasToken = normalizeName(alias);
+      if (!aliasToken) continue;
+      const aliasKey = `${entity.kind}:${aliasToken}`;
+      const owners = aliasOwners.get(aliasKey) ?? new Set<string>();
+      owners.add(key);
+      aliasOwners.set(aliasKey, owners);
+    }
+  }
+
+  return { byKey, canonical, aliasOwners };
+}
+
+/**
+ * 已知匹配(10-20):先库条目(有 id)后索引条目,同层按
+ * 主名=规范名 → 主名=唯一别名 → 唯一别名=规范名 的顺序;
+ * 别名↔别名不参与。库条目优先避免索引先命中同人导致重复建库。
+ */
+function findKnownMatch(item: ExtractedEntity, lookup: KnownLookup): KnownEntity | undefined {
+  return findKnownMatchPass(item, lookup, true) ?? findKnownMatchPass(item, lookup, false);
+}
+
+function findKnownMatchPass(
+  item: ExtractedEntity,
+  lookup: KnownLookup,
+  requireId: boolean,
+): KnownEntity | undefined {
+  const nameToken = normalizeName(item.name);
+  if (!nameToken) return undefined;
+  const hasId = (entity: KnownEntity) => Boolean(entity.id) === requireId;
+  const tokenKey = `${item.kind}:${nameToken}`;
+
+  const canonicalMatches = (lookup.canonical.get(tokenKey) ?? []).filter(hasId);
+  if (canonicalMatches.length) return canonicalMatches[0];
+
+  const owners = lookup.aliasOwners.get(tokenKey);
+  if (owners) {
+    const aliasMatches = [...owners]
+      .map((key) => lookup.byKey.get(key))
+      .filter((entity): entity is KnownEntity => !!entity && hasId(entity));
+    if (aliasMatches.length === 1) return aliasMatches[0];
+  }
+
+  const aliasCanonical = new Map<string, KnownEntity>();
+  for (const alias of item.aliases) {
+    const token = normalizeName(alias);
+    if (!token) continue;
+    const matches = (lookup.canonical.get(`${item.kind}:${token}`) ?? []).filter(hasId);
+    if (matches.length !== 1) continue;
+    aliasCanonical.set(knownEntityKey(matches[0]!), matches[0]!);
+  }
+  return aliasCanonical.size === 1 ? [...aliasCanonical.values()][0] : undefined;
+}
+
+/** 已知别名回灌守门:丢弃本身是他人规范名、或被多个已知条目共用的别名。 */
+function safeKnownAliases(match: KnownEntity, lookup: KnownLookup): string[] {
+  const selfKey = knownEntityKey(match);
+  const selfName = normalizeName(match.name);
+  return match.aliases.filter((alias) => {
+    const token = normalizeName(alias);
+    if (!token || token === selfName) return false;
+    if (lookup.canonical.has(`${match.kind}:${token}`)) return false;
+    const owners = lookup.aliasOwners.get(`${match.kind}:${token}`);
+    return !!owners && owners.size === 1 && owners.has(selfKey);
+  });
 }
 
 export function normalizeName(value: string): string {

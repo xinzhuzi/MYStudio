@@ -60,8 +60,8 @@ class Qwen21TemplateContractTests(unittest.TestCase):
             self.assertIn(binding["field"], node["inputs"], key)
 
     def test_runs_daojie_production_graph(self) -> None:
-        # 用户裁定(1010):渠道必须跑 qi21-道劫-t2i 工作流本体——ApiPE 装配链在场,
-        # viggle 9步双段加速链在场,detail-fix×0.5 挂段A,SeedVR2 2K 超分链在场
+        # 现行 GUI/API 契约:ApiPE 装配、Turbo 8步官方采样、SeedVR2 2K 超分在场;
+        # 7034 mikkoani×0.8→7028 Turbo×1.0,底模为1;1016 拆除的7027 Fix×0.5不得回灌。
         classes = {node["class_type"] for node in self.template["graph"].values()}
         self.assertIn("MyQi21ApiPE", classes)
         self.assertIn("MyQi21DaojieBase", classes)
@@ -70,12 +70,19 @@ class Qwen21TemplateContractTests(unittest.TestCase):
         self.assertNotIn("ViggleTurboLora", classes)
         self.assertNotIn("ViggleTurboSigmas", classes)
         self.assertIn("SeedVR2VideoUpscaler", classes)
-        fix = self.template["graph"]["7:7027"]["inputs"]
-        self.assertEqual(fix["lora_name"], "qwen2.1-detail-fix-2.0.safetensors")
-        self.assertEqual(fix["strength_model"], 0.5)
+        self.assertNotIn("7:7027", self.template["graph"])
+        self.assertEqual(self.template["graph"]["7:7034"]["class_type"], "LoraLoaderModelOnly")
+        style = self.template["graph"]["7:7034"]["inputs"]
+        self.assertEqual(style["lora_name"], "qi21-mikkoani.safetensors")
+        self.assertEqual(style["strength_model"], 0.8)
+        self.assertEqual(style["model"], ["1", 0])
+        self.assertEqual(self.template["graph"]["7:7028"]["class_type"], "LoraLoaderModelOnly")
+        turbo = self.template["graph"]["7:7028"]["inputs"]
+        self.assertEqual(turbo["lora_name"], "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors")
+        self.assertEqual(turbo["strength_model"], 1.0)
+        self.assertEqual(turbo["model"], ["7:7034", 0])
         speed = self.template["graph"]["7:7015"]["inputs"]["mode"]
         self.assertEqual(speed, "0 · Turbo 8步")
-        self.assertEqual(self.template['graph']['7:7028']['inputs']['model'], ['7:7027', 0])
         self.assertIs(self.template['graph']['6:4013']['inputs']['AI扩写开关'], False)
 
     def test_seed_single_source(self) -> None:

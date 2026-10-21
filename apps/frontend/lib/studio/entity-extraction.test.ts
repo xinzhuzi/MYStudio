@@ -119,6 +119,61 @@ describe("studio entity dedup", () => {
     expect(parseAliasesFromNotes(`别名：${merged.aliases.join("、")}`)).toContain("赵四");
   });
 
+  it("does not merge distinct entities that share a generic alias (10-20 修:别名↔别名禁止)", () => {
+    // 1438 章实杀:绯樱/晏燎同挂「符音」,旧实现任别名交叉命中即并,晏燎主名被吞
+    const extracted = [
+      { kind: "character" as const, name: "绯樱", aliases: ["符音"], episodeIds: ["ep1"] },
+      { kind: "character" as const, name: "晏燎", aliases: ["符音"], episodeIds: ["ep1"] },
+    ];
+    const { entities } = dedupeEntities(extracted);
+
+    expect(entities.map((item) => item.name)).toEqual(["绯樱", "晏燎"]);
+    expect(entities.every((item) => item.episodeIds.includes("ep1"))).toBe(true);
+  });
+
+  it("does not propagate a known alias shared by multiple known entities (苏无忌吞独孤)", () => {
+    const extracted = [
+      { kind: "character" as const, name: "苏无忌", aliases: ["识海声"], episodeIds: ["ep1"] },
+    ];
+    const known: KnownEntity[] = [
+      { id: "c-su", kind: "character", name: "苏无忌", aliases: ["识海声", "独孤"] },
+      { id: "c-dugu", kind: "character", name: "独孤剑尘", aliases: ["独孤"] },
+    ];
+
+    const { entities } = dedupeEntities(extracted, known);
+
+    expect(entities[0]).toMatchObject({ id: "c-su", isNew: false });
+    expect(entities[0]?.aliases).toEqual(["识海声"]);
+  });
+
+  it("prefers a known canonical-name match over another entity's alias", () => {
+    const extracted = [
+      { kind: "character" as const, name: "赵四", aliases: [], episodeIds: ["ep1"] },
+    ];
+    const known: KnownEntity[] = [
+      { id: "c-alias", kind: "character", name: "监工赵四", aliases: ["赵四"] },
+      { id: "c-canonical", kind: "character", name: "赵四", aliases: [] },
+    ];
+
+    const { entities } = dedupeEntities(extracted, known);
+
+    expect(entities[0]).toMatchObject({ id: "c-canonical", isNew: false });
+  });
+
+  it("does not reuse a known alias claimed by more than one known entity", () => {
+    const extracted = [
+      { kind: "character" as const, name: "老王", aliases: [], episodeIds: ["ep1"] },
+    ];
+    const known: KnownEntity[] = [
+      { id: "c-1", kind: "character", name: "甲", aliases: ["老王"] },
+      { id: "c-2", kind: "character", name: "乙", aliases: ["老王"] },
+    ];
+
+    const { entities } = dedupeEntities(extracted, known);
+
+    expect(entities[0]).toMatchObject({ id: null, isNew: true });
+  });
+
   it("filters the library canonical-name token from aliases when the model main name equals it", () => {
     const extracted = [
       { kind: "prop" as const, name: "归元断剑", aliases: ["归元古剑", "断剑"], episodeIds: ["ep1"] },

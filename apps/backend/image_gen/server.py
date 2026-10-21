@@ -28,6 +28,8 @@ import os
 import re
 import shutil
 import signal
+import subprocess
+import sys
 import threading
 import time
 from http import HTTPStatus
@@ -86,6 +88,42 @@ def _set_progress(model_name: str, **fields) -> None:
 def _get_progress(model_name: str) -> dict:
     with _progress_lock:
         return dict(_progress_state.get(model_name, {"status": "idle", "progress": 0}))
+
+
+# ── 1021 API 出图完成提示音 ────────────────────────────────────────────
+# 用户令:出图必响一声。渲染层请求带 X-Manying-Chime-Suppress=1 时已自响
+# (generation-chime),sidecar 跳过防双响;直连脚本/引擎侧 JS 不带头,
+# 出图成功即响。仅 macOS,1s 节流,任何失败静默不碰响应链。
+
+_CHIME_SUPPRESS_HEADER = "X-Manying-Chime-Suppress"
+_CHIME_MIN_INTERVAL_S = 1.0
+_last_chime_monotonic = 0.0
+
+
+def should_play_success_chime(headers) -> bool:
+    """见抑制头(=1)即跳过;读头异常按响处理(宁多响不漏响)。"""
+    try:
+        return str(headers.get(_CHIME_SUPPRESS_HEADER, "")).strip().lower() != "1"
+    except Exception:
+        return True
+
+
+def play_generation_success_chime() -> None:
+    global _last_chime_monotonic
+    now = time.monotonic()
+    if now - _last_chime_monotonic < _CHIME_MIN_INTERVAL_S:
+        return
+    _last_chime_monotonic = now
+    try:
+        if sys.platform != "darwin":
+            return
+        subprocess.Popen(
+            ["afplay", "/System/Library/Sounds/Glass.aiff"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -249,6 +287,11 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- handlers ---------------------------------------------------------
 
+    def _play_success_chime(self) -> None:
+        """1021 出图成功响一声;测试替身可能没 headers 属性,缺省按响(替身会打桩)。"""
+        if should_play_success_chime(getattr(self, "headers", None)):
+            play_generation_success_chime()
+
     def _handle_generate(self, payload: dict) -> None:
         model = resolve_image_model_name(str(payload.get("model") or DEFAULT_IMAGE_MODEL))
         prompt = payload.get("prompt")
@@ -339,6 +382,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, f"生成失败: {exc}")
             return
 
+        self._play_success_chime()
         self._send_json({"created": int(time.time()), "data": [{"b64_json": b64}]})
 
     def _handle_uncloth(self, payload: dict) -> None:

@@ -299,4 +299,31 @@ describe("observedFetch", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(imageRequest).not.toHaveBeenCalled();
   });
+
+  it("adds the local-sidecar chime-suppress header only for 127.0.0.1:17595 requests", async () => {
+    const logEvent = vi.fn();
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response("{}", { status: 200 }));
+
+    await observedFetch(
+      "http://127.0.0.1:17595/v1/images/generations",
+      { method: "POST", headers: { Authorization: "Bearer local" }, body: "{}" },
+      { operationId: "op-chime-1", endpointFamily: "images-generations", fetcher, logEvent },
+    );
+    await observedFetch(
+      "https://cloud.example.com/v1/images/generations",
+      { method: "POST", headers: { Authorization: "Bearer cloud" }, body: "{}" },
+      { operationId: "op-chime-2", endpointFamily: "images-generations", fetcher, logEvent },
+    );
+
+    // 1021 API 出图提示音:本地 sidecar 请求带「已响」抑制头(渲染层自响防
+    // 双响),云端请求不受影响;原.headers 保留不丢。
+    const inits = fetcher.mock.calls.map(([, init]) => init);
+    const [localInit, cloudInit] = [inits[0], inits[1]];
+    expect(localInit).toBeDefined();
+    expect(cloudInit).toBeDefined();
+    expect(new Headers(localInit!.headers).get("X-Manying-Chime-Suppress")).toBe("1");
+    expect(new Headers(localInit!.headers).get("Authorization")).toBe("Bearer local");
+    expect(new Headers(cloudInit!.headers).get("X-Manying-Chime-Suppress")).toBeNull();
+  });
 });

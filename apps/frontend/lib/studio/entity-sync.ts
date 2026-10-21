@@ -133,10 +133,16 @@ export function syncExtractedEntities(
         scenes.push({
           sceneId: `scene-${episodeId}-${pseudoSceneSeq}`,
           name: entity.name,
+          aliases: entity.aliases,
           note: entity.note,
         });
       } else {
-        props.push({ assetId: `prop-${episodeId}-${props.length + 1}`, name: entity.name, note: entity.note });
+        props.push({
+          assetId: `prop-${episodeId}-${props.length + 1}`,
+          name: entity.name,
+          aliases: entity.aliases,
+          note: entity.note,
+        });
       }
       deferred += 1;
       continue;
@@ -191,14 +197,14 @@ export function syncExtractedEntities(
           linkedEpisodeId,
           assetName: formatAssetName(entity.name, entity.aliases),
         });
-        scenes.push({ sceneId, name: entity.name, note: entity.note });
+        scenes.push({ sceneId, name: entity.name, aliases: entity.aliases, note: entity.note });
         created += 1;
       } else {
         sceneSink.updateScene(entity.id, {
           status: "linked",
           // D11:同角色,不再覆盖 linkedEpisodeId
         });
-        scenes.push({ sceneId: entity.id, name: entity.name, note: entity.note });
+        scenes.push({ sceneId: entity.id, name: entity.name, aliases: entity.aliases, note: entity.note });
         merged += 1;
       }
       continue;
@@ -212,11 +218,11 @@ export function syncExtractedEntities(
         description: entity.note ?? "",
         assetName: formatAssetName(entity.name, entity.aliases),
       });
-      props.push({ assetId: propId, name: entity.name, note: entity.note });
+      props.push({ assetId: propId, name: entity.name, aliases: entity.aliases, note: entity.note });
       created += 1;
     } else {
       const assetId = entity.id ?? `prop-${episodeId}-${props.length + 1}`;
-      props.push({ assetId, name: entity.name, note: entity.note });
+      props.push({ assetId, name: entity.name, aliases: entity.aliases, note: entity.note });
       if (entity.isNew || !entity.id) created += 1;
       else merged += 1;
     }

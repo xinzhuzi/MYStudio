@@ -52,6 +52,7 @@ import {
   appearanceKey,
   buildKnownEntityList,
   chapterNumberFromId,
+  createAppearanceLookup,
   findAppearanceEntryKey,
   isPromotedForLibrary,
   mergeChapterAppearances,
@@ -690,12 +691,17 @@ async function executeRun(
         aliases: entity.aliases,
       })),
     );
+    const appearanceLookup = createAppearanceLookup(index);
     const marked = extraction.entities.map((entity) => {
-      const key = findAppearanceEntryKey(index, {
-        kind: entity.kind,
-        name: entity.name,
-        aliases: entity.aliases,
-      });
+      const key = findAppearanceEntryKey(
+        index,
+        {
+          kind: entity.kind,
+          name: entity.name,
+          aliases: entity.aliases,
+        },
+        appearanceLookup,
+      );
       const entry = key ? index[key] : undefined;
       const promoted = entry ? isPromotedForLibrary(entry, { libraryKeys }) : false;
       return {

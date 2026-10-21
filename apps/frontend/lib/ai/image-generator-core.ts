@@ -16,6 +16,7 @@ import { retryOperation } from "@/lib/utils/retry";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { isLocalImageProvider } from "@/stores/ai/api-config-provider-helpers";
 import { pollTaskStatus, submitViaKlingImages } from "./image-generator-grid";
+import { notifyImageGenerationSuccess } from "./generation-chime";
 import { ImageGenerationFeature, ImageGenerationParams, ImageGenerationResult, isAuthStatusError } from "./image-generator-shared";
 import { submitImageJobTask, submitImageTask } from "./image-generator-task";
 
@@ -115,6 +116,7 @@ export async function generateImage(
           params.promptPolicy,
         );
         void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: Boolean(result.imageUrl), taskId: result.taskId, attempt: attemptIndex + 1 } });
+        notifyImageGenerationSuccess();
         return result;
       }
 
@@ -125,6 +127,7 @@ export async function generateImage(
         }
         const result = await submitViaKlingImages(generationParams, model, apiKey, baseUrl, aspectRatio, featureConfig.keyManager, operationId);
         void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: Boolean(result.imageUrl), taskId: result.taskId, attempt: attemptIndex + 1 } });
+        notifyImageGenerationSuccess();
         return result;
       }
 
@@ -148,12 +151,14 @@ export async function generateImage(
 
       if (result.imageUrl) {
         void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed', context: { model, hasImageUrl: true, taskId: result.taskId, attempt: attemptIndex + 1 } });
+        notifyImageGenerationSuccess();
         return { imageUrl: result.imageUrl };
       }
 
       if (result.taskId) {
         const imageUrl = await pollTaskStatus(result.taskId, apiKey, baseUrl, undefined, result.pollUrl, operationId);
         void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed after polling', context: { model, taskId: result.taskId, hasImageUrl: Boolean(imageUrl), attempt: attemptIndex + 1 } });
+        notifyImageGenerationSuccess();
         return { imageUrl, taskId: result.taskId };
       }
 
@@ -182,6 +187,7 @@ export async function generateImage(
         if (fallback.result) {
           const fallbackResult = fallback.result;
           void logEvent({ level: 'info', category: 'ai', operationId, message: 'Image generation completed via fallback channel', context: { model, hasImageUrl: Boolean(fallbackResult.imageUrl), taskId: fallbackResult.taskId, attempt: attemptIndex + 1 } });
+          notifyImageGenerationSuccess();
           return fallbackResult;
         }
         lastError = augmentErrorWithChannelFailures(error, fallback.channelFailures);

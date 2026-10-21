@@ -140,6 +140,53 @@ function isImageEndpoint(meta: ObservedFetchMeta, input: RequestInfo | URL) {
   return rawUrl.includes("/images/") || rawUrl.includes("/image/") || rawUrl.includes("/v1/images/generations");
 }
 
+/** 可打印 ASCII 之外出现任何码点的头值=非法(HTTP 头恒 ISO-8859-1)。 */
+const NON_HEADER_ASCII = /[^\x20-\x7e\t]/;
+
+function sanitizeNonAsciiHeaders(
+  init: RequestInit | undefined,
+  input: RequestInfo | URL,
+  emit: LogEventLike,
+  operationId: string,
+  requestId: string,
+): RequestInit | undefined {
+  if (!init?.headers) return init;
+  let record: Record<string, string> | undefined;
+  if (init.headers instanceof Headers) {
+    record = {};
+    init.headers.forEach((value, key) => { record![key] = value; });
+  } else if (Array.isArray(init.headers)) {
+    record = Object.fromEntries(init.headers);
+  } else {
+    record = { ...init.headers };
+  }
+  const bad: string[] = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (typeof value !== "string" || !NON_HEADER_ASCII.test(value)) continue;
+    bad.push(key);
+    void emit({
+      level: "error",
+      category: "network",
+      operationId,
+      requestId,
+      message: "非 ASCII 请求头已剥离(Headers.set 会抛非 ISO-8859-1 的真凶现场)",
+      context: {
+        url: getInputUrl(input).slice(0, 120),
+        headerKey: key,
+        headerKeyHasNonAscii: NON_HEADER_ASCII.test(key),
+        valueLength: value.length,
+        // 脱敏:只报码点指纹(十六进制)+首尾各 2 字符掩码,不落完整值
+        codepoints: [...value].filter((ch) => NON_HEADER_ASCII.test(ch)).slice(0, 8).map((ch) => "U+" + ch.codePointAt(0)!.toString(16).toUpperCase()),
+        valueHead: value.slice(0, 2),
+        valueTail: value.slice(-2),
+      },
+    });
+    delete record[key];
+  }
+  if (!bad.length) return init;
+  return { ...init, headers: record };
+}
+
 function getElectronImageRequest() {
   if (typeof window === "undefined") return undefined;
   return window.electronAPI?.imageRequest;
@@ -256,6 +303,26 @@ function createElectronImageProxyFetch(
   };
 }
 
+/**
+ * 1021 API 出图必响一声:本地 sidecar 请求自动带「已响」抑制头——渲染层
+ * 自己会响(generation-chime),sidecar 见此头跳过 afplay 防双响;直连
+ * 脚本/引擎侧 JS 不带头,sidecar 出图成功即响。头注入失败不阻断请求。
+ */
+function withLocalSidecarChimeSuppress(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+): RequestInit | undefined {
+  try {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.includes("127.0.0.1:17595")) return init;
+    const headers = new Headers(init?.headers);
+    headers.set("X-Manying-Chime-Suppress", "1");
+    return { ...init, headers };
+  } catch {
+    return init;
+  }
+}
+
 export async function observedFetch(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
@@ -269,6 +336,14 @@ export async function observedFetch(
     ?? fetch;
   const emit = meta.logEvent ?? defaultLogEvent;
   const baseContext = getNetworkContext(input, init, meta);
+  // 1021 非 ASCII 头哨兵:Headers.set 对非 ISO-8859-1 值直接抛 TypeError 打崩
+  // 整条生成链(1020-21 装机实弹 fanren/mikoto/ikun 多轮复现,抛点被 SDK 吞
+  // 成 errorReason 无栈)。汇流点先扫头:发现即脱敏落诊断(头键+码点+掩码预览)
+  // 并剥掉该头放行——崩溃降级为干净的 401/缺权失败,同时点名真凶。
+  const sanitizedInit = withLocalSidecarChimeSuppress(
+    input,
+    sanitizeNonAsciiHeaders(init, input, emit, operationId, requestId),
+  );
 
   await emit({
     level: "debug",
@@ -280,7 +355,7 @@ export async function observedFetch(
   });
 
   try {
-    const response = await fetcher(input, init);
+    const response = await fetcher(input, sanitizedInit);
     const durationMs = Math.round(performance.now() - startedAt);
     const context = {
       ...baseContext,

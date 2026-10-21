@@ -147,6 +147,12 @@ class ImageStatusRouteTests(unittest.TestCase):
 
 
 class ImageGenerateRouteTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # 1021 出图提示音:不打桩会在 pytest 里真 afplay 放声
+        self._chime = patch("image_gen.server.play_generation_success_chime")
+        self._chime.start()
+        self.addCleanup(self._chime.stop)
+
     def test_bridge_actions_forward_explicit_origin(self) -> None:
         handler = _ComfyHandler.__new__(_ComfyHandler)
         with patch("engines.comfyui.bridge_actions.submit", return_value={"id": 1}) as submit:

@@ -10,6 +10,7 @@ import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createMinimax } from "vercel-minimax-ai-provider";
 import { generateImage, generateText, streamText } from "ai";
 import type { IProvider } from "./core";
+import { parseApiKeys } from "./core/services/api-key-utils";
 import { createDescribedFetchError, type NetworkFailureFlags } from "./fetch-error";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import { observedFetch, type ObservedFetchMeta } from "../diagnostics/network";
@@ -29,7 +30,10 @@ export { resolveGptImageSize, validateGptImageSize } from "./image-size-presets"
 // Headers.set 抛「非 ISO-8859-1」打崩云端 gpt-image 主通道(与 parseApiKeys 同步)。
 export function firstUsableApiKey(raw: string | undefined): string | undefined {
   if (!raw) return raw;
-  const first = raw.split(/[,，、\n\r;；]/).map((part) => part.trim()).filter(Boolean)[0];
+  // 1021 补刀③:改走 parseApiKeys 单源(旧内联分隔类缺空格/全角空格/零宽,
+  // 且不剔非 ASCII 垃圾段)——「sk-a+空格+sk-b」「sk-a+全角空格+sk-b」式与含
+  // 中文注记的段此前整串回流 SDK 的 Bearer,是 Headers.set 非 ISO 崩的遗留第二现场。
+  const first = parseApiKeys(raw)[0];
   return first ?? raw;
 }
 

@@ -106,7 +106,7 @@ contextBridge.exposeInMainWorld('projectFiles', {
   list: (payload: { projectId: string; relativePath: string }) =>
     ipcRenderer.invoke('project-file-list', payload),
   getAbsolutePath: (url: string) => ipcRenderer.invoke('project-file-get-absolute-path', url),
-  move: (payload: { projectId: string; fromRelative: string; toRelative: string }) =>
+  move: (payload: { projectId: string; fromRelative: string; toRelative: string; replaceExisting?: boolean }) =>
     ipcRenderer.invoke('project-file-move', payload),
   deleteFile: (payload: { projectId: string; relativePath: string }) =>
     ipcRenderer.invoke('project-file-delete', payload),

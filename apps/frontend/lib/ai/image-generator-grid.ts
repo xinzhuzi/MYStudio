@@ -1,4 +1,5 @@
 import { submitViaChatCompletions } from "./image-generator-core";
+import { notifyImageGenerationSuccess } from "./generation-chime";
 import { buildOpenAIImageRequestBody, buildProviderExtensionImageRequestBody, extractImageGenerationResult, isGptImageModel, normalizeImagePromptForGeneration, sdkGenerateImage } from "@/lib/ai/ai-sdk-bridge";
 import { getModelEndpointTypes } from "@/lib/ai/config/store-adapter";
 import { resolveImageApiFormat } from "@/lib/ai/core";
@@ -77,6 +78,7 @@ export async function submitGridImageRequest(params: {
   if (apiFormat === 'openai_chat') {
     // Gemini 等模型通过 chat completions 生图
     const result = await submitViaChatCompletions(normalizedPrompt.prompt, model, apiKey, normalizedBase, aspectRatio, transferReferenceImages, resolution, keyManager, signal, operationId, promptPolicy);
+    if (result.imageUrl) notifyImageGenerationSuccess();
     return { imageUrl: result.imageUrl };
   }
 
@@ -85,6 +87,7 @@ export async function submitGridImageRequest(params: {
       throw new Error('当前 Kling 图片适配器不支持参考图，已在网络请求前阻断');
     }
     const result = await submitViaKlingImages({ prompt: normalizedPrompt.prompt, aspectRatio, negativePrompt: normalizedPrompt.negativePrompt }, model, apiKey, normalizedBase, aspectRatio, keyManager, operationId, signal);
+    if (result.imageUrl) notifyImageGenerationSuccess();
     return { imageUrl: result.imageUrl, taskId: result.taskId };
   }
 
@@ -122,6 +125,7 @@ export async function submitGridImageRequest(params: {
       maxRetries: mikotoPaidBoundary ? 0 : 2,
     });
     if (sdkResult.success && sdkResult.imageUrl) {
+      notifyImageGenerationSuccess();
       return { imageUrl: sdkResult.imageUrl };
     }
     if (mikotoPaidBoundary && isAmbiguousPaidImageResult(sdkResult)) {
@@ -193,15 +197,18 @@ export async function submitGridImageRequest(params: {
   if (!imageUrl && taskId) {
     const pollUrl = `${rootBase}${imagePaths.poll(taskId)}`;
     const polledUrl = await pollTaskStatus(taskId, params.keyManager?.getCurrentKey?.() || apiKey, normalizedBase, undefined, pollUrl, operationId, signal);
+    notifyImageGenerationSuccess();
     return { imageUrl: polledUrl, taskId };
   }
 
   // taskId 存在时附带 pollUrl 供外部轮询
   if (taskId) {
     const pollUrl = `${rootBase}${imagePaths.poll(taskId)}`;
+    if (imageUrl) notifyImageGenerationSuccess();
     return { imageUrl, taskId, pollUrl };
   }
 
+  if (imageUrl) notifyImageGenerationSuccess();
   return { imageUrl, taskId };
 }
 

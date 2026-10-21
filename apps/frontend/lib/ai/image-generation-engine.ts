@@ -51,6 +51,7 @@ import {
 import { prepareReferenceImagesForTransfer } from '@/lib/ai/image-transfer';
 import { toast } from 'sonner';
 import { freedomRetry } from './generation-retry';
+import { notifyImageGenerationSuccess } from './generation-chime';
 import {
   buildFreedomEndpoint as _buildEndpoint,
   extractFreedomImageUrl as extractImageUrl,
@@ -258,6 +259,15 @@ function buildAttemptChainSummary(attempts: Array<{ name: string; error: string 
 }
 
 export async function generateImage(
+  params: FreedomImageParams
+): Promise<GenerationResult> {
+  const result = await generateImageImpl(params);
+  // 1021 用户令:成功出图必响一声(内部多路由出口在此单点收口)
+  if (result?.url) notifyImageGenerationSuccess();
+  return result;
+}
+
+async function generateImageImpl(
   params: FreedomImageParams
 ): Promise<GenerationResult> {
   const operationId = createOperationId('freedom-image');

@@ -1,4 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { registerProjectFileIpcHandlers } from "../../electron/ipc/files/project-file-ipc";
+import { setProjectLocationResolver } from "../../electron/storage/storage-paths";
 import {
   EXTRACTION_LEDGER_RELATIVE_PATH,
   createExtractionLedger,
@@ -12,7 +17,20 @@ import {
   writeLedgerAtomically,
   type ExtractionRunLedger,
   type LedgerStorage,
+  type ProjectFilesBridge,
 } from "./entity-extraction-ledger";
+
+const ipcMocks = vi.hoisted(() => ({
+  handlers: new Map<string, (...args: unknown[]) => unknown>(),
+}));
+
+vi.mock("electron", () => ({
+  ipcMain: {
+    handle: (channel: string, handler: (...args: unknown[]) => unknown) => {
+      ipcMocks.handlers.set(channel, handler);
+    },
+  },
+}));
 
 function makeLedger(): ExtractionRunLedger {
   return createExtractionLedger({
@@ -230,6 +248,105 @@ describe("entity-extraction-ledger · electron 桥适配(注入结构类型)", (
       projectId: "proj-1",
       fromRelative: "store/extraction/a.json",
       toRelative: "store/extraction/b.json",
+      replaceExisting: true,
     });
+  });
+});
+
+describe("entity-extraction-ledger · production adapter + IPC + real filesystem", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    setProjectLocationResolver(null);
+  });
+
+  function createIpcStorage(external: boolean) {
+    const dataRoot = fs.mkdtempSync(path.join(tmpdir(), "entity-ledger-"));
+    const projectId = "atomic-ledger-test";
+    const projectRoot = external ? path.join(dataRoot, "external-project") : path.join(dataRoot, "_p", projectId);
+    fs.mkdirSync(projectRoot, { recursive: true });
+    setProjectLocationResolver(external ? () => projectRoot : null);
+    registerProjectFileIpcHandlers({
+      getDataDir: () => dataRoot,
+      getAssetsRoot: () => path.join(dataRoot, "assets"),
+      readImageSource: async () => { throw new Error("Images are not part of the ledger test"); },
+      getMimeType: () => "application/json",
+    });
+    const bridge: ProjectFilesBridge = {
+      readText: async (payload) => await ipcMocks.handlers.get("project-file-read-text")!({}, payload) as Awaited<ReturnType<ProjectFilesBridge["readText"]>>,
+      writeText: async (key, value) => await ipcMocks.handlers.get("project-file-write-text")!({}, key, value) as Awaited<ReturnType<ProjectFilesBridge["writeText"]>>,
+      move: async (payload) => await ipcMocks.handlers.get("project-file-move")!({}, payload) as Awaited<ReturnType<ProjectFilesBridge["move"]>>,
+    };
+    return {
+      storage: createElectronLedgerStorage(projectId, bridge),
+      ledgerPath: path.join(projectRoot, EXTRACTION_LEDGER_RELATIVE_PATH),
+    };
+  }
+
+  it.each([false, true])("persists three successive ledgers via the production bridge (external=%s)", async (external) => {
+    const { storage, ledgerPath } = createIpcStorage(external);
+    const initial = makeLedger();
+    await writeLedgerAtomically(storage, initial);
+    expect(fs.readFileSync(ledgerPath, "utf-8")).toBe(serializeLedger(initial));
+
+    const updated = recordChapter(initial, "chapter-001", { state: "success", model: "glm-5.3" });
+    const originalRename = fs.renameSync;
+    const rename = vi.spyOn(fs, "renameSync").mockImplementationOnce((from, to) => {
+      expect(fs.readFileSync(to, "utf-8")).toBe(serializeLedger(initial));
+      expect(fs.readFileSync(from, "utf-8")).toBe(serializeLedger(updated));
+      originalRename(from, to);
+    });
+    await writeLedgerAtomically(storage, updated);
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(ledgerPath, "utf-8")).toBe(serializeLedger(updated));
+
+    const completed = { ...updated, status: "done" as const };
+    await writeLedgerAtomically(storage, completed);
+    expect(await storage.readText(EXTRACTION_LEDGER_RELATIVE_PATH)).toBe(serializeLedger(completed));
+    expect(fs.existsSync(`${ledgerPath}.tmp`)).toBe(false);
+  });
+
+  it("keeps old ledger bytes and the new temp file intact when rename fails", async () => {
+    const { storage, ledgerPath } = createIpcStorage(true);
+    const initial = makeLedger();
+    await writeLedgerAtomically(storage, initial);
+    const oldBytes = fs.readFileSync(ledgerPath);
+    const updated = recordChapter(initial, "chapter-001", { state: "success" });
+    const rename = vi.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+      expect(fs.readFileSync(ledgerPath)).toEqual(oldBytes);
+      throw Object.assign(new Error("EACCES: simulated rename failure"), { code: "EACCES" });
+    });
+
+    await expect(writeLedgerAtomically(storage, updated)).rejects.toThrow("EACCES: simulated rename failure");
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(fs.readFileSync(ledgerPath)).toEqual(oldBytes);
+    expect(fs.readFileSync(`${ledgerPath}.tmp`, "utf-8")).toBe(serializeLedger(updated));
+  });
+
+  it.each(["source", "target"])("rejects real directories at the replacement %s", async (directory) => {
+    const { storage, ledgerPath } = createIpcStorage(true);
+    fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
+    if (directory === "source") {
+      fs.mkdirSync(`${ledgerPath}.tmp`);
+    } else {
+      fs.mkdirSync(ledgerPath);
+      await storage.writeText(`${EXTRACTION_LEDGER_RELATIVE_PATH}.tmp`, "new ledger");
+    }
+    await expect(storage.move(`${EXTRACTION_LEDGER_RELATIVE_PATH}.tmp`, EXTRACTION_LEDGER_RELATIVE_PATH))
+      .rejects.toThrow();
+    expect(fs.statSync(directory === "source" ? `${ledgerPath}.tmp` : ledgerPath).isDirectory()).toBe(true);
+    expect(fs.existsSync(`${ledgerPath}.tmp`)).toBe(true);
+  });
+
+  it.each(["source", "target"])("rejects real symlinks at the replacement %s", async (link) => {
+    const { storage, ledgerPath } = createIpcStorage(true);
+    fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
+    const linkedPath = path.join(path.dirname(ledgerPath), "linked.json");
+    fs.writeFileSync(linkedPath, "linked file stays intact");
+    fs.symlinkSync(linkedPath, link === "source" ? `${ledgerPath}.tmp` : ledgerPath);
+    if (link === "target") await storage.writeText(`${EXTRACTION_LEDGER_RELATIVE_PATH}.tmp`, "new ledger");
+    await expect(storage.move(`${EXTRACTION_LEDGER_RELATIVE_PATH}.tmp`, EXTRACTION_LEDGER_RELATIVE_PATH))
+      .rejects.toThrow();
+    expect(fs.readFileSync(linkedPath, "utf-8")).toBe("linked file stays intact");
+    expect(fs.lstatSync(link === "source" ? `${ledgerPath}.tmp` : ledgerPath).isSymbolicLink()).toBe(true);
   });
 });
