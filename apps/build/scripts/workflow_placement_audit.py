@@ -70,7 +70,8 @@ def main() -> int:
     check(not my_prefix, "真源无 MY- 前缀件", "; ".join(my_prefix[:5]))
 
     # 6. -api.json 成对(1015 改名役:.api.json→-api.json)
-    bridge_alias = {"qwen21-道劫-t2i-api.json": "qi21-道劫-t2i.json"}
+    bridge_alias = {"qwen21-道劫-t2i-api.json": "qi21-道劫-t2i.json",
+                    "qwen21-道劫-i2i-api.json": "qi21-道劫-i2i.json"}  # 1021 i2i 桥模板同款双件架构
     orphans = []
     for p in tree_jsons:
         if p.name.endswith("-api.json"):

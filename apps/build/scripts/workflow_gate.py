@@ -60,9 +60,16 @@ APPS = REPO / "apps"
 
 # 活跃生成器 → (目标常量名, 生成器脚本)。目标 JSON 路径一律从生成器头部常量
 # AST 解析(禁手抄);常量名是生成器既有声明,非路径复制。
-GENERATORS: list[tuple[str, str]] = [
-    ("I2I_JSON", "qi21_daojie_i2i_0924.py"),
-    ("WF", "qwen21_edit_core_pe_0923.py"),
+# 1021 基线重钉轮:0923/0924 三生成器已随脚本合并役删除(盘上无件,AST 解析
+# 必炸);三件生产工作流真源=仓库 JSON 本体+手术链(1001 裁定存续),布局棘轮
+# 与基线覆盖不减——目标转 WORKFLOW_TARGETS 直列。
+GENERATORS: list[tuple[str, str]] = []
+
+# 布局棘轮目标(原=生成器头部常量 AST 解析;生成器退役删除后直列三件真源)
+WORKFLOW_TARGETS: list[str] = [
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
 ]
 
 # 退役生成器 → 段1 恒不运行;仅段3 布局棘轮仍解析其头部常量取目标 JSON
@@ -75,7 +82,7 @@ GENERATORS: list[tuple[str, str]] = [
 # backend/engines/comfyui/tests/test_qwen21_workflow_contract.py。
 # (10-03-file-inventory-cleanup 遗留#6:门禁锚与退役裁定对齐)
 RETIRED_GENERATORS: list[tuple[str, str]] = [
-    ("QI21_JSON", "qi21_daojie_t2i_0923.py"),
+    ("QI21_JSON", "qi21_daojie_t2i_0923.py"),   # ⛔ 退役勿再运行(脚本已删,警示存档)
 ]
 
 # 四件契约测试(design §4.2;ls 验存在,缺失即 RED 不 spawn pytest)
@@ -294,7 +301,9 @@ def _layout_crossings(json_path: pathlib.Path) -> dict | None:
 
 
 def _targets_rel() -> list[str]:
-    # 活跃+退役全量(退役件不运行,但目标 JSON 仍受布局棘轮与基线覆盖)
+    # 1021 轮:生成器全退役删除后目标直列(棘轮与基线覆盖不减)
+    if WORKFLOW_TARGETS:
+        return list(WORKFLOW_TARGETS)
     pairs, errors = resolve_generator_targets(GENERATORS + RETIRED_GENERATORS)
     if errors:
         raise RuntimeError("生成器目标解析失败:" + ";".join(errors))

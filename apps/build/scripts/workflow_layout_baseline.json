@@ -1,55 +1,63 @@
 {
- "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
- "head": "b4107de1",
- "rebuiltAt": "2026-10-18 二记:1018animerem 动漫LoRA[7034] 全线摘除(用户判「不行」)——六件节点/链路/Note/组名复原,加速域回归 1018anime 术前原值 t2i10/i2i6/edit14 交叉(edit 遗留 occl2=旧账);随刀契约 style_lora 全套回退+fire 两件回退+引擎删件;契约 644 绿",
- "files": {
-  "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
-   "scopes": {
-    "main": {
-     "crossings": 51,
-     "occlusion": 8
+  "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
+  "head": "e5acee40",
+  "rebuiltAt": "2026-10-21T21:30:09",
+  "files": {
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
+      "scopes": {
+        "main": {
+          "crossings": 17,
+          "occlusion": 1
+        },
+        "sub:[6] 文本提示词类型优化子图": {
+          "crossings": 8,
+          "occlusion": 0
+        },
+        "sub:道劫·加速子图": {
+          "crossings": 18,
+          "occlusion": 0
+        },
+        "sub:道劫·超分·SeedVR2": {
+          "crossings": 1,
+          "occlusion": 1
+        }
+      }
     },
-    "sub:[6] 文本提示词类型优化子图": {
-     "crossings": 9,
-     "occlusion": 0
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
+      "scopes": {
+        "main": {
+          "crossings": 46,
+          "occlusion": 9
+        },
+        "sub:[6] 文本提示词类型优化子图": {
+          "crossings": 4,
+          "occlusion": 1
+        },
+        "sub:道劫·加速子图": {
+          "crossings": 14,
+          "occlusion": 2
+        },
+        "sub:道劫·超分·SeedVR2": {
+          "crossings": 1,
+          "occlusion": 1
+        }
+      }
     },
-    "sub:道劫·加速子图": {
-     "crossings": 6,
-     "occlusion": 0
+    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
+      "scopes": {
+        "main": {
+          "crossings": 16,
+          "occlusion": 4
+        },
+        "sub:[6] 文本提示词类型优化子图": {
+          "crossings": 6,
+          "occlusion": 0
+        },
+        "sub:道劫·加速子图": {
+          "crossings": 24,
+          "occlusion": 3
+        }
+      }
     }
-   }
-  },
-  "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json": {
-   "scopes": {
-    "main": {
-     "crossings": 17,
-     "occlusion": 4
-    },
-    "sub:[6] 文本提示词类型优化子图": {
-     "crossings": 6,
-     "occlusion": 0
-    },
-    "sub:道劫·加速子图": {
-     "crossings": 14,
-     "occlusion": 2
-    }
-   }
-  },
-  "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
-   "scopes": {
-    "main": {
-     "crossings": 10,
-     "occlusion": 1
-    },
-    "sub:[6] 文本提示词类型优化子图": {
-     "crossings": 4,
-     "occlusion": 2
-    },
-    "sub:道劫·加速子图": {
-     "crossings": 10,
-     "occlusion": 0
-    }
-   }
   }
- }
 }
