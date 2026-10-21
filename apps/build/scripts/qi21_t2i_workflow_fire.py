@@ -377,6 +377,16 @@ def _poll_upscale_tail(pid, seed, args, speed, speed_panel, subj):
         with urllib.request.urlopen(f"{ENGINE}/history/{pid}", timeout=10) as r:
             hist = json.load(r)
         if pid in hist:
+            # 1021 实弹教训:任务在装配节点被门禁拒(如否定式)时秒死零产物,旧循环
+            # 只找图片文件→傻等满窗后吐光秃「无产物」(每发白烧 15-45min)。先读
+            # status 的 execution_error 带 node+报错原文 fail-fast。
+            for m in hist[pid].get("status", {}).get("messages", []):
+                if m[0] == "execution_error":
+                    e = m[1]
+                    sys.exit(
+                        f"执行失败 [{e.get('node_type')}:{e.get('node_id')}] "
+                        f"{str(e.get('exception_message'))[:500]}"
+                    )
             fns = [img["filename"]
                    for _n, o in hist[pid].get("outputs", {}).items()
                    for img in o.get("images", [])]
