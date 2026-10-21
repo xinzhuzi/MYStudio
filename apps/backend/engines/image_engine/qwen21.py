@@ -2,7 +2,8 @@
 
 复用 comfyui_bridge 的提交/轮询/取图机制,模板=qwen21_道劫_t2i_api
 (qi21-道劫-t2i.json 工作流本体按 fire 展平逻辑生成:装配子图[6] ApiPE 双链回落
-+加速子图[7] viggle 9步双段(detail-fix×0.5 在链)+SeedVR2 2K 超分双产物;生成器=
++加速子图[7] 默认官方 Turbo 8步(LoRA×1.0、官方 sigma、BasicGuider)
++SeedVR2 2K 超分双产物;生成器=
 apps/build/scripts/qwen21_bridge_template_build.py,型/档随画布现值)。
 10-19 图生图·画风转换:带参考图走 qwen21_道劫_i2i_api(qi21-道劫-i2i.json 展平,
 单参考 [10];快照=画布现值,运行时覆写 6:4011 组装用途=画风转换——底座由装配层
@@ -48,8 +49,8 @@ SPEC = {
     "repo_ids": ("ComfyUI 服务(本机)",),
     "size_mb": 0,
     "license": "本机 ComfyUI 配置",
-    "steps": 6,
-    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:viggle 9步双段+SeedVR2 2K 超分;图生图=画风转换)",
+    "steps": 8,
+    "description": "本地 Qwen-Image-2.1 生图(道劫产线工作流:默认 Turbo 8步+SeedVR2 2K 超分;图生图=画风转换)",
     "layout": LAYOUT,
 }
 

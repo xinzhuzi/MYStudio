@@ -111,18 +111,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'5f332526318010661a33bbc8c4a514679beeeb0d6200b7bc32f09a7cd8f7feb2',
+        'approved_sha256':'fc776f6a3db3d53f98ddba7d25b075709104daa87e52e1511f06f66861e04fac',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/archive/2026-10/10-18-daojie-prompt-conflict-cleanup/prd.md',
-            'anchor':'## Decisions(grill 轮 1,2026-10-18 用户令「按推荐落实」)',
-            'sha256':'42f8e93dee72f9c1ded2fda6e0c028d686f92a8c44d8e94af368353c3877a7a9',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1021.md',
+            'anchor':'## Decisions(2026-10-21 用户令「另外一个会话已经做完了」「按照你的建议去做」)',
+            'sha256':'e1b0d1e825eb28f2bea5017c5071233ea7bebb69afd7c705927738dbde067b80',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/archive/2026-10/10-18-daojie-prompt-conflict-cleanup/research/json-before-after.md',
-            'anchor':'## P1 真源 · qi21_bases.json(2026-10-18)',
-            'sha256':'4c79065b06bd46b1569e90959a280a35a6dd1e84b23ff49ba02e8408335a249a',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1021.md',
+            'anchor':'## 字段级变更(3 处,git diff HEAD 实测)',
+            'sha256':'1733e33936deb65fb279ac53e228c1a9b910ffa27fe6663499f1169d41872545',
         },
     }
     revision=revisions[base]

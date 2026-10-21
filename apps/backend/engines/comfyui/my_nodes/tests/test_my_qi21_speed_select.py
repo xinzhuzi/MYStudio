@@ -5,9 +5,9 @@
 test_my_qi21_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 
 锁:注册面(双表+类目+无旧名别名)/combo 闭集(1017 增档令:四档精确串,
-首项=默认=「自动 · 按型」——型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→
-Turbo;本令推翻 1002/1016「首项=Turbo 8步」口径,Turbo 居二承 1016turbo
-官方臂;档号随序理顺=序位号 0/1/2;分隔符码位 U+00B7 防全角漂移;自动档
+首项=默认=「0 · Turbo 8步」(1021 用户令,所有型均走 Turbo);自动档居末且
+仍按型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo;
+手动档字符串不变;分隔符码位 U+00B7 防全角漂移;自动档
 配 optional「型名」STRING 信号槽,非 lazy)/三态选择各回各支路/
 懒协议(三槽 lazy 声明+check_lazy_status 只请求「选中×已接线×未求值」槽,
 绝不请求未接线槽——引擎对未接线槽 make_input_strong_link 抛
@@ -21,13 +21,21 @@ from __future__ import annotations
 import pytest
 
 from engines.comfyui.my_nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+from engines.comfyui.my_nodes.nodes.my_qi21_base import bases_list
 from engines.comfyui.my_nodes.nodes.my_qi21_speed_select import (
-    AUTO_MODE, DEFAULT_MODE, MODES, SPEED_MODES, MyQi21SpeedSelect, slot_for_mode)
+    AUTO_MODE,
+    DEFAULT_MODE,
+    MODES,
+    SPEED_MODES,
+    MyQi21SpeedSelect,
+    slot_for_mode,
+)
 
 # 三档哨兵 latent(支路身份标记;LATENT 真身是 dict,同形)
 _TURBO = {"branch": "turbo"}
 _VIGGLE = {"branch": "viggle"}
 _DIRECT = {"branch": "direct"}
+_TYPE_INPUTS = [*bases_list(), "", None, ...]
 
 
 # ── 注册面 ────────────────────────────────────────────────
@@ -40,10 +48,9 @@ def test_registry_exposes_speed_select():
     assert "ManyingQi21SpeedSelect" not in NODE_CLASS_MAPPINGS
 
 
-# ── combo 闭集:四档精确串+首项=默认=「自动 · 按型」(1017 增档令) ──────
+# ── combo 闭集:四档精确串+首项=默认 Turbo,自动档仍可手选 ──────
 def test_combo_closed_set_first_item_is_default_turbo():
-    """测试名留史(1002-1016 首项=Turbo 口径;1017 增档令翻为「自动 · 按型」
-    承首,名不随改防并行收据漂移——同 test_sampler_anchor_viggle6_dn06 先例)。"""
+    """新建节点默认 Turbo;显式手动档及自动档仍属同一闭集。"""
     spec = MyQi21SpeedSelect.INPUT_TYPES()
     assert set(spec) == {"required", "optional"}
     assert set(spec["required"]) == {"mode"}
@@ -55,19 +62,17 @@ def test_combo_closed_set_first_item_is_default_turbo():
     assert not spec["optional"]["型名"][1].get("lazy")
     combo = spec["required"]["mode"]
     assert isinstance(combo[0], list)
-    # 1017 增档:首项=默认=「自动 · 按型」(型名∈{设定卡,美宣,概念气氛图}→原生出图,
-    # 其余含空→Turbo;推翻 1002/1016「首项=Turbo 8步」口径,历史账不改写);
-    # Turbo 居二承 1016turbo 官方臂,档号前导数字随新序理顺=序位号 0/1/2
-    assert combo[0] == ["自动 · 按型", "0 · Turbo 8步", "1 · 原生出图", "2 · viggle"]
-    assert combo[1]["default"] == "自动 · 按型"  # 首项=默认=自动 · 按型
-    assert DEFAULT_MODE == MODES[0] == "自动 · 按型" == AUTO_MODE
+    assert combo[0] == ["0 · Turbo 8步", "1 · 原生出图", "2 · viggle", "自动 · 按型"]
+    assert combo[1]["default"] == "0 · Turbo 8步"
+    assert DEFAULT_MODE == MODES[0] == "0 · Turbo 8步"
+    assert MODES[-1] == AUTO_MODE
     # 分隔符码位锁:U+00B7 中点(防誊写漂移成全角·/・——combo 列表即契约)
     for mode in MODES:
         assert " \u00b7 " in mode, mode
     # 档位↔槽名单源映射全覆盖(自动档无固有槽=位 None,实际槽按型名现算;
     # 手动档 combo 序=默认优先,档号=序位号)
-    assert [s for _m, s in SPEED_MODES] == [None, "latent_turbo", "latent_direct",
-                                            "latent_viggle"]
+    assert [s for _m, s in SPEED_MODES] == ["latent_turbo", "latent_direct",
+                                          "latent_viggle", None]
     assert slot_for_mode("自动 · 按型") is None  # 自动档不经 slot_for_mode(按型名现算)
     assert slot_for_mode("0 · Turbo 8步") == "latent_turbo"
     assert slot_for_mode("1 · 原生出图") == "latent_direct"
@@ -99,11 +104,41 @@ def test_select_routes_each_mode_branch(mode, branch):
     assert result[0] is branch
 
 
-def test_select_default_mode_picks_turbo_branch():
-    """默认档(Turbo 8步,1016turbo)全接线直通:仅接 turbo 一槽即可走通
-    (其余两档缺键容错)。"""
-    result = MyQi21SpeedSelect().select(DEFAULT_MODE, latent_turbo=_TURBO)
+@pytest.mark.parametrize("type_name", _TYPE_INPUTS)
+def test_select_default_mode_picks_turbo_branch(type_name):
+    """全部十型/自由/空/缺键默认只接 Turbo 也可直通。"""
+    kwargs = {} if type_name is ... else {"型名": type_name}
+    result = MyQi21SpeedSelect().select(DEFAULT_MODE, latent_turbo=_TURBO, **kwargs)
     assert result == (_TURBO,)
+    assert result[0] is _TURBO
+
+
+@pytest.mark.parametrize("type_name", _TYPE_INPUTS)
+def test_default_lazy_requests_only_turbo_for_every_type(type_name):
+    kwargs = {} if type_name is ... else {"型名": type_name}
+    node = MyQi21SpeedSelect()
+    assert node.check_lazy_status(
+        DEFAULT_MODE, latent_turbo=None, latent_direct=None, latent_viggle=None,
+        **kwargs) == ["latent_turbo"]
+    assert node.check_lazy_status(
+        DEFAULT_MODE, latent_turbo=_TURBO, latent_direct=None, latent_viggle=None,
+        **kwargs) is None
+    assert node.check_lazy_status(
+        DEFAULT_MODE, latent_direct=None, latent_viggle=None, **kwargs) is None
+
+
+@pytest.mark.parametrize("type_name", _TYPE_INPUTS)
+def test_explicit_auto_keeps_type_routing(type_name):
+    kwargs = {} if type_name is ... else {"型名": type_name}
+    direct = type_name in ("设定卡", "美宣", "概念气氛图")
+    branch = _DIRECT if direct else _TURBO
+    slot = "latent_direct" if direct else "latent_turbo"
+    node = MyQi21SpeedSelect()
+    assert node.select(AUTO_MODE, latent_turbo=_TURBO, latent_direct=_DIRECT,
+                       latent_viggle=_VIGGLE, **kwargs)[0] is branch
+    assert node.check_lazy_status(
+        AUTO_MODE, latent_turbo=None, latent_direct=None, latent_viggle=None,
+        **kwargs) == [slot]
 
 
 # ── 懒裁剪返回值:check_lazy_status 只请求「选中×已接线×未求值」槽 ──

@@ -28,29 +28,21 @@ parallel design §2/§4):原生出图 / viggle / Turbo 三条完整自足支路�
   - 选中档未接线=select 内中文报错(先例=my_daojie_route.route 未接线
     文案):带档名+槽名+已接线档位清单,不猜不代选。
 
-档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=「自动 · 按型」**(1017
-增档令:按型名自动路由——型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo(1017 概念图役用户裁定追加概念气氛图);
-本令再推翻 1002/1016「首项=Turbo 8步」口径,历史账不改写,以此为准;Turbo
-8步=1016turbo 换臂 FunnyAcc→官方 Turbo LoRA(avg_rank_178)8步 cfg1,承 1002
-用户令「qi21-道劫-t2i.json 默认是 Fun-Acc 加速,默认就要设置这个」的提首位
-——1002 令推翻 0929 拉齐重放裁定,两笔历史均留档);手动档字符串前导数字=
-档号,**随新序理顺=序位号(0/1/2)**(1002 前旧档号 0=直出/2=Fun-Acc/1=viggle
-系旧 [30] 档位号口径,重排后理顺归零重编;旧→新字符串映射=research/slot-map.md;
-自动档不带档号)。combo
-列表即契约:/prompt
-闭集硬校验,不在列表即 HTTP 400(BUILDING_NODES 陷阱在档)——改档位文案
-必须与三生成器同笔;步数语义在支路采样器自身 widget,本节点不持步数。
+档位表单源:SPEED_MODES 序即 combo 序,**首项=默认=「0 · Turbo 8步」**
+(1021 用户令:所有型含自由/空型默认 Turbo,不按型转原生)。Turbo 使用官方
+LoRA(avg_rank_178)8步 cfg1;三手动档字符串不变,用户保存的显式选择不迁移。
+「自动 · 按型」保留为末项手动选项:型名∈{设定卡,美宣,概念气氛图}→原生
+出图,其余含空→Turbo(1017 路由行为保留,不再是出厂默认)。历史裁定留档。
+combo 列表即契约:/prompt 闭集硬校验,不在列表即 HTTP 400
+(BUILDING_NODES 陷阱在档);步数语义在支路采样器自身 widget,本节点不持步数。
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-# 档位表:combo 顺序即画布下拉顺序,首项=默认=「自动 · 按型」(1017 增档:
-# 按型路由无固有槽,槽位记 None、_SLOT_OF 过滤——实际槽由 resolve_slot 按
-# 型名现算;1002/1016 首项=Turbo 口径由 1017 再推翻,历史账不改写);三手动档
-# 逐字不动(Turbo 8步承 1016 换臂+1002 提首位;次序:Turbo 主加速居首,
-# 直出居二,viggle 居三)。
+# 档位表:首项=默认=Turbo 8步(1021 用户令);原生/viggle 随后,自动按型居末。
+# 三手动档逐字不动;自动档无固有槽,由 resolve_slot 按型名现算。
 # 元组=(档位字符串, 选中时路由的 latent 槽名);手动档档号内嵌字符串前导位=
 # 序位号(0/1/2,1002 理顺:与新 combo 序一致);分隔符=U+00B7 中点
 # (契约测试锁码位防全角漂移)。
@@ -59,10 +51,10 @@ from typing import Any
 AUTO_MODE = "自动 · 按型"
 _AUTO_DIRECT_TYPES: tuple[str, ...] = ("设定卡", "美宣", "概念气氛图")
 SPEED_MODES: tuple[tuple[str, str | None], ...] = (
-    (AUTO_MODE, None),
     ("0 · Turbo 8步", "latent_turbo"),
     ("1 · 原生出图", "latent_direct"),
     ("2 · viggle", "latent_viggle"),
+    (AUTO_MODE, None),
 )
 
 MODES: list[str] = [mode for mode, _slot in SPEED_MODES]
@@ -91,10 +83,9 @@ def resolve_slot(mode: str | None, type_name: str | None = None) -> str | None:
 
 
 class MyQi21SpeedSelect:
-    """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择(默认「自动 ·
-    按型」1017 增档:型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo;1002-1016
-    默认 Turbo 8步 由 1017 再翻篇;0929-1001 期间曾默认原生出图,1002-1016
-    曾默认 Fun-Acc 4步,均已翻篇,历史账不改写)。
+    """漫影 qi21 加速档位:三并行支路 LATENT 汇流处单点选择。
+    默认「0 · Turbo 8步」(1021 用户令,所有型均走 Turbo);末项「自动 · 按型」
+    需手动选择,仍保留设定卡/美宣/概念气氛图→原生、其余含空→Turbo 行为。
 
     mode=combo 四选一(首项默认;自动档配 optional「型名」信号);三个 latent
     槽全 optional 全 lazy——

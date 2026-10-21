@@ -49,6 +49,7 @@ from .nodes.my_image_save import MyImageSave
 from .nodes.my_qi21_prompt_preview import MyQi21PromptPreview
 from .nodes.my_qi21_bool_branch import MyQi21BoolBranch
 from .nodes.my_qi21_pe_switch import MyQi21PESwitch
+from .nodes.my_qi21_purpose_canvas import MyQi21PurposeCanvas
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
@@ -122,6 +123,7 @@ _bridge_settings_server.install()
 _open_receipt_server.install()
 
 NODE_CLASS_MAPPINGS = {
+    "MyQi21PurposeCanvas": MyQi21PurposeCanvas,
     "MyPrompt": MyPrompt,
     "MyReference": MyReference,
     "MyGenerated": MyGenerated,
@@ -171,6 +173,7 @@ NODE_CLASS_MAPPINGS = {
 WEB_DIRECTORY = "./web"
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "MyQi21PurposeCanvas": "道劫·用途画幅路由",
     "MyPrompt": "漫影 提示词",
     "MyReference": "漫影 参考图",
     "MyGenerated": "漫影 成图回写",

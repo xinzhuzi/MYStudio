@@ -14,10 +14,10 @@ pe开路负向一行对调=直写优先(负面词直写 非空恒胜,PE负面 �
   ⑭ 四连线槽前置/头尾 W1 default=qi21_bases.json rgba 节现读/multiline 大框)
 ②pe开+透明关=PE出文 原样+pe开×PE出文未接线→中文 ValueError(不猜不代选)
   +案B:pe开负向=直写非空恒胜/空档兜底 PE负面
-③pe关+透明开=头句+装配全文+W1+尾句 逐字(1005 用户令去重:R1 中文透明声明
-  插入已删,声明逐字=头+尾拼接头尾转中文后即重复;Q4 同包 W1)
+③pe关+透明开=头句+装配全文+尾句 逐字(1021 W1退役;1005 用户令去重:R1 中文透明声明
+  插入已删,声明逐字=头+尾拼接头尾转中文后即重复;W1仅留兼容槽)
   +降级双空格形+负向不随透明包裹(pe关负向=直写)
-④pe开+透明开=头句+剥离(PE出文)+W1+尾句 逐字(词族真源=qi21_bases.json
+④pe开+透明开=头句+剥离(PE出文)+尾句 逐字(词族真源=qi21_bases.json
   #strip_lexicon 现读)+负向不剥离不包裹(案B 同胜)
 ⑤双口形状锚(RETURN_TYPES/NAMES=进编码正向/负向文本)+四象限两口期望对拍
 ⑥懒保持:check_lazy_status 四分支矩阵(pe关→[]/pe开+PE出文已接线未求值→
@@ -141,28 +141,28 @@ def test_2_pe_on_transparent_off_returns_pe_text_and_raises_without_wiring():
 
 
 def test_3_pe_off_transparent_on_wraps_assembled_with_w1_and_degrades():
-    """四象限(pe关+透明开):正向=头句+空格+装配全文+空格+W1收束句+空格+尾句
-    逐字(Q4 两路同包 W1;1005 用户令去重——R1 的中文透明声明插入已删,它
+    """四象限(pe关+透明开):正向=头句+空格+装配全文+空格+尾句
+    逐字(W1参数仅留兼容;1005 用户令去重——R1 的中文透明声明插入已删,它
     逐字=中文头+尾拼接,头尾转中文后即书挡,再插一遍=同一句话出现两次,
     锚定意图由中文头尾承担)。
 
     同锁降级象限:装配全文未接线+pe关→正向降级空串+中文 print 警告→包裹=
-    头句+" "+" "+W1+" "+尾句(双空格形);负向路不随透明包裹
+    头句+" "+" "+尾句(双空格形);负向路不随透明包裹
     (透明包裹是正向路画幅指令)——pe关负向恒=负面词直写,缺键=空串。"""
     node = MyQi21PromptSelect()
     got = node.compose(pe开关=False, 透明模式=True, 装配全文=_ASSEMBLED,
                        负面词直写=_DIRECT_NEG,
                        RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
-    expected = f"头句 装配全文例 W1句 尾句"
+    expected = f"头句 装配全文例 尾句"
     assert got == (expected, _DIRECT_NEG), \
-        f"pe关+透明开→正向=头句+装配+W1+尾(去重后)逐字+负向=直写,得 {got!r}"
+        f"pe关+透明开→正向=头句+装配+尾(W1停用)逐字+负向=直写,得 {got!r}"
     # 去重锁:R1 声明常量须已删(它逐字=中文头+尾拼接,插回即同一句话两次)
     assert not hasattr(select, "_ZH_ALPHA_DECL"), \
         f"_ZH_ALPHA_DECL 应已删(1005 去重令:头尾中文书挡后声明=逐字重复)"
     degraded = node.compose(pe开关=False, 透明模式=True,
                             RGBA官方头句="头句", RGBA官方尾句="尾句",
                             W1收束句="W1句")
-    assert degraded == (f"头句  W1句 尾句", ""), \
+    assert degraded == (f"头句  尾句", ""), \
         f"装配全文未接线+pe关→正向降级双空格形+负向缺键=空串(空负向合法态),得 {degraded!r}"
     # pe开路不消费装配全文=缺键照常(PE出文为正文;隔离降级语义不外溢)
     pe_on = node.compose(pe开关=True, 透明模式=False, PE出文="PE 文")
@@ -170,7 +170,7 @@ def test_3_pe_off_transparent_on_wraps_assembled_with_w1_and_degrades():
 
 
 def test_4_pe_on_transparent_on_strips_word_family_and_keeps_w1():
-    """四象限(pe开+透明开):正向=头句+剥离(PE出文)+W1+尾句 逐字——剥离对象=
+    """四象限(pe开+透明开):正向=头句+剥离(PE出文)+尾句 逐字——W1停用;剥离对象=
     PE出文(词族整句删,含 backgrounds 族句 "Misty mountains ... behind her."
     消失;词族=qi21_bases.json#strip_lexicon 节现读,大小写由 case_insensitive
     驱动);负向不剥离(词族整句删会误伤逗号清单式负面词)+案B 直写胜。"""
@@ -180,9 +180,9 @@ def test_4_pe_on_transparent_on_strips_word_family_and_keeps_w1():
                        RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
     assert "Misty mountains and clouds behind her." not in got[0], \
         f"词族整句(backgrounds 族)应被剥离,得 {got[0]!r}"
-    assert "W1句" in got[0], "W1收束句应在场(剥离之后拼接)"
-    assert got == (f"头句 {_STRIPPED_PE} W1句 尾句", _DIRECT_NEG), \
-        f"pe开+透明开=正向头+剥离文+W1+尾 逐字+负向案B直写胜(不剥离),得 {got!r}"
+    assert "W1句" not in got[0], "W1收束句仅留兼容参数,不自动追加"
+    assert got == (f"头句 {_STRIPPED_PE} 尾句", _DIRECT_NEG), \
+        f"pe开+透明开=正向头+剥离文+尾 逐字+负向案B直写胜(不剥离),得 {got!r}"
     # 大小写不敏感由数据文件驱动:大写词族句同样被剥(case_insensitive=true)
     upper = node.compose(pe开关=True, 透明模式=True,
                          PE出文="Keep this. DISTANT MOUNTAINS fade away. Keep that too.",
@@ -211,8 +211,8 @@ def test_5_two_port_shape_and_quadrant_expectations():
         (False, False, None, _ASSEMBLED, _DIRECT_NEG),
         (True, False, _PE_TEXT, _PE_TEXT, _DIRECT_NEG),   # 案B:直写胜
         (False, True, None,
-         f"头句 装配全文例 W1句 尾句", _DIRECT_NEG),   # 1005 去重:声明插入已删
-        (True, True, _PE_TEXT, f"头句 {_STRIPPED_PE} W1句 尾句", _DIRECT_NEG),
+         f"头句 装配全文例 尾句", _DIRECT_NEG),   # 1005 去重:声明插入已删
+        (True, True, _PE_TEXT, f"头句 {_STRIPPED_PE} 尾句", _DIRECT_NEG),
     ]
     for pe_on, transparent, pe_text, want_pos, want_neg in quadrants:
         got = _compose_quadrant(pe_on, transparent, pe_text)
@@ -401,7 +401,7 @@ def test_pe_off_ignores_blank_output(pe_text, transparent):
         装配全文=" 原始指令\n保留 ", PE出文=pe_text, PE负面=_PE_NEG,
         pe开关=False, 透明模式=transparent, 负面词直写=_DIRECT_NEG,
         RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
-    expected = "头句  原始指令\n保留  W1句 尾句" if transparent else " 原始指令\n保留 "
+    expected = "头句  原始指令\n保留  尾句" if transparent else " 原始指令\n保留 "
     assert actual == (expected, _DIRECT_NEG)
 
 
@@ -412,5 +412,5 @@ def test_pe_on_preserves_valid_output(transparent):
         装配全文=_ASSEMBLED, PE出文=pe_text, PE负面=_PE_NEG,
         pe开关=True, 透明模式=transparent, 负面词直写=_DIRECT_NEG,
         RGBA官方头句="头句", RGBA官方尾句="尾句", W1收束句="W1句")
-    expected = "头句  \t有效主体。\n型底座\n风格底座 \n W1句 尾句" if transparent else pe_text
+    expected = "头句  \t有效主体。\n型底座\n风格底座 \n 尾句" if transparent else pe_text
     assert actual == (expected, _DIRECT_NEG)

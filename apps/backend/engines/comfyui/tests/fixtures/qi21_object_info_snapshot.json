@@ -1,4012 +1,4037 @@
 {
- "BasicGuider": {
-  "input": {
-   "required": {
-    "model": [
-     "MODEL",
-     {}
+  "BasicGuider": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL",
+          {}
+        ],
+        "conditioning": [
+          "CONDITIONING",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "conditioning"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "GUIDER"
     ],
-    "conditioning": [
-     "CONDITIONING",
-     {}
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "GUIDER"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "BasicGuider",
+    "display_name": "Basic Guider",
+    "description": "",
+    "python_module": "comfy_extras.nodes_custom_sampler",
+    "category": "model/sampling/guiders",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "BatchImagesNode": {
+    "input": {
+      "required": {
+        "images": [
+          "COMFY_AUTOGROW_V3",
+          {
+            "template": {
+              "input": {
+                "required": {
+                  "image": [
+                    "IMAGE",
+                    {}
+                  ]
+                }
+              },
+              "prefix": "image",
+              "min": 1,
+              "max": 50
+            }
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "images"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "BatchImagesNode",
+    "display_name": "Batch Images",
+    "description": "",
+    "python_module": "comfy_extras.nodes_post_processing",
+    "category": "image/batch",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "batch",
+      "image batch",
+      "batch images",
+      "combine images",
+      "merge images",
+      "stack images"
+    ],
+    "essentials_category": "Image Tools",
+    "has_intermediate_output": false
+  },
+  "CLIPLoader": {
+    "input": {
+      "required": {
+        "clip_name": [
+          [
+            "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors",
+            "qwen3vl_8b_bf16_heretic.safetensors"
+          ]
+        ],
+        "type": [
+          [
+            "stable_diffusion",
+            "stable_cascade",
+            "sd3",
+            "stable_audio",
+            "mochi",
+            "ltxv",
+            "pixart",
+            "cosmos",
+            "lumina2",
+            "wan",
+            "hidream",
+            "chroma",
+            "ace",
+            "omnigen2",
+            "qwen_image",
+            "hunyuan_image",
+            "flux2",
+            "ovis",
+            "longcat_image",
+            "cogvideox",
+            "lens",
+            "pixeldit",
+            "ideogram4",
+            "boogu",
+            "krea2",
+            "joyimage",
+            "mage",
+            "minimax",
+            "yue2",
+            "flux3",
+            "moss_image"
+          ]
+        ]
+      },
+      "optional": {
+        "device": [
+          [
+            "default",
+            "cpu"
+          ],
+          {
+            "advanced": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "clip_name",
+        "type"
+      ],
+      "optional": [
+        "device"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "CLIP"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "CLIP"
+    ],
+    "name": "CLIPLoader",
+    "display_name": "Load CLIP",
+    "description": "Recipes:\nsd: clip-l\nstable cascade: clip-g\nsd3: t5 xxl / clip-g / clip-l\nstable audio: t5 base\nmochi: t5 xxl\ncogvideox: t5 xxl (226-token padding)\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\nhidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B\njoyimage: qwen3-vl 8B\nlens: gpt-oss-20b\npixeldit: gemma 2 2B elm\nminimax: MiniMax H3 Qwen3-VL or Music3 Qwen/RVQ\nflux3: qwen3-vl 4B",
+    "python_module": "nodes",
+    "category": "model/loaders",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "ComfySwitchNode": {
+    "input": {
+      "required": {
+        "switch": [
+          "BOOLEAN",
+          {}
+        ]
+      },
+      "optional": {
+        "on_false": [
+          "COMFY_MATCHTYPE_V3",
+          {
+            "lazy": true,
+            "template": {
+              "template_id": "switch",
+              "allowed_types": "*"
+            }
+          }
+        ],
+        "on_true": [
+          "COMFY_MATCHTYPE_V3",
+          {
+            "lazy": true,
+            "template": {
+              "template_id": "switch",
+              "allowed_types": "*"
+            }
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "switch"
+      ],
+      "optional": [
+        "on_false",
+        "on_true"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "COMFY_MATCHTYPE_V3"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "output"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": [
+      "switch"
+    ],
+    "name": "ComfySwitchNode",
+    "display_name": "If/Else Switch",
+    "description": "",
+    "python_module": "comfy_extras.nodes_logic",
+    "category": "utilities/logic",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": true,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "if",
+      "then",
+      "switch",
+      "conditional",
+      "branch"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "DisableNoise": {
+    "input": {
+      "required": {}
+    },
+    "input_order": {
+      "required": []
+    },
+    "is_input_list": false,
+    "output": [
+      "NOISE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "NOISE"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "DisableNoise",
+    "display_name": null,
+    "description": "",
+    "python_module": "comfy_extras.nodes_custom_sampler",
+    "category": "model/sampling/noise",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "zero noise"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "EmptyLatentImage": {
+    "input": {
+      "required": {
+        "width": [
+          "INT",
+          {
+            "default": 1024,
+            "min": 16,
+            "max": 16384,
+            "step": 8,
+            "tooltip": "The width of the latent images in pixels."
+          }
+        ],
+        "height": [
+          "INT",
+          {
+            "default": 1024,
+            "min": 16,
+            "max": 16384,
+            "step": 8,
+            "tooltip": "The height of the latent images in pixels."
+          }
+        ],
+        "batch_size": [
+          "INT",
+          {
+            "default": 1,
+            "min": 1,
+            "max": 4096,
+            "tooltip": "The number of latent images in the batch."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "width",
+        "height",
+        "batch_size"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "LATENT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "LATENT"
+    ],
+    "name": "EmptyLatentImage",
+    "display_name": "Empty Latent Image",
+    "description": "Create a new batch of empty latent images to be denoised via sampling.",
+    "python_module": "nodes",
+    "category": "model/latent",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "output_tooltips": [
+      "The empty latent image batch."
+    ],
+    "search_aliases": [
+      "empty",
+      "empty latent",
+      "new latent",
+      "create latent",
+      "blank latent",
+      "blank"
     ]
-   }
   },
-  "input_order": {
-   "required": [
-    "model",
-    "conditioning"
-   ]
+  "Image Comparer (rgthree)": {
+    "input": {
+      "required": {},
+      "optional": {
+        "image_a": [
+          "IMAGE"
+        ],
+        "image_b": [
+          "IMAGE"
+        ]
+      },
+      "hidden": {
+        "prompt": "PROMPT",
+        "extra_pnginfo": "EXTRA_PNGINFO"
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "image_a",
+        "image_b"
+      ],
+      "hidden": [
+        "prompt",
+        "extra_pnginfo"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "images"
+    ],
+    "name": "Image Comparer (rgthree)",
+    "display_name": "Image Comparer (rgthree)",
+    "description": "Compares two images with a hover slider, or click from properties.",
+    "python_module": "custom_nodes.rgthree-comfy",
+    "category": "rgthree",
+    "output_node": true,
+    "has_intermediate_output": false,
+    "search_aliases": [
+      "preview",
+      "preview image",
+      "show image",
+      "view image",
+      "display image",
+      "image viewer"
+    ],
+    "essentials_category": "Basics"
   },
-  "is_input_list": false,
-  "output": [
-   "GUIDER"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "GUIDER"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "BasicGuider",
-  "display_name": "Basic Guider",
-  "description": "",
-  "python_module": "comfy_extras.nodes_custom_sampler",
-  "category": "model/sampling/guiders",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "BatchImagesNode": {
-  "input": {
-   "required": {
-    "images": [
-     "COMFY_AUTOGROW_V3",
-     {
-      "template": {
-       "input": {
-        "required": {
-         "image": [
+  "ImageScaleToTotalPixels": {
+    "input": {
+      "required": {
+        "image": [
           "IMAGE",
           {}
-         ]
-        }
-       },
-       "prefix": "image",
-       "min": 1,
-       "max": 50
-      }
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "images"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "IMAGE"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "BatchImagesNode",
-  "display_name": "Batch Images",
-  "description": "",
-  "python_module": "comfy_extras.nodes_post_processing",
-  "category": "image/batch",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "batch",
-   "image batch",
-   "batch images",
-   "combine images",
-   "merge images",
-   "stack images"
-  ],
-  "essentials_category": "Image Tools",
-  "has_intermediate_output": false
- },
- "CLIPLoader": {
-  "input": {
-   "required": {
-    "clip_name": [
-     [
-      "qwen3.5_9b_qwen_image_2.1_pe_i2i_bf16.safetensors",
-      "qwen3vl_8b_bf16_heretic.safetensors"
-     ]
-    ],
-    "type": [
-     [
-      "stable_diffusion",
-      "stable_cascade",
-      "sd3",
-      "stable_audio",
-      "mochi",
-      "ltxv",
-      "pixart",
-      "cosmos",
-      "lumina2",
-      "wan",
-      "hidream",
-      "chroma",
-      "ace",
-      "omnigen2",
-      "qwen_image",
-      "hunyuan_image",
-      "flux2",
-      "ovis",
-      "longcat_image",
-      "cogvideox",
-      "lens",
-      "pixeldit",
-      "ideogram4",
-      "boogu",
-      "krea2",
-      "joyimage",
-      "mage",
-      "minimax",
-      "yue2",
-      "flux3",
-      "moss_image"
-     ]
-    ]
-   },
-   "optional": {
-    "device": [
-     [
-      "default",
-      "cpu"
-     ],
-     {
-      "advanced": true
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "clip_name",
-    "type"
-   ],
-   "optional": [
-    "device"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "CLIP"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "CLIP"
-  ],
-  "name": "CLIPLoader",
-  "display_name": "Load CLIP",
-  "description": "Recipes:\nsd: clip-l\nstable cascade: clip-g\nsd3: t5 xxl / clip-g / clip-l\nstable audio: t5 base\nmochi: t5 xxl\ncogvideox: t5 xxl (226-token padding)\ncosmos: old t5 xxl\nlumina2: gemma 2 2B\nwan: umt5 xxl\nhidream: llama-3.1 (Recommend) or t5\nomnigen2: qwen vl 2.5 3B\njoyimage: qwen3-vl 8B\nlens: gpt-oss-20b\npixeldit: gemma 2 2B elm\nminimax: MiniMax H3 Qwen3-VL or Music3 Qwen/RVQ\nflux3: qwen3-vl 4B",
-  "python_module": "nodes",
-  "category": "model/loaders",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "ComfySwitchNode": {
-  "input": {
-   "required": {
-    "switch": [
-     "BOOLEAN",
-     {}
-    ]
-   },
-   "optional": {
-    "on_false": [
-     "COMFY_MATCHTYPE_V3",
-     {
-      "lazy": true,
-      "template": {
-       "template_id": "switch",
-       "allowed_types": "*"
-      }
-     }
-    ],
-    "on_true": [
-     "COMFY_MATCHTYPE_V3",
-     {
-      "lazy": true,
-      "template": {
-       "template_id": "switch",
-       "allowed_types": "*"
-      }
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "switch"
-   ],
-   "optional": [
-    "on_false",
-    "on_true"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "COMFY_MATCHTYPE_V3"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "output"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": [
-   "switch"
-  ],
-  "name": "ComfySwitchNode",
-  "display_name": "If/Else Switch",
-  "description": "",
-  "python_module": "comfy_extras.nodes_logic",
-  "category": "utilities/logic",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": true,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "if",
-   "then",
-   "switch",
-   "conditional",
-   "branch"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "DisableNoise": {
-  "input": {
-   "required": {}
-  },
-  "input_order": {
-   "required": []
-  },
-  "is_input_list": false,
-  "output": [
-   "NOISE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "NOISE"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "DisableNoise",
-  "display_name": null,
-  "description": "",
-  "python_module": "comfy_extras.nodes_custom_sampler",
-  "category": "model/sampling/noise",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "zero noise"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "EmptyLatentImage": {
-  "input": {
-   "required": {
-    "width": [
-     "INT",
-     {
-      "default": 1024,
-      "min": 16,
-      "max": 16384,
-      "step": 8,
-      "tooltip": "The width of the latent images in pixels."
-     }
-    ],
-    "height": [
-     "INT",
-     {
-      "default": 1024,
-      "min": 16,
-      "max": 16384,
-      "step": 8,
-      "tooltip": "The height of the latent images in pixels."
-     }
-    ],
-    "batch_size": [
-     "INT",
-     {
-      "default": 1,
-      "min": 1,
-      "max": 4096,
-      "tooltip": "The number of latent images in the batch."
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "width",
-    "height",
-    "batch_size"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "LATENT"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "LATENT"
-  ],
-  "name": "EmptyLatentImage",
-  "display_name": "Empty Latent Image",
-  "description": "Create a new batch of empty latent images to be denoised via sampling.",
-  "python_module": "nodes",
-  "category": "model/latent",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "output_tooltips": [
-   "The empty latent image batch."
-  ],
-  "search_aliases": [
-   "empty",
-   "empty latent",
-   "new latent",
-   "create latent",
-   "blank latent",
-   "blank"
-  ]
- },
- "Image Comparer (rgthree)": {
-  "input": {
-   "required": {},
-   "optional": {
-    "image_a": [
-     "IMAGE"
-    ],
-    "image_b": [
-     "IMAGE"
-    ]
-   },
-   "hidden": {
-    "prompt": "PROMPT",
-    "extra_pnginfo": "EXTRA_PNGINFO"
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "image_a",
-    "image_b"
-   ],
-   "hidden": [
-    "prompt",
-    "extra_pnginfo"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "images"
-  ],
-  "name": "Image Comparer (rgthree)",
-  "display_name": "Image Comparer (rgthree)",
-  "description": "Compares two images with a hover slider, or click from properties.",
-  "python_module": "custom_nodes.rgthree-comfy",
-  "category": "rgthree",
-  "output_node": true,
-  "has_intermediate_output": false,
-  "search_aliases": [
-   "preview",
-   "preview image",
-   "show image",
-   "view image",
-   "display image",
-   "image viewer"
-  ],
-  "essentials_category": "Basics"
- },
- "ImageScaleToTotalPixels": {
-  "input": {
-   "required": {
-    "image": [
-     "IMAGE",
-     {}
-    ],
-    "upscale_method": [
-     "COMBO",
-     {
-      "multiselect": false,
-      "options": [
-       "nearest-exact",
-       "bilinear",
-       "area",
-       "bicubic",
-       "lanczos"
-      ]
-     }
-    ],
-    "megapixels": [
-     "FLOAT",
-     {
-      "default": 1.0,
-      "min": 0.01,
-      "max": 16.0,
-      "step": 0.01
-     }
-    ],
-    "resolution_steps": [
-     "INT",
-     {
-      "advanced": true,
-      "default": 1,
-      "min": 1,
-      "max": 256
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "image",
-    "upscale_method",
-    "megapixels",
-    "resolution_steps"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "IMAGE"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "ImageScaleToTotalPixels",
-  "display_name": "Scale Image to Total Pixels",
-  "description": "",
-  "python_module": "comfy_extras.nodes_post_processing",
-  "category": "image/upscaling",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "JoinImageWithAlpha": {
-  "input": {
-   "required": {
-    "image": [
-     "IMAGE",
-     {}
-    ],
-    "alpha": [
-     "MASK",
-     {}
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "image",
-    "alpha"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "IMAGE"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "JoinImageWithAlpha",
-  "display_name": "Join Image with Alpha",
-  "description": "",
-  "python_module": "comfy_extras.nodes_compositing",
-  "category": "image/compositing",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "add transparency",
-   "apply alpha",
-   "composite alpha",
-   "RGBA"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "KSampler": {
-  "input": {
-   "required": {
-    "model": [
-     "MODEL",
-     {
-      "tooltip": "The model used for denoising the input latent."
-     }
-    ],
-    "seed": [
-     "INT",
-     {
-      "default": 0,
-      "min": 0,
-      "max": 18446744073709551615,
-      "control_after_generate": true,
-      "tooltip": "The random seed used for creating the noise."
-     }
-    ],
-    "steps": [
-     "INT",
-     {
-      "default": 20,
-      "min": 1,
-      "max": 10000,
-      "tooltip": "The number of steps used in the denoising process."
-     }
-    ],
-    "cfg": [
-     "FLOAT",
-     {
-      "default": 8.0,
-      "min": 0.0,
-      "max": 100.0,
-      "step": 0.1,
-      "round": 0.01,
-      "tooltip": "The Classifier-Free Guidance scale balances creativity and adherence to the prompt. Higher values result in images more closely matching the prompt however too high values will negatively impact quality."
-     }
-    ],
-    "sampler_name": [
-     [
-      "euler",
-      "euler_cfg_pp",
-      "euler_ancestral",
-      "euler_ancestral_cfg_pp",
-      "heun",
-      "heunpp2",
-      "exp_heun_2_x0",
-      "exp_heun_2_x0_sde",
-      "dpm_2",
-      "dpm_2_ancestral",
-      "lms",
-      "dpm_fast",
-      "dpm_adaptive",
-      "dpmpp_2s_ancestral",
-      "dpmpp_2s_ancestral_cfg_pp",
-      "dpmpp_sde",
-      "dpmpp_sde_gpu",
-      "dpmpp_2m",
-      "dpmpp_2m_cfg_pp",
-      "dpmpp_2m_sde",
-      "dpmpp_2m_sde_gpu",
-      "dpmpp_2m_sde_heun",
-      "dpmpp_2m_sde_heun_gpu",
-      "dpmpp_3m_sde",
-      "dpmpp_3m_sde_gpu",
-      "ddpm",
-      "lcm",
-      "ipndm",
-      "ipndm_v",
-      "deis",
-      "cfgpp_ud10_ab",
-      "res_multistep",
-      "res_multistep_cfg_pp",
-      "res_multistep_ancestral",
-      "res_multistep_ancestral_cfg_pp",
-      "gradient_estimation",
-      "gradient_estimation_cfg_pp",
-      "er_sde",
-      "seeds_2",
-      "seeds_3",
-      "sa_solver",
-      "sa_solver_pece",
-      "ddim",
-      "uni_pc",
-      "uni_pc_bh2"
-     ],
-     {
-      "tooltip": "The algorithm used when sampling, this can affect the quality, speed, and style of the generated output."
-     }
-    ],
-    "scheduler": [
-     [
-      "simple",
-      "sgm_uniform",
-      "karras",
-      "exponential",
-      "ddim_uniform",
-      "beta",
-      "normal",
-      "linear_quadratic",
-      "kl_optimal"
-     ],
-     {
-      "tooltip": "The scheduler controls how noise is gradually removed to form the image."
-     }
-    ],
-    "positive": [
-     "CONDITIONING",
-     {
-      "tooltip": "The conditioning describing the attributes you want to include in the image."
-     }
-    ],
-    "negative": [
-     "CONDITIONING",
-     {
-      "tooltip": "The conditioning describing the attributes you want to exclude from the image."
-     }
-    ],
-    "latent_image": [
-     "LATENT",
-     {
-      "tooltip": "The latent image to denoise."
-     }
-    ],
-    "denoise": [
-     "FLOAT",
-     {
-      "default": 1.0,
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.01,
-      "tooltip": "The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling."
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "model",
-    "seed",
-    "steps",
-    "cfg",
-    "sampler_name",
-    "scheduler",
-    "positive",
-    "negative",
-    "latent_image",
-    "denoise"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "LATENT"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "LATENT"
-  ],
-  "name": "KSampler",
-  "display_name": "KSampler",
-  "description": "Uses the provided model, positive and negative conditioning to denoise the latent image.",
-  "python_module": "nodes",
-  "category": "model/sampling",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "output_tooltips": [
-   "The denoised latent."
-  ],
-  "search_aliases": [
-   "sampler",
-   "sample",
-   "generate",
-   "denoise",
-   "diffuse",
-   "txt2img",
-   "img2img"
-  ]
- },
- "KSamplerSelect": {
-  "input": {
-   "required": {
-    "sampler_name": [
-     "COMBO",
-     {
-      "multiselect": false,
-      "options": [
-       "euler",
-       "euler_cfg_pp",
-       "euler_ancestral",
-       "euler_ancestral_cfg_pp",
-       "heun",
-       "heunpp2",
-       "exp_heun_2_x0",
-       "exp_heun_2_x0_sde",
-       "dpm_2",
-       "dpm_2_ancestral",
-       "lms",
-       "dpm_fast",
-       "dpm_adaptive",
-       "dpmpp_2s_ancestral",
-       "dpmpp_2s_ancestral_cfg_pp",
-       "dpmpp_sde",
-       "dpmpp_sde_gpu",
-       "dpmpp_2m",
-       "dpmpp_2m_cfg_pp",
-       "dpmpp_2m_sde",
-       "dpmpp_2m_sde_gpu",
-       "dpmpp_2m_sde_heun",
-       "dpmpp_2m_sde_heun_gpu",
-       "dpmpp_3m_sde",
-       "dpmpp_3m_sde_gpu",
-       "ddpm",
-       "lcm",
-       "ipndm",
-       "ipndm_v",
-       "deis",
-       "cfgpp_ud10_ab",
-       "res_multistep",
-       "res_multistep_cfg_pp",
-       "res_multistep_ancestral",
-       "res_multistep_ancestral_cfg_pp",
-       "gradient_estimation",
-       "gradient_estimation_cfg_pp",
-       "er_sde",
-       "seeds_2",
-       "seeds_3",
-       "sa_solver",
-       "sa_solver_pece",
-       "ddim",
-       "uni_pc",
-       "uni_pc_bh2"
-      ]
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "sampler_name"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "SAMPLER"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "SAMPLER"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "KSamplerSelect",
-  "display_name": null,
-  "description": "",
-  "python_module": "comfy_extras.nodes_custom_sampler",
-  "category": "model/sampling/samplers",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "LoadImage": {
-  "input": {
-   "required": {
-    "image": [
-     [
-      "my-asset-0085b5a9.jpg",
-      "my-asset-0c7af8b2.jpg",
-      "my-asset-12a1db89.jpg",
-      "my-asset-14774f10.jpg",
-      "my-asset-156839c8.jpg",
-      "my-asset-2f521127.jpg",
-      "my-asset-347d839a.jpg",
-      "my-asset-4760402b.jpg",
-      "my-asset-53b6ea7c.jpg",
-      "my-asset-65d82ec4.jpg",
-      "my-asset-72a3569e.jpg",
-      "my-asset-784138bf.jpg",
-      "my-asset-7dfcafc0.jpg",
-      "my-asset-7e15a91b.jpg",
-      "my-asset-7e9d9512.jpg",
-      "my-asset-854ca48d.jpg",
-      "my-asset-8f30b7ac.jpg",
-      "my-asset-a2d54700.jpg",
-      "my-asset-a33b0409.jpg",
-      "my-asset-a43f81f9.jpg",
-      "my-asset-b5c2ed0f.jpg",
-      "my-asset-b8fb0a93.jpg",
-      "my-asset-c8b9cb98.jpg",
-      "my-asset-cd30815d.jpg",
-      "my-asset-ebb01522.jpg",
-      "my-asset-ec17c3fa.jpg",
-      "qwen21-i2i-1b925de009cb46269ef99315c2aa39a2.png"
-     ],
-     {
-      "image_upload": true
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "image"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE",
-   "MASK"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "IMAGE",
-   "MASK"
-  ],
-  "name": "LoadImage",
-  "display_name": "Load Image",
-  "description": "",
-  "python_module": "nodes",
-  "category": "image",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": [
-   "load image",
-   "open image",
-   "import image",
-   "image input",
-   "upload image",
-   "read image",
-   "image loader"
-  ],
-  "essentials_category": "Basics"
- },
- "LoraLoaderModelOnly": {
-  "input": {
-   "required": {
-    "model": [
-     "MODEL"
-    ],
-    "lora_name": [
-     [
-      "Inklingv2-qwen21_c1-st6000.safetensors",
-      "Nick_2anime_QwenImage2.1.safetensors",
-      "QuadView_krea2_v1.safetensors",
-      "Qwen-Image-2.1-Hanfu-Style-lora-st5000.safetensors",
-      "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
-      "VNCCS_QI2_PoseStudioV1.1.safetensors",
-      "angles_v2_full_qwen21_multiple_angles_v2_qwen21_multiple_angles_v2_000001500.safetensors",
-      "ar_lora_inst_v3abc_comfyui.safetensors",
-      "cine1p_c1-st4000.safetensors",
-      "dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors",
-      "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
-      "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-      "next_scene_step2500.safetensors",
-      "qi21-mikkoani.safetensors",
-      "qwen2.1-detail-fix-2.0.safetensors",
-      "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-      "songmeixue-style-v1-0928_c1-st6000.safetensors",
-      "xianxia_gufeng_meixue.safetensors"
-     ]
-    ],
-    "strength_model": [
-     "FLOAT",
-     {
-      "default": 1.0,
-      "min": -100.0,
-      "max": 100.0,
-      "step": 0.01
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "model",
-    "lora_name",
-    "strength_model"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "MODEL"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "MODEL"
-  ],
-  "name": "LoraLoaderModelOnly",
-  "display_name": "Load LoRA",
-  "description": "This LoRAs loader is used to modify the diffusion model, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together.",
-  "python_module": "nodes",
-  "category": "model/loaders",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "output_tooltips": [
-   "The modified diffusion model.",
-   "The modified CLIP model."
-  ],
-  "search_aliases": [
-   "lora",
-   "load lora",
-   "apply lora",
-   "lora loader",
-   "lora model"
-  ],
-  "essentials_category": "Image Generation"
- },
- "ManualSigmas": {
-  "input": {
-   "required": {
-    "sigmas": [
-     "STRING",
-     {
-      "default": "1, 0.5",
-      "multiline": false
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "sigmas"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "SIGMAS"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "SIGMAS"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "ManualSigmas",
-  "display_name": null,
-  "description": "",
-  "python_module": "comfy_extras.nodes_custom_sampler",
-  "category": "model/sampling/sigmas",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": true,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "custom noise schedule",
-   "define sigmas"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "MyQi21ApiPE": {
-  "input": {
-   "required": {
-    "api_url": [
-     "STRING",
-     {
-      "default": "http://192.168.0.101:1234",
-      "tooltip": "LM Studio 服务地址,多个逗号分隔依次尝试(Windows 远程 9B;1007夜用户令:不用 Mac 本机接)"
-     }
-    ],
-    "model": [
-     "STRING",
-     {
-      "default": "qwen3.5-9b-uncensored-hauhaucs-aggressive",
-      "tooltip": "模型 id,逗号分隔与 api_url 逐一配对(Windows LM Studio 9B)"
-     }
-    ],
-    "temperature": [
-     "FLOAT",
-     {
-      "default": 0.7,
-      "min": 0.0,
-      "max": 2.0,
-      "step": 0.05,
-      "tooltip": "低温更听话;0.7=实测扩写质量档"
-     }
-    ],
-    "max_tokens": [
-     "INT",
-     {
-      "default": 12000,
-      "min": 256,
-      "max": 13000,
-      "tooltip": "生成预算:思考(xhigh)档思考链吃 ~7k 字+正文 ~1k;思考档位=关闭 时只需 ~2k 即够"
-     }
-    ],
-    "timeout_sec": [
-     "INT",
-     {
-      "default": 600,
-      "min": 10,
-      "max": 3600,
-      "tooltip": "整发预算(冷首发+长文要留足;超时=透传不炸)"
-     }
-    ],
-    "thinking_effort": [
-     [
-      "关闭",
-      "思考(xhigh)"
-     ],
-     {
-      "default": "关闭",
-      "tooltip": "思考档位(1007 实弹):关闭=reasoning_effort none 硬关,确定性零思考 token,全链 ~40s 内含自检补发;思考(xhigh)=模型模板原生档(=不发参数,思考量随机 ~1200-4600 tok/发,全链 21s~300s+ 波动,1006 全程即此档);「低」档实测无衰减已移除"
-     }
-    ],
-    "AI扩写开关": [
-     "BOOLEAN",
-     {
-      "default": false,
-      "tooltip": "1016 用户令(尾插保位序):开=走 LM Studio/云端模型扩写;关=完全不发模型请求,直接拼 美术风格底座+类型句+主体句 三层装配直出(与透传/回退同源同值;透明开时同走极简公式+格式锁)"
-     }
-    ]
-   },
-   "optional": {
-    "系统提示词": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4030] 真源文本·系统提示词;不连=真源热读兜底"
-     }
-    ],
-    "色卡": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4031] 真源文本·色卡;不连=真源热读兜底"
-     }
-    ],
-    "美术风格底座-正向": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4032].0 纯美术风格正文；背景、照明和状态规则来自类型句；不连则热读真源"
-     }
-    ],
-    "美术风格底座-负向": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4032].1 美术风格底座·负向词表(终稿负向三源之一);不连=真源热读兜底"
-     }
-    ],
-    "正向提示词": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "外部手写正向原文;锚点权重最高,润炼逐字保留其实体"
-     }
-    ],
-    "负向提示词": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "外部手写负向原文;逐条并入 negative_prompt 不丢条目"
-     }
-    ],
-    "类型句正向": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4010].0 类型句(BASE 正文)"
-     }
-    ],
-    "类型句负向": [
-     "STRING",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4010].3 类型句负面词(负面精炼原料)"
-     }
-    ],
-    "画幅宽": [
-     "INT",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4010].1 九型WIDTH(画幅语境)"
-     }
-    ],
-    "画幅高": [
-     "INT",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4010].2 九型HEIGHT(画幅语境)"
-     }
-    ],
-    "透明模式": [
-     "BOOLEAN",
-     {
-      "forceInput": true,
-      "tooltip": "连 [4010].4 透明值:开=透明素材图,勿虚构背景"
-     }
-    ],
-    "底座档位": [
-     [
-      "并入",
-      "裸测"
-     ],
-     {
-      "default": "并入",
-      "tooltip": "1016 用户令「真关掉底座」:并入=默认三层;1017 裁定:[4032] 旁路/未接线=底座正负自动离场(无需动本档);并入=用接线值;裸测=接线在场时强制离场(A/B 用);透明开时的极简公式格式锁不受此档影响(透明承载必需)"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "api_url",
-    "model",
-    "temperature",
-    "max_tokens",
-    "timeout_sec",
-    "thinking_effort",
-    "AI扩写开关"
-   ],
-   "optional": [
-    "系统提示词",
-    "色卡",
-    "美术风格底座-正向",
-    "美术风格底座-负向",
-    "正向提示词",
-    "负向提示词",
-    "类型句正向",
-    "类型句负向",
-    "画幅宽",
-    "画幅高",
-    "透明模式",
-    "底座档位"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING",
-   "STRING",
-   "BOOLEAN",
-   "INT",
-   "INT"
-  ],
-  "output_is_list": [
-   false,
-   false,
-   false,
-   false,
-   false
-  ],
-  "output_name": [
-   "正向提示词",
-   "负向提示词",
-   "透明模式",
-   "画幅宽",
-   "画幅高"
-  ],
-  "name": "MyQi21ApiPE",
-  "display_name": "漫影 API扩写PE",
-  "description": "API扩写PE:LM Studio(默认 Windows 远程 9B,OpenAI 兼容)按 qi21_bases.json 中文教材扩写主体句;锚点保全实测优于蒸馏 pe_t2i;全挂=透传自装配不炸",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": true,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21DaojieBase": {
-  "input": {
-   "required": {
-    "base": [
-     [
-      "人物",
-      "场景",
-      "道具",
-      "美宣",
-      "人物多视图",
-      "高清人脸",
-      "分镜剧情图",
-      "表情差分",
-      "概念气氛图",
-      "设定卡",
-      "自由"
-     ],
-     {
-      "default": "人物",
-      "tooltip": "选画风型:九个预设型+「自由」(自由=不要型底座,画幅/透明全自己定)"
-     }
-    ]
-   },
-   "optional": {
-    "透明覆盖": [
-     "BOOLEAN",
-     {
-      "default": false,
-      "tooltip": "只在「自由」型下有用:勾上=出透明底图;九个预设型自动按型决定,这里不用管"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "base"
-   ],
-   "optional": [
-    "透明覆盖"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING",
-   "INT",
-   "INT",
-   "STRING",
-   "BOOLEAN",
-   "STRING"
-  ],
-  "output_is_list": [
-   false,
-   false,
-   false,
-   false,
-   false,
-   false
-  ],
-  "output_name": [
-   "BASE",
-   "WIDTH",
-   "HEIGHT",
-   "负面词",
-   "透明值",
-   "型名"
-  ],
-  "name": "MyQi21DaojieBase",
-  "display_name": "道劫·qi21底座九选一",
-  "description": "",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21FinalOutput": {
-  "input": {
-   "required": {},
-   "optional": {
-    "正向提示词": [
-     "STRING",
-     {
-      "tooltip": "AI 扩写后的完整正向提示词(主体句×PE选择+型底座+美术风格底座三层拼装),连「三层拼装」节点的 装配全文 输出;不连=正向降级空串,日志有中文警告"
-     }
-    ],
-    "负向提示词": [
-     "STRING",
-     {
-      "tooltip": "AI 精炼后的负面清单(型负面+美术风格底座负面+主体句负面),连「三层拼装」节点的 负面词 输出;不连=空负向(合法态)"
-     }
-    ],
-    "透明模式": [
-     "BOOLEAN",
-     {
-      "default": false,
-      "tooltip": "透明包裹开关;连「类型句选择」的 透明值 输出=透明自动跟型(rgba_default 出已随 1002 ⑯ 删)"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "正向提示词",
-    "负向提示词",
-    "透明模式"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING",
-   "STRING"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "进编码正向文本",
-   "进编码负向文本"
-  ],
-  "name": "MyQi21FinalOutput",
-  "display_name": "道劫·qi21最终输出",
-  "description": "最终输出:装配全文+负面词直写→透明包裹→进编码正/负文本(t2i 新管线,PE已前移)",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21PromptAssembly": {
-  "input": {
-   "required": {},
-   "optional": {
-    "BASE": [
-     "STRING",
-     {
-      "tooltip": "所选类型的布局、背景、照明与状态规则,连「底座十选一」的 BASE 输出;不连就只用主体句+美术风格底座两段拼"
-     }
-    ],
-    "BASE负面": [
-     "STRING",
-     {
-      "tooltip": "所选型自带的负面词清单,连「底座十选一」的 负面词 输出;不连就只用美术风格底座自带的负面词"
-     }
-    ],
-    "主体句": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转约四分之一侧，重心落于右腿，左脚虚点下一级石阶，左臂自然垂落、左手五指放松；长剑以石青剑绦系于画面左侧腰间，剑鞘斜垂、与地面约呈四十五度，鞘尾朝画面左下方、剑柄朝画面右上方，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，全身仅此一柄长剑、始终挂定腰间；右臂自然垂落、右肘微屈，右手虚握挂定的剑鞘上端三分之一处、五指环拢鞘身，剑身重量仍由腰间剑绦承担；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
-      "tooltip": "画面里画什么的人话描述;生产时由子图入口喂入,这里一般是兜底例文"
-     }
-    ],
-    "主体句负面": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "",
-      "tooltip": "用户手写的主体句负面描述(如「不要出现xxx」);与型负面/美术风格底座负面合并"
-     }
-    ],
-    "锁层A全文": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
-      "tooltip": "新建资产/画风转换使用的共同画法(现代修仙游戏数字绘画规范),改画风才动它,一般不用改"
-     }
-    ],
-    "组装用途": [
-     [
-      "新建资产",
-      "局部编辑",
-      "画风转换",
-      "无底座出图"
-     ],
-     {
-      "default": "新建资产",
-      "tooltip": "新建资产追加类型与画法；局部编辑仅保留编辑指令；画风转换只追加画法，保留原构图；无底座出图=主体句+类型句两段(美术底座正/负全离场,裸测底座贡献用;底座热读兜底在此档失效)。"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "BASE",
-    "BASE负面",
-    "主体句",
-    "主体句负面",
-    "锁层A全文",
-    "组装用途"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING",
-   "STRING"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "装配全文",
-   "负面词"
-  ],
-  "name": "MyQi21PromptAssembly",
-  "display_name": "道劫·qi21装配全文件",
-  "description": "道劫按组装用途输出：新建资产=主体句+类型+画法；局部编辑=编辑指令；画风转换=指令+画法。旧调用默认新建资产；局部编辑不继承类型与全局负面。",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21PromptPreview": {
-  "input": {
-   "required": {},
-   "optional": {
-    "正向提示词": [
-     "STRING",
-     {
-      "forceInput": true
-     }
-    ],
-    "负向提示词": [
-     "STRING",
-     {
-      "forceInput": true
-     }
-    ],
-    "正向终稿": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "",
-      "tooltip": "正向终稿显示位(执行后自动刷新,无需手填/连线)"
-     }
-    ],
-    "负向终稿": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "",
-      "tooltip": "负向终稿显示位(执行后自动刷新,无需手填/连线)"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "正向提示词",
-    "负向提示词",
-    "正向终稿",
-    "负向终稿"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "合并预览"
-  ],
-  "name": "MyQi21PromptPreview",
-  "display_name": "道劫·正负双预览",
-  "description": "正负双预览(合成一个节点):正向终稿与负向终稿各一框",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": true,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21PromptSelect": {
-  "input": {
-   "required": {},
-   "optional": {
-    "装配全文": [
-     "STRING",
-     {
-      "tooltip": "装配好的完整提示词原文,连「装配全文件」节点的输出;不连=直写路空文,日志有中文警告"
-     }
-    ],
-    "负面词直写": [
-     "STRING",
-     {
-      "tooltip": "装配器整理好的负面词清单,连「装配全文件」节点的 负面词 输出;PE 关时它直接进负向编码,PE 开时也是它优先(只要非空,PE 改写的负面词不再顶掉它)"
-     }
-    ],
-    "PE出文": [
-     "STRING",
-     {
-      "lazy": true,
-      "tooltip": "PE 改写好的正向长提示词,连 PE 改写节点的 positive_prompt 输出;开关关时它不会被拉起"
-     }
-    ],
-    "PE负面": [
-     "STRING",
-     {
-      "lazy": true,
-      "tooltip": "PE 改写出的负面词清单,连 PE 改写节点的 negative_prompt 输出;开关关时它不会被拉起;只有「负面词直写」没接或为空时才轮到它兜底"
-     }
-    ],
-    "pe开关": [
-     "BOOLEAN",
-     {
-      "default": true,
-      "tooltip": "总开关:开=先用 PE 把中文短句改写成长提示词;关=直接用装配好的原文"
-     }
-    ],
-    "透明模式": [
-     "BOOLEAN",
-     {
-      "default": false,
-      "tooltip": "要不要出透明底图,自动跟着所选型走(接底座节点的「透明值」),一般不用管"
-     }
-    ],
-    "RGBA官方头句": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "This is an RGBA image with transparency.",
-      "tooltip": "教模型输出透明图的官方开头句(真源=qi21_bases.json,中文;一般不用改)"
-     }
-    ],
-    "RGBA官方尾句": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "The image has alpha channel and the background is transparent.",
-      "tooltip": "告诉模型图带透明通道的官方收尾句(真源=qi21_bases.json,中文;一般不用改)"
-     }
-    ],
-    "W1收束句": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge.",
-      "tooltip": "让主体变成干净抠图素材的收尾描述(独占画面+四周留透明,真源=qi21_bases.json;一般不用改)"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "装配全文",
-    "负面词直写",
-    "PE出文",
-    "PE负面",
-    "pe开关",
-    "透明模式",
-    "RGBA官方头句",
-    "RGBA官方尾句",
-    "W1收束句"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING",
-   "STRING"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "进编码正向文本",
-   "进编码负向文本"
-  ],
-  "name": "MyQi21PromptSelect",
-  "display_name": "道劫·qi21最终文本合成器",
-  "description": "道劫最终文本合成器:双口「进编码正向/负向文本」=透明开关决定拼不拼官方头尾、pe开关决定用 PE 出文还是装配原文(透明时词族剥离+W1收束);负向=负面词直写/PE负面双路(1005 案B 直写优先:pe开直写非空恒胜,PE负面空档兜底,pe关吃直写)",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21RgbaSelect": {
-  "input": {
-   "required": {
-    "mode": [
-     [
-      "自动",
-      "true",
-      "false"
-     ],
-     {
-      "default": "自动",
-      "tooltip": "自动=按底座型的默认透明(四型开,其余关);true/false=手动权威,不再随型变"
-     }
-    ]
-   },
-   "optional": {
-    "rgba_hint": [
-     "BOOLEAN",
-     {
-      "default": false,
-      "tooltip": "型默认透明信号(接 MyQi21DaojieBase.透明值;未接线视为关)"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "mode"
-   ],
-   "optional": [
-    "rgba_hint"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "BOOLEAN"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "rgba_on"
-  ],
-  "name": "MyQi21RgbaSelect",
-  "display_name": "Q2-1 RGBA透明开关(三选一·默认自动)",
-  "description": "透明开关三态选择:自动按型默认(四型开/其余型关,1015 十型口径,信号接 MyQi21DaojieBase.透明值);true/false=手动权威覆盖",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21SpeedSelect": {
-  "input": {
-   "required": {
-    "mode": [
-     [
-      "自动 · 按型",
-      "0 · Turbo 8步",
-      "1 · 原生出图",
-      "2 · viggle"
-     ],
-     {
-      "default": "自动 · 按型"
-     }
-    ]
-   },
-   "optional": {
-    "latent_turbo": [
-     "LATENT",
-     {
-      "lazy": true
-     }
-    ],
-    "latent_viggle": [
-     "LATENT",
-     {
-      "lazy": true
-     }
-    ],
-    "latent_direct": [
-     "LATENT",
-     {
-      "lazy": true
-     }
-    ],
-    "型名": [
-     "STRING",
-     {
-      "tooltip": "「自动 · 按型」档用:接底座节点的「型名」出,设定卡/美宣走原生出图,其余(含留空)走 Turbo;手动档忽略此值"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "mode"
-   ],
-   "optional": [
-    "latent_turbo",
-    "latent_viggle",
-    "latent_direct",
-    "型名"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "LATENT"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "latent"
-  ],
-  "name": "MyQi21SpeedSelect",
-  "display_name": "Q2-1 加速档位(三选一·默认Turbo 8步)",
-  "description": "",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21WhSuggest": {
-  "input": {
-   "required": {},
-   "optional": {
-    "九型WIDTH": [
-     "INT",
-     {
-      "tooltip": "所选型自带的默认宽,连 [6] 子图 width 出口(AI 扩写透传型默认画幅)"
-     }
-    ],
-    "九型HEIGHT": [
-     "INT",
-     {
-      "tooltip": "所选型自带的默认高,连 [6] 子图 height 出口(AI 扩写透传型默认画幅)"
-     }
-    ],
-    "手动宽": [
-     "INT",
-     {
-      "default": 0,
-      "min": 0,
-      "max": 8192,
-      "step": 8,
-      "tooltip": "自己填的画布宽;0=跟所选型默认,要填就和手动高一起填(8 的倍数，短边不足1024时同比补足)"
-     }
-    ],
-    "手动高": [
-     "INT",
-     {
-      "default": 0,
-      "min": 0,
-      "max": 8192,
-      "step": 8,
-      "tooltip": "自己填的画布高;0=跟所选型默认,要填就和手动宽一起填(8 的倍数，短边不足1024时同比补足)"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "九型WIDTH",
-    "九型HEIGHT",
-    "手动宽",
-    "手动高"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "INT",
-   "INT"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "width",
-   "height"
-  ],
-  "name": "MyQi21WhSuggest",
-  "display_name": "道劫·qi21画幅联动建议器",
-  "description": "",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21系统提示词": {
-  "input": {
-   "required": {},
-   "optional": {
-    "内容": [
-     "STRING",
-     {
-      "multiline": true,
-      "tooltip": "系统提示词全文展示(JS 回填;预填=部署时快照"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "内容"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "文本"
-  ],
-  "name": "MyQi21系统提示词",
-  "display_name": "漫影 系统提示词",
-  "description": "系统提示词:qi21_bases.json 热读只读出口(零控件,节点即管道)",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": true,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21美术风格底座": {
-  "input": {
-   "required": {},
-   "optional": {
-    "美术风格": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
-      "tooltip": "只读画法与成像工艺；背景、照明和状态规则在类型句。"
-     }
-    ],
-    "负向词表": [
-     "STRING",
-     {
-      "multiline": true,
-      "default": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦",
-      "tooltip": "只读风格与成像工艺负向词；内容缺陷和背景约束在类型句。"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "美术风格",
-    "负向词表"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING",
-   "STRING"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "文本",
-   "负向词表"
-  ],
-  "name": "MyQi21美术风格底座",
-  "display_name": "漫影 美术风格底座",
-  "description": "美术风格底座:qi21_bases.json 热读只读出口(零控件,节点即管道)",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": true,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "MyQi21色卡": {
-  "input": {
-   "required": {},
-   "optional": {
-    "内容": [
-     "STRING",
-     {
-      "multiline": true,
-      "tooltip": "色卡全文展示(JS 回填;预填=部署时快照"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "内容"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "文本"
-  ],
-  "name": "MyQi21色卡",
-  "display_name": "漫影 色卡",
-  "description": "色卡:qi21_bases.json 热读只读出口(零控件,节点即管道)",
-  "python_module": "custom_nodes.my-nodes",
-  "category": "漫影",
-  "output_node": true,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "PorterDuffImageComposite": {
-  "input": {
-   "required": {
-    "source": [
-     "IMAGE",
-     {}
-    ],
-    "source_alpha": [
-     "MASK",
-     {}
-    ],
-    "destination": [
-     "IMAGE",
-     {}
-    ],
-    "destination_alpha": [
-     "MASK",
-     {}
-    ],
-    "mode": [
-     "COMBO",
-     {
-      "default": "DST",
-      "multiselect": false,
-      "options": [
-       "ADD",
-       "CLEAR",
-       "DARKEN",
-       "DST",
-       "DST_ATOP",
-       "DST_IN",
-       "DST_OUT",
-       "DST_OVER",
-       "LIGHTEN",
-       "MULTIPLY",
-       "OVERLAY",
-       "SCREEN",
-       "SRC",
-       "SRC_ATOP",
-       "SRC_IN",
-       "SRC_OUT",
-       "SRC_OVER",
-       "XOR"
-      ]
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "source",
-    "source_alpha",
-    "destination",
-    "destination_alpha",
-    "mode"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE",
-   "MASK"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "IMAGE",
-   "MASK"
-  ],
-  "output_tooltips": [
-   null,
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "PorterDuffImageComposite",
-  "display_name": "Porter-Duff Image Composite",
-  "description": "",
-  "python_module": "comfy_extras.nodes_compositing",
-  "category": "image/compositing",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "alpha composite",
-   "blend modes",
-   "layer blend",
-   "transparency blend"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "PrimitiveBoolean": {
-  "input": {
-   "required": {
-    "value": [
-     "BOOLEAN",
-     {}
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "value"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "BOOLEAN"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "BOOLEAN"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "PrimitiveBoolean",
-  "display_name": "Boolean",
-  "description": "",
-  "python_module": "comfy_extras.nodes_primitive",
-  "category": "utilities/primitive",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "PrimitiveInt": {
-  "input": {
-   "required": {
-    "value": [
-     "INT",
-     {
-      "min": -9223372036854775807,
-      "max": 9223372036854775807,
-      "control_after_generate": "fixed"
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "value"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "INT"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "INT"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "PrimitiveInt",
-  "display_name": "Int",
-  "description": "",
-  "python_module": "comfy_extras.nodes_primitive",
-  "category": "utilities/primitive",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "PrimitiveStringMultiline": {
-  "input": {
-   "required": {
-    "value": [
-     "STRING",
-     {
-      "multiline": true
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "value"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "STRING"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "PrimitiveStringMultiline",
-  "display_name": "Text (Multiline)",
-  "description": "",
-  "python_module": "comfy_extras.nodes_primitive",
-  "category": "utilities/primitive",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "text",
-   "string",
-   "text box",
-   "prompt"
-  ],
-  "essentials_category": "Basics",
-  "has_intermediate_output": false
- },
- "QwenImage21Cache": {
-  "input": {
-   "required": {
-    "model": [
-     "MODEL",
-     {}
-    ],
-    "device": [
-     "COMBO",
-     {
-      "tooltip": "auto uses spare VRAM, then RAM. cpu (RAM) is prefetched behind compute and costs little speed. off recomputes the prefix every step, which is slower but is the one way to rule the cache out.",
-      "default": "auto",
-      "multiselect": false,
-      "options": [
-       "auto",
-       "gpu",
-       "cpu",
-       "off"
-      ]
-     }
-    ],
-    "dtype": [
-     "COMBO",
-     {
-      "tooltip": "Storage precision. default is lossless. int8 halves the cache at about bf16 accuracy, int4 quarters it but roughly doubles the per-step error.",
-      "default": "default",
-      "multiselect": false,
-      "options": [
-       "default",
-       "int8",
-       "int4"
-      ]
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "model",
-    "device",
-    "dtype"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "MODEL"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "MODEL"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "QwenImage21Cache",
-  "display_name": "Qwen Image 2.1 Cache",
-  "description": "Allows setting the KV cache device and quantization, by default the model uses the auto -option. Quantization potentially speeds up edit workflows when memory starved ",
-  "python_module": "comfy_extras.nodes_qwen",
-  "category": "model/conditioning/qwen image",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": true,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "RandomNoise": {
-  "input": {
-   "required": {
-    "noise_seed": [
-     "INT",
-     {
-      "default": 0,
-      "min": 0,
-      "max": 18446744073709551615,
-      "control_after_generate": true
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "noise_seed"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "NOISE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "NOISE"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "RandomNoise",
-  "display_name": null,
-  "description": "",
-  "python_module": "comfy_extras.nodes_custom_sampler",
-  "category": "model/sampling/noise",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "RegexExtract": {
-  "input": {
-   "required": {
-    "string": [
-     "STRING",
-     {
-      "multiline": true
-     }
-    ],
-    "regex_pattern": [
-     "STRING",
-     {
-      "multiline": true
-     }
-    ],
-    "mode": [
-     "COMBO",
-     {
-      "multiselect": false,
-      "options": [
-       "First Match",
-       "All Matches",
-       "First Group",
-       "All Groups"
-      ]
-     }
-    ],
-    "case_insensitive": [
-     "BOOLEAN",
-     {
-      "advanced": true,
-      "default": true
-     }
-    ],
-    "multiline": [
-     "BOOLEAN",
-     {
-      "advanced": true,
-      "default": false
-     }
-    ],
-    "dotall": [
-     "BOOLEAN",
-     {
-      "advanced": true,
-      "default": false
-     }
-    ],
-    "group_index": [
-     "INT",
-     {
-      "advanced": true,
-      "default": 1,
-      "min": 0,
-      "max": 100
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "string",
-    "regex_pattern",
-    "mode",
-    "case_insensitive",
-    "multiline",
-    "dotall",
-    "group_index"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "STRING"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "RegexExtract",
-  "display_name": "Extract Text",
-  "description": "",
-  "python_module": "comfy_extras.nodes_string",
-  "category": "text",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "regex extract",
-   "regex",
-   "pattern extract",
-   "text parser",
-   "parse text"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "SamplerCustomAdvanced": {
-  "input": {
-   "required": {
-    "noise": [
-     "NOISE",
-     {}
-    ],
-    "guider": [
-     "GUIDER",
-     {}
-    ],
-    "sampler": [
-     "SAMPLER",
-     {}
-    ],
-    "sigmas": [
-     "SIGMAS",
-     {}
-    ],
-    "latent_image": [
-     "LATENT",
-     {}
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "noise",
-    "guider",
-    "sampler",
-    "sigmas",
-    "latent_image"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "LATENT",
-   "LATENT"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "output",
-   "denoised_output"
-  ],
-  "output_tooltips": [
-   null,
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "SamplerCustomAdvanced",
-  "display_name": null,
-  "description": "",
-  "python_module": "comfy_extras.nodes_custom_sampler",
-  "category": "model/sampling/custom",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "SaveImage": {
-  "input": {
-   "required": {
-    "images": [
-     "IMAGE",
-     {
-      "tooltip": "The images to save."
-     }
-    ],
-    "filename_prefix": [
-     "STRING",
-     {
-      "default": "ComfyUI",
-      "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."
-     }
-    ]
-   },
-   "hidden": {
-    "prompt": "PROMPT",
-    "extra_pnginfo": "EXTRA_PNGINFO"
-   }
-  },
-  "input_order": {
-   "required": [
-    "images",
-    "filename_prefix"
-   ],
-   "hidden": [
-    "prompt",
-    "extra_pnginfo"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "images"
-  ],
-  "name": "SaveImage",
-  "display_name": "Save Image",
-  "description": "Saves the input images to your ComfyUI output directory.",
-  "python_module": "nodes",
-  "category": "image",
-  "output_node": true,
-  "has_intermediate_output": false,
-  "search_aliases": [
-   "save",
-   "save image",
-   "export image",
-   "output image",
-   "write image",
-   "download"
-  ],
-  "essentials_category": "Basics"
- },
- "SeedVR2LoadDiTModel": {
-  "input": {
-   "required": {
-    "model": [
-     "COMBO",
-     {
-      "tooltip": "DiT (Diffusion Transformer) model for video upscaling.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
-      "default": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
-      "multiselect": false,
-      "options": [
-       "seedvr2_ema_3b-Q4_K_M.gguf",
-       "seedvr2_ema_3b-Q8_0.gguf",
-       "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
-       "seedvr2_ema_3b_fp16.safetensors",
-       "seedvr2_ema_7b-Q4_K_M.gguf",
-       "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
-       "seedvr2_ema_7b_fp16.safetensors",
-       "seedvr2_ema_7b_sharp-Q4_K_M.gguf",
-       "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
-       "seedvr2_ema_7b_sharp_fp16.safetensors",
-       "seedvr2_7b_sharp_fp8_e4m3fn.safetensors"
-      ]
-     }
-    ],
-    "device": [
-     "COMBO",
-     {
-      "tooltip": "GPU device for DiT model inference (upscaling phase)",
-      "default": "mps",
-      "multiselect": false,
-      "options": [
-       "mps"
-      ]
-     }
-    ]
-   },
-   "optional": {
-    "blocks_to_swap": [
-     "INT",
-     {
-      "tooltip": "Number of transformer blocks to swap between devices for VRAM optimization.\n• 0: Disabled (default)\n• 3B model: 0-32 blocks\n• 7B model: 0-36 blocks\n\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
-      "default": 0,
-      "min": 0,
-      "max": 36,
-      "step": 1
-     }
-    ],
-    "swap_io_components": [
-     "BOOLEAN",
-     {
-      "tooltip": "Offload input/output embeddings and normalization layers to reduce VRAM.\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
-      "default": false
-     }
-    ],
-    "offload_device": [
-     "COMBO",
-     {
-      "tooltip": "Device to offload DiT model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)\n\nRequired for BlockSwap (blocks_to_swap or swap_io_components).",
-      "default": "none",
-      "multiselect": false,
-      "options": [
-       "none",
-       "mps"
-      ]
-     }
-    ],
-    "cache_model": [
-     "BOOLEAN",
-     {
-      "tooltip": "Keep DiT model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
-      "default": false
-     }
-    ],
-    "attention_mode": [
-     "COMBO",
-     {
-      "tooltip": "Attention computation backend:\n• sdpa: PyTorch scaled_dot_product_attention (default, stable, always available)\n• flash_attn_2: Flash Attention 2 (Ampere+, requires flash-attn package)\n• flash_attn_3: Flash Attention 3 (Hopper+, requires flash-attn with FA3 support)\n• sageattn_2: SageAttention 2 (requires sageattention package)\n• sageattn_3: SageAttention 3 (Blackwell/RTX 50xx only, requires sageattn3 package)\n\nSDPA is recommended - stable and works everywhere.\nFlash Attention and SageAttention provide speedup through optimized CUDA kernels on compatible GPUs.",
-      "default": "sdpa",
-      "multiselect": false,
-      "options": [
-       "sdpa",
-       "flash_attn_2",
-       "flash_attn_3",
-       "sageattn_2",
-       "sageattn_3"
-      ]
-     }
-    ],
-    "torch_compile_args": [
-     "TORCH_COMPILE_ARGS",
-     {
-      "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 20-40% speedup with compatible PyTorch 2.0+ and Triton installation."
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "model",
-    "device"
-   ],
-   "optional": [
-    "blocks_to_swap",
-    "swap_io_components",
-    "offload_device",
-    "cache_model",
-    "attention_mode",
-    "torch_compile_args"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "SEEDVR2_DIT"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "SEEDVR2_DIT"
-  ],
-  "output_tooltips": [
-   "DiT model configuration containing model path, device settings, BlockSwap parameters, and compilation options. Connect to Video Upscaler node."
-  ],
-  "output_matchtypes": null,
-  "name": "SeedVR2LoadDiTModel",
-  "display_name": "SeedVR2 (Down)Load DiT Model",
-  "description": "Load and configure SeedVR2 DiT (Diffusion Transformer) model for video upscaling. Supports BlockSwap memory optimization for low VRAM systems, model caching for batch processing, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
-  "python_module": "custom_nodes.seedvr2_videoupscaler",
-  "category": "SEEDVR2",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "SeedVR2LoadVAEModel": {
-  "input": {
-   "required": {
-    "model": [
-     "COMBO",
-     {
-      "tooltip": "VAE (Variational Autoencoder) model for encoding/decoding.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
-      "default": "ema_vae_fp16.safetensors",
-      "multiselect": false,
-      "options": [
-       "ema_vae_fp16.safetensors"
-      ]
-     }
-    ],
-    "device": [
-     "COMBO",
-     {
-      "tooltip": "GPU device for VAE model inference (encoding/decoding phases)",
-      "default": "mps",
-      "multiselect": false,
-      "options": [
-       "mps"
-      ]
-     }
-    ]
-   },
-   "optional": {
-    "encode_tiled": [
-     "BOOLEAN",
-     {
-      "tooltip": "Enable tiled encoding to reduce VRAM usage during the encoding phase",
-      "default": false
-     }
-    ],
-    "encode_tile_size": [
-     "INT",
-     {
-      "tooltip": "Encoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when encode_tiled is enabled.",
-      "default": 1024,
-      "min": 64,
-      "step": 32
-     }
-    ],
-    "encode_tile_overlap": [
-     "INT",
-     {
-      "tooltip": "Pixel overlap between encoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when encode_tiled is enabled.",
-      "default": 128,
-      "min": 0,
-      "step": 32
-     }
-    ],
-    "decode_tiled": [
-     "BOOLEAN",
-     {
-      "tooltip": "Enable tiled decoding to reduce VRAM usage during the decoding phase",
-      "default": false
-     }
-    ],
-    "decode_tile_size": [
-     "INT",
-     {
-      "tooltip": "Decoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when decode_tiled is enabled.",
-      "default": 1024,
-      "min": 64,
-      "step": 32
-     }
-    ],
-    "decode_tile_overlap": [
-     "INT",
-     {
-      "tooltip": "Pixel overlap between decoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when decode_tiled is enabled.",
-      "default": 128,
-      "min": 0,
-      "step": 32
-     }
-    ],
-    "tile_debug": [
-     "COMBO",
-     {
-      "tooltip": "Tile debug visualization mode:\n• 'false': No visualization overlay (default)\n• 'encode': Show encoding tile boundaries\n• 'decode': Show decoding tile boundaries\n\nOnly works when respective tiling is enabled.",
-      "default": "false",
-      "multiselect": false,
-      "options": [
-       "false",
-       "encode",
-       "decode"
-      ]
-     }
-    ],
-    "offload_device": [
-     "COMBO",
-     {
-      "tooltip": "Device to offload VAE model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)",
-      "default": "none",
-      "multiselect": false,
-      "options": [
-       "none",
-       "mps"
-      ]
-     }
-    ],
-    "cache_model": [
-     "BOOLEAN",
-     {
-      "tooltip": "Keep VAE model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
-      "default": false
-     }
-    ],
-    "torch_compile_args": [
-     "TORCH_COMPILE_ARGS",
-     {
-      "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 15-25% speedup with compatible PyTorch 2.0+ and Triton installation."
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "model",
-    "device"
-   ],
-   "optional": [
-    "encode_tiled",
-    "encode_tile_size",
-    "encode_tile_overlap",
-    "decode_tiled",
-    "decode_tile_size",
-    "decode_tile_overlap",
-    "tile_debug",
-    "offload_device",
-    "cache_model",
-    "torch_compile_args"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "SEEDVR2_VAE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "SEEDVR2_VAE"
-  ],
-  "output_tooltips": [
-   "VAE model configuration containing model path, device settings, tiling parameters, and compilation options. Connect to Video Upscaler node."
-  ],
-  "output_matchtypes": null,
-  "name": "SeedVR2LoadVAEModel",
-  "display_name": "SeedVR2 (Down)Load VAE Model",
-  "description": "Load and configure SeedVR2 VAE (Variational Autoencoder) for encoding/decoding video frames to/from latent space. Supports tiled processing to handle high resolutions on limited VRAM, model caching, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
-  "python_module": "custom_nodes.seedvr2_videoupscaler",
-  "category": "SEEDVR2",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "SeedVR2VideoUpscaler": {
-  "input": {
-   "required": {
-    "image": [
-     "IMAGE",
-     {
-      "tooltip": "Input video frames as image batch.\nAccepts both RGB (3-channel) and RGBA (4-channel) formats.\nOutput format will match input format."
-     }
-    ],
-    "dit": [
-     "SEEDVR2_DIT",
-     {
-      "tooltip": "DiT model configuration from SeedVR2 (Down)Load DiT Model node"
-     }
-    ],
-    "vae": [
-     "SEEDVR2_VAE",
-     {
-      "tooltip": "VAE model configuration from SeedVR2 (Down)Load VAE Model node"
-     }
-    ],
-    "seed": [
-     "INT",
-     {
-      "tooltip": "Random seed for reproducible generation (default: 42).\nSame seed with same inputs produces identical output.",
-      "default": 42,
-      "min": 0,
-      "max": 4294967295,
-      "step": 1
-     }
-    ],
-    "resolution": [
-     "INT",
-     {
-      "tooltip": "Target resolution for the shortest edge in pixels (default: 1080).\nAutomatically maintains aspect ratio of input.\nEven values required for optimal processing.",
-      "default": 1080,
-      "min": 16,
-      "max": 16384,
-      "step": 2
-     }
-    ],
-    "max_resolution": [
-     "INT",
-     {
-      "tooltip": "Maximum resolution limit for any dimension (default: 0, no limit).\nIf any edge exceeds this after applying resolution,\nboth dimensions are scaled down proportionally.\nUseful to prevent excessive VRAM usage on extreme aspect ratios.",
-      "default": 0,
-      "min": 0,
-      "max": 16384,
-      "step": 2
-     }
-    ],
-    "batch_size": [
-     "INT",
-     {
-      "tooltip": "Number of frames processed together per batch (default: 5).\nMust follow pattern 4n+1: 1, 5, 9, 13, 17, 21, ...\n\n• Higher values: Better temporal consistency and faster processing\n• Lower values: Reduced VRAM usage\n\nIdeally match to shot length for best quality.",
-      "default": 5,
-      "min": 1,
-      "max": 16384,
-      "step": 4
-     }
-    ],
-    "uniform_batch_size": [
-     "BOOLEAN",
-     {
-      "tooltip": "Pad final batch to match batch_size (default: False).\nPrevents temporal artifacts caused by small final batch.\nAdd extra compute but recommended for optimal quality.",
-      "default": false
-     }
-    ],
-    "color_correction": [
-     "COMBO",
-     {
-      "tooltip": "Corrects color shifts in upscaled output to match original input (default: lab).\nThe upscaling process may alter colors; this applies color grading to restore them.\n\n• lab: Perceptual color matching with detail preservation (recommended)\n• wavelet: Frequency-based natural colors, preserves fine details\n• wavelet_adaptive: Wavelet base with targeted saturation correction\n• hsv: Hue-conditional saturation matching\n• adain: Statistical style transfer approach\n• none: No color correction applied",
-      "default": "lab",
-      "multiselect": false,
-      "options": [
-       "lab",
-       "wavelet",
-       "wavelet_adaptive",
-       "hsv",
-       "adain",
-       "none"
-      ]
-     }
-    ]
-   },
-   "optional": {
-    "temporal_overlap": [
-     "INT",
-     {
-      "tooltip": "Overlapping frames between consecutive batches (default: 0, disabled).\nImproves temporal consistency across batch boundaries through blending.\nValues 1-4 work well for most content.",
-      "default": 0,
-      "min": 0,
-      "max": 16,
-      "step": 1
-     }
-    ],
-    "prepend_frames": [
-     "INT",
-     {
-      "tooltip": "Number of frames to prepend (reversed from start) before processing (default: 0).\nHelps reduce artifacts at video beginning.\nPrepended frames are automatically removed from final output.",
-      "default": 0,
-      "min": 0,
-      "max": 32,
-      "step": 1
-     }
-    ],
-    "input_noise_scale": [
-     "FLOAT",
-     {
-      "tooltip": "Input noise injection scale (default: 0.0, disabled).\nAdds controlled variation to input images before encoding.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan help with certain types of artifacts.",
-      "default": 0.0,
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.001
-     }
-    ],
-    "latent_noise_scale": [
-     "FLOAT",
-     {
-      "tooltip": "Latent space noise injection scale (default: 0.0, disabled).\nAdds controlled variation during the diffusion process.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan soften details if input_noise_scale doesn't help.",
-      "default": 0.0,
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.001
-     }
-    ],
-    "offload_device": [
-     "COMBO",
-     {
-      "tooltip": "Device for storing intermediate tensors between processing phases (default: cpu).\n• 'none': Keep all tensors on inference device (fastest but highest VRAM usage)\n• 'cpu': Offload to system RAM (recommended for long videos, slower transfers)\n• 'cuda:X': Offload to another GPU (good balance if available, faster than CPU)",
-      "default": "cpu",
-      "multiselect": false,
-      "options": [
-       "none",
-       "mps"
-      ]
-     }
-    ],
-    "enable_debug": [
-     "BOOLEAN",
-     {
-      "tooltip": "Enable detailed debug logging (default: False).\nShows memory usage, timing information, and processing details.\nUseful for troubleshooting errors and performance issues.",
-      "default": false
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "image",
-    "dit",
-    "vae",
-    "seed",
-    "resolution",
-    "max_resolution",
-    "batch_size",
-    "uniform_batch_size",
-    "color_correction"
-   ],
-   "optional": [
-    "temporal_overlap",
-    "prepend_frames",
-    "input_noise_scale",
-    "latent_noise_scale",
-    "offload_device",
-    "enable_debug"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "IMAGE"
-  ],
-  "output_tooltips": [
-   "Upscaled video frames with color correction applied. Format (RGB/RGBA) matches input. Range [0, 1] normalized for ComfyUI compatibility."
-  ],
-  "output_matchtypes": null,
-  "name": "SeedVR2VideoUpscaler",
-  "display_name": "SeedVR2 Video Upscaler (v2.5.24)",
-  "description": "SeedVR2 main upscaling node: processes video frames using DiT and VAE models with diffusion-based enhancement. Handles RGB/RGBA formats, maintains temporal consistency across frames, applies color correction, and manages VRAM through intelligent tensor offloading. \n\nRequires DiT and VAE model configurations.",
-  "python_module": "custom_nodes.seedvr2_videoupscaler",
-  "category": "SEEDVR2",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "SolidMask": {
-  "input": {
-   "required": {
-    "value": [
-     "FLOAT",
-     {
-      "default": 1.0,
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.01
-     }
-    ],
-    "width": [
-     "INT",
-     {
-      "default": 512,
-      "min": 1,
-      "max": 16384,
-      "step": 1
-     }
-    ],
-    "height": [
-     "INT",
-     {
-      "default": 512,
-      "min": 1,
-      "max": 16384,
-      "step": 1
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "value",
-    "width",
-    "height"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "MASK"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "MASK"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "SolidMask",
-  "display_name": "Create Solid Mask",
-  "description": "",
-  "python_module": "comfy_extras.nodes_mask",
-  "category": "image/mask",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "SplitImageWithAlpha": {
-  "input": {
-   "required": {
-    "image": [
-     "IMAGE",
-     {}
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "image"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE",
-   "MASK"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "IMAGE",
-   "MASK"
-  ],
-  "output_tooltips": [
-   null,
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "SplitImageWithAlpha",
-  "display_name": "Split Image with Alpha",
-  "description": "",
-  "python_module": "comfy_extras.nodes_compositing",
-  "category": "image/compositing",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "extract alpha",
-   "separate transparency",
-   "remove alpha"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "SplitSigmas": {
-  "input": {
-   "required": {
-    "sigmas": [
-     "SIGMAS",
-     {}
-    ],
-    "step": [
-     "INT",
-     {
-      "default": 0,
-      "min": 0,
-      "max": 10000
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "sigmas",
-    "step"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "SIGMAS",
-   "SIGMAS"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "high_sigmas",
-   "low_sigmas"
-  ],
-  "output_tooltips": [
-   null,
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "SplitSigmas",
-  "display_name": null,
-  "description": "",
-  "python_module": "comfy_extras.nodes_custom_sampler",
-  "category": "model/sampling/sigmas",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "StringFormat": {
-  "input": {
-   "required": {
-    "values": [
-     "COMFY_AUTOGROW_V3",
-     {
-      "template": {
-       "input": {
-        "required": {
-         "value": [
-          "*",
-          {}
-         ]
-        }
-       },
-       "names": [
-        "a",
-        "b",
-        "c",
-        "d",
-        "e",
-        "f",
-        "g",
-        "h",
-        "i",
-        "j",
-        "k",
-        "l",
-        "m",
-        "n",
-        "o",
-        "p",
-        "q",
-        "r",
-        "s",
-        "t",
-        "u",
-        "v",
-        "w",
-        "x",
-        "y",
-        "z"
-       ],
-       "min": 0
-      }
-     }
-    ],
-    "f_string": [
-     "STRING",
-     {
-      "default": "{a}",
-      "multiline": true
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "values",
-    "f_string"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "STRING"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "StringFormat",
-  "display_name": "Format Text",
-  "description": "Same as Python's string format method. Supports all of Python's format options and features.",
-  "python_module": "comfy_extras.nodes_string",
-  "category": "text",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "string",
-   "format"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "TextEncodeQwenImage21": {
-  "input": {
-   "required": {
-    "clip": [
-     "CLIP",
-     {}
-    ],
-    "prompt": [
-     "STRING",
-     {
-      "multiline": true,
-      "dynamicPrompts": true
-     }
-    ],
-    "negative_prompt": [
-     "STRING",
-     {
-      "multiline": true,
-      "dynamicPrompts": true
-     }
-    ],
-    "resolution": [
-     "INT",
-     {
-      "tooltip": "Reference images are resized to about resolution x resolution pixels, at multiples of 32, preserving aspect ratio. 0 keeps each reference at its own size, rounded to a multiple of 32. ",
-      "default": 1024,
-      "min": 0,
-      "max": 4096,
-      "step": 32
-     }
-    ],
-    "images": [
-     "COMFY_AUTOGROW_V3",
-     {
-      "tooltip": "Reference images, seen by the text encoder and spliced into the sequence as VAE latents.",
-      "template": {
-       "input": {
-        "required": {
-         "image": [
-          "IMAGE",
-          {}
-         ]
-        }
-       },
-       "names": [
-        "image_1",
-        "image_2",
-        "image_3",
-        "image_4",
-        "image_5",
-        "image_6",
-        "image_7",
-        "image_8",
-        "image_9",
-        "image_10",
-        "image_11",
-        "image_12",
-        "image_13",
-        "image_14",
-        "image_15",
-        "image_16"
-       ],
-       "min": 0
-      }
-     }
-    ]
-   },
-   "optional": {
-    "vae": [
-     "VAE",
-     {}
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "clip",
-    "prompt",
-    "negative_prompt",
-    "resolution",
-    "images"
-   ],
-   "optional": [
-    "vae"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "CONDITIONING",
-   "CONDITIONING",
-   "LATENT"
-  ],
-  "output_is_list": [
-   false,
-   false,
-   false
-  ],
-  "output_name": [
-   "positive",
-   "negative",
-   "latent"
-  ],
-  "output_tooltips": [
-   null,
-   null,
-   "Empty latent on the first reference image's size, to match with sampling as any other size shifts the edit."
-  ],
-  "output_matchtypes": null,
-  "name": "TextEncodeQwenImage21",
-  "display_name": "Text Encode Qwen Image 2.1",
-  "description": "",
-  "python_module": "comfy_extras.nodes_qwen",
-  "category": "model/conditioning/qwen image",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "TextGenerate": {
-  "input": {
-   "required": {
-    "clip": [
-     "CLIP",
-     {}
-    ],
-    "prompt": [
-     "STRING",
-     {
-      "default": "",
-      "multiline": true,
-      "dynamicPrompts": true
-     }
-    ],
-    "max_length": [
-     "INT",
-     {
-      "default": 512,
-      "min": 1,
-      "max": 32768
-     }
-    ],
-    "sampling_mode": [
-     "COMFY_DYNAMICCOMBO_V3",
-     {
-      "display_name": "Sampling Mode",
-      "options": [
-       {
-        "key": "on",
-        "inputs": {
-         "required": {
-          "temperature": [
-           "FLOAT",
-           {
-            "default": 0.7,
+        ],
+        "upscale_method": [
+          "COMBO",
+          {
+            "multiselect": false,
+            "options": [
+              "nearest-exact",
+              "bilinear",
+              "area",
+              "bicubic",
+              "lanczos"
+            ]
+          }
+        ],
+        "megapixels": [
+          "FLOAT",
+          {
+            "default": 1.0,
             "min": 0.01,
-            "max": 2.0,
-            "step": 1e-06
-           }
-          ],
-          "top_k": [
-           "INT",
-           {
-            "default": 64,
-            "min": 0,
-            "max": 1000
-           }
-          ],
-          "top_p": [
-           "FLOAT",
-           {
-            "default": 0.95,
-            "min": 0.0,
-            "max": 1.0,
+            "max": 16.0,
             "step": 0.01
-           }
-          ],
-          "min_p": [
-           "FLOAT",
-           {
-            "default": 0.05,
-            "min": 0.0,
-            "max": 1.0,
-            "step": 0.01
-           }
-          ],
-          "repetition_penalty": [
-           "FLOAT",
-           {
-            "default": 1.05,
-            "min": 0.0,
-            "max": 5.0,
-            "step": 0.01
-           }
-          ],
-          "seed": [
-           "INT",
-           {
+          }
+        ],
+        "resolution_steps": [
+          "INT",
+          {
+            "advanced": true,
+            "default": 1,
+            "min": 1,
+            "max": 256
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image",
+        "upscale_method",
+        "megapixels",
+        "resolution_steps"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "ImageScaleToTotalPixels",
+    "display_name": "Scale Image to Total Pixels",
+    "description": "",
+    "python_module": "comfy_extras.nodes_post_processing",
+    "category": "image/upscaling",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "JoinImageWithAlpha": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE",
+          {}
+        ],
+        "alpha": [
+          "MASK",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image",
+        "alpha"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "JoinImageWithAlpha",
+    "display_name": "Join Image with Alpha",
+    "description": "",
+    "python_module": "comfy_extras.nodes_compositing",
+    "category": "image/compositing",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "add transparency",
+      "apply alpha",
+      "composite alpha",
+      "RGBA"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "KSampler": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL",
+          {
+            "tooltip": "The model used for denoising the input latent."
+          }
+        ],
+        "seed": [
+          "INT",
+          {
             "default": 0,
             "min": 0,
-            "max": 18446744073709551615
-           }
+            "max": 18446744073709551615,
+            "control_after_generate": true,
+            "tooltip": "The random seed used for creating the noise."
+          }
+        ],
+        "steps": [
+          "INT",
+          {
+            "default": 20,
+            "min": 1,
+            "max": 10000,
+            "tooltip": "The number of steps used in the denoising process."
+          }
+        ],
+        "cfg": [
+          "FLOAT",
+          {
+            "default": 8.0,
+            "min": 0.0,
+            "max": 100.0,
+            "step": 0.1,
+            "round": 0.01,
+            "tooltip": "The Classifier-Free Guidance scale balances creativity and adherence to the prompt. Higher values result in images more closely matching the prompt however too high values will negatively impact quality."
+          }
+        ],
+        "sampler_name": [
+          [
+            "euler",
+            "euler_cfg_pp",
+            "euler_ancestral",
+            "euler_ancestral_cfg_pp",
+            "heun",
+            "heunpp2",
+            "exp_heun_2_x0",
+            "exp_heun_2_x0_sde",
+            "dpm_2",
+            "dpm_2_ancestral",
+            "lms",
+            "dpm_fast",
+            "dpm_adaptive",
+            "dpmpp_2s_ancestral",
+            "dpmpp_2s_ancestral_cfg_pp",
+            "dpmpp_sde",
+            "dpmpp_sde_gpu",
+            "dpmpp_2m",
+            "dpmpp_2m_cfg_pp",
+            "dpmpp_2m_sde",
+            "dpmpp_2m_sde_gpu",
+            "dpmpp_2m_sde_heun",
+            "dpmpp_2m_sde_heun_gpu",
+            "dpmpp_3m_sde",
+            "dpmpp_3m_sde_gpu",
+            "ddpm",
+            "lcm",
+            "ipndm",
+            "ipndm_v",
+            "deis",
+            "cfgpp_ud10_ab",
+            "res_multistep",
+            "res_multistep_cfg_pp",
+            "res_multistep_ancestral",
+            "res_multistep_ancestral_cfg_pp",
+            "gradient_estimation",
+            "gradient_estimation_cfg_pp",
+            "er_sde",
+            "seeds_2",
+            "seeds_3",
+            "sa_solver",
+            "sa_solver_pece",
+            "ddim",
+            "uni_pc",
+            "uni_pc_bh2"
+          ],
+          {
+            "tooltip": "The algorithm used when sampling, this can affect the quality, speed, and style of the generated output."
+          }
+        ],
+        "scheduler": [
+          [
+            "simple",
+            "sgm_uniform",
+            "karras",
+            "exponential",
+            "ddim_uniform",
+            "beta",
+            "normal",
+            "linear_quadratic",
+            "kl_optimal"
+          ],
+          {
+            "tooltip": "The scheduler controls how noise is gradually removed to form the image."
+          }
+        ],
+        "positive": [
+          "CONDITIONING",
+          {
+            "tooltip": "The conditioning describing the attributes you want to include in the image."
+          }
+        ],
+        "negative": [
+          "CONDITIONING",
+          {
+            "tooltip": "The conditioning describing the attributes you want to exclude from the image."
+          }
+        ],
+        "latent_image": [
+          "LATENT",
+          {
+            "tooltip": "The latent image to denoise."
+          }
+        ],
+        "denoise": [
+          "FLOAT",
+          {
+            "default": 1.0,
+            "min": 0.0,
+            "max": 1.0,
+            "step": 0.01,
+            "tooltip": "The amount of denoising applied, lower values will maintain the structure of the initial image allowing for image to image sampling."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "seed",
+        "steps",
+        "cfg",
+        "sampler_name",
+        "scheduler",
+        "positive",
+        "negative",
+        "latent_image",
+        "denoise"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "LATENT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "LATENT"
+    ],
+    "name": "KSampler",
+    "display_name": "KSampler",
+    "description": "Uses the provided model, positive and negative conditioning to denoise the latent image.",
+    "python_module": "nodes",
+    "category": "model/sampling",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "output_tooltips": [
+      "The denoised latent."
+    ],
+    "search_aliases": [
+      "sampler",
+      "sample",
+      "generate",
+      "denoise",
+      "diffuse",
+      "txt2img",
+      "img2img"
+    ]
+  },
+  "KSamplerSelect": {
+    "input": {
+      "required": {
+        "sampler_name": [
+          "COMBO",
+          {
+            "multiselect": false,
+            "options": [
+              "euler",
+              "euler_cfg_pp",
+              "euler_ancestral",
+              "euler_ancestral_cfg_pp",
+              "heun",
+              "heunpp2",
+              "exp_heun_2_x0",
+              "exp_heun_2_x0_sde",
+              "dpm_2",
+              "dpm_2_ancestral",
+              "lms",
+              "dpm_fast",
+              "dpm_adaptive",
+              "dpmpp_2s_ancestral",
+              "dpmpp_2s_ancestral_cfg_pp",
+              "dpmpp_sde",
+              "dpmpp_sde_gpu",
+              "dpmpp_2m",
+              "dpmpp_2m_cfg_pp",
+              "dpmpp_2m_sde",
+              "dpmpp_2m_sde_gpu",
+              "dpmpp_2m_sde_heun",
+              "dpmpp_2m_sde_heun_gpu",
+              "dpmpp_3m_sde",
+              "dpmpp_3m_sde_gpu",
+              "ddpm",
+              "lcm",
+              "ipndm",
+              "ipndm_v",
+              "deis",
+              "cfgpp_ud10_ab",
+              "res_multistep",
+              "res_multistep_cfg_pp",
+              "res_multistep_ancestral",
+              "res_multistep_ancestral_cfg_pp",
+              "gradient_estimation",
+              "gradient_estimation_cfg_pp",
+              "er_sde",
+              "seeds_2",
+              "seeds_3",
+              "sa_solver",
+              "sa_solver_pece",
+              "ddim",
+              "uni_pc",
+              "uni_pc_bh2"
+            ]
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "sampler_name"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SAMPLER"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SAMPLER"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "KSamplerSelect",
+    "display_name": null,
+    "description": "",
+    "python_module": "comfy_extras.nodes_custom_sampler",
+    "category": "model/sampling/samplers",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "LoadImage": {
+    "input": {
+      "required": {
+        "image": [
+          [
+            "my-asset-0085b5a9.jpg",
+            "my-asset-0c7af8b2.jpg",
+            "my-asset-12a1db89.jpg",
+            "my-asset-14774f10.jpg",
+            "my-asset-156839c8.jpg",
+            "my-asset-2f521127.jpg",
+            "my-asset-347d839a.jpg",
+            "my-asset-4760402b.jpg",
+            "my-asset-53b6ea7c.jpg",
+            "my-asset-65d82ec4.jpg",
+            "my-asset-72a3569e.jpg",
+            "my-asset-784138bf.jpg",
+            "my-asset-7dfcafc0.jpg",
+            "my-asset-7e15a91b.jpg",
+            "my-asset-7e9d9512.jpg",
+            "my-asset-854ca48d.jpg",
+            "my-asset-8f30b7ac.jpg",
+            "my-asset-a2d54700.jpg",
+            "my-asset-a33b0409.jpg",
+            "my-asset-a43f81f9.jpg",
+            "my-asset-b5c2ed0f.jpg",
+            "my-asset-b8fb0a93.jpg",
+            "my-asset-c8b9cb98.jpg",
+            "my-asset-cd30815d.jpg",
+            "my-asset-ebb01522.jpg",
+            "my-asset-ec17c3fa.jpg",
+            "qwen21-i2i-1b925de009cb46269ef99315c2aa39a2.png"
+          ],
+          {
+            "image_upload": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE",
+      "MASK"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "IMAGE",
+      "MASK"
+    ],
+    "name": "LoadImage",
+    "display_name": "Load Image",
+    "description": "",
+    "python_module": "nodes",
+    "category": "image",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": [
+      "load image",
+      "open image",
+      "import image",
+      "image input",
+      "upload image",
+      "read image",
+      "image loader"
+    ],
+    "essentials_category": "Basics"
+  },
+  "LoraLoaderModelOnly": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL"
+        ],
+        "lora_name": [
+          [
+            "Inklingv2-qwen21_c1-st6000.safetensors",
+            "Nick_2anime_QwenImage2.1.safetensors",
+            "QuadView_krea2_v1.safetensors",
+            "Qwen-Image-2.1-Hanfu-Style-lora-st5000.safetensors",
+            "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+            "VNCCS_QI2_PoseStudioV1.1.safetensors",
+            "angles_v2_full_qwen21_multiple_angles_v2_qwen21_multiple_angles_v2_000001500.safetensors",
+            "ar_lora_inst_v3abc_comfyui.safetensors",
+            "cine1p_c1-st4000.safetensors",
+            "dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors",
+            "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
+            "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+            "next_scene_step2500.safetensors",
+            "qi21-mikkoani.safetensors",
+            "qwen2.1-detail-fix-2.0.safetensors",
+            "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+            "songmeixue-style-v1-0928_c1-st6000.safetensors",
+            "xianxia_gufeng_meixue.safetensors"
           ]
-         },
-         "optional": {
-          "presence_penalty": [
-           "FLOAT",
-           {
+        ],
+        "strength_model": [
+          "FLOAT",
+          {
+            "default": 1.0,
+            "min": -100.0,
+            "max": 100.0,
+            "step": 0.01
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "lora_name",
+        "strength_model"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MODEL"
+    ],
+    "name": "LoraLoaderModelOnly",
+    "display_name": "Load LoRA",
+    "description": "This LoRAs loader is used to modify the diffusion model, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together.",
+    "python_module": "nodes",
+    "category": "model/loaders",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "output_tooltips": [
+      "The modified diffusion model.",
+      "The modified CLIP model."
+    ],
+    "search_aliases": [
+      "lora",
+      "load lora",
+      "apply lora",
+      "lora loader",
+      "lora model"
+    ],
+    "essentials_category": "Image Generation"
+  },
+  "ManualSigmas": {
+    "input": {
+      "required": {
+        "sigmas": [
+          "STRING",
+          {
+            "default": "1, 0.5",
+            "multiline": false
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "sigmas"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SIGMAS"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SIGMAS"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "ManualSigmas",
+    "display_name": null,
+    "description": "",
+    "python_module": "comfy_extras.nodes_custom_sampler",
+    "category": "model/sampling/sigmas",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": true,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "custom noise schedule",
+      "define sigmas"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "MyQi21ApiPE": {
+    "input": {
+      "required": {
+        "api_url": [
+          "STRING",
+          {
+            "default": "http://192.168.0.101:1234",
+            "tooltip": "LM Studio 服务地址,多个逗号分隔依次尝试(Windows 远程 9B;1007夜用户令:不用 Mac 本机接)"
+          }
+        ],
+        "model": [
+          "STRING",
+          {
+            "default": "qwen3.5-9b-uncensored-hauhaucs-aggressive",
+            "tooltip": "模型 id,逗号分隔与 api_url 逐一配对(Windows LM Studio 9B)"
+          }
+        ],
+        "temperature": [
+          "FLOAT",
+          {
+            "default": 0.7,
+            "min": 0.0,
+            "max": 2.0,
+            "step": 0.05,
+            "tooltip": "低温更听话;0.7=实测扩写质量档"
+          }
+        ],
+        "max_tokens": [
+          "INT",
+          {
+            "default": 12000,
+            "min": 256,
+            "max": 13000,
+            "tooltip": "生成预算:思考(xhigh)档思考链吃 ~7k 字+正文 ~1k;思考档位=关闭 时只需 ~2k 即够"
+          }
+        ],
+        "timeout_sec": [
+          "INT",
+          {
+            "default": 600,
+            "min": 10,
+            "max": 3600,
+            "tooltip": "整发预算(冷首发+长文要留足;超时=透传不炸)"
+          }
+        ],
+        "thinking_effort": [
+          [
+            "关闭",
+            "思考(xhigh)"
+          ],
+          {
+            "default": "关闭",
+            "tooltip": "思考档位(1007 实弹):关闭=reasoning_effort none 硬关,确定性零思考 token,全链 ~40s 内含自检补发;思考(xhigh)=模型模板原生档(=不发参数,思考量随机 ~1200-4600 tok/发,全链 21s~300s+ 波动,1006 全程即此档);「低」档实测无衰减已移除"
+          }
+        ],
+        "AI扩写开关": [
+          "BOOLEAN",
+          {
+            "default": false,
+            "tooltip": "1016 用户令(尾插保位序):开=走 LM Studio/云端模型扩写;关=完全不发模型请求,直接拼 美术风格底座+类型句+主体句 三层装配直出(与透传/回退同源同值;透明开时同走极简公式+格式锁)"
+          }
+        ]
+      },
+      "optional": {
+        "系统提示词": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4030] 真源文本·系统提示词;不连=真源热读兜底"
+          }
+        ],
+        "色卡": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4031] 真源文本·色卡;不连=真源热读兜底"
+          }
+        ],
+        "美术风格底座-正向": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4032].0 纯美术风格正文；背景、照明和状态规则来自类型句；不连则热读真源"
+          }
+        ],
+        "美术风格底座-负向": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4032].1 美术风格底座·负向词表(终稿负向三源之一);不连=真源热读兜底"
+          }
+        ],
+        "正向提示词": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "外部手写正向原文;锚点权重最高,润炼逐字保留其实体"
+          }
+        ],
+        "负向提示词": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "外部手写负向原文;逐条并入 negative_prompt 不丢条目"
+          }
+        ],
+        "类型句正向": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4010].0 类型句(BASE 正文)"
+          }
+        ],
+        "类型句负向": [
+          "STRING",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4010].3 类型句负面词(负面精炼原料)"
+          }
+        ],
+        "画幅宽": [
+          "INT",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4010].1 九型WIDTH(画幅语境)"
+          }
+        ],
+        "画幅高": [
+          "INT",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4010].2 九型HEIGHT(画幅语境)"
+          }
+        ],
+        "透明模式": [
+          "BOOLEAN",
+          {
+            "forceInput": true,
+            "tooltip": "连 [4010].4 透明值:开=透明素材图,勿虚构背景"
+          }
+        ],
+        "底座档位": [
+          [
+            "并入",
+            "裸测"
+          ],
+          {
+            "default": "并入",
+            "tooltip": "1016 用户令「真关掉底座」:并入=默认三层;1017 裁定:[4032] 旁路/未接线=底座正负自动离场(无需动本档);并入=用接线值;裸测=接线在场时强制离场(A/B 用);透明开时的极简公式格式锁不受此档影响(透明承载必需)"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "api_url",
+        "model",
+        "temperature",
+        "max_tokens",
+        "timeout_sec",
+        "thinking_effort",
+        "AI扩写开关"
+      ],
+      "optional": [
+        "系统提示词",
+        "色卡",
+        "美术风格底座-正向",
+        "美术风格底座-负向",
+        "正向提示词",
+        "负向提示词",
+        "类型句正向",
+        "类型句负向",
+        "画幅宽",
+        "画幅高",
+        "透明模式",
+        "底座档位"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING",
+      "STRING",
+      "BOOLEAN",
+      "INT",
+      "INT"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "正向提示词",
+      "负向提示词",
+      "透明模式",
+      "画幅宽",
+      "画幅高"
+    ],
+    "name": "MyQi21ApiPE",
+    "display_name": "漫影 API扩写PE",
+    "description": "API扩写PE:LM Studio(默认 Windows 远程 9B,OpenAI 兼容)按 qi21_bases.json 中文教材扩写主体句;锚点保全实测优于蒸馏 pe_t2i;全挂=透传自装配不炸",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": true,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21DaojieBase": {
+    "input": {
+      "required": {
+        "base": [
+          [
+            "人物",
+            "场景",
+            "道具",
+            "美宣",
+            "人物多视图",
+            "高清人脸",
+            "分镜剧情图",
+            "表情差分",
+            "概念气氛图",
+            "设定卡",
+            "自由"
+          ],
+          {
+            "default": "人物",
+            "tooltip": "选画风型:九个预设型+「自由」(自由=不要型底座,画幅/透明全自己定)"
+          }
+        ]
+      },
+      "optional": {
+        "透明覆盖": [
+          "BOOLEAN",
+          {
+            "default": false,
+            "tooltip": "只在「自由」型下有用:勾上=出透明底图;九个预设型自动按型决定,这里不用管"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "base"
+      ],
+      "optional": [
+        "透明覆盖"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING",
+      "INT",
+      "INT",
+      "STRING",
+      "BOOLEAN",
+      "STRING"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "BASE",
+      "WIDTH",
+      "HEIGHT",
+      "负面词",
+      "透明值",
+      "型名"
+    ],
+    "name": "MyQi21DaojieBase",
+    "display_name": "道劫·qi21底座九选一",
+    "description": "",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21FinalOutput": {
+    "input": {
+      "required": {},
+      "optional": {
+        "正向提示词": [
+          "STRING",
+          {
+            "tooltip": "AI 扩写后的完整正向提示词(主体句×PE选择+型底座+美术风格底座三层拼装),连「三层拼装」节点的 装配全文 输出;不连=正向降级空串,日志有中文警告"
+          }
+        ],
+        "负向提示词": [
+          "STRING",
+          {
+            "tooltip": "AI 精炼后的负面清单(型负面+美术风格底座负面+主体句负面),连「三层拼装」节点的 负面词 输出;不连=空负向(合法态)"
+          }
+        ],
+        "透明模式": [
+          "BOOLEAN",
+          {
+            "default": false,
+            "tooltip": "透明包裹开关;连「类型句选择」的 透明值 输出=透明自动跟型(rgba_default 出已随 1002 ⑯ 删)"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "正向提示词",
+        "负向提示词",
+        "透明模式"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING",
+      "STRING"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "进编码正向文本",
+      "进编码负向文本"
+    ],
+    "name": "MyQi21FinalOutput",
+    "display_name": "道劫·qi21最终输出",
+    "description": "最终输出:装配全文+负面词直写→透明包裹→进编码正/负文本(t2i 新管线,PE已前移)",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21PromptAssembly": {
+    "input": {
+      "required": {},
+      "optional": {
+        "BASE": [
+          "STRING",
+          {
+            "tooltip": "所选类型的布局、背景、照明与状态规则,连「底座十选一」的 BASE 输出;不连就只用主体句+美术风格底座两段拼"
+          }
+        ],
+        "BASE负面": [
+          "STRING",
+          {
+            "tooltip": "所选型自带的负面词清单,连「底座十选一」的 负面词 输出;不连就只用美术风格底座自带的负面词"
+          }
+        ],
+        "主体句": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "一位筑基后期的年轻女修，青玉色道袍束月白腰带，足蹬青布道履，乌黑长发半束只簪一支素银簪，眉目沉静中带一点锋芒；她立于山门赭石石阶最上一级，身体正面朝向观者、微向左转约四分之一侧，重心落于右腿，左脚虚点下一级石阶，左臂自然垂落、左手五指放松；长剑以石青剑绦系于画面左侧腰间，剑鞘斜垂、与地面约呈四十五度，鞘尾朝画面左下方、剑柄朝画面右上方，乌木剑鞘、白玉剑格、剑柄缠灰银丝、鞘口垂暗红剑穗，剑身完整收在鞘中，全身仅此一柄长剑、始终挂定腰间；右臂自然垂落、右肘微屈，右手虚握挂定的剑鞘上端三分之一处、五指环拢鞘身，剑身重量仍由腰间剑绦承担；视线越过阶下青灰云海望向远处青绿群山，旧金色晨光自左侧斜照，衣袂被山风微微掀起。",
+            "tooltip": "画面里画什么的人话描述;生产时由子图入口喂入,这里一般是兜底例文"
+          }
+        ],
+        "主体句负面": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "",
+            "tooltip": "用户手写的主体句负面描述(如「不要出现xxx」);与型负面/美术风格底座负面合并"
+          }
+        ],
+        "锁层A全文": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+            "tooltip": "新建资产/画风转换使用的共同画法(现代修仙游戏数字绘画规范),改画风才动它,一般不用改"
+          }
+        ],
+        "组装用途": [
+          [
+            "新建资产",
+            "局部编辑",
+            "画风转换",
+            "无底座出图"
+          ],
+          {
+            "default": "新建资产",
+            "tooltip": "新建资产追加类型与画法；局部编辑仅保留编辑指令；画风转换只追加画法，保留原构图；无底座出图=主体句+类型句两段(美术底座正/负全离场,裸测底座贡献用;底座热读兜底在此档失效)。"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "BASE",
+        "BASE负面",
+        "主体句",
+        "主体句负面",
+        "锁层A全文",
+        "组装用途"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING",
+      "STRING"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "装配全文",
+      "负面词"
+    ],
+    "name": "MyQi21PromptAssembly",
+    "display_name": "道劫·qi21装配全文件",
+    "description": "道劫按组装用途输出：新建资产=主体句+类型+画法；局部编辑=编辑指令；画风转换=指令+画法。旧调用默认新建资产；局部编辑不继承类型与全局负面。",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21PromptPreview": {
+    "input": {
+      "required": {},
+      "optional": {
+        "正向提示词": [
+          "STRING",
+          {
+            "forceInput": true
+          }
+        ],
+        "负向提示词": [
+          "STRING",
+          {
+            "forceInput": true
+          }
+        ],
+        "正向终稿": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "",
+            "tooltip": "正向终稿显示位(执行后自动刷新,无需手填/连线)"
+          }
+        ],
+        "负向终稿": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "",
+            "tooltip": "负向终稿显示位(执行后自动刷新,无需手填/连线)"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "正向提示词",
+        "负向提示词",
+        "正向终稿",
+        "负向终稿"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "合并预览"
+    ],
+    "name": "MyQi21PromptPreview",
+    "display_name": "道劫·正负双预览",
+    "description": "正负双预览(合成一个节点):正向终稿与负向终稿各一框",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": true,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21PromptSelect": {
+    "input": {
+      "required": {},
+      "optional": {
+        "装配全文": [
+          "STRING",
+          {
+            "tooltip": "装配好的完整提示词原文,连「装配全文件」节点的输出;不连=直写路空文,日志有中文警告"
+          }
+        ],
+        "负面词直写": [
+          "STRING",
+          {
+            "tooltip": "装配器整理好的负面词清单,连「装配全文件」节点的 负面词 输出;PE 关时它直接进负向编码,PE 开时也是它优先(只要非空,PE 改写的负面词不再顶掉它)"
+          }
+        ],
+        "PE出文": [
+          "STRING",
+          {
+            "lazy": true,
+            "tooltip": "PE 改写好的正向长提示词,连 PE 改写节点的 positive_prompt 输出;开关关时它不会被拉起"
+          }
+        ],
+        "PE负面": [
+          "STRING",
+          {
+            "lazy": true,
+            "tooltip": "PE 改写出的负面词清单,连 PE 改写节点的 negative_prompt 输出;开关关时它不会被拉起;只有「负面词直写」没接或为空时才轮到它兜底"
+          }
+        ],
+        "pe开关": [
+          "BOOLEAN",
+          {
+            "default": true,
+            "tooltip": "总开关:开=先用 PE 把中文短句改写成长提示词;关=直接用装配好的原文"
+          }
+        ],
+        "透明模式": [
+          "BOOLEAN",
+          {
+            "default": false,
+            "tooltip": "要不要出透明底图,自动跟着所选型走(接底座节点的「透明值」),一般不用管"
+          }
+        ],
+        "RGBA官方头句": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "This is an RGBA image with transparency.",
+            "tooltip": "教模型输出透明图的官方开头句(真源=qi21_bases.json,中文;一般不用改)"
+          }
+        ],
+        "RGBA官方尾句": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "The image has alpha channel and the background is transparent.",
+            "tooltip": "告诉模型图带透明通道的官方收尾句(真源=qi21_bases.json,中文;一般不用改)"
+          }
+        ],
+        "W1收束句": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge.",
+            "tooltip": "历史兼容槽位,已停用:所有路径均忽略此参数,不自动加入输出;正文中的用户原话不受影响"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "装配全文",
+        "负面词直写",
+        "PE出文",
+        "PE负面",
+        "pe开关",
+        "透明模式",
+        "RGBA官方头句",
+        "RGBA官方尾句",
+        "W1收束句"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING",
+      "STRING"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "进编码正向文本",
+      "进编码负向文本"
+    ],
+    "name": "MyQi21PromptSelect",
+    "display_name": "道劫·qi21最终文本合成器",
+    "description": "道劫最终文本合成器:双口「进编码正向/负向文本」=透明开关决定拼不拼官方头尾、pe开关决定用 PE 出文还是装配原文(PE透明路词族剥离,W1参数已停用);负向=负面词直写/PE负面双路(1005 案B 直写优先:pe开直写非空恒胜,PE负面空档兜底,pe关吃直写)",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21RgbaSelect": {
+    "input": {
+      "required": {
+        "mode": [
+          [
+            "自动",
+            "true",
+            "false"
+          ],
+          {
+            "default": "自动",
+            "tooltip": "自动=按底座型的默认透明(四型开,其余关);true/false=手动权威,不再随型变"
+          }
+        ]
+      },
+      "optional": {
+        "rgba_hint": [
+          "BOOLEAN",
+          {
+            "default": false,
+            "tooltip": "型默认透明信号(接 MyQi21DaojieBase.透明值;未接线视为关)"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "mode"
+      ],
+      "optional": [
+        "rgba_hint"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "BOOLEAN"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "rgba_on"
+    ],
+    "name": "MyQi21RgbaSelect",
+    "display_name": "Q2-1 RGBA透明开关(三选一·默认自动)",
+    "description": "透明开关三态选择:自动按型默认(四型开/其余型关,1015 十型口径,信号接 MyQi21DaojieBase.透明值);true/false=手动权威覆盖",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21SpeedSelect": {
+    "input": {
+      "required": {
+        "mode": [
+          [
+            "0 · Turbo 8步",
+            "1 · 原生出图",
+            "2 · viggle",
+            "自动 · 按型"
+          ],
+          {
+            "default": "0 · Turbo 8步"
+          }
+        ]
+      },
+      "optional": {
+        "latent_turbo": [
+          "LATENT",
+          {
+            "lazy": true
+          }
+        ],
+        "latent_viggle": [
+          "LATENT",
+          {
+            "lazy": true
+          }
+        ],
+        "latent_direct": [
+          "LATENT",
+          {
+            "lazy": true
+          }
+        ],
+        "型名": [
+          "STRING",
+          {
+            "tooltip": "「自动 · 按型」档用:接底座节点的「型名」出,设定卡/美宣走原生出图,其余(含留空)走 Turbo;手动档忽略此值"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "mode"
+      ],
+      "optional": [
+        "latent_turbo",
+        "latent_viggle",
+        "latent_direct",
+        "型名"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "LATENT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "latent"
+    ],
+    "name": "MyQi21SpeedSelect",
+    "display_name": "Q2-1 加速档位(三选一·默认Turbo 8步)",
+    "description": "",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21WhSuggest": {
+    "input": {
+      "required": {},
+      "optional": {
+        "九型WIDTH": [
+          "INT",
+          {
+            "tooltip": "所选型自带的默认宽,连 [6] 子图 width 出口(AI 扩写透传型默认画幅)"
+          }
+        ],
+        "九型HEIGHT": [
+          "INT",
+          {
+            "tooltip": "所选型自带的默认高,连 [6] 子图 height 出口(AI 扩写透传型默认画幅)"
+          }
+        ],
+        "手动宽": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 8192,
+            "step": 8,
+            "tooltip": "自己填的画布宽;0=跟所选型默认,要填就和手动高一起填(8 的倍数，短边不足1024时同比补足)"
+          }
+        ],
+        "手动高": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 8192,
+            "step": 8,
+            "tooltip": "自己填的画布高;0=跟所选型默认,要填就和手动宽一起填(8 的倍数，短边不足1024时同比补足)"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "九型WIDTH",
+        "九型HEIGHT",
+        "手动宽",
+        "手动高"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "INT",
+      "INT"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "width",
+      "height"
+    ],
+    "name": "MyQi21WhSuggest",
+    "display_name": "道劫·qi21画幅联动建议器",
+    "description": "",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21系统提示词": {
+    "input": {
+      "required": {},
+      "optional": {
+        "内容": [
+          "STRING",
+          {
+            "multiline": true,
+            "tooltip": "系统提示词全文展示(JS 回填;预填=部署时快照"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "内容"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "文本"
+    ],
+    "name": "MyQi21系统提示词",
+    "display_name": "漫影 系统提示词",
+    "description": "系统提示词:qi21_bases.json 热读只读出口(零控件,节点即管道)",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": true,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21美术风格底座": {
+    "input": {
+      "required": {},
+      "optional": {
+        "美术风格": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
+            "tooltip": "只读画法与成像工艺；背景、照明和状态规则在类型句。"
+          }
+        ],
+        "负向词表": [
+          "STRING",
+          {
+            "multiline": true,
+            "default": "模糊，网文封面画风，古风偶像海报，光面现代 CG 特写，摄影写实，厚涂遮蔽结构，厚数字颜料块，喷枪明暗法，照片级体积明暗，厚涂风景，柔光晕染，软3D体积塑形，油亮高光，油黑渐变，古画直接搬进游戏，商业人物复制，泥糊死黑块，黑白滤镜化，满幅泼墨，霓虹色，荧光色，灰暗陈旧，褪色发黄，旧绢黄褐，做旧质感，AI 伪影，泥糊噪点，过锐光晕，纸面纹理，机械勾边，矢量感，过量墨迹笔触，灰化混色，密集皴擦",
+            "tooltip": "只读风格与成像工艺负向词；内容缺陷和背景约束在类型句。"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "美术风格",
+        "负向词表"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING",
+      "STRING"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "文本",
+      "负向词表"
+    ],
+    "name": "MyQi21美术风格底座",
+    "display_name": "漫影 美术风格底座",
+    "description": "美术风格底座:qi21_bases.json 热读只读出口(零控件,节点即管道)",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": true,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "MyQi21色卡": {
+    "input": {
+      "required": {},
+      "optional": {
+        "内容": [
+          "STRING",
+          {
+            "multiline": true,
+            "tooltip": "色卡全文展示(JS 回填;预填=部署时快照"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "内容"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "文本"
+    ],
+    "name": "MyQi21色卡",
+    "display_name": "漫影 色卡",
+    "description": "色卡:qi21_bases.json 热读只读出口(零控件,节点即管道)",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": true,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "PorterDuffImageComposite": {
+    "input": {
+      "required": {
+        "source": [
+          "IMAGE",
+          {}
+        ],
+        "source_alpha": [
+          "MASK",
+          {}
+        ],
+        "destination": [
+          "IMAGE",
+          {}
+        ],
+        "destination_alpha": [
+          "MASK",
+          {}
+        ],
+        "mode": [
+          "COMBO",
+          {
+            "default": "DST",
+            "multiselect": false,
+            "options": [
+              "ADD",
+              "CLEAR",
+              "DARKEN",
+              "DST",
+              "DST_ATOP",
+              "DST_IN",
+              "DST_OUT",
+              "DST_OVER",
+              "LIGHTEN",
+              "MULTIPLY",
+              "OVERLAY",
+              "SCREEN",
+              "SRC",
+              "SRC_ATOP",
+              "SRC_IN",
+              "SRC_OUT",
+              "SRC_OVER",
+              "XOR"
+            ]
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "source",
+        "source_alpha",
+        "destination",
+        "destination_alpha",
+        "mode"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE",
+      "MASK"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "IMAGE",
+      "MASK"
+    ],
+    "output_tooltips": [
+      null,
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "PorterDuffImageComposite",
+    "display_name": "Porter-Duff Image Composite",
+    "description": "",
+    "python_module": "comfy_extras.nodes_compositing",
+    "category": "image/compositing",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "alpha composite",
+      "blend modes",
+      "layer blend",
+      "transparency blend"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "PrimitiveBoolean": {
+    "input": {
+      "required": {
+        "value": [
+          "BOOLEAN",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "value"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "BOOLEAN"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "BOOLEAN"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "PrimitiveBoolean",
+    "display_name": "Boolean",
+    "description": "",
+    "python_module": "comfy_extras.nodes_primitive",
+    "category": "utilities/primitive",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "PrimitiveInt": {
+    "input": {
+      "required": {
+        "value": [
+          "INT",
+          {
+            "min": -9223372036854775807,
+            "max": 9223372036854775807,
+            "control_after_generate": "fixed"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "value"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "INT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "INT"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "PrimitiveInt",
+    "display_name": "Int",
+    "description": "",
+    "python_module": "comfy_extras.nodes_primitive",
+    "category": "utilities/primitive",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "PrimitiveStringMultiline": {
+    "input": {
+      "required": {
+        "value": [
+          "STRING",
+          {
+            "multiline": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "value"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "STRING"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "PrimitiveStringMultiline",
+    "display_name": "Text (Multiline)",
+    "description": "",
+    "python_module": "comfy_extras.nodes_primitive",
+    "category": "utilities/primitive",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "text",
+      "string",
+      "text box",
+      "prompt"
+    ],
+    "essentials_category": "Basics",
+    "has_intermediate_output": false
+  },
+  "QwenImage21Cache": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL",
+          {}
+        ],
+        "device": [
+          "COMBO",
+          {
+            "tooltip": "auto uses spare VRAM, then RAM. cpu (RAM) is prefetched behind compute and costs little speed. off recomputes the prefix every step, which is slower but is the one way to rule the cache out.",
+            "default": "auto",
+            "multiselect": false,
+            "options": [
+              "auto",
+              "gpu",
+              "cpu",
+              "off"
+            ]
+          }
+        ],
+        "dtype": [
+          "COMBO",
+          {
+            "tooltip": "Storage precision. default is lossless. int8 halves the cache at about bf16 accuracy, int4 quarters it but roughly doubles the per-step error.",
+            "default": "default",
+            "multiselect": false,
+            "options": [
+              "default",
+              "int8",
+              "int4"
+            ]
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "device",
+        "dtype"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MODEL"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "QwenImage21Cache",
+    "display_name": "Qwen Image 2.1 Cache",
+    "description": "Allows setting the KV cache device and quantization, by default the model uses the auto -option. Quantization potentially speeds up edit workflows when memory starved ",
+    "python_module": "comfy_extras.nodes_qwen",
+    "category": "model/conditioning/qwen image",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": true,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "RandomNoise": {
+    "input": {
+      "required": {
+        "noise_seed": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 18446744073709551615,
+            "control_after_generate": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "noise_seed"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "NOISE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "NOISE"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "RandomNoise",
+    "display_name": null,
+    "description": "",
+    "python_module": "comfy_extras.nodes_custom_sampler",
+    "category": "model/sampling/noise",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "RegexExtract": {
+    "input": {
+      "required": {
+        "string": [
+          "STRING",
+          {
+            "multiline": true
+          }
+        ],
+        "regex_pattern": [
+          "STRING",
+          {
+            "multiline": true
+          }
+        ],
+        "mode": [
+          "COMBO",
+          {
+            "multiselect": false,
+            "options": [
+              "First Match",
+              "All Matches",
+              "First Group",
+              "All Groups"
+            ]
+          }
+        ],
+        "case_insensitive": [
+          "BOOLEAN",
+          {
+            "advanced": true,
+            "default": true
+          }
+        ],
+        "multiline": [
+          "BOOLEAN",
+          {
+            "advanced": true,
+            "default": false
+          }
+        ],
+        "dotall": [
+          "BOOLEAN",
+          {
+            "advanced": true,
+            "default": false
+          }
+        ],
+        "group_index": [
+          "INT",
+          {
+            "advanced": true,
+            "default": 1,
+            "min": 0,
+            "max": 100
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "string",
+        "regex_pattern",
+        "mode",
+        "case_insensitive",
+        "multiline",
+        "dotall",
+        "group_index"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "STRING"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "RegexExtract",
+    "display_name": "Extract Text",
+    "description": "",
+    "python_module": "comfy_extras.nodes_string",
+    "category": "text",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "regex extract",
+      "regex",
+      "pattern extract",
+      "text parser",
+      "parse text"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SamplerCustomAdvanced": {
+    "input": {
+      "required": {
+        "noise": [
+          "NOISE",
+          {}
+        ],
+        "guider": [
+          "GUIDER",
+          {}
+        ],
+        "sampler": [
+          "SAMPLER",
+          {}
+        ],
+        "sigmas": [
+          "SIGMAS",
+          {}
+        ],
+        "latent_image": [
+          "LATENT",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "noise",
+        "guider",
+        "sampler",
+        "sigmas",
+        "latent_image"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "LATENT",
+      "LATENT"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "output",
+      "denoised_output"
+    ],
+    "output_tooltips": [
+      null,
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "SamplerCustomAdvanced",
+    "display_name": null,
+    "description": "",
+    "python_module": "comfy_extras.nodes_custom_sampler",
+    "category": "model/sampling/custom",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SaveImage": {
+    "input": {
+      "required": {
+        "images": [
+          "IMAGE",
+          {
+            "tooltip": "The images to save."
+          }
+        ],
+        "filename_prefix": [
+          "STRING",
+          {
+            "default": "ComfyUI",
+            "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."
+          }
+        ]
+      },
+      "hidden": {
+        "prompt": "PROMPT",
+        "extra_pnginfo": "EXTRA_PNGINFO"
+      }
+    },
+    "input_order": {
+      "required": [
+        "images",
+        "filename_prefix"
+      ],
+      "hidden": [
+        "prompt",
+        "extra_pnginfo"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "images"
+    ],
+    "name": "SaveImage",
+    "display_name": "Save Image",
+    "description": "Saves the input images to your ComfyUI output directory.",
+    "python_module": "nodes",
+    "category": "image",
+    "output_node": true,
+    "has_intermediate_output": false,
+    "search_aliases": [
+      "save",
+      "save image",
+      "export image",
+      "output image",
+      "write image",
+      "download"
+    ],
+    "essentials_category": "Basics"
+  },
+  "SeedVR2LoadDiTModel": {
+    "input": {
+      "required": {
+        "model": [
+          "COMBO",
+          {
+            "tooltip": "DiT (Diffusion Transformer) model for video upscaling.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
+            "default": "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+            "multiselect": false,
+            "options": [
+              "seedvr2_ema_3b-Q4_K_M.gguf",
+              "seedvr2_ema_3b-Q8_0.gguf",
+              "seedvr2_ema_3b_fp8_e4m3fn.safetensors",
+              "seedvr2_ema_3b_fp16.safetensors",
+              "seedvr2_ema_7b-Q4_K_M.gguf",
+              "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+              "seedvr2_ema_7b_fp16.safetensors",
+              "seedvr2_ema_7b_sharp-Q4_K_M.gguf",
+              "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors",
+              "seedvr2_ema_7b_sharp_fp16.safetensors",
+              "seedvr2_7b_sharp_fp8_e4m3fn.safetensors"
+            ]
+          }
+        ],
+        "device": [
+          "COMBO",
+          {
+            "tooltip": "GPU device for DiT model inference (upscaling phase)",
+            "default": "mps",
+            "multiselect": false,
+            "options": [
+              "mps"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "blocks_to_swap": [
+          "INT",
+          {
+            "tooltip": "Number of transformer blocks to swap between devices for VRAM optimization.\n• 0: Disabled (default)\n• 3B model: 0-32 blocks\n• 7B model: 0-36 blocks\n\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
+            "default": 0,
+            "min": 0,
+            "max": 36,
+            "step": 1
+          }
+        ],
+        "swap_io_components": [
+          "BOOLEAN",
+          {
+            "tooltip": "Offload input/output embeddings and normalization layers to reduce VRAM.\nRequires offload_device to be set and different from device.\nNot available on macOS (unified memory architecture).",
+            "default": false
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device to offload DiT model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)\n\nRequired for BlockSwap (blocks_to_swap or swap_io_components).",
+            "default": "none",
+            "multiselect": false,
+            "options": [
+              "none",
+              "mps"
+            ]
+          }
+        ],
+        "cache_model": [
+          "BOOLEAN",
+          {
+            "tooltip": "Keep DiT model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
+            "default": false
+          }
+        ],
+        "attention_mode": [
+          "COMBO",
+          {
+            "tooltip": "Attention computation backend:\n• sdpa: PyTorch scaled_dot_product_attention (default, stable, always available)\n• flash_attn_2: Flash Attention 2 (Ampere+, requires flash-attn package)\n• flash_attn_3: Flash Attention 3 (Hopper+, requires flash-attn with FA3 support)\n• sageattn_2: SageAttention 2 (requires sageattention package)\n• sageattn_3: SageAttention 3 (Blackwell/RTX 50xx only, requires sageattn3 package)\n\nSDPA is recommended - stable and works everywhere.\nFlash Attention and SageAttention provide speedup through optimized CUDA kernels on compatible GPUs.",
+            "default": "sdpa",
+            "multiselect": false,
+            "options": [
+              "sdpa",
+              "flash_attn_2",
+              "flash_attn_3",
+              "sageattn_2",
+              "sageattn_3"
+            ]
+          }
+        ],
+        "torch_compile_args": [
+          "TORCH_COMPILE_ARGS",
+          {
+            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 20-40% speedup with compatible PyTorch 2.0+ and Triton installation."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "device"
+      ],
+      "optional": [
+        "blocks_to_swap",
+        "swap_io_components",
+        "offload_device",
+        "cache_model",
+        "attention_mode",
+        "torch_compile_args"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SEEDVR2_DIT"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SEEDVR2_DIT"
+    ],
+    "output_tooltips": [
+      "DiT model configuration containing model path, device settings, BlockSwap parameters, and compilation options. Connect to Video Upscaler node."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2LoadDiTModel",
+    "display_name": "SeedVR2 (Down)Load DiT Model",
+    "description": "Load and configure SeedVR2 DiT (Diffusion Transformer) model for video upscaling. Supports BlockSwap memory optimization for low VRAM systems, model caching for batch processing, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
+    "python_module": "custom_nodes.seedvr2_videoupscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SeedVR2LoadVAEModel": {
+    "input": {
+      "required": {
+        "model": [
+          "COMBO",
+          {
+            "tooltip": "VAE (Variational Autoencoder) model for encoding/decoding.\nModels automatically download on first use.\nAdditional models can be added to the ComfyUI models folder.",
+            "default": "ema_vae_fp16.safetensors",
+            "multiselect": false,
+            "options": [
+              "ema_vae_fp16.safetensors"
+            ]
+          }
+        ],
+        "device": [
+          "COMBO",
+          {
+            "tooltip": "GPU device for VAE model inference (encoding/decoding phases)",
+            "default": "mps",
+            "multiselect": false,
+            "options": [
+              "mps"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "encode_tiled": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable tiled encoding to reduce VRAM usage during the encoding phase",
+            "default": false
+          }
+        ],
+        "encode_tile_size": [
+          "INT",
+          {
+            "tooltip": "Encoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when encode_tiled is enabled.",
+            "default": 1024,
+            "min": 64,
+            "step": 32
+          }
+        ],
+        "encode_tile_overlap": [
+          "INT",
+          {
+            "tooltip": "Pixel overlap between encoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when encode_tiled is enabled.",
+            "default": 128,
+            "min": 0,
+            "step": 32
+          }
+        ],
+        "decode_tiled": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable tiled decoding to reduce VRAM usage during the decoding phase",
+            "default": false
+          }
+        ],
+        "decode_tile_size": [
+          "INT",
+          {
+            "tooltip": "Decoding tile size in pixels (default: 1024).\nApplied to both height and width.\nLower values reduce VRAM usage but may increase processing time.\nOnly used when decode_tiled is enabled.",
+            "default": 1024,
+            "min": 64,
+            "step": 32
+          }
+        ],
+        "decode_tile_overlap": [
+          "INT",
+          {
+            "tooltip": "Pixel overlap between decoding tiles (default: 128).\nReduces visible seams between tiles through blending.\nHigher values improve quality but slow processing.\nOnly used when decode_tiled is enabled.",
+            "default": 128,
+            "min": 0,
+            "step": 32
+          }
+        ],
+        "tile_debug": [
+          "COMBO",
+          {
+            "tooltip": "Tile debug visualization mode:\n• 'false': No visualization overlay (default)\n• 'encode': Show encoding tile boundaries\n• 'decode': Show decoding tile boundaries\n\nOnly works when respective tiling is enabled.",
+            "default": "false",
+            "multiselect": false,
+            "options": [
+              "false",
+              "encode",
+              "decode"
+            ]
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device to offload VAE model when not actively processing.\n• 'none': Keep model on inference device (default, fastest)\n• 'cpu': Offload to system RAM (reduces VRAM usage)\n• 'cuda:X': Offload to another GPU (good balance if available)",
+            "default": "none",
+            "multiselect": false,
+            "options": [
+              "none",
+              "mps"
+            ]
+          }
+        ],
+        "cache_model": [
+          "BOOLEAN",
+          {
+            "tooltip": "Keep VAE model loaded on offload_device between workflow runs.\nUseful for batch processing to avoid repeated loading.\nRequires offload_device to be set.",
+            "default": false
+          }
+        ],
+        "torch_compile_args": [
+          "TORCH_COMPILE_ARGS",
+          {
+            "tooltip": "Optional torch.compile optimization settings from SeedVR2 Torch Compile Settings node.\nProvides 15-25% speedup with compatible PyTorch 2.0+ and Triton installation."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "device"
+      ],
+      "optional": [
+        "encode_tiled",
+        "encode_tile_size",
+        "encode_tile_overlap",
+        "decode_tiled",
+        "decode_tile_size",
+        "decode_tile_overlap",
+        "tile_debug",
+        "offload_device",
+        "cache_model",
+        "torch_compile_args"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SEEDVR2_VAE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SEEDVR2_VAE"
+    ],
+    "output_tooltips": [
+      "VAE model configuration containing model path, device settings, tiling parameters, and compilation options. Connect to Video Upscaler node."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2LoadVAEModel",
+    "display_name": "SeedVR2 (Down)Load VAE Model",
+    "description": "Load and configure SeedVR2 VAE (Variational Autoencoder) for encoding/decoding video frames to/from latent space. Supports tiled processing to handle high resolutions on limited VRAM, model caching, multi-GPU offloading, and torch.compile acceleration. \n\nConnect to Video Upscaler node.",
+    "python_module": "custom_nodes.seedvr2_videoupscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SeedVR2VideoUpscaler": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE",
+          {
+            "tooltip": "Input video frames as image batch.\nAccepts both RGB (3-channel) and RGBA (4-channel) formats.\nOutput format will match input format."
+          }
+        ],
+        "dit": [
+          "SEEDVR2_DIT",
+          {
+            "tooltip": "DiT model configuration from SeedVR2 (Down)Load DiT Model node"
+          }
+        ],
+        "vae": [
+          "SEEDVR2_VAE",
+          {
+            "tooltip": "VAE model configuration from SeedVR2 (Down)Load VAE Model node"
+          }
+        ],
+        "seed": [
+          "INT",
+          {
+            "tooltip": "Random seed for reproducible generation (default: 42).\nSame seed with same inputs produces identical output.",
+            "default": 42,
+            "min": 0,
+            "max": 4294967295,
+            "step": 1
+          }
+        ],
+        "resolution": [
+          "INT",
+          {
+            "tooltip": "Target resolution for the shortest edge in pixels (default: 1080).\nAutomatically maintains aspect ratio of input.\nEven values required for optimal processing.",
+            "default": 1080,
+            "min": 16,
+            "max": 16384,
+            "step": 2
+          }
+        ],
+        "max_resolution": [
+          "INT",
+          {
+            "tooltip": "Maximum resolution limit for any dimension (default: 0, no limit).\nIf any edge exceeds this after applying resolution,\nboth dimensions are scaled down proportionally.\nUseful to prevent excessive VRAM usage on extreme aspect ratios.",
+            "default": 0,
+            "min": 0,
+            "max": 16384,
+            "step": 2
+          }
+        ],
+        "batch_size": [
+          "INT",
+          {
+            "tooltip": "Number of frames processed together per batch (default: 5).\nMust follow pattern 4n+1: 1, 5, 9, 13, 17, 21, ...\n\n• Higher values: Better temporal consistency and faster processing\n• Lower values: Reduced VRAM usage\n\nIdeally match to shot length for best quality.",
+            "default": 5,
+            "min": 1,
+            "max": 16384,
+            "step": 4
+          }
+        ],
+        "uniform_batch_size": [
+          "BOOLEAN",
+          {
+            "tooltip": "Pad final batch to match batch_size (default: False).\nPrevents temporal artifacts caused by small final batch.\nAdd extra compute but recommended for optimal quality.",
+            "default": false
+          }
+        ],
+        "color_correction": [
+          "COMBO",
+          {
+            "tooltip": "Corrects color shifts in upscaled output to match original input (default: lab).\nThe upscaling process may alter colors; this applies color grading to restore them.\n\n• lab: Perceptual color matching with detail preservation (recommended)\n• wavelet: Frequency-based natural colors, preserves fine details\n• wavelet_adaptive: Wavelet base with targeted saturation correction\n• hsv: Hue-conditional saturation matching\n• adain: Statistical style transfer approach\n• none: No color correction applied",
+            "default": "lab",
+            "multiselect": false,
+            "options": [
+              "lab",
+              "wavelet",
+              "wavelet_adaptive",
+              "hsv",
+              "adain",
+              "none"
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "temporal_overlap": [
+          "INT",
+          {
+            "tooltip": "Overlapping frames between consecutive batches (default: 0, disabled).\nImproves temporal consistency across batch boundaries through blending.\nValues 1-4 work well for most content.",
+            "default": 0,
+            "min": 0,
+            "max": 16,
+            "step": 1
+          }
+        ],
+        "prepend_frames": [
+          "INT",
+          {
+            "tooltip": "Number of frames to prepend (reversed from start) before processing (default: 0).\nHelps reduce artifacts at video beginning.\nPrepended frames are automatically removed from final output.",
+            "default": 0,
+            "min": 0,
+            "max": 32,
+            "step": 1
+          }
+        ],
+        "input_noise_scale": [
+          "FLOAT",
+          {
+            "tooltip": "Input noise injection scale (default: 0.0, disabled).\nAdds controlled variation to input images before encoding.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan help with certain types of artifacts.",
             "default": 0.0,
             "min": 0.0,
-            "max": 5.0,
+            "max": 1.0,
+            "step": 0.001
+          }
+        ],
+        "latent_noise_scale": [
+          "FLOAT",
+          {
+            "tooltip": "Latent space noise injection scale (default: 0.0, disabled).\nAdds controlled variation during the diffusion process.\nRange: 0.0 (no noise) to 1.0 (maximum noise).\nCan soften details if input_noise_scale doesn't help.",
+            "default": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "step": 0.001
+          }
+        ],
+        "offload_device": [
+          "COMBO",
+          {
+            "tooltip": "Device for storing intermediate tensors between processing phases (default: cpu).\n• 'none': Keep all tensors on inference device (fastest but highest VRAM usage)\n• 'cpu': Offload to system RAM (recommended for long videos, slower transfers)\n• 'cuda:X': Offload to another GPU (good balance if available, faster than CPU)",
+            "default": "cpu",
+            "multiselect": false,
+            "options": [
+              "none",
+              "mps"
+            ]
+          }
+        ],
+        "enable_debug": [
+          "BOOLEAN",
+          {
+            "tooltip": "Enable detailed debug logging (default: False).\nShows memory usage, timing information, and processing details.\nUseful for troubleshooting errors and performance issues.",
+            "default": false
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image",
+        "dit",
+        "vae",
+        "seed",
+        "resolution",
+        "max_resolution",
+        "batch_size",
+        "uniform_batch_size",
+        "color_correction"
+      ],
+      "optional": [
+        "temporal_overlap",
+        "prepend_frames",
+        "input_noise_scale",
+        "latent_noise_scale",
+        "offload_device",
+        "enable_debug"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "IMAGE"
+    ],
+    "output_tooltips": [
+      "Upscaled video frames with color correction applied. Format (RGB/RGBA) matches input. Range [0, 1] normalized for ComfyUI compatibility."
+    ],
+    "output_matchtypes": null,
+    "name": "SeedVR2VideoUpscaler",
+    "display_name": "SeedVR2 Video Upscaler (v2.5.24)",
+    "description": "SeedVR2 main upscaling node: processes video frames using DiT and VAE models with diffusion-based enhancement. Handles RGB/RGBA formats, maintains temporal consistency across frames, applies color correction, and manages VRAM through intelligent tensor offloading. \n\nRequires DiT and VAE model configurations.",
+    "python_module": "custom_nodes.seedvr2_videoupscaler",
+    "category": "SEEDVR2",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SolidMask": {
+    "input": {
+      "required": {
+        "value": [
+          "FLOAT",
+          {
+            "default": 1.0,
+            "min": 0.0,
+            "max": 1.0,
             "step": 0.01
-           }
+          }
+        ],
+        "width": [
+          "INT",
+          {
+            "default": 512,
+            "min": 1,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "height": [
+          "INT",
+          {
+            "default": 512,
+            "min": 1,
+            "max": 16384,
+            "step": 1
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "value",
+        "width",
+        "height"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MASK"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MASK"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "SolidMask",
+    "display_name": "Create Solid Mask",
+    "description": "",
+    "python_module": "comfy_extras.nodes_mask",
+    "category": "image/mask",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SplitImageWithAlpha": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE",
+      "MASK"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "IMAGE",
+      "MASK"
+    ],
+    "output_tooltips": [
+      null,
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "SplitImageWithAlpha",
+    "display_name": "Split Image with Alpha",
+    "description": "",
+    "python_module": "comfy_extras.nodes_compositing",
+    "category": "image/compositing",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "extract alpha",
+      "separate transparency",
+      "remove alpha"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "SplitSigmas": {
+    "input": {
+      "required": {
+        "sigmas": [
+          "SIGMAS",
+          {}
+        ],
+        "step": [
+          "INT",
+          {
+            "default": 0,
+            "min": 0,
+            "max": 10000
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "sigmas",
+        "step"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SIGMAS",
+      "SIGMAS"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "high_sigmas",
+      "low_sigmas"
+    ],
+    "output_tooltips": [
+      null,
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "SplitSigmas",
+    "display_name": null,
+    "description": "",
+    "python_module": "comfy_extras.nodes_custom_sampler",
+    "category": "model/sampling/sigmas",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "StringFormat": {
+    "input": {
+      "required": {
+        "values": [
+          "COMFY_AUTOGROW_V3",
+          {
+            "template": {
+              "input": {
+                "required": {
+                  "value": [
+                    "*",
+                    {}
+                  ]
+                }
+              },
+              "names": [
+                "a",
+                "b",
+                "c",
+                "d",
+                "e",
+                "f",
+                "g",
+                "h",
+                "i",
+                "j",
+                "k",
+                "l",
+                "m",
+                "n",
+                "o",
+                "p",
+                "q",
+                "r",
+                "s",
+                "t",
+                "u",
+                "v",
+                "w",
+                "x",
+                "y",
+                "z"
+              ],
+              "min": 0
+            }
+          }
+        ],
+        "f_string": [
+          "STRING",
+          {
+            "default": "{a}",
+            "multiline": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "values",
+        "f_string"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "STRING"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "StringFormat",
+    "display_name": "Format Text",
+    "description": "Same as Python's string format method. Supports all of Python's format options and features.",
+    "python_module": "comfy_extras.nodes_string",
+    "category": "text",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "string",
+      "format"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "TextEncodeQwenImage21": {
+    "input": {
+      "required": {
+        "clip": [
+          "CLIP",
+          {}
+        ],
+        "prompt": [
+          "STRING",
+          {
+            "multiline": true,
+            "dynamicPrompts": true
+          }
+        ],
+        "negative_prompt": [
+          "STRING",
+          {
+            "multiline": true,
+            "dynamicPrompts": true
+          }
+        ],
+        "resolution": [
+          "INT",
+          {
+            "tooltip": "Reference images are resized to about resolution x resolution pixels, at multiples of 32, preserving aspect ratio. 0 keeps each reference at its own size, rounded to a multiple of 32. ",
+            "default": 1024,
+            "min": 0,
+            "max": 4096,
+            "step": 32
+          }
+        ],
+        "images": [
+          "COMFY_AUTOGROW_V3",
+          {
+            "tooltip": "Reference images, seen by the text encoder and spliced into the sequence as VAE latents.",
+            "template": {
+              "input": {
+                "required": {
+                  "image": [
+                    "IMAGE",
+                    {}
+                  ]
+                }
+              },
+              "names": [
+                "image_1",
+                "image_2",
+                "image_3",
+                "image_4",
+                "image_5",
+                "image_6",
+                "image_7",
+                "image_8",
+                "image_9",
+                "image_10",
+                "image_11",
+                "image_12",
+                "image_13",
+                "image_14",
+                "image_15",
+                "image_16"
+              ],
+              "min": 0
+            }
+          }
+        ]
+      },
+      "optional": {
+        "vae": [
+          "VAE",
+          {}
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "clip",
+        "prompt",
+        "negative_prompt",
+        "resolution",
+        "images"
+      ],
+      "optional": [
+        "vae"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "CONDITIONING",
+      "CONDITIONING",
+      "LATENT"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "positive",
+      "negative",
+      "latent"
+    ],
+    "output_tooltips": [
+      null,
+      null,
+      "Empty latent on the first reference image's size, to match with sampling as any other size shifts the edit."
+    ],
+    "output_matchtypes": null,
+    "name": "TextEncodeQwenImage21",
+    "display_name": "Text Encode Qwen Image 2.1",
+    "description": "",
+    "python_module": "comfy_extras.nodes_qwen",
+    "category": "model/conditioning/qwen image",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "TextGenerate": {
+    "input": {
+      "required": {
+        "clip": [
+          "CLIP",
+          {}
+        ],
+        "prompt": [
+          "STRING",
+          {
+            "default": "",
+            "multiline": true,
+            "dynamicPrompts": true
+          }
+        ],
+        "max_length": [
+          "INT",
+          {
+            "default": 512,
+            "min": 1,
+            "max": 32768
+          }
+        ],
+        "sampling_mode": [
+          "COMFY_DYNAMICCOMBO_V3",
+          {
+            "display_name": "Sampling Mode",
+            "options": [
+              {
+                "key": "on",
+                "inputs": {
+                  "required": {
+                    "temperature": [
+                      "FLOAT",
+                      {
+                        "default": 0.7,
+                        "min": 0.01,
+                        "max": 2.0,
+                        "step": 1e-06
+                      }
+                    ],
+                    "top_k": [
+                      "INT",
+                      {
+                        "default": 64,
+                        "min": 0,
+                        "max": 1000
+                      }
+                    ],
+                    "top_p": [
+                      "FLOAT",
+                      {
+                        "default": 0.95,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.01
+                      }
+                    ],
+                    "min_p": [
+                      "FLOAT",
+                      {
+                        "default": 0.05,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.01
+                      }
+                    ],
+                    "repetition_penalty": [
+                      "FLOAT",
+                      {
+                        "default": 1.05,
+                        "min": 0.0,
+                        "max": 5.0,
+                        "step": 0.01
+                      }
+                    ],
+                    "seed": [
+                      "INT",
+                      {
+                        "default": 0,
+                        "min": 0,
+                        "max": 18446744073709551615
+                      }
+                    ]
+                  },
+                  "optional": {
+                    "presence_penalty": [
+                      "FLOAT",
+                      {
+                        "default": 0.0,
+                        "min": 0.0,
+                        "max": 5.0,
+                        "step": 0.01
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "off",
+                "inputs": {
+                  "required": {}
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "image": [
+          "IMAGE",
+          {}
+        ],
+        "video": [
+          "IMAGE",
+          {
+            "tooltip": "Video frames as image batch. Assumed to be 24 FPS; subsampled to 1 FPS internally."
+          }
+        ],
+        "audio": [
+          "AUDIO",
+          {}
+        ],
+        "thinking": [
+          "BOOLEAN",
+          {
+            "tooltip": "Operate in thinking mode if the model supports it.",
+            "default": false
+          }
+        ],
+        "use_default_template": [
+          "BOOLEAN",
+          {
+            "tooltip": "Use the built in system prompt/template if the model has one.",
+            "advanced": true,
+            "default": true
+          }
+        ],
+        "mtp": [
+          "COMBO",
+          {
+            "tooltip": "Speculative decoding with the checkpoint's multi-token-prediction head. No effect without MTP weights. auto adapts the draft depth; 2-5 pins it. Sampled output stays correctly distributed but differs from non-MTP output for the same seed.",
+            "default": "auto",
+            "multiselect": false,
+            "options": [
+              "auto",
+              "off",
+              "2",
+              "3",
+              "4",
+              "5"
+            ]
+          }
+        ],
+        "system_prompt": [
+          "STRING",
+          {
+            "tooltip": "Replaces the system prompt in the model's chat template. Ignored when the default template is not used.",
+            "forceInput": true,
+            "multiline": false
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "clip",
+        "prompt",
+        "max_length",
+        "sampling_mode"
+      ],
+      "optional": [
+        "image",
+        "video",
+        "audio",
+        "thinking",
+        "use_default_template",
+        "mtp",
+        "system_prompt"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "STRING",
+      "STRING"
+    ],
+    "output_is_list": [
+      false,
+      false
+    ],
+    "output_name": [
+      "generated_text",
+      "thinking"
+    ],
+    "output_tooltips": [
+      null,
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "TextGenerate",
+    "display_name": "Generate Text",
+    "description": "",
+    "python_module": "comfy_extras.nodes_textgen",
+    "category": "text",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "LLM",
+      "gemma"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "ThresholdMask": {
+    "input": {
+      "required": {
+        "mask": [
+          "MASK",
+          {}
+        ],
+        "value": [
+          "FLOAT",
+          {
+            "default": 0.5,
+            "min": 0.0,
+            "max": 1.0,
+            "step": 0.01
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "mask",
+        "value"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MASK"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "MASK"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "ThresholdMask",
+    "display_name": "Threshold Mask",
+    "description": "",
+    "python_module": "comfy_extras.nodes_mask",
+    "category": "image/mask",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": [
+      "binary mask"
+    ],
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "UNETLoader": {
+    "input": {
+      "required": {
+        "unet_name": [
+          [
+            "minimax_h3_fl2va_pruned_bf16.safetensors",
+            "qwen_image_2.1_bf16.safetensors"
           ]
-         }
-        }
-       },
-       {
-        "key": "off",
-        "inputs": {
-         "required": {}
-        }
-       }
+        ],
+        "weight_dtype": [
+          [
+            "default",
+            "fp8_e4m3fn",
+            "fp8_e4m3fn_fast",
+            "fp8_e5m2"
+          ],
+          {
+            "advanced": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "unet_name",
+        "weight_dtype"
       ]
-     }
-    ]
-   },
-   "optional": {
-    "image": [
-     "IMAGE",
-     {}
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
     ],
-    "video": [
-     "IMAGE",
-     {
-      "tooltip": "Video frames as image batch. Assumed to be 24 FPS; subsampled to 1 FPS internally."
-     }
+    "output_is_list": [
+      false
     ],
-    "audio": [
-     "AUDIO",
-     {}
+    "output_name": [
+      "MODEL"
     ],
-    "thinking": [
-     "BOOLEAN",
-     {
-      "tooltip": "Operate in thinking mode if the model supports it.",
-      "default": false
-     }
-    ],
-    "use_default_template": [
-     "BOOLEAN",
-     {
-      "tooltip": "Use the built in system prompt/template if the model has one.",
-      "advanced": true,
-      "default": true
-     }
-    ],
-    "mtp": [
-     "COMBO",
-     {
-      "tooltip": "Speculative decoding with the checkpoint's multi-token-prediction head. No effect without MTP weights. auto adapts the draft depth; 2-5 pins it. Sampled output stays correctly distributed but differs from non-MTP output for the same seed.",
-      "default": "auto",
-      "multiselect": false,
-      "options": [
-       "auto",
-       "off",
-       "2",
-       "3",
-       "4",
-       "5"
+    "name": "UNETLoader",
+    "display_name": "Load Diffusion Model",
+    "description": "",
+    "python_module": "nodes",
+    "category": "model/loaders",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "VAEDecode": {
+    "input": {
+      "required": {
+        "samples": [
+          "LATENT",
+          {
+            "tooltip": "The latent to be decoded."
+          }
+        ],
+        "vae": [
+          "VAE",
+          {
+            "tooltip": "The VAE model used for decoding the latent."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "samples",
+        "vae"
       ]
-     }
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
     ],
-    "system_prompt": [
-     "STRING",
-     {
-      "tooltip": "Replaces the system prompt in the model's chat template. Ignored when the default template is not used.",
-      "forceInput": true,
-      "multiline": false
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "clip",
-    "prompt",
-    "max_length",
-    "sampling_mode"
-   ],
-   "optional": [
-    "image",
-    "video",
-    "audio",
-    "thinking",
-    "use_default_template",
-    "mtp",
-    "system_prompt"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "STRING",
-   "STRING"
-  ],
-  "output_is_list": [
-   false,
-   false
-  ],
-  "output_name": [
-   "generated_text",
-   "thinking"
-  ],
-  "output_tooltips": [
-   null,
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "TextGenerate",
-  "display_name": "Generate Text",
-  "description": "",
-  "python_module": "comfy_extras.nodes_textgen",
-  "category": "text",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "LLM",
-   "gemma"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "ThresholdMask": {
-  "input": {
-   "required": {
-    "mask": [
-     "MASK",
-     {}
+    "output_is_list": [
+      false
     ],
-    "value": [
-     "FLOAT",
-     {
-      "default": 0.5,
-      "min": 0.0,
-      "max": 1.0,
-      "step": 0.01
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "mask",
-    "value"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "MASK"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "MASK"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "ThresholdMask",
-  "display_name": "Threshold Mask",
-  "description": "",
-  "python_module": "comfy_extras.nodes_mask",
-  "category": "image/mask",
-  "output_node": false,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": [
-   "binary mask"
-  ],
-  "essentials_category": null,
-  "has_intermediate_output": false
- },
- "UNETLoader": {
-  "input": {
-   "required": {
-    "unet_name": [
-     [
-      "minimax_h3_fl2va_pruned_bf16.safetensors",
-      "qwen_image_2.1_bf16.safetensors"
-     ]
+    "output_name": [
+      "IMAGE"
     ],
-    "weight_dtype": [
-     [
-      "default",
-      "fp8_e4m3fn",
-      "fp8_e4m3fn_fast",
-      "fp8_e5m2"
-     ],
-     {
-      "advanced": true
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "unet_name",
-    "weight_dtype"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "MODEL"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "MODEL"
-  ],
-  "name": "UNETLoader",
-  "display_name": "Load Diffusion Model",
-  "description": "",
-  "python_module": "nodes",
-  "category": "model/loaders",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "VAEDecode": {
-  "input": {
-   "required": {
-    "samples": [
-     "LATENT",
-     {
-      "tooltip": "The latent to be decoded."
-     }
+    "name": "VAEDecode",
+    "display_name": "VAE Decode",
+    "description": "Decodes latent images back into pixel space images.",
+    "python_module": "nodes",
+    "category": "model/latent",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "output_tooltips": [
+      "The decoded image."
     ],
-    "vae": [
-     "VAE",
-     {
-      "tooltip": "The VAE model used for decoding the latent."
-     }
+    "search_aliases": [
+      "decode",
+      "decode latent",
+      "latent to image",
+      "render latent"
     ]
-   }
   },
-  "input_order": {
-   "required": [
-    "samples",
-    "vae"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "IMAGE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "IMAGE"
-  ],
-  "name": "VAEDecode",
-  "display_name": "VAE Decode",
-  "description": "Decodes latent images back into pixel space images.",
-  "python_module": "nodes",
-  "category": "model/latent",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "output_tooltips": [
-   "The decoded image."
-  ],
-  "search_aliases": [
-   "decode",
-   "decode latent",
-   "latent to image",
-   "render latent"
-  ]
- },
- "VAELoader": {
-  "input": {
-   "required": {
-    "vae_name": [
-     [
-      "minimax_h3_audio_vae_fp32.safetensors",
-      "minimax_h3_video_vae_fp16.safetensors",
-      "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
-      "pixel_space"
-     ]
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "vae_name"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "VAE"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "VAE"
-  ],
-  "name": "VAELoader",
-  "display_name": "Load VAE",
-  "description": "",
-  "python_module": "nodes",
-  "category": "model/loaders",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "ViggleTurboLora": {
-  "input": {
-   "required": {
-    "model": [
-     "MODEL"
+  "VAELoader": {
+    "input": {
+      "required": {
+        "vae_name": [
+          [
+            "minimax_h3_audio_vae_fp32.safetensors",
+            "minimax_h3_video_vae_fp16.safetensors",
+            "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+            "pixel_space"
+          ]
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "vae_name"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "VAE"
     ],
-    "lora_name": [
-     [
-      "Inklingv2-qwen21_c1-st6000.safetensors",
-      "Nick_2anime_QwenImage2.1.safetensors",
-      "QuadView_krea2_v1.safetensors",
-      "Qwen-Image-2.1-Hanfu-Style-lora-st5000.safetensors",
-      "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
-      "VNCCS_QI2_PoseStudioV1.1.safetensors",
-      "angles_v2_full_qwen21_multiple_angles_v2_qwen21_multiple_angles_v2_000001500.safetensors",
-      "ar_lora_inst_v3abc_comfyui.safetensors",
-      "cine1p_c1-st4000.safetensors",
-      "dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors",
-      "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
-      "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-      "next_scene_step2500.safetensors",
-      "qi21-mikkoani.safetensors",
-      "qwen2.1-detail-fix-2.0.safetensors",
-      "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
-      "songmeixue-style-v1-0928_c1-st6000.safetensors",
-      "xianxia_gufeng_meixue.safetensors"
-     ],
-     {
-      "tooltip": "diffusers-format Qwen-Image-2.1 LoRA."
-     }
+    "output_is_list": [
+      false
     ],
-    "strength": [
-     "FLOAT",
-     {
-      "default": 1.0,
-      "min": -4.0,
-      "max": 4.0,
-      "step": 0.05,
-      "tooltip": "Keep 1.0 for viggle-turbo."
-     }
-    ]
-   }
-  },
-  "input_order": {
-   "required": [
-    "model",
-    "lora_name",
-    "strength"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "MODEL"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "MODEL"
-  ],
-  "name": "ViggleTurboLora",
-  "display_name": "Qwen-Image-2.1 Viggle Turbo LoRA (unmerged)",
-  "description": "Applies the LoRA at runtime (y = Wx + BAx) instead of merging it into the weights, which is lossy on bf16 and int8.",
-  "python_module": "custom_nodes.viggle-turbo",
-  "category": "loaders",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "ViggleTurboSigmas": {
-  "input": {
-   "required": {
-    "latent": [
-     "LATENT",
-     {
-      "tooltip": "The latent passed to the sampler; its size sets the resolution shift."
-     }
+    "output_name": [
+      "VAE"
     ],
-    "nodes": [
-     "STRING",
-     {
-      "default": "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25",
-      "tooltip": "Raw (unshifted) student nodes. v0.3 LoRA: 1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 (6 steps). Add or remove steps at the high-noise end only (5: 1.0, 0.875, ...; 7: 1.0, 0.9583, 0.9167, 0.875, ...); keep 0.875, 0.75, 0.5, 0.25."
-     }
-    ]
-   }
+    "name": "VAELoader",
+    "display_name": "Load VAE",
+    "description": "",
+    "python_module": "nodes",
+    "category": "model/loaders",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
   },
-  "input_order": {
-   "required": [
-    "latent",
-    "nodes"
-   ]
-  },
-  "is_input_list": false,
-  "output": [
-   "SIGMAS"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "SIGMAS"
-  ],
-  "name": "ViggleTurboSigmas",
-  "display_name": "Qwen-Image-2.1 Viggle Turbo Sigmas",
-  "description": "",
-  "python_module": "custom_nodes.viggle-turbo",
-  "category": "sampling/custom_sampling/schedulers",
-  "output_node": false,
-  "has_intermediate_output": false,
-  "search_aliases": []
- },
- "easy showAnything": {
-  "input": {
-   "required": {},
-   "optional": {
-    "anything": [
-     "*",
-     {}
-    ]
-   },
-   "hidden": {
-    "unique_id": [
-     "UNIQUE_ID"
+  "ViggleTurboLora": {
+    "input": {
+      "required": {
+        "model": [
+          "MODEL"
+        ],
+        "lora_name": [
+          [
+            "Inklingv2-qwen21_c1-st6000.safetensors",
+            "Nick_2anime_QwenImage2.1.safetensors",
+            "QuadView_krea2_v1.safetensors",
+            "Qwen-Image-2.1-Hanfu-Style-lora-st5000.safetensors",
+            "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors",
+            "VNCCS_QI2_PoseStudioV1.1.safetensors",
+            "angles_v2_full_qwen21_multiple_angles_v2_qwen21_multiple_angles_v2_000001500.safetensors",
+            "ar_lora_inst_v3abc_comfyui.safetensors",
+            "cine1p_c1-st4000.safetensors",
+            "dmad_minimax_h3_4step_full_critic_comfyui_bf16.safetensors",
+            "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
+            "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+            "next_scene_step2500.safetensors",
+            "qi21-mikkoani.safetensors",
+            "qwen2.1-detail-fix-2.0.safetensors",
+            "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors",
+            "songmeixue-style-v1-0928_c1-st6000.safetensors",
+            "xianxia_gufeng_meixue.safetensors"
+          ],
+          {
+            "tooltip": "diffusers-format Qwen-Image-2.1 LoRA."
+          }
+        ],
+        "strength": [
+          "FLOAT",
+          {
+            "default": 1.0,
+            "min": -4.0,
+            "max": 4.0,
+            "step": 0.05,
+            "tooltip": "Keep 1.0 for viggle-turbo."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "model",
+        "lora_name",
+        "strength"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "MODEL"
     ],
-    "extra_pnginfo": [
-     "EXTRA_PNGINFO"
+    "output_is_list": [
+      false
     ],
-    "prompt": [
-     "PROMPT"
-    ]
-   }
+    "output_name": [
+      "MODEL"
+    ],
+    "name": "ViggleTurboLora",
+    "display_name": "Qwen-Image-2.1 Viggle Turbo LoRA (unmerged)",
+    "description": "Applies the LoRA at runtime (y = Wx + BAx) instead of merging it into the weights, which is lossy on bf16 and int8.",
+    "python_module": "custom_nodes.viggle-turbo",
+    "category": "loaders",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
   },
-  "input_order": {
-   "required": [],
-   "optional": [
-    "anything"
-   ],
-   "hidden": [
-    "unique_id",
-    "extra_pnginfo",
-    "prompt"
-   ]
+  "ViggleTurboSigmas": {
+    "input": {
+      "required": {
+        "latent": [
+          "LATENT",
+          {
+            "tooltip": "The latent passed to the sampler; its size sets the resolution shift."
+          }
+        ],
+        "nodes": [
+          "STRING",
+          {
+            "default": "1.0, 0.9375, 0.875, 0.75, 0.5, 0.25",
+            "tooltip": "Raw (unshifted) student nodes. v0.3 LoRA: 1.0, 0.9375, 0.875, 0.75, 0.5, 0.25 (6 steps). Add or remove steps at the high-noise end only (5: 1.0, 0.875, ...; 7: 1.0, 0.9583, 0.9167, 0.875, ...); keep 0.875, 0.75, 0.5, 0.25."
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "latent",
+        "nodes"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "SIGMAS"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "SIGMAS"
+    ],
+    "name": "ViggleTurboSigmas",
+    "display_name": "Qwen-Image-2.1 Viggle Turbo Sigmas",
+    "description": "",
+    "python_module": "custom_nodes.viggle-turbo",
+    "category": "sampling/custom_sampling/schedulers",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
   },
-  "is_input_list": true,
-  "output": [
-   "*"
-  ],
-  "output_is_list": [
-   false
-  ],
-  "output_name": [
-   "output"
-  ],
-  "output_tooltips": [
-   null
-  ],
-  "output_matchtypes": null,
-  "name": "easy showAnything",
-  "display_name": null,
-  "description": "",
-  "python_module": "custom_nodes.ComfyUI-Easy-Use",
-  "category": "EasyUse/Logic",
-  "output_node": true,
-  "deprecated": false,
-  "experimental": false,
-  "dev_only": false,
-  "api_node": false,
-  "price_badge": null,
-  "search_aliases": null,
-  "essentials_category": null,
-  "has_intermediate_output": false
- }
+  "easy showAnything": {
+    "input": {
+      "required": {},
+      "optional": {
+        "anything": [
+          "*",
+          {}
+        ]
+      },
+      "hidden": {
+        "unique_id": [
+          "UNIQUE_ID"
+        ],
+        "extra_pnginfo": [
+          "EXTRA_PNGINFO"
+        ],
+        "prompt": [
+          "PROMPT"
+        ]
+      }
+    },
+    "input_order": {
+      "required": [],
+      "optional": [
+        "anything"
+      ],
+      "hidden": [
+        "unique_id",
+        "extra_pnginfo",
+        "prompt"
+      ]
+    },
+    "is_input_list": true,
+    "output": [
+      "*"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "output"
+    ],
+    "output_tooltips": [
+      null
+    ],
+    "output_matchtypes": null,
+    "name": "easy showAnything",
+    "display_name": null,
+    "description": "",
+    "python_module": "custom_nodes.ComfyUI-Easy-Use",
+    "category": "EasyUse/Logic",
+    "output_node": true,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
+  "MyQi21PurposeCanvas": {
+    "input": {
+      "required": {
+        "组装用途": [
+          [
+            "新建资产",
+            "局部编辑",
+            "画风转换",
+            "无底座出图"
+          ],
+          {
+            "forceInput": true,
+            "tooltip": "连接提示词子图的组装用途；新建资产/无底座出图用类型画幅，其余保留参考图画幅"
+          }
+        ]
+      }
+    },
+    "output": [
+      "BOOLEAN"
+    ],
+    "output_name": [
+      "使用类型画幅"
+    ],
+    "output_node": false
+  }
 }

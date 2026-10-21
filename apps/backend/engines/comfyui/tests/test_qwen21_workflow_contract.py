@@ -282,6 +282,8 @@ import json
 import pathlib
 import re
 
+import pytest
+
 # ── 真源定位 ──────────────────────────────────────────────────────
 
 _TESTS_DIR = pathlib.Path(__file__).resolve().parent
@@ -525,6 +527,7 @@ I2I_B_SEG = ("将画中人物的上衣改为青灰色，保持人物身份、发
 # 1001 同构集成轮:StringConstant/StringConcatenate 出册(收编三自研件后全图零件,
 # 回潮即红);MyQi21PromptAssembly/MyQi21PromptSelect 入册(手术新立三件)
 I2I_NODE_TYPE_WHITELIST = {
+    "MyQi21PurposeCanvas",
     "UNETLoader", "CLIPLoader", "VAELoader", "LoadImage",
     "ImageScaleToTotalPixels", "QwenImage21Cache", "LoraLoaderModelOnly",
     "PrimitiveBoolean", "PrimitiveInt", "ComfySwitchNode", "KSampler", "VAEDecode",
@@ -771,7 +774,7 @@ TURBO_NOTE_TOKENS = (
 QI21_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, *TURBO_NOTE_TOKENS,
     "MyQi21SpeedSelect", "[7]", "[7015]", "[7012]", "[7014]",
-    "全局首项=「自动 · 按型」", "本件默认=「0 · Turbo 8步」", "seed 单源", "真实生效", "并行三支路",
+    "全局首项=「0 · Turbo 8步」", "本件默认=「0 · Turbo 8步」", "seed 单源", "真实生效", "并行三支路",
     "速度档位", "双子图",
 )
 # i2i 件 Note 加速区段(0929 S3 收装;i2i 家风=选择件/seed 以名示人不带 id 号,
@@ -780,7 +783,7 @@ QI21_PARALLEL_NOTE_TOKENS = (
 I2I_PARALLEL_NOTE_TOKENS = (
     *PARALLEL_NOTE_CORE_TOKENS, *TURBO_NOTE_TOKENS,
     "MyQi21SpeedSelect", "[7]", "[7012]",
-    "全局首项=「自动 · 按型」,本件默认=「0 · Turbo 8步」",
+    "全局首项=「0 · Turbo 8步」,本件默认=「0 · Turbo 8步」",
     "seed 单源", "零摆设值", "复用铁则", "分线直入",
     "单参考正源", "崩纯黑", "唯一色=1", "positive_single", "[173]", "零改动",
     "速度档位", "加速子图",
@@ -1666,18 +1669,12 @@ class TestSpeedSelectContract0929:
     XSG_UUIDS = {"qi21": QI21_XSG_UUID, "i2i": I2I_XSG_UUID, "edit": EDIT_XSG_UUID}
 
     def test_combo_closed_set_and_default_first(self):
-        """档位表真源=my_nodes 节点件 SPEED_MODES:四档字符串逐字(分隔符=U+00B7
-        中点,锁码位防全角漂移);1017 增档:首项=默认=「自动 · 按型」(按型名自动
-        路由,无固有槽=槽位 None;本令再推翻 1002/1016「首项=Turbo 8步」口径,
-        Turbo 8步=1016turbo 换臂官方 avg_rank_178 LoRA 承 1002 提首位);手动档
-        档号=序位号(0/1/2,随新序理顺),与槽名一一对应。
-        行为面单测=my_nodes/tests/
-        test_my_qi21_speed_select.py(三态/默认/懒裁剪/容错/报错文案),此处锁契约面。"""
+        """1021 默认 Turbo 8步;手动档精确串不变,自动按型居末供显式选择。"""
         assert [m for m, _s in SPEED_MODES] == \
-            ["自动 · 按型", "0 · Turbo 8步", "1 · 原生出图", "2 · viggle"]
-        assert DEFAULT_MODE == SPEED_MODES[0][0] == MODE_AUTO
+            ["0 · Turbo 8步", "1 · 原生出图", "2 · viggle", "自动 · 按型"]
+        assert DEFAULT_MODE == SPEED_MODES[0][0] == MODE_TURBO
         assert [s for _m, s in SPEED_MODES] == \
-            [None, "latent_turbo", "latent_direct", "latent_viggle"]
+            ["latent_turbo", "latent_direct", "latent_viggle", None]
 
     def test_lazy_protocol_shape(self):
         """懒执行语义位(结构面):三 latent 槽全 optional 全 lazy(执行器对 lazy 槽
@@ -1840,7 +1837,7 @@ class TestSpeedSelectContract0929:
             # 1006 四轮:qi21 四出(wh_ratio/PE启用? 随 AI扩写恒开退役;[4018] 恒九型);
             # 1017 型名穿界:两域尾加「型名」STRING 出([4010] 型名出穿 -20 边界)
             "qi21": ["positive", "negative", "width", "height", "型名"],
-            "i2i": ["prompt", "画幅W", "画幅H", "negative", "型名"],
+            "i2i": ["prompt", "画幅W", "画幅H", "negative", "型名", "使用类型画幅"],
             # 1015 编码器出子图役:positive/negative/latent/positive_single 四槽随
             # [4015]/[171] 迁主画布退役——子图收纯「提示词装配」,三出=终稿+画幅
             "edit": ["positive", "negative", "latent", "positive_single"],
@@ -1861,8 +1858,8 @@ class TestSpeedSelectContract0929:
                 # D10 语义收窄=「prompt 应=文本类最末槽」(其后仅允非文本槽)
                 assert outs.index(slot_name) == 0 and outs[1:3] == ["画幅W", "画幅H"], \
                     f"{name}: prompt/W/H 原槽序必须稳定，负向仅追加第四口，得 {outs}"
-                assert outs[3:] == ["negative", "型名"], \
-                    f"{name}: 第四槽必须为 negative(1017 型名穿界尾加第五口)，得 {outs[3:]}"
+                assert outs[3:] == ["negative", "型名", "使用类型画幅"], \
+                    f"{name}: 原negative/型名槽保持，第六槽为用途画幅BOOLEAN，得 {outs[3:]}"
         # 1004:qi21「最终文本」槽随编码器迁出退役(预览改吃槽0 positive,断言在
         # test_subgraph_outputs_feed_sampler_latent_and_preview);edit 无预览槽=空真
 
@@ -1923,7 +1920,7 @@ class TestTypeSignalAuto1017:
     XSELS = {"qi21": QI21_XSEL_ID, "i2i": I2I_XSEL_ID}
 
     def test_type_signal_root_wire_and_host_outputs(self):
-        """根线+宿主镜像:[6] outputs 末位「型名」单线扇出根线;根线端点
+        """根线+宿主镜像:[6] outputs 槽4「型名」单线扇出根线;根线端点
         [6]槽4→[7] 型名入槽;[4010] 第六出→装配子图 -20 边界出(asm_inner)。"""
         for name in self.DOMAINS:
             graph = GRAPHS[name]
@@ -1933,9 +1930,9 @@ class TestTypeSignalAuto1017:
                 {tuple(l) for l in graph["links"]}, \
                 f"{name}: 型名根线 link{root_lid} 应=({src},{ss})→({dst},{ds}) STRING"
             host6 = _nodes(graph)[self.HOSTS[name]]
-            assert host6["outputs"][-1]["name"] == "型名" and \
-                host6["outputs"][-1]["links"] == [root_lid], \
-                f"{name}: [6] outputs 末位应=「型名」单线扇出根线 link{root_lid}"
+            assert host6["outputs"][ss]["name"] == "型名" and \
+                host6["outputs"][ss]["links"] == [root_lid], \
+                f"{name}: [6] outputs[{ss}]应=「型名」单线扇出根线 link{root_lid}"
             ti = _nodes(graph)[self.XHOSTS[name]]["inputs"][ds]
             assert ti["name"] == "型名" and ti.get("link") == root_lid, \
                 f"{name}: [7] inputs[{ds}] 应=「型名」接根线 link{root_lid}"
@@ -1945,9 +1942,9 @@ class TestTypeSignalAuto1017:
             assert (asm_l["origin_id"], asm_l["origin_slot"],
                     asm_l["target_id"], asm_l["target_slot"]) == (a_src, a_ss, a_dst, a_ds), \
                 f"{name}: 装配子图内线 link{asm_lid} 应={a_src}:{a_ss}→{a_dst}:{a_ds}(型名穿界)"
-            assert asg["outputs"][-1]["name"] == "型名" and \
-                asg["outputs"][-1]["linkIds"] == [asm_lid], \
-                f"{name}: 装配子图 outputs 末位应=「型名」linkIds=[{asm_lid}]"
+            assert asg["outputs"][a_ds]["name"] == "型名" and \
+                asg["outputs"][a_ds]["linkIds"] == [asm_lid], \
+                f"{name}: 装配子图 outputs[{a_ds}]应=「型名」linkIds=[{asm_lid}]"
 
     def test_speed_select_type_name_input_wired(self):
         """[7015] 型名入槽:接子图内 accel_inner 线(-10 边界「型名」尾槽→
@@ -1971,7 +1968,7 @@ class TestTypeSignalAuto1017:
 
     def test_default_gear_auto_four_way_widgets(self):
         """四面 widget 默认=「0 · Turbo 8步」(宿主 wv[0]/具名镜像/子图 widgets[0]/
-        选择件 wv[0];1018 用户令:全件默认=Turbo;节点 combo 首项仍=自动·按型供手选)。"""
+        选择件 wv[0];1021 用户令:全件及节点 combo 首项默认=Turbo;自动·按型供手选)。"""
         for name in self.DOMAINS:
             graph = GRAPHS[name]
             xsg = _xsg(graph)
@@ -1986,9 +1983,7 @@ class TestTypeSignalAuto1017:
                 f"{name}: [{self.XSELS[name]}] 选择件 wv 应=[{MODE_TURBO!r}](1018 令本件默认)"
 
     def test_note_402_auto_gear_tokens(self):
-        """Note 402 新档 token 在场(手术 E 段句级替换后):t2i 双字段
-        (widgets_values[0]/widgets_values_named.text)同文镜像齐含新 token;
-        i2i 双异文——长文 wvn.text 含首项 token,短卡 wv[0] 含默认档句。"""
+        """Note402 双序列化同步默认 Turbo;自动按型仅为可手动选择的档位。"""
         for name in self.DOMAINS:
             note = next(n for n in GRAPHS[name]["nodes"] if n["id"] == 402)
             assert note["type"] == "MarkdownNote", f"{name}: [402] 应=MarkdownNote"
@@ -1997,16 +1992,99 @@ class TestTypeSignalAuto1017:
             if name == "qi21":
                 assert isinstance(text, str) and text == wv0, \
                     "qi21: Note 402 双字段应同文镜像(1017 手术 E 段)"
-                for tok in ("全局首项=「自动 · 按型」",
+                for tok in ("全局首项=「0 · Turbo 8步」",
                             "本件默认=「0 · Turbo 8步」",
+                            "手动选择「自动 · 按型」时",
                             "型名∈{设定卡,美宣,概念气氛图}→原生出图"):
                     assert tok in wv0, f"qi21: Note 402 缺 1017 新档 token {tok!r}"
             else:
                 assert isinstance(text, str), "i2i: Note 402 应有长文字段 wvn.text"
-                assert "全局首项=「自动 · 按型」" in text, \
-                    "i2i: Note 402 长文(wvn.text)缺 1018 首项 token"
-                assert "默认「自动 · 按型」" in wv0, \
-                    "i2i: Note 402 短卡缺 1017 默认档句"
+                assert "全局首项=「0 · Turbo 8步」" in text
+                assert "手动选择「自动 · 按型」时" in text
+                assert "默认「0 · Turbo 8步」" in wv0
+                assert "可手动选择「自动 · 按型」" in wv0
+            for content in (wv0, text):
+                for stale in ("全局首项=「自动 · 按型」", "全局出厂首项=「自动 · 按型」",
+                              "首项=自动=全局出厂默认", "默认「自动 · 按型」",
+                              "Turbo 居二/原生出图居三/viggle 居四"):
+                    assert stale not in content
+
+
+class TestDefaultTurbo1021:
+    def test_object_info_fixture_default_matches_node(self):
+        snapshot = json.loads((_TESTS_DIR / "fixtures/qi21_object_info_snapshot.json").read_text())
+        mode = snapshot["MyQi21SpeedSelect"]["input"]["required"]["mode"]
+        assert mode == [[MODE_TURBO, MODE_DIRECT, MODE_VIGGLE, MODE_AUTO], {"default": MODE_TURBO}]
+        assert mode[0] == _speed_mod.MyQi21SpeedSelect.INPUT_TYPES()["required"]["mode"][0]
+
+    def test_engine_metadata_default_is_turbo8(self):
+        from engines.image_engine import qwen21
+
+        assert qwen21.SPEC["steps"] == 8
+        assert "Turbo 8步" in qwen21.SPEC["description"]
+        assert "默认" in qwen21.SPEC["description"]
+        assert qwen21.LAYOUT == qwen21.SPEC["layout"] == "qwen21-viggle"
+
+    @staticmethod
+    def assert_turbo8_graph(graph):
+        selector = graph["7:7015"]["inputs"]
+        assert selector["mode"] == MODE_TURBO
+        assert selector["latent_turbo"] == ["7:7031", 0]
+        assert "latent_direct" not in selector and "latent_viggle" not in selector
+        lora = graph["7:7028"]["inputs"]
+        assert lora["lora_name"] == "qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors"
+        assert lora["strength_model"] == 1.0
+        assert graph["7:7029"]["class_type"] == "BasicGuider"
+        assert graph["7:7029"]["inputs"]["model"] == ["7:7028", 0]
+        assert graph["7:7030"]["class_type"] == "ManualSigmas"
+        assert graph["7:7030"]["inputs"]["sigmas"] == \
+            "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+        sampler = graph["7:7031"]
+        assert sampler["class_type"] == "SamplerCustomAdvanced"
+        assert sampler["inputs"]["sigmas"] == ["7:7030", 0]
+        assert sampler["inputs"]["guider"] == ["7:7029", 0]
+
+    @pytest.mark.parametrize("is_i2i", [False, True])
+    @pytest.mark.parametrize("steps", [1, 8, 40])
+    @pytest.mark.parametrize("base_type", [entry["zh"] for entry in json.loads(BASES_JSON.read_text())["types"]] + ["", None])
+    def test_template_instantiation_and_mock_submit_keep_turbo8(self, monkeypatch, is_i2i, steps, base_type):
+        from engines.comfyui import engine_manager
+        from engines.image_engine import qwen21
+        from image_gen import pipeline
+
+        template = qwen21.load_template(qwen21.TEMPLATE_NAME_I2I if is_i2i else qwen21.TEMPLATE_NAME)
+        original = json.dumps(template, ensure_ascii=False, sort_keys=True)
+        graph = qwen21.instantiate_template(template, "离线测试", None, steps, 21, "16:9",
+                                           ["offline.png"] if is_i2i else [])
+        qwen21.apply_base_type(graph, base_type)
+        self.assert_turbo8_graph(graph)
+        submitted = []
+
+        def offline_http(method, url, payload=None, timeout=2):
+            if method == "POST" and url == "http://offline.invalid/prompt":
+                assert payload is not None
+                submitted.append(payload["prompt"])
+                return {"prompt_id": "round14-offline"}
+            assert method == "GET" and url == "http://offline.invalid/history/round14-offline"
+            return {"round14-offline": {"status": {"status_str": "success"}, "outputs": {
+                "8": {"images": [{"filename": "offline.png"}]}}}}
+
+        monkeypatch.setattr(engine_manager.EngineManager, "ensure_engine_ready", lambda self: True)
+        monkeypatch.setattr(qwen21, "resolve_big_files", lambda: {"comfyui_version": "0.41.2"})
+        monkeypatch.setattr(qwen21, "bridge_url", lambda: "http://offline.invalid")
+        monkeypatch.setattr(qwen21, "_available_node_classes", lambda: frozenset(qwen21.graph_node_classes(template["graph"])))
+        monkeypatch.setattr(qwen21, "curated_node_class_packs", dict)
+        monkeypatch.setattr(qwen21, "_http_json", offline_http)
+        monkeypatch.setattr(qwen21, "_upload_image", lambda *args: {"name": "offline.png"})
+        monkeypatch.setattr(qwen21, "_fetch_bytes", lambda *args: b"offline-mock-not-media")
+        monkeypatch.setattr(pipeline, "is_generation_cancelled", lambda: False)
+        result = qwen21.generate(prompt="离线测试", aspect_ratio="16:9", negative_prompt=None,
+                                 steps=steps, seed=21, base_type=base_type,
+                                 reference_b64="b2ZmbGluZQ==" if is_i2i else None)
+        assert result == "b2ZmbGluZS1tb2NrLW5vdC1tZWRpYQ=="
+        assert len(submitted) == 1
+        self.assert_turbo8_graph(submitted[0])
+        assert json.dumps(template, ensure_ascii=False, sort_keys=True) == original
 
 
 # ── 1. 四文件在位、文件名合规(09-18 命名铁律:无 MY- 前缀、无下划线)──
@@ -4385,13 +4463,13 @@ class TestCanvasNormalization0925:
 
     GRAPHS_3 = ("qi21", "i2i", "edit")
     # 0929 S3 收装后主图③加速框成员=宿主+留主图伴生物(支路件全入子图):
-    # t2i=空潜[4]+宿主[7];i2i=宿主[7]+寄居[20] latent汇入/[44] VAE 递送;
+    # t2i=空潜[4]+宿主[7];i2i=宿主[7]+寄居[20] latent汇入，VAE直连;
     # edit=宿主[7]+寄居[20] latent汇入/[29] VAE 递送
     # 1003 甲案重锚:edit [20] 寄居③框与 i2i 同款(两件同骨架,latnet 双路
     # 汇入件统一居装配列→加速列过渡带,由③框收编罩人)。
     ACCEL_HOST_AREA = {
         "qi21": (QI21_LATENT_ID, QI21_XHOST_ID),   # 1002 ⑫:空潜 [5]→[4](常量)
-        "i2i": (I2I_XHOST_ID, 20, 44),
+        "i2i": (I2I_XHOST_ID, 20),
         "edit": (EDIT_XHOST_ID, 20, 29),
     }
     # 主图③框标题锚(t2i/i2i=「道劫·加速区」前缀;edit=「道劫·③加速」)
@@ -4502,7 +4580,7 @@ class TestI2IEditHostLayout1003:
     INPUT_COL = (10, 11, 16, 17, 9, 19)
 
     def test_image_input_column_leads_assembly(self):
-        """不变量①:输入列成员全部右于加载列、左于 [6] 装配列(合法先导列)。"""
+        """图像输入列在装配前；i2i用途路由由装配子图内部计算后输出。"""
         for name in self.GRAPHS_2:
             graph = GRAPHS[name]
             nodes = _nodes(graph)
@@ -4510,6 +4588,10 @@ class TestI2IEditHostLayout1003:
                                 for i in (1, 2, 3))
             asm_x = nodes[6]["pos"][0]
             for nid in self.INPUT_COL:
+                if name == "i2i" and nid == I2I_LATENT_PB_ID:
+                    assert nid not in nodes
+                    assert _qi21_sg_nodes(graph)[4022]["type"] == "MyQi21PurposeCanvas"
+                    continue
                 n = nodes[nid]
                 assert loaders_right < n["pos"][0], \
                     f"{name}: 输入列成员 [{nid}] 应右于加载列(先导列=加载后装配前,1003 甲案)"
@@ -4951,7 +5033,7 @@ class TestI2IContract:
             (25, I2I_CACHE_ID, 0, I2I_XHOST_ID, 0, "MODEL"),        # [9]Cache → 加速宿主.model
             (279, I2I_SG_TE, 0, I2I_XHOST_ID, 1, "CONDITIONING"),   # [4015].positive(多参考) → 加速宿主.positive
             (280, I2I_SG_TE, 1, I2I_XHOST_ID, 2, "CONDITIONING"),   # [4015].negative → 加速宿主.negative
-            (282, I2I_SG_TE1, 0, I2I_XHOST_ID, 3, "CONDITIONING"),  # [171].positive(单参考) → 加速宿主.positive_single
+            (282, I2I_SG_TE1, 0, I2I_XHOST_ID, 3, "CONDITIONING"), # [171].positive → 加速宿主.positive_single
             (33, I2I_LATENT_SW_ID, 0, I2I_XHOST_ID, 4, "LATENT"),   # [20] 画幅开关 → 加速宿主.latent
             (85, I2I_XHOST_ID, 0, 5, 0, "LATENT"),                  # 加速宿主.latent → [5].samples(⑫:9→5)
             # 1017 型名穿界根线:[6] 型名出(槽4)→加速宿主「型名」入(槽5),
@@ -4959,6 +5041,7 @@ class TestI2IContract:
             (4412, I2I_HOST_ID, 4, I2I_XHOST_ID, 5, "STRING"),
         ]:
             assert want in got, f"i2i 加速边界接线缺: link{want[0]}"
+        assert not any(n["type"] == "Reroute" for n in graph["nodes"]), "纯转接已清理，条件必须直连"
         _assert_accel_subgraph(
             graph, "i2i",
             xsg_uuid=I2I_XSG_UUID, host_id=I2I_XHOST_ID, sel_id=I2I_XSEL_ID,
@@ -5006,8 +5089,8 @@ class TestI2IContract:
         # (真锚=上方接线表 link279/282;宿主收纯装配三出=prompt/画幅W/画幅H)
         host = _nodes(graph)[I2I_HOST_ID]
         assert [o["name"] for o in host["outputs"]] == \
-            ["prompt", "画幅W", "画幅H", "negative", "型名"], \
-            "i2i 宿主保留 prompt/画幅W/画幅H 原槽并追加 negative+型名(1017 型名穿界尾加)"
+            ["prompt", "画幅W", "画幅H", "negative", "型名", "使用类型画幅"], \
+            "i2i 宿主原五槽保持，第六槽由真实内部节点输出BOOLEAN"
         # TE-Speed 槽禁入:全图(主图+两子图)节点类型白名单(0929 S3 扩三域;
         # ComfySwitchNode 恒留册=装配 [15]/[144]/[173]+主图 [20] 在用)
         sg_ids = {sg["id"] for sg in _sgs(graph)}
@@ -5032,11 +5115,9 @@ class TestI2IContract:
                 f"i2i: 旧注入式件 [{gone}] 应已拆除(0929 并行化)"
 
     def test_all_switches_default_off(self):
-        """开关默认态(1001 同构集成后):[152] Select① pe开关=宿主面板「PE开关」
-        默认 true=PE 开路(默认 PE 改写;关=直写按图选配,0926 裁定1)/[153]
-        Select② pe开关 widget 恒 false(纯包裹器)/其余 widget 全 false(懒执行
-        旁路):[19] 画幅跟随输入图/[20] 画幅双路 false/[144][173] RGBA 普通;
-        旧 [15]/[30]/[32] 开关件已随同构集成/0929 并行化拆除。"""
+        """PE默认关闭；用途默认局部编辑，画幅由同一用途自动路由。
+        子图内[4022]无独立开关，[20]保存false与默认局部编辑对应；透明仍自动。
+        旧LoRA开关不复活。"""
         graph = GRAPHS["i2i"]
         nodes = _nodes(graph)
         sg_nodes = _qi21_sg_nodes(graph)
@@ -5047,7 +5128,18 @@ class TestI2IContract:
         sel2 = sg_nodes[I2I_SG_SEL2_ID]
         assert sel2["widgets_values"][QI21_SG_SEL_WV["pe开关"]] is False, \
             "[153] 透明包裹器 pe开关应恒 false(纯包裹=头句+装配全文+尾句)"
-        assert nodes[I2I_LATENT_PB_ID]["widgets_values"][0] is False, "[19] 画幅开关源默认应 false"
+        router = sg_nodes[4022]
+        assert router["type"] == "MyQi21PurposeCanvas", "[4022] 应由同一组装用途自动路由画幅"
+        assert router["widgets_values"] == [], "[4022] 不应有独立画幅开关"
+        sg_links = _qi21_sg_links(graph)
+        purpose_link = sg_links[router["inputs"][0]["link"]]
+        assert (purpose_link["origin_id"], purpose_link["origin_slot"], purpose_link["target_id"]) == (-10, 7, 4022)
+        route_output = sg_links[288]
+        assert (route_output["origin_id"], route_output["target_id"], route_output["target_slot"], route_output["type"]) == (4022, -20, 5, "BOOLEAN")
+        assert not any(edge["origin_id"] == -10 and edge["target_id"] == -20 for edge in sg_links.values())
+        assert 19 not in nodes
+        assert _links(graph)[32] == [32, I2I_HOST_ID, 5, I2I_LATENT_SW_ID, 2, "BOOLEAN"]
+        assert nodes[I2I_HOST_ID]["widgets_values_named"]["组装用途"] == "局部编辑"
         assert nodes[I2I_LATENT_SW_ID]["widgets_values"][0] is False, "[20] 画幅双路默认应 false"
         # 10-02 单口化:[144]/[173] 双闸门塌缩退役(原「默认 false」断言随之退场)
         host = nodes[I2I_HOST_ID]
@@ -5294,7 +5386,7 @@ UP4_TITLE = {"D": "超分·D SeedVR2"}
 # 母线信号扇出槽(design §4;槽序=定义 inputs 序 image0/model1/pos2/neg3/vae4)
 UP4_BUS_SRC = {
     "qi21": {"src": 5, "model": 4203, "pos": 4015, "neg": 4016, "neg_slot": 0, "vae": 4202},
-    "i2i": {"src": 509, "model": 9, "pos": 4015, "neg": 4015, "neg_slot": 1, "vae": 43},
+    "i2i": {"src": 509, "model": 9, "pos": 4015, "neg": 4015, "neg_slot": 1, "vae": 3},
 }
 # 1015 紫底 P1 洗底链(i2i 根图专属):[5]→[506]拆α→[510]阈值门(α<0.004)
 # →[507]SRC×[508]0→[509]回拼(原α直通)→[8]/[503] 双喂(手术脚本

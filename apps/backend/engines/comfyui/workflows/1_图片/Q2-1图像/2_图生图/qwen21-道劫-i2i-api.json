@@ -105,22 +105,34 @@
         ]
       }
     },
-    "19": {
-      "class_type": "PrimitiveBoolean",
+    "4": {
+      "class_type": "EmptyLatentImage",
       "inputs": {
-        "value": false
+        "width": [
+          "6:4018",
+          0
+        ],
+        "height": [
+          "6:4018",
+          1
+        ],
+        "batch_size": 1
       }
     },
     "20": {
       "class_type": "ComfySwitchNode",
       "inputs": {
         "switch": [
-          "19",
+          "6:4022",
           0
         ],
         "on_false": [
           "4015",
           2
+        ],
+        "on_true": [
+          "4",
+          0
         ]
       }
     },
@@ -324,6 +336,27 @@
       "class_type": "PrimitiveBoolean",
       "inputs": {
         "value": false
+      }
+    },
+    "6:4018": {
+      "class_type": "MyQi21WhSuggest",
+      "inputs": {
+        "九型WIDTH": [
+          "6:4010",
+          1
+        ],
+        "九型HEIGHT": [
+          "6:4010",
+          2
+        ],
+        "手动宽": 0,
+        "手动高": 0
+      }
+    },
+    "6:4022": {
+      "class_type": "MyQi21PurposeCanvas",
+      "inputs": {
+        "组装用途": "局部编辑"
       }
     },
     "7:7014": {
