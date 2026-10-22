@@ -357,3 +357,15 @@ class TestWorkflowFileOps:
         assert moved["id"] == "归档/改名流.json"
         listing = pm.list_workflows()
         assert [w["id"] for w in listing["workflows"]] == ["归档/改名流.json"]
+
+
+def test_i2i_single_reference_prunes_ref2_chain_1021():
+    """2021 单参考剪链:[11]/[17]/4015.image_2 整链摘除(krea2 先例同款)——
+    桥快照示例图名不在引擎 input,悬空 LoadImage 必被 custom_validation 拒。"""
+    template = bridge.load_template("qwen21_道劫_i2i_api")
+    graph = bridge.instantiate_template(template, "测试指令", None, 8, 42, "1:1",
+                                       ["uploaded-ref.png"])
+    assert "11" not in graph and "17" not in graph
+    assert "images.image_2" not in graph["4015"]["inputs"]
+    assert graph["10"]["inputs"]["image"] == "uploaded-ref.png"
+    assert graph["4015"]["inputs"]["images.image_1"] == ["16", 0]

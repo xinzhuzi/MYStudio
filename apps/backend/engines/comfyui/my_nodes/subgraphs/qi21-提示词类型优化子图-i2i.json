@@ -122,19 +122,19 @@
         }
       ],
       "widgets_values": [
-        "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+        "<image1>为人物参考，<image2>为上衣参考；将<image1>人物的上衣改为<image2>上衣的青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
         "人物",
         false,
         "自动",
-        "局部编辑"
+        "自由出图"
       ],
       "title": "[6] 文本提示词类型优化子图",
       "widgets_values_named": {
-        "指令": "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+        "指令": "<image1>为人物参考，<image2>为上衣参考；将<image1>人物的上衣改为<image2>上衣的青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
         "型选择": "人物",
         "PE启用?": false,
         "RGBA透明": "自动",
-        "组装用途": "局部编辑"
+        "组装用途": "自由出图"
       }
     }
   ],
@@ -168,8 +168,8 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            7220,
-            900,
+            7000,
+            2200,
             320,
             1800
           ]
@@ -283,7 +283,7 @@
               241
             ],
             "pos": [
-              6290.0,
+              7000,
               320
             ]
           },
@@ -295,7 +295,7 @@
               233
             ],
             "pos": [
-              6290.0,
+              7000,
               450
             ]
           },
@@ -307,7 +307,7 @@
               234
             ],
             "pos": [
-              6290.0,
+              7000,
               580
             ]
           },
@@ -319,7 +319,7 @@
               285
             ],
             "pos": [
-              6290.0,
+              7000,
               710
             ]
           },
@@ -331,7 +331,7 @@
               286
             ],
             "pos": [
-              6290.0,
+              7000,
               840
             ]
           },
@@ -343,25 +343,25 @@
               288
             ],
             "pos": [
-              6290.0,
+              7000,
               970
             ]
           }
         ],
         "widgets": [
-          "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+          "<image1>为人物参考，<image2>为上衣参考；将<image1>人物的上衣改为<image2>上衣的青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
           "人物",
           false,
           "自动",
-          "局部编辑"
+          "自由出图"
         ],
         "nodes": [
           {
             "id": 4010,
             "type": "MyQi21DaojieBase",
             "pos": [
-              980.3,
-              2304.9
+              3100,
+              2200
             ],
             "size": [
               420,
@@ -437,7 +437,7 @@
                 ]
               }
             ],
-            "title": "[4010] 底座十选一·自研",
+            "title": "[4010] 类型底座",
             "properties": {
               "Node name for S&R": "MyQi21DaojieBase",
               "ue_properties": {
@@ -459,8 +459,8 @@
             "id": 180,
             "type": "MyQi21RgbaSelect",
             "pos": [
-              2563.6,
-              2314.0
+              4100,
+              3300
             ],
             "size": [
               380,
@@ -500,7 +500,7 @@
                 ]
               }
             ],
-            "title": "[180] RGBA透明选择·自研",
+            "title": "[180] RGBA透明选择",
             "properties": {
               "Node name for S&R": "MyQi21RgbaSelect",
               "ue_properties": {
@@ -522,8 +522,8 @@
             "id": 23,
             "type": "PrimitiveStringMultiline",
             "pos": [
-              80.0,
-              193.3
+              100,
+              1100
             ],
             "size": [
               260,
@@ -543,7 +543,7 @@
                 ]
               }
             ],
-            "title": "[23] PE模板尾·Multiline",
+            "title": "[23] PE后缀",
             "properties": {
               "Node name for S&R": "PrimitiveStringMultiline",
               "ue_properties": {
@@ -563,8 +563,8 @@
             "id": 21,
             "type": "PrimitiveStringMultiline",
             "pos": [
-              517.5,
-              445.0
+              100,
+              700
             ],
             "size": [
               300,
@@ -584,7 +584,7 @@
                 ]
               }
             ],
-            "title": "[21] PE模板头·Multiline",
+            "title": "[21] PE前缀",
             "properties": {
               "Node name for S&R": "PrimitiveStringMultiline",
               "ue_properties": {
@@ -604,8 +604,8 @@
             "id": 25,
             "type": "BatchImagesNode",
             "pos": [
-              2160.0,
-              100.0
+              800,
+              400
             ],
             "size": [
               260,
@@ -653,7 +653,7 @@
                 ]
               }
             ],
-            "title": "[25] PE看图合批·BatchImages",
+            "title": "[25] PE参考图合批",
             "properties": {
               "Node name for S&R": "BatchImagesNode",
               "ue_properties": {
@@ -667,8 +667,8 @@
             "id": 24,
             "type": "StringFormat",
             "pos": [
-              1180.0,
-              100.0
+              800,
+              850
             ],
             "size": [
               300,
@@ -717,7 +717,7 @@
                 ]
               }
             ],
-            "title": "[24] PE三段拼装·StringFormat",
+            "title": "[24] PE指令装配",
             "properties": {
               "Node name for S&R": "StringFormat",
               "ue_properties": {
@@ -737,8 +737,8 @@
             "id": 4013,
             "type": "TextGenerate",
             "pos": [
-              2222.3,
-              945.4
+              1600,
+              400
             ],
             "size": [
               400,
@@ -808,7 +808,7 @@
                 "links": null
               }
             ],
-            "title": "[4013] PE看图改写·TextGenerate",
+            "title": "[4013] PE看图改写",
             "properties": {
               "Node name for S&R": "TextGenerate",
               "ue_properties": {
@@ -852,8 +852,8 @@
             "id": 27,
             "type": "RegexExtract",
             "pos": [
-              2984.1,
-              795.1
+              2400,
+              400
             ],
             "size": [
               330,
@@ -883,7 +883,7 @@
                 ]
               }
             ],
-            "title": "[27] PE抽取·RegexExtract",
+            "title": "[27] PE正文提取",
             "properties": {
               "Node name for S&R": "RegexExtract",
               "ue_properties": {
@@ -913,71 +913,54 @@
           },
           {
             "id": 4014,
-            "type": "MyQi21PromptSelect",
+            "type": "MyQi21InstructionSelect",
             "pos": [
-              3080.0,
-              1620.0
+              4100,
+              2000
             ],
             "size": [
               380,
-              360
+              150
             ],
             "flags": {},
             "order": 13,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "装配全文",
-                "name": "装配全文",
-                "shape": 7,
+                "name": "原始指令",
                 "type": "STRING",
-                "widget": {
-                  "name": "装配全文"
-                },
+                "shape": 7,
                 "link": 62
               },
               {
-                "localized_name": "PE出文",
                 "name": "PE出文",
-                "shape": 7,
                 "type": "STRING",
-                "widget": {
-                  "name": "PE出文"
-                },
+                "shape": 7,
                 "link": 63
               },
               {
-                "localized_name": "pe开关",
                 "name": "pe开关",
-                "shape": 7,
                 "type": "BOOLEAN",
+                "shape": 7,
                 "widget": {
                   "name": "pe开关"
                 },
-                "link": 61
+                "link": 200
               }
             ],
             "outputs": [
               {
-                "localized_name": "进编码正向文本",
-                "name": "进编码正向文本",
+                "name": "选定指令",
                 "type": "STRING",
                 "slot_index": 0,
                 "links": [
                   60
                 ]
-              },
-              {
-                "localized_name": "进编码负向文本",
-                "name": "进编码负向文本",
-                "type": "STRING",
-                "slot_index": 1,
-                "links": []
               }
             ],
-            "title": "[4014] 择文合成器①·自研",
+            "title": "[4014] 原文 / PE择文",
             "properties": {
-              "Node name for S&R": "MyQi21PromptSelect",
+              "Node name for S&R": "MyQi21InstructionSelect",
               "ue_properties": {
                 "widget_ue_connectable": {},
                 "version": "7.8",
@@ -985,34 +968,18 @@
               }
             },
             "widgets_values": [
-              "",
-              "",
-              "",
-              "",
-              false,
-              false,
-              "This is an RGBA image with transparency.",
-              "The image has alpha channel and the background is transparent.",
-              "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
+              false
             ],
             "widgets_values_named": {
-              "装配全文": "",
-              "负面词直写": "",
-              "PE出文": "",
-              "PE负面": "",
-              "pe开关": false,
-              "透明模式": false,
-              "RGBA官方头句": "This is an RGBA image with transparency.",
-              "RGBA官方尾句": "The image has alpha channel and the background is transparent.",
-              "W1收束句": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
+              "pe开关": false
             }
           },
           {
             "id": 4011,
             "type": "MyQi21PromptAssembly",
             "pos": [
-              5168.2,
-              1807.6
+              5100,
+              2300
             ],
             "size": [
               520,
@@ -1077,7 +1044,7 @@
                 ]
               }
             ],
-            "title": "[4011] 底料拼合·自研",
+            "title": "[4011] 用途与底座装配",
             "properties": {
               "Node name for S&R": "MyQi21PromptAssembly",
               "ue_properties": {
@@ -1089,61 +1056,51 @@
             "widgets_values": [
               "",
               "",
-              "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+              "<image1>为人物参考，<image2>为上衣参考；将<image1>人物的上衣改为<image2>上衣的青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
               "",
               "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
-              "局部编辑"
+              "自由出图"
             ],
             "widgets_values_named": {
               "BASE": "",
               "BASE负面": "",
-              "主体句": "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
+              "主体句": "<image1>为人物参考，<image2>为上衣参考；将<image1>人物的上衣改为<image2>上衣的青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。",
               "主体句负面": "",
               "锁层A全文": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
-              "组装用途": "局部编辑"
+              "组装用途": "自由出图"
             }
           },
           {
             "id": 153,
-            "type": "MyQi21PromptSelect",
+            "type": "MyQi21FinalOutput",
             "pos": [
-              5780.0,
-              2380.0
+              6200,
+              3000
             ],
             "size": [
               380,
-              360
+              150
             ],
             "flags": {},
             "order": 6,
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "装配全文",
-                "name": "装配全文",
-                "shape": 7,
+                "name": "正向提示词",
                 "type": "STRING",
-                "widget": {
-                  "name": "装配全文"
-                },
+                "shape": 7,
                 "link": 66
               },
               {
-                "name": "负面词直写",
+                "name": "负向提示词",
                 "type": "STRING",
-                "widget": {
-                  "name": "负面词直写"
-                },
+                "shape": 7,
                 "link": 284
               },
               {
-                "localized_name": "透明模式",
                 "name": "透明模式",
-                "shape": 7,
                 "type": "BOOLEAN",
-                "widget": {
-                  "name": "透明模式"
-                },
+                "shape": 7,
                 "link": 67
               }
             ],
@@ -1167,44 +1124,24 @@
                 ]
               }
             ],
-            "title": "[153] 透明包裹器②·自研",
+            "title": "[153] 透明包裹与输出",
             "properties": {
-              "Node name for S&R": "MyQi21PromptSelect",
+              "Node name for S&R": "MyQi21FinalOutput",
               "ue_properties": {
                 "widget_ue_connectable": {},
                 "version": "7.8",
                 "input_ue_unconnectable": {}
               }
             },
-            "widgets_values": [
-              "",
-              "",
-              "",
-              "",
-              false,
-              false,
-              "This is an RGBA image with transparency.",
-              "The image has alpha channel and the background is transparent.",
-              "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
-            ],
-            "widgets_values_named": {
-              "装配全文": "",
-              "负面词直写": "",
-              "PE出文": "",
-              "PE负面": "",
-              "pe开关": false,
-              "透明模式": false,
-              "RGBA官方头句": "This is an RGBA image with transparency.",
-              "RGBA官方尾句": "The image has alpha channel and the background is transparent.",
-              "W1收束句": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
-            }
+            "widgets_values": [],
+            "widgets_values_named": {}
           },
           {
             "id": 4019,
             "type": "CLIPLoader",
             "pos": [
-              1045.7,
-              538.5
+              800,
+              100
             ],
             "size": [
               400,
@@ -1224,7 +1161,7 @@
                 ]
               }
             ],
-            "title": "[4019] PE专属TE·CLIPLoader",
+            "title": "[4019] PE看图模型",
             "properties": {
               "Node name for S&R": "CLIPLoader",
               "ue_properties": {
@@ -1245,63 +1182,11 @@
             }
           },
           {
-            "id": 4012,
-            "type": "PrimitiveBoolean",
-            "pos": [
-              181.2,
-              996.4
-            ],
-            "size": [
-              280,
-              90
-            ],
-            "flags": {},
-            "order": 11,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "值",
-                "name": "value",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "value"
-                },
-                "link": 200
-              }
-            ],
-            "outputs": [
-              {
-                "localized_name": "布尔",
-                "name": "BOOLEAN",
-                "type": "BOOLEAN",
-                "slot_index": 0,
-                "links": [
-                  61
-                ]
-              }
-            ],
-            "title": "[4012] PE启用?",
-            "properties": {
-              "Node name for S&R": "PrimitiveBoolean",
-              "ue_properties": {
-                "widget_ue_connectable": {},
-                "version": "7.8",
-                "input_ue_unconnectable": {}
-              }
-            },
-            "widgets_values": [
-              false
-            ],
-            "widgets_values_named": {
-              "value": false
-            }
-          },
-          {
             "id": 4018,
             "type": "MyQi21WhSuggest",
             "pos": [
-              4177.7,
-              1961.9
+              4100,
+              2800
             ],
             "size": [
               380,
@@ -1350,7 +1235,7 @@
                 ]
               }
             ],
-            "title": "[4018] 画幅建议器·自研",
+            "title": "[4018] 类型画幅建议",
             "properties": {
               "Node name for S&R": "MyQi21WhSuggest",
               "ue_properties": {
@@ -1376,8 +1261,8 @@
             "id": 4022,
             "type": "MyQi21PurposeCanvas",
             "pos": [
-              5890.0,
-              1859.7
+              6200,
+              3500
             ],
             "size": [
               280,
@@ -1402,7 +1287,7 @@
                 ]
               }
             ],
-            "title": "[4022] 用途画幅路由·自动",
+            "title": "[4022] 用途画幅路由",
             "properties": {
               "Node name for S&R": "MyQi21PurposeCanvas"
             },
@@ -1413,24 +1298,24 @@
         "groups": [
           {
             "id": 7,
-            "title": "PE改写链(带0/1)",
+            "title": "可选PE · 看图改写",
             "bounding": [
-              50.0,
-              50.0,
-              3294.1,
-              1094.4
+              60,
+              50,
+              2720,
+              1450
             ],
             "color": "#4a7a3f",
             "flags": {}
           },
           {
             "id": 8,
-            "title": "装配主链(带2)",
+            "title": "指令择文 · 用途装配 · 画幅",
             "bounding": [
-              950.3,
-              1570.0,
-              5249.7,
-              1246.0
+              3060,
+              1940,
+              3600,
+              1850
             ],
             "color": "#a1309b",
             "flags": {}
@@ -1505,8 +1390,8 @@
             "id": 200,
             "origin_id": -10,
             "origin_slot": 5,
-            "target_id": 4012,
-            "target_slot": 0,
+            "target_id": 4014,
+            "target_slot": 2,
             "type": "BOOLEAN"
           },
           {
@@ -1548,14 +1433,6 @@
             "target_id": 4014,
             "target_slot": 1,
             "type": "STRING"
-          },
-          {
-            "id": 61,
-            "origin_id": 4012,
-            "origin_slot": 0,
-            "target_id": 4014,
-            "target_slot": 2,
-            "type": "BOOLEAN"
           },
           {
             "id": 60,

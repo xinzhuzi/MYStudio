@@ -50,7 +50,7 @@ describe("buildDaojieStyleTransferInstruction(10-19 画风转换主体句槽终�
   it("守 09 篇纪律:槽内禁复写底座(无标签正文/无底座画法词)", () => {
     for (const assetType of ["character", "scene", "prop"] as const) {
       const text = buildDaojieStyleTransferInstruction(assetType);
-      // 底座由装配层(画风转换=join(主体句,锁层A))自动追加——槽内禁双写
+      // 底座由装配层(道劫美术风格转换=join(主体句,锁层A))自动追加——槽内禁双写
       expect(text).not.toContain("美术风格底座:");
       expect(text).not.toContain("国风");
       expect(text).not.toContain("线描");

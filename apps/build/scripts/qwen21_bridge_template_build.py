@@ -152,7 +152,9 @@ def selected_graph(graph: dict, outputs: list[str]) -> dict:
             for name in slots.values():
                 if name != slots[mode]:
                     inputs.pop(name, None)
-        elif node['class_type'] == 'MyQi21PromptSelect' and literal(inputs.get('pe开关', True)) is False:
+        elif node['class_type'] in ('MyQi21PromptSelect', 'MyQi21InstructionSelect') and literal(
+            inputs.get('pe开关', node['class_type'] == 'MyQi21PromptSelect')
+        ) is False:
             inputs.pop('PE出文', None)
             inputs.pop('PE负面', None)
         elif node['class_type'] == 'ComfySwitchNode':
@@ -259,9 +261,9 @@ TEMPLATE = {
     },
 }
 
-# 10-19 图生图·画风转换:qi21-道劫-i2i.json 展平模板。快照=画布现值
-# (组装用途=局部编辑/型=人物/Turbo 8步/PE 关/SeedVR2 旁路);运行时由
-# qwen21.generate 覆写 6:4011 组装用途=画风转换并绑 [10].image 为上传参考图名。
+# 10-19 图生图·道劫美术风格转换:qi21-道劫-i2i.json 展平模板。快照=画布现值
+# (组装用途=自由出图/型=人物/Turbo 8步/PE 关/SeedVR2 旁路);运行时由
+# qwen21.generate 覆写 6:4011 组装用途=道劫美术风格转换并绑 [10].image 为上传参考图名。
 TEMPLATE_I2I = {
     "schemaVersion": 1,
     "name": "qwen21_道劫_i2i_api",
@@ -341,7 +343,7 @@ def main() -> None:
     global ENGINE
     ap = argparse.ArgumentParser()
     ap.add_argument('--target', choices=sorted(TARGETS), default='t2i',
-                    help='t2i(缺省,零变化)/i2i(图生图·画风转换模板)')
+                    help='t2i(缺省,零变化)/i2i(图生图·道劫美术风格转换模板)')
     ap.add_argument("--validate", action="store_true", help="生成后直发引擎实弹验图")
     ap.add_argument('--object-info', type=Path, help='offline object_info JSON snapshot')
     args = ap.parse_args()

@@ -100,7 +100,7 @@
       "inputs": {
         "filename_prefix": "QI21道劫图生图_",
         "images": [
-          "509",
+          "7500:7510",
           0
         ]
       }
@@ -139,68 +139,16 @@
     "400": {
       "class_type": "PrimitiveStringMultiline",
       "inputs": {
-        "value": "将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。"
+        "value": "<image1>为人物参考，<image2>为上衣参考；将<image1>人物的上衣改为<image2>上衣的青灰色，保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。"
       }
     },
-    "506": {
-      "class_type": "SplitImageWithAlpha",
+    "504": {
+      "class_type": "SaveImage",
       "inputs": {
-        "image": [
-          "5",
+        "filename_prefix": "MYStudio-2K",
+        "images": [
+          "503:7401",
           0
-        ]
-      }
-    },
-    "510": {
-      "class_type": "ThresholdMask",
-      "inputs": {
-        "value": 0.996,
-        "mask": [
-          "506",
-          1
-        ]
-      }
-    },
-    "507": {
-      "class_type": "PorterDuffImageComposite",
-      "inputs": {
-        "mode": "SRC",
-        "source": [
-          "506",
-          0
-        ],
-        "source_alpha": [
-          "510",
-          0
-        ],
-        "destination": [
-          "506",
-          0
-        ],
-        "destination_alpha": [
-          "508",
-          0
-        ]
-      }
-    },
-    "508": {
-      "class_type": "SolidMask",
-      "inputs": {
-        "value": 0,
-        "width": 64,
-        "height": 64
-      }
-    },
-    "509": {
-      "class_type": "JoinImageWithAlpha",
-      "inputs": {
-        "image": [
-          "507",
-          0
-        ],
-        "alpha": [
-          "506",
-          1
         ]
       }
     },
@@ -308,7 +256,7 @@
         ],
         "主体句负面": "",
         "锁层A全文": "美术风格底座：国风二维动漫手绘插画。造型概括鲜明，轮廓与内部结构以白描式线条塑形，线条细稳连贯、轻重富有节奏，转折利落且保留手绘笔性；平整分层的清晰色面与简洁明暗色块塑形，辅以工笔分染与薄层罩染，色面边界清楚。采用丰富多彩、明快协调的中国传统设色，主色统领、辅色呼应、点睛色突出，饱和度与对比度层级分明；材质统一于线描设色语言。数字绘画表面洁净平整，线条与设色层次清晰，细节疏密有序；保留彩色连环画的凝练造型与绘画感。",
-        "组装用途": "局部编辑"
+        "组装用途": "自由出图"
       }
     },
     "6:153": {
@@ -356,7 +304,7 @@
     "6:4022": {
       "class_type": "MyQi21PurposeCanvas",
       "inputs": {
-        "组装用途": "局部编辑"
+        "组装用途": "自由出图"
       }
     },
     "7:7014": {
@@ -457,6 +405,134 @@
         "model": [
           "9",
           0
+        ]
+      }
+    },
+    "503:501": {
+      "class_type": "SeedVR2LoadDiTModel",
+      "inputs": {
+        "model": "seedvr2_7b_sharp_fp8_e4m3fn.safetensors",
+        "device": "mps",
+        "blocks_to_swap": 0,
+        "swap_io_components": false,
+        "offload_device": "none",
+        "cache_model": false,
+        "attention_mode": "sdpa"
+      }
+    },
+    "503:502": {
+      "class_type": "SeedVR2LoadVAEModel",
+      "inputs": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "mps",
+        "encode_tiled": true,
+        "encode_tile_size": 512,
+        "encode_tile_overlap": 160,
+        "decode_tiled": true,
+        "decode_tile_size": 512,
+        "decode_tile_overlap": 160,
+        "tile_debug": "false",
+        "offload_device": "none",
+        "cache_model": false
+      }
+    },
+    "503:7401": {
+      "class_type": "SeedVR2VideoUpscaler",
+      "inputs": {
+        "seed": [
+          "503:7402",
+          0
+        ],
+        "resolution": 2048,
+        "max_resolution": 4096,
+        "batch_size": 1,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 0,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "none",
+        "enable_debug": false,
+        "image": [
+          "7500:7510",
+          0
+        ],
+        "dit": [
+          "503:501",
+          0
+        ],
+        "vae": [
+          "503:502",
+          0
+        ]
+      }
+    },
+    "503:7402": {
+      "class_type": "PrimitiveInt",
+      "inputs": {
+        "value": 0
+      }
+    },
+    "7500:7506": {
+      "class_type": "SplitImageWithAlpha",
+      "inputs": {
+        "image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "7500:7508": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 0,
+        "width": 64,
+        "height": 64
+      }
+    },
+    "7500:7507": {
+      "class_type": "ThresholdMask",
+      "inputs": {
+        "value": 0.996,
+        "mask": [
+          "7500:7506",
+          1
+        ]
+      }
+    },
+    "7500:7509": {
+      "class_type": "PorterDuffImageComposite",
+      "inputs": {
+        "mode": "SRC",
+        "source": [
+          "7500:7506",
+          0
+        ],
+        "source_alpha": [
+          "7500:7507",
+          0
+        ],
+        "destination": [
+          "7500:7506",
+          0
+        ],
+        "destination_alpha": [
+          "7500:7508",
+          0
+        ]
+      }
+    },
+    "7500:7510": {
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "image": [
+          "7500:7509",
+          0
+        ],
+        "alpha": [
+          "7500:7506",
+          1
         ]
       }
     }

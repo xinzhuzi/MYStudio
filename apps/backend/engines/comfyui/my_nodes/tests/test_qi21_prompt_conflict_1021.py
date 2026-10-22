@@ -117,7 +117,7 @@ def test_real_multiview_assembly_survives_saved_w1_snapshot(pe_enabled):
     assert (width, height, transparent, type_name) == (1824, 1024, True, "人物多视图")
     assembled, negative = ASSEMBLY.MyQi21PromptAssembly().assemble(
         BASE=base, BASE负面=base_negative,
-        主体句=selected, 组装用途="新建资产")
+        主体句=selected, 组装用途="道劫美术类型")
     saved = copy.deepcopy(next(node for node in graph["nodes"] if node["id"] == 153)["widgets_values_named"])
     assert saved["W1收束句"] == RGBA["w1_closing"]
     saved.update(装配全文=assembled, 负面词直写=negative, 透明模式=True,

@@ -6,7 +6,7 @@ from engines.comfyui.my_nodes.nodes.my_qi21_prompt_assembly import MyQi21PromptA
 def test_local_edit_does_not_inherit_asset_layout_style_or_negatives():
     text, negative = MyQi21PromptAssembly().assemble(
         主体句='将右肩改为一道裂痕。保持其他内容不变。', BASE='四视图设定图',
-        BASE负面='脏污', 锁层A全文='均匀平光浅底', 组装用途='局部编辑')
+        BASE负面='脏污', 锁层A全文='均匀平光浅底', 组装用途='自由出图')
     assert text == '将右肩改为一道裂痕。保持其他内容不变。'
     assert negative == ''
 
@@ -14,7 +14,7 @@ def test_local_edit_does_not_inherit_asset_layout_style_or_negatives():
 def test_style_transfer_keeps_edit_and_adds_only_requested_rendering():
     text, _ = MyQi21PromptAssembly().assemble(
         主体句='将画中人物改绘为工笔画。保持构图和姿态。',
-        BASE='四视图设定图', 锁层A全文='细线矿物罩染', 组装用途='画风转换')
+        BASE='四视图设定图', 锁层A全文='细线矿物罩染', 组装用途='道劫美术风格转换')
     assert text == '将画中人物改绘为工笔画。保持构图和姿态。\n细线矿物罩染'
     assert '四视图' not in text
 
@@ -43,7 +43,7 @@ def test_no_base_mode_drops_style_from_positive_and_negative():
     # 负向=型负面+主体句负面,底座负面(真源热读,含「模糊」族)不入场
     assert negative == '脏污, 多余手指'
     base_neg = MyQi21PromptAssembly().assemble(
-        主体句='x', BASE='人物型文', BASE负面='脏污', 组装用途='新建资产')[1]
+        主体句='x', BASE='人物型文', BASE负面='脏污', 组装用途='道劫美术类型')[1]
     assert base_neg != negative  # 默认路径含底座负面,裸测路径不含
 
 

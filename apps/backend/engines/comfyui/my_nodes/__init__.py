@@ -31,7 +31,7 @@ from .nodes.my_qi21_base import MyQi21DaojieBase
 from .nodes.my_qi21_speed_select import MyQi21SpeedSelect
 from .nodes.my_qi21_rgba_select import MyQi21RgbaSelect
 from .nodes.my_qi21_prompt_assembly import MyQi21PromptAssembly
-from .nodes.my_qi21_prompt_select import MyQi21PromptSelect
+from .nodes.my_qi21_prompt_select import MyQi21InstructionSelect, MyQi21PromptSelect
 from .nodes.my_qi21_final_output import MyQi21FinalOutput
 from .nodes.my_qi21_subject_select import MyQi21SubjectSelect
 from .nodes.my_qi21_wh_suggest import MyQi21WhSuggest
@@ -123,6 +123,7 @@ _bridge_settings_server.install()
 _open_receipt_server.install()
 
 NODE_CLASS_MAPPINGS = {
+    "MyQi21InstructionSelect": MyQi21InstructionSelect,
     "MyQi21PurposeCanvas": MyQi21PurposeCanvas,
     "MyPrompt": MyPrompt,
     "MyReference": MyReference,
@@ -173,6 +174,7 @@ NODE_CLASS_MAPPINGS = {
 WEB_DIRECTORY = "./web"
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "MyQi21InstructionSelect": "道劫·qi21指令择文",
     "MyQi21PurposeCanvas": "道劫·用途画幅路由",
     "MyPrompt": "漫影 提示词",
     "MyReference": "漫影 参考图",

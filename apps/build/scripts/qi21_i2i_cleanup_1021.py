@@ -19,7 +19,7 @@ ROOT = repair.ROOT
 RESEARCH = ROOT / '.trellis/tasks/10-20-trellis-audit-remediation/research/round16-i2i-node-cleanup'
 REMOVED = {19, 42, 43, 44, 7403}
 NOTE = ('\n\n现行编码分工：\n'
-        '[4015] 多参考编码：原生档使用多张参考图的条件；其latent用于局部编辑/画风转换的参考画幅。\n'
+        '[4015] 多参考编码：原生档使用多张参考图的条件；其latent用于自由出图/道劫美术风格转换的参考画幅。\n'
         '[171] 加速编码：Turbo/viggle使用主参考图与透明锚；它与[4015]不能合并为同一路条件。\n'
         '纯转接节点已移除，模型、VAE、条件和画幅信号直接连接真实源；用途判断仍由装配子图内[4022]完成。')
 TITLES = {4015: '[4015] 多参考编码·原生与画幅', 171: '[171] 加速编码·主参考+透明锚'}
@@ -53,12 +53,19 @@ def collapse_reroutes(graph):
 
 def validate(documents):
     source, blueprint = documents
+    instruction = node(source, 400)['widgets_values'][0]
+    assert node(source, 400)['widgets_values_named']['value'] == instruction, 'node400 instruction mirror drift'
     assert not any(n['type'] == 'Reroute' for n in source['nodes'])
     prompt = repair.graph(source, repair.PROMPT_ID)
     assert all(repair.graph(blueprint, repair.PROMPT_ID)[k] == v for k, v in prompt.items())
     for doc in documents:
         negative.reciprocal(doc, root=True)
         host = repair.host(doc, repair.PROMPT_ID)
+        assert host['widgets_values'][0] == host['widgets_values_named']['指令'] == instruction, 'host instruction mirror drift'
+        assert repair.graph(doc, repair.PROMPT_ID)['widgets'][0] == instruction, 'definition instruction default drift'
+        assembly = node(repair.graph(doc, repair.PROMPT_ID), 4011)
+        assert assembly['widgets_values'][2] == assembly['widgets_values_named']['主体句'] == instruction, 'assembly instruction fallback drift'
+        assert host['widgets_values'][4] == host['widgets_values_named']['组装用途'] == '自由出图'
         assert [(p['name'], p['type']) for p in host['outputs']] == [(p['name'], p['type']) for p in prompt['outputs']]
         for sub in doc['definitions']['subgraphs']:
             negative.reciprocal(sub)
@@ -78,7 +85,7 @@ def validate(documents):
     assert repair.host(source, repair.PROMPT_ID)['outputs'][5]['links'] == [32]
     assert repair.host(blueprint, repair.PROMPT_ID)['outputs'][5]['links'] == []
     assert repair.host(source, repair.PROMPT_ID)['widgets_values_named'] == repair.host(blueprint, repair.PROMPT_ID)['widgets_values_named']
-    assert repair.host(source, repair.PROMPT_ID)['widgets_values_named']['组装用途'] == '局部编辑'
+    assert repair.host(source, repair.PROMPT_ID)['widgets_values_named']['组装用途'] == '自由出图'
     assert [279, 4015, 0, 7, 1, 'CONDITIONING'] in source['links']
     assert [281, 4015, 2, 20, 0, 'LATENT'] in source['links']
     assert all(node(source, k)['title'] == v for k, v in TITLES.items())

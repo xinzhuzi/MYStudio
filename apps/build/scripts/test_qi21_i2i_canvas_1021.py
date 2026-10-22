@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import importlib
+import importlib.util
 import json
 import sys
 import types
@@ -19,7 +20,9 @@ NODE_DIR = ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes'
 package = types.ModuleType('offline_qi21_canvas_nodes')
 package.__path__ = [str(NODE_DIR)]
 sys.modules[package.__name__] = package
-PURPOSES = ('新建资产', '局部编辑', '画风转换', '无底座出图')
+PURPOSES = ('道劫美术类型', '自由出图', '道劫美术风格转换', '无底座出图')
+TYPE_NAMES = ['人物', '场景', '道具', '美宣', '人物多视图', '高清人脸', '分镜剧情图',
+              '表情差分', '概念气氛图', '设定卡', '3D剖面场景图', '人脸基准', '自由']
 REFERENCE = (1536, 1024)
 
 
@@ -32,12 +35,7 @@ def source():
 
 
 def schemas():
-    info = json.loads((ROOT / 'apps/backend/engines/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
-    router = NODE_DIR / 'my_qi21_purpose_canvas.py'
-    if router.exists():
-        cls = node_module(router.stem).MyQi21PurposeCanvas
-        info[cls.__name__] = {'input': cls.INPUT_TYPES(), 'output': cls.RETURN_TYPES}
-    return info
+    return json.loads((ROOT / 'apps/backend/engines/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
 
 
 def flattened(document):
@@ -91,8 +89,8 @@ def select(document, purpose, type_name='人物', manual=(0, 0)):
 
 
 def test_new_asset_reaches_typed_empty_latent_not_reference():
-    graph = flattened(select(source(), '新建资产'))
-    assert resolve(graph, ['20', 0])[0] == 'empty', '新建资产仍由独立false开关取参考图latent'
+    graph = flattened(select(source(), '道劫美术类型'))
+    assert resolve(graph, ['20', 0])[0] == 'empty', '道劫美术类型仍由独立false开关取参考图latent'
 
 
 @pytest.mark.parametrize('purpose', PURPOSES)
@@ -110,7 +108,7 @@ def test_real_selected_projection_keeps_purpose_branches_and_sampler_latent(purp
     samplers = [item for item in graph.values() if item['class_type'] in ('KSampler', 'SamplerCustomAdvanced')]
     assert len(samplers) == 1
     assert resolve(graph, samplers[0]['inputs']['latent_image']) == expected
-    if purpose == '局部编辑':
+    if purpose == '自由出图':
         template = json.loads(builder.OUT_I2I.read_bytes())
         assert graph == template['graph']
 
@@ -120,7 +118,7 @@ def test_router_is_pure_forced_input_and_rejects_unknown(purpose):
     cls = node_module('my_qi21_purpose_canvas').MyQi21PurposeCanvas
     assert cls.INPUT_TYPES()['required']['组装用途'][1]['forceInput'] is True
     assert cls.RETURN_TYPES == ('BOOLEAN',)
-    assert cls().route(purpose) == (purpose in ('新建资产', '无底座出图'),)
+    assert cls().route(purpose) == (purpose in ('道劫美术类型', '无底座出图'),)
     with pytest.raises(ValueError, match='未知组装用途'):
         cls().route('未知用途')
 
@@ -128,7 +126,7 @@ def test_router_is_pure_forced_input_and_rejects_unknown(purpose):
 def test_all_purposes_types_and_sampling_inputs_match_real_t2i_dimensions():
     base = node_module('my_qi21_base')
     type_names = base.bases_list()
-    assert len(type_names) == 11 and '自由' in type_names
+    assert type_names == TYPE_NAMES
     t2i_path, = (ROOT / 'apps/backend/engines/comfyui/workflows').rglob('qi21-道劫-t2i.json')
     t2i = json.loads(t2i_path.read_bytes())
     typed_sizes = set()
@@ -150,7 +148,7 @@ def test_all_purposes_types_and_sampling_inputs_match_real_t2i_dimensions():
                 assembled_purpose = graph['6:4011']['inputs']['组装用途']
                 assert assembled_purpose == purpose
                 actual = resolve(graph, ['20', 0])
-                assert actual == (expected if purpose in ('新建资产', '无底座出图') else ('reference', *REFERENCE)), (type_name, purpose, manual)
+                assert actual == (expected if purpose in ('道劫美术类型', '无底座出图') else ('reference', *REFERENCE)), (type_name, purpose, manual)
                 accel_id = repair.host(source(), repair.ACCEL_ID)['id']
                 samplers = [(key, item) for key, item in graph.items()
                             if key.startswith(f'{accel_id}:') and item['class_type'] in ('KSampler', 'SamplerCustomAdvanced')]
@@ -167,21 +165,88 @@ def test_blueprint_host_links_and_single_purpose_source():
     documents = [json.loads(path.read_bytes()) for path in surgery.paths()]
     surgery.validate(documents)
     assert surgery.transform(documents) == documents
-    graph = flattened(select(source(), '新建资产'))
-    assert graph['6:4022']['inputs']['组装用途'] == graph['6:4011']['inputs']['组装用途'] == '新建资产'
+    graph = flattened(select(source(), '道劫美术类型'))
+    assert graph['6:4022']['inputs']['组装用途'] == graph['6:4011']['inputs']['组装用途'] == '道劫美术类型'
     assert graph['20']['inputs']['switch'] == ['6:4022', 0]
     original = source()
-    assert repair.host(original, repair.PROMPT_ID)['widgets_values_named']['组装用途'] == '局部编辑'
+    assert repair.host(original, repair.PROMPT_ID)['widgets_values_named']['组装用途'] == '自由出图'
 
 
 @pytest.mark.parametrize('purpose', PURPOSES)
 def test_half_manual_dimensions_only_fail_when_empty_latent_is_selected(purpose):
     graph = flattened(select(source(), purpose, manual=(1280, 0)))
-    if purpose in ('新建资产', '无底座出图'):
+    if purpose in ('道劫美术类型', '无底座出图'):
         with pytest.raises(ValueError, match='只填了一个'):
             resolve(graph, ['20', 0])
     else:
         assert resolve(graph, ['20', 0]) == ('reference', *REFERENCE)
+
+
+@pytest.mark.parametrize('name,module', (
+    ('MyQi21DaojieBase', 'my_qi21_base'),
+    ('MyQi21PromptAssembly', 'my_qi21_prompt_assembly'),
+    ('MyQi21PurposeCanvas', 'my_qi21_purpose_canvas'),
+))
+def test_custom_schema_snapshot_matches_current_node_contract(name, module):
+    cls = getattr(node_module(module), name)
+    info = schemas()[name]
+    assert info['input'] == json.loads(json.dumps(cls.INPUT_TYPES()))
+    assert info['output'] == list(cls.RETURN_TYPES)
+
+
+def test_saved_api_preserves_gui_two_reference_instruction_literal():
+    document = source()
+    instruction = next(item for item in document['nodes'] if item['id'] == 400)['widgets_values'][0]
+    assert '<image1>' in instruction and '<image2>' in instruction
+    graph = builder.flatten_canvas(document, schemas())
+    saved = json.loads(builder.OUT_I2I.read_bytes())['graph']
+    assert graph == saved
+    assert graph['400']['inputs']['value'] == instruction
+
+
+@pytest.mark.parametrize('document_index,mirror', (
+    (0, 'node_positional'), (0, 'node_named'),
+    (0, 'host_positional'), (0, 'host_named'), (0, 'definition'),
+    (1, 'host_positional'), (1, 'host_named'), (1, 'definition'),
+    (0, 'assembly_positional'), (0, 'assembly_named'),
+    (1, 'assembly_positional'), (1, 'assembly_named'),
+))
+def test_default_instruction_contract_rejects_mirror_drift(document_index, mirror):
+    surgery = importlib.import_module('qi21_i2i_cleanup_1021')
+    documents = [json.loads(path.read_bytes()) for path in surgery.paths()]
+    surgery.validate(documents)
+    document = documents[document_index]
+    host = repair.host(document, repair.PROMPT_ID)
+    if mirror == 'node_positional':
+        surgery.node(document, 400)['widgets_values'][0] = 'stale GUI literal'
+    elif mirror == 'node_named':
+        surgery.node(document, 400)['widgets_values_named']['value'] = 'stale named literal'
+    elif mirror == 'host_positional':
+        host['widgets_values'][0] = 'stale host literal'
+    elif mirror == 'host_named':
+        host['widgets_values_named']['指令'] = 'stale named literal'
+    elif mirror == 'assembly_positional':
+        surgery.node(repair.graph(document, repair.PROMPT_ID), 4011)['widgets_values'][2] = 'stale assembly fallback'
+    elif mirror == 'assembly_named':
+        surgery.node(repair.graph(document, repair.PROMPT_ID), 4011)['widgets_values_named']['主体句'] = 'stale named fallback'
+    else:
+        repair.graph(document, repair.PROMPT_ID)['widgets'][0] = 'stale definition default'
+    with pytest.raises(AssertionError):
+        surgery.validate(documents)
+
+
+def test_frontend_audit_compares_literals_not_matching_assembly_references():
+    spec = importlib.util.spec_from_file_location('qi21_current_canvas_audit', ROOT / 'Library/ai/qi21_current_canvas_audit_1022.py')
+    audit = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(audit)
+    graph = {'400': {'inputs': {'value': 'GUI two-image instruction'}},
+             '6:4011': {'inputs': {'主体句': ['400', 0]}}}
+    result = audit.compare_instruction_literals(graph, copy.deepcopy(graph))
+    assert result == {'browser': 'GUI two-image instruction', 'app_api': 'GUI two-image instruction', 'equal': True}
+    stale = copy.deepcopy(graph)
+    stale['400']['inputs']['value'] = 'stale saved instruction'
+    with pytest.raises(AssertionError, match='instruction literal'):
+        audit.compare_instruction_literals(graph, stale)
 
 
 @pytest.mark.parametrize('drift', ('root_link', 'purpose_edge', 'blueprint_port', 'manual_toggle'))

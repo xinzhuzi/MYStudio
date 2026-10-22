@@ -94,7 +94,7 @@
       "inputs": {
         "filename_prefix": "QI21道劫文生图_",
         "images": [
-          "5",
+          "7500:7510",
           0
         ]
       }
@@ -393,7 +393,7 @@
         "offload_device": "none",
         "enable_debug": false,
         "image": [
-          "5",
+          "7500:7510",
           0
         ],
         "dit": [
@@ -410,6 +410,68 @@
       "class_type": "PrimitiveInt",
       "inputs": {
         "value": 0
+      }
+    },
+    "7500:7506": {
+      "class_type": "SplitImageWithAlpha",
+      "inputs": {
+        "image": [
+          "5",
+          0
+        ]
+      }
+    },
+    "7500:7508": {
+      "class_type": "SolidMask",
+      "inputs": {
+        "value": 0,
+        "width": 64,
+        "height": 64
+      }
+    },
+    "7500:7507": {
+      "class_type": "ThresholdMask",
+      "inputs": {
+        "value": 0.996,
+        "mask": [
+          "7500:7506",
+          1
+        ]
+      }
+    },
+    "7500:7509": {
+      "class_type": "PorterDuffImageComposite",
+      "inputs": {
+        "mode": "SRC",
+        "source": [
+          "7500:7506",
+          0
+        ],
+        "source_alpha": [
+          "7500:7507",
+          0
+        ],
+        "destination": [
+          "7500:7506",
+          0
+        ],
+        "destination_alpha": [
+          "7500:7508",
+          0
+        ]
+      }
+    },
+    "7500:7510": {
+      "class_type": "JoinImageWithAlpha",
+      "inputs": {
+        "image": [
+          "7500:7509",
+          0
+        ],
+        "alpha": [
+          "7500:7506",
+          1
+        ]
       }
     }
   }

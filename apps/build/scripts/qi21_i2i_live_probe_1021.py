@@ -58,7 +58,7 @@ def prepare():
     assembly = module("my_qi21_prompt_assembly").MyQi21PromptAssembly()
     selected, _ = selector.compose(装配全文=subject, pe开关=False, 透明模式=False)
     assembled, negative = assembly.assemble(BASE=base, BASE负面=negative,
-                                           主体句=selected, 组装用途="新建资产")
+                                           主体句=selected, 组装用途="道劫美术类型")
     final, final_negative = selector.compose(装配全文=assembled, 负面词直写=negative,
                                              pe开关=False, 透明模式=transparent)
     assert subject in final and "single standalone asset" not in final

@@ -1,0 +1,445 @@
+{
+  "revision": 1,
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "b7da105a-0610-4b8e-9a2c-3d4f5e6a7b81",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        270,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "properties": {
+        "subgraph": "b7da105a-0610-4b8e-9a2c-3d4f5e6a7b81",
+        "previewExposures": []
+      },
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "title": "[7500] 洗底·透明除渣"
+    }
+  ],
+  "links": [],
+  "version": 0.4,
+  "info": {
+    "category": "漫影",
+    "name": "道劫·④b·洗底·透明除渣"
+  },
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "b7da105a-0610-4b8e-9a2c-3d4f5e6a7b81",
+        "name": "道劫·④b·洗底·透明除渣",
+        "category": "漫影",
+        "config": {
+          "defaultIOState": {}
+        },
+        "extra": {
+          "ue_links": [],
+          "links_added_by_ue": []
+        },
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            80,
+            400,
+            128,
+            88
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            2560,
+            776,
+            128,
+            68
+          ]
+        },
+        "inputs": [
+          {
+            "id": "b7da105a-0001-4b8e-9a2c-3d4f5e6a7b81",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7501
+            ],
+            "pos": [
+              104,
+              424
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "b7da105a-1001-4b8e-9a2c-3d4f5e6a7b81",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              7509
+            ],
+            "pos": [
+              2400,
+              800
+            ]
+          }
+        ],
+        "nodes": [
+          {
+            "id": 7506,
+            "type": "SplitImageWithAlpha",
+            "pos": [
+              300,
+              380
+            ],
+            "size": [
+              270,
+              86
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "link": 7501
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  7502,
+                  7503
+                ]
+              },
+              {
+                "name": "MASK",
+                "type": "MASK",
+                "links": [
+                  7504,
+                  7508
+                ]
+              }
+            ],
+            "title": "[7506] 洗底·拆Alpha",
+            "properties": {
+              "Node name for S&R": "SplitImageWithAlpha",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            }
+          },
+          {
+            "id": 7508,
+            "type": "SolidMask",
+            "pos": [
+              790,
+              180
+            ],
+            "size": [
+              315,
+              166
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [
+              {
+                "name": "MASK",
+                "type": "MASK",
+                "links": [
+                  7506
+                ]
+              }
+            ],
+            "title": "[7508] 洗底·实心黑",
+            "properties": {
+              "Node name for S&R": "SolidMask",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0,
+              64,
+              64
+            ],
+            "widgets_values_named": {
+              "value": 0,
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": 7507,
+            "type": "ThresholdMask",
+            "pos": [
+              790,
+              600
+            ],
+            "size": [
+              315,
+              106
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "mask",
+                "type": "MASK",
+                "link": 7504
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MASK",
+                "type": "MASK",
+                "links": [
+                  7505
+                ]
+              }
+            ],
+            "title": "[7507] 洗底·阈值门",
+            "properties": {
+              "Node name for S&R": "ThresholdMask",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              0.996
+            ],
+            "widgets_values_named": {
+              "value": 0.996
+            }
+          },
+          {
+            "id": 7509,
+            "type": "PorterDuffImageComposite",
+            "pos": [
+              1330,
+              380
+            ],
+            "size": [
+              337,
+              246
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "source",
+                "type": "IMAGE",
+                "link": 7502
+              },
+              {
+                "name": "source_alpha",
+                "type": "MASK",
+                "link": 7505
+              },
+              {
+                "name": "destination",
+                "type": "IMAGE",
+                "link": 7503
+              },
+              {
+                "name": "destination_alpha",
+                "type": "MASK",
+                "link": 7506
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  7507
+                ]
+              },
+              {
+                "name": "MASK",
+                "type": "MASK",
+                "links": []
+              }
+            ],
+            "title": "[7509] 洗底·除渣合成",
+            "properties": {
+              "Node name for S&R": "PorterDuffImageComposite",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "SRC"
+            ],
+            "widgets_values_named": {
+              "mode": "SRC"
+            }
+          },
+          {
+            "id": 7510,
+            "type": "JoinImageWithAlpha",
+            "pos": [
+              1880,
+              800
+            ],
+            "size": [
+              270,
+              106
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "image",
+                "type": "IMAGE",
+                "link": 7507
+              },
+              {
+                "name": "alpha",
+                "type": "MASK",
+                "link": 7508
+              }
+            ],
+            "outputs": [
+              {
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  7509
+                ]
+              }
+            ],
+            "title": "[7510] 洗底·回拼",
+            "properties": {
+              "Node name for S&R": "JoinImageWithAlpha",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            }
+          }
+        ],
+        "links": [
+          {
+            "id": 7501,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7506,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7502,
+            "origin_id": 7506,
+            "origin_slot": 0,
+            "target_id": 7509,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7503,
+            "origin_id": 7506,
+            "origin_slot": 0,
+            "target_id": 7509,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7504,
+            "origin_id": 7506,
+            "origin_slot": 1,
+            "target_id": 7507,
+            "target_slot": 0,
+            "type": "MASK"
+          },
+          {
+            "id": 7505,
+            "origin_id": 7507,
+            "origin_slot": 0,
+            "target_id": 7509,
+            "target_slot": 1,
+            "type": "MASK"
+          },
+          {
+            "id": 7506,
+            "origin_id": 7508,
+            "origin_slot": 0,
+            "target_id": 7509,
+            "target_slot": 3,
+            "type": "MASK"
+          },
+          {
+            "id": 7507,
+            "origin_id": 7509,
+            "origin_slot": 0,
+            "target_id": 7510,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 7508,
+            "origin_id": 7506,
+            "origin_slot": 1,
+            "target_id": 7510,
+            "target_slot": 1,
+            "type": "MASK"
+          },
+          {
+            "id": 7509,
+            "origin_id": 7510,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "IMAGE"
+          }
+        ],
+        "groups": [],
+        "widgets": [],
+        "revision": 1,
+        "version": 1,
+        "state": {
+          "lastGroupId": 0,
+          "lastNodeId": 7510,
+          "lastLinkId": 7509,
+          "lastRerouteId": 0
+        }
+      }
+    ]
+  }
+}

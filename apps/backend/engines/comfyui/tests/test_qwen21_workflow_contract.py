@@ -487,9 +487,12 @@ I2I_SCALE_IDS = (16, 17, 18)  # 输入图预缩(画布 1.0MP/参考 1.0MP;1014 �
                               # 超 viggle σ稳定区随批顺修;1010 三参考扩展:
                               # 第三对参考预缩 1.0MP,与占位 LoadImage 成对旁路;
                               # id 避子图域 21/23/24/25/27=主图∩子图∅ 契约)
-I2I_REF3_LOAD_IDS = (11, 12, 505)  # 2010 三参考扩展(5→3 收口=viggle 官方 1-3 张口径);
-                              # 1016 默认单参考令:[11] 参考图2 随 [12]/[505] 同入默认旁路
-                               # +1014 透明锚[505]:占位 LoadImage(mode 4 旁路同手法)
+I2I_REF3_LOAD_IDS = (12, 505)  # 2010 三参考扩展(5→3 收口=viggle 官方 1-3 张口径);
+                              # 1016 默认单参考令→2021 用户令收窄:[11] 参考图2默认
+                              # 开启(双参考工作态);1022 用户令:[17] 参考预缩默认旁路
+                              # (ref2 原图直进,旁路=输入直通输出不断供),旁路集=
+                              # [12] 对+透明锚[505]+[17] 预缩
+                              # (+1014 透明锚[505]:占位 LoadImage(mode 4 旁路同手法))
 I2I_LATENT_PB_ID, I2I_EL_ID, I2I_LATENT_SW_ID = 19, 4, 20
 I2I_LORA_PB_ID, I2I_LORA_ID, I2I_LORA_SW_ID = 30, 7011, 32  # ⑫:LoRA [31]→[7011]
 # 1001 同构集成轮锚(手术脚本 qi21_integration_surgery_i2i_1001.py map §5.1 同表;
@@ -519,10 +522,11 @@ I2I_SG_RGBA_SEL = 180                    # 0929 S2 D6:MyQi21RgbaSelect 三态件
 # v0.2.1→v0.3=1008 用户「LoRA 形态直接换文件」令,锚随源重锚)——name 预填逐字锚
 LORA_FILE = "Qwen-Image-2.1-viggle-turbo-v0.3-6step-lora-r256.safetensors"
 I2I_LORA_FILE = LORA_FILE
-# 指令①层默认=中文单图例句(组装用途轮换装:换上衣颜色/保持不变式;旧英文
-# 官方换装例句 Put the light blue denim shirt… 入史,见 [400] 现值)
-I2I_B_SEG = ("将画中人物的上衣改为青灰色，保持人物身份、发型、衣服款式、"
-             "姿势、构图、光照和原有画法不变，其余内容保持原样。")
+# 指令①层默认=中文例句(组装用途轮换装:换上衣颜色/保持不变式;旧英文官方换装
+# 例句 Put the light blue denim shirt… 入史;2021 用户令:[11] 参考图2 默认开启,
+# 例句升 <image1>/<image2> 双图分工形态,与官方例句同构)
+I2I_B_SEG = ("<image1>为人物参考，<image2>为上衣参考；将<image1>人物的上衣改为<image2>上衣的青灰色，"
+             "保持人物身份、发型、衣服款式、姿势、构图、光照和原有画法不变，其余内容保持原样。")
 # i2i 件全图节点类型白名单(TE-Speed 槽禁入=R26.4 统一接线轮再补;任何未知类型即红)
 # 1001 同构集成轮:StringConstant/StringConcatenate 出册(收编三自研件后全图零件,
 # 回潮即红);MyQi21PromptAssembly/MyQi21PromptSelect 入册(手术新立三件)
@@ -1707,13 +1711,15 @@ class TestSpeedSelectContract0929:
         for name in ("qi21", "i2i", "edit"):
             graph = GRAPHS[name]
             sgs = _sgs(graph)
-            want_n = 3 if name in ("qi21", "i2i") else 2   # 1017up4 四法→1018 删 A/C 余 B/D
+            # 1022 洗底子图入列:t2i/i2i 均=装配+加速+超分D+洗底④b 四定义(edit 恒2)
+            want_n = {"qi21": 4, "i2i": 4}.get(name, 2)
             assert len(sgs) == want_n, \
-                f"{name}: 应恰 {want_n} 子图(1018 终版:t2i/i2i=装配+加速+超分D 唯一;edit 恒2),得 {len(sgs)}"
+                f"{name}: 应恰 {want_n} 子图(1018 终版装配+加速+超分D;1022 t2i/i2i 各收洗底④b;edit 恒2),得 {len(sgs)}"
             names = sorted(sg["name"] for sg in sgs)
             want_names = sorted([ASSEMBLY_SG_NAME_T2I, ACCEL_SG_NAME]
                                 + ([UP4[t]["name"] for t in "D"]
-                                   if name in ("qi21", "i2i") else []))
+                                   if name in ("qi21", "i2i") else [])
+                                + ([T2I_WASH_SG_NAME] if name in ("qi21", "i2i") else []))
             assert names == want_names, \
                 f"{name}: 子图 name 集合漂移,得 {names}"
             hosts = [n for n in graph["nodes"]
@@ -2403,15 +2409,19 @@ class TestCanvasDiscipline:
                             for group in sg["groups"]:
                                 assert isinstance(group.get("id"), int), \
                                     f"qi21: 子图 group {group.get('title')!r} 缺 id 字段"
+                        elif sg["name"] == T2I_WASH_SG_NAME:
+                            # 1022 洗底子图:蓝图极简形 groups 恒空(壳即子图无内组)
+                            assert not sg["groups"], \
+                                f"qi21: 洗底子图 groups 应恰 0(1022 蓝图极简形),得 {sg['groups']}"
                         else:
                             # 1017up4 超分四法定义:groups 恰 0(蓝图极简形)
                             assert sg["name"] in {UP4[t]["name"] for t in "D"} and not sg["groups"], \
                                 f"qi21: 子图[{sg['name'][:12]}] groups 应恰 0(1017up4 蓝图极简形),得 {sg['groups']}"
                         continue
-                    # 1017up4:超分四法定义(i2i 亦入)groups 恒空=蓝图极简形,不入分组令
-                    if sg["name"] in {UP4[t]["name"] for t in "D"}:
+                    # 1017up4:超分四法定义(i2i 亦入)+2022 洗底④b(t2i/i2i):groups 恒空=蓝图极简形
+                    if sg["name"] in {UP4[t]["name"] for t in "D"} | {T2I_WASH_SG_NAME}:
                         assert not sg["groups"], \
-                            f"{name}: 超分子图[{sg['name'][:12]}] groups 应恰 0(1017up4 蓝图极简形)"
+                            f"{name}: 子图[{sg['name'][:12]}] groups 应恰 0(蓝图极简形)"
                         continue
                     assert sg["groups"], f"{name}: 子图应有分组"
                     for group in sg["groups"]:
@@ -3161,7 +3171,7 @@ class TestEditSubgraphContract0929:
 
     def test_main_skeleton_census(self):
         """主图 20 件 census(research/s3-edit §0/§4):①加载器[1][2][3][12]+②输入
-        [4][5][16][17]/指令外露带[22]/画幅双路[18][19][20]/[7]Cache+两宿主
+        [4][5][16][17]/指令[400]并入②主链(1022 撤外露带)/画幅双路[18][19][20]/[7]Cache+两宿主
         [40][58]+④输出[9][10]+[11]Note+[28][29]VAE 顶通道;计数器含子图空间
         (last_node_id=59/last_link_id=69 ≥ 实存最大,精锚在 TestCanvasDiscipline)。"""
         graph = GRAPHS["edit"]
@@ -3766,8 +3776,8 @@ class TestQi21SubgraphContract:
         # 五型,现值随源回退四型,以 json 现值为准)
         _bases = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
         _rgba_on = {e["zh"] for e in _bases if e.get("rgba_default") is True}
-        assert _rgba_on == {"道具", "人物多视图", "高清人脸", "表情差分"}, \
-            f"qi21_bases.json rgba_default 四型集合漂移(0929 用户拍板;设定卡=完整设定板默认不透明),得 {sorted(_rgba_on)}"
+        assert _rgba_on == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准"}, \
+            f"qi21_bases.json rgba_default 五型集合漂移(0929 用户拍板四型;1022 人脸基准入列=透明族第五型),得 {sorted(_rgba_on)}"
         assert all(e.get("rgba_default") in (True, False) for e in _bases), \
             "qi21_bases.json rgba_default 应为显式布尔(缺字段/非布尔即红)"
         # 1006 七轮:[4011] 退役——BASE 直连 [4013].型底座(槽3,线337)
@@ -3795,10 +3805,10 @@ class TestQi21SubgraphContract:
         透明声明段+退役背景职责句零回潮。"""
         types, _ = _qi21_truth()
         qi21 = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
-        assert len(qi21) == 11, f"qi21_bases.json types 应十一档(十型+自由,1015 设定卡入列),得 {len(qi21)}"
+        assert len(qi21) == 13, f"qi21_bases.json types 应十三档(十二型+自由,1022 人脸基准入列;1021 3D剖面场景图入列),得 {len(qi21)}"
         assert [e["zh"] for e in qi21[:10]] == [t[0] for t in types], \
-            "qi21_bases.json 前十档 型名/顺序应与 05 库同序(型录序=使用序)"
-        free = qi21[10]
+            "qi21_bases.json 前十档 型名/顺序应与 05 库同序(型录序=使用序;1021/1022 新型候实弹后入 canon)"
+        free = qi21[12]
         assert free["zh"] == "自由" and free["positive_text"] == "" \
             and free["aspect_ratio"] == "1:1 (Square)" and free["megapixels"] == 1.0 \
             and free.get("rgba_default") is False, \
@@ -4163,30 +4173,33 @@ class TestQi21SubgraphContract:
     # ── 布局契约(从上到下=阶段行,行内从左到右;group 收敛)──────────────
 
     def test_subgraph_row_layout_top_to_bottom(self):
-        """子图排版=横向带(1006 批B 保守渲染预算重排):主流程左→右零左向线
+        """子图排版=横向带(1006 批B 保守渲染预算重排;1021 说明卡置顶轮):主流程左→右零左向线
         (严格 tx > ox;1006 换装后豁免集恒空——link308 随 [4019] 退役);
-        带0(y<400)=主排(底座[4010]→装配[4011]→AI扩写[4013]→最终输出[4014]);
-        带1(400-1000)=**渲染净空带恒空**(multiline 展示框实际渲染高度≫序列化
-        size,主排下方留整带净空——批A 展示框落地后旧 y=860 真源带必罩主排);
-        带2(1000+)=三真源独占带([4030/31/32] 展示大档 200×420)+说明卡[4100];
+        带0(y<560)=说明卡[4100]顶部通栏横幅独占(1021 用户令「放大放最明显处」:
+        整子图统一下移 560 让位,横幅 2660×440 置顶;W6① 零负区保持 pos≥80);
+        带1(560-1200)=顶带:三真源[4030/31/32](展示大档 200×420)+[4014]最终输出;
+        带2(1200-1560)=中带:AI扩写[4013];
+        带3(1560+)=底带:类型句选择[4010];
         带成员按 id 锚定防回退。"""
         graph = GRAPHS["qi21"]
         sg_nodes = _qi21_sg_nodes(graph)
         def band_of(y: float) -> int:
-            return 0 if y < 400 else (1 if y < 1000 else (2 if y < 1750 else 3))
+            return 0 if y < 560 else (1 if y < 1200 else
+                                      (2 if y < 1560 else 3))
         bands: dict[int, list[int]] = {}
         # Reroute=布局家具(垫脚消遮挡),不入带成员锚(1007:随出口销重排进带1,豁免)
         for n in _qi21_sg(graph)["nodes"]:
             if n.get("type") == "Reroute":
                 continue
             bands.setdefault(band_of(n["pos"][1]), []).append(n["id"])
-        assert len(bands) >= 2, f"子图带数(批B=带0+带2 双带),得 {sorted(bands)}"
-        # 1006 批B 重锚(保守渲染预算):带0 主排四件横排/带1 渲染净空恒空/
-        # 带2 三真源+说明卡(1010 起,与 4013 序列化底 800 净距 210)
+        assert len(bands) >= 2, f"子图带数,得 {sorted(bands)}"
+        # 1021 说明卡置顶轮:[4100] 由底带(4010 旁 420×110)升顶部通栏横幅
+        # (整子图统一下移 560 让位=纯平移,crossings/occlusion 几何保持)
         want_bands = {
-            0: [4030, 4031, 4032, 4014],    # 顶带:三真源+[4014]最终输出(用户手排)
-            1: [4013],                        # 中带:AI扩写
-            2: [4010, 4100],                  # 底带:类型句选择+说明卡
+            0: [4100],                        # 顶部通栏:说明卡横幅独占(1021 用户令「放大置顶最显眼处」)
+            1: [4030, 4031, 4032, 4014],    # 顶带:三真源+[4014]最终输出(用户手排)
+            2: [4013],                        # 中带:AI扩写
+            3: [4010],                        # 底带:类型句选择
         }
         for b, want in want_bands.items():
             got = sorted(bands.get(b, []))
@@ -4610,15 +4623,11 @@ class TestI2IEditHostLayout1003:
             assert n["pos"][1] < nodes[6]["pos"][1], \
                 f"{name}: [400] 应居 [6] 上方行(指令→装配纵向顺位)"
             if name == "i2i":
-                band = next(g for g in graph["groups"]
-                            if g.get("title", "").startswith("道劫·②指令外露带"))
-                bx0, by0, bw, bh = band["bounding"]
-                bx1, by1 = bx0 + bw, by0 + bh
-                assert (bx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= bx1
-                        and by0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= by1), \
-                    "i2i: [400] 指令应在「②指令外露带」自有组框内(1015 R33 役上移;" \
-                    "嵌②主链框=组框重叠复发即红)"
-                continue
+                # 1022 用户令撤「②指令外露带」自有组框:[400] 并入②主链框
+                # (与 edit 同口径);独框时代组框重叠病灶随组撤销号退役。
+                assert not [g for g in graph["groups"]
+                            if g.get("title", "").startswith("道劫·②指令外露带")], \
+                    "i2i: 「②指令外露带」组框应已撤(1022 用户令并组)"
             grp = next(g for g in graph["groups"]
                        if g.get("title", "").startswith("道劫·②图像·"))
             gx0, gy0 = grp["bounding"][0], grp["bounding"][1]
@@ -4626,7 +4635,7 @@ class TestI2IEditHostLayout1003:
             gy1 = gy0 + grp["bounding"][3]
             assert (gx0 <= n["pos"][0] and n["pos"][0] + n["size"][0] <= gx1
                     and gy0 <= n["pos"][1] and n["pos"][1] + n["size"][1] <= gy1), \
-                f"{name}: [400] 指令应在②主链框内(1003 甲案归位②带;孤岛复发即红)"
+                f"{name}: [400] 指令应在②主链框内(1003 甲案归位②带;1022 i2i 并组同口径;孤岛复发即红)"
 
     def test_switch20_between_assembly_and_accel(self):
         """不变量③:[20] 结构位=装配列右沿之外、加速宿主 [7] 之外(latent 汇入
@@ -4734,9 +4743,9 @@ class TestI2IContract:
         for hi in host["inputs"]:
             assert hi["type"] == sg_in_names[hi["name"]]["type"], \
                 f"宿主槽 {hi['name']} 类型与子图边界槽不符"
-        assert host["widgets_values"] == [I2I_B_SEG, "人物", False, "自动", "局部编辑"], \
+        assert host["widgets_values"] == [I2I_B_SEG, "人物", False, "自动", "自由出图"], \
             "宿主 widgets_values 应=[中文例句, 人物, False(PE 默认关闭), 自动(D6 三态默认,1001 ①)," \
-            "局部编辑(组装用途轮第五控,默认=局部编辑=仅拼操作和保留项)]"
+            "自由出图(组装用途轮第五控,默认=自由出图=仅拼操作和保留项)]"
         # 0929 S2 D6:i2i 型联动三态件([180];rgba_hint←[4010].透明值(1002 大轮迁);
         # rgba_on 四扇出 [144]/[173] 双镜像开关+[152]/[153] 透明模式占位)
         sel = sg_nodes[I2I_SG_RGBA_SEL]
@@ -5115,8 +5124,8 @@ class TestI2IContract:
                 f"i2i: 旧注入式件 [{gone}] 应已拆除(0929 并行化)"
 
     def test_all_switches_default_off(self):
-        """PE默认关闭；用途默认局部编辑，画幅由同一用途自动路由。
-        子图内[4022]无独立开关，[20]保存false与默认局部编辑对应；透明仍自动。
+        """PE默认关闭；用途默认自由出图，画幅由同一用途自动路由。
+        子图内[4022]无独立开关，[20]保存false与默认自由出图对应；透明仍自动。
         旧LoRA开关不复活。"""
         graph = GRAPHS["i2i"]
         nodes = _nodes(graph)
@@ -5139,7 +5148,7 @@ class TestI2IContract:
         assert not any(edge["origin_id"] == -10 and edge["target_id"] == -20 for edge in sg_links.values())
         assert 19 not in nodes
         assert _links(graph)[32] == [32, I2I_HOST_ID, 5, I2I_LATENT_SW_ID, 2, "BOOLEAN"]
-        assert nodes[I2I_HOST_ID]["widgets_values_named"]["组装用途"] == "局部编辑"
+        assert nodes[I2I_HOST_ID]["widgets_values_named"]["组装用途"] == "自由出图"
         assert nodes[I2I_LATENT_SW_ID]["widgets_values"][0] is False, "[20] 画幅双路默认应 false"
         # 10-02 单口化:[144]/[173] 双闸门塌缩退役(原「默认 false」断言随之退场)
         host = nodes[I2I_HOST_ID]
@@ -5199,12 +5208,19 @@ class TestI2IContract:
              "transparent_ref.png"], \
             "i2i 应预填官方示例双图+一占位空图+透明参考锚图(1010 三参考扩展/1014 透明锚)"
         assert sorted(n["id"] for n in load_imgs if n["mode"] == 4) == list(I2I_REF3_LOAD_IDS), \
-            f"参考图2/3+透明锚 占位 LoadImage 应默认旁路(mode 4;1016 起默认行为=单参考),得 " \
+            f"参考图3+透明锚 占位 LoadImage 应默认旁路(mode 4;[11] 已默认开启,2021 用户令),得 " \
             f"{[(n['id'], n['mode']) for n in load_imgs]}"
         assert all(n["mode"] == 4 for n in _by_type(graph, "ImageScaleToTotalPixels")
-                   if n["id"] in I2I_SCALE_IDS[1:]), \
-            "参考预缩[17][18] 应与占位 LoadImage 成对旁路(1016 默认单参考;" \
-            "单旁路 LoadImage 会因必填 image 缺失被拒)"
+                   if n["id"] in (18,)), \
+            "参考预缩[18] 应与占位[12]成对旁路(2021 用户令;单旁路 LoadImage 会因必填 image 缺失被拒)"
+        assert next(n for n in load_imgs if n["id"] == 11)["mode"] == 0 and \
+            next(n for n in _by_type(graph, "ImageScaleToTotalPixels")
+                 if n["id"] == 17)["mode"] == 4, \
+            "i2i: [11] 参考图2 默认开启(2021 双参考令);[17] 参考预缩默认旁路" \
+            "(1022 用户令:ref2 原图直进 4015.image_2/装配子图,旁路=输入直通输出不断供)"
+        assert next(n for n in _by_type(graph, "ImageScaleToTotalPixels")
+                    if n["id"] == 16)["mode"] == 0, \
+            "i2i: [16] 画布预缩(参考图1)应默认开启(1022 令只旁路 [17])"
         lsw = nodes[I2I_LATENT_SW_ID]
         assert lsw["outputs"][0]["type"] == "LATENT" and lsw["widgets_values"][0] is False, \
             "[20] 应为 LATENT 开关且默认 false"
@@ -5386,13 +5402,21 @@ UP4_TITLE = {"D": "超分·D SeedVR2"}
 # 母线信号扇出槽(design §4;槽序=定义 inputs 序 image0/model1/pos2/neg3/vae4)
 UP4_BUS_SRC = {
     "qi21": {"src": 5, "model": 4203, "pos": 4015, "neg": 4016, "neg_slot": 0, "vae": 4202},
-    "i2i": {"src": 509, "model": 9, "pos": 4015, "neg": 4015, "neg_slot": 1, "vae": 3},
+    # 1022 i2i 洗底收装随迁:src 509(平铺回拼件)→5([5]→[7500] 同 t2i 形)
+    "i2i": {"src": 5, "model": 9, "pos": 4015, "neg": 4015, "neg_slot": 1, "vae": 3},
 }
-# 1015 紫底 P1 洗底链(i2i 根图专属):[5]→[506]拆α→[510]阈值门(α<0.004)
-# →[507]SRC×[508]0→[509]回拼(原α直通)→[8]/[503] 双喂(手术脚本
-# qi21_i2i_alpha_wash_1015.py;阈值门=VAE α噪声底~1e-3≫SRC回除门1e-5+SaveImage
-# astype 截断 PNG-0 域实为 α<1/255 的双因子修订)
-I2I_WASH_SPLIT, I2I_WASH_PD, I2I_WASH_MASK, I2I_WASH_JOIN, I2I_WASH_TH = 506, 507, 508, 509, 510
+# 1022 洗底子图(t2i 先收/i2i 随收;用户令「洗底链做成子图」+「(i2i)④b 不像
+# 文生图做成子图呢」):[5]→[7500 宿主]→洗后消费(t2i=[8]存盘+[505]对比+
+# [503]超分;i2i=[8]+[503]);内部五件参数逐字承 1015 平铺链(阈值 0.996=
+# α<0.004 盖 PNG-0 域/SRC×实心0/原α直通);宿主常开 mode0 恒在⑤组框外
+# (Ctrl+B 整组旁路语义不裹挟);不透明时空转。手术 qi21_t2i_wash_subgraph_
+# 1022.py + qi21_i2i_wash_subgraph_1022.py(fail-closed;蓝图 SeedVR2 制同
+# uuid 跨画布恒等共用)。
+T2I_WASH_SG_NAME = "道劫·④b·洗底·透明除渣"
+T2I_WASH_HOST = 7500
+T2I_WASH_SPLIT, T2I_WASH_TH, T2I_WASH_MASK, T2I_WASH_PD, T2I_WASH_JOIN = \
+    7506, 7507, 7508, 7509, 7510
+WASH_BP = _TESTS_DIR.parent / "my_nodes/subgraphs/qi21-道劫-洗底-透明除渣.json"
 
 
 class TestSeedVR2TailContract1002:
@@ -5463,7 +5487,8 @@ class TestSeedVR2TailContract1002:
             # 主图母线:t2i [5] 扇出=[8]/[505]/[506=A];i2i [509]→[511=A] 首段
             # +末段 [513=C]:0→[503]:0;[503] 出扇出 [504](+t2i [505])不变
             src = UP4_BUS_SRC[name]["src"]
-            chain = [src, SVR2_UP]
+            # 1022 洗底子图:t2i/i2i 母线同插洗底宿主 [5]→[7500]→[503](洗后再超分)
+            chain = [src, T2I_WASH_HOST, SVR2_UP]
             for a, b in zip(chain, chain[1:]):
                 got = [l[0] for l in graph["links"] if l[1] == a and l[2] == 0
                        and l[3] == b and l[4] == 0]
@@ -5471,64 +5496,20 @@ class TestSeedVR2TailContract1002:
                     f"{name}: 母线段 [{a}]:0→[{b}]:0 应恰一线(design §1 串联母线),得 {got}"
             if name == "qi21":
                 out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
-                assert (_links_pid(graph, 8) in out5
-                        and _links_pid(graph, SVR2_CMP) in out5
-                        and _links_pid(graph, SVR2_UP) in out5), \
-                    f"qi21: [5] 应扇出 [8]+[505]+[503 D宿主](1018 终版 B 删直连),得 {out5}"
+                assert out5 == [7468], \
+                    f"qi21: [5] 应只扇出 [7500 洗底宿主](1022 收装;旧口径 [8]+[505]+[503] 随令翻篇),得 {out5}"
+                out_w = sorted(l[3] for l in graph["links"] if l[1] == T2I_WASH_HOST)
+                assert out_w == sorted([8, SVR2_CMP, SVR2_UP]), \
+                    f"qi21: [7500] 应扇出 [8]+[505]+[503](洗底后三消费),得 {out_w}"
             else:
-                l509 = [l[3] for l in graph["links"] if l[1] == I2I_WASH_JOIN]
-                assert l509 == [8, SVR2_UP], \
-                    f"i2i: [509] 应只扇出 [8]+[503 D宿主](1018 终版 B 删直连),得 {l509}"
+                out5 = sorted(l[0] for l in graph["links"] if l[1] == 5)
+                assert out5 == [219], \
+                    f"i2i: [5] 应只扇出 [7500 洗底宿主](1022 收装;旧平铺直连随令翻篇),得 {out5}"
+                out_w = sorted(l[3] for l in graph["links"] if l[1] == T2I_WASH_HOST)
+                assert out_w == sorted([8, SVR2_UP]), \
+                    f"i2i: [7500] 应扇出 [8]+[503](洗底后双消费),得 {out_w}"
             assert _input_src(nodes, links, SVR2_SAVE, "images") == SVR2_UP, \
                 f"{name}: [{SVR2_SAVE}].images 应接 [{SVR2_UP}] 宿主 2K 产物"
-
-    def test_i2i_alpha_wash_chain_1015(self):
-        """1015 紫底 P1 洗底链(i2i 专属):VAEDecode 出图 alpha=0 区 RGB 含紫底
-        残留(1014 T7 收据紫底=洗底前态)——[5]→[506]SplitImageWithAlpha→
-        [510]ThresholdMask(0.996:α<0.004 判透明)→[507]PorterDuffImageComposite
-        (mode=显式 SRC × [508]SolidMask value=0)→[509]JoinImageWithAlpha→
-        [8]/[503] 双消费。阈值门为实弹双因子修订:①纯 SRC 回除门 1e-5 远低于
-        VAE α噪声底(首版实弹 87 万透明像素仅 0.254% 被洗=紫底原样);②SaveImage
-        astype(np.uint8) 截断(nodes.py :1707-1708)⇒ PNG-0 域实为 α<1/255≈
-        0.00392,0.998 档二轮仅洗 4%,0.996(α<0.004)全盖该域(附带代价=
-        α∈[0.00392,0.004) 的 PNG-1 不可见像素);阈值化后实体区与半透边缘带
-        逐位不变;Join 的 alpha 直取 [506] 原始 mask(α 通道零二值化),[507].MASK
-        出线弃用(阈值化 α 禁入);三件 mask 原生「1=透明」一致免 InvertMask;
-        [508] 64² 恒 0 靠引擎侧尺寸对齐放不超(常量 0 无污染);洗底件恒在⑤组框
-        外(整组旁路语义载体)。"""
-        graph = GRAPHS["i2i"]
-        nodes, links = _nodes(graph), _links(graph)
-        want_types = {I2I_WASH_SPLIT: "SplitImageWithAlpha",
-                      I2I_WASH_TH: "ThresholdMask",
-                      I2I_WASH_PD: "PorterDuffImageComposite",
-                      I2I_WASH_MASK: "SolidMask",
-                      I2I_WASH_JOIN: "JoinImageWithAlpha"}
-        for nid, typ in want_types.items():
-            assert nodes[nid]["type"] == typ, \
-                f"i2i: [{nid}] 应 {typ},得 {nodes[nid]['type']}"
-        assert _input_src(nodes, links, I2I_WASH_SPLIT, "image") == 5
-        assert _input_src(nodes, links, I2I_WASH_TH, "mask") == I2I_WASH_SPLIT
-        assert nodes[I2I_WASH_TH]["widgets_values"] == [0.996], \
-            f"阈值门应 0.996(α<0.004 洗底,盖 SaveImage 截断全 PNG-0 域),得 {nodes[I2I_WASH_TH]['widgets_values']}"
-        assert _input_src(nodes, links, I2I_WASH_PD, "source") == I2I_WASH_SPLIT
-        assert _input_src(nodes, links, I2I_WASH_PD, "source_alpha") == I2I_WASH_TH
-        assert _input_src(nodes, links, I2I_WASH_PD, "destination") == I2I_WASH_SPLIT
-        assert _input_src(nodes, links, I2I_WASH_PD, "destination_alpha") == I2I_WASH_MASK
-        assert nodes[I2I_WASH_PD]["widgets_values"] == ["SRC"], \
-            f"洗底合成 mode 应显式 SRC(默认 DST=静默无效),得 {nodes[I2I_WASH_PD]['widgets_values']}"
-        assert nodes[I2I_WASH_PD]["outputs"][1]["links"] in ([], None), \
-            "[507].MASK 出线应弃用(阈值化 α 禁入 Join)"
-        assert nodes[I2I_WASH_MASK]["widgets_values"][0] == 0, \
-            "SolidMask 应 value=0(黑底)"
-        assert _input_src(nodes, links, I2I_WASH_JOIN, "image") == I2I_WASH_PD
-        assert _input_src(nodes, links, I2I_WASH_JOIN, "alpha") == I2I_WASH_SPLIT, \
-            "[509].alpha 应直取 [506] 原 mask(α 通道零二值化)"
-        assert _input_src(nodes, links, 8, "images") == I2I_WASH_JOIN
-        # 1017up4 母线(S1 探针 GREEN):[509] 不再直喂 [503]——首段 [509]→[511]
-        # (A 宿主),末段 [513]:0→[503]:0;A/B/C 默认旁路=直通,入水语义等价。
-        # (design §7 #2 原文「本测零改」与母线接线互斥,按 §1 架构裁决改此一行)
-        assert _input_src(nodes, links, SVR2_UP, "image") == I2I_WASH_JOIN, \
-            "i2i: [503 D宿主].image 应接 [509] 洗底回拼(1018 终版 B 删,母线直连)"
 
     def test_comparer_t2i_only(self):
         graph = GRAPHS["qi21"]
@@ -5536,14 +5517,69 @@ class TestSeedVR2TailContract1002:
         cmp_n = nodes[SVR2_CMP]
         assert cmp_n["type"] == "Image Comparer (rgthree)", \
             f"qi21: [{SVR2_CMP}] 应 rgthree 对比件,得 {cmp_n['type']}"
-        assert _input_src(nodes, links, SVR2_CMP, "image_a") == 5, \
-            "[505].image_a 应接 [5] 直出图(放大前)"
+        assert _input_src(nodes, links, SVR2_CMP, "image_a") == T2I_WASH_HOST, \
+            "[505].image_a 应接 [7500] 洗底后直出图(1022 起;与 [8] 存盘同源,放大前)"
         assert _input_src(nodes, links, SVR2_CMP, "image_b") == SVR2_UP, \
             "[505].image_b 应接 [503] 2K 图(放大后,滑帘对比细节增益)"
         up_out = sorted(nodes[SVR2_UP]["outputs"][0]["links"] or [])
         assert up_out == sorted([_link_of(nodes, links, SVR2_SAVE, "images"),
                                  _link_of(nodes, links, SVR2_CMP, "image_b")]), \
             f"[503] 输出应恰扇出 [504]+[505](存盘+对比),得 {up_out}"
+
+    def test_wash_subgraph_1022(self):
+        """1022 洗底子图(t2i 先收/i2i 随收;用户令「洗底链做成子图」+「(i2i)
+        ④b 不像文生图做成子图呢」):1015 洗底链(阈值 0.996=α<0.004 判透明/
+        SRC×实心0 除尽透明区 RGB/原α直通回拼零二值化)同参数收装为子图
+        「道劫·④b·洗底·透明除渣」,t2i/i2i 跨画布恒等定义(SeedVR2 制同 uuid);
+        宿主 [7500] 常开 mode0 恒在⑤组框外(Ctrl+B 整组旁路语义不裹挟洗底);
+        母线 [5]→[7500]→洗后消费(t2i 三消费 [8]+[505]+[503];i2i 双消费
+        [8]+[503]);不透明时空转(阈值门全通,恒等直通)。"""
+        for name, consumers in (("qi21", ((8, "images"), (SVR2_CMP, "image_a"), (SVR2_UP, "image"))),
+                                ("i2i", ((8, "images"), (SVR2_UP, "image")))):
+            graph = GRAPHS[name]
+            nodes, links = _nodes(graph), _links(graph)
+            sg = next(s for s in _sgs(graph) if s["name"] == T2I_WASH_SG_NAME)
+            host = nodes[T2I_WASH_HOST]
+            assert host["type"] == sg["id"] == host["properties"]["subgraph"], \
+                f"{name}: [7500] 应挂洗底子图定义(宿主三锚:type/properties/subgraph)"
+            assert host.get("mode", 0) == 0, "洗底宿主应常开(常驻主路,不透明空转)"
+            g5 = next(g for g in graph["groups"]
+                      if g["title"].startswith(SVR2_GROUP_TITLE))
+            bx, by, bw, bh = g5["bounding"]
+            assert not (bx <= host["pos"][0] and host["pos"][0] + host["size"][0] <= bx + bw
+                        and by <= host["pos"][1]
+                        and host["pos"][1] + host["size"][1] <= by + bh), \
+                "洗底宿主应恒在⑤组框外(整组旁路语义载体不裹挟洗底)"
+            dn = _sg_nodes(sg)
+            assert dn[T2I_WASH_SPLIT]["type"] == "SplitImageWithAlpha"
+            assert dn[T2I_WASH_TH]["type"] == "ThresholdMask" \
+                and dn[T2I_WASH_TH]["widgets_values"] == [0.996], \
+                "阈值门应 0.996(2015 双因子修订值随迁:PNG-0 域 α<1/255 全盖)".replace("2015", "1015")
+            assert dn[T2I_WASH_MASK]["type"] == "SolidMask" \
+                and dn[T2I_WASH_MASK]["widgets_values"] == [0, 64, 64], \
+                "实心黑应 value0/64²(合成除渣用,常量零污染)"
+            assert dn[T2I_WASH_PD]["type"] == "PorterDuffImageComposite" \
+                and dn[T2I_WASH_PD]["widgets_values"] == ["SRC"], \
+                "合成应显式 SRC(SRC×source_alpha=透明区 RGB 归零)"
+            assert dn[T2I_WASH_JOIN]["type"] == "JoinImageWithAlpha"
+            dl = _sg_links(sg)
+            raw_a = [l for l in dl.values() if l["origin_id"] == T2I_WASH_SPLIT
+                     and l["origin_slot"] == 1 and l["target_id"] == T2I_WASH_JOIN]
+            assert len(raw_a) == 1, "拆α原始 MASK 应恰一线直喂回拼(α 通道零二值化)"
+            assert any(l["origin_id"] == -10 for l in dl.values()) \
+                and any(l["target_id"] == -20 for l in dl.values()), \
+                "边界链应在场(入:-10→拆α;出:回拼→-20)"
+            for tgt, slot in consumers:
+                assert _input_src(nodes, links, tgt, slot) == T2I_WASH_HOST, \
+                    f"{name}: [{tgt}].{slot} 应接洗底后图(1022 收装,洗后消费同源)"
+            # 蓝图镜像(SeedVR2 制同 uuid):除 id 外 canonical 全等(两画布恒等定义各自对拍)
+            bp = json.loads(WASH_BP.read_text(encoding="utf-8"))
+            bp_sg = bp["definitions"]["subgraphs"][0]
+            assert bp_sg["name"] == T2I_WASH_SG_NAME and bp_sg["id"] == sg["id"], \
+                "洗底蓝图应同名同 uuid(SeedVR2 制)"
+            strip = lambda d: {k: v for k, v in d.items() if k != "id"}  # noqa: E731
+            assert strip(json.loads(json.dumps(sg))) == strip(json.loads(json.dumps(bp_sg))), \
+                f"{name}: 洗底蓝图 ↔ 宿主子图定义漂移(恒等定义纪律)"
         for banned_name in ("i2i", "edit"):
             assert not [n for n in GRAPHS[banned_name]["nodes"]
                         if n["type"] == "Image Comparer (rgthree)"], \
@@ -5605,7 +5641,8 @@ class TestUpscaleFourWays1017:
             graph = GRAPHS[name]
             nodes, links = _nodes(graph), _links(graph)
             spec = UP4_BUS_SRC[name]
-            chain = [spec["src"], UP4["D"]["host"][name]]
+            # 1022 洗底:t2i/i2i 母线同插 [7500]
+            chain = [spec["src"], T2I_WASH_HOST, UP4["D"]["host"][name]]
             for a, b in zip(chain, chain[1:]):
                 got = [l for l in graph["links"] if l[1] == a and l[2] == 0
                        and l[3] == b and l[4] == 0 and l[5] == "IMAGE"]
@@ -5620,26 +5657,50 @@ class TestUpscaleFourWays1017:
 
     def test_at_most_one_active_invariant_and_defaults(self):
         """至多一激活不变量+默认态锚(design §7 #8:写成「恰一」会在 t2i 默认
-        零激活态自红,故上位断言=至多一;默认态另行钉死)。"""
+        零激活态自红,故上位断言=至多一;默认态另行钉死)。
+        2021 组级开关令(i2i):⑤组组级 mode4=单点开关,[503]/[504] 节点常开
+        mode0——激活判定用「有效 mode」:节点 mode0 且整体落入 mode4/2 组框
+        内=被组旁路(与引擎前端组模式同语义)。"""
+
+        def _eff_mode(graph: dict, nodes: dict, nid: int) -> int:
+            n = nodes[nid]
+            m = n.get("mode", 0)
+            if m != 0:
+                return m
+            x, y = n["pos"]
+            w, h = (n.get("size") or [0, 0])
+            for g in graph.get("groups", []):
+                if g.get("mode") in (2, 4):
+                    bx, by, bw, bh = g["bounding"]
+                    if bx <= x and by <= y and x + w <= bx + bw and y + h <= by + bh:
+                        return g["mode"]
+            return m
+
         for name in ("qi21", "i2i"):
             graph = GRAPHS[name]
             nodes = _nodes(graph)
             active = [t for t in "D"
-                      if nodes[UP4[t]["host"][name]].get("mode", 0) == 0]
+                      if _eff_mode(graph, nodes, UP4[t]["host"][name]) == 0]
             assert len(active) <= 1, \
                 f"{name}: 四宿主至多一激活(换法=Ctrl+B 现法+解除目标法),得激活 {active}"
             if name == "qi21":
-                # 1018 用户新令「⑤超分尾档·2K 默认不生效」:D 宿主+[504] 默认整组
+                # 2018 用户新令「⑤超分尾档·2K 默认不生效」:D 宿主+[504] 默认整组
                 # 旁路(⑤组框=Ctrl+B 语义载体;要 2K=框选 Ctrl+B);推翻同日早前
-                # 「D 在役为唯一默认」口径
+                # 「D 在役为唯一默认」口径(t2i 仍节点级;组级化候令)
                 assert active == [], \
-                    f"qi21: 默认=零激活(1018 尾档默认旁路令),得 {active}"
+                    f"qi21: 默认=零激活(2018 尾档默认旁路令),得 {active}"
                 assert nodes[SVR2_SAVE]["mode"] == 4 and nodes[SVR2_CMP]["mode"] == 4, \
                     "qi21: [504] 应随 ⑤ 组默认旁路(2K 落盘 Ctrl+B 开),[505] 对比件应维持 mode4"
             else:
+                # 2021 用户令「分组旁路,不逐节点旁路」:i2i ⑤组升组级 mode4 单点
+                # 开关,[503]/[504] 节点常开——手改一处即切整组
                 assert active == [], \
-                    f"i2i: 默认=零激活(1018 尾档默认旁路令),得 {active}"
-                assert nodes[SVR2_SAVE]["mode"] == 4, "i2i: [504] 应随 ⑤ 组默认旁路"
+                    f"i2i: 默认=零激活(⑤组组级旁路,2021 组级开关令),得 {active}"
+                grp5 = next(g for g in graph["groups"]
+                            if g["title"].startswith(SVR2_GROUP_TITLE))
+                assert grp5.get("mode") == 4 and nodes[SVR2_SAVE]["mode"] == 0 \
+                    and nodes[UP4["D"]["host"][name]]["mode"] == 0, \
+                    "i2i: ⑤组应组级旁路(mode4)而 [503]/[504] 节点常开(2021 组级开关令)"
 
     def test_seed_single_source_primitives_and_io_link_ids(self):
         """seed 单源锚(design §7 #7):四定义内 PrimitiveInt(7101/7204/7302/7402)
@@ -5896,6 +5957,7 @@ class TestCountAnchor:
     def test_qwen21_dir_exactly_seventeen(self):
         files = sorted(p.name for p in (_IMG_DIR / "Q2-1图像").rglob("*.json"))
         assert files == [
+            "BFS-换头术-Qwen2.1.json",
             "image_qwen_image_2_1_background_removal.json",
             "image_qwen_image_2_1_image_edit.json",
             "image_qwen_image_2_1_t2i.json",
@@ -5920,7 +5982,7 @@ class TestCountAnchor:
             "社区-全能文生图-官方PE.json",
             "社区-编辑生图整合-TE.json",
             "道劫-摆姿-fisher.json",
-        ], f"Q2-1图像 应恰 24 件(14 自研+3 官方模板+3 官方参照+4 社区;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
+        ], f"Q2-1图像 应恰 25 件(15 自研含BFS换头+3 官方模板+3 官方参照+4 社区;1022 BFS-换头术-Qwen2.1.json 入库 24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。

@@ -27,7 +27,7 @@
       "scopes": {
         "main": {
           "crossings": 46,
-          "occlusion": 9
+          "occlusion": 7
         },
         "sub:[6] 文本提示词类型优化子图": {
           "crossings": 4,

@@ -63,8 +63,8 @@ import re
 
 from typing import Any
 
-# 1017 运行时门禁单源(peer-load 同款家法);作用域=「新建资产」路
-# (i2i 局部编辑/画风转换豁免=09 篇否定式两落法纪律在册,候用户令扩展)
+# 1017 运行时门禁单源(peer-load 同款家法);作用域=「道劫美术类型」路
+# (i2i 自由出图/道劫美术风格转换豁免=09 篇否定式两落法纪律在册,候用户令扩展)
 try:
     from ._gongbi_gate import assert_prompt_gates
 except ImportError:  # pragma: no cover - 直载形态走此腿
@@ -256,8 +256,8 @@ _STYLE_BASE = _load_art_style_base()["positive"]
 
 
 class MyQi21PromptAssembly:
-    """漫影道劫 qi21 按用途装配。局部编辑仅输出编辑指令，画风转换追加画法。
-    以下三段与负面合并说明仅适用于默认的新建资产用途：
+    """漫影道劫 qi21 按用途装配。自由出图仅输出编辑指令，道劫美术风格转换追加画法。
+    以下三段与负面合并说明仅适用于默认的道劫美术类型用途：
     主体句+BASE+美术风格底座 三段换行拼合,装配全文真源
     +负面词合并出(1005 案B Phase I:负面词=merge(BASE负面, 美术风格底座负面现读))。
 
@@ -269,9 +269,9 @@ class MyQi21PromptAssembly:
     """
 
     CATEGORY = "漫影"
-    DESCRIPTION = ("道劫按组装用途输出：新建资产=主体句+类型+画法；"
-                   "局部编辑=编辑指令；画风转换=指令+画法。"
-                   "旧调用默认新建资产；局部编辑不继承类型与全局负面。")
+    DESCRIPTION = ("道劫按组装用途输出：道劫美术类型=主体句+类型+画法；"
+                   "自由出图=编辑指令；道劫美术风格转换=指令+画法。"
+                   "旧调用默认道劫美术类型；自由出图不继承类型与全局负面。")
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:
@@ -297,11 +297,11 @@ class MyQi21PromptAssembly:
                 "主体句负面": ("STRING", {"multiline": True, "default": "",
                                        "tooltip": "用户手写的主体句负面描述(如「不要出现xxx」);与型负面/美术风格底座负面合并"}),
                 "锁层A全文": ("STRING", {"multiline": True, "default": _STYLE_BASE,
-                                          "tooltip": "新建资产/画风转换使用的共同画法(现代"
+                                          "tooltip": "道劫美术类型/道劫美术风格转换使用的共同画法(现代"
                                                      "修仙游戏数字绘画规范),改画风才"
                                                      "动它,一般不用改"}),
-                "组装用途": (["新建资产", "局部编辑", "画风转换", "无底座出图"],
-                            {"default": "新建资产", "tooltip": "新建资产追加类型与画法；局部编辑仅保留编辑指令；画风转换只追加画法，保留原构图；无底座出图=主体句+类型句两段(美术底座正/负全离场,裸测底座贡献用;底座热读兜底在此档失效)。"}),
+                "组装用途": (["道劫美术类型", "自由出图", "道劫美术风格转换", "无底座出图"],
+                            {"default": "道劫美术类型", "tooltip": "道劫美术类型追加类型与画法；自由出图仅保留编辑指令；道劫美术风格转换只追加画法，保留原构图；无底座出图=主体句+类型句两段(美术底座正/负全离场,裸测底座贡献用;底座热读兜底在此档失效)。"}),
             },
         }
 
@@ -314,7 +314,7 @@ class MyQi21PromptAssembly:
                  主体句: str = _SUBJECT_EXAMPLE,
                  主体句负面: str | None = None,
                  锁层A全文: str = _STYLE_BASE,
-                 组装用途: str = "新建资产") -> tuple[str, str]:
+                 组装用途: str = "道劫美术类型") -> tuple[str, str]:
         """装配:装配全文=主体句+\\n+BASE+\\n+美术风格底座;负面词=merge(BASE负面,
         美术风格底座负面现读)(返回元组序=RETURN_NAMES 序)。
 
@@ -338,22 +338,22 @@ class MyQi21PromptAssembly:
         警告改双关文案「自由型正常态;非自由型请检查连线」——逻辑零改,
         仅文案去「意外断线」口吻(旧行为/旧两段拼语义不变,i2i/edit 零波及)。
         """
-        # 局部编辑不继承类型布局、统一打光或全局负向；保留参考图画法。
-        # 新参数可省略，旧工作流仍走既有新建资产路径。
-        if 组装用途 not in ("新建资产", "局部编辑", "画风转换", "无底座出图"):
+        # 自由出图不继承类型布局、统一打光或全局负向；保留参考图画法。
+        # 新参数可省略，旧工作流仍走既有道劫美术类型路径。
+        if 组装用途 not in ("道劫美术类型", "自由出图", "道劫美术风格转换", "无底座出图"):
             raise ValueError(f"未知组装用途: {组装用途}")
-        # 1017 运行时门禁:t2i 语义路(新建资产/无底座出图)主体句全查;
-        # i2i 路(局部编辑/画风转换)否定式门(1017 用户令「4,开始做」扩展,
+        # 1017 运行时门禁:t2i 语义路(道劫美术类型/无底座出图)主体句全查;
+        # i2i 路(自由出图/道劫美术风格转换)否定式门(1017 用户令「4,开始做」扩展,
         # 两落法豁免退役——「去掉/摘掉」去除操作与肯定枚举不在禁词族,零波及)
-        if 组装用途 in ("新建资产", "无底座出图"):
+        if 组装用途 in ("道劫美术类型", "无底座出图"):
             assert_prompt_gates((主体句 or "").strip(), is_subject=True, context=f"[主体句·{组装用途}]")
         else:
             assert_prompt_gates((主体句 or "").strip(), is_subject=True, negation_only=True,
                                 context=f"[指令·{组装用途}]")
         锁层A全文 = _style_only(锁层A全文)
-        if 组装用途 == "局部编辑":
+        if 组装用途 == "自由出图":
             return ((主体句 or "").strip(), (主体句负面 or "").strip())
-        if 组装用途 == "画风转换":
+        if 组装用途 == "道劫美术风格转换":
             style = _style_combo_transparent() if _type_is_transparent(BASE) else 锁层A全文
             return ("\n".join(p for p in ((主体句 or "").strip(), style.strip()) if p),
                     (主体句负面 or "").strip())
@@ -398,5 +398,5 @@ class MyQi21PromptAssembly:
                     f"{_resolve_card_conditionals(base_out, 主体句)}", negative)
         else:
             _out = (f"{style_out}\n类型句:{base_out}\n主体句:{主体句}", negative)
-        assert_prompt_gates(_out[0], is_subject=False, context="[终稿·新建资产]")
+        assert_prompt_gates(_out[0], is_subject=False, context="[终稿·道劫美术类型]")
         return _out

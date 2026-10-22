@@ -9,7 +9,7 @@ import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generati
  *
  * 与 generateAsset(润色→道劫编译→生成)分道:画风转换指令为固定式三轨变体,
  * 不走润色/道劫编译链——美术风格底座由 qwen21 引擎 i2i 工作流装配层自动追加
- * (组装用途=画风转换,装配产物=主体句+\n+锁层A全文),槽内禁复写底座画法词
+ * (组装用途=道劫美术风格转换,装配产物=主体句+\n+锁层A全文),槽内禁复写底座画法词
  * (09 篇 :50 禁双写)。经 aiManager.generateImage 直通本地 sidecar
  * (LOCAL_IMAGE_MODELS 已含 qwen-image-2-1,零 provider 改动);参考图由引擎层
  * prepareReferenceImagesForTransfer 统一过 ≤768px/<1MB 缩略与 readUrlDataUrl

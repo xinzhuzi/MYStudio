@@ -35,7 +35,7 @@ class Qwen21RegistrationTests(unittest.TestCase):
         self.assertIs(pipeline._ENGINE_BY_LAYOUT["qwen21-viggle"], qwen21)
 
     def test_reference_supported_flags(self) -> None:
-        # 10-19 图生图·画风转换(D3):单参考放开(SUPPORTS_REFERENCE=True 走 i2i 分流),
+        # 10-19 图生图·道劫美术风格转换(D3):单参考放开(SUPPORTS_REFERENCE=True 走 i2i 分流),
         # 多参考仍关(恒单参考,--enable-ref3 语义不在本役)
         self.assertTrue(qwen21.SUPPORTS_REFERENCE)
         self.assertFalse(qwen21.SUPPORTS_MULTI_REFERENCE)
@@ -130,9 +130,10 @@ class Qwen21TemplateContractTests(unittest.TestCase):
 
 
 class Qwen21I2iTemplateContractTests(unittest.TestCase):
-    """10-19 图生图·画风转换:i2i API 模板契约(由 build 脚本 --target i2i 从
-    qi21-道劫-i2i.json 展平生成;快照=画布现值锁——组装用途=局部编辑、Turbo 8步、
-    PE 关、SeedVR2 旁路,运行时才覆写组装用途=画风转换)。"""
+    """10-19 图生图·道劫美术风格转换:i2i API 模板契约(由 build 脚本 --target i2i 从
+    qi21-道劫-i2i.json 展平生成;快照=画布现值锁——组装用途=自由出图、Turbo 8步、
+    PE 关、SeedVR2 2K 链在场(10-21 重生成后现状),运行时才覆写组装用途=道劫美术
+    风格转换或道劫美术类型(10-22 型层注入)。"""
 
     def setUp(self) -> None:
         self.template = json.loads(I2I_TEMPLATE_PATH.read_text(encoding="utf-8"))
@@ -157,17 +158,29 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         self.assertEqual((ref["node"], ref["slot"], ref["field"]), ("10", 0, "image"))
         self.assertEqual(ref["class_type"], "LoadImage")
         load_images = sorted(key for key, node in self.graph.items() if node["class_type"] == "LoadImage")
-        self.assertEqual(load_images, ["10"])
+        # 10-21 模板落库现状:①[11]→[17]→4015.images.image_2 demo 常驻链(组级
+        # 旁路役快照;桥运行时物理摘除保单参考语义)②SeedVR2 2K 链在场
+        # (503:*/504;_prefer_upscaled_output 优先 504 回落 8)。真正缺席=12/505。
+        self.assertEqual(load_images, ["10", "11"])
+        self.assertEqual(self.graph["17"]["inputs"]["image"], ["11", 0])
+        self.assertEqual(self.graph["4015"]["inputs"]["images.image_2"], ["17", 0])
         self.assertIn("image", self.graph["10"]["inputs"])
-        # 旁路参考槽与 SeedVR2 双产物在模板缺席(现值快照:mode=4 剪除)
-        for absent in ("11", "12", "505", "503", "504"):
+        self.assertEqual(self.graph["504"]["class_type"], "SaveImage")
+        self.assertIn("503:7401", self.graph)
+        for absent in ("12", "505"):
             self.assertNotIn(absent, self.graph, absent)
         # SaveImage [8] 在场(唯一产物口;504 缺席→_prefer_upscaled_output 自然回落 8)
         self.assertEqual(self.graph["8"]["class_type"], "SaveImage")
 
     def test_i2i_snapshot_locks_canvas_values(self) -> None:
-        # 组装用途快照=局部编辑(GUI 现值;运行时覆写画风转换)
-        self.assertEqual(self.graph["6:4011"]["inputs"]["组装用途"], "局部编辑")
+        # 组装用途快照=自由出图(GUI 现值;运行时覆写道劫美术风格转换)
+        self.assertEqual(self.graph["6:4011"]["inputs"]["组装用途"], "自由出图")
+        # 10-22 型层注入路结构锁:4022 画幅路由在场且同持快照值;4010 base 烘焙值;
+        # 6:180 rgba_hint 连线 6:4010(RGBA 跟型——base 注入后透明链自动激活的前提)
+        self.assertEqual(self.graph["6:4022"]["class_type"], "MyQi21PurposeCanvas")
+        self.assertEqual(self.graph["6:4022"]["inputs"]["组装用途"], "自由出图")
+        self.assertEqual(self.graph["6:4010"]["inputs"]["base"], "人物")
+        self.assertEqual(self.graph["6:180"]["inputs"]["rgba_hint"], ["6:4010", 4])
         # 档位快照=Turbo 8 步
         self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "0 · Turbo 8步")
         # PE 链在场且 pe开关 False(PE出文/PE负面 按 selected_graph 剪除)
@@ -180,7 +193,7 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
 
 
 class Qwen21I2iGenerateTests(unittest.TestCase):
-    """10-19 图生图·画风转换:i2i 分流行为测(mock 上传/提交/取图)。"""
+    """10-19 图生图·道劫美术风格转换:i2i 分流行为测(mock 上传/提交/取图)。"""
 
     def _all_classes_available(self) -> frozenset[str]:
         classes: set[str] = set()
@@ -218,7 +231,15 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
             prompt="画风转换指令甲", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=None,
             reference_b64="aWlpcmVmaW9uZQ==",
         )
-        self.assertEqual(graph_one["6:4011"]["inputs"]["组装用途"], "画风转换")
+        self.assertEqual(graph_one["6:4011"]["inputs"]["组装用途"], "道劫美术风格转换")
+        # 缺省=道劫美术风格转换:型层注入路三锚全部不动(4010 base=烘焙值人物、
+        # 4022 画幅路由=快照值自由出图=恒跟参考画幅)——10-22 型层注入的回归锁
+        self.assertEqual(graph_one["6:4010"]["inputs"]["base"], "人物")
+        self.assertEqual(graph_one["6:4022"]["inputs"]["组装用途"], "自由出图")
+        # 单参考净化:[11]/[17] demo 链物理摘除+编码器 image_2 槽清空
+        self.assertNotIn("11", graph_one)
+        self.assertNotIn("17", graph_one)
+        self.assertNotIn("images.image_2", graph_one["4015"]["inputs"])
         self.assertEqual(graph_one["10"]["inputs"]["image"], "qwen21-i2i-uploaded.png")
         self.assertRegex(upload_one.call_args.args[2], r"^qwen21-i2i-[0-9a-f]{32}\.png$")
         self.assertEqual(graph_one["400"]["inputs"]["value"], "画风转换指令甲")
@@ -234,6 +255,21 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         self.assertTrue(1 <= seed_one <= 2**31 - 1 and 1 <= seed_two <= 2**31 - 1)
         # GUI 本体文件未被改写
         self.assertEqual(I2I_CANVAS_PATH.read_bytes(), canvas_before)
+
+    def test_i2i_base_type_switches_type_full_assembly(self) -> None:
+        # 10-22 型层注入路:带 base_type → 4010 注型 + 4011/4022 组装用途同切
+        # 「道劫美术类型」(4022=画幅路由,只改 4011 会恒跟参考画幅——晏燎役方形案同坑)
+        graph, _, _ = self._run_generate(
+            prompt="表情差分指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            reference_b64="aWlpcmVmaW9uZQ==", base_type="表情差分",
+        )
+        self.assertEqual(graph["6:4010"]["inputs"]["base"], "表情差分")
+        self.assertEqual(graph["6:4011"]["inputs"]["组装用途"], "道劫美术类型")
+        self.assertEqual(graph["6:4022"]["inputs"]["组装用途"], "道劫美术类型")
+        # 注入路同样吃单参考净化(demo 链不得随型层注入回潮)
+        self.assertNotIn("11", graph)
+        self.assertNotIn("17", graph)
+        self.assertNotIn("images.image_2", graph["4015"]["inputs"])
 
     def test_i2i_rejects_multi_reference(self) -> None:
         from image_gen.pipeline import PipelineError

@@ -440,3 +440,32 @@ class MyQi21PromptSelect:
             return (f"{RGBA官方头句} {transparent_mid} {RGBA官方尾句}",
                     negative_text)
         return (main_text, negative_text)
+
+
+class MyQi21InstructionSelect(MyQi21PromptSelect):
+    """Select the original or image-aware PE instruction before assembly."""
+
+    DESCRIPTION = "原始指令与看图PE出文择一；默认直写，PE为空时明确报错"
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("选定指令",)
+    FUNCTION = "select_instruction"
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:
+        return {
+            "required": {},
+            "optional": {
+                "原始指令": ("STRING", {"forceInput": True}),
+                "PE出文": ("STRING", {"forceInput": True, "lazy": True}),
+                "pe开关": ("BOOLEAN", {"default": False}),
+            },
+        }
+
+    def check_lazy_status(self, pe开关: bool = False, **kwargs: Any) -> list[str]:
+        return super().check_lazy_status(pe开关=pe开关, **kwargs)
+
+    def select_instruction(self, 原始指令: str | None = None,
+                           PE出文: str | None = None,
+                           pe开关: bool = False) -> tuple[str]:
+        return (super().compose(装配全文=原始指令, PE出文=PE出文,
+                                pe开关=pe开关, 透明模式=False)[0],)

@@ -6,11 +6,13 @@
 链路,引擎直提须手工复刻装配=漂移,禁):
 
   t2i: python3 qi21_sidecar_api.py t2i --prompt "主体句" [--base-type 人物] [--out a.png] [--aspect 1:1] [--dry-run]
-  i2i: python3 qi21_sidecar_api.py i2i --prompt "指令" --ref 参考图.png [--shape keep|square|32] [--out b.png] [--dry-run]
+  i2i: python3 qi21_sidecar_api.py i2i --prompt "指令" --ref 参考图.png [--base-type 表情差分] [--shape keep|square|32] [--out b.png] [--dry-run]
 
 模型恒 qwen-image-2-1(qwen21→道劫 t2i/i2i 模板;comfyui-bridge=K2 老桥禁混)。
-t2i 可注入型层(--base-type,十型真源 qi21_bases.json 型名);i2i 不吃型层
-(组装用途恒=画风转换),构图语言写进指令,画幅=参考 AR×2(--shape 预整形控幅)。
+t2i 可注入型层(--base-type,十型真源 qi21_bases.json 型名);i2i 10-22 起同吃型层
+(--base-type 切「道劫美术类型」全拼档:型文+型负面+RGBA 跟型+型画幅,透明型
+直出真 Alpha;缺省不传=道劫美术风格转换两段装配,构图语言写进指令,
+画幅=参考 AR×2(--shape 预整形控幅)。
 
 公共能力(战役实弹沉淀):
 - 令牌自取(python/profiles/image-gen/config.json controlToken);
@@ -203,8 +205,10 @@ def run(mode: str, args: argparse.Namespace) -> Path:
             die("i2i 必填 --ref")
         ref_path = shape_reference(Path(args.ref).expanduser(), args.shape)
         body["image_urls"] = [prepare_reference(ref_path)]
-    elif args.base_type:
-        body["base_type"] = args.base_type  # 仅 t2i 分支消费(qwen21 实读定谳)
+    if args.base_type:
+        # 10-22 起两路均消费:t2i 注 6:4010 型选择;i2i 切「道劫美术类型」全拼档
+        # (型文+型负面+RGBA 跟型+型画幅;缺省 i2i=道劫美术风格转换不变)
+        body["base_type"] = args.base_type
     if args.dry_run:
         safe = {**body}
         if "image_urls" in safe:
@@ -258,9 +262,10 @@ def main() -> None:
     t2i.add_argument("--aspect", default="1:1")
     t2i.add_argument("--out", "-o")
     t2i.add_argument("--dry-run", action="store_true")
-    i2i = sub.add_parser("i2i", help="图生图(参考图锚身份,画风转换装配)")
+    i2i = sub.add_parser("i2i", help="图生图(缺省=道劫美术风格转换;--base-type 切型层全拼档)")
     i2i.add_argument("--prompt", "-p", required=True)
     i2i.add_argument("--ref", "-r", required=True, help="参考图路径")
+    i2i.add_argument("--base-type", help="十型名(型层注入:型文+型负面+RGBA 跟型+型画幅,如 表情差分)")
     i2i.add_argument("--shape", default="keep", choices=["keep", "square", "32"],
                      help="keep=原样画幅/square=顶方裁/32=垫边 3:2 横幅")
     i2i.add_argument("--aspect", default="1:1")

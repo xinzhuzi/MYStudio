@@ -263,6 +263,14 @@ def instantiate_template(template: dict[str, Any], prompt: str, negative_prompt:
         slot = binding.get("slot", index)
         if isinstance(slot, int) and 0 <= slot < len(reference_names):
             _set_input(graph, binding, reference_names[slot])
+    if len(reference_names) < 2 and template.get("name") == "qwen21_道劫_i2i_api":
+        # 2021 单参考剪链(krea2_edit_ref 同款先例):参考图2 默认开启令后,桥快照
+        # 携带 [11]→[17]→[4015].images.image_2 链与官方示例图名(引擎 input 无该件
+        # =custom_validation 拒);单参考请求整链剪除+image_2 槽摘除,悬空 LoadImage
+        # 永不进引擎校验(App 渠道与批量脚本同享)
+        for node_id in ("11", "17"):
+            graph.pop(node_id, None)
+        graph.get("4015", {}).get("inputs", {}).pop("images.image_2", None)
     if len(reference_names) < 2 and template.get("name") == "krea2_edit_ref":
         # The second Krea2 reference path is optional.  Remove its whole
         # LoadImage → scale → VAE chain for single-reference requests so an
