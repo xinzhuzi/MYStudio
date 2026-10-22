@@ -492,7 +492,7 @@ describe("图生图·画风转换(10-19-daojie-ui-i2i-style-convert:i2iPhase 状
 
   it("一键生成按钮与图生图互斥(!!i2iPhase 禁用)", () => {
     const source = readDialogSources();
-    expect(source).toContain("disabled={!!generatePhase || !!i2iPhase || !!facePhase || !visualManualId}");
+    expect(source).toContain("disabled={!!generatePhase || !!i2iPhase || !!facePhase || !!expressionPhase || !visualManualId}");
   });
 
   it("handleImageToImageStyle 走画风转换 service 并复刻一键生成尾段(写回+广播+刷新+3s 自动清)", () => {

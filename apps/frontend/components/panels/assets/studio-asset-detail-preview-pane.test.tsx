@@ -76,6 +76,7 @@ function makeProps(overrides: Partial<PreviewPaneProps> = {}): PreviewPaneProps 
     onImageToImage: vi.fn(),
     onFaceFromImage: vi.fn(),
     onFaceFromText: vi.fn(),
+    onExpression: vi.fn(),
     ...overrides,
   };
 }
@@ -251,5 +252,38 @@ describe("StudioAssetDetailPreviewPane", () => {
       expect(button.disabled).toBe(true);
       expect(button.getAttribute("title")).toBeTruthy();
     }
+  });
+  // 10-21 表情差分:人物弹窗图生图按钮(轮播当前图锚身份+固定九宫格指令)
+  it("hides the expression sheet button by default and fires it for role assets with the flag", () => {
+    const hidden = renderPane();
+    expect(hidden.queryByRole("button", { name: "表情差分" })).toBeNull();
+
+    cleanup();
+    const { props } = renderPane({ canFacePortrait: true });
+    fireEvent.click(screen.getByRole("button", { name: "表情差分" }));
+    expect(props.onExpression).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the expression sheet button without images", () => {
+    renderPane({ canFacePortrait: true, images: [] });
+
+    const button = screen.getByRole("button", { name: "表情差分" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("title")).toContain("先有角色图片");
+  });
+
+  it("shows the spinner and phase text while an expression sheet is running", () => {
+    renderPane({ canFacePortrait: true, expressionPhase: "generating", expressionMessage: "正在生成 主角 的表情差分..." });
+
+    const button = screen.getByRole("button", { name: "表情差分生成中…" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.querySelector(".animate-spin")).toBeTruthy();
+  });
+
+  it("disables the expression sheet entry while face portrait is running", () => {
+    renderPane({ canFacePortrait: true, facePhase: "generating" });
+    const button = screen.getByRole("button", { name: "表情差分" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("title")).toBeTruthy();
   });
 });

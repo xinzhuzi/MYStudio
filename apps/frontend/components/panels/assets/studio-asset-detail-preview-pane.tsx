@@ -63,6 +63,12 @@ interface StudioAssetDetailPreviewPaneProps {
   faceMessage?: string;
   /** 角色轨才显示人脸按钮;缺省 false(非角色零侵入)。 */
   canFacePortrait?: boolean;
+  /** 10-21 表情差分(用户令:图生图逻辑);仅角色轨由装配方置真。 */
+  onExpression?: () => void | Promise<void>;
+  /** 表情差分生成相位(在跑时 Loader2+文案并禁点)。 */
+  expressionPhase?: string | null;
+  /** 表情差分相位文案(运行态按钮 title 全文)。 */
+  expressionMessage?: string;
   onCopyPrompt: () => void | Promise<void>;
   onOpenSource: () => void | Promise<void>;
   onOpenFolder: () => void | Promise<void>;
@@ -95,14 +101,17 @@ export function StudioAssetDetailPreviewPane({
   facePhase,
   faceMessage,
   canFacePortrait = false,
+  onExpression,
+  expressionPhase,
+  expressionMessage,
   onCopyPrompt,
   onOpenSource,
   onOpenFolder,
   isImageRemovable,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
-  // 10-21 高清人脸:与一键生成/画风转换互斥(任一生成相位在跑全禁)
-  const generationBusy = !!i2iPhase || !!generatePhase || !!facePhase;
+  // 10-21 高清人脸/表情差分:与一键生成/画风转换互斥(任一生成相位在跑全禁)
+  const generationBusy = !!i2iPhase || !!generatePhase || !!facePhase || !!expressionPhase;
   const imageToImageDisabled = generationBusy || !canImageToImage;
   const imageToImageTitle = !canImageToImage
     ? "仅角色/场景/道具三轨且有图资产可转画风"
@@ -142,6 +151,24 @@ export function StudioAssetDetailPreviewPane({
     : facePhase === "failed"
       ? "人脸生成失败"
       : "人脸生成中…";
+  // 10-21 表情差分:角色轨+有图(轮播当前图锚身份)
+  const expressionDisabled = generationBusy || images.length === 0;
+  const expressionTitle = images.length === 0
+    ? "先有角色图片才能图生图生成表情差分"
+    : generatePhase
+      ? "图片生成中，请稍候"
+      : i2iPhase
+        ? "正在转换画风，请稍候"
+        : facePhase
+          ? "正在生成高清人脸，请稍候"
+          : expressionPhase
+            ? (expressionMessage || "正在生成表情差分，请稍候")
+            : undefined;
+  const expressionPhaseLabel = expressionPhase === "done"
+    ? "表情差分完成"
+    : expressionPhase === "failed"
+      ? "表情差分失败"
+      : "表情差分生成中…";
 
   return (
     <div className="studio-asset-detail-preview border-r border-border bg-muted/90 p-4">
@@ -321,6 +348,22 @@ export function StudioAssetDetailPreviewPane({
                   <ScanFace className="mr-2 h-3.5 w-3.5" />
                 )}
                 {facePhase ? facePhaseLabel : "人脸·文生图"}
+              </Button>
+            )}
+            {canFacePortrait && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onExpression}
+                disabled={expressionDisabled}
+                title={expressionTitle}
+              >
+                {expressionPhase ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ScanFace className="mr-2 h-3.5 w-3.5" />
+                )}
+                {expressionPhase ? expressionPhaseLabel : "表情差分"}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={onOpenSource}>

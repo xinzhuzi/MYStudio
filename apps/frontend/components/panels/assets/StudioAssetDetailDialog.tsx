@@ -123,6 +123,8 @@ export function StudioAssetDetailDialog({
   const [i2iMessage, setI2iMessage] = useState("");
   // 10-21 高清人脸:人脸相位状态机(图生图/文生图两路共用;与一键生成/画风转换互斥)
   const [facePhase, setFacePhase] = useState<"generating" | "done" | "failed" | null>(null);
+  const [expressionPhase, setExpressionPhase] = useState<"generating" | "done" | "failed" | null>(null);
+  const [expressionMessage, setExpressionMessage] = useState("");
   const [faceMessage, setFaceMessage] = useState("");
   const [voiceAssignOpen, setVoiceAssignOpen] = useState(false);
 
@@ -232,7 +234,7 @@ export function StudioAssetDetailDialog({
     handlePolishPrompt, handleSave, handleDelete, copyText,
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
-    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText,
+    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
   } = useStudioAssetDialogActions({
     asset,
     onOpenChange,
@@ -263,6 +265,9 @@ export function StudioAssetDetailDialog({
     facePhase,
     setFacePhase,
     setFaceMessage,
+    expressionPhase,
+    setExpressionPhase,
+    setExpressionMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -334,6 +339,9 @@ export function StudioAssetDetailDialog({
             generatePhase={generatePhase}
             canImageToImage={canImageToImage}
             onFaceFromImage={handleFacePortraitFromImage}
+            onExpression={handleExpressionSheet}
+            expressionPhase={expressionPhase}
+            expressionMessage={expressionMessage}
             onFaceFromText={handleFacePortraitFromText}
             facePhase={facePhase}
             faceMessage={faceMessage}
@@ -468,7 +476,7 @@ export function StudioAssetDetailDialog({
                           size="sm"
                           className="h-6 gap-1 text-[11px]"
                           onClick={handleOneClickGenerateAssetImage}
-                          disabled={!!generatePhase || !!i2iPhase || !!facePhase || !visualManualId}
+                          disabled={!!generatePhase || !!i2iPhase || !!facePhase || !!expressionPhase || !visualManualId}
                         >
                           {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                           {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}

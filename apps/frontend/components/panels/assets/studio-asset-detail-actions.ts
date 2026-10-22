@@ -16,6 +16,7 @@ import { polishAssetPrompt, type AssetType, type PolishResult } from "@/lib/ai/p
 import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transfer";
 import { generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
+import { generateAssetExpressionSheet } from "@/lib/studio/asset-expression-sheet";
 import {
   findDisplayImageIndex,
   mergeFamilyDisplayImages,
@@ -59,6 +60,10 @@ export function useStudioAssetDialogActions(ctx: {
   facePhase?: string | null;
   setFacePhase: any;
   setFaceMessage: any;
+  /** 10-21 表情差分:差分相位/文案注入(图生图单路,与人脸同款状态机形态)。 */
+  expressionPhase?: string | null;
+  setExpressionPhase: any;
+  setExpressionMessage: any;
   setActiveStudio: any;
   setActiveTab: any;
   resolveAssetGenerationReferenceImage: any;
@@ -94,6 +99,9 @@ export function useStudioAssetDialogActions(ctx: {
     facePhase,
     setFacePhase,
     setFaceMessage,
+    expressionPhase,
+    setExpressionPhase,
+    setExpressionMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -581,6 +589,118 @@ export function useStudioAssetDialogActions(ctx: {
   const handleFacePortraitFromImage = () => runFacePortrait("image");
   const handleFacePortraitFromText = () => runFacePortrait("text");
 
+  /** 10-21 表情差分(用户令:资产库弹窗角色要有表情差分,图生图逻辑):镜像
+   * 人脸图生图路(轮播当前图锚身份+固定指令承载九宫格取景语言);命名沿
+   * 「废主图名号」令=原图名_表情差分_中文日期;相位 3s 自动清。 */
+  const runExpressionSheet = async () => {
+    const operationId = createOperationId("asset-expression-sheet");
+    void logEvent({
+      level: "info",
+      category: "asset",
+      operationId,
+      message: "Asset expression sheet requested",
+      context: { assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
+    });
+    if (expressionPhase) {
+      // 在跑直返(按钮已禁,双保险)
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset expression sheet guard rejected (busy)",
+        context: { assetId: asset.id, expressionPhase },
+      });
+      return;
+    }
+    if (asset.type !== "role") {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset expression sheet guard rejected (non-role)",
+        context: { assetId: asset.id, assetType: asset.type },
+      });
+      toast.error("表情差分仅角色资产可用");
+      return;
+    }
+    const referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+    if (!referenceImage) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset expression sheet guard rejected (no reference image)",
+        context: { assetId: asset.id, displayImageCount: carouselImages.length },
+      });
+      toast.error("没有可作参考的图片，请先生成或添加图片");
+      return;
+    }
+    // 命名沿 10-19「废主图名号」令:图生图=原图名_表情差分_中文日期
+    const inputImageName = carouselImages[currentIndex]?.name || asset.name;
+    const now = new Date();
+    const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
+    const resultImageName = `${inputImageName}_表情差分_${dateSuffix}`;
+    setExpressionPhase("generating");
+    setExpressionMessage(`正在生成 ${asset.name} 的表情差分...`);
+    try {
+      const result = await generateAssetExpressionSheet(
+        {
+          assetId: asset.id,
+          assetName: asset.name,
+          referenceImage,
+          operationId,
+        },
+        (progress) => {
+          if (progress.phase === "generating" || progress.phase === "saving") {
+            setExpressionPhase("generating");
+            if (progress.message) setExpressionMessage(progress.message);
+          }
+        },
+      );
+      if (result.phase === "done") {
+        setExpressionPhase("done");
+        setExpressionMessage("表情差分生成完成！");
+        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
+        // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
+        eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        if (getStudioAssetsBridge()?.get) {
+          const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            const newImgs: AssetImage[] = [];
+            if (updated.previewUrl || updated.thumbnailUrl) {
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+            }
+            if (updated.images?.length) {
+              newImgs.push(...updated.images);
+            }
+            setImages(newImgs);
+            // 完成即切到新主图(与人脸/画风转换同款 setCurrentIndex(0))
+            setCurrentIndex(0);
+          }
+        }
+        if (!savedToLibrary) {
+          toast.warning(`「${asset.name}」表情差分已生成，但未能写回资产库主图`);
+        } else {
+          toast.success(`「${asset.name}」表情差分生成完成`);
+        }
+      } else {
+        setExpressionPhase("failed");
+        setExpressionMessage(`表情差分生成失败: ${result.error || "未知错误"}`);
+        toast.error(`表情差分生成失败: ${result.error || "未知错误"}`);
+      }
+    } catch (err: unknown) {
+      setExpressionPhase("failed");
+      setExpressionMessage(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTimeout(() => {
+        setExpressionPhase(null);
+        setExpressionMessage("");
+      }, 3000);
+    }
+  };
+  const handleExpressionSheet = () => runExpressionSheet();
+
   const handleRegenerate = async () => {
     // 空描述守卫沿用(无描述无出图意义);prompt 本身不预填——画布与资产库
     // 各走各的链路(09-10 全屏 ComfyUI 合一,旧预填+image:generated 回存已退役)。
@@ -840,6 +960,6 @@ export function useStudioAssetDialogActions(ctx: {
     handlePolishPrompt, handleSave, handleDelete, copyText,
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
-    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText,
+    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
   };
 }
