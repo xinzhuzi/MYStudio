@@ -3,7 +3,7 @@
 """运行时门禁测试(1017 用户令:产线常跑,违规提示词报错)。
 
 单源模块 _gongbi_gate + 两节点接线:PE=t2i 全路(入口主体句+出口终稿八点),
-Assembly=新建资产路全查+i2i 路(局部编辑/画风转换)否定式门(1017 用户令
+Assembly=道劫美术类型路全查+i2i 路(自由出图/道劫美术风格转换)否定式门(1017 用户令
 「4,开始做」扩展,两落法豁免退役——「去掉/摘掉」去除操作与肯定枚举本就
 不在禁词族,合法路零波及)。"""
 import importlib.util
@@ -122,14 +122,14 @@ def test_assembly_i2i_route_negation_gated():
     # 1017 用户令「4,开始做」:i2i 否定式门接入,两落法豁免退役
     with pytest.raises(ValueError, match="否定式"):
         asm.MyQi21PromptAssembly().assemble(
-            BASE="", BASE负面="", 主体句="把红色外套改为蓝色，不要改动脸部。", 组装用途="局部编辑")
+            BASE="", BASE负面="", 主体句="把红色外套改为蓝色，不要改动脸部。", 组装用途="自由出图")
     with pytest.raises(ValueError, match="否定式"):
         asm.MyQi21PromptAssembly().assemble(
-            BASE="", BASE负面="", 主体句="把画法转为淡彩长卷，不能改变构图。", 组装用途="画风转换")
+            BASE="", BASE负面="", 主体句="把画法转为淡彩长卷，不能改变构图。", 组装用途="道劫美术风格转换")
     # 合法两落法不受影响:去除操作(动词去掉,锚定图内实存物)+肯定枚举收尾
     out = asm.MyQi21PromptAssembly().assemble(
         BASE="", BASE负面="", 主体句="去掉颈间玉坠，双手空空，发间与腕上素净，其余未提及之处保持原样。",
-        组装用途="局部编辑")
+        组装用途="自由出图")
     assert "去掉颈间玉坠" in out[0]
 
 
@@ -170,3 +170,19 @@ def test_bare_route_and_ink_word_doctrine():
     gate = _mod(Path(__file__).resolve().parents[1] / "nodes/_gongbi_gate.py", "gate_ink")
     assert gate.prompt_violations("水墨山水意境的人物。", is_subject=True) == []
     assert any("厚涂" in v for v in gate.prompt_violations("厚涂质感人物。", is_subject=True))
+
+
+def test_all_violations_reported_at_once_1021():
+    """1021 用户令「一次爆出全部问题」:同族多词全量并列(旧=首中即断单报),
+    单中消息与旧版逐字同形;多族同时违规时一条报错收全,免改词重跑循环。"""
+    # 同族多词:空质量词×3 + 画风词×1 + 否定式×1 一次全报
+    v = gate.prompt_violations("8k 超高清杰作厚涂人物，不要侧脸。", is_subject=True)
+    joined = ";".join(v)
+    for w in ("8k", "超高清", "杰作", "厚涂", "不要"):
+        assert w in joined, (w, v)
+    # 单中消息与旧版逐字同形(既有断言/文案零漂移)
+    v1 = gate.prompt_violations("8k画质人物。", is_subject=True)
+    assert v1 == ["空质量词「8k」——换可见细节词(如「甲片边缘錾刻纹」)"], v1
+    # 否定式族多词并列(negation_only 路同享全量)
+    vn = gate.prompt_violations("不得改脸，不要加饰品。", is_subject=True, negation_only=True)
+    assert vn and "不得" in vn[0] and "不要" in vn[0], vn

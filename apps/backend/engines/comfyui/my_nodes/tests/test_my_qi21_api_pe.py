@@ -86,11 +86,8 @@ def test_default_switch_off_skips_llm_and_returns_direct_assembly(monkeypatch, t
         api_pe._alive = orig_alive
     assert calls == [], f"开关关闭不得触发任何探活/请求,实测 {calls}"
     pos, neg, tr, w, h = got["result"]
-    if transparent:
-        assert pos == api_pe._rgba_lean_pos('玄衣少年立于山门', '国风少年底座句')
-    else:
-        assert pos.startswith("类型句:国风少年底座句\n主体句:玄衣少年立于山门"), \
-            f"直拼正稿(与透传同源同值;1017 裁定:底座槽未接线=两段),得头60={pos[:60]!r}"
+    assert pos == "类型句:国风少年底座句\n主体句:玄衣少年立于山门", \
+        f"透明开关不改变装配顺序;底座槽未接线=两段,不得热读补入,得={pos!r}"
     assert "模糊" in neg, "负向仍三源程序合并(型负面必在;底座负面随真源,勿锚具体词——并行域)"
     assert (tr, w, h) == (transparent, 832, 1216), "透明/宽/高原样直出"
     assert got["ui"]["api_pe_status"] == ["关闭:直拼三层装配(未请求模型)"], \
@@ -287,14 +284,38 @@ def test_bypassed_style_slot_means_no_base_layer():
     assert "脏污" in neg
 
 
-def test_wired_style_slot_still_wins():
+@pytest.mark.parametrize("transparent", [False, True])
+def test_wired_style_slot_still_wins(transparent):
     """槽有值(节点激活)=照用——旁路语义只改『缺席』分支,覆写路不动。"""
     got = api_pe.MyQi21ApiPE().rewrite(
         正向提示词="aa", 类型句正向="型文",
         **{"美术风格底座-正向": "自定义底座句", "美术风格底座-负向": "自定义负面"},
-        色卡=None, AI扩写开关=False)
+        色卡=None, AI扩写开关=False, 透明模式=transparent)
     assert got["result"][0].startswith("自定义底座句")
     assert "自定义负面" in got["result"][1]
+
+
+@pytest.mark.parametrize("type_name", ["人脸基准", "设定卡"])
+@pytest.mark.parametrize("transparent", [False, True])
+@pytest.mark.parametrize("ai_enabled", [False, True])
+def test_direct_and_fallback_keep_style_type_subject_order(monkeypatch, type_name, transparent, ai_enabled):
+    """直出与失败回退均遵循三段顺序,设定卡只解析内容,不反转层序。"""
+    entry = next(t for t in api_pe._load_bases_node()["types"] if t["zh"] == type_name)
+    subject = "青年男修，光洁的头颅，玄色劲装。名号「玄刀客」。"
+    style = "美术风格底座：国风二维动漫手绘插画。"
+    monkeypatch.setattr(api_pe, "_RUNTIME_KEY", "")
+    monkeypatch.setattr(api_pe, "_alive", lambda *args, **kwargs: False)
+    out = api_pe.MyQi21ApiPE().rewrite(
+        正向提示词=subject, 类型句正向=entry["positive_text"],
+        透明模式=transparent, AI扩写开关=ai_enabled,
+        **{"美术风格底座-正向": style},
+    )
+    type_text = api_pe.strip_rgba_decl(entry["positive_text"]).strip() if transparent else entry["positive_text"]
+    if type_name == "设定卡":
+        type_text = api_pe._resolve_card_conditionals(type_text, subject)
+        assert "标题栏中央逐字放置角色名号「玄刀客」" in type_text
+    expected = f"{style}\n类型句:{type_text}\n主体句:{subject}"
+    assert out["result"][0] == out["ui"]["api_pe_pos"][0] == expected
 
 
 def test_resolve_card_conditionals_definite_output_and_canon_untouched():

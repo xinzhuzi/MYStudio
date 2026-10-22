@@ -937,12 +937,12 @@ class MyQi21ApiPE:
                 "thinking_effort": (["关闭", "思考(xhigh)"], {"default": "关闭",
                                     "tooltip": "思考档位(1007 实弹):关闭=reasoning_effort none 硬关,确定性零思考 token,全链 ~40s 内含自检补发;思考(xhigh)=模型模板原生档(=不发参数,思考量随机 ~1200-4600 tok/发,全链 21s~300s+ 波动,1006 全程即此档);「低」档实测无衰减已移除"}),
                 "AI扩写开关": ("BOOLEAN", {"default": False,
-                                    "tooltip": "1016 用户令(尾插保位序):开=走 LM Studio/云端模型扩写;关=完全不发模型请求,直接拼 美术风格底座+类型句+主体句 三层装配直出(与透传/回退同源同值;透明开时同走极简公式+格式锁)"}),
+                                    "tooltip": "开=走 LM Studio/云端模型扩写;关=完全不发模型请求,按 美术风格底座+类型句+主体句 三层装配直出(透明模式同序;英文透明头尾由最终输出节点包裹)"}),
             },
             # 1016 实弹教训(8877575e 同族):required 槽 API 校验不吃签名默认值,
             # 旧工作流不带此键=整图拒收——故入 optional(组装用途同款),缺键=并入兜底。
             "optional": {**ctx, "底座档位": (["并入", "裸测"], {"default": "并入",
-                "tooltip": "1016 用户令「真关掉底座」:并入=默认三层;1017 裁定:[4032] 旁路/未接线=底座正负自动离场(无需动本档);并入=用接线值;裸测=接线在场时强制离场(A/B 用);透明开时的极简公式格式锁不受此档影响(透明承载必需)"})},
+                "tooltip": "并入=默认三层,用接线值;[4032] 旁路/未接线=底座正负自动离场;裸测=接线在场时强制离场(A/B 用);透明模式同样遵循底座档位,英文透明头尾由最终输出节点包裹"})},
         }
 
     RETURN_TYPES = ("STRING", "STRING", "BOOLEAN", "INT", "INT")
@@ -1000,12 +1000,10 @@ class MyQi21ApiPE:
         if 底座档位 == "裸测":
             style = ""
         # 10-09 层冲突治理 P5:透明开时型文自带的中文透明声明句不入 PE 输入
-        # (透明语义全英文承载,[4014] 包裹);原始 base 仍传 _rgba_lean_pos 作逐字匹配键
+        # (透明语义全英文承载,[4014] 包裹);原始 base 用于匹配类型配置
         base_pe = strip_rgba_decl(base).strip() if (透明模式 and base) else base
-        # 1017 用户令:装配序反转——底座前置(前置具体词权重最大),主体句殿后
-        # 1017 设定卡主体锚役:型旗 subject_first 例外=主体句置首——近两千字
-        # 版式前置把身份锚淹成设定卡原型(实弹 0/5 服装/武器锚),官方 3.2.1/
-        # 3.3.1 语料人物描述在前、版式在后;润炼模式「结构照旧」随输入序镜像
+        # 1022 用户令:统一底座→类型句→主体句;设定卡仍解析条件内容,
+        # 历史 subject_first 标记不再反转三层顺序。
         subj_first = False
         if base_pe:
             for entry in (_load_bases_node().get("types") or []):
@@ -1014,7 +1012,7 @@ class MyQi21ApiPE:
                     break
         if base_pe and subj_first:
             # 条件预解析:确定描述进终稿(官方同法;模板句在真源,canon 不动)
-            direct = f"主体句:{subj}\n{style}\n类型句:{_resolve_card_conditionals(base_pe, subj)}".strip()
+            direct = f"{style}\n类型句:{_resolve_card_conditionals(base_pe, subj)}\n主体句:{subj}".strip()
         elif base_pe:
             direct = f"{style}\n类型句:{base_pe}\n主体句:{subj}".strip()
         else:
@@ -1044,17 +1042,11 @@ class MyQi21ApiPE:
         # 程序合并·去重·清洗(neg_out),模型返回负向键一律忽略,首稿/重试/拒收
         # 回退/透传全路径同值(确定性)。
         neg_out = _sanitize_negative(", ".join(neg_tokens))
-        # 1008 透明极简回退(R3九型实弹定谳):富装配17句画背景命令以6.7~8.3:1
-        # 兵力比淹没透明指令(道具全透4.98%/三型0.00%,同seed四连逐字节复现;
-        # 0927d剂量-响应同构)——透明开时,PE失败/拒收/解析失败的一切回退稿
-        # 不再放行富装配,改走极简公式(主体句+rgba_positive剥中文透明句+风格
-        # 托底;0927d实测90.34%透明,专用件qwen21-daotu-rgba-t2i同款)。PE成功稿
-        # 不受影响(自带环境句剥离+六检+教材透明逻辑);[4014]英文头尾统一包裹
-        # (1009晚修:回退路零自带头尾,治双头双尾叠加)。
-        fallback_pos = _rgba_lean_pos(subj, base) if 透明模式 else direct
-        # 1016 用户令(PE 开关,默认开):关=完全不发模型请求,三层自装配(美术风格
-        # 底座+类型句+主体句)直出外部五口——与透传/回退同源同值(透明开同走极简
-        # 公式+格式锁),恒有输出不炸产线;ui 三载荷照发([401]/展示框可见直拼稿)
+        # 1022 用户令:透明路同样复用三层装配,不能另拼主体优先的极简稿,
+        # 也不能在完整类型句后重复追加 rgba_positive 缩减取景句。
+        # 中文透明声明已在 base_pe 剥除,官方英文头尾仅由 [4014] 包裹。
+        fallback_pos = direct
+        # AI关闭与不可用/拒收/解析失败回退同源同序;ui 与五口 result 同文。
         if not AI扩写开关:
             print(f"[漫影 API扩写PE] 开关关闭:直拼三层装配直出({len(fallback_pos)}字),不发模型请求")
             assert_prompt_gates(fallback_pos, is_subject=False, context="[终稿]")

@@ -11,8 +11,8 @@
 规则与错题集十二~十四族同源;改规则三处同步(本模块+test_my_qi21_base 门禁
 +错题集 12 篇)。豁免:①【文字要求】/【字体】钦定原文块(用户逐字令,含
 「不要」「无错字」);②「未[指提供带]」装配逻辑条件词;③负向层(否定词合法家)。
-作用域:MyQi21ApiPE=t2i 全路;MyQi21PromptAssembly=「新建资产/无底座出图」
-全查+i2i 路(局部编辑/画风转换)否定式门(1017 用户令「4,开始做」扩展,
+作用域:MyQi21ApiPE=t2i 全路;MyQi21PromptAssembly=「道劫美术类型/无底座出图」
+全查+i2i 路(自由出图/道劫美术风格转换)否定式门(1017 用户令「4,开始做」扩展,
 09 篇两落法豁免退役——「去掉/摘掉」去除操作与肯定枚举本就不在禁词族,
 合法路零波及;光学/两可/写实等族仍豁免=i2i 换色写光理是 09 篇§四合法
 纪律,光理措辞与禁词零重叠)。
@@ -118,30 +118,30 @@ def prompt_violations(text: str, *, is_subject: bool, negation_only: bool = Fals
     negation_only=True=i2i 指令路(1017 用户令扩展:只查否定式族,余族豁免)。"""
     out: list[str] = []
     t = _strip_verbatim(text)
-    m = _NEG.search(t)
-    if m:
-        out.append(f"否定式「{m.group(0)}」——模型不吃否定词,改直陈(不画X→只画Y)"
+    # 1021 用户令「一次爆出全部问题」:词表族由首中即断(break/search 单报)改
+    # 全量枚举——免改一词重跑再炸下一词的循环;单中消息与旧版逐字同形,
+    # 多中词以「、」并列(结构族检查本就 extend 全量,不动)
+    neg_hits = list(dict.fromkeys(m.group(0) for m in _NEG.finditer(t)))
+    if neg_hits:
+        out.append(f"否定式「{'、'.join(neg_hits)}」——模型不吃否定词,改直陈(不画X→只画Y)"
                    ";i2i 合法落法=去除操作(「去掉颈间玉坠」动词领头锚定图内实存物)或肯定枚举(「仅旧布绳束发」)")
     if negation_only:
         return out
-    m = _OPTIC.search(t)
-    if m:
-        out.append(f"技术光学词「{m.group(0)}」——改叙事光词(暮色/晨光),由型文转色面冷暖")
-    for b in _MUSH:
-        if b in t:
-            out.append(f"两可句「{b}」——改确定式(全身/半身由主体句显式指定)")
-            break
+    optic_hits = list(dict.fromkeys(m.group(0) for m in _OPTIC.finditer(t)))
+    if optic_hits:
+        out.append(f"技术光学词「{'、'.join(optic_hits)}」——改叙事光词(暮色/晨光),由型文转色面冷暖")
+    mush_hits = [b for b in _MUSH if b in t]
+    if mush_hits:
+        out.append(f"两可句「{'、'.join(mush_hits)}」——改确定式(全身/半身由主体句显式指定)")
     if "写实" in t:
         out.append("「写实」——禁写实词,工笔线描平涂由型文程式句承担")
     if is_subject:
-        for b in _EMPTY_Q:
-            if b in t:
-                out.append(f"空质量词「{b}」——换可见细节词(如「甲片边缘錾刻纹」)")
-                break
-        for b in _STYLE_WORDS:
-            if b in t:
-                out.append(f"画风词「{b}」——风格归底座,主体句只写画什么")
-                break
+        empty_hits = [b for b in _EMPTY_Q if b in t]
+        if empty_hits:
+            out.append(f"空质量词「{'、'.join(empty_hits)}」——换可见细节词(如「甲片边缘錾刻纹」)")
+        style_hits = [b for b in _STYLE_WORDS if b in t]
+        if style_hits:
+            out.append(f"画风词「{'、'.join(style_hits)}」——风格归底座,主体句只写画什么")
         out.extend(_weapon_grip_violations(t))
         out.extend(_gender_conflict_violations(t))
         hv = _hair_color_violation(t)
