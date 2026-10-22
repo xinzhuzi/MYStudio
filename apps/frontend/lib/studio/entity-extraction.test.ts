@@ -49,6 +49,73 @@ describe("studio entity extraction parsing", () => {
     expect(errors).toHaveLength(1);
   });
 
+  it.each([
+    "戎州官道·自辖地东门/办公洞穴",
+    "戎州官道·自辖地东门\\办公洞穴",
+    "外城/东门/",
+    "外城\\东门\\",
+    ...["mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "png", "jpg", "jpeg", "webp", "gif", "mp4", "mov", "webm", "mkv", "PNG"].map((ext) => `留影.${ext}`),
+  ])("preserves literal entity names rather than interpreting media paths: %s", (name) => {
+    const result = parseEntityExtraction(`| scene | ${name} | | | 环境 |`, "chapter-1569");
+
+    expect(result.errors).toEqual([]);
+    expect(result.entities).toEqual([
+      { kind: "scene", name, aliases: [], episodeIds: ["chapter-1569"], note: "环境" },
+    ]);
+  });
+
+  it("preserves path and suffix text in secondary names without collapsing distinct names", () => {
+    const { entities } = parseEntityExtraction(
+      "| scene | 东门/办公洞穴;西门/办公洞穴；办公洞穴,留影.png，留影 | | | |",
+      "ep0",
+    );
+
+    expect(entities[0]).toMatchObject({
+      name: "东门/办公洞穴",
+      aliases: ["西门/办公洞穴", "办公洞穴", "留影.png", "留影"],
+    });
+  });
+
+  it("keeps mixed-separator, case and whitespace equivalence without folding full-width names", () => {
+    const nameColumn = " ; Jack , j a c k；Ｊａｃｋ;ＪＡＣＫ，副 名;副名,甲、乙;; ";
+    const legacy = parseAssetNames(nameColumn, "");
+    const { entities } = parseEntityExtraction(`| character | ${nameColumn} | | | |`, "ep0");
+
+    expect(entities[0]).toMatchObject({
+      name: "Jack",
+      aliases: ["Ｊａｃｋ", "副 名", "甲、乙"],
+    });
+    expect(entities[0]?.name).toBe(legacy.primaryName);
+    expect(entities[0]?.aliases).toEqual(legacy.secondaryNames);
+  });
+
+  it("keeps alias-column splitting and exact duplicate removal unchanged", () => {
+    const { entities } = parseEntityExtraction(
+      "| prop | 铜钱;铜币 | 铜币、钱/币,钱，Ａ;B；C,Ａ;B；C,背\\囊.png | ep1，ep2 | |",
+      "ep0",
+    );
+
+    expect(entities[0]).toEqual({
+      kind: "prop",
+      name: "铜钱",
+      aliases: ["铜币", "钱", "币", "Ａ;B；C", "背\\囊.png"],
+      episodeIds: ["ep1", "ep2"],
+    });
+  });
+
+  it("keeps malformed, unknown-kind and delimiter-only name rows illegal", () => {
+    const invalidRows = [
+      "| scene | ;；,， | | | |",
+      "| location | 山门 | | | |",
+      "| prop | 账册 |",
+      "| prop | 账册 | | | | 多余列 |",
+    ];
+    expect(parseEntityExtraction(invalidRows.join("\n"), "ep0")).toEqual({
+      entities: [],
+      errors: invalidRows,
+    });
+  });
+
   it("parses semicolon secondary names from the entity name column", () => {
     const { entities } = parseEntityExtraction(
       "| prop | 铜钱;铜币;古钱 | 孔方兄 | ep1 | 圆形方孔钱 |",

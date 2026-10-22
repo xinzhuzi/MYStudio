@@ -1,5 +1,4 @@
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
-import { parseAssetNames } from "@/lib/studio/asset-names";
 import type { ScriptEntityHints } from "@/lib/studio/script-entity-hints";
 
 export type EntityKind = "character" | "scene" | "prop";
@@ -134,8 +133,15 @@ export function parseEntityExtraction(output: string, defaultEpisodeId: string):
     }
 
     const kind = fields[0]!.toLowerCase();
-    const parsedName = parseAssetNames(fields[1]!, "");
-    const name = parsedName.primaryName;
+    // 实体名不是媒体路径；仅保留名称列原有的分隔及大小写/空白去重语义。
+    const seenNames = new Set<string>();
+    const names = splitList(fields[1]!, /[;；,，]/).filter((value) => {
+      const key = value.replace(/\s+/g, "").toLocaleLowerCase("zh-Hans-CN");
+      if (seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    });
+    const [name, ...secondaryNames] = names;
     if (!isEntityKind(kind) || !name) {
       errors.push(line);
       continue;
@@ -145,7 +151,7 @@ export function parseEntityExtraction(output: string, defaultEpisodeId: string):
     entities.push({
       kind,
       name,
-      aliases: uniqueList([...parsedName.secondaryNames, ...splitList(fields[2]!)]),
+      aliases: uniqueList([...secondaryNames, ...splitList(fields[2]!)]),
       episodeIds: episodeIds.length ? episodeIds : [defaultEpisodeId],
       ...(fields[4] ? { note: fields[4] } : {}),
     });

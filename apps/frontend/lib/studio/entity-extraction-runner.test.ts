@@ -275,6 +275,28 @@ describe("extractChapterEntities · 调用与解析", () => {
     expect(result).toEqual({ status: "empty_parse" });
   });
 
+  it("复合场景主名保全,不因路径截短误连已知同尾名场景", async () => {
+    const name = "戎州官道·自辖地东门/办公洞穴";
+    const modelCall = vi.fn<EntityModelCall>().mockResolvedValue({
+      success: true,
+      text: `| scene | ${name} | 东门内厅 | | 环境 |`,
+    });
+
+    const result = await extractChapterEntities({
+      episodeId: "chapter-1569",
+      scriptText: "场次：戎州官道·自辖地东门/办公洞穴",
+      knownEntities: [{ id: "scene-tail", kind: "scene", name: "办公洞穴", aliases: [] }],
+      modelCall,
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+    expect(result.parseErrors).toEqual([]);
+    expect(result.entities).toEqual([
+      { id: null, isNew: true, kind: "scene", name, aliases: ["东门内厅"], episodeIds: ["chapter-1569"], note: "环境" },
+    ]);
+  });
+
   it("dedupe 命中 known(别名)→ 复用 id;坏行进 parseErrors", async () => {
     const modelCall = vi.fn<EntityModelCall>().mockResolvedValue({
       success: true,
@@ -302,6 +324,39 @@ describe("extractChapterEntities · 调用与解析", () => {
 // ── 执行器 runEntityExtraction ─────────────────────────────────────────────
 
 describe("runEntityExtraction · 主跑全链路(D10/D11/D17)", () => {
+  it("名称中的正反斜杠与媒体后缀原样进入章批次及出场索引", async () => {
+    const h = makeDeps();
+    const sceneName = "戎州官道·自辖地东门/办公洞穴";
+    const characterName = "画中\\剑客.png";
+    const propName = "留影.mp4";
+    h.modelCall.mockResolvedValueOnce({
+      success: true,
+      text: [
+        `| scene | ${sceneName} | 东门内厅 | | 环境 |`,
+        `| character | ${characterName} | | | 人像 |`,
+        `| prop | ${propName} | | | 信物 |`,
+      ].join("\n"),
+    });
+
+    const summary = await runEntityExtraction(h.deps, { range: [1, 1] });
+
+    expect(summary.counts).toEqual({ success: 1, failed: 0, skipped: 0, pending: 0 });
+    expect(h.modelCall).toHaveBeenCalledTimes(1);
+    expect(h.saveEntityExtraction).toHaveBeenCalledTimes(1);
+    expect(h.saveEntityExtraction.mock.calls[0]?.[0]).toMatchObject({
+      episodeId: "chapter-001",
+      scenes: [{ name: sceneName, aliases: ["东门内厅"] }],
+      characters: [{ name: characterName, aliases: [] }],
+      props: [{ name: propName, aliases: [] }],
+    });
+    const index = await readIndexFrom(h);
+    expect(Object.values(index).map((entry) => entry.name).sort()).toEqual(
+      [sceneName, characterName, propName].sort(),
+    );
+    expect(h.addScene).not.toHaveBeenCalled();
+    expect(h.addCharacter).not.toHaveBeenCalled();
+  });
+
   it("逐章调用,分片经 store action 落对章;台账+出场索引落 store/extraction/", async () => {
     const h = makeDeps();
     h.modelCall
