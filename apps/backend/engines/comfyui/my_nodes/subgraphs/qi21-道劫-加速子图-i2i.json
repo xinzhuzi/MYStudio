@@ -109,9 +109,9 @@
         "id": "b3f5a1c2-9d4e-4f60-8a7b-5c6d7e8f9a0b",
         "version": 1,
         "state": {
-          "lastGroupId": 15,
-          "lastNodeId": 7034,
-          "lastLinkId": 4411,
+          "lastGroupId": 16,
+          "lastNodeId": 7043,
+          "lastLinkId": 7519,
           "lastRerouteId": 2
         },
         "revision": 1,
@@ -181,7 +181,8 @@
             "linkIds": [
               256,
               264,
-              4401
+              4401,
+              7512
             ],
             "pos": [
               80.0,
@@ -196,7 +197,8 @@
               250,
               251,
               259,
-              4402
+              4402,
+              7517
             ],
             "pos": [
               80.0,
@@ -586,6 +588,13 @@
                 "shape": 7,
                 "type": "STRING",
                 "link": 4413
+              },
+              {
+                "localized_name": "latent_direct",
+                "name": "latent_e",
+                "shape": 7,
+                "type": "LATENT",
+                "link": 7518
               }
             ],
             "outputs": [
@@ -646,7 +655,8 @@
                 "type": "NOISE",
                 "links": [
                   257,
-                  4405
+                  4405,
+                  7515
                 ]
               }
             ],
@@ -692,7 +702,8 @@
                 "links": [
                   27,
                   266,
-                  4406
+                  4406,
+                  7516
                 ]
               }
             ],
@@ -1062,7 +1073,9 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  4403
+                  4403,
+                  7510,
+                  7513
                 ]
               }
             ],
@@ -1269,10 +1282,10 @@
             "properties": {},
             "title": "[7016] 加速档位说明",
             "widgets_values": [
-              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)"
+              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7043] E混动支路·档3「混动 40步+缓存」(1023 LazyCache役,t2i 同款入列):[7028 Turbo LoRA 出]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7042 BasicGuider cfg1(正源=positive_single 单参考域,同 Turbo)]→[7043 SamplerCustomAdvanced]+[7041 BasicScheduler simple 40步;混动=turbo LoRA×40步长调度,实弹341→142s(2.41×)跳24/40步,漂移=换相近图;默认档仍=档0 Turbo 8步,本档手选)"
             ],
             "widgets_values_named": {
-              "text": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)"
+              "内容": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7043] E混动支路·档3「混动 40步+缓存」(1023 LazyCache役,t2i 同款入列):[7028 Turbo LoRA 出]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7042 BasicGuider cfg1(正源=positive_single 单参考域,同 Turbo)]→[7043 SamplerCustomAdvanced]+[7041 BasicScheduler simple 40步;混动=turbo LoRA×40步长调度,实弹341→142s(2.41×)跳24/40步,漂移=换相近图;默认档仍=档0 Turbo 8步,本档手选)"
             }
           },
           {
@@ -1327,6 +1340,208 @@
               "strength_model": 0.8
             },
             "title": "[7034] 风格LoRA·mikkoani(×0.8)"
+          },
+          {
+            "id": 7040,
+            "type": "LazyCache",
+            "pos": [
+              2250.0,
+              5600.0
+            ],
+            "size": [
+              270,
+              170
+            ],
+            "flags": {},
+            "order": 24,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7510
+              }
+            ],
+            "outputs": [
+              {
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7511,
+                  7513
+                ],
+                "slot_index": 0
+              }
+            ],
+            "title": "[7040] E混动·LazyCache步跳缓存",
+            "properties": {
+              "Node name for S&R": "LazyCache"
+            },
+            "widgets_values": [
+              0.2,
+              0.15,
+              0.95,
+              false
+            ],
+            "widgets_values_named": {
+              "reuse_threshold": 0.2,
+              "start_percent": 0.15,
+              "end_percent": 0.95,
+              "verbose": false
+            }
+          },
+          {
+            "id": 7041,
+            "type": "BasicScheduler",
+            "pos": [
+              2620.0,
+              6150.0
+            ],
+            "size": [
+              270,
+              100
+            ],
+            "flags": {},
+            "order": 24,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7513
+              }
+            ],
+            "outputs": [
+              {
+                "name": "SIGMAS",
+                "type": "SIGMAS",
+                "links": [
+                  7514
+                ],
+                "slot_index": 0
+              }
+            ],
+            "title": "[7041] E混动σ·simple40步",
+            "properties": {
+              "Node name for S&R": "BasicScheduler"
+            },
+            "widgets_values": [
+              "simple",
+              40,
+              1.0
+            ],
+            "widgets_values_named": {
+              "scheduler": "simple",
+              "steps": 40,
+              "denoise": 1.0
+            }
+          },
+          {
+            "id": 7042,
+            "type": "BasicGuider",
+            "pos": [
+              3050.0,
+              5600.0
+            ],
+            "size": [
+              270,
+              110
+            ],
+            "flags": {},
+            "order": 24,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "link": 7511
+              },
+              {
+                "name": "conditioning",
+                "type": "CONDITIONING",
+                "link": 7512
+              }
+            ],
+            "outputs": [
+              {
+                "name": "GUIDER",
+                "type": "GUIDER",
+                "links": [
+                  7519
+                ],
+                "slot_index": 0
+              }
+            ],
+            "title": "[7042] E混动引导",
+            "properties": {
+              "Node name for S&R": "BasicGuider"
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
+          },
+          {
+            "id": 7043,
+            "type": "SamplerCustomAdvanced",
+            "pos": [
+              3850.0,
+              5600.0
+            ],
+            "size": [
+              330,
+              200
+            ],
+            "flags": {},
+            "order": 24,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "noise",
+                "type": "NOISE",
+                "link": 7515
+              },
+              {
+                "name": "guider",
+                "type": "GUIDER",
+                "link": 7519
+              },
+              {
+                "name": "sampler",
+                "type": "SAMPLER",
+                "link": 7516
+              },
+              {
+                "name": "sigmas",
+                "type": "SIGMAS",
+                "link": 7514
+              },
+              {
+                "name": "latent_image",
+                "type": "LATENT",
+                "link": 7517
+              }
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "type": "LATENT",
+                "links": [
+                  7518
+                ],
+                "slot_index": 0
+              },
+              {
+                "name": "denoised_output",
+                "type": "LATENT",
+                "links": [],
+                "slot_index": 1
+              }
+            ],
+            "title": "[7043] E混动采样",
+            "properties": {
+              "Node name for S&R": "SamplerCustomAdvanced"
+            },
+            "widgets_values": [],
+            "widgets_values_named": {}
           }
         ],
         "groups": [
@@ -1388,6 +1603,18 @@
               342.0
             ],
             "color": "#d3a130",
+            "flags": {}
+          },
+          {
+            "id": 16,
+            "title": "⑤混动 40步+缓存",
+            "bounding": [
+              1870.0,
+              5560.0,
+              2600.0,
+              950.0
+            ],
+            "color": "#8c466a",
             "flags": {}
           }
         ],
@@ -1711,6 +1938,86 @@
             "target_id": 7034,
             "target_slot": 0,
             "type": "MODEL"
+          },
+          {
+            "id": 7510,
+            "origin_id": 7028,
+            "origin_slot": 0,
+            "target_id": 7040,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7511,
+            "origin_id": 7040,
+            "origin_slot": 0,
+            "target_id": 7042,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7512,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7042,
+            "target_slot": 1,
+            "type": "CONDITIONING"
+          },
+          {
+            "id": 7513,
+            "origin_id": 7028,
+            "origin_slot": 0,
+            "target_id": 7041,
+            "target_slot": 0,
+            "type": "MODEL"
+          },
+          {
+            "id": 7514,
+            "origin_id": 7041,
+            "origin_slot": 0,
+            "target_id": 7043,
+            "target_slot": 3,
+            "type": "SIGMAS"
+          },
+          {
+            "id": 7515,
+            "origin_id": 7017,
+            "origin_slot": 0,
+            "target_id": 7043,
+            "target_slot": 0,
+            "type": "NOISE"
+          },
+          {
+            "id": 7516,
+            "origin_id": 7018,
+            "origin_slot": 0,
+            "target_id": 7043,
+            "target_slot": 2,
+            "type": "SAMPLER"
+          },
+          {
+            "id": 7517,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7043,
+            "target_slot": 4,
+            "type": "LATENT"
+          },
+          {
+            "id": 7518,
+            "origin_id": 7043,
+            "origin_slot": 0,
+            "target_id": 7015,
+            "target_slot": 5,
+            "type": "LATENT"
+          },
+          {
+            "id": 7519,
+            "origin_id": 7042,
+            "origin_slot": 0,
+            "target_id": 7043,
+            "target_slot": 1,
+            "type": "GUIDER"
           }
         ],
         "extra": {

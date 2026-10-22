@@ -461,7 +461,7 @@ class MyQi21InstructionSelect(MyQi21PromptSelect):
             },
         }
 
-    def check_lazy_status(self, pe开关: bool = False, **kwargs: Any) -> list[str]:
+    def check_lazy_status(self, pe开关: bool | None = False, **kwargs: Any) -> list[str]:
         return super().check_lazy_status(pe开关=pe开关, **kwargs)
 
     def select_instruction(self, 原始指令: str | None = None,

@@ -791,9 +791,9 @@ describe("feature 口本地通道令牌注入(1011 断点A)", () => {
     expect(String(url)).toBe("http://127.0.0.1:17595/v1/images/generations");
     const requestBody = JSON.parse(String(init?.body));
     expect(requestBody.model).toBe("qwen-image-2-1");
-    const headers = init?.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer uuid-token-from-bridge");
-    expect(headers.Authorization).not.toContain("manying-local-image");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer uuid-token-from-bridge");
+    expect(headers.get("Authorization")).not.toContain("manying-local-image");
   });
 
   it("桥缺席(非 Electron)保留占位 key,fail-closed 语义不回退", async () => {
@@ -807,8 +807,8 @@ describe("feature 口本地通道令牌注入(1011 断点A)", () => {
 
     // /health 探活之外的生图调用仍持占位 key(探活不带鉴权,不在断言列)
     const genCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/v1/images/generations"));
-    const headers = genCall?.[1]?.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer manying-local-image");
+    const headers = new Headers(genCall?.[1]?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer manying-local-image");
   });
 
   it("云端绑定不受本地令牌替换影响", async () => {

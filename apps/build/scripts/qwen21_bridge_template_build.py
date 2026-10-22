@@ -146,7 +146,8 @@ def selected_graph(graph: dict, outputs: list[str]) -> dict:
         inputs = node['inputs']
         if node['class_type'] == 'MyQi21SpeedSelect':
             mode = literal(inputs['mode'])
-            slots = {'0 · Turbo 8步': 'latent_turbo', '1 · 原生出图': 'latent_direct', '2 · viggle': 'latent_viggle'}
+            slots = {'0 · Turbo 8步': 'latent_turbo', '1 · 原生出图': 'latent_direct', '2 · viggle': 'latent_viggle',
+                     '3 · 混动 40步+缓存': 'latent_e'}  # 1023 E混动臂
             if mode not in slots:
                 raise ValueError(f'unknown saved speed: {mode}')
             for name in slots.values():

@@ -1,7 +1,6 @@
 """Real multiview assembly and retired W1 compatibility regressions."""
 from __future__ import annotations
 
-import copy
 import hashlib
 import importlib.util
 import json
@@ -42,7 +41,7 @@ def saved_i2i_prompt_graph():
     assert len(paths) == 1
     workflow = json.loads(paths[0].read_bytes())
     return next(graph for graph in workflow["definitions"]["subgraphs"]
-                if any(node["id"] == 153 and node["type"] == "MyQi21PromptSelect"
+                if any(node["id"] == 153 and node["type"] == "MyQi21FinalOutput"
                        for node in graph["nodes"]))
 
 
@@ -108,9 +107,11 @@ def test_real_multiview_layout_and_damage_scope(field):
 def test_real_multiview_assembly_survives_saved_w1_snapshot(pe_enabled):
     subject = original_subject()
     graph = saved_i2i_prompt_graph()
-    first = copy.deepcopy(next(node for node in graph["nodes"] if node["id"] == 4014)["widgets_values_named"])
-    first.update(装配全文=subject, pe开关=False)
-    selected, _ = SELECT.MyQi21PromptSelect().compose(**first)
+    first = next(node for node in graph["nodes"] if node["id"] == 4014)
+    assert first["type"] == "MyQi21InstructionSelect"
+    assert first["widgets_values"] == [False]
+    selected, = SELECT.MyQi21InstructionSelect().select_instruction(
+        原始指令=subject, PE出文=subject, pe开关=pe_enabled)
     assert selected == subject
     base, width, height, base_negative, transparent, type_name = BASE.MyQi21DaojieBase().run("人物多视图")
     assert base == MULTIVIEW["positive_text"] and base_negative == MULTIVIEW["negative_text"]
@@ -118,11 +119,11 @@ def test_real_multiview_assembly_survives_saved_w1_snapshot(pe_enabled):
     assembled, negative = ASSEMBLY.MyQi21PromptAssembly().assemble(
         BASE=base, BASE负面=base_negative,
         主体句=selected, 组装用途="道劫美术类型")
-    saved = copy.deepcopy(next(node for node in graph["nodes"] if node["id"] == 153)["widgets_values_named"])
-    assert saved["W1收束句"] == RGBA["w1_closing"]
-    saved.update(装配全文=assembled, 负面词直写=negative, 透明模式=True,
-                 pe开关=pe_enabled, PE出文=assembled, PE负面="不该取的PE负面")
-    actual, actual_negative = SELECT.MyQi21PromptSelect().compose(**saved)
+    saved = next(node for node in graph["nodes"] if node["id"] == 153)
+    assert saved["widgets_values"] == []
+    assert [slot["name"] for slot in saved["inputs"]] == ["正向提示词", "负向提示词", "透明模式"]
+    actual, actual_negative = FINAL.MyQi21FinalOutput().compose(
+        正向提示词=assembled, 负向提示词=negative, 透明模式=True)
     assert RGBA["w1_closing"] not in actual
     assert "single standalone asset" not in actual
     assert subject in actual

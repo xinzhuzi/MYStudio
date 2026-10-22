@@ -2,7 +2,7 @@
   "id": "54bb395d-3e60-4c94-b525-85523901575b",
   "revision": 0,
   "last_node_id": 517,
-  "last_link_id": 821,
+  "last_link_id": 830,
   "nodes": [
     {
       "id": 13,
@@ -123,14 +123,14 @@
     },
     {
       "id": 485,
-      "type": "VAELoader",
+      "type": "VAELoaderKJ",
       "pos": [
         2819.6605392050487,
         2397.7265795645244
       ],
       "size": [
         510,
-        70
+        130
       ],
       "flags": {},
       "order": 4,
@@ -149,7 +149,7 @@
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.37.1",
-        "Node name for S&R": "VAELoader",
+        "Node name for S&R": "VAELoaderKJ",
         "ue_properties": {
           "widget_ue_connectable": {},
           "version": "7.5.1",
@@ -164,10 +164,14 @@
         ]
       },
       "widgets_values": [
-        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+        "cpu",
+        "fp32"
       ],
       "widgets_values_named": {
-        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+        "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+        "device": "cpu",
+        "weight_dtype": "fp32"
       }
     },
     {
@@ -217,7 +221,7 @@
         "default"
       ],
       "widgets_values_named": {
-        "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+        "clip_name": "qwen3vl_8b_bf16_heretic.safetensors",
         "type": "qwen_image",
         "device": "default"
       }
@@ -267,7 +271,7 @@
         1
       ],
       "widgets_values_named": {
-        "lora_name": "Downloads/bfs_qwen_2.1.safetensors",
+        "lora_name": "bfs_head_v1.1_qwen_2.1.safetensors",
         "strength_model": 1
       }
     },
@@ -290,7 +294,9 @@
         {
           "name": "MODEL",
           "type": "MODEL",
-          "links": []
+          "links": [
+            800
+          ]
         }
       ],
       "properties": {
@@ -315,7 +321,7 @@
         "default"
       ],
       "widgets_values_named": {
-        "unet_name": "qwen_image_2.1_int8_convrot.safetensors",
+        "unet_name": "qwen_image_2.1_bf16.safetensors",
         "weight_dtype": "default"
       }
     },
@@ -344,10 +350,10 @@
         }
       },
       "widgets_values": [
-        "## BFS 换头术(Qwen-Image 2.1 本地化版)\n\n**用法**:参考1=身体图(构图/衣物/姿态),参考2=头部引用(五官/发型/肤色)\n\n- 模型已本地化:bf16底模+heretic TE+texture_fix VAE\n- 采样:euler/simple 20步 cfg1(去掉Pruna加速后从8步升到20)\n- BFS LoRA:bfs_head_v1.1_qwen_2.1 ×1.0(推荐版,肤质保留好)\n- 官方提示词保留英文(head_swap开头)\n\n**要换模型**:改 UNETLoader/CLIPLoader/VAELoader 的模型名\n**要换提示词**:改 TextEncodeQwenImage21 的 prompt\n**要加速**:加回一个加速 LoRA 并把步数降回 8\n"
+        "## BFS 换头（Qwen-Image 2.1）\n\n参考1=身体图（构图/衣物/姿态），参考2=头部引用（五官/发型）。请先选择两张输入图。\n\n- 本地模型：bf16 底模 + heretic TE + 同一 texture_fix VAE。\n- VAE：VAELoaderKJ，CPU + FP32；参考编码和最终解码共用，不切回 MPS。\n- 采样：20步、CFG1、euler/simple；BFS LoRA ×1.0，seed42。\n- 默认指令是两组 seed A/B 实跑通过的作者 head_swap 原句。\n- head_swap 替换整头，参考发型与画风也可能迁移；不是保原发型的面部精修。\n- CPU VAE 修复本机严重棕灰失真，不保证身份、画风或全图细节完美保留。\n- 要保留原图非面部像素，须另做局部软蒙版回贴并验证蒙版外差值为0。\n- 需要透明底时单独抠图，不靠换头指令保证透明背景。\n\n模型名在 UNETLoader / CLIPLoader / VAELoaderKJ 修改；提示词在 TextEncodeQwenImage21 修改。\n本流不含 Pruna 加速 LoRA；加速配置未经本轮验证。尺寸、保存与像素后处理保持原生产设置。\n"
       ],
       "widgets_values_named": {
-        "text": "## Size\nQwen Image 2.1 has native 2K (2048*2048) support for direct output.\n\n- resolution is a total pixel budget (not width or height). Aspect ratio is preserved.\n- Official default is 1024. The model supports up to 2048.\n- This template starts at 0: no resize beyond a multiple of 32.\n- Output follows image_1. Extra refs can differ in size or aspect.\n- custom_size off: canvas comes from the encode latent (image_1).\n- custom_size on: use ResolutionSelector width/height. Keep it close to the resized image_1 size, or the edit can shift.\n\n## Reference images\n- Up to 10 reference images (image_1 to image_10).\n- Mention them in the prompt as `<image1>`, `<image2>`, ...\n- image_1 is the edit target. The rest are references.\n\n## Custom settings\nIf you need custom settings, enter or unpack the subgraph to edit it. See the [Subgraph](https://docs.comfy.org/interface/features/subgraph) guide.\n\n## Parameters\n- prompt: edit instruction. Use `<image1>` ... `<image10>`.\n- negative_prompt: unused while cfg is 1.\n- cfg: keep 1 for the Qwen Image 2.1 official path. Raise it only if you use a negative prompt.\n- steps: Qwen Image 2.1 official pipeline uses about 40-50 with euler. This template starts at 25. More advanced samplers need fewer steps."
+        "text": "## BFS 换头（Qwen-Image 2.1）\n\n参考1=身体图（构图/衣物/姿态），参考2=头部引用（五官/发型）。请先选择两张输入图。\n\n- 本地模型：bf16 底模 + heretic TE + 同一 texture_fix VAE。\n- VAE：VAELoaderKJ，CPU + FP32；参考编码和最终解码共用，不切回 MPS。\n- 采样：20步、CFG1、euler/simple；BFS LoRA ×1.0，seed42。\n- 默认指令是两组 seed A/B 实跑通过的作者 head_swap 原句。\n- head_swap 替换整头，参考发型与画风也可能迁移；不是保原发型的面部精修。\n- CPU VAE 修复本机严重棕灰失真，不保证身份、画风或全图细节完美保留。\n- 要保留原图非面部像素，须另做局部软蒙版回贴并验证蒙版外差值为0。\n- 需要透明底时单独抠图，不靠换头指令保证透明背景。\n\n模型名在 UNETLoader / CLIPLoader / VAELoaderKJ 修改；提示词在 TextEncodeQwenImage21 修改。\n本流不含 Pruna 加速 LoRA；加速配置未经本轮验证。尺寸、保存与像素后处理保持原生产设置。\n"
       },
       "color": "#222",
       "bgcolor": "#000"
@@ -383,7 +389,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            755
+            822
           ]
         }
       ],
@@ -416,7 +422,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 755
+          "link": 830
         }
       ],
       "outputs": [
@@ -498,22 +504,28 @@
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": []
+          "links": [
+            807
+          ]
         },
         {
           "name": "width",
           "type": "INT",
-          "links": []
+          "links": [
+            820
+          ]
         },
         {
           "name": "height",
           "type": "INT",
-          "links": []
+          "links": [
+            821
+          ]
         },
         {
           "name": "mask",
           "type": "MASK",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -624,7 +636,7 @@
         }
       },
       "widgets_values": [
-        "face_swap: start with <image1> as the base image, keeping its body, pose, clothing, hairstyle, and composition intact. Replace only the facial features of the person in <image1> with the facial features from <image2>: the exact eye shape and eye color, eyebrows, ears, nose bridge and nose tip, lips and mouth shape, jawline, cheekbones must be identical to <image2>. The entire image uses the same color palette, color temperature, brightness, and overall tones as <image1>. The skin tone matches <image1>. The clothing colors match <image1>. Keep the hairstyle and hair color from <image1>. The direction of gaze and head rotation should follow <image1>. Remove the background completely and output a transparent background. This is an RGBA image with transparency, the background is fully transparent. High quality, sharp details.",
+        "head_swap: start with <image1> as the base image, keeping its lighting, environment, and background. remove the head from <image1> completely and replace it with the head from <image2>, strictly preserving the hair, eye color, nose structure from <image2>. copy the direction of the eye, head rotation, micro expressions from <image1>, high quality, sharp details, 4k",
         "",
         0
       ],
@@ -683,7 +695,9 @@
         {
           "name": "IMAGE",
           "type": "IMAGE",
-          "links": []
+          "links": [
+            814
+          ]
         },
         {
           "name": "width",
@@ -698,7 +712,7 @@
         {
           "name": "mask",
           "type": "MASK",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
@@ -933,9 +947,9 @@
       "widgets_values_named": {
         "seed": 42,
         "control_after_generate": "fixed",
-        "steps": 8,
+        "steps": 20,
         "cfg": 1,
-        "sampler_name": "deis_2m",
+        "sampler_name": "euler",
         "scheduler": "simple",
         "denoise": 1
       }
@@ -987,7 +1001,7 @@
         "image"
       ],
       "widgets_values_named": {
-        "image": "thispersondoesnotexist (1).jpg",
+        "image": "",
         "upload": "image"
       }
     },
@@ -1017,7 +1031,7 @@
         {
           "name": "MASK",
           "type": "MASK",
-          "links": null
+          "links": []
         }
       ],
       "title": "Body Reference",
@@ -1036,7 +1050,7 @@
         "image"
       ],
       "widgets_values_named": {
-        "image": "DKhaf_RMhhQ.jpg",
+        "image": "",
         "upload": "image"
       }
     },

@@ -3,7 +3,7 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """漫影 qi21 加速档位选择(MyQi21SpeedSelect,0929 加速区并行化·方案 B 造件)。
 
-三档互斥加速支路在 LATENT 汇流处的单一选择点(任务 09-29-qi21-acczone-
+四档互斥加速支路(t2i 专属 E混动臂 1023 入列)在 LATENT 汇流处的单一选择点(任务 09-29-qi21-acczone-
 parallel design §2/§4):原生出图 / viggle / Turbo 三条完整自足支路各自
 采样后,本节点按 mode 档位把选中支路的 latent 原样路由出去——替代 0929 前
 注入式开关农场(t2i 加速区 10 逻辑件→1 选择件;MODEL/steps 内聚各支路,
@@ -54,6 +54,7 @@ SPEED_MODES: tuple[tuple[str, str | None], ...] = (
     ("0 · Turbo 8步", "latent_turbo"),
     ("1 · 原生出图", "latent_direct"),
     ("2 · viggle", "latent_viggle"),
+    ("3 · 混动 40步+缓存", "latent_e"),  # 1023 E混动臂:turbo LoRA×40步simple+LazyCache 步跳缓存(实弹2.41×),t2i 专属支路
     (AUTO_MODE, None),
 )
 
@@ -112,6 +113,9 @@ class MyQi21SpeedSelect:
                     "tooltip": "「自动 · 按型」档用:接底座节点的「型名」出,"
                                "设定卡/美宣走原生出图,其余(含留空)走 Turbo;"
                                "手动档忽略此值"}),
+                # 1023 E混动档支路槽(追加在末=存量画布槽序零漂移);未接线档
+                # 静默放行(i2i/edit 画布无此臂,选它=未接线人话报错)
+                "latent_e": ("LATENT", {"lazy": True}),
             },
         }
 

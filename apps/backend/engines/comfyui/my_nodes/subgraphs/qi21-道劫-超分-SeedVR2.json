@@ -164,7 +164,7 @@
             "type": "SeedVR2LoadDiTModel",
             "pos": [
               1500,
-              500
+              130
             ],
             "size": [
               300,
@@ -224,7 +224,7 @@
             "type": "SeedVR2LoadVAEModel",
             "pos": [
               1500,
-              1000
+              510
             ],
             "size": [
               300,
@@ -389,7 +389,7 @@
             "type": "PrimitiveInt",
             "pos": [
               300,
-              700
+              950
             ],
             "size": [
               270,

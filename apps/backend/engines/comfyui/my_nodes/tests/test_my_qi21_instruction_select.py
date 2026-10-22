@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[6]
 NODES = Path(__file__).resolve().parents[1] / 'nodes'
 
 
 def load_module(name):
     spec = importlib.util.spec_from_file_location(name, NODES / f'{name}.py')
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -222,21 +222,13 @@
       }
     },
     "6:4014": {
-      "class_type": "MyQi21PromptSelect",
+      "class_type": "MyQi21InstructionSelect",
       "inputs": {
-        "装配全文": [
+        "pe开关": false,
+        "原始指令": [
           "400",
           0
-        ],
-        "负面词直写": "",
-        "pe开关": [
-          "6:4012",
-          0
-        ],
-        "透明模式": false,
-        "RGBA官方头句": "This is an RGBA image with transparency.",
-        "RGBA官方尾句": "The image has alpha channel and the background is transparent.",
-        "W1收束句": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
+        ]
       }
     },
     "6:4011": {
@@ -260,30 +252,20 @@
       }
     },
     "6:153": {
-      "class_type": "MyQi21PromptSelect",
+      "class_type": "MyQi21FinalOutput",
       "inputs": {
-        "装配全文": [
-          "6:4011",
-          0
-        ],
-        "负面词直写": [
-          "6:4011",
-          1
-        ],
-        "pe开关": false,
         "透明模式": [
           "6:180",
           0
         ],
-        "RGBA官方头句": "This is an RGBA image with transparency.",
-        "RGBA官方尾句": "The image has alpha channel and the background is transparent.",
-        "W1收束句": "The subject appears as a single standalone asset, complete and clean within the frame, surrounded by transparent emptiness, its outline clear and unbroken to the edge."
-      }
-    },
-    "6:4012": {
-      "class_type": "PrimitiveBoolean",
-      "inputs": {
-        "value": false
+        "正向提示词": [
+          "6:4011",
+          0
+        ],
+        "负向提示词": [
+          "6:4011",
+          1
+        ]
       }
     },
     "6:4018": {

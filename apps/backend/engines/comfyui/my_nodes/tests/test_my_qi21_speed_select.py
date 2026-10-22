@@ -4,7 +4,7 @@
 """MyQi21SpeedSelect 契约测试(0929 加速区并行化·方案 B 自研件;与
 test_my_qi21_base.py 同目录同纪律,源码位 sidecar 零引擎依赖)。
 
-锁:注册面(双表+类目+无旧名别名)/combo 闭集(1017 增档令:四档精确串,
+锁:注册面(双表+类目+无旧名别名)/combo 闭集(1017 增档令+1023 E混动增档:五档精确串,
 首项=默认=「0 · Turbo 8步」(1021 用户令,所有型均走 Turbo);自动档居末且
 仍按型名∈{设定卡,美宣,概念气氛图}→原生出图,其余含空→Turbo;
 手动档字符串不变;分隔符码位 U+00B7 防全角漂移;自动档
@@ -35,6 +35,7 @@ from engines.comfyui.my_nodes.nodes.my_qi21_speed_select import (
 _TURBO = {"branch": "turbo"}
 _VIGGLE = {"branch": "viggle"}
 _DIRECT = {"branch": "direct"}
+_E = {"branch": "e"}
 _TYPE_INPUTS = [*bases_list(), "", None, ...]
 
 
@@ -42,7 +43,7 @@ _TYPE_INPUTS = [*bases_list(), "", None, ...]
 def test_registry_exposes_speed_select():
     assert NODE_CLASS_MAPPINGS.get("MyQi21SpeedSelect") is MyQi21SpeedSelect
     assert NODE_DISPLAY_NAME_MAPPINGS["MyQi21SpeedSelect"] == \
-        "Q2-1 加速档位(三选一·默认Turbo 8步)"  # 1016turbo 换臂官方 Turbo(承 1002 提首位)
+        "Q2-1 加速档位(四选一·默认Turbo 8步)"  # 1016turbo 换臂官方 Turbo(承 1002 提首位)
     assert MyQi21SpeedSelect.CATEGORY == "漫影"  # 类目随包内现行目录(兄弟件同区)
     # 设计裁定:新节点无存量工作流,不建 Manying 旧名别名
     assert "ManyingQi21SpeedSelect" not in NODE_CLASS_MAPPINGS
@@ -55,14 +56,15 @@ def test_combo_closed_set_first_item_is_default_turbo():
     assert set(spec) == {"required", "optional"}
     assert set(spec["required"]) == {"mode"}
     assert set(spec["optional"]) == {"latent_turbo", "latent_viggle",
-                                     "latent_direct", "型名"}
+                                     "latent_direct", "型名", "latent_e"}
     # 1017:型名=自动档信号槽(STRING 非 lazy,接底座件「型名」出;未接线/
     # 留空=按 Turbo 缺省安全侧)
     assert spec["optional"]["型名"][0] == "STRING"
     assert not spec["optional"]["型名"][1].get("lazy")
     combo = spec["required"]["mode"]
     assert isinstance(combo[0], list)
-    assert combo[0] == ["0 · Turbo 8步", "1 · 原生出图", "2 · viggle", "自动 · 按型"]
+    assert combo[0] == ["0 · Turbo 8步", "1 · 原生出图", "2 · viggle",
+                        "3 · 混动 40步+缓存", "自动 · 按型"]
     assert combo[1]["default"] == "0 · Turbo 8步"
     assert DEFAULT_MODE == MODES[0] == "0 · Turbo 8步"
     assert MODES[-1] == AUTO_MODE
@@ -72,11 +74,12 @@ def test_combo_closed_set_first_item_is_default_turbo():
     # 档位↔槽名单源映射全覆盖(自动档无固有槽=位 None,实际槽按型名现算;
     # 手动档 combo 序=默认优先,档号=序位号)
     assert [s for _m, s in SPEED_MODES] == ["latent_turbo", "latent_direct",
-                                          "latent_viggle", None]
+                                          "latent_viggle", "latent_e", None]
     assert slot_for_mode("自动 · 按型") is None  # 自动档不经 slot_for_mode(按型名现算)
     assert slot_for_mode("0 · Turbo 8步") == "latent_turbo"
     assert slot_for_mode("1 · 原生出图") == "latent_direct"
     assert slot_for_mode("2 · viggle") == "latent_viggle"
+    assert slot_for_mode("3 · 混动 40步+缓存") == "latent_e"  # 1023 E混动档
     assert slot_for_mode("不存在的档") is None
 
 
@@ -85,7 +88,7 @@ def test_output_shape_and_three_lazy_slots():
     assert MyQi21SpeedSelect.RETURN_NAMES == ("latent",)
     assert MyQi21SpeedSelect.FUNCTION == "select"
     optional = MyQi21SpeedSelect.INPUT_TYPES()["optional"]
-    for slot in ("latent_turbo", "latent_viggle", "latent_direct"):
+    for slot in ("latent_turbo", "latent_viggle", "latent_direct", "latent_e"):
         assert optional[slot][0] == "LATENT"
         assert optional[slot][1].get("lazy") is True  # 懒声明=未选支路零执行零加载
 
@@ -95,11 +98,12 @@ def test_output_shape_and_three_lazy_slots():
     ("0 · Turbo 8步", _TURBO),
     ("1 · 原生出图", _DIRECT),
     ("2 · viggle", _VIGGLE),
+    ("3 · 混动 40步+缓存", _E),
 ])
 def test_select_routes_each_mode_branch(mode, branch):
     node = MyQi21SpeedSelect()
     result = node.select(mode, latent_turbo=_TURBO, latent_viggle=_VIGGLE,
-                         latent_direct=_DIRECT)
+                         latent_direct=_DIRECT, latent_e=_E)
     assert result == (branch,)  # 原样直通(同对象引用,不拷贝不改写)
     assert result[0] is branch
 
@@ -177,7 +181,7 @@ def test_lazy_engine_protocol_matrix():
         else:              # 手动档:固有槽,型名缺席(不投递)
             rows.append((mode, slot, ...))
     for mode, expected, tn in rows:
-        for slot in ("latent_turbo", "latent_viggle", "latent_direct"):
+        for slot in ("latent_turbo", "latent_viggle", "latent_direct", "latent_e"):
             for presence in ("absent", "none", "valued"):
                 kwargs = {}
                 if presence == "none":

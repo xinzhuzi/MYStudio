@@ -158,16 +158,15 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         self.assertEqual((ref["node"], ref["slot"], ref["field"]), ("10", 0, "image"))
         self.assertEqual(ref["class_type"], "LoadImage")
         load_images = sorted(key for key, node in self.graph.items() if node["class_type"] == "LoadImage")
-        # 10-21 模板落库现状:①[11]→[17]→4015.images.image_2 demo 常驻链(组级
-        # 旁路役快照;桥运行时物理摘除保单参考语义)②SeedVR2 2K 链在场
-        # (503:*/504;_prefer_upscaled_output 优先 504 回落 8)。真正缺席=12/505。
-        self.assertEqual(load_images, ["10", "11"])
-        self.assertEqual(self.graph["17"]["inputs"]["image"], ["11", 0])
-        self.assertEqual(self.graph["4015"]["inputs"]["images.image_2"], ["17", 0])
+        # selected_graph 按现画布旁路状态裁去第二/第三参考，保留第一参考与超分链。
+        self.assertEqual(load_images, ["10"])
+        self.assertEqual(self.graph["4015"]["inputs"]["images.image_1"], ["16", 0])
+        self.assertNotIn("images.image_2", self.graph["4015"]["inputs"])
+        self.assertNotIn("images.image_3", self.graph["4015"]["inputs"])
         self.assertIn("image", self.graph["10"]["inputs"])
         self.assertEqual(self.graph["504"]["class_type"], "SaveImage")
         self.assertIn("503:7401", self.graph)
-        for absent in ("12", "505"):
+        for absent in ("11", "12", "17", "505"):
             self.assertNotIn(absent, self.graph, absent)
         # SaveImage [8] 在场(唯一产物口;504 缺席→_prefer_upscaled_output 自然回落 8)
         self.assertEqual(self.graph["8"]["class_type"], "SaveImage")
@@ -183,11 +182,16 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         self.assertEqual(self.graph["6:180"]["inputs"]["rgba_hint"], ["6:4010", 4])
         # 档位快照=Turbo 8 步
         self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "0 · Turbo 8步")
-        # PE 链在场且 pe开关 False(PE出文/PE负面 按 selected_graph 剪除)
-        self.assertIs(self.graph["6:4012"]["inputs"]["value"], False)
-        self.assertIn("6:4014", self.graph)
+        # 指令择文直接持有 PE 开关；关闭时 selected_graph 不保留 PE 依赖。
+        self.assertNotIn("6:4012", self.graph)
+        self.assertEqual(self.graph["6:4014"]["class_type"], "MyQi21InstructionSelect")
+        self.assertIs(self.graph["6:4014"]["inputs"]["pe开关"], False)
+        self.assertEqual(self.graph["6:4014"]["inputs"]["原始指令"], ["400", 0])
         self.assertNotIn("PE出文", self.graph["6:4014"]["inputs"])
         self.assertNotIn("PE负面", self.graph["6:4014"]["inputs"])
+        self.assertEqual(self.graph["6:153"]["class_type"], "MyQi21FinalOutput")
+        self.assertEqual(self.graph["6:153"]["inputs"]["正向提示词"], ["6:4011", 0])
+        self.assertEqual(self.graph["6:153"]["inputs"]["负向提示词"], ["6:4011", 1])
         # seed 单源=PrimitiveInt(7:7014) 扇出 RandomNoise
         self.assertEqual(self.graph["7:7017"]["inputs"]["noise_seed"], ["7:7014", 0])
 

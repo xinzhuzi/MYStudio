@@ -30,8 +30,8 @@
           "occlusion": 7
         },
         "sub:[6] 文本提示词类型优化子图": {
-          "crossings": 4,
-          "occlusion": 1
+          "crossings": 3,
+          "occlusion": 0
         },
         "sub:道劫·加速子图": {
           "crossings": 14,

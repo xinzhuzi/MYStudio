@@ -108,8 +108,8 @@
             "id": 7506,
             "type": "SplitImageWithAlpha",
             "pos": [
-              300,
-              380
+              300.0,
+              395.0
             ],
             "size": [
               270,
@@ -157,8 +157,8 @@
             "id": 7508,
             "type": "SolidMask",
             "pos": [
-              790,
-              180
+              790.0,
+              615.0
             ],
             "size": [
               315,
@@ -201,8 +201,8 @@
             "id": 7507,
             "type": "ThresholdMask",
             "pos": [
-              790,
-              600
+              790.0,
+              385.0
             ],
             "size": [
               315,
@@ -247,8 +247,8 @@
             "id": 7509,
             "type": "PorterDuffImageComposite",
             "pos": [
-              1330,
-              380
+              1330.0,
+              205.0
             ],
             "size": [
               337,
@@ -313,8 +313,8 @@
             "id": 7510,
             "type": "JoinImageWithAlpha",
             "pos": [
-              1880,
-              800
+              1880.0,
+              810.0
             ],
             "size": [
               270,
