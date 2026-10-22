@@ -48,6 +48,14 @@
         "on": true,
         "weight": 1.0
       },
+      "3D剖面场景图": {
+        "on": true,
+        "weight": 1.0
+      },
+      "人脸基准": {
+        "on": true,
+        "weight": 1.0
+      },
       "设定板": {
         "on": true,
         "weight": 1.0
@@ -103,6 +111,14 @@
         "on": true,
         "weight": 0.1
       },
+      "3D剖面场景图": {
+        "on": true,
+        "weight": 0.01
+      },
+      "人脸基准": {
+        "on": true,
+        "weight": 0.01
+      },
       "设定板": {
         "on": true,
         "weight": 0.2
@@ -155,6 +171,14 @@
         "weight": 1.0
       },
       "设定卡": {
+        "on": true,
+        "weight": 1.0
+      },
+      "3D剖面场景图": {
+        "on": true,
+        "weight": 1.0
+      },
+      "人脸基准": {
         "on": true,
         "weight": 1.0
       },
@@ -213,6 +237,14 @@
         "on": true,
         "weight": 0.4
       },
+      "3D剖面场景图": {
+        "on": false,
+        "weight": 0.4
+      },
+      "人脸基准": {
+        "on": true,
+        "weight": 0.4
+      },
       "设定板": {
         "on": true,
         "weight": 0.2
@@ -265,6 +297,14 @@
         "weight": 0.8
       },
       "设定卡": {
+        "on": false,
+        "weight": 0.8
+      },
+      "3D剖面场景图": {
+        "on": false,
+        "weight": 0.8
+      },
+      "人脸基准": {
         "on": false,
         "weight": 0.8
       },
@@ -323,6 +363,14 @@
         "on": false,
         "weight": 1.0
       },
+      "3D剖面场景图": {
+        "on": false,
+        "weight": 1.0
+      },
+      "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
       "设定板": {
         "on": false,
         "weight": 1.0
@@ -375,6 +423,14 @@
         "weight": 1.0
       },
       "设定卡": {
+        "on": false,
+        "weight": 1.0
+      },
+      "3D剖面场景图": {
+        "on": false,
+        "weight": 1.0
+      },
+      "人脸基准": {
         "on": false,
         "weight": 1.0
       },
@@ -433,6 +489,14 @@
         "on": false,
         "weight": 1.0
       },
+      "3D剖面场景图": {
+        "on": false,
+        "weight": 1.0
+      },
+      "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
       "设定板": {
         "on": false,
         "weight": 1.0
@@ -485,6 +549,14 @@
         "weight": 1.0
       },
       "设定卡": {
+        "on": false,
+        "weight": 1.0
+      },
+      "3D剖面场景图": {
+        "on": true,
+        "weight": 1.0
+      },
+      "人脸基准": {
         "on": false,
         "weight": 1.0
       },
@@ -543,6 +615,14 @@
         "on": false,
         "weight": 1.0
       },
+      "3D剖面场景图": {
+        "on": false,
+        "weight": 1.0
+      },
+      "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
       "设定板": {
         "on": false,
         "weight": 1.0
@@ -595,6 +675,14 @@
         "weight": 0.7
       },
       "设定卡": {
+        "on": false,
+        "weight": 1.0
+      },
+      "3D剖面场景图": {
+        "on": false,
+        "weight": 0.8
+      },
+      "人脸基准": {
         "on": false,
         "weight": 1.0
       },
@@ -653,6 +741,14 @@
         "on": false,
         "weight": 1.0
       },
+      "3D剖面场景图": {
+        "on": true,
+        "weight": 0.6
+      },
+      "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
       "设定板": {
         "on": false,
         "weight": 1.0
@@ -705,6 +801,14 @@
         "weight": 0.3
       },
       "设定卡": {
+        "on": true,
+        "weight": 0.3
+      },
+      "3D剖面场景图": {
+        "on": true,
+        "weight": 0.3
+      },
+      "人脸基准": {
         "on": true,
         "weight": 0.3
       },
@@ -762,6 +866,14 @@
       "设定卡": {
         "on": false,
         "weight": 1.0
+      },
+      "3D剖面场景图": {
+        "on": true,
+        "weight": 0.6
+      },
+      "人脸基准": {
+        "on": true,
+        "weight": 0.8
       },
       "设定板": {
         "on": true,

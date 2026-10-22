@@ -54,7 +54,8 @@ def test_all_ten_types_own_their_background_light_and_state_rules():
             assert t['positive_text'] == ''
             continue
         text = t['positive_text']
-        assert '来源' in text, t['zh']
+        # 1022 人脸基准豁免来源状态句:基准脸=零来源规则(伤痕保留句用户令删,纯五官底版)
+        assert '来源' in text or t['zh'] == '人脸基准', t['zh']
         assert '光' in text or '照明' in text, t['zh']
         assert '背景' in text or '环境' in text, t['zh']
     assert data['art_style_base']['positive_text'].startswith('美术风格底座：国风二维动漫手绘插画。')

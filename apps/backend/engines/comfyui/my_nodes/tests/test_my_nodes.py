@@ -259,11 +259,12 @@ def test_daojie_base_options_and_assembly():
     inputs = node.INPUT_TYPES()
     assert set(inputs["required"]) == {"base"}
     combo = inputs["required"]["base"]
-    # 1004 集中化:combo=真源家 qi21_bases.json types[] 全十一档(十型+自由末位;
-    # 1015 设定卡入列;原九型 sidecar daojie_bases.json 退役删件,锚随迁)
+    # 1004 集中化:combo=真源家 qi21_bases.json types[] 全十三档(十二型+自由末位;
+    # 1022 人脸基准入列;1021 3D剖面场景图入列;1015 设定卡入列;原九型 sidecar daojie_bases.json 退役删件,锚随迁)
     assert combo[0] == [
         "人物", "场景", "道具", "美宣", "人物多视图",
-        "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡", "自由"]
+        "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
+        "3D剖面场景图", "人脸基准", "自由"]
     assert combo[1]["default"] == "人物"
     # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/
     # megapixels(FLOAT) 两出,前两 STRING 槽位不动(存量图 [80] 链 45/46 免改);
@@ -304,9 +305,9 @@ def test_daojie_base_resolution_outputs_nine_types():
         "3:4 (Portrait Standard)", "4:3 (Standard)",
         "9:16 (Portrait Widescreen)", "16:9 (Widescreen)", "21:9 (Ultrawide)",
     }
-    expected_mp = {"道具": 1.0, "高清人脸": 1.0, "自由": 1.0,
+    expected_mp = {"道具": 1.0, "高清人脸": 1.0, "人脸基准": 1.0, "自由": 1.0,
                    "人物多视图": 1.8, "场景": 2.25, "美宣": 2.25,
-                   "分镜剧情图": 2.25, "设定卡": 2.25}.get  # 其余型按原MP预算
+                   "分镜剧情图": 2.25, "设定卡": 2.25, "3D剖面场景图": 2.25}.get  # 其余型按原MP预算
     for entry in bases:
         pos, neg, aspect, megapixels, base_out, _w, _h = node.run(entry["zh"])
         assert base_out == entry["zh"]  # 09-19 第五出=型直通(驱动按型 LoRA 供线)

@@ -188,5 +188,43 @@
         "strength_model": 0.3
       }
     ]
+  },
+  {
+    "key": "3D剖面场景图",
+    "zh": "3D剖面场景图",
+    "note": "1021 新型入列(室内等距剖面,候实弹);台账起步=场景同款两件,实弹后再调。",
+    "loras": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "strength_model": 1.0
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "strength_model": 0.6
+      }
+    ]
+  },
+  {
+    "key": "人脸基准",
+    "zh": "人脸基准",
+    "note": "人脸基准(1022 入列):高清人脸同源克隆(统一人脸底版供 i2i 锚脸);金雾×0.8=09-20 人物同源终审沿用。",
+    "loras": [
+      {
+        "file": "Krea2-美学/Krea2-细节滑杆DetailSlider_v1.safetensors",
+        "strength_model": 1.0
+      },
+      {
+        "file": "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors",
+        "strength_model": 0.4
+      },
+      {
+        "file": "Krea2-画风/Krea2-水墨武侠漆艺鎏金_v1.safetensors",
+        "strength_model": 0.3
+      },
+      {
+        "file": "Krea2-画风/金雾仙侠GoldenMisty.safetensors",
+        "strength_model": 0.8
+      }
+    ]
   }
 ]

@@ -14,8 +14,8 @@ SPEC.loader.exec_module(w)
 
 def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case():
     case=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
-    receipt_bytes=(w.TASK/'reports/approved-live-subject-revision.json').read_bytes()
-    assert hashlib.sha256(receipt_bytes).hexdigest()=='8f33e1be58cea3f28bdd9a872247dd3a18d8991f6df3fb300e1a707b8d7f7234'
+    receipt_bytes=(w.TASK/'reports/approved-live-subject-revision-1021-3dcutaway.json').read_bytes()
+    assert hashlib.sha256(receipt_bytes).hexdigest()=='6436a794becd93f13284d6921f41939c9f259f44dd4aa5611244b5bbaeb8d0d5'
     receipt=json.loads(receipt_bytes)
     for evidence in receipt['evidence']+receipt['frozen']:
         assert hashlib.sha256((ROOT/evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
@@ -31,7 +31,7 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case():
     source=(ROOT/receipt['source']['path']).read_bytes()
     assert hashlib.sha256(source).hexdigest()==receipt['source']['observed_sha256']
     blocks=re.findall(r'^## (\d+)\.[^\n]*\n.*?^```[^\n]*\n(.*?)^```',source.decode('utf-8'),re.MULTILINE|re.DOTALL)
-    assert len(blocks)==10 and blocks[0][0]=='1'
+    assert len(blocks)==11 and blocks[0][0]=='1'  # 1021 示例库 §11 3D剖面场景图入列(十型→十一型)
     subject=blocks[0][1].strip()
     assert hashlib.sha256(subject.encode('utf-8')).hexdigest()==receipt['subject_sha256']
     path=w.sources()[1].with_name('flux3-道劫-t2i.json')
@@ -87,11 +87,11 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert set(revisions)=={base,subject}
     assert revisions[subject]=={
         'original_sha256':'40ecae03da80454b5dbec330c0bf17d2eedf6725993864e329f3b040a1ef99ea',
-        'approved_sha256':'1f30ca63bdf0a3fb8990376775230cf408eb0aae50cb33e470237393943f2925',
+        'approved_sha256':'0f38e714067c3b61da2c83751f55238cd117adc4559849d2f6fcdd35691ff7de',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p3-subject-docs/backups/道劫_类型主体句示例.md.bak-1019-p3',
-        'leaf_receipt':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/approved-live-subject-revision.json',
-        'leaf_receipt_sha256':'8f33e1be58cea3f28bdd9a872247dd3a18d8991f6df3fb300e1a707b8d7f7234',
+        'leaf_receipt':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/approved-live-subject-revision-1021-3dcutaway.json',
+        'leaf_receipt_sha256':'6436a794becd93f13284d6921f41939c9f259f44dd4aa5611244b5bbaeb8d0d5',
     }
     subject_revision=revisions[subject]
     assert hashlib.sha256((ROOT/subject_revision['historical_backup']).read_bytes()).hexdigest()==subject_revision['original_sha256']
@@ -111,18 +111,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'fc776f6a3db3d53f98ddba7d25b075709104daa87e52e1511f06f66861e04fac',
+        'approved_sha256':'65b40e67b939d1016b1f16231db4192bca40fefa39023e5cfcb74608bbd205bf',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1021.md',
-            'anchor':'## Decisions(2026-10-21 用户令「另外一个会话已经做完了」「按照你的建议去做」)',
-            'sha256':'e1b0d1e825eb28f2bea5017c5071233ea7bebb69afd7c705927738dbde067b80',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1022-facebase.md',
+            'anchor':'## Decisions(2026-10-22 用户令「按照晏燎基准脸的方式,新增一个人脸基准的类型」)',
+            'sha256':'0baad38d1008c54406d2808b1f37aa85d4020027c14f7c73ce37e4ef180909a4',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1021.md',
-            'anchor':'## 字段级变更(3 处,git diff HEAD 实测)',
-            'sha256':'1733e33936deb65fb279ac53e228c1a9b910ffa27fe6663499f1169d41872545',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1022-facebase.md',
+            'anchor':'## 字段级变更(2 处,1022 人脸基准入列实测)',
+            'sha256':'485e7cd01adfe5c45ba8560b84c060f89ddb1081e739a109f3487e3e2b039a2e',
         },
     }
     revision=revisions[base]
