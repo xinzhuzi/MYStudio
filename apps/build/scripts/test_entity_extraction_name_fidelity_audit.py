@@ -188,6 +188,71 @@ def test_symlinks_rejected_before_cross_root_enumeration(tmp_path, monkeypatch, 
     assert not report["valid"] and report["errors"] and report["findings"] == []
 
 
+@pytest.mark.parametrize("root_kind", ["project", "corpus"])
+@pytest.mark.parametrize("read_number", [1, 2])
+def test_ancestor_swap_at_root_traversal_never_opens_external_root(tmp_path, monkeypatch, root_kind, read_number):
+    base = tmp_path.resolve()
+    container, outside = base / "container", base / "outside"
+    container.mkdir()
+    outside.mkdir()
+    root, corpus, _ = fixture(container)
+    external_project, external_corpus, _ = fixture(outside)
+    target = root if root_kind == "project" else corpus
+    external = external_project if root_kind == "project" else external_corpus
+    relative = Path("store/studio-workflow/manifest.json" if root_kind == "project" else "batch-000.txt")
+    boundary, parent = external.stat(), base.stat()
+    spec = importlib.util.spec_from_file_location("fidelity_audit", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    original_open, original_read = module.os.open, module.read_safe
+    state = {"armed": False, "reads": 0}
+    swaps, external_opens = [], []
+
+    def raced_open(path, flags, *args, **kwargs):
+        parent_fd = kwargs.get("dir_fd")
+        at_ancestor = (path == container.name and parent_fd is not None
+                       and (module.os.fstat(parent_fd).st_dev, module.os.fstat(parent_fd).st_ino)
+                       == (parent.st_dev, parent.st_ino))
+        # Exercise both the original absolute open and the component-walk boundary.
+        if state["armed"] and not swaps and (path == target or at_ancestor):
+            held = base / "held-container"
+            container.rename(held)
+            container.symlink_to(outside, target_is_directory=True)
+            swaps.append(str(path))
+            try:
+                fd = original_open(path, flags, *args, **kwargs)
+            finally:
+                container.rename(base / "retained-symlink")
+                held.rename(container)
+        else:
+            fd = original_open(path, flags, *args, **kwargs)
+        actual = module.os.fstat(fd)
+        if (actual.st_dev, actual.st_ino) == (boundary.st_dev, boundary.st_ino):
+            external_opens.append(str(path))
+        return fd
+
+    def armed_read(read_root, path):
+        if read_root == target and path == relative:
+            state["reads"] += 1
+            state["armed"] = state["reads"] == read_number
+        try:
+            return original_read(read_root, path)
+        finally:
+            state["armed"] = False
+
+    monkeypatch.setattr(module.os, "open", raced_open)
+    monkeypatch.setattr(module, "read_safe", armed_read)
+
+    report = module.audit(root, corpus)
+
+    assert swaps == [container.name], "ancestor swap did not reach component-wise root traversal"
+    assert external_opens == [], "opened an external root through the swapped ancestor"
+    assert not report["valid"] and report["errors"] and report["findings"] == []
+    assert report["repeatedSourceGroups"] == [] and report["coverageSummary"] is None
+    assert report["productionWritten"] is False and report["identityApproved"] is False
+
+
 @pytest.mark.parametrize("missing", ["empty-array", "unreferenced-shard", "indexed-chapter"])
 def test_missing_entire_batch_invalidates_even_with_complete_corpus(tmp_path, missing):
     root, corpus, shard = fixture(tmp_path, ("完整名称",), f"| scene | 完整名称 | | {CHAPTER} | 入口 |\n")
@@ -277,6 +342,36 @@ def test_duplicate_source_rows_preserve_ambiguity_and_continue(tmp_path, name, s
         "corpusRowsByKind": {"character": 0, "scene": 3, "prop": 0}, "parsedNameCount": 3}
     assert before == {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
                       for p in tmp_path.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("second,equivalent", [
+    ("庭院/office.png", True), ("庭院/Of fice.PNG", True), ("庭院/Office.P NG", True),
+    ("庭院/Of﻿fice.PNG", True), ("庭院/Of　fice.PNG", True),
+    ("庭院/Of\u001ffice.PNG", False), ("庭院/Ｏffice.PNG", False)])
+def test_cross_row_parser_equivalence_preserves_source_ambiguity(tmp_path, second, equivalent):
+    first = "庭院/Office.PNG"
+    names = [first, second, "花园/内室"]
+    rows = [f"| scene | {name} | | {CHAPTER} | 入口 |" for name in names]
+    root, corpus, _ = fixture(tmp_path, ("Office", "内室"), "\n".join(rows) + "\n")
+
+    code, report = cli(root, corpus)
+
+    assert code == 0 and report["valid"], report["errors"]
+    assert [item["proposedName"] for item in report["findings"]] == names
+    assert [item["classification"] for item in report["findings"]] == [
+        "ambiguous" if equivalent else "unique_source_match", "ambiguous", "unique_source_match"]
+    if equivalent:
+        group, = report["repeatedSourceGroups"]
+        assert group["name"] == first and group["classification"] == "ambiguous"
+        assert [(row["name"], row["file"], row["line"], row["raw"], row["note"])
+                for row in group["sources"]] == [
+            (name, str(corpus / "batch-000.txt"), line, raw, "入口")
+            for name, line, raw in zip(names[:2], [2, 3], rows[:2])]
+    else:
+        assert report["repeatedSourceGroups"] == []
+    assert report["coverageSummary"]["corpusRowCount"] == 3
+    assert report["coverageSummary"]["parsedNameCount"] == 3
+    assert report["productionWritten"] is False and report["identityApproved"] is False
 
 
 def test_validated_coverage_counts_physical_rows_not_secondary_names(tmp_path):

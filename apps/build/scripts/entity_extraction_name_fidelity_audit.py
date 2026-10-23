@@ -37,12 +37,29 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def open_directory(path):
+    """Anchor absolute directory traversal and reject symlinks at every component."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    absolute = path.absolute()
+    fd = os.open(absolute.anchor, flags)
+    try:
+        for part in absolute.parts[1:]:
+            require(part != "..", f"unsafe directory: {path}")
+            child = os.open(part, flags, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
 def read_safe(root, relative):
     """Open every component without following symlinks (including race swaps)."""
     parts = str(relative).split("/")
     require(not Path(relative).is_absolute() and all(p not in ("", ".", "..") and "\\" not in p for p in parts),
             f"unsafe path: {relative}")
-    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    fd = open_directory(root)
     try:
         for part in parts[:-1]:
             child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
@@ -70,20 +87,6 @@ def load_json(raw):
 def inventory(project, corpus):
     # Names only: unlisted physical shards never supply records.
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-
-    def open_directory(path):
-        absolute = path.absolute()
-        fd = os.open(absolute.anchor, flags)
-        try:
-            for part in absolute.parts[1:]:
-                require(part != "..", f"unsafe directory: {path}")
-                child = os.open(part, flags, dir_fd=fd)
-                os.close(fd)
-                fd = child
-            return fd
-        except BaseException:
-            os.close(fd)
-            raise
 
     def scan(fd, prefix, recursive):
         names = []
@@ -123,6 +126,13 @@ def legacy_name(name):
     return MEDIA_SUFFIX.sub("", base).strip() or base
 
 
+def parser_name_key(name):
+    """Comparison only: the name-column parser's JS whitespace/lowercase contract."""
+    return re.sub(
+        r"[\t-\r \xA0  -     　﻿]+",
+        "", name).lower()
+
+
 def corpus_rows(corpus, names, read):
     rows, chapters = [], set()
     row_counts = dict.fromkeys(KINDS, 0)
@@ -152,9 +162,7 @@ def corpus_rows(corpus, names, read):
             row_names = set()
             for segment in segments:
                 # Match the name-column parser only; aliases and cross-row identity stay unchanged.
-                normalized = re.sub(
-                    r"[\t-\r \xA0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+",
-                    "", segment).lower()
+                normalized = parser_name_key(segment)
                 if normalized in row_names:
                     continue
                 row_names.add(normalized)
@@ -234,7 +242,9 @@ def compare_names(rows, batches, hashes):
                         "scriptFingerprint": entry["batch"].get("scriptFingerprint"), "file": entry["path"],
                         "pointer": f'/state/entityExtractions/{entry["position"]}/{field}/{i}/{slot}',
                         "expectedOld": entity, "expectedOldName": value, "beforeSha256": hashes[entry["path"]]})
-        unique = (len(matches) == 1 and sum(legacy_name(r["name"]) == old for r in group) == 1
+        unique = (len(matches) == 1
+                  and sum(parser_name_key(r["name"]) == parser_name_key(proposed)
+                          or parser_name_key(legacy_name(r["name"])) == parser_name_key(old) for r in group) == 1
                   and bool(row["note"]) and matches[0]["expectedOld"].get("note") == row["note"])
         findings.append({"chapterId": row["chapterId"], "kind": row["kind"], "proposedName": proposed,
             "legacyName": old, "classification": "unique_source_match" if unique else "ambiguous",
@@ -260,11 +270,11 @@ def audit(project_root, corpus_dir):
         require(corpus_chapters == chapters, f"corpus chapter coverage mismatch: missing={sorted(chapters - corpus_chapters)}, extra={sorted(corpus_chapters - chapters)}")
         source_groups = {}
         for row in rows:
-            key = (row["chapterId"], row["kind"], row["name"])
+            key = (row["chapterId"], row["kind"], parser_name_key(row["name"]))
             source_groups[key] = [*source_groups.get(key, []), row]
-        repeated_sources = [{"chapterId": chapter, "kind": kind, "name": name,
+        repeated_sources = [{"chapterId": chapter, "kind": kind, "name": sources[0]["name"],
                              "classification": "ambiguous", "sources": sources}
-                            for (chapter, kind, name), sources in source_groups.items() if len(sources) > 1]
+                            for (chapter, kind, _name_key), sources in source_groups.items() if len(sources) > 1]
         findings = compare_names(rows, batches, hashes)
         coverage = {"validated": True, "manifestChapterCount": len(chapters), "extractionBatchCount": len(batches),
                     "corpusChapterCount": len(corpus_chapters), "corpusFileCount": len(before[1]),
