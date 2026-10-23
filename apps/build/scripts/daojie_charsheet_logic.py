@@ -47,12 +47,12 @@ from daojie_livefire_0917 import http_bytes, http_json  # noqa: E402
 lf.SKIP_NODES = {20, 61, 88}          # t2i 腿:种子/分辨率/分组旁路器 UI 件内联
 lf.UI_ONLY_WIDGETS = lf.UI_ONLY_WIDGETS | {"upload"}  # LoadImage 上传件纯 UI
 
-WF_T2I = (REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图"
+WF_T2I = (REPO / "apps/backend/comfyui/workflows/1_图片/K2图像/1_文生图"
           / "K2-文生图-道劫.json")
-WF_SHEET = (REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/2_图生图"
+WF_SHEET = (REPO / "apps/backend/comfyui/workflows/1_图片/K2图像/2_图生图"
             / "K2-角色设定-道劫.json")
-BASES_JSON = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/daojie_bases.json"
-STACK_JSON = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/daojie_lora_stack.json"
+BASES_JSON = REPO / "apps/backend/comfyui/my_nodes/nodes/daojie_bases.json"
+STACK_JSON = REPO / "apps/backend/comfyui/my_nodes/nodes/daojie_lora_stack.json"
 DOWNLOADS = Path.home() / "Downloads" / "daojie_charsheet_0919"
 WS_DIR = REPO / "docs/prompts/道劫_设定表实弹_0919"
 CLIENT_ID = "daojie-charsheet-logic-0919"

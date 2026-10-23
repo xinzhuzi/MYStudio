@@ -16,7 +16,7 @@ function loadExtension() {
     app, api, window: { confirm, alert: vi.fn() }, fetch: fetchMock, Date, URLSearchParams,
     bridgeToken: async () => "bridge-token-test",
   });
-  const source = readFileSync(resolve("backend/engines/comfyui/my_nodes/web/theme.js"), "utf8")
+  const source = readFileSync(resolve("backend/comfyui/my_nodes/web/theme.js"), "utf8")
     .replace(/^import .*;$/gm, "")
     .replace(/export\s*\{[^}]+\};/g, "")
     .replace(/\bexport (?=(?:const|let|async|function)\b)/g, "");

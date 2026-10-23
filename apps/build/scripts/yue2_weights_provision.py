@@ -30,7 +30,7 @@
     --dry-run  只核对现状(已就位/缺失/字节数不符),零网络零写入
     --home     显式指定引擎家(默认:MYSTUDIO_COMFYUI_HOME env →
                manifest.json modelsDir → ~/Library/Application Support/
-               漫影工作室/comfyui;镜像 engines/comfyui/manifest.py 解析序)
+               漫影工作室/comfyui;镜像 comfyui/manifest.py 解析序)
 
 退出码:0=三件全部就位(或 dry-run 核对完成);1=任何一件下载/校验失败。
 """
@@ -65,7 +65,7 @@ PROGRESS_EVERY_S = 5.0
 
 
 def resolve_models_dir(home_override: str | None) -> Path:
-    """引擎 models 目录解析(镜像 engines/comfyui/manifest.py 语义,零后端依赖)。
+    """引擎 models 目录解析(镜像 comfyui/manifest.py 语义,零后端依赖)。
 
     优先级:--home 显式 → MYSTUDIO_COMFYUI_HOME env → manifest.json 的
     modelsDir(用户把模型库指到外部盘的场景)→ 平台默认家/models。

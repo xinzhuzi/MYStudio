@@ -20,7 +20,7 @@ def plan():
  mirrors={p.parents[1] for p in paths if p.name=='qi21_bases.json' and p.parent.name=='json'}
  for m in mirrors:
   for rel in ['json/README.md','README.md']:paths.add(m/rel)
- tests=ROOT/'apps/backend/engines/comfyui/my_nodes/tests'
+ tests=ROOT/'apps/backend/comfyui/my_nodes/tests'
  for f in ['test_my_qi21_bases_text.py','test_qi21_style_boundary_1016.py','test_qi21_style_type_separation.py']:paths.add(tests/f)
  before={p:p.read_bytes() for p in paths};after=dict(before);ops={}
  def replace(p,x,y,count=None):

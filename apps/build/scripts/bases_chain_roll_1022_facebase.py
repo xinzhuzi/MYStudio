@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path('/Users/zhengbingjin/Project/Github/MYStudio')
 TASK = ROOT / '.trellis/tasks/10-16-flux3-daojie-ten-types'
 REV = TASK / 'reports/shared-source-revisions.json'
-TEST = ROOT / 'apps/backend/engines/comfyui/tests/test_flux3_daojie_workflow_contract.py'
+TEST = ROOT / 'apps/backend/comfyui/tests/test_flux3_daojie_workflow_contract.py'
 BASES_REL = 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json'
 APPROVAL = TASK / 'reports/bases-reapproval-1022-facebase.md'
 LEDGER = TASK / 'reports/bases-change-ledger-1022-facebase.md'

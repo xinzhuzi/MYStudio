@@ -12,7 +12,7 @@ building/running a ComfyUI workflow. Read it first, then act.
 
 ## TASK ROUTING (this repo)
 
-> Routing note (this repo): work splits three ways — **(1) production workflow JSON, widget text, slot wiring, subgraphs, canvas layout in THIS repo** (the MYStudio set under `apps/backend/engines/comfyui/`) belongs to the sibling **node-graph** skill (`.agents/skills/node-graph/SKILL.md`); read it FIRST, before the first edit to any workflow file — memory of past sessions and old test runs corroborate that read, they never replace it. **(2) Engine driving, generation/rendering runs, model choice + model downloads** stay HERE. **(3) Node python logic** (`INPUT_TYPES` / `FUNCTION` / `RETURN` / JS extensions) → `docs/BUILDING_NODES.md` here + node-graph's cognition chapter for the host-panel/widget-shape rules.
+> Routing note (this repo): work splits three ways — **(1) production workflow JSON, widget text, slot wiring, subgraphs, canvas layout in THIS repo** (the MYStudio set under `apps/backend/comfyui/`) belongs to the sibling **node-graph** skill (`.agents/skills/node-graph/SKILL.md`); read it FIRST, before the first edit to any workflow file — memory of past sessions and old test runs corroborate that read, they never replace it. **(2) Engine driving, generation/rendering runs, model choice + model downloads** stay HERE. **(3) Node python logic** (`INPUT_TYPES` / `FUNCTION` / `RETURN` / JS extensions) → `docs/BUILDING_NODES.md` here + node-graph's cognition chapter for the host-panel/widget-shape rules.
 
 ## Files in this kit (pull the right one on demand)
 

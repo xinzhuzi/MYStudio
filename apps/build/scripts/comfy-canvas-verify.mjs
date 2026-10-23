@@ -35,7 +35,7 @@ const WF_REL = process.argv[2] || "1_图片/Q2-1图像/1_文生图/qi21-道劫-t
 // ComfyUI/user/default/workflows=ComfyUI 原生菜单读写位(用户区,引擎启动零回灌)。
 // S5 走 repo: 直载→期望值必须取 Resources。旧名 ENGINE_CACHE_WF 名实不符曾误导
 // 排查(变量叫引擎缓存、头注释也说引擎缓存,实际指装机包),已正名。
-const TRUTH_WF_PATH = "/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/" + WF_REL;
+const TRUTH_WF_PATH = "/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/" + WF_REL;
 const OUT_DIR = join(HOME, "Project/Github/MYStudio/apps/output/comfy-canvas-verify");
 const KEEP_APP = process.env.KEEP_APP === "1";
 

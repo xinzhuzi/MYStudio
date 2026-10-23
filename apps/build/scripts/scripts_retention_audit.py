@@ -54,9 +54,9 @@ def classify_referrer(rel: str) -> str:
         return "build"
     if base in {"package.json", "vitest.config.ts", "vitest.workspace.ts", "tsconfig.json"} or rel.endswith(".npmrc") or rel.startswith(".claude/") or rel.startswith(".agents/") or rel.startswith(".trellis/") or rel.startswith(".zcode/") or rel.startswith(".codex/"):
         return "config_or_agent"
-    if rel.startswith("apps/backend/engines/comfyui/my_nodes"):
+    if rel.startswith("apps/backend/comfyui/my_nodes"):
         return "my_nodes"
-    if rel.startswith("apps/backend/engines/comfyui/workflows") or "/subgraphs/" in rel:
+    if rel.startswith("apps/backend/comfyui/workflows") or "/subgraphs/" in rel:
         return "workflow"
     if rel.endswith(".md"):
         return "docs"

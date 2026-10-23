@@ -48,9 +48,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 MJS = REPO / "apps/build/scripts/q21_optimized_round_0925.mjs"
-WF_T2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+WF_T2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
 OUT_S7 = REPO / "apps/output/s7-family-0930"
-BASES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json"
+BASES = REPO / "apps/backend/comfyui/my_nodes/nodes/qi21_bases.json"
 LIB05 = REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md"
 
 # s10 实弹在档收束句指纹(qi21_daojie_t2i_0923.py W1_SENT_MD5_S10 同值;两处同值互锁,

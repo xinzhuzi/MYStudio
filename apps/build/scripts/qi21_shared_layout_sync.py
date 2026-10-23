@@ -15,7 +15,7 @@ import layout_check as lc
 
 def locate(pattern):
     paths = subprocess.check_output(['fd', '-a', pattern,
-        str(ROOT / 'apps/backend/engines/comfyui/workflows')], text=True).splitlines()
+        str(ROOT / 'apps/backend/comfyui/workflows')], text=True).splitlines()
     assert len(paths) == 1, paths
     return Path(paths[0])
 

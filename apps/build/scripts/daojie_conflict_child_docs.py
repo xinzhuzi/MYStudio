@@ -6,7 +6,7 @@ T = ROOT / ".trellis/tasks"
 PARENT = "../10-18-daojie-prompt-conflict-cleanup"
 M = "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng"
 SCAN = "python3 apps/build/scripts/daojie_prompt_conflict_scan.py --rules-only"
-PY = "cd apps/backend/engines/comfyui && python3 -m pytest -q my_nodes/tests tests/test_qwen21_workflow_contract.py -p no:cacheprovider"
+PY = "cd apps/backend/comfyui && python3 -m pytest -q my_nodes/tests tests/test_qwen21_workflow_contract.py -p no:cacheprovider"
 VT = "cd apps && npx vitest run --config frontend/config/vite.config.ts"
 
 COMMON = f"""## 共同约束
@@ -43,7 +43,7 @@ CHILDREN = {
       "R6 人物多视图头身比改「服从来源」并补动漫式五官句。",
       "R7 C16 张力项逐条判 done/不修并写理由。",
       "R8 预填四件字符串叶子与真源逐字一致,连线/参数零变动;JSON 旧值写父任务 research/json-before-after.md。"],
- files=[f"Modify: `{M}/json/qi21_bases.json`", "Modify: `apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`", "Modify: `apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json`", "Modify: `apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json`", "Modify: `apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json`", "Modify(随动): `apps/backend/engines/comfyui/my_nodes/tests/*`、`apps/backend/engines/comfyui/tests/test_qwen21_workflow_contract.py`", "Create: `apps/build/scripts/qi21_conflict_snapshot_sync.py`(复用 qi21_base_swap_tool.Tool)"],
+ files=[f"Modify: `{M}/json/qi21_bases.json`", "Modify: `apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`", "Modify: `apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json`", "Modify: `apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json`", "Modify: `apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json`", "Modify(随动): `apps/backend/comfyui/my_nodes/tests/*`、`apps/backend/comfyui/tests/test_qwen21_workflow_contract.py`", "Create: `apps/build/scripts/qi21_conflict_snapshot_sync.py`(复用 qi21_base_swap_tool.Tool)"],
  steps=[("记录基线 passed 数", f"{PY} | tail -1", "745 passed"),
         ("先写/改测试断言 R1–R6 新口径(RED)", f"{PY} -x", "FAIL:真源未改"),
         ("写 qi21_conflict_snapshot_sync.py(只换字符串叶子+ledger+sha256)", None, None),

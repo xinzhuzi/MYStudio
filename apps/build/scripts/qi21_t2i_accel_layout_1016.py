@@ -211,7 +211,7 @@ def main():
     args = parser.parse_args()
     paths = []
     for directory in ('workflows','my_nodes/subgraphs'):
-        matches = [path for path in (ROOT/'apps/backend/engines/comfyui'/directory).rglob('*.json')
+        matches = [path for path in (ROOT/'apps/backend/comfyui'/directory).rglob('*.json')
                    if path.name.startswith('qi21-') and (PREFIX in path.read_text() or
                       (TARGET_ID in path.read_text() and '①Turbo 8步' in path.read_text()))]
         assert len(matches) == 1,(directory,matches)

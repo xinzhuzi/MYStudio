@@ -104,7 +104,7 @@ def main():
     if args.only:
         corpus = [r for r in corpus if r['type'] == args.only]
         assert corpus, 'Unknown exact type'
-    template = next((INSTALLED / 'engines/comfyui/workflows').rglob('qwen21-道劫-t2i-api.json'))
+    template = next((INSTALLED / 'comfyui/workflows').rglob('qwen21-道劫-t2i-api.json'))
     g = json.loads(template.read_text())['graph']
     assert g['6:4013']['inputs']['AI扩写开关'] is False
     assert g['7:7015']['inputs']['mode'] == '0 · Turbo 8步'

@@ -11,7 +11,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 TASK = ROOT / '.trellis/tasks/10-16-flux3-daojie-ten-types'
 DATA = ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng'
-NODES = ROOT / 'apps/backend/engines/comfyui/my_nodes'
+NODES = ROOT / 'apps/backend/comfyui/my_nodes'
 
 
 def remote(code):
@@ -66,7 +66,7 @@ import base64,hashlib,json,shutil,time,urllib.request
 r=Path('E:/IP')
 h=next(p/'comfyui' for p in r.iterdir() if (p/'comfyui/manifest.json').is_file())
 work=r/'flux3-ten-types-1016'
-bases={'repo-data':r/'MYStudio/apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng','app-data':r/'manying-studio/resources/studio-manuals/art_skills/daojie_ink_guofeng','runtime-data':h/'daojie-data','runtime-palette':h/'ma_sync','repo-nodes':r/'MYStudio/apps/backend/engines/comfyui/my_nodes','app-nodes':r/'manying-studio/resources/backend/engines/comfyui/my_nodes','runtime-nodes':h/'ComfyUI/custom_nodes/my-nodes'}
+bases={'repo-data':r/'MYStudio/apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng','app-data':r/'manying-studio/resources/studio-manuals/art_skills/daojie_ink_guofeng','runtime-data':h/'daojie-data','runtime-palette':h/'ma_sync','repo-nodes':r/'MYStudio/apps/backend/comfyui/my_nodes','app-nodes':r/'manying-studio/resources/backend/comfyui/my_nodes','runtime-nodes':h/'ComfyUI/custom_nodes/my-nodes'}
 def target(key):
  group,relative=key.split('/',1)
  path=bases[group]/relative

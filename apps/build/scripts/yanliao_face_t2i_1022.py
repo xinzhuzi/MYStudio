@@ -32,7 +32,7 @@ NEGATIVE = ("模糊，水印，多手指，文字错误，全身像，半身像�
 def gate_precheck():
     import importlib.util
     spec = importlib.util.spec_from_file_location(
-        'gg', Path(__file__).resolve().parents[2] / 'backend/engines/comfyui/my_nodes/nodes/_gongbi_gate.py')
+        'gg', Path(__file__).resolve().parents[2] / 'backend/comfyui/my_nodes/nodes/_gongbi_gate.py')
     gg = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gg)
     v1 = gg.prompt_violations(POSITIVE.split('\n')[0], is_subject=True)

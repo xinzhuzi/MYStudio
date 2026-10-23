@@ -10,7 +10,7 @@ const root=process.cwd();
 const appHome=join(homedir(),'Library/Application Support',readdirSync(join(homedir(),'Library/Application Support')).find(n=>n==='漫影工作室'));
 const manifest=JSON.parse(readFileSync(join(appHome,'comfyui/manifest.json'),'utf8'));
 const origin=`http://127.0.0.1:${manifest.engine.port}`;
-const sourceRoot=process.argv[2] || join(root,'apps/backend/engines/comfyui/workflows');
+const sourceRoot=process.argv[2] || join(root,'apps/backend/comfyui/workflows');
 const file=execFileSync('fd',['-a','^qi21-道劫-t2i.json$',sourceRoot],{encoding:'utf8'}).trim();
 const graph=JSON.parse(readFileSync(file,'utf8'));
 const cache=join(homedir(),'Library/Caches/ms-playwright');

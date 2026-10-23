@@ -10,11 +10,11 @@ import {
 describe("comfy-api-takeover 配置位与 python 侧契约", () => {
   it("env 名配对引擎侧读取点(engine_manager/cloud_takeover)防双家漂移", () => {
     const engineManager = readFileSync(
-      new URL("../../../../backend/engines/comfyui/engine_manager.py", import.meta.url),
+      new URL("../../../../backend/comfyui/engine_manager.py", import.meta.url),
       "utf8",
     );
     const cloudTakeover = readFileSync(
-      new URL("../../../../backend/engines/comfyui/my_nodes/cloud_takeover.py", import.meta.url),
+      new URL("../../../../backend/comfyui/my_nodes/cloud_takeover.py", import.meta.url),
       "utf8",
     );
     expect(COMFY_API_TAKEOVER_ENV_BASE).toBe("MYSTUDIO_COMFY_API_BASE");

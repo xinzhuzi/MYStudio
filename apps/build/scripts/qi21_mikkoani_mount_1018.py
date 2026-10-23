@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 BAK = REPO / "apps/output/bak/qi21-mikkoani-1018"
 SG_NAME = "道劫·加速子图"
 OLD_FILE, OLD_STR, OLD_MODE = "Inklingv2-qwen21_c1-st6000.safetensors", 0.3, 4

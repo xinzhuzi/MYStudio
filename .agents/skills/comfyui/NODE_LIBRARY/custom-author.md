@@ -113,7 +113,7 @@ H3 recipe in `MODELS.md`; this is the pointer so they are findable from the pack
 
 ## my-nodes · 漫影 in-house pack (our own nodes; category `my`)
 
-Our own pack (`apps/backend/engines/comfyui/my_nodes/`, deployed to the engine home as
+Our own pack (`apps/backend/comfyui/my_nodes/`, deployed to the engine home as
 `custom_nodes/my-nodes/`). Full registry (23 canonical `My*` classes + `Manying*` legacy aliases) and the
 deployment/sync chain live in `docs/comfyui-kb/定制代码地图.md`; this section holds the per-node entries for the
 three text-assembly nodes added by the 1001 S8 integration round (task 10-01-qi21-assembly-blueprint S8). I/O

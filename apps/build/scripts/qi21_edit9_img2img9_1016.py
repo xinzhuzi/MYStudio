@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 WF = BASE / "workflows/1_图片/Q2-1图像"
 BP = BASE / "my_nodes/subgraphs"
 CAMPAIGN = "1016edit9"

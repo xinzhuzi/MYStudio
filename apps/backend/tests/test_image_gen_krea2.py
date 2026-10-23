@@ -276,18 +276,18 @@ class BridgeEngineAutostartGateTest(unittest.TestCase):
         probes = iter([None, {"engine": "up"}])
         with mock.patch.object(
             pipeline, "find_cached_image_model_for_spec", side_effect=lambda spec: next(probes)
-        ), mock.patch("engines.comfyui.engine_manager.engine_manager") as manager_factory:
+        ), mock.patch("comfyui.engine_manager.engine_manager") as manager_factory:
             pipeline._require_downloaded("comfyui-bridge")
         manager_factory.return_value.ensure_engine_ready.assert_called_once()
 
     def test_gate_swallows_start_failure_and_reports_bridge_copy(self) -> None:
         # 拉起失败(EngineOpError 吞掉)→复探仍空→桥专属话术,别误导用户去设置页找下载
-        from engines.comfyui.engine_manager import EngineOpError
+        from comfyui.engine_manager import EngineOpError
 
         probes = iter([None, None])
         with mock.patch.object(
             pipeline, "find_cached_image_model_for_spec", side_effect=lambda spec: next(probes)
-        ), mock.patch("engines.comfyui.engine_manager.engine_manager") as manager_factory:
+        ), mock.patch("comfyui.engine_manager.engine_manager") as manager_factory:
             manager_factory.return_value.ensure_engine_ready.side_effect = EngineOpError("boom")
             with self.assertRaises(PipelineError) as ctx:
                 pipeline._require_downloaded("comfyui-bridge")

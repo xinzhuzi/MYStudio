@@ -10,7 +10,7 @@
   "truth_sources": {
     "_doc": "真源登记——装配实现代码/引擎侧内联/手册版指针(路径即权威,改层职责先对这里)",
     "engine_json": "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json",
-    "assembly_code": "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py",
+    "assembly_code": "apps/backend/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py",
     "assembly_line": "道劫美术类型=主体句+类型句+画法；自由出图=编辑指令；道劫美术风格转换=编辑指令+画法",
     "manual": "本文件(完整版);qi21_bases.json#layer_contract(精简内联版)"
   },

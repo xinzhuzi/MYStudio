@@ -36,7 +36,7 @@ def test_saved_negative_route() -> None:
 
 
 def load_node(name: str):
-    path = r.ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes' / (name + '.py')
+    path = r.ROOT / 'apps/backend/comfyui/my_nodes/nodes' / (name + '.py')
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

@@ -83,9 +83,9 @@ const ENGINE_HOME = join(homedir(), "Library/Application Support/漫影工作室
 const ENGINE_OUTPUT = join(ENGINE_HOME, "output");
 // 装机 App 的 repo: 工作流真源(引擎 manifest.repo_workflows_dir=装机 backend 树;
 // 与仓库 dirty 树可能分叉,断言恒以装机面为准——本测=装机产品回归)
-const INST_T2I = "/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
+const INST_T2I = "/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
 // D4 装机面漂移软提醒的对端:仓库树同名 t2i(仓库并行在改≠测试错,恒不设门)
-const REPO_T2I = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`;
+const REPO_T2I = `${process.env.HOME}/Project/Github/MYStudio/apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json`;
 const WF_REL = "1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json";
 const OUT_DIR = join(process.env.HOME, "Project/Github/MYStudio/apps/output/daojie-t2i-app-e2e");
 const TMP = "/tmp/daojie-t2i-e2e";

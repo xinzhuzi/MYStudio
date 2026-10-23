@@ -84,7 +84,7 @@ def apply(wf):
 
 
 if __name__=='__main__':
-    p=next((ROOT/'apps/backend/engines/comfyui/workflows').rglob('flux3-道劫-t2i.json'))
+    p=next((ROOT/'apps/backend/comfyui/workflows').rglob('flux3-道劫-t2i.json'))
     wf=json.loads(p.read_text());assert wf['extra']['flux3TaskOwner']=='flux3-daojie-ten-types-1016'
     apply(wf);p.write_text(json.dumps(wf,ensure_ascii=False,indent=2)+'\n')
     r=lc.check_workflow(wf);print(json.dumps(r,ensure_ascii=False,indent=2))

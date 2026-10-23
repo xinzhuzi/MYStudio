@@ -13,7 +13,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // jsdom 环境 import.meta.url 是 http 协议(file 读不了)→ 按仓库布局从
 // process.cwd()(vitest 恒自 apps/ 起)定位引擎侧真源(独立扩展文件,整文件直读)。
 const cloakSource = readFileSync(
-  path.resolve(process.cwd(), "backend/engines/comfyui/my_nodes/web/my_login_cloak.js"),
+  path.resolve(process.cwd(), "backend/comfyui/my_nodes/web/my_login_cloak.js"),
   "utf8",
 );
 

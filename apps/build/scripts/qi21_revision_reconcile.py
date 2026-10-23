@@ -28,7 +28,7 @@ def walk(x):
  return x
 for row in rows:
  p=Path(row['path'])
- if not p.is_relative_to(ROOT/'apps/backend/engines/comfyui') or p.suffix!='.json':continue
+ if not p.is_relative_to(ROOT/'apps/backend/comfyui') or p.suffix!='.json':continue
  if '/workflows/' not in str(p) and '/subgraphs/' not in str(p):continue
  doc=json.loads(p.read_text());after=walk(doc)
  if doc!=after:json_write(p,after,'保留并行设定卡修订，刷新类型文本快照；未改采样配置')

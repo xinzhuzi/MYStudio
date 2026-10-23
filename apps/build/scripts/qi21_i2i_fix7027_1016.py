@@ -9,9 +9,9 @@ fail-closed:术前 md5 锚+link246 形态锚;术后 coherence+左向+回读;幂�
 import json, shutil, sys, hashlib
 from pathlib import Path
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
-T2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+T2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
 PRE_MD5 = "e50bb8b676e60d89336e55ef8db70541"
 NOTE_ADD = ("→[7019] cfg1 引导(段A 7步turbo)", "")
 

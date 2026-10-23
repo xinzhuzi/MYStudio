@@ -16,7 +16,7 @@
 import json
 import uuid
 
-OUT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daotu-rgba-t2i.json"
+OUT = "/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-daotu-rgba-t2i.json"
 OI = "/tmp/oi.json"
 WORKFLOW_ID = "c1a2d3e4-5f60-4a7b-8c9d-0a1b2c3d4e5f"  # 固定,幂等
 

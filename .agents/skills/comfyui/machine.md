@@ -18,7 +18,7 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   engine.port 现查为准(0929-0930 实弹:17001↔17000 随端口决议顺延漂移,禁抄常量;现查=
   `grep '"port"' <home>/manifest.json`;engine_manager allocate_port 扫 17000-17999 取首个空闲
   口写回账本). Engine is spawned on demand by
-  `apps/backend/engines/comfyui/engine_manager.py` and does NOT listen while idle — verify with
+  `apps/backend/comfyui/engine_manager.py` and does NOT listen while idle — verify with
   `lsof -nP -iTCP:<port> -sTCP:LISTEN`. Launch args from manifest: gpu-only + reserve-vram 16 +
   pytorch-cross-attention (same discipline as the retired Desktop line). Check: `GET /system_stats` -> 200.
 - **GPUs**: 1x Apple M4 Max, unified memory 128GB, device `mps`. No CUDA — CUDA-only speedups
@@ -122,9 +122,9 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
   - (09-21) Engine upgraded past the pre-fill: v0.37.0 now (subgraphs + hash-based workflow restore).
   - (09-21) **Subgraph groups MUST carry an `id` field each** (any increasing int): without id only
     `groups[0]` loads, the rest are silently dropped. Cost a full debug round on the 道劫 [90] matrix.
-- (09-21) Repo workflows (`apps/backend/engines/comfyui/workflows/`) reach the engine through TWO
+- (09-21) Repo workflows (`apps/backend/comfyui/workflows/`) reach the engine through TWO
   copies that must be synced: repo file (truth) → app
-  `/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/` (install seed).
+  `/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/` (install seed).
   The engine-home userdata (`<home>/ComfyUI/user/default/workflows/`) stays ZERO workflow files BY
   CHARTER (`docs/comfyui-kb/工作流落位规范.md`, audit item 2 in
   `apps/build/scripts/workflow_placement_audit.py`) — never rsync repo copies into it. The native

@@ -29,8 +29,8 @@ os.environ['PYTHONPATH'] = str(root / 'apps/backend')
 if mode in ('engines', 'my_nodes', 'chapter_video', 'build_scripts'):
     import pytest
     paths = {
-        'engines': ['backend/engines/comfyui/tests'],
-        'my_nodes': ['backend/engines/comfyui/my_nodes/tests'],
+        'engines': ['backend/comfyui/tests'],
+        'my_nodes': ['backend/comfyui/my_nodes/tests'],
         'chapter_video': ['build/chapter_video/tests', '--deselect=build/chapter_video/tests/test_continuity_pilot_attempt_ledger.py::ContinuityPilotAttemptLedgerTest::test_full_chapter_dry_run_reports_all_43_blocked_without_network', '--deselect=build/chapter_video/tests/test_continuity_pilot_attempt_ledger.py::ContinuityPilotAttemptLedgerTest::test_paid_attempt_metadata_reaches_the_gpt_request_config'],
         'build_scripts': ['build/scripts/test_build_voice_clone_library.py', 'build/scripts/test_daojie_ma_sync_check.py', 'build/scripts/test_mix_voice_audio.py'],
     }

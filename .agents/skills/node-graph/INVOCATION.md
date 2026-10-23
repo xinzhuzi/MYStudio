@@ -12,14 +12,14 @@
 5. **活机读数**(无读数不得报「已生效」;只许说「盘上已改待载」):.py→`/object_info/<类>`+路由 curl;JSON→CDP `app.graph.serialize()` 读 definitions(根图恒 `app.graph`,`app.canvas.graph` 在子图视图=内层图);JS→CDP 验 DOM(`w.element/inputEl` 在场,数据层在场≠渲染在场)。探针姿势=App 带 `--remote-debugging-port=9225` 启动→`/json/list` 取 webview target→executeJavaScript。
 6. **报账**:生效声明+活机读数+测试结果,三件同报。
 
-- 四副本:①仓库真源 `apps/backend/engines/comfyui/workflows/` ②装机包种子 `/Applications/….app/Contents/Resources/backend/…` ③构建产物 `apps/release/build/…`(拿它代替验证=AGENTS 禁)④引擎家用户区 `<engine-home>/ComfyUI/user/default/workflows/`(用户另存件家;旧快照与 repo 恒 differ=用户手存非装机件)。`~/Library/漫影工作室`=软链→新家,非第五处。
+- 四副本:①仓库真源 `apps/backend/comfyui/workflows/` ②装机包种子 `/Applications/….app/Contents/Resources/backend/…` ③构建产物 `apps/release/build/…`(拿它代替验证=AGENTS 禁)④引擎家用户区 `<engine-home>/ComfyUI/user/default/workflows/`(用户另存件家;旧快照与 repo 恒 differ=用户手存非装机件)。`~/Library/漫影工作室`=软链→新家,非第五处。
 - **改任何 UI/工作流前先从用户看到的界面反向追实际读取路径**,勿只改理论源头(1005 十轮白改教训):侧栏 `repo:` 叶子直载读**②装机包**非④(活机判据 `activeWorkflow.path` 形如 `workflows/<rel>`);全图见排查文档 §七。
 - **画布类改动=热覆盖零打包**(1006 最高令):仓库→装机包 Resources→引擎缓存三路覆盖,涉节点 .py 再加引擎家 custom_nodes 且须引擎重启(App 首启 sync 覆写 custom_nodes——手动 cp 引擎家重启必被冲掉,持久热修=改 Resources 种子);**蓝图/子图定义改动=装机 Resources 两处同批 cp**(`my_nodes/subgraphs/` 蓝图+`workflows/` 宿主工作流——侧栏真读装机包,漏 cp=用户侧仍旧,重启经 sync_my_nodes 进 custom_nodes);md5 指纹四处全一才算同步;**打包仅用户明令才跑 build-mac.sh**。又一坑(1007 晚实勘):**用户画布还持旧态时,App 一次保存/会话收尾就把旧内存态写回用户区缓存复毒**(实测 2424 复写发生在三路修复后 15 分钟,指纹=用户区 md5 又异于仓库)——修完三路必须让用户关签重开读到新态才算闭环,只对盘不对活机=白修;修复后画布未重开前勿按保存。
 
 - **生效矩阵(改动类型→生效动作,1007 判图役五连修定谳,照单执行禁凭感觉)**:①节点 .py(类/路由/中间件)=cp 三方+**重启引擎**(队列==0 硬门)→object_info/路由探活;②工作流 JSON(含子图定义/出口槽位/预填快照)=cp 三方+蓝图双刷+**画布重载文件**(关签重开或 CDP loadGraphData——reload 页面只恢复会话快照≠读盘)→活机 serialize() 读数;③JS 扩展=cp 两方+**页面重载**(no-cache 头已根治缓存,重启引擎非必需除非同批改了 .py)→探针验 DOM。**凡报「已生效」必须带对应活机读数;报「盘上已改待载」也算诚实**。
 
 - **⭐ 落点总表(一次修改到底要落几个地方,1007 晚出口销战役五修无效后全量定谳,照单落点禁凭记忆)**:
-  - **节点 .py = 3 盘上落点**:①仓库真源 ②装机 Resources(`Resources/backend/engines/comfyui/my_nodes/`)③引擎家 `custom_nodes/my-nodes/`(引擎重启被 sync 从②覆写=手动只改③不持久);生效=重启引擎(队列==0)。
+  - **节点 .py = 3 盘上落点**:①仓库真源 ②装机 Resources(`Resources/backend/comfyui/my_nodes/`)③引擎家 `custom_nodes/my-nodes/`(引擎重启被 sync 从②覆写=手动只改③不持久);生效=重启引擎(队列==0)。
   - **JS 扩展 = 3 盘上落点**:同上三路(web/ 目录);生效=页面重载(no-cache 已根治缓存)。
   - **工作流 JSON = 3 盘上 + 3 会话层 = 6 落点(最复杂,少一个=「改了没变」)**:①仓库真源 ②装机 Resources(**侧栏 repo: 叶子真读这份**)③用户区缓存 `user/default/workflows/`(脏画布 autosave 会写回=复毒源)④**webview 草稿** localStorage `Comfy.Workflow.Draft.v2:personal:<path哈希>`(恢复优先级草稿>盘上,quit 时被活画布态回写)⑤已开标签内存态(workflow.content/changeTracker,关签即清、存档期写回④)⑥子图定义 uuid 注册表(会话内注册:节点布局随重载同步,**出口销等播种字段不跟**)。**子图定义改动另加蓝图** `my_nodes/subgraphs/*.json` 仓库+装机两刷(引擎家经 sync)=合计 7-9 落点。
   - **覆盖分工**:①②③=canvas_deploy.mjs 部署+`--audit` 全量对账(机器门);④⑤⑥=零动作交付配方(直推+换草稿+就地板)+渲染源读数+**截图**(唯一视觉铁证);子图布局另有契约锚=pytest `test_subgraph_row_layout_top_to_bottom`(带成员/带内 x 递增/链序)。
@@ -50,7 +50,7 @@
 | 布局工具三函数 | `.agents/skills/comfyui/workflow_layout.py` |
 | 本地捆绑工具(排布+est 口径+立宪检查+美观守门) | 本技能 `tools/workflow_layout.py`(归因副本)、`tools/layout_check.py`(立宪口径检查器)与 `tools/layout_polish.py`(AlignLayout 布局域吸收件,1018);配方见「工具调用配方」章 |
 | 孤儿节点/节点清单 | `.agents/skills/comfyui/tools/find_orphan_nodes.py` 与 `node_inventory.py` |
-| 契约测试锚(布局谓词的测试面) | `apps/backend/engines/comfyui/tests/`(如 test_qwen21_workflow_contract.py) |
+| 契约测试锚(布局谓词的测试面) | `apps/backend/comfyui/tests/`(如 test_qwen21_workflow_contract.py) |
 | 生产工作流生成器(**1001 起退役勿重跑**=史档)与基线真源 | `apps/build/scripts/`(生成器三件+`workflow_layout_baseline.json` 单源;账见 0928 立宪文档 §三) |
 
 > 路径失效时按文件名在 `docs/comfyui-kb/` 与 `.claude/knowledge/` 下重找(真源改名容错)。
@@ -90,7 +90,7 @@ python3 .agents/skills/node-graph/tools/layout_polish.py --selftest             
 - **美观类**(过守门):`align_edges`(六式对齐:极值缘/中心均值线)/`distribute_row`(等距保跨度 gap=None | 定隙堆叠 gap=数值+智能锚点 anchor="start" 优先起点件+副轴对齐 align=start/center/end)/`unify_widths`(同构同宽·居中保持 cx−maxW/2)/`fit_min_size`(尺寸收敛只缩,est 原始式)/`find_free_slot`(防碰撞插入落位)。
 - **手术引擎类**(拓扑域,无守门,由脚本断言+三件验把门):`sweep_dead_links`(死线+孤儿 Reroute+死引用清扫,幂等)/`strip_links`(选区内外清线:internal=两端皆选/external=恰一端,单选=全部)/`match_ports`(换件端口四级阶梯:name+type→name→唯一类型(双方排通配,多类型取交集)→同序兜底)/`column_order`(列序混合排序:min 相关节点 y 主键,>10px 带才分胜负,平均对向槽序次键)/**连线创建三式** `plan_fan_in`·`plan_fan_out`·`plan_chain`(评分梯 connection_score:-1/1通配/2类型合/3同名大小写不敏感;广播共享占用集=智能分配+用尽复用;链式上环成功才推进;非强制绝不拆旧线)+`materialize_links`(计划落真链表条目+inputs[].link/outputs[].links 同步)+`visual_order`(0.8 视觉列序)。
 - 守门用法(内存内,禁直改生产件):`guarded_polish(wf, lambda w: distribute_row(w, ids))`——应用前后 layout_check 各 scope counts 一项不增,否则弃;`--apply` 直写仅限临时图(生产路径须 `--allow-prod`,且恒走 ⑦ 手术脚本路线)。
-- **改本技能 `tools/` 或 `my_nodes/web/my_scope.js` 后必跑四件,四绿才算改完**(1018 grill Q2 裁定):`layout_polish.py --selftest`(12 组)+`layout_check.py --selftest`+`node backend/engines/comfyui/my_nodes/tests/my_scope_probe_1018.mjs`(jsdom 15 断言,apps/ 下跑)+`npx esbuild <改动 js> --loader:.js=js --format=esm >/dev/null`;仓库级世界门禁**不挂**本清单(门禁管产品红,技能工具件域不合流)。
+- **改本技能 `tools/` 或 `my_nodes/web/my_scope.js` 后必跑四件,四绿才算改完**(1018 grill Q2 裁定):`layout_polish.py --selftest`(12 组)+`layout_check.py --selftest`+`node backend/comfyui/my_nodes/tests/my_scope_probe_1018.mjs`(jsdom 15 断言,apps/ 下跑)+`npx esbuild <改动 js> --loader:.js=js --format=esm >/dev/null`;仓库级世界门禁**不挂**本清单(门禁管产品红,技能工具件域不合流)。
 
 - 检查项=优化集 OPTIMIZATION.md ④ 判定口径全集(贝塞尔交叉/线遮节点/est 盒零重叠/est 间距/零负区/输出口最右/左向线——七项,与工具 `CHECK_KEYS` 一致);顶层=scope main,`definitions.subgraphs[]` 每个=独立 scope(`sub:<名>`);−10/−20 边界线在交叉与遮挡两口径同跳过。
 - **末行硬契约**:无论是否违规,最后一行恒打印 `LAYOUT_CHECK_JSON: {"scopes":[{"name":"main","crossings":N},...]}`——对拍脚本靠这行取数;`--json` 时各 scope 条目另含 `counts` 分项违规数明细。

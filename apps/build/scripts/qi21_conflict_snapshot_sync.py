@@ -7,10 +7,10 @@
 命中长文内部片段),不碰任何连线/参数/拓扑。
 
 镜像对象(D4 四件):
-  apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
-  apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json
-  apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json
-  apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json
+  apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json
+  apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json
+  apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json
+  apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json
 
 PAIRS = 本役真源改动清单(旧值→新值;旧值=1018 冲突清理前在档值)。四件预填
 只镜像与真源逐字一致的字符串叶子:型级字段(purpose/positive/negative/
@@ -38,10 +38,10 @@ from qi21_base_swap_tool import ROOT, SOURCE, Tool  # noqa: E402
 CAMPAIGN = "qi21-conflict-p1-1018"
 
 TARGETS = [
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json",
 ]
 
 # 底座正/负向逐字镜像份数(2026-10-18 实测;i2i 不携带风格负向=设计如此)

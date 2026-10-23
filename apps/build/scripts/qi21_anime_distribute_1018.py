@@ -25,13 +25,13 @@ for src in sources:
   dst=mirror/src.relative_to(MANUAL)
   if dst.is_file():plan.append((src,dst))
 plan.append((SOURCE,engine/'daojie-data/qi21_bases.json'))
-backend=ROOT/'apps/backend/engines/comfyui'
+backend=ROOT/'apps/backend/comfyui'
 for row in rows:
  src=Path(row['path'])
  if not src.is_relative_to(backend) or src.suffix!='.json':continue
  if '/workflows/' not in str(src) and '/subgraphs/' not in str(src):continue
  for res in [installed]+builds:
-  dst=res/'backend/engines/comfyui'/src.relative_to(backend)
+  dst=res/'backend/comfyui'/src.relative_to(backend)
   if dst.is_file():plan.append((src,dst))
  if '/subgraphs/' in str(src):
   dst=engine/'ComfyUI/custom_nodes/my-nodes/subgraphs'/src.name

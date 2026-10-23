@@ -58,7 +58,7 @@ from .pipeline import PipelineError, generate_image
 # 一切鉴权路由全拒——公开仓库里不再存在任何可用令牌字面量。
 LOCAL_TOKEN_ENV = "MANYING_LOCAL_IMAGE_TOKEN"
 # bridge 回写令牌单源(swap 阶段1 原为双侧固定串+启动 assert 防漂移):
-# engines/comfyui/bridge_contract.BRIDGE_TOKEN 现与本函数读同一 env 变量,
+# comfyui/bridge_contract.BRIDGE_TOKEN 现与本函数读同一 env 变量,
 # 单源即 env 名,双侧各改各的 env 名=回写全拒,天然自暴露。
 
 
@@ -565,9 +565,9 @@ class Handler(BaseHTTPRequestHandler):
     # GET /comfy/jobs/{id}(既有 job/进度范式的 HTTP 化);轻操作同步应答。
 
     def _comfy(self, method: str, path: str, payload: dict, query: dict) -> None:
-        from engines.comfyui.engine_manager import EngineOpError, engine_manager, jobs
-        from engines.comfyui import plugin_manager as pm
-        from engines.comfyui import bridge_inbox
+        from comfyui.engine_manager import EngineOpError, engine_manager, jobs
+        from comfyui import plugin_manager as pm
+        from comfyui import bridge_inbox
 
         def q(name: str) -> str:
             return (query.get(name) or [""])[0]
@@ -649,13 +649,13 @@ class Handler(BaseHTTPRequestHandler):
                 if "/" in name or "\\" in name or ".." in name:
                     self._send_error_json(400, "参考图文件名不合法(禁止路径段)", "bridge-reference-invalid")
                     return
-                from engines.comfyui import uploads
+                from comfyui import uploads
                 result = uploads.upload_reference(image_b64, name)
                 self._send_json({"accepted": True, "name": result.get("name"), "subfolder": result.get("subfolder", "")})
                 return
             if method == "POST" and path == "/comfy/bridge/storyboards":
                 # 业务侧栏数据面(阶段2 批3):渲染层推分镜快照
-                from engines.comfyui import bridge_sidepanel
+                from comfyui import bridge_sidepanel
                 try:
                     result = bridge_sidepanel.update(payload.get("shots") or [], payload)
                 except ValueError as exc:
@@ -664,13 +664,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(result)
                 return
             if method == "GET" and path == "/comfy/bridge/storyboards":
-                from engines.comfyui import bridge_sidepanel
+                from comfyui import bridge_sidepanel
                 self._send_json(bridge_sidepanel.snapshot())
                 return
             if method == "POST" and path == "/comfy/bridge/actions":
                 # 制作动作通道(09-11):引擎漫影侧栏提交,宿主渲染层消费执行;
                 # note=付费生成的补充要求(09-12 功能差异补齐 B1)
-                from engines.comfyui import bridge_actions
+                from comfyui import bridge_actions
                 try:
                     self._send_json(bridge_actions.submit(
                         str(payload.get("kind") or ""),
@@ -683,11 +683,11 @@ class Handler(BaseHTTPRequestHandler):
                 return
                 return
             if method == "GET" and path == "/comfy/bridge/actions":
-                from engines.comfyui import bridge_actions
+                from comfyui import bridge_actions
                 self._send_json(bridge_actions.list_since(int(q("cursor") or 0)))
                 return
             if method == "POST" and path == "/comfy/bridge/actions/ack":
-                from engines.comfyui import bridge_actions
+                from comfyui import bridge_actions
                 ids = payload.get("ids")
                 if not isinstance(ids, list) or any(type(item_id) is not int or not 0 < item_id <= 2 ** 53 - 1 for item_id in ids):
                     raise ValueError("动作确认 ids 必须是正安全整数列表")
@@ -752,7 +752,7 @@ class Handler(BaseHTTPRequestHandler):
                         self._send_json({"engineOnline": False, "detail": None})
                         return
                     try:
-                        from engines.comfyui import execute as comfy_execute
+                        from comfyui import execute as comfy_execute
 
                         self._send_json({"engineOnline": True, "detail": comfy_execute.object_info_detail(detail_class)})
                     except (EngineOpError, OSError, urllib_error.URLError, json.JSONDecodeError) as exc:
@@ -860,7 +860,7 @@ class Handler(BaseHTTPRequestHandler):
 
             # ── 任意工作流执行(09-08 二期/三期收官共用;job 化,进度轮询) ──
             if method == "POST" and path == "/comfy/execute":
-                from engines.comfyui import execute as comfy_execute
+                from comfyui import execute as comfy_execute
 
                 self._send_json({"jobId": comfy_execute.execute_job(payload)})
                 return
@@ -908,14 +908,14 @@ def _shutdown_sequence(server, log=print) -> list[str]:
     except Exception as exc:  # noqa: BLE001 — 收摊路径不因单步失败弃守其余步
         log(f"[image-sidecar] 释放监听端口失败: {exc}")
     try:
-        from engines.comfyui.engine_manager import engine_manager
+        from comfyui.engine_manager import engine_manager
 
         engine_manager().stop()
         events.append("engine-stopped")
     except Exception as exc:  # noqa: BLE001
         log(f"[image-sidecar] 退出时停引擎失败(看门狗会兜底回收): {exc}")
     try:
-        from engines.comfyui.engine_manager import release_engine_lock
+        from comfyui.engine_manager import release_engine_lock
 
         release_engine_lock()
     except Exception as exc:  # noqa: BLE001
@@ -952,7 +952,7 @@ def main() -> None:
     # 冷启动序列第一步:旧家 <userData>/python/comfyui 一次性收编到
     # <userData>/comfyui(09-09 用户裁定;此刻引擎进程必未起,move 安全)
     try:
-        from engines.comfyui.manifest import ensure_home_migrated
+        from comfyui.manifest import ensure_home_migrated
 
         ensure_home_migrated()
     except Exception as exc:  # noqa: BLE001 — 迁移失败不拦 sidecar 起服

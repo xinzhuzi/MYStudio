@@ -106,7 +106,7 @@ def hold_engine() -> None:
     """引擎保活守护:ensure_engine_ready 须常驻父进程(退出即收摊)。"""
     holder = Path("/tmp/qi21_sidecar_api_engine_hold.py")
     holder.write_text(
-        "from engines.comfyui import engine_manager\nimport time,sys\n"
+        "from comfyui import engine_manager\nimport time,sys\n"
         "engine_manager.engine_manager().ensure_engine_ready()\n"
         "print('engine ready',flush=True)\nwhile True: time.sleep(60)\n")
     lf = open("/tmp/qi21_sidecar_api_engine_hold.log", "wb")

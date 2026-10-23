@@ -40,13 +40,13 @@ PLAN = {
     "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md": [(R1_OLD, R1_NEW, 2), (R2_OLD, R2_NEW, 2), (R5_OLD, R5_NEW, 1)],
     "docs/prompts/道劫_类型主体句示例.md": [(R5_OLD, R5_NEW, 1)],
     "docs/prompts/Qwen-Image-2.1/12-毁风格词错题集.md": [(R7_OLD, R7_NEW, 1)],
-    "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py": [(R1_OLD, R1_NEW, 1)],
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": [(R1_OLD, R1_NEW, 1)],
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": [(R1_OLD, R1_NEW, 3)],
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": [(R1_OLD, R1_NEW, 1)],
-    "apps/backend/engines/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json": [(R3_OLD, R3_NEW, 2), (R4_OLD, R4_NEW, 2)],
-    "apps/backend/engines/comfyui/my_nodes/nodes/_gongbi_gate.py": [(R6A_OLD, R6A_NEW, 1), (R6B_OLD, R6B_NEW, 1)],
-    "apps/backend/engines/comfyui/my_nodes/tests/test_gongbi_gate.py": [(R8_OLD, R8_NEW, 1)],
+    "apps/backend/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py": [(R1_OLD, R1_NEW, 1)],
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": [(R1_OLD, R1_NEW, 1)],
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": [(R1_OLD, R1_NEW, 3)],
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": [(R1_OLD, R1_NEW, 1)],
+    "apps/backend/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json": [(R3_OLD, R3_NEW, 2), (R4_OLD, R4_NEW, 2)],
+    "apps/backend/comfyui/my_nodes/nodes/_gongbi_gate.py": [(R6A_OLD, R6A_NEW, 1), (R6B_OLD, R6B_NEW, 1)],
+    "apps/backend/comfyui/my_nodes/tests/test_gongbi_gate.py": [(R8_OLD, R8_NEW, 1)],
 }
 
 LEDGER1_ANCHOR = "- （原 :30/:65）「右手握住剑鞘」——被 09-24 部件清单句纪律 1018 终版（虚握剑鞘上端三分之一处、五指环拢鞘身，重量由剑绦/丝绦承担）取代（C32，与类型句「手部至多轻搭」重量挂载语义统一）。"

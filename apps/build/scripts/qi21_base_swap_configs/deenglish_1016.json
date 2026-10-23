@@ -32,12 +32,12 @@
     ]
   ],
   "wf_counts": {
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
   },
   "assembly_sha16_old": "7fe9b2334af97bad",
   "boundary_pairs": [
@@ -66,7 +66,7 @@
   ],
   "extra_file_swaps": [
     {
-      "file": "apps/backend/engines/comfyui/my_nodes/tests/test_qi21_style_type_separation.py",
+      "file": "apps/backend/comfyui/my_nodes/tests/test_qi21_style_type_separation.py",
       "pairs": [
         [
           "'数字绘画表面洁净平整（clean, flat digital finish），线描、色面与罩染层次分明，共同形成画面节奏。'",

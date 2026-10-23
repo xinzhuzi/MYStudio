@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / 'apps/output/automation/daojie-type-docs-charsheet-1016'
-NODES = ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes'
+NODES = ROOT / 'apps/backend/comfyui/my_nodes/nodes'
 SOURCE = ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json'
 
 

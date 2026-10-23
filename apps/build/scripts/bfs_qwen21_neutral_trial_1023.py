@@ -47,7 +47,7 @@ name = '/'.join(v for v in [upload['subfolder'], upload['name']] if v)
 prompt = json.loads((RESEARCH / 'neutral-ref.api.json').read_text())
 prompt['475']['inputs']['image'] = name
 write_new(RESEARCH / 'neutral-ref.submitted-api.json', prompt)
-original = Path(subprocess.check_output(['fd', '-a', '-t', 'f', 'BFS-.*Qwen2.1', str(ROOT / 'apps/backend/engines/comfyui/workflows'), '--no-ignore'], text=True).strip())
+original = Path(subprocess.check_output(['fd', '-a', '-t', 'f', 'BFS-.*Qwen2.1', str(ROOT / 'apps/backend/comfyui/workflows'), '--no-ignore'], text=True).strip())
 gui = json.loads(original.read_text())
 for node in gui['nodes']:
     if node['id'] == 470:

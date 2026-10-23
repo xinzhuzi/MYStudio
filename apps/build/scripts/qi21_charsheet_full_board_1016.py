@@ -23,14 +23,14 @@ c.update(positive_text=positive,rgba_positive=positive,aspect_ratio='21:9 (Ultra
 c['negative_text']=c['negative_text'].replace('实体背景，背景景物，','')
 assert {**d,'types':[t for t in d['types'] if t['zh']!='设定卡']}=={**old,'types':[t for t in old['types'] if t['zh']!='设定卡']}
 save(p,json.dumps(d,ensure_ascii=False,indent=2)+'\n')
-p=ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_api_pe.py';s=p.read_text()
+p=ROOT/'apps/backend/comfyui/my_nodes/nodes/my_qi21_api_pe.py';s=p.read_text()
 s=s.replace('# 设定卡首段为固定版式；首稿、补发和模型救回均须原样保留。','# 设定卡完整类型句为固定版式；多段中的逐格细节、资料与专项区均须保留。')
 assert s.count('layout = type_pos.splitlines()[0].strip()')==1
 s=s.replace('layout = type_pos.splitlines()[0].strip()','layout = type_pos.strip()')
 s=s.replace('设定卡版式丢失或改写:类型句首段须逐字保留','设定卡版式丢失或改写:完整类型句须逐字保留')
 s=s.replace('[设定卡版式锁] 类型句首段逐字保留，仅润色人物描述，不增减图像区、视图、文字或色卡。','[设定卡版式锁] 完整类型句所有段落逐字保留，仅润色人物描述；不得省略或改写资料、色样、三视图、逐格细节与底部专项区，来源未提供的能力与物件不得补造。')
 save(p,s)
-p=ROOT/'apps/backend/engines/comfyui/my_nodes/tests/test_qi21_charsheet_six_zone.py';s=p.read_text()
+p=ROOT/'apps/backend/comfyui/my_nodes/tests/test_qi21_charsheet_six_zone.py';s=p.read_text()
 s=s.replace("assert '固定六个图像区' in card['positive_text']","assert '完整横向角色设定板' in card['positive_text']")
 s=s.replace("assert '四幅全身像、一幅面部近景和一幅局部特写' in card['positive_text']","assert '四幅全身人物、两幅头部近景、四幅人物细节' in card['positive_text']")
 s=s.replace("card['positive_text'].splitlines()[0]","card['positive_text']")
@@ -38,9 +38,9 @@ s=s.replace("assert '固定六个图像区' in original","assert '完整横向�
 s=s.replace("original.replace('固定六个图像区', '固定九个图像区', 1)","original.replace('右栏第三行固定四格', '右栏第三行固定六格', 1)")
 s=s.replace("good.replace('固定六个图像区', '固定九个图像区', 1)","good.replace('底部第三区为装备结构', '底部第三区为表情差分', 1)")
 save(p,s)
-p=ROOT/'apps/backend/engines/comfyui/my_nodes/tests/test_flux3_daojie_adapter.py';s=p.read_text();assert '"设定卡": "固定六个图像区"' in s
+p=ROOT/'apps/backend/comfyui/my_nodes/tests/test_flux3_daojie_adapter.py';s=p.read_text();assert '"设定卡": "固定六个图像区"' in s
 save(p,s.replace('"设定卡": "固定六个图像区"','"设定卡": "完整横向角色设定板"'))
-p=ROOT/'apps/backend/engines/comfyui/my_nodes/tests/test_my_qi21_base.py';s=p.read_text()
+p=ROOT/'apps/backend/comfyui/my_nodes/tests/test_my_qi21_base.py';s=p.read_text()
 s=s.replace('RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分", "设定卡"}  # 1016 终审翻真:设定卡入列(透明底档案卡)','RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分"}  # 1016 完整设定板默认不透明')
 import math
 wh=tuple(round(v/8)*8 for v in (math.sqrt(3*1024*1024*21/9),math.sqrt(3*1024*1024*9/21)))

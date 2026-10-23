@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 BP = Path(__file__).resolve().parents[3] / (
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图.json")
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图.json")
 PRE_MD5 = "0b646752408378e72019d4bda82f9810"  # 术前锚(1017 typespeed 后实态)
 CAMPAIGN = "1017bpcfg1"
 

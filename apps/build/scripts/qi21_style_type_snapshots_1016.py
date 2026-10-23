@@ -11,7 +11,7 @@ for a,b in zip(old['types'],new['types']):
   if a.get(key) and a.get(key)!=b.get(key): replacements[a[key]]=b[key]
 prior=json.loads((ROOT/'apps/output/automation/daojie-qi21-style-correction-1016/distribution-plan.json').read_text())
 paths={Path(r['source']) for r in prior['files'] if '/workflows/' in r['source'] or '/subgraphs/' in r['source']}
-paths.update((ROOT/'apps/backend/engines/comfyui/my_nodes/subgraphs').glob('qi21-*.json'))
+paths.update((ROOT/'apps/backend/comfyui/my_nodes/subgraphs').glob('qi21-*.json'))
 rows=[]
 def transform(x,where,changes):
  if isinstance(x,str):

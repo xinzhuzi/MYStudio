@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF = REPO / "apps/backend/engines/comfyui/workflows"
+WF = REPO / "apps/backend/comfyui/workflows"
 HOME_WF = (Path.home() / "Library/Application Support/漫影工作室/comfyui"
            / "ComfyUI/user/default/workflows")
 LINT = REPO / "apps/build/scripts/workflow_graph_lint.py"

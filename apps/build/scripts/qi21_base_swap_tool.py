@@ -41,7 +41,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 MANUAL = ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng'
 SOURCE = MANUAL / 'json/qi21_bases.json'
-TESTS = ROOT / 'apps/backend/engines/comfyui/my_nodes/tests'
+TESTS = ROOT / 'apps/backend/comfyui/my_nodes/tests'
 TS_CONTRACT_TEST = ROOT / 'apps/frontend/lib/ai/daojie-prompt-contract.test.ts'
 
 DEFAULT_MANUAL_DIST = ['prefix.md', 'json/qi21_bases.json', 'json/prompt_layering.json',
@@ -226,9 +226,9 @@ class Tool:
                 plan.append((src, base / rel / name))
         for rel in self.cfg.get('wf_counts', {}):
             src = ROOT / rel
-            wf_base = src.relative_to(ROOT / 'apps/backend/engines/comfyui')
-            plan.append((src, app / 'backend/engines/comfyui' / wf_base))
-            plan.append((src, release / 'backend/engines/comfyui' / wf_base))
+            wf_base = src.relative_to(ROOT / 'apps/backend/comfyui')
+            plan.append((src, app / 'backend/comfyui' / wf_base))
+            plan.append((src, release / 'backend/comfyui' / wf_base))
             if src.parent.name == 'subgraphs':
                 plan.append((src, engine_nodes / 'subgraphs' / src.name))
         plan.append((SOURCE, engine_data / 'qi21_bases.json'))

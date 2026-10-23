@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 BAK_ROOT = REPO / "apps/output/bak/qi21-anime-lora-removal-1018"
 CAMPAIGN = "1018animerem"
 SG_NAME = "道劫·加速子图"

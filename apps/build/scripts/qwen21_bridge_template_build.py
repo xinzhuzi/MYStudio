@@ -20,10 +20,10 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-CANVAS = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-OUT = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
-CANVAS_I2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
-OUT_I2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
+CANVAS = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+OUT = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json"
+CANVAS_I2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+OUT_I2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 ENGINE = None
 
 SG6 = "96937bbe-99d1-4f16-a06c-d86b57815d91"

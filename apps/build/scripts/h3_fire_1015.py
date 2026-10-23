@@ -23,7 +23,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 EH = Path.home() / "Library/Application Support/漫影工作室/comfyui"
-WF = REPO / "apps/backend/engines/comfyui/workflows/2_视频/H3视频/2_固定线/社区-480P生成-SolAttn加速-480P直出.json"
+WF = REPO / "apps/backend/comfyui/workflows/2_视频/H3视频/2_固定线/社区-480P生成-SolAttn加速-480P直出.json"
 OUT_DIR = REPO / "runs/campaigns/h3-v12-firstfire-1015"
 ENGINE = f"http://127.0.0.1:{json.loads((EH / 'manifest.json').read_text(encoding='utf-8'))['engine']['port']}"
 CONTROL_WORDS = {"fixed", "increment", "decrement", "randomize"}

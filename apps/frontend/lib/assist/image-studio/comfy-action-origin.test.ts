@@ -15,7 +15,7 @@ function loadActionBridge(mainResponse?: () => unknown) {
   });
   const alert = vi.fn();
   const context = vm.createContext({ window: { alert }, fetch: fetchMock });
-  const source = readFileSync(resolve("backend/engines/comfyui/my_nodes/web/bridge-action.js"), "utf8").replace(/\bexport /g, "");
+  const source = readFileSync(resolve("backend/comfyui/my_nodes/web/bridge-action.js"), "utf8").replace(/\bexport /g, "");
   vm.runInContext(`${source}\nglobalThis.submit = postAction;`, context);
   return { fetchMock, alert, submit: context.submit as (kind: string, note: string, button: unknown, origin?: string, episode?: string) => void };
 }
@@ -34,7 +34,7 @@ function loadNodeExtension(file: string) {
     THEME: {}, CINEMA_TOKENS: { status: {} }, SIZE: {},
     scriptUI: ui, directorPlanUI: ui, assetsUI: ui, storyboardTableUI: ui, storyboardPanelUI: ui, shotProductionUI: ui, workbenchUI: ui,
   });
-  const source = readFileSync(resolve(`backend/engines/comfyui/my_nodes/web/${file}`), "utf8").replace(/^import .*;$/gm, "");
+  const source = readFileSync(resolve(`backend/comfyui/my_nodes/web/${file}`), "utf8").replace(/^import .*;$/gm, "");
   vm.runInContext(source, context);
   return { context, extensions, postAction };
 }
@@ -127,7 +127,7 @@ describe("Comfy action origin binding", () => {
       window: {}, document, Element, postAction, myTooltipsEnabled: false,
       esc: (value: unknown) => String(value), badge: () => "", liveBadgesHTML: () => "", emptyHTML: () => "",
     });
-    const source = readFileSync(resolve("backend/engines/comfyui/my_nodes/web/stage-ui/shot-production.js"), "utf8")
+    const source = readFileSync(resolve("backend/comfyui/my_nodes/web/stage-ui/shot-production.js"), "utf8")
       .replace(/^import .*;$/gm, "").replace("export default", "globalThis.ui =");
     vm.runInContext(source, context);
     const el = document.createElement("div");
@@ -152,7 +152,7 @@ describe("Comfy action origin binding", () => {
       sectionLabel: makeElement, paneStatus: makeElement, icon: () => document.createElement("span"),
       actionButton: ({ label }: { label: string }) => { const button = document.createElement("button"); button.textContent = label; return button; },
     });
-    const source = readFileSync(resolve("backend/engines/comfyui/my_nodes/web/sidebar.js"), "utf8")
+    const source = readFileSync(resolve("backend/comfyui/my_nodes/web/sidebar.js"), "utf8")
       .replace(/^import\s+[\s\S]*?from\s+"[^"]+";\s*$/gm, "")
       .replace(/export\s*\{[^}]+\};/g, "");
     vm.runInContext(`${source}\nglobalThis.renderPane = renderShotsPane;`, context);

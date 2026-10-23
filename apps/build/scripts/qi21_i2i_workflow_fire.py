@@ -32,7 +32,7 @@ import urllib.request
 from pathlib import Path
 
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 SKIP_TYPES = {"Note", "MarkdownNote"}          # 前端注释件,无 API 形
 PASS_TYPES = {"Reroute"}                       # 解析穿越
 

@@ -230,7 +230,7 @@ def _require_downloaded(model_name: str) -> None:
         # 桥的"大件"是引擎服务本身:探不到先试着拉起(自管引擎装了没跑→起),
         # 起来后复探——不能在这里秒拒,否则桥 generate 里的 ensure 补口永远
         # 轮不到(09-11 实弹:漫影生图引擎停着时 1ms 假报"没在运行")
-        from engines.comfyui import engine_manager as _em
+        from comfyui import engine_manager as _em
         try:
             _em.engine_manager().ensure_engine_ready()
         except _em.EngineOpError:

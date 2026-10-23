@@ -59,7 +59,7 @@ monitor_h3.py 均无头),已移除,对齐目录惯例。
 工作流,重复脚本集中到 1 个」):转换器已扩三能(子图实例展开/Reroute 递归穿透/
 双槽仲裁+展示框槽省略),旋钮全走 --set。示例(场景型单发,种子每发换新):
   python3 batch_queue.py run \\
-      --workflow "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json" \\
+      --workflow "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json" \\
       --var-node 7.7014 --var-field value --var-values random \\
       --set 6.4010.base=场景 \\
       --set 400.value=@主体句.txt \\

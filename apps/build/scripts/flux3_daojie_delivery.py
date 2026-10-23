@@ -27,6 +27,6 @@ if __name__=='__main__':
     out+=['','## 逐型观察与问题','']
     for r in rows:
         out += [f"### {r['index']:02d} {r['type']}", '',*['- '+note for note in r['visual_notes']], '',f"render prompt_id: `{r['prompt_id']}`；PE prompt_id: `{r['pe_prompt_id']}`。",'']
-    out += ['## 文件与验证','', 'Windows 原图：`E:\\IP\\漫影工作室\\comfyui\\output\\flux3\\ten-types-1016\\`。Windows完整收据：`E:\\IP\\flux3-ten-types-1016\\01…10\\`。', '', '工作流：`apps/backend/engines/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json`；Windows repo/App resources已部署。', '', '[机器验收](reports/final-verification.json) · [Windows复核](reports/windows-final-verification.json) · [测试与限制](reports/final-review.md) · [原会话漏项审计](research/session-audit.md)', '', '原会话的“全部完成”仅覆盖旧战役；十型已被明确下令，却被助手重新当作等待发车的后续事项，未形成执行收据。本任务补齐该漏项。', '', '不包含抠图或原生透明；CFG1不承诺负向额外抑制。未执行Git、打包或归档。']
+    out += ['## 文件与验证','', 'Windows 原图：`E:\\IP\\漫影工作室\\comfyui\\output\\flux3\\ten-types-1016\\`。Windows完整收据：`E:\\IP\\flux3-ten-types-1016\\01…10\\`。', '', '工作流：`apps/backend/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json`；Windows repo/App resources已部署。', '', '[机器验收](reports/final-verification.json) · [Windows复核](reports/windows-final-verification.json) · [测试与限制](reports/final-review.md) · [原会话漏项审计](research/session-audit.md)', '', '原会话的“全部完成”仅覆盖旧战役；十型已被明确下令，却被助手重新当作等待发车的后续事项，未形成执行收据。本任务补齐该漏项。', '', '不包含抠图或原生透明；CFG1不承诺负向额外抑制。未执行Git、打包或归档。']
     (w.TASK/'RESULTS.md').write_text('\n'.join(out)+'\n')
     print(json.dumps({'count':len(rows),'sheet':str(w.TASK/'artifacts/contact-sheet.png'),'index':str(w.TASK/'RESULTS.md')},ensure_ascii=False))

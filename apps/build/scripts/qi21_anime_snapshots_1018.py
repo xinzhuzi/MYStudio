@@ -7,7 +7,7 @@ tool=Tool({'out_dir':'qi21-anime-1018','positive_new':new,'positive_old':''})
 oldshort='美术风格底座：中式手绘，中国工笔淡彩与白描线条的二维手绘游戏插画，带彩色连环画的概括造型感。细彩线勾勒轮廓与结构，线条细稳连贯；平整分层的清晰色面塑形，色面边界清晰锐利；矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中；画面洁净平整，繁密细节处笔触交代清楚。'
 oldlong=oldshort[:-1]+'；动漫插画面貌：线条兼具动漫的利落与厚实的笔意，富有表现力与节奏感；设色在清淡雅致的基础上适度提升对比度与饱和度，色彩明快而有张力；画面布局富有动感，笔触充满活力，整体呈现兼具国风底蕴与动漫插画趣味的画面。'
 records=[]
-for root in [ROOT/'apps/backend/engines/comfyui/workflows',ROOT/'apps/backend/engines/comfyui/my_nodes/subgraphs']:
+for root in [ROOT/'apps/backend/comfyui/workflows',ROOT/'apps/backend/comfyui/my_nodes/subgraphs']:
     for p in root.rglob('*.json'):
         s=p.read_text()
         if '美术风格底座：中式手绘' not in s:continue

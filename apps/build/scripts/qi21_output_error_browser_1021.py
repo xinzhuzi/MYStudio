@@ -82,7 +82,7 @@ try:
         )
         try:
             receipt["browser_version"] = browser.version
-            workflow_root = repository / "apps/backend/engines/comfyui/workflows"
+            workflow_root = repository / "apps/backend/comfyui/workflows"
             stems = ("qi21-道劫-i2i", "qi21-道劫-t2i", "qi21-edit")
             for stem in stems:
                 matches = list(workflow_root.glob(f"**/{stem}.json"))

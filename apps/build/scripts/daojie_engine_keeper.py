@@ -37,7 +37,7 @@ import time
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "backend"))  # noqa: E402(须先于引擎模块导入)
 
-from engines.comfyui.engine_manager import (  # noqa: E402
+from comfyui.engine_manager import (  # noqa: E402
     EngineManager,
     EngineOpError,
     release_engine_lock,

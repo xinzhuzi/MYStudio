@@ -54,17 +54,17 @@ FILES = [
     REPO / "docs/prompts/Qwen-Image-2.1/07-主体句写作宪法.md",
     REPO / "docs/prompts/道劫_类型主体句示例.md",
     REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md",
-    REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py",
+    REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py",
     ENGINE_MYNODES / "nodes/my_qi21_prompt_assembly.py",
-    REPO / "apps/backend/engines/comfyui/my_nodes/tests/test_my_qi21_api_pe_selfcheck.py",
-    REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
+    REPO / "apps/backend/comfyui/my_nodes/tests/test_my_qi21_api_pe_selfcheck.py",
+    REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
     ENGINE_MYNODES / "subgraphs/qi21-提示词类型优化子图.json",
-    REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-    REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
-    REPO / "apps/backend/engines/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json",
-    REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/2_图生图/K2-角色设定-道劫.json",
-    REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/2_图生图/K2-角色设定-道劫-专家模式.json",
-    REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_charsheet_labels.py",
+    REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+    REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+    REPO / "apps/backend/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json",
+    REPO / "apps/backend/comfyui/workflows/1_图片/K2图像/2_图生图/K2-角色设定-道劫.json",
+    REPO / "apps/backend/comfyui/workflows/1_图片/K2图像/2_图生图/K2-角色设定-道劫-专家模式.json",
+    REPO / "apps/backend/comfyui/my_nodes/nodes/my_charsheet_labels.py",
 ]
 
 
@@ -110,12 +110,12 @@ def swap(check: bool):
 
 def reanchor(check: bool):
     """主体句例文哈希锚(装配节点 _SUBJECT_EXAMPLE 变更后重锚)。"""
-    asm = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py"
+    asm = REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py"
     spec = importlib.util.spec_from_file_location("asm", asm)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     sha16 = hashlib.sha256(m._SUBJECT_EXAMPLE.encode()).hexdigest()[:16]
-    tst = REPO / "apps/backend/engines/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py"
+    tst = REPO / "apps/backend/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py"
     txt = tst.read_text(encoding="utf-8")
     old_anchor = '"主体句": "afd9e6f562e3e606"'
     new_anchor = f'"主体句": "{sha16}"'

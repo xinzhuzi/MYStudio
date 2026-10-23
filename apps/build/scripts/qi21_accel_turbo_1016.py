@@ -38,8 +38,8 @@ import uuid as _uuid
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF_DIR = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像"
-BP_DIR = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs"
+WF_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像"
+BP_DIR = REPO / "apps/backend/comfyui/my_nodes/subgraphs"
 CAMPAIGN = "1016turbo"
 
 T8_CLASS = "T8QwenImage21FunAccPDD4Step"
@@ -773,25 +773,25 @@ def main() -> None:
 
     if args.sync_home:
         app_res = (REPO / "apps/release/build/mac-arm64/mac-arm64/漫影工作室.app"
-                   "/Contents/Resources/backend/engines/comfyui")
+                   "/Contents/Resources/backend/comfyui")
         engine_home = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI")
         py_files = [
-            REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_speed_select.py",
-            REPO / "apps/backend/engines/comfyui/my_nodes/__init__.py",
-            REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_rgba_select.py",
+            REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_speed_select.py",
+            REPO / "apps/backend/comfyui/my_nodes/__init__.py",
+            REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_rgba_select.py",
         ]
         targets = []
         for tag in order:
             cfg = FORMS[tag]
-            rel_wf = cfg["path"].relative_to(REPO / "apps/backend/engines/comfyui")
-            rel_bp = cfg["bp"].relative_to(REPO / "apps/backend/engines/comfyui")
+            rel_wf = cfg["path"].relative_to(REPO / "apps/backend/comfyui")
+            rel_bp = cfg["bp"].relative_to(REPO / "apps/backend/comfyui")
             # 引擎家用户区(ComfyUI/user/default/workflows)恒不同步——placement_audit
             # 「会话恒零写入」策略面;用户区 5 件陈旧属已知容忍面(裁决 1016turbo)
             targets.append((cfg["path"], app_res / rel_wf))
             targets.append((cfg["bp"], app_res / rel_bp))
             targets.append((cfg["bp"], engine_home / "custom_nodes" / "my-nodes" / "subgraphs" / cfg["bp"].name))
         for f in py_files:
-            rel = f.relative_to(REPO / "apps/backend/engines/comfyui")
+            rel = f.relative_to(REPO / "apps/backend/comfyui")
             targets.append((f, app_res / rel))
             targets.append((f, engine_home / "custom_nodes" / "my-nodes" / rel.relative_to("my_nodes")))
         n = 0

@@ -48,5 +48,5 @@ metadata:
 
 - 未提交真源(如 0928 立宪文档)只读引用不改;确需改共享真源,先过静默门并单独报备。静默门=改前 `stat` 目标文件 mtime,距今≥30 分钟(判定无并行会话正在写它)才动手;不满 30 分钟=可能有人正在写,等满或挂起。
 - 速查层与真源冲突:真源胜,回改本技能;新布局裁定落账时按头部同步钩子同批更新。
-- 子图对象格式与边界 links 登记等契约域:见 comfyui 技能 Subgraphs 章与 `apps/backend/engines/comfyui/tests/`。
+- 子图对象格式与边界 links 登记等契约域:见 comfyui 技能 Subgraphs 章与 `apps/backend/comfyui/tests/`。
 - 生产工作流只读铁律与生成器路线:见优化集 OPTIMIZATION.md ⑦ 落地链。

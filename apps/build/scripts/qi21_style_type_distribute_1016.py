@@ -10,7 +10,7 @@ manual=SOURCE.parent.parent
 resources=[Path(p) for p in prior['resources']]
 mirrors=[Path(p) for p in prior['mirrors']]
 engine=Path(prior['engine_home'])
-node_root=ROOT/'apps/backend/engines/comfyui/my_nodes'
+node_root=ROOT/'apps/backend/comfyui/my_nodes'
 pairs={}
 for item in ledger:
  src=Path(item['path'])
@@ -21,7 +21,7 @@ for item in ledger:
  if src.is_relative_to(manual):
   targets += [p/src.relative_to(manual) for p in mirrors]
  if src.is_relative_to(node_root):
-  targets += [p/'backend/engines/comfyui/my_nodes'/src.relative_to(node_root) for p in resources]
+  targets += [p/'backend/comfyui/my_nodes'/src.relative_to(node_root) for p in resources]
   targets.append(engine/'ComfyUI/custom_nodes/my-nodes'/src.relative_to(node_root))
  for dst in targets:
   if not dst.is_file():continue

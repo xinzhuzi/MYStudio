@@ -39,7 +39,7 @@ for x in primary:
  text.append('| '+link(p,label)+' | '+'；'.join(x['changes']).replace('|','／').replace('\n',' ')+' |')
 text+=['','## 新增辅助文件','',
 '本地脚本用于分批修订、备份、核查和报告，不代表生成任务已经执行。迁移脚本依赖当时锚点，不建议重复运行；验证脚本可重复运行。','']
-new=sorted(set((ROOT/'apps/build/scripts').glob('qi21_revision_*.py'))|{ROOT/'apps/build/scripts/qi21_prompt_revision.py',ROOT/'apps/backend/engines/comfyui/my_nodes/tests/test_qi21_edit_purpose.py'})
+new=sorted(set((ROOT/'apps/build/scripts').glob('qi21_revision_*.py'))|{ROOT/'apps/build/scripts/qi21_prompt_revision.py',ROOT/'apps/backend/comfyui/my_nodes/tests/test_qi21_edit_purpose.py'})
 for p in new:text.append('- '+link(p,str(p.relative_to(ROOT))))
 text+=['','## 分发与实际生效范围','',f'已逐字节核验 {len(targets)} 个目标与对应源文件一致；目标和来源列表见 {dump("distribution.json")}。包括装机资源、当前构建资源、实际项目/默认用户手册、引擎家数据及装配节点。只同步本轮修改的文件，未整树覆盖。','',
 '只读查询运行中的17001引擎，装配节点已注册，三用途输入与预期一致：'+dump('runtime-node-readonly.json')+'。本轮没有启动或重启引擎，也没有提交生图任务。','',

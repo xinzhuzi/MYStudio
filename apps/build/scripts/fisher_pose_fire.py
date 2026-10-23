@@ -32,7 +32,7 @@ from PIL import Image, ImageDraw
 ENGINE = "http://127.0.0.1:17001"
 REPO = Path("/Users/zhengbingjin/Project/Github/MYStudio")
 OUT_DIR = REPO / "apps/output/fisher-pose-test"
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/官方-fisher-pose-无限姿势.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/官方-fisher-pose-无限姿势.json"
 ENGINE_INPUT = Path("/Users/zhengbingjin/Project/IP/漫影工作室/comfyui/ComfyUI/input")
 BUILTIN_MANNEQUIN = "/tmp/fisher_builtin_mannequin.png"  # 官方 pose_json 解码件(本会话生成)
 

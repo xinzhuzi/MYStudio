@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, '../../..');
 const appHome = join(homedir(), 'Library/Application Support', readdirSync(join(homedir(), 'Library/Application Support')).find(n => n === '漫影工作室'));
 const manifest = JSON.parse(readFileSync(join(appHome, 'comfyui/manifest.json'), 'utf8'));
 const origin = `http://127.0.0.1:${manifest.engine.port}`;
-const sources = process.argv[2] || join(root, 'apps/backend/engines/comfyui');
+const sources = process.argv[2] || join(root, 'apps/backend/comfyui');
 const files = execFileSync('fd', ['-a', '--fixed-strings', 'qi21-道劫-i2i.json', sources], { encoding: 'utf8' }).trim().split('\n');
 files.push(execFileSync('fd', ['-a', '--fixed-strings', 'qi21-提示词类型优化子图-i2i.json', sources], { encoding: 'utf8' }).trim());
 const cache = join(homedir(), 'Library/Caches/ms-playwright');

@@ -62,17 +62,17 @@
   ],
   "prefix_count": 2,
   "wf_counts": {
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
   },
   "neg_wf_counts": {
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2
   },
   "extra_file_swaps": [
     {

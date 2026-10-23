@@ -126,7 +126,7 @@ def main():
     raws = [p.read_bytes() for p in targets]
     docs = [json.loads(raw) for raw in raws]
     after = transform(docs)
-    info = json.loads((ROOT / 'apps/backend/engines/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
+    info = json.loads((ROOT / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
     assert projection(docs[0], info, True) == projection(after[0], info, True), 'all-branch API changed'
     assert projection(docs[0], info) == projection(after[0], info), 'selected API changed'
     current, _ = builder.build_graph(info, after[0], force_upscale=False)
@@ -136,7 +136,7 @@ def main():
         return
     backup = RESEARCH / 'backups'
     backup.mkdir(parents=True, exist_ok=True)
-    extras = [builder.OUT_I2I, ROOT / 'apps/backend/engines/comfyui/tests/test_qwen21_workflow_contract.py', ROOT / 'apps/build/scripts/test_qi21_i2i_canvas_1021.py']
+    extras = [builder.OUT_I2I, ROOT / 'apps/backend/comfyui/tests/test_qwen21_workflow_contract.py', ROOT / 'apps/build/scripts/test_qi21_i2i_canvas_1021.py']
     receipts = []
     for p in [*targets, *extras]:
         digest = hashlib.sha256(p.read_bytes()).hexdigest()

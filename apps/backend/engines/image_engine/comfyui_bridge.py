@@ -39,9 +39,9 @@ ASPECT_RATIOS = {
     "4:3": (1072, 808), "3:4": (808, 1072),
 }
 # 09-14 三次修订(用户裁定:正途归位):桥模板并入漫影静态库真源
-# engines/comfyui/workflows/ 按域分类(K2图像/1_文生图·2_图生图·3_改图),
+# comfyui/workflows/ 按域分类(K2图像/1_文生图·2_图生图·3_改图),
 # 此目录不再有独立 workflows/——模板按文件名全库检索,分类挪动零映射。
-_WORKFLOWS_DIR = Path(__file__).resolve().parents[1] / "comfyui" / "workflows"
+_WORKFLOWS_DIR = Path(__file__).resolve().parents[2] / "comfyui" / "workflows"
 _REQUIRED_TEMPLATES = ("krea2_t2i", "krea2_edit_ref", "krea2_nsfw_pro", "krea2_uncloth_instruct")
 
 
@@ -71,7 +71,7 @@ def curated_node_class_packs(curated: list[dict[str, Any]] | None = None) -> dic
     """策展包 provides 映射:节点类 → 包中文名(装哪个包能补上这个节点)。"""
     if curated is None:
         try:
-            from engines.comfyui import plugin_manager as _pm
+            from comfyui import plugin_manager as _pm
 
             curated = _pm.load_curated()
         except Exception:  # 策展清单读不到不阻塞生成主链
@@ -133,7 +133,7 @@ def bridge_url() -> str:
     if override:
         return override.rstrip("/")
     # 延迟 import:comfy_manifest 零三方依赖,krea2 调用链行为零变化
-    from engines.comfyui import manifest as comfy_manifest
+    from comfyui import manifest as comfy_manifest
     port = comfy_manifest.recorded_port()
     if port:
         return f"http://127.0.0.1:{port}"
@@ -352,7 +352,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
 
     check_cancelled()
     # 按需启动(09-08 补口):自管引擎装了没跑→先拉起再生成;未装则回落 17598
-    from engines.comfyui import engine_manager as _em
+    from comfyui import engine_manager as _em
     try:
         _em.engine_manager().ensure_engine_ready()
     except _em.EngineOpError as exc:

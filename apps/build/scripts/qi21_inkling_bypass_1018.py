@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 BAK = REPO / "apps/output/bak/qi21-inkling-bypass-1018"
 SG_NAME = "道劫·加速子图"
 LORA_FILE = "Inklingv2-qwen21_c1-st6000.safetensors"

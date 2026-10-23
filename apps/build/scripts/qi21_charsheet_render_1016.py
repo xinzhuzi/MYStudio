@@ -39,7 +39,7 @@ def main():
         assert not (case/'submission.json').exists(),'Use --resume to follow this submitted job'
         queue=request(base,'/queue');assert not queue['queue_running'] and not queue['queue_pending'],'Shared engine queue occupied'
         schema=object_info();(case/'object-info.json').write_text(json.dumps(schema,ensure_ascii=False))
-        canvas=next((ROOT/'apps/backend/engines/comfyui/workflows').rglob('qi21-道劫-t2i.json'))
+        canvas=next((ROOT/'apps/backend/comfyui/workflows').rglob('qi21-道劫-t2i.json'))
         wf=json.loads(canvas.read_text());root={n['id']:n for n in wf['nodes']}
         root[6]['widgets_values'][0]='设定卡';root[6].setdefault('widgets_values_named',{})['型选择']='设定卡'
         root[7]['widgets_values'][0]='2 · viggle';root[7].setdefault('widgets_values_named',{})['速度档位']='2 · viggle'

@@ -35,7 +35,7 @@ def save(name, value):
 
 
 def module(name):
-    path = ROOT / "apps/backend/engines/comfyui/my_nodes/nodes" / (name + ".py")
+    path = ROOT / "apps/backend/comfyui/my_nodes/nodes" / (name + ".py")
     spec = importlib.util.spec_from_file_location(name + "_probe13", path)
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
@@ -44,7 +44,7 @@ def module(name):
 
 
 def prepare():
-    subject = json.loads((ROOT / "apps/backend/engines/comfyui/tests/fixtures/"
+    subject = json.loads((ROOT / "apps/backend/comfyui/tests/fixtures/"
                           "qi21_multiview_subject_1021.json").read_text())["subject"]
     histories = json.loads((OUT / "recent-history.json").read_text())
     records = [(pid, r) for pid, r in histories.items()
@@ -52,7 +52,7 @@ def prepare():
     assert len(records) == 1
     old_id, record = records[0]
     old = record["prompt"][2]
-    import engines.comfyui.my_nodes.nodes.my_qi21_base as base_mod
+    import comfyui.my_nodes.nodes.my_qi21_base as base_mod
     base, width, height, negative, transparent, type_name = base_mod.MyQi21DaojieBase().run("人物多视图")
     selector = module("my_qi21_prompt_select").MyQi21PromptSelect()
     assembly = module("my_qi21_prompt_assembly").MyQi21PromptAssembly()

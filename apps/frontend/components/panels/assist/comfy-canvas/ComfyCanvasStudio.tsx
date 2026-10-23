@@ -50,7 +50,7 @@ export const WEBVIEW_SELECTION_CSS =
  * (?raw 导入整文件)。上游 i18n 改词漏遮时,凭据补丁(cloud_takeover)
  * 仍是功能层兜底:杂散 comfy.org token 永不被采用。换漫影登录的口子=
  * 宿主设 window.MY_ACCOUNT_URL(旧名 MANYING_ACCOUNT_URL 仍兼容;见该文件头注)。 */
-import MY_LOGIN_CLOAK_SOURCE from "../../../../../backend/engines/comfyui/my_nodes/web/my_login_cloak.js?raw";
+import MY_LOGIN_CLOAK_SOURCE from "../../../../../backend/comfyui/my_nodes/web/my_login_cloak.js?raw";
 
 export function buildSignInCloakScript(): string {
   if (!MY_LOGIN_CLOAK_SOURCE.includes("myLoginCloak")) {

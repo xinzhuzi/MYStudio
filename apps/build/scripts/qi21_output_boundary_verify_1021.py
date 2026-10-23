@@ -32,7 +32,7 @@ assert set(before_nodes) - set(after_nodes) == set()
 assert set(after_nodes) - set(before_nodes) == set()
 assert all(n == after_nodes[k] for k, n in before_nodes.items() if k not in (6, 19, 402))
 assert all(sg == fix.repair.graph(source, sg['id']) for sg in before_source['definitions']['subgraphs'] if sg['id'] != fix.repair.PROMPT_ID)
-info = json.loads((root / 'apps/backend/engines/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
+info = json.loads((root / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
 exports = []
 for name, target in builder.TARGETS.items():
     doc = json.loads(target['canvas'].read_bytes())

@@ -14,7 +14,7 @@ for row in json.loads((PREV/'mirror-data-sync.json').read_text()):
  p=Path(row['path']);o=json.loads(p.read_text());index=next(i for i,t in enumerate(o['types']) if t['zh']=='设定卡')
  assert '固定六个图像区' in o['types'][index]['positive_text'];o['types'][index]=card;save(p,dump(o))
  if p.parent.name=='json':manual_roots.append(p.parent.parent)
-node=ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_api_pe.py';before=(OUT/'backups'/node.relative_to(ROOT)).read_bytes()
+node=ROOT/'apps/backend/comfyui/my_nodes/nodes/my_qi21_api_pe.py';before=(OUT/'backups'/node.relative_to(ROOT)).read_bytes()
 for row in json.loads((PREV/'code-sync.json').read_text()):
  p=Path(row['path']);assert p.read_bytes()==before, f'Concurrent node change: {p}';save(p,node.read_bytes())
 for home in manual_roots:

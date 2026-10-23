@@ -37,7 +37,7 @@ TESTS/'test_my_qi21_bases_text.py':[
 TESTS/'test_qi21_style_type_separation.py':[
  ("assert '画面洁净平整，繁密细节处笔触交代清楚；动漫插画面貌' in data['art_style_base']['positive_text']", "assert data['art_style_base']['positive_text'].startswith('美术风格底座：国风二维动漫手绘插画。')\n    assert '简洁明暗色块' in data['art_style_base']['positive_text']"),
 ],
-ROOT/'apps/backend/engines/comfyui/tests/test_qwen21_workflow_contract.py':[
+ROOT/'apps/backend/comfyui/tests/test_qwen21_workflow_contract.py':[
  ('and "细彩线勾勒" in lock_a','and "白描式线条塑形" in lock_a'),
  ('and "矿物色质感鲜泽通透" in lock_a','and "简洁明暗色块" in lock_a'),
 ],

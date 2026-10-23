@@ -47,7 +47,7 @@ try {
   console.log('boot', await page.evaluate(() => ({apiKeys:Object.keys(window.comfyAPI),canvasCount:document.querySelectorAll('canvas').length})));
   const files = [];
   const scan = path => { for (const e of readdirSync(path, { withFileTypes: true })) { const p = join(path, e.name); if (e.isDirectory()) scan(p); else if (['qi21-道劫-i2i.json','qi21-道劫-t2i.json','qi21-edit.json'].includes(e.name)) files.push(p); } };
-  scan(join(root, 'apps/backend/engines/comfyui/workflows'));
+  scan(join(root, 'apps/backend/comfyui/workflows'));
   files.sort((a,b) => Number(!a.endsWith('qi21-道劫-i2i.json')) - Number(!b.endsWith('qi21-道劫-i2i.json')));
   for (const file of files) {
     if (report.cases.length) {

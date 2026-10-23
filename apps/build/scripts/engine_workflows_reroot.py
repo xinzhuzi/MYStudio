@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-REPO_TRUTH = REPO / "apps/backend/engines/comfyui/workflows"
+REPO_TRUTH = REPO / "apps/backend/comfyui/workflows"
 DEFAULT_HOME = Path.home() / "Library/Application Support/漫影工作室/comfyui"
 
 MOVES: list[tuple[str, str]] = [

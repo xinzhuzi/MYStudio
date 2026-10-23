@@ -11,7 +11,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const appHome = join(homedir(), 'Library/Application Support', readdirSync(join(homedir(), 'Library/Application Support')).find(n => n === '漫影工作室'));
 const manifest = JSON.parse(readFileSync(join(appHome, 'comfyui/manifest.json'), 'utf8'));
 const origin = `http://127.0.0.1:${manifest.engine.port}`;
-const sources = process.argv[2] || join(root, 'apps/backend/engines/comfyui/workflows');
+const sources = process.argv[2] || join(root, 'apps/backend/comfyui/workflows');
 const files = ['qi21-道劫-t2i.json', 'qi21-道劫-i2i.json', 'qi21-edit.json'].map(name => execFileSync('fd', ['-a', '--fixed-strings', name, sources], { encoding: 'utf8' }).trim());
 if (files.some(f => !f || f.includes('\n'))) throw new Error('Workflow discovery not unique');
 const cache = join(homedir(), 'Library/Caches/ms-playwright');

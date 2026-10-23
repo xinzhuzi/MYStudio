@@ -40,7 +40,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-超集.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/K2图像/1_文生图/K2-文生图-超集.json"
 
 GREEN = "#4d9e6a"
 GREEN_BG = "#1f2f26"

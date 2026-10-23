@@ -12,7 +12,7 @@ import copy, itertools, json, shutil, subprocess, sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 CHECK = REPO / ".agents/skills/node-graph/tools/layout_check.py"
 BAK = REPO / "apps/output/bak/i2i-asm-layout-1022"
 

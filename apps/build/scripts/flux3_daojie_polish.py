@@ -48,4 +48,4 @@ def apply(wf):
     return wf
 
 if __name__=='__main__':
-    p=next((ROOT/'apps/backend/engines/comfyui/workflows').rglob('flux3-道劫-t2i.json'));wf=json.loads(p.read_text());apply(wf);p.write_text(json.dumps(wf,ensure_ascii=False,indent=2)+'\n');print(json.dumps(lc.check_workflow(wf),ensure_ascii=False,indent=2))
+    p=next((ROOT/'apps/backend/comfyui/workflows').rglob('flux3-道劫-t2i.json'));wf=json.loads(p.read_text());apply(wf);p.write_text(json.dumps(wf,ensure_ascii=False,indent=2)+'\n');print(json.dumps(lc.check_workflow(wf),ensure_ascii=False,indent=2))

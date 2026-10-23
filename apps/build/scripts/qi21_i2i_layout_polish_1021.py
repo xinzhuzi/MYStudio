@@ -19,11 +19,11 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-WF_REL = "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+WF_REL = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 BP_REL = {
-    "[6] 文本提示词类型优化子图": "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json",
-    "道劫·加速子图": "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",
-    "道劫·超分·SeedVR2": "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-道劫-超分-SeedVR2.json",
+    "[6] 文本提示词类型优化子图": "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json",
+    "道劫·加速子图": "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-i2i.json",
+    "道劫·超分·SeedVR2": "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-超分-SeedVR2.json",
 }
 CHECKER = REPO / ".zcode/skills/node-graph/tools/layout_check.py"
 BAK = REPO / "apps/output/bak/i2i-layout-1021"

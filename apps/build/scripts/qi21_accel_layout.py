@@ -36,9 +36,9 @@ def main():
     parser.add_argument('--apply', action='store_true')
     options = parser.parse_args()
     source = Path(subprocess.check_output(['fd', '-a', '^qi21-道劫-t2i.json$',
-        str(ROOT / 'apps/backend/engines/comfyui/workflows')], text=True).strip())
+        str(ROOT / 'apps/backend/comfyui/workflows')], text=True).strip())
     paths = [source]
-    for path in (ROOT / 'apps/backend/engines/comfyui/my_nodes/subgraphs').glob('*.json'):
+    for path in (ROOT / 'apps/backend/comfyui/my_nodes/subgraphs').glob('*.json'):
         data = json.loads(path.read_bytes())
         if any(g['id'] == GRAPH_ID for g in data.get('definitions', {}).get('subgraphs', [])):
             paths.append(path)

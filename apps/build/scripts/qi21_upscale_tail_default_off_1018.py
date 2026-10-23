@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-W = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像"
+W = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像"
 FILES = [W / "1_文生图/qi21-道劫-t2i.json", W / "2_图生图/qi21-道劫-i2i.json"]
 BAK_ROOT = REPO / "apps/output/bak/qi21-upscale-off-1018"
 CAMPAIGN = "1018tailoff"

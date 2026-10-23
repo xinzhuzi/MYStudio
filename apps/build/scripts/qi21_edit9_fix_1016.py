@@ -17,8 +17,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-EDIT_WF = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json"
-EDIT_BP = REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-edit.json"
+EDIT_WF = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json"
+EDIT_BP = REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-道劫-加速子图-edit.json"
 ORDER = ["model", "positive", "negative", "positive_single", "latent"]
 # 同序安全项:宿主输入序对齐子图定义序(i2i/t2i 皆同序;防按位绑定错线);
 # 顶层两线槽位随序互换:link8(negative)→slot2、link69(positive_single)→slot3

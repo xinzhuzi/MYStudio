@@ -37,7 +37,7 @@ def gate_precheck():
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         'gg', Path(__file__).resolve().parents[2] /
-        'backend/engines/comfyui/my_nodes/nodes/_gongbi_gate.py')
+        'backend/comfyui/my_nodes/nodes/_gongbi_gate.py')
     gg = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gg)
     v1 = gg.prompt_violations(POSITIVE, is_subject=True)

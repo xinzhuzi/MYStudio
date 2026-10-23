@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 HOME = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json"
-NODES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
+NODES = REPO / "apps/backend/comfyui/my_nodes/nodes"
 # 道劫风格全部机读资产(不分 K2/Q2.1 产线;10-04 用户令:四件收拢,道劫=统一规范第一个实验)
 PAIRS = {
     "qi21_bases.json": "Q2.1 九型底座真源(lock_layer/types/PE指令/契约/色卡词典)",

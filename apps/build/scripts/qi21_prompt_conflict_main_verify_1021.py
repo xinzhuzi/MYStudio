@@ -72,14 +72,14 @@ def main():
              'test_my_qi21_base.py', 'test_my_qi21_prompt_assembly.py',
              'test_my_qi21_rgba_select.py', 'test_my_qi21_transparent_lean_1008.py',
              'test_qi21_rgba_text.py', 'test_qi21_prompt_conflict_1021.py']
-    tests = ['apps/backend/engines/comfyui/my_nodes/tests/' + name for name in names]
+    tests = ['apps/backend/comfyui/my_nodes/tests/' + name for name in names]
     tests.append('apps/build/scripts/test_qi21_i2i_canvas_1021.py')
     assert all((ROOT / path).is_file() for path in tests)
     focused = run_check('focused', [sys.executable, '-B', str(RUNNER), '-q', *tests], env)
     assert focused['exitCode'] == 0, focused
     assert 'SIDE_EFFECT_ATTEMPTS []' in (EVIDENCE / focused['log']).read_text()
     contract = run_check('workflow-contract', [sys.executable, '-B', str(RUNNER), '-q',
-        'apps/backend/engines/comfyui/tests/test_qwen21_workflow_contract.py'], env)
+        'apps/backend/comfyui/tests/test_qwen21_workflow_contract.py'], env)
     output = (EVIDENCE / contract['log']).read_text()
     assert 'SIDE_EFFECT_ATTEMPTS []' in output
     failed = [line for line in output.splitlines() if line.startswith('FAILED ')]

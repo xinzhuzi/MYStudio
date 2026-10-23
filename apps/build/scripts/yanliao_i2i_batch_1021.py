@@ -96,7 +96,7 @@ def run_job(out_path, purpose, type_zh, rgba_mode, instruction, upload_name):
 def main():
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     spec = importlib.util.spec_from_file_location(
-        "gate", ROOT / "apps/backend/engines/comfyui/my_nodes/nodes/_gongbi_gate.py")
+        "gate", ROOT / "apps/backend/comfyui/my_nodes/nodes/_gongbi_gate.py")
     gate = importlib.util.module_from_spec(spec); spec.loader.exec_module(gate)
     for name, _, _, _, instr in STAGES:  # 门禁四族预检(衣色/鞋履/配饰/发色等)
         v = gate.prompt_violations(instr, is_subject=True)

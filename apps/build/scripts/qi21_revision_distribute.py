@@ -14,9 +14,9 @@ for src in sources:
   for m in mirrors:
    assert m.is_dir(),m
    plan.append((src,m/src.relative_to(MAN)))
- backend=ROOT/'apps/backend/engines/comfyui'
+ backend=ROOT/'apps/backend/comfyui'
  if src.is_relative_to(backend) and '/tests/' not in str(src):
-  for resource in [installed,build]:plan.append((src,resource/'backend/engines/comfyui'/src.relative_to(backend)))
+  for resource in [installed,build]:plan.append((src,resource/'backend/comfyui'/src.relative_to(backend)))
  if src.name=='my_qi21_prompt_assembly.py':plan.append((src,home/'ComfyUI/custom_nodes/my-nodes/nodes'/src.name))
  if src.name=='qi21_bases.json':plan.append((src,home/'daojie-data'/src.name))
 unique={str(dst.resolve()):(src,dst.resolve()) for src,dst in plan};manifest=[]

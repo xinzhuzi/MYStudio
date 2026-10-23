@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--apply', action='store_true')
 parser.add_argument('--deploy', action='store_true')
 args = parser.parse_args()
-paths = subprocess.check_output(['fd', '-a', '--fixed-strings', 'qi21-道劫-i2i.json', str(ROOT / 'apps/backend/engines/comfyui/workflows')], text=True).strip().splitlines()
+paths = subprocess.check_output(['fd', '-a', '--fixed-strings', 'qi21-道劫-i2i.json', str(ROOT / 'apps/backend/comfyui/workflows')], text=True).strip().splitlines()
 assert len(paths) == 1
 source = Path(paths[0])
 receipt = ROOT / 'apps/output/automation/qi21-i2i-output-compact.json'
@@ -65,13 +65,13 @@ record = {'source': str(source), 'before_sha256': hashlib.sha256(raw).hexdigest(
           'after_width': group['bounding'][2], 'before': before, 'after': after, 'destinations': []}
 app = next(p for p in Path('/Applications').iterdir() if p.name == '漫影工作室.app')
 home = next(p for p in (Path.home() / 'Library/Application Support').iterdir() if p.name == '漫影工作室')
-relative = source.relative_to(ROOT / 'apps/backend/engines/comfyui/workflows')
+relative = source.relative_to(ROOT / 'apps/backend/comfyui/workflows')
 allowed_hashes = {record['before_sha256'], record['after_sha256']}
 if receipt.exists() and wanted == raw:
     previous = json.loads(receipt.read_text())
     assert previous['source'] == str(source) and previous['after_sha256'] == record['after_sha256']
     allowed_hashes.add(previous['before_sha256'])
-for path in [app / 'Contents/Resources/backend/engines/comfyui/workflows' / relative,
+for path in [app / 'Contents/Resources/backend/comfyui/workflows' / relative,
              home / 'comfyui/ComfyUI/user/default/workflows' / relative]:
     assert hashlib.sha256(path.read_bytes()).hexdigest() in allowed_hashes, 'User or concurrent template change: ' + str(path)
     record['destinations'].append(str(path))

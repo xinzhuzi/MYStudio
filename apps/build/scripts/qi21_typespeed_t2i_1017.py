@@ -45,7 +45,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 CAMPAIGN = "1017auto"
 TAG = "t2i"
 

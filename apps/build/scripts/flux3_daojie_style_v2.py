@@ -449,7 +449,7 @@ def inspect_style():
                        'new_payload': base64.b64encode(patched).decode(), 'old_mtime_ns': record['mtime_ns']}
     loaders_match = True
     for name, record in snapshot['loaders'].items():
-        local = w.ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes' / name
+        local = w.ROOT / 'apps/backend/comfyui/my_nodes/nodes' / name
         match = local.read_text(encoding='utf-8').replace('\r\n', '\n') == record['source'].replace('\r\n', '\n')
         record['matches_local_normalized'] = match
         loaders_match = loaders_match and match

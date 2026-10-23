@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[3]
-ENGINE = ROOT / 'apps/backend/engines/comfyui'
+ENGINE = ROOT / 'apps/backend/comfyui'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--apply', action='store_true')
 args = parser.parse_args()

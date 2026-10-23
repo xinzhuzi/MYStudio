@@ -3,11 +3,11 @@
 """LoRA 全库引用扫描(09-19 治理 R3/R4;决策表数据源,只读不写)。
 
 扫描面(三处,只读):
-  A. 仓库工作流库  apps/backend/engines/comfyui/workflows/  全量 json
+  A. 仓库工作流库  apps/backend/comfyui/workflows/  全量 json
      - UI 格式(nodes[].widgets_values / widgets_values_named)
      - API/桥格式(graph{node_id:{class_type,inputs}} 递归)
   B. 引擎家用户区  <comfy-home>/ComfyUI/user/default/workflows/  全量 json(同上双格式)
-  C. my_nodes 数据面  apps/backend/engines/comfyui/my_nodes/  的 json
+  C. my_nodes 数据面  apps/backend/comfyui/my_nodes/  的 json
      (daojie_loras.json 等以「file」字段携带 lora 路径,按权威口径判存)
 
 判存口径(对 <comfy-home>/models/loras/ 实际文件):
@@ -41,8 +41,8 @@ HOME_WORKFLOWS = (Path.home() / "Library/Application Support/漫影工作室/com
 LORA_DIR = (Path.home() / "Library/Application Support/漫影工作室/comfyui"
             / "models/loras")
 
-REPO_WF = REPO / "apps/backend/engines/comfyui/workflows"
-MY_NODES = REPO / "apps/backend/engines/comfyui/my_nodes"
+REPO_WF = REPO / "apps/backend/comfyui/workflows"
+MY_NODES = REPO / "apps/backend/comfyui/my_nodes"
 
 EXTS = (".safetensors", ".ckpt", ".pt", ".pt2", ".bin", ".part")
 SKIP_DIRS = {".cache", ".git"}

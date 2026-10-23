@@ -12,7 +12,8 @@ R7 规则4 特例注记三件(engines/__init__ docstring、backend-architecture 
 
 四模式:
   --selftest   锚点全命中自检 + 替换规则单测(合成样例 + 临时件 apply/invert 往返)
-  --dry-run    零写入:锚点校验 + 与 impact-scan 活区清单对账(差集非空即非零退出)
+  --dry-run    零写入:锚点校验 + 与活区清单对账(半动态:账外命中件 git 已跟踪
+               者并入「新增件(动态)」账不红,未跟踪者硬红须先落账)
   (默认)正式   前置自检→清缓存→git mv→docstring→分组替换→收尾自检→
                对账 JSON 落 apps/output/comfyui-relocation-1022/report.json
   --invert     按 replacement-log.json + backup/ 反演(内容还原→git mv 反向)
@@ -1018,21 +1019,31 @@ def discover_form_files() -> tuple[dict[str, list[str]], dict[str, dict[str, int
 
 
 def reconcile_against_authority(counts: dict[str, dict[str, int]]) -> dict:
-    """dry-run/正式 前置:实测命中文件集 vs FORM_EXPECTED_SET 双向差集。
+    """dry-run/正式 前置:实测命中文件集 vs FORM_EXPECTED_SET 双向差集(半动态)。
 
     调用时机均在 git mv 之前(dry-run 全程;正式模式 Phase A),故以旧位路径比对;
     正式模式 Phase C 的改动集校验单独走 expected_paths(含重映射),与本判据无关。
+    半动态账(10-23):账外命中件(diff_new)按 git 跟踪态分账——已被 git 跟踪者
+    自动并入「新增件(动态)」账(new_dynamic_tracked,对账 JSON 单列,不红);
+    未跟踪者维持硬红(untracked_not_expected,须先落账)。
     """
     discovered = set(counts)
     expected = set(FORM_EXPECTED_SET)
     diff_new = sorted(discovered - expected)
     diff_gone = sorted(expected - discovered)
+    tracked: set[str] = set()
+    if diff_new:
+        tracked = set(run_git("ls-files", "-z").stdout.split("\0"))
+    new_dynamic = [p for p in diff_new if p in tracked]
+    untracked_new = [p for p in diff_new if p not in tracked]
     return {
         "authority_size": len(expected),
         "discovered_size": len(discovered),
         "discovered_not_expected": diff_new,
+        "new_dynamic_tracked": new_dynamic,
+        "untracked_not_expected": untracked_new,
         "expected_not_discovered": diff_gone,
-        "clean": not diff_new and not diff_gone,
+        "clean": not untracked_new and not diff_gone,
     }
 
 
@@ -1211,9 +1222,12 @@ def cmd_dry_run() -> int:
         "form3_hits": sum(v["form3_parents5_frontend"] for v in counts.values()),
     }
     print(f"命中处数: {agg_counts}")
+    if recon["new_dynamic_tracked"]:
+        ok(f"新增件(动态)并入账 {len(recon['new_dynamic_tracked'])} 件: "
+           f"{recon['new_dynamic_tracked'][:8]}(git 已跟踪,不红)")
     if not recon["clean"]:
         failures.append(
-            f"对账差集非空: 新增未入账 {recon['discovered_not_expected'][:8]} / "
+            f"对账红: 未跟踪未入账 {recon['untracked_not_expected'][:8]}(须先落账) / "
             f"清单已失活 {recon['expected_not_discovered'][:8]}")
 
     # 预览:替换文件计数(规则1/2)与 D/规则4 逐条已由锚点校验覆盖
@@ -1245,7 +1259,9 @@ def cmd_dry_run() -> int:
         for f in failures:
             print("  -", f)
         return 1
-    ok("dry-run 全绿:锚点全命中、对账差集为空、零写入")
+    dyn = (f"、新增件(动态){len(recon['new_dynamic_tracked'])}件已并入账"
+           if recon["new_dynamic_tracked"] else "")
+    ok(f"dry-run 全绿:锚点全命中、对账无硬红{dyn}、零写入")
     return 0
 
 
@@ -1276,8 +1292,11 @@ def cmd_execute() -> int:
         "form3_hits": sum(v["form3_parents5_frontend"] for v in counts.values()),
     }
     print(f"迁移前计数: {pre_counts}")
+    if recon["new_dynamic_tracked"]:
+        ok(f"新增件(动态)并入账 {len(recon['new_dynamic_tracked'])} 件: "
+           f"{recon['new_dynamic_tracked'][:8]}(git 已跟踪,不红)")
     if not recon["clean"]:
-        failures.append(f"对账差集非空: {recon}")
+        failures.append(f"对账红(未跟踪未入账或清单已失活): {recon}")
     # 门禁目标件在位(工作流三件+契约四件,迁移前旧位)
     for wf in [
         "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
@@ -1295,7 +1314,9 @@ def cmd_execute() -> int:
         for f in failures:
             print("  -", f)
         return 1
-    ok(f"Phase A 全绿:锚点全命中、对账差集空、源区 {len(tracked_src)} 追踪件、树净")
+    dyn = (f"、新增件(动态){len(recon['new_dynamic_tracked'])}件已并入账"
+           if recon["new_dynamic_tracked"] else "")
+    ok(f"Phase A 全绿:锚点全命中、对账无硬红{dyn}、源区 {len(tracked_src)} 追踪件、树净")
 
     # ---- Phase B:执行 ----
     print("-- Phase B 执行:清缓存 → git mv → 分组替换 --")

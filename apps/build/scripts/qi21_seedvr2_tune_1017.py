@@ -10,8 +10,8 @@ import json, shutil, sys
 from pathlib import Path
 REPO = Path('/Users/zhengbingjin/Project/Github/MYStudio')
 FILES = [
-    REPO / 'apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json',
-    REPO / 'apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json',
+    REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json',
+    REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json',
 ]
 def main():
     changed = False

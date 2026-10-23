@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 EVIDENCE = ROOT / ".trellis/tasks/10-20-trellis-audit-remediation/research/round14-default-turbo"
-COMFY = ROOT / "apps/backend/engines/comfyui"
+COMFY = ROOT / "apps/backend/comfyui"
 TURBO = "0 · Turbo 8步"
 AUTO = "自动 · 按型"
 WORKFLOWS = COMFY / "workflows"

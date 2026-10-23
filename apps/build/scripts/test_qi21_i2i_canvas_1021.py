@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 repair = importlib.import_module('qi21_i2i_repair_1016')
 builder = importlib.import_module('qwen21_bridge_template_build')
-NODE_DIR = ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes'
+NODE_DIR = ROOT / 'apps/backend/comfyui/my_nodes/nodes'
 package = types.ModuleType('offline_qi21_canvas_nodes')
 package.__path__ = [str(NODE_DIR)]
 sys.modules[package.__name__] = package
@@ -35,7 +35,7 @@ def source():
 
 
 def schemas():
-    return json.loads((ROOT / 'apps/backend/engines/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
+    return json.loads((ROOT / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
 
 
 def flattened(document):
@@ -96,7 +96,7 @@ def test_new_asset_reaches_typed_empty_latent_not_reference():
 @pytest.mark.parametrize('purpose', PURPOSES)
 def test_real_selected_projection_keeps_purpose_branches_and_sampler_latent(purpose):
     document = select(source(), purpose)
-    info = json.loads((ROOT / 'apps/backend/engines/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
+    info = json.loads((ROOT / 'apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json').read_bytes())
     cls = node_module('my_qi21_purpose_canvas').MyQi21PurposeCanvas
     assert info[cls.__name__]['input'] == json.loads(json.dumps(cls.INPUT_TYPES()))
     assert info[cls.__name__]['output'] == list(cls.RETURN_TYPES)
@@ -127,7 +127,7 @@ def test_all_purposes_types_and_sampling_inputs_match_real_t2i_dimensions():
     base = node_module('my_qi21_base')
     type_names = base.bases_list()
     assert type_names == TYPE_NAMES
-    t2i_path, = (ROOT / 'apps/backend/engines/comfyui/workflows').rglob('qi21-道劫-t2i.json')
+    t2i_path, = (ROOT / 'apps/backend/comfyui/workflows').rglob('qi21-道劫-t2i.json')
     t2i = json.loads(t2i_path.read_bytes())
     typed_sizes = set()
     for type_name in type_names:

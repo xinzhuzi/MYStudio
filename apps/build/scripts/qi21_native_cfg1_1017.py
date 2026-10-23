@@ -35,9 +35,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]  # apps/build/scripts/<本件> → 仓库根
 
-T2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-I2I = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
-CONTRACT_TEST = REPO / "apps/backend/engines/comfyui/tests/test_qwen21_workflow_contract.py"
+T2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+I2I = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
+CONTRACT_TEST = REPO / "apps/backend/comfyui/tests/test_qwen21_workflow_contract.py"
 FIRE_SCRIPT = REPO / "apps/build/scripts/qi21_t2i_workflow_fire.py"
 
 TAG = "[cfg1-1017]"

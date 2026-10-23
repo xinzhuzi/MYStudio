@@ -145,8 +145,8 @@ RULES = [
 
 # ------------------------------------------- 命中归属(§2 所有权表内置映射)
 
-SUBGRAPH_GLOB = "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图*.json"
-T2I_DIR = "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图"
+SUBGRAPH_GLOB = "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图*.json"
+T2I_DIR = "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图"
 
 OWNERSHIP = [
     ("P0", f"{M_DIR}/art_prompt/art_storyboard_video.md"),
@@ -157,8 +157,8 @@ OWNERSHIP = [
     ("P1", f"{T2I_DIR}/qi21-道劫-t2i.json"),
     ("P1", f"{T2I_DIR}/qwen21-道劫-t2i-api.json"),
     ("P1", SUBGRAPH_GLOB),
-    ("P1", "apps/backend/engines/comfyui/my_nodes/tests/*"),
-    ("P1", "apps/backend/engines/comfyui/tests/test_qwen21_workflow_contract.py"),
+    ("P1", "apps/backend/comfyui/my_nodes/tests/*"),
+    ("P1", "apps/backend/comfyui/tests/test_qwen21_workflow_contract.py"),
     ("P1", "apps/frontend/lib/ai/daojie-prompt-contract.test.ts"),
     ("P1", "apps/build/scripts/qi21_conflict_snapshot_sync.py"),
     ("P2", f"{M_DIR}/prefix.md"),
@@ -240,16 +240,16 @@ LINE_WHITELIST_PATTERNS = [
     },
     {
         "globs": (
-            "apps/backend/engines/comfyui/tests/*",
-            "apps/backend/engines/comfyui/my_nodes/tests/*",
+            "apps/backend/comfyui/tests/*",
+            "apps/backend/comfyui/my_nodes/tests/*",
         ),
         "regex": r"九型 ?W/H|九型W←|九型H←|九型宽高",
         "reason": "九型WIDTH/HEIGHT 槽名简称的接线/画幅直通叙述(机器槽名语境,非型数指称)",
     },
     {
         "globs": (
-            "apps/backend/engines/comfyui/tests/*",
-            "apps/backend/engines/comfyui/my_nodes/tests/*",
+            "apps/backend/comfyui/tests/*",
+            "apps/backend/comfyui/my_nodes/tests/*",
         ),
         "regex": (
             r"DNA:ink wash|旧 pro 件|九型底座常量|九型装配移植|子图收窄=九型|契约同步三笔"

@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 REPORT_DIR = ROOT / '.trellis/tasks/10-20-trellis-audit-remediation/research/round14-default-turbo'
-COMFY = ROOT / 'apps/backend/engines/comfyui'
+COMFY = ROOT / 'apps/backend/comfyui'
 TURBO = '0 · Turbo 8步'
 SIGMAS = [1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0.0]
 

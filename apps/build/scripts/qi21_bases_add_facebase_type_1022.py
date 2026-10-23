@@ -75,7 +75,7 @@ def main() -> int:
 
     # ── 节点实测(repo 真源层):新型可选可跑 ──
     sys.path.insert(0, str(ROOT / 'apps/backend'))
-    from engines.comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
+    from comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
     pos, w, h, neg, tm, tn = MyQi21DaojieBase().run('人脸基准')
     assert pos == USER_TEXT and (w, h) == (1024, 1024) and tm is True and tn == '人脸基准'
     assert '头发' in neg and '模糊' in neg

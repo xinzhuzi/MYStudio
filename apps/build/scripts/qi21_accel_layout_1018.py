@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 BAK_ROOT = REPO / "apps/output/bak/qi21-accel-layout-1018"
 sys.path.insert(0, str(REPO / ".agents/skills/node-graph/tools"))
 import layout_check as lc  # noqa: E402

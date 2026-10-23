@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 BAK = REPO / "apps/output/bak/qi21-mikkoani-str08-1019"
 SG_NAME = "道劫·加速子图"
 LORA_FILE = "qi21-mikkoani.safetensors"

@@ -99,7 +99,7 @@ for row in distribution['files']:
         bad.append('copy:' + str(target))
 check('distribution_style_parity_and_scope', not bad,
       {'targets': len(targets), 'errors': bad, 'preserved_existing_type_differences': preserved})
-node = ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
+node = ROOT / 'apps/backend/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
 ast.parse(node.read_text())
 check('node_syntax', True, str(node))
 check('tests', load(OUT / 'backend-test-command.json')['exit_code'] == 0

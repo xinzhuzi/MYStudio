@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-NODES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
+NODES = REPO / "apps/backend/comfyui/my_nodes/nodes"
 sys.path.insert(0, str(NODES))
 # 1009 主体句规范自查与 ApiPE 自检同源(环境词表/正负撞词口径不另抄)
 from my_qi21_api_pe import _ENV_TOKENS, _pos_neg_clash  # noqa: E402

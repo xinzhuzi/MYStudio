@@ -24,7 +24,7 @@ from pathlib import Path
 from types import SimpleNamespace as NS
 from unittest.mock import patch
 
-from engines.comfyui import engine_manager as em
+from comfyui import engine_manager as em
 
 # 假家(测试专用):markers 现算=/H/venv/bin/python + /H/ComfyUI/main.py,
 # 相对判据末段=/venv/bin/python 与 /ComfyUI/main.py。
@@ -212,9 +212,9 @@ class RestartOccupancySelfHealTests(unittest.TestCase):
             patch.object(em, "engine_lock_holder", return_value=None),
             patch.object(em, "acquire_engine_lock", return_value=True),
             patch.object(em, "release_engine_lock", lambda: None),
-            patch("engines.comfyui.plugin_manager.my_nodes_drifted", return_value=False),
-            patch("engines.comfyui.plugin_manager.daojie_data_drifted", return_value=False),
-            patch("engines.comfyui.plugin_manager.seeded_custom_nodes_drifted", return_value=False),
+            patch("comfyui.plugin_manager.my_nodes_drifted", return_value=False),
+            patch("comfyui.plugin_manager.daojie_data_drifted", return_value=False),
+            patch("comfyui.plugin_manager.seeded_custom_nodes_drifted", return_value=False),
             patch.object(em, "_engine_home_processes", return_value=home_procs),
             patch.object(em.EngineManager, "_orphan_is_comfyui", return_value=True),
             patch.object(em.EngineManager, "_engine_speaks_bridge", return_value=speaks),

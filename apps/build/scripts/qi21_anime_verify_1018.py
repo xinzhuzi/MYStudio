@@ -36,7 +36,7 @@ check('no_anime_or_cel_negative',all(w not in after['art_style_base']['negative_
 graphfields=[]
 for r in rows:
  p=Path(r['path'])
- if not p.is_relative_to(ROOT/'apps/backend/engines/comfyui') or p.suffix!='.json':continue
+ if not p.is_relative_to(ROOT/'apps/backend/comfyui') or p.suffix!='.json':continue
  if '/workflows/' not in str(p) and '/subgraphs/' not in str(p):continue
  delta=diff(json.loads(Path(r['backup']).read_text()),json.loads(p.read_text()))
  ok=all(isinstance(a,str) and isinstance(b,str) and ((a.startswith('美术风格底座：中式手绘') and b==style) or (a==before['art_style_base']['negative_text'] and b==after['art_style_base']['negative_text'])) for path,a,b in delta)
@@ -48,8 +48,8 @@ check('runtime_contract_matches_source',c['modules']['style.gongbi-base']['text'
 dist=json.loads((OUT/'distribution.json').read_text())['files'];bad=[x['target'] for x in dist if Path(x['source']).read_bytes()!=Path(x['target']).read_bytes()]
 check('revision_disk_copies_equal',not bad,{'targets':len(dist),'problems':bad})
 sys.path.insert(0,str(ROOT/'apps/backend'))
-from engines.comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
-from engines.comfyui.my_nodes.nodes.my_qi21_prompt_assembly import MyQi21PromptAssembly
+from comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
+from comfyui.my_nodes.nodes.my_qi21_prompt_assembly import MyQi21PromptAssembly
 subjects={'人物':'一位年轻女修，青玉色道袍，月白腰带，乌黑长发半束，素银簪。','设定卡':'青年刀修，玄色劲装，乌黑长发高束马尾，腰侧黑革刀带悬短刀，短刀完整收在黑鲨皮鞘中。','场景':'清晨的宗门山门，石阶向上延伸，青灰云海位于阶下。'}
 assembled=[]
 for name,subject in subjects.items():

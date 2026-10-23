@@ -12,7 +12,7 @@ from pathlib import Path
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[3]
-OUT = ROOT / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-换脸-局部重绘.json"
+OUT = ROOT / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-换脸-局部重绘.json"
 ENGINE = "http://127.0.0.1:17001"
 
 PROMPT = ("保持第一张图的构图、发型与衣物原样，色彩色调与第一张图完全一致；"

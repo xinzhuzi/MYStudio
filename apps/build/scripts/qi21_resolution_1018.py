@@ -54,7 +54,7 @@ if sys.argv[1] == 'data':
         elif t['zh'] == '设定卡':
             t['purpose'] = t['purpose'].replace('21:9','16:9').replace('3MP','2.25MP')
     save(SOURCE, json.dumps(d,ensure_ascii=False,indent=2)+'\n', '四型2048×1152；多视图短边1024，提示词与风格正文保持')
-    sidecar = ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/qi21_bases.json'
+    sidecar = ROOT/'apps/backend/comfyui/my_nodes/nodes/qi21_bases.json'
     if sidecar.is_file():
         save(sidecar, SOURCE.read_bytes(), '真源数据同步到节点兜底副本')
     (OUT/'before-resolution.json').write_text(json.dumps(previous,ensure_ascii=False,indent=2)+'\n')
@@ -110,9 +110,9 @@ if sys.argv[1] == 'deploy':
                 dst = mirror/src.relative_to(MANUAL)
                 if dst.is_file():
                     plan.append((src,dst))
-        elif src.parent == ROOT/'apps/backend/engines/comfyui/my_nodes/nodes' and src.suffix == '.py':
+        elif src.parent == ROOT/'apps/backend/comfyui/my_nodes/nodes' and src.suffix == '.py':
             for res in [installed]+builds:
-                dst = res/'backend/engines/comfyui/my_nodes/nodes'/src.name
+                dst = res/'backend/comfyui/my_nodes/nodes'/src.name
                 if dst.is_file():
                     plan.append((src,dst))
             plan.append((src,engine/'ComfyUI/custom_nodes/my-nodes/nodes'/src.name))
@@ -132,8 +132,8 @@ if sys.argv[1] == 'deploy':
 
 if sys.argv[1] == 'verify':
     import difflib
-    from engines.comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase, bases_list
-    from engines.comfyui.my_nodes.nodes.my_qi21_wh_suggest import MyQi21WhSuggest
+    from comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase, bases_list
+    from comfyui.my_nodes.nodes.my_qi21_wh_suggest import MyQi21WhSuggest
     original = json.loads(Path(next(r['backup'] for r in rows if r['path']==str(SOURCE))).read_text())
     current = json.loads(SOURCE.read_text())
     assert {k:v for k,v in current.items() if k!='types'} == {k:v for k,v in original.items() if k!='types'}

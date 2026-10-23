@@ -39,7 +39,7 @@ def main():
             page.wait_for_function('() => window.comfyAPI?.app?.app?.isGraphReady === true', timeout=45000)
             report['app_ready'] = True
             for name in NAMES:
-                path = next((ROOT / 'apps/backend/engines/comfyui/workflows').rglob(name))
+                path = next((ROOT / 'apps/backend/comfyui/workflows').rglob(name))
                 graph = json.loads(path.read_text())
                 result = page.evaluate('''async (graph) => {
                     const {app} = await import('/scripts/app.js');

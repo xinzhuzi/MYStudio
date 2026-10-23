@@ -122,7 +122,7 @@ up_fused   = block_diag(up_q, up_k, up_v)               # [3·out_total, 3r] 稠
 
 - **旧件现状(10-04 落账时实测)**:`minimax_h3_fl2v_turbo_4step_v1.1_768p_comfyui_resized_avg_rank_28_bf16.safetensors`(394MB/393,791,328 字节)**引擎位在位未删**——另有 5 线激活引用(§6 引用地图),直接删即断 5 条线(含 2 条固定产线),故暂不删;处置方向=5 线逐一 A/B 后迁移再清件(PRD R5 原文「余 5 线迁移后另行清件」,另立小役)。
 - **外置盘副本已验**:`/Volumes/郑冰津/AI/H3/loras/` 同件在位(2026-08-22 装机当日即同份归档),SHA256 `c139f5201aa6cc09d545caf83241b4174dfe328c8084352470ba74201c2ef2fb` 双侧(引擎侧+外置侧)2026-10-03 实算一致、10-04 落账时外置侧复算仍一致。「先收」完成;manifest 行与删除凭据**未落**(删除未执行,模板见任务档 `s6-win-prep/archive-manifest-draft.md` §4/§5,届时照走)。
-- **回滚步骤**(若 DMAD 档出问题要退回 turbo v1.1):①工作流 git 回退(当前未提交:`git checkout -- "apps/backend/engines/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/单镜视频 · chapter-001 · S01.json"` 即回 turbo 档;已提交按批次 revert);②引擎无状态残留(LoRA 按件名逐发加载,改回件名即回原行为;旧件在位未删,立即可用);③DMAD 件可留(不碍事)或按输分支口径先收后删(外置盘收档路径建议见任务档 `s6-lose-prep/archive-list-draft.md` §2);④KB 落账同步更正 + 如实报用户(预授权失效条款)。8step 线全程未动,不受影响。
+- **回滚步骤**(若 DMAD 档出问题要退回 turbo v1.1):①工作流 git 回退(当前未提交:`git checkout -- "apps/backend/comfyui/workflows/2_视频/H3视频/1_漫影自研/0_单镜视频/单镜视频 · chapter-001 · S01.json"` 即回 turbo 档;已提交按批次 revert);②引擎无状态残留(LoRA 按件名逐发加载,改回件名即回原行为;旧件在位未删,立即可用);③DMAD 件可留(不碍事)或按输分支口径先收后删(外置盘收档路径建议见任务档 `s6-lose-prep/archive-list-draft.md` §2);④KB 落账同步更正 + 如实报用户(预授权失效条款)。8step 线全程未动,不受影响。
 - **人耳复核不过 = 预授权例外条款回溯生效**,按上述回滚;音频面若推翻,T2V 官方口径两发可作补充证据通道另立(不预承诺,用户点头才跑)。
 
 ## 8. 联动落账记录(10-04 落账时同步,防台账漂移)

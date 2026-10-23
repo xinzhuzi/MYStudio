@@ -12,7 +12,7 @@ check('opaque-transparent-type-identical',c['positive_text']==c['rgba_positive']
 for r in json.loads((OUT/'mirror-data-sync.json').read_text()):
  p=Path(r['path']);obj=json.loads(p.read_text());check('card-mirror',next(t for t in obj['types'] if t['zh']=='设定卡')==c,str(p));check('style-mirror',obj['art_style_base']==d['art_style_base'],str(p))
 for r in json.loads((OUT/'code-sync.json').read_text()):
- check('node-mirror',Path(r['path']).read_bytes()==(ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_api_pe.py').read_bytes(),r['path'])
+ check('node-mirror',Path(r['path']).read_bytes()==(ROOT/'apps/backend/comfyui/my_nodes/nodes/my_qi21_api_pe.py').read_bytes(),r['path'])
 for r in json.loads((OUT.parent/'qi21-five-method-style-1016/sync-changes.json').read_text()):
  p=Path(r['path'])
  if p.name!='runtime-contract.json':continue

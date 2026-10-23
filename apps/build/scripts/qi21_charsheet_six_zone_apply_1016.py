@@ -8,7 +8,7 @@ import hashlib
 ROOT=Path(__file__).resolve().parents[3]
 OUT=ROOT/'apps/output/automation/daojie-charsheet-six-zone-1016'
 SOURCE=ROOT/'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json'
-NODE=ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_api_pe.py'
+NODE=ROOT/'apps/backend/comfyui/my_nodes/nodes/my_qi21_api_pe.py'
 LAYOUT=('同一角色的横向角色设定卡，固定六个图像区。左侧约占画面宽度四成，独立放置一幅自然站姿的主视觉全身立绘。'
 '右侧分上下两排：上排约占右侧高度七成，等宽并列三格，自左至右依次为正面平视、朝画面右侧的纯九十度侧面平视、背面平视，各一幅完整全身像；'
 '下排等宽并列两格，左格一幅面部近景，右格一幅角色腰部衣装与佩挂连接结构的局部特写。'

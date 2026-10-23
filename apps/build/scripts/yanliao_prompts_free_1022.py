@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / "apps/output/晏燎"
-BRIDGE = ROOT / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
+BRIDGE = ROOT / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qwen21-道劫-i2i-api.json"
 
 CLOTH = {  # 逐期全身衣物锚(源图视觉取证,色名齐全)
  "练气": "浅灰色交领广袖长袍带水墨晕染质感，领口露米白色中衣与青灰色中衣层，腰束深灰褐色布腰带垂土黄褐色飘带，胸前系浅青白色玉佩，左腰挂灰白色束口布囊，左腕系红色细绳，双小臂缠深灰色绑布，足蹬浅灰色布靴配深灰色绑腿",
@@ -43,7 +43,7 @@ def build():
     base_text = json.loads(BRIDGE.read_text())["graph"]["6:4011"]["inputs"]["锁层A全文"]
     assert base_text.startswith("美术风格底座：") and len(base_text) == 209, "底座真源漂移"
     spec = importlib.util.spec_from_file_location(
-        "gate", ROOT / "apps/backend/engines/comfyui/my_nodes/nodes/_gongbi_gate.py")
+        "gate", ROOT / "apps/backend/comfyui/my_nodes/nodes/_gongbi_gate.py")
     gate = importlib.util.module_from_spec(spec); spec.loader.exec_module(gate)
 
     def ov(purpose_routing, w=0, h=0):

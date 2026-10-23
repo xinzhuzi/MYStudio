@@ -80,7 +80,7 @@ def test_tag_flag_only_annotates_output(tmp_path, capsys):
 # ---------- 行级白名单·稳健模式(槽名/台账行正则;P1 手术员上报,L1 收口) ----------
 
 CONTRACT_TEST_REL = (
-    "apps/backend/engines/comfyui/tests/test_qwen21_workflow_contract.py"
+    "apps/backend/comfyui/tests/test_qwen21_workflow_contract.py"
 )
 
 # 契约测试实文摘录(P1 报 38 命中的机器槽名/台账/日期锚行)。

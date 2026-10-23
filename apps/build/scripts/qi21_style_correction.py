@@ -85,7 +85,7 @@ def core() -> None:
             segment['art_style_base'] = '全部定义（传统绘画转译/画种/媒介/线条/罩染/墨色/传统色体系）'
     assert json.dumps(data['types'], ensure_ascii=False, sort_keys=True) == types_before
     dump(SOURCE, data, '恢复纯美术底座与成像工艺；显式空背景；保留全部类型与负向、透明承载')
-    node = ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
+    node = ROOT / 'apps/backend/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
     replace_all_guarded(node, [
         ('美术风格底座=底座全文(带背景)/风格工艺件·底色背景件·透明承载件=底座三件拆分(1008:透明型=风格+透明承载,带背景型=风格+底色)',
          '美术风格底座=纯美术语言与成像工艺/风格工艺件·底色背景件·透明承载件=协议拆分(底色背景件可为空；背景由类型句与主体句供给)'),
@@ -173,7 +173,7 @@ def snapshots() -> None:
     ], STYLE)
     replacements[old['positive_ground_text']] = ''
     replacements = sorted(replacements.items(), key=lambda pair: -len(pair[0]))
-    backend = ROOT / 'apps/backend/engines/comfyui'
+    backend = ROOT / 'apps/backend/comfyui'
     names = {'qi21-道劫-t2i.json': 3, 'qi21-道劫-i2i.json': 2,
              'qwen21-道劫-t2i-api.json': 2, 'qi21-道劫-img2img.json': 1,
              'qi21-提示词类型优化子图.json': 3, 'qi21-提示词类型优化子图-i2i.json': 2}
@@ -208,7 +208,7 @@ def snapshots() -> None:
 
 
 def test_anchors() -> None:
-    tests = ROOT / 'apps/backend/engines/comfyui/my_nodes/tests'
+    tests = ROOT / 'apps/backend/comfyui/my_nodes/tests'
     replace_all_guarded(tests / 'test_my_qi21_bases_text.py', [
         ('assert "铁线描" in 风格 and "服从场景和时段" in 风格, "画法与剧情照明边界应随真源热读"',
          'assert "铁线描" in 风格 and "成像工艺干净" in 风格, "美术语言与成像工艺应随真源热读"'),

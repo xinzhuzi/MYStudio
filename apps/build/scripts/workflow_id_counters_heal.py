@@ -26,7 +26,7 @@ import pathlib
 import re
 import sys
 
-WF_ROOT = pathlib.Path(__file__).resolve().parents[2] / "backend/engines/comfyui/workflows"
+WF_ROOT = pathlib.Path(__file__).resolve().parents[2] / "backend/comfyui/workflows"
 
 
 def true_max_ids(doc):

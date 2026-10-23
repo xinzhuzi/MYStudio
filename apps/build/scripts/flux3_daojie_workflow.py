@@ -11,7 +11,7 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[3]
 TASK=ROOT/'.trellis/tasks/10-16-flux3-daojie-ten-types'
-WFROOT=ROOT/'apps/backend/engines/comfyui/workflows'
+WFROOT=ROOT/'apps/backend/comfyui/workflows'
 INFO=json.loads((TASK/'research/object-info-after.json').read_text())
 SGID='713f37bf-8b6e-4992-a8f7-82dcf7e63a51'
 MODEL='qwen3.5-9b-uncensored-hauhaucs-aggressive'
@@ -31,7 +31,7 @@ def cases():
     blocks=re.findall(r'^## (\d+)\.[^\n]*\n.*?^```[^\n]*\n(.*?)^```',e.read_text(),re.M|re.S)
     assert len(blocks)==10
     sys.path.insert(0,str(ROOT/'apps/backend'))
-    from engines.comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
+    from comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
     node=MyQi21DaojieBase();data=json.loads(b.read_text())
     result=[]
     for i,entry in enumerate(t for t in data['types'] if t['zh']!='自由'):

@@ -23,7 +23,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2] / "backend/engines/comfyui/workflows"
+REPO = Path(__file__).resolve().parents[2] / "backend/comfyui/workflows"
 
 TARGETS = [
     "1_图片/K2图像/1_文生图/K2-三视图.json",

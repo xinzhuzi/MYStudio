@@ -37,15 +37,15 @@ for row in ledger:
 prior=json.loads((ROOT/'apps/output/automation/qi21-color-hierarchy-1016/document-coverage-full.json').read_text())
 paths={Path(r['path']) for r in prior}
 paths.update(MANUAL.rglob('*.md'));paths.update(MANUAL.rglob('*.json'))
-paths.update(p for p in (ROOT/'apps/backend/engines/comfyui/workflows').glob('1_*/Q2-1*/**/*.json'))
-paths.update((ROOT/'apps/backend/engines/comfyui/my_nodes/subgraphs').glob('qi21-*.json'))
+paths.update(p for p in (ROOT/'apps/backend/comfyui/workflows').glob('1_*/Q2-1*/**/*.json'))
+paths.update((ROOT/'apps/backend/comfyui/my_nodes/subgraphs').glob('qi21-*.json'))
 coverage=[]
 for p in sorted(paths):
  t=p.read_text();assert old not in t,('stale style',p)
  coverage.append({'path':str(p),'sha256':sha(p.read_bytes()),'old_style_count':0,'new_style_count':t.count(new)})
 for w in ['背景','光照','时段','血痕','尘土','身体状态','近景','远景','构图','留白']:assert w not in new,w
 for w in ['白描式线条主导形体结构','轮廓线与内部结构线共同承担造型','明暗融入设色层次','丰富多彩','协调统一','主色统领','辅色呼应','点睛色突出']:assert w in new,w
-node_path=ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
+node_path=ROOT/'apps/backend/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
 spec=importlib.util.spec_from_file_location('painterly_style_probe',node_path);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 node=module.MyQi21美术风格底座();default=node.INPUT_TYPES()['optional']['美术风格'][1]['default'];r=node.output()
 assert default==new and r['result'][0]==new and new in json.dumps(r['ui'],ensure_ascii=False)

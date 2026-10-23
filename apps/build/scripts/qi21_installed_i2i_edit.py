@@ -27,7 +27,7 @@ def main():
     for line, name in paths.items():
         if args.only and line != args.only:
             continue
-        path = next((INSTALLED / 'engines/comfyui/workflows').rglob(name))
+        path = next((INSTALLED / 'comfyui/workflows').rglob(name))
         workflow = json.loads(path.read_text())
         graph = flatten_canvas(workflow, schemas)
         check_object_info(graph, schemas)

@@ -26,7 +26,7 @@ POSITIONS = {'7011': [1900, 4400], '7012': [4100, 4200], '7010': [5100, 6500],
 
 
 def paths() -> list[Path]:
-    base = ROOT / 'apps/backend/engines/comfyui'
+    base = ROOT / 'apps/backend/comfyui'
     result = []
     for directory, name in (('workflows', 'qi21-道劫-i2i.json'),
                             ('my_nodes/subgraphs', 'qi21-提示词类型优化子图-i2i.json'),

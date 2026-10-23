@@ -15,7 +15,7 @@ import { basename, join, dirname, resolve } from "node:path";
 
 const HOME = process.env.HOME;
 const REPO = resolve(import.meta.dirname, "../../..");
-const APP_RES = "/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui";
+const APP_RES = "/Applications/漫影工作室.app/Contents/Resources/backend/comfyui";
 const ENGINE_HOME = process.env.MYSTUDIO_ENGINE_HOME || `${HOME}/Project/IP/漫影工作室/comfyui/ComfyUI`;
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const OPTS = new Set(process.argv.slice(2).filter((a) => a.startsWith("--")));
@@ -31,7 +31,7 @@ function classify(file) {
   if (/_nodes\/nodes\/.*\.py$/.test(f)) return { type: "py", rel: f };
   if (/_nodes\/web\/.*\.js$/.test(f)) return { type: "js", rel: f };
   if (/_nodes\/subgraphs\/.*\.json$/.test(f)) return { type: "subgraph", rel: f };
-  if (/^apps\/backend\/engines\/comfyui\/workflows\/.*\.json$/.test(f)) return { type: "workflow", rel: f };
+  if (/^apps\/backend\/comfyui\/workflows\/.*\.json$/.test(f)) return { type: "workflow", rel: f };
   return null;
 }
 
@@ -49,13 +49,13 @@ async function auditAll() {
       else if (/\.(py|js|json)$/.test(e.name) && e.name !== ".keep.json") rels.push(p);
     }
   };
-  walk(join(REPO, "apps/backend/engines/comfyui/workflows"), "workflows/");
-  walk(join(REPO, "apps/backend/engines/comfyui/my_nodes"), "my_nodes/");
+  walk(join(REPO, "apps/backend/comfyui/workflows"), "workflows/");
+  walk(join(REPO, "apps/backend/comfyui/my_nodes"), "my_nodes/");
   const USER_WF = join(ENGINE_HOME, "user/default/workflows");
   const ENG_MY = join(ENGINE_HOME, "custom_nodes/my-nodes");
   let fail = 0, pass = 0, notes = 0;
   for (const rel of rels.sort()) {
-    const src = join(REPO, "apps/backend/engines/comfyui", rel);
+    const src = join(REPO, "apps/backend/comfyui", rel);
     const isWf = rel.startsWith("workflows/");
     const isTest = rel.startsWith("my_nodes/tests/");
     if (isTest) continue; // tests 只住仓库+跑 pytest,打包白名单排除(electron-builder !tests/**),两路皆豁免
@@ -73,7 +73,7 @@ async function auditAll() {
 }
 function statOk(p) { try { statSync(p); return true; } catch { return false; } }
 const targetsFor = (type, rel) => {
-  const tail = rel.split("engines/comfyui/")[1] || rel;
+  const tail = rel.split("comfyui/")[1] || rel;
   const t = [[REPO + "/" + rel, "仓库"]];
   if (type === "py" || type === "subgraph" || type === "js") {
     t.push([`${APP_RES}/${tail}`, "装机Resources"]);

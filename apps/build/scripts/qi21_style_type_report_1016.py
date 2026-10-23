@@ -31,8 +31,8 @@ for row in distribution:
 targets = {row['target'] for row in distribution}
 new_files = list((ROOT / 'apps/build/scripts').glob('qi21_style_type_*_1016.py'))
 new_files += [
-    ROOT / 'apps/backend/engines/comfyui/my_nodes/tests/test_qi21_style_type_separation.py',
-    ROOT / 'apps/backend/engines/comfyui/my_nodes/tests/qi21_style_type_ui_probe_1016.mjs',
+    ROOT / 'apps/backend/comfyui/my_nodes/tests/test_qi21_style_type_separation.py',
+    ROOT / 'apps/backend/comfyui/my_nodes/tests/qi21_style_type_ui_probe_1016.mjs',
 ]
 sources = {Path(row['path']) for row in ledger if row['path'] not in targets}
 sources.update(new_files)
@@ -41,7 +41,7 @@ for path in sorted(sources):
     if path.suffix == '.py':
         compile(path.read_bytes(), str(path), 'exec')
         compiled.append(str(path))
-js = ROOT / 'apps/backend/engines/comfyui/my_nodes/web/my-qi21-prompt-preview.js'
+js = ROOT / 'apps/backend/comfyui/my_nodes/web/my-qi21-prompt-preview.js'
 syntax = subprocess.run(['node', '--check', str(js)], text=True, capture_output=True)
 assert syntax.returncode == 0, syntax.stderr
 

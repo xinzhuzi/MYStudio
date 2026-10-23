@@ -82,7 +82,7 @@ def build_model_status() -> list[dict]:
             # 优先,回落 comfyui_models_dir()(env 覆写/退役默认)。装机 sidecar
             # 两个 env 都不带,旧单根探测打到退役目录 ~/Project/ComfyUI,四件
             # 全假报缺(09-12 用户实弹截图踩中)。
-            from engines.comfyui.manifest import comfy_home as _comfy_home
+            from comfyui.manifest import comfy_home as _comfy_home
             from pathlib import Path as _Path
             from engines.image_engine import krea2 as _krea2
             from engines.image_engine.model_cache import comfyui_models_dir as _cmd

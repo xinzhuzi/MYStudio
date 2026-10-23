@@ -14,7 +14,7 @@ OWN_OLD='中国传统人物画经现代游戏美术重组的二维数字绘画�
 OWN_NEW='中国传统工笔设色与彩色连环画的二维手绘数字插画；白描式轮廓与内部结构线主导造型，清晰色面、分染与层层罩染塑形，明暗融入设色层次，材质统一于线描设色语言；丰富设色为主、配色协调统一、主辅与点睛色主次分明。'
 receipt=json.loads((ROOT/'apps/output/automation/qi21-color-hierarchy-1016/changes.json').read_text())
 paths={Path(r['path']) for r in receipt}
-boundary=ROOT/'apps/backend/engines/comfyui/my_nodes/tests/test_qi21_style_boundary_1016.py'
+boundary=ROOT/'apps/backend/comfyui/my_nodes/tests/test_qi21_style_boundary_1016.py'
 paths.add(boundary)
 before={p:p.read_bytes() for p in paths}
 after=dict(before);ops={}
@@ -50,7 +50,7 @@ for p in paths:
  assert json.loads(after[p])==c
  if contract_sha:assert contract_sha==c['contractSha256']
  contract_sha=c['contractSha256'];old_contract_sha=oldsha
-assembly=ROOT/'apps/backend/engines/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py'
+assembly=ROOT/'apps/backend/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py'
 replace(assembly,'"锁层A全文": "'+sha(OLD.encode())[:16]+'",','"锁层A全文": "'+sha(NEW.encode())[:16]+'",',1)
 ts=ROOT/'apps/frontend/lib/ai/daojie-prompt-contract.test.ts'
 replace(ts,old_contract_sha,contract_sha,1)

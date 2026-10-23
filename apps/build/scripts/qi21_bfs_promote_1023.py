@@ -127,7 +127,7 @@ def main() -> None:
     parser.add_argument("--apply", action="store_true", help="Rename and update only the repository BFS workflow")
     args = parser.parse_args()
     inventory = json.loads((EVIDENCE / "inventory.json").read_text(encoding="utf-8"))
-    source = ROOT / "apps/backend/engines/comfyui/workflows" / SOURCE_RELATIVE
+    source = ROOT / "apps/backend/comfyui/workflows" / SOURCE_RELATIVE
     destination = source.with_name(NEW_NAME)
     backup = EVIDENCE / "before-production.gui.json"
     require(inventory["source"] == str(source), "Inventory source path drift")

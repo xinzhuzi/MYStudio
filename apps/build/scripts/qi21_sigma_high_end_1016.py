@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-BASE = REPO / "apps/backend/engines/comfyui"
+BASE = REPO / "apps/backend/comfyui"
 CAMPAIGN = "1016sigma"
 
 OLD9 = "1.0, 0.9583, 0.9167, 0.875, 0.75, 0.5, 0.25, 0.16666667, 0.08333333"

@@ -15,7 +15,7 @@ for row in json.loads((prev/'mirror-data-sync.json').read_text()):
  p=Path(row['path']);obj=json.loads(p.read_text());check('card-mirror',next(t for t in obj['types'] if t['zh']=='设定卡')==card,p)
  if p.parent.name=='json':homes.append(p.parent.parent)
 for row in json.loads((prev/'code-sync.json').read_text()):
- p=Path(row['path']);check('pe-code-mirror',p.read_bytes()==(ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_api_pe.py').read_bytes(),p)
+ p=Path(row['path']);check('pe-code-mirror',p.read_bytes()==(ROOT/'apps/backend/comfyui/my_nodes/nodes/my_qi21_api_pe.py').read_bytes(),p)
 for home in homes:
  p=home/'ma_sync/runtime-contract.json';c=json.loads(p.read_text());check('source-sha',c['localRevision']['styleSourceSha256']==sha((home/'json/qi21_bases.json').read_bytes()),p)
  check('contract-sha',c['contractSha256']==sha(json.dumps({k:v for k,v in c.items() if k!='contractSha256'},ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()),p)

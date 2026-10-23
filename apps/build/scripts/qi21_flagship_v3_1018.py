@@ -43,13 +43,13 @@ def flagship_targets():
     """整句归一位:文件中含「青玉色道袍束月白腰带」的默认例文串→新旗舰。"""
     return [
         REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md",
-        REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
-        REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-        APP / "backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
-        APP / "backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-        REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py",
+        REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+        REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+        APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json",
+        APP / "backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+        REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py",
         ENGN / "nodes/my_qi21_prompt_assembly.py",
-        REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
+        REPO / "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json",
         ENGN / "subgraphs/qi21-提示词类型优化子图.json",
     ]
 
@@ -60,8 +60,8 @@ def pose_targets():
         REPO / "docs/prompts/Qwen-Image-2.1/07-主体句写作宪法.md",
         REPO / "docs/prompts/道劫_类型主体句示例.md",
         REPO / "docs/prompts/Qwen-Image-2.1/05-道劫规范提示词库.md",
-        REPO / "apps/backend/engines/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json",
-        APP / "backend/engines/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json",
+        REPO / "apps/backend/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json",
+        APP / "backend/comfyui/workflows/1_图片/Flux3图像/flux3-道劫-t2i.json",
     ]
 
 
@@ -137,18 +137,18 @@ def main():
     if not args.check:
         # 引擎用户区画布副本=仓库版同步
         eu = HOME / "Library/Application Support/漫影工作室/comfyui/ComfyUI/user/default/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
-        src = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
+        src = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json"
         if eu.is_file():
             eu.write_bytes(src.read_bytes())
             print(f"[{CAMPAIGN}] 引擎用户区副本=仓库版同步 md5={hashlib.md5(src.read_bytes()).hexdigest()}")
         # 主体句例文哈希重锚
-        asm = REPO / "apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py"
+        asm = REPO / "apps/backend/comfyui/my_nodes/nodes/my_qi21_prompt_assembly.py"
         spec = importlib.util.spec_from_file_location("asm", asm)
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)
         sha = hashlib.sha256(m._SUBJECT_EXAMPLE.encode()).hexdigest()[:16]
         assert m._SUBJECT_EXAMPLE.strip() == FLAG, "装配例文≠旗舰,异常"
-        tst = REPO / "apps/backend/engines/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py"
+        tst = REPO / "apps/backend/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py"
         txt = tst.read_text(encoding="utf-8")
         mm = re.search(r'"主体句": "([0-9a-f]{16})"', txt)
         if mm and mm.group(1) != sha:

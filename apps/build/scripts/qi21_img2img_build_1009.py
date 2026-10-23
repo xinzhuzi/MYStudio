@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-ENG = REPO / "apps/backend/engines/comfyui"
+ENG = REPO / "apps/backend/comfyui"
 I2I = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"
 POSE = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qwen21-pose-edit.json"
 OUT = ENG / "workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json"

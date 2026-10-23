@@ -67,9 +67,9 @@ GENERATORS: list[tuple[str, str]] = []
 
 # 布局棘轮目标(原=生成器头部常量 AST 解析;生成器退役删除后直列三件真源)
 WORKFLOW_TARGETS: list[str] = [
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json",
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-edit.json",
 ]
 
 # 退役生成器 → 段1 恒不运行;仅段3 布局棘轮仍解析其头部常量取目标 JSON
@@ -79,7 +79,7 @@ WORKFLOW_TARGETS: list[str] = [
 # qi21-道劫-t2i.json 重置回 0930 旧布局并抹掉 1001 手术。该 JSON 现真源=
 # 仓库 JSON 本体+手术链(campaigns/qi21_assembly_surgery_1001.py 已役留档、
 # qi21_blueprint_sync_1001.py 蓝图同步通道),内容锁=契约测试
-# backend/engines/comfyui/tests/test_qwen21_workflow_contract.py。
+# backend/comfyui/tests/test_qwen21_workflow_contract.py。
 # (10-03-file-inventory-cleanup 遗留#6:门禁锚与退役裁定对齐)
 RETIRED_GENERATORS: list[tuple[str, str]] = [
     ("QI21_JSON", "qi21_daojie_t2i_0923.py"),   # ⛔ 退役勿再运行(脚本已删,警示存档)
@@ -87,10 +87,10 @@ RETIRED_GENERATORS: list[tuple[str, str]] = [
 
 # 四件契约测试(design §4.2;ls 验存在,缺失即 RED 不 spawn pytest)
 CONTRACT_TESTS: list[str] = [
-    "backend/engines/comfyui/tests/test_daojie_handsfix_contract.py",
-    "backend/engines/comfyui/tests/test_daojie_workflow_contract.py",
-    "backend/engines/comfyui/tests/test_qwen21_workflow_contract.py",
-    "backend/engines/comfyui/tests/test_superset_v3_contract.py",
+    "backend/comfyui/tests/test_daojie_handsfix_contract.py",
+    "backend/comfyui/tests/test_daojie_workflow_contract.py",
+    "backend/comfyui/tests/test_qwen21_workflow_contract.py",
+    "backend/comfyui/tests/test_superset_v3_contract.py",
 ]
 
 LAYOUT_CHECK = REPO / ".agents/skills/node-graph/tools/layout_check.py"

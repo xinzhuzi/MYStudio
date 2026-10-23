@@ -8,8 +8,8 @@ fail-closed:术前 md5 锚;术后 mode 矩阵+回读;幂等 exit 3。装机直�
 """
 import json, shutil, sys, hashlib
 from pathlib import Path
-WF = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
-INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
+WF = Path("/Users/zhengbingjin/Project/Github/MYStudio/apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
+INSTALL = Path("/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json")
 PRE_MD5 = "bbc973ee2cd342c71c827b9d4c92200e"
 NOTE_SUBS = [
     ("- image_2 = clothing_light_blue_denim_shirt.png(参考/衬衫)",

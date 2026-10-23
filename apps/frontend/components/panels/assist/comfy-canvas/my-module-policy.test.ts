@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const webDir = path.resolve(process.cwd(), "backend/engines/comfyui/my_nodes/web");
+const webDir = path.resolve(process.cwd(), "backend/comfyui/my_nodes/web");
 const policySource = readFileSync(path.join(webDir, "my_module_policy.js"), "utf8");
 const wiringSource = [
   readFileSync(path.join(webDir, "sidebar.js"), "utf8"),

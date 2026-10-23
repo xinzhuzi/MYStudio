@@ -64,7 +64,7 @@ KIND_ZH = {'poster': '海报', 'viewsheet': '三视图'}
 KIND_BASE = {'poster': '美宣', 'viewsheet': '人物多视图'}
 
 # 门禁真身=my_nodes 产线常跑门(装配节点同款 import)
-sys.path.insert(0, str(ROOT / 'apps/backend/engines/comfyui/my_nodes/nodes'))
+sys.path.insert(0, str(ROOT / 'apps/backend/comfyui/my_nodes/nodes'))
 from _gongbi_gate import prompt_violations  # noqa: E402
 
 # 否定词正则(门1 的 _NEG 运行时族之外补充扫; 官方保留语先豁免——

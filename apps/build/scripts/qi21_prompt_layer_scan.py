@@ -20,7 +20,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
-NODES = REPO / "apps/backend/engines/comfyui/my_nodes/nodes"
+NODES = REPO / "apps/backend/comfyui/my_nodes/nodes"
 
 # (规则名, 底座侧词, 型文侧词):两侧各命中任一即为对冲
 CONFLICT_PAIRS = (

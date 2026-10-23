@@ -157,7 +157,7 @@ docs/prompts/道劫_九型实弹_0919/**/*.png
 apps/build/scripts/campaigns/
 
 # qi21 教材实弹测具与运行进度件(livefire 家,08规范§8.7 引用;进度/报告件不入库,同 campaigns 惯例)
-apps/backend/engines/comfyui/runs/
+apps/backend/comfyui/runs/
 
 # 77 官方示例图二进制不入库(1017 用户令:大图勿入库 push 撞 181MB 断线;URL 对照表=images/README.md,本地件留存)
 docs/prompts/Qwen-Image-2.1/images/*

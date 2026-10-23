@@ -10,12 +10,12 @@
   "positive_new": "美术风格底座：中式手绘，中国工笔重彩与白描线条的二维手绘游戏插画，带彩色连环画的概括造型感。细彩线勾勒轮廓与结构，线条细稳连贯；平整分层的清晰色面塑形，色面边界清晰锐利；矿物色质感鲜泽通透，多色相并陈、主次分明、饱和度适中；画面洁净平整，繁密细节处笔触交代清楚。",
   "prefix_count": 2,
   "wf_counts": {
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
-    "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
-    "apps/backend/engines/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": 2,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qwen21-道劫-t2i-api.json": 1,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": 2,
+    "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-img2img.json": 1,
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图.json": 2,
+    "apps/backend/comfyui/my_nodes/subgraphs/qi21-提示词类型优化子图-i2i.json": 2
   },
   "snapshot_note": "> **1017 型文官方对拍精炼(九型)**:砍每型画论复读(细线勾勒/线随结构时粗时细/转折轻重——画法已归底座131字)+压背景方法论与底座重复段+删评价词(画面疏朗有呼吸);多视图/高清人脸/表情差分增防崩句(官方同款,直陈式过正负拆开黑名单);人物/分镜行序正位(配色行收尾,治愈在案锚红);净-356字。锚债同批定谳:每型画法锚/人物锚词组/设定卡开头(1016完整版)/底座三段骨架(1016工笔重彩版)。设定卡/自由零涉。",
   "residue_tokens": [

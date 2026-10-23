@@ -18,9 +18,9 @@ for r in rows:
  if graph and r['group']=='deploy' and '--installed' in sys.argv:
   # Packaging refreshes older installed graphs from the current repository,
   # preserving independent changes already present before this style rollout.
-  marker='engines/comfyui/' if '/Contents/Resources/' in str(p) else 'custom_nodes/my-nodes/'
+  marker='comfyui/' if '/Contents/Resources/' in str(p) else 'custom_nodes/my-nodes/'
   tail=str(p).split(marker,1)[1]
-  repo=ROOT/'apps/backend/engines/comfyui'/('my_nodes/'+tail if marker.startswith('custom_nodes') else tail)
+  repo=ROOT/'apps/backend/comfyui'/('my_nodes/'+tail if marker.startswith('custom_nodes') else tail)
   expected=sha(repo.read_bytes())
  check('deployed-source-bytes' if expected!=r['after'] else 'planned-bytes',sha(data)==expected,str(p))
  if p.name=='qi21_bases.json':check('mirror-style',json.loads(data)['art_style_base']['positive_text']==new,str(p))
@@ -49,7 +49,7 @@ for p in sorted(scope):
 check('active-document-old-style-absent',all(not r['old_style_count'] for r in coverage),len(coverage))
 (OUT/'document-coverage.json').write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+'\n')
 
-nodefile=ROOT/'apps/backend/engines/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
+nodefile=ROOT/'apps/backend/comfyui/my_nodes/nodes/my_qi21_bases_text.py'
 spec=importlib.util.spec_from_file_location('style_rollout_probe',nodefile);mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 node=mod.MyQi21美术风格底座();payload=node.output();default=node.INPUT_TYPES()['optional']['美术风格'][1]['default']
 check('node-input-default',default==new,str(mod._BASES_JSON))

@@ -48,14 +48,14 @@ def file_set():
             fs.append((p, f"app:{rel}"))
     fs.append((ENGINE / "daojie-data/qi21_bases.json", "engine:daojie-data/qi21_bases.json"))
     for sub in ("qi21-提示词类型优化子图.json", "qi21-提示词类型优化子图-i2i.json"):
-        fs.append((REPO / "apps/backend/engines/comfyui/my_nodes/subgraphs" / sub, f"repo:subgraphs/{sub}"))
+        fs.append((REPO / "apps/backend/comfyui/my_nodes/subgraphs" / sub, f"repo:subgraphs/{sub}"))
         p = ENGINE_MYNODES / "subgraphs" / sub
         if p.is_file():
             fs.append((p, f"engine:subgraphs/{sub}"))
     for wf in ("1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json",
                "1_图片/Q2-1图像/2_图生图/qi21-edit.json",
                "1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json"):
-        fs.append((REPO / "apps/backend/engines/comfyui/workflows" / wf, f"repo:workflows/{wf.split('/')[-1]}"))
+        fs.append((REPO / "apps/backend/comfyui/workflows" / wf, f"repo:workflows/{wf.split('/')[-1]}"))
     return fs
 
 
@@ -92,7 +92,7 @@ def swap_text_files(check: bool) -> dict:
 def reanchor_tests(check: bool) -> list:
     """锁层A全文哈希重锚 + 边界测试在场词换新。"""
     notes = []
-    asm = REPO / "apps/backend/engines/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py"
+    asm = REPO / "apps/backend/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py"
     bases = MANUAL / "json/qi21_bases.json"
     new_pos = json.loads(bases.read_text(encoding="utf-8"))["art_style_base"]["positive_text"]
     if NEW not in new_pos:
@@ -112,7 +112,7 @@ def reanchor_tests(check: bool) -> list:
             asm.write_text(txt, encoding="utf-8")
     else:
         notes.append(f"锁层A锚字面未命中(可能已改)——现文件含 {sha16 in txt}")
-    sb = REPO / "apps/backend/engines/comfyui/my_nodes/tests/test_qi21_style_boundary_1016.py"
+    sb = REPO / "apps/backend/comfyui/my_nodes/tests/test_qi21_style_boundary_1016.py"
     t2 = sb.read_text(encoding="utf-8")
     if "'中国工笔重彩'" in t2:
         notes.append("边界测试在场词 中国工笔重彩→中国工笔淡彩")

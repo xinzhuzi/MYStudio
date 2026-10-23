@@ -102,7 +102,7 @@ def prepare():
     for key in ['body', 'reference']:
         assert sha(Path(plan[key]['path'])) == plan[key]['sha256'], key
     matches = subprocess.check_output(['fd', '-a', '-t', 'f', 'BFS-.*Qwen2.1',
-                                       str(ROOT / 'apps/backend/engines/comfyui/workflows'), '--no-ignore'], text=True).splitlines()
+                                       str(ROOT / 'apps/backend/comfyui/workflows'), '--no-ignore'], text=True).splitlines()
     assert len(matches) == 1, matches
     original_path = Path(matches[0])
     gui = json.loads(original_path.read_text())

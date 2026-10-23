@@ -6,7 +6,7 @@
 【1003 清账退役】K2 产线 0923 已退役,本守卫锚定的 Downloads 老 K2 基底
 (K2-文生图-道劫-基底-0922-v5-换装正名.json,~/Downloads/mystudio-baselines/
 整目录已清)期望过时——K2 基线检查就此退役:不再比对、不再 FAIL,恒 [SKIP]
-退 0。后续 t2i 布局守卫以 engines/comfyui/tests 契约测试为准(qi21 新标准,
+退 0。后续 t2i 布局守卫以 comfyui/tests 契约测试为准(qi21 新标准,
 见 2026-10-03 de7149b)。
 
 退役前机制(留档):以 ~/Downloads/mystudio-baselines/ 的字节级基底备份为参照,
@@ -19,7 +19,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2] / "backend/engines/comfyui/workflows"
+REPO = Path(__file__).resolve().parents[2] / "backend/comfyui/workflows"
 MAIN = REPO / "1_图片/K2图像/1_文生图/K2-文生图-道劫.json"
 BASELINE = Path.home() / "Downloads/mystudio-baselines/K2-文生图-道劫-基底-0922-v5-换装正名.json"
 BASELINE_SHA = "e02e8e8d5dd16f7ac666b033261034708c7f1e58cf6d01ba0b5867654697d80f"
@@ -68,7 +68,7 @@ def main() -> int:
     # 过时(~/Downloads/mystudio-baselines/ 整目录已清,回滚保险完成使命)——
     # K2 基线检查就此退役:不再检查基底存在性/哈希、不再比对布局指纹,恒 [SKIP]
     # 退 0。layout_fingerprint 与基线沿革注释留档仅作历史;t2i 布局守卫由
-    # engines/comfyui/tests 契约测试接棒(qi21 新标准)。
+    # comfyui/tests 契约测试接棒(qi21 新标准)。
     print(
         "[SKIP] K2 基线检查已退役:K2 产线 0923 已退役,1003 清账退役此期望"
         f"(老基底 {BASELINE.name})"

@@ -175,7 +175,7 @@ class BridgeContractTests(unittest.TestCase):
                 {"prompt_id": "p-config"}, {}, {},
             ]) as http_json, patch.object(bridge.time, "monotonic", side_effect=[0.0, 1.0, 601.0]), patch.object(
                 bridge.time, "sleep"
-            ), patch("engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True):
+            ), patch("comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True):
                 with self.assertRaises(PipelineError) as caught:
                     bridge.generate("x", "1:1", None, 8, None)
                 self.assertEqual(caught.exception.code, "bridge-timeout")
@@ -192,7 +192,7 @@ class BridgeContractTests(unittest.TestCase):
         ), patch.object(bridge, "_http_json", side_effect=[
             {"prompt_id": "p-partial", "node_errors": node_errors}, history,
         ]) as http_json, patch.object(bridge, "_fetch_bytes", return_value=b"partial-output"), patch(
-            "engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
+            "comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True
         ), patch("builtins.print") as printed:
             result = bridge.generate("x", "1:1", None, 8, None)
         self.assertEqual(base64.b64decode(result), b"partial-output")
@@ -241,7 +241,7 @@ class BridgeContractTests(unittest.TestCase):
                     bridge, "_available_node_classes", return_value=_all_template_classes_available()
                 ), patch.object(bridge, "_http_json", side_effect=http_json), patch.object(
                     bridge, "_fetch_bytes", side_effect=fetch_bytes
-                ), patch("engines.comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True), patch(
+                ), patch("comfyui.engine_manager.EngineManager.ensure_engine_ready", return_value=True), patch(
                     "image_gen.pipeline.is_generation_cancelled", side_effect=lambda: cancelled["value"]
                 ):
                     with self.assertRaises(PipelineError) as caught:

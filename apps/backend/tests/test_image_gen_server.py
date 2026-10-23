@@ -155,14 +155,14 @@ class ImageGenerateRouteTests(unittest.TestCase):
 
     def test_bridge_actions_forward_explicit_origin(self) -> None:
         handler = _ComfyHandler.__new__(_ComfyHandler)
-        with patch("engines.comfyui.bridge_actions.submit", return_value={"id": 1}) as submit:
+        with patch("comfyui.bridge_actions.submit", return_value={"id": 1}) as submit:
             handler._comfy("POST", "/comfy/bridge/actions", {
                 "kind": "generate-images", "note": "test", "originProjectId": "project-a", "originEpisodeId": "episode-1",
             }, {})
         submit.assert_called_once_with("generate-images", "test", origin_project_id="project-a", origin_episode_id="episode-1")
 
     def test_bridge_actions_missing_origin_is_rejected_by_real_submit(self) -> None:
-        from engines.comfyui import bridge_actions
+        from comfyui import bridge_actions
         handler = _ComfyHandler.__new__(_ComfyHandler)
         bridge_actions.reset_for_tests()
         handler._comfy("POST", "/comfy/bridge/actions", {"kind": "generate-images"}, {})
@@ -170,7 +170,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
         self.assertEqual(bridge_actions.list_since(0)["items"], [])
 
     def test_bridge_actions_missing_episode_is_rejected_by_real_submit(self) -> None:
-        from engines.comfyui import bridge_actions
+        from comfyui import bridge_actions
         handler = _ComfyHandler.__new__(_ComfyHandler)
         bridge_actions.reset_for_tests()
         handler._comfy("POST", "/comfy/bridge/actions", {
@@ -180,7 +180,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
         self.assertEqual(bridge_actions.list_since(0)["items"], [])
 
     def test_action_ack_route_preserves_restarted_and_foreign_actions(self) -> None:
-        from engines.comfyui import bridge_actions
+        from comfyui import bridge_actions
         handler = _ComfyHandler.__new__(_ComfyHandler)
         bridge_actions.reset_for_tests()
         bridge_actions.submit("generate-images", origin_project_id="project-a", origin_episode_id="episode-1")
@@ -198,11 +198,11 @@ class ImageGenerateRouteTests(unittest.TestCase):
 
     def test_bridge_exact_ack_routes_forward_only_selected_ids(self) -> None:
         handler = _ComfyHandler.__new__(_ComfyHandler)
-        with patch("engines.comfyui.bridge_inbox.ack", return_value=1) as ack:
+        with patch("comfyui.bridge_inbox.ack", return_value=1) as ack:
             handler._comfy("POST", "/comfy/bridge/writebacks/ack", {"ids": [3], "upTo": 99}, {})
         ack.assert_called_once_with(ids=[3])
         self.assertEqual(handler.response, ({"deleted": 1, "ackMode": "exact"}, HTTPStatus.OK))
-        with patch("engines.comfyui.bridge_actions.ack", return_value=1) as ack:
+        with patch("comfyui.bridge_actions.ack", return_value=1) as ack:
             handler._comfy("POST", "/comfy/bridge/actions/ack", {"queueId": "epoch", "ids": [3], "upTo": 99}, {})
         ack.assert_called_once_with(queue_id="epoch", ids=[3])
         self.assertEqual(handler.response, ({"deleted": 1, "ackMode": "exact"}, HTTPStatus.OK))
@@ -212,7 +212,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
         for queue in ("writebacks", "actions"):
             module = "bridge_inbox" if queue == "writebacks" else "bridge_actions"
             for payload in ({"upTo": 99}, {"ids": None}, {"ids": [True]}, {"ids": [1, "2"]}, {"ids": [2 ** 53]}):
-                with self.subTest(queue=queue, payload=payload), patch(f"engines.comfyui.{module}.ack") as ack:
+                with self.subTest(queue=queue, payload=payload), patch(f"comfyui.{module}.ack") as ack:
                     handler._comfy("POST", f"/comfy/bridge/{queue}/ack", payload, {})
                 self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
                 ack.assert_not_called()
@@ -227,7 +227,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
             {"imageB64": "not base64!"}, {"imageB64": "aGk"},
         ]
         for fields in invalid_fields:
-            with self.subTest(fields=fields), patch("engines.comfyui.bridge_inbox.append") as append:
+            with self.subTest(fields=fields), patch("comfyui.bridge_inbox.append") as append:
                 handler._comfy("POST", "/comfy/bridge/writeback", {**valid, **fields}, {})
                 self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
                 append.assert_not_called()
@@ -239,7 +239,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
             "subfolder": "video/漫影/chapter-001/sb-chapter-001-001",
         }
         for change in ({"policy": "坏档"}, {"subfolder": "video/漫影/chapter/shot?invalid"}):
-            with self.subTest(change=change), patch("engines.comfyui.bridge_inbox.append") as append:
+            with self.subTest(change=change), patch("comfyui.bridge_inbox.append") as append:
                 handler._comfy("POST", "/comfy/bridge/writeback", {
                     "videoB64": "bXA0", "shotTarget": "sb-chapter-001-001", "meta": {**meta, **change},
                 }, {})
@@ -248,7 +248,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
 
     def test_bridge_image_legacy_optional_fields_stay_compatible(self) -> None:
         handler = _ComfyHandler.__new__(_ComfyHandler)
-        with patch("engines.comfyui.bridge_inbox.append", return_value=7) as append:
+        with patch("comfyui.bridge_inbox.append", return_value=7) as append:
             handler._comfy("POST", "/comfy/bridge/writeback", {"imageB64": "aGk="}, {})
         self.assertEqual(handler.response, ({"accepted": True, "id": 7}, HTTPStatus.OK))
         self.assertEqual(append.call_args.args[0]["meta"], {})
@@ -264,7 +264,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
                 "policy": "ambient",
             },
         }
-        with patch("engines.comfyui.bridge_inbox.append", return_value=9) as append:
+        with patch("comfyui.bridge_inbox.append", return_value=9) as append:
             handler._comfy("POST", "/comfy/bridge/writeback", payload, {})
 
         append.assert_called_once()
@@ -273,7 +273,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
 
     def test_bridge_rejects_mixed_or_unscoped_video_payload(self) -> None:
         handler = _ComfyHandler.__new__(_ComfyHandler)
-        with patch("engines.comfyui.bridge_inbox.append") as append:
+        with patch("comfyui.bridge_inbox.append") as append:
             handler._comfy(
                 "POST",
                 "/comfy/bridge/writeback",
@@ -284,7 +284,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
         append.assert_not_called()
 
         for subfolder in ("video/漫影_S01", "video/ComfyUI/chapter-001/sb-1"):
-            with self.subTest(subfolder=subfolder), patch("engines.comfyui.bridge_inbox.append") as append:
+            with self.subTest(subfolder=subfolder), patch("comfyui.bridge_inbox.append") as append:
                 handler._comfy(
                     "POST",
                     "/comfy/bridge/writeback",
@@ -297,7 +297,7 @@ class ImageGenerateRouteTests(unittest.TestCase):
             self.assertEqual(handler.response[1], HTTPStatus.BAD_REQUEST)
             append.assert_not_called()
 
-        with patch("engines.comfyui.bridge_inbox.append") as append:
+        with patch("comfyui.bridge_inbox.append") as append:
             handler._comfy(
                 "POST",
                 "/comfy/bridge/writeback",
@@ -397,8 +397,8 @@ class ShutdownSequenceTests(unittest.TestCase):
         def fake_release() -> None:
             calls.append("release_lock")
 
-        with patch("engines.comfyui.engine_manager.engine_manager", return_value=manager), \
-                patch("engines.comfyui.engine_manager.release_engine_lock", fake_release):
+        with patch("comfyui.engine_manager.engine_manager", return_value=manager), \
+                patch("comfyui.engine_manager.release_engine_lock", fake_release):
             events = server._shutdown_sequence(self._FakeServer(calls), log=lambda *_: None)
 
         self.assertEqual(events, ["port-released", "engine-stopped"])
@@ -413,8 +413,8 @@ class ShutdownSequenceTests(unittest.TestCase):
         def fake_release() -> None:
             calls.append("release_lock")
 
-        with patch("engines.comfyui.engine_manager.engine_manager", return_value=manager), \
-                patch("engines.comfyui.engine_manager.release_engine_lock", fake_release):
+        with patch("comfyui.engine_manager.engine_manager", return_value=manager), \
+                patch("comfyui.engine_manager.release_engine_lock", fake_release):
             events = server._shutdown_sequence(self._FakeServer(calls), log=logged.append)
 
         self.assertEqual(events, ["port-released"])

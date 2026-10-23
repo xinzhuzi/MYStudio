@@ -140,7 +140,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         raise _pipeline_error("generation-cancelled", "已停止")
 
     check_cancelled()
-    from engines.comfyui import engine_manager as _em
+    from comfyui import engine_manager as _em
     try:
         _em.engine_manager().ensure_engine_ready()
     except _em.EngineOpError as exc:

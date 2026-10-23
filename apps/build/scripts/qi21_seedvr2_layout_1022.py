@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO / ".agents/skills/node-graph/tools"))
 import layout_check as lc  # noqa: E402
 
 assert sys.argv[1:] in ([], ["--user-cache"])
-target_dir = REPO / "apps/backend/engines/comfyui/workflows"
+target_dir = REPO / "apps/backend/comfyui/workflows"
 if sys.argv[1:]:
     app_home = next(p for p in (Path.home() / "Library/Application Support").iterdir()
                     if p.name == "漫影工作室")

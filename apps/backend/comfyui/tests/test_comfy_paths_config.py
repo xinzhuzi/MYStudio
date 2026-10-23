@@ -1,0 +1,201 @@
+# Copyright (c) 2025 hotflow2024
+# Licensed under AGPL-3.0-or-later. See LICENSE for details.
+# Commercial licensing available. See COMMERCIAL_LICENSE.md.
+
+"""存储位置四目录配置(09-09 comfyui-frontend-swap 0a):
+逐目录 manifest 覆写解析(engineDir/venvDir/workflowsDir)、未装直改、
+已装指路迁移、迁移 job(引擎/工作流搬移+venv 重建)。"""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from comfyui import manifest as cm
+from comfyui.engine_manager import EngineManager, EngineOpError
+
+
+@pytest.fixture()
+def home(tmp_path, monkeypatch):
+    monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path / "comfyui"))
+    cm._read_cache.clear()
+    return tmp_path / "comfyui"
+
+
+def write_manifest(home: Path, data: dict) -> None:
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
+    cm._read_cache.clear()
+
+
+def test_paths_default_layout(home):
+    manifest = cm.default_manifest()
+    assert cm.configured_engine_dir(manifest) == home / "ComfyUI"
+    assert cm.configured_venv_dir(manifest) == home / "venv"
+    # 工作流库默认=ComfyUI 原生用户目录(引擎 webview 工作流菜单直接可见,
+    # 09-09 存量迁移链打通);旧默认目录经 merge_legacy_workflows_dir 并入
+    assert cm.configured_workflows_dir(manifest) == home / "ComfyUI" / "user" / "default" / "workflows"
+    assert cm.legacy_workflows_dir() == home / "workflows"
+    assert cm.configured_models_dir(manifest) == home / "models"
+
+
+def test_paths_override_each_dir(home):
+    write_manifest(home, {
+        **cm.default_manifest(),
+        "engineDir": "/Volumes/Data/ComfyUI",
+        "venvDir": "/Volumes/Data/venv",
+        "workflowsDir": "/Volumes/Data/workflows",
+    })
+    assert cm.engine_source_dir() == Path("/Volumes/Data/ComfyUI")
+    assert cm.venv_dir() == Path("/Volumes/Data/venv")
+    assert cm.workflows_dir() == Path("/Volumes/Data/workflows")
+    # 引擎目录覆写联动 custom_nodes(插件随引擎源码目录)
+    assert cm.custom_nodes_dir() == Path("/Volumes/Data/ComfyUI/custom_nodes")
+
+
+def test_set_paths_uninstalled_persists(home):
+    manager = EngineManager()
+    status = manager.set_paths({"engineDir": str(home.parent / "engine-elsewhere")})
+    assert status["paths"]["engineDir"] == str(home.parent / "engine-elsewhere")
+    assert status["customized"]["engineDir"] is True
+    assert status["customized"]["venvDir"] is False
+
+
+def test_paths_status_reports_input_output_dirs(home):
+    # 09-11 用户需求:input(参考图上传处)/output(生成结果)可迁出源码目录;
+    # 未配置=源码目录内默认位,配置=manifest 键真值 + customized 点亮
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    status = EngineManager().paths_status()
+    assert status["paths"]["inputDir"] == str(home / "ComfyUI" / "input")
+    assert status["paths"]["outputDir"] == str(home / "ComfyUI" / "output")
+    assert status["defaults"]["inputDir"] == str(home / "ComfyUI" / "input")
+    assert status["customized"]["inputDir"] is False
+    assert status["customized"]["outputDir"] is False
+
+    write_manifest(home, {
+        **cm.default_manifest(),
+        "engine": {"version": "v0.34.6", "port": 17001},
+        "engineDir": "/Volumes/Data/ComfyUI",
+        "inputDir": str(home / "input"),
+        "outputDir": str(home / "output"),
+    })
+    status = EngineManager().paths_status()
+    assert status["paths"]["inputDir"] == str(home / "input")
+    assert status["paths"]["outputDir"] == str(home / "output")
+    assert status["customized"]["inputDir"] is True
+
+
+def test_set_io_dirs_moves_files_and_records(home, monkeypatch):
+    # 已装引擎+引擎未跑:现有 input/output 内容逐项搬移,旧目录搬空除壳,键落账
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    old_input = home / "ComfyUI" / "input"
+    old_output = home / "ComfyUI" / "output"
+    old_input.mkdir(parents=True)
+    old_output.mkdir(parents=True)
+    (old_input / "my-ref-1-abc.png").write_bytes(b"png")
+    (old_output / "ComfyUI_00001_.png").write_bytes(b"png")
+
+    manager = EngineManager()
+    # 17001 是本机常驻口:manifest 写死 17001 且 set_io_dirs 真探活,引擎现驻 17001
+    # 时不 mock 就真连引擎=假失败(09-10 P1 同款;09-26 引擎迁驻 17001 后爆发,隔离之)
+    monkeypatch.setattr(manager, "is_healthy", lambda port: False)
+    status = manager.set_io_dirs({"inputDir": str(home / "input"), "outputDir": str(home / "output")})
+
+    assert (home / "input" / "my-ref-1-abc.png").read_bytes() == b"png"
+    assert (home / "output" / "ComfyUI_00001_.png").read_bytes() == b"png"
+    assert not old_input.exists() and not old_output.exists()  # 搬空除壳=源码区整洁
+    assert status["paths"]["inputDir"] == str(home / "input")
+    assert status["customized"]["outputDir"] is True
+
+
+def test_set_io_dirs_rejects_running_engine(home, monkeypatch):
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    manager = EngineManager()
+    monkeypatch.setattr(manager, "is_healthy", lambda port: True)
+    with pytest.raises(EngineOpError, match="停止引擎"):
+        manager.set_io_dirs({"inputDir": str(home / "input")})
+
+
+def test_set_io_dirs_rejects_relative_path(home, monkeypatch):
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    manager = EngineManager()
+    # 同上:隔离真探活(引擎未跑态),让校验走到绝对路径分支而非被「引擎运行中」拦截
+    monkeypatch.setattr(manager, "is_healthy", lambda port: False)
+    with pytest.raises(EngineOpError, match="绝对路径"):
+        manager.set_io_dirs({"inputDir": "relative/input"})
+
+
+def test_set_paths_rejects_installed(home):
+    write_manifest(home, {**cm.default_manifest(), "engine": {"version": "v0.34.6", "port": 17001}})
+    manager = EngineManager()
+    with pytest.raises(EngineOpError, match="迁移"):
+        manager.set_paths({"engineDir": "/Volumes/Data/ComfyUI"})
+
+
+def test_migrate_paths_requires_stopped_engine(home, monkeypatch):
+    write_manifest(home, {
+        **cm.default_manifest(),
+        "engine": {"version": "v0.34.6", "port": 17001},
+    })
+    manager = EngineManager()
+    # 17001 是本机常驻口:不 mock 就真连引擎,本机引擎在跑=假失败(09-10 P1 缺陷)
+    monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: True)
+    with pytest.raises(EngineOpError, match="请先停止引擎"):
+        manager.migrate_paths_job({"workflowsDir": str(home.parent / "wf-new")})
+    # 端口无服务=未跑,应放行到 job 创建
+    monkeypatch.setattr(manager, "is_healthy", lambda port=None, timeout=2.0: False)
+    job_id = manager.migrate_paths_job({"workflowsDir": str(home.parent / "wf-new")})
+    assert job_id
+
+
+def test_migrate_paths_rejects_uninstalled(home):
+    manager = EngineManager()
+    with pytest.raises(EngineOpError, match="尚未安装"):
+        manager.migrate_paths_job({"engineDir": "/Volumes/Data/ComfyUI"})
+
+
+def test_validate_paths_rejects_relative(home):
+    manager = EngineManager()
+    result = manager.validate_paths({"engineDir": "relative/path"})
+    assert result["ok"] is False
+    assert "绝对路径" in result["errors"]["engineDir"]
+
+
+def test_validate_paths_accepts_writable_target(home):
+    manager = EngineManager()
+    target = home.parent / "ok-target" / "ComfyUI"
+    result = manager.validate_paths({"engineDir": str(target)})
+    assert result["ok"] is True, result
+
+
+class TestHomeMigration:
+    """09-09 用户裁定:comfyui 家从 <userData>/python/comfyui 上提到 <userData>/comfyui。"""
+
+    def test_legacy_home_adopted_on_cold_start(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("MYSTUDIO_COMFYUI_HOME", raising=False)
+        monkeypatch.setattr(cm, "storage_root", lambda: tmp_path / "python")
+        monkeypatch.setattr(cm, "_home_migrated", False)
+        legacy = tmp_path / "python" / "comfyui"
+        legacy.mkdir(parents=True)
+        (legacy / "manifest.json").write_text(json.dumps({"engine": {"version": "v0.34.6"}}), encoding="utf-8")
+        (legacy / "venv").mkdir()
+
+        cm.ensure_home_migrated()
+
+        home = tmp_path / "comfyui"
+        assert (home / "manifest.json").exists()
+        assert (home / "venv").is_dir()
+        assert not legacy.exists()
+        assert cm.comfy_home() == home
+
+    def test_idempotent_and_skip_when_home_overridden(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path / "custom"))
+        monkeypatch.setattr(cm, "storage_root", lambda: tmp_path / "python")
+        monkeypatch.setattr(cm, "_home_migrated", False)
+        legacy = tmp_path / "python" / "comfyui"
+        legacy.mkdir(parents=True)
+        (legacy / "manifest.json").write_text("{}", encoding="utf-8")
+
+        cm.ensure_home_migrated()  # HOME 覆写=不迁
+        assert legacy.exists()
+        assert not (tmp_path / "comfyui").exists()

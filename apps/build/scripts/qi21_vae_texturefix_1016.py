@@ -9,8 +9,8 @@ import json, shutil, sys, hashlib
 from pathlib import Path
 REPO = Path('/Users/zhengbingjin/Project/Github/MYStudio')
 FILES = [
-    REPO / 'apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json',
-    REPO / 'apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json',
+    REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json',
+    REPO / 'apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json',
 ]
 OLD = 'qwen_image_2.1_vae_bf16.safetensors'
 NEW = 'texture_fix_vae_for_qwen_image_2.1_bf16.safetensors'

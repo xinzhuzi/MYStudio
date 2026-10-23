@@ -52,7 +52,7 @@
 | 范围 | 当前文档 |
 |---|---|
 | 开发架构 | [开发者架构与代码入口](./DEVELOPER_ARCHITECTURE.md) |
-| ComfyUI 引擎层（engines/comfyui、my_nodes、webview 桥、comfyui/ 家） | 用户侧：[ComfyUI 引擎指南](../settings/COMFYUI_ENGINE_GUIDE.md)、[本地模型页](../panels/LOCAL_MODELS_GUIDE.md)；工程侧：[定制代码地图](../comfyui-kb/定制代码地图.md)、[参数速查](../comfyui-kb/参数速查.md)、[常见故障排查](./TROUBLESHOOTING.md)（引擎排障节）、`.claude/knowledge/node-graph-architecture.md`、`.agents/skills/comfyui/machine.md` |
+| ComfyUI 引擎层（comfyui、my_nodes、webview 桥、comfyui/ 家） | 用户侧：[ComfyUI 引擎指南](../settings/COMFYUI_ENGINE_GUIDE.md)、[本地模型页](../panels/LOCAL_MODELS_GUIDE.md)；工程侧：[定制代码地图](../comfyui-kb/定制代码地图.md)、[参数速查](../comfyui-kb/参数速查.md)、[常见故障排查](./TROUBLESHOOTING.md)（引擎排障节）、`.claude/knowledge/node-graph-architecture.md`、`.agents/skills/comfyui/machine.md` |
 | 打包、覆盖安装、smoke | [打包、安装与 Smoke 测试](./PACKAGING_AND_SMOKE_TESTING.md) |
 | 时间线 renderer / Remotion | [渲染契约](../../.trellis/spec/frontend/timeline-rendering.md)、[开发者架构与代码入口](./DEVELOPER_ARCHITECTURE.md)、[常见故障排查](./TROUBLESHOOTING.md) |
 | 后端 TTS | [本地 TTS 后端参考](../../apps/backend/README.md)、[本地 TTS 声音克隆与音色分配流程](../panels/voicebox-voice-cloning-flow.md) |

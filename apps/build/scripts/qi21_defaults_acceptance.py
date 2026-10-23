@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 TASK = REPO / '.trellis/tasks/10-16-qi21-defaults-install'
-COMFY = REPO / 'apps/backend/engines/comfyui'
+COMFY = REPO / 'apps/backend/comfyui'
 TURBO = '0 · Turbo 8步'
 TURBO_FILE = 'qwen_image_2.1_turbo_lora_avg_rank_178_bf16.safetensors'
 FIX_FILE = 'qwen2.1-detail-fix-2.0.safetensors'

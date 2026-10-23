@@ -141,7 +141,7 @@
 
 ## 14. my_nodes:自有节点插件(仓库真源;原 manying_nodes,10-03 改名)
 
-真源 `BE/engines/comfyui/my_nodes/`(原 `manying_nodes/`,10-03 战役改名;sync 至引擎 custom_nodes 不依赖打包;验证走引擎 object_info):
+真源 `BE/comfyui/my_nodes/`(原 `manying_nodes/`,10-03 战役改名;sync 至引擎 custom_nodes 不依赖打包;验证走引擎 object_info):
 
 - 节点(NODE_CLASS_MAPPINGS,canonical=`My*` 类,注册面现数按 `my_nodes/__init__.py` 现数为准,10-04=25 含 MyQi21ChinesePE;`Manying*` 旧键=09-14 改名前别名,仅为存量工作流加载兼容):`MyPrompt` / `MyReference` / `MyGenerated`(shot_target 经侧栏回填)/ `MyShot`(镜节点)/ `MyStage`(环节节点)/ `MyCloudImage`(云端图)等,道劫走线族与 qi21 族见 `__init__.py` 注记。
 - 前端扩展:`web/` 原 manying.js 单文件已拆为多模块(6697af8 起;`stage-node.js`+`stage-ui/`+`assets.js` 等,环节节点 UI 在此);拉 sidebar 分镜快照,点选回填 MyGenerated.shot_target;旧版前端无 sidebar API=静默跳过。**改 web/ 后装机侧生效=热修 Resources 种子+重启引擎**(引擎启动从 Resources 整树覆写引擎家 custom_nodes,免重打包;1006 热覆盖三路口径,打包仅用户明令)。
@@ -151,22 +151,22 @@
 
 | 模块 | 职责 |
 |---|---|
-| `BE/engines/comfyui/bridge_sidepanel.py` | 分镜快照数据面:渲染层周期 POST,webview 内扩展 GET 同址(CORS 回显+令牌);15 分钟 stale 标注 |
-| `BE/engines/comfyui/bridge_inbox.py` | 生成结果收件箱(出图回写业务的落点) |
-| `BE/engines/comfyui/bridge_contract.py` | 令牌单源;`image_gen/server.py` 启动时断言与 LOCAL_TOKEN 一致,漂移即拒绝启动 |
+| `BE/comfyui/bridge_sidepanel.py` | 分镜快照数据面:渲染层周期 POST,webview 内扩展 GET 同址(CORS 回显+令牌);15 分钟 stale 标注 |
+| `BE/comfyui/bridge_inbox.py` | 生成结果收件箱(出图回写业务的落点) |
+| `BE/comfyui/bridge_contract.py` | 令牌单源;`image_gen/server.py` 启动时断言与 LOCAL_TOKEN 一致,漂移即拒绝启动 |
 | `FE/lib/assist/image-studio/comfy-bridge-writeback-consumer.ts` | 渲染层消费收件箱(ComfyCanvasStudio 轮询驱动) |
 | `FE/lib/assist/image-studio/storyboard-overview-sync.ts` | 总览图库保鲜(指纹守卫:分镜未动不导入) |
 
 ## 16. 工作流库(09-10 打通:sidecar 库=ComfyUI 原生目录)
 
 > **09-15 校准**(本节正文为 09-10 快照,按此增量阅读;现行真源口径以根 `AGENTS.md` 工作流库段与 `docs/comfyui-kb/漫影工作流清单.md` 为准,计数以清单+脚本现数为准):
-> ①**单一真源=仓库 `apps/backend/engines/comfyui/workflows/`**(静态自研+桥模板同库,`comfyui_bridge._WORKFLOWS_DIR` 同址);引擎侧栏以 `repo:` id **只读合并**展示,写操作走引擎家用户区;
+> ①**单一真源=仓库 `apps/backend/comfyui/workflows/`**(静态自研+桥模板同库,`comfyui_bridge._WORKFLOWS_DIR` 同址);引擎侧栏以 `repo:` id **只读合并**展示,写操作走引擎家用户区;
 > ②旧默认库 `<comfy-home>/workflows` 已于 09-10 全量核验同内容后**封存为 `workflows.已并入-*`**,`merge_legacy_workflows_dir` 的根层回种循环就此终止——下文「旧库并入」机制不再作为活链路;
 > ③**分镜域零实体**(09-15 用户裁定):无逐章/逐镜工作流文件,仓库通用模板由漫影 App 克隆注入直开,引擎 userdata 恒零分镜文件。
 
-**单一真源**:`<comfy_home>/ComfyUI/user/default/workflows`——webview 工作流菜单、sidecar API、迁移入库三者同目录。webview 左侧「工作流」即管理界面(浏览/打开/改名/删除/文件夹)。**(此句为 09-10 旧口径,09-15 已废止——单一真源已改仓库 `apps/backend/engines/comfyui/workflows/`+`repo:` 只读合并,见上方校准块①)**
+**单一真源**:`<comfy_home>/ComfyUI/user/default/workflows`——webview 工作流菜单、sidecar API、迁移入库三者同目录。webview 左侧「工作流」即管理界面(浏览/打开/改名/删除/文件夹)。**(此句为 09-10 旧口径,09-15 已废止——单一真源已改仓库 `apps/backend/comfyui/workflows/`+`repo:` 只读合并,见上方校准块①)**
 
-- **目录解析**(`BE/engines/comfyui/manifest.py`):`configured_workflows_dir`——manifest `workflowsDir` 覆写优先,否则 `engine_source_dir()/user/default/workflows`;`legacy_workflows_dir()`=旧默认 `<comfy_home>/workflows`。
+- **目录解析**(`BE/comfyui/manifest.py`):`configured_workflows_dir`——manifest `workflowsDir` 覆写优先,否则 `engine_source_dir()/user/default/workflows`;`legacy_workflows_dir()`=旧默认 `<comfy_home>/workflows`。
 - **旧库并入**(`plugin_manager.merge_legacy_workflows_dir`):`_iter_workflow_files`(库读取咽喉)与 `import_workflows` 前调用;幂等、同名不覆盖(旧库胜)、旧文件永不动、非破坏 copy2。
 - **HTTP 面**(`BE/image_gen/server.py`,Bearer `manying-local-image`):
   `GET /comfy/workflows`(树:rglob 递归+nodeCount+缺失插件标记,引擎未跑 missingNodes=null)/ `POST /comfy/workflows/import`(≤50 文件,同名 skip 除非 overwrite,JSON 校验拒坏)/ `GET …/content` / `POST …/rename|move|delete`(delete 须 confirm,先回引用扫描,备份进 snapshots/workflow-backups)。
@@ -191,7 +191,7 @@
 ## 19. 引擎管理(设置页)
 
 - `FE/components/panels/settings/comfy-engine/`:useComfyEngineSettings(状态机:install/start job 轮询)、引擎卡默认收起(点开才挂载才查更新)、「模型」tab(本地大模型展示)、插件台账(已装 30/策展+Registry 合并搜索)、「存储」tab(四目录+迁移)。
-- `BE/engines/comfyui/engine_manager.py`:实例锁(engine.lock,双 sidecar 风暴根修)、build_launch_args(gpu-only/--reserve-vram 可组合/--use-pytorch-cross-attention;**无 --user-directory**=原生用户目录生效的前提)、更新链(强制拉源码覆盖+失败重试+requirements 指纹跳过 pip)、collect_import_failures(插件兼容点名)。
+- `BE/comfyui/engine_manager.py`:实例锁(engine.lock,双 sidecar 风暴根修)、build_launch_args(gpu-only/--reserve-vram 可组合/--use-pytorch-cross-attention;**无 --user-directory**=原生用户目录生效的前提)、更新链(强制拉源码覆盖+失败重试+requirements 指纹跳过 pip)、collect_import_failures(插件兼容点名)。
 - `plugin_manager.py`:策展清单 curated_plugins.json、差分 node sets、卸载/备份。
 - **端口口径(09-12 根修 00b671e)**:引擎默认启动串不再钉 `--port`;端口真源归账本/引擎状态(`status.port`=全 app 寻址真源),17598 仅作桥回落位。启动链:start_lock 全程串行+快路径等健康防假就绪;报「本地生图服务未运行」类死窗有 sidecar 自愈补试。
 
@@ -205,11 +205,11 @@
 
 | 任务 | 改哪里 |
 |---|---|
-| 改工作流库行为(导入/列表/删除) | `BE/engines/comfyui/plugin_manager.py` + `manifest.py`(目录解析;旧库并入 merge_legacy **已废止勿改**,见 §16 校准②);HTTP 面在 `image_gen/server.py` /comfy/workflows* |
+| 改工作流库行为(导入/列表/删除) | `BE/comfyui/plugin_manager.py` + `manifest.py`(目录解析;旧库并入 merge_legacy **已废止勿改**,见 §16 校准②);HTTP 面在 `image_gen/server.py` /comfy/workflows* |
 | 改库目录/存储 | manifest `workflowsDir` 覆写或改 `configured_workflows_dir` 默认;迁移 job 走 engine_manager.set_paths/migrate_paths_job |
 | 改存量迁移(入口已退役=史档勿改) | `FE/lib/assist/image-studio/workflow-migrate-batch.ts`(批)+ `workflow-export-comfy.ts`(导出器) |
 | 改画布槽位/头部 | `comfy-canvas/ComfyCanvasSwap.tsx`;引擎占位/webview/轮询在 `ComfyCanvasStudio.tsx` |
-| 改自有节点 | `BE/engines/comfyui/my_nodes/`(节点+web 扩展+tests;原 manying_nodes 10-03 改名);object_info 验证,勿依赖直 import |
+| 改自有节点 | `BE/comfyui/my_nodes/`(节点+web 扩展+tests;原 manying_nodes 10-03 改名);object_info 验证,勿依赖直 import |
 | 改桥/回写 | 后端 bridge_*.py;渲染层 comfy-bridge-writeback-consumer / storyboard-overview-sync |
 | 改分镜批量生图 | use-storyboard-batch-generation → run-image-workflow-node-generation → request.ts(§18 链,全链健在) |
 | 改无头执行工作流 | `FE/lib/assist/image-studio/comfy-execute.ts`(job 化)+ BE execute.py |
@@ -237,7 +237,7 @@
 
 **换代与库(09-09/10 新增):**
 11. **画布终态=ComfyUI**,React Flow 双画布已退役删除;存量数据冻结在 store 深链读写(批6/8)。
-12. **工作流库=ComfyUI 原生用户目录** `<引擎>/user/default/workflows`(manifest 覆写除外);旧默认 `<home>/workflows` 非破坏并入(同名旧库胜,旧文件不动)。(**此条前半为 09-10 旧口径,09-15 已废止**——真源=仓库 `apps/backend/engines/comfyui/workflows/`+`repo:` 只读合并,写走引擎家用户区;旧库已封存 `workflows.已并入-*`、merge_legacy 回种循环终止,见 §16 校准块)
+12. **工作流库=ComfyUI 原生用户目录** `<引擎>/user/default/workflows`(manifest 覆写除外);旧默认 `<home>/workflows` 非破坏并入(同名旧库胜,旧文件不动)。(**此条前半为 09-10 旧口径,09-15 已废止**——真源=仓库 `apps/backend/comfyui/workflows/`+`repo:` 只读合并,写走引擎家用户区;旧库已封存 `workflows.已并入-*`、merge_legacy 回种循环终止,见 §16 校准块)
 13. **存量迁移入口=画布头部按钮**;冲突模式无值守默认 **skip 幂等**;keep-both 只留给显式导入。(**入口已退役**,tree-shake 不进包;本条存史)
 14. comfy-workflow-browser 整套退役:库管理=webview 原生界面,不自建重复 UI。
 15. **路径三口同源 resolve**(import/rename/move 的 relative_to 根必须 resolve;符号链接前缀下不同源=400 半完成态)。

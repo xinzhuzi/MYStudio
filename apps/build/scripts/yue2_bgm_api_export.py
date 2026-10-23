@@ -3,7 +3,7 @@
 # Commercial licensing available. See COMMERCIAL_LICENSE.md.
 """YuE2 BGM 工作流 UI 格式 → 桥模板 API 格式导出(09-20 BGM 接线)。
 
-源:apps/backend/engines/comfyui/workflows/3_声音/Yue2/yue2-bgm-纯音乐-lora版.json
+源:apps/backend/comfyui/workflows/3_声音/Yue2/yue2-bgm-纯音乐-lora版.json
   (UI 画布格式 nodes/links,09-20 实弹定稿的 LoRA 纯音乐构图)
 出:同目录 yue2-bgm-纯音乐-lora版-api.json
   (本仓库桥模板 {schemaVersion:1, graph} 包装的 API 格式;unwrapComfyApiGraph
@@ -41,7 +41,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-UI_WORKFLOW = REPO_ROOT / "apps/backend/engines/comfyui/workflows/3_声音/Yue2/yue2-bgm-纯音乐-lora版.json"
+UI_WORKFLOW = REPO_ROOT / "apps/backend/comfyui/workflows/3_声音/Yue2/yue2-bgm-纯音乐-lora版.json"
 API_WORKFLOW = UI_WORKFLOW.with_suffix("").with_name(UI_WORKFLOW.stem + "-api.json")
 
 # 前端专属/注释类节点:不进 API 图(PrimitiveNode 由消费方内联承接)

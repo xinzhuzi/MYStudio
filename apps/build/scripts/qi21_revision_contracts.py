@@ -29,6 +29,6 @@ json_write(p,d,'应用运行合同去全局平光浅底和剧情去污，登记�
 p=ROOT/'apps/frontend/lib/ai/daojie-prompt-contract.test.ts'
 replace(p,'88bd58dff6980da5d4b731d3ae1874459e258f679493d46d49d388ae98fc41f1',d['contractSha256'],'重锚本地修订合同指纹')
 replace(p,'toContain("浅净哑光平涂底")','toContain("背景的色相、明暗与光源服从场景和时段")','验证剧情照明服从事实')
-p=ROOT/'apps/backend/engines/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py'
+p=ROOT/'apps/backend/comfyui/my_nodes/tests/test_my_qi21_prompt_assembly.py'
 replace(p,'7eaaabffcec166f2',hashlib.sha256(b['art_style_base']['positive_text'].encode()).hexdigest()[:16],'共同画法默认值指纹随真源重锚')
 print('updated contracts and anchors')

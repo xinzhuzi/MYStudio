@@ -16,7 +16,7 @@ PAIRS = [('道劫_九型主体句示例', '道劫_类型主体句示例'),
          ('道劫_九型配方', '道劫_类型配方')]
 SCOPES = ['docs/prompts', 'docs/comfyui-kb',
           'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng',
-          'apps/build/scripts', 'apps/backend/engines/comfyui/workflows']
+          'apps/build/scripts', 'apps/backend/comfyui/workflows']
 SELF = Path(__file__).resolve()
 
 

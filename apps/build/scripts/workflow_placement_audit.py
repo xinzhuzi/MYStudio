@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-TRUTH = REPO / "apps/backend/engines/comfyui/workflows"
+TRUTH = REPO / "apps/backend/comfyui/workflows"
 INVENTORY = REPO / "docs/comfyui-kb/漫影工作流清单.md"
 KB = REPO / "docs/comfyui-kb"
 DEFAULT_HOME = Path.home() / "Library/Application Support/漫影工作室/comfyui"

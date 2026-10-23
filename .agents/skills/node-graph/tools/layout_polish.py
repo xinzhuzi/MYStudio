@@ -829,7 +829,7 @@ def main(argv=None):
         _wf, rep = strip_links(wf, ids, which)
         print("LAYOUT_POLISH_JSON: " + json.dumps(rep, separators=(",", ":"), ensure_ascii=False))
         if "--apply" in argv:
-            if "engines/comfyui/workflows" in path and "--allow-prod" not in argv:
+            if "comfyui/workflows" in path and "--allow-prod" not in argv:
                 print("refusing production path without --allow-prod (生产件恒走手术脚本路线,优化集 ⑦)")
                 return 3
             with open(path, "w", encoding="utf-8") as f:
@@ -840,7 +840,7 @@ def main(argv=None):
     _wf, rep = sweep_dead_links(wf)
     print("sweep report:", json.dumps(rep, ensure_ascii=False))
     if "--apply" in argv:
-        if "engines/comfyui/workflows" in path and "--allow-prod" not in argv:
+        if "comfyui/workflows" in path and "--allow-prod" not in argv:
             print("refusing production path without --allow-prod (生产件恒走手术脚本路线,优化集 ⑦)")
             return 3
         with open(path, "w", encoding="utf-8") as f:

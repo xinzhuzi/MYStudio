@@ -49,10 +49,10 @@ for asset in (static / "assets").glob("*.js"):
     }
     break
 
-snapshot_path = repository / "apps/backend/engines/comfyui/tests/fixtures/qi21_object_info_snapshot.json"
+snapshot_path = repository / "apps/backend/comfyui/tests/fixtures/qi21_object_info_snapshot.json"
 snapshot = json.loads(snapshot_path.read_text())
 graphs = []
-for workflow in (repository / "apps/backend/engines/comfyui/workflows").glob("**/qi21*.json"):
+for workflow in (repository / "apps/backend/comfyui/workflows").glob("**/qi21*.json"):
     if workflow.stem not in {"qi21-道劫-i2i", "qi21-道劫-t2i", "qi21-edit"}:
         continue
     graph = json.loads(workflow.read_text())

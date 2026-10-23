@@ -38,7 +38,7 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parent
 REPO = SCRIPTS.parents[2]
 REPORT_JSON = REPO / "apps/output/automation/hygiene-gate-report.json"
-Q21_DIR = REPO / "apps/backend/engines/comfyui/workflows/1_图片/Q2-1图像"
+Q21_DIR = REPO / "apps/backend/comfyui/workflows/1_图片/Q2-1图像"
 PY = sys.executable or "python3"
 
 

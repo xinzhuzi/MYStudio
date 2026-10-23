@@ -30,7 +30,7 @@ def transform(v):
  if isinstance(v,dict): return {k:transform(x) for k,x in v.items()}
  if isinstance(v,list):return [transform(x) for x in v]
  return mapping.get(v,v) if isinstance(v,str) else v
-for p in (ROOT/'apps/backend/engines/comfyui/workflows').rglob('qi21-道劫-?2i.json'):
+for p in (ROOT/'apps/backend/comfyui/workflows').rglob('qi21-道劫-?2i.json'):
  w=transform(json.loads(p.read_text()))
  for g in [w]+w['definitions']['subgraphs']:
   for n in g['nodes']:

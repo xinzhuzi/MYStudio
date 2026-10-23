@@ -6,6 +6,7 @@
 
 > **09-13 现状校准**(下文目标目录树/五族表按此增量阅读):①`engines/` 现为 **9 包**(audio/comfyui/depth/image/sfx/tts/upscale/video_qc/vlm;`music3_engine` 未落地——音乐推理走 `audio_gen` 侧车 + Music3 权重件);②backend 顶层服务包现为 `audio_gen / common / engines / image_gen / sfx_gen / tts / video_qc / video_use / vlm_review`,下文树中 `music3_gen/`、`upscale/`、`depth_estimation/`、`layer_separation/` 顶层包**已不存在**(后处理由 engines 域 worker 引擎承载);③五族表「生图后处理」「音乐」两行的目录形态以此为准。comfyui 引擎家/模型统一家/端口口径见 `docs/engineering/DEVELOPER_ARCHITECTURE.md` 的「ComfyUI 引擎层」节。
 > **2026-10-10 校准**:engines/ 现 7 包(upscale/depth 已随 09-10 退役删除),以 ls apps/backend/engines 现数为准。
+> **2026-10-22 校准**:comfyui 特例托管包上提为顶层 `apps/backend/comfyui`(平级于 engines/,import 名 `comfyui` 直达);engines/ 其余 6 包仍循 09-09「每引擎一子包」原则,本分层裁定不变。
 
 **何时读**:动 `apps/backend` 目录结构、新增后端包、新增/接入引擎、给 ComfyUI 写自定义节点之前必读。
 
@@ -72,7 +73,7 @@ apps/backend/
 
 1. **顶层 `engines/`(复数)=引擎域**;「engines」一词从此专属引擎概念,别处禁用。
 2. **`image_gen/engines/` → `image_gen/providers/`**:那些是「每模型一脚本」的生图管线(08-31 裁定),不是引擎;providers=生图提供方(本地模型栈+引擎路由桥 comfyui_bridge),照 AI SDK/LobeChat/LibreChat 的 provider 抽象惯例。
-3. **跨域 import 一律绝对导入**(`from engines.comfyui import engine_manager`):providers/ 到 engines/ 无公共父包,相对导入够不着;PYTHONPATH=backend 根,绝对导入天然可见。
+3. **跨域 import 一律绝对导入**(`from comfyui import engine_manager`):providers/ 到 engines/ 无公共父包,相对导入够不着;PYTHONPATH=backend 根,绝对导入天然可见。
 
 ## 四、分阶段搬动(渐进铁律:每阶段独立提交,git mv 保 rename 检测)
 

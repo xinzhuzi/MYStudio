@@ -70,7 +70,7 @@ export function buildDomains() {
       cwd: appsRoot,
       env: { PYTHONPATH: "backend" },
       executable: "python3",
-      args: ["-m", "pytest", "backend/engines/comfyui/tests", "-q"],
+      args: ["-m", "pytest", "backend/comfyui/tests", "-q"],
       platforms: ["darwin", "linux"],
     },
     {
@@ -78,7 +78,7 @@ export function buildDomains() {
       cwd: appsRoot,
       env: { PYTHONPATH: "backend" },
       executable: "python3",
-      args: ["-m", "pytest", "backend/engines/comfyui/my_nodes/tests", "-q"],
+      args: ["-m", "pytest", "backend/comfyui/my_nodes/tests", "-q"],
       platforms: ["darwin", "linux"],
     },
     {
