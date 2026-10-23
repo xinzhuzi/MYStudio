@@ -690,7 +690,7 @@ ASSEMBLY_PANEL_CONTROLS = {
     # 1005 ㊄ 终态重锚:提示词正/负=纯连线槽(非 widget,不入 widgets_values),
     # 透明/手动宽/高退役(透明自动跟型 rgba_default);面板 widget 恰两控
     "qi21": ["型选择", "PE启用?"],
-    "i2i": ["指令", "型选择", "PE启用?", "RGBA透明", "组装用途"],  # 组装用途轮第五控
+    "i2i": ["型选择", "PE启用?", "RGBA透明", "组装用途"],  # 指令是 forceInput 连线，不占 widget 值
     "edit": ["指令", "PE启用?"],                         # edit 无型库/无 RGBA 机构(S2 D6/D7 域外)
 }
 SPEED_SELECT_CLASS = "MyQi21SpeedSelect"
@@ -3846,8 +3846,8 @@ class TestQi21SubgraphContract:
         # 五型,现值随源回退四型,以 json 现值为准)
         _bases = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
         _rgba_on = {e["zh"] for e in _bases if e.get("rgba_default") is True}
-        assert _rgba_on == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准"}, \
-            f"qi21_bases.json rgba_default 五型集合漂移(0929 用户拍板四型;1022 人脸基准入列=透明族第五型),得 {sorted(_rgba_on)}"
+        assert _rgba_on == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "全身定妆"}, \
+            f"qi21_bases.json rgba_default 六型集合漂移(0929 用户拍板四型;1022 人脸基准=第五型;1023 全身定妆=第六型),得 {sorted(_rgba_on)}"
         assert all(e.get("rgba_default") in (True, False) for e in _bases), \
             "qi21_bases.json rgba_default 应为显式布尔(缺字段/非布尔即红)"
         # 1006 七轮:[4011] 退役——BASE 直连 [4013].型底座(槽3,线337)
@@ -3875,10 +3875,10 @@ class TestQi21SubgraphContract:
         透明声明段+退役背景职责句零回潮。"""
         types, _ = _qi21_truth()
         qi21 = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
-        assert len(qi21) == 13, f"qi21_bases.json types 应十三档(十二型+自由,1022 人脸基准入列;1021 3D剖面场景图入列),得 {len(qi21)}"
+        assert len(qi21) == 14, f"qi21_bases.json types 应十四档(十三型+自由,1023 全身定妆入列;1022 人脸基准入列),得 {len(qi21)}"
         assert [e["zh"] for e in qi21[:10]] == [t[0] for t in types], \
             "qi21_bases.json 前十档 型名/顺序应与 05 库同序(型录序=使用序;1021/1022 新型候实弹后入 canon)"
-        free = qi21[12]
+        free = qi21[13]
         assert free["zh"] == "自由" and free["positive_text"] == "" \
             and free["aspect_ratio"] == "1:1 (Square)" and free["megapixels"] == 1.0 \
             and free.get("rgba_default") is False, \
@@ -4789,7 +4789,7 @@ class TestI2IContract:
         MyQi21DaojieBase 九选一(combo 经宿主面板「型选择」COMBO 外露,默认人物;
         W/H 零消费=画幅随输入图)+[141] 装配全文件(美术风格底座迁参数面)+[152] 择文
         合成器①(替原 [15])+[153] 透明包裹器②(替原 [162][163][160][161]);
-        宿主面板 widget=指令+型选择+RGBA透明+PE开关(四控零变化);画幅联动件
+        宿主面板 widget=型选择+PE启用?+RGBA透明+组装用途；指令走纯连线。画幅联动件
         不移植(RegexExtract 画幅链/ComfyNumberConvert/ComfyMathExpression 禁入);
         StringConstant 恰 0(美术风格底座/头尾句全迁参数面)。"""
         graph = GRAPHS["i2i"]
@@ -4810,9 +4810,8 @@ class TestI2IContract:
         for hi in host["inputs"]:
             assert hi["type"] == sg_in_names[hi["name"]]["type"], \
                 f"宿主槽 {hi['name']} 类型与子图边界槽不符"
-        assert host["widgets_values"] == [I2I_B_SEG, "人物", False, "自动", "自由出图"], \
-            "宿主 widgets_values 应=[中文例句, 人物, False(PE 默认关闭), 自动(D6 三态默认,1001 ①)," \
-            "自由出图(组装用途轮第五控,默认=自由出图=仅拼操作和保留项)]"
+        assert host["widgets_values"] == ["人物", False, "自动", "自由出图"], \
+            "宿主 widgets_values 应为四个提升控件的值；forceInput 指令不得占位"
         # 0929 S2 D6:i2i 型联动三态件([180];rgba_hint←[4010].透明值(1002 大轮迁);
         # rgba_on 四扇出 [144]/[173] 双镜像开关+[152]/[153] 透明模式占位)
         sel = sg_nodes[I2I_SG_RGBA_SEL]
@@ -5227,8 +5226,8 @@ class TestI2IContract:
         assert nodes[I2I_LATENT_SW_ID]["widgets_values"][0] is False, "[20] 画幅双路默认应 false"
         # 10-02 单口化:[144]/[173] 双闸门塌缩退役(原「默认 false」断言随之退场)
         host = nodes[I2I_HOST_ID]
-        assert host["widgets_values"][3] == "自动", \
-            "[6] 面板「RGBA透明」默认应=自动(1001 ① 文案轮;⑲ 序:PE启用? 前移后=第4值)"
+        assert host["widgets_values"][2] == host["widgets_values_named"]["RGBA透明"] == "自动", \
+            "[6] 面板「RGBA透明」是第三个控件，默认自动，位置值与具名值必须一致"
         assert I2I_LORA_PB_ID not in nodes and I2I_LORA_SW_ID not in nodes, \
             "i2i: 旧档位/[32] MODEL 开关应已拆除(0929 并行化)"
 
