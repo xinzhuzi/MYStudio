@@ -236,7 +236,7 @@ def test_default_instruction_contract_rejects_mirror_drift(document_index, mirro
 
 
 def test_frontend_audit_compares_literals_not_matching_assembly_references():
-    spec = importlib.util.spec_from_file_location('qi21_current_canvas_audit', ROOT / 'Library/ai/qi21_current_canvas_audit_1022.py')
+    spec = importlib.util.spec_from_file_location('qi21_current_canvas_audit', ROOT / 'apps/output/ai-workspace/ai/qi21_current_canvas_audit_1022.py')
     audit = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(audit)
     graph = {'400': {'inputs': {'value': 'GUI two-image instruction'}},
