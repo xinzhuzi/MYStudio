@@ -232,6 +232,86 @@ def test_secondary_dedup_uses_javascript_whitespace_contract(tmp_path, space, eq
                for item in report["findings"])
 
 
+@pytest.mark.parametrize("name,stored", [("晏燎", "晏燎"), (ORIGINAL, ORIGINAL), (ORIGINAL, OLD)])
+@pytest.mark.parametrize("second_note", ["入口", "另一条来源备注"])
+def test_duplicate_source_rows_preserve_ambiguity_and_continue(tmp_path, name, stored, second_note):
+    first = f"| scene | {name} | | {CHAPTER} | 入口 |"
+    second = f"| scene | {name} | | {CHAPTER} | {second_note} |"
+    root, corpus, shard = fixture(tmp_path, (stored,), first + "\n" + second + "\n")
+    next_chapter = "chapter-1570"
+    next_shard = shard.parent.parent / next_chapter / shard.name
+    next_shard.parent.mkdir()
+    data = json.loads(shard.read_text())
+    batch = {**data["state"]["entityExtractions"][0], "id": "batch-2", "episodeId": next_chapter,
+             "scenes": [{"name": "内室", "sceneId": "scene-next", "note": "入口", "aliases": []}]}
+    next_shard.write_text(json.dumps({"state": {"entityExtractions": [batch]}, "version": 1}))
+    manifest_path = root / "store/studio-workflow/manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["shards"].append(str(next_shard.relative_to(manifest_path.parent)))
+    manifest["chapterIndex"].append({"id": next_chapter})
+    manifest_path.write_text(json.dumps(manifest))
+    (corpus / "batch-001.txt").write_text(
+        f"### {next_chapter}\n| scene | 洞穴/内室 | | {next_chapter} | 入口 |\n")
+    before = {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in tmp_path.rglob("*") if p.is_file()}
+
+    code, report = cli(root, corpus)
+
+    assert code == 0 and report["valid"], report["errors"]
+    group, = report["repeatedSourceGroups"]
+    assert (group["chapterId"], group["kind"], group["name"], group["classification"]) == (
+        CHAPTER, "scene", name, "ambiguous")
+    assert [(row["file"], row["line"], row["raw"], row["note"]) for row in group["sources"]] == [
+        (str(corpus / "batch-000.txt"), 2, first, "入口"),
+        (str(corpus / "batch-000.txt"), 3, second, second_note)]
+    assert not any(item["classification"] == "unique_source_match" and item["chapterId"] == CHAPTER
+                   for item in report["findings"])
+    assert any(item["chapterId"] == next_chapter and item["classification"] == "unique_source_match"
+               for item in report["findings"])
+    if stored == OLD:
+        assert len([item for item in report["findings"] if item["chapterId"] == CHAPTER]) == 2
+    assert report["productionWritten"] is False and report["identityApproved"] is False
+    assert report["coverageSummary"] == {
+        "validated": True, "manifestChapterCount": 2, "extractionBatchCount": 2,
+        "corpusChapterCount": 2, "corpusFileCount": 2, "corpusRowCount": 3,
+        "corpusRowsByKind": {"character": 0, "scene": 3, "prop": 0}, "parsedNameCount": 3}
+    assert before == {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
+                      for p in tmp_path.rglob("*") if p.is_file()}
+
+
+def test_validated_coverage_counts_physical_rows_not_secondary_names(tmp_path):
+    rows = (f"| scene | {ORIGINAL};副名 | | {CHAPTER} | 入口 |\n"
+            f"| character | 晏燎 | | {CHAPTER} | 人物 |\n"
+            f"| character | 晏燎 | | {CHAPTER} | 另一人物行 |\n"
+            f"| prop | 古画.PNG | | {CHAPTER} | 画卷 |\n")
+    root, corpus, _ = fixture(tmp_path, rows=rows)
+
+    code, report = cli(root, corpus)
+
+    assert code == 0 and report["valid"], report["errors"]
+    assert report["coverageSummary"] == {
+        "validated": True, "manifestChapterCount": 1, "extractionBatchCount": 1,
+        "corpusChapterCount": 1, "corpusFileCount": 1, "corpusRowCount": 4,
+        "corpusRowsByKind": {"character": 2, "scene": 1, "prop": 1}, "parsedNameCount": 5}
+    group, = report["repeatedSourceGroups"]
+    assert group["kind"] == "character" and group["name"] == "晏燎"
+    assert [source["line"] for source in group["sources"]] == [3, 4]
+
+
+@pytest.mark.parametrize("tail", ["not a table\n", f"### {CHAPTER}\n"])
+def test_duplicate_sources_do_not_hide_fatal_input_or_publish_partial_counts(tmp_path, tail):
+    row = f"| scene | {ORIGINAL} | | {CHAPTER} | 入口 |\n"
+    root, corpus, _ = fixture(tmp_path, rows=row + row + tail)
+
+    code, report = cli(root, corpus)
+
+    assert code == 2 and not report["valid"] and report["errors"]
+    assert report.get("coverageSummary") is None
+    assert report["findings"] == [] and report["repeatedSourceGroups"] == []
+    assert any(("malformed corpus row" if tail.startswith("not") else "duplicate corpus chapter")
+               in error for error in report["errors"])
+
+
 @pytest.mark.parametrize("change", ["new-corpus", "new-shard", "corpus", "manifest", "shard"])
 def test_drift_invalidates_whole_report(tmp_path, monkeypatch, change):
     root, corpus, shard = fixture(tmp_path)
@@ -249,3 +329,4 @@ def test_drift_invalidates_whole_report(tmp_path, monkeypatch, change):
     monkeypatch.setattr(module, "compare_names", changing)
     report = module.audit(root, corpus)
     assert not report["valid"] and report["findings"] == [] and report["errors"]
+    assert report.get("coverageSummary") is None and report["repeatedSourceGroups"] == []

@@ -124,7 +124,8 @@ def legacy_name(name):
 
 
 def corpus_rows(corpus, names, read):
-    rows, chapters, seen = [], set(), set()
+    rows, chapters = [], set()
+    row_counts = dict.fromkeys(KINDS, 0)
     require(names, "no batch-*.txt corpus files")
     for name in names:
         chapter = None
@@ -146,6 +147,7 @@ def corpus_rows(corpus, names, read):
             kind = kind.lower()
             require(kind in KINDS and source_name and note, f"{where}: bad corpus fields: {raw}")
             require(not episodes or re.split(r"[,，]+", episodes) == [chapter], f"{where}: episode mismatch: {raw}")
+            row_counts = {**row_counts, kind: row_counts[kind] + 1}
             segments = [s.strip() for s in re.split(r"[;；,，]", source_name) if s.strip()]
             row_names = set()
             for segment in segments:
@@ -156,12 +158,10 @@ def corpus_rows(corpus, names, read):
                 if normalized in row_names:
                     continue
                 row_names.add(normalized)
-                key = (chapter, kind, segment)
-                require(key not in seen, f"{where}: duplicate corpus name {key}: {raw}")
-                seen.add(key)
+                # Across-row repeats are source ambiguity, not malformed input.
                 rows.append({"chapterId": chapter, "kind": kind, "name": segment, "note": note,
                              "file": str(corpus / name), "line": line_number, "raw": raw})
-    return rows, chapters
+    return rows, chapters, row_counts
 
 
 def extraction_batches(project, read):
@@ -245,6 +245,7 @@ def compare_names(rows, batches, hashes):
 def audit(project_root, corpus_dir):
     project, corpus = Path(project_root).absolute(), Path(corpus_dir).absolute()
     hashes, roots, errors, findings = {}, {}, [], []
+    repeated_sources, coverage = [], None
     def read(root, path):
         raw = read_safe(root, path)
         key, digest = str(root / path), hashlib.sha256(raw).hexdigest()
@@ -255,9 +256,20 @@ def audit(project_root, corpus_dir):
     try:
         before = inventory(project, corpus)
         batches, chapters = extraction_batches(project, read)
-        rows, corpus_chapters = corpus_rows(corpus, before[1], read)
+        rows, corpus_chapters, row_counts = corpus_rows(corpus, before[1], read)
         require(corpus_chapters == chapters, f"corpus chapter coverage mismatch: missing={sorted(chapters - corpus_chapters)}, extra={sorted(corpus_chapters - chapters)}")
+        source_groups = {}
+        for row in rows:
+            key = (row["chapterId"], row["kind"], row["name"])
+            source_groups[key] = [*source_groups.get(key, []), row]
+        repeated_sources = [{"chapterId": chapter, "kind": kind, "name": name,
+                             "classification": "ambiguous", "sources": sources}
+                            for (chapter, kind, name), sources in source_groups.items() if len(sources) > 1]
         findings = compare_names(rows, batches, hashes)
+        coverage = {"validated": True, "manifestChapterCount": len(chapters), "extractionBatchCount": len(batches),
+                    "corpusChapterCount": len(corpus_chapters), "corpusFileCount": len(before[1]),
+                    "corpusRowCount": sum(row_counts.values()), "corpusRowsByKind": row_counts,
+                    "parsedNameCount": len(rows)}
     except (OSError, ValueError, TypeError, KeyError, RecursionError) as error:
         errors.append(str(error))
     after_hashes = {}
@@ -273,6 +285,8 @@ def audit(project_root, corpus_dir):
         errors.append(str(error))
     return {"valid": not errors, "status": "invalid" if errors else "valid", "productionWritten": False,
             "identityApproved": False, "errors": errors, "findings": [] if errors else findings,
+            "repeatedSourceGroups": [] if errors else repeated_sources,
+            "coverageSummary": None if errors else coverage,
             "beforeSha256": hashes, "afterSha256": after_hashes}
 
 
