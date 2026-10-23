@@ -1,16 +1,16 @@
 {
   "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
-  "head": "e5acee40",
-  "rebuiltAt": "2026-10-21T21:30:09",
+  "head": "f7fcc9b7",
+  "rebuiltAt": "2026-10-23T21:35:31",
   "files": {
     "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
       "scopes": {
         "main": {
-          "crossings": 17,
-          "occlusion": 1
+          "crossings": 12,
+          "occlusion": 0
         },
         "sub:[6] 文本提示词类型优化子图": {
-          "crossings": 8,
+          "crossings": 2,
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
@@ -18,28 +18,36 @@
           "occlusion": 0
         },
         "sub:道劫·超分·SeedVR2": {
-          "crossings": 1,
-          "occlusion": 1
+          "crossings": 0,
+          "occlusion": 0
+        },
+        "sub:道劫·④b·洗底·透明除渣": {
+          "crossings": 2,
+          "occlusion": 0
         }
       }
     },
     "apps/backend/comfyui/workflows/1_图片/Q2-1图像/2_图生图/qi21-道劫-i2i.json": {
       "scopes": {
         "main": {
-          "crossings": 46,
-          "occlusion": 7
+          "crossings": 43,
+          "occlusion": 6
         },
         "sub:[6] 文本提示词类型优化子图": {
           "crossings": 3,
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 14,
-          "occlusion": 2
+          "crossings": 26,
+          "occlusion": 7
         },
         "sub:道劫·超分·SeedVR2": {
-          "crossings": 1,
-          "occlusion": 1
+          "crossings": 0,
+          "occlusion": 0
+        },
+        "sub:道劫·④b·洗底·透明除渣": {
+          "crossings": 2,
+          "occlusion": 0
         }
       }
     },
