@@ -30,7 +30,7 @@ export default [
       'dist',
       '.cache',
       // .zcode 会话工作目录(git 已按 .gitignore `.zcode/` 任意深度忽略;根 .zcode 靠 lint 扫描根
-      // =apps/ 天然出界,但 apps 内嵌套 .zcode(如 backend/engines/comfyui/.zcode)会被扫进来,
+      // =apps/ 天然出界,但 apps 内嵌套 .zcode(如 backend/comfyui/.zcode)会被扫进来,
       // 草稿 *.dwf.ts 一报 lint 错即锁死全仓 pre-commit——2006 实发。flat config 裸名只配根层,
       // 须 **/ 前缀盖任意深度,对齐 .gitignore 同款语义)
       '**/.zcode',

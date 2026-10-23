@@ -15,7 +15,7 @@ apps/backend/
   engines/audio_engine/  engines/sfx_engine/    # generate.py(自 worker 原样切片)+model_cache
   engines/vlm_engine/
   engines/video_qc_engine/  # DOVER 架构+打分+license
-  engines/comfyui/          # ComfyUI 托管实例:manifest/engine_manager/plugin_manager/execute
+  comfyui/          # ComfyUI 托管实例:manifest/engine_manager/plugin_manager/execute
   # 域2:模态服务包(纯服务面:HTTP/CLI spawn 面/编排/存储;模型底层全在 engines/)
   tts/                      # TTS 服务面:server/main/routes/storage/runtime_state
                             #   (入口 tts.main,端口 17593;引擎调 engines/tts_engine)
