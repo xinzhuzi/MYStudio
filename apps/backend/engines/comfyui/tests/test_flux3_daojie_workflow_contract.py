@@ -111,18 +111,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'65b40e67b939d1016b1f16231db4192bca40fefa39023e5cfcb74608bbd205bf',
+        'approved_sha256':'5151c81f9323bfddc86e5f7f83f837d7b41125920b574444469ca26a2cd351ea',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1022-facebase.md',
-            'anchor':'## Decisions(2026-10-22 用户令「按照晏燎基准脸的方式,新增一个人脸基准的类型」)',
-            'sha256':'0baad38d1008c54406d2808b1f37aa85d4020027c14f7c73ce37e4ef180909a4',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1023-bodybase.md',
+            'anchor':'## Decisions(2026-10-23 用户令「目前是 全身定妆,用这个来新作一个类型」)',
+            'sha256':'592641c223763ba7fd7ddd500872653f4613100862f2c05cf14ca2a7ed7746de',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1022-facebase.md',
-            'anchor':'## 字段级变更(2 处,1022 人脸基准入列实测)',
-            'sha256':'485e7cd01adfe5c45ba8560b84c060f89ddb1081e739a109f3487e3e2b039a2e',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1023-bodybase.md',
+            'anchor':'## 字段级变更(2 处,1023 全身定妆入列实测)',
+            'sha256':'badfbe39ffe33fa9d566ae9d539eab48d6b27a3a30ceb8a00f0e98b017baae8d',
         },
     }
     revision=revisions[base]

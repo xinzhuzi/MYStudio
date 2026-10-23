@@ -69,7 +69,7 @@ RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情
 # 0929 D6 rgba_default 四型(用户拍板:道具/多视图/高清人脸/表情差分默认开 RGBA,
 # 其余五型默认关)——独立钉(防提取器 RGBA_DEFAULT_TYPES 常量被静默改)
 # 1022 人脸基准入列(晏燎基准脸役):透明族第五型
-RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准"}  # 1016 完整设定板默认不透明
+RGBA_DEFAULT_TYPES = {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "全身定妆"}  # 1023 全身定妆入列(透明族第六型)
 
 # 透明声明句核锚=全串(防「透明头皮」光头禁令条款误判,S0 research/transparency-
 # fusion.md 注记;canon_lib TRANSPARENT_DECL 首段,表情差分变体尾同前缀)
@@ -270,7 +270,7 @@ def test_data_file_schema():
     data = json.loads(my_qi21_base._BASES_JSON.read_text(encoding="utf-8"))
     assert isinstance(data, dict) and isinstance(data.get("types"), list)
     entries = data["types"]
-    assert len(entries) == 13  # 1022 人脸基准入列(十二型+自由);1021 十一型+自由(3D剖面场景图入列);1015 十型+自由(设定卡入列)
+    assert len(entries) == 14  # 1023 全身定妆入列(十三型+自由);1022 人脸基准入列(十二型+自由);1021 十一型+自由(3D剖面场景图入列)
     assert [e["zh"] for e in entries] == _canon_order() + ["自由"]  # 自由末位
     for e in entries:
         zh = e["zh"]

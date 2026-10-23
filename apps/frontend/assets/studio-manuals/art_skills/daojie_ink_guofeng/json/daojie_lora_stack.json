@@ -56,6 +56,10 @@
         "on": true,
         "weight": 1.0
       },
+      "全身定妆": {
+        "on": true,
+        "weight": 1.0
+      },
       "设定板": {
         "on": true,
         "weight": 1.0
@@ -119,6 +123,10 @@
         "on": true,
         "weight": 0.01
       },
+      "全身定妆": {
+        "on": true,
+        "weight": 0.2
+      },
       "设定板": {
         "on": true,
         "weight": 0.2
@@ -179,6 +187,10 @@
         "weight": 1.0
       },
       "人脸基准": {
+        "on": true,
+        "weight": 1.0
+      },
+      "全身定妆": {
         "on": true,
         "weight": 1.0
       },
@@ -245,6 +257,10 @@
         "on": true,
         "weight": 0.4
       },
+      "全身定妆": {
+        "on": true,
+        "weight": 0.2
+      },
       "设定板": {
         "on": true,
         "weight": 0.2
@@ -308,6 +324,10 @@
         "on": false,
         "weight": 0.8
       },
+      "全身定妆": {
+        "on": true,
+        "weight": 0.2
+      },
       "设定板": {
         "on": true,
         "weight": 0.2
@@ -368,6 +388,10 @@
         "weight": 1.0
       },
       "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
+      "全身定妆": {
         "on": false,
         "weight": 1.0
       },
@@ -434,6 +458,10 @@
         "on": false,
         "weight": 1.0
       },
+      "全身定妆": {
+        "on": false,
+        "weight": 1.0
+      },
       "设定板": {
         "on": false,
         "weight": 1.0
@@ -494,6 +522,10 @@
         "weight": 1.0
       },
       "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
+      "全身定妆": {
         "on": false,
         "weight": 1.0
       },
@@ -560,6 +592,10 @@
         "on": false,
         "weight": 1.0
       },
+      "全身定妆": {
+        "on": false,
+        "weight": 1.0
+      },
       "设定板": {
         "on": false,
         "weight": 1.0
@@ -620,6 +656,10 @@
         "weight": 1.0
       },
       "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
+      "全身定妆": {
         "on": false,
         "weight": 1.0
       },
@@ -686,6 +726,10 @@
         "on": false,
         "weight": 1.0
       },
+      "全身定妆": {
+        "on": false,
+        "weight": 1.0
+      },
       "设定板": {
         "on": false,
         "weight": 1.0
@@ -746,6 +790,10 @@
         "weight": 0.6
       },
       "人脸基准": {
+        "on": false,
+        "weight": 1.0
+      },
+      "全身定妆": {
         "on": false,
         "weight": 1.0
       },
@@ -812,6 +860,10 @@
         "on": true,
         "weight": 0.3
       },
+      "全身定妆": {
+        "on": true,
+        "weight": 0.3
+      },
       "设定板": {
         "on": true,
         "weight": 0.3
@@ -872,6 +924,10 @@
         "weight": 0.6
       },
       "人脸基准": {
+        "on": true,
+        "weight": 0.8
+      },
+      "全身定妆": {
         "on": true,
         "weight": 0.8
       },

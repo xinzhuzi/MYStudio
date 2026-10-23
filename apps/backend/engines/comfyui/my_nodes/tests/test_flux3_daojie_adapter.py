@@ -67,6 +67,7 @@ def test_adapter_projects_every_real_type_without_losing_its_distinguishing_layo
         "设定卡": "完整横向角色设定板",
         "3D剖面场景图": "微缩立体模型质感",
         "人脸基准": "正面头颈特写素材",  # 1022 入列(晏燎基准脸役)
+        "全身定妆": "全身素体立绘",  # 1023 入列(晏燎役 body_base 正名)
     }
     adapter = MyFlux3DaojieAdapter()
 

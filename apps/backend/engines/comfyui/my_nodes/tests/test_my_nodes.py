@@ -260,12 +260,12 @@ def test_daojie_base_options_and_assembly():
     inputs = node.INPUT_TYPES()
     assert set(inputs["required"]) == {"base"}
     combo = inputs["required"]["base"]
-    # 1004 集中化:combo=真源家 qi21_bases.json types[] 全十三档(十二型+自由末位;
-    # 1022 人脸基准入列;1021 3D剖面场景图入列;1015 设定卡入列;原九型 sidecar daojie_bases.json 退役删件,锚随迁)
+    # 1004 集中化:combo=真源家 qi21_bases.json types[] 全十四档(十三型+自由末位;
+    # 1023 全身定妆入列;1022 人脸基准入列;1021 3D剖面场景图入列;1015 设定卡入列;原九型 sidecar daojie_bases.json 退役删件,锚随迁)
     assert combo[0] == [
         "人物", "场景", "道具", "美宣", "人物多视图",
         "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
-        "3D剖面场景图", "人脸基准", "自由"]
+        "3D剖面场景图", "人脸基准", "全身定妆", "自由"]
     assert combo[1]["default"] == "人物"
     # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/
     # megapixels(FLOAT) 两出,前两 STRING 槽位不动(存量图 [80] 链 45/46 免改);
