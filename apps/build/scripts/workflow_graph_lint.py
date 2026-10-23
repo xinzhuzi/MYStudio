@@ -34,6 +34,22 @@ EXEMPT_OCCLUSION_TYPES = frozenset({
     "MarkdownNote", "Label", "easy label", "Note (rgthree)",
 })
 
+# 文件级豁免(1023 三债清理役立账):两类设计形态件不适用画布图 lint——
+# ① *-api.json 桥契约模板=生成器机器展平态(schemaVersion+graph 包装,顶层无
+#    nodes/links 属设计;侧栏过滤判据同源,见 plugin_manager/1022 桥役);
+# ② 上游原样保真件(0_官方模板/3_社区模板 + 官方参照件 道劫-摆姿-fisher):
+#    入库纪律=保上游原样(1017 用户令/Q21官方模板上游锚 1021),其上游固有
+#    AABB/畸形链不作本仓改造对象;若日后升级上游版本,以新上游为准重新评估。
+EXEMPT_FILES = frozenset({
+    "qwen21-道劫-t2i-api.json",
+    "qwen21-道劫-i2i-api.json",
+    "道劫-摆姿-fisher.json",
+    "社区-编辑生图整合-TE.json",
+    "社区-skill姿态图放大-扩展整合.json",
+    "社区-全能图片编辑-官方PE.json",
+    "社区-全能文生图-官方PE.json",
+})
+
 _OPTIONAL_SHAPE = 7  # litegraph 可选槽位形态(forceInput optional 槽先例)
 
 # widget 型类型:未连线时值由 widgets_values 位置式兜底(旧格式「可连接
@@ -45,6 +61,8 @@ _WIDGET_VALUE_TYPES = frozenset({"COMBO", "FLOAT", "INT", "NUMBER", "BOOLEAN"})
 
 def lint_workflow(path: Path) -> list[str]:
     """对单个工作流 JSON 跑全部检查,返回问题清单(空=干净)。"""
+    if path.name in EXEMPT_FILES:
+        return []
     problems: list[str] = []
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))

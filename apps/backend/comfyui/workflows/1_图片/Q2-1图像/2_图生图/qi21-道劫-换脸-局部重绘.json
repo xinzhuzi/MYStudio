@@ -1,875 +1,875 @@
 {
- "id": "qi21-daojie-face-inpaint-1023",
- "revision": 3,
- "last_node_id": 80,
- "last_link_id": 16,
- "nodes": [
-  {
-   "id": 1,
-   "type": "UNETLoader",
-   "pos": [
-    60,
-    120
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [],
-   "outputs": [
+  "id": "qi21-daojie-face-inpaint-1023",
+  "revision": 3,
+  "last_node_id": 80,
+  "last_link_id": 16,
+  "nodes": [
     {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      16
-     ],
-     "slot_index": 0
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        60,
+        120
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            16
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ],
+      "title": "[1] UNET加载"
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        60,
+        300
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            6
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "qwen3vl_8b_bf16_heretic.safetensors",
+        "qwen_image",
+        "default"
+      ],
+      "title": "[2] 主TE·CLIPLoader"
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        60,
+        470
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            9
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+      ],
+      "title": "[3] VAE加载"
+    },
+    {
+      "id": 10,
+      "type": "LoadImage",
+      "pos": [
+        420,
+        60
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            0,
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "[10] 身图·原样底图"
+    },
+    {
+      "id": 11,
+      "type": "LoadImage",
+      "pos": [
+        420,
+        300
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "[11] 基准脸·五官来源(不透明图)"
+    },
+    {
+      "id": 17,
+      "type": "ImageCrop",
+      "pos": [
+        720,
+        60
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 0,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        224,
+        176,
+        512,
+        96
+      ],
+      "title": "[17] 裁脸块(x/y/w/h 与[19][70]联动)"
+    },
+    {
+      "id": 18,
+      "type": "ImageResizeKJv2",
+      "pos": [
+        960,
+        60
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 3,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        1024,
+        768,
+        "lanczos",
+        "stretch",
+        "0, 0, 0",
+        "center",
+        32,
+        "cpu"
+      ],
+      "title": "[18] 脸块放大·1024×768"
+    },
+    {
+      "id": 13,
+      "type": "ImageResizeKJv2",
+      "pos": [
+        720,
+        300
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        1024,
+        1024,
+        "lanczos",
+        "resize",
+        "0, 0, 0",
+        "center",
+        32,
+        "cpu"
+      ],
+      "title": "[13] 基准脸缩放"
+    },
+    {
+      "id": 31,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        1220,
+        60
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 6
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "prompt"
+          }
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "negative_prompt"
+          }
+        },
+        {
+          "name": "resolution",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "resolution"
+          }
+        },
+        {
+          "name": "images.image_1",
+          "type": "COMFY_AUTOGROW_V3",
+          "link": 4,
+          "shape": 7,
+          "widget": {
+            "name": "images.image_1"
+          }
+        },
+        {
+          "name": "images.image_2",
+          "type": "COMFY_AUTOGROW_V3",
+          "link": 5,
+          "shape": 7,
+          "widget": {
+            "name": "images.image_2"
+          }
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "正向",
+          "type": "STRING",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "负向",
+          "type": "STRING",
+          "links": [
+            10
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "保持第一张图的构图、发型与衣物原样，色彩色调与第一张图完全一致；仅将画面中人物面部的五官替换为第二张图人物的面部：眼型、眉毛、鼻型、唇形、下颌与脸型与第二张图完全一致，神情中性平和；面部肤色与第一张图一致。",
+        "",
+        0
+      ],
+      "title": "[31] 双图编码·换脸指令"
+    },
+    {
+      "id": 41,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1220,
+        320
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "height"
+          }
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "batch_size"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            11
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        1024,
+        768,
+        1
+      ],
+      "title": "[41] 空潜码·1024×768"
+    },
+    {
+      "id": 80,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        340,
+        120
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "bfs_head_v1.1_qwen_2.1.safetensors",
+        1.0
+      ],
+      "title": "[80] BFS换头LoRA×1.0(脸块大图条件下生效)"
+    },
+    {
+      "id": 40,
+      "type": "KSampler",
+      "pos": [
+        1700,
+        60
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 7
+        },
+        {
+          "name": "positive",
+          "type": "STRING",
+          "link": 8
+        },
+        {
+          "name": "negative",
+          "type": "STRING",
+          "link": 10
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            12
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        42,
+        "fixed",
+        20,
+        1,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "title": "[40] 采样·20步cfg1·denoise1"
+    },
+    {
+      "id": 50,
+      "type": "VAEDecode",
+      "pos": [
+        1980,
+        60
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 12
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            13
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": null,
+      "title": "[50] 解码"
+    },
+    {
+      "id": 19,
+      "type": "ImageResizeKJv2",
+      "pos": [
+        1700,
+        320
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 13,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        224,
+        176,
+        "lanczos",
+        "stretch",
+        "0, 0, 0",
+        "center",
+        32,
+        "cpu"
+      ],
+      "title": "[19] 结果缩回脸块原尺寸"
+    },
+    {
+      "id": 70,
+      "type": "ImageCompositeMasked",
+      "pos": [
+        1980,
+        320
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "destination",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "source",
+          "type": "IMAGE",
+          "link": 14
+        },
+        {
+          "name": "x",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "x"
+          }
+        },
+        {
+          "name": "y",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "y"
+          }
+        },
+        {
+          "name": "resize_to_batch",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "resize_to_batch"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            15
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        512,
+        96,
+        false
+      ],
+      "title": "[70] 缝回原坐标(x/y 与[17]联动)"
+    },
+    {
+      "id": 60,
+      "type": "SaveImage",
+      "pos": [
+        2260,
+        200
+      ],
+      "size": [
+        0,
+        0
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 15
+        }
+      ],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "QI21换脸局部重绘_"
+      ],
+      "title": "[60] 保存"
     }
-   ],
-   "properties": {},
-   "widgets_values": [
-    "qwen_image_2.1_bf16.safetensors",
-    "default"
-   ],
-   "title": "[1] UNET加载"
-  },
-  {
-   "id": 2,
-   "type": "CLIPLoader",
-   "pos": [
-    60,
-    300
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "CLIP",
-     "type": "CLIP",
-     "links": [
-      6
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    "qwen3vl_8b_bf16_heretic.safetensors",
-    "qwen_image",
-    "default"
-   ],
-   "title": "[2] 主TE·CLIPLoader"
-  },
-  {
-   "id": 3,
-   "type": "VAELoader",
-   "pos": [
-    60,
-    470
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "VAE",
-     "type": "VAE",
-     "links": [
-      9
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
-   ],
-   "title": "[3] VAE加载"
-  },
-  {
-   "id": 10,
-   "type": "LoadImage",
-   "pos": [
-    420,
-    60
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
+  ],
+  "links": [
+    [
       0,
-      1
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    "example.png",
-    "image"
-   ],
-   "title": "[10] 身图·原样底图"
+      10,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      1,
+      10,
+      0,
+      70,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      11,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      17,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      4,
+      18,
+      0,
+      31,
+      4,
+      "IMAGE"
+    ],
+    [
+      5,
+      13,
+      0,
+      31,
+      5,
+      "IMAGE"
+    ],
+    [
+      6,
+      2,
+      0,
+      31,
+      0,
+      "CLIP"
+    ],
+    [
+      16,
+      1,
+      0,
+      80,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      80,
+      0,
+      40,
+      0,
+      "MODEL"
+    ],
+    [
+      8,
+      31,
+      0,
+      40,
+      1,
+      "STRING"
+    ],
+    [
+      9,
+      3,
+      0,
+      31,
+      6,
+      "VAE"
+    ],
+    [
+      10,
+      31,
+      1,
+      40,
+      2,
+      "STRING"
+    ],
+    [
+      11,
+      41,
+      0,
+      40,
+      3,
+      "LATENT"
+    ],
+    [
+      12,
+      40,
+      0,
+      50,
+      0,
+      "LATENT"
+    ],
+    [
+      13,
+      50,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      14,
+      19,
+      0,
+      70,
+      1,
+      "IMAGE"
+    ],
+    [
+      15,
+      70,
+      0,
+      60,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "definitions": {
+    "subgraphs": []
   },
-  {
-   "id": 11,
-   "type": "LoadImage",
-   "pos": [
-    420,
-    300
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      2
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    "example.png",
-    "image"
-   ],
-   "title": "[11] 基准脸·五官来源(不透明图)"
-  },
-  {
-   "id": 17,
-   "type": "ImageCrop",
-   "pos": [
-    720,
-    60
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "image",
-     "type": "IMAGE",
-     "link": 0,
-     "shape": 7
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      3
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    224,
-    176,
-    512,
-    96
-   ],
-   "title": "[17] 裁脸块(x/y/w/h 与[19][70]联动)"
-  },
-  {
-   "id": 18,
-   "type": "ImageResizeKJv2",
-   "pos": [
-    960,
-    60
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "image",
-     "type": "IMAGE",
-     "link": 3,
-     "shape": 7
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      4
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    1024,
-    768,
-    "lanczos",
-    "stretch",
-    "0, 0, 0",
-    "center",
-    32,
-    "cpu"
-   ],
-   "title": "[18] 脸块放大·1024×768"
-  },
-  {
-   "id": 13,
-   "type": "ImageResizeKJv2",
-   "pos": [
-    720,
-    300
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "image",
-     "type": "IMAGE",
-     "link": 2,
-     "shape": 7
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      5
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    1024,
-    1024,
-    "lanczos",
-    "resize",
-    "0, 0, 0",
-    "center",
-    32,
-    "cpu"
-   ],
-   "title": "[13] 基准脸缩放"
-  },
-  {
-   "id": 31,
-   "type": "TextEncodeQwenImage21",
-   "pos": [
-    1220,
-    60
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "clip",
-     "type": "CLIP",
-     "link": 6
-    },
-    {
-     "name": "prompt",
-     "type": "STRING",
-     "link": null,
-     "widget": {
-      "name": "prompt"
-     }
-    },
-    {
-     "name": "negative_prompt",
-     "type": "STRING",
-     "link": null,
-     "widget": {
-      "name": "negative_prompt"
-     }
-    },
-    {
-     "name": "resolution",
-     "type": "INT",
-     "link": null,
-     "widget": {
-      "name": "resolution"
-     }
-    },
-    {
-     "name": "images.image_1",
-     "type": "COMFY_AUTOGROW_V3",
-     "link": 4,
-     "shape": 7,
-     "widget": {
-      "name": "images.image_1"
-     }
-    },
-    {
-     "name": "images.image_2",
-     "type": "COMFY_AUTOGROW_V3",
-     "link": 5,
-     "shape": 7,
-     "widget": {
-      "name": "images.image_2"
-     }
-    },
-    {
-     "name": "vae",
-     "type": "VAE",
-     "link": 9,
-     "shape": 7
-    }
-   ],
-   "outputs": [
-    {
-     "name": "正向",
-     "type": "STRING",
-     "links": [
-      8
-     ],
-     "slot_index": 0
-    },
-    {
-     "name": "负向",
-     "type": "STRING",
-     "links": [
-      10
-     ],
-     "slot_index": 1
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    "保持第一张图的构图、发型与衣物原样，色彩色调与第一张图完全一致；仅将画面中人物面部的五官替换为第二张图人物的面部：眼型、眉毛、鼻型、唇形、下颌与脸型与第二张图完全一致，神情中性平和；面部肤色与第一张图一致。",
-    "",
-    0
-   ],
-   "title": "[31] 双图编码·换脸指令"
-  },
-  {
-   "id": 41,
-   "type": "EmptyLatentImage",
-   "pos": [
-    1220,
-    320
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "width",
-     "type": "INT",
-     "link": null,
-     "widget": {
-      "name": "width"
-     }
-    },
-    {
-     "name": "height",
-     "type": "INT",
-     "link": null,
-     "widget": {
-      "name": "height"
-     }
-    },
-    {
-     "name": "batch_size",
-     "type": "INT",
-     "link": null,
-     "widget": {
-      "name": "batch_size"
-     }
-    }
-   ],
-   "outputs": [
-    {
-     "name": "LATENT",
-     "type": "LATENT",
-     "links": [
-      11
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    1024,
-    768,
-    1
-   ],
-   "title": "[41] 空潜码·1024×768"
-  },
-  {
-   "id": 80,
-   "type": "LoraLoaderModelOnly",
-   "pos": [
-    340,
-    120
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 16
-    }
-   ],
-   "outputs": [
-    {
-     "name": "MODEL",
-     "type": "MODEL",
-     "links": [
-      7
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    "bfs_head_v1.1_qwen_2.1.safetensors",
-    1.0
-   ],
-   "title": "[80] BFS换头LoRA×1.0(脸块大图条件下生效)"
-  },
-  {
-   "id": 40,
-   "type": "KSampler",
-   "pos": [
-    1700,
-    60
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "model",
-     "type": "MODEL",
-     "link": 7
-    },
-    {
-     "name": "positive",
-     "type": "STRING",
-     "link": 8
-    },
-    {
-     "name": "negative",
-     "type": "STRING",
-     "link": 10
-    },
-    {
-     "name": "latent_image",
-     "type": "LATENT",
-     "link": 11
-    }
-   ],
-   "outputs": [
-    {
-     "name": "LATENT",
-     "type": "LATENT",
-     "links": [
-      12
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    42,
-    "fixed",
-    20,
-    1,
-    "euler",
-    "simple",
-    1.0
-   ],
-   "title": "[40] 采样·20步cfg1·denoise1"
-  },
-  {
-   "id": 50,
-   "type": "VAEDecode",
-   "pos": [
-    1980,
-    60
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "samples",
-     "type": "LATENT",
-     "link": 12
-    },
-    {
-     "name": "vae",
-     "type": "VAE",
-     "link": 9
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      13
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": null,
-   "title": "[50] 解码"
-  },
-  {
-   "id": 19,
-   "type": "ImageResizeKJv2",
-   "pos": [
-    1700,
-    320
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "image",
-     "type": "IMAGE",
-     "link": 13,
-     "shape": 7
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      14
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    224,
-    176,
-    "lanczos",
-    "stretch",
-    "0, 0, 0",
-    "center",
-    32,
-    "cpu"
-   ],
-   "title": "[19] 结果缩回脸块原尺寸"
-  },
-  {
-   "id": 70,
-   "type": "ImageCompositeMasked",
-   "pos": [
-    1980,
-    320
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "destination",
-     "type": "IMAGE",
-     "link": 1
-    },
-    {
-     "name": "source",
-     "type": "IMAGE",
-     "link": 14
-    },
-    {
-     "name": "x",
-     "type": "INT",
-     "link": null,
-     "widget": {
-      "name": "x"
-     }
-    },
-    {
-     "name": "y",
-     "type": "INT",
-     "link": null,
-     "widget": {
-      "name": "y"
-     }
-    },
-    {
-     "name": "resize_to_batch",
-     "type": "BOOLEAN",
-     "link": null,
-     "widget": {
-      "name": "resize_to_batch"
-     }
-    }
-   ],
-   "outputs": [
-    {
-     "name": "IMAGE",
-     "type": "IMAGE",
-     "links": [
-      15
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {},
-   "widgets_values": [
-    512,
-    96,
-    false
-   ],
-   "title": "[70] 缝回原坐标(x/y 与[17]联动)"
-  },
-  {
-   "id": 60,
-   "type": "SaveImage",
-   "pos": [
-    2260,
-    200
-   ],
-   "size": [
-    0,
-    0
-   ],
-   "flags": {},
-   "order": 0,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "images",
-     "type": "IMAGE",
-     "link": 15
-    }
-   ],
-   "outputs": [],
-   "properties": {},
-   "widgets_values": [
-    "QI21换脸局部重绘_"
-   ],
-   "title": "[60] 保存"
-  }
- ],
- "links": [
-  [
-   0,
-   10,
-   0,
-   17,
-   0,
-   "IMAGE"
-  ],
-  [
-   1,
-   10,
-   0,
-   70,
-   0,
-   "IMAGE"
-  ],
-  [
-   2,
-   11,
-   0,
-   13,
-   0,
-   "IMAGE"
-  ],
-  [
-   3,
-   17,
-   0,
-   18,
-   0,
-   "IMAGE"
-  ],
-  [
-   4,
-   18,
-   0,
-   31,
-   0,
-   "IMAGE"
-  ],
-  [
-   5,
-   13,
-   0,
-   31,
-   0,
-   "IMAGE"
-  ],
-  [
-   6,
-   2,
-   0,
-   31,
-   0,
-   "CLIP"
-  ],
-  [
-   16,
-   1,
-   0,
-   80,
-   0,
-   "MODEL"
-  ],
-  [
-   7,
-   80,
-   0,
-   40,
-   0,
-   "MODEL"
-  ],
-  [
-   8,
-   31,
-   0,
-   40,
-   1,
-   "STRING"
-  ],
-  [
-   9,
-   3,
-   0,
-   31,
-   1,
-   "VAE"
-  ],
-  [
-   10,
-   31,
-   1,
-   40,
-   2,
-   "STRING"
-  ],
-  [
-   11,
-   41,
-   0,
-   40,
-   3,
-   "LATENT"
-  ],
-  [
-   12,
-   40,
-   0,
-   50,
-   0,
-   "LATENT"
-  ],
-  [
-   13,
-   50,
-   0,
-   19,
-   0,
-   "IMAGE"
-  ],
-  [
-   14,
-   19,
-   0,
-   70,
-   1,
-   "IMAGE"
-  ],
-  [
-   15,
-   70,
-   0,
-   60,
-   0,
-   "IMAGE"
-  ]
- ],
- "groups": [],
- "definitions": {
-  "subgraphs": []
- },
- "config": {},
- "extra": {},
- "version": 0.4
+  "config": {},
+  "extra": {},
+  "version": 0.4
 }
