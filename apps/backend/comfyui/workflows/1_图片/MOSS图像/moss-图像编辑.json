@@ -1,0 +1,864 @@
+{
+  "id": "80fdadce-1276-4000-a248-961964f5b6e8",
+  "revision": 1,
+  "last_node_id": 110,
+  "last_link_id": 18,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        160,
+        860
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "moss_image_sft_bf16.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "moss_image_sft_bf16.safetensors",
+        "weight_dtype": "default"
+      },
+      "title": "[1] MOSS SFT 底模"
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        260,
+        3380
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            2,
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "flux2-vae.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "flux2-vae.safetensors"
+      },
+      "title": "[3] FLUX.2 VAE"
+    },
+    {
+      "id": 4,
+      "type": "CLIPLoader",
+      "pos": [
+        80,
+        2630
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            4,
+            5
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3.5_9b_bf16.safetensors",
+        "moss_image",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "qwen3.5_9b_bf16.safetensors",
+        "type": "moss_image",
+        "device": "default"
+      },
+      "title": "[4] MOSS 文本编码器"
+    },
+    {
+      "id": 100,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        120,
+        2190
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            6
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "<占位:发车注入>"
+      ],
+      "widgets_values_named": {
+        "value": "<占位:发车注入>"
+      },
+      "title": "[100] 编辑指令"
+    },
+    {
+      "id": 101,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        1200,
+        2580
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "value": ""
+      },
+      "title": "[101] 负向(默认空)"
+    },
+    {
+      "id": 50,
+      "type": "TextEncodeMOSSImageEdit",
+      "pos": [
+        1750,
+        700
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 10
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 6
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 4
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            8
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TextEncodeMOSSImageEdit"
+      },
+      "widgets_values": [
+        "Moss-Image-Edit",
+        1.0
+      ],
+      "widgets_values_named": {
+        "edit_format": "Moss-Image-Edit",
+        "image_strength": 1.0
+      },
+      "title": "[50] 官方 MOSS 编辑编码"
+    },
+    {
+      "id": 51,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1550,
+        1080
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            9
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {},
+      "title": "[51] 负向编码(可空)"
+    },
+    {
+      "id": 7,
+      "type": "LoadImage",
+      "pos": [
+        360,
+        1260
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10,
+            11
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "moss-edit-src.png"
+      ],
+      "widgets_values_named": {
+        "image": "moss-edit-src.png"
+      },
+      "title": "[7] 待编辑原图"
+    },
+    {
+      "id": 12,
+      "type": "ImageScaleToTotalPixels",
+      "pos": [
+        2020,
+        420
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            12
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageScaleToTotalPixels"
+      },
+      "widgets_values": [
+        "lanczos",
+        1.0,
+        16
+      ],
+      "widgets_values_named": {
+        "upscale_method": "lanczos",
+        "megapixels": 1.0,
+        "resolution_steps": 16
+      },
+      "title": "[12] 原图缩至1MP·对齐16"
+    },
+    {
+      "id": 11,
+      "type": "GetImageSize",
+      "pos": [
+        2800,
+        520
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            13
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            14
+          ],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GetImageSize"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {},
+      "title": "[11] 取宽高"
+    },
+    {
+      "id": 6,
+      "type": "EmptyFlux2LatentImage",
+      "pos": [
+        3600,
+        680
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 13
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyFlux2LatentImage"
+      },
+      "widgets_values": [
+        1
+      ],
+      "widgets_values_named": {
+        "batch_size": 1
+      },
+      "title": "[6] 空Latent(随原图)"
+    },
+    {
+      "id": 20,
+      "type": "SkipLayerGuidanceDiTSimple",
+      "pos": [
+        2900,
+        80
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            16
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SkipLayerGuidanceDiTSimple"
+      },
+      "widgets_values": [
+        "",
+        "22",
+        0.0,
+        1.0
+      ],
+      "widgets_values_named": {
+        "double_layers": "",
+        "single_layers": "22",
+        "start_percent": 0.0,
+        "end_percent": 1.0
+      },
+      "title": "[20] SLG(编辑档)"
+    },
+    {
+      "id": 70,
+      "type": "KSampler",
+      "pos": [
+        4340,
+        780
+      ],
+      "size": [
+        340,
+        320
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 16
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 15
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 8
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        10258001,
+        "fixed",
+        30,
+        4.0,
+        "euler",
+        "normal",
+        1.0
+      ],
+      "widgets_values_named": {
+        "seed": 10258001,
+        "steps": 30,
+        "cfg": 4.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0
+      },
+      "title": "[70] K采样器"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        4780,
+        1320
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 17
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            18
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": [],
+      "widgets_values_named": {},
+      "title": "[8] VAE 解码"
+    },
+    {
+      "id": 9,
+      "type": "SaveImage",
+      "pos": [
+        5340,
+        1320
+      ],
+      "size": [
+        340,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "moss/edit-1025"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "moss/edit-1025"
+      },
+      "title": "[9] 存图"
+    },
+    {
+      "id": 110,
+      "type": "MarkdownNote",
+      "pos": [
+        80,
+        4060
+      ],
+      "size": [
+        620,
+        460
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "## MOSS-Image 图像编辑(官方节点链·moss-win-campaign-1025 役件)\n\nQ1 裁定:本件走**官方 TextEncodeMOSSImageEdit**(ComfyUI master PR#17095,comfy_extras/nodes_moss_image.py;插件作者自荐官方 issue #17296 节点),零第三方依赖;插件链(ApplyMossImageEdit)仅作 R6 备选,不入库。\n\n### 官方节点要点(E5 源码实证)\n- edit_format 三枚举:ai-toolkit / ai-toolkit (kv_cache off) / **Moss-Image-Edit**(本件选它——对应 HF chinoll/Moss-Image-Edit adapter);\n- 入参:clip/prompt/vae(可选——不给则参考图只进文本编码器,本件连入 VAE 走完整链)/images(Autogrow 组,画布实际入名=展开名 image_1,不存在名为 images 的口);image_strength=1.0。\n- 参考图整图直入:官方节点无 reference_max_edge;若效果差,可仿插件链在 [7] 后前置一张缩参考长边 512 的图(调参位,本件未加)。\n\n### 1MP·对齐16 随原图链(E3 官方示例+E3b 三验)\n[7] 原图 → [12] ImageScaleToTotalPixels(lanczos/1.0MP/resolution_steps=16——**16 对齐闭环在本节点第三参**,Mac 0.38 源码 nodes_post_processing.py:227-258 实读)→ [11] 取宽高 → [6] EmptyFlux2LatentImage width/height 转输入连入。\n\n### 采样档(插件官方示例同档)\n30 步 / CFG 4.0 / euler / normal / denoise 1.0;SLG 编辑档 double 留空/single=22/start=0/**end=1.0**(与 t2i 档 end 0.5 不同,勿混——插件 README 档)。\n\n### 依赖\n模型四件同 moss-t2i.json([1] 底模/[3] FLUX.2 VAE/[4] TE type=moss_image);底模链无 LoRA。引擎 ≥v0.42.4(3f438ca)。发车脚本 moss_fire_win.py --edit-src 注入原图(/upload/image 后回填 [7].image);R6 备选链=ComfyUI-Moss-Image-Edit 插件(规格见役 PLAN §4.3-附,--chain plugin)。役号 moss-win-campaign-1025。"
+      ],
+      "widgets_values_named": {
+        "text": "## MOSS-Image 图像编辑(官方节点链·moss-win-campaign-1025 役件)\n\nQ1 裁定:本件走**官方 TextEncodeMOSSImageEdit**(ComfyUI master PR#17095,comfy_extras/nodes_moss_image.py;插件作者自荐官方 issue #17296 节点),零第三方依赖;插件链(ApplyMossImageEdit)仅作 R6 备选,不入库。\n\n### 官方节点要点(E5 源码实证)\n- edit_format 三枚举:ai-toolkit / ai-toolkit (kv_cache off) / **Moss-Image-Edit**(本件选它——对应 HF chinoll/Moss-Image-Edit adapter);\n- 入参:clip/prompt/vae(可选——不给则参考图只进文本编码器,本件连入 VAE 走完整链)/images(Autogrow 组,画布实际入名=展开名 image_1,不存在名为 images 的口);image_strength=1.0。\n- 参考图整图直入:官方节点无 reference_max_edge;若效果差,可仿插件链在 [7] 后前置一张缩参考长边 512 的图(调参位,本件未加)。\n\n### 1MP·对齐16 随原图链(E3 官方示例+E3b 三验)\n[7] 原图 → [12] ImageScaleToTotalPixels(lanczos/1.0MP/resolution_steps=16——**16 对齐闭环在本节点第三参**,Mac 0.38 源码 nodes_post_processing.py:227-258 实读)→ [11] 取宽高 → [6] EmptyFlux2LatentImage width/height 转输入连入。\n\n### 采样档(插件官方示例同档)\n30 步 / CFG 4.0 / euler / normal / denoise 1.0;SLG 编辑档 double 留空/single=22/start=0/**end=1.0**(与 t2i 档 end 0.5 不同,勿混——插件 README 档)。\n\n### 依赖\n模型四件同 moss-t2i.json([1] 底模/[3] FLUX.2 VAE/[4] TE type=moss_image);底模链无 LoRA。引擎 ≥v0.42.4(3f438ca)。发车脚本 moss_fire_win.py --edit-src 注入原图(/upload/image 后回填 [7].image);R6 备选链=ComfyUI-Moss-Image-Edit 插件(规格见役 PLAN §4.3-附,--chain plugin)。役号 moss-win-campaign-1025。"
+      },
+      "title": "[110] 用法速查",
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      20,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      3,
+      0,
+      50,
+      3,
+      "VAE"
+    ],
+    [
+      3,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      4,
+      4,
+      0,
+      50,
+      2,
+      "CLIP"
+    ],
+    [
+      5,
+      4,
+      0,
+      51,
+      0,
+      "CLIP"
+    ],
+    [
+      6,
+      100,
+      0,
+      50,
+      1,
+      "STRING"
+    ],
+    [
+      7,
+      101,
+      0,
+      51,
+      1,
+      "STRING"
+    ],
+    [
+      8,
+      50,
+      0,
+      70,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      9,
+      51,
+      0,
+      70,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      7,
+      0,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      11,
+      7,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      12,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      13,
+      11,
+      0,
+      6,
+      0,
+      "INT"
+    ],
+    [
+      14,
+      11,
+      1,
+      6,
+      1,
+      "INT"
+    ],
+    [
+      15,
+      6,
+      0,
+      70,
+      1,
+      "LATENT"
+    ],
+    [
+      16,
+      20,
+      0,
+      70,
+      0,
+      "MODEL"
+    ],
+    [
+      17,
+      70,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      18,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "definitions": {
+    "subgraphs": []
+  },
+  "config": {},
+  "extra": {
+    "mossTaskOwner": "moss-win-campaign-1025",
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        100,
+        100
+      ]
+    }
+  },
+  "version": 0.4
+}
