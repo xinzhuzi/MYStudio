@@ -431,11 +431,74 @@ export function StudioAssetDetailDialog({
                         className="h-full min-h-[96px] resize-none bg-muted/90 text-xs leading-5"
                       />
                     </section>
-                    {/* 行2: 角色属性 | 音色(仅 role)——10-25 用户令:框只留一层(组件本体自带
-                     border 卡,外层包裹去框去底,仅保 min-w-0 布局作用,防框套框) */}
+                    {/* 行2: 角色属性 | 音色(仅 role)——10-25 二令:音色钉右列(描述正下方),
+                     col-start-2 保属性卡为空(设定无可解析字段)时也恒在描述下方不漂左列;
+                     框只留一层(组件本体自带 border 卡,外层包裹去框去底,防框套框) */}
                     {asset.type === "role" && (
                       <div className="min-w-0">
                         <StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />
+                      </div>
+                    )}
+                    {asset.type === "role" && (
+                      <div className="col-start-2 min-w-0 h-full">
+                        {(() => {
+                          if (!roleVoiceBinding || !roleVoiceProfile) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setVoiceAssignOpen(true)}
+                                className="group flex h-full w-full flex-col justify-center gap-2.5 rounded-lg border border-dashed border-border bg-muted/30 p-3 text-left transition-colors hover:border-primary/50"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                    <Volume2 className="h-3.5 w-3.5" />
+                                  </span>
+                                  <span className="text-xs font-semibold text-foreground">音色</span>
+                                </div>
+                                <p className="text-xs leading-5 text-muted-foreground">
+                                  尚未分配音色。<span className="text-primary/80 group-hover:text-primary">点击选择资产库音频</span>，用于试听与成片配音。
+                                </p>
+                              </button>
+                            );
+                          }
+                          return (
+                            <section className="flex h-full min-w-0 flex-col gap-2 rounded-lg border border-border bg-muted/90 p-3">
+                              <button
+                                type="button"
+                                onClick={() => setVoiceAssignOpen(true)}
+                                className="space-y-2 rounded-md p-2 text-left transition-colors hover:bg-primary/10"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                      <Volume2 className="h-3.5 w-3.5" />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-semibold text-foreground">音色</div>
+                                      <div className="truncate text-[11px] text-muted-foreground">点击更换资产库音频</div>
+                                    </div>
+                                  </div>
+                                  <span className="shrink-0 rounded border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] text-primary">
+                                    更换音色
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 overflow-hidden text-xs">
+                                  <div className="truncate" title={roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}><span className="text-muted-foreground">类型：</span>{roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}</div>
+                                  <div className="truncate" title={roleVoiceProfile.defaultEngine}><span className="text-muted-foreground">引擎：</span>{roleVoiceProfile.defaultEngine}</div>
+                                  {roleVoiceProfile.presetVoiceId && <div className="truncate" title={roleVoiceProfile.presetVoiceId}><span className="text-muted-foreground">预设：</span>{roleVoiceProfile.presetVoiceId}</div>}
+                                  {roleVoiceProfile.referenceAudioPath && <div className="col-span-2 truncate" title={roleVoiceProfile.referenceAudioPath}><span className="text-muted-foreground">参考音频：</span>{roleVoiceProfile.referenceAudioPath}</div>}
+                                  <div className="truncate" title={roleVoiceProfile.id}><span className="text-muted-foreground">Profile：</span>{roleVoiceProfile.id}</div>
+                                </div>
+                              </button>
+                              <RoleVoicePreviewButton
+                                profileId={roleVoiceProfile.id}
+                                characterName={parsedDraftName.primaryName}
+                                defaultEngine={roleVoiceBinding.defaultEngine}
+                                defaultModelSize={roleVoiceBinding.defaultModelSize}
+                              />
+                            </section>
+                          );
+                        })()}
                       </div>
                     )}
                     {/* 10-25 用户令:人物技能文档展示(像设定一样;数据=入库役
@@ -446,56 +509,6 @@ export function StudioAssetDetailDialog({
                         <StudioAssetRoleSkills skills={fullAsset?.skills ?? asset.skills} />
                       </div>
                     )}
-                    {asset.type === "role" && (() => {
-                      if (!roleVoiceBinding || !roleVoiceProfile) {
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => setVoiceAssignOpen(true)}
-                            className="h-full w-full space-y-2 rounded-lg border border-border bg-muted/90 p-3 text-left transition-colors hover:border-primary/45 hover:bg-primary/10"
-                          >
-                            <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                              <Volume2 className="h-3.5 w-3.5" /> 音色
-                            </div>
-                            <p className="text-xs text-muted-foreground">尚未分配音色。点击选择资产库音频。</p>
-                          </button>
-                        );
-                      }
-                      return (
-                        <section className="min-w-0 space-y-2 rounded-lg border border-border bg-muted/90 p-3">
-                          <button
-                            type="button"
-                            onClick={() => setVoiceAssignOpen(true)}
-                            className="w-full rounded-md text-left transition-colors hover:bg-primary/10"
-                          >
-                            <div className="flex items-center justify-between gap-2 p-2">
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                                  <Volume2 className="h-3.5 w-3.5" /> 音色信息
-                                </div>
-                                <div className="mt-1 text-[11px] text-muted-foreground">点击更换资产库音频</div>
-                              </div>
-                              <span className="shrink-0 rounded border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] text-primary">
-                                更换音色
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 overflow-hidden p-2 pt-0 text-xs">
-                              <div className="truncate" title={roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}><span className="text-muted-foreground">类型：</span>{roleVoiceProfile.type === "preset" ? "预设音色" : "克隆音色"}</div>
-                              <div className="truncate" title={roleVoiceProfile.defaultEngine}><span className="text-muted-foreground">引擎：</span>{roleVoiceProfile.defaultEngine}</div>
-                              {roleVoiceProfile.presetVoiceId && <div className="truncate" title={roleVoiceProfile.presetVoiceId}><span className="text-muted-foreground">预设：</span>{roleVoiceProfile.presetVoiceId}</div>}
-                              {roleVoiceProfile.referenceAudioPath && <div className="col-span-2 truncate" title={roleVoiceProfile.referenceAudioPath}><span className="text-muted-foreground">参考音频：</span>{roleVoiceProfile.referenceAudioPath}</div>}
-                              <div className="truncate" title={roleVoiceProfile.id}><span className="text-muted-foreground">Profile：</span>{roleVoiceProfile.id}</div>
-                            </div>
-                          </button>
-                          <RoleVoicePreviewButton
-                            profileId={roleVoiceProfile.id}
-                            characterName={parsedDraftName.primaryName}
-                            defaultEngine={roleVoiceBinding.defaultEngine}
-                            defaultModelSize={roleVoiceBinding.defaultModelSize}
-                          />
-                        </section>
-                      );
-                    })()}
                     {/* 行3: 出图提示词(+一键生成/润色/复制) | 设定(非 audio) */}
                     {asset.type !== "audio" ? (
                       <section className="min-w-0 space-y-1.5">
