@@ -67,6 +67,8 @@ const directorModuleKeys = [
   "director_storyboard_table_narrative",
   // R2/父 I1/I2:剧本级规则模块(包根,与 README 同级);v3 建文件,此处登记键——影响 moduleCount
   "script_narrative",
+  // 外部导演风格色卡200位的可用层蒸馏(三层门/场别矩阵/禁词翻译表);规划参考,不入摘要注入
+  "director_style_card_fusion",
 ] as const;
 
 const productionModuleKeys = [
@@ -352,6 +354,7 @@ function findDirectorModuleRelativePath(key: string) {
     director_storyboard_table_narrative: "driector_skills/director_storyboard_table_narrative.md",
     // R2/父 I1:剧本级规则住包根(与 README 同级)
     script_narrative: "script_narrative.md",
+    director_style_card_fusion: "driector_skills/director_style_card_fusion.md",
   };
   return mapping[key];
 }
