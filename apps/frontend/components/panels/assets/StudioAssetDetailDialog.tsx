@@ -430,9 +430,10 @@ export function StudioAssetDetailDialog({
                         className="h-full min-h-[96px] resize-none bg-muted/90 text-xs leading-5"
                       />
                     </section>
-                    {/* 行2: 角色属性 | 音色(仅 role) */}
+                    {/* 行2: 角色属性 | 音色(仅 role)——10-25 用户令:框只留一层(组件本体自带
+                     border 卡,外层包裹去框去底,仅保 min-w-0 布局作用,防框套框) */}
                     {asset.type === "role" && (
-                      <div className="min-w-0 rounded-lg border border-border bg-muted/90 p-3">
+                      <div className="min-w-0">
                         <StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />
                       </div>
                     )}
