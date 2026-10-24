@@ -272,7 +272,7 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
 });
 
 describe("StudioAssetDetailDialog · 批2(10-24):放大钮预览序列=当前节图集(节内上下张)", () => {
-  /** 同节双图(人物多视图=_三视图_)+跨节图(正视图=人物海报)+无标记图(早期未分类)。 */
+  /** 同节三图(人物多视图=_三视图_+_正视图_,10-25 裁定正视图并入)+无标记图(早期未分类)。 */
   function typedRoleAsset(): StudioAssetSummary {
     return roleAsset({
       images: [
@@ -290,7 +290,7 @@ describe("StudioAssetDetailDialog · 批2(10-24):放大钮预览序列=当前节
     fireEvent.click(screen.getByRole("button", { name: "全屏预览 晏燎_练气期_三视图_v1" }));
 
     const modal = screen.getByTestId("asset-preview-modal");
-    expect(modal.getAttribute("data-urls")).toBe("media://a1,media://a2");
+    expect(modal.getAttribute("data-urls")).toBe("media://a1,media://a2,media://a3");
     expect(modal.getAttribute("data-initial-index")).toBe("0");
   });
 
@@ -300,18 +300,18 @@ describe("StudioAssetDetailDialog · 批2(10-24):放大钮预览序列=当前节
     fireEvent.click(screen.getByRole("button", { name: "全屏预览 晏燎_筑基期_三视图_v2" }));
 
     const modal = screen.getByTestId("asset-preview-modal");
-    expect(modal.getAttribute("data-urls")).toBe("media://a1,media://a2");
+    expect(modal.getAttribute("data-urls")).toBe("media://a1,media://a2,media://a3");
     expect(modal.getAttribute("data-initial-index")).toBe("1");
   });
 
-  it("点人物海报节图:序列=仅该节图集(多视图图不入列)", () => {
+  it("点节内三张(正视图,10-25 并入多视图):initial=节内局部序 2", () => {
     renderDialog(typedRoleAsset());
 
     fireEvent.click(screen.getByRole("button", { name: "全屏预览 晏燎_练气期_正视图_v1" }));
 
     const modal = screen.getByTestId("asset-preview-modal");
-    expect(modal.getAttribute("data-urls")).toBe("media://a3");
-    expect(modal.getAttribute("data-initial-index")).toBe("0");
+    expect(modal.getAttribute("data-urls")).toBe("media://a1,media://a2,media://a3");
+    expect(modal.getAttribute("data-initial-index")).toBe("2");
   });
 
   it("点早期未分类节图:序列=仅该节图集", () => {

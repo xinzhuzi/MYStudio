@@ -368,12 +368,13 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
     return { name, filePath: `role/${name}.png` };
   }
 
-  it("按核心五必备节序返回缺失型(命名抽样:多视图/海报/人脸已齐→缺定妆+表情差分)", () => {
+  it("按核心五必备节序返回缺失型(命名抽样:多视图/海报/人脸已齐→缺定妆+表情差分(正视图归多视图后海报需独立齐格))", () => {
     const images = [
       named("晏燎_练气期_三视图_v1"),
       named("晏燎_筑基期_正视图_v2"),
       named("晏燎_练气期_高清大脸_2026年10月21日"),
       named("晏燎_金丹期_海报_v1"),
+      named("晏燎_金丹期_人物海报_v1"),
     ];
     expect(planAssetTypeFillMissingQueue(images)).toEqual(["全身定妆", "表情差分"]);
   });
@@ -382,6 +383,7 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
     const complete = [
       named("a_全身定妆_1"),
       named("b_正视图_1"),
+      named("b2_人物海报_1"),
       named("c_三视图_1"),
       named("d_人脸_1"),
       { ...named("随手改的名"), kind: "表情差分" as AssetImageKind },

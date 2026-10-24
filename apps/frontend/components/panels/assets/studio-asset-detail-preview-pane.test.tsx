@@ -443,6 +443,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
   const TYPED_IMAGES = [
     { name: "晏燎_练气期_三视图_v1", filePath: "role/a1.png", url: "media://a1" },
     { name: "晏燎_练气期_正视图_v1", filePath: "role/a2.png", url: "media://a2" },
+    { name: "晏燎_练气期_人物海报_v1", filePath: "role/a6.png", url: "media://a6" },
     { name: "晏燎_练气期_海报_v1", filePath: "role/a3.png", url: "media://a3" },
     { name: "晏燎_练气期_高清大脸_2026年10月21日", filePath: "role/a4.png", url: "media://a4" },
     { name: "主图", filePath: "role/a5.png", url: "media://a5" },
@@ -452,10 +453,12 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     renderPane({ images: TYPED_IMAGES });
 
     const multi = screen.getByRole("region", { name: "人物多视图" });
-    expect(within(multi).getByText("1 张")).toBeTruthy();
+    expect(within(multi).getByText("2 张")).toBeTruthy();
     expect(within(multi).getByRole("img", { name: "晏燎_练气期_三视图_v1" })).toBeTruthy();
+    // 10-25 裁定:正视图(全身立绘参考图)并入人物多视图节
+    expect(within(multi).getByRole("img", { name: "晏燎_练气期_正视图_v1" })).toBeTruthy();
     const poster = screen.getByRole("region", { name: "人物海报" });
-    expect(within(poster).getByRole("img", { name: "晏燎_练气期_正视图_v1" })).toBeTruthy();
+    expect(within(poster).getByRole("img", { name: "晏燎_练气期_人物海报_v1" })).toBeTruthy();
     const promo = screen.getByRole("region", { name: "美宣" });
     expect(within(promo).getByRole("img", { name: "晏燎_练气期_海报_v1" })).toBeTruthy();
     const face = screen.getByRole("region", { name: "高清人脸" });
@@ -529,7 +532,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     const { props, container } = renderPane({ images: TYPED_IMAGES, onGenerateByKind: vi.fn(), onFillMissing: fillMissing });
 
     // 核心行:多视图/海报/人脸已齐 ✓1;全身定妆/表情差分缺失红 chip 可点
-    expect(screen.getByText("人物多视图 ✓1")).toBeTruthy();
+    expect(screen.getByText("人物多视图 ✓2")).toBeTruthy();
+    expect(screen.getByText("人物海报 ✓1")).toBeTruthy();
     expect(screen.getByText("高清人脸 ✓1")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "全身定妆 ✗" }));
     expect(props.onGenerateByKind).toHaveBeenCalledWith("全身定妆");
@@ -747,7 +751,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     // 全齐 fixture:五必备各有其一
     const complete = [
       { name: "a_全身定妆_1", filePath: "role/a.png", url: "media://a" },
-      { name: "b_正视图_1", filePath: "role/b.png", url: "media://b" },
+      { name: "b_人物海报_1", filePath: "role/b.png", url: "media://b" },
       { name: "c_三视图_1", filePath: "role/c.png", url: "media://c" },
       { name: "d_人脸_1", filePath: "role/d.png", url: "media://d" },
       { name: "e_表情差分_1", filePath: "role/e.png", url: "media://e" },
@@ -790,7 +794,7 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
   /** 本行三型各 1(多视图/海报/人脸)→ 本行缺失=全身定妆+表情差分。 */
   const OWN_IMAGES = [
     { name: "晏燎_练气期_三视图_v1", filePath: "role/a1.png", url: "media://a1" },
-    { name: "晏燎_练气期_正视图_v1", filePath: "role/a2.png", url: "media://a2" },
+    { name: "晏燎_练气期_人物海报_v1", filePath: "role/a2.png", url: "media://a2" },
     { name: "晏燎_练气期_高清大脸_2026年10月21日", filePath: "role/a4.png", url: "media://a4" },
   ];
 

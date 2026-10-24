@@ -24,9 +24,9 @@ const NAME_TABLE_CASES: Array<[string, string]> = [
   // 人物多视图:_三视图_·_多视图_
   ["晏燎_练气期_三视图_v1", "人物多视图"],
   ["独孤剑尘_多视图_2026年10月21日", "人物多视图"],
-  // 人物海报:_正视图_·_人物图_
-  ["晏燎_练气期_正视图_v1", "人物海报"],
-  ["独孤剑尘_人物图_2026年10月21日", "人物海报"],
+  // 10-25 用户裁定:正视图/人物图(全身立绘参考图)归人物多视图
+  ["晏燎_练气期_正视图_v1", "人物多视图"],
+  ["独孤剑尘_人物图_2026年10月21日", "人物多视图"],
   // 美宣:_海报_·_美宣_
   ["晏燎_练气期_海报_v1", "美宣"],
   ["主角_美宣_v2", "美宣"],
@@ -37,7 +37,7 @@ const NAME_TABLE_CASES: Array<[string, string]> = [
   ["晏燎_人脸基准_v1", "人脸基准"],
   ["主角_自由_2026年10月24日", "自由"],
   // 画风转换产物名透传标记(原图名_中文日期,标记仍在名内)
-  ["晏燎_练气期_正视图_v1_2026年10月21日", "人物海报"],
+  ["晏燎_练气期_正视图_v1_2026年10月21日", "人物多视图"],
   ["晏燎_练气期_三视图_v1_2026年10月21日", "人物多视图"],
   // 批3(10-24) 按型出图产物命名回退标记(原图名_{型名}_中文日期;行级主图
   // kind 持久化候 Round 3 Q2,重载后靠命名派生归节——_人物海报_/_人物多视图_
@@ -106,7 +106,7 @@ const YANLIAO_DB_32_NAMES: string[] = [
   "晏燎_基底_v1",
 ];
 
-describe("晏燎实盘镜像 fixture(库内 32 条实测:多视图10/海报10/美宣10/表情差分1/未分类1/人脸0)", () => {
+describe("晏燎实盘镜像 fixture(库内 32 条实测:多视图20[10-25 正视图并入]/海报0/美宣10/表情差分1/未分类1/人脸0)", () => {
   it("32 条按型归位:基底无映射沉早期未分类,库内无人脸图", () => {
     expect(YANLIAO_DB_32_NAMES).toHaveLength(32);
     const counts = { 人物多视图: 0, 人物海报: 0, 美宣: 0, 表情差分: 0, 高清人脸: 0, 早期未分类: 0 };
@@ -115,7 +115,7 @@ describe("晏燎实盘镜像 fixture(库内 32 条实测:多视图10/海报10/�
       if (kind in counts) counts[kind as keyof typeof counts] += 1;
     }
     expect(counts).toEqual({
-      人物多视图: 10, 人物海报: 10, 美宣: 10, 表情差分: 1, 高清人脸: 0, 早期未分类: 1,
+      人物多视图: 20, 人物海报: 0, 美宣: 10, 表情差分: 1, 高清人脸: 0, 早期未分类: 1,
     });
     // 完整度条实弹效果如实锁:高清人脸缺失红 chip 属真缺(库内确无),基底沉底未分类节
     expect(classifyAssetImageName("晏燎_基底_v1")).toBe("早期未分类");
@@ -125,7 +125,7 @@ describe("晏燎实盘镜像 fixture(库内 32 条实测:多视图10/海报10/�
 describe("独孤剑尘既有产物族命名归位(真库在档三件套+参考图)", () => {
   it("高清大脸/人物图/多视图按映射归位,参考图落未分类", () => {
     expect(classifyAssetImageName("独孤剑尘_高清大脸_2026年10月21日")).toBe("高清人脸");
-    expect(classifyAssetImageName("独孤剑尘_人物图_2026年10月21日")).toBe("人物海报");
+    expect(classifyAssetImageName("独孤剑尘_人物图_2026年10月21日")).toBe("人物多视图");
     expect(classifyAssetImageName("独孤剑尘_多视图_2026年10月21日")).toBe("人物多视图");
     expect(classifyAssetImageName("独孤剑尘_参考图")).toBe("早期未分类");
   });
@@ -200,12 +200,13 @@ describe("groupAssetImagesByKind · 按型谱节序分组", () => {
       { name: "晏燎_练气期_正视图_v1" },
     ];
     const groups = groupAssetImagesByKind(images);
-    expect(groups.get("人物多视图")).toEqual([{ image: images[1], index: 1 }]);
+    // 10-25 裁定:正视图并入人物多视图(保序:index 1,3 同节)
+    expect(groups.get("人物多视图")).toEqual([{ image: images[1], index: 1 }, { image: images[3], index: 3 }]);
     expect(groups.get("美宣")).toEqual([{ image: images[2], index: 2 }]);
-    expect(groups.get("人物海报")).toEqual([{ image: images[3], index: 3 }]);
     expect(groups.get("早期未分类")).toEqual([{ image: images[0], index: 0 }]);
     // 空节=空数组(占位卡渲染依据)
     expect(groups.get("全身定妆")).toEqual([]);
+    expect(groups.get("人物海报")).toEqual([]);
   });
 
   it("Round 3 ⑤ 轨道谱分组:scene 谱键=谱序;越谱型(如 _海报_ 命名)沉早期未分类防丢图", () => {
