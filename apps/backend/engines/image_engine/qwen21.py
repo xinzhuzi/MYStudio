@@ -159,6 +159,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
                 "reference-unsupported",
                 "Qwen-Image-2.1 本地渠道图生图仅支持单参考图(道劫美术风格转换)。",
             )
+        template_key = TEMPLATE_NAME_I2I
         template = load_template(TEMPLATE_NAME_I2I)
         _warn_if_version_below_min(stats, template)
         check_cancelled()
@@ -210,6 +211,7 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             # 调用零回归(10-19 口径全量向后兼容)
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_STYLE_TRANSFER
     else:
+        template_key = TEMPLATE_NAME
         template = load_template(TEMPLATE_NAME)
         _warn_if_version_below_min(stats, template)
         graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, [])
@@ -221,6 +223,13 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     if message:
         raise _pipeline_error("bridge-missing-nodes", message)
     check_cancelled()
+    # 退化防线接线(blank-gate-1024 §6):提交前处置;桶键=模板+型档
+    # (型档步时差同理分桶防互染,base_type 在上方两分支作用域内)
+    base_type_value = ctx.get("base_type")
+    bucket = template_key + "|" + (base_type_value if isinstance(base_type_value, str) and base_type_value.strip() else "")
+    submit_started = time.time()  # 墙钟回落基准(测试 mock 只钉 monotonic;墙钟语义本就是客户端时钟)
+    from . import engine_health
+    engine_health.pre_submit(bridge_url())
     client_id = str(uuid.uuid4())
     submitted = _http_json("POST", f"{bridge_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=20)
     prompt_id = submitted.get("prompt_id")
@@ -237,27 +246,40 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     if not math.isfinite(timeout_s) or timeout_s <= 0:
         timeout_s = 600.0
     deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
-        check_cancelled(prompt_id)
-        try:
-            history = _http_json("GET", f"{bridge_url()}/history/{prompt_id}", timeout=5)
-        except Exception:
+    from image_gen.pipeline import PipelineError as _PipelineError
+
+    def _record(ok: bool, history_entry: dict | None = None) -> None:
+        # 成功=喂锚定基线;失败(ok=False)只记不判
+        engine_health.record_shot(bucket=bucket, steps=steps, history_entry=history_entry,
+                                  wall_s=time.time() - submit_started, ok=ok)
+
+    try:
+        while time.monotonic() < deadline:
             check_cancelled(prompt_id)
-            raise
-        check_cancelled(prompt_id)
-        state, image = _prefer_upscaled_output(history, prompt_id)
-        if state == "success":
-            if not image:
-                raise _pipeline_error("bridge-no-output", "ComfyUI 已完成但没有输出图片")
-            query = urlencode({"filename": image["filename"], "subfolder": image.get("subfolder", ""), "type": image.get("type", "output")})
             try:
-                content = _fetch_bytes(f"{bridge_url()}/view?{query}")
+                history = _http_json("GET", f"{bridge_url()}/history/{prompt_id}", timeout=5)
             except Exception:
                 check_cancelled(prompt_id)
                 raise
             check_cancelled(prompt_id)
-            return base64.b64encode(content).decode("ascii")
-        time.sleep(1)
+            state, image = _prefer_upscaled_output(history, prompt_id)
+            if state == "success":
+                if not image:
+                    raise _pipeline_error("bridge-no-output", "ComfyUI 已完成但没有输出图片")
+                query = urlencode({"filename": image["filename"], "subfolder": image.get("subfolder", ""), "type": image.get("type", "output")})
+                try:
+                    content = _fetch_bytes(f"{bridge_url()}/view?{query}")
+                except Exception:
+                    check_cancelled(prompt_id)
+                    raise
+                check_cancelled(prompt_id)
+                _record(True, history.get(prompt_id) if isinstance(history, dict) else None)
+                return base64.b64encode(content).decode("ascii")
+            time.sleep(1)
+    except _PipelineError:
+        _record(False)
+        raise
+    _record(False)  # 超时路径:只记不判
     check_cancelled(prompt_id)
     try:
         _http_json("POST", f"{bridge_url()}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)

@@ -409,6 +409,12 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     if message:
         raise _pipeline_error("bridge-missing-nodes", message)
     check_cancelled()
+    # 退化防线接线(blank-gate-1024 §6):提交前处置(/free/重启,默认仅记日志);
+    # 桶键=模板+checkpoint——同桶换模型步时差可达 3×+,分桶防互染
+    bucket = template_name + "|" + (checkpoint if isinstance(checkpoint, str) else "")
+    submit_started = time.time()  # 墙钟回落基准(测试 mock 只钉 monotonic;墙钟语义本就是客户端时钟)
+    from . import engine_health
+    engine_health.pre_submit(bridge_url())
     client_id = str(uuid.uuid4())
     submitted = _http_json("POST", f"{bridge_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=20)
     prompt_id = submitted.get("prompt_id")
@@ -425,27 +431,40 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
     if not math.isfinite(timeout_s) or timeout_s <= 0:
         timeout_s = 600.0
     deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
-        check_cancelled(prompt_id)
-        try:
-            history = _http_json("GET", f"{bridge_url()}/history/{prompt_id}", timeout=5)
-        except Exception:
+    from image_gen.pipeline import PipelineError as _PipelineError
+
+    def _record(ok: bool, history_entry: dict | None = None) -> None:
+        # 成功=喂锚定基线;失败(ok=False)只记不判(§6-③)
+        engine_health.record_shot(bucket=bucket, steps=steps, history_entry=history_entry,
+                                  wall_s=time.time() - submit_started, ok=ok)
+
+    try:
+        while time.monotonic() < deadline:
             check_cancelled(prompt_id)
-            raise
-        check_cancelled(prompt_id)
-        state, image = _history_output(history, prompt_id)
-        if state == "success":
-            if not image:
-                raise _pipeline_error("bridge-no-output", "ComfyUI 已完成但没有输出图片")
-            query = parse.urlencode({"filename": image["filename"], "subfolder": image.get("subfolder", ""), "type": image.get("type", "output")})
             try:
-                content = _fetch_bytes(f"{bridge_url()}/view?{query}")
+                history = _http_json("GET", f"{bridge_url()}/history/{prompt_id}", timeout=5)
             except Exception:
                 check_cancelled(prompt_id)
                 raise
             check_cancelled(prompt_id)
-            return base64.b64encode(content).decode("ascii")
-        time.sleep(1)
+            state, image = _history_output(history, prompt_id)
+            if state == "success":
+                if not image:
+                    raise _pipeline_error("bridge-no-output", "ComfyUI 已完成但没有输出图片")
+                query = parse.urlencode({"filename": image["filename"], "subfolder": image.get("subfolder", ""), "type": image.get("type", "output")})
+                try:
+                    content = _fetch_bytes(f"{bridge_url()}/view?{query}")
+                except Exception:
+                    check_cancelled(prompt_id)
+                    raise
+                check_cancelled(prompt_id)
+                _record(True, history.get(prompt_id) if isinstance(history, dict) else None)
+                return base64.b64encode(content).decode("ascii")
+            time.sleep(1)
+    except _PipelineError:
+        _record(False)
+        raise
+    _record(False)  # 超时路径:引擎侧跑了整段超时预算,步时信号同样只记不判
     check_cancelled(prompt_id)
     try:
         _http_json("POST", f"{bridge_url()}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)

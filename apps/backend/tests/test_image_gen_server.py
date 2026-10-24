@@ -345,6 +345,19 @@ class ImageGenerateRouteTests(unittest.TestCase):
             self.assertEqual(handler.response[1], expected)
             self.assertEqual(handler.response[0]["error"]["code"], code)
 
+    def test_blank_output_and_degraded_codes_map_to_502_and_503(self) -> None:
+        # blank-gate-1024 测试 D:空片判废→502、引擎退化→503(贴 bridge 家族映射样式)
+        handler = _GenerateHandler.__new__(_GenerateHandler)
+        for code, expected in (("bridge-blank-output", HTTPStatus.BAD_GATEWAY), ("engine-degraded", HTTPStatus.SERVICE_UNAVAILABLE)):
+            with self.subTest(code=code), patch(
+                "image_gen.server.generate_image",
+                side_effect=server.PipelineError(code, "门禁文案"),
+            ):
+                handler._handle_generate({"model": "comfyui-bridge", "prompt": "编辑"})
+            self.assertEqual(handler.response[1], expected)
+            self.assertEqual(handler.response[0]["error"]["code"], code)
+            self.assertEqual(handler.response[0]["error"]["message"], "门禁文案")
+
     def test_explicit_bridge_cancellation_keeps_existing_http_200_contract(self) -> None:
         handler = _GenerateHandler.__new__(_GenerateHandler)
         with patch("image_gen.server.generate_image", side_effect=server.PipelineError("generation-cancelled", "已停止")):
