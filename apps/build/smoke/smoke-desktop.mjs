@@ -2572,7 +2572,9 @@ async function verifyAssetVoiceFlow(evaluate) {
       clickedVoiceCandidate,
       clickedConfirmAssign: confirmAssign.clicked,
       hasAssignSuccess: afterAssignText.includes('已绑定音色音频') || afterBindingText.includes('克隆音色'),
-      hasBoundVoiceDetail: afterBindingText.includes('音色信息') && afterBindingText.includes('克隆音色'),
+      // 10-25 音色卡改版(8e515b5d):标题「音色信息」→「音色」;绑定态判据改
+      // 「更换音色」徽标(未分配空态卡无此词,区分度比裸标题强)+ 类型行「克隆音色」
+      hasBoundVoiceDetail: afterBindingText.includes('更换音色') && afterBindingText.includes('克隆音色'),
       voiceDialogShowsAudioOrEmptyState:
         dialogText.includes('共 ') ||
         dialogText.includes(' / ') ||
