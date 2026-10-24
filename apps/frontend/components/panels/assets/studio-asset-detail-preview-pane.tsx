@@ -422,7 +422,12 @@ export function StudioAssetDetailPreviewPane({
     sectionMeta?: { rgba?: boolean; route?: string },
     coreMissing?: boolean,
   ) => (
-    <section key={sectionKey} className="studio-asset-image-section space-y-2" aria-label={title}>
+    <section
+      key={sectionKey}
+      // 10-25 用户令:每个图片类型节都要有框圈定——统一边框卡(与元信息区卡同语言)
+      className="studio-asset-image-section space-y-2 rounded-lg border border-border bg-muted/30 p-3"
+      aria-label={title}
+    >
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-foreground">{title}</span>
         {aspect && <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">{aspect}</Badge>}
