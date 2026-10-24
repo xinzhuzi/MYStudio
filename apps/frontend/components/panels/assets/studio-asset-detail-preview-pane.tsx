@@ -180,7 +180,11 @@ export function StudioAssetDetailPreviewPane({
         ? (i2iMessage || "正在转换画风，请稍候")
         : facePhase
           ? (faceMessage || "正在生成高清人脸，请稍候")
-          : undefined;
+          : expressionPhase
+            ? (expressionMessage || "正在生成表情差分，请稍候")
+            : typeShotPhase
+              ? (typeShotMessage || "正在按型出图，请稍候")
+              : undefined;
   const i2iPhaseLabel = i2iPhase === "done"
     ? "画风转换完成"
     : i2iPhase === "failed"
@@ -196,7 +200,11 @@ export function StudioAssetDetailPreviewPane({
         ? "正在转换画风，请稍候"
         : facePhase
           ? (faceMessage || "正在生成高清人脸，请稍候")
-          : undefined;
+          : expressionPhase
+            ? "正在生成表情差分，请稍候"
+            : typeShotPhase
+              ? (typeShotMessage || "正在按型出图，请稍候")
+              : undefined;
   const faceFromTextDisabled = generationBusy;
   const faceFromTextTitle = generatePhase
     ? "图片生成中，请稍候"
@@ -204,7 +212,11 @@ export function StudioAssetDetailPreviewPane({
       ? "正在转换画风，请稍候"
       : facePhase
         ? (faceMessage || "正在生成高清人脸，请稍候")
-        : undefined;
+        : expressionPhase
+          ? "正在生成表情差分，请稍候"
+          : typeShotPhase
+            ? (typeShotMessage || "正在按型出图，请稍候")
+            : undefined;
   const facePhaseLabel = facePhase === "done"
     ? "人脸生成完成"
     : facePhase === "failed"
@@ -222,7 +234,9 @@ export function StudioAssetDetailPreviewPane({
           ? "正在生成高清人脸，请稍候"
           : expressionPhase
             ? (expressionMessage || "正在生成表情差分，请稍候")
-            : undefined;
+            : typeShotPhase
+              ? (typeShotMessage || "正在按型出图，请稍候")
+              : undefined;
   const expressionPhaseLabel = expressionPhase === "done"
     ? "表情差分完成"
     : expressionPhase === "failed"

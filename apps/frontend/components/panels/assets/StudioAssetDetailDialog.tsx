@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStudioAssetDialogActions } from "./studio-asset-detail-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -157,6 +157,10 @@ export function StudioAssetDetailDialog({
   // 10-19 删后即时刷新(用户报障):族兄弟删除成功后 familyImages prop 不归本弹窗所有,
   // 本地记已删路径并把它们从展示序滤掉;切资产即清(重开弹窗=族重取,天然一致)。
   const [removedFamilyPaths, setRemovedFamilyPaths] = useState<string[]>([]);
+  // 10-25 深审修(跨资产污染):生成完成尾段的活性探针——闭包持启动资产 id,
+  // 完成时对照当前弹窗资产,切换过即只入库不回填表单(防 A 产物污染 B 草稿/图集)
+  const activeAssetIdRef = useRef<string | null>(asset?.id ?? null);
+  activeAssetIdRef.current = asset?.id ?? null;
   // 10-19 用户令:点击图卡开全屏缩放预览(MediaPreviewModal,滚轮缩放/双击/拖拽/翻页)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // 10-24 布局重造批1:元信息区折叠态(默认展开;localStorage 记忆)
@@ -205,8 +209,10 @@ export function StudioAssetDetailDialog({
       return;
     }
 
-    // 切资产也清(同弹窗内换资产时 previewIndex 可能指向旧资产图序)
+    // 切资产也清(同弹窗内换资产时 previewIndex 可能指向旧资产图序;族过滤
+    // 路径属旧资产会话,直换 A→B 时同样清——10-25 深审修,与注释「切资产即清」对齐)
     setPreviewIndex(null);
+    setRemovedFamilyPaths([]);
 
     let cancelled = false;
     const initialImages: AssetImage[] = [];
@@ -278,6 +284,8 @@ export function StudioAssetDetailDialog({
     displayImages,
     familyImages,
     currentIndex,
+    getActiveAssetId: () => activeAssetIdRef.current,
+    removedFamilyPaths,
     draftName,
     draftDescription,
     draftPrompt,
@@ -643,11 +651,12 @@ export function StudioAssetDetailDialog({
       {/* 10-19 用户令:全屏缩放预览——复用 MediaPreviewModal(滚轮缩放/双击/拖拽/批量翻页) */}
       {/* 弹窗关=预览关:previewIndex 不清零→Lightbox 全屏遮罩残留→堵住所有 UI 点击(10-19 实弹勘误) */}
       {/* 批2 B 节:预览序列=当前节图集(节内上下张)——按点击位的型解析所属节,取该节
-          图集与节内局部序;scene/tool/clip 单节=全展示序(行为不变)。节内 url 序与
-          initialIndex 同构产出,根除旧「filter(Boolean) 后下标错位」隐患。 */}
+          图集与节内局部序;10-25 深审修:三轨(role/scene/tool)均分节=节内序,
+          clip/audio 单节=全展示序(Round 3 ⑤ 后 scene/tool 已型谱分节,原 role 限定
+          属旧口径)。节内 url 序与 initialIndex 同构产出,根除下标错位隐患。 */}
       {open && previewIndex !== null && displayImages[previewIndex] && (() => {
         const clickedIndex = previewIndex;
-        const sectionKind = asset.type === "role"
+        const sectionKind = asset.type !== "clip" && asset.type !== "audio"
           ? classifyAssetImage(displayImages[clickedIndex])
           : null;
         const sectionEntries = displayImages

@@ -136,12 +136,24 @@ export function isAssetImageKind(value: unknown): value is AssetImageKind {
   return typeof value === "string" && KNOWN_KINDS.has(value);
 }
 
-/** 命名规则分类(表序先专后泛;识别不出=自由,10-25 用户裁定)。 */
+/** 命名规则分类(表序先专后泛;识别不出=自由,10-25 用户裁定)。
+ * 10-25 深审修(链式生成错节):多个型标记同现时取**最右**标记——生成产物名=
+ * `锚图名_{新型}_日期`,锚图名常含上一轮 `_人脸_`/`_表情差分_` 等旧标记,首命中
+ * 会把新产物判成旧型(重开弹窗/族兄弟视图即错节+补缺死循环);最右标记=最近一次
+ * 生成动作的型,链式语义恒对。 */
 export function classifyAssetImageName(name: string): AssetImageKind {
+  let best: AssetImageKind | null = null;
+  let bestAt = -1;
   for (const [kind, markers] of ASSET_IMAGE_NAME_KIND_TABLE) {
-    if (markers.some((marker) => name.includes(marker))) return kind;
+    for (const marker of markers) {
+      const at = name.lastIndexOf(marker);
+      if (at > bestAt) {
+        bestAt = at;
+        best = kind;
+      }
+    }
   }
-  return "自由";
+  return best ?? "自由";
 }
 
 /** 三层解析单源:持久值(合法且非遗留「早期未分类」)→命名规则→自由。

@@ -74,6 +74,10 @@ export function useStudioAssetDialogActions(ctx: {
   setTypeShotMessage: any;
   setActiveStudio: any;
   setActiveTab: any;
+  /** 10-25 深审修:弹窗当前资产 id 探针(完成尾段活性守卫,防跨资产污染)。 */
+  getActiveAssetId?: () => string | null;
+  /** 10-25 深审修:本会话已删族兄弟路径(handleAddImage 定位下标用展示序口径)。 */
+  removedFamilyPaths?: string[];
   resolveAssetGenerationReferenceImage: any;
   resolveThreeTrackAssetType: any;
 }) {
@@ -116,6 +120,8 @@ export function useStudioAssetDialogActions(ctx: {
     setTypeShotMessage,
     setActiveStudio,
     setActiveTab,
+    getActiveAssetId,
+    removedFamilyPaths,
     resolveAssetGenerationReferenceImage,
     resolveThreeTrackAssetType,
   } = ctx;
@@ -232,6 +238,12 @@ export function useStudioAssetDialogActions(ctx: {
   };
 
   const handleOneClickGenerateAssetImage = async () => {
+    // 10-25 深审修(低①):五路互斥入口补全路忙守卫(原仅靠按钮 disabled,
+    // 新增启用态入口复刻时防双生成并发)
+    if (isAnyGenerationLaneBusy()) {
+      toast.warning("有生成任务正在进行，请稍候");
+      return;
+    }
     if (!visualManualId) {
       toast.error("请先在「风格与导演选择」中选择视觉手册");
       return;
@@ -311,7 +323,10 @@ export function useStudioAssetDialogActions(ctx: {
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
-          if (updated) {
+          if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
+            // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
+            toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
+          } else if (updated) {
             setDraftName(updated.name || "");
             setDraftDescription(updated.description || "");
             setDraftPrompt(updated.prompt || "");
@@ -324,7 +339,15 @@ export function useStudioAssetDialogActions(ctx: {
             if (updated.images?.length) {
               newImgs.push(...updated.images);
             }
-            setImages(newImgs);
+            // 10-25 深审修(低⑤):主图条目与 images[] 同 filePath 去重(防重复卡+重复 key)
+            const seen = new Set<string>();
+            const dedupedImgs = newImgs.filter((img) => {
+              const key = img.filePath || img.url || img.name;
+              if (!key || seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            setImages(dedupedImgs);
             setCurrentIndex(0);
           }
         }
@@ -358,6 +381,11 @@ export function useStudioAssetDialogActions(ctx: {
   /** 图生图·画风转换(10-19):取轮播当前图作唯一参考,qwen-image-2-1 本地渠道整体转画风;
    * 成功尾段镜像一键生成(写回资产库+asset:updated 广播+get 刷新轮播);相位 3s 自动清。 */
   const handleImageToImageStyle = async () => {
+    // 10-25 深审修(低①):全路忙守卫(原只查 i2iPhase,其余四路在跑仍可点火)
+    if (isAnyGenerationLaneBusy()) {
+      toast.warning("有生成任务正在进行，请稍候");
+      return;
+    }
     // 诊断打点(10-19 用户令:图生图链路要日志)——operationId 由本层造,
     // 贯通 service 四点(构造摘要/发起/成功/失败);守卫拒绝逐因留痕。
     const operationId = createOperationId("asset-style-transfer");
@@ -368,8 +396,8 @@ export function useStudioAssetDialogActions(ctx: {
       message: "Asset style transfer requested (image-to-image)",
       context: { assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
     });
-    if (i2iPhase) {
-      // 在跑直返(按钮已禁,双保险)
+    if (isAnyGenerationLaneBusy()) {
+      // 在跑直返(10-25 深审修:全路口径;按钮已禁,双保险)
       void logEvent({
         level: "warn",
         category: "asset",
@@ -442,15 +470,25 @@ export function useStudioAssetDialogActions(ctx: {
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
-          if (updated) {
-            const newImgs: AssetImage[] = [];
+          if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
+            // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
+            toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
+          } else if (updated) {            const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
               newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: sourceKind });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
             }
-            setImages(newImgs);
+            // 10-25 深审修(低⑤):主图条目与 images[] 同 filePath 去重(防重复卡+重复 key)
+            const seen = new Set<string>();
+            const dedupedImgs = newImgs.filter((img) => {
+              const key = img.filePath || img.url || img.name;
+              if (!key || seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            setImages(dedupedImgs);
             // 10-19 用户报障「图生图后主图来回变」:完成即切到新主图(与更换主图同款
             // setCurrentIndex(0));不归零 → 轮播 key 重挂在旧索引,叠加并存 images[]
             // 增长位移 = 看到的一直是旧位置的内容而非新图
@@ -592,8 +630,10 @@ export function useStudioAssetDialogActions(ctx: {
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
-          if (updated) {
-            const newImgs: AssetImage[] = [];
+          if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
+            // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
+            toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
+          } else if (updated) {            const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
               // 批2(10-24):生成写路落 kind 视图值(名内 _人脸_ 标记为持久兜底)
               newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: "高清人脸" });
@@ -601,7 +641,15 @@ export function useStudioAssetDialogActions(ctx: {
             if (updated.images?.length) {
               newImgs.push(...updated.images);
             }
-            setImages(newImgs);
+            // 10-25 深审修(低⑤):主图条目与 images[] 同 filePath 去重(防重复卡+重复 key)
+            const seen = new Set<string>();
+            const dedupedImgs = newImgs.filter((img) => {
+              const key = img.filePath || img.url || img.name;
+              if (!key || seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            setImages(dedupedImgs);
             // 完成即切到新主图(与画风转换同款 setCurrentIndex(0))
             setCurrentIndex(0);
           }
@@ -721,8 +769,10 @@ export function useStudioAssetDialogActions(ctx: {
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
-          if (updated) {
-            const newImgs: AssetImage[] = [];
+          if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
+            // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
+            toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
+          } else if (updated) {            const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
               // 批2(10-24):生成写路落 kind 视图值(名内 _表情差分_ 标记为持久兜底)
               newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: "表情差分" });
@@ -730,7 +780,15 @@ export function useStudioAssetDialogActions(ctx: {
             if (updated.images?.length) {
               newImgs.push(...updated.images);
             }
-            setImages(newImgs);
+            // 10-25 深审修(低⑤):主图条目与 images[] 同 filePath 去重(防重复卡+重复 key)
+            const seen = new Set<string>();
+            const dedupedImgs = newImgs.filter((img) => {
+              const key = img.filePath || img.url || img.name;
+              if (!key || seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            setImages(dedupedImgs);
             // 完成即切到新主图(与人脸/画风转换同款 setCurrentIndex(0))
             setCurrentIndex(0);
           }
@@ -883,8 +941,10 @@ export function useStudioAssetDialogActions(ctx: {
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
-          if (updated) {
-            const newImgs: AssetImage[] = [];
+          if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
+            // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
+            toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
+          } else if (updated) {            const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
               // 批3(10-24):生成写路落 kind 视图值(按型出图产物型名即所属节)
               newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind });
@@ -892,7 +952,15 @@ export function useStudioAssetDialogActions(ctx: {
             if (updated.images?.length) {
               newImgs.push(...updated.images);
             }
-            setImages(newImgs);
+            // 10-25 深审修(低⑤):主图条目与 images[] 同 filePath 去重(防重复卡+重复 key)
+            const seen = new Set<string>();
+            const dedupedImgs = newImgs.filter((img) => {
+              const key = img.filePath || img.url || img.name;
+              if (!key || seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            setImages(dedupedImgs);
             // 完成即切到新主图(与人脸/表情差分同款 setCurrentIndex(0))
             setCurrentIndex(0);
           }
@@ -1104,7 +1172,9 @@ export function useStudioAssetDialogActions(ctx: {
         setImages(newImgs);
         // R4 族聚显:展示序=族序+live 新图置顶——按新图 filePath 定位展示序高亮
         const lastAddedFilePath = lastResult.images[lastResult.images.length - 1]?.filePath;
-        const nextDisplay = mergeFamilyDisplayImages(familyImages, newImgs, asset?.id);
+        // 10-25 深审修(低):定位下标须与弹窗真实展示序同口径——滤掉本会话已删族兄弟
+        const nextDisplay = mergeFamilyDisplayImages(familyImages, newImgs, asset?.id)
+          .filter((entry) => !(removedFamilyPaths ?? []).includes(entry.filePath));
         const targetIndex = findDisplayImageIndex(nextDisplay, lastAddedFilePath);
         setCurrentIndex(targetIndex >= 0 ? targetIndex : newImgs.length - 1);
         if (failedCount > 0) {
