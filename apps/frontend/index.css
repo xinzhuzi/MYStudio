@@ -687,6 +687,31 @@
   background: hsla(var(--accent) / 0.6);
 }
 
+/* 资产详情弹窗专用滚动条(10-25 用户令:右侧要有上下滑动的滑动条)——
+   常驻可见:宽轨+实心滑块,hover 加亮;叠加式不挤占内容宽度 */
+.studio-asset-dialog-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.studio-asset-dialog-scrollbar::-webkit-scrollbar-track {
+  background: hsla(var(--border) / 0.25);
+  border-radius: 99px;
+}
+.studio-asset-dialog-scrollbar::-webkit-scrollbar-thumb {
+  background: hsla(var(--border) / 0.8);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.studio-asset-dialog-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsla(var(--accent) / 0.9);
+  background-clip: padding-box;
+}
+.studio-asset-dialog-scrollbar {
+  scrollbar-width: auto;
+  scrollbar-color: hsla(var(--border) / 0.8) hsla(var(--border) / 0.25);
+}
+
 /* Hide scrollbar */
 .scrollbar-hidden {
   -ms-overflow-style: none;

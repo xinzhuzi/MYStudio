@@ -359,7 +359,7 @@ export function StudioAssetDetailDialog({
 
         {/* 10-24 布局重造批1:竖向滑动单列——① 元信息区置顶(可折叠)→ ② 图片规范区主体 */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ScrollArea className="min-h-0 min-w-0 flex-1 [&>[data-radix-scroll-area-viewport]>div]:block!">
+          <ScrollArea className="studio-asset-dialog-scrollbar min-h-0 min-w-0 flex-1 [&>[data-radix-scroll-area-viewport]>div]:block!">
             <div className="min-w-0 space-y-4 p-5">
               {/* ① 元信息区(原右栏表单上置;紧凑四行网格+可折叠,折叠留摘要+保存/删除) */}
               <section className="studio-asset-meta-region rounded-lg border border-border bg-muted/30" aria-label="资产元信息">
