@@ -11,7 +11,7 @@ negative→positive_text/negative_text);05 库逐字互锁退役(05 库=记录�
 
 锁:注册面(含 test_my_nodes.py 注册面全集钉)/COMBO 十项有序(1001 P1 起
 =canon zh 顺序九型+「自由」末位)
-+默认钉死「人物」/六出形状(BASE·WIDTH·HEIGHT·负面词·透明值·型名——
++默认钉死「人物海报」/六出形状(BASE·WIDTH·HEIGHT·负面词·透明值·型名——
 1002 ⑯ 曾删「型名」第四出(三件工作流当时全零消费),1017 增档令反转 ⑯
 型名半边:speed_select 新增「自动 · 按型」档按型路由需型名信号,尾加重加
 =base 入参原值直通(rgba_default 出维持删);透明值 1001 P1 透明执行口
@@ -64,7 +64,7 @@ SIDECAR_BASES = (REPO / "apps/backend/comfyui/my_nodes/nodes"
 # 人物系七型(positive_text 含锁B 增量四锁+衣物完整性行;1004 集中化后真源
 # =qi21_bases.json 自身,旧「05 库生成器 daojie_canon_lib.py 同表」提取链退役;
 # 1015 设定卡入十型=人物系新丁,6 行型文同款)
-RENWU_XI = {"人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡"}
+RENWU_XI = {"人物海报", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡"}
 
 # 0929 D6 rgba_default 四型(用户拍板:道具/多视图/高清人脸/表情差分默认开 RGBA,
 # 其余五型默认关)——独立钉(防提取器 RGBA_DEFAULT_TYPES 常量被静默改)
@@ -117,7 +117,7 @@ def test_combo_ten_options_in_canon_order_with_pinned_default():
     assert isinstance(combo[0], list)
     # 1001 P1:十档=九型(canon zh 顺序,json 条目顺序不 sorted)+「自由」末位
     assert combo[0] == _canon_order() + ["自由"]
-    assert combo[1]["default"] == "人物"  # DEFAULT_BASE 钉死(自由不加塞默认)
+    assert combo[1]["default"] == "人物海报"  # DEFAULT_BASE 钉死(自由不加塞默认)
     # 1002 ⑯:删「型名」第四出(当时三件工作流全零消费);1002 大轮
     # 连带(prd Grill Q1「rgba_default 删除」):rgba_default 出随 i2i [180].rgba_hint
     # 迁「透明值」(手术 STEP4)收口删除;1005 案B Phase I:负面词追加第五出
@@ -131,7 +131,7 @@ def test_combo_ten_options_in_canon_order_with_pinned_default():
         "BASE", "WIDTH", "HEIGHT", "负面词", "透明值", "型名")
     assert MyQi21DaojieBase.FUNCTION == "run"
     # 1017 新锚:型名第六出=run 入参 base 原值直通(自动档路由信号)
-    assert MyQi21DaojieBase().run("人物")[5] == "人物"
+    assert MyQi21DaojieBase().run("人物海报")[5] == "人物海报"
 
 
 def test_tooltips_present_plain_language():
@@ -202,7 +202,7 @@ def test_negative_output_verbatim_from_lib_for_all_ten():
         # 存量四出零漂移:第五出追加不改前四出形状与取值口径
         assert isinstance(base_text, str) and isinstance(transparent, bool), zh
     # 头部基线四词(契约 test_qi21_bases_json_interlocks_library 同口径抽验)
-    assert "模糊" in MyQi21DaojieBase().run("人物")[3]
+    assert "模糊" in MyQi21DaojieBase().run("人物海报")[3]
 
 
 # ── W/H:与 K2 MyDaojieBase 同型同参输出一致(公式口径单源)─────
@@ -227,7 +227,7 @@ def test_width_height_reference_table():
     """1018 最新规格：四型精确16:9/2K，其余短边至少1024。"""
     from comfyui.my_nodes.nodes.my_qi21_wh_suggest import MyQi21WhSuggest
     expect = {
-        "人物": (1088, 1448), "场景": (2048, 1152), "道具": (1024, 1024),
+        "人物海报": (1088, 1448), "场景": (2048, 1152), "道具": (1024, 1024),
         "美宣": (2048, 1152), "人物多视图": (1824, 1024), "高清人脸": (1024, 1024),
         "分镜剧情图": (2048, 1152), "表情差分": (1256, 1256),
         "概念气氛图": (1824, 1024), "设定卡": (2048, 1152), "自由": (1024, 1024)}
@@ -352,9 +352,9 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
 
 
 def test_is_changed_tracks_json_mtime_signature():
-    sig1 = MyQi21DaojieBase.IS_CHANGED("人物")
-    assert isinstance(sig1, str) and "人物" in sig1
-    assert MyQi21DaojieBase.IS_CHANGED("人物") == sig1  # json 未动=同签名(吃缓存)
+    sig1 = MyQi21DaojieBase.IS_CHANGED("人物海报")
+    assert isinstance(sig1, str) and "人物海报" in sig1
+    assert MyQi21DaojieBase.IS_CHANGED("人物海报") == sig1  # json 未动=同签名(吃缓存)
     # 库文件缺失才退化 nan(恒变);真源在场时签名恒为字符串
     assert isinstance(MyQi21DaojieBase.IS_CHANGED("场景"), str)
 
@@ -365,8 +365,8 @@ def test_is_changed_accepts_optional_transparent_override_kwarg():
     WARNING「unexpected keyword argument '透明覆盖'」+签名失效;P4 修复=
     K2 件 positive/negative 同款具名惯例)。值不参与签名(透明覆盖只影响
     第六出布尔,轻件输出无缓存穿透需求)。"""
-    sig_base = MyQi21DaojieBase.IS_CHANGED("人物")
-    sig_with_kw = MyQi21DaojieBase.IS_CHANGED("人物", 透明覆盖=True)
+    sig_base = MyQi21DaojieBase.IS_CHANGED("人物海报")
+    sig_with_kw = MyQi21DaojieBase.IS_CHANGED("人物海报", 透明覆盖=True)
     assert sig_with_kw == sig_base  # 同型同库=同签名(覆盖不入签名)
     assert isinstance(MyQi21DaojieBase.IS_CHANGED("自由", 透明覆盖=False), str)
 
@@ -381,7 +381,7 @@ def test_missing_json_degrades_loudly(tmp_path, monkeypatch):
     monkeypatch.setattr(my_qi21_base, "_BASES_JSON", tmp_path / "nope.json")
     assert my_qi21_base.bases_list() == ["(qi21底座库未找到,请重启漫影或检查安装)"]
     with pytest.raises(RuntimeError, match="qi21 底座库缺失"):
-        MyQi21DaojieBase().run("人物")
+        MyQi21DaojieBase().run("人物海报")
 
 
 # ── 透明值(1001 用户测试批 P1,design §2.4 d 方案三例)──────────────
@@ -402,7 +402,7 @@ def test_nine_type_transparent_value_ignores_override():
     """九型+透明覆盖 → 透明值=型默认优先(design §2.4 新单测例2:人物+true
     →false;反向钉道具+false→true——覆盖在九型恒被忽略,双方向防「覆盖
     恒压制」或「透明值恒取覆盖」两类实现漂移)。"""
-    _b, _w, _h, _n, transparent, _tn = MyQi21DaojieBase().run("人物", 透明覆盖=True)
+    _b, _w, _h, _n, transparent, _tn = MyQi21DaojieBase().run("人物海报", 透明覆盖=True)
     assert transparent is False  # 人物 rgba_default=false(覆盖被忽略)
     _b, _w, _h, _n, transparent, _tn = MyQi21DaojieBase().run("道具", 透明覆盖=False)
     assert transparent is True   # 道具 rgba_default=true(覆盖被忽略)
@@ -433,14 +433,14 @@ def test_gongbi_chengshi_vocabulary_locked_per_type_family():
     data = _json.loads(CANON_BASES.read_text(encoding="utf-8"))
     types = {t.get("zh"): t.get("positive_text") or "" for t in data.get("types") or []}
     TREE = ("细彩线定形", "双勾填色")
-    for zh in ("场景", "概念气氛图", "人物", "美宣", "分镜剧情图"):
+    for zh in ("场景", "概念气氛图", "人物海报", "美宣", "分镜剧情图"):
         assert any(m in types.get(zh, "") for m in TREE), f"{zh} 缺树石程式句"
-    for zh in ("人物", "美宣", "分镜剧情图"):
+    for zh in ("人物海报", "美宣", "分镜剧情图"):
         assert "动漫式概括五官" in types.get(zh, ""), f"{zh} 缺面部程式句"
         assert "金属、皮革与木料均为平整色面" in types.get(zh, ""), f"{zh} 缺器物程式句"
     for zh in ("道具", "设定卡"):
         assert "平整色面" in types.get(zh, "") and "细线勾勒" in types.get(zh, ""), f"{zh} 缺器物程式句"
-    for zh in ("人物", "美宣", "分镜剧情图", "场景", "概念气氛图"):
+    for zh in ("人物海报", "美宣", "分镜剧情图", "场景", "概念气氛图"):
         for bad in ("色温", "明暗关系", "受光"):
             assert bad not in types.get(zh, ""), f"{zh} 光学词汇回潮:{bad}"
     for zh, text in types.items():
@@ -472,19 +472,19 @@ def test_no_either_or_framing_mush():
 def test_geometry_and_posture_sentences_locked():
     """1017 几何/姿势在场门禁(用户令「必须加」)。
 
-    几何句(握位/挂点倾角)与姿势句(素材型站姿锁/表情点位/人物型确定回退)
+    几何句(握位/挂点倾角)与姿势句(素材型站姿锁/表情点位/人物海报型确定回退)
     过去有句无锁——删了没人知道;本锁按型钉死在场。"""
     import json as _json
     data = _json.loads(CANON_BASES.read_text(encoding="utf-8"))
     types = {t.get("zh"): t.get("positive_text") or "" for t in data.get("types") or []}
-    for zh in ("人物", "美宣", "分镜剧情图", "人物多视图"):
+    for zh in ("人物海报", "美宣", "分镜剧情图", "人物多视图"):
         assert "握位" in types.get(zh, ""), f"{zh} 缺持握几何句"
         assert "挂点与倾角" in types.get(zh, ""), f"{zh} 缺佩挂几何句"
     for zh in ("人物多视图", "设定卡"):
         assert "站姿" in types.get(zh, ""), f"{zh} 缺站姿锁"
     assert "眉形" in types.get("表情差分", ""), "表情差分缺眉形控制句"
     assert "点位" in types.get("表情差分", ""), "表情差分缺九宫点位句"
-    assert "自然直立站姿" in types.get("人物", ""), "人物型缺姿势确定回退"
+    assert "自然直立站姿" in types.get("人物海报", ""), "人物海报型缺姿势确定回退"
 
 
 def test_example_library_weapon_discipline():

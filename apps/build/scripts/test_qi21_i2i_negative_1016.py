@@ -51,7 +51,7 @@ def test_actual_assembly_and_final_selection(purpose: str, pe: bool, transparent
     assembly = load_node('my_qi21_prompt_assembly')
     selection = load_node('my_qi21_prompt_select')
     catalog = json.loads(assembly._BASES_FILE.read_text())
-    entry = next(item for item in catalog['types'] if item['zh'] == '人物')
+    entry = next(item for item in catalog['types'] if item['zh'] == '人物海报')
     base = (entry['positive_text'], entry['negative_text'])
     direct = selection.MyQi21PromptSelect().compose(装配全文='编辑指令', PE出文='扩写指令', pe开关=pe)[0]
     text, negative = assembly.MyQi21PromptAssembly().assemble(

@@ -78,6 +78,16 @@ values marked `<todo>` were not verifiable at install time — confirm them on t
     (10-02/10-03 现状) 条〕**; TE-Speed
     slot deliberately NOT in this piece (plugin absent = red node; R26.4 wiring round). Idempotent
     generator `apps/build/scripts/qi21_daojie_i2i_0924.py`; contract = TestI2IContract.
+  - **(10-24 current VAE selection, superseding the historical VAE file/device choice below):**
+    On this Mac, verified `qi21-bfs-换头.json` node485 and `qi21-道劫-i2i.json` /
+    `qi21-edit.json` root node3 (plus the generated i2i API) use `VAELoaderKJ` with
+    `texture_fix_vae_for_qwen_image_2.1_bf16.safetensors`, `device=cpu`, `weight_dtype=fp32`.
+    Reference encoding and output decoding share this VAE. The `bf16` filename is not runtime dtype;
+    MPS+FP32 still distorted (RGB MAE111.6546/255 vs CPU0.9069/255), so keep both CPU and FP32.
+    The specific underlying operator remains unknown. This does not change UNet/TE/sampling placement
+    or set a rule for other VAEs/t2i/FLUX/H3/SeedVR2. Read the
+    [fault evidence and MPS revalidation gate](../../../docs/comfyui-kb/qi21-vae-cpu-fp32.md)
+    before choosing this reference-chain VAE; later MPS recovery needs reconstruction and same-seed full-chain checks.
   - (09-23) Q2-1 line weights (bf16, MPS path — int8_convrot is CUDA-only, never on this Mac):
     `diffusion_models/qwen_image_2.1_bf16.safetensors` (14.23GB) + `text_encoders/qwen3vl_8b_bf16.safetensors`
     (17.53GB, CLIPLoader type=qwen_image) + `vae/qwen_image_2.1_vae_bf16.safetensors` (0.68GB) —

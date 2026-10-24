@@ -17,7 +17,7 @@ def test_instruction_is_a_wire_and_host_values_follow_promoted_controls(path):
                     if any(n['type'] == 'MyQi21DaojieBase' for n in s['nodes']))
     host = next(n for n in graph['nodes'] if n['type'] == subgraph['id'])
     names = ['型选择', 'PE启用?', 'RGBA透明', '组装用途']
-    values = ['人物', False, '自动', '自由出图']
+    values = ['人物海报', False, '自动', '自由出图']
     assert host['widgets_values'] == values
     assert host['widgets_values_named'] == dict(zip(names, values))
     assert subgraph['widgets'] == values

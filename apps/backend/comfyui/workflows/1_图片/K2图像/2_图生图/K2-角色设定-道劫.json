@@ -1304,7 +1304,7 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "输入=[72] 选角色参考图(建议=两步链步1 立绘,t2i 人物型;自动缩放 1024²,一图六用:VAEEncode/补丁像素线/正负接地/VLM/对比图);前置=插件 comfyui-krea2edit+comfyui-kjnodes,权重(均引擎在位):底模 krea2_turbo_bf16/TE Krea2-Engineer-V1-bf16/VAE qwen_image_HDR_vae_fp32_comfy/CharacterSheet LoRA DynamicCharacterSheet_krea2_v1(引擎 loras 根,上游 HF Alissonerdx/CharacterSheet,恒挂=必先于 ModelPatch)+[90] MyDaojieLoraStack preset=设定板档+turbo急停(=人物组去加速;turbo 开=文字乱码放大器,09-20 单变量定谳;槽序真源 my_nodes/nodes/daojie_lora_stack.json)+[304] MyDaojieBase(型默认人物,负向自动合并该型负面基线;两步链出图逻辑见 docs/prompts/道劫_角色设定表出图逻辑_0919.md)。"
+        "输入=[72] 选角色参考图(建议=两步链步1 立绘,t2i 人物海报型;自动缩放 1024²,一图六用:VAEEncode/补丁像素线/正负接地/VLM/对比图);前置=插件 comfyui-krea2edit+comfyui-kjnodes,权重(均引擎在位):底模 krea2_turbo_bf16/TE Krea2-Engineer-V1-bf16/VAE qwen_image_HDR_vae_fp32_comfy/CharacterSheet LoRA DynamicCharacterSheet_krea2_v1(引擎 loras 根,上游 HF Alissonerdx/CharacterSheet,恒挂=必先于 ModelPatch)+[90] MyDaojieLoraStack preset=设定板档+turbo急停(=人物组去加速;turbo 开=文字乱码放大器,09-20 单变量定谳;槽序真源 my_nodes/nodes/daojie_lora_stack.json)+[304] MyDaojieBase(型默认人物,负向自动合并该型负面基线;两步链出图逻辑见 docs/prompts/道劫_角色设定表出图逻辑_0919.md)。"
       ],
       "title": "使用说明·输入与前置"
     },
@@ -1499,10 +1499,10 @@
         "Node name for S&R": "MyDaojieBase"
       },
       "widgets_values": [
-        "人物"
+        "人物海报"
       ],
       "widgets_values_named": {
-        "base": "人物"
+        "base": "人物海报"
       },
       "color": "#4d9e6a",
       "bgcolor": "#1f2f26"

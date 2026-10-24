@@ -205,7 +205,7 @@ def test_6_free_type_empty_base_two_segments_neutral_warning(capsys):
 def test_7_base_negative_merged_with_lock_negative():
     """案B 口1 真值锚(design §8.1 ②):负面词=_merge_negative(BASE负面,
     美术风格底座负面)——①型负面 token 在前、美术风格底座负面在后(K2 my_styles 单源复用);
-    ②BASE负面=真源家人物型 negative_text(202 字全角逗号清单=整段一 token)
+    ②BASE负面=真源家人物海报型 negative_text(202 字全角逗号清单=整段一 token)
     →输出=「型负面, 美术风格底座负面」半角", "两段拼接;③整 token 相等才去重:
     BASE负面 传整段美术风格底座负面=去重裸输出;④半角逗号清单 token 归一并
     ("A,B"→"A, B",merge 保守重组纪律);⑤空串/纯空白=裸美术风格底座负面兜底
@@ -213,7 +213,7 @@ def test_7_base_negative_merged_with_lock_negative():
     node = MyQi21PromptAssembly()
     lock = _lock_neg()
     data = json.loads(assembly._BASES_FILE.read_text(encoding="utf-8"))
-    renwu_neg = next(e for e in data["types"] if e["zh"] == "人物")["negative_text"]
+    renwu_neg = next(e for e in data["types"] if e["zh"] == "人物海报")["negative_text"]
     # ①+②:型负面在前,美术风格底座在后
     got = node.assemble(主体句="S", BASE="B", BASE负面=renwu_neg,
                         锁层A全文="L")[1]

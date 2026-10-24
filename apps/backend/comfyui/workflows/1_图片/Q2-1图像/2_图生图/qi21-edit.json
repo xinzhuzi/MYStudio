@@ -12,7 +12,7 @@
         1200,
         1420,
         740,
-        560
+        880
       ],
       "color": "#3f789e",
       "flags": {}
@@ -179,14 +179,14 @@
     },
     {
       "id": 3,
-      "type": "VAELoader",
+      "type": "VAELoaderKJ",
       "pos": [
         1300,
-        1650
+        2050
       ],
       "size": [
         340,
-        60
+        120
       ],
       "flags": {},
       "order": 2,
@@ -197,6 +197,22 @@
           "type": "COMBO",
           "widget": {
             "name": "vae_name"
+          },
+          "link": null
+        },
+        {
+          "name": "device",
+          "type": "COMBO",
+          "widget": {
+            "name": "device"
+          },
+          "link": null
+        },
+        {
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
           },
           "link": null
         }
@@ -212,12 +228,19 @@
         }
       ],
       "properties": {
-        "Node name for S&R": "VAELoader"
+        "Node name for S&R": "VAELoaderKJ"
       },
       "widgets_values": [
-        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+        "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+        "cpu",
+        "fp32"
       ],
-      "title": "[3] VAELoader"
+      "title": "[3] VAELoaderKJ · CPU / FP32",
+      "widgets_values_named": {
+        "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+        "device": "cpu",
+        "weight_dtype": "fp32"
+      }
     },
     {
       "id": 10,

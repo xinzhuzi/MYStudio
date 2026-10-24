@@ -10,7 +10,13 @@ import sys
 import uuid
 
 ROOT=Path(__file__).resolve().parents[3]
+# 1024:任务目录已随 trellis 归档批次移至 archive/2026-10/——活动位缺失时落归档位
+# (test_flux3_daojie_workflow_contract.py 顶层加载本模块,双路径保收集不炸)
 TASK=ROOT/'.trellis/tasks/10-16-flux3-daojie-ten-types'
+if not TASK.is_dir():
+    _arch=ROOT/'.trellis/tasks/archive/2026-10/10-16-flux3-daojie-ten-types'
+    if _arch.is_dir():
+        TASK=_arch
 WFROOT=ROOT/'apps/backend/comfyui/workflows'
 INFO=json.loads((TASK/'research/object-info-after.json').read_text())
 SGID='713f37bf-8b6e-4992-a8f7-82dcf7e63a51'
@@ -214,3 +220,11 @@ if __name__=='__main__':
     if a.command=='build':build()
     else:
         cs=json.loads((TASK/'artifacts/cases.json').read_text());wf=json.loads(sources()[1].with_name('flux3-道劫-t2i.json').read_text());assert expand_gui(wf)==api_graph(cs[0]);validate_api(expand_gui(wf));print('GUI/API equivalence and live I/O contract passed')
+
+def resolve(root, relpath):
+    """1024:trellis 归档后,活动路径缺失时映射到 archive/2026-10/(sha 链原文件完好)。"""
+    p = root / relpath
+    if p.exists():
+        return p
+    alt = root / relpath.replace('.trellis/tasks/', '.trellis/tasks/archive/2026-10/', 1)
+    return alt if alt.exists() else p

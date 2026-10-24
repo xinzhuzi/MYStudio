@@ -103,7 +103,7 @@ def test_assembly_splits_style_for_transparent_types():
     assert _STYLE in pos and "pure transparency" not in pos.split("风格底座")[0], "透明型装配=风格件托底,承载句零入PE([4014]包裹承担,1008架构令)"
     for bad in ("平涂", "底色：浅净哑光", "大色面"):
         assert bad not in pos, f"透明型装配泄漏背景词: {bad}"
-    bt_rw, _, _, neg_rw, _, _ = my_qi21_base.MyQi21DaojieBase().run("人物")
+    bt_rw, _, _, neg_rw, _, _ = my_qi21_base.MyQi21DaojieBase().run("人物海报")
     pos2, _ = node.assemble(BASE=bt_rw, BASE负面=neg_rw, 主体句=_SUBJ)
     assert _FULL in pos2, "带背景型锁层A全文原样(positive_text 字节不变)"
 

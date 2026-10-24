@@ -533,7 +533,7 @@ I2I_B_SEG = ("<image1>为人物参考，<image2>为上衣参考；将<image1>人
 # 回潮即红);MyQi21PromptAssembly/MyQi21PromptSelect 入册(手术新立三件)
 I2I_NODE_TYPE_WHITELIST = {
     "MyQi21PurposeCanvas",
-    "UNETLoader", "CLIPLoader", "VAELoader", "LoadImage",
+    "UNETLoader", "CLIPLoader", "VAELoader", "VAELoaderKJ", "LoadImage",
     "ImageScaleToTotalPixels", "QwenImage21Cache", "LoraLoaderModelOnly",
     "PrimitiveBoolean", "PrimitiveInt", "ComfySwitchNode", "KSampler", "VAEDecode",
     "SaveImage", "PrimitiveStringMultiline", "StringFormat", "BatchImagesNode",
@@ -562,10 +562,10 @@ I2I_NODE_TYPE_WHITELIST = {
     # 已在册;D=SeedVR2 三件已册见上)
 }
 # 人物系七型(库 §二:常量B 加挂型;1015 设定卡入列)
-PRO_CHAR_TYPES = ("人物", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡")  # 0927 改名轮:三视图→多视图
+PRO_CHAR_TYPES = ("人物海报", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "设定卡")  # 0927 改名轮:三视图→多视图
 # ④配色行映射(库 §一映射表;1008 用户令主体化:人物→主体,透明三型=纯角色语言零色名)
 PRO_COLOR_MAP = {
-    "人物": "主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
+    "人物海报": "主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
     "场景": "主体设色配比：主体明文主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
     "道具": "主体设色配比：主体明文主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
     "美宣": "主体设色配比：主体明文服装与配器主色为第一主色，以大面积稳定基底承托，中等强度色作主体层次，少量高识别色仅作点睛。",
@@ -658,10 +658,12 @@ FIX_LORA_FILE = "qwen2.1-detail-fix-2.0.safetensors"
 TURBO_CHAIN_COMMON = {"lora": 7028, "guider": 7029, "sigmas": 7030, "sampler": 7031}
 # 1023 E混动臂(t2i 专属:turbo LoRA×40步simple+LazyCache 步跳缓存;实弹 341→142s=2.41×,
 # 跳24/40步,漂移=换相近图;LoRA/噪声/采样器全复用既有件,新增恰四件)
-QI21_E_CHAIN = {"lazy": 7040, "sigmas": 7041, "guider": 7042, "sampler": 7043}
+# 1024 用户令「档3混动也要吃细节件」:[7028 turbo LoRA]→[7044 Fix×1.0]→LazyCache
+# (Fix 补丁链插在缓存前=整段入缓存;官方域 cfg>1 之外,效果以实弹对拍为准;t2i/i2i 同批)
+QI21_E_CHAIN = {"fix": 7044, "lazy": 7040, "sigmas": 7041, "guider": 7042, "sampler": 7043}
 QI21_TURBO_CHAIN = {**TURBO_CHAIN_COMMON, "noise": 7017, "select": 7018}
 I2I_TURBO_CHAIN = {**TURBO_CHAIN_COMMON, "noise": 7017, "select": 7018}
-I2I_E_CHAIN = {"lazy": 7040, "sigmas": 7041, "guider": 7042, "sampler": 7043}  # 1023 E混动臂(i2i 入列,同 t2i 形)
+I2I_E_CHAIN = {"fix": 7044, "lazy": 7040, "sigmas": 7041, "guider": 7042, "sampler": 7043}  # 1023 E混动臂(i2i 入列,同 t2i 形;1024 +Fix 同批)
 EDIT_TURBO_CHAIN = {**TURBO_CHAIN_COMMON, "noise": 7017, "select": 7018}  # 1016edit9:并流共享(7032/7033 退役)
 QI21_XHOST_ID, QI21_XSEL_ID = 7, 7015      # 1002 ⑫:宿主 [208]→[7]/选择件 [214]→[7015]
 I2I_XHOST_ID, I2I_XSEL_ID = 7, 7015
@@ -1135,7 +1137,7 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
       EDIT_DEFAULT_MODE(1016turbo=MODE_TURBO 官方臂承位;旧 1003 翻案 Fun-Acc
       已退役留盘));
     - 机构 census=三支路(直出 KSampler40/LoRA1.0→viggle/官方 Turbo 臂 7028-7031,
-      1016edit9 后噪声/采样器并流共享(7032/7033 退役);件数随形:t2i 24(1023 E混动臂+4:LazyCache/BasicScheduler/BasicGuider/SamplerCustomAdvanced)/i2i 23(同款E+4)/edit 17(1016edit9 双段换血后与 i2i 同构-Fix 实验臂))+seed 单源
+      1016edit9 后噪声/采样器并流共享(7032/7033 退役);件数随形:t2i 25(1023 E混动臂+4:LazyCache/BasicScheduler/BasicGuider/SamplerCustomAdvanced;1024 +[7044] E臂Fix)/i2i 24(同款E+4+Fix)/edit 17(1016edit9 双段换血后与 i2i 同构-Fix 实验臂))+seed 单源
       +选择件;选择件 wv=[default_mode] 且 mode←-10 速度档位槽(面板外露);
       Turbo 臂 BasicGuider 纯正向无 negative 口/model=-10 model 槽边界直连挂 [7028]
       turbo LoRA(绝不与 Fix/viggle LoRA 串联)/positive=加速支路
@@ -1233,7 +1235,9 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
                         turbo_chain["sigmas"]: "ManualSigmas",
                         turbo_chain["sampler"]: "SamplerCustomAdvanced"})
     if e_chain is not None:  # 1023 E混动臂四件(LoRA/噪声/采样器复用既有件不重复入册)
-        want_census.update({e_chain["lazy"]: "LazyCache",
+        # 1024 +[7044] E臂Fix(挂 turbo LoRA 尾、LazyCache 前;t2i/i2i 同批)
+        want_census.update({e_chain["fix"]: "LoraLoaderModelOnly",
+                            e_chain["lazy"]: "LazyCache",
                             e_chain["sigmas"]: "BasicScheduler",
                             e_chain["guider"]: "BasicGuider",
                             e_chain["sampler"]: "SamplerCustomAdvanced"})
@@ -1301,21 +1305,28 @@ def _assert_accel_subgraph(graph: dict, name: str, *, xsg_uuid: str, host_id: in
         i_links[_tn_in["link"]]["origin_id"] == seed_id, \
         f"{name}: [{turbo_chain['noise']}].noise_seed 应 widget 转输入接 [{seed_id}] 单源"
     if e_chain is not None:
-        # 1023 E混动臂:LazyCache 步跳缓存挂 LoRA 尾(缓存补丁在 LoRA 后,缺省参
+        # 2023 E混动臂:LazyCache 步跳缓存挂 LoRA 尾(缓存补丁在 LoRA 后,缺省参
         # 0.2/15-95%/verbose 关=生产静默档);BasicScheduler simple 40 步=turbo LoRA
         # 吃满长调度;guider cfg1 单正条件(同加速正源槽);实弹锚=341→142s(2.41×)
+        # 1024 E臂Fix:[7028 turbo]→[7044 Fix×1.0]→{LazyCache,σ表}=补丁链整段入缓存
+        _e_fix = i_nodes[e_chain["fix"]]
+        assert _e_fix["widgets_values"] == [FIX_LORA_FILE, 1], \
+            f"{name}: [{e_chain['fix']}] E臂Fix 应 {FIX_LORA_FILE}×1,得 {_e_fix.get('widgets_values')}"
+        _efm = i_links[next(i["link"] for i in _e_fix["inputs"] if i["name"] == "model")]
+        assert (_efm["origin_id"], _efm["origin_slot"]) == (turbo_chain["lora"], 0), \
+            f"{name}: [{e_chain['fix']}] model 应吃 [{turbo_chain['lora']}] turbo LoRA 出"
         _e_lazy = i_nodes[e_chain["lazy"]]
         assert _e_lazy["widgets_values"] == [0.2, 0.15, 0.95, False], \
             f"{name}: [{e_chain['lazy']}] LazyCache wv 应 [0.2,0.15,0.95,False],得 {_e_lazy.get('widgets_values')}"
         _elm = i_links[next(i["link"] for i in _e_lazy["inputs"] if i["name"] == "model")]
-        assert (_elm["origin_id"], _elm["origin_slot"]) == (turbo_chain["lora"], 0), \
-            f"{name}: [{e_chain['lazy']}] 应挂 [{turbo_chain['lora']}] LoRA 尾(缓存补丁在 LoRA 后)"
+        assert (_elm["origin_id"], _elm["origin_slot"]) == (e_chain["fix"], 0), \
+            f"{name}: [{e_chain['lazy']}] 应挂 [{e_chain['fix']}] E臂Fix 尾(补丁链整段入缓存)"
         _e_sched = i_nodes[e_chain["sigmas"]]
         assert _e_sched["widgets_values"] == ["simple", 40, 1.0], \
             f"{name}: [{e_chain['sigmas']}] BasicScheduler 应 simple/40/1.0,得 {_e_sched.get('widgets_values')}"
         _esm = i_links[next(i["link"] for i in _e_sched["inputs"] if i["name"] == "model")]
-        assert (_esm["origin_id"], _esm["origin_slot"]) == (turbo_chain["lora"], 0), \
-            f"{name}: [{e_chain['sigmas']}] model 应同挂 LoRA 出(σ按混动模型现算)"
+        assert (_esm["origin_id"], _esm["origin_slot"]) == (e_chain["fix"], 0), \
+            f"{name}: [{e_chain['sigmas']}] model 应同挂 E臂Fix 出(σ按混动模型现算)"
         _e_guid = i_nodes[e_chain["guider"]]
         _egm = i_links[next(i["link"] for i in _e_guid["inputs"] if i["name"] == "model")]
         assert (_egm["origin_id"], _egm["origin_slot"]) == (e_chain["lazy"], 0), \
@@ -2210,8 +2221,9 @@ class TestLoaderTriple:
 
     def test_vae_loader_exact_file(self):
         for name, graph in GRAPHS.items():
-            loaders = _by_type(graph, "VAELoader")
-            assert len(loaders) == 1, f"{name}: VAELoader 应恰 1 个"
+            loader_type = "VAELoaderKJ" if name in ("i2i", "edit") else "VAELoader"
+            loaders = _by_type(graph, loader_type)
+            assert len(loaders) == 1, f"{name}: {loader_type} 应恰 1 个"
             # 1018 用户令:全域单 VAE(texture-fix);原版 qwen_image_2.1_vae_bf16 退役
             want = VAE_FILE
             assert _widget(loaders[0], 0) == want, \
@@ -2769,8 +2781,8 @@ class TestEditContract:
         va, vb = nodes[EDIT_RR_V_A_ID], nodes[EDIT_RR_V_B_ID]
         assert va["type"] == "Reroute" and vb["type"] == "Reroute", \
             "edit 应含 VAE 顶通道双拐点(R26.4 随迁)"
-        assert nodes[links[va["inputs"][0]["link"]][1]]["type"] == "VAELoader", \
-            "VAE 顶通道首拐点上游应 VAELoader"
+        assert nodes[links[va["inputs"][0]["link"]][1]]["type"] == "VAELoaderKJ", \
+            "VAE 顶通道首拐点上游应为已验证的 CPU/FP32 VAELoaderKJ"
         assert links[vb["outputs"][0]["links"][0]][3] == 5, \
             "VAE 顶通道末拐点应落 VAEDecode[5](⑫ [9]→[5])"
 
@@ -3538,12 +3550,12 @@ class TestQi21SubgraphContract:
         assert [s["name"] for s in sg["inputs"]] == \
             ["正向提示词", "负向提示词", "型选择"], \
             f"-10 槽序应=1006 八轮(型选择末位),得 {[s['name'] for s in sg['inputs']]}"
-        assert host["widgets_values"] == ["人物"], \
+        assert host["widgets_values"] == ["人物海报"], \
             "宿主 widgets_values 应=[人物](1006 四轮:AI扩写恒开,面板恰一值)"
         named = host.get("widgets_values_named", {})
         assert list(named) == ["型选择"], \
             f"宿主 widgets_values_named 键序(1006 四轮:恰型选择),得 {list(named)}"
-        assert named.get("型选择") == "人物", "宿主 widgets_values_named 型选择漂移"
+        assert named.get("型选择") == "人物海报", "宿主 widgets_values_named 型选择漂移"
         assert "PE启用?" not in named, "PE启用? 应随 1006 四轮退役(AI扩写恒开)"
         # widget 型槽=纯面板控件(在列+无连线;真值在 widgets_values_named)
         exposed_names = {i["name"] for i in host["inputs"]}
@@ -3754,8 +3766,8 @@ class TestQi21SubgraphContract:
         types, _ = _qi21_truth()
         subject = _nodes(GRAPHS["qi21"])[QI21_SUBJECT_ID]
         assert subject["widgets_values"][0] == types[0][1], \
-            "[400] 默认正向提示词应=库人物型例一(1006 批C 正名)"
-        assert types[0][0] == "人物", "库首型应为人物(默认型锚)"
+            "[400] 默认正向提示词应=库人物海报型例一(1006 批C 正名)"
+        assert types[0][0] == "人物海报", "库首型应为人物(默认型锚)"
 
     def test_seed_single_source_fanout(self):
         """0929 R5:seed 单源共享(0929 S3:seed PrimitiveInt 居加速子图,value 经
@@ -3799,7 +3811,7 @@ class TestQi21SubgraphContract:
         assert len(bases) == 1 and bases[0]["id"] == QI21_SG_BASE_ID, \
             f"子图应恰 1 个 MyQi21DaojieBase[{QI21_SG_BASE_ID}]"
         node = bases[0]
-        assert node["widgets_values"] == ["人物", False], \
+        assert node["widgets_values"] == ["人物海报", False], \
             "[4010] combo 默认应=人物+透明覆盖 False(DEFAULT_BASE 钉死;⑯ 四出件)"
         base_inp = node["inputs"][0]
         assert base_inp["name"] == "base" and "widget" in base_inp, \
@@ -3918,7 +3930,7 @@ class TestQi21SubgraphContract:
             low = e["negative_text"]
             assert "模糊" in low and "水印" in low, \
                 f"qi21_bases.json「{e['zh']}」negative_text 缺基线负面词(模糊/水印)"
-        # 美化版锚词抽验(人物型):纯画法骨
+        # 美化版锚词抽验(人物海报型):纯画法骨
         renwu = qi21[0]["positive_text"]
         for kw in ("细线", "矿物色质感鲜泽通透", "平整色面"):  # 1018typebg 底座化锚随源(锚改底座化核心词,不锚云雾句措辞——并行雾句迭代免误伤);1010 多彩升档锚随源(低对比色面→色彩分明的成片色面);1009 去彩锚随源(细彩线→细线);前锚 1008 删词刀第三轮「淡墨晕染」退役
             assert kw in renwu, f"qi21_bases.json 人物 positive_text 缺美化版锚词 {kw}"
@@ -3937,7 +3949,7 @@ class TestQi21SubgraphContract:
         # 1008 S3 三型差异化重锚:分镜剧情图退出统一立绘锁(4fa15e9 素材+㉗ 重写
         # =单格叙事帧开头,叙事画面取景自由、可多人;头身比锚随 1002 ㉒「分镜
         # 不锚」同批退役;断言分层职责,不冻结 1004 压平旧文案)
-        renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
+        renwu_xi = {"人物海报", "美宣", "人物多视图", "高清人脸", "表情差分"}
         # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
         _OPEN = {"人物多视图": "同一角色的多视图设定参考图", "高清人脸": "单一角色的正面头肩特写素材",
                  "表情差分": "同一角色的九宫格脸部表情差分表", "美宣": "主体的叙事美宣画面",
@@ -3982,7 +3994,7 @@ class TestQi21SubgraphContract:
             "[4011] 应已退役(1006 七轮:三层装配内置 [4013] AI扩写)"
 
     def test_default_assembly_equals_library_composition(self):
-        """默认人物型:装配全文=[24]主体句+[150]BASE(qi21_bases.json 人物,逐字=库)
+        """默认人物海报型:装配全文=[24]主体句+[150]BASE(qi21_bases.json 人物,逐字=库)
         +[141] 锁层A全文参数 逐字组合(画布行序①②(增量锁)④③,库直写行序①②③④
         ——层内容零差异;1001 S8:美术风格底座自 [110] 常量件迁 [141] 参数面)。"""
         graph = GRAPHS["qi21"]
@@ -3997,7 +4009,7 @@ class TestQi21SubgraphContract:
         # 1006 七轮:[4011] 退役——三段组合语义=MyQi21ApiPE.rewrite 内置装配
         # (件侧单测逐字锁);此处改锁三段真源全部非空可得
         parts = [_widget(nodes[QI21_SUBJECT_ID], 0),
-                 qi21["人物"]["positive_text"], _wf_lock_a()]
+                 qi21["人物海报"]["positive_text"], _wf_lock_a()]
         assert all(str(x).strip() for x in parts), \
             "内置装配三段(主体句/型底座/美术风格底座)须全部非空可得"
 
@@ -4140,7 +4152,7 @@ class TestQi21SubgraphContract:
         →4011 BASE负面→4014 负面词直写)之上,钉「文本在链上流动后的真值」——
 
         ① 底座第五出真值:MyQi21DaojieBase.run.负面词=qi21_bases.json
-           types[].negative_text(型负面,人物型=36 条全角逗号清单);
+           types[].negative_text(型负面,人物海报型=36 条全角逗号清单);
         ② 装配真值:负面词=merge(BASE负面, 美术风格底座负面)=型负面在前+美术风格底座负面
            在后(全角逗号清单=整段一 token,两段半角", "拼接;整 token 相等
            去重——my_styles._merge_negative 单源,K2 同款);
@@ -4149,7 +4161,7 @@ class TestQi21SubgraphContract:
            (实弹 1/2-negative.txt 证实在档)。"""
         bases = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))
         renwu_neg = next(e["negative_text"] for e in bases["types"]
-                         if e["zh"] == "人物")
+                         if e["zh"] == "人物海报")
         lock_neg = bases["art_style_base"]["negative_text"]
         assert renwu_neg and lock_neg and renwu_neg != lock_neg
         # ① 底座第五出(件级锚在 test_my_qi21_base;此处契约侧联动钉)
@@ -4160,8 +4172,8 @@ class TestQi21SubgraphContract:
         except ImportError:  # pragma: no cover - 包路径缺席(直载家法兜底)
             base_cls = None
         if base_cls is not None:
-            assert base_cls().run("人物")[3] == renwu_neg, \
-                "[4010].负面词 第四出应=人物型 negative_text 逐字(1005 案B)"
+            assert base_cls().run("人物海报")[3] == renwu_neg, \
+                "[4010].负面词 第四出应=人物海报型 negative_text 逐字(1005 案B)"
         # ② 装配真值:merge(型负面, 美术风格底座负面)——同一 _merge_negative 计算,
         # 锚=「型负面在前,美术风格底座在后」拼接形与去重形
         asm_cls = _load_my_node_class(QI21_SG_ASM_CLASS)
@@ -4810,7 +4822,7 @@ class TestI2IContract:
         for hi in host["inputs"]:
             assert hi["type"] == sg_in_names[hi["name"]]["type"], \
                 f"宿主槽 {hi['name']} 类型与子图边界槽不符"
-        assert host["widgets_values"] == ["人物", False, "自动", "自由出图"], \
+        assert host["widgets_values"] == ["人物海报", False, "自动", "自由出图"], \
             "宿主 widgets_values 应为四个提升控件的值；forceInput 指令不得占位"
         # 0929 S2 D6:i2i 型联动三态件([180];rgba_hint←[4010].透明值(1002 大轮迁);
         # rgba_on 四扇出 [144]/[173] 双镜像开关+[152]/[153] 透明模式占位)
@@ -4834,7 +4846,7 @@ class TestI2IContract:
         bases = [n for n in sg_nodes.values() if n["type"] == "MyQi21DaojieBase"]
         assert len(bases) == 1 and bases[0]["id"] == I2I_SG_BASE_ID, \
             "子图应恰 1 个 MyQi21DaojieBase[150]"
-        assert bases[0]["widgets_values"] == ["人物", False], \
+        assert bases[0]["widgets_values"] == ["人物海报", False], \
             "[4010] combo 默认应=人物+透明覆盖 False(⑯;1008 起五出件)"
         bl = _qi21_sg_links(graph)[bases[0]["inputs"][0]["link"]]
         assert bl["origin_id"] == -10 and bl["origin_slot"] == 4 and bl["type"] == "COMBO", \
@@ -5095,9 +5107,9 @@ class TestI2IContract:
             "i2i [4011] 锁层A全文参数 应=两件在档同值(1004 横锁)"
         assembled = "\n".join([
             _widget(_nodes(graph)[I2I_PSM_B_ID], 0),
-            qi21["人物"]["positive_text"],
+            qi21["人物海报"]["positive_text"],
             _widget(sg_nodes[I2I_SG_ASM_ID], I2I_SG_ASM_WV["锁层A全文"])])
-        want = "\n".join([I2I_B_SEG, qi21["人物"]["positive_text"], _wf_lock_a()])
+        want = "\n".join([I2I_B_SEG, qi21["人物海报"]["positive_text"], _wf_lock_a()])
         assert assembled == want, \
             "pe关直写路装配全文三段组合应自洽(1004 重锚:指令+人物positive_text+美术风格底座)"
 

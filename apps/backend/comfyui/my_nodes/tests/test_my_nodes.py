@@ -263,10 +263,10 @@ def test_daojie_base_options_and_assembly():
     # 1004 集中化:combo=真源家 qi21_bases.json types[] 全十四档(十三型+自由末位;
     # 1023 全身定妆入列;1022 人脸基准入列;1021 3D剖面场景图入列;1015 设定卡入列;原九型 sidecar daojie_bases.json 退役删件,锚随迁)
     assert combo[0] == [
-        "人物", "场景", "道具", "美宣", "人物多视图",
+        "人物海报", "场景", "道具", "美宣", "人物多视图",
         "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
         "3D剖面场景图", "人脸基准", "全身定妆", "自由"]
-    assert combo[1]["default"] == "人物"
+    assert combo[1]["default"] == "人物海报"
     # 09-18 分辨率数据面:追加 aspect(COMBO,对齐 [61] aspect_ratio 槽)/
     # megapixels(FLOAT) 两出,前两 STRING 槽位不动(存量图 [80] 链 45/46 免改);
     # 09-19 第五出 base(COMBO 型直通)=驱动按型 LoRA [85] 供线
@@ -275,14 +275,14 @@ def test_daojie_base_options_and_assembly():
 
     from comfyui.my_nodes.nodes import my_daojie_base
     bases = _json_types(my_daojie_base._BASES_JSON)
-    renwu = next(e for e in bases if e["zh"] == "人物")
+    renwu = next(e for e in bases if e["zh"] == "人物海报")
     lock = my_daojie_base._load_art_style_base()
     # 1008 用户令「[4010] 应该只有类型句才对」:只出型层,三层拼装归 [4013] PE
-    pos, _neg, _ar, _mp, _base, _w, _h = node.run("人物", positive="一位女修士")
+    pos, _neg, _ar, _mp, _base, _w, _h = node.run("人物海报", positive="一位女修士")
     assert pos == renwu["positive_text"]  # 纯型层
     assert lock["positive"] not in pos  # 底座不在
     assert "一位女修士" not in pos  # 主体句不在
-    pos_empty, neg_empty, ar_empty, mp_empty, _b, _w, _h = node.run("人物")
+    pos_empty, neg_empty, ar_empty, mp_empty, _b, _w, _h = node.run("人物海报")
     assert pos_empty == renwu["positive_text"]
     assert neg_empty == renwu["negative_text"]  # 纯型层负向
     assert (ar_empty, mp_empty) == (renwu["aspect_ratio"], renwu["megapixels"])

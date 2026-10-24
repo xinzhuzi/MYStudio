@@ -30,7 +30,7 @@ for path in paths:
     named = host['widgets_values_named']
     names = ['型选择', 'PE启用?', 'RGBA透明', '组装用途']
     values = [named[name] for name in names]
-    assert values == ['人物', False, '自动', '自由出图'], values
+    assert values == ['人物海报', False, '自动', '自由出图'], values
     old_values = host['widgets_values']
     assert old_values == values or old_values == [named['指令']] + values
     assert sg['widgets'] == old_values

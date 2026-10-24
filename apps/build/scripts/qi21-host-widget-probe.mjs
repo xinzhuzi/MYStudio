@@ -47,7 +47,7 @@ try {
       const baseline = await app.graphToPrompt();
       const base = Object.values(baseline.output).find(n => n.class_type === 'MyQi21DaojieBase');
       const selections = [];
-      for (const value of [...widgets[0].values, '人物']) {
+      for (const value of [...widgets[0].values, '人物海报']) {
         const widget = host.widgets.find(w => w.name === '型选择');
         widget.value = value; widget.callback?.(value);
         const prompt = await app.graphToPrompt();
@@ -86,13 +86,13 @@ try {
   }
   for (const row of report.cases) {
     assert.deepEqual(row.widgets.map(w => w.name), ['型选择', 'PE启用?', 'RGBA透明', '组装用途']);
-    assert.deepEqual(row.widgets.map(w => w.value), ['人物', false, '自动', '自由出图']);
-    assert.equal(row.exportedBase, '人物');
+    assert.deepEqual(row.widgets.map(w => w.value), ['人物海报', false, '自动', '自由出图']);
+    assert.equal(row.exportedBase, '人物海报');
     assert(row.widgets[0].values.includes('高清人脸'));
     for (const selection of row.selections) assert.equal(selection.exported, selection.selected);
     assert.deepEqual(row.exportedControls.map(c => c.value), [false, '自动', '自由出图']);
     for (const selection of row.otherSelections) assert.equal(selection.exported, selection.selected);
-    assert.deepEqual(row.roundtrip.map(w => w.value), ['人物', false, '自动', '自由出图']);
+    assert.deepEqual(row.roundtrip.map(w => w.value), ['人物海报', false, '自动', '自由出图']);
   }
   assert.deepEqual(report.errors, []);
   report.ok = true;

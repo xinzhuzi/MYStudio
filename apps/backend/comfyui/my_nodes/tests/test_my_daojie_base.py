@@ -12,9 +12,9 @@
 零分隔符直拼」口径废止留痕)。九型负面基线=中文「，」token(1004 中文负面
 役,旧「纯英文逗号 token」断言与现实相反,废止留痕)。
 
-锁:注册面/COMBO 十项有序(九型+自由末位)+默认钉死「人物」/装配三层
+锁:注册面/COMBO 十项有序(九型+自由末位)+默认钉死「人物海报」/装配三层
 语义/分辨率两出 aspect+mp 随型现读 json、缺字段回退 1:1 (Square)/4.2+
-控制台警告/mtime 失效热改/未知底座中文 RuntimeError/人物型=v2.2 新口径锚
+控制台警告/mtime 失效热改/未知底座中文 RuntimeError/人物海报型=v2.2 新口径锚
 (09-18 定性切换,§一 超集解除,锚从 md 运行时切出防旧口径回潮,零硬编码)/
 v3 九型配方(lora_recipe/steps_hint/i2i_routes/postprocess:九型全量形状+
 定谳值+栈预设一比一+缺省回退,09-19 C2 单源;装机家存在性对拍已随 K2
@@ -39,7 +39,7 @@ REPO = Path(__file__).resolve().parents[5]
 PROMPT_MD_0917 = REPO / "docs" / "prompts" / "道劫_新提示词包_0917.md"
 
 EXPECTED_OPTIONS = [
-    "人物", "场景", "道具", "美宣", "人物多视图",
+    "人物海报", "场景", "道具", "美宣", "人物多视图",
     "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
     "3D剖面场景图", "人脸基准", "全身定妆",
 ]  # 1022 人脸基准入列(晏燎基准脸役:无发无衣止颈透明底版,插自由之前);
@@ -92,7 +92,7 @@ def test_combo_nine_options_in_json_order_with_pinned_default():
     # daojie_bases.json 已退役并入 qi21_bases.json,锚随迁)
     assert combo[0] == EXPECTED_OPTIONS + ["自由"]
     assert [e["zh"] for e in _bases_entries()] == EXPECTED_OPTIONS  # 九型顺序互锁
-    assert combo[1]["default"] == "人物"  # DEFAULT_BASE 钉死
+    assert combo[1]["default"] == "人物海报"  # DEFAULT_BASE 钉死
     assert set(spec["optional"]) == {"positive", "negative"}
     for key in ("positive", "negative"):
         slot = spec["optional"][key]
@@ -109,9 +109,9 @@ def test_combo_nine_options_in_json_order_with_pinned_default():
 def test_run_assembles_base_first_then_subject_verbatim():
     """1008 用户令「[4010] 应该只有类型句才对」:[4010] 只出型层,不再拼底座+主体句。
     三层拼装职责归 [4013] PE(subj+base+style),[4010] 是纯型层出口。"""
-    renwu = next(e for e in _bases_entries() if e["zh"] == "人物")
+    renwu = next(e for e in _bases_entries() if e["zh"] == "人物海报")
     pos, _neg, _aspect, _mp, _base, _w, _h = MyDaojieBase().run(
-        "人物", positive="  一位女修士，青年金丹期。 ")
+        "人物海报", positive="  一位女修士，青年金丹期。 ")
     assert pos == renwu["positive_text"]  # 纯型层,不含底座/主体句
     lock_pos = my_daojie_base._load_art_style_base()["positive"]
     assert lock_pos not in pos  # 底座不在(由 [4032] 供)
@@ -151,8 +151,8 @@ def test_run_all_options_produce_nonempty_outputs():
 # ── 负向(1008):[4010] 只出型层负向,不再拼底座负向+用户负向 ──
 def test_run_negative_merges_and_dedupes_tokens():
     """1008:[4010] 负向=纯型层 negative_text(三层合并归 [4013] PE)。"""
-    renwu = next(e for e in _bases_entries() if e["zh"] == "人物")
-    _, neg, _, _, _b, _w, _h = MyDaojieBase().run("人物", negative="text")
+    renwu = next(e for e in _bases_entries() if e["zh"] == "人物海报")
+    _, neg, _, _, _b, _w, _h = MyDaojieBase().run("人物海报", negative="text")
     assert neg == renwu["negative_text"]  # 纯型层负向
     lock_neg = my_daojie_base._load_art_style_base()["negative"]
     assert lock_neg not in neg  # 底座负向不在(由 [4032].1 供)
@@ -200,9 +200,9 @@ def test_json_mtime_invalidation_hot_edit(tmp_path, monkeypatch, capsys):
 
 
 def test_is_changed_tracks_json_mtime_signature():
-    sig1 = MyDaojieBase.IS_CHANGED("人物")
-    assert isinstance(sig1, str) and "人物" in sig1
-    assert MyDaojieBase.IS_CHANGED("人物") == sig1  # json 未动=同签名(吃缓存)
+    sig1 = MyDaojieBase.IS_CHANGED("人物海报")
+    assert isinstance(sig1, str) and "人物海报" in sig1
+    assert MyDaojieBase.IS_CHANGED("人物海报") == sig1  # json 未动=同签名(吃缓存)
     # 库文件缺失才退化 nan(恒变);真源在场时签名恒为字符串
     assert isinstance(MyDaojieBase.IS_CHANGED("场景"), str)
 
@@ -217,30 +217,30 @@ def test_missing_json_degrades_loudly(tmp_path, monkeypatch):
     monkeypatch.setattr(my_daojie_base, "_BASES_JSON", tmp_path / "nope.json")
     assert my_daojie_base.bases_list() == ["(道劫底座库未找到,请重启漫影或检查安装)"]
     with pytest.raises(RuntimeError, match="道劫底座库缺失"):
-        MyDaojieBase().run("人物")
+        MyDaojieBase().run("人物海报")
 
 
-# ── 人物型=v2.2 新口径锚(09-18 定性切换,§一 超集解除;锚从 md 运行时切出,零硬编码)──
+# ── 人物海报型=v2.2 新口径锚(09-18 定性切换,§一 超集解除;锚从 md 运行时切出,零硬编码)──
 def test_renwu_new_framing_after_v22_switch():
     md_base = _md_section1()
     tail = "仙道古韵，气韵深远，完成度高的画作。"
     assert md_base.endswith(tail)  # 锚切分自洽:尾段确为 §一 后缀
     head = md_base[: -len(tail)]
     renwu = next(
-        e["positive_text"] for e in _bases_entries() if e["zh"] == "人物")
+        e["positive_text"] for e in _bases_entries() if e["zh"] == "人物海报")
     assert renwu.startswith("主体的单人立绘"), \
-        "人物型必须以主体立绘构图句开头(09-22 v5 纯画法)"
-    assert not renwu.startswith("现代修仙游戏"), "人物型回潮资产定性句"
-    assert not renwu.startswith(head), "人物型回潮旧 §一 主干开头"
-    assert not renwu.endswith(tail), "人物型回潮旧 §一 结尾句收尾"
+        "人物海报型必须以主体立绘构图句开头(09-22 v5 纯画法)"
+    assert not renwu.startswith("现代修仙游戏"), "人物海报型回潮资产定性句"
+    assert not renwu.startswith(head), "人物海报型回潮旧 §一 主干开头"
+    assert not renwu.endswith(tail), "人物海报型回潮旧 §一 结尾句收尾"
     # 1004 重建:②层措辞「线随结构时粗时细」(旧锚「线有粗细变化」措辞退役)
     for kw in ("单人立绘", "全身完整入画", "细线", "整块平整色面"):  # 1017 两可句役:弹性取景退役→确定性全身(半身由主体句显式指定)
-        assert kw in renwu, f"人物型增量段缺 v5 画法关键词 {kw}"
+        assert kw in renwu, f"人物海报型增量段缺 v5 画法关键词 {kw}"
     # v5「禁物象词」口径随 1004 集中化部分退役留痕:positive_text=②+锁B+④+
     # 衣物状态与动漫五官、发束应用归类型；具体身份色锚仍由主体提供。
     assert "动漫式概括五官" in renwu and "清晰成组的发束" in renwu
     for bad in ("骨相", "衣色"):
-        assert bad not in renwu, f"人物型残留物象词 {bad}(v5 底座禁具体画面)"
+        assert bad not in renwu, f"人物海报型残留物象词 {bad}(v5 底座禁具体画面)"
 
 
 # ── 负向口径:全九型中文负面基线(1004 中文负面役)───────────
@@ -313,8 +313,8 @@ def test_v3_recipe_mutex_and_rulings():
         by["美宣"]
     renwu = {**trio, "Krea2-画风/Krea2-AsianMix_v4_TQD.safetensors": 0.2,
             "Krea2-光影/Afterlight_v1.safetensors": 0.2}  # 09-21 用户人物行终审:+Afterlight0.2
-    assert by["人物"] == {**renwu, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
-        by["人物"]
+    assert by["人物海报"] == {**renwu, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
+        by["人物海报"]
     # 高清人脸=与人物 LoRA 同源(09-20 用户裁定「人脸与人物应相同」):三件+金雾0.8
     assert by["高清人脸"] == {**trio, "Krea2-画风/金雾仙侠GoldenMisty.safetensors": 0.8}, \
         by["高清人脸"]

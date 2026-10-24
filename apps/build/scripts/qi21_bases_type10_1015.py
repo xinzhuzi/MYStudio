@@ -19,7 +19,7 @@ REPO = Path(__file__).resolve().parents[3]
 BASES = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/qi21_bases.json"
 STACK = REPO / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/daojie_lora_stack.json"
 
-CANON_NINE = ["人物", "场景", "道具", "美宣", "人物多视图",
+CANON_NINE = ["人物海报", "场景", "道具", "美宣", "人物多视图",
               "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 SHEET_PRESET = "设定板"
 
@@ -48,7 +48,7 @@ ENTRY = {
     "rgba_default": False,
     "purpose": ("16:9 单图角色档案设定卡(1015 入十型):主视觉全身立绘+正/侧/背三视图+面部与细节特写"
                 "+服饰配器局部+档案区,一卡集齐角色资产概览。主体句=身份段(七段公式四件套+配器部件清单,"
-                "同人物型纪律),视图与分区语言归型层;灵兽/武器一致性/表情差分等专项写法见技能"
+                "同人物海报型纪律),视图与分区语言归型层;灵兽/武器一致性/表情差分等专项写法见技能"
                 " daojie-charsheet-prompter 与参考备份 docs/comfyui-kb/参考_提示词工程/角色设定卡Skill-5.4.md;"
                 "档案区字段文字建议后期贴字(生成期负向已压乱码与英文)。"),
     "positive_text": POS,

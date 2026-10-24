@@ -258,7 +258,7 @@ def main() -> None:
     common = {"prompt": [("--prompt", "-p")], "out": [("--out", "-o")], "dry": [("--dry-run",)]}
     t2i = sub.add_parser("t2i", help="文生图(可注入型层)")
     t2i.add_argument("--prompt", "-p", required=True)
-    t2i.add_argument("--base-type", help="十型名:人物/场景/道具/美宣/人物多视图/高清人脸/分镜剧情图/表情差分/概念气氛图/设定卡")
+    t2i.add_argument("--base-type", help="十型名:人物海报/场景/道具/美宣/人物多视图/高清人脸/分镜剧情图/表情差分/概念气氛图/设定卡")
     t2i.add_argument("--aspect", default="1:1")
     t2i.add_argument("--out", "-o")
     t2i.add_argument("--dry-run", action="store_true")

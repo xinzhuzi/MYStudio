@@ -113,7 +113,7 @@
 - `links[]`:**对象形** `{id, origin_id, origin_slot, target_id, target_slot, type}`(与顶层数组形是两制,勿混写);`origin_id=-10` 取自 `inputs[origin_slot]`、`target_id=-20` 送到 `outputs[target_slot]`(来历见优化集 OPTIMIZATION.md ④)。
 - `inputNode`/`outputNode`:`{id:-10/-20, bounding:[…]}` 元数据(驱动宿主口渲染);**±10/±20 禁入 `nodes[]`**(本件 §3)。
 - `widgets`:定义级 widget 缺省快照(新实例出生缺省);**实例运行值权威=宿主 `widgets_values`**,读值以宿主为准。
-- **宿主节点(主图侧)**:主图以一个普通节点代表子图,外部经宿主输入/输出槽接线;`inputs[]` 与 `sg.inputs` 逐项镜像(连线槽=纯三键+活 link,widget 槽=对象形+`link:null`)。实况样例(生产件宿主 [6]):inputs=[正向主体句(纯槽,link15)/型选择(COMBO+widget 对象,link:null)/负向主体句(纯槽,link218)],widgets_values=["人物"]。
+- **宿主节点(主图侧)**:主图以一个普通节点代表子图,外部经宿主输入/输出槽接线;`inputs[]` 与 `sg.inputs` 逐项镜像(连线槽=纯三键+活 link,widget 槽=对象形+`link:null`)。实况样例(生产件宿主 [6]):inputs=[正向主体句(纯槽,link15)/型选择(COMBO+widget 对象,link:null)/负向主体句(纯槽,link218)],widgets_values=["人物海报"]。
 - 布局:layout_check 对顶层与每个子图分 scope 独立跑全套判据(scope 名 `sub:<子图名>`)。
 
 ### API 格式与连线类型机制

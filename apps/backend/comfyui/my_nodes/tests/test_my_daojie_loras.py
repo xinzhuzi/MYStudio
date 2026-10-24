@@ -50,7 +50,7 @@ def test_every_entry_fields_sane():
 
 def test_ruling_anchors_present():
     """裁定锚:人物系三件(67+76+73);场景免鎏金+金雾在场。"""
-    person = my_daojie_loras.loras_for("人物")
+    person = my_daojie_loras.loras_for("人物海报")
     files = [e["file"] for e in person]
     assert any("细节滑杆" in f for f in files)
     assert any("AsianMix" in f for f in files)

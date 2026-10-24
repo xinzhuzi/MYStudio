@@ -88,7 +88,7 @@ try {
   // t2i 术后宿主面板:主体句+型选择+PE开关+透明+手动宽+手动高(Q3 序)
   const t2iWidgets = () => [
     mkWidget("主体句", "一位筑基后期的年轻女修……", "text"),
-    mkWidget("型选择", "人物", "combo"),
+    mkWidget("型选择", "人物海报", "combo"),
     mkWidget("PE开关", true, "toggle"),
     mkWidget("透明", false, "toggle"),
     mkWidget("手动宽", 0, "number"),
@@ -97,7 +97,7 @@ try {
   // i2i 旧形态:型选择+RGBA透明(三态 combo)+PE开关(无 透明布尔/手动宽高)
   const i2iWidgets = () => [
     mkWidget("主体句", "…", "text"),
-    mkWidget("型选择", "人物", "combo"),
+    mkWidget("型选择", "人物海报", "combo"),
     mkWidget("PE开关", false, "toggle"),
     mkWidget("RGBA透明", "跟随型", "combo"),
     mkWidget("画幅联动开关", true, "toggle"),
@@ -136,7 +136,7 @@ try {
 
   const alpha0 = W.find((w) => w.name === "透明").value;
   byName(host, "型选择").value = "自由";
-  host.onWidgetChanged("型选择", "自由", "人物", byName(host, "型选择"));
+  host.onWidgetChanged("型选择", "自由", "人物海报", byName(host, "型选择"));
   ok("场景2 型=自由 → 透明显示(onWidgetChanged 即时通路)", byName(host, "透明").hidden === false);
 
   byName(host, "PE开关").value = false;
@@ -173,7 +173,7 @@ try {
   ok("纯 value 变化经轮询联动(自由→透明显示)", byName(host, "透明").hidden === false);
   byName(host, "透明").hidden = false; // 当前期望即 false,先翻到 true 再看复原:
   byName(host, "透明").hidden = false;
-  byName(host, "型选择").value = "人物"; // 期望隐藏
+  byName(host, "型选择").value = "人物海报"; // 期望隐藏
   byName(host, "透明").hidden = false;   // 外部强置(丢失态)
   await sleep(T.tickMs + 60);
   ok("hidden 丢失自动重写(人物→透明复隐藏)", byName(host, "透明").hidden === true);

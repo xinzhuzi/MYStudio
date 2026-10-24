@@ -13,9 +13,9 @@ apps/build/scripts/qi21_sidecar_api.py   # 依赖同目录 cdp_eval.mjs(App 在�
 ## 用法
 
 ```bash
-# 文生图(可注入十型型层;型名见 qi21_bases.json:人物/场景/道具/美宣/
+# 文生图(可注入十型型层;型名见 qi21_bases.json:人物海报/场景/道具/美宣/
 # 人物多视图/高清人脸/分镜剧情图/表情差分/概念气氛图/设定卡)
-python3 qi21_sidecar_api.py t2i --prompt "主体句" [--base-type 人物] \
+python3 qi21_sidecar_api.py t2i --prompt "主体句" [--base-type 人物海报] \
     [--aspect 1:1|3:4|4:3|16:9|9:16] [--out xx.png] [--dry-run]
 
 # 图生图(缺省=道劫美术风格转换装配;--base-type 切型层全拼档)
@@ -40,7 +40,7 @@ python3 qi21_sidecar_api.py i2i --prompt "指令" --ref 参考图.png \
    参考出 704×1472。多视图 3:2 家族口径(1248×832)用 `--shape 32` 垫边。
 2b. **透明底=型层专属**(10-21 立,10-22 扩到 i2i):十型真源 rgba_default
    ——道具/人物多视图/高清人脸/表情差分=**透明底**(RGBA 真 Alpha,由
-   MyQi21FinalOutput 透明模式包装);人物/场景/美宣/分镜/概念/设定卡/自由=
+   MyQi21FinalOutput 透明模式包装);人物海报/场景/美宣/分镜/概念/设定卡/自由=
    非透明。i2i 带 base_type 注入透明型即直出 Alpha(表情差分首用例=角色弹窗
    表情差分,产物=透明底九宫格);无参考路的透明型产物仍走
    `t2i --base-type <透明型>`+主体句(身份由七段公式主体句锚:发色/衣色/

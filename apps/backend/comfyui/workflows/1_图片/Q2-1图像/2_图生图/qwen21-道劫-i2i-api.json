@@ -39,9 +39,11 @@
       }
     },
     "3": {
-      "class_type": "VAELoader",
+      "class_type": "VAELoaderKJ",
       "inputs": {
-        "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"
+        "vae_name": "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors",
+        "device": "cpu",
+        "weight_dtype": "fp32"
       }
     },
     "10": {
@@ -207,7 +209,7 @@
     "6:4010": {
       "class_type": "MyQi21DaojieBase",
       "inputs": {
-        "base": "人物",
+        "base": "人物海报",
         "透明覆盖": false
       }
     },

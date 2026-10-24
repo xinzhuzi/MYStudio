@@ -1,7 +1,7 @@
 {
   "revision": 1,
-  "last_node_id": 7034,
-  "last_link_id": 4411,
+  "last_node_id": 7044,
+  "last_link_id": 7520,
   "nodes": [
     {
       "id": 1,
@@ -1074,8 +1074,7 @@
                 "type": "MODEL",
                 "links": [
                   4403,
-                  7510,
-                  7513
+                  7520
                 ]
               }
             ],
@@ -1282,7 +1281,7 @@
             "properties": {},
             "title": "[7016] 加速档位说明",
             "widgets_values": [
-              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7043] E混动支路·档3「混动 40步+缓存」(1023 LazyCache役,t2i 同款入列):[7028 Turbo LoRA 出]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7042 BasicGuider cfg1(正源=positive_single 单参考域,同 Turbo)]→[7043 SamplerCustomAdvanced]+[7041 BasicScheduler simple 40步;混动=turbo LoRA×40步长调度,实弹341→142s(2.41×)跳24/40步,漂移=换相近图;默认档仍=档0 Turbo 8步,本档手选)"
+              "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7043] E混动支路·档3「混动 40步+缓存」(1023 LazyCache役,t2i 同款入列):[7028 Turbo LoRA 出]→[7044 Fix v2.0×1.0(1024令:E臂也吃细节件)]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7042 BasicGuider cfg1(正源=positive_single 单参考域,同 Turbo)]→[7043 SamplerCustomAdvanced]+[7041 BasicScheduler simple 40步;混动=turbo LoRA×40步长调度,实弹341→142s(2.41×)跳24/40步,漂移=换相近图;默认档仍=档0 Turbo 8步,本档手选)\n[7044] E臂Fix·detail-fix v2.0×1.0(1024 用户令「档3混动也要吃细节」:挂 [7028] turbo LoRA 后、[7040] LazyCache 前=补丁链整段入缓存;官方域 cfg>1 之外,效果以实弹对拍为准,强度热调在本件)"
             ],
             "widgets_values_named": {
               "内容": "\n[7011] viggle LoRA·官方未合并件\n[7012] viggle官方6σ·SamplerCustom\n[7010] 原生出图·KSampler\n[7014] seed单源·PrimitiveInt\n[7015] 出图速度选择·自研\n[7017] viggle噪声·RandomNoise\n[7018] euler·KSamplerSelect\n[7019] cfg1引导·BasicGuider\n[7020] 官方6σ·ViggleTurboSigmas(动态shift)\n[7021] σ切分·SplitSigmas(9步=7+2)\n[7022] 底模引导·BasicGuider(段2无LoRA)\n[7023] 零噪声·DisableNoise(段2续采)\n[7024] 段2采样·SamplerCustom(底模收尾2步)\n[7027] Fix v2.0·Turbo+viggle×0.5\n[7028] Turbo·官方avg_rank_178(Fix×0.5)\n[7029] cfg1引导·BasicGuider(Turbo纯正向)\n[7030] 官方8步σ·ManualSigmas\n[7031] Turbo8步·SamplerCustom\n①Turbo 支路(官方8步 cfg1)\n②viggle 9步双段\n③原生出图(40步)\n④seed 单源\n⑤档位选择\nσ表仅影响 viggle；Turbo 使用内部固定官方8步σ表，原生档不使用该控件。\nviggle 7+2步\n原生40步\n[7034] 风格LoRA·mikkoani ×0.8(1019 用户令「默认改×0.8」,原×1.0=1018 用户令「使用 mikkoani,默认打开」——model 边界→[7034]→四扇出 Turbo[7028]/viggle[7011]/段B底模[7022]/原生臂,三支路共吃;civitai 2470371 Qwen2.1 版=3400689,160.1MB;无登记触发词,词法零动;实测:饱和抬升 68→80(T)/98(原生),风格拉力强不惧蒸馏)\n[7040-7043] E混动支路·档3「混动 40步+缓存」(1023 LazyCache役,t2i 同款入列):[7028 Turbo LoRA 出]→[7040 LazyCache 重用阈值0.2/窗15-95%(引擎核心步跳缓存)]→[7042 BasicGuider cfg1(正源=positive_single 单参考域,同 Turbo)]→[7043 SamplerCustomAdvanced]+[7041 BasicScheduler simple 40步;混动=turbo LoRA×40步长调度,实弹341→142s(2.41×)跳24/40步,漂移=换相近图;默认档仍=档0 Turbo 8步,本档手选)"
@@ -1345,8 +1344,8 @@
             "id": 7040,
             "type": "LazyCache",
             "pos": [
-              2600,
-              1208
+              3420,
+              1330
             ],
             "size": [
               270,
@@ -1367,8 +1366,7 @@
                 "name": "MODEL",
                 "type": "MODEL",
                 "links": [
-                  7511,
-                  7513
+                  7511
                 ],
                 "slot_index": 0
               }
@@ -1394,8 +1392,8 @@
             "id": 7041,
             "type": "BasicScheduler",
             "pos": [
-              2600,
-              1500
+              2880,
+              1590
             ],
             "size": [
               270,
@@ -1440,7 +1438,7 @@
             "id": 7042,
             "type": "BasicGuider",
             "pos": [
-              2950,
+              4100,
               1458
             ],
             "size": [
@@ -1483,7 +1481,7 @@
             "id": 7043,
             "type": "SamplerCustomAdvanced",
             "pos": [
-              3300,
+              4520,
               1832
             ],
             "size": [
@@ -1542,6 +1540,57 @@
             },
             "widgets_values": [],
             "widgets_values_named": {}
+          },
+          {
+            "id": 7044,
+            "type": "LoraLoaderModelOnly",
+            "pos": [
+              2600,
+              1208
+            ],
+            "size": [
+              270,
+              130
+            ],
+            "flags": {},
+            "order": 25,
+            "mode": 0,
+            "inputs": [
+              {
+                "name": "model",
+                "type": "MODEL",
+                "localized_name": "模型",
+                "link": 7520
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "模型",
+                "name": "MODEL",
+                "type": "MODEL",
+                "links": [
+                  7510,
+                  7513
+                ]
+              }
+            ],
+            "title": "[7044] E臂Fix",
+            "properties": {
+              "Node name for S&R": "LoraLoaderModelOnly",
+              "ue_properties": {
+                "widget_ue_connectable": {},
+                "version": "7.8",
+                "input_ue_unconnectable": {}
+              }
+            },
+            "widgets_values": [
+              "qwen2.1-detail-fix-2.0.safetensors",
+              1
+            ],
+            "widgets_values_named": {
+              "lora_name": "qwen2.1-detail-fix-2.0.safetensors",
+              "strength_model": 1
+            }
           }
         ],
         "groups": [
@@ -1611,7 +1660,7 @@
             "bounding": [
               1896,
               1154,
-              1758,
+              2994,
               935
             ],
             "color": "#8c466a",
@@ -1941,7 +1990,7 @@
           },
           {
             "id": 7510,
-            "origin_id": 7028,
+            "origin_id": 7044,
             "origin_slot": 0,
             "target_id": 7040,
             "target_slot": 0,
@@ -1965,7 +2014,7 @@
           },
           {
             "id": 7513,
-            "origin_id": 7028,
+            "origin_id": 7044,
             "origin_slot": 0,
             "target_id": 7041,
             "target_slot": 0,
@@ -2018,6 +2067,14 @@
             "target_id": 7043,
             "target_slot": 1,
             "type": "GUIDER"
+          },
+          {
+            "id": 7520,
+            "origin_id": 7028,
+            "origin_slot": 0,
+            "target_id": 7044,
+            "target_slot": 0,
+            "type": "MODEL"
           }
         ],
         "extra": {

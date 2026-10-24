@@ -126,7 +126,7 @@ def test_charsheet_preset_equals_renwu_group():
     """设定板档(09-19 角色设定表收编)= 人物组逐槽逐权重复制;
     [164] charsheet LoRA 独立恒挂不在栈内,故栈侧无该件。"""
     for s in _slots():
-        assert s["presets"][SHEET_PRESET] == s["presets"]["人物"], s["key"]
+        assert s["presets"][SHEET_PRESET] == s["presets"]["人物海报"], s["key"]
 
 
 # ── 槽位序(等价性前提的钉子)────────────────────────────
@@ -157,26 +157,26 @@ def test_preset_choices_sandwich_nine_types():
 def test_charsheet_preset_resolves_like_renwu():
     """设定板档可解析且与人物组同计划([164] 由设定板流独立挂,不在计划内)。"""
     plan_sheet, display, _ = stack.resolve_plan(_slots(), SHEET_PRESET)
-    plan_renwu, _, _ = stack.resolve_plan(_slots(), "人物")
+    plan_renwu, _, _ = stack.resolve_plan(_slots(), "人物海报")
     assert plan_sheet == plan_renwu and display == SHEET_PRESET
 
 
 def test_default_group_equals_current_always_on_chain():
-    """默认组(跟随底座型·人物)必须逐槽逐权重复现现常开链:
+    """默认组(跟随底座型·人物海报)必须逐槽逐权重复现现常开链:
     [47]×1.0 → [81]×0.2 → [85]按型(67×1 → 76×0.2 → 73×0.3 → 金雾×0.8;
     金雾=09-20 用户终审 87_char_w08,叠加于三件之上)。"""
     plan, display, masked = stack.resolve_plan(
-        _slots(), stack.FOLLOW_PRESET, "人物", enables={}, weights={})
+        _slots(), stack.FOLLOW_PRESET, "人物海报", enables={}, weights={})
     assert [(s["key"], w) for s, w in plan] == [
         ("turbo", 1.0), ("projector", 0.2),
         ("detail", 1.0), ("asianmix", 0.2), ("afterlight", 0.2),
         ("liujin", 0.3), ("goldenmist", 0.8)]
-    assert display == "跟随底座型·人物" and masked == []
+    assert display == "跟随底座型·人物海报" and masked == []
 
 
 def test_follow_without_base_falls_back_to_default_type():
     plan_fb, _, _ = stack.resolve_plan(_slots(), stack.FOLLOW_PRESET, None)
-    plan_renwu, _, _ = stack.resolve_plan(_slots(), stack.FOLLOW_PRESET, "人物")
+    plan_renwu, _, _ = stack.resolve_plan(_slots(), stack.FOLLOW_PRESET, "人物海报")
     assert plan_fb == plan_renwu
 
 
@@ -249,7 +249,7 @@ def test_enable_false_masks_preset_and_reports():
     slots = _slots()
     enables = dict.fromkeys(CHAIN_KEYS, True)
     enables["asianmix"] = False  # 急停:矩阵点亮被开关压下(真关)
-    plan, _, masked = stack.resolve_plan(slots, "人物", None, enables=enables)
+    plan, _, masked = stack.resolve_plan(slots, "人物海报", None, enables=enables)
     assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail",
                                            "afterlight", "liujin", "goldenmist"]
     assert masked == ["亚洲面孔·AsianMix"]
@@ -258,7 +258,7 @@ def test_enable_false_masks_preset_and_reports():
 def test_missing_widgets_tolerated_for_hot_added_slots():
     """存量 node 未带新槽 widget(热加槽位):enable/weight 缺键不压停、权重回退。"""
     slots = _slots()
-    plan, _, _ = stack.resolve_plan(slots, "人物", None, enables={}, weights={})
+    plan, _, _ = stack.resolve_plan(slots, "人物海报", None, enables={}, weights={})
     assert [s["key"] for s, _ in plan] == ["turbo", "projector", "detail",
                                            "asianmix", "afterlight", "liujin",
                                            "goldenmist"]
@@ -278,13 +278,13 @@ def test_unknown_type_and_preset_raise_plain_language():
 # ── run 路径(假引擎)───────────────────────────────────
 def test_run_loads_plan_in_slot_order_and_reports_applied(fake_engine):
     node = stack.MyDaojieLoraStack()
-    model, applied = node.run("M0", preset=stack.FOLLOW_PRESET, base="人物",
+    model, applied = node.run("M0", preset=stack.FOLLOW_PRESET, base="人物海报",
                               **_widgets())
     assert [p for p, _w in fake_engine["apply"]] == \
         [f"/loras/{CHAIN_FILES[i]}" for i in (0, 1, 2, 3, 4, 12, 13)]  # 计划序=人物组七件
     assert fake_engine["apply"][0] == ("/loras/" + CHAIN_FILES[0], 1.0)
     assert fake_engine["apply"][1][1] == 0.2 and fake_engine["apply"][3][1] == 0.2
-    assert applied.startswith("跟随底座型·人物(7/14):")
+    assert applied.startswith("跟随底座型·人物海报(7/14):")
     assert "Krea2-Turbo-4步蒸馏×1" in applied and "ProjectorScale×0.2" in applied
     assert applied.endswith("金雾仙侠GoldenMisty×0.8")  # 末位=金雾(序锚,09-20 终审)
     assert model == "model#7"
@@ -313,7 +313,7 @@ def test_run_missing_file_raises_naming_the_slot(fake_engine):
     fake_engine["state"]["missing"].add(CHAIN_FILES[1])  # 服从度缺件
     node = stack.MyDaojieLoraStack()
     with pytest.raises(RuntimeError, match="服从度·ProjectorScale.*服从度ProjectorScale"):
-        node.run("M0", preset=stack.FOLLOW_PRESET, base="人物", **_widgets())
+        node.run("M0", preset=stack.FOLLOW_PRESET, base="人物海报", **_widgets())
     assert len(fake_engine["apply"]) == 1  # turbo 已装一件,缺件槽点名即停(不静默)
 
 
@@ -323,13 +323,13 @@ def test_run_empty_file_field_raises(fake_engine, monkeypatch):
     monkeypatch.setattr(stack, "_load_slots", lambda: slots)
     node = stack.MyDaojieLoraStack()
     with pytest.raises(RuntimeError, match="file 字段为空"):
-        node.run("M0", preset=stack.FOLLOW_PRESET, base="人物", **_widgets())
+        node.run("M0", preset=stack.FOLLOW_PRESET, base="人物海报", **_widgets())
 
 
 def test_run_without_engine_raises_plain_language():
     node = stack.MyDaojieLoraStack()
     with pytest.raises(RuntimeError, match="须运行在漫影 ComfyUI 引擎内"):
-        node.run("M0", preset=stack.FOLLOW_PRESET, base="人物", **_widgets())
+        node.run("M0", preset=stack.FOLLOW_PRESET, base="人物海报", **_widgets())
 
 
 # ── 缺省回退(库缺失/坏 JSON)────────────────────────────
@@ -377,6 +377,6 @@ def test_node_class_surface_and_registration():
 
 
 def test_is_changed_reflects_json_and_inputs():
-    v1 = stack.MyDaojieLoraStack.IS_CHANGED(preset="人物", base="人物")
-    v2 = stack.MyDaojieLoraStack.IS_CHANGED(preset="场景", base="人物")
-    assert v1 != v2 and "人物" in v1 and "|" in v1
+    v1 = stack.MyDaojieLoraStack.IS_CHANGED(preset="人物海报", base="人物海报")
+    v2 = stack.MyDaojieLoraStack.IS_CHANGED(preset="场景", base="人物海报")
+    assert v1 != v2 and "人物海报" in v1 and "|" in v1

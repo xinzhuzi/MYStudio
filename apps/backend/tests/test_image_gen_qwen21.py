@@ -178,7 +178,7 @@ class Qwen21I2iTemplateContractTests(unittest.TestCase):
         # 6:180 rgba_hint 连线 6:4010(RGBA 跟型——base 注入后透明链自动激活的前提)
         self.assertEqual(self.graph["6:4022"]["class_type"], "MyQi21PurposeCanvas")
         self.assertEqual(self.graph["6:4022"]["inputs"]["组装用途"], "自由出图")
-        self.assertEqual(self.graph["6:4010"]["inputs"]["base"], "人物")
+        self.assertEqual(self.graph["6:4010"]["inputs"]["base"], "人物海报")
         self.assertEqual(self.graph["6:180"]["inputs"]["rgba_hint"], ["6:4010", 4])
         # 档位快照=Turbo 8 步
         self.assertEqual(self.graph["7:7015"]["inputs"]["mode"], "0 · Turbo 8步")
@@ -238,7 +238,7 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         self.assertEqual(graph_one["6:4011"]["inputs"]["组装用途"], "道劫美术风格转换")
         # 缺省=道劫美术风格转换:型层注入路三锚全部不动(4010 base=烘焙值人物、
         # 4022 画幅路由=快照值自由出图=恒跟参考画幅)——10-22 型层注入的回归锁
-        self.assertEqual(graph_one["6:4010"]["inputs"]["base"], "人物")
+        self.assertEqual(graph_one["6:4010"]["inputs"]["base"], "人物海报")
         self.assertEqual(graph_one["6:4022"]["inputs"]["组装用途"], "自由出图")
         # 单参考净化:[11]/[17] demo 链物理摘除+编码器 image_2 槽清空
         self.assertNotIn("11", graph_one)

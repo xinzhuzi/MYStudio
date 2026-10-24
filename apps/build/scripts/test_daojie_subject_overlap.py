@@ -40,5 +40,5 @@ def test_clash_with_own_negative_only():
 
 
 def test_non_scene_opaque_type_skips_position_check():
-    person = {"zh": "人物", "rgba_default": False, "negative_text": ""}
+    person = {"zh": "人物海报", "rgba_default": False, "negative_text": ""}
     assert ov.subject_lint("青年刀修立于石阶。", person) == []

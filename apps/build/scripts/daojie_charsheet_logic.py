@@ -391,22 +391,22 @@ def probe_base() -> str:
 def leg_charshot(base: str, oi: dict) -> Path | None:
     """步1 立绘:t2i [80]=人物/seed42/4步/1816×2424(九型配方口径)。"""
     bases = {e["zh"]: e for e in json.loads(BASES_JSON.read_text(encoding="utf-8"))}
-    w, h = native_px(bases["人物"]["aspect_ratio"], bases["人物"]["megapixels"])
+    w, h = native_px(bases["人物海报"]["aspect_ratio"], bases["人物海报"]["megapixels"])
     wf = json.loads(WF_T2I.read_text(encoding="utf-8"))
     overrides = {"12.seed": SEED_T2I, "53.width": w, "53.height": h,
-                 "50.value": SUBJECT, "80.base": "人物"}
+                 "50.value": SUBJECT, "80.base": "人物海报"}
     graph = lf.ui_to_api(json.loads(json.dumps(wf)), oi, overrides)
     graph["80"]["inputs"].pop("negative", None)  # 0919 惯例:可选槽未连线弹出
     rec: dict = {"ran": False, "seed": SEED_T2I, "steps": 4, "wh": f"{w}×{h}",
                  "subject_head": SUBJECT[:12]}
     rec = submit(base, graph, rec)
-    settle(rec, "step1_立绘_人物型_seed42")
+    settle(rec, "step1_立绘_人物海报型_seed42")
     merge_audit([rec], "charshot", {"seed": SEED_T2I, "subject": SUBJECT})
     print(f"[charsheet] 立绘 {'OK' if rec.get('ran') else rec.get('skip_reason')}"
           f" wall={rec.get('wall_s')}s", flush=True)
     if rec.get("detail"):
         print(f"[charsheet] detail: {rec['detail']}", flush=True)
-    return DOWNLOADS / "step1_立绘_人物型_seed42.png" if rec.get("ran") else None
+    return DOWNLOADS / "step1_立绘_人物海报型_seed42.png" if rec.get("ran") else None
 
 
 def sheet_graph(oi: dict, image_name: str, base_type: str | None,
@@ -463,7 +463,7 @@ def leg_post_mod(base: str, oi: dict, ref_png: Path, slots: list) -> bool:
     want = expected_applied("设定板", slots)
     print(f"[charsheet] post-mod 参考图上传: {up}; 预期 applied: {want}", flush=True)
     runs, ok_all = [], True
-    for tag, btype in (("step2_设定板_A_人物", "人物"),
+    for tag, btype in (("step2_设定板_A_人物", "人物海报"),
                        ("step2_设定板_B_高清人脸", "高清人脸")):
         graph, summary = sheet_graph(oi, up, btype, want)
         rec: dict = {"ran": False, "base_type": btype, **summary}
@@ -500,7 +500,7 @@ def main() -> int:
         "preview", None)
 
     legs = [args.only] if args.only else ["charshot", "pre-mod", "post-mod"]
-    ref_png = DOWNLOADS / "step1_立绘_人物型_seed42.png"
+    ref_png = DOWNLOADS / "step1_立绘_人物海报型_seed42.png"
     rc = 0
     for leg in legs:
         if leg == "charshot":

@@ -69,7 +69,7 @@ from .my_daojie_base import FALLBACK_ASPECT, FALLBACK_MEGAPIXELS, native_px
 
 # 默认选型显式钉死+存在性校验(不在列表回落 json 首项;combo 保 json 条目顺序
 # 不 sorted——设计九型定序即用户使用序,同 K2 DEFAULT_BASE 纪律)
-DEFAULT_BASE = "人物"
+DEFAULT_BASE = "人物海报"
 
 # 自由型名(1001 用户测试批 P1,design §2.4):十档末位,无型底座层(BASE 空串)
 # +透明值走面板「透明覆盖」直通(九型=rgba_default 型默认优先)。型名与

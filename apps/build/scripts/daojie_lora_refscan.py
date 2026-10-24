@@ -14,7 +14,7 @@
   - LoRA 加载节点(node.type / class_type 名含 "lora",大小写不敏感;如
     LoraLoaderModelOnly / LoraLoader / MyDaojieLoras)= 权威口径:widgets 中
     凡以模型扩展名(.safetensors/.ckpt/.pt/.pt2/.bin/.part)结尾的字符串都是
-    lora 引用,目标不在库内即计断链;MyDaojieLoras 类键名引用(「人物」等)
+    lora 引用,目标不在库内即计断链;MyDaojieLoras 类键名引用(「人物海报」等)
     不是文件引用,不计。
   - 非 LoRA 节点(checkpoint/vae/clip/unet/pack 等)同名扩展名字符串绝大多数
     不是 loras 库引用:仅当其恰好命中库内实体(相对路径或文件名)时计为该件

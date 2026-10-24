@@ -50,7 +50,7 @@ check('revision_disk_copies_equal',not bad,{'targets':len(dist),'problems':bad})
 sys.path.insert(0,str(ROOT/'apps/backend'))
 from comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
 from comfyui.my_nodes.nodes.my_qi21_prompt_assembly import MyQi21PromptAssembly
-subjects={'人物':'一位年轻女修，青玉色道袍，月白腰带，乌黑长发半束，素银簪。','设定卡':'青年刀修，玄色劲装，乌黑长发高束马尾，腰侧黑革刀带悬短刀，短刀完整收在黑鲨皮鞘中。','场景':'清晨的宗门山门，石阶向上延伸，青灰云海位于阶下。'}
+subjects={'人物海报':'一位年轻女修，青玉色道袍，月白腰带，乌黑长发半束，素银簪。','设定卡':'青年刀修，玄色劲装，乌黑长发高束马尾，腰侧黑革刀带悬短刀，短刀完整收在黑鲨皮鞘中。','场景':'清晨的宗门山门，石阶向上延伸，青灰云海位于阶下。'}
 assembled=[]
 for name,subject in subjects.items():
  result=MyQi21DaojieBase().run(name,透明覆盖=False)

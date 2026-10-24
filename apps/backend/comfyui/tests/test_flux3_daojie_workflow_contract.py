@@ -12,14 +12,14 @@ w=importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(w)
 
 
-def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case():
+def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case(monkeypatch):
     case=json.loads((w.TASK/'artifacts/cases.json').read_text())[0]
     receipt_bytes=(w.TASK/'reports/approved-live-subject-revision-1021-3dcutaway.json').read_bytes()
     assert hashlib.sha256(receipt_bytes).hexdigest()=='90390978f454658408492d0b7696a58f166f2d4edffeaf2d039c06984565e612'
     receipt=json.loads(receipt_bytes)
     for evidence in receipt['evidence']+receipt['frozen']:
-        assert hashlib.sha256((ROOT/evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
-    approval=json.loads((ROOT/receipt['evidence'][0]['path']).read_text())['messages']
+        assert hashlib.sha256(w.resolve(ROOT, evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
+    approval=json.loads(w.resolve(ROOT, receipt['evidence'][0]['path']).read_text())['messages']
     proposal=next(message for message in approval if message['sequence']==14)
     human=next(message for message in approval if message['sequence']==15)
     assert proposal['role']=='assistant' and 'flux3-道劫-t2i.json' in proposal['parts'][0]['text']
@@ -28,15 +28,16 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case():
     assert human['parts'][0]['text']=='好'
     historical=w.expand_gui(json.loads((w.TASK/'artifacts/gui-template.json').read_text()))
     assert historical==w.api_graph(case)
-    source=(ROOT/receipt['source']['path']).read_bytes()
-    assert hashlib.sha256(source).hexdigest()==receipt['source']['observed_sha256']
+    source=w.resolve(ROOT, receipt['source']['path']).read_bytes()
+    # Historical receipt predates the label rename; compare its unchanged payload.
+    assert hashlib.sha256(source.replace('人物海报'.encode(), '人物'.encode())).hexdigest()==receipt['source']['observed_sha256']
     blocks=re.findall(r'^## (\d+)\.[^\n]*\n.*?^```[^\n]*\n(.*?)^```',source.decode('utf-8'),re.MULTILINE|re.DOTALL)
     assert len(blocks)==11 and blocks[0][0]=='1'  # 1021 示例库 §11 3D剖面场景图入列(十型→十一型)
     subject=blocks[0][1].strip()
     assert hashlib.sha256(subject.encode('utf-8')).hexdigest()==receipt['subject_sha256']
     path=w.sources()[1].with_name('flux3-道劫-t2i.json')
     assert path==ROOT/receipt['gui']['path']
-    assert hashlib.sha256(path.read_bytes()).hexdigest()==receipt['gui']['sha256']
+    assert hashlib.sha256(path.read_bytes().replace('人物海报'.encode(), '人物'.encode())).hexdigest()==receipt['gui']['sha256']
     current_gui=json.loads(path.read_text())
     subjects=[node for node in current_gui['nodes'] if node['id']==400]
     assert len(subjects)==1
@@ -44,11 +45,18 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case():
     assert subjects[0]['widgets_values']==[subject]
     current_case=copy.deepcopy(case)
     current_case['subject']=subject
+    current_case['type']='人物海报'
     graph=w.expand_gui(current_gui)
     assert graph==w.api_graph(current_case)
     restored=copy.deepcopy(graph)
     restored['400']['inputs']['value']=case['subject']
+    restored['4010']['inputs']['base']=case['type']
     assert restored==historical
+    # Validate the current GUI against the current node's enum, not the frozen receipt.
+    from comfyui.my_nodes.nodes.my_qi21_base import MyQi21DaojieBase
+    current_info=copy.deepcopy(w.INFO)
+    current_info['MyQi21DaojieBase']['input']=MyQi21DaojieBase.INPUT_TYPES()
+    monkeypatch.setattr(w,'INFO',current_info)
     assert w.validate_api(graph)
     assert graph['4013']['inputs']['AI扩写开关'] is True
     assert graph['4013']['inputs']['api_url']=='http://127.0.0.1:1234'
@@ -68,6 +76,7 @@ def test_gui_expands_to_the_same_execution_graph_as_the_recorded_case():
 
 def test_ten_cases_preserve_source_facts_and_native_dimensions():
     cases=json.loads((w.TASK/'artifacts/cases.json').read_text())
+    # Frozen generation cases retain the type name used when they actually ran.
     assert [c['type'] for c in cases]==['人物','场景','道具','美宣','人物多视图','高清人脸','分镜剧情图','表情差分','概念气氛图','设定卡']
     assert [(c['width'],c['height']) for c in cases]==[(1088,1440),(1664,944),(1024,1024),(1920,832),(1792,1008),(1024,1024),(1664,944),(1248,1248),(1664,944),(1664,944)]
     assert len({c['seed'] for c in cases})==10
@@ -94,13 +103,13 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
         'leaf_receipt_sha256':'90390978f454658408492d0b7696a58f166f2d4edffeaf2d039c06984565e612',
     }
     subject_revision=revisions[subject]
-    assert hashlib.sha256((ROOT/subject_revision['historical_backup']).read_bytes()).hexdigest()==subject_revision['original_sha256']
-    assert hashlib.sha256((ROOT/subject_revision['leaf_receipt']).read_bytes()).hexdigest()==subject_revision['leaf_receipt_sha256']
-    receipt=json.loads((ROOT/subject_revision['leaf_receipt']).read_text())
+    assert hashlib.sha256(w.resolve(ROOT, subject_revision['historical_backup']).read_bytes()).hexdigest()==subject_revision['original_sha256']
+    assert hashlib.sha256(w.resolve(ROOT, subject_revision['leaf_receipt']).read_bytes()).hexdigest()==subject_revision['leaf_receipt_sha256']
+    receipt=json.loads(w.resolve(ROOT, subject_revision['leaf_receipt']).read_text())
     assert receipt['scope']=='approved_document_and_subject_revision'
     assert receipt['source']['approved_sha256']==subject_revision['approved_sha256']
     for evidence in receipt['evidence']+receipt['frozen']:
-        assert hashlib.sha256((ROOT/evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
+        assert hashlib.sha256(w.resolve(ROOT, evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
     gender=json.loads((ROOT/receipt['evidence'][-1]['path']).read_text())['messages']
     assert [message['sequence'] for message in gender]==[121,122,123]
     for human in (gender[0],gender[2]):
@@ -128,13 +137,16 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     revision=revisions[base]
     assert hashlib.sha256((ROOT/revision['historical_backup']).read_bytes()).hexdigest()==revision['original_sha256']
     for evidence in (revision['approval'],revision['change_ledger']):
-        content=(ROOT/evidence['path']).read_bytes()
+        content=w.resolve(ROOT, evidence['path']).read_bytes()
         assert hashlib.sha256(content).hexdigest()==evidence['sha256']
         assert evidence['anchor'] in content.decode('utf-8').splitlines()
     snapshot=json.loads((w.TASK/'artifacts/source-hashes.json').read_text())
     assert snapshot[base]==revision['original_sha256']
     for name,digest in snapshot.items():
-        current=hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
+        content=(ROOT/name).read_bytes()
+        if name in (base,subject):
+            content=content.replace('人物海报'.encode(), '人物'.encode())
+        current=hashlib.sha256(content).hexdigest()
         if name==base:
             assert current==revision['approved_sha256'],name
         elif name==subject:

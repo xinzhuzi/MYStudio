@@ -21,7 +21,7 @@ package = types.ModuleType('offline_qi21_canvas_nodes')
 package.__path__ = [str(NODE_DIR)]
 sys.modules[package.__name__] = package
 PURPOSES = ('道劫美术类型', '自由出图', '道劫美术风格转换', '无底座出图')
-TYPE_NAMES = ['人物', '场景', '道具', '美宣', '人物多视图', '高清人脸', '分镜剧情图',
+TYPE_NAMES = ['人物海报', '场景', '道具', '美宣', '人物多视图', '高清人脸', '分镜剧情图',
               '表情差分', '概念气氛图', '设定卡', '3D剖面场景图', '人脸基准', '自由']
 REFERENCE = (1536, 1024)
 
@@ -77,7 +77,7 @@ def resolve(graph, value, reference=REFERENCE):
     raise AssertionError((identifier, slot, kind))
 
 
-def select(document, purpose, type_name='人物', manual=(0, 0)):
+def select(document, purpose, type_name='人物海报', manual=(0, 0)):
     host = repair.host(document, repair.PROMPT_ID)
     for name, value in (('组装用途', purpose), ('型选择', type_name)):
         host['widgets_values_named'][name] = value

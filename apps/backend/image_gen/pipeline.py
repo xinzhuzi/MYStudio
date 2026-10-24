@@ -2,12 +2,20 @@
 
 本文件只做:① PipelineError ② generate_image 统一入口(按 layout 分派
 到 engines/<name>.py 的 generate)。引擎自身装配/生成/LoRA 全在 engines/。
+blank-gate-1024:generate_image 追加空片门禁+判废重掷(§3.1)——b64 过
+output_gate.evaluate_output,判废走「/free→换 seed 重掷一次→仍废报错」,
+两发共享同一 wall-clock 预算;新错误码 bridge-blank-output/engine-degraded
+在此抛出(server 映射 502/503,前端零改动)。
 """
 from __future__ import annotations
 
 import base64
 import io
+import math
+import os
+import random
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +81,41 @@ _ENGINE_BY_LAYOUT = {
     "comfyui-bridge": _comfyui_bridge,
     "qwen21-viggle": _qwen21,
 }
+
+# 桥布局驱动(comfyui_bridge/qwen21 经同一引擎执行):空片重掷前的 /free 与
+# 退化防线只对它们生效(判据 spec.layout,方案 §3.1)
+_BRIDGE_LAYOUTS = ("comfyui-bridge", "qwen21-viggle")
+
+# 空片/退化错误文案(§5):重掷字样按「实际是否掷过」+MYSTUDIO_COMFYUI_BLANK_RETRY
+# 现值选择——禁止把重掷字样写死在单一常量(第 2 轮 L5:开关关时是假话)
+_BLANK_COPY_WITH_RETRY = "生成结果疑似空白(引擎长时间运行后可能出现),已自动重掷一次仍未改善。请到 设置 → 本地配置 → ComfyUI 图像引擎 重启引擎后再试。"
+_BLANK_COPY_NO_RETRY = "生成结果疑似空白(引擎长时间运行后可能出现)。请到 设置 → 本地配置 → ComfyUI 图像引擎 重启引擎后再试。"
+_ENGINE_DEGRADED_COPY = "检测到 ComfyUI 引擎性能明显退化(长时间运行的内存碎片堆积)。请重启引擎(设置 → 本地配置 → ComfyUI 图像引擎)后再试。"
+
+
+def _env_enabled(name: str, default: bool = True) -> bool:
+    """robust 布尔开关(照 MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S 解析先例,非法值回落默认)。"""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    return raw.strip().lower() not in ("0", "false", "no", "off")
+
+
+def _blank_output_error(*, retried: bool) -> PipelineError:
+    # 文案选择=「开关开 且 真掷过」才带重掷字样(预算耗尽/开关关都不掷=不说掷过)
+    message = _BLANK_COPY_WITH_RETRY if (retried and _env_enabled("MYSTUDIO_COMFYUI_BLANK_RETRY")) else _BLANK_COPY_NO_RETRY
+    return PipelineError("bridge-blank-output", message)
+
+
+def _shared_budget_deadline() -> float:
+    """两发共享的 wall-clock 预算起点(=MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S,robust 解析)。"""
+    try:
+        budget_s = float(os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_TIMEOUT_S", "600"))
+    except (TypeError, ValueError, OverflowError):
+        budget_s = 600.0
+    if not math.isfinite(budget_s) or budget_s <= 0:
+        budget_s = 600.0
+    return time.monotonic() + budget_s
 
 
 def convert_qwen25_vl_state_dict_key(key: str) -> str:
@@ -354,7 +397,11 @@ def generate_image(
         raise PipelineError("generation-busy", "图像生成正忙，请稍后重试")
     _CANCEL_EVENT.clear()
     try:
-        return engine.generate(
+        # 空片门禁+判废重掷(blank-gate-1024 §3.1):首发原样调用(行为零变化),
+        # 产物过门禁;两发共享同一 wall-clock 预算(留 30s 地板,预算尽不掷直接报错)
+        from engines.image_engine import output_gate
+
+        call = dict(
             prompt=prompt,
             aspect_ratio=aspect_ratio,
             negative_prompt=negative_prompt,
@@ -365,6 +412,64 @@ def generate_image(
             use_lora=use_lora,
             **ctx,
         )
+
+        def _attempt(seed_value: Any) -> str:
+            call["seed"] = seed_value
+            try:
+                return engine.generate(**call)
+            except PipelineError:
+                raise
+            except Exception as exc:
+                raise PipelineError("inference-failed", f"图像生成失败: {exc}") from exc
+
+        def _gate(b64: str):
+            """返回 GateMetrics(放行)/GateRejected(判废)/None(fail-open);门禁自身异常=放行。"""
+            try:
+                return output_gate.evaluate_output(base64.b64decode(b64))
+            except output_gate.GateRejected:
+                raise
+            except Exception as exc:  # noqa: BLE001 — 检查器故障不得打断生图主链
+                print(f"[image-sidecar] pipeline: 空片门禁自身异常({exc}),fail-open 放行", flush=True)
+                return None
+
+        deadline = _shared_budget_deadline()
+        first = _attempt(seed)
+        try:
+            _gate(first)
+            return first
+        except output_gate.GateRejected as rejection:
+            if not _env_enabled("MYSTUDIO_COMFYUI_BLANK_RETRY"):
+                raise _blank_output_error(retried=False) from rejection
+            if is_generation_cancelled():
+                raise PipelineError("generation-cancelled", "已停止") from rejection
+            if time.monotonic() >= deadline - 30:
+                print("[image-sidecar] pipeline: 空片判废但共享预算已尽,不再重掷", flush=True)
+                raise _blank_output_error(retried=False) from rejection
+            if _env_enabled("MYSTUDIO_COMFYUI_FREE_ON_BLANK") and layout in _BRIDGE_LAYOUTS:
+                # 重掷前先 POST /free(§4.2-1):短超时吞错,恒不阻塞主链
+                from engines.image_engine import engine_health
+
+                engine_health.free_memory(_comfyui_bridge.bridge_url())
+            # seed 策略(§3.2):None→显式随机(t2i 模板 seed=None 会逐字节复播废片);
+            # 固定 seed=复现契约,原样保留(重掷前已 /free)
+            second_seed = random.randint(1, 2**31 - 1) if seed is None else seed
+            second = _attempt(second_seed)
+            try:
+                second_metrics = _gate(second)
+            except output_gate.GateRejected as second_rejection:
+                # 步时信号已独立确认退化时优先 engine-degraded(§8.2 单向联动)
+                from engines.image_engine import engine_health
+
+                if engine_health.degradation_confirmed():
+                    raise PipelineError("engine-degraded", _ENGINE_DEGRADED_COPY) from second_rejection
+                raise _blank_output_error(retried=True) from second_rejection
+            print(
+                f"[image-sidecar] pipeline: 空片判废重掷后改善(首发 {rejection.metrics.domain}"
+                f"/fg={rejection.metrics.fg_ratio:.4f}/azr={rejection.metrics.alpha_zero_ratio:.4f}"
+                f"→次发 {second_metrics.domain if second_metrics else 'fail-open'})",
+                flush=True,
+            )
+            return second
     except PipelineError:
         raise
     except Exception as exc:

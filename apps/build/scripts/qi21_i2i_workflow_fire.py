@@ -659,7 +659,7 @@ def run_guard(args, outdir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--instruction", required=True)
-    ap.add_argument("--type", default="人物")
+    ap.add_argument("--type", default="人物海报")
     ap.add_argument("--subject", default=None,
                     help="主体句直给(缺省=官方换装例句语义下仍用 [400] 注入指令;此参仅改 [4011] 主体句位)")
     ap.add_argument("--rgba", default=None, choices=("自动", "true", "false"),

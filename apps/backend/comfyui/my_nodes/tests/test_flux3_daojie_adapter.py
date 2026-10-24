@@ -55,7 +55,7 @@ def test_adapter_rejects_invalid_dimensions():
 def test_adapter_projects_every_real_type_without_losing_its_distinguishing_layout():
     types = json.loads(_BASES_JSON.read_text(encoding="utf-8"))["types"]
     expected_facts = {
-        "人物": "主体的单人立绘",
+        "人物海报": "主体的单人立绘",
         "场景": "前景、中景、远景三层分明",
         "道具": "器物可见范围完整入画并居中",
         "美宣": "叙事美宣画面",

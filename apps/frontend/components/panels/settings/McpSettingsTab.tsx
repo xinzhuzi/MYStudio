@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -173,7 +174,7 @@ function configToDraft(server: McpServerConfig): DraftForm {
 // 1016 型选择(本地生图):道劫十型展示层枚举(真源=引擎家 qi21_bases.json;
 // 引擎侧 COMBO 校验拒非法值兜底)
 const LOCAL_IMAGE_BASE_TYPES = [
-  "人物", "场景", "道具", "美宣", "人物多视图", "高清人脸",
+  "人物海报", "场景", "道具", "美宣", "人物多视图", "高清人脸",
   "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
 ] as const;
 
@@ -218,7 +219,9 @@ export function McpSettingsTab() {
     });
   };
 
-  useEffect(() => setJsonText(exportMcpServersJson()), [servers.length]);
+  // 依赖整个 servers 引用(增/改/删都换新数组):仅依赖 length 会漏掉"编辑不改长度"的刷新,
+  // 导致「复制/导出」送出陈旧配置
+  useEffect(() => setJsonText(exportMcpServersJson()), [servers]);
 
   useEffect(() => () => setTests({}), []);
 
@@ -227,13 +230,23 @@ export function McpSettingsTab() {
     (async () => {
       try {
         const runtime = (window as unknown as { imageGenRuntime?: { status: () => Promise<{ models?: { modelName: string; downloaded: boolean; comfyuiVersion?: string | null }[] }> } }).imageGenRuntime;
-        if (!runtime) return;
+        if (!runtime) {
+          // 非桌面环境无 preload 桥:同样落定未就绪,避免永挂「探测中…」
+          if (!cancelled) setBridge({ ready: false });
+          return;
+        }
         const s = await runtime.status();
         if (cancelled) return;
         const row = (s.models ?? []).find((m) => m.modelName === "comfyui-bridge");
-        if (row) setBridge({ ready: Boolean(row.downloaded), version: row.comfyuiVersion ?? undefined });
+        // inventory 未扫过(models 空列表)时同样落定为未就绪——否则界面永挂「探测中…」
+        setBridge(
+          row
+            ? { ready: Boolean(row.downloaded), version: row.comfyuiVersion ?? undefined }
+            : { ready: false },
+        );
       } catch {
-        // 拉取失败保持 null——胶囊显示「需准备」
+        // 拉取失败按未就绪落定(胶囊「需准备」),避免永挂「探测中…」
+        if (!cancelled) setBridge({ ready: false });
       }
     })();
     return () => { cancelled = true; };
@@ -258,6 +271,12 @@ export function McpSettingsTab() {
   const submit = () => {
     if (!draft.name.trim()) {
       setFormError("请填写名称");
+      return;
+    }
+    // 重名守卫:手动添加放行重名会让导出 JSON 静默合并(名字做键);导入路径才按「同名更新」语义
+    const duplicateName = servers.some((s) => s.name === draft.name.trim() && s.id !== editingId);
+    if (duplicateName) {
+      setFormError("已存在同名服务器，请换个名字（或编辑原条目）");
       return;
     }
     if (draft.transport === "stdio" && !draft.command.trim()) {
@@ -316,7 +335,10 @@ export function McpSettingsTab() {
   const enabledCount = useMemo(() => servers.filter((s) => s.enabled).length, [servers]);
 
   return (
-    <div className="p-8 w-full max-w-[1200px] mx-auto space-y-8">
+    <>
+      {/* 0924 范式重构后内容超一屏;设置页全家模式=tab 自带 ScrollArea(祖先链恒 overflow-hidden) */}
+      <ScrollArea className="h-full">
+      <div className="p-8 w-full max-w-[1200px] mx-auto space-y-8">
       {/* 0924 C1(§7):密钥保险箱状态横幅(env 含 token,与 API 密钥同批加密) */}
       <SecureVaultBanner
         storageKey={MCP_SERVERS_STORAGE_KEY}
@@ -552,6 +574,8 @@ export function McpSettingsTab() {
           </div>
         </McpRow>
       </McpGroup>
+      </div>
+      </ScrollArea>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -652,6 +676,6 @@ export function McpSettingsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

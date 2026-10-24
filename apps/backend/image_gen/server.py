@@ -368,6 +368,12 @@ class Handler(BaseHTTPRequestHandler):
                 status = HTTPStatus.SERVICE_UNAVAILABLE
             elif exc.code == "bridge-timeout":
                 status = HTTPStatus.GATEWAY_TIMEOUT
+            elif exc.code == "bridge-blank-output":
+                # 空片门禁判废(blank-gate-1024 §5):网关侧产物不合格
+                status = HTTPStatus.BAD_GATEWAY
+            elif exc.code == "engine-degraded":
+                # 步时信号确认的引擎性能退化(§8.2):服务暂不可用,重启可恢复
+                status = HTTPStatus.SERVICE_UNAVAILABLE
             else:
                 status = HTTPStatus.INTERNAL_SERVER_ERROR
             self._send_error_json(status, exc.message, exc.code)

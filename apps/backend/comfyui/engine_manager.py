@@ -1151,6 +1151,15 @@ class EngineManager:
         self._guard_converge_log_at: dict[str, float] = {}
         self._last_check: dict = {}  # 最近一次 update-check 结果缓存(状态行用)
         self._last_node_count: int | None = None
+        # 引擎进程世代锚(blank-gate-1024 §6/§8.1):spawn/收编时落值,进程回收清零。
+        # 退化追踪器按它分世代冻结步时基线;收编语义=接管时刻(真实启动更早,
+        # uptime 低估→处置偏保守,可接受)。None=未知(未管理/外部回落)。
+        self._engine_started_at: float | None = None
+
+    @property
+    def engine_started_at(self) -> float | None:
+        """只读世代锚(epoch 秒;引擎健康运行期的下界估计)。"""
+        return getattr(self, "_engine_started_at", None)
 
     # -- 状态 ------------------------------------------------------------
     def engine_url(self, port: int | None = None) -> str:
@@ -1241,6 +1250,10 @@ class EngineManager:
             "portConflictPolicy": cm.engine_port_conflict_policy(manifest),
             "torch": engine.get("torch"),
             "nodeCount": self._last_node_count,
+            # 只读世代锚(blank-gate-1024 §6):epoch 毫秒,None=未管理/外部回落;
+            # 退化防线按它分世代,渲染层可据此展示引擎连续运行时长
+            # (getattr=同 _running_port 先例:__new__ 直造的实例无 __init__ 落参)
+            "startedAt": (int(started_at * 1000) if (started_at := getattr(self, "_engine_started_at", None)) else None),
             "defaultModelsDir": str(cm.default_models_dir()),
             "installDir": str(cm.comfy_home()),
             "needsSetup": needs_setup,
@@ -1690,6 +1703,7 @@ class EngineManager:
                         with self._teardown_lock, self._lock:
                             self._check_start_generation(start_gen, from_guard)
                             self._running_port = discovered
+                            self._engine_started_at = time.time()  # 世代锚:收编落值
                             # Adoption restores managed state after an explicit restart.
                             self._stopping = False
                         # 账本回写发现口(镜像下方 spawn 路径写法:桥/execute/
@@ -1775,6 +1789,7 @@ class EngineManager:
                     with self._teardown_lock, self._lock:
                         self._check_start_generation(start_gen, from_guard)
                         self._running_port = port
+                        self._engine_started_at = time.time()  # 世代锚:收编落值
                         # Adoption restores managed state after an explicit restart.
                         self._stopping = False
                     # 收编后强制刷新一次节点数:孤儿进程的插件态(刚装/刚卸)与我们的
@@ -1847,6 +1862,7 @@ class EngineManager:
                                               stdout=self._log_file, stderr=subprocess.STDOUT,
                                               start_new_session=True)  # 独立会话=组长,看门狗可整组回收(孤儿根修)
                 self._running_port = port  # 运行口随 spawn 落值(快路径/状态探测的真源)
+                self._engine_started_at = time.time()  # 世代锚:spawn 落值
                 proc = self._proc
             _spawn_engine_watchdog(proc, cm.engine_log_path())
             self._await_startup_health(port, progress=progress, stop_generation=start_gen)
@@ -1946,6 +1962,8 @@ class EngineManager:
             log_file, self._log_file = self._log_file, None
             running_port = self._running_port
             self._running_port = None
+            started_at = getattr(self, "_engine_started_at", None)
+            self._engine_started_at = None  # 世代终结:进程回收即清零
         try:
             if proc is not None and proc.poll() is None:
                 _stop_engine_proc(proc)
@@ -1965,6 +1983,7 @@ class EngineManager:
                     self._proc = proc
                     self._log_file = log_file
                     self._running_port = running_port
+                    self._engine_started_at = started_at  # 进程仍在册:世代锚随之保留
         return stopped
 
     def ensure_engine_ready(self) -> bool:

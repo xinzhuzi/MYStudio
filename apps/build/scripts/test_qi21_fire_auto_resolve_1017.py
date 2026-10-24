@@ -40,12 +40,12 @@ CASES = [
     (AUTO, "设定卡", DIRECT),
     (AUTO, "美宣", DIRECT),
     (AUTO, "概念气氛图", DIRECT),   # 1017 概念图役用户裁定入原生名单
-    (AUTO, "人物", TURBO),
+    (AUTO, "人物海报", TURBO),
     (AUTO, "自由", TURBO),
     (AUTO, None, TURBO),
     (AUTO, "", TURBO),
-    *[(m, tn, m) for m in MANUALS for tn in ("设定卡", "人物", None)],
-    (UNKNOWN, "人物", UNKNOWN),
+    *[(m, tn, m) for m in MANUALS for tn in ("设定卡", "人物海报", None)],
+    (UNKNOWN, "人物海报", UNKNOWN),
     (UNKNOWN, "设定卡", UNKNOWN),
 ]
 
@@ -63,7 +63,7 @@ def test_i2i_resolve_matrix(speed, type_name, want):
 def test_two_fires_matrix_identical():
     """两模块同输入同输出(全矩阵一致=同一路由表镜像,零漂移)。"""
     speeds = (AUTO, *MANUALS, UNKNOWN)
-    type_names = ("设定卡", "美宣", "人物", "自由", "表情差分", None, "")
+    type_names = ("设定卡", "美宣", "人物海报", "自由", "表情差分", None, "")
     for speed in speeds:
         for tn in type_names:
             assert T2I_FIRE.resolve_speed_mode(speed, tn) == \

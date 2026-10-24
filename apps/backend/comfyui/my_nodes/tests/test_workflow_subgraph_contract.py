@@ -25,7 +25,7 @@ WORKFLOWS = _ROOT / "apps" / "backend" / "comfyui" / "workflows"
 DAOJIE_T2I = WORKFLOWS / "1_图片" / "K2图像" / "1_文生图" / "K2-文生图-道劫.json"
 STACK_DATA = (Path(__file__).resolve().parents[5] / "apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/daojie_lora_stack.json")  # 1005 Step4:产品侧退役,直读真源家
 
-NINE = ["人物", "场景", "道具", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
+NINE = ["人物海报", "场景", "道具", "美宣", "人物多视图", "高清人脸", "分镜剧情图", "表情差分", "概念气氛图"]
 
 
 def _obj(l):
@@ -133,7 +133,7 @@ def test_daojie_route_lazy_pruning():
     node = MyDaojieRoute()
     # 首轮:base 行未执行(全槽 None)→ 只请求 base 槽
     assert node.check_lazy_status(base="概念气氛图", **{zh: None for zh in NINE}) == ["概念气氛图"]
-    assert node.check_lazy_status(base="人物", **{zh: None for zh in NINE}) == ["人物"]
+    assert node.check_lazy_status(base="人物海报", **{zh: None for zh in NINE}) == ["人物海报"]
     # 二轮:base 行已有值 → 不再请求任何槽(返回 None/=falsy)
     fed = {zh: None for zh in NINE}
     fed["概念气氛图"] = object()
@@ -209,7 +209,7 @@ def test_route_disclosure_fallback_when_ledger_missing(monkeypatch, tmp_path):
     from comfyui.my_nodes.nodes import my_daojie_route as mod
 
     monkeypatch.setattr(mod, "_LEDGER", tmp_path / "不存在的台账.json")
-    assert mod._line_disclosure("人物") == "路线=人物线(9条真实线路按型分流)"
+    assert mod._line_disclosure("人物海报") == "路线=人物海报线(9条真实线路按型分流)"
     (tmp_path / "bad.json").write_text("{bad json", encoding="utf-8")
     monkeypatch.setattr(mod, "_LEDGER", tmp_path / "bad.json")
     assert mod._line_disclosure("场景") == "路线=场景线(9条真实线路按型分流)"
@@ -259,16 +259,16 @@ def test_route_disclosure_zero_when_whole_line_bypassed():
 
     prompt = {
         "1": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
-        "9": {"class_type": "MyDaojieRoute", "inputs": {"base": "人物", "人物": ["1", 0]}},
+        "9": {"class_type": "MyDaojieRoute", "inputs": {"base": "人物海报", "人物海报": ["1", 0]}},
     }
-    assert mod._walk_applied(prompt, "9", "人物") == []
-    assert mod._line_disclosure("人物", []) == "路线=人物线·0件(全旁路,直连底模)"
+    assert mod._walk_applied(prompt, "9", "人物海报") == []
+    assert mod._line_disclosure("人物海报", []) == "路线=人物海报线·0件(全旁路,直连底模)"
 
 
 def test_route_without_prompt_keeps_ledger_disclosure():
     """无 hidden 注入(旧路径/离线调用)=原台账口径,永不阻断。"""
     from comfyui.my_nodes.nodes import my_daojie_route as mod
 
-    assert mod._walk_applied(None, None, "人物") is None
-    model, applied = mod.MyDaojieRoute().route("人物", 人物="M")
-    assert model == "M" and applied.startswith("路线=人物线·")
+    assert mod._walk_applied(None, None, "人物海报") is None
+    model, applied = mod.MyDaojieRoute().route("人物海报", 人物海报="M")
+    assert model == "M" and applied.startswith("路线=人物海报线·")

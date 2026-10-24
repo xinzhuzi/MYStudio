@@ -413,7 +413,7 @@
         }
       ],
       "widgets_values": [
-        "人物"
+        "人物海报"
       ],
       "properties": {
         "subgraph": "713f37bf-8b6e-4992-a8f7-82dcf7e63a51",
@@ -668,11 +668,11 @@
               "Node name for S&R": "MyQi21DaojieBase"
             },
             "widgets_values": [
-              "人物",
+              "人物海报",
               false
             ],
             "widgets_values_named": {
-              "base": "人物",
+              "base": "人物海报",
               "透明覆盖": false
             },
             "title": "[4010] 道劫·qi21底座九选一"
@@ -1403,7 +1403,7 @@
           }
         ],
         "widgets": [
-          "人物"
+          "人物海报"
         ],
         "inputNode": {
           "id": -10,

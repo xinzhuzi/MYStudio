@@ -38,7 +38,7 @@ def mkpng(p, rgb=128, alpha=255, size=(64, 64), bright_px=None, alpha_top=None):
 
 def ns(**kw):
     base = dict(guard=True, guard_max=2, guard_nonblack=0.01, guard_alpha_max=5,
-                seed=None, out=None, instruction="t", type="人物", tier="2 · viggle",
+                seed=None, out=None, instruction="t", type="人物海报", tier="2 · viggle",
                 ref1="a.png", ref2="b.png", ref3=None,
                 enable_ref3=False, enable_anchor=False,
                 empty_latent=None)  # 诚实测试缝:与 argparse 缺省同值(--empty-latent 1015 役③)

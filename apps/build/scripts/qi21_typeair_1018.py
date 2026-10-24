@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""人物型云雾句空气化·单刀(役号 1018typeair;1018 用户令「你觉得哪个好,就用哪个吧」)。
+"""人物海报型云雾句空气化·单刀(役号 1018typeair;1018 用户令「你觉得哪个好,就用哪个吧」)。
 
-采纳 1018sgzs 空气句 A/B/C 多轮对照实验 B 臂判决,落位=人物型**单型**:
-- 实验实证(apps/output/qi21-sgzs-air-ab-1018/):人物型 A=零空气(型文把云雾
+采纳 1018sgzs 空气句 A/B/C 多轮对照实验 B 臂判决,落位=人物海报型**单型**:
+- 实验实证(apps/output/qi21-sgzs-air-ab-1018/):人物海报型 A=零空气(型文把云雾
   压平),B=氤氲稳定复现(r2 换种子全特征在位)+turbo 七成存活零泥糊;C 负向
   松绑踩 CG 门槛封顶不采;场景型主体句自带空气语言增量冗余不动;透明五型
-  零环境词不碰——故只动人物型一处。
+  零环境词不碰——故只动人物海报型一处。
 - 手法:型文背景段云雾压平句 → 罩染渐淡空气句(实验原文机制:罩染层层推开/
   渐次转淡叠出深远/雾气流动/边界仍清晰);其余逐字不动(最小 diff 纪律)。
 - 落点:三副本(仓库真源/引擎 daojie-data 热读/装机 Resources)同刀,md5 三方
@@ -32,7 +32,7 @@ FILES = [
 ]
 BAK_ROOT = REPO / "apps/output/bak/qi21-typeair-1018"
 CAMPAIGN = "1018typeair"
-TYPE_ZH = "人物"
+TYPE_ZH = "人物海报"
 OLD = "云雾亦画为成片平整色面；"
 NEW = ("云雾烟霭以淡色罩染层层推开、渐次转淡叠出深远，"
        "通幅有雾气流动，而色面边界仍清晰分明；")
@@ -109,7 +109,7 @@ def main():
     if len(set(m.values())) != 1:
         fail(f"三方 md5 不一致:{m}")
     print(f"[{CAMPAIGN}] DONE 三副本同刀 md5={next(iter(m.values()))} 备份={BAK_ROOT}")
-    print(f"[{CAMPAIGN}] 换文:人物型「{OLD[:12]}…」→「{NEW[:24]}…」")
+    print(f"[{CAMPAIGN}] 换文:人物海报型「{OLD[:12]}…」→「{NEW[:24]}…」")
 
 
 if __name__ == "__main__":

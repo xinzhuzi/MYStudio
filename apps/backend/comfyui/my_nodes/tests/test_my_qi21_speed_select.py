@@ -175,7 +175,7 @@ def test_lazy_engine_protocol_matrix():
     rows = []  # (mode, 期望选中槽, 型名 kwargs 值或哨兵__ABSENT__)
     for mode, slot in SPEED_MODES:
         if slot is None:   # 自动档:型名五态展开(缺键=未接线/空串/直出三型/其余型)
-            for tn in (..., "", "设定卡", "美宣", "概念气氛图", "人物"):
+            for tn in (..., "", "设定卡", "美宣", "概念气氛图", "人物海报"):
                 rows.append((mode, "latent_direct" if tn in ("设定卡", "美宣", "概念气氛图")
                              else "latent_turbo", tn))
         else:              # 手动档:固有槽,型名缺席(不投递)

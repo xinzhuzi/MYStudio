@@ -20,7 +20,7 @@ _daojie_data 四层候选现读,原本目录同名件=兜底同步产物;与 qi2
 
 preset 三态语义(design.md 阶段2 + research/九型LoRA启停设计.md §二):
   「跟随底座型」(默认)= 读 [80].base 供线(可选 COMBO forceInput,
-   同 [85] 接法)得当前型,按矩阵点亮;未接线回退「人物」并警告。
+   同 [85] 接法)得当前型,按矩阵点亮;未接线回退「人物海报」并警告。
   九型名任一 = 同上,但型钉死(联动不可达时的人选降级路径)。
   「专家·全自定义」= 每槽 enable/weight widget 全手拨。
 enable 语义(任务硬指标):enable=false 一律真关=跳过 comfy 加载调用
@@ -77,7 +77,7 @@ _STACK_JSON = _daojie_data("daojie_lora_stack.json")
 # 「跟随底座型」未接 [80] 时的回退型(同 my_daojie_base.DEFAULT_BASE 纪律显式钉死)
 FOLLOW_PRESET = "跟随底座型"
 EXPERT_PRESET = "专家·全自定义"
-DEFAULT_TYPE = "人物"
+DEFAULT_TYPE = "人物海报"
 
 _JSON_MISSING_COMBO = ["(LoRA栈槽位库未找到,请重启漫影或检查安装)"]
 
@@ -189,7 +189,7 @@ def resolve_plan(slots, preset, base=None, enables=None, weights=None):
 
 class MyDaojieLoraStack:
     """漫影道劫 LoRA 栈:14 槽单节点,preset 一处切组、每槽 enable 真关+权重;
-    applied 出=生效清单文本(如「跟随底座型·人物(5/14):Krea2-Turbo-4步蒸馏×1
+    applied 出=生效清单文本(如「跟随底座型·人物海报(5/14):Krea2-Turbo-4步蒸馏×1
     + …」)。"""
 
     CATEGORY = "漫影"

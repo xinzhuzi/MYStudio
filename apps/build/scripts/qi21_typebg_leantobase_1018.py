@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""人物型类型句·背景段底座化(役号 1018typebg)。
+"""人物海报型类型句·背景段底座化(役号 1018typebg)。
 
 背景(1018 用户令「这个背景描述时,可以偏向美术风格底座」):
-  - 人物型 positive_text 的背景段是平铺的工笔程式描述,风格化弱于 art_style_base
+  - 人物海报型 positive_text 的背景段是平铺的工笔程式描述,风格化弱于 art_style_base
     (底座自述=工笔重彩与白描/细彩线/平整分层色面/矿物色鲜泽通透/连环画概括)。
-  - 本刀把底座风格词汇移植进背景段;人物型其余段(主体/衣褶/持握/光色/设色配比)
+  - 本刀把底座风格词汇移植进背景段;人物海报型其余段(主体/衣褶/持握/光色/设色配比)
     与美宣型(同段共享)不动——美宣候另令。
 
 落点(三副本同刀,md5 三方一致才收工):
@@ -34,7 +34,7 @@ FILES = [
 ]
 BAK_ROOT = REPO / "apps/output/bak/qi21-typebg-1018"
 CAMPAIGN = "1018typebg"
-TYPE_ZH = "人物"
+TYPE_ZH = "人物海报"
 
 OLD = ("背景以工笔概括手法铺陈：近景物象细线勾形、边缘清楚，中景物象线描勾出形体，"
        "远景归纳为整块平整色面、边界清晰分明，层与层以色相与明度阶区分，云雾亦画为成片色面，"
@@ -57,7 +57,7 @@ def apply_to(doc) -> str:
     """返回 applied/done;锚失 raise。"""
     t = next((x for x in doc["types"] if x.get("zh") == TYPE_ZH), None)
     if t is None:
-        raise KeyError("人物型缺失")
+        raise KeyError("人物海报型缺失")
     pt = t["positive_text"]
     if NEW in pt and OLD not in pt:
         if pt.count(NEW) != 1:
@@ -91,7 +91,7 @@ def process(path: Path) -> str:
     reread = json.loads(path.read_bytes())
     if apply_to(reread) != "applied":
         fail(f"{path}: 回读终验未过")
-    print(f"[{CAMPAIGN}] {path}: 人物型背景段已底座化(备份=apps/output/bak/qi21-typebg-1018/…)")
+    print(f"[{CAMPAIGN}] {path}: 人物海报型背景段已底座化(备份=apps/output/bak/qi21-typebg-1018/…)")
     return "done"
 
 

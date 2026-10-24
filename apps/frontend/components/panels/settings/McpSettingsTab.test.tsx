@@ -21,6 +21,15 @@ describe("McpSettingsTab", () => {
     expect(screen.getByText("桌面应用中可用。")).toBeTruthy();
   });
 
+  it("owns its vertical scroll——设置页祖先链恒 overflow-hidden,tab 必须自带滚动容器", () => {
+    // 回归锚:0924 范式重构后本 tab 漏挂 ScrollArea,内容超屏即整页滚不动
+    const { container } = render(<McpSettingsTab />);
+    const scroller = container.querySelector<HTMLElement>("div.overflow-y-auto");
+    expect(scroller).toBeTruthy();
+    expect(scroller?.textContent).toContain("MCP 服务");
+    expect(scroller?.textContent).toContain("JSON 配置（通用格式）");
+  });
+
   it("renders server cards and runs a successful connection test", async () => {
     useMcpServersStore.getState().addServer({
       name: "本地文件",
@@ -64,6 +73,48 @@ describe("McpSettingsTab", () => {
       expect(screen.getByTestId("mcp-test-err-远程").textContent).toContain("连不上这个地址");
     });
   });
+
+  it("rejects manually adding a duplicate name (导出 JSON 名字做键,重名会静默合并)", async () => {
+    useMcpServersStore.getState().addServer({
+      name: "本地文件",
+      transport: "stdio",
+      command: "npx",
+      args: ["-y", "fs-server"],
+      enabled: true,
+    });
+    (window as unknown as { mcpRuntime: unknown }).mcpRuntime = { testServer: vi.fn() };
+    render(<McpSettingsTab />);
+
+    fireEvent.click(screen.getByTestId("mcp-add-server"));
+    fireEvent.change(screen.getByLabelText("名称"), { target: { value: "本地文件" } });
+    fireEvent.change(screen.getByLabelText("启动命令"), { target: { value: "npx" } });
+    fireEvent.click(screen.getByTestId("mcp-save-server"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mcp-form-error").textContent).toContain("已存在同名服务器");
+    });
+    expect(useMcpServersStore.getState().servers).toHaveLength(1);
+  });
+
+  it("refreshes the JSON textarea after an edit that keeps the server count unchanged", async () => {
+    const server = useMcpServersStore.getState().addServer({
+      name: "本地文件",
+      transport: "stdio",
+      command: "npx",
+      args: ["old-arg"],
+      enabled: true,
+    });
+    render(<McpSettingsTab />);
+
+    const textarea = screen.getByTestId("mcp-json-textarea") as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(textarea.value).toContain("old-arg");
+    });
+    useMcpServersStore.getState().updateServer(server.id, { args: ["new-arg"] });
+    await waitFor(() => {
+      expect(textarea.value).toContain("new-arg");
+    });
+  });
 });
 
 describe("McpSettingsTab service connections (ComfyUI 桥移此)", () => {
@@ -90,6 +141,24 @@ describe("McpSettingsTab service connections (ComfyUI 桥移此)", () => {
         models: [{ modelName: "comfyui-bridge", downloaded: false, comfyuiVersion: null }],
       }),
     };
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");
+    });
+  });
+
+  it("settles to not-ready when the inventory is unscanned (empty models) instead of probing forever", async () => {
+    // 回归锚:models 空列表(未跑 python inventory)时旧行为=bridge 恒 null,永挂「探测中…」
+    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
+      status: vi.fn().mockResolvedValue({ models: [] }),
+    };
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");
+    });
+  });
+
+  it("settles to not-ready when the preload bridge is absent (非桌面环境不永挂「探测中」)", async () => {
     render(<McpSettingsTab />);
     await waitFor(() => {
       expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");

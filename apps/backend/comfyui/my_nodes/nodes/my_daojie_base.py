@@ -33,7 +33,7 @@ megapixels 字段;另出 WIDTH/HEIGHT(INT) 两出——型带 resolution_overrid
   链A=0917 提示词包 §一 通用无型底座,唯一持有者=修手图 [12](逐字锁);
   链B=qi21_bases.json types[] 九型底座(原 daojie_bases.json 已并入,
   1004 集中化),持有者=本节点;两链关系钉死为
-  「人物型=§一 结构性超集」(主干逐字开头+结尾句逐字收尾,契约测试锚
+  「人物海报型=§一 结构性超集」(主干逐字开头+结尾句逐字收尾,契约测试锚
   从 0917 md 运行时切出、零硬编码)。
 """
 
@@ -48,7 +48,7 @@ from .my_styles import _merge_negative
 
 # 默认底座显式钉死+存在性校验(不在列表回落 json 首项;combo 保 json
 # 条目顺序不 sorted——设计九型定序即用户使用序,同 my_styles DEFAULT_STYLE 纪律)
-DEFAULT_BASE = "人物"
+DEFAULT_BASE = "人物海报"
 
 def _daojie_data(fn: str) -> Path:
     """道劫资产四层候选(1004 §十六):env→dev真源家→引擎家数据位→装机固定位→同目录产物兜底。

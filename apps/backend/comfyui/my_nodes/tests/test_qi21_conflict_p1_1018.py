@@ -32,7 +32,7 @@ def _type(bases: dict, zh: str) -> dict:
 
 def test_r1_renwu_purpose_d17_final():
     """D17 终稿:人物 purpose=「3:4 竖幅、全身完整立绘」开头,删「4:5 或」「半身至」。"""
-    p = _type(_bases(), "人物")["purpose"]
+    p = _type(_bases(), "人物海报")["purpose"]
     assert p.startswith("3:4 竖幅、全身完整立绘"), \
         f"人物 purpose 应以 D17 终稿开头(与 aspect 3:4/positive「全身完整入画」一致),得 {p[:24]!r}"
     assert "4:5" not in p and "半身至" not in p, "人物 purpose 残留 D17 已删措辞"
@@ -79,8 +79,8 @@ def test_r2_lexicon_note_colored_line():
 # ── R3(C12):云雾口径统一 ─────────────────────────────────────────────────
 
 def test_r3_cloud_mist_unified():
-    """C12:人物/美宣云雾=「淡色罩染分层，层间边界清晰」;删晕染倾向措辞。"""
-    renwu = _type(_bases(), "人物")["positive_text"]
+    """C12:人物海报/美宣云雾=「淡色罩染分层，层间边界清晰」;删晕染倾向措辞。"""
+    renwu = _type(_bases(), "人物海报")["positive_text"]
     meixuan = _type(_bases(), "美宣")["positive_text"]
     assert "云雾烟霭以淡色罩染分层，层间边界清晰" in renwu, \
         "人物 positive 应含统一云雾口径「云雾烟霭以淡色罩染分层，层间边界清晰」(C12)"
@@ -88,13 +88,13 @@ def test_r3_cloud_mist_unified():
         assert stale not in renwu, f"人物 positive 残留晕染倾向措辞 {stale!r}(C12)"
     assert "云雾以淡色罩染分层，层间边界清晰" in meixuan, \
         "美宣 positive 应含统一云雾口径(C12)"
-    assert "云雾亦画为成片平整色面" not in meixuan, "美宣云雾句未与人物型统一(C12)"
+    assert "云雾亦画为成片平整色面" not in meixuan, "美宣云雾句未与人物海报型统一(C12)"
 
 
 # ── R4(D6/C13):留白/底色类型层原则 ────────────────────────────────────────
 
 def test_r4_color_recipe_base_by_group():
-    """D6:铺满型 base=随场景时段;RGBA 型 base=透明;人物/美宣维持宣纸白。"""
+    """D6:铺满型 base=随场景时段;RGBA 型 base=透明;人物海报/美宣维持宣纸白。"""
     b = _bases()
     for zh in ("场景", "分镜剧情图", "概念气氛图"):
         assert _type(b, zh)["color_recipe"]["base"] == "随场景时段", \
@@ -102,7 +102,7 @@ def test_r4_color_recipe_base_by_group():
     for zh in ("道具", "人物多视图", "高清人脸", "表情差分"):
         assert _type(b, zh)["color_recipe"]["base"] == "透明", \
             f"RGBA 型「{zh}」color_recipe.base 应=透明(D6;关闭透明时由主体句给简洁底色)"
-    for zh in ("人物", "美宣"):
+    for zh in ("人物海报", "美宣"):
         assert _type(b, zh)["color_recipe"]["base"] == "宣纸白", \
             f"「{zh}」color_recipe.base 维持宣纸白(D6 明示不改;palette 测试钉 lexicon 词条不受影响)"
 
@@ -118,9 +118,9 @@ def test_r4_expand_step7_blank_by_type():
 # ── R5(D8/C14):类型负向越层三项全删 ────────────────────────────────────────
 
 def test_r5_gender_shoe_negative_removed():
-    """D8:人物系(人物/美宣/人物多视图/分镜剧情图)性别鞋履负向串全删。"""
+    """D8:人物系(人物海报/美宣/人物多视图/分镜剧情图)性别鞋履负向串全删。"""
     b = _bases()
-    for zh in ("人物", "美宣", "人物多视图", "分镜剧情图"):
+    for zh in ("人物海报", "美宣", "人物多视图", "分镜剧情图"):
         neg = _type(b, zh)["negative_text"]
         for stale in ("女性高跟鞋", "细高跟", "尖头女鞋", "精巧女舞鞋",
                       "细带玛丽珍鞋", "男性超大号通用工靴", "异装鞋靴"):
@@ -140,13 +140,13 @@ def test_r5_charsheet_blade_and_concept_figure_removed():
 # ── R6(D 裁定/C15):多视图头身比服从来源+动漫式五官句 ───────────────────────
 
 def test_r6_multiview_proportions_and_face():
-    """C15:多视图删「头身比约六至七头身」硬锁→服从来源;补与人物型同文的动漫式五官句。"""
+    """C15:多视图删「头身比约六至七头身」硬锁→服从来源;补与人物海报型同文的动漫式五官句。"""
     e = _type(_bases(), "人物多视图")
     pos = e["positive_text"]
     assert "六至七头身" not in pos, "人物多视图 positive 残留头身比硬锁(C15)"
     assert "比例服从年龄、体型与来源设定" in pos, "人物多视图 positive 应=比例服从来源(C15)"
     assert "面部采用动漫式概括五官，轮廓与眉眼线条清楚，以简洁分层的肤色色块交代转折，脸型与年龄感服从角色设定。" in pos, \
-        "人物多视图 positive 应补与人物型同文的动漫式概括五官句(C15)"
+        "人物多视图 positive 应补与人物海报型同文的动漫式概括五官句(C15)"
     assert pos.startswith("同一角色的多视图设定参考图"), "开头锁(契约测试 _OPEN)不应随本刀漂移"
 
 
@@ -159,4 +159,4 @@ def test_invariants_untouched_by_p1():
     assert b["color_lexicon"]["entries"]["宣纸白"]["ma_id"] == "paper.01"
     assert {e["zh"] for e in b["types"] if e.get("rgba_default") is True} \
         == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "全身定妆"}  # 1023 全身定妆入列(透明族第六型);1022 人脸基准(第五型)
-    assert [e["zh"] for e in b["types"]][0] == "人物" and len(b["types"]) == 14  # 1023 全身定妆入列(十三型+自由)
+    assert [e["zh"] for e in b["types"]][0] == "人物海报" and len(b["types"]) == 14  # 1023 全身定妆入列(十三型+自由)

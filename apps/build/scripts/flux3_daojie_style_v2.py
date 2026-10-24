@@ -24,7 +24,7 @@ STYLE_SOURCE = w.sources()[3]
 REMOTE_ROOT = 'E:/IP/flux3-style-v2-1016'
 PREFIX = 'flux3/ten-types-style-v2-1016'
 IDENTITY = '；人物身份明确为东亚人（East Asian），保持原有年龄、性别、发型与服饰设定。'
-TYPES = ('人物', '场景', '道具', '美宣', '人物多视图', '高清人脸', '分镜剧情图', '表情差分', '概念气氛图', '设定卡')
+TYPES = ('人物海报', '场景', '道具', '美宣', '人物多视图', '高清人脸', '分镜剧情图', '表情差分', '概念气氛图', '设定卡')
 PE_KEYS = {'400', '404', '4010', '4017', '4030', '4031', '4032', '4013', '4014', '4110', '4111'}
 DEPENDENCIES = (HERE / 'flux3_daojie_workflow.py', HERE / 'flux3_daojie_ssh.py',
                 Path(__file__).resolve(),

@@ -54,7 +54,7 @@ def _md_fence(md_path: pathlib.Path, heading_prefix: str) -> str:
 MD_BASE = _md_fence(PROMPT_MD, "## 一、")      # 通用无型底座(线描硬锁)
 MD_NEG = _md_fence(PROMPT_MD, "## 四、")       # Negative 基线
 
-# 人物型=§一 结构性超集的运行时锚:尾段+去尾主干(零硬编码关系锁)
+# 人物海报型=§一 结构性超集的运行时锚:尾段+去尾主干(零硬编码关系锁)
 MD_TAIL = "仙道古韵，气韵深远，完成度高的画作。"
 MD_HEAD = MD_BASE[: -len(MD_TAIL)]
 
@@ -126,7 +126,7 @@ class TestBasesHygiene:
 class TestDaojieBasesSources:
     def test_options_are_nine_in_design_order(self):
         assert OPTIONS_ORDER == [
-            "人物", "场景", "道具", "美宣", "人物多视图",
+            "人物海报", "场景", "道具", "美宣", "人物多视图",
             "高清人脸", "分镜剧情图", "表情差分", "概念气氛图", "设定卡"], \
             "十型顺序=设计定序(json 条目序;前九型不得重排,1015 设定卡=canon 末位新丁)"
 
@@ -139,7 +139,7 @@ class TestDaojieBasesSources:
         分镜剧情图退出统一立绘锁(4fa15e9 素材+㉗ 重写=单格叙事帧开头,叙事
         画面取景自由、可多人;断言分层职责,不冻结 1004 压平旧文案——与
         test_qwen21_workflow_contract.py:3143 同口径)。"""
-        renwu_xi = {"人物", "美宣", "人物多视图", "高清人脸", "表情差分"}
+        renwu_xi = {"人物海报", "美宣", "人物多视图", "高清人脸", "表情差分"}
         for name, entry in BASES_BY_NAME.items():
             pt = entry["positive_text"]
             # 1008 用户令:三透明型改各设定图开头(单人立绘=多视图自相矛盾,硬伤清退)
@@ -166,22 +166,22 @@ class TestDaojieBasesSources:
             assert "```" not in pt and pt.strip(), f"底座「{name}」positive_text 应为净文本"
 
     def test_renwu_new_framing_after_v22_switch(self):
-        """09-22 v5 纯画法口径:底座零物象词,人物型以主体立绘构图句开幅,
+        """09-22 v5 纯画法口径:底座零物象词,人物海报型以主体立绘构图句开幅,
         句首定性句「现代修仙游戏的××资产」禁回潮;旧 §一 主干/尾句零回潮,
         v5 画法关键词在场且物象词零残留(防回退锚,与 my_nodes/tests 同口径)。"""
-        renwu = BASES_BY_NAME["人物"]["positive_text"]
+        renwu = BASES_BY_NAME["人物海报"]["positive_text"]
         assert renwu.startswith("主体的单人立绘"), \
-            "人物型必须以主体立绘构图句开幅(v5 纯画法口径)"
-        assert not renwu.startswith("现代修仙"), "人物型回潮 v2.2 句首定性句"
-        assert not renwu.startswith(MD_HEAD), "人物型回潮旧 §一 主干开头"
-        assert not renwu.endswith(MD_TAIL), "人物型回潮旧 §一 尾句收尾"
+            "人物海报型必须以主体立绘构图句开幅(v5 纯画法口径)"
+        assert not renwu.startswith("现代修仙"), "人物海报型回潮 v2.2 句首定性句"
+        assert not renwu.startswith(MD_HEAD), "人物海报型回潮旧 §一 主干开头"
+        assert not renwu.endswith(MD_TAIL), "人物海报型回潮旧 §一 尾句收尾"
         for kw in ("单人立绘", "全身完整入画", "细线", "整块平整色面"):  # 1009 并行轮
-            assert kw in renwu, f"人物型缺 v5 画法关键词 {kw}(1004 统一底座措辞)"
+            assert kw in renwu, f"人物海报型缺 v5 画法关键词 {kw}(1004 统一底座措辞)"
         # 物象词禁令域=首行画法行(1004 统一底座含 四锁段截短版=衣褶/衣物/
         # 头发/鞋靴 段头自带物象名=合法;与 qwen21 契约 split("\n")[0] 同口径)
         for bad in ("骨相", "眉眼", "发丝"):
             assert bad not in renwu.split("\n")[0], \
-                f"人物型首行残留物象词 {bad}(v5 底座禁具体画面)"
+                f"人物海报型首行残留物象词 {bad}(v5 底座禁具体画面)"
 
     def test_positives_carry_no_old_framing_anchors(self):
         """09-18 v2.2 已废锚九型全禁:SD 质量标签串、旧「水墨国风」基底定
