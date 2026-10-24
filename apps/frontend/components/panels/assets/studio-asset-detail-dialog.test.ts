@@ -433,9 +433,11 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     expect(source).toContain("setCurrentIndex(0)");
   });
 
-  it("图片规范区骨架:role 型节+占位卡+完整度条占位+scene/tool 单节+audio 零动在 pane 落位", () => {
+  it("图片规范区骨架:三轨型节+占位卡+完整度条占位+clip 单节+audio 零动在 pane 落位", () => {
     const previewSource = readPaneSource();
-    expect(previewSource).toContain("ROLE_IMAGE_SECTION_DEFS");
+    // Round 3 ⑤:型节定义从 role 专属常量改轨道谱装配(TYPED_SECTION_DEFS=按谱派生)
+    expect(previewSource).toContain("TYPED_SECTION_DEFS");
+    expect(previewSource).toContain("getAssetImageKindSpectrum");
     expect(previewSource).toContain("早期未分类");
     expect(previewSource).toContain("studio-asset-image-placeholder");
     expect(previewSource).toContain("studio-asset-completeness-bar");
@@ -490,7 +492,8 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
     expect(source).toContain("typeShotPhase={typeShotPhase}");
     expect(source).toContain("typeShotMessage={typeShotMessage}");
     expect(source).toContain("onFillMissing={handleFillMissingQueue}");
-    expect(source).toContain('const canTypeShot = asset.type === "role"');
+    // Round 3 扩展令⑤:按型出图族从 role 专属推广图片三轨(isThreeTrackAsset=role/scene/tool)
+    expect(source).toContain("const canTypeShot = isThreeTrackAsset;");
   });
 
   it("runTypeShot 走型驱动 service+命名=原图名_{型名}_中文日期+批3 kind 落值", () => {
@@ -502,6 +505,19 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
     expect(source).toContain("`${inputImageName}_${kind}_${dateSuffix}`");
     // 写路 kind 落值:按型出图产物型名即所属节(批3 视图值)
     expect(source).toContain("url: updated.previewUrl || updated.thumbnailUrl, kind }");
+  });
+
+  it("Round 3 ⑤ 三轨推广装配方:型谱归属守卫+track 透传 service+补缺队列按轨取谱", () => {
+    const source = readActionsSource();
+    // 三轨收敛(clip/audio 拒收)与型谱归属守卫(跨轨型名拒收)
+    expect(source).toContain("asAssetImageTrack(asset.type)");
+    expect(source).toContain("getAssetImageKindSpectrum(track).order.includes(kind)");
+    expect(source).toContain("按型出图仅角色/场景/道具三轨资产可用");
+    // track 随任务透传(service 按轨分流落盘 scene/prop + 写回)
+    expect(source).toContain("kind,\n          track,");
+    // 补缺队列按轨取谱(role 谱行为零变化;tool 轨 t2i 零图可补)
+    expect(source).toContain("planAssetTypeFillMissingQueue(images, track)");
+    expect(source).toContain("needsReference && carouselImages.length === 0");
   });
 
   it("一键补缺顺序队列:plan 计划+逐型派发路由(人脸/表情差分接既有路,余型 executeTypeShot)+失败即停", () => {
@@ -546,8 +562,9 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
 
   it("复审M修:一键补缺计划按本行 images 计(族兄弟展示序不抵扣,Round 3 Q1);弹窗完整度基准=本行图集", () => {
     const source = readActionsSource();
-    expect(source).toContain("planAssetTypeFillMissingQueue(images)");
-    expect(source).not.toContain("planAssetTypeFillMissingQueue(carouselImages)");
+    // Round 3 ⑤:按轨取谱(缺省 role 谱;plan 第二参=track)
+    expect(source).toContain("planAssetTypeFillMissingQueue(images, track)");
+    expect(source).not.toContain("planAssetTypeFillMissingQueue(carouselImages");
     const dialogSource = readFileSync(new URL("./StudioAssetDetailDialog.tsx", import.meta.url), "utf8");
     expect(dialogSource).toContain("completenessImages={images}");
     const paneSource = readFileSync(new URL("./studio-asset-detail-preview-pane.tsx", import.meta.url), "utf8");

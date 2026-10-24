@@ -28,30 +28,32 @@ import {
 import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/studio-assets";
 import {
   ASSET_IMAGE_KIND_ASPECTS,
-  ASSET_IMAGE_KIND_ORDER,
-  CORE_ASSET_IMAGE_KINDS,
-  EXTENDED_ASSET_IMAGE_KINDS,
+  asAssetImageTrack,
   classifyAssetImage,
+  getAssetImageKindSpectrum,
   groupAssetImagesByKind,
+  type AssetImageTrack,
 } from "@/lib/studio/asset-image-kind";
-import { ASSET_TYPE_SHOT_PROFILES } from "@/lib/studio/asset-type-shot";
+import { ASSET_TYPE_SHOT_PROFILES, getAssetTypeShotProfilesForTrack } from "@/lib/studio/asset-type-shot";
 
 const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36, 70];
 
 /**
- * 10-24 图片展示规范(批1骨架+批2分类归节):角色轨按型分节,节序=grill Round 1
- * 裁定2(身份链根→常规产物→重版式→工具型→兜底);批2 classifyAssetImage 三层解析
- * (持久值→命名规则→早期未分类)上线,存量图按命名归位,识别不出落「早期未分类」节。
+ * 10-24 图片展示规范(批1骨架+批2分类归节+Round 3 扩展令⑤三轨推广):图片三轨
+ * (role/scene/tool)按各自型谱分节——role 谱=grill Round 1 裁定2(身份链根→常规产物
+ * →重版式→工具型→兜底),scene 谱=场景/概念气氛图/3D剖面场景图+自由,tool 谱=道具+自由;
+ * classifyAssetImage 三层解析(持久值→命名规则→早期未分类)上线,存量图按命名归位,
+ * 识别不出落「早期未分类」节;clip 无型谱=单节「图片」,audio 零动。
  */
-const ROLE_IMAGE_SECTION_DEFS = ASSET_IMAGE_KIND_ORDER
-  .filter((kind) => kind !== "早期未分类")
-  .map((kind) => ({ kind, aspect: ASSET_IMAGE_KIND_ASPECTS[kind] }));
-
 const UNCATEGORIZED_SECTION_KIND = "早期未分类";
-/** scene/tool/clip 轨无型谱=单节「图片」横向行(10-24 裁定 D)。 */
+/** clip 轨无型谱=单节「图片」横向行(裁定 D;Round 3 ⑤ 后仅 clip 走此分支)。 */
 const SINGLE_SECTION_TITLE = "图片";
 
-const CORE_KIND_SET = new Set<string>(CORE_ASSET_IMAGE_KINDS);
+/** 轨道名词(零图 i2i 禁用 title/队列提示用;role 回归文案零变化)。 */
+const TRACK_NOUNS: Record<AssetImageTrack, string> = { role: "角色", scene: "场景", tool: "道具" };
+
+/** 中文计数(完整度两行分级 aria 标签:role=核心五必备/扩展四型恒零回归)。 */
+const COUNT_ZH = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"] as const;
 
 /** 图卡统一高 h-40;宽随型画幅比(3:4≈120px/16:9≈284px/1:1=160px;未分类混排走方卡)。 */
 function sectionCardWidthClass(aspect: string | null): string {
@@ -273,7 +275,16 @@ export function StudioAssetDetailPreviewPane({
   }
 
   const selectedImage = images[currentIndex];
-  const isRoleGallery = asset.type === "role";
+  // Round 3 扩展令⑤:分节视图从 role 专属改图片三轨通用(按资产 type 取谱);
+  // clip 无型谱(单节「图片」),audio 已在上方零动早退
+  const track = asAssetImageTrack(asset.type);
+  const spectrum = track ? getAssetImageKindSpectrum(track) : undefined;
+  const isTypedGallery = !!track && !!spectrum;
+  const trackNoun = track ? TRACK_NOUNS[track] : "资产";
+  const CORE_KIND_SET = new Set<string>(spectrum?.core ?? []);
+  const TYPED_SECTION_DEFS = (spectrum?.order ?? [])
+    .filter((kind) => kind !== UNCATEGORIZED_SECTION_KIND)
+    .map((kind) => ({ kind, aspect: ASSET_IMAGE_KIND_ASPECTS[kind as Exclude<AssetImageKind, "早期未分类">] }));
 
   /** 图卡:单击=选中(全局单选图);悬浮操作=放大(全屏预览)/删图(removable 守卫)。
    *  复审 M1(10-24):更换图片不进卡悬浮——回调恒换当前行主图(replaceImage 按行),
@@ -303,8 +314,8 @@ export function StudioAssetDetailPreviewPane({
             draggable={false}
           />
           <ResolutionBadge src={image.url} />
-          {/* 批2 B 节:左上角型徽标(仅角色轨;classifyAssetImage 三层解析) */}
-          {isRoleGallery && (
+          {/* 批2 B 节+Round 3 ⑤:左上角型徽标(图片三轨型谱画廊;classifyAssetImage 三层解析) */}
+          {isTypedGallery && (
             <span className="pointer-events-none absolute left-1 top-1 z-[1] rounded bg-background/80 px-1 py-0.5 text-[10px] leading-4 text-muted-foreground">
               {classifyAssetImage(image)}
             </span>
@@ -364,7 +375,7 @@ export function StudioAssetDetailPreviewPane({
         aria-label={`尚无${label}`}
       >
         {isCore && (
-          <span className="absolute right-1 top-1 rounded-sm bg-destructive px-1 py-px text-[9px] font-medium text-destructive-foreground" title="核心五必备缺失">
+          <span className="absolute right-1 top-1 rounded-sm bg-destructive px-1 py-px text-[9px] font-medium text-destructive-foreground" title="核心必备缺失">
             缺
           </span>
         )}
@@ -405,14 +416,14 @@ export function StudioAssetDetailPreviewPane({
         {aspect && <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">{aspect}</Badge>}
         {/* 批3 型档案徽标:透明(RGBA 真源)/route 生成路(裁定3 分流直读) */}
         {sectionMeta?.rgba && (
-          <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary" title="型真源 rgba_default=透明(Phase1 借语产物为纯色底)">透明</Badge>
+          <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary" title="型真源 rgba_default=透明(Phase2 型层注入直出真 Alpha)">透明</Badge>
         )}
         {sectionMeta?.route && (
           <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground">{sectionMeta.route}</Badge>
         )}
         {/* 批2 B 节:核心型空节=节头红点(裁定1 红色告警;批3 复审 M 修:基准=本行图集) */}
         {coreMissing && (
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" title="核心五必备缺失" aria-label={`${title}缺失`} />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" title="核心必备缺失" aria-label={`${title}缺失`} />
         )}
         <span className="text-xs text-muted-foreground">{count} 张</span>
         {headerButtons && <div className="ml-auto flex flex-wrap items-center gap-1.5">{headerButtons}</div>}
@@ -477,13 +488,13 @@ export function StudioAssetDetailPreviewPane({
   );
 
   /** 批3 按型出图节头生成钮(型驱动通用件派发,型名单一参数):Loader2 相位复用
-   *  (第五路在跑全族禁点+typeShotMessage 进 title);i2i 型零图禁用(title 提示),
-   *  t2i 型(设定卡/美宣)描述锚身份,零图可点。 */
+   *  (第五路在跑全族禁点+typeShotMessage 进 title);i2i 型零图禁用(title 提示,
+   *  轨道名词随轨),t2i 型(设定卡/美宣/道具)描述锚身份,零图可点。 */
   const renderTypeShotSectionButton = (kind: AssetImageKind, route: "i2i" | "t2i") => {
     const needsReference = route === "i2i";
     const disabled = generationBusy || (needsReference && images.length === 0);
     const title = needsReference && images.length === 0
-      ? `先有角色图片才能图生图生成${kind}`
+      ? `先有${trackNoun}图片才能图生图生成${kind}`
       : typeShotPhase
         ? (typeShotMessage || `正在生成${kind}，请稍候`)
         : generatePhase
@@ -494,7 +505,7 @@ export function StudioAssetDetailPreviewPane({
               ? "正在生成高清人脸，请稍候"
               : expressionPhase
                 ? "正在生成表情差分，请稍候"
-                : `生成${kind}(${route === "t2i" ? "文生图·型层" : "图生图·借语"})`;
+                : `生成${kind}(${route === "t2i" ? "文生图·型层" : "图生图·型层"})`;
     return (
       <Button
         variant="default"
@@ -515,31 +526,37 @@ export function StudioAssetDetailPreviewPane({
   };
 
   const squareWidth = sectionCardWidthClass(null);
-  // 批2 分类归节:全部图经 classifyAssetImage 三层解析按型谱分组(index=原下标,
-  // 单选图/预览序列回调仍按全局序)——画廊分节/张数按展示序;完整度判定按本行
-  // 自有图集(见下 completenessGroups,复审 M 修),非展示序。
-  const kindGroups = groupAssetImagesByKind(images);
+  // 批2 分类归节+Round 3 ⑤ 三轨取谱:全部图经 classifyAssetImage 三层解析按当前资产轨
+  // 型谱分组(index=原下标,单选图/预览序列回调仍按全局序)——画廊分节/张数按展示序;
+  // 完整度判定按本行自有图集(见下 completenessGroups,复审 M 修),非展示序。
+  const spectrumOrder = spectrum?.order;
+  const kindGroups = groupAssetImagesByKind(images, spectrumOrder);
   const kindCount = (kind: AssetImageKind) => kindGroups.get(kind)?.length ?? 0;
   // 批3 复审 M 修(Round 3 Q1):完整度 chips/核心红点基准=本行自有图集——族兄弟行
   // 同型图不抵扣本行缺口,归属未确认候版本系统落地后细化;缺省回落 images
   // (非族聚显调用方 displayImages≡本行图集,零行为变化)
-  const completenessGroups = groupAssetImagesByKind(completenessImages ?? images);
+  const completenessGroups = groupAssetImagesByKind(completenessImages ?? images, spectrumOrder);
   const completenessCount = (kind: AssetImageKind) => completenessGroups.get(kind)?.length ?? 0;
-  // 批3 按型出图:七型档案快查(节头钮/徽标装配用;高清人脸/表情差分既有路恒不收编)
+  // 批3 按型出图:型档案快查(节头钮/徽标装配用;高清人脸/表情差分既有路恒不收编)
   const typeShotProfileByKind = new Map(ASSET_TYPE_SHOT_PROFILES.map((profile) => [profile.kind as AssetImageKind, profile]));
+  // Round 3 ⑤:下拉按当前资产轨取谱(role 七型回归零变化;scene 四型/tool 两型)
+  const trackTypeShotProfiles = track ? getAssetTypeShotProfilesForTrack(track) : [];
 
-  /** 完整度总览条(grill Round 1 裁定1 两行分级):核心行五必备逐型 ✓/✗/n,缺失
-   *  红色可点=直达该型生成(展示与生成两腿闭环);扩展行四型灰占不告警。
-   *  批3 装配:「按型出图」下拉(七型,菜单项带画幅/透明徽标)+ 一键补缺顺序队列。
+  /** 完整度总览条(grill Round 1 裁定1 两行分级+Round 3 ⑤ 三轨同款):核心行逐型
+   *  ✓/✗/n(role 五必备/scene 三核心/tool 一核心),缺失红色可点=直达该型生成(展示
+   *  与生成两腿闭环);扩展行灰占不告警。批3 装配:「按型出图」下拉(按轨取谱,菜单项
+   *  带画幅/透明徽标)+ 一键补缺顺序队列。
    *  复审 H/M 修:chips 计数与缺失判定按本行 completenessCount(Q1 不抵扣);任一
    *  生成相位在跑,缺失 chip 直达入口禁用+title(与节头钮/下拉/一键补缺同闸)。 */
   const renderCompletenessBar = () => {
-    const missingCoreCount = CORE_ASSET_IMAGE_KINDS.filter((kind) => completenessCount(kind) === 0).length;
+    const coreKinds = spectrum?.core ?? [];
+    const extendedKinds = spectrum?.extended ?? [];
+    const missingCoreCount = coreKinds.filter((kind) => completenessCount(kind) === 0).length;
     const fillMissingDisabled = generationBusy || (onFillMissing != null && missingCoreCount === 0);
     const fillMissingTitle = onFillMissing == null
       ? "一键补缺队列候装配方接线"
       : missingCoreCount === 0
-        ? "核心五必备已齐，无需补缺"
+        ? "核心必备已齐，无需补缺"
         : typeShotPhase
           ? (typeShotMessage || "正在补缺，请稍候")
           : generationBusy
@@ -549,7 +566,7 @@ export function StudioAssetDetailPreviewPane({
     <div className="studio-asset-completeness-bar sticky top-0 z-[1] space-y-1.5 rounded-md border border-border bg-background/95 px-3 py-2 backdrop-blur">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-foreground">图片规范完整度</span>
-        {/* 批3「按型出图」下拉:七型收纳(菜单项带画幅/透明徽标),型名单一参数派发 */}
+        {/* 批3「按型出图」下拉(Round 3 ⑤ 按轨取谱):菜单项带画幅/透明徽标,型名单一参数派发 */}
         {canTypeShot && onTypeShot && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -558,7 +575,7 @@ export function StudioAssetDetailPreviewPane({
                 size="sm"
                 className="studio-asset-typeshot-trigger h-6 gap-1 px-2 text-[11px]"
                 disabled={generationBusy}
-                title={typeShotPhase ? (typeShotMessage || "按型出图进行中，请稍候") : "按型出图(七型:画幅/透明徽标见菜单项)"}
+                title={typeShotPhase ? (typeShotMessage || "按型出图进行中，请稍候") : `按型出图(${trackTypeShotProfiles.length} 型:画幅/透明徽标见菜单项)`}
               >
                 {typeShotPhase ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -570,7 +587,7 @@ export function StudioAssetDetailPreviewPane({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="studio-asset-typeshot-menu">
-              {ASSET_TYPE_SHOT_PROFILES.map((profile) => (
+              {trackTypeShotProfiles.map((profile) => (
                 <DropdownMenuItem
                   key={profile.kind}
                   className="studio-asset-typeshot-item gap-2 text-xs"
@@ -609,8 +626,11 @@ export function StudioAssetDetailPreviewPane({
           </span>
         )}
       </div>
-      <div className="studio-asset-completeness-core-row flex flex-wrap items-center gap-1.5" aria-label="核心五必备">
-        {CORE_ASSET_IMAGE_KINDS.map((kind) => {
+      <div
+        className="studio-asset-completeness-core-row flex flex-wrap items-center gap-1.5"
+        aria-label={`核心${COUNT_ZH[coreKinds.length] ?? coreKinds.length}必备`}
+      >
+        {coreKinds.map((kind) => {
           const count = completenessCount(kind);
           const missing = count === 0;
           return onGenerateByKind && missing ? (
@@ -638,8 +658,11 @@ export function StudioAssetDetailPreviewPane({
           );
         })}
       </div>
-      <div className="studio-asset-completeness-extended-row flex flex-wrap items-center gap-1.5" aria-label="扩展四型">
-        {EXTENDED_ASSET_IMAGE_KINDS.map((kind) => {
+      <div
+        className="studio-asset-completeness-extended-row flex flex-wrap items-center gap-1.5"
+        aria-label={`扩展${COUNT_ZH[extendedKinds.length] ?? extendedKinds.length}型`}
+      >
+        {extendedKinds.map((kind) => {
           const count = completenessCount(kind);
           return (
             <span
@@ -657,11 +680,11 @@ export function StudioAssetDetailPreviewPane({
 
   return (
     <div className="studio-asset-image-spec-region space-y-4">
-      {isRoleGallery && renderCompletenessBar()}
+      {isTypedGallery && renderCompletenessBar()}
 
-      {isRoleGallery ? (
+      {isTypedGallery ? (
         <>
-          {ROLE_IMAGE_SECTION_DEFS.map(({ kind, aspect }) => {
+          {TYPED_SECTION_DEFS.map(({ kind, aspect }) => {
             const group = kindGroups.get(kind) ?? [];
             const widthClass = sectionCardWidthClass(aspect);
             const typeShotProfile = typeShotProfileByKind.get(kind);

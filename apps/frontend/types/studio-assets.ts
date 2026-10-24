@@ -3,8 +3,10 @@ export type StudioAssetKind = "role" | "scene" | "tool" | "clip" | "audio";
 export type StudioAssetSource = "toonflow-runtime" | "manying-local";
 
 /**
- * 角色资产图片型谱(10-24 图片展示规范批2,PRD §④+grill Round 1 裁定2 节序:
- * 身份链根→常规产物→重版式→工具型→兜底)。scene/tool 无型谱(单节「图片」)。
+ * 资产图片型谱(10-24 图片展示规范批2,PRD Round 1 裁定2 节序:身份链根→常规产物
+ * →重版式→工具型→兜底)。Round 3 扩展令⑤:型谱从 role 专属推广图片三轨
+ * (role 十型谱不变;scene 新增 场景/概念气氛图/3D剖面场景图+自由;tool 新增 道具+自由);
+ * clip 无型谱(单节「图片」),audio 零动。
  */
 export type AssetImageKind =
   | "全身定妆"
@@ -16,6 +18,10 @@ export type AssetImageKind =
   | "美宣"
   | "人脸基准"
   | "自由"
+  | "场景"
+  | "概念气氛图"
+  | "3D剖面场景图"
+  | "道具"
   | "早期未分类";
 
 export interface AssetImage {

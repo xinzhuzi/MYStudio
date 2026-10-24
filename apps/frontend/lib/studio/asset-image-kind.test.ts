@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   ASSET_IMAGE_KIND_ORDER,
+  ASSET_IMAGE_KIND_SPECTRA,
+  ASSET_IMAGE_KIND_ASPECTS,
+  asAssetImageTrack,
   CORE_ASSET_IMAGE_KINDS,
   EXTENDED_ASSET_IMAGE_KINDS,
   classifyAssetImage,
   classifyAssetImageName,
+  getAssetImageKindSpectrum,
   groupAssetImagesByKind,
 } from "./asset-image-kind";
 
@@ -45,6 +49,13 @@ const NAME_TABLE_CASES: Array<[string, string]> = [
   ["晏燎_练气期_设定卡_2026年10月24日", "设定卡"],
   ["晏燎_练气期_美宣_2026年10月24日", "美宣"],
   ["晏燎_练气期_自由_2026年10月24日", "自由"],
+  // Round 3 ⑤ scene/tool 直认标记(先专后泛:_3D剖面场景图_/_概念气氛图_ 在 _场景_ 前)
+  ["山门_场景_2026年10月24日", "场景"],
+  ["山门_3D剖面场景图_v1", "3D剖面场景图"],
+  ["洞府_剖面场景图_v1", "3D剖面场景图"],
+  ["山门_概念气氛图_v1", "概念气氛图"],
+  ["山门_气氛图_v1", "概念气氛图"],
+  ["玄铁剑_道具_2026年10月24日", "道具"],
   // 识别不出 → 早期未分类
   ["主图", "早期未分类"],
   ["姿态一", "早期未分类"],
@@ -137,6 +148,49 @@ describe("型谱节序与分级常量(grill Round 1 裁定1/2)", () => {
   });
 });
 
+describe("三轨型谱表(Round 3 扩展令⑤:型谱从 role 专属推广图片三轨)", () => {
+  it("scene 谱:三核心(场景/概念气氛图/3D剖面场景图)+扩展自由;tool 谱:核心道具+扩展自由", () => {
+    expect(ASSET_IMAGE_KIND_SPECTRA.scene).toEqual({
+      order: ["场景", "概念气氛图", "3D剖面场景图", "自由", "早期未分类"],
+      core: ["场景", "概念气氛图", "3D剖面场景图"],
+      extended: ["自由"],
+    });
+    expect(ASSET_IMAGE_KIND_SPECTRA.tool).toEqual({
+      order: ["道具", "自由", "早期未分类"],
+      core: ["道具"],
+      extended: ["自由"],
+    });
+  });
+
+  it("role 谱回归零变化:谱表 role 项≡既有常量(节序/核心/扩展逐字同源)", () => {
+    expect(ASSET_IMAGE_KIND_SPECTRA.role).toEqual({
+      order: ASSET_IMAGE_KIND_ORDER,
+      core: CORE_ASSET_IMAGE_KINDS,
+      extended: EXTENDED_ASSET_IMAGE_KINDS,
+    });
+    expect(getAssetImageKindSpectrum("role").core).toHaveLength(5);
+  });
+
+  it("asAssetImageTrack:图片三轨收敛,clip/audio 返回 undefined(调用方守卫)", () => {
+    expect(asAssetImageTrack("role")).toBe("role");
+    expect(asAssetImageTrack("scene")).toBe("scene");
+    expect(asAssetImageTrack("tool")).toBe("tool");
+    expect(asAssetImageTrack("clip")).toBeUndefined();
+    expect(asAssetImageTrack("audio")).toBeUndefined();
+  });
+
+  it("画幅表覆盖全部十三型(Round 3 ⑤ 四型=真源 aspect_ratio 逐字)", () => {
+    expect(ASSET_IMAGE_KIND_ASPECTS.场景).toBe("16:9");
+    expect(ASSET_IMAGE_KIND_ASPECTS.概念气氛图).toBe("16:9");
+    expect(ASSET_IMAGE_KIND_ASPECTS["3D剖面场景图"]).toBe("16:9");
+    expect(ASSET_IMAGE_KIND_ASPECTS.道具).toBe("1:1");
+    // 非未分类型全覆盖(节定义装配无空洞)
+    for (const kind of ASSET_IMAGE_KIND_ORDER) {
+      if (kind !== "早期未分类") expect(ASSET_IMAGE_KIND_ASPECTS[kind]).toBeTruthy();
+    }
+  });
+});
+
 describe("groupAssetImagesByKind · 按型谱节序分组", () => {
   it("归节保序且 index=原下标(全局单选图/预览回调契约)", () => {
     const images = [
@@ -152,5 +206,33 @@ describe("groupAssetImagesByKind · 按型谱节序分组", () => {
     expect(groups.get("早期未分类")).toEqual([{ image: images[0], index: 0 }]);
     // 空节=空数组(占位卡渲染依据)
     expect(groups.get("全身定妆")).toEqual([]);
+  });
+
+  it("Round 3 ⑤ 轨道谱分组:scene 谱键=谱序;越谱型(如 _海报_ 命名)沉早期未分类防丢图", () => {
+    const images = [
+      { name: "山门_场景_v1" },
+      { name: "随手_海报_v1" },
+      { name: "随手_气氛图_v1" },
+      { name: "剑穗_自由_v1" },
+    ];
+    const groups = groupAssetImagesByKind(images, ASSET_IMAGE_KIND_SPECTRA.scene.order);
+    expect([...groups.keys()]).toEqual(["场景", "概念气氛图", "3D剖面场景图", "自由", "早期未分类"]);
+    expect(groups.get("场景")).toEqual([{ image: images[0], index: 0 }]);
+    // _海报_ 属 role 谱型,scene 谱无此节 → 沉早期未分类(不越谱丢图)
+    expect(groups.get("早期未分类")).toEqual([{ image: images[1], index: 1 }]);
+    expect(groups.get("概念气氛图")).toEqual([{ image: images[2], index: 2 }]);
+    expect(groups.get("自由")).toEqual([{ image: images[3], index: 3 }]);
+    expect(groups.get("道具")).toBeUndefined();
+  });
+
+  it("tool 谱分组:道具/自由/早期未分类三节", () => {
+    const groups = groupAssetImagesByKind(
+      [{ name: "玄铁剑_道具_v1" }, { name: "剑穗_自由_v1" }, { name: "随手图" }],
+      ASSET_IMAGE_KIND_SPECTRA.tool.order,
+    );
+    expect([...groups.keys()]).toEqual(["道具", "自由", "早期未分类"]);
+    expect(groups.get("道具")).toHaveLength(1);
+    expect(groups.get("自由")).toHaveLength(1);
+    expect(groups.get("早期未分类")).toHaveLength(1);
   });
 });

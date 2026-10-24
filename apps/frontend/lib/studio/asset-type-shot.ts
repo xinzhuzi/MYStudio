@@ -1,24 +1,31 @@
 import { aiManager } from "@/lib/ai/ai-manager";
+import type { AssetType } from "@/lib/ai/prompt-polisher";
 import { createOperationId, logEvent } from "@/lib/diagnostics/logger";
+import type { ImageCategory } from "@/lib/media/image-storage";
 import type { AssetImage, AssetImageKind } from "@/types/studio-assets";
 import { saveGeneratedAssetImage, updateStoreWithResult } from "./asset-generation-store-writers";
 import {
   ASSET_IMAGE_KIND_ASPECTS,
-  CORE_ASSET_IMAGE_KINDS,
+  ASSET_IMAGE_KIND_SPECTRA,
   groupAssetImagesByKind,
+  type AssetImageTrack,
 } from "./asset-image-kind";
 
 /**
- * 按型出图 service(10-24 批3,PRD §①「按型出图按钮族」型驱动通用件)。
+ * 按型出图 service(10-24 批3,PRD §①「按型出图按钮族」型驱动通用件;
+ * Round 3 扩展令⑤推广图片三轨/令⑥ Phase 2 收尾)。
  *
- * 型档案表=单一真源(七型:全身定妆/人物海报/人物多视图/人脸基准/自由/设定卡/美宣),
- * 档案字段对齐十型真源 qi21_bases.json 角色相关子集(zh 名/画幅/rgba_default/取景借语/route)。
- * - route 分流(grill Round 1 裁定3,禁一刀切):设定卡/美宣=t2i+base_type(身份要素主要
- *   来自文字设定,型文收益>参考图收益,且 Phase 1 即得型层正途);余五型=i2i(Phase1 借语)。
- * - Phase 1(10-24 批3军令):i2i 路借语模式(指令承载取景,纯色底),与表情差分 335000bd
- *   同款;i2i 现结构=画风转换硬编码+画幅跟参考 AR×2(既定边界,注释在档)。
- * - Phase 2(桥役实弹验收后,PRD F 节衔接):TYPE_SHOT_I2I_USE_BASE_TYPE 单点置 true,
- *   五型一起升级 extraParams:{base_type} 型文全拼+型负面+真透明底+型画幅,届时指令瘦身。
+ * 型档案表=单一真源(role 七型:全身定妆/人物海报/人物多视图/人脸基准/自由/设定卡/美宣;
+ * Round 3 ⑤ 新增 scene 三型[场景/概念气氛图/3D剖面场景图]+tool 一型[道具,rgba 透明型],
+ * 自由=三轨通用),档案字段对齐十型真源 qi21_bases.json(zh 名/画幅/rgba_default/
+ * tracks 轨道归属/route)。
+ * - route 分流(grill Round 1 裁定3,禁一刀切):设定卡/美宣/道具=t2i+base_type(身份要素
+ *   主要来自文字设定,型文收益>参考图收益);余型=i2i(参考图锚身份+型层注入)。
+ * - Phase 2(10-24 Round 3 ⑥,桥役 3718e469 已落地并实弹验收):TYPE_SHOT_I2I_USE_BASE_TYPE
+ *   已置 true——i2i 路统一切 extraParams:{base_type} 型层注入(桥覆写 4010 注型+
+ *   4011/4022 组装用途→型画幅),终稿=指令+类型句+美术风格底座三段,型负面 merge 进
+ *   负面槽,透明型(全身定妆/人物多视图/人脸基准/道具)RGBA 由 6:180 跟型自动激活;
+ *   指令瘦身为「保真段+差异要点」(取景/版式/背景语言归还型层,零取景词防与型文双写)。
  *
  * 纪律与画风转换/人脸/表情差分同源:指令即终稿(promptPolicy=raw,传输层禁 normalize
  * 再追加);单段中文、肯定式、无否定式词(i2i 路 Assembly 否定式门,「不变」为标准保真
@@ -28,82 +35,141 @@ import {
 /** 本地直通渠道模型名(与画风转换/人脸/表情差分同渠道)。 */
 export const ASSET_TYPE_SHOT_MODEL = "qwen-image-2-1";
 
-/** Phase 2 单点开关(候桥役实弹验收后置 true):i2i 路统一切 base_type 型层注入。 */
-export const TYPE_SHOT_I2I_USE_BASE_TYPE = false;
+/** 型档案 track 归属沿用图片三轨单源(Round 3 ⑤)。 */
+export type AssetTypeShotTrack = AssetImageTrack;
 
-/** 型档案 route 生成路(grill Round 1 裁定3)。 */
+/**
+ * Phase 2 单点开关(10-24 Round 3 ⑥ 置 true:桥役 3718e469 i2i 吃 base_type 已落地
+ * 实弹):i2i 路统一 base_type 型层注入。保留开关形态供回滚(置 false 即回 Phase 1 借语)。
+ */
+export const TYPE_SHOT_I2I_USE_BASE_TYPE = true;
+
+/** 型档案 route 生成路(grill Round 1 裁定3;Round 3 ⑤:道具=t2i,scene 三型=i2i)。 */
 export type AssetTypeShotRoute = "i2i" | "t2i";
 
 export interface AssetTypeShotProfile {
   /** 型名(=AssetImageKind 枚举成员,亦为 base_type 注入名)。 */
   kind: Exclude<AssetImageKind, "早期未分类">;
+  /** track 归属(Round 3 ⑤;自由=三轨通用,role 谱回归零变化)。 */
+  tracks: readonly AssetTypeShotTrack[];
   /** 画幅徽标(3:4/16:9/1:1;复用批2 型谱画幅单源)。 */
   aspect: string;
-  /** 透明徽标(真源=qi21_bases.json rgba_default;Phase1 借语产物为纯色底,Phase2 得真透明)。 */
+  /** 透明徽标(真源=qi21_bases.json rgba_default;Phase2 型层注入直出真 Alpha)。 */
   rgba: boolean;
-  /** 生成路:i2i=参考图锚身份+取景借语;t2i=描述主体句+base_type 型层承载取景。 */
+  /** 生成路:i2i=参考图锚身份+型层注入;t2i=描述主体句+base_type 型层承载取景。 */
   route: AssetTypeShotRoute;
-  /** i2i 路取景借语(借自该型 qi21_bases positive_text 取景语言;保真段先行+取景段收束)。 */
+  /** i2i 路指令(Phase 2 瘦身态:保真段+差异要点;取景语言归还型层)。 */
   i2iInstruction?: string;
 }
 
 /**
- * 型档案表(节序=grill Round 1 裁定2 型谱节序)。rgba 逐字对齐十型真源
- * qi21_bases.json rgba_default(全身定妆/人物多视图/人脸基准=透明;海报/自由/
- * 设定卡/美宣=不透明);取景借语逐条借自同真源 positive_text 的取景段。
+ * 型档案表(role 七型节序=grill Round 1 裁定2 型谱节序,Round 3 ⑤ 追加 scene 三型+道具,
+ * 追加序不扰 role 谱)。rgba/画幅逐字对齐十型真源 qi21_bases.json(全身定妆/人物多视图/
+ * 人脸基准/道具=透明;海报/自由/设定卡/美宣/场景三型=不透明)。
  */
 export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
   {
     kind: "全身定妆",
+    tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["全身定妆"],
     rgba: true,
     route: "i2i",
+    // Phase 2 瘦身:保真段+素体差异要点(站姿/画幅/透明底语言归还型层)
     i2iInstruction:
-      "保持画中人物的面部身份、五官特征、发型与体型轮廓不变；将画面重构成该角色的全身定妆立绘：正面直立站姿，双臂自然垂于身侧，双手放松自然，头顶至足底全身完整入画，人物比例与解剖结构清晰；通身素体呈现，零衣物零配饰零鞋履，肌肤匀净，人物主体边缘干净完整，背景为纯色。",
+      "保持画中人物的面部身份、五官特征、发型与体型轮廓不变；将该角色重构成通身素体的全身定妆立绘，零衣物零配饰零鞋履，肌肤匀净，人物主体边缘干净完整。",
   },
   {
     kind: "人物海报",
+    tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["人物海报"],
     rgba: false,
     route: "i2i",
+    // Phase 2 瘦身:保真段+立绘密度差异要点(全身入画/头顶足底取景归还型层)
     i2iInstruction:
-      "保持画中人物的面部身份、五官特征、发型与服饰设定不变；将画面重构成该角色的单人全身立绘海报：全身完整入画，头顶与足底完整呈现，人物比例服从其年龄与体型设定，解剖结构清晰；身体姿态呈自然直立站姿，双手自然垂于身侧，人物细节密度最高，背景为纯色。",
+      "保持画中人物的面部身份、五官特征、发型与服饰设定不变；将该角色重构成人物细节密度最高的单人立绘，人物比例服从其年龄与体型设定，解剖结构清晰。",
   },
   {
     kind: "人物多视图",
+    tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["人物多视图"],
     rgba: true,
     route: "i2i",
+    // Phase 2 瘦身:保真段+跨视图一致性差异要点(四幅版式/机位语言归还型层)
     i2iInstruction:
-      "保持画中人物的面部身份、五官特征、发型、服饰与体型设定不变；将画面重构成同一角色的多视图设定参考图，共四幅：左侧为一张较大的完整头肩特写，正面朝向观众，双眼平视镜头；右侧为同一角色的正面、纯90度侧面与背面全身三视图，三视图并排等宽等高排列，全身可见，同姿势、同服装、同尺度，机位一致正交平视，表情自然中性，站姿稳定，背景为纯色。",
+      "保持画中人物的面部身份、五官特征、发型、服饰与体型设定不变；同一角色在各视图中面部特征、身形比例、发型、服装与配饰保持一致，表情自然中性。",
   },
   {
     kind: "人脸基准",
+    tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["人脸基准"],
     rgba: true,
     route: "i2i",
+    // Phase 2 瘦身:保真段+光洁头颅差异要点(止颈取景/透明底归还型层;「光洁的头颅」
+    // 为真源 purpose 钦定的主体句职责,型文不载,须留在指令)
     i2iInstruction:
-      "保持画中人物的面部身份与五官特征不变；将画面重构成该角色的人脸基准底版：正面平视机位，视线直视镜头，取景为头部与颈部、止于颈根，头顶、头颅外轮廓与下颌完整；头颅光洁呈现，零发型零衣领零衣物，面部是画面焦点，五官与眉眼轮廓清晰锐利，背景为纯色。",
+      "保持画中人物的面部身份与五官特征不变；呈现该角色的人脸基准底版，头颅光洁呈现，零发型零衣领零衣物，五官与眉眼轮廓清晰锐利。",
   },
   {
     kind: "自由",
+    tracks: ["role", "scene", "tool"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["自由"],
     rgba: false,
     route: "i2i",
-    // 自由型无型文约束(真源 positive_text 恒空):借语只留保真段+1:1 方形画幅交代
+    // 自由型无型文约束(真源 positive_text 恒空):保真段+自由构图交代
+    // (1:1 型画幅由型层 WhSuggest 承载,比例禁入正文纪律随 Phase 2 解除双写)
     i2iInstruction:
-      "保持画中人物的面部身份、五官特征、发型与服饰设定不变；以 1:1 方形画幅重新呈现该角色，构图与取景自由，人物主体完整清晰，背景为纯色。",
+      "保持画中主体的身份特征与设定不变；构图与取景自由，主体完整清晰。",
   },
   {
     kind: "设定卡",
+    tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["设定卡"],
     rgba: false,
     route: "t2i",
   },
   {
     kind: "美宣",
+    tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["美宣"],
     rgba: false,
+    route: "t2i",
+  },
+  {
+    kind: "场景",
+    tracks: ["scene"],
+    aspect: ASSET_IMAGE_KIND_ASPECTS["场景"],
+    rgba: false,
+    route: "i2i",
+    // Phase 2 出生即型层注入(桥役已落):保真段+空镜差异要点(前中远三层语言归还型层)
+    i2iInstruction:
+      "保持画中场景的空间结构、地物布局与时段氛围不变；以空镜场景呈现，环境即画面主体。",
+  },
+  {
+    kind: "概念气氛图",
+    tracks: ["scene"],
+    aspect: ASSET_IMAGE_KIND_ASPECTS["概念气氛图"],
+    rgba: false,
+    route: "i2i",
+    // Phase 2:保真段+气氛构图差异要点(色彩分层/焦点色措辞归还型层)
+    i2iInstruction:
+      "保持画中场景的空间结构与色调氛围不变；以气氛为主的画面呈现，主体落在画面偏侧，以少数焦点色点睛。",
+  },
+  {
+    kind: "3D剖面场景图",
+    tracks: ["scene"],
+    aspect: ASSET_IMAGE_KIND_ASPECTS["3D剖面场景图"],
+    rgba: false,
+    route: "i2i",
+    // Phase 2:保真段+剖切敞开差异要点(等距俯瞰/剖切方式/界画程式语言归还型层;
+    // 层数与房间间数服从主体句=真源 purpose 钦定,按型出图无逐建筑输入,由参考图锚)
+    i2iInstruction:
+      "保持画中场景的建筑结构与空间布局不变；以立体剖面场景呈现，正面外墙与前侧屋面剖开，室内空间整体敞开完整可见，家具器物逐件安放在所属房间内。",
+  },
+  {
+    kind: "道具",
+    tracks: ["tool"],
+    aspect: ASSET_IMAGE_KIND_ASPECTS["道具"],
+    rgba: true,
     route: "t2i",
   },
 ];
@@ -117,22 +183,38 @@ export function getAssetTypeShotProfile(kind: AssetImageKind): AssetTypeShotProf
   return PROFILE_BY_KIND.get(kind);
 }
 
-/** 一键补缺队列计划(纯函数):按核心五必备节序返回缺失型序列(计数=展示图集分组)。 */
+/** 轨道型档案列(Round 3 ⑤:下拉菜单/型谱装配按当前资产轨取谱;自由=三轨通用恒在列)。 */
+export function getAssetTypeShotProfilesForTrack(track: AssetTypeShotTrack): readonly AssetTypeShotProfile[] {
+  return ASSET_TYPE_SHOT_PROFILES.filter((profile) => profile.tracks.includes(track));
+}
+
+/** 一键补缺队列计划(纯函数):按轨道型谱核心必备节序返回缺失型序列(计数=展示图集分组)。 */
 export function planAssetTypeFillMissingQueue(
   images: Array<Pick<AssetImage, "name" | "kind">>,
+  track: AssetTypeShotTrack = "role",
 ): AssetImageKind[] {
-  const groups = groupAssetImagesByKind(images);
-  return CORE_ASSET_IMAGE_KINDS.filter((kind) => (groups.get(kind)?.length ?? 0) === 0);
+  const spectrum = ASSET_IMAGE_KIND_SPECTRA[track];
+  const groups = groupAssetImagesByKind(images, spectrum.order);
+  return spectrum.core.filter((kind) => (groups.get(kind)?.length ?? 0) === 0);
 }
+
+/** track→落盘/写回目标(与画风转换 CATEGORY_BY_ASSET_TYPE 同款三轨映射)。 */
+const TRACK_SAVE_TARGETS: Record<AssetTypeShotTrack, { assetType: AssetType; category: ImageCategory }> = {
+  role: { assetType: "character", category: "characters" },
+  scene: { assetType: "scene", category: "scenes" },
+  tool: { assetType: "prop", category: "props" },
+};
 
 export interface AssetTypeShotTask {
   assetId: string;
   assetName: string;
   /** 型名(单一参数,查型档案表分流)。 */
   kind: AssetImageKind;
+  /** 图片三轨归属(Round 3 ⑤;缺省 role=既有调用方零变化,落盘/写回随轨分流)。 */
+  track?: AssetTypeShotTrack;
   /** route="i2i" 必填:全局选中图 url(引擎层统一缩略/去 canvas 污染)。 */
   referenceImage?: string;
-  /** route="t2i" 必填:角色描述主体句(出图提示词优先,描述兜底)。 */
+  /** route="t2i" 必填:主体描述句(出图提示词优先,描述兜底)。 */
   subjectText?: string;
   projectId?: string;
   chapterId?: string;
@@ -149,8 +231,9 @@ export interface AssetTypeShotProgress {
 }
 
 /**
- * 按型出图(角色轨专用,型驱动通用件):查档案分流 route → qwen-image-2-1 本地渠道
- * 直通 → 复用 saveGeneratedAssetImage 落盘 + updateStoreWithResult(character 轨)写回。
+ * 按型出图(型驱动通用件,Round 3 ⑤ 起图片三轨通用):查档案分流 route →
+ * qwen-image-2-1 本地渠道直通(i2i 路 Phase 2 带 base_type 型层注入)→ 复用
+ * saveGeneratedAssetImage 按 track 落盘 + updateStoreWithResult 写回。
  * 异常透传为 {phase:"failed", error}(禁静默);成功返回落盘本地路径。
  */
 export async function generateAssetTypeShot(
@@ -160,8 +243,10 @@ export async function generateAssetTypeShot(
   const operationId = task.operationId ?? createOperationId("asset-type-shot");
   const profile = getAssetTypeShotProfile(task.kind);
   if (!profile) {
-    return { phase: "failed", error: `未知型名「${task.kind}」，按型出图七型档案未收录` };
+    return { phase: "failed", error: `未知型名「${task.kind}」，按型出图型档案未收录` };
   }
+  const track: AssetTypeShotTrack = task.track ?? "role";
+  const saveTarget = TRACK_SAVE_TARGETS[track];
   const isI2i = profile.route === "i2i";
   const prompt = isI2i
     ? (profile.i2iInstruction ?? "")
@@ -170,7 +255,7 @@ export async function generateAssetTypeShot(
     return { phase: "failed", error: "按型出图 i2i 路缺少可作参考的图片" };
   }
   if (!isI2i && !prompt) {
-    return { phase: "failed", error: "按型出图 t2i 路缺少可用的角色描述或提示词" };
+    return { phase: "failed", error: "按型出图 t2i 路缺少可用的资产描述或提示词" };
   }
   void logEvent({
     level: "info",
@@ -179,6 +264,7 @@ export async function generateAssetTypeShot(
     message: "Asset type shot instruction built",
     context: {
       kind: task.kind,
+      track,
       route: profile.route,
       chars: prompt.length,
       head: prompt.slice(0, 24),
@@ -195,6 +281,7 @@ export async function generateAssetTypeShot(
       context: {
         model: ASSET_TYPE_SHOT_MODEL,
         kind: task.kind,
+        track,
         route: profile.route,
         assetId: task.assetId,
         assetName: task.assetName,
@@ -211,16 +298,17 @@ export async function generateAssetTypeShot(
             // 再追加,英文清洗词被拼进指令槽发往引擎绑入 [400],终稿静默漂移
             promptPolicy: "raw",
             referenceImages: [task.referenceImage!],
-            // Phase 1 借语模式零 base_type;Phase 2 单点开关打开即五型一起升级
-            // 型文全拼档(取景归还型层+真透明底+型画幅),指令届时瘦身
+            // Phase 2 型层注入(10-24 Round 3 ⑥,桥 3718e469 已落地):i2i 带 base_type
+            // 切「道劫美术类型」全拼档——型文全拼+型负面+真透明底+型画幅(4010 注型+
+            // 4011/4022 同覆写),指令只写保真段+差异要点;开关保留供回滚 Phase 1 借语
             ...(TYPE_SHOT_I2I_USE_BASE_TYPE ? { extraParams: { base_type: task.kind } } : {}),
           }
         : {
             model: ASSET_TYPE_SHOT_MODEL,
             prompt,
             promptPolicy: "raw",
-            // t2i 路(设定卡/美宣,裁定3):型层走 base_type 注入,16:9 排布语言/
-            // 分栏结构/型负面全由型文承载,画幅由型层 WhSuggest 决定(与人脸 t2i 同款)
+            // t2i 路(设定卡/美宣/道具,裁定3+Round 3 ⑤):型层走 base_type 注入,
+            // 排布语言/型负面/透明底全由型文承载,画幅由型层 WhSuggest 决定
             extraParams: { base_type: task.kind },
           },
     );
@@ -238,21 +326,21 @@ export async function generateAssetTypeShot(
     onProgress?.({ phase: "saving", message: `正在保存 ${task.assetName} 的${task.kind}...` });
     const localPath = await saveGeneratedAssetImage({
       source: imageResult.url,
-      assetType: "character",
+      assetType: saveTarget.assetType,
       assetId: task.assetId,
       assetName: task.assetName,
       projectId: task.projectId,
       isDerivative: task.isDerivative ?? false,
       chapterId: task.chapterId,
-      category: "characters",
+      category: saveTarget.category,
     });
-    updateStoreWithResult(task.assetId, "character", { imageLocalPath: localPath });
+    updateStoreWithResult(task.assetId, saveTarget.assetType, { imageLocalPath: localPath });
     void logEvent({
       level: "info",
       category: "asset",
       operationId,
       message: "Asset type shot image saved",
-      context: { assetId: task.assetId, assetName: task.assetName, kind: task.kind, imageLocalPath: localPath },
+      context: { assetId: task.assetId, assetName: task.assetName, kind: task.kind, track, imageLocalPath: localPath },
     });
     return { phase: "done", imageLocalPath: localPath };
   } catch (err: unknown) {

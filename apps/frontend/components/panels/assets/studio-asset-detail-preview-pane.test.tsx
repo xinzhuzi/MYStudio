@@ -176,13 +176,20 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     }
   });
 
-  it("renders the completeness overview bar placeholder above the role gallery only", () => {
+  it("renders the completeness overview bar above typed-track galleries(Round 3 ⑤ 三轨通用;clip 无)", () => {
     const { container } = renderPane();
     expect(screen.getByText("图片规范完整度")).toBeTruthy();
     expect(container.querySelector(".studio-asset-completeness-bar")).toBeTruthy();
 
+    // scene/tool 同款完整度条(型谱分节画廊);clip 无型谱零侵入
     cleanup();
     renderPane({ asset: asset({ type: "scene" }) });
+    expect(screen.getByText("图片规范完整度")).toBeTruthy();
+    cleanup();
+    renderPane({ asset: asset({ type: "tool" }) });
+    expect(screen.getByText("图片规范完整度")).toBeTruthy();
+    cleanup();
+    renderPane({ asset: asset({ type: "clip" }) });
     expect(screen.queryByText("图片规范完整度")).toBeNull();
   });
 
@@ -406,22 +413,19 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     expect(button.getAttribute("title")).toBeTruthy();
   });
 
-  // 三轨兼容:scene/tool/clip 无型谱=单节「图片」横向行(10-24 裁定 D)
-  it.each(["scene", "tool", "clip"] as const)(
-    "renders a single 图片 section for %s assets without typed sections or the completeness bar",
-    (type) => {
-      renderPane({ asset: asset({ type, name: `${type}资产` }) });
+  // Round 3 扩展令⑤后:仅 clip 无型谱=单节「图片」横向行(scene/tool 已升型谱分节)
+  it("renders a single 图片 section for clip assets without typed sections or the completeness bar", () => {
+    renderPane({ asset: asset({ type: "clip", name: "clip资产" }) });
 
-      expect(screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual(["图片"]);
-      expect(screen.queryByText("图片规范完整度")).toBeNull();
-      const single = screen.getByRole("region", { name: "图片" });
-      expect(within(single).getByRole("img", { name: "主图" })).toBeTruthy();
-      expect(within(single).getByText("2 张")).toBeTruthy();
-      // 非角色轨零人脸/表情差分侵入
-      expect(screen.queryByRole("button", { name: /人脸·/ })).toBeNull();
-      expect(screen.queryByRole("button", { name: "表情差分" })).toBeNull();
-    },
-  );
+    expect(screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual(["图片"]);
+    expect(screen.queryByText("图片规范完整度")).toBeNull();
+    const single = screen.getByRole("region", { name: "图片" });
+    expect(within(single).getByRole("img", { name: "主图" })).toBeTruthy();
+    expect(within(single).getByText("2 张")).toBeTruthy();
+    // 非 role 轨零人脸/表情差分侵入(canFacePortrait 缺省 false)
+    expect(screen.queryByRole("button", { name: /人脸·/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "表情差分" })).toBeNull();
+  });
 
   it("keeps the empty non-audio preview reachable for clip assets (工具行+尚无图片占位)", () => {
     const { props } = renderPane({ asset: asset({ type: "clip", name: "片段一" }), images: [] });
@@ -473,7 +477,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     expect(within(promo).getByText("1 张")).toBeTruthy();
   });
 
-  it("图卡左上角带型徽标(仅角色轨)", () => {
+  it("图卡左上角带型徽标(图片三轨型谱画廊;Round 3 ⑤ scene 同款)", () => {
     renderPane({ images: TYPED_IMAGES });
 
     const multi = screen.getByRole("region", { name: "人物多视图" });
@@ -482,15 +486,20 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     // 未分类卡徽标=早期未分类
     const uncategorized = screen.getByRole("region", { name: "早期未分类" });
     expect(uncategorized.querySelector(".studio-asset-image-card")?.textContent).toContain("早期未分类");
-    // scene 单节无型谱:卡上无型徽标
+    // scene 轨同款型徽标:_场景_ 标记归场景节+带徽标;无标记沉早期未分类(Round 3 ⑤)
     cleanup();
     renderPane({
       asset: asset({ type: "scene" }),
-      images: [{ name: "场景图", filePath: "scene/s1.png", url: "media://s1" }],
+      images: [
+        { name: "山门_场景_v1", filePath: "scene/s1.png", url: "media://s1" },
+        { name: "随手存的图", filePath: "scene/s2.png", url: "media://s2" },
+      ],
     });
-    const sceneCard = screen.getByRole("region", { name: "图片" }).querySelector(".studio-asset-image-card");
-    expect(sceneCard?.textContent).not.toContain("早期未分类");
-    expect(sceneCard?.textContent).toContain("场景图");
+    const sceneSection = screen.getByRole("region", { name: "场景" });
+    const sceneCard = sceneSection.querySelector(".studio-asset-image-card");
+    expect(sceneCard?.textContent).toContain("场景");
+    const sceneUncategorized = screen.getByRole("region", { name: "早期未分类" });
+    expect(sceneUncategorized.querySelector(".studio-asset-image-card")?.textContent).toContain("早期未分类");
   });
 
   it("核心型空节:节头红点+占位卡红角标+CTA 直达生成;扩展型灰占不告警", () => {
@@ -643,10 +652,10 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(props.onTypeShot).toHaveBeenCalledWith("人物多视图");
   });
 
-  it("非角色轨零侵入:scene 单节无节头生成钮/无下拉/无补缺钮(裁定 D)", () => {
+  it("非图片三轨零侵入:clip 单节无节头生成钮/无下拉/无补缺钮(裁定 D 余量)", () => {
     renderPane({
-      asset: asset({ type: "scene" }),
-      images: [{ name: "山门", filePath: "scene/s1.png", url: "media://s1" }],
+      asset: asset({ type: "clip" }),
+      images: [{ name: "片段一", filePath: "clip/c1.png", url: "media://c1" }],
       canTypeShot: true,
       onTypeShot: vi.fn(),
       onFillMissing: vi.fn(),
@@ -655,6 +664,83 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(screen.queryByRole("button", { name: /按型出图/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "一键补缺" })).toBeNull();
     expect(screen.queryByRole("button", { name: /生成全身定妆/ })).toBeNull();
+  });
+
+  it("Round 3 ⑤ scene 轨型谱:三型分节+自由+未分类沉底,完整度三核心两行分级,存量图命名归位", () => {
+    renderPane({
+      asset: asset({ type: "scene", name: "山门" }),
+      images: [{ name: "山门_场景_v1", filePath: "scene/s1.png", url: "media://s1" }],
+    });
+
+    // 节序=scene 谱:场景→概念气氛图→3D剖面场景图→自由→早期未分类(占位卡槽位恒在)
+    expect(screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
+      "场景", "概念气氛图", "3D剖面场景图", "自由", "早期未分类",
+    ]);
+    expect(screen.getByText("图片规范完整度")).toBeTruthy();
+    const sceneSection = screen.getByRole("region", { name: "场景" });
+    expect(within(sceneSection).getByText("1 张")).toBeTruthy();
+    // 核心行=三核心(场景 ✓1 已齐;概念气氛图/3D剖面 缺失红态);扩展行=自由灰占
+    expect(screen.getByText("场景 ✓1")).toBeTruthy();
+    expect(screen.getByText("概念气氛图 ✗")).toBeTruthy();
+    expect(screen.getByText("3D剖面场景图 ✗")).toBeTruthy();
+    expect(screen.getByText("自由 —")).toBeTruthy();
+    // 核心空节红点+占位卡红角标(同款两行分级)
+    expect(within(sceneSection).queryByLabelText("场景缺失")).toBeNull();
+    const concept = screen.getByRole("region", { name: "概念气氛图" });
+    expect(within(concept).getByLabelText("概念气氛图缺失")).toBeTruthy();
+    expect(within(concept).getByText("缺")).toBeTruthy();
+  });
+
+  it("Round 3 ⑤ tool 轨型谱:道具节(透明型 t2i 零图可点)+自由;下拉/节头钮按轨取谱", () => {
+    const onTypeShot = vi.fn();
+    renderPane({
+      asset: asset({ type: "tool", name: "玄铁剑" }),
+      images: [],
+      canTypeShot: true,
+      onTypeShot,
+      onFillMissing: vi.fn(),
+    });
+
+    expect(screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
+      "道具", "自由", "早期未分类",
+    ]);
+    // 道具=t2i 透明底型:零图可点(无参考需求);节头带透明+t2i 徽标
+    const propButton = screen.getByRole("button", { name: "生成道具" }) as HTMLButtonElement;
+    expect(propButton.disabled).toBe(false);
+    const propSection = screen.getByRole("region", { name: "道具" });
+    expect(within(propSection).getAllByText("透明").length).toBeGreaterThanOrEqual(1);
+    expect(within(propSection).getByText("t2i")).toBeTruthy();
+    // 下拉按轨取谱=tool 两项(自由+道具,型档案序)
+    const menu = document.querySelector(".studio-asset-typeshot-menu");
+    const items = Array.from(menu?.querySelectorAll(".studio-asset-typeshot-item") ?? []);
+    expect(items.map((item) => item.textContent?.replace(/3:4|16:9|1:1|透明/g, "").trim()))
+      .toEqual(["自由", "道具"]);
+    // role 型谱项零泄漏(scene/tool 下拉不含 role 七型)
+    expect(screen.queryByRole("button", { name: /生成全身定妆/ })).toBeNull();
+    // 完整度核心=道具一核心;一键补缺在位
+    expect(screen.getByText("道具 ✗")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "一键补缺" })).toBeTruthy();
+  });
+
+  it("Round 3 ⑤ scene 轨生成钮:i2i 型零图禁用 title=先有场景图片;下拉按轨四型", () => {
+    const onTypeShot = vi.fn();
+    renderPane({
+      asset: asset({ type: "scene", name: "山门" }),
+      images: [],
+      canTypeShot: true,
+      onTypeShot,
+      onFillMissing: vi.fn(),
+    });
+
+    const sceneButton = screen.getByRole("button", { name: "生成场景" }) as HTMLButtonElement;
+    expect(sceneButton.disabled).toBe(true);
+    expect(sceneButton.getAttribute("title")).toContain("先有场景图片");
+    const menu = document.querySelector(".studio-asset-typeshot-menu");
+    const items = Array.from(menu?.querySelectorAll(".studio-asset-typeshot-item") ?? []);
+    expect(items.map((item) => item.textContent?.replace(/3:4|16:9|1:1|透明/g, "").trim()))
+      .toEqual(["自由", "场景", "概念气氛图", "3D剖面场景图"]);
+    fireEvent.click(sceneButton);
+    expect(onTypeShot).not.toHaveBeenCalled();
   });
 
   it("一键补缺队列钮:五必备全齐禁用(title 已齐);busy 禁用;队列进度文案透出", () => {
@@ -669,7 +755,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     renderPane({ images: complete, onFillMissing: vi.fn() });
     const fillAll = screen.getByRole("button", { name: "一键补缺" }) as HTMLButtonElement;
     expect(fillAll.disabled).toBe(true);
-    expect(fillAll.getAttribute("title")).toContain("五必备已齐");
+    expect(fillAll.getAttribute("title")).toContain("核心必备已齐");
 
     // 队列在跑(聚合相位):禁用+Loader2+进度文案在条内透出
     cleanup();

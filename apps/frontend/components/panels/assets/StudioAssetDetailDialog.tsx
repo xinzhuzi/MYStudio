@@ -326,8 +326,9 @@ export function StudioAssetDetailDialog({
   const canImageToImage = isThreeTrackAsset && displayImages.length > 0;
   // 10-21 高清人脸:仅角色轨显示人脸按钮(图生图/文生图两路)
   const canFacePortrait = asset.type === "role";
-  // 10-24 批3 按型出图:仅角色轨显示型驱动生成族(节头钮+下拉+一键补缺)
-  const canTypeShot = asset.type === "role";
+  // 10-24 批3 按型出图+Round 3 扩展令⑤:图片三轨(role/scene/tool)显示型驱动生成族
+  // (节头钮+下拉+一键补缺;型谱按轨取谱),clip/audio 零侵入
+  const canTypeShot = isThreeTrackAsset;
   const roleSpeakerId = toRoleSpeakerId(asset.id);
   const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
   const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
@@ -613,9 +614,10 @@ export function StudioAssetDetailDialog({
                 onCopyPrompt={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}
                 onOpenSource={handleOpenSource}
                 onOpenFolder={handleOpenFolder}
-                /* 批3(10-24):占位卡 CTA/完整度缺失 chip 直达生成全型路由——高清人脸
-                 * 按有图择图生图/文生图路,表情差分接既有路,余型走 handleTypeShot
-                 * 型驱动件(route 分流:设定卡/美宣=t2i+base_type,余=i2i 借语) */
+                /* 批3(10-24)+Round 3 ⑤/⑥:占位卡 CTA/完整度缺失 chip 直达生成全型路由
+                 * ——高清人脸按有图择图生图/文生图路,表情差分接既有路,余型走
+                 * handleTypeShot 型驱动件(route 分流:设定卡/美宣/道具=t2i+base_type,
+                 * 余=i2i+base_type 型层注入,Phase 2 已切) */
                 onGenerateByKind={(kind) => {
                   if (kind === "高清人脸") {
                     if (displayImages.length > 0) handleFacePortraitFromImage();

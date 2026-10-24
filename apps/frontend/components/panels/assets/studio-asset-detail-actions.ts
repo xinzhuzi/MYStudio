@@ -23,7 +23,7 @@ import {
   mergeFamilyDisplayImages,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
-import { classifyAssetImage } from "@/lib/studio/asset-image-kind";
+import { asAssetImageTrack, classifyAssetImage, getAssetImageKindSpectrum } from "@/lib/studio/asset-image-kind";
 import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -761,13 +761,13 @@ export function useStudioAssetDialogActions(ctx: {
   };
   const handleExpressionSheet = () => runExpressionSheet();
 
-  /** 10-24 批3 按型出图(PRD §① 型驱动通用件,单一参数=型名):型档案表查表分流——
-   * i2i 路(轮播当前图锚身份+该型取景借语,Phase1 借语模式)/t2i 路(描述主体句+
-   * base_type 型层承载取景);命名沿「废主图名号」令=原图名_{型名}_中文日期
-   * (t2i 路无原图,锚资产名,与人脸文生图路同款);写回尾段镜像人脸/表情差分
-   * (saveGeneratedAssetImageToLibrary+asset:updated 广播+get 刷新+完成切新图+
-   * 批3 kind 落值);相位 3s 自动清。managedLane=false 供一键补缺队列复用
-   * (队列自持聚合相位,防逐型 3s 清相位把队列中段的互斥解除)。 */
+  /** 10-24 批3 按型出图(PRD §① 型驱动通用件,单一参数=型名;Round 3 扩展令⑤推广
+   * 图片三轨):型档案表查表分流——i2i 路(轮播当前图锚身份+Phase2 base_type 型层
+   * 注入,取景归还型层)/t2i 路(描述主体句+base_type 型层承载取景);命名沿「废主图
+   * 名号」令=原图名_{型名}_中文日期(t2i 路无原图,锚资产名,与人脸文生图路同款);
+   * 写回尾段镜像人脸/表情差分(saveGeneratedAssetImageToLibrary+asset:updated 广播+
+   * get 刷新+完成切新图+批3 kind 落值);相位 3s 自动清。managedLane=false 供一键补缺
+   * 队列复用(队列自持聚合相位,防逐型 3s 清相位把队列中段的互斥解除)。 */
   const executeTypeShot = async (kind: AssetImageKind, options?: { managedLane?: boolean }): Promise<boolean> => {
     const managedLane = options?.managedLane !== false;
     const profile = getAssetTypeShotProfile(kind);
@@ -787,18 +787,32 @@ export function useStudioAssetDialogActions(ctx: {
         message: "Asset type shot guard rejected (unknown kind)",
         context: { assetId: asset.id, kind },
       });
-      toast.error(`「${kind}」不在按型出图七型档案内`);
+      toast.error(`「${kind}」不在按型出图型档案内`);
       return false;
     }
-    if (asset.type !== "role") {
+    // Round 3 ⑤:三轨型谱归属守卫——型名必须在当前资产轨的型谱内(role 谱回归零变化;
+    // scene 轨吃 scene 三型+自由,tool 轨吃道具+自由,跨轨型名拒收)
+    const track = asAssetImageTrack(asset.type);
+    if (!track) {
       void logEvent({
         level: "warn",
         category: "asset",
         operationId,
-        message: "Asset type shot guard rejected (non-role)",
+        message: "Asset type shot guard rejected (non-image-track)",
         context: { assetId: asset.id, assetType: asset.type },
       });
-      toast.error("按型出图仅角色资产可用");
+      toast.error("按型出图仅角色/场景/道具三轨资产可用");
+      return false;
+    }
+    if (!getAssetImageKindSpectrum(track).order.includes(kind)) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset type shot guard rejected (kind not in track spectrum)",
+        context: { assetId: asset.id, kind, track },
+      });
+      toast.error(`「${kind}」不在${asset.type === "role" ? "角色" : asset.type === "scene" ? "场景" : "道具"}轨的按型出图型谱内`);
       return false;
     }
     let referenceImage: string | undefined;
@@ -845,6 +859,7 @@ export function useStudioAssetDialogActions(ctx: {
           assetId: asset.id,
           assetName: asset.name,
           kind,
+          track,
           referenceImage,
           subjectText,
           operationId,
@@ -923,26 +938,38 @@ export function useStudioAssetDialogActions(ctx: {
     void runTypeShot(kind);
   };
 
-  /** 10-24 批3 一键补缺顺序队列(PRD B 节:聚合相位,逐型完成落图):按本行自有图集
-   * 计缺失核心五必备(planAssetTypeFillMissingQueue;复审 M 修=Q1 不抵扣,展示序
-   * 族兄弟图不计入),逐型派发到各自生成路(高清人脸/表情差分接既有路,余型走
-   * executeTypeShot),任一型失败即中止队列(队列失败/取消策略候 Round 3 后续裁定,
-   * Phase1 取失败即停);typeShot 相位聚合承载进度文案。 */
+  /** 10-24 批3 一键补缺顺序队列(PRD B 节:聚合相位,逐型完成落图;Round 3 ⑤ 三轨
+   * 推广):按本行自有图集+当前资产轨型谱核心计缺失(role 五必备/scene 三核心/tool
+   * 道具;planAssetTypeFillMissingQueue;复审 M 修=Q1 不抵扣,展示序族兄弟图不计入),
+   * 逐型派发到各自生成路(高清人脸/表情差分接既有路,余型走 executeTypeShot),任一型
+   * 失败即中止队列(队列失败/取消策略候 Round 3 后续裁定,Phase1 取失败即停);
+   * typeShot 相位聚合承载进度文案。 */
   const runFillMissingQueue = async (): Promise<void> => {
     if (generatePhaseForGuard || i2iPhase || facePhase || expressionPhase || typeShotPhase) {
       toast.error("有生成任务正在进行，请稍候");
       return;
     }
+    const track = asAssetImageTrack(asset.type);
+    if (!track) {
+      toast.error("一键补缺仅角色/场景/道具三轨资产可用");
+      return;
+    }
+    const trackNoun = track === "role" ? "角色" : track === "scene" ? "场景" : "道具";
     // 批3 复审 M 修(Round 3 Q1):补缺计划按本行自有图集计——族聚显展示序
     // (carouselImages)含族兄弟行图,同型图不抵扣本行缺口;十境图归属确认候
     // 版本系统落地后细化,当前按本行现集计(参考图可用性仍查展示序,同族同脸可锚)
-    const missing = planAssetTypeFillMissingQueue(images);
+    const missing = planAssetTypeFillMissingQueue(images, track);
     if (missing.length === 0) {
-      toast.info("核心五必备已齐，无需补缺");
+      toast.info("核心必备已齐，无需补缺");
       return;
     }
-    if (carouselImages.length === 0) {
-      toast.error("先有角色图片才能一键补缺");
+    // 参考图守卫:队列含 i2i 路型别(高清人脸/表情差分既有路+型档案 i2i 型)且零图才拦
+    // (Round 3 ⑤:tool 轨核心=道具走 t2i,零图可补;role 轨行为零变化)
+    const needsReference = missing.some(
+      (kind) => kind === "高清人脸" || kind === "表情差分" || getAssetTypeShotProfile(kind)?.route === "i2i",
+    );
+    if (needsReference && carouselImages.length === 0) {
+      toast.error(`先有${trackNoun}图片才能一键补缺`);
       return;
     }
     const dispatchKindGeneration = (kind: AssetImageKind): Promise<boolean> => {
