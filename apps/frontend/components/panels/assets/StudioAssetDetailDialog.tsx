@@ -46,6 +46,7 @@ import {
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
+import { classifyAssetImage } from "@/lib/studio/asset-image-kind";
 import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetOperationError } from "./studio-asset-detail-utils";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
@@ -135,6 +136,9 @@ export function StudioAssetDetailDialog({
   const [facePhase, setFacePhase] = useState<"generating" | "done" | "failed" | null>(null);
   const [expressionPhase, setExpressionPhase] = useState<"generating" | "done" | "failed" | null>(null);
   const [expressionMessage, setExpressionMessage] = useState("");
+  // 10-24 批3 按型出图:通用第五路相位状态机(型名进相位文案;一键补缺队列复用聚合)
+  const [typeShotPhase, setTypeShotPhase] = useState<"generating" | "done" | "failed" | null>(null);
+  const [typeShotMessage, setTypeShotMessage] = useState("");
   const [faceMessage, setFaceMessage] = useState("");
   const [voiceAssignOpen, setVoiceAssignOpen] = useState(false);
 
@@ -263,6 +267,7 @@ export function StudioAssetDetailDialog({
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
     handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
+    handleTypeShot, handleFillMissingQueue,
   } = useStudioAssetDialogActions({
     asset,
     onOpenChange,
@@ -296,6 +301,10 @@ export function StudioAssetDetailDialog({
     expressionPhase,
     setExpressionPhase,
     setExpressionMessage,
+    generatePhaseForGuard: generatePhase,
+    typeShotPhase,
+    setTypeShotPhase,
+    setTypeShotMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -317,6 +326,8 @@ export function StudioAssetDetailDialog({
   const canImageToImage = isThreeTrackAsset && displayImages.length > 0;
   // 10-21 高清人脸:仅角色轨显示人脸按钮(图生图/文生图两路)
   const canFacePortrait = asset.type === "role";
+  // 10-24 批3 按型出图:仅角色轨显示型驱动生成族(节头钮+下拉+一键补缺)
+  const canTypeShot = asset.type === "role";
   const roleSpeakerId = toRoleSpeakerId(asset.id);
   const roleVoiceBindings = activeTtsProjectId ? (ttsProjects[activeTtsProjectId]?.bindings ?? {}) : {};
   const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
@@ -483,7 +494,7 @@ export function StudioAssetDetailDialog({
                               size="sm"
                               className="h-6 gap-1 text-[11px]"
                               onClick={handleOneClickGenerateAssetImage}
-                              disabled={!!generatePhase || !!i2iPhase || !!facePhase || !!expressionPhase || !visualManualId}
+                              disabled={!!generatePhase || !!i2iPhase || !!facePhase || !!expressionPhase || !!typeShotPhase || !visualManualId}
                             >
                               {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                               {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}
@@ -558,6 +569,9 @@ export function StudioAssetDetailDialog({
               <StudioAssetDetailPreviewPane
                 asset={asset}
                 images={displayImages}
+                /* 批3 复审 M 修(Round 3 Q1):完整度两行分级/核心红点基准=本行自有图集,
+                 * 族聚显(displayImages 含族兄弟行)同型图不抵扣本行缺口;画廊展示序不变 */
+                completenessImages={images}
                 currentIndex={currentIndex}
                 onSelectImage={setCurrentIndex}
                 spokenText={spokenText}
@@ -591,9 +605,29 @@ export function StudioAssetDetailDialog({
                 facePhase={facePhase}
                 faceMessage={faceMessage}
                 canFacePortrait={canFacePortrait}
+                canTypeShot={canTypeShot}
+                onTypeShot={handleTypeShot}
+                typeShotPhase={typeShotPhase}
+                typeShotMessage={typeShotMessage}
+                onFillMissing={handleFillMissingQueue}
                 onCopyPrompt={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}
                 onOpenSource={handleOpenSource}
                 onOpenFolder={handleOpenFolder}
+                /* 批3(10-24):占位卡 CTA/完整度缺失 chip 直达生成全型路由——高清人脸
+                 * 按有图择图生图/文生图路,表情差分接既有路,余型走 handleTypeShot
+                 * 型驱动件(route 分流:设定卡/美宣=t2i+base_type,余=i2i 借语) */
+                onGenerateByKind={(kind) => {
+                  if (kind === "高清人脸") {
+                    if (displayImages.length > 0) handleFacePortraitFromImage();
+                    else handleFacePortraitFromText();
+                    return;
+                  }
+                  if (kind === "表情差分") {
+                    handleExpressionSheet();
+                    return;
+                  }
+                  handleTypeShot(kind);
+                }}
                 isImageRemovable={(image) => {
                   const entry = displayImages.find((item) => item.filePath === image.filePath);
                   return entry ? entry.removable : true;
@@ -606,15 +640,31 @@ export function StudioAssetDetailDialog({
       </Dialog>
       {/* 10-19 用户令:全屏缩放预览——复用 MediaPreviewModal(滚轮缩放/双击/拖拽/批量翻页) */}
       {/* 弹窗关=预览关:previewIndex 不清零→Lightbox 全屏遮罩残留→堵住所有 UI 点击(10-19 实弹勘误) */}
-      {open && previewIndex !== null && displayImages[previewIndex] && (
-        <ImagePreviewModal
-          imageUrl={displayImages[previewIndex]?.url ?? ""}
-          imageUrls={displayImages.map((img) => img.url ?? "").filter(Boolean)}
-          initialIndex={previewIndex}
-          isOpen={previewIndex !== null}
-          onClose={() => setPreviewIndex(null)}
-        />
-      )}
+      {/* 批2 B 节:预览序列=当前节图集(节内上下张)——按点击位的型解析所属节,取该节
+          图集与节内局部序;scene/tool/clip 单节=全展示序(行为不变)。节内 url 序与
+          initialIndex 同构产出,根除旧「filter(Boolean) 后下标错位」隐患。 */}
+      {open && previewIndex !== null && displayImages[previewIndex] && (() => {
+        const clickedIndex = previewIndex;
+        const sectionKind = asset.type === "role"
+          ? classifyAssetImage(displayImages[clickedIndex])
+          : null;
+        const sectionEntries = displayImages
+          .map((image, index) => ({ image, index }))
+          .filter(({ image }) => (sectionKind ? classifyAssetImage(image) === sectionKind : true));
+        const sectionLocalIndex = Math.max(
+          sectionEntries.findIndex(({ index }) => index === clickedIndex),
+          0,
+        );
+        return (
+          <ImagePreviewModal
+            imageUrl={displayImages[clickedIndex]?.url ?? ""}
+            imageUrls={sectionEntries.map(({ image }) => image.url ?? "")}
+            initialIndex={sectionLocalIndex}
+            isOpen={previewIndex !== null}
+            onClose={() => setPreviewIndex(null)}
+          />
+        );
+      })()}
       {asset.type === "role" && (
         <RoleVoiceAssignDialog
           character={{ id: asset.id, name: parsedDraftName.primaryName }}

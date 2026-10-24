@@ -17,11 +17,14 @@ import { generateAsset } from "@/lib/studio/asset-generation-orchestrator";
 import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transfer";
 import { generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
 import { generateAssetExpressionSheet } from "@/lib/studio/asset-expression-sheet";
+import { generateAssetTypeShot, getAssetTypeShotProfile, planAssetTypeFillMissingQueue } from "@/lib/studio/asset-type-shot";
 import {
   findDisplayImageIndex,
   mergeFamilyDisplayImages,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
+import { classifyAssetImage } from "@/lib/studio/asset-image-kind";
+import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
 
@@ -64,6 +67,11 @@ export function useStudioAssetDialogActions(ctx: {
   expressionPhase?: string | null;
   setExpressionPhase: any;
   setExpressionMessage: any;
+  /** 10-24 批3 按型出图:通用第五路相位/文案注入(型名进相位文案;一键补缺队列复用本相位聚合)。 */
+  generatePhaseForGuard?: string | null;
+  typeShotPhase?: string | null;
+  setTypeShotPhase: any;
+  setTypeShotMessage: any;
   setActiveStudio: any;
   setActiveTab: any;
   resolveAssetGenerationReferenceImage: any;
@@ -102,6 +110,10 @@ export function useStudioAssetDialogActions(ctx: {
     expressionPhase,
     setExpressionPhase,
     setExpressionMessage,
+    generatePhaseForGuard,
+    typeShotPhase,
+    setTypeShotPhase,
+    setTypeShotMessage,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -109,6 +121,14 @@ export function useStudioAssetDialogActions(ctx: {
   } = ctx;
   /** 展示序缺省回落本行图(资产库面板等无族聚显入口的调用方零行为变化)。 */
   const carouselImages = displayImages ?? images;
+
+  /** 批3 复审 H 修(五路互斥统一守卫,PRD 验收「任一生成相位在跑,生成族全禁」):
+   *  直达入口(占位卡 CTA/完整度缺失 chip 经 onGenerateByKind)与节头钮/下拉共用
+   *  本闸——任一相位在跑(含一键补缺队列聚合的 typeShotPhase)即忙直返,防并发
+   *  点火另一路生成(双生成并发/相位文案互踩/完成切新图竞态)。一键补缺队列经
+   *  laneGuard:false 复用底层执行器(队列入口自带五路守卫+自持聚合相位)。 */
+  const isAnyGenerationLaneBusy = (): boolean =>
+    !!(generatePhaseForGuard || i2iPhase || facePhase || expressionPhase || typeShotPhase);
 
   /** 润色当前资产的提示词 */
   const handlePolishPrompt = async () => {
@@ -298,6 +318,7 @@ export function useStudioAssetDialogActions(ctx: {
             setDraftSetting(updated.setting || "");
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
+              // 批2(10-24):一键生成无型标记,不落 kind(读路兜底=早期未分类)
               newImgs.push({ name: generatedImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
             }
             if (updated.images?.length) {
@@ -411,6 +432,9 @@ export function useStudioAssetDialogActions(ctx: {
       if (result.phase === "done") {
         setI2iPhase("done");
         setI2iMessage("画风转换完成！");
+        // 批2(10-24):视图模型落 kind=源图分类(画风转换不改取景版式,源是三视图
+        // 产物转完仍是人物多视图);行级主图 kind 持久化候 Round 3 Q2 后续裁定
+        const sourceKind = classifyAssetImage(carouselImages[currentIndex] ?? { name: inputImageName });
         // 1020 落存储层:resultImageName(原图名_中文日期)随 replace-image 透传,
         // 盘上文件名与轮播显示名同源(旧链只改显示层,盘上恒时间戳=用户追报病根)
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
@@ -421,7 +445,7 @@ export function useStudioAssetDialogActions(ctx: {
           if (updated) {
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
-              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: sourceKind });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
@@ -458,8 +482,13 @@ export function useStudioAssetDialogActions(ctx: {
   /** 10-21 高清人脸(用户令:人物弹窗图生图/文生图两路都要):镜像画风转换尾段
    * (写回资产库+asset:updated 广播+get 刷新轮播+完成切新图);相位 3s 自动清。
    * 图生图路=参考图锚身份+固定指令重构头肩特写;文生图路=描述作主体句+
-   * base_type=高清人脸型层(1:1 取景/排布/负面全由型承载)。 */
-  const runFacePortrait = async (mode: AssetFacePortraitMode) => {
+   * base_type=高清人脸型层(1:1 取景/排布/负面全由型承载)。
+   * 10-24 批3 返值化(true=done/false=守卫拒或失败):供一键补缺队列探成功,
+   * 按钮路调用方忽略返回值,对外行为零变。 */
+  const runFacePortrait = async (
+    mode: AssetFacePortraitMode,
+    options?: { laneGuard?: boolean },
+  ): Promise<boolean> => {
     const operationId = createOperationId("asset-face-portrait");
     const modeLabel = mode === "image" ? "图生图" : "文生图";
     void logEvent({
@@ -469,6 +498,17 @@ export function useStudioAssetDialogActions(ctx: {
       message: "Asset face portrait requested",
       context: { mode, assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
     });
+    // 复审 H 修:五路互斥统一守卫(队列 laneGuard:false 免闸防逐型派发自拒)
+    if (options?.laneGuard !== false && isAnyGenerationLaneBusy()) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset face portrait guard rejected (busy-lane)",
+        context: { assetId: asset.id, mode },
+      });
+      return false;
+    }
     if (facePhase) {
       // 在跑直返(按钮已禁,双保险)
       void logEvent({
@@ -478,7 +518,7 @@ export function useStudioAssetDialogActions(ctx: {
         message: "Asset face portrait guard rejected (busy)",
         context: { assetId: asset.id, facePhase },
       });
-      return;
+      return false;
     }
     if (asset.type !== "role") {
       void logEvent({
@@ -489,7 +529,7 @@ export function useStudioAssetDialogActions(ctx: {
         context: { assetId: asset.id, assetType: asset.type },
       });
       toast.error("高清人脸仅角色资产可用");
-      return;
+      return false;
     }
     let referenceImage: string | undefined;
     if (mode === "image") {
@@ -503,7 +543,7 @@ export function useStudioAssetDialogActions(ctx: {
           context: { assetId: asset.id, displayImageCount: carouselImages.length },
         });
         toast.error("没有可作参考的图片，请先生成或添加图片");
-        return;
+        return false;
       }
     }
     const subjectText = mode === "text"
@@ -518,7 +558,7 @@ export function useStudioAssetDialogActions(ctx: {
         context: { assetId: asset.id },
       });
       toast.error("没有可用于出图的描述或提示词");
-      return;
+      return false;
     }
     // 命名沿 10-19「废主图名号」令:图生图=原图名_人脸_中文日期;文生图=资产名_人脸_中文日期
     const inputImageName = mode === "image" ? (carouselImages[currentIndex]?.name || asset.name) : asset.name;
@@ -555,7 +595,8 @@ export function useStudioAssetDialogActions(ctx: {
           if (updated) {
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
-              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+              // 批2(10-24):生成写路落 kind 视图值(名内 _人脸_ 标记为持久兜底)
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: "高清人脸" });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
@@ -570,15 +611,18 @@ export function useStudioAssetDialogActions(ctx: {
         } else {
           toast.success(`「${asset.name}」高清人脸(${modeLabel})生成完成`);
         }
+        return true;
       } else {
         setFacePhase("failed");
         setFaceMessage(`高清人脸生成失败: ${result.error || "未知错误"}`);
         toast.error(`高清人脸生成失败: ${result.error || "未知错误"}`);
+        return false;
       }
     } catch (err: unknown) {
       setFacePhase("failed");
       setFaceMessage(err instanceof Error ? err.message : String(err));
       toast.error(err instanceof Error ? err.message : String(err));
+      return false;
     } finally {
       setTimeout(() => {
         setFacePhase(null);
@@ -591,8 +635,9 @@ export function useStudioAssetDialogActions(ctx: {
 
   /** 10-21 表情差分(用户令:资产库弹窗角色要有表情差分,图生图逻辑):镜像
    * 人脸图生图路(轮播当前图锚身份+固定指令承载九宫格取景语言);命名沿
-   * 「废主图名号」令=原图名_表情差分_中文日期;相位 3s 自动清。 */
-  const runExpressionSheet = async () => {
+   * 「废主图名号」令=原图名_表情差分_中文日期;相位 3s 自动清。
+   * 10-24 批3 返值化(供一键补缺队列探成功;按钮路对外行为零变)。 */
+  const runExpressionSheet = async (options?: { laneGuard?: boolean }): Promise<boolean> => {
     const operationId = createOperationId("asset-expression-sheet");
     void logEvent({
       level: "info",
@@ -601,6 +646,17 @@ export function useStudioAssetDialogActions(ctx: {
       message: "Asset expression sheet requested",
       context: { assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
     });
+    // 复审 H 修:五路互斥统一守卫(队列 laneGuard:false 免闸防逐型派发自拒)
+    if (options?.laneGuard !== false && isAnyGenerationLaneBusy()) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset expression sheet guard rejected (busy-lane)",
+        context: { assetId: asset.id },
+      });
+      return false;
+    }
     if (expressionPhase) {
       // 在跑直返(按钮已禁,双保险)
       void logEvent({
@@ -610,7 +666,7 @@ export function useStudioAssetDialogActions(ctx: {
         message: "Asset expression sheet guard rejected (busy)",
         context: { assetId: asset.id, expressionPhase },
       });
-      return;
+      return false;
     }
     if (asset.type !== "role") {
       void logEvent({
@@ -621,7 +677,7 @@ export function useStudioAssetDialogActions(ctx: {
         context: { assetId: asset.id, assetType: asset.type },
       });
       toast.error("表情差分仅角色资产可用");
-      return;
+      return false;
     }
     const referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
     if (!referenceImage) {
@@ -633,7 +689,7 @@ export function useStudioAssetDialogActions(ctx: {
         context: { assetId: asset.id, displayImageCount: carouselImages.length },
       });
       toast.error("没有可作参考的图片，请先生成或添加图片");
-      return;
+      return false;
     }
     // 命名沿 10-19「废主图名号」令:图生图=原图名_表情差分_中文日期
     const inputImageName = carouselImages[currentIndex]?.name || asset.name;
@@ -668,7 +724,8 @@ export function useStudioAssetDialogActions(ctx: {
           if (updated) {
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
-              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl });
+              // 批2(10-24):生成写路落 kind 视图值(名内 _表情差分_ 标记为持久兜底)
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: "表情差分" });
             }
             if (updated.images?.length) {
               newImgs.push(...updated.images);
@@ -683,15 +740,18 @@ export function useStudioAssetDialogActions(ctx: {
         } else {
           toast.success(`「${asset.name}」表情差分生成完成`);
         }
+        return true;
       } else {
         setExpressionPhase("failed");
         setExpressionMessage(`表情差分生成失败: ${result.error || "未知错误"}`);
         toast.error(`表情差分生成失败: ${result.error || "未知错误"}`);
+        return false;
       }
     } catch (err: unknown) {
       setExpressionPhase("failed");
       setExpressionMessage(err instanceof Error ? err.message : String(err));
       toast.error(err instanceof Error ? err.message : String(err));
+      return false;
     } finally {
       setTimeout(() => {
         setExpressionPhase(null);
@@ -700,6 +760,225 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
   const handleExpressionSheet = () => runExpressionSheet();
+
+  /** 10-24 批3 按型出图(PRD §① 型驱动通用件,单一参数=型名):型档案表查表分流——
+   * i2i 路(轮播当前图锚身份+该型取景借语,Phase1 借语模式)/t2i 路(描述主体句+
+   * base_type 型层承载取景);命名沿「废主图名号」令=原图名_{型名}_中文日期
+   * (t2i 路无原图,锚资产名,与人脸文生图路同款);写回尾段镜像人脸/表情差分
+   * (saveGeneratedAssetImageToLibrary+asset:updated 广播+get 刷新+完成切新图+
+   * 批3 kind 落值);相位 3s 自动清。managedLane=false 供一键补缺队列复用
+   * (队列自持聚合相位,防逐型 3s 清相位把队列中段的互斥解除)。 */
+  const executeTypeShot = async (kind: AssetImageKind, options?: { managedLane?: boolean }): Promise<boolean> => {
+    const managedLane = options?.managedLane !== false;
+    const profile = getAssetTypeShotProfile(kind);
+    const operationId = createOperationId("asset-type-shot");
+    void logEvent({
+      level: "info",
+      category: "asset",
+      operationId,
+      message: "Asset type shot requested",
+      context: { kind, route: profile?.route ?? "unknown", assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
+    });
+    if (!profile) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset type shot guard rejected (unknown kind)",
+        context: { assetId: asset.id, kind },
+      });
+      toast.error(`「${kind}」不在按型出图七型档案内`);
+      return false;
+    }
+    if (asset.type !== "role") {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset type shot guard rejected (non-role)",
+        context: { assetId: asset.id, assetType: asset.type },
+      });
+      toast.error("按型出图仅角色资产可用");
+      return false;
+    }
+    let referenceImage: string | undefined;
+    if (profile.route === "i2i") {
+      referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+      if (!referenceImage) {
+        void logEvent({
+          level: "warn",
+          category: "asset",
+          operationId,
+          message: "Asset type shot guard rejected (no reference image)",
+          context: { assetId: asset.id, kind, displayImageCount: carouselImages.length },
+        });
+        toast.error("没有可作参考的图片，请先生成或添加图片");
+        return false;
+      }
+    }
+    const subjectText = profile.route === "t2i"
+      ? (draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
+      : undefined;
+    if (profile.route === "t2i" && !subjectText) {
+      void logEvent({
+        level: "warn",
+        category: "asset",
+        operationId,
+        message: "Asset type shot guard rejected (no subject text)",
+        context: { assetId: asset.id, kind },
+      });
+      toast.error("没有可用于出图的描述或提示词");
+      return false;
+    }
+    // 命名沿 10-19「废主图名号」令:i2i=原图名_{型名}_中文日期;t2i=资产名_{型名}_中文日期
+    const inputImageName = profile.route === "i2i" ? (carouselImages[currentIndex]?.name || asset.name) : asset.name;
+    const now = new Date();
+    const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
+    const resultImageName = `${inputImageName}_${kind}_${dateSuffix}`;
+    if (managedLane) {
+      setTypeShotPhase("generating");
+      setTypeShotMessage(`正在生成 ${asset.name} 的${kind}...`);
+    }
+    try {
+      const result = await generateAssetTypeShot(
+        {
+          assetId: asset.id,
+          assetName: asset.name,
+          kind,
+          referenceImage,
+          subjectText,
+          operationId,
+        },
+        (progress) => {
+          if (progress.phase === "generating" || progress.phase === "saving") {
+            if (managedLane) {
+              setTypeShotPhase("generating");
+              if (progress.message) setTypeShotMessage(progress.message);
+            }
+          }
+        },
+      );
+      if (result.phase === "done") {
+        if (managedLane) {
+          setTypeShotPhase("done");
+          setTypeShotMessage(`${kind}生成完成！`);
+        }
+        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
+        // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
+        eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        if (getStudioAssetsBridge()?.get) {
+          const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            const newImgs: AssetImage[] = [];
+            if (updated.previewUrl || updated.thumbnailUrl) {
+              // 批3(10-24):生成写路落 kind 视图值(按型出图产物型名即所属节)
+              newImgs.push({ name: resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind });
+            }
+            if (updated.images?.length) {
+              newImgs.push(...updated.images);
+            }
+            setImages(newImgs);
+            // 完成即切到新主图(与人脸/表情差分同款 setCurrentIndex(0))
+            setCurrentIndex(0);
+          }
+        }
+        if (!savedToLibrary) {
+          toast.warning(`「${asset.name}」${kind}已生成，但未能写回资产库主图`);
+        } else {
+          toast.success(`「${asset.name}」${kind}生成完成`);
+        }
+        return true;
+      } else {
+        if (managedLane) {
+          setTypeShotPhase("failed");
+          setTypeShotMessage(`${kind}生成失败: ${result.error || "未知错误"}`);
+        }
+        toast.error(`${kind}生成失败: ${result.error || "未知错误"}`);
+        return false;
+      }
+    } catch (err: unknown) {
+      if (managedLane) {
+        setTypeShotPhase("failed");
+        setTypeShotMessage(err instanceof Error ? err.message : String(err));
+      }
+      toast.error(err instanceof Error ? err.message : String(err));
+      return false;
+    } finally {
+      if (managedLane) {
+        setTimeout(() => {
+          setTypeShotPhase(null);
+          setTypeShotMessage("");
+        }, 3000);
+      }
+    }
+  };
+
+  /** 按型出图公共入口(节头钮/下拉/占位卡 CTA/完整度缺失 chip):五路互斥统一守卫
+   *  在跑直返(按钮已禁,双保险;复审 H 修=全相位,非仅自家 typeShotPhase)。 */
+  const runTypeShot = async (kind: AssetImageKind): Promise<boolean> => {
+    if (isAnyGenerationLaneBusy()) return false;
+    return executeTypeShot(kind);
+  };
+  const handleTypeShot = (kind: AssetImageKind) => {
+    void runTypeShot(kind);
+  };
+
+  /** 10-24 批3 一键补缺顺序队列(PRD B 节:聚合相位,逐型完成落图):按本行自有图集
+   * 计缺失核心五必备(planAssetTypeFillMissingQueue;复审 M 修=Q1 不抵扣,展示序
+   * 族兄弟图不计入),逐型派发到各自生成路(高清人脸/表情差分接既有路,余型走
+   * executeTypeShot),任一型失败即中止队列(队列失败/取消策略候 Round 3 后续裁定,
+   * Phase1 取失败即停);typeShot 相位聚合承载进度文案。 */
+  const runFillMissingQueue = async (): Promise<void> => {
+    if (generatePhaseForGuard || i2iPhase || facePhase || expressionPhase || typeShotPhase) {
+      toast.error("有生成任务正在进行，请稍候");
+      return;
+    }
+    // 批3 复审 M 修(Round 3 Q1):补缺计划按本行自有图集计——族聚显展示序
+    // (carouselImages)含族兄弟行图,同型图不抵扣本行缺口;十境图归属确认候
+    // 版本系统落地后细化,当前按本行现集计(参考图可用性仍查展示序,同族同脸可锚)
+    const missing = planAssetTypeFillMissingQueue(images);
+    if (missing.length === 0) {
+      toast.info("核心五必备已齐，无需补缺");
+      return;
+    }
+    if (carouselImages.length === 0) {
+      toast.error("先有角色图片才能一键补缺");
+      return;
+    }
+    const dispatchKindGeneration = (kind: AssetImageKind): Promise<boolean> => {
+      // 复审 H 修:laneGuard:false——队列入口已持五路守卫+自持聚合相位(typeShotPhase),
+      // 底层执行器免统一守卫防逐型派发自拒
+      if (kind === "高清人脸") return runFacePortrait(carouselImages.length > 0 ? "image" : "text", { laneGuard: false });
+      if (kind === "表情差分") return runExpressionSheet({ laneGuard: false });
+      return executeTypeShot(kind, { managedLane: false });
+    };
+    setTypeShotPhase("generating");
+    let completed = 0;
+    try {
+      for (const kind of missing) {
+        setTypeShotMessage(`正在补缺 ${completed + 1}/${missing.length}:${kind}...`);
+        const ok = await dispatchKindGeneration(kind);
+        if (!ok) {
+          setTypeShotPhase("failed");
+          setTypeShotMessage(`${kind}补缺失败，队列中止`);
+          toast.error(`${kind}补缺失败，队列中止（已完成 ${completed}/${missing.length}）`);
+          return;
+        }
+        completed += 1;
+      }
+      setTypeShotPhase("done");
+      setTypeShotMessage("一键补缺完成！");
+      toast.success(`「${asset.name}」已补全 ${completed} 类核心图`);
+    } finally {
+      setTimeout(() => {
+        setTypeShotPhase(null);
+        setTypeShotMessage("");
+      }, 3000);
+    }
+  };
+  const handleFillMissingQueue = () => {
+    void runFillMissingQueue();
+  };
 
   const handleRegenerate = async () => {
     // 空描述守卫沿用(无描述无出图意义);prompt 本身不预填——画布与资产库
@@ -930,5 +1209,6 @@ export function useStudioAssetDialogActions(ctx: {
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
     handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
+    handleTypeShot, handleFillMissingQueue,
   };
 }

@@ -65,6 +65,31 @@ describe("buildFamilyImageEntries", () => {
       url: "asset-file://thumb/shared.png",
     });
   });
+
+  // 10-24 图片展示规范批2:kind 持久值随族聚显透传(视图层 classifyAssetImage 消费);
+  // 无 kind 的老条目/行级主图保持旧形态(缺省字段不落,零迁移成本)
+  it("images[] kind 持久值随族聚显透传,无 kind 条目保持旧形态", () => {
+    const family = [
+      summary({
+        id: "a",
+        name: "晏燎",
+        filePath: "role/晏燎.png",
+        previewUrl: "asset-file://role/晏燎.png",
+        images: [
+          { name: "晏燎_练气期_三视图_v1", filePath: "role/三视图.png", url: "asset-file://role/三视图.png", kind: "人物多视图" },
+          { name: "随手改的名", filePath: "role/改名.png", url: "asset-file://role/改名.png", kind: "美宣" },
+          { name: "老图", filePath: "role/老图.png", url: "asset-file://role/老图.png" },
+        ],
+      }),
+    ];
+
+    const entries = buildFamilyImageEntries(family);
+
+    expect(entries.find((entry) => entry.filePath === "role/三视图.png")?.kind).toBe("人物多视图");
+    expect(entries.find((entry) => entry.filePath === "role/改名.png")?.kind).toBe("美宣");
+    expect(entries.find((entry) => entry.filePath === "role/老图.png")?.kind).toBeUndefined();
+    expect(entries.find((entry) => entry.filePath === "role/晏燎.png")?.kind).toBeUndefined();
+  });
 });
 
 describe("mergeFamilyDisplayImages", () => {

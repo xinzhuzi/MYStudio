@@ -30,14 +30,15 @@ export function buildFamilyImageEntries(family: StudioAssetSummary[]): FamilyIma
   const seenFilePaths = new Set<string>();
   const entries: FamilyImageEntry[] = [];
   for (const summary of family) {
-    const rowImages: Array<Pick<AssetImage, "name" | "filePath" | "url">> = [];
+    const rowImages: Array<Pick<AssetImage, "name" | "filePath" | "url" | "kind">> = [];
     const mainUrl = summary.previewUrl || summary.thumbnailUrl;
     if (mainUrl && summary.filePath) {
       rowImages.push({ name: getPrimaryAssetName(summary.name), filePath: summary.filePath, url: mainUrl });
     }
     for (const image of summary.images ?? []) {
       if (!image.filePath) continue;
-      rowImages.push({ name: image.name, filePath: image.filePath, url: image.url });
+      // 10-24 批2:kind 持久值随族聚显透传(视图层 classifyAssetImage 三层解析消费)
+      rowImages.push({ name: image.name, filePath: image.filePath, url: image.url, ...(image.kind ? { kind: image.kind } : {}) });
     }
     for (const image of rowImages) {
       if (seenFilePaths.has(image.filePath)) continue;

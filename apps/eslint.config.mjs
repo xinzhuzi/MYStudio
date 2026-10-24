@@ -58,6 +58,20 @@ export default [
       '!frontend/lib/studio/entity-extraction-ledger.test.ts',
       '!frontend/lib/studio/entity-extraction-runner.test.ts',
       '!frontend/lib/studio/entity-sync.test.ts',
+      // 10-24 asset-dialog 批2(循例追加):门禁改动清单含下述 6 个 test 文件,同款
+      // 「显式传入被忽略文件 → File ignored warning → --max-warnings 0 红」;再包含后
+      // 内容已过全规则(--no-ignore 验证零告警,dialog.test.ts 的 window 补桩已改类型化助手)。
+      '!frontend/lib/studio/asset-image-kind.test.ts',
+      '!frontend/lib/studio/asset-family-images.test.ts',
+      '!frontend/electron/storage/studio-assets-storage.test.ts',
+      '!frontend/components/panels/assets/studio-asset-detail-preview-pane.test.tsx',
+      '!frontend/components/panels/assets/studio-asset-detail-dialog.test.ts',
+      '!frontend/components/panels/assets/studio-asset-detail-dialog-interaction.test.tsx',
+      // 10-24 asset-dialog 批3(循例追加):新服务 asset-type-shot 单测入清单,同款再包含;
+      // 本批改动清单另含 eslint.config.mjs 自身(批3再包含条目),mjs 全局忽略撞同款
+      // 「File ignored」红——再包含后零规则段适用(全规则段恒 tsFiles 收窄),实 lint 零告警。
+      '!frontend/lib/studio/asset-type-shot.test.ts',
+      '!eslint.config.mjs',
     ],
   },
   // 外来预设统一收窄到 ts/tsx(预设自身无 files 键 = 全文件适用,会波及 js/mjs/cjs)

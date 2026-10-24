@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import {
+  ChevronDown,
   Clipboard,
   ExternalLink,
   FolderOpen,
@@ -18,30 +19,39 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { AssetImage, StudioAssetSummary } from "@/types/studio-assets";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/studio-assets";
+import {
+  ASSET_IMAGE_KIND_ASPECTS,
+  ASSET_IMAGE_KIND_ORDER,
+  CORE_ASSET_IMAGE_KINDS,
+  EXTENDED_ASSET_IMAGE_KINDS,
+  classifyAssetImage,
+  groupAssetImagesByKind,
+} from "@/lib/studio/asset-image-kind";
+import { ASSET_TYPE_SHOT_PROFILES } from "@/lib/studio/asset-type-shot";
 
 const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36, 70];
 
 /**
- * 10-24 布局重造(批1骨架):角色轨按型分节,节序=grill Round 1 裁定2
- * (身份链根→常规产物→重版式→工具型→兜底)。批2 classifyAssetImage 上线前,
- * 存量图全部落「早期未分类」节,其余型节以占位卡示位(槽位恒在,NPC 用不全)。
+ * 10-24 图片展示规范(批1骨架+批2分类归节):角色轨按型分节,节序=grill Round 1
+ * 裁定2(身份链根→常规产物→重版式→工具型→兜底);批2 classifyAssetImage 三层解析
+ * (持久值→命名规则→早期未分类)上线,存量图按命名归位,识别不出落「早期未分类」节。
  */
-const ROLE_IMAGE_SECTION_DEFS = [
-  { kind: "全身定妆", aspect: "3:4" },
-  { kind: "人物海报", aspect: "3:4" },
-  { kind: "人物多视图", aspect: "16:9" },
-  { kind: "高清人脸", aspect: "1:1" },
-  { kind: "表情差分", aspect: "1:1" },
-  { kind: "设定卡", aspect: "16:9" },
-  { kind: "美宣", aspect: "16:9" },
-  { kind: "人脸基准", aspect: "1:1" },
-  { kind: "自由", aspect: "1:1" },
-] as const;
+const ROLE_IMAGE_SECTION_DEFS = ASSET_IMAGE_KIND_ORDER
+  .filter((kind) => kind !== "早期未分类")
+  .map((kind) => ({ kind, aspect: ASSET_IMAGE_KIND_ASPECTS[kind] }));
 
 const UNCATEGORIZED_SECTION_KIND = "早期未分类";
 /** scene/tool/clip 轨无型谱=单节「图片」横向行(10-24 裁定 D)。 */
 const SINGLE_SECTION_TITLE = "图片";
+
+const CORE_KIND_SET = new Set<string>(CORE_ASSET_IMAGE_KINDS);
 
 /** 图卡统一高 h-40;宽随型画幅比(3:4≈120px/16:9≈284px/1:1=160px;未分类混排走方卡)。 */
 function sectionCardWidthClass(aspect: string | null): string {
@@ -77,17 +87,18 @@ interface StudioAssetDetailPreviewPaneProps {
   generatePhase?: string | null;
   /** 三轨且有图才可转(role/scene/tool 且有图);缺省 true 由装配方守门。 */
   canImageToImage?: boolean;
-  /** 10-21 高清人脸(用户令:图生图/文生图两路都要);仅角色轨由装配方置真。 */
-  onFaceFromImage?: () => void | Promise<void>;
-  onFaceFromText?: () => void | Promise<void>;
+  /** 10-21 高清人脸(用户令:图生图/文生图两路都要);仅角色轨由装配方置真。
+   *  批3 返值化:boolean=完成/守卫拒(供一键补缺队列探成功),pane 只派发零消费。 */
+  onFaceFromImage?: () => void | Promise<unknown>;
+  onFaceFromText?: () => void | Promise<unknown>;
   /** 人脸生成相位(两路共用一套状态机;在跑时 Loader2+文案并禁点)。 */
   facePhase?: string | null;
   /** 人脸生成相位文案(运行态按钮 title 全文)。 */
   faceMessage?: string;
   /** 角色轨才显示人脸按钮;缺省 false(非角色零侵入)。 */
   canFacePortrait?: boolean;
-  /** 10-21 表情差分(用户令:图生图逻辑);仅角色轨由装配方置真。 */
-  onExpression?: () => void | Promise<void>;
+  /** 10-21 表情差分(用户令:图生图逻辑);仅角色轨由装配方置真(批3 返值化同上)。 */
+  onExpression?: () => void | Promise<unknown>;
   /** 表情差分生成相位(在跑时 Loader2+文案并禁点)。 */
   expressionPhase?: string | null;
   /** 表情差分相位文案(运行态按钮 title 全文)。 */
@@ -95,6 +106,23 @@ interface StudioAssetDetailPreviewPaneProps {
   onCopyPrompt: () => void | Promise<void>;
   onOpenSource: () => void | Promise<void>;
   onOpenFolder: () => void | Promise<void>;
+  /** 批2(10-24):占位卡「点击生成」CTA 与完整度条核心缺失 chip 的直达生成入口;
+   *  装配方路由(批3 起全型路由:高清人脸/表情差分接既有路,余型走按型出图件)。 */
+  onGenerateByKind?: (kind: AssetImageKind) => void | Promise<void>;
+  /** 批3 复审 M 修(Round 3 Q1):完整度两行分级/核心空节红点判定基准=本行自有图集——
+   *  族聚显在驾时 images(displayImages)含族兄弟行图,同型图不抵扣本行缺口;缺省回落
+   *  images(非族聚显调用方零变化)。造型版本归属确认候版本系统落地后细化。 */
+  completenessImages?: AssetImage[];
+  /** 批3(10-24)按型出图:节头生成钮+「按型出图」下拉派发(型名单一参数);
+   *  仅角色轨由装配方置真(缺省 false,非角色零侵入)。 */
+  canTypeShot?: boolean;
+  onTypeShot?: (kind: AssetImageKind) => void | Promise<void>;
+  /** 按型出图相位(通用第五路互斥;一键补缺队列复用聚合);在跑时 Loader2+文案并禁点。 */
+  typeShotPhase?: string | null;
+  /** 按型出图相位文案(运行态按钮 title 全文,型名/队列进度进文案)。 */
+  typeShotMessage?: string;
+  /** 批3 一键补缺顺序队列入口(缺失核心型逐型顺序补全);缺省不渲染启用态。 */
+  onFillMissing?: () => void | Promise<void>;
   /** R4 族聚显:条目级删除可见性(族兄弟只读条目不显示删除);缺省恒可删
    *  (10-19 用户裁定:主图亦可删——含首位主图)。 */
   isImageRemovable?: (image: AssetImage, index: number) => boolean;
@@ -130,11 +158,18 @@ export function StudioAssetDetailPreviewPane({
   onCopyPrompt,
   onOpenSource,
   onOpenFolder,
+  onGenerateByKind,
+  completenessImages,
+  canTypeShot = false,
+  onTypeShot,
+  typeShotPhase,
+  typeShotMessage,
+  onFillMissing,
   isImageRemovable,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
-  // 10-21 高清人脸/表情差分:与一键生成/画风转换互斥(任一生成相位在跑全禁)
-  const generationBusy = !!i2iPhase || !!generatePhase || !!facePhase || !!expressionPhase;
+  // 10-21 高清人脸/表情差分:与一键生成/画风转换互斥;批3 按型出图=通用第五路
+  const generationBusy = !!i2iPhase || !!generatePhase || !!facePhase || !!expressionPhase || !!typeShotPhase;
   const imageToImageDisabled = generationBusy || !canImageToImage;
   const imageToImageTitle = !canImageToImage
     ? "仅角色/场景/道具三轨且有图资产可转画风"
@@ -192,6 +227,12 @@ export function StudioAssetDetailPreviewPane({
     : expressionPhase === "failed"
       ? "表情差分失败"
       : "表情差分生成中…";
+  // 批3 按型出图:通用第五路(在跑全族禁点;型名/队列进度在 typeShotMessage)
+  const typeShotPhaseLabel = typeShotPhase === "done"
+    ? "生成完成"
+    : typeShotPhase === "failed"
+      ? "生成失败"
+      : "生成中…";
 
   // audio 轨零动:播报卡/波形/试听转写链路保持原样(10-24 布局令)
   if (asset.type === "audio") {
@@ -262,6 +303,12 @@ export function StudioAssetDetailPreviewPane({
             draggable={false}
           />
           <ResolutionBadge src={image.url} />
+          {/* 批2 B 节:左上角型徽标(仅角色轨;classifyAssetImage 三层解析) */}
+          {isRoleGallery && (
+            <span className="pointer-events-none absolute left-1 top-1 z-[1] rounded bg-background/80 px-1 py-0.5 text-[10px] leading-4 text-muted-foreground">
+              {classifyAssetImage(image)}
+            </span>
+          )}
         </button>
         <div className="absolute right-1 top-1 z-[1] flex gap-0.5 rounded-md bg-background/80 p-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
           {onImageClick && (
@@ -300,17 +347,48 @@ export function StudioAssetDetailPreviewPane({
     );
   };
 
-  /** 占位卡:虚线边框,型画幅比照图卡;空型槽位恒在(10-24 布局令)。 */
-  const renderPlaceholderCard = (label: string, widthClass: string) => (
-    <div
-      className={`studio-asset-image-placeholder flex ${widthClass} shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/30 px-2 text-center text-muted-foreground transition-colors hover:border-primary/40`}
-    >
-      <Icon className="h-6 w-6 opacity-50" />
-      <span className="text-xs">尚无{label}</span>
-    </div>
-  );
+  /** 占位卡:虚线边框,型画幅比照图卡;空型槽位恒在(10-24 布局令)。
+   *  批2 B 节规格:中央型 icon+「尚无{型名}」+「点击生成」CTA(装配方给
+   *  onGenerateByKind 时);核心型带红色角标(裁定1 红色告警),扩展型灰;hover 高亮。 */
+  const renderPlaceholderCard = (
+    label: string,
+    widthClass: string,
+    options?: { kind?: AssetImageKind },
+  ) => {
+    const isCore = !!options?.kind && CORE_KIND_SET.has(options.kind);
+    return (
+      <div
+        className={`studio-asset-image-placeholder relative flex ${widthClass} shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed px-2 text-center transition-colors ${
+          isCore ? "border-destructive/50 bg-destructive/5 hover:border-destructive/70" : "border-border bg-muted/30 hover:border-primary/40"
+        }`}
+        aria-label={`尚无${label}`}
+      >
+        {isCore && (
+          <span className="absolute right-1 top-1 rounded-sm bg-destructive px-1 py-px text-[9px] font-medium text-destructive-foreground" title="核心五必备缺失">
+            缺
+          </span>
+        )}
+        <Icon className="h-6 w-6 opacity-50" />
+        <span className="text-xs">尚无{label}</span>
+        {options?.kind && onGenerateByKind && (
+          <button
+            type="button"
+            className="rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] text-primary transition-colors hover:bg-primary/20"
+            onClick={() => onGenerateByKind(options.kind!)}
+            disabled={generationBusy}
+            title={generationBusy ? "有生成任务正在进行，请稍候" : `生成${options.kind}`}
+          >
+            点击生成
+          </button>
+        )}
+      </div>
+    );
+  };
 
-  /** 类型节:节头(型名+画幅徽标+计数+该型生成钮)+横向卡片行(overflow-x 自由横滑)。 */
+  /** 类型节:节头(型名+画幅徽标+透明/route 徽标(批3 型档案)+计数+核心空节红点+
+   *  该型生成钮)+横向卡片行(overflow-x 自由横滑)。
+   *  批3 复审 M 修:红点基准=本行 completenessCount(核心型本行缺即红,族兄弟图
+   *  在画廊展示不抵扣,count 张数仍按展示序)。 */
   const renderSection = (
     sectionKey: string,
     title: string,
@@ -318,11 +396,24 @@ export function StudioAssetDetailPreviewPane({
     cards: ReactNode,
     count: number,
     headerButtons?: ReactNode,
+    sectionMeta?: { rgba?: boolean; route?: string },
+    coreMissing?: boolean,
   ) => (
     <section key={sectionKey} className="studio-asset-image-section space-y-2" aria-label={title}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-foreground">{title}</span>
         {aspect && <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">{aspect}</Badge>}
+        {/* 批3 型档案徽标:透明(RGBA 真源)/route 生成路(裁定3 分流直读) */}
+        {sectionMeta?.rgba && (
+          <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary" title="型真源 rgba_default=透明(Phase1 借语产物为纯色底)">透明</Badge>
+        )}
+        {sectionMeta?.route && (
+          <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground">{sectionMeta.route}</Badge>
+        )}
+        {/* 批2 B 节:核心型空节=节头红点(裁定1 红色告警;批3 复审 M 修:基准=本行图集) */}
+        {coreMissing && (
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" title="核心五必备缺失" aria-label={`${title}缺失`} />
+        )}
         <span className="text-xs text-muted-foreground">{count} 张</span>
         {headerButtons && <div className="ml-auto flex flex-wrap items-center gap-1.5">{headerButtons}</div>}
       </div>
@@ -385,42 +476,224 @@ export function StudioAssetDetailPreviewPane({
     </Button>
   );
 
+  /** 批3 按型出图节头生成钮(型驱动通用件派发,型名单一参数):Loader2 相位复用
+   *  (第五路在跑全族禁点+typeShotMessage 进 title);i2i 型零图禁用(title 提示),
+   *  t2i 型(设定卡/美宣)描述锚身份,零图可点。 */
+  const renderTypeShotSectionButton = (kind: AssetImageKind, route: "i2i" | "t2i") => {
+    const needsReference = route === "i2i";
+    const disabled = generationBusy || (needsReference && images.length === 0);
+    const title = needsReference && images.length === 0
+      ? `先有角色图片才能图生图生成${kind}`
+      : typeShotPhase
+        ? (typeShotMessage || `正在生成${kind}，请稍候`)
+        : generatePhase
+          ? "图片生成中，请稍候"
+          : i2iPhase
+            ? "正在转换画风，请稍候"
+            : facePhase
+              ? "正在生成高清人脸，请稍候"
+              : expressionPhase
+                ? "正在生成表情差分，请稍候"
+                : `生成${kind}(${route === "t2i" ? "文生图·型层" : "图生图·借语"})`;
+    return (
+      <Button
+        variant="default"
+        size="sm"
+        className="h-6 gap-1 text-[11px]"
+        onClick={() => onTypeShot?.(kind)}
+        disabled={disabled}
+        title={title}
+      >
+        {typeShotPhase ? (
+          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+        ) : (
+          <Sparkles className="mr-1 h-3 w-3" />
+        )}
+        {typeShotPhase ? typeShotPhaseLabel : `生成${kind}`}
+      </Button>
+    );
+  };
+
   const squareWidth = sectionCardWidthClass(null);
+  // 批2 分类归节:全部图经 classifyAssetImage 三层解析按型谱分组(index=原下标,
+  // 单选图/预览序列回调仍按全局序)——画廊分节/张数按展示序;完整度判定按本行
+  // 自有图集(见下 completenessGroups,复审 M 修),非展示序。
+  const kindGroups = groupAssetImagesByKind(images);
+  const kindCount = (kind: AssetImageKind) => kindGroups.get(kind)?.length ?? 0;
+  // 批3 复审 M 修(Round 3 Q1):完整度 chips/核心红点基准=本行自有图集——族兄弟行
+  // 同型图不抵扣本行缺口,归属未确认候版本系统落地后细化;缺省回落 images
+  // (非族聚显调用方 displayImages≡本行图集,零行为变化)
+  const completenessGroups = groupAssetImagesByKind(completenessImages ?? images);
+  const completenessCount = (kind: AssetImageKind) => completenessGroups.get(kind)?.length ?? 0;
+  // 批3 按型出图:七型档案快查(节头钮/徽标装配用;高清人脸/表情差分既有路恒不收编)
+  const typeShotProfileByKind = new Map(ASSET_TYPE_SHOT_PROFILES.map((profile) => [profile.kind as AssetImageKind, profile]));
+
+  /** 完整度总览条(grill Round 1 裁定1 两行分级):核心行五必备逐型 ✓/✗/n,缺失
+   *  红色可点=直达该型生成(展示与生成两腿闭环);扩展行四型灰占不告警。
+   *  批3 装配:「按型出图」下拉(七型,菜单项带画幅/透明徽标)+ 一键补缺顺序队列。
+   *  复审 H/M 修:chips 计数与缺失判定按本行 completenessCount(Q1 不抵扣);任一
+   *  生成相位在跑,缺失 chip 直达入口禁用+title(与节头钮/下拉/一键补缺同闸)。 */
+  const renderCompletenessBar = () => {
+    const missingCoreCount = CORE_ASSET_IMAGE_KINDS.filter((kind) => completenessCount(kind) === 0).length;
+    const fillMissingDisabled = generationBusy || (onFillMissing != null && missingCoreCount === 0);
+    const fillMissingTitle = onFillMissing == null
+      ? "一键补缺队列候装配方接线"
+      : missingCoreCount === 0
+        ? "核心五必备已齐，无需补缺"
+        : typeShotPhase
+          ? (typeShotMessage || "正在补缺，请稍候")
+          : generationBusy
+            ? "有生成任务正在进行，请稍候"
+            : `按节序顺序补全缺失的 ${missingCoreCount} 类核心图`;
+    return (
+    <div className="studio-asset-completeness-bar sticky top-0 z-[1] space-y-1.5 rounded-md border border-border bg-background/95 px-3 py-2 backdrop-blur">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-foreground">图片规范完整度</span>
+        {/* 批3「按型出图」下拉:七型收纳(菜单项带画幅/透明徽标),型名单一参数派发 */}
+        {canTypeShot && onTypeShot && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="studio-asset-typeshot-trigger h-6 gap-1 px-2 text-[11px]"
+                disabled={generationBusy}
+                title={typeShotPhase ? (typeShotMessage || "按型出图进行中，请稍候") : "按型出图(七型:画幅/透明徽标见菜单项)"}
+              >
+                {typeShotPhase ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3 w-3" />
+                )}
+                按型出图
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="studio-asset-typeshot-menu">
+              {ASSET_TYPE_SHOT_PROFILES.map((profile) => (
+                <DropdownMenuItem
+                  key={profile.kind}
+                  className="studio-asset-typeshot-item gap-2 text-xs"
+                  disabled={generationBusy}
+                  onClick={() => onTypeShot?.(profile.kind)}
+                >
+                  <span>{profile.kind}</span>
+                  <Badge variant="outline" className="ml-auto px-1.5 py-0 text-[10px] font-medium">{profile.aspect}</Badge>
+                  {profile.rgba && (
+                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary">透明</Badge>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {/* 批3 一键补缺顺序队列:缺失核心型逐型顺序补全(聚合相位,逐型完成落图) */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="studio-asset-fill-missing h-6 gap-1 px-2 text-[11px]"
+          onClick={() => onFillMissing?.()}
+          disabled={fillMissingDisabled || !onFillMissing}
+          title={fillMissingTitle}
+        >
+          {typeShotPhase ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+          一键补缺
+        </Button>
+        {typeShotPhase && typeShotMessage && (
+          <span className="min-w-0 truncate text-[11px] text-muted-foreground" title={typeShotMessage}>
+            {typeShotMessage}
+          </span>
+        )}
+      </div>
+      <div className="studio-asset-completeness-core-row flex flex-wrap items-center gap-1.5" aria-label="核心五必备">
+        {CORE_ASSET_IMAGE_KINDS.map((kind) => {
+          const count = completenessCount(kind);
+          const missing = count === 0;
+          return onGenerateByKind && missing ? (
+            <button
+              key={kind}
+              type="button"
+              className="studio-asset-completeness-chip studio-asset-completeness-chip-missing rounded-full border border-destructive/50 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive transition-colors hover:bg-destructive/20"
+              onClick={() => onGenerateByKind?.(kind)}
+              disabled={generationBusy}
+              title={generationBusy ? "有生成任务正在进行，请稍候" : `缺失${kind}，点击生成`}
+            >
+              {kind} ✗
+            </button>
+          ) : (
+            <span
+              key={kind}
+              className={`studio-asset-completeness-chip rounded-full border px-2 py-0.5 text-[11px] ${
+                missing
+                  ? "border-destructive/40 bg-destructive/5 text-destructive"
+                  : "border-primary/30 bg-primary/5 text-foreground"
+              }`}
+            >
+              {kind} {missing ? "✗" : `✓${count}`}
+            </span>
+          );
+        })}
+      </div>
+      <div className="studio-asset-completeness-extended-row flex flex-wrap items-center gap-1.5" aria-label="扩展四型">
+        {EXTENDED_ASSET_IMAGE_KINDS.map((kind) => {
+          const count = completenessCount(kind);
+          return (
+            <span
+              key={kind}
+              className="studio-asset-completeness-chip studio-asset-completeness-chip-extended rounded-full border border-border/60 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground"
+            >
+              {kind} {count > 0 ? count : "—"}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+    );
+  };
 
   return (
     <div className="studio-asset-image-spec-region space-y-4">
-      {/* 完整度总览条占位(批1骨架):按型统计+一键补缺待批2 图片分类上线后启用 */}
-      {isRoleGallery && (
-        <div className="studio-asset-completeness-bar sticky top-0 z-[1] flex flex-wrap items-center gap-2 rounded-md border border-border bg-background/95 px-3 py-2 backdrop-blur">
-          <span className="text-xs font-medium text-foreground">图片规范完整度</span>
-          <span className="text-[11px] text-muted-foreground">按型统计与一键补缺待图片分类上线后启用</span>
-        </div>
-      )}
+      {isRoleGallery && renderCompletenessBar()}
 
       {isRoleGallery ? (
         <>
-          {ROLE_IMAGE_SECTION_DEFS.map(({ kind, aspect }) =>
-            renderSection(
+          {ROLE_IMAGE_SECTION_DEFS.map(({ kind, aspect }) => {
+            const group = kindGroups.get(kind) ?? [];
+            const widthClass = sectionCardWidthClass(aspect);
+            const typeShotProfile = typeShotProfileByKind.get(kind);
+            const sectionButtons = kind === "高清人脸" && canFacePortrait
+              ? renderFaceSectionButtons()
+              : kind === "表情差分" && canFacePortrait
+                ? renderExpressionSectionButton()
+                : typeShotProfile && canTypeShot && onTypeShot
+                  ? renderTypeShotSectionButton(kind, typeShotProfile.route)
+                  : undefined;
+            return renderSection(
               kind,
               kind,
               aspect,
-              renderPlaceholderCard(kind, sectionCardWidthClass(aspect)),
-              0,
-              kind === "高清人脸" && canFacePortrait
-                ? renderFaceSectionButtons()
-                : kind === "表情差分" && canFacePortrait
-                  ? renderExpressionSectionButton()
-                  : undefined,
-            ),
-          )}
+              group.length > 0
+                ? group.map(({ image, index }) => renderImageCard(image, index, widthClass))
+                : renderPlaceholderCard(kind, widthClass, { kind }),
+              group.length,
+              sectionButtons,
+              typeShotProfile ? { rgba: typeShotProfile.rgba, route: typeShotProfile.route } : undefined,
+              // 批3 复审 M 修:红点判定=本行 completenessCount(族兄弟图不抵扣)
+              CORE_KIND_SET.has(kind) && completenessCount(kind) === 0,
+            );
+          })}
           {renderSection(
             UNCATEGORIZED_SECTION_KIND,
             UNCATEGORIZED_SECTION_KIND,
             null,
             hasImagePreview
-              ? images.map((image, index) => renderImageCard(image, index, squareWidth))
+              ? (kindGroups.get(UNCATEGORIZED_SECTION_KIND) ?? []).map(({ image, index }) => renderImageCard(image, index, squareWidth))
               : renderPlaceholderCard("图片", squareWidth),
-            images.length,
+            kindCount(UNCATEGORIZED_SECTION_KIND),
           )}
         </>
       ) : (

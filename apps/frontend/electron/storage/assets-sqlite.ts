@@ -48,6 +48,9 @@ function sqliteCliExecutable(): string {
 export interface StoredAssetImage {
   name: string;
   filePath: string;
+  /** 10-24 图片展示规范批2:图片类型持久值(住 images[] JSON 条目内,db schema 不加列,
+   *  PRD Round 2 A 裁定);缺省=老图,读路按命名规则派生(classifyAssetImage 三层解析)。 */
+  kind?: string;
 }
 
 interface AssetDbRow {
@@ -439,6 +442,9 @@ export function rowToSummary(row: AssetDbRow): StudioAssetSummary {
             name: img.name,
             filePath: img.filePath,
             url: createAssetFileUrl(img.filePath),
+            // 10-24 批2:kind 持久值透传(非法串透传后在视图层被 classifyAssetImage
+            // 的 isAssetImageKind 校验拦下走命名派生,此处不阻断投影)
+            ...(typeof img.kind === "string" ? { kind: img.kind as AssetImage["kind"] } : {}),
           };
         })
         .filter((img: AssetImage | null): img is AssetImage => Boolean(img));

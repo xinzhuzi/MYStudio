@@ -334,7 +334,7 @@ contextBridge.exposeInMainWorld('studioAssets', {
   update: (payload: { id: string; updates: Record<string, unknown> }) => ipcRenderer.invoke('assets:update', payload),
   delete: (id: string) => ipcRenderer.invoke('assets:delete', id),
   add: (payload: { type: string; name: string; sourceFilePath?: string; description?: string; prompt?: string; setting?: string }) => ipcRenderer.invoke('assets:add', payload),
-  addImage: (payload: { assetId: string; imageName: string; sourceFilePath: string }) => ipcRenderer.invoke('assets:add-image', payload),
+  addImage: (payload: { assetId: string; imageName: string; sourceFilePath: string; kind?: string }) => ipcRenderer.invoke('assets:add-image', payload),
   replaceImage: (payload: { assetId: string; sourceFilePath: string; imageName?: string }) => ipcRenderer.invoke('assets:replace-image', payload),
   removeImage: (payload: { assetId: string; imageFilePath: string }) => ipcRenderer.invoke('assets:remove-image', payload),
   renameImage: (payload: { assetId: string; imageFilePath: string; newName: string }) => ipcRenderer.invoke('assets:rename-image', payload),

@@ -20,7 +20,7 @@ import {
   shouldCreateAssetThumbnail,
   updateAsset,
 } from "./studio-assets-storage";
-import { getFilesDir, resolveSqliteCli } from "./assets-sqlite";
+import { getDbPath, getFilesDir, resolveSqliteCli, runSqliteJsonSync } from "./assets-sqlite";
 import { getAssetSync } from "./assets-queries";
 
 let tempAssetRoot: string | undefined;
@@ -380,6 +380,43 @@ describe("资产名分夹落盘(R1:role/scene/tool 名夹层,clip/audio 平铺�
 
     const bare = addAssetImage(asset.id, "共主期_三视图_v1", detailSource);
     expect(bare?.images?.[1]?.filePath).toBe("role/晏燎/晏燎_共主期_三视图_v1.png");
+  });
+
+  // 10-24 图片展示规范批2:kind 写路落值(PRD Round 2 A——kind 住 images[] JSON
+  // 条目内,addImage IPC 增可选参;返回值经 rowToSummary 投影断言透传链一体成立)
+  it("addAssetImage 带 kind 落 images[] 条目并经读投影透传", () => {
+    initTempAssetsStorage();
+    const mainSource = join(tempAssetRoot!, "main.png");
+    const detailSource = join(tempAssetRoot!, "detail.png");
+    writeFileSync(mainSource, "main image");
+    writeFileSync(detailSource, "detail image");
+    const asset = addAsset({ type: "role", name: "晏燎", sourceFilePath: mainSource });
+
+    const updated = addAssetImage(asset.id, "晏燎_练气期_三视图_v1", detailSource, "人物多视图");
+    const typed = updated?.images?.find((image) => image.filePath.includes("三视图"));
+    expect(typed?.kind).toBe("人物多视图");
+
+    // 盘上 JSON 真身断言(持久值住 images[] 条目内,非视图层临时态)
+    const rows = runSqliteJsonSync<Array<{ images: string }>>(
+      getDbPath(),
+      `SELECT images FROM assets WHERE id='${asset.id}' LIMIT 1;`,
+    );
+    const stored = JSON.parse(rows[0].images) as Array<{ name: string; kind?: string }>;
+    expect(stored.find((image) => image.name === "晏燎_练气期_三视图_v1")?.kind).toBe("人物多视图");
+  });
+
+  it("addAssetImage 缺省 kind 保持旧条目形态(零迁移成本)", () => {
+    initTempAssetsStorage();
+    const mainSource = join(tempAssetRoot!, "main.png");
+    const detailSource = join(tempAssetRoot!, "detail.png");
+    writeFileSync(mainSource, "main image");
+    writeFileSync(detailSource, "detail image");
+    const asset = addAsset({ type: "role", name: "晏燎", sourceFilePath: mainSource });
+
+    const updated = addAssetImage(asset.id, "随手添加的旧图", detailSource);
+    const entry = updated?.images?.[0];
+    expect(entry?.name).toBe("随手添加的旧图");
+    expect(entry?.kind).toBeUndefined();
   });
 
   it("clip/audio 落盘保持平铺无名夹层(回归锁)", () => {

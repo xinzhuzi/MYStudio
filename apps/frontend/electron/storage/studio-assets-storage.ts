@@ -323,7 +323,14 @@ export function replaceAssetMainImage(assetId: string, sourceFilePath: string, i
   return getAssetSync(assetId);
 }
 
-export function addAssetImage(assetId: string, imageName: string, sourceFilePath: string): StudioAssetSummary | null {
+export function addAssetImage(
+  assetId: string,
+  imageName: string,
+  sourceFilePath: string,
+  /** 10-24 图片展示规范批2:图片类型持久值(PRD Round 2 A——addImage IPC 增可选参,
+   *  kind 住 images[] JSON 条目内,db schema 不加列);缺省=不落 kind,读路按命名派生。 */
+  kind?: string,
+): StudioAssetSummary | null {
   if (!fs.existsSync(sourceFilePath)) return null;
   const dbPath = getDbPath();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -355,7 +362,8 @@ export function addAssetImage(assetId: string, imageName: string, sourceFilePath
 
   const relPath = `${subDir}/${destName}`;
   const images = JSON.parse(asset.images || "[]");
-  images.push({ name: imageName, filePath: relPath });
+  // 批2 kind 落值:带参写入条目,缺省保持旧形态(老条目无 kind 字段,零迁移成本)
+  images.push(typeof kind === "string" && kind ? { name: imageName, filePath: relPath, kind } : { name: imageName, filePath: relPath });
   const now = new Date().toISOString();
   const imagesJson = JSON.stringify(images);
   runSqliteExecSafe(dbPath, `UPDATE assets SET images='${escapeSql(imagesJson)}', updatedAt='${now}' WHERE id='${escapeSql(assetId)}';`);

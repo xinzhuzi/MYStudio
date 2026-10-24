@@ -236,10 +236,11 @@ export function registerAssetLibraryIpcHandlers({
     });
   }));
   ipcMain.handle("assets:add-image", async (_event, payload: {
-    assetId: string; imageName: string; sourceFilePath: string;
+    assetId: string; imageName: string; sourceFilePath: string; kind?: string;
   }) => runAssetDiagnostics("add-image", payload, () => {
     rejectIllegalSourcePath(payload.sourceFilePath);
-    return assetsStorage.addAssetImage(payload.assetId, payload.imageName, payload.sourceFilePath);
+    // 批2(10-24):kind 可选参透传——图片类型持久值住 images[] JSON 条目内
+    return assetsStorage.addAssetImage(payload.assetId, payload.imageName, payload.sourceFilePath, payload.kind);
   }));
   ipcMain.handle("assets:replace-image", async (_event, payload: {
     assetId: string; sourceFilePath: string; imageName?: string;
