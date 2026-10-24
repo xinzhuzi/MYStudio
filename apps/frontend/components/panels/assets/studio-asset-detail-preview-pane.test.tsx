@@ -117,7 +117,6 @@ const ROLE_SECTION_ORDER = [
   "美宣",
   "人脸基准",
   "自由",
-  "早期未分类",
 ];
 
 describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区骨架)", () => {
@@ -159,21 +158,24 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     expect(within(multiViewSection).getByText("16:9")).toBeTruthy();
     const faceSection = screen.getByRole("region", { name: "高清人脸" });
     expect(within(faceSection).getByText("1:1")).toBeTruthy();
-    // 批2 分类:主图/姿态一 命名无标记 → 早期未分类节(三层解析兜底)
-    const uncategorized = screen.getByRole("region", { name: "早期未分类" });
+    // 10-25 裁定:无标记图落自由节(三层解析兜底)
+    const uncategorized = screen.getByRole("region", { name: "自由" });
     expect(within(uncategorized).getByText("2 张")).toBeTruthy();
     expect(within(uncategorized).getByRole("img", { name: "主图" }).getAttribute("src")).toBe("media://main");
     expect(within(uncategorized).getByRole("img", { name: "姿态一" }).getAttribute("src")).toBe("media://pose");
   });
 
   it("renders dashed placeholder cards for every empty typed section (空型槽位恒在)", () => {
-    renderPane();
+    renderPane({ images: [] });
 
-    for (const kind of ROLE_SECTION_ORDER.slice(0, 9)) {
+    for (const kind of ROLE_SECTION_ORDER.slice(0, 8)) {
       const section = screen.getByRole("region", { name: kind });
       expect(within(section).getByText(`尚无${kind}`)).toBeTruthy();
       expect(section.querySelector(".studio-asset-image-placeholder")).toBeTruthy();
     }
+    // 自由节(第 9)占位卡同样恒在(占位文本随渲染器形态,断 placeholder 类)
+    const free = screen.getByRole("region", { name: "自由" });
+    expect(free.querySelector(".studio-asset-image-placeholder")).toBeTruthy();
   });
 
   it("renders the completeness overview bar above typed-track galleries(Round 3 ⑤ 三轨通用;clip 无)", () => {
@@ -253,11 +255,10 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     expect(populated.props.onReplaceImage).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the role zero-image skeleton: typed placeholders + 尚无图片 in 早期未分类", () => {
+  it("renders the role zero-image skeleton: typed placeholders 全节(无未分类节,10-25 无类型图归自由)", () => {
     renderPane({ images: [] });
 
-    const uncategorized = screen.getByRole("region", { name: "早期未分类" });
-    expect(within(uncategorized).getByText("尚无图片")).toBeTruthy();
+    expect(screen.getAllByText(/尚无/).length).toBeGreaterThanOrEqual(9); // 九型占位全在
     expect(screen.getByText("未选中图片")).toBeTruthy();
   });
 
@@ -449,7 +450,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     { name: "主图", filePath: "role/a5.png", url: "media://a5" },
   ];
 
-  it("按命名分类归节:四型各 1 张落对应节,无标记沉早期未分类", () => {
+  it("按命名分类归节:四型各 1 张落对应节,无标记沉自由(10-25 裁定)", () => {
     renderPane({ images: TYPED_IMAGES });
 
     const multi = screen.getByRole("region", { name: "人物多视图" });
@@ -463,7 +464,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     expect(within(promo).getByRole("img", { name: "晏燎_练气期_海报_v1" })).toBeTruthy();
     const face = screen.getByRole("region", { name: "高清人脸" });
     expect(within(face).getByText("1 张")).toBeTruthy();
-    const uncategorized = screen.getByRole("region", { name: "早期未分类" });
+    const uncategorized = screen.getByRole("region", { name: "自由" });
     expect(within(uncategorized).getByText("1 张")).toBeTruthy();
     expect(within(uncategorized).getByRole("img", { name: "主图" })).toBeTruthy();
   });
@@ -486,10 +487,10 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     const multi = screen.getByRole("region", { name: "人物多视图" });
     const multiCard = multi.querySelector(".studio-asset-image-card");
     expect(multiCard?.textContent).toContain("人物多视图");
-    // 未分类卡徽标=早期未分类
-    const uncategorized = screen.getByRole("region", { name: "早期未分类" });
-    expect(uncategorized.querySelector(".studio-asset-image-card")?.textContent).toContain("早期未分类");
-    // scene 轨同款型徽标:_场景_ 标记归场景节+带徽标;无标记沉早期未分类(Round 3 ⑤)
+    // 10-25 裁定:无标记图(主图)落自由节,徽标=自由
+    const free = screen.getByRole("region", { name: "自由" });
+    expect(free.querySelector(".studio-asset-image-card")?.textContent).toContain("自由");
+    // scene 轨同款型徽标:_场景_ 标记归场景节+带徽标;无标记沉自由(Round 3 ⑤)
     cleanup();
     renderPane({
       asset: asset({ type: "scene" }),
@@ -501,8 +502,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     const sceneSection = screen.getByRole("region", { name: "场景" });
     const sceneCard = sceneSection.querySelector(".studio-asset-image-card");
     expect(sceneCard?.textContent).toContain("场景");
-    const sceneUncategorized = screen.getByRole("region", { name: "早期未分类" });
-    expect(sceneUncategorized.querySelector(".studio-asset-image-card")?.textContent).toContain("早期未分类");
+    const sceneFree = screen.getByRole("region", { name: "自由" });
+    expect(sceneFree.querySelector(".studio-asset-image-card")?.textContent).toContain("随手存的图");
   });
 
   it("核心型空节:节头红点+占位卡红角标+CTA 直达生成;扩展型灰占不告警", () => {
@@ -572,7 +573,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(hidden.queryByRole("button", { name: "生成设定卡" })).toBeNull();
 
     cleanup();
-    // 有参考图(i2i 五型可点;无标记图归早期未分类节零干扰)
+    // 有参考图(i2i 五型可点;无标记图归自由节零干扰(10-25))
     const onTypeShot = vi.fn();
     renderPane({
       images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
@@ -676,9 +677,9 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
       images: [{ name: "山门_场景_v1", filePath: "scene/s1.png", url: "media://s1" }],
     });
 
-    // 节序=scene 谱:场景→概念气氛图→3D剖面场景图→自由→早期未分类(占位卡槽位恒在)
+    // 节序=scene 谱:场景→概念气氛图→3D剖面场景图→自由(10-25 无未分类节,无类型图落自由)
     expect(screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
-      "场景", "概念气氛图", "3D剖面场景图", "自由", "早期未分类",
+      "场景", "概念气氛图", "3D剖面场景图", "自由",
     ]);
     expect(screen.getByText("图片规范完整度")).toBeTruthy();
     const sceneSection = screen.getByRole("region", { name: "场景" });
@@ -706,7 +707,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     });
 
     expect(screen.getAllByRole("region").map((region) => region.getAttribute("aria-label"))).toEqual([
-      "道具", "自由", "早期未分类",
+      "道具", "自由",
     ]);
     // 道具=t2i 透明底型:零图可点(无参考需求);节头带透明+t2i 徽标
     const propButton = screen.getByRole("button", { name: "生成道具" }) as HTMLButtonElement;

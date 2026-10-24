@@ -42,10 +42,9 @@ const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36
  * 10-24 图片展示规范(批1骨架+批2分类归节+Round 3 扩展令⑤三轨推广):图片三轨
  * (role/scene/tool)按各自型谱分节——role 谱=grill Round 1 裁定2(身份链根→常规产物
  * →重版式→工具型→兜底),scene 谱=场景/概念气氛图/3D剖面场景图+自由,tool 谱=道具+自由;
- * classifyAssetImage 三层解析(持久值→命名规则→早期未分类)上线,存量图按命名归位,
- * 识别不出落「早期未分类」节;clip 无型谱=单节「图片」,audio 零动。
+ * classifyAssetImage 三层解析(持久值→命名规则→自由)上线,存量图按命名归位,
+ * 识别不出落「自由」节(10-25 用户裁定:自由就是放无类型图的);clip 无型谱=单节「图片」,audio 零动。
  */
-const UNCATEGORIZED_SECTION_KIND = "早期未分类";
 /** clip 轨无型谱=单节「图片」横向行(裁定 D;Round 3 ⑤ 后仅 clip 走此分支)。 */
 const SINGLE_SECTION_TITLE = "图片";
 
@@ -283,7 +282,6 @@ export function StudioAssetDetailPreviewPane({
   const trackNoun = track ? TRACK_NOUNS[track] : "资产";
   const CORE_KIND_SET = new Set<string>(spectrum?.core ?? []);
   const TYPED_SECTION_DEFS = (spectrum?.order ?? [])
-    .filter((kind) => kind !== UNCATEGORIZED_SECTION_KIND)
     .map((kind) => ({ kind, aspect: ASSET_IMAGE_KIND_ASPECTS[kind as Exclude<AssetImageKind, "早期未分类">] }));
 
   /** 图卡:单击=选中(全局单选图);悬浮操作=放大(全屏预览)/删图(removable 守卫)。
@@ -531,7 +529,6 @@ export function StudioAssetDetailPreviewPane({
   // 完整度判定按本行自有图集(见下 completenessGroups,复审 M 修),非展示序。
   const spectrumOrder = spectrum?.order;
   const kindGroups = groupAssetImagesByKind(images, spectrumOrder);
-  const kindCount = (kind: AssetImageKind) => kindGroups.get(kind)?.length ?? 0;
   // 批3 复审 M 修(Round 3 Q1):完整度 chips/核心红点基准=本行自有图集——族兄弟行
   // 同型图不抵扣本行缺口,归属未确认候版本系统落地后细化;缺省回落 images
   // (非族聚显调用方 displayImages≡本行图集,零行为变化)
@@ -709,15 +706,6 @@ export function StudioAssetDetailPreviewPane({
               CORE_KIND_SET.has(kind) && completenessCount(kind) === 0,
             );
           })}
-          {renderSection(
-            UNCATEGORIZED_SECTION_KIND,
-            UNCATEGORIZED_SECTION_KIND,
-            null,
-            hasImagePreview
-              ? (kindGroups.get(UNCATEGORIZED_SECTION_KIND) ?? []).map(({ image, index }) => renderImageCard(image, index, squareWidth))
-              : renderPlaceholderCard("图片", squareWidth),
-            kindCount(UNCATEGORIZED_SECTION_KIND),
-          )}
         </>
       ) : (
         renderSection(

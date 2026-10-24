@@ -56,12 +56,12 @@ const NAME_TABLE_CASES: Array<[string, string]> = [
   ["山门_概念气氛图_v1", "概念气氛图"],
   ["山门_气氛图_v1", "概念气氛图"],
   ["玄铁剑_道具_2026年10月24日", "道具"],
-  // 识别不出 → 早期未分类
-  ["主图", "早期未分类"],
-  ["姿态一", "早期未分类"],
-  ["独孤剑尘_参考图", "早期未分类"],
-  ["晏燎_基底_v1", "早期未分类"],
-  ["晏燎_2026年07月03日", "早期未分类"],
+  // 识别不出 → 自由(10-25 用户裁定)
+  ["主图", "自由"],
+  ["姿态一", "自由"],
+  ["独孤剑尘_参考图", "自由"],
+  ["晏燎_基底_v1", "自由"],
+  ["晏燎_2026年07月03日", "自由"],
 ];
 
 describe("classifyAssetImageName · 命名分类表全 pattern(10-24 批2,PRD Round 2 A 节逐字)", () => {
@@ -74,7 +74,7 @@ describe("classifyAssetImageName · 命名分类表全 pattern(10-24 批2,PRD Ro
   });
 });
 
-describe("classifyAssetImage · 三层解析(持久值→命名→早期未分类)", () => {
+describe("classifyAssetImage · 三层解析(持久值→命名→自由)", () => {
   it("持久值优先:kind 合法时压过命名派生(改名破规后的兜底值)", () => {
     expect(classifyAssetImage({ name: "随便改的名", kind: "美宣" })).toBe("美宣");
   });
@@ -84,8 +84,8 @@ describe("classifyAssetImage · 三层解析(持久值→命名→早期未分�
     expect(classifyAssetImage(rogue)).toBe("人物多视图");
   });
 
-  it("无 kind 无标记 → 早期未分类", () => {
-    expect(classifyAssetImage({ name: "主图" })).toBe("早期未分类");
+  it("无 kind 无标记 → 自由(10-25 裁定)", () => {
+    expect(classifyAssetImage({ name: "主图" })).toBe("自由");
   });
 });
 
@@ -95,7 +95,7 @@ const YANLIAO_REALMS = ["练气", "筑基", "金丹", "元婴", "化神", "炼�
 /** 实盘镜像 fixture(10-24 实读 MA 库 role/晏燎 行 images[] 全量 32 条逐字同构;
  *  联合收尾复核=sqlite 只读重查同款):三视图/正视图/海报 ×10 境 + 表情差分 1 +
  *  基底 1。库内现值高清人脸 0(盘上 files/role/晏燎/ 亦无该类文件);_基底_ 不在
- *  PRD A 节逐字命名表内 → 落早期未分类(无映射名落未分类=合法终态,禁虚构旧口径)。 */
+ *  PRD A 节逐字命名表内 → 落自由(无映射名落自由=合法终态,10-25 裁定)。 */
 const YANLIAO_DB_32_NAMES: string[] = [
   ...YANLIAO_REALMS.flatMap((realm) => [
     `晏燎_${realm}期_三视图_v1`,
@@ -107,35 +107,35 @@ const YANLIAO_DB_32_NAMES: string[] = [
 ];
 
 describe("晏燎实盘镜像 fixture(库内 32 条实测:多视图20[10-25 正视图并入]/海报0/美宣10/表情差分1/未分类1/人脸0)", () => {
-  it("32 条按型归位:基底无映射沉早期未分类,库内无人脸图", () => {
+  it("32 条按型归位:无标记图落自由(10-25 裁定),库内无人脸图", () => {
     expect(YANLIAO_DB_32_NAMES).toHaveLength(32);
-    const counts = { 人物多视图: 0, 人物海报: 0, 美宣: 0, 表情差分: 0, 高清人脸: 0, 早期未分类: 0 };
+    const counts = { 人物多视图: 0, 人物海报: 0, 美宣: 0, 表情差分: 0, 高清人脸: 0, 自由: 0 };
     for (const name of YANLIAO_DB_32_NAMES) {
       const kind = classifyAssetImageName(name);
       if (kind in counts) counts[kind as keyof typeof counts] += 1;
     }
     expect(counts).toEqual({
-      人物多视图: 20, 人物海报: 0, 美宣: 10, 表情差分: 1, 高清人脸: 0, 早期未分类: 1,
+      人物多视图: 20, 人物海报: 0, 美宣: 10, 表情差分: 1, 高清人脸: 0, 自由: 1,
     });
     // 完整度条实弹效果如实锁:高清人脸缺失红 chip 属真缺(库内确无),基底沉底未分类节
-    expect(classifyAssetImageName("晏燎_基底_v1")).toBe("早期未分类");
+    expect(classifyAssetImageName("晏燎_基底_v1")).toBe("自由");
   });
 });
 
 describe("独孤剑尘既有产物族命名归位(真库在档三件套+参考图)", () => {
-  it("高清大脸/人物图/多视图按映射归位,参考图落未分类", () => {
+  it("高清大脸/人物图/多视图按映射归位,参考图落自由(10-25)", () => {
     expect(classifyAssetImageName("独孤剑尘_高清大脸_2026年10月21日")).toBe("高清人脸");
     expect(classifyAssetImageName("独孤剑尘_人物图_2026年10月21日")).toBe("人物多视图");
     expect(classifyAssetImageName("独孤剑尘_多视图_2026年10月21日")).toBe("人物多视图");
-    expect(classifyAssetImageName("独孤剑尘_参考图")).toBe("早期未分类");
+    expect(classifyAssetImageName("独孤剑尘_参考图")).toBe("自由");
   });
 });
 
 describe("型谱节序与分级常量(grill Round 1 裁定1/2)", () => {
-  it("节序=裁定2:身份链根→常规产物→重版式→工具型→兜底,早期未分类沉底", () => {
+  it("节序=裁定2:身份链根→常规产物→重版式→工具型→兜底;无未分类节(10-25 无类型图落自由)", () => {
     expect(ASSET_IMAGE_KIND_ORDER).toEqual([
       "全身定妆", "人物海报", "人物多视图", "高清人脸", "表情差分",
-      "设定卡", "美宣", "人脸基准", "自由", "早期未分类",
+      "设定卡", "美宣", "人脸基准", "自由",
     ]);
   });
 
@@ -151,12 +151,12 @@ describe("型谱节序与分级常量(grill Round 1 裁定1/2)", () => {
 describe("三轨型谱表(Round 3 扩展令⑤:型谱从 role 专属推广图片三轨)", () => {
   it("scene 谱:三核心(场景/概念气氛图/3D剖面场景图)+扩展自由;tool 谱:核心道具+扩展自由", () => {
     expect(ASSET_IMAGE_KIND_SPECTRA.scene).toEqual({
-      order: ["场景", "概念气氛图", "3D剖面场景图", "自由", "早期未分类"],
+      order: ["场景", "概念气氛图", "3D剖面场景图", "自由"],
       core: ["场景", "概念气氛图", "3D剖面场景图"],
       extended: ["自由"],
     });
     expect(ASSET_IMAGE_KIND_SPECTRA.tool).toEqual({
-      order: ["道具", "自由", "早期未分类"],
+      order: ["道具", "自由"],
       core: ["道具"],
       extended: ["自由"],
     });
@@ -203,13 +203,14 @@ describe("groupAssetImagesByKind · 按型谱节序分组", () => {
     // 10-25 裁定:正视图并入人物多视图(保序:index 1,3 同节)
     expect(groups.get("人物多视图")).toEqual([{ image: images[1], index: 1 }, { image: images[3], index: 3 }]);
     expect(groups.get("美宣")).toEqual([{ image: images[2], index: 2 }]);
-    expect(groups.get("早期未分类")).toEqual([{ image: images[0], index: 0 }]);
+    expect(groups.get("自由")).toEqual([{ image: images[0], index: 0 }]);
     // 空节=空数组(占位卡渲染依据)
     expect(groups.get("全身定妆")).toEqual([]);
     expect(groups.get("人物海报")).toEqual([]);
+    expect(groups.get("早期未分类") ?? []).toEqual([]);
   });
 
-  it("Round 3 ⑤ 轨道谱分组:scene 谱键=谱序;越谱型(如 _海报_ 命名)沉早期未分类防丢图", () => {
+  it("Round 3 ⑤ 轨道谱分组:scene 谱键=谱序;越谱型(如 _海报_ 命名)沉自由防丢图(10-25 裁定)", () => {
     const images = [
       { name: "山门_场景_v1" },
       { name: "随手_海报_v1" },
@@ -217,23 +218,21 @@ describe("groupAssetImagesByKind · 按型谱节序分组", () => {
       { name: "剑穗_自由_v1" },
     ];
     const groups = groupAssetImagesByKind(images, ASSET_IMAGE_KIND_SPECTRA.scene.order);
-    expect([...groups.keys()]).toEqual(["场景", "概念气氛图", "3D剖面场景图", "自由", "早期未分类"]);
+    expect([...groups.keys()]).toEqual(["场景", "概念气氛图", "3D剖面场景图", "自由"]);
     expect(groups.get("场景")).toEqual([{ image: images[0], index: 0 }]);
-    // _海报_ 属 role 谱型,scene 谱无此节 → 沉早期未分类(不越谱丢图)
-    expect(groups.get("早期未分类")).toEqual([{ image: images[1], index: 1 }]);
+    // _海报_ 属 role 谱型,scene 谱无此节 → 沉自由(不越谱丢图,10-25 裁定无类型图归自由)
+    expect(groups.get("自由")).toEqual([{ image: images[1], index: 1 }, { image: images[3], index: 3 }]);
     expect(groups.get("概念气氛图")).toEqual([{ image: images[2], index: 2 }]);
-    expect(groups.get("自由")).toEqual([{ image: images[3], index: 3 }]);
     expect(groups.get("道具")).toBeUndefined();
   });
 
-  it("tool 谱分组:道具/自由/早期未分类三节", () => {
+  it("tool 谱分组:道具/自由两节(无类型图落自由,10-25 裁定)", () => {
     const groups = groupAssetImagesByKind(
       [{ name: "玄铁剑_道具_v1" }, { name: "剑穗_自由_v1" }, { name: "随手图" }],
       ASSET_IMAGE_KIND_SPECTRA.tool.order,
     );
-    expect([...groups.keys()]).toEqual(["道具", "自由", "早期未分类"]);
+    expect([...groups.keys()]).toEqual(["道具", "自由"]);
     expect(groups.get("道具")).toHaveLength(1);
-    expect(groups.get("自由")).toHaveLength(1);
-    expect(groups.get("早期未分类")).toHaveLength(1);
+    expect(groups.get("自由")).toHaveLength(2);
   });
 });
