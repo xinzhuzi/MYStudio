@@ -3,10 +3,10 @@
 CLI: --stage <境名> --kind poster|viewsheet 单发; --check 只预检全部门禁不发包。
 外层串行驱动逐发调用(本脚本无全量 for 循环); 幂等=目标文件已存在即 exit 0 跳过。
 
-指令真源=apps/output/晏燎/kv_prompts_1023.json(②路修正版: 三视图指令尾句
-「去掉米白底衬底，四周留出空边」→「背景为干净的米白底衬底」, 因原①路透明产物
-与本役产品门禁「产物必须不透明米白底, alpha 全透占比>10% 判失败重掷」硬冲突,
-按原计划【立场否决·②路】协议修文回写; 不透明强制点=[6:180] MyQi21RgbaSelect
+指令真源=apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/晏燎.json
+(10-24 缺件重做役切换: 原 kv_prompts_1023.json ②路短文已废, 十境海报指令整卷重写为
+长文版; 三视图指令新旧同文)。防篡改锚=本文件 FINGERPRINT_ANCHOR 冻结常量(--check
+指纹漂移即红: 有意改源须同步改锚并复跑 --check); 不透明强制点=[6:180] MyQi21RgbaSelect
 .mode='false', 真值表见 my_qi21_rgba_select.py:13-16, 装配器对透明型恒剥中文
 透明声明、FinalOutput 透明关=装配全文原样——my_qi21_prompt_assembly.py:379)。
 
@@ -20,12 +20,15 @@ upload 三层防线(引擎 input 区同名旧件高危): ①multipart 加 overwr
 ②捕获响应返回名设 [10].inputs.image(引擎同名异容静默改名「名 (1).png」);
 ③GET /view?type=input 拉回字节 md5 与本地件比对, 不一致停线。
 
-引擎纪律沿 yanliao_stage_fronts_1023.py: 串行单发; 发前 memory_pressure 空闲
-<30% 先 POST /free; 崩溃等守卫 wait_engine(≤180s) 后重试一次(重掷 seed+1000);
-空片门禁(文件<400KB 或 非背景占比<8% 弃用) + alpha 门禁(全透占比>10% 判失败
-重掷, 与参考图口径一致) + 画幅门禁(宽高比 1.78±0.05, SeedVR2 短边2048量化
-浮动容差); 取片锚=[504] 前缀 MYStudio-2K; deadline 900s; 日志=apps/output/
-晏燎/stage_poster_viewsheet_1023.log; 图片只进 apps/output/晏燎/trial_基准。
+引擎纪律(10-24 迁移 comfy_fire_core 稳定核心): 串行单发; 发前 memory_pressure 空闲
+<30% 先 POST /free; 失败分类重掷——空片/画幅/alpha 内容判废与超时断连→重掷 seed+1000
+一次且先过队列清零闸(杀并发在途通道), 门禁拒单类确定性失败不重掷直报; deadline 可配
+(--deadline / env MYSTUDIO_FIRE_DEADLINE_S, 缺省 900); 内容判废重做=--force --seed
+显式通道(替代 import fire_once hack); 空片门禁(文件<400KB 或 非背景占比<8% 弃用,
+背景锚=边界环中位, env MYSTUDIO_FIRE_ANCHOR=pixel 可回旧单像素口径) + alpha 门禁
+(全透占比>10% 判失败, 与参考图口径一致) + 画幅门禁(宽高比 1.78±0.05, SeedVR2 短边
+2048 量化浮动容差); 取片锚=[504] 前缀 MYStudio-2K; 日志=apps/output/晏燎/
+stage_poster_viewsheet_1023.log; 图片只进 apps/output/晏燎/trial_基准。
 
 --check 门禁(20 条指令, 全绿 exit 0): 门1=_gongbi_gate.prompt_violations
 (is_subject=True, 道劫美术类型在 my_qi21_prompt_assembly.py:348-349 走的真实
@@ -38,23 +41,21 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import io as _io
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 import time
-import urllib.request as ureq
 from pathlib import Path
-from urllib.parse import quote, urlencode
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / 'apps/output/晏燎/trial_基准'
 LOG = ROOT / 'apps/output/晏燎/stage_poster_viewsheet_1023.log'
 TEMPLATE = ROOT / 'apps/output/晏燎/user_fire_template_1023.json'
 TEMPLATE_SRC = Path('/tmp/user_fire_graph.json')  # 仓内模板缺档时自愈来源(仅 cp, 不出图)
-KV = ROOT / 'apps/output/晏燎/kv_prompts_1023.json'
+KV = ROOT / 'apps/frontend/assets/studio-manuals/art_skills/daojie_ink_guofeng/json/晏燎.json'
 ENGINE = 'http://127.0.0.1:17001'
 OVERLAP = ROOT / 'apps/build/scripts/daojie_subject_overlap.py'
 
@@ -62,10 +63,21 @@ ORDER = ['1.炼气期', '2.筑基期', '3.金丹期', '4.元婴期', '5.化神�
          '6.炼虚期', '7.合体期', '8.渡劫期', '9.大乘期', '10.共主期']
 KIND_ZH = {'poster': '海报', 'viewsheet': '三视图'}
 KIND_BASE = {'poster': '美宣', 'viewsheet': '人物多视图'}
+# 真源防篡改锚(10-24 冻结; 同日随源收口重钉): 指纹=20 条指令 sha256 前 12 位。
+# 晏燎.json 被改即漂移红; 有意改源(用户令)须同步改此常量并复跑 --check 全绿再发包。
+# 锚账: e5f099923336=10-24 首冻 → 57a81bbce29c=10-24 二钉(真源「1024 终版」收口: 缺件
+#   海报/三视图补齐+握剑三锁[五指实握贴柄/剑身一线贯通/剑尖屏幕左下]+共主海报扩写,
+#   配套交付档 apps/output/晏燎/缺件出图指令_1024.md; 收口当日 09:37/09:43 两笔在途写,
+#   锚钉 09:43 终值并经 5 分钟稳定窗核验。按契约④改真源→同步改锚→复跑 --check)。
+FINGERPRINT_ANCHOR = '57a81bbce29c'
 
 # 门禁真身=my_nodes 产线常跑门(装配节点同款 import)
 sys.path.insert(0, str(ROOT / 'apps/backend/comfyui/my_nodes/nodes'))
 from _gongbi_gate import prompt_violations  # noqa: E402
+
+# 稳定出图核心(10-24 stable-fire-core):失败分类重掷/队列清零闸/可配 deadline/边界环锚
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import comfy_fire_core as firecore  # noqa: E402
 
 # 否定词正则(门1 的 _NEG 运行时族之外补充扫; 官方保留语先豁免——
 # 「保持…不变」=09 篇例二原文/「其余未提及之处保持原样」=官方模板 preserve 句)
@@ -88,14 +100,16 @@ def log(msg):
 
 def load_kv() -> dict:
     data = json.loads(KV.read_text(encoding='utf-8'))
-    stages = data['stages']
-    assert [s['stage'] for s in stages] == ORDER, 'kv_prompts stages 序与十境 ORDER 不符'
+    stages = [{'stage': k, 'posterPrompt': v['海报指令'], 'viewsheetPrompt': v['三视图指令']} for k, v in data['stages']['境界'].items()]
+    assert [s['stage'] for s in stages] == ORDER, '晏燎.json stages.境界 序与十境 ORDER 不符'
+    data['stages'] = stages
     return data
 
 
 def stage_base(stage: str) -> str:
-    """「1.炼气期」→「炼气期」(产物名/参考名用去序基名)。"""
-    return stage.split('.', 1)[1]
+    """「1.炼气期」→「练气期」(去序基名; 1023 字符规约: 该境文件名随 store 七月件用「练」, 其余境字面)。"""
+    base = stage.split('.', 1)[1]
+    return '练气期' if base == '炼气期' else base
 
 
 def prompt_of(kv: dict, stage: str, kind: str) -> str:
@@ -169,55 +183,15 @@ def build_graph(kind: str, instruction: str, seed: int, ref_name: str) -> dict:
 
 
 # ── 引擎纪律(沿 stage_fronts 骨架) ──────────────────────────────────
-def post_json(path, payload, timeout=30):
-    r = ureq.Request(ENGINE + path, data=json.dumps(payload).encode(),
-                     headers={'Content-Type': 'application/json'})
-    return json.load(ureq.urlopen(r, timeout=timeout))
-
-
 def mem_free_pct() -> float:
-    out = subprocess.run(['memory_pressure', '-Q'], capture_output=True, text=True).stdout
-    for ln in out.splitlines():
-        if 'free percentage' in ln:
-            return float(ln.split(':')[-1].strip().rstrip('%'))
-    return 100.0
-
-
-def engine_alive() -> bool:
-    try:
-        ureq.urlopen(ENGINE + '/system_stats', timeout=3)
-        return True
-    except Exception:
-        return False
-
-
-def wait_engine(deadline_s=180):
-    t0 = time.monotonic()
-    while time.monotonic() - t0 < deadline_s:
-        if engine_alive():
-            return True
-        time.sleep(5)
-    return False
+    """委托核心(单一实现); 留壳保既有导入面。"""
+    return firecore.mem_free_pct()
 
 
 def upload_threelayer(img_path: Path) -> str:
-    """三层防线: ①overwrite=true ②捕获返回名 ③md5 回拉比对。"""
-    raw = img_path.read_bytes()
-    md5_local = hashlib.md5(raw).hexdigest()
-    body = (b'--STkv\r\nContent-Disposition: form-data; name="overwrite"\r\n\r\ntrue\r\n'
-            b'--STkv\r\nContent-Disposition: form-data; name="image"; filename="'
-            + img_path.name.encode('utf-8')
-            + b'"\r\nContent-Type: image/png\r\n\r\n' + raw + b'\r\n--STkv--\r\n')
-    r = ureq.Request(ENGINE + '/upload/image', data=body,
-                     headers={'Content-Type': 'multipart/form-data; boundary=STkv'})
-    name = json.load(ureq.urlopen(r, timeout=120))['name']
-    back = ureq.urlopen(ENGINE + '/view?' + urlencode(
-        {'filename': name, 'subfolder': '', 'type': 'input'}), timeout=60).read()
-    md5_back = hashlib.md5(back).hexdigest()
-    if md5_back != md5_local:
-        raise RuntimeError(f'upload 三层防线③: 引擎实载 md5 不一致({name} '
-                           f'local={md5_local[:8]} engine={md5_back[:8]})——停线')
-    log(f'upload 三层防线过: {img_path.name} → 引擎实载 {name} (md5 {md5_local[:8]}≈)')
+    """三层防线(单一实现=firecore.upload_image): overwrite+引擎返回名+md5 回拉。"""
+    name = firecore.upload_image(firecore.UrllibTransport(ENGINE), img_path)
+    log(f'upload 三层防线过: {img_path.name} → 引擎实载 {name}')
     return name
 
 
@@ -234,31 +208,12 @@ def assert_ref_background(img_path: Path):
 
 
 def gates_and_save(b: bytes, dest: Path, tag: str):
-    """空片+alpha+画幅三门禁; 过则落盘。"""
-    from PIL import Image
-    import numpy as np
-    if len(b) < 400_000:
-        raise RuntimeError(f'{tag} 空片嫌疑: 文件仅{len(b) // 1024}KB(<400KB), 弃用')
-    im = Image.open(_io.BytesIO(b)).convert('RGBA')
-    w, h = im.size
-    ratio = w / h
-    if abs(ratio - 1.78) > 0.05:
-        raise RuntimeError(f'{tag} 画幅门禁: {w}×{h} 比{ratio:.3f} 出 1.78±0.05')
-    a = np.asarray(im, dtype=np.float32)
-    alpha = a[..., 3]
-    full_trans = float((alpha == 0).mean())
-    if full_trans > 0.10:
-        raise RuntimeError(f'{tag} alpha 门禁: 全透占比{full_trans * 100:.1f}%(>10%) '
-                            '判失败重掷(产物必须不透明米白底)')
-    wa = alpha[..., None] / 255.0
-    comp = a[..., :3] * wa + 255.0 * (1 - wa)  # 白底合成后量非背景
-    bg = comp[20, 20]
-    fg = float((np.abs(comp - bg).max(axis=2) > 20).mean())
-    if fg < 0.08:
-        raise RuntimeError(f'{tag} 空片: 非背景占比{fg * 100:.1f}%(<8%), 弃用')
+    """空片+alpha+画幅三门禁(单一实现=firecore.blank_gates, 阈值不变, 锚=边界环中位); 过则落盘。"""
+    s = firecore.blank_gates(b, tag, min_bytes=400_000, min_fg=0.08,
+                             max_full_trans=0.10, want_ratio=1.78, ratio_tol=0.05)
     dest.write_bytes(b)
-    log(f'{tag} 完成 → {dest.name} {len(b) // 1024}KB 内容占比{fg * 100:.0f}% '
-        f'全透{full_trans * 100:.1f}% 画幅{w}×{h}')
+    log(f'{tag} 完成 → {dest.name} {s["kb"]}KB 内容占比{s["fg"] * 100:.0f}% '
+        f'全透{s["full_trans"] * 100:.1f}% 画幅{s["w"]}×{s["h"]}')
     return dest
 
 
@@ -267,67 +222,35 @@ def fire_once(stage: str, kind: str, seed: int) -> Path:
     ref = OUT / f'晏燎_{base}_正视图_v1.png'
     assert ref.exists(), f'参考正视图缺档: {ref}(外层须先过该境验收/补件)'
     assert_ref_background(ref)
-    if mem_free_pct() < 30:
-        log('内存空闲<30%, POST /free 回收')
-        post_json('/free', {'unload_models': True, 'free_memory': True})
-        time.sleep(10)
     tag = f'{stage}-{kind}'
     instruction = prompt_of(load_kv(), stage, kind)
     ref_name = upload_threelayer(ref)
     g = build_graph(kind, instruction, seed, ref_name)
-    pid = post_json('/prompt', {'prompt': g, 'client_id': f'kv-{base}-{kind}'})['prompt_id']
+    tr = firecore.UrllibTransport(ENGINE)
+    firecore.maybe_free_memory(tr, log)  # 提交前内存纪律(每次尝试含重掷同受检, 失败吞错)
+    pid = firecore.submit(tr, g, f'kv-{base}-{kind}')
     log(f'{tag} 提交 {pid} (seed={seed} base={KIND_BASE[kind]} 指令{len(instruction)}字)')
-    deadline = time.monotonic() + 900
-    while time.monotonic() < deadline:
-        time.sleep(15)
-        try:
-            rec = json.load(ureq.urlopen(ENGINE + '/history/' + quote(pid), timeout=10)).get(pid)
-        except Exception:
-            time.sleep(20)
-            continue
-        if rec is None:
-            continue
-        if rec['status']['status_str'] != 'success':
-            raise RuntimeError(f'{tag} 引擎报错: {str(rec["status"])[:200]}')
-        for im in [i for o in rec['outputs'].values() for i in o.get('images', [])]:
-            if not im['filename'].startswith('MYStudio-2K'):
-                continue
-            b = ureq.urlopen(ENGINE + '/view?' + urlencode(
-                {'filename': im['filename'], 'subfolder': im.get('subfolder', ''),
-                 'type': im.get('type', 'output')}), timeout=300).read()
-            return gates_and_save(b, OUT / f'晏燎_{base}_{KIND_ZH[kind]}_v1.png', tag)
-        raise RuntimeError(f'{tag} 无 MYStudio-2K 输出')
-    raise TimeoutError(f'{tag} 超时(900s)')
+    b = firecore.await_output(tr, pid, tag, filename_prefix='MYStudio-2K')
+    return gates_and_save(b, OUT / f'晏燎_{base}_{KIND_ZH[kind]}_v1.png', tag)
 
 
-def fire_shot(stage: str, kind: str) -> int:
+def fire_shot(stage: str, kind: str, seed: int = None, force: bool = False) -> int:
     dest = OUT / f'晏燎_{stage_base(stage)}_{KIND_ZH[kind]}_v1.png'
-    if dest.exists():
-        log(f'{stage}-{kind} 已存在, 幂等跳过 → {dest.name}')
+    if dest.exists() and not force:
+        log(f'{stage}-{kind} 已存在, 幂等跳过 → {dest.name}(显式重做加 --force)')
         return 0
-    seed = seed_for(stage, kind)
-    try:
-        fire_once(stage, kind, seed)
-        return 0
-    except Exception as exc:
-        log(f'{stage}-{kind} 失败: {exc} → 等引擎复活重试一次(重掷 seed={seed + 1000})')
-        if wait_engine():
-            time.sleep(20)
-            try:
-                fire_once(stage, kind, seed + 1000)
-                return 0
-            except Exception as exc2:
-                log(f'{stage}-{kind} 重试仍失败: {exc2}')
-                return 1
-        log(f'{stage}-{kind} 引擎未复活, 放弃')
-        return 1
+    if seed is None:
+        seed = seed_for(stage, kind)
+    tr = firecore.UrllibTransport(ENGINE)
+    rc, _cls = firecore.fire_with_discipline(
+        lambda s: fire_once(stage, kind, s), seed, f'{stage}-{kind}', tr, log)
+    return rc
 
 
 # ── --check: 只预检全部门禁, 不发包不碰引擎 ──────────────────────────
 def run_check() -> int:
     kv = load_kv()
     fails = 0
-    fp_vals = []
     for s in kv['stages']:
         st = s['stage']
         for kind, key in (('poster', 'posterPrompt'), ('viewsheet', 'viewsheetPrompt')):
@@ -349,15 +272,14 @@ def run_check() -> int:
                 print(f'❌ 预检[{tag}] rc={r.returncode}: {out[:400]}')
             else:
                 print(f'✅ {tag}: 门禁零违规+否定词零+{out.splitlines()[0]}')
-            fp_vals.append(text)
-    # 指纹复算(发射一致性背书)
-    fp = hashlib.sha256(''.join(fp_vals).encode('utf-8')).hexdigest()[:12]
-    want = kv['fingerprint']['route2_corrected']
-    if fp != want:
+    # 指纹复算(发射一致性背书; 锚=本文件冻结常量, 漂移即红=晏燎.json 被改)
+    fp = fingerprint(kv)
+    if fp != FINGERPRINT_ANCHOR:
         fails += 1
-        print(f'❌ 指纹复算 {fp} ≠ kv 锚 {want}')
+        print(f'❌ 指纹复算 {fp} ≠ 冻结锚 {FINGERPRINT_ANCHOR}(真源被改: '
+              '有意改源须同步更新 FINGERPRINT_ANCHOR 并复跑 --check)')
     else:
-        print(f'✅ 指纹复算 = {fp} (②路锚一致)')
+        print(f'✅ 指纹复算 = {fp} (= 冻结锚, 真源未漂移)')
     # 模板结构+手术演习
     try:
         g = build_graph('viewsheet', '检查用指令', 99, 'check.png')
@@ -380,12 +302,19 @@ def run_check() -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument('--stage', help='境名(全名「1.炼气期」或基名「炼气期」)')
+    ap.add_argument('--stage', help='境名(全名「1.炼气期」或基名; 注意第 1 境基名为「练气期」)')
     ap.add_argument('--kind', choices=['poster', 'viewsheet'])
     ap.add_argument('--check', action='store_true', help='只预检全部门禁, 不发包')
+    ap.add_argument('--seed', type=int, help='显式 seed(缺省=发序 seed; 重做配 --force)')
+    ap.add_argument('--force', action='store_true',
+                    help='目标已存在仍重发(内容判废显式重做通道, 替代 import fire_once hack)')
+    ap.add_argument('--deadline', type=float,
+                    help='单发轮询 deadline 秒(缺省 900 / env MYSTUDIO_FIRE_DEADLINE_S)')
     args = ap.parse_args()
     if args.check:
         return run_check()
+    if args.deadline is not None:
+        os.environ['MYSTUDIO_FIRE_DEADLINE_S'] = str(args.deadline)
     if not (args.stage and args.kind):
         ap.error('--stage 与 --kind 成对必填(单发), 或用 --check')
     load_kv()  # 指令真源在位校验
@@ -393,7 +322,7 @@ def main() -> int:
         (st for st in ORDER if stage_base(st) == args.stage), None)
     if full is None:
         ap.error(f'未知境名: {args.stage}(可选: {ORDER})')
-    return fire_shot(full, args.kind)
+    return fire_shot(full, args.kind, seed=args.seed, force=args.force)
 
 
 if __name__ == '__main__':
