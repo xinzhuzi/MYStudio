@@ -41,6 +41,8 @@ export interface StudioAssetSummary {
   name: string;
   description?: string;
   setting?: string;
+  /** 10-25 人物技能(角色轨):道途技能树 JSON(见 RoleSkillPayload[];桥只读透传) */
+  skills?: string;
   remark?: string;
   prompt?: string;
   thumbnailUrl?: string;

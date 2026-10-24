@@ -51,6 +51,7 @@ import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetOperationErr
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";
+import { StudioAssetRoleSkills } from "./studio-asset-role-skills";
 
 export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 export { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -435,6 +436,14 @@ export function StudioAssetDetailDialog({
                     {asset.type === "role" && (
                       <div className="min-w-0">
                         <StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />
+                      </div>
+                    )}
+                    {/* 10-25 用户令:人物技能文档展示(像设定一样;数据=入库役
+                     campaigns/role_skills_ingest_1025.py 写的 skills 列,五系/单道途结构)。
+                     col-span-2 全宽:晏燎五系×十境术法量大,半宽折叠树太挤 */}
+                    {asset.type === "role" && (
+                      <div className="col-span-2 min-w-0">
+                        <StudioAssetRoleSkills skills={fullAsset?.skills ?? asset.skills} />
                       </div>
                     )}
                     {asset.type === "role" && (() => {

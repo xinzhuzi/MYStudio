@@ -60,6 +60,7 @@ interface AssetDbRow {
   description?: string;
   prompt?: string;
   setting?: string;
+  skills?: string;
   remark?: string;
   tags?: string;
   filePath?: string;
@@ -459,6 +460,7 @@ export function rowToSummary(row: AssetDbRow): StudioAssetSummary {
     description: row.description,
     prompt: row.prompt,
     setting: row.setting,
+    skills: row.skills,
     remark: row.remark,
     tags: (() => { try { return JSON.parse(row.tags || "[]"); } catch { return []; } })(),
     thumbnailUrl: absPath ? getThumbUrl(row.filePath, row.type) : undefined,
