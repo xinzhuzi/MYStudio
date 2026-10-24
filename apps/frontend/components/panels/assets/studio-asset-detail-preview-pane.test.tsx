@@ -460,8 +460,9 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     expect(within(multi).getByRole("img", { name: "晏燎_练气期_正视图_v1" })).toBeTruthy();
     const poster = screen.getByRole("region", { name: "人物海报" });
     expect(within(poster).getByRole("img", { name: "晏燎_练气期_人物海报_v1" })).toBeTruthy();
-    const promo = screen.getByRole("region", { name: "美宣" });
-    expect(within(promo).getByRole("img", { name: "晏燎_练气期_海报_v1" })).toBeTruthy();
+    // 10-25 二令:_海报_ 海报产物归人物海报(美宣节只收 _美宣_ 命名)
+    expect(within(poster).getByRole("img", { name: "晏燎_练气期_海报_v1" })).toBeTruthy();
+    expect(within(poster).getByText("2 张")).toBeTruthy();
     const face = screen.getByRole("region", { name: "高清人脸" });
     expect(within(face).getByText("1 张")).toBeTruthy();
     const uncategorized = screen.getByRole("region", { name: "自由" });
@@ -532,9 +533,9 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     const fillMissing = vi.fn();
     const { props, container } = renderPane({ images: TYPED_IMAGES, onGenerateByKind: vi.fn(), onFillMissing: fillMissing });
 
-    // 核心行:多视图/海报/人脸已齐 ✓1;全身定妆/表情差分缺失红 chip 可点
+    // 核心行:多视图/海报/人脸已齐 ✓(海报=人物海报+海报双标记载体 ✓2);全身定妆/表情差分缺失红 chip 可点
     expect(screen.getByText("人物多视图 ✓2")).toBeTruthy();
-    expect(screen.getByText("人物海报 ✓1")).toBeTruthy();
+    expect(screen.getByText("人物海报 ✓2")).toBeTruthy();
     expect(screen.getByText("高清人脸 ✓1")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "全身定妆 ✗" }));
     expect(props.onGenerateByKind).toHaveBeenCalledWith("全身定妆");
