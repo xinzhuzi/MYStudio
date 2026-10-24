@@ -1,4 +1,4 @@
-// Copyright (c) 2025 hotflow2024
+// Copyright 2025 hotflow2024
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 "use client";
@@ -8,19 +8,24 @@
  * 用于全屏预览图片和视频
  * 支持: HTTP URL / data URI / local-image:// 协议
  *
- * 图片大图预览整体套用 yet-another-react-lightbox(MIT)+ 官方 Zoom 插件:
- * 滚轮缩放 / 双击放大还原 / 触控板与触屏捏合 / 拖拽平移 / 工具栏
- * 放大缩小按钮 / Esc 与背景点击关闭,均为插件自带能力,零手写手势。
- * 批量组传入 imageUrls 时弹窗内可左右箭头/方向键翻页整组图。
- * 左上角像素角标经 render.toolbar 注入,与默认工具栏并存。
+ * 10-25 用户令换件:图片大图预览弃用 yet-another-react-lightbox,改自研轻量灯箱
+ * (全事件自控)。替换根因(YARL 双 bug 实弹):
+ * ① 连环关两窗——灯箱 portal 在 body 下,宿主 Radix Dialog 的 DismissableLayer
+ *   在 document 层监听 pointerdown;灯箱任何指针事件对 Radix 而言都是
+ *   「内容树之外」→ 点灯箱背景关灯箱的同时 Radix 也把宿主弹窗关了。
+ *   自研件在 portal 根 stopPropagation(pointerdown/click),事件到不了
+ *   document,Radix 永远看不见灯箱内的交互——穿透根除。
+ * ② X 无效——YARL 工具栏按钮事件经其内部层再出 portal,与 Radix 的
+ *   pointer-events 锁/层叠上下文互相绞;自研 X 是普通按钮+显式
+ *   stopPropagation,行为确定。
+ * 能力对齐原 YARL 配置:滚轮缩放(1x~4x)/双击放大还原/拖拽平移/工具栏
+ * 放大缩小/Esc 关闭/背景点击关闭(仅背景)/批量组左右箭头与方向键翻页/
+ * 像素角标;动画瞬时(09-03「连点跟手」裁定)。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
-import Lightbox from "yet-another-react-lightbox";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import "yet-another-react-lightbox/styles.css";
+import { ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 
 interface ImagePreviewModalProps {
@@ -33,43 +38,12 @@ interface ImagePreviewModalProps {
   onClose: () => void;
 }
 
-// yarl 官方要求(README「plugins must be defined outside」):plugins 及
-// 各配置对象须保持引用稳定——内联字面量每次渲染都触发插件/配置重置,
-// zoom 状态被清(放大点了没效果,jsdom+装机实弹双双复现;09-03 根修)。
-const LIGHTBOX_PLUGINS = [Zoom];
-const CONTROLLER_CONFIG = { closeOnBackdropClick: true };
-// 缩放配置:滚轮/触控板滚动缩放默认关闭,显式开启(桌面看图核心诉求)。
-// maxZoomPixelRatio 默认 1=最大只放大到原始像素 1:1——大图在不满容器的
-// 场景视觉变化极小(09-03 用户裁定「需要再放大」),放开到 4 倍原始像素
-// 看细节;步幅 2.5 一步到位看大。
-const ZOOM_CONFIG = { scrollToZoom: true, maxZoomPixelRatio: 4, zoomInMultiplier: 2.5 };
-const CAROUSEL_CONFIG = { finite: true };
-// 点击跟手(09-03 用户裁定「按钮非常不灵敏」):fade/swipe 默认 250/500ms,
-// 动画播放期间导航与缩放的点击被吞——连点无反应;zoom 动画同理。全部
-// 置 0 立即生效,连点跟手。
-const ANIMATION_CONFIG = { fade: 0, swipe: 0, zoom: 0 };
-const LABELS = {
-  Close: "关闭预览",
-  "Zoom in": "放大",
-  "Zoom out": "缩小",
-  Previous: "上一张",
-  Next: "下一张",
-};
-const CONTAINER_STYLES = {
-  container: {
-    backgroundColor: "rgba(0, 0, 0, .82)",
-    // Radix 模态锁穿透(09-03):从 Radix Dialog(如生成记录弹窗)内
-    // 打开预览时,Radix 给 body 置 pointer-events:none 且只恢复自身
-    // 内容树;Lightbox portal 在 body 下、不在该树内——不显式恢复
-    // 则放大/缩小/关闭全部点不动(可见但僵死)。
-    pointerEvents: "auto" as const,
-    // 10-19 X 按钮彻查(资产详情实弹):Radix Dialog overlay 有 z-index(50)
-    // 且创建独立层叠上下文——Lightbox portal 无显式 z-index 时被压在下面,
-    // 视觉在上(DOM 序靠后)但点击被 Dialog overlay 截获=X 关不掉;
-    // 显式给最大 z-index 强制全局置顶(同层 body 直子,高值胜出)
-    zIndex: 2147483646,
-  },
-};
+/** 缩放上下限与步进(对齐原 ZOOM_CONFIG:maxZoomPixelRatio 4 / zoomInMultiplier 2.5)。 */
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const ZOOM_STEP = 1.6;
+/** 灯箱全局置顶(10-19 裁定沿用:必须压过 Radix overlay 的层叠上下文)。 */
+const LIGHTBOX_Z_INDEX = 2147483640;
 
 export function ImagePreviewModal({
   imageUrl,
@@ -78,70 +52,242 @@ export function ImagePreviewModal({
   isOpen,
   onClose,
 }: ImagePreviewModalProps) {
-  // 受控翻页索引:初始=props;弹窗重开或图组变化时重置(避免上次翻页残留)
-  const [indexState, setIndexState] = useState(initialIndex ?? 0);
-  useEffect(() => {
-    setIndexState(initialIndex ?? 0);
-  }, [isOpen, initialIndex]);
-  const callbacks = useMemo(
-    () => ({
-      view: ({ index: nextIndex }: { index: number }) => setIndexState(nextIndex),
-    }),
-    [],
+  const slideUrls = useMemo(
+    () => (imageUrls && imageUrls.length > 0 ? imageUrls : [imageUrl]),
+    [imageUrls, imageUrl],
   );
-  // 工具栏含 ResolutionBadge(随图变化),useMemo 稳定引用
-  const toolbar = useMemo(
-    () => ({
-      buttons: [
-        <span
-          key="resolution-badge"
-          style={{ pointerEvents: "none", cursor: "default", alignSelf: "center" }}
-          aria-hidden
-        >
-          <ResolutionBadge src={imageUrl} />
-        </span>,
-        "close",
-      ] as React.ReactNode[],
-    }),
-    [imageUrl],
+  const [index, setIndex] = useState(initialIndex ?? 0);
+  const [scale, setScale] = useState(MIN_SCALE);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+
+  // 重开/切图重置(弹窗重开或图组变化不残留上次缩放/平移/翻页)
+  useEffect(() => {
+    if (isOpen) {
+      setIndex(initialIndex ?? 0);
+      setScale(MIN_SCALE);
+      setPan({ x: 0, y: 0 });
+    }
+  }, [isOpen, initialIndex, imageUrls]);
+
+  const clampIndex = useCallback(
+    (next: number) => Math.min(Math.max(next, 0), slideUrls.length - 1),
+    [slideUrls.length],
+  );
+  const navigate = useCallback(
+    (delta: number) => {
+      setIndex((current) => clampIndex(current + delta));
+      setScale(MIN_SCALE);
+      setPan({ x: 0, y: 0 });
+    },
+    [clampIndex],
+  );
+  const zoomBy = useCallback((factor: number) => {
+    setScale((current) => {
+      const next = current * factor;
+      if (next <= MIN_SCALE) {
+        setPan({ x: 0, y: 0 });
+        return MIN_SCALE;
+      }
+      return Math.min(next, MAX_SCALE);
+    });
+  }, []);
+
+  // 键盘:capture 阶段拦下(Esc/方向键不再漏给宿主 Radix 的 document 监听=不连环关)
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        event.stopPropagation();
+        event.preventDefault();
+        navigate(-1);
+      } else if (event.key === "ArrowRight") {
+        event.stopPropagation();
+        event.preventDefault();
+        navigate(1);
+      }
+    },
+    [navigate, onClose],
   );
 
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (event.key === "Escape") onClose();
-  }, [onClose]);
+  // 滚轮缩放须非 passive(preventDefault 阻断页面滚动)——React onWheel 有 passive
+  // 风险,恒走原生监听
+  const handleWheel = useCallback(
+    (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      zoomBy(event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
+    },
+    [zoomBy],
+  );
 
   useEffect(() => {
     if (!isOpen) return;
-
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    const stage = stageRef.current;
+    stage?.addEventListener("wheel", handleWheel, { passive: false });
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
+      stage?.removeEventListener("wheel", handleWheel);
+      document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, handleKeyDown]);
+  }, [isOpen, handleKeyDown, handleWheel]);
 
   if (!isOpen) return null;
 
-  const previewSlides = (imageUrls && imageUrls.length > 0 ? imageUrls : [imageUrl])
-    .map((src) => ({ src, alt: "Preview" }));
+  const currentUrl = slideUrls[clampIndex(index)] ?? imageUrl;
+  const multi = slideUrls.length > 1;
+
+  const stopRoot = (event: React.SyntheticEvent) => {
+    // 反穿透核心:灯箱内一切指针/键盘事件到不了 document——宿主 Radix
+    // DismissableLayer(监听 document pointerdown)看不见灯箱,点击永不
+    // 顺带关掉宿主弹窗
+    event.stopPropagation();
+  };
+
+  const onBackdropClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    stopRoot(event);
+    if (event.target === event.currentTarget) onClose();
+  };
+
+  const onStagePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    stopRoot(event);
+    if (scale <= MIN_SCALE) return;
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseX: pan.x,
+      baseY: pan.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onStagePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragStateRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setPan({ x: drag.baseX + (event.clientX - drag.startX), y: drag.baseY + (event.clientY - drag.startY) });
+  };
+  const onStagePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    stopRoot(event);
+    if (dragStateRef.current?.pointerId === event.pointerId) {
+      dragStateRef.current = null;
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  };
 
   return createPortal(
-    <Lightbox
-      open={isOpen}
-      close={onClose}
-      controller={CONTROLLER_CONFIG}
-      slides={previewSlides}
-      index={indexState}
-      on={callbacks}
-      plugins={LIGHTBOX_PLUGINS}
-      zoom={ZOOM_CONFIG}
-      carousel={CAROUSEL_CONFIG}
-      animation={ANIMATION_CONFIG}
-      labels={LABELS}
-      toolbar={toolbar}
-      styles={CONTAINER_STYLES}
-    />,
+    <div
+      // 反穿透:根上拦 pointerdown(React 合成事件冒泡段)——Radix 的 document
+      // 级监听泡不到;层叠显式最大值压过一切宿主上下文
+      className="fixed inset-0 flex items-center justify-center bg-black/85"
+      style={{ zIndex: LIGHTBOX_Z_INDEX, pointerEvents: "auto" }}
+      onPointerDown={stopRoot}
+      onClick={onBackdropClick}
+      onDoubleClick={stopRoot}
+      data-image-preview-lightbox
+      role="dialog"
+      aria-modal="true"
+      aria-label="图片全屏预览"
+    >
+      {/* 工具栏:像素角标 + 缩放钮 + 关闭X(全部显式事件,永不失效) */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+        <span className="pointer-events-none select-none rounded-md bg-black/50 px-2 py-1 font-mono text-[11px] text-white/85">
+          <ResolutionBadge src={currentUrl} />
+        </span>
+        <button
+          type="button"
+          aria-label="缩小"
+          className="rounded-md bg-black/50 p-2 text-white/85 transition-colors hover:bg-black/70"
+          onClick={(event) => { event.stopPropagation(); zoomBy(1 / ZOOM_STEP); }}
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="放大"
+          className="rounded-md bg-black/50 p-2 text-white/85 transition-colors hover:bg-black/70"
+          onClick={(event) => { event.stopPropagation(); zoomBy(ZOOM_STEP); }}
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="关闭预览"
+          className="rounded-md bg-black/50 p-2 text-white/85 transition-colors hover:bg-black/70"
+          onClick={(event) => { event.stopPropagation(); onClose(); }}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* 批量组计数 */}
+      {multi && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 select-none rounded-md bg-black/50 px-2.5 py-1 font-mono text-xs text-white/85">
+          {clampIndex(index) + 1} / {slideUrls.length}
+        </div>
+      )}
+
+      {/* 翻页箭头(仅批量组;恒渲染,端点 disabled——对齐原 YARL 交互口径) */}
+      {multi && (
+        <button
+          type="button"
+          aria-label="上一张"
+          disabled={clampIndex(index) <= 0}
+          className="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2.5 text-white/85 transition-colors hover:bg-black/70 disabled:pointer-events-none disabled:opacity-30"
+          onClick={(event) => { event.stopPropagation(); navigate(-1); }}
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+      )}
+      {multi && (
+        <button
+          type="button"
+          aria-label="下一张"
+          disabled={clampIndex(index) >= slideUrls.length - 1}
+          className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2.5 text-white/85 transition-colors hover:bg-black/70 disabled:pointer-events-none disabled:opacity-30"
+          onClick={(event) => { event.stopPropagation(); navigate(1); }}
+        >
+          <ChevronRight className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* 图台:缩放/平移/拖拽;点击图本体不关(仅背景关,防误触) */}
+      <div
+        ref={stageRef}
+        className="flex max-h-[92vh] max-w-[94vw] items-center justify-center overflow-hidden"
+        style={{ cursor: scale > MIN_SCALE ? "grab" : "default" }}
+        onClick={stopRoot}
+        onDoubleClick={(event) => {
+          stopRoot(event);
+          if (scale > MIN_SCALE) {
+            setScale(MIN_SCALE);
+            setPan({ x: 0, y: 0 });
+          } else {
+            setScale(2);
+          }
+        }}
+        onPointerDown={onStagePointerDown}
+        onPointerMove={onStagePointerMove}
+        onPointerUp={onStagePointerUp}
+        onPointerCancel={onStagePointerUp}
+      >
+        <img
+          src={currentUrl}
+          alt="Preview"
+          draggable={false}
+          className="max-h-[92vh] max-w-[94vw] select-none object-contain transition-transform duration-0"
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: "center center" }}
+        />
+      </div>
+    </div>,
     document.body,
   );
 }
@@ -153,7 +299,7 @@ interface VideoPreviewModalProps {
   /** 截帧回灌动作(09-15 P1a):提供时视频下方渲染操作条;纯展示基件,
    *  抽帧/落库由上层(分镜面板)注入回调,本组件只上报当前播放时刻。 */
   keyframeActions?: {
-    /** 「存为关键帧」:当前播放帧(秒) */
+    /** 「存为关键帧」:当前播放时刻(秒) */
     onSaveCurrentFrame?: (currentTimeS: number) => void;
     /** 「自动抽帧」:3/5/9 帧均匀采样 */
     onAutoSample?: (count: 3 | 5 | 9) => void;
@@ -176,9 +322,9 @@ export function VideoPreviewModal({
   const tooltip = keyframeActions?.disabledReason ?? (keyframeActions?.busy ? "正在抽帧…" : undefined);
 
   const reportCurrentTime = () => {
-    const currentTimeS = videoRef.current?.currentTime;
-    if (typeof currentTimeS === "number" && Number.isFinite(currentTimeS)) {
-      keyframeActions?.onSaveCurrentFrame?.(currentTimeS);
+    const currentTime = videoRef.current?.currentTime;
+    if (typeof currentTime === "number" && Number.isFinite(currentTime)) {
+      keyframeActions?.onSaveCurrentFrame?.(currentTime);
     }
   };
 
@@ -211,7 +357,7 @@ export function VideoPreviewModal({
               data-video-keyframe-save
               onClick={reportCurrentTime}
             >
-              {keyframeActions.busy ? "抽帧中…" : "存为关键帧"}
+              {keyframeActions?.busy ? "抽帧中…" : "存为关键帧"}
             </button>
             <span className="text-xs text-muted-foreground" data-video-keyframe-sample-label>自动抽帧</span>
             {([3, 5, 9] as const).map((count) => (
@@ -222,7 +368,7 @@ export function VideoPreviewModal({
                 title={tooltip ?? `均匀抽 ${count} 帧,更新本镜关键帧(最多留 4 帧)`}
                 className="rounded-md border border-border/60 bg-background px-2.5 py-1.5 font-mono text-xs text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                 data-video-keyframe-sample={count}
-                onClick={() => keyframeActions.onAutoSample?.(count)}
+                onClick={() => keyframeActions?.onAutoSample?.(count)}
               >
                 {count} 帧
               </button>

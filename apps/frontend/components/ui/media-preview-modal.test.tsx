@@ -81,7 +81,8 @@ describe("media preview modals", () => {
           onClose={vi.fn()}
         />,
       );
-      const lightboxContainer = document.querySelector(".yarl__container") as HTMLElement | null;
+      // 10-25 换件:YARL → 自研灯箱(data-image-preview-lightbox),同款守卫语义
+      const lightboxContainer = document.querySelector("[data-image-preview-lightbox]") as HTMLElement | null;
       expect(lightboxContainer).toBeTruthy();
       expect(lightboxContainer!.style.pointerEvents).toBe("auto");
     } finally {
