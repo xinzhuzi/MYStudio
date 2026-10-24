@@ -886,39 +886,8 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
 
- 
-  async (img: AssetImage, idx: number) => {
-    // 10-19 用户令:废「主图」名号——重命名不再有特殊守卫
-    void idx;
-    if (!getStudioAssetsBridge()?.renameImage) return;
-    const newName = await new Promise<string | null>((resolve) => {
-      const input = document.createElement("input");
-      input.value = img.name;
-      input.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99999;padding:12px;border-radius:8px;border:1px solid #555;background:#1a1a2e;color:#fff;font-size:14px;width:300px;";
-      const overlay = document.createElement("div");
-      overlay.style.cssText = "position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);";
-      document.body.append(overlay, input);
-      input.focus();
-      input.select();
-      const cleanup = () => { overlay.remove(); input.remove(); };
-      input.onkeydown = (e) => { if (e.key === "Enter") { cleanup(); resolve(input.value); } if (e.key === "Escape") { cleanup(); resolve(null); } };
-      overlay.onclick = () => { cleanup(); resolve(null); };
-    });
-    if (!newName?.trim() || newName.trim() === img.name) return;
-    try {
-      const result = await getStudioAssetsBridge()!.renameImage({ assetId: asset.id, imageFilePath: img.filePath, newName: newName.trim() });
-      if (result) {
-        const newImgs = [...images];
-        newImgs[idx] = { ...newImgs[idx], name: newName.trim() };
-        setImages(newImgs);
-        toast.success("已重命名");
-      } else {
-        toast.error("重命名失败");
-      }
-    } catch (error: unknown) {
-      toast.error(getAssetOperationError(error, "重命名失败"));
-    }
-  };
+  // (10-24 布局重造批1顺带清理:889-921 悬空未绑定的重命名图片 async 函数已删——
+  //  无 UI 入口的死代码,重命名能力未在 19 项保全清单内,桥侧重命名接口本体未动。)
 
   const handleTranscribe = async () => {
     const filePath = asset.sourcePath || asset.filePath;
