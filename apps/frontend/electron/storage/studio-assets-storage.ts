@@ -590,5 +590,5 @@ function assetTagsCount(value: string | undefined) {
 
 
 export type { StoredAssetImage } from "./assets-sqlite";
-export { buildAssetNameCandidateCondition, buildAssetWhere, initAssetsStorage, resolveAssetManagedPath, shouldCreateAssetThumbnail } from "./assets-sqlite";
+export { buildAssetNameCandidateCondition, buildAssetWhere, initAssetsStorage, resolveAssetManagedPath, resolveManagedAssetPathOrUndefined, shouldCreateAssetThumbnail } from "./assets-sqlite";
 export { batchMatchAssets, getAsset, getAssetByName, listAssetFamilyAssets, listAssets, readAssetImageDataUrl, resetAssetsCache } from "./assets-queries";

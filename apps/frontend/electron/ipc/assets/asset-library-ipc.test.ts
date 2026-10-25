@@ -1,9 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { handlers, assetStorageMocks, blessedPaths, resolverMock } = vi.hoisted(() => ({
+const { handlers, assetStorageMocks, blessedPaths, resolverMock, fsMocks, fakeFileState } = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   blessedPaths: new Set<string>(),
   resolverMock: vi.fn(),
+  // B-1(10-25 图↔词溯源):read-image-prompt-text 走真 PNG 扫描器+打桩 fs 字节流——
+  // fakeFileState.bytes 为当前 openSync 读到的假文件字节(readSync 按位切 serving)。
+  fakeFileState: { bytes: null as Buffer | null },
+  fsMocks: {
+    existsSync: vi.fn((p: string) => p === "/resolved/target.png"),
+    readFileSync: vi.fn(() => Buffer.from("fake-png-bytes")),
+    openSync: vi.fn(() => 7),
+    closeSync: vi.fn(),
+    fstatSync: vi.fn(() => ({ size: fakeFileState.bytes ? fakeFileState.bytes.length : 0 })),
+    readSync: vi.fn((
+      _fd: number,
+      buffer: Buffer,
+      offset: number,
+      length: number,
+      position: number,
+    ) => {
+      const bytes = fakeFileState.bytes;
+      if (!bytes) return 0;
+      const end = Math.min(bytes.length, position + length);
+      const read = Math.max(0, end - position);
+      bytes.copy(buffer, offset, position, end);
+      return read;
+    }),
+  },
   assetStorageMocks: {
     addAsset: vi.fn(),
     addAssetImage: vi.fn(),
@@ -19,6 +43,9 @@ const { handlers, assetStorageMocks, blessedPaths, resolverMock } = vi.hoisted((
     renameAssetImage: vi.fn(),
     replaceAssetMainImage: vi.fn(),
     updateAsset: vi.fn(),
+    resolveManagedAssetPathOrUndefined: vi.fn((relativePath: string | undefined) => (
+      relativePath ? "/resolved/target.png" : undefined
+    )),
   },
 }));
 vi.mock("electron", () => ({
@@ -29,12 +56,7 @@ vi.mock("../../storage/studio-assets-storage", () => assetStorageMocks);
 // 1013 Tainted canvas 修复锁:read-url-data-url 桥双协议收编——装机实弹中
 // project-file:// 参考图进旧桥被 parseAssetFileUrl(仅认 asset-file)返 null,
 // 回落直载染画布,衍生行参考图缩略 toDataURL 全灭。fs/解析器打桩(既有 9 测不碰二者)。
-vi.mock("node:fs", () => ({
-  default: {
-    existsSync: (p: string) => p === "/resolved/target.png",
-    readFileSync: () => Buffer.from("fake-png-bytes"),
-  },
-}));
+vi.mock("node:fs", () => ({ default: fsMocks }));
 vi.mock("../../storage/storage-paths", () => ({
   resolveProjectOrAssetFileUrl: resolverMock,
   resolveAssetFilePath: vi.fn(),
@@ -52,7 +74,14 @@ const blessDialogPaths = (paths: readonly string[]) => paths.forEach((p) => bles
 beforeEach(() => {
   handlers.clear();
   blessedPaths.clear();
+  fakeFileState.bytes = null;
   vi.mocked(dialog.showOpenDialog).mockReset();
+  vi.mocked(assetStorageMocks.resolveManagedAssetPathOrUndefined).mockClear();
+  fsMocks.existsSync.mockClear();
+  fsMocks.openSync.mockClear();
+  fsMocks.closeSync.mockClear();
+  fsMocks.readSync.mockClear();
+  fsMocks.fstatSync.mockClear();
 });
 
 function registerHandlers() {
@@ -90,7 +119,7 @@ describe("registerAssetLibraryIpcHandlers", () => {
     registerHandlers();
     expect([...handlers.keys()].sort()).toEqual([
       "assets:add", "assets:add-image", "assets:batch-match", "assets:delete", "assets:get",
-      "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:list-family", "assets:read-image-data-url", "assets:read-url-data-url", "assets:remove-image", "assets:rename-image",
+      "assets:get-by-name", "assets:import-from-toonflow", "assets:list", "assets:list-family", "assets:read-image-data-url", "assets:read-image-prompt-text", "assets:read-url-data-url", "assets:remove-image", "assets:rename-image",
       "assets:replace-image", "assets:resolve-file-url", "assets:select-audio-file", "assets:select-image-file", "assets:select-image-files", "assets:update",
     ]);
     expect(assetStorageMocks.initAssetsStorage).not.toHaveBeenCalled();
@@ -318,5 +347,128 @@ describe("assets:resolve-file-url 断链兜底(1015 补刀:断链可诊断)", ()
     });
     expect(await getHandler("assets:resolve-file-url")(null, "weird://x")).toBeNull();
     expect(writeDiagnosticsLog).not.toHaveBeenCalled();
+  });
+});
+
+// === B-1(10-25-asset-prompt-layered-panel)assets:read-image-prompt-text 只读通道 ===
+// 真 PNG 扫描器(png-text-extractor)不打桩:fs 字节流打桩按假文件位切 serving,
+// 白名单走打桩的 resolveManagedAssetPathOrUndefined(默认=/resolved/target.png)。
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const header = Buffer.alloc(8);
+  header.writeUInt32BE(data.length, 0);
+  header.write(type, 4, 4, "latin1");
+  return Buffer.concat([header, data, Buffer.alloc(4)]); // CRC 内容扫描器不校验
+}
+
+function pngTextChunk(keyword: string, text: string): Buffer {
+  return pngChunk("tEXt", Buffer.concat([Buffer.from(keyword, "latin1"), Buffer.from([0]), Buffer.from(text, "utf8")]));
+}
+
+function buildPng(chunks: Buffer[]): Buffer {
+  return Buffer.concat([PNG_SIGNATURE, ...chunks]);
+}
+
+function serveFakeFile(bytes: Buffer) {
+  fakeFileState.bytes = bytes;
+}
+
+describe("assets:read-image-prompt-text 图↔词溯源只读通道(B-1)", () => {
+  it("受管路径 PNG 提 keyword=prompt 的 tEXt 文本串(ok 路不整图过桥)", async () => {
+    registerHandlers();
+    const workflowJson = '{"400":{"class_type":"PrimitiveStringMultiline","inputs":{"value":"指令终稿"}}}';
+    serveFakeFile(buildPng([
+      pngTextChunk("workflow", '{"nodes":[]}'),
+      pngTextChunk("prompt", workflowJson),
+      pngChunk("IEND", Buffer.alloc(0)),
+    ]));
+
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: "role/晏燎/晏燎_共主期_海报_v1.png" }))
+      .resolves.toEqual({ ok: true, text: workflowJson });
+    expect(assetStorageMocks.resolveManagedAssetPathOrUndefined).toHaveBeenCalledWith("role/晏燎/晏燎_共主期_海报_v1.png");
+    expect(fsMocks.openSync).toHaveBeenCalledWith("/resolved/target.png", "r");
+  });
+
+  it("白名单拒绝:受管根解析失败(../ 逃逸等)→ path-rejected,不开文件", async () => {
+    registerHandlers();
+    vi.mocked(assetStorageMocks.resolveManagedAssetPathOrUndefined).mockReturnValueOnce(undefined);
+    serveFakeFile(buildPng([pngTextChunk("prompt", "{}"), pngChunk("IEND", Buffer.alloc(0))]));
+
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: "../../etc/passwd.png" }))
+      .resolves.toEqual({ ok: false, reason: "path-rejected" });
+    expect(fsMocks.openSync).not.toHaveBeenCalled();
+  });
+
+  it("非字符串/缺席 filePath → path-rejected(不静默兜底)", async () => {
+    registerHandlers();
+    await expect(getHandler("assets:read-image-prompt-text")(null, {})).resolves.toEqual({ ok: false, reason: "path-rejected" });
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: 123 })).resolves.toEqual({ ok: false, reason: "path-rejected" });
+  });
+
+  it("解析成功但文件缺席(断链) → file-missing", async () => {
+    registerHandlers();
+    fsMocks.existsSync.mockReturnValueOnce(false);
+
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: "role/晏燎/gone.png" }))
+      .resolves.toEqual({ ok: false, reason: "file-missing" });
+  });
+
+  it("JPEG/非 PNG 头 → not-png(降级矩阵:仅引擎 PNG 产物携带元数据)", async () => {
+    registerHandlers();
+    serveFakeFile(Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]));
+
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: "role/x.jpg" }))
+      .resolves.toEqual({ ok: false, reason: "not-png" });
+  });
+
+  it("PNG 在场但无 keyword=prompt 的 tEXt(实证 31/32 之外降级位) → no-texr", async () => {
+    registerHandlers();
+    serveFakeFile(buildPng([
+      pngTextChunk("workflow", "{}"),
+      pngChunk("IDAT", Buffer.alloc(32)),
+      pngChunk("IEND", Buffer.alloc(0)),
+    ]));
+
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: "role/x.png" }))
+      .resolves.toEqual({ ok: false, reason: "no-texr" });
+  });
+
+  it("tEXt 文本载荷超 256KB 护栏 → oversize", async () => {
+    registerHandlers();
+    serveFakeFile(buildPng([
+      pngTextChunk("prompt", "x".repeat(256 * 1024 + 1)),
+      pngChunk("IEND", Buffer.alloc(0)),
+    ]));
+
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: "role/x.png" }))
+      .resolves.toEqual({ ok: false, reason: "oversize" });
+  });
+
+  it("签名合法但块结构损坏(非法块类型) → read-failed", async () => {
+    registerHandlers();
+    serveFakeFile(buildPng([pngChunk("!!!!", Buffer.alloc(4))]));
+
+    await expect(getHandler("assets:read-image-prompt-text")(null, { filePath: "role/x.png" }))
+      .resolves.toEqual({ ok: false, reason: "read-failed" });
+  });
+
+  it("打点沿 runAssetDiagnostics:completed 留痕含通道动作名", async () => {
+    const writeDiagnosticsLog = vi.fn();
+    registerAssetLibraryIpcHandlers({
+      getStorageBasePath: () => "/data",
+      getAssetsRoot: () => "/data/assets",
+      getMediaRoot: () => "/media",
+      createOperationId: (prefix) => `${prefix}-1`,
+      writeDiagnosticsLog,
+      isSourcePathAllowed,
+      blessDialogPaths,
+    });
+    serveFakeFile(buildPng([pngTextChunk("prompt", "{}"), pngChunk("IEND", Buffer.alloc(0))]));
+
+    await getHandler("assets:read-image-prompt-text")(null, { filePath: "role/x.png" });
+    const messages = writeDiagnosticsLog.mock.calls.map(([entry]) => entry?.message);
+    expect(messages.some((message) => message?.includes("read-image-prompt-text"))).toBe(true);
   });
 });

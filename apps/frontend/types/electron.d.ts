@@ -150,6 +150,17 @@ export interface ProjectFolderMoveImportBridge {
   ) => () => void;
 }
 
+/**
+ * B-1(10-25-asset-prompt-layered-panel)assets:read-image-prompt-text 只读通道结果:
+ * ok=true 回 tEXt(keyword=prompt)文本串(引擎实收工作流 JSON);ok=false 的 reason
+ * 如实分型(降级矩阵消费,PRD §4.2):path-rejected 受管根白名单拒绝/file-missing
+ * 断链/not-png 非 PNG(含 JPEG)/no-texr 无提示词元数据(实证 31/32 之外的降级位)/
+ * read-failed 结构损坏或读失败/oversize 超 256KB 护栏。
+ */
+export type AssetImagePromptTextResult =
+  | { ok: true; text: string }
+  | { ok: false; reason: "path-rejected" | "file-missing" | "not-png" | "no-texr" | "read-failed" | "oversize" };
+
 export {};
 
 declare global {
@@ -618,6 +629,11 @@ declare global {
       resolveFileUrl: (url: string) => Promise<string | null>;
       /** asset-file://→data: URL(画布防污染链);L10(10-19 修复批)补声明:project-file 物化复用。 */
       readUrlDataUrl: (url: string) => Promise<string | null>;
+      /**
+       * B-1(10-25 图↔词溯源):只读提 PNG tEXt(keyword=prompt)文本串,不整图过桥。
+       * filePath=资产库受管 files 根内相对路径(白名单外→ok:false reason:"path-rejected")。
+       */
+      readImagePromptText: (payload: { filePath: string }) => Promise<AssetImagePromptTextResult>;
     };
     ttsRuntime?: {
       status: () => Promise<TtsRuntimeStatus>;

@@ -5,6 +5,7 @@ import * as assetsStorage from "../../storage/studio-assets-storage";
 import { getAssetImagePickerDefaultPath } from "../../media/asset-image-picker";
 import { listStudioRuntimeAssets } from "../../storage/studio-runtime-assets";
 import { resolveAssetFilePath, resolveProjectOrAssetFileUrl } from "../../storage/storage-paths";
+import { readPngPromptText } from "./png-text-extractor";
 import type { DiagnosticsLogEntryInput } from "../../../types/diagnostics";
 
 type RegisterAssetLibraryIpcHandlersContext = {
@@ -299,6 +300,25 @@ export function registerAssetLibraryIpcHandlers({
         return { success: true, imported: 0 };
       }
       return { success: true, imported: assetsStorage.importFromToonflow(toonflowResult.items) };
+    })
+  ));
+  // B-1(10-25-asset-prompt-layered-panel):图↔词溯源只读通道——主进程提 PNG
+  // tEXt(keyword=prompt,引擎实收工作流 JSON)文本串,不整图过桥(PRD §4.2)。
+  // 只读纪律:请求路径先经资产受管根白名单(resolveManagedAssetPathOrUndefined
+  // 同语义:一切输入按 files 根内相对路径解析,.. 逃逸/空串→path-rejected 拒任意读);
+  // 失败 reason 如实分型(降级矩阵消费):path-rejected/file-missing/not-png/
+  // no-texr/read-failed/oversize。
+  ipcMain.handle("assets:read-image-prompt-text", async (_event, payload: { filePath?: unknown }) => (
+    runAssetDiagnostics("read-image-prompt-text", { filePath: payload?.filePath }, () => {
+      const requested = payload?.filePath;
+      const resolved = assetsStorage.resolveManagedAssetPathOrUndefined(
+        typeof requested === "string" ? requested : undefined,
+      );
+      if (!resolved) return { ok: false as const, reason: "path-rejected" as const };
+      if (!nodeFs.existsSync(resolved)) return { ok: false as const, reason: "file-missing" as const };
+      const extracted = readPngPromptText(resolved);
+      if (extracted.status === "ok") return { ok: true as const, text: extracted.text };
+      return { ok: false as const, reason: extracted.status };
     })
   ));
 }

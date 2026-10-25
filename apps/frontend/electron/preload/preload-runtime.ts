@@ -348,6 +348,8 @@ contextBridge.exposeInMainWorld('studioAssets', {
   readImageDataUrl: (id: string) => ipcRenderer.invoke('assets:read-image-data-url', id),
   resolveFileUrl: (url: string) => ipcRenderer.invoke('assets:resolve-file-url', url),
   readUrlDataUrl: (url: string) => ipcRenderer.invoke('assets:read-url-data-url', url),
+  // B-1(10-25 图↔词溯源):主进程只读提 PNG tEXt(keyword=prompt)文本串,不整图过桥。
+  readImagePromptText: (payload: { filePath: string }) => ipcRenderer.invoke('assets:read-image-prompt-text', payload),
 })
 
 contextBridge.exposeInMainWorld('ttsRuntime', {

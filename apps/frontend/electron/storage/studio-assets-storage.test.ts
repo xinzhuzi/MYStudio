@@ -32,7 +32,12 @@ function initTempAssetsStorage() {
 
 afterEach(() => {
   if (tempAssetRoot) {
-    rmSync(tempAssetRoot, { recursive: true, force: true });
+    // 10-25 门禁红修复:缩略图 sips 子进程是 fire-and-forget(assets-sqlite.ts
+    // enqueueThumb / studio-assets-storage.ts promoteMainIfDeleted),断言完成后
+    // 仍会向临时目录回填缩略图文件,rmSync 递归删撞上并发写入即抛 ENOTEMPTY。
+    // Node 对 ENOTEMPTY 有内置 maxRetries 线性退避(本机 Node 26 实测可扛住
+    // 持续回填的写入方),加重试参数即可让清理等迟到的 sips 收尾。
+    rmSync(tempAssetRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     tempAssetRoot = undefined;
   }
 });
