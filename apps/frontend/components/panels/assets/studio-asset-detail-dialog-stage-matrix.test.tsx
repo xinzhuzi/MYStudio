@@ -245,6 +245,23 @@ describe("T2 子区渲染守卫(PRD §3.1/§六:≥2 阶段才渲染,配角零�
 });
 
 describe("T2 懒读(PRD §3.2:展开才发 IPC,当前阶段每型 latest 各一发,按阶段+型缓存)", () => {
+  it("在飞期 probing 占位(复审#3 补):桥桩悬停不决时型卡渲染「正在读取…」,正文区不空白", async () => {
+    const releasers: Array<(v: { ok: boolean; reason?: string }) => void> = [];
+    mocks.readImagePromptText.mockReset().mockImplementation(
+      () => new Promise((resolve) => { releasers.push(resolve as (v: { ok: boolean; reason?: string }) => void); }),
+    );
+    renderDialog();
+    expandComposition();
+    await waitFor(() => {
+      expect(screen.getAllByText("正在读取该型产物提示词…").length).toBeGreaterThan(0);
+    });
+    // 全部作业放行后,占位被终态覆盖(默认阶段两型各一发)
+    for (const release of releasers.splice(0)) release({ ok: false, reason: "no-texr" });
+    await waitFor(() => {
+      expect(screen.queryByText("正在读取该型产物提示词…")).toBeNull();
+    });
+  });
+
   it("不展开零调用;展开=默认阶段(共主期)每型 latest 各一发(共 2 发,人物海报+人物多视图)", async () => {
     renderDialog();
 

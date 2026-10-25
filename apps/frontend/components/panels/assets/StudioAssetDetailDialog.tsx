@@ -461,7 +461,12 @@ export function StudioAssetDetailDialog({
       })
       .map(([kind, group]) => ({ key: stagePromptCacheKey(stage, kind), filePath: group.latest.filePath }));
     if (pending.length === 0) return;
-    for (const job of pending) stageReadInFlightRef.current.add(job.key);
+    for (const job of pending) {
+      stageReadInFlightRef.current.add(job.key);
+      // 复审#3 补(亲读证实):派发即写 probing——否则在飞期间 entry===undefined
+      // 三分支皆不渲染,型卡正文区无加载反馈(probing 分支原为死码)
+      writeStageTextCache(job.key, { status: "probing" });
+    }
     // 会话代快照(复审竞态修):同会话依赖重跑不换代→在飞结果照常落缓存;只有复位点
     // (关弹窗/切资产 resetStageState)换代→迟到写入全弃,防污染下一会话。
     const session = stageSessionRef.current;
