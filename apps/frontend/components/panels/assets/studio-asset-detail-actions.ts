@@ -50,6 +50,9 @@ export function useStudioAssetDialogActions(ctx: {
   setDraftDescription: any;
   setDraftPrompt: any;
   setDraftSetting: any;
+  /** A-3 润色还原(10-25 分层面板役):applyPolishedPrompt 覆写前的润色前快照
+   *  写入位(组件态单条,PRD 裁定 Q5a;仅状态存取,生成行为零变)。 */
+  setPrePolishPrompt: any;
   setFullAsset: Dispatch<SetStateAction<StudioAssetSummary | null>>;
   setImages: Dispatch<SetStateAction<AssetImage[]>>;
   setCurrentIndex: any;
@@ -72,6 +75,11 @@ export function useStudioAssetDialogActions(ctx: {
   typeShotPhase?: string | null;
   setTypeShotPhase: any;
   setTypeShotMessage: any;
+  /** 10-25 分层面板役复审修(A-1 写入点第4项):一键补缺队列逐型派发前的聚焦钩子。
+   *  队列内 dispatchKindGeneration 直调底层执行器,不经 Dialog 包装的 focusOnKind
+   *  ——经此钩子与生成派发同帧写 focusKind,防面板构成区滞留旧聚焦型/通用态
+   *  与实际执行型错位。 */
+  onFillMissingKindFocus?: (kind: AssetImageKind) => void;
   setActiveStudio: any;
   setActiveTab: any;
   /** 10-25 深审修:弹窗当前资产 id 探针(完成尾段活性守卫,防跨资产污染)。 */
@@ -100,6 +108,7 @@ export function useStudioAssetDialogActions(ctx: {
     setDraftDescription,
     setDraftPrompt,
     setDraftSetting,
+    setPrePolishPrompt,
     setFullAsset,
     setImages,
     setCurrentIndex,
@@ -118,6 +127,7 @@ export function useStudioAssetDialogActions(ctx: {
     typeShotPhase,
     setTypeShotPhase,
     setTypeShotMessage,
+    onFillMissingKindFocus,
     setActiveStudio,
     setActiveTab,
     getActiveAssetId,
@@ -162,6 +172,12 @@ export function useStudioAssetDialogActions(ctx: {
       });
 
       if (result.status === "success") {
+        // A-3 复审修:独立润色入口与 applyPolishedPrompt 同款覆写前快照——
+        // 「还原上次润色前」钮覆盖两个润色入口(此前仅一键生成路可还原)。
+        // 与队列路同闸:空结果不快照不清旧快照。
+        if (result.prompt.trim()) {
+          setPrePolishPrompt(draftPrompt);
+        }
         setDraftPrompt(result.prompt);
         toast.success("提示词润色完成");
       } else {
@@ -262,9 +278,19 @@ export function useStudioAssetDialogActions(ctx: {
         return;
       }
       let promptPersistPromise: Promise<boolean> | null = null;
+      // A-3 润色还原(10-25 分层面板役,PRD §4.1 A-3):覆写前把旧值存组件态
+      // prePolishPrompt(单条,「还原上次润色前」钮消费)。快照旗=同轮生成
+      // progress+done 双帧只存首帧——第二帧闭包 draftPrompt 已是润色后值,再存
+      // 会把真快照覆写掉;跨轮各建新闭包,旗自然复位(还原语义=撤销**上次**润色)。
+      // 仅状态存取,生成行为零变(润色/写库链路原样)。
+      let prePolishSnapshotTaken = false;
       const applyPolishedPrompt = (polishResult?: PolishResult) => {
         const prompt = polishResult?.status === "success" ? polishResult.prompt?.trim() : "";
         if (!prompt) return;
+        if (!prePolishSnapshotTaken) {
+          setPrePolishPrompt(draftPrompt);
+          prePolishSnapshotTaken = true;
+        }
         setDraftPrompt(prompt);
         setFullAsset((current) => current ? { ...current, prompt } : current);
       };
@@ -1052,6 +1078,9 @@ export function useStudioAssetDialogActions(ctx: {
     try {
       for (const kind of missing) {
         setTypeShotMessage(`正在补缺 ${completed + 1}/${missing.length}:${kind}...`);
+        // 复审修(A-1 写入点第4项):逐型派发同帧聚焦执行型——队列不经 Dialog 的
+        // focusOnKind 包装,经钩子补写,面板构成区随实际执行型行进
+        onFillMissingKindFocus?.(kind);
         const ok = await dispatchKindGeneration(kind);
         if (!ok) {
           setTypeShotPhase("failed");

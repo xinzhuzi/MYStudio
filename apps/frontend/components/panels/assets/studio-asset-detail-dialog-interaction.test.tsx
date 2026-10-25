@@ -41,14 +41,17 @@ vi.mock("@/lib/studio/asset-generation-orchestrator", () => ({
 
 // 批3(10-24):按型出图 service 打桩(generateAssetTypeShot 桩;型档案/队列计划保真源),
 // 表情差分 service 与持久化落库同步打桩——一键补缺队列交互测试可控驱动。
+// 10-25 分层面板役:表情差分桩改 importOriginal 透传(弹窗直读九宫格指令常量
+// EXPRESSION_I2I_INSTRUCTION 入指令卡,全量 factory 桩会缺该导出)。
 vi.mock("@/lib/studio/asset-type-shot", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/studio/asset-type-shot")>();
   return { ...original, generateAssetTypeShot: mocks.typeShot };
 });
 
-vi.mock("@/lib/studio/asset-expression-sheet", () => ({
-  generateAssetExpressionSheet: mocks.expressionSheet,
-}));
+vi.mock("@/lib/studio/asset-expression-sheet", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/studio/asset-expression-sheet")>();
+  return { ...original, generateAssetExpressionSheet: mocks.expressionSheet };
+});
 
 vi.mock("./studio-asset-generation-persistence", () => ({
   persistGeneratedAssetPromptToLibrary: vi.fn().mockResolvedValue(true),
@@ -243,16 +246,17 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
   it("元信息折叠开关:点选隐藏四行网格留摘要+保存/删除,localStorage 记忆跨渲染", async () => {
     renderDialog();
 
-    // 缺省展开:四行网格字段可见
+    // 缺省展开:四行网格字段可见(10-25 分层面板:「出图提示词」区改造为「提示词」
+    // 区,标签随迁为「提示词」+「主体句」)
     expect(screen.getByPlaceholderText("主名字;副名字1;副名字2")).toBeTruthy();
-    expect(screen.getByText("出图提示词")).toBeTruthy();
+    expect(screen.getByText("主体句")).toBeTruthy();
     expect(window.localStorage.getItem("asset-dialog-meta-collapsed")).toBe("0");
 
     fireEvent.click(screen.getByRole("button", { name: /元信息/ }));
 
     // 折叠:字段隐、摘要(资产名,与标题同名并存)+保存/删除仍在
     expect(screen.queryByPlaceholderText("主名字;副名字1;副名字2")).toBeNull();
-    expect(screen.queryByText("出图提示词")).toBeNull();
+    expect(screen.queryByText("主体句")).toBeNull();
     expect(screen.getAllByText("玄止").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: "保存" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "删除" })).toBeTruthy();

@@ -13,6 +13,7 @@ import {
   Plus,
   ScanFace,
   Sparkles,
+  TextSearch,
   Trash2,
   Wand2,
 } from "lucide-react";
@@ -124,6 +125,9 @@ interface StudioAssetDetailPreviewPaneProps {
   typeShotMessage?: string;
   /** 批3 一键补缺顺序队列入口(缺失核心型逐型顺序补全);缺省不渲染启用态。 */
   onFillMissing?: () => void | Promise<void>;
+  /** B-3 查词(10-25 分层面板役):图片卡 hover 工具条「查词」入口(全部图片卡通用,
+   *  含族聚显族兄弟图——读其原图 tEXt,弹层标注所属资产名);缺省不渲染该钮。 */
+  onInspectPrompt?: (image: AssetImage, index: number) => void | Promise<void>;
   /** R4 族聚显:条目级删除可见性(族兄弟只读条目不显示删除);缺省恒可删
    *  (10-19 用户裁定:主图亦可删——含首位主图)。 */
   isImageRemovable?: (image: AssetImage, index: number) => boolean;
@@ -166,6 +170,7 @@ export function StudioAssetDetailPreviewPane({
   typeShotPhase,
   typeShotMessage,
   onFillMissing,
+  onInspectPrompt,
   isImageRemovable,
 }: StudioAssetDetailPreviewPaneProps) {
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
@@ -346,6 +351,22 @@ export function StudioAssetDetailPreviewPane({
               aria-label={`全屏预览 ${image.name}`}
             >
               <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {/* B-3 查词(10-25 分层面板役):读该图原图 tEXt 分层展示(引擎实收,
+              族兄弟图计入,弹层标注所属资产名);无 tEXt/JPEG/断链走降级文案 */}
+          {onInspectPrompt && (
+            <button
+              type="button"
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                void onInspectPrompt(image, index);
+              }}
+              title="查词:查看该图引擎实收的提示词"
+              aria-label={`查词 ${image.name}`}
+            >
+              <TextSearch className="h-3.5 w-3.5" />
             </button>
           )}
           {removable && (

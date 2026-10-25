@@ -10,9 +10,14 @@ import { getPrimaryAssetName } from "@/lib/studio/asset-names";
  * D4「盘上精确名夹」互不冲突——这里不落盘)。
  */
 
-/** 族内一条可展示图(携带所属资产行 id,供合并时区分本行可编辑/族兄弟只读)。 */
+/**
+ * 族内一条可展示图(携带所属资产行 id,供合并时区分本行可编辑/族兄弟只读)。
+ * 10-25 分层面板役(③实发终稿/查词):assetName=所属资产行名(buildFamilyImageEntries
+ * 随 summary.name 平铺),弹层标注「来自同族资产 {名}」用;可选字段,既有消费面零变化。
+ */
 export interface FamilyImageEntry extends AssetImage {
   assetId: string;
+  assetName?: string;
 }
 
 /** 弹窗轮播展示条目:readOnly=族兄弟行条目(只读聚显);removable=允许删除。 */
@@ -43,7 +48,8 @@ export function buildFamilyImageEntries(family: StudioAssetSummary[]): FamilyIma
     for (const image of rowImages) {
       if (seenFilePaths.has(image.filePath)) continue;
       seenFilePaths.add(image.filePath);
-      entries.push({ ...image, assetId: summary.id });
+      // assetName=所属行名(查词/实发终稿弹层标注族兄弟归属用)
+      entries.push({ ...image, assetId: summary.id, assetName: summary.name });
     }
   }
   return entries;
