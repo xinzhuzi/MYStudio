@@ -108,21 +108,19 @@ def strip_transparent_sentences(text: str) -> tuple[str, list[str]]:
 
 
 def verify_image(path: Path) -> dict:
-    """venv python + PIL 验收：mode/尺寸/alpha 占比/四角底色/lapvar。"""
+    """验收算法与前役 moss_verify_win.py 逐字同口径（numpy 全量 4 邻域拉普拉斯核
+    方差 + alpha 全量占比），另补四角底色取样；venv python 含 numpy/PIL。"""
     code = (
-        "import json,sys;from PIL import Image,ImageFilter;"
-        "im=Image.open(sys.argv[1]);w,h=im.size;"
-        "mode=im.mode;a=im.convert('RGBA');px=a.load();"
-        "n=0;tot=0;"
-        "for y in range(0,h,7):"
-        "  for x in range(0,w,7):"
-        "    tot+=1;n+=1 if px[x,y][3]<250 else 0;"
-        "corners=[a.getpixel((3,3))[:3],a.getpixel((w-4,3))[:3],a.getpixel((3,h-4))[:3],a.getpixel((w-4,h-4))[:3]];"
-        "g=im.convert('L').filter(ImageFilter.FIND_EDGES);"
-        "import statistics;vals=list(g.getdata())[::37];"
-        "mean=sum(vals)/len(vals);var=sum((v-mean)**2 for v in vals)/len(vals);"
-        "print(json.dumps({'w':w,'h':h,'mode':mode,'alpha_pct':round(100.0*n/max(tot,1),2),"
-        "'corners':corners,'lapvar':round(var,2)}))"
+        "import json,sys,os;import numpy as np;from PIL import Image;"
+        "im=Image.open(sys.argv[1]);w,h=im.size;mode=im.mode;"
+        "a=im.convert('RGBA');arr=np.asarray(a,dtype=np.uint8);"
+        "alpha_ratio=float((arr[:,:,3]<255).mean());"
+        "corners=[tuple(int(x) for x in arr[y,x,:3]) for y,x in ((3,3),(3,w-4),(h-4,3),(h-4,w-4))];"
+        "g=np.asarray(im.convert('L'),dtype=np.float64);gp=np.pad(g,1,mode='edge');"
+        "lap=(gp[:-2,1:-1]+gp[2:,1:-1]+gp[1:-1,:-2]+gp[1:-1,2:]-4.0*gp[1:-1,1:-1]);"
+        "lapvar=float(lap.var());"
+        "print(json.dumps({'w':w,'h':h,'mode':mode,'alpha_pct':round(alpha_ratio*100,2),"
+        "'corners':corners,'lapvar':round(lapvar,2)}))"
     )
     out = subprocess.run([str(VENV_PY), "-c", code, str(path)],
                          capture_output=True, text=True, timeout=300)
@@ -131,11 +129,36 @@ def verify_image(path: Path) -> dict:
     return json.loads(out.stdout.strip().splitlines()[-1])
 
 
+def engine_health() -> dict:
+    """Step 0 前置：queue 空 + SLG 节点在册（双实例并存时确认活实例健康）。"""
+    import urllib.request
+    out = {"queue_empty": None, "slg_node": None}
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:17000/queue", timeout=15) as r:
+            q = json.loads(r.read().decode("utf-8"))
+        out["queue_empty"] = not (q.get("queue_running") or q.get("queue_pending"))
+    except Exception as e:
+        out["queue_error"] = str(e)[:150]
+    try:
+        with urllib.request.urlopen(
+                "http://127.0.0.1:17000/object_info/SkipLayerGuidanceDiTSimple", timeout=15) as r:
+            out["slg_node"] = bool(json.loads(r.read().decode("utf-8")))
+    except Exception as e:
+        out["slg_error"] = str(e)[:150]
+    return out
+
+
 def main() -> int:
     bases = json.loads(BASES.read_text(encoding="utf-8"))
     types = bases["types"]
     style_base = (bases.get("art_style_base") or {}).get("positive_text", "")
     assert len(types) == 14, "expect 14 types, got %d" % len(types)
+    health = engine_health()
+    log("engine health: %s" % json.dumps(health))
+    if not health.get("queue_empty") or not health.get("slg_node"):
+        log("ABORT: engine not healthy (queue_empty=%s slg=%s) -- resolve dual-instance/node state first"
+            % (health.get("queue_empty"), health.get("slg_node")))
+        return 2
     summary = []
     log("batch start: 14 types, style_base %d chars" % len(style_base))
 
@@ -195,10 +218,14 @@ def main() -> int:
                 log("fire %02d attempt=%s FAILED exit=%d" % (i, attempt, r.returncode))
                 continue
 
-            # 找 receipt 与产物图
-            rcpt = LAUNCHER_DIR / "receipts" / ("%s.json" % test_id)
+            # 找 receipt（launcher 实名=<test_id>-<prompt_uuid>.json，glob 取最新）
+            rcpt = None
+            cands = sorted(LAUNCHER_DIR.glob("receipts/%s*.json" % test_id),
+                           key=lambda p: p.stat().st_mtime)
+            if cands:
+                rcpt = cands[-1]
             img_path = None
-            if rcpt.exists():
+            if rcpt is not None:
                 entry["receipt"] = rcpt.name
                 try:
                     rj = json.loads(rcpt.read_text(encoding="utf-8"))
@@ -239,7 +266,7 @@ def main() -> int:
             alpha_pct = v.get("alpha_pct", 0.0)
             if entry["rgba"] and alpha_pct > 1.0:
                 entry["alpha_state"] = "transparent-pass"
-            elif any(c != (255, 255, 255) or True for c in v.get("corners", [])) and _looks_pseudo(img_path, v):
+            elif _looks_pseudo(img_path, v):
                 entry["alpha_state"] = "pseudo-transparency-artifact"
             else:
                 entry["alpha_state"] = "alpha-missing"
@@ -267,7 +294,8 @@ def main() -> int:
 
 
 def _looks_pseudo(img_path: Path, v: dict) -> bool:
-    """伪透明 spot-check：四角同色但整图高边熵/棋盘格启发。简化：alpha=0 且四角全同色且 lapvar 高于 400 视为可疑。"""
+    """伪透明 spot-check（启发式，如实记录供目检复核）：alpha≈0 且四角同色且
+    lapvar 显著偏高（棋盘格/灰阶伪透明纹嫌疑）。"""
     try:
         corners = v.get("corners", [])
         same = len({tuple(c) for c in corners}) <= 2
