@@ -1,12 +1,12 @@
 {
   "generatedFrom": "git show HEAD:<路径> 提取态(不取工作树态)",
-  "head": "f7fcc9b7",
-  "rebuiltAt": "2026-10-23T21:35:31",
+  "head": "14eb926a",
+  "rebuiltAt": "2026-10-26T04:45:07",
   "files": {
     "apps/backend/comfyui/workflows/1_图片/Q2-1图像/1_文生图/qi21-道劫-t2i.json": {
       "scopes": {
         "main": {
-          "crossings": 12,
+          "crossings": 10,
           "occlusion": 0
         },
         "sub:[6] 文本提示词类型优化子图": {
@@ -14,7 +14,7 @@
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 18,
+          "crossings": 17,
           "occlusion": 0
         },
         "sub:道劫·超分·SeedVR2": {
@@ -39,7 +39,7 @@
         },
         "sub:道劫·加速子图": {
           "crossings": 26,
-          "occlusion": 7
+          "occlusion": 5
         },
         "sub:道劫·超分·SeedVR2": {
           "crossings": 0,
@@ -55,7 +55,7 @@
       "scopes": {
         "main": {
           "crossings": 16,
-          "occlusion": 4
+          "occlusion": 3
         },
         "sub:[6] 文本提示词类型优化子图": {
           "crossings": 6,
