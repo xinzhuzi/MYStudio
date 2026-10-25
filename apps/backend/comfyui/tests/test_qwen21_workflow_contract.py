@@ -6060,7 +6060,7 @@ class TestCountAnchor:
             "qi21-道劫-img2img.json",
             "qi21-道劫-t2i.json",
             "qi21-道劫-换脸-局部重绘.json",
-            "qwen21-charcard-turbo-t2i.json",
+            "qwen21-charcard-t2i.json",
             "qwen21-daotu-rgba-t2i.json",
             "qwen21-multiref-edit.json",
             "qwen21-pose-edit.json",
@@ -6078,7 +6078,7 @@ class TestCountAnchor:
             "社区-全能文生图-官方PE.json",
             "社区-编辑生图整合-TE.json",
             "道劫-摆姿-fisher.json",
-        ], f"Q2-1图像 应恰 27 件(16 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+4 社区+1 charcard改造件;1025 charcard-turbo 角色卡加速件入库 26→27(CharacterCardStudio 官方一键卡改造件,仅采样段换 Turbo,实弹 180s/6倍速);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
+        ], f"Q2-1图像 应恰 27 件(16 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+4 社区+1 charcard改造件;1025 charcard 角色卡件入库 26→27(CharacterCardStudio 官方一键卡改造件,v1 Turbo加速段被实弹否决改 v2=引导图接线+clip bug修正+原生采样段=修复B配方);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。

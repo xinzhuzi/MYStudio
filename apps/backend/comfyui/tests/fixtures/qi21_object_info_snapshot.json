@@ -3440,6 +3440,133 @@
     "essentials_category": null,
     "has_intermediate_output": false
   },
+  "MyQi21FastEncode": {
+    "input": {
+      "required": {
+        "clip": [
+          "CLIP",
+          {}
+        ],
+        "prompt": [
+          "STRING",
+          {
+            "tooltip": "正向提示词:唯一实际过文本编码器的文本(漫影单遍只编码正向)。",
+            "multiline": true,
+            "dynamicPrompts": true
+          }
+        ],
+        "negative_prompt": [
+          "STRING",
+          {
+            "tooltip": "负面提示词:仅保留连线面;cfg=1 采样链不使用负面 conditioning,本节点不为其编码。",
+            "multiline": true,
+            "dynamicPrompts": true
+          }
+        ],
+        "resolution": [
+          "INT",
+          {
+            "tooltip": "参考图统一基准边长(32 的倍数,保长宽比缩放);0=各参考图按自身尺寸取 32 倍数;零潜画幅随首张参考图。",
+            "default": 1024,
+            "min": 0,
+            "max": 4096,
+            "step": 32
+          }
+        ],
+        "images": [
+          "COMFY_AUTOGROW_V3",
+          {
+            "tooltip": "参考图(至多 16 张,按 image_N 序号排序):文本编码器逐张看图,并经 VAE 编成参考潜注入正向;不接=纯文编。",
+            "template": {
+              "input": {
+                "required": {
+                  "image": [
+                    "IMAGE",
+                    {}
+                  ]
+                }
+              },
+              "names": [
+                "image_1",
+                "image_2",
+                "image_3",
+                "image_4",
+                "image_5",
+                "image_6",
+                "image_7",
+                "image_8",
+                "image_9",
+                "image_10",
+                "image_11",
+                "image_12",
+                "image_13",
+                "image_14",
+                "image_15",
+                "image_16"
+              ],
+              "min": 0
+            }
+          }
+        ]
+      },
+      "optional": {
+        "vae": [
+          "VAE",
+          {
+            "tooltip": "参考潜编码用 VAE;不接则参考图只供看图、零参考潜(keep_vision 自动回真)。"
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "clip",
+        "prompt",
+        "negative_prompt",
+        "resolution",
+        "images"
+      ],
+      "optional": [
+        "vae"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "CONDITIONING",
+      "CONDITIONING",
+      "LATENT"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "positive",
+      "negative",
+      "latent"
+    ],
+    "output_tooltips": [
+      null,
+      null,
+      "零潜 latent(画幅随首张参考图),供采样节点直接接线。"
+    ],
+    "output_matchtypes": null,
+    "name": "MyQi21FastEncode",
+    "display_name": "Qwen Image 2.1 文本编码·漫影单遍",
+    "description": "漫影单遍文本编码:只对正向提示词跑一遍 Qwen Image 2.1 文本编码,负面出口直通正向同一 conditioning。面向 cfg=1 采样链(Turbo/原生双 KSampler cfg 锁 1):无分类器引导下负面 conditioning 不参与采样,故负面文本在本节点不编码、不生效;参考图经 VAE 编成参考潜注入正向(与官方 TextEncodeQwenImage21 逐参一致)。",
+    "python_module": "custom_nodes.my-nodes",
+    "category": "漫影",
+    "output_node": false,
+    "deprecated": false,
+    "experimental": false,
+    "dev_only": false,
+    "api_node": false,
+    "price_badge": null,
+    "search_aliases": null,
+    "essentials_category": null,
+    "has_intermediate_output": false
+  },
   "TextGenerate": {
     "input": {
       "required": {

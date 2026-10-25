@@ -110,7 +110,7 @@
       }
     },
     "4015": {
-      "class_type": "TextEncodeQwenImage21",
+      "class_type": "MyQi21FastEncode",
       "inputs": {
         "prompt": [
           "6:4014",

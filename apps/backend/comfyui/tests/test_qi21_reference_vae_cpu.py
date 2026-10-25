@@ -30,7 +30,10 @@ def test_reference_vae_is_shared_cpu_fp32_with_matching_widgets(name):
     schemas = json.loads((COMFY / 'tests/fixtures/qi21_object_info_snapshot.json').read_text())
     api = flatten_canvas(graph, schemas)
     consumers = {n['class_type'] for n in api.values() if n['inputs'].get('vae') == ['3', 0]}
-    assert {'TextEncodeQwenImage21', 'VAEDecode'} <= consumers
+    # 1025 my21fast:TE 并集判定(主裁采纳)——VAEDecode∈consumers 且两 TE 类之一
+    # ∈consumers(术后两手术件 consumers=MyQi21FastEncode;存量官方件兼容)
+    assert 'VAEDecode' in consumers and ({'TextEncodeQwenImage21', 'MyQi21FastEncode'} & consumers), \
+        f'参考 VAE 消费面应含 VAEDecode+任一 TE 类,得 {sorted(consumers)}'
     assert all(nodes[e[3]]['inputs'][e[4]]['link'] == e[0] for e in edges)
 
 
@@ -38,4 +41,6 @@ def test_app_i2i_template_uses_identical_cpu_loader():
     graph = json.loads(next((COMFY / 'workflows').rglob('qwen21-道劫-i2i-api.json')).read_text())['graph']
     assert graph['3'] == {'class_type': 'VAELoaderKJ', 'inputs': {'vae_name': VAE, 'device': 'cpu', 'weight_dtype': 'fp32'}}
     consumers = [node['class_type'] for node in graph.values() if node['inputs'].get('vae') == ['3', 0]]
-    assert {'TextEncodeQwenImage21', 'VAEDecode'} <= set(consumers)
+    # 1025 my21fast:TE 并集判定(api 件 1025 重生成后 TE=MyQi21FastEncode)
+    assert 'VAEDecode' in consumers and ({'TextEncodeQwenImage21', 'MyQi21FastEncode'} & set(consumers)), \
+        f'i2i api 件参考 VAE 消费面应含 VAEDecode+任一 TE 类,得 {sorted(set(consumers))}'

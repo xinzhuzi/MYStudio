@@ -1250,7 +1250,7 @@
     },
     {
       "id": 4015,
-      "type": "TextEncodeQwenImage21",
+      "type": "MyQi21FastEncode",
       "pos": [
         4973.0,
         460.0
@@ -1350,7 +1350,7 @@
       ],
       "title": "[4015] 多参考编码·原生与画幅",
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
+        "Node name for S&R": "MyQi21FastEncode",
         "ue_properties": {
           "widget_ue_connectable": {},
           "version": "7.8",
@@ -1370,7 +1370,7 @@
     },
     {
       "id": 171,
-      "type": "TextEncodeQwenImage21",
+      "type": "MyQi21FastEncode",
       "pos": [
         3760,
         2610.0
@@ -1466,7 +1466,7 @@
       ],
       "title": "[171] 加速编码·主参考+透明锚",
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
+        "Node name for S&R": "MyQi21FastEncode",
         "ue_properties": {
           "widget_ue_connectable": {},
           "version": "7.8",

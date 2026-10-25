@@ -50,6 +50,7 @@ from .nodes.my_qi21_prompt_preview import MyQi21PromptPreview
 from .nodes.my_qi21_bool_branch import MyQi21BoolBranch
 from .nodes.my_qi21_pe_switch import MyQi21PESwitch
 from .nodes.my_qi21_purpose_canvas import MyQi21PurposeCanvas
+from .nodes.my_qi21_fast_encode import MyQi21FastEncode
 from . import cloud_takeover
 from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
@@ -125,6 +126,7 @@ _open_receipt_server.install()
 NODE_CLASS_MAPPINGS = {
     "MyQi21InstructionSelect": MyQi21InstructionSelect,
     "MyQi21PurposeCanvas": MyQi21PurposeCanvas,
+    "MyQi21FastEncode": MyQi21FastEncode,  # 1025 my21fast:单遍文本编码(正面单遍+负面直通正向,cfg=1 链专用;主裁C 类名终局)。v3 io 类(io.ComfyNode define_schema 形,官方 nodes_qwen.py 同款):引擎装载 V1 分支(NODE_CLASS_MAPPINGS 收集)把 v3 类原样落引擎同册,与 comfy_entrypoint V3 分支同一张 nodes.NODE_CLASS_MAPPINGS;执行/对象信息按 issubclass(_ComfyNodeInternal) 动态识别 v3 身份(autogrow 动态展开 images.image_N 由此来),与注册路径无关——本包含 NODE_CLASS_MAPPINGS 在册则 comfy_entrypoint 分支不达,dict 面即注册面
     "MyPrompt": MyPrompt,
     "MyReference": MyReference,
     "MyGenerated": MyGenerated,
@@ -176,6 +178,7 @@ WEB_DIRECTORY = "./web"
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MyQi21InstructionSelect": "道劫·qi21指令择文",
     "MyQi21PurposeCanvas": "道劫·用途画幅路由",
+    "MyQi21FastEncode": "Qwen Image 2.1 文本编码·漫影单遍",  # 1025 my21fast(主裁C 显示名)
     "MyPrompt": "漫影 提示词",
     "MyReference": "漫影 参考图",
     "MyGenerated": "漫影 成图回写",

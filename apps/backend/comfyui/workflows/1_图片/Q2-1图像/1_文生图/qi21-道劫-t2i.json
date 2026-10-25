@@ -465,7 +465,6 @@
           "name": "negative",
           "type": "STRING",
           "links": [
-            209,
             217
           ]
         },
@@ -749,7 +748,7 @@
     },
     {
       "id": 4015,
-      "type": "TextEncodeQwenImage21",
+      "type": "MyQi21FastEncode",
       "pos": [
         3060,
         1505
@@ -799,7 +798,9 @@
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "links": []
+          "links": [
+            17
+          ]
         },
         {
           "name": "latent",
@@ -809,87 +810,7 @@
       ],
       "title": "[4015] 主编码·TextEncode",
       "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
-        "ue_properties": {
-          "widget_ue_connectable": {},
-          "version": "7.8",
-          "input_ue_unconnectable": {}
-        }
-      },
-      "widgets_values": [
-        "",
-        "",
-        1024
-      ],
-      "widgets_values_named": {
-        "prompt": "",
-        "negative_prompt": "",
-        "resolution": 1024
-      }
-    },
-    {
-      "id": 4016,
-      "type": "TextEncodeQwenImage21",
-      "pos": [
-        3100.1394635395586,
-        1982.9255519126211
-      ],
-      "size": [
-        420,
-        320
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 4304
-        },
-        {
-          "name": "images.image_1",
-          "shape": 7,
-          "type": "IMAGE",
-          "link": null
-        },
-        {
-          "name": "vae",
-          "shape": 7,
-          "type": "VAE",
-          "link": null
-        },
-        {
-          "name": "prompt",
-          "type": "STRING",
-          "widget": {
-            "name": "prompt"
-          },
-          "link": 209
-        }
-      ],
-      "outputs": [
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "links": [
-            17
-          ]
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "links": []
-        },
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": []
-        }
-      ],
-      "title": "[4015N] 负向编码·TextEncode",
-      "properties": {
-        "Node name for S&R": "TextEncodeQwenImage21",
+        "Node name for S&R": "MyQi21FastEncode",
         "ue_properties": {
           "widget_ue_connectable": {},
           "version": "7.8",
@@ -1106,9 +1027,7 @@
         {
           "name": "STRING",
           "type": "CLIP",
-          "links": [
-            4304
-          ]
+          "links": []
         }
       ],
       "properties": {
@@ -1221,8 +1140,8 @@
     ],
     [
       17,
-      4016,
-      0,
+      4015,
+      1,
       7,
       2,
       "CONDITIONING"
@@ -1280,14 +1199,6 @@
       6,
       0,
       4015,
-      3,
-      "STRING"
-    ],
-    [
-      209,
-      6,
-      1,
-      4016,
       3,
       "STRING"
     ],
@@ -1354,14 +1265,6 @@
       7,
       0,
       "MODEL"
-    ],
-    [
-      4304,
-      4204,
-      0,
-      4016,
-      0,
-      "CLIP"
     ],
     [
       4410,
