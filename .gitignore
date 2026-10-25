@@ -73,6 +73,7 @@ docs/*/**
 *.ps1
 !apps/build/setup-win.ps1
 !apps/build/packaging/setup-win.ps1
+!apps/build/scripts/win-engine/*.ps1
 
 # Story/script content
 沪商通途*
