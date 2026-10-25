@@ -520,9 +520,9 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
   it("节头钮 gating:i2i 型零图禁用(title 提示),t2i 型(设定卡/美宣)零图可点", () => {
     renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn() });
 
+    // 10-25 用户令:全身定妆 t2i 化——零图可点(主体句+型层承载,无参考图门槛)
     const fullBody = screen.getByRole("button", { name: "生成全身定妆" }) as HTMLButtonElement;
-    expect(fullBody.disabled).toBe(true);
-    expect(fullBody.getAttribute("title")).toContain("先有角色图片");
+    expect(fullBody.disabled).toBe(false);
     const poster = screen.getByRole("button", { name: "生成人物海报" }) as HTMLButtonElement;
     expect(poster.disabled).toBe(true);
     const sheet = screen.getByRole("button", { name: "生成设定卡" }) as HTMLButtonElement;
@@ -706,9 +706,10 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
   it("节头型档案徽标:七型节带透明/route 徽标,既有路节(高清人脸/表情差分)恒无", () => {
     renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn() });
 
+    // 10-25 用户令:全身定妆 t2i 化(文生图身份源头)——route 徽标随迁
     const fullBody = screen.getByRole("region", { name: "全身定妆" });
     expect(within(fullBody).getAllByText("透明").length).toBeGreaterThanOrEqual(1);
-    expect(within(fullBody).getByText("i2i")).toBeTruthy();
+    expect(within(fullBody).getByText("t2i")).toBeTruthy();
     const sheet = screen.getByRole("region", { name: "设定卡" });
     expect(within(sheet).getByText("t2i")).toBeTruthy();
     expect(within(sheet).queryByText("透明")).toBeNull();

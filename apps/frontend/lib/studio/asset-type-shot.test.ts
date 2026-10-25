@@ -121,13 +121,10 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
     ]);
   });
 
-  it("route 分流:设定卡/美宣/道具=t2i+base_type,余型=i2i(禁一刀切;⑤ 道具=t2i 透明底型)", () => {
+  it("route 分流(10-25 用户令·派生流水线):全身定妆+设定卡/美宣/道具=t2i,余型=i2i", () => {
+    const t2iKinds = new Set(["全身定妆", "设定卡", "美宣", "道具"]);
     for (const profile of ASSET_TYPE_SHOT_PROFILES) {
-      if (profile.kind === "设定卡" || profile.kind === "美宣" || profile.kind === "道具") {
-        expect(profile.route).toBe("t2i");
-      } else {
-        expect(profile.route).toBe("i2i");
-      }
+      expect(profile.route).toBe(t2iKinds.has(profile.kind) ? "t2i" : "i2i");
     }
   });
 
@@ -186,9 +183,9 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
     }
   });
 
-  it("指令按型文抽样(Phase2 差异要点):定妆素体/海报密度/多视图一致/基准光洁头颅/场景空镜/气氛偏侧/3D剖切", () => {
-    expect(getAssetTypeShotProfile("全身定妆")?.i2iInstruction).toContain("通身素体");
-    expect(getAssetTypeShotProfile("全身定妆")?.i2iInstruction).toContain("零衣物零配饰零鞋履");
+  it("指令按型文抽样(Phase2 差异要点):海报密度/多视图一致/基准光洁头颅/场景空镜/气氛偏侧/3D剖切;定妆 t2i 化后无固定指令", () => {
+    expect(getAssetTypeShotProfile("全身定妆")?.route).toBe("t2i");
+    expect(getAssetTypeShotProfile("全身定妆")?.i2iInstruction).toBeUndefined();
     expect(getAssetTypeShotProfile("人物海报")?.i2iInstruction).toContain("人物细节密度最高");
     expect(getAssetTypeShotProfile("人物多视图")?.i2iInstruction).toContain("保持一致");
     expect(getAssetTypeShotProfile("人脸基准")?.i2iInstruction).toContain("头颅光洁");
@@ -205,19 +202,19 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
 });
 
 describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨落盘)", () => {
-  it("i2i 路(全身定妆):保真段+差异要点指令+raw+单参考+base_type 型层注入,落盘 characters", async () => {
+  it("i2i 路(人物海报样板;10-25 定妆已 t2i 化):固定指令+raw+单参考+base_type 型层注入,落盘 characters", async () => {
     generateImage.mockResolvedValue({ url: "data:image/png;base64,TypeShot" });
     vi.mocked(saveGeneratedAssetImage).mockResolvedValue("local-image://characters/fullbody.png");
 
     const result = await generateAssetTypeShot({
       assetId: "asset-role-1",
       assetName: "晏燎",
-      kind: "全身定妆",
+      kind: "人物海报",
       referenceImage: "asset-file://role/main.png",
       projectId: "proj-1",
     });
 
-    const profile = getAssetTypeShotProfile("全身定妆")!;
+    const profile = getAssetTypeShotProfile("人物海报")!;
     expect(generateImage).toHaveBeenCalledTimes(1);
     expect(generateImage).toHaveBeenCalledWith({
       model: ASSET_TYPE_SHOT_MODEL,
@@ -225,7 +222,7 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
       promptPolicy: "raw",
       referenceImages: ["asset-file://role/main.png"],
       // Phase 2(⑥,桥役 3718e469 已落地):i2i 统一 base_type 型层注入
-      extraParams: { base_type: "全身定妆" },
+      extraParams: { base_type: "人物海报" },
     });
     expect(TYPE_SHOT_I2I_USE_BASE_TYPE).toBe(true);
     expect(saveGeneratedAssetImage).toHaveBeenCalledWith({
@@ -246,7 +243,8 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
   it("透明型 RGBA 单测锚(⑥):人物多视图/人脸基准/全身定妆(i2i)+道具(t2i)恒带 base_type 注入=桥透明链前置", async () => {
     // 单测锚定请求层:透明型产物 RGBA 由桥 6:180 连线跟 6:4010 注型自动激活,
     // 像素级(PIL mode==RGBA+透明像素>0)核验属装机实弹项(docs/comfyui-kb/生图API直连.md 2c)
-    const transparentI2iKinds = ["人物多视图", "人脸基准", "全身定妆"] as const;
+    // 10-25 用户令:全身定妆 t2i 化——透明 i2i 组摘定妆,t2i 透明组(道具+定妆)同锚
+    const transparentI2iKinds = ["人物多视图", "人脸基准"] as const;
     for (const kind of transparentI2iKinds) {
       expect(getAssetTypeShotProfile(kind)?.rgba).toBe(true);
       generateImage.mockClear();
@@ -255,7 +253,14 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
       await generateAssetTypeShot({ assetId: "a", assetName: "x", kind, referenceImage: "asset-file://r.png" });
       expect(generateImage.mock.calls[0][0].extraParams).toEqual({ base_type: kind });
     }
-    // 道具(透明底型)走 t2i+base_type(⑥ 桥 4010/4011/4022 同覆写→1:1 型画幅)
+    // 道具(透明底型)走 t2i+base_type(⑥ 桥 4010/4011/4022 同覆写→1:1 型画幅);
+    // 全身定妆(10-25 t2i 化,rgba 透明型)同走 t2i+base_type
+    expect(getAssetTypeShotProfile("全身定妆")?.rgba).toBe(true);
+    generateImage.mockClear();
+    generateImage.mockResolvedValue({ url: "data:image/png;base64,FB" });
+    vi.mocked(saveGeneratedAssetImage).mockResolvedValue("local-image://characters/fb.png");
+    await generateAssetTypeShot({ assetId: "a", assetName: "x", kind: "全身定妆", subjectText: "少年剑修全身素体立绘" });
+    expect(generateImage.mock.calls[0][0].extraParams).toEqual({ base_type: "全身定妆" });
     expect(getAssetTypeShotProfile("道具")?.rgba).toBe(true);
     generateImage.mockClear();
     generateImage.mockResolvedValue({ url: "data:image/png;base64,P" });

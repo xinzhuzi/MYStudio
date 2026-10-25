@@ -26,7 +26,7 @@ import {
 } from "@/lib/studio/asset-family-images";
 import { asAssetImageTrack, classifyAssetImage, getAssetImageKindSpectrum } from "@/lib/studio/asset-image-kind";
 import { buildStageTypeShotImageName, extractStageName } from "@/lib/studio/asset-stage-prompts";
-import { singleKindReplacementFilePaths } from "@/lib/studio/asset-image-kind";
+import { latestKindImage, singleKindReplacementFilePaths } from "@/lib/studio/asset-image-kind";
 import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -109,6 +109,13 @@ export function useStudioAssetDialogActions(ctx: {
   setActiveTab: any;
   /** 10-25 深审修:弹窗当前资产 id 探针(完成尾段活性守卫,防跨资产污染)。 */
   getActiveAssetId?: () => string | null;
+  /** 10-25 用户令·派生流水线修:展示序图集活取探针——一键补缺队列整循环活在
+   *  点击帧闭包内,后续派发读旧闭包图集(定妆收编后表情锚恒落空断队列);
+   *  人脸·图生图/表情差分的定妆锚一律经此取最新展示序。 */
+  getDisplayImages?: () => AssetImage[];
+  /** 同步回写口(与 getDisplayImages 配对):收编尾段算出最新图集时立即回写探针
+   *  ref——setImages 要等渲染提交,队列异步链不等渲染,锚活取须绕开渲染时序。 */
+  onImagesCollected?: (images: AssetImage[]) => void;
   /** 10-25 深审修:本会话已删族兄弟路径(handleAddImage 定位下标用展示序口径)。 */
   removedFamilyPaths?: string[];
   resolveAssetGenerationReferenceImage: any;
@@ -159,6 +166,8 @@ export function useStudioAssetDialogActions(ctx: {
     setActiveStudio,
     setActiveTab,
     getActiveAssetId,
+    getDisplayImages,
+    onImagesCollected,
     removedFamilyPaths,
     resolveAssetGenerationReferenceImage,
     resolveThreeTrackAssetType,
@@ -405,6 +414,7 @@ export function useStudioAssetDialogActions(ctx: {
               return true;
             });
             setImages(dedupedImgs);
+            onImagesCollected?.(dedupedImgs);
             setCurrentIndex(0);
           }
         }
@@ -478,7 +488,9 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error("该资产类型不支持画风转换（仅角色/场景/道具三轨）");
       return;
     }
-    const referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+    // 10-25 用户令(派生流水线):表情差分恒以「全身定妆图」为锚(不随轮播漂)
+    const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "全身定妆");
+    const referenceImage = fullBodyAnchor?.url;
     if (!referenceImage) {
       void logEvent({
         level: "warn",
@@ -487,11 +499,11 @@ export function useStudioAssetDialogActions(ctx: {
         message: "Asset style transfer guard rejected (no reference image)",
         context: { assetId: asset.id, displayImageCount: carouselImages.length },
       });
-      toast.error("没有可作参考的图片，请先生成或添加图片");
+            toast.error("尚无全身定妆图——表情差分以全身定妆为锚，请先「生成全身定妆」(文生图)");
       return;
     }
     // 10-19 用户令:废「主图」名号——图生图结果名 = 原图名_中文日期(如 晏燎_练气期_正视图_v1_2026年10月19日)
-    const inputImageName = carouselImages[currentIndex]?.name || asset.name;
+    const inputImageName = fullBodyAnchor?.name || asset.name;
     const now = new Date();
     const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
     const resultImageName = `${inputImageName}_${dateSuffix}`;
@@ -549,6 +561,7 @@ export function useStudioAssetDialogActions(ctx: {
               return true;
             });
             setImages(dedupedImgs);
+            onImagesCollected?.(dedupedImgs);
             // 10-19 用户报障「图生图后主图来回变」:完成即切到新主图(与更换主图同款
             // setCurrentIndex(0));不归零 → 轮播 key 重挂在旧索引,叠加并存 images[]
             // 增长位移 = 看到的一直是旧位置的内容而非新图
@@ -630,8 +643,12 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     }
     let referenceImage: string | undefined;
+    // 10-25 用户令(派生流水线):人脸·图生图恒以「全身定妆图」为锚(不随轮播漂);
+    // 无定妆图=流水线断源,明确引导先文生图定妆
+    let fullBodyAnchor: { url: string; name: string } | null = null;
     if (mode === "image") {
-      referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+      fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "全身定妆");
+      referenceImage = fullBodyAnchor?.url;
       if (!referenceImage) {
         void logEvent({
           level: "warn",
@@ -640,7 +657,7 @@ export function useStudioAssetDialogActions(ctx: {
           message: "Asset face portrait guard rejected (no reference image)",
           context: { assetId: asset.id, displayImageCount: carouselImages.length },
         });
-        toast.error("没有可作参考的图片，请先生成或添加图片");
+        toast.error("尚无全身定妆图——高清人脸图生图以全身定妆为锚，请先「生成全身定妆」(文生图)");
         return false;
       }
     }
@@ -660,7 +677,8 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     }
     // 命名沿 10-19「废主图名号」令:图生图=原图名_人脸_中文日期;文生图=资产名_人脸_中文日期
-    const inputImageName = mode === "image" ? (carouselImages[currentIndex]?.name || asset.name) : asset.name;
+    // 命名锚(10-25 派生流水线):image 路=定妆图名(产物溯源其源);text 路=资产名
+    const inputImageName = mode === "image" ? (fullBodyAnchor?.name || carouselImages[currentIndex]?.name || asset.name) : asset.name;
     const now = new Date();
     const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
     const resultImageName = `${inputImageName}_人脸_${dateSuffix}`;
@@ -720,6 +738,7 @@ export function useStudioAssetDialogActions(ctx: {
               return true;
             });
             setImages(dedupedImgs);
+            onImagesCollected?.(dedupedImgs);
             // 完成即切到新主图(与画风转换同款 setCurrentIndex(0))
             setCurrentIndex(0);
           }
@@ -797,7 +816,9 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error("表情差分仅角色资产可用");
       return false;
     }
-    const referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+    // 10-25 用户令(派生流水线):表情差分恒以「全身定妆图」为锚(不随轮播漂)
+    const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "全身定妆");
+    const referenceImage = fullBodyAnchor?.url;
     if (!referenceImage) {
       void logEvent({
         level: "warn",
@@ -867,6 +888,7 @@ export function useStudioAssetDialogActions(ctx: {
               return true;
             });
             setImages(dedupedImgs);
+            onImagesCollected?.(dedupedImgs);
             // 完成即切到新主图(与人脸/画风转换同款 setCurrentIndex(0))
             setCurrentIndex(0);
           }
@@ -970,6 +992,7 @@ export function useStudioAssetDialogActions(ctx: {
               return true;
             });
             setImages(dedupedImgs);
+            onImagesCollected?.(dedupedImgs);
             setCurrentIndex(0);
           }
         }
@@ -1167,6 +1190,7 @@ export function useStudioAssetDialogActions(ctx: {
               return true;
             });
             setImages(dedupedImgs);
+            onImagesCollected?.(dedupedImgs);
             // 完成即切到新主图(与人脸/表情差分同款 setCurrentIndex(0))
             setCurrentIndex(0);
           }

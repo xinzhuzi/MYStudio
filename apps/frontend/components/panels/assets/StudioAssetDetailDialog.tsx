@@ -57,7 +57,7 @@ import {
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
-import { ASSET_IMAGE_KIND_ASPECTS, classifyAssetImage } from "@/lib/studio/asset-image-kind";
+import { ASSET_IMAGE_KIND_ASPECTS, classifyAssetImage, latestKindImage } from "@/lib/studio/asset-image-kind";
 import { clusterAssetStages } from "@/lib/studio/asset-stage-prompts";
 import { parseWorkflowPrompt } from "@/lib/studio/workflow-prompt-parser";
 import {
@@ -339,6 +339,9 @@ export function StudioAssetDetailDialog({
       .filter((entry) => !removedFamilyPaths.includes(entry.filePath)),
     [familyImages, images, asset?.id, removedFamilyPaths],
   );
+  // 10-25 派生流水线修:展示序活取探针(队列闭包陈旧图集问题,见 actions ctx 注释)
+  const displayImagesRef = useRef<AssetImage[]>(displayImages);
+  displayImagesRef.current = displayImages;
 
   // 10-25 阶段矩阵(T2/T3 同源):displayImages 聚类→阶梯序阶段数组(clusterAssetStages
   // 内嵌显示守卫,<2 阶段恒 []=子区与「阶段」选择器整段不渲染,配角弹窗零变化);
@@ -664,6 +667,10 @@ export function StudioAssetDetailDialog({
     familyImages,
     currentIndex,
     getActiveAssetId: () => activeAssetIdRef.current,
+    getDisplayImages: () => displayImagesRef.current,
+    onImagesCollected: (collected) => {
+      displayImagesRef.current = collected;
+    },
     removedFamilyPaths,
     draftName,
     draftDescription,
@@ -1567,7 +1574,8 @@ export function StudioAssetDetailDialog({
                 onGenerateByKind={(kind) => {
                   focusOnKind(kind);
                   if (kind === "高清人脸") {
-                    if (displayImages.length > 0) handleFacePortraitFromImage();
+                    // 10-25 用户令(派生流水线):定妆图在场→图生图(锚定妆);缺→文生图
+                    if (latestKindImage(displayImages, "全身定妆")) handleFacePortraitFromImage();
                     else handleFacePortraitFromText();
                     return;
                   }

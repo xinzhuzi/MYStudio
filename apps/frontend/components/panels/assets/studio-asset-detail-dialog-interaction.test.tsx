@@ -364,6 +364,22 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
       imageLocalPath: `local-image://characters/${task.kind}.png`,
     }));
     mocks.expressionSheet.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/expression.png" });
+    // 10-25 用户令(派生流水线):表情差分锚「全身定妆图」——收编尾段桥 get 回填的
+    // 图集须含定妆图(真实链 get 返回更新后资产)。渐进桩:首次(弹窗装载)=原
+    // partial 态;其后(逐型收编后)=含定妆图态,否则表情守卫拒发断队列
+    let getCalls = 0;
+    mocks.get.mockImplementation(async () => {
+      getCalls += 1;
+      const base = partiallyCompleteRole();
+      if (getCalls <= 1) return base;
+      return {
+        ...base,
+        images: [
+          ...base.images ?? [],
+          { name: "玄止_全身定妆_2026年10月25日", filePath: "role/fb.png", url: "media://fb" },
+        ],
+      };
+    });
 
     renderDialog(partiallyCompleteRole());
     fireEvent.click(screen.getByRole("button", { name: "一键补缺" }));
@@ -409,7 +425,8 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
       assetId: "role-1",
       assetName: "玄止",
       kind: "全身定妆",
-      referenceImage: "media://main",
+      // 10-25 用户令:定妆 t2i 化——无参考图参(主体句+型层承载)
+      referenceImage: undefined,
     });
   });
 });

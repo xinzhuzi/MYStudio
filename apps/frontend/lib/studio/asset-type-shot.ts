@@ -73,10 +73,9 @@ export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
     tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["全身定妆"],
     rgba: true,
-    route: "i2i",
-    // Phase 2 瘦身:保真段+素体差异要点(站姿/画幅/透明底语言归还型层)
-    i2iInstruction:
-      "保持画中人物的面部身份、五官特征、发型与体型轮廓不变；将该角色重构成通身素体的全身定妆立绘，零衣物零配饰零鞋履，肌肤匀净，人物主体边缘干净完整。",
+    // 10-25 用户令(流水线定谳):全身定妆=文生图(角色身份源头,主体句+型层承载);
+    // 高清人脸·图生图/表情差分改锚定妆图派生——原 i2i 固定指令(素体保真段)随路退役
+    route: "t2i",
   },
   {
     kind: "人物海报",

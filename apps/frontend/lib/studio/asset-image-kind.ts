@@ -150,6 +150,24 @@ export function singleKindReplacementFilePaths(
     .map((image) => image.filePath!);
 }
 
+/**
+ * 型锚图查找(10-25 用户令·派生流水线):返回 images 中该型最新一张(尾部=追加
+ * 序最新)的 url/名——高清人脸·图生图与表情差分以全身定妆图为锚生图,不再随
+ * 轮播当前图漂。归型走 classifyAssetImage 三层解析;无该型图返回 null。
+ */
+export function latestKindImage<T extends Pick<AssetImage, "name" | "kind" | "url">>(
+  images: readonly T[],
+  kind: AssetImageKind,
+): { url: string; name: string } | null {
+  for (let i = images.length - 1; i >= 0; i -= 1) {
+    const image = images[i]!;
+    if (classifyAssetImage(image) === kind && image.url) {
+      return { url: image.url, name: image.name };
+    }
+  }
+  return null;
+}
+
 /** 轨道型谱查表(仅图片三轨;clip/audio 返回 undefined)。 */
 export function getAssetImageKindSpectrum(track: AssetImageTrack): AssetImageKindSpectrum {
   return ASSET_IMAGE_KIND_SPECTRA[track];
