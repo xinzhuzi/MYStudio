@@ -58,6 +58,9 @@ export function StudioAssetRoleSkills({ skills }: { skills: string | undefined |
   const payloads = useMemo(() => parseRoleSkills(skills), [skills]);
   const [collapsedDaos, setCollapsedDaos] = useState<Set<string>>(new Set());
   const [expandedRealms, setExpandedRealms] = useState<Set<string>>(new Set());
+  // 10-25 用户令「人物技能,默认折叠」:整卡默认折叠(头部一行摘要可见)——
+  // 晏燎五系道途行全铺会占弹窗约九成高度;点开卡后内层仍为 道途展开/境界折叠
+  const [cardOpen, setCardOpen] = useState(false);
 
   if (payloads.length === 0) return null;
 
@@ -83,13 +86,24 @@ export function StudioAssetRoleSkills({ skills }: { skills: string | undefined |
       className="space-y-2 overflow-hidden rounded-lg border border-border bg-muted/90 p-3"
       aria-label="人物技能"
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="text-xs font-semibold text-foreground">人物技能</div>
-        <div className="text-[10px] text-muted-foreground">
+      <button
+        type="button"
+        className="flex min-w-0 w-full items-center gap-1.5 rounded-md text-left"
+        onClick={() => setCardOpen((open) => !open)}
+        aria-expanded={cardOpen}
+        aria-label={`人物技能${cardOpen ? "折叠" : "展开"}`}
+      >
+        {cardOpen ? (
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+        )}
+        <span className="text-xs font-semibold text-foreground">人物技能</span>
+        <span className="text-[10px] text-muted-foreground">
           {payloads.length} 道途 · {totalSkills} 术法
-        </div>
-      </div>
-      <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+        </span>
+      </button>
+      {cardOpen && <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
         {payloads.map((payload) => {
           const daoCollapsed = collapsedDaos.has(payload.dao);
           const realms = groupSkillsByRealm(payload.skills);
@@ -162,7 +176,7 @@ export function StudioAssetRoleSkills({ skills }: { skills: string | undefined |
             </div>
           );
         })}
-      </div>
+      </div>}
     </section>
   );
 }
