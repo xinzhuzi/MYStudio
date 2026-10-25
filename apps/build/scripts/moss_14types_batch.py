@@ -36,6 +36,9 @@ VENV_PY = Path(r"E:\IP\漫影工作室\comfyui\venv\Scripts\python.exe")
 PY312 = Path(r"D:\Python312\python.exe")
 LOG = Path(r"E:\IP\tmp\logs\moss_14types_batch.log")
 SUMMARY_DIR = LAUNCHER_DIR / "receipts" / "14types"
+# 引擎落盘实况（1025 跑批取证）：filename_prefix "moss/14types" → ComfyUI 以 moss
+# 为子目录、14types_ 为文件名前缀 → output/moss/ 平铺 14types_00001_.png
+ENGINE_OUT_FLAT = Path(r"E:\IP\漫影工作室\comfyui\output\moss")
 STABLE_LOW, STABLE_HIGH = 93.8, 108.3  # s/MP 前役 t2i 8 发稳定带
 EXC_LIMIT = 2 * STABLE_HIGH  # 216 s/MP
 # 历史未跑尺寸（首发豁免，implement.md §T6.3）
@@ -229,15 +232,23 @@ def main() -> int:
                 entry["receipt"] = rcpt.name
                 try:
                     rj = json.loads(rcpt.read_text(encoding="utf-8"))
-                    outs = rj.get("outputs") or rj.get("images") or []
-                    if outs and isinstance(outs, list):
-                        img_path = Path(outs[0]) if isinstance(outs[0], (str, Path)) else Path(outs[0].get("path", ""))
+                    # launcher receipt 实名键=files([{filename,bytes},...])；兼容旧假设
+                    files = rj.get("files") or rj.get("outputs") or rj.get("images") or []
+                    if files and isinstance(files, list):
+                        fn = files[0].get("filename") if isinstance(files[0], dict) else files[0]
+                        if fn:
+                            # 引擎落盘=filename_prefix "moss/14types" → output/moss/ 平铺 14types_*.png
+                            img_path = ENGINE_OUT_FLAT / str(fn)
                 except Exception as e:
                     entry["receipt_parse_error"] = str(e)[:200]
-            # 兜底：引擎 output moss/14types 最新件
+            # 优先级 2：launcher collect 收集位（最可靠，前役同机制）
             if img_path is None or not img_path.exists():
-                out_dir = Path(r"E:\IP\漫影工作室\comfyui\output\moss\14types")
-                cands = sorted(out_dir.glob("*.png"), key=lambda p: p.stat().st_mtime) if out_dir.exists() else []
+                launcher_out = LAUNCHER_DIR / "out" / test_id
+                cands = sorted(launcher_out.glob("*.png"), key=lambda p: p.stat().st_mtime) if launcher_out.exists() else []
+                img_path = cands[-1] if cands else img_path
+            # 优先级 3：引擎 output/moss 平铺兜底
+            if img_path is None or not img_path.exists():
+                cands = sorted(ENGINE_OUT_FLAT.glob("%s_*.png" % test_id), key=lambda p: p.stat().st_mtime) if ENGINE_OUT_FLAT.exists() else []
                 img_path = cands[-1] if cands else None
 
             if img_path is None or not img_path.exists():
