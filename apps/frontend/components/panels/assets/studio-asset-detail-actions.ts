@@ -26,6 +26,7 @@ import {
 } from "@/lib/studio/asset-family-images";
 import { asAssetImageTrack, classifyAssetImage, getAssetImageKindSpectrum } from "@/lib/studio/asset-image-kind";
 import { buildStageTypeShotImageName, extractStageName } from "@/lib/studio/asset-stage-prompts";
+import { singleKindReplacementFilePaths } from "@/lib/studio/asset-image-kind";
 import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -689,6 +690,11 @@ export function useStudioAssetDialogActions(ctx: {
       if (result.phase === "done") {
         setFacePhase("done");
         setFaceMessage("高清人脸生成完成！");
+        // 10-25 用户令·单图型替换:生成成功先清该型旧图再收编(桥缺席/单条删除失败
+        // 不阻断收编——新图照入库,残留旧图下轮再生成时再清)
+        for (const stalePath of singleKindReplacementFilePaths(images, "高清人脸")) {
+          await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
+        }
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
@@ -831,6 +837,11 @@ export function useStudioAssetDialogActions(ctx: {
       if (result.phase === "done") {
         setExpressionPhase("done");
         setExpressionMessage("表情差分生成完成！");
+        // 10-25 用户令·单图型替换:生成成功先清该型旧图再收编(桥缺席/单条删除失败
+        // 不阻断收编——新图照入库,残留旧图下轮再生成时再清)
+        for (const stalePath of singleKindReplacementFilePaths(images, "表情差分")) {
+          await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
+        }
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
@@ -935,6 +946,11 @@ export function useStudioAssetDialogActions(ctx: {
       if (result.phase === "done" && result.imageLocalPath && result.resultImageName && result.resultKind) {
         setTypeShotPhase("done");
         setTypeShotMessage("重掷完成！");
+        // 10-25 用户令·单图型替换:生成成功先清该型旧图再收编(桥缺席/单条删除失败
+        // 不阻断收编——新图照入库,残留旧图下轮再生成时再清)
+        for (const stalePath of singleKindReplacementFilePaths(images, result.resultKind)) {
+          await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
+        }
         await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, result.resultImageName);
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
@@ -1120,6 +1136,11 @@ export function useStudioAssetDialogActions(ctx: {
         if (managedLane) {
           setTypeShotPhase("done");
           setTypeShotMessage(`${kind}生成完成！`);
+        }
+        // 10-25 用户令·单图型替换:生成成功先清该型旧图再收编(桥缺席/单条删除失败
+        // 不阻断收编——新图照入库,残留旧图下轮再生成时再清)
+        for (const stalePath of singleKindReplacementFilePaths(images, kind)) {
+          await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
         }
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AssetImageKind } from "@/types/studio-assets";
 
 import {
   ASSET_IMAGE_KIND_ORDER,
@@ -11,6 +12,8 @@ import {
   classifyAssetImageName,
   getAssetImageKindSpectrum,
   groupAssetImagesByKind,
+  SINGLE_IMAGE_KINDS,
+  singleKindReplacementFilePaths,
 } from "./asset-image-kind";
 
 /** 命名分类表全 pattern(PRD Round 2 A 节逐字:含既有全部产物族)。 */
@@ -234,5 +237,30 @@ describe("groupAssetImagesByKind · 按型谱节序分组", () => {
     expect([...groups.keys()]).toEqual(["道具", "自由"]);
     expect(groups.get("道具")).toHaveLength(1);
     expect(groups.get("自由")).toHaveLength(2);
+  });
+});
+
+
+describe("单图型集合与替换清扫(10-25 用户令:很多类型最多 1 张,再生成=替换)", () => {
+  it("集合=六型(点名三件+同类语义三件);多图型不在集合", () => {
+    for (const kind of ["全身定妆", "高清人脸", "表情差分", "人脸基准", "设定卡", "美宣"]) {
+      expect(SINGLE_IMAGE_KINDS.has(kind as AssetImageKind)).toBe(true);
+    }
+    for (const kind of ["人物海报", "人物多视图", "自由", "场景", "道具"]) {
+      expect(SINGLE_IMAGE_KINDS.has(kind as AssetImageKind)).toBe(false);
+    }
+  });
+
+  it("单图型清扫:返回该型全部 filePath(按 classify 三层归型);多图型恒空表", () => {
+    const images = [
+      { name: "晏燎_高清大脸_v1", filePath: "role/f1.png" },
+      { name: "晏燎_人脸_2026年10月25日", filePath: "role/f2.png", kind: "高清人脸" as const },
+      { name: "晏燎_表情差分_v1", filePath: "role/f3.png" },
+      { name: "晏燎_金丹期_海报_v1", filePath: "role/p1.png" },
+    ];
+    expect(singleKindReplacementFilePaths(images, "高清人脸")).toEqual(["role/f1.png", "role/f2.png"]);
+    expect(singleKindReplacementFilePaths(images, "表情差分")).toEqual(["role/f3.png"]);
+    // 多图型(海报分境界族)零干预
+    expect(singleKindReplacementFilePaths(images, "人物海报")).toEqual([]);
   });
 });

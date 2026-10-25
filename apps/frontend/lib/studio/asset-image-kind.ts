@@ -120,6 +120,36 @@ export function asAssetImageTrack(type: StudioAssetKind): AssetImageTrack | unde
   return type === "role" || type === "scene" || type === "tool" ? type : undefined;
 }
 
+/**
+ * 单图型集合(10-25 用户令:很多类型最多 1 张图——高清人脸/表情差分/全身定妆等,
+ * "等我以后扩展了再搞多张图"):这些型再生成=替换(生成成功先清该型旧图再收编),
+ * 多图型(人物海报/人物多视图分境界族、自由、场景/道具族)不受限。以后某型要
+ * 支持多张,从此集合摘除即恢复堆图语义。
+ */
+export const SINGLE_IMAGE_KINDS: ReadonlySet<AssetImageKind> = new Set([
+  "全身定妆",
+  "高清人脸",
+  "表情差分",
+  "人脸基准",
+  "设定卡",
+  "美宣",
+]);
+
+/**
+ * 单图型替换清扫(10-25 用户令):kind 属单图型时,返回 images 中该型全部条目的
+ * filePath(供调用方在收编新图前逐条 removeImage——替换语义);非单图型恒空表
+ * (多图型零干预)。归型走 classifyAssetImage 三层解析(与展示节同口径)。
+ */
+export function singleKindReplacementFilePaths(
+  images: ReadonlyArray<Pick<AssetImage, "name" | "kind" | "filePath">>,
+  kind: AssetImageKind,
+): string[] {
+  if (!SINGLE_IMAGE_KINDS.has(kind)) return [];
+  return images
+    .filter((image) => classifyAssetImage(image) === kind && image.filePath)
+    .map((image) => image.filePath!);
+}
+
 /** 轨道型谱查表(仅图片三轨;clip/audio 返回 undefined)。 */
 export function getAssetImageKindSpectrum(track: AssetImageTrack): AssetImageKindSpectrum {
   return ASSET_IMAGE_KIND_SPECTRA[track];
