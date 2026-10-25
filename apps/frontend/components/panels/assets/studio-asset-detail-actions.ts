@@ -488,7 +488,7 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error("该资产类型不支持画风转换（仅角色/场景/道具三轨）");
       return;
     }
-    // 10-25 用户令(派生流水线):表情差分恒以「全身定妆图」为锚(不随轮播漂)
+    // 10-25 用户令(派生流水线):表情差分恒以「无衣物定妆图」为锚(不随轮播漂)
     const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "无衣物定妆");
     const referenceImage = fullBodyAnchor?.url;
     if (!referenceImage) {
@@ -499,7 +499,7 @@ export function useStudioAssetDialogActions(ctx: {
         message: "Asset style transfer guard rejected (no reference image)",
         context: { assetId: asset.id, displayImageCount: carouselImages.length },
       });
-            toast.error("尚无全身定妆图——表情差分以全身定妆为锚，请先「生成全身定妆」(文生图)");
+            toast.error("尚无无衣物定妆图——表情差分以无衣物定妆为锚，请先「生成无衣物定妆」(文生图)");
       return;
     }
     // 10-19 用户令:废「主图」名号——图生图结果名 = 原图名_中文日期(如 晏燎_练气期_正视图_v1_2026年10月19日)
@@ -643,7 +643,7 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     }
     let referenceImage: string | undefined;
-    // 10-25 用户令(派生流水线):人脸·图生图恒以「全身定妆图」为锚(不随轮播漂);
+    // 10-25 用户令(派生流水线):人脸·图生图恒以「无衣物定妆图」为锚(不随轮播漂);
     // 无定妆图=流水线断源,明确引导先文生图定妆
     let fullBodyAnchor: { url: string; name: string } | null = null;
     if (mode === "image") {
@@ -657,7 +657,7 @@ export function useStudioAssetDialogActions(ctx: {
           message: "Asset face portrait guard rejected (no reference image)",
           context: { assetId: asset.id, displayImageCount: carouselImages.length },
         });
-        toast.error("尚无全身定妆图——高清人脸图生图以全身定妆为锚，请先「生成全身定妆」(文生图)");
+        toast.error("尚无无衣物定妆图——高清人脸图生图以无衣物定妆为锚，请先「生成无衣物定妆」(文生图)");
         return false;
       }
     }
@@ -816,7 +816,7 @@ export function useStudioAssetDialogActions(ctx: {
       toast.error("表情差分仅角色资产可用");
       return false;
     }
-    // 10-25 用户令(派生流水线):表情差分恒以「全身定妆图」为锚(不随轮播漂)
+    // 10-25 用户令(派生流水线):表情差分恒以「无衣物定妆图」为锚(不随轮播漂)
     const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "无衣物定妆");
     const referenceImage = fullBodyAnchor?.url;
     if (!referenceImage) {

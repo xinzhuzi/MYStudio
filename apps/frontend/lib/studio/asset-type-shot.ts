@@ -16,7 +16,7 @@ import {
  * 按型出图 service(10-24 批3,PRD §①「按型出图按钮族」型驱动通用件;
  * Round 3 扩展令⑤推广图片三轨/令⑥ Phase 2 收尾)。
  *
- * 型档案表=单一真源(role 七型:全身定妆/人物海报/人物多视图/人脸基准/自由/设定卡/美宣;
+ * 型档案表=单一真源(role 七型:无衣物定妆/人物海报/人物多视图/人脸基准/自由/设定卡/美宣;
  * Round 3 ⑤ 新增 scene 三型[场景/概念气氛图/3D剖面场景图]+tool 一型[道具,rgba 透明型],
  * 自由=三轨通用),档案字段对齐十型真源 qi21_bases.json(zh 名/画幅/rgba_default/
  * tracks 轨道归属/route)。
@@ -25,7 +25,7 @@ import {
  * - Phase 2(10-24 Round 3 ⑥,桥役 3718e469 已落地并实弹验收):TYPE_SHOT_I2I_USE_BASE_TYPE
  *   已置 true——i2i 路统一切 extraParams:{base_type} 型层注入(桥覆写 4010 注型+
  *   4011/4022 组装用途→型画幅),终稿=指令+类型句+美术风格底座三段,型负面 merge 进
- *   负面槽,透明型(全身定妆/人物多视图/人脸基准/道具)RGBA 由 6:180 跟型自动激活;
+ *   负面槽,透明型(无衣物定妆/人物多视图/人脸基准/道具)RGBA 由 6:180 跟型自动激活;
  *   指令瘦身为「保真段+差异要点」(取景/版式/背景语言归还型层,零取景词防与型文双写)。
  *
  * 纪律与画风转换/人脸/表情差分同源:指令即终稿(promptPolicy=raw,传输层禁 normalize
@@ -65,7 +65,7 @@ export interface AssetTypeShotProfile {
 
 /**
  * 型档案表(role 七型节序=grill Round 1 裁定2 型谱节序,Round 3 ⑤ 追加 scene 三型+道具,
- * 追加序不扰 role 谱)。rgba/画幅逐字对齐十型真源 qi21_bases.json(全身定妆/人物多视图/
+ * 追加序不扰 role 谱)。rgba/画幅逐字对齐十型真源 qi21_bases.json(无衣物定妆/人物多视图/
  * 人脸基准/道具=透明;海报/自由/设定卡/美宣/场景三型=不透明)。
  */
 export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
@@ -74,7 +74,7 @@ export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
     tracks: ["role"],
     aspect: ASSET_IMAGE_KIND_ASPECTS["无衣物定妆"],
     rgba: true,
-    // 10-25 用户令(流水线定谳):全身定妆=文生图(角色身份源头,主体句+型层承载);
+    // 10-25 用户令(流水线定谳):无衣物定妆=文生图(角色身份源头,主体句+型层承载);
     // 高清人脸·图生图/表情差分改锚定妆图派生——原 i2i 固定指令(素体保真段)随路退役
     route: "t2i",
   },
@@ -207,7 +207,7 @@ const TRACK_SAVE_TARGETS: Record<AssetTypeShotTrack, { assetType: AssetType; cat
 
 /**
  * 多视图排布句裁尾(10-25 用户令·定妆单立绘语义):db 主体句尾常带「同一画面从
- * 左至右并排四视图:…」设定卡时代排布句,与全身定妆单立绘语义打架(模型产出
+ * 左至右并排四视图:…」设定卡时代排布句,与无衣物定妆单立绘语义打架(模型产出
  * 三视图页而非单人立绘)。t2i 定妆路发车前自此组标记起裁到句尾;无标记原文
  * 返回(其他型/其他调用方零干预)。纯函数,晏燎 318 字实名钉测试。
  */
