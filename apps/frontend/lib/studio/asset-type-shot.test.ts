@@ -15,6 +15,7 @@ import {
   getAssetTypeShotProfile,
   getAssetTypeShotProfilesForTrack,
   planAssetTypeFillMissingQueue,
+  stripMultiViewLayoutClause,
 } from "./asset-type-shot";
 
 vi.mock("@/lib/ai/ai-manager", () => ({
@@ -452,5 +453,44 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
 
     expect(planAssetTypeFillMissingQueue([], "tool")).toEqual(["道具"]);
     expect(planAssetTypeFillMissingQueue([named("玄铁剑_道具_v1")], "tool")).toEqual([]);
+  });
+});
+
+
+describe("stripMultiViewLayoutClause · 定妆单立绘语义裁尾(10-25 用户令)", () => {
+  it("晏燎 318 字实名:四视图排布尾整段裁掉,墨黑短发等主体要素保留", () => {
+    const subject = "约十七八岁的男孩,道口镇散修孤儿,沉默坚韧。墨黑短发。青灰粗布短褐,栗褐缚裤。同一画面从左至右并排四视图:人像特写自头顶至锁骨完整入画,正面、侧面、背面全身立像自头顶至脚底完整入画;均匀柔和散光。四视图面容、体型、发型、基础服装完全一致。";
+    const trimmed = stripMultiViewLayoutClause(subject);
+    expect(trimmed).toContain("墨黑短发");
+    expect(trimmed).toContain("青灰粗布短褐");
+    expect(trimmed).not.toContain("四视图");
+    expect(trimmed).not.toContain("从左至右");
+    expect(trimmed.endsWith("栗褐缚裤")).toBe(true);
+  });
+
+  it("无标记原文返回;多标记取最前;尾分隔符清干净", () => {
+    expect(stripMultiViewLayoutClause("普通主体句无排布")).toBe("普通主体句无排布");
+    expect(stripMultiViewLayoutClause("甲。并排三视图:xyz")).toBe("甲");
+    expect(stripMultiViewLayoutClause("乙,同一画面从左至右并排四视图,并排三视图")).toBe("乙");
+  });
+
+  it("generateAssetTypeShot t2i 定妆路实裁:发车 prompt 无排布句;其他型零干预", async () => {
+    generateImage.mockResolvedValue({ url: "data:image/png;base64,DZ" } as never);
+    await generateAssetTypeShot({
+      assetId: "a", assetName: "x", kind: "全身定妆",
+      subjectText: "少年剑修,墨黑短发,素体立姿。同一画面从左至右并排四视图:正侧背全身立像。",
+    });
+    const dzCall = generateImage.mock.calls[0]![0] as { prompt: string };
+    expect(dzCall.prompt).not.toContain("并排");
+    expect(dzCall.prompt).toContain("墨黑短发");
+
+    generateImage.mockClear();
+    generateImage.mockResolvedValue({ url: "data:image/png;base64,SK" } as never);
+    await generateAssetTypeShot({
+      assetId: "a", assetName: "x", kind: "设定卡",
+      subjectText: "少年剑修设定。同一画面从左至右并排四视图:正侧背。",
+    });
+    const skCall = generateImage.mock.calls[0]![0] as { prompt: string };
+    expect(skCall.prompt).toContain("并排四视图");
   });
 });

@@ -204,6 +204,33 @@ const TRACK_SAVE_TARGETS: Record<AssetTypeShotTrack, { assetType: AssetType; cat
   tool: { assetType: "prop", category: "props" },
 };
 
+/**
+ * 多视图排布句裁尾(10-25 用户令·定妆单立绘语义):db 主体句尾常带「同一画面从
+ * 左至右并排四视图:…」设定卡时代排布句,与全身定妆单立绘语义打架(模型产出
+ * 三视图页而非单人立绘)。t2i 定妆路发车前自此组标记起裁到句尾;无标记原文
+ * 返回(其他型/其他调用方零干预)。纯函数,晏燎 318 字实名钉测试。
+ */
+const MULTI_VIEW_LAYOUT_MARKERS = [
+  "同一画面从左至右",
+  "从左至右并排",
+  "并排四视图",
+  "并排三视图",
+  "并排多视图",
+] as const;
+
+export function stripMultiViewLayoutClause(subject: string): string {
+  let cutAt = -1;
+  for (const marker of MULTI_VIEW_LAYOUT_MARKERS) {
+    const at = subject.indexOf(marker);
+    if (at >= 0 && (cutAt === -1 || at < cutAt)) cutAt = at;
+  }
+  if (cutAt === -1) return subject;
+  return subject
+    .slice(0, cutAt)
+    .replace(/[，,。;；\s]+$/, "")
+    .trimEnd();
+}
+
 export interface AssetTypeShotTask {
   assetId: string;
   assetName: string;
@@ -253,9 +280,13 @@ export async function generateAssetTypeShot(
   const isI2i = profile.route === "i2i";
   // 指令取值(10-25 追加令):i2i 路=会话级覆盖优先,空回退型档案固定指令;
   // 覆盖即终稿(沿用 raw 纪律),日志带 override 标记供审计
+  // t2i 定妆路(10-25 用户令·单立绘语义):主体句裁掉多视图排布尾(与单人立绘
+  // 构图打架,产出三视图页);按型槽覆写句同样过裁(用户槽句若带排布句同病同治)
   const prompt = isI2i
     ? (task.instructionOverride?.trim() || profile.i2iInstruction || "")
-    : (task.subjectText || "").trim();
+    : task.kind === "全身定妆"
+      ? stripMultiViewLayoutClause((task.subjectText || "").trim())
+      : (task.subjectText || "").trim();
   if (isI2i && !task.referenceImage) {
     return { phase: "failed", error: "按型出图 i2i 路缺少可作参考的图片" };
   }
