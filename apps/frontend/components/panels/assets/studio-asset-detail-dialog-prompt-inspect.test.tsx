@@ -140,7 +140,7 @@ afterEach(() => {
 describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", () => {
   it("通用态(无 focusKind)置灰,注明「点击任一生成按钮聚焦某型后可查」", () => {
     renderDialog(roleAsset({
-      images: [{ name: "晏燎_全身定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
+      images: [{ name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
     }));
 
     expect(finalDraftButton().disabled).toBe(true);
@@ -150,16 +150,16 @@ describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", (
   it("聚焦型有产物且 tEXt ok:按钮解禁,弹层展示正向终稿+注入层全文+脚注", async () => {
     mocks.readImagePromptText.mockResolvedValue({ ok: true, text: I2I_WORKFLOW_JSON });
     renderDialog(roleAsset({
-      images: [{ name: "晏燎_全身定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
+      images: [{ name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
     }));
 
     // 节头生成钮点击即聚焦(与生成派发同帧;typeShot 桩失败不影响聚焦态)
-    fireEvent.click(screen.getByRole("button", { name: "生成全身定妆" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
 
     await waitFor(() => expect(finalDraftButton().disabled).toBe(false));
     fireEvent.click(finalDraftButton());
 
-    expect(await screen.findByText("全身定妆 · 实发终稿")).toBeTruthy();
+    expect(await screen.findByText("无衣物定妆 · 实发终稿")).toBeTruthy();
     expect(screen.getByText("终稿指令全文(引擎实收)")).toBeTruthy();
     expect(screen.getByText("锁层A全文")).toBeTruthy();
     expect(screen.getByText("美术风格底座注入层全文")).toBeTruthy();
@@ -175,12 +175,12 @@ describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", (
     );
     renderDialog(roleAsset({
       images: [
-        { name: "晏燎_全身定妆_v1", filePath: "role/f1.png", url: "media://f1" },
-        { name: "晏燎_全身定妆_v2", filePath: "role/f2.png", url: "media://f2" },
+        { name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" },
+        { name: "晏燎_无衣物定妆_v2", filePath: "role/f2.png", url: "media://f2" },
       ],
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "生成全身定妆" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
 
     await waitFor(() => expect(finalDraftButton().disabled).toBe(false));
     // 回溯链:末位 v2 无 tEXt→v1 ok(两条候选都读过)
@@ -196,7 +196,7 @@ describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", (
       images: [{ name: "随手草图", filePath: "role/x.png", url: "media://x" }],
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "生成全身定妆" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
 
     await waitFor(() => expect(finalDraftButton().disabled).toBe(true));
     expect(screen.getByText("该型尚无产物")).toBeTruthy();
@@ -206,12 +206,12 @@ describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", (
     mocks.readImagePromptText.mockResolvedValue({ ok: false, reason: "no-texr" });
     renderDialog(roleAsset({
       images: [
-        { name: "晏燎_全身定妆_v1", filePath: "role/f1.png", url: "media://f1" },
-        { name: "晏燎_全身定妆_v2", filePath: "role/f2.png", url: "media://f2" },
+        { name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" },
+        { name: "晏燎_无衣物定妆_v2", filePath: "role/f2.png", url: "media://f2" },
       ],
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "生成全身定妆" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
 
     await waitFor(() => expect(mocks.readImagePromptText).toHaveBeenCalledTimes(2));
     expect(finalDraftButton().disabled).toBe(true);
@@ -221,10 +221,10 @@ describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", (
   it("桥缺席(旧 preload/非桌面)→置灰注明「当前环境不支持读取」", async () => {
     mocks.bridgeMissing = true;
     renderDialog(roleAsset({
-      images: [{ name: "晏燎_全身定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
+      images: [{ name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "生成全身定妆" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
 
     await waitFor(() => expect(finalDraftButton().disabled).toBe(true));
     expect(screen.getByText("当前环境不支持读取提示词元数据")).toBeTruthy();
@@ -234,7 +234,7 @@ describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", (
   it("族兄弟产物计入:弹层标注「来自同族资产 {名}」(族聚显口径)", async () => {
     mocks.readImagePromptText.mockResolvedValue({ ok: true, text: I2I_WORKFLOW_JSON });
     const sibling: FamilyImageEntry = {
-      name: "二哥_全身定妆_v1",
+      name: "二哥_无衣物定妆_v1",
       filePath: "role/s1.png",
       url: "media://s1",
       assetId: "role-2",
@@ -242,7 +242,7 @@ describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", (
     };
     renderDialog(roleAsset(), undefined, [sibling]);
 
-    fireEvent.click(screen.getByRole("button", { name: "生成全身定妆" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
 
     await waitFor(() => expect(finalDraftButton().disabled).toBe(false));
     fireEvent.click(finalDraftButton());
@@ -256,12 +256,12 @@ describe("B-3 查词(图片卡 hover 工具条→共用弹层)", () => {
   it("点「查词」读该图原图 tEXt;无 tEXt→降级文案「该图无提示词元数据」", async () => {
     mocks.readImagePromptText.mockResolvedValue({ ok: false, reason: "no-texr" });
     renderDialog(roleAsset({
-      images: [{ name: "晏燎_全身定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
+      images: [{ name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
     }));
 
-    fireEvent.click(screen.getByRole("button", { name: "查词 晏燎_全身定妆_v1" }));
+    fireEvent.click(screen.getByRole("button", { name: "查词 晏燎_无衣物定妆_v1" }));
 
-    expect(await screen.findByText("查词 · 晏燎_全身定妆_v1")).toBeTruthy();
+    expect(await screen.findByText("查词 · 晏燎_无衣物定妆_v1")).toBeTruthy();
     expect(await screen.findByText("该图无提示词元数据")).toBeTruthy();
     // 查词不带 ③ 脚注
     expect(screen.queryByText("来自该型最近产物的引擎实收,非本次预演")).toBeNull();
@@ -270,7 +270,7 @@ describe("B-3 查词(图片卡 hover 工具条→共用弹层)", () => {
   it("族兄弟图查词:标注所属资产名", async () => {
     mocks.readImagePromptText.mockResolvedValue({ ok: true, text: I2I_WORKFLOW_JSON });
     const sibling: FamilyImageEntry = {
-      name: "二哥_全身定妆_v1",
+      name: "二哥_无衣物定妆_v1",
       filePath: "role/s1.png",
       url: "media://s1",
       assetId: "role-2",
@@ -278,7 +278,7 @@ describe("B-3 查词(图片卡 hover 工具条→共用弹层)", () => {
     };
     renderDialog(roleAsset(), undefined, [sibling]);
 
-    fireEvent.click(screen.getByRole("button", { name: "查词 二哥_全身定妆_v1" }));
+    fireEvent.click(screen.getByRole("button", { name: "查词 二哥_无衣物定妆_v1" }));
 
     expect(await screen.findByText("来自同族资产 晏燎二哥")).toBeTruthy();
     expect(screen.getByText("终稿指令全文(引擎实收)")).toBeTruthy();

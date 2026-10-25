@@ -25,7 +25,6 @@ import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/stu
 import {
   ASSET_IMAGE_KIND_ASPECTS,
   asAssetImageTrack,
-  classifyAssetImage,
   getAssetImageKindSpectrum,
   groupAssetImagesByKind,
   type AssetImageTrack,
@@ -289,12 +288,6 @@ export function StudioAssetDetailPreviewPane({
             draggable={false}
           />
           <ResolutionBadge src={image.url} />
-          {/* 批2 B 节+Round 3 ⑤:左上角型徽标(图片三轨型谱画廊;classifyAssetImage 三层解析) */}
-          {isTypedGallery && (
-            <span className="pointer-events-none absolute left-1 top-1 z-[1] rounded bg-background/80 px-1 py-0.5 text-[10px] leading-4 text-muted-foreground">
-              {classifyAssetImage(image)}
-            </span>
-          )}
         </button>
         <div className="absolute right-1 top-1 z-[1] flex gap-0.5 rounded-md bg-background/80 p-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
           {onImageClick && (

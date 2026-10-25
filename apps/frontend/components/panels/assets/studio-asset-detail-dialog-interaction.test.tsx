@@ -348,7 +348,7 @@ describe("StudioAssetDetailDialog · 批2(10-24):放大钮预览序列=当前节
 });
 
 describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互", () => {
-  /** 多视图✓ 人脸✓ 在场 → 队列计划=[全身定妆, 人物海报, 表情差分](核心节序)。 */
+  /** 多视图✓ 人脸✓ 在场 → 队列计划=[无衣物定妆, 人物海报, 表情差分](核心节序)。 */
   function partiallyCompleteRole(): StudioAssetSummary {
     return roleAsset({
       images: [
@@ -364,7 +364,7 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
       imageLocalPath: `local-image://characters/${task.kind}.png`,
     }));
     mocks.expressionSheet.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/expression.png" });
-    // 10-25 用户令(派生流水线):表情差分锚「全身定妆图」——收编尾段桥 get 回填的
+    // 10-25 用户令(派生流水线):表情差分锚「无衣物定妆图」——收编尾段桥 get 回填的
     // 图集须含定妆图(真实链 get 返回更新后资产)。渐进桩:首次(弹窗装载)=原
     // partial 态;其后(逐型收编后)=含定妆图态,否则表情守卫拒发断队列
     let getCalls = 0;
@@ -376,7 +376,7 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
         ...base,
         images: [
           ...base.images ?? [],
-          { name: "玄止_全身定妆_2026年10月25日", filePath: "role/fb.png", url: "media://fb" },
+          { name: "玄止_无衣物定妆_2026年10月25日", filePath: "role/fb.png", url: "media://fb" },
         ],
       };
     });
@@ -388,9 +388,9 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
       expect(mocks.typeShot).toHaveBeenCalledTimes(2);
       expect(mocks.expressionSheet).toHaveBeenCalledTimes(1);
     });
-    // 派发型名=队列计划(route 分流:全身定妆/人物海报走型驱动件)
-    expect(mocks.typeShot.mock.calls.map(([task]) => task.kind)).toEqual(["全身定妆", "人物海报"]);
-    // 顺序队列:全身定妆 → 人物海报 → 表情差分(invocationCallOrder 钉序)
+    // 派发型名=队列计划(route 分流:无衣物定妆/人物海报走型驱动件)
+    expect(mocks.typeShot.mock.calls.map(([task]) => task.kind)).toEqual(["无衣物定妆", "人物海报"]);
+    // 顺序队列:无衣物定妆 → 人物海报 → 表情差分(invocationCallOrder 钉序)
     const [firstShot, secondShot] = mocks.typeShot.mock.invocationCallOrder;
     const [expressionCall] = mocks.expressionSheet.mock.invocationCallOrder;
     expect(firstShot).toBeLessThan(secondShot);
@@ -412,19 +412,19 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
     expect(mocks.saveImageToLibrary).not.toHaveBeenCalled();
   });
 
-  it("节头生成钮直达:点「生成全身定妆」派发型驱动路(型名单一参数)", async () => {
+  it("节头生成钮直达:点「生成无衣物定妆」派发型驱动路(型名单一参数)", async () => {
     mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
 
     renderDialog(roleAsset({
       images: [{ name: "主图", filePath: "role/main.png", url: "media://main" }],
     }));
-    fireEvent.click(screen.getByRole("button", { name: "生成全身定妆" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成无衣物定妆" }));
 
     await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
     expect(mocks.typeShot.mock.calls[0][0]).toMatchObject({
       assetId: "role-1",
       assetName: "玄止",
-      kind: "全身定妆",
+      kind: "无衣物定妆",
       // 10-25 用户令:定妆 t2i 化——无参考图参(主体句+型层承载)
       referenceImage: undefined,
     });

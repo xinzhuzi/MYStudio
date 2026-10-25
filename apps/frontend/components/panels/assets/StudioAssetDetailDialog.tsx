@@ -1575,7 +1575,7 @@ export function StudioAssetDetailDialog({
                   focusOnKind(kind);
                   if (kind === "高清人脸") {
                     // 10-25 用户令(派生流水线):定妆图在场→图生图(锚定妆);缺→文生图
-                    if (latestKindImage(displayImages, "全身定妆")) handleFacePortraitFromImage();
+                    if (latestKindImage(displayImages, "无衣物定妆")) handleFacePortraitFromImage();
                     else handleFacePortraitFromText();
                     return;
                   }

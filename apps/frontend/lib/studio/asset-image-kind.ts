@@ -21,7 +21,9 @@ const ASSET_IMAGE_NAME_KIND_TABLE: ReadonlyArray<readonly [AssetImageKind, reado
   ["人物多视图", ["_三视图_", "_正视图_", "_人物图_", "_多视图_", "_人物多视图_"]],
   ["人物海报", ["_人物海报_", "_海报_"]],
   ["美宣", ["_美宣_"]],
-  ["全身定妆", ["_全身定妆_"]],
+  // 10-26 用户令:「全身定妆」全称改「无衣物定妆」(素体语义直陈);旧标记保留为
+  // 别名归并(v1 等存量名不丢)
+  ["无衣物定妆", ["_无衣物定妆_", "_全身定妆_"]],
   ["设定卡", ["_设定卡_"]],
   ["人脸基准", ["_人脸基准_"]],
   // Round 3 ⑤ scene/tool 直认标记(先专后泛:_概念气氛图_ 含 _气氛图_/_3D剖面场景图_
@@ -35,7 +37,7 @@ const ASSET_IMAGE_NAME_KIND_TABLE: ReadonlyArray<readonly [AssetImageKind, reado
 
 /** role 轨型谱节序(grill Round 1 裁定2:身份链根→常规产物→重版式→工具型→兜底;10-25 裁定:无类型图落自由,不再有未分类节)。 */
 export const ASSET_IMAGE_KIND_ORDER: readonly AssetImageKind[] = [
-  "全身定妆",
+  "无衣物定妆",
   "人物海报",
   "人物多视图",
   "高清人脸",
@@ -48,7 +50,7 @@ export const ASSET_IMAGE_KIND_ORDER: readonly AssetImageKind[] = [
 
 /** role 轨核心五必备(grill Round 1 裁定1:缺失红色告警,一键补缺范围)。 */
 export const CORE_ASSET_IMAGE_KINDS: readonly AssetImageKind[] = [
-  "全身定妆",
+  "无衣物定妆",
   "人物海报",
   "人物多视图",
   "高清人脸",
@@ -68,7 +70,7 @@ export const EXTENDED_ASSET_IMAGE_KINDS: readonly AssetImageKind[] = [
  * Round 3 ⑤ 四型画幅逐字对齐十型真源 qi21_bases.json aspect_ratio。
  */
 export const ASSET_IMAGE_KIND_ASPECTS: Record<Exclude<AssetImageKind, "早期未分类">, string> = {
-  全身定妆: "3:4",
+  无衣物定妆: "3:4",
   人物海报: "3:4",
   人物多视图: "16:9",
   高清人脸: "1:1",
@@ -87,6 +89,19 @@ export const ASSET_IMAGE_KIND_ASPECTS: Record<Exclude<AssetImageKind, "早期未
  * 图片三轨(Round 3 扩展令⑤:型谱从 role 专属推广;clip/audio 无型谱维持现状零动)。
  */
 export type AssetImageTrack = "role" | "scene" | "tool";
+
+/**
+ * 引擎型层键别名(10-26 用户令·更名):UI 型名「无衣物定妆」而引擎 bases.json 十型
+ * 真源键仍为「全身定妆」(sha 契约钉,四副本纪律不动)——凡向 bases 查表(分层面板
+ * getPromptLayers)与向引擎注入 base_type(按型出图)两侧一律经此回译。
+ */
+export const ENGINE_BASE_TYPE_ALIASES: Readonly<Record<string, string>> = {
+  无衣物定妆: "全身定妆",
+};
+
+export function engineBaseTypeFor(kind: string): string {
+  return ENGINE_BASE_TYPE_ALIASES[kind] ?? kind;
+}
 
 /** 单轨型谱:节序(含早期未分类沉底)+核心/扩展分级(完整度面板两行分级同款)。 */
 export interface AssetImageKindSpectrum {
@@ -127,7 +142,7 @@ export function asAssetImageTrack(type: StudioAssetKind): AssetImageTrack | unde
  * 支持多张,从此集合摘除即恢复堆图语义。
  */
 export const SINGLE_IMAGE_KINDS: ReadonlySet<AssetImageKind> = new Set([
-  "全身定妆",
+  "无衣物定妆",
   "高清人脸",
   "表情差分",
   "人脸基准",

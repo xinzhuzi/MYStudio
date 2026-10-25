@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AssetImageKind } from "@/types/studio-assets";
-import { ASSET_IMAGE_KIND_ASPECTS } from "./asset-image-kind";
+import { ASSET_IMAGE_KIND_ASPECTS, ENGINE_BASE_TYPE_ALIASES } from "./asset-image-kind";
 import {
   buildPromptLayerSummary,
   getPromptLayers,
@@ -35,9 +35,11 @@ describe("getPromptLayers · 14 型全可查(zh 名对齐键)", () => {
   it("资产型谱 13 名(排除「早期未分类」)13/13 全部有独立 bases 条目", () => {
     const spectrumKinds = Object.keys(ASSET_IMAGE_KIND_ASPECTS) as AssetImageKind[];
     expect(spectrumKinds.length).toBe(13);
+    // 10-26 更名:UI 型名经引擎别名对拍 bases 键
     const basesKinds = new Set(listPromptLayerKinds());
+    const toBasesKey = (k: string) => ENGINE_BASE_TYPE_ALIASES[k] ?? k;
     for (const kind of spectrumKinds) {
-      expect(basesKinds.has(kind), `型谱「${kind}」应有 bases 条目`).toBe(true);
+      expect(basesKinds.has(toBasesKey(kind)), `型谱「${kind}」应有 bases 条目`).toBe(true);
       expect(getPromptLayers(kind)).not.toBeNull();
     }
   });
@@ -93,8 +95,8 @@ describe("bases 字段锚(四字段被改名即红)", () => {
 describe("buildPromptLayerSummary · 折叠组收起态摘要行", () => {
   it("聚焦态格式:「{型名} {画幅}{·rgba} · 底座正{N}字/负{M}字 · 型负{K}字」", () => {
     // 透明型带 ·rgba 尾段
-    expect(buildPromptLayerSummary("全身定妆")).toMatch(
-      /^全身定妆 \d+:\d+·rgba · 底座正\d+字\/负\d+字 · 型负\d+字$/,
+    expect(buildPromptLayerSummary("无衣物定妆")).toMatch(
+      /^无衣物定妆 \d+:\d+·rgba · 底座正\d+字\/负\d+字 · 型负\d+字$/,
     );
     // 非透明型无 ·rgba 尾段
     expect(buildPromptLayerSummary("人物海报")).toMatch(
@@ -102,9 +104,9 @@ describe("buildPromptLayerSummary · 折叠组收起态摘要行", () => {
     );
     // 字数计与底座/型负真值同源(摘要行字段与展开内容一致,§六验收)
     const base = getPromptStyleBaseLayer();
-    const summary = buildPromptLayerSummary("全身定妆")!;
+    const summary = buildPromptLayerSummary("无衣物定妆")!;
     expect(summary).toContain(`底座正${base.positiveText.length}字/负${base.negativeText.length}字`);
-    expect(summary).toContain(`型负${getPromptLayers("全身定妆")!.type.negativeText.length}字`);
+    expect(summary).toContain(`型负${getPromptLayers("无衣物定妆")!.type.negativeText.length}字`);
   });
 
   it("查无该型降级为「该型无独立型文」;空型名返回 null(通用态由调用方自render)", () => {

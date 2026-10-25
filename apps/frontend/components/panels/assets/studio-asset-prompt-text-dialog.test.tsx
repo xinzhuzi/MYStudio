@@ -33,8 +33,8 @@ const i2iWorkflowJson = JSON.stringify({
 function makeTarget(overrides: Partial<PromptTextInspectTarget> = {}): PromptTextInspectTarget {
   return {
     imagePath: "role/f1.png",
-    imageName: "晏燎_全身定妆_v1",
-    title: "查词 · 晏燎_全身定妆_v1",
+    imageName: "晏燎_无衣物定妆_v1",
+    title: "查词 · 晏燎_无衣物定妆_v1",
     ...overrides,
   };
 }
@@ -69,7 +69,7 @@ describe("StudioAssetPromptTextDialog · 分层展示(B-2 解构结果)", () => 
 
     renderDialog(
       makeTarget({
-        title: "全身定妆 · 实发终稿",
+        title: "无衣物定妆 · 实发终稿",
         ownerNote: "来自同族资产 晏燎二哥",
         footnote: "来自该型最近产物的引擎实收,非本次预演",
       }),
@@ -181,6 +181,27 @@ describe("B-4 用此词重掷(10-25 追加令)", () => {
     });
     mocks.readImagePromptText.mockResolvedValue({ ok: true, text: t2iJson });
     rerender(
+      <StudioAssetPromptTextDialog
+        open
+        onOpenChange={vi.fn()}
+        target={makeTarget()}
+        onReroll={vi.fn()}
+      />,
+    );
+    await waitFor(() => {
+      const btn = screen.getByRole("button", { name: /用此词重掷/ }) as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+  });
+
+  it("1025 并集域:t2i 编码器=MyQi21FastEncode(手术件新类)同可解析重掷", async () => {
+    const fastJson = JSON.stringify({
+      "400": { class_type: "PrimitiveStringMultiline", inputs: { value: "单遍编码主体终稿" } },
+      "4015": { class_type: "MyQi21FastEncode", inputs: { text: "单遍编码主体终稿", negative_prompt: "负面串" } },
+      "7:7014": { class_type: "PrimitiveInt", inputs: { value: 42 } },
+    });
+    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: fastJson });
+    render(
       <StudioAssetPromptTextDialog
         open
         onOpenChange={vi.fn()}

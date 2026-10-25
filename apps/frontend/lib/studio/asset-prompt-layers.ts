@@ -2,6 +2,7 @@
 // Licensed under AGPL-3.0-or-later. See LICENSE for details.
 // Commercial licensing available. See COMMERCIAL_LICENSE.md.
 import type { AssetImageKind } from "@/types/studio-assets";
+import { engineBaseTypeFor } from "./asset-image-kind";
 
 /**
  * 出图提示词分层装载器(10-25 出图提示词分层面板役 Phase A·A-4,PRD §4.1 A-4)。
@@ -115,7 +116,8 @@ export function getPromptStyleBaseLayer(): PromptStyleBaseLayer {
  * 「该型无独立型文(共用底座)」,禁编造)。
  */
 export function getPromptLayers(kind: AssetImageKind | string): PromptLayers | null {
-  const entry = TYPE_BY_ZH.get(kind);
+  // 10-26 更名:UI 型名经引擎别名回译后查 bases(无衣物定妆→全身定妆真源键)
+  const entry = TYPE_BY_ZH.get(engineBaseTypeFor(kind)) ?? TYPE_BY_ZH.get(kind);
   if (!entry) return null;
   return { base: getPromptStyleBaseLayer(), type: toPromptTypeLayer(entry) };
 }
@@ -135,13 +137,13 @@ export function buildPromptLayerSummary(kind: AssetImageKind | string): string |
   if (!kind) return null;
   const base = getPromptStyleBaseLayer();
   const baseSegment = `底座正${base.positiveText.length}字/负${base.negativeText.length}字`;
-  const entry = TYPE_BY_ZH.get(kind);
+  const entry = TYPE_BY_ZH.get(engineBaseTypeFor(kind)) ?? TYPE_BY_ZH.get(kind);
   if (!entry) {
     return `${kind} · 该型无独立型文 · ${baseSegment}`;
   }
   const layer = toPromptTypeLayer(entry);
   const rgbaSuffix = layer.rgbaDefault ? "·rgba" : "";
-  return `${layer.kind} ${layer.aspectRatioShort}${rgbaSuffix} · ${baseSegment} · 型负${layer.negativeText.length}字`;
+  return `${kind} ${layer.aspectRatioShort}${rgbaSuffix} · ${baseSegment} · 型负${layer.negativeText.length}字`;
 }
 
 

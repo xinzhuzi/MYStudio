@@ -489,7 +489,7 @@ export function useStudioAssetDialogActions(ctx: {
       return;
     }
     // 10-25 用户令(派生流水线):表情差分恒以「全身定妆图」为锚(不随轮播漂)
-    const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "全身定妆");
+    const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "无衣物定妆");
     const referenceImage = fullBodyAnchor?.url;
     if (!referenceImage) {
       void logEvent({
@@ -647,7 +647,7 @@ export function useStudioAssetDialogActions(ctx: {
     // 无定妆图=流水线断源,明确引导先文生图定妆
     let fullBodyAnchor: { url: string; name: string } | null = null;
     if (mode === "image") {
-      fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "全身定妆");
+      fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "无衣物定妆");
       referenceImage = fullBodyAnchor?.url;
       if (!referenceImage) {
         void logEvent({
@@ -817,7 +817,7 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     }
     // 10-25 用户令(派生流水线):表情差分恒以「全身定妆图」为锚(不随轮播漂)
-    const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "全身定妆");
+    const fullBodyAnchor = latestKindImage(getDisplayImages?.() ?? carouselImages, "无衣物定妆");
     const referenceImage = fullBodyAnchor?.url;
     if (!referenceImage) {
       void logEvent({

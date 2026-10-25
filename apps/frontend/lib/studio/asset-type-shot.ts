@@ -9,6 +9,7 @@ import {
   ASSET_IMAGE_KIND_SPECTRA,
   groupAssetImagesByKind,
   type AssetImageTrack,
+  engineBaseTypeFor,
 } from "./asset-image-kind";
 
 /**
@@ -69,9 +70,9 @@ export interface AssetTypeShotProfile {
  */
 export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
   {
-    kind: "全身定妆",
+    kind: "无衣物定妆",
     tracks: ["role"],
-    aspect: ASSET_IMAGE_KIND_ASPECTS["全身定妆"],
+    aspect: ASSET_IMAGE_KIND_ASPECTS["无衣物定妆"],
     rgba: true,
     // 10-25 用户令(流水线定谳):全身定妆=文生图(角色身份源头,主体句+型层承载);
     // 高清人脸·图生图/表情差分改锚定妆图派生——原 i2i 固定指令(素体保真段)随路退役
@@ -284,7 +285,7 @@ export async function generateAssetTypeShot(
   // 构图打架,产出三视图页);按型槽覆写句同样过裁(用户槽句若带排布句同病同治)
   const prompt = isI2i
     ? (task.instructionOverride?.trim() || profile.i2iInstruction || "")
-    : task.kind === "全身定妆"
+    : task.kind === "无衣物定妆"
       ? stripMultiViewLayoutClause((task.subjectText || "").trim())
       : (task.subjectText || "").trim();
   if (isI2i && !task.referenceImage) {
@@ -337,7 +338,7 @@ export async function generateAssetTypeShot(
             // Phase 2 型层注入(10-24 Round 3 ⑥,桥 3718e469 已落地):i2i 带 base_type
             // 切「道劫美术类型」全拼档——型文全拼+型负面+真透明底+型画幅(4010 注型+
             // 4011/4022 同覆写),指令只写保真段+差异要点;开关保留供回滚 Phase 1 借语
-            ...(TYPE_SHOT_I2I_USE_BASE_TYPE ? { extraParams: { base_type: task.kind } } : {}),
+            ...(TYPE_SHOT_I2I_USE_BASE_TYPE ? { extraParams: { base_type: engineBaseTypeFor(task.kind) } } : {}),
           }
         : {
             model: ASSET_TYPE_SHOT_MODEL,
@@ -345,7 +346,7 @@ export async function generateAssetTypeShot(
             promptPolicy: "raw",
             // t2i 路(设定卡/美宣/道具,裁定3+Round 3 ⑤):型层走 base_type 注入,
             // 排布语言/型负面/透明底全由型文承载,画幅由型层 WhSuggest 决定
-            extraParams: { base_type: task.kind },
+            extraParams: { base_type: engineBaseTypeFor(task.kind) },
           },
     );
     if (!imageResult.url) {

@@ -34,7 +34,7 @@ export interface PromptTextInspectTarget {
   /** 原图文件路径(B-1 白名单受管路径;缩略图剥 tEXt,恒走原图)。 */
   imagePath: string;
   imageName: string;
-  /** 弹层标题(调用方拼好,如「全身定妆 · 实发终稿」/「查词 · 晏燎_全身定妆_v1」)。 */
+  /** 弹层标题(调用方拼好,如「无衣物定妆 · 实发终稿」/「查词 · 晏燎_无衣物定妆_v1」)。 */
   title: string;
   /** 族兄弟归属标注(「来自同族资产 {名}」,§4.4 矩阵);null/undefined=不标注。 */
   ownerNote?: string | null;

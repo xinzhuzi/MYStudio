@@ -9,7 +9,7 @@ export type StudioAssetSource = "toonflow-runtime" | "manying-local";
  * clip 无型谱(单节「图片」),audio 零动。
  */
 export type AssetImageKind =
-  | "全身定妆"
+  | "无衣物定妆"
   | "人物海报"
   | "人物多视图"
   | "高清人脸"

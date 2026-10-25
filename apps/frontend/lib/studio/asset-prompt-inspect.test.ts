@@ -19,21 +19,21 @@ describe("buildFinalDraftCandidates", () => {
     const candidates = buildFinalDraftCandidates(
       [
         { name: "晏燎_海报_v1", filePath: "role/a.png" },
-        { name: "晏燎_全身定妆_v1", filePath: "role/f1.png" },
+        { name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png" },
         { name: "晏燎_人脸_2026年10月21日", filePath: "role/face.png" },
-        { name: "晏燎_全身定妆_v2", filePath: "role/f2.png" },
+        { name: "晏燎_无衣物定妆_v2", filePath: "role/f2.png" },
       ],
-      "全身定妆",
+      "无衣物定妆",
     );
-    // 组内两张全身定妆按数组序倒排:v2(末位=最新)在前,v1 在后
+    // 组内两张无衣物定妆按数组序倒排:v2(末位=最新)在前,v1 在后
     expect(candidates.map((c) => c.filePath)).toEqual(["role/f2.png", "role/f1.png"]);
   });
 
   it("归型三层解析:kind 持久值优先,命名标记次之,无标记落自由不入选", () => {
     const candidates = buildFinalDraftCandidates(
       [
-        // 持久值 kind=人物海报,名却带 _全身定妆_(链式生成名)——持久值优先仍归人物海报
-        { name: "晏燎_全身定妆_链式名", filePath: "role/p1.png", kind: "人物海报" },
+        // 持久值 kind=人物海报,名却带 _无衣物定妆_(链式生成名)——持久值优先仍归人物海报
+        { name: "晏燎_无衣物定妆_链式名", filePath: "role/p1.png", kind: "人物海报" },
         // 无持久值,命名标记 _海报_ 归人物海报
         { name: "晏燎_海报_v1", filePath: "role/p2.png" },
         // 无标记=自由,非目标型
@@ -48,18 +48,18 @@ describe("buildFinalDraftCandidates", () => {
   it("族兄弟条目计入并携带 assetId/assetName(族聚显口径);空路径条目滤除", () => {
     const candidates = buildFinalDraftCandidates(
       [
-        { name: "晏燎_全身定妆_v1", filePath: "role/f1.png", assetId: "role-1", assetName: "晏燎" },
-        { name: "二哥_全身定妆_v1", filePath: "", assetId: "role-2", assetName: "晏燎二哥" },
+        { name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", assetId: "role-1", assetName: "晏燎" },
+        { name: "二哥_无衣物定妆_v1", filePath: "", assetId: "role-2", assetName: "晏燎二哥" },
       ],
-      "全身定妆",
+      "无衣物定妆",
     );
     expect(candidates).toEqual([
-      { filePath: "role/f1.png", imageName: "晏燎_全身定妆_v1", assetId: "role-1", assetName: "晏燎" },
+      { filePath: "role/f1.png", imageName: "晏燎_无衣物定妆_v1", assetId: "role-1", assetName: "晏燎" },
     ]);
   });
 
   it("组空返回空数组(调用方按「该型尚无产物」置灰)", () => {
-    expect(buildFinalDraftCandidates([{ name: "晏燎_海报_v1", filePath: "role/a.png" }], "全身定妆")).toEqual([]);
+    expect(buildFinalDraftCandidates([{ name: "晏燎_海报_v1", filePath: "role/a.png" }], "无衣物定妆")).toEqual([]);
   });
 });
 

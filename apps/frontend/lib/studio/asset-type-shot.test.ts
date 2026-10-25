@@ -85,7 +85,7 @@ const STYLE_WORDS = ["工笔", "白描", "连环画", "厚涂", "赛璐璐", "ph
 describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () => {
   it("十一型齐收:role 七型节序零变化(定妆→海报→多视图→基准→自由→设定卡→美宣),scene 三型+道具追加", () => {
     expect(ASSET_TYPE_SHOT_PROFILES.map((profile) => profile.kind)).toEqual([
-      "全身定妆",
+      "无衣物定妆",
       "人物海报",
       "人物多视图",
       "人脸基准",
@@ -112,7 +112,7 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
     }
     // 轨道型档案列:role 七型/scene 四型(含自由)/tool 两型(道具+自由)
     expect(getAssetTypeShotProfilesForTrack("role").map((profile) => profile.kind)).toEqual([
-      "全身定妆", "人物海报", "人物多视图", "人脸基准", "自由", "设定卡", "美宣",
+      "无衣物定妆", "人物海报", "人物多视图", "人脸基准", "自由", "设定卡", "美宣",
     ]);
     expect(getAssetTypeShotProfilesForTrack("scene").map((profile) => profile.kind)).toEqual([
       "自由", "场景", "概念气氛图", "3D剖面场景图",
@@ -122,8 +122,8 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
     ]);
   });
 
-  it("route 分流(10-25 用户令·派生流水线):全身定妆+设定卡/美宣/道具=t2i,余型=i2i", () => {
-    const t2iKinds = new Set(["全身定妆", "设定卡", "美宣", "道具"]);
+  it("route 分流(10-25 用户令·派生流水线):无衣物定妆+设定卡/美宣/道具=t2i,余型=i2i", () => {
+    const t2iKinds = new Set(["无衣物定妆", "设定卡", "美宣", "道具"]);
     for (const profile of ASSET_TYPE_SHOT_PROFILES) {
       expect(profile.route).toBe(t2iKinds.has(profile.kind) ? "t2i" : "i2i");
     }
@@ -131,7 +131,7 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
 
   it("画幅/透明档案逐字对齐十型真源 qi21_bases.json(aspect/rgba_default;含 Round 3 ⑤ 四型)", () => {
     const expected: Record<string, { aspect: string; rgba: boolean }> = {
-      全身定妆: { aspect: "3:4", rgba: true },
+      无衣物定妆: { aspect: "3:4", rgba: true },
       人物海报: { aspect: "3:4", rgba: false },
       人物多视图: { aspect: "16:9", rgba: true },
       人脸基准: { aspect: "1:1", rgba: true },
@@ -185,8 +185,8 @@ describe("型档案表(批3 逐型档案+Round 3 ⑤ 三轨 track 归属)", () =
   });
 
   it("指令按型文抽样(Phase2 差异要点):海报密度/多视图一致/基准光洁头颅/场景空镜/气氛偏侧/3D剖切;定妆 t2i 化后无固定指令", () => {
-    expect(getAssetTypeShotProfile("全身定妆")?.route).toBe("t2i");
-    expect(getAssetTypeShotProfile("全身定妆")?.i2iInstruction).toBeUndefined();
+    expect(getAssetTypeShotProfile("无衣物定妆")?.route).toBe("t2i");
+    expect(getAssetTypeShotProfile("无衣物定妆")?.i2iInstruction).toBeUndefined();
     expect(getAssetTypeShotProfile("人物海报")?.i2iInstruction).toContain("人物细节密度最高");
     expect(getAssetTypeShotProfile("人物多视图")?.i2iInstruction).toContain("保持一致");
     expect(getAssetTypeShotProfile("人脸基准")?.i2iInstruction).toContain("头颅光洁");
@@ -241,10 +241,10 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
     expect(result).toEqual({ phase: "done", imageLocalPath: "local-image://characters/fullbody.png" });
   });
 
-  it("透明型 RGBA 单测锚(⑥):人物多视图/人脸基准/全身定妆(i2i)+道具(t2i)恒带 base_type 注入=桥透明链前置", async () => {
+  it("透明型 RGBA 单测锚(⑥):人物多视图/人脸基准/无衣物定妆(i2i)+道具(t2i)恒带 base_type 注入=桥透明链前置", async () => {
     // 单测锚定请求层:透明型产物 RGBA 由桥 6:180 连线跟 6:4010 注型自动激活,
     // 像素级(PIL mode==RGBA+透明像素>0)核验属装机实弹项(docs/comfyui-kb/生图API直连.md 2c)
-    // 10-25 用户令:全身定妆 t2i 化——透明 i2i 组摘定妆,t2i 透明组(道具+定妆)同锚
+    // 10-25 用户令:无衣物定妆 t2i 化——透明 i2i 组摘定妆,t2i 透明组(道具+定妆)同锚
     const transparentI2iKinds = ["人物多视图", "人脸基准"] as const;
     for (const kind of transparentI2iKinds) {
       expect(getAssetTypeShotProfile(kind)?.rgba).toBe(true);
@@ -255,12 +255,13 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
       expect(generateImage.mock.calls[0][0].extraParams).toEqual({ base_type: kind });
     }
     // 道具(透明底型)走 t2i+base_type(⑥ 桥 4010/4011/4022 同覆写→1:1 型画幅);
-    // 全身定妆(10-25 t2i 化,rgba 透明型)同走 t2i+base_type
-    expect(getAssetTypeShotProfile("全身定妆")?.rgba).toBe(true);
+    // 无衣物定妆(10-25 t2i 化,rgba 透明型)同走 t2i+base_type
+    expect(getAssetTypeShotProfile("无衣物定妆")?.rgba).toBe(true);
     generateImage.mockClear();
     generateImage.mockResolvedValue({ url: "data:image/png;base64,FB" });
     vi.mocked(saveGeneratedAssetImage).mockResolvedValue("local-image://characters/fb.png");
-    await generateAssetTypeShot({ assetId: "a", assetName: "x", kind: "全身定妆", subjectText: "少年剑修全身素体立绘" });
+    await generateAssetTypeShot({ assetId: "a", assetName: "x", kind: "无衣物定妆", subjectText: "少年剑修全身素体立绘" });
+    // 10-26 更名:UI 型名无衣物定妆,引擎 bases 键仍=全身定妆(别名回译注入)
     expect(generateImage.mock.calls[0][0].extraParams).toEqual({ base_type: "全身定妆" });
     expect(getAssetTypeShotProfile("道具")?.rgba).toBe(true);
     generateImage.mockClear();
@@ -409,12 +410,12 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
       named("晏燎_金丹期_海报_v1"),
       named("晏燎_金丹期_人物海报_v1"),
     ];
-    expect(planAssetTypeFillMissingQueue(images)).toEqual(["全身定妆", "表情差分"]);
+    expect(planAssetTypeFillMissingQueue(images)).toEqual(["无衣物定妆", "表情差分"]);
   });
 
   it("五必备全齐→空队列;持久 kind 压过命名参计", () => {
     const complete = [
-      named("a_全身定妆_1"),
+      named("a_无衣物定妆_1"),
       named("b_正视图_1"),
       named("b2_人物海报_1"),
       named("c_三视图_1"),
@@ -426,7 +427,7 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
 
   it("空图集→五型全缺(节序恒定);扩展型缺失恒不入队(补缺只补核心)", () => {
     expect(planAssetTypeFillMissingQueue([])).toEqual([
-      "全身定妆",
+      "无衣物定妆",
       "人物海报",
       "人物多视图",
       "高清人脸",
@@ -434,7 +435,7 @@ describe("planAssetTypeFillMissingQueue(一键补缺顺序队列计划;⑤ 三�
     ]);
     const onlyExtended = [named("x_设定卡_1"), named("y_人脸基准_1"), named("z_自由_1")];
     expect(planAssetTypeFillMissingQueue(onlyExtended)).toEqual([
-      "全身定妆",
+      "无衣物定妆",
       "人物海报",
       "人物多视图",
       "高清人脸",
@@ -477,7 +478,7 @@ describe("stripMultiViewLayoutClause · 定妆单立绘语义裁尾(10-25 用户
   it("generateAssetTypeShot t2i 定妆路实裁:发车 prompt 无排布句;其他型零干预", async () => {
     generateImage.mockResolvedValue({ url: "data:image/png;base64,DZ" } as never);
     await generateAssetTypeShot({
-      assetId: "a", assetName: "x", kind: "全身定妆",
+      assetId: "a", assetName: "x", kind: "无衣物定妆",
       subjectText: "少年剑修,墨黑短发,素体立姿。同一画面从左至右并排四视图:正侧背全身立像。",
     });
     const dzCall = generateImage.mock.calls[0]![0] as { prompt: string };

@@ -25,7 +25,7 @@ import {
  *
  * fixture 真源(10-25 只读实测,禁造假设数据):
  * - 晏燎 32 名 = `sqlite3 -readonly …/store/assets/assets.db "SELECT images FROM assets
- *   WHERE name='晏燎'"` 逐字内嵌,保留实库序(元婴→共主→化神→合体→[全身定妆]→大乘→
+ *   WHERE name='晏燎'"` 逐字内嵌,保留实库序(元婴→共主→化神→合体→[无衣物定妆]→大乘→
  *   渡劫→炼虚→筑基→练气→[表情差分]→金丹殿后;1.3-1:images[]=战役批序非时间序);
  * - 独孤剑尘 4 名 = 同法 `WHERE name='独孤剑尘'`。
  */
@@ -44,7 +44,7 @@ const YANLIAO_IMAGES: AssetImage[] = [
   { name: "晏燎_合体期_三视图_v1", filePath: "role/晏燎/晏燎_合体期_三视图_v1.png" },
   { name: "晏燎_合体期_正视图_v1", filePath: "role/晏燎/晏燎_合体期_正视图_v1.png" },
   { name: "晏燎_合体期_海报_v1", filePath: "role/晏燎/晏燎_合体期_海报_v1.png" },
-  { name: "晏燎_全身定妆_v1", filePath: "role/晏燎/晏燎_全身定妆_v1.png" },
+  { name: "晏燎_无衣物定妆_v1", filePath: "role/晏燎/晏燎_无衣物定妆_v1.png" },
   { name: "晏燎_大乘期_三视图_v1", filePath: "role/晏燎/晏燎_大乘期_三视图_v1.png" },
   { name: "晏燎_大乘期_正视图_v1", filePath: "role/晏燎/晏燎_大乘期_正视图_v1.png" },
   { name: "晏燎_大乘期_海报_v1", filePath: "role/晏燎/晏燎_大乘期_海报_v1.png" },
@@ -170,7 +170,7 @@ describe("clusterAssetStages 晏燎 32 实名全量聚类(乱序入→阶梯序�
     }
     // 30 张入组;基底/表情差分 2 张出组(天然无阶段段)
     expect(clusteredNames).toHaveLength(30);
-    expect(clusteredNames).not.toContain("晏燎_全身定妆_v1");
+    expect(clusteredNames).not.toContain("晏燎_无衣物定妆_v1");
     expect(clusteredNames).not.toContain("晏燎_表情差分_v1");
   });
 });
@@ -230,7 +230,7 @@ describe("clusterAssetStages 显示守卫(distinct 阶段 <2 → 空数组)", ()
 describe("buildStageTypeShotImageName 命名器(§3.3:资产名_{阶段}_{型名}_中文日期)", () => {
   /** 按型出图型档案全型(=ASSET_TYPE_SHOT_PROFILES 11 型;高清人脸/表情差分走既有路不入档案)。 */
   const TYPE_SHOT_KINDS: Array<Exclude<AssetImageKind, "早期未分类">> = [
-    "全身定妆", "人物海报", "人物多视图", "人脸基准", "自由", "设定卡", "美宣",
+    "无衣物定妆", "人物海报", "人物多视图", "人脸基准", "自由", "设定卡", "美宣",
     "场景", "概念气氛图", "3D剖面场景图", "道具",
   ];
 
