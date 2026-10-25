@@ -158,46 +158,14 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     vi.unstubAllGlobals();
   });
 
-  it("#12 一键生成:无视觉手册禁用,有则点击派发 generateAsset(character 轨)", async () => {
+  it("#12 一键生成(10-26 用户令:按钮砍除,不渲染;生成走各型节头钮)", () => {
     renderDialog();
-    const button = screen.getByRole("button", { name: /一键生成资产生图/ }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    cleanup();
-
-    useStudioStore.setState({
-      workflowConfig: { ...useStudioStore.getState().workflowConfig, visualManualId: "vm-test" },
-    });
-    renderDialog();
-    const enabled = screen.getByRole("button", { name: /一键生成资产生图/ }) as HTMLButtonElement;
-    expect(enabled.disabled).toBe(false);
-    fireEvent.click(enabled);
-
-    await waitFor(() => expect(mocks.generateAsset).toHaveBeenCalledTimes(1));
-    expect(mocks.generateAsset).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assetId: "role-1",
-        assetType: "character",
-        name: "玄止",
-        skipPolish: false,
-        existingPrompt: undefined,
-      }),
-      expect.any(Function),
-    );
+    expect(screen.queryByRole("button", { name: /一键生成/ })).toBeNull();
   });
 
-  it("#13 润色提示词:点击走 polishAssetPrompt,回填出图提示词", async () => {
-    useStudioStore.setState({
-      workflowConfig: { ...useStudioStore.getState().workflowConfig, visualManualId: "vm-test" },
-    });
+  it("#13 润色提示词(10-26 用户令:按钮砍除,不渲染)", () => {
     renderDialog();
-
-    fireEvent.click(screen.getByRole("button", { name: "润色提示词" }));
-
-    await waitFor(() => expect(mocks.polishAssetPrompt).toHaveBeenCalledTimes(1));
-    expect(mocks.polishAssetPrompt).toHaveBeenCalledWith(
-      expect.objectContaining({ assetType: "character", name: "玄止", visualManualId: "vm-test" }),
-    );
-    await waitFor(() => expect(screen.getByDisplayValue("润色后的提示词")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: /润色/ })).toBeNull();
   });
 
   it("#16 更换音色:未分配卡点击打开选音频弹窗(搜索框可见)", async () => {

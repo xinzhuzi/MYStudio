@@ -366,13 +366,13 @@ describe("buildAssetRegenerationPrompt", () => {
     expect(source).toContain("skipPolish: !shouldGeneratePrompt");
     expect(source).toContain("existingPrompt");
     expect(source).toContain("正在根据风格生成 ${asset.name} 的出图提示词");
-    expect(source).toContain("生成提示词中...");
+    expect(source).not.toContain("生成提示词中...");
   });
 
   it("keeps one-click asset image generation with the prompt actions instead of the empty-data notice", () => {
     const source = readDialogSources();
-    expect(source).toContain("handleOneClickGenerateAssetImage");
-    expect(source).toContain("一键生成资产生图");
+    // 10-26 用户令:一键生成按钮砍除(生成走各型节头钮)
+    expect(source).not.toContain("一键生成资产生图");
     expect(source).not.toContain("点击下方按钮将走完整生成流程");
   });
 
@@ -404,8 +404,8 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     expect(source).toContain("grid grid-cols-2 gap-3");
     // 行1 名字|描述,行2 角色属性|音色(仅role),行3 提示词|设定,行尾 保存|删除
     expect(source).toContain('<StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />');
-    expect(source).toContain("一键生成资产生图");
-    expect(source).toContain("润色提示词");
+    // 10-26 用户令:润色提示词按钮砍除
+    expect(source).not.toContain("润色提示词");
     // 折叠留摘要(资产名+别名数)+保存/删除
     expect(source).toContain("别名 {parsedDraftName.secondaryNames.length}");
     // #14/#15 保存/删除两态可达(折叠摘要行+展开行尾)
@@ -683,9 +683,9 @@ describe("图生图·画风转换(10-19-daojie-ui-i2i-style-convert:i2iPhase 状
     expect(source).toContain("generatePhase={generatePhase}");
   });
 
-  it("一键生成按钮与图生图互斥(!!i2iPhase 禁用;批3 扩 typeShot 第五路)", () => {
+  it("一键生成按钮已砍除(10-26 用户令),互斥家族余路不受扰", () => {
     const source = readDialogSources();
-    expect(source).toContain("disabled={!!generatePhase || !!i2iPhase || !!facePhase || !!expressionPhase || !!typeShotPhase || !visualManualId}");
+    expect(source).not.toContain("一键生成资产生图");
   });
 
   it("handleImageToImageStyle 走画风转换 service 并复刻一键生成尾段(写回+广播+刷新+3s 自动清)", () => {

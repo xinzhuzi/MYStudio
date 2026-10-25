@@ -296,61 +296,10 @@ describe("B-3 查词(图片卡 hover 工具条→共用弹层)", () => {
   });
 });
 
-describe("A-3 润色还原(一键生成 applyPolishedPrompt 快照)", () => {
-  it("未润色→钮禁用;润色覆写→解禁;点击回滚 draftPrompt 到润色前值并复禁", async () => {
-    // 首查(挂载)=润色前库值;生成完成复查=已润色库值(镜像 persist 落库后的真实序)
-    let getCalls = 0;
-    mocks.get.mockImplementation(async () => {
-      getCalls += 1;
-      return roleAsset({ prompt: getCalls === 1 ? "润色前的旧词" : "润色后的提示词" });
-    });
-    mocks.generateAsset.mockResolvedValue({
-      phase: "done",
-      polishResult: { status: "success", prompt: "润色后的提示词" },
-      imageLocalPath: "local-image://characters/x.png",
-    });
-    renderDialog(roleAsset({ prompt: "润色前的旧词" }));
-
-    // 挂载 get 刷新后:草稿=库值旧词;未润色过(prePolishPrompt=null)→钮禁用
-    await waitFor(() => expect(screen.getByDisplayValue("润色前的旧词")).toBeTruthy());
-    const restoreButton = screen.getByRole("button", { name: /还原上次润色前/ }) as HTMLButtonElement;
-    expect(restoreButton.disabled).toBe(true);
-
-    fireEvent.click(screen.getByRole("button", { name: /一键生成资产生图/ }));
-    await waitFor(() => expect(screen.getByDisplayValue("润色后的提示词")).toBeTruthy());
-    expect(restoreButton.disabled).toBe(false);
-
-    fireEvent.click(restoreButton);
-    // 回滚:draftPrompt 回润色前快照;当前值=存值→钮复禁
-    await waitFor(() => expect(screen.getByDisplayValue("润色前的旧词")).toBeTruthy());
-    expect(restoreButton.disabled).toBe(true);
-  });
-
-  it("润色后手编再还原→仍回润色前快照(语义=撤销上次润色,非撤销全部编辑)", async () => {
-    let getCalls = 0;
-    mocks.get.mockImplementation(async () => {
-      getCalls += 1;
-      return roleAsset({ prompt: getCalls === 1 ? "润色前的旧词" : "润色后的提示词" });
-    });
-    mocks.generateAsset.mockResolvedValue({
-      phase: "done",
-      polishResult: { status: "success", prompt: "润色后的提示词" },
-      imageLocalPath: "local-image://characters/x.png",
-    });
-    renderDialog(roleAsset({ prompt: "润色前的旧词" }));
-
-    await waitFor(() => expect(screen.getByDisplayValue("润色前的旧词")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: /一键生成资产生图/ }));
-    await waitFor(() => expect(screen.getByDisplayValue("润色后的提示词")).toBeTruthy());
-
-    // 手编偏离润色值
-    const textarea = screen.getByPlaceholderText("暂无出图提示词");
-    fireEvent.change(textarea, { target: { value: "手编新词" } });
-    const restoreButton = screen.getByRole("button", { name: /还原上次润色前/ }) as HTMLButtonElement;
-    expect(restoreButton.disabled).toBe(false);
-
-    fireEvent.click(restoreButton);
-    // 照常还原到润色前快照(非手编前)
-    await waitFor(() => expect(screen.getByDisplayValue("润色前的旧词")).toBeTruthy());
+describe("A-3 润色还原(10-26 用户令:润色/还原钮全砍除)", () => {
+  it("润色提示词/还原上次润色前 两钮均不渲染", () => {
+    render(<StudioAssetDetailDialog asset={roleAsset()} open onOpenChange={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /润色/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /还原上次润色前/ })).toBeNull();
   });
 });

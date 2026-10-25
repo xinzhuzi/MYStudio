@@ -36,8 +36,6 @@ import {
   Loader2,
   Map,
   Music2,
-  Sparkles,
-  Undo2,
   UserCircle,
   Volume2,
 } from "lucide-react";
@@ -249,9 +247,9 @@ export function StudioAssetDetailDialog({
   const [draftDescription, setDraftDescription] = useState("");
   const [draftPrompt, setDraftPrompt] = useState("");
   const [draftSetting, setDraftSetting] = useState("");
-  const [isPolishingPrompt, setIsPolishingPrompt] = useState(false);
+  const [, setIsPolishingPrompt] = useState(false);
   const [generatePhase, setGeneratePhase] = useState<"polishing" | "generating" | "saving" | "done" | "failed" | null>(null);
-  const [generateMessage, setGenerateMessage] = useState("");
+  const [, setGenerateMessage] = useState("");
   // 10-19 图生图·画风转换:i2i 相位状态机(与一键生成同款拆分;两路互斥)
   const [i2iPhase, setI2iPhase] = useState<"generating" | "done" | "failed" | null>(null);
   const [i2iMessage, setI2iMessage] = useState("");
@@ -276,7 +274,7 @@ export function StudioAssetDetailDialog({
   // A-3 润色还原(10-25 分层面板役,PRD §4.1 A-3/裁定 Q5a):applyPolishedPrompt
   // 覆写前的润色前快照(组件态单条,null=本次会话未润色;随切资产重置,不持久化,
   // 刷新即丢;「还原上次润色前」钮=润色过且当前值≠存值时可用)
-  const [prePolishPrompt, setPrePolishPrompt] = useState<string | null>(null);
+  const [, setPrePolishPrompt] = useState<string | null>(null);
   // Phase C 按型主体句槽(10-25 追加令):Record<型名,本型专用句>;focusKind 聚焦且
   // 槽在场时主体句框绑槽值,保存随 handleSave 入库(prompt_overrides 列);切资产重置重播种
   const [promptOverridesDraft, setPromptOverridesDraft] = useState<Partial<Record<AssetImageKind, string>>>({});
@@ -641,19 +639,13 @@ export function StudioAssetDetailDialog({
     setSubjectExpanded(false);
     setInstructionEditOpen(false);
   };
-  const clearFocus = () => {
-    setFocusKind(null);
-    setSubjectExpanded(true);
-    setInstructionEditOpen(false);
-  };
 
   // This action factory is named with a use* prefix for historical API
   // compatibility, but it is a pure closure factory. Invoke it on every
   // render before the nullable-asset early return so React hook ordering is
   // stable even while the dialog is closed or clearing its selection.
   const {
-    handlePolishPrompt, handleSave, handleDelete,
-    handleOneClickGenerateAssetImage,
+    handleSave, handleDelete,
     handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
     handleTypeShot: dispatchTypeShot, handleFillMissingQueue, handleRerollFromPrompt,
   } = useStudioAssetDialogActions({
@@ -717,16 +709,6 @@ export function StudioAssetDetailDialog({
     dispatchTypeShot(kind, { stage: selectedStage ?? undefined });
   };
   if (!asset) return null;
-
-  // A-3 润色还原(10-25 分层面板役):回滚 draftPrompt 与 fullAsset.prompt 两处;
-  // 快照不随还原清除——润色后再手编再还原,仍照常还原到润色前快照(语义=撤销上次
-  // 润色,非撤销全部编辑,PRD §4.1 A-3 边界),钮的可用性由「当前值≠存值」自然闸住。
-  const handleRestorePrePolishPrompt = () => {
-    if (prePolishPrompt === null || draftPrompt === prePolishPrompt) return;
-    const restored = prePolishPrompt;
-    setDraftPrompt(restored);
-    setFullAsset((current) => (current ? { ...current, prompt: restored } : current));
-  };
 
   // ③ 实发终稿(A-2③):探针 ready 才可点;弹层展示正向终稿+注入层全文(共用查词壳),
   // 底部小字注明「非本次预演」;族兄弟产物标注所属资产名(§4.4 矩阵)。
@@ -1086,52 +1068,8 @@ export function StudioAssetDetailDialog({
                             />
                           </>
                         )}
+                        {/* 按钮行(10-26 用户令:砍润色/一键生成/还原,只留复制——生成走各型节头钮) */}
                         <div className="flex flex-wrap items-center gap-2">
-                          {isThreeTrackAsset && (
-                            <Button
-                              variant="paid"
-                              size="sm"
-                              className="h-6 gap-1 text-[11px]"
-                              onClick={() => {
-                                // A-1 清除点:一键生成主体句参与(LLM 润色对象),清空聚焦回通用态
-                                clearFocus();
-                                handleOneClickGenerateAssetImage();
-                              }}
-                              disabled={!!generatePhase || !!i2iPhase || !!facePhase || !!expressionPhase || !!typeShotPhase || !visualManualId}
-                            >
-                              {generatePhase ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                              {generatePhase === "polishing" ? "生成提示词中..." : generatePhase === "generating" ? "生成图片中..." : generatePhase === "saving" ? "保存中..." : generatePhase === "done" ? "生成完成" : "一键生成资产生图"}
-                            </Button>
-                          )}
-                          {isThreeTrackAsset && (
-                            <Button
-                              variant="paid"
-                              size="sm"
-                              className="h-6 gap-1 text-[11px]"
-                              onClick={handlePolishPrompt}
-                              disabled={isPolishingPrompt || !visualManualId}
-                            >
-                              {isPolishingPrompt ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Sparkles className="h-3 w-3" />
-                              )}
-                              {isPolishingPrompt ? "润色中..." : "润色提示词"}
-                            </Button>
-                          )}
-                          {isThreeTrackAsset && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 gap-1 text-[11px]"
-                              onClick={handleRestorePrePolishPrompt}
-                              disabled={prePolishPrompt === null || draftPrompt === prePolishPrompt}
-                              title="撤销上次润色,还原润色前的提示词(非撤销全部编辑;刷新后不可还原)"
-                            >
-                              <Undo2 className="h-3 w-3" />
-                              还原上次润色前
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1142,11 +1080,6 @@ export function StudioAssetDetailDialog({
                             <Copy className="h-3 w-3" />
                             复制
                           </Button>
-                          {generatePhase && (
-                            <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground" title={generateMessage}>
-                              {generateMessage}
-                            </span>
-                          )}
                         </div>
                         {/* ②「提示词构成」单折叠组(默认收起一行摘要;展开分四层卡,
                             全部只读、全文仅展开时渲染——收起态零长文渲染) */}
@@ -1509,7 +1442,7 @@ export function StudioAssetDetailDialog({
                   <div className="text-sm font-medium text-foreground">此角色尚无详细数据</div>
                   <p className="text-xs text-muted-foreground">
                     「{displayName}」在资产库中仅有名称记录，缺少描述、设定和图片。
-                    可在「提示词」区域走完整生成流程：润色提示词 → 生成图片 → 保存。
+                    可在「提示词」区域走完整生成流程：润色(已砍) → 生成图片 → 保存。
                   </p>
                 </div>
               )}
