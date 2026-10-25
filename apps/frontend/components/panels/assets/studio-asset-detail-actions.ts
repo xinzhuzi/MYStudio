@@ -212,8 +212,9 @@ export function useStudioAssetDialogActions(ctx: {
     updates.description = draftDescription;
     updates.prompt = draftPrompt;
     updates.setting = draftSetting;
-    // Phase C(10-25 追加令):按型主体句槽随保存入库(空对象=清槽照写)
-    updates.promptOverrides = promptOverridesDraft ?? {};
+    // Phase C(10-25 追加令):按型主体句槽随保存入库(空对象=清槽照写);
+    // undefined=未水合(桥 get 未返回窗口)禁写——防把库内槽位清成 {}
+    if (promptOverridesDraft !== undefined) updates.promptOverrides = promptOverridesDraft;
     try {
       const result = await getStudioAssetsBridge()!.update({ id: asset.id, updates });
       if (result) {

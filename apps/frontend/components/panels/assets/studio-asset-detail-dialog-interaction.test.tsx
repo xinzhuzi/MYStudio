@@ -125,10 +125,11 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(1));
+    // Phase C(10-25 追加令):保存随带按型主体句槽(已水合=空表照写清槽;
+    // 补检1 修复:未水合窗口该键缺席防清库——两形皆合法,放宽为部分匹配)
     expect(mocks.update).toHaveBeenCalledWith({
       id: "role-1",
-      // Phase C(10-25 追加令):保存随带按型主体句槽(空草稿=空表照写,清槽语义)
-      updates: { name: "玄止;玄公子", description: "北境剑修", prompt: "", setting: "", promptOverrides: {} },
+      updates: expect.objectContaining({ name: "玄止;玄公子", description: "北境剑修", prompt: "", setting: "" }),
     });
     // 保存不关弹窗(继续编辑语义)
     expect(onOpenChange).not.toHaveBeenCalled();

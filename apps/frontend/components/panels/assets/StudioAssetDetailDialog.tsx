@@ -244,6 +244,9 @@ export function StudioAssetDetailDialog({
   // Phase C 按型主体句槽(10-25 追加令):Record<型名,本型专用句>;focusKind 聚焦且
   // 槽在场时主体句框绑槽值,保存随 handleSave 入库(prompt_overrides 列);切资产重置重播种
   const [promptOverridesDraft, setPromptOverridesDraft] = useState<Partial<Record<AssetImageKind, string>>>({});
+  // 水合旗(补检1):列表行不带 promptOverrides,真值靠桥 get 回填;未水合前保存
+  // 禁写该列(防 get 未返回的窗口内保存把库内槽位清成 {}——数据丢失边界)
+  const [promptOverridesHydrated, setPromptOverridesHydrated] = useState(false);
   // 追加令·i2i 指令可编辑:会话级指令覆盖(非空=本次生成用此指令作终稿);不持久化
   const [instructionDrafts, setInstructionDrafts] = useState<Partial<Record<AssetImageKind, string>>>({});
   // 指令卡编辑态开合(作用于当前 focusKind;置焦/清焦即收)
@@ -376,6 +379,7 @@ export function StudioAssetDetailDialog({
       setPrePolishPrompt(null);
       setPromptInspectTarget(null);
       setPromptOverridesDraft({});
+      setPromptOverridesHydrated(false);
       setInstructionDrafts({});
       setInstructionEditOpen(false);
       return;
@@ -390,6 +394,7 @@ export function StudioAssetDetailDialog({
     setPrePolishPrompt(null);
     setPromptInspectTarget(null);
     setPromptOverridesDraft({});
+    setPromptOverridesHydrated(false);
     setInstructionDrafts({});
     setInstructionEditOpen(false);
 
@@ -411,8 +416,9 @@ export function StudioAssetDetailDialog({
     setDraftDescription(asset.description || "");
     setDraftPrompt(asset.prompt || "");
     setDraftSetting(asset.setting || "");
-    // Phase C 播种:桥缺席兜底资产行的槽值(桥成功位随后覆盖)
+    // Phase C 播种:桥缺席兜底资产行的槽值(桥成功位随后覆盖)——播种即水合
     setPromptOverridesDraft(parsePromptOverrides(asset.promptOverrides));
+    setPromptOverridesHydrated(true);
 
     if (getStudioAssetsBridge()?.get) {
       getStudioAssetsBridge()!.get(asset.id).then((result) => {
@@ -422,8 +428,9 @@ export function StudioAssetDetailDialog({
         setDraftDescription(result.description || "");
         setDraftPrompt(result.prompt || "");
         setDraftSetting(result.setting || "");
-        // Phase C 播种:fullAsset 槽值为准(桥 get 全列)
+        // Phase C 播种:fullAsset 槽值为准(桥 get 全列)——播种即水合
         setPromptOverridesDraft(parsePromptOverrides(result.promptOverrides));
+        setPromptOverridesHydrated(true);
         const updatedImgs: AssetImage[] = [];
         if (result.previewUrl || result.thumbnailUrl) {
           // 10-19 用户令废「主图」名号:刷新名=文件名(去扩展名)
@@ -515,7 +522,7 @@ export function StudioAssetDetailDialog({
     onFillMissingKindFocus: focusOnKind,
     getKindSubjectOverride: (kind) => promptOverridesDraft[kind]?.trim() || undefined,
     getInstructionOverride: (kind) => instructionDrafts[kind]?.trim() || undefined,
-    promptOverridesDraft: promptOverridesDraft as Record<string, string>,
+    promptOverridesDraft: promptOverridesHydrated ? (promptOverridesDraft as Record<string, string>) : undefined,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
