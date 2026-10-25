@@ -59,7 +59,7 @@ def test_r1_concept_purpose_16_9_only():
 
 
 def test_r1_doc_types_eleven_slots_ten_types():
-    """C38:_doc_types 自相矛盾(十档——九型+自由)定稿=十四档——十三型+自由(1023 全身定妆入列;1022 人脸基准入列;1021 3D剖面场景图入列)。"""
+    """C38:_doc_types 自相矛盾(十档——九型+自由)定稿=十四档——十三型+自由(1023 无衣物定妆入列;1022 人脸基准入列;1021 3D剖面场景图入列)。"""
     doc = _bases()["_doc_types"]
     assert doc.startswith("类型句(十四档)——十三型+自由"), \
         f"_doc_types 应=「类型句(十四档)——十三型+自由」开头(json/README 与 14 条实数口径),得 {doc[:20]!r}"
@@ -158,5 +158,5 @@ def test_invariants_untouched_by_p1():
     assert b["art_style_base"]["positive_text"].startswith("美术风格底座：国风二维动漫手绘插画。")
     assert b["color_lexicon"]["entries"]["宣纸白"]["ma_id"] == "paper.01"
     assert {e["zh"] for e in b["types"] if e.get("rgba_default") is True} \
-        == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "全身定妆"}  # 1023 全身定妆入列(透明族第六型);1022 人脸基准(第五型)
-    assert [e["zh"] for e in b["types"]][0] == "人物海报" and len(b["types"]) == 14  # 1023 全身定妆入列(十三型+自由)
+        == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "无衣物定妆"}  # 1023 无衣物定妆入列(透明族第六型);1022 人脸基准(第五型)
+    assert [e["zh"] for e in b["types"]][0] == "人物海报" and len(b["types"]) == 14  # 1023 无衣物定妆入列(十三型+自由)

@@ -55,8 +55,8 @@ def test_all_ten_types_own_their_background_light_and_state_rules():
             continue
         text = t['positive_text']
         # 1022 人脸基准豁免来源状态句:基准脸=零来源规则(伤痕保留句用户令删,纯五官底版)
-        # 1023 全身定妆同豁免来源/背景句:素体基准态=零来源规则零背景(全透底,十境编辑时注入)
-        _no_source = t['zh'] in ('人脸基准', '全身定妆')
+        # 1023 无衣物定妆同豁免来源/背景句:素体基准态=零来源规则零背景(全透底,十境编辑时注入)
+        _no_source = t['zh'] in ('人脸基准', '无衣物定妆')
         assert '来源' in text or _no_source, t['zh']
         assert '光' in text or '照明' in text or _no_source, t['zh']
         assert '背景' in text or '环境' in text or _no_source, t['zh']

@@ -385,6 +385,7 @@ RGBA_TAIL_ZH = "The image has alpha channel and the background is transparent."
 # KSampler widgets_values 序:[seed, control, steps, cfg, sampler, scheduler, denoise]
 K_SAMPLER_WV = {"seed": 0, "steps": 2, "cfg": 3, "sampler": 4, "scheduler": 5, "denoise": 6}
 # TextEncodeQwenImage21 widgets_values 序:[prompt, negative_prompt, resolution]
+# (1025 my21fast:MyQi21FastEncode widget 序逐位同——序2 锁;两类共用本表)
 TE_WV = {"prompt": 0, "negative": 1, "resolution": 2}
 
 # qi21 件结构锚(1001 S8 R7 集成轮裁定A两件链形态;历史:id 与生成器
@@ -398,8 +399,11 @@ QI21_SG_SEL_ID = 4014                                               # MyQi21Prom
 # 1004 Phase D(编码器迁出子图):[4015]/[4015N(=4016)] TextEncodeQwenImage21
 # 主编码/负向编码迁主图装配块旁;[4018] MyQi21WhSuggest 画幅建议器同批迁出
 # ——四件在主图,子图侧防回潮入册 QI21_SG_GONE_IDS;槽接线走 [6] 宿主出口。
-QI21_MAIN_TE_ID = 4015        # 主编码 TextEncodeQwenImage21(主图;text←[6].positive)
-QI21_NEG_TE_ID = 4016         # 负向编码 [4015N] TextEncodeQwenImage21(主图;text←[6].negative;id 复用 10-02 退役 RGBA 编码号)
+# 1025 my21fast 手术:[4015] 换类 MyQi21FastEncode(单遍;负面直通正向),级联删
+# [4015N(=4016)](级联删 209/4304;link17 复用改写 origin=4015.negative)——
+# 负向编码 id 常量退役除籍(1025),主图 TE 收单;旧双 TE 断言随手术改单锚。
+QI21_MAIN_TE_ID = 4015        # 主编码 MyQi21FastEncode(1025 换类;主图;text←[6].positive)
+TE_CLASSES = ("TextEncodeQwenImage21", "MyQi21FastEncode")  # 1025 并集域(官方件存档+手术件新类)
 QI21_WH_ID = 4018             # MyQi21WhSuggest 画幅建议器(主图;wh_ratio←[6] 槽4)
 QI21_ACC_NOTE_ID = 7016       # 加速子图负向生效档位 Note(Phase D D6b)
 QI21_SG_PE_RW = 4013                                                # API版PE MyQi21ApiPE(1006 换装;批C 九入全上下文:装配全文槽0←[4011].0)
@@ -539,7 +543,7 @@ I2I_NODE_TYPE_WHITELIST = {
     "SaveImage", "PrimitiveStringMultiline", "StringFormat", "BatchImagesNode",
     "TextGenerate", "RegexExtract", "MarkdownNote", "easy showAnything",
     "Reroute", "EmptyLatentImage", "LazyCache", "BasicScheduler",  # 1023 E混动臂四件之二(i2i 入列)
-    "MyQi21DaojieBase", "TextEncodeQwenImage21",
+    "MyQi21DaojieBase", "TextEncodeQwenImage21", "MyQi21FastEncode",  # 1025 my21fast 新类入册
     "MyQi21PromptAssembly", "MyQi21InstructionSelect", "MyQi21FinalOutput",
     # 0927 三档轮:T8 Fun-Acc 采样器已随 FunAcc 臂退役(1016turbo 换官方 Turbo,
     # 死条目出册);0929 并行化轮:自研选择件入册;0929 S2 ⑤机制批:自研三态件入册
@@ -1661,11 +1665,11 @@ def _resolve_default_string_origins(graph: dict) -> dict:
         pos_io = next(o for o in asg["outputs"] if o["name"] == "positive")
         te_id = sg_links[pos_io["linkIds"][0]]["origin_id"]
         main_te, scope_key = sg_nodes[te_id], asg["id"]
-        assert main_te["type"] == "TextEncodeQwenImage21"
+        assert main_te["type"] in TE_CLASSES  # 1025 并集:edit 手术件=新类,存档件=官方类
     else:
         main_te = next(
             n for n in graph["nodes"]
-            if n["type"] == "TextEncodeQwenImage21"
+            if n["type"] in TE_CLASSES  # 1025 并集(官方 t2i 件仍官方类,truthful)
             and any(i["name"] == "prompt" and i.get("link") for i in n["inputs"])
         )
         sg_nodes, sg_links, scope_key = m_nodes, m_links, None
@@ -2363,6 +2367,11 @@ class TestTopology:
             orphans = sorted(
                 nodes[i]["type"] for i in nodes
                 if i not in seen and nodes[i]["type"] not in display_endpoints
+                # 1025 my21fast:级联删 4015N 后其独食垫脚 Reroute(4204)出线摘空
+                # ——计划钦点保留节点本体(仅摘 origin 槽);零出线=可证惰性死端,
+                # 不构成可达性违例(出线非空仍按孤儿报)
+                and not (nodes[i]["type"] == "Reroute"
+                         and all(not (o.get("links") or []) for o in nodes[i].get("outputs", [])))
             )
             assert not orphans, f"{name}: 存在不可达 SaveImage 的孤儿节点: {orphans}"
 
@@ -2602,9 +2611,9 @@ class TestEditContract:
         asg = _asg(graph)
         sg_nodes, sg_links = _sg_nodes(asg), _sg_links(asg)
         encoders = {n["id"]: n for n in sg_nodes.values()
-                    if n["type"] == "TextEncodeQwenImage21"}
+                    if n["type"] in TE_CLASSES}  # 1025 并集:术后两件=MyQi21FastEncode
         assert sorted(encoders) == [4015, EDIT_TE1], \
-            f"edit 装配子图应恰 2 个 TextEncodeQwenImage21([4015] 双参考+[{EDIT_TE1}] 单参考),得 {sorted(encoders)}"
+            f"edit 装配子图应恰 2 个 TE(并集域;1025 术后=[4015] 双参考+[{EDIT_TE1}] 单参考 均 MyQi21FastEncode),得 {sorted(encoders)}"
         m_nodes, m_links = _nodes(graph), _links(graph)
         host = _host_of(graph, asg)
 
@@ -2695,8 +2704,8 @@ class TestEditContract:
         lat_l = asg["outputs"][2]
         assert lat_l["name"] == "latent" and \
             _sg_nodes(asg)[_sg_links(asg)[lat_l["linkIds"][0]]["origin_id"]]["type"] \
-            == "TextEncodeQwenImage21", \
-            "装配子图 latent 输出应溯至 [6].latent(跟随 image_1)"
+            in TE_CLASSES, \
+            "装配子图 latent 输出应溯至 [6].latent(跟随 image_1;1025 术后 TE=MyQi21FastEncode)"
         el = nodes[links[sw["inputs"][1]["link"]][1]]
         assert el["type"] == "EmptyLatentImage" and el["id"] == EDIT_EL_ID, \
             "on_true 上游应 EmptyLatentImage(自定义画幅)"
@@ -3258,7 +3267,7 @@ class TestEditSubgraphContract0929:
         graph = GRAPHS["edit"]
         assert {n["id"] for n in graph["nodes"]} == self.MAIN_IDS, \
             f"edit 主图骨架应恰 {sorted(self.MAIN_IDS)},得 {sorted(n['id'] for n in graph['nodes'])}"
-        for banned in ("TextEncodeQwenImage21", "TextGenerate", "RegexExtract",
+        for banned in ("TextEncodeQwenImage21", "MyQi21FastEncode", "TextGenerate", "RegexExtract",
                        "StringFormat", "BatchImagesNode",
                        "KSampler", "LoraLoaderModelOnly", SPEED_SELECT_CLASS,
                        "PrimitiveInt"):
@@ -3297,7 +3306,7 @@ class TestCanvasOptions:
             nodes, links = _nodes(graph), _links(graph)
             main_te = next(
                 n for n in graph["nodes"]
-                if n["type"] == "TextEncodeQwenImage21"
+                if n["type"] in TE_CLASSES  # 1025 并集(本域官方 t2i 件=官方类,truthful)
                 and any(i["name"] == "prompt" and i.get("link") for i in n["inputs"])
             )
             prompt_link = links[next(i["link"] for i in main_te["inputs"] if i["name"] == "prompt")]
@@ -3332,11 +3341,11 @@ class TestCanvasOptions:
 
             # on_false=主编码 positive(prompt 接 PE 开关的那个);on_true=RGBA 编码
             main_te = nodes[links[switch["inputs"][0]["link"]][1]]
-            assert main_te["type"] == "TextEncodeQwenImage21"
+            assert main_te["type"] in TE_CLASSES  # 1025 并集(官方 t2i 件仍官方类)
             assert any(i["name"] == "prompt" and i.get("link") for i in main_te["inputs"]), \
                 f"{name}: RGBA 开关 on_false 应接主编码(prompt 可切的那个),得 {main_te.get('title')}"
             rgba_te = nodes[links[switch["inputs"][1]["link"]][1]]
-            assert rgba_te["type"] == "TextEncodeQwenImage21"
+            assert rgba_te["type"] in TE_CLASSES  # 1025 并集(官方 t2i 件仍官方类)
             assert rgba_te is not main_te, f"{name}: RGBA 应为独立编码节点(双路)"
             prompt = _widget(rgba_te, TE_WV["prompt"])
             assert prompt.startswith(RGBA_HEAD) and prompt.endswith(RGBA_TAIL), \
@@ -3604,13 +3613,13 @@ class TestQi21SubgraphContract:
             (212, QI21_HOST_ID, 2, QI21_WH_ID, 0, "INT"),
             (213, QI21_HOST_ID, 3, QI21_WH_ID, 1, "INT"),
             # 1006 四轮:214/215 随 wh_ratio/PE启用? 出口退役;1008:[4018] 建议路槽清退
-            # 主图双编码器(1004):[6].positive/negative(STRING)→[4015]/[4015N]
-            # .prompt;clip←[2] 主TE 直供;CONDITIONING→[7] 加速宿主
+            # 主图编码器(1004 双编码;1025 my21fast 手术收单):[6].positive
+            # (STRING)→[4015].prompt;clip←[2] 主TE 直供;CONDITIONING→[7] 加速宿主
+            # (1025 级联删:209([6].negative→4015N)与 4304(4204→4015N.clip) 随
+            # [4015N] 除籍;[6].negative 槽余 217 喂 [401] 预览,4204 出空挂保留)
             (208, QI21_HOST_ID, 0, QI21_MAIN_TE_ID, 3, "STRING"),
-            (209, QI21_HOST_ID, 1, QI21_NEG_TE_ID, 3, "STRING"),
             (210, 2, 0, QI21_MAIN_TE_ID, 0, "CLIP"),
             (211, 2, 0, 4204, 0, "CLIP"),
-            (4304, 4204, 0, QI21_NEG_TE_ID, 0, "CLIP"),       # 垫脚出口→[4015N].clip
             # 0929 S3 加速边界(语义锚保号:97=旧 [1]→[31] LoRA 臂/16·17=旧
             # positive/negative 首扇出/5=旧 latent 首扇出/62=旧选择件→[8],全改指宿主)
             # 1007 布局整备:97/10/211 垫脚 Reroute(4203/4202/4204,消遮挡锚随行同步,
@@ -3618,7 +3627,9 @@ class TestQi21SubgraphContract:
             (97, 1, 0, 4203, 0, "MODEL"),
             (4303, 4203, 0, QI21_XHOST_ID, 0, "MODEL"),       # 垫脚出口→宿主.model
             (16, QI21_MAIN_TE_ID, 0, QI21_XHOST_ID, 1, "CONDITIONING"),
-            (17, QI21_NEG_TE_ID, 0, QI21_XHOST_ID, 2, "CONDITIONING"),
+            # 1025 my21fast:link17 复用改写——origin 4015N.positive → 4015.negative
+            # (槽1;新类负面出口直通正向,cfg=1 链语义同)
+            (17, QI21_MAIN_TE_ID, 1, QI21_XHOST_ID, 2, "CONDITIONING"),
             (5, QI21_LATENT_ID, 0, QI21_XHOST_ID, 3, "LATENT"),
             (62, QI21_XHOST_ID, 0, 5, 0, "LATENT"),           # 宿主→[5] 解码(单点;⑫ [8]→[5])
             (10, 3, 0, 4202, 0, "VAE"),
@@ -3628,12 +3639,14 @@ class TestQi21SubgraphContract:
             (4410, QI21_HOST_ID, 4, QI21_XHOST_ID, 4, "STRING"),
         ]:
             assert want in got, f"外部接线缺: link{want[0]}"
-        # 1004 Phase D:主编码+负向编码两件 TextEncodeQwenImage21 迁主图装配块旁
-        # (text 吃 [6] STRING 出口,clip 吃 [2] 主TE;旧「主图零平铺 TextEncode」废止)
-        main_tes = _by_type(graph, "TextEncodeQwenImage21")
-        assert {n["id"] for n in main_tes} == {QI21_MAIN_TE_ID, QI21_NEG_TE_ID}, \
-            f"qi21 主图应恰 2 个 TextEncodeQwenImage21=[{QI21_MAIN_TE_ID}]主编码" \
-            f"+[{QI21_NEG_TE_ID}][4015N]负向编码(1004 迁出),得 {[n['id'] for n in main_tes]}"
+        # 1004 Phase D(历史):主编码+负向编码两件迁主图;1025 my21fast 手术收单——
+        # [4015] 换类 MyQi21FastEncode,[4015N(=4016)] 级联删(209/4304 随除籍)
+        main_tes = [n for n in graph["nodes"] if n["type"] in TE_CLASSES]
+        assert {n["id"] for n in main_tes} == {QI21_MAIN_TE_ID}, \
+            f"qi21 主图应恰 1 个 TE=[{QI21_MAIN_TE_ID}]主编码(1025 术后 MyQi21FastEncode," \
+            f"4015N 已级联删),得 {[n['id'] for n in main_tes]}"
+        assert main_tes[0]["type"] == "MyQi21FastEncode", \
+            f"qi21 主图 TE 现型应 MyQi21FastEncode(1025 手术),得 {main_tes[0]['type']}"
         for banned in ("ComfySwitchNode", "KSampler", "LoraLoaderModelOnly",
                        SPEED_SELECT_CLASS, "PrimitiveInt",
                        "RegexExtract", "ComfyNumberConvert", "ComfyMathExpression",
@@ -3716,8 +3729,9 @@ class TestQi21SubgraphContract:
             # 1002 衔接批㉕㉖:SeedVR2 放大尾档四件组+rgthree 对比件入册(主图输出区)
             "SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler",
             "Image Comparer (rgthree)",
-            # 1004 Phase D:编码器/画幅建议器迁主图(装配块旁三件 [4015][4015N][4018])
-            "TextEncodeQwenImage21", "MyQi21WhSuggest",
+            # 1004 Phase D:编码器/画幅建议器迁主图(装配块旁三件 [4015][4015N][4018];
+            # 1025 my21fast:[4015] 换类 MyQi21FastEncode+4015N 级联删,新类入册)
+            "TextEncodeQwenImage21", "MyQi21FastEncode", "MyQi21WhSuggest",
             # 1007 布局整备:垫脚 Reroute 准入(优化集 OPTIMIZATION.md 布局④「治理手法与棘轮」sanctioned 消遮挡手法)
             "Reroute",
             # 1005 重锚:[401] MyQi21PromptPreview 正负双预览件入册(OUTPUT_NODE
@@ -3858,8 +3872,8 @@ class TestQi21SubgraphContract:
         # 五型,现值随源回退四型,以 json 现值为准)
         _bases = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
         _rgba_on = {e["zh"] for e in _bases if e.get("rgba_default") is True}
-        assert _rgba_on == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "全身定妆"}, \
-            f"qi21_bases.json rgba_default 六型集合漂移(0929 用户拍板四型;1022 人脸基准=第五型;1023 全身定妆=第六型),得 {sorted(_rgba_on)}"
+        assert _rgba_on == {"道具", "人物多视图", "高清人脸", "表情差分", "人脸基准", "无衣物定妆"}, \
+            f"qi21_bases.json rgba_default 六型集合漂移(0929 用户拍板四型;1022 人脸基准=第五型;1023 无衣物定妆=第六型),得 {sorted(_rgba_on)}"
         assert all(e.get("rgba_default") in (True, False) for e in _bases), \
             "qi21_bases.json rgba_default 应为显式布尔(缺字段/非布尔即红)"
         # 1006 七轮:[4011] 退役——BASE 直连 [4013].型底座(槽3,线337)
@@ -3887,7 +3901,7 @@ class TestQi21SubgraphContract:
         透明声明段+退役背景职责句零回潮。"""
         types, _ = _qi21_truth()
         qi21 = json.loads(QI21_BASES_JSON.read_text(encoding="utf-8"))["types"]
-        assert len(qi21) == 14, f"qi21_bases.json types 应十四档(十三型+自由,1023 全身定妆入列;1022 人脸基准入列),得 {len(qi21)}"
+        assert len(qi21) == 14, f"qi21_bases.json types 应十四档(十三型+自由,1023 无衣物定妆入列;1022 人脸基准入列),得 {len(qi21)}"
         assert [e["zh"] for e in qi21[:10]] == [t[0] for t in types], \
             "qi21_bases.json 前十档 型名/顺序应与 05 库同序(型录序=使用序;1021/1022 新型候实弹后入 canon)"
         free = qi21[13]
@@ -4213,11 +4227,11 @@ class TestQi21SubgraphContract:
         host = _nodes(graph)[QI21_HOST_ID]
         assert [o["type"] for o in host["outputs"]] == \
             ["STRING", "STRING", "INT", "INT", "STRING"]
-        # 编码链:主图 [4015]/[4015N] 吃 [6].positive/negative(STRING)出 CONDITIONING
-        for host_slot, te_id, tag in ((0, QI21_MAIN_TE_ID, "主编码"),
-                                      (1, QI21_NEG_TE_ID, "负向编码[4015N]")):
+        # 编码链:主图 [4015] 吃 [6].positive(STRING)出 CONDITIONING
+        # (1025 my21fast:负向编码[4015N] 级联删除籍;[6].negative 槽改单喂 [401] 预览)
+        for host_slot, te_id, tag in ((0, QI21_MAIN_TE_ID, "主编码"),):
             te = _nodes(graph)[te_id]
-            assert te["type"] == "TextEncodeQwenImage21", f"{tag}应为 TextEncodeQwenImage21"
+            assert te["type"] == "MyQi21FastEncode", f"{tag}应为 MyQi21FastEncode(1025 手术)"
             t_l = _links(graph)[next(i["link"] for i in te["inputs"] if i["name"] == "prompt")]
             assert (t_l[1], t_l[2]) == (QI21_HOST_ID, host_slot), \
                 f"{tag}.prompt 应接 [6] 槽{host_slot} STRING 出口(1004 编码迁出子图)"
@@ -6046,6 +6060,7 @@ class TestCountAnchor:
             "qi21-道劫-img2img.json",
             "qi21-道劫-t2i.json",
             "qi21-道劫-换脸-局部重绘.json",
+            "qwen21-charcard-turbo-t2i.json",
             "qwen21-daotu-rgba-t2i.json",
             "qwen21-multiref-edit.json",
             "qwen21-pose-edit.json",
@@ -6063,7 +6078,7 @@ class TestCountAnchor:
             "社区-全能文生图-官方PE.json",
             "社区-编辑生图整合-TE.json",
             "道劫-摆姿-fisher.json",
-        ], f"Q2-1图像 应恰 26 件(16 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+4 社区;1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
+        ], f"Q2-1图像 应恰 27 件(16 自研含BFS换头/局部重绘+3 官方模板+3 官方参照+4 社区+1 charcard改造件;1025 charcard-turbo 角色卡加速件入库 26→27(CharacterCardStudio 官方一键卡改造件,仅采样段换 Turbo,实弹 180s/6倍速);1023 局部重绘入库25→26;1023 BFS更名qi21-bfs-换头.json（25件不变）;1022 BFS入库24→25;1019 图生图·画风转换役新增 qwen21-道劫-i2i-api.json 桥格式件(qi21-道劫-i2i.json 展平,build --target i2i 生成)23→24;1015 改名役:qwen21-daojie-t2i.json→qwen21-道劫-t2i-api.json(桥格式件统一 -api.json 口径);1014 收尾役代迁:qwen21-daojie-t2i 入库 22→23(并行侧 10-10 入库未随账,6a460a67);前账 1010 道劫-摆姿-fisher 自研产线件入库 21→22;前账 Fisher-Pose 官方参照件入库 20→21,前账:1009 用户新令 qi21-道劫-img2img 入库 19→20/1008 Viggle 官方两件 17→19/10-02 自研扩批五件 12→17),得 {files}"
 
     def test_official_templates_upstream_identical(self):
         """官方三件须与 Comfy-Org/workflow_templates 上游逐字节一致(官方件零改动铁律)。

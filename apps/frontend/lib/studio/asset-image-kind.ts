@@ -92,11 +92,11 @@ export type AssetImageTrack = "role" | "scene" | "tool";
 
 /**
  * 引擎型层键别名(10-26 用户令·更名):UI 型名「无衣物定妆」而引擎 bases.json 十型
- * 真源键仍为「全身定妆」(sha 契约钉,四副本纪律不动)——凡向 bases 查表(分层面板
- * getPromptLayers)与向引擎注入 base_type(按型出图)两侧一律经此回译。
+ * 已四副本随更名(10-26)——别名表恒等(源提示词四副本已随更名)。
  */
 export const ENGINE_BASE_TYPE_ALIASES: Readonly<Record<string, string>> = {
-  无衣物定妆: "全身定妆",
+  // 10-26 源提示词四副本已随更名:引擎键=UI 名=无衣物定妆,别名表恒等(留函数口
+  // 供未来再遇 UI 名≠引擎键场景;当前空表)
 };
 
 export function engineBaseTypeFor(kind: string): string {

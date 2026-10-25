@@ -116,7 +116,7 @@ export function getPromptStyleBaseLayer(): PromptStyleBaseLayer {
  * 「该型无独立型文(共用底座)」,禁编造)。
  */
 export function getPromptLayers(kind: AssetImageKind | string): PromptLayers | null {
-  // 10-26 更名:UI 型名经引擎别名回译后查 bases(无衣物定妆→全身定妆真源键)
+  // 10-26 源提示词四副本已随更名:引擎键=UI 名,直接查表
   const entry = TYPE_BY_ZH.get(engineBaseTypeFor(kind)) ?? TYPE_BY_ZH.get(kind);
   if (!entry) return null;
   return { base: getPromptStyleBaseLayer(), type: toPromptTypeLayer(entry) };

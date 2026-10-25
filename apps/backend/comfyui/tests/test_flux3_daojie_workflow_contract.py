@@ -125,12 +125,12 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
             'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1023-bodybase.md',
-            'anchor':'## Decisions(2026-10-23 用户令「目前是 全身定妆,用这个来新作一个类型」)',
+            'anchor':'## Decisions(2026-10-23 用户令「目前是 无衣物定妆,用这个来新作一个类型」)',
             'sha256':'592641c223763ba7fd7ddd500872653f4613100862f2c05cf14ca2a7ed7746de',
         },
         'change_ledger':{
             'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1023-bodybase.md',
-            'anchor':'## 字段级变更(2 处,1023 全身定妆入列实测)',
+            'anchor':'## 字段级变更(2 处,1023 无衣物定妆入列实测)',
             'sha256':'badfbe39ffe33fa9d566ae9d539eab48d6b27a3a30ceb8a00f0e98b017baae8d',
         },
     }

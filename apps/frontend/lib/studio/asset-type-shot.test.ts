@@ -261,8 +261,8 @@ describe("generateAssetTypeShot(route 分流实装+Phase 2 型层注入+三轨�
     generateImage.mockResolvedValue({ url: "data:image/png;base64,FB" });
     vi.mocked(saveGeneratedAssetImage).mockResolvedValue("local-image://characters/fb.png");
     await generateAssetTypeShot({ assetId: "a", assetName: "x", kind: "无衣物定妆", subjectText: "少年剑修全身素体立绘" });
-    // 10-26 更名:UI 型名无衣物定妆,引擎 bases 键仍=全身定妆(别名回译注入)
-    expect(generateImage.mock.calls[0][0].extraParams).toEqual({ base_type: "全身定妆" });
+    // 10-26 源提示词四副本已随更名:引擎键=UI 名=无衣物定妆,直接注入
+    expect(generateImage.mock.calls[0][0].extraParams).toEqual({ base_type: "无衣物定妆" });
     expect(getAssetTypeShotProfile("道具")?.rgba).toBe(true);
     generateImage.mockClear();
     generateImage.mockResolvedValue({ url: "data:image/png;base64,P" });
