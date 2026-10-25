@@ -38,6 +38,42 @@ const PLAN_BLOCK_LABELS = [
   "⑦衍生资产预划",
 ] as const;
 
+/**
+ * sanitize 禁词裸用法词表——10-25-daojie-color-card-absorption PRD §〇 G6 指定真源
+ * (daojie-manual-contract.test.ts:51-78 SANITIZE_TARGET_WORDS 逐字复制;该侧未导出,改词须两处同步)。
+ */
+const SANITIZE_TARGET_WORDS = [
+  "cinematic lighting",
+  "cinematic composition",
+  "cinematic quality",
+  "cinematic atmosphere",
+  "cinematic motion",
+  "volumetric fog",
+  "volumetric light",
+  "depth of field",
+  "film grain",
+  "HDR highlight",
+  "muted cyan-green",
+  "low-saturation cyan-green",
+  "电影级光影",
+  "电影质感",
+  "电影构图",
+  "体积雾",
+  "浅景深",
+  "景深虚化",
+  "胶片颗粒",
+  "8K，超保真",
+  // 纸面口径(对齐 MA ma-gongbi-v1):纸纹是缺陷,纸面写浅净平涂底
+  "rice paper texture",
+  "xuan paper texture",
+  "clean paper texture",
+  "宣纸质感",
+  "宣纸肌理",
+];
+
+/** 规则语境行(定义禁令/改写口径的行)允许出现禁词——「禁直贴」语境行即此类(daojie-manual-contract.test.ts:81 同源)。 */
+const RULE_CONTEXT = /(禁|不得|不写|一律改写|改写|替代|覆盖|→|等效|例外|列入负面|赞美词|fail-empty|标记块)/;
+
 describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
   itFile("T5① storyboard_table.md 对齐规划①-⑦+16:9+语速区间,旧三块/竖屏/$ 出场人物/【BGM】/get_flowData 清零(H1/H5/H6/H9/R15)", () => {
     const content = readManual("production_execution_storyboard_table.md");
@@ -164,6 +200,27 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
       }
       expect(content, module).not.toContain("镜头描述写灵气必须用三色语汇");
       expect(content, module).not.toContain("灵气融合分镜（五系剑圣觉醒）");
+    }
+  });
+
+  itFile("道劫局部排异与景别示例以当场进度为门，不从五系身份推定三色", () => {
+    const root = "story_skills/Daojie_xianxia/driector_skills/";
+    const planning = readManual(`${root}director_planning_narrative.md`);
+    const rejection = findLines(planning, "**灵气排异**");
+    expect(rejection).toHaveLength(1);
+    expect(rejection[0]).not.toContain("五系剑圣修炼初期");
+    expect(rejection[0]).toContain("初期三股");
+    expect(rejection[0]).toContain("后续排异");
+    for (const label of ["**特写**", "**大特写**", "**灵气排异运镜**"]) {
+      const lines = findLines(planning, label);
+      expect(lines).toHaveLength(1);
+      expect(lines[0], label).toContain("当场");
+    }
+    const storyboard = readManual(`${root}director_storyboard_table_narrative.md`);
+    for (const label of ["**写意中景**", "**灵韵特写**", "**灵气排异特写**"]) {
+      const lines = findLines(storyboard, label);
+      expect(lines).toHaveLength(1);
+      expect(lines[0], label).toContain("当场");
     }
   });
 
@@ -346,6 +403,47 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
       expect(readManual(file), `道劫包文件残留竖屏/9:16(Q2):${file}`).not.toMatch(/竖屏|9:16/);
     }
   });
+
+  // 10-25-daojie-color-card-absorption A1(含 D3 加宽)+A2/A3:fusion §八 H3 模板契约钉。
+  // RED 期约定同本文件头:fusion §八四锚与 §二 影调参考/视觉对标两列未落档时按「指定红因」失败,
+  // 文档侧落档后转绿;sanitize 负检查对存量 §六 翻译表禁令行须恒过(RULE_CONTEXT 放行)。
+  itFile(
+    "H3 视频模板四锚与适配门纪律:fusion 四锚+C1-C10/翻译表/风格适配门锚,影调参考/视觉对标仅供 agent 会话,禁词裸用法清零(A1/A2/A3)",
+    () => {
+      const fusion = readManual(
+        "story_skills/Daojie_xianxia/driector_skills/director_style_card_fusion.md",
+      );
+      // A1·H3 法定结构四锚(自色卡侯孝贤 video_prompts.md §四实提取的骨架,防漂移)
+      for (const anchor of ["【核心创意】", "【分段过程描述】", "overall_soundscape", "【结束状态】"]) {
+        expect(fusion, `fusion 缺 H3 模板四锚「${anchor}」(A1:§八骨架未落档)`).toContain(anchor);
+      }
+      // A1·D3 加宽锚:色盘(外来 HEX 恒过翻译表入 C1-C10+三色灵气)+翻译表指针+风格适配门(G1-G6)
+      expect(fusion, "fusion 缺「C1-C10」色盘锚(色槽恒为道劫 C1-C10+三色灵气)").toContain("C1-C10");
+      expect(fusion, "fusion 缺「翻译表」指针锚(外来词须过 §六 翻译表)").toContain("翻译表");
+      expect(fusion, "fusion 缺「风格适配门」锚(G1-G6 准入未留档)").toContain("风格适配门");
+      // A2/A3·消费限制声明:影调色卡/剧照仅供 agent 会话与人工验收(App 内 AI 打不开本机文件路径)
+      for (const anchor of ["影调参考", "视觉对标"]) {
+        expect(fusion, `fusion 缺「${anchor}」(A2/A3 消费限制声明未落档)`).toContain(anchor);
+      }
+      // 「仅供 agent 会话」容忍 ** 加粗内嵌(PRD Q3 原句即「仅供 **agent 会话/人工验收** 使用」)
+      expect(fusion, "fusion 缺「仅供 agent 会话」消费限制声明(A2/A3 未落档)").toMatch(
+        /仅供\s*\**\s*agent 会话/,
+      );
+      // 负检查:sanitize 禁词裸用法清零——仅「禁直贴」规则语境行(RULE_CONTEXT)可引用
+      const violations = fusion
+        .split(/\r?\n/)
+        .map((raw, index) => ({ lowered: raw.toLowerCase(), raw, number: index + 1 }))
+        .filter(
+          ({ lowered, raw }) =>
+            SANITIZE_TARGET_WORDS.some((word) => lowered.includes(word.toLowerCase()))
+            && !RULE_CONTEXT.test(raw),
+        );
+      expect(
+        violations.map(({ number, raw }) => `director_style_card_fusion.md:${number}: ${raw.trim()}`),
+        "fusion 出现 sanitize 禁词裸用法(应改道劫合法写法;仅「禁直贴」语境行可引用)",
+      ).toEqual([]);
+    },
+  );
 });
 
 /** 递归枚举 studio-manuals 下全部 md(posix 相对路径)。 */
