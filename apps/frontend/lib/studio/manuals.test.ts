@@ -63,11 +63,13 @@ describe("studio manual presets", () => {
       id: "Daojie_xianxia",
       source: "toonflow-runtime",
       // Phase 3(父 I2 定序):v3 已建 script_narrative.md 且此处登记键 → 道劫 3→4
-      moduleCount: 4,
+      // 10-25 融合役:director_style_card_fusion.md 登记入册 → 4→5
+      moduleCount: 5,
       imageCount: 0,
       basePresetId: "Xianxia_fantasy",
     });
     expect(directorManual?.modules.README).toContain("三族灵气");
+    expect(directorManual?.modules.director_style_card_fusion).toContain("九式签名技法");
   });
 
   it("builds a compact manual context for workflow prompts", () => {
