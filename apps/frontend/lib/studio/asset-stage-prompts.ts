@@ -186,3 +186,24 @@ export function buildStageTypeShotImageName(
 ): string {
   return `${assetName}_${stage}_${kind}_${dateZh}`;
 }
+
+
+/**
+ * 节内显示序排序(10-25 用户令「按阶段排序,练气→大乘;无阶段的按时间」):
+ * 有阶段段者按 stageSortKey 阶梯序在前(境界→年龄段→道途→未知首现附尾;同阶
+ * 段内 JS 稳定排序保输入序=时间序);无阶段段者(时间序=images[] 追加序,新生
+ * 恒在尾)整段排后。整节无阶段图=纯输入序(现状零变化)。仅排序显示,不动
+ * 调用方下标契约(排序对象含原 index 由调用方携带)。
+ */
+export function sortStageFirstThenInput<T>(items: readonly T[], getName: (item: T) => string): T[] {
+  return [...items].sort((a, b) => {
+    const stageA = extractStageName(getName(a));
+    const stageB = extractStageName(getName(b));
+    if (stageA === null && stageB === null) return 0;
+    if (stageA === null) return 1;
+    if (stageB === null) return -1;
+    const keyA = stageSortKey(stageA, 0);
+    const keyB = stageSortKey(stageB, 0);
+    return keyA - keyB;
+  });
+}

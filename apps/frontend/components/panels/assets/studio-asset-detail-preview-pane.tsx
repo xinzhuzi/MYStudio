@@ -30,6 +30,7 @@ import {
   groupAssetImagesByKind,
   type AssetImageTrack,
 } from "@/lib/studio/asset-image-kind";
+import { sortStageFirstThenInput } from "@/lib/studio/asset-stage-prompts";
 import { ASSET_TYPE_SHOT_PROFILES, getAssetTypeShotProfilesForTrack } from "@/lib/studio/asset-type-shot";
 
 const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36, 70];
@@ -694,7 +695,7 @@ export function StudioAssetDetailPreviewPane({
               kind,
               aspect,
               group.length > 0
-                ? group.map(({ image, index }) => renderImageCard(image, index, widthClass))
+                ? sortStageFirstThenInput(group, (entry) => entry.image.name).map(({ image, index }) => renderImageCard(image, index, widthClass))
                 : renderPlaceholderCard(kind, widthClass, { kind }),
               group.length,
               sectionButtons,
@@ -710,7 +711,10 @@ export function StudioAssetDetailPreviewPane({
           SINGLE_SECTION_TITLE,
           null,
           hasImagePreview
-            ? images.map((image, index) => renderImageCard(image, index, squareWidth))
+            ? sortStageFirstThenInput(
+                images.map((image, index) => ({ image, index })),
+                (entry) => entry.image.name,
+              ).map(({ image, index }) => renderImageCard(image, index, squareWidth))
             : renderPlaceholderCard("图片", squareWidth),
           images.length,
         )

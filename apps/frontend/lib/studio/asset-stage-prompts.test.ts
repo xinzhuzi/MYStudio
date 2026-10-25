@@ -11,6 +11,7 @@ import {
   extractStageName,
   hasRenderableStageMatrix,
   stageSortKey,
+  sortStageFirstThenInput,
 } from "./asset-stage-prompts";
 
 /**
@@ -240,5 +241,44 @@ describe("buildStageTypeShotImageName 命名器(§3.3:资产名_{阶段}_{型名
       expect(classifyAssetImageName(name)).toBe(kind); // 归型不变(型段直用 kind 成员)
       expect(extractStageName(name)).toBe("金丹期"); // 产物自动入组
     }
+  });
+});
+
+
+describe("节内显示序排序(10-25 用户令:阶段序在前,无阶段按时间序在后)", () => {
+  it("乱序入→阶梯序出(元婴在前金丹殿后的实库序→练气…共主);无阶段图整段排尾保输入序", () => {
+    const ordered = sortStageFirstThenInput(
+      [
+        "晏燎_元婴期_海报_v1",
+        "随手海报",
+        "晏燎_共主期_海报_v1",
+        "晏燎_练气期_海报_v1",
+        "旧海报无阶段",
+        "晏燎_金丹期_海报_v1",
+      ],
+      (name) => name,
+    );
+    expect(ordered).toEqual([
+      "晏燎_练气期_海报_v1",
+      "晏燎_金丹期_海报_v1",
+      "晏燎_元婴期_海报_v1",
+      "晏燎_共主期_海报_v1",
+      "随手海报",
+      "旧海报无阶段",
+    ]);
+  });
+
+  it("整节无阶段=纯输入序零变化;同阶段多张保输入序(时间序);index 原值随行不重排", () => {
+    const noStage = ["c图", "a图", "b图"];
+    expect(sortStageFirstThenInput(noStage, (n) => n)).toEqual(noStage);
+    // 输入序即时间序(追加序):fixture 故意让 重掷(idx7) 在前、v1(idx3) 在后,
+    // 稳定排序须原样保留(时间序不倒置);无阶段 主图(idx0) 排尾
+    const pairs = [
+      { name: "晏燎_金丹期_海报_v1_重掷_2026年10月25日", index: 7 },
+      { name: "晏燎_金丹期_海报_v1", index: 3 },
+      { name: "主图", index: 0 },
+    ];
+    const sorted = sortStageFirstThenInput(pairs, (p2) => p2.name);
+    expect(sorted.map((p2) => p2.index)).toEqual([7, 3, 0]);
   });
 });
