@@ -38,6 +38,7 @@ import { type AssetType } from "@/lib/ai/prompt-polisher";
 import { mapDaojieLibraryAssetType } from "@/lib/ai/daojie-prompt-contract";
 import type { StudioAssetKind } from "@/types/studio-assets";
 import { parseAssetNames } from "@/lib/studio/asset-names";
+import { getAssetDisplayName, getAssetOperationError } from "./studio-asset-detail-utils";
 import { toRoleSpeakerId } from "@/lib/tts/role-speaker-id";
 import type { TtsSpeakerId } from "@/types/tts";
 import { useStudioStore } from "@/stores/studio/studio-store";
@@ -64,7 +65,6 @@ import { getAssetTypeShotProfile } from "@/lib/studio/asset-type-shot";
 import { FACE_I2I_INSTRUCTION } from "@/lib/studio/asset-face-portrait";
 import { EXPRESSION_I2I_INSTRUCTION } from "@/lib/studio/asset-expression-sheet";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
-import { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetOperationError } from "./studio-asset-detail-utils";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import { StudioAssetPromptTextDialog, type PromptTextInspectTarget } from "./studio-asset-prompt-text-dialog";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
@@ -288,7 +288,6 @@ export function StudioAssetDetailDialog({
       .filter((entry) => !removedFamilyPaths.includes(entry.filePath)),
     [familyImages, images, asset?.id, removedFamilyPaths],
   );
-  const regenerationPrompt = useMemo(() => buildAssetRegenerationPrompt(fullAsset || asset), [fullAsset, asset]);
 
   useEffect(() => {
     try {
@@ -474,9 +473,8 @@ export function StudioAssetDetailDialog({
   // render before the nullable-asset early return so React hook ordering is
   // stable even while the dialog is closed or clearing its selection.
   const {
-    handlePolishPrompt, handleSave, handleDelete, copyText,
-    handleOneClickGenerateAssetImage, handleImageToImageStyle: dispatchImageToImageStyle, handleRegenerate,
-    handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
+    handlePolishPrompt, handleSave, handleDelete,
+    handleOneClickGenerateAssetImage,
     handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
     handleTypeShot: dispatchTypeShot, handleFillMissingQueue, handleRerollFromPrompt,
   } = useStudioAssetDialogActions({
@@ -533,11 +531,6 @@ export function StudioAssetDetailDialog({
     focusOnKind(kind);
     dispatchTypeShot(kind);
   };
-  const handleImageToImageStyle = () => {
-    clearFocus();
-    dispatchImageToImageStyle();
-  };
-
   if (!asset) return null;
 
   // A-3 润色还原(10-25 分层面板役):回滚 draftPrompt 与 fullAsset.prompt 两处;
@@ -591,7 +584,6 @@ export function StudioAssetDetailDialog({
   // 三轨生图入口只对 role/scene/tool 开放;clip 等其余类型不展示、不触发(道劫合同 fail-closed)
   const isThreeTrackAsset = asset.type === "role" || asset.type === "scene" || asset.type === "tool";
   // 10-19 图生图·画风转换:三轨且有图才可转(clip/audio/无图禁用)
-  const canImageToImage = isThreeTrackAsset && displayImages.length > 0;
   // 10-21 高清人脸:仅角色轨显示人脸按钮(图生图/文生图两路)
   const canFacePortrait = asset.type === "role";
   // 10-24 批3 按型出图+Round 3 扩展令⑤:图片三轨(role/scene/tool)显示型驱动生成族
@@ -641,7 +633,7 @@ export function StudioAssetDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="studio-asset-detail-dialog h-[92vh] w-[90vw]! max-w-[90vw]! overflow-hidden p-0">
+        <DialogContent className="studio-asset-detail-dialog h-[92vh] w-[90vw]! max-w-[90vw]! overflow-hidden bg-card/50 p-0">
         <DialogHeader className={asset.type === "audio" ? "sr-only" : "studio-asset-detail-header border-b border-border px-5 py-4"}>
           <DialogTitle className={asset.type === "audio" ? "sr-only" : "flex min-w-0 items-center gap-2 text-base"}>
             <Icon className="h-4 w-4 text-primary" />
@@ -1181,14 +1173,9 @@ export function StudioAssetDetailDialog({
                     setCurrentIndex((cur) => Math.min(cur, Math.max(displayImages.length - 2, 0)));
                   }
                 }}
-                onAddImage={handleAddImage}
-                onReplaceImage={handleReplaceImage}
-                onRegenerate={handleRegenerate}
-                onImageToImage={handleImageToImageStyle}
                 i2iPhase={i2iPhase}
                 i2iMessage={i2iMessage}
                 generatePhase={generatePhase}
-                canImageToImage={canImageToImage}
                 onFaceFromImage={() => {
                   // A-1 写入点:高清人脸双钮→高清人脸
                   focusOnKind("高清人脸");
@@ -1214,9 +1201,6 @@ export function StudioAssetDetailDialog({
                 typeShotMessage={typeShotMessage}
                 onFillMissing={handleFillMissingQueue}
                 onInspectPrompt={handleInspectPrompt}
-                onCopyPrompt={() => copyText("出图提示词", draftPrompt || draftDescription || regenerationPrompt)}
-                onOpenSource={handleOpenSource}
-                onOpenFolder={handleOpenFolder}
                 /* 批3(10-24)+Round 3 ⑤/⑥:占位卡 CTA/完整度缺失 chip 直达生成全型路由
                  * ——高清人脸按有图择图生图/文生图路,表情差分接既有路,余型走
                  * handleTypeShot 型驱动件(route 分流:设定卡/美宣/道具=t2i+base_type,

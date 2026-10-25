@@ -86,13 +86,6 @@ function makeProps(overrides: Partial<PreviewPaneProps> = {}): PreviewPaneProps 
     onImageClick: vi.fn(),
     onTranscribe: vi.fn(),
     onRemoveImage: vi.fn(),
-    onAddImage: vi.fn(),
-    onReplaceImage: vi.fn(),
-    onRegenerate: vi.fn(),
-    onCopyPrompt: vi.fn(),
-    onOpenSource: vi.fn(),
-    onOpenFolder: vi.fn(),
-    onImageToImage: vi.fn(),
     onFaceFromImage: vi.fn(),
     onFaceFromText: vi.fn(),
     onExpression: vi.fn(),
@@ -205,7 +198,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
   });
 
   it("selects a card on click and highlights the current selection with a ring", () => {
-    const { container, props, rerender } = renderPane();
+    const { props, rerender } = renderPane();
 
     fireEvent.click(screen.getByRole("button", { name: "选中图片 姿态一" }));
     expect(props.onSelectImage).toHaveBeenCalledWith(1);
@@ -217,8 +210,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     expect(poseCard?.className).toContain("ring-2");
     expect(poseCard?.className).toContain("ring-primary");
     expect(mainCard?.className).not.toContain("ring-2");
-    // 工具行带全局选中图指示
-    expect(container.textContent).toContain("当前选中:姿态一");
+    // 10-25 用户令:工具行移除,全局选中图指示随之退役(选中 ring 仍生效)
   });
 
   it("keeps the card hover actions: full preview (#19) and remove (#11) with exact image+index", () => {
@@ -242,89 +234,24 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     fireEvent.click(screen.getByRole("button", { name: "删除图片 姿态一" }));
   });
 
-  it("keeps 更换图片 as the single tool-row entry for both zero-image and populated assets (#10, 复审 M1)", () => {
-    // 零图:空壳换主图链路直达
-    const empty = renderPane({ images: [] });
-    fireEvent.click(screen.getByRole("button", { name: "更换图片" }));
-    expect(empty.props.onReplaceImage).toHaveBeenCalledTimes(1);
-
-    cleanup();
-    // 有图:恒同一单钮,不随卡点名(回调恒换当前行主图)
-    const populated = renderPane();
-    fireEvent.click(screen.getByRole("button", { name: "更换图片" }));
-    expect(populated.props.onReplaceImage).toHaveBeenCalledTimes(1);
+  it("工具行整体移除(10-25 用户令):七个旧工具钮+选中尾注不再渲染", () => {
+    renderPane();
+    for (const name of ["重新出图", "复制出图提示词", "查看图片", "打开本地文件夹", "添加图片", "更换图片", "未选中图片"]) {
+      expect(screen.queryByText(name)).toBeNull();
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    }
+    expect(screen.queryByRole("button", { name: /图生图/ })).toBeNull();
   });
 
   it("renders the role zero-image skeleton: typed placeholders 全节(无未分类节,10-25 无类型图归自由)", () => {
     renderPane({ images: [] });
 
     expect(screen.getAllByText(/尚无/).length).toBeGreaterThanOrEqual(9); // 九型占位全在
-    expect(screen.getByText("未选中图片")).toBeTruthy();
   });
 
-  it("delegates every tool-row action without owning side effects (#1/#2/#3/#7/#8/#9/#10)", () => {
-    const { props } = renderPane();
 
-    fireEvent.click(screen.getByRole("button", { name: "重新出图" }));
-    fireEvent.click(screen.getByRole("button", { name: /图生图/ }));
-    fireEvent.click(screen.getByRole("button", { name: "复制出图提示词" }));
-    fireEvent.click(screen.getByRole("button", { name: "查看图片" }));
-    fireEvent.click(screen.getByRole("button", { name: "打开本地文件夹" }));
-    fireEvent.click(screen.getByRole("button", { name: "添加图片" }));
-    fireEvent.click(screen.getByRole("button", { name: "更换图片" }));
 
-    expect(props.onRegenerate).toHaveBeenCalledTimes(1);
-    expect(props.onImageToImage).toHaveBeenCalledTimes(1);
-    expect(props.onCopyPrompt).toHaveBeenCalledTimes(1);
-    expect(props.onOpenSource).toHaveBeenCalledTimes(1);
-    expect(props.onOpenFolder).toHaveBeenCalledTimes(1);
-    expect(props.onAddImage).toHaveBeenCalledTimes(1);
-    expect(props.onReplaceImage).toHaveBeenCalledTimes(1);
-  });
 
-  it("renders the image-to-image button right after 重新出图 in the tool row", () => {
-    renderPane();
-
-    const buttons = screen.getAllByRole("button");
-    const regenerateIndex = buttons.findIndex((button) => button.textContent?.includes("重新出图"));
-    const i2iIndex = buttons.findIndex((button) => button.textContent?.includes("图生图"));
-    expect(regenerateIndex).toBeGreaterThanOrEqual(0);
-    expect(i2iIndex).toBe(regenerateIndex + 1);
-  });
-
-  it("hides the image-to-image entry entirely for audio assets", () => {
-    renderPane({ asset: asset({ type: "audio" }), images: [] });
-    expect(screen.queryByRole("button", { name: /图生图/ })).toBeNull();
-  });
-
-  it("disables image-to-image with a reason title when the asset cannot transfer (clip / no image)", () => {
-    renderPane({
-      asset: asset({ type: "clip", name: "片段一" }),
-      images: [],
-      canImageToImage: false,
-    });
-
-    const button = screen.getByRole("button", { name: /图生图/ }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(button.getAttribute("title")).toContain("角色/场景/道具");
-  });
-
-  it("shows the Loader2 spinner and phase text while the style transfer is running", () => {
-    renderPane({ i2iPhase: "generating" });
-
-    const button = screen.getByRole("button", { name: /正在转换画风/ }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(button.querySelector(".animate-spin")).toBeTruthy();
-    expect(screen.getByText("正在转换画风…")).toBeTruthy();
-  });
-
-  it("disables image-to-image while the one-click generation phase is running", () => {
-    renderPane({ generatePhase: "generating" });
-
-    const button = screen.getByRole("button", { name: /图生图/ }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(button.getAttribute("title")).toBeTruthy();
-  });
 
   // 10-21 高清人脸:两路按钮迁居「高清人脸」节头(守卫/相位文案零变)
   it("hides the face portrait buttons by default and shows them in the 高清人脸 section header for role assets", () => {
@@ -429,13 +356,13 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
   });
 
   it("keeps the empty non-audio preview reachable for clip assets (工具行+尚无图片占位)", () => {
-    const { props } = renderPane({ asset: asset({ type: "clip", name: "片段一" }), images: [] });
+    renderPane({ asset: asset({ type: "clip", name: "片段一" }), images: [] });
 
     expect(screen.getByText("尚无图片")).toBeTruthy();
     expect(screen.queryByRole("video")).toBeNull();
-    expect(screen.getByRole("button", { name: "添加图片" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "更换图片" }));
-    expect(props.onReplaceImage).toHaveBeenCalledTimes(1);
+    // 10-25 用户令:工具行移除后 clip 单节区不再带旧工具钮
+    expect(screen.queryByRole("button", { name: "添加图片" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "更换图片" })).toBeNull();
   });
 });
 
@@ -622,12 +549,11 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
       expect(button.querySelector(".animate-spin")).toBeTruthy();
       expect(button.getAttribute("title")).toContain("全身定妆");
     }
-    // 互斥家族随动:人脸双钮/表情差分/图生图(工具行,精确名避撞人脸·图生图)/一键补缺全禁
+    // 互斥家族随动:人脸双钮/表情差分/一键补缺全禁(10-25 工具行移除,图生图钮退役)
     const faceSection = screen.getByRole("region", { name: "高清人脸" });
     expect((within(faceSection).getByRole("button", { name: "人脸·图生图" }) as HTMLButtonElement).disabled).toBe(true);
     const expressionSection = screen.getByRole("region", { name: "表情差分" });
     expect((within(expressionSection).getByRole("button", { name: "表情差分" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "图生图" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "一键补缺" }) as HTMLButtonElement).disabled).toBe(true);
   });
 

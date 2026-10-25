@@ -3,14 +3,9 @@ import type { LucideIcon } from "lucide-react";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import {
   ChevronDown,
-  Clipboard,
-  ExternalLink,
-  FolderOpen,
-  ImageIcon,
   Loader2,
   Maximize2,
   Music2,
-  Plus,
   ScanFace,
   Sparkles,
   TextSearch,
@@ -76,11 +71,7 @@ interface StudioAssetDetailPreviewPaneProps {
   onImageClick?: (index: number) => void;
   onTranscribe: () => void | Promise<void>;
   onRemoveImage: (image: AssetImage, index: number) => void | Promise<void>;
-  onAddImage: () => void | Promise<void>;
-  onReplaceImage: () => void | Promise<void>;
-  onRegenerate: () => void | Promise<void>;
   /** 10-19 图生图·画风转换:取全局选中图作唯一参考,qwen-image-2-1 本地渠道整体转画风。 */
-  onImageToImage?: () => void | Promise<void>;
   /** 画风转换相位("generating"|"done"|"failed"|null);在跑时 Loader2+相位文案并禁点。 */
   i2iPhase?: string | null;
   /** 画风转换相位文案(运行态按钮 title 全文,如「正在转换 主角 的画风...」)。 */
@@ -88,7 +79,6 @@ interface StudioAssetDetailPreviewPaneProps {
   /** 一键生成相位(互斥:任一生成相位在跑即禁点)。 */
   generatePhase?: string | null;
   /** 三轨且有图才可转(role/scene/tool 且有图);缺省 true 由装配方守门。 */
-  canImageToImage?: boolean;
   /** 10-21 高清人脸(用户令:图生图/文生图两路都要);仅角色轨由装配方置真。
    *  批3 返值化:boolean=完成/守卫拒(供一键补缺队列探成功),pane 只派发零消费。 */
   onFaceFromImage?: () => void | Promise<unknown>;
@@ -105,9 +95,6 @@ interface StudioAssetDetailPreviewPaneProps {
   expressionPhase?: string | null;
   /** 表情差分相位文案(运行态按钮 title 全文)。 */
   expressionMessage?: string;
-  onCopyPrompt: () => void | Promise<void>;
-  onOpenSource: () => void | Promise<void>;
-  onOpenFolder: () => void | Promise<void>;
   /** 批2(10-24):占位卡「点击生成」CTA 与完整度条核心缺失 chip 的直达生成入口;
    *  装配方路由(批3 起全型路由:高清人脸/表情差分接既有路,余型走按型出图件)。 */
   onGenerateByKind?: (kind: AssetImageKind) => void | Promise<void>;
@@ -144,14 +131,8 @@ export function StudioAssetDetailPreviewPane({
   onImageClick,
   onTranscribe,
   onRemoveImage,
-  onAddImage,
-  onReplaceImage,
-  onRegenerate,
-  onImageToImage,
   i2iPhase,
-  i2iMessage,
   generatePhase,
-  canImageToImage = true,
   onFaceFromImage,
   onFaceFromText,
   facePhase,
@@ -160,9 +141,6 @@ export function StudioAssetDetailPreviewPane({
   onExpression,
   expressionPhase,
   expressionMessage,
-  onCopyPrompt,
-  onOpenSource,
-  onOpenFolder,
   onGenerateByKind,
   completenessImages,
   canTypeShot = false,
@@ -176,25 +154,6 @@ export function StudioAssetDetailPreviewPane({
   const hasImagePreview = asset.type !== "audio" && images.length > 0;
   // 10-21 高清人脸/表情差分:与一键生成/画风转换互斥;批3 按型出图=通用第五路
   const generationBusy = !!i2iPhase || !!generatePhase || !!facePhase || !!expressionPhase || !!typeShotPhase;
-  const imageToImageDisabled = generationBusy || !canImageToImage;
-  const imageToImageTitle = !canImageToImage
-    ? "仅角色/场景/道具三轨且有图资产可转画风"
-    : generatePhase
-      ? "图片生成中，请稍候"
-      : i2iPhase
-        ? (i2iMessage || "正在转换画风，请稍候")
-        : facePhase
-          ? (faceMessage || "正在生成高清人脸，请稍候")
-          : expressionPhase
-            ? (expressionMessage || "正在生成表情差分，请稍候")
-            : typeShotPhase
-              ? (typeShotMessage || "正在按型出图，请稍候")
-              : undefined;
-  const i2iPhaseLabel = i2iPhase === "done"
-    ? "画风转换完成"
-    : i2iPhase === "failed"
-      ? "画风转换失败"
-      : "正在转换画风…";
   // 人脸·图生图:角色轨+有图;人脸·文生图:角色轨(无图亦可,描述锚身份)
   const faceFromImageDisabled = generationBusy || images.length === 0;
   const faceFromImageTitle = images.length === 0
@@ -291,8 +250,6 @@ export function StudioAssetDetailPreviewPane({
       </div>
     );
   }
-
-  const selectedImage = images[currentIndex];
   // Round 3 扩展令⑤:分节视图从 role 专属改图片三轨通用(按资产 type 取谱);
   // clip 无型谱(单节「图片」),audio 已在上方零动早退
   const track = asAssetImageTrack(asset.type);
@@ -305,7 +262,7 @@ export function StudioAssetDetailPreviewPane({
 
   /** 图卡:单击=选中(全局单选图);悬浮操作=放大(全屏预览)/删图(removable 守卫)。
    *  复审 M1(10-24):更换图片不进卡悬浮——回调恒换当前行主图(replaceImage 按行),
-   *  按卡点名会误导「换这张」(族兄弟卡尤其错目标);更换恒居工具行单钮(#10 新家)。 */
+   *  按卡点名会误导「换这张」(族兄弟卡尤其错目标);10-25 工具行移除,本注释随役。 */
   const renderImageCard = (image: AssetImage, index: number, widthClass: string) => {
     const selected = index === currentIndex;
     const removable = isImageRemovable ? isImageRemovable(image, index) : true;
@@ -759,56 +716,6 @@ export function StudioAssetDetailPreviewPane({
         )
       )}
 
-      {/* 工具行:作用于全局选中图(批1 守卫与原按钮区零变;i2i 三轨+有图门禁在装配方) */}
-      <div className="studio-asset-gallery-toolbar flex flex-wrap items-center gap-2">
-        <Button variant="default" size="sm" onClick={onRegenerate}>
-          <Sparkles className="mr-2 h-3.5 w-3.5" />
-          重新出图
-        </Button>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={onImageToImage}
-          disabled={imageToImageDisabled}
-          title={imageToImageTitle}
-        >
-          {i2iPhase ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Wand2 className="mr-2 h-3.5 w-3.5" />
-          )}
-          {i2iPhase ? i2iPhaseLabel : "图生图"}
-        </Button>
-        <Button variant="outline" size="sm" onClick={onCopyPrompt}>
-          <Clipboard className="mr-2 h-3.5 w-3.5" />
-          复制出图提示词
-        </Button>
-        <Button variant="outline" size="sm" onClick={onOpenSource}>
-          <ExternalLink className="mr-2 h-3.5 w-3.5" />
-          查看图片
-        </Button>
-        <Button variant="outline" size="sm" onClick={onOpenFolder}>
-          <FolderOpen className="mr-2 h-3.5 w-3.5" />
-          打开本地文件夹
-        </Button>
-        <Button variant="outline" size="sm" onClick={onAddImage}>
-          <Plus className="mr-2 h-3.5 w-3.5" />
-          添加图片
-        </Button>
-        {/* #10 更换图片恒居工具行单钮(复审 M1:回调恒换当前行主图,不随卡点名防误导;
-         *  零图空壳换主图链路同钮直达) */}
-        <Button variant="outline" size="sm" onClick={onReplaceImage}>
-          <ImageIcon className="mr-2 h-3.5 w-3.5" />
-          更换图片
-        </Button>
-        {selectedImage ? (
-          <span className="ml-auto min-w-0 max-w-56 truncate text-[11px] text-muted-foreground" title={selectedImage.name}>
-            当前选中:{selectedImage.name}
-          </span>
-        ) : (
-          <span className="ml-auto text-[11px] text-muted-foreground/70">未选中图片</span>
-        )}
-      </div>
     </div>
   );
 }

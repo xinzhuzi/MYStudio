@@ -392,7 +392,7 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
 
   it("壳不变(92vh×90vw+overflow-hidden)+双栏拆除为竖向单列滚动", () => {
     const source = readDialogSources();
-    expect(source).toContain("h-[92vh] w-[90vw]! max-w-[90vw]! overflow-hidden p-0");
+    expect(source).toContain("h-[92vh] w-[90vw]! max-w-[90vw]! overflow-hidden bg-card/50 p-0");
     expect(source).not.toContain("grid-cols-[minmax(280px,420px)_1fr]");
     expect(source).toContain("studio-asset-meta-region");
   });
@@ -671,15 +671,16 @@ describe("图生图·画风转换(10-19-daojie-ui-i2i-style-convert:i2iPhase 状
     const source = readDialogSources();
     expect(source).toContain("const [i2iPhase, setI2iPhase]");
     expect(source).toContain("const [i2iMessage, setI2iMessage]");
-    expect(source).toContain("const canImageToImage = isThreeTrackAsset && displayImages.length > 0");
+    // 10-25 用户令:工具行移除,canImageToImage 派生与画风转换入口随之退役
+    expect(source).not.toContain("const canImageToImage =");
   });
 
   it("预览面板接上派发与相位(i2iPhase/generatePhase/canImageToImage/onImageToImage)", () => {
     const source = readDialogSources();
-    expect(source).toContain("onImageToImage={handleImageToImageStyle}");
+    // 10-25 用户令:工具行移除,onImageToImage/canImageToImage 传参退役
+    expect(source).not.toContain("onImageToImage={handleImageToImageStyle}");
     expect(source).toContain("i2iPhase={i2iPhase}");
     expect(source).toContain("generatePhase={generatePhase}");
-    expect(source).toContain("canImageToImage={canImageToImage}");
   });
 
   it("一键生成按钮与图生图互斥(!!i2iPhase 禁用;批3 扩 typeShot 第五路)", () => {
