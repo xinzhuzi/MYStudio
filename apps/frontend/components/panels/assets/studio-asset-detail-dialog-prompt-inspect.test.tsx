@@ -138,13 +138,13 @@ afterEach(() => {
 });
 
 describe("③ 查看实发终稿(A-2③):探针状态机+末位回溯+弹层", () => {
-  it("通用态(无 focusKind)置灰,注明「点击任一生成按钮聚焦某型后可查」", () => {
+  it("通用态(无 focusKind)置灰,无提示行(R4 砍除)", () => {
     renderDialog(roleAsset({
       images: [{ name: "晏燎_无衣物定妆_v1", filePath: "role/f1.png", url: "media://f1" }],
     }));
 
     expect(finalDraftButton().disabled).toBe(true);
-    expect(screen.getByText("点击任一生成按钮聚焦某型后可查")).toBeTruthy();
+    expect(screen.queryByText("点击任一生成按钮聚焦某型后可查")).toBeNull();
   });
 
   it("聚焦型有产物且 tEXt ok:按钮解禁,弹层展示正向终稿+注入层全文+脚注", async () => {

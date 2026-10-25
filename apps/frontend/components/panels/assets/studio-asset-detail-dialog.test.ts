@@ -411,9 +411,9 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     // #14/#15 保存/删除两态可达(折叠摘要行+展开行尾)
     expect(source.match(/onClick=\{handleSave\}/g)?.length).toBeGreaterThanOrEqual(2);
     expect(source.match(/onClick=\{handleDelete\}/g)?.length).toBeGreaterThanOrEqual(2);
-    // 第20交互(19 项清单补录):提示词区独立「复制」钮直连 clipboard,不经 onCopyPrompt
-    expect(source).toContain("navigator.clipboard.writeText(draftPrompt)");
-    expect(source).toContain("disabled={!draftPrompt}");
+    // 10-26 R2 令:复制钮砍除(文本框全选即复制)
+    expect(source).not.toContain("navigator.clipboard.writeText(draftPrompt)");
+    expect(source).not.toContain("disabled={!draftPrompt}");
   });
 
   it("轮播拆除:无 Carousel 依赖,currentIndex 语义迁移为全局单选图(订阅链退役)", () => {

@@ -30,6 +30,7 @@ import { latestKindImage, singleKindReplacementFilePaths } from "@/lib/studio/as
 import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
+import type { GenerationOutcomeRecord } from "./studio-asset-generation-result-dialog";
 
 /**
  * 阶段参考图锚(10-25 阶段矩阵 T3,PRD §3.3):该阶段组内最新一张(任意型)的 url。
@@ -98,6 +99,14 @@ export function useStudioAssetDialogActions(ctx: {
    *  ——经此钩子与生成派发同帧写 focusKind,防面板构成区滞留旧聚焦型/通用态
    *  与实际执行型错位。 */
   onFillMissingKindFocus?: (kind: AssetImageKind) => void;
+  /** R5 生成结果弹窗(10-26 用户令:每次生成完成自动弹出):四路 done 即发的观察者
+   *  回调(纯观察,不改返回值/发车参数);record 自含 fromQueue 字段(队列路逐发
+   *  累积,弹窗侧末尾汇总呈现;弹窗触发只挂 result.phase==='done',与 get/
+   *  updated/savedToLibrary 无关,写回失败弹窗照弹走降级文案)。 */
+  onImageGenerated?: (record: GenerationOutcomeRecord) => void;
+  /** R5 批量补缺队列收口(末尾汇总定死):成功/中止两支各发一次;早退守卫零发。
+   *  回调触发点无宿主态感知,孤儿防护(宿主关/跨资产)在弹窗侧。 */
+  onFillMissingQueueSettled?: (summary: { total: number; completed: number; abortedKind?: string }) => void;
   /** 10-25 追加令 Phase C:按型主体句槽读取(t2i 路/人脸文生图路该型优先用槽内句)。 */
   getKindSubjectOverride?: (kind: AssetImageKind) => string | undefined;
   /** 10-25 追加令·i2i 指令可编辑:指令覆盖读取(非空=本次生成用此指令作终稿;
@@ -171,6 +180,8 @@ export function useStudioAssetDialogActions(ctx: {
     removedFamilyPaths,
     resolveAssetGenerationReferenceImage,
     resolveThreeTrackAssetType,
+    onImageGenerated,
+    onFillMissingQueueSettled,
   } = ctx;
   /** 展示序缺省回落本行图(资产库面板等无族聚显入口的调用方零行为变化)。 */
   const carouselImages = displayImages ?? images;
@@ -685,6 +696,8 @@ export function useStudioAssetDialogActions(ctx: {
     setFacePhase("generating");
     setFaceMessage(`正在生成 ${asset.name} 的高清人脸(${modeLabel})...`);
     try {
+      // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
+      const startedAt = Date.now();
       const result = await generateAssetFacePortrait(
         {
           assetId: asset.id,
@@ -716,8 +729,15 @@ export function useStudioAssetDialogActions(ctx: {
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        // R5 结果回调捕获位:updated.filePath=新产物主图(仅 savedToLibrary 才带给弹窗读 tEXt)
+        let outcomeFilePath: string | undefined;
+        let outcomePreviewUrl: string | undefined;
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            outcomeFilePath = updated.filePath || undefined;
+            outcomePreviewUrl = updated.previewUrl || updated.thumbnailUrl;
+          }
           if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
             // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
             toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
@@ -743,6 +763,21 @@ export function useStudioAssetDialogActions(ctx: {
             setCurrentIndex(0);
           }
         }
+        // R5 生成结果回调(done 即发,与 get 成败无关;get 返 null 时 managedFilePath
+        // 缺席→弹窗②段走「未写回资产库」降级,弹窗照弹)
+        onImageGenerated?.({
+          assetId: asset.id,
+          assetName: asset.name,
+          kind: "高清人脸",
+          stage: undefined,
+          subjectText: subjectText ?? null,
+          imageName: resultImageName,
+          imageLocalPath: result.imageLocalPath,
+          managedFilePath: savedToLibrary ? outcomeFilePath : undefined,
+          previewUrl: outcomePreviewUrl,
+          elapsedMs: Date.now() - startedAt,
+          fromQueue: options?.laneGuard === false,
+        });
         if (!savedToLibrary) {
           toast.warning(`「${asset.name}」高清人脸已生成，但未能写回资产库主图`);
         } else {
@@ -838,6 +873,8 @@ export function useStudioAssetDialogActions(ctx: {
     setExpressionPhase("generating");
     setExpressionMessage(`正在生成 ${asset.name} 的表情差分...`);
     try {
+      // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
+      const startedAt = Date.now();
       const result = await generateAssetExpressionSheet(
         {
           assetId: asset.id,
@@ -866,8 +903,15 @@ export function useStudioAssetDialogActions(ctx: {
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        // R5 结果回调捕获位:updated.filePath=新产物主图(仅 savedToLibrary 才带给弹窗读 tEXt)
+        let outcomeFilePath: string | undefined;
+        let outcomePreviewUrl: string | undefined;
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            outcomeFilePath = updated.filePath || undefined;
+            outcomePreviewUrl = updated.previewUrl || updated.thumbnailUrl;
+          }
           if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
             // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
             toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
@@ -893,6 +937,20 @@ export function useStudioAssetDialogActions(ctx: {
             setCurrentIndex(0);
           }
         }
+        // R5 生成结果回调(done 即发,与 get 成败无关;表情差分恒 i2i 路,主体句不参与)
+        onImageGenerated?.({
+          assetId: asset.id,
+          assetName: asset.name,
+          kind: "表情差分",
+          stage: undefined,
+          subjectText: null,
+          imageName: resultImageName,
+          imageLocalPath: result.imageLocalPath,
+          managedFilePath: savedToLibrary ? outcomeFilePath : undefined,
+          previewUrl: outcomePreviewUrl,
+          elapsedMs: Date.now() - startedAt,
+          fromQueue: options?.laneGuard === false,
+        });
         if (!savedToLibrary) {
           toast.warning(`「${asset.name}」表情差分已生成，但未能写回资产库主图`);
         } else {
@@ -946,6 +1004,8 @@ export function useStudioAssetDialogActions(ctx: {
     setTypeShotPhase("generating");
     setTypeShotMessage(`正在按原词重掷 ${asset.name}...`);
     try {
+      // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
+      const startedAt = Date.now();
       const result = await rerollAssetImageFromPromptText(
         {
           assetId: asset.id,
@@ -973,10 +1033,17 @@ export function useStudioAssetDialogActions(ctx: {
         for (const stalePath of singleKindReplacementFilePaths(images, result.resultKind)) {
           await getStudioAssetsBridge()?.removeImage?.({ assetId: asset.id, imageFilePath: stalePath });
         }
-        await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, result.resultImageName);
+        // R5 结果回调:写回返回值接住(写回失败则 managedFilePath 缺席→弹窗②段降级)
+        const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, result.resultImageName);
+        let outcomeFilePath: string | undefined;
+        let outcomePreviewUrl: string | undefined;
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            outcomeFilePath = updated.filePath || undefined;
+            outcomePreviewUrl = updated.previewUrl || updated.thumbnailUrl;
+          }
           if (updated && (!getActiveAssetId || getActiveAssetId() === asset.id)) {
             const newImgs: AssetImage[] = [];
             if (updated.previewUrl || updated.thumbnailUrl) {
@@ -996,6 +1063,20 @@ export function useStudioAssetDialogActions(ctx: {
             setCurrentIndex(0);
           }
         }
+        // R5 生成结果回调(done 即发;重掷=finalText 逐字作主体句展示,写回失败走降级)
+        onImageGenerated?.({
+          assetId: asset.id,
+          assetName: asset.name,
+          kind: result.resultKind,
+          stage: undefined,
+          subjectText: payload.finalText,
+          imageName: result.resultImageName,
+          imageLocalPath: result.imageLocalPath,
+          managedFilePath: savedToLibrary ? outcomeFilePath : undefined,
+          previewUrl: outcomePreviewUrl,
+          elapsedMs: Date.now() - startedAt,
+          fromQueue: false,
+        });
         toast.success(`「${asset.name}」按原词重掷完成`);
       } else {
         setTypeShotPhase("failed");
@@ -1132,6 +1213,8 @@ export function useStudioAssetDialogActions(ctx: {
       setTypeShotMessage(`正在生成 ${asset.name} 的${kind}...`);
     }
     try {
+      // R5 生成结果回调计时(全链口径:删旧图/写库/取产物,非纯引擎耗时)
+      const startedAt = Date.now();
       const result = await generateAssetTypeShot(
         {
           assetId: asset.id,
@@ -1168,8 +1251,15 @@ export function useStudioAssetDialogActions(ctx: {
         const savedToLibrary = await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, resultImageName);
         // 广播资产库更新:提取区 chip 颜色等依赖资产库缓存的面据此自动刷新
         eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        // R5 结果回调捕获位:updated.filePath=新产物主图(仅 savedToLibrary 才带给弹窗读 tEXt)
+        let outcomeFilePath: string | undefined;
+        let outcomePreviewUrl: string | undefined;
         if (getStudioAssetsBridge()?.get) {
           const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated) {
+            outcomeFilePath = updated.filePath || undefined;
+            outcomePreviewUrl = updated.previewUrl || updated.thumbnailUrl;
+          }
           if (updated && getActiveAssetId && getActiveAssetId() !== asset.id) {
             // 10-25 深审修(跨资产污染):生成期间切换资产→产物已入库,表单/图集不回填
             toast.info(`「${asset.name}」生成完成已入库；当前已切换资产，弹窗状态不回填`);
@@ -1195,6 +1285,21 @@ export function useStudioAssetDialogActions(ctx: {
             setCurrentIndex(0);
           }
         }
+        // R5 生成结果回调(done 即发,与 get/updated/savedToLibrary 无关——「每次生成
+        // 完成自动弹出」;managedFilePath 仅决定弹窗②段降级与否)
+        onImageGenerated?.({
+          assetId: asset.id,
+          assetName: asset.name,
+          kind,
+          stage,
+          subjectText: subjectText ?? null,
+          imageName: resultImageName,
+          imageLocalPath: result.imageLocalPath,
+          managedFilePath: savedToLibrary ? outcomeFilePath : undefined,
+          previewUrl: outcomePreviewUrl,
+          elapsedMs: Date.now() - startedAt,
+          fromQueue: !managedLane,
+        });
         if (!savedToLibrary) {
           toast.warning(`「${asset.name}」${kind}已生成，但未能写回资产库主图`);
         } else {
@@ -1291,6 +1396,9 @@ export function useStudioAssetDialogActions(ctx: {
           setTypeShotPhase("failed");
           setTypeShotMessage(`${kind}补缺失败，队列中止`);
           toast.error(`${kind}补缺失败，队列中止（已完成 ${completed}/${missing.length}）`);
+          // R5 队列收口(末尾汇总定死):中止支带 abortedKind(逐发记录已由各执行器
+          // fromQueue 回调累积;孤儿防护在弹窗侧)
+          onFillMissingQueueSettled?.({ total: missing.length, completed, abortedKind: kind });
           return;
         }
         completed += 1;
@@ -1298,6 +1406,8 @@ export function useStudioAssetDialogActions(ctx: {
       setTypeShotPhase("done");
       setTypeShotMessage("一键补缺完成！");
       toast.success(`「${asset.name}」已补全 ${completed} 类核心图`);
+      // R5 队列收口(末尾汇总定死):成功支(逐发记录已由各执行器 fromQueue 回调累积)
+      onFillMissingQueueSettled?.({ total: missing.length, completed });
     } finally {
       setTimeout(() => {
         setTypeShotPhase(null);

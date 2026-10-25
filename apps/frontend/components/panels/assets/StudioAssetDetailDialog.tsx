@@ -29,8 +29,6 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
-  Copy,
-  Dices,
   FileText,
   ImageIcon,
   Loader2,
@@ -55,30 +53,25 @@ import {
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
-import { ASSET_IMAGE_KIND_ASPECTS, classifyAssetImage, latestKindImage } from "@/lib/studio/asset-image-kind";
+import { classifyAssetImage, latestKindImage } from "@/lib/studio/asset-image-kind";
 import { clusterAssetStages } from "@/lib/studio/asset-stage-prompts";
 import { parseWorkflowPrompt } from "@/lib/studio/workflow-prompt-parser";
-import {
-  buildPromptLayerSummary,
-  getPromptLayers,
-  getPromptStyleBaseLayer,
-  parsePromptOverrides,
-} from "@/lib/studio/asset-prompt-layers";
+import { parsePromptOverrides } from "@/lib/studio/asset-prompt-layers";
 import {
   buildFinalDraftCandidates,
   resolvePromptOwnerNote,
-  PROMPT_TEXT_BRIDGE_MISSING_LABEL,
-  PROMPT_TEXT_DEGRADATION_LABELS,
   type PromptInspectCandidate,
   type PromptTextFailReason,
 } from "@/lib/studio/asset-prompt-inspect";
 import { getAssetTypeShotProfile } from "@/lib/studio/asset-type-shot";
-import { FACE_I2I_INSTRUCTION } from "@/lib/studio/asset-face-portrait";
-import { EXPRESSION_I2I_INSTRUCTION } from "@/lib/studio/asset-expression-sheet";
-import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import { StudioAssetSourcePromptDialog } from "./studio-asset-source-prompt-dialog";
 import { StudioAssetPromptTextDialog, type PromptTextInspectTarget } from "./studio-asset-prompt-text-dialog";
+import {
+  StudioAssetGenerationResultDialog,
+  type GenerationOutcome,
+  type GenerationOutcomeRecord,
+} from "./studio-asset-generation-result-dialog";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";
 import { StudioAssetRoleSkills } from "./studio-asset-role-skills";
@@ -120,27 +113,6 @@ const TYPE_LABEL = {
   clip: "视频素材",
   audio: "配音",
 } as const;
-
-/**
- * 指令卡取源分型(10-25 分层面板役 A-2,PRD §4.0 推论+事实9):指令层真源按入口族
- * 分三处——按型 i2i 族=型档案 i2iInstruction(asset-type-shot);高清人脸=
- * FACE_I2I_INSTRUCTION(asset-face-portrait);表情差分=九宫格指令常量
- * (asset-expression-sheet)。t2i 族(设定卡/美宣/道具)无固定指令,返回 null
- * (指令卡位换「主体句参与」标记)。只读展示,不改任何生成行为。
- */
-function resolveFocusInstruction(kind: AssetImageKind): { label: string; text: string } | null {
-  if (kind === "高清人脸") {
-    return { label: "高清人脸 · 图生图固定指令", text: FACE_I2I_INSTRUCTION };
-  }
-  if (kind === "表情差分") {
-    return { label: "表情差分 · 九宫格固定指令", text: EXPRESSION_I2I_INSTRUCTION };
-  }
-  const profile = getAssetTypeShotProfile(kind);
-  if (profile?.route === "i2i" && profile.i2iInstruction) {
-    return { label: `${kind} · 按型出图 i2i 指令`, text: profile.i2iInstruction };
-  }
-  return null;
-}
 
 /**
  * focusKind 是否属 i2i 族(§4.0 参与矩阵):按型出图 i2i 型(型档案 route=i2i)+
@@ -190,9 +162,9 @@ type FinalDraftProbe =
   | { status: "bridge-missing" }
   | { status: "ready"; candidate: PromptInspectCandidate };
 
-/** ③ 按钮旁小字(probe 态→注明文案;ready=PRD 钉的固定小字)。 */
+/** ③ 按钮旁小字(probe 态→注明文案;ready=PRD 钉的固定小字;idle 空=R4 砍除提示行)。 */
 const FINAL_DRAFT_NOTE_BY_STATUS: Record<FinalDraftProbe["status"], string> = {
-  idle: "点击任一生成按钮聚焦某型后可查",
+  idle: "",
   "no-products": "该型尚无产物",
   probing: "正在读取该型最近产物…",
   unreadable: "该型最近产物未携带提示词元数据",
@@ -210,10 +182,6 @@ type StagePromptTextEntry =
   | { status: "probing" }
   | { status: "ready"; finalText: string; charCount: number }
   | { status: "failed"; reason: PromptTextFailReason | "bridge-missing" | "parse-drift" };
-
-/** parse-drift 降级文案(tEXt 在但键位漂移;「查词」弹层可看原始 tEXt,禁编造终稿)。 */
-const STAGE_PROMPT_PARSE_DRIFT_LABEL =
-  "该图提示词元数据键位漂移,无法解构终稿;可点「查词」查看原始 tEXt";
 
 /** 阶段缓存键(PRD §3.2 钉「按 stage+kind 缓存」;切资产/关弹窗整表清零)。 */
 function stagePromptCacheKey(stage: string, kind: AssetImageKind): string {
@@ -284,16 +252,22 @@ export function StudioAssetDetailDialog({
   const [promptOverridesHydrated, setPromptOverridesHydrated] = useState(false);
   // 追加令·i2i 指令可编辑:会话级指令覆盖(非空=本次生成用此指令作终稿);不持久化
   const [instructionDrafts, setInstructionDrafts] = useState<Partial<Record<AssetImageKind, string>>>({});
-  // 指令卡编辑态开合(作用于当前 focusKind;置焦/清焦即收)
-  const [instructionEditOpen, setInstructionEditOpen] = useState(false);
+  // 指令卡编辑态开合(作用于当前 focusKind;置焦/清焦即收;值位随构成区砍除退役)
+  const [, setInstructionEditOpen] = useState(false);
   // ③ 实发终稿(A-2③):探针态+弹层目标(弹层目标亦承载 B-3 查词,共用壳)
   const [finalDraftProbe, setFinalDraftProbe] = useState<FinalDraftProbe>({ status: "idle" });
   const [promptInspectTarget, setPromptInspectTarget] = useState<PromptTextInspectTarget | null>(null);
+  // R5 生成结果弹窗(10-26 用户令:每次生成完成自动弹出):单发记录/队列末尾汇总;
+  // 孤儿防护双闸见 handleImageGenerated/handleQueueSettled(宿主关/切资产全闭环)
+  const [generationOutcome, setGenerationOutcome] = useState<GenerationOutcome | null>(null);
+  // R5 队列逐发累积池(fromQueue 记录;队列收口一次取走汇总,跨会话恒清零)
+  const queueRecordsRef = useRef<GenerationOutcomeRecord[]>([]);
   // 10-25 阶段矩阵(T2/T3 共用,PRD §3.2/§3.3):生成路「阶段」选择与子区聚焦共用;
   // null=「无」(T3 默认);子区展示位回落聚类末位(最高境界,§3.2)。随弹窗关/切资产重置。
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
   // T2 阶段子区懒读缓存(阶段__型→终稿/降级态;PRD 钉组件态,弹窗关清)+在飞去重集
-  const [stageTextCache, setStageTextCache] = useState<Record<string, StagePromptTextEntry>>({});
+  // (值位随构成区砍除退役:读取走 ref,本态仅作缓存写入的重渲染触发)
+  const [, setStageTextCache] = useState<Record<string, StagePromptTextEntry>>({});
   const stageTextCacheRef = useRef<Record<string, StagePromptTextEntry>>({});
   const stageReadInFlightRef = useRef<Set<string>>(new Set());
   // 会话代(10-25 复审竞态修):复位点(关弹窗/切资产 resetStageState)递增——在飞读取的
@@ -302,14 +276,12 @@ export function StudioAssetDetailDialog({
   // 结果照常落缓存。取代旧 cancelled 旗:cancelled 在依赖重跑时也置位,在飞结果被整批
   // 丢弃+重跑轮 pending 又滤掉在飞键→作业完成后无人再触发,该阶段型卡正文区静默空白。
   const stageSessionRef = useRef(0);
-  // T2 型卡全文折叠态(仅展开渲染长文;键=阶段__型;置焦/切阶段不强制收,关弹窗清)
-  const [stageKindExpanded, setStageKindExpanded] = useState<Record<string, boolean>>({});
+  // T2 型卡全文折叠态(仅展开渲染长文;键=阶段__型;置焦/切阶段不强制收,关弹窗清;
+  // 值位随构成区砍除退役,复位走 resetStageState)
+  const [, setStageKindExpanded] = useState<Record<string, boolean>>({});
 
   // 获取当前项目的视觉手册 ID
   const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
-  // 10-25 分层面板役(§4.0 脚注/事实8):设置页「全局默认型」兜底只感知不改动——
-  // 非空时「提示词构成」折叠组头部显示一行兜底提示(引擎 engine:577 条件注入)
-  const globalImageBaseType = useAppSettingsStore((s) => s.imageGenerationSettings.localImageBaseType);
   const activeTtsProjectId = useTtsStore((s) => s.activeProjectId);
   const ttsProjects = useTtsStore((s) => s.projects);
   const voiceProfiles = useTtsStore((s) => s.voiceProfiles);
@@ -327,6 +299,9 @@ export function StudioAssetDetailDialog({
   // 完成时对照当前弹窗资产,切换过即只入库不回填表单(防 A 产物污染 B 草稿/图集)
   const activeAssetIdRef = useRef<string | null>(asset?.id ?? null);
   activeAssetIdRef.current = asset?.id ?? null;
+  // R5 孤儿防护闸①:宿主开关活取探针(每渲染同步;生成完成回调迟到时对照,宿主已关零作用)
+  const hostOpenRef = useRef(open);
+  hostOpenRef.current = open;
   // 10-19 用户令:点击图卡开全屏缩放预览(MediaPreviewModal,滚轮缩放/双击/拖拽/翻页)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // 10-24 布局重造批1:元信息区折叠态(默认展开;localStorage 记忆)
@@ -535,6 +510,9 @@ export function StudioAssetDetailDialog({
       setPreviewIndex(null);
       setFocusKind(null);
       setPromptInspectTarget(null);
+      // R5 结果弹窗随主弹窗关整清(「宿主关时已弹」时序;「关后才弹」由回调守卫拦)
+      setGenerationOutcome(null);
+      queueRecordsRef.current = [];
       // 10-25 阶段矩阵:阶段选择/懒读缓存/折叠态随弹窗关整清(PRD §四生命周期)
       resetStageState();
     }
@@ -552,6 +530,8 @@ export function StudioAssetDetailDialog({
       setFocusKind(null);
       setPrePolishPrompt(null);
       setPromptInspectTarget(null);
+      setGenerationOutcome(null);
+      queueRecordsRef.current = [];
       setPromptOverridesDraft({});
       setPromptOverridesHydrated(false);
       setInstructionDrafts({});
@@ -569,6 +549,9 @@ export function StudioAssetDetailDialog({
     setFocusKind(null);
     setPrePolishPrompt(null);
     setPromptInspectTarget(null);
+    // R5 结果弹窗/队列累积随切资产清(旧资产会话的记录不带入新宿主)
+    setGenerationOutcome(null);
+    queueRecordsRef.current = [];
     setPromptOverridesDraft({});
     setPromptOverridesHydrated(false);
     setInstructionDrafts({});
@@ -641,6 +624,29 @@ export function StudioAssetDetailDialog({
     setInstructionEditOpen(false);
   };
 
+  // R5 生成结果回调(10-26 用户令:每次生成完成自动弹出):四路 done 即发,与 get/
+  // 写回成败无关(写回失败弹窗照弹,②段走降级文案)。孤儿防护双闸——①宿主关后
+  // 回调零作用(hostOpenRef 活取);②跨资产 record 丢弃(单发/队列同闸:单发防旧资产
+  // 结果弹错宿主,队列防切资产后旧资产汇总盖新宿主——对齐 10-25 深审修哲学;丢弃路
+  // 靠既有 toast「已入库;不回填」+库内产物兜底告知)。
+  const handleImageGenerated = (record: GenerationOutcomeRecord) => {
+    if (!hostOpenRef.current) return;
+    if (record.assetId !== activeAssetIdRef.current) return;
+    if (record.fromQueue) {
+      queueRecordsRef.current = [...queueRecordsRef.current, record];
+      return;
+    }
+    setGenerationOutcome({ records: [record], batch: null });
+  };
+  // R5 队列收口=末尾汇总(方案定死):恒先清空 ref 防跨会话陈旧累积;宿主关/零记录
+  // 不弹(同资产关后再开=队列继续且汇总照弹,记录连续)。
+  const handleQueueSettled = (batch: { total: number; completed: number; abortedKind?: string }) => {
+    const records = queueRecordsRef.current;
+    queueRecordsRef.current = [];
+    if (!hostOpenRef.current || records.length === 0) return;
+    setGenerationOutcome({ records, batch });
+  };
+
   // This action factory is named with a use* prefix for historical API
   // compatibility, but it is a pure closure factory. Invoke it on every
   // render before the nullable-asset early return so React hook ordering is
@@ -694,6 +700,8 @@ export function StudioAssetDetailDialog({
     setTypeShotPhase,
     setTypeShotMessage,
     onFillMissingKindFocus: focusOnKind,
+    onImageGenerated: handleImageGenerated,
+    onFillMissingQueueSettled: handleQueueSettled,
     getKindSubjectOverride: (kind) => promptOverridesDraft[kind]?.trim() || undefined,
     getInstructionOverride: (kind) => instructionDrafts[kind]?.trim() || undefined,
     promptOverridesDraft: promptOverridesHydrated ? (promptOverridesDraft as Record<string, string>) : undefined,
@@ -742,25 +750,6 @@ export function StudioAssetDetailDialog({
     });
   };
 
-  // T2 阶段提示词·查词/重掷(10-25 阶段矩阵,PRD §3.2):两钮均构造既有
-  // PromptTextInspectTarget(含 imageUrl)开既有弹层——重掷即弹层内 B-4「用此词
-  // 重掷」逐字路,零新动作;目标=该阶段该型组最新一张(组内 latest)。
-  const openStagePromptInspect = (
-    latest: FamilyDisplayImageEntry,
-    intent: "inspect" | "reroll",
-  ) => {
-    setPromptInspectTarget({
-      imagePath: latest.filePath,
-      imageName: latest.name,
-      imageUrl: latest.url,
-      title: intent === "reroll" ? `重掷 · ${latest.name}` : `查词 · ${latest.name}`,
-      ownerNote: resolvePromptOwnerNote(latest, asset.id),
-      footnote: intent === "reroll"
-        ? "弹层内「用此词重掷」按该图引擎实收终稿原路重掷(同配方新掷)"
-        : undefined,
-    });
-  };
-
   const detail = fullAsset || asset;
   const Icon = TYPE_ICON[asset.type];
   const displayName = getAssetDisplayName(asset);
@@ -781,13 +770,9 @@ export function StudioAssetDetailDialog({
   const roleVoiceBinding = asset.type === "role" ? roleVoiceBindings[roleSpeakerId] : undefined;
   const roleVoiceProfile = roleVoiceBinding ? voiceProfiles[roleVoiceBinding.profileId] : undefined;
 
-  // 10-25 分层面板役 A-2 聚焦态派生:focusKind→i2i 族判定/型层分层/指令卡取源/
-  // 折叠组收起摘要(全部只读展示,生成行为零变)
+  // 10-25 分层面板役 A-2 聚焦态派生:focusKind→i2i 族判定(主体句降态/槽资格用;
+  // 10-26 用户令:型层分层/指令卡取源/构成摘要随旧构成区砍除退役)
   const focusIsI2iFamily = focusKind ? isI2iFocusKind(focusKind) : false;
-  const focusLayers = focusKind ? getPromptLayers(focusKind) : null;
-  // 底座层与聚焦无关恒可取(通用态展开也展示底座两卡)
-  const promptStyleBase = focusLayers?.base ?? getPromptStyleBaseLayer();
-  const focusInstruction = focusKind ? resolveFocusInstruction(focusKind) : null;
   // Phase C(10-25 追加令):主体句槽派生——槽在场=框绑槽值;eligible=t2i 族或
   // 高清人脸(其文生图路主体句参与;i2i 族主体句不参与,槽无意义不展示)
   const kindSlotActive = !!focusKind && promptOverridesDraft[focusKind] !== undefined;
@@ -811,11 +796,6 @@ export function StudioAssetDetailDialog({
       return { ...prev, [focusKind]: draftPrompt };
     });
   };
-  // 追加令·i2i 指令可编辑:当前聚焦型的覆盖态
-  const focusInstructionOverrideActive = !!focusKind && !!instructionDrafts[focusKind]?.trim();
-  const compositionSummary = focusKind
-    ? (buildPromptLayerSummary(focusKind) ?? "点击任一生成按钮查看该型构成")
-    : "点击任一生成按钮查看该型构成";
 
   return (
     <>
@@ -988,7 +968,57 @@ export function StudioAssetDetailDialog({
                      | 设定(非 audio) */}
                     {asset.type !== "audio" ? (
                       <section className="studio-asset-prompt-region min-w-0 space-y-1.5" aria-label="提示词">
-                        <div className="text-xs font-medium text-muted-foreground">提示词</div>
+                        {/* R1/R3(10-26 用户令):「查看源提示词/查看实发终稿」收敛到首行紧凑
+                            动作组;R2 复制钮砍除(文本框全选即复制);R4 idle 态提示行砍除
+                            (非 idle 旁注仍随 probe 态展示) */}
+                        <div className="flex min-w-0 items-center justify-between gap-2">
+                          <div className="text-xs font-medium text-muted-foreground">提示词</div>
+                          <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                            {/* ② 源提示词 JSON 弹窗(10-26 用户令:砍旧构成四层卡,一钮直出) */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 gap-1 text-[11px]"
+                              onClick={() => setSourcePromptOpen(true)}
+                              title="弹窗展示该型在 qi21_bases.json 中的原始提示词数据(JSON 格式)"
+                            >
+                              <FileText className="h-3 w-3" />
+                              查看源提示词
+                            </Button>
+                            {/* ③ 查看实发终稿(A-2③):探针 ready 才可点(focusKind 组末位
+                                回溯读 tEXt);无聚焦/无产物/全无 tEXt 置灰注明(§4.4);
+                                弹层=正向终稿+注入层全文(共用查词壳) */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 gap-1 text-[11px]"
+                              disabled={finalDraftProbe.status !== "ready"}
+                              onClick={handleOpenFinalDraft}
+                              title={
+                                finalDraftProbe.status === "ready"
+                                  ? "查看该型最近产物的引擎实收终稿"
+                                  : finalDraftProbe.status === "idle"
+                                    ? "聚焦某型后可查看该型最近产物的实发终稿"
+                                    : FINAL_DRAFT_NOTE_BY_STATUS[finalDraftProbe.status]
+                              }
+                            >
+                              {finalDraftProbe.status === "probing" ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <FileText className="h-3 w-3" />
+                              )}
+                              查看实发终稿
+                            </Button>
+                            {FINAL_DRAFT_NOTE_BY_STATUS[finalDraftProbe.status] ? (
+                              <span
+                                className="studio-asset-final-draft-note min-w-0 truncate text-[10px] text-muted-foreground/80"
+                                title={FINAL_DRAFT_NOTE_BY_STATUS[finalDraftProbe.status]}
+                              >
+                                {FINAL_DRAFT_NOTE_BY_STATUS[finalDraftProbe.status]}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
                         {/* ① 主体句(主位可编辑;Phase C:聚焦型可开「本型专用」槽)。
                             头部行旁=T3「阶段」选择器(10-25 阶段矩阵,PRD §3.3):选项=
                             已聚类阶段集+「无」(默认);守卫同子区(<2 阶段不渲染);
@@ -1069,62 +1099,6 @@ export function StudioAssetDetailDialog({
                             />
                           </>
                         )}
-                        {/* 按钮行(10-26 用户令:砍润色/一键生成/还原,只留复制——生成走各型节头钮) */}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 gap-1 text-[11px]"
-                            onClick={() => draftPrompt && navigator.clipboard.writeText(draftPrompt).then(() => toast.success("已复制"))}
-                            disabled={!draftPrompt}
-                          >
-                            <Copy className="h-3 w-3" />
-                            复制
-                          </Button>
-                        </div>
-                        {/* ② 源提示词 JSON 弹窗(10-26 用户令:砍旧构成四层卡,一钮直出) */}
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 gap-1 text-[11px]"
-                            onClick={() => setSourcePromptOpen(true)}
-                            title="弹窗展示该型在 qi21_bases.json 中的原始提示词数据(JSON 格式)"
-                          >
-                            <FileText className="h-3 w-3" />
-                            查看源提示词
-                          </Button>
-                        </div>
-                        {/* ③ 查看实发终稿(A-2③,10-25 分层面板役):探针 ready 才可点
-                            (focusKind 组末位回溯读 tEXt);无聚焦/无产物/全无 tEXt
-                            置灰注明(§4.4);弹层=正向终稿+注入层全文(共用查词壳) */}
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 gap-1 text-[11px]"
-                            disabled={finalDraftProbe.status !== "ready"}
-                            onClick={handleOpenFinalDraft}
-                            title={
-                              finalDraftProbe.status === "ready"
-                                ? "查看该型最近产物的引擎实收终稿"
-                                : FINAL_DRAFT_NOTE_BY_STATUS[finalDraftProbe.status]
-                            }
-                          >
-                            {finalDraftProbe.status === "probing" ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <FileText className="h-3 w-3" />
-                            )}
-                            查看实发终稿
-                          </Button>
-                          <span
-                            className="studio-asset-final-draft-note min-w-0 truncate text-[10px] text-muted-foreground/80"
-                            title={FINAL_DRAFT_NOTE_BY_STATUS[finalDraftProbe.status]}
-                          >
-                            {FINAL_DRAFT_NOTE_BY_STATUS[finalDraftProbe.status]}
-                          </span>
-                        </div>
                       </section>
                     ) : null}
                     {asset.type !== "audio" ? (
@@ -1153,7 +1127,7 @@ export function StudioAssetDetailDialog({
                   <div className="text-sm font-medium text-foreground">此角色尚无详细数据</div>
                   <p className="text-xs text-muted-foreground">
                     「{displayName}」在资产库中仅有名称记录，缺少描述、设定和图片。
-                    可在「提示词」区域走完整生成流程：润色(已砍) → 生成图片 → 保存。
+                    可在「提示词」区域填写主体句，在各型节头点「生成…」出图，完成后自动弹出结果确认，再点「保存」。
                   </p>
                 </div>
               )}
@@ -1281,6 +1255,15 @@ export function StudioAssetDetailDialog({
         open={sourcePromptOpen}
         onOpenChange={setSourcePromptOpen}
         initialKind={focusKind}
+      />
+      {/* R5 生成结果弹窗(10-26 用户令:每次生成完成自动弹出)。挂载守卫=宿主开+有
+          记录:宿主关后任何异步竞态漏网 setState 也零渲染(嵌套弹窗已知坑①) */}
+      <StudioAssetGenerationResultDialog
+        open={open && generationOutcome !== null}
+        onOpenChange={(next) => {
+          if (!next) setGenerationOutcome(null);
+        }}
+        outcome={generationOutcome}
       />
       <StudioAssetPromptTextDialog
         open={promptInspectTarget !== null}

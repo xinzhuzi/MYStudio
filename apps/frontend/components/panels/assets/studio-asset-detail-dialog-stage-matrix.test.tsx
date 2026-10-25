@@ -17,11 +17,10 @@
  * fixture 真源:晏燎 32 实名/独孤剑尘 4 实名逐字自 T1 asset-stage-prompts.test.ts
  * (assets.db 只读实测内嵌,保留实库序);url 为测试注入的展示序标记。
  */
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
-import { REALM_LADDER } from "@/lib/studio/asset-stage-prompts";
 import { useStudioStore } from "@/stores/studio/studio-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { FamilyImageEntry } from "@/lib/studio/asset-family-images";
@@ -105,15 +104,6 @@ vi.mock("@/components/ui/select", async () => {
   };
 });
 
-/** 最小 i2i 工作流(与 prompt-inspect 测试同源;终稿串带可辨标记)。 */
-const FINAL_TEXT = "终稿指令全文(引擎实收)";
-const I2I_WORKFLOW_JSON = JSON.stringify({
-  "10": { class_type: "LoadImage", inputs: { image: "ref.png" } },
-  "400": { class_type: "PrimitiveStringMultiline", inputs: { value: FINAL_TEXT } },
-  "6:4011": { class_type: "MyQi21PromptAssembly", inputs: { 锁层A全文: "美术风格底座注入层全文", 主体句负面: "" } },
-  "7:7014": { class_type: "PrimitiveInt", inputs: { value: 1317923666 } },
-});
-
 /** 晏燎 32 实名(实库序逐字自 T1 测试件;url=展示序标记 media://y1..y32)。 */
 const YANLIAO_NAMES = [
   "晏燎_元婴期_三视图_v1", "晏燎_元婴期_正视图_v1", "晏燎_元婴期_海报_v1",
@@ -135,14 +125,6 @@ const YANLIAO_IMAGES = YANLIAO_NAMES.map((name, index) => ({
   filePath: `role/晏燎/${name}.png`,
   url: `media://y${index + 1}`,
 }));
-
-/** 独孤剑尘 4 实名(配角零阶段段,逐字自 T1 测试件)。 */
-const DUGU_IMAGES = [
-  { name: "独孤剑尘_高清大脸_2026年10月21日", filePath: "role/独孤剑尘/独孤剑尘_高清大脸_2026年10月21日.png" },
-  { name: "独孤剑尘_人物图_2026年10月21日", filePath: "role/独孤剑尘/独孤剑尘_人物图_2026年10月21日.png" },
-  { name: "独孤剑尘_多视图_2026年10月21日", filePath: "role/独孤剑尘/独孤剑尘_多视图_2026年10月21日.png" },
-  { name: "独孤剑尘_参考图", filePath: "role/独孤剑尘/1.独孤剑尘.png" },
-];
 
 function roleAsset(overrides: Partial<StudioAssetSummary> = {}): StudioAssetSummary {
   return {
@@ -168,11 +150,6 @@ function renderDialog(
       familyImages={familyImages}
     />,
   );
-}
-
-/** 展开「提示词构成」折叠组(阶段提示词子区住其内,懒读由此触发)。 */
-function expandComposition() {
-  fireEvent.click(screen.getByRole("button", { name: /提示词构成/ }));
 }
 
 beforeEach(() => {
