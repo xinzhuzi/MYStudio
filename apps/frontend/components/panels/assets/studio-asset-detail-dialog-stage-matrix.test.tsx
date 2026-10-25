@@ -203,180 +203,19 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe("T2 子区渲染守卫(PRD §3.1/§六:≥2 阶段才渲染,配角零变化)", () => {
-  it("晏燎 32 实名:展开「提示词构成」后子区在场,下拉=十境全量(聚类阶梯序选项)", () => {
+describe("T2 子区(10-26 用户令:旧构成四层卡全砍,阶段子区随之退役)", () => {
+  it("提示词构成折叠组/阶段提示词子区 均不渲染(旧UI已砍)", () => {
     renderDialog();
-
-    // 未展开:子区住折叠组内,不渲染
+    expect(screen.queryByText("提示词构成")).toBeNull();
     expect(screen.queryByLabelText("阶段提示词")).toBeNull();
-    expandComposition();
-
-    expect(screen.getByLabelText("阶段提示词")).toBeTruthy();
-    // 十境全量选项(子区 Select+生成路 Select 两处各一份)
-    for (const stage of REALM_LADDER) {
-      expect(screen.getAllByTestId(`option-${stage}`).length).toBe(2);
-    }
-  });
-
-  it("独孤剑尘 4 实名(零阶段段):子区与「阶段」选择器均不渲染,展开后零 IPC", () => {
-    renderDialog(roleAsset({ images: DUGU_IMAGES }));
-
-    // 生成路「阶段」选择器不渲染(头部行)
-    expect(screen.queryByLabelText("阶段")).toBeNull();
-    expandComposition();
-
-    expect(screen.queryByLabelText("阶段提示词")).toBeNull();
-    expect(screen.queryByLabelText("阶段")).toBeNull();
-    expect(screen.queryByTestId("option-__stage_none__")).toBeNull();
-    expect(mocks.readImagePromptText).not.toHaveBeenCalled();
-  });
-
-  it("生成路「阶段」选择器在场(晏燎):「无」默认,与子区下拉并存", () => {
-    renderDialog();
-
-    const headerStageSelect = screen.getByLabelText("阶段");
-    expect(headerStageSelect).toBeTruthy();
-    // 「无」选项仅在生成路选择器(子区下拉无「无」项)
-    expect(screen.getAllByTestId("option-__stage_none__").length).toBe(1);
-    // 子区下拉默认=聚类末位(最高境界 共主期);未展开时子区不渲染,只此一份共主期选项
-    expect(screen.getAllByTestId("option-共主期").length).toBe(1);
-    expect(screen.queryByLabelText("阶段提示词·阶段")).toBeNull();
   });
 });
 
-describe("T2 懒读(PRD §3.2:展开才发 IPC,当前阶段每型 latest 各一发,按阶段+型缓存)", () => {
-  it("在飞期 probing 占位(复审#3 补):桥桩悬停不决时型卡渲染「正在读取…」,正文区不空白", async () => {
-    const releasers: Array<(v: { ok: boolean; reason?: string }) => void> = [];
-    mocks.readImagePromptText.mockReset().mockImplementation(
-      () => new Promise((resolve) => { releasers.push(resolve as (v: { ok: boolean; reason?: string }) => void); }),
-    );
+describe("T2 懒读(已随旧构成区退役;源提示词 JSON 弹窗另行覆盖)", () => {
+  it("expandComposition(旧函数)已退役——源提示词按钮直开弹窗不走懒读", () => {
     renderDialog();
-    expandComposition();
-    await waitFor(() => {
-      expect(screen.getAllByText("正在读取该型产物提示词…").length).toBeGreaterThan(0);
-    });
-    // 全部作业放行后,占位被终态覆盖(默认阶段两型各一发)
-    for (const release of releasers.splice(0)) release({ ok: false, reason: "no-texr" });
-    await waitFor(() => {
-      expect(screen.queryByText("正在读取该型产物提示词…")).toBeNull();
-    });
-  });
-
-  it("不展开零调用;展开=默认阶段(共主期)每型 latest 各一发(共 2 发,人物海报+人物多视图)", async () => {
-    renderDialog();
-
-    expect(mocks.readImagePromptText).not.toHaveBeenCalled();
-    expandComposition();
-
-    await waitFor(() => expect(mocks.readImagePromptText).toHaveBeenCalledTimes(2));
-    const calledPaths = mocks.readImagePromptText.mock.calls.map(([task]) => task.filePath);
-    // 每型 latest:海报组=海报_v1;多视图组=正视图_v1(实库序三视图在前正视图在后)
-    expect(calledPaths).toEqual(
-      expect.arrayContaining(["role/晏燎/晏燎_共主期_海报_v1.png", "role/晏燎/晏燎_共主期_正视图_v1.png"]),
-    );
-  });
-
-  it("切换阶段只读新阶段未缓存键;切回已缓存阶段零重读(按 阶段__型 缓存)", async () => {
-    renderDialog();
-    expandComposition();
-    await waitFor(() => expect(mocks.readImagePromptText).toHaveBeenCalledTimes(2));
-
-    fireEvent.click(screen.getAllByTestId("option-金丹期")[0]);
-    await waitFor(() => expect(mocks.readImagePromptText).toHaveBeenCalledTimes(4));
-    expect(mocks.readImagePromptText.mock.calls.map(([task]) => task.filePath)).toEqual(
-      expect.arrayContaining(["role/晏燎/晏燎_金丹期_海报_v1.png", "role/晏燎/晏燎_金丹期_正视图_v1.png"]),
-    );
-
-    // 切回共主期:缓存命中,零新增调用(子区下拉值随 selectedStage 联动回共主期)
-    fireEvent.click(screen.getAllByTestId("option-共主期")[0]);
-    await waitFor(() =>
-      expect(screen.getByLabelText("阶段提示词·阶段").textContent).toContain("共主期"),
-    );
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(mocks.readImagePromptText).toHaveBeenCalledTimes(4);
-  });
-
-  it("失败走既有降级文案(no-texr):型卡注明「该图无提示词元数据」", async () => {
-    renderDialog();
-    expandComposition();
-
-    expect(await screen.findAllByText("该图无提示词元数据")).toHaveLength(2);
-  });
-
-  it("读取成功:字数徽标在场;全文仅型卡展开渲染(收起态零长文)", async () => {
-    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: I2I_WORKFLOW_JSON });
-    renderDialog();
-    expandComposition();
-
-    expect(await screen.findAllByText(`${FINAL_TEXT.length}字`)).toHaveLength(2);
-    // 收起态:终稿全文不渲染(仅展开渲染)
-    expect(screen.queryByText(FINAL_TEXT)).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "共主期人物海报终稿全文展开" }));
-    expect(screen.getByText(FINAL_TEXT)).toBeTruthy();
-    // 另一型卡保持收起:全文仅一份
-    expect(screen.getAllByText(FINAL_TEXT)).toHaveLength(1);
-  });
-
-  it("查词/重掷两钮构造既有弹层目标(含 imageUrl;零新动作)", async () => {
-    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: I2I_WORKFLOW_JSON });
-    renderDialog();
-    expandComposition();
-    await waitFor(() => expect(mocks.readImagePromptText).toHaveBeenCalledTimes(2));
-
-    fireEvent.click(screen.getByRole("button", { name: "查词 晏燎_共主期_海报_v1(阶段提示词)" }));
-    expect(await screen.findByText("查词 · 晏燎_共主期_海报_v1")).toBeTruthy();
-    // B-4 重掷链路在场(共用壳的「用此词重掷」钮可達)
-    expect(await screen.findByRole("button", { name: /用此词重掷/ })).toBeTruthy();
-
-    // 关弹层后再开重掷(弹层在场时背景 aria-hidden,角色查询只见顶层弹层)
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByText("查词 · 晏燎_共主期_海报_v1")).toBeNull());
-
-    fireEvent.click(screen.getByRole("button", { name: "重掷 晏燎_共主期_海报_v1(阶段提示词)" }));
-    expect(await screen.findByText("重掷 · 晏燎_共主期_海报_v1")).toBeTruthy();
-  });
-
-  it("复审竞态修:懒读在飞时 images 异步回填(familyImages)不丢结果,型卡正文不静默空白", async () => {
-    // 复审场景:compositionOpen 持久,懒读在飞期间任何 images 刷新(此处=家长件
-    // familyImages 异步回填;同类还有重开弹窗 bridge.get 的 setImages/生成完成回填)
-    // 都换 activeStageCluster 身份触发 effect 重跑——旧轮在飞结果若被 cleanup 的
-    // cancelled 旗整批丢弃,而新轮 pending 又滤掉在飞键,作业完成后无人再触发 effect,
-    // 该阶段型卡正文区静默空白(entry=undefined 时三分支全不渲染)。修复=会话代隔离
-    // (依赖重跑不换代,在飞结果照常落缓存),本测试钉该路径。
-    const resolvers: Array<(value: { ok: boolean; text: string }) => void> = [];
-    mocks.readImagePromptText.mockImplementation(
-      () => new Promise((resolve) => { resolvers.push(resolve); }),
-    );
-    const baseAsset = roleAsset({ images: YANLIAO_IMAGES });
-    const { rerender } = renderDialog(baseAsset);
-    expandComposition();
-    await waitFor(() => expect(mocks.readImagePromptText).toHaveBeenCalledTimes(2));
-
-    // 在飞期间 familyImages 异步回填(同图集,仅换 displayImages 身份)
-    const familyEntries: FamilyImageEntry[] = YANLIAO_IMAGES.map((img) => ({
-      ...img,
-      assetId: "role-1",
-      assetName: "晏燎",
-    }));
-    rerender(
-      <StudioAssetDetailDialog
-        asset={baseAsset}
-        open
-        onOpenChange={vi.fn()}
-        familyImages={familyEntries}
-      />,
-    );
-    await act(async () => { await Promise.resolve(); });
-    // 重跑轮 pending 滤掉在飞键:零新增 IPC(在飞去重保持)
-    expect(mocks.readImagePromptText).toHaveBeenCalledTimes(2);
-
-    // 在飞读取完成:结果须落缓存并渲染字数徽标(修复前此处被 cancelled 丢弃→
-    // 正文区静默空白,无 loader/无降级/无终稿)
-    await act(async () => {
-      for (const resolve of resolvers) resolve({ ok: true, text: I2I_WORKFLOW_JSON });
-    });
-    expect(await screen.findAllByText(`${FINAL_TEXT.length}字`)).toHaveLength(2);
+    // 查看源提示词按钮在场,点开弹窗(不依赖展开态)
+    expect(screen.queryByRole("button", { name: /查看源提示词/ })).toBeTruthy();
   });
 });
 
@@ -448,16 +287,8 @@ describe("T3 生成路阶段选择器(PRD §3.3:命名与参考图锚定)", () =
     );
   });
 
-  it("选中阶段与子区下拉联动(共用 selectedStage):生成路选金丹期→子区聚焦金丹期", async () => {
+  it("选中阶段与子区联动(10-26:子区退役,选择器独立在场即可)", () => {
     renderDialog();
-    fireEvent.click(screen.getAllByTestId("option-金丹期")[0]);
-    expandComposition();
-
-    // 子区当前阶段=金丹期(懒读只发金丹期两型;默认共主期被联动覆盖)
-    await waitFor(() => expect(mocks.readImagePromptText).toHaveBeenCalledTimes(2));
-    expect(mocks.readImagePromptText.mock.calls.map(([task]) => task.filePath)).toEqual(
-      expect.arrayContaining(["role/晏燎/晏燎_金丹期_海报_v1.png", "role/晏燎/晏燎_金丹期_正视图_v1.png"]),
-    );
-    expect(screen.getByLabelText("阶段提示词")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /查看源提示词/ })).toBeTruthy();
   });
 });

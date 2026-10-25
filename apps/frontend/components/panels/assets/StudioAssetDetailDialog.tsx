@@ -77,6 +77,7 @@ import { FACE_I2I_INSTRUCTION } from "@/lib/studio/asset-face-portrait";
 import { EXPRESSION_I2I_INSTRUCTION } from "@/lib/studio/asset-expression-sheet";
 import { useAppSettingsStore } from "@/stores/app/app-settings-store";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
+import { StudioAssetSourcePromptDialog } from "./studio-asset-source-prompt-dialog";
 import { StudioAssetPromptTextDialog, type PromptTextInspectTarget } from "./studio-asset-prompt-text-dialog";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
 import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";
@@ -270,7 +271,7 @@ export function StudioAssetDetailDialog({
   // 每次置焦即回折叠,保证逐入口准确)
   const [subjectExpanded, setSubjectExpanded] = useState(true);
   // A-2 ②:「提示词构成」单折叠组默认收起一行摘要(裁定 Q3;展开态记忆视用感再补)
-  const [compositionOpen, setCompositionOpen] = useState(false);
+  const [sourcePromptOpen, setSourcePromptOpen] = useState(false);
   // A-3 润色还原(10-25 分层面板役,PRD §4.1 A-3/裁定 Q5a):applyPolishedPrompt
   // 覆写前的润色前快照(组件态单条,null=本次会话未润色;随切资产重置,不持久化,
   // 刷新即丢;「还原上次润色前」钮=润色过且当前值≠存值时可用)
@@ -440,7 +441,7 @@ export function StudioAssetDetailDialog({
   // 后的迟到写入污染由会话代隔离(复位点 resetStageState 递增,旧代写入全弃;同会话
   // 依赖重跑不换代,在飞结果照常落缓存——复审竞态修)。
   useEffect(() => {
-    if (!open || !compositionOpen || !activeStageCluster) return;
+    if (!open || !activeStageCluster) return;
     const stage = activeStageCluster.stage;
     const bridge = getStudioAssetsBridge();
     if (!bridge?.readImagePromptText) {
@@ -523,7 +524,7 @@ export function StudioAssetDetailDialog({
     // 会话代(复位点递增,旧代写入全弃)。
     // stageTextCache 刻意不入依赖(读 ref):缓存写入不触发本 effect 重跑;activeStageCluster
     // 身份变化触发的重跑靠在飞集去重,同图零重复 IPC(懒读计数测试钉此约束)。
-  }, [open, compositionOpen, activeStageCluster]);
+  }, [open, activeStageCluster]);
 
   // 10-19 双弹勘误:弹窗关(无论因)=预览关——previewIndex 不清零→下次开弹窗时
   // open&&previewIndex 条件双真→Lightbox 与 Dialog 同时弹出
@@ -1081,308 +1082,18 @@ export function StudioAssetDetailDialog({
                             复制
                           </Button>
                         </div>
-                        {/* ②「提示词构成」单折叠组(默认收起一行摘要;展开分四层卡,
-                            全部只读、全文仅展开时渲染——收起态零长文渲染) */}
-                        <div className="studio-asset-prompt-composition overflow-hidden rounded-lg border border-border bg-muted/30">
-                          <button
-                            type="button"
-                            className="flex w-full min-w-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left"
-                            onClick={() => setCompositionOpen((open) => !open)}
-                            aria-expanded={compositionOpen}
-                            aria-controls="studio-asset-prompt-composition-body"
+                        {/* ② 源提示词 JSON 弹窗(10-26 用户令:砍旧构成四层卡,一钮直出) */}
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 gap-1 text-[11px]"
+                            onClick={() => setSourcePromptOpen(true)}
+                            title="弹窗展示该型在 qi21_bases.json 中的原始提示词数据(JSON 格式)"
                           >
-                            {compositionOpen ? (
-                              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-                            )}
-                            <span className="shrink-0 text-xs font-medium text-foreground">提示词构成</span>
-                            <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground" title={compositionSummary}>
-                              {compositionSummary}
-                            </span>
-                          </button>
-                          {/* §4.0 脚注(事实8):全局默认型兜底开启时组头一行如实提示
-                              (只感知不改动,不替用户开关设置) */}
-                          {globalImageBaseType ? (
-                            <div
-                              className="border-t border-border/40 px-2.5 py-1 text-[11px] leading-4 text-muted-foreground"
-                              title="设置页「全局默认型」开启时,未显式带型的本地请求由引擎层兜底注入该型"
-                            >
-                              全局默认型兜底开启:{globalImageBaseType}
-                            </div>
-                          ) : null}
-                          {compositionOpen && (
-                            <div id="studio-asset-prompt-composition-body" className="space-y-2 px-2.5 pb-2.5">
-                              {/* 型层卡:型名/purpose/画幅/rgba/steps/正负全文(只读);
-                                  高清人脸聚焦时卡头标注注入路差异(深检 C2) */}
-                              <section className="rounded-md border border-border/60 bg-background/40 p-2.5" aria-label="型层">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="text-xs font-semibold text-foreground">型层</span>
-                                  {focusLayers && (
-                                    <>
-                                      <span className="text-xs text-foreground">{focusLayers.type.kind}</span>
-                                      <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">{focusLayers.type.aspectRatioShort}</Badge>
-                                      {focusLayers.type.rgbaDefault && (
-                                        <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary" title="型真源 rgba_default=透明(型层注入直出真 Alpha)">透明</Badge>
-                                      )}
-                                      {focusLayers.type.stepsHint && (
-                                        <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground">
-                                          steps fast {focusLayers.type.stepsHint.fast}/quality {focusLayers.type.stepsHint.quality}
-                                        </Badge>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                                {focusKind === "高清人脸" && (
-                                  <p className="text-[11px] leading-4 text-primary/90">仅文生图路注入;图生图路指令即终稿不注型</p>
-                                )}
-                                {focusLayers ? (
-                                  <>
-                                    <p className="text-[11px] leading-4 text-muted-foreground">{focusLayers.type.purpose}</p>
-                                    <div className="space-y-0.5">
-                                      <div className="text-[10px] font-medium text-muted-foreground">型层正向全文(只读)</div>
-                                      <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">
-                                        {focusLayers.type.positiveText || "(空——自由型无型文约束)"}
-                                      </p>
-                                    </div>
-                                    <div className="space-y-0.5">
-                                      <div className="text-[10px] font-medium text-muted-foreground">型层负面全文(只读)</div>
-                                      <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">{focusLayers.type.negativeText}</p>
-                                    </div>
-                                  </>
-                                ) : focusKind ? (
-                                  <p className="text-[11px] leading-4 text-muted-foreground">该型无独立型文(共用底座)</p>
-                                ) : (
-                                  <p className="text-[11px] leading-4 text-muted-foreground">点击任一生成按钮查看该型构成</p>
-                                )}
-                              </section>
-                              {/* 风格底座卡:L4 底座正/负全文(全部型共用,只读) */}
-                              <section className="rounded-md border border-border/60 bg-background/40 p-2.5" aria-label="风格底座">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="text-xs font-semibold text-foreground">美术风格底座</span>
-                                  <span className="text-[10px] text-muted-foreground">全部型共用 · 只读</span>
-                                </div>
-                                <div className="space-y-0.5">
-                                  <div className="text-[10px] font-medium text-muted-foreground">底座正向全文(只读)</div>
-                                  <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">{promptStyleBase.positiveText}</p>
-                                </div>
-                                <div className="space-y-0.5">
-                                  <div className="text-[10px] font-medium text-muted-foreground">底座负面全文(只读)</div>
-                                  <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">{promptStyleBase.negativeText}</p>
-                                </div>
-                              </section>
-                              {/* 指令卡(L5):i2i 族聚焦时显固定指令全文+「引擎级不可改」标注
-                                  (取源分型见 resolveFocusKind 指令族注释);t2i 族聚焦时
-                                  指令卡位换「主体句参与」标记;通用态不占位 */}
-                              {focusKind && focusIsI2iFamily && focusInstruction ? (
-                                <section className="rounded-md border border-border/60 bg-background/40 p-2.5" aria-label="固定指令">
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="text-xs font-semibold text-foreground">固定指令</span>
-                                    <span className="text-[10px] text-muted-foreground">{focusInstruction.label}</span>
-                                    {focusInstructionOverrideActive ? (
-                                      <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary">覆盖生效中 · 本次生成用此指令</Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground">固定指令 · 默认</Badge>
-                                    )}
-                                    <button
-                                      type="button"
-                                      className="ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                                      onClick={() => {
-                                        if (!focusKind) return;
-                                        setInstructionEditOpen((open) => {
-                                          if (open) return false;
-                                          // 开编辑即物化草稿(已有覆盖用覆盖,否则预填固定指令)
-                                          setInstructionDrafts((prev) => ({
-                                            ...prev,
-                                            [focusKind]: prev[focusKind] ?? focusInstruction.text,
-                                          }));
-                                          return true;
-                                        });
-                                      }}
-                                    >
-                                      {instructionEditOpen ? "收起" : "编辑指令"}
-                                    </button>
-                                  </div>
-                                  {instructionEditOpen && focusKind ? (
-                                    <div className="space-y-1">
-                                      <Textarea
-                                        value={instructionDrafts[focusKind] ?? ""}
-                                        onChange={(event) =>
-                                          setInstructionDrafts((prev) => ({ ...prev, [focusKind]: event.target.value }))
-                                        }
-                                        placeholder="清空=用引擎级固定指令"
-                                        className="min-h-[96px] resize-none bg-muted/90 text-[11px] leading-5"
-                                      />
-                                      <p className="text-[10px] leading-4 text-muted-foreground">
-                                        非空=本次生成「{focusKind}」用此指令作终稿(指令即终稿纪律不变,不持久化,弹窗关闭即清);清空=用引擎级固定指令。
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">
-                                      {instructionDrafts[focusKind]?.trim() || focusInstruction.text}
-                                    </p>
-                                  )}
-                                </section>
-                              ) : focusKind && !focusIsI2iFamily ? (
-                                <section className="rounded-md border border-border/60 bg-background/40 p-2.5" aria-label="主体句参与">
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="text-xs font-semibold text-foreground">固定指令</span>
-                                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary">主体句参与</Badge>
-                                  </div>
-                                  <p className="text-[11px] leading-4 text-muted-foreground">
-                                    {focusKind}走文生图:该路无固定指令,主体句(出图提示词/描述)与型层、底座叠加成稿。
-                                  </p>
-                                </section>
-                              ) : null}
-                              {/* 负面汇总卡:型负+底座负并陈,各标来源 */}
-                              <section className="rounded-md border border-border/60 bg-background/40 p-2.5" aria-label="负面汇总">
-                                <span className="text-xs font-semibold text-foreground">负面汇总</span>
-                                {focusLayers && (
-                                  <div className="space-y-0.5">
-                                    <div className="text-[10px] font-medium text-muted-foreground">来源:型层 negative_text({focusLayers.type.kind})</div>
-                                    <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">{focusLayers.type.negativeText}</p>
-                                  </div>
-                                )}
-                                <div className="space-y-0.5">
-                                  <div className="text-[10px] font-medium text-muted-foreground">来源:底座 art_style_base negative_text</div>
-                                  <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">{promptStyleBase.negativeText}</p>
-                                </div>
-                              </section>
-                              {/* 阶段提示词子区(10-25 阶段矩阵 T2,PRD §3.2):阶段维度 tEXt
-                                  聚合视图,四层卡之后追加;守卫=clusterAssetStages(displayImages)
-                                  ≥2 阶段(内嵌于聚类,<2 恒 []→整段不渲染,配角弹窗零变化)。
-                                  懒读:子区随「提示词构成」展开才渲染→当前阶段每型 latest 各一发
-                                  readImagePromptText(并发≤3,不展开零调用);全文仅型卡展开渲染 */}
-                              {stageClusters.length > 0 && activeStageCluster && (
-                                <section
-                                  className="studio-asset-stage-prompt-matrix rounded-md border border-border/60 bg-background/40 p-2.5"
-                                  aria-label="阶段提示词"
-                                >
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="text-xs font-semibold text-foreground">阶段提示词</span>
-                                    <span className="text-[10px] text-muted-foreground">
-                                      各阶段产物 tEXt 终稿聚合 · 只读 · {stageClusters.length} 阶段
-                                    </span>
-                                    <div className="ml-auto flex shrink-0 items-center gap-1">
-                                      <span className="text-[10px] text-muted-foreground">阶段</span>
-                                      <Select
-                                        value={activeStage}
-                                        onValueChange={(value) => {
-                                          setSelectedStage(value);
-                                        }}
-                                      >
-                                        <SelectTrigger
-                                          className="h-6 w-auto gap-1 px-2 py-0 text-[11px]"
-                                          aria-label="阶段提示词·阶段"
-                                          title="选项=聚类阶梯序(境界→年龄段→道途→未知附尾);默认末位=最高境界;与生成路「阶段」选择器联动"
-                                        >
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {stageOptions.map((stage) => (
-                                            <SelectItem key={stage} value={stage} className="text-xs">{stage}</SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-                                  <div className="mt-1.5 space-y-1.5">
-                                    {[...activeStageCluster.byKind.entries()].map(([kind, group]) => {
-                                      const cacheKey = stagePromptCacheKey(activeStageCluster.stage, kind);
-                                      const entry = stageTextCache[cacheKey];
-                                      const expanded = !!stageKindExpanded[cacheKey];
-                                      const aspect = kind === "早期未分类" ? null : ASSET_IMAGE_KIND_ASPECTS[kind];
-                                      const failedLabel = entry?.status === "failed"
-                                        ? (entry.reason === "bridge-missing"
-                                            ? PROMPT_TEXT_BRIDGE_MISSING_LABEL
-                                            : entry.reason === "parse-drift"
-                                              ? STAGE_PROMPT_PARSE_DRIFT_LABEL
-                                              : PROMPT_TEXT_DEGRADATION_LABELS[entry.reason])
-                                        : null;
-                                      return (
-                                        <div
-                                          key={kind}
-                                          className="studio-asset-stage-prompt-kind-card rounded-md border border-border/40 bg-muted/20 p-2"
-                                        >
-                                          <div className="flex flex-wrap items-center gap-1.5">
-                                            <button
-                                              type="button"
-                                              className="flex shrink-0 items-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                                              onClick={() => setStageKindExpanded((prev) => ({ ...prev, [cacheKey]: !prev[cacheKey] }))}
-                                              aria-expanded={expanded}
-                                              aria-label={`${activeStageCluster.stage}${kind}终稿全文${expanded ? "收起" : "展开"}`}
-                                            >
-                                              {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                                            </button>
-                                            <span className="shrink-0 text-[11px] font-semibold text-foreground">{kind}</span>
-                                            {aspect && (
-                                              <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">{aspect}</Badge>
-                                            )}
-                                            {entry?.status === "ready" && (
-                                              <span className="shrink-0 text-[10px] text-muted-foreground">{entry.charCount}字</span>
-                                            )}
-                                            <Badge
-                                              variant="outline"
-                                              className="shrink-0 px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
-                                              title={group.all.map((item) => item.name).join("\n")}
-                                            >
-                                              {group.all.length} 张
-                                            </Badge>
-                                            <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground/80" title={group.latest.name}>
-                                              {group.latest.name}
-                                            </span>
-                                            <div className="flex shrink-0 items-center gap-1">
-                                              <button
-                                                type="button"
-                                                className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                                                onClick={() => openStagePromptInspect(group.latest, "inspect")}
-                                                aria-label={`查词 ${group.latest.name}(阶段提示词)`}
-                                                title="读该图原图 tEXt 分层展示(共用查词弹层)"
-                                              >
-                                                <FileText className="h-3 w-3" />
-                                                查词
-                                              </button>
-                                              <button
-                                                type="button"
-                                                className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                                                onClick={() => openStagePromptInspect(group.latest, "reroll")}
-                                                aria-label={`重掷 ${group.latest.name}(阶段提示词)`}
-                                                title="开弹层后用「用此词重掷」按该图引擎实收终稿原路重掷(零新动作)"
-                                              >
-                                                <Dices className="h-3 w-3" />
-                                                重掷
-                                              </button>
-                                            </div>
-                                          </div>
-                                          <div className="mt-1 pl-5">
-                                            {entry?.status === "probing" && (
-                                              <div className="flex items-center gap-1.5 text-[10px] leading-4 text-muted-foreground">
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                                正在读取该型产物提示词…
-                                              </div>
-                                            )}
-                                            {failedLabel && (
-                                              <p className="text-[10px] leading-4 text-muted-foreground">{failedLabel}</p>
-                                            )}
-                                            {entry?.status === "ready" && !expanded && (
-                                              <p className="text-[10px] leading-4 text-muted-foreground/80">
-                                                点左侧箭头展开终稿全文(仅展开渲染) · {group.latest.name}
-                                              </p>
-                                            )}
-                                            {entry?.status === "ready" && expanded && (
-                                              <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">
-                                                {entry.finalText}
-                                              </p>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </section>
-                              )}
-                            </div>
-                          )}
+                            <FileText className="h-3 w-3" />
+                            查看源提示词
+                          </Button>
                         </div>
                         {/* ③ 查看实发终稿(A-2③,10-25 分层面板役):探针 ready 才可点
                             (focusKind 组末位回溯读 tEXt);无聚焦/无产物/全无 tEXt
@@ -1566,6 +1277,11 @@ export function StudioAssetDetailDialog({
       )}
       {/* 10-25 分层面板役:③实发终稿/B-3 查词共用 tEXt 查询弹层(打开=目标非空;
           关闭清目标,复用按目标重读) */}
+      <StudioAssetSourcePromptDialog
+        open={sourcePromptOpen}
+        onOpenChange={setSourcePromptOpen}
+        initialKind={focusKind}
+      />
       <StudioAssetPromptTextDialog
         open={promptInspectTarget !== null}
         onOpenChange={(next) => {
