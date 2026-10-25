@@ -43,6 +43,9 @@ export interface StudioAssetSummary {
   setting?: string;
   /** 10-25 人物技能(角色轨):道途技能树 JSON(见 RoleSkillPayload[];桥只读透传) */
   skills?: string;
+  /** 10-25 Phase C 按型主体句槽:JSON Record<型名,主体句覆盖>(t2i 路生成时该型
+   *  优先用槽内句;桥读写透传)。 */
+  promptOverrides?: string;
   remark?: string;
   prompt?: string;
   thumbnailUrl?: string;

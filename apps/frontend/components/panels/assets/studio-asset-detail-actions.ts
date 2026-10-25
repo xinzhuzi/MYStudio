@@ -18,6 +18,7 @@ import { generateAssetStyleTransferImage } from "@/lib/studio/asset-style-transf
 import { generateAssetFacePortrait, type AssetFacePortraitMode } from "@/lib/studio/asset-face-portrait";
 import { generateAssetExpressionSheet } from "@/lib/studio/asset-expression-sheet";
 import { generateAssetTypeShot, getAssetTypeShotProfile, planAssetTypeFillMissingQueue } from "@/lib/studio/asset-type-shot";
+import { rerollAssetImageFromPromptText } from "@/lib/studio/asset-prompt-reroll";
 import {
   findDisplayImageIndex,
   mergeFamilyDisplayImages,
@@ -80,6 +81,13 @@ export function useStudioAssetDialogActions(ctx: {
    *  ——经此钩子与生成派发同帧写 focusKind,防面板构成区滞留旧聚焦型/通用态
    *  与实际执行型错位。 */
   onFillMissingKindFocus?: (kind: AssetImageKind) => void;
+  /** 10-25 追加令 Phase C:按型主体句槽读取(t2i 路/人脸文生图路该型优先用槽内句)。 */
+  getKindSubjectOverride?: (kind: AssetImageKind) => string | undefined;
+  /** 10-25 追加令·i2i 指令可编辑:指令覆盖读取(非空=本次生成用此指令作终稿;
+   *  会话态不持久化,覆盖按型/人脸图生图/表情差分三路)。 */
+  getInstructionOverride?: (kind: AssetImageKind) => string | undefined;
+  /** 10-25 追加令 Phase C:按型主体句槽草稿(保存时序列化入库;Record<型名,句>)。 */
+  promptOverridesDraft?: Record<string, string>;
   setActiveStudio: any;
   setActiveTab: any;
   /** 10-25 深审修:弹窗当前资产 id 探针(完成尾段活性守卫,防跨资产污染)。 */
@@ -128,6 +136,9 @@ export function useStudioAssetDialogActions(ctx: {
     setTypeShotPhase,
     setTypeShotMessage,
     onFillMissingKindFocus,
+    getKindSubjectOverride,
+    getInstructionOverride,
+    promptOverridesDraft,
     setActiveStudio,
     setActiveTab,
     getActiveAssetId,
@@ -201,6 +212,8 @@ export function useStudioAssetDialogActions(ctx: {
     updates.description = draftDescription;
     updates.prompt = draftPrompt;
     updates.setting = draftSetting;
+    // Phase C(10-25 追加令):按型主体句槽随保存入库(空对象=清槽照写)
+    updates.promptOverrides = promptOverridesDraft ?? {};
     try {
       const result = await getStudioAssetsBridge()!.update({ id: asset.id, updates });
       if (result) {
@@ -473,6 +486,9 @@ export function useStudioAssetDialogActions(ctx: {
           assetType,
           assetName: asset.name,
           referenceImage,
+          ...(getInstructionOverride?.("表情差分")?.trim()
+            ? { instructionOverride: getInstructionOverride?.("表情差分")?.trim() }
+            : {}),
           operationId,
         },
         (progress) => {
@@ -610,8 +626,9 @@ export function useStudioAssetDialogActions(ctx: {
         return false;
       }
     }
+    // Phase C(10-25 追加令):text 路主体句=高清人脸槽覆盖优先,空回退共享链
     const subjectText = mode === "text"
-      ? (draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
+      ? (getKindSubjectOverride?.("高清人脸")?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
       : undefined;
     if (mode === "text" && !subjectText) {
       void logEvent({
@@ -639,6 +656,10 @@ export function useStudioAssetDialogActions(ctx: {
           mode,
           referenceImage,
           subjectText,
+          // 追加令:image 路指令覆盖/text 路该型主体句槽(空=既有行为零变)
+          ...(mode === "image" && getInstructionOverride?.("高清人脸")?.trim()
+            ? { instructionOverride: getInstructionOverride?.("高清人脸")?.trim() }
+            : {}),
           operationId,
         },
         (progress) => {
@@ -778,6 +799,9 @@ export function useStudioAssetDialogActions(ctx: {
           assetId: asset.id,
           assetName: asset.name,
           referenceImage,
+          ...(getInstructionOverride?.("表情差分")?.trim()
+            ? { instructionOverride: getInstructionOverride?.("表情差分")?.trim() }
+            : {}),
           operationId,
         },
         (progress) => {
@@ -844,6 +868,95 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
   const handleExpressionSheet = () => runExpressionSheet();
+
+  /** B-4 用此词重掷(10-25 追加令):以查词/实发终稿弹层的引擎实收正向终稿为指令,
+   * 按原路重掷一张(指令逐字/原参考图/注入层在场则原 base_type 重注/seed 新掷)。
+   * 占用按型出图通用相位道(与五路互斥);收编尾段镜像表情差分(收编+广播+刷新+
+   * 完成切新图);命名=原图名_重掷_中文日期(归原节)。 */
+  const handleRerollFromPrompt = async (payload: {
+    imageName: string;
+    imagePath: string;
+    imageUrl?: string;
+    finalText: string;
+    routeHint: "i2i" | "t2i";
+    hasInjectedLayers: boolean;
+  }): Promise<void> => {
+    if (isAnyGenerationLaneBusy()) {
+      toast.warning("有生成任务正在进行，请稍候");
+      return;
+    }
+    const operationId = createOperationId("asset-prompt-reroll");
+    void logEvent({
+      level: "info",
+      category: "asset",
+      operationId,
+      message: "Asset prompt reroll requested",
+      context: { assetId: asset.id, imageName: payload.imageName, route: payload.routeHint },
+    });
+    setTypeShotPhase("generating");
+    setTypeShotMessage(`正在按原词重掷 ${asset.name}...`);
+    try {
+      const result = await rerollAssetImageFromPromptText(
+        {
+          assetId: asset.id,
+          assetName: asset.name,
+          assetType: asset.type,
+          imageName: payload.imageName,
+          finalText: payload.finalText,
+          routeHint: payload.routeHint,
+          hasInjectedLayers: payload.hasInjectedLayers,
+          referenceImageUrl: payload.imageUrl,
+          operationId,
+        },
+        (progress) => {
+          if (progress.phase === "generating" || progress.phase === "saving") {
+            setTypeShotPhase("generating");
+            if (progress.message) setTypeShotMessage(progress.message);
+          }
+        },
+      );
+      if (result.phase === "done" && result.imageLocalPath && result.resultImageName && result.resultKind) {
+        setTypeShotPhase("done");
+        setTypeShotMessage("重掷完成！");
+        await saveGeneratedAssetImageToLibrary(asset.id, result.imageLocalPath, undefined, result.resultImageName);
+        eventBus.emit("asset:updated", { id: asset.id, type: asset.type });
+        if (getStudioAssetsBridge()?.get) {
+          const updated = await getStudioAssetsBridge()!.get(asset.id);
+          if (updated && (!getActiveAssetId || getActiveAssetId() === asset.id)) {
+            const newImgs: AssetImage[] = [];
+            if (updated.previewUrl || updated.thumbnailUrl) {
+              // 重掷产物 kind 落值=原图归型(名内原标记为持久兜底)
+              newImgs.push({ name: result.resultImageName, filePath: updated.filePath || "", url: updated.previewUrl || updated.thumbnailUrl, kind: result.resultKind });
+            }
+            if (updated.images?.length) newImgs.push(...updated.images);
+            const seen = new Set<string>();
+            const dedupedImgs = newImgs.filter((img) => {
+              const key = img.filePath || img.url || img.name;
+              if (!key || seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            setImages(dedupedImgs);
+            setCurrentIndex(0);
+          }
+        }
+        toast.success(`「${asset.name}」按原词重掷完成`);
+      } else {
+        setTypeShotPhase("failed");
+        setTypeShotMessage(`重掷失败: ${result.error || "未知错误"}`);
+        toast.error(`重掷失败: ${result.error || "未知错误"}`);
+      }
+    } catch (err: unknown) {
+      setTypeShotPhase("failed");
+      setTypeShotMessage(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTimeout(() => {
+        setTypeShotPhase(null);
+        setTypeShotMessage("");
+      }, 3000);
+    }
+  };
 
   /** 10-24 批3 按型出图(PRD §① 型驱动通用件,单一参数=型名;Round 3 扩展令⑤推广
    * 图片三轨):型档案表查表分流——i2i 路(轮播当前图锚身份+Phase2 base_type 型层
@@ -914,8 +1027,9 @@ export function useStudioAssetDialogActions(ctx: {
         return false;
       }
     }
+    // Phase C(10-25 追加令):t2i 路主体句=该型槽覆盖优先,空回退共享主体句链
     const subjectText = profile.route === "t2i"
-      ? (draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
+      ? (getKindSubjectOverride?.(kind)?.trim() || draftPrompt.trim() || draftDescription.trim() || detail.prompt?.trim() || detail.description?.trim())
       : undefined;
     if (profile.route === "t2i" && !subjectText) {
       void logEvent({
@@ -946,6 +1060,10 @@ export function useStudioAssetDialogActions(ctx: {
           track,
           referenceImage,
           subjectText,
+          // 追加令·i2i 指令可编辑:会话级覆盖优先,空=型档案固定指令(既有零变)
+          ...(profile.route === "i2i" && getInstructionOverride?.(kind)?.trim()
+            ? { instructionOverride: getInstructionOverride?.(kind)?.trim() }
+            : {}),
           operationId,
         },
         (progress) => {
@@ -1335,6 +1453,6 @@ export function useStudioAssetDialogActions(ctx: {
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
     handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
-    handleTypeShot, handleFillMissingQueue,
+    handleTypeShot, handleFillMissingQueue, handleRerollFromPrompt,
   };
 }

@@ -214,8 +214,12 @@ export interface AssetTypeShotTask {
   track?: AssetTypeShotTrack;
   /** route="i2i" 必填:全局选中图 url(引擎层统一缩略/去 canvas 污染)。 */
   referenceImage?: string;
-  /** route="t2i" 必填:主体描述句(出图提示词优先,描述兜底)。 */
+  /** route="t2i" 必填:主体描述句(出图提示词优先,描述兜底;按型槽覆盖优先,Phase C)。 */
   subjectText?: string;
+  /** route="i2i" 可选:指令覆盖(10-25 追加令·i2i 指令可编辑)。非空时替代型档案
+   * i2iInstruction 作为终稿指令发送(指令即终稿纪律不变,promptPolicy 恒 raw);
+   * 空/缺省=引擎级固定指令(既有行为零变)。会话态,不持久化。 */
+  instructionOverride?: string;
   projectId?: string;
   chapterId?: string;
   isDerivative?: boolean;
@@ -248,8 +252,10 @@ export async function generateAssetTypeShot(
   const track: AssetTypeShotTrack = task.track ?? "role";
   const saveTarget = TRACK_SAVE_TARGETS[track];
   const isI2i = profile.route === "i2i";
+  // 指令取值(10-25 追加令):i2i 路=会话级覆盖优先,空回退型档案固定指令;
+  // 覆盖即终稿(沿用 raw 纪律),日志带 override 标记供审计
   const prompt = isI2i
-    ? (profile.i2iInstruction ?? "")
+    ? (task.instructionOverride?.trim() || profile.i2iInstruction || "")
     : (task.subjectText || "").trim();
   if (isI2i && !task.referenceImage) {
     return { phase: "failed", error: "按型出图 i2i 路缺少可作参考的图片" };

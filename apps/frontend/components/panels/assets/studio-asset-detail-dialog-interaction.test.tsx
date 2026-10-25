@@ -127,7 +127,8 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(1));
     expect(mocks.update).toHaveBeenCalledWith({
       id: "role-1",
-      updates: { name: "玄止;玄公子", description: "北境剑修", prompt: "", setting: "" },
+      // Phase C(10-25 追加令):保存随带按型主体句槽(空草稿=空表照写,清槽语义)
+      updates: { name: "玄止;玄公子", description: "北境剑修", prompt: "", setting: "", promptOverrides: {} },
     });
     // 保存不关弹窗(继续编辑语义)
     expect(onOpenChange).not.toHaveBeenCalled();

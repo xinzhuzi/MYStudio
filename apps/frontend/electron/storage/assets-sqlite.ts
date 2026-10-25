@@ -61,6 +61,8 @@ interface AssetDbRow {
   prompt?: string;
   setting?: string;
   skills?: string;
+  /** Phase C 按型主体句槽(10-25):JSON Record<型名,主体句>;桥只读透传。 */
+  promptOverrides?: string;
   remark?: string;
   tags?: string;
   filePath?: string;
@@ -262,6 +264,18 @@ export function resolveManagedAssetPathOrUndefined(relativePath: string | undefi
 
 // === SQLite helpers ===
 
+/**
+ * Phase C 按型主体句槽(10-25):旧库幂等补列。ensureDb 只在缺库时建表,存量库
+ * 无 promptOverrides 列——updateAsset 写该列前调用本助手(pragma 查列,缺则
+ * ALTER;已在则零 SQL 写)。幂等可重入。
+ */
+export function ensureAssetsPromptOverridesColumn(dbPath: string): void {
+  const rows = runSqliteJsonSync<Array<{ name: string }>>(dbPath,
+    "SELECT name FROM pragma_table_info('assets');");
+  if (rows.some((row) => row.name === "promptOverrides")) return;
+  runSqliteSync(dbPath, "ALTER TABLE assets ADD COLUMN promptOverrides TEXT;");
+}
+
 export function ensureDb() {
   const dbPath = getDbPath();
   if (fs.existsSync(dbPath)) return;
@@ -278,6 +292,7 @@ CREATE TABLE IF NOT EXISTS assets (
   tags TEXT DEFAULT '[]',
   filePath TEXT,
   images TEXT DEFAULT '[]',
+  promptOverrides TEXT, -- Phase C 按型主体句槽(10-25):JSON Record<型名,主体句>
   source TEXT DEFAULT 'manying-local',
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL
@@ -461,6 +476,7 @@ export function rowToSummary(row: AssetDbRow): StudioAssetSummary {
     prompt: row.prompt,
     setting: row.setting,
     skills: row.skills,
+    promptOverrides: row.promptOverrides,
     remark: row.remark,
     tags: (() => { try { return JSON.parse(row.tags || "[]"); } catch { return []; } })(),
     thumbnailUrl: absPath ? getThumbUrl(row.filePath, row.type) : undefined,

@@ -138,3 +138,68 @@ describe("StudioAssetPromptTextDialog · 降级矩阵(§4.4)", () => {
     expect(await screen.findByText("当前环境不支持读取提示词元数据")).toBeTruthy();
   });
 });
+
+
+describe("B-4 用此词重掷(10-25 追加令)", () => {
+  it("onReroll 在场:parsed 态渲染「用此词重掷」钮,点击回传解构结果", async () => {
+    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: i2iWorkflowJson });
+    const onReroll = vi.fn();
+    render(
+      <StudioAssetPromptTextDialog
+        open
+        onOpenChange={vi.fn()}
+        target={makeTarget({ imageUrl: "asset-file://role/f1.png" })}
+        onReroll={onReroll}
+      />,
+    );
+    const btn = await screen.findByRole("button", { name: /用此词重掷/ });
+    fireEvent.click(btn);
+    expect(onReroll).toHaveBeenCalledTimes(1);
+    const info = onReroll.mock.calls[0]![0] as { breakdown: { finalText: string; routeHint: string } };
+    expect(info.breakdown.finalText).toBe("终稿指令全文(引擎实收)");
+    expect(info.breakdown.routeHint).toBe("i2i");
+  });
+
+  it("i2i 且缺 imageUrl:重掷钮置灰(title 说明缺参考图);t2i 路无 url 可用", async () => {
+    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: i2iWorkflowJson });
+    const { rerender } = render(
+      <StudioAssetPromptTextDialog
+        open
+        onOpenChange={vi.fn()}
+        target={makeTarget()}
+        onReroll={vi.fn()}
+      />,
+    );
+    const disabledBtn = (await screen.findByRole("button", { name: /用此词重掷/ })) as HTMLButtonElement;
+    expect(disabledBtn.disabled).toBe(true);
+
+    // t2i 工作流(无 LoadImage):无 url 也应可用
+    const t2iJson = JSON.stringify({
+      "400": { class_type: "PrimitiveStringMultiline", inputs: { value: "文生图主体终稿" } },
+      "4015": { class_type: "TextEncodeQwenImage21", inputs: { text: "文生图主体终稿", negative_prompt: "负面串" } },
+      "7:7014": { class_type: "PrimitiveInt", inputs: { value: 42 } },
+    });
+    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: t2iJson });
+    rerender(
+      <StudioAssetPromptTextDialog
+        open
+        onOpenChange={vi.fn()}
+        target={makeTarget()}
+        onReroll={vi.fn()}
+      />,
+    );
+    await waitFor(() => {
+      const btn = screen.getByRole("button", { name: /用此词重掷/ }) as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+  });
+
+  it("onReroll 缺席:钮不渲染(既有调用方零变化)", async () => {
+    mocks.readImagePromptText.mockResolvedValue({ ok: true, text: i2iWorkflowJson });
+    render(
+      <StudioAssetPromptTextDialog open onOpenChange={vi.fn()} target={makeTarget({ imageUrl: "u" })} />,
+    );
+    await waitFor(() => expect(screen.getByText("正向终稿")).toBeTruthy());
+    expect(screen.queryByRole("button", { name: /用此词重掷/ })).toBeNull();
+  });
+});

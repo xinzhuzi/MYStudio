@@ -53,6 +53,7 @@ import {
   buildPromptLayerSummary,
   getPromptLayers,
   getPromptStyleBaseLayer,
+  parsePromptOverrides,
 } from "@/lib/studio/asset-prompt-layers";
 import {
   buildFinalDraftCandidates,
@@ -240,6 +241,13 @@ export function StudioAssetDetailDialog({
   // 覆写前的润色前快照(组件态单条,null=本次会话未润色;随切资产重置,不持久化,
   // 刷新即丢;「还原上次润色前」钮=润色过且当前值≠存值时可用)
   const [prePolishPrompt, setPrePolishPrompt] = useState<string | null>(null);
+  // Phase C 按型主体句槽(10-25 追加令):Record<型名,本型专用句>;focusKind 聚焦且
+  // 槽在场时主体句框绑槽值,保存随 handleSave 入库(prompt_overrides 列);切资产重置重播种
+  const [promptOverridesDraft, setPromptOverridesDraft] = useState<Partial<Record<AssetImageKind, string>>>({});
+  // 追加令·i2i 指令可编辑:会话级指令覆盖(非空=本次生成用此指令作终稿);不持久化
+  const [instructionDrafts, setInstructionDrafts] = useState<Partial<Record<AssetImageKind, string>>>({});
+  // 指令卡编辑态开合(作用于当前 focusKind;置焦/清焦即收)
+  const [instructionEditOpen, setInstructionEditOpen] = useState(false);
   // ③ 实发终稿(A-2③):探针态+弹层目标(弹层目标亦承载 B-3 查词,共用壳)
   const [finalDraftProbe, setFinalDraftProbe] = useState<FinalDraftProbe>({ status: "idle" });
   const [promptInspectTarget, setPromptInspectTarget] = useState<PromptTextInspectTarget | null>(null);
@@ -367,6 +375,9 @@ export function StudioAssetDetailDialog({
       setFocusKind(null);
       setPrePolishPrompt(null);
       setPromptInspectTarget(null);
+      setPromptOverridesDraft({});
+      setInstructionDrafts({});
+      setInstructionEditOpen(false);
       return;
     }
 
@@ -378,6 +389,9 @@ export function StudioAssetDetailDialog({
     setFocusKind(null);
     setPrePolishPrompt(null);
     setPromptInspectTarget(null);
+    setPromptOverridesDraft({});
+    setInstructionDrafts({});
+    setInstructionEditOpen(false);
 
     let cancelled = false;
     const initialImages: AssetImage[] = [];
@@ -397,6 +411,8 @@ export function StudioAssetDetailDialog({
     setDraftDescription(asset.description || "");
     setDraftPrompt(asset.prompt || "");
     setDraftSetting(asset.setting || "");
+    // Phase C 播种:桥缺席兜底资产行的槽值(桥成功位随后覆盖)
+    setPromptOverridesDraft(parsePromptOverrides(asset.promptOverrides));
 
     if (getStudioAssetsBridge()?.get) {
       getStudioAssetsBridge()!.get(asset.id).then((result) => {
@@ -406,6 +422,8 @@ export function StudioAssetDetailDialog({
         setDraftDescription(result.description || "");
         setDraftPrompt(result.prompt || "");
         setDraftSetting(result.setting || "");
+        // Phase C 播种:fullAsset 槽值为准(桥 get 全列)
+        setPromptOverridesDraft(parsePromptOverrides(result.promptOverrides));
         const updatedImgs: AssetImage[] = [];
         if (result.previewUrl || result.thumbnailUrl) {
           // 10-19 用户令废「主图」名号:刷新名=文件名(去扩展名)
@@ -436,10 +454,12 @@ export function StudioAssetDetailDialog({
   const focusOnKind = (kind: AssetImageKind) => {
     setFocusKind(kind);
     setSubjectExpanded(false);
+    setInstructionEditOpen(false);
   };
   const clearFocus = () => {
     setFocusKind(null);
     setSubjectExpanded(true);
+    setInstructionEditOpen(false);
   };
 
   // This action factory is named with a use* prefix for historical API
@@ -451,7 +471,7 @@ export function StudioAssetDetailDialog({
     handleOneClickGenerateAssetImage, handleImageToImageStyle: dispatchImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
     handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
-    handleTypeShot: dispatchTypeShot, handleFillMissingQueue,
+    handleTypeShot: dispatchTypeShot, handleFillMissingQueue, handleRerollFromPrompt,
   } = useStudioAssetDialogActions({
     asset,
     onOpenChange,
@@ -493,6 +513,9 @@ export function StudioAssetDetailDialog({
     setTypeShotPhase,
     setTypeShotMessage,
     onFillMissingKindFocus: focusOnKind,
+    getKindSubjectOverride: (kind) => promptOverridesDraft[kind]?.trim() || undefined,
+    getInstructionOverride: (kind) => instructionDrafts[kind]?.trim() || undefined,
+    promptOverridesDraft: promptOverridesDraft as Record<string, string>,
     setActiveStudio,
     setActiveTab,
     resolveAssetGenerationReferenceImage,
@@ -528,6 +551,7 @@ export function StudioAssetDetailDialog({
     setPromptInspectTarget({
       imagePath: candidate.filePath,
       imageName: candidate.imageName,
+      imageUrl: candidate.imageUrl,
       title: `${focusKind} · 实发终稿`,
       ownerNote: resolvePromptOwnerNote(candidate, asset.id),
       footnote: "来自该型最近产物的引擎实收,非本次预演",
@@ -544,6 +568,7 @@ export function StudioAssetDetailDialog({
     setPromptInspectTarget({
       imagePath: candidate.filePath,
       imageName: candidate.imageName,
+      imageUrl: entry?.url ?? image.url,
       title: `查词 · ${image.name}`,
       ownerNote: resolvePromptOwnerNote(candidate, asset.id),
     });
@@ -577,6 +602,31 @@ export function StudioAssetDetailDialog({
   // 底座层与聚焦无关恒可取(通用态展开也展示底座两卡)
   const promptStyleBase = focusLayers?.base ?? getPromptStyleBaseLayer();
   const focusInstruction = focusKind ? resolveFocusInstruction(focusKind) : null;
+  // Phase C(10-25 追加令):主体句槽派生——槽在场=框绑槽值;eligible=t2i 族或
+  // 高清人脸(其文生图路主体句参与;i2i 族主体句不参与,槽无意义不展示)
+  const kindSlotActive = !!focusKind && promptOverridesDraft[focusKind] !== undefined;
+  const subjectSlotEligible = !!focusKind && (!focusIsI2iFamily || focusKind === "高清人脸");
+  const subjectValue = kindSlotActive && focusKind ? (promptOverridesDraft[focusKind] ?? "") : draftPrompt;
+  const handleSubjectChange = (value: string) => {
+    if (kindSlotActive && focusKind) {
+      setPromptOverridesDraft((prev) => ({ ...prev, [focusKind]: value }));
+    } else {
+      setDraftPrompt(value);
+    }
+  };
+  const toggleKindSlot = () => {
+    if (!focusKind) return;
+    setPromptOverridesDraft((prev) => {
+      if (prev[focusKind] !== undefined) {
+        const next = { ...prev };
+        delete next[focusKind];
+        return next;
+      }
+      return { ...prev, [focusKind]: draftPrompt };
+    });
+  };
+  // 追加令·i2i 指令可编辑:当前聚焦型的覆盖态
+  const focusInstructionOverrideActive = !!focusKind && !!instructionDrafts[focusKind]?.trim();
   const compositionSummary = focusKind
     ? (buildPromptLayerSummary(focusKind) ?? "点击任一生成按钮查看该型构成")
     : "点击任一生成按钮查看该型构成";
@@ -753,8 +803,25 @@ export function StudioAssetDetailDialog({
                     {asset.type !== "audio" ? (
                       <section className="studio-asset-prompt-region min-w-0 space-y-1.5" aria-label="提示词">
                         <div className="text-xs font-medium text-muted-foreground">提示词</div>
-                        {/* ① 主体句(draftPrompt 主位,可编辑;按钮族保留) */}
-                        <div className="text-[11px] text-muted-foreground">主体句</div>
+                        {/* ① 主体句(主位可编辑;Phase C:聚焦型可开「本型专用」槽) */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[11px] text-muted-foreground">主体句</div>
+                          {subjectSlotEligible && focusKind && (
+                            <button
+                              type="button"
+                              className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                kindSlotActive
+                                  ? "border-primary/40 bg-primary/10 text-primary"
+                                  : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                              }`}
+                              onClick={toggleKindSlot}
+                              aria-pressed={kindSlotActive}
+                              title={kindSlotActive ? "本型专用句生效中:该型生成走槽内句(保存入库);点击关闭回共享主体句" : "为该型单独立一句专用主体句(保存入库;该型生成优先用槽内句)"}
+                            >
+                              {kindSlotActive ? `${focusKind}专用句 · 生效中` : "本型专用句"}
+                            </button>
+                          )}
+                        </div>
                         {focusIsI2iFamily && focusKind && !subjectExpanded ? (
                           <button
                             type="button"
@@ -781,9 +848,9 @@ export function StudioAssetDetailDialog({
                               </div>
                             )}
                             <Textarea
-                              value={draftPrompt}
-                              onChange={(event) => setDraftPrompt(event.target.value)}
-                              placeholder="暂无出图提示词"
+                              value={subjectValue}
+                              onChange={(event) => handleSubjectChange(event.target.value)}
+                              placeholder={kindSlotActive && focusKind ? `本型专用句(仅${focusKind}生成路生效;保存入库)` : "暂无出图提示词"}
                               className={`min-h-[96px] resize-none bg-muted/90 text-xs leading-5 ${focusIsI2iFamily ? "opacity-70" : ""}`}
                             />
                           </>
@@ -948,9 +1015,49 @@ export function StudioAssetDetailDialog({
                                   <div className="flex flex-wrap items-center gap-1.5">
                                     <span className="text-xs font-semibold text-foreground">固定指令</span>
                                     <span className="text-[10px] text-muted-foreground">{focusInstruction.label}</span>
-                                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground">固定指令 · 引擎级不可改</Badge>
+                                    {focusInstructionOverrideActive ? (
+                                      <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary">覆盖生效中 · 本次生成用此指令</Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-muted-foreground">固定指令 · 默认</Badge>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                                      onClick={() => {
+                                        if (!focusKind) return;
+                                        setInstructionEditOpen((open) => {
+                                          if (open) return false;
+                                          // 开编辑即物化草稿(已有覆盖用覆盖,否则预填固定指令)
+                                          setInstructionDrafts((prev) => ({
+                                            ...prev,
+                                            [focusKind]: prev[focusKind] ?? focusInstruction.text,
+                                          }));
+                                          return true;
+                                        });
+                                      }}
+                                    >
+                                      {instructionEditOpen ? "收起" : "编辑指令"}
+                                    </button>
                                   </div>
-                                  <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">{focusInstruction.text}</p>
+                                  {instructionEditOpen && focusKind ? (
+                                    <div className="space-y-1">
+                                      <Textarea
+                                        value={instructionDrafts[focusKind] ?? ""}
+                                        onChange={(event) =>
+                                          setInstructionDrafts((prev) => ({ ...prev, [focusKind]: event.target.value }))
+                                        }
+                                        placeholder="清空=用引擎级固定指令"
+                                        className="min-h-[96px] resize-none bg-muted/90 text-[11px] leading-5"
+                                      />
+                                      <p className="text-[10px] leading-4 text-muted-foreground">
+                                        非空=本次生成「{focusKind}」用此指令作终稿(指令即终稿纪律不变,不持久化,弹窗关闭即清);清空=用引擎级固定指令。
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">
+                                      {instructionDrafts[focusKind]?.trim() || focusInstruction.text}
+                                    </p>
+                                  )}
                                 </section>
                               ) : focusKind && !focusIsI2iFamily ? (
                                 <section className="rounded-md border border-border/60 bg-background/40 p-2.5" aria-label="主体句参与">
@@ -1175,6 +1282,21 @@ export function StudioAssetDetailDialog({
           if (!next) setPromptInspectTarget(null);
         }}
         target={promptInspectTarget}
+        onReroll={
+          promptInspectTarget
+            ? ({ breakdown }) => {
+                // B-4(10-25 追加令):按引擎实收终稿原路重掷(动作内含忙守卫/相位/收编)
+                handleRerollFromPrompt({
+                  imageName: promptInspectTarget.imageName,
+                  imagePath: promptInspectTarget.imagePath,
+                  imageUrl: promptInspectTarget.imageUrl,
+                  finalText: breakdown.finalText,
+                  routeHint: breakdown.routeHint,
+                  hasInjectedLayers: breakdown.layers.length > 0,
+                });
+              }
+            : undefined
+        }
       />
     </>
   );

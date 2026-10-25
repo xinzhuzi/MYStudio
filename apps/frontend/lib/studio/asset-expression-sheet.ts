@@ -33,6 +33,9 @@ export interface AssetExpressionSheetTask {
   assetName: string;
   /** 轮播当前图 url(引擎层统一缩略/去 canvas 污染)。 */
   referenceImage: string;
+  /** 可选指令覆盖(10-25 追加令·i2i 指令可编辑):非空替代九宫格固定指令作终稿
+   *  发送(raw 纪律不变);空/缺省=固定指令(既有行为零变)。会话态不持久化。 */
+  instructionOverride?: string;
   projectId?: string;
   chapterId?: string;
   isDerivative?: boolean;
@@ -57,7 +60,7 @@ export async function generateAssetExpressionSheet(
   onProgress?: (progress: AssetExpressionSheetProgress) => void,
 ): Promise<AssetExpressionSheetProgress> {
   const operationId = task.operationId ?? createOperationId("asset-expression-sheet");
-  const prompt = EXPRESSION_I2I_INSTRUCTION;
+  const prompt = task.instructionOverride?.trim() || EXPRESSION_I2I_INSTRUCTION;
   void logEvent({
     level: "info",
     category: "ai",

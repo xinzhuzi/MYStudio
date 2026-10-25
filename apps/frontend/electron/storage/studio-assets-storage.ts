@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import {
   getDbPath, getFilesDir, runSqliteExecSafe,
   assetDisplayName, assetFamilyFolderKey, escapeSql, formatChineseDateNow, usesAssetNameFolder,
+  ensureAssetsPromptOverridesColumn,
 } from "./assets-sqlite";
 import { getAssetSync } from "./assets-queries";
 import { rowToSummary, runSqliteJsonSync, getThumbsDir, getAssetsDir } from "./assets-sqlite";
@@ -121,8 +122,10 @@ function planRenameFolderMove(row: any, newFolder: string): {
   return { mapping, filePath: newFilePath, imagesJson, executedMoves };
 }
 
-export function updateAsset(id: string, updates: Partial<{ name: string; description: string; prompt: string; setting: string; remark: string; tags: string[] }>): StudioAssetSummary | null {
+export function updateAsset(id: string, updates: Partial<{ name: string; description: string; prompt: string; setting: string; remark: string; tags: string[]; promptOverrides: Record<string, string> }>): StudioAssetSummary | null {
   const dbPath = getDbPath();
+  // Phase C(10-25):写按型主体句槽前幂等补列(旧库无该列;新库建表已含)
+  ensureAssetsPromptOverridesColumn(dbPath);
   const sets: string[] = [];
   if (updates.name !== undefined) sets.push(`name='${escapeSql(updates.name)}'`);
   if (updates.description !== undefined) sets.push(`description='${escapeSql(updates.description)}'`);
@@ -130,6 +133,7 @@ export function updateAsset(id: string, updates: Partial<{ name: string; descrip
   if (updates.setting !== undefined) sets.push(`setting='${escapeSql(updates.setting)}'`);
   if (updates.remark !== undefined) sets.push(`remark='${escapeSql(updates.remark)}'`);
   if (updates.tags !== undefined) sets.push(`tags='${escapeSql(JSON.stringify(updates.tags))}'`);
+  if (updates.promptOverrides !== undefined) sets.push(`promptOverrides='${escapeSql(JSON.stringify(updates.promptOverrides))}'`);
   if (!sets.length) return null;
 
   // R5 改名联动:前置读行(旧名/类型/文件清单),挪动映射并入本条 UPDATE

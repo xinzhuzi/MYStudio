@@ -933,3 +933,20 @@ describe("removeAssetImage 行级主图回退删除(10-19 主图可删补刀)", 
     expect((after?.images ?? []).some((i) => i.filePath === asset.filePath)).toBe(false);
   });
 });
+
+
+describe("Phase C 按型主体句槽(10-25 追加令):updateAsset/getAsset round-trip", () => {
+  it("update 写 promptOverrides(Record)→getAsset 读回 promptOverrides(JSON 串)", () => {
+    initTempAssetsStorage();
+    const added = addAsset({ type: "role", name: "槽位测试角色", description: "描述" });
+    const overrides = { 设定卡: "海报构图专用句", 美宣: "美宣主体句" };
+    const updated = updateAsset(added.id, { promptOverrides: overrides });
+    expect(updated).not.toBeNull();
+    const fetched = getAssetSync(added.id);
+    expect(fetched?.promptOverrides).toBeTruthy();
+    expect(JSON.parse(fetched!.promptOverrides!)).toEqual(overrides);
+    // 二次写(改槽)幂等
+    updateAsset(added.id, { promptOverrides: { 设定卡: "改过的句" } });
+    expect(JSON.parse(getAssetSync(added.id)!.promptOverrides!)).toEqual({ 设定卡: "改过的句" });
+  });
+});

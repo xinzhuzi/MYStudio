@@ -32,6 +32,33 @@ vi.mock("@/lib/diagnostics/logger", () => ({
 }));
 
 const generateImage = vi.mocked(aiManager.generateImage);
+
+describe("generateAssetTypeShot · i2i 指令可编辑(10-25 追加令)", () => {
+  it("instructionOverride 非空=覆盖作终稿指令发送;空=型档案固定指令(既有零变)", async () => {
+    generateImage.mockResolvedValue({ url: "http://gen/r.png" } as never);
+    await generateAssetTypeShot({
+      assetId: "a1",
+      assetName: "晏燎",
+      kind: "人物海报",
+      referenceImage: "asset-file://role/ref.png",
+      instructionOverride: "  覆盖指令:按我说的重绘  ",
+    });
+    const overCall = generateImage.mock.calls[0]![0] as { prompt: string };
+    expect(overCall.prompt).toBe("覆盖指令:按我说的重绘");
+
+    generateImage.mockClear();
+    await generateAssetTypeShot({
+      assetId: "a1",
+      assetName: "晏燎",
+      kind: "人物海报",
+      referenceImage: "asset-file://role/ref.png",
+      instructionOverride: "   ",
+    });
+    const fixedCall = generateImage.mock.calls[0]![0] as { prompt: string };
+    const profile = ASSET_TYPE_SHOT_PROFILES.find((x) => x.kind === "人物海报");
+    expect(fixedCall.prompt).toBe(profile?.i2iInstruction ?? "");
+  });
+});
 const logEventMock = vi.mocked(logEvent);
 const createOperationIdMock = vi.mocked(createOperationId);
 

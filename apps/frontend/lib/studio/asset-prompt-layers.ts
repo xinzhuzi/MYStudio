@@ -143,3 +143,39 @@ export function buildPromptLayerSummary(kind: AssetImageKind | string): string |
   const rgbaSuffix = layer.rgbaDefault ? "·rgba" : "";
   return `${layer.kind} ${layer.aspectRatioShort}${rgbaSuffix} · ${baseSegment} · 型负${layer.negativeText.length}字`;
 }
+
+
+/**
+ * Phase C 按型主体句槽(10-25 追加令):解析 assets.prompt_overrides 列
+ * (JSON Record<型名,主体句>;坏 JSON/非对象=空表容错,不炸 UI)。
+ */
+export function parsePromptOverrides(
+  raw: string | undefined | null,
+): Partial<Record<AssetImageKind, string>> {
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+    const out: Partial<Record<AssetImageKind, string>> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === "string" && value.trim()) {
+        out[key as AssetImageKind] = value;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** 序列化按型主体句槽(只留非空槽;空对象=空串,updateAsset 空串照写清槽)。 */
+export function serializePromptOverrides(
+  overrides: Partial<Record<AssetImageKind, string>>,
+): string {
+  const trimmed: Record<string, string> = {};
+  for (const [kind, text] of Object.entries(overrides)) {
+    const value = (text ?? "").trim();
+    if (value) trimmed[kind] = value;
+  }
+  return JSON.stringify(trimmed);
+}

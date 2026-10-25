@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Copy, Loader2 } from "lucide-react";
+import { Copy, Dices, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getStudioAssetsBridge } from "@/lib/bridge/studio-assets";
 import {
@@ -40,6 +40,8 @@ export interface PromptTextInspectTarget {
   ownerNote?: string | null;
   /** 底部小字(③:「来自该型最近产物的引擎实收,非本次预演」);查词不带。 */
   footnote?: string;
+  /** 原图 url(B-4 重掷 i2i 路参考图;i2i 且缺 url 时重掷钮置灰)。 */
+  imageUrl?: string;
 }
 
 type PromptTextLoadState =
@@ -68,10 +70,14 @@ export function StudioAssetPromptTextDialog({
   open,
   onOpenChange,
   target,
+  onReroll,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   target: PromptTextInspectTarget | null;
+  /** B-4 用此词重掷(10-25 追加令):parsed 态弹层带「用此词重掷」钮,点击回传
+   *  解析结果(正向终稿/路/注入层);重发由调用方动作执行,弹层保持只读展示。 */
+  onReroll?: (info: { breakdown: WorkflowPromptBreakdown }) => void;
 }) {
   const [state, setState] = useState<PromptTextLoadState>({ status: "loading" });
 
@@ -188,15 +194,30 @@ export function StudioAssetPromptTextDialog({
                 <section className="space-y-1 rounded-md border border-border/60 bg-muted/30 p-2.5" aria-label="正向终稿">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-foreground">正向终稿</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 gap-1 text-[11px]"
-                      onClick={() => copyToClipboard(state.breakdown.finalText, "已复制终稿全文")}
-                    >
-                      <Copy className="h-3 w-3" />
-                      复制全文
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {onReroll && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 gap-1 text-[11px]"
+                          disabled={state.breakdown.routeHint === "i2i" && !target?.imageUrl}
+                          title={state.breakdown.routeHint === "i2i" && !target?.imageUrl ? "图生图路重掷缺参考图 url" : "以该正向终稿按原路再生成一张(同配方新掷)"}
+                          onClick={() => onReroll({ breakdown: state.breakdown })}
+                        >
+                          <Dices className="h-3 w-3" />
+                          用此词重掷
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 gap-1 text-[11px]"
+                        onClick={() => copyToClipboard(state.breakdown.finalText, "已复制终稿全文")}
+                      >
+                        <Copy className="h-3 w-3" />
+                        复制全文
+                      </Button>
+                    </div>
                   </div>
                   <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">
                     {state.breakdown.finalText}

@@ -41,6 +41,9 @@ export interface AssetFacePortraitTask {
   mode: AssetFacePortraitMode;
   /** mode="image" 必填:轮播当前图 url(引擎层统一缩略/去 canvas 污染)。 */
   referenceImage?: string;
+  /** mode="image" 可选指令覆盖(10-25 追加令·i2i 指令可编辑):非空替代固定指令作
+   *  终稿发送(raw 纪律不变);空/缺省=固定指令(既有行为零变)。会话态不持久化。 */
+  instructionOverride?: string;
   /** mode="text" 必填:角色描述主体句(出图提示词优先,描述兜底)。 */
   subjectText?: string;
   projectId?: string;
@@ -68,7 +71,10 @@ export async function generateAssetFacePortrait(
 ): Promise<AssetFacePortraitProgress> {
   const operationId = task.operationId ?? createOperationId("asset-face-portrait");
   const isImageMode = task.mode === "image";
-  const prompt = isImageMode ? FACE_I2I_INSTRUCTION : (task.subjectText || "").trim();
+  // 图生图路支持会话级指令覆盖(10-25 追加令);文生图路主体句恒为 task.subjectText
+  const prompt = isImageMode
+    ? (task.instructionOverride?.trim() || FACE_I2I_INSTRUCTION)
+    : (task.subjectText || "").trim();
   if (!isImageMode && !prompt) {
     return { phase: "failed", error: "文生图人脸缺少可用的角色描述或提示词" };
   }

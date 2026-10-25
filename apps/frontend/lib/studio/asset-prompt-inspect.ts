@@ -42,6 +42,8 @@ export interface PromptInspectCandidate {
   imageName: string;
   assetId?: string;
   assetName?: string;
+  /** 条目 url(B-4 重掷 i2i 路参考图;族聚显条目沿用其 url 形态)。 */
+  imageUrl?: string;
 }
 
 /**
@@ -60,6 +62,7 @@ export function buildFinalDraftCandidates<
       imageName: image.name,
       assetId: image.assetId,
       assetName: image.assetName,
+      imageUrl: (image as { url?: string }).url,
     }))
     .reverse();
 }

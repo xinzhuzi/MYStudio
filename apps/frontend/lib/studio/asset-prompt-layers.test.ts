@@ -7,6 +7,8 @@ import {
   getPromptLayers,
   getPromptStyleBaseLayer,
   listPromptLayerKinds,
+  parsePromptOverrides,
+  serializePromptOverrides,
 } from "./asset-prompt-layers";
 
 /**
@@ -108,5 +110,26 @@ describe("buildPromptLayerSummary · 折叠组收起态摘要行", () => {
   it("查无该型降级为「该型无独立型文」;空型名返回 null(通用态由调用方自render)", () => {
     expect(buildPromptLayerSummary("不存在型")).toMatch(/^不存在型 · 该型无独立型文 · 底座正\d+字\/负\d+字$/);
     expect(buildPromptLayerSummary("")).toBeNull();
+  });
+});
+
+
+describe("Phase C 按型主体句槽(10-25 追加令):parse/serialize", () => {
+  it("parse:合法 JSON→Record;坏 JSON/非对象/空值槽→容错(空表或滤空)", () => {
+    expect(parsePromptOverrides('{"设定卡":"海报构图句","美宣":"美宣主体句"}')).toEqual({
+      设定卡: "海报构图句",
+      美宣: "美宣主体句",
+    });
+    expect(parsePromptOverrides("not-json")).toEqual({});
+    expect(parsePromptOverrides('["数组拒收"]')).toEqual({});
+    expect(parsePromptOverrides('{"设定卡":"   "}')).toEqual({});
+    expect(parsePromptOverrides(null)).toEqual({});
+  });
+
+  it("serialize:只留非空槽;round-trip 稳定", () => {
+    const out = serializePromptOverrides({ 设定卡: " 句A ", 美宣: "", 道具: undefined });
+    expect(JSON.parse(out)).toEqual({ 设定卡: "句A" });
+    expect(parsePromptOverrides(out)).toEqual({ 设定卡: "句A" });
+    expect(JSON.parse(serializePromptOverrides({}))).toEqual({});
   });
 });
