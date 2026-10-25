@@ -25,9 +25,25 @@ import {
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
 import { asAssetImageTrack, classifyAssetImage, getAssetImageKindSpectrum } from "@/lib/studio/asset-image-kind";
+import { buildStageTypeShotImageName, extractStageName } from "@/lib/studio/asset-stage-prompts";
 import type { AssetImageKind } from "@/types/studio-assets";
 import { getAssetImageOpenTarget, getAssetOperationError, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 import { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
+
+/**
+ * 阶段参考图锚(10-25 阶段矩阵 T3,PRD §3.3):该阶段组内最新一张(任意型)的 url。
+ * 「组内最新」口径=clusterAssetStages 的输入序末位——跨型全局末位必属某型的 latest
+ * 集(后于它的同型图若在场即取代之),故展示序倒扫取首个命中段与聚类取法等价;
+ * 组空/无 url 返回 undefined,调用方回退轮播当前图(既有行为)。
+ */
+function resolveStageReferenceImage(images: AssetImage[], stage: string): string | undefined {
+  for (let i = images.length - 1; i >= 0; i -= 1) {
+    if (extractStageName(images[i].name) === stage) {
+      return images[i].url || undefined;
+    }
+  }
+  return undefined;
+}
 
 export function useStudioAssetDialogActions(ctx: {
   asset: any;
@@ -965,9 +981,18 @@ export function useStudioAssetDialogActions(ctx: {
    * 名号」令=原图名_{型名}_中文日期(t2i 路无原图,锚资产名,与人脸文生图路同款);
    * 写回尾段镜像人脸/表情差分(saveGeneratedAssetImageToLibrary+asset:updated 广播+
    * get 刷新+完成切新图+批3 kind 落值);相位 3s 自动清。managedLane=false 供一键补缺
-   * 队列复用(队列自持聚合相位,防逐型 3s 清相位把队列中段的互斥解除)。 */
-  const executeTypeShot = async (kind: AssetImageKind, options?: { managedLane?: boolean }): Promise<boolean> => {
+   * 队列复用(队列自持聚合相位,防逐型 3s 清相位把队列中段的互斥解除)。
+   * 10-25 阶段矩阵 T3(PRD §3.3):options.stage=生成路选中阶段——命名改
+   * 资产名_{阶段}_{型名}_中文日期(T1 buildStageTypeShotImageName,不再锚轮播图名,
+   * 防旧图名内陈旧标记链式繁殖;i2i/t2i 两路同款);i2i 参考图默认锚=该阶段组内
+   * 最新一张(任意型),组空回退轮播当前图;t2i 路仅命名带阶段(无参考图语义)。
+   * 人脸双钮/表情差分/重掷/一键补缺队列不带阶段(PRD §3.3,无阶段语义)。 */
+  const executeTypeShot = async (
+    kind: AssetImageKind,
+    options?: { managedLane?: boolean; stage?: string },
+  ): Promise<boolean> => {
     const managedLane = options?.managedLane !== false;
+    const stage = options?.stage?.trim() || undefined;
     const profile = getAssetTypeShotProfile(kind);
     const operationId = createOperationId("asset-type-shot");
     void logEvent({
@@ -975,7 +1000,15 @@ export function useStudioAssetDialogActions(ctx: {
       category: "asset",
       operationId,
       message: "Asset type shot requested",
-      context: { kind, route: profile?.route ?? "unknown", assetId: asset.id, assetType: asset.type, assetName: asset.name, currentIndex },
+      context: {
+        kind,
+        route: profile?.route ?? "unknown",
+        assetId: asset.id,
+        assetType: asset.type,
+        assetName: asset.name,
+        currentIndex,
+        ...(stage ? { stage } : {}),
+      },
     });
     if (!profile) {
       void logEvent({
@@ -1015,7 +1048,10 @@ export function useStudioAssetDialogActions(ctx: {
     }
     let referenceImage: string | undefined;
     if (profile.route === "i2i") {
-      referenceImage = resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
+      // T3(10-25 阶段矩阵):选中阶段时参考图默认锚=该阶段组内最新一张(任意型,
+      // 身份锚定该阶段形态,防全局轮播停在异阶段图);组空回退轮播当前图(既有行为)
+      referenceImage = (stage ? resolveStageReferenceImage(carouselImages, stage) : undefined)
+        ?? resolveAssetGenerationReferenceImage(carouselImages, currentIndex);
       if (!referenceImage) {
         void logEvent({
           level: "warn",
@@ -1044,10 +1080,14 @@ export function useStudioAssetDialogActions(ctx: {
       return false;
     }
     // 命名沿 10-19「废主图名号」令:i2i=原图名_{型名}_中文日期;t2i=资产名_{型名}_中文日期
+    // T3(10-25 阶段矩阵):带阶段时改 资产名_{阶段}_{型名}_中文日期(T1 命名器;两路同款,
+    // 不再锚轮播图名——防旧图名内陈旧标记链式繁殖,产物归组归型由 T1 测试钉)
     const inputImageName = profile.route === "i2i" ? (carouselImages[currentIndex]?.name || asset.name) : asset.name;
     const now = new Date();
     const dateSuffix = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, "0")}月${String(now.getDate()).padStart(2, "0")}日`;
-    const resultImageName = `${inputImageName}_${kind}_${dateSuffix}`;
+    const resultImageName = stage
+      ? buildStageTypeShotImageName(asset.name, stage, profile.kind, dateSuffix)
+      : `${inputImageName}_${kind}_${dateSuffix}`;
     if (managedLane) {
       setTypeShotPhase("generating");
       setTypeShotMessage(`正在生成 ${asset.name} 的${kind}...`);
@@ -1142,13 +1182,14 @@ export function useStudioAssetDialogActions(ctx: {
   };
 
   /** 按型出图公共入口(节头钮/下拉/占位卡 CTA/完整度缺失 chip):五路互斥统一守卫
-   *  在跑直返(按钮已禁,双保险;复审 H 修=全相位,非仅自家 typeShotPhase)。 */
-  const runTypeShot = async (kind: AssetImageKind): Promise<boolean> => {
+   *  在跑直返(按钮已禁,双保险;复审 H 修=全相位,非仅自家 typeShotPhase)。
+   *  T3(10-25 阶段矩阵):options.stage 透传 executeTypeShot(命名/参考图锚定语义)。 */
+  const runTypeShot = async (kind: AssetImageKind, options?: { stage?: string }): Promise<boolean> => {
     if (isAnyGenerationLaneBusy()) return false;
-    return executeTypeShot(kind);
+    return executeTypeShot(kind, options);
   };
-  const handleTypeShot = (kind: AssetImageKind) => {
-    void runTypeShot(kind);
+  const handleTypeShot = (kind: AssetImageKind, options?: { stage?: string }) => {
+    void runTypeShot(kind, options);
   };
 
   /** 10-24 批3 一键补缺顺序队列(PRD B 节:聚合相位,逐型完成落图;Round 3 ⑤ 三轨

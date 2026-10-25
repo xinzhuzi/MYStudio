@@ -12,6 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -23,6 +30,7 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  Dices,
   FileText,
   ImageIcon,
   Loader2,
@@ -49,7 +57,9 @@ import {
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
-import { classifyAssetImage } from "@/lib/studio/asset-image-kind";
+import { ASSET_IMAGE_KIND_ASPECTS, classifyAssetImage } from "@/lib/studio/asset-image-kind";
+import { clusterAssetStages } from "@/lib/studio/asset-stage-prompts";
+import { parseWorkflowPrompt } from "@/lib/studio/workflow-prompt-parser";
 import {
   buildPromptLayerSummary,
   getPromptLayers,
@@ -59,7 +69,10 @@ import {
 import {
   buildFinalDraftCandidates,
   resolvePromptOwnerNote,
+  PROMPT_TEXT_BRIDGE_MISSING_LABEL,
+  PROMPT_TEXT_DEGRADATION_LABELS,
   type PromptInspectCandidate,
+  type PromptTextFailReason,
 } from "@/lib/studio/asset-prompt-inspect";
 import { getAssetTypeShotProfile } from "@/lib/studio/asset-type-shot";
 import { FACE_I2I_INSTRUCTION } from "@/lib/studio/asset-face-portrait";
@@ -188,6 +201,29 @@ const FINAL_DRAFT_NOTE_BY_STATUS: Record<FinalDraftProbe["status"], string> = {
   ready: "来自该型最近产物的引擎实收,非本次预演",
 };
 
+/**
+ * 阶段提示词子区·单型懒读结果(10-25 阶段矩阵 T2,PRD §3.2):ready=该阶段该型
+ * 组最新一张 tEXt 解构出的正向终稿+字数;failed=桥缺席/B-1 reason/键位漂移
+ * (parse-drift 单列文案,禁把原始 JSON 当终稿展示)。按 `阶段__型` 键缓存组件态,
+ * 弹窗关/切资产清零。
+ */
+type StagePromptTextEntry =
+  | { status: "probing" }
+  | { status: "ready"; finalText: string; charCount: number }
+  | { status: "failed"; reason: PromptTextFailReason | "bridge-missing" | "parse-drift" };
+
+/** parse-drift 降级文案(tEXt 在但键位漂移;「查词」弹层可看原始 tEXt,禁编造终稿)。 */
+const STAGE_PROMPT_PARSE_DRIFT_LABEL =
+  "该图提示词元数据键位漂移,无法解构终稿;可点「查词」查看原始 tEXt";
+
+/** 阶段缓存键(PRD §3.2 钉「按 stage+kind 缓存」;切资产/关弹窗整表清零)。 */
+function stagePromptCacheKey(stage: string, kind: AssetImageKind): string {
+  return `${stage}__${kind}`;
+}
+
+/** T3「阶段」选择器「无」哨兵值(Radix Select 值域须字符串;null 语义映射到此)。 */
+const STAGE_SELECT_NONE = "__stage_none__";
+
 export function StudioAssetDetailDialog({
   asset,
   linkedSpeakerIds,
@@ -254,6 +290,21 @@ export function StudioAssetDetailDialog({
   // ③ 实发终稿(A-2③):探针态+弹层目标(弹层目标亦承载 B-3 查词,共用壳)
   const [finalDraftProbe, setFinalDraftProbe] = useState<FinalDraftProbe>({ status: "idle" });
   const [promptInspectTarget, setPromptInspectTarget] = useState<PromptTextInspectTarget | null>(null);
+  // 10-25 阶段矩阵(T2/T3 共用,PRD §3.2/§3.3):生成路「阶段」选择与子区聚焦共用;
+  // null=「无」(T3 默认);子区展示位回落聚类末位(最高境界,§3.2)。随弹窗关/切资产重置。
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  // T2 阶段子区懒读缓存(阶段__型→终稿/降级态;PRD 钉组件态,弹窗关清)+在飞去重集
+  const [stageTextCache, setStageTextCache] = useState<Record<string, StagePromptTextEntry>>({});
+  const stageTextCacheRef = useRef<Record<string, StagePromptTextEntry>>({});
+  const stageReadInFlightRef = useRef<Set<string>>(new Set());
+  // 会话代(10-25 复审竞态修):复位点(关弹窗/切资产 resetStageState)递增——在飞读取的
+  // 迟到写入按代隔离,旧代全弃防污染下一会话;同会话内依赖重跑(images 异步回填/重开弹窗
+  // bridge.get 回填/生成完成,凡换 displayImages→activeStageCluster 身份)不换代,在飞
+  // 结果照常落缓存。取代旧 cancelled 旗:cancelled 在依赖重跑时也置位,在飞结果被整批
+  // 丢弃+重跑轮 pending 又滤掉在飞键→作业完成后无人再触发,该阶段型卡正文区静默空白。
+  const stageSessionRef = useRef(0);
+  // T2 型卡全文折叠态(仅展开渲染长文;键=阶段__型;置焦/切阶段不强制收,关弹窗清)
+  const [stageKindExpanded, setStageKindExpanded] = useState<Record<string, boolean>>({});
 
   // 获取当前项目的视觉手册 ID
   const visualManualId = useStudioStore((s) => s.workflowConfig?.visualManualId);
@@ -288,6 +339,33 @@ export function StudioAssetDetailDialog({
       .filter((entry) => !removedFamilyPaths.includes(entry.filePath)),
     [familyImages, images, asset?.id, removedFamilyPaths],
   );
+
+  // 10-25 阶段矩阵(T2/T3 同源):displayImages 聚类→阶梯序阶段数组(clusterAssetStages
+  // 内嵌显示守卫,<2 阶段恒 []=子区与「阶段」选择器整段不渲染,配角弹窗零变化);
+  // activeStage=T3 选中值优先,缺省回落聚类末位(最高境界,§3.2「默认=末位」)。
+  const stageClusters = useMemo(() => clusterAssetStages(displayImages), [displayImages]);
+  const stageOptions = useMemo(() => stageClusters.map((cluster) => cluster.stage), [stageClusters]);
+  const activeStage = selectedStage && stageOptions.includes(selectedStage)
+    ? selectedStage
+    : (stageOptions[stageOptions.length - 1] ?? null);
+  const activeStageCluster = activeStage
+    ? (stageClusters.find((cluster) => cluster.stage === activeStage) ?? null)
+    : null;
+  /** 阶段懒读缓存写入(ref+state 同步;effect 读 ref 免缓存写入引发的重跑/在飞对撞)。 */
+  const writeStageTextCache = (key: string, entry: StagePromptTextEntry) => {
+    stageTextCacheRef.current = { ...stageTextCacheRef.current, [key]: entry };
+    setStageTextCache(stageTextCacheRef.current);
+  };
+  /** 阶段态整清(关弹窗/切资产复位点;selectedStage/缓存/折叠态一并归零)。
+   * 会话代随每次复位递增(复审竞态修):旧会话在飞读取的迟到写入按代全弃。 */
+  const resetStageState = () => {
+    stageSessionRef.current += 1;
+    stageTextCacheRef.current = {};
+    setStageTextCache({});
+    stageReadInFlightRef.current.clear();
+    setSelectedStage(null);
+    setStageKindExpanded({});
+  };
 
   useEffect(() => {
     try {
@@ -353,6 +431,94 @@ export function StudioAssetDetailDialog({
     };
   }, [open, focusKind, displayImages]);
 
+  // T2 阶段提示词懒读(10-25 阶段矩阵,PRD §3.2):「提示词构成」展开且阶段矩阵在场
+  // 才对当前阶段每型 latest 各发一发 readImagePromptText(简单池并发≤3;不展开零调用);
+  // 结果按 `阶段__型` 缓存组件态(命中不重读,切换阶段只读新阶段未缓存键);失败走
+  // §4.4 降级文案(no-texr/not-png/file-missing 等复用既有矩阵;键位漂移单列)。
+  // 缓存读走 ref(写入不触发本 effect 重跑,防在飞读被取消重启=IPC 重复);关弹窗/切资产
+  // 后的迟到写入污染由会话代隔离(复位点 resetStageState 递增,旧代写入全弃;同会话
+  // 依赖重跑不换代,在飞结果照常落缓存——复审竞态修)。
+  useEffect(() => {
+    if (!open || !compositionOpen || !activeStageCluster) return;
+    const stage = activeStageCluster.stage;
+    const bridge = getStudioAssetsBridge();
+    if (!bridge?.readImagePromptText) {
+      // 桥缺席:未缓存各型落 bridge-missing 占位(已缓存结果不覆盖)
+      for (const [kind, group] of activeStageCluster.byKind) {
+        if (!group.latest.filePath) continue;
+        const key = stagePromptCacheKey(stage, kind);
+        if (stageTextCacheRef.current[key] === undefined) {
+          writeStageTextCache(key, { status: "failed", reason: "bridge-missing" });
+        }
+      }
+      return;
+    }
+    const pending = [...activeStageCluster.byKind.entries()]
+      .filter(([kind, group]) => {
+        if (!group.latest.filePath) return false;
+        const key = stagePromptCacheKey(stage, kind);
+        return stageTextCacheRef.current[key] === undefined && !stageReadInFlightRef.current.has(key);
+      })
+      .map(([kind, group]) => ({ key: stagePromptCacheKey(stage, kind), filePath: group.latest.filePath }));
+    if (pending.length === 0) return;
+    for (const job of pending) stageReadInFlightRef.current.add(job.key);
+    // 会话代快照(复审竞态修):同会话依赖重跑不换代→在飞结果照常落缓存;只有复位点
+    // (关弹窗/切资产 resetStageState)换代→迟到写入全弃,防污染下一会话。
+    const session = stageSessionRef.current;
+    const runJob = async (job: { key: string; filePath: string }) => {
+      try {
+        const result = await bridge.readImagePromptText!({ filePath: job.filePath });
+        // 复审修:此处不再因依赖重跑丢弃在飞结果——重跑轮的 pending 已把在飞键滤掉
+        // (在飞集互斥,同键无并发双读),本写入幂等;仅复位点换代后弃(旧会话缓存已整清)。
+        if (stageSessionRef.current !== session) return;
+        if (!result.ok) {
+          writeStageTextCache(job.key, { status: "failed", reason: result.reason });
+          return;
+        }
+        try {
+          const breakdown = parseWorkflowPrompt(result.text);
+          if (stageSessionRef.current !== session) return;
+          writeStageTextCache(job.key, {
+            status: "ready",
+            finalText: breakdown.finalText,
+            charCount: breakdown.finalText.length,
+          });
+        } catch {
+          // tEXt 在但键位漂移:不把原始 JSON 当终稿,降级注明(查词弹层可看原文)
+          if (stageSessionRef.current === session) {
+            writeStageTextCache(job.key, { status: "failed", reason: "parse-drift" });
+          }
+        }
+      } catch {
+        if (stageSessionRef.current === session) {
+          writeStageTextCache(job.key, { status: "failed", reason: "read-failed" });
+        }
+      } finally {
+        // 同代才清在飞键:跨代时该键可能已被复位点清空后由新会话作业重新占用,
+        // 误删会让下一轮 effect 对同图重复发 IPC。
+        if (stageSessionRef.current === session) {
+          stageReadInFlightRef.current.delete(job.key);
+        }
+      }
+    };
+    // 简单并发池≤3(§七风险表:只读当前阶段每型一发,不预读全量)
+    const queue = [...pending];
+    const workers = Array.from({ length: Math.min(3, queue.length) }, async () => {
+      while (queue.length > 0) {
+        const job = queue.shift();
+        if (!job) return;
+        await runJob(job);
+      }
+    });
+    void Promise.all(workers);
+    // 复审修:不设 cleanup cancelled 旗——依赖重跑(images 刷新换 activeStageCluster
+    // 身份)时取消在飞读取并整批丢弃结果,恰是「型卡正文区静默空白」竞态根因(重跑轮
+    // pending 把仍在飞的键滤掉,作业完成后无人再触发 effect);迟到写入的污染防线移交
+    // 会话代(复位点递增,旧代写入全弃)。
+    // stageTextCache 刻意不入依赖(读 ref):缓存写入不触发本 effect 重跑;activeStageCluster
+    // 身份变化触发的重跑靠在飞集去重,同图零重复 IPC(懒读计数测试钉此约束)。
+  }, [open, compositionOpen, activeStageCluster]);
+
   // 10-19 双弹勘误:弹窗关(无论因)=预览关——previewIndex 不清零→下次开弹窗时
   // open&&previewIndex 条件双真→Lightbox 与 Dialog 同时弹出
   // 10-25 分层面板 A-1:focusKind 随弹窗关重置(生命周期:随弹窗开关重置,不持久化);
@@ -362,6 +528,8 @@ export function StudioAssetDetailDialog({
       setPreviewIndex(null);
       setFocusKind(null);
       setPromptInspectTarget(null);
+      // 10-25 阶段矩阵:阶段选择/懒读缓存/折叠态随弹窗关整清(PRD §四生命周期)
+      resetStageState();
     }
   }, [open]);
 
@@ -381,12 +549,14 @@ export function StudioAssetDetailDialog({
       setPromptOverridesHydrated(false);
       setInstructionDrafts({});
       setInstructionEditOpen(false);
+      resetStageState();
       return;
     }
 
     // 切资产也清(同弹窗内换资产时 previewIndex 可能指向旧资产图序;族过滤
     // 路径属旧资产会话,直换 A→B 时同样清——10-25 深审修,与注释「切资产即清」对齐;
-    // focusKind 同理属旧资产会话的聚焦态,随切重置;A-3 润色快照/查词弹层目标同理)
+    // focusKind 同理属旧资产会话的聚焦态,随切重置;A-3 润色快照/查词弹层目标同理;
+    // 阶段矩阵(T2/T3)同理:selectedStage/懒读缓存/折叠态随切资产重置)
     setPreviewIndex(null);
     setRemovedFamilyPaths([]);
     setFocusKind(null);
@@ -396,6 +566,7 @@ export function StudioAssetDetailDialog({
     setPromptOverridesHydrated(false);
     setInstructionDrafts({});
     setInstructionEditOpen(false);
+    resetStageState();
 
     let cancelled = false;
     const initialImages: AssetImage[] = [];
@@ -529,7 +700,9 @@ export function StudioAssetDetailDialog({
 
   const handleTypeShot = (kind: AssetImageKind) => {
     focusOnKind(kind);
-    dispatchTypeShot(kind);
+    // T3(10-25 阶段矩阵,PRD §3.3):生成路「阶段」选择随派发同帧透传(命名与 i2i
+    // 参考图锚定用;「无」=不带阶段,既有行为)。人脸双钮/表情差分/重掷不经此包装。
+    dispatchTypeShot(kind, { stage: selectedStage ?? undefined });
   };
   if (!asset) return null;
 
@@ -571,6 +744,25 @@ export function StudioAssetDetailDialog({
       imageUrl: entry?.url ?? image.url,
       title: `查词 · ${image.name}`,
       ownerNote: resolvePromptOwnerNote(candidate, asset.id),
+    });
+  };
+
+  // T2 阶段提示词·查词/重掷(10-25 阶段矩阵,PRD §3.2):两钮均构造既有
+  // PromptTextInspectTarget(含 imageUrl)开既有弹层——重掷即弹层内 B-4「用此词
+  // 重掷」逐字路,零新动作;目标=该阶段该型组最新一张(组内 latest)。
+  const openStagePromptInspect = (
+    latest: FamilyDisplayImageEntry,
+    intent: "inspect" | "reroll",
+  ) => {
+    setPromptInspectTarget({
+      imagePath: latest.filePath,
+      imageName: latest.name,
+      imageUrl: latest.url,
+      title: intent === "reroll" ? `重掷 · ${latest.name}` : `查词 · ${latest.name}`,
+      ownerNote: resolvePromptOwnerNote(latest, asset.id),
+      footnote: intent === "reroll"
+        ? "弹层内「用此词重掷」按该图引擎实收终稿原路重掷(同配方新掷)"
+        : undefined,
     });
   };
 
@@ -802,10 +994,37 @@ export function StudioAssetDetailDialog({
                     {asset.type !== "audio" ? (
                       <section className="studio-asset-prompt-region min-w-0 space-y-1.5" aria-label="提示词">
                         <div className="text-xs font-medium text-muted-foreground">提示词</div>
-                        {/* ① 主体句(主位可编辑;Phase C:聚焦型可开「本型专用」槽) */}
+                        {/* ① 主体句(主位可编辑;Phase C:聚焦型可开「本型专用」槽)。
+                            头部行旁=T3「阶段」选择器(10-25 阶段矩阵,PRD §3.3):选项=
+                            已聚类阶段集+「无」(默认);守卫同子区(<2 阶段不渲染);
+                            选中后按型出图命名带阶段段+i2i 参考图锚该阶段最新图 */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-[11px] text-muted-foreground">主体句</div>
-                          {subjectSlotEligible && focusKind && (
+                          <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                            {stageOptions.length > 0 && (
+                              <Select
+                                value={selectedStage ?? STAGE_SELECT_NONE}
+                                onValueChange={(value) => {
+                                  setSelectedStage(value === STAGE_SELECT_NONE ? null : value);
+                                }}
+                              >
+                                <SelectTrigger
+                                  className="h-6 w-auto gap-1 px-2 py-0 text-[11px]"
+                                  aria-label="阶段"
+                                  title="阶段(命名与参考图锚定用):选中后按型出图命名带阶段段、图生图参考图锚该阶段最新图;「无」=不带阶段"
+                                >
+                                  <span className="text-[10px] text-muted-foreground">阶段</span>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={STAGE_SELECT_NONE} className="text-xs">无</SelectItem>
+                                  {stageOptions.map((stage) => (
+                                    <SelectItem key={stage} value={stage} className="text-xs">{stage}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            {subjectSlotEligible && focusKind && (
                             <button
                               type="button"
                               className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
@@ -820,6 +1039,7 @@ export function StudioAssetDetailDialog({
                               {kindSlotActive ? `${focusKind}专用句 · 生效中` : "本型专用句"}
                             </button>
                           )}
+                          </div>
                         </div>
                         {focusIsI2iFamily && focusKind && !subjectExpanded ? (
                           <button
@@ -1083,6 +1303,139 @@ export function StudioAssetDetailDialog({
                                   <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">{promptStyleBase.negativeText}</p>
                                 </div>
                               </section>
+                              {/* 阶段提示词子区(10-25 阶段矩阵 T2,PRD §3.2):阶段维度 tEXt
+                                  聚合视图,四层卡之后追加;守卫=clusterAssetStages(displayImages)
+                                  ≥2 阶段(内嵌于聚类,<2 恒 []→整段不渲染,配角弹窗零变化)。
+                                  懒读:子区随「提示词构成」展开才渲染→当前阶段每型 latest 各一发
+                                  readImagePromptText(并发≤3,不展开零调用);全文仅型卡展开渲染 */}
+                              {stageClusters.length > 0 && activeStageCluster && (
+                                <section
+                                  className="studio-asset-stage-prompt-matrix rounded-md border border-border/60 bg-background/40 p-2.5"
+                                  aria-label="阶段提示词"
+                                >
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-xs font-semibold text-foreground">阶段提示词</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      各阶段产物 tEXt 终稿聚合 · 只读 · {stageClusters.length} 阶段
+                                    </span>
+                                    <div className="ml-auto flex shrink-0 items-center gap-1">
+                                      <span className="text-[10px] text-muted-foreground">阶段</span>
+                                      <Select
+                                        value={activeStage}
+                                        onValueChange={(value) => {
+                                          setSelectedStage(value);
+                                        }}
+                                      >
+                                        <SelectTrigger
+                                          className="h-6 w-auto gap-1 px-2 py-0 text-[11px]"
+                                          aria-label="阶段提示词·阶段"
+                                          title="选项=聚类阶梯序(境界→年龄段→道途→未知附尾);默认末位=最高境界;与生成路「阶段」选择器联动"
+                                        >
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {stageOptions.map((stage) => (
+                                            <SelectItem key={stage} value={stage} className="text-xs">{stage}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  <div className="mt-1.5 space-y-1.5">
+                                    {[...activeStageCluster.byKind.entries()].map(([kind, group]) => {
+                                      const cacheKey = stagePromptCacheKey(activeStageCluster.stage, kind);
+                                      const entry = stageTextCache[cacheKey];
+                                      const expanded = !!stageKindExpanded[cacheKey];
+                                      const aspect = kind === "早期未分类" ? null : ASSET_IMAGE_KIND_ASPECTS[kind];
+                                      const failedLabel = entry?.status === "failed"
+                                        ? (entry.reason === "bridge-missing"
+                                            ? PROMPT_TEXT_BRIDGE_MISSING_LABEL
+                                            : entry.reason === "parse-drift"
+                                              ? STAGE_PROMPT_PARSE_DRIFT_LABEL
+                                              : PROMPT_TEXT_DEGRADATION_LABELS[entry.reason])
+                                        : null;
+                                      return (
+                                        <div
+                                          key={kind}
+                                          className="studio-asset-stage-prompt-kind-card rounded-md border border-border/40 bg-muted/20 p-2"
+                                        >
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            <button
+                                              type="button"
+                                              className="flex shrink-0 items-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                                              onClick={() => setStageKindExpanded((prev) => ({ ...prev, [cacheKey]: !prev[cacheKey] }))}
+                                              aria-expanded={expanded}
+                                              aria-label={`${activeStageCluster.stage}${kind}终稿全文${expanded ? "收起" : "展开"}`}
+                                            >
+                                              {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                            </button>
+                                            <span className="shrink-0 text-[11px] font-semibold text-foreground">{kind}</span>
+                                            {aspect && (
+                                              <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium">{aspect}</Badge>
+                                            )}
+                                            {entry?.status === "ready" && (
+                                              <span className="shrink-0 text-[10px] text-muted-foreground">{entry.charCount}字</span>
+                                            )}
+                                            <Badge
+                                              variant="outline"
+                                              className="shrink-0 px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
+                                              title={group.all.map((item) => item.name).join("\n")}
+                                            >
+                                              {group.all.length} 张
+                                            </Badge>
+                                            <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground/80" title={group.latest.name}>
+                                              {group.latest.name}
+                                            </span>
+                                            <div className="flex shrink-0 items-center gap-1">
+                                              <button
+                                                type="button"
+                                                className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                                                onClick={() => openStagePromptInspect(group.latest, "inspect")}
+                                                aria-label={`查词 ${group.latest.name}(阶段提示词)`}
+                                                title="读该图原图 tEXt 分层展示(共用查词弹层)"
+                                              >
+                                                <FileText className="h-3 w-3" />
+                                                查词
+                                              </button>
+                                              <button
+                                                type="button"
+                                                className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                                                onClick={() => openStagePromptInspect(group.latest, "reroll")}
+                                                aria-label={`重掷 ${group.latest.name}(阶段提示词)`}
+                                                title="开弹层后用「用此词重掷」按该图引擎实收终稿原路重掷(零新动作)"
+                                              >
+                                                <Dices className="h-3 w-3" />
+                                                重掷
+                                              </button>
+                                            </div>
+                                          </div>
+                                          <div className="mt-1 pl-5">
+                                            {entry?.status === "probing" && (
+                                              <div className="flex items-center gap-1.5 text-[10px] leading-4 text-muted-foreground">
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                正在读取该型产物提示词…
+                                              </div>
+                                            )}
+                                            {failedLabel && (
+                                              <p className="text-[10px] leading-4 text-muted-foreground">{failedLabel}</p>
+                                            )}
+                                            {entry?.status === "ready" && !expanded && (
+                                              <p className="text-[10px] leading-4 text-muted-foreground/80">
+                                                点左侧箭头展开终稿全文(仅展开渲染) · {group.latest.name}
+                                              </p>
+                                            )}
+                                            {entry?.status === "ready" && expanded && (
+                                              <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground/90">
+                                                {entry.finalText}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </section>
+                              )}
                             </div>
                           )}
                         </div>
