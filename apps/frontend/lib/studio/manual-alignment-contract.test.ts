@@ -140,6 +140,45 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
     ).not.toContain("骨架/策略");
   });
 
+  itFile("道劫九境与超越九境终态分离，终态意象不生成肉身余生", () => {
+    const root = "story_skills/Daojie_xianxia/";
+    const readme = readManual(`${root}README.md`);
+    expect(readme).toContain("炼气 → 筑基 → 金丹 → 元婴 → 化神 → 炼虚 → 合体 → 渡劫 → 大乘\n");
+    expect(readme).not.toContain("大乘 → 万道归真");
+    expect(readme).not.toContain("十大境界");
+    for (const module of ["README.md", "script_narrative.md", "driector_skills/director_planning_narrative.md", "driector_skills/director_storyboard_table_narrative.md", "driector_skills/director_style_card_fusion.md"]) {
+      const content = readManual(`${root}${module}`);
+      expect(content, module).toContain("超越九境的终极状态");
+      expect(content, module).toContain("不是第十修炼境界");
+      expect(content, module).toContain("不新增肉身余生");
+      expect(content, module).not.toMatch(/万道归真.{0,12}终极境界/);
+    }
+  });
+
+  itFile("道劫三个独立消费模块均区分整体进度与三股特指，保留早期例外", () => {
+    const root = "story_skills/Daojie_xianxia/";
+    for (const module of ["script_narrative.md", "driector_skills/director_planning_narrative.md", "driector_skills/director_storyboard_table_narrative.md"]) {
+      const content = readManual(`${root}${module}`);
+      for (const rule of ["三色驳杂→灰黑凝聚→暗金蜕变→暗金主色", "后期明确特指人、妖、鬼三股", "早期灰黑边界反应", "龙气暗金丝缕", "不按颜色反推融合进度", "五系道途不等于三股灵气"]) {
+        expect(content, `${module}: ${rule}`).toContain(rule);
+      }
+      expect(content, module).not.toContain("镜头描述写灵气必须用三色语汇");
+      expect(content, module).not.toContain("灵气融合分镜（五系剑圣觉醒）");
+    }
+  });
+
+  itFile("道劫终态视听均为可选修辞，规划不越界逐镜或补事件", () => {
+    const root = "story_skills/Daojie_xianxia/";
+    for (const module of ["driector_skills/director_planning_narrative.md", "driector_skills/director_storyboard_table_narrative.md", "driector_skills/director_style_card_fusion.md"]) {
+      const content = readManual(`${root}${module}`);
+      expect(content, module).toContain("可选修辞");
+      expect(content, module).toContain("不强制纯白、三音和声或拉远");
+    }
+    const planning = readManual(`${root}driector_skills/director_planning_narrative.md`);
+    expect(planning).toContain("不生成逐镜表");
+    expect(planning).toContain("不补原文未发生的事件");
+  });
+
   itFile("T5⑦ director_plan.md ⑥示例块含复合场号决策行 Sc 1-1 → Sc 1-2(H9/D1,与 167bb90d 正则闭环)", () => {
     const content = readManual("production_execution_director_plan.md");
     expect(content, "规划手册⑥示例缺复合场号行「Sc 1-1 → Sc 1-2」(D1 补行)").toContain("Sc 1-1 → Sc 1-2");
