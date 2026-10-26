@@ -76,8 +76,7 @@ import {
   type GenerationOutcomeRecord,
 } from "./studio-asset-generation-result-dialog";
 import { ImagePreviewModal } from "@/components/ui/media-preview-modal";
-import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";
-import { StudioAssetRoleSkills } from "./studio-asset-role-skills";
+import { StudioAssetRoleAttributes, parseStudioAssetRoleAttributes } from "./studio-asset-role-attributes";
 
 export { buildAssetRegenerationPrompt, getAssetDisplayName, getAssetImageOpenTarget, getAssetOperationError, getAssetSpokenText, updateImagesAfterReplacingMainImage } from "./studio-asset-detail-utils";
 export { persistGeneratedAssetPromptToLibrary, saveGeneratedAssetImageToLibrary } from "./studio-asset-generation-persistence";
@@ -319,6 +318,8 @@ export function StudioAssetDetailDialog({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // 10-24 布局重造批1:元信息区折叠态(默认展开;localStorage 记忆)
   const [metaCollapsed, setMetaCollapsed] = useState(readMetaCollapsed);
+  // 10-27 布局修:属性卡可解析字段为空(如英文设定)时整格消,音色顶格全宽
+  const roleAttributesPresent = asset?.type === "role" && parseStudioAssetRoleAttributes(draftSetting || asset?.setting || "").length > 0;
   // R4 族聚显展示序:族序(updatedAt 倒序)+ live 新图置顶;本行条目可编辑、
   // 族兄弟只读。familyImages 未提供时恒等 images(资产库面板等调用方零变化)。
   const displayImages = useMemo<FamilyDisplayImageEntry[]>(
@@ -974,13 +975,13 @@ export function StudioAssetDetailDialog({
                     {/* 行2: 角色属性 | 音色(仅 role)——10-25 二令:音色钉右列(描述正下方),
                      col-start-2 保属性卡为空(设定无可解析字段)时也恒在描述下方不漂左列;
                      框只留一层(组件本体自带 border 卡,外层包裹去框去底,防框套框) */}
-                    {asset.type === "role" && (
+                    {asset.type === "role" && roleAttributesPresent && (
                       <div className="min-w-0">
                         <StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />
                       </div>
                     )}
                     {asset.type === "role" && (
-                      <div className="col-start-2 min-w-0 h-full">
+                      <div className={`${roleAttributesPresent ? "col-start-2" : "col-span-2"} min-w-0 h-full`}>
                         {(() => {
                           if (!roleVoiceBinding || !roleVoiceProfile) {
                             return (
@@ -1041,19 +1042,13 @@ export function StudioAssetDetailDialog({
                         })()}
                       </div>
                     )}
-                    {/* 10-25 用户令:人物技能文档展示(像设定一样;数据=入库役
-                     campaigns/role_skills_ingest_1025.py 写的 skills 列,五系/单道途结构)。
-                     col-span-2 全宽:晏燎五系×十境术法量大,半宽折叠树太挤 */}
-                    {asset.type === "role" && (
-                      <div className="col-span-2 min-w-0">
-                        <StudioAssetRoleSkills skills={fullAsset?.skills ?? asset.skills} />
-                      </div>
-                    )}
+                    {/* 10-27 用户令「技能之类的确实不应该展示」:技能卡整块撤
+                     (数据仍在 DB skills 列,仅弹窗不渲染) */}
                     {/* 行3: 提示词(10-25 分层面板役 A-2:①主体句+②「提示词构成」折叠组
                      +③实发终稿桩;替换原「出图提示词」单框区,三轨 role/scene/tool 通用)
                      | 设定(非 audio) */}
                     {asset.type !== "audio" ? (
-                      <section className="studio-asset-prompt-region min-w-0 space-y-1.5" aria-label="提示词">
+                      <section className="studio-asset-prompt-region col-span-2 min-w-0 space-y-1.5" aria-label="提示词">
                         {/* R1/R3(10-26 用户令):「查看源提示词/查看实发终稿」收敛到首行紧凑
                             动作组;R2 复制钮砍除(文本框全选即复制);R4 idle 态提示行砍除
                             (非 idle 旁注仍随 probe 态展示) */}
@@ -1182,7 +1177,7 @@ export function StudioAssetDetailDialog({
                       </section>
                     ) : null}
                     {asset.type !== "audio" ? (
-                      <section className="min-w-0 space-y-1.5">
+                      <section className="col-span-2 min-w-0 space-y-1.5">
                         <div className="text-xs font-medium text-muted-foreground">设定</div>
                         <Textarea
                           value={draftSetting}
@@ -1193,7 +1188,7 @@ export function StudioAssetDetailDialog({
                       </section>
                     ) : null}
                     {/* 行尾: 保存 | 删除(用户点名置顶区) */}
-                    <div className="col-span-2 flex items-center justify-end gap-2">
+                    <div className="col-span-2 mt-2 flex items-center justify-end gap-2 border-t border-border pt-3">
                       <Button className="min-w-28" onClick={handleSave}>保存</Button>
                       <Button variant="destructive" className="min-w-28" onClick={handleDelete}>删除</Button>
                     </div>

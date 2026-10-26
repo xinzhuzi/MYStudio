@@ -241,7 +241,7 @@ describe("buildAssetRegenerationPrompt", () => {
     const source = readDialogSources();
 
     expect(source).toContain(
-      'import { StudioAssetRoleAttributes } from "./studio-asset-role-attributes";',
+      'import { StudioAssetRoleAttributes, parseStudioAssetRoleAttributes } from "./studio-asset-role-attributes";',
     );
     expect(source).toContain(
       '<StudioAssetRoleAttributes setting={draftSetting || asset.setting || ""} />',
