@@ -22,7 +22,7 @@ vi.mock("./audio-grouped-grid", () => ({ AudioGroupedGrid: (p: {
 }) => <div>
  <output data-testid="status">{p.isLoading ? "loading" : p.isLoadingMore ? "appending" : "idle"}</output>
  <output data-testid="error">{p.error}</output><output data-testid="selected">{p.selectedIds.size}</output>
- {p.items.map(i => <span key={i.id}><button onClick={() => p.onToggleSelect(i.id)}>{i.name}</button><button data-testid={`open-${i.id}`} onClick={() => p.onOpen(i)}>open</button></span>)}
+ {p.items.map(i => <span key={i.id}><button onClick={() => p.onToggleSelect(i.id)}>{i.name}</button><output data-testid={`thumb-${i.id}`}>{i.thumbnailUrl ?? ""}</output><button data-testid={`open-${i.id}`} onClick={() => p.onOpen(i)}>open</button></span>)}
  {p.canLoadMore && <button onClick={p.onLoadMore}>next-page</button>}
  <button onClick={p.onRefresh}>refresh-query</button>
  </div> }));
@@ -126,4 +126,22 @@ describe("R4 扩面:卡片详情族聚显(资产库面板)", () => {
   expect(lastDialog()?.asset?.name).toBe("独孤剑尘");
   expect(lastDialog()?.familyImages?.map((e) => e.url)).toEqual(["asset-file://role/独孤剑尘.png"]);
  });
+});
+
+describe("10-26 角色卡封面择优(有高清人脸用高清人脸)", () => {
+  it("role 带高清人脸图→卡封面覆写为该图;无→原样", async () => {
+    const withFace: StudioAssetSummary = {
+      ...row("晏燎"), thumbnailUrl: "asset-file://role/全身.png",
+      images: [
+        { name: "晏燎_无衣物定妆_v1", filePath: "role/晏燎/晏燎_无衣物定妆_v1.png", url: "asset-file://role/全身.png", kind: "无衣物定妆" },
+        { name: "晏燎_高清人脸_v1", filePath: "role/晏燎/晏燎_高清人脸_v1.png", url: "asset-file://role/人脸.png", kind: "高清人脸" },
+      ],
+    };
+    const noFace: StudioAssetSummary = { ...row("小杂役"), thumbnailUrl: "asset-file://role/杂役.png" };
+    mocks.list.mockResolvedValueOnce({ items: [withFace, noFace], total: 2 });
+    render(<StudioAssetLibrary type="role" />);
+    await screen.findAllByText("晏燎");
+    expect(screen.getByTestId("thumb-晏燎").textContent).toBe("asset-file://role/人脸.png");
+    expect(screen.getByTestId("thumb-小杂役").textContent).toBe("asset-file://role/杂役.png");
+  });
 });

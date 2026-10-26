@@ -9,6 +9,7 @@ import { useStudioStore } from "@/stores/studio/studio-store";
 import { useProjectStore } from "@/stores/project/project-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StudioAssetKind, StudioAssetSummary } from "@/types/studio-assets";
+import { latestKindImage } from "@/lib/studio/asset-image-kind";
 import { Box, CheckSquare, Film, Loader2, Map, Mic2, Music2, Plus, RefreshCw, Search, Square, Trash2, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StudioAssetDetailDialog } from "./StudioAssetDetailDialog";
@@ -170,11 +171,20 @@ export function StudioAssetLibrary({ type }: { type: StudioAssetKind }) {
 
   const items = useMemo(() => {
     const seen = new Set<string>();
-    return [...localItems, ...runtimeItems].filter((item) => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
+    return [...localItems, ...runtimeItems]
+      .filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      })
+      .map((item) => {
+        // 10-26 用户令「角色库外部有高清人脸就用高清人脸表达」:角色卡封面优先
+        // 最新「高清人脸」图(纯展示层覆写,不动 DB 主图);无则原封面不变
+        if (item.type !== "role" || !item.images?.length) return item;
+        const face = latestKindImage(item.images, "高清人脸");
+        if (!face?.url || item.thumbnailUrl === face.url) return item;
+        return { ...item, thumbnailUrl: face.url, previewUrl: face.url };
+      });
   }, [localItems, runtimeItems]);
 
   const runtimeItemsRef = useRef(runtimeItems);
