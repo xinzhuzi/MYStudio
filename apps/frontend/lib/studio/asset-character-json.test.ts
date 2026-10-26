@@ -209,3 +209,15 @@ describe("resolveBareTypeSubjectGate(无衣物定妆型区分闸,10-26 用户令
     expect(r.subject).toBe(su);
   });
 });
+
+describe("resolveBareTypeSubjectGate 赤足漏洞回归(10-26 小杂役实录)", () => {
+  it("穿破衣但光脚的杂役句(含「赤足」+衣物词)必须阻断——光脚≠无衣物", () => {
+    const XIAOZAYI = "约十岁的男童,码头杂役,谨小慎微、眼神怯生,圆脸稚气未脱,偏大的深色眼睛。肤色微黄,身形瘦小。素颜状态,中性微表情含怯意。土黄粗布短褐缀补丁,配旧布裤,腰束栗褐布绳,衣裤完整可穿;赤足。凌乱的及肩墨黑短发。";
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: XIAOZAYI });
+    expect(r.block).toContain("素体主体句");
+  });
+  it("全身素体声明仍放行(素体词在场)", () => {
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: "男童全身素体,赤足站立。" });
+    expect(r.block).toBeUndefined();
+  });
+});

@@ -293,7 +293,9 @@ export function resolveBareTypeSubjectGate(input: {
   if (slot?.trim()) return { subject: slot.trim() };
   if (bodyBaseSubject) return { subject: bodyBaseSubject };
   const text = (fallback ?? "").trim();
-  const declaresBare = /素体|赤足|足部赤裸|裸足|全身无衣/.test(text);
+  // 10-26 闸漏洞修正(小杂役实录):「赤足/裸足」=光脚≠无衣物(乞丐/杂役穿破衣
+  // 光脚是常见形象)——带衣句仅在显式「全身素体」级声明才豁免
+  const declaresBare = /素体|全身无衣|通身无衣|通身素体/.test(text);
   const hasClothing = /衣|袍|装|裙|衫|服|褐|裤|甲|帔|靴|鞋|履/.test(text);
   if (text && hasClothing && !declaresBare) {
     return {
