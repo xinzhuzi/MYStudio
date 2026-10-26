@@ -1177,13 +1177,10 @@ export function StudioAssetDetailDialog({
                         </div>
                         )}
                         {characterPromptCatalog ? (
-                          /* 10-26 用户令「只显示无衣物定妆啊」:面板默认跟随 activeStage
-                             (=选中阶段;未选=聚类最高境界,与 T2 阶段子区同 fallback),
-                             开弹窗即见该境五条不再只剩基底两组;「无」的派发语义不动 */
-                          <StudioAssetCharacterPrompts
-                            catalog={characterPromptCatalog}
-                            stage={activeStage}
-                          />
+                          /* 10-26 用户令「展示基础相关的提示词,而不是阶段相关的」+
+                             「不要重复」:面板只显基础两卡(人脸基准/人物基底素体),
+                             阶段指令不展示(仍住真源JSON,「角色真源JSON」弹窗可查) */
+                          <StudioAssetCharacterPrompts catalog={characterPromptCatalog} />
                         ) : focusIsI2iFamily && focusKind && !subjectExpanded ? (
                           <button
                             type="button"

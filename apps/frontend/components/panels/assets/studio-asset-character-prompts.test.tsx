@@ -12,7 +12,7 @@ import type { CharacterPromptCatalog } from "@/lib/studio/asset-character-json";
 
 const catalog: CharacterPromptCatalog = {
   faceBase: { key: "hd_face_base", route: "t2i", routeNote: "人脸基准正射(t2i)", title: "人脸基准", text: "人脸基准全文" },
-  bodyBase: { key: "body_base", route: "t2i", routeNote: "素体基底", title: "人物基底·素体", text: "素体基底全文" },
+  bodyBase: { key: "body_base", route: "t2i", routeNote: "素体基底", title: "人物基底·素体", text: `${"素体基准长文。".repeat(30)}` },
   realms: [
     {
       stage: "筑基期",
@@ -30,18 +30,18 @@ afterEach(() => cleanup());
 
 describe("StudioAssetCharacterPrompts", () => {
   it("基底恒显+阶段选中渲染该境条目,路由徽标逐条标注", () => {
-    render(<StudioAssetCharacterPrompts catalog={catalog} stage="筑基期" />);
+    render(<StudioAssetCharacterPrompts catalog={catalog} />);
     expect(screen.getByText("人脸基准")).toBeTruthy();
     expect(screen.getByText("人物基底·素体")).toBeTruthy();
-    expect(screen.getByText("筑基期·独立主体词")).toBeTruthy();
-    expect(screen.getByText("筑基期·正视图指令")).toBeTruthy();
+    expect(screen.queryByText("筑基期·独立主体词")).toBeNull();
+    expect(screen.queryByText("筑基期·正视图指令")).toBeNull();
     // 10-26 三次令:路由标注整组不渲染
     expect(screen.queryByText("文生图")).toBeNull();
     expect(screen.queryByText("图生图")).toBeNull();
   });
 
-  it("无阶段选择只显基底组(引导提示已按 10-26 令删除)", () => {
-    render(<StudioAssetCharacterPrompts catalog={catalog} stage={null} />);
+  it("面板只显基础两卡,阶段指令不展示(10-26 令)", () => {
+    render(<StudioAssetCharacterPrompts catalog={catalog} />);
     expect(screen.queryByText(/选择上方「阶段」/)).toBeNull();
     expect(screen.queryByText(/阶段选择器未显示/)).toBeNull();
     expect(screen.queryByText("筑基期·独立主体词")).toBeNull();
@@ -49,10 +49,10 @@ describe("StudioAssetCharacterPrompts", () => {
   });
 
   it("卡片点击展开显示全文", () => {
-    render(<StudioAssetCharacterPrompts catalog={catalog} stage="筑基期" />);
-    const longText = "独立主体词长文。".repeat(30);
+    render(<StudioAssetCharacterPrompts catalog={catalog} />);
+    const longText = "素体基准长文。".repeat(30);
     expect(screen.getByText(longText, { exact: false }).className).toContain("line-clamp-2");
-    fireEvent.click(screen.getByText("筑基期·独立主体词"));
+    fireEvent.click(screen.getByText("人物基底·素体"));
     expect(screen.getByText(longText).className).not.toContain("line-clamp-2");
   });
 });
