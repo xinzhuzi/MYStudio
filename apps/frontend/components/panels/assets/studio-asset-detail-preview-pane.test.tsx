@@ -171,16 +171,15 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
   });
 
   it("renders the completeness overview bar above typed-track galleries(Round 3 ⑤ 三轨通用;clip 无)", () => {
-    const { container } = renderPane();
+    renderPane({ onFillMissing: vi.fn() });
     expect(screen.getByRole("button", { name: "一键生图" })).toBeTruthy();
-    expect(container.querySelector(".studio-asset-completeness-bar")).toBeTruthy();
 
     // scene/tool 同款完整度条(型谱分节画廊);clip 无型谱零侵入
     cleanup();
-    renderPane({ asset: asset({ type: "scene" }) });
+    renderPane({ asset: asset({ type: "scene" }), onFillMissing: vi.fn() });
     expect(screen.getByRole("button", { name: "一键生图" })).toBeTruthy();
     cleanup();
-    renderPane({ asset: asset({ type: "tool" }) });
+    renderPane({ asset: asset({ type: "tool" }), onFillMissing: vi.fn() });
     expect(screen.getByRole("button", { name: "一键生图" })).toBeTruthy();
     cleanup();
     renderPane({ asset: asset({ type: "clip" }) });
@@ -485,7 +484,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
   });
 
   it("节头钮 gating:i2i 型零图禁用(title 提示),t2i 型(设定卡/美宣)零图可点", () => {
-    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn() });
+    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
+      onFillMissing: vi.fn() });
 
     // 10-25 用户令:无衣物定妆 t2i 化——零图可点(主体句+型层承载,无参考图门槛)
     const fullBody = screen.getByRole("button", { name: "生成无衣物定妆" }) as HTMLButtonElement;
@@ -504,6 +504,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
       canTypeShot: true,
       canFacePortrait: true,
       onTypeShot: vi.fn(),
+      onFillMissing: vi.fn(),
       typeShotPhase: "generating",
       typeShotMessage: "正在生成 主角 的无衣物定妆...",
     });
@@ -525,7 +526,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
   });
 
   it("「按型出图」下拉已删(10-26 用户令:与 chip 直达/分节按钮重复);节头钮仍按型派发", () => {
-    const { props } = renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn() });
+    const { props } = renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
+      onFillMissing: vi.fn() });
     expect(screen.queryByRole("button", { name: /按型出图/ })).toBeNull();
     // 节头生成钮仍在=onTypeShot 派发不丢
     const sectionButton = screen.getAllByRole("button", { name: /生成|点击生成/ })[0];
@@ -551,6 +553,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     renderPane({
       asset: asset({ type: "scene", name: "山门" }),
       images: [{ name: "山门_场景_v1", filePath: "scene/s1.png", url: "media://s1" }],
+      onFillMissing: vi.fn(),
     });
 
     // 节序=scene 谱:场景→概念气氛图→3D剖面场景图→自由(10-25 无未分类节,无类型图落自由)
@@ -621,9 +624,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
       { name: "e_表情差分_1", filePath: "role/e.png", url: "media://e" },
     ];
     renderPane({ images: complete, onFillMissing: vi.fn() });
-    const fillAll = screen.getByRole("button", { name: "一键生图" }) as HTMLButtonElement;
-    expect(fillAll.disabled).toBe(true);
-    expect(fillAll.getAttribute("title")).toContain("核心图已齐");
+    // 10-26 二次令:全齐=整块不渲染(无灰钮)
+    expect(screen.queryByRole("button", { name: "一键生图" })).toBeNull();
 
     // 队列在跑(聚合相位):禁用+Loader2+进度文案在条内透出
     cleanup();
@@ -640,7 +642,8 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
   });
 
   it("节头型档案徽标:七型节带透明/route 徽标,既有路节(高清人脸/表情差分)恒无", () => {
-    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn() });
+    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
+      onFillMissing: vi.fn() });
 
     // 10-25 用户令:无衣物定妆 t2i 化(文生图身份源头)——route 徽标随迁
     const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
@@ -668,6 +671,7 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
     renderPane({
       images: OWN_IMAGES,
       onGenerateByKind,
+      onFillMissing: vi.fn(),
       typeShotPhase: "generating",
       typeShotMessage: "正在生成 主角 的无衣物定妆...",
     });
@@ -712,8 +716,7 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
       completenessImages: COMPLETE,
       onFillMissing: vi.fn(),
     });
-    const btn2 = screen.getByRole("button", { name: "一键生图" }) as HTMLButtonElement;
-    expect(btn2.disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: "一键生图" })).toBeNull();
   });
 
   it("复审M 缺省回落(随迁):不传 completenessImages 时按 images 计——部分图=按钮可点", () => {
@@ -726,7 +729,8 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
 describe("10-26 人物海报画幅开关挪节头", () => {
   it("只挂「人物海报」节头(与生成钮同排),其他节零出现;点击回调切换", () => {
     const onToggle = vi.fn();
-    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(), posterLandscape: false, onTogglePosterLandscape: onToggle });
+    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
+      onFillMissing: vi.fn(), posterLandscape: false, onTogglePosterLandscape: onToggle });
     const posterSection = screen.getByRole("region", { name: "人物海报" });
     const toggle = within(posterSection).getByRole("button", { name: "竖幅 3:4" });
     fireEvent.click(toggle);
@@ -737,7 +741,8 @@ describe("10-26 人物海报画幅开关挪节头", () => {
   });
 
   it("横幅态文案+样式随动", () => {
-    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(), posterLandscape: true, onTogglePosterLandscape: vi.fn() });
+    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(),
+      onFillMissing: vi.fn(), posterLandscape: true, onTogglePosterLandscape: vi.fn() });
     const posterSection = screen.getByRole("region", { name: "人物海报" });
     const toggle = within(posterSection).getByRole("button", { name: "横幅 16:9" });
     expect(toggle.className).toContain("text-primary");

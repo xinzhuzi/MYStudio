@@ -503,28 +503,25 @@ export function StudioAssetDetailPreviewPane({
    *  复审 H/M 修:chips 计数与缺失判定按本行 completenessCount(Q1 不抵扣);任一
    *  生成相位在跑,缺失 chip 直达入口禁用+title(与节头钮/下拉/一键补缺同闸)。 */
   const renderCompletenessBar = () => {
-    // 10-26 用户令「这个地方只保留1个按钮,就是一键生图」:整块砍到单按钮——
-    // 只补缺图核心型(现一键补缺队列行为),已有的不重生成;chips/标题全删
+    // 10-26 二次令(用户实录「为什么包裹住/按钮怎么是灰的不能按」):
+    // ①无缺图=整块不渲染(核心全齐的角色弹窗直接没有这个按钮,不再灰置);
+    // ②裸按钮无容器框(旧完整度条边框容器删);busy 态保留可见+转圈(进度反馈)
     const coreKinds = spectrum?.core ?? [];
     const missingCoreCount = coreKinds.filter((kind) => completenessCount(kind) === 0).length;
-    const fillMissingDisabled = generationBusy || (onFillMissing != null && missingCoreCount === 0);
-    const fillMissingTitle = onFillMissing == null
-      ? "一键生图队列候装配方接线"
-      : missingCoreCount === 0
-        ? "核心图已齐,无需生成"
-        : typeShotPhase
-          ? (typeShotMessage || "正在生成，请稍候")
-          : generationBusy
-            ? "有生成任务正在进行，请稍候"
-            : `补全缺失的 ${missingCoreCount} 类核心图(已有图不重新生成)`;
+    if (onFillMissing == null || missingCoreCount === 0) return null;
+    const fillMissingTitle = typeShotPhase
+      ? (typeShotMessage || "正在生成，请稍候")
+      : generationBusy
+        ? "有生成任务正在进行，请稍候"
+        : `补全缺失的 ${missingCoreCount} 类核心图(已有图不重新生成)`;
     return (
-    <div className="studio-asset-completeness-bar sticky top-0 z-[1] rounded-md border border-border bg-background/95 px-3 py-2 backdrop-blur">
+    <div className="sticky top-0 z-[1]">
       <Button
         variant="outline"
         size="sm"
         className="studio-asset-fill-missing h-6 gap-1 px-2 text-[11px]"
         onClick={() => onFillMissing?.()}
-        disabled={fillMissingDisabled || !onFillMissing}
+        disabled={generationBusy}
         title={fillMissingTitle}
       >
         {typeShotPhase ? (

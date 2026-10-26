@@ -440,7 +440,7 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     expect(previewSource).toContain("getAssetImageKindSpectrum");
     expect(previewSource).toContain("早期未分类");
     expect(previewSource).toContain("studio-asset-image-placeholder");
-    expect(previewSource).toContain("studio-asset-completeness-bar");
+    expect(previewSource).toContain('一键生图');
     expect(previewSource).toContain("overflow-x-auto");
     expect(previewSource).toContain('const SINGLE_SECTION_TITLE = "图片"');
     // audio 轨零动:播报卡/波形/转写链路保持
