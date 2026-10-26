@@ -87,6 +87,9 @@ _CLOTH_COLOR = re.compile(
     r"|[一-龥]{1,4}色")
 _FULLBODY = re.compile(r"全身(?!仅)|足底|从头到脚|双脚")
 _SHOE = re.compile(r"鞋|靴|履|屐|袜")
+# 1023 素体基准态既定语义:素体全身像=足部赤裸(鞋履后注入)——显式赤足/素体
+# 声明即视为已描述足部,鞋履必写豁免(10-26 晏燎素体主体词被误拒实录)。
+_BAREFOOT = re.compile(r"赤足|足部赤裸|裸足|双脚赤|素体")
 _ACCESSORY = re.compile(r"簪|钗|环|镯|链|佩|囊|袋|带|绦|剑|刀|扇|伞|笛|珠|冠|巾|帽")
 _MAT_COLOR = re.compile(r"[一-龥]{0,3}色|乌黑|墨黑|漆黑|银白|雪白|灰白|乌发|黑革|黑鲨皮|黄铜|乌木|白玉|素银|旧金|灰银|银|金|铜|铁|玉|木|革|丝|布|绸|缎")
 
@@ -95,8 +98,8 @@ def _outfit_violations(t: str) -> list[str]:
     out = []
     if _CLOTH.search(t) and not _CLOTH_COLOR.search(t):
         out.append("衣色必写（服装描述必须带明确颜色，如「青玉色道袍」「玄色劲装」）")
-    if _FULLBODY.search(t) and not _SHOE.search(t):
-        out.append("全身像鞋履必写（如「足蹬青布道履」；半身/特写不受此条）")
+    if _FULLBODY.search(t) and not _SHOE.search(t) and not _BAREFOOT.search(t):
+        out.append("全身像鞋履必写（如「足蹬青布道履」；半身/特写不受此条；素体赤足态声明可豁免）")
     if _ACCESSORY.search(t) and not (_MAT_COLOR.search(t) or _CLOTH_COLOR.search(t)):
         out.append("配饰须写明颜色或材质（如「素银簪」「黑革带」「黄铜刀格」）")
     return out
