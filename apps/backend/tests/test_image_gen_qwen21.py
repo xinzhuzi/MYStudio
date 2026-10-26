@@ -360,6 +360,37 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
             qwen21.apply_hand_speed_mode({"7:7015": {"inputs": {}}}, "人物海报")
         self.assertEqual(caught.exception.code, "bridge-template-missing")
 
+    def test_manual_size_overrides_whsuggest_t2i_and_i2i(self) -> None:
+        # 10-26 用户裁定「人物海报横竖皆可」:manual_width/height 手动槽覆写
+        # WhSuggest(t2i=[4018]/i2i=[6:4018]);缺省零动作=跟型
+        g1, _, _ = self._run_generate(
+            prompt="横幅海报", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            manual_width=1824, manual_height=1024,
+        )
+        self.assertEqual((g1["4018"]["inputs"]["手动宽"], g1["4018"]["inputs"]["手动高"]), (1824, 1024))
+        g2, _, _ = self._run_generate(
+            prompt="横幅海报i2i", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            reference_b64="aWlpcmVmaW9uZQ==", manual_width=1824, manual_height=1024,
+        )
+        self.assertEqual((g2["6:4018"]["inputs"]["手动宽"], g2["6:4018"]["inputs"]["手动高"]), (1824, 1024))
+        g3, _, _ = self._run_generate(
+            prompt="跟型", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+        )
+        self.assertEqual(g3["4018"]["inputs"]["手动宽"], 0)
+
+    def test_manual_size_aligns_to_8_and_ignores_bad_values(self) -> None:
+        g = {"4018": {"class_type": "MyQi21WhSuggest",
+                      "inputs": {"九型WIDTH": ["6:4010", 1], "九型HEIGHT": ["6:4010", 2],
+                                  "手动宽": 0, "手动高": 0}}}
+        qwen21.apply_manual_size(g, 1826, 1023)
+        self.assertEqual((g["4018"]["inputs"]["手动宽"], g["4018"]["inputs"]["手动高"]), (1824, 1016))
+        qwen21.apply_manual_size(g, None, 800)
+        self.assertEqual(g["4018"]["inputs"]["手动宽"], 1824)  # 非法零动作
+        qwen21.apply_manual_size(g, -5, 800)
+        self.assertEqual(g["4018"]["inputs"]["手动高"], 1016)
+        qwen21.apply_manual_size(g, "abc", 800)
+        self.assertEqual(g["4018"]["inputs"]["手动高"], 1016)
+
 
 if __name__ == "__main__":
     unittest.main()

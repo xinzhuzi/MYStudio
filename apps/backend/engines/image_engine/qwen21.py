@@ -186,6 +186,28 @@ def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any) -> None:
     speed["inputs"]["mode"] = SPEED_MODE_E_HYBRID
 
 
+def apply_manual_size(graph: dict[str, Any], width: Any, height: Any) -> None:
+    """画幅手动覆写(10-26 用户裁定:人物海报横竖皆可——bases 型画幅仅为缺省,
+    调用方可点名横幅/竖幅)。命中图内 MyQi21WhSuggest(t2i=[4018]/i2i=[6:4018],
+    按类找不钉节点号)写手动宽/高;值取 8 倍数对齐节点契约;非正/缺省零动作=
+    跟型(九型直通)。"""
+    try:
+        w = int(width) if width is not None else 0
+        h = int(height) if height is not None else 0
+    except (TypeError, ValueError):
+        return
+    if w <= 0 or h <= 0:
+        return
+    w -= w % 8
+    h -= h % 8
+    if w <= 0 or h <= 0:
+        return
+    for node in graph.values():
+        if isinstance(node, dict) and node.get("class_type") == "MyQi21WhSuggest":
+            node.setdefault("inputs", {})["手动宽"] = w
+            node["inputs"]["手动高"] = h
+
+
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
     from image_gen.pipeline import is_generation_cancelled
 
@@ -272,6 +294,9 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
             # 缺省=道劫美术风格转换(指令+底座两段),既有画风转换/人脸/表情差分
             # 调用零回归(10-19 口径全量向后兼容)
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_STYLE_TRANSFER
+        # 10-26 画幅手动覆写(横竖皆可裁定;i2i 手动槽优先于九型直通,
+        # 4022 型画幅路由保持不动)
+        apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
     else:
         template_key = TEMPLATE_NAME
         template = load_template(TEMPLATE_NAME)
@@ -280,6 +305,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         apply_base_type(graph, ctx.get("base_type"))
         # 10-26 有手型默认档3混动(在 apply_base_type 之后,同 base_type 单真源)
         apply_hand_speed_mode(graph, ctx.get("base_type"))
+        # 10-26 画幅手动覆写(横竖皆可裁定;t2i 手动槽优先于九型直通)
+        apply_manual_size(graph, ctx.get("manual_width"), ctx.get("manual_height"))
     message = missing_nodes_message(
         [cls for cls in graph_node_classes(graph) if cls not in _available_node_classes()],
         curated_node_class_packs(),
