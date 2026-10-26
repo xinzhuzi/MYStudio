@@ -60,7 +60,6 @@ export function StudioAssetCharacterPrompts({
   return (
     <div className="space-y-2" aria-label="人物提示词(真源JSON)">
       <div className="space-y-1.5">
-        <div className="text-[10px] font-medium text-muted-foreground/80">基底(恒显)</div>
         <div className="grid gap-1.5">
           {catalog.faceBase ? <PromptCard entry={catalog.faceBase} /> : null}
           {catalog.bodyBase ? <PromptCard entry={catalog.bodyBase} /> : null}
@@ -69,7 +68,7 @@ export function StudioAssetCharacterPrompts({
 
       {realm ? (
         <div className="space-y-1.5">
-          <div className="text-[10px] font-medium text-muted-foreground/80">{realm.stage}(随「阶段」选择联动)</div>
+          <div className="text-[10px] font-medium text-muted-foreground/80">{realm.stage}</div>
           <div className="grid gap-1.5">
             {realm.entries.map((entry) => (
               <PromptCard key={entry.key} entry={entry} />

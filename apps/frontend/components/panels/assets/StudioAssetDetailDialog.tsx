@@ -1127,9 +1127,13 @@ export function StudioAssetDetailDialog({
                             选中后按型出图命名带阶段段+i2i 参考图锚该阶段最新图。
                             10-26 真源接线:有真源目录的角色,本区=「人物提示词」结构化
                             面板(JSON 数据化呈现+文生图/图生图标注,随阶段联动),
-                            主体句文本框退场(派发仍吃真源派生句) */}
+                            主体句文本框退场(派发仍吃真源派生句)。
+                            10-26 控件精简令:真源角色区头整行不渲染(标签/「阶段」
+                            选择器/专用句钮全退场,卡片直接排;面板恒显 activeStage
+                            =聚类最高境界,阶段职能退由派发默认承担) */}
+                        {characterPromptCatalog ? null : (
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[11px] text-muted-foreground">{characterPromptCatalog ? "人物提示词" : "主体句"}</div>
+                          <div className="text-[11px] text-muted-foreground">主体句</div>
                           <div className="flex min-w-0 shrink-0 items-center gap-1.5">
                             {stageOptions.length > 0 && (
                               <Select
@@ -1171,6 +1175,7 @@ export function StudioAssetDetailDialog({
                           )}
                           </div>
                         </div>
+                        )}
                         {characterPromptCatalog ? (
                           /* 10-26 用户令「只显示无衣物定妆啊」:面板默认跟随 activeStage
                              (=选中阶段;未选=聚类最高境界,与 T2 阶段子区同 fallback),
