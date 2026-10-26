@@ -126,6 +126,66 @@ def apply_base_type(graph: dict[str, Any], base_type: Any) -> None:
         graph["6:4010"]["inputs"]["base"] = base_type.strip()
 
 
+# 10-26 用户裁定:有手型生图默认档3混动(其余型/缺省维持画布默认 Turbo,1021 令延续)。
+# 依据=档位 A/B 实弹(apps/build/scripts/gear_ab_*_1026.py,9 发:Turbo 唯一重崩
+# 指融合+剑柄穿模,混动 1绿1黄1红轻,原生 2绿1红最好但 ~5×耗时被裁定不用于默认)。
+# 有手型=全身人物常态入画六型(手/剑高发);人脸基准(止颈特写)/场景三型/道具/表情差分
+# 等无手或手部罕见型不切。
+SPEED_MODE_E_HYBRID = "3 · 混动 40步+缓存"
+_HAND_E_HYBRID_TYPES = frozenset({"无衣物定妆", "人物海报", "人物多视图", "设定卡", "美宣", "自由"})
+# E 臂配方逐字对齐画布加速子图(my_nodes/subgraphs/qi21-道劫-加速子图*.json):
+# 模型链=turboLoRA(7:7028)出→7044 detailFix×1.0→7040 LazyCache(0.2/0.15/0.95)→
+# 7042 BasicGuider;采样=7041 BasicScheduler simple 40步;SCA 噪声/采样器/latent 源
+# 逐槽镜像 Turbo 臂(7:7031),故 t2i(EmptyLatent)与 i2i(参考编码 latent)一套代码。
+_DETAIL_FIX_LORA = "qwen2.1-detail-fix-2.0.safetensors"
+# 测试侧 mock 可用类集须并入(真实引擎 object_info 已含,模板类集不含——桥模板只
+# 物质化了 Turbo 臂,LazyCache/BasicScheduler 仅运行时注入)。
+E_HYBRID_INJECTED_CLASSES = frozenset({"LazyCache", "BasicScheduler"})
+
+
+def apply_hand_speed_mode(graph: dict[str, Any], base_type: Any) -> None:
+    """有手型→切档3混动:API 桥模板(t2i/i2i 同)只物质化了 Turbo 臂,SpeedSelect
+    其余 latent 槽未接线,直接改 mode 会被自研节点「选中档未接线」人话报错拒单;
+    故运行时补注 E 臂五件+接 latent_e+设 mode。非有手型(缺省/空/无手)零动作=
+    模板现值 Turbo,既有逐字节回归锁(test_t2i_path_unchanged)不受扰。
+    镜像源缺任一 Turbo 节点=fail-closed(模板漂移须显式暴露,禁静默降级)。"""
+    if not (isinstance(base_type, str) and base_type.strip() in _HAND_E_HYBRID_TYPES):
+        return
+    speed = graph.get("7:7015")
+    turbo_sca = graph.get("7:7031")
+    turbo_guider = graph.get("7:7029")
+    turbo_lora = graph.get("7:7028")
+    if not all(isinstance(x, dict) for x in (speed, turbo_sca, turbo_guider, turbo_lora)):
+        raise _pipeline_error(
+            "bridge-template-missing",
+            "桥模板缺 Turbo 臂源节点(7:7015/7:7028/7:7029/7:7031),无法补注 E 混动臂",
+        )
+    sca_inputs = turbo_sca.get("inputs", {})
+    conditioning = turbo_guider.get("inputs", {}).get("conditioning")
+    noise = sca_inputs.get("noise")
+    sampler = sca_inputs.get("sampler")
+    latent_image = sca_inputs.get("latent_image")
+    if conditioning is None or noise is None or sampler is None or latent_image is None:
+        raise _pipeline_error(
+            "bridge-template-missing",
+            "桥模板 Turbo 臂源槽缺接(conditioning/noise/sampler/latent_image),无法镜像 E 混动臂",
+        )
+    graph["7:7044"] = {"class_type": "LoraLoaderModelOnly", "inputs": {
+        "lora_name": _DETAIL_FIX_LORA, "strength_model": 1.0, "model": ["7:7028", 0]}}
+    graph["7:7040"] = {"class_type": "LazyCache", "inputs": {
+        "model": ["7:7044", 0], "reuse_threshold": 0.2, "start_percent": 0.15,
+        "end_percent": 0.95, "verbose": False}}
+    graph["7:7041"] = {"class_type": "BasicScheduler", "inputs": {
+        "model": ["7:7044", 0], "scheduler": "simple", "steps": 40, "denoise": 1.0}}
+    graph["7:7042"] = {"class_type": "BasicGuider", "inputs": {
+        "model": ["7:7040", 0], "conditioning": conditioning}}
+    graph["7:7043"] = {"class_type": "SamplerCustomAdvanced", "inputs": {
+        "noise": noise, "guider": ["7:7042", 0], "sampler": sampler,
+        "sigmas": ["7:7041", 0], "latent_image": latent_image}}
+    speed["inputs"]["latent_e"] = ["7:7043", 0]
+    speed["inputs"]["mode"] = SPEED_MODE_E_HYBRID
+
+
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
     from image_gen.pipeline import is_generation_cancelled
 
@@ -206,6 +266,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
                 )
             purpose_canvas["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
             assembly["inputs"]["组装用途"] = ASSEMBLY_PURPOSE_TYPE_FULL
+            # 10-26 有手型默认档3混动(在 apply_base_type 之后,同 base_type 单真源)
+            apply_hand_speed_mode(graph, base_type)
         else:
             # 缺省=道劫美术风格转换(指令+底座两段),既有画风转换/人脸/表情差分
             # 调用零回归(10-19 口径全量向后兼容)
@@ -216,6 +278,8 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         _warn_if_version_below_min(stats, template)
         graph = instantiate_template(template, prompt, negative_prompt, steps, seed, aspect_ratio, [])
         apply_base_type(graph, ctx.get("base_type"))
+        # 10-26 有手型默认档3混动(在 apply_base_type 之后,同 base_type 单真源)
+        apply_hand_speed_mode(graph, ctx.get("base_type"))
     message = missing_nodes_message(
         [cls for cls in graph_node_classes(graph) if cls not in _available_node_classes()],
         curated_node_class_packs(),

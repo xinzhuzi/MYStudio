@@ -203,6 +203,8 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         classes: set[str] = set()
         for template in (qwen21.load_template(qwen21.TEMPLATE_NAME), qwen21.load_template(qwen21.TEMPLATE_NAME_I2I)):
             classes.update(qwen21.graph_node_classes(template["graph"]))
+        # 10-26 E 混动臂运行时注入类(真实引擎 object_info 已含;桥模板只含 Turbo 臂)
+        classes.update(qwen21.E_HYBRID_INJECTED_CLASSES)
         return frozenset(classes)
 
     def _run_generate(self, *, prompt_id: str = "p-run", **generate_kwargs: object) -> tuple[dict, object, object]:
@@ -300,6 +302,63 @@ class Qwen21I2iGenerateTests(unittest.TestCase):
         )
         self.assertEqual(submitted, expected)
         self.assertNotIn("10", submitted)
+
+    def test_hand_type_t2i_defaults_e_hybrid(self) -> None:
+        # 10-26 用户裁定:有手型默认档3混动——t2i 路带 base_type=有手型 →
+        # E 臂五件运行时补注+latent_e 接线+mode 切档3;SCA 源槽逐槽镜像 Turbo 臂
+        graph, _, _ = self._run_generate(
+            prompt="人物海报主体句", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            base_type="人物海报",
+        )
+        self.assertEqual(graph["7:7015"]["inputs"]["mode"], qwen21.SPEED_MODE_E_HYBRID)
+        self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7043", 0])
+        self.assertEqual(graph["7:7044"]["inputs"]["model"], ["7:7028", 0])
+        self.assertEqual(graph["7:7044"]["inputs"]["lora_name"], "qwen2.1-detail-fix-2.0.safetensors")
+        self.assertEqual(graph["7:7040"]["class_type"], "LazyCache")
+        self.assertEqual(graph["7:7040"]["inputs"]["reuse_threshold"], 0.2)
+        self.assertEqual(graph["7:7040"]["inputs"]["start_percent"], 0.15)
+        self.assertEqual(graph["7:7040"]["inputs"]["end_percent"], 0.95)
+        self.assertEqual(graph["7:7041"]["inputs"]["steps"], 40)
+        self.assertEqual(graph["7:7041"]["inputs"]["scheduler"], "simple")
+        # 镜像源:噪声/采样器/latent 与 Turbo 臂逐槽同源(t2i latent=EmptyLatent[4])
+        turbo = graph["7:7031"]["inputs"]
+        e_sca = graph["7:7043"]["inputs"]
+        self.assertEqual(e_sca["noise"], turbo["noise"])
+        self.assertEqual(e_sca["sampler"], turbo["sampler"])
+        self.assertEqual(e_sca["latent_image"], turbo["latent_image"])
+        self.assertEqual(e_sca["sigmas"], ["7:7041", 0])
+        self.assertEqual(graph["7:7042"]["inputs"]["conditioning"], graph["7:7029"]["inputs"]["conditioning"])
+
+    def test_hand_type_i2i_defaults_e_hybrid(self) -> None:
+        # i2i 路(带参考图)同切:E 臂镜像注入,latent 源自动跟 i2i 模板参考编码链
+        graph, _, _ = self._run_generate(
+            prompt="人物海报指令", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+            reference_b64="aWlpcmVmaW9uZQ==", base_type="人物海报",
+        )
+        self.assertEqual(graph["7:7015"]["inputs"]["mode"], qwen21.SPEED_MODE_E_HYBRID)
+        self.assertEqual(graph["7:7015"]["inputs"]["latent_e"], ["7:7043", 0])
+        self.assertIn("7:7043", graph)
+        self.assertEqual(
+            graph["7:7043"]["inputs"]["latent_image"], graph["7:7031"]["inputs"]["latent_image"]
+        )
+
+    def test_non_hand_types_keep_turbo_default(self) -> None:
+        # 非有手型零动作=模板现值 Turbo(逐字节回归锁的语义延续)
+        for base_type in ("道具", "人脸基准", "场景", None, "  "):
+            graph, _, _ = self._run_generate(
+                prompt=f"主体句{base_type}", aspect_ratio="1:1", negative_prompt=None, steps=8, seed=42,
+                base_type=base_type,
+            )
+            self.assertNotIn("7:7043", graph, base_type)
+            self.assertEqual(graph["7:7015"]["inputs"]["mode"], "0 · Turbo 8步", base_type)
+
+    def test_hand_speed_mode_fail_closed_on_missing_turbo_source(self) -> None:
+        # 模板漂移防线:镜像源缺失→显式 bridge-template-missing,禁静默降级直出
+        from image_gen.pipeline import PipelineError
+
+        with self.assertRaises(PipelineError) as caught:
+            qwen21.apply_hand_speed_mode({"7:7015": {"inputs": {}}}, "人物海报")
+        self.assertEqual(caught.exception.code, "bridge-template-missing")
 
 
 if __name__ == "__main__":
