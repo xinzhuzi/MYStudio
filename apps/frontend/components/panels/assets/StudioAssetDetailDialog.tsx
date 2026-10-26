@@ -1143,9 +1143,12 @@ export function StudioAssetDetailDialog({
                           </div>
                         </div>
                         {characterPromptCatalog ? (
+                          /* 10-26 用户令「只显示无衣物定妆啊」:面板默认跟随 activeStage
+                             (=选中阶段;未选=聚类最高境界,与 T2 阶段子区同 fallback),
+                             开弹窗即见该境五条不再只剩基底两组;「无」的派发语义不动 */
                           <StudioAssetCharacterPrompts
                             catalog={characterPromptCatalog}
-                            stage={selectedStage}
+                            stage={activeStage}
                           />
                         ) : focusIsI2iFamily && focusKind && !subjectExpanded ? (
                           <button
