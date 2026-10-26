@@ -224,6 +224,39 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
     }
   });
 
+  itFile("道劫剧本开场与内心戏不得授权补造事件或新增台词", () => {
+    const script = readManual("story_skills/Daojie_xianxia/script_narrative.md");
+    expect(script).toContain("原文事实与台词优先于开场节奏、类型语言和集末钩子");
+    expect(script).toContain("待确认内容不得先写入正式剧本");
+    for (const label of ["- V.S.（旁白）", "- OS（内心独白）", "- 晏燎与苏无忌残识"]) {
+      const rules = findLines(script, label);
+      expect(rules).toHaveLength(1);
+      expect(rules[0], label).toContain("当章已有");
+    }
+    expect(script).not.toContain("自第 2 个镜头起必须出冲突动作或威胁台词");
+    expect(script).not.toContain("对峙时刻写 OS 对切");
+  });
+
+  itFile("道劫H3九式的完整战斗镜遵守时长下限，短器物段标明镜内节拍", () => {
+    const fusion = readManual("story_skills/Daojie_xianxia/driector_skills/director_style_card_fusion.md");
+    const sword = findLines(fusion, "| 剑意一镜 |");
+    const object = findLines(fusion, "| 器物传情 |");
+    expect(sword).toHaveLength(1);
+    expect(object).toHaveLength(1);
+    expect(sword[0]).toContain("8-12s");
+    expect(object[0]).toContain("镜内节拍");
+  });
+
+  itFile("道劫H3一臂之距保留两条关系边界与距离变化，不恒定所有双人距离", () => {
+    const fusion = readManual("story_skills/Daojie_xianxia/driector_skills/director_style_card_fusion.md");
+    const distance = findLines(fusion, "| 一臂之距 |");
+    expect(distance).toHaveLength(1);
+    expect(distance[0]).toContain("理念决裂");
+    expect(distance[0]).toContain("自持");
+    expect(distance[0]).toContain("可渐宽");
+    expect(distance[0]).not.toContain("永远保持一臂之距");
+  });
+
   itFile("道劫终态视听均为可选修辞，规划不越界逐镜或补事件", () => {
     const root = "story_skills/Daojie_xianxia/";
     for (const module of ["driector_skills/director_planning_narrative.md", "driector_skills/director_storyboard_table_narrative.md", "driector_skills/director_style_card_fusion.md"]) {

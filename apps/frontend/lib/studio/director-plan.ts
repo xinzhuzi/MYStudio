@@ -1,8 +1,11 @@
+import { daojieFidelityBoundary } from "./daojie-generation-audit";
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import type { ScriptPlan, StudioSourceIdentity } from "@/types/studio";
 
 export interface BuildDirectorPlanInput {
   episodeId: string;
+  sourceText?: string;
+  strictDaojieAdaptation?: boolean;
   scriptText: string;
   /** 已选视觉/导演手册摘要（buildStudioManualContext 产出），作为风格基准注入 */
   manualContext?: string;
@@ -124,9 +127,10 @@ export function stripLightingTerms(text: string): string {
 export function buildDirectorPlanMessages(input: BuildDirectorPlanInput): DirectorPlanMessages {
   const skill = getAgentSkillPreset("production_execution_director_plan")?.content ?? "";
   return {
-    system: [skill, input.bibleContext, input.manualContext].filter(Boolean).join("\n\n---\n\n"),
+    system: [skill, input.bibleContext, input.manualContext, input.strictDaojieAdaptation && input.sourceText?.trim() ? daojieFidelityBoundary("planning") : ""].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
+      ...(input.strictDaojieAdaptation && input.sourceText?.trim() ? [`本章原文（事实/时序核对真源）：\n${input.sourceText}`] : []),
       "剧本正文：",
       input.scriptText,
     ].join("\n"),

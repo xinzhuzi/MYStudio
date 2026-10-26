@@ -81,6 +81,17 @@ function nodesOfType(graph: WorkflowGraph, classType: string): Array<[string, Wo
   return Object.entries(graph).filter(([, node]) => node.class_type === classType);
 }
 
+/**
+ * 1025 my21fast:TE 类名并集——TextEncodeQwenImage21(官方/存量 api 件)与
+ * MyQi21FastEncode(1025 手术件:qi21 道劫 t2i/i2i/edit 换类)同视为文本编码器;
+ * 编码器识别面(resolveNegative 容错链 + t2i 路在场校验)一律走本并集。
+ */
+const TE_CLASS_UNION = ["TextEncodeQwenImage21", "MyQi21FastEncode"] as const;
+
+function teNodesOf(graph: WorkflowGraph): Array<[string, WorkflowNode]> {
+  return TE_CLASS_UNION.flatMap((cls) => nodesOfType(graph, cls));
+}
+
 function inlineStringValue(node: WorkflowNode, key: string): string | null {
   const value = nodeInputs(node)[key];
   return typeof value === "string" ? value : null;
@@ -155,9 +166,9 @@ function resolveLockLayers(graph: WorkflowGraph): WorkflowPromptLayer[] {
 
 /**
  * 负面文本(容错链,首个非空内联可读者;空串=如实无可读负面,不抛错):
- * 1. 4016 号 TextEncodeQwenImage21(画布真源:负向编码节点,API 形常缺席)的
+ * 1. 4016 号 TE(画布真源:负向编码节点,API 形常缺席;1025 特判保留)的
  *    prompt/negative_prompt 内联串;
- * 2. 任意 TextEncodeQwenImage21 内联非空 negative_prompt(t2i API 形常为 ""——
+ * 2. 任意 TE(1025 并集域)内联非空 negative_prompt(t2i API 形常为 ""——
  *    视为无可读,续走);
  * 3. negative_prompt 链接 → 目标节点(FinalOutput/装配)的 负向提示词/主体句负面
  *    内联非空串(i2i 实盘:negative_prompt 是链接,装配的 主体句负面 常为 "");
@@ -165,7 +176,7 @@ function resolveLockLayers(graph: WorkflowGraph): WorkflowPromptLayer[] {
  * 5. MyQi21美术风格底座「负向词表」(底座负面全文,t2i 模板真源 6:4032)。
  */
 function resolveNegative(graph: WorkflowGraph): string {
-  const encoders = nodesOfType(graph, "TextEncodeQwenImage21");
+  const encoders = teNodesOf(graph);
   const negativeEncoder = encoders.find(([id]) => id === "4016");
   if (negativeEncoder) {
     const fromPinned = nonEmptyInline(negativeEncoder[1], "prompt") ?? nonEmptyInline(negativeEncoder[1], "negative_prompt");
@@ -242,9 +253,9 @@ export function parseWorkflowPrompt(workflowJson: string): WorkflowPromptBreakdo
     const layers = resolveLockLayers(graph);
     return { finalText, layers, negative: resolveNegative(graph), seed: resolveSeed(graph), routeHint };
   }
-  // t2i 已验键位(仓库模板钉):编码器必须在场,缺席=模板键位漂移。
-  if (nodesOfType(graph, "TextEncodeQwenImage21").length === 0) {
-    throw new WorkflowPromptParseError("键位漂移:t2i 路 TextEncodeQwenImage21 缺席");
+  // t2i 已验键位(仓库模板钉):编码器(1025 并集域)必须在场,缺席=模板键位漂移。
+  if (teNodesOf(graph).length === 0) {
+    throw new WorkflowPromptParseError("键位漂移:t2i 路 TextEncodeQwenImage21/MyQi21FastEncode 缺席");
   }
   return { finalText, layers: [], negative: resolveNegative(graph), seed: resolveSeed(graph), routeHint };
 }

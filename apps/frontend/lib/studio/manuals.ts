@@ -113,10 +113,10 @@ export function buildStudioManualContext(
 
   return [
     "# 视觉手册",
-    visualManual ? buildManualSummary(visualManual, ["README", "prefix", "director_planning_style", "art_storyboard_video"], moduleCharCap) : "未选择",
+    visualManual ? buildManualSummary(visualManual, directorManual?.id === EXTENDED_DIRECTOR_MANUAL_SEED_ID ? ["README", "prefix", "director_planning_style"] : ["README", "prefix", "director_planning_style", "art_storyboard_video"], moduleCharCap) : "未选择",
     "",
     "# 导演手册",
-    directorManual ? buildManualSummary(directorManual, ["README", "director_planning_narrative", "director_storyboard_table_narrative"], moduleCharCap) : "未选择",
+    directorManual ? buildManualSummary(directorManual, directorManual.id === EXTENDED_DIRECTOR_MANUAL_SEED_ID ? ["README", "director_planning_narrative"] : ["README", "director_planning_narrative", "director_storyboard_table_narrative"], moduleCharCap) : "未选择",
   ].join("\n");
 }
 

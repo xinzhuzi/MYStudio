@@ -1,3 +1,4 @@
+import { daojieFidelityBoundary } from "./daojie-generation-audit";
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import { detectLightingTerms, stripLightingTerms } from "@/lib/studio/director-plan";
 import { VOICE_CPS_MIN } from "@/lib/studio/script-draft-metrics";
@@ -16,6 +17,8 @@ import type {
 
 export interface BuildStoryboardTableInput {
   episodeId: string;
+  sourceText?: string;
+  strictDaojieAdaptation?: boolean;
   scriptText: string;
   /** 导演规划摘要（ScriptPlan 关键维度文本），作为节奏/情绪基准注入 */
   scriptPlanContext?: string;
@@ -93,13 +96,14 @@ export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): 
     "时长预算（H3 视频线）：单集总时长 ≤3 分钟；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词与动作必须写足该时长的内容量，禁 2–3 秒空镜过场（2026-10-10 裁定）。",
   ].join("\n");
   return {
-    system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, input.scriptPlanContext].filter(Boolean).join("\n\n---\n\n"),
+    system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, input.scriptPlanContext, input.strictDaojieAdaptation && input.sourceText?.trim() ? daojieFidelityBoundary("storyboard") : ""].filter(Boolean).join("\n\n---\n\n"),
     user: [
       `当前集ID：${input.episodeId}`,
       input.scriptPlanContext ? `导演规划要点：\n${input.scriptPlanContext}` : "",
       input.assetsInventory
         ? `## 资产清单（引用资产名称只允许使用以下真实在册资产，不得编造）\n${input.assetsInventory}`
         : "",
+      input.strictDaojieAdaptation && input.sourceText?.trim() ? `本章原文（事实/时序核对真源）：\n${input.sourceText}` : "",
       "剧本正文：",
       input.scriptText,
     ]

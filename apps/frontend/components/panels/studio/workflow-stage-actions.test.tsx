@@ -19,6 +19,7 @@ import { useSceneStore } from "@/stores/library/scene-store";
 import { useTtsStore } from "@/stores/tts/tts-store";
 import type { StoryboardItem } from "@/types/studio";
 import { EXTENDED_VISUAL_MANUAL_SEED_ID } from "@/lib/studio/visual-manual-classification";
+import { buildStudioManualsFromSkillFiles } from "@/lib/studio/manuals";
 import {
   formatScriptPlanContext,
   resolveProductionEpisodeId,
@@ -3455,4 +3456,92 @@ describe("资产页章选择接线", () => {
     // 双口径禁回流:选择器 DOM 不许在 ScriptTab 就地复制(R12 纪律)
     expect(scriptTabSource).not.toContain("chapter-select-trigger");
   });
+});
+
+describe("道劫真实手册到三阶段请求", () => {
+  it.each([
+    { stage: "script", module: "script_narrative", path: "script_narrative.md" },
+    { stage: "planning", module: "director_planning_narrative", path: "driector_skills/director_planning_narrative.md" },
+    { stage: "storyboard", module: "director_storyboard_table_narrative", path: "driector_skills/director_storyboard_table_narrative.md" },
+  ].flatMap((stage) => ["full", "unselected", "missing-module", "missing-bundle"].map((variant) => ({ ...stage, variant }))))(
+    "$stage / $variant：真实stored-copy、圣经和阶段交接到达AI请求，不回退种子",
+    async ({ stage, module, path, variant }) => {
+      const root = "story_skills/Daojie_xianxia/";
+      const paths = ["README.md", "script_narrative.md", "driector_skills/director_planning_narrative.md", "driector_skills/director_storyboard_table_narrative.md", "driector_skills/director_style_card_fusion.md"];
+      const files = paths.map((name) => ({
+        relativePath: `${root}${name}`,
+        content: readFileSync(join(process.cwd(), "frontend/assets/studio-manuals", root, name), "utf8"),
+      }));
+      const fullManual = buildStudioManualsFromSkillFiles("director", files)[0];
+      expect(fullManual.source).toBe("stored-copy");
+      expect(fullManual.moduleCount).toBe(5);
+      const body = fullManual.modules[module].trim();
+      expect(body.length).toBeGreaterThan(0);
+      if (stage !== "script") expect(body.length).toBeGreaterThan(4000);
+      const catalog = {
+        visual: [],
+        director: variant === "missing-bundle" ? [] : buildStudioManualsFromSkillFiles(
+          "director", files.filter((file) => variant !== "missing-module" || file.relativePath !== `${root}${path}`),
+        ),
+      };
+      useStudioStore.getState().resetStudioWorkflow();
+      useProjectStore.setState({ activeProjectId: "director-request-test" });
+      const chapter = { id: "director-case", index: 1, title: "边界探针", sourceText: "晏燎止步，听雨。", importedAt: 1 };
+      const plan = {
+        id: "director-plan-case", episodeId: chapter.id,
+        theme: "只承接本场听雨", visualStyle: "当场墨韵", narrativeRhythm: "停步后聆听",
+        sceneIntents: [{ sceneId: "Sc1", emotion: "戒备→安定", shotIntent: "保留门内外空间关系", spatial: "门内人物与门外雨幕" }],
+        soundDirection: "原场雨声", transitions: "同场景硬切", derivedAssetPlan: [],
+      };
+      const workflowConfig = {
+        ...useStudioStore.getState().workflowConfig,
+        directorManualId: variant === "unselected" ? "" : "Daojie_xianxia",
+        visualManualId: "",
+      };
+      const agentWorkData = [{ id: "case-script", key: "scriptDraft" as const, episodeId: chapter.id, data: chapter.sourceText, createdAt: 1, updatedAt: 1 }];
+      useStudioStore.setState({
+        workflowConfig, novelChapters: [chapter], agentWorkData, scriptPlans: [plan],
+        entityExtractions: [{ id: "case-extraction", episodeId: chapter.id, characters: [], scenes: [], props: [] }],
+      });
+      installTextCompletionRuntime();
+      installDiagnosticsRuntime();
+      const bible = "本探针圣经：不新增人物、事件或融合进度。";
+      (window as any).projectFiles = { readText: vi.fn(async () => ({ success: true, text: bible })) };
+      aiManagerMocks.textStream.mockReset();
+      // 只捕获生产hook真正送出的请求，明确失败回复避免将桩当成生成/写回成功。
+      aiManagerMocks.textStream.mockResolvedValue({ success: false, error: "request-captured-only" });
+      const saveAgentWorkData = vi.fn();
+      if (stage === "script") {
+        const { result } = renderHook(() => useScriptStageActions({
+          workflowConfig, manualCatalog: catalog, projectName: "请求边界探针",
+          novelChapterCount: 1, novelChapters: [chapter], agentWorkData, saveAgentWorkData,
+        }));
+        await act(async () => { await result.current.handleScriptStage("scriptDraft", chapter); });
+      } else {
+        const { result } = renderHook(() => useProductionPlanningActions({
+          activeProjectId: "director-request-test", productionEpisodeId: chapter.id, manualCatalog: catalog,
+          handleStageChange: vi.fn(), saveAgentWorkData, saveScriptPlan: vi.fn(), saveSeriesBible: vi.fn(),
+        }));
+        await act(async () => {
+          if (stage === "planning") await result.current.handleProductionNodeAction({ id: "generate-director-plan", targetStage: "storyboard" });
+          else await result.current.handleStoryboardTable(chapter.id);
+        });
+      }
+      expect(aiManagerMocks.textStream).toHaveBeenCalledTimes(1);
+      const messages = aiManagerMocks.textStream.mock.calls[0][0].messages as { role: string; content: string }[];
+      const request = messages.map((message) => message.content).join("\n");
+      expect(request).toContain(bible);
+      if (variant === "full") {
+        expect(request).toContain(body);
+        expect(request).toContain(body.slice(-180));
+      } else {
+        expect(request).not.toContain(body);
+        expect(request).not.toContain(body.slice(-180));
+      }
+      expect(request).not.toContain(fullManual.modules.director_style_card_fusion.trim());
+      if (stage === "script") expect(request).not.toContain(fullManual.modules.README.trim());
+      if (stage === "storyboard") expect(request).toContain(formatScriptPlanContext(plan));
+      expect(saveAgentWorkData).not.toHaveBeenCalled();
+    },
+  );
 });

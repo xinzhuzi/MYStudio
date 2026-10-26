@@ -449,6 +449,35 @@
      "web/fisher_pose.js": "d0f951f86cfa54142ebad658e3a5b6de3de10c77d4f2d58a658aa0f205b92ecc"
     }
    }
+  },
+  {
+   "id": "ComfyUI-CharacterCardStudio",
+   "name": "CharacterCardStudio 角色卡",
+   "desc_zh": "Qwen-Image-2.1 角色卡/场景多视图一键生成(9 卡版,含 xianxia_ref 十四格仙侠):官方一键卡+分项拼回双架构,版式引导图+逐格清单提示词编译+Splitter 切片重排。Mac 已装实弹(E混动 336s 出 14 格);repo 工作流 qwen21-charcard-t2i.json 依赖本件。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/JGRFW/ComfyUI-CharacterCardStudio",
+   "verified_license": "MIT(README 明示,1026 实查)",
+   "provides": [
+    "AICG3D_CardSettingsFive",
+    "AICG3D_CharacterCardAssetComposer",
+    "AICG3D_CharacterCardAssetPrompt",
+    "AICG3D_CharacterCardGeneratorSingle",
+    "AICG3D_CharacterCardOneClick",
+    "AICG3D_CharacterCardStudio",
+    "AICG3D_CharacterSheetSplitter"
+   ],
+   "pin": {
+    "commit": "35a7c25dd9ac1e050044db5b21706d296c299002",
+    "anchors_sha256": {
+     "__init__.py": "75a743398ca488746a8d7d900618a395bbe3900d27852cf012fc85b6d454a891",
+     "nodes.py": "865f7db8671fb3331924928653c3cb3fd35525c2f8ec5189cf53277df30ef065",
+     "simple_nodes.py": "9e3d472b3b304a0a072a23f2d741f821096ef0d3982c0d28752b913a475d8520",
+     "templates.py": "37ae7266196cda956fc70fa6ef77cdf9f393afb8bb82471a9b440125d017a3f4",
+     "renderer.py": "9081a60cfcc1322430a6d92109c0d8c238ddfa2150bac79fcd4ba31b8d81275c",
+     "splitter.py": "d75d5b1b0715769b5389a7b9651739c54cef59c9746942bb21cc50310a9a145f",
+     "asset_composer.py": "fd744eaa36d77e32dc0718900eabf23bc70dd2a79889c23d2575644baf21f5c4"
+    }
+   }
   }
  ]
 }

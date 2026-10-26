@@ -1,4 +1,5 @@
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
+import { daojieFidelityBoundary } from "./daojie-generation-audit";
 import type { AgentWorkKey, StudioReviewTarget } from "@/types/studio";
 
 /** 逐章编剧链（1 章 = 1 集，B+ 单次生成）：剧本(含规划) → 审核。 */
@@ -10,6 +11,7 @@ export interface ScriptStageMessages {
 }
 
 export interface ScriptStageContext {
+  strictDaojieAdaptation?: boolean;
   /** hook 的 scriptStyleSummary memo 产出(项目信息摘要行) */
   manualContext?: string;
   /** 题材剧本规则节正文(buildScriptManualContext 产出,自带『## 题材剧本规则（包名）』标题,父 I3;不再收旧导演手册) */
@@ -115,6 +117,15 @@ export function describeChapterModeAnnotation(
 const MD_FMT =
   "## 输出格式（最高优先级）\n直接输出该阶段的完整正文，使用 Markdown。不要使用任何 XML 标签包裹（如 <scriptItem>/<scriptPlan> 等），不要用 JSON 包裹，不要用代码围栏包裹整篇，不要寒暄或解释，不要调用任何工具/函数。在本次回复中一次性输出全部内容。";
 
+// 严格改编只复用既有输出协议；不携带通用补场、OS及强制布光的创作许可。
+const DAOJIE_ADAPTATION_FORMAT = [
+  "你是道劫原文改编编剧。把给定片段转成可拍剧本，只沿用原文已有事实；不执行通用自由创作方法。",
+  "头部三行固定：# {作品名} EP{集序}：{集标题}；# 范围与目标：{本次范围} | 时长：{分钟}分钟；# 已确定要求：{项目信息中的画风/画幅/语言/配音要求，未知写未设}。其后依次为## 剧情梗概、场次正文、## 改编追踪。",
+  "场头：{场号} {场景名} {时间}/{内外} ·约{秒数}秒；时间原文未定写未定。下一行人物：{本场实际人物}。场内镜头N：{原文支持的环境/动作/状态}，每场从1编号。对白用人物名：原话。场间用---分隔。",
+  "改编追踪用表格：原文位置 | 是否采用 | 视听表达 | 待确认。按原文顺序逐段核对数量/动作/原话，未发生的事不得先写进剧本。不得把原文叙述转成OS/旁白，原文没有发声的地方就保持无台词。",
+  "场次和总时长据原文内容估算，单集上限180秒，可短于目标。头部必须用分钟，各场必须用秒；头部换算秒数与逐场秒数合计四舍五入到整数秒后须一致，不得用目标时长冒充合计。原文未给光源/天象/声源/空间方位/身体反应，不必补齐；不以氛围、镜头细节为由新增。既有声音不能改为无声，数量及序数保留。",
+].join("\n\n");
+
 /** 取某阶段 skill 手册全文（供 UI 展示）。 */
 export function getStageSkillContent(stage: ScriptStageKey): string {
   return getAgentSkillPreset(SCRIPT_STAGE_SKILL[stage])?.content ?? "";
@@ -183,7 +194,8 @@ export function buildStageMessages(stage: ScriptStageKey, ctx: ScriptStageContex
         ]
       : null;
   const methodDoc = methodDocId ? (getAgentSkillPreset(methodDocId)?.content ?? "") : "";
-  const system = [skill, methodDoc, MD_FMT].filter(Boolean).join("\n\n---\n\n");
+  const strict = stage === "scriptDraft" && ctx.strictDaojieAdaptation && ctx.chapterText.trim();
+  const system = [strict ? DAOJIE_ADAPTATION_FORMAT : skill, strict ? ctx.directorContext : methodDoc, MD_FMT, strict ? daojieFidelityBoundary("script") : ""].filter(Boolean).join("\n\n---\n\n");
   const lines: string[] = [];
   if (ctx.manualContext) lines.push(ctx.manualContext);
   if (ctx.originalBibleContext) lines.push(ctx.originalBibleContext);

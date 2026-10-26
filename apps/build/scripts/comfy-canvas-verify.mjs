@@ -38,6 +38,10 @@ const WF_REL = process.argv[2] || "1_图片/Q2-1图像/1_文生图/qi21-道劫-t
 const TRUTH_WF_PATH = "/Applications/漫影工作室.app/Contents/Resources/backend/comfyui/workflows/" + WF_REL;
 const OUT_DIR = join(HOME, "Project/Github/MYStudio/apps/output/comfy-canvas-verify");
 const KEEP_APP = process.env.KEEP_APP === "1";
+// 10-15 R20(audit4-residuals):prekill 三态对齐 f5166c75——默认=探测实例在即
+// 中止不盲杀;SKIP=跳过不杀;FORCE=旧盲杀显式口。SKIP 优先于 FORCE。
+const SKIP_PREKILL = process.env.MYSTUDIO_SMOKE_SKIP_PREKILL === "1";
+const PREKILL_FORCE = process.env.MYSTUDIO_SMOKE_PREKILL_FORCE === "1";
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const step = (id, t) => log(`──── ${id} ${t} ────`);
@@ -77,6 +81,26 @@ async function isPortFree(port) {
   catch (e) { return String(e?.cause?.code || e?.message || e).includes("ECONNREFUSED"); }
 }
 function prekillApp() {
+  // 10-15 R20 三态守卫(f5166c75 对齐):默认=pgrep 探测实例在即中止,不再盲杀
+  // 用户在驾实例;SKIP=跳过不杀;FORCE=旧盲杀显式口(legacy 清理逐字保留)。
+  if (SKIP_PREKILL) {
+    log("prekill 跳过(MYSTUDIO_SMOKE_SKIP_PREKILL=1)");
+    return;
+  }
+  if (!PREKILL_FORCE) {
+    let running = false;
+    try { execFileSync("pgrep", ["-f", "漫影工作室.app/Contents"], { stdio: "ignore" }); running = true; } catch {}
+    if (running) {
+      console.error(
+        "prekill 已中止:检测到漫影工作室实例正在运行(疑似用户在驾,prekill 不再默认盲杀)。"
+        + "请关闭 App 后重跑;若确认是残留冒烟僵尸,可设 "
+        + "MYSTUDIO_SMOKE_SKIP_PREKILL=1 跳过 prekill,或 MYSTUDIO_SMOKE_PREKILL_FORCE=1 显式清理。",
+      );
+      process.exit(3);
+    }
+    log("prekill: 未检测到实例在跑,跳过清理");
+    return;
+  }
   const steps = [
     ["osascript", ["-e", `tell application id "${APP_BUNDLE_ID}" to quit`]],
     ...["漫影工作室", "漫影工作室 Helper", "manying-studio"].map((n) => ["pkill", ["-x", n]]),

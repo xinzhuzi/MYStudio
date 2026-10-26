@@ -144,6 +144,28 @@ describe("parseWorkflowPrompt · t2i 模板推断键位", () => {
     expect(result.seed).toBe(425196033);
   });
 
+  it("1025 并集域:t2i 路编码器=MyQi21FastEncode 亦可解析(手术件新类)", () => {
+    const graph = {
+      ...t2iSampleFixture,
+      "4015": { ...t2iSampleFixture["4015"], class_type: "MyQi21FastEncode" },
+    };
+    const result = parseWorkflowPrompt(JSON.stringify(graph));
+    expect(result.routeHint).toBe("t2i");
+    expect(result.finalText).toBe(t2iSampleFixture["400"].inputs.value);
+  });
+
+  it("1025 并集域:MyQi21FastEncode 内联非空 negative_prompt 同优先生效", () => {
+    const graph = {
+      ...t2iSampleFixture,
+      "4015": {
+        ...t2iSampleFixture["4015"],
+        class_type: "MyQi21FastEncode",
+        inputs: { ...t2iSampleFixture["4015"].inputs, negative_prompt: "单遍负面串" },
+      },
+    };
+    expect(parseWorkflowPrompt(JSON.stringify(graph)).negative).toBe("单遍负面串");
+  });
+
   it("编码器内联非空 negative_prompt 优先于底座词表", () => {
     const graph = {
       ...t2iSampleFixture,
@@ -196,6 +218,11 @@ describe("parseWorkflowPrompt · 漂移锚(预期节点/键缺席必抛,禁静�
   it("t2i 路 TextEncodeQwenImage21 缺席 → 抛(模板已验键位)", () => {
     const graph = Object.fromEntries(Object.entries(t2iSampleFixture).filter(([id]) => id !== "4015"));
     expect(() => parseWorkflowPrompt(JSON.stringify(graph))).toThrow(/TextEncodeQwenImage21/);
+  });
+
+  it("1025 并集域:两类 TE 全缺席 → 抛(并集在场校验)", () => {
+    const graph = Object.fromEntries(Object.entries(t2iSampleFixture).filter(([id]) => id !== "4015"));
+    expect(() => parseWorkflowPrompt(JSON.stringify(graph))).toThrow(/MyQi21FastEncode/);
   });
 
   it("PrimitiveStringMultiline 多于一个且无 400 号可消歧 → 抛", () => {

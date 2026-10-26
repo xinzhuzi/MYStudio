@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { isDaojieAdaptation, reviewDaojieGeneration } from "@/lib/studio/daojie-generation-audit";
 import { aiManager } from "@/lib/ai/ai-manager";
 import {
   buildStageMessages,
@@ -57,6 +58,17 @@ export const SCRIPT_STAGE_STREAM_TIMEOUT_MS = 600_000;
  * S2 剧本阶段与导演规划侧维持 600s 档不动。
  */
 export const STORYBOARD_TABLE_STREAM_TIMEOUT_MS = 1_200_000;
+
+function scriptWritebackVersion(episodeId: string): string {
+  const store = useStudioStore.getState();
+  return JSON.stringify({
+    projectId: useProjectStore.getState().activeProjectId,
+    chapter: store.novelChapters.find((item) => item.id === episodeId),
+    workflowConfig: store.workflowConfig,
+    bible: store.seriesBible,
+    drafts: store.agentWorkData.filter((item) => item.key === "scriptDraft"),
+  });
+}
 
 export function useScriptStageActions({
   workflowConfig,
@@ -178,9 +190,9 @@ export function useScriptStageActions({
       revision?: number;
       /** G3:审核条目附着被审剧本条目指纹(审核发起时点捕获),isReviewFresh 版本比对真源 */
       reviewTarget?: StudioReviewTarget;
+      audit?: { sourceText: string; bibleContext: string; version: string };
     }) => {
-      // G2:槽位已由 handleScriptStage/handleStageReview 入口同步占位,此处不再置位——
-      // 仅负责流结束后释放(finally)。
+      // 槽位由两个入口占用并在各自finally释放，覆盖生成、审核和写回。
       // 1011 欠账⑤:textStream 顶层 reject(流式 IPC 异常等)时下方清零不可达,scriptStreaming
       // 永卡非 null——ScriptTab 生成/审核按钮(scriptStreaming!==null 即禁用)永久禁用无恢复
       // 入口。try/finally 兜底保证流态必回落;异常本身不吞仍向上抛(拒绝语义与修前一致)。
@@ -210,10 +222,8 @@ export function useScriptStageActions({
         // 现按既有失败口径弹 toast——异常仍上抛保持拒绝语义,但用户必得提示。
         toast.error(error instanceof Error ? error.message : `${opts.label}生成异常,请重试`);
         throw error;
-      } finally {
-        // G2 锁序:先解锁再走后续 toast/落库分支,防任何分支把锁带进坟墓
-        releaseStreamSlot(opts.stageKey, opts.scopeId);
       }
+      // 入口finally释放锁；审核及写回期间继续占槽，防止第二击越过审核。
       if (!result.success || !result.text) {
         toast.error(result.error || `${opts.label}生成失败`);
         return;
@@ -229,6 +239,27 @@ export function useScriptStageActions({
         );
         toast.error(`${opts.label}输出被截断/为空，已保留上一版`);
         return;
+      }
+      if (opts.audit) {
+        const review = await reviewDaojieGeneration({
+          stage: "script", sourceText: opts.audit.sourceText,
+          bibleContext: opts.audit.bibleContext, outputText: parsed,
+        }, (messages) => aiManager.textStream({
+          binding: { agent: opts.agentKey }, timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
+          temperature: 0.2,
+          messages: [{ role: "system", content: messages.system }, { role: "user", content: messages.user }],
+        }, () => undefined));
+        if (scriptWritebackVersion(opts.scopeId) !== opts.audit.version) {
+          toast.error("审核期间项目、原文或剧本已更新，本次产出未写回");
+          return;
+        }
+        saveAgentWorkData("supervisionReport", review.report, opts.scopeId, {
+          sourceId: opts.sourceId ?? opts.scopeId, revision: opts.revision ?? 1,
+        });
+        if (!review.passed) {
+          toast.error("道劫剧本未通过原文审核，已保留上一有效版本；详见审核报告");
+          return;
+        }
       }
       saveAgentWorkData(
         opts.stageKey,
@@ -246,7 +277,7 @@ export function useScriptStageActions({
           : `${opts.label}已生成`,
       );
     },
-    [saveAgentWorkData, releaseStreamSlot],
+    [saveAgentWorkData],
   );
 
   // 常驻圣经块 + 原著档案检索合一（用户裁定：每条消息常驻块只有一个，检索追加其后；
@@ -266,7 +297,7 @@ export function useScriptStageActions({
       chapter: NovelChapter,
       options?: { useReviewFeedback?: boolean },
     ): Promise<
-      | { ok: true; system: string; user: string }
+      | { ok: true; system: string; user: string; bibleContext: string }
       | { ok: false; error: string }
     > => {
       const scriptDraft = latestScriptStage("scriptDraft", chapter.id);
@@ -333,6 +364,7 @@ export function useScriptStageActions({
       const built = buildStageMessages(stage, {
         manualContext: scriptStyleSummary,
         directorContext: scriptDirectorContext,
+        strictDaojieAdaptation: isDaojieAdaptation(workflowConfig.directorManualId, chapter.sourceText),
         originalBibleContext: memory.context,
         chapterTitle: chapter.title,
         chapterText: chapter.sourceText ?? "",
@@ -352,9 +384,9 @@ export function useScriptStageActions({
           chapterIndex >= 0 && novelChapters ? chapterIndex + 1 : undefined,
         episodeTotal: novelChapters?.length,
       });
-      return { ok: true, system: built.system, user: built.user };
+      return { ok: true, system: built.system, user: built.user, bibleContext: memory.context ?? "" };
     },
-    [latestScriptStageEntry, latestScriptStage, scriptStyleSummary, scriptDirectorContext, novelChapters],
+    [latestScriptStageEntry, latestScriptStage, scriptStyleSummary, scriptDirectorContext, novelChapters, workflowConfig.directorManualId],
   );
 
   /** 「AI提示词」页预览:与实际发送(未编辑时)完全一致的完整 user 消息;失败返回 null 静默回退。 */
@@ -384,6 +416,18 @@ export function useScriptStageActions({
         return;
       }
       try {
+        const liveDirectorId = useStudioStore.getState().workflowConfig?.directorManualId;
+        if (stage === "scriptDraft" && liveDirectorId !== workflowConfig.directorManualId && (isDaojieAdaptation(liveDirectorId, chapter.sourceText) || isDaojieAdaptation(workflowConfig.directorManualId, chapter.sourceText))) {
+          toast.error("题材选择已变化，请刷新后重新生成");
+          return;
+        }
+        const strict = stage === "scriptDraft" && isDaojieAdaptation(workflowConfig.directorManualId, chapter.sourceText);
+        const sourceChapter = strict ? useStudioStore.getState().novelChapters.find((item) => item.id === chapter.id) : undefined;
+        if (strict && (!sourceChapter || sourceChapter.sourceText !== chapter.sourceText)) {
+          toast.error("本章原文已变化，请刷新后重新生成");
+          return;
+        }
+        const version = strict ? scriptWritebackVersion(chapter.id) : "";
         // B+ 单次生成：剧本(含规划)无前置阶段门禁——方法文档按本章判定自动注入(buildStageMessages 内)
         const built = await buildStageMessagesFull(stage, chapter, options);
         if (!built.ok) {
@@ -403,6 +447,7 @@ export function useScriptStageActions({
             : undefined;
         return await runScriptStage({
           agentKey: "scriptDraft",
+          audit: strict ? { sourceText: chapter.sourceText ?? "", bibleContext: built.bibleContext, version } : undefined,
           messages: { system: built.system, user: effectiveOverride || built.user },
           stageKey: stage,
           scopeId: chapter.id,
@@ -419,7 +464,7 @@ export function useScriptStageActions({
         releaseStreamSlot(stage, chapter.id);
       }
     },
-    [runScriptStage, latestScriptStageEntry, buildStageMessagesFull, acquireStreamSlot, releaseStreamSlot],
+    [runScriptStage, latestScriptStageEntry, buildStageMessagesFull, acquireStreamSlot, releaseStreamSlot, workflowConfig.directorManualId],
   );
 
   const handleStageReview = useCallback(

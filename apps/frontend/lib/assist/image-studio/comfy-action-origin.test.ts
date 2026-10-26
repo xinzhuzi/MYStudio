@@ -2,7 +2,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import vm from "node:vm";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { consumeComfyBridgeActions } from "./comfy-bridge-action-consumer";
 
 function loadActionBridge(mainResponse?: () => unknown) {
   // 0924 令牌随机化后 postAction 走双读:无 window 注入令牌时先 GET /my_bridge/config
@@ -164,5 +165,134 @@ describe("Comfy action origin binding", () => {
     button.click();
     await vi.waitFor(() => expect(postJson).toHaveBeenCalledWith("http://bridge/comfy/bridge/actions", { kind: "generate-images", originProjectId: "project-a", originEpisodeId: "chapter-a" }));
     expect(fetchShots).toHaveBeenCalledOnce();
+  });
+});
+
+// ── livefire9/10 根因:盖戳保鲜(kept-modified 短路下 __myStagePatch 只刷
+// myStage 载荷不刷 myOrigin* 盖戳 → 节点卡显示新章而点击仍带旧章戳,宿主消费
+// 腿按章匹配静默跳过 = ch002 两试零 toast 零 run)───────────────────────
+describe("stage patch origin freshness", () => {
+  function loadStagePatch() {
+    const { context } = loadNodeExtension("stage-node.js");
+    const live = {
+      properties: {
+        myOriginProjectId: "project-a",
+        myOriginEpisodeId: "chapter-001",
+        myStage: { key: "scriptPlan", statusText: "未开始", previewLines: ["旧载荷"] },
+      },
+    };
+    (context.window as { app?: unknown }).app = { graph: { _nodes: [live] } };
+    const patch = (context.window as {
+      __myStagePatch?: (graph: unknown) => { ok: boolean; patched: number };
+    }).__myStagePatch;
+    if (typeof patch !== "function") throw new Error("__myStagePatch 未加载");
+    return { patch, live };
+  }
+
+  it("refreshes node origin stamps when the host reinjects a new chapter", () => {
+    const { patch, live } = loadStagePatch();
+    const result = patch({ nodes: [{
+      properties: {
+        myOriginProjectId: "project-a",
+        myOriginEpisodeId: "chapter-002",
+        myStage: { key: "scriptPlan", statusText: "未开始", previewLines: ["新载荷"] },
+      },
+    }] });
+    expect(result).toEqual({ ok: true, patched: 1 });
+    expect(live.properties.myOriginEpisodeId).toBe("chapter-002");
+    expect(live.properties.myOriginProjectId).toBe("project-a");
+  });
+
+  it("refreshes origin stamps even when the stage payload is unchanged", () => {
+    const { patch, live } = loadStagePatch();
+    const result = patch({ nodes: [{
+      properties: {
+        myOriginProjectId: "project-a",
+        myOriginEpisodeId: "chapter-002",
+        myStage: { key: "scriptPlan", statusText: "未开始", previewLines: ["旧载荷"] },
+      },
+    }] });
+    expect(result).toEqual({ ok: true, patched: 0 });
+    expect(live.properties.myOriginEpisodeId).toBe("chapter-002");
+  });
+});
+
+// ── livefire9 死点:消费腿章匹配静默 continue(comfy-bridge-action-consumer
+// L71-72)——动作滞留必须一次性现形(toast+diagnostics),滞留语义保留(切回
+// 对应章后仍可补发)──────────────────────────────────────────────────────
+describe("host consumer defer visibility", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.removeItem("mystudio-comfy-action-receipts-v1");
+    delete (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog;
+  });
+
+  let deferSequence = 0;
+  function consumerFixture(items: Array<{ id: number; kind: string; originProjectId?: string; originEpisodeId?: string }>) {
+    const state = {
+      queueId: `defer-queue-${++deferSequence}`,
+      items: items.map((item) => ({ originEpisodeId: "chapter-001", ...item })),
+    };
+    const client = {
+      getBridgeActions: vi.fn(async () => ({ cursor: 0, queueId: state.queueId, items: state.items.map((item) => ({ ...item })) })),
+      ackBridgeActions: vi.fn(async (_upTo: number, _queueId?: string, ids?: number[]) => {
+        state.items = state.items.filter((item) => !ids?.includes(item.id));
+        return ids?.length ?? 0;
+      }),
+    };
+    const handler = vi.fn();
+    const options = {
+      client,
+      projectId: "a",
+      episodeId: "chapter-002",
+      isActive: () => true,
+      handlerFor: () => handler,
+      onError: vi.fn(),
+    };
+    return { client, handler, options };
+  }
+
+  function diagnosticsMessages(mock: ReturnType<typeof vi.fn>) {
+    return mock.mock.calls.map(([entry]) => entry as { message?: string });
+  }
+
+  it("reports a cross-chapter action once without dispatching or acking it", async () => {
+    const diagnostics = vi.fn();
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = { write: diagnostics };
+    const { client, handler, options } = consumerFixture([
+      { id: 7, kind: "generate-director-plan", originProjectId: "a", originEpisodeId: "chapter-001" },
+    ]);
+    await consumeComfyBridgeActions(options);
+    await consumeComfyBridgeActions(options);
+    expect(handler).not.toHaveBeenCalled();
+    expect(client.ackBridgeActions).not.toHaveBeenCalled();
+    expect(options.onError).toHaveBeenCalledTimes(1);
+    const message = String((options.onError.mock.calls[0] as unknown[])[0]);
+    expect(message).toContain("chapter-001");
+    expect(message).toContain("chapter-002");
+    expect(diagnosticsMessages(diagnostics).filter((entry) => entry.message === "comfyAction.deferred")).toHaveLength(1);
+  });
+
+  it("still delivers the retained action once the host returns to its chapter", async () => {
+    const { handler, options } = consumerFixture([
+      { id: 8, kind: "generate-director-plan", originProjectId: "a", originEpisodeId: "chapter-001" },
+    ]);
+    await consumeComfyBridgeActions(options);
+    options.episodeId = "chapter-001";
+    await consumeComfyBridgeActions(options);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs a dispatch event when a matching action is delivered", async () => {
+    const diagnostics = vi.fn();
+    (window as unknown as { diagnosticsLog?: unknown }).diagnosticsLog = { write: diagnostics };
+    const { options } = consumerFixture([
+      { id: 9, kind: "generate-director-plan", originProjectId: "a", originEpisodeId: "chapter-001" },
+    ]);
+    options.episodeId = "chapter-001";
+    await consumeComfyBridgeActions(options);
+    const dispatched = diagnosticsMessages(diagnostics).filter((entry) => entry.message === "comfyAction.dispatch");
+    expect(dispatched).toHaveLength(1);
+    expect((dispatched[0] as { context?: { kind?: string } }).context?.kind).toBe("generate-director-plan");
   });
 });

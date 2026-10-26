@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { isDaojieAdaptation, reviewDaojieGeneration } from "@/lib/studio/daojie-generation-audit";
+import { useCallback, useRef } from "react";
 import {
   auditDirectorPlanStructure,
   buildDirectorPlanRepairUserMessage,
@@ -52,6 +53,19 @@ import type { ScriptPlan } from "@/types/studio";
 
 type StudioStore = ReturnType<typeof useStudioStore.getState>;
 
+function productionWritebackVersion(episodeId: string): string {
+  const store = useStudioStore.getState();
+  return JSON.stringify({
+    projectId: useProjectStore.getState().activeProjectId,
+    chapter: store.novelChapters.find((item) => item.id === episodeId),
+    workflowConfig: store.workflowConfig,
+    bible: store.seriesBible,
+    script: latestScriptDraftEntry(store, episodeId),
+    plan: store.scriptPlans.find((item) => item.episodeId === episodeId),
+    assets: store.entityExtractions.filter((item) => item.episodeId === episodeId),
+  });
+}
+
 export function useProductionPlanningActions({
   activeProjectId,
   manualCatalog,
@@ -69,6 +83,8 @@ export function useProductionPlanningActions({
   saveScriptPlan: StudioStore["saveScriptPlan"];
   saveSeriesBible: StudioStore["saveSeriesBible"];
 }) {
+  // 道劫两种生成共用一槽；延长到审核后的全部写回结束。
+  const strictGenerationLock = useRef(false);
   const handleDirectorPlan = useCallback(
     async (episodeId = "episode-1", userInstruction = "") => {
       if (!window.electronAPI?.textCompletion) {
@@ -92,221 +108,247 @@ export function useProductionPlanningActions({
         return;
       }
 
-      // riderB(H5/G36 全链 16:9):规划装配链此前零画幅信息(手册旧竖屏表述无从
-      // 校正);对齐剧本阶段既有文案(useScriptStageActions.ts:74「目标画幅」)。
-      const manualContext = [
-        buildStudioManualContext(
-          store.workflowConfig,
-          manualCatalog,
-          // G39(10-12 第8轮):导演规划阶段手册上下文全量注入,不截 4000 字
-          { moduleCharCap: 0 },
-        ),
-        `目标画幅：${store.workflowConfig.platformSpec || "16:9"}`,
-      ].join("\n");
-      const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
-      const projectMemoryContext = formatProjectMemoryContext(retrieveProjectMemory({
-        records: buildProjectMemoryRecords({
-          projectId,
-          chapters: store.novelChapters,
-          entityExtractions: store.entityExtractions,
-          seriesBible: store.seriesBible,
-        }),
-        projectId,
-        episodeId: targetEpisodeId,
-        query: scriptText.slice(0, 240),
-      }));
-      const memory = await readSourceMemoryActionContext({
-        projectId,
-        archiveQuery: scriptText.slice(0, 200),
-      });
-      if (!memory.success) {
-        toast.error(memory.error);
-        return;
-      }
-      const messages = buildDirectorPlanMessages({
-        episodeId: targetEpisodeId,
-        scriptText,
-        manualContext: [manualContext, projectMemoryContext].filter(Boolean).join("\n\n---\n\n"),
-        bibleContext: memory.context,
-      });
-      const userContent = userInstruction.trim()
-        ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
-        : messages.user;
-      const operationId = createOperationId("director-plan");
-      const runId = store.startAgentRun({
-        key: "directorPlan",
-        phase: "scriptPlan",
-        inputSummary: `directorPlan:${targetEpisodeId}:${scriptText.length}`,
-        inputFingerprint: stableRunFingerprint({
-          targetEpisodeId,
-          scriptText,
-          manualContext,
-          userInstruction,
-        }),
-        checkpointRef: operationId,
-      });
-      let blockedLogged = false;
-      const logDirectorPlanAudit = async (
-        message: "directorPlan.audit.first" | "directorPlan.audit.repair",
-        audit: ReturnType<typeof auditDirectorPlanStructure>,
-      ) => {
-        await logEvent({
-          level: audit.passed ? "info" : "warn",
-          category: "workflow",
-          operationId,
-          message,
-          context: {
-            episodeId: targetEpisodeId,
-            audit: summarizeDirectorPlanAudit(audit),
-          },
-        });
-      };
-      const logDirectorPlanWriteback = async (
-        message: "directorPlan.writeback.saved" | "directorPlan.writeback.blocked",
-        context: Record<string, unknown>,
-      ) => {
-        if (message === "directorPlan.writeback.blocked") blockedLogged = true;
-        await logEvent({
-          level: message === "directorPlan.writeback.saved" ? "info" : "error",
-          category: "workflow",
-          operationId,
-          message,
-          context: {
-            episodeId: targetEpisodeId,
-            ...context,
-          },
-        });
-      };
+      const sourceText = chapterIdentity?.sourceText ?? "";
+      const strict = isDaojieAdaptation(store.workflowConfig.directorManualId, sourceText);
+      if (strict && strictGenerationLock.current) { toast.error("道劫生成/审核正在进行，请等待完成"); return; }
+      if (strict) strictGenerationLock.current = true;
+      const version = strict ? productionWritebackVersion(targetEpisodeId) : "";
+      const projectAtStart = useProjectStore.getState().activeProjectId;
+      let rejectedText = "";
+      let reportSaved = false;
       try {
-        const result = await aiManager.textStream({
-          binding: { agent: "productionAgent:directorPlanAgent" },
-          messages: [
-            { role: "system", content: messages.system },
-            { role: "user", content: userContent },
-          ],
-          temperature: 0.4,
-          // 1013 实弹:64K 地板后 glm-5.3 导演规划 思考4.2min+正文6212字@5min 被默认300s掐断(正文已流仍弃);对齐剧本阶段 600s 总预算
-          timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
-          // 1013 实弹定谳:GLM 思考型经 anthropic 口思考计入 max_tokens,4096 会被思考独占→正文零字节
-          // 「模型响应中缺少文本内容」5 连败(useProductionPlanningActions 结构性阻塞);按用户常设令
-          // maxTokens 不显式传——统一走 ai-manager maxTokensFloor(1013 终裁:最大输出 64K 单一真源)
-        }, () => undefined);
-        if (!result.success || !result.text) {
-          throw new Error(result.error || "导演规划失败");
+        if (strict && activeProjectId && activeProjectId !== projectAtStart) { toast.error("当前项目已变化，请刷新后重新生成"); return; }
+        // riderB(H5/G36 全链 16:9):规划装配链此前零画幅信息(手册旧竖屏表述无从
+        // 校正);对齐剧本阶段既有文案(useScriptStageActions.ts:74「目标画幅」)。
+        const manualContext = [
+          buildStudioManualContext(
+            store.workflowConfig,
+            manualCatalog,
+            // G39(10-12 第8轮):导演规划阶段手册上下文全量注入,不截 4000 字
+            { moduleCharCap: 0 },
+          ),
+          `目标画幅：${store.workflowConfig.platformSpec || "16:9"}`,
+        ].join("\n");
+        const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
+        const projectMemoryContext = formatProjectMemoryContext(retrieveProjectMemory({
+          records: buildProjectMemoryRecords({
+            projectId,
+            chapters: store.novelChapters,
+            entityExtractions: store.entityExtractions,
+            seriesBible: store.seriesBible,
+          }),
+          projectId,
+          episodeId: targetEpisodeId,
+          query: scriptText.slice(0, 240),
+        }));
+        const memory = await readSourceMemoryActionContext({
+          projectId,
+          archiveQuery: scriptText.slice(0, 200),
+        });
+        if (!memory.success) {
+          toast.error(memory.error);
+          return;
         }
-
-        let finalText = result.text;
-        let audit = auditDirectorPlanStructure(finalText);
-        await logDirectorPlanAudit("directorPlan.audit.first", audit);
-        let repairAttempted = false;
-        if (!audit.passed) {
-          repairAttempted = true;
-          const repairResult = await aiManager.textStream({
+        const messages = buildDirectorPlanMessages({
+          episodeId: targetEpisodeId,
+          scriptText, sourceText, strictDaojieAdaptation: strict,
+          manualContext: [manualContext, projectMemoryContext].filter(Boolean).join("\n\n---\n\n"),
+          bibleContext: memory.context,
+        });
+        const userContent = userInstruction.trim()
+          ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
+          : messages.user;
+        const operationId = createOperationId("director-plan");
+        const runId = store.startAgentRun({
+          key: "directorPlan",
+          phase: "scriptPlan",
+          inputSummary: `directorPlan:${targetEpisodeId}:${scriptText.length}`,
+          inputFingerprint: stableRunFingerprint({
+            targetEpisodeId,
+            scriptText,
+            manualContext,
+            userInstruction,
+          }),
+          checkpointRef: operationId,
+        });
+        let blockedLogged = false;
+        const logDirectorPlanAudit = async (
+          message: "directorPlan.audit.first" | "directorPlan.audit.repair",
+          audit: ReturnType<typeof auditDirectorPlanStructure>,
+        ) => {
+          await logEvent({
+            level: audit.passed ? "info" : "warn",
+            category: "workflow",
+            operationId,
+            message,
+            context: {
+              episodeId: targetEpisodeId,
+              audit: summarizeDirectorPlanAudit(audit),
+            },
+          });
+        };
+        const logDirectorPlanWriteback = async (
+          message: "directorPlan.writeback.saved" | "directorPlan.writeback.blocked",
+          context: Record<string, unknown>,
+        ) => {
+          if (message === "directorPlan.writeback.blocked") blockedLogged = true;
+          await logEvent({
+            level: message === "directorPlan.writeback.saved" ? "info" : "error",
+            category: "workflow",
+            operationId,
+            message,
+            context: {
+              episodeId: targetEpisodeId,
+              ...context,
+            },
+          });
+        };
+        try {
+          const result = await aiManager.textStream({
             binding: { agent: "productionAgent:directorPlanAgent" },
             messages: [
               { role: "system", content: messages.system },
-              {
-                role: "user",
-                content: buildDirectorPlanRepairUserMessage({
-                  originalUserContent: userContent,
-                  invalidOutput: finalText,
-                  issues: audit.issues,
-                }),
-              },
+              { role: "user", content: userContent },
             ],
-            temperature: 0.25,
+            temperature: 0.4,
+            // 1013 实弹:64K 地板后 glm-5.3 导演规划 思考4.2min+正文6212字@5min 被默认300s掐断(正文已流仍弃);对齐剧本阶段 600s 总预算
             timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
-            // 同上:maxTokens 走 ai-manager 统一兜底
-            // 同上:maxTokens 走 ai-manager 统一兜底
+            // 1013 实弹定谳:GLM 思考型经 anthropic 口思考计入 max_tokens,4096 会被思考独占→正文零字节
+            // 「模型响应中缺少文本内容」5 连败(useProductionPlanningActions 结构性阻塞);按用户常设令
+            // maxTokens 不显式传——统一走 ai-manager maxTokensFloor(1013 终裁:最大输出 64K 单一真源)
           }, () => undefined);
-          if (!repairResult.success || !repairResult.text) {
-            await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
-              phase: "repair_request",
-              firstAudit: summarizeDirectorPlanAudit(audit),
-              repairError: repairResult.error || "empty repair output",
-            });
-            throw new Error(repairResult.error || "导演规划结构修复失败");
+          if (!result.success || !result.text) {
+            throw new Error(result.error || "导演规划失败");
           }
-          finalText = repairResult.text;
-          audit = auditDirectorPlanStructure(finalText);
-          await logDirectorPlanAudit("directorPlan.audit.repair", audit);
-        }
-        if (!audit.passed) {
-          await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
-            phase: "final_audit",
-            repairAttempted,
-            audit: summarizeDirectorPlanAudit(audit),
-          });
-          throw new Error(formatDirectorPlanAuditError(audit));
-        }
 
-        const tools = createProductionAgentToolRegistry();
-        // 08-27 二期 R1 预划剧本锚:落库前闭包盖「该章剧本正文」指纹(不含
-        // manual/user 指令)。初跑与重跑同走本调用点,重跑后新指纹落库,
-        // 面板「预划已过期」提示自然消失。不改 writeDirectorPlan 签名。
-        const planScriptFingerprint = scriptPlanSourceFingerprint(targetEpisodeId, scriptText);
-        // D2(裁定⑤,10-13-audit4-downstream):同点记来源剧本条目指纹(条目
-        // id+updatedAt,与 G3 reviewTarget 同形态)——分镜表门禁据此识别「规划
-        // 所基于的剧本版本」,改剧本后旧规划出分镜表走软提示。
-        const planSourceScriptEntry = latestScriptDraftEntry(store, targetEpisodeId);
-        const writeResult = tools.writeDirectorPlan({
-          text: finalText,
-          episodeId: targetEpisodeId,
-          identity: {
-            sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
-            revision: chapterIdentity?.revision ?? 1,
-          },
-          saveAgentWorkData,
-          saveScriptPlan: (plan) =>
-            saveScriptPlan({
-              ...plan,
-              scriptFingerprint: planScriptFingerprint,
-              ...(planSourceScriptEntry?.id
-                ? { sourceScript: { entryId: planSourceScriptEntry.id, updatedAt: planSourceScriptEntry.updatedAt } }
-                : {}),
-            }),
-        });
-        if (!writeResult.approved || !writeResult.plan) {
-          await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
-            phase: "tool_supervision",
+          let finalText = result.text;
+          rejectedText = finalText;
+          let audit = auditDirectorPlanStructure(finalText);
+          await logDirectorPlanAudit("directorPlan.audit.first", audit);
+          let repairAttempted = false;
+          if (!audit.passed) {
+            repairAttempted = true;
+            const repairResult = await aiManager.textStream({
+              binding: { agent: "productionAgent:directorPlanAgent" },
+              messages: [
+                { role: "system", content: messages.system },
+                {
+                  role: "user",
+                  content: buildDirectorPlanRepairUserMessage({
+                    originalUserContent: userContent,
+                    invalidOutput: finalText,
+                    issues: audit.issues,
+                  }),
+                },
+              ],
+              temperature: 0.25,
+              timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS,
+              // 同上:maxTokens 走 ai-manager 统一兜底
+              // 同上:maxTokens 走 ai-manager 统一兜底
+            }, () => undefined);
+            if (!repairResult.success || !repairResult.text) {
+              await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
+                phase: "repair_request",
+                firstAudit: summarizeDirectorPlanAudit(audit),
+                repairError: repairResult.error || "empty repair output",
+              });
+              throw new Error(repairResult.error || "导演规划结构修复失败");
+            }
+            finalText = repairResult.text;
+            rejectedText = finalText;
+            audit = auditDirectorPlanStructure(finalText);
+            await logDirectorPlanAudit("directorPlan.audit.repair", audit);
+          }
+          if (!audit.passed) {
+            await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
+              phase: "final_audit",
+              repairAttempted,
+              audit: summarizeDirectorPlanAudit(audit),
+            });
+            throw new Error(formatDirectorPlanAuditError(audit));
+          }
+
+          if (strict) {
+            const review = await reviewDaojieGeneration({ stage: "planning", sourceText, bibleContext: memory.context, scriptText, outputText: finalText }, (reviewMessages) => aiManager.textStream({
+              binding: { agent: "productionAgent:directorPlanAgent" }, timeoutMs: SCRIPT_STAGE_STREAM_TIMEOUT_MS, temperature: 0.2,
+              messages: [{ role: "system", content: reviewMessages.system }, { role: "user", content: reviewMessages.user }],
+            }, () => undefined));
+            if (productionWritebackVersion(targetEpisodeId) !== version) throw new Error("审核期间项目、原文或上游已更新，本次规划未写回");
+            saveAgentWorkData("supervisionReport", review.report, targetEpisodeId, { sourceId: chapterIdentity?.sourceId ?? targetEpisodeId, revision: chapterIdentity?.revision ?? 1 });
+            reportSaved = true;
+            if (!review.passed) throw new Error("道劫规划未通过原文审核，已保留上一有效版本；详见审核报告");
+          }
+          const tools = createProductionAgentToolRegistry();
+          // 08-27 二期 R1 预划剧本锚:落库前闭包盖「该章剧本正文」指纹(不含
+          // manual/user 指令)。初跑与重跑同走本调用点,重跑后新指纹落库,
+          // 面板「预划已过期」提示自然消失。不改 writeDirectorPlan 签名。
+          const planScriptFingerprint = scriptPlanSourceFingerprint(targetEpisodeId, scriptText);
+          // D2(裁定⑤,10-13-audit4-downstream):同点记来源剧本条目指纹(条目
+          // id+updatedAt,与 G3 reviewTarget 同形态)——分镜表门禁据此识别「规划
+          // 所基于的剧本版本」,改剧本后旧规划出分镜表走软提示。
+          const planSourceScriptEntry = latestScriptDraftEntry(store, targetEpisodeId);
+          const writeResult = tools.writeDirectorPlan({
+            text: finalText,
+            episodeId: targetEpisodeId,
+            identity: {
+              sourceId: chapterIdentity?.sourceId ?? targetEpisodeId,
+              revision: chapterIdentity?.revision ?? 1,
+            },
+            saveAgentWorkData,
+            saveScriptPlan: (plan) =>
+              saveScriptPlan({
+                ...plan,
+                scriptFingerprint: planScriptFingerprint,
+                ...(planSourceScriptEntry?.id
+                  ? { sourceScript: { entryId: planSourceScriptEntry.id, updatedAt: planSourceScriptEntry.updatedAt } }
+                  : {}),
+              }),
+          });
+          if (!writeResult.approved || !writeResult.plan) {
+            await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
+              phase: "tool_supervision",
+              repairAttempted,
+              audit: writeResult.audit,
+              issues: writeResult.issues,
+              error: writeResult.error,
+            });
+            throw new Error(writeResult.error || "导演规划工具写回未通过监督");
+          }
+          useStudioStore.getState().finishAgentRun(runId, {
+            outputRef: writeResult.workId,
+            outputRefs: [writeResult.workId, writeResult.plan.id].filter((ref): ref is string => Boolean(ref)),
+            checkpointRef: operationId,
+          });
+          await logDirectorPlanWriteback("directorPlan.writeback.saved", {
             repairAttempted,
             audit: writeResult.audit,
-            issues: writeResult.issues,
-            error: writeResult.error,
+            derivedAssetPlanCount: writeResult.plan.derivedAssetPlan.length,
+            sceneIntentCount: writeResult.plan.sceneIntents.length,
           });
-          throw new Error(writeResult.error || "导演规划工具写回未通过监督");
-        }
-        useStudioStore.getState().finishAgentRun(runId, {
-          outputRef: writeResult.workId,
-          outputRefs: [writeResult.workId, writeResult.plan.id].filter((ref): ref is string => Boolean(ref)),
-          checkpointRef: operationId,
-        });
-        await logDirectorPlanWriteback("directorPlan.writeback.saved", {
-          repairAttempted,
-          audit: writeResult.audit,
-          derivedAssetPlanCount: writeResult.plan.derivedAssetPlan.length,
-          sceneIntentCount: writeResult.plan.sceneIntents.length,
-        });
 
-        const detail = `6段规划，场景 ${writeResult.audit.metrics.sceneSections} 段，衍生预划 ${writeResult.plan.derivedAssetPlan.length} 条`;
-        const repairDetail = repairAttempted ? "；已自动修复结构" : "";
-        if (writeResult.warnings.length) {
-          toast.warning(
-            `导演规划完成（${detail}${repairDetail}；光影提示 ${writeResult.warnings.length} 处已剔除）`,
-          );
-        } else {
-          toast.success(`导演规划完成（${detail}${repairDetail}）`);
+          const detail = `6段规划，场景 ${writeResult.audit.metrics.sceneSections} 段，衍生预划 ${writeResult.plan.derivedAssetPlan.length} 条`;
+          const repairDetail = repairAttempted ? "；已自动修复结构" : "";
+          if (writeResult.warnings.length) {
+            toast.warning(
+              `导演规划完成（${detail}${repairDetail}；光影提示 ${writeResult.warnings.length} 处已剔除）`,
+            );
+          } else {
+            toast.success(`导演规划完成（${detail}${repairDetail}）`);
+          }
+        } catch (error) {
+          if (strict && rejectedText && !reportSaved && productionWritebackVersion(targetEpisodeId) === version) {
+            saveAgentWorkData("supervisionReport", `# 道劫planning拒绝写回\n${captureError(error).message}\n\n## 被审产出\n${rejectedText}`, targetEpisodeId, { sourceId: chapterIdentity?.sourceId ?? targetEpisodeId, revision: chapterIdentity?.revision ?? 1 });
+          }
+          if (!strict || useProjectStore.getState().activeProjectId === projectAtStart) useStudioStore.getState().failAgentRun(runId, captureError(error).message, operationId);
+          if (!blockedLogged) {
+            await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
+              phase: "exception",
+              error: captureError(error),
+            });
+          }
+          toast.error(error instanceof Error ? error.message : String(error));
         }
-      } catch (error) {
-        useStudioStore.getState().failAgentRun(runId, captureError(error).message, operationId);
-        if (!blockedLogged) {
-          await logDirectorPlanWriteback("directorPlan.writeback.blocked", {
-            phase: "exception",
-            error: captureError(error),
-          });
-        }
-        toast.error(error instanceof Error ? error.message : String(error));
-      }
+      } finally { if (strict) strictGenerationLock.current = false; }
     },
     [activeProjectId, manualCatalog, saveAgentWorkData, saveScriptPlan],
   );
@@ -372,115 +414,141 @@ export function useProductionPlanningActions({
         toast.warning("本章剧本审核未通过（存在未修复问题）：建议先修订剧本再生成分镜表；本次继续生成");
       }
 
-      const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
-      const memory = await readSourceMemoryActionContext({
-        projectId,
-        archiveQuery: scriptText.slice(0, 200),
-      });
-      if (!memory.success) {
-        toast.error(memory.error);
-        return;
-      }
-      const messages = buildStoryboardTableMessages({
-        episodeId: targetEpisodeId,
-        scriptText,
-        scriptPlanContext: formatScriptPlanContext(plan),
-        // riderB(H5/G36):分镜表装配链同注目标画幅(对齐 useScriptStageActions.ts:74 文案)
-        manualContext: [
-          buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
-          `目标画幅：${store.workflowConfig.platformSpec || "16:9"}`,
-        ].filter(Boolean).join("\n"),
-        bibleContext: memory.context,
-        assetsInventory: buildAssetsInventory(store, targetEpisodeId),
-      });
-      const userContent = userInstruction.trim()
-        ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
-        : messages.user;
-      const runId = store.startAgentRun({
-        key: "storyboardTable",
-        phase: "storyboardTable",
-        inputSummary: `storyboardTable:${targetEpisodeId}:${scriptText.length}`,
-        inputFingerprint: stableRunFingerprint({
-          targetEpisodeId,
-          scriptText,
-          scriptPlanId: plan.id,
-          userInstruction,
-        }),
-      });
-
+      const sourceChapter = store.novelChapters.find((item) => item.id === targetEpisodeId);
+      const sourceText = sourceChapter?.sourceText ?? "";
+      const strict = isDaojieAdaptation(store.workflowConfig.directorManualId, sourceText);
+      if (strict && strictGenerationLock.current) { toast.error("道劫生成/审核正在进行，请等待完成"); return; }
+      if (strict) strictGenerationLock.current = true;
+      const version = strict ? productionWritebackVersion(targetEpisodeId) : "";
+      const projectAtStart = useProjectStore.getState().activeProjectId;
+      let rejectedText = "";
+      let reportSaved = false;
       try {
-        // 流式生成:整集分镜表输出量大(可达数分钟),非流式撞网关 524(~2 分钟切断);
-        // 与导演规划同走 textStream 保活(2026-08-22 实证:非流式 127s 必 524)
-        const result = await aiManager.textStream(
-          {
-            binding: { agent: "productionAgent:storyboardTableAgent" },
-            messages: [
-              { role: "system", content: messages.system },
-              { role: "user", content: userContent },
-            ],
-            temperature: 0.35,
-            // 10-14 livefire17 ch002 定谳:分镜表单独 1200s 判定性预算(期望总时长
-            // 690-1215s,600s=人为墙);导演规划侧(上方 :188/:217)维持 600s 档不动
-            timeoutMs: STORYBOARD_TABLE_STREAM_TIMEOUT_MS,
-            // 同上:maxTokens 走 ai-manager 统一兜底
-          },
-          () => {},
-        );
-        if (!result.success || !result.text) {
-          throw new Error(result.error || "分镜表生成失败");
-        }
-
-        const parsed = parseStoryboardTable(result.text, targetEpisodeId, {
-          requireShotSemantics: true,
+        if (strict && activeProjectId && activeProjectId !== projectAtStart) { toast.error("当前项目已变化，请刷新后重新生成"); return; }
+        const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
+        const memory = await readSourceMemoryActionContext({
+          projectId,
+          archiveQuery: scriptText.slice(0, 200),
         });
-        if (parsed.errors.length) {
-          throw new Error(`分镜表结构无效：${parsed.errors.join("；")}`);
+        if (!memory.success) {
+          toast.error(memory.error);
+          return;
         }
-        const chapter = store.novelChapters.find((item) => item.id === targetEpisodeId);
-        const sourceIdentity = {
-          sourceId: chapter?.sourceId ?? targetEpisodeId,
-          revision: chapter?.revision ?? 1,
-        };
-        const workId = saveAgentWorkData("storyboardTable", result.text, targetEpisodeId, sourceIdentity);
-        const workflowStore = useStudioStore.getState();
-        const characters = workflowStore.entityExtractions.find(
-          (item) => item.episodeId === targetEpisodeId,
-        )?.characters ?? [];
-        const speakerFallbacks: string[] = [];
-        const items = toStoryboardItems(
-          parsed.rows,
-          targetEpisodeId,
-          characters,
-          sourceIdentity,
-          {
-            unknownSpeaker: "narrator",
-            onSpeakerFallback: (storyboardId, speaker) => {
-              speakerFallbacks.push(`${storyboardId} ${speaker}`);
+        const messages = buildStoryboardTableMessages({
+          episodeId: targetEpisodeId,
+          scriptText, sourceText, strictDaojieAdaptation: strict,
+          scriptPlanContext: formatScriptPlanContext(plan),
+          // riderB(H5/G36):分镜表装配链同注目标画幅(对齐 useScriptStageActions.ts:74 文案)
+          manualContext: [
+            buildStoryboardTableManualContext(store.workflowConfig, manualCatalog),
+            `目标画幅：${store.workflowConfig.platformSpec || "16:9"}`,
+          ].filter(Boolean).join("\n"),
+          bibleContext: memory.context,
+          assetsInventory: buildAssetsInventory(store, targetEpisodeId),
+        });
+        const userContent = userInstruction.trim()
+          ? `${messages.user}\n\n【本次节点补充要求】\n${userInstruction.trim()}`
+          : messages.user;
+        const runId = store.startAgentRun({
+          key: "storyboardTable",
+          phase: "storyboardTable",
+          inputSummary: `storyboardTable:${targetEpisodeId}:${scriptText.length}`,
+          inputFingerprint: stableRunFingerprint({
+            targetEpisodeId,
+            scriptText,
+            scriptPlanId: plan.id,
+            userInstruction,
+          }),
+        });
+
+        try {
+          // 流式生成:整集分镜表输出量大(可达数分钟),非流式撞网关 524(~2 分钟切断);
+          // 与导演规划同走 textStream 保活(2026-08-22 实证:非流式 127s 必 524)
+          const result = await aiManager.textStream(
+            {
+              binding: { agent: "productionAgent:storyboardTableAgent" },
+              messages: [
+                { role: "system", content: messages.system },
+                { role: "user", content: userContent },
+              ],
+              temperature: 0.35,
+              // 10-14 livefire17 ch002 定谳:分镜表单独 1200s 判定性预算(期望总时长
+              // 690-1215s,600s=人为墙);导演规划侧(上方 :188/:217)维持 600s 档不动
+              timeoutMs: STORYBOARD_TABLE_STREAM_TIMEOUT_MS,
+              // 同上:maxTokens 走 ai-manager 统一兜底
             },
-            // D5(裁定⑤):本批分镜记来源剧本条目指纹,chapter-pipeline-stale
-            // 分镜层过期判定据此软标;无草稿条目(不可能,入口已保剧本非空)不落。
-            ...(latestDraftEntry?.id
-              ? { sourceScript: { entryId: latestDraftEntry.id, updatedAt: latestDraftEntry.updatedAt } }
-              : {}),
-          },
-        );
-        workflowStore.replaceStoryboardsForEpisode(targetEpisodeId, items);
-        workflowStore.finishAgentRun(runId, {
-          outputRef: workId,
-          outputRefs: [workId, ...items.map((item) => item.id)],
-        });
+            () => {},
+          );
+          if (!result.success || !result.text) {
+            throw new Error(result.error || "分镜表生成失败");
+          }
 
-        const warningText = parsed.warnings.length
-          ? `，提示 ${parsed.warnings.length} 条`
-          : "";
-        const fallbackText = speakerFallbacks.length
-          ? `，${speakerFallbacks.length} 条群演台词归旁白(${speakerFallbacks.slice(0, 2).map((entry) => entry.split(" ")[1]).join("、")}${speakerFallbacks.length > 2 ? "等" : ""})`
-          : "";
-        toast.success(`分镜表完成：${items.length} 条分镜${warningText}${fallbackText}`);
-      } catch (error) {
-        useStudioStore.getState().failAgentRun(runId, error instanceof Error ? error.message : String(error));
-        toast.error(error instanceof Error ? error.message : String(error));
-      }
+          rejectedText = result.text;
+          const parsed = parseStoryboardTable(result.text, targetEpisodeId, {
+            requireShotSemantics: true,
+          });
+          if (parsed.errors.length) {
+            throw new Error(`分镜表结构无效：${parsed.errors.join("；")}`);
+          }
+          if (strict) {
+            const review = await reviewDaojieGeneration({ stage: "storyboard", sourceText, bibleContext: memory.context, scriptText, planText: formatScriptPlanContext(plan), outputText: result.text, totalDurationSeconds: parsed.rows.reduce((total, row) => total + row.duration, 0) }, (reviewMessages) => aiManager.textStream({
+              binding: { agent: "productionAgent:storyboardTableAgent" }, timeoutMs: STORYBOARD_TABLE_STREAM_TIMEOUT_MS, temperature: 0.2,
+              messages: [{ role: "system", content: reviewMessages.system }, { role: "user", content: reviewMessages.user }],
+            }, () => undefined));
+            if (productionWritebackVersion(targetEpisodeId) !== version) throw new Error("审核期间项目、原文或上游已更新，本次分镜未写回");
+            saveAgentWorkData("supervisionReport", review.report, targetEpisodeId, { sourceId: sourceChapter?.sourceId ?? targetEpisodeId, revision: sourceChapter?.revision ?? 1 });
+            reportSaved = true;
+            if (!review.passed) throw new Error("道劫分镜未通过原文审核，已保留上一有效版本；详见审核报告");
+          }
+          const chapter = store.novelChapters.find((item) => item.id === targetEpisodeId);
+          const sourceIdentity = {
+            sourceId: chapter?.sourceId ?? targetEpisodeId,
+            revision: chapter?.revision ?? 1,
+          };
+          const workId = saveAgentWorkData("storyboardTable", result.text, targetEpisodeId, sourceIdentity);
+          const workflowStore = useStudioStore.getState();
+          const characters = workflowStore.entityExtractions.find(
+            (item) => item.episodeId === targetEpisodeId,
+          )?.characters ?? [];
+          const speakerFallbacks: string[] = [];
+          const items = toStoryboardItems(
+            parsed.rows,
+            targetEpisodeId,
+            characters,
+            sourceIdentity,
+            {
+              unknownSpeaker: "narrator",
+              onSpeakerFallback: (storyboardId, speaker) => {
+                speakerFallbacks.push(`${storyboardId} ${speaker}`);
+              },
+              // D5(裁定⑤):本批分镜记来源剧本条目指纹,chapter-pipeline-stale
+              // 分镜层过期判定据此软标;无草稿条目(不可能,入口已保剧本非空)不落。
+              ...(latestDraftEntry?.id
+                ? { sourceScript: { entryId: latestDraftEntry.id, updatedAt: latestDraftEntry.updatedAt } }
+                : {}),
+            },
+          );
+          workflowStore.replaceStoryboardsForEpisode(targetEpisodeId, items);
+          workflowStore.finishAgentRun(runId, {
+            outputRef: workId,
+            outputRefs: [workId, ...items.map((item) => item.id)],
+          });
+
+          const warningText = parsed.warnings.length
+            ? `，提示 ${parsed.warnings.length} 条`
+            : "";
+          const fallbackText = speakerFallbacks.length
+            ? `，${speakerFallbacks.length} 条群演台词归旁白(${speakerFallbacks.slice(0, 2).map((entry) => entry.split(" ")[1]).join("、")}${speakerFallbacks.length > 2 ? "等" : ""})`
+            : "";
+          toast.success(`分镜表完成：${items.length} 条分镜${warningText}${fallbackText}`);
+        } catch (error) {
+          if (strict && rejectedText && !reportSaved && productionWritebackVersion(targetEpisodeId) === version) {
+            saveAgentWorkData("supervisionReport", `# 道劫storyboard拒绝写回\n${captureError(error).message}\n\n## 被审产出\n${rejectedText}`, targetEpisodeId, { sourceId: sourceChapter?.sourceId ?? targetEpisodeId, revision: sourceChapter?.revision ?? 1 });
+          }
+          if (!strict || useProjectStore.getState().activeProjectId === projectAtStart) useStudioStore.getState().failAgentRun(runId, error instanceof Error ? error.message : String(error));
+          toast.error(error instanceof Error ? error.message : String(error));
+        }
+      } finally { if (strict) strictGenerationLock.current = false; }
     },
     [activeProjectId, manualCatalog, saveAgentWorkData],
   );

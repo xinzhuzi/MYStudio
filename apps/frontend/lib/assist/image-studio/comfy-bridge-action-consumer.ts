@@ -1,4 +1,5 @@
 import type { ComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
+import { logEvent } from "@/lib/diagnostics/logger";
 
 type BridgeAction = NonNullable<Awaited<ReturnType<ComfyEngineClient["getBridgeActions"]>>>["items"][number];
 
@@ -18,6 +19,7 @@ let deliveryTail: Promise<void> = Promise.resolve();
 let receiptQueueId: string | undefined;
 let ackFailureReported = false;
 const dispatched = new Set<number>();
+const deferredReported = new Set<number>();
 const RECEIPT_KEY = "mystudio-comfy-action-receipts-v1";
 const RECEIPT_CAP = 20;
 
@@ -38,6 +40,31 @@ function writeReceipts(queueId: string, ids: Set<number>): void {
   window.localStorage.setItem(RECEIPT_KEY, JSON.stringify({ queueId, ids: [...ids] }));
 }
 
+/**
+ * 滞留动作一次性现形(livefire9 静默失败死点):消费腿对「项目/章不匹配或
+ * 无处理器」的动作原样 continue——零 toast 零 run 零日志,用户点击无声蒸发。
+ * 滞留语义保留(切回对应章后仍会补发),但每个动作每队列纪元必须警告一次:
+ * onError→宿主 toast + diagnostics logEvent(App 日志留痕,装机事后可取证)。
+ */
+function reportDeferredOnce(item: BridgeAction, options: ConsumeActionsOptions, message: string): void {
+  if (deferredReported.has(item.id)) return;
+  deferredReported.add(item.id);
+  void logEvent({
+    level: "warn",
+    category: "workflow",
+    message: "comfyAction.deferred",
+    context: {
+      itemId: item.id,
+      kind: item.kind,
+      originProjectId: item.originProjectId ?? null,
+      originEpisodeId: item.originEpisodeId ?? null,
+      activeProjectId: options.projectId,
+      activeEpisodeId: options.episodeId,
+    },
+  });
+  options.onError(new Error(message));
+}
+
 export function consumeComfyBridgeActions(options: ConsumeActionsOptions): Promise<void> {
   const consume = async () => {
     if (!options.isActive()) return;
@@ -51,10 +78,12 @@ export function consumeComfyBridgeActions(options: ConsumeActionsOptions): Promi
       if (receiptQueueId !== listed.queueId) {
         receiptQueueId = listed.queueId;
         dispatched.clear();
+        deferredReported.clear();
         ackFailureReported = false;
       }
       stored.forEach((id) => dispatched.add(id));
       for (const id of dispatched) if (!pending.has(id)) dispatched.delete(id);
+      for (const id of deferredReported) if (!pending.has(id)) deferredReported.delete(id);
       writeReceipts(listed.queueId, dispatched);
     } catch {
       options.onError(new Error("制作动作收据无法安全保存，已暂停派发；请检查本地存储后重试"));
@@ -69,9 +98,18 @@ export function consumeComfyBridgeActions(options: ConsumeActionsOptions): Promi
       }
       if (!options.isActive()) break;
       if (!options.projectId || item.originProjectId !== options.projectId
-        || !options.episodeId || item.originEpisodeId !== options.episodeId) continue;
+        || !options.episodeId || item.originEpisodeId !== options.episodeId) {
+        // livefire9 死点:章/项目不匹配的动作此前无声 continue。滞留可见化
+        // (一次性),滞留语义不变——切回对应章后下轮 tick 照常补发。
+        reportDeferredOnce(item, options, `制作动作未执行：画布动作来自 项目${item.originProjectId ?? "未绑定"}/章节${item.originEpisodeId ?? "未绑定"}，`
+          + `当前为 项目${options.projectId ?? "未绑定"}/章节${options.episodeId}；动作已保留，切回对应章节后会自动执行`);
+        continue;
+      }
       const handler = options.handlerFor(item);
-      if (!handler) continue;
+      if (!handler) {
+        reportDeferredOnce(item, options, `制作动作未执行：当前画布视图不处理动作 ${item.kind}，动作已保留在队列`);
+        continue;
+      }
       // Invocation can start an external operation before throwing. Retain its
       // receipt even on failure so retries only repeat ack, never that operation.
       dispatched.add(item.id);
@@ -85,6 +123,20 @@ export function consumeComfyBridgeActions(options: ConsumeActionsOptions): Promi
         break;
       }
       acknowledged.push(item.id);
+      // 派发即留痕(livefire9「App 日志净」式事后取证无法区分「派发过但
+      // handler 死」vs「从未派发」)——diagnostics 记录派发事实,结局由
+      // handler 自身日志/onError 补全。
+      void logEvent({
+        level: "info",
+        category: "workflow",
+        message: "comfyAction.dispatch",
+        context: {
+          itemId: item.id,
+          kind: item.kind,
+          originProjectId: item.originProjectId ?? null,
+          originEpisodeId: item.originEpisodeId ?? null,
+        },
+      });
       try {
         await handler();
       } catch (error) {

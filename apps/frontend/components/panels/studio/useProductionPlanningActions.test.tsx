@@ -578,3 +578,89 @@ describe("R13(Q4) · 无资产=硬拦锁(裁定 Q4「按裁定不改」,防回�
     expect(aiManager.textStream).not.toHaveBeenCalled();
   });
 });
+
+describe("道劫规划写回前语义审核", () => {
+  const response = (passed = true) => JSON.stringify({ stage: "planning", passed, checks: { facts: passed, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true }, findings: passed ? [] : [{ dimension: "facts", outputQuote: "半寸", sourceQuote: "", reason: "原文无精确距离" }] });
+  beforeEach(() => {
+    vi.mocked(aiManager.textStream).mockReset();
+    stubAgentRunLifecycle();
+    useProjectStore.setState({ activeProjectId: "project-1" });
+    useStudioStore.setState({ workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Daojie_xianxia" }, novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText: "独孤剑尘救下杂役。", importedAt: 1 }] });
+  });
+  it.each(["{}", response(false)])("拒绝稿不覆盖规划及原有分镜: %s", async (text) => {
+    const save = vi.fn<(...args: unknown[]) => string>(() => "work"); const planSave = vi.fn();
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: AUDITABLE_PLAN_OUTPUT }).mockResolvedValueOnce({ success: true, text });
+    const { result } = renderPlanningActions({ saveAgentWorkData: save, saveScriptPlan: planSave });
+    await act(async () => { await result.current.handleDirectorPlan("chapter-002"); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2);
+    expect(planSave).not.toHaveBeenCalled();
+    expect(save.mock.calls.some(([key]) => key === "directorPlan")).toBe(false);
+    expect(save).toHaveBeenCalledWith("supervisionReport", expect.stringContaining(AUDITABLE_PLAN_OUTPUT), "chapter-002", expect.anything());
+  });
+  it("完整审核通过才保存规划", async () => {
+    const planSave = vi.fn();
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: AUDITABLE_PLAN_OUTPUT }).mockResolvedValueOnce({ success: true, text: response() });
+    const { result } = renderPlanningActions({ saveScriptPlan: planSave });
+    await act(async () => { await result.current.handleDirectorPlan("chapter-002"); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2);
+    expect(planSave).toHaveBeenCalled();
+  });
+  it.each(["project", "source", "draft", "plan"])("审核期间%s变化禁止迟到写回", async (change) => {
+    const save = vi.fn(); const planSave = vi.fn();
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: AUDITABLE_PLAN_OUTPUT }).mockImplementationOnce(async () => {
+      if (change === "project") useProjectStore.setState({ activeProjectId: "project-2" });
+      if (change === "source") useStudioStore.setState({ novelChapters: [] });
+      if (change === "draft") useStudioStore.setState({ agentWorkData: [] });
+      if (change === "plan") useStudioStore.setState({ scriptPlans: [] });
+      return { success: true, text: response() };
+    });
+    const { result } = renderPlanningActions({ saveAgentWorkData: save, saveScriptPlan: planSave });
+    await act(async () => { await result.current.handleDirectorPlan("chapter-002"); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2);
+    expect(planSave).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe("道劫分镜写回审核", () => {
+  const board = (seconds: number) => [
+    "<storyboardTable>",
+    "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID | 出镜语义JSON |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    `| 1 | 雨夜码头 | 码头 | [码头] | ${seconds} | 近景 | 静止 | 雨落 | 面向右 | 中景 | 紧张 | 无台词 | 风声 | [scene-dock] | ${JSON.stringify({ sceneViewpointId: "dock", personFree: true, visibleCharacters: [], visibleProps: [], actionIn: "雨落", actionOut: "雨声延续" })} |`,
+    "</storyboardTable>",
+  ].join("\n");
+  const pass = JSON.stringify({ stage: "storyboard", passed: true, checks: { facts: true, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true }, findings: [] });
+  beforeEach(() => {
+    vi.mocked(aiManager.textStream).mockReset(); stubAgentRunLifecycle();
+    useProjectStore.setState({ activeProjectId: "project-1" });
+    useStudioStore.setState({ workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Daojie_xianxia" }, novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText: "码头雨落。", importedAt: 1 }] });
+  });
+  it("有效结构但审核无效不替换分镜", async () => {
+    const replace = vi.fn(); const save = vi.fn(); useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: board(12) }).mockResolvedValueOnce({ success: true, text: "{}" });
+    const { result } = renderPlanningActions({ saveAgentWorkData: save });
+    await act(async () => { await result.current.handleStoryboardTable("chapter-002"); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2); expect(replace).not.toHaveBeenCalled();
+    expect(save).toHaveBeenCalledWith("supervisionReport", expect.stringContaining(board(12)), "chapter-002", expect.anything());
+  });
+  it("实际201秒无需额外联网审核，拒绝写回", async () => {
+    const replace = vi.fn(); useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: board(201) });
+    const { result } = renderPlanningActions();
+    await act(async () => { await result.current.handleStoryboardTable("chapter-002"); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(1); expect(replace).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("未通过原文审核"));
+  });
+  it("审核通过才落库和转换，审核期间再次点击不增加调用", async () => {
+    const replace = vi.fn(); const save = vi.fn(() => "board-1"); useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
+    let resolveReview!: (value: { success: boolean; text: string }) => void;
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: board(12) }).mockImplementationOnce(() => new Promise((resolve) => { resolveReview = resolve; }));
+    const { result } = renderPlanningActions({ saveAgentWorkData: save }); let pending!: Promise<void>;
+    await act(async () => { pending = result.current.handleStoryboardTable("chapter-002"); await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expect(replace).not.toHaveBeenCalled();
+    await act(async () => { await result.current.handleDirectorPlan("chapter-002"); });
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2);
+    await act(async () => { resolveReview({ success: true, text: pass }); await pending; });
+    expect(replace).toHaveBeenCalledTimes(1); expect(save).toHaveBeenCalledWith("storyboardTable", board(12), "chapter-002", expect.anything());
+  });
+});
