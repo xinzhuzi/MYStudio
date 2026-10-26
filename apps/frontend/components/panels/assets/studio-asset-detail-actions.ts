@@ -810,7 +810,6 @@ export function useStudioAssetDialogActions(ctx: {
     }
   };
   const handleFacePortraitFromImage = () => runFacePortrait("image");
-  const handleFacePortraitFromText = () => runFacePortrait("text");
 
   /** 10-21 表情差分(用户令:资产库弹窗角色要有表情差分,图生图逻辑):镜像
    * 人脸图生图路(轮播当前图锚身份+固定指令承载九宫格取景语言);命名沿
@@ -1404,7 +1403,8 @@ export function useStudioAssetDialogActions(ctx: {
     const dispatchKindGeneration = (kind: AssetImageKind): Promise<boolean> => {
       // 复审 H 修:laneGuard:false——队列入口已持五路守卫+自持聚合相位(typeShotPhase),
       // 底层执行器免统一守卫防逐型派发自拒
-      if (kind === "高清人脸") return runFacePortrait(carouselImages.length > 0 ? "image" : "text", { laneGuard: false });
+      // 10-26 用户令:高清人脸没有文生图,恒走无衣物定妆图生图(缺图内建守卫拦)
+      if (kind === "高清人脸") return runFacePortrait("image", { laneGuard: false });
       if (kind === "表情差分") return runExpressionSheet({ laneGuard: false });
       return executeTypeShot(kind, { managedLane: false });
     };
@@ -1674,7 +1674,7 @@ export function useStudioAssetDialogActions(ctx: {
     handlePolishPrompt, handleSave, handleDelete, copyText,
     handleOneClickGenerateAssetImage, handleImageToImageStyle, handleRegenerate,
     handleOpenSource, handleOpenFolder, handleAddImage, handleReplaceImage,
-    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
+    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleExpressionSheet,
     handleTypeShot, handleFillMissingQueue, handleRerollFromPrompt,
   };
 }

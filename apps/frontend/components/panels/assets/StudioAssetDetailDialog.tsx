@@ -54,7 +54,7 @@ import {
   type FamilyDisplayImageEntry,
   type FamilyImageEntry,
 } from "@/lib/studio/asset-family-images";
-import { classifyAssetImage, latestKindImage } from "@/lib/studio/asset-image-kind";
+import { classifyAssetImage } from "@/lib/studio/asset-image-kind";
 import { clusterAssetStages } from "@/lib/studio/asset-stage-prompts";
 import { parseWorkflowPrompt } from "@/lib/studio/workflow-prompt-parser";
 import { parsePromptOverrides } from "@/lib/studio/asset-prompt-layers";
@@ -712,7 +712,7 @@ export function StudioAssetDetailDialog({
   // stable even while the dialog is closed or clearing its selection.
   const {
     handleSave, handleDelete,
-    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleFacePortraitFromText, handleExpressionSheet,
+    handleRemoveImage, handleTranscribe, handleFacePortraitFromImage, handleExpressionSheet,
     handleTypeShot: dispatchTypeShot, handleFillMissingQueue, handleRerollFromPrompt,
   } = useStudioAssetDialogActions({
     asset,
@@ -1314,10 +1314,6 @@ export function StudioAssetDetailDialog({
                 }}
                 expressionPhase={expressionPhase}
                 expressionMessage={expressionMessage}
-                onFaceFromText={() => {
-                  focusOnKind("高清人脸");
-                  handleFacePortraitFromText();
-                }}
                 facePhase={facePhase}
                 faceMessage={faceMessage}
                 canFacePortrait={canFacePortrait}
@@ -1335,9 +1331,9 @@ export function StudioAssetDetailDialog({
                 onGenerateByKind={(kind) => {
                   focusOnKind(kind);
                   if (kind === "高清人脸") {
-                    // 10-25 用户令(派生流水线):定妆图在场→图生图(锚定妆);缺→文生图
-                    if (latestKindImage(displayImages, "无衣物定妆")) handleFacePortraitFromImage();
-                    else handleFacePortraitFromText();
+                    // 10-26 用户令:高清人脸没有文生图——恒走无衣物定妆图生图;
+                    // 缺定妆图=runFacePortrait 内建守卫拦截并引导先生成定妆
+                    handleFacePortraitFromImage();
                     return;
                   }
                   if (kind === "表情差分") {

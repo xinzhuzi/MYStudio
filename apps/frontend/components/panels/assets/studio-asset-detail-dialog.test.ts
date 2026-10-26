@@ -453,7 +453,8 @@ describe("10-24 布局重造批1(竖滑单列+元信息置顶+轮播拆除)", ()
     expect(dialogSource).toContain("onGenerateByKind=");
     expect(dialogSource).toContain('kind === "高清人脸"');
     expect(dialogSource).toContain("handleFacePortraitFromImage");
-    expect(dialogSource).toContain("handleFacePortraitFromText");
+    // 10-26 用户令:高清人脸没有文生图——FromText 路整体拔除
+    expect(dialogSource).not.toContain("handleFacePortraitFromText");
     expect(dialogSource).toContain('kind === "表情差分"');
     expect(dialogSource).toContain("handleExpressionSheet");
     // 批3:余型收尾派发到型驱动件(占位卡 CTA/缺失 chip 直达全型可达)
@@ -538,7 +539,8 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
   it("既有路返值化零行为变:人脸/表情差分按钮入口签名未动,仅内部 Promise<boolean> 供队列探成功", () => {
     const source = readActionsSource();
     expect(source).toContain('const handleFacePortraitFromImage = () => runFacePortrait("image")');
-    expect(source).toContain('const handleFacePortraitFromText = () => runFacePortrait("text")');
+    // 10-26 用户令:FromText 出口删(引擎侧 text 模式代码留档无调用方)
+    expect(source).not.toContain('const handleFacePortraitFromText =');
     expect(source).toContain("const handleExpressionSheet = () => runExpressionSheet()");
     expect(source).toContain("const runFacePortrait = async (");
     expect(source).toContain("const runExpressionSheet = async (");
@@ -553,7 +555,7 @@ describe("10-24 批3(按型出图按钮族:typeShot 第五路+全型路由+一�
     expect(source).toContain("if (isAnyGenerationLaneBusy()) return false;");
     // 人脸/表情差分带 laneGuard 闸(缺省全相位,队列免闸防逐型派发自拒)
     expect(source).toContain("options?: { laneGuard?: boolean }");
-    expect(source).toContain('runFacePortrait(carouselImages.length > 0 ? "image" : "text", { laneGuard: false })');
+    expect(source).toContain('if (kind === "高清人脸") return runFacePortrait("image", { laneGuard: false })');
     expect(source).toContain("runExpressionSheet({ laneGuard: false })");
     // 直达入口的守卫留痕(与既有 busy 守卫同款日志链)
     expect(source).toContain("Asset face portrait guard rejected (busy-lane)");

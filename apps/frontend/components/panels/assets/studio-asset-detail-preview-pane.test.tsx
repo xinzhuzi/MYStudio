@@ -87,7 +87,6 @@ function makeProps(overrides: Partial<PreviewPaneProps> = {}): PreviewPaneProps 
     onTranscribe: vi.fn(),
     onRemoveImage: vi.fn(),
     onFaceFromImage: vi.fn(),
-    onFaceFromText: vi.fn(),
     onExpression: vi.fn(),
     ...overrides,
   };
@@ -263,20 +262,18 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
     const { props } = renderPane({ canFacePortrait: true });
     const faceSection = screen.getByRole("region", { name: "高清人脸" });
     fireEvent.click(within(faceSection).getByRole("button", { name: "人脸·图生图" }));
-    fireEvent.click(within(faceSection).getByRole("button", { name: "人脸·文生图" }));
     expect(props.onFaceFromImage).toHaveBeenCalledTimes(1);
-    expect(props.onFaceFromText).toHaveBeenCalledTimes(1);
+    // 10-26 用户令:高清人脸没有文生图——文生图钮已删,只剩图生图一路
+    expect(within(faceSection).queryByRole("button", { name: "人脸·文生图" })).toBeNull();
   });
 
-  it("disables face-from-image without images but keeps face-from-text available", () => {
+  it("disables face-from-image without images (text route removed per 10-26 order)", () => {
     renderPane({ canFacePortrait: true, images: [] });
 
     const faceSection = screen.getByRole("region", { name: "高清人脸" });
     const fromImage = within(faceSection).getByRole("button", { name: "人脸·图生图" }) as HTMLButtonElement;
     expect(fromImage.disabled).toBe(true);
-    expect(fromImage.getAttribute("title")).toContain("先有角色图片");
-    const fromText = within(faceSection).getByRole("button", { name: "人脸·文生图" }) as HTMLButtonElement;
-    expect(fromText.disabled).toBe(false);
+    expect(within(faceSection).queryByRole("button", { name: "人脸·文生图" })).toBeNull();
   });
 
   it("shows the spinner and phase text while a face portrait is running", () => {
@@ -284,19 +281,19 @@ describe("StudioAssetDetailPreviewPane · 10-24 布局重造批1(图片规范区
 
     const faceSection = screen.getByRole("region", { name: "高清人脸" });
     const buttons = within(faceSection).getAllByRole("button", { name: /人脸生成中/ });
-    expect(buttons).toHaveLength(2);
+    expect(buttons).toHaveLength(1);
     for (const button of buttons) {
       expect((button as HTMLButtonElement).disabled).toBe(true);
       expect(button.querySelector(".animate-spin")).toBeTruthy();
     }
-    expect(within(faceSection).getAllByText("人脸生成中…")).toHaveLength(2);
+    expect(within(faceSection).getAllByText("人脸生成中…")).toHaveLength(1);
   });
 
   it("disables both face portrait entries while generation or style transfer is running", () => {
     renderPane({ canFacePortrait: true, generatePhase: "generating" });
 
     const faceSection = screen.getByRole("region", { name: "高清人脸" });
-    for (const label of ["人脸·图生图", "人脸·文生图"]) {
+    for (const label of ["人脸·图生图"]) {
       const button = within(faceSection).getByRole("button", { name: label }) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
       expect(button.getAttribute("title")).toBeTruthy();

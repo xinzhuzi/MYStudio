@@ -82,7 +82,6 @@ interface StudioAssetDetailPreviewPaneProps {
   /** 10-21 高清人脸(用户令:图生图/文生图两路都要);仅角色轨由装配方置真。
    *  批3 返值化:boolean=完成/守卫拒(供一键补缺队列探成功),pane 只派发零消费。 */
   onFaceFromImage?: () => void | Promise<unknown>;
-  onFaceFromText?: () => void | Promise<unknown>;
   /** 人脸生成相位(两路共用一套状态机;在跑时 Loader2+文案并禁点)。 */
   facePhase?: string | null;
   /** 人脸生成相位文案(运行态按钮 title 全文)。 */
@@ -134,7 +133,6 @@ export function StudioAssetDetailPreviewPane({
   i2iPhase,
   generatePhase,
   onFaceFromImage,
-  onFaceFromText,
   facePhase,
   faceMessage,
   canFacePortrait = false,
@@ -169,18 +167,6 @@ export function StudioAssetDetailPreviewPane({
             : typeShotPhase
               ? (typeShotMessage || "正在按型出图，请稍候")
               : undefined;
-  const faceFromTextDisabled = generationBusy;
-  const faceFromTextTitle = generatePhase
-    ? "图片生成中，请稍候"
-    : i2iPhase
-      ? "正在转换画风，请稍候"
-      : facePhase
-        ? (faceMessage || "正在生成高清人脸，请稍候")
-        : expressionPhase
-          ? "正在生成表情差分，请稍候"
-          : typeShotPhase
-            ? (typeShotMessage || "正在按型出图，请稍候")
-            : undefined;
   const facePhaseLabel = facePhase === "done"
     ? "人脸生成完成"
     : facePhase === "failed"
@@ -438,21 +424,6 @@ export function StudioAssetDetailPreviewPane({
           <ScanFace className="mr-1 h-3 w-3" />
         )}
         {facePhase ? facePhaseLabel : "人脸·图生图"}
-      </Button>
-      <Button
-        variant="default"
-        size="sm"
-        className="h-6 gap-1 text-[11px]"
-        onClick={onFaceFromText}
-        disabled={faceFromTextDisabled}
-        title={faceFromTextTitle}
-      >
-        {facePhase ? (
-          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-        ) : (
-          <ScanFace className="mr-1 h-3 w-3" />
-        )}
-        {facePhase ? facePhaseLabel : "人脸·文生图"}
       </Button>
     </>
   );
