@@ -7,40 +7,24 @@ import {
   type CharacterPromptEntry,
 } from "@/lib/studio/asset-character-json";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, FileJson2, ImageIcon, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, FileJson2 } from "lucide-react";
 
 /**
  * 人物提示词面板(10-26 用户令:「这些应由 JSON 数据化控制,找位置放置并标注
- * 文生图/图生图」)。真源角色的人物提示词以目录化卡片呈现,逐条带路由徽标
- * (文生图/图生图+细注),随「阶段」选择联动显示该境指令;基底两组恒显。
+ * 文生图/图生图」)。真源角色的人物提示词以目录化卡片呈现,随「阶段」选择联动;
  * 编辑入口统一收敛到「角色真源JSON」弹窗(存桌面技能存储,保存后弹窗即刷新)。
+ * 10-26 二次令:路由=纯文字注记(徽章长得像按钮被斥「不需要在这放文生图按钮,
+ * 出图入口都在下面」——去图标/边框/底色,灰字标注,一眼非可点件)。
  */
 
-// 徽标配色走语义 token(design-lint R2 禁调色板硬编码):文生图=primary 主色系,
-// 图生图=中性系;路由语义由图标+文案承载,配色只做主/次区分
-const ROUTE_STYLES: Record<CharacterPromptEntry["route"], { label: string; icon: typeof Sparkles; className: string }> = {
-  t2i: {
-    label: "文生图",
-    icon: Sparkles,
-    className: "border-primary/40 bg-primary/10 text-primary",
-  },
-  i2i: {
-    label: "图生图",
-    icon: ImageIcon,
-    className: "border-border bg-muted text-foreground/85",
-  },
-};
-
-function RouteBadge({ entry }: { entry: CharacterPromptEntry }) {
-  const style = ROUTE_STYLES[entry.route];
-  const Icon = style.icon;
+/** 路由注记(纯文字,非按钮形态):hover title 带路由细注。 */
+function RouteNote({ entry }: { entry: CharacterPromptEntry }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium leading-none ${style.className}`}
-      title={`${style.label}:${entry.routeNote}`}
+      className="shrink-0 text-[10px] leading-none text-muted-foreground/75"
+      title={`${entry.route === "t2i" ? "文生图" : "图生图"}:${entry.routeNote}`}
     >
-      <Icon className="h-3 w-3" />
-      {style.label}
+      {entry.route === "t2i" ? "文生图" : "图生图"}
     </span>
   );
 }
@@ -56,8 +40,8 @@ function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
       aria-expanded={expanded}
     >
       <div className="flex items-center gap-1.5">
-        <RouteBadge entry={entry} />
         <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{entry.title}</span>
+        <RouteNote entry={entry} />
         {expanded ? (
           <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
         ) : (
