@@ -228,3 +228,15 @@ describe("resolveBareTypeSubjectGate 赤足漏洞回归(10-26 小杂役实录)",
     expect(r.block).toBeUndefined();
   });
 });
+
+describe("deriveBare 构图段剥除(10-27 用户贴全文实录:四视图/21:9横幅段必须剥)", () => {
+  it("小杂役 DB 全文(含四视图并排+横幅+散光段)→派生句零构图词、零衣物词、身份发型保留", () => {
+    const FULL = "约十岁的男童,码头杂役,谨小慎微、眼神怯生,非少年非青年,圆脸稚气未脱、脸颊圆润,偏大的深色眼睛。肤色微黄,身形瘦小,身高仅及成人胸口、约一百三十厘米,五头身幼态比例,五官由稚气孩童神态自然推导。素颜状态,中性微表情含怯意,目视前方,自然站立、双臂自然下垂、双脚微分。土黄粗布短褐缀补丁,配旧布裤,腰束栗褐布绳,衣裤完整可穿;赤足。凌乱的及肩墨黑短发,碎发垂在额前与耳侧。无持物、无发饰配饰。宣纸白纯色背景,无场景元素。同一画面从左至右并排四视图:人像特写自头顶至锁骨完整入画,正面、侧面、背面全身立像自头顶至脚底完整入画;21:9 横幅,均匀柔和散光。四视图面容、体型、发型、基础服装完全一致。";
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: FULL });
+    expect(r.derived).toBe(true);
+    expect(r.subject).toContain("约十岁的男童");
+    expect(r.subject).toContain("墨黑短发");
+    expect(r.subject).toContain("通身素体呈现");
+    expect(r.subject).not.toMatch(/四视图|横幅|并排|散光|特写|短褐|布裤|布绳|宣纸白|视图/);
+  });
+});
