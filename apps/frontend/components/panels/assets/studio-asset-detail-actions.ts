@@ -109,6 +109,8 @@ export function useStudioAssetDialogActions(ctx: {
   onFillMissingQueueSettled?: (summary: { total: number; completed: number; abortedKind?: string }) => void;
   /** 10-25 追加令 Phase C:按型主体句槽读取(t2i 路/人脸文生图路该型优先用槽内句)。 */
   getKindSubjectOverride?: (kind: AssetImageKind) => string | undefined;
+  /** 10-26 型区分令:按型阻断主体句(返回错误消息即阻断派发;素体型无素体句防带衣错图)。 */
+  getKindSubjectBlock?: (kind: AssetImageKind) => string | null;
   /** 10-25 追加令·i2i 指令可编辑:指令覆盖读取(非空=本次生成用此指令作终稿;
    *  会话态不持久化,覆盖按型/人脸图生图/表情差分三路)。 */
   getInstructionOverride?: (kind: AssetImageKind) => string | undefined;
@@ -172,6 +174,7 @@ export function useStudioAssetDialogActions(ctx: {
     setTypeShotMessage,
     onFillMissingKindFocus,
     getKindSubjectOverride,
+    getKindSubjectBlock,
     getInstructionOverride,
     // 10-26 横竖皆可:取向 getter(解构入作用域;缺省 undefined=跟型竖幅)
     getLandscapeOrientation,
@@ -1185,6 +1188,22 @@ export function useStudioAssetDialogActions(ctx: {
           context: { assetId: asset.id, kind, displayImageCount: carouselImages.length },
         });
         toast.error("没有可作参考的图片，请先生成或添加图片");
+        return false;
+      }
+    }
+    // 10-26 型区分令(用户实录:点「无衣物定妆」出带衣图):素体型主体句按型阻断——
+    // 无素体句时严禁回退带衣物人设句直发(型语义=全身无衣物,衣物系该型后 i2i 注入)
+    if (profile.route === "t2i") {
+      const blockMessage = getKindSubjectBlock?.(kind);
+      if (blockMessage) {
+        void logEvent({
+          level: "warn",
+          category: "asset",
+          operationId,
+          message: "Asset type shot guard rejected (kind subject block)",
+          context: { assetId: asset.id, kind },
+        });
+        toast.error(blockMessage);
         return false;
       }
     }

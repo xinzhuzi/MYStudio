@@ -71,6 +71,7 @@ import { StudioAssetCharacterJsonDialog } from "./studio-asset-character-json-di
 import { StudioAssetCharacterPrompts } from "./studio-asset-character-prompts";
 import {
   deriveSubjectFromCharacterJson,
+  resolveBareTypeSubjectGate,
   getCharacterJsonInfo,
   loadCharacterJsonText,
   parseCharacterPromptCatalog,
@@ -362,6 +363,14 @@ export function StudioAssetDetailDialog({
       ? deriveSubjectFromCharacterJson(characterJsonText, selectedStage)
       : null,
     [characterJsonInfo, characterJsonText, selectedStage],
+  );
+  // 10-26 型区分令:「无衣物定妆」=素体型——恒用 body_base 素体主体词,不吃阶段
+  // (选了境界也不发该境带衣主体词;该型定义=全身无衣物,衣物系此后 i2i 注入)
+  const characterBodyBaseSubject = useMemo(
+    () => characterJsonInfo && characterJsonText !== null
+      ? deriveSubjectFromCharacterJson(characterJsonText, null)
+      : null,
+    [characterJsonInfo, characterJsonText],
   );
   const characterPromptCatalog = useMemo(
     () => characterJsonInfo && characterJsonText !== null ? parseCharacterPromptCatalog(characterJsonText) : null,
@@ -753,7 +762,27 @@ export function StudioAssetDetailDialog({
     onFillMissingKindFocus: focusOnKind,
     onImageGenerated: handleImageGenerated,
     onFillMissingQueueSettled: handleQueueSettled,
-    getKindSubjectOverride: (kind) => promptOverridesDraft[kind]?.trim() || undefined,
+    // 10-26 型区分令:素体型主体句走闸函数(恒 body_base 素体句;无真源且兜底句
+    // 带衣物→阻断,禁发带衣人设句出带衣错图)
+    getKindSubjectOverride: (kind) => {
+      const slot = promptOverridesDraft[kind]?.trim() || undefined;
+      const gate = resolveBareTypeSubjectGate({
+        kind,
+        bodyBaseSubject: characterBodyBaseSubject,
+        fallback: effectiveSubjectPrompt,
+        slot,
+      });
+      if (gate.subject) return gate.subject;
+      if (gate.block) return undefined; // 阻断型:不给 override,actions 侧 block 先拦
+      return slot; // 其他型=既有槽行为
+    },
+    getKindSubjectBlock: (kind) =>
+      resolveBareTypeSubjectGate({
+        kind,
+        bodyBaseSubject: characterBodyBaseSubject,
+        fallback: effectiveSubjectPrompt,
+        slot: promptOverridesDraft[kind]?.trim() || undefined,
+      }).block ?? null,
     getInstructionOverride: (kind) => instructionDrafts[kind]?.trim() || undefined,
     // 10-26 横竖皆可(人物海报裁定):会话级横幅取向
     getLandscapeOrientation: (kind) => kind === "人物海报" && posterLandscape,

@@ -268,3 +268,38 @@ export function findCharacterPromptRealm(
   const wanted = stage.replace(/炼/g, "练");
   return catalog.realms.find((realm) => realm.stage === wanted) ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// 型区分派生(10-26 用户令:点「无衣物定妆」出带衣图实录):「无衣物定妆」=素体型,
+// 主体句恒走 body_base 素体主体词(不吃阶段);无真源且兜底句带衣物→阻断(禁发
+// 带衣人设句出带衣错图——衣物系该型之后 i2i 注入的变量,素体是该型的定义)。
+// ---------------------------------------------------------------------------
+
+/** 无衣物定妆型名(AssetImageKind 字面量之一)。 */
+export const BARE_TYPE_KIND = "无衣物定妆";
+
+/** 素体型主体句闸:返回该型应派发的主体句与阻断消息(二者至多其一)。 */
+export function resolveBareTypeSubjectGate(input: {
+  kind: string;
+  /** 真源 body_base 素体主体词(无真源/结构缺失=null)。 */
+  bodyBaseSubject: string | null;
+  /** 无槽覆盖时的兜底主体句(镜像或 DB)。 */
+  fallback: string;
+  /** 用户显式本型槽句(最优先,填了就直接用)。 */
+  slot?: string;
+}): { subject?: string; block?: string } {
+  const { kind, bodyBaseSubject, fallback, slot } = input;
+  if (kind !== BARE_TYPE_KIND) return {};
+  if (slot?.trim()) return { subject: slot.trim() };
+  if (bodyBaseSubject) return { subject: bodyBaseSubject };
+  const text = (fallback ?? "").trim();
+  const declaresBare = /素体|赤足|足部赤裸|裸足|全身无衣/.test(text);
+  const hasClothing = /衣|袍|装|裙|衫|服|褐|裤|甲|帔|靴|鞋|履/.test(text);
+  if (text && hasClothing && !declaresBare) {
+    return {
+      block:
+        "「无衣物定妆」需要素体主体句(全身无衣物);当前主体句含衣物描述,直接生成会出带衣图。请先在「角色真源JSON」补素体主体词(body_base.主体词),或清空主体句中衣物描述后重试",
+    };
+  }
+  return {};
+}

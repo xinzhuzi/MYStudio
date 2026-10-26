@@ -169,3 +169,43 @@ describe("parseCharacterPromptCatalog(人物提示词目录化)", () => {
     expect(parseCharacterPromptCatalog("{}")).toBeNull();
   });
 });
+
+import { resolveBareTypeSubjectGate } from "./asset-character-json";
+
+describe("resolveBareTypeSubjectGate(无衣物定妆型区分闸,10-26 用户令)", () => {
+  const SU = "一位约二十岁的清瘦青年男修的全身素体立绘:通身素体呈现,足部赤裸。";
+  const CLOTHED = "约十岁的男童,码头杂役,土黄粗布短褐缀补丁,配旧布裤,腰束栗褐布绳。";
+
+  it("真源素体句在场:素体型恒发素体句(不吃兜底带衣句)", () => {
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: SU, fallback: CLOTHED });
+    expect(r.subject).toBe(SU);
+    expect(r.block).toBeUndefined();
+  });
+
+  it("用户显式本型槽句最优先", () => {
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: SU, fallback: CLOTHED, slot: "  槽句  " });
+    expect(r.subject).toBe("槽句");
+  });
+
+  it("无真源+兜底句带衣物→阻断(小杂役实录:DB 人设句直发出带衣图)", () => {
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: CLOTHED });
+    expect(r.subject).toBeUndefined();
+    expect(r.block).toContain("素体主体句");
+    expect(r.block).toContain("带衣图");
+  });
+
+  it("无真源+兜底句自带素体声明→放行;其他型零干预", () => {
+    const bare = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: "男童全身素体,赤足站立。" });
+    expect(bare.block).toBeUndefined();
+    const other = resolveBareTypeSubjectGate({ kind: "美宣", bodyBaseSubject: null, fallback: CLOTHED });
+    expect(other).toEqual({});
+  });
+
+  it("晏燎真源实弹:body_base 素体词可派发", () => {
+    const info = getCharacterJsonInfo("晏燎");
+    const su = deriveSubjectFromCharacterJson(info?.bundledText ?? "{}", null);
+    expect(su).toContain("素体");
+    const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: su, fallback: CLOTHED });
+    expect(r.subject).toBe(su);
+  });
+});
