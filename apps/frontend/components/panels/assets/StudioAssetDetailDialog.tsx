@@ -262,6 +262,8 @@ export function StudioAssetDetailDialog({
   const [promptOverridesHydrated, setPromptOverridesHydrated] = useState(false);
   // 追加令·i2i 指令可编辑:会话级指令覆盖(非空=本次生成用此指令作终稿);不持久化
   const [instructionDrafts, setInstructionDrafts] = useState<Partial<Record<AssetImageKind, string>>>({});
+  // 10-26 横竖皆可(人物海报裁定):横幅取向会话开关(缺省竖=跟型)
+  const [posterLandscape, setPosterLandscape] = useState(false);
   // 指令卡编辑态开合(作用于当前 focusKind;置焦/清焦即收;值位随构成区砍除退役)
   const [, setInstructionEditOpen] = useState(false);
   // ③ 实发终稿(A-2③):探针态+弹层目标(弹层目标亦承载 B-3 查词,共用壳)
@@ -753,6 +755,8 @@ export function StudioAssetDetailDialog({
     onFillMissingQueueSettled: handleQueueSettled,
     getKindSubjectOverride: (kind) => promptOverridesDraft[kind]?.trim() || undefined,
     getInstructionOverride: (kind) => instructionDrafts[kind]?.trim() || undefined,
+    // 10-26 横竖皆可(人物海报裁定):会话级横幅取向
+    getLandscapeOrientation: (kind) => kind === "人物海报" && posterLandscape,
     promptOverridesDraft: promptOverridesHydrated ? (promptOverridesDraft as Record<string, string>) : undefined,
     setActiveStudio,
     setActiveTab,
@@ -1221,6 +1225,25 @@ export function StudioAssetDetailDialog({
               )}
 
               {/* ② 图片规范区(垂直滚动主体:role 型节骨架/scene·tool 单节横行/audio 播报卡) */}
+              {/* 10-26 横竖皆可(人物海报裁定):画幅取向会话开关+16:9 型构图约束提示 */}
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[10.5px] leading-4 text-stone-500">
+                  <div>· 美宣:横幅构图(半身/大场景气势,人物主体占比大)</div>
+                  <div>· 设定卡:版式格人物占比饱满,手脚完整可辨</div>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-stone-500">
+                  <span>人物海报画幅</span>
+                  <button
+                    type="button"
+                    onClick={() => setPosterLandscape((v) => !v)}
+                    className={posterLandscape
+                      ? "rounded border border-amber-600/60 bg-amber-50 px-1.5 py-0.5 font-medium text-amber-800"
+                      : "rounded border border-stone-300 px-1.5 py-0.5 text-stone-500"}
+                  >
+                    {posterLandscape ? "横幅 16:9" : "竖幅 3:4(跟型)"}
+                  </button>
+                </div>
+              </div>
               <StudioAssetDetailPreviewPane
                 asset={asset}
                 images={displayImages}

@@ -112,6 +112,8 @@ export function useStudioAssetDialogActions(ctx: {
   /** 10-25 追加令·i2i 指令可编辑:指令覆盖读取(非空=本次生成用此指令作终稿;
    *  会话态不持久化,覆盖按型/人脸图生图/表情差分三路)。 */
   getInstructionOverride?: (kind: AssetImageKind) => string | undefined;
+  /** 10-26 横竖皆可:取向 getter(会话态;true=该型走横幅 1824×1024)。 */
+  getLandscapeOrientation?: (kind: AssetImageKind) => boolean;
   /** 10-25 追加令 Phase C:按型主体句槽草稿(保存时序列化入库;Record<型名,句>)。 */
   promptOverridesDraft?: Record<string, string>;
   setActiveStudio: any;
@@ -171,6 +173,8 @@ export function useStudioAssetDialogActions(ctx: {
     onFillMissingKindFocus,
     getKindSubjectOverride,
     getInstructionOverride,
+    // 10-26 横竖皆可:取向 getter(解构入作用域;缺省 undefined=跟型竖幅)
+    getLandscapeOrientation,
     promptOverridesDraft,
     setActiveStudio,
     setActiveTab,
@@ -1227,6 +1231,8 @@ export function useStudioAssetDialogActions(ctx: {
           ...(profile.route === "i2i" && getInstructionOverride?.(kind)?.trim()
             ? { instructionOverride: getInstructionOverride?.(kind)?.trim() }
             : {}),
+          // 10-26 横竖皆可(人物海报裁定):会话级取向开→横幅手动画幅
+          ...(getLandscapeOrientation?.(kind) ? { orientation: "landscape" as const } : {}),
           operationId,
         },
         (progress) => {

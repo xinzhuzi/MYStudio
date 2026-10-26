@@ -257,6 +257,12 @@ export interface AssetTypeShotTask {
    * i2iInstruction 作为终稿指令发送(指令即终稿纪律不变,promptPolicy 恒 raw);
    * 空/缺省=引擎级固定指令(既有行为零变)。会话态,不持久化。 */
   instructionOverride?: string;
+  /**
+   * 画幅取向(10-26 用户裁定「人物海报横竖皆可」):缺省/竖=跟型(bases 型画幅);
+   * "landscape"=手动横幅 1824×1024(桥 manual_width/height 通道,cfc672dd),
+   * 主体句须配横幅构图语言(构图约束见型档案 compositionRule)。
+   */
+  orientation?: "landscape";
   projectId?: string;
   chapterId?: string;
   isDerivative?: boolean;
@@ -349,6 +355,8 @@ export async function generateAssetTypeShot(
             // 切「道劫美术类型」全拼档——型文全拼+型负面+真透明底+型画幅(4010 注型+
             // 4011/4022 同覆写),指令只写保真段+差异要点;开关保留供回滚 Phase 1 借语
             ...(TYPE_SHOT_I2I_USE_BASE_TYPE ? { extraParams: { base_type: engineBaseTypeFor(task.kind) } } : {}),
+            // 10-26 横竖皆可:横幅取向走桥 manual_width/height 手动槽(cfc672dd)
+            ...(task.orientation === "landscape" ? { extraParams: { manual_width: 1824, manual_height: 1024 } } : {}),
           }
         : {
             model: ASSET_TYPE_SHOT_MODEL,
@@ -356,7 +364,11 @@ export async function generateAssetTypeShot(
             promptPolicy: "raw",
             // t2i 路(设定卡/美宣/道具,裁定3+Round 3 ⑤):型层走 base_type 注入,
             // 排布语言/型负面/透明底全由型文承载,画幅由型层 WhSuggest 决定
-            extraParams: { base_type: engineBaseTypeFor(task.kind) },
+            extraParams: {
+              base_type: engineBaseTypeFor(task.kind),
+              // 10-26 横竖皆可:横幅取向走桥 manual_width/height 手动槽(cfc672dd)
+              ...(task.orientation === "landscape" ? { manual_width: 1824, manual_height: 1024 } : {}),
+            },
           },
     );
     if (!imageResult.url) {
