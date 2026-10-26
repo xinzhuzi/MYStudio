@@ -24,18 +24,25 @@ const payload = JSON.stringify([
 afterEach(() => cleanup());
 
 describe("StudioAssetRoleSkills 折叠链", () => {
-  it("卡默认折叠;点卡开→道途默认展开→境界行在场且术法收起", () => {
+  it("卡默认折叠;点卡开→道途默认也收起(10-26 令),点道途才见境界行", () => {
     render(<StudioAssetRoleSkills skills={payload} />);
     expect(screen.queryByText("剑主男")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /人物技能/ }));
     expect(screen.getByText("剑主男")).toBeTruthy();
+    // 道途默认收起:境界行不在场
+    expect(screen.queryByText("第1重")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /剑主男 道途技能/ }));
     expect(screen.getByText("第1重")).toBeTruthy();
     expect(screen.queryByText("剑气斩")).toBeNull();
+    // 再点道途→整道途收起(境界行退场)
+    fireEvent.click(screen.getByRole("button", { name: /剑主男 道途技能/ }));
+    expect(screen.queryByText("第1重")).toBeNull();
   });
 
   it("境界行点击展开术法;长描述默认截断(line-clamp),点术法条展开全文,再点收起", () => {
     render(<StudioAssetRoleSkills skills={payload} />);
     fireEvent.click(screen.getByRole("button", { name: /人物技能/ }));
+    fireEvent.click(screen.getByRole("button", { name: /剑主男 道途技能/ }));
     fireEvent.click(screen.getByRole("button", { name: /剑主男 第1重/ }));
     expect(screen.getByText("剑气斩")).toBeTruthy();
     const desc = screen.getByText(longDescription);
@@ -49,6 +56,7 @@ describe("StudioAssetRoleSkills 折叠链", () => {
   it("短描述(≤60字)不截断不可点;道途行点击整组收起;境界计数徽章在场", () => {
     render(<StudioAssetRoleSkills skills={payload} />);
     fireEvent.click(screen.getByRole("button", { name: /人物技能/ }));
+    fireEvent.click(screen.getByRole("button", { name: /剑主男 道途技能/ }));
     fireEvent.click(screen.getByRole("button", { name: /剑主男 第1重/ }));
     expect(screen.getByText("2")).toBeTruthy();
     // 短描述无截断类

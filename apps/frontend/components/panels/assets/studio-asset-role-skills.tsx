@@ -89,16 +89,19 @@ function SkillEntry({ skill }: { skill: RoleSkill }) {
 
 export function StudioAssetRoleSkills({ skills }: { skills: string | undefined | null }) {
   const payloads = useMemo(() => parseRoleSkills(skills), [skills]);
-  const [collapsedDaos, setCollapsedDaos] = useState<Set<string>>(new Set());
+  // 10-26 用户令「默认情况下要折叠」:道途默认全收起(推翻 10-25 旧口径「默认
+  // 道途展开」——晏燎五系开卡即铺一墙境界行);点道途行才展开该道途。
+  // 记录法反转:expandedDaos 白名单(空集=全收),旧 collapsedDaos 黑名单弃用。
+  const [expandedDaos, setExpandedDaos] = useState<Set<string>>(new Set());
   const [expandedRealms, setExpandedRealms] = useState<Set<string>>(new Set());
   // 10-25 用户令「人物技能,默认折叠」:整卡默认折叠(头部一行摘要可见)——
-  // 晏燎五系道途行全铺会占弹窗约九成高度;点开卡后内层仍为 道途展开/境界折叠
+  // 晏燎五系道途行全铺会占弹窗约九成高度;点开卡后内层为 道途全收起/境界收起
   const [cardOpen, setCardOpen] = useState(false);
 
   if (payloads.length === 0) return null;
 
   const toggleDao = (dao: string) =>
-    setCollapsedDaos((prev) => {
+    setExpandedDaos((prev) => {
       const next = new Set(prev);
       if (next.has(dao)) next.delete(dao);
       else next.add(dao);
@@ -138,7 +141,7 @@ export function StudioAssetRoleSkills({ skills }: { skills: string | undefined |
       </button>
       {cardOpen && <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
         {payloads.map((payload) => {
-          const daoCollapsed = collapsedDaos.has(payload.dao);
+          const daoOpen = expandedDaos.has(payload.dao);
           const realms = groupSkillsByRealm(payload.skills);
           return (
             <div key={payload.dao} className="rounded-md border border-border/60 bg-background/40">
@@ -146,18 +149,18 @@ export function StudioAssetRoleSkills({ skills }: { skills: string | undefined |
                 type="button"
                 className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
                 onClick={() => toggleDao(payload.dao)}
-                aria-expanded={!daoCollapsed}
-                aria-label={`${payload.dao} 道途技能${daoCollapsed ? "展开" : "折叠"}`}
+                aria-expanded={daoOpen}
+                aria-label={`${payload.dao} 道途技能${daoOpen ? "折叠" : "展开"}`}
               >
-                {daoCollapsed ? (
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-                ) : (
+                {daoOpen ? (
                   <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
                 )}
                 <span className="text-xs font-medium text-foreground">{payload.dao}</span>
                 <span className="text-[10px] text-muted-foreground">{payload.skills.length} 式</span>
               </button>
-              {!daoCollapsed && (
+              {daoOpen && (
                 <div className="space-y-1 px-2 pb-1.5">
                   {realms.map(([realm, entries]) => {
                     const key = `${payload.dao}::${realm ?? "未分组"}`;
