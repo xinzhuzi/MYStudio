@@ -12,13 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useFreedomStore } from "@/stores/assist/freedom-store";
 import { useMediaPanelStore } from "@/stores/navigation/media-panel-store";
@@ -199,7 +192,6 @@ function stagePromptCacheKey(stage: string, kind: AssetImageKind): string {
 }
 
 /** T3「阶段」选择器「无」哨兵值(Radix Select 值域须字符串;null 语义映射到此)。 */
-const STAGE_SELECT_NONE = "__stage_none__";
 
 export function StudioAssetDetailDialog({
   asset,
@@ -787,7 +779,7 @@ export function StudioAssetDetailDialog({
           const derivedText = gate.subject;
           if (slot !== derivedText) {
             setPromptOverridesDraft((prev) => ({ ...prev, [kind]: derivedText }));
-            toast.info(`已自动生成${kind}素体主体句(剥除衣物描述)——已存入本型专用槽,可查看修改`);
+            toast.info(`已自动生成${kind}素体主体句(剥除衣物描述,随保存入库)`);
           }
         }
         return gate.subject;
@@ -877,7 +869,6 @@ export function StudioAssetDetailDialog({
   // Phase C(10-25 追加令):主体句槽派生——槽在场=框绑槽值;eligible=t2i 族或
   // 高清人脸(其文生图路主体句参与;i2i 族主体句不参与,槽无意义不展示)
   const kindSlotActive = !!focusKind && promptOverridesDraft[focusKind] !== undefined;
-  const subjectSlotEligible = !!focusKind && (!focusIsI2iFamily || focusKind === "高清人脸");
   const subjectValue = kindSlotActive && focusKind
     ? (promptOverridesDraft[focusKind] ?? "")
     : subjectMirrorActive && characterSubjectMirror !== null
@@ -890,17 +881,6 @@ export function StudioAssetDetailDialog({
     } else {
       setDraftPrompt(value);
     }
-  };
-  const toggleKindSlot = () => {
-    if (!focusKind) return;
-    setPromptOverridesDraft((prev) => {
-      if (prev[focusKind] !== undefined) {
-        const next = { ...prev };
-        delete next[focusKind];
-        return next;
-      }
-      return { ...prev, [focusKind]: draftPrompt };
-    });
   };
 
   return (
@@ -1150,51 +1130,8 @@ export function StudioAssetDetailDialog({
                             10-26 控件精简令:真源角色区头整行不渲染(标签/「阶段」
                             选择器/专用句钮全退场,卡片直接排;面板恒显 activeStage
                             =聚类最高境界,阶段职能退由派发默认承担) */}
-                        {characterPromptCatalog ? null : (
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-[11px] text-muted-foreground">主体句</div>
-                          <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-                            {stageOptions.length > 0 && (
-                              <Select
-                                value={selectedStage ?? STAGE_SELECT_NONE}
-                                onValueChange={(value) => {
-                                  setSelectedStage(value === STAGE_SELECT_NONE ? null : value);
-                                }}
-                              >
-                                <SelectTrigger
-                                  className="h-6 w-auto gap-1 px-2 py-0 text-[11px]"
-                                  aria-label="阶段"
-                                  title="阶段(命名与参考图锚定用):选中后按型出图命名带阶段段、图生图参考图锚该阶段最新图;「无」=不带阶段"
-                                >
-                                  <span className="text-[10px] text-muted-foreground">阶段</span>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={STAGE_SELECT_NONE} className="text-xs">无</SelectItem>
-                                  {stageOptions.map((stage) => (
-                                    <SelectItem key={stage} value={stage} className="text-xs">{stage}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                            {subjectSlotEligible && focusKind && (!characterPromptCatalog || kindSlotActive) && (
-                            <button
-                              type="button"
-                              className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                                kindSlotActive
-                                  ? "border-primary/40 bg-primary/10 text-primary"
-                                  : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                              }`}
-                              onClick={toggleKindSlot}
-                              aria-pressed={kindSlotActive}
-                              title={kindSlotActive ? "本型专用句生效中:该型生成走槽内句(保存入库);点击关闭回共享主体句" : "为该型单独立一句专用主体句(保存入库;该型生成优先用槽内句)"}
-                            >
-                              {kindSlotActive ? `${focusKind}专用句 · 生效中` : "本型专用句"}
-                            </button>
-                          )}
-                          </div>
-                        </div>
-                        )}
+                        {/* 10-27 用户令「这些控件不需要展示」:区头行整行不渲染(主体句标签/阶段
+                            选择器/本型专用句钮,真源与非真源一律零区头;槽机制转地下,派发照吃槽值) */}
                         {characterPromptCatalog ? (
                           /* 10-26 用户令「展示基础相关的提示词,而不是阶段相关的」+
                              「不要重复」:面板只显基础两卡(人脸基准/人物基底素体),

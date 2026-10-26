@@ -219,14 +219,15 @@ describe("StudioAssetDetailDialog 交互(10-24 批1 复审 M2:对话框级保全
     // 缺省展开:四行网格字段可见(10-25 分层面板:「出图提示词」区改造为「提示词」
     // 区,标签随迁为「提示词」+「主体句」)
     expect(screen.getByPlaceholderText("主名字;副名字1;副名字2")).toBeTruthy();
-    expect(screen.getByText("主体句")).toBeTruthy();
+    // 10-27 用户令:主体句标签已删(区头零控件),以提示词框在场为准
+    expect(screen.getByPlaceholderText("暂无出图提示词")).toBeTruthy();
     expect(window.localStorage.getItem("asset-dialog-meta-collapsed")).toBe("0");
 
     fireEvent.click(screen.getByRole("button", { name: /元信息/ }));
 
     // 折叠:字段隐、摘要(资产名,与标题同名并存)+保存/删除仍在
     expect(screen.queryByPlaceholderText("主名字;副名字1;副名字2")).toBeNull();
-    expect(screen.queryByText("主体句")).toBeNull();
+    expect(screen.queryByPlaceholderText("暂无出图提示词")).toBeNull();
     expect(screen.getAllByText("玄止").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole("button", { name: "保存" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "删除" })).toBeTruthy();

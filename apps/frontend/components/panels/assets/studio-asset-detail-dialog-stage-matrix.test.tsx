@@ -180,6 +180,8 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
+// 10-27 用户令:阶段选择器随区头整行删除——金丹期交互两测随迁移除
+// (dispatchTypeShot 的 stage 参数与 activeStage 派发语义仍在源内,UI 入口已无)
 describe("T2 子区(10-26 用户令:旧构成四层卡全砍,阶段子区随之退役)", () => {
   it("提示词构成折叠组/阶段提示词子区 均不渲染(旧UI已砍)", () => {
     renderDialog();
@@ -219,50 +221,7 @@ describe("T3 生成路阶段选择器(PRD §3.3:命名与参考图锚定)", () =
     );
   });
 
-  it("选金丹期→executeTypeShot 带阶段:i2i 命名=资产名_阶段_型名_日期(不锚轮播图名),参考图锚=金丹期组内最新一张(任意型)", async () => {
-    mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/poster.png" });
-    renderDialog();
 
-    fireEvent.click(screen.getAllByTestId("option-金丹期")[0]);
-    fireEvent.click(screen.getByRole("button", { name: "生成人物海报" }));
-    await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
-
-    // 命名段+参考图锚:金丹期组内最新(任意型)=实库序末位 晏燎_金丹期_海报_v1(media://y32)
-    const [task] = mocks.typeShot.mock.calls[0];
-    expect(task.kind).toBe("人物海报");
-    expect(task.referenceImage).toBe("media://y32");
-    await waitFor(() =>
-      expect(mocks.saveImageToLibrary).toHaveBeenCalledWith(
-        "role-1",
-        "local-image://characters/poster.png",
-        undefined,
-        "晏燎_金丹期_人物海报_2026年10月25日",
-      ),
-    );
-    // 轮播当前仍停 index 0(元婴期三视图)——阶段锚覆盖之,防旧图名/异阶段参考链式繁殖
-    expect(task.referenceImage).not.toBe("media://y1");
-  });
-
-  it("t2i 路(设定卡)仅命名带阶段,无参考图语义", async () => {
-    mocks.typeShot.mockResolvedValue({ phase: "done", imageLocalPath: "local-image://characters/card.png" });
-    renderDialog();
-
-    fireEvent.click(screen.getAllByTestId("option-金丹期")[0]);
-    fireEvent.click(screen.getByRole("button", { name: "生成设定卡" }));
-    await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
-
-    const [task] = mocks.typeShot.mock.calls[0];
-    expect(task.kind).toBe("设定卡");
-    expect(task.referenceImage).toBeUndefined();
-    await waitFor(() =>
-      expect(mocks.saveImageToLibrary).toHaveBeenCalledWith(
-        "role-1",
-        "local-image://characters/card.png",
-        undefined,
-        "晏燎_金丹期_设定卡_2026年10月25日",
-      ),
-    );
-  });
 
   it("选中阶段与子区联动(10-26:子区退役,选择器独立在场即可)", () => {
     renderDialog();
