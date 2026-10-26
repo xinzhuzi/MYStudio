@@ -97,16 +97,6 @@
         ]
       }
     },
-    "8": {
-      "class_type": "SaveImage",
-      "inputs": {
-        "filename_prefix": "QI21道劫图生图_",
-        "images": [
-          "7500:7510",
-          0
-        ]
-      }
-    },
     "4": {
       "class_type": "EmptyLatentImage",
       "inputs": {
