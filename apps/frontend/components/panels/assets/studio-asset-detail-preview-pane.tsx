@@ -49,6 +49,10 @@ function sectionCardWidthClass(aspect: string | null): string {
 }
 
 interface StudioAssetDetailPreviewPaneProps {
+  /** 10-26 人物海报画幅(横竖皆可裁定):取向值(true=横幅 16:9;持久化住调用方)。 */
+  posterLandscape?: boolean;
+  /** 人物海报画幅切换(挂「人物海报」节头;未传不渲染)。 */
+  onTogglePosterLandscape?: () => void;
   asset: StudioAssetSummary;
   images: AssetImage[];
   /** 全局单选图:当前选中位(原轮播 currentIndex 状态机迁移;完成切新图/删图夹回语义不变)。 */
@@ -132,6 +136,8 @@ export function StudioAssetDetailPreviewPane({
   expressionMessage,
   onGenerateByKind,
   completenessImages,
+  posterLandscape,
+  onTogglePosterLandscape,
   canTypeShot = false,
   onTypeShot,
   typeShotPhase,
@@ -546,13 +552,26 @@ export function StudioAssetDetailPreviewPane({
             const group = kindGroups.get(kind) ?? [];
             const widthClass = sectionCardWidthClass(aspect);
             const typeShotProfile = typeShotProfileByKind.get(kind);
-            const sectionButtons = kind === "高清人脸" && canFacePortrait
+            const baseSectionButtons = kind === "高清人脸" && canFacePortrait
               ? renderFaceSectionButtons()
               : kind === "表情差分" && canFacePortrait
                 ? renderExpressionSectionButton()
                 : typeShotProfile && canTypeShot && onTypeShot
                   ? renderTypeShotSectionButton(kind, typeShotProfile.route)
                   : undefined;
+            // 10-26 人物海报画幅开关挪节头(用户令:功能对的,位置要在它管的型旁)
+            const sectionButtons = kind === "人物海报" && onTogglePosterLandscape
+              ? <>{baseSectionButtons}<button
+                  type="button"
+                  onClick={onTogglePosterLandscape}
+                  className={posterLandscape
+                    ? "rounded-md border border-primary/50 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
+                    : "rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"}
+                  title={posterLandscape ? "当前横幅 16:9;点击切回竖幅 3:4(跟型)" : "当前竖幅 3:4(跟型);点击切横幅 16:9(选择全局记住)"}
+                >
+                  {posterLandscape ? "横幅 16:9" : "竖幅 3:4"}
+                </button></>
+              : baseSectionButtons;
             return renderSection(
               kind,
               kind,

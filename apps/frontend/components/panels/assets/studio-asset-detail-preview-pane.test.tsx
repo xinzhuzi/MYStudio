@@ -722,3 +722,24 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
     expect(btn.disabled).toBe(false);
   });
 });
+
+describe("10-26 人物海报画幅开关挪节头", () => {
+  it("只挂「人物海报」节头(与生成钮同排),其他节零出现;点击回调切换", () => {
+    const onToggle = vi.fn();
+    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(), posterLandscape: false, onTogglePosterLandscape: onToggle });
+    const posterSection = screen.getByRole("region", { name: "人物海报" });
+    const toggle = within(posterSection).getByRole("button", { name: "竖幅 3:4" });
+    fireEvent.click(toggle);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    // 其他节(无衣物定妆)不含画幅开关
+    const fullBody = screen.getByRole("region", { name: "无衣物定妆" });
+    expect(within(fullBody).queryByRole("button", { name: /竖幅|横幅/ })).toBeNull();
+  });
+
+  it("横幅态文案+样式随动", () => {
+    renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn(), posterLandscape: true, onTogglePosterLandscape: vi.fn() });
+    const posterSection = screen.getByRole("region", { name: "人物海报" });
+    const toggle = within(posterSection).getByRole("button", { name: "横幅 16:9" });
+    expect(toggle.className).toContain("text-primary");
+  });
+});

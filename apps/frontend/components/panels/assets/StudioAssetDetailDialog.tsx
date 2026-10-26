@@ -264,7 +264,15 @@ export function StudioAssetDetailDialog({
   // 追加令·i2i 指令可编辑:会话级指令覆盖(非空=本次生成用此指令作终稿);不持久化
   const [instructionDrafts, setInstructionDrafts] = useState<Partial<Record<AssetImageKind, string>>>({});
   // 10-26 横竖皆可(人物海报裁定):横幅取向会话开关(缺省竖=跟型)
-  const [posterLandscape, setPosterLandscape] = useState(false);
+  // 10-26 人物海报画幅(横竖皆可):选择持久化(localStorage 全局记住,重开弹窗不重置)
+  const [posterLandscape, setPosterLandscape] = useState(() => {
+    try { return window.localStorage.getItem("studio-asset-poster-landscape") === "1"; } catch { return false; }
+  });
+  const togglePosterLandscape = () => setPosterLandscape((v) => {
+    const next = !v;
+    try { window.localStorage.setItem("studio-asset-poster-landscape", next ? "1" : "0"); } catch { /* 无痕/受限环境静默 */ }
+    return next;
+  });
   // 指令卡编辑态开合(作用于当前 focusKind;置焦/清焦即收;值位随构成区砍除退役)
   const [, setInstructionEditOpen] = useState(false);
   // ③ 实发终稿(A-2③):探针态+弹层目标(弹层目标亦承载 B-3 查词,共用壳)
@@ -1256,28 +1264,17 @@ export function StudioAssetDetailDialog({
                 </div>
               )}
 
-              {/* ② 图片规范区(垂直滚动主体:role 型节骨架/scene·tool 单节横行/audio 播报卡) */}
-              {/* 10-26 横竖皆可(人物海报裁定):画幅取向会话开关+16:9 型构图约束提示 */}
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <span>人物海报画幅</span>
-                  <button
-                    type="button"
-                    onClick={() => setPosterLandscape((v) => !v)}
-                    className={posterLandscape
-                      ? "rounded-md border border-primary/50 bg-primary/10 px-1.5 py-0.5 font-medium text-primary"
-                      : "rounded-md border border-border px-1.5 py-0.5 text-muted-foreground"}
-                  >
-                    {posterLandscape ? "横幅 16:9" : "竖幅 3:4(跟型)"}
-                  </button>
-                </div>
-              </div>
+              {/* ② 图片规范区(垂直滚动主体:role 型节骨架/scene·tool 单节横行/audio 播报卡)。 */}
+              {/* 10-26 人物海报画幅开关挪「人物海报」节头(位置在它管的型旁)+
+                  持久化(localStorage);全局区不再渲染独立行 */}
               <StudioAssetDetailPreviewPane
                 asset={asset}
                 images={displayImages}
                 /* 批3 复审 M 修(Round 3 Q1):完整度两行分级/核心红点基准=本行自有图集,
                  * 族聚显(displayImages 含族兄弟行)同型图不抵扣本行缺口;画廊展示序不变 */
                 completenessImages={images}
+                posterLandscape={posterLandscape}
+                onTogglePosterLandscape={togglePosterLandscape}
                 currentIndex={currentIndex}
                 onSelectImage={setCurrentIndex}
                 spokenText={spokenText}
