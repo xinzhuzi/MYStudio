@@ -40,7 +40,6 @@ const SINGLE_SECTION_TITLE = "图片";
 const TRACK_NOUNS: Record<AssetImageTrack, string> = { role: "角色", scene: "场景", tool: "道具" };
 
 /** 中文计数(完整度两行分级 aria 标签:role=核心五必备/扩展四型恒零回归)。 */
-const COUNT_ZH = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"] as const;
 
 /** 图卡统一高 h-40;宽随型画幅比(3:4≈120px/16:9≈284px/1:1=160px;未分类混排走方卡)。 */
 function sectionCardWidthClass(aspect: string | null): string {
@@ -498,96 +497,44 @@ export function StudioAssetDetailPreviewPane({
    *  复审 H/M 修:chips 计数与缺失判定按本行 completenessCount(Q1 不抵扣);任一
    *  生成相位在跑,缺失 chip 直达入口禁用+title(与节头钮/下拉/一键补缺同闸)。 */
   const renderCompletenessBar = () => {
+    // 10-26 用户令「这个地方只保留1个按钮,就是一键生图」:整块砍到单按钮——
+    // 只补缺图核心型(现一键补缺队列行为),已有的不重生成;chips/标题全删
     const coreKinds = spectrum?.core ?? [];
-    const extendedKinds = spectrum?.extended ?? [];
     const missingCoreCount = coreKinds.filter((kind) => completenessCount(kind) === 0).length;
     const fillMissingDisabled = generationBusy || (onFillMissing != null && missingCoreCount === 0);
     const fillMissingTitle = onFillMissing == null
-      ? "一键补缺队列候装配方接线"
+      ? "一键生图队列候装配方接线"
       : missingCoreCount === 0
-        ? "核心必备已齐，无需补缺"
+        ? "核心图已齐,无需生成"
         : typeShotPhase
-          ? (typeShotMessage || "正在补缺，请稍候")
+          ? (typeShotMessage || "正在生成，请稍候")
           : generationBusy
             ? "有生成任务正在进行，请稍候"
-            : `按节序顺序补全缺失的 ${missingCoreCount} 类核心图`;
+            : `补全缺失的 ${missingCoreCount} 类核心图(已有图不重新生成)`;
     return (
-    <div className="studio-asset-completeness-bar sticky top-0 z-[1] space-y-1.5 rounded-md border border-border bg-background/95 px-3 py-2 backdrop-blur">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-foreground">图片规范完整度</span>
-        {/* 批3 一键补缺顺序队列:缺失核心型逐型顺序补全(聚合相位,逐型完成落图) */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="studio-asset-fill-missing h-6 gap-1 px-2 text-[11px]"
-          onClick={() => onFillMissing?.()}
-          disabled={fillMissingDisabled || !onFillMissing}
-          title={fillMissingTitle}
-        >
-          {typeShotPhase ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Sparkles className="h-3 w-3" />
-          )}
-          一键补缺
-        </Button>
-        {typeShotPhase && typeShotMessage && (
-          <span className="min-w-0 truncate text-[11px] text-muted-foreground" title={typeShotMessage}>
-            {typeShotMessage}
-          </span>
+    <div className="studio-asset-completeness-bar sticky top-0 z-[1] rounded-md border border-border bg-background/95 px-3 py-2 backdrop-blur">
+      <Button
+        variant="outline"
+        size="sm"
+        className="studio-asset-fill-missing h-6 gap-1 px-2 text-[11px]"
+        onClick={() => onFillMissing?.()}
+        disabled={fillMissingDisabled || !onFillMissing}
+        title={fillMissingTitle}
+      >
+        {typeShotPhase ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Sparkles className="h-3 w-3" />
         )}
-      </div>
-      <div
-        className="studio-asset-completeness-core-row flex flex-wrap items-center gap-1.5"
-        aria-label={`核心${COUNT_ZH[coreKinds.length] ?? coreKinds.length}必备`}
-      >
-        {coreKinds.map((kind) => {
-          const count = completenessCount(kind);
-          const missing = count === 0;
-          return onGenerateByKind && missing ? (
-            <button
-              key={kind}
-              type="button"
-              className="studio-asset-completeness-chip studio-asset-completeness-chip-missing rounded-full border border-destructive/50 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive transition-colors hover:bg-destructive/20"
-              onClick={() => onGenerateByKind?.(kind)}
-              disabled={generationBusy}
-              title={generationBusy ? "有生成任务正在进行，请稍候" : `缺失${kind}，点击生成`}
-            >
-              <span className="inline-flex items-center gap-1">{kind}<span className="h-1.5 w-1.5 rounded-full bg-destructive" aria-label="缺图" /></span>
-            </button>
-          ) : (
-            <span
-              key={kind}
-              className={`studio-asset-completeness-chip rounded-full border px-2 py-0.5 text-[11px] ${
-                missing
-                  ? "border-destructive/40 bg-destructive/5 text-destructive"
-                  : "border-primary/30 bg-primary/5 text-foreground"
-              }`}
-            >
-              {kind} {missing ? <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" aria-label="缺图" /> : `×${count}`}
-            </span>
-          );
-        })}
-      </div>
-      <div
-        className="studio-asset-completeness-extended-row flex flex-wrap items-center gap-1.5"
-        aria-label={`扩展${COUNT_ZH[extendedKinds.length] ?? extendedKinds.length}型`}
-      >
-        {extendedKinds.map((kind) => {
-          const count = completenessCount(kind);
-          return (
-            <span
-              key={kind}
-              className="studio-asset-completeness-chip studio-asset-completeness-chip-extended rounded-full border border-border/60 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground"
-            >
-              {kind} {count > 0 ? `×${count}` : <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive/70" aria-label="缺图" />}
-            </span>
-          );
-        })}
-      </div>
+        一键生图
+      </Button>
+      {typeShotPhase && typeShotMessage && (
+        <span className="ml-2 min-w-0 truncate text-[11px] text-muted-foreground" title={typeShotMessage}>
+          {typeShotMessage}
+        </span>
+      )}
     </div>
-    );
-  };
+    ); };
 
   return (
     <div className="studio-asset-image-spec-region space-y-4">

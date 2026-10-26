@@ -233,7 +233,7 @@ describe("R5 批量补缺队列(末尾汇总定死)", () => {
     });
 
     renderDialog(partiallyCompleteRole());
-    fireEvent.click(screen.getByRole("button", { name: "一键补缺" }));
+    fireEvent.click(screen.getByRole("button", { name: "一键生图" }));
 
     await waitFor(() => expect(mocks.expressionSheet).toHaveBeenCalledTimes(1));
     // 末尾汇总:标题含 n/total 与中止型注

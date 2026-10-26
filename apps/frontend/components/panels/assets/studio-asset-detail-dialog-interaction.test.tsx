@@ -350,7 +350,7 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
     });
 
     renderDialog(partiallyCompleteRole());
-    fireEvent.click(screen.getByRole("button", { name: "一键补缺" }));
+    fireEvent.click(screen.getByRole("button", { name: "一键生图" }));
 
     await waitFor(() => {
       expect(mocks.typeShot).toHaveBeenCalledTimes(2);
@@ -371,7 +371,7 @@ describe("StudioAssetDetailDialog · 批3(10-24):一键补缺顺序队列交互"
     mocks.typeShot.mockResolvedValue({ phase: "failed", error: "引擎不在驾" });
 
     renderDialog(partiallyCompleteRole());
-    fireEvent.click(screen.getByRole("button", { name: "一键补缺" }));
+    fireEvent.click(screen.getByRole("button", { name: "一键生图" }));
 
     await waitFor(() => expect(mocks.typeShot).toHaveBeenCalledTimes(1));
     // 失败即停:第二型/表情差分路零派发
