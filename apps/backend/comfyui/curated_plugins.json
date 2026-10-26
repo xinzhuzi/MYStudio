@@ -1,437 +1,454 @@
 {
-  "schemaVersion": 1,
-  "note": "策展插件清单(裁定5/ grill Q6:助手草案,用户过目定稿)。verified_license 全部经 GitHub API /repos/{repo}/license 的 license.spdx_id 实查(2026-09-08);仓库无 LICENSE 文件或 API 查不到的一律写 unknown,严禁编造。ComfyUI_poster_nodes 候选在 GitHub/Registry 均无法定位到可信仓库,以 ComfyUI_essentials 替补。 1003 增补:装机存量 17 件入册(自研定制件 my-nodes/krea2-vl-instruction/krea2edit-instruction-assembler 不属市场件仍不入册;id=装机目录名使已装判定零歧义;verified_license 经上游 raw LICENSE 逐件实查 2026-10-03,无 LICENSE 或文本未识别者=unknown)。",
-  "plugins": [
-    {
-      "id": "comfyui-krea2edit",
-      "name": "Krea2 指令编辑节点",
-      "desc_zh": "Krea2Edit 指令编辑两件套(编码+模型补丁)——漫影 Krea2 编辑流/无衣物流的引擎模板依赖,装了才能跑这两类流。",
-      "category": "Krea2 图像引擎",
-      "repo": "https://github.com/lbouaraba/comfyui-krea2edit",
-      "verified_license": "Apache-2.0",
-      "provides": [
-        "Krea2EditGroundedEncode",
-        "Krea2EditModelPatch"
-      ]
-    },
-    {
-      "id": "ComfyUI-ConditioningKrea2Rebalance",
-      "name": "Krea2 提示重平衡",
-      "desc_zh": "Krea2 十二带提示词重平衡节点——漫影 Krea2 专业流(NSFW 破限)模板依赖,装了才能跑专业流。",
-      "category": "Krea2 图像引擎",
-      "repo": "https://github.com/nova452/Rebalance-Pack",
-      "verified_license": "Apache-2.0",
-      "provides": [
-        "ConditioningKrea2Rebalance"
-      ]
-    },
-    {
-      "id": "rgthree-comfy",
-      "name": "Rgthree 效率工具",
-      "desc_zh": "画布效率工具箱:批量开关节点、上下文菜单、种子控件与排版辅助。",
-      "category": "效率工具",
-      "repo": "https://github.com/rgthree/rgthree-comfy",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-KJNodes",
-      "name": "KJ 常用节点集",
-      "desc_zh": "KJ 生活质量节点:遮罩与图像变换、预览调试、条件分支等常用补位节点。",
-      "category": "综合工具包",
-      "repo": "https://github.com/kijai/ComfyUI-KJNodes",
-      "verified_license": "GPL-3.0"
-    },
-    {
-      "id": "ComfyUI_LayerStyle",
-      "name": "图层样式与遮罩",
-      "desc_zh": "图层样式全家桶:抠图、蒙版羽化、文字排版与局部编辑相关节点。",
-      "category": "遮罩与图层",
-      "repo": "https://github.com/chflame163/ComfyUI_LayerStyle",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-Impact-Pack",
-      "name": "修脸与放大包",
-      "desc_zh": "Detailer 修复、放大管线与人脸检测常用节点(依赖较重,装得慢属正常)。",
-      "category": "修复放大",
-      "repo": "https://github.com/ltdrdata/ComfyUI-Impact-Pack",
-      "verified_license": "GPL-3.0"
-    },
-    {
-      "id": "ComfyUI_InfiniteYou",
-      "name": "InfiniteYou 人脸保持",
-      "desc_zh": "字节 InfiniteYou 肖像一致性生成节点,适合人物身份保持的编辑流。",
-      "category": "人脸一致性",
-      "repo": "https://github.com/bytedance/ComfyUI_InfiniteYou",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "comfyui-various",
-      "name": "杂项小节点集",
-      "desc_zh": "图像处理与工作流辅助的小节点集合;仓库无 LICENSE 文件,介意版权请谨慎安装。",
-      "category": "图像处理",
-      "repo": "https://github.com/jamesWalker55/comfyui-various",
-      "verified_license": "unknown"
-    },
-    {
-      "id": "was-node-suite-comfyui",
-      "name": "WAS 节点大合集",
-      "desc_zh": "上百个节点:图像混合、噪点生成、文本处理与调试分析一应俱全。",
-      "category": "综合工具包",
-      "repo": "https://github.com/WASasquatch/was-node-suite-comfyui",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI_essentials",
-      "name": "Essentials 基础增强",
-      "desc_zh": "常用基础增强:图像变换、遮罩工具、条件辅助与调试节点。",
-      "category": "综合工具包",
-      "repo": "https://github.com/cubiq/ComfyUI_essentials",
-      "verified_license": "MIT",
-      "provides": [
-        "GetImageSize+"
-      ]
-    },
-    {
-      "id": "ComfyUI_MiniMaxH3_Director",
-      "name": "H3 导演台(多段连续)",
-      "desc_zh": "社区事实标准(1659★):六模式(t2v/i2v/fl2v/r2v/v2v/rv2v)+可视化多段时间轴+素材组(<Picture N>/@ 引用,公共参数+每组叠加)+段间引导(上段末尾运动与音频钉入下段,上下文帧 5/22/39/56=17k+5 网格族)+Refine 二采外挂+导演包导入导出。底层全走官方节点链,MPS 兼容性最佳。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "ComfyUI-JZL-MiniMax-H3",
-      "name": "H3 短剧导演台 Pro(一节点全链)",
-      "desc_zh": "一节点跑完 LLM 剧本分段→@素材参考调度→逐段落盘自动合并;内置 llama-server 本地导演与 [SHOT_START] 穿透模式。与 AIMixer 多段导演台互补:强在自动编排,弱在无段间衔接/二采。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/wjluoxiao/ComfyUI-JZL-MiniMax-H3",
-      "verified_license": "MIT",
-      "provides": [
-        "JZL_MiniMaxH3ReferenceToVideo"
-      ]
-    },
-    {
-      "id": "ComfyUI-MiniMaxH3-Easy",
-      "name": "H3 Easy 多合一工作台",
-      "desc_zh": "智能提示词优化+一键多模式(长视频一次成/两段精修),新手友好的 H3 全家桶工作台。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/nkxx188/ComfyUI-MiniMaxH3-Easy",
-      "verified_license": "MIT",
-      "provides": [
-        "MiniMaxH3PromptOptimizer"
-      ]
-    },
-    {
-      "id": "comfyui-minimax-h3-blockcache-T8",
-      "name": "H3 T8 文本编码缓存",
-      "desc_zh": "文本编码器块缓存,重复提示词段免重算提速。注:MPS 上曾现进程崩溃(09-14 实测,参数速查在案),稳定性敏感场合先旁路。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/T8mars/comfyui-minimax-h3-blockcache-T8",
-      "verified_license": "Apache-2.0",
-      "provides": [
-        "MiniMaxH3BlockCacheT8"
-      ]
-    },
-    {
-      "id": "ComfyUI-Spectrum-MiniMax-H3",
-      "name": "H3 Spectrum 频谱加速",
-      "desc_zh": "频谱特征预测近似加速(输出与原生非逐位一致)。引擎家已装此件;其 git remote 指向 fork 基座属打包方式所致,目录列表里可能显示裸目录名。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3",
-      "verified_license": "GPL-3.0"
-    },
-    {
-      "id": "Comfyui_Minimax_h3_latent_Upscaler",
-      "name": "H3 浅空间放大器",
-      "desc_zh": "A/V 分离式 latent 放大+二次精修节点。09-14 裁定产线不做自动超分,留作手动后处理可选件(权重另需下载)。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler",
-      "verified_license": "unknown",
-      "provides": [
-        "MinimaxH3LatentUpscaler3D"
-      ]
-    },
-    {
-      "id": "ComfyUI-Qwen-Image-2.1-Prompt-Enhancer",
-      "name": "Q2-1 提示词改写(PE)",
-      "desc_zh": "看图改写/扩写提示词两节点(文生图扩写+改图改写,Qwen3-VL 8B 微调)——漫影 Q2-1 工作流 PE 改写组的插件本体,画布开关默认旁路。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/benjiyaya/ComfyUI-Qwen-Image-2.1-Prompt-Enhancer",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-Qwen-Image-2.1-PromptEnhancer-MTP",
-      "name": "Q2-1 提示词改写 MTP 版",
-      "desc_zh": "PE 改写的 MTP 变体(多 token 预测),装机在册的备选改写器。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/mozophe/comfyui-qwen-image-2.1-promptenhancer-mtp",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "Comfyui-QwenEditUtils",
-      "name": "Q2-1 改图工具集",
-      "desc_zh": "Qwen-Image 改图周边工具节点合集(社区名件,855 星)。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/lrzjason/comfyui-qweneditutils",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "qwen-image-21-blockcache-t8",
-      "name": "Q2-1 块缓存加速(T8)",
-      "desc_zh": "Q2-1 出图加速:块缓存+频谱预测+注意力适配,不减步数只减每步用时;与已装的 H3 版同作者(T8),Mac 大概率可用,装后以引擎节点注册为准。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-BlockCache-T8",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "qwen-image-2-1-fun-controlnet-union-t8",
-      "name": "Q2-1 Fun ControlNet Union(T8)",
-      "desc_zh": "姿势/构图/深度等控制编辑的加载与条件节点;需另下 Fun ControlNet Union 权重(数 GB),做控制类改图再装。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/T8mars/ComfyUI-Qwen-Image-2.1-Fun-Controlnet-Union-T8",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "qwen-image-2-1-fun-acc-loras-t8",
-      "name": "Q2-1 Fun-Acc PDD 加速(T8)",
-      "desc_zh": "阿里官方 Fun-Acc PDD 4步加速的 T8 配套节点(专用采样器):4步/cfg1/无负面词,TE 须 Qwen3-VL 8B 系;配套 LoRA 权重(Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors)另置引擎家 loras,不入安装包。仓库无 LICENSE 文件,介意版权请谨慎安装。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
-      "verified_license": "unknown"
-    },
-    {
-      "id": "TE-Speed-QwenImage21",
-      "name": "Q2-1 采样提速(TE-Speed)",
-      "desc_zh": "MODEL 链采样提速(输出预测 30-40%,不减步数,不替代 QwenImage21Cache);上游只发 Windows 编译件,Mac 装不了(引擎卡尾行状态如实显示),Windows 用户可用。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/tl2012tl/TE-Speed-QwenImage21",
-      "verified_license": "未标明"
-    },
-    {
-      "id": "ciru-image-accelerator",
-      "name": "Q2-1 AMD 显卡加速(Ciru)",
-      "desc_zh": "Turbo Prediction + packed attention,文生图/改图两用——AMD 显卡(Windows)专属,Mac 与 N 卡不适用。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/ciru-ai/ComfyUI-CiruImageAccelerator",
-      "verified_license": "GPL-3.0"
-    },
-    {
-      "id": "nvfp4-universal-quantizer",
-      "name": "通用 FP8/NVFP4 量化器",
-      "desc_zh": "SDXL/Wan/Qwen Image/Z-Image/FLUX 的 FP8/NVFP4 混合量化省显存——NVIDIA 显卡专属,Mac 不适用。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/thepororo/ComfyUI-NVFP4-Quantizer",
-      "verified_license": "未标明"
-    },
-    {
-      "id": "ComfyUI_Qwen3_Translator_Node",
-      "name": "Qwen3 翻译器",
-      "desc_zh": "基于 Qwen3 的本地提示词翻译节点——漫影自家流程不用翻译层(提示词由 AI 直写),给需要翻译的用户备着。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/aduanyue/ComfyUI_Qwen3_Translator_Node",
-      "verified_license": "未标明"
-    },
-    {
-      "id": "comfyui_controlnet_aux",
-      "name": "ControlNet 辅助预处理器",
-      "desc_zh": "姿态/深度/边缘等预处理器全家桶(AIO_Preprocessor 一节点全揽,为姿态图工作流提供 OpenPose/DWPose 节点)。引擎家已装机(2026-10-01 离线 zip unzip 落位 custom_nodes,装机口径 1009 文件,venv py_compile 语法抽查通过);离线包含 14 个权重文件(装机实测口径;调研档记 64 与实测不符),含姿态检测 body_pose_model.pth(200MB)。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/Fannovel16/comfyui_controlnet_aux",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "comfyui-minimax-h3-prompt-enhancer-T8",
-      "name": "H3 T8 提示词增强器(云/本地)",
-      "desc_zh": "T8 提示词增强与创作套件,共 29 节点:主力 MiniMaxH3PromptEnhancerT8(显示名 MiniMax H3 Prompt Enhancer (Cloud / Local GGUF),类目 T8/MiniMax H3,云/本地 GGUF 双路),同族增强器 Seedance20PromptEnhancerT8/MiniMaxMusic3PromptEnhancerT8/YuE2MusicPromptEnhancerT8/QwenImage21PromptEnhancerT8,创作套件 T8/Creative Suite 13 件(T8CreativeDirector/T8CreativeContextAssembler/T8DirectedRevision/T8LongFormPlanner/T8ReferenceRoleMapper/T8CreativeCandidateLab/T8CreativeCandidateSelector/T8StoryboardPack/T8CreativeDNAMixer/T8PersonalCreativePreset/T8MusicCreativeLab/T8CreativeVersionStack/T8MusicVideoBeatSheet),影视三件(T8FilmProjectRouter/T8CharacterPerformanceBible/T8CharacterPerformanceBibleStack),工具件(T8LLMProviderConfig/T8PromptInspector/T8PromptText/T8ShowText/T8PerformanceDirectorConfig/T8CombatCameraConfig/T8LyricWriter/T8ArrangementPlanner)。引擎家 git 新装(装前核 custom_nodes 下该目录不存在,非 pull),HEAD 3c3bbae『Release 1.28.2: fix live Qwen edit fallback and transparency validation』;注册机制=新版 comfy_api 扩展点(__init__.py 定义 ComfyExtension 子类+comfy_entrypoint+get_node_list 返回节点类表),无传统 NODE_CLASS_MAPPINGS 字典(grep 全仓仅测试 mock 出现),引擎 v0.37.0 核心支持该机制(ComfyUI/nodes.py:2323 消费 get_node_list 并按 GET_SCHEMA().node_id 注册);29 节点已用引擎 venv python 按引擎同款 importlib 路径真实导入并逐类调 GET_SCHEMA() 实枚举(非纸面推断);校验=venv python -m py_compile 全量 121 个 py 文件全过(超出抽查要求做了全量)。占盘 949M(.git 历史 849M+工作树约 100M,web 资产 85M 含官方预览图),WEB_DIRECTORY=./web/js。生效状态:装机时引擎在跑(17599 探活 HTTP 200,object_info 共 2944 节点),新插件 29 节点均未出现——需引擎重启后 object_info 复核方可定案注册。仓库文件零改动(登记册由台账员写)。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/T8mars/comfyui-minimax-h3-prompt-enhancer-T8",
-      "verified_license": "专有(非标准开源):LICENSE.txt(9 行)『Copyright (c) 2026 T8mars. All rights reserved.』——明确不授予复制/修改/再分发/转许可/出售权限,非任何标准开源许可(无 MIT/Apache/GPL 等 SPDX 名);捆绑的 MiniMax 官方 Skills 资源版权归 MiniMax-AI,按 THIRD_PARTY_NOTICES.md 钉上游 commit 溯源、不随 T8 许可再授权",
-      "provides": [
-        "MiniMaxH3PromptEnhancerT8"
-      ]
-    },
-    {
-      "id": "CRT-Nodes",
-      "name": "CRT 复古滤镜",
-      "desc_zh": "CRT 老式显像管风格节点(扫描线/色差/暗角),装出复古监视器质感。",
-      "category": "图像处理",
-      "repo": "https://github.com/PGCRT/CRT-Nodes",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-Custom-Scripts",
-      "name": "画布效率脚本",
-      "desc_zh": "pythongosssss 脚本合集:自动排列、连线直连点、图片预览增强、快捷键等画布效率件。",
-      "category": "效率工具",
-      "repo": "https://github.com/pythongosssss/ComfyUI-Custom-Scripts",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-Easy-Use",
-      "name": "Easy-Use 综合包",
-      "desc_zh": "一站式节点包:Easy 加载器/采样器封装、图像后处理、遮罩工具等大合集。",
-      "category": "综合工具包",
-      "repo": "https://github.com/yolain/ComfyUI-Easy-Use",
-      "verified_license": "GPL-3.0"
-    },
-    {
-      "id": "ComfyUI-Frame-Interpolation",
-      "name": "帧插值",
-      "desc_zh": "RIFE/FILM 帧插值节点,视频补帧/升帧率用。",
-      "category": "视频通用",
-      "repo": "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-GGUF",
-      "name": "GGUF 量化加载",
-      "desc_zh": "city96 GGUF 量化模型加载器(权重反量化进 Krea/Qwen 线)。",
-      "category": "综合工具包",
-      "repo": "https://github.com/city96/ComfyUI-GGUF",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "ComfyUI-Krea2-NAG",
-      "name": "Krea2 NAG",
-      "desc_zh": "Krea2 归一化注意力引导(NAG)节点,提升画面结构与时序稳定。",
-      "category": "Krea2 图像引擎",
-      "repo": "https://github.com/iljung1106/ComfyUI-Krea2-NAG",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-Krea2T-Enhancer",
-      "name": "Krea2T 增强",
-      "desc_zh": "Krea2T 画质增强辅助节点。",
-      "category": "Krea2 图像引擎",
-      "repo": "https://github.com/Capitan01R/ComfyUI-Krea2T-Enhancer",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "ComfyUI-LTXVideo",
-      "name": "LTX 视频官方线",
-      "desc_zh": "Lightricks 官方 LTX 视频节点(文/图生视频、LoRA 支持)。",
-      "category": "视频通用",
-      "repo": "https://github.com/Lightricks/ComfyUI-LTXVideo",
-      "verified_license": "unknown"
-    },
-    {
-      "id": "ComfyUI-SetGet-Resolver",
-      "name": "SetGet 解析器",
-      "desc_zh": "Set/Get 变量节点跨子图/跨图解析,减少长连线。",
-      "category": "效率工具",
-      "repo": "https://github.com/yujianvip/ComfyUI-SetGet-Resolver",
-      "verified_license": "unknown"
-    },
-    {
-      "id": "ComfyUI-SolAttn-MPS",
-      "name": "SolAttn MPS 加速",
-      "desc_zh": "SolAttn 注意力加速(Apple MPS 适配)——H3 视频 480P 固定线依赖。",
-      "category": "MiniMax H3 视频",
-      "repo": "https://github.com/yshenaw/ComfyUI-SolAttn-MPS",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "Comfyui-Resolution-Master",
-      "name": "分辨率大师",
-      "desc_zh": "分辨率/宽高比/像素量换算节点组,尺寸联动省心算。",
-      "category": "效率工具",
-      "repo": "https://github.com/Azornes/Comfyui-Resolution-Master",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "WhatDreamsCost-ComfyUI",
-      "name": "生成能耗标注",
-      "desc_zh": "生成图像的能耗/成本统计与画布标注节点。",
-      "category": "图像处理",
-      "repo": "https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI",
-      "verified_license": "GPL-3.0"
-    },
-    {
-      "id": "cg-use-everywhere",
-      "name": "万能广播",
-      "desc_zh": "一处节点全网可用(Everywhere 模式免连线广播 MODEL/LATENT 等)。",
-      "category": "效率工具",
-      "repo": "https://github.com/chrisgoringe/cg-use-everywhere",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "comfy-image-saver",
-      "name": "增强存图",
-      "desc_zh": "增强版存图节点:元数据嵌入、命名模板、子目录归档。",
-      "category": "图像处理",
-      "repo": "https://github.com/giriss/comfy-image-saver",
-      "verified_license": "MIT"
-    },
-    {
-      "id": "comfyui-fashn-human-parser",
-      "name": "人体解析遮罩",
-      "desc_zh": "fashn 人体解析分割,按部位(上衣/下装/全身)出遮罩。",
-      "category": "遮罩与图层",
-      "repo": "https://github.com/dsrunpod/comfyui-fashn-human-parser",
-      "verified_license": "unknown"
-    },
-    {
-      "id": "comfyui-videohelpersuite",
-      "name": "视频辅助套件",
-      "desc_zh": "视频帧序列读写/合成/预览标准件,视频线的基建依赖。",
-      "category": "视频通用",
-      "repo": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
-      "verified_license": "GPL-3.0"
-    },
-    {
-      "id": "seedvr2_videoupscaler",
-      "name": "SeedVR2 超分",
-      "desc_zh": "字节 SeedVR2 视频超分/修复,低清视频拉高清。",
-      "category": "修复放大",
-      "repo": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler",
-      "verified_license": "Apache-2.0"
-    },
-    {
-      "id": "FreeVideo",
-      "name": "FreeVideo(H3 低显存加速引擎)",
-      "desc_zh": "UC Berkeley 出品的 MiniMax H3 消费级 N 卡推理引擎(8 步 VDN-H3 蒸馏+显存/内存/磁盘分级调度,8G 显存可跑)+ComfyUI 创作面板插件。引擎为 CUDA/N 卡专属:Mac 上节点可注册可画布打开但执行必失败,模型(46.9GB VDN-H3 族)未装、住 Windows 尝鲜机;已实测 Windows 4060Ti 8G:10 秒竖屏 319s/横屏 603s,显存峰 7.8/8G。",
-      "category": "H3 视频",
-      "repo": "https://github.com/FlashML-org/FreeVideo",
-      "verified_license": "Apache-2.0(代码);模型权重 MiniMax H3 Community License",
-      "provides": [
-        "FreeVideoGenerate",
-        "FreeVideoMedia",
-        "FreeVideoReference",
-        "FreeVideoLoRA",
-        "FreeVideoLoRAStack",
-        "FreeVideoFrames"
-      ]
-    },
-    {
-      "id": "ComfyUI-Fisher-Pose",
-      "name": "Fisher-Pose 无限姿势",
-      "desc_zh": "Qwen-Image-2.1 无限姿势+无限视角(支持双人)插件:3D 人偶摆姿势驱动出图。Mac 可装可注册,固定姿势链可跑(官方工作流 pose_json 内置人偶参考图,零交互);任意新姿势需浏览器机位与姿态编辑器(WebGL);换机位分支需 TripoSplat 等六模型(本机未装,不可跑);82MB MakeHuman 人体包随插件走。",
-      "category": "Qwen-Image-2.1 图像",
-      "repo": "https://github.com/Work-Fisher/ComfyUI-Fisher-Pose",
-      "verified_license": "unknown(仓库主 LICENSE GitHub API spdx=NOASSERTION,2026-10-10 实查;web/vnccs 代码 MIT、MakeHuman 包 CC0,见其 README)",
-      "provides": [
-        "FisherPoseStudio",
-        "FisherQwenPose",
-        "FisherQwen21GGUFCLIP",
-        "FisherQwenFreePose",
-        "FisherPoseImage",
-        "FisherAnyAngleCamera",
-        "FisherAnyAngleEncode",
-        "FisherPoseResult",
-        "FisherShot"
-      ],
-      "pin": {
-        "commit": "c1d9e65f100eaf69e26100ff5460d3895c25cba9",
-        "anchors_sha256": {
-          "__init__.py": "95b61c19de42aefbf9170c0dd8790c02c0c13467cfcb92af9dbb2aaf5aa103a6",
-          "env_check.py": "fc317515601904f29ac03b2b8f925c81b6b6ebeab14a475c140ba4c96cc1eb6c",
-          "free_pose.py": "ce2a74183c39fc081c8c784da41ae5a03b43c599b069eb6cbd5b3d39caa9a3ce",
-          "pose_reference.py": "ae6bee81e07d5dd029572a613118c5bd359542601025f3b263d9f3058d190821",
-          "fisher_anyangle.py": "53d6c24e80c941434e7aa2fa97d828932eac5d8869bea4e272c7d316a43b64c4",
-          "web/fisher_pose.js": "d0f951f86cfa54142ebad658e3a5b6de3de10c77d4f2d58a658aa0f205b92ecc"
-        }
-      }
+ "schemaVersion": 1,
+ "note": "策展插件清单(裁定5/ grill Q6:助手草案,用户过目定稿)。verified_license 全部经 GitHub API /repos/{repo}/license 的 license.spdx_id 实查(2026-09-08);仓库无 LICENSE 文件或 API 查不到的一律写 unknown,严禁编造。ComfyUI_poster_nodes 候选在 GitHub/Registry 均无法定位到可信仓库,以 ComfyUI_essentials 替补。 1003 增补:装机存量 17 件入册(自研定制件 my-nodes/krea2-vl-instruction/krea2edit-instruction-assembler 不属市场件仍不入册;id=装机目录名使已装判定零歧义;verified_license 经上游 raw LICENSE 逐件实查 2026-10-03,无 LICENSE 或文本未识别者=unknown)。",
+ "plugins": [
+  {
+   "id": "comfyui-krea2edit",
+   "name": "Krea2 指令编辑节点",
+   "desc_zh": "Krea2Edit 指令编辑两件套(编码+模型补丁)——漫影 Krea2 编辑流/无衣物流的引擎模板依赖,装了才能跑这两类流。",
+   "category": "Krea2 图像引擎",
+   "repo": "https://github.com/lbouaraba/comfyui-krea2edit",
+   "verified_license": "Apache-2.0",
+   "provides": [
+    "Krea2EditGroundedEncode",
+    "Krea2EditModelPatch"
+   ]
+  },
+  {
+   "id": "ComfyUI-ConditioningKrea2Rebalance",
+   "name": "Krea2 提示重平衡",
+   "desc_zh": "Krea2 十二带提示词重平衡节点——漫影 Krea2 专业流(NSFW 破限)模板依赖,装了才能跑专业流。",
+   "category": "Krea2 图像引擎",
+   "repo": "https://github.com/nova452/Rebalance-Pack",
+   "verified_license": "Apache-2.0",
+   "provides": [
+    "ConditioningKrea2Rebalance"
+   ]
+  },
+  {
+   "id": "rgthree-comfy",
+   "name": "Rgthree 效率工具",
+   "desc_zh": "画布效率工具箱:批量开关节点、上下文菜单、种子控件与排版辅助。",
+   "category": "效率工具",
+   "repo": "https://github.com/rgthree/rgthree-comfy",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-KJNodes",
+   "name": "KJ 常用节点集",
+   "desc_zh": "KJ 生活质量节点:遮罩与图像变换、预览调试、条件分支等常用补位节点。",
+   "category": "综合工具包",
+   "repo": "https://github.com/kijai/ComfyUI-KJNodes",
+   "verified_license": "GPL-3.0"
+  },
+  {
+   "id": "ComfyUI_LayerStyle",
+   "name": "图层样式与遮罩",
+   "desc_zh": "图层样式全家桶:抠图、蒙版羽化、文字排版与局部编辑相关节点。",
+   "category": "遮罩与图层",
+   "repo": "https://github.com/chflame163/ComfyUI_LayerStyle",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-Impact-Pack",
+   "name": "修脸与放大包",
+   "desc_zh": "Detailer 修复、放大管线与人脸检测常用节点(依赖较重,装得慢属正常)。",
+   "category": "修复放大",
+   "repo": "https://github.com/ltdrdata/ComfyUI-Impact-Pack",
+   "verified_license": "GPL-3.0"
+  },
+  {
+   "id": "ComfyUI_InfiniteYou",
+   "name": "InfiniteYou 人脸保持",
+   "desc_zh": "字节 InfiniteYou 肖像一致性生成节点,适合人物身份保持的编辑流。",
+   "category": "人脸一致性",
+   "repo": "https://github.com/bytedance/ComfyUI_InfiniteYou",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "comfyui-various",
+   "name": "杂项小节点集",
+   "desc_zh": "图像处理与工作流辅助的小节点集合;仓库无 LICENSE 文件,介意版权请谨慎安装。",
+   "category": "图像处理",
+   "repo": "https://github.com/jamesWalker55/comfyui-various",
+   "verified_license": "unknown"
+  },
+  {
+   "id": "was-node-suite-comfyui",
+   "name": "WAS 节点大合集",
+   "desc_zh": "上百个节点:图像混合、噪点生成、文本处理与调试分析一应俱全。",
+   "category": "综合工具包",
+   "repo": "https://github.com/WASasquatch/was-node-suite-comfyui",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI_essentials",
+   "name": "Essentials 基础增强",
+   "desc_zh": "常用基础增强:图像变换、遮罩工具、条件辅助与调试节点。",
+   "category": "综合工具包",
+   "repo": "https://github.com/cubiq/ComfyUI_essentials",
+   "verified_license": "MIT",
+   "provides": [
+    "GetImageSize+"
+   ]
+  },
+  {
+   "id": "ComfyUI_MiniMaxH3_Director",
+   "name": "H3 导演台(多段连续)",
+   "desc_zh": "社区事实标准(1659★):六模式(t2v/i2v/fl2v/r2v/v2v/rv2v)+可视化多段时间轴+素材组(<Picture N>/@ 引用,公共参数+每组叠加)+段间引导(上段末尾运动与音频钉入下段,上下文帧 5/22/39/56=17k+5 网格族)+Refine 二采外挂+导演包导入导出。底层全走官方节点链,MPS 兼容性最佳。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/AIMixer/ComfyUI_MiniMaxH3_Director",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "ComfyUI_MinimaxH3_AutoContext",
+   "name": "H3 无限分段采样器(AutoContext)",
+   "desc_zh": "分段推理+段间续接锚定(context 锚定帧)+提示词时间轴四模式(Clip_Tag/timeline/sequential/global;帧数恒 17n+5 网格)+二次采样(低清一采→高清二采)+接缝修正(色彩迁移/光流)+面部修复三件套+latent 分段断点缓存(node_<id> 目录,断点续跑);显存峰值只取决于单段长度与总长无关。1025 已装机 Mac 引擎并实弹通过(2段56帧/570s,Clip_Tag 模式,LM Studio VL 验收连贯;clip_tag 模板须含数字索引如「段1」)。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/supElement/ComfyUI_MinimaxH3_AutoContext",
+   "verified_license": "Apache-2.0",
+   "provides": [
+    "H3Parameter",
+    "H3AutoContextSampler",
+    "H3SeamCorrection",
+    "H3FaceCut",
+    "H3FaceResample",
+    "H3FaceBlend",
+    "H3TSTPatch"
+   ]
+  },
+  {
+   "id": "ComfyUI-JZL-MiniMax-H3",
+   "name": "H3 短剧导演台 Pro(一节点全链)",
+   "desc_zh": "一节点跑完 LLM 剧本分段→@素材参考调度→逐段落盘自动合并;内置 llama-server 本地导演与 [SHOT_START] 穿透模式。与 AIMixer 多段导演台互补:强在自动编排,弱在无段间衔接/二采。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/wjluoxiao/ComfyUI-JZL-MiniMax-H3",
+   "verified_license": "MIT",
+   "provides": [
+    "JZL_MiniMaxH3ReferenceToVideo"
+   ]
+  },
+  {
+   "id": "ComfyUI-MiniMaxH3-Easy",
+   "name": "H3 Easy 多合一工作台",
+   "desc_zh": "智能提示词优化+一键多模式(长视频一次成/两段精修),新手友好的 H3 全家桶工作台。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/nkxx188/ComfyUI-MiniMaxH3-Easy",
+   "verified_license": "MIT",
+   "provides": [
+    "MiniMaxH3PromptOptimizer"
+   ]
+  },
+  {
+   "id": "comfyui-minimax-h3-blockcache-T8",
+   "name": "H3 T8 文本编码缓存",
+   "desc_zh": "文本编码器块缓存,重复提示词段免重算提速。注:MPS 上曾现进程崩溃(09-14 实测,参数速查在案),稳定性敏感场合先旁路。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/T8mars/comfyui-minimax-h3-blockcache-T8",
+   "verified_license": "Apache-2.0",
+   "provides": [
+    "MiniMaxH3BlockCacheT8"
+   ]
+  },
+  {
+   "id": "ComfyUI-Spectrum-MiniMax-H3",
+   "name": "H3 Spectrum 频谱加速",
+   "desc_zh": "频谱特征预测近似加速(输出与原生非逐位一致)。引擎家已装此件;其 git remote 指向 fork 基座属打包方式所致,目录列表里可能显示裸目录名。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3",
+   "verified_license": "GPL-3.0"
+  },
+  {
+   "id": "Comfyui_Minimax_h3_latent_Upscaler",
+   "name": "H3 浅空间放大器",
+   "desc_zh": "A/V 分离式 latent 放大+二次精修节点。09-14 裁定产线不做自动超分,留作手动后处理可选件(权重另需下载)。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler",
+   "verified_license": "unknown",
+   "provides": [
+    "MinimaxH3LatentUpscaler3D"
+   ]
+  },
+  {
+   "id": "ComfyUI-Qwen-Image-2.1-Prompt-Enhancer",
+   "name": "Q2-1 提示词改写(PE)",
+   "desc_zh": "看图改写/扩写提示词两节点(文生图扩写+改图改写,Qwen3-VL 8B 微调)——漫影 Q2-1 工作流 PE 改写组的插件本体,画布开关默认旁路。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/benjiyaya/ComfyUI-Qwen-Image-2.1-Prompt-Enhancer",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-Qwen-Image-2.1-PromptEnhancer-MTP",
+   "name": "Q2-1 提示词改写 MTP 版",
+   "desc_zh": "PE 改写的 MTP 变体(多 token 预测),装机在册的备选改写器。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/mozophe/comfyui-qwen-image-2.1-promptenhancer-mtp",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "Comfyui-QwenEditUtils",
+   "name": "Q2-1 改图工具集",
+   "desc_zh": "Qwen-Image 改图周边工具节点合集(社区名件,855 星)。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/lrzjason/comfyui-qweneditutils",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "qwen-image-21-blockcache-t8",
+   "name": "Q2-1 块缓存加速(T8)",
+   "desc_zh": "Q2-1 出图加速:块缓存+频谱预测+注意力适配,不减步数只减每步用时;与已装的 H3 版同作者(T8),Mac 大概率可用,装后以引擎节点注册为准。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-BlockCache-T8",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "qwen-image-2-1-fun-controlnet-union-t8",
+   "name": "Q2-1 Fun ControlNet Union(T8)",
+   "desc_zh": "姿势/构图/深度等控制编辑的加载与条件节点;需另下 Fun ControlNet Union 权重(数 GB),做控制类改图再装。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/T8mars/ComfyUI-Qwen-Image-2.1-Fun-Controlnet-Union-T8",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "qwen-image-2-1-fun-acc-loras-t8",
+   "name": "Q2-1 Fun-Acc PDD 加速(T8)",
+   "desc_zh": "阿里官方 Fun-Acc PDD 4步加速的 T8 配套节点(专用采样器):4步/cfg1/无负面词,TE 须 Qwen3-VL 8B 系;配套 LoRA 权重(Qwen-Image-2.1-Fun-Acc-4Step-PDD-T8.safetensors)另置引擎家 loras,不入安装包。仓库无 LICENSE 文件,介意版权请谨慎安装。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/T8mars/Comfyui-Qwen-Image-2.1-Fun-Acc-LoRAs-T8",
+   "verified_license": "unknown"
+  },
+  {
+   "id": "TE-Speed-QwenImage21",
+   "name": "Q2-1 采样提速(TE-Speed)",
+   "desc_zh": "MODEL 链采样提速(输出预测 30-40%,不减步数,不替代 QwenImage21Cache);上游只发 Windows 编译件,Mac 装不了(引擎卡尾行状态如实显示),Windows 用户可用。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/tl2012tl/TE-Speed-QwenImage21",
+   "verified_license": "未标明"
+  },
+  {
+   "id": "ciru-image-accelerator",
+   "name": "Q2-1 AMD 显卡加速(Ciru)",
+   "desc_zh": "Turbo Prediction + packed attention,文生图/改图两用——AMD 显卡(Windows)专属,Mac 与 N 卡不适用。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/ciru-ai/ComfyUI-CiruImageAccelerator",
+   "verified_license": "GPL-3.0"
+  },
+  {
+   "id": "nvfp4-universal-quantizer",
+   "name": "通用 FP8/NVFP4 量化器",
+   "desc_zh": "SDXL/Wan/Qwen Image/Z-Image/FLUX 的 FP8/NVFP4 混合量化省显存——NVIDIA 显卡专属,Mac 不适用。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/thepororo/ComfyUI-NVFP4-Quantizer",
+   "verified_license": "未标明"
+  },
+  {
+   "id": "ComfyUI_Qwen3_Translator_Node",
+   "name": "Qwen3 翻译器",
+   "desc_zh": "基于 Qwen3 的本地提示词翻译节点——漫影自家流程不用翻译层(提示词由 AI 直写),给需要翻译的用户备着。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/aduanyue/ComfyUI_Qwen3_Translator_Node",
+   "verified_license": "未标明"
+  },
+  {
+   "id": "comfyui_controlnet_aux",
+   "name": "ControlNet 辅助预处理器",
+   "desc_zh": "姿态/深度/边缘等预处理器全家桶(AIO_Preprocessor 一节点全揽,为姿态图工作流提供 OpenPose/DWPose 节点)。引擎家已装机(2026-10-01 离线 zip unzip 落位 custom_nodes,装机口径 1009 文件,venv py_compile 语法抽查通过);离线包含 14 个权重文件(装机实测口径;调研档记 64 与实测不符),含姿态检测 body_pose_model.pth(200MB)。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/Fannovel16/comfyui_controlnet_aux",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "comfyui-minimax-h3-prompt-enhancer-T8",
+   "name": "H3 T8 提示词增强器(云/本地)",
+   "desc_zh": "T8 提示词增强与创作套件,共 29 节点:主力 MiniMaxH3PromptEnhancerT8(显示名 MiniMax H3 Prompt Enhancer (Cloud / Local GGUF),类目 T8/MiniMax H3,云/本地 GGUF 双路),同族增强器 Seedance20PromptEnhancerT8/MiniMaxMusic3PromptEnhancerT8/YuE2MusicPromptEnhancerT8/QwenImage21PromptEnhancerT8,创作套件 T8/Creative Suite 13 件(T8CreativeDirector/T8CreativeContextAssembler/T8DirectedRevision/T8LongFormPlanner/T8ReferenceRoleMapper/T8CreativeCandidateLab/T8CreativeCandidateSelector/T8StoryboardPack/T8CreativeDNAMixer/T8PersonalCreativePreset/T8MusicCreativeLab/T8CreativeVersionStack/T8MusicVideoBeatSheet),影视三件(T8FilmProjectRouter/T8CharacterPerformanceBible/T8CharacterPerformanceBibleStack),工具件(T8LLMProviderConfig/T8PromptInspector/T8PromptText/T8ShowText/T8PerformanceDirectorConfig/T8CombatCameraConfig/T8LyricWriter/T8ArrangementPlanner)。引擎家 git 新装(装前核 custom_nodes 下该目录不存在,非 pull),HEAD 3c3bbae『Release 1.28.2: fix live Qwen edit fallback and transparency validation』;注册机制=新版 comfy_api 扩展点(__init__.py 定义 ComfyExtension 子类+comfy_entrypoint+get_node_list 返回节点类表),无传统 NODE_CLASS_MAPPINGS 字典(grep 全仓仅测试 mock 出现),引擎 v0.37.0 核心支持该机制(ComfyUI/nodes.py:2323 消费 get_node_list 并按 GET_SCHEMA().node_id 注册);29 节点已用引擎 venv python 按引擎同款 importlib 路径真实导入并逐类调 GET_SCHEMA() 实枚举(非纸面推断);校验=venv python -m py_compile 全量 121 个 py 文件全过(超出抽查要求做了全量)。占盘 949M(.git 历史 849M+工作树约 100M,web 资产 85M 含官方预览图),WEB_DIRECTORY=./web/js。生效状态:装机时引擎在跑(17599 探活 HTTP 200,object_info 共 2944 节点),新插件 29 节点均未出现——需引擎重启后 object_info 复核方可定案注册。仓库文件零改动(登记册由台账员写)。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/T8mars/comfyui-minimax-h3-prompt-enhancer-T8",
+   "verified_license": "专有(非标准开源):LICENSE.txt(9 行)『Copyright (c) 2026 T8mars. All rights reserved.』——明确不授予复制/修改/再分发/转许可/出售权限,非任何标准开源许可(无 MIT/Apache/GPL 等 SPDX 名);捆绑的 MiniMax 官方 Skills 资源版权归 MiniMax-AI,按 THIRD_PARTY_NOTICES.md 钉上游 commit 溯源、不随 T8 许可再授权",
+   "provides": [
+    "MiniMaxH3PromptEnhancerT8"
+   ]
+  },
+  {
+   "id": "CRT-Nodes",
+   "name": "CRT 复古滤镜",
+   "desc_zh": "CRT 老式显像管风格节点(扫描线/色差/暗角),装出复古监视器质感。",
+   "category": "图像处理",
+   "repo": "https://github.com/PGCRT/CRT-Nodes",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-Custom-Scripts",
+   "name": "画布效率脚本",
+   "desc_zh": "pythongosssss 脚本合集:自动排列、连线直连点、图片预览增强、快捷键等画布效率件。",
+   "category": "效率工具",
+   "repo": "https://github.com/pythongosssss/ComfyUI-Custom-Scripts",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-Easy-Use",
+   "name": "Easy-Use 综合包",
+   "desc_zh": "一站式节点包:Easy 加载器/采样器封装、图像后处理、遮罩工具等大合集。",
+   "category": "综合工具包",
+   "repo": "https://github.com/yolain/ComfyUI-Easy-Use",
+   "verified_license": "GPL-3.0"
+  },
+  {
+   "id": "ComfyUI-Frame-Interpolation",
+   "name": "帧插值",
+   "desc_zh": "RIFE/FILM 帧插值节点,视频补帧/升帧率用。",
+   "category": "视频通用",
+   "repo": "https://github.com/Fannovel16/ComfyUI-Frame-Interpolation",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-GGUF",
+   "name": "GGUF 量化加载",
+   "desc_zh": "city96 GGUF 量化模型加载器(权重反量化进 Krea/Qwen 线)。",
+   "category": "综合工具包",
+   "repo": "https://github.com/city96/ComfyUI-GGUF",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "ComfyUI-Krea2-NAG",
+   "name": "Krea2 NAG",
+   "desc_zh": "Krea2 归一化注意力引导(NAG)节点,提升画面结构与时序稳定。",
+   "category": "Krea2 图像引擎",
+   "repo": "https://github.com/iljung1106/ComfyUI-Krea2-NAG",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-Krea2T-Enhancer",
+   "name": "Krea2T 增强",
+   "desc_zh": "Krea2T 画质增强辅助节点。",
+   "category": "Krea2 图像引擎",
+   "repo": "https://github.com/Capitan01R/ComfyUI-Krea2T-Enhancer",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "ComfyUI-LTXVideo",
+   "name": "LTX 视频官方线",
+   "desc_zh": "Lightricks 官方 LTX 视频节点(文/图生视频、LoRA 支持)。",
+   "category": "视频通用",
+   "repo": "https://github.com/Lightricks/ComfyUI-LTXVideo",
+   "verified_license": "unknown"
+  },
+  {
+   "id": "ComfyUI-SetGet-Resolver",
+   "name": "SetGet 解析器",
+   "desc_zh": "Set/Get 变量节点跨子图/跨图解析,减少长连线。",
+   "category": "效率工具",
+   "repo": "https://github.com/yujianvip/ComfyUI-SetGet-Resolver",
+   "verified_license": "unknown"
+  },
+  {
+   "id": "ComfyUI-SolAttn-MPS",
+   "name": "SolAttn MPS 加速",
+   "desc_zh": "SolAttn 注意力加速(Apple MPS 适配)——H3 视频 480P 固定线依赖。",
+   "category": "MiniMax H3 视频",
+   "repo": "https://github.com/yshenaw/ComfyUI-SolAttn-MPS",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "Comfyui-Resolution-Master",
+   "name": "分辨率大师",
+   "desc_zh": "分辨率/宽高比/像素量换算节点组,尺寸联动省心算。",
+   "category": "效率工具",
+   "repo": "https://github.com/Azornes/Comfyui-Resolution-Master",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "WhatDreamsCost-ComfyUI",
+   "name": "生成能耗标注",
+   "desc_zh": "生成图像的能耗/成本统计与画布标注节点。",
+   "category": "图像处理",
+   "repo": "https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI",
+   "verified_license": "GPL-3.0"
+  },
+  {
+   "id": "cg-use-everywhere",
+   "name": "万能广播",
+   "desc_zh": "一处节点全网可用(Everywhere 模式免连线广播 MODEL/LATENT 等)。",
+   "category": "效率工具",
+   "repo": "https://github.com/chrisgoringe/cg-use-everywhere",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "comfy-image-saver",
+   "name": "增强存图",
+   "desc_zh": "增强版存图节点:元数据嵌入、命名模板、子目录归档。",
+   "category": "图像处理",
+   "repo": "https://github.com/giriss/comfy-image-saver",
+   "verified_license": "MIT"
+  },
+  {
+   "id": "comfyui-fashn-human-parser",
+   "name": "人体解析遮罩",
+   "desc_zh": "fashn 人体解析分割,按部位(上衣/下装/全身)出遮罩。",
+   "category": "遮罩与图层",
+   "repo": "https://github.com/dsrunpod/comfyui-fashn-human-parser",
+   "verified_license": "unknown"
+  },
+  {
+   "id": "comfyui-videohelpersuite",
+   "name": "视频辅助套件",
+   "desc_zh": "视频帧序列读写/合成/预览标准件,视频线的基建依赖。",
+   "category": "视频通用",
+   "repo": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+   "verified_license": "GPL-3.0"
+  },
+  {
+   "id": "seedvr2_videoupscaler",
+   "name": "SeedVR2 超分",
+   "desc_zh": "字节 SeedVR2 视频超分/修复,低清视频拉高清。",
+   "category": "修复放大",
+   "repo": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler",
+   "verified_license": "Apache-2.0"
+  },
+  {
+   "id": "FreeVideo",
+   "name": "FreeVideo(H3 低显存加速引擎)",
+   "desc_zh": "UC Berkeley 出品的 MiniMax H3 消费级 N 卡推理引擎(8 步 VDN-H3 蒸馏+显存/内存/磁盘分级调度,8G 显存可跑)+ComfyUI 创作面板插件。引擎为 CUDA/N 卡专属:Mac 上节点可注册可画布打开但执行必失败,模型(46.9GB VDN-H3 族)未装、住 Windows 尝鲜机;已实测 Windows 4060Ti 8G:10 秒竖屏 319s/横屏 603s,显存峰 7.8/8G。",
+   "category": "H3 视频",
+   "repo": "https://github.com/FlashML-org/FreeVideo",
+   "verified_license": "Apache-2.0(代码);模型权重 MiniMax H3 Community License",
+   "provides": [
+    "FreeVideoGenerate",
+    "FreeVideoMedia",
+    "FreeVideoReference",
+    "FreeVideoLoRA",
+    "FreeVideoLoRAStack",
+    "FreeVideoFrames"
+   ]
+  },
+  {
+   "id": "ComfyUI-Fisher-Pose",
+   "name": "Fisher-Pose 无限姿势",
+   "desc_zh": "Qwen-Image-2.1 无限姿势+无限视角(支持双人)插件:3D 人偶摆姿势驱动出图。Mac 可装可注册,固定姿势链可跑(官方工作流 pose_json 内置人偶参考图,零交互);任意新姿势需浏览器机位与姿态编辑器(WebGL);换机位分支需 TripoSplat 等六模型(本机未装,不可跑);82MB MakeHuman 人体包随插件走。",
+   "category": "Qwen-Image-2.1 图像",
+   "repo": "https://github.com/Work-Fisher/ComfyUI-Fisher-Pose",
+   "verified_license": "unknown(仓库主 LICENSE GitHub API spdx=NOASSERTION,2026-10-10 实查;web/vnccs 代码 MIT、MakeHuman 包 CC0,见其 README)",
+   "provides": [
+    "FisherPoseStudio",
+    "FisherQwenPose",
+    "FisherQwen21GGUFCLIP",
+    "FisherQwenFreePose",
+    "FisherPoseImage",
+    "FisherAnyAngleCamera",
+    "FisherAnyAngleEncode",
+    "FisherPoseResult",
+    "FisherShot"
+   ],
+   "pin": {
+    "commit": "c1d9e65f100eaf69e26100ff5460d3895c25cba9",
+    "anchors_sha256": {
+     "__init__.py": "95b61c19de42aefbf9170c0dd8790c02c0c13467cfcb92af9dbb2aaf5aa103a6",
+     "env_check.py": "fc317515601904f29ac03b2b8f925c81b6b6ebeab14a475c140ba4c96cc1eb6c",
+     "free_pose.py": "ce2a74183c39fc081c8c784da41ae5a03b43c599b069eb6cbd5b3d39caa9a3ce",
+     "pose_reference.py": "ae6bee81e07d5dd029572a613118c5bd359542601025f3b263d9f3058d190821",
+     "fisher_anyangle.py": "53d6c24e80c941434e7aa2fa97d828932eac5d8869bea4e272c7d316a43b64c4",
+     "web/fisher_pose.js": "d0f951f86cfa54142ebad658e3a5b6de3de10c77d4f2d58a658aa0f205b92ecc"
     }
-  ]
+   }
+  }
+ ]
 }
