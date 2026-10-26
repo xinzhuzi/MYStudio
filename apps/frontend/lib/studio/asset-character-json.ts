@@ -287,7 +287,7 @@ export function resolveBareTypeSubjectGate(input: {
   fallback: string;
   /** 用户显式本型槽句(最优先,填了就直接用)。 */
   slot?: string;
-}): { subject?: string; block?: string } {
+}): { subject?: string; block?: string; derived?: boolean } {
   const { kind, bodyBaseSubject, fallback, slot } = input;
   if (kind !== BARE_TYPE_KIND) return {};
   if (slot?.trim()) return { subject: slot.trim() };
@@ -298,10 +298,39 @@ export function resolveBareTypeSubjectGate(input: {
   const declaresBare = /素体|全身无衣|通身无衣|通身素体/.test(text);
   const hasClothing = /衣|袍|装|裙|衫|服|褐|裤|甲|帔|靴|鞋|履/.test(text);
   if (text && hasClothing && !declaresBare) {
+    // 10-27 用户令「不可以自动生成之类的吗」:阻断改自动派生——剥衣物段留身份,
+    // 套素体基准尾;派发即用,落「无衣物定妆」本型槽(调用方负责)
+    const derived = deriveBareSubjectFromClothed(text);
+    if (derived) return { subject: derived, derived: true };
     return {
       block:
-        "「无衣物定妆」需要素体主体句(全身无衣物);当前主体句含衣物描述,直接生成会出带衣图。请先在「角色真源JSON」补素体主体词(body_base.主体词),或清空主体句中衣物描述后重试",
+        "「无衣物定妆」需要素体主体句(全身无衣物);当前主体句含衣物描述且自动剥除失败。请在「角色真源JSON」补素体主体词(body_base.主体词)",
     };
   }
   return {};
+}
+
+/** 衣物段判定:该句段含衣物/穿戴词即剥(腰束/缀补丁等穿戴语同判;发型草绳不算)。 */
+const CLOTHING_SEGMENT =
+  /衣|袍|装|裙|衫|服|褐|裤|甲|帔|靴|鞋|履|袜|腰束|腰带|腰间|佩戴|缀补丁|持物|手持|握|持一|背景|场景|构图/;
+
+/** 自动派生素体主体句:按句号/分号切段,剥衣物/持物/背景段,保留身份·面容·发型·
+ * 姿态段,套与真源 body_base 同构的素体基准尾(含引擎门禁「素体」豁免词)。 */
+export function deriveBareSubjectFromClothed(text: string): string | null {
+  const segments = text
+    .split(/[。;；\n]/)
+    .map((seg) => seg.trim())
+    .filter(Boolean);
+  if (segments.length === 0) return null;
+  let kept = segments.filter((seg) => !CLOTHING_SEGMENT.test(seg));
+  if (kept.length === 0) {
+    // 单句混排(身份+衣物同段)兜底:降级到逗号子句级剥除,保身份子句
+    const clauses = segments[0]!.split(/[,，]/).map((c) => c.trim()).filter(Boolean);
+    kept = clauses.filter((clause) => clause && !CLOTHING_SEGMENT.test(clause));
+  }
+  if (kept.length === 0) return null;
+  const head = kept.join(",");
+  const tail =
+    "通身素体呈现,肌肤匀净,全身人体比例与解剖结构清晰可读;正面直立站姿,双臂自然垂于身侧,双手放松自然,足部赤裸(素体基准态,鞋履后注入);头顶至足底全身完整入画;图为带透明通道的RGBA透明底素材图,背景全透明";
+  return `${head}。${tail}。`;
 }

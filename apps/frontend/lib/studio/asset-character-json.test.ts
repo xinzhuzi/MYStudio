@@ -187,11 +187,13 @@ describe("resolveBareTypeSubjectGate(无衣物定妆型区分闸,10-26 用户令
     expect(r.subject).toBe("槽句");
   });
 
-  it("无真源+兜底句带衣物→阻断(小杂役实录:DB 人设句直发出带衣图)", () => {
+  it("无真源+兜底句带衣物→自动派生素体句(10-27 令:阻断改自动生成)", () => {
     const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: CLOTHED });
-    expect(r.subject).toBeUndefined();
-    expect(r.block).toContain("素体主体句");
-    expect(r.block).toContain("带衣图");
+    expect(r.derived).toBe(true);
+    expect(r.subject).toContain("约十岁的男童");
+    expect(r.subject).toContain("码头杂役");
+    expect(r.subject).toContain("素体");
+    expect(r.subject).not.toMatch(/剑装|交领|短褐|布裤/);
   });
 
   it("无真源+兜底句自带素体声明→放行;其他型零干预", () => {
@@ -211,10 +213,15 @@ describe("resolveBareTypeSubjectGate(无衣物定妆型区分闸,10-26 用户令
 });
 
 describe("resolveBareTypeSubjectGate 赤足漏洞回归(10-26 小杂役实录)", () => {
-  it("穿破衣但光脚的杂役句(含「赤足」+衣物词)必须阻断——光脚≠无衣物", () => {
+  it("穿破衣光脚杂役句→自动派生素体句(10-27 用户令:阻断改自动生成):剥衣物段留身份/面容/发型,套素体基准尾", () => {
     const XIAOZAYI = "约十岁的男童,码头杂役,谨小慎微、眼神怯生,圆脸稚气未脱,偏大的深色眼睛。肤色微黄,身形瘦小。素颜状态,中性微表情含怯意。土黄粗布短褐缀补丁,配旧布裤,腰束栗褐布绳,衣裤完整可穿;赤足。凌乱的及肩墨黑短发。";
     const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: XIAOZAYI });
-    expect(r.block).toContain("素体主体句");
+    expect(r.block).toBeUndefined();
+    expect(r.derived).toBe(true);
+    expect(r.subject).toContain("约十岁的男童");
+    expect(r.subject).toContain("墨黑短发");
+    expect(r.subject).toContain("通身素体呈现");
+    expect(r.subject).not.toMatch(/短褐|布裤|布绳|衣/);
   });
   it("全身素体声明仍放行(素体词在场)", () => {
     const r = resolveBareTypeSubjectGate({ kind: "无衣物定妆", bodyBaseSubject: null, fallback: "男童全身素体,赤足站立。" });

@@ -780,7 +780,18 @@ export function StudioAssetDetailDialog({
         fallback: effectiveSubjectPrompt,
         slot,
       });
-      if (gate.subject) return gate.subject;
+      if (gate.subject) {
+        // 10-27 用户令「自动生成+看位置」:自动派生的素体句落该型本型槽
+        // (槽按钮可见可改,随保存入库;下次派发槽优先直用不再重派生)
+        if (gate.derived) {
+          const derivedText = gate.subject;
+          if (slot !== derivedText) {
+            setPromptOverridesDraft((prev) => ({ ...prev, [kind]: derivedText }));
+            toast.info(`已自动生成${kind}素体主体句(剥除衣物描述)——已存入本型专用槽,可查看修改`);
+          }
+        }
+        return gate.subject;
+      }
       if (gate.block) return undefined; // 阻断型:不给 override,actions 侧 block 先拦
       return slot; // 其他型=既有槽行为
     },
