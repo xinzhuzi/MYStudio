@@ -42,10 +42,10 @@ const TRACK_NOUNS: Record<AssetImageTrack, string> = { role: "角色", scene: "�
 /** 中文计数(完整度两行分级 aria 标签:role=核心五必备/扩展四型恒零回归)。 */
 
 /** 图卡统一高 h-40;宽随型画幅比(3:4≈120px/16:9≈284px/1:1=160px;未分类混排走方卡)。 */
-function sectionCardWidthClass(aspect: string | null): string {
-  if (aspect === "3:4") return "w-[120px]";
-  if (aspect === "16:9") return "w-[284px]";
-  return "w-[160px]";
+function sectionCardWidthClass(_aspect: string | null): string {
+  // 10-26 用户令「都按照横向展示,类似于人物多视图的展示方式」:全部型节统一
+  // 宽卡(多视图同款 w-[284px]);卡内 h-40 object-contain,竖图完整居中不裁切
+  return "w-[284px]";
 }
 
 interface StudioAssetDetailPreviewPaneProps {
