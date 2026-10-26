@@ -35,9 +35,9 @@ describe("StudioAssetCharacterPrompts", () => {
     expect(screen.getByText("人物基底·素体")).toBeTruthy();
     expect(screen.getByText("筑基期·独立主体词")).toBeTruthy();
     expect(screen.getByText("筑基期·正视图指令")).toBeTruthy();
-    // 徽标计数:基底两条 t2i + 阶段两条 i2i + 阶段一条 t2i = 文生图×3 / 图生图×2
-    expect(screen.getAllByText("文生图")).toHaveLength(3);
-    expect(screen.getAllByText("图生图")).toHaveLength(2);
+    // 10-26 三次令:路由标注整组不渲染
+    expect(screen.queryByText("文生图")).toBeNull();
+    expect(screen.queryByText("图生图")).toBeNull();
   });
 
   it("无阶段选择只显基底组(引导提示已按 10-26 令删除)", () => {

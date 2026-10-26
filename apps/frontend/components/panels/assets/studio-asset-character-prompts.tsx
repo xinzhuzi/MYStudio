@@ -13,21 +13,9 @@ import { ChevronDown, ChevronRight } from "lucide-react";
  * 人物提示词面板(10-26 用户令:「这些应由 JSON 数据化控制,找位置放置并标注
  * 文生图/图生图」)。真源角色的人物提示词以目录化卡片呈现,随「阶段」选择联动;
  * 编辑入口统一收敛到「角色真源JSON」弹窗(存桌面技能存储,保存后弹窗即刷新)。
- * 10-26 二次令:路由=纯文字注记(徽章长得像按钮被斥「不需要在这放文生图按钮,
- * 出图入口都在下面」——去图标/边框/底色,灰字标注,一眼非可点件)。
+ * 10-26 三次令收敛:路由标注整组不展示(徽章像按钮→灰字仍碍眼→全删);
+ * 路由数据仍住目录(lib 层),仅不渲染。
  */
-
-/** 路由注记(纯文字,非按钮形态):hover title 带路由细注。 */
-function RouteNote({ entry }: { entry: CharacterPromptEntry }) {
-  return (
-    <span
-      className="shrink-0 text-[10px] leading-none text-muted-foreground/75"
-      title={`${entry.route === "t2i" ? "文生图" : "图生图"}:${entry.routeNote}`}
-    >
-      {entry.route === "t2i" ? "文生图" : "图生图"}
-    </span>
-  );
-}
 
 function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
   const [expanded, setExpanded] = useState(false);
@@ -41,7 +29,6 @@ function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
     >
       <div className="flex items-center gap-1.5">
         <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{entry.title}</span>
-        <RouteNote entry={entry} />
         {expanded ? (
           <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
         ) : (
