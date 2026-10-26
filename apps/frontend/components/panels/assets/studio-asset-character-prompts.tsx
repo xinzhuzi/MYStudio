@@ -7,7 +7,7 @@ import {
   type CharacterPromptEntry,
 } from "@/lib/studio/asset-character-json";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, FileJson2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 /**
  * 人物提示词面板(10-26 用户令:「这些应由 JSON 数据化控制,找位置放置并标注
@@ -64,28 +64,14 @@ function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
 export function StudioAssetCharacterPrompts({
   catalog,
   stage,
-  onOpenJson,
 }: {
   catalog: CharacterPromptCatalog;
   /** 当前「阶段」选择(null=「无」→ 只显基底组)。 */
   stage: string | null | undefined;
-  onOpenJson: () => void;
 }) {
   const realm = findCharacterPromptRealm(catalog, stage);
   return (
     <div className="space-y-2" aria-label="人物提示词(真源JSON)">
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          className="flex min-w-0 items-center gap-1.5 rounded-md text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-          onClick={onOpenJson}
-          title="打开角色真源 JSON 编辑弹窗(保存到桌面技能存储,保存后本面板即时刷新)"
-        >
-          <FileJson2 className="h-3 w-3 shrink-0" />
-          <span className="truncate">人物提示词由真源 JSON 数据化驱动,点此编辑</span>
-        </button>
-      </div>
-
       <div className="space-y-1.5">
         <div className="text-[10px] font-medium text-muted-foreground/80">基底(恒显)</div>
         <div className="grid gap-1.5">

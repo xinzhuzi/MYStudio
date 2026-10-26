@@ -30,7 +30,7 @@ afterEach(() => cleanup());
 
 describe("StudioAssetCharacterPrompts", () => {
   it("基底恒显+阶段选中渲染该境条目,路由徽标逐条标注", () => {
-    render(<StudioAssetCharacterPrompts catalog={catalog} stage="筑基期" onOpenJson={() => {}} />);
+    render(<StudioAssetCharacterPrompts catalog={catalog} stage="筑基期" />);
     expect(screen.getByText("人脸基准")).toBeTruthy();
     expect(screen.getByText("人物基底·素体")).toBeTruthy();
     expect(screen.getByText("筑基期·独立主体词")).toBeTruthy();
@@ -41,7 +41,7 @@ describe("StudioAssetCharacterPrompts", () => {
   });
 
   it("无阶段选择只显基底组(引导提示已按 10-26 令删除)", () => {
-    render(<StudioAssetCharacterPrompts catalog={catalog} stage={null} onOpenJson={() => {}} />);
+    render(<StudioAssetCharacterPrompts catalog={catalog} stage={null} />);
     expect(screen.queryByText(/选择上方「阶段」/)).toBeNull();
     expect(screen.queryByText(/阶段选择器未显示/)).toBeNull();
     expect(screen.queryByText("筑基期·独立主体词")).toBeNull();
@@ -49,7 +49,7 @@ describe("StudioAssetCharacterPrompts", () => {
   });
 
   it("卡片点击展开显示全文", () => {
-    render(<StudioAssetCharacterPrompts catalog={catalog} stage="筑基期" onOpenJson={() => {}} />);
+    render(<StudioAssetCharacterPrompts catalog={catalog} stage="筑基期" />);
     const longText = "独立主体词长文。".repeat(30);
     expect(screen.getByText(longText, { exact: false }).className).toContain("line-clamp-2");
     fireEvent.click(screen.getByText("筑基期·独立主体词"));

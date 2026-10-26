@@ -1146,7 +1146,6 @@ export function StudioAssetDetailDialog({
                           <StudioAssetCharacterPrompts
                             catalog={characterPromptCatalog}
                             stage={selectedStage}
-                            onOpenJson={() => setCharacterJsonOpen(true)}
                           />
                         ) : focusIsI2iFamily && focusKind && !subjectExpanded ? (
                           <button
