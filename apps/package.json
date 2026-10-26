@@ -30,6 +30,8 @@
     "@ai-sdk/provider-utils": "5.0.58",
     "@ai-sdk/xai": "^5.0.20",
     "@codemirror/lang-json": "6.0.2",
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/liu-jian-mao-cao": "^5.3.0",
     "@fontsource/long-cang": "^5.3.0",
     "@fontsource/ma-shan-zheng": "^5.3.1",

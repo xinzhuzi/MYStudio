@@ -15,7 +15,7 @@ import type { Plugin } from 'vite';
  * 脚本都受策略管辖。
  */
 /** md-editor-rt 运行时按需从 CDN 拉取的域(代码高亮/katex/mermaid/图标字体),
- *  与 fonts.googleapis.com 同属「面向现状的宽面」放行;自托管后再收紧。 */
+ *  已随字体本地化(10-26)移除——三款字体走 @fontsource 本地 woff2。 */
 const MD_EDITOR_CDN_ORIGINS = 'https://unpkg.com https://at.alicdn.com';
 
 export function buildCspPolicy(inlineScriptHashes: readonly string[]): string {
@@ -25,8 +25,8 @@ export function buildCspPolicy(inlineScriptHashes: readonly string[]): string {
     scriptHashes
       ? `script-src 'self' ${scriptHashes} ${MD_EDITOR_CDN_ORIGINS}`
       : `script-src 'self' ${MD_EDITOR_CDN_ORIGINS}`,
-    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${MD_EDITOR_CDN_ORIGINS}`,
-    `font-src 'self' data: https://fonts.gstatic.com ${MD_EDITOR_CDN_ORIGINS}`,
+    `style-src 'self' 'unsafe-inline' ${MD_EDITOR_CDN_ORIGINS}`,
+    `font-src 'self' data: ${MD_EDITOR_CDN_ORIGINS}`,
     "img-src 'self' data: blob: file: local-image: project-file: toonflow-asset: studio-skill: http: https:",
     "media-src 'self' data: blob: file: local-image: project-file: http://127.0.0.1:* http://localhost:* https:",
     "connect-src 'self' data: blob: local-image: project-file: toonflow-asset: studio-skill: http://127.0.0.1:* http://localhost:* https:",

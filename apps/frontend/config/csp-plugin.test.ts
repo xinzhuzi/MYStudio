@@ -44,7 +44,8 @@ describe("buildCspPolicy", () => {
     expect(policy).toContain("default-src 'self'");
     expect(policy).toContain("object-src 'none'");
     expect(policy).toContain("base-uri 'self'");
-    expect(policy).toContain("https://fonts.googleapis.com");
+    expect(policy).not.toContain("fonts.googleapis.com");
+    expect(policy).not.toContain("fonts.gstatic.com");
     expect(policy).toContain("http://127.0.0.1:*");
     expect(policy).toContain("local-image:");
     expect(policy).toContain("project-file:");
