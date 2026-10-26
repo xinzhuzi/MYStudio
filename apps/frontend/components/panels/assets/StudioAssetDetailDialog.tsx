@@ -29,6 +29,7 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
+  FileJson,
   FileText,
   ImageIcon,
   Loader2,
@@ -66,6 +67,14 @@ import {
 import { getAssetTypeShotProfile } from "@/lib/studio/asset-type-shot";
 import { StudioAssetDetailPreviewPane } from "./studio-asset-detail-preview-pane";
 import { StudioAssetSourcePromptDialog } from "./studio-asset-source-prompt-dialog";
+import { StudioAssetCharacterJsonDialog } from "./studio-asset-character-json-dialog";
+import { StudioAssetCharacterPrompts } from "./studio-asset-character-prompts";
+import {
+  deriveSubjectFromCharacterJson,
+  getCharacterJsonInfo,
+  loadCharacterJsonText,
+  parseCharacterPromptCatalog,
+} from "@/lib/studio/asset-character-json";
 import { StudioAssetPromptTextDialog, type PromptTextInspectTarget } from "./studio-asset-prompt-text-dialog";
 import {
   StudioAssetGenerationResultDialog,
@@ -240,6 +249,7 @@ export function StudioAssetDetailDialog({
   const [subjectExpanded, setSubjectExpanded] = useState(true);
   // A-2 ②:「提示词构成」单折叠组默认收起一行摘要(裁定 Q3;展开态记忆视用感再补)
   const [sourcePromptOpen, setSourcePromptOpen] = useState(false);
+  const [characterJsonOpen, setCharacterJsonOpen] = useState(false);
   // A-3 润色还原(10-25 分层面板役,PRD §4.1 A-3/裁定 Q5a):applyPolishedPrompt
   // 覆写前的润色前快照(组件态单条,null=本次会话未润色;随切资产重置,不持久化,
   // 刷新即丢;「还原上次润色前」钮=润色过且当前值≠存值时可用)
@@ -322,6 +332,44 @@ export function StudioAssetDetailDialog({
   // activeStage=T3 选中值优先,缺省回落聚类末位(最高境界,§3.2「默认=末位」)。
   const stageClusters = useMemo(() => clusterAssetStages(displayImages), [displayImages]);
   const stageOptions = useMemo(() => stageClusters.map((cluster) => cluster.stage), [stageClusters]);
+  // 角色真源 JSON(10-26):按资产名解析 art_skills/<包>/json/<角色名>.json;模块级
+  // 缓存,无真源角色恒 null(按钮整段不渲染,配角弹窗零变化)
+  const characterJsonInfo = getCharacterJsonInfo(asset?.name);
+  // 真源接线(10-26 用户令:「提示词应由 JSON 数据化控制+标注文生图/图生图」):
+  // 有真源的角色,提示词区=结构化人物提示词面板(随「阶段」联动,逐条路由徽标),
+  // 主体句文本框退场;内部派发仍吃派生主体句(镜像走展示+派发边界覆写,不抢
+  // draftPrompt state——水合链桥 get 异步回填竞态下恒以真源为准,保存时落 DB=
+  // 陈旧种子自愈)。JSON 编辑弹窗关闭后重载,编辑即时反映。派生失败(null)整体
+  // 回退既有 DB 行为,fail-safe。
+  const [characterJsonText, setCharacterJsonText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!characterJsonInfo) {
+      setCharacterJsonText(null);
+      return;
+    }
+    let cancelled = false;
+    loadCharacterJsonText(asset?.name).then((load) => {
+      if (!cancelled) setCharacterJsonText(load.status === "ready" ? load.text : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [characterJsonInfo, asset?.name, characterJsonOpen]);
+  const characterSubjectMirror = useMemo(
+    () => characterJsonInfo && characterJsonText !== null
+      ? deriveSubjectFromCharacterJson(characterJsonText, selectedStage)
+      : null,
+    [characterJsonInfo, characterJsonText, selectedStage],
+  );
+  const characterPromptCatalog = useMemo(
+    () => characterJsonInfo && characterJsonText !== null ? parseCharacterPromptCatalog(characterJsonText) : null,
+    [characterJsonInfo, characterJsonText],
+  );
+  const subjectMirrorActive = Boolean(characterJsonInfo) && characterSubjectMirror !== null;
+  // 派发/保存用主体句(TS 收窄:镜像激活=真源派生句,否则 DB 值)
+  const effectiveSubjectPrompt = characterSubjectMirror !== null && Boolean(characterJsonInfo)
+    ? characterSubjectMirror
+    : draftPrompt;
   const activeStage = selectedStage && stageOptions.includes(selectedStage)
     ? selectedStage
     : (stageOptions[stageOptions.length - 1] ?? null);
@@ -673,7 +721,8 @@ export function StudioAssetDetailDialog({
     removedFamilyPaths,
     draftName,
     draftDescription,
-    draftPrompt,
+    // 真源接线(10-26):镜像激活时派发/保存用真源派生主体句(陈旧 DB 种子自愈)
+    draftPrompt: effectiveSubjectPrompt,
     draftSetting,
     setIsPolishingPrompt,
     setDraftName,
@@ -777,7 +826,12 @@ export function StudioAssetDetailDialog({
   // 高清人脸(其文生图路主体句参与;i2i 族主体句不参与,槽无意义不展示)
   const kindSlotActive = !!focusKind && promptOverridesDraft[focusKind] !== undefined;
   const subjectSlotEligible = !!focusKind && (!focusIsI2iFamily || focusKind === "高清人脸");
-  const subjectValue = kindSlotActive && focusKind ? (promptOverridesDraft[focusKind] ?? "") : draftPrompt;
+  const subjectValue = kindSlotActive && focusKind
+    ? (promptOverridesDraft[focusKind] ?? "")
+    : subjectMirrorActive && characterSubjectMirror !== null
+      // 真源镜像优先于 DB 种子(本型专用槽仍最优先——应用层显式覆写)
+      ? characterSubjectMirror
+      : draftPrompt;
   const handleSubjectChange = (value: string) => {
     if (kindSlotActive && focusKind) {
       setPromptOverridesDraft((prev) => ({ ...prev, [focusKind]: value }));
@@ -985,6 +1039,21 @@ export function StudioAssetDetailDialog({
                               <FileText className="h-3 w-3" />
                               查看源提示词
                             </Button>
+                            {/* 角色真源 JSON(10-26 用户令):该角色有真源文件
+                                (art_skills/<包>/json/<角色名>.json,如 晏燎.json)才出钮;
+                                弹窗=完整展示+CodeMirror 可编辑,存桌面技能存储 */}
+                            {characterJsonInfo ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 gap-1 text-[11px]"
+                                onClick={() => setCharacterJsonOpen(true)}
+                                title={`查看/编辑该角色的真源 JSON(${characterJsonInfo.relativePath})`}
+                              >
+                                <FileJson className="h-3 w-3" />
+                                角色真源JSON
+                              </Button>
+                            ) : null}
                             {/* ③ 查看实发终稿(A-2③):探针 ready 才可点(focusKind 组末位
                                 回溯读 tEXt);无聚焦/无产物/全无 tEXt 置灰注明(§4.4);
                                 弹层=正向终稿+注入层全文(共用查词壳) */}
@@ -1022,9 +1091,12 @@ export function StudioAssetDetailDialog({
                         {/* ① 主体句(主位可编辑;Phase C:聚焦型可开「本型专用」槽)。
                             头部行旁=T3「阶段」选择器(10-25 阶段矩阵,PRD §3.3):选项=
                             已聚类阶段集+「无」(默认);守卫同子区(<2 阶段不渲染);
-                            选中后按型出图命名带阶段段+i2i 参考图锚该阶段最新图 */}
+                            选中后按型出图命名带阶段段+i2i 参考图锚该阶段最新图。
+                            10-26 真源接线:有真源目录的角色,本区=「人物提示词」结构化
+                            面板(JSON 数据化呈现+文生图/图生图标注,随阶段联动),
+                            主体句文本框退场(派发仍吃真源派生句) */}
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[11px] text-muted-foreground">主体句</div>
+                          <div className="text-[11px] text-muted-foreground">{characterPromptCatalog ? "人物提示词" : "主体句"}</div>
                           <div className="flex min-w-0 shrink-0 items-center gap-1.5">
                             {stageOptions.length > 0 && (
                               <Select
@@ -1049,7 +1121,7 @@ export function StudioAssetDetailDialog({
                                 </SelectContent>
                               </Select>
                             )}
-                            {subjectSlotEligible && focusKind && (
+                            {subjectSlotEligible && focusKind && (!characterPromptCatalog || kindSlotActive) && (
                             <button
                               type="button"
                               className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
@@ -1066,7 +1138,14 @@ export function StudioAssetDetailDialog({
                           )}
                           </div>
                         </div>
-                        {focusIsI2iFamily && focusKind && !subjectExpanded ? (
+                        {characterPromptCatalog ? (
+                          <StudioAssetCharacterPrompts
+                            catalog={characterPromptCatalog}
+                            stage={selectedStage}
+                            stageSelectorAvailable={stageOptions.length > 0}
+                            onOpenJson={() => setCharacterJsonOpen(true)}
+                          />
+                        ) : focusIsI2iFamily && focusKind && !subjectExpanded ? (
                           <button
                             type="button"
                             className="w-full rounded-md border border-border/60 bg-muted/30 px-2.5 py-2 text-left text-[11px] leading-4 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
@@ -1091,11 +1170,20 @@ export function StudioAssetDetailDialog({
                                 </button>
                               </div>
                             )}
+                            {subjectMirrorActive ? (
+                              <div
+                                className="text-[10px] leading-3 text-muted-foreground/80"
+                                title={`主体句随「阶段」选择取自角色真源 JSON(${characterJsonInfo?.relativePath ?? ""});要改内容请点「角色真源JSON」编辑保存`}
+                              >
+                                主体句随阶段取自真源JSON(只读镜像,编辑走「角色真源JSON」)
+                              </div>
+                            ) : null}
                             <Textarea
                               value={subjectValue}
                               onChange={(event) => handleSubjectChange(event.target.value)}
                               placeholder={kindSlotActive && focusKind ? `本型专用句(仅${focusKind}生成路生效;保存入库)` : "暂无出图提示词"}
                               className={`min-h-[96px] resize-none bg-muted/90 text-xs leading-5 ${focusIsI2iFamily ? "opacity-70" : ""}`}
+                              readOnly={subjectMirrorActive}
                             />
                           </>
                         )}
@@ -1255,6 +1343,12 @@ export function StudioAssetDetailDialog({
         open={sourcePromptOpen}
         onOpenChange={setSourcePromptOpen}
         initialKind={focusKind}
+      />
+      {/* 角色真源 JSON(10-26 用户令):完整展示+可编辑该角色真源文件;宿主关即卸 */}
+      <StudioAssetCharacterJsonDialog
+        open={open && characterJsonOpen}
+        characterName={asset.name}
+        onOpenChange={setCharacterJsonOpen}
       />
       {/* R5 生成结果弹窗(10-26 用户令:每次生成完成自动弹出)。挂载守卫=宿主开+有
           记录:宿主关后任何异步竞态漏网 setState 也零渲染(嵌套弹窗已知坑①) */}

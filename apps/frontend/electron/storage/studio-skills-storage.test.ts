@@ -293,3 +293,70 @@ describe("studio skills storage", () => {
     expect(() => resolveStoredStudioSkillPath(storageRoot, "images/icon.png")).toThrow("Invalid studio skill path");
   });
 });
+
+describe("character truth json editable domain (10-26 角色真源JSON)", () => {
+  it("syncs art_skills/<pkg>/json/<name>.json seeds while ignoring json/ 之外的包内 JSON", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    await writeText(path.join(sourceRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json"), '{"zh":"canon"}\n');
+    await writeText(path.join(sourceRoot, "art_skills/daojie_ink_guofeng/ma_sync/runtime-contract.json"), '{"x":1}\n');
+
+    await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+
+    await expect(
+      readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json"),
+    ).resolves.toBe('{"zh":"canon"}\n');
+    // ma_sync 契约 JSON 不在 json/ 子目录,不进同步域(契约钉文件不卷入用户编辑层)
+    await expect(
+      fs.access(path.join(storageRoot, "art_skills/daojie_ink_guofeng/ma_sync/runtime-contract.json")),
+    ).rejects.toThrow();
+  });
+
+  it("round-trips user edits on the storage copy and protects them from seed updates", async () => {
+    const root = await createTempRoot();
+    const sourceRoot = path.join(root, "source");
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+    const seedPath = path.join(sourceRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json");
+
+    await writeText(seedPath, '{"seed":1}\n');
+    await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+
+    // 用户编辑(经可编辑域写通道,路径放行后可写)
+    await writeStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json", '{"user":2}\n');
+    await expect(
+      readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json"),
+    ).resolves.toBe('{"user":2}\n');
+
+    // 种子侧变更 + 重新同步:用户改动静默保护,不被覆盖
+    await writeText(seedPath, '{"seed":3}\n');
+    resetStudioSkillsSyncState();
+    await ensureStudioSkillsSynced({ sourceRoot, storageRoot });
+    await expect(
+      readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json"),
+    ).resolves.toBe('{"user":2}\n');
+
+    // 恢复种子:回到内置版本
+    await restoreStoredStudioSkillFile({ sourceRoot, storageRoot }, "art_skills/daojie_ink_guofeng/json/晏燎.json");
+    await expect(
+      readStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json"),
+    ).resolves.toBe('{"seed":3}\n');
+  });
+
+  it("keeps rejecting root-level json, json/ 之外的包内 json and traversal paths", async () => {
+    const root = await createTempRoot();
+    const storageRoot = getStudioSkillStorageRoot(path.join(root, "storage"));
+
+    await expect(writeStoredStudioSkillText(storageRoot, "foo.json", "{}")).rejects.toThrow();
+    await expect(
+      writeStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/qi21_bases.json", "{}"),
+    ).rejects.toThrow();
+    await expect(writeStoredStudioSkillText(storageRoot, "../../evil.json", "{}")).rejects.toThrow();
+    await expect(writeStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/../../escape.json", "{}")).rejects.toThrow();
+
+    // 合法角色真源路径仍通(负例守卫不误伤正路)
+    const stat = await writeStoredStudioSkillText(storageRoot, "art_skills/daojie_ink_guofeng/json/晏燎.json", '{"ok":true}');
+    expect(stat.isFile()).toBe(true);
+  });
+});

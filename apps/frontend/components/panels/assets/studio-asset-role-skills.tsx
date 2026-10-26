@@ -54,6 +54,39 @@ function TypeBadge({ type }: { type: string | null }) {
   return <span className={`shrink-0 text-[10px] ${tone}`}>[{type}]</span>;
 }
 
+/** 术法条(10-26 折叠手感修:描述默认两行截断,点条展开全文——与人物提示词面板
+ *  同款交互;境界层箭头此前 2.5px 全灰不可感知,用户实录「没有折叠」)。 */
+function SkillEntry({ skill }: { skill: RoleSkill }) {
+  const [expanded, setExpanded] = useState(false);
+  const clamped = skill.description.length > 60;
+  return (
+    <button
+      type="button"
+      className="w-full rounded-md px-1 py-0.5 text-left transition-colors hover:bg-muted/50"
+      onClick={() => clamped && setExpanded((value) => !value)}
+      title={clamped ? (expanded ? "点击收起描述" : "点击展开完整描述") : undefined}
+      aria-expanded={clamped ? expanded : undefined}
+    >
+      <div className="flex min-w-0 items-baseline gap-1.5">
+        <span className="shrink-0 font-medium text-foreground">{skill.name}</span>
+        <TypeBadge type={skill.type} />
+        {skill.prerequisite && (
+          <span className="shrink-0 text-[10px] text-muted-foreground/70">
+            前置:{skill.prerequisite}
+          </span>
+        )}
+      </div>
+      {skill.description ? (
+        <p
+          className={`text-muted-foreground ${expanded || !clamped ? "" : "line-clamp-2"}`}
+        >
+          {skill.description}
+        </p>
+      ) : null}
+    </button>
+  );
+}
+
 export function StudioAssetRoleSkills({ skills }: { skills: string | undefined | null }) {
   const payloads = useMemo(() => parseRoleSkills(skills), [skills]);
   const [collapsedDaos, setCollapsedDaos] = useState<Set<string>>(new Set());
@@ -111,7 +144,7 @@ export function StudioAssetRoleSkills({ skills }: { skills: string | undefined |
             <div key={payload.dao} className="rounded-md border border-border/60 bg-background/40">
               <button
                 type="button"
-                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left"
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
                 onClick={() => toggleDao(payload.dao)}
                 aria-expanded={!daoCollapsed}
                 aria-label={`${payload.dao} 道途技能${daoCollapsed ? "展开" : "折叠"}`}
@@ -133,38 +166,27 @@ export function StudioAssetRoleSkills({ skills }: { skills: string | undefined |
                       <div key={key}>
                         <button
                           type="button"
-                          className="flex w-full items-center gap-1 rounded-md py-0.5 text-left"
+                          className="flex w-full items-center gap-1 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-muted/60"
                           onClick={() => toggleRealm(key)}
                           aria-expanded={expanded}
                           aria-label={`${payload.dao} ${realm ?? "未分组"}${expanded ? "折叠" : "展开"}`}
                         >
                           {expanded ? (
-                            <ChevronDown className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                            <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
                           ) : (
-                            <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                            <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
                           )}
-                          <span className="text-[11px] font-medium text-muted-foreground">
+                          <span className="text-[11px] font-medium text-foreground/90">
                             {realm ?? "未分组"}
                           </span>
-                          <span className="text-[10px] text-muted-foreground/60">{entries.length}</span>
+                          <span className="rounded border border-border/60 px-1 text-[10px] leading-4 text-muted-foreground">
+                            {entries.length}
+                          </span>
                         </button>
                         {expanded && (
                           <div className="space-y-1 pl-4">
                             {entries.map((skill) => (
-                              <div key={`${key}::${skill.name}`} className="text-[11px] leading-relaxed">
-                                <div className="flex min-w-0 items-baseline gap-1.5">
-                                  <span className="shrink-0 font-medium text-foreground">{skill.name}</span>
-                                  <TypeBadge type={skill.type} />
-                                  {skill.prerequisite && (
-                                    <span className="shrink-0 text-[10px] text-muted-foreground/70">
-                                      前置:{skill.prerequisite}
-                                    </span>
-                                  )}
-                                </div>
-                                {skill.description && (
-                                  <p className="text-muted-foreground">{skill.description}</p>
-                                )}
-                              </div>
+                              <SkillEntry key={`${key}::${skill.name}`} skill={skill} />
                             ))}
                           </div>
                         )}

@@ -32,6 +32,10 @@ export type StoredStudioSkillFile = {
 const manifestFilename = ".studio-skills-manifest.json";
 const agentSkillsDirectory = "agent_skills";
 const seedImageFilePattern = /\.(png|jpe?g|gif|webp|svg)$/i;
+// 角色真源 JSON 路径形(10-26 角色真源JSON役):art_skills/<技能包>/json/<角色名>.json。
+// 仅该子目录的 .json 进入技能存储同步/编辑域;ma_sync 契约、LoRA 台账等包内其他
+// JSON 不放开(避免把契约钉文件卷入用户编辑层)。
+const characterJsonPathPattern = /^art_skills\/[^/]+\/json\/[^/]+\.json$/;
 const blockedSeedDirectoryNames = new Set([
   ".cache",
   "__MACOSX",
@@ -326,7 +330,12 @@ function shouldSyncStudioSkillSeedFile(relativePath: string) {
   if (blockedSeedFileNames.has(filename)) return false;
   if (filename.endsWith(".tmp") || filename.endsWith(".bak")) return false;
   if (filename.endsWith(".map") || filename.endsWith(".tsbuildinfo")) return false;
-  return filename.endsWith(".md") || seedImageFilePattern.test(filename);
+  return (
+    filename.endsWith(".md") ||
+    seedImageFilePattern.test(filename) ||
+    // 角色真源 JSON(art_skills/<包>/json/<角色>.json)随 .md/图片进同步域
+    characterJsonPathPattern.test(relativePath)
+  );
 }
 
 async function readManifest(storageRoot: string): Promise<StudioSkillManifest> {
@@ -413,7 +422,8 @@ function normalizeEditableSkillPath(relativePath: string) {
     normalizedPath === "." ||
     normalizedPath.startsWith("../") ||
     normalizedPath.includes("/../") ||
-    !normalizedPath.endsWith(".md")
+    // 可编辑域 = .md 手册 + art_skills/<包>/json/ 角色真源 JSON;其余 .json 仍拒绝
+    !(normalizedPath.endsWith(".md") || characterJsonPathPattern.test(normalizedPath))
   ) {
     throw new Error("Invalid studio skill path");
   }
