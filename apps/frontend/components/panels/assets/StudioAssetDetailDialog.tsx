@@ -1259,10 +1259,6 @@ export function StudioAssetDetailDialog({
               {/* ② 图片规范区(垂直滚动主体:role 型节骨架/scene·tool 单节横行/audio 播报卡) */}
               {/* 10-26 横竖皆可(人物海报裁定):画幅取向会话开关+16:9 型构图约束提示 */}
               <div className="mb-1.5 flex items-center justify-between gap-2">
-                <div className="rounded-md border border-border bg-muted px-2 py-1 text-[10.5px] leading-4 text-muted-foreground">
-                  <div>· 美宣:横幅构图(半身/大场景气势,人物主体占比大)</div>
-                  <div>· 设定卡:版式格人物占比饱满,手脚完整可辨</div>
-                </div>
                 <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span>人物海报画幅</span>
                   <button

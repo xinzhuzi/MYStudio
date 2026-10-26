@@ -2,7 +2,6 @@ import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import {
-  ChevronDown,
   Loader2,
   Maximize2,
   Music2,
@@ -10,17 +9,10 @@ import {
   Sparkles,
   TextSearch,
   Trash2,
-  Wand2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import type { AssetImage, AssetImageKind, StudioAssetSummary } from "@/types/studio-assets";
 import {
   ASSET_IMAGE_KIND_ASPECTS,
@@ -30,7 +22,7 @@ import {
   type AssetImageTrack,
 } from "@/lib/studio/asset-image-kind";
 import { sortStageFirstThenInput } from "@/lib/studio/asset-stage-prompts";
-import { ASSET_TYPE_SHOT_PROFILES, getAssetTypeShotProfilesForTrack } from "@/lib/studio/asset-type-shot";
+import { ASSET_TYPE_SHOT_PROFILES } from "@/lib/studio/asset-type-shot";
 
 const waveformBars = [42, 68, 50, 84, 46, 72, 58, 92, 54, 76, 48, 66, 40, 60, 36, 70];
 
@@ -498,8 +490,6 @@ export function StudioAssetDetailPreviewPane({
   const completenessCount = (kind: AssetImageKind) => completenessGroups.get(kind)?.length ?? 0;
   // 批3 按型出图:型档案快查(节头钮/徽标装配用;高清人脸/表情差分既有路恒不收编)
   const typeShotProfileByKind = new Map(ASSET_TYPE_SHOT_PROFILES.map((profile) => [profile.kind as AssetImageKind, profile]));
-  // Round 3 ⑤:下拉按当前资产轨取谱(role 七型回归零变化;scene 四型/tool 两型)
-  const trackTypeShotProfiles = track ? getAssetTypeShotProfilesForTrack(track) : [];
 
   /** 完整度总览条(grill Round 1 裁定1 两行分级+Round 3 ⑤ 三轨同款):核心行逐型
    *  ✓/✗/n(role 五必备/scene 三核心/tool 一核心),缺失红色可点=直达该型生成(展示
@@ -525,44 +515,6 @@ export function StudioAssetDetailPreviewPane({
     <div className="studio-asset-completeness-bar sticky top-0 z-[1] space-y-1.5 rounded-md border border-border bg-background/95 px-3 py-2 backdrop-blur">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-foreground">图片规范完整度</span>
-        {/* 批3「按型出图」下拉(Round 3 ⑤ 按轨取谱):菜单项带画幅/透明徽标,型名单一参数派发 */}
-        {canTypeShot && onTypeShot && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="studio-asset-typeshot-trigger h-6 gap-1 px-2 text-[11px]"
-                disabled={generationBusy}
-                title={typeShotPhase ? (typeShotMessage || "按型出图进行中，请稍候") : `按型出图(${trackTypeShotProfiles.length} 型:画幅/透明徽标见菜单项)`}
-              >
-                {typeShotPhase ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Wand2 className="h-3 w-3" />
-                )}
-                按型出图
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="studio-asset-typeshot-menu">
-              {trackTypeShotProfiles.map((profile) => (
-                <DropdownMenuItem
-                  key={profile.kind}
-                  className="studio-asset-typeshot-item gap-2 text-xs"
-                  disabled={generationBusy}
-                  onClick={() => onTypeShot?.(profile.kind)}
-                >
-                  <span>{profile.kind}</span>
-                  <Badge variant="outline" className="ml-auto px-1.5 py-0 text-[10px] font-medium">{profile.aspect}</Badge>
-                  {profile.rgba && (
-                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-medium text-primary">透明</Badge>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
         {/* 批3 一键补缺顺序队列:缺失核心型逐型顺序补全(聚合相位,逐型完成落图) */}
         <Button
           variant="outline"
@@ -601,7 +553,7 @@ export function StudioAssetDetailPreviewPane({
               disabled={generationBusy}
               title={generationBusy ? "有生成任务正在进行，请稍候" : `缺失${kind}，点击生成`}
             >
-              {kind} ✗
+              <span className="inline-flex items-center gap-1">{kind}<span className="h-1.5 w-1.5 rounded-full bg-destructive" aria-label="缺图" /></span>
             </button>
           ) : (
             <span
@@ -612,7 +564,7 @@ export function StudioAssetDetailPreviewPane({
                   : "border-primary/30 bg-primary/5 text-foreground"
               }`}
             >
-              {kind} {missing ? "✗" : `✓${count}`}
+              {kind} {missing ? <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive" aria-label="缺图" /> : `×${count}`}
             </span>
           );
         })}
@@ -628,7 +580,7 @@ export function StudioAssetDetailPreviewPane({
               key={kind}
               className="studio-asset-completeness-chip studio-asset-completeness-chip-extended rounded-full border border-border/60 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground"
             >
-              {kind} {count > 0 ? count : "—"}
+              {kind} {count > 0 ? `×${count}` : <span className="inline-block h-1.5 w-1.5 rounded-full bg-destructive/70" aria-label="缺图" />}
             </span>
           );
         })}

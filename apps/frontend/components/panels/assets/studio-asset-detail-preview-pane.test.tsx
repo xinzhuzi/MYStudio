@@ -439,22 +439,23 @@ describe("StudioAssetDetailPreviewPane · 10-24 批2(分类归节+完整度总�
     expect(within(face).queryByLabelText("高清人脸缺失")).toBeNull();
   });
 
-  it("完整度总览条两行分级:核心缺失红 chip 可点直达,已齐 ✓n;扩展行灰占;一键补缺队列钮接线(批3)", () => {
+  it("完整度总览条两行分级:核心缺失红 chip 可点直达,已齐 ×n;扩展行灰占;一键补缺队列钮接线(批3)", () => {
     const fillMissing = vi.fn();
     const { props, container } = renderPane({ images: TYPED_IMAGES, onGenerateByKind: vi.fn(), onFillMissing: fillMissing });
 
-    // 核心行:多视图/海报/人脸已齐 ✓(海报=人物海报+海报双标记载体 ✓2);无衣物定妆/表情差分缺失红 chip 可点
-    expect(screen.getByText("人物多视图 ✓2")).toBeTruthy();
-    expect(screen.getByText("人物海报 ✓2")).toBeTruthy();
-    expect(screen.getByText("高清人脸 ✓1")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "无衣物定妆 ✗" }));
+    // 核心行:多视图/海报/人脸已齐 ✓(海报=人物海报+海报双标记载体 ×2);无衣物定妆/表情差分缺失红 chip 可点
+    expect(screen.getByText("人物多视图 ×2")).toBeTruthy();
+    expect(screen.getByText("人物海报 ×2")).toBeTruthy();
+    expect(screen.getByText("高清人脸 ×1")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /无衣物定妆/ }));
     expect(props.onGenerateByKind).toHaveBeenCalledWith("无衣物定妆");
-    fireEvent.click(screen.getByRole("button", { name: "表情差分 ✗" }));
+    fireEvent.click(screen.getByRole("button", { name: /表情差分/ }));
     expect(props.onGenerateByKind).toHaveBeenCalledWith("表情差分");
 
     // 扩展行:四型灰占(设定卡 —),非交互
-    expect(screen.getByText("设定卡 —")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "设定卡 —" })).toBeNull();
+    // 10-26 记法:扩展行缺图=型名+红点(无数字非按钮)
+    const extRow = document.querySelector(".studio-asset-completeness-extended-row") as HTMLElement | null;
+    expect(within(extRow as HTMLElement).getByText("设定卡")).toBeTruthy();
 
     // 批3 一键补缺队列钮:缺失核心型在场即启用,点击派发队列入口
     const fillAll = screen.getByRole("button", { name: "一键补缺" }) as HTMLButtonElement;
@@ -540,31 +541,13 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect((screen.getByRole("button", { name: "一键补缺" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("「按型出图」下拉:缺省隐藏,canTypeShot 时七型菜单项带画幅/透明徽标,点击派发型名", () => {
-    const hidden = renderPane({ images: [] });
-    expect(hidden.queryByRole("button", { name: /按型出图/ })).toBeNull();
-
-    cleanup();
+  it("「按型出图」下拉已删(10-26 用户令:与 chip 直达/分节按钮重复);节头钮仍按型派发", () => {
     const { props } = renderPane({ images: [], canTypeShot: true, onTypeShot: vi.fn() });
-    const trigger = screen.getByRole("button", { name: /按型出图/ }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(false);
-
-    // 菜单项(打桩直通渲染):七型各一项,画幅徽标齐,透明徽标按型档案(无衣物定妆=透明/美宣=无)
-    const menu = document.querySelector(".studio-asset-typeshot-menu");
-    expect(menu).toBeTruthy();
-    const menuScope = within(menu as HTMLElement);
-    const items = Array.from(menu?.querySelectorAll(".studio-asset-typeshot-item") ?? []);
-    expect(items.map((item) => item.textContent?.replace(/3:4|16:9|1:1|透明/g, "").trim()))
-      .toEqual([...SHOT_KINDS]);
-    const fullBodyItem = menuScope.getByRole("button", { name: /无衣物定妆/ });
-    expect(fullBodyItem.textContent).toContain("3:4");
-    expect(fullBodyItem.textContent).toContain("透明");
-    const promoItem = menuScope.getByRole("button", { name: /美宣/ });
-    expect(promoItem.textContent).toContain("16:9");
-    expect(promoItem.textContent).not.toContain("透明");
-
-    fireEvent.click(menuScope.getByRole("button", { name: /人物多视图/ }));
-    expect(props.onTypeShot).toHaveBeenCalledWith("人物多视图");
+    expect(screen.queryByRole("button", { name: /按型出图/ })).toBeNull();
+    // 节头生成钮仍在=onTypeShot 派发不丢
+    const sectionButton = screen.getAllByRole("button", { name: /生成|点击生成/ })[0];
+    if (sectionButton) fireEvent.click(sectionButton);
+    expect(props.onTypeShot).toHaveBeenCalled();
   });
 
   it("非图片三轨零侵入:clip 单节无节头生成钮/无下拉/无补缺钮(裁定 D 余量)", () => {
@@ -594,11 +577,13 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     expect(screen.getByText("图片规范完整度")).toBeTruthy();
     const sceneSection = screen.getByRole("region", { name: "场景" });
     expect(within(sceneSection).getByText("1 张")).toBeTruthy();
-    // 核心行=三核心(场景 ✓1 已齐;概念气氛图/3D剖面 缺失红态);扩展行=自由灰占
-    expect(screen.getByText("场景 ✓1")).toBeTruthy();
-    expect(screen.getByText("概念气氛图 ✗")).toBeTruthy();
-    expect(screen.getByText("3D剖面场景图 ✗")).toBeTruthy();
-    expect(screen.getByText("自由 —")).toBeTruthy();
+    // 核心行=三核心(场景 ×1 已齐;概念气氛图/3D剖面 缺失红态);扩展行=自由灰占
+    expect(screen.getByText("场景 ×1")).toBeTruthy();
+    const coreRow = document.querySelector(".studio-asset-completeness-core-row") as HTMLElement | null;
+    expect(within(coreRow as HTMLElement).getByText("概念气氛图")).toBeTruthy();
+    expect(within(coreRow as HTMLElement).getByText("3D剖面场景图")).toBeTruthy();
+    const extRow = document.querySelector(".studio-asset-completeness-extended-row") as HTMLElement | null;
+    expect(within(extRow as HTMLElement).getByText("自由")).toBeTruthy();
     // 核心空节红点+占位卡红角标(同款两行分级)
     expect(within(sceneSection).queryByLabelText("场景缺失")).toBeNull();
     const concept = screen.getByRole("region", { name: "概念气氛图" });
@@ -625,15 +610,10 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     const propSection = screen.getByRole("region", { name: "道具" });
     expect(within(propSection).getAllByText("透明").length).toBeGreaterThanOrEqual(1);
     expect(within(propSection).getByText("t2i")).toBeTruthy();
-    // 下拉按轨取谱=tool 两项(自由+道具,型档案序)
-    const menu = document.querySelector(".studio-asset-typeshot-menu");
-    const items = Array.from(menu?.querySelectorAll(".studio-asset-typeshot-item") ?? []);
-    expect(items.map((item) => item.textContent?.replace(/3:4|16:9|1:1|透明/g, "").trim()))
-      .toEqual(["自由", "道具"]);
-    // role 型谱项零泄漏(scene/tool 下拉不含 role 七型)
+    // 10-26:下拉已删;role 型零泄漏仍由分节守卫承担
     expect(screen.queryByRole("button", { name: /生成无衣物定妆/ })).toBeNull();
     // 完整度核心=道具一核心;一键补缺在位
-    expect(screen.getByText("道具 ✗")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /道具/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "一键补缺" })).toBeTruthy();
   });
 
@@ -650,10 +630,7 @@ describe("StudioAssetDetailPreviewPane · 10-24 批3(按型出图按钮族:节�
     const sceneButton = screen.getByRole("button", { name: "生成场景" }) as HTMLButtonElement;
     expect(sceneButton.disabled).toBe(true);
     expect(sceneButton.getAttribute("title")).toContain("先有场景图片");
-    const menu = document.querySelector(".studio-asset-typeshot-menu");
-    const items = Array.from(menu?.querySelectorAll(".studio-asset-typeshot-item") ?? []);
-    expect(items.map((item) => item.textContent?.replace(/3:4|16:9|1:1|透明/g, "").trim()))
-      .toEqual(["自由", "场景", "概念气氛图", "3D剖面场景图"]);
+    // 10-26:下拉已删(节头钮守卫仍验)
     fireEvent.click(sceneButton);
     expect(onTypeShot).not.toHaveBeenCalled();
   });
@@ -727,7 +704,7 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
     fireEvent.click(cta);
 
     // 完整度核心缺失 chip(表情差分):busy 禁用+title,点击零派发
-    const chip = screen.getByRole("button", { name: "表情差分 ✗" }) as HTMLButtonElement;
+    const chip = screen.getByRole("button", { name: /表情差分/ }) as HTMLButtonElement;
     expect(chip.disabled).toBe(true);
     expect(chip.getAttribute("title")).toContain("请稍候");
     fireEvent.click(chip);
@@ -753,26 +730,26 @@ describe("StudioAssetDetailPreviewPane · 批3 复审 H/M 修(五路互斥直达
     expect(within(multi).getByText("1 张")).toBeTruthy();
     expect(within(multi).getByRole("img", { name: "晏燎_筑基期_三视图_v1" })).toBeTruthy();
     // 完整度:本行无多视图 → 红 chip 可点直达(Q1:同型图不跨行抵扣缺口)
-    const chip = screen.getByRole("button", { name: "人物多视图 ✗" }) as HTMLButtonElement;
+    const chip = screen.getByRole("button", { name: /人物多视图/ }) as HTMLButtonElement;
     expect(chip.disabled).toBe(false);
     fireEvent.click(chip);
     expect(props.onGenerateByKind).toHaveBeenCalledWith("人物多视图");
     // 节头红点按本行基准在场(族兄弟图展示中仍示缺)
     expect(within(multi).getByLabelText("人物多视图缺失")).toBeTruthy();
-    // 已齐态不误伤:本行自有三视图 → 同型 chip ✓1(非缺失态)
+    // 已齐态不误伤:本行自有三视图 → 同型 chip ×1(非缺失态)
     cleanup();
     renderPane({
       images: [...OWN_IMAGES, { name: "晏燎_筑基期_三视图_v1", filePath: "role/sibling.png", url: "media://sibling" }],
       completenessImages: OWN_IMAGES,
     });
-    expect(screen.getByText("人物多视图 ✓1")).toBeTruthy();
-    expect(screen.getByText("高清人脸 ✓1")).toBeTruthy();
+    expect(screen.getByText("人物多视图 ×1")).toBeTruthy();
+    expect(screen.getByText("高清人脸 ×1")).toBeTruthy();
   });
 
   it("复审M 缺省回落:不传 completenessImages 时完整度按 images 计(非族聚显调用方零变化)", () => {
     renderPane({ images: OWN_IMAGES, onGenerateByKind: vi.fn() });
 
-    expect(screen.getByText("人物多视图 ✓1")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "无衣物定妆 ✗" })).toBeTruthy();
+    expect(screen.getByText("人物多视图 ×1")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /无衣物定妆/ })).toBeTruthy();
   });
 });
