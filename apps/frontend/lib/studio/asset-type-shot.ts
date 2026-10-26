@@ -61,6 +61,12 @@ export interface AssetTypeShotProfile {
   route: AssetTypeShotRoute;
   /** i2i 路指令(Phase 2 瘦身态:保真段+差异要点;取景语言归还型层)。 */
   i2iInstruction?: string;
+  /**
+   * 构图约束句(10-26 用户令「美宣/设定卡 16:9 主体句换横幅构图语言」):
+   * 写句层约束真源(示例句手册同款纪律),发车不注入(取景/构图语言归型层,
+   * 指令槽零取景词防双写——本文件 Phase 2 纪律);UI 透出(主体句写作提示)候令。
+   */
+  compositionRule?: string;
 }
 
 /**
@@ -126,6 +132,8 @@ export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
     aspect: ASSET_IMAGE_KIND_ASPECTS["设定卡"],
     rgba: false,
     route: "t2i",
+    // 10-26 用户令(设定卡变体):三视图格固有全身禁半身化,落「格内占比饱满+手脚可辨」
+    compositionRule: "版式格人物主体占比饱满,手脚完整可辨(三视图固有全身,禁半身化)",
   },
   {
     kind: "美宣",
@@ -133,6 +141,8 @@ export const ASSET_TYPE_SHOT_PROFILES: readonly AssetTypeShotProfile[] = [
     aspect: ASSET_IMAGE_KIND_ASPECTS["美宣"],
     rgba: false,
     route: "t2i",
+    // 10-26 用户令:16:9 横幅构图语言(半身特写/大场景气势),全身立绘归 3:4 海报路
+    compositionRule: "横幅构图:半身特写或大场景气势立势,人物主体占比大,双手清晰醒目",
   },
   {
     kind: "场景",
