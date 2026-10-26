@@ -1,0 +1,715 @@
+{
+ "id": "82328598-5c8d-45d2-bfde-cc33ea9cf6b3",
+ "revision": 1,
+ "last_node_id": 110,
+ "last_link_id": 13,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "UNETLoader",
+   "pos": [
+    100,
+    100
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UNETLoader"
+   },
+   "widgets_values": [
+    "moss_image_sft_bf16.safetensors",
+    "default"
+   ],
+   "widgets_values_named": {
+    "unet_name": "moss_image_sft_bf16.safetensors",
+    "weight_dtype": "default"
+   },
+   "title": "[1] MOSS SFT 底模"
+  },
+  {
+   "id": 2,
+   "type": "CLIPLoader",
+   "pos": [
+    100,
+    700
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      2,
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "widgets_values": [
+    "qwen3.5_9b_bf16.safetensors",
+    "moss_image",
+    "default"
+   ],
+   "widgets_values_named": {
+    "clip_name": "qwen3.5_9b_bf16.safetensors",
+    "type": "moss_image",
+    "device": "default"
+   },
+   "title": "[2] MOSS 文本编码器"
+  },
+  {
+   "id": 3,
+   "type": "VAELoader",
+   "pos": [
+    1930,
+    560
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "flux2-vae.safetensors"
+   ],
+   "widgets_values_named": {
+    "vae_name": "flux2-vae.safetensors"
+   },
+   "title": "[3] FLUX.2 VAE"
+  },
+  {
+   "id": 10,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    660,
+    100
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "MOSS-SFT-DMD-8step-lodestones.safetensors",
+    1.0
+   ],
+   "widgets_values_named": {
+    "lora_name": "KOOK-MOSS-SFT-观澜.safetensors",
+    "strength_model": 1.0
+   },
+   "title": "[10] 观澜 LoRA(可旁路)"
+  },
+  {
+   "id": 20,
+   "type": "SkipLayerGuidanceDiTSimple",
+   "pos": [
+    1220,
+    100
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 4
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SkipLayerGuidanceDiTSimple"
+   },
+   "widgets_values": [
+    "22",
+    "22",
+    0.0,
+    0.0
+   ],
+   "widgets_values_named": {
+    "double_layers": "22",
+    "single_layers": "22",
+    "start_percent": 0.0,
+    "end_percent": 0.5
+   },
+   "title": "[20] SLG 跳层引导"
+  },
+  {
+   "id": 100,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    660,
+    500
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "<占位:见 MarkdownNote,发车注入>"
+   ],
+   "widgets_values_named": {
+    "value": "<占位:见 MarkdownNote,发车注入>"
+   },
+   "title": "[100] 正向提示词"
+  },
+  {
+   "id": 101,
+   "type": "PrimitiveStringMultiline",
+   "pos": [
+    660,
+    980
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "PrimitiveStringMultiline"
+   },
+   "widgets_values": [
+    "nsfw, worst quality, bad anatomy, watermark, jpeg artifact"
+   ],
+   "widgets_values_named": {
+    "value": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact"
+   },
+   "title": "[101] 负向提示词(官方)"
+  },
+  {
+   "id": 4,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1370,
+    600
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": 6
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [],
+   "widgets_values_named": {},
+   "title": "[4] 正向编码"
+  },
+  {
+   "id": 5,
+   "type": "CLIPTextEncode",
+   "pos": [
+    1370,
+    1000
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 3
+    },
+    {
+     "name": "text",
+     "type": "STRING",
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [],
+   "widgets_values_named": {},
+   "title": "[5] 负向编码"
+  },
+  {
+   "id": 6,
+   "type": "EmptyFlux2LatentImage",
+   "pos": [
+    1370,
+    1300
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyFlux2LatentImage"
+   },
+   "widgets_values": [
+    1024,
+    1280,
+    1
+   ],
+   "widgets_values_named": {
+    "width": 1024,
+    "height": 1280,
+    "batch_size": 1
+   },
+   "title": "[6] 空Latent(MOSS)"
+  },
+  {
+   "id": 7,
+   "type": "KSampler",
+   "pos": [
+    1900,
+    100
+   ],
+   "size": [
+    340,
+    320
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 5
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 9
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 10
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    10250001,
+    "fixed",
+    4,
+    1.0,
+    "euler",
+    "simple",
+    1.0
+   ],
+   "widgets_values_named": {
+    "seed": 10250001,
+    "steps": 25,
+    "cfg": 3.0,
+    "sampler_name": "er_sde",
+    "scheduler": "simple",
+    "denoise": 1.0
+   },
+   "title": "[7] K采样器"
+  },
+  {
+   "id": 8,
+   "type": "VAEDecode",
+   "pos": [
+    2460,
+    100
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 12
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": [],
+   "widgets_values_named": {},
+   "title": "[8] VAE 解码"
+  },
+  {
+   "id": 9,
+   "type": "SaveImage",
+   "pos": [
+    3000,
+    100
+   ],
+   "size": [
+    340,
+    120
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "moss/t2i-1025"
+   ],
+   "widgets_values_named": {
+    "filename_prefix": "moss/t2i-1025"
+   },
+   "title": "[9] 存图"
+  },
+  {
+   "id": 110,
+   "type": "MarkdownNote",
+   "pos": [
+    100,
+    1700
+   ],
+   "size": [
+    620,
+    420
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "MarkdownNote"
+   },
+   "widgets_values": [
+    "【MOSS DMD 4步加速线·草稿专用】\n链:UNET→DMD@1.0(node10)→SLG(end=0 直通)→KSampler\n参数铁律:euler+4步+CFG1.0;>1024 分辨率改 6-8 步;SLG end 恒 0\n严禁 25-50步/高CFG(糊);风格 LoRA(观澜@0.6)经发车器动态注入,本画布单槽\n依赖:loras/MOSS-SFT-DMD-8step-lodestones.safetensors(1.19GB,Apache-2.0)\n实测:1328×1776≈30s/发(25步线 258s 的 1/8.6);役=moss-win-campaign-1026/PLAN-4"
+   ],
+   "widgets_values_named": {
+    "text": "## MOSS-Image 文生图(moss-win-campaign-1025 役件)\n\n来源:B站 BV149nm6PE2e 复刻档(视频帧证据)+四路侦察(10-25);官方 Comfy-Org/MOSS-Image bf16 权重(Apache-2.0)。\n**引擎要求 ≥v0.42.4(commit 3f438ca)**:CLIPLoader type=moss_image 始于此版;升级走 fetch+reset --hard origin/master(先记回滚 hash)。\n\n### 模型链四件套(models 落位名)\n- [1] diffusion_models/moss_image_sft_bf16.safetensors(10.16GB)\n- [2] text_encoders/qwen3.5_9b_bf16.safetensors(19.31GB,CLIP type=moss_image)\n- [3] vae/flux2-vae.safetensors(336MB)\n- [10] loras/KOOK-MOSS-SFT-观澜.safetensors(观澜 LoRA,strength 1.0)\n\n### 采样档(视频逐字复刻)\n25 步 / CFG 3.0 / er_sde / simple / denoise 1.0;SLG 跳层引导 double=22/single=22/start=0/end=0.5(视频帧实证)。er_sde 为引擎真名(Mac 0.38 源码+master+0.41.1 实机三验);若升级后枚举无此名,发车脚本自动回退 euler 并记 receipt。\n\n### LoRA 旁路法(对拍 off 臂)\n删 [10] 观澜 LoRA,把 [20].model 改接 [1](MODEL 直连);发车脚本 --lora off 自动执行。\n\n### 负面词(官方 USERGUIDE 逐字)\nnsfw, worst quality, bad anatomy, watermark, jpeg artifact\n\n### 用法\n[100] 正向提示词为占位——发车脚本 moss_fire_win.py 注入全文终稿(勿在本件手贴长文);seed 默认 10250001 fixed,对拍两臂须同值。出图 RGB 不透明(alpha 门禁>1%=废片)。役号 moss-win-campaign-1025。"
+   },
+   "title": "[110] 用法速查",
+   "color": "#432",
+   "bgcolor": "#653"
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   10,
+   0,
+   "MODEL"
+  ],
+  [
+   2,
+   2,
+   0,
+   4,
+   1,
+   "CLIP"
+  ],
+  [
+   3,
+   2,
+   0,
+   5,
+   0,
+   "CLIP"
+  ],
+  [
+   4,
+   10,
+   0,
+   20,
+   0,
+   "MODEL"
+  ],
+  [
+   5,
+   20,
+   0,
+   7,
+   0,
+   "MODEL"
+  ],
+  [
+   6,
+   100,
+   0,
+   4,
+   0,
+   "STRING"
+  ],
+  [
+   7,
+   101,
+   0,
+   5,
+   1,
+   "STRING"
+  ],
+  [
+   8,
+   3,
+   0,
+   8,
+   1,
+   "VAE"
+  ],
+  [
+   9,
+   4,
+   0,
+   7,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   10,
+   5,
+   0,
+   7,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   6,
+   0,
+   7,
+   3,
+   "LATENT"
+  ],
+  [
+   12,
+   7,
+   0,
+   8,
+   0,
+   "LATENT"
+  ],
+  [
+   13,
+   8,
+   0,
+   9,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "definitions": {
+  "subgraphs": []
+ },
+ "config": {},
+ "extra": {
+  "mossTaskOwner": "moss-win-campaign-1025",
+  "ds": {
+   "scale": 0.8,
+   "offset": [
+    100,
+    100
+   ]
+  }
+ },
+ "version": 0.4
+}
