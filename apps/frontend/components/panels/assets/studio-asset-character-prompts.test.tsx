@@ -40,13 +40,10 @@ describe("StudioAssetCharacterPrompts", () => {
     expect(screen.getAllByText("图生图")).toHaveLength(2);
   });
 
-  it("无阶段选择渲染引导文案不渲染境条目", () => {
+  it("无阶段选择只显基底组(引导提示已按 10-26 令删除)", () => {
     render(<StudioAssetCharacterPrompts catalog={catalog} stage={null} onOpenJson={() => {}} />);
-    expect(screen.getByText(/选择上方「阶段」/)).toBeTruthy();
-    // 选择器不在场时引导文案切换(不误导用户找不存在的选择器)
-    cleanup();
-    render(<StudioAssetCharacterPrompts catalog={catalog} stage={null} stageSelectorAvailable={false} onOpenJson={() => {}} />);
-    expect(screen.getByText(/阶段选择器未显示/)).toBeTruthy();
+    expect(screen.queryByText(/选择上方「阶段」/)).toBeNull();
+    expect(screen.queryByText(/阶段选择器未显示/)).toBeNull();
     expect(screen.queryByText("筑基期·独立主体词")).toBeNull();
     expect(screen.getByText("人脸基准")).toBeTruthy();
   });

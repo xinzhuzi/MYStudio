@@ -1146,7 +1146,6 @@ export function StudioAssetDetailDialog({
                           <StudioAssetCharacterPrompts
                             catalog={characterPromptCatalog}
                             stage={selectedStage}
-                            stageSelectorAvailable={stageOptions.length > 0}
                             onOpenJson={() => setCharacterJsonOpen(true)}
                           />
                         ) : focusIsI2iFamily && focusKind && !subjectExpanded ? (
@@ -1227,18 +1226,18 @@ export function StudioAssetDetailDialog({
               {/* ② 图片规范区(垂直滚动主体:role 型节骨架/scene·tool 单节横行/audio 播报卡) */}
               {/* 10-26 横竖皆可(人物海报裁定):画幅取向会话开关+16:9 型构图约束提示 */}
               <div className="mb-1.5 flex items-center justify-between gap-2">
-                <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1 text-[10.5px] leading-4 text-stone-500">
+                <div className="rounded-md border border-border bg-muted px-2 py-1 text-[10.5px] leading-4 text-muted-foreground">
                   <div>· 美宣:横幅构图(半身/大场景气势,人物主体占比大)</div>
                   <div>· 设定卡:版式格人物占比饱满,手脚完整可辨</div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-stone-500">
+                <div className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span>人物海报画幅</span>
                   <button
                     type="button"
                     onClick={() => setPosterLandscape((v) => !v)}
                     className={posterLandscape
-                      ? "rounded border border-amber-600/60 bg-amber-50 px-1.5 py-0.5 font-medium text-amber-800"
-                      : "rounded border border-stone-300 px-1.5 py-0.5 text-stone-500"}
+                      ? "rounded-md border border-primary/50 bg-primary/10 px-1.5 py-0.5 font-medium text-primary"
+                      : "rounded-md border border-border px-1.5 py-0.5 text-muted-foreground"}
                   >
                     {posterLandscape ? "横幅 16:9" : "竖幅 3:4(跟型)"}
                   </button>

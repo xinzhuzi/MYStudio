@@ -64,14 +64,11 @@ function PromptCard({ entry }: { entry: CharacterPromptEntry }) {
 export function StudioAssetCharacterPrompts({
   catalog,
   stage,
-  stageSelectorAvailable = true,
   onOpenJson,
 }: {
   catalog: CharacterPromptCatalog;
-  /** 当前「阶段」选择(null=「无」→ 只显基底组+引导)。 */
+  /** 当前「阶段」选择(null=「无」→ 只显基底组)。 */
   stage: string | null | undefined;
-  /** 阶段选择器是否在场(<2 聚类阶段时弹窗不渲染选择器;引导文案随之切换)。 */
-  stageSelectorAvailable?: boolean;
   onOpenJson: () => void;
 }) {
   const realm = findCharacterPromptRealm(catalog, stage);
@@ -106,13 +103,7 @@ export function StudioAssetCharacterPrompts({
             ))}
           </div>
         </div>
-      ) : (
-        <div className="rounded-md border border-dashed border-border/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-          {stageSelectorAvailable
-            ? "选择上方「阶段」可查看该境的正视图/海报/三视图等指令(每境五条,均标注路由)。"
-            : "该角色暂无带阶段标记的图片,阶段选择器未显示;各境指令可在「角色真源JSON」中查看。"}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }
