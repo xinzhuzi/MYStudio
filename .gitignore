@@ -60,6 +60,8 @@ docs/*/**
 !docs/assets/art-styles.en.md
 !docs/krea2.md
 !docs/comfyui-kb/**
+# Hermes 研究参考文档集（10-27 记忆系统两役产物：初版+详解版+七章+08-17 历史）
+!docs/Hermes/**
 # 09-13 用户裁定：工程文档目录整体纳入版本控制（此前未跟踪导致修正静默漂移）
 !docs/engineering/**
 # ComfyUI 用户文档（本地模型页 + 引擎卡）随工程文档同级纳入
