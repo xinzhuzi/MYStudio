@@ -266,3 +266,9 @@ contextBridge.exposeInMainWorld('shotKeyframes', {
     ipcRenderer.invoke('shot-video-probe', payload),
 })
 
+
+// 10-27 H3 双通道 P2a:批量防休眠桥(N3——powerSaveBlocker prevent-app-suspension)
+contextBridge.exposeInMainWorld('h3BatchPowerSave', {
+  start: () => ipcRenderer.invoke('h3-power-save-start'),
+  stop: () => ipcRenderer.invoke('h3-power-save-stop'),
+})

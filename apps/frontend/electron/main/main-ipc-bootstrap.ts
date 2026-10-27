@@ -12,6 +12,7 @@ import { registerStudioContentIpcHandlers } from '../ipc/assets/studio-content-i
 import { registerProjectFolderIpcHandlers } from '../ipc/projects/project-folder-ipc'
 import { registerAppUpdaterIpcHandlers } from '../ipc/app/app-updater-ipc'
 import { registerAppShellIpcHandlers } from '../ipc/app/app-shell-ipc'
+import { registerPowerSaveIpcHandlers } from '../ipc/app/power-save-ipc'
 import { registerSecureStorageIpcHandlers } from '../ipc/app/secure-storage-ipc'
 import { cancelScheduledC1Relaunch, registerC1PurgeIpcHandlers } from './c1-purge-controller'
 import { registerDiagnosticsIpcHandlers } from '../ipc/diagnostics/diagnostics-ipc'
@@ -76,6 +77,9 @@ registerAppUpdaterIpcHandlers({
 })
 
 registerAppShellIpcHandlers({ resolveSourcePath: resolveStudioSourcePath })
+
+// 10-27 H3 双通道 P2a:批量防休眠(N3 过夜批生死线——空闲休眠杀引擎即断批)
+registerPowerSaveIpcHandlers()
 
 // 0924 C1 专项:safeStorage 三通道(API 密钥落盘加密),无上下文依赖,随处可注册
 registerSecureStorageIpcHandlers()

@@ -542,6 +542,12 @@ declare global {
         streams: string[];
       }>;
     };
+    /** 10-27 H3 双通道 P2a:批量防休眠桥(N3——powerSaveBlocker prevent-app-suspension;
+     *  只防空闲自动休眠,防不了手动合盖)。preload 未注入时缺省可选(单测环境)。 */
+    h3BatchPowerSave?: {
+      start: () => Promise<{ started: boolean; id: number; alreadyRunning?: boolean }>;
+      stop: () => Promise<{ started: boolean }>;
+    };
     /** 单镜截帧与视频元数据探测(09-15 teman-absorption P1a/P1b):
      *  抽帧走主进程 ffmpeg,帧图入项目数据区;probeVideo 供 A/B 对比器判帧对齐。 */
     shotKeyframes?: {
