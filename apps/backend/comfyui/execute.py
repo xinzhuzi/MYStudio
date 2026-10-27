@@ -4,7 +4,8 @@
     {"graph": {nodeId: {"class_type": str, "inputs": {...}}},
      "inputs": {"strings": {"nodeId.inputKey": "文本"},
                 "images": [{"key": "nodeId.inputKey", "name": "x.png", "b64": "..."}]},
-     "timeoutS": 300.0}   # 可选;音频整曲类长任务可放宽,上限 MAX_EXECUTE_TIMEOUT_S
+     "timeoutS": 300.0,        # 可选;长任务可放宽,上限 MAX_EXECUTE_TIMEOUT_S
+     "extraPngInfo": {...}}    # 可选;UI 格式工作流附件,在场时并入 /prompt 的 extra_data.extra_pnginfo
 
 流程:图校验 → 图片 b64 上传引擎(/upload/image)→ 字符串注入对应 widget →
 引擎 /prompt 提交 → /history 轮询(超时默认 300s,payload.timeoutS 可放宽)→
@@ -32,8 +33,9 @@ from comfyui.engine_manager import EngineOpError, jobs
 
 # 执行总超时(排队+执行+收图;本地大图工作流可达分钟级,照桥 600s 收紧到 300s)
 EXECUTE_TIMEOUT_S = 300.0
-# 音频整曲类长任务(YuE2 BGM 等)经 payload.timeoutS 放宽的上限
-MAX_EXECUTE_TIMEOUT_S = 1200.0
+# 长任务经 payload.timeoutS 放宽的上限:2700s 罩住 H3 视频档
+# (960P 单镜实测 21min+冷启 4min+余量,10-27 D2 裁定;YuE2 音频整曲同罩内)
+MAX_EXECUTE_TIMEOUT_S = 2700.0
 HISTORY_POLL_INTERVAL_S = 1.0
 # object_info 单类详情的 COMBO 选项截断上限(模型清单等长列表防几 MB 载荷)
 OBJECT_INFO_MAX_OPTIONS = 500
@@ -198,6 +200,21 @@ def validate_execute_request(payload: dict[str, Any]) -> tuple[dict[str, Any], d
     return graph, strings, raw_images
 
 
+def validate_extra_png_info(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """payload.extraPngInfo → UI 格式工作流附件(缺省 None;在场必须非空 dict)。
+
+    附件透传引擎 /prompt 的 extra_data.extra_pnginfo(10-27 H3 双通道 D1 裁定):
+    MyShot.run 读 extra_pnginfo["workflow"]["nodes"] 里本节点 properties 定回写
+    归属项目,纯 API 直发不带附件=收不回;引擎自家前端 queuePrompt 即此通道。
+    """
+    raw = payload.get("extraPngInfo")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError("extraPngInfo 必须是非空对象")
+    return raw
+
+
 def _split_injection_key(key: str) -> tuple[str, str]:
     parts = key.split(".", 1)
     if len(parts) != 2 or not parts[0] or not parts[1]:
@@ -265,11 +282,12 @@ def execute_job(payload: dict[str, Any]) -> str:
     """提交执行 job(进度:上传/排队/执行中/收图);返回 jobId。"""
     graph, strings, images = validate_execute_request(payload)
     timeout_s = resolve_execute_timeout_s(payload)
+    extra_png_info = validate_extra_png_info(payload)
     # 按需启动(09-08 补口):工作流节点/子图运行前,引擎装了没跑→先拉起
     from comfyui import engine_manager as _em
     _em.engine_manager().ensure_engine_ready()
     job_id = jobs.create("comfy-execute", "准备执行 ComfyUI 工作流")
-    jobs.start(job_id, lambda jid: _execute_target(jid, graph, strings, images, timeout_s))
+    jobs.start(job_id, lambda jid: _execute_target(jid, graph, strings, images, timeout_s, extra_png_info))
     return job_id
 
 
@@ -279,6 +297,7 @@ def _execute_target(
     strings: dict[str, str],
     images: list[dict[str, Any]],
     timeout_s: float = EXECUTE_TIMEOUT_S,
+    extra_png_info: dict[str, Any] | None = None,
 ) -> None:
     try:
         # 1. 上传(逐张推进度;无图直过)
@@ -300,7 +319,10 @@ def _execute_target(
         # 3. 提交(/prompt;400 体带 node_errors 翻译成大白话)
         jobs.update(job_id, progress=30, step="queue", message="提交工作流到引擎…")
         client_id = uuid.uuid4().hex
-        submitted = _http_json("POST", f"{_engine_url()}/prompt", {"prompt": graph, "client_id": client_id}, timeout=30)
+        prompt_body: dict[str, Any] = {"prompt": graph, "client_id": client_id}
+        if extra_png_info is not None:
+            prompt_body["extra_data"] = {"extra_pnginfo": extra_png_info}
+        submitted = _http_json("POST", f"{_engine_url()}/prompt", prompt_body, timeout=30)
         node_errors = submitted.get("node_errors")
         prompt_id = submitted.get("prompt_id")
         if not isinstance(prompt_id, str) or not prompt_id.strip():

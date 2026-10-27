@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { assertH3TemplateIntegrity, buildShotH3RefWorkflow, buildShotH3Workflow } from "./h3-shot-video-workflow";
+import apiTemplate from "./h3-shot-template.api.json";
+import { H3_WORKFLOW_RECIPES, batchDispatchableH3Recipes } from "./h3-workflow-recipes";
+import { assertH3TemplateIntegrity, buildShotH3ApiWorkflow, buildShotH3RefWorkflow, buildShotH3Workflow } from "./h3-shot-video-workflow";
+
+const api = apiTemplate as unknown as Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 
 function makeShot(overrides: Record<string, unknown> = {}) {
   return {
@@ -130,6 +134,156 @@ describe("buildShotH3Workflow", () => {
     const prompt = String(nodeWidgets(result.ui, 14)[0]);
     expect(prompt).toContain("Push In");
     expect(prompt).toContain("近景");
+  });
+});
+
+describe("h3-shot-template.api.json 契约(PRD §5.1,1027 API 化脚本产物)", () => {
+  it("API 节点数=27(31 UI 节点 − 4 MarkdownNote;MarkdownNote 为 UI 专属节点不在 object_info)", () => {
+    expect(Object.keys(api)).toHaveLength(27);
+    expect(Object.keys(api).map(Number).sort((a, b) => a - b)).toEqual([
+      2, 3, 4, 6, 7, 8, 9, 13, 14, 16, 17, 20, 21, 22, 23, 26, 29, 33, 34, 36, 37, 40, 41, 42, 43, 48, 100,
+    ]);
+  });
+
+  it("锚字段在位且类型对(实锚:14 文本锚=value 非 text;20.value 为 number)", () => {
+    expect(api["14"].class_type).toBe("PrimitiveStringMultiline");
+    expect(api["14"].inputs.value).toEqual(expect.any(String));
+    expect(api["20"].class_type).toBe("PrimitiveFloat");
+    expect(api["20"].inputs.value).toEqual(expect.any(Number));
+    expect(api["9"].class_type).toBe("LoadImage");
+    expect(api["9"].inputs.image).toEqual(expect.any(String));
+    expect(api["4"].class_type).toBe("SaveVideo");
+    expect(api["4"].inputs.filename_prefix).toEqual(expect.any(String));
+    expect(api["100"].class_type).toBe("MyShot");
+    expect(api["16"].class_type).toBe("MiniMaxH3ImageToVideo");
+  });
+
+  it("生成链与回收链在位:16 吃 14/9/23,MyShot video 直连 SaveVideo(组装器 connectVideoWriteback 同源)", () => {
+    expect(api["16"].inputs.prompt).toEqual(["14", 0]);
+    expect(api["16"].inputs.first_frame).toEqual(["9", 0]);
+    expect(api["16"].inputs.length).toEqual(["23", 1]);
+    expect("width" in api["16"].inputs).toBe(true);
+    expect("height" in api["16"].inputs).toBe(true);
+    expect(api["100"].inputs.video).toEqual(["4", 0]);
+    for (const key of ["shot_id", "label", "description", "media_status"]) {
+      expect(key in api["100"].inputs).toBe(true);
+    }
+  });
+});
+
+describe("buildShotH3ApiWorkflow(PRD §5.2 C3 标量出厂直填,通道B 批量派发真身)", () => {
+  it("apiGraph 出厂直填与画布档逐字同源(prompt/prefix/imageName/MyShot 四字段/report)", () => {
+    const result = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "chapter-001", chapterLabel: "第一章 雨夜", originProjectId: "project-a" });
+    const uiNodes = result.uiWorkflow.nodes as Array<{ id: number; widgets_values?: unknown[]; properties?: Record<string, unknown> }>;
+    const uiWidget = (id: number) => uiNodes.find((node) => node.id === id)?.widgets_values?.[0];
+
+    expect(result.apiGraph["14"].inputs.value).toBe(uiWidget(14));
+    expect(String(result.apiGraph["14"].inputs.value)).toContain("integrated_multimodal_description:");
+    expect(result.apiGraph["20"].inputs.value).toBe(124 / 24);
+    expect(typeof result.apiGraph["20"].inputs.value).toBe("number");
+    expect(result.apiGraph["4"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ambient");
+    expect(String(result.apiGraph["4"].inputs.filename_prefix).split("/")).toHaveLength(5);
+    expect(result.apiGraph["9"].inputs.image).toBe("my-shot-h3-sb-chapter-001-001.jpg");
+    expect(result.apiGraph["100"].inputs).toMatchObject({
+      shot_id: "sb-chapter-001-001",
+      label: "S01",
+      description: "雨夜中的石桥",
+      media_status: "图✓",
+      video: ["4", 0],
+    });
+    expect(result.report).toMatchObject({ shot: 1, frames: 124, policy: "ambient" });
+    // uiWorkflow=画布档同源 UI 图,MyShot properties 三键已注入(直接作 extraPngInfo.workflow 附件)
+    expect(uiNodes.find((node) => node.id === 100)?.properties).toMatchObject({
+      myOriginProjectId: "project-a",
+      myPreview: "my-shot-h3-sb-chapter-001-001.jpg",
+      myOriginEpisodeId: "chapter-001",
+    });
+  });
+
+  it("宽高随档直填:缺省 960p=1344×768,480p=608×352(覆盖出厂 ResolutionSelector link,N11)", () => {
+    const nine = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章" });
+    expect(nine.apiGraph["16"].inputs.width).toBe(1344);
+    expect(nine.apiGraph["16"].inputs.height).toBe(768);
+    const four = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", resolutionTier: "480p" });
+    expect(four.apiGraph["16"].inputs.width).toBe(608);
+    expect(four.apiGraph["16"].inputs.height).toBe(352);
+    // 克隆出厂:两次组装互不污染
+    expect(nine.apiGraph["16"].inputs.width).toBe(1344);
+  });
+
+  it("images 通道:带 b64 恰一项 9.image;无 b64 空数组且 9 节点填占位名", () => {
+    const withB64 = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", firstFrameB64: "aGVsbG8=" });
+    expect(withB64.images).toEqual([{ key: "9.image", name: "my-shot-h3-sb-chapter-001-001.jpg", b64: "aGVsbG8=" }]);
+    const noB64 = buildShotH3ApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章" });
+    expect(noB64.images).toEqual([]);
+    expect(noB64.apiGraph["9"].inputs.image).toBe("my-shot-h3-sb-chapter-001-001.jpg");
+  });
+
+  it("文案自检门失败抛大白话错误(mock 改写环节吞词,同画布档口径)", async () => {
+    vi.resetModules();
+    vi.doMock("./h3-shot-prompt", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("./h3-shot-prompt")>();
+      return {
+        ...actual,
+        buildShotH3Prompt: () => ({ prompt: "integrated_multimodal_description: 场景描述(台词被改写环节吞掉)", seconds: 5, lengthFrames: 124 }),
+      };
+    });
+    try {
+      const { buildShotH3ApiWorkflow: buildMocked } = await import("./h3-shot-video-workflow");
+      const shot = makeShot({ lines: "甲：先走。", index: 3 });
+      expect(() => buildMocked({ shot, chapterId: "chapter-001", chapterLabel: "第一章", policy: "full" })).toThrow(/文案逐字自检未通过.*S03.*「先走。」/);
+    } finally {
+      vi.doUnmock("./h3-shot-prompt");
+    }
+  });
+});
+
+describe("H3 工作流注册表(PRD §4,可切换核心;C1 二态+resolutionTiers 数组)", () => {
+  it("id 唯一", () => {
+    const ids = H3_WORKFLOW_RECIPES.map((recipe) => recipe.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("ready 件必备 apiTemplate+myShot 锚+非空 resolutionTiers", () => {
+    for (const recipe of H3_WORKFLOW_RECIPES) {
+      if (recipe.status !== "ready") continue;
+      expect(recipe.apiTemplate).toBeTruthy();
+      expect(recipe.anchors?.myShot).toBeTruthy();
+      expect(recipe.resolutionTiers.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("批量可派发集合只含 ready 件(needs-adaptation/unverified/cloud-paid 一律不入)", () => {
+    const batch = batchDispatchableH3Recipes();
+    expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31"]);
+    for (const excluded of ["my-h3-multiseg", "guding-480p-direct", "guding-960p-refine", "official-i2v-480p", "api-flf2v-480p", "api-r2v-480p", "api-t2v-480p"]) {
+      expect(batch.some((recipe) => recipe.id === excluded)).toBe(false);
+    }
+  });
+
+  it("首发件锚=object_info 实锚(14.value 非 text;漂移即红)", () => {
+    const ready = H3_WORKFLOW_RECIPES.find((recipe) => recipe.id === "my-h3-i2v-31");
+    expect(ready?.anchors).toMatchObject({
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image",
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "100",
+    });
+  });
+
+  it("注入层硬门(§4.3.1):ready 件锚字段全部在 API 图中", () => {
+    const ready = H3_WORKFLOW_RECIPES.find((recipe) => recipe.id === "my-h3-i2v-31")!;
+    const anchors = ready.anchors!;
+    const fields = [anchors.prompt, anchors.seconds, anchors.firstFrame, anchors.savePrefix, ...(anchors.resolution ?? [])].filter(
+      (field): field is string => Boolean(field),
+    );
+    for (const field of fields) {
+      const [nodeId, key] = field.split(".");
+      expect(api[nodeId]?.inputs[key], field).not.toBeUndefined();
+    }
+    expect(api[anchors.myShot!].class_type).toBe("MyShot");
   });
 });
 

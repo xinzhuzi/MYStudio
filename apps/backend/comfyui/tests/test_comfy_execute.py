@@ -217,6 +217,20 @@ class TestValidation:
         assert strings == {"6.text": "x"}
         assert images[0]["key"] == "10.image"
 
+    # ── extraPngInfo 附件门禁(10-27 H3 双通道 D1:透传 extra_data.extra_pnginfo)──
+
+    def test_extra_png_info_missing_returns_none(self):
+        assert comfy_execute.validate_extra_png_info({}) is None
+
+    def test_extra_png_info_valid_dict_returned_as_is(self):
+        attachment = {"workflow": {"nodes": [{"id": "100", "properties": {"myOriginProjectId": "proj-1"}}]}}
+        assert comfy_execute.validate_extra_png_info({"extraPngInfo": attachment}) == attachment
+
+    @pytest.mark.parametrize("bad", ["workflow", 42, [], {}])
+    def test_extra_png_info_non_dict_or_empty_rejected(self, bad):
+        with pytest.raises(ValueError, match="extraPngInfo 必须是非空对象"):
+            comfy_execute.validate_extra_png_info({"extraPngInfo": bad})
+
 
 class TestInjections:
     def test_string_injection_sets_widget_value(self):
@@ -277,6 +291,29 @@ class TestExecuteJob:
         assert submitted_graph["6"]["inputs"]["text"] == "一只猫"
         assert submitted_graph["10"]["inputs"]["image"] == "uploaded-1.png"
         assert len(engine.uploaded) == 1
+
+    # ── extraPngInfo 透传(10-27 H3 双通道 D1:MyShot 靠附件定回写归属) ──
+
+    def test_extra_pnginfo_passed_through_to_prompt_body(self, engine):
+        """带附件:提交 /prompt 的 body 含 extra_data.extra_pnginfo 且值即附件。"""
+        engine.queue_success(images=("out-1.png",))
+        attachment = {"workflow": {"nodes": [{"id": "100", "properties": {"myOriginProjectId": "proj-1"}}]}}
+        job_id = comfy_execute.execute_job({
+            "graph": _graph_fixture(),
+            "inputs": {},
+            "extraPngInfo": attachment,
+        })
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        assert engine.prompts[-1]["extra_data"]["extra_pnginfo"] == attachment
+
+    def test_prompt_body_without_attachment_has_no_extra_data(self, engine):
+        """不带附件:/prompt body 不含 extra_data 键(既有调用方形状零变化)。"""
+        engine.queue_success(images=("out-1.png",))
+        job_id = comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        assert "extra_data" not in engine.prompts[-1]
 
     def test_node_errors_translated_to_plain_error(self, engine):
         engine.prompt_replies.append({"node_errors": {"10": ["image not found"]}})
@@ -511,3 +548,9 @@ class TestObjectInfoDetail:
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf"), "NaN", "Infinity", True, False])
 def test_invalid_timeout_falls_back_to_finite_default(value):
     assert comfy_execute.resolve_execute_timeout_s({"timeoutS": value}) == comfy_execute.EXECUTE_TIMEOUT_S
+
+
+def test_max_execute_timeout_pinned_at_2700_for_h3_video_tier():
+    """D2(10-27)显式钉:2700s 罩住 H3 视频档(960P 单镜 21min+冷启 4min+余量)。"""
+    assert comfy_execute.MAX_EXECUTE_TIMEOUT_S == 2700.0
+    assert comfy_execute.resolve_execute_timeout_s({"timeoutS": 999999}) == 2700.0

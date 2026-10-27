@@ -1,9 +1,11 @@
 // 09-14 晚间用户裁定(research/0914-late-rulings.md):超分不进工作流——
 // 单段直出模板(h3-shot-template,31 节点,无 LatentUpscaler/LTXV,仅节点 9 首帧槽;1004 深夜用户裁定去 MY- 前缀改名)
 import templateJson from "./h3-shot-template.json";
+import apiTemplateJson from "./h3-shot-template.api.json";
 import templateRefJson from "./h3-shot-template-ref2va.json";
 import type { StoryboardItem } from "@/types/studio";
 import { buildShotH3Prompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, verifyPlannedTextVerbatim, type H3AudioPolicy } from "./h3-shot-prompt";
+import type { H3ResolutionTier } from "./h3-workflow-recipes";
 
 interface WorkflowNode {
   id: number;
@@ -176,6 +178,77 @@ export function buildShotH3Workflow(input: ShotH3WorkflowInput): ShotH3WorkflowR
     name,
     report: { shot: shot.index, seconds: prompt.seconds, frames: prompt.lengthFrames, policy },
   };
+}
+
+/** API 档输入(§5.2 C3):画布档输入 + 首帧 b64(走 execute images 通道上传)+ 分辨率档。 */
+export interface ShotH3ApiWorkflowInput extends ShotH3WorkflowInput {
+  /** 首帧图 base64(execute images 通道后端代上传);缺省=9 节点只填派生名不带上传(引擎 input 须已有同名文件)。 */
+  firstFrameB64?: string;
+  /** 分辨率档(D5 批量默认 960P 生产);960p=1344×768、480p=608×352(N11)。 */
+  resolutionTier?: H3ResolutionTier;
+}
+
+export interface ShotH3ApiWorkflowResult {
+  /** 出厂即完整可执行 API 图(C3:标量已直填,批量器零再加工) */
+  apiGraph: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+  /** 画布档同源 UI 图(properties 三键已注入)——直接作 extraPngInfo.workflow 附件 */
+  uiWorkflow: Record<string, unknown>;
+  /** b64 图独走 images 通道;无 b64=空数组 */
+  images: Array<{ key: string; name: string; b64: string }>;
+  report: { shot: number; seconds: number; frames: number; policy: H3AudioPolicy };
+}
+
+type ApiGraph = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+
+const H3_RESOLUTION_TIERS: Record<"480p" | "960p", readonly [number, number]> = {
+  "480p": [608, 352],
+  "960p": [1344, 768],
+};
+
+function getApiNode(apiGraph: ApiGraph, id: string, classType: string): { class_type: string; inputs: Record<string, unknown> } {
+  const node = apiGraph[id];
+  if (!node || node.class_type !== classType) throw new Error(`h3-shot-template.api.json drift: node ${id} must be ${classType}`);
+  return node;
+}
+
+/** API 档组装器(§5.2,通道B 批量派发真身;C3 修正:标量出厂直填,不走 strings 通用注入)。
+ *  提示词链与画布档完全同源——先跑 buildShotH3Workflow(内含 buildShotH3Prompt+文案逐字自检门
+ *  +dialogueAudioPolicy+voiceMood+MyShot properties 三键),再从同源 UI 图读值直填 apiGraph,
+ *  两形态逐字一致;自检门失败时大白话错误在此抛出。 */
+export function buildShotH3ApiWorkflow(input: ShotH3ApiWorkflowInput): ShotH3ApiWorkflowResult {
+  const tier = input.resolutionTier ?? "960p";
+  const base = buildShotH3Workflow(input);
+  const nodes = base.ui.nodes as WorkflowNode[];
+  const widgets = (id: number, type: string): unknown[] => {
+    const node = getNode({ nodes } as H3WorkflowTemplate, id, type);
+    if (!Array.isArray(node.widgets_values)) throw new Error(`h3-shot-template drift: node ${id} widgets_values missing`);
+    return node.widgets_values;
+  };
+  const widget = (id: number, type: string): unknown => widgets(id, type)[0];
+
+  const apiGraph = JSON.parse(JSON.stringify(apiTemplateJson)) as ApiGraph;
+  const promptText = widget(14, "PrimitiveStringMultiline");
+  const seconds = widget(20, "PrimitiveFloat");
+  const prefix = widget(4, "SaveVideo");
+  const imageName = widget(9, "LoadImage");
+  const myShotWidgets = widgets(100, "MyShot");
+  if (!Array.isArray(myShotWidgets) || myShotWidgets.length < 4) throw new Error("h3-shot-template drift: node 100 widgets_values missing");
+  const [shotId, label, description, mediaStatus] = myShotWidgets;
+
+  // 锚字段名以 object_info 实锚为准(1027 引擎 17001 实查;14 的文本锚=value 非 text)
+  getApiNode(apiGraph, "14", "PrimitiveStringMultiline").inputs.value = promptText;
+  getApiNode(apiGraph, "20", "PrimitiveFloat").inputs.value = seconds; // PrimitiveFloat 得 number,不走全字符串注入通道
+  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = prefix;
+  getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
+  const myShot = getApiNode(apiGraph, "100", "MyShot");
+  myShot.inputs = { ...myShot.inputs, shot_id: shotId, label, description, media_status: mediaStatus };
+  const generator = getApiNode(apiGraph, "16", "MiniMaxH3ImageToVideo");
+  const [width, height] = H3_RESOLUTION_TIERS[tier]; // 档位直填覆盖出厂 ResolutionSelector link(N11)
+  generator.inputs.width = width;
+  generator.inputs.height = height;
+
+  const images = input.firstFrameB64 ? [{ key: "9.image", name: String(imageName), b64: input.firstFrameB64 }] : [];
+  return { apiGraph, uiWorkflow: base.ui, images, report: base.report };
 }
 
 /** Ref2VA 参考资产(宿主按 shot.assetIds 调度后传入;≤4,按序占 ref_image_1..4)。 */
