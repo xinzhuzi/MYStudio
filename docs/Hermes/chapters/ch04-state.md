@@ -36,7 +36,7 @@ DDL 真源是单条 `SCHEMA_SQL` 字符串常量(`hermes_state_common.py:451-770
 | `MAX_FTS5_QUERY_CHARS` | 2_048 | `hermes_state_common.py:335` | FTS5 查询消毒前的长度帽 |
 | `_FTS_TRIGGERS` | 6 触发器名元组 | `hermes_state_common.py:448-449` | base+trigram 的 insert/delete/update |
 
-### 4.1.2 核心转录表 sessions(约 50 列,六组)
+### 4.1.2 核心转录表 sessions(65 列,六组)
 
 `sessions`(`hermes_state_common.py:461-529`)每会话一行:
 
@@ -51,7 +51,7 @@ DDL 真源是单条 `SCHEMA_SQL` 字符串常量(`hermes_state_common.py:451-770
 
 `transcript_revision` 由触发器 `messages_transcript_revision_update` 维护:内容列原地改写(提示扩展、多模态上下文、脱敏)既不动活跃行数也不动最大 id,派生缓存就以这个写侧修订数为键(`hermes_state_common.py:787-796`,注释明言「Whoever wrote the row, old builds included」)。系统提示去重表 `system_prompts(hash TEXT PRIMARY KEY, prompt TEXT NOT NULL)`(:456-459):v25 起 sessions 只存哈希,内联 prompt 由 `_dedupe_legacy_system_prompts` 迁入内容寻址表;中途遇 OperationalError 安全返回——部分迁移无害(旧列仍是读回落,下次打开续迁),向上传播曾把版本卡在 25 以下造成网关崩溃循环(`hermes_state_schema.py:189-211`)。
 
-### 4.1.3 转录本体 messages(31 列)
+### 4.1.3 转录本体 messages(30 列)
 
 `messages`(`hermes_state_common.py:531-562`),`id INTEGER PRIMARY KEY AUTOINCREMENT`,`session_id` FK 引用 sessions:
 
@@ -150,7 +150,7 @@ configured=delete → 探针 None 则 raise;否则 no-wait DELETE 验收        
 
 ### 4.3.1 常规落库路径:INSERT 原生含列
 
-消息行 INSERT 的列清单原生包含 api_content(`_INSERT_MESSAGE_SQL`,`hermes_state_messages.py:33-36`);live dict 上盖了 `api_content` 键的行落库时直接带上(参数绑定 `_str_or_none(msg.get("api_content"))`,:298)。回读侧 `row["api_content"] is not None` 时还原到 dict(:363-364)。列语义文档(:401-406):「api_content: byte-fidelity sidecar, the exact string sent to the API when it differs」。压缩拷贝走纯 SQL 列克隆(every column except id——content, api_content…),**逐字节保留**(:933);回读侧 `_rows_to_conversation` 的 docstring 亦明示「``api_content`` VERBATIM (no sanitize/strip) so replay keeps the provider prompt cache byte-stable」(:1553)。
+消息行 INSERT 的列清单原生包含 api_content(`_INSERT_MESSAGE_SQL`,`hermes_state_messages.py:33-36`);live dict 上盖了 `api_content` 键的行落库时直接带上(参数绑定 `_str_or_none(msg.get("api_content"))`,:298)。回读侧 `row["api_content"] is not None` 时还原到 dict(:363-364)。列语义文档(:405-407):「api_content: byte-fidelity sidecar, the exact string sent to the API when it differed」。压缩拷贝走纯 SQL 列克隆(every column except id——content, api_content…),**逐字节保留**(:933);回读侧 `_rows_to_conversation` 的 docstring 亦明示「``api_content`` VERBATIM (no sanitize/strip) so replay keeps the provider prompt cache byte-stable」(:1553)。
 
 ### 4.3.2 补写路径:两条 UPDATE
 
@@ -242,7 +242,7 @@ like_where = [f"({' OR '.join([_LIKE_ANY_COLUMN_SQL] * len(non_op_tokens))})"]  
 
 ### 4.5.1 形态、加载与门控
 
-`native/fts5_cjk/fts5_cjk.c`:252 行、零依赖的可加载 FTS5 分词器扩展,注册名 `cjk_unicode61`(入口 `sqlite3_ftscjk_init`,:231-243;另导出下划线基名别名 `sqlite3_fts5_cjk_init`,:249-252)。构建一行:`gcc -shared -fPIC -O2 fts5_cjk.c -o libfts5_cjk.so`(:20);使用 `tokenize='cjk_unicode61'`,额外参数透传 unicode61(如 `remove_diacritics 2`,:22-24)。运行时加载 `load_fts5_cjk_extension(conn) -> bool`(`hermes_state_fts.py:113-128`):best-effort 绝不抛;路径 `HERMES_FTS5_CJK_SO` 环境变量,否则 `$HERMES_HOME/lib/libfts5_cjk.so`(:101-104);配置门 `sessions.cjk_fts` 默认开(环境 `HERMES_CJK_FTS`,:107-110)。头注释(:2-10)动机全文:unicode61 把 CJK 游程当一个 token;trigram 需 ≥3 字/词,2 字词(일본、구글、项目)掉 LIKE——「measured at 3-6s CPU per query on multi-GB installs」(6.8GB messages 表,session_search 延迟头号驱动;注释声称,主报告未复跑);PR #65544,贡献者 Soju06(:40)。
+`native/fts5_cjk/fts5_cjk.c`:252 行、零依赖的可加载 FTS5 分词器扩展,注册名 `cjk_unicode61`(入口 `sqlite3_ftscjk_init`,:231-243;另导出下划线基名别名 `sqlite3_fts5_cjk_init`,:249-252)。构建一行:`gcc -shared -fPIC -O2 fts5_cjk.c -o libfts5_cjk.so`(:20);使用 `tokenize='cjk_unicode61'`,额外参数透传 unicode61(如 `remove_diacritics 2`,:22-24)。运行时加载 `load_fts5_cjk_extension(conn) -> bool`(`hermes_state_fts.py:113-128`):best-effort 绝不抛;路径 `HERMES_FTS5_CJK_SO` 环境变量,否则 `$HERMES_HOME/lib/libfts5_cjk.so`(:101-104);配置门 `sessions.cjk_fts` 默认开(环境 `HERMES_CJK_FTS`,:107-110)。头注释(:2-10)动机全文:unicode61 把 CJK 游程当一个 token;trigram 需 ≥3 字/词,2 字词(일본、구글、项目)掉 LIKE——「measured 3-6s CPU per query on multi-GB installs」(`hermes_state_fts.py:35`;C 头注 :9 措辞为「measured at 3-6s per query on a 6.8GB messages table」,session_search 延迟头号驱动;注释声称,主报告未复跑);PR #65544,贡献者 Soju06(:40)。
 
 ### 4.5.2 包装器结构与 cjk_emit 重发射
 

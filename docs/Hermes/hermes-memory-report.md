@@ -228,6 +228,8 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **业界对照全部为公开资料转述**(业界对比材料自标 basis:推断),未读对手源码;「对手未见某机制」的判断受限于对手披露面。
 - **本机部署实况只做了只读探测**(sqlite3 immutable/ro 连接+配置/日志 cat,勘察路执行),未做任何写操作。
 
+> **勘新注(2026-10-27 晚追加,正文未动)**:本节 5.2 的「业界对照全部为公开资料转述」「未运行任何 Hermes 代码」两项当晚已被三路新证据补齐/更新——库级实弹 7/7 探针通过、插件 71 件实测、竞品六路源码级七维度实证(42 格中同粒度仅 2 格,均在 OpenClaw);其中 §2 P9 两句旧转述经独立复核被当前克隆 HEAD 推翻(「Mem0 无内建过期」已过时——main.py:769/:828-829/:442-449 已内建 expiration_date 过滤;「Letta core memory 无硬字符上限」就 letta-code 克隆不成立——memory-constraints.ts:302-307 默认 20,000/65,536 硬上限),§4.3「两个维度暂无公开同类对手」的定谳边界亦随 OpenClaw 补入收窄为「仅一家」。全部证据与复核记录见详解版(`hermes-memory-deep-dive.md`)第 III 部分。
+
 ---
 
 ## 核证附录:支柱主张与独立核证结论(12/12 holds=true)

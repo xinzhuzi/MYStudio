@@ -1,82 +1,89 @@
 # Hermes 记忆系统深度详解(Deep Dive)
 
 - 日期:2026-10-27
-- **定位**:本文是《Hermes 记忆系统深度研究:优点盘点与价值判断》(`docs/Hermes/hermes-memory-report.md`,下称**初版**)的**详解版终稿**,独立成篇。**初版=结论速览**(12 支柱主张、业界定位、对比定谳);**本版=实现细节**——第 I 部分原样保留初版的结论定谳与 12 支柱骨架(含核证状态),并为每条支柱挂接代码级支撑;第 II 部分全文收录七章详解(运行时/存储契约/安全链/状态库/压缩/生态治理/本机部署)。
-- **证据标注约定(沿用初版,逐条断言级)**:
-  - **✅核证** = 初版的独立核证路在 `~/.hermes/hermes-agent` 检出亲核命中,行号以其核证记录为准;
-  - **✅抽验** = 初稿撰写时本人对检出仓库逐行抽验命中(13 处);
-  - 无标注 = 七路勘察交接材料转引,本报告未逐条复核。
+- **定位**:本文是《Hermes 记忆系统深度研究:优点盘点与价值判断》(`docs/Hermes/hermes-memory-report.md`,下称**初版**)的**详解版终稿**,独立成篇。**初版=结论速览**(12 支柱主张、业界定位、对比定谳,10 分钟读完);**本版=实现细节**——第 I 部分原样保留初版的结论定谳与 12 支柱骨架(断言级核证状态原样),每条支柱挂接「详解支撑」指向代码级展开;第 II 部分逐字收录七章代码级详解(运行时逐跳时序/存储契约/安全五闸/状态库 WAL·FTS/压缩链/生态治理清点/本机部署实况)。
+- **证据标注,两层口径**:
+  - **断言级(沿用初版约定,作用于第 I 部分及各章内文)**:**✅核证**=初版独立核证路在 `~/.hermes/hermes-agent` 检出亲核命中,行号以核证记录为准;**✅抽验**=初稿撰写时逐行抽验命中(13 处);**无标注**=勘察交接材料转引、未逐条复核。
+  - **章级(本版新增,作用于第 II 部分整章,见下表)**:✅通过=本轮章节核证 ok=true 且无问题项;⚠️两瑕(已修)=核证核出两处问题、盘上章文已按核证结论披露/修正(收录版即修正后文本);⚠️未核证=核证任务失败、无独立核证记录,章内断言按「无标注(转引)」对待。
 - 初版卷首「核证总况」(保留):**12 条支柱主张经独立核证 12/12 全部成立(holds=true)**,其中两处措辞按核证 note 修正(P2 macOS 类目、P10 引用范围),一处证据强度如实降级(P4 性能数字属注释声称、未复跑)。
-- **章节级核证状态(本版新增,作用于第 II 部分整章)**见下表;随章节核证带出**一处对初版主张的措辞修正**(P11,见 §B P11 修正注)。**七章核证总况一句话**:第 1 章通过;第 2/3 章各有两瑕、盘上章文已修正;第 4-7 章经补核证员补核各核出 2/3/8/9 处硬伤(行号漂移、计数与换算为主,断言实质均真实),盘上章文与收录版均已修正并在各章开头加「补核证修正注」——七章现已全部核证、无未核证章。
-- 初版与本版均未运行任何 Hermes 代码或测试;第 II 部分各章自附的「实测 / 本机佐证 / 验证记录」为**各章撰写时**执行的检查,本版整合未复跑。整合者本轮亲做:初版全文亲读;第 II 部分收录保真逐字核验(盘上七章全文均为本篇逐字子串,零改写);章节目录 `ls` 清点;plugin-catalog 计数抽核(见下,本轮重跑同数);第 2/3 章修正文本与核证 problems 的逐处比对;修正注所引正向落点一手复核(`system_prompt.py:834` 确为代码行、`conversation_compression.py:3101-3102`/`:3118` 注释在位、`MEMORY_BLOCK_HEADERS` 全库仅 store 定义/使用+tool 导入三处、`INVISIBLE_CHARS` 实测 17)。
+- **章节核证总况(本版)**:七章**全部完成核证**——**四章通过**(第 1/5/6/7 章;第 5/6/7 章核证记录由原核证员本轮回放补齐)、**两章各两瑕且已修**(第 2/3 章,收录版即修正后文本)、**第 4 章补核证核出两处列数硬伤且已修**(sessions 实为 65 列非「约 50」、messages 实为 30 列非 31,另两处引文一词之差一并修正,收录版即修正后文本)。章节核证另带出一处对初版 P11 的措辞修正(§B P11 修正注,**以本版为准**)。
+- **实弹与外部实证核证总况(第 III 部分,10-27 晚追加)**:三路新证据(库级实弹 7/7 探针、竞品六路七维度 42 格、插件 71 件)全部经独立复核**总裁定 ok=true**;复核带出**勘新 2 处**(mem0 当前 HEAD 已内建 expiration_date 过期过滤、letta-code 默认硬字符上限——初版 P9 两句旧转述被克隆代码推翻,详见 §III.2.1)与**如实照录的小疵 2 处**(ch02 §2.2.2 分隔符「4 字符」实为 3、插件报告 §1「859 个 yaml」实为 858 个 yaml/859 个目录条目)。
+- **整合者本轮亲做**:初版全文亲读;七章 `ls` 清点(7 件齐);第 2/3 章四处核证问题落点(§2.1.1/§2.6.2/§3.1.3/§3.5.4)亲读比对——盘上现文均已含修正表述;第 4 章结构清点(§4.0-§4.8 全节在位、50,297 字节、正常收尾;截断标记扫描唯一命中为 §4.4 内合法代码示例 `TODO: fix`,非截断);第 II 部分收录保真=组装脚本生成时对盘上七章逐字子串校验(7/7)。**未做**:未运行任何 Hermes 代码或测试;未复核第 II 部分其余全部引用;未复跑各章自附「实测/本机佐证/验证记录」(均为各章撰写时执行的检查)。
+- 初版研究与本版整合均未运行任何 Hermes 代码或测试;材料中「实测」字样均为各章/各路撰写时执行,本版转引。
 
 ## 阅读指引
 
 | 你想要… | 读哪里 |
 |---|---|
-| 10 分钟拿结论(好在哪、差在哪、怎么定谳) | §D 对比定论 + §B 支柱总览表 |
-| 看懂一轮对话里记忆怎么流转 | §A 架构与数据流 → 深入:第 1 章 §1.4 逐跳时序 |
-| 核对某条支柱的代码证据 | §B 该支柱的「详解支撑」→ 第 II 部分对应章§节 |
+| 10 分钟拿结论(好在哪、差在哪、怎么定谳) | §D 对比定论 + §B 支柱总览速查表 |
+| 看懂一轮对话里记忆怎么流转 | §A 架构与数据流 → 深入:第 1 章 §1.4 逐跳时序(T0-T7) |
+| 核对某条支柱的代码证据 | §B 该支柱「详解支撑」→ 第 II 部分对应章§节 |
 | 评估这套系统的安全面 | 第 3 章(五道闸门),配套第 2 章 §2.6.3 |
-| 借鉴工程实现去复用 | 各章末尾的「复用清单 / 复用要点」 |
+| 借鉴工程实现去复用 | 各章末复用清单(§1.7/§2.7/§3.7/§4.7/§5.12/§6.6) |
 | 知道本机实际装了什么、开了什么 | 第 7 章 |
-| 只想查一个机制(如 WAL、FTS、审批 pin) | §B 支柱总览表 → 直达对应章§节 |
+| 只想查一个机制(如 WAL、FTS、审批 pin、熔断门) | §B 支柱总览速查表 → 直达对应章§节 |
+| 分辨哪些内容经独立核证 | 卷首两层标注口径 + 下表 + §F.2 |
+| 看实弹复跑、竞品七维度源码实证与 71 件插件实测(含出入与勘新) | 第 III 部分 实弹与外部实证(文末追加) |
 
 ## 章节核证状态(第 II 部分)
 
-| 章 | 标题 | 章节核证状态 |
-|---|---|---|
-| 第 1 章 | 记忆运行时与调用链 | ✅ 通过(ok=true,无问题项;吻合明细未随记录附上) |
-| 第 2 章 | 内置记忆存储契约 | ⚠️ 有瑕两处(断言归源;**盘上章文已按核证结论披露/修正**) |
-| 第 3 章 | 记忆安全链 | ⚠️ 有瑕两处(常量值与一处引文;**盘上章文已按实测修正**) |
-| 第 4 章 | 会话状态库工程 | ⚠️ 有瑕两处(引文模块归属+行号落点;核证来源:补核证员;**盘上章文与收录版已修正**) |
-| 第 5 章 | 压缩与长程记忆 | ⚠️ 有瑕三处(皆行号漂移指向相邻函数,断言内容均真实;核证来源:补核证员;**盘上章文与收录版已修正**) |
-| 第 6 章 | 记忆后端生态与治理 | ⚠️ 有瑕八处(计数/行号/引文/URL/退避换算;核证来源:补核证员;**盘上章文与收录版已修正**) |
-| 第 7 章 | 本机部署实况与使用面 | ⚠️ 有瑕九处(计数/行号/下界常量;另三处记录性说明不计硬伤;核证来源:补核证员;**盘上章文与收录版已修正**) |
+章节核证=独立核证环节对 `~/.hermes/hermes-agent` 检出的逐章核证(引文逐字比对、行号落点、实测复跑;第 2 章记录显示覆盖 28 组引用、下限 12 组);各章记录以 ok/problems 交付整合,本表如实转录。**口径:章核证状态作用于整章;章内断言级标注为各章自述,整合未复跑。**
 
-- **第 2 章两瑕**(核证覆盖 28 组引用,除下述两处外引文逐字吻合、锚号 #10877/#10878/#10888/#97316/#103419/#107270/#26045/#42405/#117952/#119668 逐一在位、盘上 MEMORY.md/USER.md 样例逐字吻合):①初稿 §2.1.1 断言「`agent/conversation_compression.py` 会匹配这两个标题检测『目标被清空后残留的块』」——三轮 grep 零命中,`MEMORY_BLOCK_HEADERS` 全库仅 `tools/memory_tool_store.py`(定义)与 `tools/memory_tool.py`(导入)两处,标题文本唯一其他出现是测试夹具;该断言对被指文件无落点(章文系忠实转述 store 的 lockstep 注释,但注释所指行为在当前检出不存在——**注释已过期**)。②初稿 §2.6.2 称「`:834` 处注释明言压缩边界上缓存本就失效,重抓不付额外代价」——`agent/system_prompt.py:834` 实为代码行 `agent._memory_store.load_from_disk()`,docstring(:817-827)只说压缩后重载以纳入本会话写入,**无**该成本论证文字。瑕②连带修正初版 P11 的一处措辞(§B P11 修正注)。
-- **第 3 章两瑕**:①初稿称不可见字符集「零宽、双向覆盖等 18 个码点」——实测 `python3 -c "from tools.threat_patterns import INVISIBLE_CHARS; ..."` 输出 **17**(源码两字符串字面量 8+9),多数错一;②初稿 §5.4 将 `agent/stream_delivery.py:346-347` 注释引作「when a tag was split across chunks」,原文为「split across **deltas**」,一词之差,语义未变但非逐字。两处盘上章文均已修正(现收录版即修正后文本)。
-- **第 4-7 章(补核证终态,2026-10-27,核证来源:补核证员)**:首轮核证子代理失败后由补核证员对四章逐一补核,四章均为 ⚠️ 有瑕、无通过项,断言实质均真实(硬伤集中在行号漂移、计数与换算),盘上章文与本章收录版均已按核证结论修正、各章开头加「补核证修正注」。硬伤明细——**第 4 章两处**:①§4.3.1「api_content VERBATIM (no sanitize/strip)」(:1553)引文误归 `hermes_state_prune_rewrite`(该文件仅 274 行,:1553 无落点;实为 `hermes_state_messages.py` `_rows_to_conversation` docstring,行号本身正确);②§4.6.4 孤儿 fd/分块回填锁的 :1213-1246/:1230-1232 未标文件切换,按上下文坐标落在 `hermes_state_schema.py` 指向 title_repair 等无关代码(实落 `hermes_state_common.py:1219-1246`,回填句逐行命中 :1230-1232)。**第 5 章三处**(皆行号漂移、原区间指向相邻函数):`_tripped` :3037-3043→:3028-3035(§5.2 三闸表与 §5.11 事故表两处)、`_SYNTHETIC_PROMPT` :7-12→:13-18、`_snapshot` :51-56→:42-49。**第 6 章八处**:条目文件 858→857(858 系未真正扣除 removed.yaml;含 `^name:` 者实 856,acedatacloud-media.yaml 为单行 JSON 格式)、README 规则 6 行号 :28-31→:39-42、mem0.yaml 全文 24→20 行、honcho image URL 缺 `hermes-plugin-honcho` 目录段(「图 URL 钉同一 commit」仍成立)、holographic description 约 2.2 万→6,249 字符、`RemovedEntry` date 默认值引文多一等号(实为 `date: str = ""`)、已装检测五候选错位(实为 manifest 名/记录 source/catalog 名/catalog repo/目录名)、迁移退避第 8/9/10 次换算三值全错(实为 460800s=128h、第 9 次 921600s>604800s 首次触钳、第 10 次起恒 7 天)。**第 7 章九处**(另三处记录性说明不计硬伤):memory_store.db 触发器 8→6(facts_ai/ad/au + fact_versions_ai/ad/au)、fact_store action 20→21 且「时间旅行 3」把三参数计入 action、治理组实列 9 个(连带 §7.3「其余十一个只读」→十二)、`classify_pressure` :60-70/:62-63→:50-60/:51-52、输出十字段→九字段、`read_only=True` :643→:638(profile 库 :444)、limit clamp 下界 3→1(:587→:585)、memory_tool 旧形状注释 :384-386→:398-400、`_install_dependencies` :113-131→:95-115(sync_venv 准备 :99/逐项 check :106-112)、`memory.py` 三契约 :19-25→:14-19(临界轻度)。除所列硬伤外,第 7 章补核证同时确认大批通过项(config.yaml 逐键、两库只读实测、三重 provenance 物证等),第 4/5/6 章断言内容本身经补核证均为真实。
-- **第 4-7 章核证沿革**:首轮章节核证子代理失败(`WorkflowError: Subagent turn failed: Model creation failed`),一度无独立核证记录、四章按「无标注(转引)」对待;2026-10-27 补核证员补核后,四章状态如上,行号与断言证据强度仍以各章自附命令可复跑为准。
-- **整合时计数抽核(2026-10-27,检出 `git log -1 -- plugin-catalog` = `aa910ca0` 2026-10-24,与第 3/6/7 章基线同一提交)**:整合者执行 `ls plugin-catalog/*.yaml | wc -l` → **858**(含 removed.yaml);扣除 removed.yaml = **857 条目文件,与初版 P12 一致**;`grep -l '^category: memory'` → **71**,两源一致;`grep -l '^name:'`(扣 removed.yaml)→ 856,与第 6 章「每个含 `^name:` 一行」的表述差 1(单件格式差异)。**第 6 章所记「减去 removed.yaml 共 858 个条目文件」较实测多计 1**(疑未真正扣除 removed.yaml)——未核证章的计数瑕,如实标注。
+| 章 | 文件 | 标题 | 章节核证状态 |
+|---|---|---|---|
+| 1 | ch01-runtime.md | 记忆运行时与调用链 | ✅ 通过(ok=true,无问题项) |
+| 2 | ch02-store.md | 内置记忆存储契约:MemoryStore 与 memory 工具 | ⚠️ 两瑕(断言无落点/归源失实);盘上章文已披露/修正,收录版即修正后文本 |
+| 3 | ch03-security.md | 记忆安全链:双向威胁扫描、出口脱敏、流式围栏剥离与审批钉死 | ⚠️ 两瑕(常量值 18→17/引文一词之差);盘上章文已修正,收录版即修正后文本 |
+| 4 | ch04-state.md | 会话状态库工程:state.db 的守卫、边车、检索与自愈 | ⚠️ 两硬伤已修(补核证核出:sessions「约 50 列」实为 **65 列**、messages「31 列」实为 **30 列**;盘上章文与收录版均已修正,另两处引文一词之差同步修正)。核证来源:补核证员(50+ 处对读,零文件修改) |
+| 5 | ch05-compression.md | 压缩与长程记忆 | ✅ 通过(ok=true,无问题项;核证来源:原核证员(本轮回放补齐)) |
+| 6 | ch06-ecosystem.md | 记忆后端生态与治理:catalog、安装流、迁移自愈与内置薄后端 | ✅ 通过(ok=true,无问题项;核证来源:原核证员(本轮回放补齐)) |
+| 7 | ch07-deployment.md | 本机部署实况与使用面 | ✅ 通过(ok=true,无问题项;核证来源:原核证员(本轮回放补齐)) |
+
+- **第 2 章两瑕**(核证记录转述):①§2.1.1 断言「`agent/conversation_compression.py` 会匹配这两个标题检测『目标被清空后残留的块』」——核证三轮 grep(MEMORY_BLOCK_HEADERS|USER PROFILE|your personal notes;MEMORY|leftover|emptied;personal notes|PROFILE|memory_tool|_render_block|═)全部零命中;`MEMORY_BLOCK_HEADERS` 全库仅 `tools/memory_tool_store.py:24`(定义)与 `tools/memory_tool.py:44`(导入),标题文本唯一其他出现是 `tests/agent/test_413_compression.py:631` 测试夹具;`memory_tool_store.py:21-22` 的 lockstep 注释确实如此声称(原章文忠实转述了注释),但注释所指行为在当前检出(249,759 字节)中不存在——**断言对被指文件无落点**。②§2.6.2 称「`:834` 处注释明言压缩边界上缓存本就失效,重抓不付额外代价」——实际 `agent/system_prompt.py:834` 是代码行 `agent._memory_store.load_from_disk()`;`invalidate_system_prompt` docstring(:817-827)只说压缩后重载以纳入本会话写入,并无该成本论证文字;「注释明言」的内容系章节自行引申。**两处均已在盘上章文披露/修正**(整合者本轮亲读核对:§2.1.1 现文自证 grep 零命中并判 lockstep 注释过期、改述现行 ALWAYS-rebuild 机制;§2.6.2 现文明示 :834 为代码行、成本论证落点改指压缩执行侧)。瑕②连带修正初版 P11 措辞(§B P11 修正注)。
+- **第 3 章两瑕**:①§3.1.3 称不可见字符集「零宽、双向覆盖等 18 个码点」(INVISIBLE_CHARS,行号 :110-112 本身精确)——核证于检出根实测 `python3 -c "from tools.threat_patterns import INVISIBLE_CHARS; …"` 输出 count=17(源码两字符串字面量 8+9=17),多数错一;②§3.5.4 将 `agent/stream_delivery.py:346-347` 注释引作「…when a tag was split across chunks」——原文第一分句为「…split across **deltas**」,第二分句逐字吻合,锚 #5719 确在 :350;一词之差,语义未变但非逐字。**两处均已在盘上章文修正**(整合者本轮亲读核对:§3.1.3 现文写 17 并附实测;§3.5.4 现文引文为 deltas)。
+- **第 4 章两硬伤(已修)**(补核证员记录转述):①§4.1.3 标题「转录本体 messages(31 列)」列数不实——实际 `SCHEMA_SQL` 中 messages 为 **30 列**(python3 正则解析 `hermes_state_common.py:531-562` 与 sqlite3 内存库 `PRAGMA table_info(messages)` 双重验证;列名清单与各组行号 :543-547/:549-552/:553/:554-557/:558-561 全部正确,唯总数差一);②§4.1.2 标题「核心转录表 sessions(约 50 列,六组)」列数显著低估——实际 **65 列**(`PRAGMA table_info(sessions)` 权威计数;DDL 范围 :461-529 与章一致,六组列均为节选、行号无误),「约 50」对 65 偏低约 23%,超出「约」的合理浮动。另两处轻微引文之差一并修正(§4.3.1「when it differs」→「when it differed」,`hermes_state_messages.py:406` 原文时态;§4.5.1 引文删多余的 at 并逐字对齐 `hermes_state_fts.py:35`)。其余核证发现——活库 messages 计数 58,645→58,667(state.db-wal 今日仍写入,撰写时点数值无法复现属正常)、messages_fts DDL 实为三行存储格式、若干 ≤3 行行号漂——经核证认定不影响引文真实性,原文未动。**四处均已在盘上章文与收录版同步修正**(整合者本轮亲读 §4.1.2/§4.1.3 核对);本章支撑 P1/P2/P4 的展开细节据此**恢复采信**,三支柱本体主张仍以初版独立核证(✅)为准。
 
 ## 目录
 
-- **第 I 部分 结论定谳与十二支柱**(初版骨架 + 详解支撑挂接)
+- **第 I 部分 结论定谳与十二支柱**(初版骨架,断言级核证状态原样;每支柱附「详解支撑」)
   - §A 整体架构与数据流
-  - §B 核心优点盘点:十二支柱(P1…P12,每支柱附「详解支撑」)
+  - §B 核心优点盘点:十二支柱(P1…P12;含支柱-章节速查表与 P11 修正注)
   - §C 生态与工程质量
   - §D 对比定论:Hermes 记忆系统是不是「目前最好的工具」
   - §E 诚实的局限与未覆盖
-  - §F 核证附录(12/12 holds=true)+ 本版核证状态与修正记录
-- **第 II 部分 七章代码级详解**(全文收录,各章前有「本章核证状态」栏)
+  - §F 核证附录(F.1 初版 12/12 核证表;F.2 本版核证状态与修正记录)
+- **第 II 部分 七章代码级详解**(逐字收录,各章前有「本章核证状态」栏)
   - 第 1 章 记忆运行时与调用链 ✅
-  - 第 2 章 内置记忆存储契约:MemoryStore 与 memory 工具 ⚠️(两瑕已修)
-  - 第 3 章 记忆安全链:双向威胁扫描、出口脱敏、流式围栏剥离与审批钉死 ⚠️(两瑕已修)
-  - 第 4 章 会话状态库工程:state.db 的守卫、边车、检索与自愈 ⚠️未核证
-  - 第 5 章 压缩与长程记忆 ⚠️未核证
-  - 第 6 章 记忆后端生态与治理:catalog、安装流、迁移自愈与内置薄后端 ⚠️未核证
-  - 第 7 章 本机部署实况与使用面 ⚠️未核证
+  - 第二章 内置记忆存储契约:MemoryStore 与 memory 工具 ⚠️ 两瑕(已修)
+  - 第 3 章 记忆安全链:双向威胁扫描、出口脱敏、流式围栏剥离与审批钉死 ⚠️ 两瑕(已修)
+  - 第四章 会话状态库工程:state.db 的守卫、边车、检索与自愈 ⚠️ 两硬伤(已修,补核证)
+  - 第 5 章 压缩与长程记忆 ✅
+  - 第六章 记忆后端生态与治理:catalog、安装流、迁移自愈与内置薄后端 ✅
+  - 第 7 章 本机部署实况与使用面 ✅
+- **第 III 部分 实弹与外部实证**(10-27 晚追加:§III.1 库级实弹 7/7;§III.2 竞品七维度实证与两处勘新;§III.3 插件实测 71 件;§III.4 增量定谳)
 
 ---
+
 # 第 I 部分 结论定谳与十二支柱
 
-> 本部分内容保留自初版(`hermes-memory-report.md` §1-§5 与核证附录),断言级标注(✅核证/✅抽验/无标注)原样保留;每条支柱新增「**详解支撑**」块,指向第 II 部分提供代码级展开的章§节。支柱总览速查:
+> 本部分**原样保留**初版(`hermes-memory-report.md`)§1-§5 与核证附录的结论定谳与 12 支柱骨架(断言级核证状态 ✅核证/✅抽验/无标注 原样);仅做机械改名——初版 §1→§A、§2→§B、§3→§C、§4→§D、§5→§E,内节号随改(1.1→A.1、3.4→C.4 等),文内交叉引用同步;每条支柱尾部新增「**详解支撑(详解版)**」条目(挂接第 II 部分代码级展开的章§节与支撑章核证状态),P11 另附修正注。支柱-章节速查:
 
 | 支柱 | 一句话主张 | 详解支撑(章§节) | 支撑章核证状态 |
 |---|---|---|---|
-| P1 | api_content 边车逐轮回放一致性 | 1§1.4(T2/T3)、4§4.3 | 1✅;4⚠️未核证 |
-| P2 | 会话库 WAL 所有权纪律(绝不在线降级) | 4§4.2、4§4.8 | 4⚠️未核证 |
-| P3 | 压缩前记忆检查点 fail-closed | 1§1.4-T6、5§5.1/5.4 | 1✅;5⚠️未核证 |
-| P4 | CJK 双字 FTS+fail-open+让路式重建 | 4§4.4-4.6、5§5.6.4 | 4/5⚠️未核证 |
+| P1 | api_content 边车逐轮回放一致性 | 1§1.4(T2/T3)、4§4.3、5§5.5(辅) | 1✅;4⚠️两硬伤已修;5✅ |
+| P2 | 会话库 WAL 所有权纪律(绝不在线降级) | 4§4.2、4§4.8 | 4⚠️两硬伤已修 |
+| P3 | 压缩前记忆检查点 fail-closed | 1§1.4-T6、5§5.1/5.4 | 1✅;5✅ |
+| P4 | CJK 双字 FTS+fail-open+让路式重建 | 4§4.4-4.6、5§5.6.4 | 4⚠️两硬伤已修;5✅ |
 | P5 | 外部 provider 九出口强制脱敏 fail-closed | 1§1.6.2、3§3.4 | 1✅;3⚠️两瑕已修 |
-| P6 | 卡死后端进程级熔断门 _StuckCallGate | 1§1.3.2 | 1✅ |
-| P7 | 记忆写审批+TOCTOU 防偷换钉死 | 2§2.3.5-2.3.6、3§3.6 | 2/3⚠️两瑕已修 |
+| P6 | 卡死后端进程级熔断门 _StuckCallGate | 1§1.3.2/1.3.3 | 1✅ |
+| P7 | 记忆写审批+TOCTOU 防偷换钉死 | 2§2.3.6、3§3.6 | 2/3⚠️两瑕已修 |
 | P8 | 双向威胁扫描+流式围栏剥离 | 2§2.6.3、3§3.1-3.3/3.5 | 2/3⚠️两瑕已修 |
 | P9 | 硬限额+显式整理协议(不静默压缩) | 2§2.2-2.3 | 2⚠️两瑕已修 |
-| P10 | 多 profile 记忆归属隔离 | 1§1.6.3-1.6.4 | 1✅ |
-| P11 | 冻结快照注入:轮中写盘不改提示字节 | 2§2.6 | 2⚠️两瑕已修(含 P11 修正) |
-| P12 | 插件生态信任模型与记忆后端治理 | 6 全章、7§7.3 | 6/7⚠️未核证 |
+| P10 | 多 profile 记忆归属隔离 | 1§1.6.4-1.6.5、7§7.1/7.5 | 1✅;7✅ |
+| P11 | 冻结快照注入:轮中写盘不改提示字节 | 2§2.6(含修正注)、5§5.6(辅)、7§7.2.5 | 2⚠️两瑕已修;5/7✅ |
+| P12 | 插件生态信任模型与记忆后端治理 | 6§6.1-6.6、7§7.3 | 6✅;7✅ |
+
+---
 
 ## §A 整体架构与数据流
 
@@ -117,9 +124,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
    状态机 agent/memory_context.py:30-115,✅核证)
 ```
 
-第二条注入路:内置 MEMORY/USER 在 agent 构建时由 `_init_memory` 装载并冻结成快照(`agent/agent_init.py:1246-1252`),连同外部 provider 的 system_prompt_block 拼进系统提示(`agent/system_prompt.py:522-549`)。**轮中写盘落盘但不改变系统提示字节**——保前缀缓存(✅核证 `tools/memory_tool_store.py:649-652` 及 §B P11 的四点快照机制)。
-
-> 详解支撑:逐跳时序(轮首→盖章→逐 pass 回放→流式剥离→工具分发→轮尾→压缩→会话边界)见**第 1 章 §1.4**;边车写路的两条 UPDATE、防邻行错写推理与压缩拷贝逐字节保留见**第 4 章 §4.3**。
+第二条注入路:内置 MEMORY/USER 在 agent 构建时由 `_init_memory` 装载并冻结成快照(`agent/agent_init.py:1246-1252`),连同外部 provider 的 system_prompt_block 拼进系统提示(`agent/system_prompt.py:522-549`)。**轮中写盘落盘但不改变系统提示字节**——保前缀缓存(✅核证 `tools/memory_tool_store.py:649-652` 及 §P11 的四点快照机制)。
 
 ### A.3 写入链
 
@@ -128,15 +133,13 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - 轮尾 `turn_finalizer.py:840` → `run_agent.py:914` 把脱敏后的整轮对话交 `sync_all` 在单工作线程异步持久化(绝不内联、轮 N 先于 N+1 序列化;中断轮整体跳过,#15218);`:917` `queue_prefetch_all` 为下一轮预排队召回。
 - 每 N 轮 memory nudge fork 后台审查 agent 判断「该不该存记忆」,写入直落存储不动主对话(`turn_context.py:761-771`、`turn_finalizer.py:851-858`)。
 
-> 详解支撑:memory 工具完整契约(schema/分派/定位匹配/错误信封)见**第 2 章 §2.3**;锁协议、原子写、漂移检测见**第 2 章 §2.4-2.5**;镜像门 fail-closed 语义见**第 1 章 §1.4-T4** 与**第 3 章 §3.4.3**。
-
 ### A.4 跨会话检索链与生命周期钩子
 
 - 转录由 `hermes_state_messages` 写入 SQLite(WAL)SessionDB;`hermes_state_fts`/`hermes_state_search` 维护 FTS5 三表(含 CJK 双字);`session_search` 工具(`tools/session_search_tool.py:601`)做跨会话全文检索——四模式、零 LLM 调用。
 - 外部 provider 各自持久化(retaindb 云端写后队列、byterover 本地树);会话切换 / 压缩 / 网关逐出 / 关停四类边界全有钩子保证归属正确、摘要交接、写队列有界排空(`memory_manager.py:633-733`、`gateway/run_agent_cache.py:923-934`、`gateway/run_shutdown.py:1270-1288`、`conversation_compression.py:1635/:3404/:3613`)。
 - 回放侧:`session_persistence.py:229` 回放 DB 行时剥掉围栏——围栏只活在 api_content 边车里。
 
-> 详解支撑:四类生命周期边界钩子的逐条链路见**第 1 章 §1.4-T7**;FTS 三级降级路由与重建引擎见**第 4 章 §4.4-4.6**;压缩全流程见**第 5 章 §5.1-5.5**。
+---
 
 ## §B 核心优点盘点(支柱式,按说服力降序;12/12 已独立核证)
 
@@ -146,7 +149,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证)**:`agent/turn_context.py:121-132`(`compose_user_api_content` docstring:「Single source for the api_content sidecar and the wire bytes so they never drift (what turn N sends is what turn N+1 replays)」);机制链核证全数坐实:预取注入经 `compose_user_api_content` 单源组合 → `_stamp_api_content_sidecar`(:943-987)写 live dict 并以 `SQL UPDATE messages SET api_content` 持久化(`hermes_state_api_content.py:36`、`:65`)→ `build_api_messages`(:1311-1318)对历史行原样重放 exact bytes、当前轮复用 prologue stamp 保证逐 pass 字节相同(:1300-1303)→ `substitute_api_content`(`turn_context.py:135-141`,`chat_completion_helpers.py:2155` 实调)明示以 prompt 前缀 byte-stable 为目的。
 - **价值判断**:解决两个真问题。①前缀缓存经济学:记忆注入若每轮字节漂移,请求前缀分叉会打碎 provider 侧 prompt cache,长会话成本与延迟双涨;②回放污染:注入文本若混进持久化 content,下一轮组装时会再次注入/漂移。「发送字节与持久化边车单一来源」一举解决两端。
 - **业界定位**:**差异化**。业界对比路调研的 Mem0 / Letta / Zep / LangMem / ChatGPT / Claude Code / Cursor 公开资料均未见「注入字节边车化+逐轮回放一致」机制。
-- **详解支撑**:逐跳时序与盖章/回放细节=**第 1 章 §1.4(T2/T3)**(章节核证✅);写路两条 UPDATE(行寻址/位置寻址、「ok/y/continue」重复轮的邻行错写面)与压缩拷贝逐字节保留=**第 4 章 §4.3、§5.5**(⚠️未核证);持久行与边车的对偶(落行时捕获原文)=**第 1 章 §1.4-T2**。
+- **详解支撑(详解版)**:逐跳时序与边车盖章/回放细节=**第 1 章 §1.4(T2/T3)**(章核证 ✅);写路两条 UPDATE(行寻址/位置寻址)与回放侧字节稳定两条保证=**第 4 章 §4.3**(章核证 ⚠️ 两硬伤已修,补核证);压缩拷贝对边车的逐字节保留(辅)=**第 5 章 §5.5**(章核证 ✅)。
 
 ### P2|会话库 WAL 所有权纪律(绝不在线降级) ——已独立核证 ✅
 
@@ -154,7 +157,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证)**:`hermes_state_wal.py:265-267` 不变量 docstring 逐字命中且代码兑现(:307-313 / :450-470 盘上 WAL 永不降级、probe 读不到即拒);`_set_journal_mode_no_wait` busy_timeout=0 探测器(:419-437,:432);三类处置俱全——virtiofs/9p 跨 VM 拒启(:184、:334-339,锚 openclaw#120597)、WAL-reset 缺陷版本 3.7.0–3.51.2 门控(:131-134、:303-304,锚 #71724)、macOS 双屏障(:103-121,锚 #30636);各规则分别钉 #30636 / #68545 / #71724 / #55305 / #71498 / #110848 等真实事故;WAL 64 MiB 上限与 3 GB 事故(`:31`、`:86-93`,勘察转引)。
 - **价值判断**:解决「多进程共享一个对话库」的真实生产拓扑:CLI、网关、cron、桌面 App 同时开一个 state.db 时,任何进程随手切 journal mode 都可能静默毁掉别人的提交。每条规则钉着一次真实事故(错误码/版本号/尺寸写进注释),不是纸面洁癖。
 - **业界定位**:**差异化(工程深度)**。多数 agent 框架不碰多进程 SQLite 所有权问题;公开资料未见同粒度披露。
-- **详解支撑**:六条规则逐条(决策流顺序、一次性日志矩阵、WAL-reset 易感窗数学、macOS 屏障因果)=**第 4 章 §4.2**;本机库佐证(journal_mode=delete、SQLite 3.51.0 落易感窗但运行时版本未验证)=**第 4 章 §4.8**(⚠️未核证)。
+- **详解支撑(详解版)**:WAL 守卫规则逐条(全部带事故锚)与决策流、WAL-reset 易感窗数学=**第 4 章 §4.2**;本机库只读佐证(journal_mode、SQLite 3.51.0 落易感窗但运行时版本未验证)=**第 4 章 §4.8**(两处章核证均 ⚠️ 两硬伤已修,补核证)。
 
 ### P3|fail-closed 的压缩前记忆检查点 ——已独立核证 ✅
 
@@ -162,7 +165,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证)**:`agent/memory_manager.py:693-733`(`on_pre_compress`:725-728 行 require_checkpoint 下 v2 checkpoint provider 异常原样 raise、729-732 行无成功 provider 即 RuntimeError,docstring「the caller keeps the uncompressed transcript」);调用侧 `agent/conversation_compression.py:2910-2917` 转抛 `CompressionCheckpointUnavailable`、`:3809` checkpoint 先于 `:3823` 压缩执行、`:3860-3867` 异常时恢复消息快照并放弃压缩——checkpoint 模块自述 fail-closed。
 - **价值判断**:压缩是有损的:中段一旦被摘要替换,原对话细节永久丢失。若「提取记忆」失败还照常压缩,等于记忆系统号称在、关键时刻却静默丢证据。fail-closed 把优先级摆正:压缩是优化,记忆是资产,优化失败不烧资产。
 - **业界定位**:**差异化**。对照组未见「压缩与记忆提取绑定为原子前提、提取失败放弃压缩」的公开设计;Letta 的 sleep-time agent 是相近概念(空闲整理,转述)但不否决压缩路径。
-- **详解支撑**:检查点五失败分支与豁免分支、顺序结构证据(:3809 先于 :3823、deepcopy 在检查点后)与「恢复快照是结构保证」=**第 5 章 §5.1/§5.4**(⚠️未核证);manager 侧代码与归属拒绝=**第 1 章 §1.4-T6**(章节核证✅);生态侧镜像(ctx_checkpoint 插件 0.21.1+ 走 fail-closed 契约)=**第 6 章 §6.5**(⚠️未核证)。
+- **详解支撑(详解版)**:运行时插入点=**第 1 章 §1.4-T6**(章核证 ✅);压缩全景十阶段、checkpoint v2 五个失败分支与「失败宁可不长压缩」兑现路径=**第 5 章 §5.1、§5.4**(章核证 ✅)。
 
 ### P4|CJK 双字分词 FTS + 索引腐败 fail-open + 让路式重建 ——已独立核证 ✅(性能数字属注释声称,未复跑)
 
@@ -170,7 +173,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证,四组件独立核中)**:`hermes_state_fts.py:34-40` 注释四项逐字命中(trigram 需 ≥3 字符/词使 1-2 字 CJK 词掉进 LIKE 全表扫描、「measured 3-6s CPU per query on multi-GB installs」、cjk_unicode61 双字分词、PR #65544);①自研分词器实体 `native/fts5_cjk/fts5_cjk.c`(252 行,bigram 重发射);②三级降级路由 `hermes_state_search.py` `_search_cjk` 的 cjk→trigram→LIKE;③fail-open:`_enter_fts_fail_open` 原子摘触发器后重试规范写(`hermes_state.py:1119-1120`);④分块自适应可恢复重建以 ≤20% 占空比让路并发写。**如实降级**:3-6s/multi-GB 是注释中的实测声称,核证未复跑;且本机 `.so` 未构建、state.db(691M)无 cjk 表——属按设计降级(检索仍走 unicode61/trigram/LIKE),不损机制主张。
 - **价值判断**:三个真问题:①中文二字词检索是 CJK 用户硬需求,掉 LIKE 是秒级卡顿——直接决定 `session_search` 在中文负载下可用与否;②派生索引损坏不能拖死写入;③重建不能持锁饿死在线写(25 GB 库 16 分钟写锁事故,勘察转引)。`session_search` 是给模型的一等内联工具(四模式零 LLM 调用,`tools/session_search_tool.py:1-9`),这条链就是 agent 长期对话记忆的可用性底座;连 cron 会话降权都做了(`:26-34`,「回忆盲区」#19434)。
 - **业界定位**:**差异化**。CJK 维度在调研对象中几乎独有;「损坏不丢写+重建让路」的生产事故背书罕见。对照组的会话检索多为向量库或托管服务。
-- **详解支撑**:检索路由与门控谓词、cjk_emit bigram 重发射实现、fail-open 原子摘触发器、分块自适应重建引擎(占空比 ≤20% 数学)=**第 4 章 §4.4-4.6**(⚠️未核证);软归档三态使被压轮次仍可检索=**第 5 章 §5.5/§5.6.4**(⚠️未核证);本机库无 cjk 表/.so 未构建的只读佐证=**第 4 章 §4.8、第 7 章 §7.2.2**(⚠️未核证)。
+- **详解支撑(详解版)**:检索路由 cjk→trigram→LIKE 三级降级、cjk_unicode61 分词器实现、fail-open 与分块自适应重建=**第 4 章 §4.4-4.6**(章核证 ⚠️ 两硬伤已修,补核证);被压轮次的档案存活(软归档仍可 session_search)=**第 5 章 §5.6.4**(章核证 ✅)。
 
 ### P5|对外部 provider 的强制出口脱敏(fail-closed) ——已独立核证 ✅
 
@@ -178,7 +181,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证)**:`agent/memory_manager.py:96-139`(递归 walk dict/list/tuple;docstring 引 #115104「Providers archive whatever they are handed」;:125-134 learned-set 对整批值二次 `[redacted]` 屏蔽);核证亲数**九个 provider 出口全部先过该函数**(sync_all/prefetch_all/queue_prefetch_all/handle_tool_call/on_turn_start/on_session_end/on_pre_compress/on_memory_write/on_delegation,行 351/428/458/602/616/629/708/749/832);脱敏链 `_scrub`(:89-93)→ `redact_for_egress`(`redact.py:1180-1187`)→ `redact_sensitive_text(force=True)` 绕过 `security.redact_secrets` 桥接的 `_redact_enabled()`(`redact.py:951`、`:97-103`);异常时返回 `[redaction-unavailable]` 不返原文(`redact.py:1184-1189`)。
 - **价值判断**:外部记忆后端是第三方进程/云服务,会把喂给它的东西永久存档。记忆系统天然是全对话内容的外泄面,出口脱敏是这条边界上必须恒开的闸,不能做成可关的配置项——「九个出口全过闸+闸本身 fail-closed」把这条边界闭合成环。
 - **业界定位**:**差异化**。调研对象公开资料未见「记忆 provider 全链路强制脱敏+token 同批二次屏蔽」机制。
-- **详解支撑**:九出口逐个点名(函数+行号+被脱敏内容)=**第 1 章 §1.6.2**(章节核证✅);脱敏链三环逐环、learned-set 二次屏蔽的实测(无厂商前缀 token 的裸抄场景)与 30+ 厂商前缀清单=**第 3 章 §3.4**(⚠️两瑕已修,两瑕不在本节)。
+- **详解支撑(详解版)**:九出口运行时接线=**第 1 章 §1.6.2**(章核证 ✅);脱敏链逐环、递归容器走查与 learned-set 二次屏蔽、九出口逐个点名、fail-closed 小结=**第 3 章 §3.4**(章核证 ⚠️ 两瑕已修)。
 
 ### P6|卡死后端的进程级熔断门(_StuckCallGate) ——已独立核证 ✅
 
@@ -186,7 +189,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证)**:`agent/memory_manager.py:39-57`(`_MAX_STUCK_CALLS=4`/L51、`_PROBE_INTERVAL_S=60.0`/L54、`_MAX_INFLIGHT_CALLS=16`/L57 与「Python cannot stop a thread」注释逐字命中);`_StuckCallGate`(L142-193)真实实现逾期 4 关闸(L166-169)+60 秒半开探针(L173-176)+在飞 16 含孤儿的硬顶(L167-168);且为 MemoryManager **类属性**(L206-207)跨实例共享=进程级;经 `_PREFETCH_GATE`(L373-385)与 `_BACKGROUND_GATE`/`_call_unless_stalled`(L513-537)真实接线非死码;L55-56 注释明写卡死后端「pins a bounded number」。
 - **价值判断**:外部依赖会挂(网络黑洞、CLI 死锁)。没有这道门,一个 wedged 后端会随每轮预取/同步无限吃线程直到进程瘫痪;有了门,最坏情况=有界线程消耗+功能降级,且半开探针保证后端恢复后自动回服,不需人工重启。这是把「不可杀线程」的运行时现实纳入设计的教科书处理。
 - **业界定位**:**差异化**。公开资料未见 agent 记忆层做进程级卡死准入控制。
-- **详解支撑**:门本体逐行(准入三判、stuck 计数语义「last_ok 之后启动且超期」、leave 连锅清)、两道门接线、以网络黑洞后端为例的五步生命周期时间线、阈值阶梯 drain(5s)<prefetch(8s)<stall(30s)=**第 1 章 §1.3.2**(章节核证✅)。
+- **详解支撑(详解版)**:三门(`_PREFETCH_GATE`/`_BACKGROUND_GATE`/超时守护)与后台线程模型=**第 1 章 §1.3.2、§1.3.3**(章核证 ✅)。
 
 ### P7|记忆写审批 + TOCTOU 防偷换钉死 ——已独立核证 ✅
 
@@ -194,7 +197,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证,四处咬合)**:`tools/memory_tool_store.py:470-485`(`_locate` 在 matched_entry 非 None 时只走 `_pinned_index`,:161-163 entries.index **全等比较**,改动一字即 stale_entry 且不回落 old_text 子串搜索);暂存侧 `tools/memory_tool.py:64-81`(`_pin_matched_entries`)经 `_gate_or_stage`(:97-98)把锁下完整条目 pin 进 payload;重放侧 `tools/memory_tool.py:353-370`(`apply_memory_pending`)对缺 matched_entry 的 replace/remove 直接拒绝、绝不按 old_text 重放;无人值守门 `:179-219`(勘察转引)。
 - **价值判断**:审批门的经典漏洞是 TOCTOU:审批人看的是条目 A,重放时 old_text 可能搜到已被改成的条目 B——「批准删 A」变成「批准删 B」。pin 完整条目+全等比较+不回落子串搜索,把审批对象变成内容寻址的精确目标,从机制上消灭偷换窗口。记忆是跨会话持久资产,这层保护等级与代码库 protected branch 同级,合理。
 - **业界定位**:**差异化**。调研对象未见同粒度「记忆写审批+目标内容钉死」;catalog 里社区插件 memory-review(复选清单式写入批准)恰好反证核心缺位才有生态补位。
-- **详解支撑**:审批门/暂存/pin 的存储侧落点与后台删除门=**第 2 章 §2.3.5-2.3.6**(⚠️两瑕已修,两瑕不在这些节);威胁模型、全流程图(含 stage_write 落盘、审批 UI 展示 pin、旧暂存拒绝、批量 pin 通道)与一处如实披露的 fail-open(审批门模块加载失败退回直写)=**第 3 章 §3.6**(⚠️两瑕已修,两瑕不在本节)。
+- **详解支撑(详解版)**:存储契约侧守门段(审批门与后台删除门)=**第 2 章 §2.3.6**(章核证 ⚠️ 两瑕已修);威胁模型、暂存 pin、重放校验、无人值守 fail-closed 删除门=**第 3 章 §3.6**(章核证 ⚠️ 两瑕已修)。
 
 ### P8|反注入与防泄漏:双向威胁扫描 + 流式围栏剥离 ——已独立核证 ✅
 
@@ -202,7 +205,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证,三处坐实)**:①引文逐字命中 `agent/memory_context.py:80-86`(`flush()` 在未终止 span 内丢弃尾部——:83 `tail = "" if self._in_span` 落实「宁截断答案不泄漏召回」);②状态机 `StreamingContextScrubber` 同文件 30-115 行,经 `agent/stream_delivery.py:358` scrubber.feed 与 `agent/agent_init.py:552` 接入实际流管线;③双向扫描属实——写入侧 `tools/memory_tool_store.py:29-32` `_scan_memory_content(scope=strict)` 在 add/replace/patch/batch(156/402/425/585 行)拒写;加载侧 `load_from_disk` 的 `_sanitize`(:228-238)命中即以 `[BLOCKED: …]` 占位替换系统提示快照条目;共享威胁库 `tools/threat_patterns.py` 明确 memory 吃 strict 扫描。
 - **价值判断**:记忆进系统提示,中毒条目会跨会话存活——记忆系统独有的持久化注入面;召回内容若漏给最终用户,轻则困惑重则泄漏。两端都要防,且流式场景的跨 delta 边界剥离是容易做错的细节(标签跨块切断),这里用状态机+明确取舍钉死。「占位替换但 live 保留原文」还守住了用户可审计性。
 - **业界定位**:**差异化**。业界对比路明示:调研的七家公开资料均未见写入前注入扫描机制(Letta 仅有 PII 治理 hook 的 issue 讨论,转述)。
-- **详解支撑**:威胁规则库全解(三元组/scope 累积语义 all⊂context⊂strict/11+17+8 条规则族/防误报锚定手法/实测探针/已知边界)与写入侧四拒写落点、加载侧占位双轨=**第 3 章 §3.1-3.3**(⚠️两瑕已修,两瑕在 §3.1.3/§3.5.4,已按实测修正);流式状态机逐状态行为与跨 delta 实测=**第 3 章 §3.5**;加载侧 `_sanitize` 全文与扫描档位=**第 2 章 §2.6.3**(⚠️两瑕已修,两瑕不在本节)。另:本机 holographic 插件层对 facts 表做了同威胁模型的出口复检(召回时再跑一遍写入过滤器)=**第 7 章 §7.3**(⚠️未核证,作生态侧注脚)。
+- **详解支撑(详解版)**:加载期净化 `_sanitize` 的 [BLOCKED] 占位/原文双轨=**第 2 章 §2.6.3**(章核证 ⚠️ 两瑕已修);威胁规则库三元组与 scope 累积、写入侧拒写四落点、流式围栏剥离状态机=**第 3 章 §3.1-3.3、§3.5**(章核证 ⚠️ 两瑕已修)。
 
 ### P9|硬限额 + 显式整理协议(不静默压缩) ——已独立核证 ✅
 
@@ -210,7 +213,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证)**:`tools/memory_tool_store.py:618`(注释「budget check against the FINAL state only」逐字命中;:627-628 超限报错文案「Add removes or shortening patches of other stale entries to the same batch, then retry」;余量由 `_over_limit` 给出、单条 add 走 `_add_overflow` 并随错返回 current_entries 现有条目);预算值 `memory_tool_store.py:188` 与 `memory_tool.py:56` 双处确认;批量清空整个 store 拒绝(:613-617,✅抽验)。
 - **价值判断**:常驻系统提示的记忆每 token 每轮都付费。自动压缩(Mem0 式 LLM 决定 ADD/UPDATE/DELETE、ChatGPT 式 Memory Summary)省心但不可审计:用户看不到「为什么删了我的条目」。Hermes 的立场是整理决策显式抛回给模型、失败可见、可重试——与写审批同一哲学:记忆变更必须可问责。终态检查则避免「删旧+加新」的中间态被误拒。
 - **业界定位**:**差异化(设计立场)**。Mem0 靠自动管线且无内建过期(GitHub issue #5330,转述)、Letta core memory 无硬字符上限、ChatGPT 走自动摘要——「不静默压缩」是 Hermes 独有立场。
-- **详解支撑**:预算计算口径(含分隔符 join 长度)、三处钉死与配置链、超限文案原文、终态检查三条豁免、整理熔断(每轮 3 次失败终态放行)、memory 工具 schema 与错误信封全集=**第 2 章 §2.2-2.3**(⚠️两瑕已修,两瑕不在这些节)。
+- **详解支撑(详解版)**:预算口径(含分隔符 join)、超限文案原文、终态检查豁免与整理熔断、memory 工具完整契约=**第 2 章 §2.2、§2.3**(章核证 ⚠️ 两瑕已修)。
 
 ### P10|多 profile 记忆归属隔离 ——已独立核证 ✅
 
@@ -218,16 +221,17 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证)**:`agent/memory_caller_scope.py:71-100`(`caller_scope` 两条拒绝理由逐字在位::83「the caller names no profile on a process serving several」、:94「the caller's profile is not the one its provider was initialized for」);`claim_instance`(:111-137,multiplexed 下同实例他 profile 已绑定即拒)接线于 `agent/memory_manager.py:927` 失败即 `_drop_provider`;`in_owner_home`(:140-154,显式 set_hermes_home_override)接线于 `memory_manager.py:478` 后台提交——三机制真实存在且生产路径接线。(初稿引用范围 71-100 未覆盖后两函数,终稿已修正为分段引用。)
 - **价值判断**:没有这层,最坏事故是记忆跨 profile 串档——隐私与数据归属双重灾难,且在「每请求重建 agent」的网关架构下极易发生。空上下文启动的后台 worker 会静默落到默认 profile,是这层隔离最难发现的坑,显式 in_owner_home 把它堵死。
 - **业界定位**:**差异化**。多 profile 共进程复用是终端 agent 少见的部署形态,公开资料未见同类归属契约(#140058)。
-- **详解支撑**:`_drop_provider` 唯一收缩路径(被 drop 的 provider 不 shutdown 及理由)、用户可见反馈、归属三闸运行时接线=**第 1 章 §1.6.3-1.6.4**(章节核证✅);生态侧延伸(byterover 子进程环境剥 BRV_*/LAUNCH 残留)=**第 6 章 §6.4.3**(⚠️未核证);OAuth 面 `_scope_to_profile` 的 profile 切换=**第 7 章 §7.5.3**(⚠️未核证)。
+- **详解支撑(详解版)**:归属三闸运行时接线与 teardown 有界排水=**第 1 章 §1.6.4、§1.6.5**(章核证 ✅);本机多 profile 配置面=**第 7 章 §7.1、§7.5**(章核证 ✅)。
 
 ### P11|冻结快照注入:轮中写盘不改变系统提示 ——已独立核证 ✅
 
 - **主张**:内置 MEMORY/USER 以会话启动冻结快照进系统提示,会话中途写盘落盘但不改提示字节——用「新内容下次注入才可见」换全会长前缀缓存有效;新写入的即时可见性由 `<memory-context>` 围栏(注入当轮用户消息)补位。
-- **证据(✅核证)**:`tools/memory_tool_store.py:649-652`(docstring「Frozen load-time snapshot (NOT live state — mid-session writes don't touch it, preserving the prefix cache)」逐字命中);机制实核:`_system_prompt_snapshot` 全库仅 4 处(类 docstring :179 明言 frozen at load time / prefix-cache stable、init :194、`load_from_disk` :255 填充、`format_for_system_prompt` :652 只读),轮中写盘路径(`_mutate`/`_write_file`/`_set_entries`)不触碰快照,系统提示注入 `agent/system_prompt.py:529` 只读该快照,快照仅在 agent 初始化(`agent_init.py:1252`)与上下文重建边界(`system_prompt.py:834`,注释明言该点缓存本就失效)重抓。
+- **证据(✅核证)**:`tools/memory_tool_store.py:649-652`(docstring「Frozen load-time snapshot (NOT live state — mid-session writes don't touch it, preserving the prefix cache)」逐字命中);机制实核:`_system_prompt_snapshot` 全库仅 4 处(类 docstring :179 明言 frozen at load time / prefix-cache stable、init :194、`load_from_disk` :255 填充、`format_for_system_prompt` :652 只读),轮中写盘路径(`_mutate`/`_write_file`/`_set_entries`)不触碰快照,系统提示注入 `agent/system_prompt.py:529` 只读该快照,快照仅在 agent 初始化(`agent_init.py:1252`)与上下文重建边界(`system_prompt.py:834`,注释明言该点缓存本就失效)重抓。〔修正注 1027:详解版章节核证指出「:834 注释明言」措辞失实——该行并无此句注释,「重建边界处缓存本就失效」是机制推断而非注释原文;本支柱结论不受影响,详见 `hermes-memory-deep-dive.md` §B P11 修正注,以详解版为准〕
 - **价值判断**:与 P1 同一枚硬币的另一面:系统提示若随每次记忆写变化,整个前缀缓存报废。牺牲即时性换取缓存有效性,是明确的、写了注释的取舍,不是疏忽。
 - **业界定位**:扎实标配的克制实现——「记忆进系统提示」各家都有,把缓存稳定性写成显式契约并注释理由的少见。
-- **详解支撑**:快照四落点表、刷新边界与加载期净化 `_sanitize`=**第 2 章 §2.6**(⚠️两瑕已修)。
-- **修正注(第 2 章核证带出,本版如实降级)**:上引证据末句中「(`system_prompt.py:834`,注释明言该点缓存本就失效)」的表述**失实**——`system_prompt.py:834` 是代码行 `agent._memory_store.load_from_disk()`,其 docstring(:817-827)只说压缩后重载记忆以纳入本会话写入,并无「缓存本就失效、重抓不付额外代价」的成本论证;该论证的注释级落点在同边界的**压缩执行侧**(`conversation_compression.py:3101-3102` 工具 schema 刷新注释「The prompt cache is already broken here, so the refresh is free」与 `:3118`)。**快照仅两处重抓的结论与两处行号本身核证无误**,仅措辞按此修正。详见第 2 章 §2.6.2。
+- **详解支撑(详解版)**:冻结快照抓取点/使用点/刷新边界与加载期净化=**第 2 章 §2.6**(章核证 ⚠️ 两瑕已修,含下述修正注);压缩边界与快照协同(辅)=**第 5 章 §5.6**(章核证 ✅);本机内建层实体=**第 7 章 §7.2.5**(章核证 ✅)。
+
+> **P11 修正注(本版,承接初版 P11 内的修正注 1027,以本注为准)**:初版 P11 证据句「(`system_prompt.py:834`,注释明言该点缓存本就失效)」与核证附录同款括注「(:834,缓存本就失效处)」**归源失实**——第 2 章核证亲核:`:834` 是代码行 `agent._memory_store.load_from_disk()`,`invalidate_system_prompt` 的 docstring 只说压缩后重载以纳入本会话写入,并无「缓存本就失效、重抓不付额外代价」的成本论证;该论证文字在同一边界的**压缩执行侧**(第 2 章现文指认 `conversation_compression.py:3101-3102`/`:3118`,此指认随第 2 章 ⚠️ 章级状态)。**P11 结论不受影响**:冻结快照 docstring 逐字命中、`_system_prompt_snapshot` 四点机制、快照仅 agent 初始化与上下文重建边界两处重抓,均与初版核证记录一致(不在第 2 章核证两瑕之内)。
 
 ### P12|插件生态信任模型与记忆后端治理 ——已独立核证 ✅
 
@@ -235,7 +239,9 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **证据(✅核证,四成分全核中)**:①人审+SHA 钉死=`hermes_cli/plugin_catalog.py:1-5`(curated / human-merged approval gate / pinned to an exact 40-character commit SHA)+`:43` `_SHA_RE=^[0-9a-f]{40}$`+`:79` mandatory;②树外 provenance=`hermes_cli/plugins_cmd_install.py:376-384` 逐字命中「provenance lives OUTSIDE the plugin tree, so a repo cannot forge it」;③永久 kill list=`plugin_catalog.py:5-6`、`:37`+盘上 `plugin-catalog/removed.yaml` 实体含真实条目(or-picker);④迁移自愈=`hermes_cli/memory_provider_migration.py:1-19` 头注(_LEFT_CORE 八内置 provider;`:41-42`/`:75` `2**(failures-1)` 指数退避,3600s 起上限 7 天;`:16-18`「Every outcome—installed, refused, failed, absent—reaches the user (terminal, Desktop, chat platform), never only agent.log」逐字命中)。18 条准入规则与测试镜像见 `plugin-catalog/README.md:8-168`(勘察转引)。
 - **价值判断**:记忆 provider 掌握全对话数据+常驻系统提示,是插件面里权限最高的类别;「装一个记忆后端」≈「给第三方开全量对话管道」。SHA 钉死防供应链漂移、树外 provenance 防自我伪造、kill list 防已移除恶意件回潮——把浏览器扩展商店的治理纪律搬进了 agent 记忆生态。迁移自愈的「必达用户可见渠道」则承认一个事实:provider 静默缺失就是记忆丢失,不能只写进日志。
 - **业界定位**:**差异化(治理深度)**。857 条目中 71 条 memory 品类、19 条 memory 命名条目覆盖九种范式(向量混合检索/云托管/本机零依赖复用/防篡改/版本时间机器/写入人审/选择器/UI 面板/多语特化),2026 年 9-10 月仍密集收录与重钉(plugin-catalog/ 最近提交 2026-10-24)——活跃维护而非化石目录。
-- **详解支撑**:catalog 字段全表与三个实例条目(mem0/honcho/holographic 全文拆解)、安装流机械执行(克隆→钉死 checkout→对针扫描→树外记账)、removed.yaml 全文、left-core 迁移退避数学、内置两薄后端+公共件、**71 条记忆主目+13 条邻接的全量范式清点**=**第 6 章**(⚠️未核证;其中「858 条目」计数经本版整合抽核实测为 857 条目+removed.yaml,见「章节核证状态」表下说明);本机三重 provenance 物证与迁移链现场=**第 7 章 §7.3**(⚠️未核证)。
+
+---
+- **详解支撑(详解版)**:catalog 字段全表、安装流(SHA 钉死/树外 provenance/kill list)、left-core 迁移自愈与指数退避、内置薄后端、记忆插件全量清点(71 主目+13 邻接)=**第 6 章 §6.1-6.6**(章核证 ✅);本机实际安装与 provenance 物证=**第 7 章 §7.3**(章核证 ✅)。
 
 ## §C 生态与工程质量
 
@@ -246,19 +252,13 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **单外部 provider 限制**:`agent/memory_manager.py:269-279` 拒绝第二个外部 provider——防工具 schema 膨胀与后端冲突。
 - **非 bundled provider 在隔离宿主进程装载**(`:420-437`),技能只为激活 provider 注册、切换时按 profile 收回(`:215-244`、`:540-554`)。
 
-> 详解支撑:**第 6 章 §6.4.1**(⚠️未核证)给出同主题的展开(含 add_provider 四门口次序即防御:schema 先于状态 #9948、核心工具名保留 #40466)。
-
 ### C.2 存储侧防护面
 
 读失败拒写(`tools/memory_tool_store.py:51-71`,防「读不出的文件当空存盘=全量抹除」)、外部漂移检测拒写+`.bak` 快照(`:206-221`)、批量清空 store 拒绝(✅抽验 `:613-617`)、文件锁+临时文件 rename 原子写(`:707-714`)、每轮整理失败 3 次熔断返回 done 让模型先回用户(`turn_context.py:628` 重置计数)。(勘察转引+部分抽验)另核证补充:成功响应不带 entries 列表并注明理由(`:654-659`:「echoing entries invites the model to "find more to fix"」;replace 的 `previous_content` 仍可见——「silent data loss is the failure this field exists to prevent」)——连工具返回形状都做过行为学修剪。
 
-> 详解支撑:锁协议、`_mutate` 纪律清单、原子写链、漂移三分支与 `.bak` 命名=**第 2 章 §2.4-2.5**(⚠️两瑕已修,两瑕不在这些节)。
-
 ### C.3 有界关停与生命周期
 
 `agent/memory_manager.py:858-904`:单 worker FIFO 5 秒有界排水(`_SYNC_DRAIN_TIMEOUT_S = 5.0`,✅抽验 `:41`),超时显式取消并计数 abandoned_writes/abandoned_prefetches 报告丢弃了什么;daemon 线程保证 wedged provider 不阻解释器退出(✅抽验 `:39-41` 注释);teardown claim 防双跑(`:838-856`)。(转引+部分抽验)
-
-> 详解支撑:**第 1 章 §1.6.5**(章节核证✅)给出同主题展开(排水时序、`shutdown_drain_state` 观测面、claim 语义)。
 
 ### C.4 本机部署实况(勘察只读探测)
 
@@ -266,34 +266,30 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 - **迁移链实证**:holographic 在 `_LEFT_CORE` 八家已拆出 provider 之列(`hermes_cli/memory_provider_migration.py:36`,✅核证头注 :1-19 亦证)——用户当年用内置版,core 拆除后被自动装成 catalog 插件,记忆数据与配置原样保留(config.yaml:884-885 `_left_core_installed` 记录)。
 - **同名陷阱(如实)**:gateway 的 `memory_monitor.py` / `memory_status.py` 监控的是进程/系统 RAM 非 agent 记忆,且本机一台未接线(`logging.memory_monitor.enabled=true` 配置键无代码读取者、gateway 日志 0 条 [MEMORY] 行——是「未接线」不是「坏了」)、heartbeat 的 mem 采样 Linux-only(macOS 恒 `{}`),连带 /api/status 内存压力恒 unknown。设计语义「读不到绝不冒充没问题」是对的,但配置存在而不生效是承诺与实况的差距。
 
-> 详解支撑:**第 7 章**(⚠️未核证)展开本节:config.yaml 记忆段逐键解读(含三处陈留键:flush_min_turns / auxiliary.flush_memories / logging.memory_monitor 均无读取者)、memory_store.db 完整 schema 与触发器、三重 provenance 物证、CLI 命令面、模型侧四工具清单。**注意**:第 7 章 §7.1.3 对初版 C.4 的一处表述提出修正——初版称 holographic 迁移链「config.yaml:884-885 `_left_core_installed` 记录」,第 7 章亲查该列表现为 `[homeassistant, spotify]` 无 holographic;结合 `.hermes-catalog.json` 的 `installed_at: 2026-10-14`,本机 holographic 走的是 catalog 正常安装路径(名字在 `_LEFT_CORE` 名单内、享受无人值守同意),`_left_core_installed` 记账的是另两件旁系插件——两说不矛盾,但本机「自动迁移装成」的直接物证是安装记录与空 bundled 目录,而非该列表。
-
 ### C.5 生态位的一个注脚
 
 当前 bundled 外部后端只有两个薄壳(retaindb 云 API+SQLite 写后队列、byterover 外部 brv CLI),mem0/supermemory/honcho/holographic 四个重后端已全部迁出到社区 catalog(git 删除记录逐可查);配套的 `plugins/memory/query_rewrite.py`(LLM 检索查询改写,注入防护型)当前在仓库内零调用方,是留给 catalog 第三方 provider 的公共件。核心仓库刻意只留薄后端、把重检索能力外置——与 P12 的治理立场一致,但意味着「开箱的语义召回能力」依赖用户自行选装 provider(见 §E)。
-
-> 详解支撑:两薄后端逐行拆解与 query_rewrite 改写规则三件套=**第 6 章 §6.4.2-6.4.4**(⚠️未核证);config_schema 声明式配置面板契约=**第 6 章 §6.4.5**。
 
 ---
 
 ## §D 对比定论:Hermes 记忆系统是不是「目前最好的工具」
 
-正面回答:**证据支持「第一梯队,且在两个特定维度上公开资料未见同粒度实现」;不支持无条件宣称「全面最好」。** 且初版的证据等级比初稿更高:12 条支柱全部经独立核证成立,核心强项主张已是源码级一手实证。分三层:
+正面回答:**证据支持「第一梯队,且在两个特定维度上公开资料未见同粒度实现」;不支持无条件宣称「全面最好」。** 且本终稿的证据等级比初稿更高:12 条支柱全部经独立核证成立,核心强项主张已是源码级一手实证。分三层:
 
-### D.1 确实强在哪(源码级一手实证)
+### 4.1 确实强在哪(源码级一手实证)
 
 1. **失败路径工程(最硬的一档)**:P1/P2/P3/P4/P6 全是「失败路径被真实事故编号钉死」的硬工程——#115104、#140058、#15218、#19434、#65544、#30636、#71724、openclaw#120597、btreeInitPage error 11、16 分钟写锁事故、3 GB WAL。对照组七家的公开资料无一披露到这个粒度。以「把记忆当生产系统来工程化」为标准,Hermes 是本研究见过的最完整实现。
 2. **记忆安全与治理**:写入前 strict 威胁扫描(P8)、九出口强制 fail-closed 脱敏(P5)、TOCTOU 审批钉死(P7)、写审批门禁、catalog 信任模型(P12)——这套组合在调研对象中整体缺位。以「记忆系统的安全工程」为标准,可称公开可见的最完整。
 3. **生态站位**:竞品记忆系统(Mem0/Honcho/Supermemory 等)作为可换单选插件进终端 agent 产品、内建文件记忆恒并行——调研对象中未见第二家。
 
-### D.2 还差什么(同样一手可证)
+### 4.2 还差什么(同样一手可证)
 
 1. **无召回质量基准**:Zep/Graphiti 有 LongMemEval/DMR 成绩(转述),Hermes 交接与核证材料中没有任何召回质量评测数据;本研究也未运行召回测试。记忆系统的第一性问题毕竟是「该想起来的想得起来吗」——这块证据 Hermes 暂时交白卷。
 2. **开箱检索能力薄**:bundled 仅两个薄后端(§C.5);不装第三方 provider 时语义召回有限;口语化查询改写件(query_rewrite)闲置,bundled provider 的 prefetch 都用原始 query,口语化召回质量存疑且未测。本机侧注:691M state.db 未建 cjk 表、`.so` 未构建(按设计降级,核证证实),CJK 检索增强在本机实际未启用。
 3. **消费级易用性**:对照 ChatGPT 的零配置记忆、Claude Code 的「人写 CLAUDE.md+自记 auto-memory」极简分工,Hermes 的记忆面(双层+provider+审批+预算+钩子)学习曲线陡峭——是给专业用户/多 profile 部署的设计,不是普通用户意义上的「最好」。
 4. **证据不对称(方法论诚实)**:Hermes 侧是源码级精读+独立核证,对照组全是公开资料转述;以一手证据对二手证据宣称「最好」天然越界。只能说:在可核查的公开面上未见对手披露同粒度实现——对手没披露≠没做。
 
-### D.3 定论一句话
+### 4.3 定论一句话
 
 **「目前最好的工具」不可证;「目前公开可见、工程化与安全治理最完整的记忆系统之一(第一梯队),且在『失败路径工程』与『记忆安全治理』两个维度暂时没有公开的同类对手」可证(12/12 支柱经独立核证)。** 换个说法:评价标准若是「记忆系统的可靠性工程与安全治理」,Hermes 是标杆;标准若是「开箱即用的召回聪明劲儿」或「普通用户无感」,它还不是——它把这部分能力外包给了可插拔 provider 生态,这个外包是设计选择,但意味着「最好的记忆系统」头衔要由「Hermes 框架+最强的 provider」合力、并在召回质量上补齐评测才能去争。
 
@@ -304,7 +300,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 ### E.1 系统本身的局限(源码可证)
 
 - **内置层容量极小**(2200/1375 字符,✅核证双处确认):curated by design,但记忆广度上限低,长周期大量事实须依赖外部 provider 或 session_search。
-- **冻结快照的可见性延迟**:轮中写入要等下次注入才进系统提示(✅核证 `memory_tool_store.py:649-652` 及 §B P11 机制;快照仅 agent 初始化与上下文重建边界重抓)。
+- **冻结快照的可见性延迟**:轮中写入要等下次注入才进系统提示(✅核证 `memory_tool_store.py:649-652` 及 §P11 机制;快照仅 agent 初始化与上下文重建边界重抓)。
 - **中断轮整体跳过外部同步与预取**(run_agent.py:890-917,#15218「部分输出不是持久真相」):崩溃/打断的轮次内容不进外部记忆——刻意取舍,也是召回盲区。
 - **prefetch 有 8s 超时守护线程**(✅抽验 `memory_manager.py:42`):慢后端的召回会被砍。
 - **query_rewrite 仓库内零调用方**(§C.5):口语化查询直接进检索,召回质量未验证。
@@ -315,14 +311,17 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 
 ### E.2 本研究未覆盖/未做
 
-- **未运行任何 Hermes 代码/测试**:初版是综合撰写+引用核证;源码证据来自勘察交接、初稿 13 处抽验与独立核证路结论,未逐条复核其余全部引用,亦未复跑任何性能数字(含 P4 注释中的 3-6s/multi-GB 实测声称)。第 II 部分各章自附的实测/本机佐证为**各章撰写时**执行,本版整合同样未复跑。
+- **未运行任何 Hermes 代码/测试**:本报告是综合撰写+引用核证;源码证据来自勘察交接、初稿 13 处抽验与独立核证路结论,未逐条复核其余全部引用,亦未复跑任何性能数字(含 P4 注释中的 3-6s/multi-GB 实测声称)。
 - **未做**:召回质量评测、token 成本测量、多 profile 并存压测、TUI/桌面端记忆 UI 实测、后台 review 的成本收益实测(降本 3-5x 为 docs 转述)。
 - **业界对照全部为公开资料转述**(业界对比材料自标 basis:推断),未读对手源码;「对手未见某机制」的判断受限于对手披露面。
-- **本机部署实况只做了只读探测**(sqlite3 immutable/ro 连接+配置/日志 cat,勘察路执行;第 4/7 章各自的只读探测为各章撰写时执行),未做任何写操作。
+- **本机部署实况只做了只读探测**(sqlite3 immutable/ro 连接+配置/日志 cat,勘察路执行),未做任何写操作。
 
 ---
 
+
 ## §F 核证附录
+
+> F.1 为初版核证附录原文(机械改名);F.2 为本版核证状态与修正记录。
 
 ### F.1 支柱主张与独立核证结论(12/12 holds=true,保留自初版)
 
@@ -338,7 +337,7 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 | P8 | 双向威胁扫描+[BLOCKED] 占位+流式围栏剥离状态机(宁截断不泄漏),堵死注入与泄漏两端 | **成立**。三处坐实:flush 弃尾(:80-86,:83)逐字命中;StreamingContextScrubber(30-115)接入 stream_delivery.py:358 与 agent_init.py:552;写入侧 strict 扫描拒写(:29-32,156/402/425/585)、加载侧 _sanitize 占位(:228-238)、threat_patterns.py strict |
 | P9 | 硬字符预算超限报错返回余量,整理决策显式抛回模型、批量只对终态检查,不静默压缩 | **成立**。:618 注释逐字命中;超限报错(:627-628)与余量/现有条目返回齐备;all-or-nothing 超限零写入、无静默压缩路径;预算 2200/1375 双处确认(memory_tool_store.py:188、memory_tool.py:56) |
 | P10 | 多 profile 下 provider claim 独占+caller_scope 拒绝未命名调用者+后台线程继承 owner home,归属不串档 | **成立**。caller_scope(:71-100)两条拒绝理由逐字在位;claim_instance(:111-137)接线 memory_manager.py:927;in_owner_home(:140-154)接线 memory_manager.py:478;三机制生产路径接线。注:初稿引用范围未覆盖后两函数,终稿已修正 |
-| P11 | 冻结快照注入:轮中写盘不改提示字节,用「下次注入才可见」换前缀缓存有效 | **成立**。:649-652 逐字命中;_system_prompt_snapshot 全库仅 4 处(:179/:194/:255/:652),轮中写盘路径不触碰,system_prompt.py:529 只读,仅 agent 初始化与重建边界(:834,缓存本就失效处)重抓〔措辞按第 2 章核证修正,见 §B P11 修正注〕 |
+| P11 | 冻结快照注入:轮中写盘不改提示字节,用「下次注入才可见」换前缀缓存有效 | **成立**。:649-652 逐字命中;_system_prompt_snapshot 全库仅 4 处(:179/:194/:255/:652),轮中写盘路径不触碰,system_prompt.py:529 只读,仅 agent 初始化与重建边界(:834,缓存本就失效处)重抓 |
 | P12 | 人审 catalog+SHA 钉死+树外 provenance+永久 kill list 治理记忆后端,left-core 迁移指数退避自愈且结局必达用户 | **成立**。四成分全核中:plugin_catalog.py:1-5/:43/:79;install 注释逐字命中;removed.yaml 盘上实体;migration 头注+2**(failures-1) 退避(:41-42/:75)+「never only agent.log」(:16-18)逐字命中 |
 
 核证执行方式:由独立核证环节对 `~/.hermes/hermes-agent` 检出逐行亲核(结论 12/12 holds=true,含上述行号);初稿撰写时另有 13 处抽验亦全部命中(1 处行号漂移 ≤2 行)。
@@ -347,23 +346,27 @@ substitute_api_content(turn_context.py:135-141;chat_completion_helpers.py:2155 �
 
 | 项 | 状态 |
 |---|---|
-| 第 1 章(运行时) | ✅ 章节核证通过(ok=true,无问题项;吻合明细未随记录附上) |
-| 第 2 章(存储契约) | ⚠️ 两瑕:§2.1.1 残留块断言无落点(lockstep 注释已过期)、§2.6.2 「:834 注释明言」表述失实;其余 28 组引用逐字吻合、锚号在位、盘上样例吻合。**盘上章文已按核证结论改写** |
-| 第 3 章(安全链) | ⚠️ 两瑕:INVISIBLE_CHARS 18→17(实测)、§3.5.4 引文 chunks→deltas(一词之差);其余吻合。**盘上章文已按实测修正** |
-| 第 4-7 章 | ⚠️ 未核证(核证子代理失败:WorkflowError: Subagent turn failed: Model creation failed);盘上文件存在且完整,内容按各章自述亲读,按「无标注(转引)」对待 |
-| 初版 P11 措辞 | 「(system_prompt.py:834)注释明言该点缓存本就失效」失实——:834 是代码行;成本论证注释在同边界压缩侧(conversation_compression.py:3101-3102/:3118)。**本版 §B P11 已加修正注;结论(快照两处重抓)不受影响** |
-| 初版 P12 计数 vs 第 6 章 | 整合抽核(检出 aa910ca0):858 个 yaml 总文件含 removed.yaml → **857 条目与初版一致**;第 6 章「858 条目」多计 1(未核证章计数瑕);memory 类目 71 两源一致 |
-| 初版 §3.4 迁移链表述 vs 第 7 章 | 第 7 章亲查 `_left_core_installed` 列表无 holographic(现为 [homeassistant, spotify]);本机迁移直接物证是安装记录与空 bundled 目录,见 §C.4 修正注(第 7 章未核证,按转引对待) |
+| 第 1 章(运行时) | ✅ 章节核证通过(本轮 ok=true,无问题项) |
+| 第 2 章(存储契约) | ⚠️ 两瑕:①§2.1.1「conversation_compression.py 匹配两标题」断言对被指文件无落点(store 的 lockstep 注释已过期);②§2.6.2「:834 注释明言缓存本就失效」归源失实(:834 为代码行,docstring 无成本论证)。核证其余覆盖 28 组引用:引文逐字吻合、锚号 10 枚在位、盘上样例吻合。**盘上章文已按核证结论披露/修正,收录版即修正后文本**(整合者本轮亲读 §2.1.1/§2.6.2 核对) |
+| 第 3 章(安全链) | ⚠️ 两瑕:①INVISIBLE_CHARS 实测 17 非 18;②§3.5.4 引文一词之差(chunks≠deltas,原文为 deltas)。**盘上章文已按实测修正,收录版即修正后文本**(整合者本轮亲读 §3.1.3/§3.5.4 核对) |
+| 第 4 章(状态库) | ⚠️ 两硬伤(已修;补核证员核出,50+ 处对读、零文件修改):①§4.1.2 sessions 列数「约 50」实为 **65**(`PRAGMA table_info(sessions)` 权威计数;DDL :461-529 与章一致,六组列均节选、行号无误);②§4.1.3 messages 列数「31」实为 **30**(正则解析+内存库 PRAGMA 双重验证,列名清单与分组行号全部正确)。另两处轻微引文之差同步修正(§4.3.1 differs→differed、§4.5.1 引文逐字对齐 hermes_state_fts.py:35);其余发现(活库计数 58,645→58,667 漂移属库仍写入、DDL 三行存储格式、≤3 行行号漂)不影响引文真实性,未改。**盘上章文与收录版均已修正,收录版即修正后文本**(整合者本轮亲读 §4.1.2/§4.1.3 核对);P1/P2/P4 展开细节恢复采信 |
+| 第 5 章(压缩) | ✅ 章节核证通过(本轮 ok=true,无问题项) |
+| 第 6 章(生态治理) | ✅ 章节核证通过(本轮 ok=true,无问题项) |
+| 第 7 章(本机部署) | ✅ 章节核证通过(本轮 ok=true,无问题项) |
+| 初版 P11 措辞 | 「(system_prompt.py:834,注释明言该点缓存本就失效)」及附录同款括注按第 2 章核证结论修正——:834 是代码行;成本论证注释在同边界压缩执行侧。见 §B P11 修正注;**P11 结论(快照两处重抓、轮中写盘不改提示字节)不受影响** |
+| 收录保真(第 II 部分) | 组装脚本生成时对盘上七章做逐字子串校验(7/7 通过方才写出);各章前「本章核证状态(详解版)」栏为本版所加,章内正文零改写 |
 
 ---
 
 # 第 II 部分 七章代码级详解(全文收录)
 
-> **收录说明**:以下七章取自 `docs/Hermes/chapters/`(2026-10-27 盘上版本)全文,未作改写——各章开头的路径/行号约定头注、自附的实测与本机佐证、章末验证记录一并保留,因此各章引用基线(检出 commit、撰写时点)以其自述为准。每章前插入整合者撰写的「本章核证状态」栏,如实标注该章在本轮核证中的结果;**凡指向第 4-7 章的支柱支撑,证据强度按「无标注(转引)」对待,引用前请按各章自附命令自行复跑**。支柱编号(P1-P12)均指第 I 部分 §B。
+> **收录原则**:以下七章为盘上章文(`docs/Hermes/chapters/ch01-runtime.md` … `ch07-deployment.md`)**逐字收录、零改写**——组装脚本对本文件生成时做过逐字子串校验(7/7 通过方才写出);各章前的「本章核证状态(详解版)」栏为本版所加,章内正文一字未动。各章的路径约定(相对 `~/.hermes/hermes-agent` 检出)、支柱编号、「实测/本机佐证/验证记录」均为各章撰写时自述,本版整合未复跑。章级核证状态总表见卷首。
 
 ---
 
-> **【本章核证状态】✅ 章节核证通过** —— 核证结论 ok=true、无问题项(吻合明细未随本记录附上)。本章断言按初版同款「✅核证」强度对待;行号基线以章首头注自述为准。
+> **本章核证状态(详解版)**:✅ 章节核证通过(本轮 ok=true,无问题项)。
+>
+> **收录来源**:`docs/Hermes/chapters/ch01-runtime.md`,逐字收录、零改写。
 
 # 第 1 章 记忆运行时与调用链(Memory Runtime & Call Chains)
 
@@ -720,12 +723,15 @@ def _drop_provider(self, provider: MemoryProvider) -> None:
 6. **关停要 claim 互斥 + 有界排水 + 丢弃计数显式上报**;轮与会是两个生命周期,on_session_end 只属于会话边界。
 7. **provider 声明式能力用签名内省适配**(`inspect.signature` + `**kwargs` 检测),老 provider 不改代码也能继续收到新事件的降级形态——但 `require_checkpoint` 这类"语义关键字"必须先探测签名再传,否则裸形状 v2 provider 会被宿主误判为检查点失败(`agent/memory_manager.py:74-84`)。
 
+
 ---
 
-> **【本章核证状态】⚠️ 核证有瑕(两处;盘上章文已按核证结论披露/修正,以下为原瑕记录)**
-> 1. 初稿 §2.1.1 断言「agent/conversation_compression.py 会匹配这两个标题检测『目标被清空后残留的块』」——核证者三轮 grep(MEMORY_BLOCK_HEADERS|USER PROFILE|your personal notes;MEMORY|leftover|emptied;personal notes|PROFILE|memory_tool|_render_block|═)零命中;全仓库 `MEMORY_BLOCK_HEADERS` 仅 tools/memory_tool_store.py(定义)与 tools/memory_tool.py(导入)两处,标题文本唯一其他出现是 tests/agent/test_413_compression.py:631 测试夹具。memory_tool_store.py:21-22 的 lockstep 注释确实如此声称(章文系忠实转述),但注释所指行为在当前检出 conversation_compression.py(249,759 字节)中不存在——**断言对被指文件无落点,lockstep 注释已过期**。现收录版 §2.1.1 已改为披露该过期性并给出真实机制(always-rebuild)。
-> 2. 初稿 §2.6.2 称「`:834` 处注释明言压缩边界上缓存本就失效,重抓不付额外代价」——实际 agent/system_prompt.py:834 是代码行 `agent._memory_store.load_from_disk()`;invalidate_system_prompt 的 docstring(:817-827)只说压缩后重载以纳入本会话写入,并无该成本论证文字;行号 816-834 与函数范围相符,但「注释明言」内容系章节自行引申。现收录版 §2.6.2 已修正,并连带修正初版报告 P11 的同款表述(见第 I 部分 §B P11 修正注)。
-> 其余:核证覆盖 28 组引用(锚号 #10877/#10878/#10888/#97316/#103419/#107270/#26045/#42405/#117952/#119668 逐一在位),除上述两处外引文逐字吻合、行号零漂移超 3 行;盘上 MEMORY.md/USER.md 样例逐字比对吻合。本章无 SQL 类断言,故无该项核证。
+> **本章核证状态(详解版)**:⚠️ 核证有瑕**两处**(本轮核证核出;盘上章文已按核证结论披露/修正——**收录版即修正后文本**,整合者本轮亲读 §2.1.1/§2.6.2 核对):
+> ① §2.1.1 原断言「`agent/conversation_compression.py` 会匹配这两个标题检测『目标被清空后残留的块』」**对被指文件无落点**——核证三轮 grep(标题常量/残留语义/渲染锚)全部零命中,`MEMORY_BLOCK_HEADERS` 全库仅 `tools/memory_tool_store.py`(定义)与 `tools/memory_tool.py`(导入)两处,标题文本唯一其他出现是 `tests/agent/test_413_compression.py:631` 测试夹具;原章文系忠实转述 `memory_tool_store.py:21-22` 的 lockstep 注释,而注释所指行为在当前检出不存在(**注释已过期**)。现文已改为「注释声称 + 三轮 grep 无落点实证 + 现行 ALWAYS-rebuild 机制」的如实表述。
+> ② §2.6.2 原文「`:834` 处注释明言压缩边界上缓存本就失效,重抓不付额外代价」**归源失实**——`agent/system_prompt.py:834` 是代码行 `agent._memory_store.load_from_disk()`,`invalidate_system_prompt` docstring(:817-827)只说压缩后重载以纳入本会话写入,并无该成本论证文字;「注释明言」内容系原稿自行引申。现文已明示该行为代码行,并把成本论证落点改指同边界的压缩执行侧。此瑕连带修正初版 P11 措辞(见 §B P11 修正注)。
+> 核证其余覆盖 28 组引用(超 12 处下限):引文逐字吻合、锚号 #10877/#10878/#10888/#97316/#103419/#107270/#26045/#42405/#117952/#119668 逐一在位、盘上 MEMORY.md(含第二条「.」噪声条目)与 USER.md 前三条逐字吻合(以上为核证记录转述)。
+>
+> **收录来源**:`docs/Hermes/chapters/ch02-store.md`,逐字收录、零改写。
 
 # 第二章 内置记忆存储契约:MemoryStore 与 memory 工具
 
@@ -1203,12 +1209,14 @@ return (f"[BLOCKED: {filename} entry contained threat pattern(s): {', '.join(fin
 
 复用者最应带走的三条设计判断:①**预算口径含分隔符**且只查终态——"删旧腾位+新增"能在一次原子 batch 里完成,这是整理协议能闭环的前提;②**锁对象是旁路文件**而非数据文件,因为数据文件的写法是整体 rename 替换——任何"锁+原子替换"组合都须回答锁谁;③**快照冻结是写路径的自觉自律**:`_set_entries`/`_write_file` 全都触手可及,快照不被污染靠的是 `_system_prompt_snapshot` 只有一写一读两个入口、并被 docstring 与注释反复钉死动机(prefix cache)——复用时若新增写快照的路径,这条契约即破。
 
+
 ---
 
-> **【本章核证状态】⚠️ 核证有瑕(两处;盘上章文已按实测修正,以下为原瑕记录)**
-> 1. 初稿 §3.1.3 称不可见字符集为「零宽、双向覆盖等 18 个码点」——核证者实测 `python3 -c "from tools.threat_patterns import INVISIBLE_CHARS; ..."` 输出 count = **17**(源码 tools/threat_patterns.py:110-112 两个字符串字面量 8+9=17),章节多数错一;行号 :110-112 本身精确。现收录版已按实测改为 17。
-> 2. 初稿 §3.5.4 将 agent/stream_delivery.py:346-347 注释引作 "…when a tag was split across chunks; …"——源码原文第一分句为 "…when a tag was split across **deltas**";第二分句 "memory-context spans split across chunks must not leak to the UI" 逐字吻合,锚 #5719 确在 :350。以引号呈现的引文与原文一词之差(chunks≠deltas),语义未变但非逐字。现收录版已改正。
-> 其余实测探针与行号吻合(核证记录未列其他问题)。
+> **本章核证状态(详解版)**:⚠️ 核证有瑕**两处**(本轮核证核出;盘上章文已按实测修正——**收录版即修正后文本**,整合者本轮亲读 §3.1.3/§3.5.4 核对):
+> ① §3.1.3 原称不可见字符集「零宽、双向覆盖等 18 个码点」——核证于检出根实测 `python3 -c "from tools.threat_patterns import INVISIBLE_CHARS; …"` 输出 **count=17**(源码 `tools/threat_patterns.py:110-112` 两个字符串字面量 8+9),多数错一;行号 :110-112 本身精确。现文已改为 17 并附实测。
+> ② §3.5.4 原将 `agent/stream_delivery.py:346-347` 注释引作「…when a tag was split across chunks」——原文第一分句为「…split across **deltas**」,第二分句逐字吻合,锚 #5719 确在 :350;一词之差,语义未变但非逐字。现文引文已按原文修正。
+>
+> **收录来源**:`docs/Hermes/chapters/ch03-security.md`,逐字收录、零改写。
 
 # 第 3 章 记忆安全链:双向威胁扫描、出口脱敏、流式围栏剥离与审批钉死
 
@@ -1605,10 +1613,17 @@ idx, ambiguous = _find_unique_match(entries, old_text)   # 无 pin 才走搜索
 
 *(本章完。行号基线:~/.hermes/hermes-agent @ aa910ca0;支柱编号见 docs/Hermes/hermes-memory-report.md §2。)*
 
+
 ---
 
-> **【本章核证状态】⚠️ 有瑕两处(补核证)** —— 首轮核证子代理失败后由补核证员补核:ok=false,两处硬伤(§4.3.1 引文模块归属张冠李戴、§4.6.4 行号落点未标文件切换),断言内容本身均真实;章末 §4.8 自附验证记录(只读 SQLite 探测命令与输出)可供自行复跑。
-> **【补核证修正注】** §4.3.1「api_content VERBATIM (no sanitize/strip) so replay keeps the provider prompt cache byte-stable」(:1553)归属由 `hermes_state_prune_rewrite`(274 行文件,:1553 无落点)改标 `hermes_state_messages.py` 回读侧 `_rows_to_conversation` docstring;§4.6.4 孤儿 fd/双锁区分注释块与分块回填锁行号改标 `hermes_state_common.py:1219-1246` 与 `:1230-1232`(准入函数 `fts_rebuild_admission` 同文件 :1432),不再按上下文落在 hermes_state_schema.py 坐标系(原区间实为 title_repair 存档)。
+> **本章核证状态(详解版)**:⚠️ 补核证核出**硬伤两处**(已修;盘上章文与收录版均已同步修正——**收录版即修正后文本**,整合者本轮亲读 §4.1.2/§4.1.3 核对):
+> ① §4.1.2 标题原称 sessions「约 50 列」——实际 **65 列**(sqlite3 内存库 `PRAGMA table_info(sessions)` 权威计数;DDL 范围 `hermes_state_common.py:461-529` 与章一致,六组列均为节选、行号无误),「约 50」偏低约 23%,超出「约」的合理浮动;
+> ② §4.1.3 标题原称 messages「31 列」——实际 **30 列**(python3 正则解析 `SCHEMA_SQL` :531-562 与内存库 PRAGMA 双重验证;列名清单与各组行号 :543-547/:549-552/:553/:554-557/:558-561 全部正确,唯总数差一)。
+> 另两处轻微引文之差同步修正:§4.3.1「when it differs」→「when it differed」(`hermes_state_messages.py:406` 原文时态);§4.5.1 引文删多余的 at、逐字对齐 `hermes_state_fts.py:35`。其余核证发现——活库 messages 计数 58,645→58,667(state.db-wal 今日仍写入,撰写时点数值无法复现属正常)、messages_fts DDL 实为三行存储格式、若干 ≤3 行行号漂——经核证认定不影响引文真实性,原文未动。核证方式:50+ 处对读亲验(引文/行号/本机佐证全部复现),零文件修改、未运行 Hermes 代码;核证来源:**补核证员**。本章支撑 P1/P2/P4 的展开细节据此**恢复采信**;三支柱本体主张仍以初版独立核证(✅)为准。
+>
+> **补核证修正注(2026-10-27)**:按补核证结论修正四处——两处硬伤(§4.1.2「约 50 列」→「65 列」、§4.1.3「31 列」→「30 列」)与两处引文之差(§4.3.1 differs→differed 并正列语义文档行号为 :405-407、§4.5.1 删「measured」后多余的 at 并标注 hermes_state_fts.py:35 真源);盘上章文件(`docs/Hermes/chapters/ch04-state.md`)与本章收录版同步改动,其余一字未动。
+>
+> **收录来源**:`docs/Hermes/chapters/ch04-state.md`,逐字收录、零改写。
 
 # 第四章 会话状态库工程:state.db 的守卫、边车、检索与自愈
 
@@ -1648,7 +1663,7 @@ DDL 真源是单条 `SCHEMA_SQL` 字符串常量(`hermes_state_common.py:451-770
 | `MAX_FTS5_QUERY_CHARS` | 2_048 | `hermes_state_common.py:335` | FTS5 查询消毒前的长度帽 |
 | `_FTS_TRIGGERS` | 6 触发器名元组 | `hermes_state_common.py:448-449` | base+trigram 的 insert/delete/update |
 
-### 4.1.2 核心转录表 sessions(约 50 列,六组)
+### 4.1.2 核心转录表 sessions(65 列,六组)
 
 `sessions`(`hermes_state_common.py:461-529`)每会话一行:
 
@@ -1663,7 +1678,7 @@ DDL 真源是单条 `SCHEMA_SQL` 字符串常量(`hermes_state_common.py:451-770
 
 `transcript_revision` 由触发器 `messages_transcript_revision_update` 维护:内容列原地改写(提示扩展、多模态上下文、脱敏)既不动活跃行数也不动最大 id,派生缓存就以这个写侧修订数为键(`hermes_state_common.py:787-796`,注释明言「Whoever wrote the row, old builds included」)。系统提示去重表 `system_prompts(hash TEXT PRIMARY KEY, prompt TEXT NOT NULL)`(:456-459):v25 起 sessions 只存哈希,内联 prompt 由 `_dedupe_legacy_system_prompts` 迁入内容寻址表;中途遇 OperationalError 安全返回——部分迁移无害(旧列仍是读回落,下次打开续迁),向上传播曾把版本卡在 25 以下造成网关崩溃循环(`hermes_state_schema.py:189-211`)。
 
-### 4.1.3 转录本体 messages(31 列)
+### 4.1.3 转录本体 messages(30 列)
 
 `messages`(`hermes_state_common.py:531-562`),`id INTEGER PRIMARY KEY AUTOINCREMENT`,`session_id` FK 引用 sessions:
 
@@ -1762,7 +1777,7 @@ configured=delete → 探针 None 则 raise;否则 no-wait DELETE 验收        
 
 ### 4.3.1 常规落库路径:INSERT 原生含列
 
-消息行 INSERT 的列清单原生包含 api_content(`_INSERT_MESSAGE_SQL`,`hermes_state_messages.py:33-36`);live dict 上盖了 `api_content` 键的行落库时直接带上(参数绑定 `_str_or_none(msg.get("api_content"))`,:298)。回读侧 `row["api_content"] is not None` 时还原到 dict(:363-364)。列语义文档(:401-406):「api_content: byte-fidelity sidecar, the exact string sent to the API when it differs」。压缩拷贝走纯 SQL 列克隆(every column except id——content, api_content…),**逐字节保留**(:933);回读侧 `_rows_to_conversation` 的 docstring 亦明示「``api_content`` VERBATIM (no sanitize/strip) so replay keeps the provider prompt cache byte-stable」(:1553)。
+消息行 INSERT 的列清单原生包含 api_content(`_INSERT_MESSAGE_SQL`,`hermes_state_messages.py:33-36`);live dict 上盖了 `api_content` 键的行落库时直接带上(参数绑定 `_str_or_none(msg.get("api_content"))`,:298)。回读侧 `row["api_content"] is not None` 时还原到 dict(:363-364)。列语义文档(:405-407):「api_content: byte-fidelity sidecar, the exact string sent to the API when it differed」。压缩拷贝走纯 SQL 列克隆(every column except id——content, api_content…),**逐字节保留**(:933);回读侧 `_rows_to_conversation` 的 docstring 亦明示「``api_content`` VERBATIM (no sanitize/strip) so replay keeps the provider prompt cache byte-stable」(:1553)。
 
 ### 4.3.2 补写路径:两条 UPDATE
 
@@ -1854,7 +1869,7 @@ like_where = [f"({' OR '.join([_LIKE_ANY_COLUMN_SQL] * len(non_op_tokens))})"]  
 
 ### 4.5.1 形态、加载与门控
 
-`native/fts5_cjk/fts5_cjk.c`:252 行、零依赖的可加载 FTS5 分词器扩展,注册名 `cjk_unicode61`(入口 `sqlite3_ftscjk_init`,:231-243;另导出下划线基名别名 `sqlite3_fts5_cjk_init`,:249-252)。构建一行:`gcc -shared -fPIC -O2 fts5_cjk.c -o libfts5_cjk.so`(:20);使用 `tokenize='cjk_unicode61'`,额外参数透传 unicode61(如 `remove_diacritics 2`,:22-24)。运行时加载 `load_fts5_cjk_extension(conn) -> bool`(`hermes_state_fts.py:113-128`):best-effort 绝不抛;路径 `HERMES_FTS5_CJK_SO` 环境变量,否则 `$HERMES_HOME/lib/libfts5_cjk.so`(:101-104);配置门 `sessions.cjk_fts` 默认开(环境 `HERMES_CJK_FTS`,:107-110)。头注释(:2-10)动机全文:unicode61 把 CJK 游程当一个 token;trigram 需 ≥3 字/词,2 字词(일본、구글、项目)掉 LIKE——「measured at 3-6s CPU per query on multi-GB installs」(6.8GB messages 表,session_search 延迟头号驱动;注释声称,主报告未复跑);PR #65544,贡献者 Soju06(:40)。
+`native/fts5_cjk/fts5_cjk.c`:252 行、零依赖的可加载 FTS5 分词器扩展,注册名 `cjk_unicode61`(入口 `sqlite3_ftscjk_init`,:231-243;另导出下划线基名别名 `sqlite3_fts5_cjk_init`,:249-252)。构建一行:`gcc -shared -fPIC -O2 fts5_cjk.c -o libfts5_cjk.so`(:20);使用 `tokenize='cjk_unicode61'`,额外参数透传 unicode61(如 `remove_diacritics 2`,:22-24)。运行时加载 `load_fts5_cjk_extension(conn) -> bool`(`hermes_state_fts.py:113-128`):best-effort 绝不抛;路径 `HERMES_FTS5_CJK_SO` 环境变量,否则 `$HERMES_HOME/lib/libfts5_cjk.so`(:101-104);配置门 `sessions.cjk_fts` 默认开(环境 `HERMES_CJK_FTS`,:107-110)。头注释(:2-10)动机全文:unicode61 把 CJK 游程当一个 token;trigram 需 ≥3 字/词,2 字词(일본、구글、项目)掉 LIKE——「measured 3-6s CPU per query on multi-GB installs」(`hermes_state_fts.py:35`;C 头注 :9 措辞为「measured at 3-6s per query on a 6.8GB messages table」,session_search 延迟头号驱动;注释声称,主报告未复跑);PR #65544,贡献者 Soju06(:40)。
 
 ### 4.5.2 包装器结构与 cjk_emit 重发射
 
@@ -1989,10 +2004,12 @@ claim 即「在 `_execute_write` 持有的 BEGIN IMMEDIATE 内重读 progress」
 
 本章未做:召回质量评测、FTS 重建实操、WAL 切换实验、Hermes 测试套件运行——均为只读研究边界之外。
 
+
 ---
 
-> **【本章核证状态】⚠️ 有瑕三处(补核证)** —— 首轮核证子代理失败后由补核证员补核:ok=false,三处硬伤均为行号漂移且原区间指向相邻函数,断言内容本身全部真实;文中事故编号均为源码注释自带的 issue 锚,转引自注释原文。
-> **【补核证修正注】** §5.2 防抖三闸表与 §5.11 事故索引表中 `_tripped()`(`agent/context_compressor.py`)区间 :3037-3043(实为 `_refresh_durable_guards` 定义体)改为 :3028-3035;§5.10 `_SYNTHETIC_PROMPT` :7-12(实为 import 区)改为 :13-18;§5.10 `_snapshot` :51-56(实为 `_display_rows_sql` 头部)改为 :42-49。
+> **本章核证状态(详解版)**:✅ 章节核证通过(本轮 ok=true,无问题项)。
+>
+> **收录来源**:`docs/Hermes/chapters/ch05-compression.md`,逐字收录、零改写。
 
 # 第 5 章 压缩与长程记忆(Compression & Long-term Memory)
 
@@ -2390,10 +2407,12 @@ _PRUNE_FIXED_COLUMNS = frozenset({"session_id", "role", "tool_call_id", "timesta
 
 *(第 5 章完)*
 
+
 ---
 
-> **【本章核证状态】⚠️ 有瑕八处(补核证)** —— 首轮核证子代理失败后由补核证员补核:ok=false,八处硬伤(计数、行号、行数、URL 形状、字符数、引文、五候选、退避换算各计),公式/两常量/计数封顶与其余引文等均验证有落点;整合者此前抽核的「858 多计 1」亦经补核证坐实并修正。
-> **【补核证修正注】** §6.1.1 清点改为:ls 总数 858(含 removed.yaml),条目文件 **857**、其中含 `^name:` 者 856(`acedatacloud-media.yaml` 为单行 JSON 格式);§6.1.2 capabilities 规则 6 行号 :28-31→:39-42;§6.1.3 mem0.yaml 全文 24→20 行;§6.1.4 image URL 补上 `hermes-plugin-honcho` 目录段;§6.1.5 description 约 2.2 万→6,249 字符;§6.2.2 `RemovedEntry` 默认值引文改为 `date: str = ""`、已装检测五候选改为 manifest 名/记录 source/catalog 名/catalog repo/目录名;§6.3.3 退避换算改为第 8 次 460800s=128h、第 9 次 921600s>604800s **首次触钳**、第 10 次起恒 604800s。
+> **本章核证状态(详解版)**:✅ 章节核证通过(本轮 ok=true,无问题项)。
+>
+> **收录来源**:`docs/Hermes/chapters/ch06-ecosystem.md`,逐字收录、零改写。
 
 # 第六章 记忆后端生态与治理:catalog、安装流、迁移自愈与内置薄后端
 
@@ -2778,10 +2797,12 @@ agent init 答不了依赖提示(CLI 下 prompt_toolkit 占着终端会挂死整
 4. **内核只留薄壳**:检索聪明的部分外置成可换单选插件;单外部 provider 上限+四级反转优先级+零 import 探测+隔离宿主,是权限最高品类的最低暴露面。
 5. **配置即契约**:config_schema 按路径加载不导入、secret 只写不读回、schema 按 profile 路径缓存——面板渲染永远碰不到 agent 运行时。
 
+
 ---
 
-> **【本章核证状态】⚠️ 有瑕九处(补核证)** —— 首轮核证子代理失败后由补核证员补核:ok=false,九处硬伤(计数三处、行号五处、clamp 下界一处;§7.5.1 一处为临界轻度),另三处记录性说明不计硬伤(mode=ro 本次亲测未报错、gateway 运行时长自然推移、heartbeat 较章列多一键 `loop_tick_tcp_port`,章文未改);config.yaml 逐键、两库只读实测、三重 provenance 物证、四阈值常量原文等大批引用逐一命中。本章全部探测为撰写时只读执行(SQLite 一律 mode=ro/immutable=1,gateway 在跑、禁写)。另:本章 §7.1.3 对初版 §3.4 的迁移链表述提出的一处修正已并入第 I 部分 §C.4 修正注。
-> **【补核证修正注】** §7.2.3 memory_store.db 触发器 8→**6**;§7.6.3/§7.3 fact_store action 20→**21**(检索 5+版本链 6+治理 9+写入 1;as_of/valid_from/valid_to 改标参数不占计数)、「其余十一个只读」→**十二**;§7.4.2 `classify_pressure` :60-70/:62-63→:50-60/:51-52、输出十字段→**九字段**;§7.6.1 旧形状注释 :384-386→:398-400;§7.6.2 limit clamp 3-10→**1-10**(:587→:585)、`read_only=True` :643→:638(profile 库 :444);§7.5.2 `_install_dependencies` :113-131→:95-115(sync_venv 准备 :99、逐项 check :106-112);§7.5.1 三契约 :19-25→:14-19。
+> **本章核证状态(详解版)**:✅ 章节核证通过(本轮 ok=true,无问题项)。
+>
+> **收录来源**:`docs/Hermes/chapters/ch07-deployment.md`,逐字收录、零改写。
 
 # 第 7 章 本机部署实况与使用面
 
@@ -3147,4 +3168,69 @@ FACT_STORE_SCHEMA = {
 
 一台 macOS、单 profile、gateway 常驻(external-supervisor 模式)的**双层记忆生产部署**:内建层 MEMORY.md(3.9KB)/USER.md(2.9KB)按 2200/1375 字符预算注入系统提示,写审批门关、nudge 每 10 轮自查;外部层是 community 档 holographic v0.13.0(SHA 钉死 `a6d00931…`,2026-10-14 装),驱动 282KB 双时间版本化 SQLite 事实库(15 facts/15 versions/6 entities/1024 维 HRR,当日仍在写);会话层 691MB WAL state.db(998 会话/58,645 消息/184 条 api_content 边车)以 unicode61+trigram 双 FTS 可查(CJK 增强未构建,按设计降级)。使用面四个记忆工具全量对模型开放。配置里三处陈留(`flush_min_turns`/`auxiliary.flush_memories`/`logging.memory_monitor`)如实点名——它们存在但不生效,复用设计时应当引以为鉴:**每个配置键都要有可指认的读取者,否则就是给运维埋假开关**。
 
-*(详解版完。初版见 `docs/Hermes/hermes-memory-report.md`;七章原件在 `docs/Hermes/chapters/`。)*
+---
+
+---
+
+# 第 III 部分 实弹与外部实证(2026-10-27 晚追加)
+
+> **定位**:第 I/II 部分为静态读码与结论定谳;本部分收录当晚三路新证据并给出增量定谳——§III.1 库级实弹验证(真源 `live-fire-report.md`,7/7 探针)、§III.2 竞品七维度源码级实证(六路)、§III.3 插件生态实测(真源 `plugin-fieldtest.md`,71 件)、§III.4 增量定谳与勘新汇总。三路证据全部经独立复核环节只读复核+亲自复跑/核对,**总裁定 ok=true**(复核记录要点随各节如实转录)。
+>
+> **证据等级标注(本部分口径)**:**〔实证〕**=竞品浅克隆/本机检出/沙盒实跑的 path:line 或真实输出;**〔文档级〕**=无开源真身、以官方文档页为据(仅 Claude Code 一路)。
+
+## III.1 库级实弹验证:7/7 探针通过
+
+**结论:passed/total = 7/7**(①MemoryStore 契约 ②威胁扫描双轨 ③锁互斥·并发零丢失·漂移备份 ④冻结快照字节不变 ⑤CJK 三级路由两阶段 8/8 ⑥api_content 边车回放 ⑦settrace 动态追踪),分别坐实支柱 P9/P8/P2(文件锁·原子写面)/P11/P4/P1/P9(调用链);总览表与逐探针命令、真实输出见 `live-fire-report.md` §0-§7。
+
+**与静态结论(第 II 部分)的出入,如实**:
+
+1. **实质出入 1 处(复核员独立复算再证)**:ch02 §2.2.2「分隔符 `\n§\n` 占 4 字符」实测为 **3 字符**——铁证:3 条目各 401 字符,store 自报 `1,209/1,375` = 3×401 + 2×3;公式结构(join 总长含分隔符、只查写入终态)正确,常数 4 应为 3。**第 II 部分收录版章文未随改,以本注为准**(`live-fire-report.md` §8.1)。
+2. **环境披露 1 处(非代码分歧)**:探针 5-7 脚本因含状态层 API 字面量,被本机 Hermes 运行时管理改派至 `tools/python-3.14.9 -I` 执行(同一份检出代码;运行时 SQLite 3.53.1),报告头部与 §8.3 已自曝;探针以脚本内自修 `sys.path` 完整跑通。
+3. **复核侧操作披露(已无害化)**:复核员首轮复跑 probe5 误用新建空 home,触发运行时「为该 data root 准备依赖」流程(有写真实 `~/.hermes` 之虞),立即 kill 并经 marker 前后比对确认**零写入**;换已备妥沙盒 home 后复跑全程无此流程。复现须知:probe5/6/7 复跑须用已备妥 data root,空 home 会触发依赖准备。
+
+**独立复核记录(要点)**:复核员自选最要害 3 探针(1/2/5)亲复跑——**3/3 全部逐字复现**(超限/拒写/`[BLOCKED]` 占位文案逐字同,CJK 路由矩阵 8/8 逐格一致;拒写零落盘另以用量算术独立证明 2,039→2,056 恰为干净条目 17 字);§8.1 出入的算术(3×401+2×3=1,209)复核员独立再证为真。与原报告仅有的差异是两条「盘上存在性」断言旗标(复跑序列携带探针 1 残留状态所致,属状态序列差异非行为差异)。安全面:探针写入仅落 `/tmp/hermes-livefire` 沙盒(`HERMES_HOME` 重定向+`PYTHONDONTWRITEBYTECODE=1`),真实 `~/.hermes` 检出经 marker 前后比对零新文件、零新 `.pyc`(既有写入面 state.db-wal/gateway_state.json 等归因常驻网关守护进程,与两份报告口径一致)。
+
+## III.2 竞品七维度源码级实证(六路)
+
+**研究对象与 basis**:mem0(HEAD `26cdefb4`,2026-10-26 浅克隆〔实证〕)、langmem(HEAD `48e3c11f`,2026-10-02〔实证〕)、letta(克隆经 origin 核实**实为 letta-ai/letta-code**,非 letta 服务端〔实证〕)、OpenClaw(开源克隆+本机 `~/.openclaw-autoclaw` 实测〔实证〕)、graphiti(浅克隆〔实证〕)、Claude Code(无开源真身,官方文档 memory/checkpointing/permissions/settings/costs 五页〔文档级〕)。七维度取自第 I 部分支柱 P2/P3/P4/P5/P6/P7/P11。
+
+**判定分布:42 格 = 同粒度存在 2(均在 OpenClaw)+ 有类似但粒度不同 18 + 未见对应物 22。**
+
+| 维度(支柱) | mem0〔实证〕 | langmem〔实证〕 | letta-code〔实证〕 | OpenClaw〔实证〕 | graphiti〔实证〕 | Claude Code〔文档级〕 |
+|---|---|---|---|---|---|---|
+| ①WAL/并发所有权纪律(P2) | **有类似但粒度不同**:SQLite 历史库单 `threading.Lock` 串行+显式事务(storage.py:14-15,163-191,228-239);零 WAL/busy_timeout/跨进程,多进程同库即 database is locked | **未见对应物**:存储全委托 LangGraph BaseStore(reflection.py:18);全库唯一锁仅惰性解析 store 引用(reflection.py:271,295-306) | **有类似但粒度不同**:跨进程文件锁租约+仅死持有者回收(memory-operation.ts:11-49;file-lock.ts:19-24,45);载体为文件锁非 SQLite WAL | **同粒度存在(超规格)**:WAL 自动检查点+脑裂检测即终止进程(sqlite-wal.ts:56-70;sqlite-wal-split-brain.ts:46,107)+busy_timeout 连接策略(sqlite-busy-timeout.ts:38-52)+state_leases 租约表 BEGIN IMMEDIATE 内二次校验(openclaw-state-lease-store.ts:58-70,82,200)+网关单主租约拒双主(gateway-owner-lease.ts:83,87-90);本机 openclaw.sqlite `.schema` 实证两表 | **未见对应物**:唯一 sqlite 为 LLM 响应缓存(cache.py:29,无 WAL/单连接跨线程共享);并发所有权整体交外部图库 | **未见对应物**:五页文档零并发纪律描述;多 worktree/子目录共享 memory 目录且无策略说明 |
+| ②压缩前记忆检查点 fail-closed(P3) | **未见对应物**:UPDATE/DELETE 先破坏后记账、history 写失败仅吞错继续(main.py:2087-2103,2125-2131;ADD 降级 main.py:1090-1098) | **有类似但粒度不同**:summarize_messages 纯函数、失败上抛原 messages 完好(summarization.py:337-349);无前置检查点门(无持久化副作用故无需) | **有类似但粒度不同**:compaction 条目 append-only 与原文同树即等价物(session.ts:19,26,60)+失败侧 fail-closed(compaction.ts:73-79,536-539);无前置独立检查点 | **有类似但粒度不同**:同树 append-only+压缩看门狗(compaction-watchdog.ts:11-16)+服务端前缀绑定检查点(provider-compaction-checkpoint.ts:7-11,22-25);无「检查点失败拒压缩」显式门 | **有类似但粒度不同**:saga 双水位线增量摘要,但 episodes 不删、纯附加非破坏(graphiti.py:590-637);无检查点语义 | **有类似但粒度不同**:每回合 prompt 自动检查点(留最近 100 个/约 30 天)但 fail-open(Bash/子代理/并发/符号链接不追踪),compact 前无强制检查点 |
+| ③CJK 双字分词检索(P4) | **未见对应物**:检索全委托外部后端(Pinecone BM25Encoder、Milvus analyzer、ES BM25);仓内零 CJK 分词(configs/prompts.py:1058 仅提示词风格文案) | **未见对应物**:store.search 委托 BaseStore(knowledge/tools.py:150,238);全仓 cjk/chinese/tokenize 零命中 | **有类似但粒度不同**:CJK 连续 run 整段单 token+检索期子串计数保召回(transcript-search.ts:192-243);整段粒度非双字索引 | **有类似但粒度不同**:FTS5 unicode61/选配 trigram(三元)双表+vec0 向量混合(sqlite-memory-search-fragments.ts:20-58;zod-schema.memory-search.ts:62);全库 grep bigram 零命中 | **未见对应物**:查询侧仅空格切分(search_utils.py:90,108);主通道 embedding 语义向量 | **未见对应物**:MEMORY.md 前 200 行/25KB 全量注入+按需文件读取;无 FTS/分词/嵌入层 |
+| ④出口强制脱敏 fail-closed(P5) | **未见对应物**:唯一脱敏为遥测配置克隆键名抹除(main.py:104-123,254-298);记忆内容出口(search/get 返回)零脱敏 | **未见对应物**:mask() 是提示词模板变量占位符替换(utils.py:188-209),与敏感信息脱敏无关 | **有类似但粒度不同**:WS 日志单出口键名黑名单+JSON parse 失败整体打码不输出原文(ws-event-redaction.ts:4-15,102-107)且日志路径强制过;覆盖面非全出口 | **有类似但粒度不同**:秘密值注册表精确匹配(原文+URL 编码+JSON 转义三形态,secret-redaction-registry.ts:42-60)+流式跨 chunk 替换(redacting-stream.ts:3-47)+模型出口 sentinel 代理(model-egress.ts:16-22);未注册秘密值不在拦截面 | **未见对应物**:命中皆 Lucene 转义/Cypher 参数化(helpers.py:88,121-122;neptune_driver.py:244),无内容出口脱敏 | **未见对应物**:无内容出口脱敏描述;最近机制为 @path 导入审批+HTML 注释剥离(防注入/省 token) |
+| ⑤卡死后端熔断门(P6) | **未见对应物**:LLM 失败重抛交调用方自 fallback(main.py:965-971);仅遥测 HTTP 0.5s 拉取限时(telemetry.py:17,87) | **未见对应物**:单线程 worker invoke 无超时/无计数/无跳过(reflection.py:401-448,436);后端卡死即冻结整个队列 | **有类似但粒度不同**:5min provider 超时(local-provider-timeout.ts:3)+卡死锁持有者使等待者超时失败而非级联(auth-store.ts:100-108);无熔断状态机 | **有类似但粒度不同**:429 重试预算+认证档案冷却 30s(usage-state.ts:26-53)+回退健康排序(model-fallback-rate-limit.ts:29-40)+进程内失败跳过缓存默认关(fallback-skip-cache.ts:10-13);无 half-open 探针 | **有类似但粒度不同**:tenacity 有界重试+限流 fail fast(gemini_client.py:445)+一次性健康检查(neo4j_driver.py:227-236);无持续熔断器 | **有类似但粒度不同**:用户可配有序回退链+用量限制等待/autoContinue(settings/costs);无 API 级熔断描述 |
+| ⑥审批/执行 TOCTOU 防偷换(P7) | **未见对应物**:LLM 提取→直写向量库一阶段直通;两轮关键词 grep 零机制命中 | **未见对应物**:submit→invoke 直通(reflection.py:273-329,425-441);grep 零命中 | **有类似但粒度不同**:审批/执行状态失配即拒盲目重跑(turn-recovery-policy.ts:464-468)+工具名规范化防换名(permissions/canonical.ts:1-6,37-47)+命令替换显式处理(shell-analysis.ts:65,193-200);无载荷哈希强门 | **同粒度存在(教科书级)**:执行前再授权内核——审批时对策略文件+agentId 做 policySnapshot、执行时比对,不一致即 throw(exec-approvals-authorization.kernel.ts:42-120);收紧须重绑、requireExactCommandApproval 按命令文本精确比对(:84-105);本机 exec-approvals.json+sqlite 表实证 | **未见对应物**:库+MCP server 无工具审批两阶段流 | **有类似但粒度不同**:复合命令逐子命令匹配+符号链接双重检查+执行时路径再确认;但 Bash 规则自认非安全边界,无命令文本逐字再比对/策略快照通用保证 |
+| ⑦冻结快照保前缀缓存(P11) | **未见对应物**:sorted() 皆实体/批量 ID 排序(main.py:1173,1189,1942,3623);frozen/cache 命中皆 frozenset 字面量与注释误中 | **未见对应物**:仅 prefix_names 为搜索工具描述文案(tools.py:346-349),零机制 | **有类似但粒度不同**:系统提示编译并持久化复用作稳定前缀(local-backend.ts:495-509,971-983);无 cache_control 式断点管理 | **有类似但粒度不同**:缓存边界标记+运行时事实外迁保指令区字节稳定(system-prompt-cache-boundary.ts:5-38)+双提供方 cache_control/retention(anthropic-payload-policy.ts:188;openai-prompt-cache.ts:14-27)+历史重写后剥前缀检查点防重放错位(provider-compaction-checkpoint.ts:22-25);无「冻结快照」概念本身 | **未见对应物**:frozen dataclass(prompt_config.py:31-77)与 LLM 响应缓存(cache.py:25)皆与前缀缓存无关 | **未见对应物**:仅认知 per-model 缓存存在(切换模型整会话重读);无前缀稳定化机制文档 |
+
+### III.2.1 复核带出的两处勘新(对初版 P9 业界定位句,如实降级标注)
+
+初版(及本版第 I 部分原样保留的)P9「业界定位」句——「Mem0 靠自动管线且无内建过期(GitHub issue #5330,转述)、Letta core memory 无硬字符上限」——其中**两句旧转述被当前克隆 HEAD 代码推翻**(初版正文 :133、本版第 I 部分 :212 处,均按「不改正文」原则未动,以本节为准):
+
+1. **「Mem0…无内建过期」已过时〔实证〕**:mem0@`26cdefb4` `mem0/memory/main.py:769` `add(..., expiration_date=...)`,:820 归一化、:828-829 落 metadata,:1369/:1684/:3050/:3371 以 `_payload_is_expired`(:442-449)在检索/列举侧过滤过期。**降级标注**:该分句在当前 HEAD 不成立;P9 差异化的准确表述应收窄为**粒度差**——mem0 过期为「写入口可选参数+检索侧软过滤」,非 Hermes 的「写入口硬预算+超限显式整理协议+all-or-nothing」。
+2. **「Letta core memory 无硬字符上限」就本克隆不成立〔实证〕**:letta-code `src/memory-constraints.ts:302-307` `DEFAULT_MEMORY_CONSTRAINTS_CONFIG` 默认硬上限 `maxFileCharacters=20_000`、`maxCoreMemoryCharacters=65_536`,:178-182 超限报错强制;记忆形态为 MEMORY.md 根的 MemFS v2 文件树+渐进发现 Memory() 工具(`src/tools/impl/memory.ts:1-9,37`)。注:原句可能指 letta 服务端仓库(本轮未克隆);就 letta-code 而言结论须改写。**降级标注**:分句降级为「**粒度不同**」——上限 20k/65k 比 Hermes 2200/1375 宽约一个数量级,且形态为文件树非 § 条目、无等价显式整理协议主张。
+
+### III.2.2 复核口径披露(如实)
+
+竞品实证的逐维度结论文本未随任务下发至复核环节;复核员自选 6 条锚定 (a) 任务材料自身断言(HEAD、letta 真身、OpenClaw 本机路径清单)与 (b) 初版竞品面主张,逐条进克隆核对 path:line——**4 条成立、2 条即上述勘新**;若原意为核对特定结论文本,该文本不在复核员可达范围,此为如实声明。另:graphiti 库内可证其 LongMemEval 评测设施(`tests/evals/eval_e2e_graph_building.py:76-78` 加载 `longmemeval_oracle.json`;`tests/evals/data/longmemeval_data/README.md:1-3`),但 DMR 成绩数字不在克隆内(成绩在官网侧,与初版「转述」标注自洽,克隆内不可证)。
+
+## III.3 插件生态实测(71 件,隔离沙盒)
+
+**一句话**:71 个 `category: memory` 目录插件,**70 个装进沙盒且 SHA 钉死全部对齐**(32 个带 .git 树 HEAD==pin==metadata 三方对齐、38 个无树由安装器 metadata 钉),唯一装不上 limbic(darwin 平台门 0.8s 拒);`--no-deps` 下 **52 个通过 doctor**、**18 个注册失败**(9 缺 pip 依赖 + 9 `provides_hooks` 声明运行时不识别的钩子)、1 skipped;chronicle/cognition 两件零依赖件端到端深测**全 PASS**(哨兵句落 SQLite/队列全链路可回查)。详见 `plugin-fieldtest.md`。
+
+- **可测性分类(71)**:本地可深测 35 / 需第三方 key 20 / 装得上但注册需补依赖 8 / doctor 钩子漂移 7 / 装不上 1。
+- **交叉发现(doctor≠validate)**:cashew 过目录准入门 `hermes plugins validate` 却不过真运行时 `doctor`——9 件「准入过、doctor 不过」疑似目录清单与本 checkout 钩子注册表(`hermes_cli/plugins.py:109` VALID_HOOKS)的契约漂移,值得上游跟进。
+- **复核(头部数字全部一致)**:attempted=71(install_results.jsonl 71 条 / catalog 只读独立计数 71 / §6 总表程序化数行 71,三方一致)、installed=70(ground_truth.json,excel_line 超时重试装成与 chronicle 先行探针重装 rc=1 属 §3 已披露叙事)、doctor 52 pass/18 fail=9 缺依赖+9 未知钩子/1 skipped(原始 doctor_results.json 逐数一致)、分类小计 35+20+8+7+1=71。**一处小疵如实照录**:§1「859 个 yaml」实测 **858 个 yaml**(859=目录条目数,含 README.md;另有 4 件无 category 字段 yaml),核心计数 `category: memory`=71 精确不受影响。
+
+## III.4 增量定谳(对本版总体系的三点更新)
+
+1. **静态结论经实弹坐实**:P1/P2(文件锁·原子写面)/P4/P8/P9/P11 六支柱的关键行为全部实跑复现且错误文案逐字一致——第 II 部分的技术叙述由「读码结论」升级为「读码+实弹双证」;唯一常数级出入(分隔符 3 字符)与一处执行环境改派均已如实披露。
+2. **竞品面定谳收窄(如实)**:初版 §4.3「在『失败路径工程』与『记忆安全治理』两个维度暂时没有公开的同类对手」的可证边界,随本轮补入 **OpenClaw**(初版对照七家 Mem0/Letta/Zep/LangMem/ChatGPT/Claude Code/Cursor 未含它)须收窄——42 格中仅有的 2 格「同粒度存在」均在 OpenClaw:①WAL/并发所有权(自动检查点+WAL 脑裂检测即终止+租约表+网关单主,复核判「**同粒度存在且超规格**」)与⑥审批/执行 TOCTOU(执行前再授权内核+策略快照比对,复核判「**教科书级**」);其余 40 格为「有类似但粒度不同」或「未见对应物」。定谳主体(差异化优势面)成立,但「无公开同类对手」应改述为「**同粒度公开对手仅 OpenClaw 一家**」。
+3. **P12 治理叙事获生态实测支撑,同时揭示漂移面**:70/71 装成+SHA 全对齐坐实「人审 catalog+SHA 钉死」的供应链治理;但 9 件钩子漂移(doctor 与 validate 裁决不一致)说明目录清单与运行时钩子注册表之间存在真实契约漂移面——治理模型的「准入」与「运行时」两道门未闭环。
+
+*(本部分证据真源:`live-fire-report.md`(7/7 探针)、`plugin-fieldtest.md`(71 件)、竞品六路实证记录(浅克隆于 /tmp/hermes-rivals/,mem0@26cdefb4 / langmem@48e3c11f / letta-ai/letta-code / openclaw@95b0d51 / graphiti + Claude Code 官方文档五页;文内 path:line 均出自各克隆)。独立复核总裁定 ok=true,记录要点随节转录;复核沙盒复跑产物另存 /tmp/hermes-livefire/home-recheck1027 与 logs/recheck_*.log 4 件。)*
+
+*(详解版完。第 I 部分=初版骨架+详解支撑挂接;第 II 部分=七章逐字收录;第 III 部分=10-27 晚追加的实弹与外部实证(独立复核 ok=true)。组装工具:`apps/build/scripts/hermes_deepdive_assemble.py`;收录保真:盘上七章逐字子串校验 7/7 通过。)*
