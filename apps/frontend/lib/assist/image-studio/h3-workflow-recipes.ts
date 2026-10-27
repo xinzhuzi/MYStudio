@@ -26,9 +26,9 @@ export interface H3WorkflowRecipe {
   anchors?: {
     /** 提示词文本锚(如 "14.value") */
     prompt: string;
-    /** 秒数锚(如 "20.value");multiseg 无(时长在分段文本内) */
+    /** 秒数锚(如 "20.value");multiseg 无(时长在分段文本标签行内,§14.1.3) */
     seconds?: string;
-    /** 首帧锚(如 "9.image");t2v/multiseg 无 */
+    /** 首帧锚(如 "9.image");t2v 无;multiseg 适配后有(§14.1.1 针2:9→101.first_frame 潜空间锚,提示词仍不带 FIXED_I2V 行) */
     firstFrame?: string;
     /** 档位宽高字段对(如 ["16.width","16.height"];N11) */
     resolution?: string[];
@@ -62,13 +62,50 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     notes: "唯一批量首发件(D3);组装器=buildShotH3ApiWorkflow,档位宽高 960p=1344×768/480p=608×352 直填 16.width/height。",
   },
   {
+    // Windows FastH3 主线(10-27 windows-fasth3-mainline 接线;计划稿 id my-fasth3-i2v-31 按实数
+    // 节点计数改 27——计划 §四 W2 明载「以实际计,若实做后非 28 以实数回写」)。
+    id: "my-fasth3-i2v-27",
+    label: "漫影单镜 FastH3 I2V(27 节点,Windows 主线)",
+    apiTemplate: "./fasth3-shot-template.api.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-i2v.json",
+    inputMode: "i2v",
+    anchors: {
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image",
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "100",
+    },
+    resolutionTiers: ["480p", "960p"],
+    status: "unverified",
+    notes: "Windows FastH3 主线(8 步蒸馏 DiT R1+VSA 稀疏注意力+kitchen INT8 注意力;模型件=三对齐表 R1-R4,仅 Windows 引擎在册,派发须 env MYSTUDIO_COMFYUI_BRIDGE_URL 指向隧道)。status=unverified:三层硬门(注入锚/回收/引擎层)待实弹验收(计划 §五 B)后升 ready,升前批量派发须显式带 recipeId。超时沿用档位表 480p=900s/960p=2700s(FastH3 N 卡秒级~分钟级,execute 链 MAX_EXECUTE_TIMEOUT_S=2700s 上罩余量足)。前端模板对=fasth3-shot-template{,.api}.json,UI 真源=repo 库 fasth3-单镜视频-i2v.json(契约测试钉同步)。",
+  },
+  {
+    id: "my-fasth3-t2v-26",
+    label: "漫影单镜 FastH3 T2V 基础版(26 节点,画布直开)",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-t2v.json",
+    inputMode: "t2v",
+    resolutionTiers: ["480p"],
+    status: "unverified",
+    notes: "无首帧纯文生(官方 t2v 同形);无 9.image 首帧锚,分镜批量线不适用,仅画布直开。",
+  },
+  {
     id: "my-h3-multiseg",
     label: "漫影分段视频(multiseg)",
+    apiTemplate: "./h3-multiseg-template.api.json",
     uiTemplateRef: "2_视频/H3视频/1_漫影自研/1_分段视频/h3-autocontext-multiseg.json",
     inputMode: "multiseg",
+    anchors: {
+      prompt: "100.long_prompt",
+      firstFrame: "9.image",
+      resolution: ["100.width", "100.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "103",
+    },
     resolutionTiers: ["960p"],
-    status: "needs-adaptation",
-    notes: "12 节点无 MyShot 锚/无首帧槽/前缀 video/H3/分段视频 非五段式,批量派发不可用,仅画布直开(Q1);适配(加 MyShot+五段前缀+分段提示词组装器)二期。",
+    status: "ready",
+    notes: "二期适配完成(§14.1,四针=MyShot 锚 103/首帧潜空间锚 9→101.first_frame/五段前缀/双旁路出厂):适配 UI 件=h3-multiseg-template.json(前端 bundle,repo 原件零改);组装器=buildShotH3MultisegApiWorkflow(分段提示词 buildShotH3MultisegPrompt,无 seconds 锚——时长在分段文本标签行内);档位恒 960×544 模板原厂(M5:与 768p turbo LoRA 失配属画质议题,实弹判读后候令对齐);超时=resolveH3ShotTimeoutS(600+秒×300,clamp 14400);40s 硬顶拒派(M1)。",
   },
   {
     id: "guding-480p-direct",
