@@ -1,21 +1,41 @@
 import { getStudioSkillsBridge } from "@/lib/bridge/studio-skills";
 
 /**
- * 角色真源 JSON 域(10-26 用户令:角色弹窗完整展示+可编辑角色真源 JSON)。
+ * 提示词真源 JSON 域(10-26 用户令:弹窗完整展示+可编辑真源 JSON;10-27 接线扩
+ * store 位:项目库资产与 repo 手工真源同待遇)。
  *
- * 真源文件 = `apps/frontend/assets/studio-manuals/art_skills/<技能包>/json/<角色名>.json`
- * (如 daojie_ink_guofeng/json/晏燎.json,十境主体词/编辑指令/海报三视图指令所在)。
- * 双层取数:
- * - 展示兜底 = 渲染器内置副本(import.meta.glob 编译进包);
- * - 编辑真身 = 桌面技能存储副本(window.studioSkills 读写,主进程种子同步:
- *   用户改动静默保护、内置更新自动传播、可恢复种子——与手册编辑同一套体系)。
- * 存储副本与内置种子不逐字节同步是特性不是 bug:用户编辑以存储为准。
+ * 读取次序(10-27 单一裁定):项目库 store/assets/files/prompts/<资产名>.json 优先
+ * (projectFiles.readText 桥,raw 免 2MB/截断)→ repo glob 兜底
+ * (apps/frontend/assets/studio-manuals/art_skills/<技能包>/json/<角色名>.json,
+ * 如 daojie_ink_guofeng/json/晏燎.json——十境主体词/编辑指令/海报三视图指令所在)。
+ * repo 层内部再分:桌面技能存储副本(用户编辑保护)→ 内置种子(import.meta.glob)。
+ * 写/恢复恒写 store 位(projectFiles.writeText 虚拟键,先例 project-store README 预写)。
+ * 跨类型撞名(如 蛟龙 role+tool)落 `<名>@<type>.json`,读写两路同规则。
  */
 
 const characterJsonModules = import.meta.glob("../../assets/studio-manuals/art_skills/*/json/*.json", {
   eager: true,
   import: "default",
 }) as Record<string, unknown>;
+
+export type AssetPromptJsonType = "role" | "scene" | "tool";
+
+/** 项目库提示词真源目录(相对项目根;桥 readText/writeText 的 relativePath 基准)。 */
+export const STORE_PROMPTS_RELATIVE = "store/assets/files/prompts";
+
+/**
+ * store 位真源相对路径(读/探/写三路共用;写路不得写死平铺名):
+ * 撞名者(跨类型同名,如 蛟龙 role+tool)`<名>@<type>.json`,否则平铺 `<名>.json`。
+ * 撞名判定来自 store 探测(平铺位被异型占用即撞),见 probeStorePrompt。
+ */
+export function buildStorePromptRelativePath(
+  name: string,
+  type?: AssetPromptJsonType,
+  colliding = false,
+): string {
+  const suffix = colliding && type ? `@${type}` : "";
+  return `${STORE_PROMPTS_RELATIVE}/${name}${suffix}.json`;
+}
 
 export interface CharacterJsonInfo {
   characterName: string;
@@ -26,7 +46,15 @@ export interface CharacterJsonInfo {
 }
 
 export type CharacterJsonLoad =
-  | { status: "ready"; source: "storage" | "bundle"; text: string; relativePath: string }
+  | {
+      status: "ready";
+      /** store=项目库 store 位(10-27 接线新增);storage=桌面技能存储副本;bundle=内置种子。 */
+      source: "store" | "storage" | "bundle";
+      text: string;
+      relativePath: string;
+      /** repo glob 命中(有内置种子可恢复);store-only 生成角色=false。 */
+      seedAvailable?: boolean;
+    }
   | { status: "missing" };
 
 const infoCache = new Map<string, CharacterJsonInfo | null>();
@@ -55,10 +83,158 @@ export function getCharacterJsonInfo(characterName: string | null | undefined): 
   return info;
 }
 
-/** 载入角色真源 JSON 文本:桌面存储副本优先(含用户编辑),无桥/读失败回内置种子。 */
+// ---------------------------------------------------------------------------
+// store 位探测(10-27 接线):projectFiles.readText({projectId, relativePath, raw:true})
+// —— raw 语义=台账专用通道(16MB 上限/免 256KB 截断/免 NUL 预检,project-file-ipc);
+// projectId 取法照 visual-manual-style-tokens.ts 动态 import 先例。
+// ---------------------------------------------------------------------------
+
+interface StoreIoContext {
+  projectId: string;
+  readText: (payload: { projectId: string; relativePath: string; raw?: boolean }) => Promise<{
+    success: boolean;
+    text?: string;
+    error?: string;
+  }>;
+  writeText?: (key: string, value: string) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+}
+
+/** 动态取项目 IO 上下文(无桥/无活跃项目/异常= null,store 位整链按未命中处理)。 */
+async function getStoreIoContext(): Promise<StoreIoContext | null> {
+  try {
+    const projectStore = (await import("@/stores/project/project-store")).useProjectStore.getState();
+    const projectId = projectStore.activeProjectId;
+    if (!projectId) return null;
+    const bridge = (await import("@/lib/bridge/project-files")).getProjectFilesBridge();
+    if (!bridge?.readText) return null;
+    return { projectId, readText: bridge.readText, writeText: bridge.writeText };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * asset_type 校验(store 位收件规则):
+ * - 文档有 asset_type 且 === 入参 type → 收(骨架/回填件恒带);
+ * - 无 asset_type(晏燎级旧手工件)→ 仅 type==='role' 或 type 缺省时收
+ *   (loadCharacterSubject 旧路按 role 语义;scene/tool 视为不匹配)。
+ */
+function assetTypeMatches(doc: Record<string, unknown>, type?: AssetPromptJsonType): boolean {
+  const declared = doc.asset_type;
+  if (typeof declared === "string") return declared === type;
+  return type === "role" || type === undefined;
+}
+
+type StoreReadInspection = { state: "hit"; text: string } | { state: "mismatch" } | { state: "absent" };
+
+async function inspectStorePath(io: StoreIoContext, relativePath: string, type?: AssetPromptJsonType): Promise<StoreReadInspection> {
+  try {
+    const result = await io.readText({ projectId: io.projectId, relativePath, raw: true });
+    const text = result?.success ? result.text : null;
+    if (!text || !text.trim()) return { state: "absent" };
+    try {
+      const doc = JSON.parse(text);
+      if (typeof doc === "object" && doc !== null && assetTypeMatches(doc as Record<string, unknown>, type)) {
+        return { state: "hit", text };
+      }
+    } catch {
+      // 非法 JSON:按占位不收(撞名信号,继续 @type 位探测)
+    }
+    return { state: "mismatch" };
+  } catch {
+    return { state: "absent" };
+  }
+}
+
+export interface StorePromptProbe {
+  /** 写路目标(平铺或 <名>@<type>;save/restore 恒写此路径,不得写死平铺名)。 */
+  relativePath: string;
+  /** store 位命中且通过 asset_type 校验。 */
+  hit: boolean;
+  text: string | null;
+}
+
+/**
+ * store 位探测:平铺位先行;平铺位被异型占用(mismatch)或缺失时有 type 再探
+ * `<名>@<type>.json`(回填对撞名双方恒落 @type 位,平铺位永不落件)。type 缺省
+ * (loadCharacterSubject 旧路)= 仅平铺名探测+旧件按 role 收。
+ * 返回 null=环境不可用(无桥/无活跃项目),整链按未命中处理。
+ */
+async function probeStorePrompt(
+  characterName: string | null | undefined,
+  type?: AssetPromptJsonType,
+): Promise<StorePromptProbe | null> {
+  const name = characterName?.trim() ?? "";
+  if (!name) return null;
+  const io = await getStoreIoContext();
+  if (!io) return null;
+
+  const flatPath = buildStorePromptRelativePath(name);
+  const flat = await inspectStorePath(io, flatPath, type);
+  if (flat.state === "hit") return { relativePath: flatPath, hit: true, text: flat.text };
+  if (type) {
+    const typedPath = buildStorePromptRelativePath(name, type, true);
+    const typed = await inspectStorePath(io, typedPath, type);
+    if (typed.state === "hit") return { relativePath: typedPath, hit: true, text: typed.text };
+    // 平铺位被异型占用=撞名:写路锚 @type 位(读写同路)
+    if (flat.state === "mismatch") return { relativePath: typedPath, hit: false, text: null };
+  }
+  return { relativePath: flatPath, hit: false, text: null };
+}
+
+// ---------------------------------------------------------------------------
+// 真源位置信息(10-27 接线:弹窗门控从「repo glob 命中」放开为「任一位有 JSON」)
+// ---------------------------------------------------------------------------
+
+export interface AssetPromptJsonInfo {
+  origin: "store" | "repo" | null;
+}
+
+const assetPromptInfoCache = new Map<string, AssetPromptJsonInfo | null>();
+
+/** 清空真源位置缓存(save/restore 写盘后调用;测试也用)。 */
+export function invalidateAssetPromptInfoCache(): void {
+  assetPromptInfoCache.clear();
+}
+
+/** 探明该资产的提示词真源位置:store 位命中→'store';repo glob 命中→'repo';皆无→null。 */
+export async function resolveAssetPromptJsonInfo(
+  characterName: string | null | undefined,
+  type?: AssetPromptJsonType,
+): Promise<AssetPromptJsonInfo> {
+  const name = characterName?.trim() ?? "";
+  if (!name) return { origin: null };
+  const cacheKey = `${type ?? "_"}:${name}`;
+  if (assetPromptInfoCache.has(cacheKey)) return assetPromptInfoCache.get(cacheKey) ?? { origin: null };
+  const probe = await probeStorePrompt(name, type);
+  const info: AssetPromptJsonInfo = probe?.hit
+    ? { origin: "store" }
+    : getCharacterJsonInfo(name)
+      ? { origin: "repo" }
+      : { origin: null };
+  assetPromptInfoCache.set(cacheKey, info);
+  return info;
+}
+
+/**
+ * 载入提示词真源 JSON 文本:store 位优先(项目库,含用户编辑)→ repo 层
+ * (技能存储副本→内置种子)。store/repo 皆无才 missing;store 位必须前置于
+ * repo info 判定(顺序错误=store-only 资产全链失效)。
+ */
 export async function loadCharacterJsonText(
   characterName: string | null | undefined,
+  type?: AssetPromptJsonType,
 ): Promise<CharacterJsonLoad> {
+  const probe = await probeStorePrompt(characterName, type);
+  if (probe?.hit && probe.text) {
+    return {
+      status: "ready",
+      source: "store",
+      text: probe.text,
+      relativePath: probe.relativePath,
+      seedAvailable: getCharacterJsonInfo(characterName) !== null,
+    };
+  }
   const info = getCharacterJsonInfo(characterName);
   if (!info) return { status: "missing" };
   const bridge = getStudioSkillsBridge();
@@ -66,53 +242,69 @@ export async function loadCharacterJsonText(
     try {
       const result = await bridge.readText(info.relativePath);
       if (result?.success && typeof result.content === "string" && result.content.trim()) {
-        return { status: "ready", source: "storage", text: result.content, relativePath: info.relativePath };
+        return { status: "ready", source: "storage", text: result.content, relativePath: info.relativePath, seedAvailable: true };
       }
     } catch {
       // 读失败(如测试环境/桥异常)→ 回内置种子展示
     }
   }
-  return { status: "ready", source: "bundle", text: info.bundledText, relativePath: info.relativePath };
+  return { status: "ready", source: "bundle", text: info.bundledText, relativePath: info.relativePath, seedAvailable: true };
 }
 
 export type CharacterJsonSaveResult =
   | { ok: true; updatedAt?: number }
   | { ok: false; error: string };
 
-/** 保存角色真源 JSON:先本地 JSON.parse 校验,再走技能存储写入。 */
+/**
+ * 保存提示词真源 JSON:先本地 JSON.parse 校验,再写项目库 store 位
+ * (writeText 虚拟键 `_p/{pid}/store/assets/files/prompts/…`,先例 project-store
+ * README 预写)。门控=store 探测命中或 repo info 任一(store-only 资产可存)。
+ */
 export async function saveCharacterJsonText(
   characterName: string | null | undefined,
   text: string,
+  type?: AssetPromptJsonType,
 ): Promise<CharacterJsonSaveResult> {
+  const probe = await probeStorePrompt(characterName, type);
   const info = getCharacterJsonInfo(characterName);
-  if (!info) return { ok: false, error: "该角色没有真源 JSON" };
+  if (!probe && !info) return { ok: false, error: "该资产没有提示词真源 JSON" };
   try {
     JSON.parse(text);
   } catch (error) {
     return { ok: false, error: `JSON 格式无效:${error instanceof Error ? error.message : String(error)}` };
   }
-  const bridge = getStudioSkillsBridge();
-  if (!bridge?.writeText) return { ok: false, error: "当前环境不支持编辑,请在桌面版中打开" };
+  const io = await getStoreIoContext();
+  if (!io?.writeText) return { ok: false, error: "当前环境不支持编辑,请在桌面版中打开" };
+  const relativePath = probe?.relativePath ?? buildStorePromptRelativePath(characterName?.trim() ?? "", type);
   try {
-    const result = await bridge.writeText(info.relativePath, text);
+    const result = await io.writeText(`_p/${io.projectId}/${relativePath}`, text);
     if (!result?.success) return { ok: false, error: result?.error || "保存失败" };
-    return { ok: true, updatedAt: result.updatedAt };
+    invalidateAssetPromptInfoCache();
+    return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-/** 恢复内置种子版本(丢弃用户编辑;恢复后由调用方重新 load)。 */
+/**
+ * 恢复内置种子版本(丢弃用户编辑;恢复后由调用方重新 load):
+ * repo-glob 角色=写 bundledText 进 store 同路径(种子覆写,绕开技能存储
+ * restoreText 体系);store-only 生成角色无种子→明确报错。
+ */
 export async function restoreCharacterJsonText(
   characterName: string | null | undefined,
+  type?: AssetPromptJsonType,
 ): Promise<CharacterJsonSaveResult> {
   const info = getCharacterJsonInfo(characterName);
-  if (!info) return { ok: false, error: "该角色没有真源 JSON" };
-  const bridge = getStudioSkillsBridge();
-  if (!bridge?.restoreText) return { ok: false, error: "当前环境不支持恢复,请在桌面版中打开" };
+  if (!info) return { ok: false, error: "该 JSON 无内置种子" };
+  const io = await getStoreIoContext();
+  if (!io?.writeText) return { ok: false, error: "当前环境不支持恢复,请在桌面版中打开" };
+  const probe = await probeStorePrompt(characterName, type);
+  const relativePath = probe?.relativePath ?? buildStorePromptRelativePath(characterName?.trim() ?? "", type);
   try {
-    const result = await bridge.restoreText(info.relativePath);
+    const result = await io.writeText(`_p/${io.projectId}/${relativePath}`, info.bundledText);
     if (!result?.success) return { ok: false, error: result?.error || "恢复失败" };
+    invalidateAssetPromptInfoCache();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -165,12 +357,14 @@ export function deriveSubjectFromCharacterJson(
   return typeof base === "string" && base.trim() ? base.trim() : null;
 }
 
-/** 载入真源(存储副本优先)并派生主体句;无真源/派生失败返回 null。 */
+/** 载入真源(store 位优先)并派生主体句;无真源/派生失败返回 null。
+ * (type 缺省=旧路:仅平铺名探测,无 asset_type 旧件按 role 收;生产零消费,仅测试引用。) */
 export async function loadCharacterSubject(
   characterName: string | null | undefined,
   stage: string | null | undefined,
+  type?: AssetPromptJsonType,
 ): Promise<string | null> {
-  const load = await loadCharacterJsonText(characterName);
+  const load = await loadCharacterJsonText(characterName, type);
   if (load.status !== "ready") return null;
   return deriveSubjectFromCharacterJson(load.text, stage);
 }

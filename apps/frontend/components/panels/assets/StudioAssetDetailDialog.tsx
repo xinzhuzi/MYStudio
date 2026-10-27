@@ -68,6 +68,9 @@ import {
   getCharacterJsonInfo,
   loadCharacterJsonText,
   parseCharacterPromptCatalog,
+  resolveAssetPromptJsonInfo,
+  type AssetPromptJsonInfo,
+  type AssetPromptJsonType,
 } from "@/lib/studio/asset-character-json";
 import { StudioAssetPromptTextDialog, type PromptTextInspectTarget } from "./studio-asset-prompt-text-dialog";
 import {
@@ -142,6 +145,12 @@ function subjectDowngradeNote(kind: AssetImageKind): string {
 
 /** 10-24 布局重造批1:元信息区折叠态记忆键(grill Round 2 B 裁定;缺省展开)。 */
 const META_COLLAPSED_STORAGE_KEY = "asset-dialog-meta-collapsed";
+
+/** 资产型→提示词真源域型收窄(10-27 接线):真源域只覆盖 role/scene/tool 三轨,
+ *  clip/audio 传 undefined(按平铺名探测,与旧角色路语义一致)。 */
+function promptJsonTypeOf(type: StudioAssetKind | undefined): AssetPromptJsonType | undefined {
+  return type === "role" || type === "scene" || type === "tool" ? type : undefined;
+}
 
 function readMetaCollapsed(): boolean {
   try {
@@ -339,39 +348,65 @@ export function StudioAssetDetailDialog({
   // 角色真源 JSON(10-26):按资产名解析 art_skills/<包>/json/<角色名>.json;模块级
   // 缓存,无真源角色恒 null(按钮整段不渲染,配角弹窗零变化)
   const characterJsonInfo = getCharacterJsonInfo(asset?.name);
+  // store 位真源探测(10-27 接线):项目库 store/assets/files/prompts/<名>.json 命中
+  // 的 role/scene/tool 资产与 repo 手工真源同待遇(按钮/弹窗/素体句闸放开);弹窗
+  // 重开/切资产/编辑弹窗关闭即重探(缓存随 save invalidate)。探测中=null。
+  const [storePromptInfo, setStorePromptInfo] = useState<AssetPromptJsonInfo | null>(null);
+  useEffect(() => {
+    if (!open || !asset?.name) {
+      setStorePromptInfo(null);
+      return;
+    }
+    let cancelled = false;
+    resolveAssetPromptJsonInfo(asset.name, promptJsonTypeOf(asset.type))
+      .then((info) => {
+        if (!cancelled) setStorePromptInfo(info);
+      })
+      .catch(() => {
+        if (!cancelled) setStorePromptInfo({ origin: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, asset?.name, asset?.type, characterJsonOpen]);
+  const storePromptHit = storePromptInfo?.origin === "store";
   // 真源接线(10-26 用户令:「提示词应由 JSON 数据化控制+标注文生图/图生图」):
   // 有真源的角色,提示词区=结构化人物提示词面板(随「阶段」联动,逐条路由徽标),
   // 主体句文本框退场;内部派发仍吃派生主体句(镜像走展示+派发边界覆写,不抢
   // draftPrompt state——水合链桥 get 异步回填竞态下恒以真源为准,保存时落 DB=
   // 陈旧种子自愈)。JSON 编辑弹窗关闭后重载,编辑即时反映。派生失败(null)整体
   // 回退既有 DB 行为,fail-safe。
+  // 10-27 store 位接线:文本链可含 store 文本(store-only 角色同待遇);门控从
+  // 「repo glob 命中」放开为「repo info 或 store 探测命中任一」。
   const [characterJsonText, setCharacterJsonText] = useState<string | null>(null);
   useEffect(() => {
-    if (!characterJsonInfo) {
+    if (!characterJsonInfo && !storePromptHit) {
       setCharacterJsonText(null);
       return;
     }
     let cancelled = false;
-    loadCharacterJsonText(asset?.name).then((load) => {
+    loadCharacterJsonText(asset?.name, promptJsonTypeOf(asset?.type)).then((load) => {
       if (!cancelled) setCharacterJsonText(load.status === "ready" ? load.text : null);
     });
     return () => {
       cancelled = true;
     };
-  }, [characterJsonInfo, asset?.name, characterJsonOpen]);
+  }, [characterJsonInfo, storePromptHit, asset?.name, asset?.type, characterJsonOpen]);
   const characterSubjectMirror = useMemo(
-    () => characterJsonInfo && characterJsonText !== null
+    () => characterJsonText !== null
       ? deriveSubjectFromCharacterJson(characterJsonText, selectedStage)
       : null,
-    [characterJsonInfo, characterJsonText, selectedStage],
+    [characterJsonText, selectedStage],
   );
   // 10-26 型区分令:「无衣物定妆」=素体型——恒用 body_base 素体主体词,不吃阶段
   // (选了境界也不发该境带衣主体词;该型定义=全身无衣物,衣物系此后 i2i 注入)
+  // 10-27 store 位接线:store-only 角色的骨架素体句与运行时派生 parity
+  // (characterJsonInfo||storePromptInfo 收窄放宽;用户改 store JSON 后闸句随变)。
   const characterBodyBaseSubject = useMemo(
-    () => characterJsonInfo && characterJsonText !== null
+    () => (characterJsonInfo || storePromptHit) && characterJsonText !== null
       ? deriveSubjectFromCharacterJson(characterJsonText, null)
       : null,
-    [characterJsonInfo, characterJsonText],
+    [characterJsonInfo, storePromptHit, characterJsonText],
   );
   const characterPromptCatalog = useMemo(
     () => characterJsonInfo && characterJsonText !== null ? parseCharacterPromptCatalog(characterJsonText) : null,
@@ -1066,19 +1101,21 @@ export function StudioAssetDetailDialog({
                               <FileText className="h-3 w-3" />
                               查看源提示词
                             </Button>
-                            {/* 角色真源 JSON(10-26 用户令):该角色有真源文件
-                                (art_skills/<包>/json/<角色名>.json,如 晏燎.json)才出钮;
-                                弹窗=完整展示+CodeMirror 可编辑,存桌面技能存储 */}
-                            {characterJsonInfo ? (
+                            {/* 提示词真源 JSON(10-26 用户令;10-27 接线放宽):repo 手工
+                                真源(art_skills/<包>/json/<角色名>.json,如 晏燎.json)或
+                                项目库 store 位(store/assets/files/prompts/<名>.json)任一
+                                命中即出钮;弹窗=完整展示+CodeMirror 可编辑,存 store 位。
+                                scene/tool 同轨复用 */}
+                            {characterJsonInfo || storePromptHit ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 gap-1 text-[11px]"
                                 onClick={() => setCharacterJsonOpen(true)}
-                                title={`查看/编辑该角色的真源 JSON(${characterJsonInfo.relativePath})`}
+                                title={`查看/编辑该${TYPE_LABEL[asset.type]}的提示词真源 JSON(${characterJsonInfo?.relativePath ?? "store/assets/files/prompts"})`}
                               >
                                 <FileJson className="h-3 w-3" />
-                                角色真源JSON
+                                提示词真源JSON
                               </Button>
                             ) : null}
                             {/* ③ 查看实发终稿(A-2③):探针 ready 才可点(focusKind 组末位
@@ -1331,10 +1368,13 @@ export function StudioAssetDetailDialog({
         onOpenChange={setSourcePromptOpen}
         initialKind={focusKind}
       />
-      {/* 角色真源 JSON(10-26 用户令):完整展示+可编辑该角色真源文件;宿主关即卸 */}
+      {/* 提示词真源 JSON(10-26 用户令;10-27 store 位接线):完整展示+可编辑
+          (repo 手工真源与 store 位生成件同待遇);宿主关即卸。type 收窄=真源域
+          只覆盖 role/scene/tool 三轨,clip/audio 不传(按 undefined 平铺名探测)。 */}
       <StudioAssetCharacterJsonDialog
-        open={open && characterJsonOpen}
+        open={open && characterJsonOpen && Boolean(characterJsonInfo || storePromptHit)}
         characterName={asset.name}
+        type={promptJsonTypeOf(asset.type)}
         onOpenChange={setCharacterJsonOpen}
       />
       {/* R5 生成结果弹窗(10-26 用户令:每次生成完成自动弹出)。挂载守卫=宿主开+有

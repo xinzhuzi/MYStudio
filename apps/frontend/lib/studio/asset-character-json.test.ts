@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildStorePromptRelativePath,
   getCharacterJsonInfo,
+  invalidateAssetPromptInfoCache,
   loadCharacterJsonText,
+  loadCharacterSubject,
+  resolveAssetPromptJsonInfo,
   restoreCharacterJsonText,
   saveCharacterJsonText,
 } from "./asset-character-json";
@@ -11,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   readText: vi.fn(),
   writeText: vi.fn(),
   restoreText: vi.fn(),
+  projectReadText: vi.fn(),
+  projectWriteText: vi.fn(),
+  activeProjectId: "proj-test" as string | null,
 }));
 
 vi.mock("@/lib/bridge/studio-skills", () => ({
@@ -21,77 +28,181 @@ vi.mock("@/lib/bridge/studio-skills", () => ({
   }),
 }));
 
+vi.mock("@/lib/bridge/project-files", () => ({
+  getProjectFilesBridge: () => ({
+    readText: mocks.projectReadText,
+    writeText: mocks.projectWriteText,
+  }),
+}));
+
+vi.mock("@/stores/project/project-store", () => ({
+  useProjectStore: { getState: () => ({ activeProjectId: mocks.activeProjectId }) },
+}));
+
+/** store 位读桩:按 relativePath 查表;缺省路径一律 {success:false}。 */
+function stubStoreFiles(files: Record<string, string>): void {
+  mocks.projectReadText.mockImplementation(async (payload: { relativePath: string }) => {
+    const text = files[payload.relativePath];
+    return text === undefined ? { success: false, error: "not found" } : { success: true, text };
+  });
+}
+
 beforeEach(() => {
   mocks.readText.mockReset();
   mocks.writeText.mockReset();
   mocks.restoreText.mockReset();
+  mocks.projectReadText.mockReset().mockResolvedValue({ success: false, error: "not found" });
+  mocks.projectWriteText.mockReset().mockResolvedValue({ success: true, filePath: "/tmp/x" });
+  mocks.activeProjectId = "proj-test";
+  invalidateAssetPromptInfoCache();
 });
 
-describe("asset-character-json(角色真源 JSON 域)", () => {
-  it("按角色名解析内置真源 JSON(晏燎)", () => {
-    const info = getCharacterJsonInfo("晏燎");
-    expect(info).not.toBeNull();
-    expect(info?.relativePath).toBe("art_skills/daojie_ink_guofeng/json/晏燎.json");
-    const parsed = JSON.parse(info?.bundledText ?? "{}") as Record<string, unknown>;
-    expect(parsed).toHaveProperty("stages");
-    expect(parsed).toHaveProperty("hd_face_base");
+describe("asset-character-json(提示词真源 JSON 域:store 位接线 10-27)", () => {
+  it("buildStorePromptRelativePath:平铺/撞名 @type 两形态(读探写共用)", () => {
+    expect(buildStorePromptRelativePath("晏燎")).toBe("store/assets/files/prompts/晏燎.json");
+    expect(buildStorePromptRelativePath("晏燎", "role")).toBe("store/assets/files/prompts/晏燎.json");
+    expect(buildStorePromptRelativePath("蛟龙", "role", true)).toBe("store/assets/files/prompts/蛟龙@role.json");
+    expect(buildStorePromptRelativePath("蛟龙", "tool", true)).toBe("store/assets/files/prompts/蛟龙@tool.json");
   });
 
-  it("无真源的角色名/空名恒 null", () => {
-    expect(getCharacterJsonInfo("不存在角色")).toBeNull();
-    expect(getCharacterJsonInfo("")).toBeNull();
-    expect(getCharacterJsonInfo(null)).toBeNull();
-    expect(getCharacterJsonInfo("  ")).toBeNull();
-  });
-
-  it("载入优先走桌面存储副本(含用户编辑)", async () => {
-    mocks.readText.mockResolvedValue({ success: true, content: '{"edited":true}' });
-    const result = await loadCharacterJsonText("晏燎");
-    expect(result).toMatchObject({ status: "ready", source: "storage", text: '{"edited":true}' });
-    expect(mocks.readText).toHaveBeenCalledWith("art_skills/daojie_ink_guofeng/json/晏燎.json");
-  });
-
-  it("桥读失败/返回失败时回内置种子展示", async () => {
-    mocks.readText.mockResolvedValue({ success: false, error: "boom" });
-    const failed = await loadCharacterJsonText("晏燎");
-    expect(failed.status).toBe("ready");
-    if (failed.status === "ready") expect(failed.source).toBe("bundle");
-
-    mocks.readText.mockRejectedValue(new Error("bridge down"));
-    const rejected = await loadCharacterJsonText("晏燎");
-    expect(rejected.status).toBe("ready");
-    if (rejected.status === "ready") expect(rejected.source).toBe("bundle");
-  });
-
-  it("保存前 JSON.parse 校验:非法 JSON 不触桥", async () => {
-    const result = await saveCharacterJsonText("晏燎", "{not json");
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("JSON 格式无效");
-    expect(mocks.writeText).not.toHaveBeenCalled();
-  });
-
-  it("合法 JSON 经技能存储桥写入正确路径", async () => {
-    mocks.writeText.mockResolvedValue({ success: true, updatedAt: 123 });
-    const result = await saveCharacterJsonText("晏燎", '{"zh":"晏燎"}');
-    expect(result).toMatchObject({ ok: true });
-    expect(mocks.writeText).toHaveBeenCalledWith(
-      "art_skills/daojie_ink_guofeng/json/晏燎.json",
-      '{"zh":"晏燎"}',
+  it("store 优先且次序正确:store 命中即收,技能存储桥不被调", async () => {
+    stubStoreFiles({ "store/assets/files/prompts/晏燎.json": '{"store":true}' });
+    const result = await loadCharacterJsonText("晏燎", "role");
+    expect(result).toMatchObject({
+      status: "ready",
+      source: "store",
+      text: '{"store":true}',
+      relativePath: "store/assets/files/prompts/晏燎.json",
+      seedAvailable: true,
+    });
+    expect(mocks.readText).not.toHaveBeenCalled();
+    expect(mocks.projectReadText).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "proj-test", relativePath: "store/assets/files/prompts/晏燎.json", raw: true }),
     );
   });
 
-  it("恢复走 restoreText;写失败与恢复失败错误透传", async () => {
-    mocks.restoreText.mockResolvedValue({ success: true });
-    await expect(restoreCharacterJsonText("晏燎")).resolves.toMatchObject({ ok: true });
-    expect(mocks.restoreText).toHaveBeenCalledWith("art_skills/daojie_ink_guofeng/json/晏燎.json");
+  it("store-only 角色:store 命中收(seedAvailable=false);两处皆无→missing", async () => {
+    stubStoreFiles({
+      "store/assets/files/prompts/小杂役.json": JSON.stringify({ asset_type: "role", body_base: { 主体词: "素体句" } }),
+    });
+    const hit = await loadCharacterJsonText("小杂役", "role");
+    expect(hit).toMatchObject({ status: "ready", source: "store" });
+    if (hit.status === "ready") expect(hit.seedAvailable).toBeFalsy();
 
-    mocks.writeText.mockResolvedValue({ success: false, error: "disk full" });
-    const saveFailed = await saveCharacterJsonText("晏燎", "{}");
-    expect(saveFailed).toMatchObject({ ok: false, error: "disk full" });
+    mocks.projectReadText.mockResolvedValue({ success: false, error: "not found" });
+    await expect(loadCharacterJsonText("小杂役", "role")).resolves.toMatchObject({ status: "missing" });
+  });
+
+  it("store 未命中+repo 命中→技能存储副本/内置种子链照旧", async () => {
+    mocks.projectReadText.mockResolvedValue({ success: false, error: "not found" });
+    mocks.readText.mockResolvedValue({ success: true, content: '{"edited":true}' });
+    const stored = await loadCharacterJsonText("晏燎", "role");
+    expect(stored).toMatchObject({ status: "ready", source: "storage", text: '{"edited":true}', seedAvailable: true });
+
+    mocks.readText.mockResolvedValue({ success: false, error: "boom" });
+    const bundled = await loadCharacterJsonText("晏燎", "role");
+    expect(bundled.status).toBe("ready");
+    if (bundled.status === "ready") expect(bundled.source).toBe("bundle");
+  });
+
+  it("asset_type 校验:匹配收/不匹配拒/无 asset_type 仅 role 收且 scene 续探 @type 位", async () => {
+    stubStoreFiles({
+      "store/assets/files/prompts/场景甲.json": JSON.stringify({ asset_type: "scene", zh: "场景甲" }),
+      "store/assets/files/prompts/蛟龙@scene.json": JSON.stringify({ asset_type: "scene", zh: "蛟龙场景" }),
+      "store/assets/files/prompts/蛟龙.json": JSON.stringify({ asset_type: "tool", zh: "蛟龙道具" }),
+    });
+    // 匹配收
+    await expect(loadCharacterJsonText("场景甲", "scene")).resolves.toMatchObject({ status: "ready", source: "store" });
+    // 不匹配拒(非 glob 名→两处皆无)
+    await expect(loadCharacterJsonText("场景甲", "role")).resolves.toMatchObject({ status: "missing" });
+    // 无 asset_type:role 收
+    stubStoreFiles({ "store/assets/files/prompts/旧手件.json": '{"zh":"旧"}' });
+    await expect(loadCharacterJsonText("旧手件", "role")).resolves.toMatchObject({ status: "ready", source: "store" });
+    // 无 asset_type:scene 拒(平铺位)→ 续探 <名>@scene.json → 命中
+    stubStoreFiles({
+      "store/assets/files/prompts/蛟龙.json": '{"zh":"无型旧件"}',
+      "store/assets/files/prompts/蛟龙@scene.json": JSON.stringify({ asset_type: "scene" }),
+    });
+    const viaTyped = await loadCharacterJsonText("蛟龙", "scene");
+    expect(viaTyped).toMatchObject({ status: "ready", source: "store", relativePath: "store/assets/files/prompts/蛟龙@scene.json" });
+  });
+
+  it("撞名路径:蛟龙 role 走 @role 位、蛟龙 tool 吃平铺位;save 写读同路(@role)", async () => {
+    stubStoreFiles({
+      "store/assets/files/prompts/蛟龙.json": JSON.stringify({ asset_type: "tool", zh: "蛟龙道具" }),
+      "store/assets/files/prompts/蛟龙@role.json": JSON.stringify({ asset_type: "role", body_base: { 主体词: "蛟龙素体" } }),
+    });
+    const roleLoad = await loadCharacterJsonText("蛟龙", "role");
+    expect(roleLoad).toMatchObject({
+      status: "ready",
+      source: "store",
+      relativePath: "store/assets/files/prompts/蛟龙@role.json",
+    });
+    const toolLoad = await loadCharacterJsonText("蛟龙", "tool");
+    expect(toolLoad).toMatchObject({
+      status: "ready",
+      source: "store",
+      relativePath: "store/assets/files/prompts/蛟龙.json",
+    });
+
+    const saved = await saveCharacterJsonText("蛟龙", '{"asset_type":"role"}', "role");
+    expect(saved).toMatchObject({ ok: true });
+    expect(mocks.projectWriteText).toHaveBeenCalledWith(
+      "_p/proj-test/store/assets/files/prompts/蛟龙@role.json",
+      '{"asset_type":"role"}',
+    );
+  });
+
+  it("save 成功后 invalidate 真源位置缓存(重探即见新态)", async () => {
+    stubStoreFiles({ "store/assets/files/prompts/小杂役.json": '{"asset_type":"role"}' });
+    await expect(resolveAssetPromptJsonInfo("小杂役", "role")).resolves.toEqual({ origin: "store" });
+    // 缓存生效:mock 改失配后仍回 store
+    mocks.projectReadText.mockResolvedValue({ success: false, error: "not found" });
+    await expect(resolveAssetPromptJsonInfo("小杂役", "role")).resolves.toEqual({ origin: "store" });
+    // save 成功 → invalidate → 重探落空(非 glob 名→null)
+    const saved = await saveCharacterJsonText("小杂役", '{"asset_type":"role"}', "role");
+    expect(saved).toMatchObject({ ok: true });
+    await expect(resolveAssetPromptJsonInfo("小杂役", "role")).resolves.toEqual({ origin: null });
+  });
+
+  it("save 前置门控:store 命中或 repo info 任一即可;JSON 非法不触写桥", async () => {
+    stubStoreFiles({ "store/assets/files/prompts/小杂役.json": '{"asset_type":"role"}' });
+    const bad = await saveCharacterJsonText("小杂役", "{not json", "role");
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.error).toContain("JSON 格式无效");
+    expect(mocks.projectWriteText).not.toHaveBeenCalled();
+
+    const ok = await saveCharacterJsonText("小杂役", '{"asset_type":"role"}', "role");
+    expect(ok).toMatchObject({ ok: true });
+    expect(mocks.projectWriteText).toHaveBeenCalledWith(
+      "_p/proj-test/store/assets/files/prompts/小杂役.json",
+      '{"asset_type":"role"}',
+    );
+  });
+
+  it("store-only restore 无种子报错;repo 角色 restore=写 bundledText 进 store 同路径", async () => {
+    await expect(restoreCharacterJsonText("小杂役", "role")).resolves.toMatchObject({
+      ok: false,
+      error: "该 JSON 无内置种子",
+    });
+
+    stubStoreFiles({ "store/assets/files/prompts/晏燎.json": '{"用户":"编辑"}' });
+    const restored = await restoreCharacterJsonText("晏燎", "role");
+    expect(restored).toMatchObject({ ok: true });
+    const bundled = getCharacterJsonInfo("晏燎")?.bundledText ?? "";
+    expect(mocks.projectWriteText).toHaveBeenCalledWith("_p/proj-test/store/assets/files/prompts/晏燎.json", bundled);
+  });
+
+  it("loadCharacterSubject(type 缺省)=平铺名探测+旧件按 role 收", async () => {
+    stubStoreFiles({ "store/assets/files/prompts/旧手件.json": JSON.stringify({ body_base: { 主体词: "旧件素体" } }) });
+    await expect(loadCharacterSubject("旧手件", null)).resolves.toBe("旧件素体");
+    // type 缺省不探 @type 位:平铺被异型占用(asset_type tool)→ 不收
+    stubStoreFiles({ "store/assets/files/prompts/蛟龙.json": JSON.stringify({ asset_type: "tool", body_base: { 主体词: "道具" } }) });
+    await expect(loadCharacterSubject("蛟龙", null)).resolves.toBeNull();
   });
 });
 
-import { deriveSubjectFromCharacterJson, loadCharacterSubject } from "./asset-character-json";
+import { deriveSubjectFromCharacterJson } from "./asset-character-json";
 
 describe("deriveSubjectFromCharacterJson(主体句真源接线)", () => {
   const truth = JSON.stringify({
