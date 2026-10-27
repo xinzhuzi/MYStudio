@@ -29,6 +29,7 @@
 | `lyric-diagnostic` | 同上 `skills/creative/music/lyric-diagnostic` | 10-03 核验最新(6/6 逐字节同) |
 | `remotion-*`(12件:best-practices/captions/create/docs/interactivity/maps/markup/multimedia/render/saas/studio/upgrade) | [remotion-dev/skills](https://github.com/remotion-dev/skills) `skills/remotion-*` | **Remotion 官方**;10-03 整族 4.0.508→4.0.532(195 文件) |
 | `qwen-image-prompt-en` | [kjranyone/qwen-image-2.1-prompt-guide](https://github.com/kjranyone/qwen-image-2.1-prompt-guide) `skills/` | Qwen-Image-2.1 实操指南:核心规则(禁 SD 标签/主体前置/画内文字双引号逐字/编辑保留句)+ 分路由参考(text-to-image/image-editing/text-rendering/capabilities/examples);**独有价值=capabilities.md 的故障模式表**(文字乱码/主体错/脸漂移→改法);1★;09-21 push,MIT |
+| `OnlyShot`(skill 名 `ai-short-drama`) | [A-cat-with-carrots/OnlyShot](https://github.com/A-cat-with-carrots/OnlyShot) 整仓 | AI 短剧精细化 IP 创作技能(SKILL.md 自述 v0.6.0,末次上游 commit README 称 v0.6.1;三阶段:剧本+ref 图→分镜图 8 段 prompt 模板→4 模出片;即梦 5.0 失败模式/敏感词清单/红果七招);10-28 装机,commit `75c57f2`(2026-05-16),去 .git 平文件入库(48 件,.git 备份 /tmp/OnlyShot-git-backup-1028 临时),内置 .gitignore 豁免 projects/eval 工作区 |
 
 **本地自建**(非第三方,无上游):
 - `comfyui/tools/find_orphan_nodes.py` — UI 格式工作流孤儿节点检测(从输出节点反向可达性判定;兼容 cg-use-everywhere 广播、SetGet、rgthree 组旁路器/查看器、UUID 子图节点;`--prune` 生成 .cleaned.json 不动原文件)。2026-09-04 经合成样例 + K2图像/、H3视频/ 真实工作流验证。

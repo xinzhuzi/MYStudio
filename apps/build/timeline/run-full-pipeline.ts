@@ -77,6 +77,7 @@ import {
   probeRenderedMedia,
 } from "../remotion/render-smoke-evidence";
 import { buildFullPipelineRunEvidence } from "./full-pipeline-run-evidence";
+import { acceptFinalAudio } from "../remotion/final-audio-acceptance";
 
 const remotionVersion = "4.0.534";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
@@ -1205,7 +1206,15 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       fs.writeFileSync(probePath, `${JSON.stringify(probe.raw, null, 2)}\n`, "utf8");
       const expectedDuration = composition.durationInFrames / composition.fps;
       assertRenderedMediaEvidence({ label: "Daojie Full Pipeline", probe, expectedDuration, fps: composition.fps, width: plan.renderSettings.width, height: plan.renderSettings.height });
+      // Structural probing is insufficient: accept the final encoded audio before success evidence.
+      const finalAudioAcceptance = await acceptFinalAudio({
+        filePath: outputPath,
+        renderSettings: plan.renderSettings,
+        rawLogPath: path.join(remotionOutputDir, "final-audio-ebur128.log"),
+        reportPath: path.join(remotionOutputDir, "final-audio-acceptance.json"),
+      });
       const sha256 = await hashFileSha256(outputPath);
+      if (sha256 !== finalAudioAcceptance.output.sha256) throw new Error("final-audio-file-changed-before-evidence");
       const outputStat = fs.statSync(outputPath);
       const inputManifestPath = path.join(outputDir, "input-manifest.json");
       const timelineRenderPlanPath = path.join(outputDir, "timeline-render-plan.json");
@@ -1269,6 +1278,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         authority: { mode: subtitleAuthority.mode, passed: true, suppressedCueIds: authorityValidation.success ? authorityValidation.suppressedCueIds.size : 0 },
         composition: { visualClips: props.visualClips.length, subtitles: props.subtitles.length, audioClips: props.audioClips.length, overlayClips: props.overlayClips?.length ?? 0 },
         output: { path: outputPath, sizeBytes: outputStat.size, sha256, duration: probe.duration, width: probe.width, height: probe.height, streams: probe.streams },
+        finalAudioAcceptance,
         evidence: {
           inputManifestPath,
           timelineRenderPlanPath,

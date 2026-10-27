@@ -141,7 +141,8 @@ def execute_pinned_adapter(
     evaluated = 0
     for point in sample_points:
         start = max(0.0, min(total_duration, point - 1.5))
-        end = max(start + 0.1, min(total_duration, point + 1.5))
+        # 末侧留 50ms 边距: -ss 恰压片长正端点时 ffmpeg 抓不到帧 exit 234(上游 timeline_view 贴边)
+        end = max(start + 0.1, min(max(start + 0.1, total_duration - 0.05), point + 1.5))
         if end > total_duration:
             start = max(0.0, end - min(1.5, total_duration))
         key = (round(start, 3), round(end, 3))

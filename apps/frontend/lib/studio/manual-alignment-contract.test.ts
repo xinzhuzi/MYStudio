@@ -237,6 +237,20 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
     expect(script).not.toContain("对峙时刻写 OS 对切");
   });
 
+  // ── 10-27 叙述层转译通道(PRD 10-27-script-narrative-translation-cure R1-7/D5 裁定) ──
+  itFile("转译通道正断言:四·附/只走旁白/不得借道 OS/近逐字与下游豁免条", () => {
+    const narrative = readManual("story_skills/Daojie_xianxia/script_narrative.md");
+    expect(narrative, "叙事手册缺「四·附」通道本体").toContain("四·附：叙述层转译通道");
+    expect(narrative, "通道未声明只走旁白").toContain("只走旁白");
+    expect(narrative, "通道未声明不得借道 OS").toContain("不得借道 OS");
+    expect(narrative, "通道缺近逐字约束").toContain("近逐字");
+    const script = readManual("script_execution_script.md");
+    expect(script, "执行手册缺「转译通道旁白豁免」条").toContain("转译通道旁白豁免");
+    expect(script, "执行手册豁免条缺 4.6 线").toContain("4.6 字/秒");
+    expect(script, "锁定句「区间上限 4 字/秒」被破坏").toContain("区间上限 4 字/秒");
+    expect(script, "锁定句「2.5~4 字/秒」被破坏").toContain("2.5~4 字/秒");
+  });
+
   itFile("道劫H3九式的完整战斗镜遵守时长下限，短器物段标明镜内节拍", () => {
     const fusion = readManual("story_skills/Daojie_xianxia/driector_skills/director_style_card_fusion.md");
     const sword = findLines(fusion, "| 剑意一镜 |");

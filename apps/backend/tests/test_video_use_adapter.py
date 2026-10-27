@@ -310,6 +310,59 @@ class VideoUseAdapterTest(unittest.TestCase):
             self.assertIn("--no-loudnorm", helper_calls[0])
             self.assertNotIn("--no-loudnorm", helper_calls[-1])
 
+    def test_self_eval_endpoint_sample_keeps_50ms_tail_margin(self):
+        """1027 采样贴边修回归:端点采样点恰压 total_duration 正端点时,窗口末侧须钳到
+        total_duration-0.05,不得让 -ss 恰贴片长端点(上游 timeline_view 贴边 ffmpeg exit 234)。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            request, alignment = self._fixtures(root)
+            upstream = root / "upstream"
+            (upstream / "helpers").mkdir(parents=True)
+            for name in ("render.py", "timeline_view.py"):
+                (upstream / "helpers" / name).write_text("# helper", encoding="utf-8")
+            ffmpeg = root / "ffmpeg"
+            ffprobe = root / "ffprobe"
+            ffmpeg.write_text("", encoding="utf-8")
+            ffprobe.write_text("", encoding="utf-8")
+
+            timeline_windows = []
+
+            def fake_helper(_helper, args, *, cwd, env):
+                if "--n-frames" in args:
+                    timeline_windows.append((float(args[1]), float(args[2])))
+                output = Path(args[args.index("-o") + 1])
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_bytes(b"generated")
+
+            # _fixtures: shot-001=0.5s + shot-002=0.7s → total_duration=1.2;
+            # 边界采样点含正端点 1.2(=total_duration),修复前该窗口 end 恰=1.2。
+            total_duration = 1.2
+            with patch("video_use.adapter_shared._run_helper", side_effect=fake_helper), patch(
+                "video_use.adapter_shared._probe_output", return_value=(total_duration, ["video", "audio"])
+            ), patch("video_use.adapter_shared._probe_media_duration", return_value=1.0):
+                run_pinned_adapter(
+                    request,
+                    alignment,
+                    upstream_root=upstream,
+                    ffmpeg_path=str(ffmpeg),
+                    ffprobe_path=str(ffprobe),
+                    artifact_path=root / "artifact.json",
+                    now_ms=123,
+                )
+
+            self.assertTrue(timeline_windows, "self-eval 未产生时间线探针窗口")
+            clamped_tail = round(total_duration - 0.05, 3)
+            self.assertIn(
+                (0.0, clamped_tail),
+                timeline_windows,
+                f"端点采样窗口未钳到 total_duration-0.05={clamped_tail}: {timeline_windows}",
+            )
+            for start, end in timeline_windows:
+                self.assertLess(
+                    end, total_duration,
+                    f"采样窗口 end={end} 恰压/越过片长正端点 {total_duration}(ffmpeg exit 234 风险): {timeline_windows}",
+                )
+
     def test_flat_mode_records_clean_mp4_sha_separately_from_burned_preview(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
