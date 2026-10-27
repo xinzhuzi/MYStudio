@@ -19,6 +19,9 @@ import type {
   StoryboardBatchGenerationState,
   StoryboardBatchResumeInfo,
 } from "./image-workflow/use-storyboard-batch-generation";
+import type { StoryboardH3VideoBatchState } from "./image-workflow/use-storyboard-h3-video-batch";
+import { planStoryboardH3VideoBatch } from "./image-workflow/use-storyboard-h3-video-batch";
+import { batchDispatchableH3Recipes } from "@/lib/assist/image-studio/h3-workflow-recipes";
 import type { StoryboardBindingRunView } from "./storyboard-asset-binding";
 import type { ChapterPipelineRunView } from "./chapter-pipeline";
 import { ChapterAcceptanceBanner } from "./ChapterAcceptanceBanner";
@@ -44,6 +47,7 @@ export function StoryboardPanelTab({
   chapterAutoVideo,
   assetBinding,
   pipeline,
+  h3Batch,
 }: {
   storyboards: StoryboardItem[];
   onOpenImageWorkflow: (context: ImageWorkflowOpenContext) => void;
@@ -70,6 +74,13 @@ export function StoryboardPanelTab({
     running: boolean;
     run: () => void;
     openFinal?: () => void;
+  };
+  /** H3 出片批量(10-27 双通道 P2b:通道B 实生成,挂载点 useStoryboardH3VideoBatch 注入) */
+  h3Batch?: {
+    state: StoryboardH3VideoBatchState;
+    start: (opts?: { tier?: "480p" | "960p" }) => void;
+    stop: () => void;
+    resumable?: { shotIndex: number; remaining: number } | null;
   };
   /** 分镜素材自动绑定(10-11 批4):按钮+例外清单,挂载点 useStoryboardAssetBinding 注入 */
   assetBinding?: {
@@ -104,6 +115,11 @@ export function StoryboardPanelTab({
   const videoCompareShot = videoCompareShotId ? ordered.find((item) => item.id === videoCompareShotId) : undefined;
   // 09-14 用户裁定:详情页可看单镜头视频播放——有视频的卡中央▶,弹窗播整镜
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  // H3 出片内联确认(10-27 N1:两步防误触——首点展开确认条,二次确认才发车)
+  const [h3ConfirmOpen, setH3ConfirmOpen] = useState(false);
+  const [h3Tier, setH3Tier] = useState<"480p" | "960p">("960p");
+  const h3Plan = useMemo(() => planStoryboardH3VideoBatch(ordered), [ordered]);
+  const h3ReadyRecipes = useMemo(() => batchDispatchableH3Recipes(), []);
   // 截帧回灌(09-15 P1a):弹窗关联镜+busy 态;两动作落在视频查看操作条
   const [videoShotId, setVideoShotId] = useState<string | null>(null);
   const [keyframeBusy, setKeyframeBusy] = useState(false);
@@ -204,15 +220,96 @@ export function StoryboardPanelTab({
           {chapterAutoVideo ? (
             chapterAutoVideo.running ? (
               <Button size="sm" variant="outline" disabled data-storyboard-panel-auto-video>
-                章视频合成中…
+                预看成片合成中…
               </Button>
             ) : chapterAutoVideo.openFinal ? (
-              <Button size="sm" variant="outline" data-storyboard-panel-auto-video-open onClick={chapterAutoVideo.openFinal}>
-                打开章视频
+              <Button size="sm" variant="outline" data-storyboard-panel-auto-video-open onClick={chapterAutoVideo.openFinal} title="查看最近一次预看成片">
+                打开预看成片
               </Button>
             ) : (
-              <Button size="sm" variant="outline" data-storyboard-panel-auto-video-run onClick={chapterAutoVideo.run}>
-                一键章视频
+              <Button
+                size="sm"
+                variant="outline"
+                data-storyboard-panel-auto-video-run
+                onClick={chapterAutoVideo.run}
+                title="预看通道A:Remotion 图动秒级草稿成片——审叙事/节奏/构图/台词,问题镜修完再走 H3 出片(10-27 双通道)"
+              >
+                预看成片
+              </Button>
+            )
+          ) : null}
+          {h3Batch ? (
+            h3Batch.state.running ? (
+              <span className="inline-flex items-center gap-2" data-storyboard-panel-h3-running>
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  H3 出片 {h3Batch.state.done}/{h3Batch.state.total}
+                  {h3Batch.state.currentShotIndex != null ? ` · S${String(h3Batch.state.currentShotIndex).padStart(2, "0")}` : ""}
+                  {h3Batch.state.failed > 0 ? ` · 失败 ${h3Batch.state.failed}` : ""}
+                </span>
+                <Button size="sm" variant="ghost" data-storyboard-panel-h3-stop onClick={h3Batch.stop} title="当前镜完成后停止(已提交的生成不浪费)">
+                  <Square className="h-3.5 w-3.5" />
+                  停止
+                </Button>
+              </span>
+            ) : h3Batch.resumable ? (
+              <Button
+                size="sm"
+                variant="outline"
+                data-storyboard-panel-h3-resume
+                title={`从第 ${h3Batch.resumable.shotIndex} 镜继续 H3 出片`}
+                onClick={() => h3Batch.start({ tier: h3Tier })}
+              >
+                <Play className="h-3.5 w-3.5" />
+                继续出片
+              </Button>
+            ) : h3ConfirmOpen ? (
+              <span className="inline-flex items-center gap-2" data-storyboard-panel-h3-confirm>
+                <span className="text-xs text-muted-foreground">
+                  {h3Plan.candidates.length} 镜可出片
+                  {h3Plan.missingFrameCount > 0 ? ` · ${h3Plan.missingFrameCount} 镜缺首帧跳过` : ""}
+                  {h3Plan.truncatedShotIndexes.length > 0 ? " · 超15s封顶截断" : ""}
+                  {` · 预计≈${Math.round((h3Tier === "960p" ? 18 : 6) * h3Plan.candidates.length)} 分钟 · 过夜批请勿合盖`}
+                </span>
+                {(["960p", "480p"] as const).map((tier) => (
+                  <Button
+                    key={tier}
+                    size="sm"
+                    variant={h3Tier === tier ? "default" : "ghost"}
+                    data-storyboard-panel-h3-tier={tier}
+                    onClick={() => setH3Tier(tier)}
+                    title={tier === "960p" ? "生产档(1344×768,约18分钟/镜)" : "草稿档(608×352,约6分钟/镜,验动效用)"}
+                  >
+                    {tier === "960p" ? "960P 生产" : "480P 草稿"}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="paid"
+                  data-storyboard-panel-h3-confirm-start
+                  disabled={h3Plan.candidates.length === 0 || h3ReadyRecipes.length === 0}
+                  onClick={() => {
+                    setH3ConfirmOpen(false);
+                    h3Batch.start({ tier: h3Tier });
+                  }}
+                >
+                  确认出片
+                </Button>
+                <Button size="sm" variant="ghost" data-storyboard-panel-h3-confirm-cancel onClick={() => setH3ConfirmOpen(false)}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                variant="paid"
+                data-storyboard-panel-h3-start
+                disabled={h3Plan.candidates.length === 0 || h3ReadyRecipes.length === 0}
+                title="通道B 实生成:MiniMax H3 逐镜真视频(串行,960P≈18分钟/镜)——先预看收敛再出片"
+                onClick={() => setH3ConfirmOpen(true)}
+              >
+                <Play className="h-3.5 w-3.5" />
+                H3 出片
               </Button>
             )
           ) : null}

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { runStoryboardH3ShotVideo } from "./image-workflow/use-storyboard-h3-video-batch";
 import { Button } from "@/components/ui/button";
 import { ResolutionBadge } from "@/components/ui/image-resolution-badge";
 import { LocalImage } from "@/components/ui/local-image";
@@ -60,6 +62,8 @@ export function ShotProductionOverview({
   );
   const [selectedId, setSelectedId] = useState<string>();
   const [stripOpen, setStripOpen] = useState(false);
+  // H3 镜级重生成(10-27 D6):单镜 force 路径,复用批量同一组装+执行+回收函数
+  const [h3RegenShotId, setH3RegenShotId] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [sfxOpen, setSfxOpen] = useState(false);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -184,7 +188,7 @@ export function ShotProductionOverview({
             aria-controls="shot-strip"
             aria-label={`${stripOpen ? "收起" : "展开"}镜号横滑条,当前镜头 S${String(selected.index).padStart(2, "0")}`}
             title={stripOpen ? "收起镜号横滑条" : "展开镜号横滑条,点选其他镜头"}
-            onClick={() => setStripOpen((open) => !open)}
+            onClick={() => setStripOpen((open: boolean) => !open)}
             className="shrink-0 gap-1.5 font-mono"
           >
             <span className={`h-1.5 w-1.5 rounded-full ${shotDotClass(selectedRow)}`} />
@@ -192,6 +196,35 @@ export function ShotProductionOverview({
             <ChevronDown
               className={`h-3.5 w-3.5 motion-safe:transition-transform ${stripOpen ? "rotate-180" : ""}`}
             />
+          </Button>
+        ) : null}
+        {selected ? (
+          <Button
+            size="sm"
+            variant="outline"
+            data-shot-h3-regen
+            disabled={h3RegenShotId === selected.id || selected.mediaRef?.kind !== "image"}
+            title={
+              selected.mediaRef?.kind === "image"
+                ? "MiniMax H3 重生成本镜真视频(960P 约 18-21 分钟;旧片留档候选,可回选)"
+                : "本镜缺少首帧画面,先在分镜面板生成帧图"
+            }
+            onClick={() => {
+              const shot = selected;
+              setH3RegenShotId(shot.id);
+              void runStoryboardH3ShotVideo(shot, { tier: "960p" })
+                .catch((error: unknown) => {
+                  toast.error(`S${String(shot.index).padStart(2, "0")} H3 重生成失败:${error instanceof Error ? error.message : String(error)}`);
+                })
+                .finally(() => setH3RegenShotId(null));
+            }}
+          >
+            {h3RegenShotId === selected.id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            重生成视频(H3)
           </Button>
         ) : null}
       </div>

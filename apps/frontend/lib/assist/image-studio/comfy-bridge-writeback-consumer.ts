@@ -118,6 +118,11 @@ function defaultApplyVideoToStoryboard(
     // 10-11 音频分工 R3c:回写同步落音频政策(供 mediaRef 分支语义/混音分档/
     // 诊断;非 full 一律窄化 ambient)。候选侧 meta.policy 一直有,此为分镜字段。
     h3AudioPolicy: policy === "full" ? "full" : "ambient",
+    // 10-27 H3 双通道 Q6:policy=full 纯对白镜烧了台词在片内,若停留默认混音
+    // tts-stack(视频静音+成片链跳过其外挂 TTS)→整镜无声;落位时未显式设过
+    // 混音(audioMix===undefined)自动 h3-baked 防无声;用户已设任意值不覆写,
+    // ambient 不动(默认 tts-stack 由外挂 TTS 出声,语义不变)。
+    ...(policy === "full" && storyboard.audioMix === undefined ? { audioMix: "h3-baked" as const } : {}),
   });
   store.addVideoCandidate({
     id: `h3-${storyboard.id}-${candidateNumber}`,

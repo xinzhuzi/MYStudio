@@ -12,6 +12,7 @@ import { useState } from "react";
 import { NodeDocViewer } from "./NodeDocViewer";
 import { ScriptEditorDialog } from "./ScriptEditorDialog";
 import { useStoryboardBatchGeneration } from "./image-workflow/use-storyboard-batch-generation";
+import { useStoryboardH3VideoBatch } from "./image-workflow/use-storyboard-h3-video-batch";
 import { useStoryboardAssetBinding } from "./use-storyboard-asset-binding";
 import { useChapterPipelineOrchestrator } from "./useChapterPipelineOrchestrator";
 
@@ -25,6 +26,10 @@ export function StudioView() {
   const storyboardBatch = useStoryboardBatchGeneration({
     storyboards: viewModel.chapterStoryboards,
     projectName: viewModel.projectName,
+  });
+  // H3 出片批量(10-27 双通道通道B;hook 内部自带防休眠/断点续跑/回收轮询)
+  const storyboardH3VideoBatch = useStoryboardH3VideoBatch({
+    storyboards: viewModel.chapterStoryboards,
   });
   // 分镜素材自动绑定(10-11 批4):面板按钮+例外清单注入
   const storyboardAssetBinding = useStoryboardAssetBinding(viewModel.chapterStoryboards);
@@ -197,6 +202,12 @@ export function StudioView() {
                 onOpenImageWorkflow={viewModel.openAssetImageWorkflow}
                 onBackToCanvas={() => viewModel.handleStageChange("storyboard")}
                 batch={storyboardBatch}
+                h3Batch={{
+                  state: storyboardH3VideoBatch.state,
+                  start: storyboardH3VideoBatch.start,
+                  stop: storyboardH3VideoBatch.stop,
+                  resumable: storyboardH3VideoBatch.resumable,
+                }}
                 assetBinding={storyboardAssetBinding}
                 pipeline={{
                   running: chapterPipeline.running,

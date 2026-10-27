@@ -155,10 +155,55 @@ describe("StoryboardPanelTab 截帧回灌接线(09-15 P1a)", () => {
         onOpenImageWorkflow={() => undefined}
       />,
     );
+
     fireEvent.click(screen.getByLabelText("播放 S01 单镜视频"));
     const saveButton = screen.getByText("存为关键帧") as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
     expect(saveButton.title).toContain("不在项目内");
     expect(container.querySelector("[data-video-keyframe-actions]")).toBeTruthy();
+  });
+
+  it("双通道入口(10-27):预看成片与 H3 出片并排;H3 确认条含镜数/档位/防合盖警示;确认后 start(tier)", () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    const start = vi.fn();
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png"), shot(2, undefined), shot(3, "/p/3.png")]}
+        onOpenImageWorkflow={() => undefined}
+        chapterAutoVideo={{ status: {}, running: false, run: vi.fn() }}
+        h3Batch={{ state: { running: false, total: 0, done: 0, failed: 0, currentShotIndex: null }, start, stop: vi.fn(), resumable: null }}
+      />,
+    );
+    // 通道A 文案归位(Q5)
+    expect(screen.getByText("预看成片")).toBeTruthy();
+    // 通道B:两步确认——首点展开确认条
+    fireEvent.click(screen.getByText("H3 出片"));
+    const confirmBar = document.querySelector("[data-storyboard-panel-h3-confirm]");
+    expect(confirmBar).toBeTruthy();
+    // N1/N2 摘要:2 镜可出片 + 1 镜缺首帧跳过 + 防合盖警示
+    expect(confirmBar!.textContent).toContain("2 镜可出片");
+    expect(confirmBar!.textContent).toContain("1 镜缺首帧跳过");
+    expect(confirmBar!.textContent).toContain("勿合盖");
+    // 档位切换(D5 默认 960P;切 480P 后 start 吃到 tier)
+    fireEvent.click(document.querySelector("[data-storyboard-panel-h3-tier='480p']")!);
+    fireEvent.click(screen.getByText("确认出片"));
+    expect(start).toHaveBeenCalledWith({ tier: "480p" });
+  });
+
+  it("H3 出片运行态:进度行(逐镜 Sxx+done/total+失败数)与停止按钮", () => {
+    useProjectStore.setState({ activeProjectId: "p1" });
+    render(
+      <StoryboardPanelTab
+        storyboards={[shot(1, "/p/1.png")]}
+        onOpenImageWorkflow={() => undefined}
+        h3Batch={{ state: { running: true, total: 19, done: 7, failed: 2, currentShotIndex: 8 }, start: vi.fn(), stop: vi.fn(), resumable: null }}
+      />,
+    );
+    const running = document.querySelector("[data-storyboard-panel-h3-running]");
+    expect(running).toBeTruthy();
+    expect(running!.textContent).toContain("7/19");
+    expect(running!.textContent).toContain("S08");
+    expect(running!.textContent).toContain("失败 2");
+    expect(document.querySelector("[data-storyboard-panel-h3-stop]")).toBeTruthy();
   });
 });

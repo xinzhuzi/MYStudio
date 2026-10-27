@@ -703,6 +703,36 @@ describe("consumeComfyBridgeWritebacks", () => {
     expect(shot?.h3AudioPolicy).toBe(expected);
   });
 
+  // 10-27 H3 双通道 Q6:policy=full 且未显式设混音→自动 h3-baked 防纯对白镜无声;
+  // 已设任意值不覆写;ambient 不写(默认 tts-stack 由外挂 TTS 出声,语义不变)。
+  it.each([
+    ["full", undefined, "h3-baked"],
+    ["full", "tts-stack", "tts-stack"],
+    ["ambient", undefined, undefined],
+  ] as const)("混音联动(Q6):policy=%s + audioMix=%p → 落位后 %p", async (policy, preset, expected) => {
+    const storyboards = STORYBOARDS.map((item) => (
+      item.id === "sb-a" ? { ...item, ...(preset !== undefined ? { audioMix: preset } : {}) } : item
+    ));
+    const { client } = makeClient([{
+      id: 91,
+      videoB64: "aGk=",
+      shotTarget: "S01",
+      meta: { kind: "video", subfolder: "video/漫影/ep-1/sb-a", policy },
+    }]);
+    useStudioStore.setState({ storyboards });
+    const { deps } = makeDeps({
+      client,
+      applyVideoToStoryboard: undefined,
+      writeProjectBinary: async () => ({ success: true, url: "project-file://project-1/remotion/outputs/shots/ep-1/sb-a/h3/q6_v1_91.mp4" }),
+      probeVideoDuration: async () => 5_166_666,
+    });
+
+    await consumeComfyBridgeWritebacks(deps);
+
+    const shot = useStudioStore.getState().storyboards.find((item) => item.id === "sb-a");
+    expect(shot?.audioMix).toBe(expected);
+  });
+
   it.each([0, -1, 5.5, Number.NaN])(
     "默认落账路径(真实 store):假 probe 非法值 %p → 不写垃圾时长且旧值不得冒充新片",
     async (probeResult) => {
