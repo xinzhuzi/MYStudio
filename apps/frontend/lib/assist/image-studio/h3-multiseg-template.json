@@ -1,0 +1,786 @@
+{
+ "id": "h3-autocontext-multiseg",
+ "revision": 1,
+ "last_node_id": 103,
+ "last_link_id": 16,
+ "nodes": [
+  {
+   "id": 34,
+   "type": "UNETLoader",
+   "pos": [
+    0,
+    0
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 34,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UNETLoader"
+   },
+   "widgets_values": [
+    "minimax_h3_fl2va_pruned_bf16.safetensors",
+    "default"
+   ]
+  },
+  {
+   "id": 41,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    340,
+    0
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 41,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      2
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "widgets_values": [
+    "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
+    1.0
+   ]
+  },
+  {
+   "id": 21,
+   "type": "CLIPLoaderGGUF",
+   "pos": [
+    0,
+    260
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 21,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      3
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoaderGGUF"
+   },
+   "widgets_values": [
+    "Qwen3-VL-32B-Ultra-Heretic-H3-L0-49-Q4_K_M.gguf",
+    "minimax"
+   ]
+  },
+  {
+   "id": 7,
+   "type": "VAELoader",
+   "pos": [
+    0,
+    470
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 7,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      4,
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "minimax_h3_video_vae_fp16.safetensors"
+   ]
+  },
+  {
+   "id": 13,
+   "type": "VAELoader",
+   "pos": [
+    0,
+    620
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 13,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      5,
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "minimax_h3_audio_vae_fp32.safetensors"
+   ]
+  },
+  {
+   "id": 100,
+   "type": "H3Parameter",
+   "pos": [
+    680,
+    100
+   ],
+   "size": [
+    420,
+    760
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 100,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "parameter",
+     "type": "DICT",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "H3Parameter"
+   },
+   "widgets_values": [
+    "段1:1秒\n[Shot 1] 中景，固定机位。一位穿深蓝色长袍的年轻剑修站在竹林小径上，微微抬头看向竹梢，晨光从竹叶缝隙洒落，竹叶轻晃。\n\n段2:1秒\n[Shot 1] 他收回视线，抬手把拂过肩头的竹叶轻轻拨开，衣袖摆动，沿小径继续向前走去。\n\noverall_soundscape: 清晨竹林鸟鸣，风吹竹叶沙沙声，脚步踩在落叶上的轻响",
+    "Clip_Tag",
+    "段1",
+    "official",
+    "stretch",
+    "segmented",
+    960,
+    544,
+    56,
+    24,
+    22,
+    5,
+    true,
+    false,
+    "none",
+    false,
+    "none",
+    0.1,
+    "per_token"
+   ]
+  },
+  {
+   "id": 101,
+   "type": "H3AutoContextSampler",
+   "pos": [
+    1180,
+    100
+   ],
+   "size": [
+    400,
+    400
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 101,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 2
+    },
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 3
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 4
+    },
+    {
+     "name": "audio_vae",
+     "type": "VAE",
+     "link": 5
+    },
+    {
+     "name": "parameter",
+     "type": "DICT",
+     "link": 6
+    },
+    {
+     "name": "first_frame",
+     "type": "IMAGE",
+     "link": 15
+    }
+   ],
+   "outputs": [
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": [
+      7,
+      9
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "denoised_latent",
+     "type": "LATENT",
+     "links": [],
+     "slot_index": 0
+    },
+    {
+     "name": "info",
+     "type": "DICT",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "H3AutoContextSampler"
+   },
+   "widgets_values": [
+    0.0,
+    42,
+    4,
+    1.0,
+    "euler",
+    "simple",
+    1.0,
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "id": 6,
+   "type": "VAEDecode",
+   "pos": [
+    1660,
+    60
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 7
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 2,
+   "type": "VAEDecodeAudio",
+   "pos": [
+    1660,
+    260
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 9
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "AUDIO",
+     "type": "AUDIO",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecodeAudio"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 102,
+   "type": "H3SeamCorrection",
+   "pos": [
+    1920,
+    60
+   ],
+   "size": [
+    360,
+    260
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 102,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "H3SeamCorrection"
+   },
+   "widgets_values": [
+    "medium",
+    "off",
+    false,
+    0.3,
+    15.0,
+    2,
+    false
+   ]
+  },
+  {
+   "id": 36,
+   "type": "CreateVideo",
+   "pos": [
+    2340,
+    100
+   ],
+   "size": [
+    320,
+    200
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 36,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 12
+    },
+    {
+     "name": "audio",
+     "type": "AUDIO",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "VIDEO",
+     "type": "VIDEO",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CreateVideo"
+   },
+   "widgets_values": [
+    24,
+    8,
+    "sRGB"
+   ]
+  },
+  {
+   "id": 4,
+   "type": "SaveVideo",
+   "pos": [
+    2660,
+    100
+   ],
+   "size": [
+    360,
+    120
+   ],
+   "flags": {
+    "collapsed": false
+   },
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "video",
+     "type": "VIDEO",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "video",
+     "type": "VIDEO",
+     "links": [
+      16
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "SaveVideo"
+   },
+   "widgets_values": [
+    "video/漫影/chapter-001/shot-001/ambient",
+    "auto",
+    "auto",
+    "auto"
+   ]
+  },
+  {
+   "id": 9,
+   "type": "LoadImage",
+   "pos": [
+    1180,
+    560
+   ],
+   "size": [
+    290,
+    330
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 4,
+   "inputs": [
+    {
+     "localized_name": "图像",
+     "name": "image",
+     "type": "COMBO",
+     "widget": {
+      "name": "image"
+     },
+     "link": null
+    },
+    {
+     "localized_name": "选择文件上传",
+     "name": "upload",
+     "type": "IMAGEUPLOAD",
+     "widget": {
+      "name": "upload"
+     },
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "图像",
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      15
+     ]
+    },
+    {
+     "localized_name": "遮罩",
+     "name": "MASK",
+     "type": "MASK",
+     "links": []
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage",
+    "ue_properties": {
+     "widget_ue_connectable": {},
+     "version": "7.8",
+     "input_ue_unconnectable": {}
+    },
+    "cnr_id": "comfy-core",
+    "ver": "0.33.2"
+   },
+   "widgets_values": [
+    "manying-shot-h3-placeholder.jpg",
+    "image"
+   ],
+   "widgets_values_named": {
+    "image": "Krea2_无衣__00003_.png",
+    "upload": "image"
+   }
+  },
+  {
+   "id": 103,
+   "type": "MyShot",
+   "pos": [
+    2660,
+    320
+   ],
+   "size": [
+    360,
+    300
+   ],
+   "flags": {},
+   "order": 103,
+   "mode": 4,
+   "inputs": [
+    {
+     "name": "video",
+     "type": "VIDEO",
+     "link": 16
+    }
+   ],
+   "outputs": [],
+   "title": "漫影单镜锚卡",
+   "properties": {
+    "Node name for S&R": "MyShot",
+    "myPreview": "manying-shot-h3-placeholder.jpg"
+   },
+   "widgets_values": [
+    "shot-001",
+    "S01",
+    "multiseg 批量适配占位",
+    "图✓"
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   34,
+   0,
+   41,
+   0,
+   "MODEL"
+  ],
+  [
+   2,
+   41,
+   0,
+   101,
+   0,
+   "MODEL"
+  ],
+  [
+   3,
+   21,
+   0,
+   101,
+   1,
+   "CLIP"
+  ],
+  [
+   4,
+   7,
+   0,
+   101,
+   2,
+   "VAE"
+  ],
+  [
+   5,
+   13,
+   0,
+   101,
+   3,
+   "VAE"
+  ],
+  [
+   6,
+   100,
+   0,
+   101,
+   4,
+   "DICT"
+  ],
+  [
+   7,
+   101,
+   0,
+   6,
+   0,
+   "LATENT"
+  ],
+  [
+   8,
+   7,
+   0,
+   6,
+   1,
+   "VAE"
+  ],
+  [
+   9,
+   101,
+   0,
+   2,
+   0,
+   "LATENT"
+  ],
+  [
+   10,
+   13,
+   0,
+   2,
+   1,
+   "VAE"
+  ],
+  [
+   11,
+   6,
+   0,
+   102,
+   0,
+   "IMAGE"
+  ],
+  [
+   12,
+   102,
+   0,
+   36,
+   0,
+   "IMAGE"
+  ],
+  [
+   13,
+   2,
+   0,
+   36,
+   1,
+   "AUDIO"
+  ],
+  [
+   14,
+   36,
+   0,
+   4,
+   0,
+   "VIDEO"
+  ],
+  [
+   15,
+   9,
+   0,
+   101,
+   5,
+   "IMAGE"
+  ],
+  [
+   16,
+   4,
+   0,
+   103,
+   0,
+   "VIDEO"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}

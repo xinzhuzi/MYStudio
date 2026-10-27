@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildShotH3MultisegPrompt,
   buildShotH3Prompt,
   buildShotH3RefPrompt,
   dialogueAudioPolicy,
@@ -227,6 +228,95 @@ describe("extractPlannedDialogueTexts (计划清单与注入同源)", () => {
     const { prompt: ref } = buildShotH3RefPrompt({ videoDesc: "石桥", lines, durationSec: 5 }, "full");
     for (const p of [i2v, ref]) {
       expect(verifyPlannedTextVerbatim(p, extractPlannedDialogueTexts(lines))).toEqual({ ok: true, missing: [] });
+    }
+  });
+});
+
+// ── multiseg 分段提示词(PRD 10-27 §14.1.3)────────────────────────────────────────────────────
+
+describe("buildShotH3MultisegPrompt(分段组装,插件 h3_utils 解析契约)", () => {
+  it("≤15s 单段:5s→单段 124 帧(17k+5 网格,与 i2v snap 同点);14.375s=345 帧单段上限", () => {
+    const five = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 5, policy: "ambient" });
+    expect(five.segments).toHaveLength(1);
+    expect(five.segments[0]!.frames).toBe(124);
+    expect(five.totalSeconds).toBeCloseTo(124 / 24, 6);
+    expect(five.segments[0]!.secondsText).toBe("5.167"); // Math.floor(5.167×24)=124 还原自检
+    const edge = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 345 / 24, policy: "ambient" });
+    expect(edge.segments).toHaveLength(1);
+    expect(edge.segments[0]!.frames).toBe(345); // 17×20+5=345 单段上限(14.375s)
+  });
+
+  it("20s→两段:首段 17k+5、非首段 17 倍,各段段长(含 context 5)≤360 帧=15s;总帧贴最近网格", () => {
+    const r = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 20, policy: "ambient" });
+    expect(r.segments).toHaveLength(2);
+    const [first, second] = r.segments;
+    expect((first!.frames - 5) % 17).toBe(0); // 首段 17k+5:frames−5 是 17 的倍数
+    expect(second!.frames % 17).toBe(0); // 非首段纯 17 倍
+    expect(first!.frames).toBe(243); // 17×14+5
+    expect(second!.frames).toBe(238); // 17×14
+    expect(first!.frames).toBeLessThanOrEqual(345);
+    expect(second!.frames + 5).toBeLessThanOrEqual(360); // 段长=新增+context 5 ≤360
+    expect(first!.frames + second!.frames).toBe(481); // T=480 贴最近网格 481(差 +1 ≤8)
+  });
+
+  it("40s 顶:三段在册、957 帧贴网格;>40s 硬顶拒派抛大白话(M1)", () => {
+    const at = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 40, policy: "ambient" });
+    expect(at.segments).toHaveLength(3);
+    expect(at.segments.reduce((sum, s) => sum + s.frames, 0)).toBe(957);
+    expect(() => buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 41, policy: "ambient" }))
+      .toThrow(/超过 multiseg 40 秒硬顶.*拒派/);
+  });
+
+  it("秒文本还原自检:每段 Math.floor(parseFloat(secondsText)×fps)===frames(M3,含 +0.001 修正路径)", () => {
+    // 40s 三段 [311,306,340]:311/24=12.958333→toFixed(3)="12.958"→310.992 截断错位,+0.001 修正为 "12.959"
+    const r = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 40, policy: "ambient" });
+    expect(r.segments.map((s) => s.frames)).toEqual([311, 306, 340]);
+    expect(r.segments[0]!.secondsText).toBe("12.959"); // 修正路径实证
+    for (const segment of r.segments) {
+      expect(Math.floor(parseFloat(segment.secondsText) * 24)).toBe(segment.frames);
+    }
+    // 自定义 fps 亦过自检
+    const odd = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 20, policy: "ambient", fps: 30 });
+    for (const segment of odd.segments) {
+      expect(Math.floor(parseFloat(segment.secondsText) * 30)).toBe(segment.frames);
+    }
+  });
+
+  it("段文案:标签行「段N:{秒}秒」独占一行+[Shot 1]+非首段锚定语+末块 overall_soundscape;声景三档", () => {
+    const r = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 20, policy: "ambient", sound: "风穿竹叶" });
+    expect(r.longPrompt).toContain("段1:10.125秒\n[Shot 1] 剑修立于竹林。");
+    expect(r.longPrompt).toContain("段2:9.917秒\n[Shot 1] 承接上段结尾画面与人物状态,剑修立于竹林。");
+    expect(r.longPrompt.endsWith("overall_soundscape: 风穿竹叶")).toBe(true);
+    expect(r.longPrompt).not.toContain("FIXED_I2V"); // multiseg 提示词不带 FIXED_I2V 行(§14.1.1 针2 注)
+    const bare = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 5, policy: "bare" });
+    expect(bare.soundscape).toBe("Minimal ambient sound only.");
+    const noSound = buildShotH3MultisegPrompt({ videoDesc: "剑修立于竹林。", durationTarget: 5, policy: "ambient" });
+    expect(noSound.soundscape).toBe("Quiet ambience matching the scene.");
+  });
+
+  it("policy=full:台词逐字入段且整句分配(句边界切,单句永不跨段)+说话人编号跨段一致+逐字过门", () => {
+    const lines = "甲：先走。\n乙：我知道。\n甲：小心脚下。\n乙：多谢。";
+    const r = buildShotH3MultisegPrompt({ videoDesc: "雨夜石桥对峙。", durationTarget: 20, lines, policy: "full", voiceMood: "克制" });
+    // 台词按段时长比例整句分配:两段各 2 句,每句完整在场(无跨段拆句)
+    const planned = extractPlannedDialogueTexts(lines);
+    expect(planned).toEqual(["先走。", "我知道。", "小心脚下。", "多谢。"]);
+    expect(verifyPlannedTextVerbatim(r.longPrompt, planned).ok).toBe(true);
+    for (const text of planned) {
+      expect(r.longPrompt).toContain(`<d>[Chinese] ${text}</d>`); // 整句入段(非拼接碎句)
+    }
+    expect(r.longPrompt).toContain("says in a 克制 tone"); // voiceMood 锚同 i2v 口径
+    // 说话人编号跨段一致:甲恒 S1、乙恒 S2(不随段重排)
+    expect(r.longPrompt).toContain("甲 (S1) says");
+    expect(r.longPrompt).toContain("乙 (S2) says");
+    expect(r.longPrompt).not.toMatch(/乙 \(S1\)/);
+  });
+
+  it("ambient/bare:台词不进段(走外挂 TTS 线,清单空不拦)", () => {
+    for (const policy of ["ambient", "bare"] as const) {
+      const r = buildShotH3MultisegPrompt({ videoDesc: "雨夜石桥对峙。", durationTarget: 20, lines: "甲：先走。", policy });
+      expect(r.longPrompt).not.toContain("<d>");
+      expect(r.longPrompt).not.toContain("先走。");
+      expect(verifyPlannedTextVerbatim(r.longPrompt, []).ok).toBe(true);
     }
   });
 });

@@ -234,3 +234,151 @@ export function buildShotH3RefPrompt(input: H3RefPromptInput, policy: H3AudioPol
   ].join("\n");
   return { prompt, seconds, lengthFrames };
 }
+
+// ── multiseg 分段提示词(PRD 10-27 §14.1.3;my-h3-multiseg 适配的分段组装器)──────────────────────
+
+export interface H3MultisegSegment {
+  /** 段序(1 基)。 */
+  index: number;
+  /** 该段新增帧数(插件 compute_tag_chunks 口径:首段=17k+5,非首段=17 倍;
+   *  非首段实际段长=frames+context_frames(模板出厂 5),恒 ≤360 帧=15s)。 */
+  frames: number;
+  /** 标签行时长文本((frames/fps).toFixed(3);经插件 int(d×fps) 截断还原自检)。 */
+  secondsText: string;
+  /** 段内容(「[Shot 1] {段文案}」,含 full 政策分配到本段的台词块)。 */
+  text: string;
+}
+
+export interface H3MultisegPromptResult {
+  /** 「段1:{d1}秒\n[Shot 1] {段文案}\n\n段2:…\n\noverall_soundscape: {声景}」(插件
+   *  h3_utils _split_by_tag 契约:标签行独占一行,clip_tag「段1」→prefix「段」)。 */
+  longPrompt: string;
+  segments: H3MultisegSegment[];
+  /** 名义总秒=Σ段新增帧/fps(网格量化与 durationTarget 差 ≤8 帧≈1/3s)。 */
+  totalSeconds: number;
+  soundscape: string;
+}
+
+export interface H3MultisegPromptInput {
+  videoDesc: string;
+  /** 秒;>40 硬顶抛错(M1:40s 960P 原片≈45MB 逼近 MyShot 64MB 上限)。 */
+  durationTarget: number;
+  /** policy=full 时逐字入段(仅句边界分配,整句永不跨段,M4)。 */
+  lines?: string;
+  sound?: string;
+  policy: H3AudioPolicy;
+  voiceMood?: string;
+  /** 缺省 24(与模板 100.fps 出厂一致)。 */
+  fps?: number;
+}
+
+/** M1 硬顶:40s 960P multiseg 单镜原片≈45MB,逼近 MyShot 回写 64MB 缓冲上限——超限=片白烧数小时且永不到账。 */
+export const MULTISEG_DURATION_HARD_CAP_S = 40;
+/** 非首段新增帧上限(17×20;+context_frames 5 计入段长后 ≤360 帧=15s,插件 >15s 仅告警不拦,出厂即合规)。 */
+const MULTISEG_NONFIRST_NEW_FRAMES_CAP = 340;
+/** 总帧硬顶(40s×24fps;与 MULTISEG_DURATION_HARD_CAP_S 联动)。 */
+const MULTISEG_TOTAL_FRAMES_CAP = 960;
+/** 非首段锚定语(§14.1.3:固定开头短语,禁自造时间轴)。 */
+const MULTISEG_CONTINUATION_PREFIX = "承接上段结尾画面与人物状态";
+
+/** 分段算法(帧优先+17k+5 对齐,§14.1.3):总帧 T=clamp(round(秒×fps),22,960);
+ *  段数 N=max(1,ceil((T−5)/340));首段新增=17k+5、非首段新增=17 整倍,总差由末段吸收
+ *  (与插件 compute_tag_chunks 同哲学——声明值即插件 snap 后终值,snap 零位移)。 */
+function planMultisegSegmentFrames(durationTarget: number, fps: number): number[] {
+  const total = Math.min(MULTISEG_TOTAL_FRAMES_CAP, Math.max(22, Math.round(durationTarget * fps)));
+  const budget = total - 5; // 首段携带 17n+5 网格的 +5 头,余量按 17 倍数分摊
+  const segmentCount = Math.max(1, Math.ceil(budget / MULTISEG_NONFIRST_NEW_FRAMES_CAP));
+  const steps = Math.round(budget / 17);
+  const base = Math.floor(steps / segmentCount);
+  const extra = steps - base * segmentCount;
+  const frames: number[] = [];
+  for (let i = 0; i < segmentCount; i++) {
+    const k = i === segmentCount - 1 ? base + extra : base; // 总差由末段吸收
+    frames.push(i === 0 ? 17 * k + 5 : 17 * k);
+  }
+  return frames;
+}
+
+/** 标签行秒文本(M3):(frames/fps).toFixed(3) 须过「插件 int(d×fps) 截断还原」自检
+ *  Math.floor(parseFloat(text)×fps)===frames;toFixed 向下舍入跨界时 +0.001 修正。 */
+function formatMultisegSeconds(frames: number, fps: number): string {
+  const seconds = frames / fps;
+  let text = seconds.toFixed(3);
+  if (Math.floor(parseFloat(text) * fps) === frames) return text;
+  text = (seconds + 0.001).toFixed(3);
+  if (Math.floor(parseFloat(text) * fps) !== frames) {
+    throw new Error(`multiseg 秒文本还原自检失败:${frames} 帧@${fps}fps → "${text}",请检查网格对齐`);
+  }
+  return text;
+}
+
+/** 台词按各段时长比例整句分配(仅句边界切;单句超段时长仍整句入段,近似如实记录 M4):
+ *  逐条分给「已分/理想配额」比例最低的段,比例天然均衡且永不拆句。 */
+function distributeDialogueByDuration<T>(lines: T[], segmentFrames: number[]): T[][] {
+  const total = segmentFrames.reduce((sum, v) => sum + v, 0);
+  const ideal = segmentFrames.map((frames) => (frames / total) * lines.length);
+  const buckets: T[][] = segmentFrames.map(() => []);
+  for (const line of lines) {
+    let target = 0;
+    for (let i = 1; i < buckets.length; i++) {
+      if (buckets[i].length / Math.max(ideal[i]!, 1e-9) < buckets[target]!.length / Math.max(ideal[target]!, 1e-9)) {
+        target = i;
+      }
+    }
+    buckets[target]!.push(line);
+  }
+  return buckets;
+}
+
+/** multiseg 分段提示词组装器(§14.1.3):输出契约逐字钉插件解析器
+ *  (h3_utils _split_by_tag/_parse_tag_line_duration)——标签行「段N:{秒}秒」独占一行,
+ *  段内容 [Shot 1] official 格式,段间空一行,末块 overall_soundscape。
+ *  文案逐字自检门不在本函数(与 i2v 同门:门在派发前对整份 longPrompt 校验,
+ *  见 h3-shot-video-workflow.ts assertPlannedTextVerbatimGate)。 */
+export function buildShotH3MultisegPrompt(input: H3MultisegPromptInput): H3MultisegPromptResult {
+  if (input.durationTarget > MULTISEG_DURATION_HARD_CAP_S) {
+    throw new Error(
+      `本镜时长 ${input.durationTarget} 秒超过 multiseg 40 秒硬顶(40s 960P 单镜原片约 45MB,逼近回写 64MB 上限,超限片永远收不回),已拒派——请拆镜或改用单段 I2V 通道`,
+    );
+  }
+  const fps = input.fps ?? 24;
+  const resolvedPolicy: H3AudioPolicy = input.policy === "full" || input.policy === "bare" ? input.policy : "ambient";
+  const frames = planMultisegSegmentFrames(input.durationTarget, fps);
+  const totalSeconds = frames.reduce((sum, v) => sum + v, 0) / fps;
+  const soundscape = resolvedPolicy === "bare"
+    ? "Minimal ambient sound only."
+    : input.sound?.trim() || "Quiet ambience matching the scene.";
+  const description = input.videoDesc.trim();
+
+  // 台词(full 政策):全局说话人编号跨段一致(renderDialogue 说话人口径),按段时长比例整句分配
+  const character = resolvedPolicy === "full" ? splitDialogueLines(input.lines).character : [];
+  const speakerIds = new Map<string, number>();
+  character.forEach((line) => {
+    const key = line.speaker || "S1";
+    if (!speakerIds.has(key)) speakerIds.set(key, speakerIds.size + 1);
+  });
+  const mood = input.voiceMood?.trim();
+  const moodAnchor = mood ? ` in a ${mood} tone` : "";
+  const dialogueBuckets = distributeDialogueByDuration(character, frames);
+
+  const segments: H3MultisegSegment[] = frames.map((segmentFrames, i) => {
+    const secondsText = formatMultisegSeconds(segmentFrames, fps);
+    const anchor = i === 0 ? "" : `${MULTISEG_CONTINUATION_PREFIX},`;
+    const dialogue = dialogueBuckets[i]!.map((line) => {
+      const speaker = line.speaker || "The speaker";
+      return `${speaker} (S${speakerIds.get(line.speaker || "S1")}) says${moodAnchor}: <d>[Chinese] ${line.text}</d>`;
+    });
+    const eventSeconds = Math.max(0, Math.ceil((segmentFrames / fps) * 0.4));
+    const dialogueBlock = dialogue.length > 0
+      ? ` ${dialogue.join(" ")} At 00:${String(eventSeconds).padStart(2, "0")}.000.`
+      : "";
+    const text = `[Shot 1] ${anchor}${description}${dialogueBlock}`;
+    return { index: i + 1, frames: segmentFrames, secondsText, text };
+  });
+
+  const longPrompt = [
+    ...segments.map((segment) => `段${segment.index}:${segment.secondsText}秒\n${segment.text}`),
+    `overall_soundscape: ${soundscape}`,
+  ].join("\n\n");
+  return { longPrompt, segments, totalSeconds, soundscape };
+}

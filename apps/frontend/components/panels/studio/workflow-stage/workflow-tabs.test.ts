@@ -93,13 +93,13 @@ describe("studio workflow tabs", () => {
     expect(viewModelSource).toContain("enqueue-remotion-shots");
     expect(viewModelSource).toContain("handleOpenFinalVideo");
     // 09-09 批8:章视频状态经 index.tsx 注入 StoryboardPanelTab.chapterAutoVideo;
-    // 成片按钮文案迁面板(一键章视频/章视频合成中/打开章视频)
+    // 成片按钮文案迁面板;10-27 H3 双通道 P2b 文案归位「预看成片」(通道A 审片位,Q5)
     expect(indexSource).toContain("status: viewModel.chapterAutoVideoStatus");
     expect(indexSource).toContain("run: () => void viewModel.handleRunChapterAutoVideo()");
     expect(indexSource).toContain("openFinal: viewModel.handleOpenFinalVideo");
-    expect(canvasSource).toContain("一键章视频");
-    expect(canvasSource).toContain("章视频合成中");
-    expect(canvasSource).toContain("打开章视频");
+    expect(canvasSource).toContain("预看成片");
+    expect(canvasSource).toContain("预看成片合成中");
+    expect(canvasSource).toContain("打开预看成片");
     expect(hookSource).toContain("runChapterAutoVideo");
     expect(hookSource).toContain("runStoryboardTtsGeneration");
     expect(hookSource).toContain("buildRemotionShotPlans");
