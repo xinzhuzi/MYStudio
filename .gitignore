@@ -76,6 +76,8 @@ docs/*/**
 !apps/build/setup-win.ps1
 !apps/build/packaging/setup-win.ps1
 !apps/build/scripts/win-engine/*.ps1
+# 夜批发车前置守护(10-28 Windows Q2.1 主线役 D8,须入库;check-ignore 实测曾命中 *.ps1)
+!apps/build/scripts/win_nightbatch_guard_1028.ps1
 
 # Story/script content
 沪商通途*
