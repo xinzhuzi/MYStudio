@@ -13,8 +13,8 @@ import {
 } from "./subtitle-fonts";
 
 describe("subtitle font registry", () => {
-  it("defaults to the brush kaishu font with seven curated fonts", () => {
-    expect(DEFAULT_SUBTITLE_FONT_ID).toBe("liu-jian-mao-cao");
+  it("defaults to Noto Sans SC with seven curated fonts (1028 用户令换常用体)", () => {
+    expect(DEFAULT_SUBTITLE_FONT_ID).toBe("noto-sans-sc");
     expect(SUBTITLE_FONT_IDS).toHaveLength(7);
     expect(SUBTITLE_FONT_IDS).toContain(DEFAULT_SUBTITLE_FONT_ID);
   });

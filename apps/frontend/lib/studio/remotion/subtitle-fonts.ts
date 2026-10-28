@@ -21,8 +21,8 @@ export const SUBTITLE_FONT_IDS = [
 
 export type SubtitleFontId = (typeof SUBTITLE_FONT_IDS)[number];
 
-/** 源码级默认：毛笔楷书（仙侠武侠片题字质感，用户 08-18 拍板）。 */
-export const DEFAULT_SUBTITLE_FONT_ID: SubtitleFontId = "liu-jian-mao-cao";
+/** 源码级默认：思源黑体(普通常用,可读性第一;1028 用户令换掉狂草)。 */
+export const DEFAULT_SUBTITLE_FONT_ID: SubtitleFontId = "noto-sans-sc";
 
 /** 风格分组：设置页按此分组展示。 */
 export const SUBTITLE_FONT_CATEGORIES = ["calligraphy", "modern", "custom"] as const;

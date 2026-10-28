@@ -1044,9 +1044,12 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     // 解析连不上问题已由 apps/patches 修复（serveUrl/页内代理 → 127.0.0.1），但 Chrome
     // 路线仍属新路径——仅 MYSTUDIO_CINEMATIC_BROWSER=chrome 显式启用。
     const systemChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-    const renderBrowser = cinematicEnabled
-      && process.env.MYSTUDIO_CINEMATIC_BROWSER === "chrome"
-      && fs.existsSync(systemChrome)
+    // 1028 提速通道:MYSTUDIO_RENDER_CHROME=chrome 时用系统 Chrome(Metal GPU 合成,字幕/GL 滤镜帧耗大降),
+    // 与 cinematicEnabled 解耦——cinematic 3D 仍退役,这只是渲染器选择。
+    const renderBrowser = (
+      (cinematicEnabled && process.env.MYSTUDIO_CINEMATIC_BROWSER === "chrome")
+      || process.env.MYSTUDIO_RENDER_CHROME === "chrome"
+    ) && fs.existsSync(systemChrome)
       ? systemChrome
       : browser;
     const mediaBridge = new MediaBridgeServer();
@@ -1187,7 +1190,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         serveUrl: bundlePath, composition, inputProps: props, outputLocation: rawPath,
         codec: "h264", pixelFormat: "yuv420p", audioCodec: "aac",
         // 锐度纪律：crf 16 + slow（默认 18/medium 在 grain/二次编码下软化明显）
-        crf: 16, x264Preset: "slow",
+        // 1028 提速通道:MYSTUDIO_RENDER_X264=medium 时降为 medium(编码段约省一半,crf16 下视觉无损)
+        crf: 16, x264Preset: process.env.MYSTUDIO_RENDER_X264 === "medium" ? "medium" as const : "slow" as const,
         browserExecutable: renderBrowser, binariesDirectory, chromeMode: "headless-shell",
         // GL transitions/grade also run when cinematic depth is disabled. The
         // default Headless Shell ANGLE/Vulkan path cannot create a WebGL

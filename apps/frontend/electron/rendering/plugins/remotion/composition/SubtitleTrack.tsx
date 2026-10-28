@@ -2,7 +2,7 @@
 // its own frame range via Sequence and rendered as centred text. The component
 // receives already-projected cues (text + frame range) and holds no timing math
 // beyond delegating placement to Sequence. Styling comes from the subtitle
-// font registry (default = 毛笔楷书) so the Player preview and the fixed
+// font registry (default = 思源黑体,1028 用户令) so the Player preview and the fixed
 // bundle burn identical text.
 
 import { AbsoluteFill, Sequence, useCurrentFrame } from "remotion";
