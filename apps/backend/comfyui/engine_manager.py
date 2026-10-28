@@ -10,7 +10,9 @@
 """
 from __future__ import annotations
 
+import csv
 import gzip
+import io
 import json
 import os
 import re
@@ -1035,23 +1037,149 @@ def _pid_executable_in_home_venv(pid: int) -> bool:
     return _exe_path_in_home_venv(exe)
 
 
+# ── 1028 Windows 枚举补码(S15 终局链遗留 §三.7,final-chain-1028.md)──
+# 病灶:枚举器原 POSIX-only(Windows 分支显式 return None)=Windows 侧车
+# 结构性无法枚举/收编已 spawn 引擎,S15 全链被迫走等价配方绕过。正路=一次
+# PowerShell 子进程取 Win32_Process 全机清单(pid/exe/argv),判据与匹配环
+# 与 POSIX 同源共用(_match_home_engine_entries,防两处漂移)。工具面:该
+# Windows 已移除 wmic;PowerShell 经 subprocess 本机直起(不经 SSH,本仓
+# PowerShell-over-SSH 挂死前科是远程执行面)。编码:1029 实弹探针
+# (E:\IP\漫影工作室)证明 [Console]::OutputEncoding=UTF8 + 捕获字节恒
+# UTF-8,中文家路径(漫影工作室)往返无损;同探针坐实引擎 argv 恒正斜杠
+# 形态而 cm.venv_python() 恒反斜杠——判据/argv 两侧分隔符先归一才可比。
+
+_WIN_ENUM_PS = (
+    "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; "
+    "Get-CimInstance Win32_Process | "
+    "Select-Object ProcessId,ExecutablePath,CommandLine | "
+    "ConvertTo-Csv -NoTypeInformation")
+
+
+def _parse_win_process_csv(stdout: str) -> list[dict] | None:
+    """powershell ConvertTo-Csv(Win32_Process)输出解析(纯函数,单测直测)。
+
+    每行 →{"pid","exe","args"}。实弹形态(1029 探针):全字段双引号包裹,
+    null 字段=空段逗号相邻(如 "0",,),嵌入引号 CSV 倍增。表头缺失/列名
+    不全=None(清单没拿到=枚举不可用);行级垃圾/非数字 pid 容错跳过
+    (镜像 _parse_ps_pid_args 纪律)。null 的 exe/args=空串如实保留
+    (匹配层自然不命中)。
+    """
+    reader = csv.reader(io.StringIO(stdout or ""))
+    try:
+        header = [name.strip().lower() for name in next(reader)]
+    except StopIteration:
+        return None
+    try:
+        pid_col = header.index("processid")
+        exe_col = header.index("executablepath")
+        args_col = header.index("commandline")
+    except ValueError:
+        return None
+    records: list[dict] = []
+    for row in reader:
+        if len(row) <= max(pid_col, exe_col, args_col):
+            continue  # 空行/短行垃圾容错
+        pid_text = row[pid_col].strip()
+        if not pid_text.isdigit():
+            continue
+        pid = int(pid_text)
+        if pid <= 0:
+            continue
+        records.append({"pid": pid,
+                        "exe": row[exe_col].strip(),
+                        "args": row[args_col].strip()})
+    return records
+
+
+def _match_home_engine_entries(entries, venv_py: str, main_py: str, exe_gate) -> list[dict]:
+    """自家出身两形态匹配环(POSIX/Windows 同源共用,防两处漂移)。
+
+    绝对形态:argv 同时含 venv python 与源码 main.py 绝对路径=自证直过;
+    相对形态:_argv_matches_home_relative 命中后须过 exe_gate 二道门
+    (POSIX=_pid_executable_in_home_venv 现查探针;Windows=同清单
+    ExecutablePath 免探针)。entries=(pid, args) 序列;结果含
+    {@pid,@port,@args}。纯循环(单测经两侧分支间接覆盖)。
+    """
+    found: list[dict] = []
+    for pid, args in entries:
+        if venv_py in args and main_py in args:
+            # 绝对形态:argv 自带本家绝对路径=自证,无需二道门
+            found.append({"pid": pid, "port": _extract_port_from_args(args), "args": args})
+        elif _argv_matches_home_relative(args, venv_py, main_py) and exe_gate(pid):
+            # 相对形态(1019 M1):候选命中 + G7 exe 二道门过 → 自家
+            found.append({"pid": pid, "port": _extract_port_from_args(args), "args": args})
+    return found
+
+
+def _engine_home_processes_windows() -> list[dict] | None:
+    """Windows 枚举(1028 补码):Win32_Process 清单 → 自家出身实例表。
+
+    与 POSIX 支柱的差异只在三点:①清单来源=PowerShell Win32_Process
+    (无新依赖、无 wmic);②分隔符归一(判据串与 argv 反斜杠→/,仅判据
+    层——实弹:引擎 argv 恒正斜杠而 cm.venv_python() 恒反斜杠,原文直比
+    恒不命中;命中记录的 args 仍回填平台原文);③相对形态二道门免探针
+    ——同清单自带 ExecutablePath,判法复用 _exe_path_in_home_venv。
+    三态口径与 POSIX 同款:子进程失败/非零退出/输出不可解析=None(绝不
+    降级空表);超时 15s(powershell 冷启+CIM 全机枚举,宽于 ps 的 5s;
+    守卫节拍 3s 一发的已知成本=每拍一个 powershell 子进程)。
+    """
+    try:
+        proc = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", _WIN_ENUM_PS],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=15.0)
+    except (OSError, ValueError, subprocess.SubprocessError, TypeError, AttributeError) as exc:
+        # OSError/ValueError/SubprocessError:powershell 缺失/参数错/超时等真实
+        # 失败;TypeError/AttributeError:测试桩替身缺 with 协议方法(同 POSIX
+        # 支柱实测口径)。任何失败=枚举不可知,如实 None(绝不降级空表:空表
+        # 会被调用方当「确证无实例」消费)。
+        print(f"[image-sidecar] comfy-engine: 引擎进程枚举失败(Windows/{exc}),"
+              "无法确认全机唯一性,本次启动将拒绝拉起新实例", flush=True)
+        return None
+    if proc.returncode != 0:
+        print(f"[image-sidecar] comfy-engine: 引擎进程枚举异常退出(Windows rc={proc.returncode}),"
+              "按枚举不可用处理", flush=True)
+        return None
+    records = _parse_win_process_csv(proc.stdout or "")
+    if records is None:
+        print("[image-sidecar] comfy-engine: 引擎进程枚举输出不可解析(Windows),"
+              "按枚举不可用处理", flush=True)
+        return None
+    venv_py, main_py = _home_engine_markers()
+    # 判据层归一:反斜杠→正斜杠(实弹:argv 正斜杠形态 vs cm 反斜杠形态)
+    entries = [(info["pid"], info["args"].replace("\\", "/")) for info in records]
+    exe_by_pid = {info["pid"]: info["exe"] for info in records}
+    raw_args_by_pid = {info["pid"]: info["args"] for info in records}
+
+    def _gate(pid: int) -> bool:
+        exe = exe_by_pid.get(pid, "")
+        return bool(exe) and _exe_path_in_home_venv(exe)
+
+    found = _match_home_engine_entries(
+        entries, venv_py.replace("\\", "/"), main_py.replace("\\", "/"), _gate)
+    for info in found:  # args 回填平台原文(与 POSIX 结果语义对齐)
+        info["args"] = raw_args_by_pid.get(info["pid"], info["args"])
+    return found
+
+
 def _engine_home_processes() -> list[dict] | None:
-    """枚举「自家出身」的 ComfyUI 引擎进程(POSIX-only;不可用=None)。
+    """枚举「自家出身」的 ComfyUI 引擎进程(不可用=None)。
 
     判据(1019 M1 归一化):绝对形态照旧(argv 同时含 venv python 与源码
     main.py 绝对路径=自证);相对形态(_argv_matches_home_relative)命中后
     须过 G7 exe 二道门(exe 真实路径在本家 venv)——双条件+二道门排除
-    别家 ComfyUI(含同布局)/无关 python。三态口径(0929 深审 R1 根修):
-    · list(含空表,ps 正常跑完)= 枚举结果,空表=全机**确证**无自家实例;
-    · None(Windows 无 ps/工具缺失/超时/异常/ps 非零退出)= 枚举不可用——
+    别家 ComfyUI(含同布局)/无关 python。1028 Windows 补码:枚举本体
+    平台双实现——POSIX=ps -axo pid,args(口径零变),Windows=PowerShell
+    Win32_Process 清单(见 _engine_home_processes_windows);匹配环同源
+    共用(_match_home_engine_entries)。三态口径(0929 深审 R1 根修):
+    · list(含空表,清单正常拿到)= 枚举结果,空表=全机**确证**无自家实例;
+    · None(工具缺失/超时/异常/非零退出/输出不可解析)= 枚举不可用——
       「看不见」≠「没有」,降级成空表会让 start_sync 在漂移实例旁盲启第二台
       (实弹红条:漂移实例占 17005、账本口空闲,旧降级路径照样 spawn)。
       调用方对 None 一律拒绝 spawn(唯一性不可证),仅放行不 spawn 的纯收编。
     """
     if os.name == "nt":
-        print("[image-sidecar] comfy-engine: Windows 无 ps,引擎进程枚举不可用,"
-              "无法确认全机唯一性", flush=True)
-        return None
+        return _engine_home_processes_windows()
     try:
         proc = subprocess.run(["ps", "-axo", "pid,args"],
                               capture_output=True, text=True, timeout=5.0)
@@ -1072,15 +1200,9 @@ def _engine_home_processes() -> list[dict] | None:
               "按枚举不可用处理", flush=True)
         return None
     venv_py, main_py = _home_engine_markers()
-    found: list[dict] = []
-    for pid, args in _parse_ps_pid_args(proc.stdout or ""):
-        if venv_py in args and main_py in args:
-            # 绝对形态:argv 自带本家绝对路径=自证,无需二道门
-            found.append({"pid": pid, "port": _extract_port_from_args(args), "args": args})
-        elif _argv_matches_home_relative(args, venv_py, main_py) and _pid_executable_in_home_venv(pid):
-            # 相对形态(1019 M1):候选命中 + G7 exe 二道门过 → 自家
-            found.append({"pid": pid, "port": _extract_port_from_args(args), "args": args})
-    return found
+    return _match_home_engine_entries(
+        _parse_ps_pid_args(proc.stdout or ""), venv_py, main_py,
+        _pid_executable_in_home_venv)
 
 
 def _pid_is_home_engine(pid: int) -> bool:

@@ -174,14 +174,18 @@ class TestEngineHomeProcesses:
         monkeypatch.setattr(em.subprocess, "run", fake_run)
         assert em._engine_home_processes() is None
 
-    def test_windows_returns_unavailable_none_without_ps(self, tmp_path, monkeypatch):
+    def test_windows_powershell_failure_returns_unavailable_none(self, tmp_path, monkeypatch):
+        """1028 Windows 补码后:Windows 分支改走 PowerShell(Win32_Process 清单,
+        见 test_engine_win_process_enum.py),枚举失败仍是 None(三态口径不动);
+        跨平台桩纪律:Windows 分支不得跑 ps。"""
         _plant_installed_engine(tmp_path, monkeypatch)
         monkeypatch.setattr(os, "name", "nt")  # monkeypatch 自动还原
 
-        def must_not_run(argv, **kwargs):
-            raise AssertionError("Windows 不得跑 ps")
+        def fake_run(argv, **kwargs):
+            assert argv[0] == "powershell", "Windows 枚举走 PowerShell,不得跑 ps"
+            raise OSError("no powershell")
 
-        monkeypatch.setattr(em.subprocess, "run", must_not_run)
+        monkeypatch.setattr(em.subprocess, "run", fake_run)
         assert em._engine_home_processes() is None
 
     def test_markers_follow_comfy_home_override(self, tmp_path, monkeypatch):
