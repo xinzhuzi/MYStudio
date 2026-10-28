@@ -1,4 +1,4 @@
-# win_nightbatch_guard_1028.ps1 -- 夜批发车前置守护(D8 裁定三段:探活 -> 自拉 -> 报警禁发)
+﻿# win_nightbatch_guard_1028.ps1 -- 夜批发车前置守护(D8 裁定三段:探活 -> 自拉 -> 报警禁发)
 #
 # 依据:.trellis/tasks/10-28-windows-mystudio-q21-mainline/design.md §2.3/§2.4、
 #       prd.md §三 D8 / §五 W9、research/phase2-3-receipt-1028.md(S7/S12)、
@@ -24,8 +24,9 @@
 #            完整判静还须 Mac 侧 vram-4x.csv 停增+output 停更(README §三),发车人 Mac 侧观察,
 #            本脚本不代劳。
 #
-# 用法(夜批发车脚本前置调用;Windows PowerShell 5.1 兼容;UTF-8 无 BOM=仓库 ps1 惯例,
-#       中文只在注释、代码字符串全 ASCII,防 5.1 按 ANSI 读件乱码):
+# 用法(夜批发车脚本前置调用;Windows PowerShell 5.1 兼容;本文件须存 UTF-8 带 BOM——
+#       1028 Windows 首跑实证:无 BOM 时 5.1 按 ANSI/GBK 读件,中文注释错读炸出 :101/:120
+#       意外"}"解析错 exit 1;加 BOM 后同内容解析零错。代码字符串仍全 ASCII):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File win_nightbatch_guard_1028.ps1
 #   引擎直投轨(发车直打 17000 /prompt,不经 execute 链,如 FastH3 批产)加 -RequireEngine:
 #   引擎未就绪也判 abort 禁发(execute 轨则不需要——首笔请求会按需拉引擎)。

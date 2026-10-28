@@ -86,17 +86,17 @@ REM ↓ 既有 execute 链发车命令原样保留 ↓
 > 手动验守护(不看批产):`powershell -NoProfile -ExecutionPolicy Bypass -File win_nightbatch_guard_1028.ps1` 后看 `%ERRORLEVEL%`。
 > 产物纪律(prd W9):批产物先落引擎 output 即转移 `E:\IP\tmp\` 中转,再按 apps/output 拷贝纪律回流 Mac(保留原路径结构);产物真源恒=Mac(D2)。
 
-## 三、发车判静纪律(并行基准役实弹期禁发;按 1028 收官复核勘误重写)
+## 三、发车判静纪律(并行基准役实弹期禁发;按 1028 收官复核勘误重写+终局链证伪 D 判静勘正)
 
 **硬禁令(任务纪律原话)**:并行超分役 `fasth3-upscale-shootout-1028` 实弹期(**判静不过**):**禁杀引擎、禁改 EngineDurable、禁发任何 prompt**——其逐秒 VRAM 基准数据,排队插入也会污染其计时(1028 收官实录:其 prompt 12bf7bb6 实弹贯穿收官轮全程,final-sweep-1028.md §一.1/§一.6)。
 
-**判静真源=三项综合+持续观察窗 ≥15min,禁凭单点**(final-sweep-1028.md §一.5末挑毛病①坐实:单点 output 快照判「引擎 idle」不成立;§四.4 勘误:后续判静应改用「队列空+持续观察窗」判据):
+**判静真源=引擎 `/queue` 清空+output 停更两项综合+持续观察窗 ≥15min,禁凭单点**(final-sweep-1028.md §一.5末挑毛病①坐实:单点 output 快照判「引擎 idle」不成立;§四.4 勘误:后续判静应改用「队列空+持续观察窗」判据;**1028 终局链复核证伪 D 再勘正(final-chain-1028.md §四.D、遗留 §三.12)**:原三项之 `vram-4x.csv`=死传感器已坐实除名,判静口径就此收敛为两项):
 
-1. **Mac 侧 `vram-4x.csv` 停增**——真源=`apps/output/fasth3-upscale-shootout-1028/seedvr2-win/vram-4x.csv`(**Mac 侧**,比对两次采样 mtime/字节数)。**禁查 `E:\IP\tmp`**:预检曾假设 csv 在 E:\IP\tmp,复核递归 depth3 实测零 CSV,该假设已证伪(final-sweep-1028.md §四.1),判静恒查 Mac 侧;
+1. ~~Mac 侧 `vram-4x.csv` 停增~~ **已除名=死传感器(1028 终局链复核证伪 D 坐实,final-chain-1028.md §四.D)**:采集器 2026-10-28 14:17 停采后并行役从未停工(引擎 output 21:22/21:31 仍新落 vosr2-vfx-2x 两件、23:27 `queue_running` 持 VOSR2-4x prompt 71be55d8 在跑,而 CSV 恒停 458810B/mtime 14:17:24 不动)——**CSV 停增不构成收工证据,判静禁再凭 CSV**(该传感器 Mac 侧真源 `apps/output/fasth3-upscale-shootout-1028/seedvr2-win/vram-4x.csv`;历史勘误「禁查 `E:\IP\tmp`」存档见 final-sweep-1028.md §四.1);
 2. **引擎 `/queue` 清空**——现查 `GET http://127.0.0.1:17000/queue`,`queue_running` 空(兼查 `queue_pending`,repo 同款判静语义=`apps/backend/engines/image_engine/engine_health.py:94-101`:running+pending 均空才算空,探不到=证不了静按不空处置)。本守护 `-RequireQueueIdle`(§一④)即此信号的机检——观察窗内持续采样,非单点;
-3. **output 停更**——引擎 `output\` 无新文件持续生成(非单点 mtime 快照,须与第 1/2 项同窗观察)。
+3. **output 停更**——引擎 `output\` 无新文件持续生成(非单点 mtime 快照,须与第 2 项同窗观察;真层=`E:\IP\漫影工作室\comfyui\output`,经 `E:\IP\*` 通配符绕中文实测,final-chain-1028.md §一.3)。
 
-三项齐+观察窗 **≥15min** 后方可进入发车流程;判静先于守护——本守护探针虽只读(GET `/health`、`/system_stats`、`/queue`,不进生成队列),但夜批发车整体以判静为前提。**机检覆盖面如实**:`-RequireQueueIdle` 只覆盖第 2 项(引擎侧);第 1/3 项(Mac 侧 csv+output)由发车人在 Mac 侧按上法观察,脚本不代劳。
+两项(第 2+3 项)齐+观察窗 **≥15min** 后方可进入发车流程;判静先于守护——本守护探针虽只读(GET `/health`、`/system_stats`、`/queue`,不进生成队列),但夜批发车整体以判静为前提。**机检覆盖面如实**:`-RequireQueueIdle` 只覆盖第 2 项(引擎侧);第 3 项(output 停更)本脚本未做机检,由发车人观察,脚本不代劳(第 1 项已除名)。**终局链复核后遗注(final-chain-1028.md §四.D)**:守望时点(20:12-20:32)读数为真,但判静窗已闭、环境转非静——后续任何发车决定须重过判静门(`-RequireQueueIdle` 判静不过即禁发)。
 
 **判静后的前置核对**:确认 EngineDurable 终态(S6 禁用留档重做窗口=并行役真收工后,final-sweep-1028.md §二)——若其时 EngineDurable 仍 Ready 且引擎在驾,直投轨 `-RequireEngine` 守护自然放行;禁用留档落地后则依赖 App 在驾链+execute 轨按需拉起,直投轨须先确认引擎在驾再发。
 
