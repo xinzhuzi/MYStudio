@@ -525,20 +525,19 @@ export function McpSettingsTab() {
           collapsed={collapsedSections.has("remote-engine")}
           onToggle={toggleSectionCollapsed}
         >
-          <div className="space-y-3 px-5 py-4" data-testid="remote-engine-section">
-            <p className="text-xs leading-5 text-muted-foreground">
-              填局域网内另一台机器的 ComfyUI 地址(如 http://192.168.0.101:17000),本机出图/出视频改由该引擎执行,产物自动取回;留空=本机引擎。保存即生效,无需重启。
-            </p>
+          <div className="space-y-2 px-5 py-3" data-testid="remote-engine-section">
             <div className="flex items-center gap-2">
               <Input
                 value={remoteDraft}
                 onChange={(e) => setRemoteDraft(e.target.value)}
                 placeholder="http://192.168.0.101:17000(留空=本机引擎)"
+                containerClassName="flex-1"
                 data-testid="remote-engine-url"
                 spellCheck={false}
               />
               <Button
                 size="sm"
+                className="shrink-0"
                 onClick={saveRemoteEngine}
                 disabled={remoteSaving}
                 data-testid="remote-engine-save"
