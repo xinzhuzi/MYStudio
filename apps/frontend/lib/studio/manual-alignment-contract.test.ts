@@ -237,18 +237,58 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
     expect(script).not.toContain("对峙时刻写 OS 对切");
   });
 
-  // ── 10-27 叙述层转译通道(PRD 10-27-script-narrative-translation-cure R1-7/D5 裁定) ──
-  itFile("转译通道正断言:四·附/只走旁白/不得借道 OS/近逐字与下游豁免条", () => {
+  itFile("道劫规划与分镜手册统一195秒上限，通用手册仍保留3分钟预算", () => {
+    const planning = readManual("story_skills/Daojie_xianxia/driector_skills/director_planning_narrative.md");
+    const storyboard = readManual("story_skills/Daojie_xianxia/driector_skills/director_storyboard_table_narrative.md");
+    expect(planning).toContain("单集时长上限 195 秒(3.25 分钟)");
+    expect(storyboard).toContain("单集全部镜头时长合计 ≤195 秒(3.25 分钟)");
+    const readme = readManual("story_skills/Daojie_xianxia/README.md");
+    expect(readme).toContain("单集时长上限 **195 秒(3.25 分钟)**");
+    expect(readme).toContain("13~24 张图");
+    for (const manual of [planning, storyboard, readme]) {
+      expect(manual).not.toContain("单集时长上限 3 分钟");
+      expect(manual).not.toContain("3 分钟上限");
+      expect(manual).not.toContain("单集时长上限 **3 分钟**");
+      expect(manual).not.toContain("180 秒");
+      expect(manual).toContain("8~15 秒");
+    }
+    for (const file of ["director_storyboard.md", "director_storyboard_table_style.md"]) {
+      const art = readManual(`art_skills/daojie_ink_guofeng/driector_skills/${file}`);
+      expect(art).toContain("道劫默认 195 秒上限单集长镜制");
+      expect(art).not.toContain("道劫默认 3 分钟单集长镜制");
+    }
+    expect(readManual("production_execution_storyboard_table.md")).toContain("3 分钟");
+  });
+
+  // ── 叙述信息保真转译：媒介许可服从事实、知情与揭示边界，保留既有语速豁免 ──
+  itFile("转译通道允许画面、旁白与有知情依据的OS，不放宽事实边界与下游语速契约", () => {
     const narrative = readManual("story_skills/Daojie_xianxia/script_narrative.md");
     expect(narrative, "叙事手册缺「四·附」通道本体").toContain("四·附：叙述层转译通道");
-    expect(narrative, "通道未声明只走旁白").toContain("只走旁白");
-    expect(narrative, "通道未声明不得借道 OS").toContain("不得借道 OS");
-    expect(narrative, "通道缺近逐字约束").toContain("近逐字");
+    expect(narrative).toContain("原文明示叙述可转画面、V.S.或有当时知情依据的 OS");
+    expect(narrative).toContain("全知叙述不自动变角色心声");
+    expect(narrative).toContain("有据语义压缩");
+    expect(narrative).toContain("不新增对白轮次或现场声源");
+    expect(narrative).not.toContain("只走旁白");
+    expect(narrative).not.toContain("不得借道 OS");
     const script = readManual("script_execution_script.md");
     expect(script, "执行手册缺「转译通道旁白豁免」条").toContain("转译通道旁白豁免");
     expect(script, "执行手册豁免条缺 4.6 线").toContain("4.6 字/秒");
     expect(script, "锁定句「区间上限 4 字/秒」被破坏").toContain("区间上限 4 字/秒");
     expect(script, "锁定句「2.5~4 字/秒」被破坏").toContain("2.5~4 字/秒");
+  });
+
+  itFile("重要叙述信息不得按载体不支持直接删除，豁免覆盖有据语义压缩", () => {
+    for (const name of ["method_screen_adaptation.md", "script_agent_supervision.md"]) {
+      const manual = readManual(name);
+      expect(manual).toContain("叙述层位置级信息（动机/因果/代价/来历/身份/世界规则六类）不得直接归入「载体不支持」");
+      expect(manual).toContain("转译或列清单报用户裁定");
+      expect(manual).toContain("有据语义压缩");
+    }
+    const execution = readManual("script_execution_script.md");
+    const supervision = readManual("script_agent_supervision.md");
+    expect(execution).toContain("可近逐字取用或有据语义压缩");
+    expect(supervision).toContain("可近逐字取用或有据语义压缩");
+    expect(execution).not.toContain("仅限按题材手册「四·附：叙述层转译通道」近逐字转入");
   });
 
   itFile("道劫H3九式的完整战斗镜遵守时长下限，短器物段标明镜内节拍", () => {
