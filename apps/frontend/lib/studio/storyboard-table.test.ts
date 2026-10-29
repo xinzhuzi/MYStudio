@@ -8,8 +8,21 @@ import {
   toStoryboardItems,
 } from "./storyboard-table";
 import { VOICE_CPS_MIN } from "./script-draft-metrics";
+import { createStoryboardSliceActions } from "@/stores/studio/storyboard-slice";
+import { storyboardSourceFingerprint } from "@/stores/studio/studio-store-continuity-helpers";
+import { mergeStudioWorkflowShards, planStudioWorkflowShards } from "@/lib/storage/studio-workflow-shards";
+import type { StoryboardItem } from "@/types/studio";
 
 describe("buildStoryboardTableMessages · 资产清单注入", () => {
+  it("仅有真实原文的严格道劫分镜使用195秒预算，通用入口保持3分钟", () => {
+    const common = { episodeId: "c1", scriptText: "剧本", strictDaojieAdaptation: true };
+    const strict = buildStoryboardTableMessages({ ...common, sourceText: "原文" });
+    expect(strict.system).toContain("单集总时长 ≤195 秒（3.25 分钟）");
+    expect(strict.system).toContain("单集实际时长总和不得超过195秒");
+    expect(strict.system).not.toContain("单集总时长 ≤3 分钟");
+    expect(buildStoryboardTableMessages({ ...common, sourceText: " " }).system).toContain("单集总时长 ≤3 分钟");
+  });
+
   it("includes the assets inventory block so the 资产真实 red line can be satisfied without tools", () => {
     const messages = buildStoryboardTableMessages({
       episodeId: "chapter-001",
@@ -582,4 +595,109 @@ it("D5: toStoryboardItems 接受 sourceScript(来源剧本条目 id+updatedAt)�
   for (const item of items as Array<{ sourceScript?: { entryId: string; updatedAt: number } }>) {
     expect(item.sourceScript).toEqual({ entryId: "work-draft-001", updatedAt: 42 });
   }
+});
+
+
+describe("explicit production scene association", () => {
+  const semantic = JSON.stringify({ sceneViewpointId: "room", personFree: true, visibleCharacters: [], visibleProps: [], actionIn: "静止", actionOut: "静止" });
+  const row = (index: number, location: string) => `| ${index} | 空房 | ${location} | [] | 10 | 中景 | 静止 | 静止 | — | — | 平静 | 无台词 | 无 | [] | ${semantic} |`;
+  const parse = () => parseStoryboardTable([
+    "## 场4：金水塾馆入馆", row(1, "金水塾馆"),
+    "## 场5：金水塾馆点验", row(2, "金水塾馆"),
+    "## 场6：悦来客栈最里间", row(3, "悦来客栈最里间"),
+  ].join("\n"), "chapter-001");
+
+  it("uses explicit 15-column headings for same-location Sc4/Sc5 and final Sc6", () => {
+    const result = parse();
+    expect(result.errors).toEqual([]);
+    expect(result.rows.map(item => item.sceneIndex)).toEqual([4, 5, 6]);
+    expect(result.rows.map(item => item.scene)).toEqual(["金水塾馆", "金水塾馆", "悦来客栈最里间"]);
+  });
+
+  it("carries only explicit production scene identity through conversion and shard reload", () => {
+    const items = toStoryboardItems(parse().rows, "chapter-001", []);
+    const expected = [
+      { index: 4, name: "金水塾馆入馆" }, { index: 5, name: "金水塾馆点验" }, { index: 6, name: "悦来客栈最里间" },
+    ];
+    expect(items.map(item => item.sourceEvidence)).toEqual(expected.map(scene => ({ source: "storyboard-table", scene })));
+    const shards = planStudioWorkflowShards(JSON.stringify({ state: { storyboards: items }, version: 11 }));
+    const restored = mergeStudioWorkflowShards(shards.files.map(file => file.content));
+    expect(restored.state.storyboards).toEqual(JSON.parse(JSON.stringify(items)));
+  });
+
+  it("preserves explicit scene index and heading name through canonical Markdown roundtrip", () => {
+    const original = toStoryboardItems(parse().rows, "chapter-001", []);
+    const serialized = serializeStoryboardTable(original.slice().reverse());
+    const reparsed = parseStoryboardTable(serialized, "chapter-001", { requireShotSemantics: true });
+    expect(reparsed.errors).toEqual([]);
+    expect(reparsed.rows.map(item => item.sceneIndex)).toEqual([4, 5, 6]);
+    expect(reparsed.rows.map(item => item.scene)).toEqual([
+      "金水塾馆入馆", "金水塾馆点验", "悦来客栈最里间",
+    ]);
+    expect(toStoryboardItems(reparsed.rows, "chapter-001", []).map(item => item.sourceEvidence))
+      .toEqual(original.map(item => item.sourceEvidence));
+  });
+
+  it("does not inherit explicit scene evidence onto an interleaved legacy item", () => {
+    const original = toStoryboardItems(parse().rows, "chapter-001", []);
+    original[1] = { ...original[1]!, sourceEvidence: undefined };
+    const serialized = serializeStoryboardTable(original);
+    const reparsed = parseStoryboardTable(serialized, "chapter-001", { requireShotSemantics: true });
+    expect(reparsed.errors).toEqual([]);
+    expect(reparsed.rows.map(item => item.sourceEvidence)).toEqual(original.map(item => item.sourceEvidence));
+    expect(reparsed.rows[1]?.scene).toBe(original[1]?.trackKey);
+  });
+
+  it("keeps unheaded legacy serialization free of invented production scene headings", () => {
+    const original = toStoryboardItems(parseStoryboardTable(row(1, "金水塾馆"), "chapter-001").rows, "chapter-001", []);
+    const serialized = serializeStoryboardTable(original);
+    const reparsed = parseStoryboardTable(serialized, "chapter-001", { requireShotSemantics: true });
+    expect(serialized).not.toContain("## 场");
+    expect(reparsed.errors).toEqual([]);
+    expect(reparsed.rows[0]?.scene).toBe(original[0]?.trackKey);
+    expect(reparsed.rows[0]?.sourceEvidence).toBeUndefined();
+  });
+
+  it("preserves unheaded legacy location deduplication without inventing editorial scenes", () => {
+    const parsed = parseStoryboardTable([row(1, "金水塾馆"), row(2, "金水塾馆"), row(3, "客栈")].join("\n"), "chapter-001");
+    expect(parsed.rows.map(item => item.sceneIndex)).toEqual([1, 1, 2]);
+    expect(toStoryboardItems(parsed.rows, "chapter-001", []).every(item => item.sourceEvidence === undefined)).toBe(true);
+  });
+
+  it("clears previous evidence when fresh generated unheaded rows replace old shots", () => {
+    const fresh = toStoryboardItems(parseStoryboardTable(row(1, "金水塾馆"), "chapter-001").rows, "chapter-001", []);
+    const old: StoryboardItem = { ...fresh[0]!, sourceEvidence: { source: "old-import", sourcePath: "old/source.md" } };
+    const state = { storyboards: [old], continuityAssetVersions: [], updateStoryboard: () => {}, rebuildTracks: () => {}, startMediaTask: () => "task", finishMediaTask: () => {} };
+    const actions = createStoryboardSliceActions(
+      update => Object.assign(state, typeof update === "function" ? update(state) : update),
+      () => state,
+    );
+    actions.replaceStoryboardsForEpisode("chapter-001", fresh);
+    expect(state.storyboards[0]?.sourceEvidence).toBeUndefined();
+  });
+
+  it("includes explicit scene identity in source fingerprints and invalidates previous media", () => {
+    const items = toStoryboardItems(parse().rows, "chapter-001", []);
+    const first = { ...items[0]!, sourceEvidence: { source: "storyboard-table", scene: { index: 4, name: "金水塾馆入馆" } } };
+    const next = { ...first, sourceEvidence: { source: "storyboard-table", scene: { index: 5, name: "金水塾馆点验" } } };
+    expect(storyboardSourceFingerprint(first)).not.toBe(storyboardSourceFingerprint(next));
+    const state = { storyboards: [{ ...first, mediaRef: { kind: "image" as const, path: "project-file://old.png" }, sourceFingerprint: storyboardSourceFingerprint(first) }], continuityAssetVersions: [], updateStoryboard: () => {}, rebuildTracks: () => {}, startMediaTask: () => "task", finishMediaTask: () => {} };
+    const actions = createStoryboardSliceActions(
+      update => Object.assign(state, typeof update === "function" ? update(state) : update),
+      () => state,
+    );
+    actions.replaceStoryboardsForEpisode("chapter-001", [next]);
+    expect(state.storyboards[0]?.stale).toBe(true);
+    expect(state.storyboards[0]?.sourceEvidence).toEqual(next.sourceEvidence);
+  });
+});
+
+
+it("keeps mixed raw lines, canonical utterances and original nineteen shot IDs", () => {
+  const rows = Array.from({ length: 19 }, (_, i) => ({ index: i + 1, description: "雨夜。", scene: "门外", associateAssetsNames: [], shotSize: "中景", cameraMove: "固定", orientation: "正面", spatialRelation: "门外", emotion: "平静", sound: "雨声", action: "望向门口", duration: 10, lines: "旁白：风起。\n独孤剑尘：借灯。", associateAssetsIds: [] }));
+  const result = toStoryboardItems(rows, "chapter-001", [{ characterId: "dugu", name: "独孤剑尘", aliases: [] }]);
+  expect(result.map(s => s.id)).toEqual(rows.map(r => `sb-chapter-001-${String(r.index).padStart(3, "0")}`));
+  expect(result[0].lines).toBe(rows[0].lines);
+  expect(result[0].speechUtterances?.map(p => p.speakerId)).toEqual(["narrator", "character:dugu"]);
+  expect(result[0].ttsSpokenText).toBe("风起。 借灯。");
 });

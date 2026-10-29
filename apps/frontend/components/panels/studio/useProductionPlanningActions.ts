@@ -1,4 +1,8 @@
 import { isDaojieAdaptation, reviewDaojieGeneration } from "@/lib/studio/daojie-generation-audit";
+// W0 剧本检查门(10-29 script-rootcure-clearance design §1.4):strict/通用分别按 195/180 帽
+import { DAOJIE_STRICT_DURATION_SECONDS, GENERIC_DURATION_SECONDS } from "@/lib/studio/daojie-duration-policy";
+import { extractScriptVoiceLines } from "@/lib/studio/script-draft-metrics";
+import { runScriptPrecheck } from "@/lib/studio/script-precheck";
 import { useCallback, useRef } from "react";
 import {
   auditDirectorPlanStructure,
@@ -423,6 +427,14 @@ export function useProductionPlanningActions({
       const projectAtStart = useProjectStore.getState().activeProjectId;
       let rejectedText = "";
       let reportSaved = false;
+      // W0 机读门局部状态(design §1.4):machineGateRejection 非空=本次失败源自分镜机读
+      // 检查门(通用模式机读 RED 落档判据);machineGateDetail=checks JSON 明细。
+      // machineGateVersion:通用模式 version="" 无法与七元组 JSON 比对,另取生成起点的
+      // 写回版本快照——落档条件用它比对(仅作项目/剧本在审核期间未被改写的防御,语义
+      // 与 strict 档 :498/:545 的版本锁一致;strict 档直接复用 version 快照)。
+      let machineGateRejection: string | null = null;
+      let machineGateDetail: string | null = null;
+      const machineGateVersion = strict ? version : productionWritebackVersion(targetEpisodeId);
       try {
         if (strict && activeProjectId && activeProjectId !== projectAtStart) { toast.error("当前项目已变化，请刷新后重新生成"); return; }
         const projectId = activeProjectId ?? useProjectStore.getState().activeProjectId ?? "studio-current-project";
@@ -490,6 +502,28 @@ export function useProductionPlanningActions({
           if (parsed.errors.length) {
             throw new Error(`分镜表结构无效：${parsed.errors.join("；")}`);
           }
+          // W0 主门·分镜机读检查(design §1.4,全 additive):四项纯算术判定(时长帽/语速
+          // 双口径/台词勾销账/OS 预算)先于 LLM 审核门——RED 短路省一次审核调用(对齐
+          // daojie-generation-audit「196秒在模型调用前拒绝」精神);strict/通用分别按
+          // 195/180 帽。下方 inline 审核门(strict 分支)零变化,机读门只在其前插入。
+          const precheck = runScriptPrecheck({
+            rows: parsed.rows.map((row) => ({ index: row.index, duration: row.duration, lines: row.lines })),
+            scriptVoiceLines: extractScriptVoiceLines(scriptText),
+            durationCapSeconds: strict ? DAOJIE_STRICT_DURATION_SECONDS : GENERIC_DURATION_SECONDS,
+            ...(strict ? { sourceTextForExemption: sourceText } : {}),
+          });
+          if (!precheck.passed) {
+            machineGateRejection = precheck.summary;
+            machineGateDetail = JSON.stringify(precheck.checks, null, 2);
+            throw new Error(`分镜机读检查未通过，已保留上一有效版本：${precheck.summary}`);
+          }
+          if (precheck.yellow.length || precheck.pending.length) {
+            saveAgentWorkData("supervisionReport",
+              `# 分镜机读检查黄线落档\n${precheck.summary}\n\n## 明细\n${JSON.stringify(precheck.checks, null, 2)}`,
+              targetEpisodeId, { sourceId: sourceChapter?.sourceId ?? targetEpisodeId, revision: sourceChapter?.revision ?? 1 });
+            // YELLOW/pending 一律不阻断、不置 reportSaved——strict 的 LLM 审核报告仍会
+            // 再写一条 supervisionReport,agentWorkData 按时间序多条共存,最新优先读取
+          }
           if (strict) {
             const review = await reviewDaojieGeneration({ stage: "storyboard", sourceText, bibleContext: memory.context, scriptText, planText: formatScriptPlanContext(plan), outputText: result.text, totalDurationSeconds: parsed.rows.reduce((total, row) => total + row.duration, 0) }, (reviewMessages) => aiManager.textStream({
               binding: { agent: "productionAgent:storyboardTableAgent" }, timeoutMs: STORYBOARD_TABLE_STREAM_TIMEOUT_MS, temperature: 0.2,
@@ -544,6 +578,13 @@ export function useProductionPlanningActions({
         } catch (error) {
           if (strict && rejectedText && !reportSaved && productionWritebackVersion(targetEpisodeId) === version) {
             saveAgentWorkData("supervisionReport", `# 道劫storyboard拒绝写回\n${captureError(error).message}\n\n## 被审产出\n${rejectedText}`, targetEpisodeId, { sourceId: sourceChapter?.sourceId ?? targetEpisodeId, revision: sourceChapter?.revision ?? 1 });
+          } else if (machineGateRejection && rejectedText && !reportSaved
+            && productionWritebackVersion(targetEpisodeId) === machineGateVersion) {
+            // W0 新增分支(design §1.4,additive):通用模式机读 RED 首次获得落档——既有
+            // strict 分支(上方)一字不动;其余通用路径失败(machineGateRejection=null)行为不变
+            saveAgentWorkData("supervisionReport",
+              `# 分镜机读检查拒绝写回\n${captureError(error).message}\n\n## 明细\n${machineGateDetail ?? ""}\n\n## 被审产出\n${rejectedText}`,
+              targetEpisodeId, { sourceId: sourceChapter?.sourceId ?? targetEpisodeId, revision: sourceChapter?.revision ?? 1 });
           }
           if (!strict || useProjectStore.getState().activeProjectId === projectAtStart) useStudioStore.getState().failAgentRun(runId, error instanceof Error ? error.message : String(error));
           toast.error(error instanceof Error ? error.message : String(error));

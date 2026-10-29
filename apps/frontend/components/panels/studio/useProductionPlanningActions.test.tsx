@@ -580,26 +580,67 @@ describe("R13(Q4) · 无资产=硬拦锁(裁定 Q4「按裁定不改」,防回�
 });
 
 describe("道劫规划写回前语义审核", () => {
-  const response = (passed = true) => JSON.stringify({ stage: "planning", passed, checks: { facts: passed, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true }, findings: passed ? [] : [{ dimension: "facts", outputQuote: "半寸", sourceQuote: "", reason: "原文无精确距离" }] });
+  // 此组原文只有救人一句，不能沿用上面包含客栈、断剑、颜色和声源的结构夹具。
+  const sourceText = "独孤剑尘救下杂役。";
+  const planOutput = [
+    "<scriptPlan>",
+    "# 救人片段导演规划",
+    "## ① 主题立意与叙事核心",
+    "本章事实：独孤剑尘救下杂役。主题设计聚焦救人与被救的关系，让观众理解这件事即可。原文没有交代危机起因、救人手法、地点与后续，规划将这些信息保持未定，不补宗门压迫、袭击者或旧案。情感表达以克制为方向，不以新增行为解释人物动机，不把设计中的感受当作人物已经表现出的事实。",
+    "## ② 视觉风格与画面基调",
+    "视觉建议：构图保持克制，空间细节待原文补充。画面围绕已有救人事件组织，避免用新增道具、地点、服饰或灵气颜色制造信息。可以给人物关系留出视觉重心，但不指定精确距离和高度，不预先设计具体救援姿势。这些都是场景级设计选择，不代表原文提供了环境或身体细节，也不要求分镜必须沿用某种机位。",
+    "## ③ 叙事结构与节奏规划",
+    "叙事仅承接救人事实，不另设前因、问答、追逐和离开动作。节奏设计服务观众对独孤剑尘与杂役关系的理解，不将同一次救人拆为多轮发生，不以悬念名义补一个新的危险，也不以收束需要改变救人后的状态。本章只有这项事件，不能根据常见故事结构擅自制造起承转合或宣称下一场已经发生。",
+    "## ④ 分场景情绪与画面意图",
+    "### Sc 1-1 救人片段（时地未定）",
+    "- **情绪目标**：设计上希望观众关注施救者与被救者的关系；人物是否惊慌、感激、隐藏身份均无原文依据，保持开放，不强制表演出额外情绪动作。情绪设计不能变为人物的新增内心独白，也不能把观众的推测写成实际动机。",
+    "- **氛围方向**：克制地承接救人事件，紧迫程度与环境信息保持未定；不以环境声或旁观群像代替原文没有提供的背景。",
+    "- **镜头意图**：以场景级关系组织可读性，不分配镜号或逐句落镜；只建议保持事件清楚，具体景别与运镜留给分镜阶段，不借镜头设计添加现场动作。",
+    "- **空间叙事**：原文只给两个人物及救人关系，没有给地形、方向、精确距离或位置变化。规划不指定半寸、一丈等量值，不添加第三人，不将未说明的动作拆成独立事件；以已有关系作为后续空间设计的约束。",
+    "- **连续性锚点**：独孤剑尘为施救者，杂役为被救者；保留身份关系，不推导服饰、装备或受伤状态。",
+    "## ⑤ 声音方向",
+    "无台词设计，未添加OS。原文没有现场声源，声音方向保持未指定，不补脚步、碰撞、呼吸或术法嗡鸣，也不将救人动作自动配成物理响声。后续若提出非现场配乐，应标为可选设计并单独核验，不能作为本章事实依据。",
+    "## ⑥ 转场与视觉连续性",
+    "本片段只有救人事件，不设计跨场因果或后续去向，不添加转身、离场和新危机。连续性保持独孤剑尘救下杂役的身份关系，场景交接只传递已有信息，时地、道具和环境均保持未定；不为了形成钩子改写原文结束状态。",
+    "- Sc 1-1 → Sc 1-1：风格词=无转场；氛围词=克制",
+    "上行仅表示同一场景内保持连续，不新增第二场或再次发生救人。",
+    "</scriptPlan>",
+  ].join("\n");
+  const rejectedOutput = planOutput.replace("本章事实：独孤剑尘救下杂役。", "本章事实：独孤剑尘救下杂役。救人距离精确为半寸。");
+  const anchor = { outputQuote: "独孤剑尘救下杂役。", sourceQuote: sourceText, sourceKind: "chapter", kind: "physical_fact", supported: true };
+  const response = (passed = true) => JSON.stringify({
+    stage: "planning", passed,
+    checks: { facts: passed, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true },
+    evidence: {
+      facts: [{ ...anchor, reason: "保留原文救人事件" }, ...(passed ? [] : [{ ...anchor, outputQuote: "救人距离精确为半寸。", sourceQuote: "", supported: false, reason: "原文无精确距离" }])],
+      chronology: [{ ...anchor, outputQuote: "叙事仅承接救人事实，不另设前因、问答、追逐和离开动作。", reason: "本章只有救人事实，规划未补前后事件" }],
+      dialogue: [{ ...anchor, outputQuote: "无台词设计，未添加OS。", reason: "原文无台词，规划没有新增原话或OS" }],
+      stageBoundary: [{ ...anchor, outputQuote: "视觉建议：构图保持克制，空间细节待原文补充。", kind: "creative_intent", reason: "场景级设计建议，无镜号和新增事实" }],
+      visibleCharacters: [{ ...anchor, outputQuote: "独孤剑尘为施救者，杂役为被救者", kind: "identity", reason: "本章两个人物身份关系相符，无新增人物" }],
+    },
+    findings: passed ? [] : [{ dimension: "facts", outputQuote: "救人距离精确为半寸。", sourceQuote: "", reason: "原文无精确距离" }],
+  });
   beforeEach(() => {
     vi.mocked(aiManager.textStream).mockReset();
     stubAgentRunLifecycle();
     useProjectStore.setState({ activeProjectId: "project-1" });
-    useStudioStore.setState({ workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Daojie_xianxia" }, novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText: "独孤剑尘救下杂役。", importedAt: 1 }] });
+    useStudioStore.setState({ workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Daojie_xianxia" }, novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText, importedAt: 1 }], agentWorkData: [{ id: "work-draft-002", key: "scriptDraft", episodeId: "chapter-002", data: sourceText, createdAt: 1, updatedAt: 1 }] });
   });
   it.each(["{}", response(false)])("拒绝稿不覆盖规划及原有分镜: %s", async (text) => {
     const save = vi.fn<(...args: unknown[]) => string>(() => "work"); const planSave = vi.fn();
-    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: AUDITABLE_PLAN_OUTPUT }).mockResolvedValueOnce({ success: true, text });
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: rejectedOutput }).mockResolvedValueOnce({ success: true, text });
     const { result } = renderPlanningActions({ saveAgentWorkData: save, saveScriptPlan: planSave });
     await act(async () => { await result.current.handleDirectorPlan("chapter-002"); });
     expect(aiManager.textStream).toHaveBeenCalledTimes(2);
     expect(planSave).not.toHaveBeenCalled();
     expect(save.mock.calls.some(([key]) => key === "directorPlan")).toBe(false);
-    expect(save).toHaveBeenCalledWith("supervisionReport", expect.stringContaining(AUDITABLE_PLAN_OUTPUT), "chapter-002", expect.anything());
+    expect(save).toHaveBeenCalledWith("supervisionReport", expect.stringContaining(rejectedOutput), "chapter-002", expect.anything());
+    const report = save.mock.calls.find(([key]) => key === "supervisionReport")?.[1] as string;
+    expect(report.split("\n\n")[1]).toContain(text === "{}" ? "审核协议无效" : "原文无精确距离");
   });
   it("完整审核通过才保存规划", async () => {
     const planSave = vi.fn();
-    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: AUDITABLE_PLAN_OUTPUT }).mockResolvedValueOnce({ success: true, text: response() });
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: planOutput }).mockResolvedValueOnce({ success: true, text: response() });
     const { result } = renderPlanningActions({ saveScriptPlan: planSave });
     await act(async () => { await result.current.handleDirectorPlan("chapter-002"); });
     expect(aiManager.textStream).toHaveBeenCalledTimes(2);
@@ -607,7 +648,7 @@ describe("道劫规划写回前语义审核", () => {
   });
   it.each(["project", "source", "draft", "plan"])("审核期间%s变化禁止迟到写回", async (change) => {
     const save = vi.fn(); const planSave = vi.fn();
-    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: AUDITABLE_PLAN_OUTPUT }).mockImplementationOnce(async () => {
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: planOutput }).mockImplementationOnce(async () => {
       if (change === "project") useProjectStore.setState({ activeProjectId: "project-2" });
       if (change === "source") useStudioStore.setState({ novelChapters: [] });
       if (change === "draft") useStudioStore.setState({ agentWorkData: [] });
@@ -626,14 +667,27 @@ describe("道劫分镜写回审核", () => {
     "<storyboardTable>",
     "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID | 出镜语义JSON |",
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-    `| 1 | 雨夜码头 | 码头 | [码头] | ${seconds} | 近景 | 静止 | 雨落 | 面向右 | 中景 | 紧张 | 无台词 | 风声 | [scene-dock] | ${JSON.stringify({ sceneViewpointId: "dock", personFree: true, visibleCharacters: [], visibleProps: [], actionIn: "雨落", actionOut: "雨声延续" })} |`,
+    `| 1 | 码头雨落 | 码头 | [码头] | ${seconds} | 近景 | 静止 | 雨落 | 未设 | 未设 | 未设 | 无台词 | 未指定 | [scene-dock] | ${JSON.stringify({ sceneViewpointId: "dock", personFree: true, visibleCharacters: [], visibleProps: [], actionIn: "雨落", actionOut: "雨落" })} |`,
     "</storyboardTable>",
   ].join("\n");
-  const pass = JSON.stringify({ stage: "storyboard", passed: true, checks: { facts: true, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true }, findings: [] });
+  const sourceText = "码头雨落。";
+  const anchor = { outputQuote: "码头雨落", sourceQuote: sourceText, sourceKind: "chapter", kind: "physical_fact", supported: true };
+  const pass = JSON.stringify({
+    stage: "storyboard", passed: true,
+    checks: { facts: true, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true },
+    evidence: {
+      facts: [{ ...anchor, reason: "只呈现码头雨落，不补夜间或风声" }],
+      chronology: [{ ...anchor, outputQuote: '"actionIn":"雨落","actionOut":"雨落"', reason: "起止均为原文雨落，无新事件或时序变动" }],
+      dialogue: [{ ...anchor, outputQuote: "无台词", reason: "原文无台词，画面未新增台词或OS" }],
+      stageBoundary: [{ ...anchor, outputQuote: "近景 | 静止", kind: "creative_intent", reason: "分镜阶段选择景别和运镜，非原文现场新增事实" }],
+      visibleCharacters: [{ ...anchor, outputQuote: '"personFree":true,"visibleCharacters":[]', reason: "画面只拍码头雨落，无可见人物，出镜语义一致" }],
+    },
+    findings: [],
+  });
   beforeEach(() => {
     vi.mocked(aiManager.textStream).mockReset(); stubAgentRunLifecycle();
     useProjectStore.setState({ activeProjectId: "project-1" });
-    useStudioStore.setState({ workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Daojie_xianxia" }, novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText: "码头雨落。", importedAt: 1 }] });
+    useStudioStore.setState({ workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Daojie_xianxia" }, novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText, importedAt: 1 }], agentWorkData: [{ id: "work-draft-002", key: "scriptDraft", episodeId: "chapter-002", data: sourceText, createdAt: 1, updatedAt: 1 }], scriptPlans: [{ ...planForChapter(), theme: "码头雨落", visualStyle: "未设", narrativeRhythm: "雨落持续", soundDirection: "未指定", transitions: "无跨场转场" }] });
   });
   it("有效结构但审核无效不替换分镜", async () => {
     const replace = vi.fn(); const save = vi.fn(); useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
@@ -648,8 +702,11 @@ describe("道劫分镜写回审核", () => {
     vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: board(201) });
     const { result } = renderPlanningActions();
     await act(async () => { await result.current.handleStoryboardTable("chapter-002"); });
+    // W0 机读门(design §3.2 例5 回归):超帽 RED 现在在 LLM 审核门之前拦截——
+    // 模型第二次调用(审核)不再发生(daojie-generation-audit「196秒在模型调用前
+    // 拒绝」精神前移),throw 话式来自机读门。inline 审核门本体零变化。
     expect(aiManager.textStream).toHaveBeenCalledTimes(1); expect(replace).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("未通过原文审核"));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("分镜机读检查未通过"));
   });
   it("审核通过才落库和转换，审核期间再次点击不增加调用", async () => {
     const replace = vi.fn(); const save = vi.fn(() => "board-1"); useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
@@ -662,5 +719,143 @@ describe("道劫分镜写回审核", () => {
     expect(aiManager.textStream).toHaveBeenCalledTimes(2);
     await act(async () => { resolveReview({ success: true, text: pass }); await pending; });
     expect(replace).toHaveBeenCalledTimes(1); expect(save).toHaveBeenCalledWith("storyboardTable", board(12), "chapter-002", expect.anything());
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// W0 主门·分镜机读检查门(10-29 script-rootcure-clearance design §3.2 五例)。
+// 机读门位于 LLM 审核门之前:RED 短路省一次审核调用;strict/通用分别按 195/180 帽;
+// YELLOW/pending 落档不阻断;通用模式机读 RED 首次获得 supervisionReport 落档。
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("W0 分镜机读检查门(主门写回位)", () => {
+  const SEMANTICS = JSON.stringify({ sceneViewpointId: "dock", personFree: true, visibleCharacters: [], visibleProps: [], actionIn: "雨落", actionOut: "雨落" });
+  const boardRows = (rows: Array<{ seconds: number; lines?: string }>) => [
+    "<storyboardTable>",
+    "| 序号 | 画面描述 | 场景 | 关联资产名称 | 时长 | 景别 | 运镜 | 角色动作 | 朝向 | 空间关系 | 情绪 | 台词 | 音效 | 关联资产ID | 出镜语义JSON |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...rows.map((row, offset) => `| ${offset + 1} | 码头雨落 | 码头 | [码头] | ${row.seconds} | 近景 | 静止 | 雨落 | 未设 | 未设 | 未设 | ${row.lines ?? "无台词"} | 未指定 | [scene-dock] | ${SEMANTICS} |`),
+    "</storyboardTable>",
+  ].join("\n");
+  const sourceText = "码头雨落。甲：走吧。";
+  const scriptText = [
+    "## 剧情梗概",
+    "1 码头 夜/外 ·约30秒",
+    "甲：走吧。",
+    "乙：快跑。",
+    "丙：别回头。",
+    "## 改编追踪",
+  ].join("\n");
+  const anchor = { sourceQuote: sourceText, sourceKind: "chapter", kind: "physical_fact", supported: true };
+  const pass = JSON.stringify({
+    stage: "storyboard", passed: true,
+    checks: { facts: true, chronology: true, dialogue: true, stageBoundary: true, visibleCharacters: true },
+    evidence: {
+      facts: [{ ...anchor, outputQuote: "码头雨落", reason: "只呈现码头雨落，不补夜间或风声" }],
+      chronology: [{ ...anchor, outputQuote: '"actionIn":"雨落","actionOut":"雨落"', reason: "起止均为原文雨落，无新事件或时序变动" }],
+      dialogue: [{ ...anchor, outputQuote: "甲：走吧。", reason: "台词照剧本逐字照录，无新增对白或OS" }],
+      stageBoundary: [{ ...anchor, outputQuote: "近景 | 静止", kind: "creative_intent", reason: "分镜阶段选择景别和运镜，非原文现场新增事实" }],
+      visibleCharacters: [{ ...anchor, outputQuote: '"personFree":true,"visibleCharacters":[]', reason: "画面只拍码头雨落，无可见人物，出镜语义一致" }],
+    },
+    findings: [],
+  });
+
+  /** strict 落位:Daojie 手册+原文非空;草稿/提取/规划按 beforeEach 同式补本章夹具。 */
+  function setupStrictMode(scriptDraftData: string) {
+    stubAgentRunLifecycle();
+    useProjectStore.setState({ activeProjectId: "project-1" });
+    useStudioStore.setState({
+      workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Daojie_xianxia" },
+      novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText, importedAt: 1 }],
+      agentWorkData: [{ id: "work-draft-002", key: "scriptDraft", episodeId: "chapter-002", data: scriptDraftData, createdAt: 1, updatedAt: 1 }],
+      entityExtractions: [{
+        id: "ext-002",
+        episodeId: "chapter-002",
+        characters: [{ characterId: "c-jia", name: "甲", aliases: [] }],
+        scenes: [],
+        props: [],
+      }],
+    });
+  }
+
+  it("例1 超帽表被拒+落档:strict Σ>195 → 不写回、supervisionReport 落档含帽值、toast 保留上一有效版本", async () => {
+    setupStrictMode("码头夜雨，二人同行，无对白格式正文。");
+    const replace = vi.fn(); const save = vi.fn();
+    useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
+    // 20 镜 ×10s=200s>195;无台词+草稿无语音行 → RED 只来自时长帽
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: boardRows(Array.from({ length: 20 }, () => ({ seconds: 10 }))) });
+    const { result } = renderPlanningActions({ saveAgentWorkData: save });
+    await act(async () => { await result.current.handleStoryboardTable("chapter-002"); });
+    expect(save.mock.calls.some(([key]) => key === "storyboardTable")).toBe(false);
+    const reportCalls = save.mock.calls.filter(([key]) => key === "supervisionReport");
+    expect(reportCalls.length).toBeGreaterThan(0);
+    const reportText = reportCalls.map(([, data]) => String(data)).join("\n");
+    expect(reportText).toContain("机读检查");
+    expect(reportText).toContain("195");
+    expect(replace).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("已保留上一有效版本"));
+  });
+
+  it("例2 勾销缺句被拒:表缺一句剧本台词 → supervisionReport 含缺句原文", async () => {
+    setupStrictMode(scriptText);
+    const replace = vi.fn(); const save = vi.fn();
+    useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
+    // 剧本 3 句语音行,表只覆盖 甲/乙 两句;Σ=10s 帽内,RED 只来自勾销账
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: boardRows([{ seconds: 5, lines: "甲：走吧。" }, { seconds: 5, lines: "乙：快跑。" }]) });
+    const { result } = renderPlanningActions({ saveAgentWorkData: save });
+    await act(async () => { await result.current.handleStoryboardTable("chapter-002"); });
+    expect(save.mock.calls.some(([key]) => key === "storyboardTable")).toBe(false);
+    const reportText = save.mock.calls.filter(([key]) => key === "supervisionReport").map(([, data]) => String(data)).join("\n");
+    expect(reportText).toContain("别回头");
+    expect(replace).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("已保留上一有效版本"));
+  });
+
+  it("例3 通用模式同样被拦:非 Daojie 手册 Σ>180 → 不写回+机读拒绝落档(新分支首证)", async () => {
+    stubAgentRunLifecycle();
+    useProjectStore.setState({ activeProjectId: "project-1" });
+    useStudioStore.setState({
+      workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: "Other_manual" },
+      novelChapters: [{ id: "chapter-002", index: 2, title: "章", sourceText, importedAt: 1 }],
+      agentWorkData: [{ id: "work-draft-002", key: "scriptDraft", episodeId: "chapter-002", data: "通用模式无对白格式正文。", createdAt: 1, updatedAt: 1 }],
+    });
+    const replace = vi.fn(); const save = vi.fn();
+    useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
+    vi.mocked(aiManager.textStream).mockResolvedValueOnce({ success: true, text: boardRows([{ seconds: 181 }]) });
+    const { result } = renderPlanningActions({ saveAgentWorkData: save });
+    await act(async () => { await result.current.handleStoryboardTable("chapter-002"); });
+    expect(save.mock.calls.some(([key]) => key === "storyboardTable")).toBe(false);
+    const reportCalls = save.mock.calls.filter(([key]) => key === "supervisionReport");
+    expect(reportCalls.length).toBeGreaterThan(0);
+    const reportText = reportCalls.map(([, data]) => String(data)).join("\n");
+    expect(reportText).toContain("# 分镜机读检查拒绝写回");
+    expect(reportText).toContain("180");
+    expect(replace).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("已保留上一有效版本"));
+  });
+
+  it("例4 正常表放行:全绿表 → 写回+LLM 审核门照常被调(不被门短路)+黄线/pending 落档不阻断", async () => {
+    setupStrictMode([
+      "## 剧情梗概",
+      "1 码头 夜/外 ·约30秒",
+      "甲：走吧。",
+      "## 改编追踪",
+    ].join("\n"));
+    const replace = vi.fn(); const save = vi.fn<(...args: unknown[]) => string>(() => "board-w0");
+    useStudioStore.setState({ replaceStoryboardsForEpisode: replace });
+    vi.mocked(aiManager.textStream)
+      .mockResolvedValueOnce({ success: true, text: boardRows([{ seconds: 10, lines: "甲：走吧。" }]) })
+      .mockResolvedValueOnce({ success: true, text: pass });
+    const { result } = renderPlanningActions({ saveAgentWorkData: save });
+    await act(async () => { await result.current.handleStoryboardTable("chapter-002"); });
+    // 机读门通过后 strict 照跑 LLM 审核:第二次 textStream=审核,未被短路
+    expect(aiManager.textStream).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenCalledWith("storyboardTable", boardRows([{ seconds: 10, lines: "甲：走吧。" }]), "chapter-002", expect.anything());
+    expect(replace).toHaveBeenCalledTimes(1);
+    // 口径B 写回时点结构性缺失=pending → 黄线落档(不阻断、不置 reportSaved)
+    const precheckReports = save.mock.calls
+      .filter(([key, data]) => key === "supervisionReport" && String(data).includes("分镜机读检查黄线落档"));
+    expect(precheckReports.length).toBe(1);
+    expect(toast.success).toHaveBeenCalled();
   });
 });

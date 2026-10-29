@@ -5,7 +5,7 @@
  * main.ts in the Electron app) and runs the full chain:
  *
  *   1. video-use adapter.runChapter()  — Python worker (alignment/EDL/subtitles/grade/preview/self-eval)
- *   2. acceptVideoUseArtifact()       — write review sidecar (auto-accept for testing)
+ *   2. acceptVideoUseArtifact()       — consume externally supplied source-bound review
  *   3. chapterService.applyAcceptedArtifact() — projects to EditingProject + calls HyperFrames adapter
  *   4. chapterService.evaluateGate()  — the real chapter gate
  *   5. validateSubtitleAuthorityForTimeline() — authority validation
@@ -14,7 +14,7 @@
  *
  * Unlike the previous version (which read pre-existing r2 artifacts), this script
  * actually RUNS video-use from scratch, goes through accept → apply → gate → authority,
- * and persists the EditingProject to editing.json — the same lifecycle the Electron app uses.
+ * and, only after external review, persists the EditingProject to editing.json — the same lifecycle the Electron app uses.
  *
  * Usage:
  *   npm run video:full-pipeline
@@ -44,15 +44,24 @@ import {
 import { acceptVideoUseArtifact, writeVideoWorkflowJson } from "@rendering/plugins/video-workflow/video-workflow-artifact-store";
 import type {
   VideoUseChapterRunV1,
-  VideoWorkflowChapterRunRequestV1,
-  VideoWorkflowChapterApplyInput,
   HyperFramesOverlayWindowV1,
   RemotionChapterGateInputV1,
   VideoUseBoundaryIntentV1,
 } from "@rendering/contracts/video-workflow";
+import type { VideoWorkflowChapterRunRequestV1 } from "@rendering/contracts/video-workflow-ipc";
+import type { VideoWorkflowChapterApplyInput } from "@rendering/plugins/video-workflow/video-workflow-chapter-service";
+import { assertStoryboardSpeech, type VoiceoverCharacterIdentity } from "@/lib/studio/chapter-voiceover";
 import { assembleBoundaryIntents } from "@/lib/studio/video-workflow/boundary-intent-assembly";
-import type { SubtitleAuthority, EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
+import type { EditingProjectV1, TimelineRenderPlan } from "@/types/editing";
 import { mergeShotFxEditingEffects } from "@/lib/studio/remotion/shot-fx-decisions";
+import { assertCliDuration, requireSourceHash, validatePipelineReview } from "./run-full-pipeline-inputs";
+import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
+import { createCliTtsFingerprint } from "./cli-tts-fingerprint";
+import { validateRemotionAudioBindingFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
+import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
+import type { StoryboardItem } from "@/types/studio";
+import type { PersistedTtsState } from "@/stores/tts/tts-store";
+import { validateVideoUseChapterArtifact } from "@rendering/contracts/video-workflow";
 import type { RemotionCurrentSlotV1 } from "@/types/remotion-workspace";
 import {
   readRemotionCurrentShotSlotsFromWorkspace,
@@ -78,6 +87,11 @@ import {
 } from "../remotion/render-smoke-evidence";
 import { buildFullPipelineRunEvidence } from "./full-pipeline-run-evidence";
 import { acceptFinalAudio } from "../remotion/final-audio-acceptance";
+// W0 剧本检查门·副门(10-29 script-rootcure-clearance design §2.3):阶段 7 后接线。
+import { runScriptPrecheckGate, scriptPrecheckInputsProjection } from "./script-precheck";
+import { isDaojieAdaptation } from "@/lib/studio/daojie-generation-audit";
+import { DAOJIE_STRICT_DURATION_SECONDS, GENERIC_DURATION_SECONDS } from "@/lib/studio/daojie-duration-policy";
+import { extractScriptVoiceLines } from "@/lib/studio/script-draft-metrics";
 
 const remotionVersion = "4.0.534";
 const appsRoot = path.resolve(new URL("../..", import.meta.url).pathname);
@@ -157,7 +171,7 @@ async function persistStudioEditingRevision(
     }
   }
   (state.editingProjects as Record<string, unknown>)[project.id] = project;
-  state.currentEditingProjectIdByEpisode[project.episodeId] = project.id;
+  (state.currentEditingProjectIdByEpisode as Record<string, unknown>)[project.episodeId] = project.id;
   wrapper.state = state;
   const tmpPath = `${editingPath}.${process.pid}.tmp`;
   await fs.promises.writeFile(tmpPath, JSON.stringify(wrapper, null, 2) + "\n", "utf8");
@@ -178,66 +192,74 @@ interface ShotSlotInfo {
   durationUs: number;
 }
 
-/** Build shot inputs from existing shot slots + voice audio (reuses r2 run data as source). */
-async function buildShotInputs(
-  projectDir: string,
-  projectId: string,
-  chapterId: string,
-  shotSlots: RemotionCurrentSlotV1[],
-  r2RunPath: string,
+/** Build exclusively from current persisted source, canonical voice and current render lineage. */
+export async function buildShotInputs(
+  projectDir: string, projectId: string, chapterId: string, shotSlots: RemotionCurrentSlotV1[],
 ): Promise<ShotSlotInfo[]> {
-  // Read the r2 video-use-run.json to get ttsSpokenText + audio paths + SHAs for each shot
-  const r2Run = JSON.parse(fs.readFileSync(r2RunPath, "utf8")) as { shots: Array<Record<string, unknown>> };
-
-  const slotByShotId = new Map<string, RemotionCurrentSlotV1>();
-  for (const slot of shotSlots) {
-    if (slot.target.kind === "shot" && typeof slot.target.shotId === "string") {
-      slotByShotId.set(slot.target.shotId, slot);
-    }
-  }
-
-  // AI shot-fx 的逐镜 registry 提示(store 单源)透传给 python 决策层
-  const registryOverlayByShotId = new Map<string, string>();
-  try {
-    const storeState = readStudioWorkflowStoreState(projectDir) as {
-      state?: { storyboards?: Array<{ id: string; shotFx?: { registryOverlay?: string } }> },
-    } | null;
-    for (const sb of storeState?.state?.storyboards ?? []) {
-      if (typeof sb.shotFx?.registryOverlay === "string" && sb.shotFx.registryOverlay) {
-        registryOverlayByShotId.set(sb.id, sb.shotFx.registryOverlay);
-      }
-    }
-  } catch { /* store 不可读则无提示 */ }
-
+  const store = readStudioWorkflowStoreState(projectDir);
+  if (!store || !Array.isArray(store.state.storyboards)) throw new Error("缺少当前 storyboards");
+  const storyboards = (store.state.storyboards as StoryboardItem[]).filter(s => s.episodeId === chapterId)
+    .sort((a, b) => a.index - b.index || a.id.localeCompare(b.id));
+  assertCliDuration(store.state, chapterId, storyboards);
+  if (!storyboards.length || new Set(storyboards.map(s => s.id)).size !== storyboards.length
+    || shotSlots.length !== storyboards.length || new Set(shotSlots.map(s => s.target.kind === "shot" ? s.target.shotId : "")).size !== shotSlots.length) throw new Error("缺失/重复 current shots/slots");
+  const roots = deriveStorageRoots(projectDir);
+  const resolveMedia = (mediaPath: string) => resolveTimelineSourcePath({ sourcePath: mediaPath, dataRoot: roots.dataRoot, mediaRoot: roots.mediaRoot });
+  const normalizeRef = (ref: NonNullable<StoryboardItem["audioRef"]>) => {
+    const absolute = resolveMedia(ref.path);
+    const relative = path.relative(projectDir, absolute).split(path.sep).join("/");
+    if (!relative || relative.startsWith("../") || path.isAbsolute(relative)) throw new Error("媒体逃逸当前项目");
+    requireSourceHash(ref.contentSha256);
+    return { ...ref, path: buildProjectFileUrl(projectId, relative) };
+  };
+  const manifestService = new RemotionChapterManifestService({ projectRootForProject: () => projectDir, probeMedia: async file => { const p = await probeRenderedMedia(file); return { durationUs: Math.round(p.duration * 1_000_000), streams: p.streams }; } });
+  const manifest = await manifestService.read(projectId, chapterId);
+  if (!manifest || JSON.stringify(manifest.requiredShotIds) !== JSON.stringify(storyboards.map(s => s.id))) throw new Error("当前 chapter manifest shot lineage 不一致");
+  requireSourceHash(manifest.sourceSnapshotHash);
+  const normalized = storyboards.map(s => ({ ...s, mediaRef: s.mediaRef ? normalizeRef(s.mediaRef) : undefined, audioRef: s.audioRef ? normalizeRef(s.audioRef) : undefined }));
+  const plans = await buildRemotionShotPlans({ projectId, chapterId, chapterRevision: manifest.revision, renderSettings: manifest.renderSettings, storyboards: normalized });
+  if (!plans.success || plans.sourceSnapshotHash !== manifest.sourceSnapshotHash) throw new Error("当前 storyboard/manifest source 或 render plan 已过期");
+  const ttsRaw = JSON.parse(fs.readFileSync(resolveStoreFilePathAny(projectDir, ["tts.json"]), "utf8")) as { state: PersistedTtsState };
+  const tts = ttsRaw.state;
   const shots: ShotSlotInfo[] = [];
-  for (const r2Shot of r2Run.shots) {
-    const shotId = r2Shot.shotId as string;
-    const slot = slotByShotId.get(shotId);
-    if (!slot || slot.target.kind !== "shot") throw new Error(`缺少 shot slot: ${shotId}`);
-    const slotValidation = validateCurrentSlot(slot);
-    if (!slotValidation.success) throw new Error(`shot slot ${shotId} 无效: ${slotValidation.issues.map((i) => i.message).join("；")}`);
-    const slotEvidence = slotValidation.value.evidence;
+  for (const sb of normalized) {
+    const characters = (store.state.entityExtractions as Array<{ episodeId: string; characters: VoiceoverCharacterIdentity[] }> | undefined)?.find(batch => batch.episodeId === chapterId)?.characters ?? [];
+    assertStoryboardSpeech(sb, characters);
+    const slot = shotSlots.find(s => s.target.kind === "shot" && s.target.shotId === sb.id);
+    const plan = plans.plans.find(p => p.shot.shotId === sb.id);
+    if (!slot || !plan || slot.projectId !== projectId || slot.target.kind !== "shot" || slot.target.chapterId !== chapterId
+      || slot.target.shotRevision !== (sb.outputVersion ?? 1) || slot.job.inputHash !== plan.inputHash) throw new Error(`current slot lineage 过期: ${sb.id}`);
+    const validation = validateCurrentSlot(slot);
+    if (!validation.success) throw new Error(`current slot 无效: ${sb.id}`);
+    const chapter = (store.state.novelChapters as Array<{ id: string; sourceId?: string; revision?: number }> | undefined)?.find(c => c.id === chapterId);
+    if (!chapter || sb.sourceId !== (chapter.sourceId ?? chapterId) || !Number.isSafeInteger(sb.revision)
+      || (sb.revision ?? 0) <= 0 || sb.revision !== (chapter.revision ?? 1)) throw new Error(`缺少或过期 source identity: ${sb.id}`);
+    const voices = sb.shotAudioBindings?.filter(b => b.role === "voice") ?? [];
+    if (voices.length !== 1) throw new Error(`必须有一条 canonical voice: ${sb.id}`);
+    const voice = voices[0];
+    const job = sb.ttsJob;
+    if (voice.schemaVersion !== 2 || voice.projectId !== projectId || voice.chapterId !== chapterId || voice.shotId !== sb.id
+      || voice.shotRevision !== (sb.outputVersion ?? 1) || !job || job.status !== "completed" || job.projectId !== projectId
+      || job.chapterId !== chapterId || job.shotId !== sb.id || job.shotRevision !== voice.shotRevision
+      || job.inputFingerprint !== voice.ttsInputFingerprint || !sb.audioRef || sb.audioRef.contentSha256 !== voice.sourceFingerprint
+      || voice.sourceFingerprint !== voice.source.contentSha256 || voice.source.projectId !== projectId) throw new Error(`voice/job/audioRef identity 不一致: ${sb.id}`);
+    requireSourceHash(job.inputFingerprint); requireSourceHash(voice.sourceFingerprint);
+    if (!(await validateRemotionAudioBindingFingerprint(voice)).success) throw new Error(`voice binding fingerprint 不一致: ${sb.id}`);
+    const currentTts = await createCliTtsFingerprint({ state: store.state, tts, storyboard: sb, projectId, chapterId, resolveMedia });
+    if (currentTts.fingerprint !== job.inputFingerprint) throw new Error(`current TTS text/profile fingerprint 已过期: ${sb.id}`);
     const videoPath = resolveRemotionCurrentSlotOutputPath(path.join(projectDir, "remotion"), slot);
-    // r2 工件记录的是制作当时的绝对路径；项目迁移到外部位置后旧 _p 前缀失效，重映射到当前项目根
-    const legacyRoot = path.join(resolveUserDataDir(), "projects", "_p", projectId);
-    const audioPathRaw = r2Shot.audioPath as string;
-    const audioPath = audioPathRaw.startsWith(`${legacyRoot}/`)
-      ? path.join(projectDir, audioPathRaw.slice(legacyRoot.length + 1))
-      : audioPathRaw;
-    const ttsSpokenText = r2Shot.ttsSpokenText as string;
-    const textSha256 = await sha256Text(ttsSpokenText);
-    shots.push({
-      shotId,
-      videoPath,
-      audioPath,
-      ttsSpokenText,
-      sourceSha256: slotEvidence.sha256,
-      audioSha256: r2Shot.audioSha256 as string,
-      textSha256,
-      durationUs: slotEvidence.durationUs > 0 ? slotEvidence.durationUs : (r2Shot.durationUs as number),
-      ...(registryOverlayByShotId.has(shotId) ? { overlayTemplateId: registryOverlayByShotId.get(shotId)! } : {}),
-    });
+    const audioPath = resolveMedia(sb.audioRef.path);
+    const bindingPath = resolveMedia(buildProjectFileUrl(projectId, voice.source.relativePath));
+    if (path.resolve(bindingPath) !== path.resolve(audioPath) || await hashFileSha256(audioPath) !== voice.sourceFingerprint
+      || await hashFileSha256(videoPath) !== slot.evidence.sha256) throw new Error(`on-disk audio/video SHA 不一致: ${sb.id}`);
+    requireSourceHash(slot.evidence.sha256);
+    const ttsSpokenText = sb.ttsSpokenText;
+    if (!ttsSpokenText?.trim()) throw new Error(`缺少 current spoken text: ${sb.id}`);
+    shots.push({ shotId: sb.id, videoPath, audioPath, ttsSpokenText, sourceSha256: slot.evidence.sha256,
+      audioSha256: voice.sourceFingerprint, textSha256: await sha256Text(ttsSpokenText), durationUs: slot.evidence.durationUs,
+      ...(sb.shotFx?.registryOverlay ? { overlayTemplateId: sb.shotFx.registryOverlay } : {}) });
   }
+  assertCliDuration(store.state, chapterId, storyboards, false, shots.reduce((sum, shot) => sum + shot.durationUs, 0));
   return shots;
 }
 
@@ -402,6 +424,7 @@ async function resolveBrowser(): Promise<string> {
   return result.executablePath;
 }
 
+
 // ─── Main pipeline ──────────────────────────────────────────────────────
 
 export async function runFullPipeline(): Promise<Record<string, unknown>> {
@@ -413,7 +436,11 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const projectDir = resolveProjectDir();
   const roots = deriveStorageRoots(projectDir);
   const projectId = roots.projectId;
-  const chapterId = "chapter-001";
+  const chapterId = process.env.MYSTUDIO_CHAPTER_ID || "chapter-001";
+  const initialShotInputs = await buildShotInputs(projectDir, projectId, chapterId, await readRemotionCurrentShotSlotsFromWorkspace(path.join(projectDir, "remotion"), projectId, chapterId));
+  const liveState = readStudioWorkflowStoreState(projectDir)!.state;
+  const liveShots = (liveState.storyboards as StoryboardItem[]).filter(s => s.episodeId === chapterId);
+  const externalReview = process.env.MYSTUDIO_PIPELINE_REVIEW ? JSON.parse(fs.readFileSync(process.env.MYSTUDIO_PIPELINE_REVIEW, "utf8")) as Record<string, unknown> : undefined;
   const dataRoot = roots.dataRoot; // <storageBase>/projects
   const storageBasePath = resolveStorageBasePath();
   const userDataDir = resolveUserDataDir();
@@ -430,6 +457,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   const toolchain = selectSharedVideoToolchain({
     configuredFfmpeg: process.env.MYSTUDIO_FFMPEG_PATH,
     configuredFfprobe: process.env.MYSTUDIO_FFPROBE_PATH,
+    bundledFfmpeg: path.join(appsRoot, "node_modules", "@remotion", "compositor-darwin-arm64", "ffmpeg"),
+    bundledFfprobe: path.join(appsRoot, "node_modules", "@remotion", "compositor-darwin-arm64", "ffprobe"),
   });
   process.env.MYSTUDIO_FFMPEG_PATH = toolchain.ffmpegExecutable;
   process.env.MYSTUDIO_FFPROBE_PATH = toolchain.ffprobeExecutable;
@@ -546,35 +575,49 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
   // Historical automation reports are evidence only. Re-read the production
   // job/evidence/output triplets so later revisions cannot consume stale slots.
   const remotionWorkspaceRoot = path.join(projectDir, "remotion");
-  const shotSlots = await readRemotionCurrentShotSlotsFromWorkspace(
-    remotionWorkspaceRoot,
-    projectId,
-    chapterId,
-  );
+  const shotSlots = await readRemotionCurrentShotSlotsFromWorkspace(remotionWorkspaceRoot, projectId, chapterId);
   if (shotSlots.length === 0) {
     throw new Error(`current shot slots 不存在: ${remotionWorkspaceRoot}`);
   }
 
-  // 历史基准 run（r2）可能被工作区清理回收——回退取最高现存版本的 run 数据
-  const chapterWorkspaceDir = path.join(workspaceRoot, chapterId);
-  const r2RunPath = (() => {
-    const preferred = path.join(chapterWorkspaceDir, "r2", "video-use-run.json");
-    if (fs.existsSync(preferred)) return preferred;
-    if (fs.existsSync(chapterWorkspaceDir)) {
-      const revisions = fs.readdirSync(chapterWorkspaceDir)
-        .map((entry) => /^r(\d+)$/.exec(entry)?.[1])
-        .filter((value): value is string => Boolean(value))
-        .map(Number)
-        .sort((a, b) => b - a);
-      for (const revision of revisions) {
-        const candidate = path.join(chapterWorkspaceDir, `r${revision}`, "video-use-run.json");
-        if (fs.existsSync(candidate)) return candidate;
-      }
-    }
-    throw new Error(`video-use 工作区无可用 video-use-run.json: ${chapterWorkspaceDir}`);
-  })();
-  const shotInputs = await buildShotInputs(projectDir, projectId, chapterId, shotSlots, r2RunPath);
+  const shotInputs = initialShotInputs;
   console.log("[full-pipeline] shot inputs built:", shotInputs.length, "shots");
+
+  // ── 7b. W0 剧本检查门·副门(design §2.3) ──
+  // 时点=结构探测(stage 7)之后、任何成功 evidence 写档之前(首个成功写档在
+  // writeVideoWorkflowJson(runResult.artifactPath))。只读不修复;RED 时门内先落
+  // passed:false 回执再 throw,整条管线停(六步范式③)。判定真源跨域 import 前端
+  // @/lib/studio/script-precheck(先例=本文件 :54 boundary-intent-assembly)。
+  const precheckSourceChapter = (liveState.novelChapters as Array<{ id: string; sourceText?: string }> | undefined)
+    ?.find((chapter) => chapter.id === chapterId);
+  const precheckSourceText = precheckSourceChapter?.sourceText ?? "";
+  const precheckStrict = isDaojieAdaptation(
+    (liveState.workflowConfig as { directorManualId?: string } | undefined)?.directorManualId,
+    precheckSourceText,
+  );
+  // 剧本台词真源:本章最新 scriptDraft 草稿(与 resolveScriptTextForEpisode 同式
+  // updatedAt 取新),缺草稿回落章 sourceText。
+  const precheckScriptText = ((liveState.agentWorkData as Array<{ key?: string; episodeId?: string; data?: string; updatedAt?: number }> | undefined) ?? [])
+    .filter((entry) => entry.key === "scriptDraft" && entry.episodeId === chapterId)
+    .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))[0]?.data
+    ?? precheckSourceText;
+  const scriptPrecheck = await runScriptPrecheckGate({
+    automationDir: outputDir,
+    projectId,
+    chapterId,
+    shots: shotInputs,
+    storeStoryboards: liveShots,
+    durationCapSeconds: precheckStrict ? DAOJIE_STRICT_DURATION_SECONDS : GENERIC_DURATION_SECONDS,
+    scriptVoiceLines: extractScriptVoiceLines(precheckScriptText),
+    ...(precheckStrict ? { sourceText: precheckSourceText } : {}),
+  });
+  // 范式⑤:调用方独立重哈希对拍(镜像 :1220-1221 final-audio 同款)——门内 inputs
+  // 投影哈希与管线现值重算一致才放行,防 evidence 与实际输入脱钩。
+  const scriptPrecheckRehash = await sha256CanonicalJson(scriptPrecheckInputsProjection(shotInputs));
+  if (scriptPrecheckRehash !== scriptPrecheck.inputsSha256) {
+    throw new Error("script-precheck-inputs-changed-before-evidence");
+  }
+  console.log(`[full-pipeline] script precheck gate PASSED (yellow ${scriptPrecheck.yellow.length}, pending ${scriptPrecheck.pendingCount})`);
 
 
   // ── 8. Determine next revision dynamically ──
@@ -597,6 +640,12 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     nextRevision = maxRev + 1;
   }
   console.log("[full-pipeline] nextRevision:", nextRevision);
+  if (externalReview) {
+    if (!Number.isSafeInteger(externalReview.revision) || Number(externalReview.revision) <= 0) throw new Error("review revision 无效");
+    const expectedReviewRevision = existingProject ? existingProject.revision + 1 : nextRevision - 1;
+    if (externalReview.revision !== expectedReviewRevision) throw new Error("review revision 已过期或不是当前 pending revision");
+    nextRevision = Number(externalReview.revision);
+  }
   const sourceSha256 = await sha256CanonicalJson(shotInputs.map((s) => ({ shotId: s.shotId, sha256: s.sourceSha256 })));
   const audioSha256 = await sha256CanonicalJson(shotInputs.map((s) => ({ shotId: s.shotId, sha256: s.audioSha256 })));
   const textSha256 = await sha256CanonicalJson(shotInputs.map((s) => ({ shotId: s.shotId, sha256: s.textSha256 })));
@@ -698,7 +747,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     revision: nextRevision,
     mode: "editable-edl",
     derivedInputPolicy: "pad-video-to-audio", // auto-pad video shorter than TTS audio
-    storyboardSourcePolicy: "reuse-existing", // allow stale shots for testing
+    storyboardSourcePolicy: "current-ready",
     shots: shotInputs.map((s) => ({
       shotId: s.shotId,
       videoPath: s.videoPath,
@@ -722,7 +771,14 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
 
   // ── 9. RUN video-use adapter.runChapter() — Python worker ──
   console.log("[full-pipeline] running video-use runChapter (Python worker)...");
-  const runResult = await videoUseAdapter.runChapter(chapterRun);
+  const runResult = externalReview
+    ? (() => {
+      const artifactPath = path.join(workspaceRoot, chapterId, `r${nextRevision}`, "video-use-artifact.json");
+      const parsed = validateVideoUseChapterArtifact(JSON.parse(fs.readFileSync(artifactPath, "utf8")));
+      if (!parsed.success) throw new Error("待审核 artifact 无效");
+      return { state: "pending" as const, artifact: parsed.value, artifactPath };
+    })()
+    : await videoUseAdapter.runChapter(chapterRun);
   if (runResult.state !== "pending" && runResult.state !== "ready") {
     throw new Error(`video-use runChapter 失败: ${runResult.state} — ${("message" in runResult ? runResult.message : "unknown")}`);
   }
@@ -747,37 +803,23 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     console.log(`  ${cue.shotId} @${(cue.startUs / 1e6).toFixed(3)}s ${(cue.durationUs / 1e6).toFixed(3)}s conf=${cue.confidence.toFixed(2)} "${cue.text.slice(0, 24)}"`);
   }
 
-  // ── 10. Subtitle authority: source-embedded (default) or clean-remotion ──
-  // MYSTUDIO_SUBTITLE_AUTHORITY=clean-remotion: 源图不含文字（生成 prompt 禁文字），
-  // 台词由 Remotion SubtitleTrack 以句级 cues 燃嵌——运镜自由（3D 相机不会裁掉画内字幕）。
-  const subtitleAuthorityMode = process.env.MYSTUDIO_SUBTITLE_AUTHORITY === "clean-remotion"
-    ? "clean-remotion" as const
-    : "source-embedded" as const;
-  const subtitleAuthority: SubtitleAuthority = {
-    mode: subtitleAuthorityMode,
-    evidence: {
-      mode: subtitleAuthorityMode,
-      decision: "human",
-      sourceFingerprint: sourceSha256,
-      evidencePaths: [runId],
-      reviewer: "automated",
-      reviewedAt: Date.now(),
-      note: subtitleAuthorityMode === "clean-remotion"
-        ? "源分镜图不含文字（生成 prompt 禁文字），台词字幕由 Remotion SubtitleTrack 句级 cues 燃嵌。"
-        : "Scene MP4s have visible embedded Chinese subtitles.",
-    },
-  };
-  const artifactWithAuthority = { ...videoUseArtifact, subtitleAuthority };
-  writeVideoWorkflowJson(runResult.artifactPath, artifactWithAuthority);
-  console.log("[full-pipeline] subtitleAuthority set:", subtitleAuthorityMode);
-
-  // ── 11. acceptVideoUseArtifact() — write review sidecar ──
+  assertCliDuration(liveState, chapterId, liveShots, false, Math.round(Math.max(...videoUseArtifact.edl.map(e => e.timelineStartS + e.durationS)) * 1_000_000));
+  if (!externalReview) {
+    const pending = { ok: false, state: "awaiting-review", artifactPath: runResult.artifactPath, projectId, chapterId, revision: nextRevision, sourceSha256, audioSha256, textSha256, artifactSha256: videoUseArtifact.evidence.artifactSha256 };
+    process.stdout.write(`${JSON.stringify(pending, null, 2)}\n`);
+    return pending;
+  }
+  if (videoUseArtifact.sourceSha256 !== sourceSha256 || videoUseArtifact.audioSha256 !== audioSha256 || videoUseArtifact.textSha256 !== textSha256) throw new Error("pending artifact 与 current shots 不一致");
+  requireSourceHash(externalReview.artifactFileSha256);
+  if (await hashFileSha256(runResult.artifactPath) !== externalReview.artifactFileSha256) throw new Error("review artifact 文件 SHA 不一致");
+  const freshInputs = await buildShotInputs(projectDir, projectId, chapterId, await readRemotionCurrentShotSlotsFromWorkspace(remotionWorkspaceRoot, projectId, chapterId));
+  if (JSON.stringify(freshInputs) !== JSON.stringify(shotInputs)) throw new Error("审核期间 current source/slots 已变化");
+  const review = await validatePipelineReview(externalReview, videoUseArtifact);
+  const subtitleAuthority = review.subtitleAuthority;
+  writeVideoWorkflowJson(runResult.artifactPath, { ...videoUseArtifact, subtitleAuthority });
   const acceptResult = await acceptVideoUseArtifact(workspaceRootForProject, {
-    projectId,
-    chapterId,
-    revision: nextRevision,
-    reviewer: "full-pipeline-automation",
-  });
+    projectId, chapterId, revision: nextRevision, reviewer: review.reviewer, timestamp: review.timestamp,
+  }, review.timestamp);
   if (!acceptResult.success) {
     throw new Error(`acceptVideoUseArtifact 失败: ${acceptResult.issues.map((i) => `${i.path}: ${i.message}`).join("; ")}`);
   }
@@ -798,7 +840,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       episodeId: chapterId,
       name: `道劫 ${chapterId}`,
       revision: nextRevision - 1,
-      sourceSnapshotHash: "0".repeat(64),
+      sourceSnapshotHash: sourceSha256,
       createdBy: "auto" as const,
       manuallyEdited: false,
       stale: false,
@@ -933,10 +975,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     const slot = storyboardId ? slotByShotId.get(storyboardId) : undefined;
     if (slot && slot.target.kind === "shot") {
       clip.source.kind = "storyboardVideo";
-      clip.source.path = (slot.evidence as Record<string, unknown>)?.outputPath as string ?? clip.source.path;
+      clip.source.path = slot.evidence.outputPath ?? clip.source.path;
       if (!clip.source.evidence) clip.source.evidence = {};
       (clip.source.evidence as Record<string, unknown>).remotionJobId = slot.job?.jobId;
-      (clip.source.evidence as Record<string, unknown>).remotionEvidenceSha256 = (slot.evidence as Record<string, unknown>)?.sha256;
+      (clip.source.evidence as Record<string, unknown>).remotionEvidenceSha256 = slot.evidence.sha256;
       (clip.source.evidence as Record<string, unknown>).outputVersion = slot.target.shotRevision;
     }
   }
@@ -962,7 +1004,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
     const shotFxStoryboards = (() => {
       try {
         const fxStore = readStudioWorkflowStoreState(projectDir);
-        const fxStoryboards = (fxStore?.state.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown } }>;
+        const fxStoryboards = (fxStore?.state.storyboards ?? []) as Array<{ id: string; episodeId: string; prompt?: string; line?: string; shotFx?: { motion?: unknown; sfx?: string } }>;
         const workflowConfig = fxStore?.state.workflowConfig as
           | { chapterGrade?: { lutId?: unknown; blend?: unknown }; subtitleSfxEnabled?: unknown }
           | undefined;
@@ -1177,12 +1219,34 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       const renderStartedAt = Date.now();
       const binariesDirectory = path.join(appsRoot, "node_modules", "@remotion", "compositor-darwin-arm64");
 
+      // W0 §2.4 响度边车转正:渲染起点→evidence 写档尾(连同 report 收尾)包 catch——
+      // 区间内任何 throw(含响度门本体,其代码一字不动)先用内存现值补写五件套
+      // sidecar+失败回执再原样上抛。成功路径零改动(缩进保持原样,不重排)。
+      const failureSidecarContext = {
+        outputDir,
+        remotionOutputDir,
+        projectId,
+        chapterId,
+        nextRevision,
+        plan,
+        projectedProject,
+        shotSlots,
+        chapterManifest,
+        gateInput,
+        acceptedArtifact,
+        bundleManifest: manifest,
+        renderStartedAt,
+        outputPath,
+      };
+      let renderExpectedDurationS: number | undefined;
+      try {
       console.log("[full-pipeline] starting Remotion renderMedia...");
       const composition = await selectComposition({
         serveUrl: bundlePath, id: CHAPTER_VIDEO_COMPOSITION_ID, inputProps: props,
         browserExecutable: browser, binariesDirectory, chromeMode: "headless-shell",
         onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
       });
+      assertCliDuration(liveState, chapterId, liveShots, false, Math.round(composition.durationInFrames / composition.fps * 1_000_000));
       // 真 Chrome(--headless=new) 走 Metal GPU，无需软件 GL；仅在无 Chrome 回退 headless-shell
       // 时才用 swangle，且限并发防软件上下文内存崩。
       const useSystemChrome = renderBrowser === systemChrome;
@@ -1209,6 +1273,7 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       const probePath = path.join(remotionOutputDir, "ffprobe.json");
       fs.writeFileSync(probePath, `${JSON.stringify(probe.raw, null, 2)}\n`, "utf8");
       const expectedDuration = composition.durationInFrames / composition.fps;
+      renderExpectedDurationS = expectedDuration;
       assertRenderedMediaEvidence({ label: "Daojie Full Pipeline", probe, expectedDuration, fps: composition.fps, width: plan.renderSettings.width, height: plan.renderSettings.height });
       // Structural probing is insufficient: accept the final encoded audio before success evidence.
       const finalAudioAcceptance = await acceptFinalAudio({
@@ -1283,6 +1348,8 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         composition: { visualClips: props.visualClips.length, subtitles: props.subtitles.length, audioClips: props.audioClips.length, overlayClips: props.overlayClips?.length ?? 0 },
         output: { path: outputPath, sizeBytes: outputStat.size, sha256, duration: probe.duration, width: probe.width, height: probe.height, streams: probe.streams },
         finalAudioAcceptance,
+        // 范式⑥:副门回执并入 report(design §2.3)。
+        scriptPrecheck: { passed: true, inputsSha256: scriptPrecheck.inputsSha256, receiptPath: scriptPrecheck.receiptPath, yellowCount: scriptPrecheck.yellow.length, pendingCount: scriptPrecheck.pendingCount },
         evidence: {
           inputManifestPath,
           timelineRenderPlanPath,
@@ -1297,11 +1364,124 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
       fs.writeFileSync(path.join(remotionOutputDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
       return report;
+      } catch (renderPipelineError) {
+        // §2.4:失败先补写 sidecar 再上抛(响度门本体与成功路径代码一字不动)。
+        await writeFailureSidecars({
+          ...failureSidecarContext,
+          expectedDurationS: renderExpectedDurationS,
+          triggerError: renderPipelineError,
+        });
+        throw renderPipelineError;
+      }
     } finally {
       await mediaBridge.revokeSession(session);
     }
   } finally {
     process.chdir(previousCwd);
+  }
+}
+
+
+// ─── W0 §2.4 响度边车转正:失败路径 sidecar 补写 ─────────────────────────
+// 欠账机制:sidecar 五件套全部在 acceptFinalAudio 之后写(成功路径 :1245-1288 段),
+// 之前任何 throw(响度门/渲染/probe)都让五件全缺——rebuild_chapter_sidecars.ts 只能
+// 事后人工复刻。转正:渲染起点→evidence 写档尾包 catch,用内存现值补写同名五件套
+// + 失败回执 pipeline-failure-sidecars.json。只写 evidence,不改任何产物。
+async function writeFailureSidecars(context: {
+  outputDir: string;
+  remotionOutputDir: string;
+  projectId: string;
+  chapterId: string;
+  nextRevision: number;
+  plan: TimelineRenderPlan;
+  projectedProject: EditingProjectV1;
+  shotSlots: RemotionCurrentSlotV1[];
+  chapterManifest: unknown;
+  gateInput: RemotionChapterGateInputV1;
+  acceptedArtifact: { mode: string; status: string; stage: string; evidence: { inputSha256: string } };
+  bundleManifest: RemotionBundleManifest;
+  renderStartedAt: number;
+  outputPath: string;
+  expectedDurationS?: number;
+  triggerError: unknown;
+}): Promise<void> {
+  // 路径算式同成功路径(:1244-1248 段)。
+  const inputManifestPath = path.join(context.outputDir, "input-manifest.json");
+  const timelineRenderPlanPath = path.join(context.outputDir, "timeline-render-plan.json");
+  const editingSnapshotPath = path.join(context.outputDir, "editing-project.json");
+  const chapterEvidencePath = path.join(context.remotionOutputDir, "chapter-video-evidence.json");
+  const finalQcExpectedPath = path.join(context.outputDir, "final-output-qc-expected.json");
+  const failureReceiptPath = path.join(context.outputDir, "pipeline-failure-sidecars.json");
+  try {
+    writeVideoWorkflowJson(inputManifestPath, {
+      schemaVersion: 1,
+      projectId: context.projectId,
+      chapterId: context.chapterId,
+      revision: context.nextRevision,
+      gateInput: context.gateInput,
+      chapterManifest: context.chapterManifest,
+      currentShotSlots: context.shotSlots,
+    });
+    writeVideoWorkflowJson(timelineRenderPlanPath, context.plan);
+    writeVideoWorkflowJson(editingSnapshotPath, context.projectedProject);
+    // output 未产出(渲染中途死)→跳过需 output 的两件,回执记 outputAbsent: true
+    // (不伪造 sha);output 在但 evidence 构建抛(如流不全)→同样跳过并留痕。
+    let outputAbsent = true;
+    if (fs.existsSync(context.outputPath) && fs.statSync(context.outputPath).size > 0) {
+      try {
+        const sha256 = await hashFileSha256(context.outputPath);
+        const outputStat = fs.statSync(context.outputPath);
+        const probe = await probeRenderedMedia(context.outputPath);
+        const runEvidence = await buildFullPipelineRunEvidence({
+          projectId: context.projectId,
+          chapterId: context.chapterId,
+          editingProjectId: context.projectedProject.id,
+          editingRevision: context.projectedProject.revision,
+          mode: context.acceptedArtifact.mode,
+          renderInputSha256: context.gateInput.inputSha256,
+          videoUseInputSha256: context.acceptedArtifact.evidence.inputSha256,
+          bundleContentHash: context.bundleManifest.contentHash,
+          templateVersion: context.bundleManifest.templateVersion,
+          remotionVersion,
+          renderSettings: context.plan.renderSettings,
+          expectedDurationS: context.expectedDurationS ?? probe.duration,
+          runRoot: context.outputDir,
+          outputPath: context.outputPath,
+          inputManifestPath,
+          renderPlanPath: timelineRenderPlanPath,
+          snapshotPath: editingSnapshotPath,
+          outputSizeBytes: outputStat.size,
+          outputMtimeMs: outputStat.mtimeMs,
+          outputSha256: sha256,
+          probe,
+          startedAt: context.renderStartedAt,
+          completedAt: Date.now(),
+        });
+        writeVideoWorkflowJson(chapterEvidencePath, runEvidence.evidence);
+        writeVideoWorkflowJson(finalQcExpectedPath, runEvidence.expected);
+        outputAbsent = false;
+      } catch (evidenceError) {
+        console.error("[full-pipeline] failure sidecar run-evidence skipped:", evidenceError instanceof Error ? evidenceError.message : String(evidenceError));
+      }
+    }
+    // RUN_REVISION 指纹转正(rebuild_chapter_sidecars.ts 的 env 指纹在管线内的等价物):
+    // 失败边车绑定 acceptedArtifact.status/stage(阶段 11 产物)与 nextRevision(阶段 8)
+    // 身份——无需 env;startedAt 用 renderStartedAt 现值(比 rebuild 的目录 birthtime 估算更真)。
+    writeVideoWorkflowJson(failureReceiptPath, {
+      schemaVersion: 1,
+      triggerError: context.triggerError instanceof Error ? context.triggerError.message : String(context.triggerError),
+      degraded: true,
+      writtenAt: new Date().toISOString(),
+      nextRevision: context.nextRevision,
+      videoUseStatus: context.acceptedArtifact.status,
+      videoUseStage: context.acceptedArtifact.stage,
+      ...(outputAbsent ? { outputAbsent: true } : {}),
+      sidecars: { inputManifestPath, timelineRenderPlanPath, editingSnapshotPath, chapterEvidencePath, finalQcExpectedPath },
+    });
+    console.error(`[full-pipeline] failure sidecars written: ${failureReceiptPath}${outputAbsent ? " (outputAbsent)" : ""}`);
+  } catch (sidecarError) {
+    // 内层自护:只留痕,不掩盖原始错误。
+    console.error("[full-pipeline] writeFailureSidecars failed:", sidecarError instanceof Error ? sidecarError.message : String(sidecarError));
   }
 }
 

@@ -1,3 +1,4 @@
+import { DAOJIE_STRICT_DURATION_SECONDS } from "./daojie-duration-policy";
 import { daojieFidelityBoundary } from "./daojie-generation-audit";
 import { getAgentSkillPreset } from "@/lib/studio/manuals";
 import { detectLightingTerms, stripLightingTerms } from "@/lib/studio/director-plan";
@@ -40,6 +41,8 @@ export interface StoryboardTableMessages {
 export interface StoryboardTableRow {
   index: number;
   sceneIndex?: number;
+  /** Explicit production heading association; absent for unheaded legacy rows. */
+  sourceEvidence?: StoryboardItem["sourceEvidence"];
   segmentTitle?: string;
   description: string;
   scene: string;
@@ -89,11 +92,13 @@ export function computeDurationSec(text: string, speed: number): number {
 
 export function buildStoryboardTableMessages(input: BuildStoryboardTableInput): StoryboardTableMessages {
   const skill = getAgentSkillPreset("production_execution_storyboard_table")?.content ?? "storyboardTable";
+  const strict = Boolean(input.strictDaojieAdaptation && input.sourceText?.trim());
+  const durationBudget = strict ? `≤${DAOJIE_STRICT_DURATION_SECONDS} 秒（3.25 分钟）` : "≤3 分钟";
   const voiceoverGuard = [
     "分镜配音硬约束：每条分镜必须填写台词字段——台词/旁白照剧本逐字照录，本场纯视觉镜写「无台词」（禁止为凑字段编造旁白，细则见下条）——作为后续配音、TTS 和角色音色绑定的输入。",
     "角色台词保留 `角色名：台词内容`；旁白/OS/VO 照剧本原文写 `旁白：内容`（逐字照录，不另造旁白）；本场确无任何语音的纯视觉镜写 `无台词`（纯视觉段连续 ≤15 秒），禁止为凑字段编造旁白。",
     "分镜序号铁律：全表分镜序号从 1 起全局连续递增（1..N），不得按场/按片段重置编号（2026-08-22 实证：逐场重编号会被解析整表拒绝）。",
-    "时长预算（H3 视频线）：单集总时长 ≤3 分钟；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词与动作必须写足该时长的内容量，禁 2–3 秒空镜过场（2026-10-10 裁定）。",
+    `时长预算（H3 视频线）：单集总时长 ${durationBudget}；每镜基准 8~15 秒、一镜承载 2~4 句台词——H3 成片按 17k+5 帧网格量化，最短一镜约 5.2 秒；台词与动作必须写足该时长的内容量，禁 2–3 秒空镜过场（2026-10-10 裁定）。`,
   ].join("\n");
   return {
     system: [skill, input.bibleContext, input.manualContext, voiceoverGuard, input.scriptPlanContext, input.strictDaojieAdaptation && input.sourceText?.trim() ? daojieFidelityBoundary("storyboard") : ""].filter(Boolean).join("\n\n---\n\n"),
@@ -209,6 +214,13 @@ export function parseStoryboardTable(
       errors.push(`列数不符（应为15列、14列、8列或7列，实为${fields.length}）：${line}`);
       continue;
     }
+    if (currentSceneIndex !== undefined) {
+      row.sceneIndex = currentSceneIndex;
+      row.sourceEvidence = {
+        source: "storyboard-table",
+        scene: { index: currentSceneIndex, name: currentScene },
+      };
+    }
     rows.push(row);
   }
 
@@ -284,13 +296,17 @@ export function toStoryboardItems(
       prompt: row.description,
       videoDesc: row.action,
       assetIds: row.associateAssetsIds,
+      // Fresh rows replace previous provenance even when no explicit heading exists.
+      sourceEvidence: row.sourceEvidence,
       shouldGenerateImage: true,
       state: "idle",
       emotion: row.emotion,
       orientation: row.orientation,
       spatialRelation: row.spatialRelation,
       associateAssetsNames: row.associateAssetsNames,
-      lines: `${voiceover.speaker}：${voiceover.line}`,
+      lines: row.lines?.trim() && !["无台词", "无对白", "无", "—", "-"].includes(row.lines.trim()) ? row.lines : `${voiceover.speaker}：${voiceover.line}`,
+      speechUtterances: voiceover.speechUtterances,
+      speechSpeakerFallback: voiceover.speechSpeakerFallback,
       speaker: voiceover.speaker,
       speakerId: voiceover.speakerId,
       line: voiceover.line,
@@ -337,28 +353,40 @@ export function serializeStoryboardTable(items: readonly StoryboardItem[]): stri
     "关联资产ID",
     "出镜语义JSON",
   ];
-  const rows = ordered.map((item) => [
-    item.index,
-    item.prompt,
-    item.trackKey || "—",
-    formatTableList(item.associateAssetsNames),
-    formatTableValue(item.duration),
-    item.shotSemantics?.shotSize || "—",
-    item.shotSemantics?.cameraMove || "—",
-    item.videoDesc,
-    item.orientation,
-    item.spatialRelation,
-    item.emotion,
-    item.lines || formatSpeakerLine(item),
-    item.sound,
-    formatTableList(item.assetIds),
-    item.shotSemantics ? JSON.stringify(item.shotSemantics) : "—",
-  ]);
+  let previousScene: NonNullable<StoryboardItem["sourceEvidence"]>["scene"];
+  const rows = ordered.flatMap((item) => {
+    const scene = item.sourceEvidence?.scene;
+    const headings = scene
+      ? previousScene?.index === scene.index && previousScene.name === scene.name
+        ? []
+        : [`## 场${scene.index}：${scene.name}`]
+      // An unnumbered heading clears parser context without inventing evidence.
+      : previousScene ? ["## 场：—"] : [];
+    previousScene = scene;
+    const row = [
+      item.index,
+      item.prompt,
+      scene?.name || item.trackKey || "—",
+      formatTableList(item.associateAssetsNames),
+      formatTableValue(item.duration),
+      item.shotSemantics?.shotSize || "—",
+      item.shotSemantics?.cameraMove || "—",
+      item.videoDesc,
+      item.orientation,
+      item.spatialRelation,
+      item.emotion,
+      item.lines || formatSpeakerLine(item),
+      item.sound,
+      formatTableList(item.assetIds),
+      item.shotSemantics ? JSON.stringify(item.shotSemantics) : "—",
+    ];
+    return [...headings, `| ${row.map((value) => escapeTableCell(value)).join(" | ")} |`];
+  });
   return [
     "<storyboardTable>",
     `| ${header.join(" | ")} |`,
     `| ${header.map(() => "---").join(" | ")} |`,
-    ...rows.map((row) => `| ${row.map((value) => escapeTableCell(value)).join(" | ")} |`),
+    ...rows,
     "</storyboardTable>",
   ].join("\n");
 }
@@ -673,8 +701,10 @@ function storyboardIndexContinuityError(
     : `分镜序号必须连续为 1..N: [${actualIndexes.join(", ")}]`;
 }
 
-/** 台词字段去掉「角色：」前缀与旁白标记，仅留实际念白用于时长精算。 */
-function extractSpeech(lines: string): string {
+/** 台词字段去掉「角色：」前缀与旁白标记，仅留实际念白用于时长精算。
+ *  W0 剧本检查门单源化(10-29 design §1.2 E2):改 export——script-precheck.ts 的
+ *  语速字数归一(剥标签+剥|注释列+去标点)复用本函数,禁两处各写一套剥前缀逻辑。 */
+export function extractSpeech(lines: string): string {
   const text = (lines ?? "").trim();
   if (!text || text === "无台词" || text === "—") return "";
   const colonIdx = text.search(/[:：]/);

@@ -84,7 +84,9 @@ const SCENE_HEADER_LEAD_RE = /^#{0,3}\s*/;
 // 四审B M4②:全角/em/en 连字符归一半角,防「1－1」与「1-1」互不认而误触「场号格式不一致」
 const SCENE_ID_HYPHEN_RE = /[－–—]/g;
 const ASPECT_HEADER_RE = /^#\s*已确定要求[：:]/;
-const STRIP_FOR_COUNT_RE = /[\p{P}\p{S}\s]/gu;
+// W0 剧本检查门单源化(10-29 script-rootcure-clearance design §1.2 E1):字数归一口径
+// 改 export,script-precheck.ts(主门/副门四项判定共用真源)复用同一正则,禁两处定义。
+export const STRIP_FOR_COUNT_RE = /[\p{P}\p{S}\s]/gu;
 
 /** 逐场对账阈值(手册「九、时长与视觉预算」节·每场对账条款,父 I6 锚节标题不锚行号):
  *  本场镜头数×10 秒 ≤ 本场秒数+10;本场语音字数 ≤ ⌊本场秒数×4⌋(按区间上限 4 字/秒=R15/Q1 判定端)。 */
@@ -105,8 +107,9 @@ const SCENE_SECONDS_RANGE_MIN = 20;
 const SCENE_SECONDS_RANGE_MAX = 60;
 const PURE_VISUAL_LIMIT_SECONDS = 15;
 
-/** 行内注释列(「| 环境音/音效」等)剥离后按句本体计字数(G25)。 */
-function countChars(content: string): number {
+/** 行内注释列(「| 环境音/音效」等)剥离后按句本体计字数(G25)。
+ *  W0 单源化(E1):改 export——script-precheck.ts 的 normalizeLiteral/countChars 链同源消费。 */
+export function countChars(content: string): number {
   return content.split("|")[0]!.replace(STRIP_FOR_COUNT_RE, "").length;
 }
 
@@ -147,16 +150,17 @@ const VOICE_LINE_RE =
  *  随 matchedText 一并剥除防标题残渣)/约 Ns(R8:「约」随剥)/`(40s)` 括注(R8:片段非空=可解析,
  *  全半角括号)/`N分N秒`(Q3:1分40秒=100s,先于裸 N分/N秒 防部分匹配)/N:秒(全半角冒号)/
  *  裸 Ns/N分/N秒(Q3 裸写法族,行尾锚防行中「3 分队」类误吞)。秒数提取、场头尾锚、
- *  title 剥除三处同消费,防 M3 与 M4 分叉。 */
+ *  title 剥除三处同消费,防 M3 与 M4 分叉。秒数字段容完整小数;裸数字前禁数字/小数点,
+ *  防「61.5秒」只截取「5秒」,畸形小数仍交给不识别写法提示。 */
 const SCENE_SECONDS_FORMS: { re: RegExp; toSeconds: (m: RegExpExecArray) => number }[] = [
-  { re: /(?:[·.•]\s*)?约\s*(\d+)\s*秒(?:\s*左右)?/, toSeconds: (m) => Number(m[1]) },
-  { re: /(?:[·.•]\s*)?约\s*(\d+)\s*s(?:\s*左右)?(?=$|[\s·，。、;；!！?？])/i, toSeconds: (m) => Number(m[1]) },
-  { re: /[（(]\s*(\d+)\s*s\s*[）)]/i, toSeconds: (m) => Number(m[1]) },
-  { re: /(\d+)\s*分\s*(\d+)\s*秒(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) * 60 + Number(m[2]) },
-  { re: /(\d+)\s*[：:]\s*(\d+)/, toSeconds: (m) => Number(m[1]) * 60 + Number(m[2]) },
-  { re: /(\d+)\s*s(?:\s*左右)?(?=$|[\s·，。、;；!！?？])/i, toSeconds: (m) => Number(m[1]) },
-  { re: /(\d+)\s*分(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) * 60 },
-  { re: /(\d+)\s*秒(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) },
+  { re: /(?:[·.•]\s*)?约\s*(\d+(?:\.\d+)?)\s*秒(?:\s*左右)?/, toSeconds: (m) => Number(m[1]) },
+  { re: /(?:[·.•]\s*)?约\s*(\d+(?:\.\d+)?)\s*s(?:\s*左右)?(?=$|[\s·，。、;；!！?？])/i, toSeconds: (m) => Number(m[1]) },
+  { re: /[（(]\s*(\d+(?:\.\d+)?)\s*s\s*[）)]/i, toSeconds: (m) => Number(m[1]) },
+  { re: /(?<![\d.])(\d+)\s*分\s*(\d+(?:\.\d+)?)\s*秒(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) * 60 + Number(m[2]) },
+  { re: /(?<![\d.])(\d+)\s*[：:]\s*(\d+(?:\.\d+)?)(?![\d.])/, toSeconds: (m) => Number(m[1]) * 60 + Number(m[2]) },
+  { re: /(?<![\d.])(\d+(?:\.\d+)?)\s*s(?:\s*左右)?(?=$|[\s·，。、;；!！?？])/i, toSeconds: (m) => Number(m[1]) },
+  { re: /(?<![\d.])(\d+)\s*分(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) * 60 },
+  { re: /(?<![\d.])(\d+(?:\.\d+)?)\s*秒(?:\s*左右)?\s*$/, toSeconds: (m) => Number(m[1]) },
 ];
 
 function parseSceneSeconds(line: string): { seconds: number; matchedText: string } | null {
@@ -188,7 +192,7 @@ const BARE_SCENE_END_RE = /(?:\s[^/\s，。！？；、：]{1,6}\/[^/\s，。！
 const NARRATIVE_CLAUSE_RE = /[，。！？；、…]/;
 // 行尾时长 token:秒/分/s 核心容尾随 钟(「·约一分钟」不识别写法)/)(「(40s)」括注)与「左右」;
 // N:秒 形态单列。行中段 token(「等了 40 秒。」)被 NARRATIVE_CLAUSE_RE 与 $ 联手排除。
-const TRAILING_DURATION_RE = /(?:[·.•]\s*)?约?\s*(?:\S{0,8}(?:秒|分|s)[钟）)]?(?:\s*左右)?|\d+\s*[：:]\s*\d+)\s*$/i;
+const TRAILING_DURATION_RE = /(?:[·.•]\s*)?约?\s*(?:\S{0,8}(?:秒|分|s)[钟）)]?(?:\s*左右)?|\d+\s*[：:]\s*\d+(?:\.\d+)?)\s*$/i;
 
 /** 场头尾部锚(四审B M4③ + R7):N-M 与裸数字同过锚;「场」字锚与 词/词 锚原样保持,
  *  时长锚收口为整行场头形态(R7,见 NARRATIVE_CLAUSE_RE/TRAILING_DURATION_RE 注)——
@@ -512,6 +516,83 @@ export function analyzeScriptDraft(
     // 返回前去重:同 id 场重复缺标注等会产生重复 flag(React key 重复与重复报告双治)
     flags: [...new Set(flags)],
   };
+}
+
+// ── W0 剧本检查门·剧本语音行真源(10-29 script-rootcure-clearance design §1.2 E1)──
+// 主门「台词勾销账」的剧本侧数据:逐句抽取剧本内全部语音行(对白+OS),speech=剥标签后
+// 内容(与 pushVoice 同源计数口径)。内部复用既有 classifyLine/VOICE_LINE_RE/在场内门控/
+// 续行累加逻辑(analyzeScriptDraft 主循环同款遍历),零行为变更、零第二套解析。
+
+/** 剧本侧语音行(勾销账逐句覆盖的判定单元)。 */
+export interface ScriptVoiceLine {
+  /** 所属场号(场头 id;首场前的语音行按在场内门控不计,不会出现无场条目) */
+  scene: string;
+  kind: "dialogue" | "os";
+  /** 剥「名：」标签后的语音内容(冒号后换行形态=续行累加拼接) */
+  speech: string;
+}
+
+/** 抽取剧本全部语音行(与 analyzeScriptDraft 同款行分类/在场门控/排除规则/续行累加)。 */
+export function extractScriptVoiceLines(text: string): ScriptVoiceLine[] {
+  const cleaned = (text ?? "").split(/\r?\n/).map((line) => line.replaceAll("**", "").trim());
+  const voiceLines: ScriptVoiceLine[] = [];
+  // 在场内状态(F2 同款):命中场头置真,遇任意 # 开头行置假——场外语音行不计
+  let inScene = false;
+  let currentSceneId = "—";
+  for (let i = 0; i < cleaned.length; i++) {
+    const line = cleaned[i]!;
+    const kind = classifyLine(line);
+
+    if (kind === "sceneHeader") {
+      inScene = true;
+      currentSceneId = matchSceneHeader(line)!.id;
+      continue;
+    }
+    if (kind === "heading") {
+      inScene = false;
+      continue;
+    }
+    if (kind !== "voice") continue; // shot/sfx/cast/separator/blank/text 不入语音账
+    if (!inScene) continue; // 场外「名：内容」行(梗概/改编追踪区)不计(F2)
+
+    const voiceMatch = VOICE_LINE_RE.exec(line);
+    if (!voiceMatch) continue;
+    const name = voiceMatch[1]!;
+    if (name === "人物") continue;
+    if (name === "SFX") continue;
+    if (VOICE_LABEL_RE.test(name)) continue;
+    if (name.endsWith("道")) continue; // R9 无标点短叙述
+
+    const parenthetical = voiceMatch[2]?.slice(1, -1) ?? "";
+    // OS 归类(M5+R9 同款):OS/os/VO/V.O./裸旁白→OS;V.S 仅括注以「旁白」起→OS
+    const isOS =
+      name === "OS" ||
+      name === "os" ||
+      name === "VO" ||
+      name === "V.O." ||
+      name === "旁白" ||
+      ((name === "V.S" || name === "V.S.") && parenthetical.startsWith("旁白"));
+
+    const inlineContent = voiceMatch[3]?.trim() ?? "";
+    if (inlineContent) {
+      voiceLines.push({ scene: currentSceneId, kind: isOS ? "os" : "dialogue", speech: inlineContent });
+      continue;
+    }
+    // 冒号后换行形态(M1 同款):逐行累加至结构行/空段;结构行留给主循环,不整行吞并
+    const parts: string[] = [];
+    let last = i;
+    for (let j = i + 1; j < cleaned.length; j++) {
+      const next = cleaned[j]!;
+      if (stopsContinuation(next)) break;
+      parts.push(next);
+      last = j;
+    }
+    i = last;
+    if (parts.length > 0) {
+      voiceLines.push({ scene: currentSceneId, kind: isOS ? "os" : "dialogue", speech: parts.join("\n") });
+    }
+  }
+  return voiceLines;
 }
 
 /** 指标文本化:首行=父 I5 标题;审核 prompt 注入与 UI 共用同一输出。 */
