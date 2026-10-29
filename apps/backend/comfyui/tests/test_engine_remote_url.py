@@ -257,6 +257,68 @@ def test_history_collect_core_savevideo_mp4_in_images_key_routes_to_videos():
 
 def test_history_collect_pending_and_error_shapes_unchanged():
     assert _history_collect({}, "missing") == ("pending", [], [], [], [])
-    bad = {"p": {"status": {"status_str": "error", "messages": "boom"}}}
+    bad = {"p": {"status": {"status_str": "error"}, "messages": "boom"}}
     with pytest.raises(Exception, match="ComfyUI 执行失败"):
         _history_collect(bad, "p")
+
+
+# ── 6. generate() 引擎前置门(10-29 D1 收账·H3 盲投修复) ──────────
+# 最终 base 非本机=远端模式:ensure_engine_ready 零调用,改远端可达探测
+# (GET {base}/system_stats 经 comfyui_bridge._http_json 可 mock 层);探测
+# 2xx=可达放行,异常/非 2xx→fail-fast『远端引擎不可达: {base}』。全程 mock,
+# 零真实网络(评审:探测之外还须罩住 :423-425 的 resolve_big_files)。
+
+def _spy_engine_manager(monkeypatch):
+    ensure_calls: list[str] = []
+
+    class _SpyManager:
+        def ensure_engine_ready(self):
+            ensure_calls.append("ensure")
+            raise AssertionError("远端模式不得拉本地引擎")
+
+    monkeypatch.setattr(em, "engine_manager", lambda: _SpyManager())
+    return ensure_calls
+
+
+def test_generate_remote_settings_skips_local_launch_and_probes(tmp_home, monkeypatch):
+    """settings 指远端:ensure 零调用;探测 GET {远端}/system_stats 恰一次;
+    放行后走 resolve_big_files(mock 返回 None→既有『没在运行』收口,证明
+    已越过门且未再触网)。"""
+    _write_remote(tmp_home, "http://192.168.0.101:17000")
+    ensure_calls = _spy_engine_manager(monkeypatch)
+    probes: list[tuple[str, str]] = []
+
+    def fake_http_json(method, url, payload=None, timeout=2):
+        probes.append((method, url))
+        return {"comfyui_version": "remote-fake"}
+
+    monkeypatch.setattr(comfyui_bridge, "_http_json", fake_http_json)
+    monkeypatch.setattr(comfyui_bridge, "resolve_big_files", lambda *args, **kwargs: None)
+
+    from image_gen.pipeline import PipelineError
+
+    with pytest.raises(PipelineError, match="没在运行"):
+        comfyui_bridge.generate("一只猫", "1:1", None, 8, None)
+    assert ensure_calls == []
+    assert probes == [("GET", "http://192.168.0.101:17000/system_stats")]
+
+
+def test_generate_remote_settings_unreachable_fail_fast(tmp_home, monkeypatch):
+    """探测异常(连接拒绝/超时/非 2xx 同经 _http_json 上抛)→fail-fast
+    『远端引擎不可达: {base}』,不落回拉本地引擎。"""
+    _write_remote(tmp_home, "http://192.168.0.101:17000")
+    ensure_calls = _spy_engine_manager(monkeypatch)
+    probes: list[tuple[str, str]] = []
+
+    def refused_http_json(method, url, payload=None, timeout=2):
+        probes.append((method, url))
+        raise comfyui_bridge._pipeline_error("bridge-unreachable", f"ComfyUI 引擎不可达({url})")
+
+    monkeypatch.setattr(comfyui_bridge, "_http_json", refused_http_json)
+
+    from image_gen.pipeline import PipelineError
+
+    with pytest.raises(PipelineError, match="远端引擎不可达: http://192.168.0.101:17000"):
+        comfyui_bridge.generate("一只猫", "1:1", None, 8, None)
+    assert ensure_calls == []
+    assert probes == [("GET", "http://192.168.0.101:17000/system_stats")]

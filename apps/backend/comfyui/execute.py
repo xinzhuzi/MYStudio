@@ -339,14 +339,44 @@ def resolve_execute_timeout_s(payload: dict[str, Any]) -> float:
     return min(value, MAX_EXECUTE_TIMEOUT_S)
 
 
+LOCAL_ENGINE_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def _is_local_base(base: str) -> bool:
+    """base 是否本机引擎(resolve_upload_timeout_s 同款本机判定,单源抽出)。"""
+    host = (parse.urlparse(base).hostname or "").lower()
+    return host in LOCAL_ENGINE_HOSTS
+
+
 def resolve_upload_timeout_s(base: str) -> float:
     """上传超时按引擎 base 定档(纯函数,单测覆盖;10-29 T10②/G10)。
 
     本机(127.0.0.1/localhost/::1)=30s 保持存量快超时;其余(远端 LAN)
     =90s。base 由调用方解析传入(与 T8 的 base 固定化同源)。
     """
-    host = (parse.urlparse(base).hostname or "").lower()
-    return UPLOAD_TIMEOUT_LOCAL_S if host in ("127.0.0.1", "localhost", "::1") else UPLOAD_TIMEOUT_REMOTE_S
+    return UPLOAD_TIMEOUT_LOCAL_S if _is_local_base(base) else UPLOAD_TIMEOUT_REMOTE_S
+
+
+def _ensure_engine_for_base(base: str) -> None:
+    """引擎前置门(10-29 D1 收账·H3 盲投修复后端层)。
+
+    最终 base 非本机=远端模式——不拉本地引擎(无条件 ensure_engine_ready 会
+    在 App 已路由远端时盲目拉起本机 37.5GB 实例),改远端可达探测
+    (GET {base}/system_stats 经 _http_json 可 mock 层,先例桥层
+    resolve_big_files;2xx=可达,异常/非 2xx→fail-fast)。本机=保持存量
+    按需启动零变化(settings 指本机 URL 是其子集,同走本机分支)。
+    """
+    if _is_local_base(base):
+        from comfyui import engine_manager as _em
+        _em.engine_manager().ensure_engine_ready()
+        return
+    try:
+        _http_json("GET", f"{base}/system_stats", timeout=10)
+    except Exception as exc:
+        raise EngineOpError(
+            f"远端引擎不可达: {base}——请检查对端引擎是否已启动/网络可达,"
+            "或到 设置→本地配置 清除远端地址恢复本地引擎"
+        ) from exc
 
 
 # ── job 化执行入口 ─────────────────────────────────────────────────
@@ -356,9 +386,9 @@ def execute_job(payload: dict[str, Any]) -> str:
     graph, strings, images = validate_execute_request(payload)
     timeout_s = resolve_execute_timeout_s(payload)
     extra_png_info = validate_extra_png_info(payload)
-    # 按需启动(09-08 补口):工作流节点/子图运行前,引擎装了没跑→先拉起
-    from comfyui import engine_manager as _em
-    _em.engine_manager().ensure_engine_ready()
+    # 引擎前置门(10-29 D1 收账·H3 盲投修复):最终 base 非本机=远端模式,
+    # 不拉本地引擎改远端可达探测;本机=存量按需启动(09-08 补口)零变化。
+    _ensure_engine_for_base(_engine_url())
     job_id = jobs.create("comfy-execute", "准备执行 ComfyUI 工作流")
     jobs.start(job_id, lambda jid: _execute_target(jid, graph, strings, images, timeout_s, extra_png_info))
     return job_id

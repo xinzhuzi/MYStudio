@@ -399,6 +399,13 @@ def _history_output(history: dict[str, Any], prompt_id: str) -> tuple[str, dict[
     return "success", None
 
 
+def _is_local_engine_base(base: str) -> bool:
+    """base 是否本机引擎(comfyui.execute._is_local_base 同款判定:
+    127.0.0.1/localhost/::1;跨包不复用私有名,语义单源见 execute.py)。"""
+    host = (parse.urlparse(base).hostname or "").lower()
+    return host in ("127.0.0.1", "localhost", "::1")
+
+
 def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps: int, seed: int | None, reference_b64: str | None = None, **ctx: Any) -> str:
     from image_gen.pipeline import is_generation_cancelled
 
@@ -413,12 +420,26 @@ def generate(prompt: str, aspect_ratio: str, negative_prompt: str | None, steps:
         raise _pipeline_error("generation-cancelled", "已停止")
 
     check_cancelled()
-    # 按需启动(09-08 补口):自管引擎装了没跑→先拉起再生成;未装则回落 17598
-    from comfyui import engine_manager as _em
-    try:
-        _em.engine_manager().ensure_engine_ready()
-    except _em.EngineOpError as exc:
-        raise _pipeline_error("engine-start-failed", str(exc)) from exc
+    # 引擎前置门(10-29 D1 收账·H3 盲投修复):最终 base 非本机=远端模式——
+    # 不拉本地引擎,改远端可达探测(GET {base}/system_stats 经 _http_json 可
+    # mock 层,先例 resolve_big_files;2xx=可达,异常/非 2xx→fail-fast);
+    # 本机=存量按需启动(09-08 补口)零变化,未装则回落 17598。
+    gate_base = bridge_url()
+    if _is_local_engine_base(gate_base):
+        from comfyui import engine_manager as _em
+        try:
+            _em.engine_manager().ensure_engine_ready()
+        except _em.EngineOpError as exc:
+            raise _pipeline_error("engine-start-failed", str(exc)) from exc
+    else:
+        try:
+            _http_json("GET", f"{gate_base}/system_stats")
+        except Exception as exc:
+            raise _pipeline_error(
+                "bridge-unreachable",
+                f"远端引擎不可达: {gate_base}——请检查对端引擎是否已启动/网络可达,"
+                "或到 设置→本地配置 清除远端地址恢复本地引擎",
+            ) from exc
     check_cancelled()
     stats = resolve_big_files()
     if not stats:

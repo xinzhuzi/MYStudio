@@ -561,6 +561,124 @@ class TestExecuteBasePinning:
             engine_b.close()
 
 
+class TestRemoteEngineGate:
+    """引擎前置门(10-29 D1 收账·H3 盲投修复后端层):最终 base 非本机=远端
+    模式——execute_job 不得拉本地引擎(ensure_engine_ready 零调用),改远端可达
+    探测(GET {base}/system_stats);本机=存量按需启动零变化。
+
+    全程 mock 边界(评审钉死):ensure 用 spy(被调即记录,门分支错则炸);
+    _http_json 统一拦截探测与 job 全部网络(POST /prompt、轮询),带图时
+    _upload_image 同步 mock——job 线程零真实网络(LAN 上存活的 Windows 引擎
+    不得被打)。"""
+
+    def _spy_engine_manager(self, monkeypatch):
+        from comfyui import engine_manager as em
+
+        calls: list[str] = []
+
+        class _SpyManager:
+            def ensure_engine_ready(self):
+                calls.append("ensure")
+                raise AssertionError("远端模式不得拉本地引擎")
+
+        monkeypatch.setattr(em, "engine_manager", lambda: _SpyManager())
+        return calls
+
+    def test_remote_base_skips_local_launch_probes_and_submits_remote(self, monkeypatch):
+        """_engine_url 指远端:ensure 零调用;GET {远端}/system_stats 探测恰一次;
+        提交/上传全打远端 base(POST /prompt 前缀==远端)。"""
+        remote = "http://192.168.0.101:17000"
+        monkeypatch.setattr(comfy_execute, "_engine_url", lambda: remote)
+        ensure_calls = self._spy_engine_manager(monkeypatch)
+        http_calls: list[tuple[str, str]] = []
+        prompt_bodies: list[dict] = []
+        uploads: list[tuple[str, float, str | None]] = []
+
+        def fake_http_json(method, url, payload=None, timeout=10):
+            http_calls.append((method, url))
+            if method == "GET" and url == f"{remote}/system_stats":
+                return {"comfyui_version": "remote-fake"}
+            if method == "POST" and url == f"{remote}/prompt":
+                prompt_bodies.append(payload)
+                return {"prompt_id": "p-remote"}
+            if method == "GET" and url == f"{remote}/history/p-remote":
+                # 文本输出即成功:绕开 /view 取产物(那不走 _http_json,防真网)
+                return {"p-remote": {"status": {"status_str": "success"}, "outputs": {"14": {"text": ["ok"]}}}}
+            raise AssertionError(f"意外网络调用: {method} {url}")
+
+        monkeypatch.setattr(comfy_execute, "_http_json", fake_http_json)
+
+        def fake_upload(image_b64, filename, timeout=90, base=None):
+            uploads.append((filename, timeout, base))
+            return "uploaded-1.png"
+
+        monkeypatch.setattr(comfy_execute, "_upload_image", fake_upload)
+
+        job_id = comfy_execute.execute_job({
+            "graph": _graph_fixture(),
+            "inputs": {"images": [{"key": "10.image", "name": "in.png", "b64": PNG_B64}]},
+        })
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        assert ensure_calls == []  # (a) ensure_engine_ready 零调用
+        assert http_calls.count(("GET", f"{remote}/system_stats")) == 1  # (b) 探测恰一次
+        # (c) 提交打远端 base,且是唯一的 /prompt
+        assert [u for m, u in http_calls if u.endswith("/prompt")] == [f"{remote}/prompt"]
+        assert prompt_bodies[0]["prompt"]["10"]["inputs"]["image"] == "uploaded-1.png"
+        # 上传同打远端(90s 远端档;base 全程传入)
+        assert uploads == [("in.png", comfy_execute.UPLOAD_TIMEOUT_REMOTE_S, remote)]
+
+    def test_env_override_remote_base_skips_local_launch_and_fail_fast(self, tmp_path, monkeypatch):
+        """settings 空 + MYSTUDIO_COMFYUI_BRIDGE_URL 指远端(bridge_url env 覆写
+        分支):ensure 零调用;探测不可达→fail-fast『远端引擎不可达: {base}』。"""
+        monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path))  # settings 空(无 remote-engine.json)
+        monkeypatch.setenv("MYSTUDIO_COMFYUI_BRIDGE_URL", "http://192.168.0.102:17000")
+        ensure_calls = self._spy_engine_manager(monkeypatch)
+        probes: list[tuple[str, str]] = []
+
+        def refused_http_json(method, url, payload=None, timeout=10):
+            probes.append((method, url))
+            raise EngineOpError(f"ComfyUI 引擎不可达({url})")
+
+        monkeypatch.setattr(comfy_execute, "_http_json", refused_http_json)
+        with pytest.raises(EngineOpError, match="远端引擎不可达: http://192.168.0.102:17000"):
+            comfy_execute.execute_job({"graph": _graph_fixture(), "inputs": {}})
+        assert ensure_calls == []
+        assert probes == [("GET", "http://192.168.0.102:17000/system_stats")]
+
+    def test_settings_pointing_local_fake_engine_keeps_on_demand_launch(self, tmp_path, monkeypatch):
+        """路由真源:remote-engine.json={url:fake.url}→不 monkeypatch _engine_url,
+        bridge_url 经 settings 解析;base 本机(127.0.0.1:port)→门走存量 ensure
+        分支恰一次(本机按需启动语义钉死,兼反向用例;不 mock 则隔离性取决于
+        本机引擎瞬时状态——正是本门要防的事),提交写什么打什么落 fake 引擎。"""
+        fake = FakeComfyEngine().start()
+        try:
+            monkeypatch.setenv("MYSTUDIO_COMFYUI_HOME", str(tmp_path))
+            (tmp_path / "remote-engine.json").write_text(json.dumps({"url": fake.url}), encoding="utf-8")
+            from comfyui import engine_manager as em
+
+            ensure_calls: list[str] = []
+
+            class _CountingManager:
+                def ensure_engine_ready(self):
+                    ensure_calls.append("ensure")
+                    return True
+
+            monkeypatch.setattr(em, "engine_manager", lambda: _CountingManager())
+            fake.queue_success(images=("out-1.png",))
+            job_id = comfy_execute.execute_job({
+                "graph": _graph_fixture(),
+                "inputs": {"strings": {"6.text": "路由真源"}},
+            })
+            job = _wait_job_terminal(job_id)
+            assert job["status"] == "complete", job
+            assert ensure_calls == ["ensure"]  # 本机 base=存量按需启动恰一次
+            assert fake.prompts, "提交必须打到 settings 指向的 fake 引擎(写什么打什么)"
+            assert fake.prompts[0]["prompt"]["6"]["inputs"]["text"] == "路由真源"
+        finally:
+            fake.close()
+
+
 class TestResolveUploadTimeout:
     """T10②/G10:上传超时按 base 定档纯函数(本机 30s 存量/远端 90s)。"""
 
