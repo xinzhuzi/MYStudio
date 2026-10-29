@@ -154,3 +154,31 @@ class TestRestartConditional:
         result = manager.update_config({"argsString": "--fast"})
         assert result["restarted"] is False  # is_healthy 恒 False(测试旁路),但标记路径已走
         assert cm.engine_launch_args() == "--fast"
+
+
+class TestUpdateConfigAllowLan:
+    """1029 二次收口:allowLanListen 显式开关(--listen 0.0.0.0 的放行门)。"""
+
+    def test_allow_lan_saved_and_status_shape(self, manager):
+        result = manager.update_config({"allowLanListen": True})
+        assert result["allowLanListen"] is True
+        assert cm.engine_allow_lan_listen() is True
+
+    def test_allow_lan_off_roundtrip_and_default(self, manager):
+        # 缺省 fail-closed(账本无键=False);显式关掉回写 False
+        assert cm.engine_allow_lan_listen() is False
+        manager.update_config({"allowLanListen": True})
+        result = manager.update_config({"allowLanListen": False})
+        assert result["allowLanListen"] is False
+        assert cm.engine_allow_lan_listen() is False
+
+    def test_allow_lan_invalid_type_rejected(self, manager):
+        with pytest.raises(em.EngineOpError, match="允许局域网访问"):
+            manager.update_config({"allowLanListen": "yes"})
+
+    def test_allow_lan_change_marks_restart(self, manager):
+        # allowLanListen 属运行态(决定 0.0.0.0 能否过启动闸)→ 变化即标记重启
+        result = manager.update_config({"allowLanListen": True})
+        assert result["restarted"] is False  # is_healthy 恒 False(测试旁路),标记路径已走
+        same = manager.update_config({"allowLanListen": True})
+        assert same["restarted"] is False

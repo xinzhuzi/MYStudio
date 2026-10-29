@@ -99,6 +99,7 @@ function readyStatus(overrides: Partial<ComfyEngineStatus> = {}): ComfyEngineSta
     launchArgs: null,
     envVars: null,
     portConflictPolicy: null,
+    allowLanListen: false,
     ...overrides,
   };
 }
@@ -978,6 +979,35 @@ describe("ComfyEngineSettingsSection 标签页布局(照 ComfyUI Desktop)", () =
     await waitFor(
       () => expect(actions.setLaunchConfig).toHaveBeenCalledWith({ argsString: "--port 8188 --listen 0.0.0.0" }),
       { timeout: 2000 },
+    );
+  });
+
+  it("启动参数页:0.0.0.0 开关未开=拒启动警告;拨动「允许局域网访问」落账(1029 二次收口)", async () => {
+    scenario.status = readyStatus({ launchArgs: "--listen 0.0.0.0 --fast" });
+    render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("tab", "launch"));
+    // 开关未开:警告指向开关(后端启动闸将拒 0.0.0.0)
+    await waitFor(() =>
+      expect(comfyEl("args-warning", "danger")?.textContent).toContain("需先打开下方「允许局域网访问」开关"),
+    );
+    // 开关行在场;拨动即单独落账(不裹挟串)
+    const lanRow = document.querySelector("[data-comfy-allow-lan-row]");
+    expect(lanRow).toBeTruthy();
+    const toggle = lanRow?.querySelector("button[role='switch']") as HTMLElement;
+    fireEvent.click(toggle);
+    await waitFor(() => expect(actions.setLaunchConfig).toHaveBeenCalledWith({ allowLanListen: true }));
+  });
+
+  it("启动参数页:开关已开时 0.0.0.0 警告转为暴露提醒", async () => {
+    scenario.status = readyStatus({ launchArgs: "--listen 0.0.0.0 --fast", allowLanListen: true });
+    render(<ComfyEngineSettingsSection />);
+    fireEvent.click(comfyEl("tab", "update"));
+    await waitFor(() => expect(screen.getByText("当前版本")).toBeTruthy());
+    fireEvent.click(comfyEl("tab", "launch"));
+    await waitFor(() =>
+      expect(comfyEl("args-warning", "danger")?.textContent).toContain("暴露给局域网所有设备"),
     );
   });
 

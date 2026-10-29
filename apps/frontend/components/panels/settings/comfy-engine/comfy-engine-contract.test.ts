@@ -36,6 +36,7 @@ function status(overrides: Partial<ComfyEngineStatus>): ComfyEngineStatus {
     launchArgs: null,
     envVars: null,
     portConflictPolicy: null,
+    allowLanListen: false,
     ...overrides,
   };
 }

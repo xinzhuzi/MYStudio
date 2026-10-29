@@ -99,6 +99,7 @@ function notInstalledStatus(): ComfyEngineStatus {
     launchArgs: null,
     envVars: null,
     portConflictPolicy: null,
+    allowLanListen: false,
   };
 }
 
@@ -534,10 +535,11 @@ export function createMockComfyEngineClient(
       return [];
     },
 
-    async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail" }): Promise<{ accepted: boolean; message?: string }> {
+    async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail"; allowLanListen?: boolean }): Promise<{ accepted: boolean; message?: string }> {
       if (config.argsString != null) status = { ...status, launchArgs: config.argsString };
       if (config.envVars != null) status = { ...status, envVars: config.envVars };
       if (config.portConflictPolicy != null) status = { ...status, portConflictPolicy: config.portConflictPolicy };
+      if (config.allowLanListen != null) status = { ...status, allowLanListen: config.allowLanListen };
       return { accepted: true };
     },
     async getBridgeWritebacks(): Promise<ComfyBridgeWritebacksReply | null> {

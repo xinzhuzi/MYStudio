@@ -82,6 +82,8 @@ export interface ComfyEngineStatus {
   envVars: Record<string, string> | null;
   /** 端口冲突策略:串写死的端口被占时顺延(fail)或报错;非命令行参数。 */
   portConflictPolicy: "auto-shift" | "fail" | null;
+  /** 允许局域网访问(1029 二次收口):--listen 0.0.0.0 的显式授权开关;缺省关。 */
+  allowLanListen: boolean | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -341,11 +343,12 @@ export interface ComfyEngineClient {
   cleanOrphans(): Promise<{ removed: string[]; message?: string }>;
   /** 快照列表(装插件/更新引擎前自动打;列表+一键回滚,design 映射表「快照页→搬并强化」)。 */
   listSnapshots(): Promise<ComfySnapshotEntry[]>;
-  /** 修改启动配置(命令行串/环境变量表/端口冲突策略;语法错由后端拒存,重启引擎生效)。 */
+  /** 修改启动配置(命令行串/环境变量表/端口冲突策略/局域网开关;语法错由后端拒存,重启引擎生效)。 */
   setLaunchConfig(config: {
     argsString?: string;
     envVars?: Record<string, string>;
     portConflictPolicy?: "auto-shift" | "fail";
+    allowLanListen?: boolean;
   }): Promise<ComfyEngineAckReply>;
   /** bridge 回写收件箱(09-09 swap 阶段1):my_generated 落 sidecar 的成图项。 */
   getBridgeWritebacks(cursor: number): Promise<ComfyBridgeWritebacksReply | null>;
@@ -634,10 +637,14 @@ export interface LaunchArgsWarning {
   text: string;
 }
 
-/** 行内警告:大众端口/特权端口黄字;--listen 0.0.0.0 红字(放行,仅提醒)。 */
-export function launchArgsWarnings(input: string): LaunchArgsWarning[] {
+/** 行内警告:大众端口/特权端口黄字;--listen 0.0.0.0 按开关分两态
+ * (1029 二次收口:开关未开=保存即拒启动的红字;已开=暴露提醒红字)。 */
+export function launchArgsWarnings(input: string, allowLan?: boolean): LaunchArgsWarning[] {
   const { ok, tokens } = tokenizeArgsString(input);
   if (!ok) return [];
+  const lanWarning = allowLan
+    ? { level: "danger" as const, text: "监听 0.0.0.0 会把引擎暴露给局域网所有设备,注意安全" }
+    : { level: "danger" as const, text: "监听 0.0.0.0 需先打开下方「允许局域网访问」开关,否则引擎将拒绝启动" };
   const warnings: LaunchArgsWarning[] = [];
   tokens.forEach((token, index) => {
     const value = token.startsWith("--port=") ? token.slice("--port=".length) : null;
@@ -655,13 +662,13 @@ export function launchArgsWarnings(input: string): LaunchArgsWarning[] {
     if (token === "--listen") {
       const listen = tokens[index + 1];
       if (listen === "0.0.0.0" || listen === "::") {
-        warnings.push({ level: "danger", text: "监听 0.0.0.0 会把引擎暴露给局域网所有设备,注意安全" });
+        warnings.push(lanWarning);
       }
     }
     if (token.startsWith("--listen=")) {
       const listen = token.slice("--listen=".length);
       if (listen === "0.0.0.0" || listen === "::") {
-        warnings.push({ level: "danger", text: "监听 0.0.0.0 会把引擎暴露给局域网所有设备,注意安全" });
+        warnings.push(lanWarning);
       }
     }
   });

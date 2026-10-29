@@ -207,6 +207,7 @@ interface SidecarEngineStatusReply {
   launchArgs?: string | null; // 09-10 Desktop 化:命令行整串(后端旧 dict 已读侧迁移)
   envVars?: Record<string, string> | null;
   portConflictPolicy?: "auto-shift" | "fail" | null;
+  allowLanListen?: boolean | null; // 1029 二次收口:--listen 0.0.0.0 显式授权开关(老侧车无此键)
   running?: boolean;
   port?: number | null;
   modelsDir?: string | null;
@@ -310,6 +311,7 @@ export function mapEngineStatus(raw: SidecarEngineStatusReply): ComfyEngineStatu
           ) as Record<string, string>)
         : null,
     portConflictPolicy: raw.portConflictPolicy === "fail" ? "fail" : raw.portConflictPolicy === "auto-shift" ? "auto-shift" : null,
+    allowLanListen: raw.allowLanListen === true,
   };
 }
 
@@ -634,7 +636,7 @@ export function createHttpComfyEngineClient(): ComfyEngineClient {
       }
     },
 
-    async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail" }): Promise<ComfyEngineAckReply> {
+    async setLaunchConfig(config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail"; allowLanListen?: boolean }): Promise<ComfyEngineAckReply> {
       // 引擎运行中此保存会触发同步重启(stop 15s+健康等待 120s),超时须盖过重启窗口(深审 W1)
       return comfySidecarRequest<ComfyEngineAckReply>("POST", "/comfy/engine/config", {
         body: config,

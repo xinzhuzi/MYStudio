@@ -444,11 +444,15 @@ def managed_comfy_api_base() -> str | None:
     return (os.environ.get(MANAGED_COMFY_API_BASE_ENV) or "").strip() or None
 
 
-# --listen 地址白名单(0924 安全收口 M4 立;1029 用户裁定修订):
-# ComfyUI 引擎是公开 API 服务,端口按裁定对局域网开放(双机互调/他人可调);
-# 后端 py(sidecar 17595 系)恒本机回环不在此列。0.0.0.0 自 1029 起放行,
-# 其余非环回取值(具体 IP/::)仍拒绝。
-LISTEN_ALLOWED_ADDRESSES = frozenset({"127.0.0.1", "localhost", "0.0.0.0"})
+# --listen 地址白名单(0924 安全收口 M4 立;1029 用户裁定修订;1029 二次收口):
+# ComfyUI 引擎是公开 API 服务,0.0.0.0 属「对局域网显式授权」——须 manifest
+# engine.allowLanListen=true(设置页「允许局域网访问」开关)才放行,缺省
+# fail-closed;127.0.0.1/localhost 恒放行;具体 IP/:: 恒拒绝。
+# 后端 py(sidecar 17595 系)恒本机回环不在此列。engine_task.py 开机自启路径
+# 自带 LAN 语义(1029 双机互调基建),不经本闸。
+LISTEN_LOOPBACK_ADDRESSES = frozenset({"127.0.0.1", "localhost"})
+LISTEN_LAN_WILDCARD = "0.0.0.0"
+LISTEN_ALLOWED_ADDRESSES = LISTEN_LOOPBACK_ADDRESSES | {LISTEN_LAN_WILDCARD}
 # 兼容别名(0924-1029 间外部语义名)
 LISTEN_LOOPBACK_WHITELIST = LISTEN_ALLOWED_ADDRESSES
 
@@ -459,12 +463,14 @@ def build_launch_args(
     script: str = "main.py",
     input_dir: str | None = None,
     output_dir: str | None = None,
+    allow_lan: bool = False,
 ) -> list[str]:
     """启动参数串 → 实际 argv(Desktop 式:串=唯一真源)。
 
-    --listen 未写补托管默认 127.0.0.1;已写则须命中地址白名单
-    (LISTEN_ALLOWED_ADDRESSES:127.0.0.1/localhost/0.0.0.0——1029 用户裁定引擎
-    端口可对局域网开放;具体 IP/:: 仍抛 EngineOpError);--port 一律用调用方传入的决议口
+    --listen 未写补托管默认 127.0.0.1;已写则须命中地址白名单,其中 0.0.0.0
+    另须 allow_lan=True(manifest engine.allowLanListen=设置页「允许局域网访问」
+    开关,缺省 fail-closed;1029 双机互调须显式开启);具体 IP/:: 恒抛
+    EngineOpError;--port 一律用调用方传入的决议口
     (resolve_launch_port 已消费串口:空闲即串口,被占按策略顺延)。此处若再
     让串口压决议口,引擎实际口与账本/健康检查口分叉——09-11 实弹红条根因
     (账本记顺延口 17000、引擎实际绑串口 17598,健康检查两头不挨)。
@@ -481,6 +487,12 @@ def build_launch_args(
         raise EngineOpError(
             f"--listen 取值被拒绝:{listen}(仅允许 127.0.0.1/localhost/0.0.0.0;"
             "1029 裁定引擎端口可对局域网开放;具体 IP/:: 等取值仍禁)"
+        )
+    if listen == LISTEN_LAN_WILDCARD and not allow_lan:
+        raise EngineOpError(
+            "--listen 0.0.0.0 需先在「设置 → 引擎 → 启动参数」开启"
+            "「允许局域网访问」开关(引擎为公开 API 服务,对局域网开放属显式授权;"
+            "1029 双机互调场景请开启本开关后重启引擎)"
         )
     args = [script]
     args += ["--listen", listen or "127.0.0.1"]
@@ -1390,6 +1402,7 @@ class EngineManager:
             "launchArgs": cm.engine_launch_args(manifest),
             "envVars": cm.engine_env_vars(manifest),
             "portConflictPolicy": cm.engine_port_conflict_policy(manifest),
+            "allowLanListen": cm.engine_allow_lan_listen(manifest),
             "torch": engine.get("torch"),
             "nodeCount": self._last_node_count,
             # 只读世代锚(blank-gate-1024 §6):epoch 毫秒,None=未管理/外部回落;
@@ -1969,6 +1982,7 @@ class EngineManager:
                 cm.engine_launch_args(), port, script=str(src / "main.py"),
                 input_dir=str(cm.configured_input_dir()) if cm.load_manifest().get("inputDir") else None,
                 output_dir=str(cm.configured_output_dir()) if cm.load_manifest().get("outputDir") else None,
+                allow_lan=cm.engine_allow_lan_listen(),
             )]
             _write_extra_model_paths(cm.configured_models_dir())
             cm.engine_log_path().parent.mkdir(parents=True, exist_ok=True)
@@ -2652,12 +2666,15 @@ class EngineManager:
         legacy_launch = payload.get("launchArgs") if isinstance(payload.get("launchArgs"), dict) else None
         env_vars = payload.get("envVars")
         policy = payload.get("portConflictPolicy")
+        allow_lan = payload.get("allowLanListen")
         if args_string is not None:
             if not isinstance(args_string, str):
                 raise EngineOpError("启动参数必须是文本")
             parse_launch_args_string(args_string)  # 语法校验,坏串抛大白话错
         if legacy_launch is not None and args_string is None:
             args_string = cm.legacy_launch_flags(legacy_launch)
+        if allow_lan is not None and not isinstance(allow_lan, bool):
+            raise EngineOpError("允许局域网访问取值无效(须为开/关)")
         if env_vars is not None:
             if not isinstance(env_vars, dict) or not all(
                 isinstance(k, str) and isinstance(v, str) and k and _ENV_KEY_RE.match(k)
@@ -2685,15 +2702,19 @@ class EngineManager:
                 manifest["engine"]["envVars"] = env_vars
             if policy is not None:
                 manifest["engine"]["portConflictPolicy"] = policy
+            if allow_lan is not None:
+                manifest["engine"]["allowLanListen"] = allow_lan
 
         # 深审 W1:仅运行态相关配置(modelsDir/串/环境表)变化才重启;policy 只在
         # 下次启动生效,单独改它不重启(此前无谓重启+前端 15s 超时假错)。
+        # allowLanListen 属运行态(直接决定 0.0.0.0 能否通过启动闸),随批重启。
         def _changed(manifest: dict) -> bool:
             engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
             return (
                 (models_dir is not None)
                 or (args_string is not None and engine.get("launchArgs") != args_string)
                 or (env_vars is not None and engine.get("envVars") != env_vars)
+                or (allow_lan is not None and engine.get("allowLanListen") != allow_lan)
             )
 
         restart_needed = False

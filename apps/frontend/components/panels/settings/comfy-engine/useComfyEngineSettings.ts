@@ -480,7 +480,7 @@ export function useComfyEngineSettings(options: UseComfyEngineSettingsOptions = 
 
   // 启动配置(09-10 Desktop 化):命令行串/环境变量/端口策略落账,重启引擎后生效
   const setLaunchConfig = useCallback(
-    async (config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail" }) => {
+    async (config: { argsString?: string; envVars?: Record<string, string>; portConflictPolicy?: "auto-shift" | "fail"; allowLanListen?: boolean }) => {
       if (!client) return;
       try {
         const reply = await client.setLaunchConfig(config);

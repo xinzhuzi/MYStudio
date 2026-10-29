@@ -370,6 +370,16 @@ def engine_port_conflict_policy(manifest: dict | None = None) -> str:
     return policy if policy in ("auto-shift", "fail") else "auto-shift"
 
 
+def engine_allow_lan_listen(manifest: dict | None = None) -> bool:
+    """允许局域网访问(1029 二次收口):--listen 0.0.0.0 的显式授权开关。
+
+    缺省 False(fail-closed);engine_task.py 开机自启路径自带 LAN 语义,
+    不读本键。写入走 update_config 的 allowLanListen(设置页开关)。"""
+    manifest = manifest if manifest is not None else load_manifest()
+    engine = manifest.get("engine") if isinstance(manifest.get("engine"), dict) else {}
+    return engine.get("allowLanListen") is True
+
+
 def core_dep_names(manifest: dict | None = None) -> set[str]:
     """核心层依赖包名(引擎装完时记账)——插件卸载的引用计数不得清理核心层。"""
     manifest = manifest if manifest is not None else load_manifest()

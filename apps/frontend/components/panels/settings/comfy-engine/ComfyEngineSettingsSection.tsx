@@ -48,6 +48,7 @@ import {
 } from "./comfy-engine-contract";
 import { ComfyEnginePluginBlock } from "./ComfyEnginePluginBlock";
 import { ComfyEngineStoragePaths } from "./ComfyEngineStoragePaths";
+import { Switch } from "@/components/ui/switch";
 import { useComfyEngineSettings } from "./useComfyEngineSettings";
 
 /** 引擎卡标签页。「模型」为默认页(09-09 用户裁定:本地大模型展示并入引擎卡;
@@ -269,7 +270,8 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
       value,
     }));
   const argsTokenize = tokenizeArgsString(effectiveArgs);
-  const argWarnings = launchArgsWarnings(effectiveArgs);
+  // 1029 二次收口:0.0.0.0 警告分两态(未开开关=将拒启动;已开=暴露提醒)
+  const argWarnings = launchArgsWarnings(effectiveArgs, status?.allowLanListen ?? false);
 
   // 防抖即存(Desktop 式;语法错不存;与落账值相同不存)
   const saveConfigRef = useRef(engine.setLaunchConfig);
@@ -637,6 +639,24 @@ export function ComfyEngineSettingsSection({ embedded = false, initialActiveTab 
                 <p className="text-[11px] text-muted-foreground">
                   整串原样透传给引擎;未写 --port 时自动分配冷门端口。改动自动保存,引擎运行中会自动重启生效。
                 </p>
+              </div>
+
+              {/* 允许局域网访问(1029 二次收口):--listen 0.0.0.0 的显式授权开关,
+                  未开时后端启动闸拒绝;双机互调(Mac↔Windows)场景打开本开关 */}
+              <div className="flex items-center justify-between gap-3" data-comfy-allow-lan-row>
+                <div className="min-w-0">
+                  <span className="text-xs text-muted-foreground">允许局域网访问</span>
+                  <p className="text-[11px] text-muted-foreground">
+                    --listen 0.0.0.0 的授权开关:未开时引擎拒绝该参数;开启后局域网内其他设备可直接调用引擎(注意安全)。双机互调场景需要打开。
+                  </p>
+                </div>
+                <Switch
+                  aria-label="允许局域网访问"
+                  checked={status?.allowLanListen ?? false}
+                  onCheckedChange={(checked) =>
+                    void engine.setLaunchConfig({ allowLanListen: checked })
+                  }
+                />
               </div>
 
               {/* 端口冲突策略=托管旋钮,不在串中,零重复故保留 */}
