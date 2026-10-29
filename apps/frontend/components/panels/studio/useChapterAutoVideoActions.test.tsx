@@ -1,3 +1,4 @@
+import * as roleAudio from "@/components/panels/assets/role-audio-auto-assign";
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { toast } from "sonner";
@@ -390,7 +391,7 @@ describe("useChapterAutoVideoActions", () => {
     );
   });
 
-  it("binds TTS to the captured project/chapter and persists job plus canonical voice binding", async () => {
+  it("threads ordered fixed profiles and keeps one final voice binding with SFX", async () => {
     const item = {
       id: "sb-chapter-001-001",
       episodeId: "chapter-001",
@@ -405,8 +406,10 @@ describe("useChapterAutoVideoActions", () => {
       outputVersion: 3,
       speaker: "旁白",
       speakerId: "narrator",
-      line: "雨落。",
-      ttsSpokenText: "雨落。",
+      line: "雨落。\n借灯。",
+      lines: "旁白：雨落。\n独孤剑尘：借灯。",
+      ttsSpokenText: "雨落。 借灯。",
+      speechUtterances: [{ speaker: "旁白", speakerId: "narrator", text: "雨落。" }, { speaker: "独孤剑尘", speakerId: "character:dugu", text: "借灯。" }],
       durationTarget: 2,
       emotion: "克制",
       voiceStyle: "克制",
@@ -457,6 +460,7 @@ describe("useChapterAutoVideoActions", () => {
       const generated = await input.dependencies.generateAudio(
         item,
         { id: "profile-1" } as VoiceProfile,
+        { narrator: { id: "profile-1" } as VoiceProfile, "character:dugu": { id: "profile-dugu" } as VoiceProfile },
       );
       input.dependencies.writeStoryboardAudio(item.id, generated);
       return { storyboards: 1, queueStatus: "queued", blockedShotIds: [] };
@@ -477,6 +481,8 @@ describe("useChapterAutoVideoActions", () => {
       projectId: "project-1",
       chapterId: "chapter-001",
       storyboard: item,
+      profiles: expect.objectContaining({ "character:dugu": expect.objectContaining({ id: "profile-dugu" }) }),
+      utteranceProfiles: [expect.objectContaining({ id: "profile-1" }), expect.objectContaining({ id: "profile-dugu" })],
     }));
     const written = useStudioStore.getState().storyboards[0];
     expect(written.ttsJob).toEqual(completedJob);
@@ -642,6 +648,62 @@ describe("useChapterAutoVideoActions", () => {
     expect(toast.error).toHaveBeenCalledWith("open failed");
   });
 
+  it.each([
+    { label: "192s table expands to 209.162708s", voiceUs: 26_762_708, director: "Daojie_xianxia", source: "第一章原文", partial: false, blocked: true },
+    { label: "exactly 195s including voice tail", voiceUs: 12_600_000, director: "Daojie_xianxia", source: "第一章原文", partial: false, blocked: false },
+    { label: "one microsecond over 195s", voiceUs: 12_600_001, director: "Daojie_xianxia", source: "第一章原文", partial: false, blocked: true },
+    { label: "nonfinite effective duration", voiceUs: Infinity, director: "Daojie_xianxia", source: "第一章原文", partial: false, blocked: true },
+    { label: "NaN effective duration", voiceUs: NaN, director: "Daojie_xianxia", source: "第一章原文", partial: false, blocked: true },
+    { label: "generic workflow", voiceUs: 26_762_708, director: "director-1", source: "第一章原文", partial: false, blocked: false },
+    { label: "blank source", voiceUs: 26_762_708, director: "Daojie_xianxia", source: " ", partial: false, blocked: false },
+    { label: "single shot repair", voiceUs: 26_762_708, director: "Daojie_xianxia", source: "第一章原文", partial: true, blocked: false },
+  ])("checks effective chapter duration before enqueue: $label", async ({ voiceUs, director, source, partial, blocked }) => {
+    const storyboards = Array.from({ length: 19 }, (_, index) => ({
+      id: `sb-chapter-001-${index + 1}`,
+      episodeId: "chapter-001",
+      index: index + 1,
+      trackKey: "001",
+      trackId: "",
+      duration: index === 18 ? 12 : 10,
+      durationTarget: index === 18 ? 12 : 10,
+      prompt: "雨夜码头",
+      videoDesc: "镜头推进",
+      assetIds: [],
+      state: "ready" as const,
+      ...(index === 0 ? { shotAudioBindings: [{ ...makeShotAudioBinding("voice"), durationUs: voiceUs }] } : {}),
+    }));
+    useStudioStore.setState({
+      workflowConfig: { ...initialStudioState.workflowConfig, directorManualId: director },
+      novelChapters: [{ id: "chapter-001", index: 1, title: "第一章", sourceText: source, importedAt: 1 }],
+    });
+    vi.mocked(selectShotFxMotions).mockResolvedValue({
+      motions: {}, addons: {}, grades: {}, atmospheres: {}, transitions: {}, sfxCategories: {}, registries: {}, source: "empty",
+    });
+    let enqueueError: unknown;
+    vi.mocked(runChapterAutoVideo).mockImplementationOnce(async ({ dependencies }) => {
+      await dependencies.enqueueRemotionShots({
+        projectId: "project-1",
+        chapterId: "chapter-001",
+        storyboards: partial ? [storyboards[0]] : storyboards,
+        allStoryboards: storyboards,
+      }).catch((error: unknown) => { enqueueError = error; });
+      return { storyboards: storyboards.length };
+    });
+    const { result } = renderHook(() => useChapterAutoVideoActions({
+      activeProjectId: "project-1", productionEpisodeId: "chapter-001", handleProductionNodeAction: vi.fn(),
+    }));
+    await act(async () => { await result.current.handleRunChapterAutoVideo(); });
+    if (blocked) {
+      expect(enqueueError).toBeInstanceOf(Error);
+      expect((enqueueError as Error).message).toContain("195秒");
+      expect(selectShotFxMotions).not.toHaveBeenCalled();
+    } else {
+      expect(selectShotFxMotions).toHaveBeenCalledOnce();
+      // Missing runtime is intentional: passing the duration gate must reach it.
+      expect((enqueueError as Error).message).toContain("runtime");
+    }
+  });
+
   it("feeds selectShotFxMotions the decision-side effective duration (D-1 单源)", async () => {
     const item = {
       id: "sb-chapter-001-001",
@@ -746,3 +808,22 @@ function scriptPlan() {
     derivedAssetPlan: [],
   };
 }
+
+
+it("selects fixed voices for every ordered identity, including a later character", async () => {
+  const character = { characterId: "dugu", name: "独孤剑尘", aliases: [] };
+  useStudioStore.setState({ entityExtractions: [{ id: "batch-1", episodeId: "chapter-001", characters: [character], scenes: [], props: [] }] });
+  Object.assign(window, { studioAssets: { list: vi.fn(async () => ({ items: [] })) }, ttsRuntime: { resolveReferenceAudioPath: vi.fn(async (p: string) => p) } });
+  const plan = vi.spyOn(roleAudio, "planFixedRoleVoices").mockRejectedValueOnce(new Error("stop-after-targets"));
+  vi.mocked(runChapterAutoVideo).mockImplementationOnce(async ({ dependencies }) => {
+    expect(dependencies.loadVoiceoverCharacters?.()).toEqual([character]);
+    await dependencies.ensureFixedVoiceProfiles([{ id: "s1", speakerId: "narrator", speechUtterances: [
+      { speaker: "旁白", speakerId: "narrator", text: "风起。" }, { speaker: "独孤剑尘", speakerId: "character:dugu", text: "借灯。" },
+    ] } as StoryboardItem]);
+    throw new Error("unreachable");
+  });
+  const { result } = renderHook(() => useChapterAutoVideoActions({ activeProjectId: "project-1", productionEpisodeId: "chapter-001", handleProductionNodeAction: vi.fn() }));
+  await act(async () => { await result.current.handleRunChapterAutoVideo(); });
+  expect(plan).toHaveBeenCalledWith(expect.objectContaining({ targets: [expect.objectContaining({ speakerId: "narrator" }), expect.objectContaining({ speakerId: "character:dugu" })] }));
+  plan.mockRestore();
+});

@@ -1,8 +1,11 @@
+import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FixedVoiceTarget, RoleAudioAiMatchRequest, RoleAudioAiMatchResult, RoleImportance, assignAudioToRolesWithAi, buildRoleAudioAiMatchPrompt, buildRoleAudioCandidates, createNarratorVoiceTarget, parseRoleAudioAiMatchResult, planFixedRoleVoices } from "@/components/panels/assets/role-audio-auto-assign";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { ChapterAutoVideoStatus, ChapterTtsCancellationController, runChapterAutoVideo } from "@/lib/studio/chapter-auto-video";
+import { isDaojieAdaptation } from "@/lib/studio/daojie-generation-audit";
+import { DAOJIE_STRICT_DURATION_SECONDS } from "@/lib/studio/daojie-duration-policy";
 import { buildVideoWorkflowChapterRunRequest } from "@/lib/studio/video-workflow/chapter-run-request";
 import { buildRemotionShotPlans, storyboardEffectiveDurationUs } from "@/lib/studio/remotion/remotion-shot-plan-builder";
 import { DEFAULT_REMOTION_RENDER_SETTINGS } from "@/lib/studio/remotion/remotion-workspace-storage";
@@ -177,6 +180,7 @@ export function useChapterAutoVideoActions({
               .replaceStoryboardsForEpisode(episodeId, storyboards);
           },
           loadStoryboards: () => useStudioStore.getState().storyboards,
+          loadVoiceoverCharacters: () => useStudioStore.getState().entityExtractions.find(batch => batch.episodeId === episodeId)?.characters ?? [],
           loadContinuityAssetVersions: () => useStudioStore.getState().continuityAssetVersions,
           ensureFixedVoiceProfiles: async (storyboards) => {
             assertProjectStillActive();
@@ -199,7 +203,7 @@ export function useChapterAutoVideoActions({
             const speakerIds = [
               ...new Set(
                 storyboards
-                  .map((storyboard) => storyboard.speakerId)
+                  .flatMap((storyboard) => storyboard.mediaRef?.kind === "video" ? (externalNarratorSpokenText(storyboard.lines, storyboard.ttsSpokenText ?? "").trim() ? ["narrator" as const] : []) : storyboard.speechUtterances?.map(part => part.speakerId) ?? [storyboard.speakerId])
                   .filter((speakerId): speakerId is TtsSpeakerId => Boolean(speakerId)),
               ),
             ];
@@ -307,9 +311,9 @@ export function useChapterAutoVideoActions({
           },
           ttsConcurrency: 1, // 10-11 D7:生成类串行铁律辖 TTS(批B 落地)
           isTtsCanceled: (storyboardId) => ttsCancellation.isCanceled(storyboardId),
-          generateAudio: async (storyboard, profile) => {
+          generateAudio: async (storyboard, profile, profiles) => {
             let shotProfile = profile;
-            if (storyboard.speakerId === "narrator") {
+            if (storyboard.speakerId === "narrator" || storyboard.mediaRef?.kind === "video") {
               const family = await loadNarratorVoiceFamily();
               shotProfile = resolveNarratorShotProfile(profile, {
                 emotion: storyboard.emotion,
@@ -326,6 +330,14 @@ export function useChapterAutoVideoActions({
               chapterId: episodeId,
               storyboard,
               profile: shotProfile,
+              profiles,
+              utteranceProfiles: storyboard.mediaRef?.kind !== "video" && storyboard.speechUtterances ? await Promise.all(storyboard.speechUtterances.map(async (part) => {
+                const fixed = profiles?.[part.speakerId] ?? (part.speakerId === storyboard.speakerId ? profile : undefined);
+                if (!fixed) throw new Error(`speaker ${part.speakerId} 缺少固定 voice profile`);
+                return part.speakerId === "narrator"
+                  ? resolveNarratorShotProfile(fixed, { emotion: storyboard.emotion, text: part.text }, await loadNarratorVoiceFamily())
+                  : fixed;
+              })) : undefined,
               isCanceled: () => ttsCancellation.isCanceled(storyboard.id),
               onJob: (ttsJob) => {
                 assertProjectStillActive();
@@ -353,6 +365,17 @@ export function useChapterAutoVideoActions({
             });
           },
           enqueueRemotionShots: async ({ projectId, chapterId, storyboards, allStoryboards }) => {
+            const completeShotSet = !allStoryboards || sameShotSet(storyboards, allStoryboards);
+            const chapterStore = useStudioStore.getState();
+            const sourceText = chapterStore.novelChapters.find((chapter) => chapter.id === chapterId)?.sourceText;
+            if (completeShotSet && isDaojieAdaptation(chapterStore.workflowConfig.directorManualId, sourceText)) {
+              const durationUs = storyboards
+                .filter((storyboard) => storyboard.episodeId === chapterId)
+                .reduce((total, storyboard) => total + storyboardEffectiveDurationUs(storyboard), 0);
+              if (!Number.isSafeInteger(durationUs) || durationUs <= 0 || durationUs > DAOJIE_STRICT_DURATION_SECONDS * 1_000_000) {
+                throw new Error(`道劫整章实际计划时长${durationUs / 1_000_000}秒（含音频尾部），须为有效正数且不超过${DAOJIE_STRICT_DURATION_SECONDS}秒；请调整声音与分镜后重试`);
+              }
+            }
             // AI 2D 镜头语言（正式路线）：逐镜设计镜头表现（运镜+特效插件组合）并写入
             // 分镜记录 shotFx。写入是装饰层（不进 sourceFingerprint、不触发审批门）；
             // App 章节渲染与 CLI 全管线共享 store 单源。AI 不可用时回落关键词启发式，
@@ -462,7 +485,6 @@ export function useChapterAutoVideoActions({
               continuityPolicy: "required",
               assetVersions: studio.continuityAssetVersions,
             });
-            const completeShotSet = !allStoryboards || sameShotSet(storyboards, allStoryboards);
             if (!plans.success) {
               console.error("[one-click] buildRemotionShotPlans 失败, issues =", JSON.stringify(plans.issues?.slice(0, 8)));
             }

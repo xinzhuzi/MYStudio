@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import os from "node:os";
+import { assertCliDuration } from "../timeline/run-full-pipeline-inputs";
 import { ensureBrowser, renderMedia, selectComposition } from "@remotion/renderer";
 import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
 import { projectStoryboardShotCompositionProps } from "@/lib/studio/remotion/shot-plan";
@@ -128,15 +127,18 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   // requireState 校验信封形状 {state:{storyboards[]}}——必须传整个快照,
   // 传 .state 会变双层读取恒败(分片 reader 契约回归,2026-08-26 实证)
   const state = requireState(storeSnapshot, storePath);
-  const storyboards = state.storyboards
+  const chapterStoryboards = state.storyboards
     .filter((value) => isRecord(value) && value.episodeId === chapterId)
-    .map((value) => normalizeStoryboard(value as StoryboardItem, projectDir, dataRoot, projectId))
+    .map((value) => value as StoryboardItem)
     .sort((left, right) => left.index - right.index || left.id.localeCompare(right.id));
-  if (storyboards.length === 0) throw new Error(`未找到可渲染分镜: ${projectId}/${chapterId}`);
+  if (chapterStoryboards.length === 0) throw new Error(`未找到可渲染分镜: ${projectId}/${chapterId}`);
   const selectedShotIds = selectShotIdsForRun(
-    storyboards.map((storyboard) => storyboard.id),
+    chapterStoryboards.map((storyboard) => storyboard.id),
     process.env.MYSTUDIO_SHOT_IDS,
   );
+  const partial = selectedShotIds.length > 0 && selectedShotIds.length < chapterStoryboards.length;
+  assertCliDuration(state, chapterId, chapterStoryboards, partial);
+  const storyboards = chapterStoryboards.map((storyboard) => normalizeStoryboard(storyboard, projectDir, dataRoot, projectId));
   const selectedShotIdSet = new Set(selectedShotIds);
 
   const renderSettings = { ...DEFAULT_REMOTION_RENDER_SETTINGS };
@@ -167,9 +169,9 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   const selectedBlockedShotIds = plans.success
     ? []
     : plans.blockedShotIds.filter((shotId) => selectedShotIdSet.has(shotId));
-  if ((!plans.success && process.env.MYSTUDIO_SHOT_IDS === undefined)
+  if ((!plans.success && !partial)
     || selectedBlockedShotIds.length > 0) {
-    const reportedIssues = process.env.MYSTUDIO_SHOT_IDS === undefined
+    const reportedIssues = plans.success ? [] : !partial
       ? plans.issues
       : selectPlanIssuesForShotIds(plans.issues, selectedShotIds);
     throw new Error(`Remotion shot plan blocked: ${reportedIssues.map((issue) => `${issue.path}: ${issue.message}`).join("；")}`);
@@ -178,6 +180,16 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   if (selectedPlans.length !== selectedShotIds.length) {
     throw new Error(`定点渲染计划不完整: expected=${selectedShotIds.length} actual=${selectedPlans.length}`);
   }
+
+  // Use the same projector as rendering (including H3 duration overrides),
+  // with inert URLs: duration/props validation must finish before any writes
+  // or runtime startup. Proper-subset repairs project only their selected shots.
+  const projectedSeconds = selectedPlans.reduce((total, plan) => {
+    const props = projectStoryboardShotCompositionProps(plan, () => `http://127.0.0.1:1/${"0".repeat(64)}/preflight`);
+    if (!props.success) throw new Error(props.issues.map((issue) => `${issue.path}: ${issue.message}`).join("；"));
+    return total + props.value.durationInFrames / props.value.fps;
+  }, 0);
+  assertCliDuration(state, chapterId, chapterStoryboards, partial, Math.round(projectedSeconds * 1_000_000));
 
   const bundlePath = path.resolve(process.env.MYSTUDIO_REMOTION_BUNDLE || path.join(appsRoot, ".cache", "remotion-bundle"));
   const manifest = readBundleManifest(bundlePath);
@@ -191,7 +203,7 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
     availableShotIds: storyboards.map((storyboard) => storyboard.id),
     selectedShots: selectedPlans.map((plan) => plan.shot),
     currentShots: currentChapterManifest?.shots ?? [],
-    scoped: process.env.MYSTUDIO_SHOT_IDS !== undefined,
+    scoped: partial,
   });
   const chapterManifest: RemotionChapterManifestV2 = {
     schemaVersion: 2,
@@ -209,7 +221,7 @@ export async function runRemotionShotSlots(): Promise<ShotSlotReport> {
   };
   chapterManifest.manifestFingerprint = await createRemotionChapterManifestFingerprint(chapterManifest);
   const chapterManifestPath = path.join(workspaceRoot, "chapters", `${chapterId}.json`);
-  await chapterManifestService.writeCas({
+  if (!partial) await chapterManifestService.writeCas({
     projectId,
     chapterId,
     expectedRevision: currentChapterManifest?.revision ?? 0,

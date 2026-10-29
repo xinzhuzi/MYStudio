@@ -554,6 +554,7 @@ describe("chapter auto video orchestration", () => {
     expect(run.dependencies.generateAudio).toHaveBeenCalledWith(
       expect.objectContaining({ id: "sb-3" }),
       expect.anything(),
+      profiles,
     );
     expect(result.blockedShotIds).toEqual([]);
     expect(result.ttsErrors).toEqual({});
@@ -576,6 +577,7 @@ describe("chapter auto video orchestration", () => {
     expect(run.dependencies.generateAudio).toHaveBeenCalledWith(
       expect.objectContaining({ id: "sb-2" }),
       profiles["character:dugu"],
+      profiles,
     );
   });
 
@@ -751,5 +753,33 @@ describe("chapter auto video orchestration", () => {
       }),
     ).rejects.toThrow("character:dugu 缺少固定 voice profile");
     expect(missingProfile.dependencies.generateAudio).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("chapter ordered speech audit", () => {
+  const characters = [{ characterId: "dugu", name: "独孤剑尘", aliases: [] }];
+  it("preserves nineteen IDs while all utterance profiles reach synthesis", async () => {
+    const run = createDependencies({ storyboardCount: 19 });
+    const original = run.dependencies.loadStoryboards();
+    original[0].lines = "旁白：风起。\n独孤剑尘：借灯。";
+    original[0].ttsSpokenText = "风起。 借灯。";
+    original[0].speechUtterances = [{ speaker: "旁白", speakerId: "narrator", text: "风起。" }, { speaker: "独孤剑尘", speakerId: "character:dugu", text: "借灯。" }];
+    run.dependencies.loadVoiceoverCharacters = () => characters;
+    const result = await prepareChapterMedia({ projectId: "project-1", episodeId: "chapter-001", dependencies: run.dependencies });
+    expect(result.storyboards.map(s => s.id)).toEqual(original.map(s => s.id));
+    expect(result.storyboards).toHaveLength(19);
+    expect(run.dependencies.generateAudio).toHaveBeenCalledWith(expect.objectContaining({ id: "sb-1" }), profiles.narrator, profiles);
+  });
+  it.each(["legacy", "wrong-id", "lost-text"])("rejects %s before profile/service calls", async (failure) => {
+    const run = createDependencies({ storyboardCount: 1 });
+    const shot = run.dependencies.loadStoryboards()[0];
+    shot.lines = "旁白：风起。\n独孤剑尘：借灯。";
+    shot.ttsSpokenText = "风起。 借灯。";
+    if (failure !== "legacy") shot.speechUtterances = [{ speaker: "旁白", speakerId: "narrator", text: "风起。" }, { speaker: "独孤剑尘", speakerId: failure === "wrong-id" ? "character:wrong" : "character:dugu", text: failure === "lost-text" ? "灯。" : "借灯。" }];
+    run.dependencies.loadVoiceoverCharacters = () => characters;
+    await expect(prepareChapterMedia({ projectId: "project-1", episodeId: "chapter-001", dependencies: run.dependencies })).rejects.toThrow();
+    expect(run.dependencies.ensureFixedVoiceProfiles).not.toHaveBeenCalled();
+    expect(run.dependencies.generateAudio).not.toHaveBeenCalled();
   });
 });

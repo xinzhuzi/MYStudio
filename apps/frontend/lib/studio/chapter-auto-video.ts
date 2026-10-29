@@ -1,3 +1,4 @@
+import { assertStoryboardSpeech, type VoiceoverCharacterIdentity } from "./chapter-voiceover";
 import type {
   ContinuityAssetVersion,
   StoryboardItem,
@@ -53,6 +54,7 @@ export interface ChapterAutoVideoStatus {
 export interface ChapterAutoVideoDependencies {
   ensurePlanning: () => Promise<void>;
   loadStoryboards: () => StoryboardItem[];
+  loadVoiceoverCharacters?: () => VoiceoverCharacterIdentity[];
   loadContinuityAssetVersions: () => ContinuityAssetVersion[];
   ensureFixedVoiceProfiles: (
     storyboards: StoryboardItem[],
@@ -61,6 +63,7 @@ export interface ChapterAutoVideoDependencies {
   generateAudio: (
     storyboard: StoryboardItem,
     profile: VoiceProfile,
+    profiles?: Record<TtsSpeakerId, VoiceProfile>,
   ) => Promise<{
     audioRef: StoryboardItem["audioRef"];
     shotAudioBinding: RemotionShotAudioBindingV2;
@@ -129,6 +132,7 @@ function auditVoiceoverStoryboards(
   storyboards: StoryboardItem[],
   episodeId: string,
   expectedIdentity?: { sourceId: string; revision: number },
+  characters?: VoiceoverCharacterIdentity[],
 ): TtsSpeakerId[] {
   const episodeStoryboards = storyboards
     .filter((item) => item.episodeId === episodeId)
@@ -161,7 +165,11 @@ function auditVoiceoverStoryboards(
     if (storyboard.requiresFixedVoice !== true) {
       throw new Error(`分镜 ${storyboard.id} requiresFixedVoice 必须为 true`);
     }
-    speakerIds.add(storyboard.speakerId!);
+    if (!hasH3BakedAudio(storyboard)) {
+      assertStoryboardSpeech(storyboard, characters);
+      for (const part of storyboard.speechUtterances ?? []) speakerIds.add(part.speakerId);
+    }
+    if (!hasH3BakedAudio(storyboard) || externalNarratorText(storyboard)) speakerIds.add(hasH3BakedAudio(storyboard) ? "narrator" : storyboard.speakerId!);
   }
   return [...speakerIds].sort();
 }
@@ -207,7 +215,7 @@ export async function prepareChapterMedia({
     }
     storyboards = selected;
   }
-  const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId, expectedIdentity);
+  const speakerIds = auditVoiceoverStoryboards(storyboards, episodeId, expectedIdentity, dependencies.loadVoiceoverCharacters?.());
   // 连续性按整章链校验(子集会切断「上一镜」关系);单镜收窄的只是 TTS/入队范围
   assertVisualContinuityApproved(
     allStoryboards,
@@ -234,9 +242,9 @@ export async function prepareChapterMedia({
     // 角色台词烧在 H3 镜内,runner 空文本抛错永不触达;静图产线镜不跳过
     // (外挂 TTS 是其唯一音频来源,R4 回归锁)。
     if (hasH3BakedAudio(storyboard) && !externalNarratorText(storyboard)) return;
-    const profile = profiles[storyboard.speakerId!];
+    const profile = profiles[hasH3BakedAudio(storyboard) ? "narrator" : storyboard.speakerId!];
     try {
-      const generated = await dependencies.generateAudio(storyboard, profile);
+      const generated = await dependencies.generateAudio(storyboard, profile, profiles);
       if (!generated.audioRef?.path) {
         throw new Error(`分镜 ${storyboard.id} TTS 未返回真实音频路径`);
       }

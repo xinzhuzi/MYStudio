@@ -14,6 +14,7 @@ import base64
 import io
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -56,7 +57,11 @@ def vl(path, q):
 
 def judge(crop_path):
     txt = vl(crop_path, '数这张手部特写的手指数量,一个词判畸形(无/融合/多指/糊团/穿模)。格式:指数=数字,畸形=词')
-    bad = any(w in txt for w in BAD_WORDS) or '指数=0' in txt or '指数=6' in txt
+    match = re.fullmatch(r'\s*指数\s*=\s*([0-9]+)\s*[,，]\s*畸形\s*=\s*([^\s,，]+)\s*', txt) if isinstance(txt, str) else None
+    if match is None or match.group(2) not in ('无', *BAD_WORDS):
+        raise ValueError('手部判读失败：VL为空或未返回有效的“指数=数字,畸形=词”，停止发布修复结果')
+    count, deformity = int(match.group(1)), match.group(2)
+    bad = deformity in BAD_WORDS or count == 0 or count > 5
     return txt, bad
 
 
@@ -74,8 +79,9 @@ def paste_back(canvas, repaired, box):
     w, h = x1 - x0, y1 - y0
     rep = repaired.resize((w, h), Image.LANCZOS)
     mask = Image.new('L', (w, h), 0)
-    ImageDraw.Draw(mask).rectangle([24, 24, w - 24, h - 24], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(12))
+    inset = min(24, w // 4, h // 4)
+    ImageDraw.Draw(mask).rectangle([inset, inset, w - inset, h - inset], fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(inset / 2))
     canvas.paste(rep, (x0, y0), mask)
 
 
@@ -92,11 +98,12 @@ def main(img_path):
     ctx = next((v for k, v in CTX_BY_IMAGE.items() if k and k in name), '')
     canvas = src.copy()
     ledger = {'image': name, 'hands': []}
+    needs_final_check = set()
     for i, box in enumerate(boxes):
         crop_p = os.path.join(OUT_DIR, 'hand_crops', f'fixv1_{name[:-4]}_h{i}.jpg')
         canvas.crop(box).save(crop_p, 'JPEG', quality=92)
         txt, bad = judge(crop_p)
-        entry = {'box': box, 'judge': txt, 'repaired': False}
+        entry = {'box': box, 'judge': txt, 'repaired': False, 'clean': not bad}
         print(f'  h{i} 判读: {txt[:50]} → {"修" if bad else "过"}', flush=True)
         if not bad:
             ledger['hands'].append(entry)
@@ -109,23 +116,43 @@ def main(img_path):
                 print(f'  h{i} 修复异常: {entry["error"]}', flush=True)
                 break
             paste_back(canvas, rep, box)
+            # 后贴区域与已判手框有面积交集时，旧判定不再代表最终画布。
+            for j, previous in enumerate(ledger['hands']):
+                old_box = previous['box']
+                if (max(box[0], old_box[0]) < min(box[2], old_box[2]) and
+                        max(box[1], old_box[1]) < min(box[3], old_box[3])):
+                    previous['clean'] = False
+                    needs_final_check.add(j)
             vp = os.path.join(OUT_DIR, 'hand_crops', f'fixv1_{name[:-4]}_h{i}_v{attempt}.jpg')
             canvas.crop(box).save(vp, 'JPEG', quality=92)
             vt, vbad = judge(vp)
             print(f'  h{i} 第{attempt}掷 复检: {vt[:50]}', flush=True)
             if not vbad:
-                entry.update(repaired=True, attempts=attempt, verify=vt)
+                entry.update(repaired=True, clean=True, attempts=attempt, verify=vt)
                 break
             if attempt == 2:
                 entry.update(repaired=False, verify=vt)
         ledger['hands'].append(entry)
+    # 所有贴回完成后仅复判受影响手框；judge/verify/repaired 保留处置历史。
+    for i in sorted(needs_final_check):
+        entry = ledger['hands'][i]
+        fp = os.path.join(OUT_DIR, 'hand_crops', f'fixv1_{name[:-4]}_h{i}_final.jpg')
+        canvas.crop(entry['box']).save(fp, 'JPEG', quality=92)
+        ft, fbad = judge(fp)  # 空白/非法判读抛错，仍阻止输出与台账追加。
+        entry.update(final_verify=ft, clean=not fbad)
+        print(f'  h{i} 末次复检: {ft[:50]}', flush=True)
     fixed = os.path.join(OUT_DIR, f'{name[:-4]}_handfixed.png')
     canvas.save(fixed)
     mf = os.path.join(OUT_DIR, 'hand_fix_manifest.json')
-    rows = json.load(open(mf)) if os.path.exists(mf) else []
+    if os.path.exists(mf):
+        with open(mf, encoding='utf-8') as stream:
+            rows = json.load(stream)
+    else:
+        rows = []
     rows.append(ledger)
-    json.dump(rows, open(mf, 'w'), ensure_ascii=False, indent=1)
-    ok = sum(1 for h in ledger['hands'] if h.get('repaired') or not any(w in h['judge'] for w in BAD_WORDS))
+    with open(mf, 'w', encoding='utf-8') as stream:
+        json.dump(rows, stream, ensure_ascii=False, indent=1)
+    ok = sum(1 for h in ledger['hands'] if h['clean'])
     print(f'完成: {len(ledger["hands"])}手 处置后干净{ok} → {fixed}', flush=True)
 
 
