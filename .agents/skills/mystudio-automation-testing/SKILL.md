@@ -25,6 +25,7 @@ Use this skill for MYStudio release confidence after code changes, especially wh
 - Packaged and workflow automation runs in background by default with `MYSTUDIO_SMOKE_BACKGROUND=1`. Do not foreground MYStudio unless the user explicitly asks to watch the run.
 - For "自动打包后安装" requests, delegate the full package/install/smoke chain to a worker sub-agent when sub-agents are available. The main agent should supervise, avoid duplicating the same long-running commands, and verify or summarize the worker's evidence before reporting.
 - Treat old command output as stale; rerun the relevant check before claiming it passes.
+- Never clear the engine routing setting from automation: App-home `comfyui/remote-engine.json` (sidecar `GET/POST /comfy/engine/remote`) is user data, not a test fixture. Snapshot it first (GET), restore the original value when done; keep it empty only if it was empty. See 引擎路由保全纪律 below.
 - If a command starts a long-running Electron process, wait for it to exit before ending the turn.
 - Report exact failing command, exit code, and the highest-signal error line when a gate fails.
 
@@ -154,6 +155,15 @@ cd <repo-root> && node apps/build/scripts/daojie-t2i-app-e2e.mjs
 ```
 
 全链双拍(默认出图+PE 喂法)≈50-65min,退出码 0=验收过;报告/取证图在 `apps/output/daojie-t2i-app-e2e/`。赶时间先 `SKIP_GEN=1` 跑链路段(≈3min,免生图)。前置:无并行 smoke/应用实例(脚本 prekill 会杀全家);诊断表与锚点字典在 `.trellis` 任务档(`archive/2026-09/09-30-daojie-t2i-app-e2e/research/anchors.md`)。不进 `test:all`/打包链(按需人工腿)。
+
+## 引擎路由保全纪律(2026-10-30 起)
+
+**硬规矩:凡自动化/走查/e2e/冒烟动过引擎路由设置,收尾必须恢复原值,禁止清空;清空等同删用户数据。**
+
+- 引擎路由=App 家 `comfyui/remote-engine.json`(读写走 sidecar `GET/POST /comfy/engine/remote`),是用户数据,不是测试夹具。
+- 确需动它:动前先 `GET /comfy/engine/remote` 快照原值 → 用完 POST 恢复原值;原值本来就是空才保持空。
+- 严禁 `os.unlink` 等直删 App 家配置;走查验收步禁含「恢复空值」;POST 空值清空仅设置页「恢复本地」用户动作合法,脚本/测试/走查/冒烟一律禁用。
+- 案例(一句话):10-29 一晚两清——/tmp e2e 脚本收尾 `os.unlink(remote-engine.json)` 与 D-V5 走查步「恢复空值」各清一次用户真实路由;10-30 凭 sidecar 访问日志 GET→POST(空)→GET 三连指纹破案立此规(任务档 `.trellis/tasks/10-29-dual-mystudio-control-arch/design.md` 已同步勘正;同档规矩另落 `.trellis/spec/backend/comfyui-integration.md` 与 `.trellis/spec/guides/installed-app-no-direct-write-guide.md`)。
 
 ## Smoke Coverage
 
