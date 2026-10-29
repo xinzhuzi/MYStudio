@@ -25,6 +25,7 @@ Task Scheduler 调度器域。本脚本即调度域入口，由 EngineDurable �
 """
 import subprocess
 import os
+import json
 
 VENV_PY = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/venv/Scripts/python.exe'
 MAIN = 'E:/IP/\u6f2b\u5f71\u5de5\u4f5c\u5ba4/comfyui/ComfyUI/main.py'
@@ -38,6 +39,29 @@ env['TMP'] = r'C:\Users\ZBJ\AppData\Local\Temp'
 env['USERPROFILE'] = r'C:\Users\ZBJ'
 env['LOCALAPPDATA'] = r'C:\Users\ZBJ\AppData\Local'
 env.setdefault('SYSTEMROOT', r'C:\Windows')
+# T13(10-29) MyShot 回写出口:注入 bridge env,对齐 engine_manager launch_env
+# (MYSTUDIO_BRIDGE_URL/MYSTUDIO_BRIDGE_TOKEN 同款注入;令牌单源=sidecar
+# config.json controlToken,electron main getControlToken 落盘的装机 UUID;env
+# MANYING_LOCAL_IMAGE_TOKEN 优先,双缺=空串 fail-closed,与 repo
+# bridge_contract.resolve_bridge_token 同序;本文件零令牌字面量)。
+SIDECAR_CONFIG = ('C:/Users/ZBJ/AppData/Roaming/'
+                  '\u6f2b\u5f71\u5de5\u4f5c\u5ba4/python/profiles/image-gen/config.json')
+
+
+def _bridge_token():
+    tok = os.environ.get('MANYING_LOCAL_IMAGE_TOKEN', '')
+    if tok:
+        return tok
+    try:
+        cfg = json.load(open(SIDECAR_CONFIG, encoding='utf-8'))
+    except (OSError, ValueError):
+        return ''
+    t = cfg.get('controlToken') if isinstance(cfg, dict) else None
+    return t if isinstance(t, str) else ''
+
+
+env['MYSTUDIO_BRIDGE_URL'] = 'http://127.0.0.1:17595'
+env['MYSTUDIO_BRIDGE_TOKEN'] = _bridge_token()
 subprocess.Popen([VENV_PY, MAIN, '--listen', '0.0.0.0', '--port', '17000',
                   '--enable-manager', '--use-pytorch-cross-attention',
                   '--output-directory', OUT],
