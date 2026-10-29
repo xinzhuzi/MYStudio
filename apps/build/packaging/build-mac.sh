@@ -62,6 +62,26 @@ wait_for_chain_free() {
 
 wait_for_chain_free
 
+# 链首在驾实例 fail-fast 预检:pgrep 模式与 build/smoke/smoke-process-lifecycle.mjs
+# probeRunningInstances 默认 pattern("漫影工作室.app")同源。链尾 install-and-smoke.mjs
+# 默认 guard 态本就会因实例在跑而中止——本预检把同一判定前移到 10 分钟构建之前,
+# 免得整链白跑一轮(不动 1003 守卫体:保守 fail-closed,不自动退 App)。豁免两口与
+# resolvePrekillMode(skip > force > guard)同构:MYSTUDIO_SMOKE_SKIP_PREKILL=1 或
+# MYSTUDIO_SMOKE_PREKILL_FORCE=1 任一即跳过——FORCE 口必须豁免,否则
+# install-and-smoke.mjs 的显式僵尸清理口会被链首堵死整链不可达。注意下方 install
+# 段命令级前缀强制 MYSTUDIO_SMOKE_SKIP_PREKILL=0:用户设 SKIP=1 链首虽跳过、链尾
+# 冒烟仍 guard 态中止并递归整链重试(白跑一轮死路),故失败文案只推「关 App 重跑」
+# 与「FORCE 显式清理」两条,不指引 SKIP 口。重试递归(下方 sh 重新进入本脚本)会
+# 自然复跑本预检——重试途中用户开 App=快速失败,期望行为。
+if [ "${MYSTUDIO_SMOKE_SKIP_PREKILL:-0}" = "1" ] || [ "${MYSTUDIO_SMOKE_PREKILL_FORCE:-0}" = "1" ]; then
+  echo "Skipping chain-head running-instance precheck (prekill SKIP/FORCE env set)."
+elif pgrep -f "漫影工作室.app" >/dev/null 2>&1; then
+  echo "[build-mac] 检测到 漫影工作室 实例正在运行,链首快速失败(构建前拦截,免整链白跑)。" >&2
+  echo "[build-mac] 出路一:关闭漫影工作室 App 后重跑。" >&2
+  echo "[build-mac] 出路二:确系残留冒烟僵尸,设 MYSTUDIO_SMOKE_PREKILL_FORCE=1 解锁变量,走显式清理后重跑。" >&2
+  exit 1
+fi
+
 echo "Building mac app from $APPS_DIR"
 echo "Command: node ./build/packaging/build-desktop.mjs --mac$BUILD_ARGS"
 

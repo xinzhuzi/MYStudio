@@ -166,8 +166,8 @@
   "scripts": {
     "dev": "electron-vite dev --config frontend/config/electron-vite.config.ts",
     "build": "npm run build:mac",
-    "build:mac": "sh ./build/packaging/build-mac.sh --arm64",
-    "build:mac:install": "sh ./build/packaging/build-mac.sh --arm64 --install",
+    "build:mac": "MANYYING_ALLOW_APP_LAUNCH=1 sh ./build/packaging/build-mac.sh --arm64",
+    "build:mac:install": "MANYYING_ALLOW_APP_LAUNCH=1 sh ./build/packaging/build-mac.sh --arm64 --install",
     "build:win": "node ./build/packaging/build-desktop.mjs --win",
     "build:linux": "node ./build/packaging/build-desktop.mjs --linux",
     "typecheck": "tsc --noEmit -p frontend/config/tsconfig.json",

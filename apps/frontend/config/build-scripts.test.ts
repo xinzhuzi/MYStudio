@@ -594,11 +594,49 @@ describe("desktop build scripts", () => {
     expect(source).toContain("SCRIPT_DIR/../..");
   });
 
+  it("fails fast at the chain head when the studio app is already running (链首在驾预检)", () => {
+    const source = readBuildFile("build/packaging/build-mac.sh");
+
+    // 预检块必须出现在 build-desktop.mjs 调用之前(判定前移,免 10 分钟构建白跑)
+    const precheckProbe = source.indexOf('pgrep -f "漫影工作室.app"');
+    expect(precheckProbe).toBeGreaterThanOrEqual(0);
+    expect(precheckProbe).toBeGreaterThan(source.indexOf("wait_for_chain_free"));
+    expect(precheckProbe).toBeLessThan(
+      source.indexOf("node ./build/packaging/build-desktop.mjs --mac"),
+    );
+
+    // 豁免两口与 resolvePrekillMode(skip > force > guard)同构:SKIP=1 / FORCE=1
+    // 任一即跳过(FORCE 口不豁免则 install-and-smoke 的显式僵尸清理口被链首堵死)
+    const precheckBlock = source.slice(
+      source.indexOf("链首在驾实例 fail-fast"),
+      source.indexOf('echo "Building mac app'),
+    );
+    expect(precheckBlock).toContain("MYSTUDIO_SMOKE_SKIP_PREKILL");
+    expect(precheckBlock).toContain("MYSTUDIO_SMOKE_PREKILL_FORCE");
+
+    // 失败文案只推「关 App 重跑」与「FORCE 显式清理」两条出路,不指引 SKIP 口
+    // (SKIP=1 会被 install 段命令级前缀清零,链尾仍 guard 中止=白跑一轮死路)
+    const failBranchStart = source.indexOf("检测到 漫影工作室 实例正在运行");
+    const failBranch = source.slice(
+      failBranchStart,
+      source.indexOf("exit 1", failBranchStart),
+    );
+    expect(failBranch).toContain("关闭漫影工作室 App 后重跑");
+    expect(failBranch).toContain("MYSTUDIO_SMOKE_PREKILL_FORCE=1");
+    expect(failBranch).not.toContain("MYSTUDIO_SMOKE_SKIP_PREKILL=1");
+  });
+
   it("routes npm mac builds through the managed desktop build script", () => {
     const source = readBuildFile("package.json");
 
-    expect(source).toContain('"build:mac": "sh ./build/packaging/build-mac.sh --arm64"');
-    expect(source).toContain('"build:mac:install": "sh ./build/packaging/build-mac.sh --arm64 --install"');
+    // 1031 坑2:npm 两 mac 入口内置解锁前缀——1003 死守卫随 build/build:mac/
+    // build:mac:install 三入口自动解锁(守护面变化,提交信息必注)
+    expect(source).toContain(
+      '"build:mac": "MANYYING_ALLOW_APP_LAUNCH=1 sh ./build/packaging/build-mac.sh --arm64"',
+    );
+    expect(source).toContain(
+      '"build:mac:install": "MANYYING_ALLOW_APP_LAUNCH=1 sh ./build/packaging/build-mac.sh --arm64 --install"',
+    );
     expect(source).toContain('"build:win": "node ./build/packaging/build-desktop.mjs --win"');
     expect(source).toContain('"build:linux": "node ./build/packaging/build-desktop.mjs --linux"');
     expect(source).not.toContain('"build:mac:install": "node ./build/packaging/install-and-smoke.mjs"');
