@@ -531,6 +531,44 @@ describe("四审D 手册文案契约(manual-alignment,H1-H9)", () => {
       ).toEqual([]);
     },
   );
+
+  // ── 10-29-script-engine-absorption 手册增列互锁(M5-M8;design §4 T-A1/A2/A3 文案) ──
+
+  itFile("T-A1 剧本手册含「写场七问」与「窄问题」(M8)", () => {
+    const content = readManual("script_execution_script.md");
+    expect(content, "剧本手册缺「写场七问」(M8:执行流程第1条写场七问未落)").toContain("写场七问");
+    expect(content, "剧本手册缺「窄问题」(M8:修订模式窄问题纪律未落)").toContain("窄问题");
+  });
+
+  itFile("T-A2 通用导演手册含「节奏双轨」与「价值进出场」(M5);①-⑦块名不动", () => {
+    const content = readManual("production_execution_director_plan.md");
+    expect(content, "导演规划手册缺「节奏双轨」(M5:④段双字段未增)").toContain("节奏双轨");
+    expect(content, "导演规划手册缺「价值进出场」(M5:④段双字段未增)").toContain("价值进出场");
+    // M5 只在④段内增字段不改块名(grill Q4 边界):①-⑦块标题(块名真源=workflow-helpers.ts
+    // formatScriptPlanContext 的手册侧投影)仍逐字在场——与 T5① PLAN_BLOCK_LABELS(分镜表侧)互补。
+    for (const heading of [
+      "## ① 主题立意与叙事核心",
+      "## ② 视觉风格与画面基调",
+      "## ③ 叙事结构与节奏规划",
+      "## ④ 分场景情绪与画面意图",
+      "## ⑤ 声音方向",
+      "## ⑥ 转场与视觉连续性",
+      "## ⑦ 衍生资产预划清单",
+    ]) {
+      expect(content, `导演规划手册缺块标题「${heading}」(M5 增列不得动①-⑦块名)`).toContain(heading);
+    }
+  });
+
+  itFile("T-A3 道劫规划 narrative 含「静戏重情」,分镜 narrative 含「超时删减序」(M6/M7)", () => {
+    const planning = readManual(
+      "story_skills/Daojie_xianxia/driector_skills/director_planning_narrative.md",
+    );
+    expect(planning, "道劫规划 narrative 缺「静戏重情」(M6:双轨与价值的道劫取值未落)").toContain("静戏重情");
+    const storyboard = readManual(
+      "story_skills/Daojie_xianxia/driector_skills/director_storyboard_table_narrative.md",
+    );
+    expect(storyboard, "道劫分镜 narrative 缺「超时删减序」(M7:时长把控删减序未落)").toContain("超时删减序");
+  });
 });
 
 /** 递归枚举 studio-manuals 下全部 md(posix 相对路径)。 */
