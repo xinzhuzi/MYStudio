@@ -185,8 +185,9 @@ const LOCAL_IMAGE_BASE_TYPES = [
   "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
 ] as const;
 
-// T15/G3:探活成功文案「ComfyUI x.y · GPU名」——GPU 名由 system_stats devices[0].name
-// 透传(comfyui_bridge.resolve_big_files → inventory gpuName),引擎没给时只显示版本段。
+// T15/G3+T17:探活成功文案「ComfyUI x.y · GPU名」。桥行(挂载探测)由
+// comfyui_bridge.resolve_big_files → inventory gpuName 透传;保存即测(T17)
+// 则直探引擎 /system_stats devices[0].name。引擎没给时只显示版本段。
 function comfyVersionLabel(version?: string | null, gpu?: string | null): string {
   return `ComfyUI ${version ?? ""}${gpu ? ` · ${gpu}` : ""}`;
 }
@@ -287,9 +288,13 @@ export function McpSettingsTab() {
     return () => { cancelled = true; };
   }, []);
 
-  // 保存=写 sidecar 配置(原子落 App 家 remote-engine.json,即时生效无需重启);
-  // 测试连接=保存后调既有 /comfy/engine/status(其内部走 bridge_url=已跟随
-  // 远程,浏览器直 fetch 引擎会吃 CORS,故借 sidecar 全链探测)。
+  // 保存=写 sidecar 配置(原子落 App 家 remote-engine.json,即时生效无需重启)。
+  // 保存即测两步探活(10-29 T17/问题#2):①GET /comfy/engine/remote 回读确认
+  // url+source==='settings'——保存生效即远程接管,不再依赖 controller IPC 的
+  // comfyui-bridge 行(该行版本在新引擎地址下不即时刷新,旧探活偶落
+  // 「暂未探活成功」误报);②直连生效引擎 /system_stats(引擎原生 API,
+  // 不走 controller)拿 comfyui_version+devices[0].name。两步都通=全绿;
+  // ①通②不通=已生效但引擎未启动的诚实降级;失败走既有 error 文案。
   const saveRemoteEngine = async () => {
     const url = remoteDraft.trim();
     setRemoteSaving(true);
@@ -300,24 +305,37 @@ export function McpSettingsTab() {
       setRemoteEngineState(status);
       toast.success(url ? "引擎地址已保存,即时生效" : "已恢复本机引擎");
       if (url) {
-        // 保存即测:status 探活走生效 base,回 online 即全链通。
-        setRemoteTest({ status: "ok", text: `生效地址 ${status.effective},探活中…` });
+        // ①回读校验:保存的 url 已生效且来源=设置页(远程真正接管;
+        // 后端写库前 .rstrip("/"),比较两侧同样去尾斜杠防假阴)。
+        const normalizedSaved = url.replace(/\/+$/, "");
+        if (status.source !== "settings" || status.url !== normalizedSaved) {
+          throw new Error(
+            `保存后回读校验失败:生效地址 ${status.effective}(来源 ${status.source}),与刚保存的 ${normalizedSaved} 不一致`,
+          );
+        }
+        setRemoteTest({ status: "ok", text: `已保存并生效(${status.effective}),引擎探活中…` });
+        // ②引擎直探:fetch 生效引擎的 /system_stats(超时 10s)。
         try {
-          const runtime = (window as unknown as { imageGenRuntime?: { status: () => Promise<{ models?: { modelName: string; downloaded: boolean; comfyuiVersion?: string | null; gpuName?: string | null }[] }> } }).imageGenRuntime;
-          if (runtime) {
-            const s = await runtime.status();
-            const row = (s.models ?? []).find((m) => m.modelName === "comfyui-bridge");
-            setRemoteTest({
-              status: "ok",
-              text: row?.downloaded
-                ? `已连通远端引擎(${comfyVersionLabel(row.comfyuiVersion ?? "未知版本", row.gpuName)})——本机出图/出视频将发往该引擎执行,产物自动取回。`
-                : "已保存,但远端引擎暂未探活成功(地址错/引擎未启动?),请检查后重试。",
-            });
-          } else {
-            setRemoteTest({ status: "ok", text: `已保存,生效地址 ${status.effective}。` });
-          }
+          const stats = (await fetch(`${status.effective.replace(/\/+$/, "")}/system_stats`, {
+            signal: AbortSignal.timeout(10_000),
+          }).then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json() as Promise<
+              { comfyui_version?: string | null; devices?: { name?: string | null }[] } | null
+            >;
+          })) ?? {};
+          setRemoteTest({
+            status: "ok",
+            text: `已连通远端引擎(${comfyVersionLabel(
+              stats.comfyui_version ?? "未知版本",
+              stats.devices?.[0]?.name ?? null,
+            )})——产物将自动取回`,
+          });
         } catch {
-          setRemoteTest({ status: "error", message: "已保存,但探活远端引擎失败:地址错或引擎未启动。" });
+          setRemoteTest({
+            status: "ok",
+            text: `已保存并生效(${status.effective}),引擎探活暂不可达(引擎可能未启动)`,
+          });
         }
       }
     } catch (error) {

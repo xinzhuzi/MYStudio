@@ -693,6 +693,21 @@ app.whenReady().then(async () => {
   })
 
   createWindow()
+
+  // 10-29 问题#3 sidecar 懒自启:App 重启后本地生图 sidecar(127.0.0.1:17595,引擎卡/
+  // 远程引擎设置/comfy 桥全依赖它)无人拉起,用户须手点「按优先级准备基础运行时」。此处
+  // 首窗已建后 idle 3s 非阻塞拉起一次:①不拖慢首启(setTimeout+void,启动路径零 await);
+  // ②时序安全——上方 await stopLocalSidecars() 已完成,不存在「拉起即被启动清理杀掉」;
+  // ③controller 自带单飞+指数退避,失败零重试风暴;④prepareLifecycle 绝不下载模型
+  // (显式下载纪律不破);⑤python 未装=startServer 探针 fail-fast 零 spawn;⑥后台
+  // smoke 不拉(打包冒烟不背无谓 python 子进程)。
+  if (!isBackgroundSmoke) {
+    setTimeout(() => {
+      void imageGenRuntimeController.prepareLifecycle().catch((error) => {
+        console.warn('[image-gen] startup auto-prepare failed:', error)
+      })
+    }, 3_000)
+  }
 })
 
 

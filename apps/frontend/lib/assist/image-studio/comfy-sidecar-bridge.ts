@@ -91,9 +91,12 @@ const LIVENESS_TTL_MS = 3_000;
 /**
  * sidecar 未在驾的统一指路文案(10-29 T9/G8):本文件探活门禁抛出的错误与
  * 设置页(McpSettingsTab)保存失败 catch 展示的指引同源共用这一常量——
- * 单一真源,两处永不漂移。
+ * 单一真源,两处永不漂移。按钮名与本地配置页真实按钮(PluginSettingsTab
+ * 「按优先级准备基础运行时」)逐字对齐(10-29 问题#4:旧文案「准备运行时」
+ * 无此按钮,用户照指引找不到入口)。
  */
-export const SIDECAR_DOWN_GUIDANCE = "本地生图服务未运行:请在 设置→本地配置 完成『准备运行时』";
+export const SIDECAR_DOWN_GUIDANCE =
+  "本地生图服务未运行:请在 设置→本地配置 点击『按优先级准备基础运行时』";
 
 /**
  * sidecar 未在驾类错误判定(探活 false 抛 SIDECAR_DOWN_GUIDANCE / 探活过但

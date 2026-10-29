@@ -186,6 +186,7 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     setComfySidecarLivenessProbeForTests(null);
+    delete (window as unknown as { imageGenRuntime?: unknown }).imageGenRuntime;
     localStorage.clear();
   });
 
@@ -197,7 +198,7 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     expect(screen.queryByText(/当前生效/)).toBeNull();
   });
 
-  it("保存即测:写 URL 走 POST /comfy/engine/remote,回显生效地址与探活结论", async () => {
+  it("保存即测:写 URL 走 POST /comfy/engine/remote,回读生效+system_stats 直探显示版本/GPU(10-29 T17/问题#2)", async () => {
     setComfySidecarLivenessProbeForTests(async () => true);
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       const u = url as string;
@@ -219,13 +220,21 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
           }),
         } as unknown as Response);
       }
-      if (u.includes("/status") && !u.includes("1700")) {
-        // sidecarLikelyUp 探活
-        return Promise.resolve({ ok: true, status: 200 } as unknown as Response);
+      if (u.includes("/system_stats")) {
+        // ②引擎原生 API 直探(不走 controller IPC)
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            comfyui_version: "0.45.1",
+            devices: [{ name: "NVIDIA GeForce RTX 5090" }],
+          }),
+        } as unknown as Response);
       }
       return Promise.reject(new Error("unexpected fetch " + u));
     });
     vi.stubGlobal("fetch", fetchMock);
+    // controller IPC 桥行仍报旧版本——T17 探活不依赖它(system_stats 为准,防旧误报)
     (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
       status: () =>
         Promise.resolve({
@@ -239,11 +248,16 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
     fireEvent.change(input, { target: { value: "http://192.168.0.101:17000" } });
     fireEvent.click(screen.getByTestId("remote-engine-save"));
     await waitFor(() => {
-      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("0.42.0");
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain(
+        "已连通远端引擎(ComfyUI 0.45.1 · NVIDIA GeForce RTX 5090)——产物将自动取回",
+      );
     });
+    expect(screen.getByTestId("remote-engine-ok").textContent).not.toContain("0.42.0");
     expect(screen.getByText(/当前生效:http:\/\/192\.168\.0\.101:17000/)).toBeTruthy();
     const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
     expect(post?.[1]?.body).toContain("192.168.0.101");
+    const probe = fetchMock.mock.calls.find((c) => String(c[0]).includes("/system_stats"));
+    expect(String(probe?.[0])).toBe("http://192.168.0.101:17000/system_stats");
   });
 
   it("非法 URL 保存失败给大白话", async () => {
@@ -280,10 +294,11 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
       expect(screen.getByTestId("remote-engine-error").textContent).toContain("本地生图服务未运行");
     });
     expect(screen.getByTestId("remote-engine-error").textContent).toContain("设置→本地配置");
-    expect(screen.getByTestId("remote-engine-error").textContent).toContain("『准备运行时』");
+    // 10-29 问题#4:指路文案与本地配置页真实按钮(PluginSettingsTab)逐字对齐
+    expect(screen.getByTestId("remote-engine-error").textContent).toContain("『按优先级准备基础运行时』");
   });
 
-  it("探活成功文案显示 GPU 名(10-29 T15/G3:「ComfyUI x.y · GPU名」)", async () => {
+  it("①通②不通:回读已生效但引擎直探失败——诚实降级文案,不再误报「暂未探活成功」(10-29 T17/问题#2)", async () => {
     setComfySidecarLivenessProbeForTests(async () => true);
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
       const u = url as string;
@@ -305,22 +320,55 @@ describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
           }),
         } as unknown as Response);
       }
-      return Promise.resolve({ ok: true, status: 200 } as unknown as Response);
+      if (u.includes("/system_stats")) {
+        // ②引擎未启动:连接拒绝(fetch reject)——保存本身已成功
+        return Promise.reject(new TypeError("fetch failed"));
+      }
+      return Promise.reject(new Error("unexpected fetch " + u));
     });
     vi.stubGlobal("fetch", fetchMock);
-    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
-      status: () =>
-        Promise.resolve({
-          models: [
-            { modelName: "comfyui-bridge", downloaded: true, comfyuiVersion: "0.42.0", gpuName: "RTX 4060 Ti" },
-          ],
-        }),
-    };
     render(<McpSettingsTab />);
     fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
     fireEvent.click(screen.getByTestId("remote-engine-save"));
     await waitFor(() => {
-      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("ComfyUI 0.42.0 · RTX 4060 Ti");
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain(
+        "已保存并生效(http://192.168.0.101:17000),引擎探活暂不可达(引擎可能未启动)",
+      );
+    });
+    expect(screen.getByTestId("remote-engine-ok").textContent).not.toContain("暂未探活成功");
+  });
+
+  it("保存生效但回读 source 非 settings:走 error 文案(T17 ①校验失败兜底)", async () => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = url as string;
+      if (u.includes("/comfy/engine/remote") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ url: "http://192.168.0.101:17000", cleared: false }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/engine/remote")) {
+        // ①回读:来源仍是 env(保存未生效形态)
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            url: "http://192.168.0.101:17000",
+            effective: "http://127.0.0.1:17598",
+            source: "env",
+          }),
+        } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected fetch " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("remote-engine-save"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-error").textContent).toContain("保存后回读校验失败");
     });
   });
 });
