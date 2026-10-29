@@ -33,12 +33,18 @@ from comfyui.engine_manager import EngineOpError, jobs
 
 # 执行总超时(排队+执行+收图;本地大图工作流可达分钟级,照桥 600s 收紧到 300s)
 EXECUTE_TIMEOUT_S = 300.0
-# 长任务经 payload.timeoutS 放宽的上限:2700s 罩住 H3 视频档
-# (960P 单镜实测 21min+冷启 4min+余量,10-27 D2 裁定;YuE2 音频整曲同罩内)
-MAX_EXECUTE_TIMEOUT_S = 2700.0
+# 长任务经 payload.timeoutS 放宽的上限:14400s 罩住 multiseg 长镜档
+# (40s 960P multiseg≈12600s+冷启+余量,10-27 §14.1.5 M2 裁定=2700→14400;
+# 单段 H3 视频档 960P 21min+冷启 4min 仍在罩内;YuE2 音频整曲同罩内)
+MAX_EXECUTE_TIMEOUT_S = 14400.0
 HISTORY_POLL_INTERVAL_S = 1.0
 # object_info 单类详情的 COMBO 选项截断上限(模型清单等长列表防几 MB 载荷)
 OBJECT_INFO_MAX_OPTIONS = 500
+# 输入图上传超时档位(10-29 T10②/G10):本机快超时保持存量 30s;远端引擎经
+# LAN 传 MB 级参考图放宽到 90s(_upload_image 缺省=远端档;_execute_target
+# 按解析出的 base 定档,本地链路显式传本机档)
+UPLOAD_TIMEOUT_LOCAL_S = 30.0
+UPLOAD_TIMEOUT_REMOTE_S = 90.0
 
 
 def _engine_url() -> str:
@@ -46,6 +52,20 @@ def _engine_url() -> str:
     from engines.image_engine.comfyui_bridge import bridge_url
 
     return bridge_url().rstrip("/")
+
+
+def _unreachable_error(url: str) -> EngineOpError:
+    """引擎不可达大白话(10-29 T8 补尾/复核 gap1):含生效引擎 origin 与
+    「任务或仍在原引擎执行」语义——已提交任务不因本机失联而消失,去原引擎查。
+    origin 复用桥层 comfyui_bridge._url_origin 单源(懒 import 同 _engine_url
+    的 bridge_url 先例,防 engines→comfyui 模块级环)。
+    """
+    from engines.image_engine.comfyui_bridge import _url_origin
+
+    return EngineOpError(
+        f"ComfyUI 引擎不可达({_url_origin(url)})——任务或仍在原引擎执行,"
+        "远程地址请检查对端引擎/网络,本机请到 设置→本地配置 启动引擎"
+    )
 
 
 def _http_json(method: str, url: str, payload: dict[str, Any] | None = None, timeout: float = 10) -> dict[str, Any]:
@@ -65,9 +85,23 @@ def _http_json(method: str, url: str, payload: dict[str, Any] | None = None, tim
         if exc.code == 404 and "/object_info/" in url:
             # 单类详情 404 = 引擎没有该节点(插件被卸载/改名),交上层给大白话
             return {}
-        raise EngineOpError("ComfyUI 引擎没在运行,请到 设置→本地配置 启动引擎") from exc
+        raise _unreachable_error(url) from exc
     except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise EngineOpError("ComfyUI 引擎没在运行,请到 设置→本地配置 启动引擎") from exc
+        raise _unreachable_error(url) from exc
+
+
+def forward_engine_job_cancel(prompt_id: str, base: str | None = None) -> dict[str, Any]:
+    """转发引擎原生按 ID 取消(幂等;终态/未知 prompt_id 引擎返 cancelled=False)。
+
+    10-27 H3 双通道硬取消(Q2):与超时路径同款调用形态,供 sidecar 取消路由
+    (image_gen/server.py POST /comfy/jobs/{id}/cancel)复用;连接异常原样上抛
+    (EngineOpError),由路由层兜成 engine-unreachable 降级应答。
+
+    base(10-29 T8/G7):显式引擎根地址(在跑任务入口解析一次后全程传入);
+    None 回退逐次解析(存量外部调用零破坏)。
+    """
+    engine_base = base if base is not None else _engine_url()
+    return _http_json("POST", f"{engine_base}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)
 
 
 def _decode_b64(value: str) -> bytes:
@@ -78,8 +112,16 @@ def _decode_b64(value: str) -> bytes:
         raise EngineOpError("注入图片数据无效(base64 解码失败)") from exc
 
 
-def _upload_image(image_b64: str, filename: str, timeout: float = 30) -> str:
-    """图上传引擎 input 目录,返回 ComfyUI 可引用的文件名(含子目录)。"""
+def _upload_image(
+    image_b64: str, filename: str, timeout: float = UPLOAD_TIMEOUT_REMOTE_S, base: str | None = None
+) -> str:
+    """图上传引擎 input 目录,返回 ComfyUI 可引用的文件名(含子目录)。
+
+    timeout 缺省=远端档 90s(10-29 T10②/G10:LAN 传 MB 级参考图);本机链路
+    由 _execute_target 按 base 定档显式传 30s(存量行为)。base=None 回退
+    逐次解析(T8 参数化前存量)。
+    """
+    engine_base = base if base is not None else _engine_url()
     boundary = f"----mystudio-{uuid.uuid4().hex}"
     image = _decode_b64(image_b64)
     body = b"".join((
@@ -89,7 +131,7 @@ def _upload_image(image_b64: str, filename: str, timeout: float = 30) -> str:
         f"--{boundary}--\r\n".encode(),
     ))
     req = request.Request(
-        f"{_engine_url()}/upload/image",
+        f"{engine_base}/upload/image",
         data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
         method="POST",
@@ -106,10 +148,12 @@ def _upload_image(image_b64: str, filename: str, timeout: float = 30) -> str:
     return f"{subfolder}/{name}" if subfolder else name
 
 
-def _fetch_view(filename: str, subfolder: str, file_type: str, timeout: float = 30) -> str:
+def _fetch_view(filename: str, subfolder: str, file_type: str, timeout: float = 30, base: str | None = None) -> str:
+    """取回引擎输出文件 b64;base=None 回退逐次解析(T8 参数化前存量)。"""
+    engine_base = base if base is not None else _engine_url()
     query = parse.urlencode({"filename": filename, "subfolder": subfolder, "type": file_type})
     try:
-        with request.urlopen(f"{_engine_url()}/view?{query}", timeout=timeout) as response:
+        with request.urlopen(f"{engine_base}/view?{query}", timeout=timeout) as response:
             return base64.b64encode(response.read()).decode("ascii")
     except (error.URLError, error.HTTPError, TimeoutError) as exc:
         raise EngineOpError("引擎输出文件读取失败(图片/音频)") from exc
@@ -117,33 +161,44 @@ def _fetch_view(filename: str, subfolder: str, file_type: str, timeout: float = 
 
 def _history_collect(
     history: dict[str, Any], prompt_id: str
-) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """history 状态判定:pending / success(带输出图+音频+文本清单)/ error(抛大白话)。
 
     音频条目来自 SaveAudioAdvanced/SaveAudio 类节点的 ui["audio"](引擎核心
     comfy_api/_ui.py SavedAudios.as_dict → {"audio": [{filename, subfolder, type}]},
     与 images 同形状)。文本条目来自 PreviewAny 类节点的 ui["text"](纯 JSON 内联,
-    history 原样带回,无需 /view;09-20 YuE2 出谱流接线)。
+    history 原样带回,无需 /view;09-20 YuE2 出谱流接线)。视频条目来自 SaveVideo/
+    VHS_VideoCombine 类节点的 ui["videos"](10-29 D1:远端引擎模式下产物回流;
+    与 images 同形状 [{filename, subfolder, type}],/view 取回)。
     """
     entry = history.get(prompt_id)
     if not isinstance(entry, dict):
-        return "pending", [], [], []
+        return "pending", [], [], [], []
     status = entry.get("status", {})
     state = status.get("status_str")
     if state == "error":
         detail = str(status.get("messages", "ComfyUI 执行失败"))[:500]
         raise EngineOpError(f"ComfyUI 执行失败: {detail}")
     if state != "success":
-        return "pending", [], [], []
+        return "pending", [], [], [], []
     images: list[dict[str, Any]] = []
     audios: list[dict[str, Any]] = []
     texts: list[dict[str, Any]] = []
+    videos: list[dict[str, Any]] = []
     for node_id, output in entry.get("outputs", {}).items():
         if not isinstance(output, dict):
             continue
         for image in output.get("images", []):
             if isinstance(image, dict) and isinstance(image.get("filename"), str):
-                images.append({
+                # 10-29 D1 修正:核心 SaveVideo 的 history 键=images 且带
+                # metadata.kind=video(mp4 落在 images 里!);VHS_VideoCombine 才用
+                # "videos" 键。按 kind/视频后缀分流进 videos 通道,回拉语义才正。
+                meta = image.get("metadata")
+                kind = meta.get("kind") if isinstance(meta, dict) else None
+                fname = str(image["filename"]).lower()
+                is_video = kind == "video" or fname.endswith((".mp4", ".webm", ".mov", ".mkv", ".avi"))
+                bucket = videos if is_video else images
+                bucket.append({
                     "nodeId": str(node_id),
                     "filename": image["filename"],
                     "subfolder": str(image.get("subfolder", "") or ""),
@@ -157,10 +212,18 @@ def _history_collect(
                     "subfolder": str(audio.get("subfolder", "") or ""),
                     "type": str(audio.get("type", "output") or "output"),
                 })
+        for video in output.get("videos", []):
+            if isinstance(video, dict) and isinstance(video.get("filename"), str):
+                videos.append({
+                    "nodeId": str(node_id),
+                    "filename": video["filename"],
+                    "subfolder": str(video.get("subfolder", "") or ""),
+                    "type": str(video.get("type", "output") or "output"),
+                })
         for text in output.get("text", []):
             if isinstance(text, str):
                 texts.append({"nodeId": str(node_id), "text": text})
-    return "success", images, audios, texts
+    return "success", images, audios, texts, videos
 
 
 # ── 纯函数(单测覆盖):请求体校验与注入 ─────────────────────────────
@@ -276,6 +339,16 @@ def resolve_execute_timeout_s(payload: dict[str, Any]) -> float:
     return min(value, MAX_EXECUTE_TIMEOUT_S)
 
 
+def resolve_upload_timeout_s(base: str) -> float:
+    """上传超时按引擎 base 定档(纯函数,单测覆盖;10-29 T10②/G10)。
+
+    本机(127.0.0.1/localhost/::1)=30s 保持存量快超时;其余(远端 LAN)
+    =90s。base 由调用方解析传入(与 T8 的 base 固定化同源)。
+    """
+    host = (parse.urlparse(base).hostname or "").lower()
+    return UPLOAD_TIMEOUT_LOCAL_S if host in ("127.0.0.1", "localhost", "::1") else UPLOAD_TIMEOUT_REMOTE_S
+
+
 # ── job 化执行入口 ─────────────────────────────────────────────────
 
 def execute_job(payload: dict[str, Any]) -> str:
@@ -299,6 +372,11 @@ def _execute_target(
     timeout_s: float = EXECUTE_TIMEOUT_S,
     extra_png_info: dict[str, Any] | None = None,
 ) -> None:
+    # T8/G7 竞态拆雷:base 入口一次解析,上传/提交/轮询/取消/取产物全程同一
+    # 引擎——执行中改设置(切换引擎地址)不再让在跑任务逐次重解析打到新引擎
+    # 变孤儿(旧任务的结果/取消仍回旧引擎)。
+    base = _engine_url()
+    upload_timeout = resolve_upload_timeout_s(base)
     try:
         # 1. 上传(逐张推进度;无图直过)
         jobs.update(
@@ -311,7 +389,11 @@ def _execute_target(
         def _on_upload(done: int, total: int) -> None:
             jobs.update(job_id, progress=5 + int(done / max(1, total) * 20), message=f"上传输入图 {done}/{total}…")
 
-        apply_image_injections(graph, images, _upload_image, _on_upload)
+        def _uploader(image_b64: str, filename: str) -> str:
+            # base/timeout 逐 job 固定(T8+T10②):本机 30s 存量档,远端 90s
+            return _upload_image(image_b64, filename, timeout=upload_timeout, base=base)
+
+        apply_image_injections(graph, images, _uploader, _on_upload)
 
         # 2. 字符串注入
         apply_string_injections(graph, strings)
@@ -322,7 +404,7 @@ def _execute_target(
         prompt_body: dict[str, Any] = {"prompt": graph, "client_id": client_id}
         if extra_png_info is not None:
             prompt_body["extra_data"] = {"extra_pnginfo": extra_png_info}
-        submitted = _http_json("POST", f"{_engine_url()}/prompt", prompt_body, timeout=30)
+        submitted = _http_json("POST", f"{base}/prompt", prompt_body, timeout=30)
         node_errors = submitted.get("node_errors")
         prompt_id = submitted.get("prompt_id")
         if not isinstance(prompt_id, str) or not prompt_id.strip():
@@ -344,8 +426,8 @@ def _execute_target(
         audio_outputs: list[dict[str, Any]] = []
         text_outputs: list[dict[str, Any]] = []
         while time.monotonic() < deadline:
-            state, outputs, audio_outputs, text_outputs = _history_collect(
-                _http_json("GET", f"{_engine_url()}/history/{prompt_id}", timeout=10), prompt_id
+            state, outputs, audio_outputs, text_outputs, video_outputs = _history_collect(
+                _http_json("GET", f"{base}/history/{prompt_id}", timeout=10), prompt_id
             )
             if state == "success":
                 break
@@ -355,16 +437,17 @@ def _execute_target(
         else:
             try:
                 # 原生按 ID 取消同时覆盖等待/运行态,避免全局 interrupt 误伤其他任务。
-                _http_json("POST", f"{_engine_url()}/api/jobs/{parse.quote(prompt_id, safe='')}/cancel", {}, timeout=5)
+                # base 固定传参(T8):超时清理打回提交时的同一引擎。
+                forward_engine_job_cancel(prompt_id, base=base)
             except Exception:
                 pass  # 中断是清理性的,超时契约对调用方才是权威
             raise EngineOpError(
                 f"ComfyUI 执行超时({math.ceil(timeout_s)} 秒),请检查引擎队列后重试"
             )
 
-        # 5. 收图/收音频(/view 取 b64)+ 收文本(纯 JSON 内联,PreviewAny 类产物)
-        if not outputs and not audio_outputs and not text_outputs:
-            raise EngineOpError("工作流已完成但没有输出图片或音频(缺 SaveImage/SaveAudio 类输出节点?)")
+        # 5. 收图/收音频/收视频(/view 取 b64)+ 收文本(纯 JSON 内联,PreviewAny 类产物)
+        if not outputs and not audio_outputs and not text_outputs and not video_outputs:
+            raise EngineOpError("工作流已完成但没有输出图片/音频/视频(缺 SaveImage/SaveAudio/SaveVideo 类输出节点?)")
         collected: list[dict[str, Any]] = []
         for index, item in enumerate(outputs):
             jobs.update(job_id, progress=int(90 + index / max(1, len(outputs)) * 8), step="collect", message=f"取回输出图 {index + 1}/{len(outputs)}…")
@@ -373,7 +456,7 @@ def _execute_target(
                 "filename": item["filename"],
                 "subfolder": item["subfolder"],
                 "type": item["type"],
-                "b64": _fetch_view(item["filename"], item["subfolder"], item["type"]),
+                "b64": _fetch_view(item["filename"], item["subfolder"], item["type"], base=base),
             })
         audio_collected: list[dict[str, Any]] = []
         for index, item in enumerate(audio_outputs):
@@ -383,11 +466,24 @@ def _execute_target(
                 "filename": item["filename"],
                 "subfolder": item["subfolder"],
                 "type": item["type"],
-                "b64": _fetch_view(item["filename"], item["subfolder"], item["type"]),
+                "b64": _fetch_view(item["filename"], item["subfolder"], item["type"], base=base),
+            })
+        # 视频产物(10-29 D1:SaveVideo/VHS 类;远端引擎模式产物回流主通道)。
+        # 视频体积 MB 级,fetch timeout 放宽到 120s(b64 在 JSON 结果内回传,
+        # 与 images 同机制;超大文件产线直投走文件位属后续优化)。
+        video_collected: list[dict[str, Any]] = []
+        for index, item in enumerate(video_outputs):
+            jobs.update(job_id, progress=98, step="collect", message=f"取回输出视频 {index + 1}/{len(video_outputs)}…")
+            video_collected.append({
+                "nodeId": item["nodeId"],
+                "filename": item["filename"],
+                "subfolder": item["subfolder"],
+                "type": item["type"],
+                "b64": _fetch_view(item["filename"], item["subfolder"], item["type"], timeout=120, base=base),
             })
         jobs.update(
             job_id,
-            result={**accepted, "images": collected, "audios": audio_collected, "texts": text_outputs},
+            result={**accepted, "images": collected, "audios": audio_collected, "texts": text_outputs, "videos": video_collected},
         )
     except (EngineOpError, ValueError) as exc:
         jobs.update(job_id, error=str(exc))

@@ -12,13 +12,22 @@ import type { StoryboardItem } from "@/types/studio";
 const comfyJsonMock = vi.hoisted(() => vi.fn());
 const consumeMock = vi.hoisted(() => vi.fn());
 const readB64Mock = vi.hoisted(() => vi.fn());
+const persistVideosMock = vi.hoisted(() => vi.fn());
+const getRemoteEngineMock = vi.hoisted(() => vi.fn());
 const powerSave = vi.hoisted(() => ({
   start: vi.fn(async () => ({ started: true, id: 1 })),
   stop: vi.fn(async () => ({ started: false })),
 }));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 
-vi.mock("@/lib/assist/image-studio/comfy-execute", () => ({ comfySidecarJson: comfyJsonMock }));
+vi.mock("@/lib/assist/image-studio/comfy-execute", () => ({
+  comfySidecarJson: comfyJsonMock,
+  persistComfyVideosFromResult: persistVideosMock,
+}));
+vi.mock("@/lib/assist/image-studio/comfy-sidecar-bridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/assist/image-studio/comfy-sidecar-bridge")>();
+  return { ...actual, getRemoteEngine: getRemoteEngineMock };
+});
 vi.mock("@/lib/assist/image-studio/comfy-bridge-writeback-consumer", () => ({ consumeComfyBridgeWritebacks: consumeMock }));
 vi.mock("@/lib/assist/image-studio/storyboard-overview-sync", () => ({ readStoryboardImageB64: readB64Mock }));
 vi.mock("@/components/panels/settings/comfy-engine/comfy-engine-contract", () => ({ getComfyEngineClient: () => ({}) }));
@@ -97,6 +106,11 @@ beforeEach(() => {
   comfyJsonMock.mockReset();
   consumeMock.mockReset();
   consumeMock.mockResolvedValue({ processed: 0, landed: 0 });
+  // T16 远端回流门控默认值:本地托管引擎(零入库调用);入库 mock 默认空摘要
+  getRemoteEngineMock.mockReset();
+  getRemoteEngineMock.mockResolvedValue({ url: null, effective: "http://127.0.0.1:17598", source: "managed" });
+  persistVideosMock.mockReset();
+  persistVideosMock.mockResolvedValue({ persisted: 0, failed: 0 });
   vi.stubGlobal("h3BatchPowerSave", powerSave);
 });
 
@@ -569,6 +583,93 @@ describe("runStoryboardH3ShotVideo(镜级重生成 force 路径)", () => {
     seedShots([shot({ id: "a", index: 1 })]);
     await expect(runStoryboardH3ShotVideo(useStudioStore.getState().storyboards[0]!)).rejects.toThrow("缺少首帧");
     expect(comfyJsonMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── T16(10-29 D1 复核 gap2):远端 settings 引擎产物 b64 回流入库门控 ───────────────────────────
+
+describe("useStoryboardH3VideoBatch(远端 settings 产物回流,T16 复核 gap2)", () => {
+  /** 引擎 job 应答带 result.videos(complete 即带 b64 产物,远端回流通形态)。 */
+  function programEngineWithVideos(videos: Array<{ nodeId?: string; filename?: string; b64: string }>): void {
+    comfyJsonMock.mockImplementation(async (method: string, path: string) => {
+      if (method === "POST" && path === "/comfy/execute") return { jobId: "job-1" };
+      if (method === "GET" && path.startsWith("/comfy/jobs/")) {
+        return { status: "complete", result: { videos } };
+      }
+      throw new Error(`unexpected ${method} ${path}`);
+    });
+  }
+
+  it("远端 settings 生效:complete 结果的 videos 经 persistComfyVideosFromResult 入库发起项目", async () => {
+    seedShots([
+      shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } }),
+      shot({ id: "b", index: 2, mediaRef: { kind: "image", path: "p2" } }),
+    ]);
+    programEngineWithVideos([{ nodeId: "21", filename: "H3_a.mp4", b64: "QUJD" }]);
+    programLanding(["a", "b"]);
+    getRemoteEngineMock.mockResolvedValue({ url: "http://192.168.0.101:17598", effective: "http://192.168.0.101:17598", source: "settings" });
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(2);
+    expect(persistVideosMock).toHaveBeenCalledTimes(2); // 逐镜各入库一次
+    expect(persistVideosMock).toHaveBeenCalledWith(
+      expect.objectContaining({ videos: [expect.objectContaining({ nodeId: "21", filename: "H3_a.mp4", b64: "QUJD" })] }),
+      "proj-1", // 发起项目快照(活动项目)
+    );
+  });
+
+  it("本地模式(env/managed/fallback)零入库调用:收件箱已回收,再写=双写", async () => {
+    seedShots([
+      shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } }),
+      shot({ id: "b", index: 2, mediaRef: { kind: "image", path: "p2" } }),
+      shot({ id: "c", index: 3, mediaRef: { kind: "image", path: "p3" } }),
+    ]);
+    programEngineWithVideos([{ nodeId: "21", filename: "H3.mp4", b64: "QUJD" }]);
+    programLanding(["a", "b", "c"]);
+    getRemoteEngineMock
+      .mockResolvedValueOnce({ url: null, effective: "http://127.0.0.1:17598", source: "env" })
+      .mockResolvedValueOnce({ url: null, effective: "http://127.0.0.1:17598", source: "managed" })
+      .mockResolvedValueOnce({ url: null, effective: "http://127.0.0.1:17598", source: "fallback" });
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(3);
+    expect(getRemoteEngineMock).toHaveBeenCalledTimes(3); // 判定被咨询(有 videos 才到这门)
+    expect(persistVideosMock).not.toHaveBeenCalled();
+  });
+
+  it("判定失败(getRemoteEngine 网络错)保守跳过:零入库调用,批量照常推进", async () => {
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    programEngineWithVideos([{ nodeId: "21", filename: "H3.mp4", b64: "QUJD" }]);
+    programLanding(["a"]);
+    getRemoteEngineMock.mockRejectedValue(new Error("sidecar 不可达"));
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(1); // 判定失败不炸镜(按非 settings 跳过)
+    expect(persistVideosMock).not.toHaveBeenCalled();
+  });
+
+  it("result 无 videos 短路:远端判定免咨询(既有 complete-无-result 形态零多余 GET)", async () => {
+    seedShots([shot({ id: "a", index: 1, mediaRef: { kind: "image", path: "p1" } })]);
+    programEngine(["complete"]); // 既有测试形态:complete 不带 result
+    programLanding(["a"]);
+    getRemoteEngineMock.mockResolvedValue({ url: "http://192.168.0.101:17598", effective: "http://192.168.0.101:17598", source: "settings" });
+    const { result } = renderHook(() => useStoryboardH3VideoBatch({
+      storyboards: useStudioStore.getState().storyboards,
+    }));
+    act(() => { result.current.start({ tier: "480p" }); });
+    await pumpUntilDone(result);
+    expect(result.current.state.done).toBe(1);
+    expect(getRemoteEngineMock).not.toHaveBeenCalled(); // 无产物不探活
+    expect(persistVideosMock).not.toHaveBeenCalled();
   });
 });
 

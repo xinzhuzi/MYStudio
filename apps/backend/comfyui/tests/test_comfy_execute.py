@@ -13,7 +13,7 @@ import threading
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 import pytest
 
@@ -491,6 +491,199 @@ class TestExecuteJob:
         assert comfy_execute.resolve_execute_timeout_s({"timeoutS": 999999}) == comfy_execute.MAX_EXECUTE_TIMEOUT_S
 
 
+class TestExecuteBasePinning:
+    """T8(G7 竞态拆雷):一个 job 的上传/提交/轮询/取消/取产物全程同一 base。
+
+    执行中切换「ComfyUI 引擎地址」(remote-engine.json 改指向新引擎)时,
+    bridge_url() 逐次重解析会让在跑任务半路打到新引擎成孤儿;base 入口
+    一次解析后必须全程钉死首值。
+    """
+
+    def test_mid_job_config_switch_does_not_divert_running_job(self, monkeypatch):
+        engine_a = FakeComfyEngine().start()
+        engine_b = FakeComfyEngine().start()
+        try:
+            engine_a.queue_success(images=("out-1.png",))
+            resolutions: list[str] = []
+
+            def switching_engine_url() -> str:
+                resolutions.append("call")
+                # 首次解析=job 钉死的 base;若仍有任何逐次解析(竞态)即指向新引擎
+                return engine_a.url if len(resolutions) == 1 else engine_b.url
+
+            monkeypatch.setattr(comfy_execute, "_engine_url", switching_engine_url)
+            job_id = comfy_execute.jobs.create("comfy-execute")
+            # 直驱 target(不经 execute_job 的 ensure_engine_ready),含输入图
+            # 上传+输出图 /view,罩住六处 base 点的四处;轮询在 success 即返。
+            comfy_execute._execute_target(job_id, _graph_fixture(), {}, [
+                {"key": "10.image", "name": "in.png", "b64": PNG_B64},
+            ])
+            job = comfy_execute.jobs.get(job_id)
+            assert job["status"] == "complete", job
+            # 上传/提交/取产物全落首值引擎;新引擎零流量
+            assert len(engine_a.uploaded) == 1
+            assert len(engine_a.prompts) == 1
+            assert base64.b64decode(job["result"]["images"][0]["b64"]) == b"view-image-bytes"
+            assert engine_b.uploaded == [] and engine_b.prompts == []
+            # base 只解析一次:全链传参无一走 None 回退(回退即第二次解析=竞态源)
+            assert len(resolutions) == 1
+        finally:
+            engine_a.close()
+            engine_b.close()
+
+    def test_timeout_cancel_hits_the_engine_the_job_was_submitted_to(self, monkeypatch):
+        """超时清理取消也打首值引擎:提交后切换配置,取消不误伤新引擎的任务。"""
+        engine_a = FakeComfyEngine().start()
+        engine_b = FakeComfyEngine().start()
+        try:
+            engine_a.prompt_replies.append({"prompt_id": "p-slow"})
+            engine_a.histories["p-slow"] = {"status": {"status_str": "executing"}, "outputs": {}}
+            engine_b.prompt_replies.append({"prompt_id": "p-new"})  # 新引擎有自己的任务
+            resolutions: list[str] = []
+
+            def switching_engine_url() -> str:
+                resolutions.append("call")
+                return engine_a.url if len(resolutions) == 1 else engine_b.url
+
+            monkeypatch.setattr(comfy_execute, "_engine_url", switching_engine_url)
+            monkeypatch.setattr(comfy_execute, "HISTORY_POLL_INTERVAL_S", 0.02)
+            job_id = comfy_execute.jobs.create("comfy-execute")
+            # timeout_s 显式传:直驱 target 不走 execute_job 的 payload 解析,
+            # 模块默认值在 def 时绑定,monkeypatch EXECUTE_TIMEOUT_S 不生效
+            comfy_execute._execute_target(job_id, _graph_fixture(), {}, [], timeout_s=0.2)
+            job = comfy_execute.jobs.get(job_id)
+            assert job["status"] == "error"
+            assert "超时" in job["error"]
+            assert engine_a.cancelled_prompts == ["p-slow"]
+            assert engine_b.cancelled_prompts == []  # 取消没漏打到新引擎
+        finally:
+            engine_a.close()
+            engine_b.close()
+
+
+class TestResolveUploadTimeout:
+    """T10②/G10:上传超时按 base 定档纯函数(本机 30s 存量/远端 90s)。"""
+
+    @pytest.mark.parametrize("base", [
+        "http://127.0.0.1:17598", "http://localhost:17001", "http://[::1]:17000",
+    ])
+    def test_loopback_bases_keep_local_30s(self, base):
+        assert comfy_execute.resolve_upload_timeout_s(base) == comfy_execute.UPLOAD_TIMEOUT_LOCAL_S
+
+    @pytest.mark.parametrize("base", [
+        "http://192.168.0.101:17000", "http://10.0.0.5:8188", "https://engine.lan",
+    ])
+    def test_remote_bases_get_90s(self, base):
+        assert comfy_execute.resolve_upload_timeout_s(base) == comfy_execute.UPLOAD_TIMEOUT_REMOTE_S
+
+    def test_upload_image_default_timeout_is_remote_tier(self):
+        """_upload_image 缺省 timeout=远端档 90s(签名口径钉死,防回归)。"""
+        import inspect
+
+        signature = inspect.signature(comfy_execute._upload_image)
+        assert signature.parameters["timeout"].default == comfy_execute.UPLOAD_TIMEOUT_REMOTE_S
+        assert comfy_execute.UPLOAD_TIMEOUT_LOCAL_S == 30.0
+        assert comfy_execute.UPLOAD_TIMEOUT_REMOTE_S == 90.0
+
+    def test_local_engine_upload_uses_30s_timeout(self, engine, monkeypatch):
+        """本机链路:_execute_target 上传显式传 30s 存量档(T10②本地保持)。"""
+        captured: dict[str, float] = {}
+        real_upload = comfy_execute._upload_image
+
+        def spy_upload(image_b64, filename, timeout=90, base=None):
+            captured["timeout"] = timeout
+            captured["base"] = base
+            return real_upload(image_b64, filename, timeout=timeout, base=base)
+
+        monkeypatch.setattr(comfy_execute, "_upload_image", spy_upload)
+        engine.queue_success(images=("out-1.png",))
+        job_id = comfy_execute.execute_job({
+            "graph": _graph_fixture(),
+            "inputs": {"images": [{"key": "10.image", "name": "in.png", "b64": PNG_B64}]},
+        })
+        job = _wait_job_terminal(job_id)
+        assert job["status"] == "complete", job
+        assert captured["timeout"] == comfy_execute.UPLOAD_TIMEOUT_LOCAL_S  # 假引擎=127.0.0.1=本机档
+        assert captured["base"] == engine.url  # 且 base 已全程传入(与 T8 同链验证)
+
+
+class TestForwardEngineJobCancel:
+    """10-27 H3 双通道硬取消(Q2,PRD §14.2.2):sidecar 取消路由复用的
+    引擎原生按 ID 取消转发——URL 形态含 quote(prompt_id)/POST/timeout=5;
+    连接异常原样上抛(路由层兜成 engine-unreachable 降级)。"""
+
+    def test_forwards_post_to_engine_native_cancel_endpoint(self, monkeypatch):
+        monkeypatch.setattr(comfy_execute, "_engine_url", lambda: "http://engine.test")
+        calls: list[tuple[str, str, dict, float]] = []
+
+        def fake_http_json(method, url, payload=None, timeout=10):
+            calls.append((method, url, payload, timeout))
+            return {"cancelled": True}
+
+        monkeypatch.setattr(comfy_execute, "_http_json", fake_http_json)
+        # prompt_id 含 "/" 与空格:证明 quote(safe="") 整段转义(不留路径活口)
+        reply = comfy_execute.forward_engine_job_cancel("p/1 2")
+        assert reply == {"cancelled": True}
+        method, url, payload, timeout = calls[0]
+        assert method == "POST"
+        assert payload == {}
+        assert timeout == 5
+        assert url == f"http://engine.test/api/jobs/{quote('p/1 2', safe='')}/cancel"
+
+    def test_forward_hits_engine_and_returns_reply_as_is(self, engine):
+        """实弹形:打到假引擎的 /api/jobs/{id}/cancel,应答原样带回(路由层透传)。"""
+        reply = comfy_execute.forward_engine_job_cancel("p-live")
+        assert reply == {"cancelled": True}
+        assert engine.cancelled_prompts == ["p-live"]
+
+    def test_engine_unreachable_error_propagates_for_route_fallback(self, monkeypatch):
+        """连接异常原样上抛(EngineOpError;路由层兜成 engine-unreachable,永不 5xx)。"""
+        monkeypatch.setattr(comfy_execute, "_engine_url", lambda: "http://127.0.0.1:1")
+        with pytest.raises(EngineOpError):
+            comfy_execute.forward_engine_job_cancel("p-1")
+
+
+class TestUnreachableMessage:
+    """T8 补尾(复核 gap1):引擎不可达文案含生效引擎 origin 与「任务或仍在
+    原引擎执行」语义——已提交任务不因本机失联而消失,错误归因到具体引擎
+    (远端模式 R4 可观测;origin 复用桥层 _url_origin 单源)。"""
+
+    def test_connection_refused_names_engine_origin_and_keeps_task_hint(self, monkeypatch):
+        monkeypatch.setattr(comfy_execute, "_engine_url", lambda: "http://127.0.0.1:1")
+        with pytest.raises(EngineOpError) as ctx:
+            comfy_execute.forward_engine_job_cancel("p-1")
+        message = str(ctx.value)
+        assert "ComfyUI 引擎不可达(http://127.0.0.1:1)" in message
+        assert "任务或仍在原引擎执行" in message
+        assert "设置→本地配置" in message
+
+    @pytest.mark.parametrize("url,origin", [
+        ("http://192.168.0.101:17000/history/p-1", "http://192.168.0.101:17000"),
+        ("http://127.0.0.1:17598/prompt", "http://127.0.0.1:17598"),
+        ("http://192.168.0.101:17000/api/jobs/p-1/cancel", "http://192.168.0.101:17000"),
+    ])
+    def test_origin_rendered_for_remote_and_local_urls(self, url, origin):
+        assert origin in str(comfy_execute._unreachable_error(url))
+
+    def test_http_error_status_uses_same_origin_message(self, engine):
+        """HTTPError 分支(非 /prompt 400、非 object_info 404)同款文案。"""
+        with pytest.raises(EngineOpError) as ctx:
+            comfy_execute._http_json("GET", f"{engine.url}/definitely-not-a-path")
+        message = str(ctx.value)
+        assert f"ComfyUI 引擎不可达({engine.url})" in message
+        assert "任务或仍在原引擎执行" in message
+
+    def test_execute_job_error_surfaces_engine_origin(self, monkeypatch):
+        """全链:提交打不可达引擎时 job error 带引擎 origin(远端归因可观测)。"""
+        monkeypatch.setattr(comfy_execute, "_engine_url", lambda: "http://127.0.0.1:1")
+        job_id = comfy_execute.jobs.create("comfy-execute")
+        comfy_execute._execute_target(job_id, _graph_fixture(), {}, [])
+        job = comfy_execute.jobs.get(job_id)
+        assert job["status"] == "error"
+        assert "ComfyUI 引擎不可达(http://127.0.0.1:1)" in job["error"]
+        assert "任务或仍在原引擎执行" in job["error"]
+
+
 class TestObjectInfoDetail:
     def test_detail_trims_and_keeps_shape(self, engine):
         detail = comfy_execute.object_info_detail("KSampler")
@@ -550,7 +743,9 @@ def test_invalid_timeout_falls_back_to_finite_default(value):
     assert comfy_execute.resolve_execute_timeout_s({"timeoutS": value}) == comfy_execute.EXECUTE_TIMEOUT_S
 
 
-def test_max_execute_timeout_pinned_at_2700_for_h3_video_tier():
-    """D2(10-27)显式钉:2700s 罩住 H3 视频档(960P 单镜 21min+冷启 4min+余量)。"""
-    assert comfy_execute.MAX_EXECUTE_TIMEOUT_S == 2700.0
-    assert comfy_execute.resolve_execute_timeout_s({"timeoutS": 999999}) == 2700.0
+def test_max_execute_timeout_pinned_at_14400_for_h3_multiseg_tier():
+    """M2(10-27 §14.1.5)显式钉:14400s 罩住 multiseg 长镜档
+    (40s 960P multiseg≈12600s+冷启+余量;一期 2700 钉就此随迁,
+    单段 H3 960P 21min+冷启 4min 仍在罩内)。"""
+    assert comfy_execute.MAX_EXECUTE_TIMEOUT_S == 14400.0
+    assert comfy_execute.resolve_execute_timeout_s({"timeoutS": 999999}) == 14400.0

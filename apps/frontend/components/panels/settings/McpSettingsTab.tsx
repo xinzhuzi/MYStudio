@@ -40,6 +40,13 @@ import {
   type McpServerConfig,
   type McpTransport,
 } from "@/stores/mcp/mcp-servers-store";
+import {
+  getRemoteEngine,
+  setRemoteEngine,
+  SIDECAR_DOWN_GUIDANCE,
+  isSidecarDownError,
+  type ComfyRemoteEngineStatus,
+} from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { SecureVaultBanner } from "./SecureVaultBanner";
 
 type TestState =
@@ -69,7 +76,7 @@ const emptyDraft: DraftForm = {
 };
 
 const COLLAPSED_STORAGE_KEY = "mystudio.settings.mcp.collapsedSections";
-type SectionId = "bridge" | "servers" | "json";
+type SectionId = "bridge" | "remote-engine" | "servers" | "json";
 type PillState = "ready" | "needs-runtime" | "neutral";
 
 const PILL_LABELS: Record<PillState, string> = {
@@ -178,6 +185,12 @@ const LOCAL_IMAGE_BASE_TYPES = [
   "分镜剧情图", "表情差分", "概念气氛图", "设定卡",
 ] as const;
 
+// T15/G3:探活成功文案「ComfyUI x.y · GPU名」——GPU 名由 system_stats devices[0].name
+// 透传(comfyui_bridge.resolve_big_files → inventory gpuName),引擎没给时只显示版本段。
+function comfyVersionLabel(version?: string | null, gpu?: string | null): string {
+  return `ComfyUI ${version ?? ""}${gpu ? ` · ${gpu}` : ""}`;
+}
+
 export function McpSettingsTab() {
   const { servers, addServer, updateServer, removeServer } = useMcpServersStore();
   const hasRuntime = typeof window !== "undefined" && Boolean(window.mcpRuntime);
@@ -187,7 +200,14 @@ export function McpSettingsTab() {
   const [draft, setDraft] = useState<DraftForm>(emptyDraft);
   const [formError, setFormError] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestState>>({});
-  const [bridge, setBridge] = useState<{ ready: boolean; version?: string } | null>(null);
+  const [bridge, setBridge] = useState<{ ready: boolean; version?: string; gpu?: string } | null>(null);
+  // 远程引擎地址(10-29 D1 终裁):配置态回显/草稿/保存与连通测试进行态。
+  const [remoteEngine, setRemoteEngineState] = useState<ComfyRemoteEngineStatus | null>(null);
+  const [remoteDraft, setRemoteDraft] = useState("");
+  const [remoteSaving, setRemoteSaving] = useState(false);
+  const [remoteTest, setRemoteTest] = useState<
+    { status: "idle" } | { status: "ok"; text: string } | { status: "error"; message: string }
+  >({ status: "idle" });
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
 
@@ -229,7 +249,7 @@ export function McpSettingsTab() {
     let cancelled = false;
     (async () => {
       try {
-        const runtime = (window as unknown as { imageGenRuntime?: { status: () => Promise<{ models?: { modelName: string; downloaded: boolean; comfyuiVersion?: string | null }[] }> } }).imageGenRuntime;
+        const runtime = (window as unknown as { imageGenRuntime?: { status: () => Promise<{ models?: { modelName: string; downloaded: boolean; comfyuiVersion?: string | null; gpuName?: string | null }[] }> } }).imageGenRuntime;
         if (!runtime) {
           // 非桌面环境无 preload 桥:同样落定未就绪,避免永挂「探测中…」
           if (!cancelled) setBridge({ ready: false });
@@ -241,7 +261,7 @@ export function McpSettingsTab() {
         // inventory 未扫过(models 空列表)时同样落定为未就绪——否则界面永挂「探测中…」
         setBridge(
           row
-            ? { ready: Boolean(row.downloaded), version: row.comfyuiVersion ?? undefined }
+            ? { ready: Boolean(row.downloaded), version: row.comfyuiVersion ?? undefined, gpu: row.gpuName ?? undefined }
             : { ready: false },
         );
       } catch {
@@ -251,6 +271,69 @@ export function McpSettingsTab() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // 远程引擎配置回显(sidecar 未运行时静默空态——首开设置页不弹错)。
+  useEffect(() => {
+    let cancelled = false;
+    getRemoteEngine()
+      .then((status) => {
+        if (cancelled) return;
+        setRemoteEngineState(status);
+        setRemoteDraft(status.url ?? "");
+      })
+      .catch(() => {
+        /* sidecar 未运行/端点不可达:保持空态,保存时会给出大白话 */
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // 保存=写 sidecar 配置(原子落 App 家 remote-engine.json,即时生效无需重启);
+  // 测试连接=保存后调既有 /comfy/engine/status(其内部走 bridge_url=已跟随
+  // 远程,浏览器直 fetch 引擎会吃 CORS,故借 sidecar 全链探测)。
+  const saveRemoteEngine = async () => {
+    const url = remoteDraft.trim();
+    setRemoteSaving(true);
+    setRemoteTest({ status: "idle" });
+    try {
+      await setRemoteEngine(url);
+      const status = await getRemoteEngine();
+      setRemoteEngineState(status);
+      toast.success(url ? "引擎地址已保存,即时生效" : "已恢复本机引擎");
+      if (url) {
+        // 保存即测:status 探活走生效 base,回 online 即全链通。
+        setRemoteTest({ status: "ok", text: `生效地址 ${status.effective},探活中…` });
+        try {
+          const runtime = (window as unknown as { imageGenRuntime?: { status: () => Promise<{ models?: { modelName: string; downloaded: boolean; comfyuiVersion?: string | null; gpuName?: string | null }[] }> } }).imageGenRuntime;
+          if (runtime) {
+            const s = await runtime.status();
+            const row = (s.models ?? []).find((m) => m.modelName === "comfyui-bridge");
+            setRemoteTest({
+              status: "ok",
+              text: row?.downloaded
+                ? `已连通远端引擎(${comfyVersionLabel(row.comfyuiVersion ?? "未知版本", row.gpuName)})——本机出图/出视频将发往该引擎执行,产物自动取回。`
+                : "已保存,但远端引擎暂未探活成功(地址错/引擎未启动?),请检查后重试。",
+            });
+          } else {
+            setRemoteTest({ status: "ok", text: `已保存,生效地址 ${status.effective}。` });
+          }
+        } catch {
+          setRemoteTest({ status: "error", message: "已保存,但探活远端引擎失败:地址错或引擎未启动。" });
+        }
+      }
+    } catch (error) {
+      // T9/G8:sidecar 未在驾是保存链第一故障源——探活 false/连接失败两族错误
+      // 统一换算成同源指路文案(常量真源=桥文件 sidecarLikelyUp 门禁)。
+      const message = isSidecarDownError(error)
+        ? SIDECAR_DOWN_GUIDANCE
+        : error instanceof Error
+          ? error.message
+          : "保存失败";
+      setRemoteTest({ status: "error", message });
+      toast.error(message);
+    } finally {
+      setRemoteSaving(false);
+    }
+  };
 
   const transportLabel = (transport: McpTransport) => (transport === "stdio" ? "本地命令" : "网络地址");
 
@@ -374,7 +457,7 @@ export function McpSettingsTab() {
                 <p className="text-xs text-muted-foreground">探测中…</p>
               ) : bridge.ready ? (
                 <p className="text-xs text-success" data-testid="comfyui-bridge-ready">
-                  已就绪（ComfyUI {bridge.version ?? ""}）——连接本机正在运行的 ComfyUI 出图，支持多张参考图编辑。在生图引擎选择里选用，无需下载模型。
+                  已就绪（{comfyVersionLabel(bridge.version, bridge.gpu)}）——连接本机正在运行的 ComfyUI 出图，支持多张参考图编辑。在生图引擎选择里选用，无需下载模型。
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground" data-testid="comfyui-bridge-not-ready">
@@ -433,9 +516,57 @@ export function McpSettingsTab() {
             </div>
           </div>
         </McpRow>
+        {/* 远程引擎地址(10-29 D1 终裁):URL 配一条,任务发远端 MYStudio 的 ComfyUI+产物回流 */}
+        <McpRow
+          sectionId="remote-engine"
+          icon={Server}
+          title="ComfyUI 引擎地址（远程）"
+          pill={remoteEngine?.source === "settings" ? "ready" : "neutral"}
+          collapsed={collapsedSections.has("remote-engine")}
+          onToggle={toggleSectionCollapsed}
+        >
+          <div className="space-y-3 px-5 py-4" data-testid="remote-engine-section">
+            <p className="text-xs leading-5 text-muted-foreground">
+              填局域网内另一台机器的 ComfyUI 地址(如 http://192.168.0.101:17000),本机出图/出视频改由该引擎执行,产物自动取回;留空=本机引擎。保存即生效,无需重启。
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                value={remoteDraft}
+                onChange={(e) => setRemoteDraft(e.target.value)}
+                placeholder="http://192.168.0.101:17000(留空=本机引擎)"
+                data-testid="remote-engine-url"
+                spellCheck={false}
+              />
+              <Button
+                size="sm"
+                onClick={saveRemoteEngine}
+                disabled={remoteSaving}
+                data-testid="remote-engine-save"
+              >
+                {remoteSaving ? "保存中…" : "保存并测试"}
+              </Button>
+            </div>
+            {remoteTest.status === "ok" && (
+              <p className="text-xs text-success" data-testid="remote-engine-ok">{remoteTest.text}</p>
+            )}
+            {remoteTest.status === "error" && (
+              <p className="text-xs text-destructive" data-testid="remote-engine-error">{remoteTest.message}</p>
+            )}
+            {remoteEngine && (
+              <p className="text-xs text-muted-foreground">
+                当前生效:{remoteEngine.effective}(
+                {remoteEngine.source === "settings"
+                  ? "设置页远程"
+                  : remoteEngine.source === "env"
+                    ? "环境变量"
+                    : remoteEngine.source === "managed"
+                      ? "本机托管引擎"
+                      : "默认回落"})
+              </p>
+            )}
+          </div>
+        </McpRow>
       </McpGroup>
-
-      {/* ── MCP 服务器 ── */}
       <McpGroup label="MCP 服务器">
         <McpRow
           sectionId="servers"

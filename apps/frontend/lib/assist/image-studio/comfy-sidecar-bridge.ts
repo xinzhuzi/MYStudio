@@ -88,6 +88,24 @@ let livenessProbeOverride: ComfySidecarLivenessProbe | null = null;
 let livenessCache: { at: number; up: boolean } | null = null;
 const LIVENESS_TTL_MS = 3_000;
 
+/**
+ * sidecar 未在驾的统一指路文案(10-29 T9/G8):本文件探活门禁抛出的错误与
+ * 设置页(McpSettingsTab)保存失败 catch 展示的指引同源共用这一常量——
+ * 单一真源,两处永不漂移。
+ */
+export const SIDECAR_DOWN_GUIDANCE = "本地生图服务未运行:请在 设置→本地配置 完成『准备运行时』";
+
+/**
+ * sidecar 未在驾类错误判定(探活 false 抛 SIDECAR_DOWN_GUIDANCE / 探活过但
+ * 连接失败两族):消费方(设置页保存 catch)据此换算成同源指路文案。
+ */
+export function isSidecarDownError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === SIDECAR_DOWN_GUIDANCE || error.message.startsWith("无法连接本地生图服务"))
+  );
+}
+
 /** 测试注入位(jsdom 无 imageGenRuntime 桥,单测直控门禁语义)。 */
 export function setComfySidecarLivenessProbeForTests(probe: ComfySidecarLivenessProbe | null): void {
   livenessProbeOverride = probe;
@@ -123,7 +141,7 @@ async function comfySidecarRequest<T>(
 ): Promise<T> {
   if (!(await sidecarLikelyUp())) {
     // sidecar 未运行:不发 fetch(避免渲染层网络错误日志),直接大白话指路。
-    throw new Error("本地生图服务未运行,请先在 设置→本地配置 完成「准备运行时」");
+    throw new Error(SIDECAR_DOWN_GUIDANCE);
   }
   const url = new URL(`${COMFY_SIDECAR_BASE_URL}${path}`);
   for (const [key, value] of Object.entries(options.query ?? {})) {
@@ -1014,4 +1032,28 @@ export function createHttpComfyWorkflowLibraryTransport(): ComfyWorkflowLibraryT
       return raw.classTypes ?? [];
     },
   };
+}
+
+// ── 远程引擎地址(10-29 D1 终裁:设置页配 URL,任务发远端 MYStudio 的 ComfyUI+产物回流)──
+// 设置位真源=App 家 comfyui/remote-engine.json(全局机器级);sidecar 端点
+// GET/POST /comfy/engine/remote(见 backend engine_manager.set_remote_engine)。
+
+export interface ComfyRemoteEngineStatus {
+  /** 设置页配置值;null=未配置(本机发现)。 */
+  url: string | null;
+  /** 当前生效 base(设置>env>manifest 端口>17598)。 */
+  effective: string;
+  source: "settings" | "env" | "managed" | "fallback";
+}
+
+export async function getRemoteEngine(): Promise<ComfyRemoteEngineStatus> {
+  return comfySidecarRequest<ComfyRemoteEngineStatus>("GET", "/comfy/engine/remote");
+}
+
+export async function setRemoteEngine(url: string): Promise<{ url: string | null; cleared: boolean }> {
+  return comfySidecarRequest<{ url: string | null; cleared: boolean }>(
+    "POST",
+    "/comfy/engine/remote",
+    { body: { url } },
+  );
 }

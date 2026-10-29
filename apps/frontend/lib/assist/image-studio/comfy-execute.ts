@@ -10,7 +10,9 @@
  * - 纯函数:工作流节点上游收集(prompt 正负极性分流/图沿边收集)与执行计划
  *   构建(graph 解析+widget 值回填+注入点规划),单测覆盖。
  * - 落盘:输出图按成图节点 mediaRef 模式写项目 media/ai-image/(project-file://)
- *   + 媒体库条目 + 磁盘 ledger(照 run-node-generation 治理口径)。
+ *   + 媒体库条目 + 磁盘 ledger(照 run-node-generation 治理口径);输出视频走
+ *   persistComfyVideo 同惯例落 media/ai-video/(10-29 D1 T7,persist 成功即
+ *   从结果剥离 b64 防 MB 级常驻,G16 前端侧)。
  */
 
 import { unwrapComfyApiGraph, type ComfyApiWorkflow } from "@/lib/assist/image-studio/comfy-workflow-import";
@@ -141,6 +143,22 @@ export interface ComfyExecuteJobReply {
     texts?: Array<{
       nodeId?: string;
       text: string;
+    }>;
+    /**
+     * SaveVideo/VHS_VideoCombine 类节点产物(10-29 D1 T7:与 images 同收集链;
+     * 后端 execute.py video_collected 形状 {nodeId,filename,subfolder,type,b64})。
+     * persist 成功后消费方剥离 b64 换 url/persisted(防 MB 级 b64 随结果对象常驻,
+     * G16 前端侧);b64 声明为可选正是为容纳剥离后的形态。
+     */
+    videos?: Array<{
+      nodeId?: string;
+      filename?: string;
+      subfolder?: string;
+      type?: string;
+      b64?: string;
+      /** persist 成功换入的项目受管地址(project-file://,media/ai-video/) */
+      url?: string;
+      persisted?: boolean;
     }>;
   } | null;
 }
@@ -465,6 +483,108 @@ export async function persistComfyAudio(
     throw new Error("生成结果未返回发起项目的受管音频地址");
   }
   return { filePath: saved.filePath, url: saved.url };
+}
+
+/**
+ * b64 视频 → 项目 media/ai-video/<月>/ 受管文件 + 媒体库条目(video 类型)+
+ * 磁盘 ledger(10-29 D1 T7:照 persistComfyImage 三件事惯例做视频版)。
+ * 与 persistComfyImage 的差异:视频无 data: 内存预览降级(MB 级 b64 常驻正是
+ * G16 要防的),写失败只回 {url:null, persisted:false} 不抛错不阻断回显;
+ * projectId 必须为发起项目快照,保存窗口内活动项目已切换时不入媒体库
+ * (防条目错挂;与 persistComfyImage 的 assertProjectCurrent 同目的)。
+ */
+export async function persistComfyVideo(
+  b64: string,
+  engineFilename: string,
+  projectId: string,
+): Promise<{ url: string | null; mediaId?: string; persisted: boolean }> {
+  const projectFiles = getProjectFilesBridge();
+  if (!projectId || !projectFiles?.writeBinary) {
+    return { url: null, persisted: false };
+  }
+  if (useProjectStore.getState().activeProjectId !== projectId) {
+    return { url: null, persisted: false };
+  }
+  const extension = (engineFilename.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8);
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const filename = `comfy_video_${Date.now()}.${extension || "mp4"}`;
+  const binary = Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
+  const bytes = new ArrayBuffer(binary.byteLength);
+  new Uint8Array(bytes).set(binary);
+  const saved = await projectFiles.writeBinary({
+    projectId,
+    relativePath: `media/ai-video/${month}/${filename}`,
+    bytes,
+  }).catch(() => undefined);
+  if (!saved?.success || !saved.url || parseProjectFileUrl(saved.url)?.projectId !== projectId) {
+    return { url: null, persisted: false };
+  }
+  // 媒体库条目(saveToMediaLibrary)按「当前活动项目」归属落库:写盘等待窗口内
+  // 项目已切换则不入库,文件留在发起项目内但不再挂条目(照 persistComfyImage
+  // 写后 assert 的同款语义,视频侧改为静默失败不阻断)。
+  if (useProjectStore.getState().activeProjectId !== projectId) {
+    return { url: null, persisted: false };
+  }
+  const title = engineFilename || "ComfyUI 视频";
+  const mediaId = saveToMediaLibrary(saved.url, title, "ai-video");
+  void appendProjectLedger({
+    projectId,
+    relativePath: `media/ai-video/${ledgerMonthFolderOf(saved.url)}/ledger.json`,
+    entry: {
+      ts: Date.now(),
+      prompt: title,
+      model: "comfy",
+      file: `${ledgerMonthFolderOf(saved.url)}/${ledgerFilenameOf(saved.url)}`,
+      negativePrompt: null,
+      aspectRatio: "",
+      resolution: null,
+      references: [],
+      source: "comfy-video",
+    },
+  }).catch(() => undefined);
+  return { url: saved.url, mediaId, persisted: true };
+}
+
+export interface ComfyVideoPersistSummary {
+  /** 成功入库并已剥离 b64 的条数 */
+  persisted: number;
+  /** 入库失败(b64 保留在结果对象,产物仍在引擎输出目录可重试) */
+  failed: number;
+}
+
+/**
+ * execute 结果里的 videos 循环入库(T7 消费位共用核):逐段调 persistComfyVideo,
+ * 成功即地剥离该条目的 b64 换 {url, persisted}(G16 前端侧,防 MB 级 b64 随
+ * job result 常驻);任何一段失败只计数不抛错(照「失败不阻断」惯例)。
+ * 已剥离条目(b64 缺失)跳过——重复消费幂等。
+ */
+export async function persistComfyVideosFromResult(
+  result: Pick<NonNullable<ComfyExecuteJobReply["result"]>, "videos">,
+  projectId: string | null,
+): Promise<ComfyVideoPersistSummary> {
+  const summary: ComfyVideoPersistSummary = { persisted: 0, failed: 0 };
+  for (const video of result.videos ?? []) {
+    if (!video.b64) continue;
+    try {
+      const saved = await persistComfyVideo(
+        video.b64,
+        video.filename ?? `comfy_video_${Date.now()}.mp4`,
+        projectId ?? "",
+      );
+      if (saved.persisted && saved.url) {
+        delete video.b64;
+        video.url = saved.url;
+        video.persisted = true;
+        summary.persisted += 1;
+      } else {
+        summary.failed += 1;
+      }
+    } catch {
+      summary.failed += 1;
+    }
+  }
+  return summary;
 }
 
 // ---------------------------------------------------------------------------

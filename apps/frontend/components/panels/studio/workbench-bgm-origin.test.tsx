@@ -11,10 +11,12 @@ import type { RemotionChapterManifestV2 } from "@/types/remotion-workspace";
 
 const mocks = vi.hoisted(() => ({
   execute: vi.fn(), content: vi.fn(), persist: vi.fn(), readAudio: vi.fn(),
-  success: vi.fn(), fingerprint: vi.fn(), bindingFingerprint: vi.fn(),
+  persistVideos: vi.fn(),
+  success: vi.fn(), warning: vi.fn(), fingerprint: vi.fn(), bindingFingerprint: vi.fn(),
 }));
 vi.mock("@/lib/assist/image-studio/comfy-execute", () => ({
   runComfyExecute: mocks.execute, persistComfyAudio: mocks.persist, comfyImageUrlToB64: mocks.readAudio,
+  persistComfyVideosFromResult: mocks.persistVideos,
 }));
 vi.mock("@/lib/assist/image-studio/comfy-workflow-library", () => ({
   getComfyWorkflowLibraryTransport: () => ({ content: mocks.content }),
@@ -23,7 +25,7 @@ vi.mock("@/lib/studio/remotion/remotion-audio-fingerprint", () => ({
   createRemotionChapterManifestFingerprint: mocks.fingerprint,
   createRemotionAudioBindingFingerprint: mocks.bindingFingerprint,
 }));
-vi.mock("sonner", () => ({ toast: { success: mocks.success, error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { success: mocks.success, warning: mocks.warning, error: vi.fn() } }));
 vi.mock("./useEditingWorkbenchActions", () => ({ useEditingWorkbenchActions: () => ({ hyperFramesState: "blocked" }) }));
 vi.mock("./useSceneSegmentExport", () => ({ useSceneSegmentExport: () => ({ scenes: [], pendingJobStatuses: [] }) }));
 vi.mock("./VisualContinuityReviewPanel", () => ({ VisualContinuityReviewPanel: () => null }));
@@ -62,6 +64,7 @@ beforeEach(() => {
   mocks.content.mockResolvedValue(workflow);
   mocks.execute.mockResolvedValue(audio);
   mocks.persist.mockResolvedValue(saved);
+  mocks.persistVideos.mockResolvedValue({ persisted: 0, failed: 0 });
   mocks.readAudio.mockResolvedValue("QUJD");
   mocks.fingerprint.mockResolvedValue("f".repeat(64));
   mocks.bindingFingerprint.mockResolvedValue("b".repeat(64));
@@ -190,6 +193,39 @@ describe("Workbench BGM async origin", () => {
     expect(mocks.persist).toHaveBeenCalledWith("QUJD", "song.flac", "project-a");
     expect(importAudio).toHaveBeenCalledWith({ projectId: "project-a", chapterId: "chapter-a", role: "bgm", sourcePath: saved.filePath });
     expect(write).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-a", chapterId: "chapter-a", expectedRevision: 1 }));
+    expect(mocks.success).toHaveBeenCalledWith("本地 BGM 已生成并绑定到本章");
+  });
+
+  // T7(10-29 D1):execute 结果带 videos → 循环入库(发起项目身份)+成功 toast;
+  // 音频主链(persistComfyAudio→importAudio→write)不被视频结果牵动。
+  it("persists execute videos to the originating project without disturbing the audio chain", async () => {
+    mocks.persistVideos.mockResolvedValue({ persisted: 1, failed: 0 });
+    const view = await mount();
+    const pending = await start(view, "single");
+    const withVideos: ExecuteResult = {
+      audios: [{ b64: "QUJD", filename: "song.flac" }],
+      videos: [{ nodeId: "21", filename: "ComfyUI_00001.mp4", b64: "QUJD" }],
+    };
+    await act(async () => { pending.resolve(withVideos); });
+    await waitFor(() => expect(write).toHaveBeenCalledOnce());
+    expect(mocks.persistVideos).toHaveBeenCalledTimes(1);
+    expect(mocks.persistVideos).toHaveBeenCalledWith(withVideos, "project-a");
+    expect(mocks.success).toHaveBeenCalledWith("已存 1 段视频到项目媒体库");
+    expect(mocks.persist).toHaveBeenCalledWith("QUJD", "song.flac", "project-a");
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-a", chapterId: "chapter-a", expectedRevision: 1 }));
+  });
+
+  // 视频入库失败仅告警 toast,音频主链照常走到绑定成功(失败不阻断惯例)。
+  it("video persist failure warns but never blocks the audio bind chain", async () => {
+    mocks.persistVideos.mockResolvedValue({ persisted: 0, failed: 2 });
+    const view = await mount();
+    const pending = await start(view, "single");
+    await act(async () => {
+      pending.resolve({ audios: [{ b64: "QUJD", filename: "song.flac" }], videos: [{ b64: "QUJD" }, { b64: "REVG" }] });
+    });
+    await waitFor(() => expect(write).toHaveBeenCalledOnce());
+    expect(mocks.warning).toHaveBeenCalledWith(expect.stringContaining("2 段视频入库失败"));
+    expect(mocks.persist).toHaveBeenCalledWith("QUJD", "song.flac", "project-a");
     expect(mocks.success).toHaveBeenCalledWith("本地 BGM 已生成并绑定到本章");
   });
 

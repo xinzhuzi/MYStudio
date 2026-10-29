@@ -88,6 +88,8 @@ export interface ImageGenModelRow {
   pointed?: boolean | null;
   bigFilesSource?: "comfyui" | "app-cache" | "comfyui-service" | null;
   comfyuiVersion?: string | null;
+  /** 10-29 T15/G3:system_stats devices[0].name 透传的 GPU 名(与 types/image-gen.ts 同字段) */
+  gpuName?: string | null;
   smallPiecesReady?: boolean | null;
   pointedFiles?: string[] | null;
 }

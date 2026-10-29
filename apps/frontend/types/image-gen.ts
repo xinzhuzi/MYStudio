@@ -18,6 +18,8 @@ export interface ImageGenModelRow {
   /** 大件实际生效来源:comfyui=指向零下载 / app-cache=应用缓存自足完整下载 / comfyui-service=桥接服务(null=缺大件) */
   bigFilesSource?: "comfyui" | "app-cache" | "comfyui-service" | null;
   comfyuiVersion?: string | null;
+  /** 10-29 T15/G3:system_stats devices[0].name 透传的 GPU 名(设置页探活文案「ComfyUI x.y · GPU名」;引擎未跑/未上报=null) */
+  gpuName?: string | null;
   smallPiecesReady?: boolean | null;
   /** 大件实际绝对路径列表(主模型/文本编码器,两源通用),设置页展示用;缺大件为空表 */
   pointedFiles?: string[] | null;

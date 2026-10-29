@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tarfile
 import threading
+from urllib.parse import urlparse
 import time
 import uuid
 from contextlib import contextmanager
@@ -237,6 +238,12 @@ class EngineOpError(Exception):
 
 
 # ── job 框架(engine/plugin 共用;照 download_model.py 的进度范式) ─────
+# 终态 job 保留窗(10-29 T10③/G16):complete/error 后 30 分钟,registry 惰性
+# 淘汰(get 时过期即清+返回 None)——videos b64 可达 MB 级,长跑 sidecar 不让
+# registry 无上限常驻线性涨内存;running 态永不淘汰。
+JOB_RETENTION_S = 30 * 60
+
+
 class JobRegistry:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -281,7 +288,17 @@ class JobRegistry:
     def get(self, job_id: str) -> dict | None:
         with self._lock:
             job = self._jobs.get(job_id)
-            return dict(job) if job else None
+            if job is None:
+                return None
+            # 惰性淘汰(10-29 T10③/G16):终态(complete/error)超保留窗即摘除
+            # 并返回 None;running 态不受影响。updatedAt=墙钟毫秒(见 create/update)。
+            if (
+                job["status"] in ("complete", "error")
+                and (time.time() * 1000 - job["updatedAt"]) >= JOB_RETENTION_S * 1000
+            ):
+                del self._jobs[job_id]
+                return None
+            return dict(job)
 
     def active_of(self, kind: str) -> dict | None:
         """该类别当前仍在跑的 job(状态机判定用;返回副本)。"""
@@ -427,10 +444,13 @@ def managed_comfy_api_base() -> str | None:
     return (os.environ.get(MANAGED_COMFY_API_BASE_ENV) or "").strip() or None
 
 
-# --listen 环回白名单(0924 安全收口 M4):引擎自身零鉴权,绑非环回=
-# 把 /prompt 工作流执行、/upload 上传直接暴露到局域网,故仅放行环回写法;
-# 0.0.0.0 等任何其它取值在此拒绝(改串重启也过不了这道闸)。
-LISTEN_LOOPBACK_WHITELIST = frozenset({"127.0.0.1", "localhost"})
+# --listen 地址白名单(0924 安全收口 M4 立;1029 用户裁定修订):
+# ComfyUI 引擎是公开 API 服务,端口按裁定对局域网开放(双机互调/他人可调);
+# 后端 py(sidecar 17595 系)恒本机回环不在此列。0.0.0.0 自 1029 起放行,
+# 其余非环回取值(具体 IP/::)仍拒绝。
+LISTEN_ALLOWED_ADDRESSES = frozenset({"127.0.0.1", "localhost", "0.0.0.0"})
+# 兼容别名(0924-1029 间外部语义名)
+LISTEN_LOOPBACK_WHITELIST = LISTEN_ALLOWED_ADDRESSES
 
 
 def build_launch_args(
@@ -442,9 +462,9 @@ def build_launch_args(
 ) -> list[str]:
     """启动参数串 → 实际 argv(Desktop 式:串=唯一真源)。
 
-    --listen 未写补托管默认 127.0.0.1;已写则须命中环回白名单
-    (LISTEN_LOOPBACK_WHITELIST),否则抛 EngineOpError——引擎无鉴权,
-    0.0.0.0 等值等于局域网裸奔;--port 一律用调用方传入的决议口
+    --listen 未写补托管默认 127.0.0.1;已写则须命中地址白名单
+    (LISTEN_ALLOWED_ADDRESSES:127.0.0.1/localhost/0.0.0.0——1029 用户裁定引擎
+    端口可对局域网开放;具体 IP/:: 仍抛 EngineOpError);--port 一律用调用方传入的决议口
     (resolve_launch_port 已消费串口:空闲即串口,被占按策略顺延)。此处若再
     让串口压决议口,引擎实际口与账本/健康检查口分叉——09-11 实弹红条根因
     (账本记顺延口 17000、引擎实际绑串口 17598,健康检查两头不挨)。
@@ -457,10 +477,10 @@ def build_launch_args(
     """
     parsed = parse_launch_args_string(args_string)
     listen = parsed["listen"]
-    if listen is not None and listen not in LISTEN_LOOPBACK_WHITELIST:
+    if listen is not None and listen not in LISTEN_ALLOWED_ADDRESSES:
         raise EngineOpError(
-            f"--listen 取值被拒绝:{listen}(仅允许环回 127.0.0.1/localhost;"
-            "引擎无鉴权,绑非环回地址会把执行/上传接口暴露到局域网)"
+            f"--listen 取值被拒绝:{listen}(仅允许 127.0.0.1/localhost/0.0.0.0;"
+            "1029 裁定引擎端口可对局域网开放;具体 IP/:: 等取值仍禁)"
         )
     args = [script]
     args += ["--listen", listen or "127.0.0.1"]
@@ -2564,6 +2584,66 @@ class EngineManager:
         })
 
     # -- 配置(modelsDir/性能档;引擎卡设置区) ----------------------------
+    def remote_engine_status(self) -> dict:
+        """设置页「ComfyUI 引擎地址」回显(10-29 D1 终裁)。
+
+        返回 {url: 配置值或 None, effective: 当前生效 base, source: 生效来源}。
+        source ∈ {settings, env, managed, fallback}。
+        """
+        from engines.image_engine.comfyui_bridge import (
+            bridge_url,
+            remote_engine_url_from_settings,
+        )
+
+        url = remote_engine_url_from_settings()
+        effective = bridge_url()
+        if url:
+            source = "settings"
+        elif os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_URL"):
+            source = "env"
+        elif cm.recorded_port():
+            source = "managed"
+        else:
+            source = "fallback"
+        return {"url": url, "effective": effective, "source": source}
+
+    def set_remote_engine(self, payload: dict) -> dict:
+        """设置页「ComfyUI 引擎地址」写入(全局机器级;10-29 D1 终裁)。
+
+        url 空/缺省=清除回本地发现;非空须 http(s)://host[:port] 形态。
+        原子写 App 家 comfyui/remote-engine.json;bridge_url() 下次调用即生效
+        (引擎调用逐次解析,无需重启 sidecar/引擎)。写后同步清同进程
+        comfyui_bridge 的 object_info 60s 缓存(10-29 T10①/G9:不清则切换后
+        首个提交仍按旧引擎节点清单做缺插件预检,误报/漏报)。
+        """
+        from engines.image_engine import comfyui_bridge as _bridge
+
+        raw = payload.get("url")
+        if raw is None or not isinstance(raw, str):
+            raise EngineOpError("引擎地址必须是文本(空串=恢复本地引擎)")
+        url = raw.strip().rstrip("/")
+        if url:
+            parsed = urlparse(url)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                raise EngineOpError(
+                    "引擎地址须为 http(s)://主机[:端口] 形态(如 http://192.168.0.101:17000)"
+                )
+        home = cm.comfy_home()
+        home.mkdir(parents=True, exist_ok=True)
+        path = home / "remote-engine.json"
+        if not url:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+            _bridge.invalidate_object_info()  # 回本地同样换引擎,缓存一并失效
+            return {"url": None, "cleared": True}
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps({"url": url}, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(path)
+        _bridge.invalidate_object_info()
+        return {"url": url, "cleared": False}
+
     def update_config(self, payload: dict) -> dict:
         models_dir = payload.get("modelsDir")
         # 09-10 Desktop 式:argsString=命令行串唯一真源;旧 launchArgs dict 容错翻译;

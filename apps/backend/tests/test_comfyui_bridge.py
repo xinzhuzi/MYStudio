@@ -271,6 +271,50 @@ class BridgeContractTests(unittest.TestCase):
         self.assertEqual(row["comfyuiVersion"], "0.33.0")
         self.assertFalse(row["pointed"])
 
+    def test_system_stats_gpu_name_flows_to_inventory_row(self):
+        """10-29 T15/G3:system_stats devices[0].name → resolve_big_files.gpu_name
+        → inventory 行 gpuName(设置页探活文案「ComfyUI x.y · GPU名」的全链前置)。"""
+        stats = {
+            "system": {"comfyui_version": "0.42.0", "os": "win32"},
+            "devices": [{"name": "NVIDIA GeForce RTX 4060 Ti", "type": "cuda", "index": 0}],
+        }
+        with patch.object(bridge, "bridge_url", return_value="http://192.168.0.101:17000"), patch.object(
+            bridge, "_http_json", return_value=stats,
+        ):
+            resolved = bridge.resolve_big_files()
+        self.assertEqual(resolved["comfyui_version"], "0.42.0")
+        self.assertEqual(resolved["gpu_name"], "NVIDIA GeForce RTX 4060 Ti")
+        with patch.object(model_inventory, "IMAGE_MODELS", {bridge.MODEL_NAME: bridge.SPEC}), patch.object(
+            model_inventory, "find_cached_image_model_for_spec",
+            return_value={"cache_dir": "http://192.168.0.101:17000", "size_mb": 0},
+        ), patch.object(
+            bridge, "resolve_big_files", return_value=resolved,
+        ), patch.object(
+            bridge, "small_pieces_status",
+            return_value={"ready": True, "missing": [], "snapshot_dirs": {}},
+        ):
+            row = model_inventory.build_model_status()[0]
+        self.assertEqual(row["gpuName"], "NVIDIA GeForce RTX 4060 Ti")
+
+    def test_system_stats_without_devices_omits_gpu_and_does_not_crash(self):
+        """无 devices/空名=不带 gpu_name 键:inventory 行 gpuName=None,链路不炸。"""
+        with patch.object(bridge, "bridge_url", return_value="http://127.0.0.1:17001"), patch.object(
+            bridge, "_http_json", return_value={"system": {"comfyui_version": "0.42.0"}},
+        ):
+            resolved = bridge.resolve_big_files()
+        self.assertNotIn("gpu_name", resolved)
+        with patch.object(model_inventory, "IMAGE_MODELS", {bridge.MODEL_NAME: bridge.SPEC}), patch.object(
+            model_inventory, "find_cached_image_model_for_spec",
+            return_value={"cache_dir": "http://127.0.0.1:17001", "size_mb": 0},
+        ), patch.object(
+            bridge, "resolve_big_files", return_value=resolved,
+        ), patch.object(
+            bridge, "small_pieces_status",
+            return_value={"ready": True, "missing": [], "snapshot_dirs": {}},
+        ):
+            row = model_inventory.build_model_status()[0]
+        self.assertIsNone(row["gpuName"])
+
 
 if __name__ == "__main__":
     unittest.main()

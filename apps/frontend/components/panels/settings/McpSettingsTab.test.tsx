@@ -135,6 +135,18 @@ describe("McpSettingsTab service connections (ComfyUI 桥移此)", () => {
     });
   });
 
+  it("bridge 就绪文案带上 GPU 名(10-29 T15/G3,inventory 透传 gpuName 时)", async () => {
+    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
+      status: vi.fn().mockResolvedValue({
+        models: [{ modelName: "comfyui-bridge", downloaded: true, comfyuiVersion: "0.34.0", gpuName: "Apple M3 Max" }],
+      }),
+    };
+    render(<McpSettingsTab />);
+    await waitFor(() => {
+      expect(screen.getByTestId("comfyui-bridge-ready").textContent).toContain("ComfyUI 0.34.0 · Apple M3 Max");
+    });
+  });
+
   it("shows the not-ready hint when ComfyUI is not running", async () => {
     (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
       status: vi.fn().mockResolvedValue({
@@ -162,6 +174,153 @@ describe("McpSettingsTab service connections (ComfyUI 桥移此)", () => {
     render(<McpSettingsTab />);
     await waitFor(() => {
       expect(screen.getByTestId("comfyui-bridge-not-ready").textContent).toContain("需 ComfyUI 正在运行");
+    });
+  });
+});
+
+import { setComfySidecarLivenessProbeForTests } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
+
+describe("McpSettingsTab·远程引擎地址行(10-29 D1)", () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    setComfySidecarLivenessProbeForTests(null);
+    localStorage.clear();
+  });
+
+  it("服务连接组渲染引擎地址行,sidecar 未运行时空态不炸", async () => {
+    // getRemoteEngine 探活失败被组件静默吞——行仍在,无「当前生效」尾注
+    render(<McpSettingsTab />);
+    expect(screen.getByText("ComfyUI 引擎地址（远程）")).toBeTruthy();
+    expect(screen.getByTestId("remote-engine-url")).toBeTruthy();
+    expect(screen.queryByText(/当前生效/)).toBeNull();
+  });
+
+  it("保存即测:写 URL 走 POST /comfy/engine/remote,回显生效地址与探活结论", async () => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = url as string;
+      if (u.includes("/comfy/engine/remote") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ url: "http://192.168.0.101:17000", cleared: false }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/engine/remote")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            url: "http://192.168.0.101:17000",
+            effective: "http://192.168.0.101:17000",
+            source: "settings",
+          }),
+        } as unknown as Response);
+      }
+      if (u.includes("/status") && !u.includes("1700")) {
+        // sidecarLikelyUp 探活
+        return Promise.resolve({ ok: true, status: 200 } as unknown as Response);
+      }
+      return Promise.reject(new Error("unexpected fetch " + u));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
+      status: () =>
+        Promise.resolve({
+          models: [
+            { modelName: "comfyui-bridge", downloaded: true, comfyuiVersion: "0.42.0" },
+          ],
+        }),
+    };
+    render(<McpSettingsTab />);
+    const input = screen.getByTestId("remote-engine-url");
+    fireEvent.change(input, { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("remote-engine-save"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("0.42.0");
+    });
+    expect(screen.getByText(/当前生效:http:\/\/192\.168\.0\.101:17000/)).toBeTruthy();
+    const post = fetchMock.mock.calls.find((c) => String(c[0]).includes("/comfy/engine/remote") && c[1]?.method === "POST");
+    expect(post?.[1]?.body).toContain("192.168.0.101");
+  });
+
+  it("非法 URL 保存失败给大白话", async () => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (String(url).includes("/comfy/engine/remote") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ error: { message: "引擎地址须为 http(s)://主机[:端口] 形态(如 http://192.168.0.101:17000)" } }),
+        } as unknown as Response);
+      }
+      if (String(url).includes("/status")) {
+        return Promise.resolve({ ok: true, status: 200 } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as unknown as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<McpSettingsTab />);
+    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "192.168.0.101" } });
+    fireEvent.click(screen.getByTestId("remote-engine-save"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-error").textContent).toContain("http(s)");
+    });
+  });
+
+  it("sidecar 探活 false 时保存给出指路文案(10-29 T9/G8:与桥 sidecarLikelyUp 同源)", async () => {
+    // 探活 false → 桥不发 fetch 直接抛指路;设置页 catch 原样给同源文案
+    setComfySidecarLivenessProbeForTests(async () => false);
+    render(<McpSettingsTab />);
+    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("remote-engine-save"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-error").textContent).toContain("本地生图服务未运行");
+    });
+    expect(screen.getByTestId("remote-engine-error").textContent).toContain("设置→本地配置");
+    expect(screen.getByTestId("remote-engine-error").textContent).toContain("『准备运行时』");
+  });
+
+  it("探活成功文案显示 GPU 名(10-29 T15/G3:「ComfyUI x.y · GPU名」)", async () => {
+    setComfySidecarLivenessProbeForTests(async () => true);
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = url as string;
+      if (u.includes("/comfy/engine/remote") && init?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ url: "http://192.168.0.101:17000", cleared: false }),
+        } as unknown as Response);
+      }
+      if (u.includes("/comfy/engine/remote")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            url: "http://192.168.0.101:17000",
+            effective: "http://192.168.0.101:17000",
+            source: "settings",
+          }),
+        } as unknown as Response);
+      }
+      return Promise.resolve({ ok: true, status: 200 } as unknown as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    (window as unknown as { imageGenRuntime: unknown }).imageGenRuntime = {
+      status: () =>
+        Promise.resolve({
+          models: [
+            { modelName: "comfyui-bridge", downloaded: true, comfyuiVersion: "0.42.0", gpuName: "RTX 4060 Ti" },
+          ],
+        }),
+    };
+    render(<McpSettingsTab />);
+    fireEvent.change(screen.getByTestId("remote-engine-url"), { target: { value: "http://192.168.0.101:17000" } });
+    fireEvent.click(screen.getByTestId("remote-engine-save"));
+    await waitFor(() => {
+      expect(screen.getByTestId("remote-engine-ok").textContent).toContain("ComfyUI 0.42.0 · RTX 4060 Ti");
     });
   });
 });

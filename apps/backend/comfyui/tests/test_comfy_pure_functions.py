@@ -211,16 +211,17 @@ class TestBuildLaunchArgs:
         args = build_launch_args("--listen localhost --port 8188 --fast", 17600)
         assert args == ["main.py", "--listen", "localhost", "--port", "17600", "--fast"]
 
-    def test_non_loopback_listen_is_rejected(self):
-        # 0924 安全收口 M4:引擎零鉴权,--listen 仅放行环回白名单
-        # (127.0.0.1/localhost);0.0.0.0 等取值在此拒绝,改串重启也过不了这道闸。
+    def test_non_allowed_listen_is_rejected(self):
+        # 0924 安全收口 M4 立;1029 用户裁定修订:引擎=公开 API 服务端口对
+        # 局域网开放(双机互调/他人可调),0.0.0.0 放行;具体 IP/:: 仍拒。
         from comfyui.engine_manager import EngineOpError
 
-        for bad in ("0.0.0.0", "192.168.1.10", "::", "[::1]"):
+        for bad in ("192.168.1.10", "::", "[::1]"):
             with pytest.raises(EngineOpError):
                 build_launch_args(f"--listen {bad} --fast", 17600)
-        # 环回白名单内的写法原样透传(等值写法同罪/同放)
+        # 白名单内的写法原样透传(等值写法同罪/同放);0.0.0.0=1029 开放裁定
         assert build_launch_args("--listen=127.0.0.1 --fast", 17600)[1:3] == ["--listen", "127.0.0.1"]
+        assert build_launch_args("--listen 0.0.0.0 --fast", 17600)[1:3] == ["--listen", "0.0.0.0"]
 
     def test_managed_comfy_api_base_env_appends_official_flag(self, monkeypatch):
         # 云端收编二轮:节点全保留,官方 --comfy-api-base 改指漫影网关(env 驱动)

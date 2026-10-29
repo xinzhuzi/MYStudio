@@ -38,7 +38,7 @@ env['TMP'] = r'C:\Users\ZBJ\AppData\Local\Temp'
 env['USERPROFILE'] = r'C:\Users\ZBJ'
 env['LOCALAPPDATA'] = r'C:\Users\ZBJ\AppData\Local'
 env.setdefault('SYSTEMROOT', r'C:\Windows')
-subprocess.Popen([VENV_PY, MAIN, '--listen', '127.0.0.1', '--port', '17000',
+subprocess.Popen([VENV_PY, MAIN, '--listen', '0.0.0.0', '--port', '17000',
                   '--enable-manager', '--use-pytorch-cross-attention',
                   '--output-directory', OUT],
                  cwd=CWD, stdout=log, stderr=subprocess.STDOUT,

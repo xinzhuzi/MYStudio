@@ -114,6 +114,18 @@ def _available_node_classes() -> frozenset[str]:
     return names
 
 
+def invalidate_object_info() -> None:
+    """清空 object_info 类名缓存(10-29 T10①/G9;公开口,调用方勿直捅私变量)。
+
+    设置页切换「ComfyUI 引擎地址」后由 engine_manager.set_remote_engine 调用:
+    同进程(sidecar)的 60s TTL 缓存若不清,切换后首个提交仍按旧引擎的节点
+    清单做缺插件预检(旧引擎少插件=误报缺节点,多插件=漏报)。仅清缓存,
+    下次 _available_node_classes() 以新 base 重新拉取。
+    """
+    global _object_info_cache
+    _object_info_cache = None
+
+
 def _warn_if_version_below_min(stats: dict[str, Any], template: dict[str, Any]) -> None:
     minimum = template.get("comfyuiVersionMin")
     actual = stats.get("comfyui_version")
@@ -124,11 +136,43 @@ def _warn_if_version_below_min(stats: dict[str, Any], template: dict[str, Any]) 
         )
 
 
+def remote_engine_url_from_settings() -> str | None:
+    """设置页「ComfyUI 引擎地址」(10-29 D1 终裁)读取。
+
+    真源 = App 家 comfyui/remote-engine.json 的 {"url": "http://host:port"};
+    全局机器级配置(引擎路由是环境事实,非项目属性),由 sidecar
+    POST /comfy/engine/remote 写入。缺文件/空串/解析失败=未配置(None),
+    逐字节走本地发现,存量行为零变化。
+
+    10-29 T15/G10:文件损坏(非法 JSON/非对象形态)时 sidecar 日志留一行告警
+    再回本地——行为仍是静默回退,只补可观测(手工编辑坏文件不再无声无息)。
+    """
+    # 延迟 import 同 bridge_url 本体:krea2 链零额外加载
+    from comfyui.manifest import comfy_home
+    try:
+        data = json.loads((comfy_home() / "remote-engine.json").read_text(encoding="utf-8"))
+    except OSError:
+        return None  # 缺文件=未配置(常态,静默)
+    except json.JSONDecodeError:
+        print("[comfyui-bridge] remote-engine.json 损坏,已忽略并回本地发现", flush=True)
+        return None
+    if not isinstance(data, dict):
+        # 顶层数组/字符串等非对象形态:同判损坏(旧实现此处会 AttributeError 炸调用链)
+        print("[comfyui-bridge] remote-engine.json 损坏,已忽略并回本地发现", flush=True)
+        return None
+    url = str(data.get("url") or "").strip().rstrip("/")
+    return url or None
+
+
 def bridge_url() -> str:
-    # 发现顺序(design §3 / grill Q9,一期即切自管实例):
-    # ① MYSTUDIO_COMFYUI_BRIDGE_URL 覆写(部署/测试不改桥契约)
-    # ② 自管实例实际端口(userData/comfyui/manifest.json 的 engine.port)
-    # ③ 回落 17598(存量 Krea2 链过渡;未装引擎时仍指向本机已有服务)
+    # 发现顺序(10-29 D1 终裁后;design=trellis 10-29-dual-mystudio-control-arch §九):
+    # ① 设置页「ComfyUI 引擎地址」(remote-engine.json;用户 UI 显式意图,最高)
+    # ② MYSTUDIO_COMFYUI_BRIDGE_URL 覆写(部署/自动化测试不改桥契约)
+    # ③ 自管实例实际端口(userData/comfyui/manifest.json 的 engine.port)
+    # ④ 回落 17598(存量 Krea2 链过渡;未装引擎时仍指向本机已有服务)
+    settings_url = remote_engine_url_from_settings()
+    if settings_url:
+        return settings_url
     override = os.environ.get("MYSTUDIO_COMFYUI_BRIDGE_URL")
     if override:
         return override.rstrip("/")
@@ -144,6 +188,15 @@ def _pipeline_error(code: str, message: str) -> Exception:
     # Deferred import prevents an engines -> pipeline import cycle at startup.
     from image_gen.pipeline import PipelineError
     return PipelineError(code, message)
+
+
+def _url_origin(url: str) -> str:
+    """url → scheme://netloc(错误文案展示用;解析失败回退原串)。"""
+    try:
+        parts = url.split("/", 3)
+        return parts[0] + "//" + parts[2]
+    except (IndexError, AttributeError):
+        return url
 
 
 def _http_json(method: str, url: str, payload: dict[str, Any] | None = None, timeout: float = 2) -> dict[str, Any]:
@@ -166,9 +219,9 @@ def _http_json(method: str, url: str, payload: dict[str, Any] | None = None, tim
                 return json.loads(exc.read().decode("utf-8"))
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 pass
-        raise _pipeline_error("bridge-unreachable", "ComfyUI 没在运行，请先打开它再试") from exc
+        raise _pipeline_error("bridge-unreachable", f"ComfyUI 引擎不可达({_url_origin(url)})——远程地址请检查对端引擎/网络,本机请先打开它再试") from exc
     except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise _pipeline_error("bridge-unreachable", "ComfyUI 没在运行，请先打开它再试") from exc
+        raise _pipeline_error("bridge-unreachable", f"ComfyUI 引擎不可达({_url_origin(url)})——远程地址请检查对端引擎/网络,本机请先打开它再试") from exc
 
 
 def _decode_reference(reference_b64: str) -> bytes:
@@ -193,7 +246,7 @@ def _upload_image(url: str, reference_b64: str, filename: str, timeout: float = 
         with request.urlopen(req, timeout=timeout) as response:
             return json.loads(response.read().decode("utf-8"))
     except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
-        raise _pipeline_error("bridge-unreachable", "ComfyUI 没在运行，请先打开它再试") from exc
+        raise _pipeline_error("bridge-unreachable", f"ComfyUI 引擎不可达({_url_origin(url)})——远程地址请检查对端引擎/网络,本机请先打开它再试") from exc
 
 
 def _fetch_bytes(url: str, timeout: float = 30) -> bytes:
@@ -300,7 +353,16 @@ def resolve_big_files(models_dir: Path | None = None, cache_dir: Path | None = N
     except Exception:
         return None
     version = stats.get("comfyui_version") or stats.get("system", {}).get("comfyui_version")
-    return {"source": "comfyui-service", "cache_dir": bridge_url(), "size_mb": 0, "comfyui_version": str(version or "unknown")}
+    # 10-29 T15/G3:GPU 名透传——system_stats 直读 devices[].name 首个(设置页
+    # 探活文案「ComfyUI x.y · GPU名」);无 devices/空名=不带键,消费方容错。
+    devices = stats.get("devices")
+    gpu_name = ""
+    if isinstance(devices, list) and devices and isinstance(devices[0], dict):
+        gpu_name = str(devices[0].get("name") or "").strip()
+    resolved = {"source": "comfyui-service", "cache_dir": bridge_url(), "size_mb": 0, "comfyui_version": str(version or "unknown")}
+    if gpu_name:
+        resolved["gpu_name"] = gpu_name
+    return resolved
 
 
 def find_cached(models_dir: Path | None = None, cache_dir: Path | None = None) -> dict[str, Any] | None:

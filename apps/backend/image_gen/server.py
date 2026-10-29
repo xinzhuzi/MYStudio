@@ -776,6 +776,14 @@ class Handler(BaseHTTPRequestHandler):
                 # 引擎卡设置区(模型目录/性能档;契约外的补充端点)
                 self._send_json(engine_manager().update_config(payload))
                 return
+            if method == "GET" and path == "/comfy/engine/remote":
+                # 设置页「ComfyUI 引擎地址」回显(10-29 D1 终裁;全局机器级)
+                self._send_json(engine_manager().remote_engine_status())
+                return
+            if method == "POST" and path == "/comfy/engine/remote":
+                # 设置页「ComfyUI 引擎地址」写入(空串=恢复本地发现)
+                self._send_json(engine_manager().set_remote_engine(payload))
+                return
 
             # ── 存储位置(09-09 comfyui-frontend-swap 0a:四目录配置/校验/迁移) ──
             if method == "GET" and path == "/comfy/paths":
@@ -869,6 +877,34 @@ class Handler(BaseHTTPRequestHandler):
                 from comfyui import execute as comfy_execute
 
                 self._send_json({"jobId": comfy_execute.execute_job(payload)})
+                return
+
+            # ── job 取消转发(10-27 H3 双通道硬取消 Q2) ──
+            # 停止是清理性操作,取消永不 5xx:除未知 job 404 外一律 200 降级
+            # (terminal/not-submitted/engine-unreachable),失败由前端按软停兜底。
+            if method == "POST" and path.startswith("/comfy/jobs/") and path.endswith("/cancel"):
+                from comfyui import execute as comfy_execute
+
+                job = jobs.get(path[len("/comfy/jobs/"):-len("/cancel")])
+                if not job:
+                    self._send_error_json(HTTPStatus.NOT_FOUND, "任务不存在或已过期(服务重启会丢失进行中的任务)", "job-not-found")
+                    return
+                if job.get("status") != "running":
+                    self._send_json({"cancelled": False, "reason": "terminal"})
+                    return
+                result = job.get("result")
+                prompt_id = result.get("promptId") if isinstance(result, dict) else None
+                if not isinstance(prompt_id, str) or not prompt_id:
+                    # 上传段未提交引擎(promptId 未生;JobRegistry 实读形状)
+                    self._send_json({"cancelled": False, "reason": "not-submitted"})
+                    return
+                try:
+                    reply = comfy_execute.forward_engine_job_cancel(prompt_id)
+                except Exception:  # noqa: BLE001 — 引擎不可达等降级,取消永不 5xx
+                    self._send_json({"cancelled": False, "reason": "engine-unreachable"})
+                    return
+                cancelled = isinstance(reply, dict) and bool(reply.get("cancelled"))
+                self._send_json({"cancelled": cancelled, "reason": "forwarded"})
                 return
 
             # ── job 进度(重操作的轮询通道) ──

@@ -72,7 +72,7 @@ def build_model_status() -> list[dict]:
                  + ([str(resolved["vae"])] if resolved.get("vae") else []))
                 if resolved else ([] if is_pointed else None)
             ),
-            **({"comfyuiVersion": resolved.get("comfyui_version")} if bridge_service and resolved else {}),
+            **({"comfyuiVersion": resolved.get("comfyui_version"), "gpuName": resolved.get("gpu_name")} if bridge_service and resolved else {}),
         })
         if krea2_pointed:
             # 无衣物·指令编辑三层 LoRA(09-06 稳定版工作流;文件存在性探测,

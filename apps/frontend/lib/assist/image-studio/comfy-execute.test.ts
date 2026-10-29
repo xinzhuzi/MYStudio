@@ -22,9 +22,12 @@ import {
   collectComfyUpstream,
   persistComfyAudio,
   persistComfyImage,
+  persistComfyVideo,
+  persistComfyVideosFromResult,
   planComfyWorkflowExecution,
   runComfyExecute,
   runComfyWorkflowNode,
+  type ComfyExecuteJobReply,
 } from "./comfy-execute";
 import { useProjectStore } from "@/stores/project/project-store";
 import { saveToMediaLibrary } from "@/lib/ai/generation-media";
@@ -457,6 +460,159 @@ describe("persistComfyAudio(b64 音频写项目)", () => {
       await expect(persistComfyAudio("QUJD", "yue2.flac", "p-audio")).rejects.toThrow("受管音频");
     },
   );
+});
+
+// ── 视频入库(10-29 D1 T7:照 persistComfyImage 三件事惯例) ───────────
+
+describe("persistComfyVideo(b64 视频写项目+媒体库+ledger)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useProjectStore.setState({ activeProjectId: "p-video" });
+    useMediaStore.setState({ mediaFiles: [] });
+  });
+
+  afterEach(() => {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = undefined;
+  });
+
+  function installBridge(overrides: Partial<Record<"writeBinary" | "readText" | "writeText", unknown>> = {}) {
+    const writeBinary = vi.fn(async () => ({
+      success: true,
+      filePath: "/proj/media/ai-video/2026-10/comfy_video_1234.mp4",
+      url: "project-file://p-video/media/ai-video/2026-10/comfy_video_1234.mp4",
+    }));
+    const writeText = vi.fn(async () => ({ success: true }));
+    const bridge = {
+      writeBinary,
+      readText: vi.fn(async () => ({ success: true, text: "" })),
+      writeText,
+      ...overrides,
+    };
+    (window as unknown as { projectFiles?: unknown }).projectFiles = bridge;
+    return { writeBinary, writeText, bridge };
+  }
+
+  it("三件事齐做:b64→media/ai-video/<月>/writeBinary 字节解码+媒体库 ai-video 条目+ledger 追加", async () => {
+    const { writeBinary, writeText } = installBridge();
+    const saved = await persistComfyVideo("QUJD", "ComfyUI_00001.mp4", "p-video");
+    expect(saved).toEqual({
+      url: "project-file://p-video/media/ai-video/2026-10/comfy_video_1234.mp4",
+      mediaId: "media-42",
+      persisted: true,
+    });
+    expect(writeBinary).toHaveBeenCalledTimes(1);
+    const arg = (writeBinary.mock.calls[0] as Array<{ projectId: string; relativePath: string; bytes: ArrayBuffer }>)[0];
+    expect(arg.projectId).toBe("p-video");
+    expect(arg.relativePath).toMatch(/^media\/ai-video\/\d{4}-\d{2}\/comfy_video_\d+\.mp4$/);
+    expect(Array.from(new Uint8Array(arg.bytes))).toEqual([65, 66, 67]);
+    expect(saveToMediaLibrary).toHaveBeenCalledWith(
+      "project-file://p-video/media/ai-video/2026-10/comfy_video_1234.mp4",
+      "ComfyUI_00001.mp4",
+      "ai-video",
+    );
+    // ledger:落 media/ai-video/<月>/ledger.json,条目 file 键=「月/文件名」
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const [ledgerKey, ledgerJson] = (writeText.mock.calls[0] as unknown as [string, string]);
+    expect(ledgerKey).toBe("_p/p-video/media/ai-video/2026-10/ledger.json");
+    const entries = JSON.parse(ledgerJson) as Array<{ file: string; model: string; source: string }>;
+    expect(entries).toHaveLength(1);
+    expect(entries[0].file).toBe("2026-10/comfy_video_1234.mp4");
+    expect(entries[0].model).toBe("comfy");
+    expect(entries[0].source).toBe("comfy-video");
+  });
+
+  it("写失败/非本项目受管地址:不入媒体库不记 ledger,回 {url:null, persisted:false}(失败不阻断)", async () => {
+    installBridge({
+      writeBinary: vi.fn(async () => ({ success: false, error: "磁盘已满" })),
+    });
+    const saved = await persistComfyVideo("QUJD", "clip.mp4", "p-video");
+    expect(saved).toEqual({ url: null, persisted: false });
+    expect(saveToMediaLibrary).not.toHaveBeenCalled();
+  });
+
+  it("无项目身份/无写桥:不触 writeBinary 直接回未持久化", async () => {
+    const none = await persistComfyVideo("QUJD", "clip.mp4", "");
+    expect(none).toEqual({ url: null, persisted: false });
+    useProjectStore.setState({ activeProjectId: "p-video" });
+    const noBridge = await persistComfyVideo("QUJD", "clip.mp4", "p-video");
+    expect(noBridge).toEqual({ url: null, persisted: false });
+  });
+
+  it("保存开始前活动项目已切换:不触写盘不入媒体库", async () => {
+    const { writeBinary } = installBridge();
+    useProjectStore.setState({ activeProjectId: "p-other" });
+    const saved = await persistComfyVideo("QUJD", "clip.mp4", "p-video");
+    expect(saved).toEqual({ url: null, persisted: false });
+    expect(writeBinary).not.toHaveBeenCalled();
+    expect(saveToMediaLibrary).not.toHaveBeenCalled();
+  });
+
+  it("写盘等待窗口内活动项目切换:文件落发起项目但媒体条目不挂新项目", async () => {
+    const switchingWriteBinary = vi.fn(async () => {
+      useProjectStore.setState({ activeProjectId: "p-other" });
+      return { success: true, url: "project-file://p-video/media/ai-video/2026-10/comfy_video_1.mp4" };
+    });
+    installBridge({ writeBinary: switchingWriteBinary });
+    const saved = await persistComfyVideo("QUJD", "clip.mp4", "p-video");
+    expect(saved).toEqual({ url: null, persisted: false });
+    expect(switchingWriteBinary).toHaveBeenCalledTimes(1);
+    expect(saveToMediaLibrary).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistComfyVideosFromResult(结果 videos 循环入库+b64 剥离)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useProjectStore.setState({ activeProjectId: "p-video" });
+    useMediaStore.setState({ mediaFiles: [] });
+  });
+
+  afterEach(() => {
+    (window as unknown as { projectFiles?: unknown }).projectFiles = undefined;
+  });
+
+  it("persist 成功即剥离该条目 b64 换 {url, persisted};失败条目保留 b64 可重试;永不抛错", async () => {
+    let call = 0;
+    (window as unknown as { projectFiles?: unknown }).projectFiles = {
+      writeBinary: vi.fn(async () => {
+        call += 1;
+        if (call === 1) {
+          return { success: true, url: `project-file://p-video/media/ai-video/2026-10/comfy_video_${call}.mp4` };
+        }
+        return { success: false, error: "full" };
+      }),
+      readText: vi.fn(async () => ({ success: true, text: "" })),
+      writeText: vi.fn(async () => ({ success: true })),
+    };
+    const result: NonNullable<ComfyExecuteJobReply["result"]> = {
+      videos: [
+        { nodeId: "21", filename: "ok.mp4", subfolder: "", type: "output", b64: "QUJD" },
+        { nodeId: "22", filename: "bad.mp4", subfolder: "", type: "output", b64: "REVG" },
+      ],
+    };
+    const summary = await persistComfyVideosFromResult(result, "p-video");
+    expect(summary).toEqual({ persisted: 1, failed: 1 });
+    const videos = result.videos as NonNullable<NonNullable<ComfyExecuteJobReply["result"]>["videos"]>;
+    expect(videos[0]).toEqual({
+      nodeId: "21", filename: "ok.mp4", subfolder: "", type: "output",
+      url: "project-file://p-video/media/ai-video/2026-10/comfy_video_1.mp4", persisted: true,
+    });
+    expect(videos[0].b64).toBeUndefined();
+    expect(videos[1].b64).toBe("REVG");
+    expect(videos[1].url).toBeUndefined();
+  });
+
+  it("已剥离条目(b64 缺失)跳过——重复消费幂等;无 videos/无项目不写盘", async () => {
+    const writeBinary = vi.fn(async () => ({ success: true, url: "project-file://p-video/media/ai-video/2026-10/a.mp4" }));
+    (window as unknown as { projectFiles?: unknown }).projectFiles = { writeBinary };
+    const stripped = await persistComfyVideosFromResult({ videos: [{ nodeId: "9", filename: "a.mp4", url: "project-file://p-video/media/ai-video/2026-10/a.mp4", persisted: true }] }, "p-video");
+    expect(stripped).toEqual({ persisted: 0, failed: 0 });
+    const empty = await persistComfyVideosFromResult({}, "p-video");
+    expect(empty).toEqual({ persisted: 0, failed: 0 });
+    const noProject = await persistComfyVideosFromResult({ videos: [{ b64: "QUJD", filename: "x.mp4" }] }, null);
+    expect(noProject).toEqual({ persisted: 0, failed: 1 });
+    expect(writeBinary).not.toHaveBeenCalled();
+  });
 });
 
 // ── 工作流节点运行编排(端到端,mock HTTP+落盘桥) ────────────────────

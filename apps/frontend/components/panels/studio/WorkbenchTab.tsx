@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { buildProjectFileUrl } from "@/lib/artifacts/ref-preview-loader";
 import { getCinematicPresetShortLabel, getStoryboardCinematic } from "@/lib/studio/cinematic-preset";
-import { comfyImageUrlToB64, runComfyExecute, persistComfyAudio } from "@/lib/assist/image-studio/comfy-execute";
+import { comfyImageUrlToB64, runComfyExecute, persistComfyAudio, persistComfyVideosFromResult } from "@/lib/assist/image-studio/comfy-execute";
 import { unwrapComfyApiGraph } from "@/lib/assist/image-studio/comfy-workflow-import";
 import { getComfyWorkflowLibraryTransport } from "@/lib/assist/image-studio/comfy-workflow-library";
 import { useProjectStore } from "@/stores/project/project-store";
@@ -385,6 +385,18 @@ export function WorkbenchTab(props: {
         (progress) => { if (origin.isCurrent()) setBgmProgress(progress.message); },
         { pollTimeoutMs: 1_230_000 },
       );
+      // T7(10-29 D1):execute 结果的 videos 与 images/audios 同等待遇——循环入库
+      // 项目 media/ai-video/+媒体库+ledger;persist 成功即从 result 剥离 b64 换
+      // {url, persisted}(防 MB 级 b64 随结果对象常驻);入库失败仅 toast 不阻断
+      // 音频主链(照 persistComfyImage「失败不阻断回显」惯例)。置于音频断言前:
+      // 视频产物不因「工作流没输出音频」而丢入库窗口。
+      const videosPersisted = await persistComfyVideosFromResult(result, origin.projectId);
+      if (videosPersisted.persisted > 0 && origin.isCurrent()) {
+        toast.success(`已存 ${videosPersisted.persisted} 段视频到项目媒体库`);
+      }
+      if (videosPersisted.failed > 0 && origin.isCurrent()) {
+        toast.warning(`有 ${videosPersisted.failed} 段视频入库失败(产物仍在引擎输出目录,可重试)`);
+      }
       const audio = result.audios?.[0];
       if (!audio) throw new Error("工作流已完成但没有输出音频(缺 SaveAudio 类输出节点?)");
       if (origin.isCurrent()) setBgmProgress("写入项目并绑定本章 BGM…");

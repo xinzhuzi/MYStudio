@@ -1,6 +1,7 @@
 // 10-27 分镜H3双通道 P2a+二期硬取消(PRD 10-27-storyboard-h3-dual-channel §5.4/§14.2):
 // 「H3 出片」批量器——串行逐镜(读首帧 b64→组装器 API 档→sidecar /comfy/execute
-// →writeback 回收轮询落位),断点续跑跳过上轮失败镜(C4),失败二分类(引擎失败
+// →writeback 回收轮询落位;远端 settings 引擎生效时 complete 结果的 videos 另走
+// b64 回流入库=T16 断链修复,本地模式零调用防双写),断点续跑跳过上轮失败镜(C4),失败二分类(引擎失败
 // 不重掷/回收失败仅重试消费),硬取消停止(Q2 兑现:stop→sidecar
 // /comfy/jobs/{id}/cancel 立即打断当前镜;回收段不硬断已生成片照常落账;停止期
 // 失败带「已按停止请求取消:」前缀与真引擎失败区分),防休眠桥在批量边界开停
@@ -18,7 +19,8 @@ import {
 } from "@/lib/assist/image-studio/h3-shot-video-workflow";
 import { batchDispatchableH3Recipes, type H3ResolutionTier } from "@/lib/assist/image-studio/h3-workflow-recipes";
 import { dialogueAudioPolicy } from "@/lib/assist/image-studio/h3-shot-prompt";
-import { comfySidecarJson, type ComfyExecuteJobReply } from "@/lib/assist/image-studio/comfy-execute";
+import { comfySidecarJson, persistComfyVideosFromResult, type ComfyExecuteJobReply } from "@/lib/assist/image-studio/comfy-execute";
+import { getRemoteEngine } from "@/lib/assist/image-studio/comfy-sidecar-bridge";
 import { consumeComfyBridgeWritebacks } from "@/lib/assist/image-studio/comfy-bridge-writeback-consumer";
 import { readStoryboardImageB64 } from "@/lib/assist/image-studio/storyboard-overview-sync";
 import { getComfyEngineClient } from "@/components/panels/settings/comfy-engine/comfy-engine-contract";
@@ -95,13 +97,47 @@ export function planStoryboardH3VideoBatch(storyboards: StoryboardItem[], recipe
   return { candidates, missingFrameCount, alreadyVideoCount, truncatedShotIndexes, rejectedShotIndexes };
 }
 
+/** 远端 settings 模式判定(10-29 D1 T16 复核 gap2):仅设置位配置的远端引擎生效
+ *  (source==="settings")才走 b64 回流入库。getRemoteEngine 异步且探活静默吞错
+ *  (照 McpSettingsTab 同款口径)——判定失败(sidecar 不可达/网络错)按「非 settings」
+ *  保守跳过:错杀不入库(产物仍在引擎输出目录可重试)好过本地模式误判双写。 */
+async function remoteEngineIsFromSettings(): Promise<boolean> {
+  try {
+    return (await getRemoteEngine()).source === "settings";
+  } catch {
+    return false;
+  }
+}
+
+/** 远端模式产物回流(10-29 D1 T16 复核 gap2,分镜批量远端断链修复):远端引擎的
+ *  MyShot writeback 实测 403(收件箱回收链在远端不通),产物只走 job result.videos
+ *  的 b64 回流(T4 实弹已证回流通)——经 persistComfyVideosFromResult 入库发起项目
+ *  media/ai-video/(成功即剥离 b64)。口径:①仅远端 settings 生效才调(本地模式
+ *  收件箱已回收,再写=双写,零调用);②result 无 videos 短路(免逐镜多余 remote
+ *  探活 GET);③入库失败只计数不抛错不阻断——照 T7 WorkbenchTab 消费位「失败
+ *  不阻断」惯例,镜落账仍由收件箱回收链单独判(本函数不碰回收/收件箱逻辑)。 */
+async function persistRemoteShotVideos(
+  result: ComfyExecuteJobReply["result"],
+  originProjectId: string,
+): Promise<void> {
+  if (!result?.videos?.length) return;
+  if (!(await remoteEngineIsFromSettings())) return;
+  const summary = await persistComfyVideosFromResult(result, originProjectId);
+  if (summary.failed > 0) {
+    console.warn("[h3-video-batch] 远端引擎视频回流入库部分失败(产物仍在引擎输出目录)", summary);
+  }
+}
+
 /** 自实现执行+轮询:提交拿到 jobId 即回调 onJobId(硬取消 stop 追踪用);
- *  job error 抛大白话由调用方分类。 */
+ *  job error 抛大白话由调用方分类。complete 时远端 settings 模式下顺带入库
+ *  result.videos(T16 产物回流,本地模式零调用)。 */
 async function executeShotWorkflow(input: {
   apiGraph: Record<string, { class_type: string; inputs: Record<string, unknown> }>;
   extraPngInfo: Record<string, unknown>;
   images: Array<{ key: string; name: string; b64: string }>;
   timeoutS: number;
+  /** 发起项目快照(远端回流入库归属;照 persistComfyVideo 防错挂惯例) */
+  originProjectId: string;
   onJobId?: (jobId: string) => void;
 }): Promise<void> {
   const { jobId } = await comfySidecarJson<{ jobId: string }>("POST", "/comfy/execute", {
@@ -122,7 +158,10 @@ async function executeShotWorkflow(input: {
       { timeoutMs: 10_000 },
     );
     if (job.status === "error") throw new Error(job.error || job.message || "ComfyUI 执行失败");
-    if (job.status === "complete") return;
+    if (job.status === "complete") {
+      await persistRemoteShotVideos(job.result, input.originProjectId);
+      return;
+    }
     if (Date.now() >= deadline) throw new Error(`ComfyUI 执行超时(${input.timeoutS} 秒),请检查引擎队列后重试`);
     await new Promise((resolve) => setTimeout(resolve, JOB_POLL_INTERVAL_MS));
   }
@@ -221,6 +260,7 @@ export async function runStoryboardH3ShotVideoStep(input: {
     extraPngInfo: assembled.uiWorkflow,
     images: assembled.images,
     timeoutS: resolveH3ShotTimeoutS(input.recipeId ?? DEFAULT_H3_RECIPE_ID, assembled.report.seconds, input.tier),
+    originProjectId: input.originProjectId,
     onJobId: input.onJobId,
   });
   const baseline = snapshotShotBaseline(shot.id);
