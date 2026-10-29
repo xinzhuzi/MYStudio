@@ -62,7 +62,7 @@ def _bridge_token():
 
 env['MYSTUDIO_BRIDGE_URL'] = 'http://127.0.0.1:17595'
 env['MYSTUDIO_BRIDGE_TOKEN'] = _bridge_token()
-subprocess.Popen([VENV_PY, MAIN, '--listen', '0.0.0.0', '--port', '17000',
+subprocess.Popen([VENV_PY, MAIN, '--listen', '0.0.0.0', '--port', '17000', '--lowvram',
                   '--enable-manager', '--use-pytorch-cross-attention',
                   '--output-directory', OUT],
                  cwd=CWD, stdout=log, stderr=subprocess.STDOUT,
