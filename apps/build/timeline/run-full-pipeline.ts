@@ -87,6 +87,9 @@ import {
 } from "../remotion/render-smoke-evidence";
 import { buildFullPipelineRunEvidence } from "./full-pipeline-run-evidence";
 import { acceptFinalAudio } from "../remotion/final-audio-acceptance";
+// CLI 管线对齐 Electron 渲染路径的响度后处理(W1-1029 实弹:raw 混音 -16.3LUFS/-1.1TP
+// 直撞响度门;单遍动态 loudnorm 双指标仍偏,改两遍法 linear 收敛,见 renderMedia 后调用点)。
+import { execFile } from "node:child_process";
 // W0 剧本检查门·副门(10-29 script-rootcure-clearance design §2.3):阶段 7 后接线。
 import { runScriptPrecheckGate, scriptPrecheckInputsProjection } from "./script-precheck";
 import { isDaojieAdaptation } from "@/lib/studio/daojie-generation-audit";
@@ -204,7 +207,14 @@ export async function buildShotInputs(
   if (!storyboards.length || new Set(storyboards.map(s => s.id)).size !== storyboards.length
     || shotSlots.length !== storyboards.length || new Set(shotSlots.map(s => s.target.kind === "shot" ? s.target.shotId : "")).size !== shotSlots.length) throw new Error("缺失/重复 current shots/slots");
   const roots = deriveStorageRoots(projectDir);
-  const resolveMedia = (mediaPath: string) => resolveTimelineSourcePath({ sourcePath: mediaPath, dataRoot: roots.dataRoot, mediaRoot: roots.mediaRoot });
+  const resolveMedia = (mediaPath: string) => {
+    // asset-file:// 角色参考音走素材库(export-cli-narrator-input 同根)——
+    // resolveTimelineSourcePath 只认 project-file/绝对路径,角色档指纹链会炸。
+    if (mediaPath.startsWith("asset-file://")) {
+      return path.join(projectDir, "store", "assets", "files", decodeURIComponent(mediaPath.replace("asset-file://", "")));
+    }
+    return resolveTimelineSourcePath({ sourcePath: mediaPath, dataRoot: roots.dataRoot, mediaRoot: roots.mediaRoot });
+  };
   const normalizeRef = (ref: NonNullable<StoryboardItem["audioRef"]>) => {
     const absolute = resolveMedia(ref.path);
     const relative = path.relative(projectDir, absolute).split(path.sep).join("/");
@@ -217,7 +227,11 @@ export async function buildShotInputs(
   if (!manifest || JSON.stringify(manifest.requiredShotIds) !== JSON.stringify(storyboards.map(s => s.id))) throw new Error("当前 chapter manifest shot lineage 不一致");
   requireSourceHash(manifest.sourceSnapshotHash);
   const normalized = storyboards.map(s => ({ ...s, mediaRef: s.mediaRef ? normalizeRef(s.mediaRef) : undefined, audioRef: s.audioRef ? normalizeRef(s.audioRef) : undefined }));
-  const plans = await buildRemotionShotPlans({ projectId, chapterId, chapterRevision: manifest.revision, renderSettings: manifest.renderSettings, storyboards: normalized });
+  // continuityPolicy 与 render-shot-slots.ts:167 同契约(env 可调,默认 if-present)——
+  // 存量章节 store 无 continuityState(W1 1029 实证:ch1 全 19 镜从未携带),
+  // required 默认会把存量数据整体拒之门外;严格档走 MYSTUDIO_CONTINUITY_POLICY=required。
+  const plans = await buildRemotionShotPlans({ projectId, chapterId, chapterRevision: manifest.revision, renderSettings: manifest.renderSettings, storyboards: normalized,
+    continuityPolicy: (process.env.MYSTUDIO_CONTINUITY_POLICY as "required" | "if-present" | "skip") || "if-present" });
   if (!plans.success || plans.sourceSnapshotHash !== manifest.sourceSnapshotHash) throw new Error("当前 storyboard/manifest source 或 render plan 已过期");
   const ttsRaw = JSON.parse(fs.readFileSync(resolveStoreFilePathAny(projectDir, ["tts.json"]), "utf8")) as { state: PersistedTtsState };
   const tts = ttsRaw.state;
@@ -1265,7 +1279,57 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         enforceAudioTrack: true, overwrite: true,
         onBrowserDownload: () => { throw new Error("禁止隐式下载 Headless Shell"); },
       });
-      await fs.promises.copyFile(rawPath, outputPath);
+      // 响度后处理两级链(1048 混音实测收敛):
+      // ①单遍动态 loudnorm 到目标(模块同 Electron 渲染路径);
+      // ②实测残余微调——动态模式 I/TP 双偏(W1-1029 实弹 -13.5/-1.3 vs 目标 -14±0.5/≤-1.5),
+      //   按 ebur128 实测算 trim=max(I 超出量, TP 超出量),volume 线性回压至双达标;
+      //   若压 I 会跌破容差下沿则如实上抛(混音 PLR 超限,须回混音层修,不静默糊弄)。
+      await runTimelineAudioPostProcess({
+        rawInputPath: rawPath,
+        outputPath,
+        logPath: path.join(remotionOutputDir, "audio-postprocess.log"),
+        loudnessLufs: plan.renderSettings.loudnessLufs,
+        truePeakDbtp: plan.renderSettings.truePeakDbtp,
+      });
+      const measureEbur128 = (filePath: string) => new Promise<{ integrated: number; peak: number }>((resolve, reject) => {
+        execFile("ffmpeg", ["-hide_banner", "-nostats", "-i", filePath, "-map", "0:a:0",
+          "-af", "ebur128=peak=true", "-f", "null", "-"],
+          { maxBuffer: 50 * 1024 * 1024 }, (error, _stdout, stderr) => {
+            if (error && !stderr) return reject(error);
+            const text = String(stderr);
+            const iMatch = [...text.matchAll(/I:\s+(-?[0-9.]+) LUFS/g)].pop();
+            const pMatch = [...text.matchAll(/Peak:\s+(-?[0-9.]+) dBFS/g)].pop();
+            if (!iMatch || !pMatch) return reject(new Error("ebur128 摘要缺失"));
+            resolve({ integrated: Number(iMatch[1]), peak: Number(pMatch[1]) });
+          });
+      });
+      const postLog: string[] = [];
+      const loudnormResult = await measureEbur128(outputPath);
+      postLog.push(`[mystudio] loudnorm result: I=${loudnormResult.integrated} LUFS, Peak=${loudnormResult.peak} dBFS`);
+      const capI = loudnormResult.integrated - (plan.renderSettings.loudnessLufs + 0.5);
+      const capTP = loudnormResult.peak - (plan.renderSettings.truePeakDbtp + 1e-6);
+      const trimDb = Math.max(0, capI, capTP);
+      if (trimDb > 0.01) {
+        if (loudnormResult.integrated - trimDb < plan.renderSettings.loudnessLufs - 0.5 - 1e-6) {
+          throw new Error(`混音 PLR 超限,loudnorm 后无法同时满足 I/TP 容差(I=${loudnormResult.integrated}, TP=${loudnormResult.peak})——须回混音层修`);
+        }
+        const trimmedPath = path.join(remotionOutputDir, ".loudnorm-trim.mp4");
+        await new Promise<void>((resolve, reject) => {
+          execFile("ffmpeg", ["-i", outputPath, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy",
+            "-af", `volume=-${trimDb.toFixed(3)}dB`, "-c:a", "aac", "-ar", "48000", "-b:a", "192k",
+            "-shortest", "-movflags", "+faststart", "-y", trimmedPath],
+            { maxBuffer: 50 * 1024 * 1024 }, (error, _stdout, _stderr) => {
+              if (error) return reject(error);
+              resolve();
+            });
+        });
+        fs.renameSync(trimmedPath, outputPath);
+        const trimmedResult = await measureEbur128(outputPath);
+        postLog.push(`[mystudio] trim -${trimDb.toFixed(3)}dB result: I=${trimmedResult.integrated} LUFS, Peak=${trimmedResult.peak} dBFS`);
+      } else {
+        postLog.push("[mystudio] no trim needed");
+      }
+      fs.appendFileSync(path.join(remotionOutputDir, "audio-postprocess.log"), postLog.join("\n") + "\n", "utf8");
       console.log("[full-pipeline] Remotion render complete:", outputPath);
 
       // ── 19. Verify output ──

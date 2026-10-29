@@ -88,6 +88,19 @@ afterEach(() => {
 });
 
 describe("storyboard TTS runner", () => {
+  it.each(["failed", "canceled"] as const)("explicitly restarts a singular %s backend generation", async (status) => {
+    const inputFingerprint = await createStoryboardTtsInputFingerprint({ ...scope, storyboard, profile, referenceAudioSha256: "d".repeat(64) });
+    const deps = dependencies({ submit: vi.fn(async (payload) => payload.retry
+      ? { id: "restarted", status: "completed" as const, backend: "qwen-mlx", audioPath: "/real.wav" }
+      : { id: "old", status: "failed" as const, error: "terminal old run", retryable: false }) });
+    const result = await runStoryboardTtsGeneration({ ...scope, profile, dependencies: deps, storyboard: { ...storyboard,
+      ttsJob: { schemaVersion: 1, ...scope, shotId: storyboard.id, shotRevision: 1, inputFingerprint, status, attempt: 3,
+        retryRequested: true, generationId: "old", createdAt: 1, updatedAt: 1 } } });
+    expect(result.generationId).toBe("restarted");
+    expect(deps.submit).toHaveBeenCalledOnce();
+    expect(deps.submit).toHaveBeenCalledWith(expect.objectContaining({ retry: true }));
+  });
+
   it("keeps the fixed-voice bridge error when the TTS preload is unavailable", async () => {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
@@ -144,7 +157,7 @@ describe("storyboard TTS runner", () => {
     );
   });
 
-  it("submits derived narrator text only for H3-video shots; still-image shots keep full spoken text (10-11 R3b/R4)", async () => {
+  it("submits only external narration for H3 and rejects legacy unstructured mixed still speech", async () => {
     // H3 镜(烧录音频在位,mediaRef video):合成文本=旁白行正文,角色台词烧在镜内
     const h3Deps = dependencies();
     await runStoryboardTtsGeneration({
@@ -165,19 +178,12 @@ describe("storyboard TTS runner", () => {
     // 静图产线镜(无 H3 烧录音频):全文照旧——外挂 TTS 是唯一音频来源,
     // 拆行会丢角色台词(R4 静图产线全链现状不动)
     const stillDeps = dependencies();
-    await runStoryboardTtsGeneration({
+    await expect(runStoryboardTtsGeneration({
       ...scope,
-      storyboard: {
-        ...storyboard,
-        lines: "林昭：你来。\n旁白：风起。",
-        ttsSpokenText: "你来。风起。",
-      },
-      profile,
-      dependencies: stillDeps,
-    });
-    expect(stillDeps.submit).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "你来。风起。" }),
-    );
+      storyboard: { ...storyboard, lines: "林昭：你来。\n旁白：风起。", ttsSpokenText: "你来。风起。" },
+      profile, dependencies: stillDeps,
+    })).rejects.toThrow("speechUtterances");
+    expect(stillDeps.submit).not.toHaveBeenCalled();
   });
 
   it("blocks unreadable fixed audio and mock generation before writeback", async () => {
@@ -623,4 +629,119 @@ describe("storyboard TTS runner", () => {
     expect(jobs).not.toContain("completed");
     expect(cancelGeneration).toHaveBeenCalledWith("generation-1");
   });
+});
+
+describe("ordered fixed voices", () => {
+  const otherProfile = { ...profile, id: "profile-dugu", referenceAudioPath: "/voices/dugu.wav" };
+  const mixed = { ...storyboard, lines: "旁白：雨落。\n独孤：借灯。", ttsSpokenText: "雨落。 借灯。", speechUtterances: [
+    { speaker: "旁白", speakerId: "narrator" as const, text: "雨落。" },
+    { speaker: "独孤", speakerId: "character:dugu" as const, text: "借灯。" },
+  ] };
+  const profiles = { narrator: profile, "character:dugu": otherProfile };
+  it.each(["startup", "replay"])("cancels every persisted pending segment during %s despite remote failure", async (phase) => {
+    const three = { ...mixed, lines: mixed.lines + "\n旁白：风起。", ttsSpokenText: mixed.ttsSpokenText + " 风起。",
+      speechUtterances: [...mixed.speechUtterances, { speaker: "旁白", speakerId: "narrator" as const, text: "风起。" }] };
+    let seq = 0;
+    const initial = await runStoryboardTtsGeneration({ ...scope, storyboard: three, profile, profiles, dependencies: dependencies({
+      submit: vi.fn(async () => ({ id: `persisted-${seq++}`, status: "completed" as const, backend: "qwen-mlx", audioPath: "/real.wav" })),
+      composeAudioBytes: vi.fn(async () => new ArrayBuffer(1)) }) });
+    const prior = { ...initial.ttsJob, status: "generating" as const, segments: initial.ttsJob.segments!.map((s, i) => ({ ...s,
+      status: i === 0 ? "completed" as const : i === 1 ? "generating" as const : "queued" as const })) };
+    let canceled = false;
+    let lastJob: StoryboardItem["ttsJob"];
+    const deps = dependencies({
+      startRuntime: vi.fn(async () => { if (phase === "startup") canceled = true; return { success: true }; }),
+      fetchAudio: vi.fn(async () => { canceled = true; return new ArrayBuffer(1); }),
+      cancelGeneration: vi.fn(async () => { throw new Error("remote unavailable"); }),
+    });
+    await expect(runStoryboardTtsGeneration({ ...scope, storyboard: { ...three, ttsJob: prior }, profile, profiles, dependencies: deps,
+      isCanceled: () => canceled, onJob: j => { lastJob = j; } })).rejects.toThrow("取消");
+    expect(vi.mocked(deps.cancelGeneration!).mock.calls.map(([id]) => id).sort()).toEqual(["persisted-1", "persisted-2"]);
+    expect(lastJob?.segments?.map(s => s.status)).toEqual(["completed", "canceled", "canceled"]);
+    expect(lastJob?.errorMessage).toContain("后端取消");
+    expect(deps.submit).not.toHaveBeenCalled();
+    expect(deps.writeGeneratedAudio).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "无", "无对白"])("rejects persisted mixed placeholder %s before runtime", async (token) => {
+    const deps = dependencies();
+    const invalid = { ...mixed, lines: `旁白：${token}\n独孤：借灯。`, ttsSpokenText: `${token} 借灯。`,
+      speechUtterances: [{ speaker: "旁白", speakerId: "narrator" as const, text: token }, mixed.speechUtterances[1]] };
+    await expect(runStoryboardTtsGeneration({ ...scope, storyboard: invalid, profile, profiles, dependencies: deps }))
+      .rejects.toThrow("混合声音包含空白或占位台词");
+    expect(deps.startRuntime).not.toHaveBeenCalled();
+    expect(deps.submit).not.toHaveBeenCalled();
+  });
+
+  it("submits ordered clean texts to distinct profiles and publishes one WAV", async () => {
+    let sequence = 0;
+    const deps = dependencies({ submit: vi.fn(async () => ({ id: `g-${++sequence}`, status: "completed" as const, backend: "qwen-mlx", audioPath: "/real.wav" })),
+      composeAudioBytes: vi.fn(async () => new Uint8Array([9, 8]).buffer) });
+    const result = await runStoryboardTtsGeneration({ ...scope, storyboard: mixed, profile, profiles, dependencies: deps });
+    expect(vi.mocked(deps.submit).mock.calls.map(([p]) => [p.text, p.profileId])).toEqual([["雨落。", profile.id], ["借灯。", otherProfile.id]]);
+    expect(deps.writeGeneratedAudio).toHaveBeenCalledTimes(1);
+    expect(deps.composeAudioBytes).toHaveBeenCalledTimes(1);
+    expect(result.ttsJob.segments?.map(s => s.generationId)).toEqual(["g-1", "g-2"]);
+    expect(result.shotAudioBinding.durationUs).toBe(1_500_000);
+  });
+  it("preflights every profile before any service and rejects unstructured mixed labels", async () => {
+    const deps = dependencies();
+    await expect(runStoryboardTtsGeneration({ ...scope, storyboard: mixed, profile, dependencies: deps })).rejects.toThrow("固定 voice profile");
+    expect(deps.startRuntime).not.toHaveBeenCalled();
+    await expect(runStoryboardTtsGeneration({ ...scope, storyboard: { ...mixed, speechUtterances: undefined }, profile, dependencies: deps })).rejects.toThrow("speechUtterances");
+    expect(deps.submit).not.toHaveBeenCalled();
+  });
+  it("invalidates aggregate reuse on second profile, reference or order changes", async () => {
+    const fingerprint = (s: StoryboardItem, p = profiles, hashes = { narrator: "a", "character:dugu": "b" }) => createStoryboardTtsInputFingerprint({ ...scope, storyboard: s, profile, profiles: p, referenceAudioSha256BySpeaker: hashes });
+    const base = await fingerprint(mixed);
+    expect(await fingerprint(mixed, { ...profiles, "character:dugu": { ...otherProfile, id: "changed" } })).not.toBe(base);
+    expect(await fingerprint(mixed, profiles, { narrator: "a", "character:dugu": "c" })).not.toBe(base);
+    expect(await fingerprint({ ...mixed, speechUtterances: [...mixed.speechUtterances].reverse() })).not.toBe(base);
+  });
+  it("does not publish partial audio, and explicit retry reuses completed segment identities", async () => {
+    let fail = true;
+    let sequence = 0;
+    let lastJob: StoryboardItem["ttsJob"];
+    const deps = dependencies({ submit: vi.fn(async (p: TtsGenerateRequest) => {
+      sequence++;
+      if (p.profileId === otherProfile.id && fail) return { id: `g-${sequence}`, status: "failed" as const, error: "bad segment", retryable: false };
+      return { id: `g-${sequence}`, status: "completed" as const, backend: "qwen-mlx", audioPath: "/real.wav" };
+    }), composeAudioBytes: vi.fn(async () => new Uint8Array([9]).buffer) });
+    await expect(runStoryboardTtsGeneration({ ...scope, storyboard: mixed, profile, profiles, dependencies: deps, onJob: j => { lastJob = j; } })).rejects.toThrow("bad segment");
+    expect(lastJob?.status).toBe("failed");
+    expect(deps.writeGeneratedAudio).not.toHaveBeenCalled();
+    fail = false;
+    await runStoryboardTtsGeneration({ ...scope, storyboard: { ...mixed, ttsJob: { ...lastJob!, retryRequested: true } }, profile, profiles, dependencies: deps });
+    expect(vi.mocked(deps.submit).mock.calls.filter(([p]) => p.profileId === profile.id)).toHaveLength(1);
+    expect(vi.mocked(deps.submit).mock.calls.at(-1)?.[0].retry).toBe(true);
+  });
+  it("cancels a later segment without publishing a partial binding", async () => {
+    let count = 0; let canceled = false;
+    const deps = dependencies({ submit: vi.fn(async () => {
+      count++; if (count === 2) canceled = true;
+      return { id: `g-${count}`, status: "completed" as const, backend: "qwen-mlx", audioPath: "/real.wav" };
+    }), cancelGeneration: vi.fn(async () => ({ id: "g-2", status: "failed" as const })), composeAudioBytes: vi.fn(async () => new ArrayBuffer(1)) });
+    const jobs: string[] = [];
+    await expect(runStoryboardTtsGeneration({ ...scope, storyboard: mixed, profile, profiles, dependencies: deps, isCanceled: () => canceled, onJob: j => { jobs.push(j.status); } })).rejects.toThrow("取消");
+    expect(deps.cancelGeneration).toHaveBeenCalledWith("g-2");
+    expect(deps.writeGeneratedAudio).not.toHaveBeenCalled();
+    expect(jobs).not.toContain("completed");
+  });
+  it("fingerprints individual narrator-family selections and their references", async () => {
+    const base = { ...scope, storyboard: mixed, profile, profiles, utteranceProfiles: [profile, otherProfile], utteranceReferenceSha256s: ["a", "b"] };
+    const hash = await createStoryboardTtsInputFingerprint(base);
+    expect(await createStoryboardTtsInputFingerprint({ ...base, utteranceReferenceSha256s: ["a", "c"] })).not.toBe(hash);
+    expect(await createStoryboardTtsInputFingerprint({ ...base, utteranceProfiles: [{ ...profile, id: "narrator-family-2" }, otherProfile] })).not.toBe(hash);
+  });
+
+  it("registers each narrator-family reference immediately before its submit", async () => {
+    const selected: string[] = []; let registered = ""; let seq = 0;
+    const deps = dependencies({ ensureProfile: vi.fn(async p => { registered = p.referenceAudioPath ?? ""; }),
+      submit: vi.fn(async () => { selected.push(registered); return { id: `n-${++seq}`, status: "completed" as const, backend: "qwen-mlx", audioPath: "/real.wav" }; }),
+      composeAudioBytes: vi.fn(async () => new ArrayBuffer(1)) });
+    const second = { ...profile, referenceAudioPath: "/voices/sad.wav" };
+    await runStoryboardTtsGeneration({ ...scope, storyboard: { ...storyboard, lines: "旁白：风起。\n旁白：悲伤。", ttsSpokenText: "风起。 悲伤。", speechUtterances: [{ speaker: "旁白", speakerId: "narrator", text: "风起。" }, { speaker: "旁白", speakerId: "narrator", text: "悲伤。" }] }, profile, utteranceProfiles: [profile, second], dependencies: deps });
+    expect(selected).toEqual([profile.referenceAudioPath, second.referenceAudioPath]);
+  });
+
 });

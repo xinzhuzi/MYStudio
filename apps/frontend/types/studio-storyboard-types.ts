@@ -145,6 +145,12 @@ export type StoryboardTtsJobStatus =
   | "failed"
   | "canceled";
 
+export interface StoryboardSpeechUtterance {
+  speaker: string;
+  speakerId: TtsSpeakerId;
+  text: string;
+}
+
 export interface StoryboardTtsJobV1 {
   schemaVersion: 1;
   projectId: string;
@@ -155,6 +161,8 @@ export interface StoryboardTtsJobV1 {
   status: StoryboardTtsJobStatus;
   attempt: number;
   generationId?: string;
+  /** Ordered real segment jobs; completed segments are fetched again, never resubmitted. */
+  segments?: { inputFingerprint: string; status: StoryboardTtsJobStatus; attempt: number; generationId?: string; backend?: string; emotionCapability?: TtsEmotionCapability; warning?: string }[];
   retryRequested?: boolean;
   cancelRequested?: boolean;
   emotionCapability?: TtsEmotionCapability;
@@ -215,6 +223,8 @@ export interface StoryboardItem extends StudioStaleEvidence, StudioSourceIdentit
   speakerId?: TtsSpeakerId;
   line?: string;
   ttsSpokenText?: string;
+  speechUtterances?: StoryboardSpeechUtterance[];
+  speechSpeakerFallback?: "narrator";
   durationTarget?: number;
   voiceStyle?: string;
   requiresFixedVoice?: true;

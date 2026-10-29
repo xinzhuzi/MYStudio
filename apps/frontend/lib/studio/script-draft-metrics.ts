@@ -554,6 +554,9 @@ export function extractScriptVoiceLines(text: string): ScriptVoiceLine[] {
     }
     if (kind !== "voice") continue; // shot/sfx/cast/separator/blank/text 不入语音账
     if (!inScene) continue; // 场外「名：内容」行(梗概/改编追踪区)不计(F2)
+    // 勾销行(10-29 W0 设计 §1.3 补完):行首 ~~ = 制作侧已定谳的删减/改写,
+    // 保留原文记录但不入覆盖账——缺句 RED 只对未勾销语音行生效。
+    if (line.startsWith("~~")) continue;
 
     const voiceMatch = VOICE_LINE_RE.exec(line);
     if (!voiceMatch) continue;

@@ -1,3 +1,6 @@
+import { assertStoryboardSpeech } from "./chapter-voiceover";
+import { composeOrderedSpeechAudio } from "./storyboard-speech-wav";
+import type { TtsSpeakerId } from "@/types/tts";
 import { aiManager } from "@/lib/ai/ai-manager";
 import { getTtsRuntimeBridge } from "@/lib/bridge/tts-runtime";
 import { externalNarratorSpokenText } from "@/lib/assist/image-studio/h3-shot-prompt";
@@ -64,6 +67,7 @@ class StoryboardTtsOperationError extends Error {
 }
 
 export interface StoryboardTtsRunnerDependencies {
+  composeAudioBytes?: (parts: ArrayBuffer[]) => Promise<ArrayBuffer>;
   startRuntime: () => Promise<TtsRuntimeCommandResult>;
   ensureProfile: (profile: VoiceProfile) => Promise<unknown>;
   submit: (payload: TtsGenerateRequest) => Promise<TtsGenerateResponse>;
@@ -153,10 +157,25 @@ export async function createStoryboardTtsInputFingerprint(input: {
   storyboard: StoryboardItem;
   profile: VoiceProfile;
   referenceAudioSha256?: string;
+  profiles?: Partial<Record<TtsSpeakerId, VoiceProfile>>;
+  referenceAudioSha256BySpeaker?: Partial<Record<TtsSpeakerId, string>>;
+  utteranceProfiles?: VoiceProfile[];
+  utteranceReferenceSha256s?: (string | undefined)[];
 }): Promise<string> {
   const shotRevision = Math.max(1, input.storyboard.outputVersion ?? 1);
   const seed = 41001 + input.storyboard.index;
   return sha256CanonicalJson({
+    ...(input.storyboard.speechUtterances?.length && input.storyboard.mediaRef?.kind !== "video" ? {
+      compositionPolicy: "ordered-mono-pcm16-same-rate-v1",
+      utterances: input.storyboard.speechUtterances.map((part, index) => {
+        const profile = input.utteranceProfiles?.[index] ?? input.profiles?.[part.speakerId] ?? (part.speakerId === input.storyboard.speakerId ? input.profile : undefined);
+        if (!profile) throw new Error(`speaker ${part.speakerId} 缺少固定 voice profile`);
+        return { ...part, profile: { id: profile.id, type: profile.type, language: profile.language, engine: profile.defaultEngine,
+          modelSize: profile.defaultModelSize ?? null, presetVoiceId: profile.presetVoiceId ?? null,
+          referenceText: profile.referenceText ?? null, instruct: profile.instruct ?? null,
+          referenceAudioSha256: input.utteranceReferenceSha256s?.[index] ?? input.referenceAudioSha256BySpeaker?.[part.speakerId] ?? input.referenceAudioSha256 ?? null } };
+      }),
+    } : {}),
     schemaVersion: 2,
     projectId: input.projectId,
     chapterId: input.chapterId,
@@ -188,6 +207,8 @@ export async function runStoryboardTtsGeneration({
   chapterId,
   storyboard,
   profile,
+  profiles,
+  utteranceProfiles,
   dependencies = defaultDependencies(),
   isCanceled = () => false,
   onJob,
@@ -196,6 +217,8 @@ export async function runStoryboardTtsGeneration({
   chapterId: string;
   storyboard: StoryboardItem;
   profile: VoiceProfile;
+  profiles?: Partial<Record<TtsSpeakerId, VoiceProfile>>;
+  utteranceProfiles?: VoiceProfile[];
   dependencies?: StoryboardTtsRunnerDependencies;
   isCanceled?: () => boolean;
   onJob?: (job: StoryboardTtsJobV1) => void | Promise<void>;
@@ -218,6 +241,10 @@ export async function runStoryboardTtsGeneration({
   }
   if (storyboard.requiresFixedVoice !== true) {
     throw new Error(`分镜 ${storyboard.id} 未要求固定音色`);
+  }
+  if (storyboard.mediaRef?.kind !== "video") assertStoryboardSpeech(storyboard);
+  if (storyboard.speechUtterances?.length && storyboard.mediaRef?.kind !== "video") {
+    return runOrderedSpeech({ projectId, chapterId, storyboard, profile, profiles, utteranceProfiles, dependencies, isCanceled, onJob });
   }
   const validationError = validateVoiceProfileForGeneration(profile);
   if (validationError) {
@@ -351,7 +378,7 @@ export async function runStoryboardTtsGeneration({
             emotion: storyboard.emotion?.trim(),
             voiceStyle: storyboard.voiceStyle?.trim(),
             generationKind: "storyboard-shot",
-            retry: attempt > 1,
+            retry: attempt > 1 || existingJob?.retryRequested === true,
           });
           generationId = generation.id;
           job = { ...job, generationId, updatedAt: dependencies.now() };
@@ -434,6 +461,142 @@ export async function runStoryboardTtsGeneration({
     };
     await persistJob(job, onJob);
     throw error;
+  }
+}
+
+async function runOrderedSpeech(input: {
+  projectId: string; chapterId: string; storyboard: StoryboardItem; profile: VoiceProfile;
+  profiles?: Partial<Record<TtsSpeakerId, VoiceProfile>>;
+  utteranceProfiles?: VoiceProfile[];
+  dependencies: StoryboardTtsRunnerDependencies; isCanceled: () => boolean;
+  onJob?: (job: StoryboardTtsJobV1) => void | Promise<void>;
+}): Promise<Awaited<ReturnType<typeof runStoryboardTtsGeneration>>> {
+  const { projectId, chapterId, storyboard, dependencies: deps, isCanceled, onJob } = input;
+  const utterances = storyboard.speechUtterances ?? [];
+  const profiles: Partial<Record<TtsSpeakerId, VoiceProfile>> = { [storyboard.speakerId!]: input.profile, ...input.profiles };
+  if (input.utteranceProfiles && input.utteranceProfiles.length !== utterances.length) throw new Error("逐句 voice profile 数量不匹配");
+  const selectedProfiles = utterances.map((part, index) => input.utteranceProfiles?.[index] ?? profiles[part.speakerId]);
+  // Validate the complete set before runtime, profile registration or submission.
+  for (let index = 0; index < utterances.length; index++) {
+    const part = utterances[index];
+    const profile = selectedProfiles[index];
+    if (!profile || !profiles[part.speakerId]) throw new Error(`speaker ${part.speakerId} 缺少固定 voice profile`);
+    const error = validateVoiceProfileForGeneration(profile);
+    if (error) throw new Error(`固定音色不可用: ${error}`);
+  }
+  throwIfCanceled(isCanceled);
+  const hashes: (string | undefined)[] = [];
+  for (let index = 0; index < utterances.length; index++) {
+    const profile = selectedProfiles[index]!;
+    if (profile.referenceAudioPath) {
+      const path = await deps.resolveReferenceAudioPath(profile.referenceAudioPath);
+      throwIfCanceled(isCanceled);
+      if (!path) throw new Error(`固定音色文件不可读: ${profile.referenceAudioPath}`);
+      hashes[index] = await deps.hashReferenceAudio(path);
+      throwIfCanceled(isCanceled);
+    }
+  }
+  const inputFingerprint = await createStoryboardTtsInputFingerprint({ ...input, profiles, utteranceReferenceSha256s: hashes });
+  const shotRevision = Math.max(1, storyboard.outputVersion ?? 1);
+  const prior = storyboard.ttsJob;
+  const existing = prior?.inputFingerprint === inputFingerprint && prior.projectId === projectId && prior.chapterId === chapterId && prior.shotId === storyboard.id && prior.shotRevision === shotRevision ? prior : undefined;
+  const bindings = storyboard.shotAudioBindings?.filter(b => b.role === "voice" && b.ttsInputFingerprint === inputFingerprint && b.shotRevision === shotRevision) ?? [];
+  if (existing?.status === "completed" && bindings.length) {
+    if (bindings.length !== 1) throw new Error("completed TTS job 必须有且仅有一个 canonical voice binding");
+    const binding = bindings[0];
+    const validation = validateRemotionShotAudioBindingV2(binding, { projectId, chapterId, shotId: storyboard.id, shotRevision, shotDurationUs: binding.durationUs });
+    if (!validation.success || !(await validateRemotionAudioBindingFingerprint(binding)).success) throw new Error("completed TTS voice binding 身份或 fingerprint 不匹配");
+    return completedResult(existing, binding, storyboard);
+  }
+  if (existing && ["failed", "canceled"].includes(existing.status) && !existing.retryRequested) throw new Error("TTS 已失败或取消，必须显式重试");
+  const fingerprints = await Promise.all(utterances.map((part, index) => sha256CanonicalJson({ aggregate: inputFingerprint, index, ...part })));
+  const segments = utterances.map((_, i) => {
+    const previous = existing?.segments?.[i];
+    return previous?.inputFingerprint === fingerprints[i] ? { ...previous } : { inputFingerprint: fingerprints[i], status: "queued" as const, attempt: 0 };
+  });
+  let job: StoryboardTtsJobV1 = { schemaVersion: 1, projectId, chapterId, shotId: storyboard.id, shotRevision, inputFingerprint,
+    status: "queued", attempt: 0, createdAt: existing?.createdAt ?? deps.now(), updatedAt: deps.now(), segments };
+  const save = async () => { job = { ...job, segments: segments.map(s => ({ ...s })), updatedAt: deps.now() }; await persistJob(job, onJob); };
+  await save();
+  // Include persisted work before startup or replay of an earlier completed part.
+  const pendingGenerationIds = new Set(segments.filter(s => s.status === "queued" || s.status === "generating")
+    .flatMap(s => s.generationId ? [s.generationId] : []));
+  try {
+    throwIfCanceled(isCanceled);
+    const runtime = await deps.startRuntime();
+    throwIfCanceled(isCanceled);
+    if (!runtime.success) throw terminal(runtime.error || "TTS 后端启动失败", "runtime_start_failed");
+    const audio: ArrayBuffer[] = [];
+    for (let i = 0; i < utterances.length; i++) {
+      const part = utterances[i]; const profile = selectedProfiles[i]!; const segment = segments[i];
+      const first = segment.status === "completed" ? 0 : existing?.retryRequested ? 1 : Math.max(1, segment.attempt);
+      for (let attempt = first; attempt <= DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS; attempt++) {
+        try {
+          throwIfCanceled(isCanceled);
+          let completed: TtsGenerateResponse;
+          if (segment.generationId && (segment.status === "completed" || segment.status === "generating" || segment.status === "queued")) {
+            completed = await waitForCompletedGeneration(segment.generationId, deps, isCanceled);
+          } else {
+            segment.status = "generating"; segment.attempt = attempt;
+            job = { ...job, status: "generating", attempt, retryRequested: false }; await save();
+            await deps.ensureProfile(profile);
+            throwIfCanceled(isCanceled);
+            const generated = await deps.submit({ text: part.text, profileId: profile.id, engine: profile.defaultEngine,
+              modelSize: profile.defaultModelSize, language: profile.language, seed: 41001 + storyboard.index + i,
+              projectId, chapterId, shotId: storyboard.id, shotRevision, inputFingerprint: segment.inputFingerprint,
+              referenceAudioSha256: hashes[i], emotion: storyboard.emotion?.trim(), voiceStyle: storyboard.voiceStyle?.trim(),
+              generationKind: "storyboard-shot", retry: attempt > 1 || existing?.retryRequested === true });
+            segment.generationId = generated.id; pendingGenerationIds.add(generated.id); job.generationId = generated.id; await save();
+            throwIfCanceled(isCanceled);
+            if (generated.status === "failed") throwGenerationFailure(generated);
+            completed = generated.status === "completed" ? generated : await waitForCompletedGeneration(generated.id, deps, isCanceled);
+          }
+          const backend = String(completed.backend || "").trim();
+          if (isMocked(completed.mocked)) throw terminal("TTS 返回 mock 音频", "mock_audio");
+          if (!backend || /mock|fallback|system-voice|silent/i.test(backend)) throw terminal("TTS backend 非真实生成", "backend_invalid");
+          if (!completed.audioPath && !completed.audioUrl) throw terminal("生成完成但没有音频路径", "audio_path_missing");
+          const bytes = await deps.fetchAudio(segment.generationId!); throwIfCanceled(isCanceled);
+          if (!bytes.byteLength) throw terminal("生成音频为空", "audio_empty");
+          segment.status = "completed"; segment.backend = backend;
+          segment.emotionCapability = completed.emotionCapability ?? "metadata-only"; segment.warning = completed.warning;
+          pendingGenerationIds.delete(segment.generationId!);
+          await save(); audio.push(bytes); break;
+        } catch (error) {
+          if (segment.status !== "completed") segment.status = error instanceof StoryboardTtsCanceledError ? "canceled" : "failed";
+          await save();
+          if (!(error instanceof StoryboardTtsCanceledError) && isRetryableTtsError(error) && attempt > 0 && attempt < DEFAULT_STORYBOARD_TTS_MAX_ATTEMPTS) continue;
+          throw error;
+        }
+      }
+    }
+    throwIfCanceled(isCanceled);
+    const bytes = audio.length === 1 ? audio[0] : await (deps.composeAudioBytes ?? composeOrderedSpeechAudio)(audio);
+    throwIfCanceled(isCanceled);
+    if (!bytes.byteLength) throw terminal("合并声音为空", "audio_empty");
+    const imported = await deps.writeGeneratedAudio({ projectId, chapterId, shotId: storyboard.id, role: "voice", extension: "wav", bytes });
+    throwIfCanceled(isCanceled);
+    if (!Number.isSafeInteger(imported.durationUs) || imported.durationUs <= 0) throw terminal("合并声音实测时长无效", "duration_invalid");
+    const binding = await createStoryboardVoiceBinding({ projectId, chapterId, storyboard, shotRevision, inputFingerprint, imported });
+    const generationId = segments[segments.length - 1].generationId!;
+    job = { ...job, status: "completed", generationId, emotionCapability: segments.every(s => s.emotionCapability === "applied") ? "applied" : "metadata-only" };
+    await save();
+    return { audioRef: createStoryboardAudioRefFromBinding(binding), shotAudioBinding: binding, ttsJob: job, generationId,
+      ttsBackend: [...new Set(segments.map(s => s.backend))].join("+"), ttsMocked: false,
+      ttsEmotionCapability: job.emotionCapability ?? "metadata-only", ttsWarning: segments.map(s => s.warning).filter(Boolean).join("; ") || undefined };
+  } catch (error) {
+    const canceled = error instanceof StoryboardTtsCanceledError || isCanceled();
+    if (canceled) {
+      // Local cancellation is not proof that the backend stopped. Attempt every ID
+      // independently, retaining IDs and completed parts for explicit retry/reuse.
+      await Promise.allSettled([...pendingGenerationIds].map(async id => deps.cancelGeneration?.(id)));
+      for (const segment of segments) {
+        if (segment.status === "queued" || segment.status === "generating"
+          || (segment.status !== "completed" && segment.generationId && pendingGenerationIds.has(segment.generationId))) segment.status = "canceled";
+      }
+    }
+    job = { ...job, status: canceled ? "canceled" : "failed", cancelRequested: canceled, errorCode: canceled ? "user_canceled" : ttsErrorCode(error), errorMessage: error instanceof Error ? error.message : String(error) };
+    if (canceled && pendingGenerationIds.size) job.errorMessage += "；后端取消仅尽力请求，未确认远端停止";
+    await save(); throw error;
   }
 }
 

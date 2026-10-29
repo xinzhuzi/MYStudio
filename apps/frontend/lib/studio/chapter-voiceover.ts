@@ -1,3 +1,4 @@
+import type { StoryboardSpeechUtterance } from "@/types/studio-storyboard-types";
 import type { TtsSpeakerId } from "@/types/tts";
 import type { StudioSourceIdentity } from "@/types/studio";
 
@@ -31,6 +32,9 @@ export interface StoryboardVoiceoverItem extends StudioSourceIdentity {
   speakerId: TtsSpeakerId;
   line: string;
   ttsSpokenText: string;
+  speechUtterances?: StoryboardSpeechUtterance[];
+  lines?: string;
+  speechSpeakerFallback?: "narrator";
   durationTarget: number;
   voiceStyle: string;
   requiresFixedVoice: true;
@@ -49,24 +53,23 @@ export interface ChapterVoiceoverAuditExpectation extends StudioSourceIdentity {
 export function buildStoryboardVoiceoverItem(
   input: StoryboardVoiceoverInput,
 ): StoryboardVoiceoverItem {
-  const speech = parseStoryboardSpeech(input.lines, input.description);
-  let speakerId: TtsSpeakerId;
-  try {
-    speakerId = resolveCanonicalSpeakerId(speech.speaker, input.characters);
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    // 群演兜底：仅「未注册说话人」可归旁白；一对多冲突是资产数据问题，恒抛错
-    const unresolved = error instanceof Error && error.message.includes("无法解析到角色资产");
-    if (input.unknownSpeaker === "narrator" && unresolved) {
-      speakerId = "narrator";
-    } else {
-      throw new Error(`分镜 ${input.storyboardId} speaker 解析失败: ${reason}`);
+  const parsed = parseStoryboardSpeech(input.lines, input.description);
+  const speechUtterances = parsed.map((speech) => {
+    let speakerId: TtsSpeakerId;
+    try {
+      speakerId = resolveCanonicalSpeakerId(speech.speaker, input.characters);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      if (input.unknownSpeaker === "narrator" && reason.includes("无法解析到角色资产")) speakerId = "narrator";
+      else throw new Error(`分镜 ${input.storyboardId} speaker 解析失败: ${reason}`);
     }
-  }
-  const ttsSpokenText = normalizeTtsSpokenText(speech.line);
-  if (!ttsSpokenText) {
-    throw new Error(`分镜 ${input.storyboardId} 的口播文本为空`);
-  }
+    const text = normalizeTtsSpokenText(speech.line);
+    if (!text) throw new Error(`分镜 ${input.storyboardId} 的口播文本为空`);
+    return { speaker: speech.speaker, speakerId, text };
+  });
+  const speech = parsed[0];
+  const speakerId = speechUtterances[0].speakerId;
+  const ttsSpokenText = speechUtterances.map((part) => part.text).join(" ");
 
   return {
     ...normalizeSourceIdentity(input),
@@ -75,7 +78,10 @@ export function buildStoryboardVoiceoverItem(
     index: input.index,
     speaker: speech.speaker,
     speakerId,
-    line: speech.line,
+    line: parsed.map((part) => part.line).join("\n"),
+    speechUtterances,
+    ...(input.unknownSpeaker ? { speechSpeakerFallback: input.unknownSpeaker } : {}),
+    lines: input.lines,
     ttsSpokenText,
     durationTarget: resolveDurationTarget(input.duration, ttsSpokenText),
     voiceStyle: buildVoiceStyle(speakerId, input.emotion),
@@ -89,6 +95,13 @@ const VOICEOVER_SUFFIX_RE = new RegExp(
   String.raw`[\s(（\[【]*${VOICEOVER_MARKER}[\s)）\]】.]*$`,
   "i",
 );
+
+/** 情绪注记后缀（角色名后的「（凶横）/（低哑）」等 1-12 字括注，1029 耳感笔触约定）——
+ * 剥注记得纯角色名；剥空/整段是括注则不成候选（防「（凶横）：」误当旁白）。 */
+const MOOD_ANNOTATION_RE = /[（(【\[][^\s()（）【】\[\]]{1,12}[)）\]】]\s*$/;
+export function stripMoodAnnotation(speaker: string): string {
+  return speaker.trim().replace(MOOD_ANNOTATION_RE, "").trim();
+}
 
 export function isNarratorSpeaker(speaker: string): boolean {
   return NARRATOR_LABELS.has(speaker.trim().toLocaleLowerCase("zh-Hans-CN"));
@@ -109,8 +122,8 @@ export function resolveCanonicalSpeakerId(
     return requireUniqueCharacter(value, matches);
   }
 
-  const stripped = value.replace(VOICEOVER_SUFFIX_RE, "").trim();
-  const candidates = stripped && stripped !== value ? [value, stripped] : [value];
+  const voStripped = value.replace(VOICEOVER_SUFFIX_RE, "").trim();
+  const candidates = [...new Set([value, voStripped, stripMoodAnnotation(voStripped)].filter(Boolean))];
   const nameMatches = characters.filter((character) =>
     candidates.includes(character.name.trim()),
   );
@@ -162,7 +175,13 @@ export function auditChapterVoiceoverPlan(
     if (item.requiresFixedVoice !== true) {
       errors.push(`分镜 ${item.storyboardId} requiresFixedVoice 必须为 true`);
     }
-    if (item.speakerId) speakerIds.add(item.speakerId);
+    if (item.speechUtterances) {
+      if (item.speechUtterances[0]?.speakerId !== item.speakerId || item.speechUtterances[0]?.speaker !== item.speaker) errors.push(`分镜 ${item.storyboardId} 首个声音身份不匹配`);
+      for (const part of item.speechUtterances) speakerIds.add(part.speakerId);
+      if (missing.length === 0) {
+        try { assertStoryboardSpeech(item); } catch (error) { errors.push(`分镜 ${item.storyboardId} ${error instanceof Error ? error.message : String(error)}`); }
+      }
+    } else if (item.speakerId) speakerIds.add(item.speakerId);
   }
 
   return {
@@ -191,22 +210,64 @@ function normalizeSourceIdentity(identity: StudioSourceIdentity): StudioSourceId
   };
 }
 
-function parseStoryboardSpeech(lines: string | undefined, description: string) {
+export function parseStoryboardSpeech(lines: string | undefined, description: string) {
   const raw = lines?.trim() ?? "";
-  if (EMPTY_SPEECH.has(raw)) return buildNarration(description);
-
-  const colonIndex = raw.search(/[:：]/);
-  if (colonIndex < 0) {
-    return {
-      speaker: "旁白",
-      line: raw,
-    };
+  if (EMPTY_SPEECH.has(raw)) return [buildNarration(description)];
+  const parts: { speaker: string; line: string }[] = [];
+  for (const line of raw.split(/\r?\n/).map((value) => value.trim()).filter(Boolean)) {
+    // A label occupies the start of a line; colons in its body remain speech.
+    const match = line.match(/^([^:：。！？，“”「」]{1,64})[:：](.*)$/);
+    if (match) parts.push({ speaker: match[1].trim(), line: match[2].trim() });
+    else if (parts.length) parts[parts.length - 1].line += ` ${line}`;
+    else parts.push({ speaker: "旁白", line });
   }
+  if (parts.length === 1 && EMPTY_SPEECH.has(parts[0].line)) return [buildNarration(description)];
+  if (parts.length > 1 && parts.some((part) => EMPTY_SPEECH.has(part.line))) {
+    throw new Error("混合声音包含空白或占位台词");
+  }
+  return parts;
+}
 
-  const speaker = raw.slice(0, colonIndex).trim();
-  const line = raw.slice(colonIndex + 1).trim();
-  if (!speaker || EMPTY_SPEECH.has(line)) return buildNarration(description);
-  return { speaker, line };
+/** Validate persisted structured speech against original lines before any service call. */
+export function assertStoryboardSpeech(input: {
+  lines?: string; speaker?: string; speakerId?: TtsSpeakerId; ttsSpokenText?: string;
+  speechUtterances?: StoryboardSpeechUtterance[]; speechSpeakerFallback?: "narrator";
+}, characters?: VoiceoverCharacterIdentity[]): void {
+  const parts = input.speechUtterances;
+  const raw = input.lines?.trim() && /^([^:：。！？，“”「」]{1,64})[:：]/m.test(input.lines) ? parseStoryboardSpeech(input.lines, input.ttsSpokenText ?? "") : undefined;
+  if (!parts) {
+    if (raw && raw.length > 1) throw new Error("混合声音缺少 speechUtterances");
+    if (raw && characters) {
+      const canonical = resolveCanonicalSpeakerId(raw[0].speaker, characters);
+      // narrator 代读形态(1029 存量主形态):镜 speaker 字段就是该角色、speakerId 走
+      // narrator 通道(配音经 tts.json 档案而非 speakerId 选声)——标签与镜字段
+      // 指向同一角色即视为一致;仅当两边各指不同角色才算不匹配。
+      const fieldCanonical = input.speaker?.trim()
+        ? resolveCanonicalSpeakerId(input.speaker, characters)
+        : undefined;
+      if (canonical !== input.speakerId && canonical !== fieldCanonical) {
+        throw new Error("声音 speakerId 与原始标签不匹配");
+      }
+    }
+    return;
+  }
+  if (!parts.length || parts.some((part) => !part.text?.trim() || !part.speaker?.trim() || !/^(narrator|character:.+)$/.test(part.speakerId))) throw new Error("speechUtterances 无效");
+  if (parts[0].speakerId !== input.speakerId || parts[0].speaker !== input.speaker) throw new Error("首个声音 speakerId 不匹配");
+  if (parts.map((part) => part.text).join(" ") !== input.ttsSpokenText) throw new Error("speechUtterances 文本不匹配");
+  if (raw && (raw.length !== parts.length || raw.some((part, i) => part.speaker !== parts[i].speaker || normalizeTtsSpokenText(part.line) !== parts[i].text))) throw new Error("speechUtterances 与原始声音顺序/文本不匹配");
+  for (const part of parts) {
+    if (characters) {
+      let canonical: TtsSpeakerId;
+      try { canonical = resolveCanonicalSpeakerId(part.speaker, characters); }
+      catch (error) {
+        if (input.speechSpeakerFallback === "narrator" && error instanceof Error && error.message.includes("无法解析到角色资产")) canonical = "narrator";
+        else throw error;
+      }
+      if (canonical !== part.speakerId) throw new Error("声音 speakerId 与原始标签不匹配");
+    }
+    if (isNarratorSpeaker(part.speaker) && part.speakerId !== "narrator") throw new Error("旁白身份不匹配");
+    if (!isNarratorSpeaker(part.speaker) && part.speakerId === "narrator" && input.speechSpeakerFallback !== "narrator") throw new Error("角色身份不能隐式归旁白");
+  }
 }
 
 function buildNarration(description: string) {

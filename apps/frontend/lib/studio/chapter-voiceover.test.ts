@@ -198,3 +198,30 @@ describe("chapter voiceover item contract", () => {
     });
   });
 });
+
+describe("ordered shot speech", () => {
+  it.each(["", "—", "-", "无", "无台词", "无对白"])("restores labelled placeholder %s as grounded narration", (token) => {
+    const item = buildStoryboardVoiceoverItem({ storyboardId: "blank", index: 1, description: "雨落码头。", duration: 3,
+      lines: `旁白：${token}`, characters: CHARACTERS });
+    expect(item.ttsSpokenText).toBe("雨落码头。");
+    expect(item.speechUtterances).toEqual([{ speaker: "旁白", speakerId: "narrator", text: "雨落码头。" }]);
+    expect(auditChapterVoiceoverPlan([item], 1).passed).toBe(true);
+  });
+
+  it.each(["", "—", "-", "无", "无台词", "无对白"])("rejects mixed placeholder %s", (token) => {
+    expect(() => buildStoryboardVoiceoverItem({ storyboardId: "blank-mixed", index: 1, description: "雨落码头。", duration: 3,
+      lines: `旁白：${token}\n独孤剑尘：借灯。`, characters: CHARACTERS })).toThrow("混合声音包含空白或占位台词");
+  });
+
+  it("retains ordered identities and continuation without speaking labels", () => {
+    const item = buildStoryboardVoiceoverItem({ storyboardId: "mixed", index: 3, description: "风起", duration: 12,
+      lines: "旁白：风起。\n雨未停。\n独孤剑尘：借一盏灯，答案是：等。", characters: CHARACTERS });
+    expect(item.speechUtterances).toEqual([
+      { speaker: "旁白", speakerId: "narrator", text: "风起。 雨未停。" },
+      { speaker: "独孤剑尘", speakerId: "character:char-dugu", text: "借一盏灯，答案是：等。" },
+    ]);
+    expect(item.ttsSpokenText).toBe("风起。 雨未停。 借一盏灯，答案是：等。");
+    expect(auditChapterVoiceoverPlan([item], 1).speakerIds).toEqual(["character:char-dugu", "narrator"]);
+    expect(auditChapterVoiceoverPlan([{ ...item, speakerId: "character:char-keeper" }], 1).passed).toBe(false);
+  });
+});
