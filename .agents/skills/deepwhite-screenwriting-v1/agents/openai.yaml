@@ -1,0 +1,7 @@
+interface:
+  display_name: "DeepWhite 中文影视编剧 v1.0.1"
+  short_description: "v1.0.1：从零开发、分场、诊断评分、精准修改中文影视剧本。"
+  default_prompt: "使用 $deepwhite-screenwriting-v1 从一个粗略灵感开发中文短片，并用量化评分表做诊断。"
+
+policy:
+  allow_implicit_invocation: true

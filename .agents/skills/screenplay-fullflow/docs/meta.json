@@ -1,0 +1,108 @@
+{
+  "title": "从脑洞到剧本！AI编剧全流程实操，新手也能写出爆款剧本（附编剧Skill）",
+  "duration_sec": 1321.331519,
+  "source": "https://www.bilibili.com/video/BV1KtHD6kEme",
+  "source_mode": "url",
+  "video": "video.mp4",
+  "transcript": "whisper",
+  "subtitle_cc": "absent",
+  "danmaku": "ok",
+  "frames_count": 67,
+  "frames_tsv": "frames.tsv",
+  "whisper_model": "small",
+  "options": {
+    "scene_threshold": "0.15",
+    "min_frames": "10",
+    "fallback_interval": "15",
+    "max_frames": "240",
+    "allow_no_audio": false,
+    "used_cookies": false,
+    "used_proxy": false
+  },
+  "tool_versions": {
+    "yt-dlp": "2026.10.21",
+    "ffmpeg": "7.1.1",
+    "whisper": "20250625"
+  },
+  "commands": [
+    [
+      "yt-dlp",
+      "-f",
+      "bv*+ba/b",
+      "-S",
+      "res:1080,vcodec:h264",
+      "--merge-output-format",
+      "mp4",
+      "--no-playlist",
+      "--write-subs",
+      "--sub-langs",
+      "ai-zh,zh-Hans,zh-CN,zh,danmaku",
+      "--write-info-json",
+      "--no-write-playlist-metafiles",
+      "--retries",
+      "3",
+      "--fragment-retries",
+      "3",
+      "-o",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.%(ext)s",
+      "https://www.bilibili.com/video/BV1KtHD6kEme"
+    ],
+    [
+      "mv",
+      "-f",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.danmaku.xml",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/danmaku.xml"
+    ],
+    [
+      "ffmpeg",
+      "-hide_banner",
+      "-nostdin",
+      "-y",
+      "-i",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.mp4",
+      "-vn",
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.wav"
+    ],
+    [
+      "/opt/homebrew/bin/whisper",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.wav",
+      "--model",
+      "small",
+      "--language",
+      "zh",
+      "--output_format",
+      "srt",
+      "--output_dir",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029",
+      "--initial_prompt",
+      "以下是普通话的句子。"
+    ],
+    [
+      "cp",
+      "-f",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/audio.srt",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/transcript.srt"
+    ],
+    [
+      "ffmpeg",
+      "-hide_banner",
+      "-nostdin",
+      "-y",
+      "-i",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/video.mp4",
+      "-vf",
+      "select='gt(scene,0.15)',showinfo",
+      "-fps_mode",
+      "vfr",
+      "-q:v",
+      "2",
+      "/Users/zhengbingjin/Project/Github/MYStudio/.tmp/ai-writer-video-1029/images/frame_%04d.jpg"
+    ]
+  ],
+  "generated_at": "2026-10-29T08:51:26",
+  "webpage_url": "https://www.bilibili.com/video/BV1KtHD6kEme"
+}
