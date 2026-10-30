@@ -86,6 +86,19 @@ export function buildCompositionProps(
   const timelineDurationInFrames = beatSnapActive && snappedClips.length > 0
     ? Math.max(1, snappedClips[snappedClips.length - 1]!.from + snappedClips[snappedClips.length - 1]!.durationInFrames)
     : visualTiming.durationInFrames;
+  // 叠影修复(1030):转场重叠帧数按入镜/出镜两张表索引——字幕窗钳制用。
+  // overlap = 出镜镜 layout 终点 - 入镜镜 layout 起点(与下方 transitions 投影同式)。
+  const overlapFramesByToClipId = new Map<string, number>();
+  const overlapFramesByFromClipId = new Map<string, number>();
+  for (const transition of plan.transitions) {
+    const fromTiming = timingById.get(transition.fromClipId);
+    const toTiming = timingById.get(transition.toClipId);
+    if (!fromTiming || !toTiming) continue;
+    const overlap = Math.max(0, fromTiming.from + fromTiming.durationInFrames - toTiming.from);
+    if (overlap <= 0) continue;
+    overlapFramesByToClipId.set(transition.toClipId, overlap);
+    overlapFramesByFromClipId.set(transition.fromClipId, overlap);
+  }
   const panZoomByClipId = new Map(
     plan.effects
       .filter((effect) => effect.effectId === "panZoom" && effect.targetClipId)
@@ -171,14 +184,38 @@ export function buildCompositionProps(
               ? usToFrames(owner.startUs, fps) - ownerTiming.from
               : 0;
             const from = Math.max(0, usToFrames(clip.startUs, fps) - layoutShiftFrames);
+            // 叠影修复(1030 终审 13 处):字幕窗对齐视觉切点 + swap 窗禁显。
+            // ① cue 起点不早于所属镜视觉起点(先画面切、后字幕入);
+            // ② cue 硬上限=所属镜视觉终点(先字幕出、后画面切)——可读下限
+            //    延长在 readableSubtitleCues 内被 ceilingFrames 拦下,出镜残影
+            //    不再跨切点叠在新镜画面上;
+            // ③ 带重叠的转场窗(gl:swap 等双镜共存窗)内禁显字幕:出镜镜字幕窗
+            //    收至 swap 起,入镜镜字幕窗自 swap 终起(待 swap 结束再入)。
+            let cueFrom = from;
+            let ceilingFrames: number | undefined;
+            if (ownerTiming) {
+              const ownerEnd = ownerTiming.from + ownerTiming.durationInFrames;
+              const incomingOverlap = overlapFramesByToClipId.get(owner!.id) ?? 0;
+              const outgoingOverlap = overlapFramesByFromClipId.get(owner!.id) ?? 0;
+              const subWindowFrom = ownerTiming.from + incomingOverlap;
+              const subWindowEnd = ownerEnd - outgoingOverlap;
+              if (subWindowEnd <= subWindowFrom) return null;
+              // 原 audio 窗整段落在本镜禁显段内(如 swap 窗吞掉整句):丢弃而非
+              // 压成 1 帧闪现——swap 期禁显是硬规则,句已随 swap 走完不再补显。
+              if (from + clipDurationInFrames(clip.durationUs, fps) <= subWindowFrom) return null;
+              if (from >= subWindowEnd) return null;
+              cueFrom = Math.max(cueFrom, subWindowFrom);
+              ceilingFrames = subWindowEnd;
+            }
             return {
               cueId: clip.id,
               text: clip.source.text!.trim(),
-              from,
+              from: cueFrom,
               audioSpanFrames: clipDurationInFrames(clip.durationUs, fps),
+              ...(ceilingFrames !== undefined ? { ceilingFrames } : {}),
             };
           })
-          .filter((cue) => cue.text.length > 0 && cue.from < timelineDurationInFrames),
+          .filter((cue): cue is NonNullable<typeof cue> => cue !== null && cue.text.length > 0 && cue.from < timelineDurationInFrames),
         timelineDurationInFrames,
         fps,
       )

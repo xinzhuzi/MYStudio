@@ -182,6 +182,8 @@ function buildShotDefinition(
   projectId: string,
   storyboard: StoryboardItem,
   issues: ShotPlanIssue[],
+  // subtitleOwner 仅决定章级字幕权威(subtitleMode 派生),不再驱动镜级烧录
+  // (见函数体内 1030 叠影修复注释);保留形参以免扩散调用面。
   subtitleOwner?: "remotion-text" | "hyperframes-overlay" | "source-media",
 ): RemotionShotDefinitionV2 | undefined {
   const visualSource = toProjectMediaReference(
@@ -199,9 +201,14 @@ function buildShotDefinition(
     issues.push({ code: "shot-plan.duration", path: `shots.${storyboard.id}.duration`, message: "分镜时长必须是正数" });
     return undefined;
   }
-  const subtitleText = subtitleOwner === "remotion-text"
-    ? [storyboard.ttsSpokenText, storyboard.line, storyboard.lines].find((text) => Boolean(text?.trim()))?.trim()
-    : undefined;
+  // 叠影修复(1030 终审 13 处):镜级字幕块不再烧入 shot MP4。
+  // 契约(editing-audio-subtitles.md §Subtitle responsibility boundary):
+  // clean-remotion=Remotion 章级合成拥有最终可见字幕层;shot MP4 是章合成的
+  // 干净视觉源,再烧整镜块=「source 已含字幕+章层再渲 cue」的双层重复
+  // (重复字幕防线要拦的形态)——gl:swap 转场窗内两镜烧录块共存、章层 cue 与
+  // 烧录块同句双写,即终审 13 处叠影的根因。字幕唯一渲染层=章级 SubtitleTrack
+  // (composition-shot.ts 已按镜视觉窗+swap 窗钳制 cue 窗)。
+  void subtitleOwner;
   const approvedContinuityVersion = storyboard.continuityState?.styleContractVersion;
   // M2:关键帧展开(仅有图帧进入;空规划槽跳过)。帧引用校验失败=整镜 fail-closed。
   const keyframeRefs = (storyboard.keyframes ?? [])
@@ -239,7 +246,6 @@ function buildShotDefinition(
     durationUs,
     visualSource,
     ...(keyframeRefs.length > 1 ? { keyframes: keyframeRefs } : {}),
-    ...(subtitleText ? { subtitleText } : {}),
     audioBindings,
     motion: { kind: "static" },
     transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },

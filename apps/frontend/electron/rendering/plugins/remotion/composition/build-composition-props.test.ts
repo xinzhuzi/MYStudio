@@ -1507,7 +1507,61 @@ describe("章级配方段与节拍切点吸附(10-10 批D)", () => {
     expect(result.success).toBe(true);
     if (!result.success) return;
     const cue = result.value.subtitles.find((entry) => entry.cueId === "cue-owned-by-002");
-    // 未吸附:cue.from=24(音频轴 30−shift6);吸附后 owner 平移→cue.from=20。
-    expect(cue?.from).toBe(20);
+    // 叠影修复(1030):cue 窗收进本镜 swap 后视觉窗——吸附后 owner from=20、
+    // 重叠 10,字幕窗自 swap 终点 20+10=30 起(旧断言 20=swap 窗内预现,已废)。
+    expect(cue?.from).toBe(30);
+  });
+});
+
+describe("叠影修复(1030 终审):字幕窗对齐视觉切点+swap 窗禁显", () => {
+  const buildWithCue = async (
+    cue: ReturnType<typeof textPlanClip>,
+  ): Promise<ReturnType<typeof buildChapterVideoCompositionProps>> => {
+    const firstSlot = makeCurrentSlot();
+    const secondSlot = slotForShot("shot-002");
+    const plan = twoShotPlan(firstSlot, secondSlot);
+    plan.clips.push(cue);
+    const chapterManifest = await manifestForPlan(plan);
+    chapterManifest.requiredShotIds = ["shot-001", "shot-002"];
+    chapterManifest.shots = [
+      { ...chapterManifest.shots[0]!, audioBindings: [] },
+      { ...chapterManifest.shots[0]!, shotId: "shot-002", storyboardId: "shot-002", index: 1, audioBindings: [] },
+    ];
+    return buildChapterVideoCompositionProps({
+      plan,
+      currentShotSlots: [firstSlot, secondSlot],
+      chapterManifest,
+      mediaUrlByClipId: { "visual-shot-001": mediaUrl, "visual-shot-002": mediaUrl },
+      mediaUrlByBindingId: {},
+    });
+  };
+  // twoShotPlan:fade 0.2s→overlap 6f;shot-001 layout [0,30),swap [24,30),shot-002 [24,54)。
+
+  it("出镜 cue 的可读下限延长不得越过本镜视觉终点(残影钳制)", async () => {
+    // cue@0.7s(21f),可读下限 47f 旧链会拉到 68f(叠上 shot-002 画面);新链止于 24f(swap 起)。
+    const result = await buildWithCue(textPlanClip("cue-tail-001", "shot-001", 700_000, 100_000));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const cue = result.value.subtitles.find((entry) => entry.cueId === "cue-tail-001");
+    expect(cue?.from).toBe(21);
+    expect(cue!.from + cue!.durationInFrames).toBeLessThanOrEqual(24);
+  });
+
+  it("入镜 cue 自 swap 终点起(窗内禁显),不再预现于转场重叠窗", async () => {
+    // cue@1.0s=shot-002 layout 起点 24f(恰在 swap 窗内);新窗自 swap 终 30f 起。
+    const result = await buildWithCue(textPlanClip("cue-head-002", "shot-002", 1_000_000, 500_000));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const cue = result.value.subtitles.find((entry) => entry.cueId === "cue-head-002");
+    expect(cue?.from).toBe(30);
+    expect(cue!.from + cue!.durationInFrames).toBeLessThanOrEqual(54);
+  });
+
+  it("原窗整段被 swap 窗吞掉的 cue 丢弃(不压成 1 帧闪现)", async () => {
+    // cue@1.0s 时长 0.1s→audio 终 27f ≤ swap 终 30f:整句随 swap 走完,不补显。
+    const result = await buildWithCue(textPlanClip("cue-swallowed-002", "shot-002", 1_000_000, 100_000));
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.value.subtitles.find((entry) => entry.cueId === "cue-swallowed-002")).toBeUndefined();
   });
 });

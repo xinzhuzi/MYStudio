@@ -19,13 +19,18 @@ interface SubtitleCueDraft {
   text: string;
   from: number;
   audioSpanFrames: number;
+  /** 叠影修复(1030 终审):本 cue 的硬窗上限(所属镜视觉窗/转场 swap 窗收进后的
+   * 终帧,排他帧域,不含)——可读下限延长(max(语音时长,可读下限))不得越过,
+   * 防出镜残影跨切点。缺省=无该约束(仅受下一条 cue 与 composition 末帧钳制)。 */
+  ceilingFrames?: number;
 }
 
 /**
  * 把音频对齐的句级 cue 投影成可读字幕：停留时长取 max(语音时长, 可读下限)，
  * 延长只占语音结束后的静默段（画面应等语音与字幕结束再切，见转场钳制），
  * 且不得越过下一条 cue 的起点（防双字幕同屏）与 composition 末帧
- * （fail-closed 校验禁止越界 Sequence）。
+ * （fail-closed 校验禁止越界 Sequence）;若 draft 带 ceilingFrames(所属镜
+ * 视觉窗终帧),延长同样不得越过——字幕窗恒收在本镜视觉窗内。
  */
 export function readableSubtitleCues(
   drafts: readonly SubtitleCueDraft[],
@@ -39,6 +44,7 @@ export function readableSubtitleCues(
     const ceiling = Math.min(
       compositionDurationInFrames,
       next ? next.from - 1 : Number.MAX_SAFE_INTEGER,
+      cue.ceilingFrames ?? Number.MAX_SAFE_INTEGER,
     );
     const minReadableFrames = usToFrames(
       Math.max(
