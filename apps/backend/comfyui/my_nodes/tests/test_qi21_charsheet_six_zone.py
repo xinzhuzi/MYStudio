@@ -126,7 +126,10 @@ def test_full_board_defaults_and_each_detail_position(card):
     assert card['aspect_ratio'] == '16:9 (Widescreen)'
     assert card['megapixels'] == 2.25
     assert card['resolution_override'] == [2048, 1152]
-    for text in ['完整横向角色设定板', '左栏下方为人物资料与配色方案',
+    for text in ['完整横向角色设定板', '左栏底部横排五枚圆形色样',
                  '右栏第三行固定四格', '单眼与眉形特写', '腕部与袖口结构特写',
                  '底部第一区', '底部第二区', '底部第三区', '底部第四区']:
         assert text in card['positive_text']
+    # 1030 伪字减文字面:人物资料面板已砍,「人物资料」标签随面板消失
+    assert '人物资料' not in card['positive_text']
+    assert '人物资料' not in card['rgba_positive']

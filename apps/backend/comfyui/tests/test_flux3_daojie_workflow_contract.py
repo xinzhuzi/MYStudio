@@ -110,7 +110,7 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert receipt['source']['approved_sha256']==subject_revision['approved_sha256']
     for evidence in receipt['evidence']+receipt['frozen']:
         assert hashlib.sha256(w.resolve(ROOT, evidence['path']).read_bytes()).hexdigest()==evidence['sha256'],evidence['path']
-    gender=json.loads((ROOT/receipt['evidence'][-1]['path']).read_text())['messages']
+    gender=json.loads(w.resolve(ROOT, receipt['evidence'][-1]['path']).read_text())['messages']
     assert [message['sequence'] for message in gender]==[121,122,123]
     for human in (gender[0],gender[2]):
         assert human['role']=='user' and human['semantics']['origin']=='real_user' and human['semantics']['kind']=='user_prompt'
@@ -120,18 +120,18 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
     assert gender[2]['parts'][0]['text']=='按照你的建议去做'
     assert revisions[base]=={
         'original_sha256':'a2df104bf740670cbea1fbe9b06ba43c7695b7d2be26d0a6cfc621e422967bff',
-        'approved_sha256':'5151c81f9323bfddc86e5f7f83f837d7b41125920b574444469ca26a2cd351ea',
+        'approved_sha256':'1141651b23c322425a2765c896d88cf7507370f6f2bf75feab04dfa340acfa71',
         'role':'runtime_execution_input_updated_after_snapshot',
         'historical_backup':'.trellis/tasks/archive/2026-10/10-18-daojie-conflict-p1-canon/backups/qi21_bases.json',
         'approval':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1023-bodybase.md',
-            'anchor':'## Decisions(2026-10-23 用户令「目前是 无衣物定妆,用这个来新作一个类型」)',
-            'sha256':'592641c223763ba7fd7ddd500872653f4613100862f2c05cf14ca2a7ed7746de',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-reapproval-1030-charsheet-declutter.md',
+            'anchor':'## Decisions(2026-10-30 用户令「砍资料面板/标签改短词」)',
+            'sha256':'fad92192acd0e36d199cf8968b24c5aa6da62c1d71a7508d4ef441a202ce967f',
         },
         'change_ledger':{
-            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1023-bodybase.md',
-            'anchor':'## 字段级变更(2 处,1023 无衣物定妆入列实测)',
-            'sha256':'badfbe39ffe33fa9d566ae9d539eab48d6b27a3a30ceb8a00f0e98b017baae8d',
+            'path':'.trellis/tasks/10-16-flux3-daojie-ten-types/reports/bases-change-ledger-1030-charsheet-declutter.md',
+            'anchor':'## 字段级变更(6 字段,1030 设定卡伪字减文字面)',
+            'sha256':'d8c82b00bc89a9ef7c457d8b64bcf934e3eb76ee9803bcef0987a9a56622b2d1',
         },
     }
     revision=revisions[base]
@@ -146,6 +146,9 @@ def test_shared_sources_are_unchanged_since_the_builder_snapshot():
         content=(ROOT/name).read_bytes()
         if name in (base,subject):
             content=content.replace('人物海报'.encode(), '人物'.encode())
+        if name==base:
+            # Frozen receipts predate the body type's display-label rename too.
+            content=content.replace('无衣物定妆'.encode(), '全身定妆'.encode())
         current=hashlib.sha256(content).hexdigest()
         if name==base:
             assert current==revision['approved_sha256'],name
