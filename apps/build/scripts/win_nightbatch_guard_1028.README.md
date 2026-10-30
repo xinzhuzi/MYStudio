@@ -100,5 +100,18 @@ REM ↓ 既有 execute 链发车命令原样保留 ↓
 
 **判静后的前置核对**:确认 EngineDurable 终态(S6 禁用留档重做窗口=并行役真收工后,final-sweep-1028.md §二)——若其时 EngineDurable 仍 Ready 且引擎在驾,直投轨 `-RequireEngine` 守护自然放行;禁用留档落地后则依赖 App 在驾链+execute 轨按需拉起,直投轨须先确认引擎在驾再发。
 
+### 1029「闪断病」勘正(引擎 HTTP 假死≠引擎死;探针三要素口径)
+
+**病症实录**:1029 两坐实(10:28 外部台渲我方帧5 后 HTTP 全不应答/queue+/history curl 空应答而进程 328% CPU 健在;05:3x 同款)——8G 4060Ti 动态卸载渲重活时,ComfyUI HTTP 接口可被饿数分钟而引擎仍在正常出片(生态已知:github.com/Comfy-Org/ComfyUI/issues/7916 多采样器/大工作流阻塞接口;docs.comfy.org/troubleshooting/overview)。**10s 级探针超时会把活引擎误判死,进而误杀误换台——这正是此前多轮「引擎挂死」判定的病灶**。
+
+**探针三要素口径(此后一切引擎死活判定)**:
+1. 引擎 HTTP 探针超时一律 **≥45s**(本守护 `-EngineProbeTimeoutSec` 缺省 45,引擎侧探针/判静采样全走此档);
+2. **output 停更=死亡金标准**(真层 output 无新件且非观察窗内),HTTP 不应答但 output 仍在更新=活引擎在重载,禁杀禁换;
+3. 进程在≠活,进程死=真死;判死前两项金标准须同时成立。
+
+**配套铁律**:
+- **H3 等长活建议引擎挂 `--lowvram`**(共机 4060Ti 实证缓解:外部 lane 同卡同模型挂此档接口未被饿死,1029 实录;代价=单镜变慢);
+- **schtasks 拉引擎的启动器,stdout/stderr 恒 `>> 日志 2>&1` 追加写文件,禁裸输出禁管道**——Windows 管道 4-8KB 塞满无人读即整进程死锁(bugs.python.org/issue6107/issue44527、Stack Overflow 经典子进程管道死锁),裸控制台在 schtasks 会话下同样有阻塞风险。
+
 ---
 *1028 落档:本件+同目录 `win_nightbatch_guard_1028.ps1`;补 W11(S8 FastH3 共存复核)时以本守护为发车前置复核冒烟。同日修缮(上轮遗留工程首件):§三判静纪律按收官复核勘误重写(真源三项综合+观察窗≥15min+禁查 E:\IP\tmp)+守护加 `-RequireQueueIdle` 判静门(`/queue` 机检,复核证伪第一条的判据增强)+回滚注记补 daojie 无通道(Mac 正向重刷唯一路)。*

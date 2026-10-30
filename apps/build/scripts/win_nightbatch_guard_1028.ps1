@@ -37,7 +37,11 @@
 #   -AppExe            App 主程序(缺省=$env:LOCALAPPDATA\Programs\manying-studio\manying-studio.exe,
 #                      NSIS 默认位,phase0 A1/A2 实证)
 #   -LogFile           日志(缺省=E:\IP\tmp\logs\win_nightbatch_guard_1028.log,追加写)
-#   -ProbeTimeoutSec   单次探活超时(缺省 5s;curl -m)
+#   -ProbeTimeoutSec   侧车单次探活超时(缺省 5s;curl -m)
+#   -EngineProbeTimeoutSec 引擎侧探活超时(缺省 45s;1029 闪断勘正:8G 卡动态卸载渲重活时
+#                      ComfyUI HTTP 接口可被饿数分钟而进程健在——10s 级超时会把活引擎误判死,
+#                      生态已知 github.com/Comfy-Org/ComfyUI/issues/7916;引擎探针(含④判静采样)
+#                      一律用本档;output 停更才是引擎死活金标准,进程在≠活)
 #   -TimeoutSec        ②轮询上限(缺省 300s=5min,design §2.3)
 #   -PollIntervalSec   轮询间隔(缺省 10s;④判静门采样同用此间隔)
 #   -RequireEngine     引擎 17000 也作硬门(缺省关:侧车通即过,引擎按需拉起)
@@ -67,6 +71,7 @@ param(
   [string]$AppExe = "$env:LOCALAPPDATA\Programs\manying-studio\manying-studio.exe",
   [string]$LogFile = "E:\IP\tmp\logs\win_nightbatch_guard_1028.log",
   [int]$ProbeTimeoutSec = 5,
+  [int]$EngineProbeTimeoutSec = 45,
   [int]$TimeoutSec = 300,
   [int]$PollIntervalSec = 10,
   [switch]$RequireEngine,
@@ -97,8 +102,16 @@ function Write-Log([string]$Level, [string]$Message) {
 
 # 探活:curl.exe(-s 静默含错误,-f HTTP 4xx/5x 判败,-m 超时;-o NUL 丢弃响应体)。
 # 注意必须写 curl.exe——PowerShell 5.1 里裸 curl 是 Invoke-WebRequest 的别名。
+# 侧车探针用 $ProbeTimeoutSec;引擎侧探针(本函数传引擎 URL 时)由调用侧走 Test-EngineHttpOk。
 function Test-HttpOk([string]$Url) {
   curl.exe -s -f -m $ProbeTimeoutSec -o NUL $Url
+  return ($LASTEXITCODE -eq 0)
+}
+
+# 引擎侧探活(1029 闪断勘正):一律 $EngineProbeTimeoutSec(缺省 45s)——渲染重载下引擎
+# 接口可被饿数分钟,短超时会把活引擎误判死;超时不构成死亡判定,死亡金标准=output 停更。
+function Test-EngineHttpOk([string]$Url) {
+  curl.exe -s -f -m $EngineProbeTimeoutSec -o NUL $Url
   return ($LASTEXITCODE -eq 0)
 }
 
@@ -106,7 +119,7 @@ function Test-HttpOk([string]$Url) {
 # PS5.1 空数组/缺字段变 $null 时 @($null).Count=1 的坑)。探不到/解析失败=False——证不了静
 # 按不静处置(fail-closed),语义与 repo 同款 engine_health.py:94-101 一致。
 function Test-QueueIdle {
-  $raw = curl.exe -s -m $ProbeTimeoutSec $QueueUrl
+  $raw = curl.exe -s -m $EngineProbeTimeoutSec $QueueUrl
   if ($LASTEXITCODE -ne 0) { return $false }
   if (-not $raw) { return $false }
   try {
@@ -147,7 +160,7 @@ Write-Log "INFO" ("guard start: sidecar={0} engine={1} requireEngine={2} timeout
 
 # ---------------- ① probe ----------------
 $sidecarUp = Test-HttpOk $SidecarUrl
-$engineUp = Test-HttpOk $EngineUrl
+$engineUp = Test-EngineHttpOk $EngineUrl
 
 if ($sidecarUp -and ($engineUp -or (-not $RequireEngine))) {
   if ($engineUp) {
@@ -192,7 +205,7 @@ if (-not $sidecarUp) {
 $deadline = (Get-Date).AddSeconds($TimeoutSec)
 while ($true) {
   $sidecarUp = Test-HttpOk $SidecarUrl
-  $engineUp = Test-HttpOk $EngineUrl
+  $engineUp = Test-EngineHttpOk $EngineUrl
   if ($sidecarUp -and $engineUp) { break }
   if ((Get-Date) -ge $deadline) { break }
   Start-Sleep -Seconds $PollIntervalSec
