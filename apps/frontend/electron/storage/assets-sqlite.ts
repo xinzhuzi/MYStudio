@@ -26,15 +26,27 @@ export interface SqliteCliResolutionOptions {
  * 因此 Windows 安装包内捆绑 sqlite3.exe(extraResources:<resources>/sqlite3/),
  * 运行时优先使用;其余平台/开发模式回退 PATH 上的 sqlite3。
  * 参数可注入以便单测。
+ *
+ * D4(10-30)候选序修正:fetch-sqlite3.mjs 实际落位是
+ * <resources>/sqlite3/bin/win-x64/sqlite3.exe(fetch-sqlite3.mjs:26 dest=bin/win-x64,
+ * 经 electron-builder.yml from:frontend/assets/sqlite3→to:sqlite3 平移),
+ * 旧代码只探测 flat 布局 <resources>/sqlite3/sqlite3.exe 双 miss 回退 PATH,
+ * 装机后资产库 ENOENT。现按序探测两候选:flat(兼容未来/手放)→ nested(实捆落位),
+ * 首个存在即命中;双 miss 维持 PATH 回退(向后兼容)。
  */
 export function resolveSqliteCli(options: SqliteCliResolutionOptions = {}): string {
   const platform = options.platform ?? process.platform;
   const resourcesPath = options.resourcesPath ?? process.resourcesPath;
   const fileExists = options.fileExists ?? fs.existsSync;
   if (platform === "win32" && typeof resourcesPath === "string" && resourcesPath.length > 0) {
-    const bundled = path.join(resourcesPath, "sqlite3", "sqlite3.exe");
-    if (fileExists(bundled)) {
-      return bundled;
+    const bundledCandidates = [
+      path.join(resourcesPath, "sqlite3", "sqlite3.exe"),
+      path.join(resourcesPath, "sqlite3", "bin", "win-x64", "sqlite3.exe"),
+    ];
+    for (const bundled of bundledCandidates) {
+      if (fileExists(bundled)) {
+        return bundled;
+      }
     }
   }
   return "sqlite3";

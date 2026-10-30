@@ -620,6 +620,35 @@ describe("SQLite CLI resolution (Windows bundled sqlite3)", () => {
     })).toBe("sqlite3");
   });
 
+  // D4(10-30):fetch-sqlite3.mjs:26 实捆落位为 bin/win-x64 嵌套布局
+  // (electron-builder.yml from:frontend/assets/sqlite3→to:sqlite3 平移),
+  // 旧代码只探测 flat 布局,装机后资产库 ENOENT——两用例锁定 nested 候选。
+  it("resolves the nested bin/win-x64 bundled sqlite3.exe when the flat layout is missing", () => {
+    const resources = "C:\\App\\resources";
+    // path.join 在非 Windows 主机的单测环境使用 "/",故按规范化后 endsWith 断言,
+    // 生产(win32 主进程)path.join 使用 "\",两种情形均指向
+    // resources/sqlite3/bin/win-x64/sqlite3.exe。
+    const nested = "resources/sqlite3/bin/win-x64/sqlite3.exe";
+    const exists = (p: string) => p.replace(/[\\/]/g, "/").endsWith(nested);
+    const resolved = resolveSqliteCli({ platform: "win32", resourcesPath: resources, fileExists: exists });
+    expect(resolved).not.toBe("sqlite3");
+    expect(resolved.replace(/[\\/]/g, "/")).toContain(nested);
+  });
+
+  it("keeps the flat sqlite3/sqlite3.exe candidate first when both layouts are present", () => {
+    const resources = "C:\\App\\resources";
+    const flat = "resources/sqlite3/sqlite3.exe";
+    const nested = "resources/sqlite3/bin/win-x64/sqlite3.exe";
+    const exists = (p: string) => {
+      const normalized = p.replace(/[\\/]/g, "/");
+      return normalized.endsWith(flat) || normalized.endsWith(nested);
+    };
+    const resolved = resolveSqliteCli({ platform: "win32", resourcesPath: resources, fileExists: exists });
+    expect(resolved).not.toBe("sqlite3");
+    expect(resolved.replace(/[\\/]/g, "/")).toContain(flat);
+    expect(resolved.replace(/[\\/]/g, "/")).not.toContain("bin/win-x64");
+  });
+
   it("keeps using the system sqlite3 on non-Windows platforms", () => {
     expect(resolveSqliteCli({ platform: "linux", resourcesPath: "/opt/app/resources" })).toBe("sqlite3");
     expect(resolveSqliteCli({ platform: "darwin", resourcesPath: "/opt/app/resources" })).toBe("sqlite3");
