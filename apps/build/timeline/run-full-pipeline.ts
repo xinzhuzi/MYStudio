@@ -58,6 +58,7 @@ import { assertCliDuration, requireSourceHash, validatePipelineReview } from "./
 import { buildRemotionShotPlans } from "@/lib/studio/remotion/remotion-shot-plan-builder";
 import { createCliTtsFingerprint } from "./cli-tts-fingerprint";
 import { validateRemotionAudioBindingFingerprint } from "@/lib/studio/remotion/remotion-audio-fingerprint";
+import { runTimelineAudioPostProcess } from "@rendering/runtime/ffmpeg/timeline-audio-postprocess";
 import { buildProjectFileUrl } from "@/lib/upscale/project-file-url";
 import type { StoryboardItem } from "@/types/studio";
 import type { PersistedTtsState } from "@/stores/tts/tts-store";
@@ -1317,7 +1318,9 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         await new Promise<void>((resolve, reject) => {
           execFile("ffmpeg", ["-i", outputPath, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy",
             "-af", `volume=-${trimDb.toFixed(3)}dB`, "-c:a", "aac", "-ar", "48000", "-b:a", "192k",
-            "-shortest", "-movflags", "+faststart", "-y", trimmedPath],
+            // 1030 勘正:同 timeline-audio-postprocess——-shortest 会按 AAC 帧网格非确定性
+            // 截视频尾帧,时长门以视频流为准,保帧优先(音频尾短 10ms 无感)。
+            "-movflags", "+faststart", "-y", trimmedPath],
             { maxBuffer: 50 * 1024 * 1024 }, (error, _stdout, _stderr) => {
               if (error) return reject(error);
               resolve();

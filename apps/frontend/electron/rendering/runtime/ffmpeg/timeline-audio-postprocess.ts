@@ -87,7 +87,10 @@ function buildPostProcessArgs(input: TimelineAudioPostProcessInput, audioFilter:
     "-c:a", "aac",
     "-ar", "48000",
     "-b:a", "192k",
-    "-shortest",
+    // 1030 勘正:去 -shortest——AAC 重编码按 1024 样帧网格对齐会吃掉 ~10-20ms 尾,
+    // -shortest 随之非确定性截掉视频尾 1-2 帧(W1-1029 恰差一帧侥幸过门;1030 ch1
+    // 五段配乐轮实测两帧必炸「时长误差超过一帧」门)。时长契约以视频流为准
+    // (probeRenderedMedia),音频尾短 10ms 无感;视频流恒保全帧。
     "-movflags", "+faststart",
     "-y", input.outputPath,
   ];

@@ -31,9 +31,10 @@ describe("timeline audio post-process", () => {
           "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
           "-ar", "48000",
           "-b:a", "192k",
-          "-shortest",
         ]),
       });
+      // 1030 勘正:-shortest 已去(视频流保帧,AAC 网格尾差不再截视频)——钉死不得回加。
+      expect(calls[0].args).not.toContain("-shortest");
       expect(evidence).toEqual({
         engine: "ffmpeg",
         loudnessLufs: -14,
