@@ -1317,7 +1317,10 @@ export async function runFullPipeline(): Promise<Record<string, unknown>> {
         const trimmedPath = path.join(remotionOutputDir, ".loudnorm-trim.mp4");
         await new Promise<void>((resolve, reject) => {
           execFile("ffmpeg", ["-i", outputPath, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "copy",
-            "-af", `volume=-${trimDb.toFixed(3)}dB`, "-c:a", "aac", "-ar", "48000", "-b:a", "192k",
+            // 1030 响度链定谳(r1-findings「响度链新定谳」):AAC 金属瞬态解码过冲可达 +1dB,
+            // 单次 volume 线性压不死 TP;1028/1030 两役实证 alimiter=limit=0.794:level=false
+            // 一步双绿(TP=-1.6/I=-13.7),trim 预编码段内挂,防管线原生重渲 TP 门复发。
+            "-af", `volume=-${trimDb.toFixed(3)}dB,alimiter=limit=0.794:level=false`, "-c:a", "aac", "-ar", "48000", "-b:a", "192k",
             // 1030 勘正:同 timeline-audio-postprocess——-shortest 会按 AAC 帧网格非确定性
             // 截视频尾帧,时长门以视频流为准,保帧优先(音频尾短 10ms 无感)。
             "-movflags", "+faststart", "-y", trimmedPath],
