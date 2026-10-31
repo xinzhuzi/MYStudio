@@ -91,6 +91,26 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     notes: "无首帧纯文生(官方 t2v 同形);无 9.image 首帧锚,分镜批量线不适用,仅画布直开。",
   },
   {
+    // 10-31 rtx-pro-4000 换卡役:QAD NVFP4 R2V 参考线(Windows RTX Pro 4000 Blackwell 专用)。
+    // 母体=h3-shot-template-ref2va.json(34 节点 Mac R2V)换芯 QAD 四删(3/17/43/48)→30 节点。
+    id: "my-fasth3-r2v-30",
+    label: "漫影单镜 FastH3 QAD 参考线(30 节点,Windows RTX Pro 4000)",
+    apiTemplate: "./fasth3-ref-shot-template.api.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-r2v.json",
+    inputMode: "r2v",
+    anchors: {
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image", // R2V 语义=第一参考图 ref_image_0(分镜帧,Picture 1),非首帧锚定
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "100",
+    },
+    resolutionTiers: ["480p", "960p"],
+    status: "unverified",
+    notes: "Windows QAD R2V 参考线(10-31 三对齐表 Q1-Q4:DiT=fasth3_omniref_qad_nvfp4_comfy 13.77G 已落位+TE nvfp4_awq+int8/fp32 VAE;官方口径 8步/euler/simple/guidance1.0/shift[12,3];六段式提示词 buildShotH3RefPrompt,分镜帧恒占 Picture 1,角色/场景卡走 refs 注入 110-113)。status=unverified:三层硬门+NVFP4 内核实弹+TE reference-vision 兼容(QAD README 配套仓 FastH3-OmniRef-Comfy 魔搭无镜像,fl2va 仓 nvfp4_awq 件待实弹裁决)+QAD 音频质量 A/B(1030 复验清单②,蒸馏+量化双加速音质未验——出产音频标准仍=28 步纯净 bf16 线,禁以本件出片)。前端模板对=fasth3-ref-shot-template{,.api}.json,UI 真源=repo 库 fasth3-单镜视频-r2v.json(契约测试钉同步);超时沿用档位表 480p=900s/960p=2700s。",
+  },
+  {
     id: "my-h3-multiseg",
     label: "漫影分段视频(multiseg)",
     apiTemplate: "./h3-multiseg-template.api.json",

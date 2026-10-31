@@ -292,6 +292,30 @@ def assert_contract(api: dict) -> None:
         assert key in n100["inputs"], f"100.{key} 缺"
 
 
+def assert_r2v_contract(api: dict) -> None:
+    """R2V 参考线 API 产物锚断言(10-31 fasth3-qad;16 号=MiniMaxH3ReferenceToVideo,
+    首帧语义=9.image→16.ref_images.ref_image_0 分镜帧第一参考图;110-113=角色/场景卡槽,
+    出厂旁路不进 API 图(mode=4 也进,组装器按 refs 激活——与 UI 件 30 节点全转一致)。"""
+    def node(nid: str) -> dict:
+        if nid not in api:
+            raise SystemExit(f"r2v api contract: node {nid} missing")
+        return api[nid]
+
+    n14, n20, n9, n4, n16, n100 = node("14"), node("20"), node("9"), node("4"), node("16"), node("100")
+    assert n14["class_type"] == "PrimitiveStringMultiline" and isinstance(n14["inputs"].get("value"), str) and n14["inputs"]["value"], "14.value 锚坏"
+    assert n20["class_type"] == "PrimitiveFloat" and isinstance(n20["inputs"].get("value"), (int, float)) and not isinstance(n20["inputs"]["value"], bool), "20.value 锚坏(须 number)"
+    assert n9["class_type"] == "LoadImage" and isinstance(n9["inputs"].get("image"), str), "9.image 锚坏"
+    assert n4["class_type"] == "SaveVideo" and isinstance(n4["inputs"].get("filename_prefix"), str), "4.filename_prefix 锚坏"
+    assert n16["class_type"] == "MiniMaxH3ReferenceToVideo", "16 class_type 坏(须 ReferenceToVideo)"
+    assert n16["inputs"].get("prompt") == ["14", 0], "16.prompt 链坏"
+    assert n16["inputs"].get("ref_images.ref_image_0") == ["9", 0], "16.ref_images.ref_image_0 链坏(分镜帧第一参考图)"
+    assert n16["inputs"].get("length") == ["23", 1], "16.length 链坏"
+    assert "width" in n16["inputs"] and "height" in n16["inputs"], "16.width/height 锚缺"
+    assert n100["class_type"] == "MyShot" and n100["inputs"].get("video") == ["4", 0], "100 MyShot video 直连坏"
+    for key in ("shot_id", "label", "description", "media_status"):
+        assert key in n100["inputs"], f"100.{key} 缺"
+
+
 def assert_multiseg_contract(api: dict) -> None:
     """multiseg API 产物锚断言(§14.1.2 ②;第③层实弹归 §14.4.3 候令清单)。"""
     def node(nid: str) -> dict:
@@ -327,6 +351,9 @@ def main() -> None:
     parser.add_argument("--dst", type=Path, default=DEFAULT_DST, help="API 输出路径(缺省=旧 h3-shot-template.api.json;与 --preset 互斥)")
     parser.add_argument("--ui-count", type=int, default=DEFAULT_UI_NODE_COUNT, help="期望 UI 节点数(缺省 31)")
     parser.add_argument("--api-count", type=int, default=DEFAULT_API_NODE_COUNT, help="期望 API 节点数(缺省 27)")
+    parser.add_argument("--contract", choices=["i2v", "r2v"], default="i2v",
+                        help="产物锚断言形态:i2v=16 号 MiniMaxH3ImageToVideo+first_frame 链(缺省,旧行为零变);"
+                             "r2v=16 号 MiniMaxH3ReferenceToVideo+ref_images.ref_image_0 链(10-31 fasth3-qad)")
     parser.add_argument("--object-info-file", type=Path, default=None,
                         help="离线 object_info JSON(如 tests/fixtures/fasth3_object_info_snapshot.json;缺省=在线拉引擎,再缺=预设两态回落键序 fixture)")
     opts = parser.parse_args()
@@ -367,7 +394,10 @@ def main() -> None:
     api, skipped = convert(canvas, oi)
     if len(api) != opts.api_count:
         raise SystemExit(f"api contract: {len(api)} nodes != {opts.api_count} (skipped UI-only: {skipped})")
-    assert_contract(api)
+    if opts.contract == "r2v":
+        assert_r2v_contract(api)
+    else:
+        assert_contract(api)
     dst.write_text(json.dumps(api, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"OK: {dst.relative_to(REPO_ROOT)} ({len(api)} nodes; src={src.name}; UI-only skipped: {', '.join(skipped)})")
     print("anchors: 14.value(str) 20.value(number) 9.image(str) 4.filename_prefix(str) 16.width/16.height 100.MyShot(video→[4,0])")

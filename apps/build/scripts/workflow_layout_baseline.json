@@ -14,7 +14,7 @@
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 17,
+          "crossings": 16,
           "occlusion": 0
         },
         "sub:道劫·超分·SeedVR2": {
@@ -31,15 +31,15 @@
       "scopes": {
         "main": {
           "crossings": 43,
-          "occlusion": 6
+          "occlusion": 0
         },
         "sub:[6] 文本提示词类型优化子图": {
           "crossings": 3,
           "occlusion": 0
         },
         "sub:道劫·加速子图": {
-          "crossings": 26,
-          "occlusion": 5
+          "crossings": 18,
+          "occlusion": 0
         },
         "sub:道劫·超分·SeedVR2": {
           "crossings": 0,

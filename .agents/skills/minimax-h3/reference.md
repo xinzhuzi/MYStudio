@@ -331,3 +331,55 @@ The safety guardrails described on the model card are part of the **hosted** pip
 submitted material and enhanced prompts). The open weights carry no such filter, and anatomical fidelity holds
 in the image and reference paths. The licence's acceptable-use terms still govern what you generate; MiniMax
 claims no rights over outputs and places responsibility on the user.
+
+## 2026-10-30 定谳:带音频出产标准 = 28 步纯净 bf16(全档位横扫结论)
+
+用户终裁「这版音频最好…没有什么杂音」——**凡要片内原生音频的出片,一律以此为准**:
+
+- **标准配置**:UNET=`minimax_h3_fl2va_pruned_bf16` + BasicScheduler `simple/steps=28/denoise=1` + KSamplerSelect `res_multistep` + BasicGuider(CFG-1)+ RandomNoise(seed 固定可比);**禁挂任何加速件**(turbo LoRA/SolAttnPatch/T8 块缓存/SplitSigmas 蒸馏配线全摘)。图样=`MYStudio/apps/output/pipeline-full-run/trial-mac-bf16/trial-009-s28-api.json`(21 节点)。
+- **死判档位**(音频头受害,两次实证):fastvideo int8+8步蒸馏=非中文怪腔;lightx2v turbo 4stepLoRA@8步=用户判「根本不行」。步数蒸馏砍采样进度=饿死音频头(SKILL「audio settles late」实锤)。
+- 20 步版已可听(词句全对含尾句)但自然度差一档;28 步=杂音清零。耗时参考:Mac M4 Max 608x352 约 2.2s/帧(9.4s 镜 2244s)。
+- 机器旁证口径:whisper-small(zh)对烂音频有「脑补归一」倾向,**不能**当音频质量区分器;字级时间轴(词句完整性)可用。台账:`MYStudio/.trellis/tasks/10-30-ch1-batch-closeout/research/h3-native-audio-path-1030.md`。
+
+### 平台验证范围(2026-10-30 钉死;用户将换卡,换卡后须按下表复验)
+
+| 平台 | 硬件 | 已验结论 |
+|---|---|---|
+| **Mac(MPS)** | Apple M4 Max 40核 Metal4,128GB 统一内存 | **28步纯净bf16=音频标准在此平台验定**(009 镜三档 A/B:8步蒸馏❌→20步⭕→28步✅);耗时 2244s/9.4s镜(≈2.4s/帧@608x352);20步=1576s 可听但差一档 |
+| **Win(CUDA)** | **NVIDIA RTX 4060 Ti 8GB**,driver 610.88 | **只验过死判档**:fastvideo int8+8步蒸馏(音频非中文怪腔,19镜全量+机检15/15)与 h3_edition 草稿档(兄弟产线同病)。**28步标准未在 Win 验**——现状 8GB VRAM 装 bf16(40GB)物理不可行 |
+| Win 换卡后(RTX Pro 4000 Blackwell) | VRAM/驱动待实量(**1031 已装机,换卡维护期 SSH 中断未实探**) | **复验清单**:①VRAM 定档(bf16 40GB 走 offload / fp8 21GB 近全载;**fp8 对音频头影响未验,int8 已死勿等同**);②009@28步 seed42 同提示词与 Mac 标准件 A/B 对听+whisper 字级对比;③耗时实测排产线;④过验后此表补 Win 列,标准声明升级为跨平台。**1031 增**:QAD NVFP4 件已落位(见下节),其 NVFP4 内核加载与音频 A/B 并入本清单 |
+
+台账全档:`MYStudio/.trellis/tasks/10-30-ch1-batch-closeout/research/h3-native-audio-path-1030.md`(含各试验耗时/产物路径)。
+
+## 2026-10-30 增补:Sol-VAE(蒸馏快解码器)定位与采用条件
+
+- **是什么**:Efficient-Large-Model(SolAttn 同门)HF 仓库 `Sol-H3-VAE` — 24 层非因果解码器(1.62B)蒸馏自官方 36 层视频 VAE 解码器;PSNR 45.4dB(近无损但非恒等);**音频解码器不动**(音频标准安全)。
+- **不是 drop-in**:不能直接 VAELoader 加载 — 需 Python 封装/自定义节点(NVIDIA Sana 仓 sol-engine 分支 `Sol-H3-ComfyUI` 集成);依赖 **PyTorch CUDA 13 + Triton + FlashAttention-4 + QuACK**(RTX 5090/SM120 实测;Ada 卡内核疑不兼容,有 engine="ref" 慢速回退);VRAM:720p 5s 片 ~24GiB、2K ~48GiB、首解 ~25s 编译。
+- **本产线采用条件定谳**:Mac(MPS)= **无缘**(纯 CUDA);Win 4060Ti 8G = **无缘**(VRAM+内核双卡死);**RTX Pro 4000(Blackwell 24G)换卡后=候选** — 但 608x352 短片 VRAM 需求远低于 720p 口径,可行。**序位:换卡复验清单第②步(标准 28 步过验)之后**,同 seed A/B 试:解码耗时+画质对比;过则 Win 产线解码段提速,败则留档。
+- 另线:ComfyUI 官方博客原生 H3 VAE 优化(编码 2.2x/解码 1.4-2.7x,核心代码级)= 引擎升级附带收益,与 Sol-VAE 二选一或叠加,候换卡后引擎维护窗统一评。
+
+## 2026-10-31 增补:FastH3 QAD NVFP4(RTX Pro 4000 Blackwell 线)
+
+- **是什么**:FastVideo 的 QAD(Quantization-Aware Distillation,量化感知蒸馏)+ NVFP4 量化单文件 Comfy 版
+  `fasth3_omniref_qad_nvfp4_comfy.safetensors`(13,773,998,700B,sha256 `bf25ee58df65b4df…`,1030 役已落 Windows
+  E: 盘三方对账毕)。**NVFP4 加速需 Blackwell 硬件**(RTX Pro 4000 ✓);其它架构官方口径用 BF16/FP8 件。
+  **只有 omniref(R2V 参考线)有 Comfy 单文件版**——fl2va(t2v/i2v 主线)的 QAD-v2 仅 Diffusers 格式,Comfy 用不了;
+  产线 I2V 主形态不走 QAD(勿找 fl2va QAD 件,不存在)。
+- **官方口径**(FastH3-Omni-NVFP4-QAD-Comfy README+VALIDATION,魔搭镜像 1031 实拉):8 步/Euler/simple/
+  guidance 1.0/**video shift 12.0/audio shift 3.0**(与 fl2va 8step-v2 的 [10,3] 不同!)/`MiniMaxH3ReferenceToVideo`
+  节点/参考标签 `<Picture N>`/`<Video N>`/`<Audio N>`;验证环境=ComfyUI b1a247c9+comfy-kitchen 0.2.39+PyTorch 2.9
+  nv25.09+CUDA 13+GB200(832x480/124 帧)。**VSA/BlockSparseAttention 不挂**——VSA 是 fl2va 8step-v2 专用训练口径,
+  QAD 官方未提及;注意力走 pytorch(NVFP4 加速在权重内核层)。
+- **TE 疑点(实弹裁决)**:QAD README 要求 TE 带 **reference-vision 支持**,配套仓 `FastVideo/FastH3-OmniRef-Comfy`
+  (HF,169GB,魔搭无镜像)。现用 Q2=`qwen3vl_32b_minimax_h3_nvfp4_awq`(fl2va 仓/Comfy-Org 同名件,Win 在位)与原生
+  ref2va 线共用一套 TE 是 Comfy-Org 官方设计,大概率同件可用——**未实弹证实**,败则从 OmniRef-Comfy 仓补 TE(HF 通路)。
+- **本仓接入(1031 rtx-pro-4000 换卡役)**:repo 真源 `2_视频/H3视频/1_漫影自研/0_单镜视频/fasth3-单镜视频-r2v.json`
+  (30 节点,母体=34 节点 Mac R2V 骨架四删 3/17/43/48)+ 前端模板对 `fasth3-ref-shot-template{,.api}.json` +
+  recipe `my-fasth3-r2v-30`(unverified)+ 组装器 `buildShotH3RefApiWorkflow`(六段式 buildShotH3RefPrompt,分镜帧恒占
+  Picture 1,角色/场景卡 refs 注入 110-113)+ 契约测试 `test_fasth3_qad_workflow_contract.py`(7 用例)。生成器
+  `apps/build/scripts/fasth3_qad_workflows_1031.py`(幂等);三对齐表 Q1-Q4 在生成器头注。
+- **音频风险(未验)**:QAD=蒸馏(8步)+NVFP4 双加速。官方 VALIDATION 只对比 NVFP4 vs BF16 同 QAD 母版(audio corr
+  仅 0.33/0.45=量化本身对音频扰动不小),绝对音质无任何数据。按 1030 定谳(步数蒸馏饿死音频头),**QAD 定位=快速档/
+  参考图特化,禁以 QAD 件出产带音频成片**;出产音频标准仍=28 步纯净 bf16(Mac 验定,Win 复验清单候)。
+- **Win 全承接缺口件(候令下载)**:`minimax_h3_fl2va_pruned_bf16`(40.23G,魔搭 sha256 `a32572fb…`)+ 
+  `minimax_h3_video_vae_fp16`(5.2G)——28 步出产标准档 DiT/VAE,Win 落位后音频标准才有 Win 着落;E: 余量足(286G)。

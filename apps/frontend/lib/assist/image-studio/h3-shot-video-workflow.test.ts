@@ -11,6 +11,7 @@ import {
   buildShotH3ApiWorkflow,
   buildShotH3ApiWorkflowForRecipe,
   buildShotH3MultisegApiWorkflow,
+  buildShotH3RefApiWorkflow,
   buildShotH3RefWorkflow,
   buildShotH3Workflow,
   h3ApiTemplateRecipeIds,
@@ -488,6 +489,89 @@ describe("Windows FastH3 主线通道(10-27 windows-fasth3-mainline W10 配方�
     expect(fasth3Api["16"].inputs.first_frame).toEqual(["9", 0]);
     expect(fasth3Api["16"].inputs.length).toEqual(["23", 1]);
     expect(fasth3Api["100"].inputs.video).toEqual(["4", 0]);
+  });
+});
+
+// ── QAD R2V 参考线(10-31 rtx-pro-4000 换卡役;my-fasth3-r2v-30 专用组装器)────────────────────
+
+describe("Windows FastH3 QAD R2V 参考线通道(10-31 rtx-pro-4000 换卡役)", () => {
+  it("分派器走 r2v 通道:QAD 换芯件在场+官方参数+四删节点零回潮", () => {
+    const result = buildShotH3ApiWorkflowForRecipe("my-fasth3-r2v-30", { shot: makeShot(), chapterId: "c", chapterLabel: "章" });
+    expect(Object.keys(result.apiGraph)).toHaveLength(26);
+    expect(result.apiGraph["16"].class_type).toBe("MiniMaxH3ReferenceToVideo");
+    expect(result.apiGraph["34"].inputs.unet_name).toBe("fasth3_omniref_qad_nvfp4_comfy.safetensors");
+    expect(result.apiGraph["21"].class_type).toBe("CLIPLoader");
+    expect(result.apiGraph["21"].inputs.clip_name).toBe("qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors");
+    expect(result.apiGraph["7"].inputs.vae_name).toBe("minimax_h3_video_vae_int8_convrot.safetensors");
+    expect(result.apiGraph["13"].inputs.vae_name).toBe("minimax_h3_audio_vae_fp32.safetensors");
+    // 官方口径(README+VALIDATION):8 步 simple/euler/SigmaShift[12,3]/pytorch 纯净线
+    expect(result.apiGraph["8"].inputs).toMatchObject({ scheduler: "simple", steps: 8, denoise: 1 });
+    expect(result.apiGraph["29"].inputs.sampler_name).toBe("euler");
+    expect(result.apiGraph["42"].inputs).toMatchObject({ shift_video: 12, shift_audio: 3 });
+    expect(result.apiGraph["40"].inputs.attention).toBe("pytorch attention");
+    for (const retired of ["3", "17", "43", "48"]) { // SplitSigmas/Preview/SolAttn/T8
+      expect(result.apiGraph[retired]).toBeUndefined();
+    }
+    expect(result.apiGraph["43"]).toBeUndefined(); // VSA 不挂(QAD 非 VSA 训练)
+  });
+
+  it("R2V 语义:分镜帧恒占 ref_image_0+六段式提示词+refs 按序注入 110-113+max 身份档", () => {
+    const result = buildShotH3RefApiWorkflow({
+      shot: makeShot(),
+      chapterId: "chapter-001",
+      chapterLabel: "第一章 雨夜",
+      firstFrameB64: "aGVsbG8=",
+      refs: [
+        { name: "林昭", kind: "character", imageName: "char-linzhao.png" },
+        { name: "石桥", kind: "scene", imageName: "scene-bridge.png" },
+      ],
+    });
+    expect(String(result.apiGraph["14"].inputs.value)).toContain("subject_definitions:");
+    expect(String(result.apiGraph["14"].inputs.value)).toContain("retention_analysis:");
+    expect(result.apiGraph["16"].inputs).toMatchObject({
+      "ref_images.ref_image_0": ["9", 0],
+      "ref_images.ref_image_1": ["110", 0],
+      ref_image_size: "max",
+    });
+    expect(result.apiGraph["9"].inputs.image).toBe("my-shot-h3-sb-chapter-001-001.jpg");
+    expect(result.apiGraph["110"].inputs.image).toBe("char-linzhao.png");
+    expect(result.apiGraph["111"].inputs.image).toBe("scene-bridge.png");
+    expect(String(result.apiGraph["112"].inputs.image)).toContain("placeholder"); // 未用槽保持出厂占位
+    expect(result.images).toEqual([{ key: "9.image", name: "my-shot-h3-sb-chapter-001-001.jpg", b64: "aGVsbG8=" }]);
+    // 前缀走 ref-<policy> 口径(回收链五段)
+    expect(result.apiGraph["4"].inputs.filename_prefix).toBe("video/漫影/chapter-001/sb-chapter-001-001/ref-ambient");
+  });
+
+  it("缺省 480p 快速档(QAD 出厂;与 i2v 族缺省 960p 刻意分叉——8 步蒸馏音质未验禁出产)", () => {
+    const result = buildShotH3RefApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", refs: [] });
+    expect(result.apiGraph["16"].inputs.width).toBe(608);
+    expect(result.apiGraph["16"].inputs.height).toBe(352);
+    const high = buildShotH3RefApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", refs: [], resolutionTier: "960p" });
+    expect(high.apiGraph["16"].inputs.width).toBe(1344);
+    expect(high.apiGraph["16"].inputs.height).toBe(768);
+  });
+
+  it("uiWorkflow 附件=Win QAD 画布档(30 节点;非 Mac 档:GGUF/SolAttn 零回潮)", () => {
+    const result = buildShotH3RefApiWorkflow({ shot: makeShot(), chapterId: "c", chapterLabel: "章", originProjectId: "project-a", refs: [] });
+    const nodes = result.uiWorkflow.nodes as Array<{ id: number; type: string; properties?: Record<string, unknown>; inputs?: Array<{ name?: string }> }>;
+    expect(nodes).toHaveLength(30);
+    const types = nodes.map((node) => node.type);
+    expect(types).toContain("MiniMaxH3ReferenceToVideo");
+    expect(types).toContain("CLIPLoader");
+    expect(types).not.toContain("CLIPLoaderGGUF");
+    expect(types).not.toContain("SolAttnPatch");
+    expect(types).not.toContain("MiniMaxH3BlockCacheT8");
+    const anchor = nodes.find((node) => node.id === 100);
+    expect(anchor?.inputs?.[0]?.name).toBe("video"); // 组装补连 SaveVideo→MyShot 回收线
+    expect(anchor?.properties).toMatchObject({ myOriginProjectId: "project-a" });
+  });
+
+  it("注册表条目在册且 unverified 候实弹(status 升 ready 前批量发车须显式带 recipeId)", () => {
+    const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === "my-fasth3-r2v-30");
+    expect(recipe).toMatchObject({ inputMode: "r2v", status: "unverified" });
+    expect(recipe?.apiTemplate).toBe("./fasth3-ref-shot-template.api.json");
+    expect(h3BatchDispatchableRecipeIds()).toContain("my-fasth3-r2v-30");
+    expect(batchDispatchableH3Recipes().some((item) => item.id === "my-fasth3-r2v-30")).toBe(false); // ready 门仍挡
   });
 });
 

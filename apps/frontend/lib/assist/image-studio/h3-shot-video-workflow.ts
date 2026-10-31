@@ -6,6 +6,8 @@ import apiTemplateJson from "./h3-shot-template.api.json";
 import fasth3TemplateJson from "./fasth3-shot-template.json";
 import fasth3ApiTemplateJson from "./fasth3-shot-template.api.json";
 import templateRefJson from "./h3-shot-template-ref2va.json";
+import fasth3RefTemplateJson from "./fasth3-ref-shot-template.json";
+import fasth3RefApiTemplateJson from "./fasth3-ref-shot-template.api.json";
 import multisegTemplateJson from "./h3-multiseg-template.json";
 import multisegApiTemplateJson from "./h3-multiseg-template.api.json";
 import type { StoryboardItem } from "@/types/studio";
@@ -378,24 +380,29 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
   };
 }
 
-/** 注册表分派组装器(§14.1.4):按 H3_WORKFLOW_RECIPES 查 inputMode——
- *  multiseg→buildShotH3MultisegApiWorkflow;i2v 族→buildShotH3ApiWorkflow(W10 配方化
- *  模板对);未知 id 抛错(禁静默回缺省)。 */
+/** 注册表分派组装器(§14.1.4;10-31 增 r2v 分支):按 H3_WORKFLOW_RECIPES 查 inputMode——
+ *  multiseg→buildShotH3MultisegApiWorkflow;r2v→buildShotH3RefApiWorkflow(QAD 参考线
+ *  专用,refs 注入);i2v 族→buildShotH3ApiWorkflow(W10 配方化模板对);未知 id 抛错
+ *  (禁静默回缺省)。 */
 export function buildShotH3ApiWorkflowForRecipe(recipeId: string, input: ShotH3ApiWorkflowInput): ShotH3ApiWorkflowResult {
   const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === recipeId);
   if (!recipe) {
     throw new Error(`未知 H3 工作流配方:${recipeId}(注册表在册:${H3_WORKFLOW_RECIPES.map((item) => item.id).join(" / ")})`);
   }
   if (recipe.inputMode === "multiseg") return buildShotH3MultisegApiWorkflow(input);
+  if (recipe.inputMode === "r2v") return buildShotH3RefApiWorkflow({ ...input, refs: (input as ShotH3RefApiWorkflowInput).refs ?? [] });
   return buildShotH3ApiWorkflow({ ...input, recipeId });
 }
 
-/** 批量可派发配方 id 集(§14.1.4,W10 配方化与 multiseg 并轨):bundle 模板对(i2v 族)
- *  + 注册表 ready 的 multiseg 件(走专用组装器,不进模板对表)。发车前双门之一:
- *  注册表 ready 门(batchDispatchableH3Recipes)在前,本集在后。 */
+/** 批量可派发配方 id 集(§14.1.4,W10 配方化与 multiseg 并轨;10-31 增 r2v):
+ *  bundle 模板对(i2v 族,无条件收=接线完整性口径)+ r2v 专用组装器件(同口径无条件收,
+ *  my-fasth3-r2v-30 unverified 候实弹亦在集)+ 注册表 ready 的 multiseg 件。
+ *  发车前双门之一:注册表 ready 门(batchDispatchableH3Recipes)在前,本集在后
+ *  (批量器 :337/:357 两门分设;本集语义=bundle 面接线完整,非状态门)。 */
 export function h3BatchDispatchableRecipeIds(): string[] {
   return [
     ...Object.keys(H3_API_TEMPLATE_PAIRS),
+    ...H3_WORKFLOW_RECIPES.filter((item) => item.inputMode === "r2v").map((item) => item.id),
     ...H3_WORKFLOW_RECIPES.filter((item) => item.inputMode === "multiseg" && item.status === "ready").map((item) => item.id),
   ];
 }
@@ -438,7 +445,14 @@ export interface ShotH3RefWorkflowInput extends ShotH3WorkflowInput {
 const REF_IMAGE_NODE_IDS = [110, 111, 112, 113] as const;
 
 export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
-  const template = JSON.parse(JSON.stringify(templateRefJson)) as H3WorkflowTemplate;
+  return buildShotRefWorkflowFromTemplate(templateRefJson, input);
+}
+
+/** 画布档 R2V 组装真身(10-31 参数化,对齐 buildShotWorkflowFromTemplate 先例:
+ *  buildShotH3RefWorkflow 保留为 Mac 档旧模板薄壳=旧行为零变;QAD R2V API 组装器
+ *  走同真身但母体=fasth3-ref-shot-template.json(Win QAD 档,两母体锚点契约同构)。 */
+function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
+  const template = JSON.parse(JSON.stringify(source)) as H3WorkflowTemplate;
   assertH3TemplateIntegrity(template);
   connectVideoWriteback(template);
   getNode(template, 16, "MiniMaxH3ReferenceToVideo");
@@ -505,4 +519,65 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
     name,
     report: { shot: shot.index, seconds: prompt.seconds, frames: prompt.lengthFrames, policy },
   };
+}
+
+// ── QAD R2V API 档(10-31 rtx-pro-4000 换卡役;my-fasth3-r2v-30 专用组装器)─────────────────────
+
+/** QAD R2V API 档输入:画布档输入 + 首帧 b64 + 分辨率档 + 参考资产(≤4,按序占
+ *  ref_image_1..4;分镜帧恒占 ref_image_0=Picture 1)。refs 按名引用——资产上传由宿主
+ *  批量器负责(引擎 input 须已有同名文件),本组装器只带首帧 b64 走 images 通道。 */
+export interface ShotH3RefApiWorkflowInput extends ShotH3ApiWorkflowInput {
+  refs: ShotH3RefAssetInput[];
+}
+
+/** QAD R2V API 档组装器(仿 buildShotH3ApiWorkflow「一份组装产两形态」范式):
+ *  ① UI 克隆组装(六段式提示词 buildShotH3RefPrompt + 文案逐字自检门 + refs 激活
+ *  110-113 + MyShot properties 三键)——母体=fasth3-ref-shot-template.json(Win QAD 档,
+ *  与 Mac 档 templateRefJson 同骨架但模型链三对齐表 Q1-Q4);
+ *  ② 读值直填 apiGraph(锚=object_info 实锚:14.value/20.value/9.image/4.filename_prefix/
+ *  100 四字段/16.width+height 档位直填/110-113.image 按序),两形态逐字一致;
+ *  ③ 16 号 class 断言 MiniMaxH3ReferenceToVideo(与 i2v 族分叉点,禁共用 getApiNode 预期)。 */
+export function buildShotH3RefApiWorkflow(input: ShotH3RefApiWorkflowInput): ShotH3ApiWorkflowResult {
+  const base = buildShotRefWorkflowFromTemplate(fasth3RefTemplateJson as unknown as H3WorkflowTemplate, {
+    ...input,
+    refs: input.refs.slice(0, REF_IMAGE_NODE_IDS.length),
+  });
+  const nodes = base.ui.nodes as WorkflowNode[];
+  const widgets = (id: number, type: string): unknown[] => {
+    const node = getNode({ nodes } as H3WorkflowTemplate, id, type);
+    if (!Array.isArray(node.widgets_values)) throw new Error(`fasth3-ref-shot-template drift: node ${id} widgets_values missing`);
+    return node.widgets_values;
+  };
+  const widget = (id: number, type: string): unknown => widgets(id, type)[0];
+
+  const apiGraph = JSON.parse(JSON.stringify(fasth3RefApiTemplateJson)) as ApiGraph;
+  const promptText = widget(14, "PrimitiveStringMultiline");
+  const seconds = widget(20, "PrimitiveFloat");
+  const prefix = widget(4, "SaveVideo");
+  const imageName = widget(9, "LoadImage");
+  const myShotWidgets = widgets(100, "MyShot");
+  if (!Array.isArray(myShotWidgets) || myShotWidgets.length < 4) throw new Error("fasth3-ref-shot-template drift: node 100 widgets_values missing");
+  const [shotId, label, description, mediaStatus] = myShotWidgets;
+
+  getApiNode(apiGraph, "14", "PrimitiveStringMultiline").inputs.value = promptText;
+  getApiNode(apiGraph, "20", "PrimitiveFloat").inputs.value = seconds;
+  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = prefix;
+  getApiNode(apiGraph, "9", "LoadImage").inputs.image = imageName;
+  const myShot = getApiNode(apiGraph, "100", "MyShot");
+  myShot.inputs = { ...myShot.inputs, shot_id: shotId, label, description, media_status: mediaStatus };
+  const generator = getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo");
+  const tier = input.resolutionTier ?? "480p"; // QAD 快速档出厂 480p(8 步蒸馏,音质未验禁出产)
+  const [width, height] = H3_RESOLUTION_TIERS[tier];
+  generator.inputs.width = width;
+  generator.inputs.height = height;
+  // refs 按序直填 110-113(未用槽保持出厂占位名;引擎侧同名件由宿主上传)
+  const refs = input.refs.slice(0, REF_IMAGE_NODE_IDS.length);
+  REF_IMAGE_NODE_IDS.forEach((nodeId, position) => {
+    const ref = refs[position];
+    if (!ref) return;
+    getApiNode(apiGraph, String(nodeId), "LoadImage").inputs.image = ref.imageName;
+  });
+
+  const images = input.firstFrameB64 ? [{ key: "9.image", name: String(imageName), b64: input.firstFrameB64 }] : [];
+  return { apiGraph, uiWorkflow: base.ui, images, report: base.report };
 }
