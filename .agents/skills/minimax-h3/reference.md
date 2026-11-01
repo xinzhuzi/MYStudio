@@ -385,3 +385,7 @@ claims no rights over outputs and places responsibility on the user.
   参考图特化,禁以 QAD 件出产带音频成片**;出产音频标准仍=28 步纯净 bf16(Mac 验定,Win 复验清单候)。
 - **Win 全承接缺口件(候令下载)**:`minimax_h3_fl2va_pruned_bf16`(40.23G,魔搭 sha256 `a32572fb…`)+ 
   `minimax_h3_video_vae_fp16`(5.2G)——28 步出产标准档 DiT/VAE,Win 落位后音频标准才有 Win 着落;E: 余量足(286G)。
+
+## 2026-11-01 用户裁定:视频产线机器分工
+
+**「不再选择 Mac 作为视频生成的机器」— Win RTX Pro 4000 = 唯一视频生成产线机**(28步标准 425s/9.4s镜,19镜≈2.2h)。Mac 退位视频线(试验引擎 17001 已停,视频模型留盘但非产线);Mac 侧车图像线不受此裁定影响。28步纯净bf16 标准配置不变(机器无关),标准图在任务 rescued/ 直用。此前「标准仅 Mac 验定」的平台范围声明就此作废 — Pro4000 机检三门已过(字级五段对齐+尾句在),用户以本裁定终裁采信。
