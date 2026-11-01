@@ -1,0 +1,361 @@
+{
+ "92": {
+  "class_type": "SaveVideo",
+  "inputs": {
+   "video": [
+    "79dd8a95_130",
+    0
+   ],
+   "filename_prefix": "video/accel/fl2va_verify",
+   "format": "auto",
+   "codec": "auto"
+  },
+  "_meta": {
+   "title": "SaveVideo"
+  }
+ },
+ "147": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "lastP_spin_jump_hole.png"
+  },
+  "_meta": {
+   "title": "Last frame (Picture 2)"
+  }
+ },
+ "148": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "ref_popart_woman.png"
+  },
+  "_meta": {
+   "title": "First frame"
+  }
+ },
+ "149": {
+  "class_type": "GetImageSize",
+  "inputs": {
+   "image": [
+    "148",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "GetImageSize"
+  }
+ },
+ "79dd8a95_119": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+  },
+  "_meta": {
+   "title": "VAELoader"
+  }
+ },
+ "79dd8a95_120": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+  },
+  "_meta": {
+   "title": "VAELoader"
+  }
+ },
+ "79dd8a95_121": {
+  "class_type": "VAEDecodeAudio",
+  "inputs": {
+   "samples": [
+    "79dd8a95_125",
+    0
+   ],
+   "vae": [
+    "79dd8a95_120",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecodeAudio"
+  }
+ },
+ "79dd8a95_122": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "79dd8a95_125",
+    0
+   ],
+   "vae": [
+    "79dd8a95_119",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "79dd8a95_123": {
+  "class_type": "KSamplerSelect",
+  "inputs": {
+   "sampler_name": "lcm"
+  },
+  "_meta": {
+   "title": "KSamplerSelect"
+  }
+ },
+ "79dd8a95_125": {
+  "class_type": "SamplerCustomAdvanced",
+  "inputs": {
+   "noise": [
+    "79dd8a95_129",
+    0
+   ],
+   "guider": [
+    "79dd8a95_126",
+    0
+   ],
+   "sampler": [
+    "79dd8a95_123",
+    0
+   ],
+   "sigmas": [
+    "79dd8a95_143",
+    0
+   ],
+   "latent_image": [
+    "79dd8a95_131",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "SamplerCustomAdvanced"
+  }
+ },
+ "79dd8a95_126": {
+  "class_type": "BasicGuider",
+  "inputs": {
+   "model": [
+    "9902",
+    0
+   ],
+   "conditioning": [
+    "79dd8a95_131",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "BasicGuider"
+  }
+ },
+ "79dd8a95_127": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+   "weight_dtype": "default"
+  },
+  "_meta": {
+   "title": "UNETLoader"
+  }
+ },
+ "79dd8a95_128": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+   "type": "minimax",
+   "device": "default"
+  },
+  "_meta": {
+   "title": "CLIPLoader"
+  }
+ },
+ "79dd8a95_129": {
+  "class_type": "RandomNoise",
+  "inputs": {
+   "noise_seed": 20261101
+  },
+  "_meta": {
+   "title": "RandomNoise"
+  }
+ },
+ "79dd8a95_130": {
+  "class_type": "CreateVideo",
+  "inputs": {
+   "images": [
+    "79dd8a95_122",
+    0
+   ],
+   "audio": [
+    "79dd8a95_121",
+    0
+   ],
+   "fps": 24,
+   "bit_depth": "auto",
+   "color_space": "sRGB",
+   "codec": "none"
+  },
+  "_meta": {
+   "title": "CreateVideo"
+  }
+ },
+ "79dd8a95_131": {
+  "class_type": "MiniMaxH3ImageToVideo",
+  "inputs": {
+   "clip": [
+    "79dd8a95_128",
+    0
+   ],
+   "vae": [
+    "79dd8a95_119",
+    0
+   ],
+   "first_frame": [
+    "148",
+    0
+   ],
+   "last_frame": [
+    "147",
+    0
+   ],
+   "prompt": "How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns with the 5.17-second mark of the target video.\n\nintegrated_multimodal_description: [Shot 1] Editorial pop-art photography and printed-graphic hybrid: the woman and her clothing stay photographic with real skin texture, while everything printed — the sticker pizza, the stars, the halftone dots, the sticker tiles on the floor — stays flat printed card with heavy black outlines and no thickness. Flat hard frontal light, seamless process-red field, no gloss on the red. The shot begins exactly on Picture 1: tight portrait framing, red cat-eye sunglasses on her face, black and white checkerboard top, lips just touching the tip of the flat sticker pizza held at chin height, deadpan behind the dark lenses. At about half a second she bites the sticker and pulls her head back, and the red field behind her behaves like printed paper: a ragged tear opens behind her shoulders and curls at its edges. At about one and a half seconds she spins a full turn on the spot, clockwise, the sticker turning with her so its black outline draws a full circle against the red. At about two and a half seconds she jumps up through the tear toward the lens, and the camera pulls back with small amplitude at slow speed, coming to rest exactly when her raised arms fit inside the frame. At about three and a half seconds she lands facing the lens in the pose of Picture 2: arms overhead holding the sticker pizza, its bitten edge toward camera, the red cat-eye sunglasses airborne above and to her left, tumbling end over end with one lens catching the light, her face breaking into a wide open laugh. Flat yellow stars and small sticker pizza tiles populate the red field exactly as in Picture 2, and the halftone dot pattern resolves into visible print grain. The shot settles into the final composition of Picture 2 and holds, with only the sunglasses still turning in the air.\n\noverall_soundscape: A crisp papery bite, then the dry rasping tear of thick printed stock splitting and curling, one short airy whoosh for the spin, a light thump of her landing, the plastic clatter of sunglasses tumbling above her, and her open laugh arriving on the landing over a dry studio room with no reverb.\n\nnon_diegetic_music: A fast bright brass-and-clarinet figure that hits on the spin, cuts to a single sustained note through the jump, and lands on one resolved chord with her laugh.",
+   "width": [
+    "79dd8a95_150",
+    1
+   ],
+   "height": [
+    "79dd8a95_151",
+    1
+   ],
+   "length": [
+    "79dd8a95_132",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "MiniMaxH3ImageToVideo"
+  }
+ },
+ "79dd8a95_132": {
+  "class_type": "ComfyMathExpression",
+  "inputs": {
+   "values.a": [
+    "79dd8a95_133",
+    0
+   ],
+   "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+  },
+  "_meta": {
+   "title": "ComfyMathExpression"
+  }
+ },
+ "79dd8a95_133": {
+  "class_type": "PrimitiveFloat",
+  "inputs": {
+   "value": 5
+  },
+  "_meta": {
+   "title": "Float (duration)"
+  }
+ },
+ "79dd8a95_134": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "model": [
+    "79dd8a95_127",
+    0
+   ],
+   "lora_name": "pika_h3_flex_fl2va_comfy_bf16.safetensors",
+   "strength_model": 1
+  },
+  "_meta": {
+   "title": "LoraLoaderModelOnly"
+  }
+ },
+ "79dd8a95_143": {
+  "class_type": "ManualSigmas",
+  "inputs": {
+   "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
+  },
+  "_meta": {
+   "title": "ManualSigmas"
+  }
+ },
+ "79dd8a95_150": {
+  "class_type": "ComfyMathExpression",
+  "inputs": {
+   "values.a": [
+    "79dd8a95_152",
+    0
+   ],
+   "expression": "round(a/32)*32"
+  },
+  "_meta": {
+   "title": "ComfyMathExpression"
+  }
+ },
+ "79dd8a95_151": {
+  "class_type": "ComfyMathExpression",
+  "inputs": {
+   "values.a": [
+    "79dd8a95_153",
+    0
+   ],
+   "expression": "round(a/32)*32"
+  },
+  "_meta": {
+   "title": "ComfyMathExpression"
+  }
+ },
+ "79dd8a95_152": {
+  "class_type": "PrimitiveInt",
+  "inputs": {
+   "value": [
+    "149",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "PrimitiveInt"
+  }
+ },
+ "79dd8a95_153": {
+  "class_type": "PrimitiveInt",
+  "inputs": {
+   "value": [
+    "149",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "PrimitiveInt"
+  }
+ },
+ "9901": {
+  "class_type": "EasyCache",
+  "inputs": {
+   "model": [
+    "79dd8a95_134",
+    0
+   ],
+   "reuse_threshold": 0.2,
+   "start_percent": 0.15,
+   "end_percent": 0.95,
+   "verbose": false
+  },
+  "_meta": {
+   "title": "EasyCache · 缓存跳算(τ0.2/0.15-0.95) · 加速双叠: EasyCache+kitchen attention (1101 过检转正 -11.8%)"
+  }
+ },
+ "9902": {
+  "class_type": "ModelAttentionBackend",
+  "inputs": {
+   "model": [
+    "9901",
+    0
+   ],
+   "attention": "comfy kitchen attention"
+  },
+  "_meta": {
+   "title": "ModelAttentionBackend · comfy kitchen attention(INT8) · 加速双叠: EasyCache+kitchen attention (1101 过检转正 -11.8%)"
+  }
+ }
+}
