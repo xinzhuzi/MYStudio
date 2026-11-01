@@ -124,8 +124,8 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
       savePrefix: "4.filename_prefix",
     },
     resolutionTiers: ["480p"],
-    status: "unverified",
-    notes: "1101 用户裁定 ref2va 更适合分镜产线(角色卡+场景卡+分镜帧锁身份)。Pika ref2va 官方契约逐字(母体=官方本地-PikaFlex-REF2VA参考图.json):节点=MiniMaxH3ReferenceToVideo(≠fl2va 线 ImageToVideo;输入键=ref_images.ref_image_0..4)+UNET=minimax_h3_ref2va_pruned_int8_convrot+LoRA pika_h3_flex_ref2va_comfy_bf16@1.0+lcm+6-NFE ManualSigmas+ref_image_size=match+kitchen attention+seed42 fixed;608x352 出厂直填。组装器=buildShotH3RefApiWorkflow(六段式提示词 buildShotH3RefPrompt,110-113 参考槽按 refs 实数动态注入 API 图)。⚠️ 1101 直投禁令:API 图不含 MyShot/占位节点(直投无 extraPngInfo)——回收走五段前缀+execute result 回流,UI 画布档保留 100 MyShot 写回,故不设 myShot 锚。status=unverified:候 Win 四件模型下载毕+实弹验收后升 ready。",
+    status: "ready",
+    notes: "1101 实弹首发 success 173.9s(608x352/226f/aac32k,I=-18.25/TP=-2.07 热母带——与横评 E 臂一致,进成片管线需响度适配)+用户双主力裁定。1101 用户裁定 ref2va 更适合分镜产线(角色卡+场景卡+分镜帧锁身份)。Pika ref2va 官方契约逐字(母体=官方本地-PikaFlex-REF2VA参考图.json):节点=MiniMaxH3ReferenceToVideo(≠fl2va 线 ImageToVideo;输入键=ref_images.ref_image_0..4)+UNET=minimax_h3_ref2va_pruned_int8_convrot+LoRA pika_h3_flex_ref2va_comfy_bf16@1.0+lcm+6-NFE ManualSigmas+ref_image_size=match+kitchen attention+seed42 fixed;608x352 出厂直填。组装器=buildShotH3RefApiWorkflow(六段式提示词 buildShotH3RefPrompt,110-113 参考槽按 refs 实数动态注入 API 图)。⚠️ 1101 直投禁令:API 图不含 MyShot/占位节点(直投无 extraPngInfo)——回收走五段前缀+execute result 回流,UI 画布档保留 100 MyShot 写回,故不设 myShot 锚。status=unverified:候 Win 四件模型下载毕+实弹验收后升 ready。",
   },
   {
     id: "my-h3-multiseg",

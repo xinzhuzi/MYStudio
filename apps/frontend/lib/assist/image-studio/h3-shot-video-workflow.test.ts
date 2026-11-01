@@ -275,7 +275,7 @@ describe("H3 工作流注册表(PRD §4,可切换核心;C1 二态+resolutionTier
 
   it("批量可派发集合只含 ready 件(unverified/needs-unfreeze/cloud-paid 一律不入;multiseg 二期升级 ready)", () => {
     const batch = batchDispatchableH3Recipes();
-    expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31", "my-pika-fl2v-24", "my-h3-multiseg"]);
+    expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31", "my-pika-fl2v-24", "my-pika-ref2v-20", "my-h3-multiseg"]);
     for (const excluded of ["guding-480p-direct", "guding-960p-refine", "official-i2v-480p", "my-fasth3-i2v-27", "my-fasth3-t2v-26", "api-flf2v-480p", "api-r2v-480p", "api-t2v-480p"]) {
       expect(batch.some((recipe) => recipe.id === excluded)).toBe(false);
     }
@@ -540,11 +540,11 @@ describe("Windows Pika ref2va 主力线通道(1101)", () => {
     expect(result.apiGraph["145"].inputs.lora_name).toBe("pika_h3_flex_ref2va_comfy_bf16.safetensors"); // ref2va 母体顶层平铺,LoRA=145(≠fl2va 子图 134)
   });
 
-  it("recipe my-pika-ref2v-20 在册(unverified 候实弹;inputMode=r2v)", () => {
+  it("recipe my-pika-ref2v-20 在册(1101 实弹 173.9s 后升 ready;inputMode=r2v)", () => {
     const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === "my-pika-ref2v-20");
-    expect(recipe).toMatchObject({ inputMode: "r2v", status: "unverified" });
+    expect(recipe).toMatchObject({ inputMode: "r2v", status: "ready" });
     expect(h3BatchDispatchableRecipeIds()).toContain("my-pika-ref2v-20");
-    expect(batchDispatchableH3Recipes().some((item) => item.id === "my-pika-ref2v-20")).toBe(false);
+    expect(batchDispatchableH3Recipes().some((item) => item.id === "my-pika-ref2v-20")).toBe(true);
   });
 });
 
