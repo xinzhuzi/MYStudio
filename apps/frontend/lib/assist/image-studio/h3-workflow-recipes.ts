@@ -91,6 +91,25 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     notes: "无首帧纯文生(官方 t2v 同形);无 9.image 首帧锚,分镜批量线不适用,仅画布直开。",
   },
   {
+    // 1101 用户裁定「主力用 Pika」:Pika fl2va 主力线(6-NFE LCM,2.4× vs bf16 28步)
+    id: "my-pika-fl2v-24",
+    label: "漫影单镜 Pika fl2va 主力线(24 API 节点,6-NFE)",
+    apiTemplate: "./pika-shot-template.api.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-fl2v.json",
+    inputMode: "i2v",
+    anchors: {
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image",
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+      myShot: "100",
+    },
+    resolutionTiers: ["480p"],
+    status: "unverified",
+    notes: "1101 用户裁定主力线——Pika fl2va 官方契约(lcm+6NFE ManualSigmas+int8 pruned 底模+LoRA@1.0)+kitchen attention(B臂白拿-9.2%);seed42 fixed;横评 D 臂 172s(冷载)vs bf16 412s=2.4×;status=unverified:候四件模型下载毕+热跑实弹首发+响度适配(D臂I=-30.01偏轻2.4dB)后升 ready;bf16 降质量对照+兜底备档(不删)。",
+  },
+  {
     id: "my-h3-multiseg",
     label: "漫影分段视频(multiseg)",
     apiTemplate: "./h3-multiseg-template.api.json",

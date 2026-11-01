@@ -7,6 +7,8 @@ import fasth3TemplateJson from "./fasth3-shot-template.json";
 import fasth3ApiTemplateJson from "./fasth3-shot-template.api.json";
 import templateRefJson from "./h3-shot-template-ref2va.json";
 import multisegTemplateJson from "./h3-multiseg-template.json";
+import pikaTemplateJson from "./pika-shot-template.json";
+import pikaApiTemplateJson from "./pika-shot-template.api.json";
 import multisegApiTemplateJson from "./h3-multiseg-template.api.json";
 import type { StoryboardItem } from "@/types/studio";
 import { buildShotH3Prompt, buildShotH3MultisegPrompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, verifyPlannedTextVerbatim, type H3AudioPolicy } from "./h3-shot-prompt";
@@ -75,6 +77,7 @@ const REQUIRED_NODES: Array<[number, string]> = [
 const H3_API_TEMPLATE_PAIRS: Record<string, { ui: H3WorkflowTemplate; api: ApiGraph }> = {
   "my-h3-i2v-31": { ui: templateJson as unknown as H3WorkflowTemplate, api: apiTemplateJson as unknown as ApiGraph },
   "my-fasth3-i2v-27": { ui: fasth3TemplateJson as unknown as H3WorkflowTemplate, api: fasth3ApiTemplateJson as unknown as ApiGraph },
+  "my-pika-fl2v-24": { ui: pikaTemplateJson as unknown as H3WorkflowTemplate, api: pikaApiTemplateJson as unknown as ApiGraph },
 };
 
 export const DEFAULT_H3_RECIPE_ID = "my-h3-i2v-31";
