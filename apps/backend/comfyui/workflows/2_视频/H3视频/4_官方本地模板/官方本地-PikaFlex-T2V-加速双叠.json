@@ -1,0 +1,334 @@
+{
+ "92": {
+  "class_type": "SaveVideo",
+  "inputs": {
+   "video": [
+    "79dd8a95_130",
+    0
+   ],
+   "filename_prefix": "video/Pika_H3_Flex_T2V",
+   "format": "auto",
+   "codec": "auto"
+  },
+  "_meta": {
+   "title": "SaveVideo"
+  }
+ },
+ "115": {
+  "class_type": "ResolutionSelector",
+  "inputs": {
+   "aspect_ratio": "16:9 (Widescreen)",
+   "megapixels": 0.98,
+   "multiple": 16
+  },
+  "_meta": {
+   "title": "ResolutionSelector"
+  }
+ },
+ "79dd8a95_119": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+  },
+  "_meta": {
+   "title": "VAELoader"
+  }
+ },
+ "79dd8a95_120": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+  },
+  "_meta": {
+   "title": "VAELoader"
+  }
+ },
+ "79dd8a95_121": {
+  "class_type": "VAEDecodeAudio",
+  "inputs": {
+   "samples": [
+    "79dd8a95_125",
+    0
+   ],
+   "vae": [
+    "79dd8a95_120",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecodeAudio"
+  }
+ },
+ "79dd8a95_122": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "79dd8a95_125",
+    0
+   ],
+   "vae": [
+    "79dd8a95_119",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "VAEDecode"
+  }
+ },
+ "79dd8a95_123": {
+  "class_type": "KSamplerSelect",
+  "inputs": {
+   "sampler_name": "lcm"
+  },
+  "_meta": {
+   "title": "KSamplerSelect"
+  }
+ },
+ "79dd8a95_125": {
+  "class_type": "SamplerCustomAdvanced",
+  "inputs": {
+   "noise": [
+    "79dd8a95_129",
+    0
+   ],
+   "guider": [
+    "79dd8a95_126",
+    0
+   ],
+   "sampler": [
+    "79dd8a95_123",
+    0
+   ],
+   "sigmas": [
+    "79dd8a95_143",
+    0
+   ],
+   "latent_image": [
+    "79dd8a95_131",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "SamplerCustomAdvanced"
+  }
+ },
+ "79dd8a95_126": {
+  "class_type": "BasicGuider",
+  "inputs": {
+   "model": [
+    "9902",
+    0
+   ],
+   "conditioning": [
+    "79dd8a95_131",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "BasicGuider"
+  }
+ },
+ "79dd8a95_127": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+   "weight_dtype": "default"
+  },
+  "_meta": {
+   "title": "UNETLoader"
+  }
+ },
+ "79dd8a95_128": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+   "type": "minimax",
+   "device": "default"
+  },
+  "_meta": {
+   "title": "CLIPLoader"
+  }
+ },
+ "79dd8a95_129": {
+  "class_type": "RandomNoise",
+  "inputs": {
+   "noise_seed": 914757319624586
+  },
+  "_meta": {
+   "title": "RandomNoise"
+  }
+ },
+ "79dd8a95_130": {
+  "class_type": "CreateVideo",
+  "inputs": {
+   "images": [
+    "79dd8a95_122",
+    0
+   ],
+   "audio": [
+    "79dd8a95_121",
+    0
+   ],
+   "fps": 24,
+   "bit_depth": "auto",
+   "color_space": "sRGB",
+   "codec": "none"
+  },
+  "_meta": {
+   "title": "CreateVideo"
+  }
+ },
+ "79dd8a95_131": {
+  "class_type": "MiniMaxH3ImageToVideo",
+  "inputs": {
+   "clip": [
+    "79dd8a95_128",
+    0
+   ],
+   "vae": [
+    "79dd8a95_119",
+    0
+   ],
+   "prompt": "integrated_multimodal_description: [Shot 1] Stylized 3D animation, Pixar-inspired cartoon rendering with a C4D and Octane look, warm subsurface scattering through ears and fingertips and exaggerated squash-and-stretch acting; a three-head-tall cook with a round face, a tall white toque that flops to one side and a flour-dusted apron stands at a stainless counter in a small warm kitchen, rolling dumplings by hand. The counter is dusted white, a bamboo steamer steams on the right, and a shallow pot of broth sits at the burner behind him with visible heat shimmer. The camera holds a static shot at counter height for the first second while he sets one finished dumpling down on a tray in the foreground, presses the seam with two fingers, then turns away to reach for a rolling pin on the shelf behind him, the toque tipping as he turns. At about one and a half seconds the dumpling on the tray presses itself upward, its pleated top gathering like a brow, and two stubby legs of dough push out of its base. It walks to the tray edge in three quick shuffling steps, the tray ringing slightly under each step, and jumps off toward the pot. At about two and a half seconds the cook whips around and lunges, both arms out, and misses clean over the top of it as the dumpling arcs into the broth with a plop. He freezes half-bent over the pot, arms still out. At about three and a half seconds the surface breaks and the dumpling floats back up, cooked, glossy and steaming, bobbing once against the side of the pot. The last second holds completely still on the cook's face as he straightens up slowly, flour on his cheek, the toque now fully flopped over one eye, one eyebrow rising while his mouth stays flat; a single bubble pops on the broth behind him.\n\noverall_soundscape: Warm small-kitchen ambience with a low gas burner hiss and the faint creak of a steaming bamboo basket, the dry shuffle of a flour dusting, three soft doughy footfalls on metal tray, one short airy whoosh as he lunges, a clean heavy plop into broth, then a gentle simmer with one small bubble popping.\n\nnon_diegetic_music: A light pizzicato cello figure at a moderate tempo that follows the dumpling's footsteps, drops out completely during the lunge and the plop, and returns on a single dry resolved note as the cook straightens up.",
+   "width": [
+    "79dd8a95_148",
+    1
+   ],
+   "height": [
+    "79dd8a95_147",
+    1
+   ],
+   "length": [
+    "79dd8a95_132",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "MiniMaxH3ImageToVideo"
+  }
+ },
+ "79dd8a95_132": {
+  "class_type": "ComfyMathExpression",
+  "inputs": {
+   "values.a": [
+    "79dd8a95_133",
+    0
+   ],
+   "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17"
+  },
+  "_meta": {
+   "title": "ComfyMathExpression"
+  }
+ },
+ "79dd8a95_133": {
+  "class_type": "PrimitiveFloat",
+  "inputs": {
+   "value": 5
+  },
+  "_meta": {
+   "title": "Float (duration)"
+  }
+ },
+ "79dd8a95_134": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "model": [
+    "79dd8a95_127",
+    0
+   ],
+   "lora_name": "pika_h3_flex_fl2va_comfy_bf16.safetensors",
+   "strength_model": 1
+  },
+  "_meta": {
+   "title": "LoraLoaderModelOnly"
+  }
+ },
+ "79dd8a95_143": {
+  "class_type": "ManualSigmas",
+  "inputs": {
+   "sigmas": "1.0, 0.972973, 0.923077, 0.8, 0.571429, 0.333333, 0.0"
+  },
+  "_meta": {
+   "title": "ManualSigmas"
+  }
+ },
+ "79dd8a95_147": {
+  "class_type": "ComfyMathExpression",
+  "inputs": {
+   "values.a": [
+    "79dd8a95_150",
+    0
+   ],
+   "expression": "round(a/32)*32"
+  },
+  "_meta": {
+   "title": "ComfyMathExpression"
+  }
+ },
+ "79dd8a95_148": {
+  "class_type": "ComfyMathExpression",
+  "inputs": {
+   "values.a": [
+    "79dd8a95_149",
+    0
+   ],
+   "expression": "round(a/32)*32"
+  },
+  "_meta": {
+   "title": "ComfyMathExpression"
+  }
+ },
+ "79dd8a95_149": {
+  "class_type": "PrimitiveInt",
+  "inputs": {
+   "value": [
+    "115",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "PrimitiveInt"
+  }
+ },
+ "79dd8a95_150": {
+  "class_type": "PrimitiveInt",
+  "inputs": {
+   "value": [
+    "115",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "PrimitiveInt"
+  }
+ },
+ "9901": {
+  "class_type": "EasyCache",
+  "inputs": {
+   "model": [
+    "79dd8a95_134",
+    0
+   ],
+   "reuse_threshold": 0.2,
+   "start_percent": 0.15,
+   "end_percent": 0.95,
+   "verbose": false
+  },
+  "_meta": {
+   "title": "EasyCache · 缓存跳算(τ0.2/0.15-0.95) · 加速双叠: EasyCache+kitchen attention (1101 过检转正 -11.8%)"
+  }
+ },
+ "9902": {
+  "class_type": "ModelAttentionBackend",
+  "inputs": {
+   "model": [
+    "9901",
+    0
+   ],
+   "attention": "comfy kitchen attention"
+  },
+  "_meta": {
+   "title": "ModelAttentionBackend · comfy kitchen attention(INT8) · 加速双叠: EasyCache+kitchen attention (1101 过检转正 -11.8%)"
+  }
+ }
+}
