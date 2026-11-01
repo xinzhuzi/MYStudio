@@ -271,7 +271,7 @@ describe("H3 工作流注册表(PRD §4,可切换核心;C1 二态+resolutionTier
 
   it("批量可派发集合只含 ready 件(unverified/needs-unfreeze/cloud-paid 一律不入;multiseg 二期升级 ready)", () => {
     const batch = batchDispatchableH3Recipes();
-    expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31", "my-h3-multiseg"]);
+    expect(batch.map((recipe) => recipe.id)).toEqual(["my-h3-i2v-31", "my-pika-fl2v-24", "my-h3-multiseg"]);
     for (const excluded of ["guding-480p-direct", "guding-960p-refine", "official-i2v-480p", "my-fasth3-i2v-27", "my-fasth3-t2v-26", "api-flf2v-480p", "api-r2v-480p", "api-t2v-480p"]) {
       expect(batch.some((recipe) => recipe.id === excluded)).toBe(false);
     }

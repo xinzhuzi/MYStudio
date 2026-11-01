@@ -106,8 +106,8 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
       myShot: "100",
     },
     resolutionTiers: ["480p"],
-    status: "unverified",
-    notes: "1101 用户裁定主力线——Pika fl2va 官方契约(lcm+6NFE ManualSigmas+int8 pruned 底模+LoRA@1.0)+kitchen attention(B臂白拿-9.2%);seed42 fixed;横评 D 臂 172s(冷载)vs bf16 412s=2.4×;status=unverified:候四件模型下载毕+热跑实弹首发+响度适配(D臂I=-30.01偏轻2.4dB)后升 ready;bf16 降质量对照+兜底备档(不删)。",
+    status: "ready",
+    notes: "1101 用户终裁「音频完全可以」+实弹首发 170.9s success+I=-28.66 落质量簇边界——正式定稿主力线。Pika fl2va 官方契约(lcm+6NFE ManualSigmas+int8 pruned 底模+LoRA@1.0)+kitchen attention(B臂白拿-9.2%);seed42 fixed;横评 D 臂 172s(冷载)vs bf16 412s=2.4×;status=unverified:候四件模型下载毕+热跑实弹首发+响度适配(D臂I=-30.01偏轻2.4dB)后升 ready;bf16 降质量对照+兜底备档(不删)。",
   },
   {
     id: "my-h3-multiseg",

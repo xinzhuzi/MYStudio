@@ -360,7 +360,7 @@ claims no rights over outputs and places responsibility on the user.
 
 ## 2026-10-31 增补:FastH3 QAD NVFP4(RTX Pro 4000 Blackwell 线)
 
-**1101 用户终裁:QAD 线清退**(实弹两发 419s/414s 均慢于 bf16 350s+社区口碑动作/音频保真受损;模型件已卸,产线件已退役,本节留作知识档)。
+**1101 用户终裁:QAD 线清退**;同日用户终裁 Pika 音频完全可以+bf16 因慢清退→**Pika fl2va=唯一产线(6-NFE,170.9s,I=-28.66 落簇界)**(实弹两发 419s/414s 均慢于 bf16 350s+社区口碑动作/音频保真受损;模型件已卸,产线件已退役,本节留作知识档)。
 
 - **是什么**:FastVideo 的 QAD(Quantization-Aware Distillation,量化感知蒸馏)+ NVFP4 量化单文件 Comfy 版
   `fasth3_omniref_qad_nvfp4_comfy.safetensors`(13,773,998,700B,sha256 `bf25ee58df65b4df…`,1030 役已落 Windows
