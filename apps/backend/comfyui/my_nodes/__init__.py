@@ -56,6 +56,7 @@ from . import prompt_log_server as _prompt_log_server
 from . import my_styles_server as _my_styles_server
 from . import bridge_settings_server as _bridge_settings_server
 from . import open_receipt_server as _open_receipt_server
+from . import line_mode_server as _line_mode_server
 
 
 class MyPromptLegacy(MyPrompt):
@@ -122,6 +123,11 @@ _bridge_settings_server.install()
 # forget POST 给同源 /my_bridge/open_receipt;双层落盘 <comfy-home>/logs
 # JSONL + engine.log;install 同款自守卫纪律(失败绝不挡装载)。
 _open_receipt_server.install()
+
+# 产线显存档位自动切换(2026-11-01 立,1101 自动化改版):入队按终输出节点
+# 分类(image/video/audio)自动切 LM 治理+引擎 /free;D1 忙时立即降级零等待;
+# install 同款自守卫纪律(win32 only+急停标记文件,失败静默绝不挡装载出图)。
+_line_mode_server.install()
 
 NODE_CLASS_MAPPINGS = {
     "MyQi21InstructionSelect": MyQi21InstructionSelect,

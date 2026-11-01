@@ -150,6 +150,29 @@
 
 ---
 
+## 🚨 铁律 10:查问题先读日志(2026-11-01 用户刻碑,全局所有软件通用)
+
+**任何诊断、排障、进度追问(卡住/失败/异常/「跑到什么程度了」),第 0 步永远是:找到该软件自己的日志,读日志。**
+
+1. 状态快照(状态文件/进程表/相位表/他人转述)是「果」的横截面,只准做佐证;日志是「因」的时间线,直接给答案。**禁止拿间接证据拼图冒充诊断结论**;某软件没有日志可读时,先补日志设施再说。
+2. 1101 实锤:工作流卡 1 小时,拿状态文件拼图汇报三轮都被问倒;读 `line-mode-20261101.log` 3 分钟定谳。用户原话:「查问题,第一重要的就是先看日志,为什么你总是记不住」「全局,所有的软件都是这样的」。
+3. 本仓产线日志速查:引擎=`E:\IP\漫影工作室\comfyui\logs\engine.log`(另有 `line-mode-*.log`/`image-prompts-*.log`);看门狗=`C:\Users\ZBJ\.lmstudio\watchdog.log`;actor 回执=`.lmstudio\line-mode-result.json`。
+
+---
+
+## 多会话 Windows 控制协议(2026-10-31 立)
+
+多会话控同一台 Windows(`zbj@192.168.0.101`)一律走 `apps/build/scripts/win-control-lock.sh` 单写者锁——锁文件 `C:\Users\ZBJ\.win-control.json`(文件不存在=FREE),退出码 0=空闲/成功、3=被他人持有、4=ssh 不可达;本节是铁律 7 第 3 条(跨会话共享真源)的 Windows 专属细则,不另立冲突规则。
+
+1. **四级操作**:L0 只读探查(状态/日志/只读 API)免锁随时可做;L1 短写(单文件/单命令)先 `check`、无锁即盖短锁 TTL≤30 分;L2 长独占(批量渲染/引擎换档/装模型)必须 `lock` 且拿锁前查在途,`--ttl-min` 按任务时长给足(默认 30 分——不给足=过期后他人可覆盖而原任务仍占机);L3 毁灭性(删目录/重装/重启机器)=锁+查在途+用户当回合点头,缺一不可。
+2. **动前三查**:①查锁文件(`win-control-lock.sh status`);②查在途(python.exe 进程+GPU 占用+`17000` 队列);③查自己会话是否有长任务正依赖该机(schtasks 日志/后台 run)——漏查即动手=占他人算力;装模型/动显存前先查档位(ssh 隧道 `GET /my-nodes/line-mode`;D7:引擎切换器机器动作段也持本锁文件短临界区互斥,人机不并行动机器)。
+3. **三条硬规**:引擎生命周期归 App 管,会话禁直杀/直启引擎进程;渲染一律走 App 链投递,禁直投 `17000`;长任务用 `schtasks` 脱离会话跑且日志路径写进锁的 `purpose`,断线可追。存量 campaign 直投(h3_matrix_driver 线)为引擎钩子已覆盖的既成旁路,新代码禁新增直投。
+4. **产线显存档位(2026-11-01 立,1101 自动化改版)**:出图↔出视频互斥由引擎侧 my-nodes line_mode_server 自动切档——提交入队按终输出节点分类(SaveImage/SaveVideo|VHS_VideoCombine/SaveAudioAdvanced),出图首次→image 档(看门狗恒开+保/补 9B+引擎 /free 清缓存),出视频首次→video 档(卸全部 LM 模型+/free 清缓存);lms unload/load 与 /free 对齐任务边界(D5:仅引擎队列完全空时执行,发前等队列空);反向切换最小驻留 5 分钟防乒乓(D5);worker 取首任务遇切换中等待上限 120s 超时放行+告警、put 永不阻塞(D6);/free 是引擎全局清模型缓存(评审修正:发前等队列完全空,不落在途渲染中辙);LM 忙时立即降级不强拆不挡任务(D1,降级态由 ≤5min 限频轻探测/补跑自愈→active);状态真源 `C:\Users\ZBJ\.win-line-mode.json`,查询 GET /my-nodes/line-mode(限引擎本机/ssh 隧道);档位对手动 LM 装载的自动纠偏属档位本职,手动切档已退役(win-line-switch.sh 1101 退役);看门狗恒开——video 档仅停补装 9B 一救(ps1 读 MODE 档位感知,mode+state 连判),看门狗 Disabled 才是故障;声音线(audio 类)不触发切档;急停开关=创建 `C:\Users\ZBJ\.win-line-mode.disabled` 标记文件(切换器即 no-op)。
+
+> SSH 连通/编码/防火墙排障见 `docs/comfyui-kb/LMStudio-Windows远程排查.md`(三板斧+四层卡点+1007 假死案卷),本节不重复。
+
+---
+
 ## 工具优先级
 
 | 优先级 | 工具 | 用途 |

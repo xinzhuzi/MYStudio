@@ -78,6 +78,9 @@ docs/*/**
 !apps/build/scripts/win-engine/*.ps1
 # 夜批发车前置守护(10-28 Windows Q2.1 主线役 D8,须入库;check-ignore 实测曾命中 *.ps1)
 !apps/build/scripts/win_nightbatch_guard_1028.ps1
+# 产线显存档位役(1101)部署真源:actor 执行件+档位感知看门狗,引擎侧部署链依赖,须入库
+!apps/build/scripts/win/line-mode-actor.ps1
+!apps/build/scripts/win/lmstudio-watchdog.ps1
 
 # Story/script content
 沪商通途*
