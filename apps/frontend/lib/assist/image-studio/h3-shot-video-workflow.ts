@@ -9,6 +9,8 @@ import templateRefJson from "./h3-shot-template-ref2va.json";
 import multisegTemplateJson from "./h3-multiseg-template.json";
 import pikaTemplateJson from "./pika-shot-template.json";
 import pikaApiTemplateJson from "./pika-shot-template.api.json";
+import pikaRefTemplateJson from "./pika-ref-shot-template.json";
+import pikaRefApiTemplateJson from "./pika-ref-shot-template.api.json";
 import multisegApiTemplateJson from "./h3-multiseg-template.api.json";
 import type { StoryboardItem } from "@/types/studio";
 import { buildShotH3Prompt, buildShotH3MultisegPrompt, buildShotH3RefPrompt, extractPlannedDialogueTexts, verifyPlannedTextVerbatim, type H3AudioPolicy } from "./h3-shot-prompt";
@@ -78,6 +80,9 @@ const H3_API_TEMPLATE_PAIRS: Record<string, { ui: H3WorkflowTemplate; api: ApiGr
   "my-h3-i2v-31": { ui: templateJson as unknown as H3WorkflowTemplate, api: apiTemplateJson as unknown as ApiGraph },
   "my-fasth3-i2v-27": { ui: fasth3TemplateJson as unknown as H3WorkflowTemplate, api: fasth3ApiTemplateJson as unknown as ApiGraph },
   "my-pika-fl2v-24": { ui: pikaTemplateJson as unknown as H3WorkflowTemplate, api: pikaApiTemplateJson as unknown as ApiGraph },
+  // 1101 pika-ref2va-mainline:r2v 族走专用组装器 buildShotH3RefApiWorkflow(分派器按
+  // inputMode 路由,不经 buildShotH3ApiWorkflow);本对供可派发集/注册表↔bundle 一致性口径。
+  "my-pika-ref2v-20": { ui: pikaRefTemplateJson as unknown as H3WorkflowTemplate, api: pikaRefApiTemplateJson as unknown as ApiGraph },
 };
 
 export const DEFAULT_H3_RECIPE_ID = "my-h3-i2v-31";
@@ -381,8 +386,9 @@ export function buildShotH3MultisegApiWorkflow(input: ShotH3ApiWorkflowInput): S
   };
 }
 
-/** 注册表分派组装器(§14.1.4):按 H3_WORKFLOW_RECIPES 查 inputMode——
- *  multiseg→buildShotH3MultisegApiWorkflow;i2v 族→buildShotH3ApiWorkflow(W10 配方化
+/** 注册表分派组装器(§14.1.4;1101 pika-ref2va-mainline 增 r2v 分支):按 H3_WORKFLOW_RECIPES
+ *  查 inputMode——multiseg→buildShotH3MultisegApiWorkflow;r2v→buildShotH3RefApiWorkflow
+ *  (Pika ref2va 参考线专用,refs 注入);i2v 族→buildShotH3ApiWorkflow(W10 配方化
  *  模板对);未知 id 抛错(禁静默回缺省)。 */
 export function buildShotH3ApiWorkflowForRecipe(recipeId: string, input: ShotH3ApiWorkflowInput): ShotH3ApiWorkflowResult {
   const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === recipeId);
@@ -390,6 +396,7 @@ export function buildShotH3ApiWorkflowForRecipe(recipeId: string, input: ShotH3A
     throw new Error(`未知 H3 工作流配方:${recipeId}(注册表在册:${H3_WORKFLOW_RECIPES.map((item) => item.id).join(" / ")})`);
   }
   if (recipe.inputMode === "multiseg") return buildShotH3MultisegApiWorkflow(input);
+  if (recipe.inputMode === "r2v") return buildShotH3RefApiWorkflow({ ...input, refs: (input as ShotH3RefApiWorkflowInput).refs ?? [] });
   return buildShotH3ApiWorkflow({ ...input, recipeId });
 }
 
@@ -441,7 +448,15 @@ export interface ShotH3RefWorkflowInput extends ShotH3WorkflowInput {
 const REF_IMAGE_NODE_IDS = [110, 111, 112, 113] as const;
 
 export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
-  const template = JSON.parse(JSON.stringify(templateRefJson)) as H3WorkflowTemplate;
+  return buildShotRefWorkflowFromTemplate(templateRefJson, input);
+}
+
+/** 画布档 R2V 组装真身(1101 pika-ref2va-mainline 参数化,对齐 buildShotWorkflowFromTemplate
+ *  先例):buildShotH3RefWorkflow 保留为 Mac 自研档旧模板薄壳=旧行为零变;Pika ref2va API
+ *  组装器走同真身但母体=pika-ref-shot-template.json(Pika 官方契约档,两母体锚点契约同构:
+ *  16 号 MiniMaxH3ReferenceToVideo + 9/110-113 参考槽 + 14/20/4/100 锚)。 */
+function buildShotRefWorkflowFromTemplate(source: H3WorkflowTemplate, input: ShotH3RefWorkflowInput): ShotH3WorkflowResult {
+  const template = JSON.parse(JSON.stringify(source)) as H3WorkflowTemplate;
   assertH3TemplateIntegrity(template);
   connectVideoWriteback(template);
   getNode(template, 16, "MiniMaxH3ReferenceToVideo");
@@ -508,4 +523,57 @@ export function buildShotH3RefWorkflow(input: ShotH3RefWorkflowInput): ShotH3Wor
     name,
     report: { shot: shot.index, seconds: prompt.seconds, frames: prompt.lengthFrames, policy },
   };
+}
+
+// ── Pika ref2va API 档(1101 pika-ref2va-mainline;my-pika-ref2v-20 专用组装器)─────────────────────
+
+/** Pika ref2va API 档输入:画布档输入 + 首帧 b64 + 分辨率档 + 参考资产(≤4,按序占
+ *  ref_image_1..4=Picture 2..5;分镜帧恒占 ref_image_0=Picture 1)。refs 按名引用——
+ *  资产上传由宿主批量器负责(引擎 input 须已有同名文件),本组装器只带首帧 b64 走 images 通道。 */
+export interface ShotH3RefApiWorkflowInput extends ShotH3ApiWorkflowInput {
+  refs: ShotH3RefAssetInput[];
+}
+
+/** Pika ref2va API 档组装器(仿 buildShotH3ApiWorkflow「一份组装产两形态」范式):
+ *  ① UI 克隆组装(六段式提示词 buildShotH3RefPrompt + 文案逐字自检门 + refs 激活
+ *  110-113 + MyShot properties 三键)——母体=pika-ref-shot-template.json(Pika 官方契约档,
+ *  与 Mac 自研 templateRefJson 同锚点骨架但模型链=ref2va int8 底模+Pika LoRA 契约);
+ *  ② 读值直填 apiGraph(锚=object_info 实锚:14.value/20.value/9.image/4.filename_prefix/
+ *  16.width+height 档位直填),两形态逐字一致;
+ *  ③ 16 号 class 断言 MiniMaxH3ReferenceToVideo(与 i2v 族分叉点:输入键=
+ *  ref_images.ref_image_N,无 first_frame 口);
+ *  ④ 1101 直投禁令:API 图出厂不含 MyShot/占位节点(直投无 extraPngInfo)——110-113
+ *  参考槽按 refs 实数动态注入 LoadImage 节点+挂 ref_images.ref_image_1..4,未用槽
+ *  保持缺省(占位名禁进 API 图直投炸引擎);回收走五段前缀+execute result 回流,
+ *  画布档保留 100 MyShot 写回。 */
+export function buildShotH3RefApiWorkflow(input: ShotH3RefApiWorkflowInput): ShotH3ApiWorkflowResult {
+  const refs = input.refs.slice(0, REF_IMAGE_NODE_IDS.length);
+  const base = buildShotRefWorkflowFromTemplate(pikaRefTemplateJson as unknown as H3WorkflowTemplate, { ...input, refs });
+  const nodes = base.ui.nodes as WorkflowNode[];
+  const widget = (id: number, type: string): unknown => {
+    const node = getNode({ nodes } as H3WorkflowTemplate, id, type);
+    if (!Array.isArray(node.widgets_values)) throw new Error(`pika-ref-shot-template drift: node ${id} widgets_values missing`);
+    return node.widgets_values[0];
+  };
+
+  const apiGraph = JSON.parse(JSON.stringify(pikaRefApiTemplateJson)) as ApiGraph;
+  getApiNode(apiGraph, "14", "PrimitiveStringMultiline").inputs.value = widget(14, "PrimitiveStringMultiline");
+  getApiNode(apiGraph, "20", "PrimitiveFloat").inputs.value = widget(20, "PrimitiveFloat");
+  getApiNode(apiGraph, "4", "SaveVideo").inputs.filename_prefix = widget(4, "SaveVideo");
+  getApiNode(apiGraph, "9", "LoadImage").inputs.image = widget(9, "LoadImage");
+  const generator = getApiNode(apiGraph, "16", "MiniMaxH3ReferenceToVideo");
+  const tier = input.resolutionTier ?? "480p"; // Pika 契约档出厂 480p(未实弹禁上 960p 档)
+  const [width, height] = H3_RESOLUTION_TIERS[tier];
+  generator.inputs.width = width;
+  generator.inputs.height = height;
+  // refs 按序动态注入 110-113(直投禁令:占位槽不进 API 图;未用槽保持缺省)
+  REF_IMAGE_NODE_IDS.forEach((nodeId, position) => {
+    const ref = refs[position];
+    if (!ref) return;
+    apiGraph[String(nodeId)] = { class_type: "LoadImage", inputs: { image: ref.imageName } };
+    generator.inputs[`ref_images.ref_image_${position + 1}`] = [String(nodeId), 0];
+  });
+
+  const images = input.firstFrameB64 ? [{ key: "9.image", name: String(widget(9, "LoadImage")), b64: input.firstFrameB64 }] : [];
+  return { apiGraph, uiWorkflow: base.ui, images, report: base.report };
 }

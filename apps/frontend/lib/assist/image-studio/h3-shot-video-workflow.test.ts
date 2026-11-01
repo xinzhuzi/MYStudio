@@ -260,11 +260,15 @@ describe("H3 工作流注册表(PRD §4,可切换核心;C1 二态+resolutionTier
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("ready 件必备 apiTemplate+myShot 锚+非空 resolutionTiers", () => {
+  it("ready 件必备 apiTemplate+myShot 锚+非空 resolutionTiers(r2v 件免 myShot——1101 直投禁令,回收走五段前缀+result 回流)", () => {
     for (const recipe of H3_WORKFLOW_RECIPES) {
       if (recipe.status !== "ready") continue;
       expect(recipe.apiTemplate).toBeTruthy();
-      expect(recipe.anchors?.myShot).toBeTruthy();
+      if (recipe.inputMode !== "r2v") {
+        expect(recipe.anchors?.myShot).toBeTruthy();
+      } else {
+        expect(recipe.anchors?.savePrefix).toBeTruthy(); // r2v 回收锚=五段前缀
+      }
       expect(recipe.resolutionTiers.length).toBeGreaterThan(0);
     }
   });
@@ -488,6 +492,59 @@ describe("Windows FastH3 主线通道(10-27 windows-fasth3-mainline W10 配方�
     expect(fasth3Api["16"].inputs.first_frame).toEqual(["9", 0]);
     expect(fasth3Api["16"].inputs.length).toEqual(["23", 1]);
     expect(fasth3Api["100"].inputs.video).toEqual(["4", 0]);
+  });
+});
+
+// ── Pika ref2va 主力线(1101;my-pika-ref2v-20 专用组装器)────────────────────
+
+describe("Windows Pika ref2va 主力线通道(1101)", () => {
+  it("分派器走 r2v 通道:Pika 契约件在场+参考槽注入+六段式提示词", () => {
+    const result = buildShotH3ApiWorkflowForRecipe("my-pika-ref2v-20", {
+      shot: makeShot(),
+      chapterId: "chapter-001",
+      chapterLabel: "第一章",
+      firstFrameB64: "aGVsbG8=",
+      refs: [
+        { name: "林昭", kind: "character", imageName: "char-linzhao.png" },
+        { name: "石桥", kind: "scene", imageName: "scene-bridge.png" },
+      ],
+    } as never);
+    expect(result.apiGraph["16"].class_type).toBe("MiniMaxH3ReferenceToVideo");
+    expect(String(result.apiGraph["14"].inputs.value)).toContain("subject_definitions:");
+    expect(result.apiGraph["16"].inputs).toMatchObject({
+      "ref_images.ref_image_0": ["9", 0],
+      "ref_images.ref_image_1": ["110", 0],
+    });
+    expect(result.apiGraph["110"].inputs.image).toBe("char-linzhao.png");
+    expect(result.apiGraph["111"].inputs.image).toBe("scene-bridge.png");
+    expect(result.images).toEqual([{ key: "9.image", name: expect.any(String), b64: "aGVsbG8=" }]);
+  });
+
+  it("零 refs:Pika 契约件只挂 ref_image_0(分镜帧)且六段式有缺省 Subject", () => {
+    const result = buildShotH3ApiWorkflowForRecipe("my-pika-ref2v-20", {
+      shot: makeShot(), chapterId: "c", chapterLabel: "章",
+    } as never);
+    expect(result.apiGraph["16"].inputs["ref_images.ref_image_0"]).toEqual(["9", 0]);
+    for (const dead of ["111", "112", "113"]) {
+      expect(result.apiGraph[dead]).toBeUndefined();
+    }
+    expect(String(result.apiGraph["14"].inputs.value)).toContain("subject_definitions:");
+  });
+
+  it("静态契约:Pika ref2va API 件 20 节点+ReferenceToVideo+五槽+audio_vae 接 ReferenceToVideo", () => {
+    const result = buildShotH3ApiWorkflowForRecipe("my-pika-ref2v-20", { shot: makeShot(), chapterId: "c", chapterLabel: "章" } as never);
+    expect(Object.keys(result.apiGraph)).toHaveLength(20);
+    expect(result.apiGraph["16"].inputs["audio_vae"]).toEqual(["120", 0]);
+    expect(result.apiGraph["121"].inputs.vae).toEqual(["120", 0]);
+    expect(result.apiGraph["127"].inputs.unet_name).toBe("minimax_h3_ref2va_pruned_int8_convrot.safetensors");
+    expect(result.apiGraph["145"].inputs.lora_name).toBe("pika_h3_flex_ref2va_comfy_bf16.safetensors"); // ref2va 母体顶层平铺,LoRA=145(≠fl2va 子图 134)
+  });
+
+  it("recipe my-pika-ref2v-20 在册(unverified 候实弹;inputMode=r2v)", () => {
+    const recipe = H3_WORKFLOW_RECIPES.find((item) => item.id === "my-pika-ref2v-20");
+    expect(recipe).toMatchObject({ inputMode: "r2v", status: "unverified" });
+    expect(h3BatchDispatchableRecipeIds()).toContain("my-pika-ref2v-20");
+    expect(batchDispatchableH3Recipes().some((item) => item.id === "my-pika-ref2v-20")).toBe(false);
   });
 });
 

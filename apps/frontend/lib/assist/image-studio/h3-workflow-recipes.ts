@@ -110,6 +110,24 @@ export const H3_WORKFLOW_RECIPES: H3WorkflowRecipe[] = [
     notes: "1101 用户终裁「音频完全可以」+实弹首发 170.9s success+I=-28.66 落质量簇边界——正式定稿主力线。Pika fl2va 官方契约(lcm+6NFE ManualSigmas+int8 pruned 底模+LoRA@1.0)+kitchen attention(B臂白拿-9.2%);seed42 fixed;横评 D 臂 172s(冷载)vs bf16 412s=2.4×;status=unverified:候四件模型下载毕+热跑实弹首发+响度适配(D臂I=-30.01偏轻2.4dB)后升 ready;bf16 降质量对照+兜底备档(不删)。",
   },
   {
+    // 1101 用户裁定「ref2va 更适合分镜产线」:Pika ref2va 参考线(角色卡+场景卡+分镜帧锁身份)
+    id: "my-pika-ref2v-20",
+    label: "漫影单镜 Pika ref2va 参考线(20 API 节点,6-NFE,角色/场景卡)",
+    apiTemplate: "./pika-ref-shot-template.api.json",
+    uiTemplateRef: "2_视频/H3视频/1_漫影自研/0_单镜视频/pika-单镜视频-ref2v.json",
+    inputMode: "r2v",
+    anchors: {
+      prompt: "14.value",
+      seconds: "20.value",
+      firstFrame: "9.image", // r2v 语义:参考图第一槽(分镜帧恒占 Picture 1=16.ref_images.ref_image_0,非 first_frame 口)
+      resolution: ["16.width", "16.height"],
+      savePrefix: "4.filename_prefix",
+    },
+    resolutionTiers: ["480p"],
+    status: "unverified",
+    notes: "1101 用户裁定 ref2va 更适合分镜产线(角色卡+场景卡+分镜帧锁身份)。Pika ref2va 官方契约逐字(母体=官方本地-PikaFlex-REF2VA参考图.json):节点=MiniMaxH3ReferenceToVideo(≠fl2va 线 ImageToVideo;输入键=ref_images.ref_image_0..4)+UNET=minimax_h3_ref2va_pruned_int8_convrot+LoRA pika_h3_flex_ref2va_comfy_bf16@1.0+lcm+6-NFE ManualSigmas+ref_image_size=match+kitchen attention+seed42 fixed;608x352 出厂直填。组装器=buildShotH3RefApiWorkflow(六段式提示词 buildShotH3RefPrompt,110-113 参考槽按 refs 实数动态注入 API 图)。⚠️ 1101 直投禁令:API 图不含 MyShot/占位节点(直投无 extraPngInfo)——回收走五段前缀+execute result 回流,UI 画布档保留 100 MyShot 写回,故不设 myShot 锚。status=unverified:候 Win 四件模型下载毕+实弹验收后升 ready。",
+  },
+  {
     id: "my-h3-multiseg",
     label: "漫影分段视频(multiseg)",
     apiTemplate: "./h3-multiseg-template.api.json",
