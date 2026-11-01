@@ -347,7 +347,7 @@ claims no rights over outputs and places responsibility on the user.
 |---|---|---|
 | **Mac(MPS)** | Apple M4 Max 40核 Metal4,128GB 统一内存 | **28步纯净bf16=音频标准在此平台验定**(009 镜三档 A/B:8步蒸馏❌→20步⭕→28步✅);耗时 2244s/9.4s镜(≈2.4s/帧@608x352);20步=1576s 可听但差一档 |
 | **Win(CUDA)** | **NVIDIA RTX 4060 Ti 8GB**,driver 610.88 | **只验过死判档**:fastvideo int8+8步蒸馏(音频非中文怪腔,19镜全量+机检15/15)与 h3_edition 草稿档(兄弟产线同病)。**28步标准未在 Win 验**——现状 8GB VRAM 装 bf16(40GB)物理不可行 |
-| Win 换卡后(RTX Pro 4000 Blackwell) | VRAM/驱动待实量(**1031 已装机,换卡维护期 SSH 中断未实探**) | **复验清单**:①VRAM 定档(bf16 40GB 走 offload / fp8 21GB 近全载;**fp8 对音频头影响未验,int8 已死勿等同**);②009@28步 seed42 同提示词与 Mac 标准件 A/B 对听+whisper 字级对比;③耗时实测排产线;④过验后此表补 Win 列,标准声明升级为跨平台。**1031 增**:QAD NVFP4 件已落位(见下节),其 NVFP4 内核加载与音频 A/B 并入本清单 |
+| **Win(RTX PRO 4000 Blackwell 24G)**,driver 596.71 | **1101 实弹已验**:①QAD 8步 R2V 首发片 success 419s(NVFP4 内核+TE reference-vision 一炮通,fl2va 仓 nvfp4_awq 服务 ReferenceToVideo 成立);②bf16 28步 009@seed42 **350s**(40G 走 offload,较 Mac M4Max 2244s **快 6.4×**,出产标准档 Win 承接成立);双臂产物 608x352/226帧/aac32k 与 Mac 标准件同时长。**音频听感终裁候用户亲耳**(产物 apps/output/rtx4000-qad-verify-1031/) |
 
 台账全档:`MYStudio/.trellis/tasks/10-30-ch1-batch-closeout/research/h3-native-audio-path-1030.md`(含各试验耗时/产物路径)。
 
@@ -359,6 +359,8 @@ claims no rights over outputs and places responsibility on the user.
 - 另线:ComfyUI 官方博客原生 H3 VAE 优化(编码 2.2x/解码 1.4-2.7x,核心代码级)= 引擎升级附带收益,与 Sol-VAE 二选一或叠加,候换卡后引擎维护窗统一评。
 
 ## 2026-10-31 增补:FastH3 QAD NVFP4(RTX Pro 4000 Blackwell 线)
+
+**1101 用户终裁:QAD 线清退**(实弹两发 419s/414s 均慢于 bf16 350s+社区口碑动作/音频保真受损;模型件已卸,产线件已退役,本节留作知识档)。
 
 - **是什么**:FastVideo 的 QAD(Quantization-Aware Distillation,量化感知蒸馏)+ NVFP4 量化单文件 Comfy 版
   `fasth3_omniref_qad_nvfp4_comfy.safetensors`(13,773,998,700B,sha256 `bf25ee58df65b4df…`,1030 役已落 Windows
