@@ -93,6 +93,16 @@ ssh -o BatchMode=yes zbj@192.168.0.101 "tasklist | findstr /i \"studio\""       
 - 单测:`apps/backend/comfyui/tests/test_qi21_lm_ensure_service.py`(15 例:非本机不拉/起服务参数/env 注入 DETACHED/装载配方/超时放弃/装载超时仍放行/防火墙恰一次/快通不触发/进度载荷)
 - **追加三件(1102 晚,用户令「全部做完」)**:①**image 档懒加载**——切换器 `_step_lm` 不再预载 9B(D4b 退役),LM 全关时整步零触碰零 actor 调用(连 `lms ps` 都不发——lms CLI 会把 service 进程栈拉起);9B 全权归扩写节点用时拉,实弹=image 任务 50s 出图后 LM 进程仍零;②**防火墙 Block 自愈入节点链**——拉起等 greeting 60s 未通自动 `Disable-NetFirewallRule`(退役看门狗救③配方搬入,恰一次);③**拉起进度上画布**——节点 hidden `unique_id`+`send_sync("my_lm_pull_progress")`,`my-qi21-prompt-preview.js` 的 `MY.Qi21ApiPEPullProgress` 把进度临时挂节点 title(15s 恢复);实弹 ws 收到 3 条(启动中→装载→完成)。
 - **坑档(本轮血泪)**:类名是小写 i 的 `Qi21`(Q**i**21ApiPE),按 `QI21` 大写 grep 全链误诊"文件丢失",引发三轮假考古(append 被吞/去重误删/双投);验内容用正确大小写或 python bytes.count。
+- **日志地图(1102 实弹验实;出问题按此查,勿拼图)**:
+  | 看什么 | 文件(Windows) |
+  |---|---|
+  | **按需拉起全程**(启动中/等待 x/120s/60s 清防火墙/装载/退出码+stderr 尾/超时原因/完成) | `E:\IP\漫影工作室\comfyui\logs\engine.log`(引擎 stdout;grep `API扩写PE`) |
+  | **扩写结果**(透传降级原因/HTTP 错/空返) | 同上 engine.log + ComfyUI history 的 `api_pe_status` |
+  | **档位治理**(懒加载零触碰/切换/自愈) | `…\comfyui\logs\line-mode-YYYYMMDD.log`(双写,永不挡产线) |
+  | **actor 动作**(load9b/unload/lms_ps 回执) | `C:\Users\ZBJ\.lmstudio\actor.log`(attempt_id 握手) |
+  | **提示词全文**(每发装配/扩写终稿) | `…\comfyui\logs\image-prompts-YYYYMMDD.log` |
+  | 拉起进度(title 提示) | 瞬态 ws 推送不落盘——同内容已 print 进 engine.log,零信息丢失 |
+  | LM Studio 内部推理日志 | **不落盘**(server 以 DETACHED 起,stdout 弃)——节点侧已记"发了什么/回了什么/为何降级";要 LM 内部细节时手动前台 `lms server start` 观察(勿常驻) |
 
 ---
 
