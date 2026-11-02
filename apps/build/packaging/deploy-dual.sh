@@ -3,7 +3,7 @@
 # 用法: bash apps/build/packaging/deploy-dual.sh [--skip-mac] [--skip-win] [--skip-push] [--dry-run]
 #
 # Phase A: Mac 本地构建+覆盖安装+smoke → git push
-# Phase B: SSH 到 Windows → git pull(降级scp) → build:win → 停引擎 → 安装 → 同步my-nodes → 重启引擎 → smoke
+# Phase B: SSH 到 Windows → git pull(降级scp) → build:win → 停引擎 → 安装 → 同步my-nodes → 重启引擎 → smoke → 令牌同步(B7)
 # Phase C: 双机状态汇报
 #
 # Trellis: .trellis/tasks/11-02-dual-machine-deploy-pipeline
@@ -21,6 +21,16 @@ WIN_ENGINE_PORT=17000
 WIN_SSH_OPTS="-o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new"
 BAT_LOG="E:\\IP\\tmp\\deploy-dual-build.log"
 BAT_DONE="E:\\IP\\tmp\\deploy-dual-build.done"
+# 11-03 S4 远端代理鉴权修(B7 令牌同步):Windows 侧装机令牌唯一持久化真源=
+# image-gen config.json 的 controlToken 字段(electron getControlToken 读写,
+# image-gen-runtime-controller.ts:148 路径=pythonRuntimeDir/profiles/image-gen/;
+# pythonRuntimeDir=<storageBase>/python,storage-manager.ts:157)。本机存储根=
+# E:\IP\漫影工作室(WIN_ENGINE_HOME 的父目录);Electron 默认 %APPDATA% 同构
+# 路径作第二候选(在 Windows 侧 Join-Path 拼)。
+WIN_TOKEN_CONFIG="E:\\IP\\漫影工作室\\python\\profiles\\image-gen\\config.json"
+# Mac 侧落点:image_gen/server.py 凭据链最先读的 comfyui 家文件(comfy_home()
+# 跨平台解析,macOS=~/Library/Application Support/漫影工作室/comfyui/)。
+MAC_REMOTE_TOKEN_FILE="$HOME/Library/Application Support/漫影工作室/comfyui/remote-image-token.txt"
 
 # ── 参数解析 ─────────────────────────────────────────────────────
 SKIP_MAC=false; SKIP_WIN=false; SKIP_PUSH=false; DRY_RUN=false
@@ -299,6 +309,26 @@ phase_b() {
       log "✅ KSampler 节点在册(cfg4 混动臂依赖)"
     else
       die "KSampler 节点不在册(引擎异常)"
+    fi
+  fi
+
+  # B7: 令牌同步(11-03 S4 远端代理鉴权修)——双机装机令牌各异,Mac 代理远端
+  # sidecar 持本机令牌必 403。从 Windows App 持久化的 controlToken(config.json)
+  # 读出,写回 Mac comfyui 家 remote-image-token.txt(server.py 凭据链最先读它)。
+  # 找不到(App 未首用过 image-gen/路径变体)=跳过不阻断,log 给手动配法。
+  if ! dry "令牌同步: Windows controlToken → Mac remote-image-token.txt"; then
+    log "Syncing remote sidecar token (B7)..."
+    local win_token
+    win_token=$(ssh_win "powershell -NoProfile -Command \"\$c = @('$WIN_TOKEN_CONFIG', (Join-Path \$env:APPDATA '漫影工作室\\python\\profiles\\image-gen\\config.json')); foreach (\$p in \$c) { if (Test-Path \$p) { \$j = Get-Content -LiteralPath \$p -Raw | ConvertFrom-Json; if (\$j.controlToken) { Write-Output \$j.controlToken; break } } }\"" 2>/dev/null | tr -d '\r' | grep -m1 -E '^[A-Za-z0-9][A-Za-z0-9_-]*$' || true)
+    if [ -n "$win_token" ]; then
+      if mkdir -p "$(dirname "$MAC_REMOTE_TOKEN_FILE")" && printf '%s\n' "$win_token" > "$MAC_REMOTE_TOKEN_FILE"; then
+        log "✅ Windows 侧令牌已同步到 comfyui 家 remote-image-token.txt(远端代理凭据链最先读它)"
+      else
+        log "⚠️  令牌写入失败($MAC_REMOTE_TOKEN_FILE)——不阻断,可手动写入"
+      fi
+    else
+      log "⚠️  未在 Windows 侧找到 image-gen controlToken(找过 $WIN_TOKEN_CONFIG 与 %APPDATA% 同构路径;App 未首用过图像生成?)——跳过令牌同步不阻断"
+      log "    如远端代理 403,请手动:从 Windows 该 config.json 取 controlToken,写入 Mac 的 \"$MAC_REMOTE_TOKEN_FILE\""
     fi
   fi
 }

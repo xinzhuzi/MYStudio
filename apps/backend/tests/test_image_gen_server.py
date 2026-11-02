@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import signal
+import tempfile
 import unittest
 from io import BytesIO
 from email.message import Message
 from http import HTTPStatus
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from image_gen import server
@@ -640,6 +642,15 @@ class RemoteSidecarProxyRouteTests(unittest.TestCase):
     REMOTE_ENGINE = "http://192.168.0.101:17000"
     REMOTE_SIDECAR = "http://192.168.0.101:17595"
 
+    def setUp(self) -> None:
+        # 11-03 令牌文件优先源:密封 comfyui 家——机器级 remote-image-token.txt
+        # 真值不得渗入契约测(否则本类 env 优先/入站回落/裸请求断言被装机文件劫持)。
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        seal_home = patch("comfyui.manifest.comfy_home", return_value=Path(self._tmp.name))
+        seal_home.start()
+        self.addCleanup(seal_home.stop)
+
     class _Resp:
         def __init__(self, payload: dict) -> None:
             import json as _json
@@ -886,6 +897,83 @@ class RemoteSidecarProxyRouteTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.BAD_GATEWAY)
         self.assertEqual(payload["error"]["code"], "remote-sidecar-error")
         self.assertIn("HTTP 500", payload["error"]["message"])
+
+
+class RemoteSidecarProxyTokenFileTests(unittest.TestCase):
+    """11-03 S4 远端代理鉴权修:凭据链文件优先——comfyui 家 remote-image-token.txt
+    (deploy-dual.sh B7 自动同步 Windows 侧装机令牌)优先于
+    MANYING_REMOTE_IMAGE_TOKEN,再回落转发入站凭据。三路:文件存在/不存在/
+    内容空白→凭据选择正确(双机令牌各异,转发本机令牌对远端必 403)。"""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self._home = Path(self._tmp.name)
+
+    def _seal_home(self):
+        return patch("comfyui.manifest.comfy_home", return_value=self._home)
+
+    @staticmethod
+    def _handler(headers: dict | None = None) -> _ComfyHandler:
+        handler = _ComfyHandler.__new__(_ComfyHandler)
+        handler.headers = Message()
+        for key, value in (headers or {}).items():
+            handler.headers[key] = value
+        return handler
+
+    def test_token_file_present_wins_over_env_and_inbound(self) -> None:
+        # 文件存在(带尾随空白/CRLF):文件令牌胜出——env 与入站(本机)令牌都
+        # 不带;trailing whitespace strip 后干净投递
+        (self._home / server.REMOTE_TOKEN_FILE_NAME).write_text(
+            "win-file-token \r\n", encoding="utf-8"
+        )
+        with self._seal_home(), patch.dict(
+            "os.environ", {server.REMOTE_TOKEN_ENV: "win-env-token"}
+        ):
+            handler = self._handler({"X-Manying-Image-Token": "mac-local-token"})
+            self.assertEqual(
+                handler._remote_sidecar_credentials(),
+                {"X-Manying-Image-Token": "win-file-token"},
+            )
+
+    def test_token_file_missing_falls_through_to_env_then_inbound(self) -> None:
+        # 文件不存在:env 配了=env 令牌;env 也空=回落转发入站凭据(11-02 现行链)
+        with self._seal_home(), patch.dict(
+            "os.environ", {server.REMOTE_TOKEN_ENV: "win-env-token"}
+        ):
+            self.assertEqual(
+                self._handler()._remote_sidecar_credentials(),
+                {"X-Manying-Image-Token": "win-env-token"},
+            )
+        with self._seal_home(), patch.dict(
+            "os.environ", {server.REMOTE_TOKEN_ENV: ""}
+        ):
+            handler = self._handler(
+                {
+                    "Authorization": "Bearer mac-local-token",
+                    "X-Manying-Image-Token": "mac-local-token",
+                }
+            )
+            self.assertEqual(
+                handler._remote_sidecar_credentials(),
+                {
+                    "Authorization": "Bearer mac-local-token",
+                    "X-Manying-Image-Token": "mac-local-token",
+                },
+            )
+
+    def test_token_file_blank_falls_through_to_env(self) -> None:
+        # 内容空白(纯空白字符):视同未配,继续 env→inbound 链
+        (self._home / server.REMOTE_TOKEN_FILE_NAME).write_text(
+            "   \r\n\n", encoding="utf-8"
+        )
+        with self._seal_home(), patch.dict(
+            "os.environ", {server.REMOTE_TOKEN_ENV: "win-env-token"}
+        ):
+            self.assertEqual(
+                self._handler()._remote_sidecar_credentials(),
+                {"X-Manying-Image-Token": "win-env-token"},
+            )
 
 
 if __name__ == "__main__":

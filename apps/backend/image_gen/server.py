@@ -65,7 +65,11 @@ LOCAL_TOKEN_ENV = "MANYING_LOCAL_IMAGE_TOKEN"
 # 远端无效,裸转发必 403 且被误诊「服务未运行」。双机部署把 Windows 侧令牌
 # 经启动 env 配到 Mac(electron spawn env 透传 process.env),代理据此携带;
 # 缺省回落转发入站凭据(双机手工对齐令牌的部署可用)。
+# 11-03 S4 远端代理鉴权修:手工 env 在双机流水线里易漏(忘了配=403),新增
+# 文件优先源——deploy-dual.sh B7 在 smoke 后把 Windows 侧令牌同步到 comfyui
+# 家本文件,凭据链=文件 → env → 入站(见 _remote_sidecar_credentials)。
 REMOTE_TOKEN_ENV = "MANYING_REMOTE_IMAGE_TOKEN"
+REMOTE_TOKEN_FILE_NAME = "remote-image-token.txt"
 
 
 def local_token() -> str:
@@ -121,6 +125,23 @@ def _remote_sidecar_base_url() -> str | None:
         return None
     bracketed = f"[{host}]" if ":" in host else host  # IPv6 字面量需方括号
     return f"http://{bracketed}:{REMOTE_SIDECAR_PORT}"
+
+
+def _remote_sidecar_token_from_file() -> str:
+    """comfyui 家 remote-image-token.txt 里的远端令牌(11-03 S4;deploy-dual.sh B7 写入)。
+
+    家目录由 comfy_home() 跨平台解析(macOS=~/Library/Application Support/
+    漫影工作室/comfyui/,Windows=<userData>\\comfyui\\)。文件不存在/读失败/
+    内容空白=空串(调用方继续 env→inbound 链);trailing whitespace strip
+    (编辑器尾换行/Windows CRLF 不致脏令牌)。
+    """
+    from comfyui.manifest import comfy_home
+
+    try:
+        token = (comfy_home() / REMOTE_TOKEN_FILE_NAME).read_text(encoding="utf-8").strip()
+    except (OSError, ValueError):
+        return ""
+    return token
 
 
 # ── 1021 API 出图完成提示音 ────────────────────────────────────────────
@@ -216,13 +237,14 @@ class Handler(BaseHTTPRequestHandler):
         self._send_json({"error": {"message": message, "code": code}, "status": int(status)}, status)
 
     def _remote_sidecar_credentials(self) -> dict:
-        """远端 sidecar 代理凭据(11-02 S4 复核修,见 REMOTE_TOKEN_ENV 注释)。
+        """远端 sidecar 代理凭据(11-02 S4 复核修+11-03 文件优先,见 REMOTE_TOKEN_ENV 注释)。
 
-        优先 MANYING_REMOTE_IMAGE_TOKEN(双机部署把 Windows 侧令牌配到 Mac);
-        缺省回落转发入站凭据(双机对齐令牌的部署可用)。两者皆空=裸请求,
+        优先 comfyui 家 remote-image-token.txt(deploy-dual.sh B7 自动同步
+        Windows 侧令牌,免手工配 env);次优 MANYING_REMOTE_IMAGE_TOKEN;
+        缺省回落转发入站凭据(双机对齐令牌的部署可用)。三者皆空=裸请求,
         远端 403 由调用方诚实分报(remote-sidecar-auth),不再误诊未运行。
         """
-        remote_token = os.environ.get(REMOTE_TOKEN_ENV, "").strip()
+        remote_token = _remote_sidecar_token_from_file() or os.environ.get(REMOTE_TOKEN_ENV, "").strip()
         if remote_token:
             return {"X-Manying-Image-Token": remote_token}
         credentials: dict = {}
@@ -259,7 +281,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_error_json(
                     HTTPStatus.FORBIDDEN,
                     "远端引擎管理服务鉴权失败(令牌未配或不一致):Windows 侧 MYStudio App "
-                    "的装机令牌与本机不同——请在 Mac 侧启动 App 时设置 "
+                    "的装机令牌与本机不同——请重跑 deploy-dual.sh(其 B7 步自动同步 Windows "
+                    "侧令牌到 comfyui 家 remote-image-token.txt),或手动写入该文件/设置 "
                     "MANYING_REMOTE_IMAGE_TOKEN=<Windows 侧令牌> 后重试",
                     "remote-sidecar-auth",
                 )

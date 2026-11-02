@@ -1271,6 +1271,33 @@ describe("远端引擎接管(1102 S2:src 跟随/可达态/拉起抑制/零重启
     );
     rerender(<ComfyCanvasStudio />);
   });
+
+  // ── 1102 S2 测锁定(前端收尾)───────────────────────────────────────
+  // 锁死本组件 :691/:724 的 !remoteActive 旁路:远端生效(remoteActive=true)
+  // 时即使本机 status.installed=false 也不渲染安装面板——本用例补探活不可达
+  // 窗(src=null,无 webview、最易回归弹「安装引擎」的状态):该窗的诚实占位
+  // =「远端引擎未就绪」指引,安装按钮/未装文案/安装进度文案一概缺席。既有
+  // 复核修用例(:1141 探活 ok+未装 / :1185 探活 ok+安装 job 在途)只锁 src
+  // 就绪分支,此处补不可达分支合围。
+  it("S2 测锁定:远端生效+本机未装+探活不可达窗=远端未就绪占位,绝不渲染安装面板", async () => {
+    setRemoteConfigured();
+    setRemoteProbeOk(false);
+    (window as { comfyEngine?: ComfyEngineClient }).comfyEngine = stubClient({
+      installed: false,
+      state: "not-installed",
+      serviceRunning: false,
+      port: null,
+    });
+    render(<ComfyCanvasStudio />);
+    expect(await screen.findByText("远端引擎未就绪")).toBeTruthy();
+    // 安装面板两变体(按钮/进度)零渲染:remoteActive=true 一概旁路
+    expect(screen.queryByRole("button", { name: /^安装引擎$|^继续安装$/ })).toBeNull();
+    expect(screen.queryByText(/还没安装 ComfyUI 引擎|引擎装了一半/)).toBeNull();
+    expect(screen.queryByText(/正在安装引擎/)).toBeNull();
+    expect(document.querySelector("[data-comfy-canvas-install]")).toBeNull();
+    // 不可达窗不落 webview(不静默直载未探活地址)
+    expect(document.querySelector("[data-comfy-canvas-webview]")).toBeNull();
+  });
 });
 
 describe("buildOverviewOpenScript(工作流阶段自动打开分镜总览 09-10;09-12 单实例协议通道)", () => {
