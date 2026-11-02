@@ -90,7 +90,9 @@ ssh -o BatchMode=yes zbj@192.168.0.101 "tasklist | findstr /i \"studio\""       
 - **新语义注意**:服务平时不在=**正常状态不是故障**;首次扩写要现场拉起最长 ~7 分钟(该等待进的是真实需要它的那一发)。用完不自动关——LM Studio 自身 TTL 1h 闲置自动卸载模型(显存自然还),服务进程留下次复用;**想长时间关闭随时手动关,退役后无人翻案**。
 - 遗留风险(可接受):看门狗救③(防火墙程序级 Block 规则自动禁用)随之退役——Block 冒头(授权框被取消时生成,低频)时按需拉起会失败并降级透传,日志指路本档,手动 `Disable-NetFirewallRule -DisplayName 'LM Studio'` 即恢复。
 - Mac/节点侧配套(1007 落地沿用):[4013] MyQi21ApiPE 发前 3s 探活+无代理 opener+透传时 ui 状态字段 `api_pe_status`(JS 把节点标红+标题警示)——服务不在且拉不起时画布一眼可辨透传
-- 单测:`apps/backend/comfyui/tests/test_qi21_lm_ensure_service.py`(11 例:非本机不拉/起服务参数/env 注入 DETACHED/装载配方/超时放弃/装载超时仍放行)
+- 单测:`apps/backend/comfyui/tests/test_qi21_lm_ensure_service.py`(15 例:非本机不拉/起服务参数/env 注入 DETACHED/装载配方/超时放弃/装载超时仍放行/防火墙恰一次/快通不触发/进度载荷)
+- **追加三件(1102 晚,用户令「全部做完」)**:①**image 档懒加载**——切换器 `_step_lm` 不再预载 9B(D4b 退役),LM 全关时整步零触碰零 actor 调用(连 `lms ps` 都不发——lms CLI 会把 service 进程栈拉起);9B 全权归扩写节点用时拉,实弹=image 任务 50s 出图后 LM 进程仍零;②**防火墙 Block 自愈入节点链**——拉起等 greeting 60s 未通自动 `Disable-NetFirewallRule`(退役看门狗救③配方搬入,恰一次);③**拉起进度上画布**——节点 hidden `unique_id`+`send_sync("my_lm_pull_progress")`,`my-qi21-prompt-preview.js` 的 `MY.Qi21ApiPEPullProgress` 把进度临时挂节点 title(15s 恢复);实弹 ws 收到 3 条(启动中→装载→完成)。
+- **坑档(本轮血泪)**:类名是小写 i 的 `Qi21`(Q**i**21ApiPE),按 `QI21` 大写 grep 全链误诊"文件丢失",引发三轮假考古(append 被吞/去重误删/双投);验内容用正确大小写或 python bytes.count。
 
 ---
 
