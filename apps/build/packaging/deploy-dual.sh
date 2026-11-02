@@ -97,9 +97,18 @@ phase_b() {
       log "✅ git pull 成功"
     else
       log "⚠️  git pull 失败(网络),降级 scp 推变更文件..."
-      # 降级: scp 推 origin/main..HEAD 差集(已推远端与本地 HEAD 的差;兜底 HEAD~5)
+      # 降级差集基准=Windows 实际 HEAD(1102 实弹翻案:origin/main..HEAD 在 Mac 已推空时
+      # 差集恒空→一个文件都送不过去→Windows 构建旧代码假绿;以 win_head..HEAD 为准,
+      # Mac 没有该 commit(极端分叉)时退 origin/main..HEAD→HEAD~5 双兜底)
+      local win_head
+      win_head=$(ssh_win "cd /d $WIN_REPO && git rev-parse HEAD 2>nul" 2>/dev/null | tr -d '\r\n ')
       local changed
-      changed=$(git -C "$REPO_ROOT" diff --name-only origin/main..HEAD 2>/dev/null | head -50)
+      if [ -n "$win_head" ] && git -C "$REPO_ROOT" cat-file -e "${win_head}^{commit}" 2>/dev/null; then
+        log " Windows HEAD=$win_head(差集基准)"
+        changed=$(git -C "$REPO_ROOT" diff --name-only "${win_head}..HEAD" 2>/dev/null | head -200)
+      else
+        changed=$(git -C "$REPO_ROOT" diff --name-only origin/main..HEAD 2>/dev/null | head -50)
+      fi
       if [ -z "$changed" ]; then
         changed=$(git -C "$REPO_ROOT" diff --name-only HEAD~5..HEAD 2>/dev/null | head -50)
       fi
