@@ -88,24 +88,29 @@ phase_a() {
 phase_b() {
   log "════ Phase B: Windows 远程构建+安装+smoke ════"
 
-  # B1: git pull(首选) / scp 变更文件(降级)
+  # B1: git pull(首选;先 checkout main 防 detached HEAD) / scp 变更文件(降级)
   if ! dry "Windows git pull"; then
     log "Pulling latest on Windows..."
     local pull_ok=false
-    if ssh_win "cd /d $WIN_REPO && git pull origin main 2>&1" | tail -2; then
+    if ssh_win "cd /d $WIN_REPO && git checkout -q main 2>nul & git pull origin main 2>&1" | tail -2; then
       pull_ok=true
       log "✅ git pull 成功"
     else
       log "⚠️  git pull 失败(网络),降级 scp 推变更文件..."
-      # 降级: 用 scp 推 git archive 的变更文件
+      # 降级: scp 推 origin/main..HEAD 差集(已推远端与本地 HEAD 的差;兜底 HEAD~5)
       local changed
-      changed=$(git -C "$REPO_ROOT" diff --name-only HEAD~5..HEAD 2>/dev/null | head -50)
+      changed=$(git -C "$REPO_ROOT" diff --name-only origin/main..HEAD 2>/dev/null | head -50)
+      if [ -z "$changed" ]; then
+        changed=$(git -C "$REPO_ROOT" diff --name-only HEAD~5..HEAD 2>/dev/null | head -50)
+      fi
       if [ -n "$changed" ]; then
         log " scp 推送 $(echo "$changed" | wc -l | tr -d ' ') 个变更文件..."
         for f in $changed; do
-          local wf="$WIN_REPO\\${f//\//\\}"
-          ssh_win "if not exist \"$(dirname "$wf")\" mkdir \"$(dirname "$wf")\"" 2>/dev/null || true
-          scp -o ConnectTimeout=5 "$REPO_ROOT/$f" "$WIN_HOST:$wf" 2>/dev/null || log "  ⚠️  $f scp 失败"
+          # 先在正斜杠域算父目录(macOS dirname 不认反斜杠),再转反斜杠投给 Windows
+          local wf_dir_fwd="${f%/*}"
+          local wf_dir="$(printf '%s' "$wf_dir_fwd" | tr '/' '\\')"
+          ssh_win "if not exist \"$WIN_REPO\\$wf_dir\" mkdir \"$WIN_REPO\\$wf_dir\"" 2>/dev/null || true
+          scp -o ConnectTimeout=5 "$REPO_ROOT/$f" "$WIN_HOST:$WIN_REPO\\${f//\//\\}" 2>/dev/null || log "  ⚠️  $f scp 失败"
         done
         log "✅ scp 降级完成(部分文件可能失败,建议后续手动 git pull)"
       else
@@ -161,14 +166,18 @@ phase_b() {
     fi
   fi
 
-  # B4: 安装(robocopy /MIR)
+  # B4: 安装(robocopy /MIR;前置验证构建产物在)
   if ! dry "robocopy $WIN_BUILD_OUT → $WIN_INSTALL"; then
     log "Installing (robocopy /MIR)..."
+    # 前置验证:构建产物 resources 目录在才拷
+    if ! ssh_win "if exist \"$WIN_REPO\\$WIN_BUILD_OUT\\resources\" (echo OUT_OK) else (echo OUT_MISSING)" 2>/dev/null | grep -q "OUT_OK"; then
+      die "构建产物不存在: $WIN_REPO\\$WIN_BUILD_OUT\\resources(B2 构建是否真成功?)"
+    fi
     local rc_result
     rc_result=$(ssh_win "robocopy \"$WIN_REPO\\$WIN_BUILD_OUT\" \"$WIN_INSTALL\" /MIR /R:2 /W:2 /NFL /NDL /NJH /NJS 2>&1; echo EXIT:%errorlevel%")
     local rc_code
     rc_code=$(echo "$rc_result" | grep -o 'EXIT:[0-9]*' | cut -d: -f2)
-    # robocopy exit code 0-7 = success, 8+ = failure
+    # robocopy exit code 0-7 = success(0=无变化 1=已拷贝 2=额外 4=不匹配;8+=真失败), 8+ = failure
     if [ "$rc_code" -le 7 ] 2>/dev/null; then
       log "✅ robocopy 安装成功(exit=$rc_code)"
     else
@@ -176,20 +185,37 @@ phase_b() {
     fi
   fi
 
-  # B4.5: 同步 my-nodes 到引擎(Grill Q1=A:脚本直接复制)
+  # B4.5: 同步 my-nodes 到引擎(Grill Q1=A:脚本直接复制;/E 仅增不删——引擎侧特有文件不能删)
   if ! dry "同步 my-nodes → 引擎"; then
     log "Syncing my-nodes to engine..."
-    ssh_win "robocopy \"$WIN_INSTALL\\resources\\backend\\comfyui\\my_nodes\" \"$WIN_ENGINE_HOME\\ComfyUI\\custom_nodes\\my-nodes\" /MIR /R:2 /W:2 /NFL /NDL /NJH /NJS" >/dev/null 2>&1
-    # robocopy 0-7 都算成功
-    log "✅ my-nodes 已同步到引擎 custom_nodes"
+    local mn_result
+    mn_result=$(ssh_win "robocopy \"$WIN_INSTALL\\resources\\backend\\comfyui\\my_nodes\" \"$WIN_ENGINE_HOME\\ComfyUI\\custom_nodes\\my-nodes\" /E /R:2 /W:2 /XF __pycache__ *.pyc /NFL /NDL /NJH /NJS 2>&1; echo EXIT:%errorlevel%")
+    local mn_code
+    mn_code=$(echo "$mn_result" | grep -o 'EXIT:[0-9]*' | cut -d: -f2)
+    # robocopy 0-7 = success; /E 不删引擎侧文件
+    if [ "$mn_code" -le 7 ] 2>/dev/null; then
+      log "✅ my-nodes 已同步到引擎 custom_nodes(exit=$mn_code)"
+    else
+      die "my-nodes 同步失败(exit=$mn_code)"
+    fi
   fi
 
-  # B5: 重启引擎
+  # B5: 重启引擎(重试探测 /system_stats,最长 60s 每 5s——冷启动加载模型可能超 15s)
   if ! dry "重启引擎"; then
     log "Starting engine..."
     ssh_win "start /b \"$WIN_ENGINE_HOME\\venv\\Scripts\\pythonw.exe\" \"$WIN_ENGINE_HOME\\ComfyUI\\main.py\" --listen 0.0.0.0 --port $WIN_ENGINE_PORT --lowvram --enable-manager --use-pytorch-cross-attention --output-directory \"$WIN_ENGINE_HOME\\output\"" || true
-    log " 等待引擎启动(15s)..."
-    sleep 15
+    log " 等待引擎启动(重试探测,最长 60s)..."
+    local engine_up=false engine_wait=0
+    while [ $engine_wait -lt 60 ]; do
+      sleep 5
+      engine_wait=$((engine_wait + 5))
+      if ssh_win "curl.exe -s --max-time 5 http://127.0.0.1:$WIN_ENGINE_PORT/system_stats" 2>/dev/null | grep -q "comfyui_version\|system"; then
+        engine_up=true
+        log "✅ 引擎已就绪(${engine_wait}s)"
+        break
+      fi
+    done
+    $engine_up || die "引擎 60s 内未就绪(查引擎日志: $WIN_ENGINE_HOME\\ComfyUI\\user\\comfyui.log 或手动跑 python main.py 看报错)"
   fi
 
   # B6: Smoke
@@ -211,6 +237,15 @@ phase_b() {
       log "✅ MyQi21SpeedSelect 节点在册"
     else
       die "MyQi21SpeedSelect 节点不在册(my-nodes 同步失败?)"
+    fi
+
+    # KSampler 在册=cfg4 混动臂依赖的标准节点可用
+    local ks_check
+    ks_check=$(ssh_win "curl.exe -s --max-time 10 http://127.0.0.1:$WIN_ENGINE_PORT/object_info/KSampler" 2>/dev/null)
+    if echo "$ks_check" | grep -q "KSampler"; then
+      log "✅ KSampler 节点在册(cfg4 混动臂依赖)"
+    else
+      die "KSampler 节点不在册(引擎异常)"
     fi
   fi
 }
